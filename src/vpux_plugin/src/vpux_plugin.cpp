@@ -75,7 +75,7 @@ Engine::Engine(): _backends(std::make_shared<VPUXBackends>(backendRegistry)), _m
 //------------------------------------------------------------------------------
 //      Load network
 //------------------------------------------------------------------------------
-IE::ExecutableNetworkInternal::Ptr Engine::LoadExeNetwork(const IE::CNNNetwork& network,
+IE::IExecutableNetworkInternal::Ptr Engine::LoadExeNetwork(const IE::CNNNetwork& network,
                                                           std::shared_ptr<Device>& device,
                                                           const VPUXConfig& networkConfig) {
     OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "LoadExeNetwork");
@@ -88,7 +88,7 @@ IE::ExecutableNetworkInternal::Ptr Engine::LoadExeNetwork(const IE::CNNNetwork& 
     }
 }
 
-IE::ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(const IE::CNNNetwork& network,
+IE::IExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(const IE::CNNNetwork& network,
                                                               const std::map<std::string, std::string>& config) {
     auto networkConfig = mergePluginAndNetworkConfigs(_parsedConfig, config);
     auto device = _backends->getDevice(networkConfig.deviceId());
@@ -100,8 +100,8 @@ IE::ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(const IE::CNNNetwo
     return LoadExeNetwork(network, device, networkConfig);
 }
 
-IE::ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(const IE::CNNNetwork& network,
-                                                              IE::RemoteContext::Ptr context,
+IE::IExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(const IE::CNNNetwork& network,
+                                                              const IE::RemoteContext::Ptr& context,
                                                               const std::map<std::string, std::string>& config) {
     auto networkConfig = mergePluginAndNetworkConfigs(_parsedConfig, config);
     auto device = _backends->getDevice(context);
@@ -122,7 +122,7 @@ IE::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(const std::string& mod
     return ImportNetworkImpl(vpu::KmbPlugin::utils::skipMagic(blobStream), config);
 }
 
-IE::ExecutableNetworkInternal::Ptr Engine::ImportNetworkImpl(std::istream& networkModel,
+IE::IExecutableNetworkInternal::Ptr Engine::ImportNetworkImpl(std::istream& networkModel,
                                                              const std::map<std::string, std::string>& config) {
     OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "ImportNetwork");
     auto networkConfig = mergePluginAndNetworkConfigs(_parsedConfig, config);
@@ -130,7 +130,7 @@ IE::ExecutableNetworkInternal::Ptr Engine::ImportNetworkImpl(std::istream& netwo
     return std::make_shared<ExecutableNetwork>(networkModel, device, networkConfig);
 }
 
-IE::ExecutableNetworkInternal::Ptr Engine::ImportNetworkImpl(std::istream& networkModel, const IE::RemoteContext::Ptr& context,
+IE::IExecutableNetworkInternal::Ptr Engine::ImportNetworkImpl(std::istream& networkModel, const IE::RemoteContext::Ptr& context,
                                                              const std::map<std::string, std::string>& config) {
     OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "ImportNetwork");
     auto networkConfig = mergePluginAndNetworkConfigs(_parsedConfig, config);

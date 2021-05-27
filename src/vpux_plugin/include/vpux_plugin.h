@@ -17,7 +17,8 @@
 #include <map>
 #include <string>
 // IE
-#include "cpp_interfaces/impl/ie_plugin_internal.hpp"
+#include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
+#include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "inference_engine.hpp"
 // Plugin
 #include "vpux.hpp"
@@ -27,24 +28,24 @@
 
 namespace vpux {
 
-class Engine : public InferenceEngine::InferencePluginInternal {
+class Engine : public InferenceEngine::IInferencePlugin {
 public:
     Engine();
 
-    InferenceEngine::ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(
+    InferenceEngine::IExecutableNetworkInternal::Ptr LoadExeNetworkImpl(
             const InferenceEngine::CNNNetwork& network, const std::map<std::string, std::string>& config) override;
 
-    InferenceEngine::ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(
-            const InferenceEngine::CNNNetwork& network, InferenceEngine::RemoteContext::Ptr ptr,
+    InferenceEngine::IExecutableNetworkInternal::Ptr LoadExeNetworkImpl(
+            const InferenceEngine::CNNNetwork& network, const std::shared_ptr<InferenceEngine::RemoteContext>& ptr,
             const std::map<std::string, std::string>& map) override;
 
     InferenceEngine::IExecutableNetworkInternal::Ptr ImportNetwork(
             const std::string& modelFileName, const std::map<std::string, std::string>& config) override;
 
-    InferenceEngine::ExecutableNetworkInternal::Ptr ImportNetworkImpl(
+    InferenceEngine::IExecutableNetworkInternal::Ptr ImportNetworkImpl(
             std::istream& networkModel, const std::map<std::string, std::string>& config) override;
 
-    InferenceEngine::ExecutableNetworkInternal::Ptr ImportNetworkImpl(
+    InferenceEngine::IExecutableNetworkInternal::Ptr ImportNetworkImpl(
             std::istream& networkModel, const InferenceEngine::RemoteContext::Ptr& context,
             const std::map<std::string, std::string>& config) override;
 
@@ -66,9 +67,9 @@ public:
     InferenceEngine::RemoteContext::Ptr CreateContext(const InferenceEngine::ParamMap& map) override;
 
 private:
-    InferenceEngine::ExecutableNetworkInternal::Ptr LoadExeNetwork(const InferenceEngine::CNNNetwork& network,
-                                                                   std::shared_ptr<Device>& device,
-                                                                   const VPUXConfig& networkConfig);
+    InferenceEngine::IExecutableNetworkInternal::Ptr LoadExeNetwork(const InferenceEngine::CNNNetwork& network,
+                                                                    std::shared_ptr<Device>& device,
+                                                                    const VPUXConfig& networkConfig);
 
 private:
     VPUXConfig _parsedConfig;

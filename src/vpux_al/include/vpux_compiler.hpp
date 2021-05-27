@@ -22,7 +22,7 @@
 #include <ie_input_info.hpp>
 #include <ie_remote_context.hpp>
 #include <vpux_config.hpp>
-#include "cpp_interfaces/impl/ie_plugin_internal.hpp"
+#include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 
 namespace vpux {
 
