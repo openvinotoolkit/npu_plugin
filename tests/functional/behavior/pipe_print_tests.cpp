@@ -19,7 +19,8 @@
 # define MV_CONSOLE_TX_QUEUE 0x0000000094400040
 #endif
 
-#include "dummy_network.hpp"
+#include <base/behavior_test_utils.hpp>
+#include "common/functions.h"
 #include "vpux/vpux_plugin_config.hpp"
 
 #include <sys/mman.h>
@@ -128,7 +129,8 @@ TEST_P(PipePrintTest, CanLocateCanaries) {
 
     memset(*header, sizeof(tyMvConsoleQueue), 0);
 
-    auto cnnNet = createDummyNetwork();
+    auto cnnNet = buildSingleLayerSoftMaxNetwork();
+    configuration[VPUX_CONFIG_KEY(PLATFORM)] = PlatformEnvironment::PLATFORM;
     ASSERT_NO_THROW(ie->LoadNetwork(cnnNet, "VPUX", configuration));
 
     // after graph loading pipe should be initialized by runtime

@@ -4,8 +4,6 @@
 
 #pragma once
 
-#include "dummy_network.hpp"
-
 #include <vector>
 #include <string>
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
