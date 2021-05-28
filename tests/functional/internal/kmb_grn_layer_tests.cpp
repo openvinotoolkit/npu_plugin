@@ -41,6 +41,11 @@ TEST_P(KmbGRNLayerTests, accuracy) {
         SKIP_ON("KMB", "HDDL2", "VPUX", "Error in infer");
     }
 
+#ifdef _WIN32
+    // [Track number: E#13238]
+    SKIP_ON("KMB", "HDDL2", "VPUX", "CallVpu error: -1");
+#endif
+
     const auto dims = p.dims();
     const auto layout = p.layout();
 
