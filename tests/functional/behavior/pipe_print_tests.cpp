@@ -124,6 +124,9 @@ protected:
 // vpuip_2/application/vpuFirmware/FW_bootLoader/mvbuild/ma2490/payload/payload.map
 //                0x0000000094400040                mvConsoleTxQueue
 TEST_P(PipePrintTest, CanLocateCanaries) {
+    if (PlatformEnvironment::PLATFORM == "VPU3900") {
+        SKIP() << "Not applicable for TBH. Results in bus error.";
+    }
     // clear canaries
     PhysPtr<tyMvConsoleQueue> header(phy_addr);
 
