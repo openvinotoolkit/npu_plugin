@@ -144,13 +144,14 @@ std::shared_ptr<INetworkDescription> vpux::CompilerImpl::compile(const std::shar
     // Parse config options
     //
 
+    auto compilationMode = getCompilationMode(config);
+
     // TODO: move this to config class
     bool enablePassVerifier = true;
     std::string crashReproducerFile;
     bool localReproducer = true;
     Optional<llvm::Regex> irPrintingFilter;
     bool printFullIR = false;
-    VPUIP::CompilationMode compilationMode = getCompilationMode(config);
     bool printFullConstant = false;
 
 #ifdef VPUX_DEVELOPER_BUILD
