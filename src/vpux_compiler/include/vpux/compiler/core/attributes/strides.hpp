@@ -54,6 +54,7 @@ public:
 
 Bit getElemTypeSize(mlir::Type type);
 Byte getTypeTotalSize(mlir::MemRefType type);
+Byte getTotalSize(mlir::Value val);
 
 //
 // Strides

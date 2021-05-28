@@ -46,14 +46,17 @@ void vpux::VPUIP::setArch(mlir::ModuleOp module, ArchKind kind) {
     // Size 192 found manually through experimentation. May be incorrect.
     addMem(VPUIP::PhysicalMemory::DDR, 192_MB, 0.6, 8);
 
+    // Run-time will use part of CMX to store DPU workload configuration.
+    const Byte extraSpaceForWorkload = 128_KB;
+
     switch (kind) {
     case VPUIP::ArchKind::VPU3720:
         // No cmx upa in vpu 2.7
-        addMem(VPUIP::PhysicalMemory::CMX_NN, 2_MB, 1.0, 32);
+        addMem(VPUIP::PhysicalMemory::CMX_NN, Byte(2_MB) - extraSpaceForWorkload, 1.0, 32);
         break;
     default:
         addMem(VPUIP::PhysicalMemory::CMX_UPA, 4_MB, 0.85, 16);
-        addMem(VPUIP::PhysicalMemory::CMX_NN, 1_MB, 1.0, 32);
+        addMem(VPUIP::PhysicalMemory::CMX_NN, Byte(1_MB) - extraSpaceForWorkload, 1.0, 32);
         if (kind == VPUIP::ArchKind::VPU3900) {
             addMem(VPUIP::PhysicalMemory::CSRAM, 24_MB, 0.85, 64);
         }

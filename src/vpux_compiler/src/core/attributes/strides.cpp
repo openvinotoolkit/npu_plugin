@@ -71,6 +71,12 @@ Byte vpux::getTypeTotalSize(mlir::MemRefType type) {
     return Byte(memStrides.front() * memShape.front());
 }
 
+Byte vpux::getTotalSize(mlir::Value val) {
+    const auto type = val.getType().dyn_cast_or_null<mlir::MemRefType>();
+    VPUX_THROW_UNLESS(type != nullptr, "Value '{0}' has non MemRefType '{1}'", val, val.getType());
+    return getTypeTotalSize(type);
+}
+
 //
 // Strides
 //
