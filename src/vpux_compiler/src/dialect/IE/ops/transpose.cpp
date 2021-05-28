@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -36,7 +36,6 @@ mlir::LogicalResult getOrder(IE::TransposeOpAdaptor transpose, SmallVector<int64
     if (transpose.order() != nullptr && transpose.order_value() != nullptr) {
         return errorAt(loc, "Ambiguous order representation");
     }
-
     if (transpose.order() == nullptr && transpose.order_value() == nullptr) {
         return errorAt(loc, "Missed order representation");
     }

@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -20,7 +20,6 @@
 #include "vpux/utils/core/mem_size.hpp"
 
 #include <mlir/Dialect/Async/IR/Async.h>
-#include <mlir/Dialect/Linalg/IR/LinalgOps.h>
 #include <mlir/Dialect/MemRef/IR/MemRef.h>
 #include <mlir/Dialect/Quant/QuantOps.h>
 #include <mlir/Dialect/StandardOps/IR/Ops.h>

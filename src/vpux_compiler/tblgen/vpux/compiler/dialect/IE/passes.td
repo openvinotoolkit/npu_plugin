@@ -15,7 +15,6 @@
 #define VPUX_COMPILER_DIALECT_IE_PASSES
 
 include "mlir/Pass/PassBase.td"
-include "mlir/Dialect/Linalg/IR/LinalgOps.td"
 
 //
 // UseUserPrecision

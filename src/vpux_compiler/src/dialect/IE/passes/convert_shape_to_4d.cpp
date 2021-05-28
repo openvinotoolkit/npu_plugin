@@ -22,14 +22,10 @@
 #include "vpux/utils/core/format.hpp"
 #include "vpux/utils/core/range.hpp"
 
-#include <mlir/Dialect/Linalg/IR/LinalgOps.h>
-#include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/IR/BlockAndValueMapping.h>
 #include <mlir/IR/BuiltinOps.h>
 #include <mlir/IR/BuiltinTypes.h>
-#include <mlir/Pass/PassManager.h>
 #include <mlir/Transforms/GreedyPatternRewriteDriver.h>
-#include <mlir/Transforms/Passes.h>
 
 using namespace vpux;
 
@@ -532,13 +528,8 @@ SmallVector<int64_t> ConvertShapeTo4DPass::getNewShape(mlir::ShapedType tensor) 
 IE::ReshapeOp ConvertShapeTo4DPass::addReshapeOperation(mlir::Operation* origOp, mlir::Value input,
                                                         mlir::ArrayRef<int64_t> shape,
                                                         mlir::PatternRewriter& rewriter) {
-    int64_t shapeSize = shape.size();
-    const auto inputShapeType = mlir::RankedTensorType::get({shapeSize}, getSInt64Type(origOp->getContext()));
-    const auto inputShapeAttr = mlir::DenseElementsAttr::get(inputShapeType, shape);
-    auto inputShapeOp = rewriter.create<IE::ConstantOp>(origOp->getLoc(), inputShapeType, inputShapeAttr);
-    auto reshapeOp = rewriter.create<IE::ReshapeOp>(origOp->getLoc(), input, inputShapeOp, false);
-
-    return reshapeOp;
+    const auto outShapeAttr = getInt64ArrayAttr(origOp->getContext(), shape);
+    return rewriter.create<IE::ReshapeOp>(origOp->getLoc(), input, nullptr, false, outShapeAttr);
 }
 
 //

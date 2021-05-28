@@ -277,7 +277,6 @@ link_system_libraries(${OBJ_TARGET_NAME}
         MLIRAffineTransforms
         MLIRAsync
         MLIRIR
-        MLIRLinalg
         MLIRMemRef
         MLIROptLib
         MLIRPass

@@ -16,8 +16,8 @@ Some of the layer operations in the **IE Dialect** defines Canonicalization hook
 * Remove redundant Operations (same type `Reshape`/`Tile`, `Add` with 0, etc.).
 * Apply Lazy Constant Folding.
 * Replace Constant Values with Attributes (more linear graph).
-* Fuse common patterns (`Mul+Add => ScaleShift`, `Convolution+Bias`).
-* Use more convinient Operations (`MatMul => FullyConnected`, `Reshape => linalg.tensor_reshape`).
+* Fuse common patterns (for example, `Mul+Add => ScaleShift`, `Convolution+Bias`).
+* Use more convinient Operations (for example, `MatMul => FullyConnected`).
 
 Quantization parameters are stored as a part of tensor/buffer element type (`QuantizedType` from **Quant Dialect**).
 
@@ -1432,6 +1432,7 @@ operation ::= `IE.Reshape` `(` operands `)` attr-dict `:` type(operands) `->` ty
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
 `special_zero` | ::mlir::UnitAttr | unit attribute
+`shape_value` | ::mlir::ArrayAttr | 64-bit integer array attribute
 
 #### Operands:
 
@@ -1601,12 +1602,18 @@ operation ::= `IE.Squeeze` `(` operands `)` attr-dict `:` type(operands) `->` ty
 ```
 
 
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`axes_value` | ::mlir::ArrayAttr | 64-bit integer array attribute
+
 #### Operands:
 
 | Operand | Description |
 | :-----: | ----------- |
 `input` | ranked tensor of any type values
-`axes` | ranked tensor of any type values
+`axes` | ranked tensor of integer values
 
 #### Results:
 
@@ -1809,12 +1816,18 @@ operation ::= `IE.Unsqueeze` `(` operands `)` attr-dict `:` type(operands) `->` 
 ```
 
 
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`axes_value` | ::mlir::ArrayAttr | 64-bit integer array attribute
+
 #### Operands:
 
 | Operand | Description |
 | :-----: | ----------- |
 `input` | ranked tensor of any type values
-`axes` | ranked tensor of any type values
+`axes` | ranked tensor of integer values
 
 #### Results:
 

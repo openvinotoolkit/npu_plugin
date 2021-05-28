@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -13,15 +13,57 @@
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 
+#include "vpux/compiler/utils/attributes.hpp"
+
 #include "vpux/utils/core/checked_cast.hpp"
 #include "vpux/utils/core/small_vector.hpp"
 
-#include <mlir/Dialect/Linalg/IR/LinalgOps.h>
 #include <mlir/IR/PatternMatch.h>
 
 #include <numeric>
 
 using namespace vpux;
+
+//
+// getAxes
+//
+
+namespace {
+
+mlir::FailureOr<SmallVector<int64_t>> getAxes(IE::UnsqueezeOpAdaptor unsqueeze, mlir::Location loc) {
+    if (unsqueeze.axes() != nullptr && unsqueeze.axes_value() != nullptr) {
+        return errorAt(loc, "Ambiguous axes representation");
+    }
+    if (unsqueeze.axes() == nullptr && unsqueeze.axes_value() == nullptr) {
+        return errorAt(loc, "Missed axes representation");
+    }
+
+    if (unsqueeze.axes_value() != nullptr) {
+        return parseIntArrayAttr(unsqueeze.axes_value());
+    }
+
+    auto axesConst = unsqueeze.axes().getDefiningOp<ConstantInterface>();
+    if (axesConst == nullptr) {
+        return errorAt(loc, "Only constant axes are supported");
+    }
+
+    auto axes = to_small_vector(axesConst.getContent().getValues<int64_t>());
+    std::sort(axes.begin(), axes.end());
+
+    const auto inType = unsqueeze.input().getType().cast<mlir::ShapedType>();
+    const auto inRank = inType.getRank();
+    const auto numAxes = checked_cast<int64_t>(axes.size());
+
+    for (auto& axis : axes) {
+        if (axis < 0) {
+            axis += inRank + numAxes;
+        }
+    }
+
+    return axes;
+}
+
+}  // namespace
 
 //
 // inferReturnTypeComponents
@@ -37,29 +79,21 @@ mlir::LogicalResult vpux::IE::UnsqueezeOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
+    const auto axes = getAxes(unsqueeze, loc);
+    if (mlir::failed(axes)) {
+        return mlir::failure();
+    }
+
     const auto inType = unsqueeze.input().getType().cast<mlir::ShapedType>();
     const auto inShape = inType.getShape();
 
-    auto axesConst = unsqueeze.axes().getDefiningOp<ConstantInterface>();
-    if (axesConst == nullptr) {
-        return errorAt(loc, "Only constant input is supported for axes");
-    }
-
-    auto axes = to_small_vector(axesConst.getContent().getValues<int64_t>());
-    std::sort(axes.begin(), axes.end());
-    for (auto& axis : axes) {
-        if (axis < 0) {
-            axis = axis + checked_cast<int64_t>(inShape.size() + axes.size());
-        }
-    }
-
-    SmallVector<int64_t> outShape(inShape.size() + axes.size());
+    SmallVector<int64_t> outShape(inShape.size() + axes->size());
 
     size_t inInd = 0;
     size_t axesInd = 0;
     for (auto outInd : irange(outShape.size())) {
-        if (axesInd < axes.size()) {
-            const auto nextAxisInd = checked_cast<size_t>(axes[axesInd]);
+        if (axesInd < axes.getValue().size()) {
+            const auto nextAxisInd = checked_cast<size_t>(axes.getValue()[axesInd]);
 
             if (nextAxisInd < outInd) {
                 return errorAt(loc, "Axis '{0}' was occured twice", nextAxisInd);
@@ -78,7 +112,7 @@ mlir::LogicalResult vpux::IE::UnsqueezeOp::inferReturnTypeComponents(
             continue;
         }
     }
-    if (inInd != inShape.size() || axesInd != axes.size()) {
+    if (inInd != inShape.size() || axesInd != axes->size()) {
         return errorAt(loc, "Inconsistent parameters");
     }
 
@@ -87,84 +121,11 @@ mlir::LogicalResult vpux::IE::UnsqueezeOp::inferReturnTypeComponents(
 }
 
 //
-// UseExpansionReshape
+// ViewLikeInterface
 //
 
-namespace {
-
-class UseExpansionReshape final : public mlir::OpRewritePattern<IE::UnsqueezeOp> {
-public:
-    using mlir::OpRewritePattern<IE::UnsqueezeOp>::OpRewritePattern;
-
-public:
-    mlir::LogicalResult matchAndRewrite(IE::UnsqueezeOp origOp, mlir::PatternRewriter& rewriter) const final;
-};
-
-mlir::LogicalResult UseExpansionReshape::matchAndRewrite(IE::UnsqueezeOp origOp,
-                                                         mlir::PatternRewriter& rewriter) const {
-    auto axesConst = origOp.axes().getDefiningOp<ConstantInterface>();
-    if (axesConst == nullptr) {
-        return mlir::failure();
-    }
-
-    const auto inType = origOp.input().getType().cast<mlir::ShapedType>();
-    const auto inShape = inType.getShape();
-
-    auto axes = to_small_vector(axesConst.getContent().getValues<int64_t>());
-    std::sort(axes.begin(), axes.end());
-    for (auto& axis : axes) {
-        if (axis < 0) {
-            axis = axis + checked_cast<int64_t>(inShape.size() + axes.size());
-        }
-    }
-
-    //
-    // Use expansion linalg.tensor_reshape:
-    //
-    //   input tensor: (i, j)
-    //   output tensor: (1, i, 1, j, 1)
-    //
-    // Reassotion maps (output to input):
-    //   (d0, d1, d2, d3, d4) -> (d0, d1)      : shape[d0] = 1, shape[d1] = i
-    //   (d0, d1, d2, d3, d4) -> (d2, d3, d4)  : shape[d2] = 1, shape[d3] = j, shape[d4] = 1
-    //
-
-    SmallVector<mlir::linalg::ReassociationIndices> indices(inShape.size());
-
-    size_t inInd = 0;
-    size_t axesInd = 0;
-    for (auto outInd : irange(inShape.size() + axes.size())) {
-        if (axesInd < axes.size()) {
-            const auto nextAxisInd = checked_cast<size_t>(axes[axesInd]);
-
-            if (nextAxisInd == outInd) {
-                indices[inInd].push_back(outInd);
-                ++axesInd;
-                continue;
-            }
-        }
-
-        indices[inInd].push_back(outInd);
-
-        if (inInd + 1 < inShape.size()) {
-            ++inInd;
-        }
-    }
-
-    rewriter.replaceOpWithNewOp<mlir::linalg::TensorReshapeOp>(origOp, origOp.getType(), origOp.input(),
-                                                               makeArrayRef(indices));
-
-    return mlir::success();
-}
-
-}  // namespace
-
-//
-// getCanonicalizationPatterns
-//
-
-void vpux::IE::UnsqueezeOp::getCanonicalizationPatterns(mlir::RewritePatternSet& patterns, mlir::MLIRContext* ctx) {
-    patterns.insert<UseExpansionReshape>(ctx);
+mlir::Value vpux::IE::UnsqueezeOp::getViewSource() {
+    return input();
 }
 
 //
@@ -186,9 +147,75 @@ mlir::OpFoldResult vpux::IE::UnsqueezeOp::fold(ArrayRef<mlir::Attribute> operand
 }
 
 //
-// ViewLikeInterface
+// FuseWithReshape
 //
 
-mlir::Value vpux::IE::UnsqueezeOp::getViewSource() {
-    return input();
+namespace {
+
+class FuseWithReshape final : public mlir::OpRewritePattern<IE::UnsqueezeOp> {
+public:
+    using mlir::OpRewritePattern<IE::UnsqueezeOp>::OpRewritePattern;
+
+public:
+    mlir::LogicalResult matchAndRewrite(IE::UnsqueezeOp origOp, mlir::PatternRewriter& rewriter) const final;
+};
+
+mlir::LogicalResult FuseWithReshape::matchAndRewrite(IE::UnsqueezeOp origOp, mlir::PatternRewriter& rewriter) const {
+    auto prevOp = origOp.input().getDefiningOp();
+    if (prevOp == nullptr) {
+        return mlir::failure();
+    }
+    if (!mlir::isa<IE::SqueezeOp, IE::UnsqueezeOp, IE::ReshapeOp>(prevOp)) {
+        return mlir::failure();
+    }
+
+    const auto outputShape = origOp.getType().getShape();
+    const auto outputShapeAttr = getInt64ArrayAttr(getContext(), outputShape);
+
+    rewriter.replaceOpWithNewOp<IE::ReshapeOp>(origOp, prevOp->getOperand(0), nullptr, false, outputShapeAttr);
+    return mlir::success();
+}
+
+}  // namespace
+
+//
+// ConvertConstToAttr
+//
+
+namespace {
+
+class ConvertConstToAttr final : public mlir::OpRewritePattern<IE::UnsqueezeOp> {
+public:
+    using mlir::OpRewritePattern<IE::UnsqueezeOp>::OpRewritePattern;
+
+public:
+    mlir::LogicalResult matchAndRewrite(IE::UnsqueezeOp origOp, mlir::PatternRewriter& rewriter) const final;
+};
+
+mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::UnsqueezeOp origOp, mlir::PatternRewriter& rewriter) const {
+    if (origOp.axes_value().hasValue()) {
+        return mlir::failure();
+    }
+
+    const auto axes = getAxes(origOp, origOp->getLoc());
+    if (mlir::failed(axes)) {
+        return mlir::failure();
+    }
+
+    const auto axesAttr = getInt64ArrayAttr(getContext(), axes.getValue());
+
+    rewriter.replaceOpWithNewOp<IE::UnsqueezeOp>(origOp, origOp.input(), nullptr, axesAttr);
+    return mlir::success();
+}
+
+}  // namespace
+
+//
+// getCanonicalizationPatterns
+//
+
+void vpux::IE::UnsqueezeOp::getCanonicalizationPatterns(mlir::OwningRewritePatternList& patterns,
+                                                        mlir::MLIRContext* context) {
+    patterns.insert<FuseWithReshape>(context);
+    patterns.insert<ConvertConstToAttr>(context);
 }

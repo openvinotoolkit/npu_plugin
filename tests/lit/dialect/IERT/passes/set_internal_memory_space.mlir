@@ -29,18 +29,18 @@ func @MultipleAllocs(%arg0: memref<1x1000xf16>, %arg1: memref<1x1000xf16>) -> me
 #map1 = affine_map<(d0, d1, d2, d3) -> (d1, d2, d3)>
 
 func @ReshapeInGraph(%arg0: memref<1x512x1x1xf32>, %arg1: memref<1x512x1x1xf32>) -> memref<1x512x1x1xf32> {
-    %0 = linalg.reshape %arg0 [#map0, #map1] : memref<1x512x1x1xf32> into memref<1x512xf32>
+    %0 = IERT.GenericReshape inputs(%arg0 : memref<1x512x1x1xf32>) -> memref<1x512xf32>
     %1 = memref.alloc() : memref<1x512xf32>
     %2 = IERT.SoftMax {axisInd = 1 : i32} inputs(%0 : memref<1x512xf32>) outputs(%1 : memref<1x512xf32>) -> memref<1x512xf32>
-    %3 = linalg.reshape %2 [#map0, #map1] : memref<1x512xf32> into memref<1x512x1x1xf32>
+    %3 = IERT.GenericReshape inputs(%2 : memref<1x512xf32>) -> memref<1x512x1x1xf32>
     %4 = IERT.Copy inputs(%3 : memref<1x512x1x1xf32>) outputs(%arg1 : memref<1x512x1x1xf32>) -> memref<1x512x1x1xf32>
     memref.dealloc %1 : memref<1x512xf32>
     return %4 : memref<1x512x1x1xf32>
 
-    // CHECK: [[VAR0:%.*]] =  linalg.reshape %arg0 [#map0, #map1] : memref<1x512x1x1xf32> into memref<1x512xf32>
+    // CHECK: [[VAR0:%.*]] =  IERT.GenericReshape inputs(%arg0 : memref<1x512x1x1xf32>) -> memref<1x512xf32>
     // CHECK: [[VAR1:%.*]] =  memref.alloc() : memref<1x512xf32, "DDR">
     // CHECK: [[VAR2:%.*]] =  IERT.SoftMax {axisInd = 1 : i32} inputs([[VAR0]] : memref<1x512xf32>) outputs([[VAR1]] : memref<1x512xf32, "DDR">) -> memref<1x512xf32, "DDR">
-    // CHECK: [[VAR3:%.*]] =  linalg.reshape [[VAR2]] [#map0, #map1] : memref<1x512xf32, "DDR"> into memref<1x512x1x1xf32, "DDR">
+    // CHECK: [[VAR3:%.*]] =  IERT.GenericReshape inputs([[VAR2]] : memref<1x512xf32, "DDR">) -> memref<1x512x1x1xf32, "DDR">
     // CHECK: [[VAR4:%.*]] =  IERT.Copy inputs([[VAR3]] : memref<1x512x1x1xf32, "DDR">) outputs(%arg1 : memref<1x512x1x1xf32>) -> memref<1x512x1x1xf32>
     // CHECK: memref.dealloc [[VAR1]] : memref<1x512xf32, "DDR">
     // CHECK: return [[VAR4]] : memref<1x512x1x1xf32>

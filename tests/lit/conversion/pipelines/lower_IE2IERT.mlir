@@ -41,39 +41,33 @@ func @ConstantLayer() -> tensor<1x2x2x2xf16> {
 
 // -----
 
-#map0 = affine_map<(d0, d1, d2, d3) -> (d0)>
-#map1 = affine_map<(d0, d1, d2, d3) -> (d1, d2, d3)>
-
 // CHECK: func @Reshape([[ARG0:%.*]]: memref<1x512x1x1xf32>, [[ARG1:%.*]]: memref<1x512xf32>) -> memref<1x512xf32> {
 func @Reshape(%arg0 : tensor<1x512x1x1xf32>) -> tensor<1x512xf32> {
-    %0 = linalg.tensor_reshape %arg0 [#map0, #map1] : tensor<1x512x1x1xf32> into tensor<1x512xf32>
+    %0 = IE.Reshape(%arg0) { shape_value = [1, 512] } : tensor<1x512x1x1xf32> -> tensor<1x512xf32>
     return %0 : tensor<1x512xf32>
 
-    // CHECK: [[VAR0:%.*]] = linalg.reshape [[ARG0]] [#map0, #map1] : memref<1x512x1x1xf32> into memref<1x512xf32>
+    // CHECK: [[VAR0:%.*]] = IERT.GenericReshape inputs([[ARG0]] : memref<1x512x1x1xf32>) -> memref<1x512xf32>
     // CHECK: [[VAR1:%.*]] = IERT.Copy inputs([[VAR0]] : memref<1x512xf32>) outputs([[ARG1]] : memref<1x512xf32>) -> memref<1x512xf32>
     // CHECK: return [[VAR1]] : memref<1x512xf32>
 }
 
 // -----
 
-#map0 = affine_map<(d0, d1, d2, d3) -> (d0)>
-#map1 = affine_map<(d0, d1, d2, d3) -> (d1, d2, d3)>
-
 // CHECK: func @ReshapeInGraph([[ARG0:%.*]]: memref<1x512x1x1xf32>, [[ARG1:%.*]]: memref<1x512x1x1xf32>) -> memref<1x512x1x1xf32> {
 func @ReshapeInGraph(%arg0 : tensor<1x512x1x1xf32>) -> tensor<1x512x1x1xf32> {
-    %0 = linalg.tensor_reshape %arg0 [#map0, #map1] : tensor<1x512x1x1xf32> into tensor<1x512xf32>
+    %0 = IE.Reshape(%arg0) { shape_value = [1, 512] } : tensor<1x512x1x1xf32> -> tensor<1x512xf32>
     %1 = IE.SoftMax(%0) {axisInd = 1 : i32} : tensor<1x512xf32> -> tensor<1x512xf32>
-    %2 = linalg.tensor_reshape %1 [#map0, #map1] : tensor<1x512xf32> into tensor<1x512x1x1xf32>
+    %2 = IE.Reshape(%1) { shape_value = [1, 512, 1, 1] } : tensor<1x512xf32> -> tensor<1x512x1x1xf32>
     return %2 : tensor<1x512x1x1xf32>
 
-    // CHECK: [[VAR0:%.*]] = linalg.reshape [[ARG0]] [#map0, #map1] : memref<1x512x1x1xf32> into memref<1x512xf32>
+    // CHECK: [[VAR0:%.*]] = IERT.GenericReshape inputs([[ARG0]] : memref<1x512x1x1xf32>) -> memref<1x512xf32>
     // CHECK: [[VAR1:%.*]] = memref.alloc() : memref<1x512xf32>
     // CHECK: [[VAR2:%.*]] = IERT.SoftMax
     // CHECK-SAME:              axisInd = 1
     // CHECK-SAME:              inputs([[VAR0]] : memref<1x512xf32>)
     // CHECK-SAME:              outputs([[VAR1]] : memref<1x512xf32>)
 
-    // CHECK: [[VAR3:%.*]] = linalg.reshape [[VAR2]] [#map0, #map1] : memref<1x512xf32> into memref<1x512x1x1xf32>
+    // CHECK: [[VAR3:%.*]] = IERT.GenericReshape inputs([[VAR2]] : memref<1x512xf32>) -> memref<1x512x1x1xf32>
     // CHECK: [[VAR4:%.*]] = IERT.Copy inputs([[VAR3]] : memref<1x512x1x1xf32>) outputs([[ARG1]] : memref<1x512x1x1xf32>) -> memref<1x512x1x1xf32>
     // CHECK: return [[VAR4]] : memref<1x512x1x1xf32>
 }

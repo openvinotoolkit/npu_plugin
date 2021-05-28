@@ -34,7 +34,6 @@ def BufferizeIE : PassBase<"bufferize-IE", "vpux::FunctionPass"> {
         * Doesn't change Function signatures.
         * Replaces Layer Operations with IERT analogues.
         * Replaces Quant Dialect Operations with IERT analogues.
-        * Replaces `linalg.tensor_reshape` with `linalg.reshape`.
     }];
 
     let constructor = "vpux::createBufferizeIEPass()";

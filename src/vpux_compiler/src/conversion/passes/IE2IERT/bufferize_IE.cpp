@@ -42,7 +42,6 @@ public:
 
 public:
     class ConstantRewrite;
-    class LinalgReshapeRewrite;
     class GenericReshapeRewrite;
     class SplitRewrite;
     class ConcatRewrite;
@@ -100,40 +99,6 @@ mlir::LogicalResult BufferizeIEPass::ConstantRewrite::matchAndRewrite(IE::Consta
     const auto newType = typeConverter->convertType(origOp.getType());
 
     rewriter.replaceOpWithNewOp<IERT::ConstantOp>(origOp, newType, origOp.value());
-    return mlir::success();
-}
-
-//
-// LinalgReshapeRewrite
-//
-
-class BufferizeIEPass::LinalgReshapeRewrite final : public mlir::OpConversionPattern<mlir::linalg::TensorReshapeOp> {
-public:
-    LinalgReshapeRewrite(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
-            : mlir::OpConversionPattern<mlir::linalg::TensorReshapeOp>(typeConverter, ctx), _log(log) {
-    }
-
-public:
-    mlir::LogicalResult matchAndRewrite(mlir::linalg::TensorReshapeOp origOp, ArrayRef<mlir::Value> newOperands,
-                                        mlir::ConversionPatternRewriter& rewriter) const final;
-
-private:
-    Logger _log;
-};
-
-mlir::LogicalResult BufferizeIEPass::LinalgReshapeRewrite::matchAndRewrite(
-        mlir::linalg::TensorReshapeOp origOp, ArrayRef<mlir::Value> newOperands,
-        mlir::ConversionPatternRewriter& rewriter) const {
-    _log.trace("Found TensorReshape Operation '{0}'", origOp->getLoc());
-
-    VPUX_THROW_UNLESS(newOperands.size() == 1, "Got wrong newOperands size : '{0}'", newOperands.size());
-
-    auto* typeConverter = getTypeConverter();
-    VPUX_THROW_UNLESS(typeConverter != nullptr, "TypeConverter is not set");
-
-    const auto newOutType = typeConverter->convertType(origOp.getType());
-
-    rewriter.replaceOpWithNewOp<mlir::linalg::ReshapeOp>(origOp, newOutType, newOperands[0], origOp.reassociation());
     return mlir::success();
 }
 
@@ -668,16 +633,13 @@ void BufferizeIEPass::safeRunOnFunc() {
     target.addLegalDialect<IERT::IERTDialect>();
     target.addIllegalDialect<IE::IEDialect>();
     target.addIllegalDialect<mlir::quant::QuantizationDialect>();
-    target.addIllegalOp<mlir::linalg::TensorReshapeOp>();
     target.addLegalOp<IE::CNNNetworkOp, IE::DataInfoOp>();
     target.addLegalOp<mlir::memref::AllocOp>();
-    target.addLegalOp<mlir::linalg::ReshapeOp>();
     target.addLegalOp<mlir::memref::SubViewOp>();
     mlir::populateBufferizeMaterializationLegality(target);
 
     mlir::RewritePatternSet patterns(&ctx);
     patterns.insert<ConstantRewrite>(typeConverter, &ctx, _log);
-    patterns.insert<LinalgReshapeRewrite>(typeConverter, &ctx, _log);
     patterns.insert<GenericReshapeRewrite>(typeConverter, &ctx, _log);
     patterns.insert<SplitRewrite>(typeConverter, &ctx, _log);
     patterns.insert<ConcatRewrite>(typeConverter, &ctx, _log);

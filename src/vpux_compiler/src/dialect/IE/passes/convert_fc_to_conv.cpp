@@ -63,44 +63,37 @@ private:
 
 mlir::LogicalResult ConvertFCToConvPass::FullyConnectedOpConverter::matchAndRewrite(
         IE::FullyConnectedOp origOp, mlir::PatternRewriter& rewriter) const {
-    auto inputShape = origOp.input().getType().cast<mlir::ShapedType>().getShape();
-    const auto inputShapeType = mlir::RankedTensorType::get({4}, getSInt64Type(origOp->getContext()));
+    const auto inputShape = origOp.input().getType().cast<mlir::ShapedType>().getShape();
+    const std::array<int64_t, 4> newInShape = {inputShape[0], inputShape[1], 1, 1};
+    const auto inputShapeAttr = getInt64ArrayAttr(getContext(), newInShape);
+    auto newInput = rewriter.create<IE::ReshapeOp>(origOp->getLoc(), origOp.input(), nullptr, false, inputShapeAttr);
 
-    std::array<int64_t, 4> newInShape = {inputShape[0], inputShape[1], 1, 1};
-    const auto inputShapeAttr = mlir::DenseElementsAttr::get(inputShapeType, makeArrayRef(newInShape));
-    auto inputShapeOp = rewriter.create<IE::ConstantOp>(origOp->getLoc(), inputShapeType, inputShapeAttr);
-    auto newInput = rewriter.create<IE::ReshapeOp>(origOp->getLoc(), origOp.input(), inputShapeOp, false);
-
-    auto weightsShape = origOp.weights().getType().cast<mlir::ShapedType>().getShape();
-    const auto filterShapeType = mlir::RankedTensorType::get({4}, getSInt64Type(origOp->getContext()));
-    std::array<int64_t, 4> newWeightsShape = {weightsShape[0], weightsShape[1], 1, 1};
-    const auto filterShapeAttr = mlir::DenseElementsAttr::get(filterShapeType, makeArrayRef(newWeightsShape));
-    auto filterShapeOp = rewriter.create<IE::ConstantOp>(origOp->getLoc(), filterShapeType, filterShapeAttr);
-    auto newFilter = rewriter.create<IE::ReshapeOp>(origOp->getLoc(), origOp.weights(), filterShapeOp, false);
+    const auto weightsShape = origOp.weights().getType().cast<mlir::ShapedType>().getShape();
+    const std::array<int64_t, 4> newWeightsShape = {weightsShape[0], weightsShape[1], 1, 1};
+    const auto filterShapeAttr = getInt64ArrayAttr(getContext(), newWeightsShape);
+    auto newFilter =
+            rewriter.create<IE::ReshapeOp>(origOp->getLoc(), origOp.weights(), nullptr, false, filterShapeAttr);
 
     mlir::Value newBias;
     if (origOp.bias() != nullptr) {
-        auto biasShape = origOp.bias().getType().cast<mlir::ShapedType>().getShape();
-        const auto biasShapeType = mlir::RankedTensorType::get({4}, getSInt64Type(origOp->getContext()));
-        std::array<int64_t, 4> newBiasShape = {biasShape[0], biasShape[1], 1, 1};
-        const auto biasShapeAttr = mlir::DenseElementsAttr::get(biasShapeType, makeArrayRef(newBiasShape));
-        auto biasShapeOp = rewriter.create<IE::ConstantOp>(origOp->getLoc(), biasShapeType, biasShapeAttr);
-        newBias = rewriter.create<IE::ReshapeOp>(origOp->getLoc(), origOp.bias(), biasShapeOp, false);
+        const auto biasShape = origOp.bias().getType().cast<mlir::ShapedType>().getShape();
+        const std::array<int64_t, 4> newBiasShape = {biasShape[0], biasShape[1], 1, 1};
+        const auto biasShapeAttr = getInt64ArrayAttr(getContext(), newBiasShape);
+        newBias = rewriter.create<IE::ReshapeOp>(origOp->getLoc(), origOp.bias(), nullptr, false, biasShapeAttr);
     }
 
-    auto newStrides = getInt32ArrayAttr(origOp->getContext(), ngraph::Strides{1, 1});
-    auto newPadsBegin = getInt32ArrayAttr(origOp->getContext(), ngraph::CoordinateDiff{0, 0});
-    auto newPadsEnd = getInt32ArrayAttr(origOp->getContext(), ngraph::CoordinateDiff{0, 0});
-    auto newDilations = getInt32ArrayAttr(origOp->getContext(), ngraph::Strides{1, 1});
+    auto newStrides = getInt32ArrayAttr(getContext(), ngraph::Strides{1, 1});
+    auto newPadsBegin = getInt32ArrayAttr(getContext(), ngraph::CoordinateDiff{0, 0});
+    auto newPadsEnd = getInt32ArrayAttr(getContext(), ngraph::CoordinateDiff{0, 0});
+    auto newDilations = getInt32ArrayAttr(getContext(), ngraph::Strides{1, 1});
     auto convOp = rewriter.create<IE::ConvolutionOp>(origOp->getLoc(), newInput, newFilter, newBias, newStrides,
                                                      newPadsBegin, newPadsEnd, newDilations);
 
-    auto convShape = convOp.output().getType().cast<mlir::ShapedType>().getShape();
-    const auto convShapeType = mlir::RankedTensorType::get({2}, getSInt64Type(origOp->getContext()));
-    std::array<int64_t, 2> outputShape = {convShape[0], convShape[1]};
-    const auto outputShapeAttr = mlir::DenseElementsAttr::get(convShapeType, makeArrayRef(outputShape));
-    auto outputShapeOp = rewriter.create<IE::ConstantOp>(origOp->getLoc(), convShapeType, outputShapeAttr);
-    rewriter.replaceOpWithNewOp<IE::ReshapeOp>(origOp, convOp.output(), outputShapeOp, false);
+    const auto convShape = convOp.output().getType().cast<mlir::ShapedType>().getShape();
+    const std::array<int64_t, 2> outputShape = {convShape[0], convShape[1]};
+    const auto outputShapeAttr = getInt64ArrayAttr(getContext(), outputShape);
+    rewriter.replaceOpWithNewOp<IE::ReshapeOp>(origOp, convOp.output(), nullptr, false, outputShapeAttr);
+
     return mlir::success();
 }
 
