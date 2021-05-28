@@ -1,10 +1,7 @@
 
 // {% copyright %}
 ///
-/// @file      PlgVisionStereo.h
-/// @copyright All code copyright Movidius Ltd 2021, all rights reserved.
-///            For License Warranty see: common/license.txt
-///
+/// @file
 /// @brief     Header for PlgVisionStereo Host FLIC plugin stub using VPUAL.
 ///
 
@@ -33,10 +30,10 @@ public:
     SReceiver<ImgFramePtr> inLeft;
     /** Input frame right */
     SReceiver<ImgFramePtr> inRight;
-    /** Port connect to the disparity pool */
-    MReceiver<ImgFramePtr> dispStereoIn;
-    /** Output Disparity */
-    MSender<ImgFramePtr> outDisp;
+    /** Port connect to the stereo output pool */
+    MReceiver<ImgFramePtr> outBuffer;
+    /** Stereo output port */
+    MSender<ImgFramePtr> out;
     /** Slice ID - relevant on THB */
     uint32_t device_id;
 
@@ -71,7 +68,7 @@ public:
     /** Constructor. */
     PlgVisionStereo(uint32_t device_id = 0)
         : PluginStub("PlgVisionStereo", device_id)
-        , outDisp{device_id}
+        , out{device_id}
         , device_id(device_id){};
     /** Destructor. */
     ~PlgVisionStereo();
