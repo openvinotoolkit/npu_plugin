@@ -161,8 +161,8 @@ InferenceEngine::Blob::Ptr fromNV12File(const std::string& filePath, size_t imag
     return nv12Blob;
 }
 
-std::ifstream& skipMagic(std::ifstream& blobStream) {
-    if (!blobStream.is_open()) {
+std::istream& skipMagic(std::istream& blobStream) {
+    if (!blobStream.good()) {
         THROW_IE_EXCEPTION << InferenceEngine::details::as_status << InferenceEngine::NETWORK_NOT_READ;
     }
 

@@ -1,5 +1,5 @@
 //
-// Copyright 2019 Intel Corporation.
+// Copyright 2021 Intel Corporation.
 //
 // This software and the related documents are Intel copyrighted materials,
 // and your use of them is governed by the express license under which they
@@ -19,6 +19,7 @@
 #include <map>
 #include <memory>
 #include <string>
+
 
 // Inference Engine include
 #include <details/ie_irelease.hpp>
@@ -68,7 +69,8 @@ static const std::vector<std::string> backendRegistry = {
         "emulator_backend",
 #endif
 };
-Engine::Engine(): _backends(std::make_shared<VPUXBackends>(backendRegistry)), _metrics(_backends) {
+Engine::Engine(): _backends(std::make_shared<VPUXBackends>(backendRegistry)), _metrics(_backends),
+                  _logger(vpu::Logger("VPUXEngine", vpu::LogLevel::Error, vpu::consoleOutput())) {
     _pluginName = DEVICE_NAME;  // "VPUX"
     const auto compiler = Compiler::create(_parsedConfig);
     _parsedConfig.expandSupportedCompileOptions(compiler->getSupportedOptions());
@@ -116,14 +118,29 @@ IE::ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(const IE::CNNNetwo
     return LoadExeNetwork(network, device, networkConfig);
 }
 
+
+
+
 //------------------------------------------------------------------------------
 //      Import network
 //------------------------------------------------------------------------------
 IE::ExecutableNetwork Engine::ImportNetwork(const std::string& modelFileName,
                                             const std::map<std::string, std::string>& config) {
     std::ifstream blobStream(modelFileName, std::ios::binary);
+#if defined(__arm__) || defined(__aarch64__)
+    try {
+        if (_encryptionModel.isLibraryFound()) {
+            std::stringstream sstream;
+            return ImportNetworkImpl( vpu::KmbPlugin::utils::skipMagic(_encryptionModel.getDecryptedStream(blobStream, sstream)), config);
+        }
+    } catch (const std::exception& ex) {
+        _logger.warning(ex.what());
+    }
+#endif
     return ImportNetworkImpl(vpu::KmbPlugin::utils::skipMagic(blobStream), config);
 }
+
+
 
 IE::ExecutableNetwork Engine::ImportNetworkImpl(std::istream& networkModel,
                                                 const std::map<std::string, std::string>& config) {
