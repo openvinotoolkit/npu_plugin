@@ -326,7 +326,7 @@ def ConvolutionLayerInterface : OpInterface<"ConvolutionLayerInterface"> {
 
         StaticInterfaceMethod<
             "Get the nr of kernel dims available",
-            "size_t", "filter_spatial_dims", (ins),
+            "uint32_t", "filter_spatial_dims", (ins),
             [{}],
             [{
                 return 2;
@@ -335,11 +335,11 @@ def ConvolutionLayerInterface : OpInterface<"ConvolutionLayerInterface"> {
 
         StaticInterfaceMethod<
             "Get the filter dim index of a spatial dim",
-            "vpux::Dim", "filter_spatial_dim", (ins "int32_t":$index),
+            "vpux::Dim", "filter_spatial_dim", (ins "size_t":$index),
             [{}],
             [{
-                VPUX_THROW_UNLESS(index >= 0 && index < 2, "Wrong spatial dimension index '{0}'", index);
-                return vpux::Dim(index+2);
+                VPUX_THROW_UNLESS(index < 2, "Wrong spatial dimension index '{0}'", index);
+                return vpux::Dim(index + 2);
             }]
         >,
     ];
@@ -377,7 +377,7 @@ def TensorInterface_4D : OpInterface<"TensorInterface_4D"> {
             }]
         >,
         StaticInterfaceMethod<
-            "Get the activation widht Dim",
+            "Get the activation width Dim",
             "vpux::Dim", "act_width_dim", (ins),
             [{}],
             [{
@@ -387,11 +387,11 @@ def TensorInterface_4D : OpInterface<"TensorInterface_4D"> {
 
         StaticInterfaceMethod<
             "Get the tensor Dim index of a spatial dim index",
-            "vpux::Dim", "act_spatial_dim", (ins "int32_t":$index),
+            "vpux::Dim", "act_spatial_dim", (ins "size_t":$index),
             [{}],
             [{
-                VPUX_THROW_UNLESS(index >= 0 && index < 2, "Wrong spatial dimension index '{0}'", index);
-                return vpux::Dim(index+2);
+                VPUX_THROW_UNLESS(index < 2, "Wrong spatial dimension index '{0}'", index);
+                return vpux::Dim(index + 2);
             }]
         >
     ];
