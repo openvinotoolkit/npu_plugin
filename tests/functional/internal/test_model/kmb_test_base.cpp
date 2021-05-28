@@ -195,11 +195,12 @@ void KmbTestBase::SetUp() {
         return isVPUXDeviceAvailable;
     }();
 
+    const std::string configDevice = DEVICE_NAME.substr(0, DEVICE_NAME.find("."));
     if (!LOG_LEVEL.empty()) {
-        core->SetConfig({{CONFIG_KEY(LOG_LEVEL), LOG_LEVEL}}, DEVICE_NAME);
+        core->SetConfig({{CONFIG_KEY(LOG_LEVEL), LOG_LEVEL}}, configDevice);
     }
     if (PRINT_PERF_COUNTERS) {
-        core->SetConfig({{CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES)}}, DEVICE_NAME);
+        core->SetConfig({{CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES)}}, configDevice);
     }
 
     if ((RUN_REF_CODE               && REF_DEVICE_NAME == "CPU") ||
