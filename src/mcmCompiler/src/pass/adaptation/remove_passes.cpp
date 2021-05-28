@@ -36,11 +36,12 @@ void removeOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model,
                                     {{"Identity", removeSimpleOp},
                                     {"Dropout", removeSimpleOp},
                                     {"Interp", removeInterp},
+                                    {"Interpolate", removeInterp},
                                     {"Reshape", removeShapeRelevant},
                                     {"Permute", removeShapeRelevant},
                                     {"Slice", removeShapeRelevant}};
 
-    std::vector<std::string> rem_types = {"Identity", "Dropout", "Interp", "Reshape", "Permute", "Slice"};
+    std::vector<std::string> rem_types = {"Identity", "Dropout", "Interp", "Interpolate", "Reshape", "Permute", "Slice"};
 
     auto globalParams = model.getGlobalConfigParams();
     if (globalParams->hasAttr("RemovePermuteNoOp") && !globalParams->get<bool>("RemovePermuteNoOp"))
