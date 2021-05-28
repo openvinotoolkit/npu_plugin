@@ -34,10 +34,18 @@
 namespace vpux {
 
 class ZeroExecutorCommon : public Executor {
+protected:
+    struct graph;
+
 public:
     ZeroExecutorCommon(ze_driver_handle_t driver_handle, ze_device_handle_t device_handle, ze_context_handle_t context,
                        ze_graph_dditable_ext_t* graph_ddi_table_ext, ze_fence_dditable_ext_t* fence_ddi_table_ext,
                        const vpux::NetworkDescription::Ptr& networkDescription, const ZeroConfig& config);
+
+    ZeroExecutorCommon(ze_driver_handle_t driver_handle, ze_device_handle_t device_handle, ze_context_handle_t context,
+                       ze_graph_dditable_ext_t* graph_ddi_table_ext, ze_fence_dditable_ext_t* fence_ddi_table_ext,
+                       const vpux::NetworkDescription::Ptr& networkDescription, std::shared_ptr<graph> graph,
+                       const ZeroConfig& config);
 
     void push(const InferenceEngine::BlobMap& inputs, const PreprocMap& preProcMap) override;
     // TODO: not implemented
@@ -158,12 +166,12 @@ protected:
 
     struct fence {
         fence() = default;
-        fence(const commandQueue& command_queue, ze_fence_dditable_ext_t* fence_ddi_table_ext);
+        fence(const std::shared_ptr<commandQueue>& command_queue, ze_fence_dditable_ext_t* fence_ddi_table_ext);
         fence(const fence&) = delete;
         fence& operator=(const fence&) = delete;
         void reset();
         void hostSynchronize(uint32_t fence_value);
-        void deviceSynchronize(const commandQueue& queue, uint32_t fence_value);
+        void deviceSynchronize(const std::shared_ptr<commandQueue>& queue, uint32_t fence_value);
         void deviceSignal(uint32_t fence_value);
         ~fence();
         ze_fence_handle_t _handle = nullptr;
@@ -190,9 +198,9 @@ protected:
         ze_graph_properties_t _props{};
         std::map<std::string, argumentDescriptor> _inputs_desc_map;
         std::map<std::string, argumentDescriptor> _outputs_desc_map;
-        commandQueue _command_queue;
+        std::shared_ptr<commandQueue> _command_queue;
         commandList _command_list;
-        fence _fence;
+        std::shared_ptr<fence> _fence;
         uint32_t _fence_value;
 
         ze_graph_dditable_ext_t* _graph_ddi_table_ext = nullptr;
@@ -209,7 +217,7 @@ protected:
     struct pipelineCommon {
         pipelineCommon(const ze_driver_handle_t& driver_handle, const ze_device_handle_t& device_handle,
                        const ze_context_handle_t context, ze_graph_dditable_ext_t* graph_ddi_table_ext,
-                       const graph& graph_);
+                       const std::shared_ptr<graph>& graph_);
         pipelineCommon(const pipelineCommon&) = delete;
         pipelineCommon& operator=(const pipelineCommon&) = delete;
         ~pipelineCommon() = default;
@@ -236,11 +244,9 @@ protected:
     uint32_t _pull_count;
     uint32_t _perf_count;
 
-    NetworkDescription::CPtr _networkDesc;
+    NetworkDescription::Ptr _networkDesc;
 
-    graph _graph;
-
-    const uint32_t _pipeline_depth;
+    std::shared_ptr<graph> _graph;
 };
 
 template <InferenceEngine::VPUXConfigParams::ze_syncType mode_t>
@@ -256,10 +262,18 @@ public:
                  ze_graph_dditable_ext_t* graph_ddi_table_ext, ze_fence_dditable_ext_t* fence_ddi_table_ext,
                  const vpux::NetworkDescription::Ptr& networkDescription, const ZeroConfig& config);
 
+    ZeroExecutor(ze_driver_handle_t driver_handle, ze_device_handle_t device_handle, ze_context_handle_t context,
+                 ze_graph_dditable_ext_t* graph_ddi_table_ext, ze_fence_dditable_ext_t* fence_ddi_table_ext,
+                 const vpux::NetworkDescription::Ptr& networkDescription,
+                 const std::array<std::shared_ptr<commandQueue>, stage::COUNT>& command_queue,
+                 const std::shared_ptr<graph>& graph, const ZeroConfig& config);
+
     void push(const InferenceEngine::BlobMap& inputs) override;
     void pull(InferenceEngine::BlobMap& outputs) override;
 
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> getLayerStatistics() override;
+
+    Executor::Ptr clone() const override;
 
     ~ZeroExecutor() = default;
 
@@ -267,16 +281,16 @@ private:
     struct pipeline : public ZeroExecutorCommon::pipelineCommon {
         pipeline(const ze_driver_handle_t& driver_handle, const ze_device_handle_t& device_handle,
                  const ze_context_handle_t context, ze_graph_dditable_ext_t* graph_ddi_table_ext,
-                 ze_fence_dditable_ext_t* fence_ddi_table_ext, const graph& graph);
+                 ze_fence_dditable_ext_t* fence_ddi_table_ext, const std::shared_ptr<graph>& graph);
         pipeline(const pipeline&) = delete;
         pipeline& operator=(const pipeline&) = delete;
         ~pipeline() = default;
     };
 
-    std::array<commandQueue, stage::COUNT> _command_queue;
-    std::array<fence, stage::COUNT> _fence;
+    std::array<std::shared_ptr<commandQueue>, stage::COUNT> _command_queue;
+    std::array<std::unique_ptr<fence>, stage::COUNT> _fence;
 
-    std::vector<std::unique_ptr<pipeline>> _pipeline;
+    std::unique_ptr<pipeline> _pipeline;
 };
 
 template <>
@@ -289,10 +303,19 @@ public:
                  ze_graph_dditable_ext_t* graph_ddi_table_ext, ze_fence_dditable_ext_t* fence_ddi_table_ext,
                  const vpux::NetworkDescription::Ptr& networkDescription, const ZeroConfig& config);
 
+    ZeroExecutor(ze_driver_handle_t driver_handle, ze_device_handle_t device_handle, ze_context_handle_t context,
+                 ze_graph_dditable_ext_t* graph_ddi_table_ext, ze_fence_dditable_ext_t* fence_ddi_table_ext,
+                 const vpux::NetworkDescription::Ptr& networkDescription,
+                 const std::array<std::shared_ptr<commandQueue>, stage::COUNT>& command_queue,
+                 const std::shared_ptr<graph>& graph, const ZeroConfig& config);
+
+
     void push(const InferenceEngine::BlobMap& inputs) override;
     void pull(InferenceEngine::BlobMap& outputs) override;
 
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> getLayerStatistics() override;
+
+    Executor::Ptr clone() const override;
 
     ~ZeroExecutor() = default;
 
@@ -333,23 +356,19 @@ private:
     struct pipeline : public ZeroExecutorCommon::pipelineCommon {
         pipeline(const ze_driver_handle_t& driver_handle, const ze_device_handle_t& device_handle,
                  const ze_context_handle_t context, ze_graph_dditable_ext_t* graph_ddi_table_ext,
-                 ze_fence_dditable_ext_t* fence_ddi_table_ext, const graph& graph);
+                 ze_fence_dditable_ext_t* fence_ddi_table_ext, const std::shared_ptr<graph>& graph);
         pipeline(const pipeline&) = delete;
         pipeline& operator=(const pipeline&) = delete;
         ~pipeline();
-
-        std::condition_variable _cond_var;
-        std::mutex _mutex;
-        bool _available;
 
         eventPool_t _event_pool;
         std::array<event_t, stage::COUNT> _event;
     };
 
-    std::array<commandQueue, stage::COUNT> _command_queue;
-    std::array<fence, stage::COUNT> _fence;
+    std::array<std::shared_ptr<commandQueue>, stage::COUNT> _command_queue;
+    std::array<std::unique_ptr<fence>, stage::COUNT> _fence;
 
-    std::vector<std::unique_ptr<pipeline>> _pipeline;
+    std::unique_ptr<pipeline> _pipeline;
 };
 
 }  // namespace vpux
