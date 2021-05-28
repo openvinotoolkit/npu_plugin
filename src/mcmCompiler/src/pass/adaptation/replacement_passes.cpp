@@ -108,7 +108,7 @@ void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
     insertPermuteBeforeDetFcn(pass, model);
     replacePermuteAsReshape(pass, model);
     interpolateAsResample(pass, model);
-    resampleWithStorageElementPointerTable(pass, model);
+    resampleAsDepthDeConvFcn(pass, model);
     replaceBroadcastEltwiseMultWithConv(pass, model);
     insertUpaDmaAfterSliceOnOutputFcn(pass, model);
 }
