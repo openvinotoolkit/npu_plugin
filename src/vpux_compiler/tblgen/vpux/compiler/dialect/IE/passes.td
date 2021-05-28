@@ -64,13 +64,14 @@ def ConvertPrecisionToFP16 : PassBase<"convert-precision-to-fp16", "vpux::Module
 // ConvertShapeTo4D
 //
 
-def ConvertShapeTo4D : PassBase<"convert-shape-to-4d", "vpux::FunctionPass"> {
+def ConvertShapeTo4D : PassBase<"convert-shape-to-4d", "vpux::ModulePass"> {
     let summary = "Convert tensors shapes to 4D";
 
     let description = [{
         The pass is a part of `AdjustForVPU` pipeline.
 
-        **TBD:** This pass replaces ND tensor with 4D analogues for layers, which has such limitations on VPUIP level.
+        This pass replaces ND tensor with 4D analogues for layers, which has such limitations on VPUIP level.
+        Also this pass replaces ND network inputs and outputs with 4D analogues to overcome runtime limitations.
     }];
 
     let constructor = "vpux::IE::createConvertShapeTo4DPass()";

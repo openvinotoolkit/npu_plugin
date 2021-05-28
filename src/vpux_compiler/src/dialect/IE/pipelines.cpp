@@ -13,6 +13,8 @@
 
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
+#include <mlir/Transforms/Passes.h>
+
 using namespace vpux;
 
 //
@@ -25,6 +27,7 @@ void vpux::IE::buildAdjustForVPUPipeline(mlir::OpPassManager& pm, Logger log) {
     pm.addPass(IE::createConvertPrecisionToFP16Pass(log));
     pm.addPass(IE::createConvertShapeTo4DPass(log));
     pm.addPass(IE::createConvertPaddingsToFloorModePass(log));
+    pm.addPass(mlir::createCanonicalizerPass());
 }
 
 //

@@ -44,7 +44,7 @@ class KmbSplitSoftmaxLayerTest : public SplitLayerTest, virtual public LayerTest
     }
 };
 
-TEST_P(KmbSplitSoftmaxLayerTest, DISABLED_SubgraphCompareWithRefs_MLIR) {
+TEST_P(KmbSplitSoftmaxLayerTest, SubgraphCompareWithRefs_MLIR) {
     useCompilerMLIR();
     Run();
 }
