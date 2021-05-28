@@ -53,8 +53,9 @@ namespace {
             testing::Values(LayerTestsUtils::testPlatformTargetDevice)
     );
 
+    // [Track number: E#13236]
     INSTANTIATE_TEST_CASE_P(
-            smoke_Pad4DConst,
+            DISABLED_smoke_Pad4DConst,
             KmbPadLayerTest,
             pad4DConstparams,
             KmbPadLayerTest::getTestCaseName
