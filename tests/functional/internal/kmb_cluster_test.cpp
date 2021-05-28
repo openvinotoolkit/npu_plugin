@@ -13,6 +13,7 @@
 
 #include "test_model/kmb_test_base.hpp"
 #include <condition_variable>
+#include <fstream>
 #include "common/functions.h"
 
 class KmbClusterTest : public KmbNetworkTestBase {
@@ -33,6 +34,13 @@ int32_t KmbClusterTest::runTest(const TestNetworkDesc& netDesc, const std::strin
     size_t iterCount = 0;
 
     if (KmbTestBase::RUN_INFER) {
+        // Skip if blob was not generated on host
+        std::ifstream file(blobFileName, std::ios_base::in | std::ios_base::binary);
+        if (!file.is_open()) {
+            std::stringstream str;
+            str << "importNetwork() failed. Cannot open file " << blobFileName;
+            throw import_error(str.str());
+        }
         ExecutableNetwork importedNet = core->ImportNetwork(blobFileName, DEVICE_NAME, {});
         std::vector<InferenceEngine::InferRequest> inferRequestVec;
         for (size_t reqId = 0; reqId < MAX_REQ_COUNT; reqId++) {
@@ -92,18 +100,23 @@ TEST_P(KmbClusterTestWithParams, precommit_checkInferTime) {
 
     const std::string netName = p._netName;
     const std::string clusters = p._numClusters;
-    const auto timeMs = runTest(
-        TestNetworkDesc(net_path, EXPERIMENTAL)
-            .setUserInputPrecision("input", Precision::FP16)
-            .setUserOutputPrecision("PostProcess/stage0/x1/Sigmoid", Precision::FP16)
-            .setUserOutputPrecision("PostProcess/stage0/x4/Sigmoid", Precision::FP16)
-            .setUserOutputPrecision("PostProcess/stage1/x1/Sigmoid", Precision::FP16)
-            .setUserOutputPrecision("PostProcess/stage1/x4/Sigmoid", Precision::FP16)
-            .setCompileConfig({{"VPU_COMPILER_NUM_CLUSTER", clusters}}),
-            netName);
+    try {
+        const auto timeMs = runTest(
+            TestNetworkDesc(net_path, EXPERIMENTAL)
+                .setUserInputPrecision("input", Precision::FP16)
+                .setUserOutputPrecision("PostProcess/stage0/x1/Sigmoid", Precision::FP16)
+                .setUserOutputPrecision("PostProcess/stage0/x4/Sigmoid", Precision::FP16)
+                .setUserOutputPrecision("PostProcess/stage1/x1/Sigmoid", Precision::FP16)
+                .setUserOutputPrecision("PostProcess/stage1/x4/Sigmoid", Precision::FP16)
+                .setCompileConfig({{"VPU_COMPILER_NUM_CLUSTER", clusters}}),
+                netName);
 
-    std::cout << "Number of clusters: " << clusters << std::endl;
-    std::cout << "Time elapsed: " << timeMs << std::endl;
+        std::cout << "Number of clusters: " << clusters << std::endl;
+        std::cout << "Time elapsed: " << timeMs << std::endl;
+    } catch (const import_error& ex) {
+        std::cerr << ex.what() << std::endl;
+        SKIP() << ex.what();
+    }
 }
 
 static const std::vector<ClusterTestParams> params {
