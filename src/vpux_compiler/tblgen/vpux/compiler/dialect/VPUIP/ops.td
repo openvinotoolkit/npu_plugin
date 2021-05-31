@@ -1779,7 +1779,9 @@ def VPUIP_NCEClusterTaskOp :
         OptionalAttr<VPUIP_PPELayerType>:$fixed_ppe_task,
         OptionalAttr<I32ArrayAttr>:$kernel_padding,
         OptionalAttr<I32ArrayAttr>:$strides,
-        OptionalAttr<I32ArrayAttr>:$kernel_size
+        OptionalAttr<I32ArrayAttr>:$kernel_size,
+        OptionalAttr<I32Attr>:$activation_window_channel_length
+
     );
 
     let results = (outs
@@ -1792,7 +1794,8 @@ def VPUIP_NCEClusterTaskOp :
             "mlir::Value":$activation_window, "mlir::Value":$parent_input, "mlir::Value":$parent_output,
             "mlir::Value":$output,
             "vpux::VPUIP::NCETaskType":$task_type, "vpux::VPUIP::PPELayerTypeAttr":$fixed_ppe_task,
-            "mlir::ArrayAttr":$kernel_padding, "mlir::ArrayAttr":$strides, "mlir::ArrayAttr":$kernel_size
+            "mlir::ArrayAttr":$kernel_padding, "mlir::ArrayAttr":$strides, "mlir::ArrayAttr":$kernel_size,
+            "mlir::IntegerAttr":$activation_window_channel_length
         )>
     ];
 

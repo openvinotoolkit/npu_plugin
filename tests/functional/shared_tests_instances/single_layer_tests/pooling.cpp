@@ -6,7 +6,6 @@
 
 #include <vector>
 
-#include "common_test_utils/test_constants.hpp"
 #include "kmb_layer_test.hpp"
 
 namespace LayerTestsDefinitions {
@@ -32,9 +31,7 @@ class KmbPoolingLayerTest: public PoolingLayerTest, virtual public LayerTestsUti
     }
 };
 
-class KmbPoolingLayerTestOnly_MLIR: public KmbPoolingLayerTest {};
-
-TEST_P(KmbPoolingLayerTest, CompareWithRefs) {
+TEST_P(KmbPoolingLayerTest, CompareWithRefs_MCM) {
     Run();
 }
 
@@ -44,7 +41,7 @@ TEST_P(KmbPoolingLayerTest, CompareWithRefs_MLIR) {
     Run();
 }
 
-TEST_P(KmbPoolingLayerTestOnly_MLIR, CompareWithRefs_HW) {
+TEST_P(KmbPoolingLayerTest, CompareWithRefs_MLIR_HW) {
     useCompilerMLIR();
     setReferenceHardwareModeMLIR();
     Run();
@@ -62,28 +59,10 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 };
 
 const std::vector<InferenceEngine::SizeVector> inShapes = {
-    {1, 3, 30, 30}
-};
-
-const std::vector<InferenceEngine::SizeVector> inShapesMLIRHW = {
-        {1, 16, 1, 4},
+    {1, 16, 30, 30}
 };
 
 ////* ========== Max Polling ========== */
-
-/* +========== MLIR HW cases ========== */
-const std::vector<poolSpecificParams> maxPoolMLIR_HW = {
-        std::make_tuple(
-                PoolingTypes::MAX,
-                std::vector<size_t> {1, 1},  // kernel
-                std::vector<size_t> {1, 1},  // strides
-                std::vector<size_t> {0, 0},  // padBegins
-                std::vector<size_t> {0, 0},  // padEnds
-                ngraph::op::RoundingType::FLOOR,
-                ngraph::op::PadType::EXPLICIT,
-                false  // placeholder value - exclude pad not applicable for max pooling
-        )
-};
 
 /* +========== Explicit Pad Floor Rounding ========== */
 
@@ -121,18 +100,6 @@ const std::vector<poolSpecificParams> maxPoolExplicitPadFloorRoundingParams = {
         false  // placeholder value - exclude pad not applicable for max pooling
     ),
 };
-
-INSTANTIATE_TEST_CASE_P(DISABLED_maxPoolMLIR_HW, KmbPoolingLayerTestOnly_MLIR,
-    ::testing::Combine(
-        ::testing::ValuesIn(maxPoolMLIR_HW),
-        ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(InferenceEngine::Precision::FP16),
-        ::testing::Values(InferenceEngine::Precision::FP16),
-        ::testing::Values(InferenceEngine::Layout::NCHW),
-        ::testing::Values(InferenceEngine::Layout::NCHW),
-        ::testing::ValuesIn(inShapesMLIRHW),
-        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
-    PoolingLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(smoke_MaxPool_ExplicitPad_FloorRounding, KmbPoolingLayerTest,
                         ::testing::Combine(
