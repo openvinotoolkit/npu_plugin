@@ -17,7 +17,8 @@ It updates both function bodies as well as Function signatures.
 ### `-convert-shape-to-4d`: Convert tensors shapes to 4D
 The pass is a part of `AdjustForVPU` pipeline.
 
-**TBD:** This pass replaces ND tensor with 4D analogues for layers, which has such limitations on VPUIP level.
+This pass replaces ND tensor with 4D analogues for layers, which has such limitations on VPUIP level.
+Also this pass replaces ND network inputs and outputs with 4D analogues to overcome runtime limitations.
 ### `-convert-tile-to-per-axis-tiles`: Convert tile op by multiple axes to multiple PerAxisTile operations
 The pass is a part of `AdjustForVPU` pipeline.
 

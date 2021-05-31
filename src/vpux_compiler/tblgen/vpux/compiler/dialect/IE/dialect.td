@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -34,8 +34,8 @@ Some of the layer operations in the **IE Dialect** defines Canonicalization hook
 * Remove redundant Operations (same type `Reshape`/`Tile`, `Add` with 0, etc.).
 * Apply Lazy Constant Folding.
 * Replace Constant Values with Attributes (more linear graph).
-* Fuse common patterns (`Mul+Add => ScaleShift`, `Convolution+Bias`).
-* Use more convinient Operations (`MatMul => FullyConnected`, `Reshape => linalg.tensor_reshape`).
+* Fuse common patterns (for example, `Mul+Add => ScaleShift`, `Convolution+Bias`).
+* Use more convinient Operations (for example, `MatMul => FullyConnected`).
 
 Quantization parameters are stored as a part of tensor/buffer element type (`QuantizedType` from **Quant Dialect**).
 
@@ -68,7 +68,6 @@ IE.CNNNetwork
 
     let dependentDialects = [
         "mlir::StandardOpsDialect",
-        "mlir::linalg::LinalgDialect",
         "mlir::quant::QuantizationDialect"
     ];
 

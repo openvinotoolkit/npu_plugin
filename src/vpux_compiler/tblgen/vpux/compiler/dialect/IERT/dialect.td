@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -118,7 +118,6 @@ The `IERT.RunTimeResources` is filled by underlying low-level dialect to provide
         "mlir::StandardOpsDialect",
         "mlir::memref::MemRefDialect",
         "mlir::quant::QuantizationDialect",
-        "mlir::linalg::LinalgDialect",
         "mlir::async::AsyncDialect"
     ];
 }

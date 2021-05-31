@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -773,9 +773,10 @@ def IE_ReshapeOp :
 
     let arguments = (ins
         AnyRankedTensor:$input,
-        RankedTensorOf<[AnyInteger]>:$shape,
+        Optional<RankedTensorOf<[AnyInteger]>>:$shape,
 
-        UnitAttr:$special_zero
+        UnitAttr:$special_zero,
+        OptionalAttr<I64ArrayAttr>:$shape_value
     );
 
     let results = (outs
@@ -801,7 +802,38 @@ def IE_SqueezeOp :
 
     let arguments = (ins
         AnyRankedTensor:$input,
-        AnyRankedTensor:$axes
+        Optional<RankedTensorOf<[AnyInteger]>>:$axes,
+
+        OptionalAttr<I64ArrayAttr>:$axes_value
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+
+    let hasCanonicalizer = 1;
+    let hasFolder = 1;
+}
+
+//
+// UnsqueezeOp
+//
+
+def IE_UnsqueezeOp :
+        IE_LayerOp<
+            "Unsqueeze",
+            [
+                DeclareOpInterfaceMethods<ViewLikeOpInterface>
+            ]
+        > {
+
+    let summary = "InferenceEngine Unsqueeze layer";
+
+    let arguments = (ins
+        AnyRankedTensor:$input,
+        Optional<RankedTensorOf<[AnyInteger]>>:$axes,
+
+        OptionalAttr<I64ArrayAttr>:$axes_value
     );
 
     let results = (outs
@@ -858,33 +890,6 @@ def IE_LRNOp :
     let results = (outs
         RankedTensorOf<[F16, F32]>:$output
     );
-}
-
-//
-// UnsqueezeOp
-//
-
-def IE_UnsqueezeOp :
-        IE_LayerOp<
-            "Unsqueeze",
-            [
-                DeclareOpInterfaceMethods<ViewLikeOpInterface>
-            ]
-        > {
-
-    let summary = "InferenceEngine Unsqueeze layer";
-
-    let arguments = (ins
-        AnyRankedTensor:$input,
-        AnyRankedTensor:$axes
-    );
-
-    let results = (outs
-        AnyRankedTensor:$output
-    );
-
-    let hasCanonicalizer = 1;
-    let hasFolder = 1;
 }
 
 //

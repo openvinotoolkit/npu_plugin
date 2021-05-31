@@ -10,7 +10,6 @@ This pass bufferizes **IE Dialect** into **IERT Dialect**:
 * Doesn't change Function signatures.
 * Replaces Layer Operations with IERT analogues.
 * Replaces Quant Dialect Operations with IERT analogues.
-* Replaces `linalg.tensor_reshape` with `linalg.reshape`.
 ### `-convert-IERT-ops-to-VPUIP`: Convert IERT Dialect Operations to VPUIP Dialect
 This pass converts IERT Layer Operations to VPUIP Dialect UPA tasks.
 It also converts IERT declarations and view-like operations to VPUIP declarations.

@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -13,7 +13,6 @@
 
 #pragma once
 
-#include <mlir/Dialect/Linalg/IR/LinalgOps.h>
 #include <mlir/Dialect/Quant/QuantTypes.h>
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/Dialect/StandardOps/Transforms/Passes.h>

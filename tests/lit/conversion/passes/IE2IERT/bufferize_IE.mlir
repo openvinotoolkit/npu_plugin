@@ -27,15 +27,12 @@ func @ConstantLayer() -> tensor<1x2x2x2xf16> {
 
 // -----
 
-#map0 = affine_map<(d0, d1, d2, d3) -> (d0)>
-#map1 = affine_map<(d0, d1, d2, d3) -> (d1, d2, d3)>
-
 func @Reshape(%arg0 : tensor<1x512x1x1xf32>) -> tensor<1x512xf32> {
-    %0 = linalg.tensor_reshape %arg0 [#map0, #map1] : tensor<1x512x1x1xf32> into tensor<1x512xf32>
+    %0 = IE.Reshape(%arg0) { shape_value = [1, 512] } : tensor<1x512x1x1xf32> -> tensor<1x512xf32>
     return %0 : tensor<1x512xf32>
 
     // CHECK: [[VAR0:%.*]] = memref.buffer_cast %arg0 : memref<1x512x1x1xf32>
-    // CHECK: [[VAR1:%.*]] = linalg.reshape [[VAR0]] [#map0, #map1] : memref<1x512x1x1xf32> into memref<1x512xf32>
+    // CHECK: [[VAR1:%.*]] = IERT.GenericReshape inputs([[VAR0]] : memref<1x512x1x1xf32>) -> memref<1x512xf32>
     // CHECK: [[VAR2:%.*]] = memref.tensor_load [[VAR1]]
     // CHECK: return [[VAR2]] : tensor<1x512xf32>
 }

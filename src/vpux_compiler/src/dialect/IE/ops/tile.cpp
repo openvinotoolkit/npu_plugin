@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -110,8 +110,8 @@ mlir::LogicalResult AddUnsqueeze::matchAndRewrite(IE::TileOp origOp, mlir::Patte
     auto unsqueezeParamConst =
             rewriter.create<IE::ConstantOp>(origOp->getLoc(), unsqueezeParamType, unsqueezeParamAttr);
 
-    auto unsqueezeOp =
-            rewriter.create<IE::UnsqueezeOp>(origOp->getLoc(), origOp.input(), unsqueezeParamConst.getResult());
+    auto unsqueezeOp = rewriter.create<IE::UnsqueezeOp>(origOp->getLoc(), origOp.input(),
+                                                        unsqueezeParamConst.getResult(), nullptr);
 
     rewriter.replaceOpWithNewOp<IE::TileOp>(origOp, origOp.getType(), unsqueezeOp->getResult(0), origOp.repeats());
 

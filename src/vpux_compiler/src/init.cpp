@@ -26,7 +26,6 @@
 
 #include <mlir/Dialect/Affine/IR/AffineOps.h>
 #include <mlir/Dialect/Async/IR/Async.h>
-#include <mlir/Dialect/Linalg/IR/LinalgOps.h>
 #include <mlir/Dialect/Math/IR/Math.h>
 #include <mlir/Dialect/MemRef/IR/MemRef.h>
 #include <mlir/Dialect/Quant/QuantOps.h>
@@ -45,7 +44,6 @@ void vpux::registerDialects(mlir::DialectRegistry& registry) {
     registry.insert<mlir::AffineDialect,               //
                     mlir::StandardOpsDialect,          //
                     mlir::async::AsyncDialect,         //
-                    mlir::linalg::LinalgDialect,       //
                     mlir::math::MathDialect,           //
                     mlir::memref::MemRefDialect,       //
                     mlir::quant::QuantizationDialect,  //

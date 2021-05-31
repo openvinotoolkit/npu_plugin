@@ -18,7 +18,6 @@
 
 #include "vpux/utils/core/logger.hpp"
 
-#include <mlir/Dialect/Linalg/IR/LinalgOps.h>
 #include <mlir/Dialect/Quant/QuantOps.h>
 #include <mlir/IR/BuiltinOps.h>
 #include <mlir/Pass/Pass.h>

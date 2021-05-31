@@ -40,10 +40,7 @@ class KmbEltwiseLayerTest: public EltwiseLayerTest, virtual public LayerTestsUti
             {{1, 4, 4, 1}}
         };
         std::set<std::vector<std::vector<size_t>>> badShapesForMLIR = {
-                {{2, 17, 5, 4}, {1, 17, 1, 1}},
-                {{4, 4, 16}},
-                {{1, 2, 4}},
-                {{1, 4, 4}},
+            {{2, 17, 5, 4}, {1, 17, 1, 1}},
         };
 
         std::tie(inShapes,

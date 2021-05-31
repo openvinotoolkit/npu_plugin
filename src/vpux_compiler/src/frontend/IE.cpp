@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -610,8 +610,8 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
     VPUX_THROW_UNLESS(inputs.size() == 2, "nGraph Reshape node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
 
-    auto op =
-            builder.create<IE::ReshapeOp>(createLocation(origNode), inputs[0], inputs[1], origNode->get_special_zero());
+    auto op = builder.create<IE::ReshapeOp>(createLocation(origNode), inputs[0], inputs[1],
+                                            origNode->get_special_zero(), nullptr);
     addOutputs(origNode, op);
 }
 
@@ -671,7 +671,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
     VPUX_THROW_UNLESS(inputs.size() == 2, "nGraph Squeeze node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
 
-    auto op = builder.create<IE::UnsqueezeOp>(createLocation(origNode), inputs[0], inputs[1]);
+    auto op = builder.create<IE::UnsqueezeOp>(createLocation(origNode), inputs[0], inputs[1], nullptr);
     addOutputs(origNode, op);
 }
 
@@ -710,7 +710,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
     VPUX_THROW_UNLESS(inputs.size() <= 2, "nGraph Squeeze node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
 
-    auto op = builder.create<IE::SqueezeOp>(createLocation(origNode), inputs[0], inputs[1]);
+    auto op = builder.create<IE::SqueezeOp>(createLocation(origNode), inputs[0], inputs[1], nullptr);
     addOutputs(origNode, op);
 }
 

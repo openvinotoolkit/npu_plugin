@@ -122,7 +122,6 @@ void ConvertPrecisionToFP16Pass::safeRunOnModule() {
 
     mlir::ConversionTarget target(ctx);
     target.addDynamicallyLegalDialect<IE::IEDialect>(isLegalOp);
-    target.addDynamicallyLegalOp<mlir::linalg::TensorReshapeOp>(isLegalOp);
     target.addDynamicallyLegalOp<mlir::ReturnOp>(isLegalOp);
     target.addLegalOp<IE::ConvertOp>();
     target.addLegalOp<mlir::ModuleOp>();

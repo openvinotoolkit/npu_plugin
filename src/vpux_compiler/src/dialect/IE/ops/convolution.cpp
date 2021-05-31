@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -217,7 +217,8 @@ mlir::LogicalResult GroupsToAttr::matchAndRewrite(IE::GroupConvolutionOp convOp,
     const auto filterShapeAttr = mlir::DenseElementsAttr::get(filterShapeType, makeArrayRef(filterShape));
     auto filterShapeOp = rewriter.create<IE::ConstantOp>(convOp->getLoc(), filterShapeType, filterShapeAttr);
 
-    auto newFilter = rewriter.createOrFold<IE::ReshapeOp>(convOp->getLoc(), convOp.filter(), filterShapeOp, false);
+    auto newFilter =
+            rewriter.createOrFold<IE::ReshapeOp>(convOp->getLoc(), convOp.filter(), filterShapeOp, false, nullptr);
 
     rewriter.replaceOpWithNewOp<IE::GroupConvolutionOp>(
             convOp, convOp.input(), newFilter, convOp.bias(), convOp.stridesAttr(), convOp.pads_beginAttr(),
