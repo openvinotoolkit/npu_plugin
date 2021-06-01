@@ -531,7 +531,6 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
                 toBuild->data->data_index = (*masterBuffer)->getOffset();
         }
 
-
         if (t->hasAttr("dilatedWidthConcat") && t->get<bool>("dilatedWidthConcat"))
         {
             toBuild->data->data_index += dilatedStrides[0] * t->get<std::size_t>("inputConcatTensorIdx");
@@ -577,6 +576,8 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         if (t->hasAttr("leftIndexDilation"))
             toBuild->data->data_index += t->get<std::size_t>("leftIndexDilation");
 
+        if (t->hasAttr("sliceAddress"))
+            toBuild->data->data_index = t->get<std::size_t>("sliceAddress");
     }
 
     toBuild->locale = convertAllocatorToMemoryLocale(*tensorAllocatorName, tensorLocation);
@@ -1446,6 +1447,7 @@ void mv::RuntimeModel::case1MC(unsigned numTasks, mv::ComputationModel& cm, mv::
 
     tmp->src = buildTensorReferenceT(cm, compilationDescriptor, src, srcAllocator);
     tmp->dst = buildTensorReferenceT(cm, compilationDescriptor, dst, dstAllocator);
+
     tmp->port = (*port)++;
     if (portLimit <= *port)
     {
@@ -2100,6 +2102,19 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
             break;
     }
 
+    if ((opIt->getOpType() == "DPUTask"
+            && opIt->get<std::string>("taskOp") == "Eltwise"))
+    {
+        auto firstInput = opIt->getInputTensor()[mv::IO_TENSOR_INPUT];
+        auto secondInput = opIt->getInputTensor()[mv::IO_TENSOR_WEIGHTS_SET];
+        if (firstInput->hasAttr("doubleTest") &&
+            firstInput->get<bool>("doubleTest"))
+            toBuild->input_data->dimensions = toBuild->weights_data->dimensions;
+        else if (secondInput->hasAttr("doubleTest") &&
+            secondInput->get<bool>("doubleTest"))
+            toBuild->weights_data->dimensions = toBuild->input_data->dimensions;
+    }
+
     if ((opIt->hasAttr("activationSparsityCompilerSolving")
         && opIt->get<bool>("activationSparsityCompilerSolving")) ||
             (opIt->hasAttr("activationSparsityCompilerSolvingForDilatedConv") &&
@@ -2269,6 +2284,17 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
             break;
     }
 
+    if ((opIt->getOpType() == "DPUTask"
+            && opIt->get<std::string>("taskOp") == "Eltwise"))
+    {
+        if (opIt->getInputTensor()[0]->hasAttr("doubleTest") &&
+            opIt->getInputTensor()[0]->get<bool>("doubleTest"))
+            toBuild->input_data->dimensions = toBuild->weights_data->dimensions;
+        else if (opIt->getInputTensor()[1]->hasAttr("doubleTest") &&
+            opIt->getInputTensor()[1]->get<bool>("doubleTest"))
+            toBuild->weights_data->dimensions = toBuild->input_data->dimensions;
+    }
+
     if ((opIt->hasAttr("activationSparsityCompilerSolving")
         && opIt->get<bool>("activationSparsityCompilerSolving")) ||
             (opIt->hasAttr("activationSparsityCompilerSolvingForDilatedConv") &&
@@ -2314,38 +2340,6 @@ bool mv::RuntimeModel::hardwareBugDepthwise(Control::OpListIterator opIt)
         (kernelSize[mv::KERNEL_HEIGHT] > 1));
 }
 
-void mv::RuntimeModel::getWorkloadPadding(Control::OpListIterator opIt, Workload &workload)
-{
-    if (opIt->get<std::string>("taskOp") == "Eltwise")
-    {
-        workload.padLeft = 0;
-        workload.padTop = 0;
-        workload.padRight = 0;
-        workload.padBottom = 0;
-    }
-    else
-    {
-        auto padding = opIt->get<std::array<unsigned short, 4>>("padding");
-        auto outputWidth = opIt->getOutputTensor(0)->getShape()[mv::IO_WIDTH_DIMENSION];
-        auto outputHeight = opIt->getOutputTensor(0)->getShape()[mv::IO_HEIGHT_DIMENSION];
-        if (hardwareBugDepthwise(opIt))
-        {
-            workload.padLeft = (workload.MinX == 0) ? padding[0] : 0;
-            workload.padTop = (workload.MinY == 0) ? padding[2] : 0;
-            workload.padRight = ((workload.MaxX + unsigned(1)) == outputWidth) ? padding[1] : 0;
-            workload.padBottom = ((workload.MaxY + unsigned(1)) == outputHeight) ? padding[3] : 0;
-        }
-        else
-        {
-            workload.padLeft = (workload.MinX == 0) ? padding[0] : 0;
-            workload.padTop = (workload.MinY == 0) ? padding[2] : 0;
-            workload.padRight = ((workload.MaxX + unsigned(1)) == outputWidth) ? padding[1] : 0;
-            workload.padBottom = ((workload.MaxY + unsigned(1)) == outputHeight) ? padding[3] : 0;
-        }
-    }
-    return;
-}
-
 std::array<unsigned short, 4> mv::RuntimeModel::getNewPadding(std::array<unsigned short, 4> padding, int clusterId, int numClusters)
 {
         if (clusterId == 0)
@@ -2364,7 +2358,7 @@ std::array<unsigned short, 4> mv::RuntimeModel::getNewPadding(std::array<unsigne
         return padding;
 }
 
-void mv::RuntimeModel::getWorkloadPadding(Control::OpListIterator opIt, Workload &workload, unsigned clusterId)
+void mv::RuntimeModel::getWorkloadPadding(Control::OpListIterator opIt, Workload &workload, unsigned clusterId, const std::string strategy)
 {
     if (opIt->get<std::string>("taskOp") == "Eltwise")
     {
@@ -2375,25 +2369,21 @@ void mv::RuntimeModel::getWorkloadPadding(Control::OpListIterator opIt, Workload
     }
     else
     {
-        auto padding = getPadding(opIt, clusterId);
+        std::array<unsigned short, 4> padding;
+        if (strategy != "Clustering")
+            padding = getPadding(opIt, clusterId);
+        else
+            padding = opIt->get<std::array<unsigned short, 4>>("padding");
+
         auto outputWidth = opIt->getOutputTensor(0)->getShape()[mv::IO_WIDTH_DIMENSION];
         auto outputHeight = opIt->getOutputTensor(0)->getShape()[mv::IO_HEIGHT_DIMENSION];
 
-        if (hardwareBugDepthwise(opIt))
-        {
-            workload.padLeft = (workload.MinX == 0) ? padding[0] : 0;
-            workload.padTop = (workload.MinY == 0) ? padding[2] : 0;
-            workload.padRight = ((workload.MaxX + unsigned(1)) == outputWidth) ? padding[1] : 0;
-            workload.padBottom = ((workload.MaxY + unsigned(1)) == outputHeight) ? padding[3] : 0;
-        }
-
-        else
-        {
-            workload.padLeft = (workload.MinX == 0) ? padding[0] : 0;
-            workload.padTop = (workload.MinY == 0) ? padding[2] : 0;
-            workload.padRight = ((workload.MaxX + unsigned(1)) == outputWidth) ? padding[1] : 0;
-            workload.padBottom = ((workload.MaxY + unsigned(1)) == outputHeight) ? padding[3] : 0;
-        }
+        workload.padLeft = (workload.MinX == 0) ? padding[mv::PADDING_LEFT] : 0;
+        workload.padTop = (workload.MinY == 0) ? padding[mv::PADDING_TOP] : 0;
+        long long  pad_right = workload.MaxX + 1 + padding[mv::PADDING_RIGHT] - outputWidth;
+        workload.padRight = (pad_right > 0) ? pad_right : 0;
+        long long  pad_bottom = workload.MaxY + 1 + padding[mv::PADDING_BOT] - outputHeight;
+        workload.padBottom = (pad_bottom > 0) ? pad_bottom : 0;
     }
     return;
 }
@@ -2437,11 +2427,7 @@ std::unique_ptr<MVCNN::NCEVariantFieldsT> mv::RuntimeModel::buildNCEVariantField
     toBuild->workload_end_X = workload.MaxX;
     toBuild->workload_end_Y = workload.MaxY;
     toBuild->workload_end_Z = workload.MaxZ;
-    if (strategy != "Clustering")
-        //Padding should be computed for every cluster
-        getWorkloadPadding(opIt, workload, clusterId);
-    else
-        getWorkloadPadding(opIt, workload);
+    getWorkloadPadding(opIt, workload, clusterId, strategy);
     toBuild->padLeft = workload.padLeft;
     toBuild->padRight = workload.padRight;
     toBuild->padTop = workload.padTop;

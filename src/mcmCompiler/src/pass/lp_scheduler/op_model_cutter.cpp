@@ -20,7 +20,7 @@ MV_REGISTER_PASS(OpModelCutter)
   .defineArg(json::JSONType::String, "op_name")
   .setDescription("Name of the op at which the mv::OpModel will be cut");
 
-} // namespace pass // 
+} // namespace pass //
 } // namespace mv //
 
 //TODO(vamsikku): ideally only need const mv::OpModel& unfortunately mv::OpModel
@@ -53,13 +53,25 @@ void FindAllOpsWhichConnectToThisOp(mv::OpModel& omodel,
     }
     bfs_list.pop_front();
   }
-} 
+}
+
+void removeFromStrategyList(mv::Data::OpListIterator op, std::vector<mv::Element> &strategies)
+{
+  std::string name = op->getName();
+  auto it = std::remove_if(strategies.begin(), strategies.end(), [name](mv::Element &layerNameStrategy)
+  {
+    return (name == layerNameStrategy.get<std::string>("name_filter"));
+  });
+  strategies.erase(it, strategies.end());
+}
 
 void OpModelCutter(const mv::pass::PassEntry& , mv::ComputationModel& model,
     mv::TargetDescriptor& , mv::Element& passDesc, mv::Element& ) {
 
   mv::OpModel omodel(model);
   std::string cut_op_name = passDesc.get<std::string>("op_name");
+  auto globalParams = model.getGlobalConfigParams();
+  auto strategyList = globalParams->get<std::vector<mv::Element>>("streaming_strategy");
 
   {
     std::ostringstream log_stream;
@@ -119,6 +131,7 @@ void OpModelCutter(const mv::pass::PassEntry& , mv::ComputationModel& model,
     }
     for (auto nitr=ops_to_remove.begin(); nitr!=ops_to_remove.end(); ++nitr) {
       mv::Data::OpListIterator opitr = omodel.getOp(*nitr);
+      removeFromStrategyList(opitr, strategyList);
       omodel.removeOp(opitr);
     }
 
@@ -148,6 +161,7 @@ void OpModelCutter(const mv::pass::PassEntry& , mv::ComputationModel& model,
   for (auto ditr=disconnected_ops.begin(); ditr!=disconnected_ops.end();
         ++ditr) {
     if ((*ditr)->getOpType() == "Output") { continue; }
+    removeFromStrategyList(*ditr, strategyList);
     omodel.removeOp(*ditr);
   }
 
@@ -155,11 +169,12 @@ void OpModelCutter(const mv::pass::PassEntry& , mv::ComputationModel& model,
   mv::Data::TensorIterator cut_op_tensor_itr = new_oitr->getOutputTensor(0UL);
   output_op_itr->setInputTensor(cut_op_tensor_itr, 0UL, true);
   // output precision should be this op's precision
-  output_op_itr->set("precision", mv::DType("Default"));
+  output_op_itr->set("precision", mv::DType("Float16"));
   omodel.defineFlow(cut_op_tensor_itr, output_op_itr, 0UL);
   if (multipleOutputs)
   {
       omodel.setNumNetworkOutputs(1);
       omodel.setOutputNode(output_op_itr);
   }
+  globalParams->set<std::vector<mv::Element>>("streaming_strategy", strategyList);
 }

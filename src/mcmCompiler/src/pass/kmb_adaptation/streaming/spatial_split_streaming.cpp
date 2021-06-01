@@ -85,11 +85,11 @@ struct opStreamingSplitDef
     size_t numSplits ;
 };
 
-mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model, mv::Data::OpListIterator op, mv::Tiling& tiling);
-mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Data::OpListIterator op, mv::Tiling& tiling);
-mv::Data::TensorIterator solveBatchTiling(mv::ComputationModel& model, mv::Data::OpListIterator op, mv::Tiling& tiling);
+mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model, mv::Data::OpListIterator op, mv::Tiling& tiling, bool vertical_fusion_overlap);
+mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Data::OpListIterator op, mv::Tiling& tiling, bool vertical_fusion_overlap);
+mv::Data::TensorIterator solveBatchTiling(mv::ComputationModel& model, mv::Data::OpListIterator op, mv::Tiling& tiling, bool vertical_fusion_overlap);
 
-std::map<std::string, std::function<mv::Data::TensorIterator(mv::ComputationModel&, mv::Data::OpListIterator, mv::Tiling&)>>
+std::map<std::string, std::function<mv::Data::TensorIterator(mv::ComputationModel&, mv::Data::OpListIterator, mv::Tiling&, bool vertical_fusion_overlap)>>
 streamSplit =
 {
     {"W",solveSpatialTiling},
@@ -101,7 +101,7 @@ streamSplit =
 
 mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
         mv::Data::OpListIterator op,
-        mv::Tiling& tiling)
+        mv::Tiling& tiling, bool /*vertical_fusion_overlap*/ = false)
 {
     mv::OpModel om(model);
     mv::DataModel dm(model);
@@ -190,8 +190,7 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
                 }
             }
             if (!sliceFound)
-                std::cout << "ERROR: Slice for dilatedConv weights hasn't been found although kernel was marked as already Sliced!" << std::endl;
-            assert(sliceFound);
+                throw mv::RuntimeError("Streaming", "Slice for dilatedConv weights hasn't been found although kernel was marked as already Sliced!");
         }
         else
         {
@@ -401,7 +400,7 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
             auto newStreamAxis = childTiles[split].getAxis();
             auto newStreamFunc = streamSplit[newStreamAxis];
 
-            out = newStreamFunc(om,om.getSourceOp(newTensors[split]),childTiles[split]);
+            out = newStreamFunc(om,om.getSourceOp(newTensors[split]),childTiles[split], false);
             om.removeOp(om.getSourceOp(newTensors[split]));
         }
         else
@@ -440,7 +439,7 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
 
 mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model,
                     mv::Data::OpListIterator op,
-                    mv::Tiling& tiling)
+                    mv::Tiling& tiling, bool vertical_fusion_overlap = false)
 {
     mv::OpModel om(model);
     mv::ControlModel cm(model);
@@ -455,7 +454,7 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model,
     auto attrsToCopy = op->getAttrs({"padding", "shape"});
     std::string splitStrategy = op->get<std::string>("splitStrategy");
     bool avoidCmxConcat = op->hasAttr("avoidCmxConcat") && op->get<bool>("avoidCmxConcat");
-
+    bool concatTail = false;
     std::vector<mv::Data::TensorIterator> slices;
     std::vector<mv::Data::TensorIterator> newTensors(number_of_splits);
     std::vector<mv::Data::TensorIterator> final_outputs(number_of_splits);
@@ -604,6 +603,36 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model,
         // where we don't want the same datatype for output as the input tensors
         newTensor->setDType(op->getOutputTensor(0)->getDType());
         auto newOp = om.getSourceOp(newTensor);
+        bool op_is_low_level_vf_input = op->hasAttr("inputLowLevel") && op->get<bool>("inputLowLevel");
+        if (vertical_fusion_overlap)
+        {
+            newOp->set<std::size_t>("verticalFusionOutputOverlap", childTiles[split].getActivationStart()["H"]);
+            newTensor->set<std::size_t>("verticalFusionOutputOverlap", childTiles[split].getActivationStart()["H"]);
+            if (split != 0)
+            {
+                newOp->set<bool>("vertical_fusion_overlap", op_is_low_level_vf_input);
+                auto previousLinesComputing = childTiles[split - 1].getActivationStart()["H"] +
+                    childTiles[split - 1].getActivationShape()["H"];
+                auto overLappingLines = previousLinesComputing - childTiles[split].getActivationStart()["H"];
+                newOp->set<std::size_t>("concatOverLappingLines", overLappingLines);
+            }
+        }
+        if (op_is_low_level_vf_input && (split != 0))
+        {
+            newOp->set<bool>("inputLowLevel", op_is_low_level_vf_input);
+            auto previousLinesComputing = childTiles[split - 1].getActivationStart()["H"] +
+                childTiles[split - 1].getActivationShape()["H"];
+            auto overLappingLines = previousLinesComputing - childTiles[split].getActivationStart()["H"] - 1;
+            if (op->hasAttr("overLappingSubgraphOpsIndex"))
+            {
+                //note: normally this constant needs to be computed and setted in vertical_fusion.cpp
+                // in storeOverlappingEltwiseLines function, however since we target yolov4 should be ok now
+                std::size_t overLappingLayersStrideKernel = 2;
+                overLappingLines = overLappingLines - (overLappingLayersStrideKernel * op->get<std::size_t>("overLappingSubgraphOpsIndex"));
+            }
+            newOp->set<std::size_t>("doubleTensorOverlappingLines", overLappingLines);
+        }
+        om.getSourceOp(newTensor)->set<std::string>("parentOpName", op->getName());
         newOp->set<bool>("shareWeights", true);
 
         newOp->setAttrs(attrsToCopy);
@@ -616,6 +645,9 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model,
         bool enableSerialStreaming = true;
         if ((split > 0) && enableSerialStreaming)
             cm.defineFlow(om.getSourceOp(newTensors[split-1]), om.getSourceOp(newTensors[split]));
+
+        if (newOp->hasAttr("verticalFusionSubgraphTail") && newOp->get<bool>("verticalFusionSubgraphTail"))
+            concatTail = true;
     }
 
     // decide on the location of the I/O Tensors of the conv;
@@ -646,7 +678,9 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model,
         else
             outputLocation.relocate(mv::Tensor::MemoryLocation::NNCMX);
         newTensor->set<mv::Tensor::MemoryLocation>("Location",outputLocation);
-
+        if ((op->hasAttr("verticalFusionSubgraphHead") && op->get<bool>("verticalFusionSubgraphHead")) ||
+            (op->hasAttr("verticalFusion") && op->get<bool>("verticalFusion")))
+            newTensor->set<mv::Tensor::MemoryLocation>("Location",mv::Tensor::MemoryLocation::NNCMX);
     }
     for (auto slice : slices)
     {
@@ -661,6 +695,9 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model,
             inputLocation.relocate(mv::Tensor::MemoryLocation::NNCMX);
         }
         slice->set<mv::Tensor::MemoryLocation>("Location",inputLocation);
+        if ((op->hasAttr("verticalFusionSubgraphTail") && op->get<bool>("verticalFusionSubgraphTail")) ||
+            (op->hasAttr("verticalFusion") && op->get<bool>("verticalFusion")))
+            slice->set<mv::Tensor::MemoryLocation>("Location",mv::Tensor::MemoryLocation::NNCMX);
     }
 
 
@@ -672,7 +709,7 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model,
             auto newStreamAxis = childTiles[split].getAxis();
             auto newStreamFunc = streamSplit[newStreamAxis];
 
-            out = newStreamFunc(om, om.getSourceOp(newTensors[split]), childTiles[split]);
+            out = newStreamFunc(om, om.getSourceOp(newTensors[split]), childTiles[split], false);
             om.removeOp(om.getSourceOp(newTensors[split]));
         }
         else
@@ -688,6 +725,9 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model,
     concat->setQuantParams(quantParams);
     om.getSourceOp(concat)->set<unsigned>("opId", opId);
     om.getSourceOp(concat)->set<std::string>("splitStrategy", splitStrategy);
+    if (concatTail)
+        om.getSourceOp(concat)->set<bool>("concatTail", concatTail);
+
     if(op->hasAttr("schedule_for_dpu_dma_overlap"))
     {
         auto pipelineId = op->get<unsigned>("schedule_for_dpu_dma_overlap");
@@ -702,7 +742,7 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model,
 
 mv::Data::TensorIterator solveBatchTiling(mv::ComputationModel& model,
                     mv::Data::OpListIterator op,
-                    mv::Tiling& tiling)
+                    mv::Tiling& tiling, bool /*vertical_fusion_overlap*/ = false)
 {
     mv::OpModel om(model);
     mv::ControlModel cm(model);
@@ -874,7 +914,7 @@ mv::Data::TensorIterator solveBatchTiling(mv::ComputationModel& model,
             auto newStreamAxis = childTiles[split].getAxis();
             auto newStreamFunc = streamSplit[newStreamAxis];
 
-            out = newStreamFunc(om, om.getSourceOp(newTensors[split]), childTiles[split]);
+            out = newStreamFunc(om, om.getSourceOp(newTensors[split]), childTiles[split], false);
             om.removeOp(om.getSourceOp(newTensors[split]));
         }
         else
@@ -895,14 +935,213 @@ mv::Data::TensorIterator solveBatchTiling(mv::ComputationModel& model,
     return concat;
 }
 
+void findAndKeepTheParentWithHigherLevel(std::set<std::string> &previousOps, mv::OpModel& om)
+{
+    if (previousOps.size() < 2)
+        return;
+    std::set<std::string> toRemove;
+    for (auto pOp = previousOps.begin(); pOp != previousOps.end(); ++pOp)
+    {
+        auto parentOp = om.getOp(*pOp);
+        if (!parentOp->hasAttr("inputMaxLevel") ||
+            !parentOp->get<bool>("inputMaxLevel"))
+        {
+            toRemove.insert(*pOp);
+        }
+    }
+
+    for (auto &op : toRemove)
+        previousOps.erase(op);
+
+    return;
+}
+
+std::unordered_map<std::string, std::size_t> generateTailLevelMap(mv::OpModel& om)
+{
+    std::list<std::string> zero_in_degree_nodes[2UL];
+    std::unordered_map<std::string, size_t> in_degree_map;
+    std::unordered_map<std::string, size_t> task_level;
+    size_t curr_depth = 0;
+    // STEP-0: compute the in-degree's of all nodes //
+    //NOTE: in_degree means the number of inputs of an op, and the pseudo data flows
+    //if an op is zero_in_degree goes to zero_in_degree_nodes, like constants
+    for (auto op_itr = om.opBegin(); op_itr != om.opEnd(); ++op_itr)
+    {
+        in_degree_map[ op_itr->getName() ] = op_itr->getInputTensor().size();
+        if (op_itr->getInputTensor().size() == 0)
+            zero_in_degree_nodes[0].push_back(op_itr->getName());
+    }
+
+    // NOTE: Topological sort according to zero_in_degree algorithm,
+    // link: https://www.geeksforgeeks.org/topological-sorting-indegree-based-solution/
+    // STEP-1: populate the dpu-levels map, pretty much
+    // takes the opmodel as a dag and provides the ops that are on which level
+    // e.g. A->B->C , A->D then (2, {B,D} )
+    while (!zero_in_degree_nodes[curr_depth%2UL].empty())
+    {
+        bool parity = ((curr_depth%2UL) == 1UL);
+        for (auto zitr=zero_in_degree_nodes[parity].begin();
+              zitr!=zero_in_degree_nodes[parity].end(); ++zitr)
+        {
+          // update the in-degree //
+          mv::Data::OpListIterator zop_itr = om.getOp((*zitr));
+          for (auto citr=zop_itr.leftmostChild(); citr!=om.opEnd(); ++citr)
+          {
+            std::string cop_name = citr->getName();
+            auto ditr = in_degree_map.find(cop_name);
+            if ( (ditr == in_degree_map.end()) || (ditr->second == 0UL) )
+            {
+                throw mv::RuntimeError("Streaming pass", "Missing entry in the in-degree map (or)"
+                  " invalid in-degree for op= " + cop_name);
+            }
+            --(ditr->second);
+            if (!(ditr->second))
+            {
+                zero_in_degree_nodes[!parity].push_back(cop_name);
+                task_level[cop_name] = (curr_depth);
+            }
+          }
+        }
+        zero_in_degree_nodes[parity].clear();
+        curr_depth++;
+    }
+    return task_level;
+}
+
+void computeStreamsForVerticalFusionNode(const std::string& opName, const std::vector<mv::Shape>& outputTileSizes,
+    const std::vector<mv::Shape>& outputTileStarts, mv::ComputationModel& model, const std::vector<mv::Element>& strategies,
+    std::unordered_map<std::string, std::vector<mv::Shape>>& previousOutputTileSizes,
+    std::unordered_map<std::string, std::vector<mv::Shape>>& previousOutputTileStarts)
+{
+    mv::Element layerNameStrategy("streaming_strategy");
+    for (auto strategy = strategies.begin(); strategy != strategies.end(); ++strategy)
+    {
+        auto strat = *strategy;
+        std::string nodeName = (strat).get<std::string>("name_filter");
+        if (nodeName == opName)
+            layerNameStrategy = *strategy;
+    }
+    mv::OpModel om(model);
+    auto opIt = om.getOp(opName);
+    auto inputTensor = opIt->getInputTensor(0);
+    auto inputShape = inputTensor->getShape();
+    auto opType = opIt->getOpType();
+
+    mv::Tiling masterTile;
+    if((opType == "Conv") || (opType == "DepthwiseConv"))
+    {
+        auto kernelShape = opIt->getInputTensor(1)->getShape();
+        masterTile = mv::Tiling(inputShape,kernelShape);
+    }
+    else
+        masterTile = mv::Tiling(inputShape);
+
+    auto splitList = layerNameStrategy.get<std::vector<mv::Element>>("splits");
+    std::vector<mv::Tiling*> tiles = {&masterTile};
+    auto verticalFusionApplyTiling = [opIt](mv::Element& split, mv::Tiling& tile, const std::vector<mv::Shape>& tileSizes,
+        const std::vector<mv::Shape>& tilesStarts) -> std::vector<mv::Tiling>*
+    {
+        //the axis&split are stored in a map with key-> val .....
+        //Don't want to if-then-else over all possible values of the axis...
+        //the map should have only one key.. this is the draw-back of too generic mv::Element
+        auto axis = split.attrsKeys()[0];
+        auto numSplits = split.get<int>(axis);
+
+        if(numSplits > 1)
+        {
+            tile.setAxis(axis);
+            tile.resizeNumberOfTiles(numSplits);
+            tile.generateTiling(opIt, true, tileSizes, tilesStarts);
+            return &tile.childTiles();
+        }
+        else
+        {
+            return nullptr;
+        }
+    };
+
+    for (auto split : splitList)
+    {
+        std::vector<mv::Tiling*> newChildTiles(0);
+        for(auto tile : tiles)
+        {
+            auto childTiles = verticalFusionApplyTiling(split,*tile, outputTileSizes, outputTileStarts);
+            if(childTiles)
+            {
+                for(auto& childTile : *childTiles)
+                {
+                    newChildTiles.push_back(&childTile);
+                }
+            }
+            else
+            {
+                newChildTiles.push_back(tile);
+            }
+        }
+        tiles = newChildTiles;
+    }
+
+    if(masterTile.childTiles().size() > 1)
+    {
+        mv::Data::OpListIterator parentOp;
+        if (opIt->getOpType() == "Eltwise")
+        {
+            std::set<std::string> previousOps;
+            for (std::size_t input = 0; input < opIt->getInputTensor().size(); ++input)
+            {
+                if (!opIt->getInputTensor()[input]->isPopulated())
+                    previousOps.insert(om.getSourceOp(opIt->getInputTensor()[input])->getName());
+            }
+            findAndKeepTheParentWithHigherLevel(previousOps, om);
+            parentOp = om.getOp(*previousOps.begin());
+        }
+        else
+            parentOp = om.getSourceOp(opIt->getInputTensor()[0]);
+
+        auto result = (streamSplit[masterTile.getAxis()])(om, opIt, masterTile, false);
+
+        if ((parentOp->hasAttr("verticalFusionSubgraphHead") && parentOp->get<bool>("verticalFusionSubgraphHead")) ||
+                (parentOp->hasAttr("verticalFusion") && parentOp->get<bool>("verticalFusion")))
+        {
+            for (auto tile : masterTile.childTiles())
+            {
+                previousOutputTileStarts[parentOp->getName()].push_back(tile.getActivationStart());
+                previousOutputTileSizes[parentOp->getName()].push_back(tile.getActivationShape());
+            }
+        }
+        //NOTE: FlowSibling iterators seem to lose some sinks so they are replced...
+        // reconnect children to subgraph
+        std::vector<std::pair<mv::Data::OpListIterator,size_t>> toReturn;
+        auto outputTensor = opIt->getOutputTensor()[0];
+        for (auto output = opIt.leftmostOutput(); output != om.flowEnd(); ++output)
+        {
+            auto consumer = output.sink();
+            std::size_t slot = 0;
+            for (std::size_t input_idx = 0; input_idx < consumer->getInputTensor().size(); input_idx++)
+                if (consumer->getInputTensor()[input_idx]->getName() == outputTensor->getName())
+                    slot = input_idx;
+            toReturn.push_back(std::make_pair(consumer, slot));
+        }
+
+        om.removeOp(opIt);
+        for (unsigned j = 0; j < toReturn.size(); ++j)
+        {
+            toReturn[j].first->setInputTensor(result, toReturn[j].second, false);
+            om.defineFlow(result, toReturn[j].first, toReturn[j].second);
+        }
+    }
+
+    return;
+}
+
 void streamingOperationsFcn(const mv::pass::PassEntry& pass,
                                 mv::ComputationModel& model,
                                 mv::TargetDescriptor&,
                                 mv::Element& passDesc,
                                 mv::Element&)
 {
-
     mv::OpModel om(model);
+    mv::DataModel dm(model);
 
     auto globalParams = model.getGlobalConfigParams();
     if (!globalParams->hasAttr("streaming_strategy"))
@@ -911,22 +1150,115 @@ void streamingOperationsFcn(const mv::pass::PassEntry& pass,
         return;
     }
     auto strategyList = globalParams->get<std::vector<mv::Element>>("streaming_strategy");
+    bool vertical_fusion = passDesc.hasAttr("vertical_fusion") ? passDesc.get<bool>("vertical_fusion"): false;
+    bool yolo_v4 = om.getInput()->hasAttr("yolo_v4") ? om.getInput()->get<bool>("yolo_v4"): false;
+    std::unordered_map<std::string, std::vector<mv::Shape>> previousOutputTileSizes;
+    std::unordered_map<std::string, std::vector<mv::Shape>> previousOutputTileStarts;
+    std::unordered_map<std::string, std::size_t> tailLevelMap;
+    std::unordered_map<std::string, std::string> pivot_nodes;
+    std::vector<std::string> secondTails;
+    if (vertical_fusion)
+    {
+        tailLevelMap = generateTailLevelMap(om);
+        //NOTE: the code below finds the op with the highest level for the ops that have multiple parents
+        for (auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt)
+        {
+            std::string maxName, minName;
+            if ((opIt->getOpType() == "Eltwise"
+                 && opIt->hasAttr("verticalFusion")) || opIt->getOpType() == "Concat" || opIt->getOpType() == "ImplicitConcat")
+            {
+                maxName = om.getSourceOp(opIt->getInputTensor()[0])->getName();
+                minName = om.getSourceOp(opIt->getInputTensor()[0])->getName();
+                std::size_t maxLevel = tailLevelMap[om.getSourceOp(opIt->getInputTensor()[0])->getName()];
+                std::size_t minLevel = tailLevelMap[om.getSourceOp(opIt->getInputTensor()[0])->getName()];
+                mv::Data::OpListIterator parentOp;
+                for (std::size_t inputIdx = 1; inputIdx < opIt->getInputTensor().size(); ++inputIdx)
+                {
+                    parentOp = om.getSourceOp(opIt->getInputTensor()[inputIdx]);
+                    if (tailLevelMap[parentOp->getName()] > maxLevel)
+                    {
+                        maxLevel = tailLevelMap[parentOp->getName()];
+                        maxName = parentOp->getName();
+                    }
+                    if (tailLevelMap[parentOp->getName()] < minLevel)
+                    {
+                        minLevel = tailLevelMap[parentOp->getName()];
+                        minName = parentOp->getName();
+                    }
+                }
+                om.getOp(maxName)->set<bool>("inputMaxLevel", true);
+                om.getOp(minName)->set<bool>("inputLowLevel", true);
+                if (opIt->hasAttr("overLappingSubgraphOpsIndex"))
+                    om.getOp(minName)->set<std::size_t>("overLappingSubgraphOpsIndex", opIt->get<std::size_t>("overLappingSubgraphOpsIndex"));
+            }
+        }
+    }
 
     //NOTE: NESTED STREAMING MEANS 2 LEVELS OF STREAMING, eg. HK, Stream Over H will stream
     //the input Tensor of the Op and then for every new Op have to stream it over K, which
     //means the weights will be repeated for the second level of streaming, this is why need
     //the data structures below...to create only one pair of nested slices
-
     for (auto layerNameStrategy : strategyList)
     {
-        std::string nodeName = layerNameStrategy.get<std::string>("name_filter");
-        //NOTE: Graph optimizer will never do that but needs to be here for manual Scheduling
+        //NOTE: if we have vertical fusion we need to compute some extra overlaps
+        //so we will start only with the tails and the streaming ops
+        std::string nodeName = layerNameStrategy.get<std::string>("name_filter");  
+        //NOTE: ensure that the op with that name exists in the opModel
         if (!om.checkOp(nodeName))
         {
-            pass.log(mv::Logger::MessageType::Info, nodeName + " is not present in model, skipping streaming");
+            pass.log(mv::Logger::MessageType::Debug, nodeName + " is not present in model, skipping streaming");
             continue;
         }
+
+        //NOTE: ensure that the op with that name exists in the opModel
         auto opIt =  om.getOp(nodeName);
+        std::set<std::string> previousOps = {};
+        bool nextOpConcat = false;
+
+        if (vertical_fusion)
+        {
+            if ((opIt->hasAttr("verticalFusionSubgraphHead") && opIt->get<bool>("verticalFusionSubgraphHead")) ||
+                (opIt->hasAttr("verticalFusion") && opIt->get<bool>("verticalFusion")))
+                continue;
+
+            if (opIt->getOpType() != "Output")
+            {
+                std::string nextOpType = (mv::findSinkLayers(dm, opIt->getOutputTensor()[0])[0])->getOpType();
+                nextOpConcat = (nextOpType == "Concat" || nextOpType == "ImplicitConcat");
+            }
+        }
+        if (vertical_fusion && (opIt->hasAttr("verticalFusionSubgraphTail") && opIt->get<bool>("verticalFusionSubgraphTail")))
+        {
+            //NOTE: previous Op will be needed only for the tail vertical fusion ops
+            auto inputs = opIt->getInputTensor().size();
+            for (std::size_t input = 0; input < inputs; ++input)
+            {
+                auto inputTensor = opIt->getInputTensor()[input];
+                if (!inputTensor->isPopulated())
+                {
+                    auto previousOp = om.getSourceOp(inputTensor);
+                    //NOTE: need to compute the tiles from all the intermiedate first
+                    bool previousIsHead = (previousOp->hasAttr("verticalFusionSubgraphHead") && previousOp->get<bool>("verticalFusionSubgraphHead"));
+                    bool previousHasUniqueChild = (mv::findSinkLayers(dm, previousOp->getOutputTensor()[0]).size() == 1);
+                    if ((previousIsHead && previousHasUniqueChild) || !previousIsHead)
+                        previousOps.insert(previousOp->getName());
+                }
+                //NOTE: if tail is an eltwise, previousOps need to contain only the one op that
+                // will have the smaller tiles which means the one with bigger level in the graph
+                std::set<std::string> tempPreviousOps = previousOps;
+                findAndKeepTheParentWithHigherLevel(previousOps, om);
+            }
+            //NOTE: when the tail is followed by concat we need to compute the tiles only for the op with the highest level
+            if (nextOpConcat)
+            {
+                if (!opIt->hasAttr("inputMaxLevel") || !opIt->get<bool>("inputMaxLevel"))
+                {
+                    opIt->set<bool>("noRecusionVF", true);
+                    secondTails.push_back(opIt->getName());
+                    pivot_nodes[opIt->getName()] = (om.getSourceOp(opIt->getInputTensor()[0]))->getName();
+                }
+            }
+        }
         std::string opType = opIt->getOpType();
 
         //For now do streaming pass only for the DPU layers
@@ -957,76 +1289,217 @@ void streamingOperationsFcn(const mv::pass::PassEntry& pass,
 
         std::vector<mv::Tiling*> tiles = {&masterTile};
 
-        auto applyTiling = [opIt, alignment, pass](mv::Element& split, mv::Tiling& tile) -> std::vector<mv::Tiling>*
+        if ((!opIt->hasAttr("noRecusionVF") || !opIt->get<bool>("noRecusionVF")))
         {
-            //the axis&split are stored in a map with key-> val .....
-            //Don't want to if-then-else over all possible values of the axis...
-            //the map should have only one key.. this is the draw-back of too generic mv::Element
-            auto axis = split.attrsKeys()[0];
-            auto numSplits = split.get<int>(axis);
+            auto applyTiling = [opIt, alignment, pass](mv::Element& split, mv::Tiling& tile) -> std::vector<mv::Tiling>*
+            {
+                //the axis&split are stored in a map with key-> val .....
+                //Don't want to if-then-else over all possible values of the axis...
+                //the map should have only one key.. this is the draw-back of too generic mv::Element
+                auto axis = split.attrsKeys()[0];
+                auto numSplits = split.get<int>(axis);
 
-            pass.log(mv::Logger::MessageType::Debug, opIt->getName() +
-                " " + axis + " : " + std::to_string(numSplits));
-            if(numSplits > 1)
-            {
-                tile.setAxis(axis);
-                tile.setAlignment(alignment);
-                tile.resizeNumberOfTiles(numSplits);
-                tile.generateTiling(opIt);
-                return &tile.childTiles();
-            }
-            else
-            {
-                return nullptr;
-            }
-        };
-
-        for (auto split : splitList)
-        {
-            std::vector<mv::Tiling*> newChildTiles(0);
-            for(auto tile : tiles)
-            {
-                auto childTiles = applyTiling(split,*tile);
-                if(childTiles)
+                pass.log(mv::Logger::MessageType::Debug, opIt->getName() +
+                    " " + axis + " : " + std::to_string(numSplits));
+                if(numSplits > 1)
                 {
-                    for(auto& childTile : *childTiles)
-                    {
-                        newChildTiles.push_back(&childTile);
-                    }
+                    tile.setAxis(axis);
+                    tile.setAlignment(alignment);
+                    tile.resizeNumberOfTiles(numSplits);
+                    tile.generateTiling(opIt, false);
+                    return &tile.childTiles();
                 }
                 else
                 {
-                    newChildTiles.push_back(tile);
+                    return nullptr;
+                }
+            };
+
+            for (auto split : splitList)
+            {
+                std::vector<mv::Tiling*> newChildTiles(0);
+                for(auto tile : tiles)
+                {
+                    auto childTiles = applyTiling(split,*tile);
+                    if(childTiles)
+                    {
+                        for(auto& childTile : *childTiles)
+                        {
+                            newChildTiles.push_back(&childTile);
+                        }
+                    }
+                    else
+                    {
+                        newChildTiles.push_back(tile);
+                    }
+                }
+                tiles = newChildTiles;
+            }
+            if(masterTile.childTiles().size() > 1)
+            {
+                auto result = (streamSplit[masterTile.getAxis()])(om, opIt, masterTile, false);
+                if (vertical_fusion && (!nextOpConcat || (!opIt->hasAttr("noRecusionVF") || !opIt->get<bool>("noRecusionVF"))))
+                {
+                    for (auto previous = previousOps.begin(); previous != previousOps.end(); ++previous)
+                    {
+                        auto pOp = om.getOp(*previous);
+                        if (!pOp->hasAttr("outputTilesComputed") ||
+                            (pOp->hasAttr("outputTilesComputed") && !pOp->get<bool>("outputTilesComputed")))
+                        {
+                            for (auto tile : masterTile.childTiles())
+                            {
+                                previousOutputTileStarts[pOp->getName()].push_back(tile.getActivationStart());
+                                previousOutputTileSizes[pOp->getName()].push_back(tile.getActivationShape());
+                            }
+                        }
+                        pOp->set<bool>("outputTilesComputed", true);
+                    }
+                }
+                //NOTE: FlowSibling iterators seem to lose some sinks so they are replced...
+                // reconnect children to subgraph
+                std::vector<std::pair<mv::Data::OpListIterator,size_t>> toReturn;
+                auto outputTensor = opIt->getOutputTensor()[0];
+                for (auto output = opIt.leftmostOutput(); output != om.flowEnd(); ++output)
+                {
+                    auto consumer = output.sink();
+                    std::size_t slot = 0;
+                    for (std::size_t input_idx = 0; input_idx < consumer->getInputTensor().size(); input_idx++)
+                        if (consumer->getInputTensor()[input_idx]->getName() == outputTensor->getName())
+                            slot = input_idx;
+                    toReturn.push_back(std::make_pair(consumer, slot));
+                }
+
+                om.removeOp(opIt);
+                for (std::size_t j = 0; j < toReturn.size(); ++j)
+                {
+                    toReturn[j].first->setInputTensor(result, toReturn[j].second, false);
+                    om.defineFlow(result, toReturn[j].first, toReturn[j].second);
                 }
             }
-            tiles = newChildTiles;
         }
+    }
 
-        if(masterTile.childTiles().size() > 1)
+    if (vertical_fusion)
+    {
+        auto sortedOps = om.topologicalSort();
+        std::vector<std::string> verticalFusionHeadOps;
+        for (auto opIt = sortedOps.begin(); opIt != sortedOps.end(); ++opIt)
         {
-            auto result = (streamSplit[masterTile.getAxis()])(om, opIt, masterTile);
-            //NOTE: FlowSibling iterators seem to lose some sinks so they are replced...
-            // reconnect children to subgraph
-            std::vector<std::pair<mv::Data::OpListIterator,size_t>> toReturn;
-            auto outputTensor = opIt->getOutputTensor()[0];
-            for (auto output = opIt.leftmostOutput(); output != om.flowEnd(); ++output)
-            {
-                auto consumer = output.sink();
-                std::size_t slot = 0;
-                for (std::size_t input_idx = 0; input_idx < consumer->getInputTensor().size(); input_idx++)
-                    if (consumer->getInputTensor()[input_idx]->getName() == outputTensor->getName())
-                        slot = input_idx;
-                toReturn.push_back(std::make_pair(consumer, slot));
-            }
+            auto op = *opIt;
+            if ((op->hasAttr("verticalFusionSubgraphHead") && op->get<bool>("verticalFusionSubgraphHead")) ||
+                (op->hasAttr("verticalFusion") && op->get<bool>("verticalFusion")))
+                verticalFusionHeadOps.push_back(op->getName());
+        }
+        if (!verticalFusionHeadOps.empty())
+        {
+            std::reverse(verticalFusionHeadOps.begin(), verticalFusionHeadOps.end());
 
-            om.removeOp(opIt);
-            for (unsigned j = 0; j < toReturn.size(); ++j)
+            auto root = verticalFusionHeadOps.begin();
+            auto last = verticalFusionHeadOps.back();
+
+            if (*root == last)
+                computeStreamsForVerticalFusionNode(*root, previousOutputTileSizes[*root], previousOutputTileStarts[*root], model, strategyList,
+                    previousOutputTileSizes, previousOutputTileStarts);
+            else
             {
-                toReturn[j].first->setInputTensor(result, toReturn[j].second, false);
-                om.defineFlow(result, toReturn[j].first, toReturn[j].second);
+                auto next = root + 1;
+                while (!om.getOp(last)->hasAttr("outputTilesComputed"))
+                {
+                    computeStreamsForVerticalFusionNode(*root, previousOutputTileSizes[*root], previousOutputTileStarts[*root], model, strategyList,
+                        previousOutputTileSizes, previousOutputTileStarts);
+                    om.getOp(*next)->set<bool>("outputTilesComputed", true);
+                    root = next;
+                    next = next + 1;
+                }
+                om.getOp(*root)->set<bool>("outputTilesComputed", true);
+                computeStreamsForVerticalFusionNode(*root, previousOutputTileSizes[last], previousOutputTileStarts[last], model, strategyList,
+                    previousOutputTileSizes, previousOutputTileStarts);
             }
         }
-}
+        //NOTE: in the end compute the tiling for the second last, tail, now we will copy them cause in yolov4 second tail is neutral
+        //normally a function computing output tiles from input ones would be needed
+        if (yolo_v4)
+        {
+            for (auto opName = secondTails.begin(); opName != secondTails.end(); ++opName)
+            {
+                auto opIt = om.getOp(*opName);
+                //NOTE: if we have vertical fusion we need to compute some extra overlaps
+                //so we will start only with the tails and the streaming ops
+                if (opIt->hasAttr("noRecusionVF") && opIt->get<bool>("noRecusionVF"))
+                {
+                    auto inputShape = opIt->getInputTensor()[0]->getShape();
+                    auto kernelShape = opIt->getInputTensor()[1]->getShape();
+                    std::vector <mv::Shape> inputTileStarts = previousOutputTileStarts[pivot_nodes[opIt->getName()]];
+                    std::vector <mv::Shape> inputTileSizes = previousOutputTileSizes[pivot_nodes[opIt->getName()]];
+                    mv::Tiling masterTile;
+                    masterTile = mv::Tiling(inputShape, kernelShape);
+
+                    std::vector<mv::Tiling*> tiles = {&masterTile};
+                    auto applySecondTailTiling = [opIt, pass](mv::Tiling& tile, const std::vector<mv::Shape>& tileSizes,
+                        const std::vector<mv::Shape>& tilesStarts) -> std::vector<mv::Tiling>*
+                    {
+                        //the axis&split are stored in a map with key-> val .....
+                        //Don't want to if-then-else over all possible values of the axis...
+                        //the map should have only one key.. this is the draw-back of too generic mv::Element
+                        auto numSplits = tilesStarts.size();
+
+                        if(numSplits > 1)
+                        {
+                            tile.setAxis("H");
+                            tile.setAlignment(false);
+                            tile.resizeNumberOfTiles(numSplits);
+                            tile.generateTiling(opIt, false, tileSizes, tilesStarts, true);
+                            return &tile.childTiles();
+                        }
+                        else
+                        {
+                            return nullptr;
+                        }
+                    };
+
+                    std::vector<mv::Tiling*> newChildTiles(0);
+                    for(auto tile : tiles)
+                    {
+                        auto childTiles = applySecondTailTiling(*tile, inputTileSizes, inputTileStarts);
+                        if(childTiles)
+                        {
+                            for(auto& childTile : *childTiles)
+                            {
+                                newChildTiles.push_back(&childTile);
+                            }
+                        }
+                        else
+                        {
+                            newChildTiles.push_back(tile);
+                        }
+                    }
+                    tiles = newChildTiles;
+                    if(masterTile.childTiles().size() > 1)
+                    {
+                        auto result = (streamSplit[masterTile.getAxis()])(om, opIt, masterTile, true);
+                        std::vector<std::pair<mv::Data::OpListIterator,size_t>> toReturn;
+                        auto outputTensor = opIt->getOutputTensor()[0];
+                        for (auto output = opIt.leftmostOutput(); output != om.flowEnd(); ++output)
+                        {
+                            auto consumer = output.sink();
+                            std::size_t slot = 0;
+                            for (std::size_t input_idx = 0; input_idx < consumer->getInputTensor().size(); input_idx++)
+                                if (consumer->getInputTensor()[input_idx]->getName() == outputTensor->getName())
+                                    slot = input_idx;
+                            toReturn.push_back(std::make_pair(consumer, slot));
+                        }
+
+                        om.removeOp(opIt);
+                        for (std::size_t j = 0; j < toReturn.size(); ++j)
+                        {
+                            toReturn[j].first->setInputTensor(result, toReturn[j].second, false);
+                            om.defineFlow(result, toReturn[j].first, toReturn[j].second);
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 

@@ -197,6 +197,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
 
                 /* Check if subtensor needs to be aligned to 16 channels*/
                 auto subTensorShape = subTensor.getShape();
+
                 auto subTensorChannels = subTensorShape[mv::IO_CHANNEL_DIMENSION];
                 if (subTensorChannels % pad != 0)
                 {

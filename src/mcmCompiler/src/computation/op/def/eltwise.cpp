@@ -45,9 +45,23 @@ namespace mv
 
         static std::function<void(const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>&,
             std::vector<Tensor>&)> outputDefFcn =
-            [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>& /*args*/, std::vector<Tensor>& outputs)
+            [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>& args, std::vector<Tensor>& outputs)
         {
-            outputs.emplace_back(":0",  inputs[0]->getShape(), inputs[0]->getDType(), inputs[0]->getOrder());
+            auto eltwiseType = args.at("eltwiseType").get<std::string>();
+            //NOTE: this is done for the double tensor met, going into an eltwise for vertical fusion, by double
+            //tensor we mean a tensor going into a conv and into an eltwise with different dimensions for each op
+            auto input0Shape = inputs[0]->getShape();
+            auto input1Shape = inputs[1]->getShape();
+            std::size_t minHeight = input0Shape[mv::IO_HEIGHT_DIMENSION];
+            std::size_t constant_add_unit = 1;
+            if (eltwiseType == "Add")
+                if (input0Shape[mv::IO_HEIGHT_DIMENSION] != input1Shape[mv::IO_HEIGHT_DIMENSION] &&
+                    input0Shape[mv::IO_HEIGHT_DIMENSION] != constant_add_unit &&
+                    input1Shape[mv::IO_HEIGHT_DIMENSION] != constant_add_unit)
+                    minHeight = std::min(input0Shape[mv::IO_HEIGHT_DIMENSION], input1Shape[mv::IO_HEIGHT_DIMENSION]);
+            auto minShape = mv::Shape({input0Shape[mv::IO_WIDTH_DIMENSION], minHeight,
+                input0Shape[mv::IO_CHANNEL_DIMENSION], input0Shape[mv::IO_BATCH_DIMENSION]});
+            outputs.emplace_back(":0",  minShape, inputs[0]->getDType(), inputs[0]->getOrder());
         };
     }
 

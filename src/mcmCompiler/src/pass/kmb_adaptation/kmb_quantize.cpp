@@ -75,7 +75,7 @@ void addQuantizationLayers(mv::OpModel & om, std::vector<mv::Data::OpListIterato
                     tensor = previousOpIt->getInputTensor()[0];
                     alignCase = true;
                 }
-                
+
                 // avoid to add redundant Quantize
                 mv::Data::TensorIterator quantize;
                 mv::DataModel dm(om);
@@ -434,8 +434,10 @@ static void kmbQuantizeConversionFcn(const mv::pass::PassEntry& pass, mv::Comput
 
 void propagateLocationToParents(mv::OpModel& om, const mv::Data::OpListIterator& opIt, const mv::Tensor::MemoryLocation& location) {
     for (auto& inputTensor : opIt->getInputTensor()) {
-        inputTensor->set<mv::Tensor::MemoryLocation>("Location", location);
         auto parentOp = om.getSourceOp(inputTensor);
+        if (inputTensor->hasAttr("noPropagate") && inputTensor->get<bool>("noPropagate"))
+            return;
+        inputTensor->set<mv::Tensor::MemoryLocation>("Location", location);
         if (parentOp->isImplicit())
             propagateLocationToParents(om, parentOp, location);
     }
