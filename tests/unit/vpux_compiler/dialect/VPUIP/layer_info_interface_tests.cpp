@@ -23,7 +23,7 @@
 
 #include <gtest/gtest.h>
 
-TEST(MLIR_VPUIPExtraInterfaces, LayerExecutor) {
+TEST(MLIR_VPUIP_LayerInfoInterface, GetExecutor) {
     mlir::DialectRegistry registry;
     vpux::registerDialects(registry);
 

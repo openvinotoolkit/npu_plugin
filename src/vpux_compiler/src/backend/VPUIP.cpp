@@ -252,19 +252,19 @@ flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, Log
     log.trace("Extract 'VPUIP.{0}' from Module", VPUIP::GraphOp::getOperationName());
     auto graphOp = VPUIP::GraphOp::getFromModule(module);
 
-    BlobWriter writer(log.nest());
+    VPUIP::BlobWriter writer(log.nest());
 
     const auto allTasks = netFunc.getOps<VPUIP::TaskOpInterface>();
     const auto taskCount = std::distance(allTasks.begin(), allTasks.end());
 
     const auto header = createSummaryHeader(writer, module, graphOp, netOp, netFunc, taskCount);
 
-    using TaskList = std::vector<BlobWriter::Task>;
+    using TaskList = std::vector<VPUIP::BlobWriter::Task>;
     using TaskListMap = EnumMap<VPUIP::TaskType, TaskList>;
     TaskListMap tasksMap;
 
-    SmallVector<BlobWriter::BinaryData> binaryData;
-    SmallVector<BlobWriter::Barrier> virtBarriers;
+    SmallVector<VPUIP::BlobWriter::BinaryData> binaryData;
+    SmallVector<VPUIP::BlobWriter::Barrier> virtBarriers;
 
     size_t tempTensorInd = 0;
     size_t constantTensorInd = 0;
@@ -275,14 +275,14 @@ flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, Log
             log.nest().trace("Got '{0}' Task", task.getTaskType());
 
             tasksMap[task.getTaskType()].push_back(writer.createTask(task));
-        } else if (auto tensorOp = mlir::dyn_cast<DeclareTensorOp>(op)) {
+        } else if (auto tensorOp = mlir::dyn_cast<VPUIP::DeclareTensorOp>(op)) {
             writer.createTensor(tensorOp.memory(), llvm::formatv("temp-{0}", tempTensorInd).str(), tensorOp.locale(),
                                 tensorOp.localeIndex(), tensorOp.dataIndex(), tensorOp.sparsityIndex(),
                                 tensorOp.storageElementIndex(), tensorOp.storageElementSize(), tensorOp.leadingOffset(),
                                 tensorOp.trailingOffset());
 
             ++tempTensorInd;
-        } else if (auto constOp = mlir::dyn_cast<DeclareConstantTensorOp>(op)) {
+        } else if (auto constOp = mlir::dyn_cast<VPUIP::DeclareConstantTensorOp>(op)) {
             log.nest().trace("Got constant with actual type '{0} and storage type '{1}'", constOp.getActualType(),
                              constOp.getContentType());
 
@@ -294,10 +294,10 @@ flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, Log
             binaryData.push_back(binData);
 
             writer.createTensor(constOp.output(), llvm::formatv("constant-{0}", constantTensorInd).str(),
-                                MemoryLocation::GraphFile, checked_cast<uint32_t>(constantTensorInd), 0);
+                                VPUIP::MemoryLocation::GraphFile, checked_cast<uint32_t>(constantTensorInd), 0);
 
             ++constantTensorInd;
-        } else if (auto barrierOp = mlir::dyn_cast<DeclareVirtualBarrierOp>(op)) {
+        } else if (auto barrierOp = mlir::dyn_cast<VPUIP::DeclareVirtualBarrierOp>(op)) {
             VPUX_THROW_UNLESS(VPUIP::bitEnumContains(graphOp.options(), VPUIP::ExecutionFlag::DynamicBarriers),
                               "Graph was not configured for virtual barriers usage");
 
@@ -305,7 +305,7 @@ flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, Log
             virtBarriers.push_back(virtBarrier);
         } else if (mlir::dyn_cast<mlir::ReturnOp>(op) != nullptr || op == netFunc.getOperation()) {
             // do nothing
-        } else if (mlir::dyn_cast<DPUTaskOp>(op) != nullptr || mlir::dyn_cast<PPETaskOp>(op) != nullptr) {
+        } else if (mlir::dyn_cast<VPUIP::DPUTaskOp>(op) != nullptr || mlir::dyn_cast<VPUIP::PPETaskOp>(op) != nullptr) {
             // do nothing
         } else {
             VPUX_THROW("Unknown Operation '{0}' at '{1}'", op->getName(), op->getLoc());
@@ -314,7 +314,7 @@ flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, Log
 
     netFunc.walk(callback);
 
-    std::vector<BlobWriter::TaskList> taskLists;
+    std::vector<VPUIP::BlobWriter::TaskList> taskLists;
     taskLists.reserve(tasksMap.size());
     for (const auto& taskList : tasksMap) {
         log.trace("Serialize task list '{0}'", taskList.first);

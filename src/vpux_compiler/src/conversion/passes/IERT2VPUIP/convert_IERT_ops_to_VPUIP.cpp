@@ -40,11 +40,6 @@ public:
         Base::initLogger(log, Base::getArgumentName());
     }
 
-public:
-    class CTCGreedyDecoderSeqLenRewrite;
-    class FakeQuantizeRewrite;
-    class ViewLikeRewrite;
-
 private:
     void safeRunOnFunc() final;
 };
@@ -53,8 +48,7 @@ private:
 // CTCGreedyDecoderSeqLenRewrite
 //
 
-class ConvertIERTOps2VPUIPPass::CTCGreedyDecoderSeqLenRewrite final :
-        public mlir::OpRewritePattern<IERT::CTCGreedyDecoderSeqLenOp> {
+class CTCGreedyDecoderSeqLenRewrite final : public mlir::OpRewritePattern<IERT::CTCGreedyDecoderSeqLenOp> {
 public:
     CTCGreedyDecoderSeqLenRewrite(mlir::MLIRContext* ctx, Logger log)
             : mlir::OpRewritePattern<IERT::CTCGreedyDecoderSeqLenOp>(ctx), _log(log) {
@@ -68,8 +62,8 @@ private:
     Logger _log;
 };
 
-mlir::LogicalResult ConvertIERTOps2VPUIPPass::CTCGreedyDecoderSeqLenRewrite::matchAndRewrite(
-        IERT::CTCGreedyDecoderSeqLenOp origOp, mlir::PatternRewriter& rewriter) const {
+mlir::LogicalResult CTCGreedyDecoderSeqLenRewrite::matchAndRewrite(IERT::CTCGreedyDecoderSeqLenOp origOp,
+                                                                   mlir::PatternRewriter& rewriter) const {
     _log.trace("Found CTCGreedyDecoderSeqLen Operation '{0}'", origOp->getLoc());
 
     rewriter.replaceOpWithNewOp<VPUIP::CTCGreedyDecoderSeqLenUPAOp>(
@@ -84,7 +78,7 @@ mlir::LogicalResult ConvertIERTOps2VPUIPPass::CTCGreedyDecoderSeqLenRewrite::mat
 // FakeQuantizeRewrite
 //
 
-class ConvertIERTOps2VPUIPPass::FakeQuantizeRewrite final : public mlir::OpRewritePattern<IERT::FakeQuantizeOp> {
+class FakeQuantizeRewrite final : public mlir::OpRewritePattern<IERT::FakeQuantizeOp> {
 public:
     FakeQuantizeRewrite(mlir::MLIRContext* ctx, Logger log)
             : mlir::OpRewritePattern<IERT::FakeQuantizeOp>(ctx), _log(log) {
@@ -97,8 +91,8 @@ private:
     Logger _log;
 };
 
-mlir::LogicalResult ConvertIERTOps2VPUIPPass::FakeQuantizeRewrite::matchAndRewrite(
-        IERT::FakeQuantizeOp origOp, mlir::PatternRewriter& rewriter) const {
+mlir::LogicalResult FakeQuantizeRewrite::matchAndRewrite(IERT::FakeQuantizeOp origOp,
+                                                         mlir::PatternRewriter& rewriter) const {
     _log.trace("Found FakeQuantize Operation '{0}'", origOp->getLoc());
 
     auto inLowConst = origOp.input_low().getDefiningOp<ConstantInterface>();
@@ -121,10 +115,9 @@ mlir::LogicalResult ConvertIERTOps2VPUIPPass::FakeQuantizeRewrite::matchAndRewri
 // ViewLikeRewrite
 //
 
-class ConvertIERTOps2VPUIPPass::ViewLikeRewrite final :
-        public mlir::OpInterfaceRewritePattern<mlir::ViewLikeOpInterface> {
+class ViewLikeRewrite final : public mlir::OpInterfaceRewritePattern<mlir::ViewLikeOpInterface> {
 public:
-    ViewLikeRewrite(mlir::MLIRContext* ctx, AliasesInfo* aliasInfo, Logger log)
+    ViewLikeRewrite(mlir::MLIRContext* ctx, const AliasesInfo* aliasInfo, Logger log)
             : mlir::OpInterfaceRewritePattern<mlir::ViewLikeOpInterface>(ctx), _aliasInfo(aliasInfo), _log(log) {
         VPUX_THROW_UNLESS(_aliasInfo != nullptr, "Got NULL pointer for AliasesInfo in ViewLikeRewrite");
     }
@@ -133,12 +126,12 @@ public:
     mlir::LogicalResult matchAndRewrite(mlir::ViewLikeOpInterface origOp, mlir::PatternRewriter& rewriter) const final;
 
 private:
-    AliasesInfo* _aliasInfo = nullptr;
+    const AliasesInfo* _aliasInfo = nullptr;
     Logger _log;
 };
 
-mlir::LogicalResult ConvertIERTOps2VPUIPPass::ViewLikeRewrite::matchAndRewrite(mlir::ViewLikeOpInterface origOp,
-                                                                               mlir::PatternRewriter& rewriter) const {
+mlir::LogicalResult ViewLikeRewrite::matchAndRewrite(mlir::ViewLikeOpInterface origOp,
+                                                     mlir::PatternRewriter& rewriter) const {
     if (!mlir::isa<IERT::GenericReshapeOp, mlir::memref::SubViewOp>(origOp.getOperation())) {
         return matchFailed(rewriter, origOp, "Unknown view-like operation '{0}'", origOp->getName());
     }
@@ -196,9 +189,8 @@ mlir::LogicalResult ConvertIERTOps2VPUIPPass::ViewLikeRewrite::matchAndRewrite(m
     if (auto subViewOp = mlir::dyn_cast<mlir::memref::SubViewOp>(origOp.getOperation())) {
         int64_t subviewOffset = 0;
         SmallVector<int64_t> resultStrides;
-        if (mlir::getStridesAndOffset(subViewOp.getType(), resultStrides, subviewOffset).failed()) {
-            return errorAt(origOp, "Can't extract offsets and strides from SubView");
-        }
+        VPUX_THROW_UNLESS(mlir::getStridesAndOffset(subViewOp.getType(), resultStrides, subviewOffset).succeeded(),
+                          "Can't extract offset from biases subview '{0}'", subViewOp);
 
         // Add offset for subview memref in bytes
         const Byte elemSize = getElemTypeSize(subViewOp.getType().getElementType());
