@@ -19,7 +19,6 @@
 #include "vpux/compiler/utils/types.hpp"
 
 #include <mlir/Dialect/MemRef/IR/MemRef.h>
-#include <mlir/Dialect/Quant/QuantTypes.h>
 #include <mlir/IR/Value.h>
 #include <mlir/Transforms/GreedyPatternRewriteDriver.h>
 
@@ -28,127 +27,90 @@ using namespace vpux;
 namespace {
 
 //
-// ConvertToNCEOpsPass
+// Utilities
 //
 
-class ConvertToNCEOpsPass final : public ConvertToNCEOpsBase<ConvertToNCEOpsPass> {
-public:
-    ConvertToNCEOpsPass(Logger log);
-
-public:
-    class MaxPoolRewrite;
-    class ConvRewrite;
-
-private:
-    void safeRunOnFunc() final;
-
-private:
-    Logger _log;
-};
-
-ConvertToNCEOpsPass::ConvertToNCEOpsPass(Logger log): _log(log) {
-    _log.setName(Base::getArgumentName());
-}
-
-static std::tuple<mlir::ArrayAttr, mlir::ArrayAttr> getDPUTaskCoords(mlir::MLIRContext* ctx, ShapeRef shape) {
-    VPUX_THROW_UNLESS(shape.size() == 4, "getDPUTaskCoords works with 4-d tensors only");
-    Dim C = Dim(1), H = Dim(2), W = Dim(3);
-    SmallVector<int32_t> start = {0, 0, 0};
-    // subtract one due to the runtime specific
-    SmallVector<int32_t> end = {static_cast<int32_t>(shape[W] - 1), static_cast<int32_t>(shape[H] - 1),
-                                static_cast<int32_t>(shape[C] - 1)};
-    auto startAttr = getInt32ArrayAttr(ctx, start);
-    auto endAttr = getInt32ArrayAttr(ctx, end);
-    return std::make_tuple(startAttr, endAttr);
-}
-
-static mlir::MemRefType buildMemSpaceHelper(mlir::MemRefType origType, mlir::Attribute memSpace) {
+mlir::MemRefType changeMemSpace(mlir::MemRefType origType, mlir::Attribute memSpace) {
     return mlir::MemRefType::Builder(origType).setMemorySpace(memSpace);
 }
 
+mlir::MemRefType changeDimsOrder(mlir::MemRefType origType, DimsOrder newOrder) {
+    return mlir::MemRefType::Builder(origType).setAffineMaps(newOrder.toAffineMap(origType.getContext()));
+}
+
+std::tuple<mlir::ArrayAttr, mlir::ArrayAttr> getDPUTaskCoords(mlir::MLIRContext* ctx, ShapeRef shape) {
+    VPUX_THROW_UNLESS(shape.size() == 4, "getDPUTaskCoords works with 4-d tensors only");
+
+    const int32_t C = checked_cast<int32_t>(shape[IERT::ConvolutionOp::act_channel_dim()]);
+    const int32_t H = checked_cast<int32_t>(shape[IERT::ConvolutionOp::act_height_dim()]);
+    const int32_t W = checked_cast<int32_t>(shape[IERT::ConvolutionOp::act_width_dim()]);
+
+    const auto startAttr = getInt32ArrayAttr(ctx, makeArrayRef({0, 0, 0}));
+    const auto endAttr = getInt32ArrayAttr(ctx, makeArrayRef({W - 1, H - 1, C - 1}));
+
+    return std::make_tuple(startAttr, endAttr);
+}
+
 template <typename T>
-static mlir::Value createHelperTensor(LayerInterface layer, mlir::OpBuilder& builder, ArrayRef<T> data, mlir::Type type,
-                                      ArrayRef<int64_t> shape) {
-    auto ctx = layer.getContext();
+mlir::Value createHelperTensor(mlir::OpBuilder& builder, mlir::Location loc, ArrayRef<T> data, mlir::Type elemType,
+                               ArrayRef<int64_t> shape) {
+    auto* ctx = builder.getContext();
 
-    const auto dataType = mlir::MemRefType::get(shape, type);
-    const auto dataStorageType = mlir::RankedTensorType::get(shape, type);
-
+    const auto dataStorageType = mlir::RankedTensorType::get(shape, elemType);
     const auto dataAttr = mlir::DenseElementsAttr::get(dataStorageType, data);
-    auto dataConstOp = builder.create<IERT::ConstantOp>(layer->getLoc(), dataType, dataAttr);
 
-    auto cmxMemSpaceAttr = VPUIP::PhysicalMemoryAttr::get(ctx, VPUIP::PhysicalMemory::CMX_NN);
-    auto newDataTypeCMX = buildMemSpaceHelper(dataType, cmxMemSpaceAttr);
+    const auto dataType = mlir::MemRefType::get(shape, elemType);
+    auto dataConstOp = builder.create<IERT::ConstantOp>(loc, dataType, dataAttr);
 
-    auto dataAllocOp = builder.create<mlir::memref::AllocOp>(dataConstOp->getLoc(), newDataTypeCMX);
-    auto copyOp = builder.create<IERT::CopyOp>(dataConstOp->getLoc(), dataConstOp.output(), dataAllocOp);
+    const auto cmxMemSpaceAttr = VPUIP::PhysicalMemoryAttr::get(ctx, VPUIP::PhysicalMemory::CMX_NN);
+    const auto dataTypeCMX = changeMemSpace(dataType, cmxMemSpaceAttr);
+
+    auto dataAllocOp = builder.create<mlir::memref::AllocOp>(loc, dataTypeCMX);
+    auto copyOp = builder.create<IERT::CopyOp>(loc, dataConstOp.output(), dataAllocOp);
 
     return copyOp.output();
 }
 
-static mlir::Value createWeightsTable(LayerInterface layer, mlir::OpBuilder& builder,
-                                      const std::vector<int32_t>& weightTableVals) {
-    auto outputs = layer.getOutputs();
+constexpr int64_t WEIGHT_TABLE_NUM_ELEMENTS_PER_OC = 4;
 
-    Dim C = Dim(1);
-    const auto outputShape = getShape(outputs[0]);
-    auto numChannelElements = outputShape[C];
-    SmallVector<int64_t> weightTableShape{numChannelElements, 1, 1, 4};
-
-    auto ctx = layer.getContext();
-    return createHelperTensor(layer, builder, makeArrayRef(weightTableVals), getSInt32Type(ctx), weightTableShape);
-}
-
-static mlir::Value createWeights(LayerInterface opLayer, mlir::OpBuilder& builder, const mlir::Value& filter) {
-    auto ctx = opLayer.getContext();
-
-    const Dim Out(0);
-    const Dim In(1);
-    const Dim KernelY(2);
-    const Dim KernelX(3);
-    const DimsOrder deviceFilterOrder = DimsOrder::fromPermutation({Out, KernelY, KernelX, In});
-    auto weightsType_nchw = filter.getType().dyn_cast<mlir::MemRefType>();
-    auto weightsType_nhwc =
-            mlir::MemRefType::get(weightsType_nchw.getShape(), weightsType_nchw.getElementType(),
-                                  deviceFilterOrder.toAffineMap(ctx), weightsType_nchw.getMemorySpace());
-    auto weights_nhwc_AllocOp = builder.create<mlir::memref::AllocOp>(opLayer->getLoc(), weightsType_nhwc);
-    auto weights_nhwc_ddr = builder.create<IERT::ReorderOp>(opLayer->getLoc(), filter, weights_nhwc_AllocOp);
-
-    auto weightsType = weights_nhwc_ddr.getType().dyn_cast<mlir::MemRefType>();
-    auto cmxMemSpaceAttr = VPUIP::PhysicalMemoryAttr::get(ctx, VPUIP::PhysicalMemory::CMX_NN);
-    auto newTypeWeightsCMX = buildMemSpaceHelper(weightsType, cmxMemSpaceAttr);
-
-    auto weightsCMXAllocOp = builder.create<mlir::memref::AllocOp>(opLayer->getLoc(), newTypeWeightsCMX);
-    auto weightsCMXAllocOpCopy = builder.create<IERT::CopyOp>(opLayer->getLoc(), weights_nhwc_ddr, weightsCMXAllocOp);
-
-    return weightsCMXAllocOpCopy;
-}
-
-std::vector<int32_t> generateWTablesValues(const size_t channelSize, const int32_t weightPtrStep,
-                                           const std::vector<int32_t>& biases) {
+std::vector<int32_t> getWeightsTable(int64_t OC, ConstantInterface biases, int32_t weightPtrStep) {
     const int32_t PRELU_SCALE_OFFSET = 0;
     const int32_t PRELU_SCALE_VALUE = 1;
 
-    // FIXME PPE shift is actually 6 bit long, 2 higher bits stand for rounding mode
+    // FIXME: PPE shift is actually 6 bit long, 2 higher bits stand for rounding mode
     const int32_t PPE_SHIFT_OFFSET = 8;
     const int32_t PPE_SHIFT_VALUE = 0;
 
     const int32_t PPE_MULT_OFFSET = 16;
-    // FIXME PPE multiplier has sign, which may affect lower bits
+    // FIXME: PPE multiplier has sign, which may affect lower bits
     const int32_t PPE_MULT_VALUE = 1;
 
     const int32_t mult_shift = (PRELU_SCALE_VALUE << PRELU_SCALE_OFFSET) | (PPE_SHIFT_VALUE << PPE_SHIFT_OFFSET) |
-                               (PPE_MULT_VALUE << PPE_MULT_OFFSET);  // 0x00010001
+                               (PPE_MULT_VALUE << PPE_MULT_OFFSET);
 
-    std::vector<int32_t> weightsTableVals(channelSize * 4, 0);
-    int32_t weightPtrOffset = 0;  // TODO: [Track number: E#13226]
-    for (size_t i = 0; i < weightsTableVals.size(); i += 4) {
-        const int32_t PPE_BIAS_VALUE = biases.at(i / 4);
+    const auto getBiasVal = [&](int64_t oc) -> int32_t {
+        if (biases == nullptr) {
+            return 0;
+        }
 
-        weightsTableVals.at(i + 0) = weightPtrOffset;
-        weightsTableVals.at(i + 1) = 0x0;
-        weightsTableVals.at(i + 2) = mult_shift;
-        weightsTableVals.at(i + 3) = PPE_BIAS_VALUE;
+        const auto biasVals = biases.getContent().getValues<float>();
+
+        // FIXME: 2 ^ 16 might be more obvious
+        return std::lround(biasVals[oc] * 65536.f);
+    };
+
+    std::vector<int32_t> weightsTableVals(OC * WEIGHT_TABLE_NUM_ELEMENTS_PER_OC, 0);
+
+    // TODO: [Track number: E#13226]
+    int32_t weightPtrOffset = 0;
+
+    for (auto oc : irange(checked_cast<size_t>(OC))) {
+        const auto wtInd = oc * static_cast<size_t>(WEIGHT_TABLE_NUM_ELEMENTS_PER_OC);
+
+        weightsTableVals[wtInd + 0] = weightPtrOffset;
+        weightsTableVals[wtInd + 1] = 0x0;
+        weightsTableVals[wtInd + 2] = mult_shift;
+        weightsTableVals[wtInd + 3] = getBiasVal(oc);
 
         weightPtrOffset += weightPtrStep;
     }
@@ -156,149 +118,201 @@ std::vector<int32_t> generateWTablesValues(const size_t channelSize, const int32
     return weightsTableVals;
 }
 
+mlir::Value createWeightsTableTensor(mlir::OpBuilder& builder, mlir::Location loc, int64_t OC, ConstantInterface biases,
+                                     int32_t weightPtrStep) {
+    const auto weightsTable = getWeightsTable(OC, biases, weightPtrStep);
+
+    SmallVector<int64_t> weightTableShape{OC, 1, 1, WEIGHT_TABLE_NUM_ELEMENTS_PER_OC};
+
+    return createHelperTensor(builder, loc, makeArrayRef(weightsTable), getSInt32Type(builder.getContext()),
+                              weightTableShape);
+}
+
+mlir::Value prepareInputForDPU(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value input) {
+    const auto origType = input.getType().cast<mlir::MemRefType>();
+
+    // reorder NCHW -> NHWC
+    const auto typeNHWC = changeDimsOrder(origType, DimsOrder::NHWC);
+    auto reorderAllocOp = builder.create<mlir::memref::AllocOp>(loc, typeNHWC);
+    auto reorderOp = builder.create<IERT::ReorderOp>(loc, input, reorderAllocOp.memref());
+
+    // DMA DDR -> CMX
+    auto typeCMX = changeMemSpace(typeNHWC,
+                                  VPUIP::PhysicalMemoryAttr::get(builder.getContext(), VPUIP::PhysicalMemory::CMX_NN));
+    auto dmaAllocOp = builder.create<mlir::memref::AllocOp>(loc, typeCMX);
+    auto dmaOp = builder.create<IERT::CopyOp>(loc, reorderOp.output(), dmaAllocOp.memref());
+
+    return dmaOp.output();
+}
+
 //
 // ConvRewrite
 //
 
-class ConvertToNCEOpsPass::ConvRewrite final : public mlir::OpRewritePattern<IERT::ConvolutionOp> {
+class ConvRewrite final : public mlir::OpRewritePattern<IERT::ConvolutionOp> {
 public:
-    ConvRewrite(mlir::MLIRContext* ctx, Logger log, IERT::RunTimeResourcesOp resources)
-            : mlir::OpRewritePattern<IERT::ConvolutionOp>(ctx), _log(log), _resources(resources) {
+    ConvRewrite(mlir::MLIRContext* ctx, Byte cmxSize, Logger log)
+            : mlir::OpRewritePattern<IERT::ConvolutionOp>(ctx), _cmxSize(cmxSize), _log(log) {
     }
 
 public:
     mlir::LogicalResult matchAndRewrite(IERT::ConvolutionOp origOp, mlir::PatternRewriter& rewriter) const final;
 
 private:
+    Byte _cmxSize;
     Logger _log;
-    mutable IERT::RunTimeResourcesOp _resources;
 };
 
-mlir::LogicalResult ConvertToNCEOpsPass::ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp,
-                                                                      mlir::PatternRewriter& rewriter) const {
-    auto ctx = origOp.getContext();
-    auto cmxMemSpaceAttr = VPUIP::PhysicalMemoryAttr::get(ctx, VPUIP::PhysicalMemory::CMX_NN);
-    size_t availableNNCMXSizeInBytes = _resources.getAvailableMemory(cmxMemSpaceAttr).byteSize();
-    size_t requiredNNCMXBytes = 0;
-    for (auto val : {origOp.filter(), origOp.input(), origOp.output()}) {
-        auto type = val.getType().cast<mlir::MemRefType>();
-        requiredNNCMXBytes += getTypeTotalSize(type).count();
-    }
-    static const size_t NUM_ELEMENTS_PER_WEIGHT_TABLE_ROW = 4;
-    requiredNNCMXBytes += origOp.filter().getType().cast<mlir::ShapedType>().getShape().front() *
-                          NUM_ELEMENTS_PER_WEIGHT_TABLE_ROW * 4;
+mlir::Value prepareFilterForDPU(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value filter) {
+    const auto origType = filter.getType().cast<mlir::MemRefType>();
 
-    if (requiredNNCMXBytes > availableNNCMXSizeInBytes / 4) {
-        return matchFailed(rewriter, origOp, "CMX memory is not enough");
-    }
+    // reorder
+    const auto deviceFilterOrder = DimsOrder::fromPermutation({
+            IERT::ConvolutionOp::filter_out_channel_dim(),     //
+            IERT::ConvolutionOp::filter_spatial_height_dim(),  //
+            IERT::ConvolutionOp::filter_spatial_width_dim(),   //
+            IERT::ConvolutionOp::filter_in_channel_dim()       //
+    });
+    const auto reorderType = changeDimsOrder(origType, deviceFilterOrder);
+    auto reorderAllocOp = builder.create<mlir::memref::AllocOp>(loc, reorderType);
+    auto reorderOp = builder.create<IERT::ReorderOp>(loc, filter, reorderAllocOp.memref());
 
-    for (const auto& operand : origOp.getOpOperands()) {
-        auto shape = operand.get().getType().cast<mlir::ShapedType>().getShape();  // TODO: Fix this assumption.
-        constexpr int CHANNEL_ALIGNMENT = 16;
-        if (shape[1] % CHANNEL_ALIGNMENT != 0) {
-            return matchFailed(rewriter, origOp, "Channels are not aligned");
-        }
-    }
+    // DMA DDR -> CMX
+    auto typeCMX = changeMemSpace(reorderType,
+                                  VPUIP::PhysicalMemoryAttr::get(builder.getContext(), VPUIP::PhysicalMemory::CMX_NN));
+    auto dmaAllocOp = builder.create<mlir::memref::AllocOp>(loc, typeCMX);
+    auto dmaOp = builder.create<IERT::CopyOp>(loc, reorderOp.output(), dmaAllocOp.memref());
 
-    // prepare weights in CMX
-    const auto dim_c = Dim(1);
-    const auto dim_h = Dim(2);
-    const auto dim_w = Dim(3);
-    const auto filter_shape = getShape(origOp.filter());
+    return dmaOp.output();
+}
 
-    auto weightsCMXAllocOpCopy = createWeights(origOp, rewriter, origOp.filter());
-
-    auto padsBegin = parseIntArrayAttr(origOp.pads_begin());
-    auto padsEnd = parseIntArrayAttr(origOp.pads_end());
-
-    auto padsBeginAttr = getInt32ArrayAttr(ctx, padsBegin);
-    auto padsEndAttr = getInt32ArrayAttr(ctx, padsEnd);
-
-    auto kernelPaddingAttr = getInt32ArrayAttr(ctx, makeArrayRef({padsBegin[1], padsEnd[1], padsBegin[0], padsEnd[0]}));
-
-    const auto outputShape = getShape(origOp.output().getType().cast<mlir::ShapedType>());
-    std::vector<int32_t> biases(outputShape[dim_c]);
-
-    if (origOp.bias()) {
-        auto biasConst = origOp.bias().getDefiningOp<ConstantInterface>();
-        for (auto p : enumerate(biasConst.getContent().getValues<float>())) {
-            int32_t biasVal = std::lround(p.value() * 65536.f);  // FIXME 2 ^ 16 might be more obvious
-            biases.at(p.index()) = biasVal;
-        }
-    }
-
-    // Generate weights table
-
-    // TODO: [Track number: E#13226]
-    // Lets allocate weight table after weights(input),
-    // then the weights offset in CMX will be zero
-    int32_t weightPtrStep = static_cast<int32_t>(filter_shape[dim_c]) * static_cast<int32_t>(filter_shape[dim_h]) *
-                            static_cast<int32_t>(filter_shape[dim_w]) * sizeof(int16_t);
-    std::vector<int32_t> weightTableVals =
-            generateWTablesValues(static_cast<int32_t>(outputShape[dim_c]), weightPtrStep, biases);
-
-    auto weightsTableAllocOpCopy = createWeightsTable(origOp, rewriter, weightTableVals);
-
-    //                              memref (null) -> NCEOp -> memref (null)
-    // memref (null) -> CopyOp -> memref (CMX_NN) -> NCEOp -> memref (CMX_NN) -> CopyOp -> memref (null)
-
-    // NCHW -> NHWC for input
-    const DimsOrder dimsOrderZMajor = DimsOrder::NHWC;
-
-    auto inputType_nchw = origOp.input().getType().dyn_cast<mlir::MemRefType>();
-    auto inputType_nhwc = mlir::MemRefType::get(inputType_nchw.getShape(), inputType_nchw.getElementType(),
-                                                dimsOrderZMajor.toAffineMap(ctx), inputType_nchw.getMemorySpace());
-
-    auto input_nhwc_AllocOp = rewriter.create<mlir::memref::AllocOp>(origOp->getLoc(), inputType_nhwc);
-    auto input_nhwc_ddr = rewriter.create<IERT::ReorderOp>(origOp->getLoc(), origOp.input(), input_nhwc_AllocOp);
-
-    auto inputType = input_nhwc_ddr.getType().dyn_cast<mlir::MemRefType>();
-    // prepare input in CMX
-    auto newTypeInputCMX = buildMemSpaceHelper(inputType, cmxMemSpaceAttr);
-    auto inputCMXAllocOp = rewriter.create<mlir::memref::AllocOp>(origOp->getLoc(), newTypeInputCMX);
-    auto inputCMXAllocOpCopy = rewriter.create<IERT::CopyOp>(origOp->getLoc(), input_nhwc_ddr, inputCMXAllocOp);
-    // end input processing
-
-    // prepare output in CMX
-    auto outputType = origOp.output().getType().dyn_cast<mlir::MemRefType>();
-    auto newTypeOutputCMX =
-            mlir::MemRefType::get(outputType.getShape(), outputType.getElementType(), dimsOrderZMajor.toAffineMap(ctx),
-                                  VPUIP::PhysicalMemoryAttr::get(ctx, VPUIP::PhysicalMemory::CMX_NN));
-
-    auto outputCMXAllocOp = rewriter.create<mlir::memref::AllocOp>(origOp->getLoc(), newTypeOutputCMX);
-
-    auto ppeAttr = vpux::VPUIP::PPELayerTypeAttr::get(ctx, VPUIP::PPELayerType::NOOP);
-
-    mlir::ArrayAttr startAttr, endAttr;
-    const auto shape = getShape(origOp.output().getType().cast<mlir::ShapedType>());
-    std::tie(startAttr, endAttr) = getDPUTaskCoords(ctx, shape);
+mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mlir::PatternRewriter& rewriter) const {
+    //
+    // Get dimensions
+    //
 
     const auto filterShape = getShape(origOp.filter());
 
-    static const auto KH = Dim(2);
-    static const auto KW = Dim(3);
-    const SmallVector<int64_t> start = {filterShape[KW], filterShape[KH]};
-    mlir::ArrayAttr kernelSize = getInt32ArrayAttr(ctx, start);
+    const auto OC = filterShape[IERT::ConvolutionOp::filter_out_channel_dim()];
+    const auto IC = filterShape[IERT::ConvolutionOp::filter_in_channel_dim()];
+    const auto KY = filterShape[IERT::ConvolutionOp::filter_spatial_height_dim()];
+    const auto KX = filterShape[IERT::ConvolutionOp::filter_spatial_width_dim()];
 
-    auto nceOp = rewriter.create<VPUIP::NCEClusterTaskOp>(
-            origOp->getLoc(), inputCMXAllocOpCopy, weightsCMXAllocOpCopy, weightsTableAllocOpCopy, nullptr,
-            inputCMXAllocOpCopy, outputCMXAllocOp, outputCMXAllocOp, VPUIP::NCETaskType::CONV, ppeAttr,
-            kernelPaddingAttr, origOp.strides(), kernelSize, nullptr);
+    if (KX > 11 || KY > 11) {
+        return matchFailed(rewriter, origOp, "Unsupported kernel size {0}x{1}. Supported size up to 11", KX, KY);
+    }
+
+    //
+    // Check channel alignment
+    //
+
+    static constexpr int64_t CHANNEL_ALIGNMENT = 16;
+
+    if (OC % CHANNEL_ALIGNMENT != 0) {
+        return matchFailed(rewriter, origOp, "Output channels are not aligned");
+    }
+    if (IC % CHANNEL_ALIGNMENT != 0) {
+        return matchFailed(rewriter, origOp, "Input channels are not aligned");
+    }
+
+    //
+    // Check that buffers fit into CMX
+    //
+
+    Byte requiredCMX(0);
+
+    for (const auto& operand : origOp.getOpOperands()) {
+        requiredCMX += getTotalSize(operand.get());
+    }
+
+    requiredCMX += OC * WEIGHT_TABLE_NUM_ELEMENTS_PER_OC * 4_Byte;
+
+    if (requiredCMX > _cmxSize) {
+        return matchFailed(rewriter, origOp, "CMX memory is not enough, available '{0}', required '{1}'", _cmxSize,
+                           requiredCMX);
+    }
+
+    //
+    // Prepare filter for DPU
+    //
+
+    auto filterDPU = prepareFilterForDPU(rewriter, origOp->getLoc(), origOp.filter());
+
+    //
+    // Generate weights table
+    //
+
+    ConstantInterface biasConst;
+    if (origOp.bias() != nullptr) {
+        biasConst = origOp.bias().getDefiningOp<ConstantInterface>();
+        VPUX_THROW_UNLESS(biasConst != nullptr, "Only constant biases are supported, got '{0}'", origOp.bias());
+    }
+
+    // TODO: [Track number: E#13226]
+    // Let's allocate weight table after weights(input),
+    // then the weights offset in CMX will be zero
+    const auto weightPtrStep = checked_cast<int32_t>(IC * KY * KX * sizeof(int16_t));
+    auto weightsTable = createWeightsTableTensor(rewriter, origOp->getLoc(), OC, biasConst, weightPtrStep);
+
+    //
+    // Prepare input for DPU
+    //
+
+    auto inputDPU = prepareInputForDPU(rewriter, origOp->getLoc(), origOp.input());
+
+    //
+    // Prepare output buffer for DPU
+    //
+
+    const auto origOutType = origOp.output().getType().cast<mlir::MemRefType>();
+    const auto outReorderType = changeDimsOrder(origOutType, DimsOrder::NHWC);
+    const auto outTypeCMX =
+            changeMemSpace(outReorderType, VPUIP::PhysicalMemoryAttr::get(getContext(), VPUIP::PhysicalMemory::CMX_NN));
+
+    auto outAllocOpCMX = rewriter.create<mlir::memref::AllocOp>(origOp->getLoc(), outTypeCMX);
+
+    //
+    // Create NCE per-cluster Operation
+    //
+
+    const auto ppeAttr = vpux::VPUIP::PPELayerTypeAttr::get(getContext(), VPUIP::PPELayerType::NOOP);
+
+    const auto padsBegin = parseIntArrayAttr(origOp.pads_begin());
+    const auto padsEnd = parseIntArrayAttr(origOp.pads_end());
+    const auto kernelPaddingAttr =
+            getInt32ArrayAttr(getContext(), makeArrayRef({padsBegin[1], padsEnd[1], padsBegin[0], padsEnd[0]}));
+
+    const auto kernelSizeAttr = getInt32ArrayAttr(getContext(), makeArrayRef({KX, KY}));
+
+    auto nceOp = rewriter.create<VPUIP::NCEClusterTaskOp>(origOp->getLoc(), inputDPU, filterDPU, weightsTable, nullptr,
+                                                          inputDPU, outAllocOpCMX.memref(), outAllocOpCMX.memref(),
+                                                          VPUIP::NCETaskType::CONV, ppeAttr, kernelPaddingAttr,
+                                                          origOp.strides(), kernelSizeAttr, nullptr);
+
+    //
+    // Create DPU sub-task
+    //
+
+    mlir::ArrayAttr startAttr, endAttr;
+    std::tie(startAttr, endAttr) = getDPUTaskCoords(getContext(), getShape(nceOp.output()));
+
+    const auto padsBeginAttr = getInt32ArrayAttr(getContext(), padsBegin);
+    const auto padsEndAttr = getInt32ArrayAttr(getContext(), padsEnd);
 
     nceOp.addDPUTask(rewriter, startAttr, endAttr, padsBeginAttr, padsEndAttr, VPUIP::MPEMode::VECTOR_FP16);
 
-    // CMX -> DDR
-    auto cmx_nhwc_mem_ref = nceOp.output().getType().dyn_cast<mlir::MemRefType>();
-    auto ddr_nhwc_type = mlir::MemRefType::get(cmx_nhwc_mem_ref.getShape(), cmx_nhwc_mem_ref.getElementType(),
-                                               cmx_nhwc_mem_ref.getAffineMaps(),
-                                               origOp.output().getType().dyn_cast<mlir::MemRefType>().getMemorySpace());
-    auto ddr_nhwc_alloc_op = rewriter.create<mlir::memref::AllocOp>(origOp->getLoc(), ddr_nhwc_type);
-    auto output_ddr_nhwc = rewriter.create<IERT::CopyOp>(origOp->getLoc(), nceOp.output(), ddr_nhwc_alloc_op);
+    //
+    // DMA output CMX -> DDR
+    //
 
-    // NHWC -> NCHW
-    auto outputReorderOp = rewriter.create<IERT::ReorderOp>(origOp->getLoc(), output_ddr_nhwc, origOp.output_buff());
+    auto outAllocOpDDR = rewriter.create<mlir::memref::AllocOp>(origOp->getLoc(), outReorderType);
+    auto outDMAOp = rewriter.create<IERT::CopyOp>(origOp->getLoc(), nceOp.output(), outAllocOpDDR.memref());
 
-    rewriter.replaceOp(origOp, outputReorderOp->getResults());
+    //
+    // Reorder output NHWC -> NCHW
+    //
+
+    rewriter.replaceOpWithNewOp<IERT::ReorderOp>(origOp, outDMAOp.output(), origOp.output_buff());
 
     return mlir::success();
 }
@@ -307,14 +321,28 @@ mlir::LogicalResult ConvertToNCEOpsPass::ConvRewrite::matchAndRewrite(IERT::Conv
 // MaxPoolRewrite
 //
 
-static int64_t getWindowSize(int64_t kernelW, int64_t strideW, mlir::Type dataType) {
+class MaxPoolRewrite final : public mlir::OpRewritePattern<IERT::MaxPoolOp> {
+public:
+    MaxPoolRewrite(mlir::MLIRContext* ctx, Byte cmxSize, Logger log)
+            : mlir::OpRewritePattern<IERT::MaxPoolOp>(ctx), _cmxSize(cmxSize), _log(log) {
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(IERT::MaxPoolOp origOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    Byte _cmxSize;
+    Logger _log;
+};
+
+int64_t getWindowSize(int64_t kernelW, int64_t strideW, mlir::Type elemType) {
     // Select the maximum window size not exceeding 32 bytes
     // by iterating through the MPE_NUM values (2, 4, 8, 16)
 
-    VPUX_THROW_UNLESS(dataType.isInteger(8) || dataType.isF16(), "Supported only I8 and FP16 types");
+    VPUX_THROW_UNLESS(elemType.isInteger(8) || elemType.isF16(), "Supported only I8 and FP16 types");
 
     // Only MPE0, MPE4, MPE8 and MPE12 support FP16 data format
-    const auto mpeNumLimit = dataType.isF16() ? 4 : 16;
+    const int mpeNumLimit = elemType.isF16() ? 4 : 16;
     const int64_t maxWindowSize = 32;
 
     int64_t windowSize = 0;
@@ -336,7 +364,7 @@ static int64_t getWindowSize(int64_t kernelW, int64_t strideW, mlir::Type dataTy
     return windowSize;
 }
 
-std::vector<uint8_t> getBitPattern(ArrayRef<int64_t> kernelSize, int64_t windowSize, int64_t inputChannels) {
+std::vector<uint8_t> getBitPattern(ArrayRef<int64_t> kernelSize, int64_t windowSize) {
     const auto kernelW = kernelSize[0];
     const auto kernelH = kernelSize[1];
 
@@ -352,7 +380,7 @@ std::vector<uint8_t> getBitPattern(ArrayRef<int64_t> kernelSize, int64_t windowS
     window.insert(window.end(), numBitsSet, 1);
     window.insert(window.end(), numBitsClear, 0);
 
-    const auto numOfRepeat = kernelH * inputChannels;
+    const auto numOfRepeat = kernelH;
 
     std::vector<uint8_t> bitPattern;
     bitPattern.reserve(numOfRepeat * windowSize);
@@ -364,7 +392,7 @@ std::vector<uint8_t> getBitPattern(ArrayRef<int64_t> kernelSize, int64_t windowS
 }
 
 std::vector<uint8_t> getFakeSparsity(ArrayRef<uint8_t> bitPattern, int64_t inputChannels) {
-    // to align each activation map entry to 16 bytes to abide the hw restriction
+    // To align each activation map entry to 16 bytes to abide the hw restriction
     const auto perChannelSparsitySize = static_cast<std::size_t>(std::ceil(bitPattern.size() / 128.0) * 16);
 
     // MaxPool is supported only in depth wise mode.
@@ -389,170 +417,180 @@ std::vector<uint8_t> getFakeSparsity(ArrayRef<uint8_t> bitPattern, int64_t input
     return fakeSparsity;
 }
 
-static mlir::Value createActivationWindow(LayerInterface layer, mlir::OpBuilder& builder,
-                                          const std::vector<uint8_t>& fakeSparsity) {
-    auto inputs = layer.getInputs();
-    Dim C = Dim(1);
-    const auto inputShape = getShape(inputs[0]);
-    auto numChannelElements = inputShape[C];
-    SmallVector<int64_t> fakeSparsityShape{numChannelElements, 1, 1,
-                                           static_cast<int64_t>(fakeSparsity.size()) / numChannelElements};
+mlir::Value createActivationWindowTensor(mlir::OpBuilder& builder, mlir::Location loc, ArrayRef<int64_t> kernelSize,
+                                         int64_t numChannels, int64_t windowSize) {
+    const auto bitPattern = getBitPattern(kernelSize, windowSize);
+    const auto fakeSparsity = getFakeSparsity(bitPattern, numChannels);
 
-    auto ctx = layer.getContext();
-    return createHelperTensor(layer, builder, makeArrayRef(fakeSparsity), getUInt8Type(ctx), fakeSparsityShape);
+    SmallVector<int64_t> fakeSparsityShape{numChannels, 1, 1, static_cast<int64_t>(fakeSparsity.size()) / numChannels};
+
+    return createHelperTensor(builder, loc, makeArrayRef(fakeSparsity), getUInt8Type(builder.getContext()),
+                              fakeSparsityShape);
 }
 
-class ConvertToNCEOpsPass::MaxPoolRewrite final : public mlir::OpRewritePattern<IERT::MaxPoolOp> {
-public:
-    MaxPoolRewrite(mlir::MLIRContext* ctx, Logger log, IERT::RunTimeResourcesOp resources)
-            : mlir::OpRewritePattern<IERT::MaxPoolOp>(ctx), _log(log), _resources(resources) {
-    }
+mlir::LogicalResult MaxPoolRewrite::matchAndRewrite(IERT::MaxPoolOp origOp, mlir::PatternRewriter& rewriter) const {
+    //
+    // Get dimensions
+    //
 
-public:
-    mlir::LogicalResult matchAndRewrite(IERT::MaxPoolOp origOp, mlir::PatternRewriter& rewriter) const final;
+    const auto origInputType = origOp.input().getType().cast<mlir::MemRefType>();
+    const auto inputShape = getShape(origInputType);
 
-private:
-    Logger _log;
-    mutable IERT::RunTimeResourcesOp _resources;
-};
+    const auto IC = inputShape[IERT::MaxPoolOp::act_channel_dim()];
 
-mlir::LogicalResult ConvertToNCEOpsPass::MaxPoolRewrite::matchAndRewrite(IERT::MaxPoolOp origOp,
-                                                                         mlir::PatternRewriter& rewriter) const {
-    auto ctx = origOp.getContext();
-    size_t availableNNCMXSizeInBytes =
-            _resources.getAvailableMemory(VPUIP::PhysicalMemoryAttr::get(ctx, VPUIP::PhysicalMemory::CMX_NN))
-                    .byteSize();
-    size_t requiredNNCMXBytes = 0;
-    for (const auto& operand : origOp.getOpOperands()) {
-        auto type = operand.get().getType().cast<mlir::MemRefType>();
-        requiredNNCMXBytes += getTypeTotalSize(type).count();
-    }
-
-    if (requiredNNCMXBytes > availableNNCMXSizeInBytes / 4) {
-        return matchFailed(rewriter, origOp, "CMX memory is not enough");
-    }
-
-    for (const auto& operand : origOp.getOpOperands()) {
-        auto shape = operand.get().getType().cast<mlir::ShapedType>().getShape();  // TODO: Fix this assumption.
-        constexpr int CHANNEL_ALIGNMENT = 16;
-        if (shape[1] % CHANNEL_ALIGNMENT != 0) {
-            return matchFailed(rewriter, origOp, "Channels are not aligned");
-        }
-    }
-
-    auto inputTypeNCHW = origOp.input().getType().dyn_cast<mlir::MemRefType>();
-
-    const DimsOrder dimsOrderZMajor = DimsOrder::NHWC;
-    auto reorderedInputType = mlir::MemRefType::get(inputTypeNCHW.getShape(), inputTypeNCHW.getElementType(),
-                                                    dimsOrderZMajor.toAffineMap(ctx), inputTypeNCHW.getMemorySpace());
-
-    auto reorderedInputAllocOp = rewriter.create<mlir::memref::AllocOp>(origOp->getLoc(), reorderedInputType);
-    auto reorderedInput = rewriter.create<IERT::ReorderOp>(origOp->getLoc(), origOp.input(), reorderedInputAllocOp);
-
-    auto padsBegin = parseIntArrayAttr(origOp.pads_begin());
-    auto padsEnd = parseIntArrayAttr(origOp.pads_end());
-
-    auto padsBeginAttr = getInt32ArrayAttr(ctx, padsBegin);
-    auto padsEndAttr = getInt32ArrayAttr(ctx, padsEnd);
-
-    auto kernelPaddingAttr = getInt32ArrayAttr(ctx, makeArrayRef({padsBegin[1], padsEnd[1], padsBegin[0], padsEnd[0]}));
-
-    Dim C = Dim(1);
-    const auto outputShape = getShape(origOp.output().getType().cast<mlir::ShapedType>());
-    const auto inputShape = getShape(origOp.input().getType().cast<mlir::ShapedType>());
-
-    // Generate activation window
-
-    const auto strides = parseIntArrayAttr(origOp.strides());
     const auto kernelSize = parseIntArrayAttr(origOp.kernel_size());
+    const auto kernelStrides = parseIntArrayAttr(origOp.strides());
 
-    VPUX_THROW_UNLESS(strides.size() == 2, "Unsupported strides size: %d", kernelSize.size());
     VPUX_THROW_UNLESS(kernelSize.size() == 2, "Unsupported kernel size: %d", kernelSize.size());
-    VPUX_THROW_UNLESS(kernelSize[0] <= 11 && kernelSize[1] <= 11,
-                      "Unsupported kernel size {0}x{1}. Supported size up to 11", kernelSize[0], kernelSize[1]);
+    VPUX_THROW_UNLESS(kernelStrides.size() == 2, "Unsupported strides size: %d", kernelSize.size());
 
-    const auto windowSize = getWindowSize(kernelSize[0], strides[0], inputTypeNCHW.getElementType());
-    const auto bitPattern = getBitPattern(kernelSize, windowSize, 1);
-    const auto fakeSparsity = getFakeSparsity(bitPattern, inputShape[C]);
+    if (kernelSize[0] > 11 || kernelSize[1] > 11) {
+        return matchFailed(rewriter, origOp, "Unsupported kernel size {0}x{1}. Supported size up to 11", kernelSize[0],
+                           kernelSize[1]);
+    }
 
-    auto activationWindowAllocOp = createActivationWindow(origOp, rewriter, fakeSparsity);
-
-    // Generate weights table
-
-    // an activation window offset ??
-    // TODO: [Track number: E#13226]
-    // Lets allocate weight table after an activation window,
-    // then the an activation window offset in CMX will be zero
-    std::vector<int32_t> biases(outputShape[C], 0);
-    std::vector<int32_t> weightTableVals = generateWTablesValues(outputShape[C], 0, biases);
-
-    auto weightsTableAllocOp = createWeightsTable(origOp, rewriter, weightTableVals);
+    const auto windowSize = getWindowSize(kernelSize[0], kernelStrides[0], origInputType.getElementType());
+    const auto bitPatternSize = kernelSize[1] * windowSize;
+    const auto perChannelSparsitySize = static_cast<std::size_t>(std::ceil(bitPatternSize / 128.0) * 16);
+    const auto activationWindowSize = IC * perChannelSparsitySize;
 
     //
-    //                              memref (null) -> NCEOp -> memref (null)
-    // memref (null) -> CopyOp -> memref (CMX_NN) -> NCEOp -> memref (CMX_NN) -> CopyOp -> memref (null)
+    // Check channel alignment
+    //
 
-    // prepare input in CMX
-    auto inputType = reorderedInput.getType().dyn_cast<mlir::MemRefType>();
-    auto newTypeInputCMX =
-            mlir::MemRefType::get(inputType.getShape(), inputType.getElementType(), inputType.getAffineMaps(),
-                                  VPUIP::PhysicalMemoryAttr::get(ctx, VPUIP::PhysicalMemory::CMX_NN));
-    auto inputCMXAllocOp = rewriter.create<mlir::memref::AllocOp>(origOp->getLoc(), newTypeInputCMX);
-    auto inputCMXAllocOpCopy = rewriter.create<IERT::CopyOp>(origOp->getLoc(), reorderedInput, inputCMXAllocOp);
-    // end input processing
+    static constexpr int64_t CHANNEL_ALIGNMENT = 16;
 
-    // prepare output in CMX
-    auto outputType = origOp.output().getType().dyn_cast<mlir::MemRefType>();
-    auto newTypeOutputCMX =
-            mlir::MemRefType::get(outputType.getShape(), outputType.getElementType(), dimsOrderZMajor.toAffineMap(ctx),
-                                  VPUIP::PhysicalMemoryAttr::get(ctx, VPUIP::PhysicalMemory::CMX_NN));
+    if (IC % CHANNEL_ALIGNMENT != 0) {
+        return matchFailed(rewriter, origOp, "Input channels are not aligned");
+    }
 
-    auto outputCMXAllocOp = rewriter.create<mlir::memref::AllocOp>(origOp->getLoc(), newTypeOutputCMX);
+    //
+    // Check that buffers fit into CMX
+    //
 
-    auto ppeAttr = vpux::VPUIP::PPELayerTypeAttr::get(ctx, VPUIP::PPELayerType::NOOP);
+    Byte requiredCMX(0);
 
-    mlir::ArrayAttr startAttr, endAttr;
-    const auto shape = getShape(origOp.output().getType().cast<mlir::ShapedType>());
-    std::tie(startAttr, endAttr) = getDPUTaskCoords(ctx, shape);
+    for (const auto& operand : origOp.getOpOperands()) {
+        requiredCMX += getTotalSize(operand.get());
+    }
+
+    requiredCMX += IC * WEIGHT_TABLE_NUM_ELEMENTS_PER_OC * 4_Byte;
+
+    requiredCMX += activationWindowSize * 1_Byte;
+
+    if (requiredCMX > _cmxSize) {
+        return matchFailed(rewriter, origOp, "CMX memory is not enough, available '{0}', required '{1}'", _cmxSize,
+                           requiredCMX);
+    }
+
+    //
+    // Generate activation window
+    //
+
+    const auto activationWindow = createActivationWindowTensor(rewriter, origOp->getLoc(), kernelSize, IC, windowSize);
+
+    //
+    // Generate weights table
+    //
+
+    // TODO: [Track number: E#13226]
+    // an activation window offset ??
+    // Let's allocate weight table after an activation window,
+    // then the an activation window offset in CMX will be zero
+
+    auto weightsTable = createWeightsTableTensor(rewriter, origOp->getLoc(), IC, nullptr, 0);
+
+    //
+    // Prepare input for DPU
+    //
+
+    auto inputDPU = prepareInputForDPU(rewriter, origOp->getLoc(), origOp.input());
+
+    //
+    // Prepare output buffer for DPU
+    //
+
+    const auto origOutType = origOp.output().getType().cast<mlir::MemRefType>();
+    const auto outReorderType = changeDimsOrder(origOutType, DimsOrder::NHWC);
+    const auto outTypeCMX =
+            changeMemSpace(outReorderType, VPUIP::PhysicalMemoryAttr::get(getContext(), VPUIP::PhysicalMemory::CMX_NN));
+
+    auto outAllocOpCMX = rewriter.create<mlir::memref::AllocOp>(origOp->getLoc(), outTypeCMX);
+
+    //
+    // Create NCE per-cluster Operation
+    //
+
+    const auto ppeAttr = vpux::VPUIP::PPELayerTypeAttr::get(getContext(), VPUIP::PPELayerType::NOOP);
+
+    const auto padsBegin = parseIntArrayAttr(origOp.pads_begin());
+    const auto padsEnd = parseIntArrayAttr(origOp.pads_end());
+    const auto kernelPaddingAttr =
+            getInt32ArrayAttr(getContext(), makeArrayRef({padsBegin[1], padsEnd[1], padsBegin[0], padsEnd[0]}));
 
     auto nceOp = rewriter.create<VPUIP::NCEClusterTaskOp>(
-            origOp->getLoc(), inputCMXAllocOpCopy, nullptr, weightsTableAllocOp, activationWindowAllocOp,
-            inputCMXAllocOpCopy, outputCMXAllocOp, outputCMXAllocOp, VPUIP::NCETaskType::MAXPOOL, ppeAttr,
-            kernelPaddingAttr, origOp.strides(), origOp.kernel_size(),
-            getInt32Attr(ctx, static_cast<uint32_t>(bitPattern.size())));
+            origOp->getLoc(), inputDPU, nullptr, weightsTable, activationWindow, inputDPU, outAllocOpCMX.memref(),
+            outAllocOpCMX.memref(), VPUIP::NCETaskType::MAXPOOL, ppeAttr, kernelPaddingAttr, origOp.strides(),
+            origOp.kernel_size(), getInt32Attr(getContext(), static_cast<uint32_t>(bitPatternSize)));
+
+    //
+    // Create DPU sub-task
+    //
+
+    mlir::ArrayAttr startAttr, endAttr;
+    std::tie(startAttr, endAttr) = getDPUTaskCoords(getContext(), getShape(nceOp.output()));
+
+    const auto padsBeginAttr = getInt32ArrayAttr(getContext(), padsBegin);
+    const auto padsEndAttr = getInt32ArrayAttr(getContext(), padsEnd);
 
     nceOp.addDPUTask(rewriter, startAttr, endAttr, padsBeginAttr, padsEndAttr, VPUIP::MPEMode::VECTOR_FP16);
 
-    // CMX -> DDR
-    auto cmx_nhwc_mem_ref = nceOp.output().getType().dyn_cast<mlir::MemRefType>();
-    auto ddr_nhwc_type = mlir::MemRefType::get(cmx_nhwc_mem_ref.getShape(), cmx_nhwc_mem_ref.getElementType(),
-                                               cmx_nhwc_mem_ref.getAffineMaps(),
-                                               origOp.output().getType().dyn_cast<mlir::MemRefType>().getMemorySpace());
-    auto ddr_nhwc_alloc_op = rewriter.create<mlir::memref::AllocOp>(origOp->getLoc(), ddr_nhwc_type);
-    auto output_ddr_nhwc = rewriter.create<IERT::CopyOp>(origOp->getLoc(), nceOp.output(), ddr_nhwc_alloc_op);
+    //
+    // DMA output CMX -> DDR
+    //
 
-    // NHWC -> NCHW
-    auto outputReorderOp = rewriter.create<IERT::ReorderOp>(origOp->getLoc(), output_ddr_nhwc, origOp.output_buff());
+    auto outAllocOpDDR = rewriter.create<mlir::memref::AllocOp>(origOp->getLoc(), outReorderType);
+    auto outDMAOp = rewriter.create<IERT::CopyOp>(origOp->getLoc(), nceOp.output(), outAllocOpDDR.memref());
 
-    rewriter.replaceOp(origOp, outputReorderOp->getResults());
+    //
+    // Reorder output NHWC -> NCHW
+    //
+
+    rewriter.replaceOpWithNewOp<IERT::ReorderOp>(origOp, outDMAOp.output(), origOp.output_buff());
 
     return mlir::success();
 }
 
+//
+// ConvertToNCEOpsPass
+//
+
+class ConvertToNCEOpsPass final : public ConvertToNCEOpsBase<ConvertToNCEOpsPass> {
+public:
+    ConvertToNCEOpsPass(Logger log): _log(log) {
+        _log.setName(Base::getArgumentName());
+    }
+
+private:
+    void safeRunOnFunc() final;
+
+private:
+    Logger _log;
+};
+
 void ConvertToNCEOpsPass::safeRunOnFunc() {
     auto& ctx = getContext();
     auto func = getFunction();
-    auto module = func->getParentOfType<mlir::ModuleOp>();
 
-    auto resources = IERT::RunTimeResourcesOp::getFromModule(module);
-    if (!resources) {
-        _log.error("Could not retrieve IERT.RunTimeResources");
-        signalPassFailure();
-    }
+    auto module = func->getParentOfType<mlir::ModuleOp>();
+    auto resOp = IERT::RunTimeResourcesOp::getFromModule(module);
+
+    auto cmxSize = resOp.getAvailableMemory(VPUIP::PhysicalMemoryAttr::get(&ctx, VPUIP::PhysicalMemory::CMX_NN));
+    VPUX_THROW_UNLESS(cmxSize != nullptr, "Can't get information about {0} memory", VPUIP::PhysicalMemory::CMX_NN);
 
     mlir::OwningRewritePatternList patterns(&ctx);
-    patterns.insert<ConvRewrite>(&ctx, _log, resources);
-    patterns.insert<MaxPoolRewrite>(&ctx, _log, resources);
+    patterns.insert<ConvRewrite>(&ctx, cmxSize.size(), _log);
+    patterns.insert<MaxPoolRewrite>(&ctx, cmxSize.size(), _log);
 
     if (mlir::failed(applyPatternsAndFoldGreedily(func, std::move(patterns)))) {
         signalPassFailure();
