@@ -13,6 +13,7 @@
 
 #include "vpux/utils/IE/blob.hpp"
 #include "yolo_helpers.hpp"
+#include "utils.hpp"
 
 #include <inference_engine.hpp>
 #include <blob_factory.hpp>
@@ -32,6 +33,12 @@
 #include <sstream>
 #include <string>
 #include <vector>
+
+#ifdef ENABLE_MOVISIM
+#include "run_movisim_emulator.hpp"
+#endif
+
+#define MOVISIM_DEVICE_NAME "moviSim"
 
 namespace ie = InferenceEngine;
 
@@ -377,20 +384,6 @@ ie::MemoryBlob::Ptr loadInput(const ie::TensorDesc& desc, const std::string& fil
     }
 }
 
-ie::MemoryBlob::Ptr loadBlob(const ie::TensorDesc& desc, const std::string& filePath) {
-    const auto blob = ie::as<ie::MemoryBlob>(make_blob_with_precision(desc));
-    blob->allocate();
-
-    std::ifstream file(filePath, std::ios_base::in | std::ios_base::binary);
-    IE_ASSERT(file.is_open()) << "Can't open file " << filePath << " for read";
-
-    const auto blobMem = blob->wmap();
-    const auto blobPtr = blobMem.as<char*>();
-    file.read(blobPtr, static_cast<std::streamsize>(blob->byteSize()));
-
-    return blob;
-}
-
 void dumpBlob(const ie::MemoryBlob::Ptr& blob, const std::string& filePath) {
     std::ofstream file(filePath, std::ios_base::out | std::ios_base::binary);
     IE_ASSERT(file.is_open()) << "Can't open file " << filePath << " for write";
@@ -407,6 +400,8 @@ void dumpBlob(const ie::MemoryBlob::Ptr& blob, const std::string& filePath) {
 ie::Core ieCore;
 
 void setupInferenceEngine() {
+    if(FLAGS_device == MOVISIM_DEVICE_NAME) return;
+
     if (!FLAGS_log_level.empty()) {
         ieCore.SetConfig({{CONFIG_KEY(LOG_LEVEL), FLAGS_log_level}}, FLAGS_device);
     }
@@ -434,24 +429,32 @@ ie::ExecutableNetwork importNetwork(const std::string& filePath) {
     std::ifstream file(filePath, std::ios_base::in | std::ios_base::binary);
     IE_ASSERT(file.is_open()) << "Can't open file " << filePath << " for read";
 
-    return ieCore.ImportNetwork(file, FLAGS_device);
+    return ieCore.ImportNetwork(file, FLAGS_device == MOVISIM_DEVICE_NAME ? "VPUX" : FLAGS_device);
 }
 
-ie::BlobMap runInfer(ie::ExecutableNetwork& exeNet, const ie::BlobMap& inputs) {
-    auto inferRequest = exeNet.CreateInferRequest();
-
-    for (const auto& p : inputs) {
-        inferRequest.SetBlob(p.first, p.second);
-    }
-
-    inferRequest.Infer();
-
+ie::BlobMap runInfer(ie::ExecutableNetwork& exeNet, const ie::BlobMap& inputs, const std::vector<std::string>& dumpedInputsPaths) {
     ie::BlobMap out;
 
-    for (const auto& p : exeNet.GetOutputsInfo()) {
-        out.insert({p.first, inferRequest.GetBlob(p.first)});
-    }
+    if(FLAGS_device == MOVISIM_DEVICE_NAME) {
+#ifdef ENABLE_MOVISIM
+        out = ms::runMoviSimEmulator(exeNet, FLAGS_network, dumpedInputsPaths);
+#else
+        std::cout<< "Can't run MoviSim emulator because python hasn't been found"<< std::endl;
+#endif
+    } else {
+        auto inferRequest = exeNet.CreateInferRequest();
 
+        for (const auto& p : inputs) {
+            inferRequest.SetBlob(p.first, p.second);
+        }
+
+        inferRequest.Infer();
+
+
+        for (const auto& p : exeNet.GetOutputsInfo()) {
+            out.insert({p.first, inferRequest.GetBlob(p.first)});
+        }
+    }
     return out;
 }
 
@@ -614,14 +617,14 @@ std::vector<std::pair<int, float>> parseClassification(const ie::MemoryBlob::Ptr
 bool testClassification(const ie::BlobMap& outputs, const ie::BlobMap& refOutputs) {
     IE_ASSERT(outputs.size() == 1 && refOutputs.size() == 1);
 
-    const auto& outBlob = outputs.begin()->second;
-    const auto& refOutBlob = refOutputs.begin()->second;
+    const auto& outBlob = vpux::toFP32(InferenceEngine::as<InferenceEngine::MemoryBlob>(outputs.begin()->second));
+    const auto& refOutBlob = vpux::toFP32(InferenceEngine::as<InferenceEngine::MemoryBlob>(refOutputs.begin()->second));
 
     IE_ASSERT(outBlob->getTensorDesc() == refOutBlob->getTensorDesc());
     IE_ASSERT(refOutBlob->getTensorDesc().getPrecision() == ie::Precision::FP32);
 
-    auto probs = parseClassification(ie::as<ie::MemoryBlob>(outBlob));
-    auto refProbs = parseClassification(ie::as<ie::MemoryBlob>(refOutBlob));
+    auto probs = parseClassification(outBlob);
+    auto refProbs = parseClassification(refOutBlob);
 
     IE_ASSERT(probs.size() >= FLAGS_top_k);
     probs.resize(FLAGS_top_k);
@@ -935,8 +938,9 @@ int main(int argc, char* argv[]) {
 
             ie::BlobMap inputs;
             size_t inputInd = 0;
+            std::vector<std::string> dumpedInputsPaths;
             for (const auto &p : inputsInfo) {
-                std::cout << "Load input #" << inputInd << " from " << inputFiles[inputInd] << std::endl;
+                std::cout << "Load input #" << inputInd << " from " << inputFiles[inputInd] << " as " << p.second->getTensorDesc().getPrecision() << std::endl;
                 const auto blob = loadInput(p.second->getTensorDesc(), inputFiles[inputInd], FLAGS_color_format);
                 inputs.emplace(p.first, blob);
 
@@ -948,10 +952,12 @@ int main(int argc, char* argv[]) {
                 dumpBlob(blob, blobFileName);
 
                 ++inputInd;
+
+                dumpedInputsPaths.push_back(blobFileName);
             }
 
             std::cout << "Run inference on " << FLAGS_device << std::endl;
-            const auto outputs = runInfer(exeNet, inputs);
+            const auto outputs = runInfer(exeNet, inputs, dumpedInputsPaths);
 
             if (FLAGS_run_test) {
                 ie::BlobMap refOutputs;
@@ -961,8 +967,12 @@ int main(int argc, char* argv[]) {
                     ostr << netFileName << "_ref_out_" << outputInd << "_case_" << numberOfTestCase << ".blob";
                     const auto blobFileName = ostr.str();
 
-                    std::cout << "Load reference output #" << outputInd << " from " << blobFileName << std::endl;
-                    const auto blob = loadBlob(p.second->getTensorDesc(), blobFileName);
+                    auto refTensorDesc = p.second->getTensorDesc();
+                    refTensorDesc.setPrecision(ie::Precision::FP32);
+
+                    std::cout << "Load reference output #" << outputInd << " from " << blobFileName << " as " << refTensorDesc.getPrecision() << std::endl;
+
+                    const auto blob = loadBlob(refTensorDesc, blobFileName);
                     refOutputs.emplace(p.first, blob);
 
                     ++outputInd;
