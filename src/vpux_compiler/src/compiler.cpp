@@ -102,24 +102,142 @@ VPUIP::CompilationMode getCompilationMode(const VPUXConfig& config) {
 
 class TimingLogger final : public mlir::PassManager::PassTimingConfig {
 public:
-    explicit TimingLogger(Logger log): _log(log) {
+    TimingLogger(): _colorStream(Logger::getLevelStream(LogLevel::Info)) {
     }
 
 public:
-    void printTiming(PrintCallbackFn printCallback) final;
+    void printTiming(PrintCallbackFn printCallback) final {
+        printCallback(_colorStream.get());
+    }
 
 private:
-    Logger _log;
+    llvm::WithColor _colorStream;
 };
 
-void TimingLogger::printTiming(PrintCallbackFn printCallback) {
-    std::string timingLog;
-    llvm::raw_string_ostream stream(timingLog);
-    printCallback(stream);
+//
+// DeveloperConfig
+//
 
-    splitStringList(timingLog, '\n', [this](StringRef line) {
-        _log.info("{0}", line);
-    });
+class DeveloperConfig final {
+public:
+    DeveloperConfig();
+    ~DeveloperConfig();
+
+    void setup(mlir::PassManager& pm, Logger log) const;
+
+    bool useSharedConstants() const {
+        return _crashReproducerFile.empty() && _irPrintingFilter.empty();
+    }
+
+private:
+    std::string _crashReproducerFile;
+    bool _localReproducer = true;
+
+    std::string _irPrintingFilter;
+    std::string _irPrintingFile;
+    bool _printFullIR = false;
+    bool _printFullConstant = false;
+
+    llvm::raw_ostream* _stream = nullptr;
+    std::unique_ptr<llvm::Regex> _filter;
+    std::unique_ptr<llvm::WithColor> _colorStream;
+    std::unique_ptr<llvm::raw_fd_ostream> _fileStream;
+};
+
+#if defined(VPUX_DEVELOPER_BUILD) || !defined(NDEBUG)
+
+void parseEnv(StringRef envVarName, std::string& var) {
+    if (const auto env = std::getenv(envVarName.data())) {
+        var = env;
+    }
+}
+
+void parseEnv(StringRef envVarName, bool& var) {
+    if (const auto env = std::getenv(envVarName.data())) {
+        var = std::stoi(env);
+    }
+}
+
+#endif  // defined(VPUX_DEVELOPER_BUILD) || !defined(NDEBUG)
+
+DeveloperConfig::DeveloperConfig() {
+#if defined(VPUX_DEVELOPER_BUILD) || !defined(NDEBUG)
+    parseEnv("IE_VPUX_CRASH_REPRODUCER_FILE", _crashReproducerFile);
+    parseEnv("IE_VPUX_GEN_LOCAL_REPRODUCER", _localReproducer);
+
+    parseEnv("IE_VPUX_IR_PRINTING_FILTER", _irPrintingFilter);
+    parseEnv("IE_VPUX_IR_PRINTING_FILE", _irPrintingFile);
+    parseEnv("IE_VPUX_PRINT_FULL_IR", _printFullIR);
+    parseEnv("IE_VPUX_PRINT_FULL_CONSTANT", _printFullConstant);
+#endif  // defined(VPUX_DEVELOPER_BUILD) || !defined(NDEBUG)
+
+    if (!_irPrintingFilter.empty()) {
+        _filter = std::make_unique<llvm::Regex>(_irPrintingFilter, llvm::Regex::IgnoreCase);
+
+        std::string regexErr;
+        if (!_filter->isValid(regexErr)) {
+            VPUX_THROW("Invalid regular expression '{0}' : {1}", _irPrintingFilter, regexErr);
+        }
+
+        if (_irPrintingFile.empty()) {
+            _colorStream = std::make_unique<llvm::WithColor>(Logger::getLevelStream(LogLevel::Trace));
+
+            _stream = &_colorStream->get();
+        } else {
+            std::error_code err;
+            _fileStream = std::make_unique<llvm::raw_fd_ostream>(_irPrintingFile, err);
+            if (err) {
+                VPUX_THROW("Failed to open file '{0}' for write : {1}", _irPrintingFile, err.message());
+            }
+
+            _stream = _fileStream.get();
+        }
+    }
+}
+
+DeveloperConfig::~DeveloperConfig() {
+    if (_stream != nullptr) {
+        _stream->flush();
+    }
+}
+
+void DeveloperConfig::setup(mlir::PassManager& pm, Logger log) const {
+    // Pass timing
+
+    if (log.isActive(LogLevel::Info)) {
+        pm.enableTiming(std::make_unique<TimingLogger>());
+    }
+
+    // Crash reproducer
+
+    if (!_crashReproducerFile.empty()) {
+        pm.enableCrashReproducerGeneration(_crashReproducerFile, _localReproducer);
+    }
+
+    // IR printing
+
+    if (_filter != nullptr) {
+        const bool printAfterOnlyOnChange = false;
+
+        const auto shouldPrintBeforePass = [&](mlir::Pass*, mlir::Operation*) {
+            return false;
+        };
+        const auto shouldPrintAfterPass = [&](mlir::Pass* pass, mlir::Operation*) {
+            return _filter->match(pass->getName()) || _filter->match(pass->getArgument());
+        };
+
+        if (_printFullIR) {
+            pm.getContext()->disableMultithreading();
+        }
+
+        mlir::OpPrintingFlags flags = mlir::OpPrintingFlags();
+        if (!_printFullConstant) {
+            flags.elideLargeElementsAttrs();
+        }
+
+        pm.enableIRPrinting(shouldPrintBeforePass, shouldPrintAfterPass, _printFullIR, printAfterOnlyOnChange, *_stream,
+                            flags);
+    }
 }
 
 }  // namespace
@@ -127,6 +245,7 @@ void TimingLogger::printTiming(PrintCallbackFn printCallback) {
 //
 // CompilerImpl::query
 //
+
 InferenceEngine::QueryNetworkResult vpux::CompilerImpl::query(const InferenceEngine::CNNNetwork& /*network*/,
                                                               const vpux::VPUXConfig& /*config*/) {
     InferenceEngine::QueryNetworkResult result;
@@ -136,6 +255,7 @@ InferenceEngine::QueryNetworkResult vpux::CompilerImpl::query(const InferenceEng
 //
 // CompilerImpl::compile
 //
+
 std::shared_ptr<INetworkDescription> vpux::CompilerImpl::compile(const std::shared_ptr<ngraph::Function>& func,
                                                                  const std::string&, const InputsDataMap& inputsInfo,
                                                                  const OutputsDataMap& outputsInfo,
@@ -144,52 +264,10 @@ std::shared_ptr<INetworkDescription> vpux::CompilerImpl::compile(const std::shar
     // Parse config options
     //
 
-    auto compilationMode = getCompilationMode(config);
+    DeveloperConfig devConf;
 
-    // TODO: move this to config class
-    bool enablePassVerifier = true;
-    std::string crashReproducerFile;
-    bool localReproducer = true;
-    Optional<llvm::Regex> irPrintingFilter;
-    bool printFullIR = false;
-    bool printFullConstant = false;
-
-#ifdef VPUX_DEVELOPER_BUILD
-    if (const auto env = std::getenv("IE_VPUX_ENABLE_PASS_VERIFIER")) {
-        enablePassVerifier = std::stoi(env);
-    }
-    if (const auto env = std::getenv("IE_VPUX_CRASH_REPRODUCER_FILE")) {
-        crashReproducerFile = env;
-    }
-    if (const auto env = std::getenv("IE_VPUX_GEN_LOCAL_REPRODUCER")) {
-        localReproducer = std::stoi(env);
-    }
-    if (const auto env = std::getenv("IE_VPUX_IR_PRINTING_FILTER")) {
-        const StringRef filter(env);
-
-        if (!filter.empty()) {
-            irPrintingFilter = llvm::Regex(filter, llvm::Regex::IgnoreCase);
-
-            std::string regexErr;
-            if (!irPrintingFilter->isValid(regexErr)) {
-                VPUX_THROW("Invalid regural expression '{0}' : {1}", filter, regexErr);
-            }
-        }
-    }
-    if (const auto env = std::getenv("IE_VPUX_PRINT_FULL_IR")) {
-        printFullIR = std::stoi(env);
-    }
-
-    if (const auto env = std::getenv("IE_VPUX_COMPILATION_MODE")) {
-        const auto parsed = VPUIP::symbolizeCompilationMode(env);
-        VPUX_THROW_UNLESS(parsed.hasValue(), "Unsupported compilation mode '{0}'", env);
-        compilationMode = parsed.getValue();
-    }
-
-    if (const auto env = std::getenv("IE_VPUX_PRINT_FULL_CONSTANT")) {
-        printFullConstant = std::stoi(env);
-    }
-#endif
+    const auto compilationMode = getCompilationMode(config);
+    const bool sharedConstants = devConf.useSharedConstants();
 
     //
     // Initialize compiler
@@ -204,33 +282,12 @@ std::shared_ptr<INetworkDescription> vpux::CompilerImpl::compile(const std::shar
     addLogging(ctx, log);
 
     mlir::PassManager pm(&ctx, mlir::OpPassManager::Nesting::Implicit);
-
     addLogging(pm, log);
-    pm.enableVerifier(enablePassVerifier);
-    if (!crashReproducerFile.empty()) {
-        pm.enableCrashReproducerGeneration(crashReproducerFile, localReproducer);
-    }
-    if (log.isActive(LogLevel::Info)) {
-        pm.enableTiming(std::make_unique<TimingLogger>(log));
-    }
-    if (irPrintingFilter.hasValue()) {
-        const auto shouldPrintForPass = [&](mlir::Pass* pass, mlir::Operation*) {
-            return irPrintingFilter->match(pass->getName()) || irPrintingFilter->match(pass->getArgument());
-        };
+    devConf.setup(pm, log);
 
-        auto colorStream = Logger::getLevelStream(LogLevel::Trace);
-        auto& stream = colorStream.get();
-
-        if (printFullIR) {
-            ctx.disableMultithreading();
-        }
-
-        mlir::OpPrintingFlags flags = mlir::OpPrintingFlags();
-        if (!printFullConstant) {
-            flags.elideLargeElementsAttrs();
-        }
-        pm.enableIRPrinting(shouldPrintForPass, shouldPrintForPass, printFullIR, false, stream, flags);
-    }
+    //
+    // Build compilation pipeline
+    //
 
     pm.addPass(createSetCompileParamsPass(getArchKind(config), compilationMode, log.nest()));
 
@@ -247,7 +304,6 @@ std::shared_ptr<INetworkDescription> vpux::CompilerImpl::compile(const std::shar
     //
 
     CNNNetwork cnnNet(func);
-
     for (const auto& p : inputsInfo) {
         cnnNet.getInputsInfo().at(p.first)->setPrecision(p.second->getPrecision());
         cnnNet.getInputsInfo().at(p.first)->setLayout(p.second->getLayout());
@@ -257,15 +313,9 @@ std::shared_ptr<INetworkDescription> vpux::CompilerImpl::compile(const std::shar
         cnnNet.getOutputsInfo().at(p.first)->setLayout(p.second->getLayout());
     }
 
-    const bool sharedConstants = crashReproducerFile.empty() && !irPrintingFilter.hasValue();
     auto module = IE::importNetwork(&ctx, cnnNet, sharedConstants, log.nest());
 
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module.get())), "Compilation failed");
-
-    if (irPrintingFilter.hasValue()) {
-        auto& stream = Logger::getBaseStream();
-        stream.flush();
-    }
 
     const auto blob = VPUIP::exportToBlob(module.get(), log);
 

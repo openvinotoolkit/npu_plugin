@@ -54,7 +54,7 @@ void vpux::VPUXConfig::parseFrom(const vpux::VPUXConfig& other) {
 }
 
 void vpux::VPUXConfig::parseEnvironment() {
-#ifdef VPUX_DEVELOPER_BUILD
+#if defined(VPUX_DEVELOPER_BUILD) || !defined(NDEBUG)
     if (const auto env = std::getenv("IE_VPUX_COMPILER_TYPE")) {
         if (std::strcmp(env, VPUX_CONFIG_VALUE(MCM)) == 0) {
             _compilerType = IE::VPUXConfigParams::CompilerType::MCM;
@@ -65,6 +65,10 @@ void vpux::VPUXConfig::parseEnvironment() {
                        << "\"" << env << "\""
                        << " for key IE_VPUX_COMPILER_TYPE environment variable";
         }
+    }
+
+    if (const auto env = std::getenv("IE_VPUX_COMPILATION_MODE")) {
+        _compilationMode = env;
     }
 #endif
 }
