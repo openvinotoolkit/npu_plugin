@@ -60,6 +60,11 @@ public:
     static const DimsOrder NCDHW;
     static const DimsOrder NDHWC;
 
+    // Orders for 2D Convolution weights
+    static const DimsOrder OIYX;
+    static const DimsOrder OYXI;
+    static const DimsOrder YXOI;
+
 public:
     static void validateCode(StorageType code);
     static void validateNumDims(size_t numDims);

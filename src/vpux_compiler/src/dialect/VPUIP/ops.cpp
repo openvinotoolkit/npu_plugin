@@ -43,7 +43,7 @@ bool LayerInfo::isSupportedPostProcessing(mlir::Operation* origOp, mlir::Operati
     auto module = origOp->getParentOfType<mlir::ModuleOp>();
     const auto compileMode = VPUIP::getCompilationMode(module);
 
-    if (!mlir::isa<IE::ReLUOp>(postOp)) {
+    if (!mlir::isa<IE::ReLUOp, IE::ScaleShiftOp>(postOp)) {
         return false;
     }
 

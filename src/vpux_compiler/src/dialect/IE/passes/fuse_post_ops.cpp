@@ -96,7 +96,7 @@ private:
 void FusePostOpsPass::safeRunOnFunc() {
     auto& ctx = getContext();
 
-    const auto dialect = ctx.getOrLoadDialect<IE::IEDialect>();
+    auto* dialect = ctx.getOrLoadDialect<IE::IEDialect>();
     VPUX_THROW_UNLESS(dialect != nullptr, "IE Dialect was not loaded");
 
     const auto layerInfo = dialect->getRegisteredInterface<IE::LayerInfoDialectInterface>();
