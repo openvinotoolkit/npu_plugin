@@ -71,11 +71,32 @@ namespace mv
 
             std::vector<std::size_t> inputShape0(inputs[0]->getShape());
 
-            for (std::size_t i = 1; i < inputs.size(); ++i)
+            bool outputOverlapping = false;
+            if (std::find_if(inputs.begin(), inputs.end(), [] (const mv::Data::TensorIterator &tensor)
+                {return tensor->hasAttr("verticalFusionOutputOverlap") && tensor->get<std::size_t>("verticalFusionOutputOverlap");}) != inputs.end())
+                outputOverlapping = true;
+
+            if (!outputOverlapping)
             {
-                auto inputShape = inputs[i]->getShape();
-                inputShape0[numericAxisToConcat] += inputShape[numericAxisToConcat];
+                for (std::size_t i = 1; i < inputs.size(); ++i)
+                {
+                    auto inputShape = inputs[i]->getShape();
+                    inputShape0[numericAxisToConcat] += inputShape[numericAxisToConcat];
+                }
             }
+            else
+            {
+                std::vector<std::size_t> overlapping_lines(inputs.size(), 0);
+                std::size_t sum = inputs[0]->getShape()[numericAxisToConcat];
+                for (std::size_t i = 1; i < inputs.size(); ++i)
+                {
+                    overlapping_lines[i] = sum - inputs[i]->get<std::size_t>("verticalFusionOutputOverlap");
+                    auto inputShape = inputs[i]->getShape();
+                    sum += inputShape[numericAxisToConcat];
+                }
+                inputShape0[numericAxisToConcat] = sum - overlapping_lines[inputs.size() - 1];
+            }
+
 
             //NOTE/ASSUMPTION: If input DTypes are different, we concatenate with smallest DType.
             auto dTypeToUse = inputs[0]->getDType();

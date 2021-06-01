@@ -217,6 +217,42 @@ class Pipeline_Chains {
       }
     }
 
+    template<typename T, typename OutputIterator>
+    void get_vf_read_inputs(T dpu_op, OutputIterator output) const {
+      mv::Data::OpListIterator oitr = omodel_.getOp(dpu_op->getName());
+      // don't skip shared weights as they are always spilled
+      for (auto pitr=oitr.leftmostParent(); pitr!=omodel_.opEnd(); ++pitr) {
+        output = &(*pitr);
+      }
+    }
+
+    template<typename T, typename OutputIterator>
+    void add_vertical_subgraph(T dpu_op, OutputIterator output, std::unordered_map<std::string, bool>& control_map) const {
+      mv::Data::OpListIterator oitr = omodel_.getOp(dpu_op->getName());
+      if (oitr->hasAttr("verticalFusion") && (control_map.find(oitr->getName()) == control_map.end()))
+      {
+        control_map[oitr->getName()] == true;
+        output = dpu_op; // add current op
+      }
+      // recurse BFS to the tail
+      for (auto citr = oitr.leftmostChild(); citr != omodel_.opEnd(); ++citr)
+      {
+        if (citr->hasAttr("verticalFusionSubgraphTail") && citr->get<bool>("verticalFusionSubgraphTail"))
+        {
+          if (control_map.find(citr->getName()) == control_map.end())
+          {
+            control_map[citr->getName()] == true;
+            output = &(*citr);
+          }
+        }
+      }
+      for (auto citr = oitr.leftmostChild(); citr != omodel_.opEnd(); ++citr)
+      {
+        if (!(citr->hasAttr("verticalFusionSubgraphTail") && citr->get<bool>("verticalFusionSubgraphTail")))
+          add_vertical_subgraph(&(*citr), output, control_map);
+      }
+    }
+
     // If op has multiple outputs this returns NULL //
     template<typename T>
     operation_t get_single_output(T dpu_op) const {
@@ -332,7 +368,7 @@ class Pipeline_Chains {
       auto globalParams = omodel_.getGlobalConfigParams();
       size_t clusterMemory = globalParams->get<int>("cmx");
 
-      // allow a 15% cmx margin 
+      // allow a 15% cmx margin
       return (2 * input_size + 2 * output_size + shared_weight_size) < (clusterMemory * 0.85);
     }
 
@@ -411,17 +447,28 @@ class Pipeline_Chains {
       }
       clearEmptyDepth(dpu_levels);
 
-      auto level_itr = dpu_levels.begin();
-      while (level_itr != dpu_levels.end())
+      // Activation and Vertical Fusion Chain Pipelining
+      for (auto& level : dpu_levels)
       {
-        const op_list_t & dpu_list = level_itr->second;
+        const op_list_t &dpu_list = level.second;
         // create activation chains
         op_list_t activation_dpu_chain;
-        for (auto& opIt : level_itr->second)
+        std::unordered_map<std::string, bool> control_map;
+        for (auto& opIt : dpu_list)
         {
-          operation_t current_dpu_op = opIt;
+          // from the head add the entire vertical subgraph
+          if (opIt->hasAttr("verticalFusionSubgraphHead") && opIt->get<bool>("verticalFusionSubgraphHead"))
+          {
+            add_vertical_subgraph(opIt, std::back_inserter(activation_dpu_chain), control_map);
+            std::size_t subgraph_length = activation_dpu_chain.size();
+            // save the length of the subgraph
+            omodel_.getOp(opIt->getName())->set<std::size_t>("subgraph_length", activation_dpu_chain.size());
+          }
+          // skip other operations as they should already be added above
+          if (opIt->hasAttr("verticalFusion"))
+            continue;
           // make sure the op will fit in CMX
-          if (!can_activation_pipelining_be_applied(current_dpu_op))
+          if (!can_activation_pipelining_be_applied(opIt))
           {
             activation_dpu_chain.clear();
             break;
@@ -429,8 +476,8 @@ class Pipeline_Chains {
           // chains created from ops that are optimizable in activation streaming performance
           // a chain contains ops that belong to the same streaming - share the same weights
           if (opIt->hasAttr("performance_optimized") && opIt->get<bool>("performance_optimized") &&
-              is_sharing_weights_operation(current_dpu_op) && share_the_same_weights(dpu_list))
-            activation_dpu_chain.push_back(current_dpu_op);
+              is_sharing_weights_operation(opIt) && share_the_same_weights(dpu_list))
+            activation_dpu_chain.push_back(opIt);
         }
 
         // currently no overlapping chains, want to be able to prefetch more then half.
@@ -445,11 +492,21 @@ class Pipeline_Chains {
           for (operation_t dpu_op : chain_subgraph.dpu_chain_)
           {
             op_list_t reads;
-            get_non_shared_read_inputs(dpu_op, std::back_inserter(reads));
+            if (dpu_op->hasAttr("verticalFusion"))
+              get_vf_read_inputs(dpu_op, std::back_inserter(reads));
+            else
+              get_non_shared_read_inputs(dpu_op, std::back_inserter(reads));
             activation_reads.push_back(reads);
           }
           output = chain_subgraph;
         }
+      }
+
+      // Weight Pipelining
+      auto level_itr = dpu_levels.begin();
+      while (level_itr != dpu_levels.end())
+      {
+        const op_list_t & dpu_list = level_itr->second;
 
         //NOTE: if your dpu_list size is bigger than 1 but you belong to same streaming op, no problem!!
         if ((dpu_list.size() > 1UL) && !(comeFromTheSameParentStream(dpu_list)))
@@ -546,6 +603,82 @@ class Pipeline_Chains {
       return comeFromTheSameParentStream;
   }
 
+  bool vf_subgraph_input_in_cmx(size_t cmx_size, operation_t op_itr) const
+  {
+    // if the input to vertical fusion subgraphs is in CMX do not pipeline
+    auto head = omodel_.getOp(op_itr->getName());
+    auto opType = head->getOpType();
+    if (opType == "ImplicitConcat")
+    {
+      // input tensor from concat to the vertical subgraph
+      auto output_size = head->getOutputTensor(mv::IO_TENSOR_OUTPUT)->computeTotalSize();
+      return (!head->hasAttr("avoid_cmx_concat") || !head->get<bool>("avoid_cmx_concat"))
+              && output_size < cmx_size;
+    }
+    else if (opType == "DMATask" || head->isImplicit())
+      return vf_subgraph_input_in_cmx(cmx_size, &(*head.leftmostParent()));
+    return false;
+  }
+
+  bool vf_subgraph_can_be_pipelined(op_list_t dpu_chain) const
+  {
+    auto itr = dpu_chain.begin();
+    auto head = omodel_.getOp((*itr)->getName());
+    auto globalParams = omodel_.getGlobalConfigParams();
+    size_t clusterMemory = globalParams->get<int>("cmx");
+    size_t subgraph_size = 0;
+    // if input already in cmx do not pipeline
+    if (vf_subgraph_input_in_cmx(clusterMemory, &(*head.leftmostParent())))
+      return false;
+    // the input from DDR
+    subgraph_size += 2 * head->getInputTensor(mv::IO_TENSOR_INPUT)->getClusterSize();
+    // iterate through one subgraph
+    while ((*itr)->hasAttr("verticalFusion") && (*itr)->hasAttr("verticalFusionSubgraphTail") 
+          && !(*itr)->get<bool>("verticalFusionSubgraphTail"))
+    {
+      subgraph_size += omodel_.getOp((*itr)->getName())->getOutputTensor(mv::IO_TENSOR_OUTPUT)->getClusterSize();
+      ++itr;
+    }
+    // allow a 15% cmx margin 
+    return subgraph_size < (clusterMemory * 0.85);
+  }
+
+  bool double_tail_vf_subgraph(op_list_t dpu_chain) const
+  {
+    size_t tail_count = 0UL;
+    auto i = dpu_chain.begin();
+    // iterate to the next head
+    do {
+      if ((*i)->hasAttr("verticalFusionSubgraphHead") && !(*i)->get<bool>("verticalFusionSubgraphHead"))
+        ++tail_count;
+      ++i;
+    } while ((*i)->hasAttr("verticalFusion") && (*i)->hasAttr("verticalFusionSubgraphHead") 
+            && !(*i)->get<bool>("verticalFusionSubgraphHead"));
+    // if more than one tail it is double tail subgraph
+    return tail_count > 1;
+  }
+
+  size_t calculate_vf_select_stages(op_list_t::const_iterator op_itr, bool double_tail_vf) const
+  {
+    size_t select_stages = 0;
+    // simple analitical approach, could be optimized with a cost model
+    mv::Data::OpListIterator temp_itr = omodel_.getOp((*op_itr)->getName());
+    if (temp_itr->hasAttr("verticalFusionSubgraphTail") && temp_itr->get<bool>("verticalFusionSubgraphTail"))
+      select_stages = 2;
+    else if (temp_itr->hasAttr("taskOp"))
+    {
+      auto taskOp = temp_itr->get<std::string>("taskOp");
+      if (taskOp == "Eltwise" || taskOp == "ImplicitConcat")
+      {
+        if (double_tail_vf)
+          select_stages = 3;
+        else
+          select_stages = 2;
+      }
+    }
+    return select_stages;
+  }
+
     template<typename OutputIterator>
     void locate_chains(OutputIterator output) {
       std::unordered_set<operation_t> already_in_some_chain;
@@ -608,11 +741,12 @@ class Pipeline_Chains {
       }
     }
 
-    void transform_op_model(FILE *fptr=stdout, size_t select_stages=0UL) {
+    void transform_op_model(FILE *fptr=stdout, size_t select_stages=0UL, mv::Target target_type=mv::Target::ma2490,
+        bool activation_pipelining=false, bool vertical_fusion_pipelining=false) {
       std::list<control_edge_t> control_edges;
       std::list<chain_subgraph_t> subgraphs;
       transform_op_model(std::back_inserter(control_edges), subgraphs,
-          select_stages, fptr);
+          select_stages, target_type, activation_pipelining, vertical_fusion_pipelining, fptr);
     }
 
     template<typename ControlEdgeOutput, typename SubGraphContainer>
@@ -765,7 +899,8 @@ class Pipeline_Chains {
 
     template<typename ControlEdgeOutput, typename SubGraphContainer>
     void transform_op_model(ControlEdgeOutput,
-        SubGraphContainer& chain_subgraphs, size_t select_stages=0UL,
+        SubGraphContainer& chain_subgraphs, size_t select_stages=0UL, mv::Target target_type=mv::Target::ma2490, 
+        bool activation_pipelining=false, bool vertical_fusion_pipelining=false, 
         FILE *fptr=stdout) {
 
       static_assert( std::is_same<chain_subgraph_t,
@@ -774,20 +909,20 @@ class Pipeline_Chains {
 
       chain_subgraphs.clear();
       locate_longer_chains(std::back_inserter(chain_subgraphs));
-      bool activation_pipelining = is_network_candidate(chain_subgraphs);
+      activation_pipelining = activation_pipelining && is_network_candidate(chain_subgraphs);
 
       for (chain_subgraph_t chain_subgraph : chain_subgraphs)
       {
         if(activation_pipelining && !(chain_subgraph.activation_reads_.empty()))
-          pipeline_ops_in_chain(chain_subgraph, true, select_stages, fptr);
+          pipeline_ops_in_chain(chain_subgraph, true, select_stages, target_type, vertical_fusion_pipelining, fptr);
         if(!(chain_subgraph.weight_reads_.empty()))
-          pipeline_ops_in_chain(chain_subgraph, false, select_stages, fptr);
+          pipeline_ops_in_chain(chain_subgraph, false, select_stages, target_type, false, fptr);
       }
     }
 
     void pipeline_ops_in_chain(chain_subgraph_t chain_subgraph,
-        bool activation_pipelining, size_t select_stages=0UL, 
-        FILE *fptr=stdout) {
+        bool activation_pipelining, size_t select_stages=0UL, mv::Target target_type=mv::Target::ma2490,
+        bool vertical_fusion_pipelining=false, FILE *fptr=stdout) {
 
         const op_list_t& dpu_chain = chain_subgraph.dpu_chain_;
         assert(!dpu_chain.empty() && "dpu_chain is empty");
@@ -795,6 +930,9 @@ class Pipeline_Chains {
 
         std::list<op_list_t>::iterator reads_begin;
         std::list<op_list_t>::iterator reads_end;
+        bool vertical_fusion_subgraph = false;
+        bool double_tail_vf = false;
+        std::size_t vf_subgraph_length = 0;
 
         if (activation_pipelining)
         {
@@ -802,16 +940,35 @@ class Pipeline_Chains {
           auto dpu_flow_control_prev = dpu_flow_control;
           ++dpu_flow_control;
 
+          if ((*dpu_flow_control_prev)->hasAttr("verticalFusion"))
+          {
+            if (!vertical_fusion_pipelining || !vf_subgraph_can_be_pipelined(dpu_chain))
+              return;
+            vertical_fusion_subgraph = true;
+            auto head_op = omodel_.getOp((*dpu_flow_control_prev)->getName());
+            if (head_op->hasAttr("subgraph_length"))
+              vf_subgraph_length = head_op->get<std::size_t>("subgraph_length");
+            double_tail_vf = double_tail_vf_subgraph(dpu_chain);
+            // issues with spills EISW-12020, extra vertical fusion pipelining not performant with 1 DMA controller
+            if (double_tail_vf && target_type == mv::Target::ma2490)
+              return;
+          }
+
           while (dpu_flow_control != dpu_chain.end())
           {
             // set the flow: H0 -> H1 -> ... -> Hn
             mv::Data::OpListIterator prev_op = omodel_.getOp((*dpu_flow_control_prev)->getName());
             mv::Data::OpListIterator curr_op = omodel_.getOp((*dpu_flow_control)->getName());
-            omodel_.defineFlow(prev_op->getOutputTensor(0UL), curr_op, 0UL);
+            if (!omodel_.pathExists(prev_op, curr_op) && !omodel_.pathExists(curr_op, prev_op))
+              omodel_.defineFlow(prev_op->getOutputTensor(0UL), curr_op, 0UL);
 
             ++dpu_flow_control;
             ++dpu_flow_control_prev;
           }
+
+          // curently no overlapping chains so chains with length < 4 better optimized by scheduler
+          if (vertical_fusion_subgraph && vf_subgraph_length < 4)
+              return;
 
           reads_begin = chain_subgraph.activation_reads_.begin();
           reads_end = chain_subgraph.activation_reads_.end();
@@ -853,7 +1010,12 @@ class Pipeline_Chains {
           if (!pprev_read_list.empty())
           {
             auto net_dpu_itr = pprev_dpu_itr;
-            for (size_t sl=0; (sl < select_stages) && !activation_pipelining &&
+            // calculate select stages based on pipelining type
+            if (vertical_fusion_subgraph)
+              select_stages = calculate_vf_select_stages(pprev_dpu_itr, double_tail_vf);
+            else if (activation_pipelining)
+              select_stages = 0;
+            for (size_t sl=0; (sl < select_stages) &&
                   (net_dpu_itr != dpu_chain.begin()); ++sl) { --net_dpu_itr; }
             mv::Data::OpListIterator src_itr =
                 omodel_.getOp((*net_dpu_itr)->getName());

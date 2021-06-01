@@ -90,7 +90,7 @@ bool validateHStream(mv::Data::OpListIterator opIt, std::string clustering, std:
         //Reject H streams were the last stream isn't equal or smaller than the rest
         //Reject H streams were the last stream is 1, unless they are all 1
         if(newOutputSizes.back() > newOutputSizes.front() ||
-            (newOutputSizes.back() == 1 && newOutputSizes.front() != 1)) 
+            (newOutputSizes.back() == 1 && newOutputSizes.front() != 1))
                 return false;
 
         unsigned short kernelStride;
@@ -189,8 +189,9 @@ unsigned findOptimalValidStream(mv::ComputationModel& model, mv::Data::OpListIte
     return 1;
 }
 
-bool isStreamOptimizable(mv::ComputationModel& model, mv::Data::OpListIterator opIt, std::vector<mv::Element> streaming_strategy)
+bool isStreamOptimizable(mv::ComputationModel& model, mv::Data::OpListIterator opIt, const std::vector<mv::Element>& streaming_strategy, bool vertical_fusion)
 {
+    mv::OpModel om(model);
     auto opType = opIt->getOpType();
     if(!(opIt->hasTypeTrait("optimizable") && (opType == "Conv" || opType == "MaxPool" || opType == "DepthwiseConv")))
         return false;
@@ -198,23 +199,61 @@ bool isStreamOptimizable(mv::ComputationModel& model, mv::Data::OpListIterator o
     if (opIt->hasAttr("DilatedSubConv") && (opIt->get<bool>("DilatedSubConv")))
         return false;
 
+    //NOTE: for some reason changing the strategy of batch_normalization_91/FusedBatchNorm/variance/Fused_Add_ leads to a seg fault
+    if (vertical_fusion)
+    {
+        if (opIt->getOpType() == "Conv")
+        {
+            auto inputTensor = opIt->getInputTensor()[mv::IO_TENSOR_INPUT];
+            auto weightsTensor = opIt->getInputTensor()[mv::IO_TENSOR_WEIGHTS_SET];
+            auto outputTensor = opIt->getOutputTensor()[mv::IO_TENSOR_OUTPUT];
+            auto previousOp = om.getSourceOp(inputTensor);
+            if (previousOp->getOpType() == "Conv")
+            {
+                auto previousInputTensor = previousOp->getInputTensor()[mv::IO_TENSOR_INPUT];
+                auto previousWeightsTensor = previousOp->getInputTensor()[mv::IO_TENSOR_WEIGHTS_SET];
+                auto previousOutputTensor = inputTensor;
+                if (inputTensor->getShape() == mv::Shape({76,76,256,1}) &&
+                    weightsTensor->getShape() == mv::Shape({1,1,256,128}) &&
+                    outputTensor->getShape() == mv::Shape({76,76,128,1}) &&
+                    previousInputTensor->getShape() == mv::Shape({76,76,128,1}) &&
+                    previousWeightsTensor->getShape() == mv::Shape({3,3,128,256}) &&
+                    previousOutputTensor->getShape() == mv::Shape({76,76,256,1}))
+                {
+                    return false;
+                }
+            }
+        }
+    }
     // if(opIt->hasAttr("floatPrecision") && opIt->get<bool>("floatPrecision"))
     //     return false;
 
-    mv::OpModel om(model);
     auto globalParams = model.getGlobalConfigParams();
     auto prevOp = om.getSourceOp(opIt->getInputTensor(0));
     auto prevOpType = prevOp->getOpType();
 
-    // Note: If op is streaming, location is set to DDR even if it can fit. Use the GO decision, 
+    // Note: If op is streaming, location is set to DDR even if it can fit. Use the GO decision,
     // as that will give indication if this will be CMX concatted later
     bool spilling = opIt->get<bool>("goPredictsSpill");
     bool parentSpilling = prevOp->get<bool>("goPredictsSpill");
-    
+
     // Only consider ops that have input tensor in DDR
     // In case of parallel branches, don't trust the GO prediction
-    if(!parentSpilling || prevOpType == "Concat")
+    if(!parentSpilling)
         return false;
+
+    if(prevOpType == "Concat")
+    {
+        size_t clusterMemory = globalParams->get<int>("cmx");
+        size_t input, output;
+        input = output = 0;
+        for (auto& inTensor : prevOp->getInputTensor())
+            input += inTensor->getClusterSize();
+        output = prevOp->getOutputTensor(mv::IO_TENSOR_OUTPUT)->getClusterSize();
+        // if this concat can happen in cmx return
+        if (std::max(input, output) < clusterMemory)
+            return false;
+    }
 
     auto clusteringStrategy = opIt->get<std::string>("splitStrategy");
     // GO rules disallow SOH with H streaming for convs, accuracy issues
@@ -227,12 +266,12 @@ bool isStreamOptimizable(mv::ComputationModel& model, mv::Data::OpListIterator o
 
     // Note: conservative approach, only consider ops that were already streaming over H
     // This preferences us to only dealing with big tensors - but could still see benefit
-    // with tensors that may fit in CMX but are bigger than "overhead size" dmas 
+    // with tensors that may fit in CMX but are bigger than "overhead size" dmas
     // (see magic number in K stream pass)
     if(streaming_strategy[1].get<int>("H") == 1)
-        isStreamingOtherDim = true; 
+        isStreamingOtherDim = true;
 
-    // Note: Special handling here for performance on yolov2, 
+    // Note: Special handling here for performance on yolov2,
     // even if GO said to stream over K, we will still optimize over H if we can
     // Update in GO to give clustering and H stream in this case makese this less relevant for perf
     // but will leave here, as could still help a z-major compilation
@@ -256,7 +295,7 @@ bool isStreamOptimizable(mv::ComputationModel& model, mv::Data::OpListIterator o
     if(isStreamingOtherDim)
         return false;
 
-    // Note: for SOH to stream over H, must concat in DDR. 
+    // Note: for SOH to stream over H, must concat in DDR.
     // This is an un-solvable limitation of the data format, not a workaround.
     if( clusteringStrategy == "SplitOverH" && spilling )
     {
@@ -265,7 +304,7 @@ bool isStreamOptimizable(mv::ComputationModel& model, mv::Data::OpListIterator o
         return true;
     }
 
-    // Note: clustering and SOK can stream over H without regard to tensor placement, 
+    // Note: clustering and SOK can stream over H without regard to tensor placement,
     if( clusteringStrategy == "SplitOverK" || clusteringStrategy == "Clustering")
         return true;
 
@@ -314,7 +353,7 @@ std::size_t findOptimalStream(mv::ComputationModel& model, mv::Data::OpListItera
     // slice, the next input slice, and the full weights in around 60% of CMX. This gives
     // the scheduler plenty of room, and creates small slices that better overlap with compute
     //      ((416*416*3)*2 + (416*416*32)) / (917504-(weights) * 0.6) = ~12.01 -> 13
-    // Note that input and output in these equations are the full tensors because the 
+    // Note that input and output in these equations are the full tensors because the
     // getMemorySize call above is invoked without any streams {1,1,1,1,1}
     // for the case when output > input use 2 * max(input, output) + min()
     if(!isChannelMajorConvWithSOK(model, opIt) && !hardcodedSparsityIssue(model))
@@ -342,7 +381,7 @@ std::size_t findOptimalStream(mv::ComputationModel& model, mv::Data::OpListItera
 
     if(optStream < originalHStream)
         return originalHStream; // Never return fewer streams than GO assigned
-    
+
     return optStream;
 }
 
@@ -361,20 +400,20 @@ void saveNewStreamingStrategiesToJson(const mv::pass::PassEntry& pass, const mv:
     mv::Element SSA("Streaming strategies generated by mcmCompiler " + timeStamp);
     SSA.set("streaming_strategy", streamingStrategyElements);
     auto jsonSStrategy = SSA.toJSON(true);
-  
+
     jsonOutputFile << jsonSStrategy.stringifyPretty() << "," << std::endl;
     jsonOutputFile.close();
 }
 
 // Note: The idea of this pass is to increase streaming over the height dimension in specific cases
 // to increase performance. Specifically, we consider DPU tasks (convs, dw, maxpool) that have their
-// input tensor in DDR. Performance increase results because smaller DMA of input slices leads to 
-// earlier start to compute, and the resulting smaller pieces are often easier for the scheduler 
+// input tensor in DDR. Performance increase results because smaller DMA of input slices leads to
+// earlier start to compute, and the resulting smaller pieces are often easier for the scheduler
 // to schedule efficiently.
 //
 // Side Note: There are several reasons an input tensor might be in DDR, it could be the network
 // input, or a spilled activation due to tensor size or need to change clustering strategy. In this
-// pass we don't care why the tensor is in DDR, we just use the GO pass' prediction for where the 
+// pass we don't care why the tensor is in DDR, we just use the GO pass' prediction for where the
 // tensor will be located. We skip extra streams in the case that the GO can't predict tensor location
 // such as after an explicit concat (could be CMXed later). For simplicity, we also only consider ops
 // that were already streaming over H, but this pass could be extended to consider non-streaming ops.
@@ -387,6 +426,8 @@ void addActivationStreamingFcn(const mv::pass::PassEntry& pass, mv::ComputationM
         pass.log(mv::Logger::MessageType::Debug, "No custom splitting strategy provided, exiting...");
         return;
     }
+    bool vertical_fusion = passDesc.hasAttr("vertical_fusion") ? passDesc.get<bool>("vertical_fusion"): false;
+
     bool enableChannelMajorConv = globalParams->get<bool>("enable_channel_major_conv");
     if(!enableChannelMajorConv) return;
 
@@ -407,10 +448,10 @@ void addActivationStreamingFcn(const mv::pass::PassEntry& pass, mv::ComputationM
         auto streams = streamingStrategy.get<std::vector<mv::Element>>("splits");
 
         // Step 0. Decide if we can insert activation streaming for this op
-        if(isStreamOptimizable(model, opIt, streams))
+        if(isStreamOptimizable(model, opIt, streams, vertical_fusion))
         {
             size_t originalHStream = streams[1].get<int>("H");
-            
+
             // Step 1. Choose optimal stream over H number for this op
             auto newHstream = findOptimalStream(model, opIt, originalHStream);
 
@@ -418,7 +459,7 @@ void addActivationStreamingFcn(const mv::pass::PassEntry& pass, mv::ComputationM
             if(newHstream != originalHStream)
             {
                 pass.log(mv::Logger::MessageType::Debug, "Op " + nodeName + " H stream strategy updated");
-                mv::Element element(""); 
+                mv::Element element("");
                 element.set("name_filter",nodeName);
 
                 std::vector<mv::Element> copySplits(streams.size(),mv::Element(""));
@@ -443,14 +484,14 @@ void addActivationStreamingFcn(const mv::pass::PassEntry& pass, mv::ComputationM
         // check # streams added
         auto strategySelected = newStreamingStrategies.back();
         auto streamsSelected = strategySelected.get<std::vector<mv::Element>>("splits");
-        
+
         // Streams are mostly 1's, so multiply total streams added
-        int streamsAdded =  streamsSelected[0].get<int>("W") * 
-                            streamsSelected[1].get<int>("H") * 
+        int streamsAdded =  streamsSelected[0].get<int>("W") *
+                            streamsSelected[1].get<int>("H") *
                             streamsSelected[2].get<int>("C") *
                             streamsSelected[3].get<int>("K") *
                             streamsSelected[4].get<int>("N");
-        
+
         streamCount += streamsAdded;
     }
 

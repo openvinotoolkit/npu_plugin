@@ -7,6 +7,7 @@
             "StoreWorkloadStrategy",
             "LoadPWLQuantParams",
             "ConvertOpsToTasks",
+            "ValidateVerticalAdds",
             "AdaptFixedPointCompute",
             "SetUpPPETasks",
             "TaskMultiplePostOps",
@@ -45,15 +46,17 @@
             },
             {
                  "name" : "ChainPipeliningTransform",
-                 "select_stages" : 2
+                 "select_stages" : 2,
+                 "activation_pipelining" : true,
+                 "vertical_fusion_pipelining" : true
             },
             "PipeLineAcrossParallelBranches",
             {
-              "name" : "MemContextForHugeActivations",
-              "enable_pass" : true,
-              "peak_threshold_percent" : 49,
-              "valley_threshold_percent" : 25,
-              "max_context_chain_size" : 3
+                "name" : "MemContextForHugeActivations",
+                "enable_pass" : true,
+                "peak_threshold_percent" : 49,
+                "valley_threshold_percent" : 25,
+                "max_context_chain_size" : 3
             },
             { "name": "LpScheduler",
               "output" : "lp_scheduler_output.txt",

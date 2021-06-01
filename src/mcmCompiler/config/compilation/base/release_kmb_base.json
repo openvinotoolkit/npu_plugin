@@ -34,9 +34,9 @@
             {
                 "name": "CreateSourceStructure",
                 "VersionMajor": 3,
-                "VersionMinor": 11,
+                "VersionMinor": 25,
                 "VersionPatch": 0,
-                "VersionHash": "9aa43159420c77d8cf765393954ac2fbb372ab02"
+                "VersionHash": "638ff0dac752ff91070dcebbe9b34ff58b06f59b"
             },
             "UseReferenceOps",
 	    "CollapseBranchedScale"
@@ -150,10 +150,23 @@
             "StoreGraphOptimizerDecisions",
             {
                 "name" : "AddActivationStreaming",
-                "max_streams" : 1000
+                "max_streams" : 1000,
+                "vertical_fusion" : true
+            },
+            {
+                "name" : "RecognizeVerticalFusionPatterns",
+                "min_subgraph_depth" : 2,
+                "vertical_fusion": true
             },
             "ComputeSparsitySolution",
-            "StreamingOperations",
+            {
+                "name": "StreamingOperations",
+                "vertical_fusion" : true
+            },
+            {
+                "name":"VerticalFusionTransformation",
+                "vertical_fusion" : true
+            },
             "StreamBinaryDataWeights",
             "StreamCopyOperations"
         ]

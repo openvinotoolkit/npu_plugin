@@ -96,7 +96,7 @@ namespace mv
         const TileShape& getSize() const { return size_; }
         void setSize(const TileShape& size) { size_ = size; }
 
-        // TODO: This method requires const correctness, but it can't be changed because 
+        // TODO: This method requires const correctness, but it can't be changed because
         // spatial_split_streaming has already started using it. Will be replaced by
         // getChildTiles().
         std::vector<Tiling>& childTiles() { return childTiles_; }
@@ -124,7 +124,7 @@ namespace mv
 
         static inline std::size_t inferInputSize(std::size_t outputSize, std::size_t padding_start, std::size_t padding_end, std::size_t kernel_size, std::size_t kernel_stride)
         {
-            const std::size_t inputSize = ((outputSize -1) * kernel_stride) - padding_start - padding_end + kernel_size;
+            const std::size_t inputSize = ((outputSize - 1) * kernel_stride) - padding_start - padding_end + kernel_size;
             return inputSize;
         }
 
@@ -169,6 +169,148 @@ namespace mv
                     tileSize[axisToSplit] = newSize;
                 mv::Tiling newTile(tileStart, tileSize);
                 setChildTile(newTile, split);
+            }
+        }
+
+        void computeTiling(mv::Data::OpListIterator opIt, const std::vector<mv::Shape>& outputTileSizes, const std::vector<mv::Shape>& outputTileStarts)
+        {
+            auto numberOfSplits = childTiles().size();
+            auto inputShape = getSize();
+            auto axisToSplit =  mv::Shape::getAxis(getAxis());
+
+            size_t kernelSize;
+            std::string opType = opIt->getOpType();
+            if (opType == "Conv" || opType == "DepthwiseConv")
+            {
+                auto weightTensor = opIt->getInputTensor(1);
+                auto weightsShape = weightTensor->getShape();
+                auto kernelDin = (axisToSplit == mv::Shape::getAxis("W")) ? mv::KERNEL_WIDTH : mv::KERNEL_HEIGHT;
+                kernelSize = weightsShape[kernelDin];
+            }
+            else
+            {
+                if (opIt->hasAttr("kSize"))
+                    kernelSize = opIt->get<std::array<unsigned short, 2UL>>("kSize")[0];
+                else
+                    kernelSize = 1;//fake kernel
+            }
+
+            //todo:: is there any macro for kernel w/h order?
+            auto kernelAxis = (axisToSplit == mv::Shape::getAxis("W")) ? 0 : 1;
+            unsigned short kernelStride;
+            if (opIt->hasAttr("stride"))
+                kernelStride = opIt->get<std::array<unsigned short, 2>>("stride")[kernelAxis];
+            else
+                kernelStride = 1;//fake stride
+            std::array<unsigned short, 4> padding;
+            if (opIt->hasAttr("padding"))
+                padding = opIt->get<std::array<unsigned short, 4>>("padding");
+            else
+                padding = {0,0,0,0};
+
+            int padStart=0, padEnd=0;
+
+            if (axisToSplit == mv::Shape::getAxis("H"))
+            {
+                padStart = padding[mv::PADDING_TOP];
+                padEnd = padding[mv::PADDING_BOT];
+            }
+
+            //NOTE: the idea below is that we will try to catch the cases with brute force !!! cause a
+            // general rule seems over-complicated to apply
+            size_t startCoord = 0;
+            //case-A: kernel = stride and no pads: input tiles == output tiles
+            //case-B: OutputTiles are overlapping
+            //case-C: like usual Streaming, were the output tiles are not overlapping
+            bool equalInputOutput = (kernelSize == kernelStride);
+            bool zeroPads = (padStart == 0) && (padEnd == 0);
+            bool overlappingOutput = false;
+            if (!(equalInputOutput && zeroPads))
+            {
+                for (std::size_t split = 1; split < numberOfSplits; ++split)
+                {
+                    auto tilePreviousSize = outputTileSizes[split - 1][mv::IO_HEIGHT_DIMENSION];
+                    auto tileCurrentStart = outputTileStarts[split][mv::IO_HEIGHT_DIMENSION];
+                    if (tileCurrentStart < tilePreviousSize)
+                    {
+                        overlappingOutput = true;
+                        break;
+                    }
+                }
+            }
+
+            if (equalInputOutput && zeroPads)
+            {
+                for (std::size_t split = 0; split < numberOfSplits; ++split)
+                {
+                    TileShape tileStart({0,0,0,0,0});
+                    TileShape tileSize = inputShape;
+
+                    auto outputHeightDim = outputTileSizes[split][mv::IO_HEIGHT_DIMENSION];
+                    tileStart[axisToSplit] = outputTileStarts[split][mv::IO_HEIGHT_DIMENSION];
+                    tileSize[axisToSplit] = outputHeightDim;
+
+                    mv::Tiling newTile(tileStart, tileSize);
+                    setChildTile(newTile, split);
+                }
+            }
+            else if (overlappingOutput)
+            {
+                for (std::size_t split = 0; split < numberOfSplits; ++split)
+                {
+                    TileShape tileStart({0,0,0,0,0});
+                    TileShape tileSize = inputShape;
+                    auto outputHeightDim = outputTileSizes[split][mv::IO_HEIGHT_DIMENSION];
+                    int64_t tileStarting = inferInputSize(outputTileStarts[split][mv::IO_HEIGHT_DIMENSION],padStart,padEnd,kernelSize,kernelStride) - 1;
+
+                    if (tileStarting < -1)
+                        throw mv::RuntimeError("Tiling", "Negative Tile begins!");
+                    else if (tileStarting == -1)
+                        tileStarting = 0;
+
+                    tileStart[axisToSplit] = tileStarting;
+
+                    if (split == 0)
+                        tileSize[axisToSplit] = inferInputSize(outputHeightDim,padStart,0,kernelSize,kernelStride);
+                    else if (split == (numberOfSplits-1))
+                        tileSize[axisToSplit] = inferInputSize(outputHeightDim,0,padEnd,kernelSize,kernelStride);
+                    else
+                        tileSize[axisToSplit] = inferInputSize(outputHeightDim,0,0,kernelSize,kernelStride);
+
+                    mv::Tiling newTile(tileStart, tileSize);
+                    setChildTile(newTile, split);
+                }
+            }
+            else
+            {
+                for (std::size_t split = 0; split < numberOfSplits; ++split)
+                {
+                    TileShape tileStart({0,0,0,0,0});
+                    TileShape tileSize = inputShape;
+                    auto outputHeightDim = outputTileSizes[split][mv::IO_HEIGHT_DIMENSION];
+
+                    tileStart[axisToSplit] = startCoord;
+
+                    if (split == 0)
+                        tileSize[axisToSplit] = inferInputSize(outputHeightDim,padStart,0,kernelSize,kernelStride);
+                    else if (split == (numberOfSplits-1))
+                    {
+                        tileSize[axisToSplit] = inferInputSize(outputHeightDim,0,padEnd,kernelSize,kernelStride);
+                        while (tileStart[axisToSplit] + tileSize[axisToSplit] > inputShape[axisToSplit])
+                            tileStart[axisToSplit] = tileStart[axisToSplit] - 1;
+                    }
+                    else
+                        tileSize[axisToSplit] = inferInputSize(outputHeightDim,0,0,kernelSize,kernelStride);
+
+
+                    mv::Tiling newTile(tileStart, tileSize);
+                    setChildTile(newTile, split);
+
+                    if (split == 0)
+                        startCoord += outputHeightDim * kernelStride - (inferInputSize(outputHeightDim,0,0,kernelSize,kernelStride) - tileSize[axisToSplit]);
+                    else
+                        startCoord += outputHeightDim * kernelStride;
+                }
             }
         }
 
@@ -278,14 +420,20 @@ namespace mv
             }
         }
 
-        void generateTiling(mv::Data::OpListIterator opIt)
+        void generateTiling(mv::Data::OpListIterator opIt, bool verticalFusion = false, const std::vector<mv::Shape>& outputTileSizes = {}, const std::vector<mv::Shape>& outputTileStarts = {}, bool propagate = false)
         {
             if(axis_ == "K" || axis_ == "C")
                 generateWeightsTiling();
-            else if (axis_ == "H" || axis_ == "W")
+            else if ((axis_ == "H" || axis_ == "W") && (!verticalFusion) && (!propagate))
                 generateSpatialTiling(opIt);
             else if (axis_ == "N")
                 generateBatchTiling();
+            else if (verticalFusion && !propagate)
+                computeTiling(opIt, outputTileSizes, outputTileStarts);
+            else if (propagate && !verticalFusion)
+                computeTiling(opIt, outputTileSizes, outputTileStarts);
+            else
+                throw mv::RuntimeError("Tiling", "Tile methodology needs to be initialized with the appropriate args!");
         }
 
         void print(std::ostream& o, const Tiling& tiling, int depth = 0) const {

@@ -55,7 +55,7 @@ struct noop_back_insert_iterator_t {
 }; // noop_back_insert_iterator_t //
 
 void ChainPipeliningTransform(const mv::pass::PassEntry&,
-    mv::ComputationModel& model, mv::TargetDescriptor& , mv::Element& passDesc,
+    mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element& passDesc,
     mv::Element&) {
   mv::OpModel om(model);
   typedef mv::scheduler::Pipeline_Chains pipeline_chains_t;
@@ -64,6 +64,16 @@ void ChainPipeliningTransform(const mv::pass::PassEntry&,
   size_t pipeline_stages = 0UL;
   if (passDesc.hasAttr("select_stages")) {
     pipeline_stages = (size_t) passDesc.get<int>("select_stages");
+  }
+
+  bool activation_pipelining = false;
+  if (passDesc.hasAttr("activation_pipelining")) {
+    activation_pipelining = (bool) passDesc.get<bool>("activation_pipelining");
+  }
+
+  bool vertical_fusion_pipelining = false;
+  if (passDesc.hasAttr("vertical_fusion_pipelining")) {
+    vertical_fusion_pipelining = (bool) passDesc.get<bool>("vertical_fusion_pipelining");
   }
 
   // for large inplace eltwises reduce the stages to 0 //
@@ -75,10 +85,11 @@ void ChainPipeliningTransform(const mv::pass::PassEntry&,
     }
   }
 
+  mv::Target target_type = target.getTarget();
   FILE *pipeline_report_fptr = fopen("chain_pipeline_report.txt", "w");
   if (!pipeline_report_fptr)
     throw mv::RuntimeError("ChainPipeliningTransform", "Cannot open chain_pipeline_report.txt for write");
-  pipeliner.transform_op_model(pipeline_report_fptr, pipeline_stages);
+  pipeliner.transform_op_model(pipeline_report_fptr, pipeline_stages, target_type, activation_pipelining, vertical_fusion_pipelining);
   fclose(pipeline_report_fptr);
 }
 
