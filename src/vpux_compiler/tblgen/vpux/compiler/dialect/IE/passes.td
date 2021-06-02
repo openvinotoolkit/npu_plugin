@@ -226,4 +226,25 @@ def MergeFakeQuant : PassBase<"merge-fake-quant", "vpux::FunctionPass"> {
     ];
 }
 
+//
+// ExpandActivationChannels
+//
+
+def ExpandActivationChannels : PassBase<"expand-activation-channels", "vpux::FunctionPass"> {
+    let summary = "Allign input tensors shape of DPU operation with hardware requirements";
+
+    let description = [{
+        The pass is a part of `buildHardwareModePipeline` pipeline.
+
+        This pass processes operations, which can be compile as a DPU tasks and
+            expands channels number to number divisible by 16 in case they doesn't satisfy hardware requirements
+    }];
+
+    let constructor = "vpux::IE::createExpandActivationChannelsPass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect",
+        "mlir::StandardOpsDialect"
+    ];
+}
 #endif

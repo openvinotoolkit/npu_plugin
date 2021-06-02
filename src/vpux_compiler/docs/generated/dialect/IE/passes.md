@@ -28,6 +28,11 @@ The pass is a part of `LowPrecision` pipeline.
 
 It performs constant folding for `Constant -> quant.dcast` case.
 The pass is used as a fallback to FP16 computations for the cases, where quantized types where not used by layers.
+### `-expand-activation-channels`: Allign input tensors shape of DPU operation with hardware requirements
+The pass is a part of `buildHardwareModePipeline` pipeline.
+
+This pass processes operations, which can be compile as a DPU tasks and
+    expands channels number to number divisible by 16 in case they doesn't satisfy hardware requirements
 ### `-merge-fake-quant`: Merge back to FakeQuantize
 The pass is a part of `LowPrecision` pipeline.
 

@@ -67,21 +67,48 @@ private:
     Logger _log;
 };
 
-mlir::LogicalResult FuseActivationsPass::ReLURewrite::matchAndRewrite(IERT::ReLUOp origOp,
-                                                                      mlir::PatternRewriter& rewriter) const {
+static VPUIP::NCEClusterTaskOp tryReorderBranch(const mlir::Value reluInput) {
     // ReLU input is expected to come from reorder task which repacks NCE2 output from NHWC to NCHW
     // FIXME reorder will be skipped when adjust layouts pass is added to the hardware pipeline
     // When it happens, don't forget to remove this reorder here
-    auto nce_out_reorder = origOp.input().getDefiningOp<IERT::ReorderOp>();
+    auto nce_out_reorder = reluInput.getDefiningOp<IERT::ReorderOp>();
     if (!nce_out_reorder) {
-        return matchFailed(rewriter, origOp, "ReLU input does not look like NCE task output");
+        return nullptr;
     }
     // Reorder input comes from NNDMA task which transmits NCE2 result from CMX to DDR
     auto cmx_to_ddr = nce_out_reorder.input().getDefiningOp<IERT::CopyOp>();
     if (!cmx_to_ddr) {
-        return matchFailed(rewriter, origOp, "ReLU input does not look like NCE task output");
+        return nullptr;
     }
-    auto nce_cluster_task = cmx_to_ddr.input().getDefiningOp<VPUIP::NCEClusterTaskOp>();
+    return cmx_to_ddr.input().getDefiningOp<VPUIP::NCEClusterTaskOp>();
+}
+
+static VPUIP::NCEClusterTaskOp tryExpansionBranch(const mlir::Value reluInput) {
+    // expand activation channels pass also prepends subview operation to reorder
+    auto nce_out_subview_copy = reluInput.getDefiningOp<IERT::CopyOp>();
+    if (!nce_out_subview_copy) {
+        return nullptr;
+    }
+    auto nce_out_subview = nce_out_subview_copy.input().getDefiningOp<mlir::memref::SubViewOp>();
+    if (!nce_out_subview) {
+        return nullptr;
+    }
+    return tryReorderBranch(nce_out_subview.source());
+}
+
+static VPUIP::NCEClusterTaskOp findNCETask(const mlir::Value reluInput) {
+    if (reluInput.getDefiningOp<IERT::ReorderOp>()) {
+        return tryReorderBranch(reluInput);
+    } else if (reluInput.getDefiningOp<IERT::CopyOp>()) {
+        return tryExpansionBranch(reluInput);
+    }
+    return nullptr;
+}
+
+mlir::LogicalResult FuseActivationsPass::ReLURewrite::matchAndRewrite(IERT::ReLUOp origOp,
+                                                                      mlir::PatternRewriter& rewriter) const {
+    auto nce_out_op = origOp.input().getDefiningOp();
+    auto nce_cluster_task = findNCETask(origOp.input());
     if (!nce_cluster_task) {
         return matchFailed(rewriter, origOp, "ReLU input is not connected to NCE task output");
     }
@@ -90,7 +117,7 @@ mlir::LogicalResult FuseActivationsPass::ReLURewrite::matchAndRewrite(IERT::ReLU
     auto relu_ppe_attr = vpux::VPUIP::PPELayerTypeAttr::get(ctx, VPUIP::PPELayerType::LRELU);
     nce_cluster_task.fixed_ppe_taskAttr(relu_ppe_attr);
 
-    rewriter.replaceOp(origOp, nce_out_reorder->getResults());
+    rewriter.replaceOp(origOp, nce_out_op->getResult(0));
 
     return mlir::success();
 }

@@ -206,7 +206,9 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
     // Check channel alignment
     //
 
-    static constexpr int64_t CHANNEL_ALIGNMENT = 16;
+    const auto filterType = origOp.filter().getType();
+    const Bit typeSizeInBits = getElemTypeSize(filterType);
+    const int64_t CHANNEL_ALIGNMENT = 128 / typeSizeInBits.count();
 
     if (OC % CHANNEL_ALIGNMENT != 0) {
         return matchFailed(rewriter, origOp, "Output channels are not aligned");
@@ -458,7 +460,9 @@ mlir::LogicalResult MaxPoolRewrite::matchAndRewrite(IERT::MaxPoolOp origOp, mlir
     // Check channel alignment
     //
 
-    static constexpr int64_t CHANNEL_ALIGNMENT = 16;
+    const auto inputType = origOp.input().getType();
+    const Bit typeSizeInBits = getElemTypeSize(inputType);
+    const int64_t CHANNEL_ALIGNMENT = 128 / typeSizeInBits.count();
 
     if (IC % CHANNEL_ALIGNMENT != 0) {
         return matchFailed(rewriter, origOp, "Input channels are not aligned");
