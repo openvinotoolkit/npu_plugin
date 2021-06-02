@@ -191,8 +191,8 @@ ZeroExecutorCommon::ZeroExecutorCommon(ze_driver_handle_t driver_handle, ze_devi
           _pull_count(0),
           _perf_count(0),
           _networkDesc(networkDescription),
-          _graph(std::make_shared<graph>(driver_handle, device_handle, context, networkDescription, graph_ddi_table_ext,
-                                         fence_ddi_table_ext)) {
+          _graph(std::make_shared<graph>(_device_handle, _context, _networkDesc, _graph_ddi_table_ext,
+                                         _fence_ddi_table_ext)) {
 }
 
 ZeroExecutorCommon::ZeroExecutorCommon(ze_driver_handle_t driver_handle, ze_device_handle_t device_handle,
@@ -268,20 +268,18 @@ ZeroExecutorCommon::commandList::~commandList() {
     throwOnFail("zeCommandListDestroy", zeCommandListDestroy(_handle));
 }
 
-ZeroExecutorCommon::graph::graph(const ze_driver_handle_t& driver_handle, const ze_device_handle_t& device_handle,
-                                 const ze_context_handle_t& context, const NetworkDescription::CPtr networkDesc,
+ZeroExecutorCommon::graph::graph(const ze_device_handle_t& device_handle, const ze_context_handle_t& context,
+                                 const NetworkDescription::CPtr networkDesc,
                                  ze_graph_dditable_ext_t* graph_ddi_table_ext,
                                  ze_fence_dditable_ext_t* fence_ddi_table_ext)
         : _context(context),
           _graph_ddi_table_ext(graph_ddi_table_ext),
-          _mem(driver_handle, _context, networkDesc->getCompiledNetwork().size()),
+          _blob(networkDesc->getCompiledNetwork()),
           _command_queue(std::make_shared<commandQueue>(device_handle, _context)),
           _command_list(device_handle, _context, graph_ddi_table_ext),
           _fence(std::make_shared<fence>(_command_queue, fence_ddi_table_ext)),
           _fence_value(0) {
-    _mem.copyFrom(networkDesc->getCompiledNetwork());
-
-    ze_graph_desc_t desc = {ZE_GRAPH_FORMAT_NATIVE, _mem.size(), static_cast<uint8_t*>(_mem.data())};
+    ze_graph_desc_t desc = {ZE_GRAPH_FORMAT_NATIVE, _blob.size(), reinterpret_cast<const uint8_t*>(_blob.data())};
     throwOnFail("zeGraphCreate", _graph_ddi_table_ext->pfnCreate(device_handle, &desc, &_handle));
 
     throwOnFail("zeGraphGetProperties", _graph_ddi_table_ext->pfnGetProperties(_handle, &_props));
@@ -538,7 +536,7 @@ std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>
 ZeroExecutor<InferenceEngine::VPUXConfigParams::ze_syncType::ZE_FENCE>::getLayerStatistics() {
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> perfCounts;
 
-    const auto blob = _graph->_mem.data();
+    const auto blob = _graph->_blob.data();
     auto profilingOutputBlob = _pipeline->_outputs_host_mem_map.find("profilingOutput");
     if (profilingOutputBlob == _pipeline->_outputs_host_mem_map.end()) {
         _logger->warning("No profiling output. Blob was compiled without profiling enabled or do not contain "
@@ -760,7 +758,7 @@ std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>
 ZeroExecutor<InferenceEngine::VPUXConfigParams::ze_syncType::ZE_EVENT>::getLayerStatistics() {
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> perfCounts;
 
-    const auto blob = _graph->_mem.data();
+    const auto blob = _graph->_blob.data();
     auto profilingOutputBlob = _pipeline->_outputs_host_mem_map.find("profilingOutput");
     if (profilingOutputBlob == _pipeline->_outputs_host_mem_map.end()) {
         _logger->warning("No profiling output. Blob was compiled without profiling enabled or do not contain "
