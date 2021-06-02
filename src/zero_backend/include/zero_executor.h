@@ -184,9 +184,9 @@ protected:
     };
 
     struct graph {
-        graph(const ze_driver_handle_t& driver_handle, const ze_device_handle_t& device_handle,
-              const ze_context_handle_t& context, const NetworkDescription::CPtr networkDescm,
-              ze_graph_dditable_ext_t* graph_ddi_table_ext, ze_fence_dditable_ext_t* fence_ddi_table_ext);
+        graph(const ze_device_handle_t& device_handle, const ze_context_handle_t& context,
+              const NetworkDescription::CPtr networkDesc, ze_graph_dditable_ext_t* graph_ddi_table_ext,
+              ze_fence_dditable_ext_t* fence_ddi_table_ext);
         graph(const graph&) = delete;
         graph& operator=(const graph&) = delete;
         void init();
@@ -194,7 +194,7 @@ protected:
         ~graph();
         ze_graph_handle_t _handle = nullptr;
         ze_context_handle_t _context = nullptr;
-        hostMem _mem;
+        const std::vector<char>& _blob;
         ze_graph_properties_t _props{};
         std::map<std::string, argumentDescriptor> _inputs_desc_map;
         std::map<std::string, argumentDescriptor> _outputs_desc_map;
@@ -308,7 +308,6 @@ public:
                  const vpux::NetworkDescription::Ptr& networkDescription,
                  const std::array<std::shared_ptr<commandQueue>, stage::COUNT>& command_queue,
                  const std::shared_ptr<graph>& graph, const ZeroConfig& config);
-
 
     void push(const InferenceEngine::BlobMap& inputs) override;
     void pull(InferenceEngine::BlobMap& outputs) override;
