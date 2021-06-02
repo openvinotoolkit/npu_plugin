@@ -340,8 +340,17 @@ void convert(std::shared_ptr<ngraph::op::Constant> constant, mv::OpModel& mcmMod
         }
     }
     // end of workaround
-
-    const auto mvOrder = mv::Order::getColMajorID(mvShape.ndims()) ; //McmOpAttrs::getOrder(constant);
+    
+    auto mvOrder = mv::Order::getColMajorID(mvShape.ndims()) ; //McmOpAttrs::getOrder(constant);
+    /// The default CMajor is mainly for Conv weights, but for eltwise op, it's usually ZMajor.
+    /// So align inputs Order for eltwise op, else Runtime will crash ->
+    /// "Eltwise: input2 dimensions must be equal to output or 1 for broadcasting"
+    for (auto&& consumerNode : constant->get_users()) {
+        if (ngraph::op::Eltwise::type_info == consumerNode->get_type_info()
+            || ngraph::op::v1::Maximum::type_info == consumerNode->get_type_info()){
+            mvOrder= mv::Order::getZMajorID(mvShape.ndims());
+        }
+    }
 
     mv::Data::TensorIterator mcmOutput;
     if (constant->get_element_type().is_real()) {
