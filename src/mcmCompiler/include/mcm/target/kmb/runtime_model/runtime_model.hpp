@@ -100,8 +100,7 @@ namespace mv
             static std::vector<std::unique_ptr<MVCNN::NCEVariantFieldsT>> buildNCEVariantFieldsTVector(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt, unsigned numTask, std::string strategy);
             static std::unique_ptr<MVCNN::NCEVariantFieldsT> buildNCEVariantFieldsT(ComputationModel& cm, Element& compilationDescriptor, Control::OpListIterator opIt, Workload workload, unsigned clusterId, std::string strategy);
             //PADDING HAVE TO BE DIFFERENT FUNCTIONS CAUSE OF THE LOGIC (PADS FOR CLUSTER ZERO WHEN SUBTENSORING OVER H->NO PAD DOWN)
-            static void getWorkloadPadding(Control::OpListIterator opIt, Workload &workload);
-            static void getWorkloadPadding(Control::OpListIterator opIt, Workload &workload, unsigned clusterId);
+            static void getWorkloadPadding(Control::OpListIterator opIt, Workload &workload, unsigned clusterId, std::string strategy);
             static std::array<unsigned short, 4> getNewPadding(std::array<unsigned short, 4> padding, int clusterId, int numClusters);
             static std::array <unsigned short, 4> getPadding(Control::OpListIterator opIt, unsigned clusterId);
             static bool hardwareBugDepthwise(Control::OpListIterator opIt);
