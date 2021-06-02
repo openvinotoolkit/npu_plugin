@@ -120,7 +120,7 @@ NOTE: This method *must* be implemented by the user.
 #### `filter_spatial_dims`
 
 ```c++
-static size_t filter_spatial_dims();
+static uint32_t filter_spatial_dims();
 ```
 Get the nr of kernel dims available
 NOTE: This method *must* be implemented by the user.
@@ -128,7 +128,7 @@ NOTE: This method *must* be implemented by the user.
 #### `filter_spatial_dim`
 
 ```c++
-static vpux::Dim filter_spatial_dim(int32_t index);
+static vpux::Dim filter_spatial_dim(size_t index);
 ```
 Get the filter dim index of a spatial dim
 NOTE: This method *must* be implemented by the user.
@@ -265,13 +265,13 @@ NOTE: This method *must* be implemented by the user.
 ```c++
 static vpux::Dim act_width_dim();
 ```
-Get the activation widht Dim
+Get the activation width Dim
 NOTE: This method *must* be implemented by the user.
 
 #### `act_spatial_dim`
 
 ```c++
-static vpux::Dim act_spatial_dim(int32_t index);
+static vpux::Dim act_spatial_dim(size_t index);
 ```
 Get the tensor Dim index of a spatial dim index
 NOTE: This method *must* be implemented by the user.

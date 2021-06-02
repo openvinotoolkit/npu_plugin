@@ -111,7 +111,7 @@ def StaticAllocation : PassBase<"static-allocation", "vpux::ModulePass"> {
 // CMX Tiling
 //
 
-def CXMTiling : PassBase<"cmx-tiling", "vpux::ModulePass"> {
+def CXMTiling : PassBase<"cmx-tiling", "vpux::FunctionPass"> {
     let summary = "Tile Operations to the condition that all their I/O fit into CMX";
 
     let description = [{

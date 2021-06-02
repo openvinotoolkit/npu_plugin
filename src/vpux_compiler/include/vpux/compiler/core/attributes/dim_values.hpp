@@ -243,15 +243,17 @@ public:
         assert(d.ind() >= 0 && static_cast<size_t>(d.ind()) < this->size());
         return this->raw()[static_cast<size_t>(d.ind())];
     }
-
-public:
-    bool operator==(const DimValues& other) const {
-        return this->raw() == other.raw();
-    }
-    bool operator!=(const DimValues& other) const {
-        return this->raw() != other.raw();
-    }
 };
+
+template <typename D, typename T, template <class> class Tag>
+bool operator==(const DimValues<D, T, Tag>& v1, const DimValues<D, T, Tag>& v2) {
+    return v1.raw() == v2.raw();
+}
+
+template <typename D, typename T, template <class> class Tag>
+bool operator!=(const DimValues<D, T, Tag>& v1, const DimValues<D, T, Tag>& v2) {
+    return v1.raw() != v2.raw();
+}
 
 }  // namespace details
 
@@ -344,6 +346,8 @@ public:
 public:
     using Tag<DimValuesRefBase<T>>::Tag;
 
+    DimValuesRef() = default;
+
     DimValuesRef(const DimValuesRef<D, T, Tag>& other) = default;
     DimValuesRef& operator=(const DimValuesRef<D, T, Tag>& other) = default;
 
@@ -365,19 +369,37 @@ public:
     }
 
 public:
-    bool operator==(const DimValuesRef& other) const {
-        return this->raw() == other.raw();
-    }
-    bool operator!=(const DimValuesRef& other) const {
-        return this->raw() != other.raw();
-    }
-
-public:
     auto toValues() const -> DimValues<D, typename std::remove_const<T>::type, Tag> {
         using ResultType = DimValues<D, typename std::remove_const<T>::type, Tag>;
         return ResultType(this->begin(), this->end());
     }
 };
+
+template <typename D, typename T, template <class> class Tag>
+bool operator==(DimValuesRef<D, T, Tag> v1, DimValuesRef<D, T, Tag> v2) {
+    return v1.raw() == v2.raw();
+}
+template <typename D, typename T, template <class> class Tag>
+bool operator==(const DimValues<D, T, Tag>& v1, DimValuesRef<D, T, Tag> v2) {
+    return DimValuesRef<D, T, Tag>(v1) == v2;
+}
+template <typename D, typename T, template <class> class Tag>
+bool operator==(DimValuesRef<D, T, Tag> v1, const DimValues<D, T, Tag>& v2) {
+    return v1 == DimValuesRef<D, T, Tag>(v2);
+}
+
+template <typename D, typename T, template <class> class Tag>
+bool operator!=(DimValuesRef<D, T, Tag> v1, DimValuesRef<D, T, Tag> v2) {
+    return v1.raw() != v2.raw();
+}
+template <typename D, typename T, template <class> class Tag>
+bool operator!=(const DimValues<D, T, Tag>& v1, DimValuesRef<D, T, Tag> v2) {
+    return DimValuesRef<D, T, Tag>(v1) != v2;
+}
+template <typename D, typename T, template <class> class Tag>
+bool operator!=(DimValuesRef<D, T, Tag> v1, const DimValues<D, T, Tag>& v2) {
+    return v1 != DimValuesRef<D, T, Tag>(v2);
+}
 
 }  // namespace details
 
