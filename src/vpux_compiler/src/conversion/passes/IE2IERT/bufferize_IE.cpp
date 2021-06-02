@@ -45,6 +45,7 @@ public:
     class GenericReshapeRewrite;
     class SplitRewrite;
     class ConcatRewrite;
+    class SubtensorRewrite;
     class LayerRewrite;
 
 public:
@@ -274,6 +275,44 @@ mlir::LogicalResult BufferizeIEPass::ConcatRewrite::matchAndRewrite(IE::ConcatOp
     }
 
     rewriter.replaceOpWithNewOp<IERT::ConcatViewOp>(origOp, results, allocatedBufs[0]);
+    return mlir::success();
+}
+
+//
+// StdSubtensorRewrite
+//
+
+class BufferizeIEPass::SubtensorRewrite final : public mlir::OpConversionPattern<mlir::SubTensorOp> {
+public:
+    SubtensorRewrite(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
+            : mlir::OpConversionPattern<mlir::SubTensorOp>(typeConverter, ctx), _log(log) {
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(mlir::SubTensorOp origOp, ArrayRef<mlir::Value> newOperands,
+                                        mlir::ConversionPatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult BufferizeIEPass::SubtensorRewrite::matchAndRewrite(
+        mlir::SubTensorOp origOp, ArrayRef<mlir::Value> newOperands, mlir::ConversionPatternRewriter& rewriter) const {
+    _log.trace("Found Layer Operation '{0}'", origOp->getLoc());
+
+    VPUX_THROW_UNLESS(newOperands.size() == origOp->getNumOperands(),
+                      "Got wrong newOperands size : '{0}', expected '{1}'", newOperands.size(),
+                      origOp->getNumOperands());
+
+    auto subView = rewriter.create<mlir::memref::SubViewOp>(
+            origOp->getLoc(), newOperands[0], parseIntArrayAttr(origOp.static_offsets()),
+            parseIntArrayAttr(origOp.static_sizes()), parseIntArrayAttr(origOp.static_strides()));
+
+    auto allocatedBuf = allocateResults(origOp->getLoc(), rewriter, *typeConverter, origOp.getResult());
+
+    auto copyOp = rewriter.create<IERT::CopyOp>(origOp->getLoc(), subView, allocatedBuf[0]);
+
+    rewriter.replaceOp(origOp, {copyOp});
     return mlir::success();
 }
 
@@ -644,6 +683,7 @@ void BufferizeIEPass::safeRunOnFunc() {
     patterns.insert<SplitRewrite>(typeConverter, &ctx, _log);
     patterns.insert<ConcatRewrite>(typeConverter, &ctx, _log);
     patterns.insert<LayerRewrite>(typeConverter, &ctx, _log);
+    patterns.insert<SubtensorRewrite>(typeConverter, &ctx, _log);
 
     auto func = getFunction();
     if (mlir::failed(mlir::applyPartialConversion(func, target, std::move(patterns)))) {

@@ -27,14 +27,15 @@ std::shared_ptr<ngraph::Node> build_activation_helper(const std::shared_ptr<ngra
 
 class KmbConv2dWithBiasTest :
         public LayerTestsUtils::KmbLayerTestsCommon,
-        public testing::WithParamInterface<ngraph::helpers::ActivationTypes> {
+        public testing::WithParamInterface<std::tuple<InferenceEngine::SizeVector, ngraph::helpers::ActivationTypes>> {
     void SetUp() override {
         targetDevice = LayerTestsUtils::testPlatformTargetDevice;
-        const size_t KERNEL_W = 2;
-        const size_t KERNEL_H = 2;
-        const size_t FILT_IN = 16;
-        const size_t FILT_OUT = 16;
-        const InferenceEngine::SizeVector inputShape = {1, FILT_IN, 4, 4};
+        const auto kenelShape = std::get<0>(GetParam());
+        const size_t KERNEL_W = kenelShape.at(3);
+        const size_t KERNEL_H = kenelShape.at(2);
+        const size_t FILT_IN = kenelShape.at(1);
+        const size_t FILT_OUT = kenelShape.at(0);
+        const InferenceEngine::SizeVector inputShape = {1, FILT_IN, KERNEL_H * 2, KERNEL_W * 2};
 
         const auto params = ngraph::builder::makeParams(ngraph::element::f32, {inputShape});
         const auto paramOuts =
@@ -60,14 +61,14 @@ class KmbConv2dWithBiasTest :
                 ngraph::element::Type_t::f32, ngraph::Shape{1, FILT_OUT, 1, 1}, biases.data());
 
         auto bias_node = std::make_shared<ngraph::op::v1::Add>(conv2d_node->output(0), bias_weights_node->output(0));
-        auto act_type = GetParam();
+        auto act_type = std::get<1>(GetParam());
         auto act_node = build_activation_helper(bias_node, act_type);
 
         const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(act_node)};
 
         function = std::make_shared<ngraph::Function>(results, params, "KmbConv2dWithBiasTest");
 
-        threshold = 1.5f;
+        threshold = 0.5f;
     }
 };
 
@@ -86,11 +87,19 @@ TEST_P(KmbConv2dWithBiasTest, CompareWithRefs_MLIR_HW) {
     Run();
 }
 
+const std::vector<InferenceEngine::SizeVector> kernelShapes = {
+        {11, 3, 2, 2},
+        {16, 3, 2, 2},
+        {11, 16, 2, 2},
+        {16, 16, 2, 2},
+};
+
 const std::vector<ngraph::helpers::ActivationTypes> activations = {
         ngraph::helpers::None,
         ngraph::helpers::Relu,
 };
 
-INSTANTIATE_TEST_CASE_P(conv2d_with_act, KmbConv2dWithBiasTest, ::testing::ValuesIn(activations));
+INSTANTIATE_TEST_CASE_P(conv2d_with_act, KmbConv2dWithBiasTest,
+                        ::testing::Combine(::testing::ValuesIn(kernelShapes), ::testing::ValuesIn(activations)));
 
 }  // namespace

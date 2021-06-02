@@ -105,6 +105,12 @@ mlir::LogicalResult vpux::IE::ConvolutionOp::inferReturnTypeComponents(
     const auto windowStrides = parseIntArrayAttr(conv.strides());
     const auto windowDilations = parseIntArrayAttr(conv.dilations());
 
+    static const auto ChanDim = Dim(1);
+    if (inShape[ChanDim.ind()] != filterShape[ChanDim.ind()]) {
+        return errorAt(loc, "Channels count of input tensor shape and filter shape must be the same: {0} != {1}",
+                       inShape[ChanDim.ind()], filterShape[ChanDim.ind()]);
+    }
+
     const auto outputShape =
             ngraph::infer_convolution_forward(nullptr, ngraph::Shape(inShape.begin(), inShape.end()),
                                               ngraph::Strides(windowStrides.size(), 1),  // dummy data dilations

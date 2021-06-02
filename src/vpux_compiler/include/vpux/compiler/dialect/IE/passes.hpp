@@ -62,6 +62,12 @@ std::unique_ptr<mlir::Pass> createDequantizeConstPass(Logger log = Logger::globa
 std::unique_ptr<mlir::Pass> createMergeFakeQuantPass(Logger log = Logger::global());
 
 //
+// Align ops, which can be compiled as DPU tasks with hardware requirements.
+//
+
+std::unique_ptr<mlir::Pass> createExpandActivationChannelsPass(Logger log = Logger::global());
+
+//
 // Registration
 //
 
