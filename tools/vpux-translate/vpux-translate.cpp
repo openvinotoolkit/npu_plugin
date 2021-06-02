@@ -11,14 +11,13 @@
 // included with the Software Package for additional details.
 //
 
-#include "hwtest.hpp"
-
 #include "vpux/compiler/backend/VPUIP.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IERT/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/frontend/IE.hpp"
 #include "vpux/compiler/init.hpp"
+#include "vpux/hwtest/hwtest.hpp"
 
 #include "vpux/utils/core/format.hpp"
 

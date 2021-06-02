@@ -46,6 +46,7 @@ addIeTargetTest(
         vpux_compiler_static
         frontend_mcm_static
         vpual_backend_static
+        vpux_translate_utils_static
     LINK_LIBRARIES_WHOLE_ARCHIVE
         kmbTestData
     DEFINES

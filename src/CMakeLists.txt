@@ -36,3 +36,4 @@ add_subdirectory(vpux_plugin)
 
 add_subdirectory(vpux_utils)
 add_subdirectory(vpux_compiler)
+add_subdirectory(vpux_translate_utils)
