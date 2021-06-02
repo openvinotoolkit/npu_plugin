@@ -159,9 +159,8 @@ InferenceEngine::Blob::Ptr fromNV12File(const std::string& filePath, size_t imag
     InferenceEngine::Blob::Ptr nv12Blob = InferenceEngine::make_shared_blob<InferenceEngine::NV12Blob>(blobY, blobUV);
     return nv12Blob;
 }
-
-std::ifstream& skipMagic(std::ifstream& blobStream) {
-    if (!blobStream.is_open()) {
+std::istream& skipMagic(std::istream& blobStream) {
+    if (!blobStream.good()) {
         IE_THROW(NetworkNotRead);
     }
 
