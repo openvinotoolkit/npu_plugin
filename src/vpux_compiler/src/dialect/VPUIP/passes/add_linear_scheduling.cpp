@@ -28,6 +28,9 @@ using namespace vpux;
 
 namespace {
 
+constexpr uint32_t MAX_BARRIERS_PER_INFERENCE = 32;
+constexpr uint32_t BARRIERS_PER_CLUSTER = 8;
+
 class AddLinearSchedulingPass final : public VPUIP::AddLinearSchedulingBase<AddLinearSchedulingPass> {
 public:
     explicit AddLinearSchedulingPass(Logger log) {
@@ -38,13 +41,8 @@ private:
     void safeRunOnModule() final;
 
 private:
-    void collectTrailingUPATasks(mlir::FuncOp graphFunc);
-
     static VPUIP::TaskOpInterface getPrevTask(mlir::Operation* op);
     static VPUIP::TaskOpInterface getNextTask(mlir::Operation* op);
-
-private:
-    std::unordered_set<mlir::Operation*> _trailingSwTasks;
 };
 
 //
@@ -58,9 +56,13 @@ void AddLinearSchedulingPass::safeRunOnModule() {
     mlir::FuncOp netFunc;
     IE::CNNNetworkOp::getFromModule(module, netOp, netFunc);
 
-    _log.trace("Try to find trailing UPA Tasks");
-    collectTrailingUPATasks(netFunc);
+    auto resOp = IERT::RunTimeResourcesOp::getFromModule(module);
+    const auto nceAttr = VPUIP::PhysicalProcessorAttr::get(module.getContext(), VPUIP::PhysicalProcessor::NCE_Cluster);
+    auto nceResOp = resOp.getExecutor(nceAttr);
+    VPUX_THROW_UNLESS(nceResOp != nullptr, "Failed to get NCE_Cluster infromation");
+    const uint32_t numClusters = nceResOp.count();
 
+    const uint32_t numBarriers = std::min(MAX_BARRIERS_PER_INFERENCE, BARRIERS_PER_CLUSTER * numClusters);
     uint32_t barrierID = 0;
 
     const auto callback = [&](mlir::Operation* op) {
@@ -71,15 +73,6 @@ void AddLinearSchedulingPass::safeRunOnModule() {
             _log.trace("It is not a VPUIP Task");
             return;
         }
-        // [Track number: W#6150]
-        // if (_trailingSwTasks.count(op) != 0) {
-        //    _log.trace("It is a trailing UPA Task");
-
-        //    auto upaTask = mlir::cast<VPUIP::UPATaskOpInterface>(op);
-        //    upaTask.markAsTrailingSWLayer();
-
-        //    return;
-        //}
 
         if (auto prevTask = getPrevTask(op)) {
             _log.trace("It has dependency on previous task '{0}'", prevTask->getLoc());
@@ -97,51 +90,12 @@ void AddLinearSchedulingPass::safeRunOnModule() {
             auto newBarrierOp = builder.create<VPUIP::ConfigureBarrierOp>(op->getLoc(), barrierID);
             curTask.updateBarriersMutable().append(mlir::ValueRange{newBarrierOp.barrier()});
 
-            barrierID = (barrierID + 1) % 2;
+            // [Track number: W#6150] : use better algorithm for barriers allocation
+            barrierID = (barrierID + 1) % numBarriers;
         }
     };
 
     netFunc.walk(callback);
-}
-
-//
-// collectTrailingSwTasks
-//
-
-void AddLinearSchedulingPass::collectTrailingUPATasks(mlir::FuncOp graphFunc) {
-    auto tasks = to_small_vector(graphFunc.getOps<VPUIP::TaskOpInterface>());
-
-    for (auto curTask : tasks | reversed) {
-        _log.trace("Process Task '{0}'", curTask->getLoc());
-
-        if (curTask.getTaskType() != VPUIP::TaskType::UPA) {
-            _log.trace("Is it not an UPA task, stop processing");
-            break;
-        }
-
-        bool hasNonUPADep = false;
-        for (auto updateBarrier : curTask.updateBarriers()) {
-            for (auto* depOp : updateBarrier.getUsers()) {
-                if (!mlir::isa<VPUIP::UPATaskOpInterface>(depOp)) {
-                    _log.trace("Is has non UPA dependent task '{0}'", depOp->getLoc());
-
-                    hasNonUPADep = true;
-                    break;
-                }
-            }
-
-            if (hasNonUPADep) {
-                break;
-            }
-        }
-
-        if (hasNonUPADep) {
-            break;
-        }
-
-        _log.trace("Is is a trailing UPA task");
-        _trailingSwTasks.insert(curTask.getOperation());
-    }
 }
 
 //

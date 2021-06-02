@@ -65,11 +65,11 @@ void SetCompileParamsPass::safeRunOnModule() {
     auto& ctx = getContext();
     auto module = getOperation();
 
-    _log.trace("Set VPU architecture to {0}", _arch);
-    VPUIP::setArch(module, _arch);
-
     _log.trace("Set compilation mode to {0}", _compilationMode);
     VPUIP::setCompilationMode(module, _compilationMode);
+
+    _log.trace("Set VPU architecture to {0}", _arch);
+    VPUIP::setArch(module, _arch);
 
     _log.trace("Add VPUIP.Graph Operation");
 
