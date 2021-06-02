@@ -24,7 +24,6 @@
 #endif
 
 #include <flatbuffers/flatbuffers.h>
-#include <schema/graphfile/graphfile_generated.h>
 
 #include <include/mcm/compiler/compilation_unit.hpp>
 
@@ -54,18 +53,15 @@ bool vpu::MCMAdapter::isMCMCompilerAvailable() {
     return true;
 }
 
-vpu::MCMAdapter::MetaInfo vpu::MCMAdapter::deserializeMetaData(const std::vector<char>& outBlob,
+vpu::MCMAdapter::MetaInfo vpu::MCMAdapter::deserializeMetaData(const MVCNN::GraphFileT& graphFileInstance,
                                                                const MCMConfig& config) {
     Logger::Ptr logger = std::make_shared<Logger>("compileMCM", config.logLevel(), consoleOutput());
     if (logger == nullptr) {
         IE_THROW() << "Logger has not been created";
     }
-    const MVCNN::GraphFile* graphFilePtr = MVCNN::GetGraphFile(outBlob.data());
-    MVCNN::GraphFileT graphFileInstance;
-    graphFilePtr->UnPackTo(&graphFileInstance);
 
-    const std::string& networkName = graphFileInstance.header->identifier;
-    logger->debug("networkName: %s", networkName);
+    const std::string& resultNetworkName = graphFileInstance.header->identifier;
+    logger->debug("networkName: %s", resultNetworkName);
 
     InferenceEngine::InputsDataMap resultNetworkInputs;
     size_t inputTensorsCount = graphFileInstance.header->in_tensor_desc.size();
@@ -120,5 +116,5 @@ vpu::MCMAdapter::MetaInfo vpu::MCMAdapter::deserializeMetaData(const std::vector
         resultNetworkOutputs[outputData.getName()] = std::make_shared<InferenceEngine::Data>(outputData);
     }
 
-    return {networkName, resultNetworkInputs, resultNetworkOutputs};
+    return {resultNetworkName, resultNetworkInputs, resultNetworkOutputs};
 }

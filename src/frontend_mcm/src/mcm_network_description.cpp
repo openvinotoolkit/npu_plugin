@@ -43,7 +43,12 @@ MCMNetworkDescription::MCMNetworkDescription(const std::vector<char>& compiledNe
         : _name(name),
           _compiledNetwork(compiledNetwork),
           _logger(std::make_shared<vpu::Logger>("MCMNetworkDescription", config.logLevel(), consoleOutput())) {
-    MetaInfo metaInfo = MCMAdapter::deserializeMetaData(compiledNetwork, config);
+    IE_ASSERT(compiledNetwork.data() != nullptr);
+
+    MVCNN::GraphFileT graphFileInstance;
+    const auto* graphFilePtr = MVCNN::GetGraphFile(compiledNetwork.data());
+    graphFilePtr->UnPackTo(&graphFileInstance);
+    const auto metaInfo = MCMAdapter::deserializeMetaData(graphFileInstance, config);
     const ie::InputsDataMap& deserializedInputs = metaInfo._inputs;
     const ie::OutputsDataMap& deserializedOutputs = metaInfo._outputs;
     const std::string& networkName = metaInfo._networkName;
@@ -59,16 +64,14 @@ MCMNetworkDescription::MCMNetworkDescription(const std::vector<char>& compiledNe
     // the device in/outs proper names and to be able identify them.
     // It can be avoided if compiler does not change in/outs names, passed by a user
     // S#34832
-    ie::InputsDataMap deviceInputs;
-    MCMAdapter::getNetworkInputs(compiledNetwork.data(), deviceInputs);
+    const auto deviceInputs = MCMAdapter::getNetworkInputs(graphFileInstance);
     _deviceInputs = inputsDataMapToDataMap(deviceInputs);
-    auto inputsNames = extractKeys(deserializedInputs);
+    const auto inputsNames = extractKeys(deserializedInputs);
     _deviceInputs = createDeviceMapWithCorrectNames(_deviceInputs, inputsNames);
 
-    ie::OutputsDataMap deviceOutputs;
-    MCMAdapter::getNetworkOutputs(compiledNetwork.data(), deviceOutputs);
+    const auto deviceOutputs = MCMAdapter::getNetworkOutputs(graphFileInstance);
     _deviceOutputs = outputsDataMapToDataMap(deviceOutputs);
-    auto outputsNames = extractKeys(deserializedOutputs);
+    const auto outputsNames = extractKeys(deserializedOutputs);
     _deviceOutputs = createDeviceMapWithCorrectNames(_deviceOutputs, outputsNames);
 
     _networkInputs = inputsDataMapToDataMap(deserializedInputs);

@@ -16,6 +16,8 @@
 #include <ie_core.hpp>
 #include <mcm_config.hpp>
 
+#include <schema/graphfile/graphfile_generated.h>
+
 namespace vpu {
 namespace MCMAdapter {
 
@@ -27,6 +29,12 @@ struct MetaInfo {
 
 bool isMCMCompilerAvailable();
 
-MetaInfo deserializeMetaData(const std::vector<char>& outBlob, const MCMConfig& config);
+/**
+ * @brief Deserialization meta data from graph blob
+ * @param graphFileInstance The struct with graph blob data
+ * @param config Compiler config
+ * @return Meta data from graph blob (network name, IE inputs/outputs)
+ */
+MetaInfo deserializeMetaData(const MVCNN::GraphFileT& graphFileInstance, const MCMConfig& config);
 }  // namespace MCMAdapter
 }  // namespace vpu

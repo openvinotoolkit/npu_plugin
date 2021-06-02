@@ -47,7 +47,8 @@ std::shared_ptr<vpux::INetworkDescription> vpux::ICompiler::parse(std::istream& 
     if (graphSize == 0) {
         IE_THROW() << "Blob is empty";
     }
-    auto blob = std::vector<char>(std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>());
+    std::vector<char> blob(graphSize);
+    stream.read(blob.data(), graphSize);
     return parse(blob, config, graphName);
 }
 
