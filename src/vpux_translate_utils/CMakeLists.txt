@@ -1,5 +1,5 @@
 #
-# Copyright 2020 Intel Corporation.
+# Copyright 2021 Intel Corporation.
 #
 # LEGAL NOTICE: Your use of this software and any required dependent software
 # (the "Software Package") is subject to the terms and conditions of
@@ -11,20 +11,23 @@
 # included with the Software Package for additional details.
 #
 
-set(TARGET_NAME "vpux-translate")
+set(TARGET_NAME "vpux_translate_utils_static")
 
 file(GLOB_RECURSE SOURCES "*.cpp" "*.hpp")
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
 
-add_executable(${TARGET_NAME} ${SOURCES})
-set_target_properties(${TARGET_NAME} PROPERTIES FOLDER "tools")
+add_library(${TARGET_NAME} STATIC ${SOURCES})
 
 enable_warnings_as_errors(${TARGET_NAME} WIN_STRICT)
 vpux_enable_clang_format(${TARGET_NAME})
+
+target_include_directories(${TARGET_NAME}
+    PUBLIC
+        "${CMAKE_CURRENT_SOURCE_DIR}/include"
+)
 
 target_link_libraries(${TARGET_NAME}
     PRIVATE
         vpux_utils
         vpux_compiler_static
-        vpux_translate_utils_static
 )

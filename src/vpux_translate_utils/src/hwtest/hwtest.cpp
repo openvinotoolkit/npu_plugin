@@ -11,7 +11,7 @@
 // included with the Software Package for additional details.
 //
 
-#include "hwtest.hpp"
+#include "vpux/hwtest/hwtest.hpp"
 
 #include <numeric>
 
