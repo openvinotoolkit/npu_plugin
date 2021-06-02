@@ -17,6 +17,8 @@
 #include <fstream>
 #include <string>
 
+#include <schema/graphfile/graphfile_generated.h>
+
 #include "models/precompiled_resnet.h"
 
 using namespace vpu;
@@ -27,6 +29,7 @@ public:
     InferenceEngine::OutputsDataMap networkOutputs;
 
     std::string blobContentString;
+    MVCNN::GraphFileT graphFileInstance;
 
 protected:
     void SetUp() override;
@@ -43,44 +46,45 @@ void BlobParser_Tests::SetUp() {
     std::ostringstream blobContentStream;
     blobContentStream << blobFile.rdbuf();
     blobContentString = blobContentStream.str();
+
+    const auto* graphFilePtr = MVCNN::GetGraphFile(blobContentString.c_str());
+    graphFilePtr->UnPackTo(&graphFileInstance);
 }
 
 TEST_F(BlobParser_Tests, CanParseBlob) {
-    ASSERT_NO_THROW(MCMAdapter::getNetworkInputs(blobContentString.c_str(), networkInputs));
-    ASSERT_NO_THROW(MCMAdapter::getNetworkOutputs(blobContentString.c_str(), networkOutputs));
+    ASSERT_NO_THROW(networkInputs = MCMAdapter::getNetworkInputs(graphFileInstance));
+    ASSERT_NO_THROW(networkOutputs = MCMAdapter::getNetworkOutputs(graphFileInstance));
 }
 
-// output channels mismatch
-TEST_F(BlobParser_Tests, DISABLED_CanGetInputsOutputsDimensions) {
+TEST_F(BlobParser_Tests, CanGetInputsOutputsDimensions) {
     InferenceEngine::SizeVector expectedInput = {1, 3, 224, 224};
-    InferenceEngine::SizeVector expectedOutput = {1, 1024, 1, 1};
+    InferenceEngine::SizeVector expectedOutput = {1, 1000, 1, 1};
 
-    ASSERT_NO_THROW(MCMAdapter::getNetworkInputs(blobContentString.c_str(), networkInputs));
-    ASSERT_NO_THROW(MCMAdapter::getNetworkOutputs(blobContentString.c_str(), networkOutputs));
+    ASSERT_NO_THROW(networkInputs = MCMAdapter::getNetworkInputs(graphFileInstance));
+    ASSERT_NO_THROW(networkOutputs = MCMAdapter::getNetworkOutputs(graphFileInstance));
 
-    for (auto& networkInput : networkInputs) {
+    for (const auto& networkInput : networkInputs) {
         InferenceEngine::SizeVector input = networkInput.second->getTensorDesc().getDims();
         ASSERT_EQ(expectedInput, input);
     }
-    for (auto& networkOutput : networkOutputs) {
+    for (const auto& networkOutput : networkOutputs) {
         InferenceEngine::SizeVector output = networkOutput.second->getTensorDesc().getDims();
         ASSERT_EQ(expectedOutput, output);
     }
 }
 
-// TODO: cannot parse input and output name correctly
-TEST_F(BlobParser_Tests, DISABLED_CanGetInputsOutputsNames) {
-    std::string expectedInputName = "input";
-    std::string expectedOutputName = "output";
+TEST_F(BlobParser_Tests, CanGetInputsOutputsNames) {
+    std::string expectedInputName = "data";
+    std::string expectedOutputName = "Output_0";
 
-    ASSERT_NO_THROW(MCMAdapter::getNetworkInputs(blobContentString.c_str(), networkInputs));
-    ASSERT_NO_THROW(MCMAdapter::getNetworkOutputs(blobContentString.c_str(), networkOutputs));
+    ASSERT_NO_THROW(networkInputs = MCMAdapter::getNetworkInputs(graphFileInstance));
+    ASSERT_NO_THROW(networkOutputs = MCMAdapter::getNetworkOutputs(graphFileInstance));
 
-    for (auto& networkInput : networkInputs) {
+    for (const auto& networkInput : networkInputs) {
         auto input = networkInput.first;
         ASSERT_EQ(expectedInputName, input);
     }
-    for (auto& networkOutput : networkOutputs) {
+    for (const auto& networkOutput : networkOutputs) {
         auto output = networkOutput.first;
         ASSERT_EQ(expectedOutputName, output);
     }

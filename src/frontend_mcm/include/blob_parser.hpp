@@ -18,9 +18,22 @@
 #include <ie_icnn_network.hpp>
 #include <ie_input_info.hpp>
 
+#include <schema/graphfile/graphfile_generated.h>
+
 namespace vpu {
 namespace MCMAdapter {
-void getNetworkInputs(const void* data, InferenceEngine::InputsDataMap& networkInputs);
-void getNetworkOutputs(const void* data, InferenceEngine::OutputsDataMap& networkOutputs);
+/**
+ * @brief Get IE network inputs from graph blob
+ * @param graphFileInstance The struct with graph blob data
+ * @return Network inputs in IE format
+ */
+InferenceEngine::InputsDataMap getNetworkInputs(const MVCNN::GraphFileT& graphFileInstance);
+
+/**
+ * @brief Get IE network outputs from graph blob
+ * @param graphFileInstance The struct with graph blob data
+ * @return Network outputs in IE format
+ */
+InferenceEngine::OutputsDataMap getNetworkOutputs(const MVCNN::GraphFileT& graphFileInstance);
 }  // namespace MCMAdapter
 }  // namespace vpu

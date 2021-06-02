@@ -14,7 +14,6 @@
 #include "blob_parser.hpp"
 
 #include <flatbuffers/flatbuffers.h>
-#include <schema/graphfile/graphfile_generated.h>
 
 #include <cassert>
 #include <ie_input_info.hpp>
@@ -111,14 +110,9 @@ static InferenceEngine::Data deserializeTensor(const std::unique_ptr<MVCNN::Tens
     return ieData;
 }
 
-void getNetworkInputs(const void* data, InferenceEngine::InputsDataMap& networkInputs) {
-    IE_ASSERT(nullptr != data);
-
-    const auto* graphFilePtr = MVCNN::GetGraphFile(data);
-    MVCNN::GraphFileT graphFileInstance;
-    graphFilePtr->UnPackTo(&graphFileInstance);
-
-    auto& inputs = graphFileInstance.header->net_input;
+InferenceEngine::InputsDataMap getNetworkInputs(const MVCNN::GraphFileT& graphFileInstance) {
+    InferenceEngine::InputsDataMap networkInputs;
+    const auto& inputs = graphFileInstance.header->net_input;
 
     auto processTensor = [&](const std::unique_ptr<MVCNN::TensorReferenceT>& tensor) {
         InferenceEngine::Data ieData = deserializeTensor(tensor);
@@ -131,14 +125,12 @@ void getNetworkInputs(const void* data, InferenceEngine::InputsDataMap& networkI
     for (const auto& tensor : inputs) {
         processTensor(tensor);
     }
+
+    return networkInputs;
 }
 
-void getNetworkOutputs(const void* data, InferenceEngine::OutputsDataMap& networkOutputs) {
-    IE_ASSERT(nullptr != data);
-    const auto* graphFilePtr = MVCNN::GetGraphFile(data);
-    MVCNN::GraphFileT graphFileInstance;
-    graphFilePtr->UnPackTo(&graphFileInstance);
-
+InferenceEngine::OutputsDataMap getNetworkOutputs(const MVCNN::GraphFileT& graphFileInstance) {
+    InferenceEngine::OutputsDataMap networkOutputs;
     const auto& outputs = graphFileInstance.header->net_output;
     auto processTensor = [&](const std::unique_ptr<MVCNN::TensorReferenceT>& tensor) {
         InferenceEngine::Data ieData = deserializeTensor(tensor);
@@ -148,6 +140,8 @@ void getNetworkOutputs(const void* data, InferenceEngine::OutputsDataMap& networ
     for (const auto& tensor : outputs) {
         processTensor(tensor);
     }
+
+    return networkOutputs;
 }
 
 }  // namespace MCMAdapter
