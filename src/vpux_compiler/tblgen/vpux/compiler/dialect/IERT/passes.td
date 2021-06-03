@@ -154,4 +154,14 @@ def MoveWaitResultToAsyncBlockArgs : PassBase<"move-wait-result-to-async-block-a
     let constructor = "vpux::IERT::createMoveWaitResultToAsyncBlockArgsPass()";
 }
 
+//
+// MoveViewOpsIntoAsyncRegions
+//
+
+def MoveViewOpsIntoAsyncRegions : PassBase<"move-view-ops-into-async-regions", "vpux::FunctionPass"> {
+    let summary = "Moves view-like Operations inside the asynchronous regions which depends on them";
+
+    let constructor = "vpux::IERT::createMoveViewOpsIntoAsyncRegionsPass()";
+}
+
 #endif

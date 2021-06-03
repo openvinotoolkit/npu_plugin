@@ -48,6 +48,7 @@ std::unique_ptr<mlir::Pass> createCMXTilingPass(Logger log = Logger::global());
 
 std::unique_ptr<mlir::Pass> createWrapIntoAsyncRegionsPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createMoveWaitResultToAsyncBlockArgsPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createMoveViewOpsIntoAsyncRegionsPass(Logger log = Logger::global());
 
 //
 // Generated
