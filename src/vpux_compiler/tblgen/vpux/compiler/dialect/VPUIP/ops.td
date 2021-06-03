@@ -581,7 +581,6 @@ def VPUIP_ConvolutionUPAOp :
             [
                 ViewLikeOpInterface,
                 VPUIP_SameElementType,
-                VPUIP_SameDimsOrder,
                 DeclareOpInterfaceMethods<ConvolutionLayerInterface>
             ]
         > {
@@ -628,6 +627,14 @@ def VPUIP_ConvolutionUPAOp :
         (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
         (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `->` type(results)
+    }];
+
+    let extraClassDeclaration = [{
+        static mlir::LogicalResult isSupportedLayout(mlir::Operation* op, vpux::DataOrderInfo& info);
+    }] # commonExtraClassDeclaration;
+
+    let verifier = [{
+        return vpux::VPUIP::verifyOp(*this);
     }];
 }
 
@@ -1422,7 +1429,7 @@ def VPUIP_ScaleShiftUPAOp :
             [
                 ViewLikeOpInterface,
                 VPUIP_SameElementType,
-                VPUIP_SameInOutDimsOrder,
+                VPUIP_SameDimsOrder,
 		VPUIP_Legacy4D
             ]
         > {
@@ -1738,7 +1745,6 @@ def VPUIP_NCEClusterTaskOp :
         VPUIP_TaskOp<1, "NCEClusterTask",
             [
                 ViewLikeOpInterface,
-                VPUIP_AnyDimsOrder,
                 DeclareOpInterfaceMethods<VPUIP_NCETaskOpInterface>
             ]
             # GraphRegionNoTerminator.traits
@@ -1828,6 +1834,8 @@ def VPUIP_NCEClusterTaskOp :
         vpux::VPUIP::DPUTaskOp addDPUTask(mlir::OpBuilder& builder, mlir::ArrayAttr start, mlir::ArrayAttr end,
                                           mlir::ArrayAttr padsBegin, mlir::ArrayAttr padsEnd,
                                           VPUIP::MPEMode mpeMode);
+
+        static mlir::LogicalResult isSupportedLayout(mlir::Operation* op, vpux::DataOrderInfo& info);
     }]#InferReturnTypesForLayer<1>.impl;
 }
 
@@ -1961,7 +1969,6 @@ def VPUIP_PadUPAOp :
 
     let arguments = (ins
         F16MemRef:$input,
-
         F16MemRef:$output_buff,
 
         Variadic<VPUIP_Barrier>:$waitBarriers,

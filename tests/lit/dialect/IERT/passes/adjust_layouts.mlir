@@ -8,7 +8,7 @@
 
 #NHCW = affine_map<(d0, d1, d2, d3) -> (d0, d2, d1, d3)>
 
-module @InOutNHCW {
+module @InOutNHCW attributes {VPUIP.arch = "VPU3700", VPUIP.compilationMode = "ReferenceSW"} {
 
 IE.CNNNetwork
     entryPoint : @main
@@ -50,7 +50,7 @@ func @main(%arg0: memref<1x8x4x2xf16, #NHCW>, %arg1: memref<1x8x4x2xf16, #NHCW>)
 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
-module @DifferentOrders {
+module @DifferentOrders attributes {VPUIP.arch = "VPU3700", VPUIP.compilationMode = "ReferenceSW"} {
 
 IE.CNNNetwork
     entryPoint : @main
@@ -70,6 +70,45 @@ func @main(%arg0: memref<1x8x4x2xf16>, %arg1: memref<1x8x4x2xf16, #NHWC>) -> mem
     // CHECK: [[VAR1:%.*]] = IERT.GRN {bias = 1.000000e+00 : f32} inputs(%arg0 : memref<1x8x4x2xf16>) outputs([[VAR0]] : memref<1x8x4x2xf16>) -> memref<1x8x4x2xf16>
     // CHECK: [[VAR2:%.*]] = IERT.Reorder inputs([[VAR1]] : memref<1x8x4x2xf16>) outputs(%arg1 : memref<1x8x4x2xf16, #NHWC>) -> memref<1x8x4x2xf16, #NHWC>
     // CHECK: return [[VAR2]] : memref<1x8x4x2xf16, #NHWC>
+}
+
+}
+
+// -----
+
+#NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
+
+module @DifferentOrders attributes {VPUIP.arch = "VPU3700", VPUIP.compilationMode = "ReferenceHW"} {
+
+IERT.RunTimeResources
+    availableMemory :  {
+        IERT.MemoryResource 201326592 bytes of "DDR" {VPUIP.bandwidth = 8 : i64, VPUIP.derateFactor = 6.000000e-01 : f64}
+        IERT.MemoryResource 917504 bytes of "CMX_NN" {VPUIP.bandwidth = 32 : i64, VPUIP.derateFactor = 1.000000e+00 : f64}
+    }
+    usedMemory : {
+    }
+    executors : {
+    }
+
+IE.CNNNetwork
+    entryPoint : @main
+    inputsInfo : {
+        IE.DataInfo "data" : memref<1x8x4x2xf16>
+    }
+    outputsInfo : {
+        IE.DataInfo "prob" : memref<1x8x4x2xf16>
+    }
+
+func @main(%arg0: memref<1x8x4x2xf16>, %arg1: memref<1x8x4x2xf16>) -> memref<1x8x4x2xf16> {
+    %0 = IERT.MaxPool {kernel_size = [5 : i32, 5 : i32], pads_begin = [2 : i32, 0 : i32], pads_end = [1 : i32, 0 : i32], strides = [2 : i32, 2 : i32]} inputs(%arg0 : memref<1x8x4x2xf16>) outputs(%arg1 : memref<1x8x4x2xf16>) -> memref<1x8x4x2xf16>
+    return %0 : memref<1x8x4x2xf16>
+
+    // CHECK: [[VAR0:%.*]] = memref.alloc() : memref<1x8x4x2xf16, #NHWC>
+    // CHECK: [[VAR1:%.*]] = IERT.Reorder inputs(%arg0 : memref<1x8x4x2xf16>) outputs([[VAR0]] : memref<1x8x4x2xf16, #NHWC>) -> memref<1x8x4x2xf16, #NHWC>
+    // CHECK: [[VAR2:%.*]] = memref.alloc() : memref<1x8x4x2xf16, #NHWC>
+    // CHECK: [[VAR3:%.*]] = IERT.MaxPool {kernel_size = [5 : i32, 5 : i32], pads_begin = [2 : i32, 0 : i32], pads_end = [1 : i32, 0 : i32], strides = [2 : i32, 2 : i32]} inputs([[VAR1]] : memref<1x8x4x2xf16, #NHWC>) outputs([[VAR2]] : memref<1x8x4x2xf16, #NHWC>) -> memref<1x8x4x2xf16, #NHWC>
+    // CHECK: [[VAR4:%.*]] = IERT.Reorder inputs([[VAR3]] : memref<1x8x4x2xf16, #NHWC>) outputs(%arg1 : memref<1x8x4x2xf16>) -> memref<1x8x4x2xf16>
+    // CHECK: return [[VAR4]] : memref<1x8x4x2xf16>
 }
 
 }

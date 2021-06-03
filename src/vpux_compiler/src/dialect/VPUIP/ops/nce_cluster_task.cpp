@@ -16,6 +16,9 @@
 #include "vpux/compiler/core/attributes/dim.hpp"
 #include "vpux/compiler/core/attributes/shape.hpp"
 
+#include <llvm/ADT/TypeSwitch.h>
+#include <vpux/compiler/utils/extentions.hpp>
+
 using namespace vpux;
 
 void vpux::VPUIP::NCEClusterTaskOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
@@ -28,6 +31,31 @@ void vpux::VPUIP::NCEClusterTaskOp::build(mlir::OpBuilder& builder, mlir::Operat
     build(builder, state, output.getType(), input, filter, weight_table, activation_window, parent_input, parent_output,
           output, mlir::ValueRange{}, mlir::ValueRange{}, task_type, fixed_ppe_task, kernel_padding, strides,
           kernel_size, activation_window_channel_length, 0);
+}
+
+mlir::LogicalResult vpux::VPUIP::NCEClusterTaskOp::isSupportedLayout(mlir::Operation* op, vpux::DataOrderInfo& info) {
+    return llvm::TypeSwitch<mlir::Operation*, mlir::LogicalResult>(op)
+            .Case<IERT::MaxPoolOp>([&](mlir::Operation* op) {
+                return isSupportedLayoutSameInOutSpecificDimsOrder(op, info, {DimsOrder::NHWC});
+            })
+            .Case<IERT::ConvolutionOp>([&](IERT::ConvolutionOp originOp) {
+                if (isSupportedLayoutSameInOutSpecificDimsOrder(originOp, info, {DimsOrder::NHWC}).failed()) {
+                    // filter layout
+                    info.setInput(1, DimsOrder::NHWC);
+                    return mlir::failure();
+                }
+
+                // check filter layout
+                if (!info.hasInput(1) || info.getInput(1) != DimsOrder::NHWC) {
+                    fillDataInfo(info, 2, 1, DimsOrder::NHWC);
+                    return mlir::failure();
+                }
+
+                return mlir::success();
+            })
+            .Default([](mlir::Operation* unknownOp) -> mlir::LogicalResult {
+                VPUX_THROW("Operation '{0}' the operation is not supported by the DPU", unknownOp->getName());
+            });
 }
 
 vpux::VPUIP::DPUTaskOp vpux::VPUIP::NCEClusterTaskOp::addDPUTask(mlir::OpBuilder& builder, mlir::ArrayAttr start,
@@ -107,6 +135,15 @@ mlir::LogicalResult verifyNCEConv(VPUIP::NCEClusterTaskOp op) {
                        weightTableNumElements);
     }
 
+    if (verifySameInOutSpecificDimsOrder(op, {DimsOrder::NHWC}).failed()) {
+        return mlir::failure();
+    }
+
+    const auto filterLayout = DimsOrder::fromValue(op.filter());
+    if (filterLayout != DimsOrder::NHWC) {
+        return errorAt(op, "filter layout must be NHWC, got {0}", filterLayout);
+    }
+
     return mlir::success();
 }
 
@@ -128,6 +165,10 @@ mlir::LogicalResult verifyNCEMaxPool(VPUIP::NCEClusterTaskOp op) {
     auto p = checkNCEKernel(op);
     if (mlir::failed(p)) {
         return p;
+    }
+
+    if (verifySameInOutSpecificDimsOrder(op, {DimsOrder::NHWC}).failed()) {
+        return mlir::failure();
     }
 
     return mlir::success();

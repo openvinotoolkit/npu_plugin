@@ -11,6 +11,7 @@
 // included with the Software Package for additional details.
 //
 
+#include <vpux/compiler/utils/extentions.hpp>
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
 #include "vpux/compiler/core/attributes/dim.hpp"
@@ -18,12 +19,44 @@
 
 using namespace vpux;
 
+mlir::LogicalResult vpux::VPUIP::verifyOp(ConvolutionUPAOp op) {
+    if (verifySameInOutSpecificDimsOrder(op, {DimsOrder::NCHW}).failed()) {
+        return mlir::failure();
+    }
+
+    const auto filterLayout = DimsOrder::fromValue(op.filter());
+    if (filterLayout != DimsOrder::NCHW) {
+        return errorAt(op, "filter layout must be NCHW, got {0}", filterLayout);
+    }
+
+    return mlir::success();
+}
+
 void vpux::VPUIP::ConvolutionUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
                                           mlir::Value filter, mlir::Value bias, mlir::Value output,
                                           mlir::ArrayAttr strides, mlir::ArrayAttr dilations, mlir::ArrayAttr padsBegin,
                                           mlir::ArrayAttr padsEnd, uint32_t groups) {
     build(builder, state, input, filter, bias, output, mlir::ValueRange{}, mlir::ValueRange{}, strides, dilations,
           padsBegin, padsEnd, groups, nullptr, false);
+}
+
+mlir::LogicalResult vpux::VPUIP::ConvolutionUPAOp::isSupportedLayout(mlir::Operation* op, vpux::DataOrderInfo& info) {
+    VPUX_THROW_UNLESS(mlir::isa<IERT::GroupConvolutionOp>(op) || mlir::isa<IERT::ConvolutionOp>(op),
+                      "Operation {0} is not Convolution like", op->getName());
+
+    if (isSupportedLayoutSameInOutSpecificDimsOrder(op, info, {DimsOrder::NCHW}).failed()) {
+        // filter layout
+        info.setInput(1, DimsOrder::NCHW);
+        return mlir::failure();
+    }
+
+    // check filter layout
+    if (!info.hasInput(1) || info.getInput(1) != DimsOrder::NCHW) {
+        fillDataInfo(info, 2, 1, DimsOrder::NCHW);
+        return mlir::failure();
+    }
+
+    return mlir::success();
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ConvolutionUPAOp::serialize(VPUIP::BlobWriter& writer) {

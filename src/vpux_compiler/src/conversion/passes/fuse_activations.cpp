@@ -68,8 +68,10 @@ private:
 };
 
 static VPUIP::NCEClusterTaskOp tryReorderBranch(const mlir::Value reluInput) {
-    // ReLU input is expected to come from reorder task which repacks NCE2 output from NHWC to NCHW
-    // FIXME reorder will be skipped when adjust layouts pass is added to the hardware pipeline
+    // ReLU input is expected to come from reorder task which repacks NCE2 output from NHWC to NCHW:
+    // Even if the network input/output is NHWC, it is assumed that initially all layers work in NCHW.
+    // So AdjustLayout(which runs before that) pass will add NHWC -> NCHW reorder
+    // FIXME if special propagate layouts pass is added to the hardware pipeline after AdjustLayout pass
     // When it happens, don't forget to remove this reorder here
     auto nce_out_reorder = reluInput.getDefiningOp<IERT::ReorderOp>();
     if (!nce_out_reorder) {
