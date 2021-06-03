@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -122,7 +122,7 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createUPALayerTask(mlir
 }
 
 VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensor(
-        StringRef name, mlir::MemRefType type, MemoryLocation locale, Optional<uint32_t> localeIndex,
+        StringRef name, mlir::MemRefType type, MemoryLocation locale, ArrayRef<uint32_t> localeIndex,
         uint64_t dataIndex, Optional<uint64_t> sparsityIndex, Optional<uint64_t> storageElementIndex,
         Optional<uint32_t> storageElementSize, Optional<uint32_t> leadingOffset, Optional<uint32_t> trailingOffset,
         Optional<float> density_rate, Optional<uint8_t> swizzling_key) {
@@ -140,7 +140,7 @@ VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensor(
             createIndirectDataReference(dataIndex, sparsityIndex, storageElementIndex, storageElementSize);
 
     const auto serializedLocale = createMemoryLocation(locale);
-    const auto serializedLocaleIndex = createVector(to_small_vector(makeArrayRef({localeIndex.getValueOr(0)})));
+    const auto serializedLocaleIndex = createVector(localeIndex);
 
     Vector<uint8_t> quantZero;
     Vector<uint16_t> quantMult;
@@ -212,7 +212,7 @@ VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensor(
 }
 
 VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensor(
-        mlir::Value val, StringRef name, MemoryLocation locale, Optional<uint32_t> localeIndex, uint64_t dataIndex,
+        mlir::Value val, StringRef name, MemoryLocation locale, ArrayRef<uint32_t> localeIndex, uint64_t dataIndex,
         Optional<uint64_t> sparsityIndex, Optional<uint64_t> storageElementIndex, Optional<uint32_t> storageElementSize,
         Optional<uint32_t> leadingOffset, Optional<uint32_t> trailingOffset, Optional<float> density_rate,
         Optional<uint8_t> swizzling_key) {

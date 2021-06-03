@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -117,7 +117,7 @@ def VPUIP_DeclareTensorOp :
 
     let arguments = (ins
         VPUIP_MemoryLocation:$locale,
-        OptionalAttr<I32Attr>:$localeIndex,
+        I32ArrayAttr:$localeIndex,
 
         I64Attr:$dataIndex,
         OptionalAttr<I64Attr>:$sparsityIndex,
@@ -146,7 +146,12 @@ def VPUIP_DeclareTensorOp :
     }];
 
     let assemblyFormat = [{
-        $locale (` ` `[` $localeIndex^ `]`)? `<` $dataIndex `>` attr-dict `->` type(results)
+        $locale custom<LocaleIndex>($localeIndex) `<` $dataIndex `>` attr-dict `->` type(results)
+    }];
+
+    let extraClassDeclaration = [{
+        static mlir::ParseResult parseLocaleIndex(mlir::OpAsmParser& parser, mlir::ArrayAttr& localeIndex);
+        static void printLocaleIndex(mlir::OpAsmPrinter& printer, vpux::VPUIP::DeclareTensorOp& op, mlir::ArrayAttr localeIndex);
     }];
 }
 

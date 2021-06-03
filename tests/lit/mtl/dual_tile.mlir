@@ -1,0 +1,70 @@
+// This file generates a blob that runs convolutions on two tiles, used to
+// demonstrate that the runtime can handle this.  It's also a lit test to help
+// check for regressions in the VPUIP dialect.
+//
+// To generate a blob, use:
+//
+//    vpux-translate --export-VPUIP < dual_tile.mlir > dual_tile.blob
+//
+// RUN: vpux-opt %s | FileCheck %s
+
+#NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
+module @mainModule attributes {VPUIP.arch = "VPU3720", VPUIP.compilationMode = "ReferenceSW"}  {
+  VPUIP.Graph options : "NONE" version : {contextStr = "VPUX Compiler", hash = "", majorV = 3 : i32, minorV = 11 : i32, patchV = 0 : i32}
+  IERT.RunTimeResources availableMemory :  {
+    IERT.MemoryResource 1073741824 bytes
+    IERT.MemoryResource 31457280 bytes of "DDR" {VPUIP.bandwidth = 8 : i64, VPUIP.derateFactor = 6.000000e-01 : f64}
+    IERT.MemoryResource 2097152 bytes of "CMX_NN" {VPUIP.bandwidth = 32 : i64, VPUIP.derateFactor = 1.000000e+00 : f64}
+  } usedMemory :  {
+  } executors :  {
+    IERT.ExecutorResource 1 of "Leon_RT"
+    IERT.ExecutorResource 1 of "Leon_NN"
+    IERT.ExecutorResource 1 of "DMA_UPA"
+    IERT.ExecutorResource 1 of "SHAVE_NN"
+    IERT.ExecutorResource 1 of "NCE_Cluster"  {
+      IERT.ExecutorResource 1 of "NCE_PerClusterDPU"
+    }
+    IERT.ExecutorResource 2 of "DMA_NN"
+  }
+  func private @"zmajor_conv_!quant.uniform<u8:f32, 1.000000e+00>_!quant.uniform<u8:f32, 1.000000e+00>_f16"(%input_arg: memref<1x16x16x16x!quant.uniform<u8:f32, 1.000000e+00>, #NHWC, "ProgrammableInput">, %output_arg: memref<2x16x16x16xf16, #NHWC, "ProgrammableOutput">) -> memref<2x16x16x16xf16, #NHWC, "ProgrammableOutput"> {
+    %weights_constant = VPUIP.DeclareConstantTensor memref<16x1x1x16x!quant.uniform<u8:f32, 1.000000e+00>, #NHWC, "GraphFile"> = dense<1> : tensor<16x1x1x16xui8>
+    %weights = VPUIP.DeclareTensor "VPU_CMX_NN" [0] <12544> -> memref<16x1x1x16x!quant.uniform<u8:f32, 1.000000e+00>, #NHWC, "VPU_CMX_NN">
+    %input_broadcast = VPUIP.DeclareTensor "VPU_CMX_NN" [0,1] <8192> -> memref<1x16x16x16x!quant.uniform<u8:f32, 1.000000e+00>, #NHWC, "VPU_CMX_NN">
+    %input_0 = VPUIP.DeclareTensor "VPU_CMX_NN" [0] <8192> -> memref<1x16x16x16x!quant.uniform<u8:f32, 1.000000e+00>, #NHWC, "VPU_CMX_NN">
+    %output_0 = VPUIP.DeclareTensor "VPU_CMX_NN" [0] <0> -> memref<1x16x16x16xf16, #NHWC, "VPU_CMX_NN">
+    %output_ddr_0 = VPUIP.DeclareTensor "VPU_DDR_Heap" <0> -> memref<1x16x16x16xf16, #NHWC, "VPU_DDR_Heap">
+    %parent_input_0 = VPUIP.DeclareTensor "VPU_CMX_NN" [0] <8192> -> memref<1x16x16x16x!quant.uniform<u8:f32, 1.000000e+00>, #NHWC, "VPU_CMX_NN">
+    %parent_output_0 = VPUIP.DeclareTensor "VPU_CMX_NN" [0] <0> -> memref<1x16x16x16xf16, #NHWC, "VPU_CMX_NN">
+    %input_1 = VPUIP.DeclareTensor "VPU_CMX_NN" [1] <8192> -> memref<1x16x16x16x!quant.uniform<u8:f32, 1.000000e+00>, #NHWC, "VPU_CMX_NN">
+    %output_1 = VPUIP.DeclareTensor "VPU_CMX_NN" [1] <0> -> memref<1x16x16x16xf16, #NHWC, "VPU_CMX_NN">
+    %output_ddr_1 = VPUIP.DeclareTensor "VPU_DDR_Heap" <8192> -> memref<1x16x16x16xf16, #NHWC, "VPU_DDR_Heap">
+    %parent_input_1 = VPUIP.DeclareTensor "VPU_CMX_NN" [1] <8192> -> memref<1x16x16x16x!quant.uniform<u8:f32, 1.000000e+00>, #NHWC, "VPU_CMX_NN">
+    %parent_output_1 = VPUIP.DeclareTensor "VPU_CMX_NN" [1] <0> -> memref<1x16x16x16xf16, #NHWC, "VPU_CMX_NN">
+    %output_ddr = VPUIP.DeclareTensor "VPU_DDR_Heap" <0> -> memref<2x16x16x16xf16, #NHWC, "VPU_DDR_Heap">
+    %weight_table_constant = VPUIP.DeclareConstantTensor memref<16x1x1x4xsi32, #NHWC, "GraphFile"> = dense<[[[[12544, 16777215, 1073761792, 0]]], [[[12560, 16777215, 1073761792, 0]]], [[[12576, 16777215, 1073761792, 0]]], [[[12592, 16777215, 1073761792, 0]]], [[[12608, 16777215, 1073761792, 0]]], [[[12624, 16777215, 1073761792, 0]]], [[[12640, 16777215, 1073761792, 0]]], [[[12656, 16777215, 1073761792, 0]]], [[[12672, 16777215, 1073761792, 0]]], [[[12688, 16777215, 1073761792, 0]]], [[[12704, 16777215, 1073761792, 0]]], [[[12720, 16777215, 1073761792, 0]]], [[[12736, 16777215, 1073761792, 0]]], [[[12752, 16777215, 1073761792, 0]]], [[[12768, 16777215, 1073761792, 0]]], [[[12784, 16777215, 1073761792, 0]]]]> : tensor<16x1x1x4xsi32>
+    %weight_table = VPUIP.DeclareTensor "VPU_CMX_NN" [0] <12288> -> memref<16x1x1x4xsi32, #NHWC, "VPU_CMX_NN">
+    %inputs_ready = VPUIP.ConfigureBarrier<0> -> !VPUIP.Barrier
+    %conv_complete = VPUIP.ConfigureBarrier<1> -> !VPUIP.Barrier
+    %output_ready = VPUIP.ConfigureBarrier<2> -> !VPUIP.Barrier
+    VPUIP.NNDMA {port = 0 : i32} inputs(%input_arg : memref<1x16x16x16x!quant.uniform<u8:f32, 1.000000e+00>, #NHWC, "ProgrammableInput">) outputs(%input_broadcast : memref<1x16x16x16x!quant.uniform<u8:f32, 1.000000e+00>, #NHWC, "VPU_CMX_NN">) updates(%inputs_ready : !VPUIP.Barrier) -> memref<1x16x16x16x!quant.uniform<u8:f32, 1.000000e+00>, #NHWC, "VPU_CMX_NN">
+    VPUIP.NNDMA {port = 0 : i32} inputs(%weights_constant : memref<16x1x1x16x!quant.uniform<u8:f32, 1.000000e+00>, #NHWC, "GraphFile">) outputs(%weights : memref<16x1x1x16x!quant.uniform<u8:f32, 1.000000e+00>, #NHWC, "VPU_CMX_NN">) updates(%inputs_ready : !VPUIP.Barrier) -> memref<16x1x1x16x!quant.uniform<u8:f32, 1.000000e+00>, #NHWC, "VPU_CMX_NN">
+    VPUIP.NNDMA {port = 0 : i32} inputs(%weight_table_constant : memref<16x1x1x4xsi32, #NHWC, "GraphFile">) outputs(%weight_table : memref<16x1x1x4xsi32, #NHWC, "VPU_CMX_NN">) updates(%inputs_ready : !VPUIP.Barrier) -> memref<16x1x1x4xsi32, #NHWC, "VPU_CMX_NN">
+    VPUIP.NCEClusterTask {kernel_padding = [0 : i32, 0 : i32, 0 : i32, 0 : i32], kernel_size = [1 : i32, 8 : i32], strides = [1 : i32, 1 : i32], task_type = "CONV"} inputs(%input_0 : memref<1x16x16x16x!quant.uniform<u8:f32, 1.000000e+00>, #NHWC, "VPU_CMX_NN">, %weights : memref<16x1x1x16x!quant.uniform<u8:f32, 1.000000e+00>, #NHWC, "VPU_CMX_NN">, %weight_table : memref<16x1x1x4xsi32, #NHWC, "VPU_CMX_NN">)) parent_input(%parent_input_0 : memref<1x16x16x16x!quant.uniform<u8:f32, 1.000000e+00>, #NHWC, "VPU_CMX_NN">) parent_output(%parent_output_0 : memref<1x16x16x16xf16, #NHWC, "VPU_CMX_NN">) outputs(%output_0 : memref<1x16x16x16xf16, #NHWC, "VPU_CMX_NN">) waits(%inputs_ready : !VPUIP.Barrier) updates(%conv_complete : !VPUIP.Barrier) variants :  {
+      VPUIP.DPUTask {end = [15 : i32, 15 : i32, 15 : i32], mpe_mode = "CUBOID_16x16", pads_begin = [0 : i32, 0 : i32], pads_end = [0 : i32, 0 : i32], start = [0 : i32, 0 : i32, 0 : i32]}
+    } -> memref<1x16x16x16xf16, #NHWC, "VPU_CMX_NN">
+    VPUIP.NCEClusterTask {kernel_padding = [0 : i32, 0 : i32, 0 : i32, 0 : i32], kernel_size = [1 : i32, 8 : i32], strides = [1 : i32, 1 : i32], task_type = "CONV"} inputs(%input_1 : memref<1x16x16x16x!quant.uniform<u8:f32, 1.000000e+00>, #NHWC, "VPU_CMX_NN">, %weights : memref<16x1x1x16x!quant.uniform<u8:f32, 1.000000e+00>, #NHWC, "VPU_CMX_NN">, %weight_table : memref<16x1x1x4xsi32, #NHWC, "VPU_CMX_NN">)) parent_input(%parent_input_1 : memref<1x16x16x16x!quant.uniform<u8:f32, 1.000000e+00>, #NHWC, "VPU_CMX_NN">) parent_output(%parent_output_1 : memref<1x16x16x16xf16, #NHWC, "VPU_CMX_NN">) outputs(%output_1 : memref<1x16x16x16xf16, #NHWC, "VPU_CMX_NN">) waits(%inputs_ready : !VPUIP.Barrier) updates(%conv_complete : !VPUIP.Barrier) variants :  {
+      VPUIP.DPUTask {end = [15 : i32, 15 : i32, 15 : i32], mpe_mode = "CUBOID_16x16", pads_begin = [0 : i32, 0 : i32], pads_end = [0 : i32, 0 : i32], start = [0 : i32, 0 : i32, 0 : i32]}
+    } -> memref<1x16x16x16xf16, #NHWC, "VPU_CMX_NN">
+    VPUIP.NNDMA {port = 0 : i32} inputs(%output_0 : memref<1x16x16x16xf16, #NHWC, "VPU_CMX_NN">) outputs(%output_ddr_0 : memref<1x16x16x16xf16, #NHWC, "VPU_DDR_Heap">) waits(%conv_complete : !VPUIP.Barrier) updates(%output_ready : !VPUIP.Barrier) -> memref<1x16x16x16xf16, #NHWC, "VPU_DDR_Heap">
+    VPUIP.NNDMA {port = 0 : i32} inputs(%output_1 : memref<1x16x16x16xf16, #NHWC, "VPU_CMX_NN">) outputs(%output_ddr_1 : memref<1x16x16x16xf16, #NHWC, "VPU_DDR_Heap">) waits(%conv_complete : !VPUIP.Barrier) updates(%output_ready : !VPUIP.Barrier) -> memref<1x16x16x16xf16, #NHWC, "VPU_DDR_Heap">
+    VPUIP.NNDMA {port = 0 : i32} inputs(%output_ddr : memref<2x16x16x16xf16, #NHWC, "VPU_DDR_Heap">) outputs(%output_arg : memref<2x16x16x16xf16, #NHWC, "ProgrammableOutput">) waits(%output_ready : !VPUIP.Barrier) -> memref<2x16x16x16xf16, #NHWC, "ProgrammableOutput">
+    return %output_arg : memref<2x16x16x16xf16, #NHWC, "ProgrammableOutput">
+  }
+  IE.CNNNetwork entryPoint : @"zmajor_conv_!quant.uniform<u8:f32, 1.000000e+00>_!quant.uniform<u8:f32, 1.000000e+00>_f16" inputsInfo :  {
+    IE.DataInfo "input_0" : memref<1x16x16x16xui8, #NHWC, "ProgrammableInput">
+  } outputsInfo :  {
+    IE.DataInfo "output_0" : memref<2x16x16x16xf16, #NHWC, "ProgrammableOutput">
+  }
+}
+
+// CHECK-LABEL: module @mainModule attributes {VPUIP.arch = "VPU3720", VPUIP.compilationMode = "ReferenceSW"}

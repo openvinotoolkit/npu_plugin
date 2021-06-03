@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -276,8 +276,13 @@ flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, Log
 
             tasksMap[task.getTaskType()].push_back(writer.createTask(task));
         } else if (auto tensorOp = mlir::dyn_cast<VPUIP::DeclareTensorOp>(op)) {
+            SmallVector<uint32_t> localeIndex;
+            for (auto attr : tensorOp.localeIndex()) {
+                localeIndex.emplace_back(checked_cast<uint32_t>(attr.cast<mlir::IntegerAttr>().getInt()));
+            }
+
             writer.createTensor(tensorOp.memory(), llvm::formatv("temp-{0}", tempTensorInd).str(), tensorOp.locale(),
-                                tensorOp.localeIndex(), tensorOp.dataIndex(), tensorOp.sparsityIndex(),
+                                localeIndex, tensorOp.dataIndex(), tensorOp.sparsityIndex(),
                                 tensorOp.storageElementIndex(), tensorOp.storageElementSize(), tensorOp.leadingOffset(),
                                 tensorOp.trailingOffset());
 

@@ -31,7 +31,7 @@ func @main(%arg0: tensor<1x1000xf16>) -> tensor<1x1000xf16> {
 
     // CHECK:       [[VAR0:%.*]] = VPUIP.DeclareTensor "ProgrammableInput" [0] <0> -> memref<1x1000xf16>
 
-    // CHECK:       [[VAR1:%.*]] = VPUIP.DeclareTensor "VPU_DDR_Heap" <0> -> memref<1x1000xf16, "DDR">
+    // CHECK:       [[VAR1:%.*]] = VPUIP.DeclareTensor "VPU_DDR_Heap" [0] <0> -> memref<1x1000xf16, "DDR">
     // CHECK:       [[VAR2:%.*]] = VPUIP.ConfigureBarrier<0> -> !VPUIP.Barrier
     // CHECK:       [[VAR3:%.*]] = VPUIP.SoftMaxUPA
     // CHECK-SAME:              axisInd = 1
@@ -39,7 +39,7 @@ func @main(%arg0: tensor<1x1000xf16>) -> tensor<1x1000xf16> {
     // CHECK-SAME:              outputs([[VAR1]] : memref<1x1000xf16, "DDR">)
     // CHECK-SAME:              updates([[VAR2]] : !VPUIP.Barrier)
 
-    // CHECK:       [[VAR4:%.*]] = VPUIP.DeclareTensor "VPU_DDR_Heap" <0> -> memref<1x1x1x1000xf16, "DDR">
+    // CHECK:       [[VAR4:%.*]] = VPUIP.DeclareTensor "VPU_DDR_Heap" [0] <0> -> memref<1x1x1x1000xf16, "DDR">
     // CHECK:       [[VAR5:%.*]] = VPUIP.NNDMA
     // CHECK-SAME:              inputs([[VAR4]] : memref<1x1x1x1000xf16, "DDR">)
     // CHECK-SAME:              outputs([[ARG1]] : memref<1x1x1x1000xf16>)
@@ -98,7 +98,7 @@ func @main(%arg0: tensor<1x2x2x2xf16>) -> (tensor<1x2x2x2xf16>, tensor<1x2x2x2xf
 
     // CHECK:   [[VAR0:%.*]] = VPUIP.DeclareConstantTensor
     // CHECK-SAME:              memref<1x2x2x2xf16>
-    // CHECK:   [[VAR1:%.*]] = VPUIP.DeclareTensor "VPU_DDR_Heap" <0> -> memref<1x2x2x2xf16, "DDR">
+    // CHECK:   [[VAR1:%.*]] = VPUIP.DeclareTensor "VPU_DDR_Heap" [0] <0> -> memref<1x2x2x2xf16, "DDR">
     // CHECK:   [[VAR2:%.*]] = VPUIP.ConfigureBarrier<0> -> !VPUIP.Barrier
     // CHECK:   [[VAR3:%.*]] = VPUIP.SoftMaxUPA
     // CHECK-SAME:              axisInd = 1
@@ -106,7 +106,7 @@ func @main(%arg0: tensor<1x2x2x2xf16>) -> (tensor<1x2x2x2xf16>, tensor<1x2x2x2xf
     // CHECK-SAME:              outputs([[VAR1]] : memref<1x2x2x2xf16, "DDR">)
     // CHECK-SAME:              updates([[VAR2]] : !VPUIP.Barrier)
 
-    // CHECK:   [[VAR4:%.*]] = VPUIP.DeclareTensor "VPU_DDR_Heap" <64> -> memref<1x2x2x2xf16, "DDR">
+    // CHECK:   [[VAR4:%.*]] = VPUIP.DeclareTensor "VPU_DDR_Heap" [0] <64> -> memref<1x2x2x2xf16, "DDR">
     // CHECK:   [[VAR5:%.*]] = VPUIP.ConfigureBarrier<1> -> !VPUIP.Barrier
     // CHECK:   [[VAR6:%.*]] = VPUIP.SoftMaxUPA
     // CHECK-SAME:              axisInd = 1
