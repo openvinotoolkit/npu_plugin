@@ -339,7 +339,7 @@ TensorReference value declaration
 Syntax:
 
 ```
-operation ::= `VPUIP.DeclareTensor` $locale (` ` `[` $localeIndex^ `]`)? `<` $dataIndex `>` attr-dict `->` type(results)
+operation ::= `VPUIP.DeclareTensor` $locale custom<LocaleIndex>($localeIndex) `<` $dataIndex `>` attr-dict `->` type(results)
 ```
 
 
@@ -348,7 +348,7 @@ operation ::= `VPUIP.DeclareTensor` $locale (` ` `[` $localeIndex^ `]`)? `<` $da
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
 `locale` | vpux::VPUIP::MemoryLocationAttr | Values indicating which type of memory a tensor resides in
-`localeIndex` | ::mlir::IntegerAttr | 32-bit signless integer attribute
+`localeIndex` | ::mlir::ArrayAttr | 32-bit integer array attribute
 `dataIndex` | ::mlir::IntegerAttr | 64-bit signless integer attribute
 `sparsityIndex` | ::mlir::IntegerAttr | 64-bit signless integer attribute
 `storageElementIndex` | ::mlir::IntegerAttr | 64-bit signless integer attribute

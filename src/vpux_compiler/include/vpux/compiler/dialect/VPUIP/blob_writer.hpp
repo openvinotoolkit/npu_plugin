@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -76,12 +76,12 @@ public:
 
 public:
     TensorReference createTensor(StringRef name, mlir::MemRefType type, MemoryLocation locale,
-                                 Optional<uint32_t> localeIndex, uint64_t dataIndex,
+                                 ArrayRef<uint32_t> localeIndex, uint64_t dataIndex,
                                  Optional<uint64_t> sparsityIndex = None, Optional<uint64_t> storageElementIndex = None,
                                  Optional<uint32_t> storageElementSize = None, Optional<uint32_t> leadingOffset = None,
                                  Optional<uint32_t> trailingOffset = None, Optional<float> density_rate = None,
                                  Optional<uint8_t> swizzling_key = None);
-    TensorReference createTensor(mlir::Value val, StringRef name, MemoryLocation locale, Optional<uint32_t> localeIndex,
+    TensorReference createTensor(mlir::Value val, StringRef name, MemoryLocation locale, ArrayRef<uint32_t> localeIndex,
                                  uint64_t dataIndex, Optional<uint64_t> sparsityIndex = None,
                                  Optional<uint64_t> storageElementIndex = None,
                                  Optional<uint32_t> storageElementSize = None, Optional<uint32_t> leadingOffset = None,

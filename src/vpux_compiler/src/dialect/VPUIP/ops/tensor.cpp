@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -23,8 +23,7 @@ using namespace vpux;
 
 void vpux::VPUIP::DeclareTensorOp::build(mlir::OpBuilder& builder, ::mlir::OperationState& state, mlir::Type memory,
                                          VPUIP::MemoryLocation locale, uint64_t dataIndex) {
-    build(builder, state, memory, locale,
-          nullptr,  // localeIndex
+    build(builder, state, memory, locale, builder.getI32ArrayAttr(ArrayRef<int32_t>{0}),  // localeIndex
           dataIndex,
           nullptr,  // sparsityIndex
           nullptr,  // storageElementIndex
@@ -36,7 +35,8 @@ void vpux::VPUIP::DeclareTensorOp::build(mlir::OpBuilder& builder, ::mlir::Opera
 
 void vpux::VPUIP::DeclareTensorOp::build(mlir::OpBuilder& builder, ::mlir::OperationState& state, mlir::Type memory,
                                          VPUIP::MemoryLocation locale, uint32_t localeIndex, uint64_t dataIndex) {
-    build(builder, state, memory, locale, getInt32Attr(builder.getContext(), localeIndex), dataIndex,
+    build(builder, state, memory, locale, builder.getI32ArrayAttr(ArrayRef<int32_t>(static_cast<int32_t>(localeIndex))),
+          dataIndex,
           nullptr,  // sparsityIndex
           nullptr,  // storageElementIndex
           nullptr,  // storageElementSize
@@ -59,6 +59,47 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(DeclareTensorOp op) {
     // TODO: check other offsets
 
     return mlir::success();
+}
+
+mlir::ParseResult vpux::VPUIP::DeclareTensorOp::parseLocaleIndex(mlir::OpAsmParser& parser,
+                                                                 mlir::ArrayAttr& localeIndex) {
+    SmallVector<int32_t> indicies;
+    if (!parser.parseOptionalLSquare() && parser.parseOptionalRSquare()) {
+        for (;;) {
+            int32_t idx = 0;
+            if (parser.parseInteger(idx)) {
+                return mlir::failure();
+            }
+            indicies.emplace_back(idx);
+            if (!parser.parseOptionalComma()) {
+                continue;
+            }
+            if (parser.parseRSquare()) {
+                return mlir::failure();
+            }
+            break;
+        }
+    }
+    localeIndex = parser.getBuilder().getI32ArrayAttr(indicies);
+    return mlir::success();
+}
+
+void vpux::VPUIP::DeclareTensorOp::printLocaleIndex(mlir::OpAsmPrinter& printer, VPUIP::DeclareTensorOp&,
+                                                    mlir::ArrayAttr localeIndex) {
+    if (localeIndex.empty()) {
+        return;
+    }
+    printer << "[";
+    bool first = true;
+    for (auto idx : localeIndex) {
+        if (first) {
+            first = false;
+        } else {
+            printer << ", ";
+        }
+        printer.printAttributeWithoutType(idx);
+    }
+    printer << "] ";
 }
 
 //
