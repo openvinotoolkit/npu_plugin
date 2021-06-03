@@ -266,8 +266,13 @@ flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, Log
     SmallVector<VPUIP::BlobWriter::BinaryData> binaryData;
     SmallVector<VPUIP::BlobWriter::Barrier> virtBarriers;
 
+    uint32_t numBinaryBufs = 0;
+    netFunc.walk([&](VPUIP::DeclareConstantTensorOp op) {
+        numBinaryBufs = std::max(op.localeIndex() + 1, numBinaryBufs);
+    });
+    binaryData.resize(numBinaryBufs);
+
     size_t tempTensorInd = 0;
-    size_t constantTensorInd = 0;
     const auto callback = [&](mlir::Operation* op) {
         log.trace("Serialize Operation '{0}' at '{1}'", op->getName(), op->getLoc());
 
@@ -296,12 +301,10 @@ flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, Log
             const auto csramCacheable = constOp.csramCacheable();
 
             const auto binData = writer.createBinaryData(content, actualType, csramCacheable);
-            binaryData.push_back(binData);
+            binaryData[constOp.localeIndex()] = binData;
 
-            writer.createTensor(constOp.output(), llvm::formatv("constant-{0}", constantTensorInd).str(),
-                                VPUIP::MemoryLocation::GraphFile, checked_cast<uint32_t>(constantTensorInd), 0);
-
-            ++constantTensorInd;
+            writer.createTensor(constOp.output(), llvm::formatv("constant-{0}", constOp.localeIndex()).str(),
+                                MemoryLocation::GraphFile, constOp.localeIndex(), 0);
         } else if (auto barrierOp = mlir::dyn_cast<VPUIP::DeclareVirtualBarrierOp>(op)) {
             VPUX_THROW_UNLESS(VPUIP::bitEnumContains(graphOp.options(), VPUIP::ExecutionFlag::DynamicBarriers),
                               "Graph was not configured for virtual barriers usage");
@@ -329,6 +332,10 @@ flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, Log
         MVCNN::TaskListBuilder builder(writer);
         builder.add_content(serializedTaskList);
         taskLists.push_back(builder.Finish());
+    }
+
+    for (const auto& off : binaryData) {
+        VPUX_THROW_UNLESS(!off.IsNull(), "Binary data array was not serialized correctly");
     }
 
     const auto serializedTaskLists = writer.createVector(taskLists);

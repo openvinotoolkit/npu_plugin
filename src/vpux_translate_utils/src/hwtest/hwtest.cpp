@@ -1,5 +1,5 @@
 //
-// Copyright 2021 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -276,7 +276,7 @@ void buildSimpleZMajorConv(mlir::ModuleOp module, mlir::OpBuilder builder, Logge
 
     auto wt_data_vals = generateWeights(wt_data_shape, weightsType, builder.getContext());
     auto weight_data_ddr = funcbuilder.create<VPUIP::DeclareConstantTensorOp>(builder.getUnknownLoc(),
-                                                                              weightData_ddr_type, wt_data_vals);
+                                                                              weightData_ddr_type, wt_data_vals, 0);
 
     // weights cmx tensor
     auto wtData_cmx_memSpaceAttr =
@@ -322,7 +322,7 @@ void buildSimpleZMajorConv(mlir::ModuleOp module, mlir::OpBuilder builder, Logge
     auto wtTbl_data_values = makeArrayRef<int32_t>(wtTbl_data_values_vec);
     auto wtTbl_data_vals = mlir::DenseElementsAttr::get(wtTblData_ddr_valueType, wtTbl_data_values);
     auto weightTbl_data_ddr = funcbuilder.create<VPUIP::DeclareConstantTensorOp>(
-            builder.getUnknownLoc(), weightTblData_ddr_type, wtTbl_data_vals);
+            builder.getUnknownLoc(), weightTblData_ddr_type, wtTbl_data_vals, 1);
 
     // weights table cmx tensor
     auto wtTbl_cmx_memSpaceAttr =
