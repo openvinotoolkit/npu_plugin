@@ -115,7 +115,7 @@ func @main(%arg0: tensor<1x2x2x2xf16>) -> (tensor<1x2x2x2xf16>, tensor<1x2x2x2xf
     // CHECK-SAME:              waits([[VAR2]] : !VPUIP.Barrier)
     // CHECK-SAME:              updates([[VAR5]] : !VPUIP.Barrier)
 
-    // CHECK:   [[VAR7:%.*]] = VPUIP.ConfigureBarrier<0> -> !VPUIP.Barrier
+    // CHECK:   [[VAR7:%.*]] = VPUIP.ConfigureBarrier<2> -> !VPUIP.Barrier
     // CHECK:   [[VAR8:%.*]] = VPUIP.NNDMA
     // CHECK-SAME:              inputs([[VAR3]] : memref<1x2x2x2xf16, "DDR">)
     // CHECK-SAME:              outputs([[ARG1]] : memref<1x2x2x2xf16>)

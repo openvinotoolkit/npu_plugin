@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -24,9 +24,9 @@ using namespace vpux;
 
 namespace {
 
-const StringLiteral archAttrName = "VPUIP.arch";
-const StringLiteral derateFactorAttrName = "VPUIP.derateFactor";
-const StringLiteral bandwidthAttrName = "VPUIP.bandwidth";
+constexpr StringLiteral archAttrName = "VPUIP.arch";
+constexpr StringLiteral derateFactorAttrName = "VPUIP.derateFactor";
+constexpr StringLiteral bandwidthAttrName = "VPUIP.bandwidth";
 
 }  // namespace
 
@@ -42,24 +42,20 @@ void vpux::VPUIP::setArch(mlir::ModuleOp module, ArchKind kind) {
         mem->setAttr(bandwidthAttrName, getInt64Attr(module.getContext(), bandwidth));
     };
 
-    resources.addAvailableMemory(nullptr, 1_GB);
     // Size 192 found manually through experimentation. May be incorrect.
     addMem(VPUIP::PhysicalMemory::DDR, 192_MB, 0.6, 8);
+
+    if (kind == VPUIP::ArchKind::VPU3900) {
+        addMem(VPUIP::PhysicalMemory::CSRAM, 24_MB, 0.85, 64);
+    }
 
     // Run-time will use part of CMX to store DPU workload configuration.
     const Byte extraSpaceForWorkload = 128_KB;
 
-    switch (kind) {
-    case VPUIP::ArchKind::VPU3720:
-        // No cmx upa in vpu 2.7
+    if (kind == VPUIP::ArchKind::VPU3720) {
         addMem(VPUIP::PhysicalMemory::CMX_NN, Byte(2_MB) - extraSpaceForWorkload, 1.0, 32);
-        break;
-    default:
-        addMem(VPUIP::PhysicalMemory::CMX_UPA, 4_MB, 0.85, 16);
+    } else {
         addMem(VPUIP::PhysicalMemory::CMX_NN, Byte(1_MB) - extraSpaceForWorkload, 1.0, 32);
-        if (kind == VPUIP::ArchKind::VPU3900) {
-            addMem(VPUIP::PhysicalMemory::CSRAM, 24_MB, 0.85, 64);
-        }
     }
 
     const auto getProcKind = [&](VPUIP::PhysicalProcessor kind) {
@@ -70,28 +66,28 @@ void vpux::VPUIP::setArch(mlir::ModuleOp module, ArchKind kind) {
         return VPUIP::DMAEngineAttr::get(module.getContext(), kind);
     };
 
-    vpux::IERT::ExecutorResourceOp nceCluster;
-    resources.addExecutor(getProcKind(PhysicalProcessor::Leon_RT), 1);
-    resources.addExecutor(getProcKind(PhysicalProcessor::Leon_NN), 1);
-    resources.addExecutor(getDmaKind(DMAEngine::DMA_UPA), 1);
+    IERT::ExecutorResourceOp nceCluster;
 
     switch (kind) {
     case VPUIP::ArchKind::VPU3720:
-        resources.addExecutor(getProcKind(PhysicalProcessor::SHAVE_NN), 1);
+        resources.addExecutor(getDmaKind(DMAEngine::DMA_NN), 2);
+
         nceCluster = resources.addExecutor(getProcKind(PhysicalProcessor::NCE_Cluster), 1, true);
         nceCluster.addSubExecutor(getProcKind(PhysicalProcessor::NCE_PerClusterDPU), 1);
-        resources.addExecutor(getDmaKind(DMAEngine::DMA_NN), 2);
+
         break;
+
     default:
-        resources.addExecutor(getProcKind(PhysicalProcessor::SHAVE_UPA), 16);
-        resources.addExecutor(getProcKind(PhysicalProcessor::SHAVE_NN), 20);
-        nceCluster = resources.addExecutor(getProcKind(PhysicalProcessor::NCE_Cluster), 4, true);
-        nceCluster.addSubExecutor(getProcKind(PhysicalProcessor::NCE_PerClusterDPU), 5);
         if (kind == VPUIP::ArchKind::VPU3900) {
             resources.addExecutor(getDmaKind(DMAEngine::DMA_NN), 2);
         } else {
             resources.addExecutor(getDmaKind(DMAEngine::DMA_NN), 1);
         }
+
+        resources.addExecutor(getProcKind(PhysicalProcessor::SHAVE_UPA), 16);
+
+        nceCluster = resources.addExecutor(getProcKind(PhysicalProcessor::NCE_Cluster), 4, true);
+        nceCluster.addSubExecutor(getProcKind(PhysicalProcessor::NCE_PerClusterDPU), 5);
     }
 }
 

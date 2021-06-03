@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -20,8 +20,10 @@
 using namespace vpux;
 
 namespace {
+
 constexpr StringLiteral compilationModeAttrName = "VPUIP.compilationMode";
-};
+
+}  // namespace
 
 //
 // MemoryLocation utilities

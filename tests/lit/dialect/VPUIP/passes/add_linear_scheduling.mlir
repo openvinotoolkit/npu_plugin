@@ -38,7 +38,7 @@ func @main(%arg0: memref<1x1x1x1000xf16>, %arg1: memref<1x1x1x1000xf16>) -> memr
 
     %4 = VPUIP.DeclareTensor "VPU_DDR_Heap" <0> -> memref<1x1x1x1000xf16>
     %5 = VPUIP.UPADMA inputs(%3 : memref<1x1x1x1000xf16>) outputs(%4 : memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16>
-    // CHECK:       %[[B2:.*]] = VPUIP.ConfigureBarrier<0>
+    // CHECK:       %[[B2:.*]] = VPUIP.ConfigureBarrier<2>
     // CHECK-NEXT:  VPUIP.UPADMA
     // CHECK-SAME:      waits(%[[B1]] : !VPUIP.Barrier)
     // CHECK-SAME:      updates(%[[B2]] : !VPUIP.Barrier)
