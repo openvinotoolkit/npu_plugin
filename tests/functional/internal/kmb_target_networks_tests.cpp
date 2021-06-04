@@ -23,51 +23,6 @@
 //
 
 
-//
-// ResNet50 FP16 IRv10
-//
-// [Track number: S#48139]
-TEST_F(KmbClassifyNetworkTest, precommit_resnet_50_pytorch_dense_fp16_IRv10) {
-#ifndef __aarch64__
-    SKIP_INFER_ON("VPUX", "bad results");
-#endif
-    runTest(
-        TestNetworkDesc("KMB_models/FP16/resnet_50_pytorch/resnet-50-pytorch.xml")
-            .setUserInputLayout("input", Layout::NHWC)
-            .setUserInputPrecision("input", Precision::FP16)
-            .setUserOutputPrecision("output", Precision::FP16),
-        "224x224/cat3.bmp",
-        3, 0.05);
-}
-
-// [Track number: S#48139]
-TEST_F(KmbClassifyNetworkTest, precommit_resnet_50_pytorch_dense_fp16_IRv10_u8_input) {
-#ifndef __aarch64__
-    SKIP_INFER_ON("VPUX", "bad results");
-#endif
-    runTest(
-            TestNetworkDesc("KMB_models/FP16/resnet_50_pytorch/resnet-50-pytorch.xml")
-                    .setUserInputLayout("input", Layout::NHWC)
-                    .setUserInputPrecision("input", Precision::U8)
-                    .setUserOutputPrecision("output", Precision::FP16)
-                    .setCompileConfig({{"VPU_COMPILER_ALLOW_U8_INPUT_FOR_FP16_MODELS", "YES"}}),
-            "224x224/cat3.bmp",
-            3, 0.05);
-}
-
-// [Track number: S#48139]
-// [Track number: E#7736]
-TEST_F(KmbClassifyNetworkTest, precommit_mobilenet_v2_pytorch_dense_IRv10_fp16) {
-    SKIP_INFER_ON("VPUX", "bad results");
-    runTest(
-            TestNetworkDesc("KMB_models/FP16/MobileNet_v2_pytorch/mobilenet-v2_pytorch_dense_fp16_ww34.xml")
-                    .setUserInputPrecision("input", Precision::FP16)
-                    .setUserInputLayout("input", Layout::NHWC)
-                    .setUserOutputPrecision("output", Precision::FP16),
-            TestImageDesc("224x224/watch.bmp", ImageFormat::RGB),
-            3, 2.5f);
-}
-
 TEST_F(KmbStereoNetworkTest, precommit_INT8_Stereo_720p) {
     runTest(
             TestNetworkDesc("KMB_models/INT8/customnets/stereo/ngraph_stereo_720p.xml")
@@ -252,35 +207,6 @@ TEST_F(PersonAttrRecNetworkTest, precommit_person_attribute_recognitnion_crossro
             TestImageDesc("vpu/person-attributes-recognition-crossroad.jpg", ImageFormat::BGR), 0.07f);
 }
 
-// This test checks correctness of handling FP16 input in case of quantized model
-// for which inner network precision will be U8
-// [Track number: S#48139]
-TEST_F(KmbClassifyNetworkTest, precommit_mobilenet_v1_025_128_FP16) {
-#ifndef __aarch64__
-    SKIP_INFER_ON("VPUX", "bad results");
-#endif
-    runTest(
-            TestNetworkDesc("KMB_models/FP16-INT8/public/mobilenet-v1-0.25-128/mobilenet-v1-0.25-128.xml")
-                    .setUserInputPrecision("input", Precision::FP16),
-            TestImageDesc("224x224/cat3.bmp", ImageFormat::BGR),
-            1,
-            0.3f);
-}
-
-// [Track number: S#48139]
-TEST_F(KmbClassifyNetworkTest, precommit_mobilenet_v1_025_128_FP32) {
-#ifndef __aarch64__
-    SKIP_INFER_ON("VPUX", "bad results");
-#endif
-    runTest(
-            TestNetworkDesc("KMB_models/FP16-INT8/public/mobilenet-v1-0.25-128/mobilenet-v1-0.25-128.xml")
-                    .setUserInputPrecision("input", Precision::FP32),
-            TestImageDesc("224x224/cat3.bmp", ImageFormat::BGR),
-            1,
-            0.3f);
-}
-
-// [Track number: S#48139]
 TEST_F(KmbClassifyNetworkTest, precommit_aclnet_des_53_vpu) {
 #ifndef __aarch64__
     SKIP_INFER_ON("VPUX", "exception - load graph to device");
@@ -291,20 +217,6 @@ TEST_F(KmbClassifyNetworkTest, precommit_aclnet_des_53_vpu) {
             TestBinFileDesc("vpu/audio_16k/airplane_3_17-FP16.bin", {1, 1, 1, 16000}, Precision::FP16),
             1,
             0.3f);
-}
-
-// TODO: [Track number: E#9578]
-TEST_F(SmokeNetworkTest, precommit_yolo_v4_tf_full) {
-    if (isByPass()) {
-        SKIP() << "Skip for by-pass mode due to exception - couldn't load the graph into the device";
-    }
-#ifdef _WIN32
-    SKIP() << "SEH exception";
-#endif
-    runTest(
-            TestNetworkDesc("KMB_models/INT8/public/yolo_v4/yolo_v4_tf.xml")
-                    .setUserInputPrecision("input", Precision::U8)
-                    .setUserOutputPrecision("output", Precision::FP32));
 }
 
 TEST_F(KmbClassifyNetworkTest, precommit_shufflenet_v2_x1_0_pytorch) {
@@ -339,7 +251,6 @@ TEST_F(KmbDetectionNetworkTest, precommit_vehicle_license_plate_detection_barrie
             0.3f,
             0.25f, 0.3f);
 }
-
 
 //
 // General scope
@@ -429,18 +340,6 @@ class KmbClassifyNetworkTestWithSpecificLayout : public KmbClassifyNetworkTest, 
 
 INSTANTIATE_TEST_CASE_P(precommit, KmbClassifyNetworkTestWithSpecificLayout, ::testing::ValuesIn(inputLayout));
 
-TEST_F(KmbClassifyNetworkTest, squeezenet1_1_caffe2_force_compilation) {
-    runTest(
-        TestNetworkDesc("KMB_models/INT8/public/squeezenet1_1/squeezenet1_1_pytorch_caffe2_dense_int8_IRv10_from_fp32.xml")
-            .setUserInputPrecision("input", Precision::U8)
-            .setUserInputLayout("input", Layout::NHWC)
-            .setUserOutputPrecision("output", Precision::FP32)
-            .setUserOutputLayout("output", Layout::NHWC)
-            .enableForcedCompilation(),
-        TestImageDesc("227x227/cat3.bmp", ImageFormat::RGB),
-        1, 2.0f);
-}
-
 class KmbDetectionNetworkTestWithSpecificLayout : public KmbDetectionNetworkTest, public testing::WithParamInterface<InferenceEngine::Layout> {};
 
 // [Track number: E#11501]
@@ -492,16 +391,6 @@ TEST_F(KmbClassifyNetworkTest, DISABLED_vgg16_caffe_dense_int8_IRv10_fp16_to_int
             TestImageDesc("224x224/cat3.bmp", ImageFormat::RGB),
             1, 0.05f);
 }
-
-class SmokeNetworkTestWithSpecificLayout : public SmokeNetworkTest, public testing::WithParamInterface<InferenceEngine::Layout> {};
-TEST_P(SmokeNetworkTestWithSpecificLayout, openpose_pose_cf) {
-    runTest(
-        TestNetworkDesc("KMB_models/INT8/public/OpenPose/FP16-INT8/openpose-pose_cf_ww22.xml")
-            .setUserInputPrecision("image", Precision::U8)
-            .setUserInputLayout("image", GetParam())
-            .setUserOutputPrecision("output", Precision::FP32));
-}
-INSTANTIATE_TEST_CASE_P(precommit, SmokeNetworkTestWithSpecificLayout, ::testing::ValuesIn(inputLayout));
 
 // [Track number: E#12913]
 TEST_F(KmbDetectionNetworkTest, face_detection_adas_0001) {
