@@ -228,18 +228,6 @@ TEST_F(ModelAdk, ModelE_ADK3) {
             0.0025f);
 }
 
-// [Track number: S#47419]
-TEST_F(ModelAdk, precommit_DeBlur_ADK3) {
-    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "bad results");
-    runTest(
-            TestNetworkDesc("ADK3/DeBlur_INT8/DeBlur_deepImageDeblur.xml", EXPERIMENTAL)
-                    .setUserInputPrecision("input", Precision::U8)
-                    .setUserOutputPrecision("output", Precision::FP16)
-                    .setCompileConfig({{"VPUX_THROUGHPUT_STREAMS", "1"}}),
-            TestImageDesc("224x224/cat3.bmp", ImageFormat::BGR),
-            0.0025f);
-}
-
 // [Track number: EISW-10831]
 TEST_F(ModelAdk, DISABLED_DeBlur_AA_BDK2) {
     SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "bad results");
