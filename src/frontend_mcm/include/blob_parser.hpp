@@ -22,18 +22,21 @@
 
 namespace vpu {
 namespace MCMAdapter {
+
+using graphTensors = flatbuffers::Vector<flatbuffers::Offset<MVCNN::TensorReference>>;
+
 /**
  * @brief Get IE network inputs from graph blob
- * @param graphFileInstance The struct with graph blob data
+ * @param header The inputs of the graph blob struct
  * @return Network inputs in IE format
  */
-InferenceEngine::InputsDataMap getNetworkInputs(const MVCNN::GraphFileT& graphFileInstance);
+InferenceEngine::InputsDataMap getNetworkInputs(const graphTensors& inputs);
 
 /**
  * @brief Get IE network outputs from graph blob
- * @param graphFileInstance The struct with graph blob data
+ * @param header The outputs of the graph blob struct
  * @return Network outputs in IE format
  */
-InferenceEngine::OutputsDataMap getNetworkOutputs(const MVCNN::GraphFileT& graphFileInstance);
+InferenceEngine::OutputsDataMap getNetworkOutputs(const graphTensors& outputs);
 }  // namespace MCMAdapter
 }  // namespace vpu

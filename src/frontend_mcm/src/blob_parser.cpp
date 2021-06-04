@@ -77,13 +77,16 @@ static InferenceEngine::Layout extractLayoutFromStrides(const std::vector<float>
     return tensorLayout;
 }
 
-static InferenceEngine::Data deserializeTensor(const std::unique_ptr<MVCNN::TensorReferenceT>& tensor) {
-    auto dimsPtr = tensor->dimensions;
+static InferenceEngine::Data deserializeTensor(const MVCNN::TensorReference& tensor) {
+    IE_ASSERT(tensor.dimensions() != nullptr);
+    IE_ASSERT(tensor.strides() != nullptr);
     InferenceEngine::SizeVector dataDims;
-    std::copy(tensor->dimensions.begin(), tensor->dimensions.end(), std::back_inserter(dataDims));
+    std::copy(tensor.dimensions()->cbegin(), tensor.dimensions()->cend(), std::back_inserter(dataDims));
 
-    InferenceEngine::Layout dataLayout = extractLayoutFromStrides(tensor->strides);
-    InferenceEngine::Precision dataPrecision = MvcnnDTypeToPrecision(tensor->data_dtype);
+    std::vector<float> tensorOrder;
+    std::copy(tensor.strides()->cbegin(), tensor.strides()->cend(), std::back_inserter(tensorOrder));
+    const auto dataLayout = extractLayoutFromStrides(tensorOrder);
+    const auto dataPrecision = MvcnnDTypeToPrecision(tensor.data_dtype());
 
     InferenceEngine::TensorDesc ieDesc(dataPrecision, dataDims, dataLayout);
 
@@ -98,7 +101,7 @@ static InferenceEngine::Data deserializeTensor(const std::unique_ptr<MVCNN::Tens
         }
     };
 
-    std::string name = tensor->name;
+    std::string name = tensor.name()->str();
     // FIXME: For some reason, the compiler adds Precision prefix for all its outputs
     // remove once it fixed
     eraseSubStr(name, "Precision");
@@ -110,11 +113,10 @@ static InferenceEngine::Data deserializeTensor(const std::unique_ptr<MVCNN::Tens
     return ieData;
 }
 
-InferenceEngine::InputsDataMap getNetworkInputs(const MVCNN::GraphFileT& graphFileInstance) {
+InferenceEngine::InputsDataMap getNetworkInputs(const graphTensors& inputs) {
     InferenceEngine::InputsDataMap networkInputs;
-    const auto& inputs = graphFileInstance.header->net_input;
 
-    auto processTensor = [&](const std::unique_ptr<MVCNN::TensorReferenceT>& tensor) {
+    auto processTensor = [&](const MVCNN::TensorReference& tensor) {
         InferenceEngine::Data ieData = deserializeTensor(tensor);
 
         InferenceEngine::InputInfo inputInfo;
@@ -123,22 +125,24 @@ InferenceEngine::InputsDataMap getNetworkInputs(const MVCNN::GraphFileT& graphFi
     };
 
     for (const auto& tensor : inputs) {
-        processTensor(tensor);
+        IE_ASSERT(tensor != nullptr);
+        processTensor(*tensor);
     }
 
     return networkInputs;
 }
 
-InferenceEngine::OutputsDataMap getNetworkOutputs(const MVCNN::GraphFileT& graphFileInstance) {
+InferenceEngine::OutputsDataMap getNetworkOutputs(const graphTensors& outputs) {
     InferenceEngine::OutputsDataMap networkOutputs;
-    const auto& outputs = graphFileInstance.header->net_output;
-    auto processTensor = [&](const std::unique_ptr<MVCNN::TensorReferenceT>& tensor) {
+
+    auto processTensor = [&](const MVCNN::TensorReference& tensor) {
         InferenceEngine::Data ieData = deserializeTensor(tensor);
         networkOutputs[ieData.getName()] = std::make_shared<InferenceEngine::Data>(ieData);
     };
 
     for (const auto& tensor : outputs) {
-        processTensor(tensor);
+        IE_ASSERT(tensor != nullptr);
+        processTensor(*tensor);
     }
 
     return networkOutputs;
