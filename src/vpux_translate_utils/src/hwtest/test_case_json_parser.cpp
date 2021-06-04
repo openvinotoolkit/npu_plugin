@@ -293,6 +293,9 @@ bool nb::TestCaseJsonDescriptor::parse(llvm::StringRef jsonString) {
     }
 
     llvm::Expected<llvm::json::Value> exp = llvm::json::parse(jsonString);
+    if (!exp) {
+        return false;
+    }
 
     auto* json_obj = exp->getAsObject();
     if (!json_obj) {
