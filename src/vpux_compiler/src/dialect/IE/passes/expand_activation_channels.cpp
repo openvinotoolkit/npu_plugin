@@ -79,15 +79,13 @@ mlir::LogicalResult generalRewrite(mlir::Operation* layer, mlir::PatternRewriter
     }
     auto padsBegin = getInt32ArrayAttr(ctx, mlir::SmallVector<uint32_t>(checked_cast<size_t>(inputType.getRank()), 0));
     auto padsEnd = getInt32ArrayAttr(ctx, inPadsEndArrayShape);
-    auto padValue = getFP32Attr(ctx, 0);
 
     mlir::Value paddedInput;
     if (inPadsEndArrayShape[C] == 0) {
         // use original input directly, padding is not required
         paddedInput = layer->getOperand(0);
     } else {
-        paddedInput = rewriter.create<IE::PadOp>(layer->getLoc(), layer->getOperand(0), nullptr, nullptr, nullptr,
-                                                 padsBegin, padsEnd, padValue, IE::PadMode::CONSTANT);
+        paddedInput = rewriter.create<IE::ExpandOp>(layer->getLoc(), layer->getOperand(0), padsBegin, padsEnd);
     }
     auto newOp = opCreator(paddedInput, checked_cast<int32_t>(outPadsEndArrayShape[C]));
     if (newOp == nullptr) {
@@ -298,7 +296,7 @@ void ExpandActivationChannels::safeRunOnFunc() {
     target.addLegalOp<mlir::SubTensorOp>();
     target.addLegalOp<IE::ConstantOp>();
     target.addLegalOp<IE::ConcatOp>();
-    target.addLegalOp<IE::PadOp>();
+    target.addLegalOp<IE::ExpandOp>();
 
     mlir::RewritePatternSet patterns(&ctx);
     patterns.insert<MaxPoolRewriter>(&ctx, _log);

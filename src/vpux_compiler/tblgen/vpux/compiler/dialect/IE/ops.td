@@ -1610,4 +1610,26 @@ def IE_PadOp :
 
     let hasCanonicalizer = 1;
 }
+
+//
+// ExpandOp
+//
+
+def IE_ExpandOp :
+        IE_LayerOp<
+            "Expand"
+        > {
+    let summary = "Expand tensor with uninitialized values";
+
+    let arguments = (ins
+        AnyRankedTensor:$input,
+
+        I32ArrayAttr:$pads_begin_attr,
+        I32ArrayAttr:$pads_end_attr
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+}
 #endif
