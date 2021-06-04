@@ -46,6 +46,7 @@ public:
     class SplitRewrite;
     class ConcatRewrite;
     class SubtensorRewrite;
+    class ExpandRewrite;
     class LayerRewrite;
 
 public:
@@ -313,6 +314,48 @@ mlir::LogicalResult BufferizeIEPass::SubtensorRewrite::matchAndRewrite(
     auto copyOp = rewriter.create<IERT::CopyOp>(origOp->getLoc(), subView, allocatedBuf[0]);
 
     rewriter.replaceOp(origOp, {copyOp});
+    return mlir::success();
+}
+
+//
+// ExpandRewrite
+//
+
+class BufferizeIEPass::ExpandRewrite final : public mlir::OpConversionPattern<IE::ExpandOp> {
+public:
+    ExpandRewrite(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
+            : mlir::OpConversionPattern<IE::ExpandOp>(typeConverter, ctx), _log(log) {
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(IE::ExpandOp origOp, ArrayRef<mlir::Value> newOperands,
+                                        mlir::ConversionPatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult BufferizeIEPass::ExpandRewrite::matchAndRewrite(IE::ExpandOp origOp,
+                                                                    ArrayRef<mlir::Value> newOperands,
+                                                                    mlir::ConversionPatternRewriter& rewriter) const {
+    _log.trace("Found Expand Operation '{0}'", origOp->getLoc());
+    auto* typeConverter = getTypeConverter();
+    VPUX_THROW_UNLESS(typeConverter != nullptr, "ExpandRewrite: failed to get type converter");
+
+    auto expandedBuffer = allocateResults(origOp->getLoc(), rewriter, *typeConverter, origOp.output());
+    const auto inputType = newOperands[0].getType().cast<mlir::ShapedType>();
+
+    const SmallVector<int64_t> subOffsets = parseIntArrayAttr(origOp.pads_begin_attr());
+    const auto subShape = inputType.getShape();
+    const SmallVector<int64_t> subDilations(subShape.size(), 1);
+    auto subView = rewriter.create<mlir::memref::SubViewOp>(origOp.getLoc(), expandedBuffer[0], subOffsets, subShape,
+                                                            subDilations);
+    auto subViewCopy = rewriter.create<IERT::CopyOp>(origOp->getLoc(), newOperands[0], subView);
+
+    SmallVector<mlir::Value> concatInputs;
+    concatInputs.push_back(subViewCopy.output());
+    rewriter.replaceOpWithNewOp<IERT::ConcatViewOp>(origOp, concatInputs, expandedBuffer[0]);
+
     return mlir::success();
 }
 
@@ -684,6 +727,7 @@ void BufferizeIEPass::safeRunOnFunc() {
     patterns.insert<ConcatRewrite>(typeConverter, &ctx, _log);
     patterns.insert<LayerRewrite>(typeConverter, &ctx, _log);
     patterns.insert<SubtensorRewrite>(typeConverter, &ctx, _log);
+    patterns.insert<ExpandRewrite>(typeConverter, &ctx, _log);
 
     auto func = getFunction();
     if (mlir::failed(mlir::applyPartialConversion(func, target, std::move(patterns)))) {
