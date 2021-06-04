@@ -23,29 +23,30 @@ IE.CNNNetwork
     }
 
 // CHECK:       func @main(
-// CHECK-SAME:      [[ARG0:%.*]]: memref<1x1x1x1000xf16>,
-// CHECK-SAME:      [[ARG1:%.*]]: memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16> {
+// CHECK-SAME:      [[ARG0:%.+]]: memref<1x1x1x1000xf16>,
+// CHECK-SAME:      [[ARG1:%.+]]: memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16> {
 func @main(%arg0: tensor<1x1000xf16>) -> tensor<1x1000xf16> {
     %0 = IE.SoftMax(%arg0) {axisInd = 1 : i32} : tensor<1x1000xf16> -> tensor<1x1000xf16>
     return %0 : tensor<1x1000xf16>
 
-    // CHECK:       [[VAR0:%.*]] = VPUIP.DeclareTensor "ProgrammableInput" [0] <0> -> memref<1x1000xf16>
+    // CHECK-DAG:   [[VAR0:%.+]] = VPUIP.DeclareTensor "ProgrammableInput" [0] <0> -> memref<1x1000xf16>
+    // CHECK-DAG:   [[VAR1:%.+]] = VPUIP.DeclareTensor "VPU_DDR_Heap" [0] <0> -> memref<1x1000xf16, "DDR">
+    // CHECK-DAG:   [[VAR2:%.+]] = VPUIP.ConfigureBarrier<0> -> !VPUIP.Barrier
 
-    // CHECK:       [[VAR1:%.*]] = VPUIP.DeclareTensor "VPU_DDR_Heap" [0] <0> -> memref<1x1000xf16, "DDR">
-    // CHECK:       [[VAR2:%.*]] = VPUIP.ConfigureBarrier<0> -> !VPUIP.Barrier
-    // CHECK:       [[VAR3:%.*]] = VPUIP.SoftMaxUPA
+    // CHECK-NEXT:  [[VAR3:%.+]] = VPUIP.SoftMaxUPA
     // CHECK-SAME:              axisInd = 1
     // CHECK-SAME:              inputs([[VAR0]] : memref<1x1000xf16>)
     // CHECK-SAME:              outputs([[VAR1]] : memref<1x1000xf16, "DDR">)
     // CHECK-SAME:              updates([[VAR2]] : !VPUIP.Barrier)
 
-    // CHECK:       [[VAR4:%.*]] = VPUIP.DeclareTensor "VPU_DDR_Heap" [0] <0> -> memref<1x1x1x1000xf16, "DDR">
-    // CHECK:       [[VAR5:%.*]] = VPUIP.NNDMA
+    // CHECK-NEXT:  [[VAR4:%.+]] = VPUIP.DeclareTensor "VPU_DDR_Heap" [0] <0> -> memref<1x1x1x1000xf16, "DDR">
+
+    // CHECK-NEXT:  [[VAR5:%.+]] = VPUIP.NNDMA
     // CHECK-SAME:              inputs([[VAR4]] : memref<1x1x1x1000xf16, "DDR">)
     // CHECK-SAME:              outputs([[ARG1]] : memref<1x1x1x1000xf16>)
     // CHECK-SAME:              waits([[VAR2]] : !VPUIP.Barrier)
 
-    // CHECK: return [[VAR5]] : memref<1x1x1x1000xf16>
+    // CHECK-NEXT:  return [[VAR5]] : memref<1x1x1x1000xf16>
 }
 
 }
@@ -74,8 +75,8 @@ IE.CNNNetwork
     }
 
 // CHECK:       func @main(
-// CHECK-SAME:      [[ARG0:%.*]]: memref<1x2x2x2xf16>, [[ARG1:%.*]]: memref<1x2x2x2xf16>,
-// CHECK-SAME:      [[ARG2:%.*]]: memref<1x2x2x2xf16>) -> (memref<1x2x2x2xf16>, memref<1x2x2x2xf16>) {
+// CHECK-SAME:      [[ARG0:%.+]]: memref<1x2x2x2xf16>, [[ARG1:%.+]]: memref<1x2x2x2xf16>,
+// CHECK-SAME:      [[ARG2:%.+]]: memref<1x2x2x2xf16>) -> (memref<1x2x2x2xf16>, memref<1x2x2x2xf16>) {
 func @main(%arg0: tensor<1x2x2x2xf16>) -> (tensor<1x2x2x2xf16>, tensor<1x2x2x2xf16>) {
     %cst = IE.Constant tensor<1x2x2x2xf16> =
         dense<[
@@ -96,38 +97,40 @@ func @main(%arg0: tensor<1x2x2x2xf16>) -> (tensor<1x2x2x2xf16>, tensor<1x2x2x2xf
 
     return %0, %1 : tensor<1x2x2x2xf16>, tensor<1x2x2x2xf16>
 
-    // CHECK:   [[VAR0:%.*]] = VPUIP.DeclareConstantTensor[0]
-    // CHECK-SAME:              memref<1x2x2x2xf16>
-    // CHECK:   [[VAR1:%.*]] = VPUIP.DeclareTensor "VPU_DDR_Heap" [0] <0> -> memref<1x2x2x2xf16, "DDR">
-    // CHECK:   [[VAR2:%.*]] = VPUIP.ConfigureBarrier<0> -> !VPUIP.Barrier
-    // CHECK:   [[VAR3:%.*]] = VPUIP.SoftMaxUPA
+    // CHECK-DAG:   [[CST:%.+]] = VPUIP.DeclareConstantTensor[0]
+    // CHECK-DAG:   [[BUF0:%.+]] = VPUIP.DeclareTensor "VPU_DDR_Heap" [0] <0> -> memref<1x2x2x2xf16, "DDR">
+    // CHECK-DAG:   [[BAR0:%.+]] = VPUIP.ConfigureBarrier<0> -> !VPUIP.Barrier
+
+    // CHECK-NEXT:  [[VAR0:%.+]] = VPUIP.SoftMaxUPA
     // CHECK-SAME:              axisInd = 1
     // CHECK-SAME:              inputs([[ARG0]] : memref<1x2x2x2xf16>)
-    // CHECK-SAME:              outputs([[VAR1]] : memref<1x2x2x2xf16, "DDR">)
-    // CHECK-SAME:              updates([[VAR2]] : !VPUIP.Barrier)
+    // CHECK-SAME:              outputs([[BUF0]] : memref<1x2x2x2xf16, "DDR">)
+    // CHECK-SAME:              updates([[BAR0]] : !VPUIP.Barrier)
 
-    // CHECK:   [[VAR4:%.*]] = VPUIP.DeclareTensor "VPU_DDR_Heap" [0] <64> -> memref<1x2x2x2xf16, "DDR">
-    // CHECK:   [[VAR5:%.*]] = VPUIP.ConfigureBarrier<1> -> !VPUIP.Barrier
-    // CHECK:   [[VAR6:%.*]] = VPUIP.SoftMaxUPA
+    // CHECK-DAG:   [[BUF1:%.+]] = VPUIP.DeclareTensor "VPU_DDR_Heap" [0] <64> -> memref<1x2x2x2xf16, "DDR">
+    // CHECK-DAG:   [[BAR1:%.+]] = VPUIP.ConfigureBarrier<1> -> !VPUIP.Barrier
+
+    // CHECK-NEXT:  [[VAR1:%.+]] = VPUIP.SoftMaxUPA
     // CHECK-SAME:              axisInd = 1
-    // CHECK-SAME:              inputs([[VAR0]] : memref<1x2x2x2xf16>)
-    // CHECK-SAME:              outputs([[VAR4]] : memref<1x2x2x2xf16, "DDR">)
-    // CHECK-SAME:              waits([[VAR2]] : !VPUIP.Barrier)
-    // CHECK-SAME:              updates([[VAR5]] : !VPUIP.Barrier)
+    // CHECK-SAME:              inputs([[CST]] : memref<1x2x2x2xf16>)
+    // CHECK-SAME:              outputs([[BUF1]] : memref<1x2x2x2xf16, "DDR">)
+    // CHECK-SAME:              waits([[BAR0]] : !VPUIP.Barrier)
+    // CHECK-SAME:              updates([[BAR1]] : !VPUIP.Barrier)
 
-    // CHECK:   [[VAR7:%.*]] = VPUIP.ConfigureBarrier<2> -> !VPUIP.Barrier
-    // CHECK:   [[VAR8:%.*]] = VPUIP.NNDMA
-    // CHECK-SAME:              inputs([[VAR3]] : memref<1x2x2x2xf16, "DDR">)
+    // CHECK-NEXT:  [[BAR2:%.+]] = VPUIP.ConfigureBarrier<2> -> !VPUIP.Barrier
+
+    // CHECK-NEXT:  [[VAR2:%.+]] = VPUIP.NNDMA
+    // CHECK-SAME:              inputs([[VAR0]] : memref<1x2x2x2xf16, "DDR">)
     // CHECK-SAME:              outputs([[ARG1]] : memref<1x2x2x2xf16>)
-    // CHECK-SAME:              waits([[VAR5]] : !VPUIP.Barrier)
-    // CHECK-SAME:              updates([[VAR7]] : !VPUIP.Barrier)
+    // CHECK-SAME:              waits([[BAR1]] : !VPUIP.Barrier)
+    // CHECK-SAME:              updates([[BAR2]] : !VPUIP.Barrier)
 
-    // CHECK:   [[VAR9:%.*]] = VPUIP.NNDMA
-    // CHECK-SAME:              inputs([[VAR6]] : memref<1x2x2x2xf16, "DDR">)
+    // CHECK-NEXT:  [[VAR3:%.+]] = VPUIP.NNDMA
+    // CHECK-SAME:              inputs([[VAR1]] : memref<1x2x2x2xf16, "DDR">)
     // CHECK-SAME:              outputs([[ARG2]] : memref<1x2x2x2xf16>)
-    // CHECK-SAME:              waits([[VAR7]] : !VPUIP.Barrier)
+    // CHECK-SAME:              waits([[BAR2]] : !VPUIP.Barrier)
 
-    // CHECK:   return [[VAR8]], [[VAR9]] : memref<1x2x2x2xf16>, memref<1x2x2x2xf16>
+    // CHECK-NEXT:  return [[VAR2]], [[VAR3]] : memref<1x2x2x2xf16>, memref<1x2x2x2xf16>
 }
 
 }
@@ -149,7 +152,7 @@ IE.CNNNetwork
     }
 
 // CHECK:       func @main(
-// CHECK-SAME:      %[[ARG:.*]]: memref<1x2x4x2xf16>) -> memref<1x2x4x2xf16> {
+// CHECK-SAME:      [[ARG:%.+]]: memref<1x2x4x2xf16>) -> memref<1x2x4x2xf16> {
 func @main() -> tensor<1x2x4x2xf16> {
     %0 = IE.Constant tensor<1x2x4x2xf16> =
         dense<[[
@@ -171,14 +174,13 @@ func @main() -> tensor<1x2x4x2xf16> {
 
     return %prob : tensor<1x2x4x2xf16>
 
-    // CHECK:       %[[CST:.*]] = VPUIP.DeclareConstantTensor[0]
-    // CHECK-SAME:      memref<1x2x4x2xf16>
+    // CHECK:       [[CST:%.+]] = VPUIP.DeclareConstantTensor[0]
 
-    // CHECK:       [[VAR0:%.*]] = VPUIP.NNDMA
-    // CHECK-SAME:      inputs(%[[CST]] : memref<1x2x4x2xf16>)
-    // CHECK-SAME:      outputs(%[[ARG]] : memref<1x2x4x2xf16>)
+    // CHECK-NEXT:  [[VAR0:%.+]] = VPUIP.NNDMA
+    // CHECK-SAME:      inputs([[CST]] : memref<1x2x4x2xf16>)
+    // CHECK-SAME:      outputs([[ARG]] : memref<1x2x4x2xf16>)
 
-    // CHECK: return [[VAR0]] : memref<1x2x4x2xf16>
+    // CHECK-NEXT:  return [[VAR0]] : memref<1x2x4x2xf16>
 }
 
 }
