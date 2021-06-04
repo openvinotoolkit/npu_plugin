@@ -31,10 +31,10 @@ bool isMCMCompilerAvailable();
 
 /**
  * @brief Deserialization meta data from graph blob
- * @param graphFileInstance The struct with graph blob data
+ * @param header The header of the graph blob struct
  * @param config Compiler config
  * @return Meta data from graph blob (network name, IE inputs/outputs)
  */
-MetaInfo deserializeMetaData(const MVCNN::GraphFileT& graphFileInstance, const MCMConfig& config);
+MetaInfo deserializeMetaData(const MVCNN::SummaryHeader& header, const MCMConfig& config);
 }  // namespace MCMAdapter
 }  // namespace vpu

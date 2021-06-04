@@ -29,7 +29,9 @@ public:
     InferenceEngine::OutputsDataMap networkOutputs;
 
     std::string blobContentString;
-    MVCNN::GraphFileT graphFileInstance;
+    MVCNN::SummaryHeader* graphHeader = nullptr;
+    MCMAdapter::graphTensors* graphInputs = nullptr;
+    MCMAdapter::graphTensors* graphOutputs = nullptr;
 
 protected:
     void SetUp() override;
@@ -48,20 +50,25 @@ void BlobParser_Tests::SetUp() {
     blobContentString = blobContentStream.str();
 
     const auto* graphFilePtr = MVCNN::GetGraphFile(blobContentString.c_str());
-    graphFilePtr->UnPackTo(&graphFileInstance);
+    graphHeader = const_cast<MVCNN::SummaryHeader*>(graphFilePtr->header());
+    ASSERT_NE(graphHeader, nullptr);
+    graphInputs = const_cast<MCMAdapter::graphTensors*>(graphHeader->net_input());
+    ASSERT_NE(graphInputs, nullptr);
+    graphOutputs = const_cast<MCMAdapter::graphTensors*>(graphHeader->net_output());
+    ASSERT_NE(graphOutputs, nullptr);
 }
 
 TEST_F(BlobParser_Tests, CanParseBlob) {
-    ASSERT_NO_THROW(networkInputs = MCMAdapter::getNetworkInputs(graphFileInstance));
-    ASSERT_NO_THROW(networkOutputs = MCMAdapter::getNetworkOutputs(graphFileInstance));
+    ASSERT_NO_THROW(networkInputs = MCMAdapter::getNetworkInputs(*graphInputs));
+    ASSERT_NO_THROW(networkOutputs = MCMAdapter::getNetworkOutputs(*graphOutputs));
 }
 
 TEST_F(BlobParser_Tests, CanGetInputsOutputsDimensions) {
     InferenceEngine::SizeVector expectedInput = {1, 3, 224, 224};
     InferenceEngine::SizeVector expectedOutput = {1, 1000, 1, 1};
 
-    ASSERT_NO_THROW(networkInputs = MCMAdapter::getNetworkInputs(graphFileInstance));
-    ASSERT_NO_THROW(networkOutputs = MCMAdapter::getNetworkOutputs(graphFileInstance));
+    ASSERT_NO_THROW(networkInputs = MCMAdapter::getNetworkInputs(*graphInputs));
+    ASSERT_NO_THROW(networkOutputs = MCMAdapter::getNetworkOutputs(*graphOutputs));
 
     for (const auto& networkInput : networkInputs) {
         InferenceEngine::SizeVector input = networkInput.second->getTensorDesc().getDims();
@@ -77,8 +84,8 @@ TEST_F(BlobParser_Tests, CanGetInputsOutputsNames) {
     std::string expectedInputName = "data";
     std::string expectedOutputName = "Output_0";
 
-    ASSERT_NO_THROW(networkInputs = MCMAdapter::getNetworkInputs(graphFileInstance));
-    ASSERT_NO_THROW(networkOutputs = MCMAdapter::getNetworkOutputs(graphFileInstance));
+    ASSERT_NO_THROW(networkInputs = MCMAdapter::getNetworkInputs(*graphInputs));
+    ASSERT_NO_THROW(networkOutputs = MCMAdapter::getNetworkOutputs(*graphOutputs));
 
     for (const auto& networkInput : networkInputs) {
         auto input = networkInput.first;

@@ -45,10 +45,11 @@ MCMNetworkDescription::MCMNetworkDescription(const std::vector<char>& compiledNe
           _logger(std::make_shared<vpu::Logger>("MCMNetworkDescription", config.logLevel(), consoleOutput())) {
     IE_ASSERT(compiledNetwork.data() != nullptr);
 
-    MVCNN::GraphFileT graphFileInstance;
     const auto* graphFilePtr = MVCNN::GetGraphFile(compiledNetwork.data());
-    graphFilePtr->UnPackTo(&graphFileInstance);
-    const auto metaInfo = MCMAdapter::deserializeMetaData(graphFileInstance, config);
+    IE_ASSERT(graphFilePtr != nullptr);
+    const auto graphHeader = graphFilePtr->header();
+    IE_ASSERT(graphHeader != nullptr);
+    const auto metaInfo = MCMAdapter::deserializeMetaData(*graphHeader, config);
     const ie::InputsDataMap& deserializedInputs = metaInfo._inputs;
     const ie::OutputsDataMap& deserializedOutputs = metaInfo._outputs;
     const std::string& networkName = metaInfo._networkName;
@@ -64,12 +65,16 @@ MCMNetworkDescription::MCMNetworkDescription(const std::vector<char>& compiledNe
     // the device in/outs proper names and to be able identify them.
     // It can be avoided if compiler does not change in/outs names, passed by a user
     // S#34832
-    const auto deviceInputs = MCMAdapter::getNetworkInputs(graphFileInstance);
+    const auto graphInputs = graphHeader->net_input();
+    IE_ASSERT(graphInputs != nullptr);
+    const auto deviceInputs = MCMAdapter::getNetworkInputs(*graphInputs);
     _deviceInputs = inputsDataMapToDataMap(deviceInputs);
     const auto inputsNames = extractKeys(deserializedInputs);
     _deviceInputs = createDeviceMapWithCorrectNames(_deviceInputs, inputsNames);
 
-    const auto deviceOutputs = MCMAdapter::getNetworkOutputs(graphFileInstance);
+    const auto graphOutputs = graphHeader->net_output();
+    IE_ASSERT(graphOutputs != nullptr);
+    const auto deviceOutputs = MCMAdapter::getNetworkOutputs(*graphOutputs);
     _deviceOutputs = outputsDataMapToDataMap(deviceOutputs);
     const auto outputsNames = extractKeys(deserializedOutputs);
     _deviceOutputs = createDeviceMapWithCorrectNames(_deviceOutputs, outputsNames);
