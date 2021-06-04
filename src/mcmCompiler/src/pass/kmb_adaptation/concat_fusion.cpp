@@ -372,6 +372,10 @@ void fuseSliceSliceFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
             slice_num++;
         }
 
+        // Skip removing noop first slice
+        if (!(first_slice_begin[0] || first_slice_begin[1] || first_slice_begin[2] || first_slice_begin[3]))
+            continue;
+
         // Remove first slice
         auto parentOutputTensor = sliceOp->getInputTensor(mv::IO_TENSOR_INPUT);
         auto parentOp = om.getSourceOp(parentOutputTensor);
