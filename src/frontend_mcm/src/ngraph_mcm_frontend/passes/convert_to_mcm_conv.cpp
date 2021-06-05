@@ -17,6 +17,7 @@
 #include "ngraph_mcm_frontend/ops/mcm_conv.hpp"
 #include "ngraph_mcm_frontend/ops/mcm_bias.hpp"
 #include <ngraph_ops/convolution_ie.hpp>
+#include <ngraph/rt_info.hpp>
 #include <memory>
 
 bool ConvertToMcmConv::run_on_node(std::shared_ptr<ngraph::Node> node) {
@@ -29,12 +30,14 @@ bool ConvertToMcmConv::run_on_node(std::shared_ptr<ngraph::Node> node) {
             conv->get_output_element_type(0));
 
         mcmConv->set_friendly_name(conv->get_friendly_name());
+        ngraph::copy_runtime_info(node, mcmConv);
 
         if (conv->get_input_size() == 2) {
             ngraph::replace_node(conv, mcmConv);
         } else {
             IE_ASSERT(conv->get_input_size() == 3);
             const auto mcmBias = std::make_shared<McmBias>(mcmConv, conv->input_value(2), conv->get_output_element_type(0));
+            ngraph::copy_runtime_info(node, mcmBias);
             ngraph::replace_node(conv, mcmBias);
         }
         return true;

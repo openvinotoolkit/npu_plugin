@@ -37,9 +37,20 @@ std::shared_ptr<vpux::INetworkDescription> MCMCompiler::compile(const std::share
     return std::make_shared<vpu::MCMAdapter::MCMNetworkDescription>(std::move(compiledNetwork), copy, netName);
 }
 
-InferenceEngine::QueryNetworkResult MCMCompiler::query(const InferenceEngine::CNNNetwork& /*network*/,
-                                                       const vpux::VPUXConfig& /*config*/) {
+InferenceEngine::QueryNetworkResult MCMCompiler::query(const InferenceEngine::CNNNetwork& network,
+                                                       const vpux::VPUXConfig& config) {
     InferenceEngine::QueryNetworkResult result;
+    const std::string plugin_name = "VPUX";
+
+    auto copy = _config;
+    copy.parseFrom(config);
+
+    auto supportedLayers = getSupportedLayers(network, copy);
+
+    for (auto&& layerName : *(supportedLayers.get())) {
+        result.supportedLayersMap.emplace(layerName, plugin_name);
+    }
+
     return result;
 }
 

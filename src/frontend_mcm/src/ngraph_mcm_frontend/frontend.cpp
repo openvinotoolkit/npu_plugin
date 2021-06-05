@@ -46,6 +46,7 @@
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pass/constant_folding.hpp>
 #include <ngraph/pass/visualize_tree.hpp>
+#include <transformations/init_node_info.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_interpolate_to_interp_or_resample.hpp>
@@ -290,23 +291,24 @@ std::unique_ptr<mv::CompilationUnit> createCompilationUnit(
 
 
 void applyTransformations(
-    const std::shared_ptr<ngraph::Function>& func,
+    const std::shared_ptr<ngraph::Function> func,
     std::unique_ptr<mv::CompilationUnit>& mcmCompiler,
     const ie::InputsDataMap& inputsInfo,
     const ie::OutputsDataMap& outputsInfo,
     const vpu::MCMConfig& config,
     std::shared_ptr<vpu::Logger> log,
-    const bool useCompiler
+    const bool useCompiler,
+    std::shared_ptr<std::unordered_set<std::string>> supported
     )
 {
     log->debug("Convert nGraph to MCM Model");
 
     bool needConvertInputPrecision = false;
 
-    auto& mcmModel = mcmCompiler->model();
     NodeOutputToMcmMap mcmOutputsMap;
 
     ngraph::pass::Manager passManager;
+    passManager.register_pass<ngraph::pass::InitNodeInfo>();
     passManager.register_pass<ngraph::pass::ConvertQuantizeDequantize>();
     passManager.register_pass<ngraph::pass::WeightsDequantizeToFakeQuantize>();
     passManager.register_pass<ngraph::pass::ConstantFolding>();
@@ -363,10 +365,10 @@ void applyTransformations(
     // passManager.register_pass<ngraph::pass::ConvertInterpolate1ToInterpolate4>();
 
     if (useCompiler) {
+        auto& mcmModel = mcmCompiler->model();
         passManager.register_pass<ConvertToMcmModel>(mcmModel, mcmOutputsMap, inputsInfo, outputsInfo, ioMap, config, &needConvertInputPrecision);
     } else {
-        // TODO QueryModel Pass
-        // passManager.register_pass<QueryModel>(mcmModel, mcmOutputsMap, inputsInfo, outputsInfo, ioMap, config, &needConvertInputPrecision,
+        passManager.register_pass<QueryModel>(supported);
     }
 
     const auto transformationsPredicate = [](const std::shared_ptr<const ngraph::Node>& node) -> bool {
@@ -409,7 +411,8 @@ std::unique_ptr<mv::CompilationUnit> compileNGraphIntoCompilationUnit(
     if (!mcmCompiler)
         return {};
 
-    applyTransformations(func, mcmCompiler, inputsInfo, outputsInfo, config, log, true);
+    std::shared_ptr<std::unordered_set<std::string>> supportedLayersStub;
+    applyTransformations(func, mcmCompiler, inputsInfo, outputsInfo, config, log, true, supportedLayersStub);
 
     //
     // Run MCM Compiler
@@ -445,18 +448,20 @@ std::unique_ptr<mv::CompilationUnit> compileNGraphIntoCompilationUnit(
     return mcmCompiler;
 }
 
-std::unordered_set<std::string> getSupportedLayers(
+std::shared_ptr<std::unordered_set<std::string>> getSupportedLayers(
         const InferenceEngine::CNNNetwork& network,
         const vpu::MCMConfig& config)
 {
-    std::unordered_set<std::string> supported;
+    std::shared_ptr<std::unordered_set<std::string>> supported = std::make_shared<std::unordered_set<std::string>>();
 
+    const auto ngraph_function = ngraph::clone_function(*(network.getFunction()));
     auto mcmCompiler = std::unique_ptr<mv::CompilationUnit>();
     ie::InputsDataMap inputsInfo = network.getInputsInfo();
     ie::OutputsDataMap outputsInfo = network.getOutputsInfo();
-    const auto ngraph_function = ngraph::clone_function(*(network.getFunction()));
     const auto log = std::make_shared<vpu::Logger>("VPUX nGraph Parser", config.logLevel(), vpu::consoleOutput());
-    applyTransformations(ngraph_function, mcmCompiler, inputsInfo, outputsInfo, config, log, false);
+
+    applyTransformations(ngraph_function, mcmCompiler, inputsInfo, outputsInfo, config, log, false, supported);
+
     return supported;
 }
 

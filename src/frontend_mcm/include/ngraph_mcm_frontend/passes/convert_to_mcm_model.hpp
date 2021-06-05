@@ -24,6 +24,7 @@
 #include <ngraph/pass/pass.hpp>
 
 #include "ngraph_mcm_frontend/mcm_helpers.hpp"
+#include "transformations/rt_info/fused_names_attribute.hpp"
 
 //
 // Convert nGraph Function to MCM OpModel.
@@ -59,4 +60,14 @@ private:
     std::map<std::string, std::string> _ioMap;
     vpu::MCMConfig _config;
     bool* _needConvertInputPrecision;
+};
+
+class QueryModel final : public ngraph::pass::FunctionPass {
+public:
+    QueryModel(std::shared_ptr<std::unordered_set<std::string>> supported): _supported(supported) {
+    }
+    bool run_on_function(std::shared_ptr<ngraph::Function> func) override;
+
+private:
+    std::shared_ptr<std::unordered_set<std::string>> _supported;
 };

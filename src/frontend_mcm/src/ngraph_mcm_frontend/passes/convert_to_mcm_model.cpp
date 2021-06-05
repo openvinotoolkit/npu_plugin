@@ -2188,6 +2188,34 @@ void ConvertToMcmModel::parseCustom(std::shared_ptr<ngraph::Node> node, mv::OpMo
     }
 }
 
+bool QueryModel::run_on_function(std::shared_ptr<ngraph::Function> func) {
+    std::unordered_set<std::string> unsupported;
+
+    for (const auto& op : func->get_ordered_ops()) {
+        const auto dispatchIt = dispatchMap.find(op->get_type_info());
+        if (dispatchIt != dispatchMap.end()) {
+            const auto convertor = dispatchIt->second;
+            for (auto&& fusedLayerName : ngraph::getFusedNamesVector(op)) {
+                if (convertor != nullptr) {
+                    _supported->emplace(fusedLayerName);
+                } else {
+                    unsupported.emplace(fusedLayerName);
+                }
+            }
+        } else {
+            for (auto&& fusedLayerName : ngraph::getFusedNamesVector(op)) {
+                unsupported.emplace(fusedLayerName);
+            }
+        }
+    }
+
+    for (auto&& unsupportedNode : unsupported) {
+        _supported->erase(unsupportedNode);
+    }
+
+    return true;
+}
+
 bool ConvertToMcmModel::run_on_function(std::shared_ptr<ngraph::Function> func) {
     // Ngraph representation and IE CNNNetwork may have inputs and outpus in different order.
     // MCM compiler processes inputs and outputs by add-to-model order, not by their name.
