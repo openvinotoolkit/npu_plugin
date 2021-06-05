@@ -55,7 +55,7 @@ std::vector<char> compileNGraph(
         const vpu::MCMConfig& config,
         std::string & errMsg);
 
-std::unordered_set<std::string> getSupportedLayers(
+std::shared_ptr<std::unordered_set<std::string>> getSupportedLayers(
         const InferenceEngine::CNNNetwork& func,
         const vpu::MCMConfig& config);
 

@@ -19,6 +19,7 @@
 #include "ngraph_mcm_frontend/ops/mcm_bias.hpp"
 
 #include <legacy/ngraph_ops/fully_connected.hpp>
+#include <ngraph/rt_info.hpp>
 #include <memory>
 
 bool ConvertToMcmFC::run_on_node(std::shared_ptr<ngraph::Node> node) {
@@ -28,12 +29,13 @@ bool ConvertToMcmFC::run_on_node(std::shared_ptr<ngraph::Node> node) {
             ngraphFC->input_value(1),
             ngraphFC->get_output_shape(0),
             ngraphFC->get_output_element_type(0));
-
+        ngraph::copy_runtime_info(node, mcmFC);
         if (ngraphFC->get_input_size() == 2) {
             ngraph::replace_node(ngraphFC, mcmFC);
         } else {
             IE_ASSERT(ngraphFC->get_input_size() == 3);
             const auto mcmBias = std::make_shared<McmBias>(mcmFC, ngraphFC->input_value(2), ngraphFC->get_output_element_type(0));
+            ngraph::copy_runtime_info(node, mcmBias);
             ngraph::replace_node(ngraphFC, mcmBias);
         }
         return true;
