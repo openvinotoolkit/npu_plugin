@@ -811,7 +811,7 @@ namespace mv {
     };
 
     static SplitSliceVariant splitSliceSymmetric(unsigned W, unsigned H, unsigned N,
-                                                 bool split_over_h, bool split_over_w, bool is_sparse, unsigned C)
+                                                 bool split_over_h, bool split_over_w)
     {
         SplitVariant best_variant = getBestSplitSymmetric(W, H, N, split_over_h, split_over_w);
         double& cost_estimate = best_variant.cost_estimate;
@@ -829,11 +829,6 @@ namespace mv {
 
         unsigned dx = std::ceil(static_cast<double>(W) / X);
         unsigned dy = std::ceil(static_cast<double>(H) / Y);
-
-        if (is_sparse && ((dy*dx*C)%128 != 0))
-        {
-            dy = std::ceil(static_cast<double>(dy)/8) * 8;
-        }
 
         SplitSliceList slice_list; // empty
         for (unsigned x=0; x * dx < W; x++)
@@ -1124,7 +1119,7 @@ int mv::Workloads::partitionTensorWithRectangleHeuristic(const mv::DPUModeList& 
                                                              + ", reduced_width="  + std::to_string(reduced_shape.W));
 
     SplitSliceVariant slicing_variant = splitSliceSymmetric(reduced_shape.W, reduced_shape.H, nWorkloads,
-                                                            split_over_h, split_over_w, isSparse_, C);
+                                                            split_over_h, split_over_w);
     if (!split_symmetric)
     {
         SplitSliceVariant slicing_variant_2 = splitSliceNonSymmetric(reduced_shape.W, reduced_shape.H, nWorkloads,
