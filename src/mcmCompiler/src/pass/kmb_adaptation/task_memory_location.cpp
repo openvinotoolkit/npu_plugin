@@ -226,6 +226,7 @@ void setDpuTasksMemoryLocationFcn(const mv::pass::PassEntry& , mv::ComputationMo
 void setUPATasksMemoryLocationFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     mv::OpModel om(model);
+    mv::DataModel dm(model);
 
     auto opIt = om.opBegin();
 
@@ -236,7 +237,7 @@ void setUPATasksMemoryLocationFcn(const mv::pass::PassEntry& , mv::ComputationMo
         if (opType == "UPATask")
         {
             auto taskOp = opIt->get<std::string>("taskOp");
-            if(taskOp == "Dummy")
+            if (taskOp == "Dummy")
             {
                 ++opIt;
                 continue;
@@ -244,31 +245,41 @@ void setUPATasksMemoryLocationFcn(const mv::pass::PassEntry& , mv::ComputationMo
 
             // Recursively search for non-implicit output op
             auto outputOp = opIt.leftmostOutput().sink();
-            while(outputOp->isImplicit())
+            bool hasMultipleConsumers = false;
+            while (outputOp->isImplicit())
             {
+                hasMultipleConsumers |= (mv::findSinkLayers(dm, outputOp->getOutputTensor(0)).size() > 1);
                 outputOp = outputOp.leftmostOutput().sink();
             }
-            //output of UPATask is ALWAYS in DDR
+
             // TODO: we can save 2 DMAs by giving the UPATask input in CMX (if previous op is DPUTask) and writing UPATask Output to CMX if next layer is
             // DPU task and it fits in CMX.
             auto outputOpMemoryLocation = outputOp->getInputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
-            auto newMemoryLocation = (outputOpMemoryLocation == mv::Tensor::MemoryLocation::OUTPUT)
-                    ? mv::Tensor::MemoryLocation::OUTPUT
-                    : mv::Tensor::MemoryLocation::DDR;
-            opIt->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", newMemoryLocation);
 
             // Adjust memory location for subsequent implicit operation on the path if the UPATask
             // output tensor location was modified to OUTPUT.
-            // TODO: For now below loop is a limited implementation and will handle correctly cases with single sink. In case
-            // there are branches implementation should be extended.
             if (outputOpMemoryLocation == mv::Tensor::MemoryLocation::OUTPUT)
             {
-                outputOp = opIt.leftmostOutput().sink();
-                while(outputOp->isImplicit())
+                if (hasMultipleConsumers)
                 {
-                    outputOp->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", outputOpMemoryLocation);
-                    outputOp = outputOp.leftmostOutput().sink();
+                    opIt->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::DDR);
                 }
+                else
+                {
+                    opIt->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::OUTPUT);
+
+                    outputOp = opIt.leftmostOutput().sink();
+                    while (outputOp->isImplicit())
+                    {
+                        outputOp->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::OUTPUT);
+                        outputOp = outputOp.leftmostOutput().sink();
+                    }
+                }
+            }
+            else
+            {
+                // Output of UPATask is ALWAYS in DDR
+                opIt->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::DDR);
             }
         }
         ++opIt;
