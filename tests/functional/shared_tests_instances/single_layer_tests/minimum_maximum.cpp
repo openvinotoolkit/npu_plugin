@@ -32,8 +32,10 @@ using namespace LayerTestsDefinitions;
 
 namespace {
 const std::vector<std::vector<std::vector<size_t>>> inShapes4D = {
-        {{1,64,32,32}, {1,64,32,32}},
-        {{1, 1, 1, 3}, {1}}
+        /// TODO: https://jira.devtools.intel.com/browse/EISW-13808
+        /// Currently compiler not support a constant input AS default cmajor layout  
+//        {{1,64,32,32}, {1,64,32,32}},
+//        {{1, 1, 1, 3}, {1}}
 };
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
@@ -68,12 +70,31 @@ INSTANTIATE_TEST_CASE_P(smoke_maximum_4D, KmbMaxMinLayerTest,
                         KmbMaxMinLayerTest::getTestCaseName);
 
 const std::vector<std::vector<std::vector<size_t>>> inShapes3D = {
-        {{1, 2, 4}, {1}},
+        /// TODO: https://jira.devtools.intel.com/browse/EISW-13808
+//        {{1, 2, 4}, {1}}
 };
 
 INSTANTIATE_TEST_CASE_P(smoke_maximum_3D, KmbMaxMinLayerTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(inShapes3D),
+                                ::testing::ValuesIn(opType),
+                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::ValuesIn(inputType),
+                                ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                        KmbMaxMinLayerTest::getTestCaseName);
+
+const std::vector<std::vector<std::vector<size_t>>> inShapesScalar = {
+        /// test scalar constant input for case MAX(x, scalar_threshold)
+        {{32}, {1}}
+};
+
+INSTANTIATE_TEST_CASE_P(smoke_maximum_scalar, KmbMaxMinLayerTest,
+                        ::testing::Combine(
+                                ::testing::ValuesIn(inShapesScalar),
                                 ::testing::ValuesIn(opType),
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
