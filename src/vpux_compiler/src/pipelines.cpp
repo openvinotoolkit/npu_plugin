@@ -106,6 +106,7 @@ void vpux::buildHardwareModePipeline(mlir::OpPassManager& pm, Logger log) {
     // Partially lower IERT->VPUIP (NCE Operations only)
     pm.addPass(createConvertToNCEOpsPass(log));
     pm.addPass(createFuseActivationsPass(log));
+    pm.addPass(mlir::createCanonicalizerPass());
 
     // IERT Dialect level (cont.)
     pm.addPass(createComposeSubViewPass(log));

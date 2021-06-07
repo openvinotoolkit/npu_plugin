@@ -304,6 +304,7 @@ mlir::LogicalResult vpux::VPUIP::isSupportedLayoutSameDimsOrder(mlir::Operation*
 
     return mlir::success();
 }
+
 //
 // SameInOutDimsOrder
 //
@@ -336,8 +337,7 @@ mlir::LogicalResult vpux::VPUIP::isSupportedLayoutSameInOutDimsOrder(mlir::Opera
                                             ? info.getInput(0)
                                             : DimsOrder::fromNumDims(intType.cast<mlir::ShapedType>().getRank());
 
-        info.setInput(0, supportedOrder);
-        info.setOutput(0, supportedOrder);
+        fillDataInfo(info, 1, 1, supportedOrder);
         return mlir::failure();
     }
 
@@ -381,12 +381,19 @@ mlir::LogicalResult vpux::VPUIP::isSupportedLayoutSameInOutSpecificDimsOrder(mli
     auto layer = mlir::dyn_cast<LayerInterface>(op);
     VPUX_THROW_UNLESS(layer != nullptr, "Operation '{0}' doesn't implement Layer interface", op->getName());
 
-    const auto intType = layer.getInputs()[0].getType();
-    const auto defaultOrder = DimsOrder::fromNumDims(intType.cast<mlir::ShapedType>().getRank());
+    const auto intType = layer.getInputs()[0].getType().cast<mlir::ShapedType>();
+    const auto defaultOrderIt =
+            std::find_if(supportedLayouts.begin(), supportedLayouts.end(), [intType](DimsOrder order) {
+                return static_cast<int64_t>(order.numDims()) == intType.getRank();
+            });
 
+    VPUX_THROW_UNLESS(defaultOrderIt != supportedLayouts.end(),
+                      "Layouts supported ({0}) by the operation '{1}' do not match the rank {2} of the input shape ",
+                      supportedLayouts, op->getName(), intType.getRank());
+
+    const auto defaultOrder = *defaultOrderIt;
     if (!info.hasInput(0)) {
-        info.setInput(0, defaultOrder);
-        info.setOutput(0, defaultOrder);
+        fillDataInfo(info, 1, 1, defaultOrder);
 
         return mlir::failure();
     }
@@ -397,8 +404,7 @@ mlir::LogicalResult vpux::VPUIP::isSupportedLayoutSameInOutSpecificDimsOrder(mli
         return isSupportedLayoutSameInOutDimsOrder(op, info);
     }
 
-    info.setInput(0, defaultOrder);
-    info.setOutput(0, defaultOrder);
+    fillDataInfo(info, 1, 1, defaultOrder);
     return mlir::failure();
 }
 
