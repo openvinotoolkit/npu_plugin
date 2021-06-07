@@ -65,22 +65,30 @@ void mv::setOutputControlFlow(mv::ControlModel& cm, mv::Control::OpListIterator 
         cm.defineFlow(op, outputOp);
 }
 
+/// Note: This helper can't remove a paramOp shared by two sinkOps
+void mv::removeConstantOp(mv::OpModel & om, mv::Data::OpListIterator paramOp){
+    mv::DataModel dm(om);
+    if (findSinkLayers(dm, paramOp->getOutputTensor(mv::IO_TENSOR_OUTPUT)).size() == 1){
+        om.removeOp(paramOp);
+    }
+}
+
 void mv::removeOperation(mv::Data::TensorIterator sourceTensor, mv::OpModel & om, mv::Data::OpListIterator opIt)
 {
     auto paramOp = opIt.leftmostParent();
     while(paramOp != om.opEnd())
     {
-        if (paramOp->getOutputTensor(0) != sourceTensor &&
-            (paramOp->getOpType() == "Constant" ||
-            paramOp->getOpType() == "ConstantInt" ||
-            paramOp->getOpType() == "ConstantDataElement"))
+        /// It's a pity that opIter not support postfix increment
+        auto backup= paramOp;
+        ++paramOp;
+        
+        if (backup->getOutputTensor(0) != sourceTensor &&
+            (backup->getOpType() == "Constant" ||
+            backup->getOpType() == "ConstantInt" ||
+            backup->getOpType() == "ConstantDataElement"))
         {
-            auto backUp = paramOp;
-            ++paramOp;
-            om.removeOp(backUp);
+            removeConstantOp(om, backup);
         }
-        else
-            ++paramOp;
     }
 
     om.removeOp(opIt);
@@ -101,15 +109,14 @@ mv::Data::OpListIterator mv::linkNewOperationsRemove(mv::Data::OpListIterator pa
     auto paramOp = opIt.leftmostParent();
     while(paramOp != om.opEnd())
     {
-        if (paramOp->getOutputTensor(0) != sourceTensor && (paramOp->getOpType() == "Constant" || paramOp->getOpType() == "ConstantInt"
-            || paramOp->getOpType() == "ConstantDataElement"))
+        auto backup= paramOp;
+        ++paramOp;
+        
+        if (backup->getOutputTensor(0) != sourceTensor && (backup->getOpType() == "Constant" || backup->getOpType() == "ConstantInt"
+            || backup->getOpType() == "ConstantDataElement"))
         {
-            auto backUp = paramOp;
-            ++paramOp;
-            om.removeOp(backUp);
+            removeConstantOp(om, backup);
         }
-        else
-            ++paramOp;
     }
 
     om.removeOp(opIt);
@@ -141,15 +148,14 @@ mv::Data::OpListIterator mv::linkNewOperationsReplacement(mv::Data::OpListIterat
     auto paramOp = opIt.leftmostParent();
     while(paramOp != om.opEnd())
     {
-        if (paramOp->getOutputTensor(0) != sourceTensor && (paramOp->getOpType() == "Constant" || paramOp->getOpType() == "ConstantInt"
-            || paramOp->getOpType() == "ConstantDataElement"))
+        auto backup= paramOp;
+        ++paramOp;
+        
+        if (backup->getOutputTensor(0) != sourceTensor && (backup->getOpType() == "Constant" || backup->getOpType() == "ConstantInt"
+            || backup->getOpType() == "ConstantDataElement"))
         {
-            auto backUp = paramOp;
-            ++paramOp;
-            om.removeOp(backUp);
+            removeConstantOp(om, backup);
         }
-        else
-            ++paramOp;
     }
 
     om.removeOp(opIt);
@@ -186,15 +192,14 @@ mv::Data::OpListIterator mv::linkNewMultipleOperationsReplacement(mv::Data::OpLi
     {
         while(paramOp != om.opEnd())
         {
-            if (paramOp->getOutputTensor(0) != *sourceTensorIt && (paramOp->getOpType() == "Constant" || paramOp->getOpType() == "ConstantInt"
-                || paramOp->getOpType() == "ConstantDataElement"))
+            auto backup= paramOp;
+            ++paramOp;
+        
+            if (backup->getOutputTensor(0) != *sourceTensorIt && (backup->getOpType() == "Constant" || backup->getOpType() == "ConstantInt"
+                || backup->getOpType() == "ConstantDataElement"))
             {
-                auto backUp = paramOp;
-                ++paramOp;
-                om.removeOp(backUp);
+                removeConstantOp(om, backup);
             }
-            else
-                ++paramOp;
         }
     }
 

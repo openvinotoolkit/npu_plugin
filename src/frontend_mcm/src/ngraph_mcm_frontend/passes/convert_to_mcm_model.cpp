@@ -129,6 +129,7 @@
 #include <memory>
 #include <vector>
 #include <map>
+#include <algorithm>
 
 #include <include/mcm/tensor/tiling.hpp>
 #include <converters.hpp>
@@ -339,8 +340,8 @@ void convert(std::shared_ptr<ngraph::op::Constant> constant, mv::OpModel& mcmMod
         }
     }
     // end of workaround
-
-    const auto mvOrder = mv::Order::getColMajorID(mvShape.ndims()) ; //McmOpAttrs::getOrder(constant);
+    
+    auto mvOrder = mv::Order::getColMajorID(mvShape.ndims()) ; //McmOpAttrs::getOrder(constant);
 
     mv::Data::TensorIterator mcmOutput;
     if (constant->get_element_type().is_real()) {
@@ -705,11 +706,25 @@ void convert(std::shared_ptr<McmEltwise> eltwise, mv::OpModel& mcmModel, NodeOut
 }
 
 void convert(std::shared_ptr<ngraph::op::Eltwise> eltwise, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
-    const auto mcmInputs = getMcmInputs(eltwise, mcmOutputsMap);
+    auto mcmInputs = getMcmInputs(eltwise, mcmOutputsMap);
     const auto& opName = eltwise->get_friendly_name();
     const auto& opType = eltwise->eltwise_type;
 
     IE_ASSERT(2 == mcmInputs.size());
+    if (mcmInputs[0]->isPopulated() && mcmInputs[1]->isPopulated()){
+        THROW_IE_EXCEPTION << "At least one input is unpopulated for Eltwise op ";
+    }else if (mcmInputs[0]->isPopulated() && (!mcmInputs[1]->isPopulated())){
+        /// swap them to ensure the input 0 is unpopulated, 
+        /// it's a compiler assumption.
+        std::swap(mcmInputs[0], mcmInputs[1]);
+    }   
+    
+    /// extend 1d weights to 4d to adapt compiler
+    auto weights_shape= mcmInputs[1]->getShape();
+    if (weights_shape.ndims()==1){
+        mcmInputs[1]->setShape(mv::Shape({1,1,weights_shape[0],1}));
+        mcmInputs[1]->setOrder(mv::Order::getZMajorID(4));
+    }
 
     mv::Data::TensorIterator mcmEltwiseOutput;
 
@@ -1651,8 +1666,17 @@ void convert(std::shared_ptr<ngraph::op::GatherIE> gatherIE, mv::OpModel& mcmMod
     IE_ASSERT(2u == mcmInputs.size());
     const auto& opName = gatherIE->get_friendly_name();
     const int64_t axis = gatherIE->get_axis();
+
+    auto data= mcmInputs.at(0);
+    auto index= mcmInputs.at(1);
+    if (index->getDType().toString() == "Float16"){
+        auto index_i32= mcmModel.conversion(opName+"/Conversion", index, mv::DType("Int32"));
+        index_i32->setQuantParams(initialQuantParams());
+        index = index_i32;
+    }
+
     // TODO: Replace Float16 with Default when MCM Compiler is fixed. See ticket #40356
-    auto mcmGather = mcmModel.gather(opName, mcmInputs.at(0), mcmInputs.at(1), axis);
+    auto mcmGather = mcmModel.gather(opName, data, index, axis);
     mcmGather->setDType(mv::DType("Float16"));
     mcmGather->setQuantParams(initialQuantParams());
 
@@ -1660,8 +1684,28 @@ void convert(std::shared_ptr<ngraph::op::GatherIE> gatherIE, mv::OpModel& mcmMod
 }
 
 void convert(std::shared_ptr<ngraph::op::v1::Maximum> maximum, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
-    const auto mcmInputs = getMcmInputs(maximum, mcmOutputsMap);
+    auto mcmInputs = getMcmInputs(maximum, mcmOutputsMap);
     IE_ASSERT(2u == mcmInputs.size());
+    
+    /// extend 1d weights to 4d by reconstructing constant op
+    auto shape= mcmInputs[1]->getShape();
+    if (shape.ndims()==1){
+        auto weights= mcmInputs[1];
+        auto parent= mcmModel.getSourceOp(weights);
+        auto new_name= parent->getName() + "_4d";
+        auto new_dtype= weights->getDType();
+        mv::IteratorDetail::ModelValueIterator<std::map<std::string, 
+            std::shared_ptr<mv::Tensor>>::iterator, mv::Tensor> new_weights;
+        
+        if (new_dtype== mv::DType("Float32")){
+            new_weights= mcmModel.constant(new_name, weights->getDoubleData(), mv::Shape({1,1,shape[0],1}), new_dtype, mv::Order("NHWC"));
+        }else{
+            new_weights= mcmModel.constantInt(new_name, weights->getIntData(), mv::Shape({1,1,shape[0],1}), new_dtype, mv::Order("NHWC"));
+        }   
+        mcmInputs[1]= new_weights;
+        mcmModel.removeOp(parent);
+    }
+
     const auto& opName = maximum->get_friendly_name();
     auto mcmMax = mcmModel.eltwise(opName, mcmInputs, "Maximum");
     mcmMax->setQuantParams(initialQuantParams());

@@ -63,7 +63,14 @@ void addQuantizationLayers(mv::OpModel & om, std::vector<mv::Data::OpListIterato
             auto tensor = inputFlow->getTensor();
             auto tensorDType = tensor->getDType();
             auto tensorQuantParams = tensor->getQuantParams();
-
+                
+            /// For upa gather op, index input need stay Int32 according to Runtime
+            if(task->hasAttr("taskOp") && task->get<std::string>("taskOp") == "Gather" 
+                    && tensorDType.toString() == "Int32"){
+                ++inputFlow;
+                continue;
+            }
+            
             // NOTE: Maybe here a check for mixed precision should be added
             if(!tensor->isPopulated() && tensorDType != dtypeNeededInInput)
             {

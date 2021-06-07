@@ -34,9 +34,24 @@ namespace mv
             // to be in position 0
             if(inputs[0]->isPopulated())
             {
-                errMsg = "Input 0 of eltwise needs at least two inputs";
+                errMsg = "Eltwise needs input 0 must be unpopulated";
                 return {false, 2};
             }
+                        
+            /// TODO: Currently Maximum doesn't support constant input with different layout,
+            /// usually a zmajor input0 vs cmajor constant input1, will cause runtime crash
+            /// See ticket #EISW-13808
+            if(eltwiseType == "Maximum" && inputs[1]->isPopulated()){
+                const mv::Order &orderA= inputs[0]->getOrder();
+                const mv::Order &orderB= inputs[1]->getOrder();
+                if ( orderA != orderB){
+                    errMsg= "Maximum op needs two inputs have the same order, however orderA is "
+                             +                 orderA.toString()
+                             + ", orderB is "+ orderB.toString() ;
+                    return {false, 2};
+                }
+            }
+            
             // SR Fix: removed input shape check,
             // handle different input-shape eltwise with broadcast eltwise now.
             return {true, 4};

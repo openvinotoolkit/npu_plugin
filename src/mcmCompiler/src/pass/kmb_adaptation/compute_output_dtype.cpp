@@ -443,7 +443,9 @@ void decideOutputDataType(const mv::pass::PassEntry& pass, mv::ComputationModel&
                 const auto& opType = p.first;
 
                 bool inputQuantized = true;
-                for (size_t i = 0; i < (opType == "Eltwise" ? 2 : 1); ++i) {
+                /// check conv with fp16 weights and also no quan params
+                /// need do with fp16 conv
+                for (size_t i = 0; i < (opType == "Eltwise" || opType == "Conv" ? 2 : 1); ++i) {
                     inputQuantized &= !op->getInputTensor(i)->isFloatingPointType() &&
                                       !op->getInputTensor(i)->getQuantParams().isEmpty();
                 }
