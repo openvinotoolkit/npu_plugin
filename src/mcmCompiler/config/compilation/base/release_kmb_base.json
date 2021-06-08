@@ -191,6 +191,7 @@
     },
     "scheduling": {
         "Singular": [
+            "Linearization",
             {
               "name" : "BarrierSchedulerPass",
               "real_physical_barriers": 32,

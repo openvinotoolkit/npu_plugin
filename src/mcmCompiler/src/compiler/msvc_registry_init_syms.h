@@ -390,6 +390,7 @@
 #pragma comment(linker, "/include:__MCM_REGISTER__PassEntry_KMBQuantizeConversion")
 #pragma comment(linker, "/include:__MCM_REGISTER__PassEntry_LayerNumbering")
 #pragma comment(linker, "/include:__MCM_REGISTER__PassEntry_LayoutDMA")
+#pragma comment(linker, "/include:__MCM_REGISTER__PassEntry_Linearization")
 #pragma comment(linker, "/include:__MCM_REGISTER__PassEntry_LoadPWLQuantParams")
 #pragma comment(linker, "/include:__MCM_REGISTER__PassEntry_LocateCMXConcateableOps")
 #pragma comment(linker, "/include:__MCM_REGISTER__PassEntry_LocateInplaceEltwiseOps")
