@@ -61,7 +61,7 @@ TEST_P(KmbAddWOffsetLayerTests, accuracy) {
             .addNetOutput(PortInfo("add_with_offset"))
             .setUserOutput(PortInfo("add_with_offset"), userOutDesc.getPrecision(), userOutDesc.getLayout())
             .useCustomLayers(getIELibraryPath() + "/kmb_custom_extension_library/sampleExtensionOclLayerBindings.xml")
-            .useExtension(getIELibraryPath() + "/libcustom_extension_library.so")
+            .useExtension(FileUtils::makePluginLibraryName<char>(getIELibraryPath(), "custom_extension_library" + std::string(IE_BUILD_POSTFIX)))
             .finalize();
     };
 
@@ -73,7 +73,7 @@ const std::vector<AddWOffsetTestParams> convertParams = {
             .dims({1, 3, 2, 3})
             .offset(1.2)
 };
-// Test disabled on Windows because OCL kernels compilation is not unblocked yet
-#if !defined(_WIN32)
+
+#ifdef KMB_HAS_CUSTOM_OCL_KERNELS
 INSTANTIATE_TEST_CASE_P(precommit, KmbAddWOffsetLayerTests, testing::ValuesIn(convertParams));
 #endif

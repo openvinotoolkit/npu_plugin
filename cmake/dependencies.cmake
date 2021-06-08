@@ -48,9 +48,7 @@ endif()
 # OpenCL compiler
 #
 
-set(VPU_CLC_MA2X9X_VERSION "movi-cltools-20.09.2")
-
-if(LINUX AND LINUX_OS_NAME MATCHES "Ubuntu")
+if(LINUX OR WIN32)
     if(DEFINED ENV{THIRDPARTY_SERVER_PATH})
         set(IE_PATH_TO_DEPS "$ENV{THIRDPARTY_SERVER_PATH}")
     elseif(DEFINED THIRDPARTY_SERVER_PATH)
@@ -58,18 +56,29 @@ if(LINUX AND LINUX_OS_NAME MATCHES "Ubuntu")
     else()
         message(WARNING "VPU_OCL_COMPILER is not found (missing THIRDPARTY_SERVER_PATH). Some tests will be skipped.")
     endif()
-
+    
     if(DEFINED IE_PATH_TO_DEPS)
         debug_message(STATUS "THIRDPARTY_SERVER_PATH=${IE_PATH_TO_DEPS}")
 
         reset_deps_cache(VPU_CLC_MA2X9X_ROOT)
         reset_deps_cache(VPU_CLC_MA2X9X_COMMAND)
 
-        RESOLVE_DEPENDENCY(VPU_CLC_MA2X9X
-            ARCHIVE_LIN "VPU_OCL_compiler/${VPU_CLC_MA2X9X_VERSION}.tar.gz"
-            TARGET_PATH "${TEMP}/vpu/clc/ma2x9x/${VPU_CLC_MA2X9X_VERSION}"
-            ENVIRONMENT "VPU_CLC_MA2X9X_COMMAND"
-            SHA256 "0a864bd0e11cee2d85ac7e451dddae19216c8bc9bb50e1a8e0151ab97d5e3c8d")
+        if(LINUX)
+            set(VPU_CLC_MA2X9X_VERSION "movi-cltools-21.03.1-linux64")
+            RESOLVE_DEPENDENCY(VPU_CLC_MA2X9X
+                ARCHIVE_LIN "VPU_OCL_compiler/${VPU_CLC_MA2X9X_VERSION}.tar.gz"
+                TARGET_PATH "${TEMP}/vpu/clc/ma2x9x/${VPU_CLC_MA2X9X_VERSION}"
+                ENVIRONMENT "VPU_CLC_MA2X9X_ROOT"
+                SHA256 "db8ef81ab172a8b627a667109a1c89ec6ab0f8ddb4a5bcead1fdbbbdc5d6a11a")
+        elseif(WIN32)
+            set(VPU_CLC_MA2X9X_VERSION "movi-cltools-21.03.1-win64")
+            set(HOST_EXECUTABLE_SUFFIX ".exe")
+            RESOLVE_DEPENDENCY(VPU_CLC_MA2X9X
+                ARCHIVE_WIN "VPU_OCL_compiler/${VPU_CLC_MA2X9X_VERSION}.tar.gz"
+                TARGET_PATH "${TEMP}/vpu/clc/ma2x9x/${VPU_CLC_MA2X9X_VERSION}"
+                ENVIRONMENT "VPU_CLC_MA2X9X_ROOT"
+                SHA256 "d6343ec74d2d43c1725023061adbcba9431f1966a76456bfd8351da46a601a32")
+        endif()
         debug_message(STATUS "VPU_CLC_MA2X9X=" ${VPU_CLC_MA2X9X})
 
         update_deps_cache(
@@ -79,7 +88,7 @@ if(LINUX AND LINUX_OS_NAME MATCHES "Ubuntu")
 
         update_deps_cache(
             VPU_CLC_MA2X9X_COMMAND
-            "${VPU_CLC_MA2X9X}/bin/clc"
+            "${VPU_CLC_MA2X9X}/bin/clc${HOST_EXECUTABLE_SUFFIX}"
             "[KMB] OpenCL compiler")
 
         find_program(VPU_CLC_MA2X9X_COMMAND clc)
@@ -96,9 +105,12 @@ add_library(kmb_custom_ocl_kernels INTERFACE)
 
 function(add_kmb_compile_custom_ocl_kernels KMB_SRC_DIR)
     set(SRC_DIR "${CMAKE_SOURCE_DIR}/src/${KMB_SRC_DIR}")
-    set(DST_DIR "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/kmb_${KMB_SRC_DIR}")
+    set(DST_DIR "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR}/kmb_${KMB_SRC_DIR}")
 
-    file(MAKE_DIRECTORY "${DST_DIR}")
+    add_custom_target(make_${KMB_SRC_DIR}_dst_dir ALL
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${DST_DIR}"
+        VERBATIM
+     )
 
     file(GLOB XML_FILES "${SRC_DIR}/*.xml")
     file(GLOB CL_FILES "${SRC_DIR}/*.cl")
@@ -114,6 +126,7 @@ function(add_kmb_compile_custom_ocl_kernels KMB_SRC_DIR)
             COMMAND
                 ${CMAKE_COMMAND} -E copy ${xml_file} ${out_file}
             MAIN_DEPENDENCY ${xml_file}
+            DEPENDS make_${KMB_SRC_DIR}_dst_dir
             COMMENT "[KMB] Copy ${xml_file} to ${DST_DIR}"
             VERBATIM)
     endforeach()
@@ -124,19 +137,34 @@ function(add_kmb_compile_custom_ocl_kernels KMB_SRC_DIR)
         set(out_file "${DST_DIR}/${cl_file_name}.bin")
         list(APPEND all_output_files ${out_file})
 
-        add_custom_command(
-            OUTPUT ${out_file}
-            COMMAND
-                ${CMAKE_COMMAND} -E env
-                    "SHAVE_LDSCRIPT_DIR=${VPU_CLC_MA2X9X}/ldscripts/3010xx"
-                    "SHAVE_MA2X8XLIBS_DIR=${VPU_CLC_MA2X9X}/lib"
-                    "SHAVE_MYRIAD_LD_DIR=${VPU_CLC_MA2X9X}/bin"
-                    "SHAVE_MOVIASM_DIR=${VPU_CLC_MA2X9X}/bin"
-                ${VPU_CLC_MA2X9X_COMMAND} --strip-binary-header -d 3010xx ${cl_file} -o ${out_file}
-            MAIN_DEPENDENCY ${cl_file}
-            DEPENDS ${VPU_CLC_MA2X9X_COMMAND}
-            COMMENT "[KMB] Compile ${cl_file}"
-            VERBATIM)
+        if(LINUX)
+            add_custom_command(
+                OUTPUT ${out_file}
+                COMMAND
+                    ${CMAKE_COMMAND} -E env
+                        "SHAVE_LDSCRIPT_DIR=${VPU_CLC_MA2X9X}/ldscripts/3010xx"
+                        "SHAVE_MA2X8XLIBS_DIR=${VPU_CLC_MA2X9X}/lib"
+                        "SHAVE_MYRIAD_LD_DIR=${VPU_CLC_MA2X9X}/bin"
+                        "SHAVE_MOVIASM_DIR=${VPU_CLC_MA2X9X}/bin"
+                    ${VPU_CLC_MA2X9X_COMMAND} --strip-binary-header -d 3010xx ${cl_file} -o ${out_file}
+                MAIN_DEPENDENCY ${cl_file}
+                DEPENDS make_${KMB_SRC_DIR}_dst_dir ${VPU_CLC_MA2X9X_COMMAND}
+                COMMENT "[KMB] Compile ${cl_file}"
+                VERBATIM)
+        elseif(WIN32)
+            add_custom_command(
+                OUTPUT ${out_file}
+                COMMAND
+                    ${CMAKE_COMMAND} -E env
+                        "SHAVE_LDSCRIPT_DIR=${VPU_CLC_MA2X9X}/ldscripts/3010xx"
+                        "SHAVE_MA2X8XLIBS_DIR=${VPU_CLC_MA2X9X}/lib"
+                        "SHAVE_LLD_DIR=${VPU_CLC_MA2X9X}/bin"
+                    ${VPU_CLC_MA2X9X_COMMAND} --strip-binary-header -d 3010xx --use-lld ${cl_file} -o ${out_file}
+                MAIN_DEPENDENCY ${cl_file}
+                DEPENDS make_${KMB_SRC_DIR}_dst_dir ${VPU_CLC_MA2X9X_COMMAND}
+                COMMENT "[KMB] Compile ${cl_file}"
+                VERBATIM)
+        endif()
     endforeach()
 
     add_custom_target("kmb_compile_${KMB_SRC_DIR}"
@@ -164,9 +192,12 @@ function(add_kmb_compile_custom_cpp_kernels)
     set(BUILD_COMMAND "${CMAKE_SOURCE_DIR}/src/custom_cpp_kernels/tools/build_kernel.py")
 
     set(SRC_DIR "${CMAKE_SOURCE_DIR}/src/custom_cpp_kernels")
-    set(DST_DIR "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/kmb_custom_cpp_kernels")
+    set(DST_DIR "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR}/kmb_custom_cpp_kernels")
 
-    file(MAKE_DIRECTORY "${DST_DIR}")
+    add_custom_target(make_custom_cpp_kernels_dst_dir ALL
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${DST_DIR}"
+        VERBATIM
+    )
 
     file(GLOB XML_FILES "${SRC_DIR}/*.xml")
     file(GLOB CPP_FILES "${SRC_DIR}/*.cpp")
@@ -183,6 +214,7 @@ function(add_kmb_compile_custom_cpp_kernels)
                 COMMAND
                 ${CMAKE_COMMAND} -E copy ${xml_file} ${out_file}
                 MAIN_DEPENDENCY ${xml_file}
+                DEPENDS make_custom_cpp_kernels_dst_dir
                 COMMENT "[KMB] Copy ${xml_file} to ${DST_DIR}"
                 VERBATIM)
     endforeach()
@@ -199,6 +231,7 @@ function(add_kmb_compile_custom_cpp_kernels)
                     COMMAND
                     python3 ${BUILD_COMMAND} --i ${cpp_file}  --t "${MV_TOOLS_PATH}" --o ${out_file}
                     MAIN_DEPENDENCY ${elf_file}
+                    DEPENDS make_custom_cpp_kernels_dst_dir
                     COMMENT "[KMB] Compile ${cpp_file}"
                     VERBATIM)
         endforeach()
@@ -214,6 +247,7 @@ function(add_kmb_compile_custom_cpp_kernels)
                     COMMAND
                     ${CMAKE_COMMAND} -E copy ${elf_file} ${out_file}
                     MAIN_DEPENDENCY ${elf_file}
+                    DEPENDS make_custom_cpp_kernels_dst_dir
                     COMMENT "[KMB] Copy ${elf_file} to ${DST_DIR}"
                     VERBATIM)
         endforeach()
