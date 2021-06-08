@@ -26,6 +26,7 @@ namespace mv
 
         std::vector<Data::TensorIterator> inputs_;
         std::vector<Data::TensorIterator> outputs_;
+        bool isDpuTypeOp(std::vector<std::string>& opTypes) const;
 
     public:
         Op(ComputationModel& model, const std::string& opType, const std::string& name,
@@ -55,6 +56,8 @@ namespace mv
         bool isSparsityConsumer() const;
         bool isHardwarizable() const;
         bool isHwFusable() const;
+        bool isEltwiseTypeOp() const;
+        bool isEltwiseSingleInputTypeOp() const;
         bool hasWeights() const;
         bool hasPWLActivation() const;
         bool hasFloatPrecision() const;

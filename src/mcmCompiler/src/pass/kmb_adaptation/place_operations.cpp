@@ -6,7 +6,7 @@
 #include <numeric>
 #include <cmath>
 
-void placeEltwiseDequantize(mv::OpModel & om, mv::Data::OpListIterator task);
+void placeHwDequantize(mv::OpModel & om, mv::Data::OpListIterator task);
 static void placementOfOps(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 void placeNeutralMaxPoolBefore(const mv::pass::PassEntry &pass, mv::ComputationModel &model, mv::TargetDescriptor &, mv::Element &, mv::Element &);
 
@@ -112,7 +112,7 @@ std::vector<mv::Data::OpListIterator> findNonImplicitConsumerOps(mv::DataModel& 
     return consumerOps;
 }
 
-void placeInputEltwiseDequantize(mv::OpModel& om, mv::DataModel& dm, mv::Data::OpListIterator& opIt)
+void placeInputHwDequantize(mv::OpModel& om, mv::DataModel& dm, mv::Data::OpListIterator& opIt)
 {
     auto allConsumersNeedFloat = [&dm](const mv::Data::TensorIterator& tensor) {
         const auto consumerOps = findNonImplicitConsumerOps(dm, tensor);
@@ -129,7 +129,7 @@ void placeInputEltwiseDequantize(mv::OpModel& om, mv::DataModel& dm, mv::Data::O
         if (inputTensor->isFloatingPointType())
             continue;
 
-        const auto parentOp = om.getSourceOp(inputTensor);
+        auto parentOp = om.getSourceOp(inputTensor);
         if (isOpSoftware(parentOp) && allConsumersNeedFloat(inputTensor))
             continue;
 
@@ -141,30 +141,32 @@ void placeInputEltwiseDequantize(mv::OpModel& om, mv::DataModel& dm, mv::Data::O
             ++inputFlow;
         }
 
-        const auto quantParams = inputTensor->getQuantParams();
-        auto neutralCopy = om.copy(opIt->getName() + "_Neutral_" + std::to_string(i), inputTensor);
-        neutralCopy->setQuantParams(quantParams);
-        auto neutralCopyOp = om.getSourceOp(neutralCopy);
-        neutralCopyOp->set<unsigned>("opId", opIt->get<unsigned>("opId"));
+        // First check if parent op on other output branches has already HwConvert op in place
+        // which can be reused. In such case just attach to output of this HwConvert
+        for(auto childOp = parentOp.leftmostChild(); childOp != om.opEnd(); ++childOp)
+        {
+            auto opType = childOp->getOpType();
+            auto childOpOutput = childOp->getOutputTensor(0);
+            if (opType == "HwConvert" && childOpOutput->getDType() == mv::DType("Float16"))
+            {
+                // Connect to this op output
+                om.undefineFlow(inputFlow);
+                opIt->setInputTensor(childOpOutput, i, false);
+                om.defineFlow(childOpOutput, opIt, i);
+                return;
+            }
+        }
 
-        // WA to enable StackedHourGlass, B1 and B2
-        // the Copy should be 'executable' to make the outputTensor located on CMX
-        // otherwise runtime crashes.
-        if (opIt->getOpType() == "Conv")
-            neutralCopyOp->set<bool>("mixedPrecisionCopy", true);
+        // Insert HwConvert operation to perform U8->FP16 conversion on DPU
+        auto placeHwConvert = om.hwConvert(opIt->getName() + "_dequantize" + std::to_string(i), inputTensor, mv::DType("Float16"));
 
-        const std::vector<mv::Data::TensorIterator> andInputs = {inputTensor, neutralCopy};
-        auto dequantize = om.eltwise(opIt->getName() + "_AND_Conversion_" + std::to_string(i), andInputs, "And");
-        dequantize->setDType(mv::DType("Float16"));
-        dequantize->setQuantParams(mv::QuantizationParams::initial());
-
-        auto dequantizeOp = om.getSourceOp(dequantize);
-        dequantizeOp->set<bool>("mixedToFloat", true);
-        dequantizeOp->set<unsigned>("opId", opIt->get<unsigned>("opId"));
+        auto placeHwConvertOp = om.getSourceOp(placeHwConvert);
+        placeHwConvertOp->set<bool>("mixedToFloat", true);
+        placeHwConvertOp->set<unsigned>("opId", opIt->get<unsigned>("opId"));
 
         om.undefineFlow(inputFlow);
-        opIt->setInputTensor(dequantize, i, false);
-        om.defineFlow(dequantize, opIt, i);
+        opIt->setInputTensor(placeHwConvert, i, false);
+        om.defineFlow(placeHwConvert, opIt, i);
     }
 }
 
@@ -228,7 +230,7 @@ void placementOfOps(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
             if (opIt->getInputTensor(0)->getDType() == mv::DType("BFloat16") || opIt->getOutputTensor(0)->getDType() == mv::DType("BFloat16"))
                 targetDType = mv::DType("BFloat16");
 
-            placeInputEltwiseDequantize(om, dm, opIt);
+            placeInputHwDequantize(om, dm, opIt);
             placeOutputQuantize(om, dm, opIt);
 
             opIt->set<bool>("floatPrecision", true);

@@ -143,6 +143,17 @@
                                 {"name" : "weightsSparsity",                      "value" : false},
                                 {"name" : "pipelining",                           "value" : false}
                             ]
+                        },
+                        {
+                            "name" : "HwConvert",
+                            "strategies": [
+                                {"name" : "streamingStrategies",  "value" : ["StreamOverH"]},
+                                {"name" : "clusteringStrategies", "value" : ["SplitOverH","HKSwitch","Clustering"]},
+                                {"name" : "inputActivationSparsity",             "value" : true},
+                                {"name" : "outputActivationSparsity",             "value" : true},
+                                {"name" : "weightsSparsity",                      "value" : false},
+                                {"name" : "pipelining",                           "value" : false}
+                            ]
                         }
                     ]
                 }

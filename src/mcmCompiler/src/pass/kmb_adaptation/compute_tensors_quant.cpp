@@ -376,7 +376,7 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
                 isEltwiseMult = true;
         }
         bool isConv = (taskOp == "Conv" || taskOp == "DepthwiseConv" || taskOp == "ChannelMajorConvolution");
-        if (isConv || taskOp == "MaxPool" || isEltwiseMult || isEltwiseAddSub)
+        if (isConv || taskOp == "MaxPool" || opIt->isEltwiseSingleInputTypeOp() || isEltwiseMult || isEltwiseAddSub)
         {
             auto output = opIt->getOutputTensor(0);
             auto input = opIt->getInputTensor(0);

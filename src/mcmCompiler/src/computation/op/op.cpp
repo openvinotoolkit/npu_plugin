@@ -350,7 +350,7 @@ bool mv::Op::isUPA() const
 bool mv::Op::isSparsityConsumer() const
 {
     bool isSparseConsumerOp = false;
-    const std::vector<std::string> sparseConsumers = {"Conv", "Eltwise"};
+    const std::vector<std::string> sparseConsumers = {"Conv", "Eltwise", "HwConvert"};
 
     auto opType = getOpType();
     if (std::count(sparseConsumers.cbegin(), sparseConsumers.cend(), opType))
@@ -378,7 +378,7 @@ bool mv::Op::isHardwarizable() const
 {
     bool isHardwarizableOp = false;
     std::vector<std::string> hardwarizableTypes =
-        {"Conv", "Eltwise", "DepthwiseConv", "MaxPool"};
+        {"Conv", "Eltwise", "DepthwiseConv", "MaxPool", "HwConvert"};
 
     auto opType = getOpType();
     if (std::count(hardwarizableTypes.cbegin(), hardwarizableTypes.cend(), opType))
@@ -413,16 +413,42 @@ bool mv::Op::isHwFusable() const
     return isFusableOp;
 }
 
+bool mv::Op::isDpuTypeOp(std::vector<std::string>& opTypes) const
+{
+    if (std::count(opTypes.cbegin(), opTypes.cend(),
+        getOpType()))
+    {
+        return true;
+    }
+    else if (getOpType() == "DPUTask" && std::count(opTypes.cbegin(),
+        opTypes.cend(), get<std::string>("taskOp")))
+    {
+        return true;
+    }
+    return false;
+}
+
+bool mv::Op::isEltwiseTypeOp() const
+{
+    std::vector<std::string> eltwiseOpTypes =
+        {"Eltwise", "HwConvert"};
+
+    return isDpuTypeOp(eltwiseOpTypes);
+}
+
+bool mv::Op::isEltwiseSingleInputTypeOp() const
+{
+    std::vector<std::string> eltwiseSingleInputOpTypes =
+        {"HwConvert"};
+
+    return isDpuTypeOp(eltwiseSingleInputOpTypes);
+}
+
 bool mv::Op::hasWeights() const
 {
-    bool hasWeights = false;
-    const std::vector<std::string> weightTypes = {"Conv", "DepthwiseConv"};
-    if (std::count(weightTypes.cbegin(), weightTypes.cend(), getOpType()))
-        hasWeights = true;
-    else if (getOpType() == "DPUTask" &&
-        std::count(weightTypes.cbegin(), weightTypes.cend(), get<std::string>("taskOp")))
-        hasWeights = true;
-    return hasWeights;
+    std::vector<std::string> weightTypes = {"Conv", "DepthwiseConv"};
+
+    return isDpuTypeOp(weightTypes);
 }
 
 bool mv::Op::hasPWLActivation() const

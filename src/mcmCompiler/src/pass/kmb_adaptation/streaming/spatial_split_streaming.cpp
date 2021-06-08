@@ -504,13 +504,15 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model,
         mv::Data::TensorIterator newTensor;
         std::string opType = op->getOpType();
         std::string streamingOpName = op->getName() + "_streamH" + std::to_string(split);
-        if (opType == "MaxPool" || opType == "Conv" || opType == "DepthwiseConv")
+        if (opType == "MaxPool" || opType == "Conv" || opType == "DepthwiseConv" || opType == "HwConvert")
         {
             auto inputTensor  = op->getInputTensor(0);
             auto outputTensor = op->getOutputTensor(0);
 
             auto inputQuantParams  = inputTensor->getQuantParams();
             auto outputQuantParams = outputTensor->getQuantParams();
+
+            auto outputDType = outputTensor->getDType();
 
             auto sliceShape = childTiles[split].getActivationShape();
             auto sliceStart = childTiles[split].getActivationStart();
@@ -549,7 +551,12 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model,
                 newTensor->setOrder(mv::Order("NHWC"));
             }
 
-            newTensor->setDType(outputTensor->getDType());
+            if (opType == "HwConvert")
+                newTensor = om.hwConvert(streamingOpName,
+                                slice,
+                                outputDType);
+
+            newTensor->setDType(outputDType);
             newTensor->setQuantParams(outputQuantParams);
 
             if (split != number_of_splits - 1)
@@ -777,13 +784,15 @@ mv::Data::TensorIterator solveBatchTiling(mv::ComputationModel& model,
         mv::Data::TensorIterator newTensor;
         std::string opType = op->getOpType();
         std::string streamingOpName = op->getName() + "_stream" + tiling.getAxis() + std::to_string(split);
-        if (opType == "MaxPool" || opType == "Conv" || opType == "DepthwiseConv")
+        if (opType == "MaxPool" || opType == "Conv" || opType == "DepthwiseConv" || opType == "HwConvert")
         {
             auto inputTensor  = op->getInputTensor(0);
             auto outputTensor = op->getOutputTensor(0);
 
             auto inputQuantParams  = inputTensor->getQuantParams();
             auto outputQuantParams = outputTensor->getQuantParams();
+
+            auto outputDType = outputTensor->getDType();
 
             auto sliceShape = childTiles[split].getActivationShape();
             auto sliceStart = childTiles[split].getActivationStart();
@@ -819,7 +828,13 @@ mv::Data::TensorIterator solveBatchTiling(mv::ComputationModel& model,
                                 padding,
                                 op->get<unsigned>("dilationFactor"),
                                 op->get<unsigned>("group"));
-            newTensor->setDType(outputTensor->getDType());
+
+            if (opType == "HwConvert")
+                newTensor = om.hwConvert(streamingOpName,
+                                slice,
+                                outputDType);
+
+            newTensor->setDType(outputDType);
             newTensor->setQuantParams(outputQuantParams);
 
             slices.push_back(slice);
@@ -1262,7 +1277,7 @@ void streamingOperationsFcn(const mv::pass::PassEntry& pass,
         std::string opType = opIt->getOpType();
 
         //For now do streaming pass only for the DPU layers
-        if ((opType != "Conv") && (opType != "DepthwiseConv") && (opType != "MaxPool") && (opType != "Eltwise"))
+        if ((opType != "Conv") && (opType != "DepthwiseConv") && (opType != "MaxPool") && !opIt->isEltwiseTypeOp())
             continue;
 
         std::size_t alignment = 1;

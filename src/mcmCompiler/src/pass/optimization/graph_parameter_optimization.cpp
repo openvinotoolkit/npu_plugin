@@ -1221,14 +1221,32 @@ namespace mv
 
                 // Check for need for A0 SOH Sparsity workaround, (SOH conv with kernel > 1)
                 // if needed, check memory constraints as for sparse tensor
+                // TODO: Review the need for below KMB-A0 specific W/A for KMB-B0 and TBH platforms
                 if (op.getOpType() == "Conv" ) {
                     if( clustering == "SplitOverH" &&
                         (op.getInputTensor(1)->getShape()[KERNEL_HEIGHT] > 1) &&
-                        !isCMConv &&
-                        target == mv::Target::ma2490 && referenceDevice == "A0")
+                        !isCMConv && (target == mv::Target::ma3100 ||  // Apply the W/A also for TBH to overcome accuracy regression
+                        (target == mv::Target::ma2490 && referenceDevice == "A0")))
                         {
                             return true;
                         }
+                }
+
+                // TODO: Work on removal of below temporar W/A which was added to prevent
+                // unexpected inference issue on yolo-v3-darknet. Activation sparsity itself is not the source
+                // of the problem but once removed for this specific case compiler makes decisions which eventually
+                // makes the blob not executable on KMB
+                if (op.isSparsityConsumer() &&
+                    op.getInputTensor(0)->get<mv::DType>("dType") == mv::DType("Float16") &&
+                    !isCMConv && (op.hasAttr("placeConversionToFloat") && op.get<bool>("placeConversionToFloat")))
+                {
+                    auto inputShape = op.getInputTensor(0)->getShape();
+                    auto outputShape = op.getOutputTensor(0)->getShape();
+                    if (inputShape[mv::IO_CHANNEL_DIMENSION] == 1024 && inputShape[mv::IO_WIDTH_DIMENSION] == 19 && inputShape[mv::IO_HEIGHT_DIMENSION] == 19 &&
+                        outputShape[mv::IO_CHANNEL_DIMENSION] == 255 && outputShape[mv::IO_WIDTH_DIMENSION] == 19 && outputShape[mv::IO_HEIGHT_DIMENSION] == 19)
+                    {
+                        return true;
+                    }
                 }
 
                 return false;
@@ -1268,7 +1286,7 @@ namespace mv
                 std::array<unsigned short, 4> kernel = {1,1,1,1};//for non conv IN OUT CHANNEL dims = 1
                 if (op.hasAttr("kSize"))
                 {
-                    if (op.getOpType() == "MaxPool" || op.getOpType() == "Eltwise")
+                    if (op.getOpType() == "MaxPool" || op.isEltwiseTypeOp())
                     {
                         kernel[mv::KERNEL_WIDTH] = op.get<std::array<unsigned short, 2>>("kSize")[mv::KERNEL_WIDTH];
                         kernel[mv::KERNEL_HEIGHT] = op.get<std::array<unsigned short, 2>>("kSize")[mv::KERNEL_HEIGHT];
@@ -2006,7 +2024,7 @@ namespace mv
 
                 size_t baseKernelCost;
 
-                if ((opType == "Eltwise" && !(software)) || (opType == "Concat"))
+                if ((opType == "Eltwise" && !(software)) || (opType == "Concat") || op.isEltwiseSingleInputTypeOp())
                 {
                     baseKernelCost = 1;
                 }
