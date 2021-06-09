@@ -33,7 +33,6 @@ class ZeroDevicesSingleton {
         ze_device_handle_t device_handle = nullptr;
         ze_context_handle_t context = nullptr;
 
-        
         ze_graph_dditable_ext_t* _graph_ddi_table_ext = nullptr;
         ze_fence_dditable_ext_t* _fence_ddi_table_ext = nullptr;
 
@@ -54,7 +53,7 @@ class ZeroDevicesSingleton {
                 driver_handle = all_drivers[i];
             }
         }
-        
+
         // Load our graph extension
         if (ZE_RESULT_SUCCESS != zeDriverGetExtensionFunctionAddress(driver_handle, "ZE_extension_graph",
                                                                      reinterpret_cast<void**>(&_graph_ddi_table_ext))) {
@@ -76,15 +75,15 @@ class ZeroDevicesSingleton {
             return;
         }
 
-        ze_context_desc_t context_desc = {ZE_STRUCTURE_TYPE_CONTEXT_DESC, 0};
+        ze_context_desc_t context_desc = {ZE_STRUCTURE_TYPE_CONTEXT_DESC, 0, 0};
 
-         if (ZE_RESULT_SUCCESS != zeContextCreate(driver_handle, &context_desc, &context)) {
+        if (ZE_RESULT_SUCCESS != zeContextCreate(driver_handle, &context_desc, &context)) {
             std::cerr << "ZeroDevicesSingleton zeContextCreate failed\n";
             return;
         }
 
-        auto device = std::make_shared<ZeroDevice>(driver_handle, device_handle, context,
-                                                   _graph_ddi_table_ext, _fence_ddi_table_ext);
+        auto device = std::make_shared<ZeroDevice>(driver_handle, device_handle, context, _graph_ddi_table_ext,
+                                                   _fence_ddi_table_ext);
         devices.emplace(std::make_pair(device->getName(), device));
     }
 

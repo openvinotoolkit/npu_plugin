@@ -1,5 +1,5 @@
 #
-# Copyright 2020 Intel Corporation.
+# Copyright 2020-2021 Intel Corporation.
 #
 # LEGAL NOTICE: Your use of this software and any required dependent software
 # (the "Software Package") is subject to the terms and conditions of
@@ -31,14 +31,15 @@ target_compile_definitions(${TARGET_NAME}
 target_include_directories(${TARGET_NAME}
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/include
-        ${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/include)
+        ${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/include
+        ${PROJECT_SOURCE_DIR}/thirdparty/level-zero/include)
 
 link_system_libraries(${TARGET_NAME}
     PRIVATE
-        zeroApi
         IE::inference_engine
         IE::inference_engine_plugin_api
-        IE::vpu_common_lib)
+        IE::vpu_common_lib
+        ze_loader_vpu64)
 target_link_libraries(${TARGET_NAME}
     PRIVATE
         vpux_al

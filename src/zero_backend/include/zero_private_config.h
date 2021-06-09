@@ -29,9 +29,7 @@ namespace VPUXConfigParams {
  * @enum ze_syncType
  * @brief inference synchronize type (zero API)
  */
-enum class ze_syncType : uint32_t {
-	ZE_FENCE = 0,
-	ZE_EVENT = 1 };
+enum class ze_syncType : uint32_t { ZE_FENCE = 0, ZE_EVENT = 1 };
 
 DECLARE_VPUX_ZERO_CONFIG_KEY(ZE_SYNC_TYPE);
 DECLARE_VPUX_ZERO_CONFIG_VALUE(ZE_FENCE);

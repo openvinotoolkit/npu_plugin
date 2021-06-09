@@ -23,8 +23,8 @@ std::shared_ptr<Allocator> ZeroDevice::getAllocator() const {
     return result;
 }
 
-std::shared_ptr<Executor> ZeroDevice::createExecutor(
-    const NetworkDescription::Ptr& networkDescription, const VPUXConfig& config) {
+std::shared_ptr<Executor> ZeroDevice::createExecutor(const NetworkDescription::Ptr& networkDescription,
+                                                     const VPUXConfig& config) {
     _config.parseFrom(config);
     std::shared_ptr<Executor> result;
 
@@ -41,4 +41,6 @@ std::shared_ptr<Executor> ZeroDevice::createExecutor(
     return result;
 }
 
-std::string ZeroDevice::getName() const { return std::string("VPU-0"); }
+std::string ZeroDevice::getName() const {
+    return std::string("VPU-0");
+}

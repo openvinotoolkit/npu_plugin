@@ -25,8 +25,8 @@
 #include "vpux.hpp"
 #include "ze_api.h"
 
-#include "ze_fence_ext.h"
-#include "ze_graph_ext.h"
+#include "extensions/ze_fence_ext.h"
+#include "extensions/ze_graph_ext.h"
 
 #include "zero_config.h"
 #include "zero_private_config.h"
@@ -60,6 +60,14 @@ protected:
         hostMem() = default;
         hostMem(const ze_driver_handle_t driver_handle, const ze_context_handle_t context, const size_t size);
         hostMem(const hostMem&) = delete;
+        hostMem(hostMem&& other)
+                : _size(other._size),
+                  _data(other._data),
+                  _driver_handle{other._driver_handle},
+                  _context(other._context) {
+            other._size = 0;
+            other._data = nullptr;
+        };
         hostMem& operator=(const hostMem&) = delete;
         hostMem& operator=(hostMem&&) = delete;
 
@@ -77,7 +85,7 @@ protected:
             const auto inSz = vec.size() * sizeof(T);
             if (inSz != _size)
                 IE_THROW() << "hostMem::copyFrom sizes mismatch";
-            if (0 != memcpy_s(_data, _size, vec.data(), inSz))
+            if (0 != ie_memcpy(_data, _size, vec.data(), inSz))
                 IE_THROW() << "hostMem::copyFrom::ie_memcpy return != 0";
         }
         void copyFrom(const InferenceEngine::Blob::Ptr& blob) {
@@ -86,7 +94,7 @@ protected:
                 IE_THROW() << "deviceMem::copyFrom failing of casting blob to MemoryBlob";
             if (mblob->byteSize() != _size)
                 IE_THROW() << "hostMem::copyFrom sizes mismatch";
-            if (0 != memcpy_s(_data, _size, mblob->rmap().as<const uint8_t*>(), mblob->byteSize()))
+            if (0 != ie_memcpy(_data, _size, mblob->rmap().as<const uint8_t*>(), mblob->byteSize()))
                 IE_THROW() << "hostMem::copyFrom::ie_memcpy* return != 0";
         }
         void copyTo(InferenceEngine::Blob::Ptr& blob) const {
@@ -96,7 +104,7 @@ protected:
 
             if (mblob->byteSize() != _size)
                 IE_THROW() << "hostMem::copyTo sizes mismatch";
-            if (0 != memcpy_s(mblob->buffer().as<uint8_t*>(), mblob->byteSize(), _data, _size))
+            if (0 != ie_memcpy(mblob->buffer().as<uint8_t*>(), mblob->byteSize(), _data, _size))
                 IE_THROW() << "hostMem::copyTo::ie_memcpy return != 0";
         }
         ~hostMem();
@@ -114,6 +122,14 @@ protected:
         deviceMem(const ze_driver_handle_t driver_handle, const ze_device_handle_t device_handle,
                   const ze_context_handle_t context, const size_t size);
         deviceMem(const deviceMem&) = delete;
+        deviceMem(deviceMem&& other)
+                : _size(other._size),
+                  _data(other._data),
+                  _driver_handle(other._driver_handle),
+                  _context(other._context) {
+            other._size = 0;
+            other._data = nullptr;
+        }
         deviceMem& operator=(const deviceMem&) = delete;
         deviceMem& operator=(deviceMem&&) = delete;
 

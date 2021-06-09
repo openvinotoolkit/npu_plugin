@@ -35,11 +35,13 @@ void* ZeroAllocator::alloc(size_t size) noexcept {
 bool ZeroAllocator::free(void* handle) noexcept {
     if (handle) {
         our_pointers.erase(handle);
-        delete [] handle;
+        delete[] static_cast<char*>(handle);
     }
     return true;
 }
 
-bool ZeroAllocator::isZeroPtr(const void* ptr) { return our_pointers.count(ptr); }
+bool ZeroAllocator::isZeroPtr(const void* ptr) {
+    return our_pointers.count(ptr);
+}
 
 std::unordered_set<const void*> ZeroAllocator::our_pointers;

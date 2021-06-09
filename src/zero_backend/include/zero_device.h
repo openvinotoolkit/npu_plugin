@@ -17,13 +17,12 @@
 #include <vpux.hpp>
 #include <vpux_compiler.hpp>
 
+#include "extensions/ze_fence_ext.h"
+#include "extensions/ze_graph_ext.h"
 #include "ze_api.h"
-#include "ze_fence_ext.h"
-#include "ze_graph_ext.h"
 
 #include "zero_config.h"
 #include "zero_private_config.h"
-
 
 namespace vpux {
 class ZeroDevice : public IDevice {
@@ -43,12 +42,13 @@ public:
               _device_handle(device),
               _context(context),
               _graph_ddi_table_ext(graph_ddi_table_ext),
-              _fence_ddi_table_ext(fence_ddi_table_ext) { }
+              _fence_ddi_table_ext(fence_ddi_table_ext) {
+    }
 
     std::shared_ptr<Allocator> getAllocator() const override;
 
-    std::shared_ptr<Executor> createExecutor(
-        const NetworkDescription::Ptr& networkDescription, const VPUXConfig& config) override;
+    std::shared_ptr<Executor> createExecutor(const NetworkDescription::Ptr& networkDescription,
+                                             const VPUXConfig& config) override;
 
     std::string getName() const override;
 
