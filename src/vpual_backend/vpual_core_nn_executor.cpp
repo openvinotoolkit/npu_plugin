@@ -234,9 +234,15 @@ VpualCoreNNExecutor::VpualCoreNNExecutor(const vpux::NetworkDescription::Ptr& ne
       _pipe(new Pipeline(MAX_PLUGS_PER_PIPE, deviceId),
           [](Pipeline* pipePtr) {
               if (pipePtr != nullptr) {
-                  pipePtr->Stop();
-                  pipePtr->Wait();
-                  pipePtr->Delete();
+                  try {
+                      pipePtr->Stop();
+                      pipePtr->Wait();
+                      pipePtr->Delete();
+                  } catch (const std::exception& ex) {
+                      std::cerr << "Pipeline object destruction failed: " << ex.what() << std::endl;
+                  } catch (...) {
+                      std::cerr << "Pipeline object destruction failed: unexpected exception." << std::endl;
+                  }
                   delete pipePtr;
               }
           }),
@@ -785,7 +791,7 @@ void VpualCoreNNExecutor::pull(ie::BlobMap& outputs) {
     _wd->Pause(this);
     if (X_LINK_SUCCESS != status) {
         _logger->error("pull: WaitForResponse failed");
-        IE_THROW() << "VpualCoreNNExecutor::pull: WaitForResponse failed" << status;
+        IE_THROW() << "VpualCoreNNExecutor::pull: WaitForResponse failed. Status = " << status;
     }
     if (MVNCI_SUCCESS != response.status) {
         _logger->error("pull: for inference: %d, received error response: %d", response.inferenceID, response.status);
