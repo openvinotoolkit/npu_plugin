@@ -54,6 +54,7 @@ const std::vector<InferenceEngine::Precision> outputPrecisions = {
 const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes = {
         {Mish,         {{}}},
         {LeakyRelu,    {{0.1f}}},
+        {PReLu,        {{0.2f}}},
 };
 
 std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basic = {
