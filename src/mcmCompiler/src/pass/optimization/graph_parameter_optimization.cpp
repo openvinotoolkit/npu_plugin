@@ -144,6 +144,10 @@ namespace mv
                 {FailCause::DeConvSubConvSOKHeight, "DeConvSubConvSOKHeight"},
                 {FailCause::SpiltOverHForLayer79InACLNet, "SpiltOverHForLayer79InACLNet"},
                 {FailCause::SpiltOverHForLayer97and113ModelE, "SpiltOverHForLayer97and113ModelE"},
+                {FailCause::SpiltOverHForConvModelF, "SpiltOverHForConvModelF"},
+                {FailCause::SpiltOverKForConvModelF, "SpiltOverKForConvModelF"},
+                {FailCause::SpiltOverHForFaceDetectionRetail0004, "SpiltOverHForFaceDetectionRetail0004"},
+                {FailCause::SplitOverHOverlappedWronglyComputed, "SplitOverHOverlappedWronglyComputed"},
                 {FailCause::SoftwareDeconvolutionSet, "SoftwareDeconvolutionSet"},
                 {FailCause::UpaHKSwitch, "UpaHKSwitch"}
             };
