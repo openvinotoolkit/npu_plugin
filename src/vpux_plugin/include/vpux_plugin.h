@@ -1,5 +1,5 @@
 //
-// Copyright 2019 Intel Corporation.
+// Copyright 2021 Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -25,6 +25,9 @@
 #include "vpux_backends.h"
 #include "vpux_compiler.hpp"
 #include "vpux_metrics.h"
+#if defined(__arm__) || defined(__aarch64__)
+#include "vpux_encryption.h"
+#endif
 
 namespace vpux {
 
@@ -75,6 +78,10 @@ private:
     VPUXConfig _parsedConfig;
     VPUXBackends::Ptr _backends;
     Metrics _metrics;
+    vpu::Logger _logger;
+#if defined(__arm__) || defined(__aarch64__)
+    Encryption _encryptionModel;
+#endif
 };
 
 }  // namespace vpux

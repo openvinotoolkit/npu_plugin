@@ -1,5 +1,5 @@
 //
-// Copyright 2019 Intel Corporation.
+// Copyright 2021 Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -65,7 +65,8 @@ static const std::vector<std::string> backendRegistry = {
         "emulator_backend",
 #endif
 };
-Engine::Engine(): _backends(std::make_shared<VPUXBackends>(backendRegistry)), _metrics(_backends) {
+Engine::Engine(): _backends(std::make_shared<VPUXBackends>(backendRegistry)), _metrics(_backends),
+                  _logger(vpu::Logger("VPUXEngine", vpu::LogLevel::Error, vpu::consoleOutput())) {
     _pluginName = DEVICE_NAME;  // "VPUX"
     const auto compiler = Compiler::create(_parsedConfig);
     _parsedConfig.expandSupportedCompileOptions(compiler->getSupportedOptions());
@@ -119,6 +120,16 @@ IE::IExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(const IE::CNNNetw
 IE::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(const std::string& modelFileName,
                                                           const std::map<std::string, std::string>& config) {
     std::ifstream blobStream(modelFileName, std::ios::binary);
+#if defined(__arm__) || defined(__aarch64__)
+    try {
+        if (_encryptionModel.isLibraryFound()) {
+            std::stringstream sstream;
+            return ImportNetwork( vpu::KmbPlugin::utils::skipMagic(_encryptionModel.getDecryptedStream(blobStream, sstream)), config);
+        }
+    } catch (const std::exception& ex) {
+        _logger.warning(ex.what());
+    }
+#endif
     return ImportNetwork(vpu::KmbPlugin::utils::skipMagic(blobStream), config);
 }
 
