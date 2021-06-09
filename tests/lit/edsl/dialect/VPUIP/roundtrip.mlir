@@ -4,7 +4,7 @@
 
 // CHECK-LABEL: @EdslUPATask
 func @EdslUPATask(%arg0: memref<1x256x256x16xf16>, %arg1: memref<1x256x256x16xf16>, %arg2: memref<1x256x256x16xf16>) -> memref<1x256x256x16xf16> {
-    // CHECK:      VPUIP.EdslUPA {kernel = @kernel, middles = [], outers = [128], transfers = [
+    // CHECK:      VPUIP.EdslUPA {inits = [unit], kernel = @kernel, middles = [], outers = [128], transfers = [
     // CHECK-SAME:   {baseMap = #{{.*}}, dir = "IN", stage = "OUTER"},
     // CHECK-SAME:   {baseMap = #{{.*}}, dir = "IN", stage = "MIDDLE"},
     // CHECK-SAME:   {baseMap = #{{.*}}, dir = "OUT", stage = "MIDDLE"}]}
@@ -14,6 +14,7 @@ func @EdslUPATask(%arg0: memref<1x256x256x16xf16>, %arg1: memref<1x256x256x16xf1
         kernel=@kernel,
         outers=[128],
         middles=[],
+        inits=[unit],
         transfers=[
             {dir="IN", stage="OUTER", baseMap=#map},
             {dir="IN", stage="MIDDLE", baseMap=#map},

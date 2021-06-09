@@ -23,6 +23,7 @@
 #include "vpux/compiler/dialect/VPUIP/types.hpp"
 
 #include <mlir/Dialect/Quant/QuantOps.h>
+#include <mlir/Dialect/SCF/SCF.h>
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/IR/BuiltinOps.h>
 #include <mlir/IR/BuiltinTypes.h>

@@ -128,6 +128,11 @@ public:
         return _impl.CreateVector(vec.data(), vec.size());
     }
 
+    template <typename T>
+    auto createVectorOfStructs(ArrayRef<T> arr) {
+        return _impl.CreateVectorOfStructs(arr.data(), arr.size());
+    }
+
 public:
     auto& impl() {
         return _impl;

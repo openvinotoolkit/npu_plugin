@@ -48,6 +48,7 @@ func @main(%arg0: memref<1x256x256x16xf16>, %arg1: memref<1x256x256x16xf16>, %ar
         kernel=@kernels::@eltwise_kernel_0,
         outers=[128],
         middles=[],
+        inits=[unit],
         transfers=[
             {dir="IN", stage="MIDDLE", baseMap=#map},
             {dir="IN", stage="MIDDLE", baseMap=#map},
@@ -193,5 +194,20 @@ module @kernels {
 // CHECK:           ]
 // CHECK:         }
 // CHECK:       }
+// CHECK:     ],
+// CHECK:     initOutputs: [
+// CHECK:       {
+// CHECK:         needInit: false,
+// CHECK:         isInit: false,
+// CHECK:         intValue: 0,
+// CHECK:         floatValue: 0.0
+// CHECK:       }
+// CHECK:     ],
+// CHECK:     inputDataTypes: [
+// CHECK:       "FLOAT16",
+// CHECK:       "FLOAT16"
+// CHECK:     ],
+// CHECK:     outputDataTypes: [
+// CHECK:       "FLOAT16"
 // CHECK:     ]
 // CHECK:   },

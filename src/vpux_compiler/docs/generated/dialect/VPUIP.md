@@ -448,6 +448,7 @@ operation ::= `VPUIP.EdslUPA` attr-dict
 `kernel` | ::mlir::SymbolRefAttr | symbol reference attribute
 `outers` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `middles` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`inits` | ::mlir::ArrayAttr | array attribute
 `transfers` | ::mlir::ArrayAttr | eDSL DMA descriptor array attribute
 `maxShaves` | ::mlir::IntegerAttr | 32-bit signless integer attribute
 `isTrailingSWLayer` | ::mlir::UnitAttr | unit attribute
