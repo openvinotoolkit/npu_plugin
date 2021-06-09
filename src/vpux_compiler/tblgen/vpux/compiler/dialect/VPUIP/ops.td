@@ -2036,6 +2036,7 @@ def VPUIP_EdslUPAOp :
         SymbolRefAttr:$kernel,
         I64ArrayAttr:$outers,
         I64ArrayAttr:$middles,
+        ArrayAttr:$inits,
         VPUIP_EdslDMADescArrayAttr:$transfers,
 
         OptionalAttr<I32Attr>:$maxShaves,
@@ -2052,6 +2053,7 @@ def VPUIP_EdslUPAOp :
                 "::mlir::SymbolRefAttr":$kernel,
                 "::mlir::ArrayAttr":$outers,
                 "::mlir::ArrayAttr":$middles,
+                "::mlir::ArrayAttr":$inits,
                 "::mlir::ArrayAttr":$transfers
             )
         >
