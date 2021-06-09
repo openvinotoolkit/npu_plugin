@@ -150,7 +150,7 @@ if(VPU_CLC_MA2X9X_COMMAND)
     add_kmb_compile_custom_ocl_kernels("custom_ocl_kernels")
 endif()
 
-if(VPU_CLC_MA2X9X_COMMAND OR CMAKE_CROSSCOMPILING)
+if((VPU_CLC_MA2X9X_COMMAND OR CMAKE_CROSSCOMPILING) AND NOT WIN32)
     target_compile_definitions(kmb_custom_ocl_kernels INTERFACE "KMB_HAS_CUSTOM_OCL_KERNELS")
 endif()
 
