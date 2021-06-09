@@ -30,7 +30,7 @@ InferenceEngine::Blob::Ptr fromBinaryFile(const std::string& input_binary, const
 void readNV12FileHelper(const std::string& filePath, size_t sizeToRead, uint8_t* imageData, size_t readOffset);
 InferenceEngine::Blob::Ptr fromNV12File(const std::string& filePath, size_t imageWidth, size_t imageHeight,
                                         std::shared_ptr<VPUAllocator>& allocator);
-std::ifstream& skipMagic(std::ifstream& blobStream);
+std::istream& skipMagic(std::istream& blobStream);
 
 }  // namespace utils
 
