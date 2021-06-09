@@ -22,3 +22,6 @@
 [submodule "thirdparty/plaidml"]
 	path = thirdparty/plaidml
 	url = https://github.com/plaidml/plaidml.git
+[submodule "level-zero"]
+	path = thirdparty/level-zero
+	url = https://github.com/jbdallastx/level-zero.git

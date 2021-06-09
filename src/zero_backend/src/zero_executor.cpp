@@ -216,7 +216,7 @@ ZeroExecutorCommon::ZeroExecutorCommon(ze_driver_handle_t driver_handle, ze_devi
 
 ZeroExecutorCommon::hostMem::hostMem(const ze_driver_handle_t driver_handle, const ze_context_handle_t context,
                                      const size_t size)
-        : _driver_handle(driver_handle), _context(context), _size(size) {
+        : _size(size), _driver_handle(driver_handle), _context(context) {
     ze_host_mem_alloc_desc_t desc = {ZE_STRUCTURE_TYPE_HOST_MEM_ALLOC_DESC, nullptr, 0};
     throwOnFail("zeMemAllocHost", zeMemAllocHost(_context, &desc, _size, _alignment, &_data));
 }
@@ -228,7 +228,7 @@ ZeroExecutorCommon::hostMem::~hostMem() {
 
 ZeroExecutorCommon::deviceMem::deviceMem(const ze_driver_handle_t driver_handle, const ze_device_handle_t deh_,
                                          ze_context_handle_t context, const size_t size)
-        : _driver_handle(driver_handle), _context(context), _size(size) {
+        : _size(size), _driver_handle(driver_handle), _context(context) {
     ze_device_mem_alloc_desc_t desc = {ZE_STRUCTURE_TYPE_DEVICE_MEM_ALLOC_DESC, nullptr, 0, 0};
 
     throwOnFail("zeDriverAllocDeviceMem", zeMemAllocDevice(_context, &desc, _size, _alignment, deh_, &_data));
@@ -273,12 +273,12 @@ ZeroExecutorCommon::graph::graph(const ze_device_handle_t& device_handle, const 
                                  ze_graph_dditable_ext_t* graph_ddi_table_ext,
                                  ze_fence_dditable_ext_t* fence_ddi_table_ext)
         : _context(context),
-          _graph_ddi_table_ext(graph_ddi_table_ext),
           _blob(networkDesc->getCompiledNetwork()),
           _command_queue(std::make_shared<commandQueue>(device_handle, _context)),
           _command_list(device_handle, _context, graph_ddi_table_ext),
           _fence(std::make_shared<fence>(_command_queue, fence_ddi_table_ext)),
-          _fence_value(0) {
+          _fence_value(0),
+          _graph_ddi_table_ext(graph_ddi_table_ext) {
     ze_graph_desc_t desc = {ZE_GRAPH_FORMAT_NATIVE, _blob.size(), reinterpret_cast<const uint8_t*>(_blob.data())};
     throwOnFail("zeGraphCreate", _graph_ddi_table_ext->pfnCreate(device_handle, &desc, &_handle));
 
@@ -341,8 +341,9 @@ ZeroExecutorCommon::pipelineCommon::pipelineCommon(const ze_driver_handle_t& dri
                          {device_handle, context, graph_ddi_table_ext}}} {
     for (const auto& desc : graph->_inputs_desc_map) {
         auto size = getSizeIOBytes(desc.second.info);
-        _inputs_host_mem_map.try_emplace(desc.first, driver_handle, context, size);
-        _inputs_device_mem_map.try_emplace(desc.first, driver_handle, device_handle, context, size);
+        _inputs_host_mem_map.emplace(std::make_pair(desc.first, hostMem{driver_handle, context, size}));
+        _inputs_device_mem_map.emplace(
+                std::make_pair(desc.first, deviceMem{driver_handle, device_handle, context, size}));
 
         auto& hostMem = mapArguments(_inputs_host_mem_map, desc.first);
         auto& deviceMem = mapArguments(_inputs_device_mem_map, desc.first);
@@ -413,12 +414,13 @@ ZeroExecutor<InferenceEngine::VPUXConfigParams::ze_syncType::ZE_FENCE>::fence::~
 ZeroExecutor<InferenceEngine::VPUXConfigParams::ze_syncType::ZE_FENCE>::pipeline::pipeline(
         const ze_driver_handle_t& driver_handle, const ze_device_handle_t& device_handle,
         const ze_context_handle_t context, ze_graph_dditable_ext_t* graph_ddi_table_ext,
-        ze_fence_dditable_ext_t* fence_ddi_table_ext, const std::shared_ptr<graph>& graph)
+        ze_fence_dditable_ext_t* /*fence_ddi_table_ext*/, const std::shared_ptr<graph>& graph)
         : pipelineCommon(driver_handle, device_handle, context, graph_ddi_table_ext, graph) {
     for (const auto& desc : graph->_outputs_desc_map) {
         auto size = getSizeIOBytes(desc.second.info);
-        _outputs_host_mem_map.try_emplace(desc.first, driver_handle, context, size);
-        _outputs_device_mem_map.try_emplace(desc.first, driver_handle, device_handle, context, size);
+        _outputs_host_mem_map.emplace(std::make_pair(desc.first, hostMem{driver_handle, context, size}));
+        _outputs_device_mem_map.emplace(
+                std::make_pair(desc.first, deviceMem{driver_handle, device_handle, context, size}));
 
         auto& hostMem = mapArguments(_outputs_host_mem_map, desc.first);
         auto& deviceMem = mapArguments(_outputs_device_mem_map, desc.first);
@@ -614,7 +616,7 @@ ZeroExecutor<InferenceEngine::VPUXConfigParams::ze_syncType::ZE_EVENT>::eventPoo
 ZeroExecutor<InferenceEngine::VPUXConfigParams::ze_syncType::ZE_EVENT>::event_t::event_t(
         ze_device_handle_t device_handle, const ze_context_handle_t& context, const ze_event_pool_handle_t& event_pool,
         uint32_t event_index)
-        : _context(context), _device_t(device_handle) {
+        : _device_t(device_handle), _context(context) {
     ze_event_desc_t event_desc = {ZE_STRUCTURE_TYPE_EVENT_DESC, nullptr, event_index, 0, 0};
     throwOnFail("zeEventCreate", zeEventCreate(event_pool, &event_desc, &_handle));
 }
@@ -634,7 +636,7 @@ void ZeroExecutor<InferenceEngine::VPUXConfigParams::ze_syncType::ZE_EVENT>::eve
 ZeroExecutor<InferenceEngine::VPUXConfigParams::ze_syncType::ZE_EVENT>::pipeline::pipeline(
         const ze_driver_handle_t& driver_handle, const ze_device_handle_t& device_handle,
         const ze_context_handle_t context, ze_graph_dditable_ext_t* graph_ddi_table_ext,
-        ze_fence_dditable_ext_t* fence_ddi_table_ext, const std::shared_ptr<graph>& graph)
+        ze_fence_dditable_ext_t* /*fence_ddi_table_ext*/, const std::shared_ptr<graph>& graph)
         : pipelineCommon(driver_handle, device_handle, context, graph_ddi_table_ext, graph),
           _event_pool(device_handle, context, stage::COUNT),
           _event{{{device_handle, context, _event_pool._handle, stage::UPLOAD},
@@ -644,8 +646,9 @@ ZeroExecutor<InferenceEngine::VPUXConfigParams::ze_syncType::ZE_EVENT>::pipeline
 
     for (const auto& desc : graph->_outputs_desc_map) {
         auto size = getSizeIOBytes(desc.second.info);
-        _outputs_host_mem_map.try_emplace(desc.first, driver_handle, context, size);
-        _outputs_device_mem_map.try_emplace(desc.first, driver_handle, device_handle, context, size);
+        _outputs_host_mem_map.emplace(std::make_pair(desc.first, hostMem{driver_handle, context, size}));
+        _outputs_device_mem_map.emplace(
+                std::make_pair(desc.first, deviceMem{driver_handle, device_handle, context, size}));
 
         auto& hostMem = mapArguments(_outputs_host_mem_map, desc.first);
         auto& deviceMem = mapArguments(_outputs_device_mem_map, desc.first);
@@ -750,7 +753,7 @@ InferenceEngine::Parameter ZeroExecutorCommon::getParameter(const std::string&) 
 void ZeroExecutorCommon::setup(const InferenceEngine::ParamMap&) {
     IE_THROW() << "Not implemented";
 }
-bool ZeroExecutorCommon::isPreProcessingSupported(const PreprocMap& preProcMap) const {
+bool ZeroExecutorCommon::isPreProcessingSupported(const PreprocMap&) const {
     return false;
 }
 

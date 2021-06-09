@@ -26,7 +26,8 @@ class ZeroAllocator : public Allocator {
     static std::unordered_set<const void*> our_pointers;
 
 public:
-    explicit ZeroAllocator(ze_driver_handle_t driver): driver_handle(driver) {}
+    explicit ZeroAllocator(ze_driver_handle_t driver): driver_handle(driver) {
+    }
 
     /**
      * @brief Maps handle to heap memory accessible by any memory manipulation routines.
@@ -35,7 +36,9 @@ public:
      * @param op Operation to lock memory for
      * @return Generic pointer to memory
      */
-    void* lock(void* handle, InferenceEngine::LockOp) noexcept override { return handle; }
+    void* lock(void* handle, InferenceEngine::LockOp) noexcept override {
+        return handle;
+    }
     /**
      * @brief Unmaps memory by handle with multiple sequential mappings of the same handle.
      *
@@ -44,7 +47,8 @@ public:
      *
      * @param handle Handle to the locked memory to unlock
      */
-    void unlock(void*) noexcept override {}
+    void unlock(void*) noexcept override {
+    }
     /**
      * @brief Allocates memory
      *
@@ -60,11 +64,17 @@ public:
     bool free(void* handle) noexcept override;
 
     // TODO: need update methods to remove Kmb from parameters
-    void* wrapRemoteMemoryHandle(const int&, const size_t, void*) noexcept override { return 0; }
-    void* wrapRemoteMemoryOffset(const int&, const size_t, const size_t&) noexcept override { return 0; }
+    void* wrapRemoteMemoryHandle(const int&, const size_t, void*) noexcept override {
+        return 0;
+    }
+    void* wrapRemoteMemoryOffset(const int&, const size_t, const size_t&) noexcept override {
+        return 0;
+    }
 
     // FIXME: temporary exposed to allow executor to use vpux::Allocator
-    unsigned long getPhysicalAddress(void* handle) noexcept override { return 0; }
+    unsigned long getPhysicalAddress(void* /*handle*/) noexcept override {
+        return 0;
+    }
 
     static bool isZeroPtr(const void*);
 
