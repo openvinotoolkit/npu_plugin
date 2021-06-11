@@ -32,7 +32,6 @@
 
 namespace vpux {
 
-int extractIdFromDeviceName(const std::string& name);
 bool isBlobAllocatedByAllocator(const InferenceEngine::Blob::Ptr& blob,
                                 const std::shared_ptr<InferenceEngine::IAllocator>& allocator);
 

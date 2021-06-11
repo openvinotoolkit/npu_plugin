@@ -25,6 +25,7 @@
 #include "vpux_infer_request.h"
 #include "vpux_remote_blob.h"
 
+#include <device_helpers.hpp>
 #include "vpux/utils/IE/blob.hpp"
 #include "vpux/utils/IE/itt.hpp"
 
@@ -74,7 +75,7 @@ InferRequest::InferRequest(const IE::InputsDataMap& networkInputs, const IE::Out
           _config(config),
           _logger(std::make_shared<vpu::Logger>("InferRequest", config.logLevel(), vpu::consoleOutput())),
           _allocator(allocator),
-          _deviceId(extractIdFromDeviceName(config.deviceId())),
+          _deviceId(utils::getSliceIdByDeviceName(config.deviceId())),
           _netUniqueId(netName),
           _preprocBuffer(nullptr, [this](uint8_t* buffer) {
               _allocator->free(buffer);

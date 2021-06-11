@@ -21,20 +21,6 @@
 
 namespace vpux {
 
-// expected format VPU-#, where # is device id
-int extractIdFromDeviceName(const std::string& name) {
-    const size_t expectedSize = 5;
-    if (name.size() != expectedSize) {
-#ifdef __aarch64__
-        IE_THROW() << "Unexpected device name: " << name;
-#else
-        return -1;
-#endif
-    }
-
-    return name.at(expectedSize - 1) - '0';
-}
-
 bool isBlobAllocatedByAllocator(const InferenceEngine::Blob::Ptr& blob,
                                 const std::shared_ptr<InferenceEngine::IAllocator>& allocator) {
     const auto memoryBlob = InferenceEngine::as<InferenceEngine::MemoryBlob>(blob);

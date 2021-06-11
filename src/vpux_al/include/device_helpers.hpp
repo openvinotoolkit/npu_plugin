@@ -16,12 +16,15 @@
 #include <cstdint>
 #include <map>
 
-#include "vpux/vpux_plugin_config.hpp"
+#include "vpux_private_config.hpp"
 
 namespace utils {
+bool isVPUDevice(const uint32_t deviceId);
 uint32_t getSliceIdBySwDeviceId(const uint32_t swDevId);
+int getSliceIdByDeviceName(const std::string& deviceName);
 InferenceEngine::VPUXConfigParams::VPUXPlatform getPlatformBySwDeviceId(const uint32_t swDevId);
 std::string getPlatformNameByDeviceName(const std::string& deviceName);
+bool isPlatformNameSupported(const std::string& platformName);
 std::string getDeviceNameBySwDeviceId(const uint32_t swDevId);
 InferenceEngine::VPUXConfigParams::VPUXPlatform getPlatformByDeviceName(const std::string& deviceName);
 }  // namespace utils

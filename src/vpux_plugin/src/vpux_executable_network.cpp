@@ -69,13 +69,6 @@ ExecutableNetwork::ExecutableNetwork(const VPUXConfig& config, const Device::Ptr
           _device(device),
           _compiler(Compiler::create(config)),
           _supportedMetrics({METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)}) {
-    // FIXME: HACK: platform is supposed to be detected at this point
-    // but due to different reasons it is not possible now.
-    // KMB B0 platform is hard-coded the main one
-    // Track number: TBD
-    if (_config.platform() == IE::VPUXConfigParams::VPUXPlatform::AUTO && device != nullptr) {
-        const_cast<VPUXConfig&>(_config).update({{VPUX_CONFIG_KEY(PLATFORM), VPUX_CONFIG_VALUE(VPU3700)}});
-    }
 }
 
 //------------------------------------------------------------------------------

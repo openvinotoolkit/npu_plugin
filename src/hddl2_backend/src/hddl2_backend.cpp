@@ -15,6 +15,7 @@
 #include <fstream>
 #include <memory>
 // Plugin
+#include <device_helpers.hpp>
 #include "hddl2_exceptions.h"
 // Subplugin
 #include "hddl2_backend.h"
@@ -43,27 +44,23 @@ const std::shared_ptr<IDevice> HDDL2Backend::getDevice() const {
 
 /** Specific device */
 const std::shared_ptr<IDevice> HDDL2Backend::getDevice(const std::string& specificDeviceName) const {
+    // Search for "platform.slice_id" naming format
     const auto devices = getDeviceNames();
     const auto it = std::find(devices.cbegin(), devices.cend(), specificDeviceName);
     if (it != devices.end()) {
         return std::make_shared<ImageWorkloadDevice>(*it);
-    } else {
-        // TODO Old naming format VPUX.swDeviceId is deprecated, need to be removed in the future
-        // Check old naming format (deprecated)
-        uint32_t swDeviceId;
-        try {
-            swDeviceId = static_cast<uint32_t>(std::stol(specificDeviceName));
-        } catch (...) {
-            return nullptr;
-        }
-        const auto devMap = getSwDeviceIdNameMap();
-        const auto devIt = devMap.find(swDeviceId);
-        if (devIt != devMap.end()) {
-            return std::make_shared<ImageWorkloadDevice>((*devIt).second);
-        }
-
-        return nullptr;
     }
+
+    // Search for "only platform" naming format
+    const auto expectedPlatformName = utils::getPlatformNameByDeviceName(specificDeviceName);
+    for (const auto& curDev : devices) {
+        const auto currentPlatformName = utils::getPlatformNameByDeviceName(curDev);
+        if (currentPlatformName == expectedPlatformName) {
+            return std::make_shared<ImageWorkloadDevice>(curDev);
+        }
+    }
+
+    return nullptr;
 }
 
 const std::shared_ptr<IDevice> HDDL2Backend::getDevice(const InferenceEngine::ParamMap& paramMap) const {
@@ -90,7 +87,7 @@ std::map<std::string, std::shared_ptr<vpux::IDevice>> HDDL2Backend::createDevice
     std::map<std::string, std::shared_ptr<IDevice>> devices;
     // TODO Add more logs and cases handling
     if (isServiceAvailable(_logger) && !getDeviceNames().empty()) {
-        devices.insert({"HDDL2", std::make_shared<ImageWorkloadDevice>()});
+        devices.insert({"AUTO", std::make_shared<ImageWorkloadDevice>()});
         _logger->debug("HDDL2 devices found for execution.");
     } else {
         _logger->debug("HDDL2 devices not found for execution.");
