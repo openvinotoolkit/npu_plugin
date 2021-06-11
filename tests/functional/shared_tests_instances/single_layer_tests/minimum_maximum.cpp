@@ -21,10 +21,11 @@ TEST_P(KmbMaxMinLayerTest, CompareWithRefs) {
     Run();
 }
 
-TEST_P(KmbMaxMinLayerTest, CompareWithRefs_MLIR) {
-    useCompilerMLIR();
-    Run();
-}
+// [Track number: E#14809]
+// TEST_P(KmbMaxMinLayerTest, CompareWithRefs_MLIR) {
+//     useCompilerMLIR();
+//     Run();
+// }
 
 }  // namespace LayerTestsDefinitions
 
