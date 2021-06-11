@@ -68,11 +68,9 @@ std::shared_ptr<Device> VPUXBackends::getDevice(const std::string& specificName)
     _logger.debug("Searching for device %s to use started...", specificName);
     // TODO iterate over all available backends
     std::shared_ptr<Device> deviceToUse = nullptr;
-    // TODO Ignore default VPU-0. Track #S-38444
-    const std::string ignoredDeviceName("VPU-0");
 
     if (_backend != nullptr) {
-        if (specificName.empty() || specificName == ignoredDeviceName) {
+        if (specificName.empty()) {
             deviceToUse = _backend->getDevice();
         } else {
             deviceToUse = _backend->getDevice(specificName);
@@ -116,36 +114,45 @@ void VPUXBackends::setup(const VPUXConfig& config) {
 }
 
 static std::map<IE::VPUXConfigParams::VPUXPlatform, std::string> compilationPlatformMap = {
-        {IE::VPUXConfigParams::VPUXPlatform::VPU3400_A0, VPUX_CONFIG_VALUE(VPU3400_A0)},
-        {IE::VPUXConfigParams::VPUXPlatform::VPU3400, VPUX_CONFIG_VALUE(VPU3700)},
-        {IE::VPUXConfigParams::VPUXPlatform::VPU3700, VPUX_CONFIG_VALUE(VPU3700)},
-        {IE::VPUXConfigParams::VPUXPlatform::VPU3800, VPUX_CONFIG_VALUE(VPU3900)},
-        {IE::VPUXConfigParams::VPUXPlatform::VPU3900, VPUX_CONFIG_VALUE(VPU3900)},
-        {IE::VPUXConfigParams::VPUXPlatform::VPU3720, VPUX_CONFIG_VALUE(VPU3720)},
+        {IE::VPUXConfigParams::VPUXPlatform::VPU3400_A0, "3400_A0"},
+        {IE::VPUXConfigParams::VPUXPlatform::VPU3400, "3700"},
+        {IE::VPUXConfigParams::VPUXPlatform::VPU3700, "3700"},
+        {IE::VPUXConfigParams::VPUXPlatform::VPU3800, "3900"},
+        {IE::VPUXConfigParams::VPUXPlatform::VPU3900, "3900"},
+        {IE::VPUXConfigParams::VPUXPlatform::VPU3720, "3720"},
 };
 
-std::string VPUXBackends::getCompilationPlatform(const IE::VPUXConfigParams::VPUXPlatform platform) const {
+std::string VPUXBackends::getCompilationPlatform(const IE::VPUXConfigParams::VPUXPlatform platform,
+                                                 const std::string& deviceId) const {
+    // Platform parameter has a higher priority than deviceID
     if (platform != IE::VPUXConfigParams::VPUXPlatform::AUTO) {
         return compilationPlatformMap.at(platform);
     }
 
-    const auto devNames = getAvailableDevicesNames();
-    if (devNames.size() > 0) {
-        const auto compilationPlatform = utils::getPlatformByDeviceName(devNames.at(0));
-        const auto compilationPlatformName = compilationPlatformMap.at(compilationPlatform);
-        const auto anotherPlatformIt =
-                std::find_if(devNames.cbegin(), devNames.cend(), [compilationPlatformName](const std::string& devName) {
-                    const auto curCompilationPlatform = utils::getPlatformByDeviceName(devName);
-                    const auto curCompilationPlatformName = compilationPlatformMap.at(curCompilationPlatform);
-                    return (curCompilationPlatformName != compilationPlatformName);
-                });
-        if (anotherPlatformIt != devNames.cend()) {
-            IE_THROW() << "Different VPUX platform have been detected. Not supported configuration.";
-        }
-        return compilationPlatformName;
+    // Get compilation platform from deviceID
+    if (!deviceId.empty()) {
+        return utils::getPlatformNameByDeviceName(deviceId);
     }
 
-    return VPUX_CONFIG_VALUE(VPU3700);
+    // Automatic detection of compilation platform
+    const auto devNames = getAvailableDevicesNames();
+    if (devNames.empty()) {
+        IE_THROW() << "No devices found - DEVICE_ID with platform is required for compilation";
+    }
+
+    const auto compilationPlatform = utils::getPlatformByDeviceName(devNames.at(0));
+    const auto compilationPlatformName = compilationPlatformMap.at(compilationPlatform);
+    const auto anotherPlatformIt =
+            std::find_if(devNames.cbegin(), devNames.cend(), [&compilationPlatformName](const std::string& devName) {
+                const auto curCompilationPlatform = utils::getPlatformByDeviceName(devName);
+                const auto curCompilationPlatformName = compilationPlatformMap.at(curCompilationPlatform);
+                return (curCompilationPlatformName != compilationPlatformName);
+            });
+    if (anotherPlatformIt != devNames.cend()) {
+        IE_THROW() << "Different VPUX platform have been detected. Not supported configuration.";
+    }
+
+    return compilationPlatformName;
 }
 
 }  // namespace vpux

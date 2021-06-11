@@ -81,27 +81,26 @@ TEST_F(AsyncInferRequest_Tests, precommit_asyncIsFasterThenSync) {
 
     Time start_sync;
     Time end_sync;
-    {
-        // --- Create requests
-        std::vector<IE::InferRequest> requests = createRequests(REQUEST_LIMIT);
-        auto inputBlobName = executableNetworkPtr->GetInputsInfo().begin()->first;
-        loadCatImageToBlobForRequests(inputBlobName, requests);
-
-        // --- Sync execution
-        start_sync = Now();
-        for (IE::InferRequest& currentRequest : requests) {
-            ASSERT_NO_THROW(currentRequest.Infer());
-        }
-        end_sync = Now();
-    }
-
     Time start_async;
     Time end_async;
     {
-        // --- Create requests
-        std::vector<IE::InferRequest> requests = createRequests(REQUEST_LIMIT);
+        // --- Get input
         auto inputBlobName = executableNetworkPtr->GetInputsInfo().begin()->first;
-        loadCatImageToBlobForRequests(inputBlobName, requests);
+
+        // --- Create requests
+        std::vector<IE::InferRequest> syncRequests = createRequests(REQUEST_LIMIT);
+        loadCatImageToBlobForRequests(inputBlobName, syncRequests);
+        // --- Sync execution
+        start_sync = Now();
+        for (IE::InferRequest& currentRequest : syncRequests) {
+            ASSERT_NO_THROW(currentRequest.Infer());
+        }
+        end_sync = Now();
+
+
+        // --- Create requests
+        std::vector<IE::InferRequest> asyncRequests = createRequests(REQUEST_LIMIT);
+        loadCatImageToBlobForRequests(inputBlobName, asyncRequests);
 
         // --- Specify callback
         std::mutex requestCounterGuard;
@@ -113,7 +112,7 @@ TEST_F(AsyncInferRequest_Tests, precommit_asyncIsFasterThenSync) {
 
         start_async = Now();
         // --- Asynchronous execution
-        for (IE::InferRequest& currentRequest : requests) {
+        for (IE::InferRequest& currentRequest : asyncRequests) {
             currentRequest.SetCompletionCallback(onComplete);
             currentRequest.StartAsync();
         }

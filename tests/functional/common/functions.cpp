@@ -34,5 +34,5 @@ const std::string PlatformEnvironment::PLATFORM = []() -> std::string {
             return var;
         }
 
-        return std::string("VPU3700");
+        return std::string("3700");
 }();

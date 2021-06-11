@@ -15,6 +15,7 @@
 
 #include "HddlUnite.h"
 #include "ie_extension.h"
+#include <device_helpers.hpp>
 
 namespace DeviceName {
 
@@ -33,7 +34,7 @@ inline std::set<std::string> getDevicesNames() {
     }
     std::set<std::string> deviceNames;
     for (const auto& device: devices) {
-        deviceNames.insert(device.getName());
+        deviceNames.insert(utils::getDeviceNameBySwDeviceId(device.getSwDeviceId()));
     }
     return deviceNames;
 }

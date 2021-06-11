@@ -32,7 +32,7 @@ namespace LayerTestsDefinitions {
 
         // [Track number: E#12804]
         void SkipBeforeInfer() override {
-            if (envConfig.IE_KMB_TESTS_PLATFORM == "VPU3900") {
+            if (envConfig.IE_KMB_TESTS_PLATFORM == "3900") {
                 throw LayerTestsUtils::KmbSkipTestException("CallVpu error: -1");
             }
         }

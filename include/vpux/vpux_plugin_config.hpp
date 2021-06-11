@@ -55,35 +55,6 @@ namespace VPUXConfigParams {
 //
 
 /**
- * @enum VPUXPlatform
- * @brief VPUX device
- */
-enum class VPUXPlatform: int {
-    AUTO            = 0,    // auto detection
-    VPU3400_A0      = 1,    // Keem bay A0
-    VPU3400         = 2,    // Keem bay B0
-    VPU3700         = 3,    // Keem bay B0
-    VPU3800         = 4,    // Thunder bay harbor Prime
-    VPU3900         = 5,    // Thunder bay harbor A0
-    VPU3720         = 6,    // Meteor lake
-};
-
-/**
- * @brief [Only for VPUX Plugin]
- * Type: Arbitrary string.
- * This option allows to specify device.
- * If specified device is not available then creating infer request will throw an exception.
- */
-DECLARE_VPUX_CONFIG_KEY(PLATFORM);
-DECLARE_VPUX_CONFIG_VALUE(AUTO);
-DECLARE_VPUX_CONFIG_VALUE(VPU3400_A0);
-DECLARE_VPUX_CONFIG_VALUE(VPU3400);
-DECLARE_VPUX_CONFIG_VALUE(VPU3700);
-DECLARE_VPUX_CONFIG_VALUE(VPU3800);
-DECLARE_VPUX_CONFIG_VALUE(VPU3900);
-DECLARE_VPUX_CONFIG_VALUE(VPU3720);
-
-/**
  * @brief [Only for VPUX Plugin]
  * Type: integer, default is 2.
  */

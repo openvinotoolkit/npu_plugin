@@ -30,12 +30,12 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 };
 
 const std::vector<std::map<std::string, std::string>> configs = {
-        {{VPUX_CONFIG_KEY(PLATFORM), VPUX_CONFIG_VALUE(VPU3400_A0)}},
-        {{VPUX_CONFIG_KEY(PLATFORM), VPUX_CONFIG_VALUE(VPU3400)}},
-        {{VPUX_CONFIG_KEY(PLATFORM), VPUX_CONFIG_VALUE(VPU3700)}},
-        {{VPUX_CONFIG_KEY(PLATFORM), VPUX_CONFIG_VALUE(VPU3800)}},
-        {{VPUX_CONFIG_KEY(PLATFORM), VPUX_CONFIG_VALUE(VPU3900)}},
-        {{VPUX_CONFIG_KEY(PLATFORM), VPUX_CONFIG_VALUE(VPU3720)}}};
+        {{CONFIG_KEY(DEVICE_ID), "3400_A0"}},
+        {{CONFIG_KEY(DEVICE_ID), "3400"}},
+        {{CONFIG_KEY(DEVICE_ID), "3700"}},
+        {{CONFIG_KEY(DEVICE_ID), "3800"}},
+        {{CONFIG_KEY(DEVICE_ID), "3900"}},
+        {{CONFIG_KEY(DEVICE_ID), "3720"}}};
 
 INSTANTIATE_TEST_CASE_P(smoke_BehaviorTest, CompileForDifferentPlatformsTests,
                         ::testing::Combine(

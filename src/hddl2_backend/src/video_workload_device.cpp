@@ -13,6 +13,7 @@
 
 // Plugin
 #include <hddl2_helper.h>
+#include <device_helpers.hpp>
 
 #include "hddl2_exceptions.h"
 #include "hddl2_executor.h"
@@ -73,7 +74,8 @@ VideoWorkloadDevice::VideoWorkloadDevice(const InferenceEngine::ParamMap& paramM
     if (_workloadContext->getDevice() == nullptr) {
         IE_THROW() << HDDLUNITE_ERROR_str << "Device from context not found.";
     }
-    _name = _workloadContext->getDevice()->getName();
+    const auto swDeviceId = _workloadContext->getDevice()->getSwDeviceId();
+    _name = utils::getDeviceNameBySwDeviceId(swDeviceId);
     _allocatorPtr = std::make_shared<HDDL2RemoteAllocator>(_workloadContext, config.logLevel());
 }
 

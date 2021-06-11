@@ -185,24 +185,30 @@ std::map<uint32_t, std::string> getSwDeviceIdNameMap() {
 }
 
 std::string getSwDeviceIdFromName(const std::string& devName) {
+    // Empty string - HDDL scheduler is responsible for device scheduling
+    if (devName.empty()) {
+        return devName;
+    }
+
     const auto devMap = getSwDeviceIdNameMap();
 
-    // Firstly check new naming approach with platform.slice_id
-    for (const auto& dev : devMap) {
-        if (dev.second == devName) {
-            return std::to_string(dev.first);
-        }
+    // Check "platform.slice_id" format
+    auto devIt = std::find_if(devMap.cbegin(), devMap.cend(), [&](const std::pair<uint32_t, std::string>& elem) {
+        return (elem.second == devName);
+    });
+    if (devIt != devMap.cend()) {
+        return std::to_string(devIt->first);
     }
 
-    // Secondly check old naming approach with swDeviceId
-    try {
-        std::stol(devName);
-    } catch (...) {
-        // Some unknown name - return empty string - scheduler is responsible for scheduling the device
-        return "";
+    // Check "platform" format
+    devIt = std::find_if(devMap.cbegin(), devMap.cend(), [&](const std::pair<uint32_t, std::string>& elem) {
+        return (utils::getPlatformNameByDeviceName(elem.second) == devName);
+    });
+    if (devIt != devMap.cend()) {
+        return std::to_string(devIt->first);
     }
 
-    return devName;
+    IE_THROW() << "Device not found: " << devName;
 }
 
 }  // namespace hddl2

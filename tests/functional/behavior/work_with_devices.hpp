@@ -10,7 +10,7 @@
 #include "ngraph_functions/builders.hpp"
 #include <ie_core.hpp>
 #include <base/behavior_test_utils.hpp>
-#include "vpux/vpux_plugin_config.hpp"
+#include "vpux_private_config.hpp"
 #include "common/functions.h"
 #include <details/ie_exception.hpp>
 
@@ -75,11 +75,13 @@ TEST_P(LoadNetworkWithoutDevice, NoThrowIfNoDeviceAndButPlatformPassed) {
 
 const std::map<std::string, std::string> wrongDevice =
 {
-    {"VPU3400_A0", "VPU3400"},
-    {"VPU3400", "VPU3400_A0"},
-    {"VPU3700", "VPU3400_A0"},
-    {"VPU3720", "VPU3400"},
-    {"VPU3900", "VPU3400"}
+    {"3400_A0", "3400"},
+    {"3400", "3400_A0"},
+    {"3700", "3400_A0"},
+    {"3720", "3400"},
+    {"3900", "3400"},
+    // For AUTO we can set 3400_A0 which is deprecated
+    {"AUTO", "3400_A0"}
 };
 
 std::string getWrongDevice(const std::string& platform)
