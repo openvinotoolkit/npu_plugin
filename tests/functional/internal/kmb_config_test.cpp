@@ -85,8 +85,7 @@ static const std::vector<ConfigMap> baseInferConfigs = {
     { },
     { {"PERF_COUNT", "YES"} },
     { {"PERF_COUNT", "NO"} },
-    //TODO Currently we can use any value
-    { {"DEVICE_ID", "VPU-0"} },
+    { {"DEVICE_ID", ""} },
     { {"VPUX_THROUGHPUT_STREAMS", "1" } },
     { {"VPUX_THROUGHPUT_STREAMS", "2"} },
     { {"VPUX_CSRAM_SIZE", "-1"} },

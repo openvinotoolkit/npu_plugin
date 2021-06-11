@@ -6,7 +6,7 @@
 #include "behavior/core_integration.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common/functions.h"
-#include <vpux/vpux_plugin_config.hpp>
+#include "vpux_private_config.hpp"
 
 using namespace BehaviorTestsDefinitions;
 using IEClassExecutableNetworkGetMetricTest_nightly = IEClassExecutableNetworkGetMetricTest;

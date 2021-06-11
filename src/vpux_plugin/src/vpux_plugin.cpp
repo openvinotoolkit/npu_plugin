@@ -92,11 +92,9 @@ IE::IExecutableNetworkInternal::Ptr Engine::LoadExeNetwork(const IE::CNNNetwork&
 IE::IExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(const IE::CNNNetwork& network,
                                                               const std::map<std::string, std::string>& config) {
     auto networkConfig = mergePluginAndNetworkConfigs(_parsedConfig, config);
+    const auto platform = _backends->getCompilationPlatform(networkConfig.platform(), networkConfig.deviceId());
     auto device = _backends->getDevice(networkConfig.deviceId());
-    if (device != nullptr && _backends->getBackendName() == "HDDL2") {
-        const auto platform = _backends->getCompilationPlatform(networkConfig.platform());
-        networkConfig.update({{VPUX_CONFIG_KEY(PLATFORM), platform}});
-    }
+    networkConfig.update({{VPUX_CONFIG_KEY(PLATFORM), platform}});
 
     return LoadExeNetwork(network, device, networkConfig);
 }
@@ -105,11 +103,9 @@ IE::IExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(const IE::CNNNetw
                                                               const IE::RemoteContext::Ptr& context,
                                                               const std::map<std::string, std::string>& config) {
     auto networkConfig = mergePluginAndNetworkConfigs(_parsedConfig, config);
+    const auto platform = _backends->getCompilationPlatform(networkConfig.platform(), networkConfig.deviceId());
     auto device = _backends->getDevice(context);
-    if (device != nullptr && _backends->getBackendName() == "HDDL2") {
-        const auto platform = _backends->getCompilationPlatform(networkConfig.platform());
-        networkConfig.update({{VPUX_CONFIG_KEY(PLATFORM), platform}});
-    }
+    networkConfig.update({{VPUX_CONFIG_KEY(PLATFORM), platform}});
 
     return LoadExeNetwork(network, device, networkConfig);
 }
@@ -194,8 +190,6 @@ IE::Parameter Engine::GetConfig(const std::string& name,
         return IE::Parameter(_parsedConfig.throughputStreams());
     } else if (name == VPUX_CONFIG_KEY(INFERENCE_SHAVES)) {
         return IE::Parameter(_parsedConfig.numberOfNnCoreShaves());
-    } else if (name == VPUX_CONFIG_KEY(PLATFORM)) {
-        return IE::Parameter(static_cast<int>(_parsedConfig.platform()));
     } else {
         IE_THROW(NotImplemented);
     }

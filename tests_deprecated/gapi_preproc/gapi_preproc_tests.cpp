@@ -159,7 +159,7 @@ public:
 
 InferenceEngine::RemoteContext::Ptr remoteContext() {
     static InferenceEngine::Core core;
-    InferenceEngine::ParamMap ctxParams{{InferenceEngine::VPUX_PARAM_KEY(DEVICE_ID), "VPU-0"}};
+    InferenceEngine::ParamMap ctxParams{{InferenceEngine::VPUX_PARAM_KEY(DEVICE_ID), ""}};
     static auto ctx = core.CreateContext("VPUX", ctxParams);
     return ctx;
 }

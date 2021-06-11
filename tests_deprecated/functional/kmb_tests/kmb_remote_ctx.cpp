@@ -32,7 +32,7 @@ static std::string getFirstAvailableDeviceId(const InferenceEngine::Core& ieCore
     std::string firstDeviceId = "";
     // TODO remove fallback when vpualHost is fixed
     if (deviceIdList.empty()) {
-        firstDeviceId = "VPU-0";
+        firstDeviceId = "";
     } else {
         firstDeviceId = deviceIdList.at(0);
     }

@@ -68,7 +68,6 @@ TEST_F(GetMetricTest, getAvailableDevices) {
     if (runningOnARM) {
         ASSERT_FALSE(kmbDeviceIds.empty());
         ASSERT_EQ(kmbDeviceIds.size(), getVpuCount());
-        ASSERT_NE(kmbDeviceIds.begin()->find("VPU"), std::string::npos);
 
         std::cout << "Found available KMB devices: " << std::endl;
         for (const std::string& deviceId : kmbDeviceIds) {
