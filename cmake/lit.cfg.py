@@ -1,5 +1,5 @@
 #
-# Copyright 2020 Intel Corporation.
+# Copyright Intel Corporation.
 #
 # LEGAL NOTICE: Your use of this software and any required dependent software
 # (the "Software Package") is subject to the terms and conditions of
@@ -16,7 +16,7 @@ import lit.llvm
 
 config.test_format = lit.formats.ShTest()
 
-lit.llvm.llvm_config.with_system_environment(['HOME', 'TMP', 'TEMP'])
+lit.llvm.llvm_config.with_system_environment(['HOME', 'TMP', 'TEMP', 'MV_TOOLS_DIR', 'MV_TOOLS_VERSION'])
 lit.llvm.llvm_config.with_environment('PATH', config.bin_dir, append_path=True)
 
 config.environment['FILECHECK_OPTS'] = '-enable-var-scope --allow-unused-prefixes=false --color -v'
