@@ -15,6 +15,7 @@
 
 #include <memory>
 
+#include <device_helpers.hpp>
 #include "vpual_core_nn_executor.hpp"
 #include "vpusmm_allocator.hpp"
 
@@ -22,7 +23,7 @@ namespace vpux {
 
 VpualDevice::VpualDevice(const std::string& name,
     const InferenceEngine::VPUXConfigParams::VPUXPlatform& platform): _name(name), _platform(platform) {
-    const auto id = extractIdFromDeviceName(name);
+    const auto id = utils::getSliceIdByDeviceName(name);
     _allocator = std::make_shared<VpusmmAllocator>(id);
 }
 
@@ -34,7 +35,7 @@ std::shared_ptr<Executor> VpualDevice::createExecutor(
     }
     _config.parseFrom(config);
 
-    const auto id = extractIdFromDeviceName(_name);
+    const auto id = utils::getSliceIdByDeviceName(_name);
     const auto& executor = std::make_shared<VpualCoreNNExecutor>(networkDescription, vpusmmAllocator, id, _platform, _config);
 
     return executor;

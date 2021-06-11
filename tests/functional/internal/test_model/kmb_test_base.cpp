@@ -21,7 +21,7 @@
 #include <blob_factory.hpp>
 #include "functional_test_utils/plugin_cache.hpp"
 #include <format_reader_ptr.h>
-#include <blob_factory.hpp>
+#include "vpux_private_config.hpp"
 
 //
 // KmbTestBase

@@ -21,7 +21,7 @@
 
 #include <base/behavior_test_utils.hpp>
 #include "common/functions.h"
-#include "vpux/vpux_plugin_config.hpp"
+#include "vpux_private_config.hpp"
 
 #include <sys/mman.h>
 #include <fcntl.h>
@@ -124,7 +124,7 @@ protected:
 // vpuip_2/application/vpuFirmware/FW_bootLoader/mvbuild/ma2490/payload/payload.map
 //                0x0000000094400040                mvConsoleTxQueue
 TEST_P(PipePrintTest, CanLocateCanaries) {
-    if (PlatformEnvironment::PLATFORM == "VPU3900") {
+    if (PlatformEnvironment::PLATFORM == "3900") {
         SKIP() << "Not applicable for TBH. Results in bus error.";
     }
     // clear canaries
@@ -238,7 +238,7 @@ TEST_P(PipePrintTest, DISABLED_run_pipe_print) {
 }
 
 const std::vector<std::map<std::string, std::string>> configs = {
-        {{VPUX_CONFIG_KEY(PLATFORM), VPUX_CONFIG_VALUE(AUTO)}}};
+        {{VPUX_CONFIG_KEY(PLATFORM), "AUTO"}}};
 
 INSTANTIATE_TEST_CASE_P(smoke_PipePrintBaseTest, PipePrintTest,
                         ::testing::Combine(

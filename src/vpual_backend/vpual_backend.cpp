@@ -23,6 +23,8 @@
 #include <xlink_uapi.h>
 #endif
 
+#include <device_helpers.hpp>
+
 #include "vpual_device.hpp"
 // [Track number: E#12122]
 // TODO Remove this header after removing KMB deprecated parameters in future releases
@@ -57,46 +59,11 @@ bool isDeviceFree(const std::shared_ptr<xlink_handle>& devHandle) {
     return getStatusResult == X_LINK_SUCCESS;
 }
 
-std::string getNameByHandle(const std::shared_ptr<xlink_handle>& devHandle) {
-    // bits 3-1 define slice ID
-    // right shift to omit bit 0, thus slice id is stored in bits 2-0
-    // apply b111 mask to discard anything but slice ID
-    uint32_t sliceId = (devHandle->sw_device_id >> 1) & 0x7;
-    return "VPU-" + std::to_string(sliceId);
-}
-
-const static std::map<uint32_t, InferenceEngine::VPUXConfigParams::VPUXPlatform> platformIdMap = {
-    {0, InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3400_A0},  // KMB
-    {1, InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3400},     // KMB
-    {2, InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3800},     // TBH prime
-    {3, InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3900},     // TBH
-    {4, InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3720},     // MTL
-};
-
-InferenceEngine::VPUXConfigParams::VPUXPlatform getPlatformByHandle(const std::shared_ptr<xlink_handle>& devHandle) {
-    // bits 7-4 define platform
-    // right shift to omit bits 0-3. after that platform code is stored in bits 3-0
-    // apply b1111 mask to discard anything but platform code
-    uint32_t platformId = (devHandle->sw_device_id >> 4) & 0xf;
-    return platformIdMap.at(platformId);
-}
-
 PlatformInfo getPlatformInfo(const std::shared_ptr<xlink_handle>& devHandle) {
     PlatformInfo result;
-    result._name = getNameByHandle(devHandle);
-    result._platform = getPlatformByHandle(devHandle);
+    result._name = utils::getDeviceNameBySwDeviceId(devHandle->sw_device_id);
+    result._platform = utils::getPlatformByDeviceName(result._name);
     return result;
-}
-
-bool isVPUDevice(const uint32_t deviceId) {
-    // bits 26-24 define interface type
-    // 000 - IPC
-    // 001 - PCIe
-    // 010 - USB
-    // 011 - ethernet
-    constexpr uint32_t INTERFACE_TYPE_SELECTOR = 0x7000000;
-    uint32_t interfaceType = (deviceId & INTERFACE_TYPE_SELECTOR);
-    return (interfaceType == 0);
 }
 #endif
 
@@ -120,7 +87,7 @@ std::vector<PlatformInfo> getAvailableDevices() {
 
     // filter devices by type since VPUAL backend cannot use PCIe end-points for inference
     std::vector<uint32_t> vpuDevIdList;
-    std::copy_if(deviceIdList.begin(), deviceIdList.end(), std::back_inserter(vpuDevIdList), isVPUDevice);
+    std::copy_if(deviceIdList.begin(), deviceIdList.end(), std::back_inserter(vpuDevIdList), utils::isVPUDevice);
 
     std::vector<std::shared_ptr<xlink_handle>> devHandleList;
     std::transform(vpuDevIdList.begin(), vpuDevIdList.end(), std::back_inserter(devHandleList), getHandleById);
@@ -157,14 +124,31 @@ const std::map<std::string, std::shared_ptr<IDevice>> VpualEngineBackend::create
 
 const std::shared_ptr<IDevice> VpualEngineBackend::getDevice() const {
     if (_devices.empty()) {
-        IE_THROW() << "There are no any devices!";
+        IE_THROW() << "There are no devices";
     }
     return _devices.begin()->second;
 }
 
 const std::shared_ptr<IDevice> VpualEngineBackend::getDevice(const std::string& deviceId) const {
+    if (_devices.empty()) {
+        IE_THROW() << "There are no devices";
+    }
+
     try {
-        return _devices.at(deviceId);
+        // Platform and device are not provided - return first available device
+        if (deviceId.empty()) {
+            return _devices.at(0);
+        }
+
+        const auto expectedPlatformName = utils::getPlatformNameByDeviceName(deviceId);
+        const auto currentPlatformName = utils::getPlatformNameByDeviceName(_devices.at(0)->getName());
+        if (expectedPlatformName != currentPlatformName) {
+            _logger->warning("Device with platform %s not found", expectedPlatformName);
+            return nullptr;
+        }
+        const auto expectedSliceId = utils::getSliceIdByDeviceName(deviceId);
+        const std::string expectedDeviceName = expectedPlatformName + "." + std::to_string(expectedSliceId);
+        return _devices.at(expectedDeviceName);
     } catch (...) {
         _logger->warning("Device %s not found", deviceId);
     }
@@ -188,7 +172,7 @@ const std::shared_ptr<IDevice> VpualEngineBackend::getDevice(const InferenceEngi
     }
 
     try {
-        return _devices.at(deviceId);
+        return getDevice(deviceId);
     } catch (...) {
         _logger->warning("Device %s not found", deviceId);
     }

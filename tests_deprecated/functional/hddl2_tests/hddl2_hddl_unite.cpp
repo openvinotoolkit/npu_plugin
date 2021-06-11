@@ -125,7 +125,7 @@ TEST_F(HDDL2_HddlUnite_Tests, CanSetAndGetRemoteContextUsingId) {
         auto workload_context = HddlUnite::queryWorkloadContext(workloadId);
         EXPECT_NE(nullptr, workload_context);
 
-        const std::string deviceName = workload_context->getDevice()->getName();
+        const std::string deviceName = utils::getDeviceNameBySwDeviceId(workload_context->getDevice()->getSwDeviceId());
         EXPECT_EQ(deviceName, DeviceName::getName());
     }
 

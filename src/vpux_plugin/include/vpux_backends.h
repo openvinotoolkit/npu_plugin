@@ -35,7 +35,8 @@ public:
     std::vector<std::string> getAvailableDevicesNames() const;
     std::string getBackendName() const;
     std::unordered_set<std::string> getSupportedOptions() const;
-    std::string getCompilationPlatform(const InferenceEngine::VPUXConfigParams::VPUXPlatform platform) const;
+    std::string getCompilationPlatform(const InferenceEngine::VPUXConfigParams::VPUXPlatform platform,
+                                       const std::string& deviceId) const;
 
     void setup(const VPUXConfig& config);
 

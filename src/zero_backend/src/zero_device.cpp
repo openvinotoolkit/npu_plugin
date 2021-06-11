@@ -42,5 +42,5 @@ std::shared_ptr<Executor> ZeroDevice::createExecutor(const NetworkDescription::P
 }
 
 std::string ZeroDevice::getName() const {
-    return std::string("VPU-0");
+    return std::string("3700.0");
 }
