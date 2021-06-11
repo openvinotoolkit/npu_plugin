@@ -133,6 +133,9 @@ void placeInputHwDequantize(mv::OpModel& om, mv::DataModel& dm, mv::Data::OpList
         if (isOpSoftware(parentOp) && allConsumersNeedFloat(inputTensor))
             continue;
 
+        if (parentOp->hasAttr("placeConversionToFloat") && parentOp->get<bool>("placeConversionToFloat"))
+            continue;
+
         auto inputFlow = opIt.leftmostInput();
         while (inputFlow != om.flowEnd())
         {
@@ -172,8 +175,16 @@ void placeInputHwDequantize(mv::OpModel& om, mv::DataModel& dm, mv::Data::OpList
 
 void placeOutputQuantize(mv::OpModel& om, mv::DataModel& dm, const mv::Data::OpListIterator& opIt) {
     const auto outputTensor = opIt->getOutputTensor(0);
-    if (outputTensor->isFloatingPointType())
+    // originalDataType
+    if (outputTensor->isFloatingPointType() && (!outputTensor->hasAttr("originalDataType")))
         return;
+
+    if (outputTensor->hasAttr("originalDataType"))
+    {
+        mv::DType originalType = outputTensor->get("originalDataType");
+        if (originalType.isDoubleType() || originalType == mv::DType("Float16") || originalType == mv::DType("BFloat16"))
+            return;
+    }
 
     const auto consumerOps = mv::findSinkLayers(dm, outputTensor);
     if (std::all_of(consumerOps.begin(), consumerOps.end(), isOpSoftware))
@@ -189,6 +200,9 @@ void placeOutputQuantize(mv::OpModel& om, mv::DataModel& dm, const mv::Data::OpL
 
     for (auto consumerOp : consumerOps)
     {
+        if (consumerOp->hasAttr("placeConversionToFloat") && consumerOp->get("placeConversionToFloat"))
+            continue;
+
         std::size_t i = 0;
         for (; i < consumerOp->inputSlots(); ++i)
         {
@@ -235,8 +249,21 @@ void placementOfOps(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
 
             opIt->set<bool>("floatPrecision", true);
             for (size_t i = 0; i < (opIt->getOpType() == "Eltwise" ? 2 : 1); ++i) {
-                opIt->getInputTensor(i)->setDType(targetDType);
-                opIt->getInputTensor(i)->setQuantParams(mv::QuantizationParams::initial());
+                auto parentOp = om.getSourceOp(opIt->getInputTensor(i));
+                if (parentOp->hasAttr("placeConversionToFloat") && parentOp->get<bool>("placeConversionToFloat"))
+                {
+                    // Handle the case where the ops connect as:
+                    // Eltwise1_float->ops_u8; Eltwise1_float->Eltwise2_FP16; ops_u8->Eltwise2_float.
+                    // Save the originalDataType for the output tensor of Eltwise1_float
+                    // to make sure a quantization will be inserted between Eltwise1_float->ops_u8
+                    if (!opIt->getInputTensor(i)->hasAttr("originalDataType"))
+                        opIt->getInputTensor(i)->set<mv::DType>("originalDataType", opIt->getInputTensor(i)->getDType());
+                }
+                else
+                {
+                    opIt->getInputTensor(i)->setDType(targetDType);
+                    opIt->getInputTensor(i)->setQuantParams(mv::QuantizationParams::initial());
+                }
             }
             opIt->getOutputTensor(0)->setDType(targetDType);
             opIt->getOutputTensor(0)->setQuantParams(mv::QuantizationParams::initial());
