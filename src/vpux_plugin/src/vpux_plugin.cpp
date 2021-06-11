@@ -49,7 +49,24 @@ namespace IE = InferenceEngine;
 static VPUXConfig mergePluginAndNetworkConfigs(const VPUXConfig& pluginConfig,
                                                const std::map<std::string, std::string>& config) {
     auto parsedConfigCopy = pluginConfig;
-    parsedConfigCopy.update(config);
+    auto patchedConfig = config;
+    if (patchedConfig.find(VPUX_CONFIG_KEY(PLATFORM)) != patchedConfig.end()) {
+        const auto platformName = patchedConfig.at(VPUX_CONFIG_KEY(PLATFORM));
+        if (!platformName.empty() && platformName != "AUTO" && platformName.find("VPU") == std::string::npos) {
+            const auto patchedPlatformName = "VPU" + platformName;
+            patchedConfig.erase(VPUX_CONFIG_KEY(PLATFORM));
+            patchedConfig[VPUX_CONFIG_KEY(PLATFORM)] = patchedPlatformName;
+        }
+    }
+    if (patchedConfig.find(CONFIG_KEY(DEVICE_ID)) != patchedConfig.end()) {
+        const auto deviceId = patchedConfig.at(CONFIG_KEY(DEVICE_ID));
+        if (!deviceId.empty() && deviceId.find("VPU") == std::string::npos) {
+            const auto patchedDeviceId = "VPU" + deviceId;
+            patchedConfig.erase(CONFIG_KEY(DEVICE_ID));
+            patchedConfig[CONFIG_KEY(DEVICE_ID)] = patchedDeviceId;
+        }
+    }
+    parsedConfigCopy.update(patchedConfig);
     return parsedConfigCopy;
 }
 

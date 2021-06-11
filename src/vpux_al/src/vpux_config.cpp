@@ -91,7 +91,13 @@ void vpux::VPUXConfig::parse(const std::map<std::string, std::string>& config) {
             {VPUX_CONFIG_VALUE(VPU3700), IE::VPUXConfigParams::VPUXPlatform::VPU3700},
             {VPUX_CONFIG_VALUE(VPU3800), IE::VPUXConfigParams::VPUXPlatform::VPU3800},
             {VPUX_CONFIG_VALUE(VPU3900), IE::VPUXConfigParams::VPUXPlatform::VPU3900},
-            {VPUX_CONFIG_VALUE(VPU3720), IE::VPUXConfigParams::VPUXPlatform::VPU3720}};
+            {VPUX_CONFIG_VALUE(VPU3720), IE::VPUXConfigParams::VPUXPlatform::VPU3720},
+            {"3400_A0", IE::VPUXConfigParams::VPUXPlatform::VPU3400_A0},
+            {"3400", IE::VPUXConfigParams::VPUXPlatform::VPU3400},
+            {"3700", IE::VPUXConfigParams::VPUXPlatform::VPU3700},
+            {"3800", IE::VPUXConfigParams::VPUXPlatform::VPU3800},
+            {"3900", IE::VPUXConfigParams::VPUXPlatform::VPU3900},
+            {"3720", IE::VPUXConfigParams::VPUXPlatform::VPU3720}};
     setOption(_platform, vpuxPlatform, config, VPUX_CONFIG_KEY(PLATFORM));
 
     // Private options
