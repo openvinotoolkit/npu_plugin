@@ -97,15 +97,17 @@ static void makeLinkerScript(StringRef searchDir, StringRef input, StringRef out
 }
 
 static std::string getMoviToolsDir() {
-    auto maybeToolsDir = llvm::sys::Process::GetEnv("MV_TOOLS_DIR");
-    if (!maybeToolsDir) {
-        VPUX_THROW("MV_TOOLS_DIR env var must be set");
-    }
-    SmallString<128> moviToolsDir{*maybeToolsDir};
-    if (!sys::fs::is_directory(moviToolsDir)) {
-        VPUX_THROW("MV_TOOLS_DIR must be a directory");
-    }
-    return moviToolsDir.str().str();
+    const auto toolsDir = llvm::sys::Process::GetEnv("MV_TOOLS_DIR");
+    VPUX_THROW_UNLESS(toolsDir.hasValue(), "MV_TOOLS_DIR env var must be set");
+
+    const auto toolsVer = llvm::sys::Process::GetEnv("MV_TOOLS_VERSION");
+    VPUX_THROW_UNLESS(toolsVer.hasValue(), "MV_TOOLS_VERSION env var must be set");
+
+    SmallString<128> finalToolsDir(toolsDir.getValue());
+    sys::path::append(finalToolsDir, toolsVer.getValue());
+    VPUX_THROW_UNLESS(sys::fs::is_directory(finalToolsDir), "{0} is not a directory", finalToolsDir.str());
+
+    return finalToolsDir.str().str();
 }
 
 static void compileAndLinkSHAVE(StringRef cSourceCode, const MoviCompileParams& params, StringRef name,
