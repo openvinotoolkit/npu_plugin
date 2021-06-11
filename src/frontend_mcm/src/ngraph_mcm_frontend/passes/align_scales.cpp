@@ -221,6 +221,51 @@ static void align_fq(std::set<std::shared_ptr<ngraph::Node>> &fqs, const float m
     }
 }
 
+static void adjust_fqs_to_align(std::set<std::shared_ptr<ngraph::Node>> &fqs) {
+    float min_range = std::numeric_limits<float>::max();
+    std::set<std::shared_ptr<ngraph::Node>> filtered_fqs;
+    unsigned child_node_num = 0;
+    const float max_fq_range_ratio = 10.0;
+
+    for (auto fq_node : fqs) {
+        auto fq_node1 = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(fq_node->input_value(1).get_node_shared_ptr());
+        auto fq_node2 = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(fq_node->input_value(2).get_node_shared_ptr());
+
+        auto fq_data1 = fq_node1->cast_vector<float>();
+        auto fq_data2 = fq_node2->cast_vector<float>();
+
+        for (size_t c = 0; c < fq_data1.size(); c++) {
+            if (min_range > fq_data2[c] - fq_data1[c]) {
+                min_range = fq_data2[c] - fq_data1[c];
+            }
+        }
+
+        for (const auto& node_output : fq_node->outputs()) {
+            child_node_num += node_output.get_target_inputs().size();
+        }
+    }
+
+    if(child_node_num == fqs.size())
+        return;
+
+    for (auto fq_node : fqs) {
+        auto fq_node1 = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(fq_node->input_value(1).get_node_shared_ptr());
+        auto fq_node2 = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(fq_node->input_value(2).get_node_shared_ptr());
+
+        auto fq_data1 = fq_node1->cast_vector<float>();
+        auto fq_data2 = fq_node2->cast_vector<float>();
+
+        for (size_t c = 0; c < fq_data1.size(); c++) {
+            if (fq_data2[c] - fq_data1[c] < max_fq_range_ratio * min_range){
+                filtered_fqs.insert(fq_node);
+                break;
+            }
+        }
+    }
+    
+    fqs = filtered_fqs;
+}
+
 static void broadcast_changes(const std::shared_ptr<ngraph::Node>& node) {
     auto nodes_to_align = std::vector<std::shared_ptr<ngraph::Node>>();
 
@@ -248,6 +293,8 @@ static void broadcast_changes(const std::shared_ptr<ngraph::Node>& node) {
         if (!all_fqs_have_same_io_params(fqs_to_align)) {
             continue;
         }
+        if(fqs_to_align.size() > 2)
+            adjust_fqs_to_align(fqs_to_align);
 
         float min = 0;
         float max = 0;
@@ -274,6 +321,8 @@ bool AlignScales::run_on_node(std::shared_ptr<ngraph::Node> node)
     if (!all_fqs_have_same_io_params(fqs_to_align)) {
         return false;
     }
+    if(fqs_to_align.size() > 2)
+        adjust_fqs_to_align(fqs_to_align);
 
     float min = 0;
     float max = 0;
