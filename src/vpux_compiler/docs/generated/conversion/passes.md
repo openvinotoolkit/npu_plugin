@@ -10,10 +10,10 @@ This pass bufferizes **IE Dialect** into **IERT Dialect**:
 * Doesn't change Function signatures.
 * Replaces Layer Operations with IERT analogues.
 * Replaces Quant Dialect Operations with IERT analogues.
-### `-convert-IERT-ops-to-VPUIP`: Convert IERT Dialect Operations to VPUIP Dialect
-This pass converts IERT Layer Operations to VPUIP Dialect UPA tasks.
-It also converts IERT declarations and view-like operations to VPUIP declarations.
+### `-convert-declarations-to-VPUIP`: Convert declarations (constants and memory buffers) to VPUIP Dialect
+### `-convert-layers-to-VPUIP`: Convert Layers Operations to VPUIP Dialect (UPA and DMA tasks)
 ### `-convert-to-nce-ops`: Convert to NCE2 ops
 Convert ops which can be executed on NCE to explicit NCE ops.
+### `-convert-view-ops-to-VPUIP`: Convert view-like Operations to VPUIP Dialect
 ### `-fuse-activations`: Fuse activation functions to NCE tasks
 Fuse activation functions (e.g. ReLU, leaky ReLU) into NCE post-processing engine.

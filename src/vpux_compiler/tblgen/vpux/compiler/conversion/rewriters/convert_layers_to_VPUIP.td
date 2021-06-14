@@ -11,76 +11,13 @@
 // included with the Software Package for additional details.
 //
 
-#ifndef VPUX_COMPILER_CONVERSION_REWRITERS_CONVERT_IERT_OPS_TO_VPUIP
-#define VPUX_COMPILER_CONVERSION_REWRITERS_CONVERT_IERT_OPS_TO_VPUIP
+#ifndef VPUX_COMPILER_CONVERSION_REWRITERS_CONVERT_LAYERS_TO_VPUIP
+#define VPUX_COMPILER_CONVERSION_REWRITERS_CONVERT_LAYERS_TO_VPUIP
 
 include "vpux/compiler/dialect/IERT/ops.td"
 include "vpux/compiler/dialect/VPUIP/ops.td"
 
 include "mlir/IR/OpBase.td"
-
-//
-// IERT.StaticAlloc -> VPUIP.DeclareTensor
-//
-
-class createDeclareTensorOp<string memoryLocation> :
-        NativeCodeCall<[{
-            $_builder.create<vpux::VPUIP::DeclareTensorOp>(
-                $_loc, $0.getType(),
-                vpux::VPUIP::MemoryLocation::}] # memoryLocation # [{,
-                $1.getInt())
-        }]>;
-
-class HasMemSpace<string physicalMemory> :
-        Constraint<CPred<[{
-                $0.getType().cast<mlir::MemRefType>().getMemorySpace() ==
-                vpux::VPUIP::PhysicalMemoryAttr::get($0.getContext(), vpux::VPUIP::PhysicalMemory::}] # physicalMemory # [{)
-}]>>;
-
-def RewriteStaticAllocDDR :
-        Pat<
-            (IERT_StaticAllocOp:$memref $offset),
-            (createDeclareTensorOp<"VPU_DDR_Heap"> $memref, $offset),
-            [
-                (HasMemSpace<"DDR"> $memref)
-            ]
-        >;
-
-def RewriteStaticAllocNNCMX :
-        Pat<
-            (IERT_StaticAllocOp:$memref $offset),
-            (createDeclareTensorOp<"VPU_CMX_NN"> $memref, $offset),
-            [
-                (HasMemSpace<"CMX_NN"> $memref)
-            ]
-        >;
-
-//
-// IERT.Constant -> VPUIP.DeclareConstantTensor
-//
-
-def createDeclareConstantTensorOp :
-        NativeCodeCall<[{
-            $_builder.create<vpux::VPUIP::DeclareConstantTensorOp>(
-                $_loc, $0.getType(), $1, nullptr
-            )
-        }]>;
-
-def RewriteConstant :
-        Pat<
-            (IERT_ConstantOp:$output $value),
-            (createDeclareConstantTensorOp $output, $value)
-        >;
-
-//
-// IERT.ConcatView -> output_buff
-//
-
-def RewriteConcatView :
-        Pat<
-            (IERT_ConcatViewOp $inputs, $output_buff),
-            (replaceWithValue $output_buff)
-        >;
 
 //
 // IERT.Copy -> VPUIP.NNDMA

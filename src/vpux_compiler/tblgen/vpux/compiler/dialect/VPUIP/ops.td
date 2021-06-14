@@ -138,6 +138,9 @@ def VPUIP_DeclareTensorOp :
         >,
         OpBuilder<
             (ins "mlir::Type":$memory, "vpux::VPUIP::MemoryLocation":$locale, "uint32_t":$localeIndex, "uint64_t":$dataIndex)
+        >,
+        OpBuilder<
+            (ins "mlir::Type":$memory, "vpux::VPUIP::MemoryLocation":$locale, "ArrayRef<int64_t>":$localeIndex, "uint64_t":$dataIndex)
         >
     ];
 
@@ -164,7 +167,6 @@ def VPUIP_DeclareConstantTensorOp :
             "DeclareConstantTensor",
             [
                 ConstantLike,
-                NoSideEffect,
                 DeclareOpInterfaceMethods<ConstantInterface>
             ]
         > {
@@ -172,6 +174,7 @@ def VPUIP_DeclareConstantTensorOp :
 
     let arguments = (ins
         ElementsAttr:$value,
+        I32Attr:$localeIndex,
         UnitAttr:$csramCacheable
     );
 
@@ -181,7 +184,7 @@ def VPUIP_DeclareConstantTensorOp :
 
     let builders = [
         OpBuilder<
-            (ins "mlir::MemRefType":$type, "mlir::ElementsAttr":$value)
+            (ins "mlir::MemRefType":$type, "mlir::ElementsAttr":$value, "uint32_t":$localeIndex)
         >
     ];
 
@@ -190,8 +193,7 @@ def VPUIP_DeclareConstantTensorOp :
     }];
 
     let assemblyFormat = [{
-        attr-dict
-        type($output) `=` $value
+        `[` $localeIndex `]` attr-dict type($output) `=` $value
     }];
 }
 
@@ -1721,10 +1723,7 @@ def VPUIP_DPUTaskOp :
 
 def VPUIP_PPETaskOp :
         VPUIP_Op<
-            "PPETask",
-            [
-                NoSideEffect
-            ]
+            "PPETask"
         > {
     let summary = "PPE Type for NCE Task";
 
