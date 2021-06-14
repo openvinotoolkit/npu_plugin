@@ -13,6 +13,7 @@
 
 #include "vpux/compiler/dialect/IERT/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
+#include "vpux/compiler/dialect/VPUIP/tiling.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 
 #include <mlir/IR/PatternMatch.h>
@@ -22,21 +23,9 @@
 #include <numeric>
 
 using namespace vpux;
+using namespace VPUIP;
 
 namespace {
-
-struct Tile final {
-    Tile() = delete;
-
-    explicit Tile(size_t rank): shape(rank), offsets(rank) {
-    }
-
-    explicit Tile(ShapeRef shape): shape(shape.raw()), offsets(shape.size(), 0) {
-    }
-
-    Shape shape;
-    Shape offsets;
-};
 
 Dim largestTileDim(ShapeRef shape, ShapeRef nTilesOnDim) {
     int64_t maxSize = 0;
@@ -56,56 +45,6 @@ Dim largestTileDim(ShapeRef shape, ShapeRef nTilesOnDim) {
     }
 
     return maxDim;
-}
-
-// helper function to generate a set of tiles from dividing a shape. A shape divided across multiple dimensions will
-// generate a set of tiles, each having its own size and offsets
-void fillDividedTiles(MutableArrayRef<Tile> dividedTiles, ShapeRef divisors, ShapeRef orig) {
-    int64_t repeatCtr = 1;
-
-    for (auto d : irange(divisors.size())) {
-        const auto dim = Dim(d);
-
-        const auto origSize = orig[dim];
-        const auto divisor = divisors[dim];
-        VPUX_THROW_UNLESS(divisor != 0, "Cannot divide by 0 tiles");
-
-        if (divisor == 1) {
-            for (auto i : irange(dividedTiles.size())) {
-                dividedTiles[i].shape[dim] = origSize;
-                dividedTiles[i].offsets[dim] = 0;
-            }
-
-            continue;
-        }
-
-        const auto tileSize = origSize / divisor;
-
-        int64_t offset = 0;
-        for (int64_t i : irange(dividedTiles.size())) {
-            const bool remainderTile = !(((i / repeatCtr) + 1) % (divisor));
-
-            if (remainderTile) {
-                dividedTiles[i].shape[dim] = origSize - (tileSize * (divisor - 1));
-            } else {
-                dividedTiles[i].shape[dim] = tileSize;
-            }
-
-            dividedTiles[i].offsets[dim] = offset;
-
-            const bool incrementOffset = !((i + 1) % repeatCtr);
-            if (incrementOffset) {
-                offset += tileSize;
-            }
-
-            const bool resetOffset = (remainderTile && incrementOffset);
-            if (resetOffset) {
-                offset = 0;
-            }
-        }
-
-        repeatCtr *= divisor;
-    }
 }
 
 class CMXTilingPass final : public IERT::CXMTilingBase<CMXTilingPass> {
@@ -196,10 +135,7 @@ SmallVector<Tile> CMXTilingPass::SimpleFillHalfCMXTiler::convolutionTiler(IERT::
         nTilesOnDim[dim]++;
     }
 
-    SmallVector<Tile> finalTiles(nTilesOnDim.totalSize(), Tile(nTilesOnDim.size()));
-    fillDividedTiles(finalTiles, nTilesOnDim, outputShape);
-
-    return finalTiles;
+    return Tiling::fillDividedTiles(nTilesOnDim, outputShape);
 }
 
 class CMXTilingPass::ConvolutionTiling final : public mlir::OpRewritePattern<IERT::ConvolutionOp> {
@@ -244,8 +180,6 @@ mlir::Value makeTile(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value o
 
 mlir::LogicalResult CMXTilingPass::ConvolutionTiling::matchAndRewrite(IERT::ConvolutionOp origOp,
                                                                       mlir::PatternRewriter& rewriter) const {
-    using InputTileConfig = std::tuple<Tile, Tile, Tile, SmallVector<int64_t>, SmallVector<int64_t>>;
-
     auto* ctx = rewriter.getContext();
 
     auto tilings = _tiler(origOp);
@@ -253,65 +187,6 @@ mlir::LogicalResult CMXTilingPass::ConvolutionTiling::matchAndRewrite(IERT::Conv
     if (tilings.size() < 2) {
         return matchFailed(rewriter, origOp, "No tiling required");
     }
-
-    const auto origOutput = getShape(origOp.output());
-    const auto origInput = getShape(origOp.input());
-    const auto origWeights = getShape(origOp.filter());
-    const auto origBias = origOp.bias() != nullptr ? getShape(origOp.bias()) : ShapeRef();
-
-    auto backInferConvInput = [&](Tile& outputTile) -> InputTileConfig {
-        Tile inputTile(origInput);
-        Tile weightsTile(origWeights);
-        Tile biasTile(origBias);
-
-        SmallVector<int64_t> padsBegin(origOp.filter_spatial_dims());
-        SmallVector<int64_t> padsEnd(origOp.filter_spatial_dims());
-
-        for (auto spatialDim : irange(origOp.filter_spatial_dims())) {
-            const auto act_spatial_dim = origOp.act_spatial_dim(spatialDim);
-            const auto filter_spatial_dim = origOp.filter_spatial_dim(spatialDim);
-
-            const auto outSize = outputTile.shape[act_spatial_dim];
-            const auto outOffset = outputTile.offsets[act_spatial_dim];
-
-            const auto opPadBegin = origOp.pads_begin()[spatialDim].cast<mlir::IntegerAttr>().getInt();
-            const auto opPadEnd = origOp.pads_begin()[spatialDim].cast<mlir::IntegerAttr>().getInt();
-
-            const auto kSize = origWeights[filter_spatial_dim];
-            const auto kStride = origOp.strides()[spatialDim].cast<mlir::IntegerAttr>().getInt();
-
-            const int64_t tilePadStart = outOffset == 0 ? opPadBegin : 0;
-            const int64_t tilePadEnd = (outOffset + outSize) == origOutput[act_spatial_dim] ? opPadEnd : 0;
-
-            const int64_t inputSize = ((outSize - 1) * kStride) - tilePadStart - tilePadEnd + kSize;
-            const int64_t inputOffset = outOffset != 0 ? outOffset * kStride - opPadBegin - ((kSize - 1) / 2) : 0;
-
-            inputTile.shape[act_spatial_dim] = inputSize;
-            inputTile.offsets[act_spatial_dim] = inputOffset;
-
-            padsBegin[spatialDim] = tilePadStart;
-            padsEnd[spatialDim] = tilePadEnd;
-        }
-
-        // do the kernel tile
-        inputTile.shape[origOp.act_channel_dim()] =
-                origInput[origOp.act_channel_dim()];  // will not tile on InputChannels
-        inputTile.offsets[origOp.act_channel_dim()] = 0;
-
-        weightsTile.shape[origOp.filter_out_channel_dim()] = outputTile.shape[origOp.act_channel_dim()];
-        weightsTile.offsets[origOp.filter_out_channel_dim()] = outputTile.offsets[origOp.act_channel_dim()];
-
-        if (!biasTile.shape.empty()) {
-            biasTile.shape[origOp.act_channel_dim()] = outputTile.shape[origOp.act_channel_dim()];
-            biasTile.offsets[origOp.act_channel_dim()] = outputTile.offsets[origOp.act_channel_dim()];
-        }
-
-        // do the batch dim
-        inputTile.shape[origOp.act_batch_dim()] = outputTile.shape[origOp.act_batch_dim()];
-        inputTile.offsets[origOp.act_batch_dim()] = outputTile.offsets[origOp.act_batch_dim()];
-
-        return {inputTile, weightsTile, biasTile, padsBegin, padsEnd};
-    };
 
     _log.trace("For ConvOp '{0}' have '{1}' tiles: ", origOp->getLoc(), tilings.size());
     for (auto i : irange(tilings.size())) {
@@ -324,14 +199,14 @@ mlir::LogicalResult CMXTilingPass::ConvolutionTiling::matchAndRewrite(IERT::Conv
     SmallVector<mlir::Value> finalResults;
 
     for (auto i : irange(tilings.size())) {
-        const auto inputConfig = backInferConvInput(tilings[i]);
+        const auto inputConfig = Tiling::backInferConvTile(origOp, tilings[i]);
 
-        const auto inputTile = std::get<0>(inputConfig);
-        const auto weightsTile = std::get<1>(inputConfig);
-        const auto biasTile = std::get<2>(inputConfig);
+        const auto inputTile = inputConfig.inputTile;
+        const auto weightsTile = inputConfig.filterTile;
+        const auto biasTile = inputConfig.biasTile;
 
-        const auto padsBegin = std::get<3>(inputConfig);
-        const auto padsEnd = std::get<4>(inputConfig);
+        const auto padsBegin = inputConfig.pads.begin;
+        const auto padsEnd = inputConfig.pads.end;
 
         const auto actInput = makeTile(rewriter, origOp->getLoc(), origOp.input(), inputTile);
         const auto weightInput = makeTile(rewriter, origOp->getLoc(), origOp.filter(), weightsTile);

@@ -35,7 +35,7 @@ class KmbConv2dWithBiasTest :
         const size_t KERNEL_H = kenelShape.at(2);
         const size_t FILT_IN = kenelShape.at(1);
         const size_t FILT_OUT = kenelShape.at(0);
-        const InferenceEngine::SizeVector inputShape = {1, FILT_IN, KERNEL_H * 2, KERNEL_W * 2};
+        const InferenceEngine::SizeVector inputShape = {1, FILT_IN, KERNEL_H * 10, KERNEL_W * 10};
 
         const auto params = ngraph::builder::makeParams(ngraph::element::f32, {inputShape});
         const auto paramOuts =

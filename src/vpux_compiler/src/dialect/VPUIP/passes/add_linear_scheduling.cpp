@@ -59,7 +59,7 @@ void AddLinearSchedulingPass::safeRunOnModule() {
     auto resOp = IERT::RunTimeResourcesOp::getFromModule(module);
     const auto nceAttr = VPUIP::PhysicalProcessorAttr::get(module.getContext(), VPUIP::PhysicalProcessor::NCE_Cluster);
     auto nceResOp = resOp.getExecutor(nceAttr);
-    VPUX_THROW_UNLESS(nceResOp != nullptr, "Failed to get NCE_Cluster infromation");
+    VPUX_THROW_UNLESS(nceResOp != nullptr, "Failed to get NCE_Cluster information");
     const uint32_t numClusters = nceResOp.count();
 
     const uint32_t numBarriers = std::min(MAX_BARRIERS_PER_INFERENCE, BARRIERS_PER_CLUSTER * numClusters);
