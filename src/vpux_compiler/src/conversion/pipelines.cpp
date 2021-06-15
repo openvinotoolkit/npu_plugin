@@ -37,7 +37,10 @@ void vpux::buildLowerIE2IERTPipeline(mlir::OpPassManager& pm, Logger log) {
 //
 
 void vpux::buildLowerIERT2VPUIPPipeline(mlir::OpPassManager& pm, Logger log) {
-    pm.addPass(createConvertIERTOps2VPUIPPass(log));
+    pm.addPass(createConvertLayers2VPUIPPass(log));
+    pm.addPass(mlir::createCanonicalizerPass());
+    pm.addPass(createConvertDeclarations2VPUIPPass(log));
+    pm.addPass(createConvertViewOps2VPUIPPass(log));
 }
 
 //

@@ -58,12 +58,11 @@ func @Conv2dTest(%arg0: memref<1x16x16x16xf16, #NHWC>, %arg1: memref<1x16x16x16x
 // CHECK-SAME:      parent_output([[OUTPUT_CMX_BUF]] : memref<1x16x16x16xf16, #NHWC, "CMX_NN">)
 // CHECK-SAME:      outputs([[OUTPUT_CMX_BUF]] : memref<1x16x16x16xf16, #NHWC, "CMX_NN">)
 // CHECK-SAME:      variants :
-// CHECK:               VPUIP.DPUTask {
-// CHECK-SAME:              end = [15 : i32, 15 : i32, 15 : i32]
-// CHECK-SAME:              mpe_mode = "VECTOR_FP16"
-// CHECK-SAME:              pads_begin = [0 : i32, 0 : i32]
-// CHECK-SAME:              pads_end = [0 : i32, 0 : i32]
-// CHECK-SAME:              start = [0 : i32, 0 : i32, 0 : i32]
+// CHECK:               VPUIP.DPUTask {end = [15 : i32, 2 : i32, 15 : i32], mpe_mode = "VECTOR_FP16", pads_begin = [0 : i32, 0 : i32], pads_end = [0 : i32, 0 : i32], start = [0 : i32, 0 : i32, 0 : i32]}
+// CHECK:               VPUIP.DPUTask {end = [15 : i32, 5 : i32, 15 : i32], mpe_mode = "VECTOR_FP16", pads_begin = [0 : i32, 0 : i32], pads_end = [0 : i32, 0 : i32], start = [0 : i32, 3 : i32, 0 : i32]}
+// CHECK:               VPUIP.DPUTask {end = [15 : i32, 8 : i32, 15 : i32], mpe_mode = "VECTOR_FP16", pads_begin = [0 : i32, 0 : i32], pads_end = [0 : i32, 0 : i32], start = [0 : i32, 6 : i32, 0 : i32]}
+// CHECK:               VPUIP.DPUTask {end = [15 : i32, 11 : i32, 15 : i32], mpe_mode = "VECTOR_FP16", pads_begin = [0 : i32, 0 : i32], pads_end = [0 : i32, 0 : i32], start = [0 : i32, 9 : i32, 0 : i32]}
+// CHECK:               VPUIP.DPUTask {end = [15 : i32, 15 : i32, 15 : i32], mpe_mode = "VECTOR_FP16", pads_begin = [0 : i32, 0 : i32], pads_end = [0 : i32, 0 : i32], start = [0 : i32, 12 : i32, 0 : i32]}
 
 // CHECK:       [[OUTPUT:%.+]] = IERT.Copy
 // CHECK-SAME:      inputs([[OUTPUT_CMX]] : memref<1x16x16x16xf16, #NHWC, "CMX_NN">)

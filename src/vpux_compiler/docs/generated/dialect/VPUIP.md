@@ -313,8 +313,7 @@ Constant TensorReference value declaration
 Syntax:
 
 ```
-operation ::= `VPUIP.DeclareConstantTensor` attr-dict
-              type($output) `=` $value
+operation ::= `VPUIP.DeclareConstantTensor` `[` $localeIndex `]` attr-dict type($output) `=` $value
 ```
 
 
@@ -323,6 +322,7 @@ operation ::= `VPUIP.DeclareConstantTensor` attr-dict
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
 `value` | ::mlir::ElementsAttr | constant vector/tensor attribute
+`localeIndex` | ::mlir::IntegerAttr | 32-bit signless integer attribute
 `csramCacheable` | ::mlir::UnitAttr | unit attribute
 
 #### Results:

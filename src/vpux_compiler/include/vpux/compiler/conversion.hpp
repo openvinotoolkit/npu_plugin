@@ -54,12 +54,14 @@ std::unique_ptr<mlir::Pass> createFuseActivationsPass(Logger log = Logger::globa
 //
 // Performs full lowering from the IERT Dialect to VPUIP Dialect.
 //
-// Replaces IERT Operations with VPUIP UPA tasks counterparts.
+// Replaces Layers with VPUIP UPA/DMA tasks counterparts and declarations with VPUIP analogues.
 //
 
 void buildLowerIERT2VPUIPPipeline(mlir::OpPassManager& pm, Logger log = Logger::global());
 
-std::unique_ptr<mlir::Pass> createConvertIERTOps2VPUIPPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createConvertLayers2VPUIPPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createConvertDeclarations2VPUIPPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createConvertViewOps2VPUIPPass(Logger log = Logger::global());
 
 //
 // Registration

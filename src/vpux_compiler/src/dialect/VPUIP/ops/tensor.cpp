@@ -13,7 +13,7 @@
 
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
-#include "vpux/utils/core/format.hpp"
+#include "vpux/compiler/utils/attributes.hpp"
 
 using namespace vpux;
 
@@ -37,6 +37,18 @@ void vpux::VPUIP::DeclareTensorOp::build(mlir::OpBuilder& builder, ::mlir::Opera
                                          VPUIP::MemoryLocation locale, uint32_t localeIndex, uint64_t dataIndex) {
     build(builder, state, memory, locale, builder.getI32ArrayAttr(ArrayRef<int32_t>(static_cast<int32_t>(localeIndex))),
           dataIndex,
+          nullptr,  // sparsityIndex
+          nullptr,  // storageElementIndex
+          nullptr,  // storageElementSize
+          nullptr,  // leadingOffset
+          nullptr   // trailingOffset
+    );
+}
+
+void vpux::VPUIP::DeclareTensorOp::build(mlir::OpBuilder& builder, ::mlir::OperationState& state, mlir::Type memory,
+                                         VPUIP::MemoryLocation locale, ArrayRef<int64_t> localeIndex,
+                                         uint64_t dataIndex) {
+    build(builder, state, memory, locale, getInt32ArrayAttr(builder.getContext(), localeIndex), dataIndex,
           nullptr,  // sparsityIndex
           nullptr,  // storageElementIndex
           nullptr,  // storageElementSize
@@ -107,8 +119,9 @@ void vpux::VPUIP::DeclareTensorOp::printLocaleIndex(mlir::OpAsmPrinter& printer,
 //
 
 void vpux::VPUIP::DeclareConstantTensorOp::build(mlir::OpBuilder& builder, mlir::OperationState& state,
-                                                 mlir::MemRefType type, mlir::ElementsAttr value) {
-    build(builder, state, type, value, false);
+                                                 mlir::MemRefType type, mlir::ElementsAttr value,
+                                                 uint32_t localeIndex) {
+    build(builder, state, type, value, localeIndex, false);
 }
 
 mlir::LogicalResult vpux::VPUIP::verifyOp(DeclareConstantTensorOp op) {
