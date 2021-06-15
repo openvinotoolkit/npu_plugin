@@ -353,6 +353,7 @@ def IERT_ReorderOp :
     }];
 
     let hasCanonicalizer = 1;
+    let hasFolder = 1;
 }
 
 //

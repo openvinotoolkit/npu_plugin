@@ -23,6 +23,7 @@ func @Conv2dTest(%arg0: memref<1x16x16x16xf16, #NHWC>, %arg1: memref<1x16x16x16x
 }
 
 // CHECK:       [[FILTER_CST:%.+]] = IERT.Constant memref<16x16x1x1xf16, #NHWC>
+// CHECK:       [[WEIGHTS_TABLE:%.+]] = IERT.Constant memref<16x1x1x4xsi32> = dense<{{.*}}> : tensor<16x1x1x4xsi32>
 
 // CHECK:       [[OUT_BUF:%.+]] = memref.alloc() : memref<1x16x16x16xf16, #NHWC>
 
@@ -30,8 +31,6 @@ func @Conv2dTest(%arg0: memref<1x16x16x16xf16, #NHWC>, %arg1: memref<1x16x16x16x
 // CHECK:       [[FILTER_CMX:%.+]] = IERT.Copy
 // CHECK-SAME:      inputs([[FILTER_CST]] : memref<16x16x1x1xf16, #NHWC>)
 // CHECK-SAME:      outputs([[FILTER_CMX_BUF]] : memref<16x16x1x1xf16, #NHWC, "CMX_NN">)
-
-// CHECK:       [[WEIGHTS_TABLE:%.+]] = IERT.Constant memref<16x1x1x4xsi32>
 
 // CHECK:       [[WEIGHTS_TABLE_CMX_BUF:%.+]] = memref.alloc() : memref<16x1x1x4xsi32, "CMX_NN">
 // CHECK:       [[WEIGHTS_TABLE_CMX:%.+]] = IERT.Copy
@@ -94,16 +93,14 @@ func @MaxPoolTest(%arg0: memref<1x16x1x4xf16, #NHWC>, %arg1: memref<1x16x1x4xf16
     return %2 : memref<1x16x1x4xf16, #NHWC>
 }
 
-// CHECK:       [[OUT_BUF:%.+]] = memref.alloc() : memref<1x16x1x4xf16, #NHWC>
-
 // CHECK:       [[ACT_WINDOW_CST:%.+]] = IERT.Constant memref<16x1x1x16xui8>
+// CHECK:       [[WEIGHTS_TABLE:%.+]] = IERT.Constant memref<16x1x1x4xsi32> = dense<{{.*}}> : tensor<16x1x1x4xsi32>
+// CHECK:       [[OUT_BUF:%.+]] = memref.alloc() : memref<1x16x1x4xf16, #NHWC>
 
 // CHECK:       [[ACT_WINDOW_CMX_BUF:%.+]] = memref.alloc() : memref<16x1x1x16xui8, "CMX_NN">
 // CHECK:       [[ACT_WINDOW_CMX:%.+]] = IERT.Copy
 // CHECK-SAME:      inputs([[ACT_WINDOW_CST]] : memref<16x1x1x16xui8>)
 // CHECK-SAME:      outputs([[ACT_WINDOW_CMX_BUF]] : memref<16x1x1x16xui8, "CMX_NN">)
-
-// CHECK:       [[WEIGHTS_TABLE:%.+]] = IERT.Constant memref<16x1x1x4xsi32>
 
 // CHECK:       [[WEIGHTS_TABLE_CMX_BUF:%.+]] = memref.alloc() : memref<16x1x1x4xsi32, "CMX_NN">
 // CHECK:       [[WEIGHTS_TABLE_CMX:%.+]] = IERT.Copy

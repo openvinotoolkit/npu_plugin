@@ -120,6 +120,8 @@ The `IERT.RunTimeResources` is filled by underlying low-level dialect to provide
         "mlir::quant::QuantizationDialect",
         "mlir::async::AsyncDialect"
     ];
+
+    let hasConstantMaterializer = 1;
 }
 
 #endif
