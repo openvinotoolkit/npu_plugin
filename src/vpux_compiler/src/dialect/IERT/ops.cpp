@@ -20,12 +20,35 @@
 
 using namespace vpux;
 
+//
+// initialize
+//
+
 void vpux::IERT::IERTDialect::initialize() {
     addOperations<
 #define GET_OP_LIST
 #include <vpux/compiler/dialect/IERT/generated/ops.cpp.inc>
 #undef GET_OP_LIST
             >();
+}
+
+//
+// materializeConstant
+//
+
+mlir::Operation* vpux::IERT::IERTDialect::materializeConstant(mlir::OpBuilder& builder, mlir::Attribute value,
+                                                              mlir::Type type, mlir::Location loc) {
+    if (!value.isa<ConstContentAttr>()) {
+        (void)errorAt(loc, "Can't materialize IERT Constant from Attribute '{0}'", value);
+        return nullptr;
+    }
+
+    if (!type.isa<mlir::MemRefType>()) {
+        (void)errorAt(loc, "Can't materialize IERT Constant for Type '{0}'", type);
+        return nullptr;
+    }
+
+    return builder.create<IERT::ConstantOp>(loc, type, value.cast<mlir::ElementsAttr>());
 }
 
 //
