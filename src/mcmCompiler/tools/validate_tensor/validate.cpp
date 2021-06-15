@@ -83,8 +83,6 @@ bool ParseAndCheckCommandLine(int argc, char *argv[])
             throw std::logic_error("Parameter -m <path to model> is not set");
         if (FLAGS_k.empty())
             throw std::logic_error("Parameter -k <evm ip address> is not set");
-        if (FLAGS_c.empty())
-            throw std::logic_error("Parameter -c <vpux platform config> is not set");
         if (! FLAGS_il.empty() )
             if (FLAGS_il != "NHWC" && FLAGS_il != "NCHW")
                 throw std::logic_error("Parameter -il only supports NHWC or NCHW");
@@ -422,7 +420,11 @@ int runEmulator(std::string pathXML, std::string pathImage, std::string& blobPat
     std::cout << "Generating mcm blob through kmb-plugin... " << std::endl;
 
     commandline = std::string("cd ") + std::getenv("OPENVINO_HOME") + OPENVINO_BIN_FOLDER + " && " +
-        "./compile_tool -m " + ((pathXMLvector.size() > 1) ? pathXMLvector[1] : pathXMLvector[0]) + " -d VPUX -o " + FILE_BLOB_NAME;
+        "./compile_tool -m " + ((pathXMLvector.size() > 1) ? pathXMLvector[1] : pathXMLvector[0]) + " -o " + FILE_BLOB_NAME;
+
+    // Add device id description to compile_tool command. Possible values: VPUX.3400 (KMB EVM A0), VPUX.3700 (KMB EVM B0), VPUX.3900 (TBH)
+    std::string device_id = getEnvVarDefault("DEVICE_ID", "VPUX.3700");
+    commandline += " -d " + device_id;
 
     // if exists, reads the input layout from commandline.
     if (! FLAGS_il.empty() )
@@ -440,7 +442,7 @@ int runEmulator(std::string pathXML, std::string pathImage, std::string& blobPat
 
     std::string outputPrecision = getEnvVarDefault("OUTPUT_PRECISION", "FP16");
     commandline += " -op " + outputPrecision;
-
+    
     if (! FLAGS_c.empty() )
     {
         std::cout << "Taking -c from command line" << std::endl;
@@ -451,7 +453,7 @@ int runEmulator(std::string pathXML, std::string pathImage, std::string& blobPat
     returnVal = std::system(commandline.c_str());
     if (returnVal != 0)
     {
-        std::cout << std::endl << "Error occurred running the test_classification (KMB mode)!" << std::endl;
+        std::cout << std::endl << "Error occurred running the compilation stage (KMB mode)!" << std::endl;
         return FAIL_ERROR;
     }
 
