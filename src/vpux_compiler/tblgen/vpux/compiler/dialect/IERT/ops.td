@@ -319,6 +319,8 @@ def IERT_CopyOp :
         `outputs` `(` $output_buff `:` type($output_buff) `)`
         `->` type(results)
     }];
+
+    let hasFolder = 1;
 }
 
 //
