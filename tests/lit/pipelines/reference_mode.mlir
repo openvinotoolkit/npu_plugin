@@ -96,7 +96,7 @@ func @main(%arg0: tensor<1x2x2x2xf16>) -> (tensor<1x2x2x2xf16>, tensor<1x2x2x2xf
 
     return %0, %1 : tensor<1x2x2x2xf16>, tensor<1x2x2x2xf16>
 
-    // CHECK:   [[VAR0:%.*]] = VPUIP.DeclareConstantTensor
+    // CHECK:   [[VAR0:%.*]] = VPUIP.DeclareConstantTensor[0]
     // CHECK-SAME:              memref<1x2x2x2xf16>
     // CHECK:   [[VAR1:%.*]] = VPUIP.DeclareTensor "VPU_DDR_Heap" [0] <0> -> memref<1x2x2x2xf16, "DDR">
     // CHECK:   [[VAR2:%.*]] = VPUIP.ConfigureBarrier<0> -> !VPUIP.Barrier
@@ -171,7 +171,7 @@ func @main() -> tensor<1x2x4x2xf16> {
 
     return %prob : tensor<1x2x4x2xf16>
 
-    // CHECK:       %[[CST:.*]] = VPUIP.DeclareConstantTensor
+    // CHECK:       %[[CST:.*]] = VPUIP.DeclareConstantTensor[0]
     // CHECK-SAME:      memref<1x2x4x2xf16>
 
     // CHECK:       [[VAR0:%.*]] = VPUIP.NNDMA

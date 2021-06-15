@@ -493,15 +493,15 @@ void replaceStridedSliceWithStridedConvConcat(const mv::pass::PassEntry&, mv::Co
     }
 }
 
-//NOTE: Three kinds of Eltwise should be replaced with SWEltwise:
-// case 1 - Convs -> Eltwise for testing ResNet first of all....
-//          General solution dequantize the input Tensors of these special Elwise, even with sw de-quantize
-// case 2 - Eltwise with different input tensor shapes, assume broadcasting Eltwise.
+//NOTE: the cases where Eltwise should be replaced with SWEltwise:
+// case 1 - Eltwise with different input tensor shapes, assume broadcasting Eltwise.
 //          to handle the case in Super-Resolution model.
-// case 3 - If the output is to feed implicitOutput or Output,
+// case 2 - If the output is to feed implicitOutput or Output,
 //          need to be replaced with SWEltwise to avoid being converted to DPUTask.
 //          alse for Super-Resolution model enabling.
-// case 4 - If any of the inputs for the eltwise is a constant
+// case 3 - If any of the inputs for the eltwise is a constant
+// case 4 - When the input scales are unaligned (absolute relative larger than 0.01),
+//          replace the Eltwise with SWEltwise or float DPU Eltwise_Add.
 void eltwiseToSWEltwiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& td, mv::Element&, mv::Element&)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
@@ -515,43 +515,7 @@ void eltwiseToSWEltwiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
 
     for (auto& opIt : eltWiseOps)
     {
-        auto firstEltwiseInputTensor = opIt->getInputTensor(0);
-        auto secondEltwiseInputTensor = opIt->getInputTensor(1);
-
-        mv::QuantizationParams firstEltwiseInputTensorQuantizationParams = firstEltwiseInputTensor->getQuantParams();
-        mv::QuantizationParams secondEltwiseInputTensorQuantizationParams = secondEltwiseInputTensor->getQuantParams();
-
         // case 1
-        auto scale1 = firstEltwiseInputTensorQuantizationParams.getScale();
-        auto scale2 = secondEltwiseInputTensorQuantizationParams.getScale();
-
-        auto size = scale1.size();
-        auto size2 = scale2.size();
-
-        if (size != size2 && (size == 0 || size2 == 0)) {
-            // one of inputs does not have quant params
-            opIt->set<bool>("softwareExecuted", true);
-            return;
-        }
-
-        std::vector <double> scaleDifference(size), absRelativeErrorScale(size), relativeErrorScale(size);
-        std::transform(scale1.begin(),
-                       scale1.end(),
-                       scale2.begin(), scaleDifference.begin(), std::minus<double>());
-
-        double (*fabs)(double) = &std::abs;
-        std::transform(scaleDifference.begin(), scaleDifference.end(),
-                       scale1.begin(), relativeErrorScale.begin(),
-                       std::divides<double>());
-        std::transform(relativeErrorScale.begin(),relativeErrorScale.end(),
-                       absRelativeErrorScale.begin(), fabs);
-        for (auto it = absRelativeErrorScale.begin(); it != absRelativeErrorScale.end(); it++)
-        {
-            if (*it > 0.01)
-                opIt->set<bool>("softwareExecuted", true);
-        }
-
-        // case 2
         auto inputs = opIt->getInputTensor();
         auto input0Shape = inputs[0]->getShape();
         auto inputSize = inputs.size();
@@ -568,7 +532,7 @@ void eltwiseToSWEltwiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
             }
         }
 
-        // case 3
+        // case 2
         for (auto sinkFlow = opIt.leftmostOutput(); sinkFlow != om.flowEnd(); ++sinkFlow)
         {
             if (sinkFlow.sink()->getOpType() == "ImplicitOutput" || sinkFlow.sink()->getOpType() == "Output")
@@ -578,7 +542,7 @@ void eltwiseToSWEltwiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
             }
         }
 
-        // case 4
+        // case 3
         if (std::any_of(inputs.begin(), inputs.end(), [&om](const mv::Data::TensorIterator& input) {
                 const auto parentOpType = om.getSourceOp(input)->getOpType();
                 return parentOpType == "Constant" ||
@@ -586,6 +550,54 @@ void eltwiseToSWEltwiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
                        parentOpType == "ConstantDataElement";
             })) {
             opIt->set<bool>("softwareExecuted", true);
+        }
+
+        // case 4
+        // use fp16 dpu eltwise-add instead of upa for unaligned scale case
+        if(!(opIt->hasAttr("softwareExecuted") && opIt->get("softwareExecuted")))
+        {
+            auto firstEltwiseInputTensor = opIt->getInputTensor(0);
+            auto secondEltwiseInputTensor = opIt->getInputTensor(1);
+
+            mv::QuantizationParams firstEltwiseInputTensorQuantizationParams = firstEltwiseInputTensor->getQuantParams();
+            mv::QuantizationParams secondEltwiseInputTensorQuantizationParams = secondEltwiseInputTensor->getQuantParams();
+
+            auto scale1 = firstEltwiseInputTensorQuantizationParams.getScale();
+            auto scale2 = secondEltwiseInputTensorQuantizationParams.getScale();
+
+            auto size = scale1.size();
+            auto size2 = scale2.size();
+
+            if (size != size2 && (size == 0 || size2 == 0)) {
+                // one of inputs does not have quant params
+                if(opIt->get<std::string>("eltwiseType") != "Add")
+                    opIt->set<bool>("softwareExecuted", true);
+                else
+                    opIt->set<bool>("placeConversionToFloat", true);
+                continue;
+            }
+
+            std::vector <double> scaleDifference(size), absRelativeErrorScale(size), relativeErrorScale(size);
+            std::transform(scale1.begin(),
+                        scale1.end(),
+                        scale2.begin(), scaleDifference.begin(), std::minus<double>());
+
+            double (*fabs)(double) = &std::abs;
+            std::transform(scaleDifference.begin(), scaleDifference.end(),
+                        scale1.begin(), relativeErrorScale.begin(),
+                        std::divides<double>());
+            std::transform(relativeErrorScale.begin(),relativeErrorScale.end(),
+                        absRelativeErrorScale.begin(), fabs);
+            for (auto it = absRelativeErrorScale.begin(); it != absRelativeErrorScale.end(); it++)
+            {
+                if (*it > 0.01)
+                {
+                    if(opIt->get<std::string>("eltwiseType") != "Add")
+                        opIt->set<bool>("softwareExecuted", true);
+                    else
+                        opIt->set<bool>("placeConversionToFloat", true);
+                }
+            }
         }
     }
 }

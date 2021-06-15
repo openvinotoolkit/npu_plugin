@@ -14,6 +14,7 @@
 #include "vpux/compiler/conversion.hpp"
 
 #include "vpux/compiler/dialect/IERT/ops.hpp"
+#include "vpux/compiler/dialect/VPUIP/dpu_tiler.hpp"
 #include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
 #include "vpux/compiler/dialect/VPUIP/nce_sparsity.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
@@ -38,19 +39,6 @@ mlir::MemRefType changeMemSpace(mlir::MemRefType origType, mlir::Attribute memSp
 
 mlir::MemRefType changeDimsOrder(mlir::MemRefType origType, DimsOrder newOrder) {
     return mlir::MemRefType::Builder(origType).setAffineMaps(newOrder.toAffineMap(origType.getContext()));
-}
-
-std::tuple<mlir::ArrayAttr, mlir::ArrayAttr> getDPUTaskCoords(mlir::MLIRContext* ctx, ShapeRef shape) {
-    VPUX_THROW_UNLESS(shape.size() == 4, "getDPUTaskCoords works with 4-d tensors only");
-
-    const int32_t C = checked_cast<int32_t>(shape[IERT::ConvolutionOp::act_channel_dim()]);
-    const int32_t H = checked_cast<int32_t>(shape[IERT::ConvolutionOp::act_height_dim()]);
-    const int32_t W = checked_cast<int32_t>(shape[IERT::ConvolutionOp::act_width_dim()]);
-
-    const auto startAttr = getInt32ArrayAttr(ctx, makeArrayRef({0, 0, 0}));
-    const auto endAttr = getInt32ArrayAttr(ctx, makeArrayRef({W - 1, H - 1, C - 1}));
-
-    return std::make_tuple(startAttr, endAttr);
 }
 
 template <typename T>
@@ -141,19 +129,38 @@ mlir::Value prepareInputForDPU(mlir::OpBuilder& builder, mlir::Location loc, mli
     return dmaOp.output();
 }
 
+void addDPUTasks(VPUIP::NCEClusterTaskOp nceOp, mlir::PatternRewriter& rewriter, const int32_t numDPU,
+                 ArrayRef<int64_t> opPadsBegin, ArrayRef<int64_t> opPadsEnd) {
+    auto* ctx = nceOp.getContext();
+    const auto outputShape = getShape(nceOp.output());
+    const auto dpuTiles = VPUIP::DpuTiler::tileOverH(numDPU, outputShape, opPadsBegin, opPadsEnd);
+
+    for (const auto& dpuTile : dpuTiles) {
+        const auto startAttr = getInt32ArrayAttr(ctx, makeArrayRef(dpuTile.start));
+        const auto endAttr = getInt32ArrayAttr(ctx, makeArrayRef(dpuTile.end));
+
+        const auto padsBeginAttr = getInt32ArrayAttr(ctx, dpuTile.padsBegin);
+        const auto padsEndAttr = getInt32ArrayAttr(ctx, dpuTile.padsEnd);
+
+        nceOp.addDPUTask(rewriter, startAttr, endAttr, padsBeginAttr, padsEndAttr, VPUIP::MPEMode::VECTOR_FP16);
+    }
+}
+
 //
 // ConvRewrite
 //
 
 class ConvRewrite final : public mlir::OpRewritePattern<IERT::ConvolutionOp> {
 public:
-    ConvRewrite(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<IERT::ConvolutionOp>(ctx), _log(log) {
+    ConvRewrite(mlir::MLIRContext* ctx, uint32_t numDPU, Logger log)
+            : mlir::OpRewritePattern<IERT::ConvolutionOp>(ctx), _numDPU(numDPU), _log(log) {
     }
 
 public:
     mlir::LogicalResult matchAndRewrite(IERT::ConvolutionOp origOp, mlir::PatternRewriter& rewriter) const final;
 
 private:
+    const uint32_t _numDPU;
     Logger _log;
 };
 
@@ -246,13 +253,7 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
     // Create DPU sub-task
     //
 
-    mlir::ArrayAttr startAttr, endAttr;
-    std::tie(startAttr, endAttr) = getDPUTaskCoords(getContext(), getShape(nceOp.output()));
-
-    const auto padsBeginAttr = getInt32ArrayAttr(getContext(), padsBegin);
-    const auto padsEndAttr = getInt32ArrayAttr(getContext(), padsEnd);
-
-    nceOp.addDPUTask(rewriter, startAttr, endAttr, padsBeginAttr, padsEndAttr, VPUIP::MPEMode::VECTOR_FP16);
+    addDPUTasks(nceOp, rewriter, _numDPU, padsBegin, padsEnd);
 
     //
     // DMA output CMX -> DDR
@@ -269,13 +270,15 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
 
 class MaxPoolRewrite final : public mlir::OpRewritePattern<IERT::MaxPoolOp> {
 public:
-    MaxPoolRewrite(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<IERT::MaxPoolOp>(ctx), _log(log) {
+    MaxPoolRewrite(mlir::MLIRContext* ctx, uint32_t numDPU, Logger log)
+            : mlir::OpRewritePattern<IERT::MaxPoolOp>(ctx), _numDPU(numDPU), _log(log) {
     }
 
 public:
     mlir::LogicalResult matchAndRewrite(IERT::MaxPoolOp origOp, mlir::PatternRewriter& rewriter) const final;
 
 private:
+    const uint32_t _numDPU;
     Logger _log;
 };
 
@@ -363,13 +366,7 @@ mlir::LogicalResult MaxPoolRewrite::matchAndRewrite(IERT::MaxPoolOp origOp, mlir
     // Create DPU sub-task
     //
 
-    mlir::ArrayAttr startAttr, endAttr;
-    std::tie(startAttr, endAttr) = getDPUTaskCoords(getContext(), getShape(nceOp.output()));
-
-    const auto padsBeginAttr = getInt32ArrayAttr(getContext(), padsBegin);
-    const auto padsEndAttr = getInt32ArrayAttr(getContext(), padsEnd);
-
-    nceOp.addDPUTask(rewriter, startAttr, endAttr, padsBeginAttr, padsEndAttr, VPUIP::MPEMode::VECTOR_FP16);
+    addDPUTasks(nceOp, rewriter, _numDPU, padsBegin, padsEnd);
 
     //
     // DMA output CMX -> DDR
@@ -401,9 +398,19 @@ void ConvertToNCEOpsPass::safeRunOnFunc() {
     auto& ctx = getContext();
     auto func = getFunction();
 
+    auto resOp = IERT::RunTimeResourcesOp::getFromModule(func->getParentOfType<mlir::ModuleOp>());
+    VPUX_THROW_UNLESS(resOp != nullptr, "Missing IERT run-time resources definition");
+
+    auto nceCluster = resOp.getExecutor(VPUIP::PhysicalProcessorAttr::get(&ctx, VPUIP::PhysicalProcessor::NCE_Cluster));
+    VPUX_THROW_UNLESS(nceCluster != nullptr, "Failed to get NCE_Cluster information");
+
+    auto dpuExec = nceCluster.getSubExecutor(
+            VPUIP::PhysicalProcessorAttr::get(&ctx, VPUIP::PhysicalProcessor::NCE_PerClusterDPU));
+    VPUX_THROW_UNLESS(dpuExec != nullptr, "Failed to get DPU information");
+
     mlir::OwningRewritePatternList patterns(&ctx);
-    patterns.insert<ConvRewrite>(&ctx, _log);
-    patterns.insert<MaxPoolRewrite>(&ctx, _log);
+    patterns.insert<ConvRewrite>(&ctx, dpuExec.count(), _log);
+    patterns.insert<MaxPoolRewrite>(&ctx, dpuExec.count(), _log);
 
     if (mlir::failed(applyPatternsAndFoldGreedily(func, std::move(patterns)))) {
         signalPassFailure();

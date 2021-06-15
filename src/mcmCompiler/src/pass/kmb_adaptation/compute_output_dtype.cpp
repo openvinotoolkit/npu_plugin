@@ -442,6 +442,9 @@ void decideOutputDataType(const mv::pass::PassEntry& pass, mv::ComputationModel&
             for (auto& op : p.second) {
                 const auto& opType = p.first;
 
+                if(op->hasAttr("softwareExecuted") && op->get("softwareExecuted"))
+                    continue;
+
                 bool inputQuantized = true;
                 /// check conv with fp16 weights and also no quan params
                 /// need do with fp16 conv

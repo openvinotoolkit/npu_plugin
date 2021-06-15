@@ -27,7 +27,7 @@ module @mainModule attributes {VPUIP.arch = "VPU3720", VPUIP.compilationMode = "
     IERT.ExecutorResource 2 of "DMA_NN"
   }
   func private @"zmajor_conv_!quant.uniform<u8:f32, 1.000000e+00>_!quant.uniform<u8:f32, 1.000000e+00>_f16"(%input_arg: memref<1x16x16x16x!quant.uniform<u8:f32, 1.000000e+00>, #NHWC, "ProgrammableInput">, %output_arg: memref<2x16x16x16xf16, #NHWC, "ProgrammableOutput">) -> memref<2x16x16x16xf16, #NHWC, "ProgrammableOutput"> {
-    %weights_constant = VPUIP.DeclareConstantTensor memref<16x1x1x16x!quant.uniform<u8:f32, 1.000000e+00>, #NHWC, "GraphFile"> = dense<1> : tensor<16x1x1x16xui8>
+    %weights_constant = VPUIP.DeclareConstantTensor [0] memref<16x1x1x16x!quant.uniform<u8:f32, 1.000000e+00>, #NHWC, "GraphFile"> = dense<1> : tensor<16x1x1x16xui8>
     %weights = VPUIP.DeclareTensor "VPU_CMX_NN" [0] <12544> -> memref<16x1x1x16x!quant.uniform<u8:f32, 1.000000e+00>, #NHWC, "VPU_CMX_NN">
     %input_broadcast = VPUIP.DeclareTensor "VPU_CMX_NN" [0,1] <8192> -> memref<1x16x16x16x!quant.uniform<u8:f32, 1.000000e+00>, #NHWC, "VPU_CMX_NN">
     %input_0 = VPUIP.DeclareTensor "VPU_CMX_NN" [0] <8192> -> memref<1x16x16x16x!quant.uniform<u8:f32, 1.000000e+00>, #NHWC, "VPU_CMX_NN">
@@ -41,7 +41,7 @@ module @mainModule attributes {VPUIP.arch = "VPU3720", VPUIP.compilationMode = "
     %parent_input_1 = VPUIP.DeclareTensor "VPU_CMX_NN" [1] <8192> -> memref<1x16x16x16x!quant.uniform<u8:f32, 1.000000e+00>, #NHWC, "VPU_CMX_NN">
     %parent_output_1 = VPUIP.DeclareTensor "VPU_CMX_NN" [1] <0> -> memref<1x16x16x16xf16, #NHWC, "VPU_CMX_NN">
     %output_ddr = VPUIP.DeclareTensor "VPU_DDR_Heap" <0> -> memref<2x16x16x16xf16, #NHWC, "VPU_DDR_Heap">
-    %weight_table_constant = VPUIP.DeclareConstantTensor memref<16x1x1x4xsi32, #NHWC, "GraphFile"> = dense<[[[[12544, 16777215, 1073761792, 0]]], [[[12560, 16777215, 1073761792, 0]]], [[[12576, 16777215, 1073761792, 0]]], [[[12592, 16777215, 1073761792, 0]]], [[[12608, 16777215, 1073761792, 0]]], [[[12624, 16777215, 1073761792, 0]]], [[[12640, 16777215, 1073761792, 0]]], [[[12656, 16777215, 1073761792, 0]]], [[[12672, 16777215, 1073761792, 0]]], [[[12688, 16777215, 1073761792, 0]]], [[[12704, 16777215, 1073761792, 0]]], [[[12720, 16777215, 1073761792, 0]]], [[[12736, 16777215, 1073761792, 0]]], [[[12752, 16777215, 1073761792, 0]]], [[[12768, 16777215, 1073761792, 0]]], [[[12784, 16777215, 1073761792, 0]]]]> : tensor<16x1x1x4xsi32>
+    %weight_table_constant = VPUIP.DeclareConstantTensor [1] memref<16x1x1x4xsi32, #NHWC, "GraphFile"> = dense<[[[[12544, 16777215, 1073761792, 0]]], [[[12560, 16777215, 1073761792, 0]]], [[[12576, 16777215, 1073761792, 0]]], [[[12592, 16777215, 1073761792, 0]]], [[[12608, 16777215, 1073761792, 0]]], [[[12624, 16777215, 1073761792, 0]]], [[[12640, 16777215, 1073761792, 0]]], [[[12656, 16777215, 1073761792, 0]]], [[[12672, 16777215, 1073761792, 0]]], [[[12688, 16777215, 1073761792, 0]]], [[[12704, 16777215, 1073761792, 0]]], [[[12720, 16777215, 1073761792, 0]]], [[[12736, 16777215, 1073761792, 0]]], [[[12752, 16777215, 1073761792, 0]]], [[[12768, 16777215, 1073761792, 0]]], [[[12784, 16777215, 1073761792, 0]]]]> : tensor<16x1x1x4xsi32>
     %weight_table = VPUIP.DeclareTensor "VPU_CMX_NN" [0] <12288> -> memref<16x1x1x4xsi32, #NHWC, "VPU_CMX_NN">
     %inputs_ready = VPUIP.ConfigureBarrier<0> -> !VPUIP.Barrier
     %conv_complete = VPUIP.ConfigureBarrier<1> -> !VPUIP.Barrier

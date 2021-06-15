@@ -182,6 +182,7 @@ void AdjustLayoutsPass::safeRunOnFunc() {
     auto func = getFunction();
 
     const auto dialect = ctx.getOrLoadDialect<IERT::IERTDialect>();
+    VPUX_THROW_UNLESS(dialect != nullptr, "IERT Dialect was not loaded");
     const auto layerInfo = dialect->getRegisteredInterface<IERT::LayerInfoDialectInterface>();
     VPUX_THROW_UNLESS(layerInfo != nullptr, "LayerInfoDialect is not registered");
 
