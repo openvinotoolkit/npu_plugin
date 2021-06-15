@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -54,21 +54,26 @@ mlir::Attribute VPUIPLayerInfo::getExecutor(mlir::Operation* op, uint32_t& numUn
             });
 }
 
+template <class ConcreteOp>
+bool isSupportedByNCE(ConcreteOp op) {
+    return VPUIP::NCEInvariant::verifyOp(op).succeeded();
+}
+
 mlir::LogicalResult VPUIPLayerInfo::isSupportedLayout(mlir::Operation* origOp, DataOrderInfo& info) const {
     auto module = origOp->getParentOfType<mlir::ModuleOp>();
     auto compileMode = VPUIP::getCompilationMode(module);
 
 #define CASE(_IERT_OP_, _VPUIP_OP_)                     \
-    .Case<_IERT_OP_>([&](mlir::Operation* op) {         \
+    .Case<_IERT_OP_>([&](_IERT_OP_ op) {                \
         return _VPUIP_OP_::isSupportedLayout(op, info); \
     })
 
-#define HW_OPS_CASE(_IERT_OP_, _VPUIP_OP_)                                                                         \
-    .Case<_IERT_OP_>([&](mlir::Operation* op) {                                                                    \
-        if (compileMode == VPUIP::CompilationMode::ReferenceHW && VPUIP::NCEInvariant::verifyOp(op).succeeded()) { \
-            return VPUIP::NCEClusterTaskOp::isSupportedLayout(op, info);                                           \
-        }                                                                                                          \
-        return _VPUIP_OP_::isSupportedLayout(op, info);                                                            \
+#define HW_OPS_CASE(_IERT_OP_, _VPUIP_OP_)                                                \
+    .Case<_IERT_OP_>([&](_IERT_OP_ op) {                                                  \
+        if (compileMode == VPUIP::CompilationMode::ReferenceHW && isSupportedByNCE(op)) { \
+            return VPUIP::NCEClusterTaskOp::isSupportedLayout(op, info);                  \
+        }                                                                                 \
+        return _VPUIP_OP_::isSupportedLayout(op, info);                                   \
     })
 
     return llvm::TypeSwitch<mlir::Operation*, mlir::LogicalResult>(origOp) CASE(IERT::QuantizeOp, VPUIP::QuantCastUPAOp)
@@ -79,7 +84,7 @@ mlir::LogicalResult VPUIPLayerInfo::isSupportedLayout(mlir::Operation* origOp, D
     CASE(IERT::AvgPoolOp, VPUIP::PoolingUPAOp)
     HW_OPS_CASE(IERT::MaxPoolOp, VPUIP::PoolingUPAOp)
     HW_OPS_CASE(IERT::ConvolutionOp, VPUIP::ConvolutionUPAOp)
-    HW_OPS_CASE(IERT::GroupConvolutionOp, VPUIP::ConvolutionUPAOp)
+    CASE(IERT::GroupConvolutionOp, VPUIP::ConvolutionUPAOp)
     CASE(IERT::ReLUOp, VPUIP::ReLUUPAOp)
     CASE(IERT::SigmoidOp, VPUIP::SigmoidUPAOp)
     CASE(IERT::ClampOp, VPUIP::ClampUPAOp)

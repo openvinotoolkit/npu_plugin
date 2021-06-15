@@ -27,6 +27,30 @@ public:
 
 public:
     static mlir::LogicalResult verifyOp(mlir::Operation* op, Logger log = Logger::global());
+
+public:
+    static mlir::LogicalResult verifyCMX(IERT::ConvolutionOp origOp, Logger log = Logger::global());
+    static mlir::LogicalResult verifyConvCMX(mlir::Location loc, mlir::ModuleOp module, mlir::MemRefType inputType,
+                                             mlir::MemRefType filterType, mlir::MemRefType outputType,
+                                             Logger log = Logger::global());
+
+    static mlir::LogicalResult verifyCMX(IERT::MaxPoolOp origOp, Logger log = Logger::global());
+    static mlir::LogicalResult verifyPoolCMX(mlir::Location loc, mlir::ModuleOp module, mlir::MemRefType inputType,
+                                             mlir::MemRefType outputType, mlir::ArrayAttr kernelSize,
+                                             mlir::ArrayAttr kernelStrides, Logger log = Logger::global());
+
+public:
+    static mlir::LogicalResult verifyChannels(IERT::ConvolutionOp origOp, Logger log = Logger::global());
+    static mlir::LogicalResult verifyConvChannels(mlir::Location loc, mlir::MemRefType filterType,
+                                                  Logger log = Logger::global());
+
+    static mlir::LogicalResult verifyChannels(IERT::MaxPoolOp origOp, Logger log = Logger::global());
+    static mlir::LogicalResult verifyPoolChannels(mlir::Location loc, mlir::MemRefType inputType,
+                                                  Logger log = Logger::global());
+
+public:
+    static mlir::LogicalResult verifyKernel(IERT::ConvolutionOp origOp, Logger log = Logger::global());
+    static mlir::LogicalResult verifyKernel(IERT::MaxPoolOp origOp, Logger log = Logger::global());
 };
 
 }  // namespace VPUIP
