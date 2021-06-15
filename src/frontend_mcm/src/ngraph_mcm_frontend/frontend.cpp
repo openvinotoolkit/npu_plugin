@@ -336,8 +336,6 @@ void applyTransformations(
         passManager.register_pass<ngraph::pass::Serialize>(baseFileName + ".xml", baseFileName + ".bin");
     }
 
-    passManager.register_pass<ngraph::pass::ConvertPriorBox>(); // strict requirement: ConvertPriorBox should be first
-
     passManager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
     passManager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
     passManager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();

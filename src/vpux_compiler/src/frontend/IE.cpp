@@ -92,8 +92,6 @@ private:
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::ConvolutionBackpropData>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::AvgPool>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::MaxPool>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::PriorBox>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::PriorBoxClustered>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Gather>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Clamp>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Elu>& origNode);
@@ -197,8 +195,6 @@ mlir::FuncOp NGraphImporter::buildMainFunc(mlir::OpBuilder& moduleBuilder, Strin
             MAP_ENTRY(opset_latest::ConvolutionBackpropData),
             MAP_ENTRY(opset_latest::AvgPool),
             MAP_ENTRY(opset_latest::MaxPool),
-            MAP_ENTRY(opset_latest::PriorBox),
-            MAP_ENTRY(opset_latest::PriorBoxClustered),
             MAP_ENTRY(ngraph::opset1::Gather),
             MAP_ENTRY(opset_latest::Clamp),
             MAP_ENTRY(opset_latest::Elu),
@@ -596,43 +592,6 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
 
     auto op = builder.create<IE::FloorModOp>(createLocation(origNode), inputs[0], inputs[1],
                                              importBroadcastType(autob.m_type));
-    addOutputs(origNode, op);
-}
-
-void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::PriorBox>& origNode) {
-    static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v0::PriorBox>::value,
-                  "opset operation mismatch");
-    const auto inputs = getInputs(origNode);
-    VPUX_THROW_UNLESS(inputs.size() == 2, "nGraph node '{0}' has unsupported number of inputs '{1}'",
-                      origNode->get_friendly_name(), inputs.size());
-
-    const auto& attrs = origNode->get_attrs();
-
-    auto op = builder.create<IE::PriorBoxOp>(
-            createLocation(origNode), inputs[0], inputs[1], getFP32ArrayAttr(_ctx, attrs.min_size),
-            getFP32ArrayAttr(_ctx, attrs.max_size), getFP32ArrayAttr(_ctx, attrs.aspect_ratio),
-            mlir::BoolAttr::get(_ctx, attrs.flip), mlir::BoolAttr::get(_ctx, attrs.clip), getFP32Attr(_ctx, attrs.step),
-            getFP32Attr(_ctx, attrs.offset), getFP32ArrayAttr(_ctx, attrs.variance),
-            mlir::BoolAttr::get(_ctx, attrs.scale_all_sizes), getFP32ArrayAttr(_ctx, attrs.fixed_ratio),
-            getFP32ArrayAttr(_ctx, attrs.fixed_size), getFP32ArrayAttr(_ctx, attrs.density));
-    addOutputs(origNode, op);
-}
-
-void NGraphImporter::parseNode(mlir::OpBuilder& builder,
-                               const std::shared_ptr<opset_latest::PriorBoxClustered>& origNode) {
-    static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v0::PriorBoxClustered>::value,
-                  "opset operation mismatch");
-    const auto inputs = getInputs(origNode);
-    VPUX_THROW_UNLESS(inputs.size() == 2, "nGraph node '{0}' has unsupported number of inputs '{1}'",
-                      origNode->get_friendly_name(), inputs.size());
-
-    const auto& attrs = origNode->get_attrs();
-
-    auto op = builder.create<IE::PriorBoxClusteredOp>(
-            createLocation(origNode), inputs[0], inputs[1], getFP32ArrayAttr(_ctx, attrs.widths),
-            getFP32ArrayAttr(_ctx, attrs.heights), mlir::BoolAttr::get(_ctx, attrs.clip),
-            getFP32Attr(_ctx, attrs.step_widths), getFP32Attr(_ctx, attrs.step_heights),
-            getFP32Attr(_ctx, attrs.offset), getFP32ArrayAttr(_ctx, attrs.variances));
     addOutputs(origNode, op);
 }
 
