@@ -49,10 +49,10 @@ std::vector<mv::Data::OpListIterator> findConsumerOps(mv::DataModel& dm, const m
 {
     std::vector<mv::Data::OpListIterator> consumerOps;
     const auto sinkLayers = mv::findSinkLayers(dm, tensor);
-    for (auto& sink : sinkLayers)
+    for (const auto& sink : sinkLayers)
     {
         if (sink->getOpType() == "DMATask" || sink->getOpType() == "Concat" || sink->isImplicit())
-            for (auto& outputTensor : sink->getOutputTensor())
+            for (const auto& outputTensor : sink->getOutputTensor())
             {
                 auto consumers = findConsumerOps(dm, outputTensor);
                 consumerOps.insert(consumerOps.end(), consumers.begin(), consumers.end());
@@ -67,7 +67,7 @@ std::set<unsigned short> getOpBaseIndices(const mv::Data::OpListIterator& opIt)
 {
     std::set<unsigned short> basePtrs;
 
-    for (auto inputTensor : opIt->getInputTensor())
+    for (const auto& inputTensor : opIt->getInputTensor())
     {
         if (inputTensor->hasAttr("base_ptrs"))
         {
@@ -113,7 +113,7 @@ std::vector<unsigned short> findBasePtrs(mv::OpModel& om, mv::DataModel& dm, con
     }
 
     const auto consumerOps = findConsumerOps(dm, originalTensor);
-    for (auto consumerOp : consumerOps)
+    for (const auto& consumerOp : consumerOps)
     {
         const auto basePtrs = getOpBaseIndices(consumerOp);
         unavailableBasePtrs.insert(basePtrs.begin(), basePtrs.end());
@@ -132,7 +132,7 @@ void propagateInputBasePtrs(mv::OpModel& om, mv::Data::TensorIterator tensor, co
     {
         if (producerOp->getOpType() == "Concat" || producerOp->getOpType() == "ImplicitConcat")
         {
-            for (auto& inputTensor : producerOp->getInputTensor())
+            for (const auto& inputTensor : producerOp->getInputTensor())
                 propagateInputBasePtrs(om, inputTensor, basePtrs);
         }
         else
@@ -148,10 +148,10 @@ void propagateOutputBasePtrs(mv::DataModel& dm, mv::Data::TensorIterator tensor,
     tensor->set<std::vector<unsigned short>>("base_ptrs", basePtrs);
 
     const auto consumerOps = mv::findSinkLayers(dm, tensor);
-    for (auto& consumerOp : consumerOps)
+    for (const auto& consumerOp : consumerOps)
         if (consumerOp->getOpType() == "DMATask" || consumerOp->getOpType() == "Concat" || consumerOp->isImplicit())
         {
-            for (auto& outputTensor : consumerOp->getOutputTensor())
+            for (const auto& outputTensor : consumerOp->getOutputTensor())
                 propagateOutputBasePtrs(dm, outputTensor, basePtrs);
         }
 }
@@ -185,7 +185,7 @@ void setInputBasePtrs(mv::OpModel& om, mv::DataModel& dm, const mv::Data::OpList
 
 void setOutputBasePtrs(mv::OpModel& om, mv::DataModel& dm, const mv::Data::OpListIterator& opIt, const unsigned int numClusters)
 {
-    for (auto outputTensor : opIt->getOutputTensor())
+    for (const auto& outputTensor : opIt->getOutputTensor())
     {
         std::set<unsigned short> unavailableBasePtrs;
         const auto basePtrs = findBasePtrs(om, dm, outputTensor, unavailableBasePtrs, numClusters);
@@ -205,7 +205,7 @@ void assignSEBasePtrFcn(const mv::pass::PassEntry&, mv::ComputationModel& model,
     const auto numClusters = model.getGlobalConfigParams()->get<int>("Number_of_Clusters");
 
     const auto sortedOps = om.topologicalSort();
-    for (auto& opIt : sortedOps)
+    for (const auto& opIt : sortedOps)
     {
         if (opIt->getOpType() != "DPUTask")
             continue;
