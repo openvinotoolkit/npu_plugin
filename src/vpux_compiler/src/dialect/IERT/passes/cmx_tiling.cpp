@@ -12,9 +12,11 @@
 //
 
 #include "vpux/compiler/dialect/IERT/passes.hpp"
+
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/tiling.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
+#include "vpux/compiler/utils/rewriter.hpp"
 #include "vpux/compiler/utils/types.hpp"
 
 #include <mlir/IR/PatternMatch.h>
@@ -244,7 +246,8 @@ void CMXTilingPass::safeRunOnFunc() {
     mlir::RewritePatternSet tilingPatterns(&ctx);
     simpleTiler.buildTilingPatterns(tilingPatterns);
 
-    if (mlir::failed(mlir::applyPatternsAndFoldGreedily(func, std::move(tilingPatterns)))) {
+    if (mlir::failed(
+                mlir::applyPatternsAndFoldGreedily(func, std::move(tilingPatterns), getDefaultGreedyRewriteConfig()))) {
         signalPassFailure();
     }
 }

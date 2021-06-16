@@ -14,6 +14,7 @@
 #include "vpux/compiler/conversion.hpp"
 
 #include "vpux/compiler/dialect/IERT/passes.hpp"
+#include "vpux/compiler/utils/rewriter.hpp"
 
 #include <mlir/Dialect/StandardOps/Transforms/Passes.h>
 #include <mlir/Transforms/Passes.h>
@@ -29,7 +30,7 @@ void vpux::buildLowerIE2IERTPipeline(mlir::OpPassManager& pm, Logger log) {
     pm.addPass(mlir::createFuncBufferizePass());
     pm.addPass(mlir::createFinalizingBufferizePass());
     pm.addPass(createAddBuffersForNetResults(log));
-    pm.addPass(mlir::createCanonicalizerPass());
+    pm.addPass(mlir::createCanonicalizerPass(getDefaultGreedyRewriteConfig()));
 }
 
 //
@@ -38,11 +39,11 @@ void vpux::buildLowerIE2IERTPipeline(mlir::OpPassManager& pm, Logger log) {
 
 void vpux::buildLowerIERT2VPUIPPipeline(mlir::OpPassManager& pm, Logger log) {
     pm.addPass(createConvertLayers2VPUIPPass(log));
-    pm.addPass(mlir::createCanonicalizerPass());
+    pm.addPass(mlir::createCanonicalizerPass(getDefaultGreedyRewriteConfig()));
     pm.addPass(createConvertDeclarations2VPUIPPass(log));
     pm.addPass(createConvertViewOps2VPUIPPass(log));
     pm.addPass(createConvertAsyncOps2VPUIPPass(log));
-    pm.addPass(mlir::createCanonicalizerPass());
+    pm.addPass(mlir::createCanonicalizerPass(getDefaultGreedyRewriteConfig()));
 }
 
 //

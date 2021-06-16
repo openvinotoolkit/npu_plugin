@@ -13,6 +13,8 @@
 
 #include "vpux/compiler/dialect/IERT/passes.hpp"
 
+#include "vpux/compiler/utils/rewriter.hpp"
+
 #include <mlir/IR/PatternMatch.h>
 #include <mlir/Transforms/GreedyPatternRewriteDriver.h>
 
@@ -110,7 +112,8 @@ void MoveViewOpsIntoAsyncRegionsPass::safeRunOnFunc() {
     mlir::RewritePatternSet patterns(&ctx);
     patterns.insert<AsyncRegionRewriter>(&ctx, _log);
 
-    if (mlir::failed(mlir::applyPatternsAndFoldGreedily(getFunction(), std::move(patterns)))) {
+    if (mlir::failed(mlir::applyPatternsAndFoldGreedily(getFunction(), std::move(patterns),
+                                                        getDefaultGreedyRewriteConfig()))) {
         signalPassFailure();
     }
 }

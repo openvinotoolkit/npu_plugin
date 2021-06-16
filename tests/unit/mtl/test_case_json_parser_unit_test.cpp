@@ -1,5 +1,5 @@
 //
-// Copyright 2021 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -11,24 +11,23 @@
 // included with the Software Package for additional details.
 //
 
-#include <stdlib.h>
-#include <cstdio>
-
-#include "gtest/gtest.h"
-
 #include "vpux/hwtest/test_case_json_parser.hpp"
-#include "llvm/Support/FileSystem.h"
 
+#include <gtest/gtest.h>
 
-void createCaseGeneratorHeaderJson(llvm::json::OStream& j)
-{
+#include <llvm/Support/FileSystem.h>
+#include <llvm/Support/raw_ostream.h>
+
+#include <cstdio>
+#include <cstdlib>
+
+void createCaseGeneratorHeaderJson(llvm::json::OStream& j) {
     j.attribute("case_type", "Conv2DU8");
     j.attribute("network", "");
     j.attribute("layer_name", "conv2d_u8_to_u8_unit_test");
 }
 
-void createCaseGeneratorInputJson(llvm::json::OStream& j)
-{
+void createCaseGeneratorInputJson(llvm::json::OStream& j) {
     std::array<unsigned long int, 4> shape = {1, 256, 16, 16};
     std::string dtype = "uint8";
     double scale = 0.01;
@@ -43,7 +42,7 @@ void createCaseGeneratorInputJson(llvm::json::OStream& j)
         j.attributeBegin("shape");
         {
             j.arrayBegin();
-            for (auto s: shape)
+            for (auto s : shape)
                 j.value(s);
             j.arrayEnd();
         }
@@ -67,8 +66,7 @@ void createCaseGeneratorInputJson(llvm::json::OStream& j)
     j.attributeEnd();
 }
 
-void createCaseGeneratorWeightsJson(llvm::json::OStream& j)
-{
+void createCaseGeneratorWeightsJson(llvm::json::OStream& j) {
     std::array<unsigned long int, 4> shape = {64, 256, 1, 1};
     std::string dtype = "uint8";
     double scale = 0.01;
@@ -83,7 +81,7 @@ void createCaseGeneratorWeightsJson(llvm::json::OStream& j)
         j.attributeBegin("shape");
         {
             j.arrayBegin();
-            for (auto s: shape)
+            for (auto s : shape)
                 j.value(s);
             j.arrayEnd();
         }
@@ -107,8 +105,7 @@ void createCaseGeneratorWeightsJson(llvm::json::OStream& j)
     j.attributeEnd();
 }
 
-void createCaseGeneratorOutputJson(llvm::json::OStream& j)
-{
+void createCaseGeneratorOutputJson(llvm::json::OStream& j) {
     std::array<unsigned long int, 4> shape = {1, 64, 16, 16};
     std::string dtype = "uint8";
     double scale = 0.01;
@@ -120,7 +117,7 @@ void createCaseGeneratorOutputJson(llvm::json::OStream& j)
         j.attributeBegin("shape");
         {
             j.arrayBegin();
-            for (auto s: shape)
+            for (auto s : shape)
                 j.value(s);
             j.arrayEnd();
         }
@@ -136,8 +133,7 @@ void createCaseGeneratorOutputJson(llvm::json::OStream& j)
     j.attributeEnd();
 }
 
-void createCaseGeneratorConvJson(llvm::json::OStream& j)
-{
+void createCaseGeneratorConvJson(llvm::json::OStream& j) {
     std::array<unsigned long int, 2> stride = {1, 1};
     std::array<unsigned long int, 2> pad = {0, 0};
     unsigned long int group = 1;
@@ -150,7 +146,7 @@ void createCaseGeneratorConvJson(llvm::json::OStream& j)
         j.attributeBegin("stride");
         {
             j.arrayBegin();
-            for (auto s: stride)
+            for (auto s : stride)
                 j.value(s);
             j.arrayEnd();
         }
@@ -159,7 +155,7 @@ void createCaseGeneratorConvJson(llvm::json::OStream& j)
         j.attributeBegin("pad");
         {
             j.arrayBegin();
-            for (auto s: pad)
+            for (auto s : pad)
                 j.value(s);
             j.arrayEnd();
         }
@@ -173,8 +169,7 @@ void createCaseGeneratorConvJson(llvm::json::OStream& j)
     j.attributeEnd();
 }
 
-void createCaseGeneratorActivationJson(llvm::json::OStream& j)
-{
+void createCaseGeneratorActivationJson(llvm::json::OStream& j) {
     j.attributeBegin("activation");
     {
         j.objectBegin();
@@ -184,15 +179,12 @@ void createCaseGeneratorActivationJson(llvm::json::OStream& j)
     j.attributeEnd();
 }
 
+void createAndRunConvTest() {
+    auto testConfigFile = "conv_test.json";
 
-void createAndRunConvTest()
-{
-    auto testConfigFile =  "conv_test.json";
-
-    auto createNumericsBenchJsonSpec = [&]()
-    {
+    auto createNumericsBenchJsonSpec = [&]() {
         std::error_code ec;
-        llvm::raw_fd_ostream jsonFd(testConfigFile, ec, llvm::sys::fs::F_None);
+        llvm::raw_fd_ostream jsonFd(testConfigFile, ec);
         llvm::json::OStream j(jsonFd);
 
         j.objectBegin();
@@ -205,7 +197,6 @@ void createAndRunConvTest()
         createCaseGeneratorActivationJson(j);
 
         j.objectEnd();
-
     };
 
     createNumericsBenchJsonSpec();
@@ -222,13 +213,8 @@ void createAndRunConvTest()
 
     nb::IWLayer weight = desc.getWeightLayer();
     ASSERT_EQ(weight.qp.scale, 0.01);
-
 }
 
-
-TEST(MTL_JSON_Parser, conv_test)
-{
-
+TEST(MTL_JSON_Parser, conv_test) {
     createAndRunConvTest();
-
 }
