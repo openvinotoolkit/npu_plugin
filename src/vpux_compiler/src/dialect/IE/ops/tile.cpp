@@ -12,8 +12,10 @@
 //
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
-
+#include "vpux/compiler/dialect/const/ops.hpp"
+#include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/types.hpp"
+
 #include "vpux/utils/core/checked_cast.hpp"
 
 #include <mlir/IR/PatternMatch.h>
@@ -22,10 +24,11 @@ using namespace vpux;
 
 namespace {
 
-mlir::SmallVector<int64_t> calcTileOutputShape(mlir::Value input, ConstantInterface repeats) {
+mlir::SmallVector<int64_t> calcTileOutputShape(mlir::Value input, Const::DeclareOp repeats) {
     const auto inType = input.getType().cast<mlir::ShapedType>();
 
-    const auto repeats_content = repeats.getContent().getValues<int64_t>();
+    const auto repeatsContent = repeats.content();
+    const auto repeatsVals = repeatsContent.getValues<int64_t>();
 
     auto outShape = to_small_vector(inType.getShape());
 
@@ -37,13 +40,13 @@ mlir::SmallVector<int64_t> calcTileOutputShape(mlir::Value input, ConstantInterf
     // "*data*" by prepending 1's to it, e.g. let's shape of *"data"* is equal to (4, 2, 3) and *"repeats"* is equal to
     // [2, 2], then *"repeats"* will be promoted to [1, 2, 2] and result shape will be (4, 4, 6)
 
-    while (repeats_content.size() > outShape.size()) {
+    while (repeatsVals.size() > outShape.size()) {
         outShape.insert(outShape.begin(), 1);
     }
 
     auto out_shape_iter = std::prev(outShape.end());
-    auto repeats_iter = std::prev(repeats_content.end());
-    for (; out_shape_iter != std::prev(outShape.begin()) && repeats_iter != std::prev(repeats_content.begin());
+    auto repeats_iter = std::prev(repeatsVals.end());
+    for (; out_shape_iter != std::prev(outShape.begin()) && repeats_iter != std::prev(repeatsVals.begin());
          --out_shape_iter, --repeats_iter) {
         *out_shape_iter *= *repeats_iter;
     }
@@ -63,7 +66,7 @@ mlir::LogicalResult vpux::IE::TileOp::inferReturnTypeComponents(
     }
 
     const auto inType = tile.input().getType().cast<mlir::ShapedType>();
-    auto repeatsConst = tile.repeats().getDefiningOp<ConstantInterface>();
+    auto repeatsConst = tile.repeats().getDefiningOp<Const::DeclareOp>();
     if (repeatsConst == nullptr) {
         return errorAt(loc, "Only constant input is supported for repeats");
     }
@@ -104,17 +107,11 @@ mlir::LogicalResult AddUnsqueeze::matchAndRewrite(IE::TileOp origOp, mlir::Patte
     for (int i = 0; i < nDimsToAdd; ++i) {
         unsqueezeParam.push_back(i);
     }
-    const auto unsqueezeParamType = mlir::RankedTensorType::get({checked_cast<int64_t>(unsqueezeParam.size())},
-                                                                getSInt64Type(origOp->getContext()));
-    const auto unsqueezeParamAttr = mlir::DenseElementsAttr::get(unsqueezeParamType, makeArrayRef(unsqueezeParam));
-    auto unsqueezeParamConst =
-            rewriter.create<IE::ConstantOp>(origOp->getLoc(), unsqueezeParamType, unsqueezeParamAttr);
 
-    auto unsqueezeOp = rewriter.create<IE::UnsqueezeOp>(origOp->getLoc(), origOp.input(),
-                                                        unsqueezeParamConst.getResult(), nullptr);
+    const auto unsqueezeParamsAttr = getInt64ArrayAttr(getContext(), unsqueezeParam);
+    auto unsqueezeOp = rewriter.create<IE::UnsqueezeOp>(origOp->getLoc(), origOp.input(), nullptr, unsqueezeParamsAttr);
 
     rewriter.replaceOpWithNewOp<IE::TileOp>(origOp, origOp.getType(), unsqueezeOp->getResult(0), origOp.repeats());
-
     return mlir::success();
 }
 

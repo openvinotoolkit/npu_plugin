@@ -35,27 +35,10 @@ using namespace vpux;
 namespace {
 
 //
-// ConvertPrecisionToFP16Pass
-//
-
-class ConvertPrecisionToFP16Pass final : public IE::ConvertPrecisionToFP16Base<ConvertPrecisionToFP16Pass> {
-public:
-    explicit ConvertPrecisionToFP16Pass(Logger log) {
-        Base::initLogger(log, Base::getArgumentName());
-    }
-
-public:
-    class GenericOpConverter;
-
-private:
-    void safeRunOnModule() final;
-};
-
-//
 // GenericOpConverter
 //
 
-class ConvertPrecisionToFP16Pass::GenericOpConverter final : public mlir::ConversionPattern {
+class GenericOpConverter final : public mlir::ConversionPattern {
 public:
     GenericOpConverter(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
             : mlir::ConversionPattern(typeConverter, MatchAnyOpTypeTag{}, benefitHigh, ctx), _log(log) {
@@ -69,8 +52,8 @@ private:
     Logger _log;
 };
 
-mlir::LogicalResult ConvertPrecisionToFP16Pass::GenericOpConverter::matchAndRewrite(
-        mlir::Operation* origOp, ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const {
+mlir::LogicalResult GenericOpConverter::matchAndRewrite(mlir::Operation* origOp, ArrayRef<mlir::Value> operands,
+                                                        mlir::ConversionPatternRewriter& rewriter) const {
     _log.trace("Process Operation '{0}'", origOp->getLoc());
 
     auto* converter = getTypeConverter();
@@ -93,8 +76,18 @@ mlir::LogicalResult ConvertPrecisionToFP16Pass::GenericOpConverter::matchAndRewr
 }
 
 //
-// safeRunOnModule
+// ConvertPrecisionToFP16Pass
 //
+
+class ConvertPrecisionToFP16Pass final : public IE::ConvertPrecisionToFP16Base<ConvertPrecisionToFP16Pass> {
+public:
+    explicit ConvertPrecisionToFP16Pass(Logger log) {
+        Base::initLogger(log, Base::getArgumentName());
+    }
+
+private:
+    void safeRunOnModule() final;
+};
 
 void ConvertPrecisionToFP16Pass::safeRunOnModule() {
     auto& ctx = getContext();
@@ -121,6 +114,7 @@ void ConvertPrecisionToFP16Pass::safeRunOnModule() {
     };
 
     mlir::ConversionTarget target(ctx);
+    target.addLegalDialect<Const::ConstDialect>();
     target.addDynamicallyLegalDialect<IE::IEDialect>(isLegalOp);
     target.addDynamicallyLegalOp<mlir::ReturnOp>(isLegalOp);
     target.addLegalOp<IE::ConvertOp>();

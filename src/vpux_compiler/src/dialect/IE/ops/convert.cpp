@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -12,6 +12,7 @@
 //
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
+#include "vpux/compiler/dialect/const/ops.hpp"
 
 #include <mlir/IR/PatternMatch.h>
 
@@ -62,10 +63,8 @@ void vpux::IE::ConvertOp::getCanonicalizationPatterns(mlir::RewritePatternSet& p
 mlir::OpFoldResult vpux::IE::ConvertOp::fold(ArrayRef<mlir::Attribute> operands) {
     VPUX_THROW_UNLESS(operands.size() == 1, "Wrong number of operands : {0}", operands.size());
 
-    if (const auto attr = operands[0].dyn_cast_or_null<ConstContentAttr>()) {
-        if (attr.getType().getElementType() == inputType().getElementType()) {
-            return attr;
-        }
+    if (const auto attr = operands[0].dyn_cast_or_null<Const::ContentAttr>()) {
+        return attr.convertElemType(dstType());
     }
 
     return nullptr;

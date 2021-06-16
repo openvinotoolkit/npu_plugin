@@ -2,9 +2,9 @@
 
 // CHECK-LABEL: @ConvertConstToAttr
 func @ConvertConstToAttr(%arg0: tensor<1x10x20x30xf16>) -> tensor<1x10x10x30xf16> {
-    %begins = IE.Constant tensor<4xsi64> = dense<[0, 0, 0, 0]> : tensor<4xsi64>
-    %ends = IE.Constant tensor<4xsi64> = dense<[1, 5, 10, 20]> : tensor<4xsi64>
-    %strides = IE.Constant tensor<4xsi64> = dense<[1, 1, 1, 1]> : tensor<4xsi64>
+    %begins = const.Declare tensor<4xsi64> = #const.Content<dense<[0, 0, 0, 0]> : tensor<4xsi64>>
+    %ends = const.Declare tensor<4xsi64> = #const.Content<dense<[1, 5, 10, 20]> : tensor<4xsi64>>
+    %strides = const.Declare tensor<4xsi64> = #const.Content<dense<[1, 1, 1, 1]> : tensor<4xsi64>>
 
     %0 = IE.StridedSlice(%arg0, %begins, %ends, %strides) {
         begin_mask = [0, 1, 1, 0],

@@ -156,7 +156,7 @@ func @IndependentBranchesParallelSched(%arg0: memref<10xf16>, %arg1: memref<10xf
 
 // CHECK-LABEL: @TwoOutputs
 func @TwoOutputs(%arg0: memref<2xf16>, %arg1: memref<2xf16>, %arg2: memref<2xf16>) -> (memref<2xf16>, memref<2xf16>) {
-    %cst = VPUIP.DeclareConstantTensor[0] memref<2xf16, "DDR"> = dense<1.0> : tensor<2xf32>
+    %cst = const.Declare memref<2xf16, "DDR"> = #const.Content<dense<1.0> : tensor<2xf16>>
 
     %buf0 = VPUIP.DeclareTensor "VPU_DDR_Heap" [0] <0> -> memref<2xf16, "DDR">
     %t0, %f0 = async.execute -> !async.value<memref<2xf16, "DDR">> {
@@ -184,7 +184,7 @@ func @TwoOutputs(%arg0: memref<2xf16>, %arg1: memref<2xf16>, %arg2: memref<2xf16
     %2 = async.await %f4 : !async.value<memref<2xf16>>
     return %1, %2 : memref<2xf16>, memref<2xf16>
 
-    // CHECK-DAG:   [[CST:%.+]] = VPUIP.DeclareConstantTensor[0] memref<2xf16, "DDR"> =
+    // CHECK-DAG:   [[CST:%.+]] = const.Declare memref<2xf16, "DDR"> =
 
     // CHECK-DAG:   [[BUF0:%.+]] = VPUIP.DeclareTensor "VPU_DDR_Heap" [0] <0> -> memref<2xf16, "DDR">
     // CHECK-DAG:   [[B0:%.+]] = VPUIP.DeclareVirtualBarrier -> !VPUIP.Barrier

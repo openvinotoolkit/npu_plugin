@@ -17,12 +17,14 @@ func @SingleLayer(%arg0: tensor<1x1000xf16>) -> tensor<1x1000xf16> {
 // -----
 
 func @ConstantLayer() -> tensor<1x2x2x2xf16> {
-    %0 = IE.Constant tensor<1x2x2x2xf16> = dense<1.0> : tensor<1x2x2x2xf32>
+    %0 = const.Declare tensor<1x2x2x2xf16> =
+      #const.Content<dense<1.0> : tensor<1x2x2x2xf32>, [#const.ConvertElemType<f16>]>
     return %0 : tensor<1x2x2x2xf16>
 
-    // CHECK: [[VAR0:%.*]] = IERT.Constant memref<1x2x2x2xf16> = dense<1.000000e+00> : tensor<1x2x2x2xf32>
-    // CHECK: [[VAR1:%.*]] = memref.tensor_load [[VAR0]]
-    // CHECK: return [[VAR1]] : tensor<1x2x2x2xf16>
+    // CHECK:       [[VAR0:%.*]] = const.Declare memref<1x2x2x2xf16> =
+    // CHECK-SAME:    #const.Content<dense<1.000000e+00> : tensor<1x2x2x2xf32>, [#const.ConvertElemType<f16>]>
+    // CHECK:       [[VAR1:%.*]] = memref.tensor_load [[VAR0]]
+    // CHECK:       return [[VAR1]] : tensor<1x2x2x2xf16>
 }
 
 // -----

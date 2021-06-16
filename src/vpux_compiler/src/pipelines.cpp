@@ -45,7 +45,6 @@ void buildIECommonPipeline(mlir::OpPassManager& pm, Logger log) {
 
 void buildIEReferenceLowPrecisionPipeline(mlir::OpPassManager& pm, Logger log) {
     pm.addPass(IE::createSplitFakeQuantPass(log));
-    pm.addPass(IE::createQuantizeConstPass(log));
     pm.addPass(IE::createDequantizeConstPass(log));
     pm.addPass(IE::createMergeFakeQuantPass(log));
 }

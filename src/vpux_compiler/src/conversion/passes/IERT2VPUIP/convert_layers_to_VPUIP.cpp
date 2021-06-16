@@ -12,6 +12,7 @@
 //
 
 #include "vpux/compiler/conversion.hpp"
+#include "vpux/compiler/dialect/const/ops.hpp"
 
 #include <mlir/Dialect/Quant/QuantTypes.h>
 #include <mlir/Transforms/DialectConversion.h>
@@ -71,18 +72,18 @@ mlir::LogicalResult FakeQuantizeRewrite::matchAndRewrite(IERT::FakeQuantizeOp or
                                                          mlir::PatternRewriter& rewriter) const {
     _log.trace("Found FakeQuantize Operation '{0}'", origOp->getLoc());
 
-    auto inLowConst = origOp.input_low().getDefiningOp<ConstantInterface>();
-    auto inHighConst = origOp.input_high().getDefiningOp<ConstantInterface>();
-    auto outLowConst = origOp.output_low().getDefiningOp<ConstantInterface>();
-    auto outHighConst = origOp.output_high().getDefiningOp<ConstantInterface>();
+    auto inLowConst = origOp.input_low().getDefiningOp<Const::DeclareOp>();
+    auto inHighConst = origOp.input_high().getDefiningOp<Const::DeclareOp>();
+    auto outLowConst = origOp.output_low().getDefiningOp<Const::DeclareOp>();
+    auto outHighConst = origOp.output_high().getDefiningOp<Const::DeclareOp>();
 
     if (inLowConst == nullptr || inHighConst == nullptr || outLowConst == nullptr || outHighConst == nullptr) {
         return matchFailed(rewriter, origOp, "Got non constant parameters");
     }
 
     rewriter.replaceOpWithNewOp<VPUIP::FakeQuantizeUPAOp>(origOp, origOp.input(), origOp.output_buff(), origOp.levels(),
-                                                          inLowConst.getContent(), inHighConst.getContent(),
-                                                          outLowConst.getContent(), outHighConst.getContent());
+                                                          inLowConst.contentAttr(), inHighConst.contentAttr(),
+                                                          outLowConst.contentAttr(), outHighConst.contentAttr());
 
     return mlir::success();
 }
@@ -113,9 +114,10 @@ void ConvertLayers2VPUIPPass::safeRunOnFunc() {
     mlir::ConversionTarget target(ctx);
     target.addIllegalDialect<IERT::IERTDialect>();
     target.addLegalDialect<mlir::async::AsyncDialect>();
+    target.addLegalDialect<Const::ConstDialect>();
     target.addLegalDialect<VPUIP::VPUIPDialect>();
     target.addLegalOp<mlir::FuncOp, mlir::ReturnOp>();
-    target.addLegalOp<IERT::ConstantOp, IERT::StaticAllocOp>();
+    target.addLegalOp<Const::DeclareOp, IERT::StaticAllocOp>();
     target.addLegalOp<IERT::GenericReshapeOp, IERT::ConcatViewOp, mlir::memref::SubViewOp>();
 
     mlir::RewritePatternSet patterns(&ctx);

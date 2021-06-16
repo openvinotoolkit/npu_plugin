@@ -13,6 +13,7 @@
 
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
+#include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/quantization.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 
@@ -25,27 +26,10 @@ using namespace vpux;
 namespace {
 
 //
-// DequantizeConstPass
-//
-
-class DequantizeConstPass final : public IE::DequantizeConstBase<DequantizeConstPass> {
-public:
-    explicit DequantizeConstPass(Logger log) {
-        Base::initLogger(log, Base::getArgumentName());
-    }
-
-public:
-    class DequantizeConst;
-
-private:
-    void safeRunOnFunc() final;
-};
-
-//
 // DequantizeConst
 //
 
-class DequantizeConstPass::DequantizeConst final : public mlir::OpRewritePattern<mlir::quant::DequantizeCastOp> {
+class DequantizeConst final : public mlir::OpRewritePattern<mlir::quant::DequantizeCastOp> {
 public:
     DequantizeConst(mlir::MLIRContext* ctx, Logger log)
             : mlir::OpRewritePattern<mlir::quant::DequantizeCastOp>(ctx), _log(log) {
@@ -59,17 +43,16 @@ private:
     Logger _log;
 };
 
-mlir::LogicalResult DequantizeConstPass::DequantizeConst::matchAndRewrite(mlir::quant::DequantizeCastOp dCastOp,
-                                                                          mlir::PatternRewriter& rewriter) const {
-    auto inputConst = dCastOp.arg().getDefiningOp<ConstantInterface>();
-
+mlir::LogicalResult DequantizeConst::matchAndRewrite(mlir::quant::DequantizeCastOp dCastOp,
+                                                     mlir::PatternRewriter& rewriter) const {
+    auto inputConst = dCastOp.arg().getDefiningOp<Const::DeclareOp>();
     if (inputConst == nullptr) {
         return mlir::failure();
     }
 
     _log.trace("Got DequantizeCast Operation '{0}' with Constant input '{1}'", dCastOp->getLoc(), inputConst.getLoc());
 
-    const auto qType = inputConst.getActualType();
+    const auto qType = inputConst.getType().cast<mlir::ShapedType>();
     const auto qElemType = qType.getElementType().cast<mlir::quant::QuantizedType>();
 
     const auto newConstType =
@@ -78,18 +61,25 @@ mlir::LogicalResult DequantizeConstPass::DequantizeConst::matchAndRewrite(mlir::
         return mlir::failure();
     }
 
-    const auto constAttr = dequantize(inputConst.getContent(), qType, dCastOp.getLoc());
-    if (constAttr == nullptr) {
-        return mlir::failure();
-    }
+    const auto newConstAttr = inputConst.contentAttr().dequantize();
+    rewriter.replaceOpWithNewOp<Const::DeclareOp>(dCastOp, newConstType, newConstAttr);
 
-    rewriter.replaceOpWithNewOp<IE::ConstantOp>(dCastOp, newConstType, constAttr);
     return mlir::success();
 }
 
 //
-// safeRunOnFunc
+// DequantizeConstPass
 //
+
+class DequantizeConstPass final : public IE::DequantizeConstBase<DequantizeConstPass> {
+public:
+    explicit DequantizeConstPass(Logger log) {
+        Base::initLogger(log, Base::getArgumentName());
+    }
+
+private:
+    void safeRunOnFunc() final;
+};
 
 void DequantizeConstPass::safeRunOnFunc() {
     auto& ctx = getContext();

@@ -263,36 +263,6 @@ operation ::= `IE.Concat` `(` operands `)` attr-dict `:` type(operands) `->` typ
 | :----: | ----------- |
 `output` | ranked tensor of any type values
 
-### `IE.Constant` (vpux::IE::ConstantOp)
-
-Constant tensor declaration
-
-
-Syntax:
-
-```
-operation ::= `IE.Constant` attr-dict
-              type($output) `=` $value
-```
-
-This operation can perform extra transformations for constant content:
-
-* Reshape
-* Relayout
-* Precision conversion
-
-#### Attributes:
-
-| Attribute | MLIR Type | Description |
-| :-------: | :-------: | ----------- |
-`value` | ::mlir::ElementsAttr | constant vector/tensor attribute
-
-#### Results:
-
-| Result | Description |
-| :----: | ----------- |
-`output` | statically shaped tensor of any type values
-
 ### `IE.Convert` (vpux::IE::ConvertOp)
 
 InferenceEngine Convert layer
@@ -1126,7 +1096,7 @@ InferenceEngine Pad layer
 Syntax:
 
 ```
-operation ::= `IE.Pad` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+operation ::= `IE.Pad` `(` $input `)` (`[` $pads_begin^ `,` $pads_end (`,` $pad_value^)? `]`)? attr-dict `:` type(operands) `->` type(results)
 ```
 
 

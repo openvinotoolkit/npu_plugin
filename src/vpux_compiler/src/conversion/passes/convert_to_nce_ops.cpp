@@ -46,7 +46,7 @@ mlir::Value createHelperTensor(mlir::OpBuilder& builder, mlir::Location loc, Arr
     const auto dataAttr = mlir::DenseElementsAttr::get(dataStorageType, data);
 
     const auto dataType = mlir::MemRefType::get(shape, elemType);
-    auto dataConstOp = builder.create<IERT::ConstantOp>(loc, dataType, dataAttr);
+    auto dataConstOp = builder.create<Const::DeclareOp>(loc, dataType, Const::ContentAttr::get(dataAttr));
 
     const auto cmxMemSpaceAttr = VPUIP::PhysicalMemoryAttr::get(ctx, VPUIP::PhysicalMemory::CMX_NN);
     const auto dataTypeCMX = changeMemSpace(dataType, cmxMemSpaceAttr);
@@ -264,17 +264,22 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
     // Generate weights table
     //
 
-    ConstContentAttr biasContent;
-    if (origOp.bias() != nullptr) {
-        auto biasConst = origOp.bias().getDefiningOp<ConstantInterface>();
+    llvm::unique_function<float(int64_t)> getBiasFP;
+
+    if (origOp.bias() == nullptr) {
+        getBiasFP = [](int64_t) -> float {
+            return 0.0f;
+        };
+    } else {
+        auto biasConst = origOp.bias().getDefiningOp<Const::DeclareOp>();
         VPUX_THROW_UNLESS(biasConst != nullptr, "Only constant biases are supported, got '{0}'", origOp.bias());
 
-        biasContent = biasConst.getContent();
-    }
+        auto biasContent = biasConst.content();
 
-    const auto getBiasFP = [&](int64_t oc) -> float {
-        return biasContent != nullptr ? biasContent.getValues<float>()[oc] : 0.0f;
-    };
+        getBiasFP = [biasContent = std::move(biasContent)](int64_t oc) -> float {
+            return biasContent.getValues<float>()[oc];
+        };
+    }
 
     // TODO: [Track number: E#13226]
     // Let's allocate weight table after weights(input),

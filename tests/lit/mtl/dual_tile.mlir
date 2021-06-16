@@ -63,9 +63,8 @@ module @dual_tile attributes {VPUIP.arch = "VPU3720", VPUIP.compilationMode = "R
         %input_arg: memref<1x16x16x16x!qtype, #NHWC, #act_mem_strides, "ProgrammableInput">,
         %output_arg: memref<2x16x16x16xf16, #NHWC, #act_mem_strides, "ProgrammableOutput">
       ) -> memref<2x16x16x16xf16, #NHWC, #act_mem_strides, "ProgrammableOutput"> {
-    %weights_constant = VPUIP.DeclareConstantTensor [0]
-      memref<16x1x1x16x!qtype, #NHWC, #filter_mem_strides, "GraphFile"> =
-        dense<1> : tensor<16x1x1x16xui8>
+    %weights_constant = const.Declare memref<16x1x1x16x!qtype, #NHWC, #filter_mem_strides, "GraphFile"> =
+      #const.Content<dense<1> : tensor<16x1x1x16xui8>, [#const.QuantCast<!qtype>, #const.Reorder<#NHWC>]>
     %weights = VPUIP.DeclareTensor "VPU_CMX_NN" [0] <12544>
       -> memref<16x1x1x16x!qtype, #NHWC, #filter_mem_strides, "VPU_CMX_NN">
 
@@ -97,9 +96,8 @@ module @dual_tile attributes {VPUIP.arch = "VPU3720", VPUIP.compilationMode = "R
     %output_ddr = VPUIP.DeclareTensor "VPU_DDR_Heap" <0>
       -> memref<2x16x16x16xf16, #NHWC, #act_mem_strides, "VPU_DDR_Heap">
 
-    %weight_table_constant = VPUIP.DeclareConstantTensor [1]
-      memref<16x1x1x4xsi32, #NHWC, #wt_mem_strides, "GraphFile"> =
-        dense<[[[[12544, 16777215, 1073761792, 0]]], [[[12560, 16777215, 1073761792, 0]]], [[[12576, 16777215, 1073761792, 0]]], [[[12592, 16777215, 1073761792, 0]]], [[[12608, 16777215, 1073761792, 0]]], [[[12624, 16777215, 1073761792, 0]]], [[[12640, 16777215, 1073761792, 0]]], [[[12656, 16777215, 1073761792, 0]]], [[[12672, 16777215, 1073761792, 0]]], [[[12688, 16777215, 1073761792, 0]]], [[[12704, 16777215, 1073761792, 0]]], [[[12720, 16777215, 1073761792, 0]]], [[[12736, 16777215, 1073761792, 0]]], [[[12752, 16777215, 1073761792, 0]]], [[[12768, 16777215, 1073761792, 0]]], [[[12784, 16777215, 1073761792, 0]]]]> : tensor<16x1x1x4xsi32>
+    %weight_table_constant = const.Declare memref<16x1x1x4xsi32, #NHWC, #wt_mem_strides, "GraphFile"> =
+      #const.Content<dense<[[[[12544, 16777215, 1073761792, 0]]], [[[12560, 16777215, 1073761792, 0]]], [[[12576, 16777215, 1073761792, 0]]], [[[12592, 16777215, 1073761792, 0]]], [[[12608, 16777215, 1073761792, 0]]], [[[12624, 16777215, 1073761792, 0]]], [[[12640, 16777215, 1073761792, 0]]], [[[12656, 16777215, 1073761792, 0]]], [[[12672, 16777215, 1073761792, 0]]], [[[12688, 16777215, 1073761792, 0]]], [[[12704, 16777215, 1073761792, 0]]], [[[12720, 16777215, 1073761792, 0]]], [[[12736, 16777215, 1073761792, 0]]], [[[12752, 16777215, 1073761792, 0]]], [[[12768, 16777215, 1073761792, 0]]], [[[12784, 16777215, 1073761792, 0]]]]> : tensor<16x1x1x4xsi32>, [#const.Reorder<#NHWC>]>
 
     %weight_table = VPUIP.DeclareTensor "VPU_CMX_NN" [0] <12288>
       -> memref<16x1x1x4xsi32, #NHWC, #wt_mem_strides, "VPU_CMX_NN">

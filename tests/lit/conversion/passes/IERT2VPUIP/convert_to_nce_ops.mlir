@@ -1,4 +1,4 @@
-// RUN: vpux-opt --split-input-file --set-compile-params="vpu-arch=VPU3700" --convert-to-nce-ops %s | FileCheck %s
+// RUN: vpux-opt --split-input-file --set-compile-params="vpu-arch=VPU3700 compilation-mode=ReferenceHW" --convert-to-nce-ops %s | FileCheck %s
 
 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
@@ -7,8 +7,9 @@
 
 // CHECK-LABEL: @Conv2dTest
 func @Conv2dTest(%arg0: memref<1x16x16x16xf16, #NHWC, #map0>, %arg1: memref<1x16x16x16xf16, #NHWC, #map0>) -> memref<1x16x16x16xf16, #NHWC, #map0> {
-    %0 = IERT.Constant memref<16x16x1x1xf16, #NHWC, #map1> = dense<1.000000e+00> : tensor<16x16x1x1xf16>
-    %1 = IERT.Constant memref<1x16x1x1xf16> = dense<1.000000e+00> : tensor<1x16x1x1xf16>
+    %0 = const.Declare memref<16x16x1x1xf16, #NHWC, #map1> =
+        #const.Content<dense<1.000000e+00> : tensor<16x16x1x1xf16>, [#const.Reorder<#NHWC>]>
+    %1 = const.Declare memref<1x16x1x1xf16> = #const.Content<dense<1.000000e+00> : tensor<1x16x1x1xf16>>
 
     %2 = memref.alloc() : memref<1x16x16x16xf16, #NHWC, #map0>
 
@@ -25,8 +26,8 @@ func @Conv2dTest(%arg0: memref<1x16x16x16xf16, #NHWC, #map0>, %arg1: memref<1x16
     return %4 : memref<1x16x16x16xf16, #NHWC, #map0>
 }
 
-// CHECK-DAG:   [[FILTER_CST:%.+]] = IERT.Constant memref<16x16x1x1xf16, #NHWC, #map1>
-// CHECK-DAG:   [[WEIGHTS_TABLE:%.+]] = IERT.Constant memref<16x1x1x4xsi32> = dense<{{.*}}> : tensor<16x1x1x4xsi32>
+// CHECK-DAG:   [[FILTER_CST:%.+]] = const.Declare memref<16x16x1x1xf16, #NHWC, #map1>
+// CHECK-DAG:   [[WEIGHTS_TABLE:%.+]] = const.Declare memref<16x1x1x4xsi32>
 
 // CHECK:       [[OUT_BUF:%.+]] = memref.alloc() : memref<1x16x16x16xf16, #NHWC, #map0>
 
@@ -96,8 +97,8 @@ func @MaxPoolTest(%arg0: memref<1x16x1x4xf16, #NHWC, #map>, %arg1: memref<1x16x1
     return %2 : memref<1x16x1x4xf16, #NHWC, #map>
 }
 
-// CHECK-DAG:   [[ACT_WINDOW_CST:%.+]] = IERT.Constant memref<16x1x1x16xui8>
-// CHECK-DAG:   [[WEIGHTS_TABLE:%.+]] = IERT.Constant memref<16x1x1x4xsi32> = dense<{{.*}}> : tensor<16x1x1x4xsi32>
+// CHECK-DAG:   [[ACT_WINDOW_CST:%.+]] = const.Declare memref<16x1x1x16xui8>
+// CHECK-DAG:   [[WEIGHTS_TABLE:%.+]] = const.Declare memref<16x1x1x4xsi32>
 // CHECK:       [[OUT_BUF:%.+]] = memref.alloc() : memref<1x16x1x4xf16, #NHWC, #map>
 
 // CHECK:       [[ACT_WINDOW_CMX_BUF:%.+]] = memref.alloc() : memref<16x1x1x16xui8, "CMX_NN">

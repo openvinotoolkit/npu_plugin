@@ -16,12 +16,13 @@
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IERT/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
+#include "vpux/compiler/dialect/const/ops.hpp"
 
 #ifdef ENABLE_PLAIDML
-#include "pmlc/dialect/layer/ir/ops.h"
-#include "pmlc/dialect/pxa/ir/ops.h"
-#include "pmlc/dialect/stdx/ir/ops.h"
-#include "pmlc/dialect/tile/ir/ops.h"
+#include <pmlc/dialect/layer/ir/ops.h>
+#include <pmlc/dialect/pxa/ir/ops.h>
+#include <pmlc/dialect/stdx/ir/ops.h>
+#include <pmlc/dialect/tile/ir/ops.h>
 #endif
 
 #include <mlir/Dialect/Affine/IR/AffineOps.h>
@@ -41,6 +42,11 @@ using namespace vpux;
 //
 
 void vpux::registerDialects(mlir::DialectRegistry& registry) {
+    registry.insert<vpux::Const::ConstDialect,  //
+                    vpux::IE::IEDialect,        //
+                    vpux::IERT::IERTDialect,    //
+                    vpux::VPUIP::VPUIPDialect>();
+
     registry.insert<mlir::AffineDialect,               //
                     mlir::StandardOpsDialect,          //
                     mlir::async::AsyncDialect,         //
@@ -49,10 +55,8 @@ void vpux::registerDialects(mlir::DialectRegistry& registry) {
                     mlir::quant::QuantizationDialect,  //
                     mlir::scf::SCFDialect,             //
                     mlir::tensor::TensorDialect,       //
-                    mlir::vector::VectorDialect,       //
-                    vpux::IE::IEDialect,               //
-                    vpux::IERT::IERTDialect,           //
-                    vpux::VPUIP::VPUIPDialect>();
+                    mlir::vector::VectorDialect>();
+
 #ifdef ENABLE_PLAIDML
     registry.insert<pmlc::dialect::layer::LayerDialect,  //
                     pmlc::dialect::pxa::PXADialect,      //

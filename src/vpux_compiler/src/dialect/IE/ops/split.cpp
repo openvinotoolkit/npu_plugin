@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -12,6 +12,7 @@
 //
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
+#include "vpux/compiler/dialect/const/ops.hpp"
 
 #include "vpux/compiler/utils/attributes.hpp"
 
@@ -58,20 +59,20 @@ namespace {
 
 mlir::FailureOr<Dim> extractAxis(mlir::Location loc, IE::SplitOpAdaptor split) {
     if (split.axis() != nullptr) {
-        auto axisConst = split.axis().getDefiningOp<ConstantInterface>();
-
+        auto axisConst = split.axis().getDefiningOp<Const::DeclareOp>();
         if (axisConst == nullptr) {
             return errorAt(loc, "Only constant input is supported for axis");
         }
 
-        if (axisConst.getContent().size() != 1) {
+        const auto axisContent = axisConst.content();
+        if (!axisContent.isSplat()) {
             return errorAt(loc, "Axis value must be a scalar");
         }
 
         const auto inType = split.input().getType().cast<mlir::ShapedType>();
         const auto inRank = inType.getRank();
 
-        auto axisInd = axisConst.getContent().getValues<int64_t>()[0];
+        auto axisInd = axisContent.getSplatValue<int64_t>();
 
         // Negative value means counting dimension from the end
         if (axisInd < 0) {

@@ -113,24 +113,3 @@ void vpux::VPUIP::DeclareTensorOp::printLocaleIndex(mlir::OpAsmPrinter& printer,
     }
     printer << "] ";
 }
-
-//
-// DeclareConstantTensorOp
-//
-
-void vpux::VPUIP::DeclareConstantTensorOp::build(mlir::OpBuilder& builder, mlir::OperationState& state,
-                                                 mlir::MemRefType type, mlir::ElementsAttr value,
-                                                 uint32_t localeIndex) {
-    build(builder, state, type, value, localeIndex, false);
-}
-
-mlir::LogicalResult vpux::VPUIP::verifyOp(DeclareConstantTensorOp op) {
-    const auto memref = op.getType();
-    const auto mem = getPhysicalMemory(memref);
-
-    if (mlir::failed(mem) || mem.getValue() != VPUIP::PhysicalMemory::DDR) {
-        return errorAt(op, "Unsupported result memory space '{0}'", memref.getMemorySpace());
-    }
-
-    return mlir::success();
-}

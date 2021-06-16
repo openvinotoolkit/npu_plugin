@@ -296,32 +296,6 @@ operation ::= `VPUIP.DPUTask` attr-dict
 `pads_end` | ::mlir::ArrayAttr | 32-bit integer array attribute
 `mpe_mode` | vpux::VPUIP::MPEModeAttr | MPE Mode
 
-### `VPUIP.DeclareConstantTensor` (vpux::VPUIP::DeclareConstantTensorOp)
-
-Constant TensorReference value declaration
-
-
-Syntax:
-
-```
-operation ::= `VPUIP.DeclareConstantTensor` `[` $localeIndex `]` attr-dict type($output) `=` $value
-```
-
-
-#### Attributes:
-
-| Attribute | MLIR Type | Description |
-| :-------: | :-------: | ----------- |
-`value` | ::mlir::ElementsAttr | constant vector/tensor attribute
-`localeIndex` | ::mlir::IntegerAttr | 32-bit signless integer attribute
-`csramCacheable` | ::mlir::UnitAttr | unit attribute
-
-#### Results:
-
-| Result | Description |
-| :----: | ----------- |
-`output` | statically shaped memref of any type values
-
 ### `VPUIP.DeclareTensor` (vpux::VPUIP::DeclareTensorOp)
 
 TensorReference value declaration
@@ -622,10 +596,10 @@ operation ::= `VPUIP.FakeQuantizeUPA` attr-dict
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
 `levels` | ::mlir::IntegerAttr | 32-bit signless integer attribute
-`input_low` | ::mlir::ElementsAttr | constant vector/tensor attribute
-`input_high` | ::mlir::ElementsAttr | constant vector/tensor attribute
-`output_low` | ::mlir::ElementsAttr | constant vector/tensor attribute
-`output_high` | ::mlir::ElementsAttr | constant vector/tensor attribute
+`input_low` | vpux::Const::ContentAttr | Lazy folded constant content
+`input_high` | vpux::Const::ContentAttr | Lazy folded constant content
+`output_low` | vpux::Const::ContentAttr | Lazy folded constant content
+`output_high` | vpux::Const::ContentAttr | Lazy folded constant content
 `maxShaves` | ::mlir::IntegerAttr | 32-bit signless integer attribute
 `isTrailingSWLayer` | ::mlir::UnitAttr | unit attribute
 

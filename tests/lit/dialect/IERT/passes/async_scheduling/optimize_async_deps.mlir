@@ -161,7 +161,7 @@ func @IndependentBranchesParallelSched(%arg0: memref<10xf16>, %arg1: memref<10xf
 
 // CHECK-LABEL: @TwoOutputs
 func @TwoOutputs(%arg0: memref<2xf16>, %arg1: memref<2xf16>, %arg2: memref<2xf16>) -> (memref<2xf16>, memref<2xf16>) {
-    %0 = IERT.Constant memref<2xf16> = dense<1.0> : tensor<2xf32>
+    %0 = const.Declare memref<2xf16> = #const.Content<dense<1.0> : tensor<2xf16>>
 
     %t1, %f1 = async.execute -> !async.value<memref<2xf16>> {
         %buf1 = IERT.StaticAlloc<0> -> memref<2xf16>
@@ -195,7 +195,7 @@ func @TwoOutputs(%arg0: memref<2xf16>, %arg1: memref<2xf16>, %arg2: memref<2xf16
 
     return %3, %4 : memref<2xf16>, memref<2xf16>
 
-    // CHECK:       [[CST:%.+]] = IERT.Constant
+    // CHECK:       [[CST:%.+]] = const.Declare
 
     // CHECK:       [[T1:%.+]], [[F1:%.+]] = async.execute
     // CHECK:           {{%.+}} = IERT.StaticAlloc<0>
