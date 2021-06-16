@@ -317,11 +317,11 @@ void fuseUsualPPEFcn( mv::Data::OpListIterator& opIt, mv::ComputationModel& mode
     }
 
     // Propagate quantParams up path to fuseableParents
-    for (auto it : quantParamsPathOps)
+    for (auto& it : quantParamsPathOps)
     {
         auto sourceTensor = it->getOutputTensor(mv::IO_TENSOR_OUTPUT);
-        sourceTensor->setDType(opIt->getOutputTensor(0)->getDType());
-        sourceTensor->setQuantParams(opIt->getOutputTensor(0)->getQuantParams());
+        sourceTensor->setDType(opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT)->getDType());
+        sourceTensor->setQuantParams(opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT)->getQuantParams());
     }
 
     // Link direct postOp parent with postOp consumers
