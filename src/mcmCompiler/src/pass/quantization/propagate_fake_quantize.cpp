@@ -616,8 +616,6 @@ void quantizeIO(mv::ComputationModel& model) {
 
             const auto inputQuantParams  = extractQuantParamsI(consumerOp, true);
             const auto outputQuantParams = extractQuantParamsO(consumerOp, true);
-            if (isEqual(inputQuantParams, outputQuantParams))
-                continue;
 
             if (inputOp->get<mv::DType>("dType") != getDType(mv::Precision::U8)) {
                 auto convertedTensor = om.conversion(inputOp->getName() + "_convert", inputTensor, getDType(mv::Precision::U8));
