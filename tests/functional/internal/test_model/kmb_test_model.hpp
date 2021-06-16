@@ -103,7 +103,7 @@ public:
     }
 
     TestNetwork& useExtension(const std::string& name) {
-        _exts.push_back(make_so_pointer<IExtension>(name));
+        _exts.push_back(std::make_shared<Extension>(name));
         return *this;
     }
 
