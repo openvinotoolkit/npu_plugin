@@ -108,56 +108,6 @@ mlir::LogicalResult vpux::VPUIP::verifyUPATask(mlir::Operation* op) {
 }
 
 //
-// verifyNCETask
-//
-
-mlir::LogicalResult vpux::VPUIP::verifyNCETask(mlir::Operation* op) {
-    auto task = mlir::dyn_cast<TaskOpInterface>(op);
-    if (task == nullptr) {
-        return errorAt(op, "Operation '{0}' doesn't implement VPUIP Task interface", op->getName());
-    }
-
-    auto nceTask = mlir::dyn_cast<NCETaskOpInterface>(op);
-    if (nceTask == nullptr) {
-        return errorAt(op, "Operation '{0}' doesn't implement VPUIP NCETask interface", op->getName());
-    }
-
-    auto layerOp = mlir::dyn_cast<LayerInterface>(op);
-    if (layerOp == nullptr) {
-        return errorAt(op, "Operation '{0}' doesn't implement Layer interface", op->getName());
-    }
-
-    for (const auto& operand : layerOp.getOpOperands()) {
-        const auto opVal = operand.get();
-        const auto valType = opVal.getType().dyn_cast_or_null<mlir::MemRefType>();
-        if (valType == nullptr) {
-            return errorAt(op, "Cannot cast Value '{0}' to MemRefType", opVal);
-        }
-        const auto strideReqs = StrideReqs().add(DimStrideReq::compact(MemDim(valType.getRank() - 1)));
-
-        if (!strideReqs.checkStrides(opVal)) {
-            return errorAt(op, "Value '{0}' strides do not match requirements '{1}'", opVal, strideReqs);
-        }
-    }
-
-    for (const auto& operand : layerOp.getOpOperands()) {
-        auto type = operand.get().getType().cast<mlir::MemRefType>();
-        auto mem = getPhysicalMemory(type);
-
-        if (mlir::failed(mem)) {
-            return errorAt(op, "Unsupported memory space '{0}'", type.getMemorySpace());
-        }
-
-        if (mem.getValue() != PhysicalMemory::CMX_NN) {
-            return errorAt(op, "Can't operate with '{0}' PhysicalMemory. Only '{1}' PhysicalMemory is allowed",
-                           mem.getValue(), PhysicalMemory::CMX_NN);
-        }
-    }
-
-    return mlir::success();
-}
-
-//
 // getTaskEffects
 //
 

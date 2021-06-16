@@ -49,12 +49,58 @@ module @mainModule attributes {VPUIP.arch = "VPU3720", VPUIP.compilationMode = "
     VPUIP.NNDMA {port = 0 : i32} inputs(%input_arg : memref<1x16x16x16x!quant.uniform<u8:f32, 1.000000e+00>, #NHWC, "ProgrammableInput">) outputs(%input_broadcast : memref<1x16x16x16x!quant.uniform<u8:f32, 1.000000e+00>, #NHWC, "VPU_CMX_NN">) updates(%inputs_ready : !VPUIP.Barrier) -> memref<1x16x16x16x!quant.uniform<u8:f32, 1.000000e+00>, #NHWC, "VPU_CMX_NN">
     VPUIP.NNDMA {port = 0 : i32} inputs(%weights_constant : memref<16x1x1x16x!quant.uniform<u8:f32, 1.000000e+00>, #NHWC, "GraphFile">) outputs(%weights : memref<16x1x1x16x!quant.uniform<u8:f32, 1.000000e+00>, #NHWC, "VPU_CMX_NN">) updates(%inputs_ready : !VPUIP.Barrier) -> memref<16x1x1x16x!quant.uniform<u8:f32, 1.000000e+00>, #NHWC, "VPU_CMX_NN">
     VPUIP.NNDMA {port = 0 : i32} inputs(%weight_table_constant : memref<16x1x1x4xsi32, #NHWC, "GraphFile">) outputs(%weight_table : memref<16x1x1x4xsi32, #NHWC, "VPU_CMX_NN">) updates(%inputs_ready : !VPUIP.Barrier) -> memref<16x1x1x4xsi32, #NHWC, "VPU_CMX_NN">
-    VPUIP.NCEClusterTask {kernel_padding = [0 : i32, 0 : i32, 0 : i32, 0 : i32], kernel_size = [1 : i32, 8 : i32], strides = [1 : i32, 1 : i32], task_type = "CONV"} inputs(%input_0 : memref<1x16x16x16x!quant.uniform<u8:f32, 1.000000e+00>, #NHWC, "VPU_CMX_NN">, %weights : memref<16x1x1x16x!quant.uniform<u8:f32, 1.000000e+00>, #NHWC, "VPU_CMX_NN">, %weight_table : memref<16x1x1x4xsi32, #NHWC, "VPU_CMX_NN">)) parent_input(%parent_input_0 : memref<1x16x16x16x!quant.uniform<u8:f32, 1.000000e+00>, #NHWC, "VPU_CMX_NN">) parent_output(%parent_output_0 : memref<1x16x16x16xf16, #NHWC, "VPU_CMX_NN">) outputs(%output_0 : memref<1x16x16x16xf16, #NHWC, "VPU_CMX_NN">) waits(%inputs_ready : !VPUIP.Barrier) updates(%conv_complete : !VPUIP.Barrier) variants :  {
-      VPUIP.DPUTask {end = [15 : i32, 15 : i32, 15 : i32], mpe_mode = "CUBOID_16x16", pads_begin = [0 : i32, 0 : i32], pads_end = [0 : i32, 0 : i32], start = [0 : i32, 0 : i32, 0 : i32]}
-    } -> memref<1x16x16x16xf16, #NHWC, "VPU_CMX_NN">
-    VPUIP.NCEClusterTask {kernel_padding = [0 : i32, 0 : i32, 0 : i32, 0 : i32], kernel_size = [1 : i32, 8 : i32], strides = [1 : i32, 1 : i32], task_type = "CONV"} inputs(%input_1 : memref<1x16x16x16x!quant.uniform<u8:f32, 1.000000e+00>, #NHWC, "VPU_CMX_NN">, %weights : memref<16x1x1x16x!quant.uniform<u8:f32, 1.000000e+00>, #NHWC, "VPU_CMX_NN">, %weight_table : memref<16x1x1x4xsi32, #NHWC, "VPU_CMX_NN">)) parent_input(%parent_input_1 : memref<1x16x16x16x!quant.uniform<u8:f32, 1.000000e+00>, #NHWC, "VPU_CMX_NN">) parent_output(%parent_output_1 : memref<1x16x16x16xf16, #NHWC, "VPU_CMX_NN">) outputs(%output_1 : memref<1x16x16x16xf16, #NHWC, "VPU_CMX_NN">) waits(%inputs_ready : !VPUIP.Barrier) updates(%conv_complete : !VPUIP.Barrier) variants :  {
-      VPUIP.DPUTask {end = [15 : i32, 15 : i32, 15 : i32], mpe_mode = "CUBOID_16x16", pads_begin = [0 : i32, 0 : i32], pads_end = [0 : i32, 0 : i32], start = [0 : i32, 0 : i32, 0 : i32]}
-    } -> memref<1x16x16x16xf16, #NHWC, "VPU_CMX_NN">
+    VPUIP.NCEClusterTask {
+        kernel_padding = [0 : i32, 0 : i32, 0 : i32, 0 : i32],
+        kernel_size = [1 : i32, 8 : i32],
+        kernel_strides = [1 : i32, 1 : i32],
+        task_type = "CONV"
+      }
+      input(%input_0 : memref<1x16x16x16x!quant.uniform<u8:f32, 1.000000e+00>, #NHWC, "VPU_CMX_NN">)
+      weights(%weights : memref<16x1x1x16x!quant.uniform<u8:f32, 1.000000e+00>, #NHWC, "VPU_CMX_NN">)
+      weight_table(%weight_table : memref<16x1x1x4xsi32, #NHWC, "VPU_CMX_NN">)
+      parent_input(%parent_input_0 : memref<1x16x16x16x!quant.uniform<u8:f32, 1.000000e+00>, #NHWC, "VPU_CMX_NN">)
+      parent_output(%parent_output_0 : memref<1x16x16x16xf16, #NHWC, "VPU_CMX_NN">)
+      outputs(%output_0 : memref<1x16x16x16xf16, #NHWC, "VPU_CMX_NN">)
+      waits(%inputs_ready : !VPUIP.Barrier)
+      updates(%conv_complete : !VPUIP.Barrier)
+      -> memref<1x16x16x16xf16, #NHWC, "VPU_CMX_NN">
+      variants : {
+        VPUIP.DPUTask {
+          end = [15 : i32, 15 : i32, 15 : i32],
+          mpe_mode = "CUBOID_16x16",
+          pads_begin = [0 : i32, 0 : i32],
+          pads_end = [0 : i32, 0 : i32],
+          start = [0 : i32, 0 : i32, 0 : i32]
+        }
+      }
+      PPE : {
+      }
+    VPUIP.NCEClusterTask {
+        kernel_padding = [0 : i32, 0 : i32, 0 : i32, 0 : i32],
+        kernel_size = [1 : i32, 8 : i32],
+        kernel_strides = [1 : i32, 1 : i32],
+        task_type = "CONV"
+      }
+      input(%input_1 : memref<1x16x16x16x!quant.uniform<u8:f32, 1.000000e+00>, #NHWC, "VPU_CMX_NN">)
+      weights(%weights : memref<16x1x1x16x!quant.uniform<u8:f32, 1.000000e+00>, #NHWC, "VPU_CMX_NN">)
+      weight_table(%weight_table : memref<16x1x1x4xsi32, #NHWC, "VPU_CMX_NN">)
+      parent_input(%parent_input_1 : memref<1x16x16x16x!quant.uniform<u8:f32, 1.000000e+00>, #NHWC, "VPU_CMX_NN">)
+      parent_output(%parent_output_1 : memref<1x16x16x16xf16, #NHWC, "VPU_CMX_NN">)
+      outputs(%output_1 : memref<1x16x16x16xf16, #NHWC, "VPU_CMX_NN">)
+      waits(%inputs_ready : !VPUIP.Barrier)
+      updates(%conv_complete : !VPUIP.Barrier)
+      -> memref<1x16x16x16xf16, #NHWC, "VPU_CMX_NN">
+      variants : {
+        VPUIP.DPUTask {
+          end = [15 : i32, 15 : i32, 15 : i32],
+          mpe_mode = "CUBOID_16x16",
+          pads_begin = [0 : i32, 0 : i32],
+          pads_end = [0 : i32, 0 : i32],
+          start = [0 : i32, 0 : i32, 0 : i32]
+        }
+      }
+      PPE : {
+      }
     VPUIP.NNDMA {port = 0 : i32} inputs(%output_0 : memref<1x16x16x16xf16, #NHWC, "VPU_CMX_NN">) outputs(%output_ddr_0 : memref<1x16x16x16xf16, #NHWC, "VPU_DDR_Heap">) waits(%conv_complete : !VPUIP.Barrier) updates(%output_ready : !VPUIP.Barrier) -> memref<1x16x16x16xf16, #NHWC, "VPU_DDR_Heap">
     VPUIP.NNDMA {port = 0 : i32} inputs(%output_1 : memref<1x16x16x16xf16, #NHWC, "VPU_CMX_NN">) outputs(%output_ddr_1 : memref<1x16x16x16xf16, #NHWC, "VPU_DDR_Heap">) waits(%conv_complete : !VPUIP.Barrier) updates(%output_ready : !VPUIP.Barrier) -> memref<1x16x16x16xf16, #NHWC, "VPU_DDR_Heap">
     VPUIP.NNDMA {port = 0 : i32} inputs(%output_ddr : memref<2x16x16x16xf16, #NHWC, "VPU_DDR_Heap">) outputs(%output_arg : memref<2x16x16x16xf16, #NHWC, "ProgrammableOutput">) waits(%output_ready : !VPUIP.Barrier) -> memref<2x16x16x16xf16, #NHWC, "ProgrammableOutput">

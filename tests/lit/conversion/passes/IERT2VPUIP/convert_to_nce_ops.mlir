@@ -44,15 +44,13 @@ func @Conv2dTest(%arg0: memref<1x16x16x16xf16, #NHWC>, %arg1: memref<1x16x16x16x
 
 // CHECK:       [[OUTPUT_CMX_BUF:%.+]] = memref.alloc() : memref<1x16x16x16xf16, #NHWC, "CMX_NN">
 // CHECK:       [[OUTPUT_CMX:%.+]] = VPUIP.NCEClusterTask
-// CHECK-SAME:          fixed_ppe_task = "NOOP"
 // CHECK-SAME:          kernel_padding = [0 : i32, 0 : i32, 0 : i32, 0 : i32]
 // CHECK-SAME:          kernel_size = [1 : i32, 1 : i32]
 // CHECK-SAME:          strides = [1 : i32, 1 : i32]
 // CHECK-SAME:          task_type = "CONV"
-// CHECK-SAME:      inputs(
-// CHECK-SAME:          [[INPUT_CMX]] : memref<1x16x16x16xf16, #NHWC, "CMX_NN">
-// CHECK-SAME:          [[FILTER_CMX]] : memref<16x16x1x1xf16, #NHWC, "CMX_NN">
-// CHECK-SAME:          [[WEIGHTS_TABLE_CMX]] : memref<16x1x1x4xsi32, "CMX_NN">
+// CHECK-SAME:      input([[INPUT_CMX]] : memref<1x16x16x16xf16, #NHWC, "CMX_NN">)
+// CHECK-SAME:      weights([[FILTER_CMX]] : memref<16x16x1x1xf16, #NHWC, "CMX_NN">)
+// CHECK-SAME:      weight_table([[WEIGHTS_TABLE_CMX]] : memref<16x1x1x4xsi32, "CMX_NN">)
 // CHECK-SAME:      parent_input([[INPUT_CMX]] : memref<1x16x16x16xf16, #NHWC, "CMX_NN">)
 // CHECK-SAME:      parent_output([[OUTPUT_CMX_BUF]] : memref<1x16x16x16xf16, #NHWC, "CMX_NN">)
 // CHECK-SAME:      outputs([[OUTPUT_CMX_BUF]] : memref<1x16x16x16xf16, #NHWC, "CMX_NN">)
@@ -115,15 +113,13 @@ func @MaxPoolTest(%arg0: memref<1x16x1x4xf16, #NHWC>, %arg1: memref<1x16x1x4xf16
 // CHECK:       [[OUTPUT_CMX_BUF:%.+]] = memref.alloc() : memref<1x16x1x4xf16, #NHWC, "CMX_NN">
 // CHECK:       [[OUTPUT_CMX:%.+]] = VPUIP.NCEClusterTask
 // CHECK-SAME:          activation_window_channel_length = 4 : i32
-// CHECK-SAME:          fixed_ppe_task = "NOOP"
 // CHECK-SAME:          kernel_padding = [0 : i32, 0 : i32, 0 : i32, 0 : i32]
 // CHECK-SAME:          kernel_size = [1 : i32, 1 : i32]
 // CHECK-SAME:          strides = [1 : i32, 1 : i32]
 // CHECK-SAME:          task_type = "MAXPOOL"
-// CHECK-SAME:      inputs(
-// CHECK-SAME:          [[INPUT_CMX]] : memref<1x16x1x4xf16, #NHWC, "CMX_NN">
-// CHECK-SAME:          [[WEIGHTS_TABLE_CMX]] : memref<16x1x1x4xsi32, "CMX_NN">
-// CHECK-SAME:          [[ACT_WINDOW_CMX]] : memref<16x1x1x16xui8, "CMX_NN">
+// CHECK-SAME:      input([[INPUT_CMX]] : memref<1x16x1x4xf16, #NHWC, "CMX_NN">)
+// CHECK-SAME:      weight_table([[WEIGHTS_TABLE_CMX]] : memref<16x1x1x4xsi32, "CMX_NN">)
+// CHECK-SAME:      activation_window([[ACT_WINDOW_CMX]] : memref<16x1x1x16xui8, "CMX_NN">)
 // CHECK-SAME:      parent_input([[INPUT_CMX]] : memref<1x16x1x4xf16, #NHWC, "CMX_NN">)
 // CHECK-SAME:      parent_output([[OUTPUT_CMX_BUF]] : memref<1x16x1x4xf16, #NHWC, "CMX_NN">)
 // CHECK-SAME:      outputs([[OUTPUT_CMX_BUF]] : memref<1x16x1x4xf16, #NHWC, "CMX_NN">)

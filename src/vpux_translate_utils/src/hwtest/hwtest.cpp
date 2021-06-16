@@ -361,15 +361,14 @@ void buildSimpleZMajorConv(mlir::ModuleOp module, mlir::OpBuilder builder, Logge
     auto kernel_size = getInt32ArrayAttr(builder.getContext(), kernel_vec);
 
     auto nceTask = funcbuilder.create<VPUIP::NCEClusterTaskOp>(
-            builder.getUnknownLoc(), outputcmx_type, inputcmx.getOperation()->getResult(0),
-            wtData_cmx.getOperation()->getResult(0), wtTbl_cmx.getOperation()->getResult(0), nullptr,
-            parent_inputcmx.getOperation()->getResult(0), parent_outputcmx.getOperation()->getResult(0),
-            outputcmx.getOperation()->getResult(0), mlir::ValueRange(barrier0.barrier()),
-            mlir::ValueRange(barrier1.barrier()), VPUIP::NCETaskType::CONV, VPUIP::PPELayerTypeAttr(), kernel_padding,
-            strides, kernel_size, nullptr, 0);
+            builder.getUnknownLoc(), inputcmx.memory(), wtData_cmx.memory(), wtTbl_cmx.memory(),
+            /*activation_window=*/nullptr, parent_inputcmx.memory(), parent_outputcmx.memory(), outputcmx.memory(),
+            VPUIP::NCETaskType::CONV, kernel_size, strides, kernel_padding,
+            /*activation_window_channel_length=*/nullptr);
+    nceTask.waitBarriersMutable().append(barrier0.barrier());
+    nceTask.updateBarriersMutable().append(barrier1.barrier());
 
     // Create DPU task for NCE task
-    nceTask.variants().emplaceBlock();
     auto variantbuilder = mlir::OpBuilder::atBlockBegin(&nceTask.variants().front(), builder.getListener());
 
     std::vector<int32_t> start_vec{0, 0, 0};

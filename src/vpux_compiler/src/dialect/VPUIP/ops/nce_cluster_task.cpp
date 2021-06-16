@@ -15,23 +15,70 @@
 
 #include "vpux/compiler/core/attributes/dim.hpp"
 #include "vpux/compiler/core/attributes/shape.hpp"
+#include "vpux/compiler/core/attributes/stride_reqs.hpp"
+#include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
 
 #include <llvm/ADT/TypeSwitch.h>
 #include <vpux/compiler/utils/extentions.hpp>
 
 using namespace vpux;
 
+//
+// NCEClusterTaskOp::build
+//
+
 void vpux::VPUIP::NCEClusterTaskOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
-                                          mlir::Value filter, mlir::Value weight_table, mlir::Value activation_window,
-                                          mlir::Value parent_input, mlir::Value parent_output, mlir::Value output,
-                                          vpux::VPUIP::NCETaskType task_type,
-                                          vpux::VPUIP::PPELayerTypeAttr fixed_ppe_task, mlir::ArrayAttr kernel_padding,
-                                          mlir::ArrayAttr strides, mlir::ArrayAttr kernel_size,
+                                          mlir::Value weights, mlir::Value weight_table, mlir::Value activation_window,
+                                          mlir::Value parent_input, mlir::Value parent_output, mlir::Value output_buff,
+                                          vpux::VPUIP::NCETaskType task_type, mlir::ArrayAttr kernel_size,
+                                          mlir::ArrayAttr kernel_strides, mlir::ArrayAttr kernel_padding,
                                           mlir::IntegerAttr activation_window_channel_length) {
-    build(builder, state, output.getType(), input, filter, weight_table, activation_window, parent_input, parent_output,
-          output, mlir::ValueRange{}, mlir::ValueRange{}, task_type, fixed_ppe_task, kernel_padding, strides,
-          kernel_size, activation_window_channel_length, 0);
+    build(builder, state, output_buff.getType(), input, weights, weight_table, activation_window, parent_input,
+          parent_output, output_buff, mlir::ValueRange{}, mlir::ValueRange{},
+          vpux::VPUIP::NCETaskTypeAttr::get(builder.getContext(), task_type), kernel_size, kernel_strides,
+          kernel_padding, activation_window_channel_length);
+
+    for (auto& region : state.regions) {
+        region->emplaceBlock();
+    }
 }
+
+//
+// NCEClusterTaskOp::addDPUTask
+//
+
+VPUIP::DPUTaskOp vpux::VPUIP::NCEClusterTaskOp::addDPUTask(mlir::OpBuilder& builder, mlir::ArrayAttr start,
+                                                           mlir::ArrayAttr end, mlir::ArrayAttr padsBegin,
+                                                           mlir::ArrayAttr padsEnd, VPUIP::MPEMode mpeMode) {
+    if (variants().empty()) {
+        variants().emplaceBlock();
+    }
+
+    mlir::OpBuilder::InsertionGuard guard(builder);
+    builder.setInsertionPointToEnd(&variants().front());
+
+    return builder.create<VPUIP::DPUTaskOp>(getLoc(), start, end, padsBegin, padsEnd, mpeMode);
+}
+
+//
+// NCEClusterTaskOp::addPPETask
+//
+
+VPUIP::PPETaskOp vpux::VPUIP::NCEClusterTaskOp::addPPETask(mlir::OpBuilder& builder,
+                                                           vpux::VPUIP::PPELayerType ppe_layer_type) {
+    if (ppe().empty()) {
+        ppe().emplaceBlock();
+    }
+
+    mlir::OpBuilder::InsertionGuard guard(builder);
+    builder.setInsertionPointToEnd(&ppe().front());
+
+    return builder.create<VPUIP::PPETaskOp>(getLoc(), ppe_layer_type);
+}
+
+//
+// NCEClusterTaskOp::isSupportedLayout
+//
 
 mlir::LogicalResult vpux::VPUIP::NCEClusterTaskOp::isSupportedLayout(mlir::Operation* op, vpux::DataOrderInfo& info) {
     return llvm::TypeSwitch<mlir::Operation*, mlir::LogicalResult>(op)
@@ -40,12 +87,12 @@ mlir::LogicalResult vpux::VPUIP::NCEClusterTaskOp::isSupportedLayout(mlir::Opera
             })
             .Case<IERT::ConvolutionOp>([&](IERT::ConvolutionOp originOp) {
                 if (isSupportedLayoutSameInOutSpecificDimsOrder(originOp, info, {DimsOrder::NHWC}).failed()) {
-                    // filter layout
+                    // weights layout
                     info.setInput(1, DimsOrder::NHWC);
                     return mlir::failure();
                 }
 
-                // check filter layout
+                // check weights layout
                 if (!info.hasInput(1) || info.getInput(1) != DimsOrder::NHWC) {
                     fillDataInfo(info, 2, 1, DimsOrder::NHWC);
                     return mlir::failure();
@@ -58,113 +105,70 @@ mlir::LogicalResult vpux::VPUIP::NCEClusterTaskOp::isSupportedLayout(mlir::Opera
             });
 }
 
-vpux::VPUIP::DPUTaskOp vpux::VPUIP::NCEClusterTaskOp::addDPUTask(mlir::OpBuilder& builder, mlir::ArrayAttr start,
-                                                                 mlir::ArrayAttr end, mlir::ArrayAttr padsBegin,
-                                                                 mlir::ArrayAttr padsEnd, VPUIP::MPEMode mpeMode) {
-    if (variants().empty()) {
-        variants().emplaceBlock();
-    }
-    mlir::OpBuilder::InsertionGuard guard(builder);
-    builder.setInsertionPointToEnd(&variants().back());
-    return builder.create<VPUIP::DPUTaskOp>(variants().getLoc(), start, end, padsBegin, padsEnd, mpeMode);
-}
+//
+// verifyOp
+//
 
 namespace {
-
-mlir::LogicalResult checkNCEKernel(VPUIP::NCEClusterTaskOp op) {
-    VPUX_THROW_UNLESS(op.strides().getValue(), "CheckNCEKernel requires strides");
-
-    const auto strideShape = parseIntArrayAttr(op.strides().getValue());
-    const auto kernelSize = parseIntArrayAttr(op.kernel_size().getValue());
-
-    static const int32_t NCE_MAX_KERNEL_SIZE = 11;
-    static const int32_t NCE_MAX_STRIDE_SIZE = 8;
-
-    if (kernelSize[0] > NCE_MAX_KERNEL_SIZE || kernelSize[0] <= 0) {
-        return errorAt(op, "Unsupported kernel height dimension: '{0}'. Must be between 1-11.", kernelSize[0]);
-    }
-    if (kernelSize[1] > NCE_MAX_KERNEL_SIZE || kernelSize[1] <= 0) {
-        return errorAt(op, "Unsupported kernel height dimension: '{0}'. Must be between 1-11.", kernelSize[1]);
-    }
-
-    if (strideShape[0] > NCE_MAX_STRIDE_SIZE || strideShape[0] <= 0) {
-        return errorAt(op, "Unsupported stride height dimension: '{0}'. Must be between 1-8.", strideShape[0]);
-    }
-    if (strideShape[1] > NCE_MAX_STRIDE_SIZE || strideShape[1] <= 0) {
-        return errorAt(op, "Unsupported stride width dimension: '{0}'. Must be between 1-8.", strideShape[1]);
-    }
-
-    return mlir::success();
-}
 
 mlir::LogicalResult verifyNCEConv(VPUIP::NCEClusterTaskOp op) {
     VPUX_THROW_UNLESS(op.task_type() == VPUIP::NCETaskType::CONV, "Expected task type '{0}', but got '{1}'",
                       VPUIP::NCETaskType::CONV, op.task_type());
 
-    if (!op.filter()) {
-        return errorAt(op, "filter is required for NCETaskType : '{0}'", VPUIP::NCETaskType::CONV);
+    if (op.weights() == nullptr) {
+        return errorAt(op, "weights is required for NCETaskType : '{0}'", op.task_type());
     }
-    if (!op.weight_table()) {
-        return errorAt(op, "weight_table is required for NCETaskType : '{0}'", VPUIP::NCETaskType::CONV);
-    }
-    if (!op.strides().hasValue()) {
-        return errorAt(op, "strides is required for NCETaskType : '{0}'", VPUIP::NCETaskType::CONV);
-    }
-    if (!op.kernel_padding().hasValue()) {
-        return errorAt(op, "kernel_padding is required for NCETaskType : '{0}'", VPUIP::NCETaskType::CONV);
+    if (op.weight_table() == nullptr) {
+        return errorAt(op, "weight_table is required for NCETaskType : '{0}'", op.task_type());
     }
 
-    auto p = checkNCEKernel(op);
-    if (mlir::failed(p)) {
-        return p;
+    if (mlir::failed(VPUIP::NCEInvariant::verifyKernel(op.kernel_sizeAttr(), op.kernel_stridesAttr(),
+                                                       op.kernel_paddingAttr()))) {
+        return mlir::failure();
     }
 
-    const auto filterShape = getShape(op.filter());
-    const size_t outputChannels = filterShape[Dim(0)];
+    const auto weightsShape = getShape(op.weights());
+    const auto OC = weightsShape[IERT::ConvolutionOp::filter_out_channel_dim()];
 
-    static const size_t numElementsPerChannelInWeightTable = 4;
     const auto weightTableShape = getShape(op.weight_table());
-    auto weightTableElemTypeSize = getElemTypeSize(op.weight_table().getType());
-    auto weightTableNumElements = weightTableShape.totalSize();
+    const auto weightTableNumElements = weightTableShape.totalSize();
 
-    if (outputChannels * numElementsPerChannelInWeightTable != static_cast<size_t>(weightTableShape.totalSize())) {
-        return errorAt(op,
-                       "Weight table size needs to be {1}*{0} bytes if the number of input channels is {2}, but size "
-                       "received is: {2}*{0} bytes",
-                       weightTableElemTypeSize, outputChannels * numElementsPerChannelInWeightTable,
-                       weightTableNumElements);
+    if (OC * VPUIP::NCEInvariant::WEIGHT_TABLE_NUM_ELEMENTS_PER_OC != weightTableNumElements) {
+        return errorAt(op, "Weight table must have '{0}' elements, got '{1}'",
+                       OC * VPUIP::NCEInvariant::WEIGHT_TABLE_NUM_ELEMENTS_PER_OC, weightTableNumElements);
     }
 
     if (verifySameInOutSpecificDimsOrder(op, {DimsOrder::NHWC}).failed()) {
         return mlir::failure();
     }
 
-    const auto filterLayout = DimsOrder::fromValue(op.filter());
-    if (filterLayout != DimsOrder::NHWC) {
-        return errorAt(op, "filter layout must be NHWC, got {0}", filterLayout);
+    const auto weightsLayout = DimsOrder::fromValue(op.weights());
+    if (weightsLayout != DimsOrder::NHWC) {
+        return errorAt(op, "weights layout must be NHWC, got {0}", weightsLayout);
     }
 
     return mlir::success();
 }
 
-mlir::LogicalResult verifyNCEMaxPool(VPUIP::NCEClusterTaskOp op) {
-    VPUX_THROW_UNLESS(op.task_type() == VPUIP::NCETaskType::MAXPOOL, "Expected task type '{0}', but got '{1}'",
+mlir::LogicalResult verifyNCEPool(VPUIP::NCEClusterTaskOp op) {
+    VPUX_THROW_UNLESS(op.task_type() == VPUIP::NCETaskType::AVEPOOL || op.task_type() == VPUIP::NCETaskType::MAXPOOL,
+                      "Expected task type '{0}' or '{1}', but got '{2}'", VPUIP::NCETaskType::AVEPOOL,
                       VPUIP::NCETaskType::MAXPOOL, op.task_type());
 
-    if (!op.weight_table()) {
-        return errorAt(op, "weight_table is required for NCETaskType : '{0}'", VPUIP::NCETaskType::CONV);
+    if (op.weight_table() == nullptr) {
+        return errorAt(op, "weight_table is required for NCETaskType : '{0}'", op.task_type());
     }
-    if (!op.activation_window()) {
-        return errorAt(op, "activation_window is required for NCETaskType : '{0}'", VPUIP::NCETaskType::CONV);
-    }
-    if (!op.activation_window_channel_length()) {
-        return errorAt(op, "activation_window_channel_length is required for NCETaskType : '{0}'",
-                       VPUIP::NCETaskType::CONV);
+    if (op.activation_window() == nullptr) {
+        return errorAt(op, "activation_window is required for NCETaskType : '{0}'", op.task_type());
     }
 
-    auto p = checkNCEKernel(op);
-    if (mlir::failed(p)) {
-        return p;
+    if (op.activation_window_channel_lengthAttr() == nullptr) {
+        return errorAt(op, "activation_window_channel_length is required for NCETaskType : '{0}'", op.task_type());
+    }
+
+    if (mlir::failed(VPUIP::NCEInvariant::verifyKernel(op.kernel_sizeAttr(), op.kernel_stridesAttr(),
+                                                       op.kernel_paddingAttr()))) {
+        return mlir::failure();
     }
 
     if (verifySameInOutSpecificDimsOrder(op, {DimsOrder::NHWC}).failed()) {
@@ -178,39 +182,119 @@ mlir::LogicalResult verifyNCEEltwise(VPUIP::NCEClusterTaskOp op) {
     VPUX_THROW_UNLESS(op.task_type() == VPUIP::NCETaskType::ELTWISE, "Expected task type '{0}', but got '{1}'",
                       VPUIP::NCETaskType::ELTWISE, op.task_type());
 
-    if (op.filter()) {
-        return errorAt(op, "filter should be empty for NCETaskType : '{0}'", VPUIP::NCETaskType::ELTWISE);
+    if (op.weights() != nullptr) {
+        return errorAt(op, "weights should be empty for NCETaskType : '{0}'", op.task_type());
     }
-    if (op.weight_table()) {
-        return errorAt(op, "weight_table should be empty for NCETaskType : '{0}'", VPUIP::NCETaskType::ELTWISE);
+    if (op.weight_table() != nullptr) {
+        return errorAt(op, "weight_table should be empty for NCETaskType : '{0}'", op.task_type());
     }
-    if (op.strides().hasValue()) {
-        return errorAt(op, "strides should be empty for NCETaskType : '{0}'", VPUIP::NCETaskType::ELTWISE);
-    }
-    if (op.kernel_padding().hasValue()) {
-        return errorAt(op, "kernel_padding should be empty for NCETaskType : '{0}'", VPUIP::NCETaskType::ELTWISE);
-    }
-    return mlir::success();
-}
-
-mlir::LogicalResult verifyNCEPool(VPUIP::NCEClusterTaskOp op, VPUIP::NCETaskType taskType) {
-    VPUX_THROW_UNLESS(op.task_type() == VPUIP::NCETaskType::AVEPOOL || op.task_type() == VPUIP::NCETaskType::MAXPOOL,
-                      "Expected task type '{0}' or '{1}', but got '{2}'", VPUIP::NCETaskType::AVEPOOL,
-                      VPUIP::NCETaskType::MAXPOOL, op.task_type());
-    if (!op.strides().hasValue()) {
-        return errorAt(op, "strides is required for NCETaskType : '{0}'", taskType);
-    }
-    if (!op.kernel_padding().hasValue()) {
-        return errorAt(op, "kernel_padding is required for NCETaskType : '{0}'", taskType);
+    if (op.activation_window() != nullptr) {
+        return errorAt(op, "activation_window should be empty for NCETaskType : '{0}'", op.task_type());
     }
 
-    auto p = checkNCEKernel(op);
-    if (mlir::failed(p)) {
-        return p;
+    if (op.kernel_sizeAttr() != nullptr) {
+        return errorAt(op, "kernel_size should be empty for NCETaskType : '{0}'", op.task_type());
+    }
+    if (op.kernel_stridesAttr() != nullptr) {
+        return errorAt(op, "kernel_strides should be empty for NCETaskType : '{0}'", op.task_type());
+    }
+    if (op.kernel_paddingAttr() != nullptr) {
+        return errorAt(op, "kernel_padding should be empty for NCETaskType : '{0}'", op.task_type());
     }
 
     return mlir::success();
 }
+
+}  // namespace
+
+mlir::LogicalResult vpux::VPUIP::verifyOp(VPUIP::DPUTaskOp op) {
+    static const size_t NUM_WORKLOAD_DIMS = 3;
+    static const size_t NUM_WORKLOAD_PADS = 2;
+
+    if (op.start().size() != NUM_WORKLOAD_DIMS) {
+        return errorAt(op, "start coords should {0}-D, but got {1}-D", NUM_WORKLOAD_DIMS, op.start().size());
+    }
+    if (op.end().size() != NUM_WORKLOAD_DIMS) {
+        return errorAt(op, "end coords should {0}-D, but got {1}-D", NUM_WORKLOAD_DIMS, op.end().size());
+    }
+    if (op.pads_begin().size() != NUM_WORKLOAD_PADS) {
+        return errorAt(op, "pads_begin coords should {0}-D, but got {1}-D", NUM_WORKLOAD_PADS, op.pads_begin().size());
+    }
+    if (op.pads_end().size() != NUM_WORKLOAD_PADS) {
+        return errorAt(op, "pads_end coords should {0}-D, but got {1}-D", NUM_WORKLOAD_PADS, op.pads_end().size());
+    }
+
+    return mlir::success();
+}
+
+mlir::LogicalResult vpux::VPUIP::verifyOp(VPUIP::NCEClusterTaskOp op) {
+    if (op.task_type() == VPUIP::NCETaskType::CONV) {
+        if (mlir::failed(verifyNCEConv(op))) {
+            return mlir::failure();
+        }
+    } else if (op.task_type() == VPUIP::NCETaskType::MAXPOOL || op.task_type() == VPUIP::NCETaskType::AVEPOOL) {
+        if (mlir::failed(verifyNCEPool(op))) {
+            return mlir::failure();
+        }
+    } else if (op.task_type() == VPUIP::NCETaskType::ELTWISE) {
+        if (mlir::failed(verifyNCEEltwise(op))) {
+            return mlir::failure();
+        }
+    } else {
+        return errorAt(op, "NCE Task Type '{0}' in not supported", op.task_type());
+    }
+
+    size_t numDPUTasks = 0;
+    for (auto& dpuOp : op.variants().getOps()) {
+        if (!mlir::isa<VPUIP::DPUTaskOp>(dpuOp)) {
+            return errorAt(op, "Got unsupported Operation '{0}' in 'variants' region", dpuOp.getName());
+        }
+
+        ++numDPUTasks;
+    }
+
+    static const size_t MAX_NUM_DPUS_PER_CLUSTER = 5;
+    static const size_t MIN_NUM_DPUS_PER_CLUSTER = 1;
+
+    if (numDPUTasks > MAX_NUM_DPUS_PER_CLUSTER || numDPUTasks < MIN_NUM_DPUS_PER_CLUSTER) {
+        return errorAt(op, "There should be a total of {0}-{1} DPU Tasks per NCEClusterTask, but got {2}",
+                       MIN_NUM_DPUS_PER_CLUSTER, MAX_NUM_DPUS_PER_CLUSTER, numDPUTasks);
+    }
+
+    for (auto& ppeOp : op.ppe().getOps()) {
+        if (!mlir::isa<VPUIP::PPETaskOp>(ppeOp)) {
+            return errorAt(op, "Got unsupported Operation '{0}' in 'PPE' region", ppeOp.getName());
+        }
+    }
+
+    for (const auto& operand : op.getOpOperands()) {
+        const auto val = operand.get();
+        const auto type = val.getType().cast<mlir::MemRefType>();
+
+        auto mem = getPhysicalMemory(type);
+        if (mlir::failed(mem)) {
+            return errorAt(op, "Unsupported memory space '{0}'", type.getMemorySpace());
+        }
+        if (mem.getValue() != PhysicalMemory::CMX_NN) {
+            return errorAt(op, "Can't operate with '{0}' PhysicalMemory. Only '{1}' PhysicalMemory is allowed",
+                           mem.getValue(), PhysicalMemory::CMX_NN);
+        }
+
+        const auto strideReqs = StrideReqs().add(DimStrideReq::compact(MemDim(type.getRank() - 1)));
+
+        if (!strideReqs.checkStrides(val)) {
+            return errorAt(op, "Value '{0}' strides do not match requirements '{1}'", val, strideReqs);
+        }
+    }
+
+    return mlir::success();
+}
+
+//
+// NCEClusterTaskOp::serialize
+//
+
+namespace {
 
 MVCNN::MPE_Mode getMPEMode(VPUIP::MPEMode mpeMode) {
     switch (mpeMode) {
@@ -328,174 +412,108 @@ VPUIP::MPEMode getMPEFrequentModeFromDPUTasks(mlir::Region& dpuTaskOps) {
 
 }  // namespace
 
-mlir::LogicalResult vpux::VPUIP::verifyOp(VPUIP::NCEClusterTaskOp op) {
-    if (op.task_type() == VPUIP::NCETaskType::CONV) {
-        auto check = verifyNCEConv(op);
-        if (mlir::failed(check)) {
-            return check;
-        }
-    } else if (op.task_type() == VPUIP::NCETaskType::MAXPOOL) {
-        auto check = verifyNCEMaxPool(op);
-        if (mlir::failed(check)) {
-            return check;
-        }
-    } else if (op.task_type() == VPUIP::NCETaskType::ELTWISE) {
-        auto check = verifyNCEEltwise(op);
-        if (mlir::failed(check)) {
-            return check;
-        }
-    } else if (op.task_type() == VPUIP::NCETaskType::AVEPOOL || op.task_type() == VPUIP::NCETaskType::MAXPOOL) {
-        auto check = verifyNCEPool(op, op.task_type());
-        if (mlir::failed(check)) {
-            return check;
-        }
-    } else {
-        VPUX_THROW("NCE Task Type '{0}' support needs to be implemented", op.task_type());
-    }
-
-    for (auto& resOp : op.variants().getOps()) {
-        if (!mlir::isa<VPUIP::DPUTaskOp>(&resOp)) {
-            return errorAt(op, "Got unsupported Operation '{0}' at '{1}' in 'variants' region", resOp.getName(),
-                           resOp.getLoc());
-        }
-    }
-
-    size_t numPPERegions = 0;
-    for (auto& ppeRegion : op.ppe_tasks()) {
-        if (op.fixed_ppe_task()) {
-            return errorAt(op, "'fixed_ppe_task' attribute and 'PPE' region are mutually exclusive, but found both");
-        }
-        for (auto& resOp : ppeRegion.getOps()) {
-            if (!mlir::isa<VPUIP::PPETaskOp>(&resOp)) {
-                return errorAt(op, "Got unsupported Operation '{0}' at '{1}' in 'PPE' region", resOp.getName(),
-                               resOp.getLoc());
-            }
-        }
-        ++numPPERegions;
-    }
-    static const size_t NUM_PPE_REGIONS_PER_CLUSTER = 1;
-    if (numPPERegions > NUM_PPE_REGIONS_PER_CLUSTER) {
-        return errorAt(op, "There should be at most {0} PPE Region per NCEClusterTask, but got {1}",
-                       NUM_PPE_REGIONS_PER_CLUSTER, numPPERegions);
-    }
-
-    // TODO: Check that `ppe_tasks` region has a block with valid PPE instructions.
-
-    size_t numDPUTasks = 0;
-    for (auto dpuTaskOp : op.variants().getOps<VPUIP::DPUTaskOp>()) {
-        static const size_t NUM_WORKLOAD_DIMS = 3;
-        if (dpuTaskOp.start().size() != NUM_WORKLOAD_DIMS) {
-            return errorAt(op, "Start coords should {0}-D, but got {1}-D", NUM_WORKLOAD_DIMS, dpuTaskOp.start().size());
-        }
-        if (dpuTaskOp.end().size() != NUM_WORKLOAD_DIMS) {
-            return errorAt(op, "End coords should {0}-D, but got {1}-D", NUM_WORKLOAD_DIMS, dpuTaskOp.end().size());
-        }
-        ++numDPUTasks;
-    }
-    static const size_t MAX_NUM_DPUS_PER_CLUSTER = 5;
-    static const size_t MIN_NUM_DPUS_PER_CLUSTER = 1;
-    if (numDPUTasks > MAX_NUM_DPUS_PER_CLUSTER || numDPUTasks < MIN_NUM_DPUS_PER_CLUSTER) {
-        return errorAt(op, "There should be a total of {0}-{1} DPU Tasks per NCEClusterTask, but got {2}",
-                       MIN_NUM_DPUS_PER_CLUSTER, MAX_NUM_DPUS_PER_CLUSTER, numDPUTasks);
-    }
-
-    return mlir::success();
-}
-
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::BlobWriter& writer) {
-    SmallVector<flatbuffers::Offset<MVCNN::NCEVariantFields>> nceVariantFieldsList;
-    for (auto dpuTaskOp : this->variants().getOps<VPUIP::DPUTaskOp>()) {
-        auto padsBegin = parseIntArrayAttr(dpuTaskOp.pads_begin());
-        auto padsEnd = parseIntArrayAttr(dpuTaskOp.pads_end());
-        auto start = parseIntArrayAttr(dpuTaskOp.start());
-        auto end = parseIntArrayAttr(dpuTaskOp.end());
+    SmallVector<flatbuffers::Offset<MVCNN::NCEVariantFields>> variantList;
+    for (auto dpuTaskOp : variants().getOps<VPUIP::DPUTaskOp>()) {
+        const auto start = parseIntArrayAttr(dpuTaskOp.start());
+        const auto end = parseIntArrayAttr(dpuTaskOp.end());
+        const auto padsBegin = parseIntArrayAttr(dpuTaskOp.pads_begin());
+        const auto padsEnd = parseIntArrayAttr(dpuTaskOp.pads_end());
 
         // TODO: [Track number: E#13226]
         // Make padding indexing more obvious
-        auto nceVariantFields = MVCNN::CreateNCEVariantFields(writer,
-                                                              0,                                   // Barriers
-                                                              getMPEMode(dpuTaskOp.mpe_mode()),    // MPE mode
-                                                              static_cast<int16_t>(padsBegin[1]),  // padLeft
-                                                              static_cast<int16_t>(padsEnd[1]),    // padRight
-                                                              static_cast<int16_t>(padsBegin[0]),  // padTop
-                                                              static_cast<int16_t>(padsEnd[0]),    // padBottom
-                                                              static_cast<int16_t>(start[0]),      // workload_start_X
-                                                              static_cast<int16_t>(start[1]),      // workload_start_Y
-                                                              static_cast<int16_t>(start[2]),      // workload_start_Z
-                                                              static_cast<int16_t>(end[0]),        // workload_end_X
-                                                              static_cast<int16_t>(end[1]),        // workload_end_Y
-                                                              static_cast<int16_t>(end[2])         // workload_end_Z
+        const auto variant = MVCNN::CreateNCEVariantFields(writer,
+                                                           0,                                   // Barriers
+                                                           getMPEMode(dpuTaskOp.mpe_mode()),    // MPE mode
+                                                           static_cast<int16_t>(padsBegin[1]),  // padLeft
+                                                           static_cast<int16_t>(padsEnd[1]),    // padRight
+                                                           static_cast<int16_t>(padsBegin[0]),  // padTop
+                                                           static_cast<int16_t>(padsEnd[0]),    // padBottom
+                                                           static_cast<int16_t>(start[0]),      // workload_start_X
+                                                           static_cast<int16_t>(start[1]),      // workload_start_Y
+                                                           static_cast<int16_t>(start[2]),      // workload_start_Z
+                                                           static_cast<int16_t>(end[0]),        // workload_end_X
+                                                           static_cast<int16_t>(end[1]),        // workload_end_Y
+                                                           static_cast<int16_t>(end[2])         // workload_end_Z
         );
-        nceVariantFieldsList.push_back(nceVariantFields);
+        variantList.push_back(variant);
     }
-    auto nceVariantFields = writer.createVector(nceVariantFieldsList);
+    const auto variant = writer.createVector(variantList);
 
     SmallVector<uint8_t> ppeList;
-    if (this->fixed_ppe_task()) {
-        auto ppe_layer_type = getPPELayerType(fixed_ppe_task().getValue());
-        if (ppe_layer_type != MVCNN::PPELayerType_NOOP) {
-            ppeList.push_back(ppe_layer_type);
-        }
-    } else {
-        // TODO: implement generic PPE serialization
-        VPUX_THROW_UNLESS(this->ppe_tasks().empty(), "Generic PPE not yet implemented.");
+    for (auto ppeOp : ppe().getOps<VPUIP::PPETaskOp>()) {
+        ppeList.push_back(getPPELayerType(ppeOp.ppe_layer_type()));
     }
     auto ppeLayerTypes = writer.createVector(ppeList);
+    // TODO: Clamp_Low, Clamp_High, Lrelu_Mult, Lrelu_Shift
     auto ppeFixedFunction = MVCNN::CreatePPEFixedFunction(writer, ppeLayerTypes);
+    // TODO: scale_data, rounding, instruction_list_data
     auto ppeTask = MVCNN::CreatePPETask(writer, 0, ppeFixedFunction);
 
-    auto kernelHeight = this->kernel_size() ? parseIntArrayAttr(this->kernel_size().getValue())[0] : 0;
-    auto kernelWidth = this->kernel_size() ? parseIntArrayAttr(this->kernel_size().getValue())[1] : 0;
+    int16_t kernelSizeH = 1, kernelSizeW = 1;
+    int16_t kernelStridesH = 1, kernelStridesW = 1;
+    int16_t kernelPadL = 0, kernelPadR = 0, kernelPadT = 0, kernelPadB = 0;
 
-    auto kernelStridesHeight = this->strides() ? parseIntArrayAttr(this->strides().getValue())[0] : 0;
-    auto kernelStridesWidth = this->strides() ? parseIntArrayAttr(this->strides().getValue())[1] : 0;
+    if (kernel_sizeAttr() != nullptr) {
+        const auto kernelSize = parseIntArrayAttr(kernel_sizeAttr());
+        kernelSizeH = checked_cast<int16_t>(kernelSize[0]);
+        kernelSizeW = checked_cast<int16_t>(kernelSize[1]);
+    }
 
-    auto kernelPaddingLeft = this->kernel_padding() ? parseIntArrayAttr(this->kernel_padding().getValue())[0] : 0;
-    auto kernelPaddingRight = this->kernel_padding() ? parseIntArrayAttr(this->kernel_padding().getValue())[1] : 0;
-    auto kernelPaddingTop = this->kernel_padding() ? parseIntArrayAttr(this->kernel_padding().getValue())[2] : 0;
-    auto kernelPaddingBottom = this->kernel_padding() ? parseIntArrayAttr(this->kernel_padding().getValue())[3] : 0;
+    if (kernel_stridesAttr() != nullptr) {
+        const auto kernelStrides = parseIntArrayAttr(kernel_stridesAttr());
+        kernelStridesH = checked_cast<int16_t>(kernelStrides[0]);
+        kernelStridesW = checked_cast<int16_t>(kernelStrides[1]);
+    }
 
-    auto parentInputTensor = writer.getTensor(this->parent_input());
-    auto parentOutputTensor = writer.getTensor(this->parent_output());
-    auto parentWeightsTensor = 0;  // TODO: Finish.
+    if (kernel_paddingAttr() != nullptr) {
+        const auto kernelPadding = parseIntArrayAttr(kernel_paddingAttr());
+        kernelPadL = checked_cast<int16_t>(kernelPadding[0]);
+        kernelPadR = checked_cast<int16_t>(kernelPadding[1]);
+        kernelPadT = checked_cast<int16_t>(kernelPadding[2]);
+        kernelPadB = checked_cast<int16_t>(kernelPadding[3]);
+    }
 
-    auto inputData = writer.getTensor(this->input());
-    auto outputData = writer.getTensor(this->output());
-    auto weightsData = this->filter() ? writer.getTensor(this->filter()) : 0;
-    auto weightsTable = this->weight_table() ? writer.getTensor(this->weight_table()) : 0;
-    auto activationWindow = this->activation_window() ? writer.getTensor(this->activation_window()) : 0;
-    auto activationWindowChannelLength =
-            this->activation_window_channel_length() ? this->activation_window_channel_length().getValue() : 0;
+    const auto inputData = writer.getTensor(input());
+    const auto weightsData = weights() != nullptr ? writer.getTensor(weights()) : 0;
+    const auto weightsTable = weight_table() != nullptr ? writer.getTensor(weight_table()) : 0;
+    const auto activationWindow = activation_window() != nullptr ? writer.getTensor(activation_window()) : 0;
+    const auto activationWindowChannelLength = activation_window_channel_length().getValueOr(0);
 
-    auto invariantMPEMode = getMPEFrequentModeFromDPUTasks(this->variants());
+    const auto outputData = writer.getTensor(output());
 
-    auto nceInvariantFields =
+    const auto parentInputTensor = writer.getTensor(parent_input());
+    const auto parentOutputTensor = writer.getTensor(parent_output());
+
+    const auto invariantMPEMode = getMPEFrequentModeFromDPUTasks(variants());
+
+    const auto invariant =
             MVCNN::CreateNCEInvariantFields(writer,
-                                            getDPULayerType(this->task_type()),         // dpu_task_type
-                                            ppeTask,                                    // ppe_task
-                                            getMPEMode(invariantMPEMode),               // mpe_frequent_mode
-                                            static_cast<int16_t>(kernelHeight),         // kernelH
-                                            static_cast<int16_t>(kernelWidth),          // kernelW
-                                            static_cast<int16_t>(kernelStridesHeight),  // kernel_strideH
-                                            static_cast<int16_t>(kernelStridesWidth),   // kernel_strideW
-                                            static_cast<int16_t>(kernelPaddingLeft),    // kernel_padLeft
-                                            static_cast<int16_t>(kernelPaddingRight),   // kernel_padRight
-                                            static_cast<int16_t>(kernelPaddingTop),     // kernel_padTop
-                                            static_cast<int16_t>(kernelPaddingBottom),  // kernel_padBottom
-                                            parentInputTensor,                          // parent_input_tensor
-                                            parentOutputTensor,                         // parent_output_tensor
-                                            parentWeightsTensor,                        // parent_weights_tensor
-                                            inputData,                                  // input_data
-                                            outputData,                                 // output_data
-                                            weightsData,                                // weights_data
-                                            weightsTable,                               // weights_table
-                                            activationWindow,                           // activation_window
+                                            getDPULayerType(task_type()),  // dpu_task_type
+                                            ppeTask,                       // ppe_task
+                                            getMPEMode(invariantMPEMode),  // mpe_frequent_mode
+                                            kernelSizeH,                   // kernelH
+                                            kernelSizeW,                   // kernelW
+                                            kernelStridesH,                // kernel_strideH
+                                            kernelStridesW,                // kernel_strideW
+                                            kernelPadL,                    // kernel_padLeft
+                                            kernelPadR,                    // kernel_padRight
+                                            kernelPadT,                    // kernel_padTop
+                                            kernelPadB,                    // kernel_padBottom
+                                            parentInputTensor,             // parent_input_tensor
+                                            parentOutputTensor,            // parent_output_tensor
+                                            0,                             // parent_weights_tensor
+                                            inputData,                     // input_data
+                                            outputData,                    // output_data
+                                            weightsData,                   // weights_data
+                                            weightsTable,                  // weights_table
+                                            activationWindow,              // activation_window
                                             activationWindowChannelLength  // activation_window_channel_length
             );
 
     MVCNN::NCE2TaskBuilder builder(writer);
-    builder.add_variant(nceVariantFields);
-    builder.add_invariant(nceInvariantFields);
+    builder.add_variant(variant);
+    builder.add_invariant(invariant);
 
     return {builder.Finish().Union(), MVCNN::SpecificTask_NCE2Task};
 }

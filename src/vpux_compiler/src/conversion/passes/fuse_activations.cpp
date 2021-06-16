@@ -115,9 +115,9 @@ mlir::LogicalResult FuseActivationsPass::ReLURewrite::matchAndRewrite(IERT::ReLU
         return matchFailed(rewriter, origOp, "ReLU input is not connected to NCE task output");
     }
 
-    auto ctx = getContext();
-    auto relu_ppe_attr = vpux::VPUIP::PPELayerTypeAttr::get(ctx, VPUIP::PPELayerType::LRELU);
-    nce_cluster_task.fixed_ppe_taskAttr(relu_ppe_attr);
+    rewriter.updateRootInPlace(nce_cluster_task, [&]() {
+        nce_cluster_task.addPPETask(rewriter, VPUIP::PPELayerType::LRELU);
+    });
 
     rewriter.replaceOp(origOp, nce_out_op->getResult(0));
 
