@@ -129,6 +129,10 @@ public:
         return _numberOfClusters;
     }
 
+    bool optimizeInputPrecision() const {
+        return _optimizeInputPrecision;
+    }
+
 protected:
     void parse(const std::map<std::string, std::string>& config) override;
 
@@ -174,6 +178,8 @@ private:
     bool _allowPermuteND = false;
 
     int _numberOfClusters = 0;
+
+    bool _optimizeInputPrecision = true;
 };
 
 }  //  namespace vpu

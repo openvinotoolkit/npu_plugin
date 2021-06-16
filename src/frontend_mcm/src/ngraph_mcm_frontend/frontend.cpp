@@ -358,7 +358,9 @@ std::unique_ptr<mv::CompilationUnit> compileNGraphIntoCompilationUnit(
         passManager.register_pass<InsertMaxPool>();
         passManager.register_pass<ReplaceShuffle>();
         passManager.register_pass<Handle3DTranspose>();
-        passManager.register_pass<DetectInputFQ>(&needConvertInputPrecision);
+        if (config.optimizeInputPrecision()) {
+            passManager.register_pass<DetectInputFQ>(&needConvertInputPrecision);
+        }
         passManager.register_pass<ConvertToMcmModel>(mcmModel, mcmOutputsMap, inputsInfo, outputsInfo, ioMap, config, &needConvertInputPrecision);
         passManager.register_pass<ngraph::pass::ConvertInterpolate1ToInterpolate4>();
 

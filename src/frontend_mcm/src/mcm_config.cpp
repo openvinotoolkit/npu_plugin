@@ -51,6 +51,7 @@ const std::unordered_set<std::string>& MCMConfig::getCompileOptions() const {
                                                            VPU_COMPILER_CONFIG_KEY(REMOVE_PERMUTE_NOOP),
                                                            VPU_COMPILER_CONFIG_KEY(ALLOW_PERMUTE_ND),
                                                            VPU_COMPILER_CONFIG_KEY(NUM_CLUSTER),
+                                                           VPU_COMPILER_CONFIG_KEY(OPTIMIZE_INPUT_PRECISION),
                                                    });
 
     return options;
@@ -99,6 +100,8 @@ void MCMConfig::parse(const std::map<std::string, std::string>& config) {
     setOption(_allowU8InputForFp16Models, switches, config, VPU_COMPILER_CONFIG_KEY(ALLOW_U8_INPUT_FOR_FP16_MODELS));
 
     setOption(_scaleShiftFusing, switches, config, VPU_COMPILER_CONFIG_KEY(SCALESHIFT_FUSING));
+
+    setOption(_optimizeInputPrecision, switches, config, VPU_COMPILER_CONFIG_KEY(OPTIMIZE_INPUT_PRECISION));
 
     setOption(_removePermuteNoOp, switches, config, VPU_COMPILER_CONFIG_KEY(REMOVE_PERMUTE_NOOP));
     setOption(_allowPermuteND, switches, config, VPU_COMPILER_CONFIG_KEY(ALLOW_PERMUTE_ND));

@@ -178,7 +178,15 @@ TEST_F(KmbClassifyNetworkTest, mobilenet_v3_aircrafts) {
             1, 0.17f);
 }
 
-
+TEST_F(ModelAdk, precommit_ModelA_ADK3_fp_conversion) {
+    runTest(
+            TestNetworkDesc("ADK3/ModelA_INT8/ModelA_INT8.xml", EXPERIMENTAL)
+                    .setUserInputPrecision("input", Precision::FP32)
+                    .setUserOutputPrecision("output", Precision::FP32)
+                    .setCompileConfig({{"VPU_COMPILER_OPTIMIZE_INPUT_PRECISION", "NO"}}),
+            TestImageDesc("224x224/cat3.bmp", ImageFormat::BGR),
+            0.006f);
+}
 
 TEST_P(ModelAdk, precommit_ModelA_ADK3) {
     runTest(
