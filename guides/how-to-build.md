@@ -33,6 +33,10 @@ wget -q http://nnt-srv01.inn.intel.com/dl_score_engine/thirdparty/linux/keembay/
 
     `sudo apt install libboost-all-dev`
 
+6. OpenCL compiler dependency library
+
+    `sudo apt-get install libncurses5`
+
 For details about OpenVINO build please refer to [OpenVINO Build Instructions].
 
 ## Build for X86_64
@@ -81,7 +85,7 @@ The X86_64 build is needed to get reference results for the tests.
     )
     ```
 
-2. **Open new console** in order to get clean environment and avoid side effects caused by running of previous commands for cross-compilation. 
+2. **Open new console** in order to get clean environment and avoid side effects caused by running of previous commands for cross-compilation.
 3. Go to [KMB Plugin Project] base directory and build it with commands:
 
     ```bash
