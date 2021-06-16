@@ -232,7 +232,7 @@ void fuseCropSliceFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mod
     mv::DataModel dm(model);
 
     auto cropOps = om.getOps("Crop");
-    for (auto cropOp : cropOps)
+    for (auto& cropOp : cropOps)
     {
         auto crop = cropOp->getOutputTensor(mv::IO_TENSOR_OUTPUT);
         auto parentOutputTensor = cropOp->getInputTensor(mv::IO_TENSOR_INPUT);
@@ -258,7 +258,7 @@ void fuseCropStridedSliceFcn(const mv::pass::PassEntry& pass, mv::ComputationMod
     mv::DataModel dm(model);
 
     auto cropOps = om.getOps("Crop");
-    for (auto cropOp : cropOps)
+    for (auto& cropOp : cropOps)
     {
         auto crop = cropOp->getOutputTensor(mv::IO_TENSOR_OUTPUT);
         auto parentOutputTensor = cropOp->getInputTensor(mv::IO_TENSOR_INPUT);
@@ -273,7 +273,7 @@ void fuseCropStridedSliceFcn(const mv::pass::PassEntry& pass, mv::ComputationMod
 
         // Skip if strides not all 1
         auto strides = childOp->get<std::vector<unsigned>>("strides");
-        if (!(strides[0] == 1 && strides[1] == 1 && strides[2] == 1 && strides[3] == 1))
+        if (!(strides[mv::IO_WIDTH_DIMENSION] == 1 && strides[mv::IO_HEIGHT_DIMENSION] == 1 && strides[mv::IO_CHANNEL_DIMENSION] == 1 && strides[mv::IO_BATCH_DIMENSION] == 1))
             continue;
 
         pass.log(mv::Logger::MessageType::Debug, "Fuse Crop & StridedSlice: " + cropOp->getName() + ", & " + childOp->getName());
@@ -320,13 +320,17 @@ void fuseSliceSliceFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
     mv::DataModel dm(model);
 
     auto sliceOps = om.getOps("Slice");
-    for (auto sliceOp : sliceOps)
+    for (auto& sliceOp : sliceOps)
     {
         // Skip if not all children are slices
         auto all_children_are_slices = true;
         for (auto sinkFlow = sliceOp.leftmostOutput(); sinkFlow != om.flowEnd(); ++sinkFlow)
+        {
+            if (all_children_are_slices == false)
+                break;
             if (sinkFlow.sink()->getOpType() != "Slice")
                 all_children_are_slices = false;
+        }
 
         if (all_children_are_slices == false)
             continue;
