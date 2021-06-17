@@ -105,7 +105,13 @@
 #include <ngraph/op/space_to_depth.hpp>
 #include <ngraph/op/squared_difference.hpp>
 #include <ngraph/op/depth_to_space.hpp>
+
 #include <ngraph/op/equal.hpp>
+#include <ngraph/op/not_equal.hpp>
+#include <ngraph/op/greater.hpp>
+#include <ngraph/op/greater_eq.hpp>
+#include <ngraph/op/less.hpp>
+#include <ngraph/op/less_eq.hpp>
 
 #include <legacy/ngraph_ops/interp.hpp>
 #include <legacy/ngraph_ops/lrn_ie.hpp>
@@ -1980,6 +1986,55 @@ void convert(std::shared_ptr<ngraph::op::v1::Equal> op, mv::OpModel& mcmModel, N
     registerOutputs(op, {mcmOpOutput}, mcmOutputsMap);
 }
 
+void convert(std::shared_ptr<ngraph::op::v1::NotEqual> op, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
+    const auto mcmInputs = getMcmInputs(op, mcmOutputsMap);
+    IE_ASSERT(2u == mcmInputs.size());
+    const auto opName = op->get_friendly_name();
+    mv::Data::TensorIterator mcmOpOutput;
+    mcmOpOutput = mcmModel.eltwise(opName, mcmInputs, "NotEqual");
+    mcmOpOutput->setQuantParams(initialQuantParams());
+    registerOutputs(op, {mcmOpOutput}, mcmOutputsMap);
+}
+
+void convert(std::shared_ptr<ngraph::op::v1::Greater> op, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
+    const auto mcmInputs = getMcmInputs(op, mcmOutputsMap);
+    IE_ASSERT(2u == mcmInputs.size());
+    const auto opName = op->get_friendly_name();
+    mv::Data::TensorIterator mcmOpOutput;
+    mcmOpOutput = mcmModel.eltwise(opName, mcmInputs, "Greater");
+    mcmOpOutput->setQuantParams(initialQuantParams());
+    registerOutputs(op, {mcmOpOutput}, mcmOutputsMap);
+}
+
+void convert(std::shared_ptr<ngraph::op::v1::GreaterEqual> op, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
+    const auto mcmInputs = getMcmInputs(op, mcmOutputsMap);
+    IE_ASSERT(2u == mcmInputs.size());
+    const auto opName = op->get_friendly_name();
+    mv::Data::TensorIterator mcmOpOutput;
+    mcmOpOutput = mcmModel.eltwise(opName, mcmInputs, "GreaterEqual");
+    mcmOpOutput->setQuantParams(initialQuantParams());
+    registerOutputs(op, {mcmOpOutput}, mcmOutputsMap);
+}
+
+void convert(std::shared_ptr<ngraph::op::v1::Less> op, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
+    const auto mcmInputs = getMcmInputs(op, mcmOutputsMap);
+    IE_ASSERT(2u == mcmInputs.size());
+    const auto opName = op->get_friendly_name();
+    mv::Data::TensorIterator mcmOpOutput;
+    mcmOpOutput = mcmModel.eltwise(opName, mcmInputs, "Less");
+    mcmOpOutput->setQuantParams(initialQuantParams());
+    registerOutputs(op, {mcmOpOutput}, mcmOutputsMap);
+}
+
+void convert(std::shared_ptr<ngraph::op::v1::LessEqual> op, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
+    const auto mcmInputs = getMcmInputs(op, mcmOutputsMap);
+    IE_ASSERT(2u == mcmInputs.size());
+    const auto opName = op->get_friendly_name();
+    mv::Data::TensorIterator mcmOpOutput;
+    mcmOpOutput = mcmModel.eltwise(opName, mcmInputs, "LessEqual");
+    mcmOpOutput->setQuantParams(initialQuantParams());
+    registerOutputs(op, {mcmOpOutput}, mcmOutputsMap);
+}
 
 // TODO: move converters to class ConvertToMcmModel scope to remove references to data
 
@@ -2084,7 +2139,12 @@ static const DispatchMap dispatchMap {
     MAP_ENTRY(ngraph::op::v0::SquaredDifference),
     MAP_ENTRY(ngraph::op::v0::DepthToSpace),
     MAP_ENTRY(ngraph::op::v0::ReverseSequence),
-    MAP_ENTRY(ngraph::op::v1::Equal)
+    MAP_ENTRY(ngraph::op::v1::Equal),
+    MAP_ENTRY(ngraph::op::v1::NotEqual),
+    MAP_ENTRY(ngraph::op::v1::Greater),
+    MAP_ENTRY(ngraph::op::v1::GreaterEqual),
+    MAP_ENTRY(ngraph::op::v1::Less),
+    MAP_ENTRY(ngraph::op::v1::LessEqual)
 };
 
 #undef MAP_ENTRY
