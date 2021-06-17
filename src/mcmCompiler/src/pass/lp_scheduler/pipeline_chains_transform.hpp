@@ -460,7 +460,6 @@ class Pipeline_Chains {
           if (opIt->hasAttr("verticalFusionSubgraphHead") && opIt->get<bool>("verticalFusionSubgraphHead"))
           {
             add_vertical_subgraph(opIt, std::back_inserter(activation_dpu_chain), control_map);
-            std::size_t subgraph_length = activation_dpu_chain.size();
             // save the length of the subgraph
             omodel_.getOp(opIt->getName())->set<std::size_t>("subgraph_length", activation_dpu_chain.size());
           }

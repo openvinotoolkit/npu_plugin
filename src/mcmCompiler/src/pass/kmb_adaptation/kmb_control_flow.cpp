@@ -80,7 +80,7 @@ void NNCMX2DDRControlFlowsFcn(const mv::pass::PassEntry&, mv::ComputationModel& 
 // Minimum (and most conservative approach) is 1
 
 // ASSUMPTION: This pass happens after the pass that assigns a layer number to each layer already in the control model
-void hangingDmaControlFlowsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&)
+void hangingDmaControlFlowsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)

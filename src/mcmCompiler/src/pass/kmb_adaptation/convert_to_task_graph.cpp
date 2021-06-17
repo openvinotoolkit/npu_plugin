@@ -111,7 +111,8 @@ mv::Data::TensorIterator convertEltwiseToTask(mv::OpModel& om, const std::vector
 }
 
 mv::Data::TensorIterator convertHwConvertToDPUTask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
-                                const std::map<std::string, mv::Attribute>& attrs, const std::string& name,  bool software,
+                                const std::map<std::string, mv::Attribute>& attrs, const std::string& name,
+                                bool /*software*/,
                                 const mv::QuantizationParams& quantParams,
                                 const mv::DType& outputTensorType,
                                 const mv::Order& outputTensorOrder)
@@ -144,7 +145,7 @@ mv::Data::TensorIterator convertLReluToUPATask(mv::OpModel& om,
                                                bool /*software*/,
                                                const mv::QuantizationParams& quantParams,
                                                const mv::DType& outputTensorType,
-                                               const mv::Order& outputTensorOrder)
+                                               const mv::Order& /*outputTensorOrder*/)
 {
 
     auto alpha = attrs.at("alpha").get<double>();
@@ -932,11 +933,11 @@ mv::Data::TensorIterator convertEluToUPATask(mv::OpModel& om, const std::vector<
 }
 
 mv::Data::TensorIterator convertMishToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
-                                               const std::map<std::string, mv::Attribute>& attrs,
-                                               const std::string& name, bool /*software*/,
-                                                const mv::QuantizationParams& quantParams,
-                                                const mv::DType& outputTensorType,
-                                                const mv::Order& outputTensorOrder)
+                                              const std::map<std::string, mv::Attribute>& /*attrs*/,
+                                              const std::string& name, bool /*software*/,
+                                              const mv::QuantizationParams& quantParams,
+                                              const mv::DType& outputTensorType,
+                                              const mv::Order& outputTensorOrder)
 {
     auto mish = om.uPATaskMish(name, inputs);
     mish->setDType(outputTensorType);
@@ -1079,7 +1080,7 @@ mv::Data::TensorIterator convertConversionToUPATask(mv::OpModel& om, const std::
 }
 
 mv::Data::TensorIterator convertReluToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
-                                                const std::map<std::string, mv::Attribute>& attrs,
+                                                const std::map<std::string, mv::Attribute>& /*attrs*/,
                                                 const std::string& name, bool /*software*/,
                                                 const mv::QuantizationParams& quantParams,
                                                 const mv::DType& outputTensorType,
@@ -1160,7 +1161,7 @@ mv::Data::TensorIterator convertCTCGreedyDecoderSeqLenToUPATask(
 }
 
 mv::Data::TensorIterator convertPreluToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
-                                                const std::map<std::string, mv::Attribute>& attrs,
+                                                const std::map<std::string, mv::Attribute>& /*attrs*/,
                                                 const std::string& name, bool /*software*/,
                                                 const mv::QuantizationParams& quantParams,
                                                 const mv::DType& outputTensorType,
@@ -1229,7 +1230,11 @@ mv::Data::TensorIterator convertDepthToSpaceToUPATask(mv::OpModel& om, const std
     return depthToSpace;
 }
 
-void convertOpsToTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& td, mv::Element&, mv::Element&)
+void convertOpsToTasksFcn(const mv::pass::PassEntry& pass,
+                          mv::ComputationModel& model,
+                          mv::TargetDescriptor&,
+                          mv::Element&,
+                          mv::Element&)
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)

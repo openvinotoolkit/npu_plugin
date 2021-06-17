@@ -39,7 +39,7 @@ namespace mv
     }
 }
 
-void assignIntermediateOutputsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&)
+void assignIntermediateOutputsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&)
 {
     // no individual tensors greater than this value are currently allowed
     const size_t MAX_TENSOR_SIZE_ALLOWED = 8388608; // 8mb

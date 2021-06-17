@@ -254,7 +254,7 @@ void replacePermuteAsReshape(const mv::pass::PassEntry&, mv::ComputationModel& m
 }
 
 // If Eltwise Multiply needs broadcast & has one populated input, convert Eltwise to a 1x1 Conv
-void replaceBroadcastEltwiseMultWithConv(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
+void replaceBroadcastEltwiseMultWithConv(const mv::pass::PassEntry& /*pass*/, mv::ComputationModel& model)
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
@@ -346,7 +346,7 @@ void replaceBroadcastEltwiseMultWithConv(const mv::pass::PassEntry& pass, mv::Co
     }
 }
 
-void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
+void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& /*pass*/, mv::ComputationModel& model)
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
@@ -502,7 +502,7 @@ void replaceStridedSliceWithStridedConvConcat(const mv::pass::PassEntry&, mv::Co
 // case 3 - If any of the inputs for the eltwise is a constant
 // case 4 - When the input scales are unaligned (absolute relative larger than 0.01),
 //          replace the Eltwise with SWEltwise or float DPU Eltwise_Add.
-void eltwiseToSWEltwiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& td, mv::Element&, mv::Element&)
+void eltwiseToSWEltwiseFcn(const mv::pass::PassEntry& /*pass*/, mv::ComputationModel& model, mv::TargetDescriptor& td, mv::Element&, mv::Element&)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
 
@@ -1444,7 +1444,6 @@ void replacePermuteReshapePermutePatternFcn(const mv::pass::PassEntry& , mv::Com
             auto name = reshapeOp->getName();
             auto dtype = permuteInputTensor->getDType();
             auto quantParams = permuteInputTensor->getQuantParams();
-            auto opId = opIt->get<unsigned>("opId");
 
             auto it = om.getSourceOp(opIt->getInputTensor(mv::IO_TENSOR_INPUT));
 
@@ -1593,7 +1592,6 @@ bool splitPoolOp(mv::ComputationModel& model, const mv::Data::OpListIterator& op
 }
 
 bool supportedCase(const mv::Data::OpListIterator& opIt) {
-    std::array<unsigned short, 2> stride = opIt->get<std::array<unsigned short, 2>>("stride");
     std::array<unsigned short, 2> kernel;
     if (opIt->hasAttr("kSize"))
         kernel = opIt->get<std::array<unsigned short, 2>>("kSize");
@@ -2153,7 +2151,12 @@ mv::Data::OpListIterator  splitOperationSlicingFixedWidthHeight ( mv::Computatio
     return operation;
 }
 
-mv::Data::OpListIterator  splitOperationSlicingV2 ( mv::ComputationModel& model, mv::Data::OpListIterator& operation, size_t widthSlice, size_t heightSlice, mv::Data::OpListIterator& nextOpIt)
+mv::Data::OpListIterator splitOperationSlicingV2(
+    mv::ComputationModel& model,
+    mv::Data::OpListIterator& operation,
+    size_t /*widthSlice*/,
+    size_t /*heightSlice*/,
+    mv::Data::OpListIterator& nextOpIt)
 {
     mv::OpModel om(model);
     mv::DataModel dm(model);
@@ -2747,7 +2750,7 @@ void replaceBigInputChannels(const mv::pass::PassEntry&, mv::ComputationModel& m
 
 }
 
-void resampleAsDepthDeConvFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
+void resampleAsDepthDeConvFcn(const mv::pass::PassEntry& /*pass*/, mv::ComputationModel& model)
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
@@ -2898,7 +2901,7 @@ void resampleWithStorageElementPointerTable(const mv::pass::PassEntry&, mv::Comp
 
             // Get sink op port num
             auto port_num=0;
-            for (auto i=0; i<childOpIt->getInputTensor().size(); ++i){
+            for (std::size_t i = 0u; i < childOpIt->getInputTensor().size(); ++i){
                 if (outputTensor == childOpIt->getInputTensor(i)){
                     port_num = i;
                     break;
@@ -2910,7 +2913,7 @@ void resampleWithStorageElementPointerTable(const mv::pass::PassEntry&, mv::Comp
             int64_t weightsValue = 1;
             auto K = inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION];
             std::vector<int64_t> weightsData(K*K, 0);
-            for (auto i=0; i<K; ++i)
+            for (auto i = 0u; i < K; ++i)
                 weightsData.at(i*(K+1)) = weightsValue;
             weights = om.constantInt("",
                                 weightsData,
@@ -2973,7 +2976,7 @@ void resampleWithStorageElementPointerTable(const mv::pass::PassEntry&, mv::Comp
     }
 }
 
-void insertUpaDmaAfterSliceOnOutputFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
+void insertUpaDmaAfterSliceOnOutputFcn(const mv::pass::PassEntry& /*pass*/, mv::ComputationModel& model)
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
@@ -3005,7 +3008,7 @@ void insertUpaDmaAfterSliceOnOutputFcn(const mv::pass::PassEntry& pass, mv::Comp
 
 // For paths where both the relu'd & non-relu'd output of Conv is used, clone the non-relu Conv
 // This is more accurate than executing the Relu separately on a Conv's quantized output
-void cloneConvForNonReluOutput(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
+void cloneConvForNonReluOutput(const mv::pass::PassEntry& /*pass*/, mv::ComputationModel& model)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
 
@@ -3035,7 +3038,7 @@ void cloneConvForNonReluOutput(const mv::pass::PassEntry& pass, mv::ComputationM
             // Remove flow between Bias & nonRelu child
             auto sourceFlowStart = biasOp.leftmostOutput();
             mv::Data::FlowSiblingIterator sinkFlow(sourceFlowStart);
-            for (sinkFlow; sinkFlow != om.flowEnd(); ++sinkFlow) {
+            for (/*sinkFlow*/; sinkFlow != om.flowEnd(); ++sinkFlow) {
                 if (sinkFlow.sink()->getOpType() != "Relu")
                     break;
             }
