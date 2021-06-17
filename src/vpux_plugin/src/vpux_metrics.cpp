@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright 2021 Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -14,17 +14,21 @@
 // IE
 #include <ie_metric_helpers.hpp>
 // Plugin
+#include "device_helpers.hpp"
 #include "vpux_metrics.h"
 #include "vpux_private_config.hpp"
 
 namespace vpux {
+namespace IE = InferenceEngine;
 
-Metrics::Metrics(const VPUXBackends::CPtr& backends): _backends(backends) {
+Metrics::Metrics(const VPUXBackends::CPtr& backends)
+        : _backends(backends), _logger(vpu::Logger("VPUXMetrics", vpu::LogLevel::Error, vpu::consoleOutput())) {
     _supportedMetrics = {
             METRIC_KEY(SUPPORTED_METRICS),         METRIC_KEY(AVAILABLE_DEVICES),
             METRIC_KEY(FULL_DEVICE_NAME),          METRIC_KEY(SUPPORTED_CONFIG_KEYS),
             METRIC_KEY(OPTIMIZATION_CAPABILITIES), METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS),
             METRIC_KEY(RANGE_FOR_STREAMS),         METRIC_KEY(IMPORT_EXPORT_SUPPORT),
+            METRIC_KEY(DEVICE_ARCHITECTURE),
     };
 
     _supportedConfigKeys = {
@@ -67,6 +71,23 @@ const std::tuple<uint32_t, uint32_t, uint32_t>& Metrics::GetRangeForAsyncInferRe
 
 const std::tuple<uint32_t, uint32_t>& Metrics::GetRangeForStreams() const {
     return _rangeForStreams;
+}
+
+std::string Metrics::GetDeviceArchitecture(const std::string& specifiedDeviceName) const {
+    std::vector<std::string> devNames;
+    if (_backends == nullptr || (devNames = _backends->getAvailableDevicesNames()).empty()) {
+        IE_THROW() << "No available devices";
+    }
+
+    if (specifiedDeviceName.empty()) {
+        if (devNames.size() == 1) {
+            return utils::getPlatformNameByDeviceName(devNames[0]);
+        } else {
+            IE_THROW() << "Missing name of a specific device";
+        }
+    }
+
+    return utils::getPlatformNameByDeviceName(specifiedDeviceName);
 }
 
 }  // namespace vpux
