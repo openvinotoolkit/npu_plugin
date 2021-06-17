@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -12,6 +12,8 @@
 //
 
 #include "vpux/compiler/dialect/IERT/ops.hpp"
+
+#include "vpux/compiler/utils/attributes.hpp"
 
 #include <mlir/Dialect/Quant/QuantTypes.h>
 #include <mlir/IR/BuiltinAttributes.h>
@@ -49,6 +51,36 @@ mlir::Operation* vpux::IERT::IERTDialect::materializeConstant(mlir::OpBuilder& b
     }
 
     return builder.create<IERT::ConstantOp>(loc, type, value.cast<mlir::ElementsAttr>());
+}
+
+//
+// Operation executor attributes
+//
+
+namespace {
+
+constexpr StringLiteral executorAttrName = "IERT.executor";
+constexpr StringLiteral numUnitsAttrName = "IERT.num_units";
+
+}  // namespace
+
+void vpux::IERT::IERTDialect::setExecutor(mlir::async::ExecuteOp execOp, mlir::Attribute executor, uint32_t numUnits) {
+    execOp->setAttr(executorAttrName, executor);
+    execOp->setAttr(numUnitsAttrName, getInt32Attr(execOp->getContext(), numUnits));
+}
+
+mlir::Attribute vpux::IERT::IERTDialect::getExecutor(mlir::async::ExecuteOp execOp, uint32_t& numUnits) {
+    if (const auto executor = execOp->getAttr(executorAttrName)) {
+        const auto numUnitsAttr = execOp->getAttr(numUnitsAttrName).dyn_cast_or_null<mlir::IntegerAttr>();
+        VPUX_THROW_UNLESS(numUnitsAttr != nullptr,
+                          "'{0}' attribute was not set, it must be used together with '{1}' attribute", numUnitsAttr,
+                          executorAttrName);
+
+        numUnits = checked_cast<uint32_t>(numUnitsAttr.getInt());
+        return executor;
+    }
+
+    VPUX_THROW("Can't find Executor attributes for Operation at '{0}'", execOp->getLoc());
 }
 
 //

@@ -21,7 +21,6 @@
 #include <mlir/Dialect/Quant/QuantOps.h>
 #include <mlir/IR/BuiltinOps.h>
 #include <mlir/Pass/Pass.h>
-#include <mlir/Pass/PassManager.h>
 
 #include <memory>
 
@@ -71,7 +70,7 @@ std::unique_ptr<mlir::Pass> createExpandActivationChannelsPass(Logger log = Logg
 // Registration
 //
 
-void registerPipelines();
+void registerIEPipelines();
 
 //
 // Generated

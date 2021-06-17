@@ -79,12 +79,13 @@ void vpux::buildReferenceModePipeline(mlir::OpPassManager& pm, Logger log) {
     buildIERTInitialPipeline(pm, log);
     pm.addPass(createComposeSubViewPass(log));
     buildIERTAllocationPipelineForDDR(pm, log);
+    IERT::buildAsyncSchedulingPipeline(pm, log);
 
     // Lower IERT->VPUIP (SW mode)
     buildLowerIERT2VPUIPPipeline(pm, log);
 
     // VPUIP Dialect level
-    pm.addPass(VPUIP::createAddLinearSchedulingPass(log));
+    pm.addPass(VPUIP::createAssignPhysicalBarriersPass(log));
 }
 
 //
@@ -112,12 +113,13 @@ void vpux::buildHardwareModePipeline(mlir::OpPassManager& pm, Logger log) {
     pm.addPass(createComposeSubViewPass(log));
     buildIERTAllocationPipelineForDDR(pm, log);
     pm.addPass(IERT::createStaticAllocationPass(getMemSpace<VPUIP::PhysicalMemory::CMX_NN>, log));
+    IERT::buildAsyncSchedulingPipeline(pm, log);
 
     // Finally lower remaining IERT->VPUIP (SW mode)
     buildLowerIERT2VPUIPPipeline(pm, log);
 
     // VPUIP Dialect level
-    pm.addPass(VPUIP::createAddLinearSchedulingPass(log));
+    pm.addPass(VPUIP::createAssignPhysicalBarriersPass(log));
 }
 
 //

@@ -214,11 +214,6 @@ def VPUIP_DeclareVirtualBarrierOp :
         VPUIP_Barrier:$barrier
     );
 
-    let skipDefaultBuilders = 1;
-    let builders = [
-        OpBuilder<(ins)>
-    ];
-
     let assemblyFormat = [{
         attr-dict `->` type(results)
     }];

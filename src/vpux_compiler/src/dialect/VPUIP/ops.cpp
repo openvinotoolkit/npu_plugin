@@ -39,19 +39,59 @@ public:
 };
 
 mlir::Attribute VPUIPLayerInfo::getExecutor(mlir::Operation* op, uint32_t& numUnits) const {
-    return llvm::TypeSwitch<mlir::Operation*, mlir::Attribute>(op)
-            .Case<IERT::CopyOp>([&](IERT::CopyOp) {
-                numUnits = 1;
-                return VPUIP::DMAEngineAttr::get(op->getContext(), VPUIP::DMAEngine::DMA_NN);
-            })
-            .Default([&](mlir::Operation*) {
-                auto module = op->getParentOfType<mlir::ModuleOp>();
-                auto resources = IERT::RunTimeResourcesOp::getFromModule(module);
-                auto upaSHAVEs = resources.getExecutor(
-                        VPUIP::PhysicalProcessorAttr::get(op->getContext(), VPUIP::PhysicalProcessor::SHAVE_UPA));
-                numUnits = upaSHAVEs.count();
-                return upaSHAVEs.kind();
-            });
+    const auto getDMAEngine = [&](VPUIP::DMAEngine engine) {
+        numUnits = 1;
+        return VPUIP::DMAEngineAttr::get(op->getContext(), engine);
+    };
+
+    const auto getPhysicalProcessor = [&](VPUIP::PhysicalProcessor proc, Optional<uint32_t> units = None) {
+        const auto procAttr = VPUIP::PhysicalProcessorAttr::get(op->getContext(), proc);
+
+        if (units.hasValue()) {
+            numUnits = units.getValue();
+        } else {
+            auto module = op->getParentOfType<mlir::ModuleOp>();
+            auto resources = IERT::RunTimeResourcesOp::getFromModule(module);
+            auto available = resources.getExecutor(procAttr);
+            numUnits = available.count();
+        }
+
+        return procAttr;
+    };
+
+    if (auto task = mlir::dyn_cast<VPUIP::TaskOpInterface>(op)) {
+        const auto taskType = task.getTaskType();
+
+        switch (taskType) {
+        case VPUIP::TaskType::UPADMA:
+            return getDMAEngine(VPUIP::DMAEngine::DMA_UPA);
+        case VPUIP::TaskType::NNDMA:
+            return getDMAEngine(VPUIP::DMAEngine::DMA_NN);
+        case VPUIP::TaskType::NCE2:
+            return getPhysicalProcessor(VPUIP::PhysicalProcessor::NCE_Cluster, 1);
+        case VPUIP::TaskType::UPA: {
+            auto upaTask = mlir::cast<VPUIP::UPATaskOpInterface>(op);
+            return getPhysicalProcessor(VPUIP::PhysicalProcessor::SHAVE_UPA, upaTask.maxShaves());
+        }
+        default:
+            VPUX_THROW("Unsupported task type '{0}'", taskType);
+        }
+    }
+
+    if (mlir::isa<IERT::ConvolutionOp, IERT::MaxPoolOp>(op)) {
+        auto module = op->getParentOfType<mlir::ModuleOp>();
+        const auto compileMode = VPUIP::getCompilationMode(module);
+
+        if (compileMode == VPUIP::CompilationMode::ReferenceHW && VPUIP::NCEInvariant::verifyOp(op).succeeded()) {
+            return getPhysicalProcessor(VPUIP::PhysicalProcessor::NCE_Cluster);
+        }
+    }
+
+    if (mlir::isa<IERT::CopyOp>(op)) {
+        return getDMAEngine(VPUIP::DMAEngine::DMA_NN);
+    }
+
+    return getPhysicalProcessor(VPUIP::PhysicalProcessor::SHAVE_UPA);
 }
 
 template <class ConcreteOp>

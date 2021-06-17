@@ -10,6 +10,9 @@ This pass bufferizes **IE Dialect** into **IERT Dialect**:
 * Doesn't change Function signatures.
 * Replaces Layer Operations with IERT analogues.
 * Replaces Quant Dialect Operations with IERT analogues.
+### `-convert-async-ops-to-VPUIP`: Convert Async Dialect Operations to VPUIP Dialect
+This pass inlines 'async.execute' body to parent Block and replaces '!async.token' based dependencies with
+VPUIP virtual barriers.
 ### `-convert-declarations-to-VPUIP`: Convert declarations (constants and memory buffers) to VPUIP Dialect
 ### `-convert-layers-to-VPUIP`: Convert Layers Operations to VPUIP Dialect (UPA and DMA tasks)
 ### `-convert-to-nce-ops`: Convert to NCE2 ops

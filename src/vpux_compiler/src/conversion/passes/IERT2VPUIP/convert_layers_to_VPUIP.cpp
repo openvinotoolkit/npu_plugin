@@ -111,6 +111,8 @@ void ConvertLayers2VPUIPPass::safeRunOnFunc() {
     auto& ctx = getContext();
 
     mlir::ConversionTarget target(ctx);
+    target.addIllegalDialect<IERT::IERTDialect>();
+    target.addLegalDialect<mlir::async::AsyncDialect>();
     target.addLegalDialect<VPUIP::VPUIPDialect>();
     target.addLegalOp<mlir::FuncOp, mlir::ReturnOp>();
     target.addLegalOp<IERT::ConstantOp, IERT::StaticAllocOp>();

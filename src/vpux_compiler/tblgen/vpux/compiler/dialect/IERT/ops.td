@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -1425,6 +1425,7 @@ def IERT_NegativeOp :
         `->` type(results)
     }];
 }
+
 //
 // ROIPoolingOp
 //
@@ -1527,10 +1528,12 @@ def IERT_TransposeOp :
 //
 
 def IERT_ConcatViewOp :
-        IERT_LayerOp<1,"ConcatView",
+        IERT_Op<"ConcatView",
             [
                 ViewLikeOpInterface,
                 SameOperandsAndResultElementType,
+                InferTypeOpInterface,
+                NoSideEffect
             ]
         > {
     let summary = "InferenceEngine run-time ConcatView layer. Dummy operation to maintain use-def chains.";
@@ -1546,10 +1549,16 @@ def IERT_ConcatViewOp :
 
     let assemblyFormat = [{
         attr-dict
-        (`inputs` `(` $inputs^ `:` type($inputs) `)`)?
+        `inputs` `(` $inputs `:` type($inputs) `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
         `->` type(results)
     }];
+
+    let extraClassDeclaration = [{
+        mlir::Value getViewSource() {
+            return output_buff();
+        }
+    }] # InferReturnTypesForLayer<1>.impl;
 }
 
 //

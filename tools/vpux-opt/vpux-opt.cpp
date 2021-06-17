@@ -51,8 +51,9 @@ int main(int argc, char* argv[]) {
 
         registerCorePasses();
         IE::registerIEPasses();
-        IE::registerPipelines();
+        IE::registerIEPipelines();
         IERT::registerIERTPasses();
+        IERT::registerIERTPipelines();
         VPUIP::registerVPUIPPasses();
         registerConversionPasses();
         registerConversionPipelines();

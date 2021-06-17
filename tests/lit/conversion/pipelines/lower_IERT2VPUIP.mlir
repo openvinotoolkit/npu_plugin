@@ -1,28 +1,33 @@
-// RUN: vpux-opt --split-input-file --lower-IERT-to-VPUIP %s | FileCheck %s
+// RUN: vpux-opt --lower-IERT-to-VPUIP %s | FileCheck %s
 
-// CHECK-LABEL: @ReshapeInGraph
-func @ReshapeInGraph(%arg0: memref<1x512xf16>, %arg1: memref<1x512xf16>) -> memref<1x512xf16> {
-    %0 = IERT.GenericReshape inputs(%arg0 : memref<1x512xf16>) -> memref<1x512x1x1xf16>
-    %1 = IERT.StaticAlloc<0> -> memref<1x512x1x1xf16, "DDR">
-    %2 = IERT.SoftMax {axisInd = 1 : i32} inputs(%0 : memref<1x512x1x1xf16>) outputs(%1 : memref<1x512x1x1xf16, "DDR">) -> memref<1x512x1x1xf16, "DDR">
-    %3 = IERT.GenericReshape inputs(%2 : memref<1x512x1x1xf16, "DDR">) -> memref<1x512xf16, "DDR">
-    %4 = IERT.Copy inputs(%3 : memref<1x512xf16, "DDR">) outputs(%arg1 : memref<1x512xf16>) -> memref<1x512xf16>
-    return %4: memref<1x512xf16>
+func @main(%arg0: memref<10xf16>, %arg1: memref<10xf16>) -> memref<10xf16> {
+    %buf0 = IERT.StaticAlloc<0> -> memref<10xf16, "DDR">
+    %t0, %f0 = async.execute -> !async.value<memref<10xf16, "DDR">>
+            attributes { IERT.executor = "DMA_NN", IERT.num_units = 1 } {
+        %0 = IERT.Copy inputs(%arg0 : memref<10xf16>) outputs(%buf0 : memref<10xf16, "DDR">) -> memref<10xf16, "DDR">
+        async.yield %0 : memref<10xf16, "DDR">
+    }
 
-    // CHECK:       [[VAR0:%.*]] = VPUIP.DeclareTensor "ProgrammableInput" [0] <0> -> memref<1x512x1x1xf16>
+    %t1, %f1 = async.execute[%t0] (%f0 as %0: !async.value<memref<10xf16, "DDR">>) -> !async.value<memref<10xf16>>
+            attributes { IERT.executor = "DMA_NN", IERT.num_units = 1 } {
+        %1 = IERT.Copy inputs(%0 : memref<10xf16, "DDR">) outputs(%arg1 : memref<10xf16>) -> memref<10xf16>
+        async.yield %1 : memref<10xf16>
+    }
 
-    // CHECK:       [[VAR1:%.*]] = VPUIP.DeclareTensor "VPU_DDR_Heap" [0] <0> -> memref<1x512x1x1xf16, "DDR">
+    %1 = async.await %f1 : !async.value<memref<10xf16>>
+    return %1 : memref<10xf16>
 
-    // CHECK:       [[VAR2:%.*]] = VPUIP.SoftMaxUPA
-    // CHECK-SAME:      axisInd = 1
-    // CHECK-SAME:      inputs([[VAR0]] : memref<1x512x1x1xf16>)
-    // CHECK-SAME:      outputs([[VAR1]] : memref<1x512x1x1xf16, "DDR">)
+    // CHECK:       [[BUF0:%.*]] = VPUIP.DeclareTensor "VPU_DDR_Heap" [0] <0> -> memref<10xf16, "DDR">
+    // CHECK:       [[B0:%.+]] = VPUIP.DeclareVirtualBarrier -> !VPUIP.Barrier
+    // CHECK:       [[VAL0:%.*]] = VPUIP.NNDMA
+    // CHECK-SAME:      inputs(%arg0 : memref<10xf16>)
+    // CHECK-SAME:      outputs([[BUF0]] : memref<10xf16, "DDR">
+    // CHECK-SAME:      updates([[B0]] : !VPUIP.Barrier)
 
-    // CHECK:       [[VAR3:%.*]] = VPUIP.DeclareTensor "VPU_DDR_Heap" [0] <0> -> memref<1x512xf16, "DDR">
+    // CHECK:       [[VAL1:%.*]] = VPUIP.NNDMA
+    // CHECK-SAME:      inputs([[VAL0]] : memref<10xf16, "DDR">)
+    // CHECK-SAME:      outputs(%arg1 : memref<10xf16>)
+    // CHECK-SAME:      waits([[B0]] : !VPUIP.Barrier)
 
-    // CHECK:       [[VAR4:%.*]] = VPUIP.NNDMA
-    // CHECK-SAME:      inputs([[VAR3]] : memref<1x512xf16, "DDR">)
-    // CHECK-SAME:      outputs(%arg1 : memref<1x512xf16>) -> memref<1x512xf16>
-
-    // CHECK: return [[VAR4]] : memref<1x512xf16>
+    // CHECK:       return [[VAL1]] : memref<10xf16>
 }
