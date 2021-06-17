@@ -231,7 +231,7 @@ class Pipeline_Chains {
       mv::Data::OpListIterator oitr = omodel_.getOp(dpu_op->getName());
       if (oitr->hasAttr("verticalFusion") && (control_map.find(oitr->getName()) == control_map.end()))
       {
-        control_map[oitr->getName()] == true;
+        control_map[oitr->getName()] = true;
         output = dpu_op; // add current op
       }
       // recurse BFS to the tail
@@ -241,7 +241,7 @@ class Pipeline_Chains {
         {
           if (control_map.find(citr->getName()) == control_map.end())
           {
-            control_map[citr->getName()] == true;
+            control_map[citr->getName()] = true;
             output = &(*citr);
           }
         }
