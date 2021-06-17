@@ -283,40 +283,39 @@ static void SplitBarrierFcn(
   }
 }
 
-static void RemoveRedundantBarriersForDMA(mv::ComputationModel& model){
-  
+static void RemoveRedundantBarriersForDMA(mv::ComputationModel& model)
+{
   mv::OpModel om(model);
   mv::ControlModel cm(model);
   auto bOps = om.getOps("BarrierTask");
   auto dmaOps = cm.schedulingSortDMA();
-  std::sort(
-        bOps.begin(),
-        bOps.end(),
-        [](const mv::Data::OpListIterator& a, const mv::Data::OpListIterator& b) -> bool { return a->get<mv::Barrier>("Barrier").getIndex() < b->get<mv::Barrier>("Barrier").getIndex(); }
-        );
+  std::sort(bOps.begin(), bOps.end(),
+        [](const mv::Data::OpListIterator& a, const mv::Data::OpListIterator& b) -> bool {
+            return a->get<mv::Barrier>("Barrier").getIndex() < b->get<mv::Barrier>("Barrier").getIndex();
+        });
   unsigned int removed_updates = 0, removed_waits = 0;
-  
-  for (int i=0; i< dmaOps.size(); i++)
+
+  for (std::size_t i = 0; i < dmaOps.size(); i++)
   {
       auto& opIt= dmaOps[i];
       if (!(opIt->hasAttr("BarrierDeps"))) { continue; }
       auto barrierDeps = opIt->get<mv::BarrierDependencies>("BarrierDeps");
       const std::vector<unsigned>& waits = barrierDeps.getWait();
-      for(auto& iwb: waits){
-        for(int j=i+1; j< dmaOps.size(); j++){
+      for (auto& iwb: waits) {
+        for (std::size_t j = i + 1; j < dmaOps.size(); j++){
           auto& barrierDeps_j = dmaOps[j]->get<mv::BarrierDependencies>("BarrierDeps");
           const std::vector<unsigned>& waits_j = barrierDeps_j.getWait();
-          for(int jbi=0; jbi< waits_j.size(); jbi++){
+          for (std::size_t jbi = 0; jbi < waits_j.size(); jbi++) {
             auto jwb= waits_j[jbi];
-            if(iwb== jwb){
+            if (iwb== jwb) {
               mv::Logger::log(mv::Logger::MessageType::Debug, "SplitBarrier", 
                   "Removing wait for V: "+ std::to_string(jwb) +", from DMA task "+std::to_string(j));
-              
+
               mv::Barrier &barrier = bOps[jwb]->get<mv::Barrier>("Barrier");
               barrier.removeConsumer(dmaOps[j]->getName());
-              
+
               barrierDeps_j.removeWaitBarrier(jwb);
-              
+
               jbi--;
               removed_waits++;
             }
@@ -324,27 +323,29 @@ static void RemoveRedundantBarriersForDMA(mv::ComputationModel& model){
         }
       }
   }
-  
-  for (int i=dmaOps.size()-1; i>= 0; i--)
+
+  for (std::size_t ii = dmaOps.size(); ii > 0; --ii)
   {
-      auto& opIt= dmaOps[i];
+      const std::size_t dmaOpIdxI = ii - 1;
+      auto& opIt= dmaOps[dmaOpIdxI];
       if (!(opIt->hasAttr("BarrierDeps"))) { continue; }
       auto barrierDeps = opIt->get<mv::BarrierDependencies>("BarrierDeps");
       const std::vector<unsigned>& updates = barrierDeps.getUpdate();
-      for(auto& iub: updates){
-        for(int j=i-1; j>= 0; --j){
-          auto& barrierDeps_j = dmaOps[j]->get<mv::BarrierDependencies>("BarrierDeps");
+      for (auto& iub: updates) {
+        for (std::size_t jj = dmaOpIdxI; jj > 0; --jj) {
+          const std::size_t dmaOpIdxJ = jj - 1;
+          auto& barrierDeps_j = dmaOps[dmaOpIdxJ]->get<mv::BarrierDependencies>("BarrierDeps");
           const std::vector<unsigned>& updates_j = barrierDeps_j.getUpdate();
-          for(int jbi=0; jbi< updates_j.size(); jbi++){
-            auto jub= updates_j[jbi];
-            if(iub== jub){
-              mv::Logger::log(mv::Logger::MessageType::Debug, "SplitBarrier", 
-                  "Removing wait for V: "+ std::to_string(jub) +", from DMA task "+std::to_string(j));
+          for (std::size_t jbi = 0; jbi < updates_j.size(); jbi++){
+            auto jub = updates_j[jbi];
+            if (iub == jub){
+              mv::Logger::log(mv::Logger::MessageType::Debug, "SplitBarrier",
+                  "Removing wait for V: " + std::to_string(jub) + ", from DMA task " + std::to_string(dmaOpIdxJ));
               mv::Barrier &barrier = bOps[jub]->get<mv::Barrier>("Barrier");
-              barrier.removeProducer(dmaOps[j]->getName());
-              
+              barrier.removeProducer(dmaOps[dmaOpIdxJ]->getName());
+
               barrierDeps_j.removeUpdateBarrier(jub);
-              
+
               jbi--;
               removed_updates++;
             }
@@ -352,8 +353,8 @@ static void RemoveRedundantBarriersForDMA(mv::ComputationModel& model){
         }
       }
   }
-  
-  mv::Logger::log(mv::Logger::MessageType::Debug, "SplitBarrier", "Removed "+ std::to_string(removed_waits)+ " wait and "+ std::to_string(removed_updates) +" update barrier counts for DMA tasks");
+  mv::Logger::log(mv::Logger::MessageType::Debug, "SplitBarrier",
+    "Removed " + std::to_string(removed_waits) + " wait and " + std::to_string(removed_updates) + " update barrier counts for DMA tasks");
 }
 
 static void CombineTaskInputBarriersFcn(
@@ -367,7 +368,6 @@ static void CombineTaskInputBarriersFcn(
   for(auto opIt = cm.opBegin(); opIt != cm.opEnd(); ++opIt) {
     if (opIt->getOpType() != "DPUTask") continue;
 
-    mv::Barrier *firstBarrier = nullptr;
     mv::Control::OpListIterator firstBarrierOp = cm.opEnd(); 
     for (auto parentOp = opIt.leftmostParent(); parentOp != cm.opEnd(); ++parentOp) {
       if (parentOp->getOpType() == "BarrierTask") {
@@ -376,7 +376,6 @@ static void CombineTaskInputBarriersFcn(
 
         if (firstBarrierOp == cm.opEnd()) {
           firstBarrierOp = parentOp;
-          firstBarrier = &barrier;
         } else {
           ops_to_remove.push_back(om.switchContext(parentOp));
           for (auto barrierParentOp = parentOp.leftmostParent(); barrierParentOp != cm.opEnd(); ++barrierParentOp) {

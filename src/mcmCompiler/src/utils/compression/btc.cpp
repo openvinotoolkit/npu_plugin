@@ -37,7 +37,7 @@ void BTC::setDefaultConfig()
 
 }
 
-void BTC::updateConfig(uint32_t align, uint32_t bitmapPreprocEnable, bool pStatsOnly, bool bypassMode, uint32_t verbosity)
+void BTC::updateConfig(uint32_t align, uint32_t bitmapPreprocEnable, bool /*pStatsOnly*/, bool bypassMode, uint32_t verbosity)
 {
     codec_->mBitCompactorConfig->bypass_en = bypassMode;
     codec_->mBitCompactorConfig->verbosity = verbosity;

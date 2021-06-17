@@ -8,7 +8,7 @@ namespace mv
     {
         static std::function<std::pair<bool, std::size_t>(const std::vector<Data::TensorIterator>&,
             const std::map<std::string, Attribute>& args, std::string&)> inputCheckFcn =
-            [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>& args,
+            [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>& /*args*/,
             std::string& errMsg) -> std::pair<bool, std::size_t>
         {
             auto inputSize = inputs.size();
