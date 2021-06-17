@@ -196,7 +196,7 @@ IE::Parameter Engine::GetConfig(const std::string& name,
 }
 
 IE::Parameter Engine::GetMetric(const std::string& name,
-                                const std::map<std::string, IE::Parameter>& /*options*/) const {
+                                const std::map<std::string, IE::Parameter>& options) const {
     if (name == METRIC_KEY(AVAILABLE_DEVICES)) {
         IE_SET_METRIC_RETURN(AVAILABLE_DEVICES, _metrics.GetAvailableDevicesNames());
     } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
@@ -213,6 +213,12 @@ IE::Parameter Engine::GetMetric(const std::string& name,
         IE_SET_METRIC_RETURN(RANGE_FOR_STREAMS, _metrics.GetRangeForStreams());
     } else if (name == METRIC_KEY(IMPORT_EXPORT_SUPPORT)) {
         IE_SET_METRIC_RETURN(IMPORT_EXPORT_SUPPORT, true);
+    } else if (name == METRIC_KEY(DEVICE_ARCHITECTURE)) {
+        std::string specifiedDeviceName;
+        if (options.count(CONFIG_KEY(DEVICE_ID)) && options.at(CONFIG_KEY(DEVICE_ID)).is<std::string>()) {
+            specifiedDeviceName = options.at(CONFIG_KEY(DEVICE_ID)).as<std::string>();
+        }
+        IE_SET_METRIC_RETURN(DEVICE_ARCHITECTURE, _metrics.GetDeviceArchitecture(specifiedDeviceName));
     }
     IE_THROW(NotImplemented);
 }
