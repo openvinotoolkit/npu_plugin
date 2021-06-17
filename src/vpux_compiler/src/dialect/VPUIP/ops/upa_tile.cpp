@@ -15,6 +15,7 @@
 
 #include "vpux/compiler/core/attributes/dims_order.hpp"
 #include "vpux/compiler/core/attributes/shape.hpp"
+#include "vpux/compiler/dialect/VPUIP/blob_reader.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
@@ -46,4 +47,15 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::PerAxisTileUPAOp::serialize(VPUIP::
     const auto paramsOff = builder.Finish();
 
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_TileParams});
+}
+
+mlir::Operation* vpux::VPUIP::BlobReader::parseTile(mlir::OpBuilder& builder, ArrayRef<mlir::Value> inputs,
+                                                    ArrayRef<mlir::Value> outputs, const MVCNN::UPALayerTask* task) {
+    VPUX_THROW_UNLESS(inputs.size() == 1, "UPATile supports only 1 input, got {0}", inputs.size());
+    VPUX_THROW_UNLESS(outputs.size() == 1, "UPATile supports only 1 output, got {0}", outputs.size());
+    const auto params = task->softLayerParams_as_TileParams();
+    const auto axis = getInt32Attr(_ctx, params->axis());
+    const auto tiles = getInt32Attr(_ctx, params->tiles());
+
+    return builder.create<VPUIP::PerAxisTileUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], outputs[0], axis, tiles);
 }

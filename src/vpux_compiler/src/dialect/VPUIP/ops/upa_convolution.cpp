@@ -14,6 +14,8 @@
 #include <vpux/compiler/utils/extentions.hpp>
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
+#include "vpux/compiler/dialect/VPUIP/blob_reader.hpp"
+
 #include "vpux/compiler/core/attributes/dim.hpp"
 #include "vpux/compiler/core/attributes/shape.hpp"
 
@@ -82,4 +84,18 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ConvolutionUPAOp::serialize(VPUIP::
     const auto paramsOff = builder.Finish();
 
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_ConvolutionParams});
+}
+
+mlir::Operation* vpux::VPUIP::BlobReader::parseConvolution(mlir::OpBuilder& builder, ArrayRef<mlir::Value> inputs,
+                                                           ArrayRef<mlir::Value> outputs,
+                                                           const MVCNN::UPALayerTask* task) {
+    VPUX_THROW_UNLESS(inputs.size() == 3, "UPAConvolution supports only 3 inputs, got {0}", inputs.size());
+    VPUX_THROW_UNLESS(outputs.size() == 1, "UPAConvolution supports only 1 output, got {0}", outputs.size());
+    const auto params = task->softLayerParams_as_ConvolutionParams();
+    const auto strides = parseOrder3(params->strides());
+    const auto dilations = parseOrder3(params->dilations());
+    const auto padsBegin = parseOrder3(params->pads_begin());
+    const auto padsEnd = parseOrder3(params->pads_end());
+    return builder.create<VPUIP::ConvolutionUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], inputs[1], inputs[2],
+                                                   outputs[0], strides, dilations, padsBegin, padsEnd, params->group());
 }

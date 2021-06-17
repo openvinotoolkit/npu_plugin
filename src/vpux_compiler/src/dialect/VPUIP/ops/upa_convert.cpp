@@ -13,6 +13,7 @@
 
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
+#include "vpux/compiler/dialect/VPUIP/blob_reader.hpp"
 #include "vpux/compiler/utils/hash.hpp"
 #include "vpux/compiler/utils/types.hpp"
 
@@ -71,4 +72,11 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ConvertUPAOp::serialize(VPUIP::Blob
     const auto paramsOff = builder.Finish();
 
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_ConvertParams});
+}
+
+mlir::Operation* vpux::VPUIP::BlobReader::parseConvert(mlir::OpBuilder& builder, ArrayRef<mlir::Value> inputs,
+                                                       ArrayRef<mlir::Value> outputs, const MVCNN::UPALayerTask*) {
+    VPUX_THROW_UNLESS(inputs.size() == 1, "UPAConvert supports only 1 input, got {0}", inputs.size());
+    VPUX_THROW_UNLESS(outputs.size() == 1, "UPAConvert supports only 1 output, got {0}", outputs.size());
+    return builder.create<VPUIP::ConvertUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], outputs[0]);
 }
