@@ -14,6 +14,7 @@
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
 #include "vpux/compiler/core/attributes/shape.hpp"
+#include "vpux/compiler/dialect/VPUIP/blob_reader.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
@@ -89,4 +90,29 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ROIPoolingUPAOp::serialize(VPUIP::B
     const auto paramsOff = builder.Finish();
 
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_ROIPoolingParams});
+}
+
+mlir::Operation* vpux::VPUIP::BlobReader::parseROIPooling(mlir::OpBuilder& builder, ArrayRef<mlir::Value> inputs,
+                                                          ArrayRef<mlir::Value> outputs,
+                                                          const MVCNN::UPALayerTask* task) {
+    VPUX_THROW_UNLESS(inputs.size() == 2, "UPAROIPooling supports only 2 inputs, got {0}", inputs.size());
+    VPUX_THROW_UNLESS(outputs.size() == 1, "UPAROIPooling supports only 1 output, got {0}", outputs.size());
+    const auto params = task->softLayerParams_as_ROIPoolingParams();
+    const auto outputSize = getUInt32ArrayAttr(_ctx, SmallVector<uint32_t>{params->pooled_h(), params->pooled_w()});
+    const auto spatialScale = getFP32Attr(_ctx, params->spatial_scale());
+    IE::ROIPoolingMethod method;
+    switch (params->roi_pooling_method()) {
+    case 0:
+        method = IE::ROIPoolingMethod::max;
+        break;
+    case 1:
+        method = IE::ROIPoolingMethod::bilinear;
+        break;
+    default:
+        VPUX_THROW("Unknown ROIPoolingMethod. max and bilinear methods are supported only");
+    }
+
+    return builder.create<VPUIP::ROIPoolingUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], inputs[1], outputs[0],
+                                                  outputSize, spatialScale,
+                                                  IE::ROIPoolingMethodAttr::get(_ctx, method));
 }

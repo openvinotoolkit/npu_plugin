@@ -17,6 +17,7 @@
 #include "vpux/compiler/core/attributes/shape.hpp"
 #include "vpux/compiler/core/attributes/stride_reqs.hpp"
 #include "vpux/compiler/core/attributes/strides.hpp"
+#include "vpux/compiler/dialect/VPUIP/blob_reader.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 
 #include "vpux/utils/IE/float16.hpp"
@@ -134,4 +135,36 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::FakeQuantizeUPAOp::serialize(VPUIP:
     const auto paramsOff = builder.Finish();
 
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_FakeQuantizeParams});
+}
+
+mlir::Operation* vpux::VPUIP::BlobReader::parseFakeQuantize(mlir::OpBuilder& builder, ArrayRef<mlir::Value> inputs,
+                                                            ArrayRef<mlir::Value> outputs,
+                                                            const MVCNN::UPALayerTask* task) {
+    VPUX_THROW_UNLESS(inputs.size() == 1, "UPAFakeQuantize supports only 1 input, got {0}", inputs.size());
+    VPUX_THROW_UNLESS(outputs.size() == 1, "UPAFakeQuantize supports only 1 output, got {0}", outputs.size());
+    const auto params = task->softLayerParams_as_FakeQuantizeParams();
+    const auto levels = params->levels();
+    const auto createFP16VecFromBits = [](const flatbuffers::Vector<uint16_t>* vec) {
+        SmallVector<float16> res;
+        for (const auto& elem : *vec) {
+            res.push_back(float16::from_bits(elem));
+        }
+        return res;
+    };
+    const auto inputLow = createFP16VecFromBits(params->input_low());
+    const auto inputHigh = createFP16VecFromBits(params->input_high());
+    const auto outputLow = createFP16VecFromBits(params->output_low());
+    const auto outputHigh = createFP16VecFromBits(params->output_high());
+
+    const auto inputShapeType =
+            mlir::RankedTensorType::get({static_cast<int64_t>(inputLow.size())}, mlir::Float16Type::get(_ctx));
+    const auto outputShapeType =
+            mlir::RankedTensorType::get({static_cast<int64_t>(outputLow.size())}, mlir::Float16Type::get(_ctx));
+
+    return builder.create<VPUIP::FakeQuantizeUPAOp>(
+            mlir::UnknownLoc::get(_ctx), inputs[0], outputs[0], levels,
+            mlir::DenseElementsAttr::get(inputShapeType, makeArrayRef(inputLow)),
+            mlir::DenseElementsAttr::get(inputShapeType, makeArrayRef(inputHigh)),
+            mlir::DenseElementsAttr::get(outputShapeType, makeArrayRef(outputLow)),
+            mlir::DenseElementsAttr::get(outputShapeType, makeArrayRef(outputHigh)));
 }

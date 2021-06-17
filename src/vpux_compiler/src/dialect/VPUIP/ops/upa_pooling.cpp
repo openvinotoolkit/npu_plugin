@@ -15,6 +15,7 @@
 
 #include "vpux/compiler/core/attributes/dims_order.hpp"
 #include "vpux/compiler/core/attributes/shape.hpp"
+#include "vpux/compiler/dialect/VPUIP/blob_reader.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
@@ -152,4 +153,28 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::PoolingUPAOp::serialize(VPUIP::Blob
     const auto paramsOff = builder.Finish();
 
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PoolingParams});
+}
+
+mlir::Operation* vpux::VPUIP::BlobReader::parsePooling(mlir::OpBuilder& builder, ArrayRef<mlir::Value> inputs,
+                                                       ArrayRef<mlir::Value> outputs, const MVCNN::UPALayerTask* task) {
+    VPUX_THROW_UNLESS(inputs.size() == 1, "UPAPooling supports only 1 input, got {0}", inputs.size());
+    VPUX_THROW_UNLESS(outputs.size() == 1, "UPAPooling supports only 1 output, got {0}", outputs.size());
+    const auto params = task->softLayerParams_as_PoolingParams();
+    const auto typeStr = params->pool_method()->str();
+    VPUIP::PoolLayerType type;
+    if (typeStr == std::string("max")) {
+        type = VPUIP::PoolLayerType::MAX;
+    } else if (typeStr == std::string("avg")) {
+        type = VPUIP::PoolLayerType::AVG;
+    } else {
+        VPUX_THROW("Unsupported PoolLayerType {0}", typeStr);
+    }
+    const auto kernel = parseOrder3(params->kernel(), 2);
+    const auto strides = parseOrder3(params->strides(), 2);
+    const auto padsBegin = parseOrder3(params->pads_begin(), 2);
+    const auto padsEnd = parseOrder3(params->pads_end(), 2);
+    return builder.create<VPUIP::PoolingUPAOp>(
+            mlir::UnknownLoc::get(_ctx), inputs[0], outputs[0], VPUIP::PoolLayerTypeAttr::get(_ctx, type), kernel,
+            strides, padsBegin, padsEnd,
+            params->exclude_pad()->str() == std::string("true") ? mlir::UnitAttr::get(_ctx) : nullptr);
 }
