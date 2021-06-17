@@ -233,4 +233,93 @@ INSTANTIATE_TEST_CASE_P(
         IEClassLoadNetworkTest_smoke,
         IEClassLoadNetworkTest,
         ::testing::ValuesIn(devices));
+
+TEST_P(IEClassLoadNetworkTest, checkBlobCachingSingleDevice) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    CommonTestUtils::removeFilesWithExt("cache", "blob");
+    CommonTestUtils::removeDir("cache");
+    Core ie;
+    ie.SetConfig({{CONFIG_KEY(CACHE_DIR), "cache/"}});
+
+    if (supportsDeviceID(ie, deviceName)) {
+        const auto deviceIDs = ie.GetMetric(deviceName, METRIC_KEY(AVAILABLE_DEVICES)).as<std::vector<std::string>>();
+        if (deviceIDs.empty())
+            GTEST_SKIP() << "No devices available";
+
+        std::string architecture;
+        const std::string fullDeviceName = deviceName + "." + deviceIDs[0];
+        ASSERT_NO_THROW(architecture = ie.GetMetric(fullDeviceName, METRIC_KEY(DEVICE_ARCHITECTURE)).as<std::string>());
+
+        auto start_time = std::chrono::steady_clock::now();
+        ASSERT_NO_THROW(ie.LoadNetwork(simpleNetwork, fullDeviceName));
+        std::chrono::duration<double> first_time = std::chrono::steady_clock::now() - start_time;
+        start_time = std::chrono::steady_clock::now();
+        ASSERT_NO_THROW(ie.LoadNetwork(simpleNetwork, fullDeviceName));
+        std::chrono::duration<double> second_time = std::chrono::steady_clock::now() - start_time;
+
+        std::cout << "[TIME] First LoadNetwork time: " << first_time.count() << std::endl;
+        std::cout << "[TIME] Second LoadNetwork time: " << second_time.count() << std::endl;
+
+        CommonTestUtils::removeFilesWithExt("cache", "blob");
+        CommonTestUtils::removeDir("cache");
+
+        ASSERT_GE(first_time.count(), second_time.count());
+    } else {
+        GTEST_SKIP() << "No support deviceID";
+    }
+}
+
+//
+// IE Class GetMetric
+//
+
+using IEClassGetMetricTest_DEVICE_ARCHITECTURE = IEClassBaseTestP;
+
+TEST_P(IEClassGetMetricTest_DEVICE_ARCHITECTURE, GetMetricAndPrint) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    Core ie;
+    const auto deviceIDs = ie.GetMetric(deviceName, METRIC_KEY(AVAILABLE_DEVICES)).as<std::vector<std::string>>();
+    if (deviceIDs.empty())
+        GTEST_SKIP() << "No devices available";
+
+    ASSERT_METRIC_SUPPORTED(METRIC_KEY(DEVICE_ARCHITECTURE));
+
+    std::string architecture;
+    ASSERT_NO_THROW(architecture = ie.GetMetric(deviceName + "." + deviceIDs[0], METRIC_KEY(DEVICE_ARCHITECTURE)).as<std::string>());
+
+    std::cout << "Architect type: " << architecture << std::endl;
+}
+
+TEST_P(IEClassGetMetricTest_DEVICE_ARCHITECTURE, GetMetricWithoutDevice) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    Core ie;
+
+    if (supportsDeviceID(ie, deviceName)) {
+        const auto deviceIDs = ie.GetMetric(deviceName, METRIC_KEY(AVAILABLE_DEVICES)).as<std::vector<std::string>>();
+        if (!deviceIDs.empty())
+            GTEST_SKIP() << "Devices list not empty";
+
+        ASSERT_ANY_THROW(ie.GetMetric(deviceName, METRIC_KEY(DEVICE_ARCHITECTURE)));
+    }
+}
+
+TEST_P(IEClassGetMetricTest_DEVICE_ARCHITECTURE, GetAllArchitectures) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    Core ie;
+
+    const auto deviceIDs = ie.GetMetric(deviceName, METRIC_KEY(AVAILABLE_DEVICES)).as<std::vector<std::string>>();
+    if (deviceIDs.empty())
+        GTEST_SKIP() << "No devices available";
+    for (const auto& item : deviceIDs) {
+        std::string architecture;
+        ASSERT_NO_THROW(architecture = ie.GetMetric(deviceName + "." + item, METRIC_KEY(DEVICE_ARCHITECTURE)).as<std::string>());
+        std::cout << "Architect type: " << architecture << std::endl;
+    }
+}
+
+INSTANTIATE_TEST_CASE_P(
+        IEClassGetMetricTest_nightly,
+        IEClassGetMetricTest_DEVICE_ARCHITECTURE,
+        ::testing::ValuesIn(devices));
+
 } // namespace
