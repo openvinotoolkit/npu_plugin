@@ -105,6 +105,7 @@
 #include <ngraph/op/space_to_depth.hpp>
 #include <ngraph/op/squared_difference.hpp>
 #include <ngraph/op/depth_to_space.hpp>
+#include <ngraph/op/equal.hpp>
 
 #include <legacy/ngraph_ops/interp.hpp>
 #include <legacy/ngraph_ops/lrn_ie.hpp>
@@ -1969,6 +1970,17 @@ void convert(std::shared_ptr<ngraph::op::v0::DepthToSpace> DepthToSpace, mv::OpM
     registerOutputs(DepthToSpace, {mcmDepthToSpace}, mcmOutputsMap);
 }
 
+void convert(std::shared_ptr<ngraph::op::v1::Equal> op, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
+    const auto mcmInputs = getMcmInputs(op, mcmOutputsMap);
+    IE_ASSERT(2u == mcmInputs.size());
+    const auto opName = op->get_friendly_name();
+    mv::Data::TensorIterator mcmOpOutput;
+    mcmOpOutput = mcmModel.eltwise(opName, mcmInputs, "Equal");
+    mcmOpOutput->setQuantParams(initialQuantParams());
+    registerOutputs(op, {mcmOpOutput}, mcmOutputsMap);
+}
+
+
 // TODO: move converters to class ConvertToMcmModel scope to remove references to data
 
 template <typename T>
@@ -2071,7 +2083,8 @@ static const DispatchMap dispatchMap {
     MAP_ENTRY(ngraph::op::v0::Convert),
     MAP_ENTRY(ngraph::op::v0::SquaredDifference),
     MAP_ENTRY(ngraph::op::v0::DepthToSpace),
-    MAP_ENTRY(ngraph::op::v0::ReverseSequence)
+    MAP_ENTRY(ngraph::op::v0::ReverseSequence),
+    MAP_ENTRY(ngraph::op::v1::Equal)
 };
 
 #undef MAP_ENTRY
