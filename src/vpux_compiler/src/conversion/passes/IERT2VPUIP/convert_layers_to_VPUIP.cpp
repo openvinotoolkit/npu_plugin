@@ -15,6 +15,7 @@
 
 #include <mlir/Dialect/Quant/QuantTypes.h>
 #include <mlir/Transforms/DialectConversion.h>
+#include <ngraph/slice_plan.hpp>
 
 using namespace vpux;
 
@@ -88,6 +89,77 @@ mlir::LogicalResult FakeQuantizeRewrite::matchAndRewrite(IERT::FakeQuantizeOp or
 }
 
 //
+// StridedSliceRewrite
+//
+
+class StridedSliceRewrite final : public mlir::OpRewritePattern<IERT::StridedSliceOp> {
+public:
+    StridedSliceRewrite(mlir::MLIRContext* ctx, Logger log)
+            : mlir::OpRewritePattern<IERT::StridedSliceOp>(ctx), _log(log) {
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(IERT::StridedSliceOp origOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult StridedSliceRewrite::matchAndRewrite(IERT::StridedSliceOp origOp,
+                                                         mlir::PatternRewriter& rewriter) const {
+    _log.trace("Found StridedSlice Operation '{0}'", origOp->getLoc());
+
+    const auto getAxisSetArr = [](mlir::ArrayAttr attr) {
+        ngraph::AxisSet axis_set;
+
+        const auto arr = parseIntArrayAttr(attr);
+        for (const auto& p : arr | indexed) {
+            if (p.value() == 1) {
+                axis_set.emplace(p.index());
+            }
+        }
+
+        return axis_set;
+    };
+
+    const auto beginsVec = to_std_vector(parseIntArrayAttr(origOp.begins_attr()));
+    const auto endsVec = to_std_vector(parseIntArrayAttr(origOp.ends_attr()));
+    const auto stridesVec = to_std_vector(parseIntArrayAttr(origOp.strides_attr()));
+
+    const auto beginMask = getAxisSetArr(origOp.begin_mask());
+    const auto endMask = getAxisSetArr(origOp.end_mask());
+    const auto newAxisMask = getAxisSetArr(origOp.new_axis_mask());
+    const auto shrinkAxisMask = getAxisSetArr(origOp.shrink_axis_mask());
+    const auto ellipsisMask = getAxisSetArr(origOp.ellipsis_mask());
+
+    const auto inDataType = origOp.input().getType().cast<mlir::ShapedType>();
+    const auto inDataShape = inDataType.getShape();
+
+    const auto plan =
+            ngraph::make_slice_plan(ngraph::Shape(inDataShape.begin(), inDataShape.end()), beginsVec, endsVec,
+                                    stridesVec, beginMask, endMask, newAxisMask, shrinkAxisMask, ellipsisMask);
+
+    _log.error("VPUIP StridedSliceRewrite:");
+    _log.error("begin {0} plan {1}", to_small_vector(beginsVec), to_small_vector(plan.begins));
+    _log.error("ends {0} plan {1}", to_small_vector(endsVec), to_small_vector(plan.ends));
+    _log.error("strides {0} plan {1}", to_small_vector(stridesVec), to_small_vector(plan.strides));
+    _log.error("plan.in {0}", to_small_vector(plan.reshape_in_shape));
+    _log.error("plan.out {0}", to_small_vector(plan.reshape_out_shape));
+
+    const auto ctx = rewriter.getContext();
+    const auto beginsAttr = getInt32ArrayAttr(ctx, plan.begins);
+    const auto endsAttr = getInt32ArrayAttr(ctx, plan.ends);
+    const auto stridesAttr = getInt32ArrayAttr(ctx, plan.strides);
+
+    rewriter.replaceOpWithNewOp<VPUIP::StridedSliceUPAOp>(origOp, origOp.input(), origOp.output_buff(), beginsAttr,
+                                                          endsAttr, stridesAttr);
+
+    _log.trace("Replaced with 'VPUIP.StridedSliceOp'");
+
+    return mlir::success();
+}
+
+//
 // Generated
 //
 
@@ -121,6 +193,7 @@ void ConvertLayers2VPUIPPass::safeRunOnFunc() {
     mlir::RewritePatternSet patterns(&ctx);
     patterns.insert<CTCGreedyDecoderSeqLenRewrite>(&ctx, _log);
     patterns.insert<FakeQuantizeRewrite>(&ctx, _log);
+    patterns.insert<StridedSliceRewrite>(&ctx, _log);
     populateWithGenerated(patterns);
 
     auto func = getFunction();

@@ -1256,15 +1256,22 @@ def IE_ROIPoolingOp :
 
 def IE_StridedSliceOp :
         IE_LayerOp<
-            "StridedSlice"
+            "StridedSlice",
+            [
+                AttrSizedOperandSegments
+            ]
         > {
     let summary = "InferenceEngine StridedSlice layer";
 
     let arguments = (ins
-        AnyRankedTensor:$data,
-        1DTensorOf<[AnyInteger]>:$begin,
-        1DTensorOf<[AnyInteger]>:$end,
-        1DTensorOf<[AnyInteger]>:$stride,
+        AnyRankedTensor:$input,
+        Optional<1DTensorOf<[AnyInteger]>>:$begins,
+        Optional<1DTensorOf<[AnyInteger]>>:$ends,
+        Optional<1DTensorOf<[AnyInteger]>>:$strides,
+
+        OptionalAttr<I64ArrayAttr>:$begins_attr,
+        OptionalAttr<I64ArrayAttr>:$ends_attr,
+        OptionalAttr<I64ArrayAttr>:$strides_attr,
 
         I64ArrayAttr:$begin_mask,
         I64ArrayAttr:$end_mask,
@@ -1276,6 +1283,8 @@ def IE_StridedSliceOp :
     let results = (outs
         AnyRankedTensor:$output
     );
+
+    let hasCanonicalizer = 1;
 }
 
 //

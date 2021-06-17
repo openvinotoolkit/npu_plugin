@@ -610,6 +610,18 @@ mlir::Operation* createRTLayer(IE::InterpolateOp origOp, ArrayRef<mlir::Value> a
                                          origOp.attr().nearest_mode().getValue(), origOp.attr().antialias().getValue());
 }
 
+mlir::Operation* createRTLayer(IE::StridedSliceOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    VPUX_THROW_UNLESS(allBufs.size() == 2, "Constant inputs should have been converted to attributes");
+    VPUX_THROW_UNLESS(origOp.begins_attr().hasValue(), "begins_attr is null");
+    VPUX_THROW_UNLESS(origOp.ends_attr().hasValue(), "ends_attr is null");
+    VPUX_THROW_UNLESS(origOp.strides_attr().hasValue(), "strides_attr is null");
+
+    return b.create<IERT::StridedSliceOp>(origOp.getLoc(), allBufs[0], nullptr, nullptr, nullptr, allBufs.back(),
+                                          origOp.begins_attr().getValue(), origOp.ends_attr().getValue(),
+                                          origOp.strides_attr().getValue(), origOp.begin_mask(), origOp.end_mask(),
+                                          origOp.new_axis_mask(), origOp.shrink_axis_mask(), origOp.ellipsis_mask());
+}
+
 class BufferizeIEPass::LayerRewrite final : public mlir::ConversionPattern {
 public:
     LayerRewrite(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
@@ -686,6 +698,7 @@ mlir::LogicalResult BufferizeIEPass::LayerRewrite::matchAndRewrite(mlir::Operati
     CASE(IE::PadOp)
     CASE(IE::ExpOp)
     CASE(IE::InterpolateOp)
+    CASE(IE::StridedSliceOp)
     .Default([](mlir::Operation*) {
         return nullptr;
     });

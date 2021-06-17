@@ -1491,6 +1491,50 @@ operation ::= `IERT.StaticAlloc` `<` $offset `>` attr-dict `->` type(results)
 | :----: | ----------- |
 `memory` | memref of any type values
 
+### `IERT.StridedSlice` (vpux::IERT::StridedSliceOp)
+
+InferenceEngine run-time StridedSlice layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.StridedSlice` attr-dict
+              `inputs` `(` $input `:` type($input) (`,` $begins^ `:` type($begins))? (`,` $ends^ `:` type($ends))? (`,` $strides^ `:` type($strides))?`)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`begins_attr` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`ends_attr` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`strides_attr` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`begin_mask` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`end_mask` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`new_axis_mask` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`shrink_axis_mask` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`ellipsis_mask` | ::mlir::ArrayAttr | 64-bit integer array attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of any type values
+`begins` | memref of integer values
+`ends` | memref of integer values
+`strides` | memref of integer values
+`output_buff` | memref of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of any type values
+
 ### `IERT.Swish` (vpux::IERT::SwishOp)
 
 InferenceEngine run-time Swish layer

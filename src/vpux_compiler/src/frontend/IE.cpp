@@ -822,8 +822,8 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
     auto attrEllipsisAxisMask = getInt64ArrayAttr(_ctx, origNode->get_ellipsis_mask());
 
     auto op = builder.create<IE::StridedSliceOp>(createLocation(origNode), inputs[0], inputs[1], inputs[2], inputs[3],
-                                                 attrBeginMask, attrEndMask, attrNewAxisMask, attrShrinkAxisMask,
-                                                 attrEllipsisAxisMask);
+                                                 nullptr, nullptr, nullptr, attrBeginMask, attrEndMask, attrNewAxisMask,
+                                                 attrShrinkAxisMask, attrEllipsisAxisMask);
     addOutputs(origNode, op);
 }
 

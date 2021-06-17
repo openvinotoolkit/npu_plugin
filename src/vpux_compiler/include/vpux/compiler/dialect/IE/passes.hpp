@@ -46,6 +46,7 @@ std::unique_ptr<mlir::Pass> createConvertTile2PerAxisTilePass(Logger log = Logge
 std::unique_ptr<mlir::Pass> createConvertPrecisionToFP16Pass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertShapeTo4DPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertPaddingsToFloorModePass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createResolveStridedSlicePass(Logger log = Logger::global());
 
 //
 // Low precision transformations.
