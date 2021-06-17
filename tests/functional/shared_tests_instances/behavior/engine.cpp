@@ -17,6 +17,9 @@ TEST(smoke_InterfaceTests, TestEngineClassGetMetric) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED() {
         InferenceEngine::Core ie;
+        auto deviceIDs = ie.GetMetric(expectedDeviceName, METRIC_KEY(AVAILABLE_DEVICES)).as<std::vector<std::string>>();
+        if (deviceIDs.empty())
+            GTEST_SKIP() << "No devices available";
 
         const std::vector<std::string> supportedMetrics =
                 ie.GetMetric(expectedDeviceName, METRIC_KEY(SUPPORTED_METRICS));

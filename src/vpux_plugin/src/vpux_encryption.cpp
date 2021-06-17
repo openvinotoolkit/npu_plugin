@@ -52,7 +52,7 @@ Encryption::Encryption(const std::string& nameOfLib)
             IE_THROW() << "dlsym_error";
         }
     } catch (const std::exception& ex) {
-        _logger.warning(ex.what());
+        _logger.info(ex.what());
     }
 }
 
