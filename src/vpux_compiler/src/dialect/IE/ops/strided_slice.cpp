@@ -75,6 +75,8 @@ mlir::LogicalResult vpux::IE::StridedSliceOp::inferReturnTypeComponents(
     const auto shapeI64 = to_small_vector(outputShape.get_shape() | transformed([](size_t val) {
                                               return checked_cast<int64_t>(val);
                                           }));
+    auto log = vpux::Logger::global();
+    log.error("shapeI64 {0}", shapeI64);
     inferredReturnShapes.emplace_back(shapeI64, inDataType.getElementType());
 
     return mlir::success();
