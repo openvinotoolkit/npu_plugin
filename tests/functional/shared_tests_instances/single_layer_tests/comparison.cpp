@@ -30,30 +30,32 @@ using namespace LayerTestsDefinitions::ComparisonParams;
 
 namespace {
 
+    // Shapes with more than 4 dimensions are not supported
     std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> inputShapes = {
-            {{1}, {{1}, {17}, {1, 1}, {2, 18}, {1, 1, 2}, {2, 2, 3}, {1, 1, 2, 3}}},
-            {{5}, {{1}, {1, 1}, {2, 5}, {1, 1, 1}, {2, 2, 5}}},
-            {{2, 200}, {{1}, {200}, {1, 200}, {2, 200}, {2, 2, 200}}},
-            {{1, 3, 20}, {{20}, {2, 1, 1}}},
-            {{2, 17, 3, 4}, {{4}, {1, 3, 4}, {2, 1, 3, 4}}},
-            {{2, 1, 1, 3, 1}, {{1}, {1, 3, 4}, {2, 1, 3, 4}, {1, 1, 1, 1, 1}}},
+        {{5}, {{1}}},
+        {{5}, {{1}, {1, 1}, {2, 5}, {1, 1, 1}, {2, 2, 5}}},
+        {{2, 200}, {{1}, {200}, {1, 200}, {2, 200}, {2, 2, 200}}},
+        {{1, 3, 20}, {{20}, {2, 1, 1}}},
+        {{2, 17, 3, 4}, {{4}, {1, 3, 4}, {2, 1, 3, 4}}},
     };
 
     std::vector<InferenceEngine::Precision> inputsPrecisions = {
             InferenceEngine::Precision::FP32,
+            InferenceEngine::Precision::FP16,
+            InferenceEngine::Precision::U8,
     };
 
+    // The commented operations are not supported for now
     std::vector<ngraph::helpers::ComparisonTypes> comparisonOpTypes = {
             ngraph::helpers::ComparisonTypes::EQUAL,
-            ngraph::helpers::ComparisonTypes::NOT_EQUAL,
-            ngraph::helpers::ComparisonTypes::GREATER,
-            ngraph::helpers::ComparisonTypes::GREATER_EQUAL,
-            ngraph::helpers::ComparisonTypes::LESS,
-            ngraph::helpers::ComparisonTypes::LESS_EQUAL,
+            // ngraph::helpers::ComparisonTypes::NOT_EQUAL,
+            // ngraph::helpers::ComparisonTypes::GREATER,
+            // ngraph::helpers::ComparisonTypes::GREATER_EQUAL,
+            // ngraph::helpers::ComparisonTypes::LESS,
+            // ngraph::helpers::ComparisonTypes::LESS_EQUAL,
     };
 
     std::vector<ngraph::helpers::InputLayerType> secondInputTypes = {
-            ngraph::helpers::InputLayerType::CONSTANT,
             ngraph::helpers::InputLayerType::PARAMETER,
     };
 
@@ -105,6 +107,6 @@ namespace {
     // openvino/inference-engine/include/details/ie_exception_conversion.hpp:64" thrown in the test body.
     //
     // [Track number: S#43012]
-    INSTANTIATE_TEST_CASE_P(DISABLED_smoke_CompareWithRefs, KmbComparisonLayerTest, ComparisonTestParams, KmbComparisonLayerTest::getTestCaseName);
+    INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs, KmbComparisonLayerTest, ComparisonTestParams, KmbComparisonLayerTest::getTestCaseName);
 
 }  // namespace

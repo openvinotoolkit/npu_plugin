@@ -3317,6 +3317,8 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAEltwiseFP16Task(ComputationMode
         softLayerParamsValue->operation = "sqdiff";
     else if (operation.compare(std::string("Maximum")) == 0)
         softLayerParamsValue->operation = "max";
+    else if (operation.compare(std::string("Equal")) == 0)
+        softLayerParamsValue->operation = "equal";
     else
         throw std::runtime_error("buildUPAEltwiseFP16Task: unsupported SW Eltwise Operation, check implementation.");
 
