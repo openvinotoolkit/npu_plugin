@@ -11,6 +11,8 @@
 # included with the Software Package for additional details.
 #
 
+replace_noerror()
+
 set(TARGET_NAME "vpux_compiler")
 set(TBLGEN_TARGET_NAME "${TARGET_NAME}_tblgen")
 set(SCHEMA_TARGET_NAME "${TARGET_NAME}_schema")
