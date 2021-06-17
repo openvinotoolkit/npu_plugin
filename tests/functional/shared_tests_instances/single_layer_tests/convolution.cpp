@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,8 +18,9 @@ TEST_P(KmbConvolutionLayerTest, DISABLED_CompareWithRefs) {
     Run();
 }
 
-TEST_P(KmbConvolutionLayerTest, CompareWithRefs_MLIR) {
+TEST_P(KmbConvolutionLayerTest, CompareWithRefs_MLIR_SW) {
     useCompilerMLIR();
+    setReferenceSoftwareModeMLIR();
     Run();
 }
 
