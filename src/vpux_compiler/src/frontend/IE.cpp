@@ -56,6 +56,7 @@
 #include <transformations/op_conversions/hsigmoid_decomposition.hpp>
 #include <transformations/op_conversions/hswish_decomposition.hpp>
 #include <transformations/op_conversions/simplify_ctc_greedy_decoder_seq_len.hpp>
+#include "legacy/transformations/convert_opset1_to_legacy/convert_strided_slice_to_crop.hpp"
 
 using namespace vpux;
 
@@ -1444,6 +1445,7 @@ void runNGraphPasses(std::shared_ptr<ngraph::Function> netGraph) {
     passConfig->disable<ngraph::pass::ConvertDivide>();
     passConfig->disable<ngraph::pass::ConvertNegative>();
     passConfig->disable<ngraph::pass::SimplifyCTCGreedyDecoderSeqLen>();
+    passConfig->disable<ngraph::pass::ConvertStridedSliceToCropMatcher>();
 
     ngraph::pass::Manager manager(passConfig);
     manager.register_pass<ngraph::pass::ConvertInterpolate1ToInterpolate4>();
