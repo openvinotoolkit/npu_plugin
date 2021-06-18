@@ -312,9 +312,9 @@ class Pipeline_Chains {
       return dpu_op->getOpType() != "DPUTask";
     }
 
-    std::list<operation_t> retrieve_concrete_child_ops(mv::Data::OpListIterator currOp, mv::OpModel& model)
+    op_list_t retrieve_concrete_child_ops(mv::Data::OpListIterator currOp, mv::OpModel& model)
     {
-      std::list<operation_t> concrete_child_ops;
+      op_list_t concrete_child_ops;
       for (auto child = currOp.leftmostChild(); child != model.opEnd(); ++child)
       {
         if (child->getOpType() == "DPUTask")
@@ -324,7 +324,7 @@ class Pipeline_Chains {
         }
         else
         {
-          std::list<operation_t> temp = retrieve_concrete_child_ops(child, model);
+          op_list_t temp = retrieve_concrete_child_ops(child, model);
           concrete_child_ops.merge(temp);
         }
       }
@@ -441,7 +441,7 @@ class Pipeline_Chains {
 
       mv::OpModel &model = omodel_;
       //////////////////////////////////////////////////////////////////////////
-      std::list<operation_t> zero_in_degree_nodes[2UL];
+      op_list_t zero_in_degree_nodes[2UL];
       std::unordered_map<operation_t, size_t> in_degree_map;
       std::unordered_map<std::string, bool> propagated_ops;
       size_t curr_depth = 0;
@@ -473,7 +473,7 @@ class Pipeline_Chains {
         {
           // update the in-degree //
           mv::Data::OpListIterator zop_itr = model.getOp((*zitr)->getName());
-          std::list<operation_t> child_ops = retrieve_concrete_child_ops(zop_itr, model);
+          op_list_t child_ops = retrieve_concrete_child_ops(zop_itr, model);
           for (auto& cop : child_ops)
           {
             if (propagated_ops.find(cop->getName()) != propagated_ops.end())
@@ -481,8 +481,8 @@ class Pipeline_Chains {
             auto ditr = in_degree_map.find(cop);
             if ( (ditr == in_degree_map.end()) || (ditr->second == 0UL) )
             {
-              throw "Missing entry in the in-degree map (or)"
-                  " invalid in-degree for op= " + cop->getName();
+              throw mv::RuntimeError("ChainPipelining pass", "Missing entry in the in-degree map (or)"
+                  " invalid in-degree for op= " + cop->getName());
             }
             --(ditr->second);
             if (!(ditr->second))
@@ -1177,7 +1177,7 @@ MOVE_TO_NEXT_SUBGRAPH:
         const std::string& inplace_attribute="inplace_eltwise_rep") const {
 
       if (eltwise_chain.dpu_chain_.size() < 2UL) {
-        throw "chain lenght must be >= 2";
+        throw mv::RuntimeError("ChainPipelining pass", "chain lenght must be >= 2");
       }
 
       typedef typename chain_subgraph_t::read_size_map_t read_size_map_t;
