@@ -1,5 +1,5 @@
 //
-// Copyright 2021 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -38,7 +38,7 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(PermuteUPAOp op) {
         return mlir::success();
     }
 
-    const auto order = DimsOrder::fromAffineMap(op.order_value().getValue());
+    const auto order = DimsOrder::fromPermutationAffineMap(op.order_value().getValue());
     const auto inShape = getShape(inType);
 
     if (order.numDims() > inShape.size()) {
@@ -65,9 +65,9 @@ void vpux::VPUIP::PermuteUPAOp::build(::mlir::OpBuilder& odsBuilder, ::mlir::Ope
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::PermuteUPAOp::serialize(VPUIP::BlobWriter& writer) {
-    DimsOrder order{};
-    if (this->order_value().hasValue()) {
-        order = DimsOrder::fromAffineMap(this->order_value().getValue());
+    DimsOrder order;
+    if (order_value().hasValue()) {
+        order = DimsOrder::fromPermutationAffineMap(order_value().getValue());
     } else {
         const auto inType = input().getType().dyn_cast<mlir::ShapedType>();
         order = DimsOrder::fromNumDims(inType.getRank());

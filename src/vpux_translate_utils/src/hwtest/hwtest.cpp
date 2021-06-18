@@ -239,8 +239,7 @@ void buildSimpleZMajorConv(mlir::ModuleOp module, mlir::OpBuilder builder, Logge
 
     SmallVector<mlir::Type> inputTypes;
     inputTypes.reserve(num_func_args);
-    SmallVector<mlir::AffineMap> in_affineMaps;
-    in_affineMaps.push_back(vpux::DimsOrder::NHWC.toAffineMap(builder.getContext()));
+    const auto in_affineMaps = vpux::DimsOrder::NHWC.toAffineMapsList(builder.getContext(), Shape(in_shape));
     auto memSpaceAttr_in =
             VPUIP::MemoryLocationAttr::get(builder.getContext(), VPUIP::MemoryLocation::ProgrammableInput);
     inputTypes.push_back(mlir::MemRefType::get(makeArrayRef(in_shape), inputType, in_affineMaps, memSpaceAttr_in));
@@ -269,8 +268,8 @@ void buildSimpleZMajorConv(mlir::ModuleOp module, mlir::OpBuilder builder, Logge
     // weights data
     auto weight_data_ddr_memSpaceAttr =
             VPUIP::MemoryLocationAttr::get(builder.getContext(), VPUIP::MemoryLocation::GraphFile);
-    SmallVector<mlir::AffineMap> wtData_ddr_affineMaps;
-    wtData_ddr_affineMaps.push_back(vpux::DimsOrder::NHWC.toAffineMap(builder.getContext()));
+    const auto wtData_ddr_affineMaps =
+            vpux::DimsOrder::NHWC.toAffineMapsList(builder.getContext(), Shape(wt_data_shape));
     auto weightData_ddr_type = mlir::MemRefType::get(makeArrayRef(wt_data_shape), weightsType, wtData_ddr_affineMaps,
                                                      weight_data_ddr_memSpaceAttr);
 
@@ -309,8 +308,8 @@ void buildSimpleZMajorConv(mlir::ModuleOp module, mlir::OpBuilder builder, Logge
     // weights table ddr tensor
     auto weightTbl_data_ddr_memSpaceAttr =
             VPUIP::MemoryLocationAttr::get(builder.getContext(), VPUIP::MemoryLocation::GraphFile);
-    SmallVector<mlir::AffineMap> wtTbl_ddr_affineMaps;
-    wtTbl_ddr_affineMaps.push_back(vpux::DimsOrder::NHWC.toAffineMap(builder.getContext()));
+    const auto wtTbl_ddr_affineMaps =
+            vpux::DimsOrder::NHWC.toAffineMapsList(builder.getContext(), Shape(wtTbl_data_shape));
     auto weightTblData_ddr_type =
             mlir::MemRefType::get(makeArrayRef(wtTbl_data_shape), builder.getIntegerType(32, /*isSigned=*/true),
                                   wtTbl_ddr_affineMaps, weightTbl_data_ddr_memSpaceAttr);
@@ -404,13 +403,10 @@ void buildSimpleZMajorConv(mlir::ModuleOp module, mlir::OpBuilder builder, Logge
         const auto& inputName = "input_" + std::to_string(i);
         const auto nameAttr = mlir::StringAttr::get(builder.getContext(), inputName);
         auto precision = inputType;
-        if (auto qtype = precision.dyn_cast<mlir::quant::QuantizedType>()) {
+        if (precision.isa<mlir::quant::QuantizedType>()) {
             precision = mlir::quant::QuantizedType::castToStorageType(precision);
         }
-        SmallVector<mlir::AffineMap> affineMaps;
-        affineMaps.push_back(vpux::DimsOrder::NHWC.toAffineMap(builder.getContext()));
-        auto memSpaceAttr_in =
-                VPUIP::MemoryLocationAttr::get(builder.getContext(), VPUIP::MemoryLocation::ProgrammableInput);
+        const auto affineMaps = vpux::DimsOrder::NHWC.toAffineMapsList(builder.getContext(), Shape(in_shape));
         const auto userTypeAttr =
                 mlir::TypeAttr::get(mlir::MemRefType::get(in_shape, precision, affineMaps, memSpaceAttr_in));
         inputsInfoBuilder.create<IE::DataInfoOp>(builder.getUnknownLoc(), nameAttr, userTypeAttr);
@@ -421,13 +417,10 @@ void buildSimpleZMajorConv(mlir::ModuleOp module, mlir::OpBuilder builder, Logge
         const auto& resultName = "output_" + std::to_string(i);
         const auto nameAttr = mlir::StringAttr::get(builder.getContext(), resultName);
         auto precision = outputType;
-        if (auto qtype = precision.dyn_cast<mlir::quant::QuantizedType>()) {
+        if (precision.isa<mlir::quant::QuantizedType>()) {
             precision = mlir::quant::QuantizedType::castToStorageType(precision);
         }
-        SmallVector<mlir::AffineMap> affineMaps;
-        affineMaps.push_back(vpux::DimsOrder::NHWC.toAffineMap(builder.getContext()));
-        auto memSpaceAttr_out =
-                VPUIP::MemoryLocationAttr::get(builder.getContext(), VPUIP::MemoryLocation::ProgrammableOutput);
+        const auto affineMaps = vpux::DimsOrder::NHWC.toAffineMapsList(builder.getContext(), Shape(out_shape));
         const auto userTypeAttr =
                 mlir::TypeAttr::get(mlir::MemRefType::get(out_shape, precision, affineMaps, memSpaceAttr_out));
         outputsInfoBuilder.create<IE::DataInfoOp>(builder.getUnknownLoc(), nameAttr, userTypeAttr);

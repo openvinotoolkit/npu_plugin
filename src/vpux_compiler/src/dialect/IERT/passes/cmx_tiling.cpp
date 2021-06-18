@@ -15,6 +15,7 @@
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/tiling.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
+#include "vpux/compiler/utils/types.hpp"
 
 #include <mlir/IR/PatternMatch.h>
 #include <mlir/Transforms/GreedyPatternRewriteDriver.h>
@@ -153,13 +154,6 @@ private:
     Logger _log;
 };
 
-mlir::MemRefType reduceShape(mlir::MemRefType origType, ShapeRef newShape) {
-    const auto order = DimsOrder::fromType(origType);
-    const auto orderAffineMap = order.toAffineMap(origType.getContext());
-    return mlir::MemRefType::get(newShape.raw(), origType.getElementType(), makeArrayRef(orderAffineMap),
-                                 origType.getMemorySpace());
-}
-
 mlir::Value makeTile(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value origVal, const Tile& tile) {
     const auto origType = origVal.getType().cast<mlir::MemRefType>();
 
@@ -171,7 +165,7 @@ mlir::Value makeTile(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value o
     auto viewOp =
             builder.create<mlir::memref::SubViewOp>(loc, origVal, tile.offsets.raw(), tile.shape.raw(), viewStrides);
 
-    const auto tileType = reduceShape(origType, tile.shape);
+    const auto tileType = changeShape(origType, tile.shape);
     auto allocOp = builder.create<mlir::memref::AllocOp>(loc, tileType);
 
     auto copyOp = builder.create<IERT::CopyOp>(loc, viewOp.result(), allocOp.memref());
@@ -213,7 +207,7 @@ mlir::LogicalResult CMXTilingPass::ConvolutionTiling::matchAndRewrite(IERT::Conv
         const auto biasInput =
                 origOp.bias() != nullptr ? makeTile(rewriter, origOp->getLoc(), origOp.bias(), biasTile) : nullptr;
 
-        const auto tileTypeOut = reduceShape(origOp.output_buff().getType().cast<mlir::MemRefType>(), tilings[i].shape);
+        const auto tileTypeOut = changeShape(origOp.output_buff().getType().cast<mlir::MemRefType>(), tilings[i].shape);
         auto allocOutOp = rewriter.create<mlir::memref::AllocOp>(origOp.getLoc(), tileTypeOut);
 
         auto convOp = rewriter.create<IERT::ConvolutionOp>(

@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -12,15 +12,14 @@
 //
 
 #include "vpux/compiler/core/attributes/strides.hpp"
-
-#include "vpux/compiler/core/attributes/dims_order.hpp"
 #include "vpux/compiler/core/attributes/shape.hpp"
 #include "vpux/compiler/core/attributes/stride_reqs.hpp"
+
+#include "vpux/compiler/utils/types.hpp"
 
 #include <mlir/Dialect/Quant/QuantTypes.h>
 
 #include <algorithm>
-#include <numeric>
 
 using namespace vpux;
 
@@ -35,57 +34,14 @@ bool vpux::details::isDynamicDimValues(ArrayRef<Bit> strides) {
 }
 
 //
-// TypeSize
-//
-
-Bit vpux::getElemTypeSize(mlir::Type type) {
-    if (const auto shaped = type.dyn_cast<mlir::ShapedType>()) {
-        return getElemTypeSize(shaped.getElementType());
-    }
-
-    if (type.isIntOrFloat()) {
-        return Bit(type.getIntOrFloatBitWidth());
-    }
-
-    if (const auto qType = type.dyn_cast<mlir::quant::QuantizedType>()) {
-        return Bit(qType.getStorageTypeIntegralWidth());
-    }
-
-    VPUX_THROW("Can't get type size for '{0}'", type);
-}
-
-Byte vpux::getTypeTotalSize(mlir::MemRefType type) {
-    if (type.getRank() == 0) {
-        return getElemTypeSize(type);
-    }
-
-    const auto dimsOrder = DimsOrder::fromType(type);
-    const auto shape = getShape(type);
-    const auto strides = getStrides(type);
-    const auto memShape = dimsOrder.toMemoryOrder(shape);
-    const auto memStrides = dimsOrder.toMemoryOrder(strides);
-
-    VPUX_THROW_UNLESS(memShape.size() == memStrides.size(), "Size and strides mismatch : {0} vs {1}", memShape,
-                      memStrides);
-
-    return Byte(memStrides.front() * memShape.front());
-}
-
-Byte vpux::getTotalSize(mlir::Value val) {
-    const auto type = val.getType().dyn_cast_or_null<mlir::MemRefType>();
-    VPUX_THROW_UNLESS(type != nullptr, "Value '{0}' has non MemRefType '{1}'", val, val.getType());
-    return getTypeTotalSize(type);
-}
-
-//
 // Strides
 //
 
 Strides vpux::getStrides(mlir::MemRefType type) {
     const auto maps = type.getAffineMaps();
 
-    if (maps.size() == 1 && maps.front().isPermutation()) {
-        const auto dimsOrder = DimsOrder::fromAffineMap(maps.front());
+    if (!maps.empty() && maps.front().isPermutation()) {
+        const auto dimsOrder = DimsOrder::fromPermutationAffineMap(maps.front());
         const auto memStrides = StrideReqs::simple(type.getRank()).calcStrides(dimsOrder, type);
         return dimsOrder.toLogicalOrder(memStrides);
     }

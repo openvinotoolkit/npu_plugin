@@ -77,6 +77,7 @@ func @main(%arg0: memref<1x8x4x2xf16>, %arg1: memref<1x8x4x2xf16, #NHWC>) -> mem
 // -----
 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
+#map = affine_map<(d0, d1, d2, d3) -> (d0 * 64 + d1 * 16 + d2 * 8 + d3)>
 
 module @DifferentOrders attributes {VPUIP.arch = "VPU3700", VPUIP.compilationMode = "ReferenceHW"} {
 
@@ -103,11 +104,11 @@ func @main(%arg0: memref<1x8x4x2xf16>, %arg1: memref<1x8x4x2xf16>) -> memref<1x8
     %0 = IERT.MaxPool {kernel_size = [5 : i32, 5 : i32], pads_begin = [2 : i32, 0 : i32], pads_end = [1 : i32, 0 : i32], strides = [2 : i32, 2 : i32]} inputs(%arg0 : memref<1x8x4x2xf16>) outputs(%arg1 : memref<1x8x4x2xf16>) -> memref<1x8x4x2xf16>
     return %0 : memref<1x8x4x2xf16>
 
-    // CHECK: [[VAR0:%.*]] = memref.alloc() : memref<1x8x4x2xf16, #NHWC>
-    // CHECK: [[VAR1:%.*]] = IERT.Reorder inputs(%arg0 : memref<1x8x4x2xf16>) outputs([[VAR0]] : memref<1x8x4x2xf16, #NHWC>) -> memref<1x8x4x2xf16, #NHWC>
-    // CHECK: [[VAR2:%.*]] = memref.alloc() : memref<1x8x4x2xf16, #NHWC>
-    // CHECK: [[VAR3:%.*]] = IERT.MaxPool {kernel_size = [5 : i32, 5 : i32], pads_begin = [2 : i32, 0 : i32], pads_end = [1 : i32, 0 : i32], strides = [2 : i32, 2 : i32]} inputs([[VAR1]] : memref<1x8x4x2xf16, #NHWC>) outputs([[VAR2]] : memref<1x8x4x2xf16, #NHWC>) -> memref<1x8x4x2xf16, #NHWC>
-    // CHECK: [[VAR4:%.*]] = IERT.Reorder inputs([[VAR3]] : memref<1x8x4x2xf16, #NHWC>) outputs(%arg1 : memref<1x8x4x2xf16>) -> memref<1x8x4x2xf16>
+    // CHECK: [[VAR0:%.*]] = memref.alloc() : memref<1x8x4x2xf16, #NHWC, #map>
+    // CHECK: [[VAR1:%.*]] = IERT.Reorder inputs(%arg0 : memref<1x8x4x2xf16>) outputs([[VAR0]] : memref<1x8x4x2xf16, #NHWC, #map>) -> memref<1x8x4x2xf16, #NHWC, #map>
+    // CHECK: [[VAR2:%.*]] = memref.alloc() : memref<1x8x4x2xf16, #NHWC, #map>
+    // CHECK: [[VAR3:%.*]] = IERT.MaxPool {kernel_size = [5 : i32, 5 : i32], pads_begin = [2 : i32, 0 : i32], pads_end = [1 : i32, 0 : i32], strides = [2 : i32, 2 : i32]} inputs([[VAR1]] : memref<1x8x4x2xf16, #NHWC, #map>) outputs([[VAR2]] : memref<1x8x4x2xf16, #NHWC, #map>) -> memref<1x8x4x2xf16, #NHWC, #map>
+    // CHECK: [[VAR4:%.*]] = IERT.Reorder inputs([[VAR3]] : memref<1x8x4x2xf16, #NHWC, #map>) outputs(%arg1 : memref<1x8x4x2xf16>) -> memref<1x8x4x2xf16>
     // CHECK: return [[VAR4]] : memref<1x8x4x2xf16>
 }
 

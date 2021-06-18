@@ -42,7 +42,6 @@
 #include <ngraph/opsets/opset7.hpp>
 #include <ngraph/pass/constant_folding.hpp>
 #include <ngraph/pass/manager.hpp>
-#include <ngraph/shape.hpp>
 #include <ngraph/type/element_type.hpp>
 
 #include <transformations/common_optimizations/common_optimizations.hpp>
@@ -50,7 +49,6 @@
 #include <transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp>
 #include <transformations/op_conversions/convert_divide.hpp>
 #include <transformations/op_conversions/convert_minimum_to_power_and_max.hpp>
-#include <transformations/op_conversions/convert_mod.hpp>
 #include <transformations/op_conversions/convert_negative.hpp>
 #include <transformations/op_conversions/convert_subtract.hpp>
 #include <transformations/op_conversions/hsigmoid_decomposition.hpp>
@@ -1300,30 +1298,17 @@ IE::PadModeAttr NGraphImporter::importPadMode(const ngraph::op::PadMode val) {
     return attr;
 }
 
-mlir::AffineMap importLayout(mlir::MLIRContext* ctx, InferenceEngine::Layout layout, size_t numDims) {
-    if (numDims > 5) {
+SmallVector<mlir::AffineMap> importLayout(mlir::MLIRContext* ctx, InferenceEngine::Layout layout, size_t numDims) {
+    if (numDims > MAX_NAMED_ORDER_NUM_DIMS || layout == InferenceEngine::Layout::ANY) {
         return {};
     }
 
-    switch (layout) {
-    case InferenceEngine::Layout::ANY:
-    case InferenceEngine::Layout::SCALAR:
-    case InferenceEngine::Layout::C:
-    case InferenceEngine::Layout::NC:
-    case InferenceEngine::Layout::CHW:
-    case InferenceEngine::Layout::NCHW:
-    case InferenceEngine::Layout::NCDHW:
+    const auto order = DimsOrder::fromIE(layout);
+    if (order == DimsOrder::fromNumDims(order.numDims())) {
         return {};
-    case InferenceEngine::Layout::HWC:
-        return DimsOrder::HWC.toAffineMap(ctx);
-    case InferenceEngine::Layout::NHWC:
-        return DimsOrder::NHWC.toAffineMap(ctx);
-    case InferenceEngine::Layout::NDHWC:
-        return DimsOrder::NDHWC.toAffineMap(ctx);
-
-    default:
-        VPUX_THROW("Unsupported layout '{0}'", layout);
     }
+
+    return {order.toPermutationAffineMap(ctx)};
 }
 
 mlir::Type importPrecision(mlir::MLIRContext* ctx, const InferenceEngine::Precision& precision) {
@@ -1357,11 +1342,7 @@ mlir::MemRefType importBuffer(mlir::MLIRContext* ctx, const InferenceEngine::Ten
     std::copy(desc.getDims().begin(), desc.getDims().end(), shape.begin());
 
     const auto precision = importPrecision(ctx, desc.getPrecision());
-
-    SmallVector<mlir::AffineMap> affineMaps;
-    if (auto layout = importLayout(ctx, desc.getLayout(), desc.getDims().size())) {
-        affineMaps.push_back(layout);
-    }
+    const auto affineMaps = importLayout(ctx, desc.getLayout(), shape.size());
 
     return mlir::MemRefType::get(shape, precision, affineMaps);
 }

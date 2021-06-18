@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -41,7 +41,7 @@ mlir::LogicalResult IEAsmHooks::getAlias(mlir::Attribute attr, llvm::raw_ostream
         const auto map = mapAttr.getValue();
 
         if (map.isPermutation()) {
-            const auto dimsOrder = DimsOrder::fromAffineMap(map);
+            const auto dimsOrder = DimsOrder::fromPermutationAffineMap(map);
 
             if (const auto name = dimsOrder.getCanonicalName()) {
                 os << name.getValue();
