@@ -11,7 +11,7 @@
 
 namespace LayerTestsDefinitions {
 
-class KmbReshapeLayerTest : public ReshapeLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+class KmbReshapeLayerTest : public ReshapeLayerTestRevise, virtual public LayerTestsUtils::KmbLayerTestsCommon {
     void ConfigureNetwork() override {
         LayerTestsUtils::KmbLayerTestsCommon::ConfigureNetwork();
         if (isCompilerMCM()) {
@@ -60,10 +60,10 @@ INSTANTIATE_TEST_CASE_P(smoke_ReshapeCollapse1, KmbReshapeLayerTest,
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(std::vector<size_t>({1, 1, 1, 100}), std::vector<size_t>({1, 100, 1, 1})),
-        ::testing::Values(std::vector<size_t>({0, 100})),
+        ::testing::Values(std::vector<int64_t>({0, 100})),
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
         ::testing::Values(std::map<std::string, std::string>({}))),
-    ReshapeLayerTest::getTestCaseName);
+    KmbReshapeLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(smoke_ReshapeCollapse2, KmbReshapeLayerTest,
     ::testing::Combine(
@@ -74,10 +74,10 @@ INSTANTIATE_TEST_CASE_P(smoke_ReshapeCollapse2, KmbReshapeLayerTest,
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(std::vector<size_t>({1, 2, 10, 10})),
-        ::testing::Values(std::vector<size_t>({1, 0, 100})),
+        ::testing::Values(std::vector<int64_t>({1, 0, 100})),
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
         ::testing::Values(std::map<std::string, std::string>({}))),
-    ReshapeLayerTest::getTestCaseName);
+    KmbReshapeLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(smoke_ReshapeExpand1, KmbReshapeLayerTest,
     ::testing::Combine(
@@ -88,10 +88,10 @@ INSTANTIATE_TEST_CASE_P(smoke_ReshapeExpand1, KmbReshapeLayerTest,
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(std::vector<size_t>({1, 100})),
-        ::testing::Values(std::vector<size_t>({0, 100, 1, 1})),
+        ::testing::Values(std::vector<int64_t>({0, 100, 1, 1})),
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
         ::testing::Values(std::map<std::string, std::string>({}))),
-    ReshapeLayerTest::getTestCaseName);
+    KmbReshapeLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(smoke_ReshapeExpand2, KmbReshapeLayerTest,
     ::testing::Combine(
@@ -102,10 +102,10 @@ INSTANTIATE_TEST_CASE_P(smoke_ReshapeExpand2, KmbReshapeLayerTest,
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(std::vector<size_t>({1, 2, 100})),
-        ::testing::Values(std::vector<size_t>({0, 0, 10, 10})),
+        ::testing::Values(std::vector<int64_t>({0, 0, 10, 10})),
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
         ::testing::Values(std::map<std::string, std::string>({}))),
-    ReshapeLayerTest::getTestCaseName);
+    KmbReshapeLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(smoke_ReshapeExpand3, KmbReshapeLayerTest,
     ::testing::Combine(
@@ -116,10 +116,10 @@ INSTANTIATE_TEST_CASE_P(smoke_ReshapeExpand3, KmbReshapeLayerTest,
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(std::vector<size_t>{4}),
-        ::testing::Values(std::vector<size_t>{1, 1, 2, 2}),
+        ::testing::Values(std::vector<int64_t>{1, 1, 2, 2}),
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
         ::testing::Values(std::map<std::string, std::string>({}))),
-    ReshapeLayerTest::getTestCaseName);
+    KmbReshapeLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(smoke_ReshapeGeneric1, KmbReshapeLayerTest,
     ::testing::Combine(
@@ -130,10 +130,10 @@ INSTANTIATE_TEST_CASE_P(smoke_ReshapeGeneric1, KmbReshapeLayerTest,
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(std::vector<size_t>({1, 1, 1, 1000})),
-        ::testing::Values(std::vector<size_t>({1, 1000, 1, 1})),
+        ::testing::Values(std::vector<int64_t>({1, 1000, 1, 1})),
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
         ::testing::Values(std::map<std::string, std::string>({}))),
-    ReshapeLayerTest::getTestCaseName);
+    KmbReshapeLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(smoke_ReshapeGeneric2, KmbReshapeLayerTest,
     ::testing::Combine(
@@ -144,10 +144,10 @@ INSTANTIATE_TEST_CASE_P(smoke_ReshapeGeneric2, KmbReshapeLayerTest,
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(std::vector<size_t>{1, 4, 2, 2}),
-        ::testing::Values(std::vector<size_t>{1, 2, 4, 2}),
+        ::testing::Values(std::vector<int64_t>{1, 2, 4, 2}),
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
         ::testing::Values(std::map<std::string, std::string>({}))),
-    ReshapeLayerTest::getTestCaseName);
+    KmbReshapeLayerTest::getTestCaseName);
 
 const std::vector<InferenceEngine::Precision> netPrecisions_pass_mcm = {
     InferenceEngine::Precision::FP16
@@ -162,10 +162,10 @@ INSTANTIATE_TEST_CASE_P(smoke_ReshapeCheck_pass_mcm, KmbReshapeLayerTest,
                             ::testing::Values(InferenceEngine::Layout::ANY),
                             ::testing::Values(InferenceEngine::Layout::ANY),
                             ::testing::Values(std::vector<size_t>({10, 10, 10, 10})),
-                            ::testing::Values(std::vector<size_t>({10, 0, 100})),
+                            ::testing::Values(std::vector<int64_t>({10, 0, 100})),
                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
                             ::testing::Values(std::map<std::string, std::string>({}))),
-                        ReshapeLayerTest::getTestCaseName);
+                        KmbReshapeLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(smoke_ReshapeCheck4Dto4DTensor_pass_mcm, KmbReshapeLayerTest,
                         ::testing::Combine(
@@ -176,9 +176,9 @@ INSTANTIATE_TEST_CASE_P(smoke_ReshapeCheck4Dto4DTensor_pass_mcm, KmbReshapeLayer
                             ::testing::Values(InferenceEngine::Layout::ANY),
                             ::testing::Values(InferenceEngine::Layout::ANY),
                             ::testing::Values(std::vector<size_t>({1, 1, 1, 1000})),
-                            ::testing::Values(std::vector<size_t>({1, 1000, 1, 1})),
+                            ::testing::Values(std::vector<int64_t>({1, 1000, 1, 1})),
                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
                             ::testing::Values(std::map<std::string, std::string>({}))),
-                        ReshapeLayerTest::getTestCaseName);
+                        KmbReshapeLayerTest::getTestCaseName);
 
 }  // namespace
