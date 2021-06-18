@@ -6,24 +6,20 @@
 
 #include "kmb_layer_test.hpp"
 #include "single_layer_tests/strided_slice.hpp"
-
 namespace LayerTestsDefinitions {
-
 class KmbStridedSliceLayerTest : public StridedSliceLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
     void SkipBeforeLoad() override {
-        if (!isCompilerMCM()) {
-            return;
-        }
-
-        auto params = std::get<0>(GetParam());
-        if (params.inputShape.size() != 4) {
-            throw LayerTestsUtils::KmbSkipTestException("MCM doesn't support input shape != 4D");
+        if (isCompilerMCM()) {
+            auto params = std::get<0>(GetParam());
+            if (params.inputShape.size() != 4) {
+                throw LayerTestsUtils::KmbSkipTestException("MCM doesn't support input shape != 4D");
+            }
         }
     }
 };
 
 TEST_P(KmbStridedSliceLayerTest, COMPILER_MCM) {
-   Run();
+    Run();
 }
 
 TEST_P(KmbStridedSliceLayerTest, COMPILER_MLIR) {
@@ -44,11 +40,11 @@ std::vector<StridedSliceSpecificParams> tests = {
         {{1, 32, 64, 256}, {0, 0, 54, 0}, {1, 32, 64, 128}, {1, 1, 1, 1}, {1, 1, 0, 1}, {1, 1, 1, 1}, {}, {}, {}},
         {{1, 32, 64, 512}, {0, 0, 55, 0}, {1, 32, 64, 128}, {1, 1, 1, 1}, {1, 1, 0, 1}, {1, 1, 1, 1}, {}, {}, {}},
 
-        {{32, 32}, {0, 0,0}, {0, 0,0}, {1, 1,1}, {1,1,1}, {1,1,1}, {1,0,0}, {0,0,0}, {0,0,0}},
-        {{32, 32}, {0, 0,0}, {0, 0,0}, {1, 1,1}, {1,1,1}, {1,1,1}, {0,1,0}, {0,0,0}, {0,0,0}},
-        {{32, 32}, {0, 0,0}, {0, 0,0}, {1, 1,1}, {1,1,1}, {1,1,1}, {0,0,1}, {0,0,0}, {0,0,0}},
-        {{32, 32, 32}, {0, 0}, {0, 0}, {1, 1}, {1,1}, {1,1}, {0,0}, {1,0}, {0,0}},
-        {{32, 32, 32}, {0, 0}, {0, 0}, {1, 1}, {1,1}, {1,1}, {0,0}, {0,1}, {0,0}},
+        {{32, 32}, {0, 0, 0}, {0, 0, 0}, {1, 1, 1}, {1, 1, 1}, {1, 1, 1}, {1, 0, 0}, {0, 0, 0}, {0, 0, 0}},
+        {{32, 32}, {0, 0, 0}, {0, 0, 0}, {1, 1, 1}, {1, 1, 1}, {1, 1, 1}, {0, 1, 0}, {0, 0, 0}, {0, 0, 0}},
+        {{32, 32}, {0, 0, 0}, {0, 0, 0}, {1, 1, 1}, {1, 1, 1}, {1, 1, 1}, {0, 0, 1}, {0, 0, 0}, {0, 0, 0}},
+        {{32, 32, 32}, {0, 0}, {0, 0}, {1, 1}, {1, 1}, {1, 1}, {0, 0}, {1, 0}, {0, 0}},
+        {{32, 32, 32}, {0, 0}, {0, 0}, {1, 1}, {1, 1}, {1, 1}, {0, 0}, {0, 1}, {0, 0}},
 
         // from MKLDNN plugin
         {{32, 32}, {0, 20}, {32, 30}, {1, 1}, {0, 0}, {0, 0}, {}, {}, {}},
@@ -83,8 +79,7 @@ std::vector<StridedSliceSpecificParams> tests = {
         {{2, 32, 32, 20}, {0, 16, 0}, {2, 32, 0}, {1, 1, 1}, {1, 0, 1}, {1, 1, 1}, {}, {}, {0, 0, 1}},
 };
 
-[[maybe_unused]]
-std::vector<StridedSliceSpecificParams> testsWithNegativeStrides = {
+[[maybe_unused]] std::vector<StridedSliceSpecificParams> testsWithNegativeStrides = {
         {{10, 12}, {-1, 1}, {-9999, 0}, {-1, 1}, {0, 1}, {0, 1}, {0, 0}, {0, 0}, {0, 0}},
         {{1, 2, 4, 2}, {1, 0, 0, 0}, {1, 2, 4, 2}, {1, 1, -2, -1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {}, {}, {}},
         {{2, 2, 4, 2}, {1, 0, 0, 0}, {1, 2, 4, 2}, {1, 1, -2, -1}, {0, 1, 1, 1}, {1, 1, 1, 1}, {}, {}, {}},

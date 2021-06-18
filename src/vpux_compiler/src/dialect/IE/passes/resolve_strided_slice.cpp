@@ -103,27 +103,10 @@ mlir::LogicalResult ResolveStridedSlicePass::SlicePlanning::matchAndRewrite(IE::
 
     const auto plan = getSlicePlan(origOp);
 
-    const auto inputShapeAttr = getInt64ArrayAttr(getContext(), plan.reshape_in_shape);
-    // auto newInput = rewriter.create<IE::ReshapeOp>(origOp->getLoc(), origOp.input(), nullptr, false, inputShapeAttr);
-    _log.error("origOp.input() {0}", to_small_vector(origOp.input().getType().cast<mlir::ShapedType>().getShape()));
-    _log.error("plan.reshape_in_shape {0}", to_small_vector(plan.reshape_in_shape));
-    _log.error("plan.reshape_out_shape {0}", to_small_vector(plan.reshape_out_shape));
-
     const auto beginAttr = getInt64ArrayAttr(getContext(), plan.begins);
     const auto endsAttr = getInt64ArrayAttr(getContext(), plan.ends);
     const auto stridesAttr = getInt64ArrayAttr(getContext(), plan.strides);
-    _log.error("plan.begins = {0}", plan.begins);
-    _log.error("plan.ends = {0}", plan.ends);
-    _log.error("plan.strides = {0}", plan.strides);
-
-    const auto size = parseIntArrayAttr(origOp.begin_mask()).size();
     const auto zeroesArrayAttr = getInt64ArrayAttr(getContext(), llvm::SmallVector<int64_t>(plan.begins.size(), 0));
-    const auto onesArrayAttr = getInt64ArrayAttr(getContext(), llvm::SmallVector<int64_t>(plan.begins.size(), 1));
-
-    // auto newOp = rewriter.create<IE::StridedSliceOp>(
-    //         origOp->getLoc(), origOp.input(), origOp.begins(), origOp.ends(), origOp.strides(),
-    //         origOp.begins_attr().getValue(), origOp.ends_attr().getValue(), origOp.strides_attr().getValue(),
-    //         origOp.begin_mask(), origOp.end_mask(), zeroesArrayAttr, zeroesArrayAttr, zeroesArrayAttr);
 
     auto newOp = rewriter.create<IE::StridedSliceOp>(
             origOp->getLoc(), origOp.input(), origOp.begins(), origOp.ends(), origOp.strides(), beginAttr, endsAttr,
@@ -132,7 +115,7 @@ mlir::LogicalResult ResolveStridedSlicePass::SlicePlanning::matchAndRewrite(IE::
     const auto outputShapeAttr = getInt64ArrayAttr(getContext(), plan.reshape_out_shape);
     rewriter.replaceOpWithNewOp<IE::ReshapeOp>(origOp, newOp.output(), nullptr, false, outputShapeAttr);
 
-    _log.trace("Replaced with 'IE::Reshape' -> 'IE::StridedSlice' -> 'IE::Reshape'");
+    _log.trace("Replaced with 'IE::StridedSlice' -> 'IE::Reshape'");
 
     return mlir::success();
 }
@@ -148,10 +131,20 @@ void ResolveStridedSlicePass::safeRunOnFunc() {
         auto isZero = [](auto val) {
             return val == 0;
         };
+        auto isPositive = [](auto val) {
+            return val >= 0;
+        };
+
+        VPUX_THROW_UNLESS(slice.begins_attr().hasValue(), "begins_attr is null");
+        VPUX_THROW_UNLESS(slice.ends_attr().hasValue(), "ends_attr is null");
 
         return llvm::all_of(parseIntArrayAttr(slice.new_axis_mask()), isZero) &&
                llvm::all_of(parseIntArrayAttr(slice.shrink_axis_mask()), isZero) &&
-               llvm::all_of(parseIntArrayAttr(slice.ellipsis_mask()), isZero);
+               llvm::all_of(parseIntArrayAttr(slice.ellipsis_mask()), isZero) &&
+               llvm::all_of(parseIntArrayAttr(slice.begin_mask()), isZero) &&
+               llvm::all_of(parseIntArrayAttr(slice.end_mask()), isZero) &&
+               llvm::all_of(parseIntArrayAttr(slice.begins_attr().getValue()), isPositive) &&
+               llvm::all_of(parseIntArrayAttr(slice.ends_attr().getValue()), isPositive);
     };
 
     mlir::ConversionTarget target(ctx);

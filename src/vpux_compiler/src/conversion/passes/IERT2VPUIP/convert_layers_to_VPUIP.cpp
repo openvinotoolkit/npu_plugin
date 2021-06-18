@@ -139,13 +139,6 @@ mlir::LogicalResult StridedSliceRewrite::matchAndRewrite(IERT::StridedSliceOp or
             ngraph::make_slice_plan(ngraph::Shape(inDataShape.begin(), inDataShape.end()), beginsVec, endsVec,
                                     stridesVec, beginMask, endMask, newAxisMask, shrinkAxisMask, ellipsisMask);
 
-    _log.error("VPUIP StridedSliceRewrite:");
-    _log.error("begin {0} plan {1}", to_small_vector(beginsVec), to_small_vector(plan.begins));
-    _log.error("ends {0} plan {1}", to_small_vector(endsVec), to_small_vector(plan.ends));
-    _log.error("strides {0} plan {1}", to_small_vector(stridesVec), to_small_vector(plan.strides));
-    _log.error("plan.in {0}", to_small_vector(plan.reshape_in_shape));
-    _log.error("plan.out {0}", to_small_vector(plan.reshape_out_shape));
-
     const auto ctx = rewriter.getContext();
     const auto beginsAttr = getInt32ArrayAttr(ctx, plan.begins);
     const auto endsAttr = getInt32ArrayAttr(ctx, plan.ends);

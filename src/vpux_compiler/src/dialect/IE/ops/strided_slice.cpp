@@ -112,7 +112,6 @@ mlir::LogicalResult vpux::IE::StridedSliceOp::inferReturnTypeComponents(
                                               return checked_cast<int64_t>(val);
                                           }));
     auto log = vpux::Logger::global();
-    log.error("shapeI64 {0}", shapeI64);
     inferredReturnShapes.emplace_back(shapeI64, inDataType.getElementType());
 
     return mlir::success();
