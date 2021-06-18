@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -15,6 +15,7 @@
 
 #include "vpux/compiler/core/attributes/strides.hpp"
 #include "vpux/compiler/utils/linear_scan.hpp"
+#include "vpux/compiler/utils/types.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
 #include "vpux/utils/core/error.hpp"
@@ -22,7 +23,6 @@
 #include "vpux/utils/core/numeric.hpp"
 
 #include <mlir/Dialect/MemRef/IR/MemRef.h>
-#include <mlir/Dialect/StandardOps/IR/Ops.h>
 
 using namespace vpux;
 

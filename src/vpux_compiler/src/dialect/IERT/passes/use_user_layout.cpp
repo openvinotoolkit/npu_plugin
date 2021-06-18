@@ -11,11 +11,10 @@
 // included with the Software Package for additional details.
 //
 
-#include <vpux/compiler/core/aliases_info.hpp>
-#include <vpux/compiler/core/attributes/stride_reqs.hpp>
-#include <vpux/compiler/dialect/IERT/passes.hpp>
-#include <vpux/compiler/utils/logging.hpp>
-#include <vpux/compiler/utils/rewriter.hpp>
+#include "vpux/compiler/dialect/IERT/passes.hpp"
+#include "vpux/compiler/utils/logging.hpp"
+#include "vpux/compiler/utils/rewriter.hpp"
+#include "vpux/compiler/utils/types.hpp"
 
 #include <mlir/Transforms/DialectConversion.h>
 
@@ -59,11 +58,22 @@ void UseUserLayoutPass::safeRunOnModule() {
             const auto ind = checked_cast<uint32_t>(p.index());
 
             const auto origType = originTypes[ind].cast<mlir::MemRefType>();
-            const auto userType = p.value().userType().cast<mlir::MemRefType>();
 
-            const auto newType = mlir::MemRefType::get(origType.getShape(), origType.getElementType(),
-                                                       userType.getAffineMaps(), origType.getMemorySpace());
-            newTypes[ind] = newType;
+            const auto userType = p.value().userType().cast<mlir::MemRefType>();
+            const auto userDimsOrder = DimsOrder::fromType(userType);
+
+            // FIXME: remove when ND tensors are allowed at runtime [Track number: E#7613]
+            constexpr int64_t TARGET_TENSOR_DIM = 4;
+            auto dimsOrder = userDimsOrder;
+            if (userDimsOrder.numDims() < TARGET_TENSOR_DIM) {
+                VPUX_THROW_UNLESS(userDimsOrder == DimsOrder::fromNumDims(userDimsOrder.numDims()),
+                                  "Tensors with rank < 4 are supported only with default order, got: {0}",
+                                  userDimsOrder);
+
+                dimsOrder = DimsOrder::fromNumDims(TARGET_TENSOR_DIM);
+            }
+
+            newTypes[ind] = changeDimsOrder(origType, dimsOrder);
         }
     };
 

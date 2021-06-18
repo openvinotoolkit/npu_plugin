@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -13,13 +13,12 @@
 
 #include "vpux/compiler/core/attributes/stride_reqs.hpp"
 
+#include "vpux/compiler/utils/types.hpp"
+
 #include "vpux/utils/core/numeric.hpp"
 #include "vpux/utils/core/range.hpp"
 
 #include <algorithm>
-#include <limits>
-#include <numeric>
-#include <utility>
 
 using namespace vpux;
 

@@ -1,5 +1,5 @@
 //
-// Copyright 2021 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -33,14 +33,6 @@ namespace {
 //
 // Utilities
 //
-
-mlir::MemRefType changeMemSpace(mlir::MemRefType origType, mlir::Attribute memSpace) {
-    return mlir::MemRefType::Builder(origType).setMemorySpace(memSpace);
-}
-
-mlir::MemRefType changeDimsOrder(mlir::MemRefType origType, DimsOrder newOrder) {
-    return mlir::MemRefType::Builder(origType).setAffineMaps(newOrder.toAffineMap(origType.getContext()));
-}
 
 template <typename T>
 mlir::Value createHelperTensor(mlir::OpBuilder& builder, mlir::Location loc, ArrayRef<T> data, mlir::Type elemType,

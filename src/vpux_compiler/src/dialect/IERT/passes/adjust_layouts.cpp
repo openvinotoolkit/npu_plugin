@@ -11,9 +11,9 @@
 // included with the Software Package for additional details.
 //
 
-#include "vpux/compiler/core/attributes/stride_reqs.hpp"
 #include "vpux/compiler/dialect/IERT/passes.hpp"
 #include "vpux/compiler/utils/logging.hpp"
+#include "vpux/compiler/utils/types.hpp"
 
 #include <llvm/ADT/TypeSwitch.h>
 #include <mlir/Transforms/GreedyPatternRewriteDriver.h>
@@ -75,9 +75,7 @@ void AdjustLayoutsPass::Impl::insertReorderForInput(LayerInterface op, mlir::OpO
 
     const auto inputVal = input.get();
     auto origType = inputVal.getType().cast<mlir::MemRefType>();
-    auto newType = mlir::MemRefType::get(origType.getShape(), origType.getElementType(),
-                                         dstOrder.toAffineMap(getContext()), origType.getMemorySpace());
-
+    auto newType = changeDimsOrder(origType, dstOrder);
     _log.nest(2).trace("Create Reorder: '{0}' -> '{1}'", DimsOrder::fromValue(inputVal), dstOrder);
     auto allocOp = rewriter.create<mlir::memref::AllocOp>(op->getLoc(), newType);
     auto reorderOp = rewriter.create<IERT::ReorderOp>(op->getLoc(), inputVal, allocOp);
@@ -109,9 +107,7 @@ void AdjustLayoutsPass::Impl::insertReorderForOutput(LayerInterface op, mlir::Va
 
 void AdjustLayoutsPass::Impl::setNewType(mlir::Value operand, DimsOrder newOrder) const {
     const auto origType = operand.getType().cast<mlir::MemRefType>();
-    const auto newType = mlir::MemRefType::get(origType.getShape(), origType.getElementType(),
-                                               newOrder.toAffineMap(getContext()), origType.getMemorySpace());
-
+    const auto newType = changeDimsOrder(origType, newOrder);
     operand.setType(newType);
 }
 

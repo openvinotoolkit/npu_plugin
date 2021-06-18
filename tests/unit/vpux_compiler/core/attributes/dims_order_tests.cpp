@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -75,14 +75,40 @@ using MemStridesType = SmallVector<int64_t>;
 using ExpectedDimsOrderType = DimsOrder;
 using ValueDimsOrderType = DimsOrder;
 using ResType = bool;
+using MapsBuilder = SmallVector<mlir::AffineMap>(*)(DimsOrder, mlir::MLIRContext*, ShapeRef);
 
-std::vector<std::tuple<ExpectedDimsOrderType, ValueDimsOrderType, ShapeType, MemStridesType>> getFromType() {
+static SmallVector<mlir::AffineMap> createPermMap(DimsOrder order, mlir::MLIRContext* ctx, ShapeRef) {
+    return {order.toPermutationAffineMap(ctx)};
+}
+
+static SmallVector<mlir::AffineMap> createStridedMap(DimsOrder order, mlir::MLIRContext* ctx, ShapeRef shape) {
+    return {order.toStridedAffineMap(ctx, shape)};
+}
+
+static SmallVector<mlir::AffineMap> createMapList(DimsOrder order, mlir::MLIRContext* ctx, ShapeRef shape) {
+    return order.toAffineMapsList(ctx, shape);
+}
+
+std::vector<ShapeType> getFromType() {
     return {
-        {DimsOrder::CHW,  DimsOrder::CHW,  {8, 4, 2},    {}},
-        {DimsOrder::HCW,  DimsOrder::HCW,  {2, 3, 6},    {}},
-        {DimsOrder::CHW,  DimsOrder::HCW,  {1, 3, 6},    {6, 6, 1}},
-        {DimsOrder::NHCW, DimsOrder::NHCW, {5, 4, 3, 2}, {}},
-        {DimsOrder::NCHW, DimsOrder::NHCW, {5, 1, 2, 3}, {6, 3, 3, 1}},
+        {2},
+        {2, 3},
+        {1, 3, 6},
+        {5, 4, 3, 2},
+        {5, 1, 2, 3, 5},
+    };
+}
+
+std::vector<std::tuple<ExpectedDimsOrderType, ValueDimsOrderType, ShapeType, MapsBuilder>> getFromType_WithMaps() {
+    return {
+        {DimsOrder::CHW,  DimsOrder::CHW,  {8, 4, 2}, createPermMap},
+        {DimsOrder::HCW,  DimsOrder::HCW,  {1, 3, 6}, createPermMap},
+        {DimsOrder::NHCW, DimsOrder::NHCW, {5, 4, 3, 2}, createPermMap},
+        {DimsOrder::NHCW, DimsOrder::NHCW, {5, 1, 2, 3}, createPermMap},
+        {DimsOrder::CHW,  DimsOrder::HCW,  {1, 3, 6}, createStridedMap},
+        {DimsOrder::NCHW, DimsOrder::NHCW, {5, 1, 2, 3}, createStridedMap},
+        {DimsOrder::HCW,  DimsOrder::HCW,  {1, 3, 6}, createMapList},
+        {DimsOrder::NHCW, DimsOrder::NHCW, {5, 1, 2, 3}, createMapList},
     };
 }
 
@@ -328,6 +354,7 @@ TEST(MLIR_DimsOrderTest, fromIETest) {
     EXPECT_EQ(DimsOrder::C, DimsOrder::fromIE(InferenceEngine::Layout::C));
     EXPECT_EQ(DimsOrder::NC, DimsOrder::fromIE(InferenceEngine::Layout::NC));
     EXPECT_EQ(DimsOrder::CHW, DimsOrder::fromIE(InferenceEngine::Layout::CHW));
+    EXPECT_EQ(DimsOrder::HWC, DimsOrder::fromIE(InferenceEngine::Layout::HWC));
     EXPECT_EQ(DimsOrder::NCHW, DimsOrder::fromIE(InferenceEngine::Layout::NCHW));
     EXPECT_EQ(DimsOrder::NHWC, DimsOrder::fromIE(InferenceEngine::Layout::NHWC));
     EXPECT_EQ(DimsOrder::NCDHW, DimsOrder::fromIE(InferenceEngine::Layout::NCDHW));
@@ -383,30 +410,29 @@ TEST(MLIR_DimsOrderTest, getCanonicalName) {
 TEST(MLIR_DimsOrderTest, fromTypeTest) {
     const auto testData = getFromType();
 
+    mlir::MLIRContext ctx;
+    for (const auto& shape : testData) {
+        const auto memRefType =  mlir::MemRefType::get(shape, mlir::Float16Type::get(&ctx));
+
+        const auto actualOrder = DimsOrder::fromType(memRefType);
+        EXPECT_EQ(DimsOrder::fromNumDims(shape.size()), actualOrder);
+    }
+}
+
+TEST(MLIR_DimsOrderTest, fromTypeTest_WithMaps) {
+    const auto testData = getFromType_WithMaps();
+
+    mlir::MLIRContext ctx;
     for (const auto& testCase : testData) {
-        mlir::MLIRContext ctx;
         DimsOrder originOrder;
         DimsOrder expOrder;
         SmallVector<int64_t> shape{};
-        SmallVector<int64_t> memStrides{};
+        MapsBuilder mapBuilder;
 
-        std::tie(expOrder, originOrder, shape, memStrides) = testCase;
+        std::tie(expOrder, originOrder, shape, mapBuilder) = testCase;
 
-        const auto layoutMap = originOrder.toAffineMap(&ctx);
-        mlir::MemRefType memRefType;
-        if(originOrder != DimsOrder::fromNumDims(shape.size())) {
-            if(!memStrides.empty()) {
-                // strided memref
-                const auto map = mlir::makeStridedLinearLayoutMap(memStrides, 0, &ctx).compose(layoutMap);
-                memRefType =  mlir::MemRefType::get(shape, mlir::Float16Type::get(&ctx), map);
-            } else {
-                // memref with pure permutation
-                memRefType =  mlir::MemRefType::get(shape, mlir::Float16Type::get(&ctx), layoutMap);
-            }
-        } else {
-            // simple memref
-            memRefType =  mlir::MemRefType::get(shape, mlir::Float16Type::get(&ctx));
-        }
+        const auto layoutMaps = mapBuilder(originOrder, &ctx, Shape(shape));
+        const auto memRefType =  mlir::MemRefType::get(shape, mlir::Float16Type::get(&ctx), layoutMaps);
 
         const auto actualOrder = DimsOrder::fromType(memRefType);
         EXPECT_EQ(expOrder, actualOrder);
@@ -426,7 +452,7 @@ TEST(MLIR_DimsOrderTest, isCompatibleLayoutTest) {
 
         std::tie(expOrder, originOrder, shape, memStrides, isCompatible) = testCase;
 
-        const auto layoutMap = originOrder.toAffineMap(&ctx);
+        const auto layoutMap = originOrder.toPermutationAffineMap(&ctx);
         const auto stridesMap = mlir::makeStridedLinearLayoutMap(memStrides, 0, &ctx);
 
         const auto memRefType =  mlir::MemRefType::get(shape, mlir::Float16Type::get(&ctx), stridesMap.compose(layoutMap));

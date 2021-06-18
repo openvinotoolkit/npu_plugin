@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -47,14 +47,6 @@ public:
 };
 
 }  // namespace details
-
-//
-// TypeSize
-//
-
-Bit getElemTypeSize(mlir::Type type);
-Byte getTypeTotalSize(mlir::MemRefType type);
-Byte getTotalSize(mlir::Value val);
 
 //
 // Strides
