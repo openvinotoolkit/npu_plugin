@@ -111,7 +111,6 @@ mlir::LogicalResult vpux::IE::StridedSliceOp::inferReturnTypeComponents(
     const auto shapeI64 = to_small_vector(outputShape.get_shape() | transformed([](size_t val) {
                                               return checked_cast<int64_t>(val);
                                           }));
-    auto log = vpux::Logger::global();
     inferredReturnShapes.emplace_back(shapeI64, inDataType.getElementType());
 
     return mlir::success();
@@ -131,26 +130,24 @@ public:
     mlir::LogicalResult matchAndRewrite(IE::StridedSliceOp stridedSliceOp, mlir::PatternRewriter& rewriter) const final;
 };
 
-mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::StridedSliceOp stridedSliceOp,
+mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::StridedSliceOp slice,
                                                         mlir::PatternRewriter& rewriter) const {
-    if (!stridedSliceOp.begins() || !stridedSliceOp.ends() || !stridedSliceOp.strides()) {
+    if (!slice.begins() || !slice.ends() || !slice.strides()) {
         return mlir::failure();
     }
 
-    const auto inputData = extractData(stridedSliceOp.getLoc(), stridedSliceOp);
+    const auto inputData = extractData(slice.getLoc(), slice);
     if (mlir::failed(inputData)) {
         return mlir::failure();
     }
 
-    const auto ctx = stridedSliceOp.getContext();
-    const auto beginsAttr = getInt64ArrayAttr(ctx, inputData.getValue().begins);
-    const auto endsAttr = getInt64ArrayAttr(ctx, inputData.getValue().ends);
-    const auto stridesAttr = getInt64ArrayAttr(ctx, inputData.getValue().strides);
+    const auto beginsAttr = getInt64ArrayAttr(getContext(), inputData.getValue().begins);
+    const auto endsAttr = getInt64ArrayAttr(getContext(), inputData.getValue().ends);
+    const auto stridesAttr = getInt64ArrayAttr(getContext(), inputData.getValue().strides);
 
-    rewriter.replaceOpWithNewOp<IE::StridedSliceOp>(stridedSliceOp, stridedSliceOp.input(), nullptr, nullptr, nullptr,
-                                                    beginsAttr, endsAttr, stridesAttr, stridedSliceOp.begin_mask(),
-                                                    stridedSliceOp.end_mask(), stridedSliceOp.new_axis_mask(),
-                                                    stridedSliceOp.shrink_axis_mask(), stridedSliceOp.ellipsis_mask());
+    rewriter.replaceOpWithNewOp<IE::StridedSliceOp>(
+            slice, slice.input(), nullptr, nullptr, nullptr, beginsAttr, endsAttr, stridesAttr, slice.begin_mask(),
+            slice.end_mask(), slice.new_axis_mask(), slice.shrink_axis_mask(), slice.ellipsis_mask());
     return mlir::success();
 }
 

@@ -1704,28 +1704,17 @@ def IERT_StridedSliceOp :
         IERT_LayerOp<1, "StridedSlice",
             [
                 ViewLikeOpInterface,
-                AttrSizedOperandSegments
             ]
         > {
     let summary = "InferenceEngine run-time StridedSlice layer";
 
     let arguments = (ins
         AnyMemRef:$input,
-        Optional<MemRefOf<[AnyInteger]>>:$begins,
-        Optional<MemRefOf<[AnyInteger]>>:$ends,
-        Optional<MemRefOf<[AnyInteger]>>:$strides,
-
         AnyMemRef:$output_buff,
 
-        I64ArrayAttr:$begins_attr,
-        I64ArrayAttr:$ends_attr,
-        I64ArrayAttr:$strides_attr,
-
-        I64ArrayAttr:$begin_mask,
-        I64ArrayAttr:$end_mask,
-        I64ArrayAttr:$new_axis_mask,
-        I64ArrayAttr:$shrink_axis_mask,
-        I64ArrayAttr:$ellipsis_mask
+        I64ArrayAttr:$begins,
+        I64ArrayAttr:$ends,
+        I64ArrayAttr:$strides
     );
 
     let results = (outs
@@ -1734,7 +1723,7 @@ def IERT_StridedSliceOp :
 
     let assemblyFormat = [{
         attr-dict
-        `inputs` `(` $input `:` type($input) (`,` $begins^ `:` type($begins))? (`,` $ends^ `:` type($ends))? (`,` $strides^ `:` type($strides))?`)`
+        `inputs` `(` $input `:` type($input) `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
         `->` type(results)
     }];

@@ -616,10 +616,8 @@ mlir::Operation* createRTLayer(IE::StridedSliceOp origOp, ArrayRef<mlir::Value> 
     VPUX_THROW_UNLESS(origOp.ends_attr().hasValue(), "ends_attr is null");
     VPUX_THROW_UNLESS(origOp.strides_attr().hasValue(), "strides_attr is null");
 
-    return b.create<IERT::StridedSliceOp>(origOp.getLoc(), allBufs[0], nullptr, nullptr, nullptr, allBufs.back(),
-                                          origOp.begins_attr().getValue(), origOp.ends_attr().getValue(),
-                                          origOp.strides_attr().getValue(), origOp.begin_mask(), origOp.end_mask(),
-                                          origOp.new_axis_mask(), origOp.shrink_axis_mask(), origOp.ellipsis_mask());
+    return b.create<IERT::StridedSliceOp>(origOp.getLoc(), allBufs[0], allBufs.back(), origOp.begins_attr().getValue(),
+                                          origOp.ends_attr().getValue(), origOp.strides_attr().getValue());
 }
 
 class BufferizeIEPass::LayerRewrite final : public mlir::ConversionPattern {

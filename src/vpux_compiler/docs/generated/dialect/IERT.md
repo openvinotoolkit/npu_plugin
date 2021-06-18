@@ -1500,7 +1500,7 @@ Syntax:
 
 ```
 operation ::= `IERT.StridedSlice` attr-dict
-              `inputs` `(` $input `:` type($input) (`,` $begins^ `:` type($begins))? (`,` $ends^ `:` type($ends))? (`,` $strides^ `:` type($strides))?`)`
+              `inputs` `(` $input `:` type($input) `)`
               `outputs` `(` $output_buff `:` type($output_buff) `)`
               `->` type(results)
 ```
@@ -1510,23 +1510,15 @@ operation ::= `IERT.StridedSlice` attr-dict
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`begins_attr` | ::mlir::ArrayAttr | 64-bit integer array attribute
-`ends_attr` | ::mlir::ArrayAttr | 64-bit integer array attribute
-`strides_attr` | ::mlir::ArrayAttr | 64-bit integer array attribute
-`begin_mask` | ::mlir::ArrayAttr | 64-bit integer array attribute
-`end_mask` | ::mlir::ArrayAttr | 64-bit integer array attribute
-`new_axis_mask` | ::mlir::ArrayAttr | 64-bit integer array attribute
-`shrink_axis_mask` | ::mlir::ArrayAttr | 64-bit integer array attribute
-`ellipsis_mask` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`begins` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`ends` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`strides` | ::mlir::ArrayAttr | 64-bit integer array attribute
 
 #### Operands:
 
 | Operand | Description |
 | :-----: | ----------- |
 `input` | memref of any type values
-`begins` | memref of integer values
-`ends` | memref of integer values
-`strides` | memref of integer values
 `output_buff` | memref of any type values
 
 #### Results:
