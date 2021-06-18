@@ -1,4 +1,5 @@
 #include "mcm/utils/custom_math.hpp"
+#include "include/mcm/base/exception/argument_error.hpp"
 #include <cmath>
 #include <algorithm>
 
@@ -111,42 +112,39 @@ std::vector<std::size_t> mv::tileSpatialOutputSize(std::size_t outputSize , std:
 
 uint16_t mv::getWindowSize(uint16_t kx, uint16_t sx, mv::DType dataType)
 {
-    //Find max mpe where if calc window <= 32
+    auto dataSizeInBytes = dataType.getSizeInBytes();
+
+    // Only 8-bit integer and 2 byte float are supported data types
+    if (dataSizeInBytes != 1 && dataSizeInBytes != 2)
+    {
+        throw mv::ArgumentError("custom_math", "dataType.getSizeInBytes() == ",  std::to_string(dataType.getSizeInBytes()), "Supported types are only 8-bit integer and FP16");
+    }
+
+    //Find max mpe where if calc window <= 32 bytes
     //return window size for the max mpe
-    uint16_t windowSize, maxMpeWindowSize = 64;
+    uint16_t windowSize = 0, maxMpeWindowSize = 64;
     int mpe = 1;
 
-    if (dataType == mv::DType("UInt8"))
+    // Window size is limited to 32 bytes by HW. Size of the data type
+    // needs to be accounted to find the max (32 for U8, 16 for FP16)
+    uint16_t maxWindowSize = 32 / dataSizeInBytes;
+
+    // mpe limit:
+    // UINT8: [1,2,4,8,16]
+    // FP16:  [1,2,4]
+    uint16_t mpeLimit = (dataSizeInBytes == 2 ? 4 : 16);
+
+    while(mpe <= mpeLimit)
     {
-        //mpe in [1,2,4,8,16] for uint8
-        while(mpe <= 16)
-        {
-            if (sx <= kx)
-                windowSize = kx + sx * (mpe - 1);
-            else
-                windowSize = kx * mpe;
+        if (sx <= kx)
+            windowSize = kx + sx * (mpe - 1);
+        else
+            windowSize = kx * mpe;
 
-            if (windowSize <= 32)
-                maxMpeWindowSize = windowSize;
+        if (windowSize <= maxWindowSize)
+            maxMpeWindowSize = windowSize;
 
-            mpe *= 2;
-        }
-    }
-    else if (dataType == mv::DType("Float16"))
-    {
-        //mpe in [1,2,4] for float
-        while(mpe <= 4)
-        {
-            if (sx <= kx)
-                windowSize = kx + sx * (mpe - 1);
-            else
-                windowSize = kx * mpe;
-
-            if (windowSize <= 32)
-                maxMpeWindowSize = windowSize;
-
-            mpe *= 2;
-        }
+        mpe *= 2;
     }
 
     return maxMpeWindowSize;
