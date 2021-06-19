@@ -20,6 +20,8 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/ops.hpp>
 
+static void propogate_fq(std::shared_ptr<ngraph::Node> fq_node, int &copy_num);
+
 std::shared_ptr<ngraph::Node> clone_fq_node(std::shared_ptr<ngraph::Node> fq_node, const ngraph::Output<ngraph::Node> &input, int &copy_num) {
     copy_num++;
     auto const1 = fq_node->input_value(1).get_node_shared_ptr()->clone_with_new_inputs({});
@@ -59,6 +61,7 @@ static void propagate_down(std::shared_ptr<ngraph::Node> fq_node, std::shared_pt
                     consumer.replace_source_output(new_fq_node);
                 }
             }
+            propogate_fq(new_fq_node, copy_num);
         }
     }
 }
@@ -84,6 +87,18 @@ static void propagate_up(std::shared_ptr<ngraph::Node> fq_node, std::shared_ptr<
                     consumer.replace_source_output(new_fq_node);
                 }
             }
+            propogate_fq(new_fq_node, copy_num);
+        }
+    }
+}
+
+static void propogate_fq(std::shared_ptr<ngraph::Node> fq_node, int &copy_num) {
+    for (const auto& input : fq_node->input_values()) {
+        propagate_up(fq_node, input.get_node_shared_ptr(), copy_num);
+    }
+    for (const auto& node_output : fq_node->outputs()) {
+        for (auto consumer : node_output.get_target_inputs()) {
+            propagate_down(fq_node, consumer.get_node()->shared_from_this(), copy_num);
         }
     }
 }
