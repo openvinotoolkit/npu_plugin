@@ -1076,6 +1076,19 @@ class CMX_Concatenation {
       return total_control_edges;
     }
 
+    // Update DDR2DDR read DMAs to NNCMX2DDR
+    void updateRemainingDmaReads(concat_subgraph_t& subgraph) {
+      mv::OpModel &om = omodel_;
+      mv::Data::OpListIterator root_concat_itr =
+          om.getOp(subgraph.concat_root_->getName());
+      for (mv::Data::OpChildIterator citr=root_concat_itr.leftmostChild();
+            citr!=omodel_.opEnd(); ++citr) {
+        mv::Data::OpListIterator oitr = omodel_.getOp(citr->getName());
+        if (is_dma_op(oitr) && oitr->get<mv::DmaDirection>("direction") == mv::DmaDirectionEnum::DDR2DDR) {
+          oitr->set<mv::DmaDirection>("direction", mv::DmaDirectionEnum::NNCMX2DDR);
+        }
+      }
+    }
 
     //Precondition: must be valid with representative DPU task //
     void transform(concat_subgraph_t& subgraph) {
@@ -1102,6 +1115,8 @@ class CMX_Concatenation {
       for (auto witr=writes.begin(); witr!=writes.end(); ++witr) {
         om.removeOp(om.getOp( (*witr)->getName() ));
       }
+
+      updateRemainingDmaReads(subgraph);
 
       reads = {};
       writes = {};
