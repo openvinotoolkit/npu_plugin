@@ -52,9 +52,9 @@ mlir::FailureOr<StridedSliceInputData> extractData(mlir::Location loc, IE::Strid
         }
         return StridedSliceInputData{begins.getValue(), ends.getValue(), strides.getValue()};
     } else if (stridedSlice.begins_attr() != nullptr) {
-        auto begins = to_small_vector(parseIntArrayAttr(stridedSlice.begins_attr()));
-        auto ends = to_small_vector(parseIntArrayAttr(stridedSlice.ends_attr()));
-        auto strides = to_small_vector(parseIntArrayAttr(stridedSlice.strides_attr()));
+        auto begins = parseIntArrayAttr(stridedSlice.begins_attr());
+        auto ends = parseIntArrayAttr(stridedSlice.ends_attr());
+        auto strides = parseIntArrayAttr(stridedSlice.strides_attr());
         return StridedSliceInputData{begins, ends, strides};
     } else {
         VPUX_THROW("StridedSlice operation is invalid");
