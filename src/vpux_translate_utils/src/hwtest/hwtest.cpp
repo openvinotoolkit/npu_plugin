@@ -328,7 +328,7 @@ void buildSimpleZMajorConv(mlir::ModuleOp module, mlir::OpBuilder builder, Logge
             VPUIP::MemoryLocationAttr::get(builder.getContext(), VPUIP::MemoryLocation::VPU_CMX_NN);
     auto wtTbl_cmx_type =
             mlir::MemRefType::get(makeArrayRef(wtTbl_data_shape), builder.getIntegerType(32, /*isSigned=*/true),
-                                  wtData_ddr_affineMaps, wtTbl_cmx_memSpaceAttr);
+                                  wtTbl_ddr_affineMaps, wtTbl_cmx_memSpaceAttr);
     auto wtTbl_cmx = funcbuilder.create<VPUIP::DeclareTensorOp>(builder.getUnknownLoc(), wtTbl_cmx_type,
                                                                 VPUIP::MemoryLocation::VPU_CMX_NN, /*locale index=*/0,
                                                                 /*data idx=*/WEIGHTSTABLE_CMX_OFFSET);
@@ -387,7 +387,7 @@ void buildSimpleZMajorConv(mlir::ModuleOp module, mlir::OpBuilder builder, Logge
 
     // set runtime resources
     mlir::PassManager pm(builder.getContext(), mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(createSetCompileParamsPass(vpux::VPUIP::ArchKind::VPU3720, VPUIP::CompilationMode(), log));
+    pm.addPass(createSetCompileParamsPass(vpux::VPUIP::ArchKind::VPU3720, VPUIP::CompilationMode::ReferenceHW, log));
 
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module)), "Compilation failed");
 
