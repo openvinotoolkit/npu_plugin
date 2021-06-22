@@ -164,6 +164,12 @@ void KmbLayerTestsCommon::Run() {
     try {
         if (envConfig.IE_KMB_TESTS_RUN_COMPILER) {
             std::cout << "KmbLayerTestsCommon::Compile" << std::endl;
+            std::ostringstream ostr;
+            ostr << "LoadNetwork Config: ";
+            for (const auto& item : configuration) {
+                ostr << item.first << "=" << item.second << "; ";
+            }
+            std::cout << ostr.str() << std::endl;
             SkipBeforeLoad();
 
             ASSERT_NO_THROW(executableNetwork = getCore()->LoadNetwork(cnnNetwork, targetDevice, configuration));

@@ -285,6 +285,13 @@ ExecutableNetwork KmbTestBase::getExecNetwork(
         auto config = configCreator();
         config[VPUX_CONFIG_KEY(PLATFORM)] = PlatformEnvironment::PLATFORM;
 
+        std::ostringstream ostr;
+        ostr << "LoadNetwork Config: ";
+        for (const auto& item : config) {
+            ostr << item.first << "=" << item.second << "; ";
+        }
+        std::cout << ostr.str() << std::endl;
+
         exeNet = core->LoadNetwork(netCreator(), DEVICE_NAME, config);
 
         if (EXPORT_NETWORK) {
