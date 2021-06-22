@@ -23,23 +23,41 @@ OpenVINO™ toolkit is officially supported and validated on the following platf
 
 To run inference using VPUX plugin, Inference Engine Intermediate Representation needs to be compiled for a certain VPU device. Sometimes, compilation may take a while (several minutes), so it makes sense to compile a network before execution. Compilation can be done by a tool called `compile_tool`. An example of the command line running `compile_tool`:
 ```
-compile_tool -d VPUX -m model.xml -c vpu.config
+compile_tool -d VPUX.3700 -m model.xml -c vpu.config
 ```
-Where `VPUX` is a name of the plugin to be used, `model.xml` - a model to be compiled, `vpu.config` is a text file with config options. `vpu.config` must contain setting of `VPUX_PLATFORM` config option to define a VPU platform to be used for compilation. An example of creation a config file to compile a model for Gen 3 Intel&reg; Movidius&trade; VPU (3700VE):
+Where `VPUX` is a name of the plugin to be used, `3700` defines a VPU platform to be used for compilation (Gen 3 Intel&reg; Movidius&trade; VPU (3700VE)), `model.xml` - a model to be compiled, `vpu.config` (optional) is a text file with config options.
+
+If the platform is not specified, VPUX Plugin tries to determine it by analyzing all available system devices:
 ```
-echo "VPUX_PLATFORM VPU3700" > ./vpu.config
+compile_tool -d VPUX -m model.xml
 ```
 
-If the platform is not specified, you will get an error `Error: VPUXPlatform is not defined`.
+If system doesn't have any devices and platform for compilation is not provided, you will get an error `No devices found - DEVICE_ID with platform is required for compilation`
 
-The table below contains VPU devices and corresponding `VPUX_PLATFORM`:
+The table below contains VPU devices and corresponding VPU platform:
 
-| VPU device                                    | VPUX_PLATFORM |
+| VPU device                                    | VPU platform |
 | :-------------------------------------------  | :----------- |
-| Gen 3 Intel&reg; Movidius&trade; VPU (3700VE) |   VPU3700    |
-| Gen 3 Intel&reg; Movidius&trade; VPU (3400VE) |   VPU3400    |
-| Intel&reg; Movidius&trade; S 3900V VPU        |   VPU3900    |
-| Intel&reg; Movidius&trade; S 3800V VPU        |   VPU3800    |
+| Gen 3 Intel&reg; Movidius&trade; VPU (3700VE) |   3700    |
+| Gen 3 Intel&reg; Movidius&trade; VPU (3400VE) |   3400    |
+| Intel&reg; Movidius&trade; S 3900V VPU        |   3900    |
+| Intel&reg; Movidius&trade; S 3800V VPU        |   3800    |
+
+### Inference
+
+For inference you should provide device parameter (see the table `Supported Configuration Parameters` below). Here are the examples of the command line running `benchmark_app`:
+```
+benchmark_app -d VPUX -m model.xml
+```
+Run inference on any available VPU device
+```
+benchmark_app -d VPUX.3900 -m model.xml
+```
+Run inference on any available slice of Intel&reg; Movidius&trade; S 3900V VPU
+```
+benchmark_app -d VPUX.3800.0 -m model.xml
+```
+Run inference on the first slice of Intel&reg; Movidius&trade; S 3800V VPU
 
 ## Supported Configuration Parameters
 
@@ -50,8 +68,7 @@ The VPUX plugin accepts the following options:
 | :---                  | :---             | :---             | :---                                                                             |
 | `LOG_LEVEL`                  |`LOG_LEVEL_NONE`/ `LOG_LEVEL_ERROR`/ `LOG_LEVEL_WARNING`/ `LOG_LEVEL_DEBUG`/ `LOG_LEVEL_TRACE`|`LOG_LEVEL_NONE`  |Set log level for VPUX plugin |
 | `PERF_COUNT`                 | `YES`/`NO`                                                                                   |`NO`              |Enable or disable performance counter|
-| `DEVICE_ID`                  | `VPU-0`/ `VPU-1`/ `VPU-2`/ `VPU-3`                                                           | `VPU-0`          |Device identifier |
-| `VPUX_PLATFORM`              | `VPU3400`/ `VPU3700`/ `VPU3800`/ `VPU3900`                                                   | `VPU3700`        |Device platform |
+| `DEVICE_ID`                  | empty/ `3400[.[0-3]]`/ `3700[.[0-3]]`/ `3900[.[0-3]]` / `3800[.[0-3]]`                              | empty (auto detection)                   |Device identifier `platform.slice` |
 | `VPUX_THROUGHPUT_STREAMS`    | positive integer                                                                             | `2`              |Number of threads for model execution|
 | `VPUX_INFERENCE_SHAVES`      | positive integer, `0`                                                                        | `0`              |Number of shaves for model execution, if `0` is set, count of SHAVEs will be evaluated automatically|
 | `VPUX_CSRAM_SIZE`            | integer                                                                                      | `-1`             |Set the size of CSRAM in bytes, if `-1` is set, compiler will evaluate size of CSRAM automatically|
