@@ -13,8 +13,8 @@
 
 #include "vpux/compiler/dialect/IERT/passes.hpp"
 
+#include "vpux/compiler/core/tiling.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
-#include "vpux/compiler/dialect/VPUIP/tiling.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 #include "vpux/compiler/utils/types.hpp"
@@ -26,7 +26,6 @@
 #include <numeric>
 
 using namespace vpux;
-using namespace VPUIP;
 
 namespace {
 
@@ -138,7 +137,7 @@ SmallVector<Tile> CMXTilingPass::SimpleFillHalfCMXTiler::convolutionTiler(IERT::
         nTilesOnDim[dim]++;
     }
 
-    return Tiling::fillDividedTiles(nTilesOnDim, outputShape);
+    return fillDividedTiles(nTilesOnDim, outputShape);
 }
 
 class CMXTilingPass::ConvolutionTiling final : public mlir::OpRewritePattern<IERT::ConvolutionOp> {
@@ -195,7 +194,7 @@ mlir::LogicalResult CMXTilingPass::ConvolutionTiling::matchAndRewrite(IERT::Conv
     SmallVector<mlir::Value> finalResults;
 
     for (auto i : irange(tilings.size())) {
-        const auto inputConfig = Tiling::backInferConvTile(origOp, tilings[i]);
+        const auto inputConfig = backInferConvTile(origOp, tilings[i]);
 
         const auto inputTile = inputConfig.inputTile;
         const auto weightsTile = inputConfig.filterTile;

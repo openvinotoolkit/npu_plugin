@@ -12,13 +12,14 @@
 //
 
 #include "vpux/compiler/dialect/VPUIP/dpu_tiler.hpp"
-#include "vpux/compiler/dialect/VPUIP/tiling.hpp"
+
+#include "vpux/compiler/core/tiling.hpp"
 
 using namespace vpux;
-using namespace VPUIP;
 
-SmallVector<DpuTile> VPUIP::DpuTiler::tileOverH(uint32_t numDPU, ShapeRef outShape, ArrayRef<int64_t> opPadsBegin,
-                                                ArrayRef<int64_t> opPadsEnd) {
+SmallVector<VPUIP::DpuTile> vpux::VPUIP::DpuTiler::tileOverH(uint32_t numDPU, ShapeRef outShape,
+                                                             ArrayRef<int64_t> opPadsBegin,
+                                                             ArrayRef<int64_t> opPadsEnd) {
     // FIXME: find the optimal number of tiles
     const auto minTileSize = 1;
 
@@ -31,7 +32,7 @@ SmallVector<DpuTile> VPUIP::DpuTiler::tileOverH(uint32_t numDPU, ShapeRef outSha
     Shape nTilesOnDim(outShape.size(), minTilesCount);
     nTilesOnDim[IERT::ConvolutionOp::act_height_dim()] = tilesCount;
 
-    const auto outTiles = Tiling::fillDividedTiles(nTilesOnDim, outShape);
+    const auto outTiles = fillDividedTiles(nTilesOnDim, outShape);
     SmallVector<DpuTile> dpuTiles;
     dpuTiles.reserve(outTiles.size());
 
@@ -40,7 +41,7 @@ SmallVector<DpuTile> VPUIP::DpuTiler::tileOverH(uint32_t numDPU, ShapeRef outSha
     const auto W = IERT::ConvolutionOp::act_width_dim();
 
     for (const auto& outTile : outTiles) {
-        const auto padsTileConf = Tiling::backInferPadsTile(outTile, outShape, opPadsBegin, opPadsEnd);
+        const auto padsTileConf = backInferPadsTile(outTile, outShape, opPadsBegin, opPadsEnd);
 
         SmallVector<int64_t> start{outTile.offsets[W], outTile.offsets[H], outTile.offsets[C]};
         SmallVector<int64_t> end{outTile.offsets[W] + outTile.shape[W] - 1, outTile.offsets[H] + outTile.shape[H] - 1,
