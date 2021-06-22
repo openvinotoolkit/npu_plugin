@@ -16,8 +16,6 @@
 #include <memory>
 #include <vpux.hpp>
 
-#include "zero_config.h"
-
 namespace vpux {
 
 class ZeroEngineBackend final : public vpux::IEngineBackend {
@@ -33,7 +31,7 @@ public:
     }
 
 private:
-    ZeroConfig _config;
+    VPUXConfig _config;
 };
 
 }  // namespace vpux
