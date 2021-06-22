@@ -14,7 +14,7 @@
 #pragma once
 
 #include "InferGraph.h"
-#include "models/precompiled_resnet.h"
+#include "simple_graph.hpp"
 
 //------------------------------------------------------------------------------
 class HddlUnite_Graph_Helper {
@@ -29,15 +29,15 @@ public:
 
 protected:
     HddlUnite::Inference::Graph::Ptr _graphPtr = nullptr;
-
-    const std::string _graphName = PrecompiledResNet_Helper::resnet50.graphName;
-    const std::string _graphPath = PrecompiledResNet_Helper::resnet50.graphPath;
+    std::stringstream _blobStream;
 };
 
 //------------------------------------------------------------------------------
 inline HddlUnite_Graph_Helper::HddlUnite_Graph_Helper() {
+    utils::simpleGraph::getExeNetwork()->Export(_blobStream);
+    const auto blobData = _blobStream.str();
     HddlStatusCode statusCode = HddlUnite::Inference::loadGraph(
-            _graphPtr, _graphName, _graphPath);
+            _graphPtr, "simpleGraph", blobData.data(), blobData.size());
     if (statusCode != HDDL_OK) {
         IE_THROW() << "Failed to load graph";
     }
@@ -49,8 +49,9 @@ inline HddlUnite_Graph_Helper::~HddlUnite_Graph_Helper() {
 
 
 inline HddlUnite_Graph_Helper::HddlUnite_Graph_Helper(const HddlUnite::WorkloadContext& workloadContext) {
+    const auto blobData = _blobStream.str();
     HddlStatusCode statusCode = HddlUnite::Inference::loadGraph(
-            _graphPtr, _graphName, _graphPath, {workloadContext});
+            _graphPtr, "simpleGraph", blobData.data(), blobData.size(), {workloadContext});
     if (statusCode != HDDL_OK) {
         IE_THROW() << "Failed to load graph";
     }
