@@ -261,7 +261,7 @@ def ConvolutionLayerInterface : OpInterface<"ConvolutionLayerInterface"> {
         >,
 
         StaticInterfaceMethod<
-            "Get the nr of kernel dims available",
+            "Get the nr of kernel spatial dims available",
             "uint32_t", "filter_spatial_dims", (ins),
             [{}],
             [{
@@ -318,6 +318,15 @@ def TensorInterface_4D : OpInterface<"TensorInterface_4D"> {
             [{}],
             [{
                 return vpux::Dim(3);
+            }]
+        >,
+
+        StaticInterfaceMethod<
+            "Get the nr of activation spatial dims available",
+            "uint32_t", "act_spatial_dims", (ins),
+            [{}],
+            [{
+                return 2;
             }]
         >,
 

@@ -89,6 +89,8 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyChannels(IERT::MaxPoolOp or
 // verifyConvCMX
 //
 
+namespace {
+
 Byte getCMXSize(mlir::ModuleOp module) {
     auto resOp = IERT::RunTimeResourcesOp::getFromModule(module);
 
@@ -111,6 +113,8 @@ Byte getRequiredCMX(ArrayRef<mlir::MemRefType> operands, int64_t numChannels) {
 
     return requiredCMX;
 }
+
+}  // namespace
 
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyConvCMX(mlir::Location loc, mlir::ModuleOp module,
                                                              mlir::MemRefType inputType, mlir::MemRefType filterType,
