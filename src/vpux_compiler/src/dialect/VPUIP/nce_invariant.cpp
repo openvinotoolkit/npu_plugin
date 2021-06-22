@@ -38,11 +38,11 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyConvChannels(mlir::Location
     const int64_t CHANNEL_ALIGNMENT = 128 / typeSizeInBits.count();
 
     if (OC % CHANNEL_ALIGNMENT != 0) {
-        log.warning("{0}: Output channels are not aligned", loc);
+        log.trace("{0}: Output channels are not aligned", loc);
         return mlir::failure();
     }
     if (IC % CHANNEL_ALIGNMENT != 0) {
-        log.warning("{0}: Input channels are not aligned", loc);
+        log.trace("{0}: Input channels are not aligned", loc);
         return mlir::failure();
     }
 
@@ -69,7 +69,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPoolChannels(mlir::Location
     const int64_t CHANNEL_ALIGNMENT = 128 / typeSizeInBits.count();
 
     if (IC % CHANNEL_ALIGNMENT != 0) {
-        log.warning("{0}: Input channels are not aligned", loc);
+        log.trace("{0}: Input channels are not aligned", loc);
         return mlir::failure();
     }
 
@@ -119,7 +119,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyConvCMX(mlir::Location loc,
 
     const auto cmxSize = getCMXSize(module);
     if (requiredCMX > cmxSize) {
-        log.warning("{0}: CMX memory is not enough, available '{1}', required '{2}'", loc, cmxSize, requiredCMX);
+        log.trace("{0}: CMX memory is not enough, available '{1}', required '{2}'", loc, cmxSize, requiredCMX);
         return mlir::failure();
     }
 
@@ -159,7 +159,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPoolCMX(mlir::Location loc,
 
     const auto cmxSize = getCMXSize(module);
     if (requiredCMX > cmxSize) {
-        log.warning("{0}: CMX memory is not enough, available '{1}', required '{2}'", loc, cmxSize, requiredCMX);
+        log.trace("{0}: CMX memory is not enough, available '{1}', required '{2}'", loc, cmxSize, requiredCMX);
         return mlir::failure();
     }
 
@@ -183,15 +183,15 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(mlir::ArrayAttr kern
     log.setName("NCEInvariant::verifyKernel");
 
     if (kernelSizeAttr == nullptr) {
-        log.warning("kernel size attribute is required");
+        log.trace("kernel size attribute is required");
         return mlir::failure();
     }
     if (kernelStridesAttr == nullptr) {
-        log.warning("kernel strides attribute is required");
+        log.trace("kernel strides attribute is required");
         return mlir::failure();
     }
     if (kernelPaddingAttr == nullptr) {
-        log.warning("kernel padding attribute is required");
+        log.trace("kernel padding attribute is required");
         return mlir::failure();
     }
 
@@ -202,7 +202,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(mlir::ArrayAttr kern
     static const int32_t NCE_MAX_STRIDE_SIZE = 8;
 
     if (kernelSize.size() != 2) {
-        log.warning("Unsupported kernel size: {0}", kernelSize.size());
+        log.trace("Unsupported kernel size: {0}", kernelSize.size());
         return mlir::failure();
     }
 
@@ -210,12 +210,12 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(mlir::ArrayAttr kern
     const auto KX = kernelSize[1];
 
     if (KY > NCE_MAX_KERNEL_SIZE || KY <= 0) {
-        log.warning("{0}: Unsupported kernel height dimension: '{0}'. Must be between 1-{1}.", KY, NCE_MAX_KERNEL_SIZE);
+        log.trace("{0}: Unsupported kernel height dimension: '{0}'. Must be between 1-{1}.", KY, NCE_MAX_KERNEL_SIZE);
         return mlir::failure();
     }
 
     if (KX > NCE_MAX_KERNEL_SIZE || KX <= 0) {
-        log.warning("{0}: Unsupported kernel width dimension: '{0}'. Must be between 1-{1}.", KX, NCE_MAX_KERNEL_SIZE);
+        log.trace("{0}: Unsupported kernel width dimension: '{0}'. Must be between 1-{1}.", KX, NCE_MAX_KERNEL_SIZE);
         return mlir::failure();
     }
 
@@ -223,12 +223,12 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(mlir::ArrayAttr kern
     const auto SX = kernelStrides[1];
 
     if (SY > NCE_MAX_STRIDE_SIZE || SY <= 0) {
-        log.warning("{0}: Unsupported stride height dimension: '{0}'. Must be between 1-{1}.", SY, NCE_MAX_STRIDE_SIZE);
+        log.trace("{0}: Unsupported stride height dimension: '{0}'. Must be between 1-{1}.", SY, NCE_MAX_STRIDE_SIZE);
         return mlir::failure();
     }
 
     if (SX > NCE_MAX_STRIDE_SIZE || SX <= 0) {
-        log.warning("{0}: Unsupported stride width dimension: '{0}'. Must be between 1-{1}.", SX, NCE_MAX_STRIDE_SIZE);
+        log.trace("{0}: Unsupported stride width dimension: '{0}'. Must be between 1-{1}.", SX, NCE_MAX_STRIDE_SIZE);
         return mlir::failure();
     }
 
