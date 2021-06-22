@@ -13,7 +13,6 @@
 
 #include "vpux/compiler/core/attributes/strides.hpp"
 #include "vpux/compiler/core/attributes/shape.hpp"
-#include "vpux/compiler/core/attributes/stride_reqs.hpp"
 
 #include "vpux/compiler/utils/types.hpp"
 
@@ -38,14 +37,6 @@ bool vpux::details::isDynamicDimValues(ArrayRef<Bit> strides) {
 //
 
 Strides vpux::getStrides(mlir::MemRefType type) {
-    const auto maps = type.getAffineMaps();
-
-    if (!maps.empty() && maps.front().isPermutation()) {
-        const auto dimsOrder = DimsOrder::fromPermutationAffineMap(maps.front());
-        const auto memStrides = StrideReqs::simple(type.getRank()).calcStrides(dimsOrder, type);
-        return dimsOrder.toLogicalOrder(memStrides);
-    }
-
     SmallVector<int64_t> elemStrides;
     int64_t offset = 0;
     VPUX_THROW_UNLESS(mlir::succeeded(mlir::getStridesAndOffset(type, elemStrides, offset)),
