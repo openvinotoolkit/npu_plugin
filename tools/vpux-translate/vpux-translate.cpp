@@ -23,7 +23,10 @@
 #include "vpux/utils/core/format.hpp"
 
 #include <mlir/IR/Dialect.h>
+#include <mlir/Support/MlirOptMain.h>
 #include <mlir/Translation.h>
+
+#include <llvm/Support/SourceMgr.h>
 
 #include <cpp/ie_cnn_network.h>
 #include <ie_core.hpp>
@@ -138,9 +141,7 @@ int main(int argc, char* argv[]) {
         mlir::TranslateToMLIRRegistration("import-VPUIP", importVPUIP);
         mlir::TranslateFromMLIRRegistration("export-VPUIP", exportVPUIP, registerDialects);
 
-        const auto res = mlir::mlirTranslateMain(argc, argv, "VPUX Translation Testing Tool");
-
-        return mlir::succeeded(res) ? EXIT_SUCCESS : EXIT_FAILURE;
+        return mlir::asMainReturnCode(mlir::mlirTranslateMain(argc, argv, "VPUX Translation Testing Tool"));
     } catch (const std::exception& e) {
         std::cerr << e.what() << std::endl;
         return EXIT_FAILURE;

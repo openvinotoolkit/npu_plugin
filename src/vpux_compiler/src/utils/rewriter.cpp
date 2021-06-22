@@ -24,6 +24,10 @@
 
 using namespace vpux;
 
+//
+// updateFunctionSignature
+//
+
 namespace {
 
 mlir::LogicalResult updateFunctionSignature(mlir::FuncOp funcOp, ArrayRef<mlir::Type> newArgTypes,
@@ -53,6 +57,10 @@ mlir::LogicalResult updateFunctionSignature(mlir::FuncOp funcOp, ArrayRef<mlir::
 }
 
 }  // namespace
+
+//
+// convertFunc
+//
 
 mlir::LogicalResult vpux::convertFunc(mlir::FuncOp funcOp, ArrayRef<mlir::Type> newArgTypes,
                                       ArrayRef<mlir::Type> newResultTypes, CvtOpBuilderCb cvtOpBuilder, Logger log) {
@@ -142,6 +150,10 @@ mlir::LogicalResult vpux::convertFunc(mlir::FuncOp funcOp, ArrayRef<mlir::Type> 
 
     return mlir::success();
 }
+
+//
+// convertBufferizedFunc
+//
 
 mlir::LogicalResult vpux::convertBufferizedFunc(mlir::FuncOp funcOp, ArrayRef<mlir::Type> newArgTypes,
                                                 ArrayRef<mlir::Type> newResultTypes,
@@ -247,4 +259,16 @@ mlir::LogicalResult vpux::convertBufferizedFunc(mlir::FuncOp funcOp, ArrayRef<ml
     });
 
     return mlir::success();
+}
+
+//
+// getDefaultGreedyRewriteConfig
+//
+
+mlir::GreedyRewriteConfig vpux::getDefaultGreedyRewriteConfig() {
+    mlir::GreedyRewriteConfig config;
+    config.useTopDownTraversal = true;
+    config.enableRegionSimplification = true;
+    config.maxIterations = 10;
+    return config;
 }

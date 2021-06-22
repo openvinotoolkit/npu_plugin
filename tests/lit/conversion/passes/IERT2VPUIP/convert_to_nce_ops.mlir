@@ -25,8 +25,8 @@ func @Conv2dTest(%arg0: memref<1x16x16x16xf16, #NHWC, #map0>, %arg1: memref<1x16
     return %4 : memref<1x16x16x16xf16, #NHWC, #map0>
 }
 
-// CHECK:       [[FILTER_CST:%.+]] = IERT.Constant memref<16x16x1x1xf16, #NHWC, #map1>
-// CHECK:       [[WEIGHTS_TABLE:%.+]] = IERT.Constant memref<16x1x1x4xsi32> = dense<{{.*}}> : tensor<16x1x1x4xsi32>
+// CHECK-DAG:   [[FILTER_CST:%.+]] = IERT.Constant memref<16x16x1x1xf16, #NHWC, #map1>
+// CHECK-DAG:   [[WEIGHTS_TABLE:%.+]] = IERT.Constant memref<16x1x1x4xsi32> = dense<{{.*}}> : tensor<16x1x1x4xsi32>
 
 // CHECK:       [[OUT_BUF:%.+]] = memref.alloc() : memref<1x16x16x16xf16, #NHWC, #map0>
 
@@ -96,8 +96,8 @@ func @MaxPoolTest(%arg0: memref<1x16x1x4xf16, #NHWC, #map>, %arg1: memref<1x16x1
     return %2 : memref<1x16x1x4xf16, #NHWC, #map>
 }
 
-// CHECK:       [[ACT_WINDOW_CST:%.+]] = IERT.Constant memref<16x1x1x16xui8>
-// CHECK:       [[WEIGHTS_TABLE:%.+]] = IERT.Constant memref<16x1x1x4xsi32> = dense<{{.*}}> : tensor<16x1x1x4xsi32>
+// CHECK-DAG:   [[ACT_WINDOW_CST:%.+]] = IERT.Constant memref<16x1x1x16xui8>
+// CHECK-DAG:   [[WEIGHTS_TABLE:%.+]] = IERT.Constant memref<16x1x1x4xsi32> = dense<{{.*}}> : tensor<16x1x1x4xsi32>
 // CHECK:       [[OUT_BUF:%.+]] = memref.alloc() : memref<1x16x1x4xf16, #NHWC, #map>
 
 // CHECK:       [[ACT_WINDOW_CMX_BUF:%.+]] = memref.alloc() : memref<16x1x1x16xui8, "CMX_NN">

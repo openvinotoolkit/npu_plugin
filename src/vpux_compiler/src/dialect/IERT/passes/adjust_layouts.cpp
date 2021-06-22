@@ -12,11 +12,15 @@
 //
 
 #include "vpux/compiler/dialect/IERT/passes.hpp"
+
+#include "vpux/compiler/core/attributes/stride_reqs.hpp"
 #include "vpux/compiler/utils/logging.hpp"
+#include "vpux/compiler/utils/rewriter.hpp"
 #include "vpux/compiler/utils/types.hpp"
 
-#include <llvm/ADT/TypeSwitch.h>
 #include <mlir/Transforms/GreedyPatternRewriteDriver.h>
+
+#include <llvm/ADT/TypeSwitch.h>
 
 using namespace vpux;
 
@@ -185,7 +189,7 @@ void AdjustLayoutsPass::safeRunOnFunc() {
     mlir::RewritePatternSet patterns(&ctx);
     patterns.insert<Impl>(&ctx, _log, layerInfo);
 
-    if (mlir::failed(mlir::applyPatternsAndFoldGreedily(func, std::move(patterns)))) {
+    if (mlir::failed(mlir::applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig()))) {
         signalPassFailure();
     }
 }

@@ -74,8 +74,7 @@ int main(int argc, char* argv[]) {
         pmlc::transforms::registerPasses();
 #endif
 
-        const auto res = mlir::MlirOptMain(argc, argv, "VPUX Optimizer Testing Tool", registry, false);
-        return mlir::succeeded(res) ? EXIT_SUCCESS : EXIT_FAILURE;
+        return mlir::asMainReturnCode(mlir::MlirOptMain(argc, argv, "VPUX Optimizer Testing Tool", registry, false));
     } catch (const std::exception& e) {
         std::cerr << e.what() << std::endl;
         return EXIT_FAILURE;

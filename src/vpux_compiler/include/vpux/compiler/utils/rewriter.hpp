@@ -19,6 +19,7 @@
 
 #include <mlir/IR/Builders.h>
 #include <mlir/IR/BuiltinOps.h>
+#include <mlir/Transforms/GreedyPatternRewriteDriver.h>
 
 namespace vpux {
 
@@ -32,5 +33,7 @@ mlir::LogicalResult convertFunc(mlir::FuncOp funcOp, ArrayRef<mlir::Type> newArg
 mlir::LogicalResult convertBufferizedFunc(mlir::FuncOp funcOp, ArrayRef<mlir::Type> newArgTypes,
                                           ArrayRef<mlir::Type> newResultTypes, CvtBufferizedOpBuilderCb cvtOpBuilder,
                                           Logger log = Logger::global());
+
+mlir::GreedyRewriteConfig getDefaultGreedyRewriteConfig();
 
 }  // namespace vpux

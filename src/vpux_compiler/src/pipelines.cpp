@@ -18,6 +18,7 @@
 #include "vpux/compiler/dialect/IE/passes.hpp"
 #include "vpux/compiler/dialect/IERT/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
+#include "vpux/compiler/utils/rewriter.hpp"
 
 #include <mlir/Pass/PassManager.h>
 #include <mlir/Transforms/Passes.h>
@@ -36,10 +37,10 @@ mlir::Attribute getMemSpace(mlir::MLIRContext* ctx, StringRef) {
 }
 
 void buildIECommonPipeline(mlir::OpPassManager& pm, Logger log) {
-    pm.addPass(mlir::createCanonicalizerPass());
+    pm.addPass(mlir::createCanonicalizerPass(getDefaultGreedyRewriteConfig()));
     IE::buildAdjustForVPUPipeline(pm, log);
     pm.addPass(IE::createUseUserPrecisionPass(log));
-    pm.addPass(mlir::createCanonicalizerPass());
+    pm.addPass(mlir::createCanonicalizerPass(getDefaultGreedyRewriteConfig()));
 }
 
 void buildIEReferenceLowPrecisionPipeline(mlir::OpPassManager& pm, Logger log) {
@@ -52,7 +53,7 @@ void buildIEReferenceLowPrecisionPipeline(mlir::OpPassManager& pm, Logger log) {
 void buildIERTInitialPipeline(mlir::OpPassManager& pm, Logger log) {
     pm.addPass(IERT::createUseUserLayout(log));
     pm.addPass(IERT::createAdjustLayoutsPass(log));
-    pm.addPass(mlir::createCanonicalizerPass());
+    pm.addPass(mlir::createCanonicalizerPass(getDefaultGreedyRewriteConfig()));
 }
 
 void buildIERTAllocationPipelineForDDR(mlir::OpPassManager& pm, Logger log) {
@@ -107,7 +108,7 @@ void vpux::buildHardwareModePipeline(mlir::OpPassManager& pm, Logger log) {
     // Partially lower IERT->VPUIP (NCE Operations only)
     pm.addPass(createConvertToNCEOpsPass(log));
     pm.addPass(createFuseActivationsPass(log));
-    pm.addPass(mlir::createCanonicalizerPass());
+    pm.addPass(mlir::createCanonicalizerPass(getDefaultGreedyRewriteConfig()));
 
     // IERT Dialect level (cont.)
     pm.addPass(createComposeSubViewPass(log));

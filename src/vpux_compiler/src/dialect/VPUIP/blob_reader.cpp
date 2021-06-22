@@ -20,6 +20,8 @@
 
 #include "vpux/utils/core/error.hpp"
 
+#include <deque>
+
 namespace vpux {
 namespace VPUIP {
 
