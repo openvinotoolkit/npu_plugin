@@ -206,6 +206,7 @@ void subTensorsGen(mv::ComputationModel& model, const tensorSet& tensors, unsign
                    const mv::pass::PassEntry& pass, std::size_t id)
 {
     mv::DataModel dm(model);
+    mv::OpModel om(model);
     unsigned nWorkloads = nClusters;
 
     if (id == 0)
@@ -213,9 +214,30 @@ void subTensorsGen(mv::ComputationModel& model, const tensorSet& tensors, unsign
         for (auto& tensor : tensors)
         {
             int success;
+            bool gtThanOneKernelSizeH = false;
+            bool compilerSparsity = true;
+            if(tensor->hasAttr("flows") && (tensor->get<std::string>("splitStrategy") == "SplitOverH")) {
+                for (const auto& flowName : tensor->getFlowNames()) {
+                    const auto previousOpName = om.getDataFlow(flowName)->get<std::string>("sourceOp");
+                    const auto nextOpName = om.getDataFlow(flowName)->get<std::string>("sinkOp");
+                    const auto op = om.getOp(nextOpName);
+                    const auto prevOp = om.getOp(previousOpName);
+                    if(op->hasAttr("inputActivationSparsity") && prevOp->hasAttr("outputActivationSparsity")) {
+                        if(op->get<bool>("inputActivationSparsity") && prevOp->get<bool>("outputActivationSparsity")) {
+                            compilerSparsity = false;
+                        }
+                    }
+                    if (op->hasAttr("kSize") && (op->isSparsityConsumer() == true)) {
+                        const auto kSize = op->get<std::array<unsigned short, 2>>("kSize");
+                        if(kSize[mv::KERNEL_HEIGHT] > 1) {
+                            gtThanOneKernelSizeH = true;
+                        }
+                    }
+                }
+            }
             auto needs_sparse = (tensor->hasAttr("needs_sparse")) ? tensor->get<bool>("needs_sparse") : false;
             auto needs_splits_aligned = (tensor->hasAttr("needs_splits_aligned")) ? tensor->get<bool>("needs_splits_aligned") : false;
-            mv::Workloads Tensor(tensor->getName(), tensor->getShape(), needs_sparse | needs_splits_aligned);
+            mv::Workloads Tensor(tensor->getName(), tensor->getShape(), (needs_sparse || needs_splits_aligned) && gtThanOneKernelSizeH && !compilerSparsity);
             std::vector<mv::Workload> subTensors;
 
             if (tensor->get<std::string>("splitStrategy") == "SplitOverH")
