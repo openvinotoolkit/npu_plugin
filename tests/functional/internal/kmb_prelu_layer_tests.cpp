@@ -78,5 +78,5 @@ const std::vector<UseCustomLayers> layerType = {
     KernelType::Native
 };
 
-INSTANTIATE_TEST_CASE_P(precommit, KmbPReluLayerTests,
+INSTANTIATE_TEST_SUITE_P(precommit, KmbPReluLayerTests,
     testing::Combine(testing::ValuesIn(PReluParams), testing::ValuesIn(layerType)));

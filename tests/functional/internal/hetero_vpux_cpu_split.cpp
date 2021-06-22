@@ -144,15 +144,15 @@ void HeteroPluginTest::runTest(const TestNetworkDesc& netDesc, const Device& fir
                                const Device& secondDevice, const SplitLayer& splitLayer,
                                const TestImageDesc& image, const size_t topK, const float probTolerance) {
 #if defined(_WIN32) || defined(_WIN64)
-    SKIP() << "Skip Windows validation";
+    GTEST_SKIP() << "Skip Windows validation";
 #endif
 #if defined(__arm__) || defined(__aarch64__)
     // Skip RUN_INFER on ARM, only execute on host (hddl bypass)
-    SKIP() << "Has to be compiled and run without network export/import";
+    GTEST_SKIP() << "Has to be compiled and run without network export/import";
 #endif
 
     if (!RUN_INFER) {
-        SKIP() << "Will be compiled and run at RUN_INFER stage";
+        GTEST_SKIP() << "Will be compiled and run at RUN_INFER stage";
     }
 
     auto network = readNetwork(netDesc, true);
@@ -197,7 +197,7 @@ std::string HeteroPluginTest::getTestCaseName(const testing::TestParamInfo<Heter
 // TODO: [Track number: E#9578]
 TEST_P(HeteroPluginTest, regression) {
     if (isByPass()) {
-        SKIP() << "Skip inference for by-pass mode due to stability problems";
+        GTEST_SKIP() << "Skip inference for by-pass mode due to stability problems";
     }
     const auto device1 = std::get<0>(GetParam());
     const auto device2 = std::get<1>(GetParam());
@@ -222,7 +222,7 @@ const auto squeezeNetLayers = std::vector<SplitLayer>{
          {"fire6/concat"}
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         squeezeNet, HeteroPluginTest,
         ::testing::Combine(
                 ::testing::Values(Device("VPUX")),
@@ -239,7 +239,7 @@ const auto resnet101Layers = std::vector<SplitLayer>{
         {"Pooling_26649/fq_input_0"},
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         resnet101, HeteroPluginTest,
         ::testing::Combine(
                 ::testing::Values(Device("VPUX")),
@@ -256,7 +256,7 @@ const auto googleNetv4Layers = std::vector<SplitLayer>{
         {"InceptionV4/InceptionV4/Mixed_5c/concat"},
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         googleNetv4, HeteroPluginTest,
         ::testing::Combine(
                 ::testing::Values(Device("VPUX")),

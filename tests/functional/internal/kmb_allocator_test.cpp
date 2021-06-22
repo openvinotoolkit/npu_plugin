@@ -159,7 +159,7 @@ TEST_F(KmbAllocatorTest, DISABLED_checkPreprocReallocation) {
     network.getOutputsInfo().begin()->second->setLayout(Layout::NHWC);
 
     if (isByPass()) {
-        SKIP() << "Skip inference for by-pass mode due to autonomous mode related test";
+        GTEST_SKIP() << "Skip inference for by-pass mode due to autonomous mode related test";
     }
 
     if (RUN_INFER) {

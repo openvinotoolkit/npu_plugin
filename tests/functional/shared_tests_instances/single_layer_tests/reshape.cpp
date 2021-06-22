@@ -51,7 +51,7 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
     InferenceEngine::Precision::FP32
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_ReshapeCollapse1, KmbReshapeLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ReshapeCollapse1, KmbReshapeLayerTest,
     ::testing::Combine(
         ::testing::Values(true),
         ::testing::ValuesIn(netPrecisions),
@@ -65,7 +65,7 @@ INSTANTIATE_TEST_CASE_P(smoke_ReshapeCollapse1, KmbReshapeLayerTest,
         ::testing::Values(std::map<std::string, std::string>({}))),
     KmbReshapeLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_ReshapeCollapse2, KmbReshapeLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ReshapeCollapse2, KmbReshapeLayerTest,
     ::testing::Combine(
         ::testing::Values(true),
         ::testing::ValuesIn(netPrecisions),
@@ -79,7 +79,7 @@ INSTANTIATE_TEST_CASE_P(smoke_ReshapeCollapse2, KmbReshapeLayerTest,
         ::testing::Values(std::map<std::string, std::string>({}))),
     KmbReshapeLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_ReshapeExpand1, KmbReshapeLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ReshapeExpand1, KmbReshapeLayerTest,
     ::testing::Combine(
         ::testing::Values(true),
         ::testing::ValuesIn(netPrecisions),
@@ -93,7 +93,7 @@ INSTANTIATE_TEST_CASE_P(smoke_ReshapeExpand1, KmbReshapeLayerTest,
         ::testing::Values(std::map<std::string, std::string>({}))),
     KmbReshapeLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_ReshapeExpand2, KmbReshapeLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ReshapeExpand2, KmbReshapeLayerTest,
     ::testing::Combine(
         ::testing::Values(true),
         ::testing::ValuesIn(netPrecisions),
@@ -107,7 +107,7 @@ INSTANTIATE_TEST_CASE_P(smoke_ReshapeExpand2, KmbReshapeLayerTest,
         ::testing::Values(std::map<std::string, std::string>({}))),
     KmbReshapeLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_ReshapeExpand3, KmbReshapeLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ReshapeExpand3, KmbReshapeLayerTest,
     ::testing::Combine(
         ::testing::Values(true),
         ::testing::ValuesIn(netPrecisions),
@@ -121,7 +121,7 @@ INSTANTIATE_TEST_CASE_P(smoke_ReshapeExpand3, KmbReshapeLayerTest,
         ::testing::Values(std::map<std::string, std::string>({}))),
     KmbReshapeLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_ReshapeGeneric1, KmbReshapeLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ReshapeGeneric1, KmbReshapeLayerTest,
     ::testing::Combine(
         ::testing::Values(true),
         ::testing::ValuesIn(netPrecisions),
@@ -135,7 +135,7 @@ INSTANTIATE_TEST_CASE_P(smoke_ReshapeGeneric1, KmbReshapeLayerTest,
         ::testing::Values(std::map<std::string, std::string>({}))),
     KmbReshapeLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_ReshapeGeneric2, KmbReshapeLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ReshapeGeneric2, KmbReshapeLayerTest,
     ::testing::Combine(
         ::testing::Values(true),
         ::testing::ValuesIn(netPrecisions),
@@ -153,7 +153,7 @@ const std::vector<InferenceEngine::Precision> netPrecisions_pass_mcm = {
     InferenceEngine::Precision::FP16
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_ReshapeCheck_pass_mcm, KmbReshapeLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ReshapeCheck_pass_mcm, KmbReshapeLayerTest,
                         ::testing::Combine(
                             ::testing::Values(true),
                             ::testing::ValuesIn(netPrecisions_pass_mcm),
@@ -167,7 +167,7 @@ INSTANTIATE_TEST_CASE_P(smoke_ReshapeCheck_pass_mcm, KmbReshapeLayerTest,
                             ::testing::Values(std::map<std::string, std::string>({}))),
                         KmbReshapeLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_ReshapeCheck4Dto4DTensor_pass_mcm, KmbReshapeLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ReshapeCheck4Dto4DTensor_pass_mcm, KmbReshapeLayerTest,
                         ::testing::Combine(
                             ::testing::Values(true),
                             ::testing::ValuesIn(netPrecisions_pass_mcm),

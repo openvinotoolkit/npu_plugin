@@ -3,7 +3,7 @@
 1. This script parse sources with *.cpp extention (with subdir recursive), and try find keywords:
 	- TEST_F
 	- TEST_P
-	- INSTANTIATE_TEST_CASE_P
+	- INSTANTIATE_TEST_SUITE_P
 	- Track number: S#xxxxx    (related jira CVS-tickets)
 	- Track number: D#xxxxx    (related jira VPUNND-tickets)
 	

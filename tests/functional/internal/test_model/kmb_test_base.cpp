@@ -562,7 +562,7 @@ void KmbLayerTestBase::runTest(
     try {
         if (!RUN_COMPILER || !RUN_REF_CODE) {
             if (DUMP_PATH.empty()) {
-                SKIP() << "Compilation and/or REF_CODE were disabled and IE_KMB_TESTS_DUMP_PATH was not provided";
+                GTEST_SKIP() << "Compilation and/or REF_CODE were disabled and IE_KMB_TESTS_DUMP_PATH was not provided";
             }
         }
         TestNetwork testNet;
@@ -595,7 +595,7 @@ void KmbLayerTestBase::runTest(
     }
     catch (const import_error& ex) {
         std::cerr << ex.what() << std::endl;
-        SKIP() << ex.what();
+        GTEST_SKIP() << ex.what();
     }
 }
 
@@ -915,12 +915,12 @@ void KmbNetworkTestBase::runTest(
     try {
         if (!RUN_COMPILER || !RUN_REF_CODE) {
             if (DUMP_PATH.empty()) {
-                SKIP() << "Compilation and/or REF_CODE were disabled and IE_KMB_TESTS_DUMP_PATH was not provided";
+                GTEST_SKIP() << "Compilation and/or REF_CODE were disabled and IE_KMB_TESTS_DUMP_PATH was not provided";
             }
         }
 
         if (netDesc.isExperimental() && getExperimentalModelsPath().empty()) {
-            SKIP() << "EXPERIMENTAL_MODELS_PATH is not set";
+            GTEST_SKIP() << "EXPERIMENTAL_MODELS_PATH is not set";
         }
 
         auto exeNet = getExecNetwork(netDesc);
@@ -982,7 +982,7 @@ void KmbNetworkTestBase::runTest(
     }
     catch (const import_error& ex) {
         std::cerr << ex.what() << std::endl;
-        SKIP() << ex.what();
+        GTEST_SKIP() << ex.what();
     }
 }
 

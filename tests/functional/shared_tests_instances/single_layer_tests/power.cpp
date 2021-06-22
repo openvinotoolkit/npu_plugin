@@ -58,7 +58,7 @@ std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precis
 // kmb-plugin/src/frontend_mcm/src/ngraph_mcm_frontend/passes/convert_to_mcm_model.cpp:640
 // openvino/inference-engine/include/details/ie_exception_conversion.hpp:64" thrown in the test body.
 // [Track number: S#41811]
-INSTANTIATE_TEST_CASE_P(DISABLED_smoke_power, KmbPowerLayerTest,
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_power, KmbPowerLayerTest,
                         ::testing::Combine(
                             ::testing::ValuesIn(inShapes),
                             ::testing::ValuesIn(netPrecisions),
@@ -77,7 +77,7 @@ std::vector<std::vector<float >> Power_pass_mcm = {
     {1.0f},
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_power_pass_mcm, KmbPowerLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_power_pass_mcm, KmbPowerLayerTest,
                         ::testing::Combine(
                             ::testing::ValuesIn(inShapes),
                             ::testing::ValuesIn(netPrecisions),

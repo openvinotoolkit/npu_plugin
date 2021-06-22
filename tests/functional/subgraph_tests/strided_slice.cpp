@@ -65,7 +65,7 @@ TEST_P(KmbStridedSliceSubGraphTest, CompareWithRefs) {
     Run();
 }
 
-INSTANTIATE_TEST_CASE_P(smoke, KmbStridedSliceSubGraphTest,
+INSTANTIATE_TEST_SUITE_P(smoke, KmbStridedSliceSubGraphTest,
     ::testing::Values(
     StridedSliceTestParams {
         LayerTestsUtils::testPlatformTargetDevice,  // _device

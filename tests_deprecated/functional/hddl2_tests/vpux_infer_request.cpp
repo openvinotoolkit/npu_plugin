@@ -459,7 +459,7 @@ TEST_P(InferenceCheckPortsNetwork, common) {
     }
 }
 
- INSTANTIATE_TEST_CASE_P(CheckPorts, InferenceCheckPortsNetwork, testing::Combine(testing::ValuesIn(inputLayoutVariants),
+ INSTANTIATE_TEST_SUITE_P(CheckPorts, InferenceCheckPortsNetwork, testing::Combine(testing::ValuesIn(inputLayoutVariants),
     testing::ValuesIn(blobInputLayoutVariants), testing::Bool()));
 
 //------------------------------------------------------------------------------
@@ -537,4 +537,4 @@ TEST_P(InferenceCheckPortsYoloV3Network, common) {
     IE_Core_Helper::checkBBoxOutputs(YoloV3Output, refYoloV3Output, inputWidth, inputHeight, boxTolerance, probTolerance);
 }
 
- INSTANTIATE_TEST_CASE_P(CheckPorts, InferenceCheckPortsYoloV3Network, testing::ValuesIn(blobInputLayoutVariants));
+ INSTANTIATE_TEST_SUITE_P(CheckPorts, InferenceCheckPortsYoloV3Network, testing::ValuesIn(blobInputLayoutVariants));

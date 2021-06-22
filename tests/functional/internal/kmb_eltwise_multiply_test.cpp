@@ -94,4 +94,4 @@ const std::vector<KmbEltwiseMultiplyTestParams> eltwiseParams {
             .scale({3})
 };
 
-INSTANTIATE_TEST_CASE_P(precommit, KmbEltwiseMultiplyTest, testing::ValuesIn(eltwiseParams));
+INSTANTIATE_TEST_SUITE_P(precommit, KmbEltwiseMultiplyTest, testing::ValuesIn(eltwiseParams));

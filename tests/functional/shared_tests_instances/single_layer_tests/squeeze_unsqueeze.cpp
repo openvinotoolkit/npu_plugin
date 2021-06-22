@@ -72,7 +72,7 @@ const std::vector<ngraph::helpers::SqueezeOpType> opTypes = {
     ngraph::helpers::SqueezeOpType::UNSQUEEZE
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_Basic, KmbSqueezeUnsqueezeLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Basic, KmbSqueezeUnsqueezeLayerTest,
                         ::testing::Combine(
                             ::testing::ValuesIn(CommonTestUtils::combineParams(axesVectors)),
                             ::testing::ValuesIn(opTypes),
@@ -102,7 +102,7 @@ const std::vector<ngraph::helpers::SqueezeOpType> opTypes_unsqueeze_pass_mcm = {
     ngraph::helpers::SqueezeOpType::UNSQUEEZE
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_Basic_unsqueeze_pass_mcm, KmbSqueezeUnsqueezeLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Basic_unsqueeze_pass_mcm, KmbSqueezeUnsqueezeLayerTest,
                         ::testing::Combine(
                             ::testing::ValuesIn(CommonTestUtils::combineParams(axesVectors_unsqueeze_pass_mcm)),
                             ::testing::ValuesIn(opTypes_unsqueeze_pass_mcm),
@@ -132,7 +132,7 @@ const std::vector<ngraph::helpers::SqueezeOpType> opTypes_squeeze_pass_mcm = {
     ngraph::helpers::SqueezeOpType::SQUEEZE
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_Basic_squeeze_pass_mcm, KmbSqueezeUnsqueezeLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Basic_squeeze_pass_mcm, KmbSqueezeUnsqueezeLayerTest,
                         ::testing::Combine(
                             ::testing::ValuesIn(CommonTestUtils::combineParams(axesVectors_squeeze_pass_mcm)),
                             ::testing::ValuesIn(opTypes_squeeze_pass_mcm),

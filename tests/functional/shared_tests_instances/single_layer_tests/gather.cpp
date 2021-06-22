@@ -59,7 +59,7 @@ const auto params = testing::Combine(
 
 // nGraph parser doesn't contain specific gather parser
 // [Track number: S#40603]
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_Gather,
         KmbGatherLayerTest,
         params,

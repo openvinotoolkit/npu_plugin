@@ -83,7 +83,7 @@ const auto convCases = ::testing::Combine(activationCases,
                                           ::testing::Values(ngraph::op::PadType::EXPLICIT));
 
 
-INSTANTIATE_TEST_CASE_P(smoke_ConvActivation_Test,
+INSTANTIATE_TEST_SUITE_P(smoke_ConvActivation_Test,
                         KmbConvActivationSubgraphTest,
                         convCases,
                         ConvActTest::getTestCaseName);

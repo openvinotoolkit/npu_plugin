@@ -132,4 +132,4 @@ const std::vector<AsyncTestParams> asyncParams = {
         AsyncTestParams().nireq(8).niter(100),
 };
 
-INSTANTIATE_TEST_CASE_P(precommit, VpuxAsyncTests, testing::ValuesIn(asyncParams));
+INSTANTIATE_TEST_SUITE_P(precommit, VpuxAsyncTests, testing::ValuesIn(asyncParams));

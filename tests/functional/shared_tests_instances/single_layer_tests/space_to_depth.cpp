@@ -50,7 +50,7 @@ namespace {
             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)
     );
 
-    INSTANTIATE_TEST_CASE_P(smoke_SpaceToDepthBS2, KmbSpaceToDepthLayerTest, SpaceToDepthBS2, KmbSpaceToDepthLayerTest::getTestCaseName);
+    INSTANTIATE_TEST_SUITE_P(smoke_SpaceToDepthBS2, KmbSpaceToDepthLayerTest, SpaceToDepthBS2, KmbSpaceToDepthLayerTest::getTestCaseName);
 
     const std::vector<std::vector<size_t >> inputShapesBS3 = {
             {1, 1, 3, 3}, {1, 1, 6, 6}, {1, 1, 9, 9}, {2, 4, 9, 9}, {2, 3, 15, 12}};
@@ -67,6 +67,6 @@ namespace {
             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)
     );
 
-    INSTANTIATE_TEST_CASE_P(smoke_SpaceToDepthBS3, KmbSpaceToDepthLayerTest, SpaceToDepthBS3, KmbSpaceToDepthLayerTest::getTestCaseName);
+    INSTANTIATE_TEST_SUITE_P(smoke_SpaceToDepthBS3, KmbSpaceToDepthLayerTest, SpaceToDepthBS3, KmbSpaceToDepthLayerTest::getTestCaseName);
 
 }  // namespace

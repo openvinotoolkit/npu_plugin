@@ -31,7 +31,7 @@ class KmbSigmoidLayerTests : public KmbLayerTestBase, public testing::WithParamI
 
 TEST_P(KmbSigmoidLayerTests, Single_FP32) {
     // TODO: Remove following line after mcm compiler fix.
-    SKIP() << "MCM compiler is unable to parse a standalone sigmoid layer.";
+    GTEST_SKIP() << "MCM compiler is unable to parse a standalone sigmoid layer.";
     const auto &p = GetParam();
 
     const auto userInDesc = TensorDesc(Precision::U8, p._inDims, Layout::NCHW);
@@ -68,4 +68,4 @@ const std::vector<SigmoidTestParams> sigmoidParams {
             .inDims({1, 1000, 1, 1})
 };
 
-INSTANTIATE_TEST_CASE_P(precommit, KmbSigmoidLayerTests, testing::ValuesIn(sigmoidParams));
+INSTANTIATE_TEST_SUITE_P(precommit, KmbSigmoidLayerTests, testing::ValuesIn(sigmoidParams));

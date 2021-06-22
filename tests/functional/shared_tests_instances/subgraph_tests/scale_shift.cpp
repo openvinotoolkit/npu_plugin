@@ -183,7 +183,7 @@ std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precis
                                                          InferenceEngine::Precision::FP16,
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_scale_shift, KmbScaleShiftLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_scale_shift, KmbScaleShiftLayerTest,
                         ::testing::Combine(
                             ::testing::ValuesIn(inShapes),
                             ::testing::ValuesIn(netPrecisions),

@@ -99,7 +99,7 @@ const std::vector<ngraph::helpers::ActivationTypes> activations = {
         ngraph::helpers::Relu,
 };
 
-INSTANTIATE_TEST_CASE_P(conv2d_with_act, KmbConv2dWithBiasTest,
+INSTANTIATE_TEST_SUITE_P(conv2d_with_act, KmbConv2dWithBiasTest,
                         ::testing::Combine(::testing::ValuesIn(kernelShapes), ::testing::ValuesIn(activations)));
 
 }  // namespace

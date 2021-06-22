@@ -50,7 +50,7 @@ namespace ConcatSoftmaxSubGraphTestsDefinitions {
             {{1, 10, 33, 80}, {1, 10, 33, 80}, {1, 10, 33, 80}, {1, 10, 33, 80}},
     };
 
-    INSTANTIATE_TEST_CASE_P(smoke4d_tensors, KmbConcatSoftmaxSubGraphTest,
+    INSTANTIATE_TEST_SUITE_P(smoke4d_tensors, KmbConcatSoftmaxSubGraphTest,
                             ::testing::Combine(
                                     ::testing::ValuesIn(axes4d),
                                     ::testing::ValuesIn(inShapes4d),
@@ -70,7 +70,7 @@ namespace ConcatSoftmaxSubGraphTestsDefinitions {
             {{1, 10, 33}, {1, 10, 33}, {1, 10, 33}, {1, 10, 33}},
     };
 
-    INSTANTIATE_TEST_CASE_P(smoke3d_tensors, KmbConcatSoftmaxSubGraphTest,
+    INSTANTIATE_TEST_SUITE_P(smoke3d_tensors, KmbConcatSoftmaxSubGraphTest,
                             ::testing::Combine(
                                     ::testing::ValuesIn(axes3d),
                                     ::testing::ValuesIn(inShapes4d),
@@ -92,7 +92,7 @@ namespace ConcatSoftmaxSubGraphTestsDefinitions {
             {{1, 256, 14, 14}, {1, 256, 14, 14}}
     };
 
-    INSTANTIATE_TEST_CASE_P(squeeznet1_1_tensors, KmbConcatSoftmaxSubGraphTest,
+    INSTANTIATE_TEST_SUITE_P(squeeznet1_1_tensors, KmbConcatSoftmaxSubGraphTest,
                             ::testing::Combine(
                                     ::testing::ValuesIn(axes_squeeznet1_1),
                                     ::testing::ValuesIn(inShapes_squeeznet1_1),

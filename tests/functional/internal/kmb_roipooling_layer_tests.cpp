@@ -144,4 +144,4 @@ const std::vector<ROIPoolingTestParams> roiPoolingParams {
         .params(ROIPoolingParams().pooled_w(7).pooled_h(7).spatial_scale(0.0625f).mode("bilinear"))
 };
 
-INSTANTIATE_TEST_CASE_P(precommit, KmbROIPoolingLayerTests, testing::ValuesIn(roiPoolingParams));
+INSTANTIATE_TEST_SUITE_P(precommit, KmbROIPoolingLayerTests, testing::ValuesIn(roiPoolingParams));

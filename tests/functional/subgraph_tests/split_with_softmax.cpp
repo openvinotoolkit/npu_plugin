@@ -63,7 +63,7 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP16
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_Split, KmbSplitSoftmaxLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Split, KmbSplitSoftmaxLayerTest,
                         ::testing::Combine(::testing::Values(2, 3), ::testing::Values(-2, 3),
                                            ::testing::ValuesIn(netPrecisions),
                                            ::testing::Values(InferenceEngine::Precision::FP16, InferenceEngine::Precision::FP32),

@@ -74,5 +74,5 @@ TEST_P(Graph_Common_UnitTests, getGraphBlob_ReturnNotEmpty) {
 //------------------------------------------------------------------------------
 const static std::vector<typeOfGraph> createdFrom = {fromImportedGraph};
 
-INSTANTIATE_TEST_CASE_P(GraphFrom, Graph_Common_UnitTests, ::testing::ValuesIn(createdFrom),
+INSTANTIATE_TEST_SUITE_P(GraphFrom, Graph_Common_UnitTests, ::testing::ValuesIn(createdFrom),
     Graph_Common_UnitTests::PrintToStringParamName());

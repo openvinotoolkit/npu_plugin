@@ -46,7 +46,7 @@ protected:
 
 TEST_F(kmbAllocatorUnitTests, canFreeMemory) {
     if (!isVPUSMMDriverFound) {
-        SKIP() << "vpusmm_driver not found. Please install before running tests";
+        GTEST_SKIP() << "vpusmm_driver not found. Please install before running tests";
     }
 
     KmbVpusmmAllocator allocator;
@@ -60,7 +60,7 @@ TEST_F(kmbAllocatorUnitTests, canFreeMemory) {
 
 TEST_F(kmbAllocatorUnitTests, canWriteAndReadAllocatedMemory) {
     if (!isVPUSMMDriverFound) {
-        SKIP() << "vpusmm_driver not found. Please install before running tests";
+        GTEST_SKIP() << "vpusmm_driver not found. Please install before running tests";
     }
 
     KmbVpusmmAllocator allocator;
@@ -82,7 +82,7 @@ TEST_F(kmbAllocatorUnitTests, canWriteAndReadAllocatedMemory) {
 
 TEST_F(kmbAllocatorUnitTests, cannotFreeInvalidAddressMemory) {
     if (!isVPUSMMDriverFound) {
-        SKIP() << "vpusmm_driver not found. Please install before running tests";
+        GTEST_SKIP() << "vpusmm_driver not found. Please install before running tests";
     }
 
     KmbVpusmmAllocator allocator;
@@ -94,7 +94,7 @@ TEST_F(kmbAllocatorUnitTests, cannotFreeInvalidAddressMemory) {
 
 TEST_F(kmbAllocatorUnitTests, cannotDoDoubleFree) {
     if (!isVPUSMMDriverFound) {
-        SKIP() << "vpusmm_driver not found. Please install before running tests";
+        GTEST_SKIP() << "vpusmm_driver not found. Please install before running tests";
     }
 
     KmbVpusmmAllocator allocator;
@@ -109,7 +109,7 @@ TEST_F(kmbAllocatorUnitTests, cannotDoDoubleFree) {
 
 TEST_F(kmbAllocatorUnitTests, canCreateBlobBasedOnAllocator) {
     if (!isVPUSMMDriverFound) {
-        SKIP() << "vpusmm_driver not found. Please install before running tests";
+        GTEST_SKIP() << "vpusmm_driver not found. Please install before running tests";
     }
 
     const std::shared_ptr<InferenceEngine::IAllocator> customAllocator(new KmbVpusmmAllocator());
@@ -123,7 +123,7 @@ TEST_F(kmbAllocatorUnitTests, canCreateBlobBasedOnAllocator) {
 
 TEST_F(kmbAllocatorUnitTests, canWriteToBlobMemory) {
     if (!isVPUSMMDriverFound) {
-        SKIP() << "vpusmm_driver not found. Please install before running tests";
+        GTEST_SKIP() << "vpusmm_driver not found. Please install before running tests";
     }
 
     const std::shared_ptr<InferenceEngine::IAllocator> customAllocator(new KmbVpusmmAllocator());
@@ -154,7 +154,7 @@ protected:
 
 TEST_P(kmbAllocatorDifferentSizeUnitTests, canAllocate) {
     if (!isVPUSMMDriverFound) {
-        SKIP() << "vpusmm_driver not found. Please install before running tests";
+        GTEST_SKIP() << "vpusmm_driver not found. Please install before running tests";
     }
     auto isAlignedAllocation = GetParam();
 
@@ -168,16 +168,16 @@ TEST_P(kmbAllocatorDifferentSizeUnitTests, canAllocate) {
     ASSERT_NE(allocator.alloc(size), nullptr);
 }
 
-INSTANTIATE_TEST_CASE_P(unit, kmbAllocatorDifferentSizeUnitTests, ::testing::Values(true, false),
+INSTANTIATE_TEST_SUITE_P(unit, kmbAllocatorDifferentSizeUnitTests, ::testing::Values(true, false),
     kmbAllocatorDifferentSizeUnitTests::PrintToStringParamName());
 
 TEST_F(kmbAllocatorUnitTests, checkValidPtrOnVpusmm) {
 #if !defined(__arm__) && !defined(__aarch64__)
-    SKIP();
+    GTEST_SKIP();
 #endif
 
     if (!isVPUSMMDriverFound) {
-        SKIP() << "vpusmm_driver not found. Please install before running tests";
+        GTEST_SKIP() << "vpusmm_driver not found. Please install before running tests";
     }
 
     KmbVpusmmAllocator allocator;

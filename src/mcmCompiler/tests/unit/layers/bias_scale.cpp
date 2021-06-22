@@ -88,7 +88,7 @@ using namespace testing;
 static Form form1({mv::Shape({56, 56, 24, 8}), mv::Order("NCHW")});
 static Form form2({mv::Shape({320, 200, 3})  , mv::Order("CHW") });
 
-INSTANTIATE_TEST_CASE_P(demo, layers_bias_scale,
+INSTANTIATE_TEST_SUITE_P(demo, layers_bias_scale,
                         Combine(Values(Bias, Scale),
                                 Values(form1, form2),
                                 Values(mv::DType("Float16")),

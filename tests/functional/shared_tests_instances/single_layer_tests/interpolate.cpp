@@ -133,7 +133,7 @@ const auto interpolateCasesWithoutNearestMode = ::testing::Combine(
         ::testing::ValuesIn(defaultAxes),
         ::testing::ValuesIn(defaultScales));
 
-INSTANTIATE_TEST_CASE_P(smoke_Interpolate_nearest_mode, KmbInterpolateLayerTest, ::testing::Combine(
+INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_nearest_mode, KmbInterpolateLayerTest, ::testing::Combine(
         interpolateCasesNearestMode,
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -146,7 +146,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Interpolate_nearest_mode, KmbInterpolateLayerTest,
         ::testing::Values(additional_config)),
                             KmbInterpolateLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Interpolate_without_nearest, KmbInterpolateLayerTest, ::testing::Combine(
+INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_without_nearest, KmbInterpolateLayerTest, ::testing::Combine(
         interpolateCasesWithoutNearestMode,
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),

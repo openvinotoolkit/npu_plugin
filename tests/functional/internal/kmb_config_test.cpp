@@ -51,7 +51,7 @@ void KmbConfigTest::runTest(
         }
     } catch (const import_error& ex) {
         std::cerr << ex.what() << std::endl;
-        SKIP() << ex.what();
+        GTEST_SKIP() << ex.what();
     }
 }
 
@@ -136,7 +136,7 @@ static const auto allBaseConfigurations = ::testing::Combine(
     ::testing::ValuesIn(emptyConfigs),
     ::testing::ValuesIn(emptyConfigs));
 
-INSTANTIATE_TEST_CASE_P(SomeCase1, KmbConfigTest, allBaseConfigurations);
+INSTANTIATE_TEST_SUITE_P(SomeCase1, KmbConfigTest, allBaseConfigurations);
 
 static const auto allPreProcConfigurations = ::testing::Combine(
     ::testing::ValuesIn(emptyConfigs),
@@ -146,4 +146,4 @@ static const auto allPreProcConfigurations = ::testing::Combine(
     ::testing::ValuesIn(preProcParamConfigs),
     ::testing::ValuesIn(inferShavesConfigs));
 
-INSTANTIATE_TEST_CASE_P(SomeCase2, KmbConfigTest, allPreProcConfigurations);
+INSTANTIATE_TEST_SUITE_P(SomeCase2, KmbConfigTest, allPreProcConfigurations);

@@ -10,7 +10,7 @@
 // to the "third-party-programs.txt" or other similarly-named text file
 // included with the Software Package for additional details.
 //
-#include <common_test_utils/gtest/googletest/include/gtest/gtest.h>
+#include <gtest/gtest.h>
 
 #include "hddl2_backend.h"
 
@@ -21,6 +21,6 @@ inline bool canWorkWithDevice() {
 #   define SKIP_IF_NO_DEVICE()                                              \
     do {                                                                    \
         if (!canWorkWithDevice()) {             \
-            SKIP() << "Skip test due to absence of HDDL2 device";           \
+            GTEST_SKIP() << "Skip test due to absence of HDDL2 device";           \
         }                                                                   \
     } while (false)

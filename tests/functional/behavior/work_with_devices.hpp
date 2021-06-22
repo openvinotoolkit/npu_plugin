@@ -50,7 +50,7 @@ protected:
                 return device.find("VPUX") != std::string::npos;
             }) != devices.cend();
         if (isVPUXDeviceAvailable) {
-            SKIP() << "Skip the tests since device is available";
+            GTEST_SKIP() << "Skip the tests since device is available";
         }
     }
 };

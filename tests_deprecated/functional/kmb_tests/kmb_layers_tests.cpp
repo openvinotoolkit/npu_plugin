@@ -37,7 +37,7 @@ void kmbLayersTests_nightly::NetworkInit(const std::string& layer_type, std::map
     VPUX_UNUSED(weights);
     VPUX_UNUSED(outputPrecision);
     VPUX_UNUSED(inputPrecision);
-    SKIP();
+    GTEST_SKIP();
 #else
     ASSERT_NO_FATAL_FAILURE(
         doNetworkInit(layer_type, params, weights_size, biases_size, weights, outputPrecision, inputPrecision););
@@ -50,7 +50,7 @@ void kmbLayersTests_nightly::setup(const CNNNetwork& network, InferenceEngine::P
     VPUX_UNUSED(network);
     VPUX_UNUSED(outputPrecision);
     VPUX_UNUSED(inputPrecision);
-    SKIP();
+    GTEST_SKIP();
 #else
     _inputsInfo = network.getInputsInfo();
     for (const auto& in : _inputsInfo) {

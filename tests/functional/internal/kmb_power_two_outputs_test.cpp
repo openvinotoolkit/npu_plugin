@@ -149,4 +149,4 @@ const std::vector<PowerTwoOutputsTestParams> powerParams {
                 .outPrecision(Precision::FP16),
 };
 
-INSTANTIATE_TEST_CASE_P(precommit, KmbPowerTwoOutputsTest, testing::ValuesIn(powerParams));
+INSTANTIATE_TEST_SUITE_P(precommit, KmbPowerTwoOutputsTest, testing::ValuesIn(powerParams));

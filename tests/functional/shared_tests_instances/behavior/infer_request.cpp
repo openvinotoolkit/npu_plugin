@@ -15,7 +15,7 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 
 const std::vector<std::map<std::string, std::string>> configs = {};
 
-INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, InferRequestTests,
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestTests,
     ::testing::Combine(
     ::testing::ValuesIn(netPrecisions),
     ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY),

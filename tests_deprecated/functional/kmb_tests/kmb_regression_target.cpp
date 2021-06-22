@@ -167,7 +167,7 @@ TEST_P(VpuInferWithPath, DISABLED_compareInferenceOutputWithReference) {
     std::string outputSuffix = blobsInfo._outputPath;
     std::string modelFilePath = ModelsPath() + graphSuffix;
     if (graphSuffix.rfind(YOLO_GRAPH_NAME) == graphSuffix.size() - YOLO_GRAPH_NAME.size()) {
-        SKIP() << "Disabled due to H#18012088819";
+        GTEST_SKIP() << "Disabled due to H#18012088819";
     }
 
     Core ie;
@@ -225,7 +225,7 @@ TEST_P(VpuInferAndCompareTestsWithParam, DISABLED_multipleInferRequests) {
     std::string outputSuffix = blobsInfo._outputPath;
     std::string modelFilePath = ModelsPath() + graphSuffix;
     if (graphSuffix.rfind(YOLO_GRAPH_NAME) == graphSuffix.size() - YOLO_GRAPH_NAME.size()) {
-        SKIP() << "Disabled due to H#18012088819";
+        GTEST_SKIP() << "Disabled due to H#18012088819";
     }
 
     Core ie;
@@ -312,7 +312,7 @@ TEST_P(VpuInferWithPath, DISABLED_asyncInferCallback) {
     std::string outputSuffix = blobsInfo._outputPath;
     std::string modelFilePath = ModelsPath() + graphSuffix;
     if (graphSuffix.rfind(YOLO_GRAPH_NAME) == graphSuffix.size() - YOLO_GRAPH_NAME.size()) {
-        SKIP() << "Disabled due to H#18012088819";
+        GTEST_SKIP() << "Disabled due to H#18012088819";
     }
 
     InferenceEngine::ExecutableNetwork importedNetwork;
@@ -398,7 +398,7 @@ TEST_P(VpuInferWithPath, DISABLED_asyncInferCallbackRecursive) {
     std::string outputSuffix = blobsInfo._outputPath;
     std::string modelFilePath = ModelsPath() + graphSuffix;
     if (graphSuffix.rfind(YOLO_GRAPH_NAME) == graphSuffix.size() - YOLO_GRAPH_NAME.size()) {
-        SKIP() << "Disabled due to H#18012088819";
+        GTEST_SKIP() << "Disabled due to H#18012088819";
     }
 
     InferenceEngine::ExecutableNetwork importedNetwork;
@@ -468,7 +468,7 @@ TEST_P(VpuInferWithPath, DISABLED_asyncInferCallbackRecursive) {
 
 const static std::vector<bool> isSyncVec = {false, true};
 
-INSTANTIATE_TEST_CASE_P(precommit, VpuInferAndCompareTestsWithParam,
+INSTANTIATE_TEST_SUITE_P(precommit, VpuInferAndCompareTestsWithParam,
     ::testing::Combine(::testing::ValuesIn(isSyncVec), ::testing::ValuesIn(pathToPreCompiledGraph)));
 
 TEST_P(VpuInferWithPath, DISABLED_compareOutputsTwoNetworks) {
@@ -609,7 +609,7 @@ TEST_P(VpuInferWithPathForTop3Net, DISABLED_canDoInferenceOnTop3ImportedBlobs) {
                         NUMBER_OF_TOP_CLASSES));
 }
 
-INSTANTIATE_TEST_CASE_P(precommit, VpuInferWithPath, ::testing::ValuesIn(pathToPreCompiledGraph));
+INSTANTIATE_TEST_SUITE_P(precommit, VpuInferWithPath, ::testing::ValuesIn(pathToPreCompiledGraph));
 
-INSTANTIATE_TEST_CASE_P(precommit, VpuInferWithPathForTop3Net, ::testing::ValuesIn(pathToTop3PreCompiledGraph));
+INSTANTIATE_TEST_SUITE_P(precommit, VpuInferWithPathForTop3Net, ::testing::ValuesIn(pathToTop3PreCompiledGraph));
 #endif

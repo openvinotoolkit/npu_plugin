@@ -80,7 +80,7 @@ TEST_P(KmbAsymmetricStrideConvSubGraphTest, CompareWithRefs) {
     Run();
 }
 
-INSTANTIATE_TEST_CASE_P(smoke, KmbAsymmetricStrideConvSubGraphTest,
+INSTANTIATE_TEST_SUITE_P(smoke, KmbAsymmetricStrideConvSubGraphTest,
     ::testing::Values(
     KmbAsymmetricStrideConvSubGraphTestParams {
         LayerTestsUtils::testPlatformTargetDevice,  // _device

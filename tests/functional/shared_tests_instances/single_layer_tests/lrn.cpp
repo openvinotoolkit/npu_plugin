@@ -41,7 +41,7 @@ const double beta = 2;
 const double bias = 1.0;
 const size_t size = 5;
 
-INSTANTIATE_TEST_CASE_P(smoke_LrnCheck, KmbLrnLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_LrnCheck, KmbLrnLayerTest,
                         ::testing::Combine(::testing::Values(alpha),
                                            ::testing::Values(beta),
                                            ::testing::Values(bias),

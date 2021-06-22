@@ -83,7 +83,7 @@ std::vector<InferenceEngine::Precision> netPrecisions = {
     InferenceEngine::Precision::U8
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_NoReshape, KmbConcatLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_NoReshape, KmbConcatLayerTest,
     ::testing::Combine(
         ::testing::ValuesIn(axes),
         ::testing::ValuesIn(inShapes),
@@ -105,7 +105,7 @@ INSTANTIATE_TEST_CASE_P(smoke_NoReshape, KmbConcatLayerTest,
             {{1, 64, 35, 35}, {1, 64, 35, 35}, {1, 96, 35, 35}, {1, 32, 35, 35}}
     };
 
-    INSTANTIATE_TEST_CASE_P(smoke_Reshape, KmbConcatLayerTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_Reshape, KmbConcatLayerTest,
                             ::testing::Combine(
                                     ::testing::ValuesIn(axes_check),
                                     ::testing::ValuesIn(inShapes_check),

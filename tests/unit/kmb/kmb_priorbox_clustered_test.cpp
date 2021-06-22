@@ -274,7 +274,7 @@ protected:
 TEST_P(KmbComputePriorboxClusteredTest, TestsPriorBoxClustered) {}
 
 #ifndef __aarch64__
-INSTANTIATE_TEST_CASE_P(DISABLED_KmbTestsPriorBoxClustered, KmbComputePriorboxClusteredTest,
+INSTANTIATE_TEST_SUITE_P(DISABLED_KmbTestsPriorBoxClustered, KmbComputePriorboxClusteredTest,
     ::testing::Values(
         xmlPriorBoxClusteredParam(0.5, 0, 16.0, 0.0, 0.0, 0, 0, 0, 1,
             {9.400000, 25.100000, 14.700000, 34.700001, 143.000000, 77.400002, 128.800003, 51.099998, 75.599998},

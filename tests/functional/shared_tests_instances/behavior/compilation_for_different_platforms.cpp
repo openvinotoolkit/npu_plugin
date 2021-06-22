@@ -16,7 +16,7 @@ namespace {
 
 TEST_P(CompileForDifferentPlatformsTests, CompilationForSpecificPlatform) {
 #if defined(__arm__) || defined(__aarch64__)
-    SKIP() << "Compilation only";
+    GTEST_SKIP() << "Compilation only";
 #endif
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     {
@@ -37,7 +37,7 @@ const std::vector<std::map<std::string, std::string>> configs = {
         {{CONFIG_KEY(DEVICE_ID), "3900"}},
         {{CONFIG_KEY(DEVICE_ID), "3720"}}};
 
-INSTANTIATE_TEST_CASE_P(smoke_BehaviorTest, CompileForDifferentPlatformsTests,
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest, CompileForDifferentPlatformsTests,
                         ::testing::Combine(
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY),

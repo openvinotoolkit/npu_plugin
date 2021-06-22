@@ -171,4 +171,4 @@ const std::vector<GatherTestParams> gatherParams {
                 .axis(0)
 };
 
-INSTANTIATE_TEST_CASE_P(Gather, internal_KmbGatherLayerTests, testing::ValuesIn(gatherParams));
+INSTANTIATE_TEST_SUITE_P(Gather, internal_KmbGatherLayerTests, testing::ValuesIn(gatherParams));

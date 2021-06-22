@@ -125,7 +125,7 @@ protected:
 //                0x0000000094400040                mvConsoleTxQueue
 TEST_P(PipePrintTest, CanLocateCanaries) {
     if (PlatformEnvironment::PLATFORM == "3900") {
-        SKIP() << "Not applicable for TBH. Results in bus error.";
+        GTEST_SKIP() << "Not applicable for TBH. Results in bus error.";
     }
     // clear canaries
     PhysPtr<tyMvConsoleQueue> header(phy_addr);
@@ -240,7 +240,7 @@ TEST_P(PipePrintTest, DISABLED_run_pipe_print) {
 const std::vector<std::map<std::string, std::string>> configs = {
         {{VPUX_CONFIG_KEY(PLATFORM), "AUTO"}}};
 
-INSTANTIATE_TEST_CASE_P(smoke_PipePrintBaseTest, PipePrintTest,
+INSTANTIATE_TEST_SUITE_P(smoke_PipePrintBaseTest, PipePrintTest,
                         ::testing::Combine(
                                 ::testing::Values(InferenceEngine::Precision::FP32),
                                 ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY),

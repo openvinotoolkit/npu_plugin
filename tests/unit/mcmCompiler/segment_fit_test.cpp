@@ -101,6 +101,6 @@ TEST_P(SegmentFitTests, can_fit_y_eq_minus_x_with_horizontal_segment_only) {
     ASSERT_TRUE(-2 == ss.getBias() || -1 == ss.getBias());
 }
 
-INSTANTIATE_TEST_CASE_P(SegmentFitTestsAll, SegmentFitTests,
+INSTANTIATE_TEST_SUITE_P(SegmentFitTestsAll, SegmentFitTests,
         ::testing::Values(eFast, eBruteForce),
         SegmentFitTests::getTestCaseName);

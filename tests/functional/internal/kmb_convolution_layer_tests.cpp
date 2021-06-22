@@ -151,7 +151,7 @@ const std::vector<ConvolutionParams> dilatedParams = {
     ConvolutionParams().outChannels(16).kernel(3).strides(2).pad(0).dilation(2),
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     precommit_Simple, KmbConvolutionLayerTests,
     testing::Combine(
         testing::ValuesIn(inDims),
@@ -161,7 +161,7 @@ INSTANTIATE_TEST_CASE_P(
     )
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     precommit_Dilated, KmbConvolutionLayerTests,
     testing::Combine(
         testing::ValuesIn(inDims),

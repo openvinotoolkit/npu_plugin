@@ -51,7 +51,7 @@ namespace {
     // kmb-plugin/src/frontend_mcm/src/ngraph_mcm_frontend/passes/convert_to_mcm_model.cpp:212
     // openvino/inference-engine/include/details/ie_exception_conversion.hpp:64
     // [Track number: S#45145]
-    INSTANTIATE_TEST_CASE_P(DISABLED_Basic_smoke, KmbReverseSequenceLayerTest,
+    INSTANTIATE_TEST_SUITE_P(DISABLED_Basic_smoke, KmbReverseSequenceLayerTest,
                             ::testing::Combine(
                                     ::testing::ValuesIn(batchAxisIndices),
                                     ::testing::ValuesIn(seqAxisIndices),

@@ -65,7 +65,7 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
     InferenceEngine::Precision::U8
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_NoReshape, KmbConvertLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_NoReshape, KmbConvertLayerTest,
                         ::testing::Combine(
                             ::testing::Values(inShape),
                             ::testing::ValuesIn(netPrecisions),

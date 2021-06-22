@@ -216,7 +216,7 @@ using VpuPreprocessingTests = vpuLayersTests;
 
 TEST_F(VpuPreprocessingTests, DISABLED_preprocResizeAndCSC) {
 #if !defined(__arm__) && !defined(__aarch64__)
-    SKIP();
+    GTEST_SKIP();
 #endif
     std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/schema-3.24.3/mobilenet-v2.blob";
 
@@ -263,7 +263,7 @@ TEST_F(VpuPreprocessingTests, DISABLED_preprocResizeAndCSC) {
 
 TEST_F(VpuPreprocessingTests, DISABLED_multiThreadPreprocResizeAndCSC) {
 #if !defined(__arm__) && !defined(__aarch64__)
-    SKIP();
+    GTEST_SKIP();
 #endif
     std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/schema-3.24.3/mobilenet-v2.blob";
 
@@ -319,7 +319,7 @@ TEST_F(VpuPreprocessingTests, DISABLED_multiThreadPreprocResizeAndCSC) {
 
 TEST_F(VpuPreprocessingTests, DISABLED_twoRequestsWithPreprocessing) {
 #if !defined(__arm__) && !defined(__aarch64__)
-    SKIP();
+    GTEST_SKIP();
 #endif
     std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/schema-3.24.3/mobilenet-v2.blob";
 
@@ -482,7 +482,7 @@ TEST_P(VpuPreprocessingWithTwoNetworksTests, DISABLED_inference) {
     });
 }
 
-INSTANTIATE_TEST_CASE_P(precommit, VpuPreprocessingWithTwoNetworksTests,
+INSTANTIATE_TEST_SUITE_P(precommit, VpuPreprocessingWithTwoNetworksTests,
     Values(std::make_tuple("/KMB_models/BLOBS/mobilenet-v2/input-1080x1080-nv12.bin", 1080, 1080,
                "/KMB_models/BLOBS/tiny-yolo-v2/input-1920x1080-nv12.bin", 1920, 1080),
         std::make_tuple("/KMB_models/BLOBS/mobilenet-v2/input-1920x1080-nv12.bin", 1920, 1080,
@@ -822,21 +822,21 @@ TEST_F(VpuPreprocessingTests, DISABLED_setConfigAndCheckNumShaves) {
 
 const static std::vector<preprocessingType> preprocTypes = {PT_RESIZE, PT_NV12};
 
-INSTANTIATE_TEST_CASE_P(precommit, VpuPreprocessingTestsWithParam, ::testing::ValuesIn(preprocTypes));
+INSTANTIATE_TEST_SUITE_P(precommit, VpuPreprocessingTestsWithParam, ::testing::ValuesIn(preprocTypes));
 
 using namespace testing;
-INSTANTIATE_TEST_CASE_P(precommit_preprocessing_shaves, VpuPreprocessingConfigAndInferTestsSipp,
+INSTANTIATE_TEST_SUITE_P(precommit_preprocessing_shaves, VpuPreprocessingConfigAndInferTestsSipp,
     Combine(Values("VPUX_PREPROCESSING_SHAVES"), Values("4", "6")));
 
-INSTANTIATE_TEST_CASE_P(precommit_preprocessing_lpi, VpuPreprocessingConfigAndInferTestsSipp,
+INSTANTIATE_TEST_SUITE_P(precommit_preprocessing_lpi, VpuPreprocessingConfigAndInferTestsSipp,
     Combine(Values("VPUX_PREPROCESSING_LPI"), Values("4", "8")));
 
 // [Track number: H#18013271822]
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     DISABLED_precommit, VpuPreprocessingConfigAndInferTests,
     Combine(Values("VPUX_USE_M2I", "VPUX_USE_SHAVE_ONLY_M2I"), Values("YES", "NO")));
 
-INSTANTIATE_TEST_CASE_P(precommit, VpuPreprocessingConfigTests,
+INSTANTIATE_TEST_SUITE_P(precommit, VpuPreprocessingConfigTests,
     Values(std::make_tuple("VPUX_PREPROCESSING_SHAVES", "8", true),
         std::make_tuple("VPUX_PREPROCESSING_SHAVES", "seventy one", false),
         std::make_tuple("VPUX_PREPROCESSING_LPI", "16", true),

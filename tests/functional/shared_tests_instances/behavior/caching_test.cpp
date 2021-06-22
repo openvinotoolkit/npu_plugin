@@ -23,7 +23,7 @@ static std::vector<nGraphFunctionWithName> smoke_functions() {
     return funcs;
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_CachingSupportCase_KMB, LoadNetworkCacheTestBase,
+INSTANTIATE_TEST_SUITE_P(smoke_CachingSupportCase_KMB, LoadNetworkCacheTestBase,
                         ::testing::Combine(
                                 ::testing::ValuesIn(smoke_functions()),
                                 ::testing::ValuesIn(netPrecisions),

@@ -168,7 +168,7 @@ TEST_F(KmbVasFRTest, precommit_vasfr_feature) {
 // MTL target compilation test
 // [Track number: C#46795]
 TEST_F(KmbClassifyNetworkTest, precommit_resnet_50_pytorch_dense_int8_IRv10_fp16_to_int8_MTL) {
-    SKIP() << "LpScheduler - RuntimeError: Precondition violation";
+    GTEST_SKIP() << "LpScheduler - RuntimeError: Precondition violation";
     runTest(
             TestNetworkDesc("KMB_models/INT8/public/ResNet-50/resnet_50_pytorch_dense_int8_IRv10_fp16_to_int8.xml")
                     .setUserInputLayout("input", Layout::NHWC)
@@ -242,7 +242,7 @@ TEST_F(KmbDetectionNetworkTest, precommit_peleenet) {
 // TODO: [Track number: E#9578]
 TEST_F(KmbDetectionNetworkTest, precommit_vehicle_license_plate_detection_barrier_0106_tf_dense_int8_IRv10_from_fp32) {
     if (isByPass()) {
-        SKIP() << "Skip for by-pass mode due to bad accuracy";
+        GTEST_SKIP() << "Skip for by-pass mode due to bad accuracy";
     }
     runTest(
             TestNetworkDesc("KMB_models/INT8/icv/vehicle-license-plate-detection-barrier-0106/vehicle_license_plate_detection_barrier_0106_tf_dense_int8_IRv10_from_fp32.xml")
@@ -258,7 +258,7 @@ TEST_F(KmbDetectionNetworkTest, precommit_vehicle_license_plate_detection_barrie
 
 TEST_F(SmokeNetworkTest, yolo_v4_subgraph_ddr_output_test) {
 #ifdef _WIN32
-    SKIP() << "SEH exception";
+    GTEST_SKIP() << "SEH exception";
 #endif
     SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "bad results");
     runTest(
@@ -333,12 +333,12 @@ TEST_P(KmbYoloV3NetworkTestWithSpecificLayout, INT8_Dense_TF_YoloV3) {
         anchors);
 }
 
-INSTANTIATE_TEST_CASE_P(all_layouts, KmbYoloV3NetworkTestWithSpecificLayout,
+INSTANTIATE_TEST_SUITE_P(all_layouts, KmbYoloV3NetworkTestWithSpecificLayout,
     ::testing::Combine(::testing::ValuesIn(inputLayout), ::testing::ValuesIn(outputLayout)));
 
 class KmbClassifyNetworkTestWithSpecificLayout : public KmbClassifyNetworkTest, public testing::WithParamInterface<InferenceEngine::Layout> {};
 
-INSTANTIATE_TEST_CASE_P(precommit, KmbClassifyNetworkTestWithSpecificLayout, ::testing::ValuesIn(inputLayout));
+INSTANTIATE_TEST_SUITE_P(precommit, KmbClassifyNetworkTestWithSpecificLayout, ::testing::ValuesIn(inputLayout));
 
 class KmbDetectionNetworkTestWithSpecificLayout : public KmbDetectionNetworkTest, public testing::WithParamInterface<InferenceEngine::Layout> {};
 
@@ -354,7 +354,7 @@ TEST_P(KmbDetectionNetworkTestWithSpecificLayout, DISABLED_face_detection_retail
 }
 
 
-INSTANTIATE_TEST_CASE_P(precommit, KmbDetectionNetworkTestWithSpecificLayout, ::testing::ValuesIn(inputLayout));
+INSTANTIATE_TEST_SUITE_P(precommit, KmbDetectionNetworkTestWithSpecificLayout, ::testing::ValuesIn(inputLayout));
 
 // TODO 4 similar tests face_detection_retail_caffe_IRV10_fp16_int8_*
 TEST_F(KmbDetectionNetworkTest, face_detection_retail_caffe_IRV10_fp16_int8_nchw_fuse_scale_input_accuracy_drop) {
@@ -394,7 +394,7 @@ TEST_F(KmbClassifyNetworkTest, DISABLED_vgg16_caffe_dense_int8_IRv10_fp16_to_int
 
 // [Track number: E#12913]
 TEST_F(KmbDetectionNetworkTest, face_detection_adas_0001) {
-    SKIP() << "Invalid overwrite state of inplace output";
+    GTEST_SKIP() << "Invalid overwrite state of inplace output";
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/face-detection-adas-0001/face-detection-adas-0001.xml")
 	    .setUserInputPrecision("input", Precision::U8)

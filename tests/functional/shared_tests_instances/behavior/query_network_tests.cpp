@@ -22,7 +22,7 @@ using namespace HeteroTests;
 
 auto ConvBias = ngraph::builder::subgraph::makeConvBias();
 
-INSTANTIATE_TEST_CASE_P(smoke_BEHTests, QueryNetworkTest,
+INSTANTIATE_TEST_SUITE_P(smoke_BEHTests, QueryNetworkTest,
                         ::testing::Combine(
                                 ::testing::Values("VPUX", "HETERO:VPUX", "MULTI:VPUX"),
                                 ::testing::Values(ConvBias)),

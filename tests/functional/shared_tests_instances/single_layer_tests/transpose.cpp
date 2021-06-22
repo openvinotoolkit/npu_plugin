@@ -61,7 +61,7 @@ const auto params = testing::Combine(
     testing::Values(LayerTestsUtils::testPlatformTargetDevice)
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_Transpose,
     KmbTransposeLayerTest,
     params,
@@ -89,7 +89,7 @@ const auto params2D = testing::Combine(
 );
 
 // [Track number: W#7312]
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     DISABLED_smoke_Transpose2D,
     KmbTransposeLayerTest_MLIR,
     params2D,
@@ -119,7 +119,7 @@ const auto params4D = testing::Combine(
     testing::Values(LayerTestsUtils::testPlatformTargetDevice)
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_Transpose4D,
     KmbTransposeLayerTest_MLIR,
     params4D,

@@ -14,7 +14,7 @@ namespace {
             {{CONFIG_KEY(LOG_LEVEL), CONFIG_VALUE(LOG_INFO)}},
     };
 
-    INSTANTIATE_TEST_CASE_P(smoke_BehaviorTest, InferRequestRunTests,
+    INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest, InferRequestRunTests,
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY),

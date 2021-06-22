@@ -197,5 +197,5 @@ const std::vector<ReshapeTestParams> unsupportedReshapeParams {
         .shape({4}),
 };
 
-INSTANTIATE_TEST_CASE_P(precommit, KmbReshapeLayerTests, testing::ValuesIn(supportedReshapeParams));
-INSTANTIATE_TEST_CASE_P(DISABLED_precommit, KmbReshapeLayerTests, testing::ValuesIn(unsupportedReshapeParams));
+INSTANTIATE_TEST_SUITE_P(precommit, KmbReshapeLayerTests, testing::ValuesIn(supportedReshapeParams));
+INSTANTIATE_TEST_SUITE_P(DISABLED_precommit, KmbReshapeLayerTests, testing::ValuesIn(unsupportedReshapeParams));

@@ -58,7 +58,7 @@ TEST_F(GetMetricTest, getAvailableDevices) {
 #else
     bool runningOnARM = false;
 #endif
-    if (deviceName == "HDDL2" || (deviceName == "VPUX" && !runningOnARM)) SKIP() << "No x86 device on CI";
+    if (deviceName == "HDDL2" || (deviceName == "VPUX" && !runningOnARM)) GTEST_SKIP() << "No x86 device on CI";
     std::vector<std::string> kmbSupportedMetrics = core->GetMetric(deviceName, METRIC_KEY(SUPPORTED_METRICS));
     std::vector<std::string>::const_iterator kmbAvalableDevMetricIter =
         std::find(kmbSupportedMetrics.begin(), kmbSupportedMetrics.end(), METRIC_KEY(AVAILABLE_DEVICES));
@@ -85,7 +85,7 @@ TEST_F(GetMetricTest, getAvailableDevices) {
 
 TEST_F(GetMetricTest, supportMetrics) {
     // [Track number: S#34628]
-    if (deviceName == "HDDL2" || deviceName == "VPUX") SKIP() << "No x86 device on CI";
+    if (deviceName == "HDDL2" || deviceName == "VPUX") GTEST_SKIP() << "No x86 device on CI";
     std::vector<std::string> supportedMetrics = core->GetMetric(deviceName, METRIC_KEY(SUPPORTED_METRICS));
     for (auto& metric : supportedMetrics) {
         ASSERT_NO_THROW(core->GetMetric(deviceName, metric));

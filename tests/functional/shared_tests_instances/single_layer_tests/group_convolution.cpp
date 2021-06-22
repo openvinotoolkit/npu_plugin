@@ -78,7 +78,7 @@ namespace {
             ::testing::ValuesIn(numGroups1d),
             ::testing::Values(ngraph::op::PadType::VALID));
 
-    INSTANTIATE_TEST_CASE_P(
+    INSTANTIATE_TEST_SUITE_P(
             smoke_GroupConvolution1D_ExplicitPadding, KmbGroupConvolutionLayerTest,
             ::testing::Combine(
                     groupConv1DParams_ExplicitPadding, ::testing::ValuesIn(netPrecisions),
@@ -90,7 +90,7 @@ namespace {
                     ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
             KmbGroupConvolutionLayerTest::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(
+    INSTANTIATE_TEST_SUITE_P(
             smoke_GroupConvolution1D_AutoPadValid, KmbGroupConvolutionLayerTest,
             ::testing::Combine(
                     groupConv1DParams_AutoPadValid, ::testing::ValuesIn(netPrecisions),
@@ -126,7 +126,7 @@ namespace {
             ::testing::ValuesIn(numGroups),
             ::testing::Values(ngraph::op::PadType::VALID));
 
-    INSTANTIATE_TEST_CASE_P(
+    INSTANTIATE_TEST_SUITE_P(
             smoke_GroupConvolution2D_ExplicitPadding, KmbGroupConvolutionLayerTest,
             ::testing::Combine(
                     groupConv2DParams_ExplicitPadding, ::testing::ValuesIn(netPrecisions),
@@ -138,7 +138,7 @@ namespace {
                     ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
             KmbGroupConvolutionLayerTest::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(
+    INSTANTIATE_TEST_SUITE_P(
             smoke_GroupConvolution2D_AutoPadValid, KmbGroupConvolutionLayerTest,
             ::testing::Combine(
                     groupConv2DParams_AutoPadValid, ::testing::ValuesIn(netPrecisions),
@@ -172,7 +172,7 @@ namespace {
     // Test is disabled because there is Segmentation fault (core dumped) at step
     // [Debug  ][VPU][KMB nGraph Parser] Convert nGraph to MCM Model
     // [Track number: S#50872]
-    INSTANTIATE_TEST_CASE_P(
+    INSTANTIATE_TEST_SUITE_P(
             DISABLED_smoke_GroupConvolution3D_ExplicitPadding, KmbGroupConvolutionLayerTest,
             ::testing::Combine(
                     groupConv3DParams_ExplicitPadding, ::testing::ValuesIn(netPrecisions),
@@ -187,7 +187,7 @@ namespace {
     // Test is disabled because there is Segmentation fault (core dumped) at step
     // [Debug  ][VPU][KMB nGraph Parser] Convert nGraph to MCM Model
     // [Track number: S#50872]
-    INSTANTIATE_TEST_CASE_P(
+    INSTANTIATE_TEST_SUITE_P(
             DISABLED_smoke_GroupConvolution3D_AutoPadValid, KmbGroupConvolutionLayerTest,
             ::testing::Combine(
                     groupConv3DParams_AutoPadValid, ::testing::ValuesIn(netPrecisions),

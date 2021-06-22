@@ -67,7 +67,7 @@ TEST_P(KmbQuantizedConvSubGraphTest, CompareWithRefs_MLIR) {
     Run();
 }
 
-INSTANTIATE_TEST_CASE_P(smoke, KmbQuantizedConvSubGraphTest,
+INSTANTIATE_TEST_SUITE_P(smoke, KmbQuantizedConvSubGraphTest,
     ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)
 );
 

@@ -140,7 +140,7 @@ TEST_P(Allocator_Manipulations_UnitTests, DISABLED_unlock_MemoryChanged_RemoteMe
     SKIP_IF_NO_DEVICE();
     auto owner = GetParam();
     if (owner == IERemoteMemoryOwner) {
-        SKIP() << "If Inference Engine own remote memory, we can't get remote memory";
+        GTEST_SKIP() << "If Inference Engine own remote memory, we can't get remote memory";
     }
 
     auto memoryHandle = allocatorHelper->createMemory(correctSize);
@@ -161,7 +161,7 @@ TEST_P(Allocator_Manipulations_UnitTests, DISABLED_lock_BeforeUnlock_RemoteMemor
     SKIP_IF_NO_DEVICE();
     auto owner = GetParam();
     if (owner == IERemoteMemoryOwner) {
-        SKIP() << "If Inference Engine own remote memory, we can't get remote memory";
+        GTEST_SKIP() << "If Inference Engine own remote memory, we can't get remote memory";
     }
 
     auto memoryHandle = allocatorHelper->createMemory(correctSize);
@@ -270,5 +270,5 @@ TEST_P(Allocator_Manipulations_UnitTests, DISABLED_ChangeLockedForReadMemory_Rem
 // TODO IERemoteMemoryOwner should not be allowed. Remove tests with it
 const static std::vector<RemoteMemoryOwner> memoryOwners = {ExternalRemoteMemoryOwner};
 
-INSTANTIATE_TEST_CASE_P(RemoteMemoryOwner, Allocator_Manipulations_UnitTests, ::testing::ValuesIn(memoryOwners),
+INSTANTIATE_TEST_SUITE_P(RemoteMemoryOwner, Allocator_Manipulations_UnitTests, ::testing::ValuesIn(memoryOwners),
     Allocator_Manipulations_UnitTests::PrintToStringParamName());
