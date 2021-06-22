@@ -1492,7 +1492,7 @@ namespace mv
                         // Each subtensor should be aligned to 16 byte boundaries. For SM we have 1 bit per elem,
                         // so divide tensor by 8 get size in bytes
                         // (sparse idu for SOH ZM CONV kernel h > 1)
-                        if( (W*dy*C/8)%128 != 0 )
+                        if( (W*dy*C)%128 != 0 ) //  equivalent with (W*dy*C/8)%16
                         {
                             log(mv::Logger::MessageType::Debug, child["name"].toString()+"_"+child["id"].toString() + " INF caused by incorrect SOH");
                             return INF;
