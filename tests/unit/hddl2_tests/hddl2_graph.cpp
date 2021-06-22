@@ -13,7 +13,7 @@
 
 #include "gtest/gtest.h"
 #include "models/model_pooling.h"
-#include "models/precompiled_resnet.h"
+#include "simple_graph.hpp"
 #include "vpux_plugin.h"
 
 using namespace InferenceEngine;
@@ -30,13 +30,16 @@ public:
     struct PrintToStringParamName {
         std::string operator()(testing::TestParamInfo<typeOfGraph> const& info) const;
     };
+
+protected:
+    std::stringstream _blobStream;
 };
 
 void Graph_Common_UnitTests::SetUp() {
     auto compiler = vpux::Compiler::create();
+    utils::simpleGraph::getExeNetwork()->Export(_blobStream);
     if (GetParam() == fromImportedGraph) {
-        const std::string modelToImport = PrecompiledResNet_Helper::resnet50.graphPath;
-        ASSERT_NO_THROW(networkPtr = compiler->parse(modelToImport));
+        ASSERT_NO_THROW(networkPtr = compiler->parse(_blobStream));
     }
 }
 
