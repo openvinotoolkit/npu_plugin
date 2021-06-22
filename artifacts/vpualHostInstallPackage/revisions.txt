@@ -1,2 +1,2 @@
-tag:ci_tag_vpual_release_21ww23.2.1
-commit:a4170d1078d75e52aaece71ad2a580fa055eaa64
+tag:ci_tag_vpual_release_21ww24.2.1
+commit:178c038e06ea3ab97b3ee3e0bd8c5b7dfb929aa4
