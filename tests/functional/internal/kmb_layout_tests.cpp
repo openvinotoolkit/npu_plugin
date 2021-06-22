@@ -78,7 +78,7 @@ static std::vector<size_t> composeDimsByLayout(const Layout& layout) {
 // [Track number: D#49269, E#8151]
 TEST_P(KmbLayoutTests, DISABLED_SetUnsupportedLayout) {
 #ifdef _WIN32
-    SKIP() << "SEH exception";
+    GTEST_SKIP() << "SEH exception";
 #endif
     const auto& p = GetParam();
     Precision in_precision = std::get<0>(p);
@@ -175,8 +175,8 @@ static auto checkIncorrectLayouts = ::testing::Combine(::testing::Values(Precisi
 static auto checkOutputPrecisionsForceFP16 = ::testing::Combine(::testing::Values(Precision::U8),
     ::testing::ValuesIn(all_precisions), ::testing::Values(Layout::NHWC), ::testing::Values(false));
 
-INSTANTIATE_TEST_CASE_P(precommit_InPrecisions, KmbLayoutTests, checkInputPrecisions);
-INSTANTIATE_TEST_CASE_P(precommit_OutPrecisions, KmbLayoutTests, checkOutputPrecisions);
-INSTANTIATE_TEST_CASE_P(precommit_Layouts, KmbLayoutTests, checkLayouts);
-INSTANTIATE_TEST_CASE_P(precommit_IncorrectLayouts, KmbLayoutTests, checkIncorrectLayouts);
-INSTANTIATE_TEST_CASE_P(precommit_OutPrecisionsForceFP16, KmbLayoutTests, checkOutputPrecisionsForceFP16);
+INSTANTIATE_TEST_SUITE_P(precommit_InPrecisions, KmbLayoutTests, checkInputPrecisions);
+INSTANTIATE_TEST_SUITE_P(precommit_OutPrecisions, KmbLayoutTests, checkOutputPrecisions);
+INSTANTIATE_TEST_SUITE_P(precommit_Layouts, KmbLayoutTests, checkLayouts);
+INSTANTIATE_TEST_SUITE_P(precommit_IncorrectLayouts, KmbLayoutTests, checkIncorrectLayouts);
+INSTANTIATE_TEST_SUITE_P(precommit_OutPrecisionsForceFP16, KmbLayoutTests, checkOutputPrecisionsForceFP16);

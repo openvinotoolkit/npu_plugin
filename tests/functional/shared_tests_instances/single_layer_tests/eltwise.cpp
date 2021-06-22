@@ -214,7 +214,7 @@ const auto eltwise_params_mcm = ::testing::Combine(
     ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
     ::testing::Values(additional_config));
 
-INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs, KmbEltwiseLayerTest_MCM, eltwise_params_mcm,
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs, KmbEltwiseLayerTest_MCM, eltwise_params_mcm,
                         KmbEltwiseLayerTest::getTestCaseName);
 
 //
@@ -242,7 +242,7 @@ const auto eltwise_params_vector_mcm = ::testing::Combine(
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
         ::testing::Values(additional_config));
 
-INSTANTIATE_TEST_CASE_P(DISABLED_smoke_CompareWithRefs, KmbEltwiseLayerTest_MCM, eltwise_params_vector_mcm,
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_CompareWithRefs, KmbEltwiseLayerTest_MCM, eltwise_params_vector_mcm,
                         KmbEltwiseLayerTest::getTestCaseName);
 
 //
@@ -270,7 +270,7 @@ const auto eltwise_params_mlir = ::testing::Combine(
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
         ::testing::Values(additional_config));
 
-INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs, KmbEltwiseLayerTest_MLIR, eltwise_params_mlir,
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs, KmbEltwiseLayerTest_MLIR, eltwise_params_mlir,
                         KmbEltwiseLayerTest::getTestCaseName);
 
 }  // namespace

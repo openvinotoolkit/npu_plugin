@@ -177,7 +177,7 @@ protected:
 TEST_P(KmbComputePriorboxTest, TestsPriorBox) {}
 
 #ifndef __aarch64__
-INSTANTIATE_TEST_CASE_P(DISABLED_KmbTestsPriorBox, KmbComputePriorboxTest,
+INSTANTIATE_TEST_SUITE_P(DISABLED_KmbTestsPriorBox, KmbComputePriorboxTest,
     ::testing::Values(vpu::KmbPlugin::utils::priorBoxParam(0.5, 16, {76.8}, {153.6}, true, false, true, {}, {}, {},
                           {2, 3}, {0.1, 0.1, 0.2, 0.2}, {1, 1024, 32, 32}, {1, 3, 512, 512}, {2, 1, 24576}),
         vpu::KmbPlugin::utils::priorBoxParam(0.5, 32, {153.6}, {230.4}, true, false, true, {}, {}, {}, {2, 3},

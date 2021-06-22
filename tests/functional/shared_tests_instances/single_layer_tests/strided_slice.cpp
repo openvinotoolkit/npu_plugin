@@ -44,7 +44,7 @@ Config getConfig() {
     return Config{{"VPU_COMPILER_ALLOW_NCHW_MCM_INPUT", "YES"}};
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_StridedSlice0, KmbStridedSliceLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_StridedSlice0, KmbStridedSliceLayerTest,
                        ::testing::Combine(::testing::ValuesIn(ss_only_test_cases),
                                           ::testing::Values(InferenceEngine::Precision::FP16),
                                           ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -55,7 +55,7 @@ INSTANTIATE_TEST_CASE_P(smoke_StridedSlice0, KmbStridedSliceLayerTest,
                                           ::testing::Values(getConfig())),
                        StridedSliceLayerTest::getTestCaseName);
 
- INSTANTIATE_TEST_CASE_P(smoke_StridedSlice1, KmbStridedSliceLayerTest,
+ INSTANTIATE_TEST_SUITE_P(smoke_StridedSlice1, KmbStridedSliceLayerTest,
                          ::testing::Combine(::testing::ValuesIn(ss_only_test_cases),
                                             ::testing::Values(InferenceEngine::Precision::FP16),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),

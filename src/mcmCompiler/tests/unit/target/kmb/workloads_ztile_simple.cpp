@@ -90,6 +90,6 @@ TEST_P(workloads_ztile_simple, forms)
 static Form form4d({mv::Shape({3,8,1024,3}), mv::Order("HWCN")}); // this is to test 64 workloads along Z
 static Form form3d({mv::Shape({37,3,256}),  mv::Order("HWC")}); // this is to test 16 workloads, which is min
 
-INSTANTIATE_TEST_CASE_P(combi, workloads_ztile_simple,
+INSTANTIATE_TEST_SUITE_P(combi, workloads_ztile_simple,
                         Combine(Values(4), // number of workloads is fixed to 4 as the getworkloads() is limited to DPUs/Clusters
                                 Values(form3d, form4d)));

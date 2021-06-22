@@ -162,8 +162,8 @@ const std::vector<PermuteTestParams> supportedCases {
         .permute_nd(InferenceEngine::PluginConfigParams::YES),
 };
 
-INSTANTIATE_TEST_CASE_P(precommit_SupportedCases, KmbPermuteLayerTests, testing::ValuesIn(supportedCases));
-INSTANTIATE_TEST_CASE_P(precommit_FaceDetectionRetail, KmbPermuteLayerTests, testing::ValuesIn(FaceDetectionRetailCases));
+INSTANTIATE_TEST_SUITE_P(precommit_SupportedCases, KmbPermuteLayerTests, testing::ValuesIn(supportedCases));
+INSTANTIATE_TEST_SUITE_P(precommit_FaceDetectionRetail, KmbPermuteLayerTests, testing::ValuesIn(FaceDetectionRetailCases));
 
 static std::vector<std::vector<int64_t>> genPermutations(std::vector<int64_t> seq) {
     std::vector<std::vector<int64_t>> permutations;
@@ -188,7 +188,7 @@ static std::vector<PermuteTestParams> getTestCases(TensorDesc desc, std::vector<
 // FIXME: Currently it's impossible to use tensor with batch not equal to one due:
 // [Track number: H#18011923106]
 // Enable it when this problem & unsupportedCases are fixed
-INSTANTIATE_TEST_CASE_P(DISABLED_precommit_StressTest,
+INSTANTIATE_TEST_SUITE_P(DISABLED_precommit_StressTest,
                         KmbPermuteLayerTests,
                         testing::ValuesIn(getTestCases(TensorDesc{Precision::FP16, {1, 3, 10, 5}, Layout::NCHW},
                                                        genPermutations({0, 1, 2, 3}))));
@@ -196,7 +196,7 @@ INSTANTIATE_TEST_CASE_P(DISABLED_precommit_StressTest,
 
 /* FIXME: What about testing on different types and layouts ?
  * It can be represented like this:
- INSTANTIATE_TEST_CASE_P(StressTest, KmbPermuteLayerTests,
+ INSTANTIATE_TEST_SUITE_P(StressTest, KmbPermuteLayerTests,
                          Combine(Values({1,3,10,5}),
                                  Values(Layout::NCHW, Layout::NHWC),
                                  Values(Precision::FP32, Precision::FP16),

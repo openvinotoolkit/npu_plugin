@@ -100,4 +100,4 @@ const std::vector<TileTestParams> tileTestParams {
         .tileParams(TileParams().axis(1).tiles(3))
 };
 
-INSTANTIATE_TEST_CASE_P(SomeCase, KmbTileLayerTests, testing::ValuesIn(tileTestParams));
+INSTANTIATE_TEST_SUITE_P(SomeCase, KmbTileLayerTests, testing::ValuesIn(tileTestParams));

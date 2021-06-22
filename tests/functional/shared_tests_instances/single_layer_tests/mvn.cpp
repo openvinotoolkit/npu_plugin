@@ -71,7 +71,7 @@ const std::vector<double> epsilon = {
     0.000000001
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_TestsMVN_3D, KmbMvnLayerTest, ::testing::Combine(
         ::testing::ValuesIn(inputShapes3D),
         ::testing::Values(InferenceEngine::Precision::FP32),
@@ -81,7 +81,7 @@ INSTANTIATE_TEST_CASE_P(
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)
     ), KmbMvnLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_TestsMVN, KmbMvnLayerTest, ::testing::Combine(
         ::testing::ValuesIn(inputShapes),
         ::testing::Values(InferenceEngine::Precision::FP32),
@@ -102,7 +102,7 @@ const std::vector<float> epsilonF = {
     0.0001
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_MVN6_4D, KmbMvn6LayerTest, ::testing::Combine(
+INSTANTIATE_TEST_SUITE_P(smoke_MVN6_4D, KmbMvn6LayerTest, ::testing::Combine(
                             ::testing::ValuesIn(std::vector<std::vector<size_t>>{{1, 10, 5, 17}}),
                             ::testing::Values(InferenceEngine::Precision::FP16),
                             ::testing::Values(InferenceEngine::Precision::I32),

@@ -115,7 +115,7 @@ namespace {
     };
 
     // [Track number: S#43428]
-    INSTANTIATE_TEST_CASE_P(
+    INSTANTIATE_TEST_SUITE_P(
             DISABLED_smoke_ReduceOneAxis,
             KmbReduceOpsLayerTest,
             testing::Combine(
@@ -135,7 +135,7 @@ namespace {
 
     // [Track number: S#43428]
     // ReduceSum is not supported, replacement pass does not match.
-    INSTANTIATE_TEST_CASE_P(
+    INSTANTIATE_TEST_SUITE_P(
             DISABLED_smoke_Reduce_Precisions,
             KmbReduceOpsLayerTest,
             testing::Combine(
@@ -154,7 +154,7 @@ namespace {
             KmbReduceOpsLayerTest::getTestCaseName
     );
 
-    INSTANTIATE_TEST_CASE_P(
+    INSTANTIATE_TEST_SUITE_P(
         smoke_ReduceSum,
         KmbReduceOpsLayerWithSpecificInputTest,
         testing::Combine(
@@ -175,7 +175,7 @@ namespace {
     // smoke_Reduce_Axes/KmbReduceOpsLayerTest.CompareWithRefs/IS=(10.20.30.40)_axes=(1)_opType=VECTOR_
     // type=Mean_KeepDims_netPRC=FP32_inPRC=UNSPECIFIED_outPRC=UNSPECIFIED_inL=ANY_trgDev=KMB
     // [Track number: S#43428]
-    INSTANTIATE_TEST_CASE_P(
+    INSTANTIATE_TEST_SUITE_P(
             DISABLED_smoke_Reduce_Axes,
             KmbReduceOpsLayerTest,
             testing::Combine(
@@ -195,7 +195,7 @@ namespace {
 
     // {2, 4, 6, 8} case is replaced with Reshape to {4, 6, 8}, that MCM fails to compile
     // Tensor:Parameter_375:0 - ArgumentError: attribute identifer allocators - Undefined identifier
-    INSTANTIATE_TEST_CASE_P(
+    INSTANTIATE_TEST_SUITE_P(
             smoke_ReduceOneAxis_SKIP_MCM,
             KmbReduceOpsLayerTest,
             testing::Combine(
@@ -215,7 +215,7 @@ namespace {
             KmbReduceOpsLayerTest::getTestCaseName
     );
 
-    INSTANTIATE_TEST_CASE_P(
+    INSTANTIATE_TEST_SUITE_P(
             smoke_Reduce_from_networks,
             KmbReduceOpsLayerTest,
             testing::Combine(
@@ -237,7 +237,7 @@ namespace {
             KmbReduceOpsLayerTest::getTestCaseName
     );
 
-    INSTANTIATE_TEST_CASE_P(
+    INSTANTIATE_TEST_SUITE_P(
             DISABLED_smoke_Reduce_from_networks,
             KmbReduceOpsLayerTest,
             testing::Combine(

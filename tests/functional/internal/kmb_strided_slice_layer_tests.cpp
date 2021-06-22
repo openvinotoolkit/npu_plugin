@@ -123,7 +123,7 @@ const std::vector<StridedSliceTestParams> stridedSliceParams {
             .ellipsisAxisMask({0, 0, 0, 0})
 };
 
-INSTANTIATE_TEST_CASE_P(precommit, KmbStridedSliceLayerTests,
+INSTANTIATE_TEST_SUITE_P(precommit, KmbStridedSliceLayerTests,
     testing::Combine(
         testing::ValuesIn(stridedSliceParams),
         testing::Values<Layout>(NCHW, NHWC)

@@ -214,7 +214,7 @@ void KmbLayerTestsCommon::Run() {
     } catch (const KmbSkipTestException &e) {
         std::cout << "Skipping the test due to: " << e.what() << std::endl;
         report.skipped(testInfo);
-        SKIP() << "Skipping the test due to: " << e.what();
+        GTEST_SKIP() << "Skipping the test due to: " << e.what();
     }
 }
 

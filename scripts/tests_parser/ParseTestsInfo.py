@@ -81,7 +81,7 @@ for file_path in all_files:
 			line_splitted = prepareAndSplitLine(line)			
 			
 			if (len(line_splitted) > 0 ) :
-				if(line_splitted[0] == ('TEST_F') or line_splitted[0] == ('TEST_P') or line_splitted[0] == ('INSTANTIATE_TEST_CASE_P')) :
+				if(line_splitted[0] == ('TEST_F') or line_splitted[0] == ('TEST_P') or line_splitted[0] == ('INSTANTIATE_TEST_SUITE_P')) :
 					related_ticket = ''
 					if(len(prev_line_splitted) > 3 and prev_line_splitted[1] == ('Track') and prev_line_splitted[2] == ('number:')) : 
 						related_ticket = prev_line_splitted[3]
@@ -103,7 +103,7 @@ for file_path in all_files:
 					if(line_splitted[1] == 'TEST_P'):
 						print(line_splitted)
 						all_tests_p.append(line_splitted)
-					if(line_splitted[1] == 'INSTANTIATE_TEST_CASE_P') :
+					if(line_splitted[1] == 'INSTANTIATE_TEST_SUITE_P') :
 						print(line_splitted)
 						all_tests_p_instantiate.append(line_splitted)
 			prev_line_splitted = line_splitted

@@ -117,4 +117,4 @@ const std::vector<BatchNotEqualOneParams> params = {
                             .precision(Precision::FP16)
 };
 
-INSTANTIATE_TEST_CASE_P(BatchNotEqualOneTest, KmbPatternTests, testing::ValuesIn(params));
+INSTANTIATE_TEST_SUITE_P(BatchNotEqualOneTest, KmbPatternTests, testing::ValuesIn(params));

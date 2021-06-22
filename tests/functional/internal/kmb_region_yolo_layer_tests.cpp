@@ -94,7 +94,7 @@ const std::vector<UseCustomLayers> RegionYoloCustomLayersParams = {
 #endif
 };
 
-INSTANTIATE_TEST_CASE_P(precommit, KmbRegionYoloLayerTests,
+INSTANTIATE_TEST_SUITE_P(precommit, KmbRegionYoloLayerTests,
     testing::Combine(
         testing::ValuesIn(RegionYoloParams),
         testing::Values<DoSoftmax>(true, false),

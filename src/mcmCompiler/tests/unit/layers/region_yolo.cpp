@@ -89,7 +89,7 @@ using namespace testing;
 static Config config_yolov2({mv::Shape({13, 13, 125, 1}), Coords(4), Classes(20), DoSoftMax(false), Num(5), Mask()});
 static Config config_yolov3({mv::Shape({13, 13,  75, 1}), Coords(4), Classes(20), DoSoftMax(true),  Num(0), Mask({0, 1, 2})});
 
-INSTANTIATE_TEST_CASE_P(demo, layers_region_yolo,
+INSTANTIATE_TEST_SUITE_P(demo, layers_region_yolo,
                         Combine(Values(config_yolov2, config_yolov3),
                                 Values(mv::DType("Float16")),
                                 Values(mv::Target::ma2490)));

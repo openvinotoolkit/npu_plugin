@@ -75,5 +75,5 @@ const std::vector<AddWOffsetTestParams> convertParams = {
 };
 
 #ifdef KMB_HAS_CUSTOM_OCL_KERNELS
-INSTANTIATE_TEST_CASE_P(precommit, KmbAddWOffsetLayerTests, testing::ValuesIn(convertParams));
+INSTANTIATE_TEST_SUITE_P(precommit, KmbAddWOffsetLayerTests, testing::ValuesIn(convertParams));
 #endif

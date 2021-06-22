@@ -101,7 +101,7 @@ const auto params2D = testing::Combine(
     testing::Values(std::map<std::string, std::string>())
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_SoftMax2D,
     KmbSoftMaxLayerTest,
     params2D,
@@ -128,7 +128,7 @@ const auto params4D = testing::Combine(
     testing::Values(std::map<std::string, std::string>())
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_SoftMax4D,
     KmbSoftMaxLayerTest,
     params4D,
@@ -162,7 +162,7 @@ const auto params2DInt = testing::Combine(
     testing::Values(std::map<std::string, std::string>())
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     internal_SoftMax2D,
     KmbSoftMaxLayerTest,
     params2DInt,
@@ -191,7 +191,7 @@ const auto params4DInt = testing::Combine(
     testing::Values(std::map<std::string, std::string>())
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     internal_SoftMax4D,
     KmbSoftMaxLayerTest,
     params4DInt,

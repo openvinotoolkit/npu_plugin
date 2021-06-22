@@ -253,7 +253,7 @@ static Etalon etalon15 = {{1, 1, 1000, 1}, mv::Order("NCHW"), dpu_mode_poc, 4, f
                           {{0, 256, 0, 1}, {256, 512, 0, 1}, {512, 768, 0, 1}, {768, 1000, 0, 1}}};
 
 
-INSTANTIATE_TEST_CASE_P(combi, workloads_rect_resnet50,
+INSTANTIATE_TEST_SUITE_P(combi, workloads_rect_resnet50,
                         Values(etalon00, etalon01, etalon02, etalon03, etalon04,
                                etalon05, etalon06, etalon07,
                                etalon08, etalon09, etalon10, etalon11,

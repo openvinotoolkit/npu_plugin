@@ -42,7 +42,7 @@ const std::vector<ngraph::opset4::TopK::SortType> sortTypes = {
 };
 
 // [Track number: S#41824]
-INSTANTIATE_TEST_CASE_P(DISABLED_smoke_TopK, KmbTopKLayerTest,
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_TopK, KmbTopKLayerTest,
         ::testing::Combine(
                 ::testing::ValuesIn(k),
                 ::testing::ValuesIn(axes),

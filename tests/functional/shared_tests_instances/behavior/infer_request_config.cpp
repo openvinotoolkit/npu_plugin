@@ -65,14 +65,14 @@ const std::vector<std::map<std::string, std::string>> Inconfigs = {
     {{"VPUX_PLATFORM", "SOME_PLATFORM"}},
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, InferConfigTests,
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferConfigTests,
                         ::testing::Combine(
                             ::testing::ValuesIn(netPrecisions),
                             ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY),
                             ::testing::ValuesIn(configs)),
                         InferConfigTests::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, InferConfigInTests,
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferConfigInTests,
                         ::testing::Combine(
                             ::testing::ValuesIn(netPrecisions),
                             ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY),

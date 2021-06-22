@@ -105,6 +105,6 @@ namespace {
     // openvino/inference-engine/include/details/ie_exception_conversion.hpp:64" thrown in the test body.
     //
     // [Track number: S#43012]
-    INSTANTIATE_TEST_CASE_P(DISABLED_smoke_CompareWithRefs, KmbComparisonLayerTest, ComparisonTestParams, KmbComparisonLayerTest::getTestCaseName);
+    INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_CompareWithRefs, KmbComparisonLayerTest, ComparisonTestParams, KmbComparisonLayerTest::getTestCaseName);
 
 }  // namespace

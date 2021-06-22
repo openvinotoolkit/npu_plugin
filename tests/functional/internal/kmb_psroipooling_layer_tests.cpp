@@ -145,4 +145,4 @@ const std::vector<PSROIPoolingTestParams> psRoiPoolingParams {
                                     .mode("average"))
 };
 
-INSTANTIATE_TEST_CASE_P(precommit, KmbPSROIPoolingLayerTests, testing::ValuesIn(psRoiPoolingParams));
+INSTANTIATE_TEST_SUITE_P(precommit, KmbPSROIPoolingLayerTests, testing::ValuesIn(psRoiPoolingParams));

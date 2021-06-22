@@ -401,7 +401,7 @@ TEST_P(NV12toRGBpTestGAPI, AccuracyTest) {
 
 using testing::Values;
 
-INSTANTIATE_TEST_CASE_P(NV12toRGBTestSIPP, NV12toRGBpTestGAPI,
+INSTANTIATE_TEST_SUITE_P(NV12toRGBTestSIPP, NV12toRGBpTestGAPI,
     Values(cv::Size(224, 224), cv::Size(1280, 720), cv::Size(1280, 960), cv::Size(960, 720), cv::Size(640, 480),
         cv::Size(300, 300), cv::Size(320, 200)));
 
@@ -461,7 +461,7 @@ TEST_P(ResizePTestGAPI, AccuracyTest) {
         std::make_pair(cv::Size(200, 400), cv::Size(128, 384)),   \
         std::make_pair(cv::Size(256, 256), cv::Size(256, 256)), std::make_pair(cv::Size(96, 256), cv::Size(128, 384))
 
-INSTANTIATE_TEST_CASE_P(ResizePTestSIPP, ResizePTestGAPI, Values(TEST_SIZES_PREPROC));
+INSTANTIATE_TEST_SUITE_P(ResizePTestSIPP, ResizePTestGAPI, Values(TEST_SIZES_PREPROC));
 
 
 struct Merge3PTestGAPI: public testing::TestWithParam<cv::Size> {};
@@ -504,7 +504,7 @@ TEST_P(Merge3PTestGAPI, AccuracyTest)
     std::cout << out_mat_ocv << std::endl;
 }
 
-INSTANTIATE_TEST_CASE_P(Merge3PTestSIPP, Merge3PTestGAPI,
+INSTANTIATE_TEST_SUITE_P(Merge3PTestSIPP, Merge3PTestGAPI,
                         Values(cv::Size(32, 8)));
 
 using namespace testing;
@@ -600,7 +600,7 @@ TEST_P(KmbPreprocEngineTest, TestNV12Resize) {
 }
 
 // FIXME: RGB Remote Blob doesn't work anymore
-INSTANTIATE_TEST_CASE_P(Preproc, KmbPreprocEngineTest,
+INSTANTIATE_TEST_SUITE_P(Preproc, KmbPreprocEngineTest,
                         Combine(Values(std::make_pair(cv::Size(1920, 1080), cv::Size(416, 416))),
                                 Values(InferenceEngine::ColorFormat::BGR//,
                                        //InferenceEngine::ColorFormat::RGB
@@ -615,7 +615,7 @@ INSTANTIATE_TEST_CASE_P(Preproc, KmbPreprocEngineTest,
                                        AllocTestParams{BlobAPI::Remote, 256, false},
                                        AllocTestParams{BlobAPI::Remote, 1920, false})));
 
-INSTANTIATE_TEST_CASE_P(Preproc_1508160288, KmbPreprocEngineTest,
+INSTANTIATE_TEST_SUITE_P(Preproc_1508160288, KmbPreprocEngineTest,
                         Combine(Values(std::make_pair(cv::Size(1920, 1080), cv::Size(224, 224))),
                                 Values(InferenceEngine::ColorFormat::BGR,
                                        InferenceEngine::ColorFormat::RGB),
@@ -624,7 +624,7 @@ INSTANTIATE_TEST_CASE_P(Preproc_1508160288, KmbPreprocEngineTest,
 
 
 // FIXME: doesn't converge with opencv, need to figure out tolerance
-INSTANTIATE_TEST_CASE_P(PreprocM2I, KmbPreprocEngineTest,
+INSTANTIATE_TEST_SUITE_P(PreprocM2I, KmbPreprocEngineTest,
                         Combine(Values(std::make_pair(cv::Size(1920, 1056), cv::Size(416, 416))),
                                 Values(InferenceEngine::ColorFormat::BGR,
                                        InferenceEngine::ColorFormat::RGB),
@@ -641,7 +641,7 @@ INSTANTIATE_TEST_CASE_P(PreprocM2I, KmbPreprocEngineTest,
                                        AllocTestParams{BlobAPI::Remote, 1920, true})));
 
 
-INSTANTIATE_TEST_CASE_P(PreprocSHAVEOnlyM2I, KmbPreprocEngineTest,
+INSTANTIATE_TEST_SUITE_P(PreprocSHAVEOnlyM2I, KmbPreprocEngineTest,
                         Combine(Values(std::make_pair(cv::Size(1920, 1080), cv::Size(416, 416))),
                                 Values(InferenceEngine::ColorFormat::BGR,
                                        InferenceEngine::ColorFormat::RGB),
@@ -802,7 +802,7 @@ TEST_P(KmbPreprocPoolTest, TestNV12Resize)
     }
 }
 
-INSTANTIATE_TEST_CASE_P(DISABLED_Preproc, KmbPreprocPoolTest,
+INSTANTIATE_TEST_SUITE_P(DISABLED_Preproc, KmbPreprocPoolTest,
                         Combine(Values(std::make_tuple(cv::Size(1920, 1080),
                                                        cv::Size(416, 416),
                                                        cv::Size(224, 224))),
@@ -812,7 +812,7 @@ INSTANTIATE_TEST_CASE_P(DISABLED_Preproc, KmbPreprocPoolTest,
                                        InferenceEngine::ColorFormat::RGB),
                                 Values(InferenceEngine::KmbPreproc::Path::SIPP)));
 
-INSTANTIATE_TEST_CASE_P(DISABLED_PreprocM2I, KmbPreprocPoolTest,
+INSTANTIATE_TEST_SUITE_P(DISABLED_PreprocM2I, KmbPreprocPoolTest,
                         Combine(Values(std::make_tuple(cv::Size(1920, 1080),
                                                        cv::Size(416, 416),
                                                        cv::Size(224, 224))),
@@ -821,7 +821,7 @@ INSTANTIATE_TEST_CASE_P(DISABLED_PreprocM2I, KmbPreprocPoolTest,
                                 Values(InferenceEngine::ColorFormat::BGR),
                                 Values(InferenceEngine::KmbPreproc::Path::M2I)));
 
-INSTANTIATE_TEST_CASE_P(DISABLED_PreprocShaveOnlyM2I, KmbPreprocPoolTest,
+INSTANTIATE_TEST_SUITE_P(DISABLED_PreprocShaveOnlyM2I, KmbPreprocPoolTest,
                         Combine(Values(std::make_tuple(cv::Size(1920, 1080),
                                                        cv::Size(416, 416),
                                                        cv::Size(224, 224))),

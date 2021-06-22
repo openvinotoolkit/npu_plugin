@@ -303,7 +303,7 @@ TEST_P(VpuRemoteCtxTests, DISABLED_remoteCtxNV12WithROI) {
                         numberOfTopClassesToCompare));
 }
 
-INSTANTIATE_TEST_CASE_P(RemoteCtxWithROI, VpuRemoteCtxTests, ::testing::ValuesIn({true, false}));
+INSTANTIATE_TEST_SUITE_P(RemoteCtxWithROI, VpuRemoteCtxTests, ::testing::ValuesIn({true, false}));
 
 TEST_F(vpuLayersTests, DISABLED_incompatibleRemoteCtx) {
     const std::string graphPath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/schema-3.24.3/resnet-50.blob";

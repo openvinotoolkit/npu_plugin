@@ -83,7 +83,7 @@ PRETTY_PARAM(UseCustomLayers, KernelType);
         do {                                                                    \
             std::set<std::string> devices({_device0_});                         \
             if (devices.count(DEVICE_NAME) != 0) {                              \
-                SKIP() << "Skip on " << DEVICE_NAME << " due to " << _reason_;  \
+                GTEST_SKIP() << "Skip on " << DEVICE_NAME << " due to " << _reason_;  \
             }                                                                   \
         } while (false)
 
@@ -91,7 +91,7 @@ PRETTY_PARAM(UseCustomLayers, KernelType);
         do {                                                                    \
             std::set<std::string> devices({_device0_, _device1_});              \
             if (devices.count(DEVICE_NAME) != 0) {                              \
-                SKIP() << "Skip on " << DEVICE_NAME << " due to " << _reason_;  \
+                GTEST_SKIP() << "Skip on " << DEVICE_NAME << " due to " << _reason_;  \
             }                                                                   \
         } while (false)
 
@@ -99,7 +99,7 @@ PRETTY_PARAM(UseCustomLayers, KernelType);
         do {                                                                    \
             std::set<std::string> devices({_device0_, _device1_, _device2_,});  \
             if (devices.count(DEVICE_NAME) != 0) {                              \
-                SKIP() << "Skip on " << DEVICE_NAME << " due to " << _reason_;  \
+                GTEST_SKIP() << "Skip on " << DEVICE_NAME << " due to " << _reason_;  \
             }                                                                   \
         } while (false)
 
@@ -108,7 +108,7 @@ PRETTY_PARAM(UseCustomLayers, KernelType);
         do {                                                                            \
             std::set<std::string> devices({_device0_});                                 \
             if (KmbTestBase::RUN_INFER && devices.count(DEVICE_NAME) != 0) {            \
-                SKIP() << "Skip infer on " << DEVICE_NAME << " due to " << _reason_;    \
+                GTEST_SKIP() << "Skip infer on " << DEVICE_NAME << " due to " << _reason_;    \
             }                                                                           \
         } while (false)
 
@@ -116,7 +116,7 @@ PRETTY_PARAM(UseCustomLayers, KernelType);
         do {                                                                            \
             std::set<std::string> devices({_device0_, _device1_});                      \
             if (KmbTestBase::RUN_INFER && devices.count(DEVICE_NAME) != 0) {            \
-                SKIP() << "Skip infer on " << DEVICE_NAME << " due to " << _reason_;    \
+                GTEST_SKIP() << "Skip infer on " << DEVICE_NAME << " due to " << _reason_;    \
             }                                                                           \
         } while (false)
 
@@ -124,7 +124,7 @@ PRETTY_PARAM(UseCustomLayers, KernelType);
         do {                                                                            \
             std::set<std::string> devices({_device0_, _device1_, _device2_});           \
             if (KmbTestBase::RUN_INFER && devices.count(DEVICE_NAME) != 0) {            \
-                SKIP() << "Skip infer on " << DEVICE_NAME << " due to " << _reason_;    \
+                GTEST_SKIP() << "Skip infer on " << DEVICE_NAME << " due to " << _reason_;    \
             }                                                                           \
         } while (false)
 

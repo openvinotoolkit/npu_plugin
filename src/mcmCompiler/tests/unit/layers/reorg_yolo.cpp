@@ -63,7 +63,7 @@ TEST_P(layers_reorg_yolo, dump_blob)
 
 using namespace testing;
 
-INSTANTIATE_TEST_CASE_P(demo, layers_reorg_yolo,
+INSTANTIATE_TEST_SUITE_P(demo, layers_reorg_yolo,
                         Combine(Values(2),
                                 Values(mv::Shape({320, 200,  3, 8}),
                                        mv::Shape({ 26,  26, 24, 8})),

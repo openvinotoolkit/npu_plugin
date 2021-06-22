@@ -101,7 +101,7 @@ const std::vector<poolSpecificParams> maxPoolExplicitPadFloorRoundingParams = {
     ),
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_MaxPool_ExplicitPad_FloorRounding, KmbPoolingLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_MaxPool_ExplicitPad_FloorRounding, KmbPoolingLayerTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(maxPoolExplicitPadFloorRoundingParams),
                                 ::testing::ValuesIn(netPrecisions),
@@ -150,7 +150,7 @@ const std::vector<poolSpecificParams> maxPoolExplicitPadCeilRoundingParams = {
     ),
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_MaxPool_ExplicitPad_CeilRounding, KmbPoolingLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_MaxPool_ExplicitPad_CeilRounding, KmbPoolingLayerTest,
     ::testing::Combine(
         ::testing::ValuesIn(maxPoolExplicitPadCeilRoundingParams),
         ::testing::ValuesIn(netPrecisions),
@@ -201,7 +201,7 @@ const std::vector<poolSpecificParams> avgPoolExplicitPadFloorRoundingParams = {
     ),
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_AvgPool_ExplicitPad_FloorRounding, KmbPoolingLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_ExplicitPad_FloorRounding, KmbPoolingLayerTest,
     ::testing::Combine(
         ::testing::ValuesIn(avgPoolExplicitPadFloorRoundingParams),
         ::testing::ValuesIn(netPrecisions),
@@ -250,7 +250,7 @@ const std::vector<poolSpecificParams> avgPoolExplicitPadCeilRoundingParams = {
     ),
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_AvgPool_ExplicitPad_CeilRounding, KmbPoolingLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_ExplicitPad_CeilRounding, KmbPoolingLayerTest,
     ::testing::Combine(
         ::testing::ValuesIn(avgPoolExplicitPadCeilRoundingParams),
         ::testing::ValuesIn(netPrecisions),
@@ -279,7 +279,7 @@ const auto allPoolsValidPadParams = ::testing::Combine(
     ::testing::Values(ngraph::op::PadType::VALID),
     ::testing::Values(false));  // placeholder value - exclude pad not applicable for max pooling
 
-INSTANTIATE_TEST_CASE_P(smoke_MAX_and_AVGPool_ValidPad, KmbPoolingLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_MAX_and_AVGPool_ValidPad, KmbPoolingLayerTest,
     ::testing::Combine(
         allPoolsValidPadParams,
         ::testing::ValuesIn(netPrecisions),

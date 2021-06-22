@@ -123,5 +123,5 @@ const std::vector<UseCustomLayers> CustomLayersParams = {
 #endif
 };
 
-INSTANTIATE_TEST_CASE_P(precommit_Interpolation, KmbInterpLayerTests,
+INSTANTIATE_TEST_SUITE_P(precommit_Interpolation, KmbInterpLayerTests,
                         testing::Combine(testing::ValuesIn(interpParams), testing::ValuesIn(CustomLayersParams)));

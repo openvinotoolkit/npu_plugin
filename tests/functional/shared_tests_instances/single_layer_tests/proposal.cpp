@@ -59,7 +59,7 @@ const auto proposalParams = ::testing::Combine(
 // C++ exception with description "Size of dims(1) and format(NHWC) are inconsistent.
 // openvino/inference-engine/src/inference_engine/ie_layouts.cpp:138" thrown in the test body.
 // [Track number: S#40339]
-INSTANTIATE_TEST_CASE_P(DISABLED_smoke_Proposal_tests, KmbProposalLayerTest,
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_Proposal_tests, KmbProposalLayerTest,
                         ::testing::Combine(
                             proposalParams,
                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),

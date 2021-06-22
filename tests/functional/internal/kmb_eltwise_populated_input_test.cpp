@@ -85,4 +85,4 @@ const std::vector<EltwisePopulatedInputTestParams> eltwiseParams {
             .outPrecision(Precision::FP16),
 };
 
-INSTANTIATE_TEST_CASE_P(precommit, KmbEltwisePopulatedInputTest, testing::ValuesIn(eltwiseParams));
+INSTANTIATE_TEST_SUITE_P(precommit, KmbEltwisePopulatedInputTest, testing::ValuesIn(eltwiseParams));

@@ -59,7 +59,7 @@ namespace {
     // openvino/inference-engine/include/details/ie_exception_conversion.hpp:64" thrown in the test body.
     //
     // [Track number: S#43181]
-    INSTANTIATE_TEST_CASE_P(DISABLED_smoke_nonzero, KmbNonZeroLayerTest,
+    INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_nonzero, KmbNonZeroLayerTest,
             ::testing::Combine(
                     ::testing::ValuesIn(inShapes),
                     ::testing::ValuesIn(inputPrecisions),

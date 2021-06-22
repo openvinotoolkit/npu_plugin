@@ -79,7 +79,7 @@ void HDDL2_RemoteBlob_UnitTests::setRemoteMemory(const std::string &data) {
 TEST_F(HDDL2_RemoteBlob_UnitTests, CheckRemoteMemoryUsage) {
     SKIP_IF_NO_DEVICE();
 #if defined(_WIN32) || defined(__arm__) || defined(__aarch64__)
-    SKIP();
+    GTEST_SKIP();
 #endif
 
     double vm_before = 0., res_before = 0.;

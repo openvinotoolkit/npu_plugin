@@ -68,7 +68,7 @@ namespace {
     // Allocator = std::allocator<mv::scheduler::Operation_Dag<> >]: Assertion `itr != op_output_table_.end()' failed.
     // Aborted (core dumped)
     // [Track number: S#44901]
-    INSTANTIATE_TEST_CASE_P(DISABLED_smoke_ConvolutionBackpropData2D_ExplicitPadding, KmbConvolutionBackpropDataLayerTest,
+    INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_ConvolutionBackpropData2D_ExplicitPadding, KmbConvolutionBackpropDataLayerTest,
                             ::testing::Combine(
                                     conv2DParams_ExplicitPadding,
                                     ::testing::ValuesIn(netPrecisions),
@@ -89,7 +89,7 @@ namespace {
     // Allocator = std::allocator<mv::scheduler::Operation_Dag<> >]: Assertion `itr != op_output_table_.end()' failed.
     // Aborted (core dumped)
     // [Track number: S#44901]
-    INSTANTIATE_TEST_CASE_P(DISABLED_smoke_ConvolutionBackpropData2D_AutoPadValid, KmbConvolutionBackpropDataLayerTest,
+    INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_ConvolutionBackpropData2D_AutoPadValid, KmbConvolutionBackpropDataLayerTest,
                             ::testing::Combine(
                                     conv2DParams_AutoPadValid,
                                     ::testing::ValuesIn(netPrecisions),
@@ -137,7 +137,7 @@ namespace {
     // kmb-plugin/src/utils/dims_parser.cpp:45
     // openvino/inference-engine/include/details/ie_exception_conversion.hpp:64
     // [Track number: S#44901]
-    INSTANTIATE_TEST_CASE_P(DISABLED_smoke_ConvolutionBackpropData3D_ExplicitPadding, KmbConvolutionBackpropDataLayerTest,
+    INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_ConvolutionBackpropData3D_ExplicitPadding, KmbConvolutionBackpropDataLayerTest,
                             ::testing::Combine(
                                     conv3DParams_ExplicitPadding,
                                     ::testing::ValuesIn(netPrecisions),
@@ -156,7 +156,7 @@ namespace {
     // kmb-plugin/src/utils/dims_parser.cpp:45
     // openvino/inference-engine/include/details/ie_exception_conversion.hpp:64
     // [Track number: S#44901]
-    INSTANTIATE_TEST_CASE_P(DISABLED_smoke_ConvolutionBackpropData3D_AutoPadValid, KmbConvolutionBackpropDataLayerTest,
+    INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_ConvolutionBackpropData3D_AutoPadValid, KmbConvolutionBackpropDataLayerTest,
                             ::testing::Combine(
                                     conv3DParams_AutoPadValid,
                                     ::testing::ValuesIn(netPrecisions),

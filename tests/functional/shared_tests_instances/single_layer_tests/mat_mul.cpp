@@ -106,7 +106,7 @@ namespace {
     // input tensor (input 0) 120 and 1st dimension of weights tensor (input 1) 6
     // Segmentation fault (core dumped)
     // [Track number: S#50186]
-    INSTANTIATE_TEST_CASE_P(DISABLED_smoke_MatMul, KmbMatMulLayerTest,
+    INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_MatMul, KmbMatMulLayerTest,
         ::testing::Combine(
             ::testing::ValuesIn(shapeRelatedParams),
             ::testing::ValuesIn(inputPrecisions),
@@ -118,9 +118,9 @@ namespace {
             ::testing::Values(additional_config)),
         KmbMatMulLayerTest::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(smoke_MatMul_to_FC_case, KmbMatMulLayerTest, fullyConnectedCase, KmbMatMulLayerTest::getTestCaseName);
+    INSTANTIATE_TEST_SUITE_P(smoke_MatMul_to_FC_case, KmbMatMulLayerTest, fullyConnectedCase, KmbMatMulLayerTest::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(smoke_MatMul_kpi_mcm, KmbMatMulLayerTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_MatMul_kpi_mcm, KmbMatMulLayerTest,
         ::testing::Combine(
             ::testing::ValuesIn(shapeRelatedParams_kpi_mcm),
             ::testing::ValuesIn(inputPrecisions),

@@ -86,7 +86,7 @@ const auto test_ROIPooling_bilinear = ::testing::Combine(
         ::testing::Values(spatial_scales[1]), ::testing::Values(ngraph::helpers::ROIPoolingTypes::ROI_BILINEAR),
         ::testing::ValuesIn(netPRCs), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
 
-INSTANTIATE_TEST_CASE_P(smoke_TestsROIPooling_max, KmbROIPoolingLayerTest, test_ROIPooling_max,
+INSTANTIATE_TEST_SUITE_P(smoke_TestsROIPooling_max, KmbROIPoolingLayerTest, test_ROIPooling_max,
                         KmbROIPoolingLayerTest::getTestCaseName);
-INSTANTIATE_TEST_CASE_P(smoke_TestsROIPooling_bilinear, KmbROIPoolingLayerTest, test_ROIPooling_bilinear,
+INSTANTIATE_TEST_SUITE_P(smoke_TestsROIPooling_bilinear, KmbROIPoolingLayerTest, test_ROIPooling_bilinear,
                         KmbROIPoolingLayerTest::getTestCaseName);

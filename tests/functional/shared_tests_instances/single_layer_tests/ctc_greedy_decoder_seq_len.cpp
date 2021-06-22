@@ -67,7 +67,7 @@ const auto blankIndexes = std::vector<int>{
         0, 50
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_CTCGreedyDecoderSeqLenTests, KmbCTCGreedyDecoderSeqLenLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_CTCGreedyDecoderSeqLenTests, KmbCTCGreedyDecoderSeqLenLayerTest,
         ::testing::Combine(
             ::testing::ValuesIn(inputShape),
             ::testing::ValuesIn(sequenceLengths),

@@ -42,7 +42,7 @@ class KmbDeconvLayerTests : public KmbLayerTestBase, public testing::WithParamIn
 // [Track number: S#39622]
 TEST_P(KmbDeconvLayerTests, DepthWiseFP16) {
 #ifdef _WIN32
-    SKIP() << "out_spatial_shape == infered_out_spatial_shape";
+    GTEST_SKIP() << "out_spatial_shape == infered_out_spatial_shape";
 #endif
     SKIP_ON("KMB", "HDDL2", "VPUX", "Bad results");
     const auto& p = GetParam();
@@ -92,4 +92,4 @@ const std::vector<DeconvTestParams> deconvParams {
         .deconvParams(DeconvolutionParams().outChannels(16).kernel({2, 2}).strides({2, 2}).pad({0, 0, 0, 0}).group(16)),
 };
 
-INSTANTIATE_TEST_CASE_P(precommit, KmbDeconvLayerTests, testing::ValuesIn(deconvParams));
+INSTANTIATE_TEST_SUITE_P(precommit, KmbDeconvLayerTests, testing::ValuesIn(deconvParams));

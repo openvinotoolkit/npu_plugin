@@ -68,7 +68,7 @@ using VpuPreprocessingStressTests = KmbYoloV2NetworkTest;
 // [Track number: S#35173, S#35231]
 TEST_F(VpuPreprocessingStressTests, DISABLED_twoNetworksHDImage1000Iterations) {
     if (!KmbTestBase::RUN_INFER) {
-        SKIP();
+        GTEST_SKIP();
     }
     Core ie;
     InferenceEngine::ExecutableNetwork network1;
@@ -179,7 +179,7 @@ TEST_F(VpuPreprocessingStressTests, DISABLED_twoNetworksHDImage1000Iterations) {
 // [Track number: S#35173, S#35231]
 TEST_F(VpuPreprocessingStressTests, DISABLED_twoNetworksStressTest) {
     if (!KmbTestBase::RUN_INFER) {
-        SKIP();
+        GTEST_SKIP();
     }
     Core ie;
     InferenceEngine::ExecutableNetwork network1;
@@ -312,7 +312,7 @@ TEST_F(VpuPreprocessingStressTests, DISABLED_twoNetworksStressTest) {
 // [Track number: S#35173, S#35231]
 TEST_F(VpuPreprocessingStressTests, DISABLED_detectClassify4Threads) {
     if (!KmbTestBase::RUN_INFER) {
-        SKIP();
+        GTEST_SKIP();
     }
     Core ie;
 

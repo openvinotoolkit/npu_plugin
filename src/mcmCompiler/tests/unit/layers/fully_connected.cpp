@@ -113,7 +113,7 @@ static Form form4d({mv::Shape({112, 112, 64, 8}), mv::Order("NCHW")});
 static Form form3d({mv::Shape({320, 200, 3})    ,  mv::Order("CHW")});
 static Form form2d({mv::Shape({128, 8})         , mv::Order("NC")});
 
-INSTANTIATE_TEST_CASE_P(demo, layers_fully_connected,
+INSTANTIATE_TEST_SUITE_P(demo, layers_fully_connected,
                         Combine(Values(form4d, form3d, form2d),
                                 Values(OutputChannels(16)),
                                 Values(mv::DType("Float16")),

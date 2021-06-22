@@ -80,7 +80,7 @@ const std::vector<std::vector<size_t>> inputShapes = {
         // {1, 4, 3, 1, 3, 1}
 };
 
-INSTANTIATE_TEST_CASE_P(Tile, KmbTileLayerTest,
+INSTANTIATE_TEST_SUITE_P(Tile, KmbTileLayerTest,
                         ::testing::Combine(::testing::ValuesIn(repeats), ::testing::ValuesIn(netPrecisions),
                                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),

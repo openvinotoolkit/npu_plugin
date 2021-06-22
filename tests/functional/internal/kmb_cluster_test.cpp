@@ -88,11 +88,11 @@ class KmbClusterTestWithParams : public KmbClusterTest, public testing::WithPara
 TEST_P(KmbClusterTestWithParams, precommit_checkInferTime) {
 #ifdef _WIN32
     // FIXME [Track number: E#6518]
-    SKIP() << "Throws an exception on the second runTest call";
+    GTEST_SKIP() << "Throws an exception on the second runTest call";
 #endif
     if (PlatformEnvironment::PLATFORM == "3400_A0") {
         // FIXME [Track number: E#10416]
-        SKIP() << "MCM Compiler error: Failed to pass runtime simulation";
+        GTEST_SKIP() << "MCM Compiler error: Failed to pass runtime simulation";
     }
     const auto& p = GetParam();
     const std::string net_path = "ADK3/ModelE_INT8/ModelE_INT8.xml";
@@ -115,7 +115,7 @@ TEST_P(KmbClusterTestWithParams, precommit_checkInferTime) {
         std::cout << "Time elapsed: " << timeMs << std::endl;
     } catch (const import_error& ex) {
         std::cerr << ex.what() << std::endl;
-        SKIP() << ex.what();
+        GTEST_SKIP() << ex.what();
     }
 }
 
@@ -124,4 +124,4 @@ static const std::vector<ClusterTestParams> params {
    ClusterTestParams("fourClusters", "4"),
 };
 
-INSTANTIATE_TEST_CASE_P(perf, KmbClusterTestWithParams, testing::ValuesIn(params));
+INSTANTIATE_TEST_SUITE_P(perf, KmbClusterTestWithParams, testing::ValuesIn(params));

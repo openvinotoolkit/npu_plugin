@@ -17,13 +17,13 @@
 #   define SKIP_IF_NO_DEVICE()                                              \
     do {                                                                    \
         if (!vpux::hddl2::HDDL2Backend::isServiceAvailable()) {        \
-            SKIP() << "Skip test due to absence of HDDL2 device";           \
+            GTEST_SKIP() << "Skip test due to absence of HDDL2 device";           \
         }                                                                   \
     } while (false)
 
 #   define SKIP_IF_DEVICE()                                                 \
     do {                                                                    \
         if (vpux::hddl2::HDDL2Backend::isServiceAvailable()) {         \
-            SKIP() << "This test require device disabled";                  \
+            GTEST_SKIP() << "This test require device disabled";                  \
         }                                                                   \
     } while (false)

@@ -79,7 +79,7 @@ static Config conf2d({mv::Shape({320, 200}),         mv::Order("HW"), mv::Shape(
 static Config conf43({mv::Shape({320, 200, 3, 8}), mv::Order("NCHW"), mv::Shape({320, 200, 24}), "CHW"});
 static Config conf32({mv::Shape({320, 200, 3}),     mv::Order("CHW"), mv::Shape({320, 600}),      "HW"});
 
-INSTANTIATE_TEST_CASE_P(demo, layers_reshape,
+INSTANTIATE_TEST_SUITE_P(demo, layers_reshape,
                         Combine(Values(conf4d, conf3d, conf43, conf32),
                                 Values(mv::DType("Float16")),
                                 Values(mv::Target::ma2490)));

@@ -186,16 +186,16 @@ Blob::Ptr KmbPrivateConfigTests::readReference(const std::string& reference_path
 
 TEST_P(KmbPrivateConfigTests, DISABLED_IE_VPU_KMB_PRIVATE_CONFIG_COMMON) {
 #if !defined(__arm__) && !defined(__aarch64__)
-    SKIP();
+    GTEST_SKIP();
 #else
     if (!useSIPP()) {
-        SKIP();
+        GTEST_SKIP();
     }
 #endif
 
     const auto& p = GetParam();
 
-    if (p._checkSIPP) SKIP() << "The test is intended to be run with SIPP enabled";
+    if (p._checkSIPP) GTEST_SKIP() << "The test is intended to be run with SIPP enabled";
 
     Blob::Ptr outputBlob =
         runInferWithConfig(p._modelPath, p._inputPath, p._preProc, p._privateConfig, p._inputWidth, p._inputHeight);
@@ -242,16 +242,16 @@ const std::vector<PrivateConfigTestParams> privateConfigParamsBrokenTests {
         .inputHeight(228)
         .nClasses(5)};
 
-INSTANTIATE_TEST_CASE_P(precommit, KmbPrivateConfigTests, testing::ValuesIn(privateConfigParams));
+INSTANTIATE_TEST_SUITE_P(precommit, KmbPrivateConfigTests, testing::ValuesIn(privateConfigParams));
 
-INSTANTIATE_TEST_CASE_P(DISABLED_precommit, KmbPrivateConfigTests, testing::ValuesIn(privateConfigParamsBrokenTests));
+INSTANTIATE_TEST_SUITE_P(DISABLED_precommit, KmbPrivateConfigTests, testing::ValuesIn(privateConfigParamsBrokenTests));
 
 class KmbConfigTestsWithParams :
     public vpuLayersTests, public testing::WithParamInterface<std::string> {};
 
 TEST_P(KmbConfigTestsWithParams, DISABLED_PERF_COUNT) {
 #if !defined(__arm__) && !defined(__aarch64__)
-    SKIP();
+    GTEST_SKIP();
 #endif
     const std::string perfCount = GetParam();
     std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/schema-3.24.3/mobilenet-v2.blob";
@@ -279,4 +279,4 @@ TEST_P(KmbConfigTestsWithParams, DISABLED_PERF_COUNT) {
 
 const static std::vector<std::string> perfCountModes = {CONFIG_VALUE(YES)};
 
-INSTANTIATE_TEST_CASE_P(perfCount, KmbConfigTestsWithParams, ::testing::ValuesIn(perfCountModes));
+INSTANTIATE_TEST_SUITE_P(perfCount, KmbConfigTestsWithParams, ::testing::ValuesIn(perfCountModes));

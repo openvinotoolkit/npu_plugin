@@ -160,7 +160,7 @@ TEST_F(KmbClassifyNetworkTest, mobilenet_v3_cars) {
 // TODO: [Track number: E#9578]
 TEST_F(KmbClassifyNetworkTest, precommit_mobilenet_v3_dogs) {
     if (isByPass()) {
-        SKIP() << "Skip for by-pass mode due to bad accuracy";
+        GTEST_SKIP() << "Skip for by-pass mode due to bad accuracy";
     }
     runTest(
             TestNetworkDesc("mobilenet-v3-small-stanford-dogs/caffe2/FP16-INT8/mobilenet-v3-small-stanford-dogs.xml", EXPERIMENTAL)
@@ -204,7 +204,7 @@ TEST_P(ModelAdk, precommit_StackedHourGlass_BDK1) {
 // TODO: [Track number: E#9578]
 TEST_F(SmokeNetworkTest, SuperResolution_AA_ADK3) {
     if (isByPass()) {
-        SKIP() << "Skip inference for by-pass mode due to exception - dims and format are inconsistent.";
+        GTEST_SKIP() << "Skip inference for by-pass mode due to exception - dims and format are inconsistent.";
     }
     runTest(
             TestNetworkDesc("ADK3/SuperRes_INT8/SuperRes_INT8_AA.xml", EXPERIMENTAL)
@@ -245,7 +245,7 @@ const static std::vector<InferenceEngine::Precision> inputPrecision = {
                 InferenceEngine::Precision::FP16,
                 InferenceEngine::Precision::FP32};
 
-INSTANTIATE_TEST_CASE_P(PrecisionCase, ModelAdk, ::testing::ValuesIn(inputPrecision));
+INSTANTIATE_TEST_SUITE_P(PrecisionCase, ModelAdk, ::testing::ValuesIn(inputPrecision));
 
 TEST_F(UnetNetworkTest, UnetCamvidAva0001_ADK3) {
     runTest(
@@ -341,4 +341,4 @@ static const auto allPrecisionCombine = ::testing::Combine(
         ::testing::ValuesIn(SRInputPrecision),
         ::testing::ValuesIn(SROutputPrecision));
 
-INSTANTIATE_TEST_CASE_P(PrecisionCombine, KmbSuperResNetworkTestParameterized, allPrecisionCombine);
+INSTANTIATE_TEST_SUITE_P(PrecisionCombine, KmbSuperResNetworkTestParameterized, allPrecisionCombine);

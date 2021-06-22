@@ -31,28 +31,28 @@ const std::vector<std::map<std::string, std::string>> InConfigs = {
     {{KMB_CONFIG_KEY(THROUGHPUT_STREAMS), "TWENTY"}}
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, CorrectConfigTests,
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, CorrectConfigTests,
     ::testing::Combine(
     ::testing::ValuesIn(netPrecisions),
     ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY),
     ::testing::ValuesIn(Configs)),
     CorrectConfigTests::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, IncorrectConfigTests,
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, IncorrectConfigTests,
     ::testing::Combine(
     ::testing::ValuesIn(netPrecisions),
     ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY),
     ::testing::ValuesIn(InConfigs)),
     IncorrectConfigTests::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, CorrectConfigAPITests,
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, CorrectConfigAPITests,
     ::testing::Combine(
     ::testing::ValuesIn(netPrecisions),
     ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY),
     ::testing::ValuesIn(Configs)),
     CorrectConfigAPITests::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, IncorrectConfigAPITests,
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, IncorrectConfigAPITests,
     ::testing::Combine(
     ::testing::ValuesIn(netPrecisions),
     ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY),

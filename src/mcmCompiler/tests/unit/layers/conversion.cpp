@@ -96,7 +96,7 @@ using namespace testing;
 static Config config4d({mv::Shape({112, 112, 64, 8}), mv::Order("NCHW"), mv::Order("NHWC")});
 static Config config3d({mv::Shape({320, 200, 3})    ,  mv::Order("CHW"),  mv::Order("HWC")});
 
-INSTANTIATE_TEST_CASE_P(demo, layers_conversion,
+INSTANTIATE_TEST_SUITE_P(demo, layers_conversion,
                         Combine(Values(Conversion, Permute, Reorder),
                                 Values(config3d, config4d),
                                 Values(mv::DType("Float16")),

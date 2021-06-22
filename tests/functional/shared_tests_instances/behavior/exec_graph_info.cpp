@@ -17,7 +17,7 @@ const std::vector<std::map<std::string, std::string>> configs = {};
 
 // double free detected
 // [Track number: S#27337]
-INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, ExecGraphTests,
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, ExecGraphTests,
                         ::testing::Combine(
                             ::testing::ValuesIn(netPrecisions),
                             ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY),

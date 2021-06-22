@@ -88,7 +88,7 @@ using namespace testing;
 static Form form1({mv::Shape({112, 112, 64, 8}), mv::Order("NCHW")});
 static Form form2({mv::Shape({320, 200, 3, 1})  , mv::Order("NCHW") });
 
-INSTANTIATE_TEST_CASE_P(demo, layers_avgmax_pool,
+INSTANTIATE_TEST_SUITE_P(demo, layers_avgmax_pool,
                         Combine(Values(AveragePooling, MaxPooling),
                                 Values(form1, form2),
                                 Values(KSize({3, 3})),

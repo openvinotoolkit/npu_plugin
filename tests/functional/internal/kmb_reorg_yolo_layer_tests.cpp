@@ -86,7 +86,7 @@ const std::vector<ReorgYoloTestParams> reorgYoloParams = {
 };
 
 #ifdef KMB_HAS_CUSTOM_OCL_KERNELS
-INSTANTIATE_TEST_CASE_P(precommit, KmbReorgYoloLayerTests,
+INSTANTIATE_TEST_SUITE_P(precommit, KmbReorgYoloLayerTests,
     testing::Combine(
         testing::ValuesIn(reorgYoloParams),
         testing::Values<Layout>(NCHW, NHWC),

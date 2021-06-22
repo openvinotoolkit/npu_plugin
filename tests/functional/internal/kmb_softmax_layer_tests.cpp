@@ -124,4 +124,4 @@ const std::vector<SoftmaxTestParams> softmaxParams {
 };
 
 
-INSTANTIATE_TEST_CASE_P(precommit, KmbSoftmaxLayerTests, testing::ValuesIn(softmaxParams));
+INSTANTIATE_TEST_SUITE_P(precommit, KmbSoftmaxLayerTests, testing::ValuesIn(softmaxParams));

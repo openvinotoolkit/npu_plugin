@@ -54,7 +54,7 @@ namespace {
     );
 
     // [Track number: E#13236]
-    INSTANTIATE_TEST_CASE_P(
+    INSTANTIATE_TEST_SUITE_P(
             DISABLED_smoke_Pad4DConst,
             KmbPadLayerTest,
             pad4DConstparams,
@@ -74,7 +74,7 @@ namespace {
             testing::Values(LayerTestsUtils::testPlatformTargetDevice)
     );
 
-    INSTANTIATE_TEST_CASE_P(
+    INSTANTIATE_TEST_SUITE_P(
             smoke_Pad4D,
             KmbPadLayerTest,
             pad4Dparams,

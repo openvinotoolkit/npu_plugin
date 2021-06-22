@@ -57,7 +57,7 @@ const std::vector<InferenceEngine::Layout> layout4D = {
         InferenceEngine::Layout::NHWC
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_maximum_4D, KmbMaxMinLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_maximum_4D, KmbMaxMinLayerTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(inShapes4D),
                                 ::testing::ValuesIn(opType),
@@ -75,7 +75,7 @@ const std::vector<std::vector<std::vector<size_t>>> inShapes3D = {
 //        {{1, 2, 4}, {1}}
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_maximum_3D, KmbMaxMinLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_maximum_3D, KmbMaxMinLayerTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(inShapes3D),
                                 ::testing::ValuesIn(opType),
@@ -93,7 +93,7 @@ const std::vector<std::vector<std::vector<size_t>>> inShapesScalar = {
         {{32}, {1}}
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_maximum_scalar, KmbMaxMinLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_maximum_scalar, KmbMaxMinLayerTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(inShapesScalar),
                                 ::testing::ValuesIn(opType),

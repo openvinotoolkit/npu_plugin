@@ -53,4 +53,4 @@ const std::vector<MVNTestParams> convertParams = {
             .across_channels(true)
 };
 
-INSTANTIATE_TEST_CASE_P(precommit, KmbMVNSoftlayerTests, testing::ValuesIn(convertParams));
+INSTANTIATE_TEST_SUITE_P(precommit, KmbMVNSoftlayerTests, testing::ValuesIn(convertParams));

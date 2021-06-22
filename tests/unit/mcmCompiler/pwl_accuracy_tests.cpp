@@ -164,7 +164,7 @@ namespace testing {
     }
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         MatchesIntegerRef, PWLAccuracy,
         ::testing::Combine(
                 ::testing::ValuesIn({ApproximationSource::Mish}),

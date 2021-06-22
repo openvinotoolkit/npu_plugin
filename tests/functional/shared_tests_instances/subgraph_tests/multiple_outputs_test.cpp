@@ -59,7 +59,7 @@ std::vector<size_t> outputChannels = {
     16
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_MultipleOutputs, KmbMultipleoutputTest,
+INSTANTIATE_TEST_SUITE_P(smoke_MultipleOutputs, KmbMultipleoutputTest,
                         ::testing::Combine(
                             ::testing::ValuesIn(netPrecisions),
                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),

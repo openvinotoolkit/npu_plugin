@@ -114,14 +114,14 @@ const auto params_MCM = testing::Combine(
 );
 
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_CTCGreedyDecoder,
     KmbCTCGreedyDecoderLayerTest_MLIR,
     params_MLIR,
     CTCGreedyDecoderLayerTest::getTestCaseName
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_CTCGreedyDecoder,
         KmbCTCGreedyDecoderLayerTest_MCM,
         params_MCM,

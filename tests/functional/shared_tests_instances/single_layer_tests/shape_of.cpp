@@ -34,7 +34,7 @@ namespace {
     // While validating node 'v3::ShapeOf ShapeOf_1 (Parameter_0[0]:f32{10,10,10}) -> (dynamic?)' with
     // friendly_name 'ShapeOf_1': Output type must be i32 or i64" thrown in SetUp().
     // [Track number: S#49606]
-    INSTANTIATE_TEST_CASE_P(DISABLED_smoke_Check, KmbShapeOfLayerTest,
+    INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_Check, KmbShapeOfLayerTest,
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(std::vector<size_t>({10, 10, 10})),

@@ -51,7 +51,7 @@ const auto params = testing::Combine(
     testing::Values(LayerTestsUtils::testPlatformTargetDevice)
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_GRN_test,
     KmbGRNLayerTest,
     params,

@@ -580,6 +580,6 @@ TEST_P(KmbDetectionOutputLayerTest, CompareWithRefs_MLIR) {
 
 // TODO: extend the test to 5 inputs [Track number: C#49276]
 // TODO: disabled due to [Track number: E#12713]
-INSTANTIATE_TEST_CASE_P(DISABLED_smoke_DetectionOutput3In, KmbDetectionOutputLayerTest, params3Inputs, DetectionOutputLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_DetectionOutput3In, KmbDetectionOutputLayerTest, params3Inputs, DetectionOutputLayerTest::getTestCaseName);
 
 }  // namespace

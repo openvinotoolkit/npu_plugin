@@ -97,7 +97,7 @@ using namespace testing;
 static Form form1({mv::Shape({56, 56, 144, 8}), mv::Order("NCHW")});
 static Form form2({mv::Shape({320, 200, 3})   , mv::Order("CHW") });
 
-INSTANTIATE_TEST_CASE_P(demo, layers_concat,
+INSTANTIATE_TEST_SUITE_P(demo, layers_concat,
                         Combine(Values(Arity(2)),
                                 Values(Axis("C")),
                                 Values(form1, form2),
