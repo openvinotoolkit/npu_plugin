@@ -209,6 +209,10 @@ void DeveloperConfig::setup(mlir::PassManager& pm) const {
     // Crash reproducer
 
     if (!_crashReproducerFile.empty()) {
+        if (_localReproducer) {
+            pm.getContext()->disableMultithreading();
+        }
+
         pm.enableCrashReproducerGeneration(_crashReproducerFile, _localReproducer);
     }
 

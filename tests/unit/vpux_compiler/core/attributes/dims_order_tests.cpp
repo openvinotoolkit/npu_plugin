@@ -13,6 +13,10 @@
 
 #include "vpux/compiler/core/attributes/dims_order.hpp"
 
+#include <mlir/IR/AffineMap.h>
+#include <mlir/IR/BuiltinTypes.h>
+#include <mlir/IR/MLIRContext.h>
+
 #include <gtest/gtest.h>
 
 #include <algorithm>
@@ -48,8 +52,7 @@ std::vector<std::pair<std::vector<Dim>, DimsOrder>> getPerm2Order() {
             std::make_pair(std::vector<Dim>({Dim(0), Dim(2), Dim(3), Dim(1)}), DimsOrder::NHWC),
             std::make_pair(std::vector<Dim>({Dim(0), Dim(2), Dim(1), Dim(3)}), DimsOrder::NHCW),
             std::make_pair(std::vector<Dim>({Dim(0), Dim(1), Dim(2), Dim(3), Dim(4)}), DimsOrder::NCDHW),
-            std::make_pair(std::vector<Dim>({Dim(0), Dim(2), Dim(3), Dim(4), Dim(1)}), DimsOrder::NDHWC)
-    };
+            std::make_pair(std::vector<Dim>({Dim(0), Dim(2), Dim(3), Dim(4), Dim(1)}), DimsOrder::NDHWC)};
 }
 std::vector<std::pair<DimsOrder::StorageType, DimsOrder>> getCode2Order() {
     return std::vector<std::pair<DimsOrder::StorageType, DimsOrder>>{
@@ -75,14 +78,10 @@ using MemStridesType = SmallVector<int64_t>;
 using ExpectedDimsOrderType = DimsOrder;
 using ValueDimsOrderType = DimsOrder;
 using ResType = bool;
-using MapsBuilder = SmallVector<mlir::AffineMap>(*)(DimsOrder, mlir::MLIRContext*, ShapeRef);
+using MapsBuilder = SmallVector<mlir::AffineMap> (*)(DimsOrder, mlir::MLIRContext*, ShapeRef);
 
 static SmallVector<mlir::AffineMap> createPermMap(DimsOrder order, mlir::MLIRContext* ctx, ShapeRef) {
     return {order.toPermutationAffineMap(ctx)};
-}
-
-static SmallVector<mlir::AffineMap> createStridedMap(DimsOrder order, mlir::MLIRContext* ctx, ShapeRef shape) {
-    return {order.toStridedAffineMap(ctx, shape)};
 }
 
 static SmallVector<mlir::AffineMap> createMapList(DimsOrder order, mlir::MLIRContext* ctx, ShapeRef shape) {
@@ -91,36 +90,31 @@ static SmallVector<mlir::AffineMap> createMapList(DimsOrder order, mlir::MLIRCon
 
 std::vector<ShapeType> getFromType() {
     return {
-        {2},
-        {2, 3},
-        {1, 3, 6},
-        {5, 4, 3, 2},
-        {5, 1, 2, 3, 5},
+            {2}, {2, 3}, {1, 3, 6}, {5, 4, 3, 2}, {5, 1, 2, 3, 5},
     };
 }
 
 std::vector<std::tuple<ExpectedDimsOrderType, ValueDimsOrderType, ShapeType, MapsBuilder>> getFromType_WithMaps() {
     return {
-        {DimsOrder::CHW,  DimsOrder::CHW,  {8, 4, 2}, createPermMap},
-        {DimsOrder::HCW,  DimsOrder::HCW,  {1, 3, 6}, createPermMap},
-        {DimsOrder::NHCW, DimsOrder::NHCW, {5, 4, 3, 2}, createPermMap},
-        {DimsOrder::NHCW, DimsOrder::NHCW, {5, 1, 2, 3}, createPermMap},
-        {DimsOrder::CHW,  DimsOrder::HCW,  {1, 3, 6}, createStridedMap},
-        {DimsOrder::NCHW, DimsOrder::NHCW, {5, 1, 2, 3}, createStridedMap},
-        {DimsOrder::HCW,  DimsOrder::HCW,  {1, 3, 6}, createMapList},
-        {DimsOrder::NHCW, DimsOrder::NHCW, {5, 1, 2, 3}, createMapList},
+            {DimsOrder::CHW, DimsOrder::CHW, {8, 4, 2}, createPermMap},
+            {DimsOrder::HCW, DimsOrder::HCW, {1, 3, 6}, createPermMap},
+            {DimsOrder::NHCW, DimsOrder::NHCW, {5, 4, 3, 2}, createPermMap},
+            {DimsOrder::NHCW, DimsOrder::NHCW, {5, 1, 2, 3}, createPermMap},
+            {DimsOrder::HCW, DimsOrder::HCW, {1, 3, 6}, createMapList},
+            {DimsOrder::NHCW, DimsOrder::NHCW, {5, 1, 2, 3}, createMapList},
     };
 }
 
-std::vector<std::tuple<ExpectedDimsOrderType, ValueDimsOrderType, ShapeType, MemStridesType, ResType>> getIsCompatibleLayout() {
+std::vector<std::tuple<ExpectedDimsOrderType, ValueDimsOrderType, ShapeType, MemStridesType, ResType>>
+getIsCompatibleLayout() {
     return {
-        {DimsOrder::CHW, DimsOrder::CHW,   {1, 2, 4},    {8, 4, 1},    true},
+            {DimsOrder::CHW, DimsOrder::CHW, {1, 2, 4}, {8, 4, 1}, true},
 
-        {DimsOrder::HCW, DimsOrder::CHW,   {1, 1, 6},    {6, 6, 1},    true},
-        {DimsOrder::HCW, DimsOrder::CHW,   {2, 2, 6},    {12, 6, 1},   false},
+            {DimsOrder::HCW, DimsOrder::CHW, {1, 1, 6}, {6, 6, 1}, true},
+            {DimsOrder::HCW, DimsOrder::CHW, {2, 2, 6}, {12, 6, 1}, false},
 
-        {DimsOrder::NCHW, DimsOrder::NHCW, {5, 2, 1, 3}, {6, 3, 3, 1}, true},
-        {DimsOrder::NCHW, DimsOrder::HCW,  {1, 1, 1},    {1, 1, 1},    false},  // type.getRank() != numDims()
+            {DimsOrder::NCHW, DimsOrder::NHCW, {5, 2, 1, 3}, {6, 3, 3, 1}, true},
+            {DimsOrder::NCHW, DimsOrder::HCW, {1, 1, 1}, {1, 1, 1}, false},  // type.getRank() != numDims()
     };
 }
 
@@ -412,7 +406,7 @@ TEST(MLIR_DimsOrderTest, fromTypeTest) {
 
     mlir::MLIRContext ctx;
     for (const auto& shape : testData) {
-        const auto memRefType =  mlir::MemRefType::get(shape, mlir::Float16Type::get(&ctx));
+        const auto memRefType = mlir::MemRefType::get(shape, mlir::Float16Type::get(&ctx));
 
         const auto actualOrder = DimsOrder::fromType(memRefType);
         EXPECT_EQ(DimsOrder::fromNumDims(shape.size()), actualOrder);
@@ -432,7 +426,7 @@ TEST(MLIR_DimsOrderTest, fromTypeTest_WithMaps) {
         std::tie(expOrder, originOrder, shape, mapBuilder) = testCase;
 
         const auto layoutMaps = mapBuilder(originOrder, &ctx, Shape(shape));
-        const auto memRefType =  mlir::MemRefType::get(shape, mlir::Float16Type::get(&ctx), layoutMaps);
+        const auto memRefType = mlir::MemRefType::get(shape, mlir::Float16Type::get(&ctx), layoutMaps);
 
         const auto actualOrder = DimsOrder::fromType(memRefType);
         EXPECT_EQ(expOrder, actualOrder);
@@ -455,8 +449,42 @@ TEST(MLIR_DimsOrderTest, isCompatibleLayoutTest) {
         const auto layoutMap = originOrder.toPermutationAffineMap(&ctx);
         const auto stridesMap = mlir::makeStridedLinearLayoutMap(memStrides, 0, &ctx);
 
-        const auto memRefType =  mlir::MemRefType::get(shape, mlir::Float16Type::get(&ctx), stridesMap.compose(layoutMap));
+        const auto memRefType =
+                mlir::MemRefType::get(shape, mlir::Float16Type::get(&ctx), stridesMap.compose(layoutMap));
 
         EXPECT_EQ(expOrder.isCompatibleLayout(memRefType), isCompatible);
     }
+}
+
+TEST(MLIR_DimsOrderTest, toAffineMapsListTest) {
+    mlir::MLIRContext ctx;
+
+    const Shape shape({16, 1, 1, 4});
+    const auto order = DimsOrder::NHWC;
+
+    const auto maps = order.toAffineMapsList(&ctx, shape);
+    ASSERT_EQ(maps.size(), 2);
+
+    const auto permMap = maps[0];
+    ASSERT_TRUE(permMap.isPermutation());
+    const auto perm = to_std_vector(permMap.getResults() | transformed([](mlir::AffineExpr expr) {
+                                        const auto dim = expr.cast<mlir::AffineDimExpr>();
+                                        const auto dimPos = dim.getPosition();
+                                        return dimPos;
+                                    }));
+    const std::vector<unsigned int> refPerm{0, 2, 3, 1};
+    EXPECT_EQ(perm, refPerm);
+
+    const auto memStridesMap = maps[1];
+    const SmallVector<int64_t> refMemStrides{4, 4, 1, 1};
+    const auto refMemStridesMap = mlir::makeStridedLinearLayoutMap(refMemStrides, 0, &ctx);
+    EXPECT_EQ(memStridesMap, refMemStridesMap);
+
+    const auto type = mlir::MemRefType::get(shape.raw(), mlir::IntegerType::get(&ctx, 32), maps);
+
+    SmallVector<int64_t> strides;
+    int64_t offset = 0;
+    ASSERT_TRUE(mlir::succeeded(mlir::getStridesAndOffset(type, strides, offset)));
+    const SmallVector<int64_t> refStrides{4, 1, 4, 1};
+    EXPECT_EQ(strides, refStrides);
 }

@@ -305,20 +305,6 @@ DimsOrder vpux::DimsOrder::fromValue(mlir::Value val) {
     return fromType(type);
 }
 
-mlir::AffineMap vpux::DimsOrder::toStridedAffineMap(mlir::MLIRContext* ctx, ShapeRef shape) const {
-    const auto memShape = toMemoryOrder(shape);
-    const auto reqs = StrideReqs::simple(shape.size());
-    const auto memStrides = reqs.calcStrides(1_Byte, memShape);
-    const auto strides = toLogicalOrder(memStrides);
-    const auto elemStrides = to_small_vector(strides | transformed([](Byte val) {
-                                                 return val.count();
-                                             }));
-    // strides in logical order
-    // For NHWC U8 buffer with logical_shape = [1, 2, 3, 4] it will be
-    // affine_map<(d0, d1, d2, d3) -> (24 * d0 + d1 + 8 * d2 + 2 * d3)>
-    return mlir::makeStridedLinearLayoutMap(elemStrides, 0, ctx);
-}
-
 SmallVector<mlir::AffineMap> vpux::DimsOrder::toAffineMapsList(mlir::MLIRContext* ctx, ShapeRef shape) const {
     const auto memShape = toMemoryOrder(shape);
     const auto reqs = StrideReqs::simple(shape.size());

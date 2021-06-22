@@ -111,7 +111,6 @@ public:
 
     static DimsOrder fromType(mlir::MemRefType type);
     static DimsOrder fromValue(mlir::Value val);
-    mlir::AffineMap toStridedAffineMap(mlir::MLIRContext* ctx, ShapeRef shape) const;
 
     SmallVector<mlir::AffineMap> toAffineMapsList(mlir::MLIRContext* ctx, ShapeRef shape) const;
 

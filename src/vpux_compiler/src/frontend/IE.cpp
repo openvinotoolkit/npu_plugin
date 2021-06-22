@@ -1298,8 +1298,8 @@ IE::PadModeAttr NGraphImporter::importPadMode(const ngraph::op::PadMode val) {
     return attr;
 }
 
-SmallVector<mlir::AffineMap> importLayout(mlir::MLIRContext* ctx, InferenceEngine::Layout layout, size_t numDims) {
-    if (numDims > MAX_NAMED_ORDER_NUM_DIMS || layout == InferenceEngine::Layout::ANY) {
+SmallVector<mlir::AffineMap> importLayout(mlir::MLIRContext* ctx, InferenceEngine::Layout layout, ShapeRef shape) {
+    if (shape.size() > MAX_NAMED_ORDER_NUM_DIMS || layout == InferenceEngine::Layout::ANY) {
         return {};
     }
 
@@ -1308,7 +1308,7 @@ SmallVector<mlir::AffineMap> importLayout(mlir::MLIRContext* ctx, InferenceEngin
         return {};
     }
 
-    return {order.toPermutationAffineMap(ctx)};
+    return order.toAffineMapsList(ctx, shape);
 }
 
 mlir::Type importPrecision(mlir::MLIRContext* ctx, const InferenceEngine::Precision& precision) {
@@ -1338,13 +1338,13 @@ mlir::Type importPrecision(mlir::MLIRContext* ctx, const InferenceEngine::Precis
 }
 
 mlir::MemRefType importBuffer(mlir::MLIRContext* ctx, const InferenceEngine::TensorDesc& desc) {
-    SmallVector<int64_t> shape(desc.getDims().size());
+    Shape shape(desc.getDims().size());
     std::copy(desc.getDims().begin(), desc.getDims().end(), shape.begin());
 
     const auto precision = importPrecision(ctx, desc.getPrecision());
-    const auto affineMaps = importLayout(ctx, desc.getLayout(), shape.size());
+    const auto affineMaps = importLayout(ctx, desc.getLayout(), shape);
 
-    return mlir::MemRefType::get(shape, precision, affineMaps);
+    return mlir::MemRefType::get(shape.raw(), precision, affineMaps);
 }
 
 std::string getValidOutputName(const std::shared_ptr<ngraph::op::Result>& result) {

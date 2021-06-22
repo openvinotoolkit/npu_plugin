@@ -1,6 +1,7 @@
-// RUN: vpux-translate --split-input-file --import-HWTEST %s | FileCheck %s
+// RUN: vpux-translate --import-HWTEST %s | FileCheck %s
 
-// CHECK-LABEL: module @mainModule attributes {VPUIP.arch = "VPU3720", VPUIP.compilationMode = "ReferenceSW"}
+// CHECK-LABEL: module @mainModule attributes {VPUIP.arch = "VPU3720", VPUIP.compilationMode = "ReferenceHW"}
+
 // CHECK:       VPUIP.Graph
 // CHECK-SAME:      options : "NONE"
 // CHECK-SAME:      version : {
@@ -21,8 +22,5 @@
 // CHECK:               }
 // CHECK:           }
 
-// -----
-
-// CHECK-LABEL: module @mainModule attributes {VPUIP.arch = "VPU3720", VPUIP.compilationMode = "ReferenceSW"}
-// CHECK: VPUIP.NCEClusterTask
-// CHECK-SAME: task_type = "CONV"
+// CHECK:       VPUIP.NCEClusterTask
+// CHECK-SAME:      task_type = "CONV"

@@ -26,6 +26,20 @@
 
 using namespace vpux;
 
+namespace {
+
+std::string getValueForLog(mlir::Value val) {
+    if (const auto arg = val.dyn_cast<mlir::BlockArgument>()) {
+        return llvm::formatv("BlockArgument #{0} at '{0}'", arg.getArgNumber(), val.getLoc()).str();
+    }
+
+    const auto res = val.cast<mlir::OpResult>();
+    return llvm::formatv("Operation result #{0} for '{1}' at '{2}'", res.getResultNumber(), res.getOwner()->getName(),
+                         val.getLoc());
+}
+
+}  // namespace
+
 vpux::AliasesInfo::AliasesInfo(mlir::FuncOp func): _log(Logger::global().nest("aliases-info", 0)) {
     _log.trace("Analyze aliases for Function '@{0}'", func.getName());
     _log = _log.nest();
@@ -33,7 +47,7 @@ vpux::AliasesInfo::AliasesInfo(mlir::FuncOp func): _log(Logger::global().nest("a
     _log.trace("Function arguments are roots for themselves");
     _log = _log.nest();
     for (const auto funcArg : func.getArguments()) {
-        _log.trace("Argument '{0}'", funcArg);
+        _log.trace("Argument #{0}", funcArg.getArgNumber());
 
         VPUX_THROW_UNLESS(funcArg.getType().isa<mlir::MemRefType>(),
                           "AliasesInfo analysis works only with MemRef types, got '{0}'", funcArg.getType());
@@ -47,7 +61,7 @@ vpux::AliasesInfo::AliasesInfo(mlir::FuncOp func): _log(Logger::global().nest("a
 }
 
 void vpux::AliasesInfo::addAlias(mlir::Value root, mlir::Value alias) {
-    _log.trace("Add alias '{0}' for '{1}'", alias, root);
+    _log.trace("Add alias '{0}' for '{1}'", getValueForLog(alias), getValueForLog(root));
 
     _aliases[root].insert(alias);
     _roots.insert({alias, root});
@@ -78,7 +92,7 @@ void vpux::AliasesInfo::traverse(OpRange ops) {
                     _log = _log.nest();
 
                     for (const auto result : viewOp->getResults()) {
-                        _log.trace("Result '{0}'", result);
+                        _log.trace("Result #{0}", result.getResultNumber());
 
                         VPUX_THROW_UNLESS(result.getType().isa<mlir::MemRefType>(),
                                           "AliasesInfo analysis works only with MemRef types, got '{0}'",
@@ -115,8 +129,7 @@ void vpux::AliasesInfo::traverse(OpRange ops) {
                             executeOp->getLoc());
 
                     for (auto i : irange(outerArgs.size())) {
-                        _log.trace("Check operand '{0}' and corresponding region argument '{1}'", outerArgs[i],
-                                   innerArgs[i]);
+                        _log.trace("Check operand #{0} and corresponding region argument", i);
 
                         const auto futureType = outerArgs[i].getType().dyn_cast<mlir::async::ValueType>();
                         VPUX_THROW_UNLESS(futureType != nullptr,
@@ -146,8 +159,7 @@ void vpux::AliasesInfo::traverse(OpRange ops) {
                             executeOp->getLoc());
 
                     for (auto i : irange(innerResults.size())) {
-                        _log.trace("Check result '{0}' and corresponding region result '{1}'", outerResults[i],
-                                   innerResults[i]);
+                        _log.trace("Check result #{0} and corresponding region result", i);
 
                         const auto futureType = outerResults[i].getType().dyn_cast<mlir::async::ValueType>();
                         VPUX_THROW_UNLESS(futureType != nullptr,
@@ -205,12 +217,12 @@ void vpux::AliasesInfo::traverse(OpRange ops) {
 
 mlir::Value vpux::AliasesInfo::getRoot(mlir::Value val) const {
     const auto it = _roots.find(val);
-    VPUX_THROW_UNLESS(it != _roots.end(), "Value '{0}' is not covered by aliases analysis", val);
+    VPUX_THROW_UNLESS(it != _roots.end(), "Value '{0}' is not covered by aliases analysis", getValueForLog(val));
     return it->second;
 }
 
 const AliasesInfo::ValuesSet& vpux::AliasesInfo::getAliases(mlir::Value val) const {
     const auto it = _aliases.find(val);
-    VPUX_THROW_UNLESS(it != _aliases.end(), "Value '{0}' is not covered by aliases analysis", val);
+    VPUX_THROW_UNLESS(it != _aliases.end(), "Value '{0}' is not covered by aliases analysis", getValueForLog(val));
     return it->second;
 }

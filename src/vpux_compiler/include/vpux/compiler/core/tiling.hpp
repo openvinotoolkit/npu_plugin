@@ -17,7 +17,6 @@
 #pragma once
 
 namespace vpux {
-namespace VPUIP {
 
 struct Tile final {
     Tile() = delete;
@@ -44,17 +43,14 @@ struct ConvTileConfig final {
     PadsTileConfig pads;
 };
 
-class Tiling final {
-public:
-    // helper function to generate a set of tiles from dividing a shape. A shape divided across multiple dimensions will
-    // generate a set of tiles, each having its own size and offsets
-    static SmallVector<Tile> fillDividedTiles(ShapeRef divisors, ShapeRef orig);
+// helper function to generate a set of tiles from dividing a shape. A shape divided across multiple dimensions will
+// generate a set of tiles, each having its own size and offsets
+SmallVector<Tile> fillDividedTiles(ShapeRef divisors, ShapeRef orig);
 
-    static PadsTileConfig backInferPadsTile(const Tile& outputTile, ShapeRef outShape, ArrayRef<int64_t> opPadsBegin,
-                                            ArrayRef<int64_t> opPadsEnd);
+PadsTileConfig backInferPadsTile(const Tile& outputTile, ShapeRef outShape, ArrayRef<int64_t> opPadsBegin,
+                                 ArrayRef<int64_t> opPadsEnd);
 
-    static ConvTileConfig backInferConvTile(IERT::ConvolutionOp origOp, const Tile& outputTile);
-};
+// TODO: Replace IERT::ConvolutionOp with Operation Interface
+ConvTileConfig backInferConvTile(IERT::ConvolutionOp origOp, const Tile& outputTile);
 
-}  // namespace VPUIP
 }  // namespace vpux
