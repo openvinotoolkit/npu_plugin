@@ -53,6 +53,7 @@ mlir::Attribute VPUIPLayerInfo::getExecutor(mlir::Operation* op, uint32_t& numUn
             auto module = op->getParentOfType<mlir::ModuleOp>();
             auto resources = IERT::RunTimeResourcesOp::getFromModule(module);
             auto available = resources.getExecutor(procAttr);
+            VPUX_THROW_UNLESS(available != nullptr, "Executor for '{0}' is not available", procAttr);
             numUnits = available.count();
         }
 
