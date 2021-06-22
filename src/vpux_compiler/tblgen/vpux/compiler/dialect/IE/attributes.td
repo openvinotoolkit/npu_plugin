@@ -154,12 +154,57 @@ def IE_ProposalAttrs :
 def IE_InterpolateMode :
         StrEnumAttr<
             "InterpolateMode",
-            "Interpolation mode",
+            "Specifies type of interpolation",
             [
                 StrEnumAttrCase<"nearest">,
                 StrEnumAttrCase<"linear">,
+                StrEnumAttrCase<"linear_onnx">,
                 StrEnumAttrCase<"cubic">,
-                StrEnumAttrCase<"area">,
+            ]
+        > {
+    let cppNamespace = "vpux::IE";
+    let genSpecializedAttr = 1;
+}
+
+def IE_InterpolateCalcMode :
+        StrEnumAttr<
+            "InterpolateCalcMode",
+            "Specifies which input, sizes or scales, is used to calculate an output shape.",
+            [
+                StrEnumAttrCase<"sizes">,
+                StrEnumAttrCase<"scales">,
+            ]
+        > {
+    let cppNamespace = "vpux::IE";
+    let genSpecializedAttr = 1;
+}
+
+def IE_InterpolateCoordMode :
+        StrEnumAttr<
+            "InterpolateCoordMode",
+            "coordinate_transformation_mode specifies how to transform the coordinate.",
+            [
+                StrEnumAttrCase<"half_pixel">,
+                StrEnumAttrCase<"pytorch_half_pixel">,
+                StrEnumAttrCase<"asymmetric">,
+                StrEnumAttrCase<"tf_half_pixel_for_nn">,
+                StrEnumAttrCase<"align_corners">,
+            ]
+        > {
+    let cppNamespace = "vpux::IE";
+    let genSpecializedAttr = 1;
+}
+
+def IE_InterpolateNearestMode :
+        StrEnumAttr<
+            "InterpolateNearestMode",
+            "specifies round mode when mode == nearest",
+            [
+                StrEnumAttrCase<"round_prefer_floor">,
+                StrEnumAttrCase<"round_prefer_ceil">,
+                StrEnumAttrCase<"floor">,
+                StrEnumAttrCase<"ceil">,
+                StrEnumAttrCase<"simple">,
             ]
         > {
     let cppNamespace = "vpux::IE";
@@ -171,14 +216,17 @@ def IE_InterpolateAttr :
             "InterpolateAttr",
             IE_Dialect,
             [
-                StructFieldAttr<"axes",           I64ArrayAttr>,
-                StructFieldAttr<"mode",           IE_InterpolateMode>,
-                StructFieldAttr<"align_corners",  DefaultValuedAttr<BoolAttr, "true">>,
-                StructFieldAttr<"antialias",      DefaultValuedAttr<BoolAttr, "false">>,
-                StructFieldAttr<"pads_begin",     I32ArrayAttr>,
-                StructFieldAttr<"pads_end",       I32ArrayAttr>,
+                StructFieldAttr<"mode",            IE_InterpolateMode>,
+                StructFieldAttr<"shape_calc_mode", IE_InterpolateCalcMode>,
+                StructFieldAttr<"coord_mode",      IE_InterpolateCoordMode>,
+                StructFieldAttr<"nearest_mode",    IE_InterpolateNearestMode>,
+                StructFieldAttr<"antialias",  DefaultValuedAttr<BoolAttr, "false">>,
+                StructFieldAttr<"pads_begin", DefaultValuedAttr<I32ArrayAttr, "{0}">>,
+                StructFieldAttr<"pads_end",   DefaultValuedAttr<I32ArrayAttr, "{0}">>,
+                StructFieldAttr<"cube_coeff", DefaultValuedAttr<F32Attr, "-0.75f">>,
             ]
         >;
+
 
 //
 // DetectionOutputAttrs

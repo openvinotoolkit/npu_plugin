@@ -1045,20 +1045,31 @@ def IE_ProposalOp :
 
 def IE_InterpolateOp :
         IE_LayerOp<
-            "Interpolate"
+            "Interpolate",
+            [
+                AttrSizedOperandSegments
+            ]
         > {
     let summary = "InferenceEngine Interpolate layer";
 
     let arguments = (ins
-        AnyRankedTensor:$input,
-        1DTensorOf<[AnyInteger]>:$target_shape,
+        RankedTensorOf<[F16, F32]>:$input,
+        Optional<RankedTensorOf<[AnyInteger]>>:$sizes,
+        Optional<RankedTensorOf<[F16, F32]>>:$scales,
+        Optional<RankedTensorOf<[AnyInteger]>>:$axes,
+
+        OptionalAttr<I32ArrayAttr>:$sizes_attr,
+        OptionalAttr<F32ArrayAttr>:$scales_attr,
+        OptionalAttr<I32ArrayAttr>:$axes_attr,
 
         IE_InterpolateAttr:$attr
     );
 
     let results = (outs
-        AnyRankedTensor:$output
+        RankedTensorOf<[F16, F32]>:$output
     );
+
+    let hasCanonicalizer = 1;
 }
 
 //

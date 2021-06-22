@@ -541,4 +541,20 @@ def RewritePad :
             (createPadUPAOp $input, $output, $pads_begin, $pads_end, $pad_value, $mode)
         >;
 
+//
+// IERT.Interpolate -> VPUIP.Interpolate
+//
+
+def createInterpolateUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::InterpolateUPAOp>(
+                $_loc, $0, $1, $2, $3, $4, $5)
+        }]>;
+
+def RewriteInterpolate :
+        Pat<
+            (IERT_InterpolateOp $input, $output, $mode, $coord_mode, $nearest_mode, $antialias),
+            (createInterpolateUPAOp $input, $output, $mode, $coord_mode, $nearest_mode, $antialias)
+        >;
+
 #endif

@@ -596,6 +596,20 @@ mlir::Operation* createRTLayer(IE::ExpOp origOp, ArrayRef<mlir::Value> allBufs, 
     return b.create<IERT::ExpOp>(origOp.getLoc(), newOp.input(), newOp.output_buff());
 }
 
+mlir::Operation* createRTLayer(IE::InterpolateOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::InterpolateOp::Adaptor newOp(allBufs);
+
+    if (!origOp.sizes_attr().hasValue() || !origOp.scales_attr().hasValue())
+        VPUX_THROW("Interpolate must have constant sizes or scales");
+
+    if (!origOp.axes_attr().hasValue())
+        VPUX_THROW("Interpolate must have constant axes");
+
+    return b.create<IERT::InterpolateOp>(origOp.getLoc(), newOp.input(), newOp.output_buff(),
+                                         origOp.attr().mode().getValue(), origOp.attr().coord_mode().getValue(),
+                                         origOp.attr().nearest_mode().getValue(), origOp.attr().antialias().getValue());
+}
+
 class BufferizeIEPass::LayerRewrite final : public mlir::ConversionPattern {
 public:
     LayerRewrite(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
@@ -671,6 +685,7 @@ mlir::LogicalResult BufferizeIEPass::LayerRewrite::matchAndRewrite(mlir::Operati
     CASE(IE::CTCGreedyDecoderSeqLenOp)
     CASE(IE::PadOp)
     CASE(IE::ExpOp)
+    CASE(IE::InterpolateOp)
     .Default([](mlir::Operation*) {
         return nullptr;
     });

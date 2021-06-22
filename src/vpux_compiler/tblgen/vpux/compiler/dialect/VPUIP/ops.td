@@ -2063,4 +2063,62 @@ def VPUIP_EdslUPAOp :
     }];
 }
 
+//
+// InterpolateOp
+//
+
+def VPUIP_InterpolateUPAOp :
+        VPUIP_UPATaskOp<1,"Interpolate",
+            [
+                ViewLikeOpInterface,
+                VPUIP_SameInOutDimsOrder_NCHW_NHWC
+            ]
+        > {
+    let summary = "Interpolate UPA SHAVE kernel";
+
+    let arguments = (ins
+        F16MemRef:$input,
+
+        F16MemRef:$output_buff,
+
+        Variadic<VPUIP_Barrier>:$waitBarriers,
+        Variadic<VPUIP_Barrier>:$updateBarriers,
+
+        IE_InterpolateMode:$mode,
+        IE_InterpolateCoordMode:$coord_mode,
+        IE_InterpolateNearestMode:$nearest_mode,
+        UnitAttr:$antialias,
+
+        OptionalAttr<I32Attr>:$maxShaves,
+        UnitAttr:$isTrailingSWLayer
+    );
+
+    let results = (outs
+        F16MemRef:$output
+    );
+
+    let builders = [
+        OpBuilder<
+            (ins
+                "mlir::Value":$input,
+                "mlir::Value":$output,
+                "IE::InterpolateModeAttr":$mode,
+                "IE::InterpolateCoordModeAttr":$coord_mode,
+                "IE::InterpolateNearestModeAttr":$nearest_mode,
+                "mlir::UnitAttr":$antialias
+            )
+        >
+    ];
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+        `->` type(results)
+    }];
+
+}
+
 #endif

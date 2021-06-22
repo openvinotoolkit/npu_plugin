@@ -1662,4 +1662,38 @@ def IERT_PadOp :
     }];
 }
 
+//
+// InterpolateOp
+//
+
+def IERT_InterpolateOp :
+        IERT_LayerOp<1, "Interpolate",
+        [
+            ViewLikeOpInterface
+        ]
+        > {
+    let summary = "InferenceEngine run-time Interpolate layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input,
+        MemRefOf<[F16, F32]>:$output_buff,
+
+        IE_InterpolateMode:$mode,
+        IE_InterpolateCoordMode:$coord_mode,
+        IE_InterpolateNearestMode:$nearest_mode,
+        UnitAttr:$antialias
+    );
+
+    let results = (outs
+        MemRefOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
 #endif

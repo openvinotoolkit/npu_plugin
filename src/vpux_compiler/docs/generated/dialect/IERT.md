@@ -828,6 +828,43 @@ operation ::= `IERT.HSwish` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float or 32-bit float values
 
+### `IERT.Interpolate` (vpux::IERT::InterpolateOp)
+
+InferenceEngine run-time Interpolate layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.Interpolate` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`mode` | vpux::IE::InterpolateModeAttr | Specifies type of interpolation
+`coord_mode` | vpux::IE::InterpolateCoordModeAttr | coordinate_transformation_mode specifies how to transform the coordinate.
+`nearest_mode` | vpux::IE::InterpolateNearestModeAttr | specifies round mode when mode == nearest
+`antialias` | ::mlir::UnitAttr | unit attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float or 32-bit float values
+`output_buff` | memref of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float or 32-bit float values
+
 ### `IERT.LeakyRelu` (vpux::IERT::LeakyReluOp)
 
 InferenceEngine run-time LeakyRelu layer

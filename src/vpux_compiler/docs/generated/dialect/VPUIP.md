@@ -744,6 +744,49 @@ operation ::= `VPUIP.HSwishUPA` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float values
 
+### `VPUIP.Interpolate` (vpux::VPUIP::InterpolateUPAOp)
+
+Interpolate UPA SHAVE kernel
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.Interpolate` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+              (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`mode` | vpux::IE::InterpolateModeAttr | Specifies type of interpolation
+`coord_mode` | vpux::IE::InterpolateCoordModeAttr | coordinate_transformation_mode specifies how to transform the coordinate.
+`nearest_mode` | vpux::IE::InterpolateNearestModeAttr | specifies round mode when mode == nearest
+`antialias` | ::mlir::UnitAttr | unit attribute
+`maxShaves` | ::mlir::IntegerAttr | 32-bit signless integer attribute
+`isTrailingSWLayer` | ::mlir::UnitAttr | unit attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float values
+`output_buff` | memref of 16-bit float values
+`waitBarriers` | VPUIP Barrier Type
+`updateBarriers` | VPUIP Barrier Type
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float values
+
 ### `VPUIP.LeakyReluUPA` (vpux::VPUIP::LeakyReluUPAOp)
 
 LeakyRelu UPA SHAVE kernel
