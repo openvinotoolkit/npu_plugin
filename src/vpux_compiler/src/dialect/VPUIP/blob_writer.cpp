@@ -260,6 +260,7 @@ VPUIP::BlobWriter::Barrier vpux::VPUIP::BlobWriter::createBarrier(mlir::Value va
         if (effect.getEffect() == mlir::MemoryEffects::Read::get()) {
             if (auto nceClusterTaskOp = mlir::dyn_cast<VPUIP::NCEClusterTaskOp>(userOp)) {
                 for (auto dpuTaskOp : nceClusterTaskOp.variants().getOps<VPUIP::DPUTaskOp>()) {
+                    VPUX_UNUSED(dpuTaskOp);
                     ++numConsumers;
                 }
             } else {
@@ -268,6 +269,7 @@ VPUIP::BlobWriter::Barrier vpux::VPUIP::BlobWriter::createBarrier(mlir::Value va
         } else if (effect.getEffect() == mlir::MemoryEffects::Write::get()) {
             if (auto nceClusterTaskOp = mlir::dyn_cast<VPUIP::NCEClusterTaskOp>(userOp)) {
                 for (auto dpuTaskOp : nceClusterTaskOp.variants().getOps<VPUIP::DPUTaskOp>()) {
+                    VPUX_UNUSED(dpuTaskOp);
                     ++numProducers;
                 }
             } else {
