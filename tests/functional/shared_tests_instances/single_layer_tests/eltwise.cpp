@@ -144,10 +144,17 @@ class KmbEltwiseLayerTest_MLIR : public KmbEltwiseLayerTest {
     }
 };
 
+
+//
+//[Track number: E#15146]
+//
 TEST_P(KmbEltwiseLayerTest_MCM, DISABLED_CompareWithRefs) {
     Run();
 }
 
+//
+//[Track number: E#15146]
+//
 TEST_P(KmbEltwiseLayerTest_MLIR, DISABLED_CompareWithRefs) {
     useCompilerMLIR();
     Run();
