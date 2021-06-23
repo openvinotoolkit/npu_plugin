@@ -15,7 +15,7 @@ class KmbSplitLayerTest : public SplitLayerTest, virtual public LayerTestsUtils:
     void SkipBeforeLoad() override {
         if (isCompilerMCM()) {
             // [Track number: E#9525]
-            throw LayerTestsUtils::KmbSkipTestException("Issue in LoadNetwork() with blob from mcmCompiler, failed to create NnCorePlg: 1");
+            throw LayerTestsUtils::KmbSkipTestException("Issue in LoadNetwork() with blob from mcmCompiler, wasn't able to create NnCorePlg: 1");
         }
     }
 

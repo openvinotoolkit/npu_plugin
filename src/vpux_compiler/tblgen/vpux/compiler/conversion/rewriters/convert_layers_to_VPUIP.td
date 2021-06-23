@@ -540,6 +540,21 @@ def RewritePad :
             (IERT_PadOp $input, $output, $pads_begin, $pads_end, $pad_value, $mode),
             (createPadUPAOp $input, $output, $pads_begin, $pads_end, $pad_value, $mode)
         >;
+//
+// IERT.StridedSlice -> VPUIP.StridedSlice
+//
+
+def createStridedSliceUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::StridedSliceUPAOp>(
+                $_loc, $0, $1, $2, $3, $4)
+        }]>;
+
+def RewriteStridedSlice :
+        Pat<
+            (IERT_StridedSliceOp $input, $output, $begins, $ends, $strides),
+            (createStridedSliceUPAOp $input, $output, $begins, $ends, $strides)
+        >;
 
 //
 // IERT.Interpolate -> VPUIP.Interpolate

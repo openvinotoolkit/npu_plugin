@@ -1440,6 +1440,48 @@ operation ::= `VPUIP.SoftMaxUPA` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float values
 
+### `VPUIP.StridedSlice` (vpux::VPUIP::StridedSliceUPAOp)
+
+StridedSlice UPA SHAVE kernel
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.StridedSlice` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+              (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`begins` | ::mlir::ArrayAttr | 32-bit integer array attribute
+`ends` | ::mlir::ArrayAttr | 32-bit integer array attribute
+`strides` | ::mlir::ArrayAttr | 32-bit integer array attribute
+`maxShaves` | ::mlir::IntegerAttr | 32-bit signless integer attribute
+`isTrailingSWLayer` | ::mlir::UnitAttr | unit attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float values
+`output_buff` | memref of 16-bit float values
+`waitBarriers` | VPUIP Barrier Type
+`updateBarriers` | VPUIP Barrier Type
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float values
+
 ### `VPUIP.SwishUPA` (vpux::VPUIP::SwishUPAOp)
 
 Swish UPA SHAVE kernel

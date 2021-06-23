@@ -45,7 +45,7 @@ mlir::ArrayAttr getInt32ArrayAttr(mlir::MLIRContext* ctx, Range range) {
     SmallVector<mlir::Attribute> attrs;
 
     for (const auto val : range) {
-        attrs.push_back(getInt32Attr(ctx, checked_cast<uint32_t>(val)));
+        attrs.push_back(getInt32Attr(ctx, checked_cast<int32_t>(val)));
     }
 
     return mlir::ArrayAttr::get(ctx, attrs);
@@ -56,7 +56,7 @@ mlir::ArrayAttr getInt64ArrayAttr(mlir::MLIRContext* ctx, Range range) {
     SmallVector<mlir::Attribute> attrs;
 
     for (const auto val : range) {
-        attrs.push_back(getInt64Attr(ctx, checked_cast<uint64_t>(val)));
+        attrs.push_back(getInt64Attr(ctx, checked_cast<int64_t>(val)));
     }
 
     return mlir::ArrayAttr::get(ctx, attrs);

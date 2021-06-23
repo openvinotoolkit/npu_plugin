@@ -1696,4 +1696,37 @@ def IERT_InterpolateOp :
     }];
 }
 
+//
+// StridedSliceOp
+//
+
+def IERT_StridedSliceOp :
+        IERT_LayerOp<1, "StridedSlice",
+            [
+                ViewLikeOpInterface,
+            ]
+        > {
+    let summary = "InferenceEngine run-time StridedSlice layer";
+
+    let arguments = (ins
+        AnyMemRef:$input,
+        AnyMemRef:$output_buff,
+
+        I64ArrayAttr:$begins,
+        I64ArrayAttr:$ends,
+        I64ArrayAttr:$strides
+    );
+
+    let results = (outs
+        AnyMemRef:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
 #endif

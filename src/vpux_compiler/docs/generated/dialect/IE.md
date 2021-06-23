@@ -1594,6 +1594,9 @@ operation ::= `IE.StridedSlice` `(` operands `)` attr-dict `:` type(operands) `-
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
+`begins_attr` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`ends_attr` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`strides_attr` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `begin_mask` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `end_mask` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `new_axis_mask` | ::mlir::ArrayAttr | 64-bit integer array attribute
@@ -1604,10 +1607,10 @@ operation ::= `IE.StridedSlice` `(` operands `)` attr-dict `:` type(operands) `-
 
 | Operand | Description |
 | :-----: | ----------- |
-`data` | ranked tensor of any type values
-`begin` | 1D tensor of integer values
-`end` | 1D tensor of integer values
-`stride` | 1D tensor of integer values
+`input` | ranked tensor of any type values
+`begins` | 1D tensor of integer values
+`ends` | 1D tensor of integer values
+`strides` | 1D tensor of integer values
 
 #### Results:
 
