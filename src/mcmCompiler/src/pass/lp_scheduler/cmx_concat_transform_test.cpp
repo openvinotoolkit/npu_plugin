@@ -223,7 +223,6 @@ TEST_F(CMX_Concatenation_Test, run_scheduler) {
   size_t max_memory = om.getGlobalConfigParam("cmx").get<int>();
   scheduler_t scheduler_begin(dag, max_memory), scheduler_end;
 
-  std::unordered_map<size_t, size_t> memory_use_map;
   size_t make_span = 0UL;
   while (scheduler_begin != scheduler_end) {
     scheduled_op_info_t scheduled_op = *scheduler_begin;

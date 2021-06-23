@@ -130,7 +130,7 @@ TEST_P(PipePrintTest, CanLocateCanaries) {
     // clear canaries
     PhysPtr<tyMvConsoleQueue> header(phy_addr);
 
-    memset(*header, sizeof(tyMvConsoleQueue), 0);
+    memset(*header, 0, sizeof(tyMvConsoleQueue));
 
     auto cnnNet = buildSingleLayerSoftMaxNetwork();
     configuration[VPUX_CONFIG_KEY(PLATFORM)] = PlatformEnvironment::PLATFORM;

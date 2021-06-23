@@ -506,7 +506,6 @@ TEST_F(Operation_Dag_Test, schedule_write_and_read_test) {
 
   // Read back the schedule //
   std::istringstream iss(oss.str());
-  std::unordered_map<std::string, size_t> read_schedule;
   reader_t::schedule_read_iterator_t
       sbegin = reader_t::begin_read(iss, om), send;
 
