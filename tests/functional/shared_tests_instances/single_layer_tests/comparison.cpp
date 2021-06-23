@@ -10,14 +10,14 @@
 namespace LayerTestsDefinitions {
 
     class KmbComparisonLayerTest : public ComparisonLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
-        // void SkipBeforeLoad() override {
-        //     if (envConfig.IE_KMB_TESTS_RUN_INFER) {
-        //         throw LayerTestsUtils::KmbSkipTestException("layer test networks hang the board");
-        //     }
-        // }
-        // void SkipBeforeValidate() override {
-        //     throw LayerTestsUtils::KmbSkipTestException("comparison fails");
-        // }
+        void SkipBeforeLoad() override {
+            if (envConfig.IE_KMB_TESTS_RUN_INFER) {
+                throw LayerTestsUtils::KmbSkipTestException("layer test networks hang the board");
+            }
+        }
+        void SkipBeforeValidate() override {
+            throw LayerTestsUtils::KmbSkipTestException("comparison fails");
+        }
     };
 
     TEST_P(KmbComparisonLayerTest, CompareWithRefs) {
