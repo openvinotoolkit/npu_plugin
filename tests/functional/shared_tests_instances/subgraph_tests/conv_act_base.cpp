@@ -74,7 +74,6 @@ void ConvActTest::buildFQFunction() {
     InferenceEngine::SizeVector kernel, stride, dilation;
     std::vector<ptrdiff_t> padBegin, padEnd;
     size_t convOutChannels;
-    std::string actType;
 
     LayerTestsDefinitions::activationParams aParams;
     std::tie(aParams, kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType) = GetParam();

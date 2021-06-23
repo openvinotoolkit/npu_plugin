@@ -125,7 +125,7 @@ TEST(PWLFitBehavior, PWLFunction_Segment_cost_cannot_evaluate_if_incorrect_numbe
     ASSERT_ANY_THROW(ss.cost(refFnc, 8));
 
     std::vector<int> refFnc3(4095);
-    ASSERT_ANY_THROW(ss.cost(refFnc, 13));
+    ASSERT_ANY_THROW(ss.cost(refFnc3, 13));
 }
 
 TEST(PWLFitBehavior, PWLFunction_Segment_cost_cannot_evaluate_if_segment_out_of_interval) {
@@ -151,7 +151,7 @@ TEST(PWLFitBehavior, PWLFunction_Segment_fit_cannot_evaluate_if_incorrect_number
     ASSERT_ANY_THROW(ss.fit(refFnc, 8, {0, 0}, {0, 0}));
 
     std::vector<int> refFnc3(4095);
-    ASSERT_ANY_THROW(ss.fit(refFnc, 13, {0, 0}, {0, 0}));
+    ASSERT_ANY_THROW(ss.fit(refFnc3, 13, {0, 0}, {0, 0}));
 }
 
 TEST(PWLFitBehavior, PWLFunction_Segment_fit_cannot_evaluate_if_segment_out_of_interval) {
