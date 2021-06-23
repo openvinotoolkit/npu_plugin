@@ -46,7 +46,7 @@ private:
 };
 
 //
-// UseQuantDequant
+// SlicePlanning
 //
 
 class ResolveStridedSlicePass::SlicePlanning final : public mlir::OpRewritePattern<IE::StridedSliceOp> {
