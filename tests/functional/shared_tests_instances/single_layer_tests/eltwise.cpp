@@ -144,11 +144,11 @@ class KmbEltwiseLayerTest_MLIR : public KmbEltwiseLayerTest {
     }
 };
 
-TEST_P(KmbEltwiseLayerTest_MCM, CompareWithRefs) {
+TEST_P(KmbEltwiseLayerTest_MCM, DISABLED_CompareWithRefs) {
     Run();
 }
 
-TEST_P(KmbEltwiseLayerTest_MLIR, CompareWithRefs) {
+TEST_P(KmbEltwiseLayerTest_MLIR, DISABLED_CompareWithRefs) {
     useCompilerMLIR();
     Run();
 }
