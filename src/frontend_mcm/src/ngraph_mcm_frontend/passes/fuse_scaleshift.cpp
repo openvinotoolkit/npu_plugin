@@ -23,6 +23,7 @@
 #include <vector>
 #include <memory>
 #include <ngraph/ops.hpp>
+#include <numeric>
 
 bool FuseScaleShift::run_on_node(std::shared_ptr<ngraph::Node> node) {
     auto convolution_add_node = std::dynamic_pointer_cast<ngraph::op::v1::Add>(node);
@@ -156,33 +157,39 @@ bool FuseScaleShift::run_on_node(std::shared_ptr<ngraph::Node> node) {
         }
     }
 
-    double input_min = 0;
-    double input_max = 0;
-    for (size_t ic = 0; ic < IC; ++ic) {
-        auto min_value = 0 * scaleshift_scale_data[ic] + scaleshift_bias_data[ic];
-        auto max_value = 255 * scaleshift_scale_data[ic] + scaleshift_bias_data[ic];
+    // try to fuse main part in input FQ to keep accuracy in padding (ZP works like pad value here)
+    double avg_scaleshift_scale = std::accumulate(scaleshift_scale_data.begin(), scaleshift_scale_data.end(), 0.0) / IC;
+    double avg_scaleshift_bias = std::accumulate(scaleshift_bias_data.begin(), scaleshift_bias_data.end(), 0.0) / IC;
 
-        if (input_max < min_value) input_max = min_value;
-        if (input_min > min_value) input_min = min_value;
-        if (input_max < max_value) input_max = max_value;
-        if (input_min > max_value) input_min = max_value;
-    }
+    // we use FQ like scaleshift (because FQ with input low/high not equal to output low/high works like scaleshift)
+    // from scaleshift res = input*scale + shift
+    // from FQ res = round((input - input_low) / (input_high - input_low) * (levels-1)) / (levels-1) * (output_high - output_low) + output_low
+    // we know that for u8 input_low=0 and input_high = 255 so after simplification
+    // from FQ res = (x / 255) / (output_high - output_low) + output_low
+    // from that (x / 255) / (output_high - output_low) + output_low = input*scale + shift
+    // from that output_low = shift
+    //           output_high = 255*scale + shift
 
-    int inputZP = calculateZeroPoint(input_min, input_max, 256, ngraph::element::u8);
-    double inputScale = calculateScale(input_min, input_max, 256);
-    input_min = (0 - inputZP) * inputScale;
-    input_max = (255 - inputZP) * inputScale;
+    double input_min =   0*avg_scaleshift_scale + avg_scaleshift_bias;
+    double input_max = 255*avg_scaleshift_scale + avg_scaleshift_bias;
+    if (input_min > input_max) std::swap(input_min, input_max);
+    if (input_min > 0) input_min = 0;
+    if (input_max < 0) input_max = 0;
+    double input_zp = calculateZeroPoint(input_min, input_max, input_fq_levels, ngraph::element::u8);
+    double input_scale = calculateScale(input_min, input_max, input_fq_levels);
+    input_min = (0 - input_zp) * input_scale;
+    input_max = (255 - input_zp) * input_scale;
+    if (input_scale < std::numeric_limits<double>::epsilon())
+        return false;
+
+    // if scaleshift scales closed together and to input_scale we get less accuracy drop if we don't touch weights
+    auto is_scale_near = [input_scale](const double scale){return scale/input_scale < 0.99 || scale/input_scale > 1.01;};
+    bool is_different_scales = std::any_of(scaleshift_scale_data.begin(), scaleshift_scale_data.end(), is_scale_near);
 
     replace_node_if_changed(input_fq_node1, ngraph::element::f32, 0, "_fused");
     replace_node_if_changed(input_fq_node2, ngraph::element::f32, input_fq_levels-1, "_fused");
     replace_node_if_changed(input_fq_node3, ngraph::element::f32, input_min, "_fused");
     replace_node_if_changed(input_fq_node4, ngraph::element::f32, input_max, "_fused");
-
-    double input_fq_min = input_min;
-    double input_fq_max = input_max;
-    double input_fq_scale = ((input_fq_max - input_fq_min) / (input_fq_levels - 1.0));
-    double input_fq_zp = std::round(-(input_fq_levels - 1.0) * input_fq_min / (input_fq_max - input_fq_min));
-    double input_fq_bias = -input_fq_zp;
 
     auto convolution_biases_data = (convolution_biases_node)->cast_vector<double>();
     auto convolution_weights_data = (convolution_weights_node)->cast_vector<double>();
@@ -208,11 +215,15 @@ bool FuseScaleShift::run_on_node(std::shared_ptr<ngraph::Node> node) {
                 for (size_t w = 0; w < W; ++w) {
                     const size_t idx = oc * IHW + ic * HW + h * W + w;
                     double stored_weight = convolution_weights_data[idx];
+                    // dequantize weights using FQ formula
                     double real_weight = (stored_weight - weights_fq_ilo) * weights_fq_orange / weights_fq_irange + weights_fq_olo;
-                    double rescaled_weight = real_weight * scaleshift_scale_data[ic] / input_fq_scale;
-                    double bias_modification = real_weight * (scaleshift_bias_data[ic] - input_fq_bias * scaleshift_scale_data[ic]);
+                    // update weights to scaleshift scale per-channel difference
+                    double rescaled_weight = real_weight * scaleshift_scale_data[ic] / input_scale;
+                    // update biases to scaleshift shift per-channel difference
+                    double bias_modification = real_weight * (scaleshift_bias_data[ic] + input_zp * scaleshift_scale_data[ic]);
                     convolution_weights_data[idx] = rescaled_weight;
                     scaleshift_bias_acc += bias_modification;
+                    // update min/max for weights FQ
                     if (weights_max < rescaled_weight) weights_max = rescaled_weight;
                     if (weights_min > rescaled_weight) weights_min = rescaled_weight;
                 }
@@ -227,40 +238,42 @@ bool FuseScaleShift::run_on_node(std::shared_ptr<ngraph::Node> node) {
         sumOfZeroPoints += -(weights_fq_levels - 1.0) * weights_min / (weights_max - weights_min);
     }
 
-    auto avgZeroPoints = std::round(sumOfZeroPoints / OC);
-    for (size_t oc = 0; oc < OC; oc++) {
-        double ol = new_weights_fq_olo[oc];
-        double oh = new_weights_fq_ohi[oc];
+    replace_node_if_changed(convolution_biases_node, convolution_biases_data, "");
 
-        double zpl = oh * avgZeroPoints / (avgZeroPoints - (weights_fq_levels - 1.0));
-        double zph = ol - ol * (weights_fq_levels - 1.0) / avgZeroPoints;
+    if (is_different_scales) {
+        auto avgZeroPoints = std::round(sumOfZeroPoints / OC);
+        for (size_t oc = 0; oc < OC; oc++) {
+            double ol = new_weights_fq_olo[oc];
+            double oh = new_weights_fq_ohi[oc];
 
-        ol = std::min(ol, zpl);
-        oh = std::max(oh, zph);
-        double scale = calculateScale(ol, oh, weights_fq_levels);
-        new_weights_fq_ilo[oc] = 0;
-        new_weights_fq_ihi[oc] = weights_fq_levels - 1.0;
-        new_weights_fq_olo[oc] = ol;
-        new_weights_fq_ohi[oc] = oh;
+            double zpl = oh * avgZeroPoints / (avgZeroPoints - (weights_fq_levels - 1.0));
+            double zph = ol - ol * (weights_fq_levels - 1.0) / avgZeroPoints;
 
-        for (size_t ic = 0; ic < IC; ++ic) {
-            for (size_t h = 0; h < H; ++h) {
-                for (size_t w = 0; w < W; ++w) {
-                    const size_t idx = oc * IHW + ic * HW + h * W + w;
-                    double q_weight = std::round((convolution_weights_data[idx] - ol) / scale);;
-                    convolution_weights_data[idx] = clamp(q_weight, 0, weights_fq_levels - 1);
+            ol = std::min(ol, zpl);
+            oh = std::max(oh, zph);
+            double scale = calculateScale(ol, oh, weights_fq_levels);
+            new_weights_fq_ilo[oc] = 0;
+            new_weights_fq_ihi[oc] = weights_fq_levels - 1.0;
+            new_weights_fq_olo[oc] = ol;
+            new_weights_fq_ohi[oc] = oh;
+
+            for (size_t ic = 0; ic < IC; ++ic) {
+                for (size_t h = 0; h < H; ++h) {
+                    for (size_t w = 0; w < W; ++w) {
+                        const size_t idx = oc * IHW + ic * HW + h * W + w;
+                        double q_weight = std::round((convolution_weights_data[idx] - ol) / scale);;
+                        convolution_weights_data[idx] = clamp(q_weight, 0, weights_fq_levels - 1);
+                    }
                 }
             }
         }
+
+        replace_node_if_changed(convolution_weights_node, convolution_weights_data, "");
+        replace_node_if_changed(weights_fq_node1, ngraph::element::f32, new_weights_fq_ilo, "");
+        replace_node_if_changed(weights_fq_node2, ngraph::element::f32, new_weights_fq_ihi, "");
+        replace_node_if_changed(weights_fq_node3, ngraph::element::f32, new_weights_fq_olo, "");
+        replace_node_if_changed(weights_fq_node4, ngraph::element::f32, new_weights_fq_ohi, "");
     }
-
-    replace_node_if_changed(convolution_biases_node, convolution_biases_data, "");
-    replace_node_if_changed(convolution_weights_node, convolution_weights_data, "");
-
-    replace_node_if_changed(weights_fq_node1, ngraph::element::f32, new_weights_fq_ilo, "");
-    replace_node_if_changed(weights_fq_node2, ngraph::element::f32, new_weights_fq_ihi, "");
-    replace_node_if_changed(weights_fq_node3, ngraph::element::f32, new_weights_fq_olo, "");
-    replace_node_if_changed(weights_fq_node4, ngraph::element::f32, new_weights_fq_ohi, "");
 
     bool success1 = replace_output_update_name(scaleshift_bias_node->output(0), scaleshift_bias_node->input_value(scaleshift_bias_to_scale_node_id));
     bool success2 = scaleshift_scale_node == nullptr ||
