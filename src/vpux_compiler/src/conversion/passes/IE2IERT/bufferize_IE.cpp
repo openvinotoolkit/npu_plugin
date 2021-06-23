@@ -125,7 +125,7 @@ mlir::LogicalResult SplitRewrite::matchAndRewrite(IE::SplitOp origOp, ArrayRef<m
     const auto inputType = newOperands[0].getType().cast<mlir::ShapedType>();
     const auto inputShape = getShape(inputType);
 
-    const auto axis = origOp.getAxis();
+    const auto axis = Dim(origOp.axis_value().getValue());
 
     auto* typeConverter = getTypeConverter();
     VPUX_THROW_UNLESS(typeConverter != nullptr, "TypeConverter is not set");
@@ -187,7 +187,7 @@ mlir::LogicalResult ConcatRewrite::matchAndRewrite(IE::ConcatOp origOp, ArrayRef
                       "Got wrong newOperands size : '{0}', expected '{1}'", newOperands.size(),
                       origOp->getNumOperands());
 
-    const auto axis = origOp.getAxis();
+    const auto axis = Dim(origOp.axis());
 
     auto* typeConverter = getTypeConverter();
     VPUX_THROW_UNLESS(typeConverter != nullptr, "TypeConverter is not set");

@@ -42,6 +42,7 @@ void buildIECommonPipeline(mlir::OpPassManager& pm, Logger log) {
     pm.addPass(IE::createUseUserPrecisionPass(log));
     pm.addPass(IE::createUseUserLayout(log));
     pm.addPass(IE::createAdjustLayoutsPass(log));
+    pm.addPass(IE::createOptimizeReordersPass(log));
     pm.addPass(mlir::createCanonicalizerPass(getDefaultGreedyRewriteConfig()));
 }
 

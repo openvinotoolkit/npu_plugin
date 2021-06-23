@@ -74,6 +74,25 @@ def AdjustLayouts : PassBase<"adjust-layouts", "vpux::FunctionPass"> {
     ];
 }
 
+//
+// OptimizeReorders
+//
+
+def OptimizeReorders : PassBase<"optimize-reorders", "vpux::FunctionPass"> {
+    let summary = "Optimize extra Reorder operations";
+
+    let description = [{
+        This pass tries to optimize out Reorder operations for common cases
+        by propagating them from inputs to outputs and merging into layers.
+    }];
+
+    let constructor = "vpux::IE::createOptimizeReordersPass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
+
 //=================================================================================
 // AdjustForVPU
 //=================================================================================
