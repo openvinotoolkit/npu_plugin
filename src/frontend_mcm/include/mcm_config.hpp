@@ -142,6 +142,10 @@ public:
         return _layerLocationStrategies;
     }
 
+    bool optimizeInputPrecision() const {
+        return _optimizeInputPrecision;
+    }
+
 protected:
     void parse(const std::map<std::string, std::string>& config) override;
 
@@ -192,6 +196,8 @@ private:
     std::string _layerStreamStrategies = "";
     std::string _layerSparsityStrategies = "";
     std::string _layerLocationStrategies = "";
+
+    bool _optimizeInputPrecision = true;
 };
 
 }  //  namespace vpu

@@ -179,8 +179,6 @@ TEST_F(KmbClassifyNetworkTest, mobilenet_v3_aircrafts) {
             1, 0.17f);
 }
 
-
-
 TEST_P(ModelAdk, precommit_ModelA_ADK3) {
     runTest(
             TestNetworkDesc("ADK3/ModelA_INT8/ModelA_INT8.xml", EXPERIMENTAL)
