@@ -488,7 +488,9 @@ void applyTransformations(
     passManager.register_pass<InsertMaxPool>();
     passManager.register_pass<ReplaceShuffle>();
     passManager.register_pass<Handle3DTranspose>();
-    passManager.register_pass<DetectInputFQ>(&needConvertInputPrecision);
+    if (config.optimizeInputPrecision()) {
+        passManager.register_pass<DetectInputFQ>(&needConvertInputPrecision);
+    }
     // TODO: [Track number: E#13091]
     // passManager.register_pass<ngraph::pass::ConvertInterpolate1ToInterpolate4>();
 

@@ -51,6 +51,7 @@ const std::unordered_set<std::string>& MCMConfig::getCompileOptions() const {
                                                            VPU_COMPILER_CONFIG_KEY(LAYER_STREAM_STRATEGIES),
                                                            VPU_COMPILER_CONFIG_KEY(LAYER_SPARSITY_STRATEGIES),
                                                            VPU_COMPILER_CONFIG_KEY(LAYER_LOCATION_STRATEGIES),
+                                                           VPU_COMPILER_CONFIG_KEY(OPTIMIZE_INPUT_PRECISION),
                                                    });
 
     return options;
@@ -111,4 +112,6 @@ void MCMConfig::parse(const std::map<std::string, std::string>& config) {
     setOption(_layerStreamStrategies, config, VPU_COMPILER_CONFIG_KEY(LAYER_STREAM_STRATEGIES));
     setOption(_layerSparsityStrategies, config, VPU_COMPILER_CONFIG_KEY(LAYER_SPARSITY_STRATEGIES));
     setOption(_layerLocationStrategies, config, VPU_COMPILER_CONFIG_KEY(LAYER_LOCATION_STRATEGIES));
+
+    setOption(_optimizeInputPrecision, switches, config, VPU_COMPILER_CONFIG_KEY(OPTIMIZE_INPUT_PRECISION));
 }
