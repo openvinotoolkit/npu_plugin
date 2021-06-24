@@ -11,7 +11,7 @@
 
 namespace LayerTestsDefinitions {
 
-class KmbReshapeLayerTest : public ReshapeLayerTestRevise, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+class KmbReshapeLayerTest : public ReshapeLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
     void ConfigureNetwork() override {
         LayerTestsUtils::KmbLayerTestsCommon::ConfigureNetwork();
         if (isCompilerMCM()) {
