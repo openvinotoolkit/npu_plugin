@@ -63,6 +63,7 @@ class PluginStub : public VpualStub
   protected:
     /** Add Messages to the Plugin (in "Create" function typically). */
     void Add(Message *s);
+    void ClearMessages();
 };
 
 #endif // __FLIC_H__

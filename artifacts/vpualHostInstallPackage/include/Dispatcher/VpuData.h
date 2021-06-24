@@ -11,7 +11,7 @@
 
 // TODO ideally we would have this defined somewhere else? not sure where is best though.. perhaps XLinkUAPI?
 #ifdef __REMOTE_HOST__
-typedef uint8_t* DevicePtr;
+typedef uint8_t *DevicePtr;
 #else
 typedef uint32_t DevicePtr;
 #endif
@@ -23,24 +23,22 @@ typedef uint32_t DevicePtr;
  * applications.
  */
 class VpuData {
-  private:
-
+private:
 #ifdef __REMOTE_HOST__
     /* Remote host solely uses virtual memory. */
 #else
     /* Local host must manage CMA memory. */
-    unsigned long  phys_addr_;  /*< Physical address of allocation. */
-    int            fd_;         /*< File descriptor for vpusmm driver. */
+    unsigned long phys_addr_; /*< Physical address of allocation. */
+    int fd_;                  /*< File descriptor for vpusmm driver. */
 #endif // Host type
 
-    size_t         size_;       /*< Size of allocation. */
-    unsigned char* buf_;        /*< Buffer for use in virtual address space. */
-    uint32_t       device_id_;
+    size_t size_;        /*< Size of allocation. */
+    unsigned char *buf_; /*< Buffer for use in virtual address space. */
+    uint32_t device_id_;
 
-  public:
-
+public:
     // Create a VPU data object of the given size.
-    VpuData(size_t size, uint32_t device_id =0);
+    VpuData(size_t size, uint32_t device_id = 0);
     // TODO - Maybe we also need this sort of stuff? Can add later.
     // VpuData(size_t size, alignement = 64U, zero_initialise=false);
 
@@ -51,18 +49,18 @@ class VpuData {
     operator DevicePtr() const { return buf_; }
 #else
     operator DevicePtr() const { return phys_addr_; }
-    operator unsigned char*() const { return buf_; }
+    operator unsigned char *() const { return buf_; }
 #endif
-    operator void*() const { return buf_; }
+    operator void *() const { return buf_; }
 
     // Delete copy constructor and assignment operator.
-    VpuData(const VpuData&) = delete;
-    VpuData& operator=(const VpuData&) = delete;
+    VpuData(const VpuData &) = delete;
+    VpuData &operator=(const VpuData &) = delete;
 
     // Size getter.
     size_t size() const { return size_; }
     // Buf getter.
-    unsigned char* buf() { return buf_; }
+    unsigned char *buf() { return buf_; }
 
     uint64_t Paddr() const { return phys_addr_; };
 };
