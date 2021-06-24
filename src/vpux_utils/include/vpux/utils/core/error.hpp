@@ -39,4 +39,8 @@ namespace details {
     if (!(_condition_))                     \
     VPUX_THROW(__VA_ARGS__)
 
+#define VPUX_THROW_WHEN(_condition_, ...) \
+    if (_condition_)                      \
+    VPUX_THROW(__VA_ARGS__)
+
 }  // namespace vpux

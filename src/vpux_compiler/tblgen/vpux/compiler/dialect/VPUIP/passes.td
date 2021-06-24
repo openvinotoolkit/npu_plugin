@@ -71,4 +71,18 @@ def AssignPhysicalBarriers : PassBase<"assign-physical-barriers", "vpux::Functio
     ];
 }
 
+//
+// ConvertWeightsTableOp2Const
+//
+
+def ConvertWeightsTableOp2Const : PassBase<"convert-wtable-op-to-constant", "vpux::FunctionPass"> {
+    let summary = "Convert WeightsTable Operations to IERT.ConstantOp";
+
+    let description = [{
+        This pass fills weights table considering the information about the offset in the memory of the weights or activation window.
+    }];
+
+    let constructor = "vpux::VPUIP::createConvertWeightsTableOp2ConstPass()";
+}
+
 #endif
