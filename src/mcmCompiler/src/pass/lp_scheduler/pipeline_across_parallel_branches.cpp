@@ -50,6 +50,13 @@ class non_pseudo_edge_iterator_t {
     }
   }
 
+  non_pseudo_edge_iterator_t(const non_pseudo_edge_iterator_t& o)
+    : begin_(o.begin_), end_(o.end_), op_(o.op_), input_dag_ptr_(o.input_dag_ptr_) { }
+
+  ~non_pseudo_edge_iterator_t() = default;
+
+  // Are move constructor and assignment operator needed?
+
   operation_t operator*() const { return *begin_; }
 
   bool operator==(const non_pseudo_edge_iterator_t& o) const {
@@ -258,7 +265,7 @@ void PipeLineAcrossParallelBranches(const mv::pass::PassEntry& ,
       size_t rbegin = scheduled_op_info.begin_resource();
       size_t rend = scheduled_op_info.end_resource();
 
-      non_pseudo_edge_iterator_t nitr(input_dag, sched_op), nitr_end;
+      const non_pseudo_edge_iterator_t nitr(input_dag, sched_op), nitr_end;
       bool assign = rstate.assign_resources(sched_op, ((rend - rbegin)+1UL),
             nitr, nitr_end);
       if (!assign) {

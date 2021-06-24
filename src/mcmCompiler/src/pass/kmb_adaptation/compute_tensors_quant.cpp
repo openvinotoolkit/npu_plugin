@@ -390,9 +390,6 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
             const auto actualOutputChannels = output->getShape()[mv::IO_CHANNEL_DIMENSION];
             auto outputChannels = mv::round_up(actualOutputChannels, 16);
 
-            std::vector<unsigned> shift(outputChannels, 0);
-            std::vector<unsigned> mult(outputChannels, 0);
-
             if (output->isQuantized() && input->isQuantized())
             {
                 // Quantization for Gemmlowp output
@@ -552,6 +549,9 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
                 std::transform(m.begin(), m.end(), S3.begin(), m.begin(), std::divides<float>());
                 if (floatScaleTable)
                     opIt->set<std::vector<float>>("floatScale", m);
+
+                std::vector<unsigned> shift(outputChannels, 0);
+                std::vector<unsigned> mult(outputChannels, 0);
 
                 if (outputOfAccWithBias)
                 {

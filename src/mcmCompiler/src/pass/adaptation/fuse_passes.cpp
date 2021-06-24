@@ -127,7 +127,6 @@ void fuseBiasFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model, co
     using namespace mv;
     mv::OpModel om(model);
     mv::DataModel dm(model);
-    auto parentOpIt = om.getSourceOp(opIt->getInputTensor(mv::IO_TENSOR_INPUT));
     std::vector<mv::Data::TensorIterator> sourceTensors;
 
     // Check for op patterns between bias & DPUTask to fuse into
@@ -180,6 +179,7 @@ void fuseBiasFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model, co
     }
 
     auto biasOutputMemoryLocation = opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT)->get<mv::Tensor::MemoryLocation>("Location");
+    auto parentOpIt = om.getSourceOp(opIt->getInputTensor(mv::IO_TENSOR_INPUT));
     auto sourceTensor = parentOpIt->getOutputTensor(mv::IO_TENSOR_OUTPUT);
     sourceTensor->setDType(opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT)->getDType());
     sourceTensor->setQuantParams(opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT)->getQuantParams());

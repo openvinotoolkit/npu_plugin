@@ -9,7 +9,7 @@ project(mcmComplier VERSION 1.5.3)
 set(META_DIR_PATH "${CMAKE_CURRENT_BINARY_DIR}/meta")
 
 # Replace compiler flags
-foreach(flag IN ITEMS "-Werror" "-fvisibility=hidden" "-fvisibility-inlines-hidden")
+foreach(flag IN ITEMS "-Wno-undef" "-Wno-error=unused-variable" "-Wno-error=unused-but-set-variable" "-Wno-error=deprecated-declarations" "-fvisibility=hidden" "-fvisibility-inlines-hidden")
     string(REPLACE ${flag} "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
     string(REPLACE ${flag} "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 endforeach()
@@ -338,6 +338,14 @@ add_library(mcmCompiler SHARED
     "${META_DIR_PATH}/src/op_model.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/lp_scheduler/lp_scheduler_pass.cpp"
 )
+
+if (UNIX)
+    set_source_files_properties(
+        "${PROJECT_SOURCE_DIR}/../../thirdparty/bitcompactor/src/bitCompactor.cpp"
+        PROPERTIES
+            COMPILE_FLAGS "-Wno-unused-parameter"
+    )
+endif()
 
 set_target_properties(mcmCompiler PROPERTIES
     VERSION "${PROJECT_VERSION}"
