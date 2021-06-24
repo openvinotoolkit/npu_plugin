@@ -79,6 +79,7 @@ The X86_64 build is needed to get reference results for the tests.
         cmake \
             -D ENABLE_TESTS=ON \
             -D ENABLE_FUNCTIONAL_TESTS=ON \
+            -D NGRAPH_ONNX_IMPORT_ENABLE=OFF \
             -D THIRDPARTY_SERVER_PATH="http://nnt-srv01.inn.intel.com/dl_score_engine/" \
             .. ; \
         make -j${nproc} ; \
