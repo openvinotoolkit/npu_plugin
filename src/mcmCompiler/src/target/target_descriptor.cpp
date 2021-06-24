@@ -38,7 +38,7 @@ mv::TargetDescriptor::TargetDescriptor(const std::string& filePath) :
 target_(Target::Unknown),
 globalDType_("Float16"),
 codecDef_(),
-generalConfigs_({false, false, 7})//KMB default: HW PRELU MULT is I8, so 7 precision bits are available
+generalConfigs_({false, false, 7, false})//KMB default: HW PRELU MULT is I8, so 7 precision bits are available
 {
 
     if (!filePath.empty())
@@ -300,10 +300,6 @@ bool mv::TargetDescriptor::load(const std::string& filePath)
 
                 for (std::size_t i = 0; i < jsonDescriptor["resources"]["nce_block"].size(); ++i)
                 {
-
-                    std::string name;
-                    std::size_t totalNumber;
-
                     if (!jsonDescriptor["resources"]["nce_block"][i].hasKey("name") ||
                         !jsonDescriptor["resources"]["nce_block"][i].hasKey("totalNumber"))
                     {
@@ -318,18 +314,16 @@ bool mv::TargetDescriptor::load(const std::string& filePath)
                         return false;
                     }
 
-                    name = jsonDescriptor["resources"]["nce_block"][i]["name"].get<std::string>();
-                    totalNumber = jsonDescriptor["resources"]["nce_block"][i]["totalNumber"].get<long long>();
+                    std::string name = jsonDescriptor["resources"]["nce_block"][i]["name"].get<std::string>();
+                    long long totalNumber = jsonDescriptor["resources"]["nce_block"][i]["totalNumber"].get<long long>();
 
-                    // TODO
-                    // is it required as comparison of unsigned expression < 0 is always false
-                    if (std::less<size_t>()(totalNumber, 0U))
+                    if (totalNumber < 0)
                     {
                         reset();
                         return false;
                     }
 
-                    nceDefs_[name] = {totalNumber};
+                    nceDefs_[name] = {static_cast<std::size_t>(totalNumber)};
 
                 }
 
@@ -348,10 +342,6 @@ bool mv::TargetDescriptor::load(const std::string& filePath)
 
                 for (std::size_t i = 0; i < jsonDescriptor["resources"]["processors"].size(); ++i)
                 {
-
-                    std::string name;
-                    std::size_t totalNumber;
-
                     if (!jsonDescriptor["resources"]["processors"][i].hasKey("name") ||
                         !jsonDescriptor["resources"]["processors"][i].hasKey("totalNumber"))
                     {
@@ -366,8 +356,8 @@ bool mv::TargetDescriptor::load(const std::string& filePath)
                         return false;
                     }
 
-                    name = jsonDescriptor["resources"]["processors"][i]["name"].get<std::string>();
-                    totalNumber = jsonDescriptor["resources"]["processors"][i]["totalNumber"].get<long long>();
+                    std::string name = jsonDescriptor["resources"]["processors"][i]["name"].get<std::string>();
+                    long long totalNumber = jsonDescriptor["resources"]["processors"][i]["totalNumber"].get<long long>();
 
                     if (totalNumber < 0)
                     {
@@ -375,7 +365,8 @@ bool mv::TargetDescriptor::load(const std::string& filePath)
                         return false;
                     }
 
-                    processorDefs_[name] = {totalNumber};
+                    processorDefs_[name] = {static_cast<std::size_t>(totalNumber)};
+
 
                 }
 

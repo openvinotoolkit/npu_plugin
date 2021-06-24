@@ -65,3 +65,11 @@ add_custom_target(mcmCompilerGenCompAPI
     COMMENT
         "Generate compositional API"
 )
+
+if (UNIX)
+    set_source_files_properties(
+        "${PROJECT_SOURCE_DIR}/../../thirdparty/bitcompactor/src/bitCompactor.cpp"
+        PROPERTIES
+            COMPILE_FLAGS "-Wno-unused-parameter"
+    )
+endif()

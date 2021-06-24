@@ -579,8 +579,8 @@ class Producer_Consumer_Contiguous_Resource :
     // iterator over the consumers.
     template<typename ConsumerIterator>
     bool assign_resources(const key_t& op, const unit_t& demand,
-        ConsumerIterator consumer_begin=ConsumerIterator(),
-        ConsumerIterator consumer_end=ConsumerIterator()) {
+        ConsumerIterator consumer_begin,
+        ConsumerIterator consumer_end) {
 
       size_t consumer_count = 1UL;
       for (;consumer_begin != consumer_end;

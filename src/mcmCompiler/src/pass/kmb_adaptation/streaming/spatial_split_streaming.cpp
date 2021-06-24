@@ -1118,7 +1118,7 @@ void computeStreamsForVerticalFusionNode(const std::string& opName, const std::v
         if ((parentOp->hasAttr("verticalFusionSubgraphHead") && parentOp->get<bool>("verticalFusionSubgraphHead")) ||
                 (parentOp->hasAttr("verticalFusion") && parentOp->get<bool>("verticalFusion")))
         {
-            for (auto tile : masterTile.childTiles())
+            for (auto&& tile : masterTile.childTiles())
             {
                 previousOutputTileStarts[parentOp->getName()].push_back(tile.getActivationStart());
                 previousOutputTileSizes[parentOp->getName()].push_back(tile.getActivationShape());
@@ -1361,7 +1361,7 @@ void streamingOperationsFcn(const mv::pass::PassEntry& pass,
                         if (!pOp->hasAttr("outputTilesComputed") ||
                             (pOp->hasAttr("outputTilesComputed") && !pOp->get<bool>("outputTilesComputed")))
                         {
-                            for (auto tile : masterTile.childTiles())
+                            for (auto&& tile : masterTile.childTiles())
                             {
                                 previousOutputTileStarts[pOp->getName()].push_back(tile.getActivationStart());
                                 previousOutputTileSizes[pOp->getName()].push_back(tile.getActivationShape());
