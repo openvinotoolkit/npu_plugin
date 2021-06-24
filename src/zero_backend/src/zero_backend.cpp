@@ -107,6 +107,12 @@ const std::shared_ptr<IDevice> ZeroEngineBackend::getDevice() const {
     else
         return {};
 }
+
+const std::shared_ptr<IDevice> ZeroEngineBackend::getDevice(const std::string& /*name*/) const {
+    // TODO Add the search of the device by platform & slice
+    return getDevice();
+}
+
 const std::vector<std::string> ZeroEngineBackend::getDeviceNames() const {
     const auto& devices = ZeroDevicesSingleton::getInstanceDevices();
     std::vector<std::string> devicesNames;
