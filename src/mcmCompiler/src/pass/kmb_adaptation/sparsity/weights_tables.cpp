@@ -17,6 +17,7 @@
 static const std::size_t WT_ELEMENTS_PER_CHANNEL = 4;
 static const std::size_t ALU_HALT_OPCODE = 6;
 static const std::size_t ALU_LOAD = 2;
+static const std::size_t MAX_CLUSTERS = 4;
 static void generateWeightsTablesFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void generateInstructionListTablesFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void populateWeightsTablesPointersFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
@@ -417,7 +418,7 @@ void populateActivationStorageElementMap(
         auto storageElementTable = op->getInputTensor(tidx);
         std::vector<int64_t> table_offsets(storageElementTable->getShape().totalSize(), 0);
 
-        std::vector<unsigned short> basePtrs(4, 0);
+        std::vector<unsigned short> basePtrs(MAX_CLUSTERS, 0);
         if (op->getInputTensor(inputTensorIdx)->hasAttr("base_ptrs"))
             basePtrs = op->getInputTensor(inputTensorIdx)->get<std::vector<unsigned short>>("base_ptrs");
 
@@ -478,7 +479,7 @@ void populateActivationStorageElementMapForDilatedConvolution(mv::Data::OpListIt
     long int subConvRowIncrement = increment * originalWidth * dilationFactor;
     long int subConvOffset = increment * subConvColIdx + subConvRowIdx*originalWidth*increment;
 
-    std::vector<unsigned short> basePtrs(4, 0);
+    std::vector<unsigned short> basePtrs(MAX_CLUSTERS, 0);
     if (input->hasAttr("base_ptrs"))
         basePtrs = input->get<std::vector<unsigned short>>("base_ptrs");
 

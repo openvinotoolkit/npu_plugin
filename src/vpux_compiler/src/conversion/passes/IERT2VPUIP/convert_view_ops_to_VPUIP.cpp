@@ -140,6 +140,7 @@ void ConvertViewOps2VPUIPPass::safeRunOnFunc() {
     auto& aliasInfo = getAnalysis<AliasesInfo>();
 
     mlir::ConversionTarget target(ctx);
+    target.addLegalDialect<mlir::async::AsyncDialect>();
     target.addLegalDialect<VPUIP::VPUIPDialect>();
     target.addLegalOp<mlir::FuncOp, mlir::ReturnOp>();
 

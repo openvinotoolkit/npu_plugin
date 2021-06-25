@@ -1130,7 +1130,6 @@ void validateVerticalAdds(const mv::pass::PassEntry&,
             std::size_t idx = 0;
             mv::Data::TensorIterator slice;
             mv::Data::FlowListIterator inputFlow;
-            bool flowToDelete = false;
 
             auto nextOp = mv::findSinkLayers(dm, op.getOutputTensor()[0])[0];
             inputFlow = nextOp.leftmostOutput();
@@ -1140,7 +1139,7 @@ void validateVerticalAdds(const mv::pass::PassEntry&,
                     break;
                 ++inputFlow;
             }
-            for (auto i = 0; i < nextOp->getInputTensor().size(); ++i)
+            for (std::size_t i = 0u; i < nextOp->getInputTensor().size(); ++i)
             {
                 if (nextOp->getInputTensor()[i]->getName() == op.getOutputTensor()[0]->getName())
                 {

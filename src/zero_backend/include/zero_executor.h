@@ -28,32 +28,45 @@
 #include "extensions/ze_fence_ext.h"
 #include "extensions/ze_graph_ext.h"
 
-#include "zero_config.h"
-#include "zero_private_config.h"
-
 namespace vpux {
 
-class ZeroExecutorCommon : public Executor {
+class ZeroExecutor final : public Executor {
 protected:
     struct graph;
+    struct commandQueue;
+    enum stage {
+        UPLOAD,
+        EXECUTE,
+        READBACK,
+
+        COUNT
+    };
 
 public:
-    ZeroExecutorCommon(ze_driver_handle_t driver_handle, ze_device_handle_t device_handle, ze_context_handle_t context,
-                       ze_graph_dditable_ext_t* graph_ddi_table_ext, ze_fence_dditable_ext_t* fence_ddi_table_ext,
-                       const vpux::NetworkDescription::Ptr& networkDescription, const ZeroConfig& config);
+    ZeroExecutor(ze_driver_handle_t driver_handle, ze_device_handle_t device_handle, ze_context_handle_t context,
+                 ze_graph_dditable_ext_t* graph_ddi_table_ext, ze_fence_dditable_ext_t* fence_ddi_table_ext,
+                 const vpux::NetworkDescription::Ptr& networkDescription, const VPUXConfig& config);
 
-    ZeroExecutorCommon(ze_driver_handle_t driver_handle, ze_device_handle_t device_handle, ze_context_handle_t context,
-                       ze_graph_dditable_ext_t* graph_ddi_table_ext, ze_fence_dditable_ext_t* fence_ddi_table_ext,
-                       const vpux::NetworkDescription::Ptr& networkDescription, std::shared_ptr<graph> graph,
-                       const ZeroConfig& config);
+    ZeroExecutor(ze_driver_handle_t driver_handle, ze_device_handle_t device_handle, ze_context_handle_t context,
+                 ze_graph_dditable_ext_t* graph_ddi_table_ext, ze_fence_dditable_ext_t* fence_ddi_table_ext,
+                 const vpux::NetworkDescription::Ptr& networkDescription,
+                 const std::array<std::shared_ptr<commandQueue>, stage::COUNT>& command_queue,
+                 const std::shared_ptr<graph>& graph, const VPUXConfig& config);
 
     void push(const InferenceEngine::BlobMap& inputs, const PreprocMap& preProcMap) override;
+    void push(const InferenceEngine::BlobMap& inputs) override;
+    void pull(InferenceEngine::BlobMap& outputs) override;
+
     // TODO: not implemented
     void setup(const InferenceEngine::ParamMap& params) override;
     bool isPreProcessingSupported(const PreprocMap& preProcessMap) const override;
     InferenceEngine::Parameter getParameter(const std::string& paramName) const override;
 
-    ~ZeroExecutorCommon() = default;
+    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> getLayerStatistics() override;
+
+    ZeroExecutor::Ptr clone() const override;
+
+    ~ZeroExecutor() = default;
 
 protected:
     struct hostMem {
@@ -194,6 +207,38 @@ protected:
         ze_fence_dditable_ext_t* _fence_ddi_table_ext = nullptr;
     };
 
+    struct eventPool_t {
+        eventPool_t() = default;
+        eventPool_t(ze_device_handle_t device_handle, const ze_context_handle_t& context, uint32_t event_count);
+        eventPool_t(const eventPool_t&) = delete;
+        eventPool_t& operator=(const eventPool_t&) = delete;
+
+        ~eventPool_t() {
+            zeEventPoolDestroy(_handle);
+        };
+
+        const uint32_t _event_count;
+        ze_event_pool_handle_t _handle = nullptr;
+    };
+
+    struct event_t {
+        event_t(ze_device_handle_t device_handle, const ze_context_handle_t& context,
+                const ze_event_pool_handle_t& event_pool, uint32_t event_index);
+        event_t(const event_t&) = delete;
+        event_t& operator=(const event_t&) = delete;
+        void AppendSignalEvent(commandList& command_list);
+        void AppendWaitOnEvent(commandList& command_list);
+        void AppendEventReset(commandList& command_list);
+
+        ~event_t() {
+            zeEventDestroy(_handle);
+        };
+        ze_device_handle_t _device_t = nullptr;
+        ze_context_handle_t _context = nullptr;
+
+        ze_event_handle_t _handle = nullptr;
+    };
+
     struct argumentDescriptor {
         ze_graph_argument_properties_t info;
         uint32_t idx;
@@ -222,31 +267,26 @@ protected:
         ze_graph_dditable_ext_t* _graph_ddi_table_ext = nullptr;
     };
 
-    enum stage {
-        UPLOAD,
-        EXECUTE,
-        READBACK,
-
-        COUNT
-    };
-
-    struct pipelineCommon {
-        pipelineCommon(const ze_driver_handle_t& driver_handle, const ze_device_handle_t& device_handle,
-                       const ze_context_handle_t context, ze_graph_dditable_ext_t* graph_ddi_table_ext,
-                       const std::shared_ptr<graph>& graph_);
-        pipelineCommon(const pipelineCommon&) = delete;
-        pipelineCommon& operator=(const pipelineCommon&) = delete;
-        ~pipelineCommon() = default;
+    struct pipeline {
+        pipeline(const ze_driver_handle_t& driver_handle, const ze_device_handle_t& device_handle,
+                 const ze_context_handle_t context, ze_graph_dditable_ext_t* graph_ddi_table_ext,
+                 const std::shared_ptr<graph>& graph);
+        pipeline(const pipeline&) = delete;
+        pipeline& operator=(const pipeline&) = delete;
+        ~pipeline();
 
         std::map<std::string, hostMem> _inputs_host_mem_map;
         std::map<std::string, deviceMem> _inputs_device_mem_map;
         std::map<std::string, hostMem> _outputs_host_mem_map;
         std::map<std::string, deviceMem> _outputs_device_mem_map;
         std::array<commandList, stage::COUNT> _command_list;
+
+        eventPool_t _event_pool;
+        std::array<event_t, stage::COUNT> _event;
     };
 
-protected:
-    const ZeroConfig& _config;
+private:
+    const VPUXConfig& _config;
     vpu::Logger::Ptr _logger;
 
     ze_driver_handle_t _driver_handle = nullptr;
@@ -263,122 +303,6 @@ protected:
     NetworkDescription::Ptr _networkDesc;
 
     std::shared_ptr<graph> _graph;
-};
-
-template <InferenceEngine::VPUXConfigParams::ze_syncType mode_t>
-class ZeroExecutor final : public Executor {};
-
-template <>
-class ZeroExecutor<InferenceEngine::VPUXConfigParams::ze_syncType::ZE_FENCE> final : public ZeroExecutorCommon {
-public:
-    using Ptr = std::shared_ptr<ZeroExecutor<InferenceEngine::VPUXConfigParams::ze_syncType::ZE_FENCE>>;
-    using CPtr = std::shared_ptr<const ZeroExecutor<InferenceEngine::VPUXConfigParams::ze_syncType::ZE_FENCE>>;
-
-    ZeroExecutor(ze_driver_handle_t driver_handle, ze_device_handle_t device_handle, ze_context_handle_t context,
-                 ze_graph_dditable_ext_t* graph_ddi_table_ext, ze_fence_dditable_ext_t* fence_ddi_table_ext,
-                 const vpux::NetworkDescription::Ptr& networkDescription, const ZeroConfig& config);
-
-    ZeroExecutor(ze_driver_handle_t driver_handle, ze_device_handle_t device_handle, ze_context_handle_t context,
-                 ze_graph_dditable_ext_t* graph_ddi_table_ext, ze_fence_dditable_ext_t* fence_ddi_table_ext,
-                 const vpux::NetworkDescription::Ptr& networkDescription,
-                 const std::array<std::shared_ptr<commandQueue>, stage::COUNT>& command_queue,
-                 const std::shared_ptr<graph>& graph, const ZeroConfig& config);
-
-    void push(const InferenceEngine::BlobMap& inputs) override;
-    void pull(InferenceEngine::BlobMap& outputs) override;
-
-    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> getLayerStatistics() override;
-
-    Executor::Ptr clone() const override;
-
-    ~ZeroExecutor() = default;
-
-private:
-    struct pipeline : public ZeroExecutorCommon::pipelineCommon {
-        pipeline(const ze_driver_handle_t& driver_handle, const ze_device_handle_t& device_handle,
-                 const ze_context_handle_t context, ze_graph_dditable_ext_t* graph_ddi_table_ext,
-                 ze_fence_dditable_ext_t* fence_ddi_table_ext, const std::shared_ptr<graph>& graph);
-        pipeline(const pipeline&) = delete;
-        pipeline& operator=(const pipeline&) = delete;
-        ~pipeline() = default;
-    };
-
-    std::array<std::shared_ptr<commandQueue>, stage::COUNT> _command_queue;
-    std::array<std::unique_ptr<fence>, stage::COUNT> _fence;
-
-    std::unique_ptr<pipeline> _pipeline;
-};
-
-template <>
-class ZeroExecutor<InferenceEngine::VPUXConfigParams::ze_syncType::ZE_EVENT> final : public ZeroExecutorCommon {
-public:
-    using Ptr = std::shared_ptr<ZeroExecutor<InferenceEngine::VPUXConfigParams::ze_syncType::ZE_EVENT>>;
-    using CPtr = std::shared_ptr<const ZeroExecutor<InferenceEngine::VPUXConfigParams::ze_syncType::ZE_EVENT>>;
-
-    ZeroExecutor(ze_driver_handle_t driver_handle, ze_device_handle_t device_handle, ze_context_handle_t context,
-                 ze_graph_dditable_ext_t* graph_ddi_table_ext, ze_fence_dditable_ext_t* fence_ddi_table_ext,
-                 const vpux::NetworkDescription::Ptr& networkDescription, const ZeroConfig& config);
-
-    ZeroExecutor(ze_driver_handle_t driver_handle, ze_device_handle_t device_handle, ze_context_handle_t context,
-                 ze_graph_dditable_ext_t* graph_ddi_table_ext, ze_fence_dditable_ext_t* fence_ddi_table_ext,
-                 const vpux::NetworkDescription::Ptr& networkDescription,
-                 const std::array<std::shared_ptr<commandQueue>, stage::COUNT>& command_queue,
-                 const std::shared_ptr<graph>& graph, const ZeroConfig& config);
-
-    void push(const InferenceEngine::BlobMap& inputs) override;
-    void pull(InferenceEngine::BlobMap& outputs) override;
-
-    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> getLayerStatistics() override;
-
-    Executor::Ptr clone() const override;
-
-    ~ZeroExecutor() = default;
-
-private:
-    struct eventPool_t {
-        eventPool_t() = default;
-        eventPool_t(ze_device_handle_t device_handle, const ze_context_handle_t& context, uint32_t event_count);
-        eventPool_t(const eventPool_t&) = delete;
-        eventPool_t& operator=(const eventPool_t&) = delete;
-
-        ~eventPool_t() {
-            zeEventPoolDestroy(_handle);
-        };
-
-        const uint32_t _event_count;
-        ze_event_pool_handle_t _handle = nullptr;
-    };
-
-    struct event_t {
-        event_t(ze_device_handle_t device_handle, const ze_context_handle_t& context,
-                const ze_event_pool_handle_t& event_pool, uint32_t event_index);
-        event_t(const event_t&) = delete;
-        event_t& operator=(const event_t&) = delete;
-        void AppendSignalEvent(commandList& command_list);
-        void AppendWaitOnEvent(commandList& command_list);
-        void AppendEventReset(commandList& command_list);
-
-        ~event_t() {
-            zeEventDestroy(_handle);
-        };
-
-        ze_device_handle_t _device_t = nullptr;
-        ze_context_handle_t _context = nullptr;
-
-        ze_event_handle_t _handle = nullptr;
-    };
-
-    struct pipeline : public ZeroExecutorCommon::pipelineCommon {
-        pipeline(const ze_driver_handle_t& driver_handle, const ze_device_handle_t& device_handle,
-                 const ze_context_handle_t context, ze_graph_dditable_ext_t* graph_ddi_table_ext,
-                 ze_fence_dditable_ext_t* fence_ddi_table_ext, const std::shared_ptr<graph>& graph);
-        pipeline(const pipeline&) = delete;
-        pipeline& operator=(const pipeline&) = delete;
-        ~pipeline();
-
-        eventPool_t _event_pool;
-        std::array<event_t, stage::COUNT> _event;
-    };
 
     std::array<std::shared_ptr<commandQueue>, stage::COUNT> _command_queue;
     std::array<std::unique_ptr<fence>, stage::COUNT> _fence;

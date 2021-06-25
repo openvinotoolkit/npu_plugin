@@ -123,14 +123,14 @@ protected:
 // if that happened current approach is update pointer taken from bilt FW folder :
 // vpuip_2/application/vpuFirmware/FW_bootLoader/mvbuild/ma2490/payload/payload.map
 //                0x0000000094400040                mvConsoleTxQueue
-TEST_P(PipePrintTest, CanLocateCanaries) {
+TEST_P(PipePrintTest, DISABLED_CanLocateCanaries) {
     if (PlatformEnvironment::PLATFORM == "3900") {
         GTEST_SKIP() << "Not applicable for TBH. Results in bus error.";
     }
     // clear canaries
     PhysPtr<tyMvConsoleQueue> header(phy_addr);
 
-    memset(*header, sizeof(tyMvConsoleQueue), 0);
+    memset(*header, 0, sizeof(tyMvConsoleQueue));
 
     auto cnnNet = buildSingleLayerSoftMaxNetwork();
     configuration[VPUX_CONFIG_KEY(PLATFORM)] = PlatformEnvironment::PLATFORM;

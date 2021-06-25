@@ -12,6 +12,8 @@
 //
 
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
+
+#include "vpux/compiler/dialect/VPUIP/blob_reader.hpp"
 #include "vpux/compiler/utils/subspaces.hpp"
 
 using namespace vpux;
@@ -48,4 +50,16 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::CTCGreedyDecoderSeqLenUPAOp::serial
 
     return writer.createUPALayerTask(*this,
                                      {paramsOff.Union(), MVCNN::SoftwareLayerParams_CTCGreedyDecoderSeqLenParams});
+}
+
+mlir::Operation* vpux::VPUIP::BlobReader::parseCTCGreedyDecoderSeqLen(mlir::OpBuilder& builder,
+                                                                      ArrayRef<mlir::Value> inputs,
+                                                                      ArrayRef<mlir::Value> outputs,
+                                                                      const MVCNN::UPALayerTask* task) {
+    VPUX_THROW_UNLESS(inputs.size() == 3, "UPACTCGreedyDecoderSeqLen supports only 3 inputs, got {0}", inputs.size());
+    VPUX_THROW_UNLESS(outputs.size() == 2, "UPACTCGreedyDecoderSeqLen supports only 2 output, got {0}", outputs.size());
+    const auto params = task->softLayerParams_as_CTCGreedyDecoderSeqLenParams();
+    return builder.create<VPUIP::CTCGreedyDecoderSeqLenUPAOp>(
+            mlir::UnknownLoc::get(_ctx), inputs[0], inputs[1], inputs[2], outputs[0], outputs[1],
+            params->mergeRepeated() ? mlir::UnitAttr::get(_ctx) : nullptr);
 }

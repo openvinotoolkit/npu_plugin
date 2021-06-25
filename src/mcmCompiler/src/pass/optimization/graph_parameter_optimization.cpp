@@ -110,6 +110,8 @@ namespace mv
                 DeConvSubConvSOKHeight,
                 SpiltOverHForLayer79InACLNet,
                 SpiltOverHForLayer97and113ModelE,
+                SpiltOverHForConvModelF,
+                SpiltOverKForConvModelF,
                 SpiltOverHForFaceDetectionRetail0004,
                 SplitOverHOverlappedWronglyComputed,
                 SoftwareDeconvolutionSet,
@@ -142,6 +144,10 @@ namespace mv
                 {FailCause::DeConvSubConvSOKHeight, "DeConvSubConvSOKHeight"},
                 {FailCause::SpiltOverHForLayer79InACLNet, "SpiltOverHForLayer79InACLNet"},
                 {FailCause::SpiltOverHForLayer97and113ModelE, "SpiltOverHForLayer97and113ModelE"},
+                {FailCause::SpiltOverHForConvModelF, "SpiltOverHForConvModelF"},
+                {FailCause::SpiltOverKForConvModelF, "SpiltOverKForConvModelF"},
+                {FailCause::SpiltOverHForFaceDetectionRetail0004, "SpiltOverHForFaceDetectionRetail0004"},
+                {FailCause::SplitOverHOverlappedWronglyComputed, "SplitOverHOverlappedWronglyComputed"},
                 {FailCause::SoftwareDeconvolutionSet, "SoftwareDeconvolutionSet"},
                 {FailCause::UpaHKSwitch, "UpaHKSwitch"}
             };
@@ -873,12 +879,13 @@ namespace mv
                 // https://jira.devtools.intel.com/browse/CVS-43222
                 {
                     if (op.getOpType() == "Conv")
-                    {
+                    {   
                         if (op.getInputTensor()[0]->getShape() == mv::Shape({13,13,512,1}) &&
                             op.getInputTensor()[1]->getShape() == mv::Shape({3,3,512,1024}) &&
                             op.getOutputTensor()[0]->getShape() == mv::Shape({13,13,1024,1}))
                         {
-                            if(globalEnablePipelining && streamShape["K"] != 8)
+                            if(globalEnablePipelining && streamShape["K"] != 8 &&
+                            op.getOutputTensor(mv::IO_TENSOR_OUTPUT)->getDType() == mv::DType("UInt8"))
                                 return FailCause::cmxConcatDecision;
                         }
 
@@ -886,7 +893,8 @@ namespace mv
                             op.getInputTensor()[1]->getShape() == mv::Shape({3,3,1024,1024}) &&
                             op.getOutputTensor()[0]->getShape() == mv::Shape({13,13,1024,1}))
                         {
-                            if(globalEnablePipelining && streamShape["K"] != 8)
+                            if(globalEnablePipelining && streamShape["K"] != 8 &&
+                            op.getOutputTensor(mv::IO_TENSOR_OUTPUT)->getDType() == mv::DType("UInt8"))
                                 return FailCause::cmxConcatDecision;
                         }
 
@@ -894,7 +902,8 @@ namespace mv
                             op.getInputTensor()[1]->getShape() == mv::Shape({1,1,2048,1000}) &&
                             op.getOutputTensor()[0]->getShape() == mv::Shape({1,1,1000,1}))
                         {
-                            if(globalEnablePipelining && streamShape["K"] != 4 && streamShape["K"] != 2)
+                            if(globalEnablePipelining && streamShape["K"] != 4 && streamShape["K"] != 2 &&
+                                op.getOutputTensor(mv::IO_TENSOR_OUTPUT)->getDType() == mv::DType("UInt8"))
                                 return FailCause::cmxConcatDecision;
                         }
                     }
@@ -1088,7 +1097,8 @@ namespace mv
                  * The way the data are splitted between clusters and the order of the tiles, do not allow us to concatenate
                  * in the initial order inside CMX*/
                 if (clustering == "SplitOverH" &&
-                    (streamShape["H"] > 1) && !spilling)
+                    (streamShape["H"] > 1) && !spilling &&
+                    op.getOutputTensor(mv::IO_TENSOR_OUTPUT)->getDType() == mv::DType("UInt8"))
                     return FailCause::SpiltOverHWithStreamOverHInCMX;
                 
                 // This is intended to be a temporary workaround for ModelE, layer '97' & '113', which does work with SOH
@@ -1097,7 +1107,8 @@ namespace mv
                     op.getInputTensor()[0]->getShape()[mv::IO_WIDTH_DIMENSION] == 80 && op.getInputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 48 &&
                     op.getOutputTensor()[0]->getShape()[mv::IO_CHANNEL_DIMENSION] == 64 && op.getOutputTensor()[0]->getShape()[mv::IO_WIDTH_DIMENSION] == 80 &&
                     op.getOutputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 48 && op.getInputTensor(1)->getShape()[mv::KERNEL_HEIGHT] == 3 &&
-                    op.getInputTensor(1)->getShape()[mv::KERNEL_WIDTH] == 3)
+                    op.getInputTensor(1)->getShape()[mv::KERNEL_WIDTH] == 3 &&
+                    op.getOutputTensor(mv::IO_TENSOR_OUTPUT)->getDType() == mv::DType("UInt8"))
                     return FailCause::SpiltOverHForLayer97and113ModelE;
 
                 // This is intended to be a temporary workaround for ACLnet, layer '79', which does work with SOH
@@ -1106,7 +1117,8 @@ namespace mv
                     op.getInputTensor()[0]->getShape()[mv::IO_WIDTH_DIMENSION] == 100 && op.getInputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 64 &&
                     op.getOutputTensor()[0]->getShape()[mv::IO_CHANNEL_DIMENSION] == 64 && op.getOutputTensor()[0]->getShape()[mv::IO_WIDTH_DIMENSION] == 100 &&
                     op.getOutputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 64 && op.getInputTensor(1)->getShape()[mv::KERNEL_HEIGHT] == 3 &&
-                    op.getInputTensor(1)->getShape()[mv::KERNEL_WIDTH] == 3)
+                    op.getInputTensor(1)->getShape()[mv::KERNEL_WIDTH] == 3 &&
+                    op.getOutputTensor(mv::IO_TENSOR_OUTPUT)->getDType() == mv::DType("UInt8"))
                     return FailCause::SpiltOverHForLayer79InACLNet;
 
                 // This is intended to be a temporary workaround for FaceDetectionRetail, layer fire6/suqeeze1x1/WithoutBiases, which does work with SOH
@@ -1115,7 +1127,8 @@ namespace mv
                     op.getInputTensor()[0]->getShape()[mv::IO_WIDTH_DIMENSION] == 38 && op.getInputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 38 &&
                     op.getOutputTensor()[0]->getShape()[mv::IO_CHANNEL_DIMENSION] == 24 && op.getOutputTensor()[0]->getShape()[mv::IO_WIDTH_DIMENSION] == 38 &&
                     op.getOutputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 38 && op.getInputTensor(1)->getShape()[mv::KERNEL_HEIGHT] == 1 &&
-                    op.getInputTensor(1)->getShape()[mv::KERNEL_WIDTH] == 1)
+                    op.getInputTensor(1)->getShape()[mv::KERNEL_WIDTH] == 1 &&
+                    op.getOutputTensor(mv::IO_TENSOR_OUTPUT)->getDType() == mv::DType("UInt8"))
                     return FailCause::SpiltOverHForFaceDetectionRetail0004;
 
                 //NOTE: we need a ticket for that failure, blob looks fine for streaming overH = 12 which means every stream assigned with 2 lines
@@ -1123,7 +1136,8 @@ namespace mv
                 if (op.hasAttr("floatPrecision"))
                 {
                      if (op.getOpType() == "Conv" && op.get<bool>("floatPrecision") && op.getInputTensor()[0]->getShape()[mv::IO_CHANNEL_DIMENSION] == 1024 &&
-                             op.getInputTensor()[0]->getShape()[mv::IO_WIDTH_DIMENSION] == 30 && op.getInputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 23)
+                            op.getInputTensor()[0]->getShape()[mv::IO_WIDTH_DIMENSION] == 30 && op.getInputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 23 &&
+                            op.getOutputTensor(mv::IO_TENSOR_OUTPUT)->getDType() == mv::DType("UInt8"))
                      {
                         auto outputTilesShape = tileSpatialOutputSize(op.getOutputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION], streamShape["H"]);
                         for (auto tileShape:outputTilesShape)
@@ -1137,6 +1151,35 @@ namespace mv
                     op.getInputTensor()[0]->getShape()[mv::IO_WIDTH_DIMENSION] == 72 && op.getInputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 72 &&
                     op.getInputTensor(1)->getShape()[mv::KERNEL_HEIGHT] == 7 && op.getInputTensor(1)->getShape()[mv::KERNEL_WIDTH] == 7)
                     return FailCause::SplitOverHOverlappedWronglyComputed;
+
+                //temporarily disable the SplitOverHOverlapped for custom network kernel size 1x7 subtensors not correct
+                if (clustering == "SplitOverH" && op.getOpType() == "Conv" && isChanMajor && op.getInputTensor()[0]->getShape()[mv::IO_CHANNEL_DIMENSION] == 1 &&
+                    op.getInputTensor()[0]->getShape()[mv::IO_WIDTH_DIMENSION] == 1024 && op.getInputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 64 &&
+                    op.getInputTensor(1)->getShape()[mv::KERNEL_HEIGHT] == 1 && op.getInputTensor(1)->getShape()[mv::KERNEL_WIDTH] == 7)
+                    return FailCause::SplitOverHOverlappedWronglyComputed;
+
+                // This is intended to be a temporary workaround for ModelF, layer 'af_01/01_conv/Conv2D', which does work with SOH
+                // It has not been root caused to the compiler or runtime but as of now the compiler logic seems OK
+                if (clustering == "SplitOverH" && op.getOpType() == "Conv" && !isChanMajor && op.getInputTensor()[0]->getShape()[mv::IO_CHANNEL_DIMENSION] == 16 &&
+                    op.getInputTensor()[0]->getShape()[mv::IO_WIDTH_DIMENSION] == 1024 && op.getInputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 64 &&
+                    op.getOutputTensor()[0]->getShape()[mv::IO_CHANNEL_DIMENSION] == 16 && op.getOutputTensor()[0]->getShape()[mv::IO_WIDTH_DIMENSION] == 1024 &&
+                    op.getOutputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 64 && op.getInputTensor(1)->getShape()[mv::KERNEL_HEIGHT] == 7 &&
+                    op.getInputTensor(1)->getShape()[mv::KERNEL_WIDTH] == 1)
+                    return FailCause::SpiltOverHForConvModelF;
+
+                // This is intended to be a temporary workaround for ModelF, layers which do work with SOK
+                // It has not been root caused to the compiler or runtime but as of now the compiler logic seems OK
+                // layers: 'at_13/11_conv/Conv2D', 'at_14/12_conv/Conv2D', 'at_15/13_conv/Conv2D', 'at_16/14_conv/Conv2D'
+                if (clustering == "SplitOverK" && op.getOpType() == "Conv" && !isChanMajor &&
+                    op.getInputTensor()[0]->getShape()[mv::IO_CHANNEL_DIMENSION] == 256 && op.getOutputTensor()[0]->getShape()[mv::IO_CHANNEL_DIMENSION] == 256 &&
+                    op.getInputTensor()[0]->getShape()[mv::IO_WIDTH_DIMENSION] == 1 && op.getOutputTensor()[0]->getShape()[mv::IO_WIDTH_DIMENSION] == 1 &&
+                    op.getInputTensor(1)->getShape()[mv::KERNEL_HEIGHT] == 3 && op.getInputTensor(1)->getShape()[mv::KERNEL_WIDTH] == 1 &&
+                    ((op.getInputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 32 && op.getOutputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 16) ||
+                     (op.getInputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 16 && op.getOutputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 8) ||
+                     (op.getInputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 8 && op.getOutputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 4) ||
+                     (op.getInputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 4 && op.getOutputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 2)))
+                    return FailCause::SpiltOverKForConvModelF;
+
                 return FailCause::Pass; //good strategy
             }
 
@@ -1492,7 +1535,7 @@ namespace mv
                         // Each subtensor should be aligned to 16 byte boundaries. For SM we have 1 bit per elem,
                         // so divide tensor by 8 get size in bytes
                         // (sparse idu for SOH ZM CONV kernel h > 1)
-                        if( (W*dy*C/8)%128 != 0 )
+                        if( (W*dy*C)%128 != 0 ) //  equivalent with (W*dy*C/8)%16
                         {
                             log(mv::Logger::MessageType::Debug, child["name"].toString()+"_"+child["id"].toString() + " INF caused by incorrect SOH");
                             return INF;

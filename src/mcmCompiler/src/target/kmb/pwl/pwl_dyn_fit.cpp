@@ -10,7 +10,7 @@ void PWLFunction::Segment::checkFunction(const std::vector<int> & refFunction, i
         throw std::logic_error("PWLFit: invalid bitness: " + std::to_string(nBits));
     }
     // checking refFunction
-    if ((1 << nBits) != refFunction.size()) {
+    if ((1u << nBits) != refFunction.size()) {
         throw std::logic_error("PWLFunction::Segment reference function for " + std::to_string(nBits)
                                + " bits, contains only " + std::to_string(refFunction.size()) + " values");
     }
@@ -290,7 +290,6 @@ PWLFunction  PWLFit<Tx, Ty>::solve() const {
         }
     }
 
-    int zeroPoint = (1 << (_nBits - 1));
     std::vector<int> segments;
     segments.push_back((1 << _nBits));
     for (int j = (1 << _nBits) - 1, t = nPoints - 1;t > 0; t--) {
@@ -341,7 +340,6 @@ std::vector<int>  PWLFit<Tx, Ty> :: genReferenceIntFunction() const {
     int zeroPoint = 1 << (_nBits - 1);
     int levels = 1 << _nBits;
     for (int i = 0; i != (1 << _nBits); i++) {
-        int x = i - zeroPoint;
         Tx xfp = i;
         xfp = xfp / (levels - 1) * (_range.second - _range.first) + _range.first;
         auto yfp = _aproximatedFunction(xfp);

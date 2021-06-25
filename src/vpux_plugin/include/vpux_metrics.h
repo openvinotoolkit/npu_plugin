@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright 2021 Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -36,6 +36,7 @@ public:
     const std::vector<std::string>& GetOptimizationCapabilities() const;
     const std::tuple<uint32_t, uint32_t, uint32_t>& GetRangeForAsyncInferRequest() const;
     const std::tuple<uint32_t, uint32_t>& GetRangeForStreams() const;
+    std::string GetDeviceArchitecture(const std::string& specifiedDeviceName) const;
 
     ~Metrics() = default;
 
@@ -44,6 +45,7 @@ private:
     std::vector<std::string> _supportedMetrics;
     std::vector<std::string> _supportedConfigKeys;
     const std::vector<std::string> _optimizationCapabilities = {METRIC_VALUE(INT8)};
+    vpu::Logger _logger;
 
     // Metric to provide a hint for a range for number of async infer requests. (bottom bound, upper bound, step)
     const std::tuple<uint32_t, uint32_t, uint32_t> _rangeForAsyncInferRequests{4u, 10u, 1u};

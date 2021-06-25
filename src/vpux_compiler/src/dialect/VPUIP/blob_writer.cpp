@@ -126,9 +126,6 @@ VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensor(
         uint64_t dataIndex, Optional<uint64_t> sparsityIndex, Optional<uint64_t> storageElementIndex,
         Optional<uint32_t> storageElementSize, Optional<uint32_t> leadingOffset, Optional<uint32_t> trailingOffset,
         Optional<float> density_rate, Optional<uint8_t> swizzling_key) {
-    const std::vector<uint16_t> basePtrsVec = {};
-    const auto basePtrsFb = createVector(basePtrsVec);
-
     const auto serializedName = createString(name);
 
     const auto serializedDataType = createDType(type.getElementType());
@@ -146,14 +143,14 @@ VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensor(
     Vector<uint16_t> quantMult;
     Vector<uint8_t> quantShift;
 
-    auto fixedPointFP16Mult = [](float val) {
+    const auto fixedPointFP16Mult = [](float val) {
         const static int BITS = 15;
         int exp;
         auto mantissa = std::frexp(val, &exp);
         return static_cast<uint16_t>(mantissa * std::pow(2, BITS));
     };
 
-    auto fixedPointFP16Shift = [](float val) {
+    const auto fixedPointFP16Shift = [](float val) {
         const static int BITS = 15;
         int exp;
         std::frexp(val, &exp);
@@ -183,6 +180,8 @@ VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensor(
         quantShift = createVector(makeArrayRef<uint8_t>({0}));
     }
 
+    const auto basePtrs = createVector(std::vector<uint16_t>{});
+
     MVCNN::TensorReferenceBuilder builder(_impl);
     builder.add_name(serializedName);
     builder.add_dimensions(serializedDims);
@@ -195,7 +194,7 @@ VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensor(
     builder.add_quant_mult(quantMult);
     builder.add_quant_shift(quantShift);
     builder.add_order(dimsOrder.code());
-    builder.add_base_ptrs(basePtrsFb);
+    builder.add_base_ptrs(basePtrs);
     if (leadingOffset.hasValue()) {
         builder.add_leading_offset(leadingOffset.getValue());
     }
@@ -261,9 +260,7 @@ VPUIP::BlobWriter::Barrier vpux::VPUIP::BlobWriter::createBarrier(mlir::Value va
         if (effect.getEffect() == mlir::MemoryEffects::Read::get()) {
             if (auto nceClusterTaskOp = mlir::dyn_cast<VPUIP::NCEClusterTaskOp>(userOp)) {
                 for (auto dpuTaskOp : nceClusterTaskOp.variants().getOps<VPUIP::DPUTaskOp>()) {
-                    VPUX_THROW_UNLESS(
-                            dpuTaskOp.waitBarriers().size() == 0 && dpuTaskOp.updateBarriers().size() == 0,
-                            "DPUTaskOp specific waits and updates still needs to be implemented and verified.");
+                    VPUX_UNUSED(dpuTaskOp);
                     ++numConsumers;
                 }
             } else {
@@ -272,9 +269,7 @@ VPUIP::BlobWriter::Barrier vpux::VPUIP::BlobWriter::createBarrier(mlir::Value va
         } else if (effect.getEffect() == mlir::MemoryEffects::Write::get()) {
             if (auto nceClusterTaskOp = mlir::dyn_cast<VPUIP::NCEClusterTaskOp>(userOp)) {
                 for (auto dpuTaskOp : nceClusterTaskOp.variants().getOps<VPUIP::DPUTaskOp>()) {
-                    VPUX_THROW_UNLESS(
-                            dpuTaskOp.waitBarriers().size() == 0 && dpuTaskOp.updateBarriers().size() == 0,
-                            "DPUTaskOp specific waits and updates still needs to be implemented and verified.");
+                    VPUX_UNUSED(dpuTaskOp);
                     ++numProducers;
                 }
             } else {

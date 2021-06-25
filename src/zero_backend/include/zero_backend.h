@@ -16,14 +16,13 @@
 #include <memory>
 #include <vpux.hpp>
 
-#include "zero_config.h"
-
 namespace vpux {
 
 class ZeroEngineBackend final : public vpux::IEngineBackend {
 public:
     ZeroEngineBackend() = default;
     virtual const std::shared_ptr<IDevice> getDevice() const override;
+    virtual const std::shared_ptr<IDevice> getDevice(const std::string&) const override;
     const std::string getName() const override {
         return "dKMB";
     }
@@ -33,7 +32,7 @@ public:
     }
 
 private:
-    ZeroConfig _config;
+    VPUXConfig _config;
 };
 
 }  // namespace vpux

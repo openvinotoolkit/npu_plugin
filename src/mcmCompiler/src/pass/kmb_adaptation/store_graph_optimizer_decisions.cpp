@@ -213,39 +213,39 @@ void storeTensorPlacementFcn(const mv::pass::PassEntry& pass,
     {
         auto placementOverrideList = globalParams->get<std::vector<mv::Element>>("tensor_placement_override");
 
-
-        for (auto tensorIt = om.tensorBegin() ; tensorIt != om.tensorEnd() ; ++tensorIt)
+        for (auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt)
         {
-            auto parentOp = om.getSourceOp(tensorIt);
-
-            if(parentOp != om.opEnd())
-                if(parentOp->getOpType() == "Input")
-                {
-                    continue;
-                }
+            if (opIt->getOpType() == "Input")
+                continue;
 
             bool found = false;
-            for( auto s : placementOverrideList )
+            for (auto& s : placementOverrideList)
             {
                 std::string& nameFilter = s.get<std::string>("name_filter");
                 std::string& memLocation = s.get<std::string>("mem_location");
                 bool forced = s.hasAttr("force");
 
                 std::regex exp(nameFilter);
-                if (std::regex_match(tensorIt->getName(),exp))
+                if (std::regex_match(opIt->getName(), exp))
                 {
                     found = true;
-                    mv::Tensor::MemoryLocation location(memLocation,forced);
-                    tensorIt->set<mv::Tensor::MemoryLocation>("Location",location);
-                    pass.log(mv::Logger::MessageType::Debug,"setting tensor " +
-                                tensorIt->getName() + " as " + location.toString());
+                    mv::Tensor::MemoryLocation location(memLocation, forced);
+                    for (const auto& outputTensor : opIt->getOutputTensor())
+                    {
+                        outputTensor->set<mv::Tensor::MemoryLocation>("Location",location);
+                        pass.log(mv::Logger::MessageType::Debug,"setting tensor " +
+                                    outputTensor->getName() + " as " + location.toString());
+                    }
                 }
             }
 
-            if((!found) && (!tensorIt->hasAttr("Location")))
+            for (const auto& outputTensor : opIt->getOutputTensor())
             {
-                tensorIt->set<mv::Tensor::MemoryLocation>("Location",mv::Tensor::MemoryLocation::DEFAULT);
-                pass.log(mv::Logger::MessageType::Debug,"tensor " + tensorIt->getName() + "not found. setting to DEFAULT");
+                if((!found) && (!outputTensor->hasAttr("Location")))
+                {
+                    outputTensor->set<mv::Tensor::MemoryLocation>("Location",mv::Tensor::MemoryLocation::DEFAULT);
+                    pass.log(mv::Logger::MessageType::Debug,"tensor " + outputTensor->getName() + "not found. setting to DEFAULT");
+                }
             }
         }
     }

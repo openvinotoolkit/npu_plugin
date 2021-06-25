@@ -12,6 +12,8 @@
 //
 
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
+
+#include "vpux/compiler/dialect/VPUIP/blob_reader.hpp"
 #include "vpux/compiler/utils/subspaces.hpp"
 
 #include <mlir/IR/BuiltinTypes.h>
@@ -90,4 +92,35 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::PadUPAOp::serialize(VPUIP::BlobWrit
     const auto paramsOff = builder.Finish();
 
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PadParams});
+}
+
+mlir::Operation* vpux::VPUIP::BlobReader::parsePad(mlir::OpBuilder& builder, ArrayRef<mlir::Value> inputs,
+                                                   ArrayRef<mlir::Value> outputs, const MVCNN::UPALayerTask* task) {
+    VPUX_THROW_UNLESS(inputs.size() == 1, "UPAPad supports only 1 input, got {0}", inputs.size());
+    VPUX_THROW_UNLESS(outputs.size() == 1, "UPAPad supports only 1 output, got {0}", outputs.size());
+    const auto params = task->softLayerParams_as_PadParams();
+    const SmallVector<uint32_t> padBegin{params->pads_begin()->cbegin(), params->pads_begin()->cend()};
+    const SmallVector<uint32_t> padEnd{params->pads_end()->cbegin(), params->pads_end()->cend()};
+    const auto padValue = getFP32Attr(_ctx, params->padValue());
+    IE::PadMode padMode;
+    switch (params->pad_mode()) {
+    case MVCNN::PadMode::PadMode_Edge:
+        padMode = IE::PadMode::EDGE;
+        break;
+    case MVCNN::PadMode::PadMode_Reflect:
+        padMode = IE::PadMode::REFLECT;
+        break;
+    case MVCNN::PadMode::PadMode_Constant:
+        padMode = IE::PadMode::CONSTANT;
+        break;
+    case MVCNN::PadMode::PadMode_Symmetric:
+        padMode = IE::PadMode::SYMMETRIC;
+        break;
+    default:
+        VPUX_THROW("Unsupported PadMode {0}", params->pad_mode());
+    }
+
+    return builder.create<VPUIP::PadUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], outputs[0],
+                                           getUInt32ArrayAttr(_ctx, padBegin), getUInt32ArrayAttr(_ctx, padEnd),
+                                           padValue, IE::PadModeAttr::get(_ctx, padMode));
 }

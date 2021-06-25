@@ -21,7 +21,6 @@
 #include <mlir/Dialect/Quant/QuantOps.h>
 #include <mlir/IR/BuiltinOps.h>
 #include <mlir/Pass/Pass.h>
-#include <mlir/Pass/PassManager.h>
 
 #include <memory>
 
@@ -47,6 +46,7 @@ std::unique_ptr<mlir::Pass> createConvertTile2PerAxisTilePass(Logger log = Logge
 std::unique_ptr<mlir::Pass> createConvertPrecisionToFP16Pass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertShapeTo4DPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertPaddingsToFloorModePass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createResolveStridedSlicePass(Logger log = Logger::global());
 
 //
 // Low precision transformations.
@@ -71,7 +71,7 @@ std::unique_ptr<mlir::Pass> createExpandActivationChannelsPass(Logger log = Logg
 // Registration
 //
 
-void registerPipelines();
+void registerIEPipelines();
 
 //
 // Generated

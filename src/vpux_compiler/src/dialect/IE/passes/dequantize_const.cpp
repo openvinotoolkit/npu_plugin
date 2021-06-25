@@ -14,6 +14,7 @@
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
 #include "vpux/compiler/utils/quantization.hpp"
+#include "vpux/compiler/utils/rewriter.hpp"
 
 #include <mlir/Dialect/Quant/QuantTypes.h>
 #include <mlir/IR/PatternMatch.h>
@@ -97,7 +98,7 @@ void DequantizeConstPass::safeRunOnFunc() {
     patterns.insert<DequantizeConst>(&ctx, _log);
 
     auto func = getFunction();
-    if (mlir::failed(mlir::applyPatternsAndFoldGreedily(func, std::move(patterns)))) {
+    if (mlir::failed(mlir::applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig()))) {
         signalPassFailure();
     }
 }

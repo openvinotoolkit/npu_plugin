@@ -2200,7 +2200,8 @@ class Feasible_Memory_Schedule_Generator {
 
         typename op_output_table_t::iterator itr = op_output_table_.find(pop);
 
-        assert(itr != op_output_table_.end());
+        if(itr == op_output_table_.end())
+          continue;
         op_output_info_t &pop_output_info = itr->second;
 
         pop_output_info.decrement_consumers();

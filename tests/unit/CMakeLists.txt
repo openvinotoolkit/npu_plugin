@@ -24,6 +24,14 @@ set(MCM_SCHEDULER_INCLUDES_DIR
 
 add_subdirectory(kmb/test_utils)
 
+if (AARCH64)
+    get_target_property(NNINC NN INTERFACE_INCLUDE_DIRECTORIES)
+    get_target_property(RemoteFlicINC RemoteFlic INTERFACE_INCLUDE_DIRECTORIES)
+    get_target_property(DispatcherINC VpualDispatcher INTERFACE_INCLUDE_DIRECTORIES)
+    get_target_property(XLinkINC XLink INTERFACE_INCLUDE_DIRECTORIES)
+    string(CONCAT VPUAL_INCLUDES ${NNINC} " " ${RemoteFlicINC} " " ${DispatcherINC} " " ${XLinkINC})
+endif()
+
 addIeTargetTest(
     NAME ${TARGET_NAME}
     ROOT ${CMAKE_CURRENT_SOURCE_DIR}
@@ -31,6 +39,7 @@ addIeTargetTest(
     INCLUDES
         ${HDDL2_INCLUDES}
         "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/include"
+        ${VPUAL_INCLUDES}
         ${MCM_SCHEDULER_INCLUDES_DIR}
     LINK_LIBRARIES
         ${HDDL2_LIBS}

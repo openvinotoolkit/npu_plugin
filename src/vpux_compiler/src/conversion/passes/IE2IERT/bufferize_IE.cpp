@@ -596,6 +596,30 @@ mlir::Operation* createRTLayer(IE::ExpOp origOp, ArrayRef<mlir::Value> allBufs, 
     return b.create<IERT::ExpOp>(origOp.getLoc(), newOp.input(), newOp.output_buff());
 }
 
+mlir::Operation* createRTLayer(IE::InterpolateOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::InterpolateOp::Adaptor newOp(allBufs);
+
+    if (!origOp.sizes_attr().hasValue() || !origOp.scales_attr().hasValue())
+        VPUX_THROW("Interpolate must have constant sizes or scales");
+
+    if (!origOp.axes_attr().hasValue())
+        VPUX_THROW("Interpolate must have constant axes");
+
+    return b.create<IERT::InterpolateOp>(origOp.getLoc(), newOp.input(), newOp.output_buff(),
+                                         origOp.attr().mode().getValue(), origOp.attr().coord_mode().getValue(),
+                                         origOp.attr().nearest_mode().getValue(), origOp.attr().antialias().getValue());
+}
+
+mlir::Operation* createRTLayer(IE::StridedSliceOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    VPUX_THROW_UNLESS(allBufs.size() == 2, "Constant inputs should have been converted to attributes");
+    VPUX_THROW_UNLESS(origOp.begins_attr().hasValue(), "begins_attr is null");
+    VPUX_THROW_UNLESS(origOp.ends_attr().hasValue(), "ends_attr is null");
+    VPUX_THROW_UNLESS(origOp.strides_attr().hasValue(), "strides_attr is null");
+
+    return b.create<IERT::StridedSliceOp>(origOp.getLoc(), allBufs[0], allBufs.back(), origOp.begins_attr().getValue(),
+                                          origOp.ends_attr().getValue(), origOp.strides_attr().getValue());
+}
+
 class BufferizeIEPass::LayerRewrite final : public mlir::ConversionPattern {
 public:
     LayerRewrite(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
@@ -671,6 +695,8 @@ mlir::LogicalResult BufferizeIEPass::LayerRewrite::matchAndRewrite(mlir::Operati
     CASE(IE::CTCGreedyDecoderSeqLenOp)
     CASE(IE::PadOp)
     CASE(IE::ExpOp)
+    CASE(IE::InterpolateOp)
+    CASE(IE::StridedSliceOp)
     .Default([](mlir::Operation*) {
         return nullptr;
     });

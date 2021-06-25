@@ -8,24 +8,22 @@
 
 namespace LayerTestsDefinitions {
 
-class KmbMaxMinLayerTest: public MaxMinLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
-    void SkipBeforeLoad() override {
-        if (isCompilerMCM()) {
-            /// now mcm compiler supports max op (min will be converted to max by IE) - MR #2602
-            // throw LayerTestsUtils::KmbSkipTestException("Unsupported operation in MCM compiler [Track number: S#43484]");
-        }
-    }
-};
+class KmbMaxMinLayerTest: public MaxMinLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon { };
 
-TEST_P(KmbMaxMinLayerTest, CompareWithRefs) {
+class KmbMaxMinLayerTest_MCM: public KmbMaxMinLayerTest { };
+
+class KmbMaxMinLayerTest_MLIR: public KmbMaxMinLayerTest { };
+
+// MCM and MLIR tests use different parameters. See below.
+
+TEST_P(KmbMaxMinLayerTest_MCM, CompareWithRefs) {
     Run();
 }
 
-// [Track number: E#14809]
-// TEST_P(KmbMaxMinLayerTest, CompareWithRefs_MLIR) {
-//     useCompilerMLIR();
-//     Run();
-// }
+TEST_P(KmbMaxMinLayerTest_MLIR, CompareWithRefs) {
+    useCompilerMLIR();
+    Run();
+}
 
 }  // namespace LayerTestsDefinitions
 
@@ -33,10 +31,8 @@ using namespace LayerTestsDefinitions;
 
 namespace {
 const std::vector<std::vector<std::vector<size_t>>> inShapes4D = {
-        /// TODO: https://jira.devtools.intel.com/browse/EISW-13808
-        /// Currently compiler not support a constant input AS default cmajor layout  
-//        {{1,64,32,32}, {1,64,32,32}},
-//        {{1, 1, 1, 3}, {1}}
+        {{1,64,32,32}, {1,64,32,32}},
+        {{1, 1, 1, 3}, {1}}
 };
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
@@ -57,7 +53,7 @@ const std::vector<InferenceEngine::Layout> layout4D = {
         InferenceEngine::Layout::NHWC
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_maximum_4D, KmbMaxMinLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_maximum_4D, KmbMaxMinLayerTest_MLIR,
                         ::testing::Combine(
                                 ::testing::ValuesIn(inShapes4D),
                                 ::testing::ValuesIn(opType),
@@ -71,11 +67,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_maximum_4D, KmbMaxMinLayerTest,
                         KmbMaxMinLayerTest::getTestCaseName);
 
 const std::vector<std::vector<std::vector<size_t>>> inShapes3D = {
-        /// TODO: https://jira.devtools.intel.com/browse/EISW-13808
-//        {{1, 2, 4}, {1}}
+        {{1, 2, 4}, {1}}
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_maximum_3D, KmbMaxMinLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_maximum_3D, KmbMaxMinLayerTest_MLIR,
                         ::testing::Combine(
                                 ::testing::ValuesIn(inShapes3D),
                                 ::testing::ValuesIn(opType),
@@ -93,7 +88,9 @@ const std::vector<std::vector<std::vector<size_t>>> inShapesScalar = {
         {{32}, {1}}
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_maximum_scalar, KmbMaxMinLayerTest,
+// [Track number: E#13808]
+// [Track number: S#43484]
+INSTANTIATE_TEST_SUITE_P(smoke_maximum_scalar, KmbMaxMinLayerTest_MCM,
                         ::testing::Combine(
                                 ::testing::ValuesIn(inShapesScalar),
                                 ::testing::ValuesIn(opType),

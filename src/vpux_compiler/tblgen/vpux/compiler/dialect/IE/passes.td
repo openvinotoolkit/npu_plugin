@@ -139,6 +139,26 @@ def ConvertFCToConv : PassBase<"convert-fc-to-conv", "vpux::FunctionPass"> {
     ];
 }
 
+//
+// ResolveStridedSlice
+//
+
+def ResolveStridedSlice : PassBase<"resolve-strided-slice", "vpux::FunctionPass"> {
+    let summary = "Decouple strided slice to slice + reshape";
+
+    let description = [{
+        The pass is a part of `AdjustForVPU` pipeline.
+
+        It replaces IE::StridedSlice operation to simple StridedSlice and Reshape.
+    }];
+
+    let constructor = "vpux::IE::createResolveStridedSlicePass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
+
 //=================================================================================
 // LowPrecision
 //=================================================================================

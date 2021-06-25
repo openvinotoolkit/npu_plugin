@@ -87,7 +87,8 @@ void preprocessForPWL(const mv::pass::PassEntry&, mv::ComputationModel& model, m
 
         for (auto opIterator : sortedOps) {
             if (std::find(DPU_OPS.begin(), DPU_OPS.end(), opIterator->getOpType()) != DPU_OPS.end() &&
-                opIterator->hasAttr("postOpTypes")) {
+                opIterator->hasAttr("postOpTypes") &&
+                opIterator->getOutputTensor(mv::IO_TENSOR_OUTPUT)->getDType() == mv::DType("UInt8")) {
                 auto postOpTypes = opIterator->get<std::vector<std::string>>("postOpTypes");
                 auto dpuPostOp = findIsDPUPwlPostOp(postOpTypes, td);
                 if (dpuPostOp != postOpTypes.end()) {

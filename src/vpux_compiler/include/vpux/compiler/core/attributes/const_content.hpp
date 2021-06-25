@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -17,6 +17,7 @@
 #include "vpux/compiler/core/attributes/shape.hpp"
 #include "vpux/compiler/core/attributes/strides.hpp"
 #include "vpux/compiler/utils/data_convert.hpp"
+#include "vpux/compiler/utils/types.hpp"
 
 #include "vpux/utils/core/array_ref.hpp"
 #include "vpux/utils/core/error.hpp"

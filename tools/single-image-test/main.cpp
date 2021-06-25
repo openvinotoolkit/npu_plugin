@@ -328,9 +328,7 @@ std::string cleanName(std::string name) {
     return name;
 }
 
-ie::MemoryBlob::Ptr loadInput(const ie::TensorDesc& desc, const std::string& filePath, const std::string& colorFormat) {
-    IE_ASSERT(isImage(desc)) << "Only image inputs are supported";
-
+ie::MemoryBlob::Ptr loadImage(const ie::TensorDesc& desc, const std::string& filePath, const std::string& colorFormat) {
     const auto frame = cv::imread(filePath, cv::IMREAD_COLOR);
     IE_ASSERT(!frame.empty()) << "Failed to open input image file " << filePath;
 
@@ -340,6 +338,36 @@ ie::MemoryBlob::Ptr loadInput(const ie::TensorDesc& desc, const std::string& fil
     cvToIe(frame, blob, colorFormat);
 
     return blob;
+}
+
+ie::MemoryBlob::Ptr loadBinary(const ie::TensorDesc& desc, const std::string& filePath) {
+    const auto blob = ie::as<ie::MemoryBlob>(make_blob_with_precision(desc));
+
+    std::ifstream binaryFile(filePath, std::ios_base::binary | std::ios_base::ate);
+
+    IE_ASSERT(binaryFile) << "Failed to open input binary file";
+
+    const int fileSize = binaryFile.tellg();
+    binaryFile.seekg(0, std::ios_base::beg);
+    const int expectedSize = static_cast<int>(blob->byteSize());
+    IE_ASSERT(fileSize != expectedSize) << "File contains " << fileSize << " bytes, but " << expectedSize << " expected";
+
+    IE_ASSERT(binaryFile.good()) << "While reading a file an error is encountered";
+
+    blob->allocate();
+    const auto blobMem = blob->wmap();
+    const auto blobPtr = blobMem.as<char *>();
+    binaryFile.read(blobPtr, static_cast<std::streamsize>(expectedSize));
+
+    return blob;
+}
+
+ie::MemoryBlob::Ptr loadInput(const ie::TensorDesc& desc, const std::string& filePath, const std::string& colorFormat) {
+    if (isImage(desc)) {
+        return loadImage(desc, filePath, colorFormat);
+    } else {
+        return loadBinary(desc, filePath);
+    }
 }
 
 ie::MemoryBlob::Ptr loadBlob(const ie::TensorDesc& desc, const std::string& filePath) {

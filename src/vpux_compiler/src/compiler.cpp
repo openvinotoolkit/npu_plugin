@@ -32,8 +32,10 @@
 #include <mlir/IR/Dialect.h>
 #include <mlir/IR/MLIRContext.h>
 #include <mlir/Pass/PassManager.h>
+#include <mlir/Support/Timing.h>
 
 #include <llvm/Support/Regex.h>
+#include <llvm/Support/raw_ostream.h>
 
 #include <cpp/ie_cnn_network.h>
 #include <description_buffer.hpp>
@@ -97,39 +99,24 @@ VPUIP::CompilationMode getCompilationMode(const VPUXConfig& config) {
 }
 
 //
-// TimingLogger
-//
-
-class TimingLogger final : public mlir::PassManager::PassTimingConfig {
-public:
-    TimingLogger(): _colorStream(Logger::getLevelStream(LogLevel::Info)) {
-    }
-
-public:
-    void printTiming(PrintCallbackFn printCallback) final {
-        printCallback(_colorStream.get());
-    }
-
-private:
-    llvm::WithColor _colorStream;
-};
-
-//
 // DeveloperConfig
 //
 
 class DeveloperConfig final {
 public:
-    DeveloperConfig();
+    explicit DeveloperConfig(Logger log);
     ~DeveloperConfig();
 
-    void setup(mlir::PassManager& pm, Logger log) const;
+    void setup(mlir::DefaultTimingManager& tm) const;
+    void setup(mlir::PassManager& pm) const;
 
     bool useSharedConstants() const {
         return _crashReproducerFile.empty() && _irPrintingFilter.empty();
     }
 
 private:
+    Logger _log;
+
     std::string _crashReproducerFile;
     bool _localReproducer = true;
 
@@ -138,10 +125,11 @@ private:
     bool _printFullIR = false;
     bool _printFullConstant = false;
 
-    llvm::raw_ostream* _stream = nullptr;
-    std::unique_ptr<llvm::Regex> _filter;
-    std::unique_ptr<llvm::WithColor> _colorStream;
-    std::unique_ptr<llvm::raw_fd_ostream> _fileStream;
+    llvm::raw_ostream* _timingStream = nullptr;
+
+    std::unique_ptr<llvm::Regex> _irDumpFilter;
+    std::unique_ptr<llvm::raw_fd_ostream> _irDumpFile;
+    llvm::raw_ostream* _irDumpStream = nullptr;
 };
 
 #if defined(VPUX_DEVELOPER_BUILD) || !defined(NDEBUG)
@@ -160,7 +148,7 @@ void parseEnv(StringRef envVarName, bool& var) {
 
 #endif  // defined(VPUX_DEVELOPER_BUILD) || !defined(NDEBUG)
 
-DeveloperConfig::DeveloperConfig() {
+DeveloperConfig::DeveloperConfig(Logger log): _log(log) {
 #if defined(VPUX_DEVELOPER_BUILD) || !defined(NDEBUG)
     parseEnv("IE_VPUX_CRASH_REPRODUCER_FILE", _crashReproducerFile);
     parseEnv("IE_VPUX_GEN_LOCAL_REPRODUCER", _localReproducer);
@@ -171,59 +159,74 @@ DeveloperConfig::DeveloperConfig() {
     parseEnv("IE_VPUX_PRINT_FULL_CONSTANT", _printFullConstant);
 #endif  // defined(VPUX_DEVELOPER_BUILD) || !defined(NDEBUG)
 
+    if (_log.isActive(LogLevel::Info)) {
+        _timingStream = &Logger::getBaseStream();
+    }
+
     if (!_irPrintingFilter.empty()) {
-        _filter = std::make_unique<llvm::Regex>(_irPrintingFilter, llvm::Regex::IgnoreCase);
+        _irDumpFilter = std::make_unique<llvm::Regex>(_irPrintingFilter, llvm::Regex::IgnoreCase);
 
         std::string regexErr;
-        if (!_filter->isValid(regexErr)) {
+        if (!_irDumpFilter->isValid(regexErr)) {
             VPUX_THROW("Invalid regular expression '{0}' : {1}", _irPrintingFilter, regexErr);
         }
 
         if (_irPrintingFile.empty()) {
-            _colorStream = std::make_unique<llvm::WithColor>(Logger::getLevelStream(LogLevel::Trace));
-
-            _stream = &_colorStream->get();
+            _irDumpStream = &vpux::Logger::getBaseStream();
         } else {
             std::error_code err;
-            _fileStream = std::make_unique<llvm::raw_fd_ostream>(_irPrintingFile, err);
+            _irDumpFile = std::make_unique<llvm::raw_fd_ostream>(_irPrintingFile, err);
             if (err) {
                 VPUX_THROW("Failed to open file '{0}' for write : {1}", _irPrintingFile, err.message());
             }
 
-            _stream = _fileStream.get();
+            _irDumpStream = _irDumpFile.get();
         }
     }
 }
 
 DeveloperConfig::~DeveloperConfig() {
-    if (_stream != nullptr) {
-        _stream->flush();
+    if (_timingStream != nullptr) {
+        _timingStream->flush();
+    }
+
+    if (_irDumpStream != nullptr) {
+        _irDumpStream->flush();
     }
 }
 
-void DeveloperConfig::setup(mlir::PassManager& pm, Logger log) const {
-    // Pass timing
-
-    if (log.isActive(LogLevel::Info)) {
-        pm.enableTiming(std::make_unique<TimingLogger>());
+void DeveloperConfig::setup(mlir::DefaultTimingManager& tm) const {
+    if (_timingStream == nullptr) {
+        tm.setEnabled(false);
+    } else {
+        tm.setEnabled(true);
+        tm.setDisplayMode(mlir::DefaultTimingManager::DisplayMode::Tree);
+        tm.setOutput(*_timingStream);
     }
+}
 
+void DeveloperConfig::setup(mlir::PassManager& pm) const {
     // Crash reproducer
 
     if (!_crashReproducerFile.empty()) {
+        if (_localReproducer) {
+            pm.getContext()->disableMultithreading();
+        }
+
         pm.enableCrashReproducerGeneration(_crashReproducerFile, _localReproducer);
     }
 
     // IR printing
 
-    if (_filter != nullptr) {
+    if (_irDumpFilter != nullptr) {
         const bool printAfterOnlyOnChange = false;
+        const bool printAfterOnlyOnFailure = false;
 
         const auto shouldPrintBeforePass = [&](mlir::Pass*, mlir::Operation*) {
             return false;
         };
         const auto shouldPrintAfterPass = [&](mlir::Pass* pass, mlir::Operation*) {
-            return _filter->match(pass->getName()) || _filter->match(pass->getArgument());
+            return _irDumpFilter->match(pass->getName()) || _irDumpFilter->match(pass->getArgument());
         };
 
         if (_printFullIR) {
@@ -235,8 +238,8 @@ void DeveloperConfig::setup(mlir::PassManager& pm, Logger log) const {
             flags.elideLargeElementsAttrs();
         }
 
-        pm.enableIRPrinting(shouldPrintBeforePass, shouldPrintAfterPass, _printFullIR, printAfterOnlyOnChange, *_stream,
-                            flags);
+        pm.enableIRPrinting(shouldPrintBeforePass, shouldPrintAfterPass, _printFullIR, printAfterOnlyOnChange,
+                            printAfterOnlyOnFailure, *_irDumpStream, flags);
     }
 }
 
@@ -256,40 +259,13 @@ InferenceEngine::QueryNetworkResult vpux::CompilerImpl::query(const InferenceEng
 // CompilerImpl::compile
 //
 
-std::shared_ptr<INetworkDescription> vpux::CompilerImpl::compile(const std::shared_ptr<ngraph::Function>& func,
-                                                                 const std::string&, const InputsDataMap& inputsInfo,
-                                                                 const OutputsDataMap& outputsInfo,
-                                                                 const VPUXConfig& config) {
-    //
-    // Parse config options
-    //
+namespace {
 
-    DeveloperConfig devConf;
+void buildPipeline(mlir::PassManager& pm, VPUIP::ArchKind archKind, VPUIP::CompilationMode compilationMode,
+                   mlir::TimingScope& rootTiming, Logger log) {
+    auto buildTiming = rootTiming.nest("Build compilation pipeline");
 
-    const auto compilationMode = getCompilationMode(config);
-    const bool sharedConstants = devConf.useSharedConstants();
-
-    //
-    // Initialize compiler
-    //
-
-    Logger log("vpux-compiler", getLogLevel(config));
-
-    mlir::DialectRegistry registry;
-    registerDialects(registry);
-
-    mlir::MLIRContext ctx(registry);
-    addLogging(ctx, log);
-
-    mlir::PassManager pm(&ctx, mlir::OpPassManager::Nesting::Implicit);
-    addLogging(pm, log);
-    devConf.setup(pm, log);
-
-    //
-    // Build compilation pipeline
-    //
-
-    pm.addPass(createSetCompileParamsPass(getArchKind(config), compilationMode, log.nest()));
+    pm.addPass(createSetCompileParamsPass(archKind, compilationMode, log.nest()));
 
     if (compilationMode == VPUIP::CompilationMode::ReferenceSW) {
         buildReferenceModePipeline(pm, log.nest());
@@ -298,12 +274,14 @@ std::shared_ptr<INetworkDescription> vpux::CompilerImpl::compile(const std::shar
     } else {
         VPUX_THROW("Unsupported compilation mode '{0}'", compilationMode);
     }
+}
 
-    //
-    // Process the network
-    //
+CNNNetwork prepareNetwork(const std::shared_ptr<ngraph::Function>& func, const InputsDataMap& inputsInfo,
+                          const OutputsDataMap& outputsInfo, mlir::TimingScope& rootTiming) {
+    auto prepareTiming = rootTiming.nest("Prepare network");
 
     CNNNetwork cnnNet(func);
+
     for (const auto& p : inputsInfo) {
         cnnNet.getInputsInfo().at(p.first)->setPrecision(p.second->getPrecision());
         cnnNet.getInputsInfo().at(p.first)->setLayout(p.second->getLayout());
@@ -313,19 +291,66 @@ std::shared_ptr<INetworkDescription> vpux::CompilerImpl::compile(const std::shar
         cnnNet.getOutputsInfo().at(p.first)->setLayout(p.second->getLayout());
     }
 
-    auto module = IE::importNetwork(&ctx, cnnNet, sharedConstants, log.nest());
+    return cnnNet;
+}
 
-    VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module.get())), "Compilation failed");
+auto importNetwork(mlir::MLIRContext* ctx, CNNNetwork cnnNet, const DeveloperConfig& devConf,
+                   mlir::TimingScope& rootTiming, Logger log) {
+    auto importTiming = rootTiming.nest("Import network");
 
-    const auto blob = VPUIP::exportToBlob(module.get(), log);
+    return IE::importNetwork(ctx, cnnNet, devConf.useSharedConstants(), log.nest());
+}
 
-    //
-    // Return compiled blob and meta-data
-    //
+void compileNetwork(mlir::ModuleOp module, mlir::PassManager& pm, mlir::TimingScope& rootTiming) {
+    auto compileTiming = rootTiming.nest("Compile network");
 
+    pm.enableTiming(compileTiming);
+    VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module)), "Compilation failed");
+}
+
+auto exportToBlob(mlir::ModuleOp module, mlir::TimingScope& rootTiming, Logger log) {
+    auto exportTiming = rootTiming.nest("Export to blob");
+
+    return VPUIP::exportToBlob(module, log);
+}
+
+}  // namespace
+
+std::shared_ptr<INetworkDescription> vpux::CompilerImpl::compile(const std::shared_ptr<ngraph::Function>& func,
+                                                                 const std::string&, const InputsDataMap& inputsInfo,
+                                                                 const OutputsDataMap& outputsInfo,
+                                                                 const VPUXConfig& config) {
+    Logger log("vpux-compiler", getLogLevel(config));
+
+    const auto archKind = getArchKind(config);
+    const auto compilationMode = getCompilationMode(config);
+
+    DeveloperConfig devConf(log);
+
+    mlir::DefaultTimingManager tm;
+    devConf.setup(tm);
+
+    mlir::DialectRegistry registry;
+    registerDialects(registry);
+
+    mlir::MLIRContext ctx(registry);
+    addLogging(ctx, log);
+
+    mlir::PassManager pm(&ctx, mlir::OpPassManager::Nesting::Implicit);
+    addLogging(pm, log);
+    devConf.setup(pm);
+
+    auto rootTiming = tm.getRootScope();
+
+    buildPipeline(pm, archKind, compilationMode, rootTiming, log);
+    const auto cnnNet = prepareNetwork(func, inputsInfo, outputsInfo, rootTiming);
+    const auto module = importNetwork(&ctx, cnnNet, devConf, rootTiming, log);
+    compileNetwork(module.get(), pm, rootTiming);
+    const auto blob = exportToBlob(module.get(), rootTiming, log);
+
+    auto finalTiming = rootTiming.nest("Wrap into NetworkDescription");
     std::vector<char> compiledNetwork(blob.size());
     std::copy_n(reinterpret_cast<const char*>(blob.data()), blob.size(), compiledNetwork.data());
-
     return std::make_shared<VPUIP::NetworkDescription>(std::move(compiledNetwork));
 }
 

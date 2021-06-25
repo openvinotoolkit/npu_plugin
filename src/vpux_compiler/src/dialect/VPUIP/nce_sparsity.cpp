@@ -29,7 +29,12 @@ int64_t getWindowSize(int64_t kernelW, int64_t strideW, mlir::Type elemType) {
 
     // Only MPE0, MPE4, MPE8 and MPE12 support FP16 data format
     const int mpeNumLimit = elemType.isF16() ? 4 : 16;
-    const int64_t maxWindowSize = 32;
+
+    const Bit typeSizeInBits = getElemTypeSize(elemType);
+
+    // Window size is limited to 32 bytes by HW. Size of the data type
+    // needs to be accounted to find the max (32 for U8, 16 for FP16)
+    const int64_t maxWindowSize = 32 / (typeSizeInBits.count() / 8);
 
     int64_t windowSize = 0;
     int mpeNum = 2;

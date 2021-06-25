@@ -11,13 +11,11 @@
 // included with the Software Package for additional details.
 //
 
-#include "vpux/compiler/dialect/VPUIP/tiling.hpp"
-#include "vpux/compiler/dialect/VPUIP/ops.hpp"
+#include "vpux/compiler/core/tiling.hpp"
 
 using namespace vpux;
-using namespace VPUIP;
 
-SmallVector<Tile> VPUIP::Tiling::fillDividedTiles(ShapeRef divisors, ShapeRef orig) {
+SmallVector<Tile> vpux::fillDividedTiles(ShapeRef divisors, ShapeRef orig) {
     SmallVector<Tile> dividedTiles(divisors.totalSize(), Tile(divisors.size()));
 
     int64_t repeatCtr = 1;
@@ -69,8 +67,8 @@ SmallVector<Tile> VPUIP::Tiling::fillDividedTiles(ShapeRef divisors, ShapeRef or
     return dividedTiles;
 }
 
-PadsTileConfig VPUIP::Tiling::backInferPadsTile(const Tile& outputTile, ShapeRef outShape,
-                                                ArrayRef<int64_t> opPadsBegin, ArrayRef<int64_t> opPadsEnd) {
+PadsTileConfig vpux::backInferPadsTile(const Tile& outputTile, ShapeRef outShape, ArrayRef<int64_t> opPadsBegin,
+                                       ArrayRef<int64_t> opPadsEnd) {
     SmallVector<int64_t> padsBegin(IERT::ConvolutionOp::filter_spatial_dims());
     SmallVector<int64_t> padsEnd(IERT::ConvolutionOp::filter_spatial_dims());
 
@@ -90,7 +88,7 @@ PadsTileConfig VPUIP::Tiling::backInferPadsTile(const Tile& outputTile, ShapeRef
     return {padsBegin, padsEnd};
 }
 
-ConvTileConfig VPUIP::Tiling::backInferConvTile(IERT::ConvolutionOp origOp, const Tile& outputTile) {
+ConvTileConfig vpux::backInferConvTile(IERT::ConvolutionOp origOp, const Tile& outputTile) {
     const auto origInputShape = getShape(origOp.input());
     const auto origFilterShape = getShape(origOp.filter());
     const auto origBiasShape = origOp.bias() != nullptr ? getShape(origOp.bias()) : ShapeRef();

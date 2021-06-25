@@ -50,17 +50,25 @@ def SetCompileParams : PassBase<"set-compile-params", "vpux::ModulePass"> {
 }
 
 //
-// AddLinearScheduling
+// AssignPhysicalBarriers
 //
 
-def AddLinearScheduling : PassBase<"add-linear-scheduling", "vpux::ModulePass"> {
-    let summary = "Impose simple linear execution";
+def AssignPhysicalBarriers : PassBase<"assign-physical-barriers", "vpux::FunctionPass"> {
+    let summary = "Assign physical barriers";
 
     let description = [{
-        This pass inserts barriers to impose simple linear execution in IR order.
+        This pass replaces virtual barriers with physical barriers and assign IDs to them.
     }];
 
-    let constructor = "vpux::VPUIP::createAddLinearSchedulingPass()";
+    let constructor = "vpux::VPUIP::createAssignPhysicalBarriersPass()";
+
+    let options = [
+        Option<
+            "_numBarriersOpt", "num-barriers",
+            "int", "",
+            "Number of physical barriers, available for usage"
+        >
+    ];
 }
 
 #endif

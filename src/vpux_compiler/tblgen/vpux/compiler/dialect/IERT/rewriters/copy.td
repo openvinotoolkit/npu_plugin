@@ -1,5 +1,5 @@
 //
-// Copyright 2021 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -11,18 +11,26 @@
 // included with the Software Package for additional details.
 //
 
-#include "vpux/compiler/dialect/VPUIP/ops.hpp"
+#ifndef VPUX_COMPILER_DIALECT_IERT_REWRITERS_CONVERT
+#define VPUX_COMPILER_DIALECT_IERT_REWRITERS_CONVERT
 
-#include "vpux/utils/core/format.hpp"
+include "vpux/compiler/dialect/IERT/ops.td"
 
-using namespace vpux;
+include "mlir/IR/OpBase.td"
 
 //
-// DPUTaskOp
+// FuseCopies
 //
 
-void vpux::VPUIP::DPUTaskOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ArrayAttr start,
-                                   mlir::ArrayAttr end, mlir::ArrayAttr pads_begin, mlir::ArrayAttr pads_end,
-                                   vpux::VPUIP::MPEMode mpe_mode) {
-    build(builder, state, start, end, pads_begin, pads_end, mpe_mode, mlir::ValueRange{}, mlir::ValueRange{});
-}
+def NotABlockArgument: Constraint<CPred<"!$_self.isa<mlir::BlockArgument>()">>;
+
+def FuseCopies :
+        Pat<
+            (IERT_CopyOp (IERT_CopyOp $input, $output_buff1), $output_buff2),
+            (IERT_CopyOp $input, $output_buff2),
+            [
+                (NotABlockArgument:$output_buff1)
+            ]
+        >;
+
+#endif

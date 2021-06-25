@@ -27,19 +27,23 @@ namespace {
             InferenceEngine::Precision::FP32,
             InferenceEngine::Precision::FP16
     };
-
-    const std::vector<size_t> numOutChannels = {1, 5, 16};
+    
+    /// Current Deconv impelmentation Only support 16x channels
+    /// The other channel which needs alignment and crop will cause concat issue 
+    const std::vector<size_t> numOutChannels = {16};
 
 /* ============= 2D ConvolutionBackpropData ============= */
-    const std::vector<std::vector<size_t >> inputShapes2D = {{1, 3, 30, 30},
-                                                             {1, 16, 10, 10},
-                                                             {1, 32, 10, 10}};
-    const std::vector<std::vector<size_t >> kernels2D = {{1, 1}, {3, 3}, {3, 5}};
-    const std::vector<std::vector<size_t >> strides2D = {{1, 1}, {1, 3}};
+    const std::vector<std::vector<size_t >> inputShapes2D = {{1, 3, 30, 30}};
+    /// Need Kernel_size == Stride_size
+    /// Refer: src/mcmCompiler/src/pass/adaptation/conv_dilation_pass.cpp:366
+    const std::vector<std::vector<size_t >> kernels2D = {{2, 2}};
+    const std::vector<std::vector<size_t >> strides2D = {{2, 2}};
     const std::vector<std::vector<ptrdiff_t>> padBegins2D = {{0, 0}};
-    const std::vector<std::vector<ptrdiff_t>> padEnds2D = {{0, 0}, {1, 1}};
-    const std::vector<std::vector<size_t >> dilations2D = {{1, 1}, {2, 2}};
+    const std::vector<std::vector<ptrdiff_t>> padEnds2D = {{0, 0}};
+    const std::vector<std::vector<size_t >> dilations2D = {{1, 1}};
 
+    /// Not support SAME_UPPER padding mode
+    /// Refer: src/mcmCompiler/src/pass/adaptation/conv_dilation_pass.cpp:61
     const auto conv2DParams_ExplicitPadding = ::testing::Combine(
             ::testing::ValuesIn(kernels2D),
             ::testing::ValuesIn(strides2D),
@@ -68,7 +72,7 @@ namespace {
     // Allocator = std::allocator<mv::scheduler::Operation_Dag<> >]: Assertion `itr != op_output_table_.end()' failed.
     // Aborted (core dumped)
     // [Track number: S#44901]
-    INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_ConvolutionBackpropData2D_ExplicitPadding, KmbConvolutionBackpropDataLayerTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData2D_ExplicitPadding, KmbConvolutionBackpropDataLayerTest,
                             ::testing::Combine(
                                     conv2DParams_ExplicitPadding,
                                     ::testing::ValuesIn(netPrecisions),

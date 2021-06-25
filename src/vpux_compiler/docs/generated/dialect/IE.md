@@ -794,20 +794,25 @@ operation ::= `IE.Interpolate` `(` operands `)` attr-dict `:` type(operands) `->
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`attr` | vpux::IE::InterpolateAttr | DictionaryAttr with field(s): 'axes', 'mode', 'align_corners', 'antialias', 'pads_begin', 'pads_end' (each field having its own constraints)
+`sizes_attr` | ::mlir::ArrayAttr | 32-bit integer array attribute
+`scales_attr` | ::mlir::ArrayAttr | 32-bit float array attribute
+`axes_attr` | ::mlir::ArrayAttr | 32-bit integer array attribute
+`attr` | vpux::IE::InterpolateAttr | DictionaryAttr with field(s): 'mode', 'shape_calc_mode', 'coord_mode', 'nearest_mode', 'antialias', 'pads_begin', 'pads_end', 'cube_coeff' (each field having its own constraints)
 
 #### Operands:
 
 | Operand | Description |
 | :-----: | ----------- |
-`input` | ranked tensor of any type values
-`target_shape` | 1D tensor of integer values
+`input` | ranked tensor of 16-bit float or 32-bit float values
+`sizes` | ranked tensor of integer values
+`scales` | ranked tensor of 16-bit float or 32-bit float values
+`axes` | ranked tensor of integer values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-`output` | ranked tensor of any type values
+`output` | ranked tensor of 16-bit float or 32-bit float values
 
 ### `IE.LRN` (vpux::IE::LRNOp)
 
@@ -1211,85 +1216,6 @@ operation ::= `IE.Power` `(` operands `)` attr-dict `:` type(operands) `->` type
 | :----: | ----------- |
 `output` | ranked tensor of 16-bit float or 32-bit float values
 
-### `IE.PriorBoxClustered` (vpux::IE::PriorBoxClusteredOp)
-
-InferenceEngine PriorBoxClustered layer
-
-
-Syntax:
-
-```
-operation ::= `IE.PriorBoxClustered` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
-```
-
-
-#### Attributes:
-
-| Attribute | MLIR Type | Description |
-| :-------: | :-------: | ----------- |
-`widths` | ::mlir::ArrayAttr | 32-bit float array attribute
-`heights` | ::mlir::ArrayAttr | 32-bit float array attribute
-`clip` | ::mlir::BoolAttr | bool attribute
-`step_widths` | ::mlir::FloatAttr | 32-bit float attribute
-`step_heights` | ::mlir::FloatAttr | 32-bit float attribute
-`offset` | ::mlir::FloatAttr | 32-bit float attribute
-`variance` | ::mlir::ArrayAttr | 32-bit float array attribute
-
-#### Operands:
-
-| Operand | Description |
-| :-----: | ----------- |
-`output_size` | ranked tensor of 64-bit signed integer values
-`image_size` | ranked tensor of 64-bit signed integer values
-
-#### Results:
-
-| Result | Description |
-| :----: | ----------- |
-`output` | ranked tensor of 16-bit float or 32-bit float values
-
-### `IE.PriorBox` (vpux::IE::PriorBoxOp)
-
-InferenceEngine PriorBox layer
-
-
-Syntax:
-
-```
-operation ::= `IE.PriorBox` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
-```
-
-
-#### Attributes:
-
-| Attribute | MLIR Type | Description |
-| :-------: | :-------: | ----------- |
-`min_size` | ::mlir::ArrayAttr | 32-bit float array attribute
-`max_size` | ::mlir::ArrayAttr | 32-bit float array attribute
-`aspect_ratio` | ::mlir::ArrayAttr | 32-bit float array attribute
-`flip` | ::mlir::BoolAttr | bool attribute
-`clip` | ::mlir::BoolAttr | bool attribute
-`step` | ::mlir::FloatAttr | 32-bit float attribute
-`offset` | ::mlir::FloatAttr | 32-bit float attribute
-`variance` | ::mlir::ArrayAttr | 32-bit float array attribute
-`scale_all_sizes` | ::mlir::BoolAttr | bool attribute
-`fixed_ratio` | ::mlir::ArrayAttr | 32-bit float array attribute
-`fixed_size` | ::mlir::ArrayAttr | 32-bit float array attribute
-`density` | ::mlir::ArrayAttr | 32-bit float array attribute
-
-#### Operands:
-
-| Operand | Description |
-| :-----: | ----------- |
-`output_size` | ranked tensor of 64-bit signed integer values
-`image_size` | ranked tensor of 64-bit signed integer values
-
-#### Results:
-
-| Result | Description |
-| :----: | ----------- |
-`output` | ranked tensor of 16-bit float or 32-bit float values
-
 ### `IE.Proposal` (vpux::IE::ProposalOp)
 
 InferenceEngine Proposal layer
@@ -1668,6 +1594,9 @@ operation ::= `IE.StridedSlice` `(` operands `)` attr-dict `:` type(operands) `-
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
+`begins_attr` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`ends_attr` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`strides_attr` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `begin_mask` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `end_mask` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `new_axis_mask` | ::mlir::ArrayAttr | 64-bit integer array attribute
@@ -1678,10 +1607,10 @@ operation ::= `IE.StridedSlice` `(` operands `)` attr-dict `:` type(operands) `-
 
 | Operand | Description |
 | :-----: | ----------- |
-`data` | ranked tensor of any type values
-`begin` | 1D tensor of integer values
-`end` | 1D tensor of integer values
-`stride` | 1D tensor of integer values
+`input` | ranked tensor of any type values
+`begins` | 1D tensor of integer values
+`ends` | 1D tensor of integer values
+`strides` | 1D tensor of integer values
 
 #### Results:
 

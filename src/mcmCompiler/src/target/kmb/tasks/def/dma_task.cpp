@@ -24,7 +24,8 @@ namespace mv
             mv::Tensor toPush(*inputs[0]);
             outputs.push_back(std::move(toPush));
             outputs[0].setName(outputs[0].getName() + ":0");
-            outputs[0].erase("flows");
+            if (outputs[0].hasAttr("flows"))
+                outputs[0].erase("flows");
 
             if (outputs[0].hasSubTensors())
             {

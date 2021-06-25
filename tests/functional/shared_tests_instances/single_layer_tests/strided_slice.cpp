@@ -4,66 +4,106 @@
 
 #include <vector>
 
-#include "common_test_utils/test_constants.hpp"
-#include "single_layer_tests/strided_slice.hpp"
-
 #include "kmb_layer_test.hpp"
-
+#include "single_layer_tests/strided_slice.hpp"
 namespace LayerTestsDefinitions {
+class KmbStridedSliceLayerTest : public StridedSliceLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+    void SkipBeforeLoad() override {
+        if (isCompilerMCM()) {
+            auto params = std::get<0>(GetParam());
+            if (params.inputShape.size() != 4) {
+                throw LayerTestsUtils::KmbSkipTestException("MCM doesn't support input shape != 4D");
+            }
+        }
+    }
+};
 
-class KmbStridedSliceLayerTest : public StridedSliceLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
-
-TEST_P(KmbStridedSliceLayerTest, CompareWithRefs) {
+TEST_P(KmbStridedSliceLayerTest, COMPILER_MCM) {
     Run();
 }
+
+TEST_P(KmbStridedSliceLayerTest, COMPILER_MLIR) {
+    useCompilerMLIR();
+    Run();
+}
+
 }  // namespace LayerTestsDefinitions
 
 using namespace LayerTestsDefinitions;
 
 namespace {
 
-std::vector<StridedSliceSpecificParams> ss_only_test_cases = {
-        {{2, 2, 2, 2}, {0, 0, 0, 0}, {2, 2, 2, 2}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {}, {}, {}},
-        {{2, 2, 2, 2}, {1, 1, 1, 1}, {2, 2, 2, 2}, {1, 1, 1, 1}, {0, 0, 0, 0}, {1, 1, 1, 1}, {}, {}, {}},
-        {{2, 2, 2, 2}, {1, 1, 1, 1}, {2, 2, 2, 2}, {1, 1, 1, 1}, {0, 0, 0, 0}, {0, 0, 0, 0}, {}, {}, {}},
-        {{2, 3, 2, 4}, {0, 0, 0, 0}, {2, 2, 4, 3}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {}, {}, {}},
+std::vector<StridedSliceSpecificParams> tests = {
+        // custom tests
+        {{1, 32, 12, 64}, {0, 0, 1, 0}, {1, 32, 12, 64}, {1, 1, 1, 1}, {1, 1, 0, 1}, {1, 1, 1, 1}, {}, {}, {}},
+        {{1, 32, 64, 128}, {0, 0, 53, 0}, {1, 32, 64, 128}, {1, 1, 1, 1}, {1, 1, 0, 1}, {1, 1, 1, 1}, {}, {}, {}},
+        {{1, 32, 64, 256}, {0, 0, 54, 0}, {1, 32, 64, 128}, {1, 1, 1, 1}, {1, 1, 0, 1}, {1, 1, 1, 1}, {}, {}, {}},
+        {{1, 32, 64, 512}, {0, 0, 55, 0}, {1, 32, 64, 128}, {1, 1, 1, 1}, {1, 1, 0, 1}, {1, 1, 1, 1}, {}, {}, {}},
 
-        {{1, 3, 2, 4}, {0, 0, 0, 0}, {1, 3, 2, 4}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {}, {}, {}},
-        {{1, 2, 3, 4}, {0, 0, 0, 0}, {1, 2, 3, 4}, {1, 1, 1, 2}, {1, 1, 1, 1}, {1, 1, 1, 1}, {}, {}, {}},
-        {{1, 3, 4, 2}, {0, 0, 0, 0}, {1, 3, 4, 2}, {1, 1, 2, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {}, {}, {}},
-        {{1, 2, 3, 4}, {0, 0, 0, 0}, {1, 2, 3, 4}, {1, 1, 1, 2}, {0, 1, 1, 1}, {1, 1, 1, 1}, {}, {}, {}},
-        {{1, 1, 2, 3}, {0, 0, 0, 0}, {1, 1, 2, 3}, {1, 1, 2, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {}, {}, {}},
+        {{32, 32}, {0, 0, 0}, {0, 0, 0}, {1, 1, 1}, {1, 1, 1}, {1, 1, 1}, {1, 0, 0}, {0, 0, 0}, {0, 0, 0}},
+        {{32, 32}, {0, 0, 0}, {0, 0, 0}, {1, 1, 1}, {1, 1, 1}, {1, 1, 1}, {0, 1, 0}, {0, 0, 0}, {0, 0, 0}},
+        {{32, 32}, {0, 0, 0}, {0, 0, 0}, {1, 1, 1}, {1, 1, 1}, {1, 1, 1}, {0, 0, 1}, {0, 0, 0}, {0, 0, 0}},
+        {{32, 32, 32}, {0, 0}, {0, 0}, {1, 1}, {1, 1}, {1, 1}, {0, 0}, {1, 0}, {0, 0}},
+        {{32, 32, 32}, {0, 0}, {0, 0}, {1, 1}, {1, 1}, {1, 1}, {0, 0}, {0, 1}, {0, 0}},
 
-        {{2, 2, 4, 2}, {0, 0, 0, 0}, {2, 2, 4, 2}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {}, {}, {}},
-        {{2, 2, 4, 2}, {1, 0, 0, 1}, {2, 2, 4, 2}, {1, 1, 2, 1}, {0, 1, 1, 0}, {1, 1, 0, 0}, {}, {}, {}},
+        // from MKLDNN plugin
+        {{32, 32}, {0, 20}, {32, 30}, {1, 1}, {0, 0}, {0, 0}, {}, {}, {}},
+        {{32, 20}, {2, 10}, {32, 20}, {1, 1}, {0, 0}, {0, 0}, {}, {}, {}},
+        {{32, 20}, {2, 10}, {32, 20}, {1, 2}, {0, 1}, {1, 0}, {}, {}, {}},
+        {{32, 20}, {2, 10}, {32, 20}, {2, 1}, {0, 0}, {1, 0}, {}, {}, {}},
+        {{1, 5, 32, 32}, {0, 2, 5, 4}, {1, 4, 28, 27}, {1, 1, 1, 1}, {0, 0, 0, 0}, {0, 0, 0, 0}, {}, {}, {}},
+        {{1, 5, 32, 20}, {0, 1, 0, 0}, {1, 3, 32, 20}, {1, 1, 1, 1}, {0, 0, 0, 0}, {0, 0, 0, 0}, {}, {}, {}},
+        {{2, 5, 32, 20}, {0, 0, 10, 0}, {1, 3, 20, 20}, {1, 1, 1, 1}, {0, 0, 0, 0}, {0, 1, 0, 0}, {}, {}, {}},
+        {{1, 5, 32, 32}, {0, 0, 20, 20}, {1, 5, 25, 26}, {1, 1, 1, 2}, {0, 0, 0, 0}, {0, 0, 0, 0}, {}, {}, {}},
+        {{2, 5, 32, 32}, {0, 0, 0, 20}, {1, 2, 30, 30}, {1, 1, 2, 1}, {0, 0, 0, 1}, {0, 1, 0, 1}, {}, {}, {}},
+        {{1, 5, 32, 20}, {0, 0, 2, 10}, {1, 3, 32, 20}, {1, 1, 1, 1}, {0, 0, 1, 1}, {0, 0, 0, 0}, {}, {}, {}},
+        {{2, 5, 32, 32}, {0, 1, 0, 10}, {1, 5, 32, 30}, {1, 1, 1, 1}, {0, 1, 0, 0}, {0, 0, 0, 0}, {}, {}, {}},
+        {{1, 5, 32, 20}, {0, 1, 2, 10}, {1, 5, 32, 18}, {1, 1, 1, 2}, {0, 0, 1, 0}, {0, 0, 0, 1}, {}, {}, {}},
+        {{2, 8, 32, 20}, {0, 0, 2, 10}, {1, 8, 32, 18}, {1, 2, 1, 2}, {0, 0, 1, 0}, {0, 0, 0, 1}, {}, {}, {}},
+        {{2, 8, 32, 20}, {0, 0, 10}, {0, 32, 18}, {1, 1, 1}, {1, 1, 0}, {1, 1, 0}, {}, {}, {1, 0, 0}},
+        {{2, 8, 32, 20}, {0, 0, 10}, {1, 0, 20}, {1, 1, 1}, {1, 1, 0}, {0, 1, 1}, {}, {}, {0, 1, 0}},
+        {{2, 8, 32, 20}, {0, 4, 10}, {2, 8, 0}, {1, 1, 1}, {1, 0, 1}, {1, 1, 1}, {}, {}, {0, 0, 1}},
+        {{1, 16, 32, 32}, {0, 0, 5, 4}, {1, 16, 28, 27}, {1, 1, 1, 1}, {0, 0, 0, 0}, {0, 0, 0, 0}, {}, {}, {}},
+        {{2, 32, 10, 10}, {0, 16, 0, 0}, {1, 32, 10, 10}, {1, 1, 1, 1}, {0, 0, 0, 0}, {0, 0, 0, 0}, {}, {}, {}},
+        {{1, 16, 32, 20}, {0, 0, 10, 0}, {1, 16, 20, 10}, {1, 1, 1, 1}, {0, 0, 0, 0}, {0, 0, 0, 1}, {}, {}, {}},
+        {{2, 32, 32, 32}, {0, 0, 20, 20}, {1, 32, 25, 25}, {1, 1, 1, 1}, {0, 1, 0, 0}, {0, 1, 0, 0}, {}, {}, {}},
+        {{1, 48, 32, 32}, {0, 16, 0, 20}, {1, 32, 32, 30}, {1, 1, 1, 2}, {1, 0, 1, 0}, {1, 0, 1, 0}, {}, {}, {}},
+        {{2, 32, 32, 20}, {0, 16, 2, 10}, {1, 32, 32, 20}, {1, 1, 2, 1}, {0, 0, 0, 0}, {0, 0, 0, 0}, {}, {}, {}},
+        {{2, 64, 32, 20}, {0, 16, 0, 0}, {2, 64, 32, 20}, {1, 1, 1, 1}, {0, 0, 0, 0}, {0, 0, 0, 0}, {}, {}, {}},
+        {{2, 64, 32, 20}, {0, 32, 0, 0}, {2, 50, 32, 20}, {1, 1, 1, 1}, {0, 0, 0, 0}, {0, 0, 0, 0}, {}, {}, {}},
+        {{2, 64, 32, 20}, {0, 0, 0, 0}, {2, 12, 32, 20}, {1, 1, 1, 1}, {0, 0, 0, 0}, {0, 0, 0, 0}, {}, {}, {}},
+        {{1, 64, 32, 20}, {0, -16, 0, 10}, {2, 100, 32, 20}, {1, 1, 1, 1}, {0, 0, 0, 0}, {0, 0, 0, 0}, {}, {}, {}},
+        {{2, 32, 32, 20}, {0, -16, 0, 0}, {2, -4, 32, 20}, {1, 1, 1, 1}, {0, 0, 0, 0}, {0, 0, 0, 0}, {}, {}, {}},
+        {{2, 32, 32, 20}, {0, -32, 0, 0}, {2, -12, 32, 20}, {1, 1, 1, 1}, {0, 0, 0, 0}, {0, 0, 0, 0}, {}, {}, {}},
+        {{2, 32, 32, 20}, {0, 10}, {0, 20}, {1, 1}, {1, 0}, {1, 0}, {}, {}, {1, 0}},
+        {{2, 32, 32, 20}, {0, 16, 0}, {2, 32, 0}, {1, 1, 1}, {1, 0, 1}, {1, 1, 1}, {}, {}, {0, 0, 1}},
+};
+
+[[maybe_unused]] std::vector<StridedSliceSpecificParams> testsWithNegativeStrides = {
+        {{10, 12}, {-1, 1}, {-9999, 0}, {-1, 1}, {0, 1}, {0, 1}, {0, 0}, {0, 0}, {0, 0}},
+        {{1, 2, 4, 2}, {1, 0, 0, 0}, {1, 2, 4, 2}, {1, 1, -2, -1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {}, {}, {}},
+        {{2, 2, 4, 2}, {1, 0, 0, 0}, {1, 2, 4, 2}, {1, 1, -2, -1}, {0, 1, 1, 1}, {1, 1, 1, 1}, {}, {}, {}},
+        {{5, 5, 5, 5}, {-1, 0, -1, 0}, {-50, 0, -60, 0}, {-1, 1, -1, 1}, {0, 0, 0, 0}, {0, 1, 0, 1}, {}, {}, {}},
+        {{1, 12, 100}, {0, 9, 0}, {0, 7, 0}, {-1, -1, -1}, {1, 0, 1}, {1, 0, 1}, {}, {}, {}},
+        {{1, 12, 100}, {0, 7, 0}, {0, 9, 0}, {-1, 1, -1}, {1, 0, 1}, {1, 0, 1}, {}, {}, {}},
+        {{1, 12, 100}, {0, 4, 0}, {0, 9, 0}, {-1, 2, -1}, {1, 0, 1}, {1, 0, 1}, {}, {}, {}},
+        {{1, 12, 100}, {0, 4, 0}, {0, 10, 0}, {-1, 2, -1}, {1, 0, 1}, {1, 0, 1}, {}, {}, {}},
+        {{1, 12, 100}, {0, 9, 0}, {0, 4, 0}, {-1, -2, -1}, {1, 0, 1}, {1, 0, 1}, {}, {}, {}},
+        {{1, 12, 100}, {0, 10, 0}, {0, 4, 0}, {-1, -2, -1}, {1, 0, 1}, {1, 0, 1}, {}, {}, {}},
+        {{1, 12, 100}, {0, 11, 0}, {0, 0, 0}, {-1, -2, -1}, {1, 0, 1}, {1, 0, 1}, {}, {}, {}},
+        {{1, 12, 100}, {0, -6, 0}, {0, -8, 0}, {-1, -2, -1}, {1, 0, 1}, {1, 0, 1}, {}, {}, {}},
 };
 
 using Config = std::map<std::string, std::string>;
 
-Config getConfig() {
-    return Config{{"VPU_COMPILER_ALLOW_NCHW_MCM_INPUT", "YES"}};
-}
-
-INSTANTIATE_TEST_SUITE_P(smoke_StridedSlice0, KmbStridedSliceLayerTest,
-                       ::testing::Combine(::testing::ValuesIn(ss_only_test_cases),
-                                          ::testing::Values(InferenceEngine::Precision::FP16),
-                                          ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                          ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                          ::testing::Values(InferenceEngine::Layout::NCHW),
-                                          ::testing::Values(InferenceEngine::Layout::NCHW),
-                                          ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
-                                          ::testing::Values(getConfig())),
-                       StridedSliceLayerTest::getTestCaseName);
-
- INSTANTIATE_TEST_SUITE_P(smoke_StridedSlice1, KmbStridedSliceLayerTest,
-                         ::testing::Combine(::testing::ValuesIn(ss_only_test_cases),
-                                            ::testing::Values(InferenceEngine::Precision::FP16),
-                                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                            ::testing::Values(InferenceEngine::Layout::NHWC),
-                                            ::testing::Values(InferenceEngine::Layout::NHWC),
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
-                                            ::testing::Values(getConfig())),
-                         StridedSliceLayerTest::getTestCaseName);
-
+INSTANTIATE_TEST_SUITE_P(smoke_StridedSlice, KmbStridedSliceLayerTest,
+                        ::testing::Combine(::testing::ValuesIn(tests),
+                                           ::testing::Values(InferenceEngine::Precision::FP16),
+                                           ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                           ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                           ::testing::Values(InferenceEngine::Layout::ANY),
+                                           ::testing::Values(InferenceEngine::Layout::ANY),
+                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+                                           ::testing::Values(Config{})),
+                        StridedSliceLayerTest::getTestCaseName);
 }  // namespace

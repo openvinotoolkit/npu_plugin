@@ -1,4 +1,4 @@
-// RUN: vpux-opt --split-input-file --convert-view-ops-to-VPUIP --canonicalize %s | FileCheck %s
+// RUN: vpux-opt --split-input-file --convert-view-ops-to-VPUIP %s | FileCheck %s
 
 // CHECK-LABEL: @Reshape
 func @Reshape(%arg0: memref<1x512xf16>, %arg1: memref<1x512xf16>) -> memref<1x512xf16> {
@@ -86,4 +86,50 @@ func @Broadcasting(%arg0: memref<256xf16>) -> memref<256xf16> {
     // CHECK-SAME:      outputs([[VAR3]] : memref<256xf16, #map, "CMX_NN">) -> memref<256xf16, #map, "CMX_NN">
 
     // CHECK:       return %arg0 : memref<256xf16>
+}
+
+// -----
+
+// CHECK-LABEL: @WithAsyncRegions
+func @WithAsyncRegions(%arg0: memref<1x512xf16>, %arg1: memref<1x512xf16>) -> memref<1x512xf16> {
+    %0 = VPUIP.DeclareTensor "VPU_DDR_Heap" [0] <0> -> memref<1x512x1x1xf16, "DDR">
+
+    %t2, %f2 = async.execute -> !async.value<memref<1x512x1x1xf16, "DDR">> {
+        %1 = IERT.GenericReshape inputs(%arg0 : memref<1x512xf16>) -> memref<1x512x1x1xf16>
+        %2 = VPUIP.SoftMaxUPA {axisInd = 1 : i32}
+            inputs(%1 : memref<1x512x1x1xf16>)
+            outputs(%0 : memref<1x512x1x1xf16, "DDR">)
+            -> memref<1x512x1x1xf16, "DDR">
+        async.yield %2 : memref<1x512x1x1xf16, "DDR">
+    }
+
+    %t4, %f4 = async.execute [%t2] (%f2 as %2: !async.value<memref<1x512x1x1xf16, "DDR">>) -> !async.value<memref<1x512xf16>> {
+        %3 = IERT.GenericReshape inputs(%2 : memref<1x512x1x1xf16, "DDR">) -> memref<1x512xf16, "DDR">
+        %4 = VPUIP.NNDMA inputs(%3 : memref<1x512xf16, "DDR">) outputs(%arg1 : memref<1x512xf16>) -> memref<1x512xf16>
+        async.yield %4 : memref<1x512xf16>
+    }
+
+    %4 = async.await %f4 : !async.value<memref<1x512xf16>>
+    return %4 : memref<1x512xf16>
+
+    // CHECK:       [[VAR0:%.*]] = VPUIP.DeclareTensor "VPU_DDR_Heap" [0] <0> -> memref<1x512x1x1xf16, "DDR">
+
+    // CHECK:       [[T2:%.+]], [[F2:%.+]] = async.execute
+    // CHECK:           [[VAR1:%.*]] = VPUIP.DeclareTensor "ProgrammableInput" [0] <0> -> memref<1x512x1x1xf16>
+    // CHECK:           [[VAR2:%.*]] = VPUIP.SoftMaxUPA
+    // CHECK-SAME:          inputs([[VAR1]] : memref<1x512x1x1xf16>)
+    // CHECK-SAME:          outputs([[VAR0]] : memref<1x512x1x1xf16, "DDR">)
+    // CHECK:           async.yield [[VAR2]] : memref<1x512x1x1xf16, "DDR">
+
+    // CHECK:       [[T4:%.+]], [[F4:%.+]] = async.execute
+    // CHECK-SAME:          [[T2]]
+    // CHECK-SAME:          ([[F2]] as [[VAR2:%.+]]: !async.value<memref<1x512x1x1xf16, "DDR">>)
+    // CHECK:           [[VAR3:%.*]] = VPUIP.DeclareTensor "VPU_DDR_Heap" [0] <0> -> memref<1x512xf16, "DDR">
+    // CHECK:           [[VAR4:%.*]] = VPUIP.NNDMA
+    // CHECK-SAME:          inputs([[VAR3]] : memref<1x512xf16, "DDR">)
+    // CHECK-SAME:          outputs(%arg1 : memref<1x512xf16>)
+    // CHECK:           async.yield [[VAR4]] : memref<1x512xf16>
+
+    // CHECK:       [[VAR4:%.+]] = async.await [[F4]] : !async.value<memref<1x512xf16>>
+    // CHECK:       return [[VAR4]] : memref<1x512xf16>
 }

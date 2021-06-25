@@ -17,6 +17,7 @@
 #include "vpux/compiler/dialect/IERT/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/utils/logging.hpp"
+#include "vpux/compiler/utils/rewriter.hpp"
 #include "vpux/compiler/utils/types.hpp"
 
 #include <mlir/Dialect/MemRef/IR/MemRef.h>
@@ -115,9 +116,9 @@ mlir::LogicalResult FuseActivationsPass::ReLURewrite::matchAndRewrite(IERT::ReLU
         return matchFailed(rewriter, origOp, "ReLU input is not connected to NCE task output");
     }
 
-    auto ctx = getContext();
-    auto relu_ppe_attr = vpux::VPUIP::PPELayerTypeAttr::get(ctx, VPUIP::PPELayerType::LRELU);
-    nce_cluster_task.fixed_ppe_taskAttr(relu_ppe_attr);
+    rewriter.updateRootInPlace(nce_cluster_task, [&]() {
+        nce_cluster_task.addPPETask(rewriter, VPUIP::PPELayerType::LRELU);
+    });
 
     rewriter.replaceOp(origOp, nce_out_op->getResult(0));
 
@@ -131,7 +132,7 @@ void FuseActivationsPass::safeRunOnFunc() {
     mlir::OwningRewritePatternList patterns(&ctx);
     patterns.insert<ReLURewrite>(&ctx, _log);
 
-    if (mlir::failed(applyPatternsAndFoldGreedily(func, std::move(patterns)))) {
+    if (mlir::failed(applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig()))) {
         signalPassFailure();
     }
 }

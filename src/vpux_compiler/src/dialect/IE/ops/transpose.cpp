@@ -54,7 +54,7 @@ mlir::LogicalResult getOrder(IE::TransposeOpAdaptor transpose, SmallVector<int64
         return mlir::success();
     }
 
-    const auto perm = DimsOrder::fromAffineMap(transpose.order_value().getValue());
+    const auto perm = DimsOrder::fromPermutationAffineMap(transpose.order_value().getValue());
     order = to_small_vector(irange(perm.numDims()) | transformed([&](int64_t idx) {
                                 return checked_cast<int64_t>(perm.dimAt(idx).ind());
                             }));

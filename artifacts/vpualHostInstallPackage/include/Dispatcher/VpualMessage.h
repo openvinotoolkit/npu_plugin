@@ -18,13 +18,11 @@
  */
 // TODO this doesn't necessarily need to be in this header, but needs to be shared between host and device.
 // TODO the names and types can be better here.
-typedef struct
-{
+typedef struct {
     /**
-	 * Type of message.
-	 */
-    enum messageType
-    {
+     * Type of message.
+     */
+    enum messageType {
         DECODER_CREATE = 1,  /*< Create a decoder. */
         DECODER_DESTROY = 2, /*< Destroy a decoder. */
         DECODER_DECODE = 3,  /*< Call a decoder's custom "Decode" method. */
@@ -49,9 +47,8 @@ typedef struct
  */
 // TODO unsure about copy-constructors, assignments etc. Read only version (no write)?
 // Could use smart pointers to simplify the object's existance?
-class VpualMessage
-{
-  private:
+class VpualMessage {
+private:
     uint32_t rp = 0; /*< Read position. */
     uint32_t wp = 0; /*< Write position. */
     uint32_t length; /*< Message data length. */
@@ -60,88 +57,90 @@ class VpualMessage
     /** Deallocate memory on destruction? */
     bool deallocate = false;
 
-  public:
+public:
     /**
-	 * Create a buffer based on provided length.
-	 *
-	 * @param len the length (bytes) of the buffer to create.
-	 */
+     * Create a buffer based on provided length.
+     *
+     * @param len the length (bytes) of the buffer to create.
+     */
     void create(const uint32_t len);
 
     /**
-	 * Constructor without buffer.
-	 *
-	 * Construct the object without a buffer. The buffer must be created later.
-	 */
-    VpualMessage() : length(0), sdata(NULL) {}
+     * Constructor without buffer.
+     *
+     * Construct the object without a buffer. The buffer must be created later.
+     */
+    VpualMessage()
+        : length(0)
+        , sdata(NULL) {}
 
     /**
-	 * Constructor with allocation.
-	 * Construct the object and allocate a buffer on the heap.
-	 *
-	 * @param len the length (bytes) of the buffer to create.
-	 */
-    VpualMessage(const uint32_t len) : length(len), sdata(NULL)
-    {
+     * Constructor with allocation.
+     * Construct the object and allocate a buffer on the heap.
+     *
+     * @param len the length (bytes) of the buffer to create.
+     */
+    VpualMessage(const uint32_t len)
+        : length(len)
+        , sdata(NULL) {
         create(len);
     }
 
     /**
-	 * Constructor with buffer provided.
-	 * Construct the object and using the provided buffer.
-	 *
-	 * @param data pointer to the provided buffer.
-	 * @param len the length (bytes) of the buffer to create.
-	 */
-    VpualMessage(uint8_t *const data, const uint32_t len) : length(len), sdata(data)
-    {
+     * Constructor with buffer provided.
+     * Construct the object and using the provided buffer.
+     *
+     * @param data pointer to the provided buffer.
+     * @param len the length (bytes) of the buffer to create.
+     */
+    VpualMessage(uint8_t *const data, const uint32_t len)
+        : length(len)
+        , sdata(data) {
         assert(data || (len == 0)); // Ensure not NULL unless length is 0.
     }
 
     /**
-	 * Destructor.
-	 * Will destroy a buffer if it was created by the object.
-	 */
-    ~VpualMessage()
-    {
-        if (deallocate)
-        {
+     * Destructor.
+     * Will destroy a buffer if it was created by the object.
+     */
+    ~VpualMessage() {
+        if (deallocate) {
             delete[] sdata;
         }
     }
 
     // Delete copy constructor and assignment operator.
-    VpualMessage(const VpualMessage&) = delete;
-    VpualMessage& operator=(const VpualMessage&) = delete;
+    VpualMessage(const VpualMessage &) = delete;
+    VpualMessage &operator=(const VpualMessage &) = delete;
 
     /**
-	 * Serialize data onto the buffer.
-	 *
-	 * @param idata pointer to data to be written onto the buffer.
-	 * @param size length of data (bytes) to be written onto the buffer.
-	 */
+     * Serialize data onto the buffer.
+     *
+     * @param idata pointer to data to be written onto the buffer.
+     * @param size length of data (bytes) to be written onto the buffer.
+     */
     int serialize(const void *const idata, const uint32_t size);
 
     /**
-	 * Deserialize data from the buffer.
-	 *
-	 * @param odata pointer to destination of deserailized data.
-	 * @param size length of data (bytes) to be read from the buffer.
-	 */
+     * Deserialize data from the buffer.
+     *
+     * @param odata pointer to destination of deserailized data.
+     * @param size length of data (bytes) to be read from the buffer.
+     */
     int deserialize(void *const odata, const uint32_t size);
 
     /**
-	 * Get length of serialized data.
-	 *
-	 * @return data length.
-	 */
+     * Get length of serialized data.
+     *
+     * @return data length.
+     */
     uint32_t len(void) const { return wp; }
 
     /**
-	 * Get the buffer.
-	 *
-	 * @return start address of buffer.
-	 */
+     * Get the buffer.
+     *
+     * @return start address of buffer.
+     */
     uint8_t *dat(void) const { return sdata; }
 
     /**
@@ -149,9 +148,7 @@ class VpualMessage
      *
      * @param new_wp the new write position (bytes) for the buffer.
      */
-    void set_len(uint32_t new_wp) {
-        wp = new_wp;
-    }
+    void set_len(uint32_t new_wp) { wp = new_wp; }
 };
 
 #endif // __VPUAL_MESSAGE_H__

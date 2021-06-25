@@ -14,7 +14,7 @@
 #include <vpux_compiler.hpp>
 
 #include "vpux_compiler.hpp"
-#include "models/precompiled_resnet.h"
+#include "simple_graph.hpp"
 
 namespace vpux {
 class NetworkDescription_Helper {
@@ -24,13 +24,14 @@ public:
     NetworkDescription::Ptr getNetworkDesc() { return _networkDescPtr; }
 
 protected:
-    const std::string _modelToImport = PrecompiledResNet_Helper::resnet50.graphPath;
     NetworkDescription::Ptr _networkDescPtr = nullptr;
 };
 
 //------------------------------------------------------------------------------
 inline NetworkDescription_Helper::NetworkDescription_Helper() {
     auto compiler = Compiler::create();
-    _networkDescPtr = compiler->parse(_modelToImport);
+    std::stringstream blobStream;
+    utils::simpleGraph::getExeNetwork()->Export(blobStream);
+    _networkDescPtr = compiler->parse(blobStream);
 }
 }  // namespace vpux

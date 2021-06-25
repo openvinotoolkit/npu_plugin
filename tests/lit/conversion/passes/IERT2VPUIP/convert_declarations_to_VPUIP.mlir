@@ -79,3 +79,42 @@ func @ReshapeInGraph(%arg0: memref<1x512xf16>, %arg1: memref<1x512xf16>) -> memr
 
     // CHECK: return [[VAR4]] : memref<1x512xf16>
 }
+
+// -----
+
+// CHECK-LABEL: @WithAsyncRegions
+func @WithAsyncRegions(%arg0: memref<10xf16>, %arg1: memref<10xf16>) -> memref<10xf16> {
+    %0 = IERT.StaticAlloc<0> -> memref<10xf16, "DDR">
+
+    %t1, %f1 = async.execute -> !async.value<memref<10xf16, "DDR">> {
+        %1 = VPUIP.NNDMA inputs(%arg0 : memref<10xf16>) outputs(%0 : memref<10xf16, "DDR">) -> memref<10xf16, "DDR">
+        async.yield %1 : memref<10xf16, "DDR">
+    }
+
+    %t2, %f2 = async.execute [%t1] (%f1 as %1: !async.value<memref<10xf16, "DDR">>) -> !async.value<memref<10xf16>> {
+        %2 = VPUIP.NNDMA inputs(%1 : memref<10xf16, "DDR">) outputs(%arg1 : memref<10xf16>) -> memref<10xf16>
+        async.yield %2 : memref<10xf16>
+    }
+
+    %2 = async.await %f2 : !async.value<memref<10xf16>>
+    return %2 : memref<10xf16>
+
+    // CHECK:       [[VAR0:%.*]] = VPUIP.DeclareTensor "VPU_DDR_Heap" [0] <0> -> memref<10xf16, "DDR">
+
+    // CHECK:       [[T1:%.+]], [[F1:%.+]] = async.execute
+    // CHECK:           [[VAR1:%.*]] = VPUIP.NNDMA
+    // CHECK-SAME:          inputs(%arg0 : memref<10xf16>)
+    // CHECK-SAME:          outputs([[VAR0]] : memref<10xf16, "DDR">
+    // CHECK:           async.yield [[VAR1]] : memref<10xf16, "DDR">
+
+    // CHECK:       [[T2:%.+]], [[F2:%.+]] = async.execute
+    // CHECK-SAME:          [[T1]]
+    // CHECK-SAME:          ([[F1]] as [[VAR1:%.+]]: !async.value<memref<10xf16, "DDR">>)
+    // CHECK:           [[VAR2:%.*]] = VPUIP.NNDMA
+    // CHECK-SAME:          inputs([[VAR1]] : memref<10xf16, "DDR">)
+    // CHECK-SAME:          outputs(%arg1 : memref<10xf16>)
+    // CHECK:           async.yield [[VAR2]] : memref<10xf16>
+
+    // CHECK:       [[VAR2:%.+]] = async.await [[F2]] : !async.value<memref<10xf16>>
+    // CHECK:       return [[VAR2]] : memref<10xf16>
+}

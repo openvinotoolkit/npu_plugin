@@ -397,9 +397,9 @@ Benefit computeBenefit(const mv::LogSender& logger,
 // Sets the tensor (and sub-tensors) to the indicated graph file
 // index, and returns the next graph file index to use for
 // assignments.
-unsigned setTensorIndex(const mv::LogSender& logger, unsigned numClusters, TensorInfo* ti, unsigned idx)
+unsigned setTensorIndex(const mv::LogSender& /*logger*/, unsigned /*numClusters*/, TensorInfo* ti, unsigned idx)
 {
-        ti->tensor->set<unsigned>("graphFileIndex", idx++);
+    ti->tensor->set<unsigned>("graphFileIndex", idx++);
     ti->updatedGraphfileIndex = true;
     return idx;
 }

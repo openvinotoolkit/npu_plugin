@@ -12,9 +12,12 @@
 //
 
 #include "vpux/compiler/dialect/IERT/passes.hpp"
+
+#include "vpux/compiler/core/tiling.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
-#include "vpux/compiler/dialect/VPUIP/tiling.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
+#include "vpux/compiler/utils/rewriter.hpp"
+#include "vpux/compiler/utils/types.hpp"
 
 #include <mlir/IR/PatternMatch.h>
 #include <mlir/Transforms/GreedyPatternRewriteDriver.h>
@@ -23,7 +26,6 @@
 #include <numeric>
 
 using namespace vpux;
-using namespace VPUIP;
 
 namespace {
 
@@ -135,7 +137,7 @@ SmallVector<Tile> CMXTilingPass::SimpleFillHalfCMXTiler::convolutionTiler(IERT::
         nTilesOnDim[dim]++;
     }
 
-    return Tiling::fillDividedTiles(nTilesOnDim, outputShape);
+    return fillDividedTiles(nTilesOnDim, outputShape);
 }
 
 class CMXTilingPass::ConvolutionTiling final : public mlir::OpRewritePattern<IERT::ConvolutionOp> {
@@ -153,13 +155,6 @@ private:
     Logger _log;
 };
 
-mlir::MemRefType reduceShape(mlir::MemRefType origType, ShapeRef newShape) {
-    const auto order = DimsOrder::fromType(origType);
-    const auto orderAffineMap = order.toAffineMap(origType.getContext());
-    return mlir::MemRefType::get(newShape.raw(), origType.getElementType(), makeArrayRef(orderAffineMap),
-                                 origType.getMemorySpace());
-}
-
 mlir::Value makeTile(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value origVal, const Tile& tile) {
     const auto origType = origVal.getType().cast<mlir::MemRefType>();
 
@@ -171,7 +166,7 @@ mlir::Value makeTile(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value o
     auto viewOp =
             builder.create<mlir::memref::SubViewOp>(loc, origVal, tile.offsets.raw(), tile.shape.raw(), viewStrides);
 
-    const auto tileType = reduceShape(origType, tile.shape);
+    const auto tileType = changeShape(origType, tile.shape);
     auto allocOp = builder.create<mlir::memref::AllocOp>(loc, tileType);
 
     auto copyOp = builder.create<IERT::CopyOp>(loc, viewOp.result(), allocOp.memref());
@@ -199,7 +194,7 @@ mlir::LogicalResult CMXTilingPass::ConvolutionTiling::matchAndRewrite(IERT::Conv
     SmallVector<mlir::Value> finalResults;
 
     for (auto i : irange(tilings.size())) {
-        const auto inputConfig = Tiling::backInferConvTile(origOp, tilings[i]);
+        const auto inputConfig = backInferConvTile(origOp, tilings[i]);
 
         const auto inputTile = inputConfig.inputTile;
         const auto weightsTile = inputConfig.filterTile;
@@ -213,7 +208,7 @@ mlir::LogicalResult CMXTilingPass::ConvolutionTiling::matchAndRewrite(IERT::Conv
         const auto biasInput =
                 origOp.bias() != nullptr ? makeTile(rewriter, origOp->getLoc(), origOp.bias(), biasTile) : nullptr;
 
-        const auto tileTypeOut = reduceShape(origOp.output_buff().getType().cast<mlir::MemRefType>(), tilings[i].shape);
+        const auto tileTypeOut = changeShape(origOp.output_buff().getType().cast<mlir::MemRefType>(), tilings[i].shape);
         auto allocOutOp = rewriter.create<mlir::memref::AllocOp>(origOp.getLoc(), tileTypeOut);
 
         auto convOp = rewriter.create<IERT::ConvolutionOp>(
@@ -250,7 +245,8 @@ void CMXTilingPass::safeRunOnFunc() {
     mlir::RewritePatternSet tilingPatterns(&ctx);
     simpleTiler.buildTilingPatterns(tilingPatterns);
 
-    if (mlir::failed(mlir::applyPatternsAndFoldGreedily(func, std::move(tilingPatterns)))) {
+    if (mlir::failed(
+                mlir::applyPatternsAndFoldGreedily(func, std::move(tilingPatterns), getDefaultGreedyRewriteConfig()))) {
         signalPassFailure();
     }
 }

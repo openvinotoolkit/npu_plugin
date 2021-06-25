@@ -448,7 +448,7 @@ void propagateLocationToParents(mv::OpModel& om, const mv::Data::OpListIterator&
         if (parentOp->isImplicit())
             propagateLocationToParents(om, parentOp, location);
     }
-};
+}
 
 static void configureOutputPrecisionFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {

@@ -403,11 +403,13 @@ void addAlignOpForInputTensorsFunc(const mv::pass::PassEntry& , mv::ComputationM
                     alignOp->set<unsigned>("opId", parentOpIt->get<unsigned>("opId"));
 
                     auto parentMemoryLocation = parentOpIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
-                    if(parentOpIt->isImplicit() && parentMemoryLocation == mv::Tensor::MemoryLocation::DDR)
-                        if (opIt->hasAttr("splitStrategy"))
+                    if(parentOpIt->isImplicit() && parentMemoryLocation == mv::Tensor::MemoryLocation::DDR) {
+                        if (opIt->hasAttr("splitStrategy")) {
                             alignOp->set<std::string>("splitStrategy", opIt->get<std::string>("splitStrategy"));
-                        else if (parentOpIt->hasAttr("splitStrategy"))
-                                alignOp->set<std::string>("splitStrategy", parentOpIt->get<std::string>("splitStrategy"));
+                        } else if (parentOpIt->hasAttr("splitStrategy")) {
+                            alignOp->set<std::string>("splitStrategy", parentOpIt->get<std::string>("splitStrategy"));
+                        }
+                    }
 
                     for (unsigned flowIdx = 0; flowIdx < flowsToRemove.size(); flowIdx++)
                     {
