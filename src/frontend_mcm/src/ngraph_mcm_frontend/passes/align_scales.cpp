@@ -225,7 +225,7 @@ static void adjust_fqs_to_align(std::set<std::shared_ptr<ngraph::Node>> &fqs) {
     float min_range = std::numeric_limits<float>::max();
     std::set<std::shared_ptr<ngraph::Node>> filtered_fqs;
     unsigned child_node_num = 0;
-    const float max_fq_range_ratio = 10.0;
+    const float max_fq_range_ratio = 5.0;
 
     for (auto fq_node : fqs) {
         auto fq_node1 = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(fq_node->input_value(1).get_node_shared_ptr());
