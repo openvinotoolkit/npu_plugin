@@ -135,6 +135,7 @@
 #include <algorithm>
 
 #include <include/mcm/tensor/tiling.hpp>
+#include <include/mcm/pass/pass_utils.hpp>
 #include <converters.hpp>
 #include <custom_layer/custom_layer.hpp>
 
@@ -1402,9 +1403,12 @@ void convert(std::shared_ptr<ngraph::op::DeconvolutionIE> deconvIE, mv::OpModel&
     } else {
         const mv::Shape mcmShape = {static_cast<uint64_t>(kernelSizeY), static_cast<uint64_t>(kernelSizeX), inputGroupSize, outputGroupSize};
 
-        const auto ngraphWeights = std::dynamic_pointer_cast<ngraph::op::Constant>(deconvIE->input_value(1).get_node_shared_ptr());
-        IE_ASSERT(nullptr != ngraphWeights);
-        const std::vector<double> weightsData = ngraphWeights->cast_vector<double>();
+        auto weightSourceOp = mcmModel.getSourceOp(mcmWeights);
+        bool is_quantized = weightSourceOp->getOpType() == "FakeQuantize";
+        std::vector<double> weightsData = is_quantized
+                ? weightSourceOp->getInputTensor(mv::IO_TENSOR_INPUT)->getDoubleData()
+                : mcmWeights->getDoubleData();
+
         std::vector<double> weightsDataReorder(weightsData.size());
 
         for (size_t k = 0; k < outputGroupSize; k++)
@@ -1418,10 +1422,14 @@ void convert(std::shared_ptr<ngraph::op::DeconvolutionIE> deconvIE, mv::OpModel&
                         weightsDataReorder[dst_idx] = weightsData[src_idx];
                     }
 
-        mcmModel.removeOp(mcmModel.getSourceOp(mcmWeights));
         const auto mcmWeightsReordered = mcmModel.constant("", weightsDataReorder, mcmShape, mv::DType("Float32"), mv::Order("NCHW"));
+        mv::linkNewOperationsReplacement(mv::Data::OpListIterator(), mcmWeightsReordered, mcmModel,
+                                         !is_quantized ? weightSourceOp
+                                                       : mcmModel.getSourceOp(weightSourceOp->getInputTensor(mv::IO_TENSOR_INPUT)));
+        if (is_quantized)
+           mcmWeights->setShape(mcmShape);
 
-        mcmDeconv = mcmModel.deconv(opName, mcmData, mcmWeightsReordered,
+        mcmDeconv = mcmModel.deconv(opName, mcmData, !is_quantized ? mcmWeightsReordered : mcmWeights,
             {static_cast<uint16_t>(kernelStrideX), static_cast<uint16_t>(kernelStrideY)},
             {static_cast<uint16_t>(padLeft), static_cast<uint16_t>(padRight), static_cast<uint16_t>(padTop),
                 static_cast<uint16_t>(padBottom)},
