@@ -137,11 +137,11 @@ const std::shared_ptr<IDevice> VpualEngineBackend::getDevice(const std::string& 
     try {
         // Platform and device are not provided - return first available device
         if (deviceId.empty()) {
-            return _devices.at(0);
+            return _devices.begin()->second;
         }
 
         const auto expectedPlatformName = utils::getPlatformNameByDeviceName(deviceId);
-        const auto currentPlatformName = utils::getPlatformNameByDeviceName(_devices.at(0)->getName());
+        const auto currentPlatformName = utils::getPlatformNameByDeviceName(_devices.begin()->second->getName());
         if (expectedPlatformName != currentPlatformName) {
             _logger->warning("Device with platform %s not found", expectedPlatformName);
             return nullptr;
