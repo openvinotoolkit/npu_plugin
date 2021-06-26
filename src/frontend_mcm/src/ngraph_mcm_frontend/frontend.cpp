@@ -27,6 +27,7 @@
 #include "ngraph_mcm_frontend/passes/align_eltwise_scales.hpp"
 #include "ngraph_mcm_frontend/passes/align_concat_scales.hpp"
 #include "ngraph_mcm_frontend/passes/fuse_scaleshift.hpp"
+#include "ngraph_mcm_frontend/passes/fuse_padding.hpp"
 #include "ngraph_mcm_frontend/passes/convert_extract_image_patches_to_reorg_vpu.hpp"
 #include "ngraph_mcm_frontend/passes/broadcast_eltwise_inputs.hpp"
 #include "ngraph_mcm_frontend/passes/replace_onnx_pattern_to_reorg.hpp"
@@ -442,6 +443,7 @@ void applyTransformations(
     passManager.register_pass<ngraph::pass::ConvertQuantizeDequantize>();
     passManager.register_pass<ngraph::pass::WeightsDequantizeToFakeQuantize>();
     passManager.register_pass<ngraph::pass::ConstantFolding>();
+    passManager.register_pass<ngraph::pass::FusePadding>();
 
     if (config.scaleShiftFusing()) {
         passManager.register_pass<FuseScaleShift>();
