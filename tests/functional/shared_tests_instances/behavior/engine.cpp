@@ -21,19 +21,20 @@ TEST(smoke_InterfaceTests, TestEngineClassGetMetric) {
         if (deviceIDs.empty())
             GTEST_SKIP() << "No devices available";
 
+        const auto fullDeviceName = expectedDeviceName + "." + deviceIDs[0];
         const std::vector<std::string> supportedMetrics =
-                ie.GetMetric(expectedDeviceName, METRIC_KEY(SUPPORTED_METRICS));
+                ie.GetMetric(fullDeviceName, METRIC_KEY(SUPPORTED_METRICS));
         auto supportedConfigKeysFound = false;
         for (const auto& metricName : supportedMetrics) {
             if (metricName == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
                 ASSERT_FALSE(supportedConfigKeysFound);  // may be we should make more strict test for duplicates of key
                 supportedConfigKeysFound = true;
             }
-            ASSERT_FALSE(ie.GetMetric(expectedDeviceName, metricName).empty());
+            ASSERT_FALSE(ie.GetMetric(fullDeviceName, metricName).empty());
         }
         ASSERT_TRUE(supportedConfigKeysFound);  // plus implicit check for !supportedMetrics.empty()
 
-        ASSERT_THROW(ie.GetMetric(expectedDeviceName, "THISMETRICNOTEXIST"),
+        ASSERT_THROW(ie.GetMetric(fullDeviceName, "THISMETRICNOTEXIST"),
                      InferenceEngine::Exception);
     }
 }
