@@ -87,7 +87,7 @@ IE.CNNNetwork
 
 // CHECK: func @main([[ARG0:%.*]]: memref<1x8x4x2xf16>, [[ARG1:%.*]]: memref<1x8x4x2xf16, #NHWC, #map0>, [[ARG2:%.*]]: memref<1x20x8x4xf16, #NHWC, #map1>) -> (memref<1x8x4x2xf16, #NHWC, #map0>, memref<1x20x8x4xf16, #NHWC, #map1>) {
 func @main(%arg0: memref<1x8x4x2xf16>, %arg1: memref<1x8x4x2xf16>, %arg2: memref<1x20x8x4xf16>) -> (memref<1x8x4x2xf16>, memref<1x20x8x4xf16>) {
-    %0 = IERT.Constant memref<1x4x8x20xf16> = dense<2.000000e+00> : tensor<1x4x8x20xf16>
+    %0 = const.Declare memref<1x4x8x20xf16> = #const.Content<dense<2.000000e+00> : tensor<1x4x8x20xf16>>
     %1 = IERT.SoftMax {axisInd = 1 : i32} inputs(%arg0 : memref<1x8x4x2xf16>) outputs(%arg1 : memref<1x8x4x2xf16>) -> memref<1x8x4x2xf16>
 
     %2 = IERT.GenericReshape inputs(%arg2 : memref<1x20x8x4xf16>) -> memref<1x4x8x20xf16>
@@ -96,7 +96,7 @@ func @main(%arg0: memref<1x8x4x2xf16>, %arg1: memref<1x8x4x2xf16>, %arg2: memref
 
     return %1, %4 : memref<1x8x4x2xf16>, memref<1x20x8x4xf16>
 
-    // CHECK: [[VAR0:%.*]] = IERT.Constant memref<1x4x8x20xf16> = dense<2.000000e+00> : tensor<1x4x8x20xf16>
+    // CHECK: [[VAR0:%.*]] = const.Declare memref<1x4x8x20xf16> = #const.Content<dense<2.000000e+00> : tensor<1x4x8x20xf16>>
     // CHECK: [[VAR1:%.*]] = memref.alloc() : memref<1x8x4x2xf16>
     // CHECK: [[VAR2:%.*]] = IERT.SoftMax {axisInd = 1 : i32} inputs([[ARG0]] : memref<1x8x4x2xf16>) outputs([[VAR1]] : memref<1x8x4x2xf16>) -> memref<1x8x4x2xf16>
 

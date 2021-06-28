@@ -11,8 +11,9 @@
 // included with the Software Package for additional details.
 //
 
-#include <vpux/compiler/utils/attributes.hpp>
 #include "vpux/compiler/dialect/IE/ops.hpp"
+#include "vpux/compiler/dialect/const/ops.hpp"
+#include "vpux/compiler/utils/attributes.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
 #include "vpux/utils/core/small_vector.hpp"
@@ -43,13 +44,15 @@ mlir::LogicalResult getOrder(IE::TransposeOpAdaptor transpose, SmallVector<int64
     const auto inDataType = transpose.input().getType().cast<mlir::ShapedType>();
 
     if (transpose.order() != nullptr) {
-        auto orderOp = transpose.order().getDefiningOp<IE::ConstantOp>();
+        auto orderOp = transpose.order().getDefiningOp<Const::DeclareOp>();
         if (orderOp == nullptr) {
             return errorAt(loc, "Only constant input is supported");
         }
 
-        const auto orderContent = orderOp.getContent().getValues<int32_t>();
-        order = orderContent.empty() ? getDefaultOrder(inDataType) : orderContent;
+        const auto orderContent = orderOp.content();
+        const auto orderVals = orderContent.getValues<int64_t>();
+
+        order = orderVals.empty() ? getDefaultOrder(inDataType) : to_small_vector(orderVals);
 
         return mlir::success();
     }

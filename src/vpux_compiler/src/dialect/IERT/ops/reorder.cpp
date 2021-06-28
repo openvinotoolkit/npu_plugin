@@ -13,6 +13,8 @@
 
 #include "vpux/compiler/dialect/IERT/ops.hpp"
 
+#include "vpux/compiler/dialect/const/ops.hpp"
+
 using namespace vpux;
 
 //
@@ -71,12 +73,12 @@ mlir::OpFoldResult vpux::IERT::ReorderOp::fold(ArrayRef<mlir::Attribute> operand
         return nullptr;
     }
 
-    if (operands[0] != nullptr) {
-        return operands[0];
-    }
-
     if (input().getType() == output().getType()) {
         return input();
+    }
+
+    if (const auto cst = operands[0].dyn_cast_or_null<Const::ContentAttr>()) {
+        return cst.reorder(DimsOrder::fromValue(output()));
     }
 
     return nullptr;

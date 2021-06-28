@@ -296,36 +296,6 @@ operation ::= `IERT.ConcatView` attr-dict
 | :----: | ----------- |
 `output` | memref of any type values
 
-### `IERT.Constant` (vpux::IERT::ConstantOp)
-
-Constant memory buffer declaration
-
-
-Syntax:
-
-```
-operation ::= `IERT.Constant` attr-dict
-              type($output) `=` $value
-```
-
-This operation can perform extra transformations for constant content:
-
-* Reshape
-* Relayout
-* Precision conversion
-
-#### Attributes:
-
-| Attribute | MLIR Type | Description |
-| :-------: | :-------: | ----------- |
-`value` | ::mlir::ElementsAttr | constant vector/tensor attribute
-
-#### Results:
-
-| Result | Description |
-| :----: | ----------- |
-`output` | statically shaped memref of any type values
-
 ### `IERT.Convert` (vpux::IERT::ConvertOp)
 
 InferenceEngine run-time Convert layer

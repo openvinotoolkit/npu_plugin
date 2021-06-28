@@ -67,6 +67,7 @@ IE.CNNNetwork
     let cppNamespace = "vpux::IE";
 
     let dependentDialects = [
+        "vpux::Const::ConstDialect",
         "mlir::StandardOpsDialect",
         "mlir::quant::QuantizationDialect"
     ];

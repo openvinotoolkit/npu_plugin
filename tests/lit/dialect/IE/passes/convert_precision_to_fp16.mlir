@@ -1,4 +1,4 @@
-// RUN: vpux-opt --split-input-file --set-compile-params="vpu-arch=VPU3400_A0" --convert-precision-to-fp16 %s | FileCheck %s
+// RUN: vpux-opt --split-input-file --convert-precision-to-fp16 --canonicalize %s | FileCheck %s
 
 //
 // The 'convert-precision-to-fp16' pass:
@@ -50,11 +50,12 @@ IE.CNNNetwork
 
 // CHECK: func @main() -> tensor<1x2x2x2xf16>
 func @main() -> tensor<1x2x2x2xf32> {
-    %0 = IE.Constant tensor<1x2x2x2xf32> = dense<1.0> : tensor<1x2x2x2xf32>
+    %0 = const.Declare tensor<1x2x2x2xf32> = #const.Content<dense<1.0> : tensor<1x2x2x2xf32>>
     return %0 : tensor<1x2x2x2xf32>
 
-    // CHECK: %[[OUT:.*]] = IE.Constant tensor<1x2x2x2xf16> = dense<1.000000e+00> : tensor<1x2x2x2xf32>
-    // CHECK: return %[[OUT]] : tensor<1x2x2x2xf16>
+    // CHECK:       %[[OUT:.*]] = const.Declare tensor<1x2x2x2xf16> =
+    // CHECK-SAME:      #const.Content<dense<1.000000e+00> : tensor<1x2x2x2xf32>, [#const.ConvertElemType<f16>]>
+    // CHECK:       return %[[OUT]] : tensor<1x2x2x2xf16>
 }
 
 }

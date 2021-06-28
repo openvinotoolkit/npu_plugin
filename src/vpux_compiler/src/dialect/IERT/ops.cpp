@@ -13,6 +13,7 @@
 
 #include "vpux/compiler/dialect/IERT/ops.hpp"
 
+#include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 
 #include <mlir/Dialect/Quant/QuantTypes.h>
@@ -40,7 +41,7 @@ void vpux::IERT::IERTDialect::initialize() {
 
 mlir::Operation* vpux::IERT::IERTDialect::materializeConstant(mlir::OpBuilder& builder, mlir::Attribute value,
                                                               mlir::Type type, mlir::Location loc) {
-    if (!value.isa<ConstContentAttr>()) {
+    if (!value.isa<Const::ContentAttr>()) {
         (void)errorAt(loc, "Can't materialize IERT Constant from Attribute '{0}'", value);
         return nullptr;
     }
@@ -50,7 +51,7 @@ mlir::Operation* vpux::IERT::IERTDialect::materializeConstant(mlir::OpBuilder& b
         return nullptr;
     }
 
-    return builder.create<IERT::ConstantOp>(loc, type, value.cast<mlir::ElementsAttr>());
+    return builder.create<Const::DeclareOp>(loc, type, value.cast<Const::ContentAttr>());
 }
 
 //

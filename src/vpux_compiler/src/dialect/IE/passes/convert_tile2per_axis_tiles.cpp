@@ -14,6 +14,7 @@
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
+#include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 
 #include <mlir/Pass/PassManager.h>
@@ -60,12 +61,13 @@ mlir::LogicalResult ConvertTile2PerAxisTilePass::TileOpConverter::matchAndRewrit
         IE::TileOp origOp, mlir::PatternRewriter& rewriter) const {
     _log.trace("Got Tile Operation '{0}'", origOp->getLoc());
 
-    auto repeats_tensor = origOp.repeats().getDefiningOp<ConstantInterface>();
-
-    if (repeats_tensor == nullptr) {
+    auto repeatsConst = origOp.repeats().getDefiningOp<Const::DeclareOp>();
+    if (repeatsConst == nullptr) {
         return errorAt(origOp->getLoc(), "Got non constant repeats parameters");
     }
-    auto repeats = repeats_tensor.getContent().getValues<int64_t>();
+
+    const auto repeatsContent = repeatsConst.content();
+    const auto repeats = repeatsContent.getValues<int64_t>();
 
     const auto gapSize = static_cast<int>(getShape(origOp.input()).size()) - static_cast<int>(repeats.size());
 

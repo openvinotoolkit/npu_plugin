@@ -1,4 +1,4 @@
-// RUN: vpux-opt --split-input-file --expand-activation-channels %s | FileCheck %s
+// RUN: vpux-opt --split-input-file --expand-activation-channels --canonicalize %s | FileCheck %s
 
 // CHECK-LABEL: @ExpandMaxPoolChannels
 func @ExpandMaxPoolChannels(%arg0: tensor<1x3x30x30xf16>) -> tensor<1x3x15x13xf16> {
@@ -24,14 +24,14 @@ func @ExpandAvgPoolChannels(%arg0: tensor<1x3x30x30xf16>) -> tensor<1x3x16x16xf1
 
 // CHECK-LABEL: @ExpandConvolutionChannels
 func @ExpandConvolutionChannels(%arg0: tensor<1x3x30x30xf16>) -> tensor<1x5x24x9xf16> {
-  %0 = IE.Constant tensor<5x3x3x5xf16> = dense<1.0> : tensor<5x3x3x5xf16>
-  // CHECK:       %[[FILTER:.*]] = IE.Constant tensor<5x3x3x5xf16> = dense<{{.*}}> : tensor<5x3x3x5xf16>
+  %0 = const.Declare tensor<5x3x3x5xf16> = #const.Content<dense<1.0> : tensor<5x3x3x5xf16>>
+
+  // CHECK:       %[[EXTENDED_FILTER:.*]] = const.Declare tensor<8x8x3x5xf16> =
+  // CHECK-SAME:      #const.Content<dense<1.000000e+00> : tensor<5x3x3x5xf16>, [#const.PadWithZero<[0, 0, 0, 0], [3, 5, 0, 0]>]>
   // CHECK:       %[[EXTENDED_INPUT:.*]] = IE.Expand(%arg0)
-  // CHECK:       %[[EXTENDED_IN_FILTER:.*]] = IE.Constant tensor<5x8x3x5xf16> = dense<{{.*}}> : tensor<5x8x3x5xf32>
-  // CHECK:       %[[EXTENDED_OUT_FILTER:.*]] = IE.Constant tensor<8x8x3x5xf16> = dense<{{.*}}> : tensor<8x8x3x5xf32>
 
   %1 = IE.Convolution(%arg0, %0) {dilations = [3 : i32, 1 : i32], pads_begin = [0 : i32, 0 : i32], pads_end = [0 : i32, 0 : i32], strides = [1 : i32, 3 : i32]} : tensor<1x3x30x30xf16>, tensor<5x3x3x5xf16> -> tensor<1x5x24x9xf16>
-  // CHECK:       %[[EXTENDED_CONV:.*]] = IE.Convolution(%[[EXTENDED_INPUT]], %[[EXTENDED_OUT_FILTER]])
+  // CHECK:       %[[EXTENDED_CONV:.*]] = IE.Convolution(%[[EXTENDED_INPUT]], %[[EXTENDED_FILTER]])
   // CHECK:       %[[REDUNDRANT_SUBTENSOR:.*]] = subtensor %[[EXTENDED_CONV]]
 
   return %1 : tensor<1x5x24x9xf16>
@@ -40,17 +40,16 @@ func @ExpandConvolutionChannels(%arg0: tensor<1x3x30x30xf16>) -> tensor<1x5x24x9
 
 // CHECK-LABEL: @ExpandBiasesConvolutionChannels
 func @ExpandBiasesConvolutionChannels(%arg0: tensor<1x3x30x30xf16>) -> tensor<1x5x24x9xf16> {
-  %0 = IE.Constant tensor<5x3x3x5xf16> = dense<1.0> : tensor<5x3x3x5xf16>
-  %1 = IE.Constant tensor<1x5x1x1xf16> = dense<1.0> : tensor<1x5x1x1xf16>
-  // CHECK:       %[[FILTER:.*]] = IE.Constant tensor<5x3x3x5xf16> = dense<{{.*}}> : tensor<5x3x3x5xf16>
-  // CHECK:       %[[BIAS:.*]] = IE.Constant tensor<1x5x1x1xf16> = dense<{{.*}}> : tensor<1x5x1x1xf16>
+  %0 = const.Declare tensor<5x3x3x5xf16> = #const.Content<dense<1.0> : tensor<5x3x3x5xf16>>
+  %1 = const.Declare tensor<1x5x1x1xf16> = #const.Content<dense<1.0> : tensor<1x5x1x1xf16>>
+
+  // CHECK-DAG:   %[[EXTENDED_FILTER:.*]] = const.Declare tensor<8x8x3x5xf16> = #const.Content<dense<1.000000e+00> : tensor<5x3x3x5xf16>, [#const.PadWithZero<[0, 0, 0, 0], [3, 5, 0, 0]>]>
+  // CHECK-DAG:   %[[EXTENDED_BIAS:.*]] = const.Declare tensor<1x8x1x1xf16> = #const.Content<dense<1.000000e+00> : tensor<1x5x1x1xf16>, [#const.PadWithZero<[0, 0, 0, 0], [0, 3, 0, 0]>]>
+
   // CHECK:       %[[EXTENDED_INPUT:.*]] = IE.Expand(%arg0)
-  // CHECK:       %[[EXTENDED_IN_FILTER:.*]] = IE.Constant tensor<5x8x3x5xf16> = dense<{{.*}}> : tensor<5x8x3x5xf32>
-  // CHECK:       %[[EXTENDED_OUT_FILTER:.*]] = IE.Constant tensor<8x8x3x5xf16> = dense<{{.*}}> : tensor<8x8x3x5xf32>
-  // CHECK:       %[[EXTENDED_BIAS:.*]] = IE.Constant tensor<1x8x1x1xf16> = dense<{{.*}}> : tensor<1x8x1x1xf32>
 
   %2 = IE.Convolution(%arg0, %0, %1) {dilations = [3 : i32, 1 : i32], pads_begin = [0 : i32, 0 : i32], pads_end = [0 : i32, 0 : i32], strides = [1 : i32, 3 : i32]} : tensor<1x3x30x30xf16>, tensor<5x3x3x5xf16>, tensor<1x5x1x1xf16> -> tensor<1x5x24x9xf16>
-  // CHECK:       %[[EXTENDED_CONV:.*]] = IE.Convolution(%[[EXTENDED_INPUT]], %[[EXTENDED_OUT_FILTER]], %[[EXTENDED_BIAS]])
+  // CHECK:       %[[EXTENDED_CONV:.*]] = IE.Convolution(%[[EXTENDED_INPUT]], %[[EXTENDED_FILTER]], %[[EXTENDED_BIAS]])
   // CHECK:       %[[REDUNDRANT_SUBTENSOR:.*]] = subtensor %[[EXTENDED_CONV]]
 
   return %2 : tensor<1x5x24x9xf16>

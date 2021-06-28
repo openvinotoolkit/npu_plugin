@@ -13,12 +13,12 @@
 
 #pragma once
 
-#include "vpux/compiler/core/attributes/const_content.hpp"
 #include "vpux/compiler/core/attributes/dims_order.hpp"
 #include "vpux/compiler/core/attributes/shape.hpp"
 #include "vpux/compiler/core/attributes/strides.hpp"
 #include "vpux/compiler/dialect/VPUIP/attributes/enums.hpp"
 #include "vpux/compiler/dialect/VPUIP/schema.hpp"
+#include "vpux/compiler/dialect/const/attributes/content.hpp"
 
 #include "vpux/utils/core/array_ref.hpp"
 #include "vpux/utils/core/logger.hpp"
@@ -90,7 +90,7 @@ public:
     TensorReference getTensor(mlir::Value val) const;
 
 public:
-    BinaryData createBinaryData(ConstContentAttr content, mlir::MemRefType actualType, bool csram_cacheable = false);
+    BinaryData createBinaryData(Const::ContentAttr attr, bool csram_cacheable = false);
 
 public:
     Barrier createBarrier(mlir::Value val, uint32_t physicalID = 0);

@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -13,8 +13,8 @@
 
 #pragma once
 
-#include "vpux/compiler/core/attributes/const_content.hpp"
 #include "vpux/compiler/core/ops_interfaces.hpp"
+#include "vpux/compiler/dialect/const/attributes/content.hpp"
 
 #include <mlir/Dialect/Quant/QuantTypes.h>
 #include <mlir/IR/BuiltinTypes.h>
@@ -30,28 +30,19 @@ namespace vpux {
 
 std::tuple<double, int64_t> calcScaleAndZeroPoint(int64_t qMin, int64_t qMax, double rMin, double rMax);
 
-mlir::quant::QuantizedType getQuantizedType(ConstantInterface lowConst, ConstantInterface highConst, uint32_t levels,
+mlir::quant::QuantizedType getQuantizedType(Const::ContentAttr lowConst, Const::ContentAttr highConst, uint32_t levels,
                                             mlir::FloatType realType, mlir::Location loc);
 
 mlir::LogicalResult getFakeQuantParams(mlir::ShapedType qType, uint32_t& levels, mlir::RankedTensorType& attrType,
                                        mlir::DenseElementsAttr& rMinAttr, mlir::DenseElementsAttr& rMaxAttr,
                                        mlir::Location loc);
 
-//
-// Quantize support
-//
-
-// I16 should be enough to hold all supported quantized storage types
-int16_t quantize(float realVal, double scale, int64_t zeroPoint, int64_t qMin, int64_t qMax);
-
-mlir::DenseElementsAttr quantize(ConstContentAttr input, mlir::ShapedType qType, mlir::Location loc);
+mlir::Type normalizeQuantStorageType(mlir::Type type);
 
 //
 // Dequantize support
 //
 
 float dequantize(int64_t qVal, double scale, int64_t zeroPoint);
-
-mlir::DenseElementsAttr dequantize(ConstContentAttr input, mlir::ShapedType qType, mlir::Location loc);
 
 }  // namespace vpux

@@ -58,21 +58,4 @@ def RewriteStaticAllocNNCMX :
             ]
         >;
 
-//
-// IERT.Constant -> VPUIP.DeclareConstantTensor
-//
-
-def createDeclareConstantTensorOp :
-        NativeCodeCall<[{
-            $_builder.create<vpux::VPUIP::DeclareConstantTensorOp>(
-                $_loc, $0.getType().cast<mlir::MemRefType>(), $1, getConstLocaleIndex($0)
-            )
-        }]>;
-
-def RewriteConstant :
-        Pat<
-            (IERT_ConstantOp:$output $value),
-            (createDeclareConstantTensorOp $output, $value)
-        >;
-
 #endif

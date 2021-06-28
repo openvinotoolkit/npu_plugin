@@ -57,7 +57,6 @@ std::unique_ptr<mlir::Pass> createResolveStridedSlicePass(Logger log = Logger::g
 void buildLowPrecisionPipeline(mlir::OpPassManager& pm, Logger log = Logger::global());
 
 std::unique_ptr<mlir::Pass> createSplitFakeQuantPass(Logger log = Logger::global());
-std::unique_ptr<mlir::Pass> createQuantizeConstPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createDequantizeConstPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createMergeFakeQuantPass(Logger log = Logger::global());
 

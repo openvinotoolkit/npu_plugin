@@ -16,6 +16,7 @@
 #include "vpux/compiler/core/attributes/dims_order.hpp"
 #include "vpux/compiler/core/attributes/stride_reqs.hpp"
 #include "vpux/compiler/core/attributes/strides.hpp"
+#include "vpux/compiler/dialect/const/ops.hpp"
 
 using namespace vpux;
 
@@ -63,8 +64,8 @@ mlir::OpFoldResult vpux::IERT::GenericReshapeOp::fold(ArrayRef<mlir::Attribute> 
         return output();
     }
 
-    if (operands[0] != nullptr) {
-        return operands[0];
+    if (const auto cst = operands[0].dyn_cast_or_null<Const::ContentAttr>()) {
+        return cst.reshape(getShape(output()));
     }
 
     return nullptr;

@@ -298,8 +298,8 @@ mlir::Value BlobReader::createTensorOp(mlir::OpBuilder& builder, const MVCNN::Te
         VPUX_THROW_UNLESS(tensorRef->locale_index() && tensorRef->locale_index()->size() == 1,
                           "Missing locale index for constant tensor");
 
-        return builder.create<VPUIP::DeclareConstantTensorOp>(mlir::UnknownLoc::get(_ctx), importedType, value,
-                                                              tensorRef->locale_index()->Get(0));
+        return builder.create<Const::DeclareOp>(mlir::UnknownLoc::get(_ctx), importedType,
+                                                Const::ContentAttr::get(value));
     }
     case MVCNN::MemoryLocation::MemoryLocation_VPU_DDR_BSS:
         location = VPUIP::MemoryLocation::VPU_DDR_BSS;

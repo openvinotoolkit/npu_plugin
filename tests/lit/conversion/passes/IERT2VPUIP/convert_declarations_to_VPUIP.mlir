@@ -2,12 +2,12 @@
 
 // CHECK-LABEL: @ConstantLayer
 func @ConstantLayer(%arg0: memref<1x2x2x2xf16>) -> memref<1x2x2x2xf16> {
-    %0 = IERT.Constant memref<1x2x2x2xf16> = dense<1.0> : tensor<1x2x2x2xf16>
+    %0 = const.Declare memref<1x2x2x2xf16> = #const.Content<dense<1.0> : tensor<1x2x2x2xf16>>
     %1 = VPUIP.NNDMA inputs(%0 : memref<1x2x2x2xf16>) outputs(%arg0 : memref<1x2x2x2xf16>) -> memref<1x2x2x2xf16>
     return %1: memref<1x2x2x2xf16>
 
-    // CHECK:       [[VAR0:%.*]] = VPUIP.DeclareConstantTensor[0] memref<1x2x2x2xf16>
-    // CHECK-SAME:      = dense<1.000000e+00> : tensor<1x2x2x2xf16>
+    // CHECK:       [[VAR0:%.*]] = const.Declare memref<1x2x2x2xf16>
+    // CHECK-SAME:      = #const.Content<dense<1.000000e+00> : tensor<1x2x2x2xf16>>
 
     // CHECK:       [[VAR1:%.*]] = VPUIP.NNDMA
     // CHECK-SAME:      inputs([[VAR0]] : memref<1x2x2x2xf16>)
