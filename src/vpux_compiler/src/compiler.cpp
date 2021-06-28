@@ -297,21 +297,18 @@ CNNNetwork prepareNetwork(const std::shared_ptr<ngraph::Function>& func, const I
 auto importNetwork(mlir::MLIRContext* ctx, CNNNetwork cnnNet, const DeveloperConfig& devConf,
                    mlir::TimingScope& rootTiming, Logger log) {
     auto importTiming = rootTiming.nest("Import network");
-
-    return IE::importNetwork(ctx, cnnNet, devConf.useSharedConstants(), log.nest());
+    return IE::importNetwork(ctx, cnnNet, devConf.useSharedConstants(), importTiming, log.nest());
 }
 
 void compileNetwork(mlir::ModuleOp module, mlir::PassManager& pm, mlir::TimingScope& rootTiming) {
     auto compileTiming = rootTiming.nest("Compile network");
-
     pm.enableTiming(compileTiming);
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module)), "Compilation failed");
 }
 
 auto exportToBlob(mlir::ModuleOp module, mlir::TimingScope& rootTiming, Logger log) {
     auto exportTiming = rootTiming.nest("Export to blob");
-
-    return VPUIP::exportToBlob(module, log);
+    return VPUIP::exportToBlob(module, exportTiming, log);
 }
 
 }  // namespace

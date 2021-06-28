@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -16,13 +16,15 @@
 #include "vpux/utils/core/logger.hpp"
 
 #include <mlir/IR/BuiltinOps.h>
+#include <mlir/Support/Timing.h>
 
 #include <flatbuffers/flatbuffers.h>
 
 namespace vpux {
 namespace VPUIP {
 
-flatbuffers::DetachedBuffer exportToBlob(mlir::ModuleOp module, Logger log = Logger::global());
+flatbuffers::DetachedBuffer exportToBlob(mlir::ModuleOp module, mlir::TimingScope& rootTiming,
+                                         Logger log = Logger::global());
 
 }  // namespace VPUIP
 }  // namespace vpux

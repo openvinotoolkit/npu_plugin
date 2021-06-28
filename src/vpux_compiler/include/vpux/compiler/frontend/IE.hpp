@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -17,6 +17,7 @@
 
 #include <mlir/IR/BuiltinOps.h>
 #include <mlir/IR/MLIRContext.h>
+#include <mlir/Support/Timing.h>
 
 #include <cpp/ie_cnn_network.h>
 
@@ -24,7 +25,7 @@ namespace vpux {
 namespace IE {
 
 mlir::OwningModuleRef importNetwork(mlir::MLIRContext* ctx, InferenceEngine::CNNNetwork cnnNet, bool sharedConstants,
-                                    Logger log = Logger::global());
+                                    mlir::TimingScope& rootTiming, Logger log = Logger::global());
 
 }  // namespace IE
 }  // namespace vpux
