@@ -8,6 +8,7 @@
 #include <vector>
 #include "include/mcm/utils/warning_manager.hpp"
 #include "include/mcm/base/exception/runtime_error.hpp"
+#include "include/mcm/utils/hash.hpp"
 
 namespace mv {
 
@@ -1279,12 +1280,12 @@ class Feasible_Memory_Schedule_Generator {
     typedef std::list<scheduled_op_info_t> scheduled_op_info_list_t;
 
     // ready lists //
-    typedef std::unordered_set<operation_t, operation_hash_t> ready_data_list_t;
-    typedef std::unordered_set<operation_t, operation_hash_t>
+    typedef std::set<operation_t, operation_comparator_t> ready_data_list_t;
+    typedef std::set<operation_t, operation_comparator_t>
         ready_active_list_t;
-    typedef std::unordered_set<operation_t, operation_hash_t> ready_list_t;
+    typedef std::set<operation_t, operation_comparator_t> ready_list_t;
 
-    typedef std::unordered_set<operation_t, operation_hash_t> processed_ops_t;
+    typedef std::set<operation_t, operation_comparator_t> processed_ops_t;
     typedef std::unordered_map<operation_t, size_t, operation_hash_t>
         op_in_degree_t;
     typedef std::unordered_map<operation_t, op_output_info_t,

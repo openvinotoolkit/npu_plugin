@@ -297,6 +297,21 @@ class Pipeline_Chains {
       return is_eltwise_with_soh_runtime_sparsity_flag;
     }
 
+    bool is_last_dpu_on_output_branch(operation_t dpu_op)
+    {
+      // if no more DPU ops follow this op then it is considered to be output branch
+      auto op_itr = omodel_.getOp(dpu_op->getName());
+      if (op_itr.childrenSize() == 0) { return true; }
+      for (auto child = op_itr.leftmostChild(); child != omodel_.opEnd(); ++child)
+      {
+        if (child->getOpType() == "DPUTask")
+          return false;
+        else
+          return is_last_dpu_on_output_branch(&(*child));
+      }
+      return dpu_op->getOpType() != "DPUTask";
+    }
+
     void postProcessImplicitOperationsForDAG(std::map<size_t, op_list_t> &dpu_levels, operation_t opIt, std::size_t depth)
     {
       mv::OpModel &model = omodel_;
@@ -347,6 +362,38 @@ class Pipeline_Chains {
       }
 
       return (weightOpNames.size() == 1);
+    }
+
+    bool activation_input_in_cmx(size_t cmx_size, operation_t op_itr) const
+    {
+      // if the input to vertical fusion subgraphs or stream over h ops is in CMX do not pipeline
+      auto head = omodel_.getOp(op_itr->getName());
+      auto opType = head->getOpType();
+      if (opType == "ImplicitConcat")
+      {
+        // if concat has a flag not to be cmx-ed
+        if (head->hasAttr("avoid_cmx_concat") && head->get<bool>("avoid_cmx_concat"))
+          return false;
+        // if concat will not fit in cmx
+        auto concatSize = head->getOutputTensor(mv::IO_TENSOR_OUTPUT)->computeTotalSize();
+        if (head->get<std::string>("splitStrategy") != "Clustering") { concatSize = concatSize / 4; }
+        if (concatSize > cmx_size)
+        {
+          // generally more performant to be in DDR
+          head->set<bool>("avoid_cmx_concat", true);
+          return false;
+        }
+        // input concat can be in CMX - no input to pipeline
+        //NOTE: might be performant to spill input to DDR and pipeline
+        if (head->hasAttr("explicitRelocate") && head->get<bool>("explicitRelocate"))
+          return true;
+        head->set<bool>("avoid_cmx_concat", true);
+        return false;
+      }
+      else if (opType == "DMATask" || head->isImplicit())
+        return activation_input_in_cmx(cmx_size, &(*head.leftmostParent()));
+      else
+        return false;
     }
 
     bool can_activation_pipelining_be_applied(operation_t dpu_op)
@@ -533,6 +580,10 @@ class Pipeline_Chains {
 
             if (is_sharing_weights_operation(current_dpu_op))
               continue;
+            
+            // if current DPU is on output branch, no more DPUs can be added after it
+            if (is_last_dpu_on_output_branch(current_dpu_op))
+              break;
 
             //TODO(vamsikku): also avoid chains with breaks and pivots //
             //check if the current dpu_op has an incoming edge which is not yet
@@ -602,23 +653,6 @@ class Pipeline_Chains {
       return comeFromTheSameParentStream;
   }
 
-  bool vf_subgraph_input_in_cmx(size_t cmx_size, operation_t op_itr) const
-  {
-    // if the input to vertical fusion subgraphs is in CMX do not pipeline
-    auto head = omodel_.getOp(op_itr->getName());
-    auto opType = head->getOpType();
-    if (opType == "ImplicitConcat")
-    {
-      // input tensor from concat to the vertical subgraph
-      auto output_size = head->getOutputTensor(mv::IO_TENSOR_OUTPUT)->computeTotalSize();
-      return (!head->hasAttr("avoid_cmx_concat") || !head->get<bool>("avoid_cmx_concat"))
-              && output_size < cmx_size;
-    }
-    else if (opType == "DMATask" || head->isImplicit())
-      return vf_subgraph_input_in_cmx(cmx_size, &(*head.leftmostParent()));
-    return false;
-  }
-
   bool vf_subgraph_can_be_pipelined(op_list_t dpu_chain) const
   {
     auto itr = dpu_chain.begin();
@@ -627,19 +661,46 @@ class Pipeline_Chains {
     size_t clusterMemory = globalParams->get<int>("cmx");
     size_t subgraph_size = 0;
     // if input already in cmx do not pipeline
-    if (vf_subgraph_input_in_cmx(clusterMemory, &(*head.leftmostParent())))
+    if (activation_input_in_cmx(clusterMemory, &(*head.leftmostParent())))
       return false;
-    // the input from DDR
-    subgraph_size += 2 * head->getInputTensor(mv::IO_TENSOR_INPUT)->getClusterSize();
-    // iterate through one subgraph
-    while ((*itr)->hasAttr("verticalFusion") && (*itr)->hasAttr("verticalFusionSubgraphTail") 
-          && !(*itr)->get<bool>("verticalFusionSubgraphTail"))
-    {
+    // the input activation from DDR
+    subgraph_size += head->getInputTensor(mv::IO_TENSOR_INPUT)->getClusterSize();
+    // iterate through one vertical fusion subgraph and calculate subgraph size
+    do {
       subgraph_size += omodel_.getOp((*itr)->getName())->getOutputTensor(mv::IO_TENSOR_OUTPUT)->getClusterSize();
       ++itr;
-    }
-    // allow a 15% cmx margin 
+    } while ((*itr)->hasAttr("verticalFusion") && !((*itr)->hasAttr("verticalFusionSubgraphTail") 
+            && (*itr)->get<bool>("verticalFusionSubgraphTail")));
+    // allow a 15% cmx fragmentation margin
     return subgraph_size < (clusterMemory * 0.85);
+  }
+
+  bool can_output_of_subgraph_be_cmx_concatinated(const op_list_t& dpu_chain) const
+  {
+    auto globalParams = omodel_.getGlobalConfigParams();
+    size_t clusterMemory = globalParams->get<int>("cmx");
+    size_t chain_output_size = 0;
+    for (auto dpu_op : dpu_chain)
+    {
+      auto curr_op = omodel_.getOp(dpu_op->getName());
+      // in vf only the tail ops can write to DDR
+      if (curr_op->hasAttr("verticalFusion") && curr_op->hasAttr("verticalFusionSubgraphTail") 
+        && curr_op->get<bool>("verticalFusionSubgraphTail"))
+          chain_output_size += curr_op->getOutputTensor(mv::IO_TENSOR_OUTPUT)->getClusterSize();
+      // in streaming over h all ops can write to DDR
+      else
+        chain_output_size += curr_op->getOutputTensor(mv::IO_TENSOR_OUTPUT)->getClusterSize();
+    }
+    if (chain_output_size > clusterMemory) { return false; }
+
+    // check if concat has no cmx concat flag
+    auto last_op = omodel_.getOp(dpu_chain.back()->getName());
+    while (last_op->getOpType() != "ImplicitConcat")
+      last_op = last_op.leftmostChild();
+
+    // TODO: might be more performant to spill the concat to DDR
+    last_op->set<bool>("avoid_cmx_concat", true);
+      return false;
   }
 
   bool double_tail_vf_subgraph(op_list_t dpu_chain) const
@@ -651,8 +712,8 @@ class Pipeline_Chains {
       if ((*i)->hasAttr("verticalFusionSubgraphHead") && !(*i)->get<bool>("verticalFusionSubgraphHead"))
         ++tail_count;
       ++i;
-    } while ((*i)->hasAttr("verticalFusion") && (*i)->hasAttr("verticalFusionSubgraphHead") 
-            && !(*i)->get<bool>("verticalFusionSubgraphHead"));
+    } while ((*i)->hasAttr("verticalFusion") && !((*i)->hasAttr("verticalFusionSubgraphHead") 
+            && (*i)->get<bool>("verticalFusionSubgraphHead")));
     // if more than one tail it is double tail subgraph
     return tail_count > 1;
   }
@@ -953,14 +1014,18 @@ class Pipeline_Chains {
               return;
           }
 
-          while (dpu_flow_control != dpu_chain.end())
+          // if output can be CMX-ed these flows can not be added
+          bool out_cmxed = can_output_of_subgraph_be_cmx_concatinated(dpu_chain);
+          while (!out_cmxed && dpu_flow_control != dpu_chain.end())
           {
-            // set the flow: H0 -> H1 -> ... -> Hn
+            // set the flow: Ha0 -> Ha1 -> ... -> HaN -> Hb0 -> Hb1 -> ... -> HbN
             mv::Data::OpListIterator prev_op = omodel_.getOp((*dpu_flow_control_prev)->getName());
             mv::Data::OpListIterator curr_op = omodel_.getOp((*dpu_flow_control)->getName());
             if (!omodel_.pathExists(prev_op, curr_op) && !omodel_.pathExists(curr_op, prev_op))
-              omodel_.defineFlow(prev_op->getOutputTensor(0UL), curr_op, 0UL);
-
+            {
+              std::size_t inputIdx = curr_op.parentsSize();
+              omodel_.defineFlow(prev_op->getOutputTensor(0UL), curr_op, inputIdx + 1);
+            }
             ++dpu_flow_control;
             ++dpu_flow_control_prev;
           }

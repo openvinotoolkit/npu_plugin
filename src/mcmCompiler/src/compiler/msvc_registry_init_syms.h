@@ -446,6 +446,7 @@
 #pragma comment(linker, "/include:__MCM_REGISTER__PassEntry_TensorsToU8")
 #pragma comment(linker, "/include:__MCM_REGISTER__PassEntry_TileOps")
 #pragma comment(linker, "/include:__MCM_REGISTER__PassEntry_TransitiveReduction")
+#pragma comment(linker, "/include:__MCM_REGISTER__PassEntry_UPATaskChainScheduleHandling")
 #pragma comment(linker, "/include:__MCM_REGISTER__PassEntry_UpdateBarrierProducerConsumerCounts")
 #pragma comment(linker, "/include:__MCM_REGISTER__PassEntry_UpdateBarrierRefs")
 #pragma comment(linker, "/include:__MCM_REGISTER__PassEntry_UpdateImplicitLayersLocation")

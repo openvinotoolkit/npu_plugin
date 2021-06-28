@@ -116,9 +116,9 @@ namespace mv
         - Iterator of set is invalidated only on deletion of pointed element (on the other hand, vector's iterator is invalidated on the resize of the vector)
             - ModelLinearIterators are wrapping containers iterators
         */
-        std::shared_ptr<std::unordered_map<std::string, Data::OpListIterator>> ops_;
-        std::shared_ptr<std::unordered_map<std::string, Data::FlowListIterator>> dataFlows_;
-        std::shared_ptr<std::unordered_map<std::string, Control::FlowListIterator>> controlFlows_;
+        std::shared_ptr<std::map<std::string, Data::OpListIterator>> ops_;
+        std::shared_ptr<std::map<std::string, Data::FlowListIterator>> dataFlows_;
+        std::shared_ptr<std::map<std::string, Control::FlowListIterator>> controlFlows_;
         std::shared_ptr<std::map<std::string, std::shared_ptr<Tensor>>> tensors_;
         std::shared_ptr<std::map<std::string, std::shared_ptr<Group>>> groups_;
         std::shared_ptr<std::map<std::size_t, std::shared_ptr<Stage>>> stages_;
