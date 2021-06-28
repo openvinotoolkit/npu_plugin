@@ -42,7 +42,7 @@ protected:
 };
 
 void BlobParser_Tests::SetUp() {
-    _deviceId = "VPUX.3700";
+    _deviceId = "VPUX";
     _dims = {1, 3, 224, 224};
     _inputName = "input_0";
     _outputName = "output_0";
