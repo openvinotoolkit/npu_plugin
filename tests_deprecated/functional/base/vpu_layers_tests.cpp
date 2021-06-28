@@ -604,7 +604,6 @@ void vpuLayersTests::genNetwork(bool useHWOpt, int version) {
 )V0G0N";
     size_t outIdx = 0;
     for (auto& elem : _testNet) {
-        std::string layer;
         elem.layer_name = "layer_" + std::to_string(counter);
         if (elem.params.empty()) {
             genLayer(elem.layer_type, nullptr, &inoutIndex, layers, elem.inDim, elem.outDim, &elem.layer_name);

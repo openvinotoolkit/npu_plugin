@@ -666,7 +666,6 @@ static void streamBinaryDataWeightsFcn(const mv::pass::PassEntry& ,
     for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
     {
         std::string opType = opIterator->getOpType();
-        std::vector<mv::Data::TensorIterator> toSort;
 
         if (opType == "Slice" && opIterator->getInputTensor(0)->isPopulated())
         {

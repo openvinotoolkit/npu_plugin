@@ -209,7 +209,6 @@ void PipeLineAcrossParallelBranches(const mv::pass::PassEntry& ,
   std::unordered_map<operation_t, scheduled_op_info_t> scheduled_op_map;
   std::unordered_map<size_t, size_t> free_space_map;
   std::list<operation_t> dpu_op_list;
-  std::string scheduled_op_type;
   resource_state_t rstate;
   size_t prev_time = 0UL, make_span = 0UL;
   size_t total_chain_pipelined_dpus = 0UL;

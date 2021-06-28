@@ -1751,7 +1751,6 @@ void replaceLargeKernelsFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
         auto inputShape = sourceTensor->getShape();
         auto outputShape = opIt->getOutputTensor()[0]->getShape();
 
-        std::vector<std::pair<unsigned short, unsigned short>> allFactors;
         std::pair<unsigned short, unsigned short> factors;
         std::pair<unsigned short, unsigned short> factorsDim2;
 
