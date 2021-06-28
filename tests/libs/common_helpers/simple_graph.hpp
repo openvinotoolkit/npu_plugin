@@ -45,6 +45,7 @@ inline std::shared_ptr<InferenceEngine::ExecutableNetwork> getExeNetwork(
         const std::string& outputDevName = "output_dev") {
     std::string devId = deviceId;
     InferenceEngine::Core ie;
+    std::map<std::string, std::string> config = {};
     if (deviceId == "VPUX" ) {
         const auto availDevices = ie.GetAvailableDevices();
         auto vpuxDevIt = std::find_if(availDevices.cbegin(), availDevices.cend(), [](const std::string& devName) -> bool {
@@ -55,9 +56,19 @@ inline std::shared_ptr<InferenceEngine::ExecutableNetwork> getExeNetwork(
         } else {
             devId = "VPUX.3700";
         }
+        // ***********************************************
+        // TODO Get rid of this hack - TBH is detected as KMB B0 (swID by XLink is incorrect)
+        const auto numDev3700 = std::count_if(availDevices.cbegin(), availDevices.cend(), [](const std::string& devName) -> bool {
+            return (devName.find("VPUX.3700.") == 0);
+        });
+        if (numDev3700 > 1) {
+            devId = "VPUX";
+            config[VPUX_CONFIG_KEY(PLATFORM)] = "3900";
+        }
+        // ***********************************************
     }
     InferenceEngine::CNNNetwork cnnNetwork(buildSimpleGraph(ngraph::Shape(dims), inputName, outputName, outputDevName));
-    return std::make_shared<InferenceEngine::ExecutableNetwork>(ie.LoadNetwork(cnnNetwork, devId));
+    return std::make_shared<InferenceEngine::ExecutableNetwork>(ie.LoadNetwork(cnnNetwork, devId, config));
 }
 
 } // namespace simpleGraph
