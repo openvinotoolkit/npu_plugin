@@ -604,7 +604,7 @@ void computeSubgraphs(mv::ComputationModel& model,
             //NOTE: this is a specific modification for the yolo subgraphs
             bool concatExists = (std::find(followedFromConcatOps.begin(), followedFromConcatOps.end(), *opName) != followedFromConcatOps.end());
             if (concatExists)
-                candidateVerticalFusionOpsSorted.erase(opName);
+                opName = candidateVerticalFusionOpsSorted.erase(opName);
             else
                 opName++;
         }
