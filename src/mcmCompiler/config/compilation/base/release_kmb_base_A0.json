@@ -44,6 +44,7 @@
             {
               "name" : "LocateInplaceEltwiseOps"
             },
+            "UPATaskChainScheduleHandling",
             {
                  "name" : "ChainPipeliningTransform",
                  "select_stages" : 2,

@@ -22,6 +22,7 @@
 #include "pass/lp_scheduler/operation_precedence_dag.hpp"
 #include "scheduler/dag_address_generator.hpp"
 #include "include/mcm/utils/warning_manager.hpp"
+#include "include/mcm/utils/hash.hpp"
 
 namespace mv {
 namespace lp_scheduler {
@@ -1063,10 +1064,10 @@ class Dynamic_Spill_Node_Inserter {
       std::unordered_set<operation_t> children_;
     }; // struct spilled_subtree_t //
 
-    typedef std::unordered_map<operation_t, spilled_subtree_t, operation_hash_t> spilled_op_map_t;
+    typedef std::map<operation_t, spilled_subtree_t, operation_comparator_t> spilled_op_map_t;
     typedef typename spilled_op_map_t::const_iterator
         spilled_op_map_const_iterator_t;
-    typedef std::unordered_map<operation_t, std::string, operation_hash_t> redundant_spill_map_t;
+    typedef std::map<operation_t, std::string, operation_comparator_t> redundant_spill_map_t;
     ////////////////////////////////////////////////////////////////////////////
 
     Dynamic_Spill_Node_Inserter(

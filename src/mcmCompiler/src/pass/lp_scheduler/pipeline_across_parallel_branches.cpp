@@ -13,12 +13,19 @@
 static void PipeLineAcrossParallelBranches(const mv::pass::PassEntry&,
     mv::ComputationModel&, mv::TargetDescriptor& , mv::Element&, mv::Element&);
 
+static void UPATaskChainScheduleHandling(const mv::pass::PassEntry&,
+    mv::ComputationModel&, mv::TargetDescriptor& , mv::Element&, mv::Element&);
+
 namespace mv {
 namespace pass {
 
 MV_REGISTER_PASS(PipeLineAcrossParallelBranches)
   .setFunc(PipeLineAcrossParallelBranches)
   .setDescription("Add Pseudo Edges For Pipelining Across Parallel Branches");
+
+MV_REGISTER_PASS(UPATaskChainScheduleHandling)
+  .setFunc(UPATaskChainScheduleHandling)
+  .setDescription("Add Resource Control Edges For UPA Chains on Parallel Branches");
 } // namespace mv //
 } // namespace pass //
 
@@ -423,6 +430,260 @@ void PipeLineAcrossParallelBranches(const mv::pass::PassEntry& ,
               src_dpu_op->getName().c_str(), read->getName().c_str());
         }
         local_pass_util::add_pseudo_edge_dpu_read(om, src_dpu_op ,read);
+      }
+    }
+  }
+}
+
+bool containsOnlyUPATasks(std::set<std::string>& levelOps, std::unordered_map<std::string, bool>& edgesInserted, mv::OpModel& om)
+{
+    for (auto opName : levelOps)
+    {
+        auto parallelOp = om.getOp(opName);
+        if (parallelOp->isUPA() || parallelOp->getOpType() == "UPATask") { continue; }
+        if ((edgesInserted.find(parallelOp->getName()) != edgesInserted.end())) { continue; }
+        return false;
+    }
+    return true;
+}
+
+void createUPAChain(mv::Data::OpListIterator upaTask, std::vector<std::string>& upaChains, mv::OpModel& om)
+{
+    if (upaTask->isUPA() || upaTask->getOpType() == "UPATask")
+    {
+        upaChains.push_back(upaTask->getName());
+        for (auto child = upaTask.leftmostChild(); child != om.opEnd(); ++child)
+            createUPAChain(child, upaChains, om);
+    }
+    return;
+}
+
+std::vector<std::vector<std::string>> locateUPAChains(mv::OpModel& om, std::map<size_t, std::set<std::string>>& level_ops)
+{
+    std::vector<std::vector<std::string>> upaChains;
+    for (auto itr = level_ops.begin(); itr != level_ops.end(); itr++)
+    {
+      for (auto op_name : (*itr).second)
+      {
+        auto op = om.getOp(op_name);
+        if (op->getOpType() == "UPATask")
+        {
+          bool headCandidate = true;
+          for (auto parent = op.leftmostParent(); parent != om.opEnd(); ++parent)
+          {
+            if (parent->isUPA() || parent->getOpType() == "UPATask")
+                headCandidate = false;
+          }
+          if (!headCandidate) { continue; }
+          for (auto child = op.leftmostChild(); child != om.opEnd(); ++child)
+          {
+            if (child->isUPA() || child->getOpType() == "UPATask")
+            {
+                std::vector<std::string> temp;
+                createUPAChain(op, temp, om);
+                upaChains.push_back(temp);
+            }
+          }
+        }
+      }
+    }
+    return upaChains;
+}
+
+bool trailingOperation(mv::Data::OpListIterator& op)
+{
+  if (op.childrenSize() == 0) { return true; }
+  // follow the op to output
+  mv::Data::OpListIterator child_op = op.leftmostChild();
+  while (child_op.childrenSize() != 0 || child_op->isImplicit() ||
+         child_op->getOpType() == "UPATask")
+  {
+    if (child_op->getOpType() == "ImplicitConcat") { return false; }
+    child_op = child_op.leftmostChild();
+  }
+  return (child_op.childrenSize() == 0);
+}
+
+void addTrailingUPAflagToChains(std::vector<std::vector<std::string>>& upaChains, mv::OpModel& om)
+{
+  for (auto upaChain : upaChains)
+  {
+    // obtain the last chain UPA
+    auto tailOp = om.getOp(upaChain.back());
+    // if not followed by any concrete operations - consider trailing UPA
+    if (trailingOperation(tailOp))
+      tailOp->set<bool>("trailingUPA", true);
+  }
+}
+
+std::list<operation_t> retrieve_concrete_child_ops(mv::Data::OpListIterator currOp, mv::OpModel& model)
+{
+  std::list<operation_t> concrete_child_ops;
+  for (auto child = currOp.leftmostChild(); child != model.opEnd(); ++child)
+  {
+    if (child->isImplicit())
+    {
+      std::list<operation_t> temp = retrieve_concrete_child_ops(child, model);
+      concrete_child_ops.merge(temp);
+    }
+    else
+    {
+      operation_t cop = &(*child);
+      concrete_child_ops.push_back(cop);
+    }
+  }
+  return concrete_child_ops;
+}
+
+void populateOpLevelMaps(mv::OpModel& om, std::unordered_map<std::string, size_t>& task_level, 
+      std::map<size_t, std::set<std::string>>& level_ops)
+{
+    std::list<std::string> zero_in_degree_nodes[2UL];
+    std::unordered_map<std::string, bool> propagated_ops;
+    std::unordered_map<std::string, size_t> in_degree_map;
+    size_t curr_depth = 0;
+    // STEP-0: compute the in-degree's of all nodes //
+    //NOTE: in_degree means the number of inputs of an op, and the pseudo data flows
+    //if an op is zero_in_degree goes to zero_in_degree_nodes, like constants
+    for (auto op_itr = om.opBegin(); op_itr != om.opEnd(); ++op_itr)
+    {
+        in_degree_map[ op_itr->getName() ] = op_itr->getInputTensor().size();
+        if (op_itr->getInputTensor().size() == 0)
+            zero_in_degree_nodes[0].push_back(op_itr->getName());
+    }
+
+    // NOTE: Topological sort according to zero_in_degree algorithm,
+    // link: https://www.geeksforgeeks.org/topological-sorting-indegree-based-solution/
+    // STEP-1: populate the dpu-levels map, pretty much
+    // takes the opmodel as a dag and provides the ops that are on which level
+    // e.g. A->B->C , A->D then (2, {B,D} )
+    while (!zero_in_degree_nodes[curr_depth%2UL].empty())
+    {
+        bool parity = ((curr_depth%2UL) == 1UL);
+        for (auto zitr=zero_in_degree_nodes[parity].begin();
+              zitr!=zero_in_degree_nodes[parity].end(); ++zitr)
+        {
+          // update the in-degree //
+          mv::Data::OpListIterator zop_itr = om.getOp((*zitr));
+          std::list<operation_t> child_ops = retrieve_concrete_child_ops(zop_itr, om);
+          for (auto& cop : child_ops)
+          {
+            if (propagated_ops.find(cop->getName()) != propagated_ops.end())
+              continue;
+            std::string cop_name = cop->getName();
+            auto ditr = in_degree_map.find(cop_name);
+            if (ditr->second == 0UL) { continue; }
+            if ( (ditr == in_degree_map.end()) )
+            {
+                throw mv::RuntimeError("Chain Pipelining Pass", "Missing entry in the in-degree map (or)"
+                  " invalid in-degree for op= " + cop_name);
+            }
+            --(ditr->second);
+            if (!(ditr->second))
+            {
+                propagated_ops.insert({cop->getName(), true});
+                zero_in_degree_nodes[!parity].push_back(cop_name);
+                task_level[cop_name] = (curr_depth);
+                if(level_ops.find(curr_depth) != level_ops.end())
+                {
+                  level_ops[curr_depth].insert(cop_name);
+                }
+                else
+                {
+                  level_ops[curr_depth] = {cop_name};
+                }
+            }
+          }
+        }
+        zero_in_degree_nodes[parity].clear();
+        curr_depth++;
+    }
+}
+
+void UPATaskChainScheduleHandling(const mv::pass::PassEntry&, mv::ComputationModel& model, 
+      mv::TargetDescriptor&, mv::Element&, mv::Element&) 
+{
+  mv::OpModel om(model);
+
+  // td 0003 parallel outputs
+  // auto t_40_weights = om.getOp("model/conv2d_40/Conv2D/Transpose21780_const7916723/quantized/to_f16:quantized_DDR2CMX");
+  // auto t_36_concat = om.getOp("model/segm_logits/add");
+  // auto flow_itr = om.defineFlow(t_36_concat->getOutputTensor(mv::IO_TENSOR_OUTPUT), t_40_weights, 0UL);
+
+  // create op level map
+  std::unordered_map<std::string, size_t> task_level;
+  std::map<size_t, std::set<std::string>> level_ops;
+  populateOpLevelMaps(om, task_level, level_ops);
+
+  // find UPA chains, ordered by level
+  std::vector<std::vector<std::string>> upaChains = locateUPAChains(om, level_ops);
+
+  // trailing UPA Tasks
+  addTrailingUPAflagToChains(upaChains, om);
+
+  // add edges from UPA chains to parallel ops
+  for (auto upaChain : upaChains)
+  {
+    // obtain chain head (first UPA with lowest level) and tail (last UPA with highest level)
+    auto chainHead = upaChain.front();
+    auto chainTail = upaChain.back();
+    auto headOp = om.getOp(chainHead);
+    auto tailOp = om.getOp(chainTail);
+    bool trailingUPACase = tailOp->hasAttr("trailingUPA") && tailOp->get<bool>("trailingUPA");
+    // add to control map to avoid cycles
+    std::unordered_map<std::string, bool> edgesInserted;
+    edgesInserted.insert({chainHead, true});
+    // if level 0, skip as all constants would need edges
+    if (task_level[chainHead] == 0) { continue; }
+    // ### TWO POSSIBLE SCENARIOS ###
+    // 1. TRAILINING UPA CHAINS - want to schedule all UPAs in the end
+    if (trailingUPACase)
+    {
+      // interested in scenario where all tensors are in DDR, this should happen 
+      // by default as UPA Tasks are not prefetched, if issues seen edges need 
+      // to be added fromm the last DPU/DMA Tasks to the trailing UPA Tasks
+      continue;
+    }
+    // 2. NON-TRAILING UPA CHAINS - want to schedule all UPAs in the beginning
+    else
+    {
+      // use head and tail levels as range in search for DMA Tasks
+      size_t headLevel = task_level[chainHead];
+      // obtain all possible parallel operations
+      for (auto sameLevelOp : level_ops[headLevel])
+      {
+        size_t parallelOpLevel = task_level[sameLevelOp];
+        // retrieve the operation
+        auto parallelOp = om.getOp(sameLevelOp);
+        // ops already have edges inserted
+        if (edgesInserted.find(parallelOp->getName()) != edgesInserted.end()) { continue; }
+        // case of UPA Tasks (not in CMX) - fast forward
+        while (parallelOp->getOpType() == "UPATask")
+          parallelOp = parallelOp.leftmostChild();
+        // case of possible CMX concat
+        if (parallelOpLevel == headLevel && parallelOp->getOpType() == "DMATask" && 
+            parallelOp->get<mv::DmaDirection>("direction") == mv::DDR2NNCMX && 
+            parallelOp.leftmostParent()->getOpType() == "ImplicitConcat")
+          while ((parallelOp->isImplicit() || (parallelOp->getOpType() == "DMATask"
+                && parallelOp->get<mv::DmaDirection>("direction") == mv::DDR2NNCMX))
+                && parallelOp->getOpType() != "ImplicitConcat")
+            parallelOp = parallelOp.leftmostChild();
+        // all other cases
+        else
+        {
+          // DMAs, Implicit ops can be removed by CMX concat pass, retrieve concrete top operation
+          while ((parallelOp->isImplicit() || parallelOp->getOpType() == "DMATask")
+                && parallelOp->getOpType() != "ImplicitConcat")
+            parallelOp = parallelOp.leftmostParent();
+        }
+        // add a control flow only if no flows exist
+        if (!om.pathExists(parallelOp, tailOp) && !om.pathExists(tailOp, parallelOp))
+        {
+          size_t inputs = parallelOp.parentsSize();
+          auto flow_itr = om.defineFlow(tailOp->getOutputTensor(mv::IO_TENSOR_OUTPUT), parallelOp, inputs + 1);
+          flow_itr->set<bool>("resource_control_flow", true);
+          edgesInserted.insert({parallelOp->getName(), true});
+        }
       }
     }
   }
