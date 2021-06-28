@@ -1042,7 +1042,7 @@ void updateBarrierDependency(mv::ControlModel& cm)
     } // foreach control edge //
 }
 
-bool barrierSafety(mv::ComputationModel& model, size_t physicalBarrierBound, size_t iteration, int specialUPABarrier, std::string referenceDevice)
+bool barrierSafety(mv::ComputationModel& model, size_t physicalBarrierBound, size_t iteration, int specialUPABarrier, bool enableSplitBarriers)
 {
     // bool needUpdate = false;
     mv::OpModel om(model);
@@ -1279,7 +1279,7 @@ bool barrierSafety(mv::ComputationModel& model, size_t physicalBarrierBound, siz
                 }
 
                 // B0 doesn't have requirement on splitBarrierDependency
-                if(referenceDevice == "B0")
+                if(!enableSplitBarriers)
                 {
                     splitCheck = true;
                 }
@@ -1835,10 +1835,10 @@ static void AssignSafetyBarrierFcn(const mv::pass::PassEntry& pass, mv::Computat
     if(assignSafetyBarrier)
     {
         std::cout << "assign safety barrier" << std::endl;
-        std::string referenceDevice = "A0";
-        if(globalParams->hasAttr("referenceDevice"))
+        bool enableSplitBarriers = false;
+        if(globalParams->hasAttr("enableSplitBarriers"))
         {
-            referenceDevice = globalParams->get<std::string>("referenceDevice");
+            enableSplitBarriers = globalParams->get<bool>("enableSplitBarriers");
         }
         size_t real_physical_barriers = (size_t) model.getGlobalConfigParam("real_physical_barriers").get<int>();
         if(real_physical_barriers == 0)
@@ -1856,7 +1856,7 @@ static void AssignSafetyBarrierFcn(const mv::pass::PassEntry& pass, mv::Computat
         {        
             sprintf(baseName, "iter_%zu_", count);
             RemoveRedundantBarriersForDMA(model);
-            if(referenceDevice == "A0")
+            if(enableSplitBarriers)
             {
                 splitBarrierDependencies(model, baseName);
                 if(!splitBarrierCheck(model))
@@ -1943,7 +1943,7 @@ static void AssignSafetyBarrierFcn(const mv::pass::PassEntry& pass, mv::Computat
             // }
 
             // if(count < 2)
-                status = barrierSafety(cm, real_physical_barriers, count, specialUPABarrier, referenceDevice);
+                status = barrierSafety(cm, real_physical_barriers, count, specialUPABarrier, enableSplitBarriers);
             // else
                 // status = false;
             count++;        
