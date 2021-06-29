@@ -38,7 +38,7 @@ mv::TargetDescriptor::TargetDescriptor(const std::string& filePath) :
 target_(Target::Unknown),
 globalDType_("Float16"),
 codecDef_(),
-generalConfigs_({false, false, 7, false})//KMB default: HW PRELU MULT is I8, so 7 precision bits are available
+generalConfigs_({false, false, 7, false, PWLTableMap()})//KMB default: HW PRELU MULT is I8, so 7 precision bits are available
 {
 
     if (!filePath.empty())
@@ -61,6 +61,7 @@ void mv::TargetDescriptor::reset()
     generalConfigs_.allowMultipleInputScales = false;
     generalConfigs_.leakyAccuracyBits = 7;
     generalConfigs_.pwlEnabled = true;
+    generalConfigs_.pwlTables.clear();
 }
 
 bool mv::TargetDescriptor::load(const std::string& filePath)
@@ -160,6 +161,82 @@ bool mv::TargetDescriptor::load(const std::string& filePath)
                 else
                 {
                     generalConfigs_.leakyAccuracyBits = jsonDescriptor["general"]["leakyAccuracyBits"].get<long long>();
+                }
+            }
+			if (jsonDescriptor["general"].hasKey("customPWLTable")) {
+                if (jsonDescriptor["general"]["customPWLTable"].valueType() != json::JSONType::Array) {
+                    reset();
+                    return false;
+                }
+
+                auto pwl_tables = jsonDescriptor["general"]["customPWLTable"];
+                for (size_t i = 0; i < pwl_tables.size(); ++i) {
+                    if (!pwl_tables[i].hasKey("activation") ||
+                        pwl_tables[i]["activation"].valueType() != json::JSONType::String ||
+                        !pwl_tables[i].hasKey("dtype") ||
+                        pwl_tables[i]["dtype"].valueType() != json::JSONType::String ||
+                        !pwl_tables[i].hasKey("range") || pwl_tables[i]["range"].valueType() != json::JSONType::Array ||
+                        !pwl_tables[i].hasKey("shift") || pwl_tables[i]["shift"].valueType() != json::JSONType::Array ||
+                        !pwl_tables[i].hasKey("bias") || pwl_tables[i]["bias"].valueType() != json::JSONType::Array ||
+                        !pwl_tables[i].hasKey("float_min") ||
+                        pwl_tables[i]["float_min"].valueType() != json::JSONType::NumberFloat ||
+                        !pwl_tables[i].hasKey("float_max") ||
+                        pwl_tables[i]["float_max"].valueType() != json::JSONType::NumberFloat ||
+                        !pwl_tables[i].hasKey("post_shift") ||
+                        pwl_tables[i]["post_shift"].valueType() != json::JSONType::NumberInteger) {
+                        reset();
+                        return false;
+                    }
+
+                    auto range = pwl_tables[i]["range"];
+                    std::vector<int> vecRange;
+                    for (size_t ri = 0; ri < range.size(); ++ri) {
+                        if (range[ri].valueType() != json::JSONType::NumberInteger) {
+                            reset();
+                            return false;
+                        }
+                        vecRange.push_back(static_cast<int>(range[ri].get<long long>()));
+                    }
+
+                    auto shift = pwl_tables[i]["shift"];
+                    std::vector<int> vecShift;
+                    for (size_t si = 0; si < shift.size(); ++si) {
+                        if (shift[si].valueType() != json::JSONType::NumberInteger) {
+                            reset();
+                            return false;
+                        }
+                        vecShift.push_back(static_cast<int>(shift[si].get<long long>()));
+                    }
+
+                    auto bias = pwl_tables[i]["bias"];
+                    std::vector<int> vecBias;
+                    for (size_t bi = 0; bi < bias.size(); ++bi) {
+                        if (bias[bi].valueType() != json::JSONType::NumberInteger) {
+                            reset();
+                            return false;
+                        }
+                        vecBias.push_back(static_cast<int>(bias[bi].get<long long>()));
+                    }
+
+                    PWLTableType pwl_type;
+                    pwl_type.activation = pwl_tables[i]["activation"].get<std::string>();
+                    pwl_type.dtype = mv::DType(pwl_tables[i]["dtype"].get<std::string>());
+
+                    int post_shift = static_cast<int>(pwl_tables[i]["post_shift"].get<long long>());
+
+                    double range_min = pwl_tables[i]["float_min"].get<double>();
+                    double range_max = pwl_tables[i]["float_max"].get<double>();
+
+                    PWLTableEntry pwl_table = {vecRange, vecShift, vecBias, std::make_pair(range_min, range_max),
+                                               post_shift};
+
+                    if (generalConfigs_.pwlTables.find(pwl_type) != generalConfigs_.pwlTables.end()) {
+                        generalConfigs_.pwlTables.at(pwl_type).push_back(pwl_table);
+                    } else {
+                        std::vector<PWLTableEntry> vecTable;
+                        vecTable.push_back(pwl_table);
+                        generalConfigs_.pwlTables.insert({pwl_type, vecTable});
+                    }
                 }
             }
         }
@@ -715,13 +792,4 @@ std::string mv::TargetDescriptor::getLogID() const
 const mv::GeneralTargetConfigs& mv::TargetDescriptor::generalTargetConfigs() const
 {
     return generalConfigs_;
-}
-
-bool mv::TargetDescriptor::isDpuPwl(const std::string& opName) const
-{
-    if (!generalConfigs_.pwlEnabled)
-        return false;
-
-    const std::vector<std::string> dpuPWLNames = { "LeakyRelu", "Mish", };
-    return std::find(dpuPWLNames.cbegin(), dpuPWLNames.cend(), opName) != dpuPWLNames.end();
 }

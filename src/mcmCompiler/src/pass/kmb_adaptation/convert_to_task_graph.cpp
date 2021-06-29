@@ -59,12 +59,6 @@ void setUpPPETasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, 
         if(dpuTask->hasAttr("postOpTypes"))
             postOps = dpuTask->get<std::vector<std::string>>("postOpTypes");
 
-        for (auto itr = postOps.begin(); itr != postOps.end(); ++itr) {
-            if(td.isDpuPwl(*itr)) {
-                *itr = "FLEXARB";
-            }
-        }
-
         addPpeTask(dpuTask, postOps, leakyReluHack, bits);
     }
 }
@@ -1676,13 +1670,14 @@ int32_t computeClampLow(mv::Data::OpListIterator &opIt, bool flex)
         clamp = round(minimum/outputQuantParams.getScale()[0]);
         clamp = std::max(clamp, -128);
 
-        if(opIt->hasAttr("WithMish")) {
-            clamp = std::max(clamp, -128);
-        }
-    }
 
-    if(opIt->hasAttr("WithMish")) {
-        clamp = std::max(clamp, -128);
+        if(opIt->hasAttr("PWLClampLow")) {
+            int clamp_plw_low = opIt->get<int>("PWLClampLow");
+            clamp = std::max(clamp, clamp_plw_low);
+
+            /* Remove unused attribute */
+            opIt->erase("PWLClampLow");
+        }
     }
 
     return clamp;
@@ -1752,10 +1747,14 @@ int32_t computeClampHigh(mv::Data::OpListIterator &opIt, bool flex)
         auto maximum = outputQuantParams.getMax()[0];
         clamp = round(maximum/outputQuantParams.getScale()[0]);
         clamp = std::min(clamp, 127);
-    }
 
-    if(opIt->hasAttr("WithMish")) {
-        clamp = std::min(clamp, 127);
+        if(opIt->hasAttr("PWLClampHigh")) {
+            int clamp_plw_high = opIt->get<int>("PWLClampHigh");
+            clamp = std::min(clamp, clamp_plw_high);
+
+            /* Remove unused attribute */
+            opIt->erase("PWLClampHigh");
+        }
     }
 
     return clamp;

@@ -256,7 +256,7 @@ void alignConcatScales(const mv::pass::PassEntry&, mv::ComputationModel& model, 
                 if (std::abs(masterQuant.getScale()[0] - concatIt->getInputTensor(i)->get<mv::QuantizationParams>("quantParams").getScale()[0])/masterQuant.getScale()[0] <= 0.01)
                     continue;
                 double weightScale = 1.0f;
-               
+
                 placeReQuantizeDepthwiseBefore(om, concatIt, concatIt->getInputTensor(i), i, weightScale, masterQuant.getScale()[0], masterQuant.getZeroPoint()[0]);
             }
             propagateThroughImplicitChildren(dm, concatIt, masterQuant);
@@ -571,20 +571,35 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
                 if (opIt->hasAttr("postOpTypes"))
                 {
                     signed postShift = outputQuantization.getPostShift();
-                    // TODO: post_shift of 4 is just the current computed value for the sole
-                    // case of leaky relu done in PWL, need to provide a path from target descritptor
-                    // to pass logic to parametrize each custom PWL table entries.
-                    // We may just as well have two custom PWL tables during inference with diff params
-                    std::unordered_map<std::string, int> dpuPwlScale = {
-                        {"LeakyRelu", 4},
-                        {"Mish", 0},
-                    };
-                    //"FLEXARB"
-                    auto postOps = opIt->get<std::vector<std::string>>("postOpTypes");
-                    auto ppeIterator = findIsDPUPwlPostOp(postOps, td);
 
-                    if (ppeIterator != postOps.end()) {
-                        postShift = dpuPwlScale[*ppeIterator];
+                    /* If custom PWL table is used, then overwrite post shift with table specific value */
+                    if(opIt->hasAttr("PWLSource"))
+                    {
+                        auto pwl_source = opIt->get<std::string>("PWLSource");
+                        if(pwl_source == "Generation")
+                        {
+                            postShift = 0;
+                        }
+                        else if (pwl_source == "TargetDescriptor")
+                        {
+                            auto pwl_type = opIt->get<mv::PWLTableType>("PWLType");
+                            int pwl_table_index = opIt->get<int>("PWLIndex");
+
+                            postShift = td.generalTargetConfigs().pwlTables.at(pwl_type)[pwl_table_index].post_shift;
+
+                            /* Remove unused attribute */
+                            opIt->erase("PWLIndex");
+                        }
+                        else
+                        {
+                            /* Never enter */
+                            throw mv::AttributeError(opIt->getLogID(), " has invalid custom PWL table source.");
+                        }
+
+                        /* Remove unused attribute */
+                        opIt->erase("PWLSource");
+
+
                     }
 
                     mv::QuantizationParams postQuantization = {
@@ -602,4 +617,3 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
         }
     }
 }
-

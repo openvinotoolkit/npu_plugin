@@ -9,6 +9,7 @@
             "ConvertOpsToTasks",
             "ValidateVerticalAdds",
             "AdaptFixedPointCompute",
+            "GenerateAndPopulateInstructionListTables",
             "SetUpPPETasks",
             "TaskMultiplePostOps",
             "ForceSerialize",
@@ -25,7 +26,6 @@
             "EnsureDTypeCompatibility",
             "GenerateSparsityMapsPopulatedTensors",
             "GenerateWeightsTables",
-            "GenerateInstructionListTables",
             "ComputeTensorsQuantParams",
             "UpdateImplicitLayersQuantizationParams",
             "PopulateWeightsTablesQuantization",
@@ -100,8 +100,7 @@
             "SetSliceAddressesInCMX",
             "LayerNumbering",
             "PopulateWeightsTablesPointers",
-            "PopulateStorageElementPointers",
-            "PopulateInstructionListTables"
+            "PopulateStorageElementPointers"
         ]
     },
 
