@@ -243,135 +243,123 @@ mv::Data::OpListIterator portAdd(mv::ComputationModel& model, std::vector <mv::D
     return eltwise_op;
 }
 
-void provideAccuracyinPPEs(mv::ComputationModel& model)
-{
-    //NOTE: The idea of this workaround is that the ppe mechanism in hardware
-    //seems not to round the negative values correctly, so we apply a workaround
-    //with executing 2 parallel convolutions, one with positive values and the other
-    //with the negatives and then adding the outputs, to avoid ppe rounding
+void fuseLeakyReluAccPPEFcn(mv::Data::OpListIterator& opIt, mv::ComputationModel& model, const std::string& /*opType*/, mv::TargetDescriptor& /*td*/) {
+    // NOTE: The idea of this workaround is that the ppe mechanism in hardware
+    // seems not to round the negative values correctly, so we apply a workaround
+    // with executing 2 parallel convolutions, one with positive values and the other
+    // with the negatives and then adding the outputs, to avoid ppe rounding
     mv::OpModel om(model);
     mv::DataModel dm(model);
 
     if (!checkPPEAccuracy(model))
         return;
-    auto leakyRelus = om.getOps("LeakyRelu");
-    auto leakyRelu = leakyRelus.begin();
 
-    while (leakyRelu != leakyRelus.end())
-    {
-        auto leakyReluOp = *leakyRelu;
-        auto parentOp = om.getSourceOp(leakyReluOp->getInputTensor(0));
-        auto leakyInputTensor = leakyReluOp->getInputTensor(0);
-        auto leakyOutputTensor = leakyReluOp->getOutputTensor(0);
-        auto leakyReluQuantParams = leakyOutputTensor->getQuantParams();
+    auto leakyReluOp = opIt;
+    auto parentOp = om.getSourceOp(leakyReluOp->getInputTensor(mv::IO_TENSOR_INPUT));
+    auto leakyInputTensor = leakyReluOp->getInputTensor(mv::IO_TENSOR_INPUT);
+    auto leakyOutputTensor = leakyReluOp->getOutputTensor(mv::IO_TENSOR_OUTPUT);
+    auto leakyReluQuantParams = leakyOutputTensor->getQuantParams();
 
-        // Cannot fuse eltwise into the PPE LeakyReLU
-        if (!parentOp->hasWeights()) {
-            leakyRelu++;
-            continue;
-        }
-
-        // skip fp16 ops
-        if (leakyReluQuantParams.isNeutral()) {
-            leakyRelu++;
-            continue;
-        }
-
-        // activations should be per-tensor
-        if (leakyReluQuantParams.getZeroPoint().size() != 1 ||
-            leakyReluQuantParams.getScale().size() != 1 ||
-            leakyReluQuantParams.getMin().size() != 1 ||
-            leakyReluQuantParams.getMax().size() != 1) {
-            leakyRelu++;
-            continue;
-        }
-
-        // skip fp16 ops
-        auto inputTensor = parentOp->getInputTensor(0);
-        if (!inputTensor->isQuantized() || inputTensor->getQuantParams().isNeutral() ||
-             inputTensor->getDType() != mv::DType("UInt8")) {
-            leakyRelu++;
-            continue;
-        }
-
-        // skip fp16 ops
-        auto weightsTensor = parentOp->getInputTensor(1);
-        if (!weightsTensor->isQuantized() || weightsTensor->getQuantParams().isNeutral() ||
-             weightsTensor->getDType() != mv::DType("UInt8")) {
-            leakyRelu++;
-            continue;
-        }
-
-        uint8_t branch = 0;
-        uint8_t branchConcat = 0;
-        uint8_t branchEltwise = 0;
-        uint8_t branchDWConv = 0;
-        std::vector<mv::Data::OpListIterator> sinkOperators = findSinkLayers(dm, leakyOutputTensor);
-        //NOTE: For now take into account that only the first sink
-        //goes to concat but in general this needs to be searched
-        for (std::size_t sinkOperatorsId = 0;sinkOperatorsId < sinkOperators.size(); sinkOperatorsId++)
-        {
-            if (sinkOperators[sinkOperatorsId]->getOpType() == "Concat")
-            {
-                for (uint8_t inputId = 0; inputId < sinkOperators[0]->getInputTensor().size(); inputId++)
-                {
-                    if (sinkOperators[sinkOperatorsId]->getInputTensor()[inputId]->getName() == leakyOutputTensor->getName())
-                        branchConcat = inputId;
-                }
-            }
-            if (sinkOperators[sinkOperatorsId]->getOpType() == "Eltwise")
-            {
-                for (uint8_t inputId = 0; inputId < sinkOperators[sinkOperatorsId]->getInputTensor().size(); inputId++)
-                {
-                    if (sinkOperators[sinkOperatorsId]->getInputTensor()[inputId]->getName() == leakyOutputTensor->getName())
-                        branchEltwise = inputId;
-                }
-            }
-            if (sinkOperators[sinkOperatorsId]->getOpType() == "DepthwiseConv")
-            {
-                for (uint8_t inputId = 0; inputId < sinkOperators[sinkOperatorsId]->getInputTensor().size(); inputId++)
-                {
-                    if (sinkOperators[sinkOperatorsId]->getInputTensor()[inputId]->getName() == leakyOutputTensor->getName())
-                        branchDWConv = inputId;
-                }
-            }
-        }
-        mv::Data::OpListIterator relu0, conv0, conv1, depthwise1, relu1;
-        for (uint8_t i = 0; i < ADD_INPUT_FLOWS; i++)
-        {
-            if (i == 0)
-            {
-                conv0 = portConv(model,leakyReluOp, parentOp, i);
-                relu0 = portRelu(model, conv0->getOutputTensor(0), conv0, leakyReluQuantParams);
-            }
-            else
-            {
-                conv1 = portConv(model, leakyReluOp, parentOp, i);
-                relu1 = portRelu(model, conv1->getOutputTensor(0), conv1, leakyReluQuantParams);
-                depthwise1 = portDepthwise(model, relu1->getOutputTensor(0), leakyReluOp, leakyReluQuantParams);
-            }
-        }
-        std::vector<mv::Data::TensorIterator> inputs;
-        inputs.push_back(relu0->getOutputTensor(0));
-        inputs.push_back(depthwise1->getOutputTensor(0));
-        auto add0 = portAdd(om, inputs, leakyReluOp, leakyReluQuantParams);
-        auto backup = parentOp.leftmostOutput();
-        om.undefineFlow(backup);
-        if ((parentOp->getOpType() == "Conv") || (parentOp->getOpType() == "DepthwiseConv"))
-            om.removeOp(om.getSourceOp(parentOp->getInputTensor()[1]));
-        om.removeOp(leakyReluOp);
-        om.removeOp(parentOp);
-        for (std::size_t numberOfSink = 0; numberOfSink < sinkOperators.size(); numberOfSink++)
-        {
-            if (sinkOperators[numberOfSink]->getOpType() == "Eltwise")
-                branch = branchEltwise;
-            if (sinkOperators[numberOfSink]->getOpType() == "DepthwiseConv")
-                branch = branchDWConv;
-            if (sinkOperators[numberOfSink]->getOpType() == "Concat")
-                branch = branchConcat;
-            sinkOperators[numberOfSink]->setInputTensor(add0->getOutputTensor(0), branch, false);
-            om.defineFlow(add0->getOutputTensor(0), sinkOperators[numberOfSink], branch);
-        }
-        leakyRelu++;
+    // Cannot fuse eltwise into the PPE LeakyReLU
+    if (!parentOp->hasWeights()) {
+        return;
     }
+
+	// skip fp16 ops
+	if (leakyReluQuantParams.isNeutral()) {
+	    return;
+	}
+
+	// activations should be per-tensor
+	if (leakyReluQuantParams.getZeroPoint().size() != 1 ||
+	    leakyReluQuantParams.getScale().size() != 1 ||
+	    leakyReluQuantParams.getMin().size() != 1 ||
+	    leakyReluQuantParams.getMax().size() != 1) {
+	    return;
+	}
+
+	// skip fp16 ops
+	auto inputTensor = parentOp->getInputTensor(0);
+	if (!inputTensor->isQuantized() || inputTensor->getQuantParams().isNeutral() ||
+	     inputTensor->getDType() != mv::DType("UInt8")) {
+	    return;
+	}
+
+	// skip fp16 ops
+	auto weightsTensor = parentOp->getInputTensor(1);
+	if (!weightsTensor->isQuantized() || weightsTensor->getQuantParams().isNeutral() ||
+	     weightsTensor->getDType() != mv::DType("UInt8")) {
+	    return;
+	}
+
+	uint8_t branch = 0;
+	uint8_t branchConcat = 0;
+	uint8_t branchEltwise = 0;
+	uint8_t branchDWConv = 0;
+	std::vector<mv::Data::OpListIterator> sinkOperators = findSinkLayers(dm, leakyOutputTensor);
+	//NOTE: For now take into account that only the first sink
+	//goes to concat but in general this needs to be searched
+	for (std::size_t sinkOperatorsId = 0;sinkOperatorsId < sinkOperators.size(); sinkOperatorsId++)
+	{
+	    if (sinkOperators[sinkOperatorsId]->getOpType() == "Concat")
+	    {
+		for (uint8_t inputId = 0; inputId < sinkOperators[0]->getInputTensor().size(); inputId++)
+		{
+		    if (sinkOperators[sinkOperatorsId]->getInputTensor()[inputId]->getName() == leakyOutputTensor->getName())
+			branchConcat = inputId;
+		}
+	    }
+	    if (sinkOperators[sinkOperatorsId]->getOpType() == "Eltwise")
+	    {
+		for (uint8_t inputId = 0; inputId < sinkOperators[sinkOperatorsId]->getInputTensor().size(); inputId++)
+		{
+		    if (sinkOperators[sinkOperatorsId]->getInputTensor()[inputId]->getName() == leakyOutputTensor->getName())
+			branchEltwise = inputId;
+		}
+	    }
+	    if (sinkOperators[sinkOperatorsId]->getOpType() == "DepthwiseConv")
+	    {
+		for (uint8_t inputId = 0; inputId < sinkOperators[sinkOperatorsId]->getInputTensor().size(); inputId++)
+		{
+		    if (sinkOperators[sinkOperatorsId]->getInputTensor()[inputId]->getName() == leakyOutputTensor->getName())
+			branchDWConv = inputId;
+		}
+	    }
+	}
+	mv::Data::OpListIterator relu0, conv0, conv1, depthwise1, relu1;
+	for (uint8_t i = 0; i < ADD_INPUT_FLOWS; i++)
+	{
+	    if (i == 0)
+	    {
+		conv0 = portConv(model,leakyReluOp, parentOp, i);
+		relu0 = portRelu(model, conv0->getOutputTensor(0), conv0, leakyReluQuantParams);
+	    }
+	    else
+	    {
+		conv1 = portConv(model, leakyReluOp, parentOp, i);
+		relu1 = portRelu(model, conv1->getOutputTensor(0), conv1, leakyReluQuantParams);
+		depthwise1 = portDepthwise(model, relu1->getOutputTensor(0), leakyReluOp, leakyReluQuantParams);
+	    }
+	}
+	std::vector<mv::Data::TensorIterator> inputs;
+	inputs.push_back(relu0->getOutputTensor(0));
+	inputs.push_back(depthwise1->getOutputTensor(0));
+	auto add0 = portAdd(om, inputs, leakyReluOp, leakyReluQuantParams);
+	auto backup = parentOp.leftmostOutput();
+	om.undefineFlow(backup);
+	if ((parentOp->getOpType() == "Conv") || (parentOp->getOpType() == "DepthwiseConv"))
+	    om.removeOp(om.getSourceOp(parentOp->getInputTensor()[1]));
+	om.removeOp(leakyReluOp);
+	om.removeOp(parentOp);
+	for (std::size_t numberOfSink = 0; numberOfSink < sinkOperators.size(); numberOfSink++)
+	{
+	    if (sinkOperators[numberOfSink]->getOpType() == "Eltwise")
+		branch = branchEltwise;
+	    if (sinkOperators[numberOfSink]->getOpType() == "DepthwiseConv")
+		branch = branchDWConv;
+	    if (sinkOperators[numberOfSink]->getOpType() == "Concat")
+		branch = branchConcat;
+	    sinkOperators[numberOfSink]->setInputTensor(add0->getOutputTensor(0), branch, false);
+	    om.defineFlow(add0->getOutputTensor(0), sinkOperators[numberOfSink], branch);
+	}
 }

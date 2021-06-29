@@ -10,3 +10,4 @@
 #include    "src/target/kmb/attribute_def/workloads.cpp"
 #include    "src/target/kmb/attribute_def/ppe_task.cpp"
 #include    "src/target/kmb/attribute_def/ppe_fixed_function.cpp"
+#include    "src/target/kmb/attribute_def/custom_pwl_table.cpp"

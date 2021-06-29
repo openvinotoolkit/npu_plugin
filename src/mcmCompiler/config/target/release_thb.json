@@ -4,7 +4,19 @@
     "general":
     {
         "leakyAccuracyBits": 7,
-        "pwlEnabled": true
+        "pwlEnabled": true,
+        "customPWLTable": [
+            {
+                "activation": "LeakyRelu",
+                "dtype": "UInt8",
+                "float_min": -65504.0,
+                "float_max": 65504.0,
+                "range": [-128, -109, -90, -72, -54, -36, -18, 0, 128],
+                "shift": [1, -1, 0, 0, 0, -1, -1, -4],
+                "bias": [-119, 44, -43, -31, -19, 18, 10, 0],
+                "post_shift": 4
+            }
+        ]
     },
     "dtype":
     {

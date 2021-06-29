@@ -6,16 +6,33 @@
 #include "include/mcm/utils/warning_manager.hpp"
 #include "include/mcm/utils/custom_math.hpp"
 #include "include/mcm/pass/pass_utils.hpp"
+#include "include/mcm/target/kmb/pwl/pwl_dyn_fit.hpp"
 #include <functional>
+#include <limits.h>
 
-void fuseBiasFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel& model, const std::string& opType);
-void fuseUsualPPEFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model, const std::string& opType);
-void fuseMinimumFcn(mv::Data::OpListIterator &opIt,  mv::ComputationModel& model, const std::string& opType);
-void fuseMaximumFcn(mv::Data::OpListIterator &opIt,  mv::ComputationModel& model, const std::string& opType);
-void fuseEltwiseFcn(mv::Data::OpListIterator &opIt,  mv::ComputationModel& model, const std::string& opType);
-void fuseScaleFcn(mv::Data::OpListIterator &opIt,  mv::ComputationModel& model, const std::string& opType);
-void fuseBatchNormFcn(mv::Data::OpListIterator &opIt,  mv::ComputationModel& model, const std::string& opType);
-static void fusePostOpsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+enum TableSource { None = 0, TargetDescriptor, Generation };
+
+typedef void fuse_function(mv::Data::OpListIterator& opIt, mv::Data::OpListIterator& parentIt, const std::string& opType,
+                         mv::OpModel& om, mv::TargetDescriptor& td);
+
+void fuseBiasFcn(mv::Data::OpListIterator& opIt, mv::ComputationModel& model, const std::string& opType, mv::TargetDescriptor& td);
+template <fuse_function> void fusePPEBaseFcn(mv::Data::OpListIterator& opIt, mv::ComputationModel& model, const std::string& opType, mv::TargetDescriptor& td);
+void fuseMinimumFcn(mv::Data::OpListIterator& opIt, mv::ComputationModel& model, const std::string& opType, mv::TargetDescriptor& td);
+void fuseMaximumFcn(mv::Data::OpListIterator& opIt, mv::ComputationModel& model, const std::string& opType, mv::TargetDescriptor& td);
+void fuseEltwiseFcn(mv::Data::OpListIterator& opIt, mv::ComputationModel& model, const std::string& opType, mv::TargetDescriptor& td);
+void fuseScaleFcn(mv::Data::OpListIterator& opIt, mv::ComputationModel& model, const std::string& opType, mv::TargetDescriptor& td);
+void fuseBatchNormFcn(mv::Data::OpListIterator& opIt, mv::ComputationModel& model, const std::string& opType, mv::TargetDescriptor& td);
+
+bool optimisableWithPWL(mv::Data::OpListIterator& op, mv::TargetDescriptor& td, TableSource& ts);
+
+static void fusePostOpsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&,
+                           mv::Element&);
+
+/* Fuse funcs added to base template */
+void fuse_custom_pwl(mv::Data::OpListIterator& opIt, mv::Data::OpListIterator& parentIt, const std::string& opType,
+                         mv::OpModel& om, mv::TargetDescriptor& td);
+void fuse_usual_ppe(mv::Data::OpListIterator& opIt, mv::Data::OpListIterator& parentIt, const std::string& opType,
+                         mv::OpModel& om, mv::TargetDescriptor& td);
 
 namespace mv
 {
@@ -31,58 +48,113 @@ namespace mv
     }
 }
 
-void fusePostOpsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
-{
+/* Function determines if an optimisation exists with Custom PWL table */
+bool optimisableWithPWL(mv::Data::OpListIterator& op, mv::TargetDescriptor& td, TableSource& ts) {
+    const std::vector<std::string> generatable_activations = {"Mish"};
+
+    auto activation = op->getOpType();
+    auto d_type = op->getInputTensor(0)->getDType();
+
+    auto PWLTableMap = td.generalTargetConfigs().pwlTables;
+
+    /* Check if custom PWL table is specified in target descriptor */
+    mv::PWLTableType pwl_t;
+    pwl_t.activation = activation;
+    pwl_t.dtype = d_type;
+    if (PWLTableMap.find(pwl_t) != PWLTableMap.end()) {
+        ts = TableSource::TargetDescriptor;
+        return true;
+    }
+
+    /* Check if custom PWL can be generated for activation and datatype */
+    if (d_type == mv::DType("UInt8") && std::find(generatable_activations.begin(), generatable_activations.end(), activation) != generatable_activations.end()) {
+        ts = TableSource::Generation;
+        return true;
+    }
+
+    ts = TableSource::None;
+    return false;
+}
+
+void fusePostOpsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor& td, mv::Element&,
+                    mv::Element&) {
     mv::OpModel om(model);
     std::shared_ptr<mv::Element> globalParams = model.getGlobalConfigParams();
-    std::unordered_map<std::string, std::function<void(mv::Data::OpListIterator &, mv::ComputationModel& , const std::string &)>> fuseTaskMap =
-                                    {{"Bias", fuseBiasFcn},
-                                    {"Sigmoid", fuseUsualPPEFcn},
-                                    {"Tanh", fuseUsualPPEFcn},
-                                    {"Relu", fuseUsualPPEFcn},
-                                    {"Prelu", fuseUsualPPEFcn},
-                                    {"LeakyRelu", fuseUsualPPEFcn},
-                                    {"Mish", fuseUsualPPEFcn},
-                                    {"Minimum", fuseMinimumFcn},
-                                    {"Maximum", fuseMaximumFcn}};
+    bool PWLUsage = globalParams->hasAttr("PWLUsage") ? globalParams->get<bool>("PWLUsage") : false;
+    std::unordered_map<std::string, std::pair<uint32_t,
+                       std::function<void(mv::Data::OpListIterator&, mv::ComputationModel&, const std::string&, mv::TargetDescriptor&)>>>
+            fuseTaskMap =   {{"Bias",       {0, fuseBiasFcn}},
+                            {"Sigmoid",     {1, fusePPEBaseFcn<fuse_usual_ppe>}},
+                            {"Tanh",        {2, fusePPEBaseFcn<fuse_usual_ppe>}},
+                            {"Relu",        {3, fusePPEBaseFcn<fuse_usual_ppe>}},
+                            {"Prelu",       {4, fusePPEBaseFcn<fuse_usual_ppe>}},
+                            {"LeakyRelu",   {5, fusePPEBaseFcn<fuse_usual_ppe>}},
+                            {"Mish",        {6, fusePPEBaseFcn<fuse_usual_ppe>}},
+                            {"Minimum",     {7, fuseMinimumFcn}},
+                            {"Maximum",     {8, fuseMaximumFcn}}};
 
-    if (checkPPEAccuracy(model))
-    {
-        std::vector<mv::Data::OpListIterator> preluOperations = om.getOps("Prelu");
-        if (preluOperations.size() > 0)
-        {
-            throw mv::OpError(preluOperations[0]->getLogID(), "no support of PRelu wiht PPEAccuracy");
-        }
+    /* ToDo: In case more activations will have this handling available, design should be generalized with lists/maps */
+    bool PPELReluAccuracy = checkPPEAccuracy(model);
 
+    if (PPELReluAccuracy) {
+        /* Fuse Bias ops first */
         std::vector<mv::Data::OpListIterator> biasOperations = om.getOps("Bias");
 
         for (auto bias : biasOperations)
-            fuseBiasFcn(bias, model, "Bias");
+            fuseTaskMap["Bias"].second(bias, model, "Bias", td);
 
-        provideAccuracyinPPEs(model);
-        std::vector<std::string> fuse_types = {"Sigmoid", "Tanh", "Relu", "Minimum", "Maximum"};
-        std::unordered_map<std::string, std::vector<mv::Data::OpListIterator>> operationsOfType = om.getOpsOfTypes(fuse_types);
-
-        //NOTE: Iterate the fuse_types vector for correct order reason according to map
-        for (auto type = fuse_types.begin(); type != fuse_types.end(); type++)
-        {
-            auto fuseFunctor = (fuseTaskMap.at(*type));
-            for (auto opIt = operationsOfType[*type].begin(); opIt != operationsOfType[*type].end();++opIt)
-                fuseFunctor(*opIt, model, *type);
-        }
+        /* Change fuse function for LeakyRelu to PPE Accuracy variant */
+        fuseTaskMap["LeakyRelu"].second = fuseLeakyReluAccPPEFcn;
     }
-    else
-    {
-        std::vector<std::string> fuse_types = {"Bias", "Sigmoid", "Tanh", "Relu", "LeakyRelu", "Mish", "Minimum", "Maximum", "Prelu"};
-        std::unordered_map<std::string, std::vector<mv::Data::OpListIterator>> operationsOfType = om.getOpsOfTypes(fuse_types);
 
-        //NOTE: Iterate the fuse_types vector for correct order reason according to map
-        for (auto type = fuse_types.begin(); type != fuse_types.end(); type++)
-        {
-            auto fuseFunctor = (fuseTaskMap.at(*type));
-            for (auto opIt = operationsOfType[*type].begin(); opIt != operationsOfType[*type].end();++opIt)
-                fuseFunctor(*opIt, model, *type);
+    /* Collect all fusable op types from fuseTaskMap */
+    std::vector<std::string> fuse_types;
+    std::vector<uint32_t> fuse_priority;
+    std::vector<std::size_t> fuse_order;
+    std::size_t count = 0;
+    for(auto map_it = fuseTaskMap.begin(); map_it != fuseTaskMap.end(); ++map_it)
+    {
+        /* Get fusable op type */
+        fuse_types.push_back(map_it->first);
+
+        /* Get fusable type priority */
+        fuse_priority.push_back(map_it->second.first);
+
+        /* Init order vector */
+        fuse_order.push_back(count);
+        ++count;
+    }
+
+    /* Get fusing order based on priority vector */
+    std::sort(fuse_order.begin(), fuse_order.end(), [&](std::size_t a, std::size_t b) { return fuse_priority[a] < fuse_priority[b];});
+
+    std::unordered_map<std::string, std::vector<mv::Data::OpListIterator>> operationsOfType =
+            om.getOpsOfTypes(fuse_types);
+
+    // NOTE: Iterate the fusing order vector to respect priorities set in fuseTaskMap
+    for (auto order_it = fuse_order.begin(); order_it != fuse_order.end(); order_it++)
+    {
+        /* Get fuse type at current step */
+        auto type = fuse_types[*order_it];
+
+        /* Get fusing function for current type */
+        auto fuseFunctor = (fuseTaskMap.at(type)).second;
+
+        for (auto opIt = operationsOfType[type].begin(); opIt != operationsOfType[type].end(); ++opIt) {
+            TableSource ts = TableSource::None;
+
+            bool override_pwl = (type == "LeakyRelu" && PPELReluAccuracy);
+
+            if (!override_pwl && PWLUsage && optimisableWithPWL(*opIt, td, ts)) {
+                (*opIt)->set<int>("PWLSource", static_cast<int>(ts));
+                fusePPEBaseFcn<fuse_custom_pwl>(*opIt, model, type, td);
+            }
+            else
+            {
+                fuseFunctor(*opIt, model, type, td);
+            }
         }
+
     }
 }
 
@@ -122,8 +194,7 @@ mv::Data::OpListIterator linkNewOperationsFuse(mv::Data::OpListIterator parentOp
     return opIt;
 }
 
-void fuseBiasFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model, const std::string& /*opType*/)
-{
+void fuseBiasFcn(mv::Data::OpListIterator& opIt, mv::ComputationModel& model, const std::string& /*opType*/, mv::TargetDescriptor&) {
     using namespace mv;
     mv::OpModel om(model);
     mv::DataModel dm(model);
@@ -190,8 +261,7 @@ void fuseBiasFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model, co
     }
 }
 
-void fuseScaleFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model, const std::string& /*opType*/)
-{
+void fuseScaleFcn(mv::Data::OpListIterator& opIt, mv::ComputationModel& model, const std::string& /*opType*/, mv::TargetDescriptor&) {
     mv::OpModel om(model);
     auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
     auto scaleOutputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
@@ -216,8 +286,8 @@ void fuseScaleFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model, c
 /**
  * @brief fuse PPE function to parent op
  */
-void fuseUsualPPEFcn( mv::Data::OpListIterator& opIt, mv::ComputationModel& model, const std::string& opType )
-{
+template <fuse_function fuse>
+void fusePPEBaseFcn(mv::Data::OpListIterator& opIt, mv::ComputationModel& model, const std::string& opType, mv::TargetDescriptor& td) {
     mv::OpModel om(model);
     mv::DataModel dm(model);
     auto ppeOutputMemoryLocation = opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT)->get<mv::Tensor::MemoryLocation>("Location");
@@ -253,7 +323,7 @@ void fuseUsualPPEFcn( mv::Data::OpListIterator& opIt, mv::ComputationModel& mode
 
     // Check number of children of each fusable parent;
     // normally if all children are the same opType,
-    // one could proceed to attempt fuse all siblings.
+    // one could attempt to fuse all siblings.
     // Have this as a future optimization, for now just mark it as
     // software executed.
     if ((!parentOp->isHardwarizable() && parentOp.childrenSize() > 1) ||
@@ -266,57 +336,12 @@ void fuseUsualPPEFcn( mv::Data::OpListIterator& opIt, mv::ComputationModel& mode
     }
 
     // Proceed with fusign postOp into each parentOp
-    for(auto parentIt : fusableParents)
-    {
-        std::vector<std::string> postOpTypes;
-        if (parentIt->hasAttr("postOpTypes"))
-            postOpTypes = parentIt->get<std::vector<std::string>>("postOpTypes");
-        postOpTypes.push_back(opType);
-        parentIt->set<std::vector<std::string>>("postOpTypes", postOpTypes);
-
-        if (opType == "LeakyRelu")
-        {
-            parentIt->set<double>("leakyAlpha", opIt->get<double>("alpha"));
-        }
-        else if (opType == "Prelu")
-        {
-            // slope is the second input of PRelu
-            auto parentOpIt1 = om.getSourceOp(opIt->getInputTensor(1));
-            const std::string& parentOpType = parentOpIt1->getOpType();
-
-            // Constant Operator is only support
-            if ((parentOpType == "Constant") || (parentOpType == "ConstantInt") || (parentOpType == "ConstantDataElement"))
-            {
-                // TODO
-                // check how to handle non constant slopes as constant slops are only supported in the current implementation
-                throw mv::OpError(parentOpIt1->getLogID(), "Non Const slopes of PReLU are not supported");
-            }
-
-            // output densor of the const output tensor
-            auto slopeSourceTensor = parentOpIt1->getOutputTensor(mv::IO_TENSOR_OUTPUT);
-
-            std::vector<mv::DataElement> data = slopeSourceTensor->getData();
-        
-            std::vector<double> slopes(data.size());
-            if (slopeSourceTensor->getDType() != mv::DType("Float16"))
-            {
-                // slopes are converted into fp16 before fusing passing
-                throw mv::OpError(parentOpIt1->getLogID(), "float16 data type is expected");
-            }
-
-            // converting slopes into double to use them for quantization param calculation later
-            std::transform(data.begin(), data.end(), slopes.begin(), 
-                [](const int64_t& arg){ return static_cast<double>(mv::fp16_to_fp32(static_cast<uint16_t>(arg))); });
-
-            // for quantization
-            parentIt->set<std::vector<double>>( "slopes", slopes );
-
-            // Note
-            // Constant is removed in linkNewOperationsFuse
-        }   
+    for (auto parentIt : fusableParents) {
+        //Call fuse function
+        fuse(opIt, parentIt, opType, om, td);
     }
 
-    // Propagate quantParams up path to fuseableParents
+	// Propagate quantParams up path to fuseableParents
     for (auto& it : quantParamsPathOps)
     {
         auto sourceTensor = it->getOutputTensor(mv::IO_TENSOR_OUTPUT);
@@ -331,21 +356,17 @@ void fuseUsualPPEFcn( mv::Data::OpListIterator& opIt, mv::ComputationModel& mode
         opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT)->set<mv::Tensor::MemoryLocation>("Location", ppeOutputMemoryLocation);
 }
 
-void fuseEltwiseFcn(mv::Data::OpListIterator &opIt1, mv::ComputationModel &model, const std::string& /*opType*/)
-{
-    std::unordered_map<std::string, std::function<void(mv::Data::OpListIterator &, mv::ComputationModel& , std::string &)>> fuseEltwiseMap =
-                                       {{"Minimum", fuseMinimumFcn},
-                                        {"Maximum", fuseMaximumFcn},
-                                        {"Power", fuseUsualPPEFcn}};
+void fuseEltwiseFcn(mv::Data::OpListIterator& opIt1, mv::ComputationModel& model, const std::string& /*opType*/, mv::TargetDescriptor& td) {
+    std::unordered_map<std::string, std::function<void(mv::Data::OpListIterator&, mv::ComputationModel&, std::string&, mv::TargetDescriptor& td)>>
+            fuseEltwiseMap = {{"Minimum", fuseMinimumFcn}, {"Maximum", fuseMaximumFcn}, {"Power", fusePPEBaseFcn<fuse_usual_ppe>}};
 
     auto eltwiseType = opIt1->get<std::string>("eltwiseType");
     auto functor = fuseEltwiseMap.find(eltwiseType);
-    if(functor != fuseEltwiseMap.end())
-        functor->second(opIt1, model, eltwiseType);
+    if (functor != fuseEltwiseMap.end())
+        functor->second(opIt1, model, eltwiseType, td);
 }
 
-void fuseMinimumFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model, const std::string& /*opType*/)
-{
+void fuseMinimumFcn(mv::Data::OpListIterator& opIt, mv::ComputationModel& model, const std::string& /*opType*/, mv::TargetDescriptor&) {
     mv::OpModel om(model);
 
     auto minimumOutputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
@@ -362,8 +383,7 @@ void fuseMinimumFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model,
         opIt->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", minimumOutputMemoryLocation);
 }
 
-void fuseMaximumFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model, const std::string& /*opType*/)
-{
+void fuseMaximumFcn(mv::Data::OpListIterator& opIt, mv::ComputationModel& model, const std::string& /*opType*/, mv::TargetDescriptor&) {
     mv::OpModel om(model);
 
     auto maximumOutputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
@@ -380,8 +400,7 @@ void fuseMaximumFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model,
         opIt->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", maximumOutputMemoryLocation);
 }
 
-void fuseBatchNormFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model, const std::string& /*opType*/)
-{
+void fuseBatchNormFcn(mv::Data::OpListIterator& opIt, mv::ComputationModel& model, const std::string& /*opType*/, mv::TargetDescriptor&) {
     mv::OpModel om(model);
     auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
     auto batchNormName = opIt->getName();
@@ -429,4 +448,140 @@ void fuseBatchNormFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &mode
     opIt = linkNewOperationsFuse(parentOpIt, sourceTensor, om, opIt);
     if (outputMemoryLocation.isForced())
         opIt->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
+}
+
+void fuse_usual_ppe(mv::Data::OpListIterator& opIt, mv::Data::OpListIterator& parentIt, const std::string& opType,
+                         mv::OpModel& om, mv::TargetDescriptor&) {
+    std::vector<std::string> postOpTypes;
+    if (parentIt->hasAttr("postOpTypes"))
+        postOpTypes = parentIt->get<std::vector<std::string>>("postOpTypes");
+    postOpTypes.push_back(opType);
+    parentIt->set<std::vector<std::string>>("postOpTypes", postOpTypes);
+
+    if (opType == "LeakyRelu")
+    {
+        parentIt->set<double>("leakyAlpha", opIt->get<double>("alpha"));
+    }
+    else if (opType == "Prelu")
+    {
+        // slope is the second input of PRelu
+        auto parentOpIt1 = om.getSourceOp(opIt->getInputTensor(1));
+        const std::string& parentOpType = parentOpIt1->getOpType();
+
+        // Constant Operator is only support
+        if ((parentOpType == "Constant") || (parentOpType == "ConstantInt") || (parentOpType == "ConstantDataElement"))
+        {
+            // TODO
+            // check how to handle non constant slopes as constant slops are only supported in the current implementation
+            throw mv::OpError(parentOpIt1->getLogID(), "Non Const slopes of PReLU are not supported");
+        }
+
+        // output densor of the const output tensor
+        auto slopeSourceTensor = parentOpIt1->getOutputTensor(mv::IO_TENSOR_OUTPUT);
+
+        std::vector<mv::DataElement> data = slopeSourceTensor->getData();
+
+        std::vector<double> slopes(data.size());
+        if (slopeSourceTensor->getDType() != mv::DType("Float16"))
+        {
+            // slopes are converted into fp16 before fusing passing
+            throw mv::OpError(parentOpIt1->getLogID(), "float16 data type is expected");
+        }
+
+        // converting slopes into double to use them for quantization param calculation later
+        std::transform(data.begin(), data.end(), slopes.begin(),
+            [](const int64_t& arg){ return static_cast<double>(mv::fp16_to_fp32(static_cast<uint16_t>(arg))); });
+
+        // for quantization
+        parentIt->set<std::vector<double>>( "slopes", slopes );
+
+        // Note
+        // Constant is removed in linkNewOperationsFuse
+
+    }
+}
+
+void fuse_custom_pwl(mv::Data::OpListIterator& opIt, mv::Data::OpListIterator& parentIt, const std::string& /*opType*/,
+                         mv::OpModel& /*om*/, mv::TargetDescriptor& td) {
+    std::vector<std::string> postOpTypes;
+        if (parentIt->hasAttr("postOpTypes"))
+            postOpTypes = parentIt->get<std::vector<std::string>>("postOpTypes");
+        postOpTypes.push_back(std::string("FLEXARB"));
+        parentIt->set<std::vector<std::string>>("postOpTypes", postOpTypes);
+
+        /* Set custom PWL attributes */
+        /* Check if custom PWL table is specified in target descriptor */
+
+        mv::PWLTableType pwl_type;
+        pwl_type.activation = opIt->getOpType();
+        pwl_type.dtype = opIt->getInputTensor(0)->getDType();
+        std::string table_source = "UNSET";
+
+        TableSource ts = static_cast<TableSource>(opIt->get<int>("PWLSource"));
+
+        if (ts == TableSource::Generation) {
+            table_source = "Generation";
+        } else if (ts == TableSource::TargetDescriptor) {
+            table_source = "TargetDescriptor";
+
+            /* Search for most optimal table using QuantParams */
+            auto table_vec = td.generalTargetConfigs().pwlTables.at(pwl_type);
+
+            double min_diff = std::numeric_limits<double>::max();
+            std::vector<std::size_t> min_index;
+
+            auto quant_params = opIt->getOutputTensor()[0]->getQuantParams();
+            double f_min = quant_params.getMin()[0];
+            double f_max = quant_params.getMax()[0];
+
+            /* Find tables that have least elements that are outside of float range */
+            /* Tables that have fewer elements outside of the defined interval are favored, to prevent clamping */
+            for (std::size_t i = 0; i < table_vec.size(); ++i) {
+                double diff = 0;
+                auto float_range = table_vec[i].float_range;
+
+                if (f_min < float_range.first) {
+                    diff += float_range.first - f_min;
+                }
+                if (f_max > float_range.second) {
+                    diff += f_max - float_range.second;
+                }
+
+                if (diff < min_diff) {
+                    min_diff = diff;
+                    min_index.clear();
+                    min_index.push_back(i);
+                } else if (std::fabs(diff - min_diff) < std::numeric_limits<double>::epsilon()) {
+                    min_index.push_back(i);
+                }
+            }
+
+            int pwl_table_index = 0;
+
+            /* In case there are tables that contain the whole FQ range */
+            if (min_diff == 0) {
+                min_diff = std::numeric_limits<double>::max();
+
+                /* Select the most restrictive table in order to get the best precision */
+                for (std::size_t i = 0; i < min_index.size(); ++i) {
+                    auto float_range = table_vec[min_index[i]].float_range;
+
+                    double diff = (f_min - float_range.first) + (float_range.second - f_max);
+
+                    if (diff < min_diff) {
+                        min_diff = diff;
+                        pwl_table_index = min_index[i];
+                    }
+                }
+            }
+
+            parentIt->set<int>("PWLIndex", pwl_table_index);
+        } else {
+            /* Never enter */
+            throw mv::AttributeError(parentIt->getLogID(), " has invalid custom PWL table source.");
+        }
+
+        parentIt->set<std::string>("PWLSource", table_source);
+        parentIt->set<mv::PWLTableType>("PWLType", pwl_type);
+
 }

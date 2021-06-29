@@ -122,8 +122,6 @@
             "ReplacementOps",
             "TensorsToFP16",
             "FusePostOps",
-            "PreprocessForPWL",
-            "CheckPWLForRequantize",
             "ConvDilationUsingStorageElement",
             "HandleGroupConvolution",
             "StreamBinaryDataWeights",
@@ -258,7 +256,6 @@
             "EnsureDTypeCompatibility",
             "GenerateSparsityMapsPopulatedTensors",
             "GenerateWeightsTables",
-            "GenerateInstructionListTables",
             "ComputeTensorsQuantParams",
             "UpdateImplicitLayersQuantizationParams",
             "PopulateWeightsTablesQuantization",
@@ -344,8 +341,7 @@
             "SetSliceAddressesInCMX",
             "LayerNumbering",
             "PopulateWeightsTablesPointers",
-            "PopulateStorageElementPointers",
-            "PopulateInstructionListTables"
+            "PopulateStorageElementPointers"
         ]
     },
     "scheduling": {

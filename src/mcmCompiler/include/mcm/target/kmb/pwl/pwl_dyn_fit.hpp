@@ -6,6 +6,7 @@
 #include <limits>
 #include <stdexcept>
 #include <string>
+#include <unordered_map>
 
 enum class ApproximationSource {
     LeakyRelu,

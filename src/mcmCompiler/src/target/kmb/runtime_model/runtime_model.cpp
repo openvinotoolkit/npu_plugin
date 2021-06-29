@@ -1812,7 +1812,7 @@ std::unique_ptr<MVCNN::PPETaskT> mv::RuntimeModel::buildPPETaskT(ComputationMode
     if(ppeTask.hasAttr("scaleData"))
         toBuild->scale_data = buildTensorReferenceT(cm, compilationDescriptor, ppeTask.getScaleData());
     toBuild->fixed_function = buildPPEFixedFunctionT(cm, compilationDescriptor, ppeTask.getFixedFunction());
-    if (opIt->hasAttr("WithDPUPWL") && opIt->get<bool>("WithDPUPWL"))
+    if (opIt->hasAttr("PWLType"))
     {
         auto index = opIt->get<std::size_t>("instructionListTableIndex");
         toBuild->instruction_list_data = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor()[index]);
@@ -2587,6 +2587,13 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNCE2TaskT(Comp
 
             toReturn[i]->task.value = toBuild;
         }
+
+    /* Remove unused custom PWL attribute */
+    if(opIt->hasAttr("PWLType"))
+    {
+        opIt->erase("PWLType");
+    }
+
     return toReturn;
 }
 
