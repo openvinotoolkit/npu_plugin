@@ -5,6 +5,7 @@
 #pragma once
 
 #include <tuple>
+#include <array>
 #include <vector>
 #include <string>
 #include <memory>
@@ -54,6 +55,33 @@ TEST_P(InferRequestRunTests, AllocatorCanDisposeBlobWhenOnlyInferRequestIsInScop
 #endif
     }
     std::cout << "Plugin should be unloaded from memory at this point" << std::endl;
+}
+
+using InferRequestRunMultipleExecutorStreamsTests = BehaviorTestsUtils::BehaviorTestsBasic;
+
+TEST_P(InferRequestRunMultipleExecutorStreamsTests, RunFewInfers) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    InferenceEngine::CNNNetwork cnnNet = buildSingleLayerSoftMaxNetwork();
+
+    // Load CNNNetwork to target plugins
+    auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+    // Create InferRequests
+    const int inferReqNumber = 10;
+    std::array<InferenceEngine::InferRequest, inferReqNumber> inferReqs;
+    for (int i = 0; i < inferReqNumber; ++i) {
+        ASSERT_NO_THROW(inferReqs[i] = execNet.CreateInferRequest());
+
+        InferenceEngine::Blob::Ptr InputBlob =
+                FuncTestUtils::createAndFillBlob(cnnNet.getInputsInfo().begin()->second->getTensorDesc());
+        ASSERT_NO_THROW(inferReqs[i].SetBlob(cnnNet.getInputsInfo().begin()->first, InputBlob));
+        inferReqs[i].StartAsync();
+    }
+
+    for (int i = 0; i < inferReqNumber; ++i) {
+        inferReqs[i].Wait(InferenceEngine::InferRequest::RESULT_READY);
+        ASSERT_NO_THROW(inferReqs[i].GetBlob(cnnNet.getOutputsInfo().begin()->first));
+    }
 }
 
 }  // namespace BehaviorTestsDefinitions
