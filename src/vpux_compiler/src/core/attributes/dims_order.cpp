@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -12,6 +12,7 @@
 //
 
 #include "vpux/compiler/core/attributes/dims_order.hpp"
+#include "vpux/compiler/core/attributes/stride_reqs.hpp"
 #include "vpux/compiler/core/attributes/strides.hpp"
 
 #include "vpux/utils/IE/format.hpp"
@@ -258,7 +259,7 @@ bool vpux::DimsOrder::isIdentity() const {
     return *this == DimsOrder::fromNumDims(numDims());
 }
 
-DimsOrder vpux::DimsOrder::fromAffineMap(mlir::AffineMap map) {
+DimsOrder vpux::DimsOrder::fromPermutationAffineMap(mlir::AffineMap map) {
     VPUX_THROW_UNLESS(map.isPermutation(), "Can't get DimsOrder from AffineMap '{0}'", map);
 
     const auto perm = to_container<DimArr>(map.getResults() | transformed([](mlir::AffineExpr expr) {
@@ -270,7 +271,7 @@ DimsOrder vpux::DimsOrder::fromAffineMap(mlir::AffineMap map) {
     return fromPermutation(perm);
 }
 
-mlir::AffineMap vpux::DimsOrder::toAffineMap(mlir::MLIRContext* ctx) const {
+mlir::AffineMap vpux::DimsOrder::toPermutationAffineMap(mlir::MLIRContext* ctx) const {
     const auto permutation = to_small_vector(toPermutation() | transformed([](Dim d) {
                                                  return static_cast<unsigned>(d.ind());
                                              }));
@@ -280,8 +281,8 @@ mlir::AffineMap vpux::DimsOrder::toAffineMap(mlir::MLIRContext* ctx) const {
 
 DimsOrder vpux::DimsOrder::fromType(mlir::MemRefType type) {
     const auto maps = type.getAffineMaps();
-    if (maps.size() == 1 && maps.front().isPermutation()) {
-        return fromAffineMap(maps.front());
+    if (!maps.empty() && maps.front().isPermutation()) {
+        return fromPermutationAffineMap(maps.front());
     }
 
     const auto logicalStrides = getStrides(type);
@@ -302,6 +303,22 @@ DimsOrder vpux::DimsOrder::fromValue(mlir::Value val) {
     const auto type = val.getType().dyn_cast<mlir::MemRefType>();
     VPUX_THROW_UNLESS(type != nullptr, "Can't get DimsOrder from Type '{0}'", val.getType());
     return fromType(type);
+}
+
+SmallVector<mlir::AffineMap> vpux::DimsOrder::toAffineMapsList(mlir::MLIRContext* ctx, ShapeRef shape) const {
+    const auto memShape = toMemoryOrder(shape);
+    const auto reqs = StrideReqs::simple(shape.size());
+    const auto memStrides = reqs.calcStrides(1_Byte, memShape);
+    const auto elemStrides = to_small_vector(memStrides | transformed([](Byte val) {
+                                                 return val.count();
+                                             }));
+
+    // strides in memory order
+    // For NHWC U8 buffer with logical_shape = [1, 2, 3, 4] it will be
+    // affine_map<(md0, md1, md2, md3) -> (24 * md0 + 8 * md1 + 2 * md2 + md3)>
+    auto stridesMap = mlir::makeStridedLinearLayoutMap(elemStrides, 0, ctx);
+
+    return {toPermutationAffineMap(ctx), stridesMap};
 }
 
 bool vpux::DimsOrder::isCompatibleLayout(mlir::MemRefType type) const {
@@ -341,6 +358,8 @@ DimsOrder vpux::DimsOrder::fromIE(InferenceEngine::Layout layout) {
         return DimsOrder::NC;
     case InferenceEngine::Layout::CHW:
         return DimsOrder::CHW;
+    case InferenceEngine::Layout::HWC:
+        return DimsOrder::HWC;
     case InferenceEngine::Layout::NCHW:
         return DimsOrder::NCHW;
     case InferenceEngine::Layout::NHWC:

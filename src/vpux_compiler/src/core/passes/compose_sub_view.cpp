@@ -13,6 +13,8 @@
 
 #include "vpux/compiler/core/passes.hpp"
 
+#include "vpux/compiler/utils/rewriter.hpp"
+
 #include <mlir/Dialect/StandardOps/Transforms/ComposeSubView.h>
 #include <mlir/Transforms/GreedyPatternRewriteDriver.h>
 
@@ -45,7 +47,7 @@ void ComposeSubViewPass::safeRunOnFunc() {
     mlir::OwningRewritePatternList patterns(&ctx);
     mlir::populateComposeSubViewPatterns(patterns, &ctx);
 
-    if (mlir::failed(applyPatternsAndFoldGreedily(func, std::move(patterns)))) {
+    if (mlir::failed(applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig()))) {
         signalPassFailure();
     }
 }

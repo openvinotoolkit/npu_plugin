@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -15,6 +15,7 @@
 
 #include "vpux/compiler/core/attributes/dim.hpp"
 #include "vpux/compiler/core/attributes/dim_values.hpp"
+#include "vpux/compiler/core/attributes/shape.hpp"
 
 #include "vpux/utils/core/error.hpp"
 #include "vpux/utils/core/format.hpp"
@@ -29,6 +30,8 @@
 #include <functional>
 
 namespace vpux {
+
+constexpr size_t MAX_NAMED_ORDER_NUM_DIMS = 5;
 
 //
 // DimsOrder
@@ -103,11 +106,13 @@ public:
     bool isIdentity() const;
 
 public:
-    static DimsOrder fromAffineMap(mlir::AffineMap map);
-    mlir::AffineMap toAffineMap(mlir::MLIRContext* ctx) const;
+    static DimsOrder fromPermutationAffineMap(mlir::AffineMap map);
+    mlir::AffineMap toPermutationAffineMap(mlir::MLIRContext* ctx) const;
 
     static DimsOrder fromType(mlir::MemRefType type);
     static DimsOrder fromValue(mlir::Value val);
+
+    SmallVector<mlir::AffineMap> toAffineMapsList(mlir::MLIRContext* ctx, ShapeRef shape) const;
 
 public:
     bool isCompatibleLayout(mlir::MemRefType type) const;

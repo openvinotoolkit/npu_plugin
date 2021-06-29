@@ -39,23 +39,24 @@
 #include <ngraph/function.hpp>
 #include <ngraph/node.hpp>
 #include <ngraph/opsets/opset1.hpp>
+#include <ngraph/opsets/opset4.hpp>
 #include <ngraph/opsets/opset7.hpp>
 #include <ngraph/pass/constant_folding.hpp>
 #include <ngraph/pass/manager.hpp>
-#include <ngraph/shape.hpp>
 #include <ngraph/type/element_type.hpp>
 
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/common_optimizations/convert_quantize_dequantize.hpp>
 #include <transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp>
 #include <transformations/op_conversions/convert_divide.hpp>
+#include <transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp>
 #include <transformations/op_conversions/convert_minimum_to_power_and_max.hpp>
-#include <transformations/op_conversions/convert_mod.hpp>
 #include <transformations/op_conversions/convert_negative.hpp>
 #include <transformations/op_conversions/convert_subtract.hpp>
 #include <transformations/op_conversions/hsigmoid_decomposition.hpp>
 #include <transformations/op_conversions/hswish_decomposition.hpp>
 #include <transformations/op_conversions/simplify_ctc_greedy_decoder_seq_len.hpp>
+#include "legacy/transformations/convert_opset1_to_legacy/convert_strided_slice_to_crop.hpp"
 
 using namespace vpux;
 
@@ -92,8 +93,6 @@ private:
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::ConvolutionBackpropData>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::AvgPool>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::MaxPool>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::PriorBox>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::PriorBoxClustered>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Gather>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Clamp>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Elu>& origNode);
@@ -115,7 +114,7 @@ private:
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Exp>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::HSwish>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Transpose>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Interpolate>& origNode);
+    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset4::Interpolate>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::TopK>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::RegionYolo>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::ReorgYolo>& origNode);
@@ -155,7 +154,7 @@ private:
     IE::TopKModeAttr importTopKMode(ngraph::op::TopKMode val);
     IE::TopKSortTypeAttr importTopKSortType(ngraph::op::TopKSortType val);
     IE::ProposalAttr importProposalAttrs(const ngraph::op::ProposalAttrs& val);
-    IE::InterpolateAttr importInterpolateAttrs(const ngraph::op::InterpolateAttrs& val);
+    IE::InterpolateAttr importInterpolateAttrs(const ngraph::op::v4::Interpolate::InterpolateAttrs& val);
     IE::DetectionOutputAttr importDetectionOutputAttrs(const ngraph::op::DetectionOutputAttrs& val);
     IE::ROIPoolingMethodAttr importROIPoolingMethod(const std::string& method);
     IE::PadModeAttr importPadMode(const ngraph::op::PadMode val);
@@ -197,8 +196,6 @@ mlir::FuncOp NGraphImporter::buildMainFunc(mlir::OpBuilder& moduleBuilder, Strin
             MAP_ENTRY(opset_latest::ConvolutionBackpropData),
             MAP_ENTRY(opset_latest::AvgPool),
             MAP_ENTRY(opset_latest::MaxPool),
-            MAP_ENTRY(opset_latest::PriorBox),
-            MAP_ENTRY(opset_latest::PriorBoxClustered),
             MAP_ENTRY(ngraph::opset1::Gather),
             MAP_ENTRY(opset_latest::Clamp),
             MAP_ENTRY(opset_latest::Elu),
@@ -220,7 +217,7 @@ mlir::FuncOp NGraphImporter::buildMainFunc(mlir::OpBuilder& moduleBuilder, Strin
             MAP_ENTRY(opset_latest::Exp),
             MAP_ENTRY(opset_latest::HSwish),
             MAP_ENTRY(opset_latest::Transpose),
-            MAP_ENTRY(ngraph::opset1::Interpolate),
+            MAP_ENTRY(ngraph::opset4::Interpolate),
             MAP_ENTRY(ngraph::opset1::TopK),
             MAP_ENTRY(opset_latest::RegionYolo),
             MAP_ENTRY(opset_latest::ReorgYolo),
@@ -599,43 +596,6 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
     addOutputs(origNode, op);
 }
 
-void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::PriorBox>& origNode) {
-    static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v0::PriorBox>::value,
-                  "opset operation mismatch");
-    const auto inputs = getInputs(origNode);
-    VPUX_THROW_UNLESS(inputs.size() == 2, "nGraph node '{0}' has unsupported number of inputs '{1}'",
-                      origNode->get_friendly_name(), inputs.size());
-
-    const auto& attrs = origNode->get_attrs();
-
-    auto op = builder.create<IE::PriorBoxOp>(
-            createLocation(origNode), inputs[0], inputs[1], getFP32ArrayAttr(_ctx, attrs.min_size),
-            getFP32ArrayAttr(_ctx, attrs.max_size), getFP32ArrayAttr(_ctx, attrs.aspect_ratio),
-            mlir::BoolAttr::get(_ctx, attrs.flip), mlir::BoolAttr::get(_ctx, attrs.clip), getFP32Attr(_ctx, attrs.step),
-            getFP32Attr(_ctx, attrs.offset), getFP32ArrayAttr(_ctx, attrs.variance),
-            mlir::BoolAttr::get(_ctx, attrs.scale_all_sizes), getFP32ArrayAttr(_ctx, attrs.fixed_ratio),
-            getFP32ArrayAttr(_ctx, attrs.fixed_size), getFP32ArrayAttr(_ctx, attrs.density));
-    addOutputs(origNode, op);
-}
-
-void NGraphImporter::parseNode(mlir::OpBuilder& builder,
-                               const std::shared_ptr<opset_latest::PriorBoxClustered>& origNode) {
-    static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v0::PriorBoxClustered>::value,
-                  "opset operation mismatch");
-    const auto inputs = getInputs(origNode);
-    VPUX_THROW_UNLESS(inputs.size() == 2, "nGraph node '{0}' has unsupported number of inputs '{1}'",
-                      origNode->get_friendly_name(), inputs.size());
-
-    const auto& attrs = origNode->get_attrs();
-
-    auto op = builder.create<IE::PriorBoxClusteredOp>(
-            createLocation(origNode), inputs[0], inputs[1], getFP32ArrayAttr(_ctx, attrs.widths),
-            getFP32ArrayAttr(_ctx, attrs.heights), mlir::BoolAttr::get(_ctx, attrs.clip),
-            getFP32Attr(_ctx, attrs.step_widths), getFP32Attr(_ctx, attrs.step_heights),
-            getFP32Attr(_ctx, attrs.offset), getFP32ArrayAttr(_ctx, attrs.variances));
-    addOutputs(origNode, op);
-}
-
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Gather>& origNode) {
     static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v1::Gather>::value,
                   "opset operation mismatch");
@@ -863,8 +823,8 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
     auto attrEllipsisAxisMask = getInt64ArrayAttr(_ctx, origNode->get_ellipsis_mask());
 
     auto op = builder.create<IE::StridedSliceOp>(createLocation(origNode), inputs[0], inputs[1], inputs[2], inputs[3],
-                                                 attrBeginMask, attrEndMask, attrNewAxisMask, attrShrinkAxisMask,
-                                                 attrEllipsisAxisMask);
+                                                 nullptr, nullptr, nullptr, attrBeginMask, attrEndMask, attrNewAxisMask,
+                                                 attrShrinkAxisMask, attrEllipsisAxisMask);
     addOutputs(origNode, op);
 }
 
@@ -898,16 +858,17 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
     addOutputs(origNode, op);
 }
 
-void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Interpolate>& origNode) {
-    static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v0::Interpolate>::value,
+void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset4::Interpolate>& origNode) {
+    static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v4::Interpolate>::value,
                   "opset operation mismatch");
     const auto inputs = getInputs(origNode);
-    VPUX_THROW_UNLESS(inputs.size() == 2, "nGraph Interpolate node '{0}' has unsupported number of inputs '{1}'",
+    VPUX_THROW_UNLESS(inputs.size() == 4, "nGraph Interpolate node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
 
     const auto interpolateAttr = importInterpolateAttrs(origNode->get_attrs());
 
-    auto op = builder.create<IE::InterpolateOp>(createLocation(origNode), inputs[0], inputs[1], interpolateAttr);
+    auto op = builder.create<IE::InterpolateOp>(createLocation(origNode), inputs[0], inputs[1], inputs[2], inputs[3],
+                                                nullptr, nullptr, nullptr, interpolateAttr);
     addOutputs(origNode, op);
 }
 
@@ -1263,18 +1224,90 @@ IE::ProposalAttr NGraphImporter::importProposalAttrs(const ngraph::op::ProposalA
                                  boxSizeScaleAttr, boxCoordinateScaleAttr, frameworkAttr, inferProbsAttr, _ctx);
 }
 
-IE::InterpolateAttr NGraphImporter::importInterpolateAttrs(const ngraph::op::InterpolateAttrs& val) {
-    const auto modeAttr = mlir::StringAttr::get(_ctx, val.mode).dyn_cast<IE::InterpolateModeAttr>();
-    VPUX_THROW_UNLESS(modeAttr != nullptr, "Unsupported interpolate mode '{0}'", val.mode);
+IE::InterpolateAttr NGraphImporter::importInterpolateAttrs(const ngraph::op::v4::Interpolate::InterpolateAttrs& val) {
+    // mode
+    IE::InterpolateModeAttr modeAttr;
+    switch (val.mode) {
+    case ngraph::op::v4::Interpolate::InterpolateMode::nearest:
+        modeAttr = IE::InterpolateModeAttr::get(_ctx, IE::InterpolateMode::nearest);
+        break;
+    case ngraph::op::v4::Interpolate::InterpolateMode::linear:
+        modeAttr = IE::InterpolateModeAttr::get(_ctx, IE::InterpolateMode::linear);
+        break;
+    case ngraph::op::v4::Interpolate::InterpolateMode::linear_onnx:
+        modeAttr = IE::InterpolateModeAttr::get(_ctx, IE::InterpolateMode::linear_onnx);
+        break;
+    case ngraph::op::v4::Interpolate::InterpolateMode::cubic:
+        modeAttr = IE::InterpolateModeAttr::get(_ctx, IE::InterpolateMode::cubic);
+        break;
+    default:
+        VPUX_THROW("Unsupported interpolate mode");
+    }
 
-    const auto axesAttr = getInt64ArrayAttr(_ctx, val.axes);
-    const auto alignCornersAttr = mlir::BoolAttr::get(_ctx, val.align_corners);
+    // shape calculation mode
+    IE::InterpolateCalcModeAttr calcModeAttr;
+    switch (val.shape_calculation_mode) {
+    case ngraph::op::v4::Interpolate::ShapeCalcMode::sizes:
+        calcModeAttr = IE::InterpolateCalcModeAttr::get(_ctx, IE::InterpolateCalcMode::sizes);
+        break;
+    case ngraph::op::v4::Interpolate::ShapeCalcMode::scales:
+        calcModeAttr = IE::InterpolateCalcModeAttr::get(_ctx, IE::InterpolateCalcMode::scales);
+        break;
+    default:
+        VPUX_THROW("Unsupported interpolate shape calculation mode");
+    }
+
+    // coordinate transformation mode
+    IE::InterpolateCoordModeAttr coordModeAttr;
+    switch (val.coordinate_transformation_mode) {
+    case ngraph::op::v4::Interpolate::CoordinateTransformMode::half_pixel:
+        coordModeAttr = IE::InterpolateCoordModeAttr::get(_ctx, IE::InterpolateCoordMode::half_pixel);
+        break;
+    case ngraph::op::v4::Interpolate::CoordinateTransformMode::pytorch_half_pixel:
+        coordModeAttr = IE::InterpolateCoordModeAttr::get(_ctx, IE::InterpolateCoordMode::pytorch_half_pixel);
+        break;
+    case ngraph::op::v4::Interpolate::CoordinateTransformMode::asymmetric:
+        coordModeAttr = IE::InterpolateCoordModeAttr::get(_ctx, IE::InterpolateCoordMode::asymmetric);
+        break;
+    case ngraph::op::v4::Interpolate::CoordinateTransformMode::tf_half_pixel_for_nn:
+        coordModeAttr = IE::InterpolateCoordModeAttr::get(_ctx, IE::InterpolateCoordMode::tf_half_pixel_for_nn);
+        break;
+    case ngraph::op::v4::Interpolate::CoordinateTransformMode::align_corners:
+        coordModeAttr = IE::InterpolateCoordModeAttr::get(_ctx, IE::InterpolateCoordMode::align_corners);
+        break;
+    default:
+        VPUX_THROW("Unsupported interpolate coordinate transformation mode");
+    }
+
+    // coordinate transformation mode
+    IE::InterpolateNearestModeAttr nearestModeAttr;
+    switch (val.nearest_mode) {
+    case ngraph::op::v4::Interpolate::NearestMode::round_prefer_floor:
+        nearestModeAttr = IE::InterpolateNearestModeAttr::get(_ctx, IE::InterpolateNearestMode::round_prefer_floor);
+        break;
+    case ngraph::op::v4::Interpolate::NearestMode::round_prefer_ceil:
+        nearestModeAttr = IE::InterpolateNearestModeAttr::get(_ctx, IE::InterpolateNearestMode::round_prefer_ceil);
+        break;
+    case ngraph::op::v4::Interpolate::NearestMode::floor:
+        nearestModeAttr = IE::InterpolateNearestModeAttr::get(_ctx, IE::InterpolateNearestMode::floor);
+        break;
+    case ngraph::op::v4::Interpolate::NearestMode::ceil:
+        nearestModeAttr = IE::InterpolateNearestModeAttr::get(_ctx, IE::InterpolateNearestMode::ceil);
+        break;
+    case ngraph::op::v4::Interpolate::NearestMode::simple:
+        nearestModeAttr = IE::InterpolateNearestModeAttr::get(_ctx, IE::InterpolateNearestMode::simple);
+        break;
+    default:
+        VPUX_THROW("Unsupported interpolate nearest mode");
+    }
+
     const auto antialiasAttr = mlir::BoolAttr::get(_ctx, val.antialias);
     const auto padsBeginAttr = getInt32ArrayAttr(_ctx, val.pads_begin);
     const auto padsEndAttr = getInt32ArrayAttr(_ctx, val.pads_end);
+    const auto cubeCoeffAttr = getFP32Attr(_ctx, (float)(val.cube_coeff));
 
-    return IE::InterpolateAttr::get(axesAttr, modeAttr, alignCornersAttr, antialiasAttr, padsBeginAttr, padsEndAttr,
-                                    _ctx);
+    return IE::InterpolateAttr::get(modeAttr, calcModeAttr, coordModeAttr, nearestModeAttr, antialiasAttr,
+                                    padsBeginAttr, padsEndAttr, cubeCoeffAttr, _ctx);
 }
 
 IE::DetectionOutputAttr NGraphImporter::importDetectionOutputAttrs(const ngraph::op::DetectionOutputAttrs& val) {
@@ -1341,30 +1374,17 @@ IE::PadModeAttr NGraphImporter::importPadMode(const ngraph::op::PadMode val) {
     return attr;
 }
 
-mlir::AffineMap importLayout(mlir::MLIRContext* ctx, InferenceEngine::Layout layout, size_t numDims) {
-    if (numDims > 5) {
+SmallVector<mlir::AffineMap> importLayout(mlir::MLIRContext* ctx, InferenceEngine::Layout layout, ShapeRef shape) {
+    if (shape.size() > MAX_NAMED_ORDER_NUM_DIMS || layout == InferenceEngine::Layout::ANY) {
         return {};
     }
 
-    switch (layout) {
-    case InferenceEngine::Layout::ANY:
-    case InferenceEngine::Layout::SCALAR:
-    case InferenceEngine::Layout::C:
-    case InferenceEngine::Layout::NC:
-    case InferenceEngine::Layout::CHW:
-    case InferenceEngine::Layout::NCHW:
-    case InferenceEngine::Layout::NCDHW:
+    const auto order = DimsOrder::fromIE(layout);
+    if (order == DimsOrder::fromNumDims(order.numDims())) {
         return {};
-    case InferenceEngine::Layout::HWC:
-        return DimsOrder::HWC.toAffineMap(ctx);
-    case InferenceEngine::Layout::NHWC:
-        return DimsOrder::NHWC.toAffineMap(ctx);
-    case InferenceEngine::Layout::NDHWC:
-        return DimsOrder::NDHWC.toAffineMap(ctx);
-
-    default:
-        VPUX_THROW("Unsupported layout '{0}'", layout);
     }
+
+    return order.toAffineMapsList(ctx, shape);
 }
 
 mlir::Type importPrecision(mlir::MLIRContext* ctx, const InferenceEngine::Precision& precision) {
@@ -1394,17 +1414,13 @@ mlir::Type importPrecision(mlir::MLIRContext* ctx, const InferenceEngine::Precis
 }
 
 mlir::MemRefType importBuffer(mlir::MLIRContext* ctx, const InferenceEngine::TensorDesc& desc) {
-    SmallVector<int64_t> shape(desc.getDims().size());
+    Shape shape(desc.getDims().size());
     std::copy(desc.getDims().begin(), desc.getDims().end(), shape.begin());
 
     const auto precision = importPrecision(ctx, desc.getPrecision());
+    const auto affineMaps = importLayout(ctx, desc.getLayout(), shape);
 
-    SmallVector<mlir::AffineMap> affineMaps;
-    if (auto layout = importLayout(ctx, desc.getLayout(), desc.getDims().size())) {
-        affineMaps.push_back(layout);
-    }
-
-    return mlir::MemRefType::get(shape, precision, affineMaps);
+    return mlir::MemRefType::get(shape.raw(), precision, affineMaps);
 }
 
 std::string getValidOutputName(const std::shared_ptr<ngraph::op::Result>& result) {
@@ -1429,8 +1445,10 @@ void runNGraphPasses(std::shared_ptr<ngraph::Function> netGraph) {
     passConfig->disable<ngraph::pass::ConvertDivide>();
     passConfig->disable<ngraph::pass::ConvertNegative>();
     passConfig->disable<ngraph::pass::SimplifyCTCGreedyDecoderSeqLen>();
+    passConfig->disable<ngraph::pass::ConvertStridedSliceToCropMatcher>();
 
     ngraph::pass::Manager manager(passConfig);
+    manager.register_pass<ngraph::pass::ConvertInterpolate1ToInterpolate4>();
     manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<ngraph::pass::ConvertQuantizeDequantize>();
     manager.register_pass<ngraph::pass::WeightsDequantizeToFakeQuantize>();

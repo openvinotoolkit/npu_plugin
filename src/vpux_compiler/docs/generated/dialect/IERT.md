@@ -277,7 +277,7 @@ Syntax:
 
 ```
 operation ::= `IERT.ConcatView` attr-dict
-              (`inputs` `(` $inputs^ `:` type($inputs) `)`)?
+              `inputs` `(` $inputs `:` type($inputs) `)`
               `outputs` `(` $output_buff `:` type($output_buff) `)`
               `->` type(results)
 ```
@@ -814,6 +814,43 @@ operation ::= `IERT.HSwish` attr-dict
               `->` type(results)
 ```
 
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float or 32-bit float values
+`output_buff` | memref of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float or 32-bit float values
+
+### `IERT.Interpolate` (vpux::IERT::InterpolateOp)
+
+InferenceEngine run-time Interpolate layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.Interpolate` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`mode` | vpux::IE::InterpolateModeAttr | Specifies type of interpolation
+`coord_mode` | vpux::IE::InterpolateCoordModeAttr | coordinate_transformation_mode specifies how to transform the coordinate.
+`nearest_mode` | vpux::IE::InterpolateNearestModeAttr | specifies round mode when mode == nearest
+`antialias` | ::mlir::UnitAttr | unit attribute
 
 #### Operands:
 
@@ -1453,6 +1490,42 @@ operation ::= `IERT.StaticAlloc` `<` $offset `>` attr-dict `->` type(results)
 | Result | Description |
 | :----: | ----------- |
 `memory` | memref of any type values
+
+### `IERT.StridedSlice` (vpux::IERT::StridedSliceOp)
+
+InferenceEngine run-time StridedSlice layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.StridedSlice` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`begins` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`ends` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`strides` | ::mlir::ArrayAttr | 64-bit integer array attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of any type values
+`output_buff` | memref of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of any type values
 
 ### `IERT.Swish` (vpux::IERT::SwishOp)
 

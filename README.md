@@ -47,6 +47,7 @@ How to prepare device for work (flash FIP/BKC)
 ## = Run =
 - [How to deploy VPUX Plugin build to KMB board](guides/how-to-deploy.md)
 - [How to run tests on KMB board](guides/how-to-test.md)
+- [How to set devices and platforms](guides/how-to-set-devices-and-platforms.md)
 
 ### Bypass mode (HDDL2)
 Bypass related preparations

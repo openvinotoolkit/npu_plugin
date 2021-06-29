@@ -620,73 +620,6 @@ def IE_MaxPoolOp :
 }
 
 //
-// PriorBoxOp
-//
-
-def IE_PriorBoxOp :
-        IE_LayerOp<
-            "PriorBox",
-            [
-                ResultsAreFloatLike,
-            ]
-        > {
-    let summary = "InferenceEngine PriorBox layer";
-
-    let arguments = (ins
-        RankedTensorOf<[SI64]>:$output_size,
-        RankedTensorOf<[SI64]>:$image_size,
-
-        F32ArrayAttr:$min_size,
-        F32ArrayAttr:$max_size,
-        F32ArrayAttr:$aspect_ratio,
-        BoolAttr:$flip,
-        BoolAttr:$clip,
-        F32Attr:$step,
-        F32Attr:$offset,
-        F32ArrayAttr:$variance,
-        BoolAttr:$scale_all_sizes,
-        F32ArrayAttr:$fixed_ratio,
-        F32ArrayAttr:$fixed_size,
-        F32ArrayAttr:$density
-    );
-
-    let results = (outs
-        RankedTensorOf<[F16, F32]>:$output
-    );
-}
-
-//
-// PriorBoxClusteredOp
-//
-
-def IE_PriorBoxClusteredOp :
-        IE_LayerOp<
-            "PriorBoxClustered",
-            [
-                ResultsAreFloatLike,
-            ]
-        > {
-    let summary = "InferenceEngine PriorBoxClustered layer";
-
-    let arguments = (ins
-        RankedTensorOf<[SI64]>:$output_size,
-        RankedTensorOf<[SI64]>:$image_size,
-
-        F32ArrayAttr:$widths,
-        F32ArrayAttr:$heights,
-        BoolAttr:$clip,
-        F32Attr:$step_widths,
-        F32Attr:$step_heights,
-        F32Attr:$offset,
-        F32ArrayAttr:$variance
-    );
-
-    let results = (outs
-        RankedTensorOf<[F16, F32]>:$output
-    );
-}
-
-//
 // GatherOp
 //
 
@@ -1112,20 +1045,31 @@ def IE_ProposalOp :
 
 def IE_InterpolateOp :
         IE_LayerOp<
-            "Interpolate"
+            "Interpolate",
+            [
+                AttrSizedOperandSegments
+            ]
         > {
     let summary = "InferenceEngine Interpolate layer";
 
     let arguments = (ins
-        AnyRankedTensor:$input,
-        1DTensorOf<[AnyInteger]>:$target_shape,
+        RankedTensorOf<[F16, F32]>:$input,
+        Optional<RankedTensorOf<[AnyInteger]>>:$sizes,
+        Optional<RankedTensorOf<[F16, F32]>>:$scales,
+        Optional<RankedTensorOf<[AnyInteger]>>:$axes,
+
+        OptionalAttr<I32ArrayAttr>:$sizes_attr,
+        OptionalAttr<F32ArrayAttr>:$scales_attr,
+        OptionalAttr<I32ArrayAttr>:$axes_attr,
 
         IE_InterpolateAttr:$attr
     );
 
     let results = (outs
-        AnyRankedTensor:$output
+        RankedTensorOf<[F16, F32]>:$output
     );
+
+    let hasCanonicalizer = 1;
 }
 
 //
@@ -1312,15 +1256,22 @@ def IE_ROIPoolingOp :
 
 def IE_StridedSliceOp :
         IE_LayerOp<
-            "StridedSlice"
+            "StridedSlice",
+            [
+                AttrSizedOperandSegments
+            ]
         > {
     let summary = "InferenceEngine StridedSlice layer";
 
     let arguments = (ins
-        AnyRankedTensor:$data,
-        1DTensorOf<[AnyInteger]>:$begin,
-        1DTensorOf<[AnyInteger]>:$end,
-        1DTensorOf<[AnyInteger]>:$stride,
+        AnyRankedTensor:$input,
+        Optional<1DTensorOf<[AnyInteger]>>:$begins,
+        Optional<1DTensorOf<[AnyInteger]>>:$ends,
+        Optional<1DTensorOf<[AnyInteger]>>:$strides,
+
+        OptionalAttr<I64ArrayAttr>:$begins_attr,
+        OptionalAttr<I64ArrayAttr>:$ends_attr,
+        OptionalAttr<I64ArrayAttr>:$strides_attr,
 
         I64ArrayAttr:$begin_mask,
         I64ArrayAttr:$end_mask,
@@ -1332,6 +1283,8 @@ def IE_StridedSliceOp :
     let results = (outs
         AnyRankedTensor:$output
     );
+
+    let hasCanonicalizer = 1;
 }
 
 //

@@ -19,8 +19,8 @@ func @FuseConvAndBias(%arg0: tensor<1x3x300x300xf32>) -> tensor<1x16x300x300xf32
 
     return %1 : tensor<1x16x300x300xf32>
 
-    // CHECK:       %[[FILTERS:.*]] = IE.Constant tensor<16x3x3x3xf32> = dense<1.000000e+00> : tensor<16x3x3x3xf32>
-    // CHECK:       %[[BIAS:.*]] = IE.Constant tensor<1x16x1x1xf32> = dense<1.000000e+00> : tensor<1x16x1x1xf32>
+    // CHECK-DAG:   %[[FILTERS:.*]] = IE.Constant tensor<16x3x3x3xf32> = dense<1.000000e+00> : tensor<16x3x3x3xf32>
+    // CHECK-DAG:   %[[BIAS:.*]] = IE.Constant tensor<1x16x1x1xf32> = dense<1.000000e+00> : tensor<1x16x1x1xf32>
     // CHECK:       %[[VAL0:.*]] = IE.Convolution(%arg0, %[[FILTERS]], %[[BIAS]])
     // CHECK-SAME:      dilations = [1 : i32, 1 : i32]
     // CHECK-SAME:      pads_begin = [1 : i32, 1 : i32]

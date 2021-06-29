@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -319,6 +319,8 @@ def IERT_CopyOp :
         `outputs` `(` $output_buff `:` type($output_buff) `)`
         `->` type(results)
     }];
+
+    let hasFolder = 1;
 }
 
 //
@@ -351,6 +353,7 @@ def IERT_ReorderOp :
     }];
 
     let hasCanonicalizer = 1;
+    let hasFolder = 1;
 }
 
 //
@@ -1422,6 +1425,7 @@ def IERT_NegativeOp :
         `->` type(results)
     }];
 }
+
 //
 // ROIPoolingOp
 //
@@ -1524,10 +1528,12 @@ def IERT_TransposeOp :
 //
 
 def IERT_ConcatViewOp :
-        IERT_LayerOp<1,"ConcatView",
+        IERT_Op<"ConcatView",
             [
                 ViewLikeOpInterface,
                 SameOperandsAndResultElementType,
+                InferTypeOpInterface,
+                NoSideEffect
             ]
         > {
     let summary = "InferenceEngine run-time ConcatView layer. Dummy operation to maintain use-def chains.";
@@ -1543,10 +1549,16 @@ def IERT_ConcatViewOp :
 
     let assemblyFormat = [{
         attr-dict
-        (`inputs` `(` $inputs^ `:` type($inputs) `)`)?
+        `inputs` `(` $inputs `:` type($inputs) `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
         `->` type(results)
     }];
+
+    let extraClassDeclaration = [{
+        mlir::Value getViewSource() {
+            return output_buff();
+        }
+    }] # InferReturnTypesForLayer<1>.impl;
 }
 
 //
@@ -1640,6 +1652,73 @@ def IERT_PadOp :
 
     let results = (outs
         MemRefOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
+// InterpolateOp
+//
+
+def IERT_InterpolateOp :
+        IERT_LayerOp<1, "Interpolate",
+        [
+            ViewLikeOpInterface
+        ]
+        > {
+    let summary = "InferenceEngine run-time Interpolate layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input,
+        MemRefOf<[F16, F32]>:$output_buff,
+
+        IE_InterpolateMode:$mode,
+        IE_InterpolateCoordMode:$coord_mode,
+        IE_InterpolateNearestMode:$nearest_mode,
+        UnitAttr:$antialias
+    );
+
+    let results = (outs
+        MemRefOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
+// StridedSliceOp
+//
+
+def IERT_StridedSliceOp :
+        IERT_LayerOp<1, "StridedSlice",
+            [
+                ViewLikeOpInterface,
+            ]
+        > {
+    let summary = "InferenceEngine run-time StridedSlice layer";
+
+    let arguments = (ins
+        AnyMemRef:$input,
+        AnyMemRef:$output_buff,
+
+        I64ArrayAttr:$begins,
+        I64ArrayAttr:$ends,
+        I64ArrayAttr:$strides
+    );
+
+    let results = (outs
+        AnyMemRef:$output
     );
 
     let assemblyFormat = [{

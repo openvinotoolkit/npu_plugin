@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -39,19 +39,65 @@ public:
 };
 
 mlir::Attribute VPUIPLayerInfo::getExecutor(mlir::Operation* op, uint32_t& numUnits) const {
-    return llvm::TypeSwitch<mlir::Operation*, mlir::Attribute>(op)
-            .Case<IERT::CopyOp>([&](IERT::CopyOp) {
-                numUnits = 1;
-                return VPUIP::DMAEngineAttr::get(op->getContext(), VPUIP::DMAEngine::DMA_NN);
-            })
-            .Default([&](mlir::Operation*) {
-                auto module = op->getParentOfType<mlir::ModuleOp>();
-                auto resources = IERT::RunTimeResourcesOp::getFromModule(module);
-                auto upaSHAVEs = resources.getExecutor(
-                        VPUIP::PhysicalProcessorAttr::get(op->getContext(), VPUIP::PhysicalProcessor::SHAVE_UPA));
-                numUnits = upaSHAVEs.count();
-                return upaSHAVEs.kind();
-            });
+    const auto getDMAEngine = [&](VPUIP::DMAEngine engine) {
+        numUnits = 1;
+        return VPUIP::DMAEngineAttr::get(op->getContext(), engine);
+    };
+
+    const auto getPhysicalProcessor = [&](VPUIP::PhysicalProcessor proc, Optional<uint32_t> units = None) {
+        const auto procAttr = VPUIP::PhysicalProcessorAttr::get(op->getContext(), proc);
+
+        if (units.hasValue()) {
+            numUnits = units.getValue();
+        } else {
+            auto module = op->getParentOfType<mlir::ModuleOp>();
+            auto resources = IERT::RunTimeResourcesOp::getFromModule(module);
+            auto available = resources.getExecutor(procAttr);
+            VPUX_THROW_UNLESS(available != nullptr, "Executor for '{0}' is not available", procAttr);
+            numUnits = available.count();
+        }
+
+        return procAttr;
+    };
+
+    if (auto task = mlir::dyn_cast<VPUIP::TaskOpInterface>(op)) {
+        const auto taskType = task.getTaskType();
+
+        switch (taskType) {
+        case VPUIP::TaskType::UPADMA:
+            return getDMAEngine(VPUIP::DMAEngine::DMA_UPA);
+        case VPUIP::TaskType::NNDMA:
+            return getDMAEngine(VPUIP::DMAEngine::DMA_NN);
+        case VPUIP::TaskType::NCE2:
+            return getPhysicalProcessor(VPUIP::PhysicalProcessor::NCE_Cluster, 1);
+        case VPUIP::TaskType::UPA: {
+            auto upaTask = mlir::cast<VPUIP::UPATaskOpInterface>(op);
+            return getPhysicalProcessor(VPUIP::PhysicalProcessor::SHAVE_UPA, upaTask.maxShaves());
+        }
+        default:
+            VPUX_THROW("Unsupported task type '{0}'", taskType);
+        }
+    }
+
+    if (mlir::isa<IERT::ConvolutionOp, IERT::MaxPoolOp>(op)) {
+        auto module = op->getParentOfType<mlir::ModuleOp>();
+        const auto compileMode = VPUIP::getCompilationMode(module);
+
+        if (compileMode == VPUIP::CompilationMode::ReferenceHW && VPUIP::NCEInvariant::verifyOp(op).succeeded()) {
+            return getPhysicalProcessor(VPUIP::PhysicalProcessor::NCE_Cluster);
+        }
+    }
+
+    if (mlir::isa<IERT::CopyOp>(op)) {
+        return getDMAEngine(VPUIP::DMAEngine::DMA_NN);
+    }
+
+    return getPhysicalProcessor(VPUIP::PhysicalProcessor::SHAVE_UPA);
+}
+
+template <class ConcreteOp>
+bool isSupportedByNCE(ConcreteOp op) {
+    return VPUIP::NCEInvariant::verifyOp(op).succeeded();
 }
 
 mlir::LogicalResult VPUIPLayerInfo::isSupportedLayout(mlir::Operation* origOp, DataOrderInfo& info) const {
@@ -59,16 +105,16 @@ mlir::LogicalResult VPUIPLayerInfo::isSupportedLayout(mlir::Operation* origOp, D
     auto compileMode = VPUIP::getCompilationMode(module);
 
 #define CASE(_IERT_OP_, _VPUIP_OP_)                     \
-    .Case<_IERT_OP_>([&](mlir::Operation* op) {         \
+    .Case<_IERT_OP_>([&](_IERT_OP_ op) {                \
         return _VPUIP_OP_::isSupportedLayout(op, info); \
     })
 
-#define HW_OPS_CASE(_IERT_OP_, _VPUIP_OP_)                                                                         \
-    .Case<_IERT_OP_>([&](mlir::Operation* op) {                                                                    \
-        if (compileMode == VPUIP::CompilationMode::ReferenceHW && VPUIP::NCEInvariant::verifyOp(op).succeeded()) { \
-            return VPUIP::NCEClusterTaskOp::isSupportedLayout(op, info);                                           \
-        }                                                                                                          \
-        return _VPUIP_OP_::isSupportedLayout(op, info);                                                            \
+#define HW_OPS_CASE(_IERT_OP_, _VPUIP_OP_)                                                \
+    .Case<_IERT_OP_>([&](_IERT_OP_ op) {                                                  \
+        if (compileMode == VPUIP::CompilationMode::ReferenceHW && isSupportedByNCE(op)) { \
+            return VPUIP::NCEClusterTaskOp::isSupportedLayout(op, info);                  \
+        }                                                                                 \
+        return _VPUIP_OP_::isSupportedLayout(op, info);                                   \
     })
 
     return llvm::TypeSwitch<mlir::Operation*, mlir::LogicalResult>(origOp) CASE(IERT::QuantizeOp, VPUIP::QuantCastUPAOp)
@@ -79,7 +125,7 @@ mlir::LogicalResult VPUIPLayerInfo::isSupportedLayout(mlir::Operation* origOp, D
     CASE(IERT::AvgPoolOp, VPUIP::PoolingUPAOp)
     HW_OPS_CASE(IERT::MaxPoolOp, VPUIP::PoolingUPAOp)
     HW_OPS_CASE(IERT::ConvolutionOp, VPUIP::ConvolutionUPAOp)
-    HW_OPS_CASE(IERT::GroupConvolutionOp, VPUIP::ConvolutionUPAOp)
+    CASE(IERT::GroupConvolutionOp, VPUIP::ConvolutionUPAOp)
     CASE(IERT::ReLUOp, VPUIP::ReLUUPAOp)
     CASE(IERT::SigmoidOp, VPUIP::SigmoidUPAOp)
     CASE(IERT::ClampOp, VPUIP::ClampUPAOp)
@@ -112,6 +158,8 @@ mlir::LogicalResult VPUIPLayerInfo::isSupportedLayout(mlir::Operation* origOp, D
     CASE(IERT::CTCGreedyDecoderSeqLenOp, VPUIP::CTCGreedyDecoderSeqLenUPAOp)
     CASE(IERT::PadOp, VPUIP::PadUPAOp)
     CASE(IERT::ExpOp, VPUIP::ExpUPAOp)
+    CASE(IERT::InterpolateOp, VPUIP::InterpolateUPAOp)
+    CASE(IERT::StridedSliceOp, VPUIP::StridedSliceUPAOp)
     .Default([](mlir::Operation* unknownOp) -> mlir::LogicalResult {
         VPUX_THROW("Operation '{0}' does not support layout propagation", unknownOp->getName());
     });

@@ -1270,7 +1270,8 @@ class Operation_Dag {
         resource_t resource_utility;
 
         if ( !does_the_op_run_on_hardware(op) ||
-            is_dma_op_moving_data_from_cmx_to_ddr(op) ) {
+            is_dma_op_moving_data_from_cmx_to_ddr(op) ||
+            is_dma_op_moving_data_from_ddr_to_ddr(op)) {
           resource_utility = 0UL;
         } else {
           resource_utility = output_tensor_size(op);
@@ -1695,6 +1696,14 @@ class Operation_Dag {
 
       return (dma_dir == mv::DmaDirectionEnum::DDR2NNCMX) ||
           (dma_dir == mv::DmaDirectionEnum::DDR2UPACMX);
+    }
+
+    bool is_dma_op_moving_data_from_ddr_to_ddr(operation_t op) const {
+      if ((op->getOpType()) != "DMATask") { return false; }
+
+      mv::DmaDirectionEnum dma_dir = op->get<mv::DmaDirection>("direction");
+
+      return dma_dir == mv::DmaDirectionEnum::DDR2DDR;
     }
 
   private:

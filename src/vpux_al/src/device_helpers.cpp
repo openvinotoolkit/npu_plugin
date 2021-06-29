@@ -17,10 +17,10 @@
 namespace ie = InferenceEngine;
 
 const static std::map<uint32_t, ie::VPUXConfigParams::VPUXPlatform> platformIdMap = {
-        {0, ie::VPUXConfigParams::VPUXPlatform::VPU3400_A0},  // KMB A0 / B0
-        {1, ie::VPUXConfigParams::VPUXPlatform::VPU3800},     // TBH prime
-        {2, ie::VPUXConfigParams::VPUXPlatform::VPU3900},     // TBH full
-        {3, ie::VPUXConfigParams::VPUXPlatform::VPU3720},     // MTL
+        {0, ie::VPUXConfigParams::VPUXPlatform::VPU3700},  // KMB A0 / B0
+        {1, ie::VPUXConfigParams::VPUXPlatform::VPU3800},  // TBH prime
+        {2, ie::VPUXConfigParams::VPUXPlatform::VPU3900},  // TBH full
+        {3, ie::VPUXConfigParams::VPUXPlatform::VPU3720},  // MTL
 };
 
 const static std::map<ie::VPUXConfigParams::VPUXPlatform, std::string> platformNameMap = {

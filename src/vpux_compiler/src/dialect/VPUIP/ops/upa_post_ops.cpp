@@ -14,6 +14,7 @@
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
 #include "vpux/compiler/core/attributes/stride_reqs.hpp"
+#include "vpux/compiler/dialect/VPUIP/blob_reader.hpp"
 
 #include <mlir/IR/BuiltinTypes.h>
 
@@ -283,4 +284,71 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ScaleShiftUPAOp::serialize(VPUIP::B
     const auto paramsOff = builder.Finish();
 
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
+}
+
+mlir::Operation* vpux::VPUIP::BlobReader::parsePostOps(mlir::OpBuilder& builder, ArrayRef<mlir::Value> inputs,
+                                                       ArrayRef<mlir::Value> outputs, const MVCNN::UPALayerTask* task) {
+    VPUX_THROW_UNLESS(inputs.size() >= 1 && inputs.size() <= 3, "UPAPostOps supports 1, 2 or 3 inputs, got {0}",
+                      inputs.size());
+    VPUX_THROW_UNLESS(outputs.size() == 1, "UPAPostOps supports only 1 output, got {0}", outputs.size());
+    const auto params = task->softLayerParams_as_PostOpsParams();
+
+    mlir::Operation* op;
+    switch (params->nested_params_type()) {
+    case MVCNN::PostOpsNestedParams_ClampParams: {
+        const auto clampParams = params->nested_params_as_ClampParams();
+        op = builder.create<VPUIP::ClampUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], outputs[0],
+                                               getFP32Attr(_ctx, clampParams->min()),
+                                               getFP32Attr(_ctx, clampParams->max()));
+        break;
+    }
+    case MVCNN::PostOpsNestedParams_EluParams: {
+        const auto eluParams = params->nested_params_as_EluParams();
+        op = builder.create<VPUIP::EluUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], outputs[0],
+                                             getFP32Attr(_ctx, eluParams->x()));
+        break;
+    }
+    case MVCNN::PostOpsNestedParams_HSwishParams:
+        op = builder.create<VPUIP::HSwishUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], outputs[0]);
+        break;
+    case MVCNN::PostOpsNestedParams_TanhParams:
+        op = builder.create<VPUIP::TanhUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], outputs[0]);
+        break;
+    case MVCNN::PostOpsNestedParams_ReluParams:
+        op = builder.create<VPUIP::ReLUUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], outputs[0]);
+        break;
+    case MVCNN::PostOpsNestedParams_SigmoidParams:
+        op = builder.create<VPUIP::SigmoidUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], outputs[0]);
+        break;
+    case MVCNN::PostOpsNestedParams_PReluParams:
+        op = builder.create<VPUIP::PReluUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], inputs[1], outputs[0]);
+        break;
+    case MVCNN::PostOpsNestedParams_LeakyReluParams: {
+        const auto leakyReluParams = params->nested_params_as_LeakyReluParams();
+        op = builder.create<VPUIP::LeakyReluUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], outputs[0],
+                                                   getFP32Attr(_ctx, leakyReluParams->negative_slope()));
+        break;
+    }
+    case MVCNN::PostOpsNestedParams_SwishParams: {
+        const auto swishParams = params->nested_params_as_SwishParams();
+        op = builder.create<VPUIP::SwishUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], outputs[0],
+                                               getFP32Attr(_ctx, swishParams->beta()));
+        break;
+    }
+    case MVCNN::PostOpsNestedParams_BiasParams:
+        op = builder.create<VPUIP::ScaleShiftUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], nullptr, inputs[1],
+                                                    outputs[0]);
+        break;
+    case MVCNN::PostOpsNestedParams_ScaleParams:
+        op = builder.create<VPUIP::ScaleShiftUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], inputs[1], nullptr,
+                                                    outputs[0]);
+        break;
+    case MVCNN::PostOpsNestedParams_ScaleShiftParams:
+        op = builder.create<VPUIP::ScaleShiftUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], inputs[1], inputs[2],
+                                                    outputs[0]);
+        break;
+    default:
+        VPUX_THROW("Unsupported PostOps operation type {0}", params->nested_params_type());
+    }
+    return op;
 }

@@ -52,7 +52,7 @@ static VPUXConfig mergePluginAndNetworkConfigs(const VPUXConfig& pluginConfig,
 //------------------------------------------------------------------------------
 // TODO: generation of available backends list can be done during execution of CMake scripts
 static const std::vector<std::string> backendRegistry = {
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32) || defined(_WIN64) || (defined(__linux__) && defined(__x86_64__))
         "zero_backend",
 #endif
 #if defined(__arm__) || defined(__aarch64__)
@@ -196,7 +196,7 @@ IE::Parameter Engine::GetConfig(const std::string& name,
 }
 
 IE::Parameter Engine::GetMetric(const std::string& name,
-                                const std::map<std::string, IE::Parameter>& /*options*/) const {
+                                const std::map<std::string, IE::Parameter>& options) const {
     if (name == METRIC_KEY(AVAILABLE_DEVICES)) {
         IE_SET_METRIC_RETURN(AVAILABLE_DEVICES, _metrics.GetAvailableDevicesNames());
     } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
@@ -213,6 +213,12 @@ IE::Parameter Engine::GetMetric(const std::string& name,
         IE_SET_METRIC_RETURN(RANGE_FOR_STREAMS, _metrics.GetRangeForStreams());
     } else if (name == METRIC_KEY(IMPORT_EXPORT_SUPPORT)) {
         IE_SET_METRIC_RETURN(IMPORT_EXPORT_SUPPORT, true);
+    } else if (name == METRIC_KEY(DEVICE_ARCHITECTURE)) {
+        std::string specifiedDeviceName;
+        if (options.count(CONFIG_KEY(DEVICE_ID)) && options.at(CONFIG_KEY(DEVICE_ID)).is<std::string>()) {
+            specifiedDeviceName = options.at(CONFIG_KEY(DEVICE_ID)).as<std::string>();
+        }
+        IE_SET_METRIC_RETURN(DEVICE_ARCHITECTURE, _metrics.GetDeviceArchitecture(specifiedDeviceName));
     }
     IE_THROW(NotImplemented);
 }

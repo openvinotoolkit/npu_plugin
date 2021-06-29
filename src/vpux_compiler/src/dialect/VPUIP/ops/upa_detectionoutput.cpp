@@ -12,6 +12,8 @@
 //
 
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
+
+#include "vpux/compiler/dialect/VPUIP/blob_reader.hpp"
 #include "vpux/compiler/utils/subspaces.hpp"
 
 #include <mlir/IR/BuiltinTypes.h>
@@ -60,4 +62,35 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::DetectionOutputUPAOp::serialize(VPU
     const auto paramsOff = builder.Finish();
 
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_DetectionOutputParams});
+}
+
+mlir::Operation* vpux::VPUIP::BlobReader::parseDetectionOutput(mlir::OpBuilder& builder, ArrayRef<mlir::Value> inputs,
+                                                               ArrayRef<mlir::Value> outputs,
+                                                               const MVCNN::UPALayerTask* task) {
+    VPUX_THROW_UNLESS(inputs.size() == 5, "UPADetectionOutput supports only 5 inputs, got {0}", inputs.size());
+    VPUX_THROW_UNLESS(outputs.size() == 1, "UPADetectionOutput supports only 1 output, got {0}", outputs.size());
+    const auto params = task->softLayerParams_as_DetectionOutputParams();
+    const auto numClasses = getInt32Attr(_ctx, params->num_classes());
+    const auto backgroundLabelId = getInt32Attr(_ctx, params->background_label_id());
+    const auto topK = getInt32Attr(_ctx, params->top_k());
+    const auto varianceEncodedInTarget = mlir::BoolAttr::get(_ctx, params->variance_encoded_in_target());
+    const auto keepTopK = getInt32ArrayAttr(_ctx, SmallVector<int32_t>{params->keep_top_k()});
+    const auto codeType = mlir::StringAttr::get(_ctx, params->code_type()->str());
+    const auto shareLocation = mlir::BoolAttr::get(_ctx, params->share_location());
+    const auto nmsThreshold = getFP32Attr(_ctx, params->nms_threshold());
+    const auto confidenceThreshold = getFP32Attr(_ctx, params->confidence_threshold());
+    const auto clipAfterNms = mlir::BoolAttr::get(_ctx, params->clip_after_nms());
+    const auto clipBeforeNms = mlir::BoolAttr::get(_ctx, params->clip_before_nms());
+    const auto decreaseLabelId = mlir::BoolAttr::get(_ctx, params->decrease_label_id());
+    const auto normalized = mlir::BoolAttr::get(_ctx, params->normalized());
+    const auto inputHeight = getUInt32Attr(_ctx, params->input_height());
+    const auto inputWidth = getUInt32Attr(_ctx, params->input_width());
+    const auto objectnessScore = getFP32Attr(_ctx, params->objectness_score());
+
+    const auto detectionOutputAttr = IE::DetectionOutputAttr::get(
+            numClasses, backgroundLabelId, topK, varianceEncodedInTarget, keepTopK, codeType, shareLocation,
+            nmsThreshold, confidenceThreshold, clipAfterNms, clipBeforeNms, decreaseLabelId, normalized, inputHeight,
+            inputWidth, objectnessScore, _ctx);
+    return builder.create<VPUIP::DetectionOutputUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], inputs[1], inputs[2],
+                                                       inputs[3], inputs[4], outputs[0], detectionOutputAttr);
 }

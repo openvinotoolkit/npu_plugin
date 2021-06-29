@@ -214,11 +214,6 @@ def VPUIP_DeclareVirtualBarrierOp :
         VPUIP_Barrier:$barrier
     );
 
-    let skipDefaultBuilders = 1;
-    let builders = [
-        OpBuilder<(ins)>
-    ];
-
     let assemblyFormat = [{
         attr-dict `->` type(results)
     }];
@@ -1685,36 +1680,26 @@ def VPUIP_DPUTaskOp :
         VPUIP_Op<
             "DPUTask",
             [
-                AttrSizedOperandSegments
+                HasParent<"vpux::VPUIP::NCEClusterTaskOp">
             ]
         > {
     let summary = "This object represents workload for a single DPU tile";
 
-    // TODO: Convert `I32ArrayAttr` into `MemRefOf` for `start` and `end` inputs.
-    //       Should use result of `subview` of tensors once [CVS-49600] is done.
     let arguments = (ins
         I32ArrayAttr:$start,
         I32ArrayAttr:$end,
         I32ArrayAttr:$pads_begin,
         I32ArrayAttr:$pads_end,
-        VPUIP_MPEMode:$mpe_mode,
-
-        Variadic<VPUIP_Barrier>:$waitBarriers,
-        Variadic<VPUIP_Barrier>:$updateBarriers
+        VPUIP_MPEMode:$mpe_mode
     );
 
     let assemblyFormat = [{
         attr-dict
-        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
-        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
     }];
 
-    let builders = [
-        OpBuilder<(ins
-            "mlir::ArrayAttr":$start, "mlir::ArrayAttr":$end, "mlir::ArrayAttr":$pads_begin,
-            "mlir::ArrayAttr":$pads_end, "vpux::VPUIP::MPEMode":$mpe_mode
-        )>
-    ];
+    let verifier = [{
+        return vpux::VPUIP::verifyOp(*this);
+    }];
 }
 
 //
@@ -1723,7 +1708,10 @@ def VPUIP_DPUTaskOp :
 
 def VPUIP_PPETaskOp :
         VPUIP_Op<
-            "PPETask"
+            "PPETask",
+            [
+                HasParent<"vpux::VPUIP::NCEClusterTaskOp">
+            ]
         > {
     let summary = "PPE Type for NCE Task";
 
@@ -1732,7 +1720,7 @@ def VPUIP_PPETaskOp :
     );
 
     let assemblyFormat = [{
-        attr-dict $ppe_layer_type
+        $ppe_layer_type attr-dict
     }];
 }
 
@@ -1744,7 +1732,7 @@ def VPUIP_NCEClusterTaskOp :
         VPUIP_TaskOp<1, "NCEClusterTask",
             [
                 ViewLikeOpInterface,
-                DeclareOpInterfaceMethods<VPUIP_NCETaskOpInterface>
+                NoRegionArguments
             ]
             # GraphRegionNoTerminator.traits
         > {
@@ -1767,62 +1755,61 @@ def VPUIP_NCEClusterTaskOp :
         mutually exclusive.
     }];
 
-    let regions = (region
-        SizedRegion<1>:$variants,
-        VariadicRegion<SizedRegion<1>>:$ppe_tasks
-    );
-
     let arguments = (ins
-        MemRefOf<[UI8, F16, BF16, quant_QuantizedType]>:$input,
-        Optional<MemRefOf<[UI8, F16, BF16, quant_QuantizedType]>>:$filter,
+        MemRefOf<[F16, quant_QuantizedType]>:$input,
+        Optional<MemRefOf<[F16, quant_QuantizedType]>>:$weights,
         Optional<MemRefOf<[SI32]>>:$weight_table,
         Optional<MemRefOf<[UI8]>>:$activation_window,
-        MemRefOf<[UI8, F16, BF16, quant_QuantizedType]>:$parent_input,
-        MemRefOf<[UI8, F16, F32, BF16, quant_QuantizedType]>:$parent_output,
 
-        MemRefOf<[UI8, F16, F32, BF16, quant_QuantizedType]>:$output_buff,
+        AnyMemRef:$parent_input,
+        AnyMemRef:$parent_output,
+
+        MemRefOf<[F16, quant_QuantizedType]>:$output_buff,
 
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers,
 
         VPUIP_NCETaskType:$task_type,
-        OptionalAttr<VPUIP_PPELayerType>:$fixed_ppe_task,
-        OptionalAttr<I32ArrayAttr>:$kernel_padding,
-        OptionalAttr<I32ArrayAttr>:$strides,
         OptionalAttr<I32ArrayAttr>:$kernel_size,
+        OptionalAttr<I32ArrayAttr>:$kernel_strides,
+        OptionalAttr<I32ArrayAttr>:$kernel_padding,
         OptionalAttr<I32Attr>:$activation_window_channel_length
-
     );
 
     let results = (outs
-        MemRefOf<[UI8, F16, F32, BF16, quant_QuantizedType]>:$output
+        MemRefOf<[F16, quant_QuantizedType]>:$output
+    );
+
+    let regions = (region
+        SizedRegion<1>:$variants,
+        SizedRegion<1>:$ppe
     );
 
     let builders = [
         OpBuilder<(ins
-            "mlir::Value":$input, "mlir::Value":$filter, "mlir::Value":$weight_table,
-            "mlir::Value":$activation_window, "mlir::Value":$parent_input, "mlir::Value":$parent_output,
-            "mlir::Value":$output,
-            "vpux::VPUIP::NCETaskType":$task_type, "vpux::VPUIP::PPELayerTypeAttr":$fixed_ppe_task,
-            "mlir::ArrayAttr":$kernel_padding, "mlir::ArrayAttr":$strides, "mlir::ArrayAttr":$kernel_size,
+            "mlir::Value":$input, "mlir::Value":$weights, "mlir::Value":$weight_table, "mlir::Value":$activation_window,
+            "mlir::Value":$parent_input, "mlir::Value":$parent_output,
+            "mlir::Value":$output_buff,
+            "vpux::VPUIP::NCETaskType":$task_type,
+            "mlir::ArrayAttr":$kernel_size, "mlir::ArrayAttr":$kernel_strides, "mlir::ArrayAttr":$kernel_padding,
             "mlir::IntegerAttr":$activation_window_channel_length
         )>
     ];
 
     let assemblyFormat = [{
         attr-dict
-        `inputs` `(` $input  `:` type($input)
-                     (`,` $filter^ `:` type($filter))?
-                     (`,` $weight_table^ `:` type($weight_table))? `)`
-                     (`,` $activation_window^ `:` type($activation_window))? `)`
+        `input` `(` $input  `:` type($input) `)`
+        (`weights` `(` $weights^  `:` type($weights) `)`)?
+        (`weight_table` `(` $weight_table^  `:` type($weight_table) `)`)?
+        (`activation_window` `(` $activation_window^  `:` type($activation_window) `)`)?
         `parent_input` `(` $parent_input `:` type($parent_input) `)`
         `parent_output` `(` $parent_output `:` type($parent_output) `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
         (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
         (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
-        `variants` `:` $variants
-        (`PPE` `:` $ppe_tasks^)?
         `->` type(results)
+        `variants` `:` $variants
+        `PPE` `:` $ppe
     }];
 
     let verifier = [{
@@ -1830,12 +1817,20 @@ def VPUIP_NCEClusterTaskOp :
     }];
 
     let extraClassDeclaration = [{
-        vpux::VPUIP::DPUTaskOp addDPUTask(mlir::OpBuilder& builder, mlir::ArrayAttr start, mlir::ArrayAttr end,
+        vpux::VPUIP::DPUTaskOp addDPUTask(mlir::OpBuilder& builder,
+                                          mlir::ArrayAttr start, mlir::ArrayAttr end,
                                           mlir::ArrayAttr padsBegin, mlir::ArrayAttr padsEnd,
                                           VPUIP::MPEMode mpeMode);
 
+        vpux::VPUIP::PPETaskOp addPPETask(mlir::OpBuilder& builder,
+                                          vpux::VPUIP::PPELayerType ppe_layer_type);
+
         static mlir::LogicalResult isSupportedLayout(mlir::Operation* op, vpux::DataOrderInfo& info);
-    }]#InferReturnTypesForLayer<1>.impl;
+
+        static vpux::VPUIP::TaskType getTaskType() {
+            return vpux::VPUIP::TaskType::NCE2;
+        }
+    }] # InferReturnTypesForLayer<1>.impl;
 }
 
 //
@@ -2062,6 +2057,117 @@ def VPUIP_EdslUPAOp :
         attr-dict
         (`inputs` `(` $inputs^ `:` type($inputs) `)`)?
         (`outputs` `(` $outputs^ `:` type($outputs) `)`)?
+        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+        `->` type(results)
+    }];
+}
+
+//
+// InterpolateOp
+//
+
+def VPUIP_InterpolateUPAOp :
+        VPUIP_UPATaskOp<1,"Interpolate",
+            [
+                ViewLikeOpInterface,
+                VPUIP_SameInOutDimsOrder_NCHW_NHWC
+            ]
+        > {
+    let summary = "Interpolate UPA SHAVE kernel";
+
+    let arguments = (ins
+        F16MemRef:$input,
+
+        F16MemRef:$output_buff,
+
+        Variadic<VPUIP_Barrier>:$waitBarriers,
+        Variadic<VPUIP_Barrier>:$updateBarriers,
+
+        IE_InterpolateMode:$mode,
+        IE_InterpolateCoordMode:$coord_mode,
+        IE_InterpolateNearestMode:$nearest_mode,
+        UnitAttr:$antialias,
+
+        OptionalAttr<I32Attr>:$maxShaves,
+        UnitAttr:$isTrailingSWLayer
+    );
+
+    let results = (outs
+        F16MemRef:$output
+    );
+
+    let builders = [
+        OpBuilder<
+            (ins
+                "mlir::Value":$input,
+                "mlir::Value":$output,
+                "IE::InterpolateModeAttr":$mode,
+                "IE::InterpolateCoordModeAttr":$coord_mode,
+                "IE::InterpolateNearestModeAttr":$nearest_mode,
+                "mlir::UnitAttr":$antialias
+            )
+        >
+    ];
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+        `->` type(results)
+    }];
+
+}
+
+
+//
+// StridedSliceUPAOp
+//
+
+def VPUIP_StridedSliceUPAOp :
+     VPUIP_UPATaskOp<1, "StridedSlice",
+         [
+             ViewLikeOpInterface,
+             VPUIP_AnyDimsOrder
+         ]
+     > {
+    let summary = "StridedSlice UPA SHAVE kernel";
+
+    let arguments = (ins
+        F16MemRef:$input,
+        F16MemRef:$output_buff,
+
+        Variadic<VPUIP_Barrier>:$waitBarriers,
+        Variadic<VPUIP_Barrier>:$updateBarriers,
+
+        I32ArrayAttr:$begins,
+        I32ArrayAttr:$ends,
+        I32ArrayAttr:$strides,
+
+        OptionalAttr<I32Attr>:$maxShaves,
+        UnitAttr:$isTrailingSWLayer
+    );
+
+    let results = (outs
+        F16MemRef:$output
+    );
+
+    let builders = [
+        OpBuilder<
+            (ins
+                "mlir::Value":$input,
+                "mlir::Value":$output,
+                "mlir::ArrayAttr":$begins, "mlir::ArrayAttr":$ends, "mlir::ArrayAttr":$strides
+            )
+        >
+    ];
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
         (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
         (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `->` type(results)

@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -54,13 +54,17 @@ mlir::Value vpux::IERT::GenericReshapeOp::getViewSource() {
     return input();
 }
 
-mlir::OpFoldResult vpux::IERT::GenericReshapeOp::fold(ArrayRef<mlir::Attribute>) {
+mlir::OpFoldResult vpux::IERT::GenericReshapeOp::fold(ArrayRef<mlir::Attribute> operands) {
     if (input().getType() == output().getType()) {
         return input();
     }
 
     if (input().getDefiningOp<GenericReshapeOp>() != nullptr) {
         return output();
+    }
+
+    if (operands[0] != nullptr) {
+        return operands[0];
     }
 
     return nullptr;

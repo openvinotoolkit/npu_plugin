@@ -50,6 +50,8 @@ class Runtime_Barrier_Simulation_Assigner : public Runtime_Barrier_Simulation_Ch
         Runtime_Barrier_Simulation_Checker<OpDAG, OpTypeSelector, RealBarrierMapper, DAGTraits>(input, barrier_bound), 
         om_(&om) {}
 
+    virtual ~Runtime_Barrier_Simulation_Assigner() = default;
+
     bool assign() {
       init();
       build_level_sets();

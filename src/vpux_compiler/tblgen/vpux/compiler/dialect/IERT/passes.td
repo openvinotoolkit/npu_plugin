@@ -120,7 +120,63 @@ def CXMTiling : PassBase<"cmx-tiling", "vpux::FunctionPass"> {
     }];
 
     let constructor = "vpux::IERT::createCMXTilingPass()";
+}
 
+//=================================================================================
+// Asynchronous Scheduling
+//=================================================================================
+
+//
+// WrapIntoAsyncRegions
+//
+
+def WrapIntoAsyncRegions : PassBase<"wrap-into-async-regions", "vpux::FunctionPass"> {
+    let summary = "Wraps layer operations into asynchronous regions";
+
+    let description = [{
+        This pass wraps each IERT layer operation into async region preserving linear execution.
+    }];
+
+    let constructor = "vpux::IERT::createWrapIntoAsyncRegionsPass()";
+
+    let dependentDialects = [
+        "mlir::async::AsyncDialect"
+    ];
+}
+
+//
+// MoveWaitResultToAsyncBlockArgs
+//
+
+def MoveWaitResultToAsyncBlockArgs : PassBase<"move-wait-result-to-async-block-args", "vpux::FunctionPass"> {
+    let summary = "Moves 'async.await' result usage from 'async.execute' body to it's operands";
+
+    let constructor = "vpux::IERT::createMoveWaitResultToAsyncBlockArgsPass()";
+}
+
+//
+// MoveViewOpsIntoAsyncRegions
+//
+
+def MoveViewOpsIntoAsyncRegions : PassBase<"move-view-ops-into-async-regions", "vpux::FunctionPass"> {
+    let summary = "Moves view-like Operations inside the asynchronous regions which depends on them";
+
+    let constructor = "vpux::IERT::createMoveViewOpsIntoAsyncRegionsPass()";
+}
+
+//
+// OptimizeAsyncDeps
+//
+
+def OptimizeAsyncDeps : PassBase<"optimize-async-deps", "vpux::FunctionPass"> {
+    let summary = "Optimizes dependencies between 'async.execute' operations";
+
+    let description = [{
+        The pass removes 'async.await' Operations between two consecutive 'async.execute' regions and
+        establish token-based dependencies between 'async.execute' operations.
+    }];
+
+    let constructor = "vpux::IERT::createOptimizeAsyncDepsPass()";
 }
 
 #endif

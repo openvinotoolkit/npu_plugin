@@ -92,7 +92,7 @@ bool isOpSoftware(const mv::Data::OpListIterator& opIt) {
            (opIt->hasAttr("softwareExecuted") && opIt->get<bool>("softwareExecuted")) ||
            (opIt->hasAttr("floatPrecision") && opIt->get<bool>("floatPrecision")) ||
            (opIt->hasAttr("placeConversionToFloat") && opIt->get<bool>("placeConversionToFloat"));
-};
+}
 
 std::vector<mv::Data::OpListIterator> findNonImplicitConsumerOps(mv::DataModel& dm, const mv::Data::TensorIterator& tensor)
 {

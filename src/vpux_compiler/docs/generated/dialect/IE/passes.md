@@ -42,6 +42,10 @@ The pass is used as a fallback to FP16 computations for the cases, where quantiz
 The pass is a part of `LowPrecision` pipeline.
 
 It performs constant folding for `Constant -> quant.qcast` case.
+### `-resolve-strided-slice`: Decouple strided slice to slice + reshape
+The pass is a part of `AdjustForVPU` pipeline.
+
+It replaces IE::StridedSlice operation to simple StridedSlice and Reshape.
 ### `-split-fake-quant`: Splits FakeQuantize
 The pass is a part of `LowPrecision` pipeline.
 

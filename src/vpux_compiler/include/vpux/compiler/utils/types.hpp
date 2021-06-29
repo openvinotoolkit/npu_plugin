@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -13,7 +13,13 @@
 
 #pragma once
 
+#include "vpux/compiler/core/attributes/dims_order.hpp"
+#include "vpux/compiler/core/attributes/shape.hpp"
+
+#include "vpux/utils/core/mem_size.hpp"
+
 #include <mlir/IR/BuiltinTypes.h>
+#include <mlir/IR/Value.h>
 
 namespace vpux {
 
@@ -38,5 +44,22 @@ mlir::IntegerType getUInt8Type(mlir::MLIRContext* ctx);
 mlir::IntegerType getUInt16Type(mlir::MLIRContext* ctx);
 mlir::IntegerType getUInt32Type(mlir::MLIRContext* ctx);
 mlir::IntegerType getUInt64Type(mlir::MLIRContext* ctx);
+
+//
+// TypeSize
+//
+
+Bit getElemTypeSize(mlir::Type type);
+Byte getTypeTotalSize(mlir::MemRefType type);
+Byte getTotalSize(mlir::Value val);
+
+//
+// MemRefType utilities
+//
+
+mlir::MemRefType changeShape(mlir::MemRefType origType, ShapeRef shape);
+mlir::MemRefType changeDimsOrder(mlir::MemRefType origType, DimsOrder order);
+mlir::MemRefType changeElemType(mlir::MemRefType origType, mlir::Type elemType);
+mlir::MemRefType changeMemSpace(mlir::MemRefType origType, mlir::Attribute memSpace);
 
 }  // namespace vpux

@@ -18,8 +18,7 @@
 #include <string>
 
 #include <schema/graphfile/graphfile_generated.h>
-
-#include "models/precompiled_resnet.h"
+#include "simple_graph.hpp"
 
 using namespace vpu;
 
@@ -28,28 +27,30 @@ public:
     InferenceEngine::InputsDataMap networkInputs;
     InferenceEngine::OutputsDataMap networkOutputs;
 
-    std::string blobContentString;
     MVCNN::SummaryHeader* graphHeader = nullptr;
     MCMAdapter::graphTensors* graphInputs = nullptr;
     MCMAdapter::graphTensors* graphOutputs = nullptr;
+    std::stringstream _blobStream;
+    InferenceEngine::SizeVector _dims;
+    std::string _inputName;
+    std::string _outputName;
+    std::string _outputDevName;
+    std::string _deviceId;
 
 protected:
     void SetUp() override;
 };
 
 void BlobParser_Tests::SetUp() {
-    const std::string graphPath = PrecompiledResNet_Helper::resnet50.graphPath;
+    _deviceId = "VPUX.3700";
+    _dims = {1, 3, 224, 224};
+    _inputName = "input_0";
+    _outputName = "output_0";
+    _outputDevName = "output_dev0";
+    utils::simpleGraph::getExeNetwork(_deviceId, _dims, _inputName, _outputName, _outputDevName)->Export(_blobStream);
 
-    std::ifstream blobFile(graphPath, std::ios::binary);
-    if (!blobFile.is_open()) {
-        IE_THROW() << "[ERROR] *Could not open file: " << graphPath;
-    }
-
-    std::ostringstream blobContentStream;
-    blobContentStream << blobFile.rdbuf();
-    blobContentString = blobContentStream.str();
-
-    const auto* graphFilePtr = MVCNN::GetGraphFile(blobContentString.c_str());
+    const auto graphFilePtr = MVCNN::GetGraphFile(_blobStream.str().data());
+    ASSERT_NE(graphFilePtr, nullptr);
     graphHeader = const_cast<MVCNN::SummaryHeader*>(graphFilePtr->header());
     ASSERT_NE(graphHeader, nullptr);
     graphInputs = const_cast<MCMAdapter::graphTensors*>(graphHeader->net_input());
@@ -64,8 +65,8 @@ TEST_F(BlobParser_Tests, CanParseBlob) {
 }
 
 TEST_F(BlobParser_Tests, CanGetInputsOutputsDimensions) {
-    InferenceEngine::SizeVector expectedInput = {1, 3, 224, 224};
-    InferenceEngine::SizeVector expectedOutput = {1, 1000, 1, 1};
+    const auto expectedInput = _dims;
+    const auto expectedOutput = _dims;
 
     ASSERT_NO_THROW(networkInputs = MCMAdapter::getNetworkInputs(*graphInputs));
     ASSERT_NO_THROW(networkOutputs = MCMAdapter::getNetworkOutputs(*graphOutputs));
@@ -81,8 +82,8 @@ TEST_F(BlobParser_Tests, CanGetInputsOutputsDimensions) {
 }
 
 TEST_F(BlobParser_Tests, CanGetInputsOutputsNames) {
-    std::string expectedInputName = "data";
-    std::string expectedOutputName = "Output_0";
+    const auto expectedInputName = _inputName;
+    const auto expectedOutputName = _outputDevName;
 
     ASSERT_NO_THROW(networkInputs = MCMAdapter::getNetworkInputs(*graphInputs));
     ASSERT_NO_THROW(networkOutputs = MCMAdapter::getNetworkOutputs(*graphOutputs));

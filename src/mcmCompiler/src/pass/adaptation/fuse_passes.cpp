@@ -224,9 +224,11 @@ void fuseUsualPPEFcn( mv::Data::OpListIterator& opIt, mv::ComputationModel& mode
     auto parentOp = om.getSourceOp(opIt->getInputTensor(mv::IO_TENSOR_INPUT));
 
     std::vector<mv::Data::OpListIterator> fusableParents;
+    std::vector<mv::Data::OpListIterator> quantParamsPathOps;
     auto isActivationAgnostic = [](mv::Data::OpListIterator &op)
-        {return op->isImplicit() || op->getOpType() == "Concat" || op->getOpType() == "Identity";};
+        {return op->isImplicit() || op->getOpType() == "Concat" || op->getOpType() == "Identity" || op->getOpType() == "StridedSlice";};
 
+    quantParamsPathOps.push_back(parentOp);
     if (!isActivationAgnostic(parentOp))
         fusableParents.push_back(parentOp);
     else {
@@ -238,6 +240,7 @@ void fuseUsualPPEFcn( mv::Data::OpListIterator& opIt, mv::ComputationModel& mode
             for(auto parentIt = current_op_itr.leftmostParent();
                 parentIt != om.opEnd(); ++parentIt) {
                 mv::Data::OpListIterator parentOpIt = parentIt;
+                quantParamsPathOps.push_back(parentIt);
                 if (isActivationAgnostic(parentOpIt)) {
                     op_itr_bfs.push(parentIt);
                 } else {
@@ -313,10 +316,16 @@ void fuseUsualPPEFcn( mv::Data::OpListIterator& opIt, mv::ComputationModel& mode
         }   
     }
 
+    // Propagate quantParams up path to fuseableParents
+    for (auto& it : quantParamsPathOps)
+    {
+        auto sourceTensor = it->getOutputTensor(mv::IO_TENSOR_OUTPUT);
+        sourceTensor->setDType(opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT)->getDType());
+        sourceTensor->setQuantParams(opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT)->getQuantParams());
+    }
+
     // Link direct postOp parent with postOp consumers
     auto sourceTensor = parentOp->getOutputTensor(mv::IO_TENSOR_OUTPUT);
-    sourceTensor->setDType(opIt->getOutputTensor(0)->getDType());
-    sourceTensor->setQuantParams(opIt->getOutputTensor(0)->getQuantParams());
     opIt = linkNewOperationsFuse(parentOp, sourceTensor, om, opIt);
     if (ppeOutputMemoryLocation.isForced())
         opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT)->set<mv::Tensor::MemoryLocation>("Location", ppeOutputMemoryLocation);

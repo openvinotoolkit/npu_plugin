@@ -126,6 +126,26 @@ public:
         return _numberOfClusters;
     }
 
+    const std::string& layerSplitStrategies() const {
+        return _layerSplitStrategies;
+    }
+
+    const std::string& layerStreamStrategies() const {
+        return _layerStreamStrategies;
+    }
+
+    const std::string& layerSparsityStrategies() const {
+        return _layerSparsityStrategies;
+    }
+
+    const std::string& layerLocationStrategies() const {
+        return _layerLocationStrategies;
+    }
+
+    bool optimizeInputPrecision() const {
+        return _optimizeInputPrecision;
+    }
+
 protected:
     void parse(const std::map<std::string, std::string>& config) override;
 
@@ -171,6 +191,13 @@ private:
     bool _allowPermuteND = false;
 
     int _numberOfClusters = 0;
+
+    std::string _layerSplitStrategies = "";
+    std::string _layerStreamStrategies = "";
+    std::string _layerSparsityStrategies = "";
+    std::string _layerLocationStrategies = "";
+
+    bool _optimizeInputPrecision = true;
 };
 
 }  //  namespace vpu

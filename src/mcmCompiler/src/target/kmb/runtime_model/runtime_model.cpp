@@ -229,6 +229,8 @@ MVCNN::TargetDevice mv::RuntimeModel::mapTargetDevice(const mv::Target& target)
         return MVCNN::TargetDevice::TargetDevice_TBH;
     case mv::Target::ma3720:
         return MVCNN::TargetDevice::TargetDevice_MTL;
+    default:
+        return MVCNN::TargetDevice::TargetDevice_NONE;
     }
 
     return MVCNN::TargetDevice::TargetDevice_NONE;
@@ -1075,7 +1077,7 @@ MVCNN::PhysicalProcessor mapProcessorName(const string& processorName)
     return MVCNN::PhysicalProcessor_NULL;
 }
 
-std::unique_ptr<MVCNN::ResourcesT> mv::RuntimeModel::buildResourcesT(ComputationModel& cm, const mv::TargetDescriptor& td, mv::Element& compilationDescriptor)
+std::unique_ptr<MVCNN::ResourcesT> mv::RuntimeModel::buildResourcesT(ComputationModel& cm, const mv::TargetDescriptor& td, mv::Element&)
 
 {
     std::unique_ptr<MVCNN::ResourcesT> toBuild = std::unique_ptr<MVCNN::ResourcesT>(new MVCNN::ResourcesT());
@@ -3317,6 +3319,8 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAEltwiseFP16Task(ComputationMode
         softLayerParamsValue->operation = "sqdiff";
     else if (operation.compare(std::string("Maximum")) == 0)
         softLayerParamsValue->operation = "max";
+    else if (operation.compare(std::string("Equal")) == 0)
+        softLayerParamsValue->operation = "equal";
     else
         throw std::runtime_error("buildUPAEltwiseFP16Task: unsupported SW Eltwise Operation, check implementation.");
 

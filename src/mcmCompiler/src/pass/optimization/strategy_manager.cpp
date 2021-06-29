@@ -336,12 +336,23 @@ std::vector<mv::Element> StrategyManager::convertClusteringStrategyToElement(Cri
 
 }
 
-std::vector<mv::Element> StrategyManager::convertLocationStrategyToElement(CriticalPathNodes &strategiesToConvert)
+std::vector<mv::Element> StrategyManager::convertLocationStrategyToElement(CriticalPathNodes &strategiesToConvert, std::shared_ptr<mv::Element> compDesc)
 {
     mv::Element copyLElement("");
     std::vector<mv::Element> locationStrategyList;
 
-    for(auto elem : strategiesToConvert)
+    std::unordered_set<std::string> hasSpec;
+    if (compDesc->hasAttr("tensor_placement_override"))
+    {
+        locationStrategyList = compDesc->get<std::vector<mv::Element>>("tensor_placement_override");
+        for (const auto& s : locationStrategyList)
+        {
+            if (s.hasAttr("mem_location"))
+                hasSpec.emplace(s.get<std::string>("name_filter"));
+        }
+    }
+
+    for (auto elem : strategiesToConvert)
     {
         auto& strategy = *elem;
         auto spilling = strategy["spilling"].get<bool>();
@@ -349,19 +360,22 @@ std::vector<mv::Element> StrategyManager::convertLocationStrategyToElement(Criti
 
         std::string DDRLocation = "DDR";
         std::string CMXLocation = "CMX";
-        
+
         //todo::don't search the whole model for this
         auto op = model_.getOp(opName);
-        if(op->getOpType() == "Output")
+        if (op->getOpType() == "Output")
             continue;
 
-        if(spilling)
-            copyLElement.set("mem_location",DDRLocation);
-        else
-            copyLElement.set("mem_location",CMXLocation);
-        copyLElement.set("name_filter", opName);
-    
-        locationStrategyList.push_back(copyLElement);
+        if (hasSpec.find(opName) == hasSpec.cend())
+        {
+            if (spilling)
+                copyLElement.set("mem_location", DDRLocation);
+            else
+                copyLElement.set("mem_location", CMXLocation);
+            copyLElement.set("name_filter", opName);
+
+            locationStrategyList.push_back(copyLElement);
+        }
     }
 
     return locationStrategyList;
@@ -438,24 +452,24 @@ std::vector<mv::Element> StrategyManager::convertPipeliningStrategyToElement(Cri
     mv::Element copyLElement("");
     std::vector<mv::Element> pipeliningStrategyList;
 
-    for(auto elem: strategiesToConvert)
+    for (auto elem: strategiesToConvert)
     {
         auto& strategy = *elem;
         auto pipelining = strategy["pipelined"].get<bool>();
         auto opName   = strategy["name"].get<string>();
         std::string pipelineStrategy = "None";
 
-        if(pipelining)
+        if (pipelining)
         {
             auto streaming = strategy["streaming"].get<mv::Shape>();
-        
+
             if(streaming["K"] > 1)
                 pipelineStrategy = "PipelineWeights";
             else if(streaming["H"] > 1)
                 pipelineStrategy = "PipelineActivations";
         }
-        
-     copyLElement.set("pipelining", pipelineStrategy);
+
+        copyLElement.set("pipelining", pipelineStrategy);
         copyLElement.set("name_filter", opName);
 
         pipeliningStrategyList.push_back(copyLElement);
@@ -515,7 +529,7 @@ void StrategyManager::saveMetaStrategy(CriticalPathNodes& criticalPathNodes)
 
     std::vector<mv::Element> streamingStrategyElements = convertStreamingStrategyToElement(criticalPathNodes, globalParams);
     std::vector<mv::Element> multiClusterStrategyElements = convertClusteringStrategyToElement(criticalPathNodes, globalParams);
-    std::vector<mv::Element> locationStrategyElements = convertLocationStrategyToElement(criticalPathNodes);
+    std::vector<mv::Element> locationStrategyElements = convertLocationStrategyToElement(criticalPathNodes, globalParams);
     std::vector<mv::Element> sparsityStrategyElements = convertSparsityStrategyToElement(criticalPathNodes, globalParams);
     std::vector<mv::Element> pipeliningStrategyElements = convertPipeliningStrategyToElement(criticalPathNodes);
 

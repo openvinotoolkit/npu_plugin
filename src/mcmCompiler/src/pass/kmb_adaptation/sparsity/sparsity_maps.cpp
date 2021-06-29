@@ -247,7 +247,7 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
                         if (dpuTask->get<std::string>("taskOp") == "Conv" &&
                             dpuTask->get<std::array<unsigned short, 2>>("kSize")[mv::KERNEL_HEIGHT] > 1)
                         {
-                            while ((w*h*c/8)%128 != 0)
+                            while ((w*h*c)%128 != 0)
                                 w+=1;
                         }
                     }

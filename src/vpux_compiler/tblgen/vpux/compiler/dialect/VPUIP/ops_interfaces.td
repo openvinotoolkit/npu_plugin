@@ -133,26 +133,6 @@ def VPUIP_UPATaskOpInterface : OpInterface<"UPATaskOpInterface"> {
 }
 
 //
-// NCETaskOpInterface
-//
-
-def VPUIP_NCETaskOpInterface : OpInterface<"NCETaskOpInterface"> {
-    let description = "Interface for VPUIP NCE Task";
-
-    let cppNamespace = "vpux::VPUIP";
-
-    let verify = [{
-        return vpux::VPUIP::verifyNCETask($_op);
-    }];
-
-    let extraTraitClassDeclaration = [{
-        static vpux::VPUIP::TaskType getTaskType() {
-            return vpux::VPUIP::TaskType::NCE2;
-        }
-    }];
-}
-
-//
 // SameShape
 //
 

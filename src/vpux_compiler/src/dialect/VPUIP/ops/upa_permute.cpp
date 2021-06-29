@@ -1,5 +1,5 @@
 //
-// Copyright 2021 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -15,6 +15,7 @@
 
 #include "vpux/compiler/core/attributes/dims_order.hpp"
 #include "vpux/compiler/core/attributes/shape.hpp"
+#include "vpux/compiler/dialect/VPUIP/blob_reader.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
@@ -37,7 +38,7 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(PermuteUPAOp op) {
         return mlir::success();
     }
 
-    const auto order = DimsOrder::fromAffineMap(op.order_value().getValue());
+    const auto order = DimsOrder::fromPermutationAffineMap(op.order_value().getValue());
     const auto inShape = getShape(inType);
 
     if (order.numDims() > inShape.size()) {
@@ -64,9 +65,9 @@ void vpux::VPUIP::PermuteUPAOp::build(::mlir::OpBuilder& odsBuilder, ::mlir::Ope
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::PermuteUPAOp::serialize(VPUIP::BlobWriter& writer) {
-    DimsOrder order{};
-    if (this->order_value().hasValue()) {
-        order = DimsOrder::fromAffineMap(this->order_value().getValue());
+    DimsOrder order;
+    if (order_value().hasValue()) {
+        order = DimsOrder::fromPermutationAffineMap(order_value().getValue());
     } else {
         const auto inType = input().getType().dyn_cast<mlir::ShapedType>();
         order = DimsOrder::fromNumDims(inType.getRank());
@@ -82,4 +83,17 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::PermuteUPAOp::serialize(VPUIP::Blob
     const auto paramsOff = builder.Finish();
 
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PermuteNDParams});
+}
+
+mlir::Operation* vpux::VPUIP::BlobReader::parsePermute(mlir::OpBuilder& builder, ArrayRef<mlir::Value> inputs,
+                                                       ArrayRef<mlir::Value> outputs, const MVCNN::UPALayerTask* task) {
+    VPUX_THROW_UNLESS(inputs.size() == 1, "UPAPermute supports only 1 input, got {0}", inputs.size());
+    VPUX_THROW_UNLESS(outputs.size() == 1, "UPAPermute supports only 1 output, got {0}", outputs.size());
+    const auto params = task->softLayerParams_as_PermuteNDParams();
+    const SmallVector<uint32_t> permuteNdOrder{params->permute_nd_order()->cbegin(),
+                                               params->permute_nd_order()->cend()};
+    const auto permutationMap = mlir::AffineMap::getPermutationMap(makeArrayRef(permuteNdOrder), _ctx);
+
+    return builder.create<VPUIP::PermuteUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], outputs[0],
+                                               mlir::AffineMapAttr::get(permutationMap));
 }

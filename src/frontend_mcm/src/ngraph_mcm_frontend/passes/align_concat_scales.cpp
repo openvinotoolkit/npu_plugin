@@ -21,22 +21,10 @@
 #include <ngraph/op/constant.hpp>
 #include <ngraph/type/element_type.hpp>
 #include "ngraph/op/concat.hpp"
-#include <legacy/ngraph_ops/prior_box_ie.hpp>
 
 #include "ngraph_mcm_frontend/quantization_helpers.hpp"
 
-#include <ngraph/op/prior_box.hpp>
-
 namespace {
-
-bool needsConcatScaleAlignment(const std::shared_ptr<ngraph::Node>& node) {
-    auto input_values = node->input_values();
-    for ( auto&& iv : input_values ) {
-        if (dynamic_cast<ngraph::op::v0::PriorBox*>(iv.get_node()) || dynamic_cast<ngraph::op::PriorBoxIE*>(iv.get_node()))
-            return false;
-    }
-    return true;
-}
 
 bool inputsHasSameScalesAndZeroPoints(const std::vector<std::shared_ptr<ngraph::Node>>& inputs) {
         if (inputs.size() < 2) return true;
@@ -121,10 +109,6 @@ void setFakeQuantizeParams(
 bool AlignConcatScales::run_on_node(std::shared_ptr<ngraph::Node> node)
 {
     if (std::dynamic_pointer_cast<ngraph::op::v0::Concat>(node) != nullptr) {
-        if (!needsConcatScaleAlignment(node)) {
-            return false;
-        }
-
         auto inputs = getInputsFQ(node);
 
         if (inputsHasSameScalesAndZeroPoints(inputs)) {

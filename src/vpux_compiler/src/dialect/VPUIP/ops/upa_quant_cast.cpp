@@ -14,6 +14,7 @@
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
 #include "vpux/compiler/core/attributes/dims_order.hpp"
+#include "vpux/compiler/dialect/VPUIP/blob_reader.hpp"
 #include "vpux/compiler/utils/extentions.hpp"
 
 #include "vpux/utils/IE/float16.hpp"
@@ -142,4 +143,11 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::QuantCastUPAOp::serialize(BlobWrite
     const auto paramsOff = builder.Finish();
 
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_QuantizeParams});
+}
+
+mlir::Operation* vpux::VPUIP::BlobReader::parseQuantCast(mlir::OpBuilder& builder, ArrayRef<mlir::Value> inputs,
+                                                         ArrayRef<mlir::Value> outputs, const MVCNN::UPALayerTask*) {
+    VPUX_THROW_UNLESS(inputs.size() == 1, "UPAQuantCast supports only 1 input, got {0}", inputs.size());
+    VPUX_THROW_UNLESS(outputs.size() == 1, "UPAQuantCast supports only 1 output, got {0}", outputs.size());
+    return builder.create<VPUIP::QuantCastUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], outputs[0]);
 }

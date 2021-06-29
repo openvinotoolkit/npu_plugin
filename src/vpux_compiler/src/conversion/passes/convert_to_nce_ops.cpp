@@ -1,5 +1,5 @@
 //
-// Copyright 2021 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -14,12 +14,16 @@
 #include "vpux/compiler/conversion.hpp"
 
 #include "vpux/compiler/dialect/IERT/ops.hpp"
+#include "vpux/compiler/dialect/VPUIP/attributes/arch.hpp"
 #include "vpux/compiler/dialect/VPUIP/dpu_tiler.hpp"
 #include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
 #include "vpux/compiler/dialect/VPUIP/nce_sparsity.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/utils/logging.hpp"
+#include "vpux/compiler/utils/rewriter.hpp"
 #include "vpux/compiler/utils/types.hpp"
+
+#include "vpux/utils/core/enums.hpp"
 
 #include <mlir/Dialect/MemRef/IR/MemRef.h>
 #include <mlir/IR/Value.h>
@@ -32,14 +36,6 @@ namespace {
 //
 // Utilities
 //
-
-mlir::MemRefType changeMemSpace(mlir::MemRefType origType, mlir::Attribute memSpace) {
-    return mlir::MemRefType::Builder(origType).setMemorySpace(memSpace);
-}
-
-mlir::MemRefType changeDimsOrder(mlir::MemRefType origType, DimsOrder newOrder) {
-    return mlir::MemRefType::Builder(origType).setAffineMaps(newOrder.toAffineMap(origType.getContext()));
-}
 
 template <typename T>
 mlir::Value createHelperTensor(mlir::OpBuilder& builder, mlir::Location loc, ArrayRef<T> data, mlir::Type elemType,
@@ -61,46 +57,110 @@ mlir::Value createHelperTensor(mlir::OpBuilder& builder, mlir::Location loc, Arr
     return copyOp.output();
 }
 
-constexpr int64_t WEIGHT_TABLE_NUM_ELEMENTS_PER_OC = 4;
+const EnumMap<VPUIP::ArchKind, VPUIP::MPEMode> mpeMap = {
+        {VPUIP::ArchKind::VPU3400_A0, VPUIP::MPEMode::VECTOR_FP16},  //
+        {VPUIP::ArchKind::VPU3400, VPUIP::MPEMode::VECTOR_FP16},     //
+        {VPUIP::ArchKind::VPU3700, VPUIP::MPEMode::VECTOR_FP16},     //
+        {VPUIP::ArchKind::VPU3900, VPUIP::MPEMode::VECTOR_FP16},     //
+        {VPUIP::ArchKind::VPU3720, VPUIP::MPEMode::CUBOID_16x16},    //
+};
 
-std::vector<int32_t> getWeightsTable(int64_t OC, ConstantInterface biases, int32_t weightPtrStep) {
-    const int32_t PRELU_SCALE_OFFSET = 0;
-    const int32_t PRELU_SCALE_VALUE = 1;
+constexpr int32_t KMB_SPARSITY = 0x00000000;
+constexpr int32_t MTL_SPARSITY = 0xffffffff;
 
-    // FIXME: PPE shift is actually 6 bit long, 2 higher bits stand for rounding mode
-    const int32_t PPE_SHIFT_OFFSET = 8;
-    const int32_t PPE_SHIFT_VALUE = 0;
+const EnumMap<VPUIP::ArchKind, int32_t> sparsityPtrsMap = {
+        {VPUIP::ArchKind::VPU3400_A0, KMB_SPARSITY},  //
+        {VPUIP::ArchKind::VPU3400, KMB_SPARSITY},     //
+        {VPUIP::ArchKind::VPU3700, KMB_SPARSITY},     //
+        {VPUIP::ArchKind::VPU3900, KMB_SPARSITY},     //
+        {VPUIP::ArchKind::VPU3720, MTL_SPARSITY},     //
+};
 
-    const int32_t PPE_MULT_OFFSET = 16;
-    // FIXME: PPE multiplier has sign, which may affect lower bits
-    const int32_t PPE_MULT_VALUE = 1;
+int32_t toFixedPoint(float realVal) {
+    // FIXME: 2 ^ 16 might be more obvious
+    return std::lround(realVal * 65536.f);
+}
 
-    const int32_t mult_shift = (PRELU_SCALE_VALUE << PRELU_SCALE_OFFSET) | (PPE_SHIFT_VALUE << PPE_SHIFT_OFFSET) |
-                               (PPE_MULT_VALUE << PPE_MULT_OFFSET);
-
-    const auto getBiasVal = [&](int64_t oc) -> int32_t {
-        if (biases == nullptr) {
-            return 0;
-        }
-
-        const auto biasVals = biases.getContent().getValues<float>();
-
-        // FIXME: 2 ^ 16 might be more obvious
-        return std::lround(biasVals[oc] * 65536.f);
+int32_t toHex(float realVal) {
+    union f32toint32 {
+        int32_t m_i32;
+        float m_f32;
     };
 
-    std::vector<int32_t> weightsTableVals(OC * WEIGHT_TABLE_NUM_ELEMENTS_PER_OC, 0);
+    f32toint32 biasVal;
+    biasVal.m_f32 = realVal;
+    return biasVal.m_i32;
+}
+
+using BiasConverterCb = int32_t (*)(float);
+const EnumMap<VPUIP::ArchKind, BiasConverterCb> biasConvertersMap = {
+        {VPUIP::ArchKind::VPU3400_A0, toFixedPoint},  //
+        {VPUIP::ArchKind::VPU3400, toFixedPoint},     //
+        {VPUIP::ArchKind::VPU3700, toFixedPoint},     //
+        {VPUIP::ArchKind::VPU3900, toFixedPoint},     //
+        {VPUIP::ArchKind::VPU3720, toHex},            //
+};
+
+constexpr int32_t getKMBScale() {
+    constexpr int32_t PRELU_SCALE_OFFSET = 0;
+    constexpr int32_t PRELU_SCALE_VALUE = 1;
+
+    // FIXME: PPE shift is actually 6 bit long, 2 higher bits stand for rounding mode
+    constexpr int32_t PPE_SHIFT_OFFSET = 8;
+    constexpr int32_t PPE_SHIFT_VALUE = 0;
+
+    constexpr int32_t PPE_MULT_OFFSET = 16;
+    // FIXME: PPE multiplier has sign, which may affect lower bits
+    constexpr int32_t PPE_MULT_VALUE = 1;
+
+    constexpr int32_t KMB_SCALE = (PRELU_SCALE_VALUE << PRELU_SCALE_OFFSET) | (PPE_SHIFT_VALUE << PPE_SHIFT_OFFSET) |
+                                  (PPE_MULT_VALUE << PPE_MULT_OFFSET);
+
+    return KMB_SCALE;
+}
+
+int32_t getMTLScale() {
+    constexpr float MTL_SCALE = 1.0f;
+
+    return toHex(MTL_SCALE);
+}
+
+using PPEConverterCb = int32_t (*)();
+const EnumMap<VPUIP::ArchKind, PPEConverterCb> ppeConvertersMap = {
+        {VPUIP::ArchKind::VPU3400_A0, getKMBScale},  //
+        {VPUIP::ArchKind::VPU3400, getKMBScale},     //
+        {VPUIP::ArchKind::VPU3700, getKMBScale},     //
+        {VPUIP::ArchKind::VPU3900, getKMBScale},     //
+        {VPUIP::ArchKind::VPU3720, getMTLScale},     //
+};
+
+using GetBiasCb = FuncRef<float(int64_t)>;
+
+std::vector<int32_t> getWeightsTable(int64_t OC, GetBiasCb getBiasFP, int32_t weightPtrStep,
+                                     vpux::VPUIP::ArchKind arch) {
+    const auto ppeConverter = ppeConvertersMap.at(arch);
+    const int32_t multShift = ppeConverter();
+
+    const int32_t sparsityPtr = sparsityPtrsMap.at(arch);
+
+    const auto convertBias = [&](int64_t oc) -> int32_t {
+        const auto biasVal = getBiasFP(oc);
+        const auto biasConverter = biasConvertersMap.at(arch);
+        return biasConverter(biasVal);
+    };
+
+    std::vector<int32_t> weightsTableVals(OC * VPUIP::NCEInvariant::WEIGHT_TABLE_NUM_ELEMENTS_PER_OC, 0);
 
     // TODO: [Track number: E#13226]
     int32_t weightPtrOffset = 0;
 
     for (auto oc : irange(checked_cast<size_t>(OC))) {
-        const auto wtInd = oc * static_cast<size_t>(WEIGHT_TABLE_NUM_ELEMENTS_PER_OC);
+        const auto wtInd = oc * static_cast<size_t>(VPUIP::NCEInvariant::WEIGHT_TABLE_NUM_ELEMENTS_PER_OC);
 
         weightsTableVals[wtInd + 0] = weightPtrOffset;
-        weightsTableVals[wtInd + 1] = 0x0;
-        weightsTableVals[wtInd + 2] = mult_shift;
-        weightsTableVals[wtInd + 3] = getBiasVal(oc);
+        weightsTableVals[wtInd + 1] = sparsityPtr;
+        weightsTableVals[wtInd + 2] = multShift;
+        weightsTableVals[wtInd + 3] = convertBias(oc);
 
         weightPtrOffset += weightPtrStep;
     }
@@ -108,11 +168,11 @@ std::vector<int32_t> getWeightsTable(int64_t OC, ConstantInterface biases, int32
     return weightsTableVals;
 }
 
-mlir::Value createWeightsTableTensor(mlir::OpBuilder& builder, mlir::Location loc, int64_t OC, ConstantInterface biases,
-                                     int32_t weightPtrStep) {
-    const auto weightsTable = getWeightsTable(OC, biases, weightPtrStep);
+mlir::Value createWeightsTableTensor(mlir::OpBuilder& builder, mlir::Location loc, int64_t OC, GetBiasCb getBiasFP,
+                                     int32_t weightPtrStep, vpux::VPUIP::ArchKind arch) {
+    const auto weightsTable = getWeightsTable(OC, getBiasFP, weightPtrStep, arch);
 
-    SmallVector<int64_t> weightTableShape{OC, 1, 1, WEIGHT_TABLE_NUM_ELEMENTS_PER_OC};
+    SmallVector<int64_t> weightTableShape{OC, 1, 1, VPUIP::NCEInvariant::WEIGHT_TABLE_NUM_ELEMENTS_PER_OC};
 
     return createHelperTensor(builder, loc, makeArrayRef(weightsTable), getSInt32Type(builder.getContext()),
                               weightTableShape);
@@ -129,9 +189,10 @@ mlir::Value prepareInputForDPU(mlir::OpBuilder& builder, mlir::Location loc, mli
     return dmaOp.output();
 }
 
-void addDPUTasks(VPUIP::NCEClusterTaskOp nceOp, mlir::PatternRewriter& rewriter, const int32_t numDPU,
-                 ArrayRef<int64_t> opPadsBegin, ArrayRef<int64_t> opPadsEnd) {
+void addDPUTasks(VPUIP::NCEClusterTaskOp nceOp, mlir::PatternRewriter& rewriter, int32_t numDPU,
+                 ArrayRef<int64_t> opPadsBegin, ArrayRef<int64_t> opPadsEnd, VPUIP::MPEMode mpeMode) {
     auto* ctx = nceOp.getContext();
+
     const auto outputShape = getShape(nceOp.output());
     const auto dpuTiles = VPUIP::DpuTiler::tileOverH(numDPU, outputShape, opPadsBegin, opPadsEnd);
 
@@ -142,7 +203,7 @@ void addDPUTasks(VPUIP::NCEClusterTaskOp nceOp, mlir::PatternRewriter& rewriter,
         const auto padsBeginAttr = getInt32ArrayAttr(ctx, dpuTile.padsBegin);
         const auto padsEndAttr = getInt32ArrayAttr(ctx, dpuTile.padsEnd);
 
-        nceOp.addDPUTask(rewriter, startAttr, endAttr, padsBeginAttr, padsEndAttr, VPUIP::MPEMode::VECTOR_FP16);
+        nceOp.addDPUTask(rewriter, startAttr, endAttr, padsBeginAttr, padsEndAttr, mpeMode);
     }
 }
 
@@ -152,8 +213,8 @@ void addDPUTasks(VPUIP::NCEClusterTaskOp nceOp, mlir::PatternRewriter& rewriter,
 
 class ConvRewrite final : public mlir::OpRewritePattern<IERT::ConvolutionOp> {
 public:
-    ConvRewrite(mlir::MLIRContext* ctx, uint32_t numDPU, Logger log)
-            : mlir::OpRewritePattern<IERT::ConvolutionOp>(ctx), _numDPU(numDPU), _log(log) {
+    ConvRewrite(mlir::MLIRContext* ctx, uint32_t numDPU, vpux::VPUIP::ArchKind arch, Logger log)
+            : mlir::OpRewritePattern<IERT::ConvolutionOp>(ctx), _numDPU(numDPU), _arch(arch), _log(log) {
     }
 
 public:
@@ -161,6 +222,7 @@ public:
 
 private:
     const uint32_t _numDPU;
+    vpux::VPUIP::ArchKind _arch;
     Logger _log;
 };
 
@@ -202,17 +264,23 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
     // Generate weights table
     //
 
-    ConstantInterface biasConst;
+    ConstContentAttr biasContent;
     if (origOp.bias() != nullptr) {
-        biasConst = origOp.bias().getDefiningOp<ConstantInterface>();
+        auto biasConst = origOp.bias().getDefiningOp<ConstantInterface>();
         VPUX_THROW_UNLESS(biasConst != nullptr, "Only constant biases are supported, got '{0}'", origOp.bias());
+
+        biasContent = biasConst.getContent();
     }
+
+    const auto getBiasFP = [&](int64_t oc) -> float {
+        return biasContent != nullptr ? biasContent.getValues<float>()[oc] : 0.0f;
+    };
 
     // TODO: [Track number: E#13226]
     // Let's allocate weight table after weights(input),
     // then the weights offset in CMX will be zero
     const auto weightPtrStep = checked_cast<int32_t>(IC * KY * KX * sizeof(int16_t));
-    auto weightsTable = createWeightsTableTensor(rewriter, origOp->getLoc(), OC, biasConst, weightPtrStep);
+    auto weightsTable = createWeightsTableTensor(rewriter, origOp->getLoc(), OC, getBiasFP, weightPtrStep, _arch);
 
     //
     // Prepare input for DPU
@@ -235,8 +303,6 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
     // Create NCE per-cluster Operation
     //
 
-    const auto ppeAttr = vpux::VPUIP::PPELayerTypeAttr::get(getContext(), VPUIP::PPELayerType::NOOP);
-
     const auto padsBegin = parseIntArrayAttr(origOp.pads_begin());
     const auto padsEnd = parseIntArrayAttr(origOp.pads_end());
     const auto kernelPaddingAttr =
@@ -244,16 +310,18 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
 
     const auto kernelSizeAttr = getInt32ArrayAttr(getContext(), makeArrayRef({KX, KY}));
 
-    auto nceOp = rewriter.create<VPUIP::NCEClusterTaskOp>(origOp->getLoc(), inputDPU, filterDPU, weightsTable, nullptr,
-                                                          inputDPU, outAllocOpCMX.memref(), outAllocOpCMX.memref(),
-                                                          VPUIP::NCETaskType::CONV, ppeAttr, kernelPaddingAttr,
-                                                          origOp.strides(), kernelSizeAttr, nullptr);
+    auto nceOp = rewriter.create<VPUIP::NCEClusterTaskOp>(
+            origOp->getLoc(), inputDPU, filterDPU, weightsTable, /*activation_window=*/nullptr,
+            /*parent_input=*/inputDPU,
+            /*parent_output=*/outAllocOpCMX.memref(),
+            /*output_buff=*/outAllocOpCMX.memref(), VPUIP::NCETaskType::CONV, kernelSizeAttr, origOp.strides(),
+            kernelPaddingAttr, /*activation_window_channel_length=*/nullptr);
 
     //
     // Create DPU sub-task
     //
 
-    addDPUTasks(nceOp, rewriter, _numDPU, padsBegin, padsEnd);
+    addDPUTasks(nceOp, rewriter, _numDPU, padsBegin, padsEnd, mpeMap.at(_arch));
 
     //
     // DMA output CMX -> DDR
@@ -270,8 +338,8 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
 
 class MaxPoolRewrite final : public mlir::OpRewritePattern<IERT::MaxPoolOp> {
 public:
-    MaxPoolRewrite(mlir::MLIRContext* ctx, uint32_t numDPU, Logger log)
-            : mlir::OpRewritePattern<IERT::MaxPoolOp>(ctx), _numDPU(numDPU), _log(log) {
+    MaxPoolRewrite(mlir::MLIRContext* ctx, uint32_t numDPU, vpux::VPUIP::ArchKind arch, Logger log)
+            : mlir::OpRewritePattern<IERT::MaxPoolOp>(ctx), _numDPU(numDPU), _arch(arch), _log(log) {
     }
 
 public:
@@ -279,6 +347,7 @@ public:
 
 private:
     const uint32_t _numDPU;
+    vpux::VPUIP::ArchKind _arch;
     Logger _log;
 };
 
@@ -322,12 +391,16 @@ mlir::LogicalResult MaxPoolRewrite::matchAndRewrite(IERT::MaxPoolOp origOp, mlir
     // Generate weights table
     //
 
+    const auto getBiasFP = [](int64_t) -> float {
+        return 0.0f;
+    };
+
     // TODO: [Track number: E#13226]
     // an activation window offset ??
     // Let's allocate weight table after an activation window,
     // then the an activation window offset in CMX will be zero
 
-    auto weightsTable = createWeightsTableTensor(rewriter, origOp->getLoc(), IC, nullptr, 0);
+    auto weightsTable = createWeightsTableTensor(rewriter, origOp->getLoc(), IC, getBiasFP, 0, _arch);
 
     //
     // Prepare input for DPU
@@ -350,23 +423,25 @@ mlir::LogicalResult MaxPoolRewrite::matchAndRewrite(IERT::MaxPoolOp origOp, mlir
     // Create NCE per-cluster Operation
     //
 
-    const auto ppeAttr = vpux::VPUIP::PPELayerTypeAttr::get(getContext(), VPUIP::PPELayerType::NOOP);
-
     const auto padsBegin = parseIntArrayAttr(origOp.pads_begin());
     const auto padsEnd = parseIntArrayAttr(origOp.pads_end());
     const auto kernelPaddingAttr =
             getInt32ArrayAttr(getContext(), makeArrayRef({padsBegin[1], padsEnd[1], padsBegin[0], padsEnd[0]}));
 
+    const auto activation_window_channel_length = getInt32Attr(getContext(), static_cast<uint32_t>(bitPatternSize));
+
     auto nceOp = rewriter.create<VPUIP::NCEClusterTaskOp>(
-            origOp->getLoc(), inputDPU, nullptr, weightsTable, activationWindow, inputDPU, outAllocOpCMX.memref(),
-            outAllocOpCMX.memref(), VPUIP::NCETaskType::MAXPOOL, ppeAttr, kernelPaddingAttr, origOp.strides(),
-            origOp.kernel_size(), getInt32Attr(getContext(), static_cast<uint32_t>(bitPatternSize)));
+            origOp->getLoc(), inputDPU, /*weights=*/nullptr, weightsTable, activationWindow,
+            /*parent_input=*/inputDPU,
+            /*parent_output=*/outAllocOpCMX.memref(),
+            /*output_buff=*/outAllocOpCMX.memref(), VPUIP::NCETaskType::MAXPOOL, origOp.kernel_size(), origOp.strides(),
+            kernelPaddingAttr, activation_window_channel_length);
 
     //
     // Create DPU sub-task
     //
 
-    addDPUTasks(nceOp, rewriter, _numDPU, padsBegin, padsEnd);
+    addDPUTasks(nceOp, rewriter, _numDPU, padsBegin, padsEnd, mpeMap.at(_arch));
 
     //
     // DMA output CMX -> DDR
@@ -396,9 +471,21 @@ private:
 
 void ConvertToNCEOpsPass::safeRunOnFunc() {
     auto& ctx = getContext();
-    auto func = getFunction();
 
-    auto resOp = IERT::RunTimeResourcesOp::getFromModule(func->getParentOfType<mlir::ModuleOp>());
+    auto func = getFunction();
+    auto module = func->getParentOfType<mlir::ModuleOp>();
+
+    const auto arch = VPUIP::getArch(module);
+
+    VPUX_THROW_UNLESS(mpeMap.find(arch) != mpeMap.end(), "Failed to map MPE mode to target arch");
+    VPUX_THROW_UNLESS(sparsityPtrsMap.find(arch) != sparsityPtrsMap.end(),
+                      "Failed to map sparsity pointer to target arch");
+    VPUX_THROW_UNLESS(biasConvertersMap.find(arch) != biasConvertersMap.end(),
+                      "Failed to map bias converter to target arch");
+    VPUX_THROW_UNLESS(ppeConvertersMap.find(arch) != ppeConvertersMap.end(),
+                      "Failed to map PPE converter to target arch");
+
+    auto resOp = IERT::RunTimeResourcesOp::getFromModule(module);
     VPUX_THROW_UNLESS(resOp != nullptr, "Missing IERT run-time resources definition");
 
     auto nceCluster = resOp.getExecutor(VPUIP::PhysicalProcessorAttr::get(&ctx, VPUIP::PhysicalProcessor::NCE_Cluster));
@@ -409,10 +496,10 @@ void ConvertToNCEOpsPass::safeRunOnFunc() {
     VPUX_THROW_UNLESS(dpuExec != nullptr, "Failed to get DPU information");
 
     mlir::OwningRewritePatternList patterns(&ctx);
-    patterns.insert<ConvRewrite>(&ctx, dpuExec.count(), _log);
-    patterns.insert<MaxPoolRewrite>(&ctx, dpuExec.count(), _log);
+    patterns.insert<ConvRewrite>(&ctx, dpuExec.count(), arch, _log);
+    patterns.insert<MaxPoolRewrite>(&ctx, dpuExec.count(), arch, _log);
 
-    if (mlir::failed(applyPatternsAndFoldGreedily(func, std::move(patterns)))) {
+    if (mlir::failed(applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig()))) {
         signalPassFailure();
     }
 }

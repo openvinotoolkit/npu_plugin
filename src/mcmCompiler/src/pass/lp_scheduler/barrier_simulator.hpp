@@ -77,6 +77,8 @@ class Runtime_Barrier_Simulation_Checker {
       : input_ptr_(NULL), level_sets_(), in_degree_map_(), real_barrier_list_(),
       barrier_bound_(), active_barrier_table_() {}
 
+    virtual ~Runtime_Barrier_Simulation_Checker() = default;
+
     bool check() {
       init();
       build_level_sets();

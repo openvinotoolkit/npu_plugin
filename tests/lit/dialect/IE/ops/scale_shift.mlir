@@ -14,8 +14,8 @@ func @FuseScaleAndBias(%arg0: tensor<1x3x300x300xf32>) -> tensor<1x3x300x300xf32
 
     return %1 : tensor<1x3x300x300xf32>
 
-    // CHECK:       %[[WEIGHTS:.*]] = IE.Constant tensor<1x3x1x1xf32> = dense<2.000000e+00> : tensor<1x3x1x1xf32>
-    // CHECK:       %[[BIAS:.*]] = IE.Constant tensor<1x3x1x1xf32> = dense<3.000000e+00> : tensor<1x3x1x1xf32>
+    // CHECK-DAG:   %[[WEIGHTS:.*]] = IE.Constant tensor<1x3x1x1xf32> = dense<2.000000e+00> : tensor<1x3x1x1xf32>
+    // CHECK-DAG:   %[[BIAS:.*]] = IE.Constant tensor<1x3x1x1xf32> = dense<3.000000e+00> : tensor<1x3x1x1xf32>
     // CHECK:       %[[VAL0:.*]] = IE.ScaleShift(%arg0, %[[WEIGHTS]], %[[BIAS]])
     // CHECK:       return %[[VAL0]]
 }
@@ -38,9 +38,9 @@ func @FuseScaleAndBias(%arg0: tensor<1x3x300x300xf32>) -> tensor<1x3x300x300xf32
 
     return %1 : tensor<1x3x300x300xf32>
 
-    // CHECK:       %[[VAL0:.*]] = IE.Constant tensor<1x3x1x1xf32> = dense<2.000000e+00> : tensor<1x3x1x1xf32>
-    // CHECK:       %[[VAL1:.*]] = IE.Constant tensor<1x3x1x1xf32> = dense<3.000000e+00> : tensor<1x3x1x1xf32>
-    // CHECK:       %[[VAL2:.*]] = IE.Constant tensor<1x3x1x1xf32> = dense<4.000000e+00> : tensor<1x3x1x1xf32>
+    // CHECK-DAG:   %[[VAL0:.*]] = IE.Constant tensor<1x3x1x1xf32> = dense<2.000000e+00> : tensor<1x3x1x1xf32>
+    // CHECK-DAG:   %[[VAL1:.*]] = IE.Constant tensor<1x3x1x1xf32> = dense<3.000000e+00> : tensor<1x3x1x1xf32>
+    // CHECK-DAG:   %[[VAL2:.*]] = IE.Constant tensor<1x3x1x1xf32> = dense<4.000000e+00> : tensor<1x3x1x1xf32>
     // CHECK:       %[[VAL3:.*]] = IE.ScaleShift(%arg0, %[[VAL0]], %[[VAL1]])
     // CHECK:       %[[VAL4:.*]] = IE.ScaleShift(%[[VAL3]], %[[VAL2]])
     // CHECK:       return %[[VAL4]]
@@ -64,9 +64,9 @@ func @FuseScaleAndBias(%arg0: tensor<1x3x300x300xf32>) -> tensor<1x3x300x300xf32
 
     return %1 : tensor<1x3x300x300xf32>
 
-    // CHECK:       %[[VAL0:.*]] = IE.Constant tensor<1x3x1x1xf32> = dense<2.000000e+00> : tensor<1x3x1x1xf32>
-    // CHECK:       %[[VAL1:.*]] = IE.Constant tensor<1x3x1x1xf32> = dense<3.000000e+00> : tensor<1x3x1x1xf32>
-    // CHECK:       %[[VAL2:.*]] = IE.Constant tensor<1x3x1x1xf32> = dense<4.000000e+00> : tensor<1x3x1x1xf32>
+    // CHECK-DAG:   %[[VAL0:.*]] = IE.Constant tensor<1x3x1x1xf32> = dense<2.000000e+00> : tensor<1x3x1x1xf32>
+    // CHECK-DAG:   %[[VAL1:.*]] = IE.Constant tensor<1x3x1x1xf32> = dense<3.000000e+00> : tensor<1x3x1x1xf32>
+    // CHECK-DAG:   %[[VAL2:.*]] = IE.Constant tensor<1x3x1x1xf32> = dense<4.000000e+00> : tensor<1x3x1x1xf32>
     // CHECK:       %[[VAL3:.*]] = IE.ScaleShift(%arg0, %[[VAL0]])
     // CHECK:       %[[VAL4:.*]] = IE.ScaleShift(%[[VAL3]], %[[VAL1]], %[[VAL2]])
     // CHECK:       return %[[VAL4]]

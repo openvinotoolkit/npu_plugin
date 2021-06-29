@@ -284,6 +284,136 @@ std::unique_ptr<mv::CompilationUnit> createCompilationUnit(
             }
         }
 
+        // override a layer's split strategy - if provided
+        if (!config.layerSplitStrategies().empty()) {
+            std::stringstream splitList{config.layerSplitStrategies()};
+            std::string layerStrategyPair;
+            
+            std::vector<mv::Element> overrideStrategies;
+            while (std::getline(splitList, layerStrategyPair, ',')) {
+                // parse layer:strategy
+                const auto delim = layerStrategyPair.find(':');
+                VPUX_THROW_UNLESS(delim != std::string::npos,
+                                 "layerSplitStrategies parsing error: provided value '%s'"
+                                 "should have semi-colon separated layername,strategy string, eg, conv1:SplitOverK,conv2:SplitOverH",
+                                 layerStrategyPair);
+                const auto layerName = layerStrategyPair.substr(0, delim);
+                const auto splitStrategy = layerStrategyPair.substr(delim + 1, std::string::npos);
+                
+                // save to vector
+                mv::Element strategyElem("item");
+                strategyElem.set<std::string>("name_filter", layerName);
+                strategyElem.set<std::string>("strategy", splitStrategy);
+                overrideStrategies.emplace_back(strategyElem);
+            }
+            mcmCompDesc.setPassArg("GlobalConfigParams", "split_strategy", overrideStrategies);
+        }
+
+        // override a layer's stream strategy - if provided
+        if (!config.layerStreamStrategies().empty()) {
+            std::stringstream splitList{config.layerStreamStrategies()};
+            std::string layerStrategySet;
+            try {
+                std::vector<mv::Element> overrideStrategies;
+                while (std::getline(splitList, layerStrategySet, ',')) {
+                    // parse "layer_name:streamsW:streamsH:streamsC:streamsK:streamsN,"
+                    std::vector<std::string> allVals;
+                    std::string nextValue;
+                    std::stringstream ss(layerStrategySet);
+                    while(std::getline(ss, nextValue, ':'))
+                        allVals.push_back(nextValue);
+
+                    // save to vector
+                    mv::Element strategyElem("item");
+                    strategyElem.set<std::string>("name_filter", allVals[0]);
+                    std::vector<mv::Element> streams;
+                    
+                    mv::Element itemW("W");
+                    itemW.set<int>("W", std::stoi(allVals[1]));
+                    streams.emplace_back(itemW);
+
+                    mv::Element itemH("H");
+                    itemH.set<int>("H", std::stoi(allVals[2]));
+                    streams.emplace_back(itemH);
+                    
+                    mv::Element itemC("C");
+                    itemC.set<int>("C", std::stoi(allVals[3]));
+                    streams.emplace_back(itemC);
+
+                    mv::Element itemK("K");
+                    itemK.set<int>("K", std::stoi(allVals[4]));
+                    streams.emplace_back(itemK);
+                    
+                    mv::Element itemN("N");
+                    itemN.set<int>("N", std::stoi(allVals[5]));
+                    streams.emplace_back(itemN);
+
+                    strategyElem.set<std::vector<mv::Element>>("splits", streams);
+                    overrideStrategies.emplace_back(strategyElem);
+                }
+                mcmCompDesc.setPassArg("GlobalConfigParams", "streaming_strategy", overrideStrategies);
+            }
+            catch (std::exception& ex) {
+                throw std::logic_error("layerStreamStrategies parsing error: format should be semi-colon separated string "
+                                 "layername:W:H:C:K:N, eg, conv1:1:2:3:4:5");
+            }
+        }
+
+        // override a layer's sparsity strategy - if provided
+        if (!config.layerSparsityStrategies().empty()) {
+            std::stringstream splitList{config.layerSparsityStrategies()};
+            std::string layerStrategySet;
+
+            try {
+                std::vector<mv::Element> overrideStrategies;
+                while (std::getline(splitList, layerStrategySet, ',')) {
+                    // parse "layer_name:input_sparsity:output_sparsity:weights_sparsity"
+                    std::vector<std::string> allVals;
+                    std::string nextValue;
+                    std::stringstream ss(layerStrategySet);
+                    while(std::getline(ss, nextValue, ':'))
+                        allVals.push_back(nextValue);
+
+                    mv::Element strategyElem("item");
+                    strategyElem.set<std::string>("name_filter", allVals[0]);
+                    strategyElem.set<bool>("inputActivationSparsity", allVals[1] == "true");
+                    strategyElem.set<bool>("outputActivationSparsity", allVals[2] == "true");
+                    strategyElem.set<bool>("weightsSparsity", allVals[3] == "true");
+                    overrideStrategies.emplace_back(strategyElem);
+                }
+                mcmCompDesc.setPassArg("GlobalConfigParams", "sparsity_strategy", overrideStrategies);
+            }
+            catch (std::exception& ex) {
+                throw std::logic_error("layerSparsityStrategies parsing error: format should be semi-colon separated string "
+                                 "layername:input_sparsity:output_sparsity:weights_sparsity, e.g. conv1:true:false:true");
+            }
+        }
+
+        // override a layer's location strategy - if provided
+        if (!config.layerLocationStrategies().empty()) {
+            std::stringstream splitList{config.layerLocationStrategies()};
+            std::string layerStrategyPair;
+
+            std::vector<mv::Element> overrideStrategies;
+            while (std::getline(splitList, layerStrategyPair, ',')) {
+                // parse layer:strategy
+                const auto delim = layerStrategyPair.find(':');
+                VPUX_THROW_UNLESS(delim != std::string::npos,
+                                  "layerLocationStrategies parsing error: provided value '%s'"
+                                  "should have semi-colon separated layername:strategy string, e.g. conv1:DDR",
+                                  layerStrategyPair);
+                const auto tensorName = layerStrategyPair.substr(0, delim);
+                const auto strategy = layerStrategyPair.substr(delim + 1, std::string::npos);
+
+                mv::Element strategyElem("item");
+                strategyElem.set<std::string>("name_filter", tensorName);
+                strategyElem.set<std::string>("mem_location", strategy);
+                overrideStrategies.emplace_back(strategyElem);
+            }
+            mcmCompDesc.setPassArg("GlobalConfigParams", "tensor_placement_override", overrideStrategies);
+        }
+
+
         IE_ASSERT(mcmCompiler->initialize());
     }
     return mcmCompiler;
@@ -336,8 +466,6 @@ void applyTransformations(
         passManager.register_pass<ngraph::pass::Serialize>(baseFileName + ".xml", baseFileName + ".bin");
     }
 
-    passManager.register_pass<ngraph::pass::ConvertPriorBox>(); // strict requirement: ConvertPriorBox should be first
-
     passManager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
     passManager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
     passManager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
@@ -360,7 +488,9 @@ void applyTransformations(
     passManager.register_pass<InsertMaxPool>();
     passManager.register_pass<ReplaceShuffle>();
     passManager.register_pass<Handle3DTranspose>();
-    passManager.register_pass<DetectInputFQ>(&needConvertInputPrecision);
+    if (config.optimizeInputPrecision()) {
+        passManager.register_pass<DetectInputFQ>(&needConvertInputPrecision);
+    }
     // TODO: [Track number: E#13091]
     // passManager.register_pass<ngraph::pass::ConvertInterpolate1ToInterpolate4>();
 

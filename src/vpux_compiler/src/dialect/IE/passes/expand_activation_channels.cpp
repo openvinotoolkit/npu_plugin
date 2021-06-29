@@ -166,32 +166,79 @@ private:
     Logger _log;
 };
 
-static mlir::Value concatPadding(mlir::Value origTensor, const unsigned int expandSize, const Dim& axis,
-                                 mlir::Location loc, mlir::PatternRewriter& rewriter) {
+static std::vector<float> populateExpandedData(const ShapeRef& srcShape, const ShapeRef& dstShape,
+                                               const vpux::details::ConstContentRange<float>& origWeightsData) {
+    const auto dimOC = Dim(0);
+    const auto dimIC = Dim(1);
+    const auto dimKY = Dim(2);
+    const auto dimKX = Dim(3);
+    const auto srcOC = srcShape[dimOC];
+    const auto srcIC = srcShape[dimIC];
+    const auto srcKY = srcShape[dimKY];
+    const auto srcKX = srcShape[dimKX];
+
+    const auto dstOC = dstShape[dimOC];
+    const auto dstIC = dstShape[dimIC];
+    const auto dstKY = dstShape[dimKY];
+    const auto dstKX = dstShape[dimKX];
+
+    const auto srcOCStride = srcKY * srcKX * srcIC;
+    const auto srcICStride = srcKY * srcKX;
+    const auto srcKYStride = srcKX;
+    const auto srcKXStride = 1;
+
+    const auto dstOCStride = dstKY * dstKX * dstIC;
+    const auto dstICStride = dstKY * dstKX;
+    const auto dstKYStride = dstKX;
+    const auto dstKXStride = 1;
+
+    // 1. Create vector with enough data for expanded tensor.
+    // 2. Populate that vector with zeros.
+    // 3. Insert original weights according to strides.
+    // Please note that there's no re-pack here. Both source and destination tensors have OIYX layouts.
+    std::vector<float> expandedWeightsData(dstOC * dstIC * dstKY * dstKX, 0);
+    for (long oc = 0; oc < srcOC; oc++) {
+        for (long ic = 0; ic < srcIC; ic++) {
+            for (long ky = 0; ky < srcKY; ky++) {
+                for (long kx = 0; kx < srcKX; kx++) {
+                    size_t srcIdx = oc * srcOCStride + ic * srcICStride + ky * srcKYStride + kx * srcKXStride;
+                    size_t dstIdx = oc * dstOCStride + ic * dstICStride + ky * dstKYStride + kx * dstKXStride;
+                    expandedWeightsData[dstIdx] = origWeightsData[srcIdx];
+                }
+            }
+        }
+    }
+
+    return expandedWeightsData;
+}
+
+static mlir::Value expandConstant(mlir::Value origTensor, const unsigned int expandSize, const Dim& axis,
+                                  mlir::Location loc, mlir::PatternRewriter& rewriter) {
     if (expandSize <= 0) {
         // nothing to be done
         return origTensor;
     }
 
-    const auto paddedShape = getShape(origTensor);
-    auto additionalZerosShape = to_small_vector(paddedShape);
-    additionalZerosShape[checked_cast<size_t>(axis.ind())] = checked_cast<unsigned int>(expandSize);
+    const auto origShape = getShape(origTensor);
+    auto targetShape = origShape.toValues();
+    targetShape[axis] += expandSize;
 
-    const auto tensorType = origTensor.getType().cast<mlir::ShapedType>();
-    const auto additionalZerosTensorType =
-            mlir::RankedTensorType::get(additionalZerosShape, tensorType.getElementType());
+    auto weightsConst = origTensor.getDefiningOp<ConstantInterface>();
+    if (weightsConst == nullptr) {
+        VPUX_THROW("Weights do not provide constant interface");
+    }
 
-    std::vector<int32_t> zerosData(additionalZerosTensorType.getNumElements(), 0);
-    const auto zerosStorageType = mlir::RankedTensorType::get(additionalZerosShape, rewriter.getF32Type());
-    const auto zerosDataAttr = mlir::DenseElementsAttr::get(zerosStorageType, 0.f);
-    const auto zerosTensorType = mlir::RankedTensorType::get(additionalZerosShape, tensorType.getElementType());
-    auto zeros = rewriter.create<IE::ConstantOp>(loc, zerosTensorType, zerosDataAttr);
+    const auto origWeightsData = weightsConst.getContent().getValues<float>();
+    const auto expandedWeightsData = populateExpandedData(origShape, targetShape, origWeightsData);
 
-    SmallVector<mlir::Value> inputs{origTensor, zeros};
-    const auto axisAttr = getSInt32Attr(rewriter.getContext(), checked_cast<int32_t>(axis.ind()));
-    auto paddedTensor = rewriter.create<IE::ConcatOp>(loc, inputs, axisAttr);
-
-    return paddedTensor;
+    // create tensor from expanded data
+    const auto originalFilterType = origTensor.getType().cast<mlir::ShapedType>();
+    const auto expandedFilterStorageType = mlir::RankedTensorType::get(targetShape.raw(), rewriter.getF32Type());
+    const auto expandedFilterAttr =
+            mlir::DenseElementsAttr::get(expandedFilterStorageType, makeArrayRef(expandedWeightsData));
+    const auto expandedFilterType = mlir::RankedTensorType::get(targetShape.raw(), originalFilterType.getElementType());
+    auto paddedConstant = rewriter.create<IE::ConstantOp>(loc, expandedFilterType, expandedFilterAttr);
+    return paddedConstant.output();
 }
 
 mlir::LogicalResult ExpandActivationChannels::ConvolutionRewriter::matchAndRewrite(
@@ -209,10 +256,11 @@ mlir::LogicalResult ExpandActivationChannels::ConvolutionRewriter::matchAndRewri
         // extend input channels
         const auto expandInChanSize = checked_cast<unsigned int>(newInputShape[InChan] - filterShape[InChan]);
         mlir::Value paddedInFilter =
-                concatPadding(origOp.filter(), expandInChanSize, InChan, origOp.getLoc(), rewriter);
+                expandConstant(origOp.filter(), expandInChanSize, InChan, origOp.getLoc(), rewriter);
 
         // extend output channels
-        mlir::Value paddedFilter = concatPadding(paddedInFilter, expandOutChanSize, OutChan, origOp.getLoc(), rewriter);
+        mlir::Value paddedFilter =
+                expandConstant(paddedInFilter, expandOutChanSize, OutChan, origOp.getLoc(), rewriter);
 
         // extend biases
         mlir::Value paddedBiases;

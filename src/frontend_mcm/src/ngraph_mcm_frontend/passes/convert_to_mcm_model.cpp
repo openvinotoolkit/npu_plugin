@@ -95,8 +95,6 @@
 #include <ngraph/op/log.hpp>
 #include <ngraph/op/reverse_sequence.hpp>
 
-#include <ngraph/op/prior_box.hpp>
-#include <ngraph/op/prior_box_clustered.hpp>
 #include <ngraph/op/detection_output.hpp>
 
 #include <ngraph/op/split.hpp>
@@ -107,10 +105,9 @@
 #include <ngraph/op/space_to_depth.hpp>
 #include <ngraph/op/squared_difference.hpp>
 #include <ngraph/op/depth_to_space.hpp>
+#include <ngraph/op/equal.hpp>
 
 #include <legacy/ngraph_ops/interp.hpp>
-#include <legacy/ngraph_ops/prior_box_clustered_ie.hpp>
-#include <legacy/ngraph_ops/prior_box_ie.hpp>
 #include <legacy/ngraph_ops/lrn_ie.hpp>
 #include <legacy/ngraph_ops/normalize_ie.hpp>
 #include <legacy/ngraph_ops/topk_ie.hpp>
@@ -1039,86 +1036,6 @@ void convert(std::shared_ptr<ngraph::op::v0::PSROIPooling> psroipool, mv::OpMode
     roipoolOutput->setQuantParams(initialQuantParams());
 
     registerOutputs(psroipool, {roipoolOutput}, mcmOutputsMap);
-}
-
-void convert(std::shared_ptr<ngraph::op::PriorBoxIE> priorbox, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
-    const auto mcmInputs = getMcmInputs(priorbox, mcmOutputsMap);
-    const auto mcmData = mcmInputs.at(0);
-    const auto& opName = priorbox->get_friendly_name();
-    const auto attrs = priorbox->get_attrs();
-    // min_size         Desired min_size of prior boxes
-    // max_size         Desired max_size of prior boxes
-    // aspect_ratio     Aspect ratios of prior boxes
-    // clip             Clip output to [0,1]
-    // flip             Flip aspect ratios
-    // step             Distance between prior box centers
-    // offset           Box offset relative to top center of image
-    // variance         Values to adjust prior boxes with
-    // scale_all_sizes  Scale all sizes
-
-    if (mcmInputs.size() != 2)
-        IE_THROW() << opName + " Incorrect number of input edges!";
-
-    if (priorbox->get_input_shape(0).size() != 4 ||
-        priorbox->get_input_shape(1).size() != 4)
-        IE_THROW() << opName + " PriorBox supports only 4D blobs!";
-    auto data_dims = priorbox->get_input_shape(0);
-    auto image_dims = priorbox->get_input_shape(1);
-    auto out_dims = priorbox->get_output_shape(0);
-
-    vpu::KmbPlugin::utils::priorBoxParam param(attrs.offset, attrs.step, attrs.min_size, attrs.max_size, attrs.flip, attrs.clip, attrs.scale_all_sizes,
-     attrs.fixed_size, attrs.fixed_ratio, attrs.density, attrs.aspect_ratio, attrs.variance, data_dims, image_dims, out_dims);
-
-    auto boxes = vpu::KmbPlugin::utils::computePriorbox(param);
-    auto priorboxOutput = mcmModel.constant(opName + "_const", boxes, {boxes.size() / 2, 2, 1, 1}, mv::DType("Float64"), mv::Order("NHWC"));
-    priorboxOutput->setQuantParams(initialQuantParams());
-
-    registerOutputs(priorbox, {priorboxOutput}, mcmOutputsMap);
-}
-
-void convert(std::shared_ptr<ngraph::op::PriorBoxClusteredIE> pbc, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
-    // const auto& opName = pbc->get_friendly_name();
-    const auto attrs = pbc->get_attrs();
-    // widths         Desired widths of prior boxes
-    // heights        Desired heights of prior boxes
-    // clip           Clip output to [0,1]
-    // step_widths    Distance between prior box centers
-    // step_heights   Distance between prior box centers
-    // offset         Box offset relative to top center of image
-    // variances      Values to adjust prior boxes with
-    int img_width = pbc->get_input_shape(1).at(3);
-    int img_height = pbc->get_input_shape(1).at(2);
-    int layer_width = pbc->get_input_shape(0).at(3);
-    int layer_height = pbc->get_input_shape(0).at(2);
-    float step_w = attrs.step_widths;
-    float step_h = attrs.step_heights;
-    // if (std::abs(attr.step_heights - attr.step_widths) < 1e-5) {
-    //     res->params["step"] = asString(attr.step_widths);
-    if (step_w == 0.f && step_h == 0.f) {
-        step_w = static_cast<float>(img_width) / layer_width;
-        step_h = static_cast<float>(img_height) / layer_height;
-    }
-    IE_ASSERT(step_w != 0.f);
-    IE_ASSERT(step_h != 0.f);
-    IE_ASSERT(attrs.widths.size() == attrs.heights.size());
-    int num_priors = attrs.widths.size();
-    std::vector<float> variances = attrs.variances;
-    if (variances.empty()) {
-        variances.push_back(0.1f);
-    }
-    const auto& dims = pbc->get_output_shape(0);
-    IE_ASSERT(dims.size() == 3);
-    int size = dims[0] * dims[1] * dims[2];
-
-    vpu::KmbPlugin::utils::priorBoxClusteredParam param{attrs.offset, attrs.clip,
-        step_w, step_h, layer_width, layer_height, img_width,
-        img_height, num_priors, attrs.widths, attrs.heights, variances, size};
-
-    auto boxes = vpu::KmbPlugin::utils::computePriorboxClustered(param);
-    auto priorboxClustered =
-            mcmModel.constant("", boxes, {boxes.size() / 2, 2, 1, 1}, mv::DType("Float64"), mv::Order("NHWC"));
-
-    registerOutputs(pbc, {priorboxClustered}, mcmOutputsMap);
 }
 
 void convert(std::shared_ptr<ngraph::op::v0::NormalizeL2> normL2, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
@@ -2053,6 +1970,17 @@ void convert(std::shared_ptr<ngraph::op::v0::DepthToSpace> DepthToSpace, mv::OpM
     registerOutputs(DepthToSpace, {mcmDepthToSpace}, mcmOutputsMap);
 }
 
+void convert(std::shared_ptr<ngraph::op::v1::Equal> op, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
+    const auto mcmInputs = getMcmInputs(op, mcmOutputsMap);
+    IE_ASSERT(2u == mcmInputs.size());
+    const auto opName = op->get_friendly_name();
+    mv::Data::TensorIterator mcmOpOutput;
+    mcmOpOutput = mcmModel.eltwise(opName, mcmInputs, "Equal");
+    mcmOpOutput->setQuantParams(initialQuantParams());
+    registerOutputs(op, {mcmOpOutput}, mcmOutputsMap);
+}
+
+
 // TODO: move converters to class ConvertToMcmModel scope to remove references to data
 
 template <typename T>
@@ -2108,11 +2036,9 @@ static const DispatchMap dispatchMap {
     MAP_ENTRY(ngraph::op::v0::Clamp),
     MAP_ENTRY(ngraph::op::ReLUIE),
     MAP_ENTRY(ngraph::op::v0::NormalizeL2),
-    MAP_ENTRY(ngraph::op::PriorBoxIE),
     MAP_ENTRY(ngraph::op::v0::Unsqueeze),
     MAP_ENTRY(ngraph::op::PowerIE),
     MAP_ENTRY(ngraph::op::v0::Sigmoid),
-    MAP_ENTRY(ngraph::op::PriorBoxClusteredIE),
     MAP_ENTRY(ngraph::op::v0::DetectionOutput),
     MAP_ENTRY(ngraph::op::v0::RegionYolo),
     MAP_ENTRY(ngraph::op::v0::ReorgYolo),
@@ -2157,7 +2083,8 @@ static const DispatchMap dispatchMap {
     MAP_ENTRY(ngraph::op::v0::Convert),
     MAP_ENTRY(ngraph::op::v0::SquaredDifference),
     MAP_ENTRY(ngraph::op::v0::DepthToSpace),
-    MAP_ENTRY(ngraph::op::v0::ReverseSequence)
+    MAP_ENTRY(ngraph::op::v0::ReverseSequence),
+    MAP_ENTRY(ngraph::op::v1::Equal)
 };
 
 #undef MAP_ENTRY

@@ -12,7 +12,9 @@
 //
 
 #include "vpux/compiler/dialect/IE/passes.hpp"
+#include "vpux/compiler/utils/rewriter.hpp"
 
+#include <mlir/Pass/PassManager.h>
 #include <mlir/Transforms/Passes.h>
 
 using namespace vpux;
@@ -27,7 +29,8 @@ void vpux::IE::buildAdjustForVPUPipeline(mlir::OpPassManager& pm, Logger log) {
     pm.addPass(IE::createConvertPrecisionToFP16Pass(log));
     pm.addPass(IE::createConvertShapeTo4DPass(log));
     pm.addPass(IE::createConvertPaddingsToFloorModePass(log));
-    pm.addPass(mlir::createCanonicalizerPass());
+    pm.addPass(mlir::createCanonicalizerPass(getDefaultGreedyRewriteConfig()));
+    pm.addPass(IE::createResolveStridedSlicePass(log));
 }
 
 //
@@ -43,10 +46,10 @@ void vpux::IE::buildLowPrecisionPipeline(mlir::OpPassManager& pm, Logger log) {
 }
 
 //
-// registerPipelines
+// registerIEPipelines
 //
 
-void vpux::IE::registerPipelines() {
+void vpux::IE::registerIEPipelines() {
     mlir::PassPipelineRegistration<>("adjust-for-vpu", "Adjust IE Dialect IR for VPU target",
                                      [](mlir::OpPassManager& pm) {
                                          IE::buildAdjustForVPUPipeline(pm);

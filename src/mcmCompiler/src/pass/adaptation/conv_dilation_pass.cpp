@@ -53,7 +53,11 @@ mv::Data::TensorIterator createDeconvSubConv(mv::OpModel & om, mv::Data::OpListI
     std::vector<int64_t> sliceWeightVector(newShape.totalSize());
 
     mv::Shape srcShape = sourceWeights->getShape();
-
+    
+    /// Base on bottom-right padding assumption
+    /// Only one case - SAME_UPPER, will pad extra zero value at top-left
+    /// See: https://docs.openvinotoolkit.org/latest/openvino_docs_ops_convolution_ConvolutionBackpropData_1.html
+    ///   -> The second code snippet
     for (unsigned k = 0; k < newShape[mv::KERNEL_OUTPUT_CHANNELS]; ++k)
     {
         for (unsigned c = 0; c < newShape[mv::KERNEL_INPUT_CHANNELS]; ++c)
@@ -69,8 +73,8 @@ mv::Data::TensorIterator createDeconvSubConv(mv::OpModel & om, mv::Data::OpListI
 
                     const size_t srcIdx = (k * srcShape[mv::KERNEL_INPUT_CHANNELS] * srcShape[mv::KERNEL_WIDTH] * srcShape[mv::KERNEL_HEIGHT]) +
                                         (c * srcShape[mv::KERNEL_WIDTH] * srcShape[mv::KERNEL_HEIGHT]) +
-                                        ((srcShape[mv::KERNEL_HEIGHT] - 1 - i) * srcShape[mv::KERNEL_WIDTH]) +
-                                        (srcShape[mv::KERNEL_WIDTH] - 1 - j);
+                                        (i * srcShape[mv::KERNEL_WIDTH]) +
+                                        j;
 
                     sliceWeightVector[dstIdx] = weightsValue[srcIdx];
                 }
@@ -452,7 +456,7 @@ void convDilationUsingStorageElementFcn(const mv::pass::PassEntry& pass, mv::Com
         om.getSourceOp(concatIt)->set<bool>("joinSimulation", true);
         om.getSourceOp(concatIt)->set<size_t>("dilationSubConvs", strideFactor * strideFactor);
 
-        if ((isDepthwise == false) && (nextOp->getOpType() == "Output" || nextOp->getOutputTensor(0)->getDType() == mv::DType("UInt8")))
+        if ((isDepthwise == false) && (nextOp->getOpType() != "Output" && nextOp->getOutputTensor(0)->getDType() == mv::DType("UInt8")))
         {
             auto dataUint8 = om.uPATaskQuantize("", {concatIt});
             dataUint8->setDType(mv::DType("UInt8"));

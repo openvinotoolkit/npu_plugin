@@ -86,6 +86,7 @@ void vpux::VPUXConfig::parse(const std::map<std::string, std::string>& config) {
     IE_ASSERT(0 <= _numberOfNnCoreShaves && _numberOfNnCoreShaves <= 16)
             << "VPUXConfig::parse attempt to set invalid number of shaves for NnCore: '" << _numberOfNnCoreShaves
             << "', valid numbers are from 0 to 16";
+    // TODO Remove deprecated platform names with VPU prefix in future releases
     static const std::unordered_map<std::string, IE::VPUXConfigParams::VPUXPlatform> vpuxPlatform = {
             {"AUTO", IE::VPUXConfigParams::VPUXPlatform::AUTO},
             {"3400_A0", IE::VPUXConfigParams::VPUXPlatform::VPU3400_A0},
@@ -93,7 +94,13 @@ void vpux::VPUXConfig::parse(const std::map<std::string, std::string>& config) {
             {"3700", IE::VPUXConfigParams::VPUXPlatform::VPU3700},
             {"3800", IE::VPUXConfigParams::VPUXPlatform::VPU3800},
             {"3900", IE::VPUXConfigParams::VPUXPlatform::VPU3900},
-            {"3720", IE::VPUXConfigParams::VPUXPlatform::VPU3720}};
+            {"3720", IE::VPUXConfigParams::VPUXPlatform::VPU3720},
+            {"VPU3400_A0", IE::VPUXConfigParams::VPUXPlatform::VPU3400_A0},
+            {"VPU3400", IE::VPUXConfigParams::VPUXPlatform::VPU3400},
+            {"VPU3700", IE::VPUXConfigParams::VPUXPlatform::VPU3700},
+            {"VPU3800", IE::VPUXConfigParams::VPUXPlatform::VPU3800},
+            {"VPU3900", IE::VPUXConfigParams::VPUXPlatform::VPU3900},
+            {"VPU3720", IE::VPUXConfigParams::VPUXPlatform::VPU3720}};
     setOption(_platform, vpuxPlatform, config, VPUX_CONFIG_KEY(PLATFORM));
 
     // Private options

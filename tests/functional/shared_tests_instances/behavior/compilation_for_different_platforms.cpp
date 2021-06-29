@@ -8,7 +8,7 @@
 #include "ngraph_functions/builders.hpp"
 #include <ie_core.hpp>
 #include <base/behavior_test_utils.hpp>
-#include "vpux/vpux_plugin_config.hpp"
+#include "vpux_private_config.hpp"
 #include "common/functions.h"
 
 using CompileForDifferentPlatformsTests = BehaviorTestsUtils::BehaviorTestsBasic;
@@ -29,7 +29,20 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP32
 };
 
+// TODO Remove deprecated platform names with VPU prefix in future releases
 const std::vector<std::map<std::string, std::string>> configs = {
+        {{VPUX_CONFIG_KEY(PLATFORM), "3400_A0"}},
+        {{VPUX_CONFIG_KEY(PLATFORM), "3400"}},
+        {{VPUX_CONFIG_KEY(PLATFORM), "3700"}},
+        {{VPUX_CONFIG_KEY(PLATFORM), "3800"}},
+        {{VPUX_CONFIG_KEY(PLATFORM), "3900"}},
+        {{VPUX_CONFIG_KEY(PLATFORM), "3720"}},
+        {{VPUX_CONFIG_KEY(PLATFORM), "VPU3400_A0"}},
+        {{VPUX_CONFIG_KEY(PLATFORM), "VPU3400"}},
+        {{VPUX_CONFIG_KEY(PLATFORM), "VPU3700"}},
+        {{VPUX_CONFIG_KEY(PLATFORM), "VPU3800"}},
+        {{VPUX_CONFIG_KEY(PLATFORM), "VPU3900"}},
+        {{VPUX_CONFIG_KEY(PLATFORM), "VPU3720"}},
         {{CONFIG_KEY(DEVICE_ID), "3400_A0"}},
         {{CONFIG_KEY(DEVICE_ID), "3400"}},
         {{CONFIG_KEY(DEVICE_ID), "3700"}},
