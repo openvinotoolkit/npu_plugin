@@ -4,13 +4,13 @@
 
 #include <vector>
 
-#include "single_layer_tests/convolution_backprop_data.hpp"
+#include "single_layer_tests/convolution_backprop.hpp"
 #include "common_test_utils/test_constants.hpp"
 #include "kmb_layer_test.hpp"
 
 namespace LayerTestsDefinitions {
 
-    class KmbConvolutionBackpropDataLayerTest: public ConvolutionBackpropDataLayerTest,
+    class KmbConvolutionBackpropDataLayerTest: public ConvolutionBackpropLayerTest,
                                                virtual public LayerTestsUtils::KmbLayerTestsCommon {
     };
 
@@ -31,6 +31,8 @@ namespace {
     /// Current Deconv impelmentation Only support 16x channels
     /// The other channel which needs alignment and crop will cause concat issue 
     const std::vector<size_t> numOutChannels = {16};
+    const std::vector<std::vector<size_t >> emptyOutputShape = {{}};
+    const std::vector<std::vector<ptrdiff_t >> emptyOutputPadding = {{}};
 
 /* ============= 2D ConvolutionBackpropData ============= */
     const std::vector<std::vector<size_t >> inputShapes2D = {{1, 3, 30, 30}};
@@ -51,7 +53,8 @@ namespace {
             ::testing::ValuesIn(padEnds2D),
             ::testing::ValuesIn(dilations2D),
             ::testing::ValuesIn(numOutChannels),
-            ::testing::Values(ngraph::op::PadType::EXPLICIT)
+            ::testing::Values(ngraph::op::PadType::EXPLICIT),
+            ::testing::ValuesIn(emptyOutputPadding)
     );
     const auto conv2DParams_AutoPadValid = ::testing::Combine(
             ::testing::ValuesIn(kernels2D),
@@ -60,7 +63,8 @@ namespace {
             ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
             ::testing::ValuesIn(dilations2D),
             ::testing::ValuesIn(numOutChannels),
-            ::testing::Values(ngraph::op::PadType::VALID)
+            ::testing::Values(ngraph::op::PadType::VALID),
+            ::testing::ValuesIn(emptyOutputPadding)
     );
 
     // Test-case fails at stage "Run MCM Compiler" with error:
@@ -81,6 +85,7 @@ namespace {
                                     ::testing::Values(InferenceEngine::Layout::ANY),
                                     ::testing::Values(InferenceEngine::Layout::ANY),
                                     ::testing::ValuesIn(inputShapes2D),
+                                    ::testing::ValuesIn(emptyOutputShape),
                                     ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
                             KmbConvolutionBackpropDataLayerTest::getTestCaseName);
 
@@ -102,6 +107,7 @@ namespace {
                                     ::testing::Values(InferenceEngine::Layout::ANY),
                                     ::testing::Values(InferenceEngine::Layout::ANY),
                                     ::testing::ValuesIn(inputShapes2D),
+                                    ::testing::ValuesIn(emptyOutputShape),
                                     ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
                             KmbConvolutionBackpropDataLayerTest::getTestCaseName);
 
@@ -122,7 +128,8 @@ namespace {
             ::testing::ValuesIn(padEnds3D),
             ::testing::ValuesIn(dilations3D),
             ::testing::ValuesIn(numOutChannels),
-            ::testing::Values(ngraph::op::PadType::EXPLICIT)
+            ::testing::Values(ngraph::op::PadType::EXPLICIT),
+            ::testing::ValuesIn(emptyOutputPadding)
     );
     const auto conv3DParams_AutoPadValid = ::testing::Combine(
             ::testing::ValuesIn(kernels3D),
@@ -131,7 +138,8 @@ namespace {
             ::testing::Values(std::vector<ptrdiff_t>({0, 0, 0})),
             ::testing::ValuesIn(dilations3D),
             ::testing::ValuesIn(numOutChannels),
-            ::testing::Values(ngraph::op::PadType::VALID)
+            ::testing::Values(ngraph::op::PadType::VALID),
+            ::testing::ValuesIn(emptyOutputPadding)
     );
 
     // All test instances fail at stage "Convert nGraph to MCM Model" with error:
@@ -150,6 +158,7 @@ namespace {
                                     ::testing::Values(InferenceEngine::Layout::ANY),
                                     ::testing::Values(InferenceEngine::Layout::ANY),
                                     ::testing::ValuesIn(inputShapes3D),
+                                    ::testing::ValuesIn(emptyOutputShape),
                                     ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
                             KmbConvolutionBackpropDataLayerTest::getTestCaseName);
 
@@ -169,6 +178,7 @@ namespace {
                                     ::testing::Values(InferenceEngine::Layout::ANY),
                                     ::testing::Values(InferenceEngine::Layout::ANY),
                                     ::testing::ValuesIn(inputShapes3D),
+                                    ::testing::ValuesIn(emptyOutputShape),
                                     ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
                             KmbConvolutionBackpropDataLayerTest::getTestCaseName);
 
