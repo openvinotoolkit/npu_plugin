@@ -21,20 +21,17 @@
 #include <tuple>
 #include <vector>
 
-
 #include <inference_engine.hpp>
 
 #include <samples/args_helper.hpp>
 #include <samples/common.hpp>
 #include <samples/slog.hpp>
 
-
 #include "detection_sample_yolov2tiny.h"
 #include "region_yolov2tiny.h"
 
 #include <format_reader_ptr.h>
 #include <ie_compound_blob.h>
-
 
 #include <vpumgr.h>
 
@@ -44,7 +41,6 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <yolo_helpers.hpp>
-
 
 #include "vpux/utils/IE/blob.hpp"
 
@@ -201,20 +197,6 @@ bool ParseAndCheckCommandLine(int argc, char* argv[]) {
     }
 
     return true;
-}
-
-bool readBinaryFile(std::string input_binary, std::string& data) {
-    std::ifstream in(input_binary, std::ios_base::binary | std::ios_base::ate);
-
-    size_t sizeFile = in.tellg();
-    in.seekg(0, std::ios_base::beg);
-    data.resize(sizeFile);
-    bool status = false;
-    if (in.good()) {
-        in.read(&data.front(), sizeFile);
-        status = true;
-    }
-    return status;
 }
 
 std::vector<std::string> readLabelsFromFile(const std::string& labelFileName) {

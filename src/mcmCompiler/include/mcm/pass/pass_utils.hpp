@@ -47,7 +47,7 @@ namespace mv
 
 void fuseLeakyReluAccPPEFcn(mv::Data::OpListIterator& opIt, mv::ComputationModel& model, const std::string& opType, mv::TargetDescriptor& td);
 
-std::vector<double> extendToK(size_t size, std::vector<double> value, std::string tensorName);
-std::vector<int64_t> extendToK(size_t size, std::vector<int64_t> value, std::string tensorName);
+std::vector<double> extendToK(size_t size, std::vector<double> value, const std::string& tensorName);
+std::vector<int64_t> extendToK(size_t size, std::vector<int64_t> value, const std::string& tensorName);
 
 #endif // PASS_UTILS_HPP_

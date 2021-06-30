@@ -203,7 +203,7 @@ std::queue<std::string> aggressiveSimplify(const mv::pass::PassEntry& pass, mv::
     return agNodeOrder;
 }
 
-void printASOrder(std::queue<std::string> order, std::string name)
+void printASOrder(std::queue<std::string> order, const std::string& name)
 {
     std::cout << " printing aggressive simplify for " << name << ":" << std::endl;
     while (!order.empty())
@@ -424,7 +424,7 @@ std::size_t updateHeights(mv::TensorInterferenceGraph::node_list_iterator& ni, m
     return maxChromaticNumber;
 }
 
-void printGraph(std::string name, mv::graph<std::string, int>& g)
+void printGraph(const std::string& name, mv::graph<std::string, int>& g)
 {
      // Nodes list
     std::cout << "Printing Graph: " << name << std::endl;
