@@ -18,6 +18,7 @@
 
 #include <mlir/IR/BuiltinAttributes.h>
 #include <mlir/Transforms/DialectConversion.h>
+#include "vpux/compiler/utils/attributes.hpp"
 
 using namespace vpux;
 
@@ -96,6 +97,34 @@ private:
     Logger _log;
 };
 
+static bool is_equal(float a, float b) {
+    float epsilon = std::numeric_limits<float>::epsilon();
+    return (std::fabs(a - b) <= epsilon);
+};
+
+static float compare_limits(const vpux::Const::details::ContentRange<float>& vec1,
+                            const vpux::Const::details::ContentRange<float>& vec2) {
+    float ratio = 1.;
+
+    // check if FQ input and output limits are equal
+    bool result = std::equal(vec1.begin(), vec1.end(), vec2.begin(), is_equal);
+    if (!result) {
+        // check that all ratios are equal
+        std::vector<float> ratios;
+        std::transform(vec1.begin(), vec1.end(), vec2.begin(), std::back_inserter(ratios), std::divides<>{});
+        if (std::adjacent_find(ratios.begin(), ratios.end(), [](float a, float b) {
+                return !is_equal(a, b);
+            }) == ratios.end()) {
+            ratio = ratios[0];
+        } else {
+            // Input and output limits has per channel ratio
+            return -1.;
+        }
+    }
+
+    return ratio;
+}
+
 mlir::LogicalResult UseConstDequant::matchAndRewrite(IE::FakeQuantizeOp origOp, mlir::PatternRewriter& rewriter) const {
     _log.trace("[{0}] Got FakeQuantize Operation '{1}'", getDebugName(), origOp->getLoc());
     auto innerLog = _log.nest();
@@ -124,7 +153,40 @@ mlir::LogicalResult UseConstDequant::matchAndRewrite(IE::FakeQuantizeOp origOp, 
         const auto inHighContent = inHighConst.content();
 
         if (!inLowContent.isSplat() || !inHighContent.isSplat()) {
-            return matchFailed(innerLog, rewriter, origOp, "Original input values are not integer");
+            innerLog.warning("Legacy model, original input values are not integer");
+
+            // Workaround for Float weights, it lacks generality but is ok for old networks
+            // Check if FQ can be removed for float weights
+            const auto outHighContent = outHighConst.content();
+            const auto outLowContent = outLowConst.content();
+
+            const auto inHighVals = inHighContent.getValues<float>();
+            const auto outHighVals = outHighContent.getValues<float>();
+            float ratioHigh = compare_limits(inHighVals, outHighVals);
+
+            const auto inLowVals = inLowContent.getValues<float>();
+            const auto outLowVals = outLowContent.getValues<float>();
+            float ratioLow = compare_limits(inLowVals, outLowVals);
+
+            if (ratioHigh < 0) {
+                innerLog.warning("In and out limits differ and has per channel ratio, do not support");
+                return mlir::failure();
+            } else if (!is_equal(ratioHigh, ratioLow)) {
+                innerLog.warning("Unsupported case, ratioHigh={0} != ratioLow={1}", ratioHigh, ratioLow);
+                return mlir::failure();
+            } else if (ratioHigh == 1.) {
+                // FQ input and output ranges are equal, only remove FQ
+                rewriter.replaceOpWithNewOp<Const::DeclareOp>(origOp, origOp.getType(), inConst.contentAttr());
+            } else {
+                // FQ input and output ranges are NOT equal, rescale weights
+                innerLog.trace("Rescale weights");
+                auto ctx = getContext();
+                mlir::FloatAttr scale = vpux::getFP32Attr(ctx, checked_cast<float>(ratioHigh));
+                const auto newConstAttr = inConst.contentAttr().rescale(scale);
+                rewriter.replaceOpWithNewOp<Const::DeclareOp>(origOp, origOp.getType(), newConstAttr);
+            }
+
+            return mlir::success();
         }
     }
 
