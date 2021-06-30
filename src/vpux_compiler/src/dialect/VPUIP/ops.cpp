@@ -27,15 +27,6 @@ using namespace vpux;
 namespace {
 
 //
-// Utilities
-//
-
-template <class ConcreteOp>
-bool isSupportedByNCE(ConcreteOp op) {
-    return VPUIP::NCEInvariant::verifyKernel(op).succeeded() && VPUIP::NCEInvariant::verifyChannels(op).succeeded();
-}
-
-//
 // LayerInfo
 //
 
@@ -52,17 +43,17 @@ bool LayerInfo::isSupportedPostProcessing(mlir::Operation* origOp, mlir::Operati
     auto module = origOp->getParentOfType<mlir::ModuleOp>();
     const auto compileMode = VPUIP::getCompilationMode(module);
 
-#define HW_OPS_CASE(_IE_OP_)                                      \
-    .Case<_IE_OP_>([&](_IE_OP_ op) {                              \
-        if (compileMode == VPUIP::CompilationMode::ReferenceHW) { \
-            return isSupportedByNCE(op);                          \
-        }                                                         \
-        return false;                                             \
-    })
-
     if (!mlir::isa<IE::ReLUOp>(postOp)) {
         return false;
     }
+
+#define HW_OPS_CASE(_IE_OP_)                                      \
+    .Case<_IE_OP_>([&](_IE_OP_ op) {                              \
+        if (compileMode == VPUIP::CompilationMode::ReferenceSW) { \
+            return false;                                         \
+        }                                                         \
+        return VPUIP::NCEInvariant::verifyKernel(op).succeeded(); \
+    })
 
     return llvm::TypeSwitch<mlir::Operation*, bool>(origOp)  //
             HW_OPS_CASE(IE::ConvolutionOp)                   //
@@ -78,12 +69,15 @@ bool LayerInfo::needToExpandChannels(mlir::Operation* origOp) const {
     auto module = origOp->getParentOfType<mlir::ModuleOp>();
     const auto compileMode = VPUIP::getCompilationMode(module);
 
-#define HW_OPS_CASE(_IERT_OP_)                                                            \
-    .Case<_IERT_OP_>([&](_IERT_OP_ op) {                                                  \
-        if (compileMode == VPUIP::CompilationMode::ReferenceHW && isSupportedByNCE(op)) { \
-            return !VPUIP::NCEInvariant::verifyChannels(op).succeeded();                  \
-        }                                                                                 \
-        return false;                                                                     \
+#define HW_OPS_CASE(_IERT_OP_)                                       \
+    .Case<_IERT_OP_>([&](_IERT_OP_ op) {                             \
+        if (compileMode == VPUIP::CompilationMode::ReferenceSW) {    \
+            return false;                                            \
+        }                                                            \
+        if (VPUIP::NCEInvariant::verifyKernel(op).failed()) {        \
+            return false;                                            \
+        }                                                            \
+        return !VPUIP::NCEInvariant::verifyChannels(op).succeeded(); \
     })
 
     return llvm::TypeSwitch<mlir::Operation*, bool>(origOp)  //
@@ -175,12 +169,18 @@ bool RTLayerInfo::isSupportedLayout(mlir::Operation* origOp, DataOrderInfo& info
         return _VPUIP_OP_::isSupportedLayout(op, info); \
     })
 
-#define HW_OPS_CASE(_IERT_OP_, _VPUIP_OP_)                                                \
-    .Case<_IERT_OP_>([&](_IERT_OP_ op) {                                                  \
-        if (compileMode == VPUIP::CompilationMode::ReferenceHW && isSupportedByNCE(op)) { \
-            return VPUIP::NCEClusterTaskOp::isSupportedLayout(op, info);                  \
-        }                                                                                 \
-        return _VPUIP_OP_::isSupportedLayout(op, info);                                   \
+#define HW_OPS_CASE(_IERT_OP_, _VPUIP_OP_)                           \
+    .Case<_IERT_OP_>([&](_IERT_OP_ op) {                             \
+        if (compileMode == VPUIP::CompilationMode::ReferenceSW) {    \
+            return _VPUIP_OP_::isSupportedLayout(op, info);          \
+        }                                                            \
+        if (VPUIP::NCEInvariant::verifyKernel(op).failed()) {        \
+            return _VPUIP_OP_::isSupportedLayout(op, info);          \
+        }                                                            \
+        if (VPUIP::NCEInvariant::verifyChannels(op).failed()) {      \
+            return _VPUIP_OP_::isSupportedLayout(op, info);          \
+        }                                                            \
+        return VPUIP::NCEClusterTaskOp::isSupportedLayout(op, info); \
     })
 
     return llvm::TypeSwitch<mlir::Operation*, bool>(origOp)                   //
