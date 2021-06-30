@@ -75,7 +75,7 @@ ie_cpack_add_component(${KMB_DEVICE_NAME} REQUIRED)
 # Sub-directories
 #
 
-add_subdirectory(thirdparty EXCLUDE_FROM_ALL)
+add_subdirectory(thirdparty)
 
 set(LLVM_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/llvm-project/llvm")
 set(LLVM_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/thirdparty/llvm-project/llvm")
