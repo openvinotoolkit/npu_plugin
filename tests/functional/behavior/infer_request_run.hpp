@@ -21,6 +21,7 @@
 #include "functional_test_utils/plugin_cache.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "common/functions.h"
+#include "vpux_private_config.hpp"
 
 namespace BehaviorTestsDefinitions {
 using InferRequestRunTests = BehaviorTestsUtils::BehaviorTestsBasic;
@@ -65,6 +66,7 @@ TEST_P(InferRequestRunMultipleExecutorStreamsTests, RunFewInfers) {
     InferenceEngine::CNNNetwork cnnNet = buildSingleLayerSoftMaxNetwork();
 
     // Load CNNNetwork to target plugins
+    configuration[VPUX_CONFIG_KEY(PLATFORM)] = PlatformEnvironment::PLATFORM;
     auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
     // Create InferRequests
     const int inferReqNumber = 10;
