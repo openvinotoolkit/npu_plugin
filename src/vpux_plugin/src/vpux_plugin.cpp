@@ -44,6 +44,18 @@ namespace IE = InferenceEngine;
 //------------------------------------------------------------------------------
 static VPUXConfig mergePluginAndNetworkConfigs(const VPUXConfig& pluginConfig,
                                                const std::map<std::string, std::string>& config) {
+    if (pluginConfig.platform() == IE::VPUXConfigParams::VPUXPlatform::EMULATOR) {
+        const auto configKeyPlatform = pluginConfig.getConfig().find(VPUX_CONFIG_KEY(PLATFORM));
+        const auto deviceIdPlatform = config.find(CONFIG_KEY(DEVICE_ID));
+        if (deviceIdPlatform != config.end() && configKeyPlatform != pluginConfig.getConfig().end()) {
+            if (deviceIdPlatform->second != configKeyPlatform->second)
+                IE_THROW()
+                        << "mergePluginAndNetworkConfigs: device id platform does not match "
+                        << "platform config key for emulator: "
+                        << deviceIdPlatform->second << " and " << configKeyPlatform->second;
+        }
+    }
+
     auto parsedConfigCopy = pluginConfig;
     parsedConfigCopy.update(config);
     return parsedConfigCopy;

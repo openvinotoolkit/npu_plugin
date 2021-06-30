@@ -125,7 +125,8 @@ static std::map<IE::VPUXConfigParams::VPUXPlatform, std::string> compilationPlat
 std::string VPUXBackends::getCompilationPlatform(const IE::VPUXConfigParams::VPUXPlatform platform,
                                                  const std::string& deviceId) const {
     // Platform parameter has a higher priority than deviceID
-    if (platform != IE::VPUXConfigParams::VPUXPlatform::AUTO) {
+    if (platform != IE::VPUXConfigParams::VPUXPlatform::AUTO &&
+        platform != IE::VPUXConfigParams::VPUXPlatform::EMULATOR) {
         return compilationPlatformMap.at(platform);
     }
 
@@ -138,6 +139,10 @@ std::string VPUXBackends::getCompilationPlatform(const IE::VPUXConfigParams::VPU
     const auto devNames = getAvailableDevicesNames();
     if (devNames.empty()) {
         IE_THROW() << "No devices found - DEVICE_ID with platform is required for compilation";
+    }
+
+    if (std::find(devNames.cbegin(), devNames.cend(), "EMULATOR") != devNames.end()) {
+        IE_THROW() << "Emulator device is available, but was not explicitly requested";
     }
 
     const auto compilationPlatform = utils::getPlatformByDeviceName(devNames.at(0));
