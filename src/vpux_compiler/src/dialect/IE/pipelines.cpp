@@ -24,7 +24,6 @@ using namespace vpux;
 //
 
 void vpux::IE::buildAdjustForVPUPipeline(mlir::OpPassManager& pm, Logger log) {
-    pm.addPass(IE::createConvertFCToConvPass(log));
     pm.addPass(IE::createConvertTile2PerAxisTilePass(log));
     pm.addPass(IE::createConvertPrecisionToFP16Pass(log));
     pm.addPass(IE::createConvertShapeTo4DPass(log));

@@ -618,6 +618,47 @@ operation ::= `VPUIP.FakeQuantizeUPA` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float values
 
+### `VPUIP.FullyConnectedUPA` (vpux::VPUIP::FullyConnectedUPAOp)
+
+FullyConnected UPA SHAVE kernel
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.FullyConnectedUPA` attr-dict
+              `inputs` `(` $input `:` type($input) `,` $weights `:` type($weights) (`,` $bias^ `:` type($bias))? `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+              (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`maxShaves` | ::mlir::IntegerAttr | 32-bit signless integer attribute
+`isTrailingSWLayer` | ::mlir::UnitAttr | unit attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float values
+`weights` | memref of 16-bit float values
+`bias` | memref of 16-bit float values
+`output_buff` | memref of 16-bit float values
+`waitBarriers` | VPUIP Barrier Type
+`updateBarriers` | VPUIP Barrier Type
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float values
+
 ### `VPUIP.GRNUPA` (vpux::VPUIP::GRNUPAOp)
 
 GRN UPA SHAVE kernel
