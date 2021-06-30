@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -15,6 +15,8 @@
 
 #include "vpux/compiler/dialect/IE/attributes/enums.hpp"
 
+#include "vpux/utils/core/array_ref.hpp"
+
 #include <mlir/IR/BuiltinAttributes.h>
 
 //
@@ -22,3 +24,18 @@
 //
 
 #include <vpux/compiler/dialect/IE/generated/attributes/structs.hpp.inc>
+
+//
+// PostOp
+//
+
+namespace vpux {
+namespace IE {
+
+PostOp getPostOpAttr(mlir::MLIRContext* ctx, PostOpKindAttr kind, ArrayRef<mlir::NamedAttribute> attrs = None);
+
+PostOpKind getPostOpKind(PostOp postOp);
+mlir::Attribute getPostOpParam(PostOp postOp, mlir::Identifier name);
+
+}  // namespace IE
+}  // namespace vpux

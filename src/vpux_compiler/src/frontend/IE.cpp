@@ -455,7 +455,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
     const auto attrDilation = getInt32ArrayAttr(_ctx, origNode->get_dilations());
 
     auto op = builder.create<IE::ConvolutionOp>(createLocation(origNode), inputs[0], inputs[1], nullptr, attrStride,
-                                                attrPadsBegin, attrPadsEnd, attrDilation);
+                                                attrPadsBegin, attrPadsEnd, attrDilation, nullptr);
     addOutputs(origNode, op);
 }
 
@@ -539,7 +539,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
     const auto attrRoundingType = importRoundingType(origNode->get_rounding_type());
 
     auto op = builder.create<IE::MaxPoolOp>(createLocation(origNode), inputs[0], attrKernelSize, attrStride,
-                                            attrPadsBegin, attrPadsEnd, attrRoundingType);
+                                            attrPadsBegin, attrPadsEnd, attrRoundingType, nullptr);
     addOutputs(origNode, op);
 }
 

@@ -471,6 +471,7 @@ def IE_ConvolutionOp :
             [
                 ResultsAreFloatLike,
                 DeclareOpInterfaceMethods<TensorInterface_4D>,
+                DeclareOpInterfaceMethods<MultiLayerInterface>,
                 DeclareOpInterfaceMethods<ConvolutionLayerInterface>
             ]
         > {
@@ -484,7 +485,9 @@ def IE_ConvolutionOp :
         I32ArrayAttr:$strides,
         I32ArrayAttr:$pads_begin,
         I32ArrayAttr:$pads_end,
-        I32ArrayAttr:$dilations
+        I32ArrayAttr:$dilations,
+
+        OptionalAttr<IE_PostOp>:$post_op
     );
 
     let results = (outs
@@ -566,7 +569,8 @@ def IE_MaxPoolOp :
             "MaxPool",
             [
                 ResultsAreFloatLike,
-                DeclareOpInterfaceMethods<TensorInterface_4D>
+                DeclareOpInterfaceMethods<TensorInterface_4D>,
+                DeclareOpInterfaceMethods<MultiLayerInterface>
             ]
         > {
     let summary = "InferenceEngine MaxPool layer";
@@ -578,7 +582,9 @@ def IE_MaxPoolOp :
         I32ArrayAttr:$strides,
         I32ArrayAttr:$pads_begin,
         I32ArrayAttr:$pads_end,
-        IE_RoundingType:$rounding_type
+        IE_RoundingType:$rounding_type,
+
+        OptionalAttr<IE_PostOp>:$post_op
     );
 
     let results = (outs

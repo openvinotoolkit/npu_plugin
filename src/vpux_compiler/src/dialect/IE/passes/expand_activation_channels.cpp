@@ -139,7 +139,8 @@ mlir::LogicalResult MaxPoolRewriter::matchAndRewrite(IE::MaxPoolOp origOp, mlir:
 
     const auto opCreator = [&](mlir::Value expandedInput, int64_t) -> mlir::Operation* {
         return rewriter.create<IE::MaxPoolOp>(origOp.getLoc(), expandedInput, origOp.kernel_size(), origOp.strides(),
-                                              origOp.pads_begin(), origOp.pads_end(), origOp.rounding_type());
+                                              origOp.pads_begin(), origOp.pads_end(), origOp.rounding_type(),
+                                              origOp.post_opAttr());
     };
 
     return generalRewrite(origOp, rewriter, opCreator, _log.nest());
@@ -219,7 +220,7 @@ mlir::LogicalResult ConvolutionRewriter::matchAndRewrite(IE::ConvolutionOp origO
 
         return rewriter.create<IE::ConvolutionOp>(origOp.getLoc(), expandedInput, paddedFilter, paddedBiases,
                                                   origOp.strides(), origOp.pads_begin(), origOp.pads_end(),
-                                                  origOp.dilations());
+                                                  origOp.dilations(), origOp.post_opAttr());
     };
 
     return generalRewrite(origOp, rewriter, opCreator, _log.nest());

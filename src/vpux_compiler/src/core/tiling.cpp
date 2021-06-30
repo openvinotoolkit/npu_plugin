@@ -276,9 +276,6 @@ std::tuple<PlaneTile, PadInfo> inputForOutputTile(const PlaneTile& output, int64
 
 PlaneTileSolution solutionForOutputTile(const PlaneTile& output, int64_t kernelX, int64_t kernelY, int64_t strideX,
                                         int64_t strideY, ShapeRef initialInputDims, const PadInfo& initialPad) {
-    const auto act_height_dim = IERT::ConvolutionOp::act_height_dim();
-    const auto act_width_dim = IERT::ConvolutionOp::act_width_dim();
-
     PlaneTileSolution solution;
     std::tie(solution.inputTile, solution.inputPad) =
             inputForOutputTile(output, kernelX, kernelY, strideX, strideY, initialInputDims, initialPad);

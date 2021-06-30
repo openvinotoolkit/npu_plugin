@@ -54,3 +54,9 @@ public:
 
 }  // namespace IE
 }  // namespace vpux
+
+//
+// Generated
+//
+
+#include <vpux/compiler/dialect/IE/generated/ops_interfaces.hpp.inc>
