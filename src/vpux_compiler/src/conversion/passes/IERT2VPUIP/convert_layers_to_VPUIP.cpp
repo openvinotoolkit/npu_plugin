@@ -89,6 +89,49 @@ mlir::LogicalResult FakeQuantizeRewrite::matchAndRewrite(IERT::FakeQuantizeOp or
 }
 
 //
+// FullyConnectedRewrite
+//
+
+class FullyConnectedRewrite final : public mlir::OpRewritePattern<IERT::FullyConnectedOp> {
+public:
+    FullyConnectedRewrite(mlir::MLIRContext* ctx, Logger log)
+            : mlir::OpRewritePattern<IERT::FullyConnectedOp>(ctx), _log(log) {
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(IERT::FullyConnectedOp origOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult FullyConnectedRewrite::matchAndRewrite(IERT::FullyConnectedOp origOp,
+                                                           mlir::PatternRewriter& rewriter) const {
+    _log.trace("Found FullyConnected Operation '{0}'", origOp->getLoc());
+
+    if (origOp.bias() == nullptr) {
+        rewriter.replaceOpWithNewOp<VPUIP::FullyConnectedUPAOp>(origOp, origOp.input(), origOp.weights(), nullptr,
+                                                                origOp.output_buff());
+        return mlir::success();
+    }
+
+    const auto biasShape = origOp.bias().getType().cast<mlir::ShapedType>().getShape();
+
+    VPUX_THROW_UNLESS(biasShape[0] == 1, "Biases batch size is not equal 1");
+
+    const std::array<int64_t, 1> newBiasShape = {biasShape[1]};
+    auto newType =
+            mlir::MemRefType::get(newBiasShape, origOp.bias().getType().cast<mlir::MemRefType>().getElementType());
+
+    auto newBias = rewriter.create<IERT::GenericReshapeOp>(origOp->getLoc(), newType, origOp.bias());
+
+    rewriter.replaceOpWithNewOp<VPUIP::FullyConnectedUPAOp>(origOp, origOp.input(), origOp.weights(), newBias,
+                                                            origOp.output_buff());
+
+    return mlir::success();
+}
+
+//
 // Generated
 //
 
@@ -123,6 +166,7 @@ void ConvertLayers2VPUIPPass::safeRunOnFunc() {
     mlir::RewritePatternSet patterns(&ctx);
     patterns.insert<CTCGreedyDecoderSeqLenRewrite>(&ctx, _log);
     patterns.insert<FakeQuantizeRewrite>(&ctx, _log);
+    patterns.insert<FullyConnectedRewrite>(&ctx, _log);
     populateWithGenerated(patterns);
 
     auto func = getFunction();
