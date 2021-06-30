@@ -22,6 +22,7 @@ class ZeroEngineBackend final : public vpux::IEngineBackend {
 public:
     ZeroEngineBackend() = default;
     virtual const std::shared_ptr<IDevice> getDevice() const override;
+    virtual const std::shared_ptr<IDevice> getDevice(const std::string&) const override;
     const std::string getName() const override {
         return "dKMB";
     }
