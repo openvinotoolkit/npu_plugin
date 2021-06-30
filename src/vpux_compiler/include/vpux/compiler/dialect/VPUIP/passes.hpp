@@ -38,6 +38,7 @@ std::unique_ptr<mlir::Pass> createSetCompileParamsPass(ArchKind arch, Compilatio
                                                        Logger log = Logger::global());
 
 std::unique_ptr<mlir::Pass> createAssignPhysicalBarriersPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createConvertWeightsTableOp2ConstPass(Logger log = Logger::global());
 
 //
 // Generated

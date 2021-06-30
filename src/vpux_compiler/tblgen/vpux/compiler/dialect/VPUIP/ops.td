@@ -1635,6 +1635,37 @@ def VPUIP_PermuteUPAOp :
 }
 
 //
+// WeightsTableOp
+//
+
+def VPUIP_WeightsTableOp :
+        VPUIP_Op<"WeightsTableOp",
+            [
+                AttrSizedOperandSegments,
+            ]
+        > {
+    let summary = "Intermediate task for creating weights table based on the addresses of CMX buffers";
+
+    let arguments = (ins
+        Optional<MemRefOf<[F16, quant_QuantizedType]>>:$weights,
+        Optional<MemRefOf<[F16, F32]>>:$bias,
+        Optional<MemRefOf<[UI8]>>:$activation_window
+    );
+
+    let results = (outs
+        MemRefOf<[SI32]>:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        (`weights` `(` $weights^  `:` type($weights) `)`)?
+        (`bias` `(` $bias^  `:` type($bias) `)`)?
+        (`activation_window` `(` $activation_window^  `:` type($activation_window) `)`)?
+        `->` type(results)
+    }];
+}
+
+//
 // DPUTaskOp
 //
 

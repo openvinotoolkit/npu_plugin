@@ -1567,6 +1567,36 @@ operation ::= `VPUIP.UPADMA` attr-dict
 | :----: | ----------- |
 `output` | memref of any type values
 
+### `VPUIP.WeightsTableOp` (vpux::VPUIP::WeightsTableOp)
+
+Intermediate task for creating weights table based on the addresses of CMX buffers
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.WeightsTableOp` attr-dict
+              (`weights` `(` $weights^  `:` type($weights) `)`)?
+              (`bias` `(` $bias^  `:` type($bias) `)`)?
+              (`activation_window` `(` $activation_window^  `:` type($activation_window) `)`)?
+              `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`weights` | memref of 16-bit float or QuantizedType values
+`bias` | memref of 16-bit float or 32-bit float values
+`activation_window` | memref of 8-bit unsigned integer values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 32-bit signed integer values
+
 ## Type definition
 
 ### BarrierType

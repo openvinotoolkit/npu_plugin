@@ -113,6 +113,7 @@ void vpux::buildHardwareModePipeline(mlir::OpPassManager& pm, Logger log) {
     pm.addPass(createComposeSubViewPass(log));
     buildIERTAllocationPipelineForDDR(pm, log);
     pm.addPass(IERT::createStaticAllocationPass(getMemSpace<VPUIP::PhysicalMemory::CMX_NN>, log));
+    pm.addPass(VPUIP::createConvertWeightsTableOp2ConstPass(log));
     IERT::buildAsyncSchedulingPipeline(pm, log);
 
     // Finally lower remaining IERT->VPUIP (SW mode)

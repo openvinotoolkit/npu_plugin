@@ -26,25 +26,29 @@ func @Conv2dTest(%arg0: memref<1x16x16x16xf16, #NHWC, #map0>, %arg1: memref<1x16
     return %4 : memref<1x16x16x16xf16, #NHWC, #map0>
 }
 
+// CHECK-DAG:   [[BIAS_CST:%.+]] = const.Declare memref<1x16x1x1xf16> = #const.Content<dense<{{.*}}> : tensor<1x16x1x1xf16>>
 // CHECK-DAG:   [[FILTER_CST:%.+]] = const.Declare memref<16x16x1x1xf16, #NHWC, #map1>
-// CHECK-DAG:   [[WEIGHTS_TABLE:%.+]] = const.Declare memref<16x1x1x4xsi32>
 
 // CHECK:       [[OUT_BUF:%.+]] = memref.alloc() : memref<1x16x16x16xf16, #NHWC, #map0>
+
+// CHECK:       [[INPUT_CMX_BUF:%.+]] = memref.alloc() : memref<1x16x16x16xf16, #NHWC, #map0, "CMX_NN">
+// CHECK:       [[INPUT_CMX:%.+]] = IERT.Copy
+// CHECK-SAME:      inputs(%arg0 : memref<1x16x16x16xf16, #NHWC, #map0>)
+// CHECK-SAME:      outputs([[INPUT_CMX_BUF]] : memref<1x16x16x16xf16, #NHWC, #map0, "CMX_NN">)
 
 // CHECK:       [[FILTER_CMX_BUF:%.+]] = memref.alloc() : memref<16x16x1x1xf16, #NHWC, #map1, "CMX_NN">
 // CHECK:       [[FILTER_CMX:%.+]] = IERT.Copy
 // CHECK-SAME:      inputs([[FILTER_CST]] : memref<16x16x1x1xf16, #NHWC, #map1>)
 // CHECK-SAME:      outputs([[FILTER_CMX_BUF]] : memref<16x16x1x1xf16, #NHWC, #map1, "CMX_NN">)
 
+// CHECK:       [[WEIGHTS_TABLE:%.+]] = VPUIP.WeightsTableOp
+// CHECK-SAME:      weights([[FILTER_CMX]] : memref<16x16x1x1xf16, #NHWC, #map1, "CMX_NN">)
+// CHECK-SAME:      bias([[BIAS_CST]] : memref<1x16x1x1xf16>)
+
 // CHECK:       [[WEIGHTS_TABLE_CMX_BUF:%.+]] = memref.alloc() : memref<16x1x1x4xsi32, "CMX_NN">
 // CHECK:       [[WEIGHTS_TABLE_CMX:%.+]] = IERT.Copy
 // CHECK-SAME:      inputs([[WEIGHTS_TABLE]] : memref<16x1x1x4xsi32>)
 // CHECK-SAME:      outputs([[WEIGHTS_TABLE_CMX_BUF]] : memref<16x1x1x4xsi32, "CMX_NN">)
-
-// CHECK:       [[INPUT_CMX_BUF:%.+]] = memref.alloc() : memref<1x16x16x16xf16, #NHWC, #map0, "CMX_NN">
-// CHECK:       [[INPUT_CMX:%.+]] = IERT.Copy
-// CHECK-SAME:      inputs(%arg0 : memref<1x16x16x16xf16, #NHWC, #map0>)
-// CHECK-SAME:      outputs([[INPUT_CMX_BUF]] : memref<1x16x16x16xf16, #NHWC, #map0, "CMX_NN">)
 
 // CHECK:       [[OUTPUT_CMX_BUF:%.+]] = memref.alloc() : memref<1x16x16x16xf16, #NHWC, #map0, "CMX_NN">
 // CHECK:       [[OUTPUT_CMX:%.+]] = VPUIP.NCEClusterTask
@@ -98,23 +102,25 @@ func @MaxPoolTest(%arg0: memref<1x16x1x4xf16, #NHWC, #map>, %arg1: memref<1x16x1
 }
 
 // CHECK-DAG:   [[ACT_WINDOW_CST:%.+]] = const.Declare memref<16x1x1x16xui8>
-// CHECK-DAG:   [[WEIGHTS_TABLE:%.+]] = const.Declare memref<16x1x1x4xsi32>
 // CHECK:       [[OUT_BUF:%.+]] = memref.alloc() : memref<1x16x1x4xf16, #NHWC, #map>
+
+// CHECK:       [[INPUT_CMX_BUF:%.+]] = memref.alloc() : memref<1x16x1x4xf16, #NHWC, #map, "CMX_NN">
+// CHECK:       [[INPUT_CMX:%.+]] = IERT.Copy
+// CHECK-SAME:      inputs(%arg0 : memref<1x16x1x4xf16, #NHWC, #map>)
+// CHECK-SAME:      outputs([[INPUT_CMX_BUF]] : memref<1x16x1x4xf16, #NHWC, #map, "CMX_NN">)
 
 // CHECK:       [[ACT_WINDOW_CMX_BUF:%.+]] = memref.alloc() : memref<16x1x1x16xui8, "CMX_NN">
 // CHECK:       [[ACT_WINDOW_CMX:%.+]] = IERT.Copy
 // CHECK-SAME:      inputs([[ACT_WINDOW_CST]] : memref<16x1x1x16xui8>)
 // CHECK-SAME:      outputs([[ACT_WINDOW_CMX_BUF]] : memref<16x1x1x16xui8, "CMX_NN">)
 
+// CHECK:       [[WEIGHTS_TABLE:%.+]] = VPUIP.WeightsTableOp
+// CHECK-SAME:      activation_window([[ACT_WINDOW_CMX]] : memref<16x1x1x16xui8, "CMX_NN">)
+
 // CHECK:       [[WEIGHTS_TABLE_CMX_BUF:%.+]] = memref.alloc() : memref<16x1x1x4xsi32, "CMX_NN">
 // CHECK:       [[WEIGHTS_TABLE_CMX:%.+]] = IERT.Copy
 // CHECK-SAME:      inputs([[WEIGHTS_TABLE]] : memref<16x1x1x4xsi32>)
 // CHECK-SAME:      outputs([[WEIGHTS_TABLE_CMX_BUF]] : memref<16x1x1x4xsi32, "CMX_NN">)
-
-// CHECK:       [[INPUT_CMX_BUF:%.+]] = memref.alloc() : memref<1x16x1x4xf16, #NHWC, #map, "CMX_NN">
-// CHECK:       [[INPUT_CMX:%.+]] = IERT.Copy
-// CHECK-SAME:      inputs(%arg0 : memref<1x16x1x4xf16, #NHWC, #map>)
-// CHECK-SAME:      outputs([[INPUT_CMX_BUF]] : memref<1x16x1x4xf16, #NHWC, #map, "CMX_NN">)
 
 // CHECK:       [[OUTPUT_CMX_BUF:%.+]] = memref.alloc() : memref<1x16x1x4xf16, #NHWC, #map, "CMX_NN">
 // CHECK:       [[OUTPUT_CMX:%.+]] = VPUIP.NCEClusterTask
