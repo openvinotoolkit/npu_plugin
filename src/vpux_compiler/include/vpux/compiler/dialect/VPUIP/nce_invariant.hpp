@@ -13,6 +13,8 @@
 
 #pragma once
 
+#include "vpux/compiler/dialect/IE/ops.hpp"
+#include "vpux/compiler/dialect/IERT/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
 #include <mlir/IR/Operation.h>
@@ -40,19 +42,27 @@ public:
                                              mlir::ArrayAttr kernelStrides, Logger log = Logger::global());
 
 public:
+    static mlir::LogicalResult verifyChannels(IE::ConvolutionOp origOp, Logger log = Logger::global());
     static mlir::LogicalResult verifyChannels(IERT::ConvolutionOp origOp, Logger log = Logger::global());
-    static mlir::LogicalResult verifyConvChannels(mlir::Location loc, mlir::MemRefType filterType,
+    static mlir::LogicalResult verifyConvChannels(mlir::Location loc, mlir::ShapedType filterType,
                                                   Logger log = Logger::global());
 
+    static mlir::LogicalResult verifyChannels(IE::MaxPoolOp origOp, Logger log = Logger::global());
     static mlir::LogicalResult verifyChannels(IERT::MaxPoolOp origOp, Logger log = Logger::global());
-    static mlir::LogicalResult verifyPoolChannels(mlir::Location loc, mlir::MemRefType inputType,
+    static mlir::LogicalResult verifyPoolChannels(mlir::Location loc, mlir::ShapedType inputType,
                                                   Logger log = Logger::global());
+
+    static int64_t getChannelAlignment(mlir::Type elemType);
 
 public:
-    static mlir::LogicalResult verifyKernel(mlir::ArrayAttr kernelSize, mlir::ArrayAttr kernelStrides,
-                                            mlir::ArrayAttr kernelPadding, Logger log = Logger::global());
+    static mlir::LogicalResult verifyKernel(IE::ConvolutionOp origOp, Logger log = Logger::global());
     static mlir::LogicalResult verifyKernel(IERT::ConvolutionOp origOp, Logger log = Logger::global());
+
+    static mlir::LogicalResult verifyKernel(IE::MaxPoolOp origOp, Logger log = Logger::global());
     static mlir::LogicalResult verifyKernel(IERT::MaxPoolOp origOp, Logger log = Logger::global());
+
+    static mlir::LogicalResult verifyKernel(mlir::Location loc, mlir::ArrayAttr kernelSize,
+                                            mlir::ArrayAttr kernelStrides, Logger log = Logger::global());
 };
 
 }  // namespace VPUIP

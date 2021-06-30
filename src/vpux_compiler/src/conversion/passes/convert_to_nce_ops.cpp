@@ -166,7 +166,7 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
     const auto kernelPaddingAttr =
             getInt32ArrayAttr(getContext(), makeArrayRef({padsBegin[1], padsEnd[1], padsBegin[0], padsEnd[0]}));
 
-    const auto kernelSizeAttr = getInt32ArrayAttr(getContext(), makeArrayRef({KX, KY}));
+    const auto kernelSizeAttr = getInt32ArrayAttr(getContext(), makeArrayRef({KY, KX}));
 
     auto nceOp = rewriter.create<VPUIP::NCEClusterTaskOp>(
             origOp->getLoc(), inputDPU, filterDPU, weightsTable, /*activation_window=*/nullptr,

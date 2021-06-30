@@ -17,10 +17,12 @@
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
+#include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 #include "vpux/compiler/utils/types.hpp"
+
 #include "vpux/utils/core/func_ref.hpp"
 #include "vpux/utils/core/numeric.hpp"
 
@@ -31,70 +33,87 @@ using namespace vpux;
 
 namespace {
 
-Shape calcPadsEnd(mlir::ShapedType origType) {
-    static const auto C = Dim(1);
+//
+// calcPadsEnd
+//
+
+Shape calcPadsEnd(mlir::ShapedType origType, int64_t channelAlignment) {
+    const auto act_channel_dim = IE::ConvolutionOp::act_channel_dim();
 
     const auto origShape = getShape(origType);
 
-    const Bit typeSizeInBits = getElemTypeSize(origType);
-    const int64_t CHANNELS_DIVIDER = 128 / typeSizeInBits.count();
-
-    const auto extendedChannels = divUp(origShape[C], CHANNELS_DIVIDER) * CHANNELS_DIVIDER;
+    const auto extendedChannels = alignVal(origShape[act_channel_dim], channelAlignment);
 
     Shape padsEndArrayShape(origShape.size(), 0);
-    padsEndArrayShape[C] = extendedChannels - origShape[C];
+    padsEndArrayShape[act_channel_dim] = extendedChannels - origShape[act_channel_dim];
 
     return padsEndArrayShape;
 }
 
 //
-// GeneralRewriter
+// generalRewrite
+//
+
+//
 // Max/Avg Pooling and Convolution Ops should be handled there
 //
 // opCreator - function, which should place back operation, which being proceed, with new expanded input
 //
 
-mlir::LogicalResult generalRewrite(mlir::Operation* layer, mlir::PatternRewriter& rewriter,
-                                   FuncRef<mlir::Operation*(mlir::Value, int64_t)> opCreator) {
-    auto* ctx = layer->getContext();
+mlir::LogicalResult generalRewrite(mlir::Operation* origOp, mlir::PatternRewriter& rewriter,
+                                   FuncRef<mlir::Operation*(mlir::Value, int64_t)> opCreator, Logger log) {
+    const auto act_channel_dim = IE::ConvolutionOp::act_channel_dim();
 
-    const auto inputType = layer->getOperand(0).getType().cast<mlir::ShapedType>();
-    const auto inPadsEnd = calcPadsEnd(inputType);
+    auto* ctx = origOp->getContext();
 
-    const auto outputType = layer->getResult(0).getType().cast<mlir::ShapedType>();
-    const auto outPadsEnd = calcPadsEnd(outputType);
+    const auto inputType = origOp->getOperand(0).getType().cast<mlir::ShapedType>();
+    const auto outputType = origOp->getResult(0).getType().cast<mlir::ShapedType>();
 
-    static const auto C = Dim(1);
+    const auto channelAlignement = VPUIP::NCEInvariant::getChannelAlignment(inputType.getElementType());
+    const auto inPadsEnd = calcPadsEnd(inputType, channelAlignement);
+    const auto outPadsEnd = calcPadsEnd(outputType, channelAlignement);
 
-    if (inPadsEnd[C] == 0 && outPadsEnd[C] == 0) {
-        // It's ok, shapes of input and output tensors already satisfied hardware requirements
-        // there is no need to extend channels count
-        return matchFailed(rewriter, layer, "Channels have already been aligned. Nothing to do.");
+    log.trace("Input padding : {0}", inPadsEnd);
+    log.trace("Output padding : {0}", outPadsEnd);
+
+    if (inPadsEnd[act_channel_dim] == 0 && outPadsEnd[act_channel_dim] == 0) {
+        return matchFailed(log, rewriter, origOp, "Both input and output channels are already aligned");
     }
 
     mlir::Value paddedInput;
-
-    if (inPadsEnd[C] == 0) {
-        // use original input directly, padding is not required
-        paddedInput = layer->getOperand(0);
+    if (inPadsEnd[act_channel_dim] == 0) {
+        log.trace("Input channels are already aligned");
+        paddedInput = origOp->getOperand(0);
     } else {
-        const SmallVector<uint32_t> inPadsBegin(inPadsEnd.size(), 0);
+        log.trace("Expand input tensor");
+
+        const SmallVector<int64_t> inPadsBegin(inPadsEnd.size(), 0);
 
         paddedInput =
-                rewriter.create<IE::ExpandOp>(layer->getLoc(), layer->getOperand(0),
+                rewriter.create<IE::ExpandOp>(origOp->getLoc(), origOp->getOperand(0),
                                               getInt32ArrayAttr(ctx, inPadsBegin), getInt32ArrayAttr(ctx, inPadsEnd));
     }
 
-    auto newOp = opCreator(paddedInput, outPadsEnd[C]);
+    log.trace("Create new operation with extended input and output");
+    auto* newOp = opCreator(paddedInput, outPadsEnd[act_channel_dim]);
 
-    const auto outShape = outputType.getShape();
-    const SmallVector<int64_t> offsets(outShape.size(), 0);
-    const SmallVector<int64_t> strides(outShape.size(), 1);
+    if (outPadsEnd[act_channel_dim] == 0) {
+        log.trace("Output channels are already aligned");
+        rewriter.replaceOp(origOp, newOp->getResult(0));
+    } else {
+        log.trace("Extract meaningful part from extened output");
 
-    rewriter.replaceOpWithNewOp<mlir::SubTensorOp>(layer, layer->getResult(0).getType(), newOp->getResult(0),
-                                                   mlir::ValueRange{}, mlir::ValueRange{}, mlir::ValueRange{},
-                                                   getInt64ArrayAttr(ctx, offsets), getInt64ArrayAttr(ctx, outShape),
-                                                   getInt64ArrayAttr(ctx, strides));
+        const auto outShape = outputType.getShape();
+        const SmallVector<int64_t> offsets(outShape.size(), 0);
+        const SmallVector<int64_t> strides(outShape.size(), 1);
+
+        auto subTensorOp = rewriter.create<mlir::SubTensorOp>(
+                origOp->getLoc(), origOp->getResult(0).getType(), newOp->getResult(0), mlir::ValueRange{},
+                mlir::ValueRange{}, mlir::ValueRange{}, getInt64ArrayAttr(ctx, offsets),
+                getInt64ArrayAttr(ctx, outShape), getInt64ArrayAttr(ctx, strides));
+
+        rewriter.replaceOp(origOp, subTensorOp.result());
+    }
 
     return mlir::success();
 }
@@ -106,6 +125,7 @@ mlir::LogicalResult generalRewrite(mlir::Operation* layer, mlir::PatternRewriter
 class MaxPoolRewriter final : public mlir::OpRewritePattern<IE::MaxPoolOp> {
 public:
     MaxPoolRewriter(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<IE::MaxPoolOp>(ctx), _log(log) {
+        setDebugName("MaxPoolRewriter");
     }
 
     mlir::LogicalResult matchAndRewrite(IE::MaxPoolOp origOp, mlir::PatternRewriter& rewriter) const final;
@@ -115,36 +135,14 @@ private:
 };
 
 mlir::LogicalResult MaxPoolRewriter::matchAndRewrite(IE::MaxPoolOp origOp, mlir::PatternRewriter& rewriter) const {
+    _log.trace("[{0}] Got MaxPool layer at '{1}'", getDebugName(), origOp->getLoc());
+
     const auto opCreator = [&](mlir::Value expandedInput, int64_t) -> mlir::Operation* {
         return rewriter.create<IE::MaxPoolOp>(origOp.getLoc(), expandedInput, origOp.kernel_size(), origOp.strides(),
                                               origOp.pads_begin(), origOp.pads_end(), origOp.rounding_type());
     };
 
-    return generalRewrite(origOp, rewriter, opCreator);
-}
-
-//
-// AvgPoolRewriter
-//
-
-class AvgPoolRewriter final : public mlir::OpRewritePattern<IE::AvgPoolOp> {
-public:
-    AvgPoolRewriter(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<IE::AvgPoolOp>(ctx), _log(log) {
-    }
-
-    mlir::LogicalResult matchAndRewrite(IE::AvgPoolOp origOp, mlir::PatternRewriter& rewriter) const final;
-
-private:
-    Logger _log;
-};
-
-mlir::LogicalResult AvgPoolRewriter::matchAndRewrite(IE::AvgPoolOp origOp, mlir::PatternRewriter& rewriter) const {
-    const auto opCreator = [&](mlir::Value expandedInput, int64_t) -> mlir::Operation* {
-        return rewriter.create<IE::AvgPoolOp>(origOp.getLoc(), expandedInput, origOp.kernel_size(), origOp.strides(),
-                                              origOp.pads_begin(), origOp.pads_end(), origOp.rounding_type());
-    };
-
-    return generalRewrite(origOp, rewriter, opCreator);
+    return generalRewrite(origOp, rewriter, opCreator, _log.nest());
 }
 
 //
@@ -154,6 +152,7 @@ mlir::LogicalResult AvgPoolRewriter::matchAndRewrite(IE::AvgPoolOp origOp, mlir:
 class ConvolutionRewriter final : public mlir::OpRewritePattern<IE::ConvolutionOp> {
 public:
     ConvolutionRewriter(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<IE::ConvolutionOp>(ctx), _log(log) {
+        setDebugName("ConvolutionRewriter");
     }
 
     mlir::LogicalResult matchAndRewrite(IE::ConvolutionOp origOp, mlir::PatternRewriter& rewriter) const final;
@@ -164,16 +163,17 @@ private:
 
 mlir::LogicalResult ConvolutionRewriter::matchAndRewrite(IE::ConvolutionOp origOp,
                                                          mlir::PatternRewriter& rewriter) const {
+    _log.trace("[{0}] Got Convolution layer at '{1}'", getDebugName(), origOp->getLoc());
+
     const auto opCreator = [&](mlir::Value expandedInput, int64_t outChanPadEnd) -> mlir::Operation* {
         // We have to expand channels count for filter as well
         const auto filter_out_channel_dim = IE::ConvolutionOp::filter_out_channel_dim();
         const auto filter_in_channel_dim = IE::ConvolutionOp::filter_in_channel_dim();
         const auto act_channel_dim = IE::ConvolutionOp::act_channel_dim();
 
-        const auto newInputShape = getShape(expandedInput);
-
         const auto filterShape = getShape(origOp.filter());
 
+        const auto newInputShape = getShape(expandedInput);
         const auto inChanPadEnd = newInputShape[act_channel_dim] - filterShape[filter_in_channel_dim];
 
         mlir::Value paddedFilter;
@@ -181,11 +181,11 @@ mlir::LogicalResult ConvolutionRewriter::matchAndRewrite(IE::ConvolutionOp origO
         if (inChanPadEnd == 0 && outChanPadEnd == 0) {
             paddedFilter = origOp.filter();
         } else {
-            const SmallVector<uint32_t> filterPadsBegin(filterShape.size(), 0);
+            const SmallVector<int64_t> filterPadsBegin(filterShape.size(), 0);
 
             Shape filterPadsEnd(filterShape.size(), 0);
-            filterPadsEnd[filter_out_channel_dim] = checked_cast<uint32_t>(outChanPadEnd);
-            filterPadsEnd[filter_in_channel_dim] = checked_cast<uint32_t>(inChanPadEnd);
+            filterPadsEnd[filter_out_channel_dim] = outChanPadEnd;
+            filterPadsEnd[filter_in_channel_dim] = inChanPadEnd;
 
             const auto padValue = getFP32Attr(getContext(), 0.0f);
 
@@ -222,7 +222,7 @@ mlir::LogicalResult ConvolutionRewriter::matchAndRewrite(IE::ConvolutionOp origO
                                                   origOp.dilations());
     };
 
-    return generalRewrite(origOp, rewriter, opCreator);
+    return generalRewrite(origOp, rewriter, opCreator, _log.nest());
 }
 
 //
@@ -242,43 +242,33 @@ private:
 void ExpandActivationChannelsPass::safeRunOnFunc() {
     auto& ctx = getContext();
 
-    const auto channelsSatisfyDPUreq = [](mlir::Operation* op) {
-        const auto act_channel_dim = IE::ConvolutionOp::act_channel_dim();
-
-        const auto firstInput = op->getOperand(0);
-        const auto inType = firstInput.getType().cast<mlir::ShapedType>();
-        const auto inShape = getShape(firstInput);
-
-        const Bit inTypeSizeInBits = getElemTypeSize(inType);
-        const int64_t IN_CHANNELS_DIVIDER = 128 / inTypeSizeInBits.count();
-        if (inType.getRank() != 4 || inShape[act_channel_dim] % IN_CHANNELS_DIVIDER != 0) {
-            return false;
-        }
-
-        const auto firstOutput = op->getResult(0);
-        const auto outType = firstOutput.getType().cast<mlir::ShapedType>();
-        const auto outShape = getShape(firstOutput);
-
-        const Bit outTypeSizeInBits = getElemTypeSize(outType);
-        const int64_t OUT_CHANNELS_DIVIDER = 128 / outTypeSizeInBits.count();
-        if (outType.getRank() != 4 || outShape[act_channel_dim] % OUT_CHANNELS_DIVIDER != 0) {
-            return false;
-        }
-
-        return true;
-    };
-
     mlir::ConversionTarget target(ctx);
-    target.addDynamicallyLegalOp<IE::MaxPoolOp>(channelsSatisfyDPUreq);
-    target.addDynamicallyLegalOp<IE::AvgPoolOp>(channelsSatisfyDPUreq);
-    target.addDynamicallyLegalOp<IE::ConvolutionOp>(channelsSatisfyDPUreq);
+    target.addDynamicallyLegalOp<IE::MaxPoolOp>([&](IE::MaxPoolOp op) {
+        _log.trace("Got MaxPool layer at '{0}'", op->getLoc());
+
+        if (!VPUIP::NCEInvariant::verifyKernel(op, _log.nest()).succeeded()) {
+            _log.nest().trace("The operation is not supported by HW, skipping");
+            return true;
+        }
+
+        return VPUIP::NCEInvariant::verifyChannels(op, _log.nest()).succeeded();
+    });
+    target.addDynamicallyLegalOp<IE::ConvolutionOp>([&](IE::ConvolutionOp op) {
+        _log.trace("Got Convolution layer at '{0}'", op->getLoc());
+
+        if (!VPUIP::NCEInvariant::verifyKernel(op, _log.nest()).succeeded()) {
+            _log.nest().trace("The operation is not supported by HW, skipping");
+            return true;
+        }
+
+        return VPUIP::NCEInvariant::verifyChannels(op, _log.nest()).succeeded();
+    });
     target.addLegalOp<Const::DeclareOp>();
     target.addLegalOp<IE::ExpandOp, IE::PadOp>();
     target.addLegalOp<mlir::SubTensorOp>();
 
     mlir::RewritePatternSet patterns(&ctx);
     patterns.insert<MaxPoolRewriter>(&ctx, _log);
-    patterns.insert<AvgPoolRewriter>(&ctx, _log);
     patterns.insert<ConvolutionRewriter>(&ctx, _log);
 
     auto func = getFunction();
