@@ -60,7 +60,7 @@ std::tuple<size_t, size_t, size_t> getMemorySize(mv::ComputationModel& model,mv:
                         fakeSparse, spilling, parentSpilling);
 }
 
-bool validateHStream(mv::Data::OpListIterator opIt, std::string clustering, std::size_t splits, size_t totalClusters)
+bool validateHStream(mv::Data::OpListIterator opIt, const std::string& clustering, std::size_t splits, size_t totalClusters)
 {
     if( opIt->getOpType() == "Conv" || opIt->getOpType() == "DepthwiseConv")
     {
