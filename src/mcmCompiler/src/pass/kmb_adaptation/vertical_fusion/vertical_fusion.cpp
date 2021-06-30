@@ -189,6 +189,26 @@ std::size_t computeMemoryResources(const mv::Data::OpListIterator& op, const std
     return memoryResources;
 }
 
+// This function will check if resulting from given stream number tiles are valid
+// Main idea is to check last tile and have its size not bigger then previous tiles
+// This is to prevent from potential situations in which last tile can be bigger
+// than CMX size
+static bool resultingTilesAreValid(mv::OpModel& om, std::list<std::string>& subgraph, const std::size_t maxStream)
+{
+    for (auto& opName : subgraph)
+    {
+        auto op = om.getOp(opName);
+
+        auto tileSizes = mv::tileSpatialOutputSize(op->getOutputTensor(0)->getShape()[mv::IO_HEIGHT_DIMENSION], maxStream);
+
+        // Check if last tile doesn't have the biggest size
+        if (maxStream > 1 && tileSizes.size() >= maxStream && tileSizes[maxStream-1] > tileSizes[maxStream-2])
+            return false;
+    }
+
+    return true;
+}
+
 bool willMaxStreamingBePossible(mv::OpModel& om, const std::vector<mv::Element>& strategyList,
     const std::list<std::string>& subgraph, const std::string &opName)
 {
@@ -838,6 +858,9 @@ void computeSubgraphs(mv::ComputationModel& model,
             auto op = om.getOp(*it);
 
             while (computeMemoryResources(op, maxStream) > CMX_TO_AVOID_FRAGMENTATION)
+                ++maxStream;
+
+            while (!resultingTilesAreValid(om, *subgraph, maxStream))
                 ++maxStream;
 
             streamNumbers.insert(maxStream);
