@@ -28,6 +28,8 @@
 
 using namespace vpux;
 
+namespace IE = InferenceEngine;
+
 namespace {
 void throwOnFail(const std::string& step, const ze_result_t result) {
     if (ZE_RESULT_SUCCESS != result) {
@@ -56,23 +58,23 @@ size_t precisionToSize(const ze_graph_argument_precision_t val) {
     }
 }
 
-_ze_graph_argument_precision_t getZePrecision(InferenceEngine::Precision precision) {
+_ze_graph_argument_precision_t getZePrecision(const IE::Precision precision) {
     switch (precision) {
-    case InferenceEngine::Precision::I8:
+    case IE::Precision::I8:
         return ZE_GRAPH_ARGUMENT_PRECISION_INT8;
-    case InferenceEngine::Precision::U8:
+    case IE::Precision::U8:
         return ZE_GRAPH_ARGUMENT_PRECISION_UINT8;
-    case InferenceEngine::Precision::I16:
+    case IE::Precision::I16:
         return ZE_GRAPH_ARGUMENT_PRECISION_INT16;
-    case InferenceEngine::Precision::U16:
+    case IE::Precision::U16:
         return ZE_GRAPH_ARGUMENT_PRECISION_UINT16;
-    case InferenceEngine::Precision::I32:
+    case IE::Precision::I32:
         return ZE_GRAPH_ARGUMENT_PRECISION_INT32;
-    case InferenceEngine::Precision::FP16:
+    case IE::Precision::FP16:
         return ZE_GRAPH_ARGUMENT_PRECISION_FP16;
-    case InferenceEngine::Precision::FP32:
+    case IE::Precision::FP32:
         return ZE_GRAPH_ARGUMENT_PRECISION_FP32;
-    case InferenceEngine::Precision::BIN:
+    case IE::Precision::BIN:
         return ZE_GRAPH_ARGUMENT_PRECISION_BIN;
     default:
         return ZE_GRAPH_ARGUMENT_PRECISION_UNKNOWN;
@@ -107,7 +109,7 @@ size_t layoutCount(const ze_graph_argument_layout_t val) {
 }
 
 // check that ie Layout and zeroApi layout are the same for some argument
-bool twoApiLayoutCouplingCheck(const ze_graph_argument_layout_t zeroL, const ::InferenceEngine::Layout ieL) {
+bool twoApiLayoutCouplingCheck(const ze_graph_argument_layout_t zeroL, const IE::Layout ieL) {
     using namespace ::InferenceEngine;
     if (ZE_GRAPH_ARGUMENT_LAYOUT_ANY == zeroL && ANY == ieL)
         return true;
@@ -156,7 +158,7 @@ auto mapArguments(Map& zero, const std::string& key) -> typename Map::mapped_typ
 }
 
 template <typename Map>
-auto mapArguments(Map& zero, const std::string& key, std::size_t pos) -> typename Map::mapped_type& {
+auto mapArguments(Map& zero, const std::string& key, const std::size_t pos) -> typename Map::mapped_type& {
     for (auto& p : zero) {
         if (std::string::npos != p.first.find(key)) {
             return p.second;
@@ -173,6 +175,181 @@ auto mapArguments(Map& zero, const std::string& key, std::size_t pos) -> typenam
 
     IE_THROW() << "mapArguments: fail to map";
 }
+
+template <typename T>
+size_t getNumDims(const T& dims) {
+    return std::count_if(std::begin(dims), std::end(dims), [](const size_t& dim) -> bool {
+        return (dim > 1);
+    });
+}
+
+bool isRepackingRequired(const IE::TensorDesc& userTensorDesc, const IE::TensorDesc& deviceTensorDesc) {
+    const auto userPrecision = userTensorDesc.getPrecision();
+    const auto devicePrecision = deviceTensorDesc.getPrecision();
+    if (userPrecision == devicePrecision) {
+        const auto userLayout = userTensorDesc.getLayout();
+        const auto deviceLayout = deviceTensorDesc.getLayout();
+        // Equal layouts - no repacking
+        if (userLayout == deviceLayout) {
+            return false;
+        }
+
+        const auto userNumDims = getNumDims(userTensorDesc.getDims());
+        const auto deviceNumDims = getNumDims(deviceTensorDesc.getDims());
+        // Different 3D/4D/5D layouts - repacking required
+        if (userNumDims == deviceNumDims) {
+            return (userNumDims > 2);
+        }
+        const auto minNumDims = std::min(userNumDims, deviceNumDims);
+        // Any 1D/2D layouts - no repacking
+        if (minNumDims <= 2) {
+            return false;
+        }
+        std::pair<IE::Layout, IE::Layout> layouts{userLayout, deviceLayout};
+        if (userNumDims < deviceNumDims) {
+            std::swap(layouts.first, layouts.second);
+        }
+        // Some 4D/3D layouts cases - no repacking
+        return !((layouts.first == IE::Layout::NCHW && layouts.second == IE::Layout::CHW) ||
+                 (layouts.first == IE::Layout::NHWC && layouts.second == IE::Layout::HWC));
+    }
+    return true;
+}
+
+bool isRepackingPossible(const bool isInput, const IE::TensorDesc& userTensorDesc,
+                         const IE::TensorDesc& deviceTensorDesc) {
+    const auto userPrecision = userTensorDesc.getPrecision();
+    const auto devicePrecision = deviceTensorDesc.getPrecision();
+    const auto userLayout = userTensorDesc.getLayout();
+    const auto deviceLayout = deviceTensorDesc.getLayout();
+    std::vector<IE::Layout> layouts{userLayout, deviceLayout};
+    const auto unsupportedLayout = std::find_if(layouts.cbegin(), layouts.cend(), [](const IE::Layout& layout) -> bool {
+        switch (layout) {
+        case IE::Layout::ANY:
+        case IE::Layout::OIHW:
+        case IE::Layout::GOIHW:
+        case IE::Layout::OIDHW:
+        case IE::Layout::GOIDHW:
+        case IE::Layout::BLOCKED:
+            return true;
+        default:
+            break;
+        }
+        return false;
+    });
+    if (unsupportedLayout != layouts.end()) {
+        return false;
+    }
+
+    // Layouts are OK for repacking, checking precisions
+    if (isInput) {
+        // TODO add cases?
+        if (devicePrecision != IE::Precision::U8) {
+            return false;
+        }
+    }
+    std::vector<IE::Precision> precisions{userPrecision, devicePrecision};
+    const auto unsupportedPrecision =
+            std::find_if(precisions.cbegin(), precisions.cend(), [](const IE::Precision& precision) -> bool {
+                switch (precision) {
+                case IE::Precision::UNSPECIFIED:
+                case IE::Precision::MIXED:
+                case IE::Precision::BF16:
+                case IE::Precision::FP64:
+                case IE::Precision::Q78:
+                case IE::Precision::U4:
+                case IE::Precision::I4:
+                case IE::Precision::BIN:
+                case IE::Precision::BOOL:
+                case IE::Precision::CUSTOM:
+                    return true;
+                default:
+                    break;
+                }
+                return false;
+            });
+    if (unsupportedPrecision != precisions.end()) {
+        return false;
+    }
+
+    return true;
+}
+
+void prepareInputForInference(const IE::Blob::Ptr& userInput, const IE::TensorDesc& deviceTensorDesc, void* destData,
+                              std::shared_ptr<vpu::Logger>& logger) {
+    if (userInput == nullptr) {
+        IE_THROW() << "User input blob null pointer";
+    }
+    if (destData == nullptr) {
+        IE_THROW() << "Destination data null pointer";
+    }
+    const auto userPrecision = userInput->getTensorDesc().getPrecision();
+    const auto userLayout = userInput->getTensorDesc().getLayout();
+    const auto devicePrecision = deviceTensorDesc.getPrecision();
+    const auto deviceLayout = deviceTensorDesc.getLayout();
+
+    IE::Blob::Ptr expectedInput = userInput;
+    if (userPrecision != devicePrecision) {
+        logger->info("Different precisions of push blobs. Conversion required");
+        expectedInput = toPrecision(IE::as<IE::MemoryBlob>(expectedInput), devicePrecision);
+        if (expectedInput == nullptr) {
+            IE_THROW() << "Blob data null pointer";
+        }
+    }
+    if (userLayout != deviceLayout) {
+        logger->info("Different layouts of push blobs. Conversion required");
+        toLayout(IE::as<IE::MemoryBlob>(expectedInput), deviceLayout, nullptr, destData);
+    }
+}
+
+void getOutputAfterInference(IE::Blob::Ptr& userOutput, const IE::TensorDesc& deviceTensorDesc, const void* srcData,
+                             std::shared_ptr<vpu::Logger>& logger) {
+    if (userOutput == nullptr) {
+        IE_THROW() << "User output blob null pointer";
+    }
+    if (srcData == nullptr) {
+        IE_THROW() << "Source data null pointer";
+    }
+    const auto userPrecision = userOutput->getTensorDesc().getPrecision();
+    const auto userLayout = userOutput->getTensorDesc().getLayout();
+    const auto devicePrecision = deviceTensorDesc.getPrecision();
+    const auto deviceLayout = deviceTensorDesc.getLayout();
+
+    // [OV design flaw] OV API make_blob_with_precision doesn't have any version with const source data
+    IE::Blob::Ptr expectedOutput = makeBlob(deviceTensorDesc, nullptr, const_cast<void*>(srcData));
+    if (userPrecision != devicePrecision) {
+        logger->info("Different precisions of pull blobs. Conversion required");
+        expectedOutput = toPrecision(IE::as<IE::MemoryBlob>(expectedOutput), userPrecision);
+        if (expectedOutput == nullptr) {
+            IE_THROW() << "Blob data null pointer";
+        }
+    }
+    if (userLayout != deviceLayout) {
+        logger->info("Different layouts of pull blobs. Conversion required");
+        expectedOutput = toLayout(IE::as<IE::MemoryBlob>(expectedOutput), userLayout);
+        if (expectedOutput == nullptr) {
+            IE_THROW() << "Blob data null pointer";
+        }
+    }
+
+    const auto memExpected = IE::as<IE::MemoryBlob>(expectedOutput);
+    auto memUser = IE::as<IE::MemoryBlob>(userOutput);
+    if (memExpected == nullptr || memUser == nullptr) {
+        IE_THROW() << "Blob to MemoryBlob conversion error";
+    }
+    auto memExpectedLock = memExpected->rmap();
+    auto memUserLock = memUser->wmap();
+    if (memExpectedLock == nullptr || memUserLock == nullptr) {
+        IE_THROW() << "Locking memory error";
+    }
+    if (memExpected->byteSize() != memUser->byteSize()) {
+        IE_THROW() << "Different size of pull and auxiliary blobs";
+    }
+    if (0 != ie_memcpy(memUserLock, memExpected->byteSize(), memExpectedLock, memUser->byteSize())) {
+        IE_THROW() << "memcpy error for pull blobs";
+    }
+}
+
 }  // namespace
 
 ZeroExecutor::ZeroExecutor(ze_driver_handle_t driver_handle, ze_device_handle_t device_handle,
@@ -411,19 +588,6 @@ ZeroExecutor::fence::~fence() {
     throwOnFail("zeFenceDestroy", zeFenceDestroy(_handle));
 }
 
-static void prepareInputForInference(const InferenceEngine::Blob::Ptr& actualInput,
-                                     const InferenceEngine::Precision& expectedPrecision, void* dest_data = nullptr) {
-    if (actualInput == nullptr) {
-        IE_THROW() << "Actual input blob null pointer!";
-    }
-    if (actualInput->getTensorDesc().getPrecision() == expectedPrecision || dest_data == nullptr) {
-        return;
-    }
-
-    vpux::toPrecision(InferenceEngine::as<InferenceEngine::MemoryBlob>(actualInput), expectedPrecision, nullptr,
-                      dest_data);
-}
-
 ZeroExecutor::eventPool_t::eventPool_t(ze_device_handle_t device_handle, const ze_context_handle_t& context,
                                        uint32_t event_count)
         : _event_count(event_count) {
@@ -447,7 +611,7 @@ void ZeroExecutor::event_t::AppendEventReset(commandList& command_list) {
     throwOnFail("zeCommandListAppendEventReset", zeCommandListAppendEventReset(command_list._handle, _handle));
 }
 
-void ZeroExecutor::push(const InferenceEngine::BlobMap& inputs) {
+void ZeroExecutor::push(const IE::BlobMap& inputs) {
     _logger->info("ZeroExecutor::push started");
     const auto& deviceInputs = _networkDesc->getDeviceInputsInfo();
 
@@ -455,21 +619,30 @@ void ZeroExecutor::push(const InferenceEngine::BlobMap& inputs) {
 
     // Copy input data to staging buffer on Cpu (input always first argument)
     for (const auto& inferInput : inputs) {
-        const std::string& name = inferInput.first;
-        const InferenceEngine::Blob::Ptr& input = inferInput.second;
+        const auto& name = inferInput.first;
+        const IE::Blob::Ptr& input = inferInput.second;
 
-        auto& desc = mapArguments(_graph->_inputs_desc_map, name);
-        if (!twoApiLayoutCouplingCheck(desc.info.layout, input->getTensorDesc().getLayout()))
-            IE_THROW() << "Layouts is different for push blobs";
-        if (input->byteSize() != getSizeIOBytes(desc.info)) {
-            _logger->info("Sizes are different for push blobs. Need precision convert");
+        const auto& desc = mapArguments(_graph->_inputs_desc_map, name);
+        const auto& deviceInput = deviceInputs.at(name);
+        // TODO Currently L0 and Plugin might return different layouts which have dims like [1,1...]
+        // They might be reinterpreted in different ways, so this check has been added to prevent that behavior
+        if (std::max(getNumDims(desc.info.dims), getNumDims(deviceInput->getTensorDesc().getDims())) > 2) {
+            if (!twoApiLayoutCouplingCheck(desc.info.layout, deviceInput->getLayout())) {
+                IE_THROW() << "Parsing error: layouts are different for push blobs";
+            }
+        }
+        if (desc.info.precision != getZePrecision(deviceInput->getPrecision())) {
+            IE_THROW() << "Parsing error: precisions are different for push blobs";
         }
 
         auto& hostMem = mapArguments(_pipeline->_inputs_host_mem_map, name);
-        if (input->getTensorDesc().getPrecision() == deviceInputs.at(name)->getPrecision()) {
+        if (!isRepackingRequired(input->getTensorDesc(), deviceInput->getTensorDesc())) {
             hostMem.copyFrom(input);
         } else {
-            prepareInputForInference(input, deviceInputs.at(name)->getPrecision(), hostMem.data());
+            if (!isRepackingPossible(true, input->getTensorDesc(), deviceInput->getTensorDesc())) {
+                IE_THROW() << "Push blobs: repacking is not possible";
+            }
+            prepareInputForInference(input, deviceInput->getTensorDesc(), hostMem.data(), _logger);
         }
     }
 
@@ -498,8 +671,9 @@ Executor::Ptr ZeroExecutor::clone() const {
                                           _fence_ddi_table_ext, _networkDesc, _command_queue, _graph, _config);
 }
 
-void ZeroExecutor::pull(InferenceEngine::BlobMap& outputs) {
+void ZeroExecutor::pull(IE::BlobMap& outputs) {
     const auto iteration = _pull_count++;
+    const auto& deviceOutputs = _networkDesc->getDeviceOutputsInfo();
 
     // Wait for output copy to finish execution for _pull_count from the host, to make sure that data
     // is available in the hostMem buffer of the output
@@ -508,31 +682,43 @@ void ZeroExecutor::pull(InferenceEngine::BlobMap& outputs) {
     // Copy output data to staging buffer on Cpu (input always first argument)
     for (auto& inferOutput : outputs) {
         const auto& name = inferOutput.first;
-        InferenceEngine::Blob::Ptr& output = inferOutput.second;
+        IE::Blob::Ptr& output = inferOutput.second;
 
-        auto& desc = mapArguments(_graph->_outputs_desc_map, name);
-        if (!twoApiLayoutCouplingCheck(desc.info.layout, output->getTensorDesc().getLayout()))
-            IE_THROW() << "Layouts is different for pull blobs";
-        if (output->byteSize() != getSizeIOBytes(desc.info))
-            IE_THROW() << "Sizes are different for pull blobs";
+        const auto& desc = mapArguments(_graph->_outputs_desc_map, name);
+        const auto& deviceOutput = deviceOutputs.at(name);
+        if (std::max(getNumDims(desc.info.dims), getNumDims(deviceOutput->getTensorDesc().getDims())) > 2) {
+            if (!twoApiLayoutCouplingCheck(desc.info.layout, deviceOutput->getLayout())) {
+                IE_THROW() << "Parsing error: layouts are different for pull blobs";
+            }
+        }
+        if (desc.info.precision != getZePrecision(deviceOutput->getPrecision())) {
+            IE_THROW() << "Parsing error: precisions are different for pull blobs";
+        }
 
-        auto& hostMem = mapArguments(_pipeline->_outputs_host_mem_map, name);
-        hostMem.copyTo(output);
+        const auto& hostMem = mapArguments(_pipeline->_outputs_host_mem_map, name);
+        if (!isRepackingRequired(output->getTensorDesc(), deviceOutput->getTensorDesc())) {
+            hostMem.copyTo(output);
+        } else {
+            if (!isRepackingPossible(false, output->getTensorDesc(), deviceOutput->getTensorDesc())) {
+                IE_THROW() << "Pull blobs: repacking is not possible";
+            }
+            getOutputAfterInference(output, deviceOutput->getTensorDesc(), hostMem.data(), _logger);
+        }
     }
 }
 
-InferenceEngine::Parameter ZeroExecutor::getParameter(const std::string&) const {
-    return InferenceEngine::Parameter();
+IE::Parameter ZeroExecutor::getParameter(const std::string&) const {
+    return IE::Parameter();
 }
-void ZeroExecutor::setup(const InferenceEngine::ParamMap&) {
+void ZeroExecutor::setup(const IE::ParamMap&) {
     IE_THROW() << "Not implemented";
 }
 bool ZeroExecutor::isPreProcessingSupported(const PreprocMap&) const {
     return false;
 }
 
-std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> ZeroExecutor::getLayerStatistics() {
-    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> perfCounts;
+std::map<std::string, IE::InferenceEngineProfileInfo> ZeroExecutor::getLayerStatistics() {
+    std::map<std::string, IE::InferenceEngineProfileInfo> perfCounts;
 
     const auto blob = _graph->_blob.data();
     auto profilingOutputBlob = _pipeline->_outputs_host_mem_map.find("profilingOutput");
@@ -546,9 +732,9 @@ std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> ZeroExecutor:
     mv::utils::getProfilingInfo(blob, profilingOutputBlob->second.data(), deviceProfiling);
 
     unsigned execution_index = 0;
-    InferenceEngine::InferenceEngineProfileInfo info;
+    IE::InferenceEngineProfileInfo info;
     for (const auto& profilingEntry : deviceProfiling) {
-        info.status = InferenceEngine::InferenceEngineProfileInfo::EXECUTED;
+        info.status = IE::InferenceEngineProfileInfo::EXECUTED;
         info.cpu_uSec = info.realTime_uSec = profilingEntry.time;
         info.execution_index = execution_index++;
         size_t typeLen = sizeof(info.layer_type) / sizeof(info.layer_type[0]);
@@ -563,6 +749,6 @@ std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> ZeroExecutor:
     return perfCounts;
 }
 
-void ZeroExecutor::push(const InferenceEngine::BlobMap& /*inputs*/, const vpux::PreprocMap& /*preProcMap*/) {
+void ZeroExecutor::push(const IE::BlobMap& /*inputs*/, const vpux::PreprocMap& /*preProcMap*/) {
     IE_THROW() << "Not implemented";
 }
