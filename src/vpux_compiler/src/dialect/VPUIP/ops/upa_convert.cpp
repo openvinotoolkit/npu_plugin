@@ -65,7 +65,7 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ConvertUPAOp::serialize(VPUIP::Blob
 
     MVCNN::ConvertParamsBuilder builder(writer);
     builder.add_scale(checked_cast<float>(scale));
-    builder.add_scale(checked_cast<float>(bias));
+    builder.add_bias(checked_cast<float>(bias));
     builder.add_from_detection_output(fromDetectionOutput());
     builder.add_have_batch(haveBatch());
     builder.add_batch_id(batchID);
