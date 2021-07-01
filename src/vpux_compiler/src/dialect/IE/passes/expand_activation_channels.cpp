@@ -107,7 +107,7 @@ mlir::LogicalResult generalRewrite(mlir::Operation* origOp, mlir::PatternRewrite
         const SmallVector<int64_t> offsets(outShape.size(), 0);
         const SmallVector<int64_t> strides(outShape.size(), 1);
 
-        auto subTensorOp = rewriter.create<mlir::SubTensorOp>(
+        auto subTensorOp = rewriter.create<mlir::tensor::ExtractSliceOp>(
                 origOp->getLoc(), origOp->getResult(0).getType(), newOp->getResult(0), mlir::ValueRange{},
                 mlir::ValueRange{}, mlir::ValueRange{}, getInt64ArrayAttr(ctx, offsets),
                 getInt64ArrayAttr(ctx, outShape), getInt64ArrayAttr(ctx, strides));
@@ -265,7 +265,7 @@ void ExpandActivationChannelsPass::safeRunOnFunc() {
     });
     target.addLegalOp<Const::DeclareOp>();
     target.addLegalOp<IE::ExpandOp, IE::PadOp>();
-    target.addLegalOp<mlir::SubTensorOp>();
+    target.addLegalOp<mlir::tensor::ExtractSliceOp>();
 
     mlir::RewritePatternSet patterns(&ctx);
     patterns.insert<MaxPoolRewriter>(&ctx, _log);
