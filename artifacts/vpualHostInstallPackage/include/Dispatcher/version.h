@@ -2,7 +2,7 @@
 ///
 /// @file      version.h
 ///
-/// @brief     Header for the CMake versioning info. 
+/// @brief     Header for the CMake versioning info.
 ///            Contains the functions to access the extern-defined git variables.
 ///
 
@@ -19,18 +19,15 @@ extern std::string git_tag;
 extern std::string git_branch;
 
 // This returns the git commit ID as a string
-std::string GitCommit()
-{
+std::string GitCommit() {
     return git_commit;
 }
 // This returns the git tag information as a string
-std::string GitTag()
-{
+std::string GitTag() {
     return git_tag;
 }
 // This returns the git branch name as a string
-std::string GitBranch()
-{
+std::string GitBranch() {
     return git_branch;
 }
 
