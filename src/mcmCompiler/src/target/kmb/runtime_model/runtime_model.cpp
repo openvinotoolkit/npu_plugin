@@ -4670,18 +4670,81 @@ void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, const mv::TargetDesc
         graphFile_.barrier_table = buildBarrierTable(cm, compilationDescriptor);
 }
 
-void mv::RuntimeModel::serialize()
+void mv::RuntimeModel::serialize(size_t weight_alignment)
 {
     flatbuffers::FlatBufferBuilder fbb;
-    auto offset = MVCNN::CreateGraphFile(fbb, &graphFile_);
-    MVCNN::FinishGraphFileBuffer(fbb, offset);
-    binaryData_ = std::shared_ptr<std::vector<char>>(new std::vector<char>(fbb.GetSize()));
+
+    // N.B. In order to build the embedded weight vectors with the correct
+    // alignment (which slightly reduces first-run latency, as the runtime
+    // doesn't need to re-align the weights), we unpack and serialize the
+    // GraphFile components ourselves, instead of using MVCNN::CreateGraphFile()
+    // directly on graphFile_.
+    //
+    // Note that flatbuffers are built back-to-front, which is why it looks like
+    // we're building things in reverse.
+
+    flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<MVCNN::BinaryData>>> binary_data_offset = 0;
+    {
+        std::vector<flatbuffers::Offset<MVCNN::BinaryData>> binary_datas;
+        binary_datas.reserve(graphFile_.binary_data.size());
+        for (auto it = graphFile_.binary_data.rbegin(); it != graphFile_.binary_data.rend(); ++it) {
+            auto& binary_data = *it;
+            fbb.ForceVectorAlignment(binary_data->data.size(), sizeof(binary_data->data[0]), weight_alignment);
+            auto data_offset = fbb.CreateVector(binary_data->data);
+            MVCNN::BinaryDataBuilder bdb(fbb);
+            bdb.add_underlying_type(binary_data->underlying_type);
+            bdb.add_csram_cacheable(binary_data->csram_cacheable);
+            bdb.add_length(binary_data->length);
+            bdb.add_data(data_offset);
+            binary_datas.emplace_back(bdb.Finish());
+        }
+        reverse(binary_datas.begin(), binary_datas.end());
+        binary_data_offset = fbb.CreateVector(binary_datas);
+    }
+
+    flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<MVCNN::TaskList>>> task_lists_offset = 0;
+    {
+        std::vector<flatbuffers::Offset<MVCNN::TaskList>> task_lists;
+        task_lists.reserve(graphFile_.task_lists.size());
+        for (auto it = graphFile_.task_lists.rbegin(); it != graphFile_.task_lists.rend(); ++it) {
+            task_lists.emplace_back(MVCNN::CreateTaskList(fbb, it->get()));
+        }
+        reverse(task_lists.begin(), task_lists.end());
+        task_lists_offset = fbb.CreateVector(task_lists);
+    }
+
+    flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<MVCNN::Barrier>>> barrier_table_offset = 0;
+    {
+        std::vector<flatbuffers::Offset<MVCNN::Barrier>> barriers;
+        barriers.reserve(graphFile_.barrier_table.size());
+        for (auto it = graphFile_.barrier_table.rbegin(); it != graphFile_.barrier_table.rend(); ++it) {
+            barriers.emplace_back(MVCNN::CreateBarrier(fbb, it->get()));
+        }
+        reverse(barriers.begin(), barriers.end());
+        barrier_table_offset = fbb.CreateVector(barriers);
+    }
+
+    flatbuffers::Offset<MVCNN::SummaryHeader> header = 0;
+    if (graphFile_.header) {
+        header = MVCNN::CreateSummaryHeader(fbb, graphFile_.header.get());
+    }
+
+    MVCNN::GraphFileBuilder gfb(fbb);
+    gfb.add_header(header);
+    gfb.add_barrier_table(barrier_table_offset);
+    gfb.add_task_lists(task_lists_offset);
+    gfb.add_binary_data(binary_data_offset);
+    auto graphfile_offset = gfb.Finish();
+
+    MVCNN::FinishGraphFileBuffer(fbb, graphfile_offset);
+
+    binaryData_ = std::make_shared<std::vector<char>>(fbb.GetSize());
     std::memcpy(binaryData_->data(), (char*)fbb.GetBufferPointer(), binaryData_->size());
 }
 
-void mv::RuntimeModel::serialize(const std::string& filename)
+void mv::RuntimeModel::serialize(const std::string& filename, size_t weight_alignment)
 {
-    serialize();
+    serialize(weight_alignment);
     if (flatbuffers::SaveFile((filename).c_str(), binaryData_->data(), binaryData_->size(), true))
         Logger::log(mv::Logger::MessageType::Debug, "RuntimeModel", "File successfully written to: " + filename);
     else

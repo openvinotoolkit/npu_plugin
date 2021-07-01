@@ -46,6 +46,8 @@ namespace mv
             static std::vector<unsigned> reduceQuantVector_(std::vector<unsigned> inVec);
 
         public:
+            static constexpr size_t default_weight_alignment = 256;
+
             static RuntimeModel& getInstance(const mv::TargetDescriptor& td)
             {
                 static RuntimeModel instance(td);
@@ -175,8 +177,8 @@ namespace mv
             static unsigned countProducerConsumerTasks(mv::ComputationModel& cm, mv::Control::OpListIterator opIt, bool trimEmptyTensors = false);
             static void specializeBasePtrs(const mv::Control::OpListIterator& opIt, std::unique_ptr<MVCNN::NCEInvariantFieldsT>& toBuild, const unsigned int clusterId, const unsigned int maxClusters = 4);
 
-            void serialize(const std::string& path);
-            void serialize();
+            void serialize(const std::string& path, size_t weight_alignment = default_weight_alignment);
+            void serialize(size_t weight_alignment = default_weight_alignment);
             void deserialize(const std::string& path);
             void deserialize(const char *buffer, int length);
             void buildGraphFile(ComputationModel& cm, const mv::TargetDescriptor& td, Element& compilationDescriptor);
