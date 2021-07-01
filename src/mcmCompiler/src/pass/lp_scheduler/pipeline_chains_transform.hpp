@@ -312,19 +312,23 @@ class Pipeline_Chains {
       return dpu_op->getOpType() != "DPUTask";
     }
 
-    void postProcessImplicitOperationsForDAG(std::map<size_t, op_list_t> &dpu_levels, operation_t opIt, std::size_t depth)
+    op_list_t retrieve_concrete_child_ops(mv::Data::OpListIterator currOp, mv::OpModel& model)
     {
-      mv::OpModel &model = omodel_;
-      auto cop = *opIt;
-      auto previousActivationOperation = model.getSourceOp(cop.getInputTensor()[0]);
-      //NOTE: in the level we meet slice operations we need to move their following
-      // streaming operations in the level of slice
-      if (opIt->getOpType() == "DPUTask" && previousActivationOperation->getOpType() == "Slice")
+      op_list_t concrete_child_ops;
+      for (auto child = currOp.leftmostChild(); child != model.opEnd(); ++child)
       {
-        dpu_levels[depth].remove(opIt);
-        dpu_levels[depth - 1].push_back(opIt);
-
+        if (child->getOpType() == "DPUTask")
+        {
+          operation_t cop = &(*child);
+          concrete_child_ops.push_back(cop);
+        }
+        else
+        {
+          op_list_t temp = retrieve_concrete_child_ops(child, model);
+          concrete_child_ops.merge(temp);
+        }
       }
+      return concrete_child_ops;
     }
 
     void clearEmptyDepth(std::map<size_t, op_list_t> &dpu_levels)
@@ -437,8 +441,9 @@ class Pipeline_Chains {
 
       mv::OpModel &model = omodel_;
       //////////////////////////////////////////////////////////////////////////
-      std::list<operation_t> zero_in_degree_nodes[2UL];
+      op_list_t zero_in_degree_nodes[2UL];
       std::unordered_map<operation_t, size_t> in_degree_map;
+      std::unordered_map<std::string, bool> propagated_ops;
       size_t curr_depth = 0;
       // STEP-0: compute the in-degree's of all nodes //
       //NOTE: in_degree means the number of inputs of an op, and the pseudo data flows
@@ -468,14 +473,16 @@ class Pipeline_Chains {
         {
           // update the in-degree //
           mv::Data::OpListIterator zop_itr = model.getOp((*zitr)->getName());
-          for (auto citr=zop_itr.leftmostChild(); citr!=model.opEnd(); ++citr)
+          op_list_t child_ops = retrieve_concrete_child_ops(zop_itr, model);
+          for (auto& cop : child_ops)
           {
-            operation_t cop = &(*citr);
+            if (propagated_ops.find(cop->getName()) != propagated_ops.end())
+              continue;
             auto ditr = in_degree_map.find(cop);
             if ( (ditr == in_degree_map.end()) || (ditr->second == 0UL) )
             {
-              throw "Missing entry in the in-degree map (or)"
-                  " invalid in-degree for op= " + cop->getName();
+              throw mv::RuntimeError("ChainPipelining pass", "Missing entry in the in-degree map (or)"
+                  " invalid in-degree for op= " + cop->getName());
             }
             --(ditr->second);
             if (!(ditr->second))
@@ -483,9 +490,9 @@ class Pipeline_Chains {
               zero_in_degree_nodes[!parity].push_back(cop);
               if (cop->getOpType() == "DPUTask")
               {
+                propagated_ops.insert({cop->getName(), true});
                 dpu_levels[curr_depth].push_back(cop);
               }
-              postProcessImplicitOperationsForDAG(dpu_levels, cop, curr_depth);
             }
           }
         }
@@ -1170,7 +1177,7 @@ MOVE_TO_NEXT_SUBGRAPH:
         const std::string& inplace_attribute="inplace_eltwise_rep") const {
 
       if (eltwise_chain.dpu_chain_.size() < 2UL) {
-        throw "chain lenght must be >= 2";
+        throw mv::RuntimeError("ChainPipelining pass", "chain lenght must be >= 2");
       }
 
       typedef typename chain_subgraph_t::read_size_map_t read_size_map_t;
