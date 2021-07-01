@@ -21,9 +21,9 @@ For all available passes please check `vpux-opt --help` output.
 
 ## Adding and printing Op names
 
-Compile network with --mlir-print-debuginfo flag:  
-`./vpux-translate --import-IE <xml path> --mlir-print-debuginfo -o net.mlir`  
-`./vpux-opt --set-compile-params="vpu-arch=VPU3400_A0" --reference-mode net.mlir --mlir-print-debuginfo -o net_out.mlir`  
+Compile network with --mlir-print-debuginfo flag:
+`./vpux-translate --import-IE <xml path> --mlir-print-debuginfo -o net.mlir`
+`./vpux-opt --set-compile-params="vpu-arch=VPU3400_A0" --reference-mode net.mlir --mlir-print-debuginfo -o net_out.mlir`
 To print names in the code use:
 ```cpp
 if (const auto loc = op->getLoc().dyn_cast<mlir::NameLoc>()) {
@@ -43,7 +43,7 @@ if (const auto loc = op->getLoc().dyn_cast<mlir::NameLoc>()) {
 ## Generating of Dot graph
 
 Currently you can use this pass but new pass is going to be created soon for simple comparision to MCM compiler
-`./vpux-opt --print-op-graph net.mlir 2> graph.dot 1>nul`  
+`./vpux-opt --print-op-graph net.mlir 2> graph.dot 1>nul`
 Remove all graphs in output file except `digraph "main"`
 
 ## IR dumping (Developer build)
@@ -80,3 +80,31 @@ For example, `export IE_VPUX_COMPILER_LOG_FILTER=convert-.*-to-VPUIP`.
 The **VPUX NN Compiler** can print the Pass performance information.
 It is printed via Logger at `INFO` level, so it will be visible, if that level is enabled.
 Also it can be enabled with `export IE_VPUX_COMPILER_LOG_FILTER=vpux-compiler`.
+
+## VS Code extension
+
+MLIR provides an [extension](https://mlir.llvm.org/docs/Tools/MLIRLSP/) for VS Code IDE with extra MLIR code analysis support.
+
+To enable it on Ubuntu follow the next steps:
+
+1. Copy `<kmb-plugin>/thirdparty/llvm-project/mlir/utils/textmate/mlir.json` to the extension directory
+   (`<kmb-plugin>/thirdparty/llvm-project/mlir/utils/vscode`) and rename to `grammar.json`.
+
+2. Install `npm` and `vsce` tools:
+
+    ```bash
+    sudo apt install npm
+    sudo npm install -g vsce
+    ```
+
+3. Build the extension from the sources:
+
+    ```bash
+    cd <kmb-plugin>/thirdparty/llvm-project/mlir/utils/vscode
+    vsce package
+    ```
+
+4. Install the extension from generated file (`<kmb-plugin>/thirdparty/llvm-project/mlir/utils/vscode/mlir-0.0.1.vsix`).
+
+5. Set `server_path` parameter in the extension configuration to `vpux-lsp-server` application.
+   The application is built as a part of the plugin build and can be found in OpenVINO binaries directory.
