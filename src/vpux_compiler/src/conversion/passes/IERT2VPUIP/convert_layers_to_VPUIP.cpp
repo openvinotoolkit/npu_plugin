@@ -115,17 +115,17 @@ mlir::LogicalResult FullyConnectedRewrite::matchAndRewrite(IERT::FullyConnectedO
         return mlir::success();
     }
 
-    const auto biasShape = origOp.bias().getType().cast<mlir::ShapedType>().getShape();
+    const auto origBiasType = origOp.bias().getType().cast<mlir::ShapedType>();
 
-    VPUX_THROW_UNLESS(biasShape[0] == 1, "Biases batch size is not equal 1");
+    const auto origBiasShape = origBiasType.getShape();
+    VPUX_THROW_UNLESS(origBiasShape[0] == 1, "Biases batch size is not equal 1");
 
-    const std::array<int64_t, 1> newBiasShape = {biasShape[1]};
-    auto newType =
-            mlir::MemRefType::get(newBiasShape, origOp.bias().getType().cast<mlir::MemRefType>().getElementType());
+    const std::array<int64_t, 1> newBiasShape = {origBiasShape[1]};
+    const auto newBiasType = changeShape(origBiasType, ShapeRef(newBiasShape));
+    ;
+    auto newBias = rewriter.create<IERT::GenericReshapeOp>(origOp->getLoc(), newBiasType, origOp.bias());
 
-    auto newBias = rewriter.create<IERT::GenericReshapeOp>(origOp->getLoc(), newType, origOp.bias());
-
-    rewriter.replaceOpWithNewOp<VPUIP::FullyConnectedUPAOp>(origOp, origOp.input(), origOp.weights(), newBias,
+    rewriter.replaceOpWithNewOp<VPUIP::FullyConnectedUPAOp>(origOp, origOp.input(), origOp.weights(), newBias.output(),
                                                             origOp.output_buff());
 
     return mlir::success();

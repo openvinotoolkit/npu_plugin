@@ -5,12 +5,12 @@ module @Test {
 IE.CNNNetwork
     entryPoint : @main
     inputsInfo : {
-        // CHECK: IE.DataInfo "data" : memref<1x1000xf32>
-        IE.DataInfo "data" : memref<1x1000xf32>
+        // CHECK: IE.DataInfo "data" : tensor<1x1000xf32>
+        IE.DataInfo "data" : tensor<1x1000xf32>
     }
     outputsInfo : {
-        // CHECK: IE.DataInfo "prob" : memref<1x1000xf32>
-        IE.DataInfo "prob" : memref<1x1000xf32>
+        // CHECK: IE.DataInfo "prob" : tensor<1x1000xf32>
+        IE.DataInfo "prob" : tensor<1x1000xf32>
     }
 
 // CHECK: func @main([[ARG0:%.+]]: tensor<1x1x1x1000xf16>) -> tensor<1x1x1x1000xf16>

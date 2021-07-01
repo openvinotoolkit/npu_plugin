@@ -71,7 +71,6 @@ struct SinkScalarPass : public SinkScalarBase<SinkScalarPass> {
 
 #ifdef ENABLE_PLAIDML
     void wrapReturnValue(ReturnOp returnOp) {
-        FuncOp program = getFunction();
         for (auto operand : returnOp.getOperands()) {
             Operation* def = operand.getDefiningOp();
             if (isa<AffineParallelOp>(def)) {

@@ -71,10 +71,7 @@ mlir::LogicalResult UseQuantDequant::matchAndRewrite(IE::FakeQuantizeOp origOp, 
 
     innerLog.trace("Use quantized element type '{0}'", qElemType);
 
-    const auto qType = mlir::RankedTensorType::getChecked(origOp.getLoc(), realType.getShape(), qElemType);
-    if (qType == nullptr) {
-        return mlir::failure();
-    }
+    const auto qType = changeElemType(realType, qElemType);
 
     auto quantOp = rewriter.create<mlir::quant::QuantizeCastOp>(origOp.getLoc(), qType, origOp.input());
     rewriter.replaceOpWithNewOp<mlir::quant::DequantizeCastOp>(origOp, realType, quantOp.getResult());
@@ -144,10 +141,7 @@ mlir::LogicalResult UseConstDequant::matchAndRewrite(IE::FakeQuantizeOp origOp, 
 
     innerLog.trace("Use quantized element type '{0}'", qElemType);
 
-    const auto qType = mlir::RankedTensorType::getChecked(origOp.getLoc(), realType.getShape(), qElemType);
-    if (qType == nullptr) {
-        return mlir::failure();
-    }
+    const auto qType = changeElemType(realType, qElemType);
 
     const auto newInConstAttr =
             inConstAttr.convertElemType(normalizeQuantStorageType(qElemType.getStorageType())).quantCast(qElemType);

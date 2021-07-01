@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -130,62 +130,6 @@ def VPUIP_UPATaskOpInterface : OpInterface<"UPATaskOpInterface"> {
             return vpux::VPUIP::TaskType::UPA;
         }
     }];
-}
-
-//
-// SameShape
-//
-
-def VPUIP_SameShape : NativeOpTrait<"SameShape"> {
-    let cppNamespace = "vpux::VPUIP";
-}
-
-//
-// SameElementType
-//
-
-def VPUIP_SameElementType : NativeOpTrait<"SameElementType"> {
-    let cppNamespace = "vpux::VPUIP";
-}
-
-//
-// SameDimsOrder
-//
-
-def VPUIP_SameDimsOrder : NativeOpTrait<"SameDimsOrder"> {
-    let cppNamespace = "vpux::VPUIP";
-}
-
-//
-// SameInOutDimsOrder
-//
-
-def VPUIP_SameInOutDimsOrder : NativeOpTrait<"SameInOutDimsOrder"> {
-    let cppNamespace = "vpux::VPUIP";
-}
-
-//
-// SameInOutDimsOrder_NCHW_NHWC
-//
-
-def VPUIP_SameInOutDimsOrder_NCHW_NHWC : NativeOpTrait<"SameInOutDimsOrder_NCHW_NHWC"> {
-    let cppNamespace = "vpux::VPUIP";
-}
-
-//
-// SameInOutDimsOrder_CHW_HWC_NCHW_NHWC
-//
-
-def VPUIP_SameInOutDimsOrder_CHW_HWC_NCHW_NHWC : NativeOpTrait<"SameInOutDimsOrder_CHW_HWC_NCHW_NHWC"> {
-    let cppNamespace = "vpux::VPUIP";
-}
-
-//
-// AnyDimsOrder
-//
-
-def VPUIP_AnyDimsOrder : NativeOpTrait<"AnyDimsOrder"> {
-    let cppNamespace = "vpux::VPUIP";
 }
 
 //

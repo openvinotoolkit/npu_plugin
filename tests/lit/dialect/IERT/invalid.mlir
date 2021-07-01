@@ -7,7 +7,7 @@ IE.CNNNetwork
     inputsInfo : {
     }
     outputsInfo :  {
-        IE.DataInfo "output" : memref<1x2x2x2xf16>
+        IE.DataInfo "output" : tensor<1x2x2x2xf16>
     }
 
 func @main(%arg0: memref<1x2x2x2xf16>) -> memref<1x2x2x2xf16> {

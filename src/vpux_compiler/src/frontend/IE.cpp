@@ -1378,19 +1378,6 @@ IE::PadModeAttr NGraphImporter::importPadMode(const ngraph::op::PadMode val) {
     return attr;
 }
 
-SmallVector<mlir::AffineMap> importLayout(mlir::MLIRContext* ctx, InferenceEngine::Layout layout, ShapeRef shape) {
-    if (shape.size() > MAX_NAMED_ORDER_NUM_DIMS || layout == InferenceEngine::Layout::ANY) {
-        return {};
-    }
-
-    const auto order = DimsOrder::fromIE(layout);
-    if (order == DimsOrder::fromNumDims(order.numDims())) {
-        return {};
-    }
-
-    return order.toAffineMapsList(ctx, shape);
-}
-
 mlir::Type importPrecision(mlir::MLIRContext* ctx, const InferenceEngine::Precision& precision) {
     if (precision == InferenceEngine::Precision::FP32) {
         return mlir::Float32Type::get(ctx);
@@ -1417,14 +1404,10 @@ mlir::Type importPrecision(mlir::MLIRContext* ctx, const InferenceEngine::Precis
     }
 }
 
-mlir::MemRefType importBuffer(mlir::MLIRContext* ctx, const InferenceEngine::TensorDesc& desc) {
-    Shape shape(desc.getDims().size());
-    std::copy(desc.getDims().begin(), desc.getDims().end(), shape.begin());
-
+mlir::RankedTensorType importUserTensor(mlir::MLIRContext* ctx, const InferenceEngine::TensorDesc& desc) {
+    const Shape shape(desc.getDims().begin(), desc.getDims().end());
     const auto precision = importPrecision(ctx, desc.getPrecision());
-    const auto affineMaps = importLayout(ctx, desc.getLayout(), shape);
-
-    return mlir::MemRefType::get(shape.raw(), precision, affineMaps);
+    return getTensorType(shape.raw(), precision, DimsOrder::fromIE(desc.getLayout()));
 }
 
 std::string getValidOutputName(const std::shared_ptr<ngraph::op::Result>& result) {
@@ -1488,7 +1471,7 @@ void addCNNNetworkOp(mlir::OpBuilder& builder, mlir::FlatSymbolRefAttr mainFuncN
         const auto& userDesc = userInput->getTensorDesc();
 
         const auto nameAttr = mlir::StringAttr::get(ctx, inputName);
-        const auto userTypeAttr = mlir::TypeAttr::get(importBuffer(ctx, userDesc));
+        const auto userTypeAttr = mlir::TypeAttr::get(importUserTensor(ctx, userDesc));
 
         inputsInfoBuilder.create<IE::DataInfoOp>(mlir::UnknownLoc::get(ctx), nameAttr, userTypeAttr);
     }
@@ -1500,7 +1483,7 @@ void addCNNNetworkOp(mlir::OpBuilder& builder, mlir::FlatSymbolRefAttr mainFuncN
         const auto& userDesc = userOutput->getTensorDesc();
 
         const auto nameAttr = mlir::StringAttr::get(ctx, resultName);
-        const auto userTypeAttr = mlir::TypeAttr::get(importBuffer(ctx, userDesc));
+        const auto userTypeAttr = mlir::TypeAttr::get(importUserTensor(ctx, userDesc));
 
         outputsInfoBuilder.create<IE::DataInfoOp>(mlir::UnknownLoc::get(ctx), nameAttr, userTypeAttr);
     }

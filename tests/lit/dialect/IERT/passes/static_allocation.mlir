@@ -14,10 +14,10 @@ module @LinearGraph {
 IE.CNNNetwork
     entryPoint : @main
     inputsInfo : {
-        IE.DataInfo "data" : memref<1x1000xf16>
+        IE.DataInfo "data" : tensor<1x1000xf16>
     }
     outputsInfo : {
-        IE.DataInfo "prob" : memref<1x1000xf16>
+        IE.DataInfo "prob" : tensor<1x1000xf16>
     }
 
 // CHECK:   IERT.RunTimeResources

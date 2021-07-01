@@ -35,9 +35,9 @@ module @mainModule attributes {VPUIP.arch = "VPU3720", VPUIP.compilationMode = "
     return %arg1 : memref<1x16x16x16xf16, #NHWC, "ProgrammableOutput">
   }
   IE.CNNNetwork entryPoint : @"mgmt_task_test!quant.uniform<u8:f32, 1.000000e+00>_!quant.uniform<u8:f32, 1.000000e+00>_f16" inputsInfo :  {
-    IE.DataInfo "input_0" : memref<1x16x16x16xui8, #NHWC, "ProgrammableInput">
+    IE.DataInfo "input_0" : tensor<1x16x16x16xui8, {order = #NHWC}>
   } outputsInfo :  {
-    IE.DataInfo "output_0" : memref<1x16x16x16xf16, #NHWC, "ProgrammableOutput">
+    IE.DataInfo "output_0" : tensor<1x16x16x16xf16, {order = #NHWC}>
   }
 }
 

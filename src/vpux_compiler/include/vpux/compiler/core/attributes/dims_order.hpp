@@ -115,6 +115,9 @@ public:
     mlir::AffineMap toPermutationAffineMap(mlir::MLIRContext* ctx) const;
 
     static DimsOrder fromType(mlir::ShapedType type);
+    static DimsOrder fromType(mlir::RankedTensorType type);
+    static DimsOrder fromType(mlir::MemRefType type);
+
     static DimsOrder fromValue(mlir::Value val);
 
     SmallVector<mlir::AffineMap> toAffineMapsList(mlir::MLIRContext* ctx, ShapeRef shape) const;

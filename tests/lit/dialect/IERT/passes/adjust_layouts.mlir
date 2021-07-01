@@ -13,10 +13,10 @@ module @InOutNHCW attributes {VPUIP.arch = "VPU3700", VPUIP.compilationMode = "R
 IE.CNNNetwork
     entryPoint : @main
     inputsInfo : {
-        IE.DataInfo "data" : memref<1x8x4x2xf16, #NHCW>
+        IE.DataInfo "data" : tensor<1x8x4x2xf16, {order = #NHCW}>
     }
     outputsInfo : {
-        IE.DataInfo "prob" : memref<1x8x4x2xf16, #NHCW>
+        IE.DataInfo "prob" : tensor<1x8x4x2xf16, {order = #NHCW}>
     }
 
 func @main(%arg0: memref<1x8x4x2xf16, #NHCW>, %arg1: memref<1x8x4x2xf16, #NHCW>) -> memref<1x8x4x2xf16, #NHCW> {
@@ -55,10 +55,10 @@ module @DifferentOrders attributes {VPUIP.arch = "VPU3700", VPUIP.compilationMod
 IE.CNNNetwork
     entryPoint : @main
     inputsInfo : {
-        IE.DataInfo "data" : memref<1x8x4x2xf16>
+        IE.DataInfo "data" : tensor<1x8x4x2xf16>
     }
     outputsInfo : {
-        IE.DataInfo "prob" : memref<1x8x4x2xf16, #NHWC>
+        IE.DataInfo "prob" : tensor<1x8x4x2xf16, {order = #NHWC}>
     }
 
 func @main(%arg0: memref<1x8x4x2xf16>, %arg1: memref<1x8x4x2xf16, #NHWC>) -> memref<1x8x4x2xf16, #NHWC> {
@@ -94,10 +94,10 @@ IERT.RunTimeResources
 IE.CNNNetwork
     entryPoint : @main
     inputsInfo : {
-        IE.DataInfo "data" : memref<1x16x4x2xf16>
+        IE.DataInfo "data" : tensor<1x16x4x2xf16>
     }
     outputsInfo : {
-        IE.DataInfo "prob" : memref<1x16x4x2xf16>
+        IE.DataInfo "prob" : tensor<1x16x4x2xf16>
     }
 
 func @main(%arg0: memref<1x16x4x2xf16>, %arg1: memref<1x16x4x2xf16>) -> memref<1x16x4x2xf16> {

@@ -16,6 +16,7 @@
 #include "vpux/compiler/core/attributes/dims_order.hpp"
 #include "vpux/compiler/utils/error.hpp"
 
+#include "vpux/utils/core/optional.hpp"
 #include "vpux/utils/core/range.hpp"
 #include "vpux/utils/core/string_ref.hpp"
 
@@ -38,12 +39,13 @@ public:
         _outputOrders.resize(numOutputs);
     }
 
-    void setInput(size_t argNum, const vpux::DimsOrder& order) {
+public:
+    void setInput(size_t argNum, DimsOrder order) {
         VPUX_THROW_UNLESS(argNum < _inputOrders.size(), "Argument number {0} is out of range {1}", argNum,
                           _inputOrders.size());
         _inputOrders[argNum] = order;
     }
-    void setOutput(size_t argNum, const vpux::DimsOrder& order) {
+    void setOutput(size_t argNum, DimsOrder order) {
         VPUX_THROW_UNLESS(argNum < _outputOrders.size(), "Argument number {0} is out of range {1}", argNum,
                           _outputOrders.size());
         _outputOrders[argNum] = order;
@@ -60,11 +62,11 @@ public:
         return _outputOrders[argNum].hasValue();
     }
 
-    const vpux::DimsOrder& getInput(size_t argNum) const {
+    DimsOrder getInput(size_t argNum) const {
         VPUX_THROW_UNLESS(hasInput(argNum), "No value for argument {0}", argNum);
         return _inputOrders[argNum].getValue();
     }
-    const vpux::DimsOrder& getOutput(size_t argNum) const {
+    DimsOrder getOutput(size_t argNum) const {
         VPUX_THROW_UNLESS(hasOutput(argNum), "No value for argument {0}", argNum);
         return _outputOrders[argNum].getValue();
     }
@@ -73,8 +75,133 @@ public:
     void printFormat(llvm::raw_ostream& stream) const;
 
 private:
-    SmallVector<mlir::Optional<DimsOrder>> _inputOrders;
-    SmallVector<mlir::Optional<DimsOrder>> _outputOrders;
+    SmallVector<Optional<DimsOrder>> _inputOrders;
+    SmallVector<Optional<DimsOrder>> _outputOrders;
+};
+
+void fillDataInfo(DataOrderInfo& info, size_t inNum, size_t outNum, DimsOrder mainOrder);
+
+//
+// SameShape
+//
+
+mlir::LogicalResult verifySameShape(mlir::Operation* op);
+
+template <typename ConcreteOp>
+class SameShape : public mlir::OpTrait::TraitBase<ConcreteOp, SameShape> {
+public:
+    static mlir::LogicalResult verifyTrait(mlir::Operation* op) {
+        return verifySameShape(op);
+    }
+};
+
+//
+// SameElementType
+//
+
+mlir::LogicalResult verifySameElementType(mlir::Operation* op);
+
+template <typename ConcreteOp>
+class SameElementType : public mlir::OpTrait::TraitBase<ConcreteOp, SameElementType> {
+public:
+    static mlir::LogicalResult verifyTrait(mlir::Operation* op) {
+        return verifySameElementType(op);
+    }
+};
+
+//
+// SameDimsOrder
+//
+
+mlir::LogicalResult verifySameDimsOrder(mlir::Operation* op);
+bool isSupportedLayoutSameDimsOrder(mlir::Operation* op, DataOrderInfo& info);
+
+template <typename ConcreteOp>
+class SameDimsOrder : public mlir::OpTrait::TraitBase<ConcreteOp, SameDimsOrder> {
+public:
+    static mlir::LogicalResult verifyTrait(mlir::Operation* op) {
+        return verifySameDimsOrder(op);
+    }
+
+    static bool isSupportedLayout(mlir::Operation* op, DataOrderInfo& info) {
+        return isSupportedLayoutSameDimsOrder(op, info);
+    }
+};
+
+//
+// SameInOutDimsOrder
+//
+
+mlir::LogicalResult verifySameInOutDimsOrder(mlir::Operation* op);
+bool isSupportedLayoutSameInOutDimsOrder(mlir::Operation* op, DataOrderInfo& info);
+
+template <typename ConcreteOp>
+class SameInOutDimsOrder : public mlir::OpTrait::TraitBase<ConcreteOp, SameInOutDimsOrder> {
+public:
+    static mlir::LogicalResult verifyTrait(mlir::Operation* op) {
+        return verifySameInOutDimsOrder(op);
+    }
+
+    static bool isSupportedLayout(mlir::Operation* op, DataOrderInfo& info) {
+        return isSupportedLayoutSameInOutDimsOrder(op, info);
+    }
+};
+
+//
+// SameInOutSpecificDimsOrder
+//
+
+mlir::LogicalResult verifySameInOutSpecificDimsOrder(mlir::Operation* op, ArrayRef<DimsOrder> supportedLayouts);
+bool isSupportedLayoutSameInOutSpecificDimsOrder(mlir::Operation* op, DataOrderInfo& info,
+                                                 ArrayRef<DimsOrder> supportedLayouts);
+
+//
+// SameInOutDimsOrder_NCHW_NHWC
+//
+
+extern const std::array<DimsOrder, 2> NCHW_NHWC;
+
+template <typename ConcreteOp>
+class SameInOutDimsOrder_NCHW_NHWC : public mlir::OpTrait::TraitBase<ConcreteOp, SameInOutDimsOrder_NCHW_NHWC> {
+public:
+    static mlir::LogicalResult verifyTrait(mlir::Operation* op) {
+        return verifySameInOutSpecificDimsOrder(op, NCHW_NHWC);
+    }
+
+    static bool isSupportedLayout(mlir::Operation* op, DataOrderInfo& info) {
+        return isSupportedLayoutSameInOutSpecificDimsOrder(op, info, NCHW_NHWC);
+    }
+};
+
+//
+// SameInOutDimsOrder_CHW_HWC_NCHW_NHWC
+//
+
+extern const std::array<DimsOrder, 4> CHW_HWC_NCHW_NHWC;
+
+template <typename ConcreteOp>
+class SameInOutDimsOrder_CHW_HWC_NCHW_NHWC :
+        public mlir::OpTrait::TraitBase<ConcreteOp, SameInOutDimsOrder_CHW_HWC_NCHW_NHWC> {
+public:
+    static mlir::LogicalResult verifyTrait(mlir::Operation* op) {
+        return verifySameInOutSpecificDimsOrder(op, CHW_HWC_NCHW_NHWC);
+    }
+
+    static bool isSupportedLayout(mlir::Operation* op, DataOrderInfo& info) {
+        return isSupportedLayoutSameInOutSpecificDimsOrder(op, info, CHW_HWC_NCHW_NHWC);
+    }
+};
+
+//
+// AnyDimsOrder
+//
+
+template <typename ConcreteOp>
+class AnyDimsOrder : public mlir::OpTrait::TraitBase<ConcreteOp, AnyDimsOrder> {
+public:
+    static bool isSupportedLayout(mlir::Operation*, DataOrderInfo&) {
+        return true;
+    }
 };
 
 //

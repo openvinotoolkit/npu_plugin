@@ -12,9 +12,8 @@
 //
 
 #include "vpux/compiler/dialect/IERT/passes.hpp"
-
+#include "vpux/compiler/utils/analysis.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
-#include "vpux/compiler/utils/extentions.hpp"
 
 #include "vpux/utils/core/range.hpp"
 

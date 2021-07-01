@@ -51,6 +51,10 @@ It replaces IE::StridedSlice operation to simple StridedSlice and Reshape.
 The pass is a part of `LowPrecision` pipeline.
 
 It splits `FakeQuantize` operations to `quant.qcast -> quant.dcast` pair.
+### `-use-user-layout`: Use user layouts for entry point function prototype
+This pass updates the CNNNetwork entry point function prototype
+and uses user-provided layouts for its operands and results.
+The pass inserts Reorder operations from/to topology layout.
 ### `-use-user-precision`: Use user precisions for entry point function prototype
 This pass updates the CNNNetwork entry point function prototype and use user-provided precisions for its operands and results.
 The pass inserts Convert operations from/to topology precisions.

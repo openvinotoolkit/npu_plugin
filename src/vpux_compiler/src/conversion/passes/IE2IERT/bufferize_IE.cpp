@@ -18,6 +18,7 @@
 #include "vpux/compiler/dialect/IERT/ops.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
+#include "vpux/compiler/utils/rewriter.hpp"
 
 #include "vpux/utils/core/format.hpp"
 #include "vpux/utils/core/range.hpp"
@@ -565,6 +566,12 @@ mlir::Operation* createRTLayer(IE::StridedSliceOp origOp, ArrayRef<mlir::Value> 
                                           origOp.ends_attr().getValue(), origOp.strides_attr().getValue());
 }
 
+mlir::Operation* createRTLayer(IE::ReorderOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::ReorderOp::Adaptor newOp(allBufs);
+
+    return b.create<IERT::ReorderOp>(origOp.getLoc(), newOp.input(), newOp.output_buff());
+}
+
 class LayerRewrite final : public mlir::ConversionPattern {
 public:
     LayerRewrite(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
@@ -599,8 +606,8 @@ mlir::LogicalResult LayerRewrite::matchAndRewrite(mlir::Operation* origOp, Array
         return dispatch<_OP_>;                       \
     })
 
-    const CreateFunc createFunc =
-            llvm::TypeSwitch<mlir::Operation*, CreateFunc>(origOp) CASE(mlir::quant::QuantizeCastOp)
+    const CreateFunc createFunc = llvm::TypeSwitch<mlir::Operation*, CreateFunc>(origOp)  //
+            CASE(mlir::quant::QuantizeCastOp)
     CASE(mlir::quant::DequantizeCastOp)
     CASE(IE::ConvertOp)
     CASE(IE::SoftMaxOp)
@@ -641,6 +648,7 @@ mlir::LogicalResult LayerRewrite::matchAndRewrite(mlir::Operation* origOp, Array
     CASE(IE::ExpOp)
     CASE(IE::InterpolateOp)
     CASE(IE::StridedSliceOp)
+    CASE(IE::ReorderOp)
     .Default([](mlir::Operation*) {
         return nullptr;
     });
@@ -689,7 +697,7 @@ private:
 void BufferizeIEPass::safeRunOnFunc() {
     auto& ctx = getContext();
 
-    mlir::BufferizeTypeConverter typeConverter;
+    vpux::BufferizeTypeConverter typeConverter;
 
     const auto isLegalOp = [&](mlir::Operation* op) {
         return typeConverter.isLegal(op);
@@ -703,7 +711,7 @@ void BufferizeIEPass::safeRunOnFunc() {
     target.addLegalOp<IE::CNNNetworkOp, IE::DataInfoOp>();
     target.addLegalOp<mlir::memref::AllocOp>();
     target.addLegalOp<mlir::memref::SubViewOp>();
-    mlir::populateBufferizeMaterializationLegality(target);
+    vpux::populateBufferizeMaterializationLegality(target);
 
     mlir::RewritePatternSet patterns(&ctx);
     patterns.insert<ReshapeRewrite>(typeConverter, &ctx, _log);

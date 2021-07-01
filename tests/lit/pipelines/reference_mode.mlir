@@ -14,12 +14,12 @@ module @SingleLayer {
 IE.CNNNetwork
     entryPoint : @main
     inputsInfo : {
-        // CHECK: IE.DataInfo "input" : memref<1x1000xf16>
-        IE.DataInfo "input" : memref<1x1000xf16>
+        // CHECK: IE.DataInfo "input" : tensor<1x1000xf16>
+        IE.DataInfo "input" : tensor<1x1000xf16>
     }
     outputsInfo : {
-        // CHECK: IE.DataInfo "softmax" : memref<1x1000xf16>
-        IE.DataInfo "softmax" : memref<1x1000xf16>
+        // CHECK: IE.DataInfo "softmax" : tensor<1x1000xf16>
+        IE.DataInfo "softmax" : tensor<1x1000xf16>
     }
 
 // CHECK:       func @main(
@@ -67,11 +67,11 @@ module @ConstantLayer {
 IE.CNNNetwork
     entryPoint : @main
     inputsInfo : {
-        IE.DataInfo "input" : memref<1x2x2x2xf16>
+        IE.DataInfo "input" : tensor<1x2x2x2xf16>
     }
     outputsInfo : {
-        IE.DataInfo "output1" : memref<1x2x2x2xf16>
-        IE.DataInfo "output2" : memref<1x2x2x2xf16>
+        IE.DataInfo "output1" : tensor<1x2x2x2xf16>
+        IE.DataInfo "output2" : tensor<1x2x2x2xf16>
     }
 
 // CHECK:       func @main(
@@ -148,7 +148,7 @@ IE.CNNNetwork
     inputsInfo : {
     }
     outputsInfo : {
-        IE.DataInfo "prob" : memref<1x2x4x2xf16>
+        IE.DataInfo "prob" : tensor<1x2x4x2xf16>
     }
 
 // CHECK:       func @main(

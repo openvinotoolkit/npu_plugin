@@ -15,7 +15,7 @@
 
 #include "vpux/compiler/core/attributes/dims_order.hpp"
 #include "vpux/compiler/dialect/VPUIP/blob_reader.hpp"
-#include "vpux/compiler/utils/extentions.hpp"
+#include "vpux/compiler/utils/analysis.hpp"
 
 #include "vpux/utils/IE/float16.hpp"
 #include "vpux/utils/core/mem_size.hpp"

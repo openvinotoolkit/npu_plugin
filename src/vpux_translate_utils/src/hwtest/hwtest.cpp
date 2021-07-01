@@ -401,31 +401,34 @@ void buildSimpleZMajorConv(mlir::ModuleOp module, mlir::OpBuilder builder, Logge
     cnnOp.outputsInfo().emplaceBlock();
 
     auto inputsInfoBuilder = mlir::OpBuilder::atBlockBegin(&cnnOp.inputsInfo().front(), builder.getListener());
-
-    for (size_t i = 0; i < num_inputs; ++i) {
-        const auto& inputName = "input_" + std::to_string(i);
-        const auto nameAttr = mlir::StringAttr::get(builder.getContext(), inputName);
+    for (auto i : irange(num_inputs)) {
         auto precision = inputType;
         if (precision.isa<mlir::quant::QuantizedType>()) {
             precision = mlir::quant::QuantizedType::castToStorageType(precision);
         }
-        const auto affineMaps = DimsOrder::NHWC.toAffineMapsList(builder.getContext(), Shape(in_shape));
-        const auto userTypeAttr =
-                mlir::TypeAttr::get(mlir::MemRefType::get(in_shape, precision, affineMaps, memSpaceAttr_in));
+
+        const auto tensor = getTensorType(in_shape, precision, DimsOrder::NHWC);
+
+        const auto inputName = llvm::formatv("input_{0}", i).str();
+        const auto nameAttr = mlir::StringAttr::get(builder.getContext(), inputName);
+
+        const auto userTypeAttr = mlir::TypeAttr::get(tensor);
         inputsInfoBuilder.create<IE::DataInfoOp>(builder.getUnknownLoc(), nameAttr, userTypeAttr);
     }
 
     auto outputsInfoBuilder = mlir::OpBuilder::atBlockBegin(&cnnOp.outputsInfo().front(), builder.getListener());
-    for (size_t i = 0; i < num_outputs; ++i) {
-        const auto& resultName = "output_" + std::to_string(i);
-        const auto nameAttr = mlir::StringAttr::get(builder.getContext(), resultName);
+    for (auto i : irange(num_outputs)) {
         auto precision = outputType;
         if (precision.isa<mlir::quant::QuantizedType>()) {
             precision = mlir::quant::QuantizedType::castToStorageType(precision);
         }
-        const auto affineMaps = DimsOrder::NHWC.toAffineMapsList(builder.getContext(), Shape(out_shape));
-        const auto userTypeAttr =
-                mlir::TypeAttr::get(mlir::MemRefType::get(out_shape, precision, affineMaps, memSpaceAttr_out));
+
+        const auto tensor = getTensorType(out_shape, precision, DimsOrder::NHWC);
+
+        const auto resultName = llvm::formatv("output_{0}", i).str();
+        const auto nameAttr = mlir::StringAttr::get(builder.getContext(), resultName);
+
+        const auto userTypeAttr = mlir::TypeAttr::get(tensor);
         outputsInfoBuilder.create<IE::DataInfoOp>(builder.getUnknownLoc(), nameAttr, userTypeAttr);
     }
 }

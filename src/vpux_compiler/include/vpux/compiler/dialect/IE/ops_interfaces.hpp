@@ -13,14 +13,16 @@
 
 #pragma once
 
-#include "vpux/utils/core/small_vector.hpp"
-
 #include "vpux/compiler/dialect/IE/attributes/structs.hpp"
+
+#include "vpux/utils/core/func_ref.hpp"
+#include "vpux/utils/core/optional.hpp"
+#include "vpux/utils/core/small_vector.hpp"
 
 #include <mlir/IR/DialectInterface.h>
 #include <mlir/IR/OpDefinition.h>
 #include <mlir/IR/Operation.h>
-#include <mlir/Interfaces/SideEffectInterfaces.h>
+#include <mlir/Interfaces/InferTypeOpInterface.h>
 
 namespace vpux {
 namespace IE {
@@ -29,13 +31,29 @@ namespace IE {
 // IELayer
 //
 
+using InferTypeComponentsCb = FuncRef<mlir::LogicalResult(mlir::MLIRContext*, Optional<mlir::Location>,
+                                                          mlir::ValueRange, mlir::DictionaryAttr, mlir::RegionRange,
+                                                          SmallVectorImpl<mlir::ShapedTypeComponents>&)>;
+
 mlir::LogicalResult verifyIELayerOp(mlir::Operation* op);
+
+mlir::LogicalResult inferTensorTypes(InferTypeComponentsCb componentsCb, mlir::MLIRContext* ctx,
+                                     Optional<mlir::Location> loc, mlir::ValueRange operands,
+                                     mlir::DictionaryAttr attrs, mlir::RegionRange regions,
+                                     SmallVectorImpl<mlir::Type>& inferredTypes);
 
 template <typename ConcreteOp>
 class IELayer : public mlir::OpTrait::TraitBase<ConcreteOp, IELayer> {
 public:
     static mlir::LogicalResult verifyTrait(mlir::Operation* op) {
         return verifyIELayerOp(op);
+    }
+
+    static mlir::LogicalResult inferReturnTypes(mlir::MLIRContext* ctx, Optional<mlir::Location> loc,
+                                                mlir::ValueRange operands, mlir::DictionaryAttr attrs,
+                                                mlir::RegionRange regions, SmallVectorImpl<mlir::Type>& inferredTypes) {
+        return inferTensorTypes(ConcreteOp::inferReturnTypeComponents, ctx, loc, operands, attrs, regions,
+                                inferredTypes);
     }
 };
 

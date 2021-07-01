@@ -14,6 +14,7 @@
 #include "vpux/compiler/dialect/const/attributes/content.hpp"
 #include "vpux/compiler/utils/quantization.hpp"
 #include "vpux/compiler/utils/subspaces.hpp"
+#include "vpux/compiler/utils/types.hpp"
 
 #include "vpux/utils/IE/loop.hpp"
 #include "vpux/utils/core/format.hpp"
@@ -31,7 +32,7 @@ mlir::ShapedType vpux::Const::DequantizeAttr::inferOutputType(mlir::ShapedType i
     const auto qElemType = input.getElementType().dyn_cast<mlir::quant::QuantizedType>();
     VPUX_THROW_UNLESS(qElemType != nullptr, "Got non quantized type '{0}' in 'DequantizeAttr'");
 
-    return input.clone(qElemType.getExpressedType());
+    return changeElemType(input, qElemType.getExpressedType());
 }
 
 //

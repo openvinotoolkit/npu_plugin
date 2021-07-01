@@ -17,9 +17,9 @@
 #include "vpux/compiler/core/attributes/shape.hpp"
 #include "vpux/compiler/core/attributes/stride_reqs.hpp"
 #include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
+#include "vpux/compiler/utils/analysis.hpp"
 
 #include <llvm/ADT/TypeSwitch.h>
-#include <vpux/compiler/utils/extentions.hpp>
 
 using namespace vpux;
 

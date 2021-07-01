@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -15,25 +15,6 @@
 #define VPUX_COMPILER_CORE_OPS_INTERFACES
 
 include "mlir/IR/OpBase.td"
-
-//
-// InferReturnTypesForLayer
-//
-
-class InferReturnTypesForLayer<int numResult> {
-    code impl = [{
-        static ::mlir::LogicalResult inferReturnTypes(
-                ::mlir::MLIRContext *context,
-                ::llvm::Optional<::mlir::Location> location,
-                ::mlir::ValueRange operands,
-                ::mlir::DictionaryAttr attributes,
-                ::mlir::RegionRange regions,
-                ::llvm::SmallVectorImpl<::mlir::Type>& inferredReturnTypes) {
-            inferRTLayerReturnTypes(operands, }] #numResult# [{, inferredReturnTypes);
-            return ::mlir::success();
-        }
-    }];
-}
 
 //
 // MultiViewOpInterface
@@ -55,13 +36,9 @@ def MultiViewOpInterface : OpInterface<"MultiViewOpInterface"> {
     ];
 }
 
-//
-// RTLayer
-//
-
-def RTLayer : NativeOpTrait<"RTLayer"> {
-    let cppNamespace = "vpux";
-}
+//===========================================================================================
+// Generic layer interfaces and traits
+//===========================================================================================
 
 //
 // LayerInterface
@@ -102,6 +79,97 @@ def LayerInterface : OpInterface<"LayerInterface"> {
         return vpux::verifyLayer($_op);
     }];
 }
+
+//
+// SameShape
+//
+
+def SameShape : NativeOpTrait<"SameShape"> {
+    let cppNamespace = "vpux";
+}
+
+//
+// SameElementType
+//
+
+def SameElementType : NativeOpTrait<"SameElementType"> {
+    let cppNamespace = "vpux";
+}
+
+//
+// SameDimsOrder
+//
+
+def SameDimsOrder : NativeOpTrait<"SameDimsOrder"> {
+    let cppNamespace = "vpux";
+}
+
+//
+// SameInOutDimsOrder
+//
+
+def SameInOutDimsOrder : NativeOpTrait<"SameInOutDimsOrder"> {
+    let cppNamespace = "vpux";
+}
+
+//
+// SameInOutDimsOrder_NCHW_NHWC
+//
+
+def SameInOutDimsOrder_NCHW_NHWC : NativeOpTrait<"SameInOutDimsOrder_NCHW_NHWC"> {
+    let cppNamespace = "vpux";
+}
+
+//
+// SameInOutDimsOrder_CHW_HWC_NCHW_NHWC
+//
+
+def SameInOutDimsOrder_CHW_HWC_NCHW_NHWC : NativeOpTrait<"SameInOutDimsOrder_CHW_HWC_NCHW_NHWC"> {
+    let cppNamespace = "vpux";
+}
+
+//
+// AnyDimsOrder
+//
+
+def AnyDimsOrder : NativeOpTrait<"AnyDimsOrder"> {
+    let cppNamespace = "vpux";
+}
+
+//===========================================================================================
+// Run-time layer interfaces and traits
+//===========================================================================================
+
+//
+// RTLayer
+//
+
+def RTLayer : NativeOpTrait<"RTLayer"> {
+    let cppNamespace = "vpux";
+}
+
+//
+// InferReturnTypesForRTLayer
+//
+
+class InferReturnTypesForRTLayer<int numResult> {
+    code impl = [{
+        static mlir::LogicalResult inferReturnTypes(
+                mlir::MLIRContext*,
+                llvm::Optional<mlir::Location>,
+                mlir::ValueRange operands,
+                mlir::DictionaryAttr,
+                mlir::RegionRange,
+                llvm::SmallVectorImpl<mlir::Type>& inferredReturnTypes) {
+            vpux::inferRTLayerReturnTypes(operands, }] #numResult# [{, inferredReturnTypes);
+            return mlir::success();
+        }
+    }];
+}
+
+//===========================================================================================
+// Specific per-layer interfaces
+//===========================================================================================
 
 //
 // ConvertLayerInterface
@@ -281,6 +349,9 @@ def ConvolutionLayerInterface : OpInterface<"ConvolutionLayerInterface"> {
     ];
 }
 
+//
+// TensorInterface_4D
+//
 
 def TensorInterface_4D : OpInterface<"TensorInterface_4D"> {
     let description = "Interface for getting tensor DIM infromation";

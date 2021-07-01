@@ -154,9 +154,12 @@ void BlobReader::parseUserInputsOutputs(OpBuilderLogger& builderLog, IE::CNNNetw
             if (const auto* tensorReference = ioTensorDescriptors->Get(j)) {
                 const auto& inputName = tensorReference->name();
 
+                const auto memref = parseTensorRef(tensorReference);
+                const auto tensor =
+                        getTensorType(memref.getShape(), memref.getElementType(), DimsOrder::fromType(memref));
+
                 const auto nameAttr = mlir::StringAttr::get(_ctx, inputName->str());
-                const auto memRef = parseTensorRef(tensorReference);
-                const auto userTypeAttr = mlir::TypeAttr::get(memRef);
+                const auto userTypeAttr = mlir::TypeAttr::get(tensor);
 
                 builder.create<IE::DataInfoOp>(mlir::UnknownLoc::get(_ctx), nameAttr, userTypeAttr);
             } else {

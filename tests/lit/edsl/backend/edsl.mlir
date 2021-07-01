@@ -36,11 +36,11 @@ VPUIP.Graph
 IE.CNNNetwork
     entryPoint : @main
     inputsInfo : {
-        IE.DataInfo "data0" : memref<1x256x256x16xf16>
-        IE.DataInfo "data1" : memref<1x256x256x16xf16>
+        IE.DataInfo "data0" : tensor<1x256x256x16xf16>
+        IE.DataInfo "data1" : tensor<1x256x256x16xf16>
     }
     outputsInfo : {
-        IE.DataInfo "prob" : memref<1x256x256x16xf16>
+        IE.DataInfo "prob" : tensor<1x256x256x16xf16>
     }
 
 func @main(%arg0: memref<1x256x256x16xf16>, %arg1: memref<1x256x256x16xf16>, %arg2: memref<1x256x256x16xf16>) -> memref<1x256x256x16xf16> {
