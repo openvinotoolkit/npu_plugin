@@ -179,7 +179,7 @@ void moveTensorToSameMemLoc(mv::OpModel& om, mv::Data::OpListIterator opIt, std:
         auto targetT = mv::insertDMAReplacementRemoveFlows(om, opIt, intermediaryT,
                 dmaDirectionStrings[intermediaryStr + "2" + targetStr], 0,
                 {flow}, {flow->get<std::size_t>("sinkInput")}, {sink},
-                sink->getName() + "_to" + targetStr);
+                flow.source()->getName() + "_" + sink->getName() + "_to" + targetStr);
         targetT->set<mv::Tensor::MemoryLocation>("Location", target);
         om.getSourceOp(targetT)->set<bool>("explicitRelocate", true);
     }
