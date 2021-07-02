@@ -354,7 +354,8 @@ void fuseSliceSliceFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
             sinkFlow.sink()->set<mv::Shape>("begin", new_begin);
             pass.log(mv::Logger::MessageType::Debug, "Adjust slice begin: " + sinkFlow.sink()->getName());
             auto last_slice = (slice_num == sliceOp.childrenSize()-1);
-            if (last_slice)
+            // Check if this is last child slice, but discard case if this is the only slice.
+            if (last_slice && slice_num)
             {
                 // Adjust last slice's size
                 auto tensorSize = sinkFlow.sink()->get<mv::Shape>("size");
