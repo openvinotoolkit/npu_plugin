@@ -38,10 +38,6 @@ The pass is a part of `LowPrecision` pipeline.
 
 It merges pair `quant.qcast -> quant.dcast` into single `IE.FakeQuantize`.
 The pass is used as a fallback to FP16 computations for the cases, where quantized types where not used by layers.
-### `-quantize-const`: Quantize constant tensors
-The pass is a part of `LowPrecision` pipeline.
-
-It performs constant folding for `Constant -> quant.qcast` case.
 ### `-resolve-strided-slice`: Decouple strided slice to slice + reshape
 The pass is a part of `AdjustForVPU` pipeline.
 

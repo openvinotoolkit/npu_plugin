@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -12,6 +12,7 @@
 //
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
+#include "vpux/compiler/dialect/const/ops.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
 
@@ -31,12 +32,17 @@ mlir::LogicalResult vpux::IE::GatherOp::inferReturnTypeComponents(
     const auto inputShape = inType.getShape();
     const auto indicesShape = gather.indices().getType().cast<mlir::ShapedType>().getShape();
 
-    auto axisConst = gather.axis().getDefiningOp<ConstantInterface>();
+    auto axisConst = gather.axis().getDefiningOp<Const::DeclareOp>();
     if (axisConst == nullptr) {
-        return errorAt(loc, "Only constant input is supported for axis");
+        return errorAt(loc, "Only constant input is supported for 'axis'");
     }
 
-    const auto axis = axisConst.getContent().getValues<int64_t>()[0];
+    const auto axisContent = axisConst.content();
+    if (!axisContent.isSplat()) {
+        return errorAt(loc, "Only splat input is supported for 'axis'");
+    }
+
+    const auto axis = axisContent.getSplatValue<int64_t>();
 
     SmallVector<int64_t> outShape;
     outShape.reserve(inputShape.size() + indicesShape.size() - 1);

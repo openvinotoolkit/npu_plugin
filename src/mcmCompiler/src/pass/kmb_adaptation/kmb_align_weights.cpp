@@ -48,6 +48,13 @@ void alignTaskWeightsFcn(const mv::pass::PassEntry& , mv::ComputationModel& mode
         bool hasAtLeastOneDPUTask = false;
         bool hasAtLeastOneUPATask = false;
         bool hasSliceOp = false;
+
+        /* Skip if constant is instruction list table */
+        if(kernelOp->getOutputTensor(mv::IO_TENSOR_OUTPUT)->hasAttr("instructionListTable") && kernelOp->getOutputTensor(mv::IO_TENSOR_OUTPUT)->get<bool>("instructionListTable"))
+        {
+            continue;
+        }
+
         std::string dpuTaskType;
         for(auto opIt = kernelOp.leftmostChild(); opIt != om.opEnd(); ++opIt)
         {

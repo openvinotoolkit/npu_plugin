@@ -12,6 +12,7 @@
 //
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
+#include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
@@ -27,13 +28,13 @@ using namespace vpux;
 namespace {
 
 mlir::FailureOr<llvm::SmallVector<int64_t>> constInputToData(mlir::Location loc, mlir::Value input) {
-    auto constantData = input.getDefiningOp<ConstantInterface>();
-
-    if (constantData == nullptr) {
+    auto constantOp = input.getDefiningOp<Const::DeclareOp>();
+    if (constantOp == nullptr) {
         return errorAt(loc, "Only constant input is supported");
     }
 
-    return to_small_vector(constantData.getContent().getValues<int64_t>());
+    const auto content = constantOp.content();
+    return to_small_vector(content.getValues<int64_t>());
 }
 
 struct StridedSliceInputData {

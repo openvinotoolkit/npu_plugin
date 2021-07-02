@@ -12,32 +12,14 @@
 //
 
 #include "vpux/compiler/conversion.hpp"
+#include "vpux/compiler/dialect/VPUIP/ops.hpp"
+#include "vpux/compiler/dialect/const/ops.hpp"
 
 #include <mlir/Transforms/DialectConversion.h>
 
 using namespace vpux;
 
 namespace {
-
-//
-// Constant locale index manipulation
-//
-
-constexpr StringLiteral constLocaleIndex = "const_locale_index";
-
-void setConstLocaleIndex(IERT::ConstantOp op, uint32_t ind) {
-    op->setAttr(constLocaleIndex, getInt32Attr(op->getContext(), ind));
-}
-
-uint32_t getConstLocaleIndex(mlir::Value val) {
-    auto* op = val.getDefiningOp();
-    VPUX_THROW_UNLESS(op != nullptr, "Can't get producer for Value '{0}'", val);
-
-    const auto attr = op->getAttrOfType<mlir::IntegerAttr>(constLocaleIndex);
-    VPUX_THROW_UNLESS(attr != nullptr, "Can't get attribute '{0}' for Value '{1}'", constLocaleIndex, val);
-
-    return checked_cast<uint32_t>(attr.getInt());
-}
 
 //
 // Generated
@@ -63,12 +45,9 @@ void ConvertDeclarations2VPUIPPass::safeRunOnFunc() {
     auto& ctx = getContext();
     auto func = getFunction();
 
-    for (auto p : func.getOps<IERT::ConstantOp>() | indexed) {
-        setConstLocaleIndex(p.value(), checked_cast<uint32_t>(p.index()));
-    }
-
     mlir::ConversionTarget target(ctx);
     target.addLegalDialect<mlir::async::AsyncDialect>();
+    target.addLegalDialect<Const::ConstDialect>();
     target.addLegalDialect<VPUIP::VPUIPDialect>();
     target.addLegalOp<mlir::FuncOp, mlir::ReturnOp>();
     target.addLegalOp<IERT::GenericReshapeOp, IERT::ConcatViewOp, mlir::memref::SubViewOp>();

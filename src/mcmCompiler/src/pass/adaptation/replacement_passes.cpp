@@ -1468,15 +1468,19 @@ void replacePermuteReshapePermutePatternFcn(const mv::pass::PassEntry& , mv::Com
             auto reshapeShape = reshapeOp->getOutputTensor(mv::IO_TENSOR_OUTPUT)->getShape();
             auto outputShape = permute2Op->getOutputTensor(mv::IO_TENSOR_OUTPUT)->getShape();
 
+
+
+            const bool case1 = (permuteOp->get<mv::Order>("order") == mv::Order("CWHN")) &&
+                               (permute2Op->get<mv::Order>("order") == mv::Order("HCWN")) &&
+                               (permuteShape[mv::IO_CHANNEL_DIMENSION] == reshapeShape[mv::IO_CHANNEL_DIMENSION]) &&
+                               (permuteShape[mv::IO_HEIGHT_DIMENSION] == reshapeShape[mv::IO_HEIGHT_DIMENSION]/2) &&
+                               (permuteShape[mv::IO_WIDTH_DIMENSION]/2 == reshapeShape[mv::IO_WIDTH_DIMENSION]);
+
+            const bool case2 = (permuteShape[mv::IO_CHANNEL_DIMENSION] == reshapeShape[mv::IO_CHANNEL_DIMENSION]/2) &&
+                               (permuteShape[mv::IO_HEIGHT_DIMENSION] == reshapeShape[mv::IO_HEIGHT_DIMENSION]) &&
+                               (permuteShape[mv::IO_WIDTH_DIMENSION]/2 == reshapeShape[mv::IO_WIDTH_DIMENSION]);
             // Verify compatible orders/shapes pattern
-            if (!(permuteOp->get<mv::Order>("order") == mv::Order("CWHN") &&
-                  permute2Op->get<mv::Order>("order") == mv::Order("HCWN") &&
-                  (permuteShape[mv::IO_CHANNEL_DIMENSION] == reshapeShape[mv::IO_CHANNEL_DIMENSION] &&
-                   permuteShape[mv::IO_HEIGHT_DIMENSION] == reshapeShape[mv::IO_HEIGHT_DIMENSION]/2 &&
-                   permuteShape[mv::IO_WIDTH_DIMENSION]/2 == reshapeShape[mv::IO_WIDTH_DIMENSION]) ||
-                  (permuteShape[mv::IO_CHANNEL_DIMENSION] == reshapeShape[mv::IO_CHANNEL_DIMENSION]/2 &&
-                   permuteShape[mv::IO_HEIGHT_DIMENSION] == reshapeShape[mv::IO_HEIGHT_DIMENSION] &&
-                   permuteShape[mv::IO_WIDTH_DIMENSION]/2 == reshapeShape[mv::IO_WIDTH_DIMENSION])))
+            if (!(case1 || case2))
                 continue;
 
             auto name = reshapeOp->getName();
@@ -1747,7 +1751,6 @@ void replaceLargeKernelsFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
         auto inputShape = sourceTensor->getShape();
         auto outputShape = opIt->getOutputTensor()[0]->getShape();
 
-        std::vector<std::pair<unsigned short, unsigned short>> allFactors;
         std::pair<unsigned short, unsigned short> factors;
         std::pair<unsigned short, unsigned short> factorsDim2;
 
@@ -2037,13 +2040,9 @@ mv::Data::OpListIterator  splitOperationSlicingFixedWidthHeight ( mv::Computatio
 
     std::array<unsigned short, 4> initialPadding = operation->get<std::array<unsigned short, 4>>("padding");
     std::array<unsigned short, 4> padding = initialPadding;
-    std::size_t branchWidth, branchHeight;
-    mv::Shape beginInputShape, branchInputSize; //coordinates to slice
+    mv::Shape beginInputShape; // coordinates to slice
     //if strides bigger than supported stride, replace the operation with big strides by the chunks of operations with strides of a batch
 
-    branchWidth = stride[mv::STRIDE_HORIZONTAL];//no overlap
-    branchHeight = stride[mv::STRIDE_VERTICAL];//no overlap
-    branchInputSize = {branchWidth, branchHeight, inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION], inputTensor->getShape()[mv::IO_BATCH_DIMENSION]};
     padding = {0, 0, 0, 0};
     //sliced op iteratively and the vector
     mv::Data::TensorIterator op;
@@ -2947,27 +2946,27 @@ void resampleWithStorageElementPointerTable(const mv::pass::PassEntry&, mv::Comp
             }
 
             // Populate identity weights
-            mv::Data::TensorIterator weights;
-            int64_t weightsValue = 1;
+            const int64_t weightsValue_i = 1;
             auto K = inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION];
-            std::vector<int64_t> weightsData(K*K, 0);
+            std::vector<int64_t> weightsData_i(K*K, 0);
             for (auto i = 0u; i < K; ++i)
-                weightsData.at(i*(K+1)) = weightsValue;
-            weights = om.constantInt("",
-                                weightsData,
+                weightsData_i.at(i*(K+1)) = weightsValue_i;
+            mv::Data::TensorIterator weights_i = om.constantInt("",
+                                weightsData_i,
                                 {1, 1, K, K},
                                 mv::DType("UInt8"),
                                 mv::Order(mv::Order::getRowMajorID(4)));
-            weights->setQuantParams(mv::QuantizationParams({0},{1.0},{0},{255}));
+            weights_i->setQuantParams(mv::QuantizationParams({0},{1.0},{0},{255}));
 
             // Insert identity Conv
-            auto identityConv = om.conv(opIt->getName() + "_identityConv", outputTensor, weights, {1,1}, {0, 0, 0, 0}, 1);
+            auto identityConv = om.conv(opIt->getName() + "_identityConv", outputTensor, weights_i, {1,1}, {0, 0, 0, 0}, 1);
             identityConv->setDType(mv::DType("UInt8"));
             identityConv->setQuantParams(outQuantParams);
             auto identityConvOp = om.getSourceOp(identityConv);
-            auto weightsOp = om.getSourceOp(weights);
+
+            auto weightsOp_i = om.getSourceOp(weights_i);
             identityConvOp->set<unsigned>("opId", childOpIt->get<unsigned>("opId"));
-            weightsOp->set<unsigned>("opId", childOpIt->get<unsigned>("opId"));
+            weightsOp_i->set<unsigned>("opId", childOpIt->get<unsigned>("opId"));
 
             om.undefineFlow(inputFlow);
             childOpIt->setInputTensor(identityConv, port_num, false);

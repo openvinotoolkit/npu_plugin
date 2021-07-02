@@ -15,11 +15,12 @@
 #define VPUX_COMPILER_DIALECT_VPUIP_OPS
 
 include "vpux/compiler/core/ops_interfaces.td"
+include "vpux/compiler/dialect/const/attributes.td"
 include "vpux/compiler/dialect/IE/attributes.td"
-include "vpux/compiler/dialect/VPUIP/dialect.td"
-include "vpux/compiler/dialect/VPUIP/types.td"
 include "vpux/compiler/dialect/VPUIP/attributes.td"
+include "vpux/compiler/dialect/VPUIP/dialect.td"
 include "vpux/compiler/dialect/VPUIP/ops_interfaces.td"
+include "vpux/compiler/dialect/VPUIP/types.td"
 
 include "mlir/Dialect/Quant/QuantOpsBase.td"
 include "mlir/Interfaces/CopyOpInterface.td"
@@ -155,45 +156,6 @@ def VPUIP_DeclareTensorOp :
     let extraClassDeclaration = [{
         static mlir::ParseResult parseLocaleIndex(mlir::OpAsmParser& parser, mlir::ArrayAttr& localeIndex);
         static void printLocaleIndex(mlir::OpAsmPrinter& printer, vpux::VPUIP::DeclareTensorOp& op, mlir::ArrayAttr localeIndex);
-    }];
-}
-
-//
-// DeclareConstantTensorOp
-//
-
-def VPUIP_DeclareConstantTensorOp :
-        VPUIP_Op<
-            "DeclareConstantTensor",
-            [
-                ConstantLike,
-                DeclareOpInterfaceMethods<ConstantInterface>
-            ]
-        > {
-    let summary = "Constant TensorReference value declaration";
-
-    let arguments = (ins
-        ElementsAttr:$value,
-        I32Attr:$localeIndex,
-        UnitAttr:$csramCacheable
-    );
-
-    let results = (outs
-        AnyStaticShapeMemRef:$output
-    );
-
-    let builders = [
-        OpBuilder<
-            (ins "mlir::MemRefType":$type, "mlir::ElementsAttr":$value, "uint32_t":$localeIndex)
-        >
-    ];
-
-    let verifier = [{
-        return vpux::VPUIP::verifyOp(*this);
-    }];
-
-    let assemblyFormat = [{
-        `[` $localeIndex `]` attr-dict type($output) `=` $value
     }];
 }
 
@@ -1027,10 +989,10 @@ def VPUIP_FakeQuantizeUPAOp :
         Variadic<VPUIP_Barrier>:$updateBarriers,
 
         I32Attr:$levels,
-        ElementsAttr:$input_low,
-        ElementsAttr:$input_high,
-        ElementsAttr:$output_low,
-        ElementsAttr:$output_high,
+        Const_ContentAttr:$input_low,
+        Const_ContentAttr:$input_high,
+        Const_ContentAttr:$output_low,
+        Const_ContentAttr:$output_high,
 
         OptionalAttr<I32Attr>:$maxShaves,
         UnitAttr:$isTrailingSWLayer
@@ -1045,8 +1007,8 @@ def VPUIP_FakeQuantizeUPAOp :
             (ins
                 "mlir::Value":$input, "mlir::Value":$output,
                 "uint32_t":$levels,
-                "mlir::ElementsAttr":$input_low, "mlir::ElementsAttr":$input_high,
-                "mlir::ElementsAttr":$output_low, "mlir::ElementsAttr":$output_high
+                "vpux::Const::ContentAttr":$input_low, "vpux::Const::ContentAttr":$input_high,
+                "vpux::Const::ContentAttr":$output_low, "vpux::Const::ContentAttr":$output_high
             )
         >
     ];
@@ -1673,6 +1635,37 @@ def VPUIP_PermuteUPAOp :
 }
 
 //
+// WeightsTableOp
+//
+
+def VPUIP_WeightsTableOp :
+        VPUIP_Op<"WeightsTableOp",
+            [
+                AttrSizedOperandSegments,
+            ]
+        > {
+    let summary = "Intermediate task for creating weights table based on the addresses of CMX buffers";
+
+    let arguments = (ins
+        Optional<MemRefOf<[F16, quant_QuantizedType]>>:$weights,
+        Optional<MemRefOf<[F16, F32]>>:$bias,
+        Optional<MemRefOf<[UI8]>>:$activation_window
+    );
+
+    let results = (outs
+        MemRefOf<[SI32]>:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        (`weights` `(` $weights^  `:` type($weights) `)`)?
+        (`bias` `(` $bias^  `:` type($bias) `)`)?
+        (`activation_window` `(` $activation_window^  `:` type($activation_window) `)`)?
+        `->` type(results)
+    }];
+}
+
+//
 // DPUTaskOp
 //
 
@@ -2167,6 +2160,56 @@ def VPUIP_StridedSliceUPAOp :
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+        `->` type(results)
+    }];
+}
+
+//
+// FullyConnectedUPAOp
+//
+
+def VPUIP_FullyConnectedUPAOp :
+        VPUIP_UPATaskOp<1, "FullyConnectedUPA",
+            [
+                ViewLikeOpInterface
+            ]
+        > {
+    let summary = "FullyConnected UPA SHAVE kernel";
+
+    let arguments = (ins
+        F16MemRef:$input,
+        F16MemRef:$weights,
+        Optional<F16MemRef>:$bias,
+        F16MemRef:$output_buff,
+
+        Variadic<VPUIP_Barrier>:$waitBarriers,
+        Variadic<VPUIP_Barrier>:$updateBarriers,
+        OptionalAttr<I32Attr>:$maxShaves,
+        UnitAttr:$isTrailingSWLayer
+    );
+
+    let results = (outs
+        F16MemRef:$output
+    );
+
+    let builders = [
+        OpBuilder<
+            (ins
+                "mlir::Value":$input, "mlir::Value":$weights, "mlir::Value":$bias, "mlir::Value":$output
+            )
+        >
+    ];
+
+    let extraClassDeclaration = [{
+        static mlir::LogicalResult isSupportedLayout(mlir::Operation* op, vpux::DataOrderInfo& info);
+    }] # commonExtraClassDeclaration;
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `,` $weights `:` type($weights) (`,` $bias^ `:` type($bias))? `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
         (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
         (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?

@@ -1,5 +1,5 @@
-
-// Copyright 2020 Intel Corporation.
+//
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -12,6 +12,7 @@
 //
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
+#include "vpux/compiler/dialect/const/ops.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
 
@@ -30,13 +31,13 @@ mlir::LogicalResult vpux::IE::TopKOp::inferReturnTypeComponents(
     const auto inType = topK.input().getType().cast<mlir::ShapedType>();
     const auto inputShape = inType.getShape();
 
-    auto kConst = topK.k().getDefiningOp<ConstantInterface>();
+    auto kConst = topK.k().getDefiningOp<Const::DeclareOp>();
     if (kConst == nullptr) {
         return errorAt(loc, "Only constant input is supported for k");
     }
 
-    const auto kVals = kConst.getContent().getValues<int64_t>();
-    if (kVals.size() != 1) {
+    const auto kContent = kConst.content();
+    if (!kContent.isSplat()) {
         return errorAt(loc, "K input must be scalar");
     }
 
@@ -44,7 +45,7 @@ mlir::LogicalResult vpux::IE::TopKOp::inferReturnTypeComponents(
     for (size_t i = 0; i < inputShape.size(); ++i) {
         outShape.push_back(inputShape[i]);
     }
-    outShape[topK.axis().getInt()] = kVals[0];
+    outShape[topK.axis().getInt()] = kContent.getSplatValue<int64_t>();
 
     inferredReturnShapes.emplace_back(outShape, inType.getElementType());
     inferredReturnShapes.emplace_back(outShape, topK.element_type().getValue());

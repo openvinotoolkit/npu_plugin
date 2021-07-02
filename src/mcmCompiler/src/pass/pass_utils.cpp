@@ -393,7 +393,7 @@ mv::Data::TensorIterator mv::dequantizeWeightsToFP16(
 }
 
 //template <class T>
-//std::vector<T> extendToK(size_t size, std::vector<T> value, std::string tensorName)
+//std::vector<T> extendToK(size_t size, std::vector<T> value, const std::string& tensorName)
 //{
 //    if (value.size() == 1)
 //        return mv::utils::generateSequence<T>(size, static_cast<T>(value[0]) , 0);
@@ -415,7 +415,7 @@ mv::Data::TensorIterator mv::dequantizeWeightsToFP16(
 //                std::to_string(value.size()));
 //}
 
-std::vector<double> extendToK(size_t size, std::vector<double> value, std::string tensorName)
+std::vector<double> extendToK(size_t size, std::vector<double> value, const std::string& tensorName)
 {
     if (value.size() == 1)
         return mv::utils::generateSequence<double>(size, static_cast<double>(value[0]) , 0);
@@ -425,7 +425,7 @@ std::vector<double> extendToK(size_t size, std::vector<double> value, std::strin
     if (value.size() < size)
     {
         auto toReturn = mv::utils::generateSequence<double>(size, static_cast<double>(0) , 0);
-        for(unsigned i = 0; i < value.size(); ++i)
+        for(std::size_t i = 0; i < value.size(); ++i)
             toReturn[i] = value[i];
         return toReturn;
     }
@@ -437,7 +437,7 @@ std::vector<double> extendToK(size_t size, std::vector<double> value, std::strin
                 std::to_string(value.size()));
 }
 
-std::vector<int64_t> extendToK(size_t size, std::vector<int64_t> value, std::string tensorName)
+std::vector<int64_t> extendToK(size_t size, std::vector<int64_t> value, const std::string& tensorName)
 {
     if (value.size() == 1)
         return mv::utils::generateSequence<int64_t>(size, static_cast<int64_t>(value[0]) , 0);
@@ -447,7 +447,7 @@ std::vector<int64_t> extendToK(size_t size, std::vector<int64_t> value, std::str
     if (value.size() < size)
     {
         auto toReturn = mv::utils::generateSequence<int64_t>(size, static_cast<int64_t>(0) , 0);
-        for(unsigned i = 0; i < value.size(); ++i)
+        for(std::size_t i = 0; i < value.size(); ++i)
             toReturn[i] = value[i];
         return toReturn;
     }
@@ -550,15 +550,6 @@ bool mv::checkPPEAccuracy(mv::ComputationModel& model) {
             PPEAccuracy = true;
     }
     return PPEAccuracy;
-}
-
-std::vector<std::string>::const_iterator mv::findIsDPUPwlPostOp(const std::vector<std::string>& postOps, const mv::TargetDescriptor& td) {
-    for (auto itr = postOps.begin(); itr != postOps.end(); ++itr) {
-        if(td.isDpuPwl(*itr)) {
-            return itr;
-        }
-    }
-    return postOps.end();
 }
 
 bool mv::matchPattern(const std::vector<std::string>& pattern, mv::Data::OpListIterator it, mv::ComputationModel& model) {

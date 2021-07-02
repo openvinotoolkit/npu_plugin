@@ -15,8 +15,8 @@
 
 #include <ie_memcpy.h>
 
-#include <condition_variable>
 #include <cstring>  // std::memcpy for pointer-only args
+#include <map>
 #include <memory>
 #include <string>
 #include <utility>
@@ -80,7 +80,7 @@ protected:
                   _context(other._context) {
             other._size = 0;
             other._data = nullptr;
-        };
+        }
         hostMem& operator=(const hostMem&) = delete;
         hostMem& operator=(hostMem&&) = delete;
 
@@ -199,9 +199,9 @@ protected:
         fence(const fence&) = delete;
         fence& operator=(const fence&) = delete;
         void reset();
-        void hostSynchronize(uint32_t fence_value);
-        void deviceSynchronize(const std::shared_ptr<commandQueue>& queue, uint32_t fence_value);
-        void deviceSignal(uint32_t fence_value);
+        void hostSynchronize(uint64_t fence_value);
+        void deviceSynchronize(const std::shared_ptr<commandQueue>& queue, uint64_t fence_value);
+        void deviceSignal(uint64_t fence_value);
         ~fence();
         ze_fence_handle_t _handle = nullptr;
         ze_fence_dditable_ext_t* _fence_ddi_table_ext = nullptr;
@@ -215,7 +215,7 @@ protected:
 
         ~eventPool_t() {
             zeEventPoolDestroy(_handle);
-        };
+        }
 
         const uint32_t _event_count;
         ze_event_pool_handle_t _handle = nullptr;
@@ -232,7 +232,7 @@ protected:
 
         ~event_t() {
             zeEventDestroy(_handle);
-        };
+        }
         ze_device_handle_t _device_t = nullptr;
         ze_context_handle_t _context = nullptr;
 
@@ -262,7 +262,7 @@ protected:
         std::shared_ptr<commandQueue> _command_queue;
         commandList _command_list;
         std::shared_ptr<fence> _fence;
-        uint32_t _fence_value;
+        uint64_t _fence_value;
 
         ze_graph_dditable_ext_t* _graph_ddi_table_ext = nullptr;
     };
@@ -296,9 +296,8 @@ private:
     ze_graph_dditable_ext_t* _graph_ddi_table_ext = nullptr;
     ze_fence_dditable_ext_t* _fence_ddi_table_ext = nullptr;
 
-    uint32_t _push_count;
-    uint32_t _pull_count;
-    uint32_t _perf_count;
+    uint64_t _push_count;
+    uint64_t _pull_count;
 
     NetworkDescription::Ptr _networkDesc;
 

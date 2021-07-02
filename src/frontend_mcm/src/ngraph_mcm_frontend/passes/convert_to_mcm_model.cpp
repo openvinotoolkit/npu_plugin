@@ -105,7 +105,13 @@
 #include <ngraph/op/space_to_depth.hpp>
 #include <ngraph/op/squared_difference.hpp>
 #include <ngraph/op/depth_to_space.hpp>
+
 #include <ngraph/op/equal.hpp>
+#include <ngraph/op/not_equal.hpp>
+#include <ngraph/op/greater.hpp>
+#include <ngraph/op/greater_eq.hpp>
+#include <ngraph/op/less.hpp>
+#include <ngraph/op/less_eq.hpp>
 
 #include <legacy/ngraph_ops/interp.hpp>
 #include <legacy/ngraph_ops/lrn_ie.hpp>
@@ -129,6 +135,7 @@
 #include <algorithm>
 
 #include <include/mcm/tensor/tiling.hpp>
+#include <include/mcm/pass/pass_utils.hpp>
 #include <converters.hpp>
 #include <custom_layer/custom_layer.hpp>
 
@@ -1396,9 +1403,12 @@ void convert(std::shared_ptr<ngraph::op::DeconvolutionIE> deconvIE, mv::OpModel&
     } else {
         const mv::Shape mcmShape = {static_cast<uint64_t>(kernelSizeY), static_cast<uint64_t>(kernelSizeX), inputGroupSize, outputGroupSize};
 
-        const auto ngraphWeights = std::dynamic_pointer_cast<ngraph::op::Constant>(deconvIE->input_value(1).get_node_shared_ptr());
-        IE_ASSERT(nullptr != ngraphWeights);
-        const std::vector<double> weightsData = ngraphWeights->cast_vector<double>();
+        auto weightSourceOp = mcmModel.getSourceOp(mcmWeights);
+        bool is_quantized = weightSourceOp->getOpType() == "FakeQuantize";
+        std::vector<double> weightsData = is_quantized
+                ? weightSourceOp->getInputTensor(mv::IO_TENSOR_INPUT)->getDoubleData()
+                : mcmWeights->getDoubleData();
+
         std::vector<double> weightsDataReorder(weightsData.size());
 
         for (size_t k = 0; k < outputGroupSize; k++)
@@ -1412,10 +1422,14 @@ void convert(std::shared_ptr<ngraph::op::DeconvolutionIE> deconvIE, mv::OpModel&
                         weightsDataReorder[dst_idx] = weightsData[src_idx];
                     }
 
-        mcmModel.removeOp(mcmModel.getSourceOp(mcmWeights));
         const auto mcmWeightsReordered = mcmModel.constant("", weightsDataReorder, mcmShape, mv::DType("Float32"), mv::Order("NCHW"));
+        mv::linkNewOperationsReplacement(mv::Data::OpListIterator(), mcmWeightsReordered, mcmModel,
+                                         !is_quantized ? weightSourceOp
+                                                       : mcmModel.getSourceOp(weightSourceOp->getInputTensor(mv::IO_TENSOR_INPUT)));
+        if (is_quantized)
+           mcmWeights->setShape(mcmShape);
 
-        mcmDeconv = mcmModel.deconv(opName, mcmData, mcmWeightsReordered,
+        mcmDeconv = mcmModel.deconv(opName, mcmData, !is_quantized ? mcmWeightsReordered : mcmWeights,
             {static_cast<uint16_t>(kernelStrideX), static_cast<uint16_t>(kernelStrideY)},
             {static_cast<uint16_t>(padLeft), static_cast<uint16_t>(padRight), static_cast<uint16_t>(padTop),
                 static_cast<uint16_t>(padBottom)},
@@ -1980,6 +1994,55 @@ void convert(std::shared_ptr<ngraph::op::v1::Equal> op, mv::OpModel& mcmModel, N
     registerOutputs(op, {mcmOpOutput}, mcmOutputsMap);
 }
 
+void convert(std::shared_ptr<ngraph::op::v1::NotEqual> op, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
+    const auto mcmInputs = getMcmInputs(op, mcmOutputsMap);
+    IE_ASSERT(2u == mcmInputs.size());
+    const auto opName = op->get_friendly_name();
+    mv::Data::TensorIterator mcmOpOutput;
+    mcmOpOutput = mcmModel.eltwise(opName, mcmInputs, "NotEqual");
+    mcmOpOutput->setQuantParams(initialQuantParams());
+    registerOutputs(op, {mcmOpOutput}, mcmOutputsMap);
+}
+
+void convert(std::shared_ptr<ngraph::op::v1::Greater> op, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
+    const auto mcmInputs = getMcmInputs(op, mcmOutputsMap);
+    IE_ASSERT(2u == mcmInputs.size());
+    const auto opName = op->get_friendly_name();
+    mv::Data::TensorIterator mcmOpOutput;
+    mcmOpOutput = mcmModel.eltwise(opName, mcmInputs, "Greater");
+    mcmOpOutput->setQuantParams(initialQuantParams());
+    registerOutputs(op, {mcmOpOutput}, mcmOutputsMap);
+}
+
+void convert(std::shared_ptr<ngraph::op::v1::GreaterEqual> op, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
+    const auto mcmInputs = getMcmInputs(op, mcmOutputsMap);
+    IE_ASSERT(2u == mcmInputs.size());
+    const auto opName = op->get_friendly_name();
+    mv::Data::TensorIterator mcmOpOutput;
+    mcmOpOutput = mcmModel.eltwise(opName, mcmInputs, "GreaterEqual");
+    mcmOpOutput->setQuantParams(initialQuantParams());
+    registerOutputs(op, {mcmOpOutput}, mcmOutputsMap);
+}
+
+void convert(std::shared_ptr<ngraph::op::v1::Less> op, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
+    const auto mcmInputs = getMcmInputs(op, mcmOutputsMap);
+    IE_ASSERT(2u == mcmInputs.size());
+    const auto opName = op->get_friendly_name();
+    mv::Data::TensorIterator mcmOpOutput;
+    mcmOpOutput = mcmModel.eltwise(opName, mcmInputs, "Less");
+    mcmOpOutput->setQuantParams(initialQuantParams());
+    registerOutputs(op, {mcmOpOutput}, mcmOutputsMap);
+}
+
+void convert(std::shared_ptr<ngraph::op::v1::LessEqual> op, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
+    const auto mcmInputs = getMcmInputs(op, mcmOutputsMap);
+    IE_ASSERT(2u == mcmInputs.size());
+    const auto opName = op->get_friendly_name();
+    mv::Data::TensorIterator mcmOpOutput;
+    mcmOpOutput = mcmModel.eltwise(opName, mcmInputs, "LessEqual");
+    mcmOpOutput->setQuantParams(initialQuantParams());
+    registerOutputs(op, {mcmOpOutput}, mcmOutputsMap);
+}
 
 // TODO: move converters to class ConvertToMcmModel scope to remove references to data
 
@@ -2084,7 +2147,12 @@ static const DispatchMap dispatchMap {
     MAP_ENTRY(ngraph::op::v0::SquaredDifference),
     MAP_ENTRY(ngraph::op::v0::DepthToSpace),
     MAP_ENTRY(ngraph::op::v0::ReverseSequence),
-    MAP_ENTRY(ngraph::op::v1::Equal)
+    MAP_ENTRY(ngraph::op::v1::Equal),
+    MAP_ENTRY(ngraph::op::v1::NotEqual),
+    MAP_ENTRY(ngraph::op::v1::Greater),
+    MAP_ENTRY(ngraph::op::v1::GreaterEqual),
+    MAP_ENTRY(ngraph::op::v1::Less),
+    MAP_ENTRY(ngraph::op::v1::LessEqual)
 };
 
 #undef MAP_ENTRY

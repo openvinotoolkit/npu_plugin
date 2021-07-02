@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -21,6 +21,7 @@
 #include "vpux/compiler/dialect/VPUIP/effects.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops_interfaces.hpp"
 #include "vpux/compiler/dialect/VPUIP/types.hpp"
+#include "vpux/compiler/dialect/const/ops.hpp"
 
 #include <mlir/Dialect/Quant/QuantOps.h>
 #include <mlir/Dialect/SCF/SCF.h>
@@ -54,7 +55,6 @@ constexpr Bit FP16_SIZE = 16_Bit;
 constexpr KB SHAVE_LIB_DATA_SIZE = 112_KB;
 
 mlir::LogicalResult verifyOp(DeclareTensorOp op);
-mlir::LogicalResult verifyOp(DeclareConstantTensorOp op);
 mlir::LogicalResult verifyOp(ConvertUPAOp op);
 mlir::LogicalResult verifyOp(SoftMaxUPAOp op);
 mlir::LogicalResult verifyOp(PoolingUPAOp op);

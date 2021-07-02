@@ -105,9 +105,9 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(FakeQuantizeUPAOp op) {
 }
 
 void vpux::VPUIP::FakeQuantizeUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
-                                           mlir::Value output, uint32_t levels, mlir::ElementsAttr input_low,
-                                           mlir::ElementsAttr input_high, mlir::ElementsAttr output_low,
-                                           mlir::ElementsAttr output_high) {
+                                           mlir::Value output, uint32_t levels, Const::ContentAttr input_low,
+                                           Const::ContentAttr input_high, Const::ContentAttr output_low,
+                                           Const::ContentAttr output_high) {
     build(builder, state, input, output, mlir::ValueRange{}, mlir::ValueRange{}, levels, input_low, input_high,
           output_low, output_high, nullptr, false);
 }
@@ -117,14 +117,15 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::FakeQuantizeUPAOp::serialize(VPUIP:
         return val.to_bits();
     };
 
-    const auto getVecFP16 = [&](mlir::ElementsAttr attr) {
-        return writer.createVector(attr.cast<ConstContentAttr>().getValues<float16>() | transformed(getRawFP16));
+    const auto getVecFP16 = [&](Const::ContentAttr attr) {
+        const auto attrContent = attr.fold();
+        return writer.createVector(attrContent.getValues<float16>() | transformed(getRawFP16));
     };
 
-    const auto input_low = getVecFP16(this->input_low());
-    const auto input_high = getVecFP16(this->input_high());
-    const auto output_low = getVecFP16(this->output_low());
-    const auto output_high = getVecFP16(this->output_high());
+    const auto input_low = getVecFP16(this->input_lowAttr());
+    const auto input_high = getVecFP16(this->input_highAttr());
+    const auto output_low = getVecFP16(this->output_lowAttr());
+    const auto output_high = getVecFP16(this->output_highAttr());
 
     MVCNN::FakeQuantizeParamsBuilder builder(writer);
     builder.add_levels(levels());
@@ -163,8 +164,8 @@ mlir::Operation* vpux::VPUIP::BlobReader::parseFakeQuantize(mlir::OpBuilder& bui
 
     return builder.create<VPUIP::FakeQuantizeUPAOp>(
             mlir::UnknownLoc::get(_ctx), inputs[0], outputs[0], levels,
-            mlir::DenseElementsAttr::get(inputShapeType, makeArrayRef(inputLow)),
-            mlir::DenseElementsAttr::get(inputShapeType, makeArrayRef(inputHigh)),
-            mlir::DenseElementsAttr::get(outputShapeType, makeArrayRef(outputLow)),
-            mlir::DenseElementsAttr::get(outputShapeType, makeArrayRef(outputHigh)));
+            Const::ContentAttr::get(mlir::DenseElementsAttr::get(inputShapeType, makeArrayRef(inputLow))),
+            Const::ContentAttr::get(mlir::DenseElementsAttr::get(inputShapeType, makeArrayRef(inputHigh))),
+            Const::ContentAttr::get(mlir::DenseElementsAttr::get(outputShapeType, makeArrayRef(outputLow))),
+            Const::ContentAttr::get(mlir::DenseElementsAttr::get(outputShapeType, makeArrayRef(outputHigh))));
 }

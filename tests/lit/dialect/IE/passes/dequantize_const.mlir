@@ -2,9 +2,10 @@
 
 // CHECK-LABEL: @PerAxis
 func @PerAxis() -> tensor<4x1x1x1xf32> {
-    %0 = IE.Constant
+    %0 = const.Declare
         tensor<4x1x1x1x!quant.uniform<u8:f32:0, {0.1:128, 0.2:128, 0.3:128, 0.4:128}>> =
-            dense<129> : tensor<4x1x1x1xui8>
+            #const.Content<dense<129> : tensor<4x1x1x1xui8>,
+                [#const.QuantCast<!quant.uniform<u8:f32:0, {0.1:128, 0.2:128, 0.3:128, 0.4:128}>>]>
 
     %1 = "quant.dcast"(%0) :
         (tensor<4x1x1x1x!quant.uniform<u8:f32:0, {0.1:128, 0.2:128, 0.3:128, 0.4:128}>>)
@@ -12,12 +13,10 @@ func @PerAxis() -> tensor<4x1x1x1xf32> {
 
     return %1 : tensor<4x1x1x1xf32>
 
-    // CHECK:       [[CST:%.*]] = IE.Constant
-    // CHECK-SAME:      tensor<4x1x1x1xf32>
-    // CHECK-SAME:      1.000000e-01
-    // CHECK-SAME:      2.000000e-01
-    // CHECK-SAME:      3.000000e-01
-    // CHECK-SAME:      4.000000e-01
+    // CHECK:       [[CST:%.*]] = const.Declare
+    // CHECK-SAME:      #const.Content<dense<129> : tensor<4x1x1x1xui8>
+    // CHECK-SAME:      #const.QuantCast<!quant.uniform<u8:f32:0, {1.000000e-01:128,2.000000e-01:128,3.000000e-01:128,4.000000e-01:128}>>
+    // CHECK-SAME:      #const.Dequantize
 
     // CHECK:       return [[CST]]
 }

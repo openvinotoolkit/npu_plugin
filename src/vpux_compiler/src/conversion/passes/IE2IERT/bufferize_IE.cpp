@@ -16,6 +16,7 @@
 #include "vpux/compiler/core/attributes/stride_reqs.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IERT/ops.hpp"
+#include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 
 #include "vpux/utils/core/format.hpp"
@@ -71,37 +72,6 @@ SmallVector<mlir::Value> BufferizeIEPass::allocateResults(mlir::Location loc, ml
                                        builder.create<mlir::memref::AllocOp>(loc, memRefType.cast<mlir::MemRefType>());
                                return allocOp.memref();
                            }));
-}
-
-//
-// ConstantRewrite
-//
-
-class BufferizeIEPass::ConstantRewrite final : public mlir::OpConversionPattern<IE::ConstantOp> {
-public:
-    ConstantRewrite(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
-            : mlir::OpConversionPattern<IE::ConstantOp>(typeConverter, ctx), _log(log) {
-    }
-
-public:
-    mlir::LogicalResult matchAndRewrite(IE::ConstantOp origOp, ArrayRef<mlir::Value> newOperands,
-                                        mlir::ConversionPatternRewriter& rewriter) const final;
-
-private:
-    Logger _log;
-};
-
-mlir::LogicalResult BufferizeIEPass::ConstantRewrite::matchAndRewrite(IE::ConstantOp origOp, ArrayRef<mlir::Value>,
-                                                                      mlir::ConversionPatternRewriter& rewriter) const {
-    _log.trace("Found Constant Operation '{0}'", origOp->getLoc());
-
-    auto* typeConverter = getTypeConverter();
-    VPUX_THROW_UNLESS(typeConverter != nullptr, "TypeConverter is not set");
-
-    const auto newType = typeConverter->convertType(origOp.getType());
-
-    rewriter.replaceOpWithNewOp<IERT::ConstantOp>(origOp, newType, origOp.value());
-    return mlir::success();
 }
 
 //
@@ -737,7 +707,12 @@ void BufferizeIEPass::safeRunOnFunc() {
 
     mlir::BufferizeTypeConverter typeConverter;
 
+    const auto isLegalOp = [&](mlir::Operation* op) {
+        return typeConverter.isLegal(op);
+    };
+
     mlir::ConversionTarget target(ctx);
+    target.addDynamicallyLegalDialect<Const::ConstDialect>(isLegalOp);
     target.addLegalDialect<IERT::IERTDialect>();
     target.addIllegalDialect<IE::IEDialect>();
     target.addIllegalDialect<mlir::quant::QuantizationDialect>();
@@ -747,13 +722,13 @@ void BufferizeIEPass::safeRunOnFunc() {
     mlir::populateBufferizeMaterializationLegality(target);
 
     mlir::RewritePatternSet patterns(&ctx);
-    patterns.insert<ConstantRewrite>(typeConverter, &ctx, _log);
     patterns.insert<GenericReshapeRewrite>(typeConverter, &ctx, _log);
     patterns.insert<SplitRewrite>(typeConverter, &ctx, _log);
     patterns.insert<ConcatRewrite>(typeConverter, &ctx, _log);
     patterns.insert<LayerRewrite>(typeConverter, &ctx, _log);
     patterns.insert<SubtensorRewrite>(typeConverter, &ctx, _log);
     patterns.insert<ExpandRewrite>(typeConverter, &ctx, _log);
+    Const::ConstDialect::populateBufferizePatterns(patterns, typeConverter, _log);
 
     auto func = getFunction();
     if (mlir::failed(mlir::applyPartialConversion(func, target, std::move(patterns)))) {

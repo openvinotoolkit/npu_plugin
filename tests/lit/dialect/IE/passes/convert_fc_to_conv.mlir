@@ -2,15 +2,15 @@
 
 // CHECK-LABEL: @ConvertFullyConnectedToConvolution
 func @ConvertFullyConnectedToConvolution(%arg0: tensor<1x16xf32>) -> tensor<1x64xf32> {
-    %weights = IE.Constant tensor<64x16xf32> = dense<1.0> : tensor<64x16xf32>
-    %bias = IE.Constant tensor<1x64xf32> = dense<1.0> : tensor<1x64xf32>
+    %weights = const.Declare tensor<64x16xf32> = #const.Content<dense<1.0> : tensor<64x16xf32>>
+    %bias = const.Declare tensor<1x64xf32> = #const.Content<dense<1.0> : tensor<1x64xf32>>
     %0 = IE.FullyConnected(%arg0, %weights, %bias) : tensor<1x16xf32>, tensor<64x16xf32>, tensor<1x64xf32> -> tensor<1x64xf32>
 
     return %0 : tensor<1x64xf32>
 
     // CHECK-NOT:   IE.FullyConnected
-    // CHECK:       %[[WEIGHTS:.*]] = IE.Constant tensor<64x16xf32> = dense<1.000000e+00> : tensor<64x16xf32>
-    // CHECK:       %[[BIAS:.*]] = IE.Constant tensor<1x64xf32> = dense<1.000000e+00> : tensor<1x64xf32>
+    // CHECK:       %[[WEIGHTS:.*]] = const.Declare tensor<64x16xf32> = #const.Content<dense<1.000000e+00> : tensor<64x16xf32>>
+    // CHECK:       %[[BIAS:.*]] = const.Declare tensor<1x64xf32> = #const.Content<dense<1.000000e+00> : tensor<1x64xf32>>
     // CHECK:       %[[VAL0:.*]] = IE.Reshape(%arg0) {shape_value = [1, 16, 1, 1]} : tensor<1x16xf32> -> tensor<1x16x1x1xf32>
     // CHECK:       %[[VAL1:.*]] = IE.Reshape(%[[WEIGHTS]]) {shape_value = [64, 16, 1, 1]} : tensor<64x16xf32> -> tensor<64x16x1x1xf32>
     // CHECK:       %[[VAL2:.*]] = IE.Reshape(%[[BIAS]]) {shape_value = [1, 64, 1, 1]} : tensor<1x64xf32> -> tensor<1x64x1x1xf32>

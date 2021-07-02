@@ -425,17 +425,18 @@ MVCNN::order3 vpux::VPUIP::BlobWriter::createOrder3(mlir::ArrayAttr attr) {
     return MVCNN::order3(x, y, z);
 }
 
-VPUIP::BlobWriter::BinaryData vpux::VPUIP::BlobWriter::createBinaryData(ConstContentAttr content,
-                                                                        mlir::MemRefType actualType,
-                                                                        bool csram_cacheable) {
-    const Byte elemTypeSize = getElemTypeSize(actualType);
-    const size_t totalNumElements = actualType.getNumElements();
+VPUIP::BlobWriter::BinaryData vpux::VPUIP::BlobWriter::createBinaryData(Const::ContentAttr attr, bool csram_cacheable) {
+    const auto type = attr.getType();
+    const auto content = attr.fold();
+
+    const Byte elemTypeSize = getElemTypeSize(type);
+    const size_t totalNumElements = type.getNumElements();
     const size_t totalByteSize = totalNumElements * elemTypeSize.count();
 
     std::vector<uint64_t> alignedContent(alignVal(totalByteSize, sizeof(uint64_t)) / sizeof(uint64_t), 0);
 
     const auto buf = makeMutableArrayRef(reinterpret_cast<char*>(alignedContent.data()), totalByteSize);
-    content.convertTo(actualType, buf);
+    content.copyTo(buf);
 
     const auto serializedContent = createVector(alignedContent);
 

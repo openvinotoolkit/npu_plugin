@@ -67,6 +67,12 @@ TEST_P(KmbQuantizedConvSubGraphTest, CompareWithRefs_MLIR) {
     Run();
 }
 
+TEST_P(KmbQuantizedConvSubGraphTest, CompareWithRefs_MLIR_HW) {
+    useCompilerMLIR();
+    setReferenceHardwareModeMLIR();
+    Run();
+}
+
 INSTANTIATE_TEST_SUITE_P(smoke, KmbQuantizedConvSubGraphTest,
     ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)
 );

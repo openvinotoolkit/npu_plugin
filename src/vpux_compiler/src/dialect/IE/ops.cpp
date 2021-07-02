@@ -14,6 +14,7 @@
 #include "vpux/compiler/dialect/IE/ops.hpp"
 
 #include "vpux/compiler/core/attributes/dims_order.hpp"
+#include "vpux/compiler/dialect/const/ops.hpp"
 
 #include <mlir/IR/BuiltinAttributes.h>
 #include <mlir/IR/BuiltinTypes.h>
@@ -113,7 +114,7 @@ void vpux::IE::IEDialect::initialize() {
 
 mlir::Operation* vpux::IE::IEDialect::materializeConstant(mlir::OpBuilder& builder, mlir::Attribute value,
                                                           mlir::Type type, mlir::Location loc) {
-    if (!value.isa<ConstContentAttr>()) {
+    if (!value.isa<Const::ContentAttr>()) {
         (void)errorAt(loc, "Can't materialize IE Constant from Attribute '{0}'", value);
         return nullptr;
     }
@@ -123,7 +124,7 @@ mlir::Operation* vpux::IE::IEDialect::materializeConstant(mlir::OpBuilder& build
         return nullptr;
     }
 
-    return builder.create<IE::ConstantOp>(loc, type, value.cast<mlir::ElementsAttr>());
+    return builder.create<Const::DeclareOp>(loc, type, value.cast<Const::ContentAttr>());
 }
 
 //

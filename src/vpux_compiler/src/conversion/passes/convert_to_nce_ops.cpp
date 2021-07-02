@@ -37,26 +37,6 @@ namespace {
 // Utilities
 //
 
-template <typename T>
-mlir::Value createHelperTensor(mlir::OpBuilder& builder, mlir::Location loc, ArrayRef<T> data, mlir::Type elemType,
-                               ArrayRef<int64_t> shape) {
-    auto* ctx = builder.getContext();
-
-    const auto dataStorageType = mlir::RankedTensorType::get(shape, elemType);
-    const auto dataAttr = mlir::DenseElementsAttr::get(dataStorageType, data);
-
-    const auto dataType = mlir::MemRefType::get(shape, elemType);
-    auto dataConstOp = builder.create<IERT::ConstantOp>(loc, dataType, dataAttr);
-
-    const auto cmxMemSpaceAttr = VPUIP::PhysicalMemoryAttr::get(ctx, VPUIP::PhysicalMemory::CMX_NN);
-    const auto dataTypeCMX = changeMemSpace(dataType, cmxMemSpaceAttr);
-
-    auto dataAllocOp = builder.create<mlir::memref::AllocOp>(loc, dataTypeCMX);
-    auto copyOp = builder.create<IERT::CopyOp>(loc, dataConstOp.output(), dataAllocOp);
-
-    return copyOp.output();
-}
-
 const EnumMap<VPUIP::ArchKind, VPUIP::MPEMode> mpeMap = {
         {VPUIP::ArchKind::VPU3400_A0, VPUIP::MPEMode::VECTOR_FP16},  //
         {VPUIP::ArchKind::VPU3400, VPUIP::MPEMode::VECTOR_FP16},     //
@@ -65,117 +45,22 @@ const EnumMap<VPUIP::ArchKind, VPUIP::MPEMode> mpeMap = {
         {VPUIP::ArchKind::VPU3720, VPUIP::MPEMode::CUBOID_16x16},    //
 };
 
-constexpr int32_t KMB_SPARSITY = 0x00000000;
-constexpr int32_t MTL_SPARSITY = 0xffffffff;
-
-const EnumMap<VPUIP::ArchKind, int32_t> sparsityPtrsMap = {
-        {VPUIP::ArchKind::VPU3400_A0, KMB_SPARSITY},  //
-        {VPUIP::ArchKind::VPU3400, KMB_SPARSITY},     //
-        {VPUIP::ArchKind::VPU3700, KMB_SPARSITY},     //
-        {VPUIP::ArchKind::VPU3900, KMB_SPARSITY},     //
-        {VPUIP::ArchKind::VPU3720, MTL_SPARSITY},     //
-};
-
-int32_t toFixedPoint(float realVal) {
-    // FIXME: 2 ^ 16 might be more obvious
-    return std::lround(realVal * 65536.f);
-}
-
-int32_t toHex(float realVal) {
-    union f32toint32 {
-        int32_t m_i32;
-        float m_f32;
-    };
-
-    f32toint32 biasVal;
-    biasVal.m_f32 = realVal;
-    return biasVal.m_i32;
-}
-
-using BiasConverterCb = int32_t (*)(float);
-const EnumMap<VPUIP::ArchKind, BiasConverterCb> biasConvertersMap = {
-        {VPUIP::ArchKind::VPU3400_A0, toFixedPoint},  //
-        {VPUIP::ArchKind::VPU3400, toFixedPoint},     //
-        {VPUIP::ArchKind::VPU3700, toFixedPoint},     //
-        {VPUIP::ArchKind::VPU3900, toFixedPoint},     //
-        {VPUIP::ArchKind::VPU3720, toHex},            //
-};
-
-constexpr int32_t getKMBScale() {
-    constexpr int32_t PRELU_SCALE_OFFSET = 0;
-    constexpr int32_t PRELU_SCALE_VALUE = 1;
-
-    // FIXME: PPE shift is actually 6 bit long, 2 higher bits stand for rounding mode
-    constexpr int32_t PPE_SHIFT_OFFSET = 8;
-    constexpr int32_t PPE_SHIFT_VALUE = 0;
-
-    constexpr int32_t PPE_MULT_OFFSET = 16;
-    // FIXME: PPE multiplier has sign, which may affect lower bits
-    constexpr int32_t PPE_MULT_VALUE = 1;
-
-    constexpr int32_t KMB_SCALE = (PRELU_SCALE_VALUE << PRELU_SCALE_OFFSET) | (PPE_SHIFT_VALUE << PPE_SHIFT_OFFSET) |
-                                  (PPE_MULT_VALUE << PPE_MULT_OFFSET);
-
-    return KMB_SCALE;
-}
-
-int32_t getMTLScale() {
-    constexpr float MTL_SCALE = 1.0f;
-
-    return toHex(MTL_SCALE);
-}
-
-using PPEConverterCb = int32_t (*)();
-const EnumMap<VPUIP::ArchKind, PPEConverterCb> ppeConvertersMap = {
-        {VPUIP::ArchKind::VPU3400_A0, getKMBScale},  //
-        {VPUIP::ArchKind::VPU3400, getKMBScale},     //
-        {VPUIP::ArchKind::VPU3700, getKMBScale},     //
-        {VPUIP::ArchKind::VPU3900, getKMBScale},     //
-        {VPUIP::ArchKind::VPU3720, getMTLScale},     //
-};
-
-using GetBiasCb = FuncRef<float(int64_t)>;
-
-std::vector<int32_t> getWeightsTable(int64_t OC, GetBiasCb getBiasFP, int32_t weightPtrStep,
-                                     vpux::VPUIP::ArchKind arch) {
-    const auto ppeConverter = ppeConvertersMap.at(arch);
-    const int32_t multShift = ppeConverter();
-
-    const int32_t sparsityPtr = sparsityPtrsMap.at(arch);
-
-    const auto convertBias = [&](int64_t oc) -> int32_t {
-        const auto biasVal = getBiasFP(oc);
-        const auto biasConverter = biasConvertersMap.at(arch);
-        return biasConverter(biasVal);
-    };
-
-    std::vector<int32_t> weightsTableVals(OC * VPUIP::NCEInvariant::WEIGHT_TABLE_NUM_ELEMENTS_PER_OC, 0);
-
-    // TODO: [Track number: E#13226]
-    int32_t weightPtrOffset = 0;
-
-    for (auto oc : irange(checked_cast<size_t>(OC))) {
-        const auto wtInd = oc * static_cast<size_t>(VPUIP::NCEInvariant::WEIGHT_TABLE_NUM_ELEMENTS_PER_OC);
-
-        weightsTableVals[wtInd + 0] = weightPtrOffset;
-        weightsTableVals[wtInd + 1] = sparsityPtr;
-        weightsTableVals[wtInd + 2] = multShift;
-        weightsTableVals[wtInd + 3] = convertBias(oc);
-
-        weightPtrOffset += weightPtrStep;
-    }
-
-    return weightsTableVals;
-}
-
-mlir::Value createWeightsTableTensor(mlir::OpBuilder& builder, mlir::Location loc, int64_t OC, GetBiasCb getBiasFP,
-                                     int32_t weightPtrStep, vpux::VPUIP::ArchKind arch) {
-    const auto weightsTable = getWeightsTable(OC, getBiasFP, weightPtrStep, arch);
-
+mlir::Value createWeightsTableTensor(mlir::OpBuilder& builder, mlir::Location loc, int64_t OC, mlir::Value weights,
+                                     mlir::Value bias, mlir::Value activationWindow) {
     SmallVector<int64_t> weightTableShape{OC, 1, 1, VPUIP::NCEInvariant::WEIGHT_TABLE_NUM_ELEMENTS_PER_OC};
 
-    return createHelperTensor(builder, loc, makeArrayRef(weightsTable), getSInt32Type(builder.getContext()),
-                              weightTableShape);
+    auto* ctx = builder.getContext();
+
+    const auto dataType = mlir::MemRefType::get(weightTableShape, getSInt32Type(builder.getContext()));
+    auto createWeightsTableOp = builder.create<VPUIP::WeightsTableOp>(loc, dataType, weights, bias, activationWindow);
+
+    const auto cmxMemSpaceAttr = VPUIP::PhysicalMemoryAttr::get(ctx, VPUIP::PhysicalMemory::CMX_NN);
+    const auto dataTypeCMX = changeMemSpace(dataType, cmxMemSpaceAttr);
+
+    auto dataAllocOp = builder.create<mlir::memref::AllocOp>(loc, dataTypeCMX);
+    auto copyOp = builder.create<IERT::CopyOp>(loc, createWeightsTableOp.output(), dataAllocOp);
+
+    return copyOp.output();
 }
 
 mlir::Value prepareInputForDPU(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value input) {
@@ -250,43 +135,16 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
     const auto filterShape = getShape(origOp.filter());
 
     const auto OC = filterShape[IERT::ConvolutionOp::filter_out_channel_dim()];
-    const auto IC = filterShape[IERT::ConvolutionOp::filter_in_channel_dim()];
     const auto KY = filterShape[IERT::ConvolutionOp::filter_spatial_height_dim()];
     const auto KX = filterShape[IERT::ConvolutionOp::filter_spatial_width_dim()];
-
-    //
-    // Prepare filter for DPU
-    //
-
-    auto filterDPU = prepareFilterForDPU(rewriter, origOp->getLoc(), origOp.filter());
-
-    //
-    // Generate weights table
-    //
-
-    ConstContentAttr biasContent;
-    if (origOp.bias() != nullptr) {
-        auto biasConst = origOp.bias().getDefiningOp<ConstantInterface>();
-        VPUX_THROW_UNLESS(biasConst != nullptr, "Only constant biases are supported, got '{0}'", origOp.bias());
-
-        biasContent = biasConst.getContent();
-    }
-
-    const auto getBiasFP = [&](int64_t oc) -> float {
-        return biasContent != nullptr ? biasContent.getValues<float>()[oc] : 0.0f;
-    };
-
-    // TODO: [Track number: E#13226]
-    // Let's allocate weight table after weights(input),
-    // then the weights offset in CMX will be zero
-    const auto weightPtrStep = checked_cast<int32_t>(IC * KY * KX * sizeof(int16_t));
-    auto weightsTable = createWeightsTableTensor(rewriter, origOp->getLoc(), OC, getBiasFP, weightPtrStep, _arch);
 
     //
     // Prepare input for DPU
     //
 
     auto inputDPU = prepareInputForDPU(rewriter, origOp->getLoc(), origOp.input());
+    auto filterDPU = prepareFilterForDPU(rewriter, origOp->getLoc(), origOp.filter());
+    auto weightsTable = createWeightsTableTensor(rewriter, origOp->getLoc(), OC, filterDPU, origOp.bias(), nullptr);
 
     //
     // Prepare output buffer for DPU
@@ -308,7 +166,7 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
     const auto kernelPaddingAttr =
             getInt32ArrayAttr(getContext(), makeArrayRef({padsBegin[1], padsEnd[1], padsBegin[0], padsEnd[0]}));
 
-    const auto kernelSizeAttr = getInt32ArrayAttr(getContext(), makeArrayRef({KX, KY}));
+    const auto kernelSizeAttr = getInt32ArrayAttr(getContext(), makeArrayRef({KY, KX}));
 
     auto nceOp = rewriter.create<VPUIP::NCEClusterTaskOp>(
             origOp->getLoc(), inputDPU, filterDPU, weightsTable, /*activation_window=*/nullptr,
@@ -353,10 +211,24 @@ private:
 
 mlir::Value createActivationWindowTensor(mlir::OpBuilder& builder, mlir::Location loc, ArrayRef<uint8_t> fakeSparsity,
                                          int64_t numChannels) {
+    auto* ctx = builder.getContext();
+    const auto elemType = getUInt8Type(builder.getContext());
+
     SmallVector<int64_t> fakeSparsityShape{numChannels, 1, 1, static_cast<int64_t>(fakeSparsity.size()) / numChannels};
 
-    return createHelperTensor(builder, loc, makeArrayRef(fakeSparsity), getUInt8Type(builder.getContext()),
-                              fakeSparsityShape);
+    const auto dataStorageType = mlir::RankedTensorType::get(fakeSparsityShape, elemType);
+    const auto dataAttr = mlir::DenseElementsAttr::get(dataStorageType, fakeSparsity);
+
+    const auto dataType = mlir::MemRefType::get(fakeSparsityShape, elemType);
+    auto dataConstOp = builder.create<Const::DeclareOp>(loc, dataType, Const::ContentAttr::get(dataAttr));
+
+    const auto cmxMemSpaceAttr = VPUIP::PhysicalMemoryAttr::get(ctx, VPUIP::PhysicalMemory::CMX_NN);
+    const auto dataTypeCMX = changeMemSpace(dataType, cmxMemSpaceAttr);
+
+    auto dataAllocOp = builder.create<mlir::memref::AllocOp>(loc, dataTypeCMX);
+    auto copyOp = builder.create<IERT::CopyOp>(loc, dataConstOp.output(), dataAllocOp);
+
+    return copyOp.output();
 }
 
 mlir::LogicalResult MaxPoolRewrite::matchAndRewrite(IERT::MaxPoolOp origOp, mlir::PatternRewriter& rewriter) const {
@@ -380,33 +252,19 @@ mlir::LogicalResult MaxPoolRewrite::matchAndRewrite(IERT::MaxPoolOp origOp, mlir
             VPUIP::NCESparsity::getBitPatternSize(kernelSize, kernelStrides[0], origInputType.getElementType());
 
     //
+    // Prepare input for DPU
+    //
+
+    auto inputDPU = prepareInputForDPU(rewriter, origOp->getLoc(), origOp.input());
+
+    //
     // Generate activation window
     //
 
     const auto fakeSparsity =
             VPUIP::NCESparsity::getFakeSparsity(kernelSize, kernelStrides[0], origInputType.getElementType(), IC);
     const auto activationWindow = createActivationWindowTensor(rewriter, origOp->getLoc(), fakeSparsity, IC);
-
-    //
-    // Generate weights table
-    //
-
-    const auto getBiasFP = [](int64_t) -> float {
-        return 0.0f;
-    };
-
-    // TODO: [Track number: E#13226]
-    // an activation window offset ??
-    // Let's allocate weight table after an activation window,
-    // then the an activation window offset in CMX will be zero
-
-    auto weightsTable = createWeightsTableTensor(rewriter, origOp->getLoc(), IC, getBiasFP, 0, _arch);
-
-    //
-    // Prepare input for DPU
-    //
-
-    auto inputDPU = prepareInputForDPU(rewriter, origOp->getLoc(), origOp.input());
+    auto weightsTable = createWeightsTableTensor(rewriter, origOp->getLoc(), IC, nullptr, nullptr, activationWindow);
 
     //
     // Prepare output buffer for DPU
@@ -471,19 +329,12 @@ private:
 
 void ConvertToNCEOpsPass::safeRunOnFunc() {
     auto& ctx = getContext();
-
     auto func = getFunction();
+
     auto module = func->getParentOfType<mlir::ModuleOp>();
 
     const auto arch = VPUIP::getArch(module);
-
     VPUX_THROW_UNLESS(mpeMap.find(arch) != mpeMap.end(), "Failed to map MPE mode to target arch");
-    VPUX_THROW_UNLESS(sparsityPtrsMap.find(arch) != sparsityPtrsMap.end(),
-                      "Failed to map sparsity pointer to target arch");
-    VPUX_THROW_UNLESS(biasConvertersMap.find(arch) != biasConvertersMap.end(),
-                      "Failed to map bias converter to target arch");
-    VPUX_THROW_UNLESS(ppeConvertersMap.find(arch) != ppeConvertersMap.end(),
-                      "Failed to map PPE converter to target arch");
 
     auto resOp = IERT::RunTimeResourcesOp::getFromModule(module);
     VPUX_THROW_UNLESS(resOp != nullptr, "Missing IERT run-time resources definition");

@@ -15,6 +15,7 @@
 
 #include <ie_common.h>
 #include <description_buffer.hpp>
+#include <device_helpers.hpp>
 
 #include "emulator_device.hpp"
 
@@ -44,9 +45,8 @@ const std::shared_ptr<IDevice> EmulatorBackend::getDevice(const ie::ParamMap& ma
 }
 
 const std::shared_ptr<IDevice> EmulatorBackend::getDevice(const std::string& name) const {
-    const auto deviceName = _device->getName();
     // TODO: better check?
-    if (deviceName.find(name) != std::string::npos) {
+    if (utils::getPlatformByDeviceName(name) == ie::VPUXConfigParams::VPUXPlatform::EMULATOR) {
         return _device;
     }
 

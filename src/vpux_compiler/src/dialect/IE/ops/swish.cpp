@@ -1,5 +1,5 @@
 //
-// Copyright 2021 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -12,6 +12,7 @@
 //
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
+#include "vpux/compiler/dialect/const/ops.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
 
@@ -56,12 +57,12 @@ mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::SwishOp swishOp, mli
         return mlir::failure();
     }
 
-    auto betaOp = swishOp.beta().getDefiningOp<IE::ConstantOp>();
+    auto betaOp = swishOp.beta().getDefiningOp<Const::DeclareOp>();
     if (betaOp == nullptr) {
         return mlir::failure();
     }
 
-    auto betaContent = betaOp.getContent();
+    const auto betaContent = betaOp.content();
     if (!betaContent.isSplat()) {
         return mlir::failure();
     }

@@ -90,11 +90,13 @@ mv::Data::TensorIterator createDeconvSubConv(mv::OpModel & om, mv::Data::OpListI
                         mv::Order("NCHW"));
     sliceWeight->setQuantParams(quantParams);
     auto sliceWeightOp = om.getSourceOp(sliceWeight);
-    static const auto inf = std::numeric_limits<double>::infinity();
-    mv::QuantizationParams neutralQuantParams({0}, {1}, {-inf}, {inf});
 
     if (opIt->get<bool>("is_depthwise") == false)
     {
+        mv::QuantizationParams params = sourceWeights->isFloatingPointType()
+                ? mv::QuantizationParams::initial()
+                : opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT)->getQuantParams();
+
         subConv = om.conv(name,
                 opIt->getInputTensor(0),
                 sliceWeight,
@@ -102,8 +104,8 @@ mv::Data::TensorIterator createDeconvSubConv(mv::OpModel & om, mv::Data::OpListI
                 padding,
                 1,
                 opIt->get<unsigned>("group"));
-        subConv->setDType(mv::DType("Float16"));
-        subConv->setQuantParams(neutralQuantParams);
+        subConv->setDType(sourceWeights->getDType());
+        subConv->setQuantParams(params);
     }
     else
     {
@@ -456,7 +458,7 @@ void convDilationUsingStorageElementFcn(const mv::pass::PassEntry& pass, mv::Com
         om.getSourceOp(concatIt)->set<bool>("joinSimulation", true);
         om.getSourceOp(concatIt)->set<size_t>("dilationSubConvs", strideFactor * strideFactor);
 
-        if ((isDepthwise == false) && (nextOp->getOpType() != "Output" && nextOp->getOutputTensor(0)->getDType() == mv::DType("UInt8")))
+        if ((isDepthwise == false && concatIt->getDType() == mv::DType("Float16")) && (nextOp->getOpType() != "Output" && nextOp->getOutputTensor(0)->getDType() == mv::DType("UInt8")))
         {
             auto dataUint8 = om.uPATaskQuantize("", {concatIt});
             dataUint8->setDType(mv::DType("UInt8"));

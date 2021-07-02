@@ -29,7 +29,7 @@ std::shared_ptr<vpux::INetworkDescription> MCMCompiler::compile(const std::share
             compileNGraphIntoCompilationUnit(func, netName, inputsInfo, outputsInfo, copy, errMsg);
     if (!compilationUnit)
         throw std::runtime_error(errMsg);
-    if (config.deviceId() == "EMULATOR")
+    if (config.platform() == InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR)
         return std::make_shared<vpu::MCMAdapter::EmulatorNetworkDescription>(std::move(compilationUnit), copy, netName);
     std::vector<char> compiledNetwork = serializeCompilationUnit(compilationUnit, errMsg);
     if (compiledNetwork.empty())

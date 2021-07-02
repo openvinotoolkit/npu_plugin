@@ -19,12 +19,11 @@ static const std::size_t ALU_HALT_OPCODE = 6;
 static const std::size_t ALU_LOAD = 2;
 static const std::size_t MAX_CLUSTERS = 4;
 static void generateWeightsTablesFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
-static void generateInstructionListTablesFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void generateAndPopulateInstructionListTablesFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void populateWeightsTablesPointersFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void populateWeightsTablesQuantizationFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void removeBiasTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void populateStorageElementPointersFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
-static void populateInstructionListTablesFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 // 8bit mult mask
 static const uint32_t PRELU_MULT_MASK = 0x000000FF;
@@ -47,11 +46,11 @@ namespace mv
         .setDescription(
             "Generates weights tables for the Tasks that need them"
         );
-        MV_REGISTER_PASS(GenerateInstructionListTables)
-        .setFunc(generateInstructionListTablesFcn)
+        MV_REGISTER_PASS(GenerateAndPopulateInstructionListTables)
+        .setFunc(generateAndPopulateInstructionListTablesFcn)
         .setDescription(
-            "Generates instruction list tables for the Tasks that need them"
-        );
+			"Generates and populates instruction list tables for the custom PWL that need them"
+		);
         MV_REGISTER_PASS(PopulateWeightsTablesPointers)
         .setFunc(populateWeightsTablesPointersFcn)
         .setDescription(
@@ -71,11 +70,6 @@ namespace mv
         .setFunc(populateStorageElementPointersFcn)
         .setDescription(
             "Populate storage element maps for activations"
-        );
-        MV_REGISTER_PASS(PopulateInstructionListTables)
-        .setFunc(populateInstructionListTablesFcn)
-        .setDescription(
-            "Populate instruction list tables for PWL solution"
         );
     }
 }
@@ -461,7 +455,7 @@ void populateActivationStorageElementMapForDilatedConvolution(mv::Data::OpListIt
     auto subConvIndex = dpuTaskOp->get<unsigned>("subConvIndex");
     if ((dpuTaskOp->get<std::vector<std::size_t>>("storageElementIndex")).empty())
         throw mv::RuntimeError("populateActivationStorageElementMapForDilatedConvolution" , dpuTaskOp->getName() + " has no storageElementIndex attr to populate");
-        
+
     auto activationStorageElement = dpuTaskOp->getInputTensor(dpuTaskOp->
                                             get<std::vector<std::size_t>>("storageElementIndex")[0]);
     auto dilationFactor = dpuTaskOp->get<unsigned>("originalDilationFactor");
@@ -653,16 +647,15 @@ void populateActivationStorageElementMapForLayerAfterDilatedConvolution(mv::Data
 void createPWLTable(const double& quantOutLow, const double& quantOutHigh,
                     const std::function<double(double)>& refFunction, std::vector<int>& range_vector,
                     std::vector<int>& shift_vector, std::vector<int>& bias_vector) {
-
     auto pwlfnc = PWLDoubleFit()
                           .setRange(quantOutLow, quantOutHigh)
                           .setFunction(refFunction)
                           .setBitness(8u)
                           .setMaxIntervals(8u)
                           .solve();
-    
+
     if (pwlfnc.segments().empty()) {
-            throw std::runtime_error("populateInstructionListMap: Invalid PWL intervals created");
+        throw std::runtime_error("populateInstructionListMap: Invalid PWL intervals created");
     }
 
     for (size_t s = 0; s < pwlfnc.segments().size(); s++) {
@@ -670,42 +663,46 @@ void createPWLTable(const double& quantOutLow, const double& quantOutHigh,
         shift_vector.push_back(pwlfnc.segments()[s].getShift());
         bias_vector.push_back(pwlfnc.segments()[s].getBias());
     }
-    //Add the closing interval
-    range_vector.push_back(quantOutHigh);
+    // Add the closing interval
+    const int closing_interval = static_cast<int>(std::numeric_limits<int8_t>::max());
+    range_vector.push_back(closing_interval);
 
-    /*The PWL table currently only works with exactly 8 intervals, so here the table is expanded to 8 intervals if required.
-      The table expansion inserts dummy intervals of the max point n times to ensure that there are 9 intervals. 
+    /*The PWL table currently only works with exactly 8 intervals, so here the table is expanded to 8 intervals if
+      required. The table expansion inserts dummy intervals of the max point n times to ensure that there are 9
+      intervals.
     */
     size_t extraIntervals = 9 - range_vector.size();
     size_t lastIntervalShift = shift_vector.back();
     size_t lastIntervalBias = bias_vector.back();
 
     for (std::size_t i = 0; i < extraIntervals; i++) {
-        range_vector.insert(range_vector.end() - 1 - i, quantOutHigh);
+        range_vector.insert(range_vector.end() - 1 - i, closing_interval);
         shift_vector.insert(shift_vector.end() - 1 - i, lastIntervalShift);
         bias_vector.insert(bias_vector.end() - 1 - i, lastIntervalBias);
     }
 
-    //Change the sign of m
-    std::for_each(shift_vector.begin(), shift_vector.end(), [](int& i) {i *= -1;});
+    // Change the sign of m
+    std::for_each(shift_vector.begin(), shift_vector.end(), [](int& i) {
+        i *= -1;
+    });
 }
 
-//NOTE: The whole idea of the pwl is that we are going to use a linear function that represents leaky Relu.
-//This comes through the equation and idea of Alessandro https://colab.research.google.com/drive/1xTQyJtZiPtMw-r1jUGks-aspbrpuEdKR#scrollTo=biQruEJ7olzD.
-//Idea: We use the equation: ((x << m) + b) >> s, and train its variables in order to find a close solution that always satisfies the
-//leaky relu. After we generate the instruction list table and we save the values of the registers inside.
-//The map of the bits per instruction are described here: https://docs.google.com/spreadsheets/d/1RcD1FYGiKCTCRTDsU-J4r_FaQyAQbzMLyRu7WkeNoOY/edit#gid=0.
+// NOTE: The whole idea of the pwl is that we are going to use a linear function that represents leaky Relu.
+// This comes through the equation and idea of Alessandro
+// https://colab.research.google.com/drive/1xTQyJtZiPtMw-r1jUGks-aspbrpuEdKR#scrollTo=biQruEJ7olzD. Idea: We use the
+// equation: ((x << m) + b) >> s, and train its variables in order to find a close solution that always satisfies the
+// leaky relu. After we generate the instruction list table and we save the values of the registers inside.
+// The map of the bits per instruction are described here:
+// https://docs.google.com/spreadsheets/d/1RcD1FYGiKCTCRTDsU-J4r_FaQyAQbzMLyRu7WkeNoOY/edit#gid=0.
 
-void populateInstructionListMap(const std::string& pwlType,
-                                mv::Data::TensorIterator instructionListTable,
-                                const mv::QuantizationParams& outQuantParams)
-{
-    //NOTE : The instruction list has 5 bits of addresses so the biggest count of instructions is 11111 = 27
-    //27 of course will be aligned to 32 and will contain NOPS inside
+void populateInstructionListMap(mv::Data::TensorIterator instructionListTable, std::vector<int>& range_vector,
+                                std::vector<int>& shift_vector, std::vector<int>& bias_vector) {
+    // NOTE : The instruction list has 5 bits of addresses so the biggest count of instructions is 11111 = 27
+    // 27 of course will be aligned to 32 and will contain NOPS inside
     auto instructionListShape = instructionListTable->getShape();
     std::vector<uint32_t> template_table(instructionListShape.totalSize(), 0);
 
-    //NOTE: first 2 are hardware reserved areas
+    // NOTE: first 2 are hardware reserved areas
     std::size_t ADDR_OF_RESERVED = 6;
     std::size_t ADDR_OF_ADDR_FLEX = 11;
     std::size_t ADDR_OF_FIRST2_BITS = 9;
@@ -713,31 +710,10 @@ void populateInstructionListMap(const std::string& pwlType,
     std::size_t ADDR_OF_VALUE = 19;
     std::size_t MASK_FIRST2_BITS = 3;
     std::size_t first2_bits, last3_bits;
-    std::vector<int> range_vector;
-    std::vector<int> shift_vector;
-    std::vector<int> bias_vector;
-    std::function<double(double)> refFunction;
 
-    if (pwlType == "LeakyRelu") {
-        range_vector = {-128, -109, -90, -72, -54, -36, -18, 0, 128};
-        shift_vector = {1, -1, 0, 0, 0, -1, -1, -4};
-        bias_vector = {-119, 44, -43, -31, -19, 18, 10, 0};
-    } else if (pwlType == "Mish") {
-        
-        refFunction = mish;
-        const auto& quantOutHigh = outQuantParams.getMax();
-        const auto& quantOutLow = outQuantParams.getMin();
-        if (quantOutHigh.empty()) {
-            throw std::runtime_error("populateInstructionListMap: empty output quantization parameters");
-        }
-
-        createPWLTable(quantOutLow.at(0), quantOutHigh.at(0), refFunction, range_vector, shift_vector, bias_vector);
-    }
-    
-    //Populate the instruction list from the table
+    // Populate the instruction list from the table
     std::size_t k = 0;
-    for (std::size_t j = 0; j < 32; j++)
-    {
+    for (std::size_t j = 0; j < 32; j++) {
         first2_bits = j & MASK_FIRST2_BITS;
         last3_bits = j >> 2;
 
@@ -745,38 +721,31 @@ void populateInstructionListMap(const std::string& pwlType,
             template_table[j] = (ALU_HALT_OPCODE);
         else if (j > 25)
             template_table[j] = (ALU_HALT_OPCODE);
-        else
-        {
-            if (j < range_vector.size())
-            {
-                template_table[j] = ((range_vector[j] << ADDR_OF_VALUE) | (last3_bits << ADDR_OF_REST_BITS)
-                    | (8 << ADDR_OF_ADDR_FLEX)
-                    | (first2_bits << ADDR_OF_FIRST2_BITS) | (0 << ADDR_OF_RESERVED) | ALU_LOAD);
-            }
-            else if (j < range_vector.size() + shift_vector.size() + 1)
-            {
+        else {
+            if (j < range_vector.size()) {
+                template_table[j] = ((range_vector[j] << ADDR_OF_VALUE) | (last3_bits << ADDR_OF_REST_BITS) |
+                                     (8 << ADDR_OF_ADDR_FLEX) | (first2_bits << ADDR_OF_FIRST2_BITS) |
+                                     (0 << ADDR_OF_RESERVED) | ALU_LOAD);
+            } else if (j < range_vector.size() + shift_vector.size() + 1) {
                 if (j < 16)
-                    template_table[j] = ((shift_vector[j - range_vector.size()] << ADDR_OF_VALUE)
-                        | (last3_bits << ADDR_OF_REST_BITS) | (8 << ADDR_OF_ADDR_FLEX)
-                        | (first2_bits << ADDR_OF_FIRST2_BITS) | (0 << ADDR_OF_RESERVED)  | ALU_LOAD);
-                 else
-                {
+                    template_table[j] = ((shift_vector[j - range_vector.size()] << ADDR_OF_VALUE) |
+                                         (last3_bits << ADDR_OF_REST_BITS) | (8 << ADDR_OF_ADDR_FLEX) |
+                                         (first2_bits << ADDR_OF_FIRST2_BITS) | (0 << ADDR_OF_RESERVED) | ALU_LOAD);
+                else {
                     k = j - 1;
                     first2_bits = k & MASK_FIRST2_BITS;
                     last3_bits = k >> 2;
-                    template_table[j] = ((shift_vector[k - range_vector.size()] << ADDR_OF_VALUE)
-                        | (last3_bits << ADDR_OF_REST_BITS) | (8 << ADDR_OF_ADDR_FLEX)
-                        | (first2_bits << ADDR_OF_FIRST2_BITS) | (0 << ADDR_OF_RESERVED)  | ALU_LOAD);
+                    template_table[j] = ((shift_vector[k - range_vector.size()] << ADDR_OF_VALUE) |
+                                         (last3_bits << ADDR_OF_REST_BITS) | (8 << ADDR_OF_ADDR_FLEX) |
+                                         (first2_bits << ADDR_OF_FIRST2_BITS) | (0 << ADDR_OF_RESERVED) | ALU_LOAD);
                 }
-            }
-            else if (j < range_vector.size() + shift_vector.size() + bias_vector.size() + 1)
-            {
+            } else if (j < range_vector.size() + shift_vector.size() + bias_vector.size() + 1) {
                 k = j - 1;
                 first2_bits = k & MASK_FIRST2_BITS;
                 last3_bits = k >> 2;
-                template_table[j] = ((bias_vector[k - range_vector.size() - shift_vector.size()] << ADDR_OF_VALUE)
-                        | (last3_bits << ADDR_OF_REST_BITS) | (8 << ADDR_OF_ADDR_FLEX)
-                        | (first2_bits << ADDR_OF_FIRST2_BITS) | (0 << ADDR_OF_RESERVED)  | ALU_LOAD);
+                template_table[j] = ((bias_vector[k - range_vector.size() - shift_vector.size()] << ADDR_OF_VALUE) |
+                                     (last3_bits << ADDR_OF_REST_BITS) | (8 << ADDR_OF_ADDR_FLEX) |
+                                     (first2_bits << ADDR_OF_FIRST2_BITS) | (0 << ADDR_OF_RESERVED) | ALU_LOAD);
             }
         }
     }
@@ -811,35 +780,6 @@ static void populateStorageElementPointersFcn(const mv::pass::PassEntry& , mv::C
                     && op->get<bool>("activationSparsityCompilerSolvingForInterpNN"))
             {
                 populateActivationStorageElementMapForInterpNN(op, model);
-            }
-        }
-    }
-}
-
-static void populateInstructionListTablesFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
-{
-    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
-    mv::OpModel om(model);
-    const std::string dpuPWLTag = "WithDPUPWL";
-
-    for(auto dpuTaskOp = om.opBegin(); dpuTaskOp != om.opEnd(); ++dpuTaskOp)
-    {
-        auto taskOp = dpuTaskOp->getOpType();
-        if (taskOp == "DPUTask")
-        {
-            if (dpuTaskOp->hasAttr(dpuPWLTag) && dpuTaskOp->get<bool>(dpuPWLTag))
-            {
-                auto instructionListTable
-                        = dpuTaskOp->getInputTensor(dpuTaskOp->get<std::size_t>("instructionListTableIndex"));
-
-                auto attrs = dpuTaskOp->getAttrs({dpuPWLTag});
-                for (auto && attr : attrs) {
-                    if (attr.first.find("With") == 0) {
-                        populateInstructionListMap(attr.first.substr(4),
-                                                   instructionListTable,
-                                                   dpuTaskOp->getOutputTensor(0)->getQuantParams());
-                    }
-                }
             }
         }
     }
@@ -884,38 +824,76 @@ static void generateWeightsTablesFcn(const mv::pass::PassEntry&, mv::Computation
     }
 }
 
-static void generateInstructionListTablesFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor& td, mv::Element&, mv::Element&)
-{
+mv::Data::TensorIterator createInstructionListTable(std::string instructionListTableName, mv::OpModel& om) {
+    const std::size_t numberOfInstructions = 25;
+    const std::size_t alignedInstructions = mv::round_up(numberOfInstructions, 16);
+    mv::Shape shape({alignedInstructions, 1, 1, 1});
+    std::vector<int64_t> instructionListTableData(shape.totalSize(), 0);
+    auto instructionListTable = om.constantInt(instructionListTableName, instructionListTableData, shape,
+                                               mv::DType("Int32"), mv::Order("NHWC"));
+    instructionListTable->set<bool>("instructionListTable", true);
+
+    return instructionListTable;
+}
+
+static void generateAndPopulateInstructionListTablesFcn(const mv::pass::PassEntry&, mv::ComputationModel& model,
+                                                        mv::TargetDescriptor& td, mv::Element&, mv::Element&) {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
 
-    for(auto dpuTaskOp = om.opBegin(); dpuTaskOp != om.opEnd(); ++dpuTaskOp)
+    const std::unordered_map<std::string, std::function<double (double)>> generatable_tables =
     {
-        if(dpuTaskOp->getOpType() == "DPUTask")
-        {
-            auto taskOpType = dpuTaskOp->get<std::string>("taskOp");
-            if (dpuTaskOp->hasAttr("postOpTypes") && dpuTaskOp->hasAttr("WithDPUPWL") && dpuTaskOp->get<bool>("WithDPUPWL"))
-            {
-                auto postOps = dpuTaskOp->get<std::vector<std::string>>("postOpTypes");
-                //"FLEXARB"
-                auto ppeIterator = findIsDPUPwlPostOp(postOps, td);
+        {"Mish", mish}
+    };
 
-                if ( ppeIterator != dpuTaskOp->get<std::vector<std::string>>("postOpTypes").end())
-                {
-                    std::string opName = dpuTaskOp->getName();
-                    std::string instructionListTableName(mv::createInstructionListTableName(opName));
-                    std::size_t numberOfInstructions = 25;
-                    std::size_t alignedInstructions = mv::round_up(numberOfInstructions, 16);
-                    mv::Shape shape({alignedInstructions, 1, 1, 1});
-                    std::vector<int64_t> instructionListTableData(shape.totalSize(), 0);
-                    auto instructionListTable = om.constantInt(instructionListTableName, instructionListTableData, shape, mv::DType("Int32"), mv::Order("NHWC"));
-                    instructionListTable->set<bool>("instructionListTable", true);
-                    om.getSourceOp(instructionListTable)->set<unsigned>("opId", dpuTaskOp->get<unsigned>("opId"));
-                    unsigned newSize = dpuTaskOp->addInputTensor(instructionListTable);
-                    om.defineFlow(instructionListTable, dpuTaskOp, newSize - 1);
-                    dpuTaskOp->set<size_t>("instructionListTableIndex", newSize - 1);
+    // std::unordered_map<std::tuple<
+
+    for (auto dpuTaskOp = om.opBegin(); dpuTaskOp != om.opEnd(); ++dpuTaskOp) {
+        if (dpuTaskOp->getOpType() == "DPUTask" && dpuTaskOp->hasAttr("PWLSource")) {
+            /* ToDo: Reuse equivalent tables */
+            auto instructionListTable =
+                    createInstructionListTable(mv::createInstructionListTableName(dpuTaskOp->getName()), om);
+
+            std::vector<int> range_vector;
+            std::vector<int> shift_vector;
+            std::vector<int> bias_vector;
+
+            auto customPWLSource = dpuTaskOp->get<std::string>("PWLSource");
+            auto pwl_type = dpuTaskOp->get<mv::PWLTableType>("PWLType");
+            if (customPWLSource == "Generation") {
+                auto refFunction = generatable_tables.at(pwl_type.activation);
+                auto outQuantParams = dpuTaskOp->getOutputTensor(0)->getQuantParams();
+                const auto& quantOutHigh = outQuantParams.getMax();
+                const auto& quantOutLow = outQuantParams.getMin();
+                if (quantOutHigh.empty()) {
+                    throw std::runtime_error(
+                            "generateAndPopulateInstructionListTablesFcn: empty output quantization parameters");
                 }
+
+                createPWLTable(quantOutLow.at(0), quantOutHigh.at(0), refFunction, range_vector, shift_vector,
+                               bias_vector);
+            } else if (customPWLSource == "TargetDescriptor") {
+                int pwl_table_index = dpuTaskOp->get<int>("PWLIndex");
+                auto pwl_table = td.generalTargetConfigs().pwlTables.at(pwl_type)[pwl_table_index];
+
+                range_vector = pwl_table.range;
+                shift_vector = pwl_table.shift;
+                bias_vector = pwl_table.bias;
+            } else {
+                /* Never enter */
+                throw mv::AttributeError(dpuTaskOp->getLogID(),
+                                         " has invalid custom PWL table source: " + customPWLSource);
             }
+
+            populateInstructionListMap(instructionListTable, range_vector, shift_vector, bias_vector);
+
+            dpuTaskOp->set<int>("PWLClampLow", range_vector[0]);
+            dpuTaskOp->set<int>("PWLClampHigh", range_vector[range_vector.size() - 1]);
+
+            om.getSourceOp(instructionListTable)->set<unsigned>("opId", dpuTaskOp->get<unsigned>("opId"));
+            unsigned newSize = dpuTaskOp->addInputTensor(instructionListTable);
+            om.defineFlow(instructionListTable, dpuTaskOp, newSize - 1);
+            dpuTaskOp->set<size_t>("instructionListTableIndex", newSize - 1);
         }
     }
 }

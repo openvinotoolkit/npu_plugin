@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -13,6 +13,7 @@
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IE/utils/shape_infer.hpp"
+#include "vpux/compiler/dialect/const/ops.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
 
@@ -87,8 +88,9 @@ void vpux::IE::MultiplyOp::getCanonicalizationPatterns(mlir::RewritePatternSet& 
 mlir::OpFoldResult vpux::IE::MultiplyOp::fold(ArrayRef<mlir::Attribute> operands) {
     VPUX_THROW_UNLESS(operands.size() == 2, "Wrong number of operands : {0}", operands.size());
 
-    if (const auto cst = operands[1].dyn_cast_or_null<ConstContentAttr>()) {
-        if (cst.isSplat() && cst.getSplatValue<float>() == 1.0f) {
+    if (const auto attr = operands[1].dyn_cast_or_null<Const::ContentAttr>()) {
+        const auto content = attr.fold();
+        if (content.isSplat() && content.getSplatValue<float>() == 1.0f) {
             return input1();
         }
     }

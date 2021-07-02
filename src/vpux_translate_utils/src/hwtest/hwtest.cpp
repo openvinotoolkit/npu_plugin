@@ -21,6 +21,7 @@
 
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
+#include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/logging.hpp"
 #include "vpux/compiler/utils/types.hpp"
 #include "vpux/utils/core/error.hpp"
@@ -239,7 +240,7 @@ void buildSimpleZMajorConv(mlir::ModuleOp module, mlir::OpBuilder builder, Logge
 
     SmallVector<mlir::Type> inputTypes;
     inputTypes.reserve(num_func_args);
-    const auto in_affineMaps = vpux::DimsOrder::NHWC.toAffineMapsList(builder.getContext(), Shape(in_shape));
+    const auto in_affineMaps = DimsOrder::NHWC.toAffineMapsList(builder.getContext(), Shape(in_shape));
     auto memSpaceAttr_in =
             VPUIP::MemoryLocationAttr::get(builder.getContext(), VPUIP::MemoryLocation::ProgrammableInput);
     inputTypes.push_back(mlir::MemRefType::get(makeArrayRef(in_shape), inputType, in_affineMaps, memSpaceAttr_in));
@@ -268,14 +269,16 @@ void buildSimpleZMajorConv(mlir::ModuleOp module, mlir::OpBuilder builder, Logge
     // weights data
     auto weight_data_ddr_memSpaceAttr =
             VPUIP::MemoryLocationAttr::get(builder.getContext(), VPUIP::MemoryLocation::GraphFile);
-    const auto wtData_ddr_affineMaps =
-            vpux::DimsOrder::NHWC.toAffineMapsList(builder.getContext(), Shape(wt_data_shape));
+    const auto wtData_ddr_affineMaps = DimsOrder::NHWC.toAffineMapsList(builder.getContext(), Shape(wt_data_shape));
     auto weightData_ddr_type = mlir::MemRefType::get(makeArrayRef(wt_data_shape), weightsType, wtData_ddr_affineMaps,
                                                      weight_data_ddr_memSpaceAttr);
 
     auto wt_data_vals = generateWeights(wt_data_shape, weightsType, builder.getContext());
-    auto weight_data_ddr = funcbuilder.create<VPUIP::DeclareConstantTensorOp>(builder.getUnknownLoc(),
-                                                                              weightData_ddr_type, wt_data_vals, 0);
+    auto weight_data_ddr =
+            funcbuilder.create<Const::DeclareOp>(builder.getUnknownLoc(), weightData_ddr_type,
+                                                 Const::ContentAttr::get(wt_data_vals)
+                                                         .quantCast(weightsType.cast<mlir::quant::QuantizedType>())
+                                                         .reorder(DimsOrder::NHWC));
 
     // weights cmx tensor
     auto wtData_cmx_memSpaceAttr =
@@ -308,8 +311,7 @@ void buildSimpleZMajorConv(mlir::ModuleOp module, mlir::OpBuilder builder, Logge
     // weights table ddr tensor
     auto weightTbl_data_ddr_memSpaceAttr =
             VPUIP::MemoryLocationAttr::get(builder.getContext(), VPUIP::MemoryLocation::GraphFile);
-    const auto wtTbl_ddr_affineMaps =
-            vpux::DimsOrder::NHWC.toAffineMapsList(builder.getContext(), Shape(wtTbl_data_shape));
+    const auto wtTbl_ddr_affineMaps = DimsOrder::NHWC.toAffineMapsList(builder.getContext(), Shape(wtTbl_data_shape));
     auto weightTblData_ddr_type =
             mlir::MemRefType::get(makeArrayRef(wtTbl_data_shape), builder.getIntegerType(32, /*isSigned=*/true),
                                   wtTbl_ddr_affineMaps, weightTbl_data_ddr_memSpaceAttr);
@@ -320,8 +322,9 @@ void buildSimpleZMajorConv(mlir::ModuleOp module, mlir::OpBuilder builder, Logge
             generateWeightsTablesValues(WEIGHTS_CMX_OFFSET, inputcmx_type, outputcmx_type, wtData_cmx_type);
     auto wtTbl_data_values = makeArrayRef<int32_t>(wtTbl_data_values_vec);
     auto wtTbl_data_vals = mlir::DenseElementsAttr::get(wtTblData_ddr_valueType, wtTbl_data_values);
-    auto weightTbl_data_ddr = funcbuilder.create<VPUIP::DeclareConstantTensorOp>(
-            builder.getUnknownLoc(), weightTblData_ddr_type, wtTbl_data_vals, 1);
+    auto weightTbl_data_ddr =
+            funcbuilder.create<Const::DeclareOp>(builder.getUnknownLoc(), weightTblData_ddr_type,
+                                                 Const::ContentAttr::get(wtTbl_data_vals).reorder(DimsOrder::NHWC));
 
     // weights table cmx tensor
     auto wtTbl_cmx_memSpaceAttr =
@@ -387,7 +390,7 @@ void buildSimpleZMajorConv(mlir::ModuleOp module, mlir::OpBuilder builder, Logge
 
     // set runtime resources
     mlir::PassManager pm(builder.getContext(), mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(createSetCompileParamsPass(vpux::VPUIP::ArchKind::VPU3720, VPUIP::CompilationMode::ReferenceHW, log));
+    pm.addPass(createSetCompileParamsPass(VPUIP::ArchKind::VPU3720, VPUIP::CompilationMode::ReferenceHW, log));
 
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module)), "Compilation failed");
 
@@ -406,7 +409,7 @@ void buildSimpleZMajorConv(mlir::ModuleOp module, mlir::OpBuilder builder, Logge
         if (precision.isa<mlir::quant::QuantizedType>()) {
             precision = mlir::quant::QuantizedType::castToStorageType(precision);
         }
-        const auto affineMaps = vpux::DimsOrder::NHWC.toAffineMapsList(builder.getContext(), Shape(in_shape));
+        const auto affineMaps = DimsOrder::NHWC.toAffineMapsList(builder.getContext(), Shape(in_shape));
         const auto userTypeAttr =
                 mlir::TypeAttr::get(mlir::MemRefType::get(in_shape, precision, affineMaps, memSpaceAttr_in));
         inputsInfoBuilder.create<IE::DataInfoOp>(builder.getUnknownLoc(), nameAttr, userTypeAttr);
@@ -420,7 +423,7 @@ void buildSimpleZMajorConv(mlir::ModuleOp module, mlir::OpBuilder builder, Logge
         if (precision.isa<mlir::quant::QuantizedType>()) {
             precision = mlir::quant::QuantizedType::castToStorageType(precision);
         }
-        const auto affineMaps = vpux::DimsOrder::NHWC.toAffineMapsList(builder.getContext(), Shape(out_shape));
+        const auto affineMaps = DimsOrder::NHWC.toAffineMapsList(builder.getContext(), Shape(out_shape));
         const auto userTypeAttr =
                 mlir::TypeAttr::get(mlir::MemRefType::get(out_shape, precision, affineMaps, memSpaceAttr_out));
         outputsInfoBuilder.create<IE::DataInfoOp>(builder.getUnknownLoc(), nameAttr, userTypeAttr);
@@ -429,7 +432,7 @@ void buildSimpleZMajorConv(mlir::ModuleOp module, mlir::OpBuilder builder, Logge
 }  // namespace
 
 mlir::OwningModuleRef importHWTEST(llvm::StringRef, mlir::MLIRContext* ctx) {
-    ctx->loadDialect<vpux::VPUIP::VPUIPDialect>();
+    ctx->loadDialect<VPUIP::VPUIPDialect>();
     auto module = mlir::ModuleOp::create(mlir::UnknownLoc::get(ctx), StringRef("mainModule"));
     auto log = Logger{"vpux-hwtest", LogLevel::Info};
     auto builderLog = OpBuilderLogger{log.nest()};

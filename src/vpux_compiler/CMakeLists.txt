@@ -51,6 +51,52 @@ macro(add_op_interfaces subdir)
     list(APPEND generated_docs "${subdir}/ops_interfaces.md")
 endmacro()
 
+macro(add_attr_interfaces subdir)
+    vpux_add_tblgen_command(
+        TOOL "MLIR"
+        MODE "-gen-attr-interface-decls"
+        SOURCE "${gen_base_src_dir}/${subdir}/attr_interfaces.td"
+        OUTPUT "${gen_base_dst_include_dir}/${subdir}/generated/attr_interfaces.hpp.inc"
+    )
+    vpux_add_tblgen_command(
+        TOOL "MLIR"
+        MODE "-gen-attr-interface-defs"
+        SOURCE "${gen_base_src_dir}/${subdir}/attr_interfaces.td"
+        OUTPUT "${gen_base_dst_include_dir}/${subdir}/generated/attr_interfaces.cpp.inc"
+    )
+
+    vpux_add_tblgen_command(
+        TOOL "MLIR"
+        MODE "-gen-attr-interface-docs"
+        SOURCE "${gen_base_src_dir}/${subdir}/attr_interfaces.td"
+        OUTPUT "${gen_base_dst_docs_dir}/${subdir}/attr_interfaces.md"
+    )
+    list(APPEND generated_docs "${subdir}/attr_interfaces.md")
+endmacro()
+
+macro(add_type_interfaces subdir)
+    vpux_add_tblgen_command(
+        TOOL "MLIR"
+        MODE "-gen-type-interface-decls"
+        SOURCE "${gen_base_src_dir}/${subdir}/type_interfaces.td"
+        OUTPUT "${gen_base_dst_include_dir}/${subdir}/generated/type_interfaces.hpp.inc"
+    )
+    vpux_add_tblgen_command(
+        TOOL "MLIR"
+        MODE "-gen-type-interface-defs"
+        SOURCE "${gen_base_src_dir}/${subdir}/type_interfaces.td"
+        OUTPUT "${gen_base_dst_include_dir}/${subdir}/generated/type_interfaces.cpp.inc"
+    )
+
+    vpux_add_tblgen_command(
+        TOOL "MLIR"
+        MODE "-gen-type-interface-docs"
+        SOURCE "${gen_base_src_dir}/${subdir}/type_interfaces.td"
+        OUTPUT "${gen_base_dst_docs_dir}/${subdir}/type_interfaces.md"
+    )
+    list(APPEND generated_docs "${subdir}/type_interfaces.md")
+endmacro()
+
 macro(add_enum_attrs dialect)
     vpux_add_tblgen_command(
         TOOL "MLIR"
@@ -81,6 +127,21 @@ macro(add_struct_attrs dialect)
     )
 endmacro()
 
+macro(add_attributes dialect)
+    vpux_add_tblgen_command(
+        TOOL "MLIR"
+        MODE "-gen-attrdef-decls"
+        SOURCE "${gen_base_src_dir}/dialect/${dialect}/attributes.td"
+        OUTPUT "${gen_base_dst_include_dir}/dialect/${dialect}/generated/attributes.hpp.inc"
+    )
+    vpux_add_tblgen_command(
+        TOOL "MLIR"
+        MODE "-gen-attrdef-defs"
+        SOURCE "${gen_base_src_dir}/dialect/${dialect}/attributes.td"
+        OUTPUT "${gen_base_dst_include_dir}/dialect/${dialect}/generated/attributes.cpp.inc"
+    )
+endmacro()
+
 macro(add_types dialect)
     vpux_add_tblgen_command(
         TOOL "MLIR"
@@ -108,12 +169,14 @@ macro(add_dialect dialect)
     vpux_add_tblgen_command(
         TOOL "MLIR"
         MODE "-gen-op-decls"
+        EXTRA_ARGS "-dialect=${dialect}"
         SOURCE "${gen_base_src_dir}/dialect/${dialect}/ops.td"
         OUTPUT "${gen_base_dst_include_dir}/dialect/${dialect}/generated/ops.hpp.inc"
     )
     vpux_add_tblgen_command(
         TOOL "MLIR"
         MODE "-gen-op-defs"
+        EXTRA_ARGS "-dialect=${dialect}"
         SOURCE "${gen_base_src_dir}/dialect/${dialect}/ops.td"
         OUTPUT "${gen_base_dst_include_dir}/dialect/${dialect}/generated/ops.cpp.inc"
     )
@@ -121,6 +184,7 @@ macro(add_dialect dialect)
     vpux_add_tblgen_command(
         TOOL "MLIR"
         MODE "-gen-dialect-doc"
+        EXTRA_ARGS "-dialect=${dialect}"
         SOURCE "${gen_base_src_dir}/dialect/${dialect}/ops.td"
         OUTPUT "${gen_base_dst_docs_dir}/dialect/${dialect}.md"
     )
@@ -170,6 +234,10 @@ endmacro()
 
 add_op_interfaces("core")
 add_passes("core" "Core")
+
+add_dialect("const")
+add_attr_interfaces("dialect/const")
+add_attributes("const")
 
 add_dialect("IE")
 add_enum_attrs("IE")

@@ -154,12 +154,10 @@ static void setStreamingStrategy(const mv::pass::PassEntry &pass, mv::Computatio
     }
 }
 
-void storeExistingSlice(std::string opName, unsigned streamId, mv::Data::TensorIterator slice,
+void storeExistingSlice(const std::string& opName, unsigned streamId, mv::Data::TensorIterator slice,
     std::map<std::pair<std::string, unsigned>, mv::Data::TensorIterator>& name_firstStream_sliceOp)
 {
-    std::pair<std::string, unsigned> keyPair;
-    keyPair.first = opName;
-    keyPair.second = streamId;
+    std::pair<std::string, unsigned> keyPair(opName, streamId);
     name_firstStream_sliceOp[keyPair] = slice;
 }
 
@@ -666,7 +664,6 @@ static void streamBinaryDataWeightsFcn(const mv::pass::PassEntry& ,
     for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
     {
         std::string opType = opIterator->getOpType();
-        std::vector<mv::Data::TensorIterator> toSort;
 
         if (opType == "Slice" && opIterator->getInputTensor(0)->isPopulated())
         {

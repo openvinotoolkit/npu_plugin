@@ -18,6 +18,7 @@
 #include "vpux/compiler/dialect/IE/attributes/enums.hpp"
 #include "vpux/compiler/dialect/IE/attributes/structs.hpp"
 #include "vpux/compiler/dialect/IE/ops_interfaces.hpp"
+#include "vpux/compiler/dialect/const/ops.hpp"
 
 #include <mlir/Dialect/Quant/QuantOps.h>
 #include <mlir/Dialect/StandardOps/IR/Ops.h>

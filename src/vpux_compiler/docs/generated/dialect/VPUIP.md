@@ -296,32 +296,6 @@ operation ::= `VPUIP.DPUTask` attr-dict
 `pads_end` | ::mlir::ArrayAttr | 32-bit integer array attribute
 `mpe_mode` | vpux::VPUIP::MPEModeAttr | MPE Mode
 
-### `VPUIP.DeclareConstantTensor` (vpux::VPUIP::DeclareConstantTensorOp)
-
-Constant TensorReference value declaration
-
-
-Syntax:
-
-```
-operation ::= `VPUIP.DeclareConstantTensor` `[` $localeIndex `]` attr-dict type($output) `=` $value
-```
-
-
-#### Attributes:
-
-| Attribute | MLIR Type | Description |
-| :-------: | :-------: | ----------- |
-`value` | ::mlir::ElementsAttr | constant vector/tensor attribute
-`localeIndex` | ::mlir::IntegerAttr | 32-bit signless integer attribute
-`csramCacheable` | ::mlir::UnitAttr | unit attribute
-
-#### Results:
-
-| Result | Description |
-| :----: | ----------- |
-`output` | statically shaped memref of any type values
-
 ### `VPUIP.DeclareTensor` (vpux::VPUIP::DeclareTensorOp)
 
 TensorReference value declaration
@@ -622,10 +596,10 @@ operation ::= `VPUIP.FakeQuantizeUPA` attr-dict
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
 `levels` | ::mlir::IntegerAttr | 32-bit signless integer attribute
-`input_low` | ::mlir::ElementsAttr | constant vector/tensor attribute
-`input_high` | ::mlir::ElementsAttr | constant vector/tensor attribute
-`output_low` | ::mlir::ElementsAttr | constant vector/tensor attribute
-`output_high` | ::mlir::ElementsAttr | constant vector/tensor attribute
+`input_low` | vpux::Const::ContentAttr | Lazy folded constant content
+`input_high` | vpux::Const::ContentAttr | Lazy folded constant content
+`output_low` | vpux::Const::ContentAttr | Lazy folded constant content
+`output_high` | vpux::Const::ContentAttr | Lazy folded constant content
 `maxShaves` | ::mlir::IntegerAttr | 32-bit signless integer attribute
 `isTrailingSWLayer` | ::mlir::UnitAttr | unit attribute
 
@@ -634,6 +608,47 @@ operation ::= `VPUIP.FakeQuantizeUPA` attr-dict
 | Operand | Description |
 | :-----: | ----------- |
 `input` | memref of 16-bit float values
+`output_buff` | memref of 16-bit float values
+`waitBarriers` | VPUIP Barrier Type
+`updateBarriers` | VPUIP Barrier Type
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float values
+
+### `VPUIP.FullyConnectedUPA` (vpux::VPUIP::FullyConnectedUPAOp)
+
+FullyConnected UPA SHAVE kernel
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.FullyConnectedUPA` attr-dict
+              `inputs` `(` $input `:` type($input) `,` $weights `:` type($weights) (`,` $bias^ `:` type($bias))? `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+              (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`maxShaves` | ::mlir::IntegerAttr | 32-bit signless integer attribute
+`isTrailingSWLayer` | ::mlir::UnitAttr | unit attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float values
+`weights` | memref of 16-bit float values
+`bias` | memref of 16-bit float values
 `output_buff` | memref of 16-bit float values
 `waitBarriers` | VPUIP Barrier Type
 `updateBarriers` | VPUIP Barrier Type
@@ -1592,6 +1607,36 @@ operation ::= `VPUIP.UPADMA` attr-dict
 | Result | Description |
 | :----: | ----------- |
 `output` | memref of any type values
+
+### `VPUIP.WeightsTableOp` (vpux::VPUIP::WeightsTableOp)
+
+Intermediate task for creating weights table based on the addresses of CMX buffers
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.WeightsTableOp` attr-dict
+              (`weights` `(` $weights^  `:` type($weights) `)`)?
+              (`bias` `(` $bias^  `:` type($bias) `)`)?
+              (`activation_window` `(` $activation_window^  `:` type($activation_window) `)`)?
+              `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`weights` | memref of 16-bit float or QuantizedType values
+`bias` | memref of 16-bit float or 32-bit float values
+`activation_window` | memref of 8-bit unsigned integer values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 32-bit signed integer values
 
 ## Type definition
 

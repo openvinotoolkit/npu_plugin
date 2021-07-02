@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -13,7 +13,7 @@
 
 #pragma once
 
-#include "vpux/compiler/core/attributes/const_content.hpp"
+#include "vpux/compiler/core/attributes/dims_order.hpp"
 #include "vpux/compiler/utils/error.hpp"
 
 #include "vpux/utils/core/range.hpp"
@@ -81,7 +81,6 @@ private:
 // Layer verifiers
 //
 
-mlir::LogicalResult verifyConstant(mlir::Operation* op);
 mlir::LogicalResult verifyLayer(mlir::Operation* op);
 mlir::LogicalResult verifyConvertLayer(mlir::Operation* op);
 mlir::LogicalResult verifySoftMaxLayer(mlir::Operation* op);

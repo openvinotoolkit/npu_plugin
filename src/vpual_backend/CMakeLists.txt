@@ -33,7 +33,8 @@ target_compile_definitions(${OBJ_TARGET_NAME}
 target_include_directories(${OBJ_TARGET_NAME}
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
-        "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/include")
+        "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/include"
+        "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/artifacts/vpuip_2")
 
 link_system_libraries(${OBJ_TARGET_NAME}
     PUBLIC
