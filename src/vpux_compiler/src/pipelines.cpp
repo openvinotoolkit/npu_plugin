@@ -96,7 +96,6 @@ void vpux::buildHardwareModePipeline(mlir::OpPassManager& pm, Logger log) {
     // IE Dialect level
     buildIECommonPipeline(pm, log);
     IE::buildLowPrecisionPipeline(pm, log);
-    pm.addPass(IE::createExpandActivationChannelsPass(log));
 
     // Lower IE->IERT
     buildLowerIE2IERTPipeline(pm, log);
@@ -108,7 +107,6 @@ void vpux::buildHardwareModePipeline(mlir::OpPassManager& pm, Logger log) {
     pm.addPass(IERT::createCMXTilingPass(log));
     pm.addPass(mlir::createCanonicalizerPass(getDefaultGreedyRewriteConfig()));
     pm.addPass(createConvertToNCEOpsPass(log));
-    pm.addPass(createFuseActivationsPass(log));
     pm.addPass(mlir::createCanonicalizerPass(getDefaultGreedyRewriteConfig()));
 
     // IERT Dialect level (cont.)
