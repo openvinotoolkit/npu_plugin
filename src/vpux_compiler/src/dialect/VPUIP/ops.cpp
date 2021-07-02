@@ -12,9 +12,10 @@
 //
 
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
-#include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
 
+#include "vpux/compiler/dialect/IE/ops_interfaces.hpp"
 #include "vpux/compiler/dialect/IERT/ops_interfaces.hpp"
+#include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
 
 #include <mlir/Dialect/Quant/QuantTypes.h>
 #include <mlir/IR/BuiltinAttributes.h>
@@ -23,13 +24,83 @@
 
 using namespace vpux;
 
-//
-// VPUIPLayerInfo
-//
-
 namespace {
 
-class VPUIPLayerInfo final : public IERT::LayerInfoDialectInterface {
+//
+// Utilities
+//
+
+template <class ConcreteOp>
+bool isSupportedByNCE(ConcreteOp op) {
+    return VPUIP::NCEInvariant::verifyKernel(op).succeeded() && VPUIP::NCEInvariant::verifyChannels(op).succeeded();
+}
+
+//
+// LayerInfo
+//
+
+class LayerInfo final : public IE::LayerInfoDialectInterface {
+public:
+    using IE::LayerInfoDialectInterface::LayerInfoDialectInterface;
+
+public:
+    bool isSupportedPostProcessing(mlir::Operation* origOp, mlir::Operation* postOp) const final;
+    bool needToExpandChannels(mlir::Operation* origOp) const final;
+};
+
+bool LayerInfo::isSupportedPostProcessing(mlir::Operation* origOp, mlir::Operation* postOp) const {
+    auto module = origOp->getParentOfType<mlir::ModuleOp>();
+    const auto compileMode = VPUIP::getCompilationMode(module);
+
+#define HW_OPS_CASE(_IE_OP_)                                      \
+    .Case<_IE_OP_>([&](_IE_OP_ op) {                              \
+        if (compileMode == VPUIP::CompilationMode::ReferenceHW) { \
+            return isSupportedByNCE(op);                          \
+        }                                                         \
+        return false;                                             \
+    })
+
+    if (!mlir::isa<IE::ReLUOp>(postOp)) {
+        return false;
+    }
+
+    return llvm::TypeSwitch<mlir::Operation*, bool>(origOp)  //
+            HW_OPS_CASE(IE::ConvolutionOp)                   //
+    HW_OPS_CASE(IE::MaxPoolOp)                               //
+    .Default([](mlir::Operation*) {
+        return false;
+    });
+
+#undef HW_OPS_CASE
+}
+
+bool LayerInfo::needToExpandChannels(mlir::Operation* origOp) const {
+    auto module = origOp->getParentOfType<mlir::ModuleOp>();
+    const auto compileMode = VPUIP::getCompilationMode(module);
+
+#define HW_OPS_CASE(_IERT_OP_)                                                            \
+    .Case<_IERT_OP_>([&](_IERT_OP_ op) {                                                  \
+        if (compileMode == VPUIP::CompilationMode::ReferenceHW && isSupportedByNCE(op)) { \
+            return !VPUIP::NCEInvariant::verifyChannels(op).succeeded();                  \
+        }                                                                                 \
+        return false;                                                                     \
+    })
+
+    return llvm::TypeSwitch<mlir::Operation*, bool>(origOp)  //
+            HW_OPS_CASE(IE::ConvolutionOp)                   //
+    HW_OPS_CASE(IE::MaxPoolOp)                               //
+    .Default([](mlir::Operation*) {
+        return false;
+    });
+
+#undef HW_OPS_CASE
+}
+
+//
+// RTLayerInfo
+//
+
+class RTLayerInfo final : public IERT::LayerInfoDialectInterface {
 public:
     using IERT::LayerInfoDialectInterface::LayerInfoDialectInterface;
 
@@ -38,7 +109,7 @@ public:
     mlir::LogicalResult isSupportedLayout(mlir::Operation* origOp, DataOrderInfo& info) const final;
 };
 
-mlir::Attribute VPUIPLayerInfo::getExecutor(mlir::Operation* op, uint32_t& numUnits) const {
+mlir::Attribute RTLayerInfo::getExecutor(mlir::Operation* op, uint32_t& numUnits) const {
     const auto getDMAEngine = [&](VPUIP::DMAEngine engine) {
         numUnits = 1;
         return VPUIP::DMAEngineAttr::get(op->getContext(), engine);
@@ -95,12 +166,7 @@ mlir::Attribute VPUIPLayerInfo::getExecutor(mlir::Operation* op, uint32_t& numUn
     return getPhysicalProcessor(VPUIP::PhysicalProcessor::SHAVE_UPA);
 }
 
-template <class ConcreteOp>
-bool isSupportedByNCE(ConcreteOp op) {
-    return VPUIP::NCEInvariant::verifyKernel(op).succeeded() && VPUIP::NCEInvariant::verifyChannels(op).succeeded();
-}
-
-mlir::LogicalResult VPUIPLayerInfo::isSupportedLayout(mlir::Operation* origOp, DataOrderInfo& info) const {
+mlir::LogicalResult RTLayerInfo::isSupportedLayout(mlir::Operation* origOp, DataOrderInfo& info) const {
     auto module = origOp->getParentOfType<mlir::ModuleOp>();
     auto compileMode = VPUIP::getCompilationMode(module);
 
@@ -117,7 +183,8 @@ mlir::LogicalResult VPUIPLayerInfo::isSupportedLayout(mlir::Operation* origOp, D
         return _VPUIP_OP_::isSupportedLayout(op, info);                                   \
     })
 
-    return llvm::TypeSwitch<mlir::Operation*, mlir::LogicalResult>(origOp) CASE(IERT::QuantizeOp, VPUIP::QuantCastUPAOp)
+    return llvm::TypeSwitch<mlir::Operation*, mlir::LogicalResult>(origOp)  //
+            CASE(IERT::QuantizeOp, VPUIP::QuantCastUPAOp)
     CASE(IERT::DequantizeOp, VPUIP::QuantCastUPAOp)
     CASE(IERT::ConvertOp, VPUIP::ConvertUPAOp)
     CASE(IERT::CopyOp, VPUIP::UPADMAOp)
@@ -165,6 +232,7 @@ mlir::LogicalResult VPUIPLayerInfo::isSupportedLayout(mlir::Operation* origOp, D
     });
 
 #undef CASE
+#undef HW_OPS_CASE
 }
 
 }  // namespace
@@ -192,7 +260,8 @@ void vpux::VPUIP::VPUIPDialect::initialize() {
 //
 
 void vpux::VPUIP::VPUIPDialect::setupExtraInterfaces(mlir::DialectRegistry& registry) {
-    registry.addDialectInterface<IERT::IERTDialect, VPUIPLayerInfo>();
+    registry.addDialectInterface<IE::IEDialect, LayerInfo>();
+    registry.addDialectInterface<IERT::IERTDialect, RTLayerInfo>();
 }
 
 //
