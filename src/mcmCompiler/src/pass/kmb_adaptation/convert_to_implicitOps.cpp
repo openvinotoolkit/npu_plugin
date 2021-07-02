@@ -66,7 +66,7 @@ void convertToImplicitOpsFcn(const mv::pass::PassEntry& , mv::ComputationModel& 
 
             // Skip if explicit
             if (is_explicit)
-                continue;            
+                continue;
 
             // Avoid unnecessary DMAs
             if(input->hasAttr("Location"))
@@ -112,8 +112,10 @@ void convertToImplicitOpsFcn(const mv::pass::PassEntry& , mv::ComputationModel& 
         else if(opType == "Resample")
         {
             implicitOp = om.implicitResample("", input, output_shape);
+            input->setPlaced(true, output_shape);
+
             // Store input shapes, used later to compute SEP table offsets
-            om.getSourceOp(implicitOp)->set<mv::Shape>("originalShape", input_shape);            
+            om.getSourceOp(implicitOp)->set<mv::Shape>("originalShape", input_shape);
         }
         implicitOp->setQuantParams(quantParams);
         om.getSourceOp(implicitOp)->set<unsigned>("opId", opId);

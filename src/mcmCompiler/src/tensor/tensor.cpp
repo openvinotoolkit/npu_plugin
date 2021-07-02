@@ -516,9 +516,9 @@ void mv::Tensor::setAddress(int64_t address)
         {
             auto storageElementSize = storageElement_->getClusterSize();
             storageElement_->setAddress(address + (tensorSize - storageElementSize - sparsitySize));
-        } 
+        }
     }
-   
+
     for (size_t tIdx = 0; tIdx < subTensors_.size(); tIdx++)
     {
         subTensors_[tIdx]->setAddress(address);
@@ -528,7 +528,7 @@ void mv::Tensor::setAddress(int64_t address)
             auto se_addr = subTensors_[0]->getStorageElement()->getAddress();
             subTensors_[tIdx]->getSparsityMap()->setAddress(sm_addr);
             subTensors_[tIdx]->getStorageElement()->setAddress(se_addr);
-        } 
+        }
     }
 }
 
@@ -564,7 +564,7 @@ bool mv::Tensor::setSparse()
     sparsityMap_->set<bool>("sparsityMap", true);
     noneZeroElements_ = 0;
 
-    
+
 
     //populate sparsity map
     if (isPopulated())
@@ -583,7 +583,7 @@ bool mv::Tensor::setSparse()
 
     unsigned sm_offset_byte_index = 0UL, se_offset_byte_index = 0UL;
     for (size_t tIdx = 0; tIdx < subTensors_.size(); tIdx++) {
-        
+
         subTensors_[tIdx]->setSparse();
         if (!isPopulated()) {
           auto sub_sparsity_map = subTensors_[tIdx]->getSparsityMap();
@@ -654,6 +654,12 @@ void mv::Tensor::setOrder(Order order, bool updateSubtensors)
         if (updateSubtensors)
             setSubtensorsOrder_(order);
     }
+}
+
+void mv::Tensor::setPlaced(bool placed, const Shape& masterDim)
+{
+    set<bool>("placed", placed);
+    set<mv::Shape>("masterDim", masterDim);
 }
 
 void mv::Tensor::setSubtensorsOrder_(Order order)
@@ -1271,7 +1277,7 @@ mv::Tensor& mv::Tensor::operator=(const Tensor& other)
     subTensors_ = other.subTensors_;
     kernelDataOffsets_ = other.kernelDataOffsets_;
 
-   
+
 
     if (other.hasSubTensors())
     {
@@ -1350,8 +1356,15 @@ std::size_t mv::Tensor::computeTotalSize(unsigned int alignment, bool isBase, bo
                                          , bool graphOptimizer, bool dilation) const
 {
     std::size_t res;
-
-    auto shape = getShape();
+    bool isTensorPlaced = hasAttr("placed") ? get<bool>("placed") : false;
+    mv::Shape shape;
+    if (!isTensorPlaced)
+        shape = getShape();
+    else
+        if (hasAttr("masterDim"))
+            shape = get<mv::Shape>("masterDim");
+        else
+            throw ArgumentError(*this, "tesnsor with ", getName(), "is placed and does not have masterDim");
     if (dilation)
         shape = get<mv::Shape>("originalShape");
     //use shape of master

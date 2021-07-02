@@ -99,6 +99,7 @@ void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
     replaceAsymmetricStridesFcn(pass, model);
     replaceBigInputChannels(pass, model);
     topKAsArgMaxFcn(pass, model);
+    resampleWithStorageElementPointerTable(pass, model);
     //interpAsAvgPoolingFcn(pass, model); for now we are using SW layer
     interpAsDepthConvFcn(pass, model);
     averageAsDepthWiseFcn(pass, model, td);
@@ -310,9 +311,9 @@ void replaceBroadcastEltwiseMultWithConv(const mv::pass::PassEntry& /*pass*/, mv
             weights_quantParams = populated_input->get<mv::QuantizationParams>("quantParams");
             output_quantParams = opIt->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams");
         }
-        
+
         //
-        // replace eltwise with depthwise conv when weights have only one element 
+        // replace eltwise with depthwise conv when weights have only one element
         //
         mv::Data::TensorIterator conv2D, weights;
         if (weightsData.size()==1){
