@@ -367,7 +367,7 @@ target_link_libraries(${OBJ_TARGET_NAME}
         vpux_al
 )
 if(ENABLE_PLAIDML)
-    target_link_libraries(${OBJ_TARGET_NAME}
+    link_system_libraries(${OBJ_TARGET_NAME}
         PUBLIC
             pmlc::conversion::pxa_to_affine
             pmlc::conversion::tile_to_pxa
