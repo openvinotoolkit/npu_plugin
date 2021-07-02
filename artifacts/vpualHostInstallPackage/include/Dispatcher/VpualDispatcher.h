@@ -18,10 +18,10 @@
 
 /** Ensure the correct resources are opened/closed when needed. */
 class VpualDispatcherResource {
-  private:
+private:
     std::vector<uint32_t> active_devices;
 
-  public:
+public:
     VpualDispatcherResource();
     ~VpualDispatcherResource();
 
@@ -34,7 +34,7 @@ class VpualDispatcherResource {
 };
 
 /** Initialise the dispatcher if uninitialised. */
-VpualDispatcherResource& initVpualDispatcherResource(uint32_t device_id);
+VpualDispatcherResource &initVpualDispatcherResource(uint32_t device_id);
 
 /**
  * Get the XLink device handle for VPUAL dispatcher.
@@ -51,36 +51,34 @@ xlink_handle getXlinkDeviceHandle(uint32_t device_id);
  * Handles construction, destruction, and dispatching messages to a
  * corresponding decoder on the device.
  */
-class VpualStub
-{
-  private:
+class VpualStub {
+private:
     uint32_t device_id;
-    // protected: // TODO, should really be protected, some child classes should then be listed as "friends" of each other
+    // protected: // TODO, should really be protected, some child classes should then be listed as "friends" of each
+    // other
 
-    int CallVpu(VpualCmdHeader_t::messageType msgtype,
-                const void * input, int input_len,
-                void * out, int out_len) const;
+    int CallVpu(VpualCmdHeader_t::messageType msgtype, const void *input, int input_len, void *out, int out_len) const;
 
-  public:
+public:
     uint32_t stubID; /*< ID of the stub and matching decoder. */
 
-  public:
+public:
     /** Delete copy constructor and assignment operator. */
-    VpualStub(const VpualStub&) = delete;
-    VpualStub& operator=(const VpualStub&) = delete;
+    VpualStub(const VpualStub &) = delete;
+    VpualStub &operator=(const VpualStub &) = delete;
 
     /**
-	 * Constructor.
-	 * Construct this stub and create a corresponding decoder on the device.
-	 *
-	 * @param type the string name of the decoder type to create.
-	 */
-    VpualStub(std::string type, uint32_t device_id =0);
+     * Constructor.
+     * Construct this stub and create a corresponding decoder on the device.
+     *
+     * @param type the string name of the decoder type to create.
+     */
+    VpualStub(std::string type, uint32_t device_id = 0);
 
     /**
-	 * Destructor.
-	 * Destroy this stub and the corresponding decoder on the device.
-	 */
+     * Destructor.
+     * Destroy this stub and the corresponding decoder on the device.
+     */
     virtual ~VpualStub() noexcept(false);
 
     /**
@@ -99,14 +97,11 @@ class VpualStub
      * @return device_id
      */
     uint32_t getDeviceId() const;
-
 };
 
 // TODO dummy types for now. May never need real type, but might be nice to have.
 template <typename T>
-class PoPtr
-{
-};
+class PoPtr {};
 
 struct ImgFrame {};
 typedef PoPtr<ImgFrame> ImgFramePtr;
