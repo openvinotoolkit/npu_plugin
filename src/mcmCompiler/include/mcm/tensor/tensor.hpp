@@ -177,6 +177,7 @@ namespace mv
         const Order& getInternalOrder() const;
         void setShape(const Shape& shape);
         void setAddress(int64_t address);
+        void setPlaced(bool placed, const Shape& masterDim);
         mv::QuantizationParams getQuantParams();
         void setQuantParams(const mv::QuantizationParams& quantParams);
 

@@ -153,7 +153,7 @@ namespace mv
             };
 
             void readGlobalConfigs()
-            { 
+            {
                 referenceDevice = model_.getGlobalConfigParam("referenceDevice").get<std::string>();
                 totalClusters = model_.getGlobalConfigParam("Number_of_Clusters").get<int>();
                 clusterMemoryKb = model_.getGlobalConfigParam("cmx").get<int>() / 1024;
@@ -521,7 +521,7 @@ namespace mv
                     //Reject H streams were the last stream isn't equal or smaller than the rest
                     //Reject H streams were the last stream is 1, unless they are all 1
                     if(newOutputSizes.back() > newOutputSizes.front() ||
-                        (newOutputSizes.back() == 1 && newOutputSizes.front() != 1)) 
+                        (newOutputSizes.back() == 1 && newOutputSizes.front() != 1))
                             return false;
 
                     unsigned short kernelStride;
@@ -792,12 +792,34 @@ namespace mv
                 if(enableChannelMajorConv && op.supportsCMConv())
                     return false;
 
-                // Size of weights, actual sparsity of tensor determine speedup
-                auto weightsSize = realTensorSize(op.getInputTensor(1), {1,1,1,1}, false);
-                auto zeroPoints = op.getInputTensor(1)->getZeroValuesCount();
-                double actualSparsity = (double) zeroPoints/ (double)weightsSize;
-                auto sparsityOverhead = op.getInputTensor(0)->isFloatingPointType() ?
+                auto inputTensor = op.getInputTensor()[mv::IO_TENSOR_INPUT];
+                auto weightTensor = op.getInputTensor()[mv::IO_TENSOR_WEIGHTS_SET];
+                auto outputTensor = op.getOutputTensor()[mv::IO_TENSOR_OUTPUT];
+                auto sparsityOverhead = inputTensor->isFloatingPointType() ?
                     floatOverhead : intOverhead;
+
+                auto inputTensorChannels = inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION];
+                auto outputTensorChannels = outputTensor->getShape()[mv::IO_CHANNEL_DIMENSION];
+                auto demandPaddingInputChannels = (inputTensorChannels % 16 != 0);
+                auto demandPaddingOutputChannels = (outputTensorChannels % 16 != 0);
+                if (demandPaddingOutputChannels || demandPaddingInputChannels)
+                {
+                    float limitInputChannels = 0;
+                    float limitOutputChannels = 0;
+                    if (demandPaddingOutputChannels)
+                        limitOutputChannels = mv::round_up(outputTensorChannels, 16) * sparsityOverhead;
+                    if (demandPaddingInputChannels)
+                        limitInputChannels = mv::round_up(inputTensorChannels, 16) * sparsityOverhead;
+                    if(inputTensorChannels <= std::round(limitInputChannels) ||
+                        outputTensorChannels <= std::round(limitOutputChannels))
+                        return true;
+
+                }
+
+                // Size of weights, actual sparsity of tensor determine speedup
+                auto weightsSize = realTensorSize(weightTensor, {1,1,1,1}, false);
+                auto zeroPoints = weightTensor->getZeroValuesCount();
+                double actualSparsity = (double) zeroPoints/ (double)weightsSize;
 
                 // Enable weights sparsity if actual sparsity level observed in the tensor
                 // is high enough to warrant the overhead of enabling sparsity
@@ -879,7 +901,7 @@ namespace mv
                 // https://jira.devtools.intel.com/browse/CVS-43222
                 {
                     if (op.getOpType() == "Conv")
-                    {   
+                    {
                         if (op.getInputTensor()[0]->getShape() == mv::Shape({13,13,512,1}) &&
                             op.getInputTensor()[1]->getShape() == mv::Shape({3,3,512,1024}) &&
                             op.getOutputTensor()[0]->getShape() == mv::Shape({13,13,1024,1}))
@@ -1100,7 +1122,7 @@ namespace mv
                     (streamShape["H"] > 1) && !spilling &&
                     op.getOutputTensor(mv::IO_TENSOR_OUTPUT)->getDType() == mv::DType("UInt8"))
                     return FailCause::SpiltOverHWithStreamOverHInCMX;
-                
+
                 // This is intended to be a temporary workaround for ModelE, layer '97' & '113', which does work with SOH
                 // It has not been root caused to the compiler or runtime but as of now the compiler logic seems OK
                 if (clustering == "SplitOverH" && op.getOpType() == "Conv" && !isChanMajor && op.getInputTensor()[0]->getShape()[mv::IO_CHANNEL_DIMENSION] == 64 &&
@@ -1145,7 +1167,7 @@ namespace mv
                                 return FailCause::SoftwareDeconvolutionSet;
                      }
                 }
-           
+
                 //temporarily disable the SplitOverHOverlapped for custom network kernel size 7x7 subtensors not correct
                 if (clustering == "SplitOverH" && op.getOpType() == "Conv" && isChanMajor && op.getInputTensor()[0]->getShape()[mv::IO_CHANNEL_DIMENSION] == 3 &&
                     op.getInputTensor()[0]->getShape()[mv::IO_WIDTH_DIMENSION] == 72 && op.getInputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 72 &&
@@ -1605,7 +1627,7 @@ namespace mv
                 }
 
                 // For performance in YoloV2 and other networks with large input which don't allow SOH to stay in CMX
-                // at the start of the network, here we preference being clustering or SOK rather than SOH. 
+                // at the start of the network, here we preference being clustering or SOK rather than SOH.
                 // This will allow us to use the AddActivationStreaming pass to speed up these layers.
                 // Needed because SOH can only stream over K, and that pass only speeds up streaming over H...
                 if(parentOpType == "Input" && isChildChanMajor && willAlwaysSpill(childOp) &&
