@@ -99,15 +99,17 @@ mlir::OpFoldResult vpux::Const::DeclareOp::fold(ArrayRef<mlir::Attribute> operan
 
 namespace {
 
-class FoldSubTensor final : public mlir::OpRewritePattern<mlir::SubTensorOp> {
+class FoldSubTensor final : public mlir::OpRewritePattern<mlir::tensor::ExtractSliceOp> {
 public:
-    using mlir::OpRewritePattern<mlir::SubTensorOp>::OpRewritePattern;
+    using mlir::OpRewritePattern<mlir::tensor::ExtractSliceOp>::OpRewritePattern;
 
 public:
-    mlir::LogicalResult matchAndRewrite(mlir::SubTensorOp origOp, mlir::PatternRewriter& rewriter) const final;
+    mlir::LogicalResult matchAndRewrite(mlir::tensor::ExtractSliceOp origOp,
+                                        mlir::PatternRewriter& rewriter) const final;
 };
 
-mlir::LogicalResult FoldSubTensor::matchAndRewrite(mlir::SubTensorOp origOp, mlir::PatternRewriter& rewriter) const {
+mlir::LogicalResult FoldSubTensor::matchAndRewrite(mlir::tensor::ExtractSliceOp origOp,
+                                                   mlir::PatternRewriter& rewriter) const {
     auto constOp = origOp.source().getDefiningOp<Const::DeclareOp>();
     if (constOp == nullptr) {
         return matchFailed(rewriter, origOp, "SubTensor source is not a constant");

@@ -5,7 +5,7 @@ func @ExpandMaxPoolChannels(%arg0: tensor<1x3x30x30xf16>) -> tensor<1x3x15x13xf1
   %0 = IE.MaxPool(%arg0) {kernel_size = [5 : i32, 5 : i32], pads_begin = [2 : i32, 0 : i32], pads_end = [2 : i32, 0 : i32], rounding_type = "FLOOR", strides = [2 : i32, 2 : i32]} : tensor<1x3x30x30xf16> -> tensor<1x3x15x13xf16>
   // CHECK:       %[[PAD:.*]] = IE.Expand(%arg0) {pads_begin_attr = [0 : i32, 0 : i32, 0 : i32, 0 : i32], pads_end_attr = [0 : i32, 13 : i32, 0 : i32, 0 : i32]} : tensor<1x3x30x30xf16> -> tensor<1x16x30x30xf16>
   // CHECK:       %[[POOL:.*]] = IE.MaxPool(%[[PAD]]) {kernel_size = [5 : i32, 5 : i32], pads_begin = [2 : i32, 0 : i32], pads_end = [2 : i32, 0 : i32], rounding_type = "FLOOR", strides = [2 : i32, 2 : i32]} : tensor<1x16x30x30xf16> -> tensor<1x16x15x13xf16>
-  // CHECK:       %[[OUT:.*]] = subtensor %[[POOL]][0, 0, 0, 0] [1, 3, 15, 13] [1, 1, 1, 1] : tensor<1x16x15x13xf16> to tensor<1x3x15x13xf16>
+  // CHECK:       %[[OUT:.*]] = tensor.extract_slice %[[POOL]][0, 0, 0, 0] [1, 3, 15, 13] [1, 1, 1, 1] : tensor<1x16x15x13xf16> to tensor<1x3x15x13xf16>
 
   return %0 : tensor<1x3x15x13xf16>
   // CHECK        return %[[OUT]]
@@ -21,7 +21,7 @@ func @ExpandConvolutionChannels(%arg0: tensor<1x3x30x30xf16>) -> tensor<1x5x28x2
 
   %1 = IE.Convolution(%arg0, %0) {dilations = [1 : i32, 1 : i32], pads_begin = [0 : i32, 0 : i32], pads_end = [0 : i32, 0 : i32], strides = [1 : i32, 1 : i32]} : tensor<1x3x30x30xf16>, tensor<5x3x3x3xf16> -> tensor<1x5x28x28xf16>
   // CHECK:       %[[EXTENDED_CONV:.*]] = IE.Convolution(%[[EXTENDED_INPUT]], %[[EXTENDED_FILTER]])
-  // CHECK:       %[[REDUNDRANT_SUBTENSOR:.*]] = subtensor %[[EXTENDED_CONV]]
+  // CHECK:       %[[REDUNDRANT_SUBTENSOR:.*]] = tensor.extract_slice %[[EXTENDED_CONV]]
 
   return %1 : tensor<1x5x28x28xf16>
   // CHECK        return %[[REDUNDRANT_SUBTENSOR]]
@@ -39,7 +39,7 @@ func @ExpandBiasesConvolutionChannels(%arg0: tensor<1x3x30x30xf16>) -> tensor<1x
 
   %2 = IE.Convolution(%arg0, %0, %1) {dilations = [1 : i32, 1 : i32], pads_begin = [0 : i32, 0 : i32], pads_end = [0 : i32, 0 : i32], strides = [1 : i32, 1 : i32]} : tensor<1x3x30x30xf16>, tensor<5x3x3x3xf16>, tensor<1x5x1x1xf16> -> tensor<1x5x28x28xf16>
   // CHECK:       %[[EXTENDED_CONV:.*]] = IE.Convolution(%[[EXTENDED_INPUT]], %[[EXTENDED_FILTER]], %[[EXTENDED_BIAS]])
-  // CHECK:       %[[REDUNDRANT_SUBTENSOR:.*]] = subtensor %[[EXTENDED_CONV]]
+  // CHECK:       %[[REDUNDRANT_SUBTENSOR:.*]] = tensor.extract_slice %[[EXTENDED_CONV]]
 
   return %2 : tensor<1x5x28x28xf16>
   // CHECK        return %[[REDUNDRANT_SUBTENSOR]]
