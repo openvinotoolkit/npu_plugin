@@ -869,20 +869,6 @@ StrategyManagerSimple::FailCause StrategyManagerSimple::validateStrategy(mv::Op&
         op.getInputTensor(1)->getShape()[mv::KERNEL_WIDTH] == 1)
         return FailCause::SpiltOverHForConvModelF;
 
-    // This is intended to be a temporary workaround for ModelF, layers which do work with SOK
-    // It has not been root caused to the compiler or runtime but as of now the compiler logic seems OK
-    // layers: 'at_13/11_conv/Conv2D', 'at_14/12_conv/Conv2D', 'at_15/13_conv/Conv2D', 'at_16/14_conv/Conv2D'
-    if ((clustering == "SplitOverK" || streamShape["K"] > 1) && op.getOpType() == "Conv" && !isCMConv &&
-        op.getInputTensor()[0]->getShape()[mv::IO_CHANNEL_DIMENSION] == 256 && op.getOutputTensor()[0]->getShape()[mv::IO_CHANNEL_DIMENSION] == 256 &&
-        op.getInputTensor()[0]->getShape()[mv::IO_WIDTH_DIMENSION] == 1 && op.getOutputTensor()[0]->getShape()[mv::IO_WIDTH_DIMENSION] == 1 &&
-        op.getInputTensor(1)->getShape()[mv::KERNEL_HEIGHT] == 3 && op.getInputTensor(1)->getShape()[mv::KERNEL_WIDTH] == 1 &&
-        ((op.getInputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 32 && op.getOutputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 16) ||
-            (op.getInputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 16 && op.getOutputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 8) ||
-            (op.getInputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 8 && op.getOutputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 4) ||
-            (op.getInputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 4 && op.getOutputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 2)))
-        return FailCause::SpiltOverKForConvModelF;
-
-
     return FailCause::Pass; //good strategy
 }
 
