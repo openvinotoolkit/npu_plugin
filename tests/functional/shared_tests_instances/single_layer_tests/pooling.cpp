@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,9 +44,9 @@ TEST_P(KmbPoolingLayerTest, CompareWithRefs_MCM) {
     Run();
 }
 
-// [Track number: S#49089]
-TEST_P(KmbPoolingLayerTest, CompareWithRefs_MLIR) {
+TEST_P(KmbPoolingLayerTest, CompareWithRefs_MLIR_SW) {
     useCompilerMLIR();
+    setReferenceSoftwareModeMLIR();
     Run();
 }
 

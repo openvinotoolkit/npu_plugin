@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -78,6 +78,7 @@ TEST_P(KmbConv2dWithBiasTest, CompareWithRefs_MCM) {
 
 TEST_P(KmbConv2dWithBiasTest, CompareWithRefs_MLIR_SW) {
     useCompilerMLIR();
+    setReferenceSoftwareModeMLIR();
     Run();
 }
 

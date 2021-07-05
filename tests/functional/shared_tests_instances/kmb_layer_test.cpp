@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,8 +6,8 @@
 #include "kmb_test_report.hpp"
 #include "vpux_private_config.hpp"
 
-#include "kmb_test_tool.hpp"
 #include "functional_test_utils/blob_utils.hpp"
+#include "kmb_test_tool.hpp"
 
 #include "vpux/utils/core/format.hpp"
 
@@ -36,46 +36,47 @@ void KmbLayerTestsCommon::BuildNetworkWithoutCompile() {
 
 void KmbLayerTestsCommon::ImportNetwork() {
     IE_ASSERT(core != nullptr);
-    executableNetwork = kmbTestTool.importNetwork(core,
-        filesysName(testing::UnitTest::GetInstance()->current_test_info(), ".net", !envConfig.IE_KMB_TESTS_LONG_FILE_NAME));
+    executableNetwork =
+            kmbTestTool.importNetwork(core, filesysName(testing::UnitTest::GetInstance()->current_test_info(), ".net",
+                                                        !envConfig.IE_KMB_TESTS_LONG_FILE_NAME));
 }
 
 void KmbLayerTestsCommon::ExportNetwork() {
-    kmbTestTool.exportNetwork(executableNetwork,
-        filesysName(testing::UnitTest::GetInstance()->current_test_info(), ".net", !envConfig.IE_KMB_TESTS_LONG_FILE_NAME));
+    kmbTestTool.exportNetwork(executableNetwork, filesysName(testing::UnitTest::GetInstance()->current_test_info(),
+                                                             ".net", !envConfig.IE_KMB_TESTS_LONG_FILE_NAME));
 }
 
 void KmbLayerTestsCommon::ExportInput() {
     int i = 0;
-    for (const auto &input : executableNetwork.GetInputsInfo()) {
-        const auto &info = input.second;
+    for (const auto& input : executableNetwork.GetInputsInfo()) {
+        const auto& info = input.second;
         const auto ext = llvm::formatv(".{0}.{1}", info->name(), "in").str();
-        kmbTestTool.exportBlob(inputs[i++],
-            filesysName(testing::UnitTest::GetInstance()->current_test_info(), ext, !envConfig.IE_KMB_TESTS_LONG_FILE_NAME));
+        kmbTestTool.exportBlob(inputs[i++], filesysName(testing::UnitTest::GetInstance()->current_test_info(), ext,
+                                                        !envConfig.IE_KMB_TESTS_LONG_FILE_NAME));
     }
 }
 
 void KmbLayerTestsCommon::ExportOutput() {
     int i = 0;
-    const auto & outputs = GetOutputs();
-    for (const auto &output : executableNetwork.GetOutputsInfo()) {
-        const auto &info = output.second;
+    const auto& outputs = GetOutputs();
+    for (const auto& output : executableNetwork.GetOutputsInfo()) {
+        const auto& info = output.second;
         const auto ext = llvm::formatv(".{0}.{1}", info->getName(), "out").str();
-        kmbTestTool.exportBlob(outputs[i++],
-            filesysName(testing::UnitTest::GetInstance()->current_test_info(), ext, !envConfig.IE_KMB_TESTS_LONG_FILE_NAME));
+        kmbTestTool.exportBlob(outputs[i++], filesysName(testing::UnitTest::GetInstance()->current_test_info(), ext,
+                                                         !envConfig.IE_KMB_TESTS_LONG_FILE_NAME));
     }
 }
 
 void KmbLayerTestsCommon::ImportInput() {
     // infer request should be adapted afterwards
     int i = 0;
-    for (const auto &input : executableNetwork.GetInputsInfo()) {
-        const auto &info = input.second;
+    for (const auto& input : executableNetwork.GetInputsInfo()) {
+        const auto& info = input.second;
         const auto ext = llvm::formatv(".{0}.{1}", info->name(), "in").str();
         InferenceEngine::Blob::Ptr blob = make_blob_with_precision(info->getTensorDesc());
         blob->allocate();
-        kmbTestTool.importBlob(blob,
-            filesysName(testing::UnitTest::GetInstance()->current_test_info(), ext, !envConfig.IE_KMB_TESTS_LONG_FILE_NAME));
+        kmbTestTool.importBlob(blob, filesysName(testing::UnitTest::GetInstance()->current_test_info(), ext,
+                                                 !envConfig.IE_KMB_TESTS_LONG_FILE_NAME));
         inputs[i++] = blob;
     }
 }
@@ -83,38 +84,34 @@ void KmbLayerTestsCommon::ImportInput() {
 void KmbLayerTestsCommon::ExportReference(
         const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>& refs) {
     size_t i = 0;
-    for (const auto &output : executableNetwork.GetOutputsInfo()) {
-        const auto &name = output.first;
+    for (const auto& output : executableNetwork.GetOutputsInfo()) {
+        const auto& name = output.first;
 
         auto& ref = refs[i++];
         auto referenceBlob = InferenceEngine::make_shared_blob<uint8_t>(
-            InferenceEngine::TensorDesc{
-                InferenceEngine::Precision::U8,
-                InferenceEngine::SizeVector{ref.second.size()},
-                InferenceEngine::Layout::C
-            }, const_cast<std::uint8_t*>(&ref.second[0]), ref.second.size());
+                InferenceEngine::TensorDesc{InferenceEngine::Precision::U8,
+                                            InferenceEngine::SizeVector{ref.second.size()}, InferenceEngine::Layout::C},
+                const_cast<std::uint8_t*>(&ref.second[0]), ref.second.size());
         const auto ext = llvm::formatv(".{0}.{1}", name, "ref").str();
-        kmbTestTool.exportBlob(referenceBlob,
-            filesysName(testing::UnitTest::GetInstance()->current_test_info(), ext, !envConfig.IE_KMB_TESTS_LONG_FILE_NAME));
+        kmbTestTool.exportBlob(referenceBlob, filesysName(testing::UnitTest::GetInstance()->current_test_info(), ext,
+                                                          !envConfig.IE_KMB_TESTS_LONG_FILE_NAME));
     }
 }
 
 void KmbLayerTestsCommon::ImportReference(
         const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>& refs) {
     size_t i = 0;
-    for (const auto &output : executableNetwork.GetOutputsInfo()) {
-        const auto &name = output.first;
+    for (const auto& output : executableNetwork.GetOutputsInfo()) {
+        const auto& name = output.first;
 
         auto& ref = refs[i++];
         auto referenceBlob = InferenceEngine::make_shared_blob<uint8_t>(
-            InferenceEngine::TensorDesc{
-                InferenceEngine::Precision::U8,
-                InferenceEngine::SizeVector{ref.second.size()},
-                InferenceEngine::Layout::C
-            }, const_cast<uint8_t *>(ref.second.data()), ref.second.size());
+                InferenceEngine::TensorDesc{InferenceEngine::Precision::U8,
+                                            InferenceEngine::SizeVector{ref.second.size()}, InferenceEngine::Layout::C},
+                const_cast<uint8_t*>(ref.second.data()), ref.second.size());
         const auto ext = llvm::formatv(".{0}.{1}", name, "ref").str();
-        kmbTestTool.importBlob(referenceBlob,
-            filesysName(testing::UnitTest::GetInstance()->current_test_info(), ext, !envConfig.IE_KMB_TESTS_LONG_FILE_NAME));
+        kmbTestTool.importBlob(referenceBlob, filesysName(testing::UnitTest::GetInstance()->current_test_info(), ext,
+                                                          !envConfig.IE_KMB_TESTS_LONG_FILE_NAME));
     }
 }
 
@@ -123,7 +120,8 @@ void KmbLayerTestsCommon::Validate() {
 
     const auto rearrangeDataToLayoutFromNumDims = [](std::vector<InferenceEngine::Blob::Ptr>& blobs) {
         for (int i = 0; i < blobs.size(); ++i) {
-            const auto defaultLayout = InferenceEngine::TensorDesc::getLayoutByDims(blobs[i]->getTensorDesc().getDims());
+            const auto defaultLayout =
+                    InferenceEngine::TensorDesc::getLayoutByDims(blobs[i]->getTensorDesc().getDims());
             if (blobs[i]->getTensorDesc().getLayout() != defaultLayout) {
                 blobs[i] = FuncTestUtils::convertBlobLayout(blobs[i], defaultLayout);
             }
@@ -146,7 +144,7 @@ void KmbLayerTestsCommon::Validate() {
     }
 
     IE_ASSERT(actualOutputs.size() == expectedOutputs.size())
-        << "nGraph interpreter has " << expectedOutputs.size() << " outputs, while IE " << actualOutputs.size();
+            << "nGraph interpreter has " << expectedOutputs.size() << " outputs, while IE " << actualOutputs.size();
 
     rearrangeDataToLayoutFromNumDims(actualOutputs);
     Compare(expectedOutputs, actualOutputs);
@@ -217,7 +215,7 @@ void KmbLayerTestsCommon::Run() {
         } else {
             std::cout << "Skip KmbLayerTestsCommon::Infer()" << std::endl;
         }
-    } catch (const KmbSkipTestException &e) {
+    } catch (const KmbSkipTestException& e) {
         std::cout << "Skipping the test due to: " << e.what() << std::endl;
         report.skipped(testInfo);
         SKIP() << "Skipping the test due to: " << e.what();
@@ -226,6 +224,10 @@ void KmbLayerTestsCommon::Run() {
 
 void KmbLayerTestsCommon::useCompilerMLIR() {
     configuration[VPUX_CONFIG_KEY(COMPILER_TYPE)] = VPUX_CONFIG_VALUE(MLIR);
+}
+
+void KmbLayerTestsCommon::setReferenceSoftwareModeMLIR() {
+    configuration[VPUX_CONFIG_KEY(COMPILATION_MODE)] = "ReferenceSW";
 }
 
 void KmbLayerTestsCommon::setReferenceHardwareModeMLIR() {
