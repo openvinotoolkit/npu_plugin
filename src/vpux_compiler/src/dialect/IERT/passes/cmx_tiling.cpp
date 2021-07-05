@@ -11,16 +11,16 @@
 // included with the Software Package for additional details.
 //
 
-#include "vpux/compiler/dialect/IERT/passes.hpp"
-
 #include "vpux/compiler/core/tiling.hpp"
+#include "vpux/compiler/dialect/IERT/passes.hpp"
+#include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 #include "vpux/compiler/utils/types.hpp"
 
 #include <mlir/IR/PatternMatch.h>
-#include <mlir/Transforms/GreedyPatternRewriteDriver.h>
+#include <mlir/Transforms/DialectConversion.h>
 
 #include <functional>
 #include <numeric>
@@ -29,140 +29,25 @@ using namespace vpux;
 
 namespace {
 
-Dim largestTileDim(ShapeRef shape, ShapeRef nTilesOnDim) {
-    int64_t maxSize = 0;
-    Dim maxDim(0);
+using OutputTiling = SmallVector<Tile>;
 
-    for (auto d : irange(shape.size())) {
-        const auto dim = Dim(d);
+//
+// makeTile
+//
 
-        VPUX_THROW_UNLESS(nTilesOnDim[dim] != 0, "Cannot divide by 0 tiles");
-
-        const auto tiledDimSize = shape[dim] / nTilesOnDim[dim];
-
-        if (tiledDimSize > maxSize) {
-            maxSize = tiledDimSize;
-            maxDim = dim;
-        }
-    }
-
-    return maxDim;
-}
-
-class CMXTilingPass final : public IERT::CXMTilingBase<CMXTilingPass> {
-public:
-    explicit CMXTilingPass(Logger log) {
-        Base::initLogger(log, Base::getArgumentName());
-    }
-
-    // tilers
-    class SimpleFillHalfCMXTiler;
-
-    // rewriters
-    class ConvolutionTiling;
-
-private:
-    void safeRunOnFunc() final;
-};
-
-class CMXTilingPass::SimpleFillHalfCMXTiler {
-public:
-    explicit SimpleFillHalfCMXTiler(Byte cmxSize, mlir::MLIRContext* ctx, Logger log)
-            : _memSize(cmxSize.count() / FillFactor), _ctx(ctx), _log(log) {
-    }
-
-    SmallVector<Tile> convolutionTiler(IERT::ConvolutionOp op) const;
-
-    void buildTilingPatterns(mlir::RewritePatternSet& patterns);
-
-private:
-    Byte _memSize;
-    mlir::MLIRContext* _ctx;
-    Logger _log;
-
-    static constexpr unsigned FillFactor = 2;
-};
-
-void CMXTilingPass::SimpleFillHalfCMXTiler::buildTilingPatterns(mlir::RewritePatternSet& patterns) {
-    auto convTilerFunc = std::bind(&SimpleFillHalfCMXTiler::convolutionTiler, this, std::placeholders::_1);
-
-    patterns.insert<CMXTilingPass::ConvolutionTiling>(_ctx, convTilerFunc, _log);
-}
-
-SmallVector<Tile> CMXTilingPass::SimpleFillHalfCMXTiler::convolutionTiler(IERT::ConvolutionOp op) const {
-    const auto inputType = op.input().getType().cast<mlir::MemRefType>();
-    const auto outputType = op.output().getType().cast<mlir::MemRefType>();
-    const auto weightType = op.filter().getType().cast<mlir::MemRefType>();
-    const auto biasType = op.bias() != nullptr ? op.bias().getType().cast<mlir::MemRefType>() : nullptr;
-
-    const auto inputShape = getShape(inputType);
-    const auto outputShape = getShape(outputType);
-
-    auto convTileSize = [&](ShapeRef nTilesOnDim) -> Byte {
-        Byte iSize = getElemTypeSize(inputType);
-        Byte oSize = getElemTypeSize(outputType);
-
-        for (auto d : irange(inputShape.size())) {
-            const auto dim = Dim(d);
-
-            VPUX_THROW_UNLESS(nTilesOnDim[dim] != 0, "Cannot divide by 0 tiles");
-
-            if (dim == op.act_channel_dim()) {
-                iSize *= inputShape[dim];
-            } else {
-                iSize *= inputShape[dim] / nTilesOnDim[dim];
-            }
-        }
-
-        for (auto d : irange(outputShape.size())) {
-            const auto dim = Dim(d);
-
-            VPUX_THROW_UNLESS(nTilesOnDim[dim] != 0, "Cannot divide by 0 tiles");
-
-            oSize *= outputShape[dim] / nTilesOnDim[dim];
-        }
-
-        VPUX_THROW_UNLESS(nTilesOnDim[op.act_channel_dim()] != 0, "Cannot divide by 0 tiles");
-
-        Byte wSize = getTypeTotalSize(weightType) / nTilesOnDim[op.act_channel_dim()];
-        Byte bSize = (biasType != nullptr) ? getTypeTotalSize(biasType) / nTilesOnDim[op.act_channel_dim()] : Byte(0);
-
-        return iSize + oSize + wSize + bSize;
-    };
-
-    Shape nTilesOnDim(outputShape.size(), 1);
-
-    while (convTileSize(nTilesOnDim) > _memSize) {
-        const auto dim = largestTileDim(outputShape, nTilesOnDim);
-        nTilesOnDim[dim]++;
-    }
-
-    return fillDividedTiles(nTilesOnDim, outputShape);
-}
-
-class CMXTilingPass::ConvolutionTiling final : public mlir::OpRewritePattern<IERT::ConvolutionOp> {
-public:
-    using TilerFunc = std::function<SmallVector<Tile>(IERT::ConvolutionOp)>;
-
-    ConvolutionTiling(mlir::MLIRContext* ctx, TilerFunc tiler, Logger log)
-            : mlir::OpRewritePattern<IERT::ConvolutionOp>(ctx), _tiler(tiler), _log(log) {
-    }
-
-    mlir::LogicalResult matchAndRewrite(IERT::ConvolutionOp origOp, mlir::PatternRewriter& rewriter) const final;
-
-private:
-    TilerFunc _tiler;
-    Logger _log;
-};
-
-mlir::Value makeTile(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value origVal, const Tile& tile) {
+mlir::Value makeTile(mlir::OpBuilder& builder, mlir::Location baseLoc, mlir::Value origVal, const Tile& tile,
+                     StringRef valName) {
     const auto origType = origVal.getType().cast<mlir::MemRefType>();
 
     if (tile.shape == getShape(origType)) {
         return origVal;
     }
 
-    SmallVector<int64_t> viewStrides(tile.shape.size(), 1);
+    const SmallVector<int64_t> viewStrides(tile.shape.size(), 1);
+
+    const auto tileName = llvm::formatv("{0} tile {1}", valName, tile.offsets).str();
+    const auto loc = appendLoc(baseLoc, tileName);
+
     auto viewOp =
             builder.create<mlir::memref::SubViewOp>(loc, origVal, tile.offsets.raw(), tile.shape.raw(), viewStrides);
 
@@ -173,53 +58,72 @@ mlir::Value makeTile(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value o
     return copyOp.output();
 }
 
-mlir::LogicalResult CMXTilingPass::ConvolutionTiling::matchAndRewrite(IERT::ConvolutionOp origOp,
-                                                                      mlir::PatternRewriter& rewriter) const {
-    auto* ctx = rewriter.getContext();
+//
+// ConvolutionTiling
+//
 
-    auto tilings = _tiler(origOp);
+class ConvolutionTiling final : public mlir::OpRewritePattern<IERT::ConvolutionOp> {
+    using TilerFunc = std::function<OutputTiling(IERT::ConvolutionOp)>;
 
-    if (tilings.size() < 2) {
-        return matchFailed(rewriter, origOp, "No tiling required");
+public:
+    ConvolutionTiling(mlir::MLIRContext* ctx, TilerFunc tiler, Logger log)
+            : mlir::OpRewritePattern<IERT::ConvolutionOp>(ctx), _tiler(std::move(tiler)), _log(log) {
+        setDebugName("ConvolutionTiling");
     }
 
-    _log.trace("For ConvOp '{0}' have '{1}' tiles: ", origOp->getLoc(), tilings.size());
-    for (auto i : irange(tilings.size())) {
-        _log.nest().trace("shape '{0}'", i, tilings[i].shape);
-    }
-    for (auto i : irange(tilings.size())) {
-        _log.nest().trace("offsets '{0}'", i, tilings[i].offsets);
+    mlir::LogicalResult matchAndRewrite(IERT::ConvolutionOp origOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    TilerFunc _tiler;
+    Logger _log;
+};
+
+mlir::LogicalResult ConvolutionTiling::matchAndRewrite(IERT::ConvolutionOp origOp,
+                                                       mlir::PatternRewriter& rewriter) const {
+    _log.trace("[{0}] Got Convolution at '{1}'", getDebugName(), origOp->getLoc());
+
+    const auto tilings = _tiler(origOp);
+
+    _log.nest(1).trace("Create {0} tiles:", tilings.size());
+    for (const auto& outputTile : tilings) {
+        _log.nest(2).trace("Output tile shape '{0}' offsets '{1}'", outputTile.shape, outputTile.offsets);
     }
 
     SmallVector<mlir::Value> finalResults;
+    finalResults.reserve(tilings.size());
 
-    for (auto i : irange(tilings.size())) {
-        const auto inputConfig = backInferConvTile(origOp, tilings[i]);
+    for (const auto& outputTile : tilings) {
+        const auto tileConf = backInferConvTile(origOp, outputTile);
 
-        const auto inputTile = inputConfig.inputTile;
-        const auto weightsTile = inputConfig.filterTile;
-        const auto biasTile = inputConfig.biasTile;
+        const auto& inputTile = tileConf.inputTile;
+        const auto& filterTile = tileConf.filterTile;
+        const auto& biasTile = tileConf.biasTile;
 
-        const auto padsBegin = inputConfig.pads.begin;
-        const auto padsEnd = inputConfig.pads.end;
+        const auto& padsBegin = tileConf.pads.begin;
+        const auto& padsEnd = tileConf.pads.end;
 
-        const auto actInput = makeTile(rewriter, origOp->getLoc(), origOp.input(), inputTile);
-        const auto weightInput = makeTile(rewriter, origOp->getLoc(), origOp.filter(), weightsTile);
-        const auto biasInput =
-                origOp.bias() != nullptr ? makeTile(rewriter, origOp->getLoc(), origOp.bias(), biasTile) : nullptr;
+        const auto actInput = makeTile(rewriter, origOp->getLoc(), origOp.input(), inputTile, "input");
+        const auto filterInput = makeTile(rewriter, origOp->getLoc(), origOp.filter(), filterTile, "filter");
+        const auto biasInput = origOp.bias() != nullptr
+                                       ? makeTile(rewriter, origOp->getLoc(), origOp.bias(), biasTile, "bias")
+                                       : nullptr;
 
-        const auto tileTypeOut = changeShape(origOp.output_buff().getType().cast<mlir::MemRefType>(), tilings[i].shape);
-        auto allocOutOp = rewriter.create<mlir::memref::AllocOp>(origOp.getLoc(), tileTypeOut);
+        const auto tileName = llvm::formatv("output tile {0}", outputTile.offsets).str();
+        const auto loc = appendLoc(origOp->getLoc(), tileName);
 
-        auto convOp = rewriter.create<IERT::ConvolutionOp>(
-                origOp.getLoc(), actInput, weightInput, biasInput, allocOutOp.memref(), origOp.strides(),
-                getInt32ArrayAttr(ctx, padsBegin), getInt32ArrayAttr(ctx, padsEnd), origOp.dilations());
+        const auto tileTypeOut = changeShape(origOp.output().getType().cast<mlir::MemRefType>(), outputTile.shape);
+        auto allocOutOp = rewriter.create<mlir::memref::AllocOp>(loc, tileTypeOut);
 
-        SmallVector<int64_t> viewStrides(tilings[i].shape.size(), 1);
-        auto subViewOut = rewriter.create<mlir::memref::SubViewOp>(
-                origOp->getLoc(), origOp.output_buff(), tilings[i].offsets.raw(), tilings[i].shape.raw(), viewStrides);
+        auto tiledOp =
+                rewriter.create<IERT::ConvolutionOp>(loc, actInput, filterInput, biasInput, allocOutOp.memref(),
+                                                     origOp.strides(), getInt32ArrayAttr(getContext(), padsBegin),
+                                                     getInt32ArrayAttr(getContext(), padsEnd), origOp.dilations());
 
-        auto copyOut = rewriter.create<IERT::CopyOp>(origOp.getLoc(), convOp.output(), subViewOut.result());
+        SmallVector<int64_t> viewStrides(outputTile.shape.size(), 1);
+        auto subViewOut = rewriter.create<mlir::memref::SubViewOp>(loc, origOp.output_buff(), outputTile.offsets.raw(),
+                                                                   outputTile.shape.raw(), viewStrides);
+
+        auto copyOut = rewriter.create<IERT::CopyOp>(loc, tiledOp.output(), subViewOut.result());
         finalResults.push_back(copyOut);
     }
 
@@ -227,26 +131,256 @@ mlir::LogicalResult CMXTilingPass::ConvolutionTiling::matchAndRewrite(IERT::Conv
     return mlir::success();
 }
 
+//
+// MaxPoolTiling
+//
+
+class MaxPoolTiling final : public mlir::OpRewritePattern<IERT::MaxPoolOp> {
+    using TilerFunc = std::function<OutputTiling(IERT::MaxPoolOp)>;
+
+public:
+    MaxPoolTiling(mlir::MLIRContext* ctx, TilerFunc tiler, Logger log)
+            : mlir::OpRewritePattern<IERT::MaxPoolOp>(ctx), _tiler(std::move(tiler)), _log(log) {
+        setDebugName("MaxPoolTiling");
+    }
+
+    mlir::LogicalResult matchAndRewrite(IERT::MaxPoolOp origOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    TilerFunc _tiler;
+    Logger _log;
+};
+
+mlir::LogicalResult MaxPoolTiling::matchAndRewrite(IERT::MaxPoolOp origOp, mlir::PatternRewriter& rewriter) const {
+    _log.trace("[{0}] Got MaxPool at '{1}'", getDebugName(), origOp->getLoc());
+
+    const auto tilings = _tiler(origOp);
+
+    _log.nest(1).trace("Create {0} tiles:", tilings.size());
+    for (const auto& outputTile : tilings) {
+        _log.nest(2).trace("Output tile shape '{0}' offsets '{1}'", outputTile.shape, outputTile.offsets);
+    }
+
+    SmallVector<mlir::Value> finalResults;
+    finalResults.reserve(tilings.size());
+
+    for (const auto& outputTile : tilings) {
+        const auto tileConf = backInferPoolTile(origOp, outputTile);
+
+        const auto& inputTile = tileConf.inputTile;
+
+        const auto& padsBegin = tileConf.pads.begin;
+        const auto& padsEnd = tileConf.pads.end;
+
+        const auto actInput = makeTile(rewriter, origOp->getLoc(), origOp.input(), inputTile, "input");
+
+        const auto tileName = llvm::formatv("output tile {0}", outputTile.offsets).str();
+        const auto loc = appendLoc(origOp->getLoc(), tileName);
+
+        const auto tileTypeOut = changeShape(origOp.output().getType().cast<mlir::MemRefType>(), outputTile.shape);
+        auto allocOutOp = rewriter.create<mlir::memref::AllocOp>(loc, tileTypeOut);
+
+        auto tiledOp = rewriter.create<IERT::MaxPoolOp>(loc, actInput, allocOutOp.memref(), origOp.kernel_size(),
+                                                        origOp.strides(), getInt32ArrayAttr(getContext(), padsBegin),
+                                                        getInt32ArrayAttr(getContext(), padsEnd));
+
+        SmallVector<int64_t> viewStrides(outputTile.shape.size(), 1);
+        auto subViewOut = rewriter.create<mlir::memref::SubViewOp>(loc, origOp.output_buff(), outputTile.offsets.raw(),
+                                                                   outputTile.shape.raw(), viewStrides);
+
+        auto copyOut = rewriter.create<IERT::CopyOp>(loc, tiledOp.output(), subViewOut.result());
+        finalResults.push_back(copyOut);
+    }
+
+    rewriter.replaceOpWithNewOp<IERT::ConcatViewOp>(origOp, finalResults, origOp.output_buff());
+    return mlir::success();
+}
+
+//
+// SimpleTiler
+//
+
+class SimpleTiler {
+public:
+    explicit SimpleTiler(Logger log): _log(log) {
+    }
+
+    void buildTilingPatterns(mlir::RewritePatternSet& patterns);
+
+private:
+    OutputTiling convolutionTiler(IERT::ConvolutionOp op) const;
+    OutputTiling maxPoolTiler(IERT::MaxPoolOp op) const;
+
+    OutputTiling genericTiler(mlir::Operation* op, mlir::MemRefType outputType,
+                              FuncRef<bool(ShapeRef)> isSupportedTileSize) const;
+
+private:
+    Logger _log;
+};
+
+void SimpleTiler::buildTilingPatterns(mlir::RewritePatternSet& patterns) {
+    const auto convTilerFunc = std::bind(&SimpleTiler::convolutionTiler, this, std::placeholders::_1);
+    patterns.add<ConvolutionTiling>(patterns.getContext(), convTilerFunc, _log);
+
+    const auto maxPoolTilerFunc = std::bind(&SimpleTiler::maxPoolTiler, this, std::placeholders::_1);
+    patterns.add<MaxPoolTiling>(patterns.getContext(), maxPoolTilerFunc, _log);
+}
+
+OutputTiling SimpleTiler::genericTiler(mlir::Operation* op, mlir::MemRefType outputType,
+                                       FuncRef<bool(ShapeRef)> isSupportedTileSize) const {
+    const auto act_channel_dim = IERT::ConvolutionOp::act_channel_dim();
+
+    const auto outputShape = getShape(outputType);
+
+    const auto minChannelSize = VPUIP::NCEInvariant::getChannelAlignment(outputType.getElementType());
+    const auto maxChannelTiles = outputShape[act_channel_dim] / minChannelSize;
+
+    Shape nTilesOnDim(outputShape.size(), 1);
+
+    const auto isSupportedChannelDivision = [&]() {
+        if ((outputShape[act_channel_dim] % nTilesOnDim[act_channel_dim]) != 0) {
+            return false;
+        }
+
+        const auto tileChannels = outputShape[act_channel_dim] / nTilesOnDim[act_channel_dim];
+        return (tileChannels % minChannelSize) == 0;
+    };
+
+    while (!isSupportedTileSize(nTilesOnDim)) {
+        // First try tiling over output channels
+
+        if (nTilesOnDim[act_channel_dim] < maxChannelTiles) {
+            do {
+                ++nTilesOnDim[act_channel_dim];
+            } while (!isSupportedChannelDivision());
+
+            continue;
+        }
+
+        // Then try tiling over spatial dimensions (prefer height first)
+
+        Optional<Dim> dimToTile;
+
+        for (auto spatialDim : irange(IERT::ConvolutionOp::act_spatial_dims())) {
+            const auto act_spatial_dim = IERT::ConvolutionOp::act_spatial_dim(spatialDim);
+
+            const auto origSize = outputShape[act_spatial_dim];
+            const auto prevDivisor = nTilesOnDim[act_spatial_dim];
+
+            if (origSize / prevDivisor > 1) {
+                dimToTile = act_spatial_dim;
+                break;
+            }
+        }
+
+        VPUX_THROW_UNLESS(dimToTile.hasValue(), "Failed to tile {0} at '{1}'", op->getName(), op->getLoc());
+        nTilesOnDim[dimToTile.getValue()]++;
+    }
+
+    return fillDividedTiles(nTilesOnDim, outputShape);
+}
+
+OutputTiling SimpleTiler::convolutionTiler(IERT::ConvolutionOp op) const {
+    const auto inputType = op.input().getType().cast<mlir::MemRefType>();
+    const auto filterType = op.filter().getType().cast<mlir::MemRefType>();
+    const auto outputType = op.output().getType().cast<mlir::MemRefType>();
+
+    const auto outputShape = getShape(outputType);
+
+    const auto isSupportedTileSize = [&](ShapeRef nTilesOnDim) -> bool {
+        const auto outputTiles = fillDividedTiles(nTilesOnDim, outputShape);
+
+        return llvm::all_of(outputTiles, [&](const auto& outputTile) {
+            const auto tileConf = backInferConvTile(op, outputTile);
+
+            const auto inputTileType = changeShape(inputType, tileConf.inputTile.shape);
+            const auto filterTileType = changeShape(filterType, tileConf.filterTile.shape);
+            const auto outputTileType = changeShape(outputType, outputTile.shape);
+
+            return mlir::succeeded(
+                    VPUIP::NCEInvariant::verifyConvCMX(op->getLoc(), op->getParentOfType<mlir::ModuleOp>(),
+                                                       inputTileType, filterTileType, outputTileType, _log));
+        });
+    };
+
+    return genericTiler(op, outputType, isSupportedTileSize);
+}
+
+OutputTiling SimpleTiler::maxPoolTiler(IERT::MaxPoolOp op) const {
+    const auto inputType = op.input().getType().cast<mlir::MemRefType>();
+    const auto outputType = op.output().getType().cast<mlir::MemRefType>();
+
+    const auto outputShape = getShape(outputType);
+
+    const auto isSupportedTileSize = [&](ShapeRef nTilesOnDim) -> bool {
+        const auto outputTiles = fillDividedTiles(nTilesOnDim, outputShape);
+
+        return llvm::all_of(outputTiles, [&](const auto& outputTile) {
+            const auto tileConf = backInferPoolTile(op, outputTile);
+
+            const auto inputTileType = changeShape(inputType, tileConf.inputTile.shape);
+            const auto outputTileType = changeShape(outputType, outputTile.shape);
+
+            return mlir::succeeded(VPUIP::NCEInvariant::verifyPoolCMX(
+                    op->getLoc(), op->getParentOfType<mlir::ModuleOp>(), inputTileType, outputTileType,
+                    op.kernel_size(), op.strides(), _log));
+        });
+    };
+
+    return genericTiler(op, outputType, isSupportedTileSize);
+}
+
+//
+// CMXTilingPass
+//
+
+class CMXTilingPass final : public IERT::CXMTilingBase<CMXTilingPass> {
+public:
+    explicit CMXTilingPass(Logger log) {
+        Base::initLogger(log, Base::getArgumentName());
+    }
+
+private:
+    void safeRunOnFunc() final;
+};
+
+template <class ConcreteOp>
+bool isSupportedByNCE(ConcreteOp op, Logger log) {
+    return VPUIP::NCEInvariant::verifyKernel(op, log).succeeded() &&
+           VPUIP::NCEInvariant::verifyChannels(op, log).succeeded();
+}
+
 void CMXTilingPass::safeRunOnFunc() {
     auto& ctx = getContext();
-    auto func = getFunction();
 
-    // TODO: should we add the "known HW ops" as dinamically legal by some estimated condition that they would
-    // fit into CMX??
+    mlir::ConversionTarget target(ctx);
+    target.addLegalDialect<Const::ConstDialect>();
+    target.addLegalDialect<IERT::IERTDialect>();
+    target.addLegalDialect<mlir::memref::MemRefDialect>();
+    target.addLegalOp<mlir::FuncOp, mlir::ReturnOp>();
+    target.addDynamicallyLegalOp<IERT::ConvolutionOp>([&](IERT::ConvolutionOp op) {
+        if (!isSupportedByNCE(op, _log.nest())) {
+            // It will be computed on SHAVEs
+            return true;
+        }
 
-    auto module = func->getParentOfType<mlir::ModuleOp>();
-    auto resOp = IERT::RunTimeResourcesOp::getFromModule(module);
+        return VPUIP::NCEInvariant::verifyCMX(op, _log.nest()).succeeded();
+    });
+    target.addDynamicallyLegalOp<IERT::MaxPoolOp>([&](IERT::MaxPoolOp op) {
+        if (!isSupportedByNCE(op, _log.nest())) {
+            // It will be computed on SHAVEs
+            return true;
+        }
 
-    auto cmxSize = resOp.getAvailableMemory(VPUIP::PhysicalMemoryAttr::get(&ctx, VPUIP::PhysicalMemory::CMX_NN));
-    VPUX_THROW_UNLESS(cmxSize != nullptr, "Can't get information about {0} memory", VPUIP::PhysicalMemory::CMX_NN);
+        return VPUIP::NCEInvariant::verifyCMX(op, _log.nest()).succeeded();
+    });
 
-    SimpleFillHalfCMXTiler simpleTiler(cmxSize.size(), &ctx, _log);
+    mlir::RewritePatternSet patterns(&ctx);
 
-    mlir::RewritePatternSet tilingPatterns(&ctx);
-    simpleTiler.buildTilingPatterns(tilingPatterns);
+    SimpleTiler simpleTiler(_log);
+    simpleTiler.buildTilingPatterns(patterns);
 
-    if (mlir::failed(
-                mlir::applyPatternsAndFoldGreedily(func, std::move(tilingPatterns), getDefaultGreedyRewriteConfig()))) {
+    if (mlir::failed(mlir::applyPartialConversion(getFunction(), target, std::move(patterns)))) {
         signalPassFailure();
     }
 }

@@ -97,7 +97,7 @@ mlir::Attribute VPUIPLayerInfo::getExecutor(mlir::Operation* op, uint32_t& numUn
 
 template <class ConcreteOp>
 bool isSupportedByNCE(ConcreteOp op) {
-    return VPUIP::NCEInvariant::verifyOp(op).succeeded();
+    return VPUIP::NCEInvariant::verifyKernel(op).succeeded() && VPUIP::NCEInvariant::verifyChannels(op).succeeded();
 }
 
 mlir::LogicalResult VPUIPLayerInfo::isSupportedLayout(mlir::Operation* origOp, DataOrderInfo& info) const {

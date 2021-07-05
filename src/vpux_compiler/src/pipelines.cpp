@@ -49,7 +49,7 @@ void buildIEReferenceLowPrecisionPipeline(mlir::OpPassManager& pm, Logger log) {
     pm.addPass(IE::createMergeFakeQuantPass(log));
 }
 
-void buildIERTInitialPipeline(mlir::OpPassManager& pm, Logger log) {
+void buildIERTLayoutsPipeline(mlir::OpPassManager& pm, Logger log) {
     pm.addPass(IERT::createUseUserLayout(log));
     pm.addPass(IERT::createAdjustLayoutsPass(log));
     pm.addPass(mlir::createCanonicalizerPass(getDefaultGreedyRewriteConfig()));
@@ -76,7 +76,7 @@ void vpux::buildReferenceModePipeline(mlir::OpPassManager& pm, Logger log) {
     buildLowerIE2IERTPipeline(pm, log);
 
     // IERT Dialect level
-    buildIERTInitialPipeline(pm, log);
+    buildIERTLayoutsPipeline(pm, log);
     pm.addPass(createComposeSubViewPass(log));
     buildIERTAllocationPipelineForDDR(pm, log);
     IERT::buildAsyncSchedulingPipeline(pm, log);
@@ -102,9 +102,11 @@ void vpux::buildHardwareModePipeline(mlir::OpPassManager& pm, Logger log) {
     buildLowerIE2IERTPipeline(pm, log);
 
     // IERT Dialect level
-    buildIERTInitialPipeline(pm, log);
+    buildIERTLayoutsPipeline(pm, log);
 
     // Partially lower IERT->VPUIP (NCE Operations only)
+    pm.addPass(IERT::createCMXTilingPass(log));
+    pm.addPass(mlir::createCanonicalizerPass(getDefaultGreedyRewriteConfig()));
     pm.addPass(createConvertToNCEOpsPass(log));
     pm.addPass(createFuseActivationsPass(log));
     pm.addPass(mlir::createCanonicalizerPass(getDefaultGreedyRewriteConfig()));

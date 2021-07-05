@@ -45,7 +45,7 @@ mlir::LogicalResult vpux::Const::SubViewAttr::verify(FuncRef<mlir::InFlightDiagn
         if (!dimAttr.isa<mlir::IntegerAttr>()) {
             return printTo(emitError(), "Got non-integer value '{0}' in 'offset' for 'SubViewAttr'", dimAttr);
         }
-        if (dimAttr.cast<mlir::IntegerAttr>().getInt() <= 0) {
+        if (dimAttr.cast<mlir::IntegerAttr>().getInt() < 0) {
             return printTo(emitError(), "Got unsupported dimension value '{0}' in 'offset' for 'SubViewAttr'", dimAttr);
         }
     }
