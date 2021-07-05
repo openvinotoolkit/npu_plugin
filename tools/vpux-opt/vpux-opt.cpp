@@ -31,6 +31,8 @@
 #include "pmlc/dialect/stdx/transforms/passes.h"
 #include "pmlc/dialect/tile/transforms/passes.h"
 #include "pmlc/transforms/passes.h"
+#include "vpux/compiler/edsl/passes.hpp"
+#include "vpux/compiler/edsl/pipeline.hpp"
 #endif
 
 #include <mlir/Dialect/Affine/Passes.h>
@@ -72,6 +74,8 @@ int main(int argc, char* argv[]) {
         pmlc::dialect::stdx::registerPasses();
         pmlc::dialect::tile::registerPasses();
         pmlc::transforms::registerPasses();
+        edsl::registereDSLPasses();
+        edsl::registerPipeline();
 #endif
 
         return mlir::asMainReturnCode(mlir::MlirOptMain(argc, argv, "VPUX Optimizer Testing Tool", registry, false));
