@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -89,7 +89,7 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(QuantCastUPAOp op) {
     return mlir::success();
 }
 
-mlir::LogicalResult vpux::VPUIP::QuantCastUPAOp::isSupportedLayout(mlir::Operation* op, vpux::DataOrderInfo& info) {
+bool vpux::VPUIP::QuantCastUPAOp::isSupportedLayout(mlir::Operation* op, vpux::DataOrderInfo& info) {
     const auto quantizeOp = mlir::dyn_cast<IERT::QuantizeOp>(op);
     const auto dequantizeOp = mlir::dyn_cast<IERT::DequantizeOp>(op);
 
@@ -104,13 +104,13 @@ mlir::LogicalResult vpux::VPUIP::QuantCastUPAOp::isSupportedLayout(mlir::Operati
         const auto supportedLayout = numDims == 3 ? DimsOrder::HCW : DimsOrder::NHCW;
         if (!info.hasInput(0)) {
             fillDataInfo(info, 1, 1, supportedLayout);
-            return mlir::failure();
+            return false;
         }
 
         const auto mainOrder = info.getInput(0);
         if (mainOrder != DimsOrder::HCW && mainOrder != DimsOrder::NHCW) {
             fillDataInfo(info, 1, 1, supportedLayout);
-            return mlir::failure();
+            return false;
         }
     }
 

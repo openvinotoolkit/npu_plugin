@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -42,23 +42,23 @@ void vpux::VPUIP::ConvolutionUPAOp::build(mlir::OpBuilder& builder, mlir::Operat
           padsBegin, padsEnd, groups, nullptr, false);
 }
 
-mlir::LogicalResult vpux::VPUIP::ConvolutionUPAOp::isSupportedLayout(mlir::Operation* op, vpux::DataOrderInfo& info) {
+bool vpux::VPUIP::ConvolutionUPAOp::isSupportedLayout(mlir::Operation* op, vpux::DataOrderInfo& info) {
     VPUX_THROW_UNLESS(mlir::isa<IERT::GroupConvolutionOp>(op) || mlir::isa<IERT::ConvolutionOp>(op),
                       "Operation {0} is not Convolution like", op->getName());
 
-    if (isSupportedLayoutSameInOutSpecificDimsOrder(op, info, {DimsOrder::NCHW}).failed()) {
+    if (!isSupportedLayoutSameInOutSpecificDimsOrder(op, info, {DimsOrder::NCHW})) {
         // filter layout
         info.setInput(1, DimsOrder::NCHW);
-        return mlir::failure();
+        return false;
     }
 
     // check filter layout
     if (!info.hasInput(1) || info.getInput(1) != DimsOrder::NCHW) {
         fillDataInfo(info, 2, 1, DimsOrder::NCHW);
-        return mlir::failure();
+        return false;
     }
 
-    return mlir::success();
+    return true;
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ConvolutionUPAOp::serialize(VPUIP::BlobWriter& writer) {

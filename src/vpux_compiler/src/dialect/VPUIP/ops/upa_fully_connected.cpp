@@ -1,5 +1,5 @@
 //
-// Copyright 2021 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -21,23 +21,22 @@ void vpux::VPUIP::FullyConnectedUPAOp::build(mlir::OpBuilder& builder, mlir::Ope
     build(builder, state, input, weights, bias, output, mlir::ValueRange{}, mlir::ValueRange{}, nullptr, false);
 }
 
-mlir::LogicalResult vpux::VPUIP::FullyConnectedUPAOp::isSupportedLayout(mlir::Operation* op,
-                                                                        vpux::DataOrderInfo& info) {
+bool vpux::VPUIP::FullyConnectedUPAOp::isSupportedLayout(mlir::Operation* op, vpux::DataOrderInfo& info) {
     VPUX_THROW_UNLESS(mlir::isa<IERT::FullyConnectedOp>(op), "Operation {0} is not FullyConnected", op->getName());
 
-    if (isSupportedLayoutSameInOutSpecificDimsOrder(op, info, {DimsOrder::NC}).failed()) {
+    if (!isSupportedLayoutSameInOutSpecificDimsOrder(op, info, {DimsOrder::NC})) {
         // weights layout
         info.setInput(1, DimsOrder::NC);
-        return mlir::failure();
+        return false;
     }
 
     // check weights layout
     if (!info.hasInput(1) || info.getInput(1) != DimsOrder::NC) {
         fillDataInfo(info, 2, 1, DimsOrder::NC);
-        return mlir::failure();
+        return false;
     }
 
-    return mlir::success();
+    return true;
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::FullyConnectedUPAOp::serialize(VPUIP::BlobWriter& writer) {

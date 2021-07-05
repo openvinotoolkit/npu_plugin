@@ -129,7 +129,7 @@ mlir::LogicalResult AdjustLayoutsPass::Impl::matchAndRewrite(LayerInterface laye
 
     auto orderInfo = layerOp.getDataOrderInfo();
     _log.nest(2).trace("Current layouts: {0}", orderInfo);
-    if (_layerInfo->isSupportedLayout(layerOp, orderInfo).succeeded()) {
+    if (_layerInfo->isSupportedLayout(layerOp, orderInfo)) {
         _log.nest(2).trace("Current layouts are supported.");
         return mlir::failure();
     }
