@@ -259,6 +259,8 @@ add_passes("dialect/VPUIP" "VPUIP")
 add_passes("conversion" "Conversion")
 add_rewriters("conversion")
 
+add_passes("edsl" "eDSL")
+
 file(GLOB_RECURSE TBLGEN_SOURCES CONFIGURE_DEPENDS "*.td")
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${TBLGEN_SOURCES})
 
@@ -342,6 +344,7 @@ target_include_directories(${OBJ_TARGET_NAME}
 
 link_system_libraries(${OBJ_TARGET_NAME}
     PUBLIC
+        MLIRAffineToStandard
         MLIRAffineTransforms
         MLIRAsync
         MLIRIR
@@ -369,6 +372,7 @@ target_link_libraries(${OBJ_TARGET_NAME}
 if(ENABLE_PLAIDML)
     link_system_libraries(${OBJ_TARGET_NAME}
         PUBLIC
+            pmlc::compiler
             pmlc::conversion::pxa_to_affine
             pmlc::conversion::tile_to_pxa
             pmlc::dialect::affinex::transforms
