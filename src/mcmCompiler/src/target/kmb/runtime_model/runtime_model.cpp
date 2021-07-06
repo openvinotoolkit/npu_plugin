@@ -756,6 +756,19 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
             numericStrides = (*masterBuffer)->getData()->computeNumericStrides();
         numericStrides.push_back(subtensor.getDType().getSizeInBits() / 8);
     }
+    else if (*tensorAllocatorName == "ProgrammableInput") 
+    {
+        // this section updates the strides for inputs to ChMajor Conv where Streams:H>1 and SOH
+        // Strides need to be based on masterBuffer (parent tensor), not the streamed slice
+        auto masterBuffer = tensorAllocator.getTopMasterBuffer(tensorBufferIt);
+        if ( (*masterBuffer)->getData()->hasAttr("splitStrategy") && 
+            ((*masterBuffer)->getData()->get<std::string>("splitStrategy") == "SplitOverH" || 
+             (*masterBuffer)->getData()->get<std::string>("splitStrategy") == "SplitOverHOverlapped") )
+        {
+            numericStrides = (*masterBuffer)->getData()->computeNumericStrides();
+            numericStrides.push_back(subtensor.getDType().getSizeInBits() / 8);
+        }
+    }
 
     //Because according to graphfile order is given as NCHW, which is exactly the reverse of our shape assumption WHCN
     std::reverse(dimensions.begin(), dimensions.end());
@@ -2395,6 +2408,7 @@ bool mv::RuntimeModel::hardwareBugDepthwise(Control::OpListIterator opIt)
         (kernelSize[mv::KERNEL_HEIGHT] > 1));
 }
 
+
 std::array<unsigned short, 4> mv::RuntimeModel::getNewPadding(std::array<unsigned short, 4> padding, int clusterId, int numClusters)
 {
         if (clusterId == 0)
@@ -2429,16 +2443,18 @@ void mv::RuntimeModel::getWorkloadPadding(Control::OpListIterator opIt, Workload
             padding = getPadding(opIt, clusterId);
         else
             padding = opIt->get<std::array<unsigned short, 4>>("padding");
-
+        
         auto outputWidth = opIt->getOutputTensor(0)->getShape()[mv::IO_WIDTH_DIMENSION];
         auto outputHeight = opIt->getOutputTensor(0)->getShape()[mv::IO_HEIGHT_DIMENSION];
 
+       
         workload.padLeft = (workload.MinX == 0) ? padding[mv::PADDING_LEFT] : 0;
         workload.padTop = (workload.MinY == 0) ? padding[mv::PADDING_TOP] : 0;
         long long  pad_right = workload.MaxX + 1 + padding[mv::PADDING_RIGHT] - outputWidth;
         workload.padRight = (pad_right > 0) ? pad_right : 0;
         long long  pad_bottom = workload.MaxY + 1 + padding[mv::PADDING_BOT] - outputHeight;
         workload.padBottom = (pad_bottom > 0) ? pad_bottom : 0;
+    
     }
     return;
 }

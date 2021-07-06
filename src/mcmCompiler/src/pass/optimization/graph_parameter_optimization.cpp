@@ -322,10 +322,10 @@ namespace mv
 
                         bool enableNestedStreaming = false;
                         auto maxK = streamsOverK.back();
-                        auto memK = memorySize(op, totalClusters,enableChannelMajorConv, clustering.get<std::string>(),inputSparsity.get<bool>(),outputSparsity.get<bool>(),weightsSparsity,{1,1,1,maxK,n},fakeSparsity, spilling.get<bool>());
+                        auto memK = memorySize(op, totalClusters, clustering.get<std::string>(),inputSparsity.get<bool>(),outputSparsity.get<bool>(),weightsSparsity,{1,1,1,maxK,n},fakeSparsity, spilling.get<bool>());
                         auto memoryMaxK = std::get<0>(memK) + std::get<1>(memK) + std::get<2>(memK);
                         auto maxH = streamsOverH.front();
-                        auto memH = memorySize(op,totalClusters,enableChannelMajorConv, clustering.get<std::string>(),inputSparsity.get<bool>(),outputSparsity.get<bool>(),weightsSparsity,{1,maxH,1,1,n},fakeSparsity, spilling.get<bool>());
+                        auto memH = memorySize(op,totalClusters, clustering.get<std::string>(),inputSparsity.get<bool>(),outputSparsity.get<bool>(),weightsSparsity,{1,maxH,1,1,n},fakeSparsity, spilling.get<bool>());
                         auto memoryMaxH =  std::get<0>(memH) + std::get<1>(memH) + std::get<2>(memH);
 
 
@@ -450,7 +450,7 @@ namespace mv
                 size_t input, output, weights;
                 // in case initialization in memorySize fails
                 input = output = weights = 0;
-                std::tie(input, output, weights) = memorySize(op,totalClusters,enableChannelMajorConv,clustering.get<std::string>(),iSparsity,oSparsity,wSparsity,streams,fSparsity,spilling,parentSpilling);
+                std::tie(input, output, weights) = memorySize(op,totalClusters,clustering.get<std::string>(),iSparsity,oSparsity,wSparsity,streams,fSparsity,spilling,parentSpilling);
                 auto activationsSize = input + output;
                 auto weightsSize = weights;
                 double availableMemory = (double) clusterMemory - (double) weightsSize;
@@ -472,7 +472,7 @@ namespace mv
                 for(unsigned splits = ceil((double)activationsSize/availableMemory); splits <= upperBoundH; splits++)
                 {
                     Shape updatedStreams({1,splits,1,streams["K"],streams["B"]});
-                    auto memFitCheck = memorySize(op,totalClusters, enableChannelMajorConv, clustering.get<std::string>(),iSparsity,oSparsity,wSparsity,updatedStreams,fSparsity,spilling,parentSpilling);
+                    auto memFitCheck = memorySize(op,totalClusters, clustering.get<std::string>(),iSparsity,oSparsity,wSparsity,updatedStreams,fSparsity,spilling,parentSpilling);
 
                     if( pipelined && //TODO inputCMX here too
                         (2*std::get<0>(memFitCheck) + std::get<1>(memFitCheck) + std::get<2>(memFitCheck) < clusterMemory) &&
@@ -603,7 +603,7 @@ namespace mv
 
                 for(unsigned split = 1; split <= maxSplit; split++)
                 {
-                    auto memFitCheck = memorySize(op,totalClusters,enableChannelMajorConv, clustering.get<std::string>(),iSparsity,oSparsity,wSparsity,{1,1,1,split,streams["B"]},fSparsity, spilling);
+                    auto memFitCheck = memorySize(op,totalClusters, clustering.get<std::string>(),iSparsity,oSparsity,wSparsity,{1,1,1,split,streams["B"]},fSparsity, spilling);
                     if( pipelined && //pipelining weights requires 2 weights streams to fit
                         (std::get<0>(memFitCheck) + std::get<1>(memFitCheck) + 2*std::get<2>(memFitCheck) < clusterMemory) &&
                         validateKStream(op, clustering, split, spilling) )
@@ -695,7 +695,7 @@ namespace mv
 
                 for(unsigned split = startSplit; split <= inputChannelSize; split++)
                 {
-                    auto memFitCheck = memorySize(op, totalClusters,enableChannelMajorConv,clustering.get<std::string>(),iSparsity,oSparsity,wSparsity,{1,1,split,1,streams["B"]},fSparsity, spilling);
+                    auto memFitCheck = memorySize(op, totalClusters,clustering.get<std::string>(),iSparsity,oSparsity,wSparsity,{1,1,split,1,streams["B"]},fSparsity, spilling);
                     if((std::get<0>(memFitCheck) + std::get<1>(memFitCheck) + std::get<2>(memFitCheck) < clusterMemory))
                         return split;
                 }
@@ -950,7 +950,7 @@ namespace mv
                     // in case initialization in memorySize fails
                     input = output = weights = 0;
                     std::tie(input, output, weights) = memorySize(op,
-                                                                    totalClusters,enableChannelMajorConv,
+                                                                    totalClusters,
                                                                     clustering,
                                                                     strategy["inputSparsity"],
                                                                     strategy["outputSparsity"],
@@ -1108,7 +1108,7 @@ namespace mv
                     return FailCause::DilatedSOH;
 
                 if (clustering == "SplitOverH" && op.getOpType() == "Conv" && !isChanMajor &&
-                    (streamShape["K"]  * streamShape["H"]) > 1 && spilling)
+                    (streamShape["K"] > 1) && spilling)
                     return FailCause::SpiltOverHWithStreamOverK;
 
                 //NOTE: This is not a HACK!!! if an operation is assigned with streamOverH + SplitOverH
@@ -1478,7 +1478,7 @@ namespace mv
                     size_t input, output, weights;
                     // in case initialization in memorySize fails
                     input = output = weights = 0;
-                    std::tie(input, output, weights) = memorySize(childOp, totalClusters,enableChannelMajorConv,
+                    std::tie(input, output, weights) = memorySize(childOp, totalClusters,
                                                                 childClustering,
                                                                 child["inputSparsity"].get<bool>(),
                                                                 child["outputSparsity"].get<bool>(),
@@ -2166,7 +2166,7 @@ namespace mv
                 // in case initialization in memorySize fails
                 input = output = weights = 0;
                 std::tie(input, output, weights) = memorySize(op,
-                                                                totalClusters,enableChannelMajorConv,
+                                                                totalClusters,
                                                                 clustering,
                                                                 inputSparsity,
                                                                 outputSparsity,
@@ -2240,7 +2240,6 @@ namespace mv
                 parentInput = parentOutput = parentWeight = 0;
                 std::tie(parentInput, parentOutput, parentWeight) = memorySize( parentOp,
                                                                                 totalClusters,
-                                                                                enableChannelMajorConv,
                                                                                 parent["clustering"].get<std::string>(),
                                                                                 parent["inputSparsity"].get<bool>(),
                                                                                 parent["outputSparsity"].get<bool>(),

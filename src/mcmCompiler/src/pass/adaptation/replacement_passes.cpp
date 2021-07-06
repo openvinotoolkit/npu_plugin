@@ -2878,7 +2878,7 @@ bool isConvStreaming (mv::ComputationModel& model, mv::Data::OpListIterator opIt
     //eltwiseParentSpliing true for ops other than eltwise
     bool parentSpilling = true;
 
-    std::tie(input, output, weights) = mv::memorySize(*opIt, totalClusters, enableChannelMajorConv, clustering, inputSparse, outputSparse, weightsSparse, streamConfig,
+    std::tie(input, output, weights) = mv::memorySize(*opIt, totalClusters, clustering, inputSparse, outputSparse, weightsSparse, streamConfig,
                         fakeSparse, spilling, parentSpilling);
     bool result = clusterMemory < (input + output + weights);
     return result;

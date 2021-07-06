@@ -56,7 +56,7 @@ std::tuple<size_t, size_t, size_t> getMemorySize(mv::ComputationModel& model,mv:
     auto prevOp = om.getSourceOp(opIt->getInputTensor(0));
     bool parentSpilling = prevOp->get<bool>("goPredictsSpill");
 
-    return mv::memorySize(*opIt, totalClusters, enableChannelMajorConv, clustering, inputSparse, outputSparse, weightsSparse, streamConfig,
+    return mv::memorySize(*opIt, totalClusters, clustering, inputSparse, outputSparse, weightsSparse, streamConfig,
                         fakeSparse, spilling, parentSpilling);
 }
 
@@ -117,7 +117,12 @@ bool validateHStream(mv::Data::OpListIterator opIt, const std::string& clusterin
             auto weightsShape = opIt->getInputTensor(1)->getShape();
             kernelH = weightsShape[mv::KERNEL_HEIGHT];
         }
+        //Reject H streams where the last subtensor will be less than kernel height
+        if(clustering == "SplitOverH" && ((newOutputSizes.back()/totalClusters) < kernelH))
+                return false;
+
         int inputSizeForLastSplit = ((newOutputSizes.back() -1) * kernelStride)  -padStart - padEnd + kernelH;
+
         if ((inputSizeForLastSplit + padEnd) < kernelH)
             return false;
     }
@@ -256,10 +261,6 @@ bool isStreamOptimizable(mv::ComputationModel& model, mv::Data::OpListIterator o
     }
 
     auto clusteringStrategy = opIt->get<std::string>("splitStrategy");
-    // GO rules disallow SOH with H streaming for convs, accuracy issues
-    if(opType == "Conv" && clusteringStrategy == "SplitOverH")
-        return false;
-
     bool isStreamingOtherDim = (streaming_strategy[3].get<int>("K") > 1 ||
                                     streaming_strategy[2].get<int>("C") > 1 ||
                                     streaming_strategy[4].get<int>("N") > 1 ) ? true : false;

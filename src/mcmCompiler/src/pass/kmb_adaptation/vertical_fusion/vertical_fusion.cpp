@@ -56,6 +56,27 @@ static size_t MAXIMUM_HEIGHT_WORTHY_FOR_VF = 38UL;
 static size_t CMX_TO_AVOID_FRAGMENTATION = 360800;
 ////////////////////////////////////////////////////////////////////////////////
 
+bool hasLargeKernel(mv::Data::OpListIterator testOp, size_t kSize)
+{
+    bool hasLargeKernel = false;
+    if (testOp->getOpType() == "Conv" || testOp->getOpType() == "DepthwiseConv")
+    {
+        auto weightTensorShape = testOp->getInputTensor(mv::IO_TENSOR_WEIGHTS_SET)->getShape();
+        auto kernelHeight = weightTensorShape[mv::IO_HEIGHT_DIMENSION];
+        if (kernelHeight >= kSize)
+            hasLargeKernel = true;
+    }
+    // MaxPool kernel
+    else if (testOp->hasAttr("kSize"))
+    {
+        auto kernel = testOp->get<std::array<unsigned short, 2UL>>("kSize");
+        auto kernelHeight = kernel[mv::IO_HEIGHT_DIMENSION];
+        if (kernelHeight >= kSize)
+            hasLargeKernel = true;
+    }
+    return hasLargeKernel;
+}
+
 void populateCandidateVerticalFusionOps(std::vector<std::string> & candidateVerticalFusionOps, const std::vector<mv::Element> &strategyList,
     mv::OpModel &om, const uint64_t& cmxV)
 {
@@ -65,6 +86,9 @@ void populateCandidateVerticalFusionOps(std::vector<std::string> & candidateVert
     {
         auto layerNameStrategy = *layerStrategy;
         std::string nodeName = layerNameStrategy.get<std::string>("name_filter");
+        // large kernels set large overlaps, so no value adding to VF subgraph
+        if (hasLargeKernel(om.getOp(nodeName), 7))
+            continue;
         auto splitList = layerNameStrategy.get<std::vector<mv::Element>>("splits");
         bool isStreamingOnH = false;
         bool isStreamingOnlyOnH = false;
@@ -210,7 +234,7 @@ static bool resultingTilesAreValid(mv::OpModel& om, std::list<std::string>& subg
 }
 
 bool willMaxStreamingBePossible(mv::OpModel& om, const std::vector<mv::Element>& strategyList,
-    const std::list<std::string>& subgraph, const std::string &opName)
+    const std::list<std::string>& subgraph, const std::string &opName, size_t nClusters)
 {
     auto op = om.getOp(opName);
     std::set<int> streamNumbers = {};
@@ -262,6 +286,11 @@ bool willMaxStreamingBePossible(mv::OpModel& om, const std::vector<mv::Element>&
             auto kernel = subbgraphOp->get<std::array<unsigned short, 2UL>>("kSize");
             kernelHeight = kernel[mv::IO_HEIGHT_DIMENSION];
         }
+
+        // ensure height is adjusted if SOH or HKSwitch to divide by number of clusters
+        if (std::find(activationSegmentableStrategies.cbegin(), activationSegmentableStrategies.cend(),
+            subbgraphOp->get<std::string>("splitStrategy")) != activationSegmentableStrategies.cend())
+            inputHeight /= nClusters;
         if (kernelHeight > inputHeight/maxStream)
             return false;
     }
@@ -745,7 +774,7 @@ void computeSubgraphs(mv::ComputationModel& model,
 
             //NOTE: the target here is to find out that all the ops that belong to the same subgraph will be
             //divisible with the maximum number of streams
-            bool streamPossible = willMaxStreamingBePossible(om, strategyList, verticalFusionSubgraphs[numberOfSubgraphs], *node);
+            bool streamPossible = willMaxStreamingBePossible(om, strategyList, verticalFusionSubgraphs[numberOfSubgraphs], *node, globalParams->get<int>("Number_of_Clusters"));
 
             bool isNeighbour = nodeIsNeighbour(om, dm, *node, verticalFusionSubgraphs[numberOfSubgraphs]);
             bool kernelLargeOverlapFlag = kernelLargeOverlap(om, verticalFusionSubgraphs[numberOfSubgraphs], *node);

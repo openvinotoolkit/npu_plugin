@@ -108,7 +108,9 @@ void populateTheSlotKeeper(mv::ComputationModel& model, std::map <std::string, s
     for (std::size_t idx = 0; idx < concatChild->getInputTensor().size(); idx++)
     {
         auto previousOp = om.getSourceOp(concatChild->getInputTensor()[idx]);
-        if (previousOp->getOpType() == "ImplicitConcat") //NOTE: belongs To first, normally!!
+        if (previousOp->getOpType() == "ImplicitConcat" &&  //NOTE: belongs To first, normally!!
+            previousOp->get<std::string>("axis") == concatChild->get<std::string>("axis"))
+
         {
             foundConcat = true;
             slotKeeper.erase(concatChild->getInputTensor()[idx]->getName());

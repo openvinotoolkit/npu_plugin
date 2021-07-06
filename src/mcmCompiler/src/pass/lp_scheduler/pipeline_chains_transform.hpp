@@ -362,7 +362,8 @@ class Pipeline_Chains {
       for (auto& i : operationLevelStream)
       {
           auto op_itr = omodel_.getOp(i->getName());
-          weightOpNames.insert(omodel_.getSourceOp(op_itr->getInputTensor(mv::IO_TENSOR_WEIGHTS_SET))->getName());
+          if (op_itr->hasAttr("hasWeights") && op_itr->get<bool>("hasWeights"))
+            weightOpNames.insert(omodel_.getSourceOp(op_itr->getInputTensor(mv::IO_TENSOR_WEIGHTS_SET))->getName());
       }
 
       return (weightOpNames.size() == 1);

@@ -69,93 +69,9 @@
             "MarkCMCompatibleConvs",
             "AddPermuteToNonCMConvPaths",
             {
-                "name" : "GraphParameterOptimization",
-                "graphOptimizerConfig" : {
-                    "globalConfigs" : [
-                        {"name" : "createStrategyDots", "value" : false},
-                        {"name" : "dotFileLocation", "value" : "./output/dots/strategy/"},
-                        {"name" : "jsonOutFileName", "value" : "./output/mcmCompiler_strategy_output.json"},
-                        {"name" : "loadStrategiesFromFile", "value" : false},
-                        {"name" : "jsonInFileName", "value" : "./output/mcmCompiler_strategy_output.json"}
-                    ],
-                    "globalStrategies" : [
-                        {"name" : "forceSpilling",    "value" : false       },
-                        {"name" : "enableStreaming",   "value" : true       },
-                        {"name" : "enablePipelining",   "value" : true },
-                        {"name" : "enablePrefetching",   "value" : true      },
-                        {"name" : "forceActivationSparsity",    "value" : false      },
-                        {"name" : "enableWeightsSparsity",    "value" : true      },
-                        {"name" : "clusteringStrategy","value" : "Automatic"}
-                    ],
-                    "layerStrategies" : [
-                        {
-                            "name" : "Conv",
-                            "strategies": [
-                                {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverK","StreamOverN"]},
-                                {"name" : "clusteringStrategies", "value" : ["SplitOverH","SplitOverK", "Clustering"]},
-                                {"name" : "inputActivationSparsity",             "value" : true},
-                                {"name" : "outputActivationSparsity",             "value" : true},
-                                {"name" : "weightsSparsity",                      "value" : true},
-                                {"name" : "pipelining",                           "value" : true}
-                            ]
-                        },
-                        {
-                            "name" : "DepthwiseConv",
-                            "strategies": [
-
-                                {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverC"]},
-                                {"name" : "clusteringStrategies", "value" : ["SplitOverH","SplitOverK","Clustering"]},
-                                {"name" : "inputActivationSparsity",             "value" : false},
-                                {"name" : "outputActivationSparsity",             "value" : true},
-                                {"name" : "weightsSparsity",                      "value" : false},
-                                {"name" : "pipelining",                           "value" : false}
-                            ]
-                        },
-                        {
-                            "name" : "MaxPool",
-                            "strategies": [
-                                {"name" : "streamingStrategies",  "value" : ["StreamOverH"]},
-                                {"name" : "clusteringStrategies", "value" : ["SplitOverH","HKSwitch","Clustering"]},
-                                {"name" : "inputActivationSparsity",             "value" : false},
-                                {"name" : "outputActivationSparsity",             "value" : true},
-                                {"name" : "weightsSparsity",                      "value" : false},
-                                {"name" : "pipelining",                           "value" : false}
-                            ]
-                        },
-                        {
-                            "name" : "Concat",
-                            "strategies": [
-                                {"name" : "clusteringStrategies", "value" : ["SplitOverH","SplitOverK"]},
-                                {"name" : "inputActivationSparsity",             "value" : false},
-                                {"name" : "outputActivationSparsity",             "value" : true},
-                                {"name" : "weightsSparsity",                      "value" : false},
-                                {"name" : "pipelining",                           "value" : false}
-                            ]
-                        },
-                        {
-                            "name" : "Eltwise",
-                            "strategies": [
-                                {"name" : "streamingStrategies",  "value" : ["StreamOverH"]},
-                                {"name" : "clusteringStrategies", "value" : ["SplitOverH","HKSwitch","Clustering"]},
-                                {"name" : "inputActivationSparsity",             "value" : true},
-                                {"name" : "outputActivationSparsity",             "value" : true},
-                                {"name" : "weightsSparsity",                      "value" : false},
-                                {"name" : "pipelining",                           "value" : false}
-                            ]
-                        },
-                        {
-                            "name" : "HwConvert",
-                            "strategies": [
-                                {"name" : "streamingStrategies",  "value" : ["StreamOverH"]},
-                                {"name" : "clusteringStrategies", "value" : ["SplitOverH","HKSwitch","Clustering"]},
-                                {"name" : "inputActivationSparsity",             "value" : true},
-                                {"name" : "outputActivationSparsity",             "value" : true},
-                                {"name" : "weightsSparsity",                      "value" : false},
-                                {"name" : "pipelining",                           "value" : false}
-                            ]
-                        }
-                    ]
-                }
+                "name" : "SimpleStrategyManager",
+                "loadStrategiesFromFile" : false,
+                "jsonInFileName" : "./output/mcmCompiler_simple_strategy_output.json"
             },
             "StoreGraphOptimizerDecisions",
             {

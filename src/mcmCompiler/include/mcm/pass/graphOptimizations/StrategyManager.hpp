@@ -145,6 +145,7 @@ public:
     using CriticalPathNodes = vector<OptimizationGraph::node_list_iterator>;
     using LayerStrategySet  = unordered_map<string,StrategySet>;
     using SubGraph = tuple<mv::Data::OpListIterator,mv::Data::OpListIterator,vector<mv::Data::OpListIterator>>;
+    using StrategyMap       = std::unordered_map<std::string, StrategySet>;
 
     static constexpr auto inf_ = numeric_limits<double>::infinity();
     static std::atomic<int> unique_ctr;
@@ -179,6 +180,7 @@ public:
     bool hasAttr(const GlobalSetting& map,const string& name) const;
     bool hasAttr(const LayerStrategySet& map,const string& name) const;
     std::string getLogID() const;
+    void printStrategy(StrategySet s);
 
     //strategy management methods
     void updateValuesFromJSON();
@@ -193,6 +195,10 @@ public:
     void saveStrategyToCompilationDescriptor(vector<mv::Element> &stategiesToSave, std::shared_ptr<mv::Element> compDesc);
     void saveMetaStrategy(CriticalPathNodes& criticalPathNodes);
     void loadSavedStrategies();
+    void loadSavedStrategies(const std::string& jsonInFileNameString);
+    void updateTensorLocationAfterLoadStrategies();
+    void saveLayerStrategies(StrategyMap& strategiesToSave);
+    std::vector<std::vector<mv::Element>> convertStrategiesToElements(StrategyMap& strategiesToConvert, std::shared_ptr<mv::Element> compDesc);
 
 //    string strategyString(OptimizationGraphNode n);
 
