@@ -29,6 +29,9 @@ target_include_directories(${TARGET_NAME}
         "${CMAKE_CURRENT_SOURCE_DIR}/include"
         "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/include")
 
+set(VPUX_VERSION_FILE ${CMAKE_CURRENT_SOURCE_DIR}/src/version.cpp)
+addVersionDefines(${VPUX_VERSION_FILE} CI_BUILD_NUMBER)
+
 link_system_libraries(${TARGET_NAME}
     PRIVATE
         IE::inference_engine

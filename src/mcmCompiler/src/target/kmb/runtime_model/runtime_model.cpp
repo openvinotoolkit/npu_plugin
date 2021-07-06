@@ -11,6 +11,10 @@
 #include <unordered_set>
 #include <memory>
 
+#include <version.hpp>
+
+#include "schema/graphfile/gf_version.h"
+
 const std::unordered_map<std::string, MVCNN::DType> mv::RuntimeModel::dTypeMapping_ =
 {
     {"Float64", MVCNN::DType::DType_FP64},
@@ -969,7 +973,7 @@ std::unique_ptr<MVCNN::SummaryHeaderT> mv::RuntimeModel::buildSummaryHeaderMetaI
 
     std::unique_ptr<MVCNN::SummaryHeaderT> toBuild = std::unique_ptr<MVCNN::SummaryHeaderT>(new MVCNN::SummaryHeaderT());
 
-    toBuild->version = buildVersionT(cm, compilationDescriptor);
+    toBuild->version = buildVersionT();
     toBuild->original_structure = buildSourceStructureT(cm, compilationDescriptor);
     toBuild->layer_count = om.opsCount();
 
@@ -1063,14 +1067,24 @@ std::unique_ptr<MVCNN::SummaryHeaderT> mv::RuntimeModel::buildSummaryHeaderT(Com
     return toBuild;
 }
 
-std::unique_ptr<MVCNN::VersionT> mv::RuntimeModel::buildVersionT(ComputationModel&, mv::Element& compilationDescriptor)
+std::unique_ptr<MVCNN::VersionT> mv::RuntimeModel::buildVersionT()
 {
     std::unique_ptr<MVCNN::VersionT> toBuild = std::unique_ptr<MVCNN::VersionT>(new MVCNN::VersionT());
 
-    setIfPresent<uint32_t, int>(toBuild->majorV, compilationDescriptor, "VersionMajor");
-    setIfPresent<uint32_t, int>(toBuild->minorV, compilationDescriptor, "VersionMinor");
-    setIfPresent<uint32_t, int>(toBuild->patchV, compilationDescriptor, "VersionPatch");
-    setIfPresent<std::string, std::string>(toBuild->hash, compilationDescriptor, "VersionHash");
+#if defined(MVCNN_VERSION_MAJOR) && defined(MVCNN_VERSION_MINOR) && defined(MVCNN_VERSION_PATCH)
+    toBuild->majorV = MVCNN_VERSION_MAJOR;
+    toBuild->minorV = MVCNN_VERSION_MINOR;
+    toBuild->patchV = MVCNN_VERSION_PATCH;
+#endif
+
+    toBuild->hash = vpux::VPUX_PLUGIN_VERSION;
+    toBuild->context = "MCM Compiler";
+
+    std::stringstream version_log;
+    version_log << "Blob version: majorV= " << toBuild->majorV << ", minorV= "
+                << toBuild->minorV << ", patch= " << toBuild->patchV
+                << ", hash= " << toBuild->hash << ", context= " << toBuild->context;
+    Logger::log(Logger::MessageType::Info, "HeadMetaInfo", version_log.str());
 
     return toBuild;
 }

@@ -338,7 +338,6 @@ std::shared_ptr<INetworkDescription> vpux::CompilerImpl::compile(const std::shar
     devConf.setup(pm);
 
     auto rootTiming = tm.getRootScope();
-
     buildPipeline(pm, archKind, compilationMode, rootTiming, log);
     const auto cnnNet = prepareNetwork(func, inputsInfo, outputsInfo, rootTiming);
     const auto module = importNetwork(&ctx, cnnNet, devConf, rootTiming, log);
