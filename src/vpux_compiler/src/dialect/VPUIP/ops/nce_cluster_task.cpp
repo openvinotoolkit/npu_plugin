@@ -82,19 +82,19 @@ VPUIP::PPETaskOp vpux::VPUIP::NCEClusterTaskOp::addPPETask(mlir::OpBuilder& buil
 
 bool vpux::VPUIP::NCEClusterTaskOp::isSupportedLayout(mlir::Operation* op, vpux::DataOrderInfo& info) {
     return llvm::TypeSwitch<mlir::Operation*, bool>(op)
-            .Case<IERT::MaxPoolOp>([&](mlir::Operation* op) {
+            .Case<IERT::MaxPoolOp>([&](IERT::MaxPoolOp op) {
                 return isSupportedLayoutSameInOutSpecificDimsOrder(op, info, {DimsOrder::NHWC});
             })
-            .Case<IERT::ConvolutionOp>([&](IERT::ConvolutionOp originOp) {
-                if (!isSupportedLayoutSameInOutSpecificDimsOrder(originOp, info, {DimsOrder::NHWC})) {
+            .Case<IERT::ConvolutionOp>([&](IERT::ConvolutionOp op) {
+                if (!isSupportedLayoutSameInOutSpecificDimsOrder(op, info, {DimsOrder::NHWC})) {
                     // weights layout
-                    info.setInput(1, DimsOrder::NHWC);
+                    info.setInput(1, DimsOrder::OYXI);
                     return false;
                 }
 
                 // check weights layout
-                if (!info.hasInput(1) || info.getInput(1) != DimsOrder::NHWC) {
-                    fillDataInfo(info, 2, 1, DimsOrder::NHWC);
+                if (!info.hasInput(1) || info.getInput(1) != DimsOrder::OYXI) {
+                    fillDataInfo(info, 2, 1, DimsOrder::OYXI);
                     return false;
                 }
 

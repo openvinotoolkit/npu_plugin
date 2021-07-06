@@ -40,6 +40,10 @@ const DimsOrder vpux::DimsOrder::NHCW = DimsOrder(0x1324);
 const DimsOrder vpux::DimsOrder::NCDHW = DimsOrder(0x12345);
 const DimsOrder vpux::DimsOrder::NDHWC = DimsOrder(0x13452);
 
+const DimsOrder vpux::DimsOrder::OIYX = DimsOrder(0x1234);
+const DimsOrder vpux::DimsOrder::OYXI = DimsOrder(0x1342);
+const DimsOrder vpux::DimsOrder::YXOI = DimsOrder(0x3412);
+
 namespace {
 
 const DimsOrder::StorageType INDEX_MASK = 0xF;

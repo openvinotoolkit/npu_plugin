@@ -26,9 +26,15 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(ConvolutionUPAOp op) {
         return mlir::failure();
     }
 
+    // There are two uPA tasks which perform convolution: ConvUPA and SWConvUPA.
+    // SWConvUPA supports parallel execution on multiple uPA units.
+    // However, it does not have group support, so group convolutions go to ConvUPA.
+    // ConvUPA expects NCHW order, SWConvUPA expects YXOI.
+    const auto expectedFilterLayout = (op.groups() > 1) ? DimsOrder::OIYX : DimsOrder::YXOI;
     const auto filterLayout = DimsOrder::fromValue(op.filter());
-    if (filterLayout != DimsOrder::NCHW) {
-        return errorAt(op, "filter layout must be NCHW, got {0}", filterLayout);
+
+    if (filterLayout != expectedFilterLayout) {
+        return errorAt(op, "filter layout must be {0}, got {1}", expectedFilterLayout, filterLayout);
     }
 
     return mlir::success();
@@ -46,15 +52,17 @@ bool vpux::VPUIP::ConvolutionUPAOp::isSupportedLayout(mlir::Operation* op, vpux:
     VPUX_THROW_UNLESS(mlir::isa<IERT::GroupConvolutionOp>(op) || mlir::isa<IERT::ConvolutionOp>(op),
                       "Operation {0} is not Convolution like", op->getName());
 
+    const auto expectedFilterLayout = mlir::isa<IERT::GroupConvolutionOp>(op) ? DimsOrder::OIYX : DimsOrder::YXOI;
+
     if (!isSupportedLayoutSameInOutSpecificDimsOrder(op, info, {DimsOrder::NCHW})) {
         // filter layout
-        info.setInput(1, DimsOrder::NCHW);
+        info.setInput(1, expectedFilterLayout);
         return false;
     }
 
     // check filter layout
-    if (!info.hasInput(1) || info.getInput(1) != DimsOrder::NCHW) {
-        fillDataInfo(info, 2, 1, DimsOrder::NCHW);
+    if (!info.hasInput(1) || info.getInput(1) != expectedFilterLayout) {
+        fillDataInfo(info, 2, 1, expectedFilterLayout);
         return false;
     }
 
@@ -74,28 +82,55 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ConvolutionUPAOp::serialize(VPUIP::
     const auto kernel =
             MVCNN::order3(checked_cast<uint8_t>(filterShape[dX]), checked_cast<uint8_t>(filterShape[dY]), 0);
 
-    MVCNN::ConvolutionParamsBuilder builder(writer);
-    builder.add_kernel(&kernel);
-    builder.add_strides(&strides);
-    builder.add_dilations(&dilations);
-    builder.add_pads_begin(&padsBegin);
-    builder.add_pads_end(&padsEnd);
-    builder.add_group(checked_cast<int32_t>(groups()));
-    const auto paramsOff = builder.Finish();
-
-    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_ConvolutionParams});
+    if (groups() > 1) {
+        MVCNN::ConvolutionParamsBuilder builder(writer);
+        builder.add_kernel(&kernel);
+        builder.add_strides(&strides);
+        builder.add_dilations(&dilations);
+        builder.add_pads_begin(&padsBegin);
+        builder.add_pads_end(&padsEnd);
+        builder.add_group(checked_cast<int32_t>(groups()));
+        const auto paramsOff = builder.Finish();
+        return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_ConvolutionParams});
+    } else {
+        MVCNN::SWConvolutionParamsBuilder builder(writer);
+        builder.add_kernel(&kernel);
+        builder.add_strides(&strides);
+        builder.add_dilations(&dilations);
+        builder.add_pads_begin(&padsBegin);
+        builder.add_pads_end(&padsEnd);
+        builder.add_group(checked_cast<int32_t>(groups()));
+        const auto paramsOff = builder.Finish();
+        return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_SWConvolutionParams});
+    }
 }
 
 mlir::Operation* vpux::VPUIP::BlobReader::parseConvolution(mlir::OpBuilder& builder, ArrayRef<mlir::Value> inputs,
                                                            ArrayRef<mlir::Value> outputs,
                                                            const MVCNN::UPALayerTask* task) {
-    VPUX_THROW_UNLESS(inputs.size() == 3, "UPAConvolution supports only 3 inputs, got {0}", inputs.size());
+    VPUX_THROW_UNLESS(inputs.size() == 2 || inputs.size() == 3, "UPAConvolution supports only 2 or 3 inputs, got {0}",
+                      inputs.size());
     VPUX_THROW_UNLESS(outputs.size() == 1, "UPAConvolution supports only 1 output, got {0}", outputs.size());
-    const auto params = task->softLayerParams_as_ConvolutionParams();
-    const auto strides = parseOrder3(params->strides());
-    const auto dilations = parseOrder3(params->dilations());
-    const auto padsBegin = parseOrder3(params->pads_begin());
-    const auto padsEnd = parseOrder3(params->pads_end());
-    return builder.create<VPUIP::ConvolutionUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], inputs[1], inputs[2],
-                                                   outputs[0], strides, dilations, padsBegin, padsEnd, params->group());
+
+    if (const auto* params = task->softLayerParams_as_ConvolutionParams()) {
+        const auto strides = parseOrder3(params->strides());
+        const auto dilations = parseOrder3(params->dilations());
+        const auto padsBegin = parseOrder3(params->pads_begin());
+        const auto padsEnd = parseOrder3(params->pads_end());
+
+        return builder.create<VPUIP::ConvolutionUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], inputs[1],
+                                                       inputs.size() == 3 ? inputs[2] : nullptr, outputs[0], strides,
+                                                       dilations, padsBegin, padsEnd, params->group());
+    } else if (const auto* params = task->softLayerParams_as_SWConvolutionParams()) {
+        const auto strides = parseOrder3(params->strides());
+        const auto dilations = parseOrder3(params->dilations());
+        const auto padsBegin = parseOrder3(params->pads_begin());
+        const auto padsEnd = parseOrder3(params->pads_end());
+
+        return builder.create<VPUIP::ConvolutionUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], inputs[1],
+                                                       inputs.size() == 3 ? inputs[2] : nullptr, outputs[0], strides,
+                                                       dilations, padsBegin, padsEnd, params->group());
+    } else {
+        VPUX_THROW("Unknown SW Convolution '{0}'", task->softLayerParams_type());
+    }
 }
