@@ -68,6 +68,20 @@ int utils::getSliceIdByDeviceName(const std::string& deviceName) {
         return 0;
     }
 
+    int sliceId = 0;
+    const int minSliceId = 0;
+    const int maxSliceId = 3;
+    // TODO Remove this part after removing deprecated device names in future releases
+    // Check deprecated "VPU-slice_id" naming format
+    // *********************************************************************************
+    for (sliceId = minSliceId; sliceId <= maxSliceId; ++sliceId) {
+        std::string deprName = std::string("VPU-") + std::to_string(sliceId);
+        if (deviceName == deprName) {
+            return sliceId;
+        }
+    }
+    // *********************************************************************************
+
     // Check "only platform" naming format. For it return the first slice as well
     const auto platformName = utils::getPlatformNameByDeviceName(deviceName);
     if (platformName == deviceName) {
@@ -75,9 +89,6 @@ int utils::getSliceIdByDeviceName(const std::string& deviceName) {
     }
 
     // Check "platform.slice_id" naming format
-    int sliceId = 0;
-    const int minSliceId = 0;
-    const int maxSliceId = 3;
     const auto slicePos = deviceName.rfind('.');
     if (slicePos != std::string::npos) {
         const auto sliceStr = deviceName.substr(slicePos + 1, deviceName.length() - slicePos - 1);
@@ -91,17 +102,6 @@ int utils::getSliceIdByDeviceName(const std::string& deviceName) {
         }
         return sliceId;
     }
-
-    // TODO Remove this part after removing deprecated device names in future releases
-    // Check deprecated "VPU-slice_id" naming format
-    // *********************************************************************************
-    for (sliceId = minSliceId; sliceId <= maxSliceId; ++sliceId) {
-        std::string deprName = "VPU-" + std::to_string(sliceId);
-        if (deviceName == deprName) {
-            return sliceId;
-        }
-    }
-    // *********************************************************************************
 
     IE_THROW() << "Device name conversion error - bad name: " << deviceName;
 }
@@ -142,4 +142,19 @@ ie::VPUXConfigParams::VPUXPlatform utils::getPlatformByDeviceName(const std::str
 
 bool utils::isPlatformNameSupported(const std::string& platformName) {
     return (platformNameInverseMap.find(platformName) != platformNameInverseMap.end());
+}
+
+// TODO Remove after removing deprecated device names from VPUAL backend
+bool utils::isDeviceNameVpualDeprecated(const std::string& deviceName) {
+    const int minSliceId = 0;
+    const int maxSliceId = 3;
+
+    for (auto sliceId = minSliceId; sliceId <= maxSliceId; ++sliceId) {
+        std::string deprName = std::string("VPU-") + std::to_string(sliceId);
+        if (deviceName == deprName) {
+            return true;
+        }
+    }
+
+    return false;
 }
