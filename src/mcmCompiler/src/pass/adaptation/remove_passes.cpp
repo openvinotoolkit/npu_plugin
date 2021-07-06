@@ -59,6 +59,19 @@ void removeOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model,
         for (auto opIt = operationsOfType[*type].begin(); opIt != operationsOfType[*type].end();++opIt)
             remFunctor(*opIt, model, *type);
     }
+
+    // remove unused op
+    for(auto& op: om.getOps())
+    {
+        if(op->getOpType() != "Output")
+        {
+            auto sinkOp = op.leftmostChild();
+            if(sinkOp == om.opEnd())
+            {
+                om.removeOp(op);
+            }
+        }
+    }
 }
 
 void removeSimpleOp(mv::Data::OpListIterator &opIt, mv::ComputationModel &model, std::string /*opType*/)
