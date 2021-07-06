@@ -144,7 +144,7 @@ mlir::Attribute RTLayerInfo::getExecutor(mlir::Operation* op, uint32_t& numUnits
         }
     }
 
-    if (mlir::isa<IERT::ConvolutionOp, IERT::MaxPoolOp>(op)) {
+    if (mlir::isa<IERT::ConvolutionOp, IERT::MaxPoolOp, IERT::AddOp>(op)) {
         auto module = op->getParentOfType<mlir::ModuleOp>();
         const auto compileMode = VPUIP::getCompilationMode(module);
 
@@ -192,6 +192,7 @@ bool RTLayerInfo::isSupportedLayout(mlir::Operation* origOp, DataOrderInfo& info
     CASE(IERT::AvgPoolOp, VPUIP::PoolingUPAOp)                                //
     HW_OPS_CASE(IERT::MaxPoolOp, VPUIP::PoolingUPAOp)                         //
     HW_OPS_CASE(IERT::ConvolutionOp, VPUIP::ConvolutionUPAOp)                 //
+    HW_OPS_CASE(IERT::AddOp, VPUIP::EltwiseUPAOp)                             //
     CASE(IERT::GroupConvolutionOp, VPUIP::ConvolutionUPAOp)                   //
     CASE(IERT::ReLUOp, VPUIP::ReLUUPAOp)                                      //
     CASE(IERT::SigmoidOp, VPUIP::SigmoidUPAOp)                                //
@@ -202,7 +203,6 @@ bool RTLayerInfo::isSupportedLayout(mlir::Operation* origOp, DataOrderInfo& info
     CASE(IERT::FakeQuantizeOp, VPUIP::FakeQuantizeUPAOp)                      //
     CASE(IERT::PReluOp, VPUIP::PReluUPAOp)                                    //
     CASE(IERT::LeakyReluOp, VPUIP::LeakyReluUPAOp)                            //
-    CASE(IERT::AddOp, VPUIP::EltwiseUPAOp)                                    //
     CASE(IERT::MultiplyOp, VPUIP::EltwiseUPAOp)                               //
     CASE(IERT::DivideOp, VPUIP::EltwiseUPAOp)                                 //
     CASE(IERT::SquaredDifferenceOp, VPUIP::EltwiseUPAOp)                      //

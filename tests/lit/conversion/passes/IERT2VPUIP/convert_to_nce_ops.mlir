@@ -151,3 +151,59 @@ func @MaxPoolTest(%arg0: memref<1x16x1x4xf16, #NHWC, #map>, %arg1: memref<1x16x1
 // CHECK-SAME:      inputs([[OUTPUT]] : memref<1x16x1x4xf16, #NHWC, #map>)
 // CHECK-SAME:      outputs(%arg1 : memref<1x16x1x4xf16, #NHWC, #map>)
 // CHECK:       return [[OUTPUT_COPY]] : memref<1x16x1x4xf16, #NHWC, #map>
+
+// -----
+
+#NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
+#map = affine_map<(d0, d1, d2, d3) -> (d0 * 50176 + d1 * 1792 + d2 * 64 + d3)>
+
+// CHECK-LABEL: @EltwiseAddTest
+func @EltwiseAddTest(%arg0: memref<1x64x28x28xf16, #NHWC, #map>,
+                     %arg1: memref<1x64x28x28xf16, #NHWC, #map>,
+                     %arg2: memref<1x64x28x28xf16, #NHWC, #map>) -> memref<1x64x28x28xf16, #NHWC, #map> {
+    %0 = memref.alloc() : memref<1x64x28x28xf16, #NHWC, #map>
+
+    %1 = IERT.Add
+        inputs(%arg0 : memref<1x64x28x28xf16, #NHWC, #map>, %arg1 : memref<1x64x28x28xf16, #NHWC, #map>)
+        outputs(%0 : memref<1x64x28x28xf16, #NHWC, #map>) -> memref<1x64x28x28xf16, #NHWC, #map>
+
+    %2 = IERT.Copy inputs(%1 : memref<1x64x28x28xf16, #NHWC, #map>) outputs(%arg2 : memref<1x64x28x28xf16, #NHWC, #map>) -> memref<1x64x28x28xf16, #NHWC, #map>
+    return %2 : memref<1x64x28x28xf16, #NHWC, #map>
+}
+
+// CHECK:       [[OUT_BUF:%.+]] = memref.alloc() : memref<1x64x28x28xf16, #NHWC, #map>
+
+// CHECK:       [[INPUT1_CMX_BUF:%.+]] = memref.alloc() : memref<1x64x28x28xf16, #NHWC, #map, "CMX_NN">
+// CHECK:       [[INPUT1_CMX:%.+]] = IERT.Copy
+// CHECK-SAME:      inputs(%arg0 : memref<1x64x28x28xf16, #NHWC, #map>)
+// CHECK-SAME:      outputs([[INPUT1_CMX_BUF]] : memref<1x64x28x28xf16, #NHWC, #map, "CMX_NN">)
+
+// CHECK:       [[INPUT2_CMX_BUF:%.+]] = memref.alloc() : memref<1x64x28x28xf16, #NHWC, #map, "CMX_NN">
+// CHECK:       [[INPUT2_CMX:%.+]] = IERT.Copy
+// CHECK-SAME:      inputs(%arg1 : memref<1x64x28x28xf16, #NHWC, #map>)
+// CHECK-SAME:      outputs([[INPUT2_CMX_BUF]] : memref<1x64x28x28xf16, #NHWC, #map, "CMX_NN">)
+
+// CHECK:       [[OUTPUT_CMX_BUF:%.+]] = memref.alloc() : memref<1x64x28x28xf16, #NHWC, #map, "CMX_NN">
+// CHECK:       [[OUTPUT_CMX:%.+]] = VPUIP.NCEClusterTask
+// CHECK-SAME:          activation_window_channel_length = 0 : i32
+// CHECK-SAME:          task_type = "ELTWISE"
+// CHECK-SAME:      input([[INPUT1_CMX]] : memref<1x64x28x28xf16, #NHWC, #map, "CMX_NN">)
+// CHECK-SAME:      weights([[INPUT2_CMX]] : memref<1x64x28x28xf16, #NHWC, #map, "CMX_NN">)
+// CHECK-SAME:      parent_input([[INPUT1_CMX]] : memref<1x64x28x28xf16, #NHWC, #map, "CMX_NN">)
+// CHECK-SAME:      parent_output([[OUTPUT_CMX_BUF]] : memref<1x64x28x28xf16, #NHWC, #map, "CMX_NN">)
+// CHECK-SAME:      outputs([[OUTPUT_CMX_BUF]] : memref<1x64x28x28xf16, #NHWC, #map, "CMX_NN">)
+// CHECK-SAME:      variants :
+// CHECK:               VPUIP.DPUTask {
+// CHECK-SAME:              end = [27 : i32, 4 : i32, 63 : i32]
+// CHECK-SAME:              mpe_mode = "VECTOR_FP16"
+// CHECK-SAME:              pads_begin = [0 : i32, 0 : i32]
+// CHECK-SAME:              pads_end = [0 : i32, 0 : i32]
+// CHECK-SAME:              start = [0 : i32, 0 : i32, 0 : i32]
+
+// CHECK:           } PPE : {
+// CHECK:               VPUIP.PPETask "ADD"
+// CHECK:           }
+
+// CHECK:       [[OUTPUT:%.+]] = IERT.Copy
+// CHECK-SAME:      inputs([[OUTPUT_CMX]] : memref<1x64x28x28xf16, #NHWC, #map, "CMX_NN">)
+// CHECK-SAME:      outputs([[OUT_BUF]] : memref<1x64x28x28xf16, #NHWC, #map>)
