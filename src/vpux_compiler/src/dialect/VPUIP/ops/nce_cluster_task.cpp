@@ -100,6 +100,21 @@ bool vpux::VPUIP::NCEClusterTaskOp::isSupportedLayout(mlir::Operation* op, vpux:
 
                 return true;
             })
+            .Case<IERT::AddOp>([&](IERT::AddOp originOp) {
+                if (!isSupportedLayoutSameInOutSpecificDimsOrder(originOp, info, {DimsOrder::NHWC})) {
+                    // weights layout
+                    info.setInput(1, DimsOrder::NHWC);
+                    return false;
+                }
+
+                // check weights layout
+                if (!info.hasInput(1) || info.getInput(1) != DimsOrder::NHWC) {
+                    fillDataInfo(info, 2, 1, DimsOrder::NHWC);
+                    return false;
+                }
+
+                return true;
+            })
             .Default([](mlir::Operation* unknownOp) -> bool {
                 VPUX_THROW("Operation '{0}' the operation is not supported by the DPU", unknownOp->getName());
             });
@@ -200,9 +215,6 @@ mlir::LogicalResult verifyNCEEltwise(VPUIP::NCEClusterTaskOp op) {
     VPUX_THROW_UNLESS(op.task_type() == VPUIP::NCETaskType::ELTWISE, "Expected task type '{0}', but got '{1}'",
                       VPUIP::NCETaskType::ELTWISE, op.task_type());
 
-    if (op.weights() != nullptr) {
-        return errorAt(op, "weights should be empty for NCETaskType : '{0}'", op.task_type());
-    }
     if (op.weight_table() != nullptr) {
         return errorAt(op, "weight_table should be empty for NCETaskType : '{0}'", op.task_type());
     }
