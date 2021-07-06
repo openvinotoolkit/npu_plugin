@@ -35,13 +35,13 @@ func @LinearGraph(%arg0: memref<10xf16>, %arg1: memref<10xf16>) -> memref<10xf16
     // CHECK:       [[T2:%.+]], [[F2:%.+]] = async.execute
     // CHECK-SAME:          [[T1]]
     // CHECK-SAME:          ([[F1]] as [[VAL1:%.+]]: !async.value<memref<10xf16>>)
-    // CHECK-SAME:          -> !async.value<memref<10xf16>> {
+    // CHECK-SAME:          -> !async.value<memref<10xf16>>
     // CHECK:           {{%.+}} = IERT.ReLU inputs([[VAL1]] : memref<10xf16>) outputs([[BUF1]] : memref<10xf16>) -> memref<10xf16>
 
     // CHECK:       [[T3:%.+]], [[F3:%.+]] = async.execute
     // CHECK-SAME:          [[T2]]
     // CHECK-SAME:          ([[F2]] as [[VAL2:%.+]]: !async.value<memref<10xf16>>)
-    // CHECK-SAME:          -> !async.value<memref<10xf16>> {
+    // CHECK-SAME:          -> !async.value<memref<10xf16>>
     // CHECK:           {{%.+}} = IERT.ReLU inputs([[VAL2]] : memref<10xf16>) outputs(%arg1 : memref<10xf16>) -> memref<10xf16>
 
     // CHECK:       [[VAL3:%.+]] = async.await [[F3]] : !async.value<memref<10xf16>>
@@ -85,19 +85,19 @@ func @IndependentBranchesLinearSched(%arg0: memref<10xf16>, %arg1: memref<10xf16
     return %3 : memref<20xf16>
 
     // CHECK:       [[T0:%.+]], [[F0:%.+]] = async.execute
-    // CHECK-SAME:          -> !async.value<memref<10xf16>> {
+    // CHECK-SAME:          -> !async.value<memref<10xf16>>
     // CHECK:           {{%.+}} = IERT.ReLU inputs(%arg0 : memref<10xf16>)
 
     // CHECK:       [[T1:%.+]], [[F1:%.+]] = async.execute
     // CHECK-SAME:          [[T0]]
-    // CHECK-SAME:          -> !async.value<memref<10xf16, #map>> {
+    // CHECK-SAME:          -> !async.value<memref<10xf16, #map>>
     // CHECK:           {{%.+}} = IERT.ReLU inputs(%arg1 : memref<10xf16>)
 
     // CHECK:       [[T3:%.+]], [[F3:%.+]] = async.execute
     // CHECK-SAME:          [[T1]]
     // CHECK-SAME:          [[F0]] as [[VAL0:%.+]]: !async.value<memref<10xf16>>
     // CHECK-SAME:          [[F1]] as [[VAL1:%.+]]: !async.value<memref<10xf16, #map>>
-    // CHECK-SAME:          -> !async.value<memref<20xf16>> {
+    // CHECK-SAME:          -> !async.value<memref<20xf16>>
     // CHECK:           {{%.+}} = IERT.ConcatView
     // CHECK-SAME:          inputs([[VAL0]], [[VAL1]] : memref<10xf16>, memref<10xf16, #map>)
 
@@ -138,18 +138,18 @@ func @IndependentBranchesParallelSched(%arg0: memref<10xf16>, %arg1: memref<10xf
     return %3 : memref<20xf16>
 
     // CHECK:       [[T0:%.+]], [[F0:%.+]] = async.execute
-    // CHECK-SAME:          -> !async.value<memref<10xf16>> {
+    // CHECK-SAME:          -> !async.value<memref<10xf16>>
     // CHECK:           {{%.+}} = IERT.ReLU inputs(%arg0 : memref<10xf16>)
 
     // CHECK:       [[T1:%.+]], [[F1:%.+]] = async.execute
-    // CHECK-SAME:          -> !async.value<memref<10xf16, #map>> {
+    // CHECK-SAME:          -> !async.value<memref<10xf16, #map>>
     // CHECK:           {{%.+}} = IERT.ReLU inputs(%arg1 : memref<10xf16>)
 
     // CHECK:       [[T3:%.+]], [[F3:%.+]] = async.execute
     // CHECK-SAME:          [[T0]], [[T1]]
     // CHECK-SAME:          [[F0]] as [[VAL0:%.+]]: !async.value<memref<10xf16>>
     // CHECK-SAME:          [[F1]] as [[VAL1:%.+]]: !async.value<memref<10xf16, #map>>
-    // CHECK-SAME:          -> !async.value<memref<20xf16>> {
+    // CHECK-SAME:          -> !async.value<memref<20xf16>>
     // CHECK:           {{%.+}} = IERT.ConcatView
     // CHECK-SAME:          inputs([[VAL0]], [[VAL1]] : memref<10xf16>, memref<10xf16, #map>)
 
