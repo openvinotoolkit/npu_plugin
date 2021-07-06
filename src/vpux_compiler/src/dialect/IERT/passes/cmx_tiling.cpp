@@ -114,10 +114,10 @@ mlir::LogicalResult ConvolutionTiling::matchAndRewrite(IERT::ConvolutionOp origO
         const auto tileTypeOut = changeShape(origOp.output().getType().cast<mlir::MemRefType>(), outputTile.shape);
         auto allocOutOp = rewriter.create<mlir::memref::AllocOp>(loc, tileTypeOut);
 
-        auto tiledOp =
-                rewriter.create<IERT::ConvolutionOp>(loc, actInput, filterInput, biasInput, allocOutOp.memref(),
-                                                     origOp.strides(), getInt32ArrayAttr(getContext(), padsBegin),
-                                                     getInt32ArrayAttr(getContext(), padsEnd), origOp.dilations());
+        auto tiledOp = rewriter.create<IERT::ConvolutionOp>(
+                loc, actInput, filterInput, biasInput, allocOutOp.memref(), origOp.strides(),
+                getInt32ArrayAttr(getContext(), padsBegin), getInt32ArrayAttr(getContext(), padsEnd),
+                origOp.dilations(), origOp.post_opAttr());
 
         SmallVector<int64_t> viewStrides(outputTile.shape.size(), 1);
         auto subViewOut = rewriter.create<mlir::memref::SubViewOp>(loc, origOp.output_buff(), outputTile.offsets.raw(),
@@ -182,7 +182,7 @@ mlir::LogicalResult MaxPoolTiling::matchAndRewrite(IERT::MaxPoolOp origOp, mlir:
 
         auto tiledOp = rewriter.create<IERT::MaxPoolOp>(loc, actInput, allocOutOp.memref(), origOp.kernel_size(),
                                                         origOp.strides(), getInt32ArrayAttr(getContext(), padsBegin),
-                                                        getInt32ArrayAttr(getContext(), padsEnd));
+                                                        getInt32ArrayAttr(getContext(), padsEnd), origOp.post_opAttr());
 
         SmallVector<int64_t> viewStrides(outputTile.shape.size(), 1);
         auto subViewOut = rewriter.create<mlir::memref::SubViewOp>(loc, origOp.output_buff(), outputTile.offsets.raw(),

@@ -139,7 +139,8 @@ mlir::LogicalResult MaxPoolRewriter::matchAndRewrite(IE::MaxPoolOp origOp, mlir:
 
     const auto opCreator = [&](mlir::Value expandedInput, int64_t) -> mlir::Operation* {
         return rewriter.create<IE::MaxPoolOp>(origOp.getLoc(), expandedInput, origOp.kernel_size(), origOp.strides(),
-                                              origOp.pads_begin(), origOp.pads_end(), origOp.rounding_type());
+                                              origOp.pads_begin(), origOp.pads_end(), origOp.rounding_type(),
+                                              origOp.post_opAttr());
     };
 
     return generalRewrite(origOp, rewriter, opCreator, _log.nest());
@@ -219,7 +220,7 @@ mlir::LogicalResult ConvolutionRewriter::matchAndRewrite(IE::ConvolutionOp origO
 
         return rewriter.create<IE::ConvolutionOp>(origOp.getLoc(), expandedInput, paddedFilter, paddedBiases,
                                                   origOp.strides(), origOp.pads_begin(), origOp.pads_end(),
-                                                  origOp.dilations());
+                                                  origOp.dilations(), origOp.post_opAttr());
     };
 
     return generalRewrite(origOp, rewriter, opCreator, _log.nest());
@@ -242,27 +243,18 @@ private:
 void ExpandActivationChannelsPass::safeRunOnFunc() {
     auto& ctx = getContext();
 
+    const auto dialect = ctx.getOrLoadDialect<IE::IEDialect>();
+    VPUX_THROW_UNLESS(dialect != nullptr, "IE Dialect was not loaded");
+    const auto layerInfo = dialect->getRegisteredInterface<IE::LayerInfoDialectInterface>();
+    VPUX_THROW_UNLESS(layerInfo != nullptr, "LayerInfoDialect is not registered");
+
+    const auto isLegal = [&](mlir::Operation* op) {
+        return !layerInfo->needToExpandChannels(op);
+    };
+
     mlir::ConversionTarget target(ctx);
-    target.addDynamicallyLegalOp<IE::MaxPoolOp>([&](IE::MaxPoolOp op) {
-        _log.trace("Got MaxPool layer at '{0}'", op->getLoc());
-
-        if (!VPUIP::NCEInvariant::verifyKernel(op, _log.nest()).succeeded()) {
-            _log.nest().trace("The operation is not supported by HW, skipping");
-            return true;
-        }
-
-        return VPUIP::NCEInvariant::verifyChannels(op, _log.nest()).succeeded();
-    });
-    target.addDynamicallyLegalOp<IE::ConvolutionOp>([&](IE::ConvolutionOp op) {
-        _log.trace("Got Convolution layer at '{0}'", op->getLoc());
-
-        if (!VPUIP::NCEInvariant::verifyKernel(op, _log.nest()).succeeded()) {
-            _log.nest().trace("The operation is not supported by HW, skipping");
-            return true;
-        }
-
-        return VPUIP::NCEInvariant::verifyChannels(op, _log.nest()).succeeded();
-    });
+    target.addDynamicallyLegalOp<IE::MaxPoolOp>(isLegal);
+    target.addDynamicallyLegalOp<IE::ConvolutionOp>(isLegal);
     target.addLegalOp<Const::DeclareOp>();
     target.addLegalOp<IE::ExpandOp, IE::PadOp>();
     target.addLegalOp<mlir::tensor::ExtractSliceOp>();

@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -224,7 +224,7 @@ mlir::LogicalResult vpux::VPUIP::verifySameDimsOrder(mlir::Operation* op) {
     return mlir::success();
 }
 
-mlir::LogicalResult vpux::VPUIP::isSupportedLayoutSameDimsOrder(mlir::Operation* op, DataOrderInfo& info) {
+bool vpux::VPUIP::isSupportedLayoutSameDimsOrder(mlir::Operation* op, DataOrderInfo& info) {
     VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in isSupportedLayoutSameDimsOrder");
 
     auto layer = mlir::dyn_cast<LayerInterface>(op);
@@ -241,18 +241,18 @@ mlir::LogicalResult vpux::VPUIP::isSupportedLayoutSameDimsOrder(mlir::Operation*
     for (size_t i = 0; i < inNum; ++i) {
         if (!info.hasInput(i) || info.getInput(i) != mainOrder) {
             fillDataInfo(info, inNum, outNum, mainOrder);
-            return mlir::failure();
+            return false;
         }
     }
 
     for (size_t i = 0; i < outNum; ++i) {
         if (!info.hasOutput(i) || info.getOutput(i) != mainOrder) {
             fillDataInfo(info, inNum, outNum, mainOrder);
-            return mlir::failure();
+            return false;
         }
     }
 
-    return mlir::success();
+    return true;
 }
 
 //
@@ -277,7 +277,7 @@ mlir::LogicalResult vpux::VPUIP::verifySameInOutDimsOrder(mlir::Operation* op) {
     return mlir::success();
 }
 
-mlir::LogicalResult vpux::VPUIP::isSupportedLayoutSameInOutDimsOrder(mlir::Operation* op, DataOrderInfo& info) {
+bool vpux::VPUIP::isSupportedLayoutSameInOutDimsOrder(mlir::Operation* op, DataOrderInfo& info) {
     auto layer = mlir::dyn_cast<LayerInterface>(op);
     VPUX_THROW_UNLESS(layer != nullptr, "Operation {0} is not layer", op->getName());
 
@@ -288,15 +288,15 @@ mlir::LogicalResult vpux::VPUIP::isSupportedLayoutSameInOutDimsOrder(mlir::Opera
                                             : DimsOrder::fromNumDims(intType.cast<mlir::ShapedType>().getRank());
 
         fillDataInfo(info, 1, 1, supportedOrder);
-        return mlir::failure();
+        return false;
     }
 
     if (info.getInput(0) != info.getOutput(0)) {
         info.setOutput(0, info.getInput(0));
-        return mlir::failure();
+        return false;
     }
 
-    return mlir::success();
+    return true;
 }
 
 //
@@ -326,8 +326,8 @@ mlir::LogicalResult vpux::VPUIP::verifySameInOutSpecificDimsOrder(mlir::Operatio
     return mlir::success();
 }
 
-mlir::LogicalResult vpux::VPUIP::isSupportedLayoutSameInOutSpecificDimsOrder(mlir::Operation* op, DataOrderInfo& info,
-                                                                             ArrayRef<DimsOrder> supportedLayouts) {
+bool vpux::VPUIP::isSupportedLayoutSameInOutSpecificDimsOrder(mlir::Operation* op, DataOrderInfo& info,
+                                                              ArrayRef<DimsOrder> supportedLayouts) {
     auto layer = mlir::dyn_cast<LayerInterface>(op);
     VPUX_THROW_UNLESS(layer != nullptr, "Operation '{0}' doesn't implement Layer interface", op->getName());
 
@@ -344,8 +344,7 @@ mlir::LogicalResult vpux::VPUIP::isSupportedLayoutSameInOutSpecificDimsOrder(mli
     const auto defaultOrder = *defaultOrderIt;
     if (!info.hasInput(0)) {
         fillDataInfo(info, 1, 1, defaultOrder);
-
-        return mlir::failure();
+        return false;
     }
 
     const auto mainOrder = info.getInput(0);
@@ -355,7 +354,7 @@ mlir::LogicalResult vpux::VPUIP::isSupportedLayoutSameInOutSpecificDimsOrder(mli
     }
 
     fillDataInfo(info, 1, 1, defaultOrder);
-    return mlir::failure();
+    return false;
 }
 
 //

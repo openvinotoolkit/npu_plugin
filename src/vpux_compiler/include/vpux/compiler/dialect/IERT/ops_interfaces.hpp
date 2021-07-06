@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -36,7 +36,7 @@ public:
     }
 
     virtual mlir::Attribute getExecutor(mlir::Operation* op, uint32_t& numUnits) const = 0;
-    virtual mlir::LogicalResult isSupportedLayout(mlir::Operation* origOp, DataOrderInfo& info) const = 0;
+    virtual bool isSupportedLayout(mlir::Operation* origOp, DataOrderInfo& info) const = 0;
 };
 
 }  // namespace IERT

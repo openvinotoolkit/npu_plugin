@@ -140,6 +140,49 @@ def ConvertFCToConv : PassBase<"convert-fc-to-conv", "vpux::FunctionPass"> {
 }
 
 //
+// FusePostOps
+//
+
+def FusePostOps : PassBase<"fuse-post-ops", "vpux::FunctionPass"> {
+    let summary = "Fuse activation functions with tasks that support post-processing";
+
+    let description = [{
+        The pass is a part of `AdjustForVPU` pipeline.
+
+        Fuse activation functions (e.g. ReLU, leaky ReLU) with tasks that support post-processing
+        depending on the compilation mode
+    }];
+
+    let constructor = "vpux::IE::createFusePostOpsPass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
+
+//
+// ExpandActivationChannels
+//
+
+def ExpandActivationChannels : PassBase<"expand-activation-channels", "vpux::FunctionPass"> {
+    let summary = "Allign input tensors shape of DPU operation with hardware requirements";
+
+    let description = [{
+        The pass is a part of `buildHardwareModePipeline` pipeline.
+
+        This pass processes operations, which can be compile as a DPU tasks and
+            expands channels number to number divisible by 16 in case they doesn't satisfy hardware requirements
+    }];
+
+    let constructor = "vpux::IE::createExpandActivationChannelsPass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect",
+        "mlir::StandardOpsDialect"
+    ];
+}
+
+//
 // ResolveStridedSlice
 //
 
@@ -226,25 +269,4 @@ def MergeFakeQuant : PassBase<"merge-fake-quant", "vpux::FunctionPass"> {
     ];
 }
 
-//
-// ExpandActivationChannels
-//
-
-def ExpandActivationChannels : PassBase<"expand-activation-channels", "vpux::FunctionPass"> {
-    let summary = "Allign input tensors shape of DPU operation with hardware requirements";
-
-    let description = [{
-        The pass is a part of `buildHardwareModePipeline` pipeline.
-
-        This pass processes operations, which can be compile as a DPU tasks and
-            expands channels number to number divisible by 16 in case they doesn't satisfy hardware requirements
-    }];
-
-    let constructor = "vpux::IE::createExpandActivationChannelsPass()";
-
-    let dependentDialects = [
-        "vpux::IE::IEDialect",
-        "mlir::StandardOpsDialect"
-    ];
-}
 #endif

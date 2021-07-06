@@ -49,6 +49,13 @@ std::unique_ptr<mlir::Pass> createConvertPaddingsToFloorModePass(Logger log = Lo
 std::unique_ptr<mlir::Pass> createResolveStridedSlicePass(Logger log = Logger::global());
 
 //
+// HW related passes
+//
+
+std::unique_ptr<mlir::Pass> createFusePostOpsPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createExpandActivationChannelsPass(Logger log = Logger::global());
+
+//
 // Low precision transformations.
 //
 // This pipeline includes all transformations to support low precisions.
@@ -59,12 +66,6 @@ void buildLowPrecisionPipeline(mlir::OpPassManager& pm, Logger log = Logger::glo
 std::unique_ptr<mlir::Pass> createSplitFakeQuantPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createDequantizeConstPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createMergeFakeQuantPass(Logger log = Logger::global());
-
-//
-// Align ops, which can be compiled as DPU tasks with hardware requirements.
-//
-
-std::unique_ptr<mlir::Pass> createExpandActivationChannelsPass(Logger log = Logger::global());
 
 //
 // Registration

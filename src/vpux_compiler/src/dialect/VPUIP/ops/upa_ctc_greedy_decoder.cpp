@@ -1,5 +1,5 @@
 //
-// Copyright 2021 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -35,20 +35,19 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(CTCGreedyDecoderUPAOp op) {
     return mlir::success();
 }
 
-mlir::LogicalResult vpux::VPUIP::CTCGreedyDecoderUPAOp::isSupportedLayout(mlir::Operation* op,
-                                                                          vpux::DataOrderInfo& info) {
+bool vpux::VPUIP::CTCGreedyDecoderUPAOp::isSupportedLayout(mlir::Operation* op, vpux::DataOrderInfo& info) {
     const auto ctcGreedyDecoderOp = mlir::dyn_cast<IERT::CTCGreedyDecoderOp>(op);
     VPUX_THROW_UNLESS(ctcGreedyDecoderOp != nullptr, "Operation {0} is not CTCGreedyDecoderOp", op->getName());
 
     if (info.hasInput(0)) {
         const auto order = info.getInput(0);
         if (order == DimsOrder::CHW) {
-            return mlir::success();
+            return true;
         }
     }
 
     info.setInput(0, DimsOrder::CHW);
-    return mlir::failure();
+    return false;
 }
 
 void vpux::VPUIP::CTCGreedyDecoderUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,

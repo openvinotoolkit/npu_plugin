@@ -313,6 +313,7 @@ operation ::= `IE.Convolution` `(` operands `)` attr-dict `:` type(operands) `->
 `pads_begin` | ::mlir::ArrayAttr | 32-bit integer array attribute
 `pads_end` | ::mlir::ArrayAttr | 32-bit integer array attribute
 `dilations` | ::mlir::ArrayAttr | 32-bit integer array attribute
+`post_op` | vpux::IE::PostOp | DictionaryAttr with field(s): 'kind', 'params' (each field having its own constraints)
 
 #### Operands:
 
@@ -901,6 +902,7 @@ operation ::= `IE.MaxPool` `(` operands `)` attr-dict `:` type(operands) `->` ty
 `pads_begin` | ::mlir::ArrayAttr | 32-bit integer array attribute
 `pads_end` | ::mlir::ArrayAttr | 32-bit integer array attribute
 `rounding_type` | vpux::IE::RoundingTypeAttr | Rounding type that operations support
+`post_op` | vpux::IE::PostOp | DictionaryAttr with field(s): 'kind', 'params' (each field having its own constraints)
 
 #### Operands:
 

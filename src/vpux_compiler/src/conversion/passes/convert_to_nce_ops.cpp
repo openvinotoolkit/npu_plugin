@@ -37,6 +37,25 @@ namespace {
 // Utilities
 //
 
+VPUIP::PPELayerType convertPostOp(IE::PostOpKind postOp) {
+    switch (postOp) {
+    case IE::PostOpKind::RELU:
+        return VPUIP::PPELayerType::LRELU;
+    case IE::PostOpKind::PRELU:
+        return VPUIP::PPELayerType::LPRELU;
+    case IE::PostOpKind::LEAKY_RELU:
+        return VPUIP::PPELayerType::LPRELU;
+    case IE::PostOpKind::EXP:
+        return VPUIP::PPELayerType::EXP;
+    case IE::PostOpKind::SIGMOID:
+        return VPUIP::PPELayerType::SIGMOID;
+    case IE::PostOpKind::TANH:
+        return VPUIP::PPELayerType::TANH;
+    default:
+        VPUX_THROW("Unsupported post op type: '{0}'", postOp);
+    }
+}
+
 const EnumMap<VPUIP::ArchKind, VPUIP::MPEMode> mpeMap = {
         {VPUIP::ArchKind::VPU3400_A0, VPUIP::MPEMode::VECTOR_FP16},  //
         {VPUIP::ArchKind::VPU3400, VPUIP::MPEMode::VECTOR_FP16},     //
@@ -90,6 +109,17 @@ void addDPUTasks(VPUIP::NCEClusterTaskOp nceOp, mlir::PatternRewriter& rewriter,
 
         nceOp.addDPUTask(rewriter, startAttr, endAttr, padsBeginAttr, padsEndAttr, mpeMode);
     }
+}
+
+void addPPETask(VPUIP::NCEClusterTaskOp nceOp, mlir::PatternRewriter& rewriter, IE::PostOp postOp) {
+    if (!postOp) {
+        return;
+    }
+
+    VPUX_THROW_UNLESS(postOp.params().empty(), "Parameters are not yet supported for ppe task");
+
+    const auto ppeType = convertPostOp(IE::getPostOpKind(postOp));
+    nceOp.addPPETask(rewriter, ppeType);
 }
 
 //
@@ -175,11 +205,8 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
             /*output_buff=*/outAllocOpCMX.memref(), VPUIP::NCETaskType::CONV, kernelSizeAttr, origOp.strides(),
             kernelPaddingAttr, /*activation_window_channel_length=*/nullptr);
 
-    //
-    // Create DPU sub-task
-    //
-
     addDPUTasks(nceOp, rewriter, _numDPU, padsBegin, padsEnd, mpeMap.at(_arch));
+    addPPETask(nceOp, rewriter, origOp.post_opAttr());
 
     //
     // DMA output CMX -> DDR
@@ -295,11 +322,8 @@ mlir::LogicalResult MaxPoolRewrite::matchAndRewrite(IERT::MaxPoolOp origOp, mlir
             /*output_buff=*/outAllocOpCMX.memref(), VPUIP::NCETaskType::MAXPOOL, origOp.kernel_size(), origOp.strides(),
             kernelPaddingAttr, activation_window_channel_length);
 
-    //
-    // Create DPU sub-task
-    //
-
     addDPUTasks(nceOp, rewriter, _numDPU, padsBegin, padsEnd, mpeMap.at(_arch));
+    addPPETask(nceOp, rewriter, origOp.post_opAttr());
 
     //
     // DMA output CMX -> DDR

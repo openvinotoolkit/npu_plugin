@@ -90,24 +90,6 @@ def ConvertToNCEOps : PassBase<"convert-to-nce-ops", "vpux::FunctionPass"> {
     ];
 }
 
-//
-// FuseActivations
-//
-
-def FuseActivations : PassBase<"fuse-activations", "vpux::FunctionPass"> {
-    let summary = "Fuse activation functions to NCE tasks";
-
-    let description = [{
-        Fuse activation functions (e.g. ReLU, leaky ReLU) into NCE post-processing engine.
-    }];
-
-    let constructor = "vpux::createFuseActivationsPass()";
-
-    let dependentDialects = [
-        "vpux::VPUIP::VPUIPDialect"
-    ];
-}
-
 //=================================================================================
 // LowerIERT2VPUIP
 //=================================================================================

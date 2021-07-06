@@ -240,6 +240,7 @@ add_attr_interfaces("dialect/const")
 add_attributes("const")
 
 add_dialect("IE")
+add_op_interfaces("dialect/IE")
 add_enum_attrs("IE")
 add_struct_attrs("IE")
 add_passes("dialect/IE" "IE")

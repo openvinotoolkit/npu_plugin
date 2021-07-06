@@ -1,5 +1,5 @@
 //
-// Copyright 2021 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -80,27 +80,27 @@ VPUIP::PPETaskOp vpux::VPUIP::NCEClusterTaskOp::addPPETask(mlir::OpBuilder& buil
 // NCEClusterTaskOp::isSupportedLayout
 //
 
-mlir::LogicalResult vpux::VPUIP::NCEClusterTaskOp::isSupportedLayout(mlir::Operation* op, vpux::DataOrderInfo& info) {
-    return llvm::TypeSwitch<mlir::Operation*, mlir::LogicalResult>(op)
+bool vpux::VPUIP::NCEClusterTaskOp::isSupportedLayout(mlir::Operation* op, vpux::DataOrderInfo& info) {
+    return llvm::TypeSwitch<mlir::Operation*, bool>(op)
             .Case<IERT::MaxPoolOp>([&](mlir::Operation* op) {
                 return isSupportedLayoutSameInOutSpecificDimsOrder(op, info, {DimsOrder::NHWC});
             })
             .Case<IERT::ConvolutionOp>([&](IERT::ConvolutionOp originOp) {
-                if (isSupportedLayoutSameInOutSpecificDimsOrder(originOp, info, {DimsOrder::NHWC}).failed()) {
+                if (!isSupportedLayoutSameInOutSpecificDimsOrder(originOp, info, {DimsOrder::NHWC})) {
                     // weights layout
                     info.setInput(1, DimsOrder::NHWC);
-                    return mlir::failure();
+                    return false;
                 }
 
                 // check weights layout
                 if (!info.hasInput(1) || info.getInput(1) != DimsOrder::NHWC) {
                     fillDataInfo(info, 2, 1, DimsOrder::NHWC);
-                    return mlir::failure();
+                    return false;
                 }
 
-                return mlir::success();
+                return true;
             })
-            .Default([](mlir::Operation* unknownOp) -> mlir::LogicalResult {
+            .Default([](mlir::Operation* unknownOp) -> bool {
                 VPUX_THROW("Operation '{0}' the operation is not supported by the DPU", unknownOp->getName());
             });
 }

@@ -409,7 +409,9 @@ def IERT_MaxPoolOp :
         I32ArrayAttr:$kernel_size,
         I32ArrayAttr:$strides,
         I32ArrayAttr:$pads_begin,
-        I32ArrayAttr:$pads_end
+        I32ArrayAttr:$pads_end,
+
+        OptionalAttr<IE_PostOp>:$post_op
     );
 
     let results = (outs
@@ -448,7 +450,9 @@ def IERT_ConvolutionOp :
         I32ArrayAttr:$strides,
         I32ArrayAttr:$pads_begin,
         I32ArrayAttr:$pads_end,
-        I32ArrayAttr:$dilations
+        I32ArrayAttr:$dilations,
+
+        OptionalAttr<IE_PostOp>:$post_op
     );
 
     let results = (outs

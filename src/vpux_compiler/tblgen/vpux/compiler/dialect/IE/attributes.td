@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -269,9 +269,48 @@ def IE_PadMode :
                 StrEnumAttrCase<"EDGE">,
                 StrEnumAttrCase<"REFLECT">,
                 StrEnumAttrCase<"SYMMETRIC">,
-        ]
+            ]
         > {
     let cppNamespace = "vpux::IE";
     let genSpecializedAttr = 1;
 }
+
+//
+// PostOpKind
+//
+
+def IE_PostOpKind :
+        StrEnumAttr<
+            "PostOpKind",
+            "Operations that can be performed during post-processing",
+            [
+                // Activations
+                StrEnumAttrCase<"RELU">,
+                StrEnumAttrCase<"PRELU">,
+                StrEnumAttrCase<"LEAKY_RELU">,
+                StrEnumAttrCase<"EXP">,
+                StrEnumAttrCase<"SIGMOID">,
+                StrEnumAttrCase<"TANH">,
+            ]
+        > {
+    let cppNamespace = "vpux::IE";
+    let genSpecializedAttr = 1;
+}
+
+//
+// PostOp
+//
+
+def IE_PostOp :
+        StructAttr<
+            "PostOp",
+            IE_Dialect,
+            [
+                StructFieldAttr<"kind",   IE_PostOpKind>,
+                StructFieldAttr<"params", DictionaryAttr>,
+            ]
+        > {
+    let cppNamespace = "vpux::IE";
+}
+
 #endif

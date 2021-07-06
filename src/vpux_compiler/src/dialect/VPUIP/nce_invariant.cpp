@@ -34,6 +34,11 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyConvChannels(mlir::Location
                                                                   Logger log) {
     log.setName("NCEInvariant");
 
+    if (filterType.getRank() != 4) {
+        log.trace("[{0}] Filter has unsupported rank: {1}", loc, filterType.getRank());
+        return mlir::failure();
+    }
+
     const auto filterShape = getShape(filterType);
     const auto OC = filterShape[IERT::ConvolutionOp::filter_out_channel_dim()];
     const auto IC = filterShape[IERT::ConvolutionOp::filter_in_channel_dim()];
@@ -65,6 +70,11 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyChannels(IERT::ConvolutionO
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPoolChannels(mlir::Location loc, mlir::ShapedType inputType,
                                                                   Logger log) {
     log.setName("NCEInvariant");
+
+    if (inputType.getRank() != 4) {
+        log.trace("[{0}] Input has unsupported rank: {1}", loc, inputType.getRank());
+        return mlir::failure();
+    }
 
     const auto inputShape = getShape(inputType);
     const auto IC = inputShape[IERT::MaxPoolOp::act_channel_dim()];

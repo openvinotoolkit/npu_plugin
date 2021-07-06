@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -80,7 +80,7 @@ public:
 //
 
 mlir::LogicalResult verifySameDimsOrder(mlir::Operation* op);
-mlir::LogicalResult isSupportedLayoutSameDimsOrder(mlir::Operation* op, DataOrderInfo& info);
+bool isSupportedLayoutSameDimsOrder(mlir::Operation* op, DataOrderInfo& info);
 
 template <typename ConcreteOp>
 class SameDimsOrder : public mlir::OpTrait::TraitBase<ConcreteOp, SameDimsOrder> {
@@ -89,7 +89,7 @@ public:
         return verifySameDimsOrder(op);
     }
 
-    static mlir::LogicalResult isSupportedLayout(mlir::Operation* op, vpux::DataOrderInfo& info) {
+    static bool isSupportedLayout(mlir::Operation* op, vpux::DataOrderInfo& info) {
         return isSupportedLayoutSameDimsOrder(op, info);
     }
 };
@@ -99,7 +99,7 @@ public:
 //
 
 mlir::LogicalResult verifySameInOutDimsOrder(mlir::Operation* op);
-mlir::LogicalResult isSupportedLayoutSameInOutDimsOrder(mlir::Operation* op, DataOrderInfo& info);
+bool isSupportedLayoutSameInOutDimsOrder(mlir::Operation* op, DataOrderInfo& info);
 
 template <typename ConcreteOp>
 class SameInOutDimsOrder : public mlir::OpTrait::TraitBase<ConcreteOp, SameInOutDimsOrder> {
@@ -108,7 +108,7 @@ public:
         return verifySameInOutDimsOrder(op);
     }
 
-    static mlir::LogicalResult isSupportedLayout(mlir::Operation* op, vpux::DataOrderInfo& info) {
+    static bool isSupportedLayout(mlir::Operation* op, vpux::DataOrderInfo& info) {
         return isSupportedLayoutSameInOutDimsOrder(op, info);
     }
 };
@@ -118,8 +118,8 @@ public:
 //
 
 mlir::LogicalResult verifySameInOutSpecificDimsOrder(mlir::Operation* op, ArrayRef<DimsOrder> supportedLayouts);
-mlir::LogicalResult isSupportedLayoutSameInOutSpecificDimsOrder(mlir::Operation* op, DataOrderInfo& info,
-                                                                ArrayRef<DimsOrder> supportedLayouts);
+bool isSupportedLayoutSameInOutSpecificDimsOrder(mlir::Operation* op, DataOrderInfo& info,
+                                                 ArrayRef<DimsOrder> supportedLayouts);
 
 //
 // SameInOutDimsOrder_NCHW_NHWC
@@ -134,7 +134,7 @@ public:
         return verifySameInOutSpecificDimsOrder(op, NCHW_NHWC);
     }
 
-    static mlir::LogicalResult isSupportedLayout(mlir::Operation* op, vpux::DataOrderInfo& info) {
+    static bool isSupportedLayout(mlir::Operation* op, vpux::DataOrderInfo& info) {
         return isSupportedLayoutSameInOutSpecificDimsOrder(op, info, NCHW_NHWC);
     }
 };
@@ -153,7 +153,7 @@ public:
         return verifySameInOutSpecificDimsOrder(op, CHW_HWC_NCHW_NHWC);
     }
 
-    static mlir::LogicalResult isSupportedLayout(mlir::Operation* op, vpux::DataOrderInfo& info) {
+    static bool isSupportedLayout(mlir::Operation* op, vpux::DataOrderInfo& info) {
         return isSupportedLayoutSameInOutSpecificDimsOrder(op, info, CHW_HWC_NCHW_NHWC);
     }
 };
@@ -165,8 +165,8 @@ public:
 template <typename ConcreteOp>
 class AnyDimsOrder : public mlir::OpTrait::TraitBase<ConcreteOp, AnyDimsOrder> {
 public:
-    static mlir::LogicalResult isSupportedLayout(mlir::Operation*, vpux::DataOrderInfo&) {
-        return mlir::success();
+    static bool isSupportedLayout(mlir::Operation*, vpux::DataOrderInfo&) {
+        return true;
     }
 };
 
