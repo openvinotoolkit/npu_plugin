@@ -17,7 +17,7 @@
 #include "ngraph_mcm_frontend/passes/fuse_scale_in_previous_weights_fq.hpp"
 #include <ngraph/op/constant.hpp>
 
-#include "ngraph_mcm_frontend/quantization_helpers.hpp"
+#include "vpux/quantization_helpers.hpp"
 
 #include <ngraph/op/fake_quantize.hpp>
 #include <ngraph/op/clamp.hpp>

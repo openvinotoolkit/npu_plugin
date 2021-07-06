@@ -13,8 +13,8 @@
 
 // clang-format off
 
-#include "ngraph_mcm_frontend/passes/propagate_fq.hpp"
-#include "ngraph_mcm_frontend/quantization_helpers.hpp"
+#include "vpux/passes/propagate_fq.hpp"
+#include "vpux/quantization_helpers.hpp"
 #include <ngraph/op/fake_quantize.hpp>
 #include <memory>
 #include <ngraph/rt_info.hpp>

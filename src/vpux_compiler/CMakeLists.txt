@@ -362,6 +362,7 @@ link_system_libraries(${OBJ_TARGET_NAME}
         IE::ngraph
         IE::inference_engine
         IE::inference_engine_transformations
+        vpux_ngraph_transformations
         # TODO: get rid of this dependency
         IE::vpu_common_lib
 )

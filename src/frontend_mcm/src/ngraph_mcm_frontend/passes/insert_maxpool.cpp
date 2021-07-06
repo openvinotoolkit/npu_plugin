@@ -24,7 +24,7 @@
 #include <ngraph/op/variadic_split.hpp>
 #include <ngraph/type/element_type.hpp>
 
-#include "ngraph_mcm_frontend/quantization_helpers.hpp"
+#include "vpux/quantization_helpers.hpp"
 
 namespace {
 bool hasVarSplitParent(const std::shared_ptr<ngraph::Node>& fq_node) {
