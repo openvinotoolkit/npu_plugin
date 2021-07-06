@@ -319,10 +319,18 @@ void alignInputForChannelMajorConvolution(mv::ComputationModel& model, mv::Data:
         {
             alignOp->set<std::string>("splitStrategy", parentOpIt->get<std::string>("splitStrategy"));
         }
+        if (parentOpIt->hasAttr("originalShape"))
+        {
+            alignOp->set<mv::Shape>("originalShape", parentOpIt->get<mv::Shape>("originalShape"));
+        }
 
         if (inputTensor->hasAttr("splitStrategy"))
         {
             alignOp->getOutputTensor()[0]->set<std::string>("splitStrategy", inputTensor->get<std::string>("splitStrategy"));
+        }
+        if (inputTensor->hasAttr("originalShape"))
+        {
+            alignOp->getOutputTensor()[0]->set<mv::Shape>("originalShape", inputTensor->get<mv::Shape>("originalShape"));
         }
 
         for (unsigned flowIdx = 0; flowIdx < flowsToRemove.size(); flowIdx++)
@@ -409,6 +417,14 @@ void addAlignOpForInputTensorsFunc(const mv::pass::PassEntry& , mv::ComputationM
                         } else if (parentOpIt->hasAttr("splitStrategy")) {
                             alignOp->set<std::string>("splitStrategy", parentOpIt->get<std::string>("splitStrategy"));
                         }
+                    }
+                    if (parentOpIt->hasAttr("originalShape"))
+                    {
+                        alignOp->set<mv::Shape>("originalShape", parentOpIt->get<mv::Shape>("originalShape"));
+                    }
+                    if (inputTensor->hasAttr("originalShape"))
+                    {
+                        alignOp->getOutputTensor()[0]->set<mv::Shape>("originalShape", inputTensor->get<mv::Shape>("originalShape"));
                     }
 
                     for (unsigned flowIdx = 0; flowIdx < flowsToRemove.size(); flowIdx++)

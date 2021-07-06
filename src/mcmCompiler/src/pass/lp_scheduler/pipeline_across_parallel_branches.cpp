@@ -516,14 +516,14 @@ void addTrailingUPAflagToChains(std::vector<std::vector<std::string>>& upaChains
   }
 }
 
-std::list<operation_t> retrieve_concrete_child_ops(mv::Data::OpListIterator currOp, mv::OpModel& model)
+std::list<operation_t> retrieveExplicitChildOps(mv::Data::OpListIterator currOp, mv::OpModel& model)
 {
   std::list<operation_t> concrete_child_ops;
   for (auto child = currOp.leftmostChild(); child != model.opEnd(); ++child)
   {
     if (child->isImplicit())
     {
-      std::list<operation_t> temp = retrieve_concrete_child_ops(child, model);
+      std::list<operation_t> temp = retrieveExplicitChildOps(child, model);
       concrete_child_ops.merge(temp);
     }
     else
@@ -565,7 +565,7 @@ void populateOpLevelMaps(mv::OpModel& om, std::unordered_map<std::string, size_t
         {
           // update the in-degree //
           mv::Data::OpListIterator zop_itr = om.getOp((*zitr));
-          std::list<operation_t> child_ops = retrieve_concrete_child_ops(zop_itr, om);
+          std::list<operation_t> child_ops = retrieveExplicitChildOps(zop_itr, om);
           for (auto& cop : child_ops)
           {
             if (propagated_ops.find(cop->getName()) != propagated_ops.end())
@@ -600,15 +600,9 @@ void populateOpLevelMaps(mv::OpModel& om, std::unordered_map<std::string, size_t
     }
 }
 
-void UPATaskChainScheduleHandling(const mv::pass::PassEntry&, mv::ComputationModel& model, 
-      mv::TargetDescriptor&, mv::Element&, mv::Element&) 
+void UPATaskChainScheduleHandling(const mv::pass::PassEntry& /*unused*/, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&) 
 {
   mv::OpModel om(model);
-
-  // td 0003 parallel outputs
-  // auto t_40_weights = om.getOp("model/conv2d_40/Conv2D/Transpose21780_const7916723/quantized/to_f16:quantized_DDR2CMX");
-  // auto t_36_concat = om.getOp("model/segm_logits/add");
-  // auto flow_itr = om.defineFlow(t_36_concat->getOutputTensor(mv::IO_TENSOR_OUTPUT), t_40_weights, 0UL);
 
   // create op level map
   std::unordered_map<std::string, size_t> task_level;
@@ -647,7 +641,7 @@ void UPATaskChainScheduleHandling(const mv::pass::PassEntry&, mv::ComputationMod
     // 2. NON-TRAILING UPA CHAINS - want to schedule all UPAs in the beginning
     else
     {
-      // use head and tail levels as range in search for DMA Tasks
+      // use head level as range in search for DMA Tasks
       size_t headLevel = task_level[chainHead];
       // obtain all possible parallel operations
       for (auto sameLevelOp : level_ops[headLevel])
@@ -672,9 +666,15 @@ void UPATaskChainScheduleHandling(const mv::pass::PassEntry&, mv::ComputationMod
         else
         {
           // DMAs, Implicit ops can be removed by CMX concat pass, retrieve concrete top operation
-          while ((parallelOp->isImplicit() || parallelOp->getOpType() == "DMATask")
-                && parallelOp->getOpType() != "ImplicitConcat")
+          while ((parallelOp->isImplicit() && parallelOp->getOpType() != "ImplicitConcat")
+                || parallelOp->getOpType() == "DMATask")
             parallelOp = parallelOp.leftmostParent();
+        }
+        // Temp fix for parallel branches
+        if ((parallelOp->hasAttr("taskOp") && parallelOp->get<std::string>("taskOp") == "HwConvert")
+          && tailOp.leftmostChild()->getOpType() == "ImplicitConcat")
+        {
+          tailOp = tailOp.leftmostChild();
         }
         // add a control flow only if no flows exist
         if (!om.pathExists(parallelOp, tailOp) && !om.pathExists(tailOp, parallelOp))

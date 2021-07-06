@@ -112,7 +112,7 @@ std::size_t mv::activationTensorSize(mv::Op& op, const mv::Data::TensorIterator 
     {
         streamedChannels = div(fullTensorChannels,streamingPool["C"]);
     }
-    if (streamingPool["K"] > 1)
+    if (streamingPool["K"] > 1 && !isInput)
     {
         streamedChannels =  div(fullTensorChannels, streamingPool["K"]);
 
@@ -165,7 +165,7 @@ std::size_t mv::alignedWeightsSize(const mv::Data::TensorIterator tensorToSize, 
     }
 }
 
-std::tuple<std::size_t,std::size_t,std::size_t> mv::memorySize(mv::Op& op, int totalClusters, bool enableChannelMajorConv, std::string clustering, 
+std::tuple<std::size_t,std::size_t,std::size_t> mv::memorySize(mv::Op& op, int totalClusters, std::string clustering, 
                                             bool inputActivationSparsity, bool outputActivationSparsity, bool weightsSparsity, 
                                             const Shape& streamConfig, bool fakeSparsity, bool spilling, bool parentSpilling)
 {
@@ -185,7 +185,7 @@ std::tuple<std::size_t,std::size_t,std::size_t> mv::memorySize(mv::Op& op, int t
     auto opType = op.getOpType();
     auto isCMConv = false;
 
-    if(enableChannelMajorConv && op.supportsCMConv())
+    if(op.hasAttr("supportsCM") && op.get<bool>("supportsCM"))
         isCMConv = true;
 
     if (op.hasAttr("DilatedSubConv") && (op.get<bool>("DilatedSubConv")))

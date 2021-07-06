@@ -126,6 +126,9 @@ void ensureTopConcatCanBeCMXed(mv::OpModel& om, mv::Data::OpListIterator& opIt)
     // NOTE: if the top concat can not fit, accuracy issues might arise
     if (curr_cmx > cluster_memory)
         return;
+    
+    if (opIt->hasAttr("avoid_cmx_concat"))
+        opIt->set<bool>("avoid_cmx_concat", false);
 
     std::set<std::string> child_concats;
     retrieveChildConcats(om, child_concats, opIt);
@@ -428,8 +431,12 @@ void resolveImplicitOperationsOp(mv::Data::OpListIterator opIt, const mv::pass::
                 }
                 else if (sinkOp->hasAttr("dilatedWidthConcat") && sinkOp->get<bool>("dilatedWidthConcat"))
                 {
-                    //NOTE: they are the streaming operations os all they will have same coordinates
+                    //NOTE: they are the streaming operations SO they will all have same coordinates
                     auto subConvOp = om.getSourceOp(opIt->getInputTensor()[0]);
+                    //might be a "crop" op inbetween
+                    while (subConvOp->isImplicit())
+                        subConvOp = om.getSourceOp(subConvOp->getInputTensor()[0]);
+
                     std::size_t slot = subConvOp->get<std::vector<std::size_t>>("subConvsCoordinates")[1];
                     //NOTE: only the tensor which goes to ddr, the dst should have the dilated strides
                     compensatorOutput->set<bool>("dilatedWidthConcat", true);
