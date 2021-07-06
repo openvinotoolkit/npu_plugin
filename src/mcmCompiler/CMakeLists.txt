@@ -375,7 +375,7 @@ target_include_directories(mcmCompiler
         "${PROJECT_SOURCE_DIR}/../../thirdparty/bitcompactor/include/"
 )
 
-target_link_libraries(mcmCompiler PUBLIC ${EMULATOR} PRIVATE flatbuffers)
+target_link_libraries(mcmCompiler PUBLIC ${EMULATOR} vpux_al PRIVATE flatbuffers)
 
 if(ENABLE_MCM_COMPILER_PYTHON)
     add_subdirectory(python/api)
