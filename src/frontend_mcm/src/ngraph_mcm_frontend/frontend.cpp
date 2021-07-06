@@ -35,7 +35,7 @@
 #include "ngraph_mcm_frontend/passes/insert_maxpool.hpp"
 #include "ngraph_mcm_frontend/passes/replace_shuffle.hpp"
 #include "ngraph_mcm_frontend/passes/handle_3d_transpose.hpp"
-#include <ngraph_mcm_frontend/passes/propagate_fq.hpp>
+#include "vpux/passes/propagate_fq.hpp"
 #include <ngraph_mcm_frontend/passes/align_scales.hpp>
 #include <ngraph_mcm_frontend/passes/detect_input_fq.hpp>
 

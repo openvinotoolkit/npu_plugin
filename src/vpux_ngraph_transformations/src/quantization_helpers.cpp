@@ -13,7 +13,7 @@
 
 // clang-format off
 
-#include "ngraph_mcm_frontend/quantization_helpers.hpp"
+#include "vpux/quantization_helpers.hpp"
 #include <ie_common.h>
 #include <ngraph/runtime/reference/autobroadcast_binop.hpp>
 #include <ngraph/node.hpp>

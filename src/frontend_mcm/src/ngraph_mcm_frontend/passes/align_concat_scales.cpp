@@ -22,7 +22,7 @@
 #include <ngraph/type/element_type.hpp>
 #include "ngraph/op/concat.hpp"
 
-#include "ngraph_mcm_frontend/quantization_helpers.hpp"
+#include "vpux/quantization_helpers.hpp"
 
 namespace {
 
