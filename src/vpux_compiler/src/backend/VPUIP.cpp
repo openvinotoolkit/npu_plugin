@@ -20,6 +20,7 @@
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/schema.hpp"
 
+#include "vpux/utils/IE/loop.hpp"
 #include "vpux/utils/core/array_ref.hpp"
 #include "vpux/utils/core/checked_cast.hpp"
 #include "vpux/utils/core/enums.hpp"
@@ -244,75 +245,100 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(VPUIP::BlobWriter&
     return builder.Finish();
 }
 
-using TaskList = std::vector<VPUIP::BlobWriter::Task>;
-using TaskListMap = EnumMap<VPUIP::TaskType, TaskList>;
-
-void serializeNetFunc(VPUIP::BlobWriter& writer, mlir::FuncOp netFunc, VPUIP::GraphOp graphOp, TaskListMap& tasksMap,
-                      SmallVectorImpl<VPUIP::BlobWriter::BinaryData>& binaryData,
-                      SmallVectorImpl<VPUIP::BlobWriter::Barrier>& virtBarriers, mlir::TimingScope& rootTiming,
-                      Logger log) {
-    auto scopeTiming = rootTiming.nest("Serialize network function");
+void serializeTensorDecls(VPUIP::BlobWriter& writer, mlir::FuncOp netFunc, mlir::TimingScope& rootTiming) {
+    auto scopeTiming = rootTiming.nest("Serialize tensor declarations");
 
     size_t tempTensorInd = 0;
-    size_t constTensorInd = 0;
-    const auto callback = [&](mlir::Operation* op) {
-        log.trace("Serialize Operation '{0}' at '{1}'", op->getName(), op->getLoc());
-
-        if (auto task = mlir::dyn_cast<VPUIP::TaskOpInterface>(op)) {
-            auto opTiming = scopeTiming.nest("Serialize task operation");
-            log.nest().trace("Got '{0}' Task", task.getTaskType());
-
-            tasksMap[task.getTaskType()].push_back(writer.createTask(task));
-        } else if (auto tensorOp = mlir::dyn_cast<VPUIP::DeclareTensorOp>(op)) {
-            auto opTiming = scopeTiming.nest("Serialize tensor declaration");
-
-            SmallVector<uint32_t> localeIndex;
-            for (auto attr : tensorOp.localeIndex()) {
-                localeIndex.emplace_back(checked_cast<uint32_t>(attr.cast<mlir::IntegerAttr>().getInt()));
-            }
-
-            writer.createTensor(tensorOp.memory(), llvm::formatv("temp-{0}", tempTensorInd).str(), tensorOp.locale(),
-                                localeIndex, tensorOp.dataIndex(), tensorOp.sparsityIndex(),
-                                tensorOp.storageElementIndex(), tensorOp.storageElementSize(), tensorOp.leadingOffset(),
-                                tensorOp.trailingOffset());
-
-            ++tempTensorInd;
-        } else if (auto constOp = mlir::dyn_cast<Const::DeclareOp>(op)) {
-            auto opTiming = scopeTiming.nest("Serialize constant declaration");
-            log.nest().trace("Got constant with type '{0}'", constOp.getType());
-
-            const auto binData = writer.createBinaryData(constOp.contentAttr());
-            binaryData.push_back(binData);
-
-            writer.createTensor(constOp.output(), llvm::formatv("constant-{0}", constTensorInd).str(),
-                                VPUIP::MemoryLocation::GraphFile, checked_cast<uint32_t>(constTensorInd), 0);
-
-            ++constTensorInd;
-        } else if (auto barrierOp = mlir::dyn_cast<VPUIP::DeclareVirtualBarrierOp>(op)) {
-            auto opTiming = scopeTiming.nest("Serialize barrier declaration");
-
-            VPUX_THROW_UNLESS(VPUIP::bitEnumContains(graphOp.options(), VPUIP::ExecutionFlag::DynamicBarriers),
-                              "Graph was not configured for virtual barriers usage");
-
-            const auto virtBarrier = writer.createBarrier(barrierOp.barrier());
-            virtBarriers.push_back(virtBarrier);
-        } else if (mlir::dyn_cast<mlir::ReturnOp>(op) != nullptr || op == netFunc.getOperation()) {
-            // do nothing
-        } else if (mlir::dyn_cast<VPUIP::DPUTaskOp>(op) != nullptr || mlir::dyn_cast<VPUIP::PPETaskOp>(op) != nullptr) {
-            // do nothing
-        } else {
-            VPUX_THROW("Unknown Operation '{0}' at '{1}'", op->getName(), op->getLoc());
+    netFunc.walk([&](VPUIP::DeclareTensorOp tensorOp) {
+        SmallVector<uint32_t> localeIndex;
+        for (auto attr : tensorOp.localeIndex()) {
+            localeIndex.emplace_back(checked_cast<uint32_t>(attr.cast<mlir::IntegerAttr>().getInt()));
         }
-    };
 
-    netFunc.walk(callback);
+        writer.createTensor(tensorOp.memory(), llvm::formatv("temp-{0}", tempTensorInd).str(), tensorOp.locale(),
+                            localeIndex, tensorOp.dataIndex(), tensorOp.sparsityIndex(), tensorOp.storageElementIndex(),
+                            tensorOp.storageElementSize(), tensorOp.leadingOffset(), tensorOp.trailingOffset());
+
+        ++tempTensorInd;
+    });
 }
 
-std::vector<VPUIP::BlobWriter::TaskList> buildTaskLists(VPUIP::BlobWriter& writer, const TaskListMap& tasksMap,
-                                                        mlir::TimingScope& rootTiming, Logger log) {
-    auto scopeTiming = rootTiming.nest("Build task lists");
+SmallVector<VPUIP::BlobWriter::BinaryData> serializeBinaryData(VPUIP::BlobWriter& writer, mlir::FuncOp netFunc,
+                                                               mlir::TimingScope& rootTiming, Logger log) {
+    auto scopeTiming = rootTiming.nest("Serialize binary data");
 
-    std::vector<VPUIP::BlobWriter::TaskList> taskLists;
+    auto constOps = to_small_vector(netFunc.getOps<Const::DeclareOp>());
+
+    SmallVector<std::vector<uint64_t>> bufs(constOps.size());
+
+    loop_1d(LoopExecPolicy::Parallel, checked_cast<int64_t>(constOps.size()), [&](int64_t ind) {
+        const auto attr = constOps[static_cast<size_t>(ind)].contentAttr();
+
+        const auto type = attr.getType();
+        const auto content = attr.fold();
+
+        const Byte elemTypeSize = getElemTypeSize(type);
+        const size_t totalNumElements = type.getNumElements();
+        const size_t totalByteSize = totalNumElements * elemTypeSize.count();
+
+        bufs[static_cast<size_t>(ind)].resize(alignVal(totalByteSize, sizeof(uint64_t)) / sizeof(uint64_t), 0);
+
+        const auto buf =
+                makeMutableArrayRef(reinterpret_cast<char*>(bufs[static_cast<size_t>(ind)].data()), totalByteSize);
+        content.copyTo(buf);
+    });
+
+    SmallVector<VPUIP::BlobWriter::BinaryData> binaryData(constOps.size());
+
+    for (auto constTensorInd : irange(constOps.size())) {
+        auto constOp = constOps[constTensorInd];
+        const auto& content = bufs[constTensorInd];
+
+        log.trace("Got constant at '{0}' with type '{1}'", constOp->getLoc(), constOp.getType());
+
+        binaryData[constTensorInd] = writer.createBinaryData(content, constOp.getType().cast<mlir::ShapedType>());
+
+        writer.createTensor(constOp.output(), llvm::formatv("constant-{0}", constTensorInd).str(),
+                            VPUIP::MemoryLocation::GraphFile, checked_cast<uint32_t>(constTensorInd), 0);
+    }
+
+    return binaryData;
+}
+
+SmallVector<VPUIP::BlobWriter::Barrier> serializeVirtBarriers(VPUIP::BlobWriter& writer, mlir::FuncOp netFunc,
+                                                              VPUIP::GraphOp graphOp, mlir::TimingScope& rootTiming,
+                                                              Logger log) {
+    auto scopeTiming = rootTiming.nest("Serialize virtual barriers");
+
+    SmallVector<VPUIP::BlobWriter::Barrier> virtBarriers;
+
+    netFunc.walk([&](VPUIP::DeclareVirtualBarrierOp barrierOp) {
+        log.trace("Got virtual varrier at '{0}'", barrierOp->getLoc());
+
+        VPUX_THROW_UNLESS(VPUIP::bitEnumContains(graphOp.options(), VPUIP::ExecutionFlag::DynamicBarriers),
+                          "Graph was not configured for virtual barriers usage");
+
+        const auto virtBarrier = writer.createBarrier(barrierOp.barrier());
+        virtBarriers.push_back(virtBarrier);
+    });
+
+    return virtBarriers;
+}
+
+SmallVector<VPUIP::BlobWriter::TaskList> serializeTaskLists(VPUIP::BlobWriter& writer, mlir::FuncOp netFunc,
+                                                            mlir::TimingScope& rootTiming, Logger log) {
+    auto scopeTiming = rootTiming.nest("Serialize task lists");
+
+    using TaskList = SmallVector<VPUIP::BlobWriter::Task>;
+    using TaskListMap = EnumMap<VPUIP::TaskType, TaskList>;
+    TaskListMap tasksMap;
+
+    netFunc.walk([&](VPUIP::TaskOpInterface taskOp) {
+        log.trace("Got '{0}' Task '{1}' at '{2}'", taskOp.getTaskType(), taskOp->getName(), taskOp->getLoc());
+        tasksMap[taskOp.getTaskType()].push_back(writer.createTask(taskOp));
+    });
+
+    SmallVector<VPUIP::BlobWriter::TaskList> taskLists;
     taskLists.reserve(tasksMap.size());
 
     for (const auto& taskList : tasksMap) {
@@ -367,12 +393,10 @@ flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, mli
 
     const auto header = createSummaryHeader(writer, module, graphOp, netOp, netFunc, rootTiming);
 
-    TaskListMap tasksMap;
-    SmallVector<VPUIP::BlobWriter::BinaryData> binaryData;
-    SmallVector<VPUIP::BlobWriter::Barrier> virtBarriers;
-    serializeNetFunc(writer, netFunc, graphOp, tasksMap, binaryData, virtBarriers, rootTiming, log);
-
-    const auto taskLists = buildTaskLists(writer, tasksMap, rootTiming, log);
+    serializeTensorDecls(writer, netFunc, rootTiming);
+    const auto binaryData = serializeBinaryData(writer, netFunc, rootTiming, log);
+    const auto virtBarriers = serializeVirtBarriers(writer, netFunc, graphOp, rootTiming, log);
+    const auto taskLists = serializeTaskLists(writer, netFunc, rootTiming, log);
 
     const auto graphFile = createGraphFile(writer, header, taskLists, binaryData, virtBarriers, rootTiming);
 

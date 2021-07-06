@@ -14,11 +14,16 @@
 #include "vpux/compiler/dialect/const/attributes/content.hpp"
 #include "vpux/compiler/utils/subspaces.hpp"
 
+#include "vpux/utils/IE/blob.hpp"
 #include "vpux/utils/IE/loop.hpp"
 #include "vpux/utils/core/format.hpp"
 #include "vpux/utils/core/func_ref.hpp"
+#include "vpux/utils/core/hash.hpp"
 
 #include <mlir/IR/DialectImplementation.h>
+
+#include <unordered_map>
+#include <unordered_set>
 
 using namespace vpux;
 
@@ -109,24 +114,57 @@ Const::Content vpux::Const::ReorderAttr::transform(vpux::Const::Content& input) 
         const Byte elemSize = getElemTypeSize(input.getStorageElemType());
         const auto shape = getShape(output.getType());
 
-        const auto inMemShape = inOrder.toMemoryOrder(shape);
-        const auto outMemShape = outOrder.toMemoryOrder(shape);
+        static const std::unordered_set<std::pair<DimsOrder, DimsOrder>> optimizedCases = {
+                {DimsOrder::NCHW, DimsOrder::NHWC},
+                {DimsOrder::NHWC, DimsOrder::NCHW},
+                {DimsOrder::NCDHW, DimsOrder::NDHWC},
+                {DimsOrder::NDHWC, DimsOrder::NCDHW},
+        };
 
-        loop_1d(LoopExecPolicy::Parallel, output.getType().getNumElements(), [&](int64_t outMemInd1D) {
-            const auto outMemIndND = getMemIndexND(outMemInd1D, outMemShape);
-            const auto indND = outOrder.toLogicalOrder(outMemIndND);
-            const auto inMemIndND = inOrder.toMemoryOrder(indND);
-            const auto inMemInd1D = getMemIndex1D(inMemIndND, inMemShape);
+        static const std::unordered_map<size_t, InferenceEngine::Precision> elemSizeToPrecision = {
+                {sizeof(uint8_t), InferenceEngine::Precision::U8},
+                {sizeof(uint16_t), InferenceEngine::Precision::U16},
+                {sizeof(uint32_t), InferenceEngine::Precision::U32},
+                // U64 is not supported by cvtBlobLayout
+                // {sizeof(uint64_t), InferenceEngine::Precision::U64},
+        };
 
-            const auto inMemRawInd = checked_cast<size_t>(inMemInd1D * elemSize.count());
-            VPUX_THROW_UNLESS(inMemRawInd < inBuf.size(), "Out-of-bound access in 'ReorderAttr'");
+        const auto precision = elemSizeToPrecision.find(checked_cast<size_t>(elemSize.count()));
 
-            const auto outMemRawInd = checked_cast<size_t>(outMemInd1D * elemSize.count());
-            VPUX_THROW_UNLESS(outMemRawInd < outBuf.size(), "Out-of-bound access in 'ReorderAttr'");
+        if (optimizedCases.count({inOrder, outOrder}) != 0 && precision != elemSizeToPrecision.end()) {
+            // Use optimized algorithm from IE core
 
-            std::copy_n(inBuf.data() + inMemRawInd, checked_cast<size_t>(elemSize.count()),
-                        outBuf.data() + outMemRawInd);
-        });
+            const InferenceEngine::SizeVector ieShape(shape.begin(), shape.end());
+
+            const InferenceEngine::TensorDesc inDesc(precision->second, ieShape, inOrder.toIE());
+            const InferenceEngine::TensorDesc outDesc(precision->second, ieShape, outOrder.toIE());
+
+            const auto inBlob = makeBlob(inDesc, nullptr, const_cast<char*>(inBuf.data()));
+            const auto outBlob = makeBlob(outDesc, nullptr, outBuf.data());
+
+            cvtBlobLayout(inBlob, outBlob);
+        } else {
+            // Use generic algorithm
+
+            const auto inMemShape = inOrder.toMemoryOrder(shape);
+            const auto outMemShape = outOrder.toMemoryOrder(shape);
+
+            loop_1d(LoopExecPolicy::Parallel, output.getType().getNumElements(), [&](int64_t outMemInd1D) {
+                const auto outMemIndND = getMemIndexND(outMemInd1D, outMemShape);
+                const auto indND = outOrder.toLogicalOrder(outMemIndND);
+                const auto inMemIndND = inOrder.toMemoryOrder(indND);
+                const auto inMemInd1D = getMemIndex1D(inMemIndND, inMemShape);
+
+                const auto inMemRawInd = checked_cast<size_t>(inMemInd1D * elemSize.count());
+                VPUX_THROW_UNLESS(inMemRawInd < inBuf.size(), "Out-of-bound access in 'ReorderAttr'");
+
+                const auto outMemRawInd = checked_cast<size_t>(outMemInd1D * elemSize.count());
+                VPUX_THROW_UNLESS(outMemRawInd < outBuf.size(), "Out-of-bound access in 'ReorderAttr'");
+
+                std::copy_n(inBuf.data() + inMemRawInd, checked_cast<size_t>(elemSize.count()),
+                            outBuf.data() + outMemRawInd);
+            });
+        }
     }
 
     return output;
