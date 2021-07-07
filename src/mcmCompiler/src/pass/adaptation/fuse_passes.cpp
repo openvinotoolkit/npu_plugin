@@ -331,7 +331,28 @@ void fusePPEBaseFcn(mv::Data::OpListIterator& opIt, mv::ComputationModel& model,
             [] (mv::Data::OpListIterator &op) {return op.childrenSize() > 1 || !op->isHardwarizable();})
         != fusableParents.end()))
     {
-        opIt->set<bool>("softwareExecuted", true);
+        /// Insert maxpool to fuse relu
+        if(opType == "Relu" && (parentOp->getOpType() != "Input"))
+        {
+            auto childOpIts = findSinkLayers(dm, opIt->getInputTensor(mv::IO_TENSOR_INPUT));
+            auto maxpool = om.maxPool("identity_maxpool_" + opIt->getName(), opIt->getInputTensor(mv::IO_TENSOR_INPUT), {1, 1}, {1, 1}, {0, 0, 0, 0});
+            auto maxpoolOp = om.getSourceOp(maxpool);
+            maxpoolOp->set<unsigned>("opId", opIt->get<unsigned>("opId"));
+            std::vector<std::string> postOpTypes;
+            postOpTypes.push_back(opType);
+            maxpoolOp->set<std::vector<std::string>>("postOpTypes", postOpTypes);
+
+            maxpool->setDType(opIt->getOutputTensor(0)->getDType());
+            maxpool->setQuantParams(opIt->getOutputTensor(0)->getQuantParams());
+            opIt = linkNewOperationsFuse(maxpoolOp, maxpool, om, opIt);
+            if (ppeOutputMemoryLocation.isForced())
+                opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT)->set<mv::Tensor::MemoryLocation>("Location", ppeOutputMemoryLocation);
+        }
+        else
+        {
+            opIt->set<bool>("softwareExecuted", true);
+        }
+                
         return;
     }
 
