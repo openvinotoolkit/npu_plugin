@@ -118,7 +118,7 @@ static void checkBlobCompatibility(const IE::Blob::CPtr& blob, const BlobDescTyp
 }
 
 using matchColorFormats_t = std::unordered_map<int, HddlUnite::Inference::FourCC>;
-static HddlUnite::Inference::FourCC covertColorFormat(const IE::ColorFormat colorFormat) {
+static HddlUnite::Inference::FourCC convertColorFormat(const IE::ColorFormat colorFormat) {
     static const matchColorFormats_t matchColorFormats = {
             {static_cast<int>(IE::ColorFormat::BGR), HddlUnite::Inference::FourCC::BGR},
             {static_cast<int>(IE::ColorFormat::RGB), HddlUnite::Inference::FourCC::RGB}};
@@ -243,7 +243,7 @@ const HddlUnite::Inference::BlobDesc& BlobDescriptorAdapter::createUniteBlobDesc
                                                         _allocationInfo.isCompound);
 
     if (isInput)
-        _hddlUniteBlobDesc.m_nnInputFormat = covertColorFormat(_allocationInfo.nnInputColorFormat);
+        _hddlUniteBlobDesc.m_nnInputFormat = convertColorFormat(_allocationInfo.nnInputColorFormat);
     return _hddlUniteBlobDesc;
 }
 
@@ -297,7 +297,7 @@ void BlobDescriptorAdapter::prepareImageFormatInfo(const IE::Blob::CPtr& blobPtr
         }
         _sourceInfo.blobColorFormat = HddlUnite::Inference::FourCC::NV12;
     } else {
-        _sourceInfo.blobColorFormat = covertColorFormat(colorFormat);
+        _sourceInfo.blobColorFormat = convertColorFormat(colorFormat);
     }
 
     // NN input dims
@@ -322,7 +322,10 @@ void BlobDescriptorAdapter::prepareImageFormatInfo(const IE::Blob::CPtr& blobPtr
 
         // Define strides and dimensions. Only NCHW/NHWC orders/layouts are supported. NV12 always has NHWC order
         const bool isNCHW = isNV12AnyBlob(blobPtr) ? false : (tensorDesc.getLayout() == IE::Layout::NCHW);
-        _sourceInfo.widthStride = strides[isNCHW ? 2 : 1];
+        if (!strides[2]) {
+            IE_THROW() << "Stride with null size.";
+        }
+        _sourceInfo.widthStride = isNCHW ? strides[2] : strides[1] / strides[2];
         _sourceInfo.planeStride = strides[isNCHW ? 1 : 0];
         _sourceInfo.resWidth = dims[W_index];
         _sourceInfo.resHeight = dims[H_index];

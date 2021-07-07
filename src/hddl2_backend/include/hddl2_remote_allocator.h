@@ -35,11 +35,12 @@ namespace hddl2 {
 struct HDDL2RemoteMemoryContainer {
     explicit HDDL2RemoteMemoryContainer(const HddlUnite::RemoteMemory::Ptr& remoteMemory);
 
-    InferenceEngine::LockOp lockOp = InferenceEngine::LOCK_FOR_WRITE;
-    bool isLocked = false;
+    InferenceEngine::LockOp _lockOp = InferenceEngine::LOCK_FOR_WRITE;
+    bool _isLocked = false;
 
-    std::vector<uint8_t> localMemory;
-    HddlUnite::RemoteMemory::Ptr remoteMemory = nullptr;
+    std::vector<uint8_t> _localMemory;
+    HddlUnite::RemoteMemory::Ptr _remoteMemory = nullptr;
+    void* _updatedMemoryHandle = nullptr;
 };
 
 //------------------------------------------------------------------------------
@@ -99,15 +100,22 @@ protected:
      * @brief Fake copy of already allocated on device memory by incrementing remote memory counter
      * @return Handle to allocated memory
      */
-    void* incrementRemoteMemoryCounter(void* remoteMemoryHandle, const HddlUnite::eRemoteMemoryFormat format) noexcept;
+    void* incrementRemoteMemoryCounter(void* remoteMemoryHandle) noexcept;
+
+    /**
+     * @brief Free local memory and remote if we are owner
+     * @return True if successful otherwise false
+     */
+    bool freeMemory(void* remoteMemoryHandle) noexcept;
 
 private:
     HddlUnite::WorkloadContext::Ptr _contextPtr = nullptr;
 
-    std::map<void*, HDDL2RemoteMemoryContainer> _memoryStorage;
+    std::unordered_map<void*, HDDL2RemoteMemoryContainer> _memoryStorage;
     std::mutex memStorageMutex;
     const vpu::Logger::Ptr _logger;
-    std::map<void*, size_t> _memoryHandleCounter;
+    std::unordered_map<void*, size_t> _memoryHandleCounter;
+    std::unordered_map<void*, void*> _updatedMemoryHandle;
 };
 
 }  // namespace hddl2
