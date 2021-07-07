@@ -42,14 +42,12 @@ class IERT_LayerOp<int numResult, string mnemonic, list<OpTrait> traits = []> :
             !listconcat(
                 traits,
                 [
-                    RTLayer,
-                    LayerInterface,
+                    NoSideEffect,
                     InferTypeOpInterface,
-                    NoSideEffect
+                    DeclareOpInterfaceMethods<RTLayerInterface>
                 ]
             )
         > {
-
     let extraClassDeclaration = InferReturnTypesForRTLayer<numResult>.impl;
 }
 

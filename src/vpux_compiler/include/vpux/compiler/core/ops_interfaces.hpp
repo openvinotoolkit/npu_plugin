@@ -16,8 +16,10 @@
 #include "vpux/compiler/core/attributes/dims_order.hpp"
 #include "vpux/compiler/utils/error.hpp"
 
+#include "vpux/utils/core/func_ref.hpp"
 #include "vpux/utils/core/optional.hpp"
 #include "vpux/utils/core/range.hpp"
+#include "vpux/utils/core/small_vector.hpp"
 #include "vpux/utils/core/string_ref.hpp"
 
 #include <mlir/IR/BuiltinOps.h>
@@ -25,6 +27,7 @@
 #include <mlir/IR/OpDefinition.h>
 #include <mlir/IR/OpImplementation.h>
 #include <mlir/IR/Operation.h>
+#include <mlir/Interfaces/InferTypeOpInterface.h>
 
 namespace vpux {
 
@@ -80,6 +83,44 @@ private:
 };
 
 void fillDataInfo(DataOrderInfo& info, size_t inNum, size_t outNum, DimsOrder mainOrder);
+
+//
+// LayerInterface
+//
+
+mlir::LogicalResult verifyLayer(mlir::Operation* op);
+
+DataOrderInfo getLayerDataOrderInfo(mlir::Operation* op);
+
+using InferTypeComponentsCb = FuncRef<mlir::LogicalResult(mlir::MLIRContext*, Optional<mlir::Location>,
+                                                          mlir::ValueRange, mlir::DictionaryAttr, mlir::RegionRange,
+                                                          SmallVectorImpl<mlir::ShapedTypeComponents>&)>;
+
+mlir::LogicalResult inferTensorTypes(InferTypeComponentsCb componentsCb, mlir::MLIRContext* ctx,
+                                     Optional<mlir::Location> loc, mlir::ValueRange operands,
+                                     mlir::DictionaryAttr attrs, mlir::RegionRange regions,
+                                     SmallVectorImpl<mlir::Type>& inferredTypes);
+
+bool isCompatibleShapeAndElemType(mlir::TypeRange lhs, mlir::TypeRange rhs);
+
+//
+// RTLayerInterface
+//
+
+mlir::LogicalResult verifyRTLayer(mlir::Operation* op);
+
+mlir::OperandRange getRTLayerInputs(mlir::Operation* op);
+mlir::OperandRange getRTLayerOutputs(mlir::Operation* op);
+
+MutableArrayRef<mlir::OpOperand> getRTLayerInOpOperands(mlir::Operation* op);
+MutableArrayRef<mlir::OpOperand> getRTLayerOutOpOperands(mlir::Operation* op);
+
+DataOrderInfo getRTLayerDataOrderInfo(mlir::Operation* op);
+
+mlir::Value getRTLayerViewSource(mlir::Operation* op, ptrdiff_t resultInd);
+
+mlir::LogicalResult inferRTLayerReturnTypes(mlir::ValueRange operands, size_t numResults,
+                                            SmallVectorImpl<mlir::Type>& inferredReturnTypes);
 
 //
 // SameShape
@@ -205,62 +246,11 @@ public:
 };
 
 //
-// Layer verifiers
+// Specific per-layer verifiers
 //
 
-mlir::LogicalResult verifyLayer(mlir::Operation* op);
 mlir::LogicalResult verifyConvertLayer(mlir::Operation* op);
 mlir::LogicalResult verifySoftMaxLayer(mlir::Operation* op);
-
-//
-// RTLayer
-//
-
-mlir::LogicalResult verifyRTLayerOp(mlir::Operation* op);
-mlir::OperandRange getRTLayerInOperand(mlir::Operation* op);
-mlir::OperandRange getRTLayerOutOperand(mlir::Operation* op);
-MutableArrayRef<mlir::OpOperand> getRTLayerInOpOperands(mlir::Operation* op);
-MutableArrayRef<mlir::OpOperand> getRTLayerOutOpOperands(mlir::Operation* op);
-DataOrderInfo getRTLayerDataOrderInfo(mlir::Operation* op);
-mlir::Value getRTLayerViewSource(mlir::Operation* op, ptrdiff_t resultInd);
-mlir::LogicalResult inferRTLayerReturnTypes(mlir::ValueRange operands, size_t numResults,
-                                            SmallVectorImpl<mlir::Type>& inferredReturnTypes);
-
-template <typename ConcreteOp>
-class RTLayer : public mlir::OpTrait::TraitBase<ConcreteOp, RTLayer> {
-public:
-    static mlir::LogicalResult verifyTrait(mlir::Operation* op) {
-        return verifyRTLayerOp(op);
-    }
-
-    mlir::Value getViewSource(ptrdiff_t resultInd = 0) {
-        return getRTLayerViewSource(this->getOperation(), resultInd);
-    }
-
-    mlir::OperandRange getInputs() {
-        return getRTLayerInOperand(this->getOperation());
-    }
-
-    mlir::OperandRange getOutputs() {
-        return getRTLayerOutOperand(this->getOperation());
-    }
-
-    auto getOpOperands() {
-        return concat<mlir::OpOperand>(getInOpOperands(), getOutOpOperands());
-    }
-
-    MutableArrayRef<mlir::OpOperand> getInOpOperands() {
-        return getRTLayerInOpOperands(this->getOperation());
-    }
-
-    MutableArrayRef<mlir::OpOperand> getOutOpOperands() {
-        return getRTLayerOutOpOperands(this->getOperation());
-    }
-
-    DataOrderInfo getDataOrderInfo() {
-        return getRTLayerDataOrderInfo(this->getOperation());
-    }
-};
 
 }  // namespace vpux
 

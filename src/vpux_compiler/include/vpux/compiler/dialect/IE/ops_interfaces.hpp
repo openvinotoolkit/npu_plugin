@@ -13,6 +13,7 @@
 
 #pragma once
 
+#include "vpux/compiler/core/ops_interfaces.hpp"
 #include "vpux/compiler/dialect/IE/attributes/structs.hpp"
 
 #include "vpux/utils/core/func_ref.hpp"
@@ -22,40 +23,9 @@
 #include <mlir/IR/DialectInterface.h>
 #include <mlir/IR/OpDefinition.h>
 #include <mlir/IR/Operation.h>
-#include <mlir/Interfaces/InferTypeOpInterface.h>
 
 namespace vpux {
 namespace IE {
-
-//
-// IELayer
-//
-
-using InferTypeComponentsCb = FuncRef<mlir::LogicalResult(mlir::MLIRContext*, Optional<mlir::Location>,
-                                                          mlir::ValueRange, mlir::DictionaryAttr, mlir::RegionRange,
-                                                          SmallVectorImpl<mlir::ShapedTypeComponents>&)>;
-
-mlir::LogicalResult verifyIELayerOp(mlir::Operation* op);
-
-mlir::LogicalResult inferTensorTypes(InferTypeComponentsCb componentsCb, mlir::MLIRContext* ctx,
-                                     Optional<mlir::Location> loc, mlir::ValueRange operands,
-                                     mlir::DictionaryAttr attrs, mlir::RegionRange regions,
-                                     SmallVectorImpl<mlir::Type>& inferredTypes);
-
-template <typename ConcreteOp>
-class IELayer : public mlir::OpTrait::TraitBase<ConcreteOp, IELayer> {
-public:
-    static mlir::LogicalResult verifyTrait(mlir::Operation* op) {
-        return verifyIELayerOp(op);
-    }
-
-    static mlir::LogicalResult inferReturnTypes(mlir::MLIRContext* ctx, Optional<mlir::Location> loc,
-                                                mlir::ValueRange operands, mlir::DictionaryAttr attrs,
-                                                mlir::RegionRange regions, SmallVectorImpl<mlir::Type>& inferredTypes) {
-        return inferTensorTypes(ConcreteOp::inferReturnTypeComponents, ctx, loc, operands, attrs, regions,
-                                inferredTypes);
-    }
-};
 
 //
 // LayerInfoDialectInterface
@@ -68,6 +38,7 @@ public:
 
     virtual bool isSupportedPostProcessing(mlir::Operation* origOp, mlir::Operation* postOp) const = 0;
     virtual bool needToExpandChannels(mlir::Operation* origOp) const = 0;
+    virtual bool isSupportedLayout(mlir::Operation* origOp, DataOrderInfo& info) const = 0;
 };
 
 }  // namespace IE

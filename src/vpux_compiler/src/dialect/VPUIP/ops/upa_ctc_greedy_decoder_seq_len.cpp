@@ -27,7 +27,7 @@ void vpux::VPUIP::CTCGreedyDecoderSeqLenUPAOp::build(mlir::OpBuilder& builder, m
 }
 
 bool vpux::VPUIP::CTCGreedyDecoderSeqLenUPAOp::isSupportedLayout(mlir::Operation* op, vpux::DataOrderInfo& info) {
-    const auto ctcGreedyDecoderSeqLenOp = mlir::dyn_cast<IERT::CTCGreedyDecoderSeqLenOp>(op);
+    const auto ctcGreedyDecoderSeqLenOp = mlir::dyn_cast<IE::CTCGreedyDecoderSeqLenOp>(op);
     VPUX_THROW_UNLESS(ctcGreedyDecoderSeqLenOp != nullptr, "Operation {0} is not CTCGreedyDecoderSeqLenOp",
                       op->getName());
 

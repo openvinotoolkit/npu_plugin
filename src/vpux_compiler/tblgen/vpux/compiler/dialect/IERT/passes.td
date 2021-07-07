@@ -17,21 +17,6 @@
 include "mlir/Pass/PassBase.td"
 
 //
-// AdjustLayouts
-//
-
-def AdjustLayouts : PassBase<"adjust-layouts", "vpux::FunctionPass"> {
-    let summary = "Add required layouts to memref";
-
-    let description = [{
-        This pass adds the required layouts instead of the default value
-        depending on the layer specification
-    }];
-
-    let constructor = "vpux::IERT::createAdjustLayoutsPass()";
-}
-
-//
 // SetInternalMemorySpace
 //
 

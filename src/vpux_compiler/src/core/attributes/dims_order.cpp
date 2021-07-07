@@ -451,6 +451,8 @@ Optional<StringLiteral> vpux::DimsOrder::getCanonicalName() const {
         return StringLiteral("NCDHW");
     } else if (*this == DimsOrder::NDHWC) {
         return StringLiteral("NDHWC");
+    } else if (*this == DimsOrder::YXOI) {
+        return StringLiteral("YXOI");
     } else {
         return None;
     }

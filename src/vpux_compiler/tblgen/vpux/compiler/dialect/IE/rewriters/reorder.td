@@ -11,8 +11,8 @@
 // included with the Software Package for additional details.
 //
 
-#ifndef VPUX_COMPILER_DIALECT_IE_REWRITERS_CONVERT
-#define VPUX_COMPILER_DIALECT_IE_REWRITERS_CONVERT
+#ifndef VPUX_COMPILER_DIALECT_IE_REWRITERS_REORDER
+#define VPUX_COMPILER_DIALECT_IE_REWRITERS_REORDER
 
 include "vpux/compiler/dialect/IE/ops.td"
 

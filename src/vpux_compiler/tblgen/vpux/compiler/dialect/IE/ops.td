@@ -41,12 +41,18 @@ class IE_LayerOp<string mnemonic, list<OpTrait> traits = []> :
         IE_Op<
             mnemonic,
             [
+                NoSideEffect,
                 InferTypeOpInterface,
                 DeclareOpInterfaceMethods<InferShapedTypeOpInterface, ["inferReturnTypeComponents"]>,
-                IE_Layer,
-                NoSideEffect
+                DeclareOpInterfaceMethods<LayerInterface>
             ] # traits
         > {
+    let extraClassDeclaration = [{
+        static bool isCompatibleReturnTypes(mlir::TypeRange lhs, mlir::TypeRange rhs) {
+            return vpux::isCompatibleShapeAndElemType(lhs, rhs);
+        }
+    }];
+
     let assemblyFormat = [{
         `(` operands `)` attr-dict `:` type(operands) `->` type(results)
     }];
@@ -206,6 +212,12 @@ def IE_ReorderOp :
 
     let hasCanonicalizer = 1;
     let hasFolder = 1;
+
+    let extraClassDeclaration = [{
+        static bool isCompatibleReturnTypes(mlir::TypeRange lhs, mlir::TypeRange rhs) {
+            return lhs == rhs;
+        }
+    }];
 }
 
 //
