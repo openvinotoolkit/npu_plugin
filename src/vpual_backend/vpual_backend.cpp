@@ -140,13 +140,26 @@ const std::shared_ptr<IDevice> VpualEngineBackend::getDevice(const std::string& 
             return _devices.begin()->second;
         }
 
+        const auto expectedSliceId = utils::getSliceIdByDeviceName(deviceId);
+
+        // TODO Remove this after removing deprecated device names
+        if (utils::isDeviceNameVpualDeprecated(deviceId)) {
+            for (const auto& device: _devices) {
+                const auto currentSliceId = utils::getSliceIdByDeviceName(device.first);
+                if (expectedSliceId == currentSliceId) {
+                    return device.second;
+                }
+            }
+            _logger->warning("Device %s not found", deviceId);
+            return nullptr;
+        }
+
         const auto expectedPlatformName = utils::getPlatformNameByDeviceName(deviceId);
         const auto currentPlatformName = utils::getPlatformNameByDeviceName(_devices.begin()->second->getName());
         if (expectedPlatformName != currentPlatformName) {
             _logger->warning("Device with platform %s not found", expectedPlatformName);
             return nullptr;
         }
-        const auto expectedSliceId = utils::getSliceIdByDeviceName(deviceId);
         const std::string expectedDeviceName = expectedPlatformName + "." + std::to_string(expectedSliceId);
         return _devices.at(expectedDeviceName);
     } catch (...) {
