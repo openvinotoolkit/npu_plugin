@@ -5,7 +5,6 @@
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/base/exception/runtime_error.hpp"
 #include "include/mcm/op_model.hpp"
-#include "include/mcm/utils/custom_math.hpp"
 #include <regex>
 
 static void storeLayerSplitStrategyFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
@@ -18,12 +17,11 @@ static void storeLayerPipeliningStrategyFcn(const mv::pass::PassEntry& pass, mv:
 static void storeGraphOptimizerDecisions(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void ensureCMXConcatsDMASPlacedCorrectly(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 static void validateImplicitResampleConvStreaming(const mv::pass::PassEntry&, mv::ComputationModel& model);
+
 namespace mv
 {
-
     namespace pass
     {
-
         MV_REGISTER_PASS(StoreGraphOptimizerDecisions)
         .setFunc(storeGraphOptimizerDecisions)
         .setDescription(

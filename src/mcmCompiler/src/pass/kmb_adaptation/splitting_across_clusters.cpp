@@ -28,13 +28,14 @@ static const std::vector<mv::DPUModeList> TENSOR_MPE {{{1,1}}, {{16,1}}, {{1,16}
 static void SplittingTensorsAcrossClusters(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&,
                                     mv::Element&, mv::Element&);
 static void subTensorsGen(mv::ComputationModel& model, const tensorSet &tensors, unsigned nClusters,
-                          const mv::pass::PassEntry& pass, std::size_t id=0);
+                          const mv::pass::PassEntry& pass, std::size_t id=0, bool doubleSetOfSubTensors=false);
 static void unpopulatedSplitOverH(const unsigned nWorkloads, std::vector<mv::Workload> &subTensors, mv::Workloads &Tensor,
                                   const mv::pass::PassEntry& pass, int &success);
 static void populatedSplitOverH(const unsigned nClusters, std::vector<mv::Workload> &subTensors, mv::Workloads& Tensor,
                                 const mv::pass::PassEntry& pass, int &success);
 static std::vector<mv::Workload> fixRectangularHeuristicBug(std::vector<mv::Workload> subTensors, const mv::Data::TensorIterator &tensor, const std::size_t nWorkloads, const std::size_t outputChannels);
 static void ensureSplitStrategiesForSpilling(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void ensureSplitStrategiesForNonSpillingFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 namespace mv
 {
@@ -50,6 +51,11 @@ namespace mv
             .setFunc(ensureSplitStrategiesForSpilling)
             .setDescription(
                "Ensures Split Strategies still valid after Spilling cases");
+
+        MV_REGISTER_PASS(EnsureSplitStrategiesForNonSpilling)
+            .setFunc(ensureSplitStrategiesForNonSpillingFcn)
+            .setDescription(
+               "Ensures Split Strategies still even for non Spilling cases");
     }
 }
 
@@ -203,7 +209,7 @@ void SplittingTensorsAcrossClusters(const mv::pass::PassEntry& pass, mv::Computa
 }
 
 void subTensorsGen(mv::ComputationModel& model, const tensorSet& tensors, unsigned nClusters,
-                   const mv::pass::PassEntry& pass, std::size_t id)
+                   const mv::pass::PassEntry& pass, std::size_t id, bool doubleSetOfSubTensors)
 {
     mv::DataModel dm(model);
     mv::OpModel om(model);
@@ -240,7 +246,8 @@ void subTensorsGen(mv::ComputationModel& model, const tensorSet& tensors, unsign
             mv::Workloads Tensor(tensor->getName(), tensor->getShape(), (needs_sparse || needs_splits_aligned) && gtThanOneKernelSizeH && !compilerSparsity);
             std::vector<mv::Workload> subTensors;
 
-            if (tensor->get<std::string>("splitStrategy") == "SplitOverH")
+            if (tensor->get<std::string>("splitStrategy") == "SplitOverH" ||
+                tensor->get<std::string>("splitStrategy") == "ClusteringAndSOH")
             {
                 if(!tensor->isPopulated())
                 {
@@ -265,13 +272,15 @@ void subTensorsGen(mv::ComputationModel& model, const tensorSet& tensors, unsign
                         tensor->shareAcrossClusters(subTensors, nWorkloads);
                         continue;
                     }
-                    else {
+                    else
                         unpopulatedSplitOverH(nClusters, subTensors, Tensor, pass, success);
-                    }
                 }
                 else
                     populatedSplitOverH(nClusters, subTensors, Tensor, pass, success);
-                tensor->splitAcrossClusters(subTensors, true, false);
+                if (tensor->get<std::string>("splitStrategy") == "SplitOverH")
+                    tensor->splitAcrossClusters(subTensors, true, false);
+                else
+                    tensor->splitAcrossClusters(subTensors, false, false, doubleSetOfSubTensors);
             }
             else if (tensor->get<std::string>("splitStrategy") == "Clustering")
             {
@@ -710,7 +719,7 @@ void ensureSplitStrategiesForSpilling(const mv::pass::PassEntry& pass, mv::Compu
                     if (sinkOperators[0]->getOpType() == "DMATask") {
                         continue;
                     }
-                    
+
                     auto opStrategy = sinkOperators[0]->get<std::string>("splitStrategy");
                     auto tensorStrategy = outputTensor->get<std::string>("splitStrategy");
                     std::pair<std::string, std::string> possibleCombination(tensorStrategy, opStrategy);
@@ -758,5 +767,70 @@ void ensureSplitStrategiesForSpilling(const mv::pass::PassEntry& pass, mv::Compu
         }
     }
     return;
+}
 
+// Pass role: offer double set of subtensors for some tensors, in order to give the opportunity to jump from sok->soh for networks
+// implement something tricky but correct! The idea will be that the parent operation which has sok/clustering will have 2 sets
+// of subtensors, the first one will be used as output of the parent op and the second one for the input of child!!!
+void ensureSplitStrategiesForNonSpillingFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+{
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+    mv::OpModel om(model);
+    mv::DataModel dm(model);
+    std::vector<std::pair<std::string, std::string>>compatibleStrategies =
+    {
+        {"Clustering", "SplitOverH"},
+        {"SplitOverK", "SplitOverH"}
+    };
+    auto globalParams = model.getGlobalConfigParams();
+    unsigned numClusters = globalParams->get<int>("Number_of_Clusters");
+
+    if (numClusters > 1)
+    {
+        for(auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt)
+        {
+            std::string opType = opIt->getOpType();
+            if (opType == "DPUTask")
+            {
+                auto inputTensor = opIt->getInputTensor(0);
+                if (inputTensor->hasAttr("splitStrategy") && opIt->hasAttr("splitStrategy"))
+                {
+                    auto inputStrategy = inputTensor->get<std::string>("splitStrategy");
+                    auto opStrategy = opIt->get<std::string>("splitStrategy");
+                    std::pair<std::string, std::string> possibleCombination(inputStrategy, opStrategy);
+                    for (auto allowCombination: compatibleStrategies)
+                    {
+                        if (possibleCombination == allowCombination)
+                        {
+                            inputTensor->set<std::string>("splitStrategy", "ClusteringAndSOH");
+                            bool doubleSetOfSubTensors = true;
+                            // ... and splitting has to be done again!!! <- Price for efficiency
+                            subTensorsGen(model, {inputTensor}, numClusters, pass, 0, doubleSetOfSubTensors);
+                            //NOTE: now I will do it specifically for the modelE case
+                            if (om.getSourceOp(inputTensor)->isImplicit()
+                                && om.getSourceOp(inputTensor)->getOpType() == "ImplicitResample")
+                            {
+                                std::size_t res = 0;
+                                auto parentInputTensor = om.getSourceOp(inputTensor)->getInputTensor()[0];
+                                parentInputTensor->set<bool>("placedHSegmented", true);
+                                for (std::size_t idx = 0; idx < 2 * numClusters; ++idx)
+                                {
+                                    auto subTensorShape = inputTensor->getSubTensor(numClusters + idx).getShape();
+                                    if (subTensorShape == inputTensor->getShape())
+                                        continue;
+                                    auto size = subTensorShape.totalSize();
+                                    if (size > res)
+                                    {
+                                        res = size;
+                                        parentInputTensor->set<mv::Shape>("shapeToAllocate", subTensorShape);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return;
 }

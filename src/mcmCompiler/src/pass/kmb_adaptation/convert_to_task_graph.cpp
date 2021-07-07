@@ -1343,6 +1343,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& pass,
                 tensorMasterDim =  outputTensor->get<mv::Shape>("masterDim");
             }
             auto hasLeadingOffset = outputTensor->hasAttr("leadingOffset");
+
             uint64_t leadingOffset = 0;
             if (hasLeadingOffset)
                 leadingOffset =  outputTensor->get<uint64_t>("leadingOffset");
@@ -1355,7 +1356,6 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& pass,
             newTensor->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
             if (placed)
                 newTensor->setPlaced(tensorResamplePlaced, tensorMasterDim);
-
             auto newTensorOp = om.getSourceOp(newTensor);
             newTensorOp->setAttrs(attrsToCopy);
             auto newOpType = newTensorOp->getOpType();

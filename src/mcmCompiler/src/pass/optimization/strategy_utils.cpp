@@ -165,8 +165,8 @@ std::size_t mv::alignedWeightsSize(const mv::Data::TensorIterator tensorToSize, 
     }
 }
 
-std::tuple<std::size_t,std::size_t,std::size_t> mv::memorySize(mv::Op& op, int totalClusters, std::string clustering, 
-                                            bool inputActivationSparsity, bool outputActivationSparsity, bool weightsSparsity, 
+std::tuple<std::size_t,std::size_t,std::size_t> mv::memorySize(mv::Op& op, int totalClusters, std::string clustering,
+                                            bool inputActivationSparsity, bool outputActivationSparsity, bool weightsSparsity,
                                             const Shape& streamConfig, bool fakeSparsity, bool spilling, bool parentSpilling)
 {
     auto div = [](unsigned x,unsigned y) -> unsigned { return (x+y-1)/y; };

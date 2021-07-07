@@ -27,13 +27,14 @@ void convertToImplicitOpsFcn(const mv::pass::PassEntry& , mv::ComputationModel& 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
 
     mv::OpModel om(model);
-    std::vector<std::string> opList = {"Permute", "Reshape", "Resample"};
+    std::vector<std::string> opList = {"Permute", "Reshape", "Resample", "Interp"};
     std::unordered_map<std::string, std::vector<mv::Data::OpListIterator>> operations = om.getOpsOfTypes(opList);
     std::vector <mv::Data::OpListIterator> ops;
-    ops.reserve(operations["Permute"].size() + operations["Reshape"].size() + operations["Resample"].size() );
+    ops.reserve(operations["Permute"].size() + operations["Reshape"].size() + operations["Resample"].size() + operations["Interp"].size());
     ops.insert(ops.end(), operations["Permute"].begin(), operations["Permute"].end());
     ops.insert(ops.end(), operations["Reshape"].begin(), operations["Reshape"].end());
     ops.insert(ops.end(), operations["Resample"].begin(), operations["Resample"].end());
+    ops.insert(ops.end(), operations["Interp"].begin(), operations["Interp"].end());
 
     for (auto& opIt : ops)
     {
@@ -73,7 +74,7 @@ void convertToImplicitOpsFcn(const mv::pass::PassEntry& , mv::ComputationModel& 
                 outputLocation = input->get<mv::Tensor::MemoryLocation>("Location");
         }
 
-        if(opType == "Resample")
+        if(opType == "Resample" || opType == "Interp")
         {
             // Skip if explicit
             if (!(opIt->hasAttr("isImplicit") && opIt->get<bool>("isImplicit")))
@@ -109,7 +110,7 @@ void convertToImplicitOpsFcn(const mv::pass::PassEntry& , mv::ComputationModel& 
         {
             implicitOp = om.implicitReshape("", input, output_shape);
         }
-        else if(opType == "Resample")
+        else if(opType == "Resample" || opType == "Interp")
         {
             implicitOp = om.implicitResample("", input, output_shape);
             input->setPlaced(true, output_shape);
