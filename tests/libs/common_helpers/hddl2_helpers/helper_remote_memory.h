@@ -126,7 +126,13 @@ inline HddlUnite::RemoteMemory::Ptr RemoteMemory_Helper::allocateRemoteMemoryPtr
     const bool isNCHW = isNV12 ? false : (tensorDesc.getLayout() == InferenceEngine::Layout::NCHW);
     const size_t mWidth = dims[W_index];
     const size_t mHeight = dims[H_index];
-    const size_t mWidthStride = strides[isNCHW ? 2 : 1];
+    if (!strides[2]) {
+        IE_THROW() << "Stride with null size.";
+    }
+    const size_t mWidthStride = isNCHW ? strides[2] : strides[1] / strides[2];
+    if (!mWidthStride) {
+        IE_THROW() << "Stride with null size.";
+    }
     const size_t mHeightStride = strides[isNCHW ? 1 : 0] / mWidthStride;
     return allocateRemoteMemoryPtr(id, mWidth, mHeight, mWidthStride, mHeightStride, data, format);
 }
