@@ -515,7 +515,9 @@ def IERT_GroupConvolutionOp :
         I32ArrayAttr:$pads_begin,
         I32ArrayAttr:$pads_end,
         I32ArrayAttr:$dilations,
-        OptionalAttr<I32Attr>:$groups
+        OptionalAttr<I32Attr>:$groups,
+
+        OptionalAttr<IE_PostOp>:$post_op
     );
 
     let results = (outs

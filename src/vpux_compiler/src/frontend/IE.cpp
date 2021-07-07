@@ -476,7 +476,9 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder,
     const auto attrDilation = getInt32ArrayAttr(_ctx, origNode->get_dilations());
 
     auto op = builder.create<IE::GroupConvolutionOp>(createLocation(origNode), inputs[0], inputs[1], nullptr,
-                                                     attrStride, attrPadsBegin, attrPadsEnd, attrDilation, nullptr);
+                                                     attrStride, attrPadsBegin, attrPadsEnd, attrDilation,
+                                                     /*groups=*/nullptr,
+                                                     /*post_op=*/nullptr);
     addOutputs(origNode, op);
 }
 

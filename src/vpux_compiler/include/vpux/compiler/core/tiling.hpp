@@ -61,4 +61,7 @@ ConvTileConfig backInferConvTile(IERT::ConvolutionOp origOp, const Tile& outputT
 // TODO: Replace IERT::MaxPoolOp with Operation Interface
 PoolTileConfig backInferPoolTile(IERT::MaxPoolOp origOp, const Tile& outputTile);
 
+// TODO: Replace IERT::GroupConvolutionOp with Operation Interface
+ConvTileConfig backInferGroupConvTile(IERT::GroupConvolutionOp origOp, const Tile& outputTile);
+
 }  // namespace vpux

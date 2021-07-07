@@ -521,7 +521,8 @@ mlir::Operation* createRTLayer(IE::GroupConvolutionOp origOp, ArrayRef<mlir::Val
     IERT::GroupConvolutionOp::Adaptor newOp(allBufs);
     return b.create<IERT::GroupConvolutionOp>(origOp.getLoc(), newOp.input(), newOp.filter(), newOp.bias(),
                                               newOp.output_buff(), origOp.stridesAttr(), origOp.pads_beginAttr(),
-                                              origOp.pads_endAttr(), origOp.dilationsAttr(), origOp.groupsAttr());
+                                              origOp.pads_endAttr(), origOp.dilationsAttr(), origOp.groupsAttr(),
+                                              origOp.post_opAttr());
 }
 
 mlir::Operation* createRTLayer(IE::SwishOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {

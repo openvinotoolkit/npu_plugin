@@ -251,7 +251,7 @@ mlir::LogicalResult GroupsToAttr::matchAndRewrite(IE::GroupConvolutionOp convOp,
     rewriter.replaceOpWithNewOp<IE::GroupConvolutionOp>(
             convOp, convOp.input(), newFilter.output(), convOp.bias(), convOp.stridesAttr(), convOp.pads_beginAttr(),
             convOp.pads_endAttr(), convOp.dilationsAttr(),
-            getInt32Attr(convOp.getContext(), checked_cast<uint32_t>(groups)));
+            getInt32Attr(convOp.getContext(), checked_cast<uint32_t>(groups)), convOp.post_opAttr());
 
     return mlir::success();
 }

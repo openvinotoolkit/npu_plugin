@@ -139,7 +139,7 @@ def HasGroupsAttr : Constraint<CPred<"$0 != nullptr">>;
 
 def RewriteGroupConvolution :
         Pat<
-            (IERT_GroupConvolutionOp $input, $filter, $bias, $output, $strides, $pads_begin, $pads_end, $dilations, $groups),
+            (IERT_GroupConvolutionOp $input, $filter, $bias, $output, $strides, $pads_begin, $pads_end, $dilations, $groups, $post_op),
             (createGroupConvolutionUPAOp $input, $filter, $bias, $output, $strides, $dilations, $pads_begin, $pads_end, $groups),
             [
                 (HasGroupsAttr $groups)

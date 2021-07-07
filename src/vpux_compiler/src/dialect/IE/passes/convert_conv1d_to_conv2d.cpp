@@ -142,9 +142,9 @@ mlir::LogicalResult ConvertConv1DToConv2DPass::GroupConvolutionExpansion::matchA
     const auto newPadsEnd = append(getContext(), origOp.pads_end(), 0);
     const auto newDilations = append(getContext(), origOp.dilations(), 1);
 
-    auto newConvOp =
-            rewriter.create<IE::GroupConvolutionOp>(origOp->getLoc(), newInput, newFilter, newBias, newStrides,
-                                                    newPadsBegin, newPadsEnd, newDilations, origOp.groupsAttr());
+    auto newConvOp = rewriter.create<IE::GroupConvolutionOp>(origOp->getLoc(), newInput, newFilter, newBias, newStrides,
+                                                             newPadsBegin, newPadsEnd, newDilations,
+                                                             origOp.groupsAttr(), origOp.post_opAttr());
 
     const auto outputShape = origOp.output().getType().cast<mlir::ShapedType>().getShape();
     const auto outputShapeAttr = getInt64ArrayAttr(getContext(), outputShape);

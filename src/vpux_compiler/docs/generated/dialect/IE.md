@@ -710,6 +710,7 @@ operation ::= `IE.GroupConvolution` `(` operands `)` attr-dict `:` type(operands
 `pads_end` | ::mlir::ArrayAttr | 32-bit integer array attribute
 `dilations` | ::mlir::ArrayAttr | 32-bit integer array attribute
 `groups` | ::mlir::IntegerAttr | 32-bit signless integer attribute
+`post_op` | vpux::IE::PostOp | DictionaryAttr with field(s): 'kind', 'params' (each field having its own constraints)
 
 #### Operands:
 

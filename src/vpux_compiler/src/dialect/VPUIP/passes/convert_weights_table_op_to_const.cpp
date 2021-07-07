@@ -135,8 +135,12 @@ llvm::unique_function<float(int64_t)> getBiasFunc(mlir::Value bias) {
 }
 
 int64_t getOC(VPUIP::WeightsTableOp createWTableOp) {
-    VPUX_THROW_WHEN(createWTableOp.weights() != nullptr && createWTableOp.activation_window() != nullptr,
-                    "Ambiguous output channel representation");
+    if (createWTableOp.weights() != nullptr && createWTableOp.activation_window() != nullptr) {
+        // depthwise convolution case
+        // FIXME the logic repeats row-major convolution
+        const auto filterShape = getShape(createWTableOp.weights());
+        return filterShape[IERT::ConvolutionOp::filter_out_channel_dim()];
+    }
 
     if (createWTableOp.weights() != nullptr) {
         const auto filterShape = getShape(createWTableOp.weights());
@@ -148,8 +152,17 @@ int64_t getOC(VPUIP::WeightsTableOp createWTableOp) {
 }
 
 int32_t getWeightPtrStep(VPUIP::WeightsTableOp createWTableOp) {
-    VPUX_THROW_WHEN(createWTableOp.weights() != nullptr && createWTableOp.activation_window() != nullptr,
-                    "Ambiguous weights pointer step representation");
+    if (createWTableOp.weights() != nullptr && createWTableOp.activation_window() != nullptr) {
+        // depthwise convolution case
+        // FIXME the logic repeats row-major convolution
+        const auto filterShape = getShape(createWTableOp.weights());
+
+        const auto IC = filterShape[IERT::ConvolutionOp::filter_in_channel_dim()];
+        const auto KY = filterShape[IERT::ConvolutionOp::filter_spatial_height_dim()];
+        const auto KX = filterShape[IERT::ConvolutionOp::filter_spatial_width_dim()];
+
+        return checked_cast<int32_t>(IC * KY * KX * sizeof(int16_t));
+    }
 
     if (createWTableOp.weights() != nullptr) {
         const auto filterShape = getShape(createWTableOp.weights());
