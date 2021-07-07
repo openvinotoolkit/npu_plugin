@@ -1515,6 +1515,40 @@ void streamingOperationsFcn(const mv::pass::PassEntry& pass,
             }
         }
     }
+    
+    /// Merge continuous slice ops
+    auto sliceOps = om.getOps("Slice");
+    for(auto& sliceOp: sliceOps)
+    {
+        if(sliceOp->hasAttr("dilatedSlice") && sliceOp->get<bool>("dilatedSlice"))
+            continue;
+        auto children = mv::findSinkLayers(dm, sliceOp->getOutputTensor(0));
+        bool allSlice = true;
+        for(auto& op: children)
+        {
+            if(allSlice){
+                allSlice = allSlice && (op->getOpType() == "Slice");
+            }else {
+                break;
+            }
+        }
+
+        if(allSlice)
+        {
+            auto inputTensor = sliceOp->getInputTensor(0);
+            auto begin = sliceOp->get<mv::Shape>("begin");
+            for(auto& op: children)
+            {
+                auto childBegin = op->get<mv::Shape>("begin");
+                auto newBegin = childBegin + begin;
+                op->set<mv::Shape>("begin", newBegin);
+                om.defineFlow(inputTensor, op, 0);
+                op->setInputTensor(inputTensor, 0, false);
+            }
+
+            om.removeOp(sliceOp);            
+        }
+    }
 }
 
 

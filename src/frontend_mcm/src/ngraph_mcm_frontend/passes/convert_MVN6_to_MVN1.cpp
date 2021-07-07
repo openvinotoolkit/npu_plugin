@@ -40,11 +40,6 @@ ConvertMVN6toMVN1::ConvertMVN6toMVN1()
         const float eps = mvn6->get_eps();
         const auto eps_mode = mvn6->get_eps_mode();
 
-        if (normalize_variance && eps_mode != ngraph::op::MVNEpsMode::OUTSIDE_SQRT)
-        {
-            VPUX_THROW("MVN layer supports only OUTSIDE_SQRT eps_mode");
-        }
-
         auto const_axes = std::dynamic_pointer_cast<ngraph::op::Constant>(mvn6->input(1).get_source_output().get_node_shared_ptr());
         IE_ASSERT(nullptr != const_axes);
         auto axes = const_axes->cast_vector<int32_t>();
