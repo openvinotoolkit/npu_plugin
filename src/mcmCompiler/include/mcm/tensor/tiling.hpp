@@ -256,6 +256,8 @@ namespace mv
             }
             else if (overlappingOutput)
             {
+                // Input tiling must start from 0. Shift the index when the first start_index is not 0.
+                int64_t biasStart = 0;
                 for (std::size_t split = 0; split < numberOfSplits; ++split)
                 {
                     TileShape tileStart({0,0,0,0,0});
@@ -263,12 +265,14 @@ namespace mv
                     auto outputHeightDim = outputTileSizes[split][mv::IO_HEIGHT_DIMENSION];
                     int64_t tileStarting = inferInputSize(outputTileStarts[split][mv::IO_HEIGHT_DIMENSION],padStart,padEnd,kernelSize,kernelStride) - 1;
 
+                    if (split == 0 && tileStarting > 0)
+                        biasStart = tileStarting;
                     if (tileStarting < -1)
                         throw mv::RuntimeError("Tiling", "Negative Tile begins!");
                     else if (tileStarting == -1)
                         tileStarting = 0;
 
-                    tileStart[axisToSplit] = tileStarting;
+                    tileStart[axisToSplit] = tileStarting - biasStart;
 
                     if (split == 0)
                         tileSize[axisToSplit] = inferInputSize(outputHeightDim,padStart,0,kernelSize,kernelStride);
