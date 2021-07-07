@@ -1251,6 +1251,11 @@ namespace mv
                        && (op.hasAttr("DilatedSubConv") && op.get<bool>("DilatedSubConv")))
                     return true;
 
+                if (op.getOpType() == "Conv" && !isCMConv
+                       && (op.hasAttr("activationSparsityCompilerSolvingForInterpNN") && op.get<bool>("activationSparsityCompilerSolvingForInterpNN")))
+                    return true;
+
+
                 return false;
             }
 

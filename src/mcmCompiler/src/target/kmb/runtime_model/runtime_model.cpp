@@ -703,11 +703,12 @@ void mv::RuntimeModel::updateTensorReferenceT(mv::ComputationModel& cm, mv::Elem
 }
 
 //build tensorReference for subTensors - multiple clusters
-std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT(mv::ComputationModel& cm, mv::Element&, mv::Data::TensorIterator t, unsigned clusterId, const std::string& allocatorName)
+std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT(mv::ComputationModel& cm, mv::Element&, mv::Data::TensorIterator t, unsigned clusterId, const std::string& allocatorName, bool isOutput)
 {
     mv::DataModel dm(cm);
     mv::OpModel om(cm);
-
+    unsigned numTask = 0;
+    numTask = cm.getGlobalConfigParams()->get<int>("Number_of_Clusters");
     const mv::Tensor& subtensor = t->getSubTensor(clusterId);
 
     std::unique_ptr<MVCNN::TensorReferenceT> toBuild = std::unique_ptr<MVCNN::TensorReferenceT>(new MVCNN::TensorReferenceT());
@@ -894,7 +895,20 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
 
         // This part is for concat
         if(t->hasAttr("address"))
-            toBuild->data->data_index = subtensor.getAddress();
+        {
+            if (t->hasAttr("splitStrategy") &&
+                    t->get<std::string>("splitStrategy") == "ClusteringAndSOH" && !isOutput)
+            {
+                auto firstSetSubTensor = t->getSubTensor(clusterId - numTask);
+                toBuild->data->data_index = firstSetSubTensor.getAddress() +
+                        (clusterId - numTask) * t->getSubTensor(clusterId).getShape()[mv::IO_CHANNEL_DIMENSION] *
+                        t->getSubTensor(clusterId).getShape()[mv::IO_WIDTH_DIMENSION] *
+                        t->getSubTensor(clusterId).getShape()[mv::IO_HEIGHT_DIMENSION] *
+                        t->getDType().getSizeInBits() / 8;
+            }
+            else
+                toBuild->data->data_index = subtensor.getAddress();
+        }
         else if (t->hasAttr("cmx_concat_buffer")) {
           size_t net_address = tensorBufferIt->getOffset();
           if (subtensor.hasAttr("offset")) {
@@ -919,7 +933,11 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         auto leading_offset = strides[0];
         toBuild->data->data_index += leading_offset;
 
-        toBuild->locale_index = std::vector<unsigned int>(1, clusterId);
+        if (t->hasAttr("splitStrategy") &&
+                t->get<std::string>("splitStrategy") == "ClusteringAndSOH" && !isOutput)
+            toBuild->locale_index = std::vector<unsigned int>(1, clusterId - numTask);
+        else
+            toBuild->locale_index = std::vector<unsigned int>(1, clusterId);
 
         if(t->isSparse())
         {
@@ -2212,6 +2230,8 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
 // Multicluster version
 std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantFieldsT(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt, int clusterId)
 {
+    unsigned numTask = 0;
+    numTask = cm.getGlobalConfigParams()->get<int>("Number_of_Clusters");
     std::unique_ptr<MVCNN::NCEInvariantFieldsT> toBuild = std::unique_ptr<MVCNN::NCEInvariantFieldsT>(new MVCNN::NCEInvariantFieldsT());
 
     auto taskOp = opIt->get<std::string>("taskOp");
@@ -2252,7 +2272,10 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
     }
     //input
     auto parentInputTensor = opIt->getInputTensor(0);
-    if (opIt->get<std::string>("splitStrategy") == "SplitOverK")
+    if (opIt->get<std::string>("splitStrategy") == "SplitOverH" &&
+            opIt->getInputTensor(0)->get<std::string>("splitStrategy") == "ClusteringAndSOH")
+        toBuild->input_data = buildTensorReferenceT(cm, compilationDescriptor, parentInputTensor, clusterId + numTask);
+    else if (opIt->get<std::string>("splitStrategy") == "SplitOverK")
     {
         toBuild->input_data = buildTensorReferenceT(cm, compilationDescriptor, parentInputTensor);
         std::vector<unsigned int> locale_index;
@@ -2275,12 +2298,12 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
 
     //output
     auto parentOutputTensor = opIt->getOutputTensor(0);
-    toBuild->output_data = buildTensorReferenceT(cm, compilationDescriptor, parentOutputTensor, clusterId);
+    toBuild->output_data = buildTensorReferenceT(cm, compilationDescriptor, parentOutputTensor, clusterId, "", true);
 
     if (opIt->hasAttr("multiCast") && opIt->get<bool>("multiCast") )
     {
         unsigned numTasks = cm.getGlobalConfigParams()->get<int>("Number_of_Clusters");
-        toBuild->output_data = buildTensorReferenceT(cm, compilationDescriptor, parentOutputTensor, clusterId);
+        toBuild->output_data = buildTensorReferenceT(cm, compilationDescriptor, parentOutputTensor, clusterId, "", true);
         std::vector<unsigned int> locale_index;
 
         // if SOK and spill to DDR - no need to broadcast to all clusters.
@@ -2359,6 +2382,9 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
             if (opIt->isEltwiseSingleInputTypeOp())
                 // Single input Eltwise ops are Eltwise with weight_data = input_data
                 toBuild->weights_data = buildTensorReferenceT(cm, compilationDescriptor, parentInputTensor, clusterId);
+            else if (opIt->get<std::string>("splitStrategy") == "SplitOverH" &&
+                opIt->getInputTensor(1)->get<std::string>("splitStrategy") == "ClusteringAndSOH")
+                toBuild->weights_data = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(1), clusterId + numTask);
             else
                 toBuild->weights_data = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(1), clusterId);
             break;

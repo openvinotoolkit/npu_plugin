@@ -512,6 +512,20 @@ void populateActivationStorageElementMapForInterpNN(mv::Data::OpListIterator dpu
     auto new_height = activationStorageElement->getShape()[mv::IO_HEIGHT_DIMENSION];
     auto scale_factor_width = int(new_width/old_width);
     auto scale_factor_height = int(new_height/old_height);
+    std::size_t padding_col = 0;
+    std::size_t padding_row = 0;
+    bool padding_width = false;
+    bool padding_height = false;
+    if (new_width%old_width != 0)
+    {
+        padding_width = true;
+        padding_col = (new_width%old_width);
+    }
+    if (new_height%old_height != 0)
+    {
+        padding_height = true;
+        padding_row = (new_height%old_height);
+    }
 
     // Populate SEP table
     for (auto row=0; row < int(new_height / scale_factor_height); ++row){
@@ -525,7 +539,37 @@ void populateActivationStorageElementMapForInterpNN(mv::Data::OpListIterator dpu
             }
         }
     }
+
+    if (padding_width)
+    {
+        auto rounded_width = scale_factor_width * old_width;
+        for (auto row=0; row < int (new_height / scale_factor_height); ++row){
+            for (auto new_row=0; new_row < scale_factor_height; ++new_row){
+                for (std::size_t col=0; col < padding_col; ++col){
+                    auto new_offset = col + rounded_width + new_width * new_row + new_width * scale_factor_height * row;
+                    auto old_offset = new_offset - 1;
+                    unpopulated_offsets[new_offset] = unpopulated_offsets[old_offset];
+                }
+            }
+        }
+    }
+
+    if (padding_height)
+    {
+        for (std::size_t row=0; row < padding_row; ++row){
+            for (std::size_t col=0; col < new_width; ++col){
+                auto new_offset = col + ( (row + new_height - padding_row) * new_width);
+                auto old_offset = (new_offset - new_width);
+                unpopulated_offsets[new_offset] = unpopulated_offsets[old_offset];
+            }
+        }
+    }
     activationStorageElement->populate(unpopulated_offsets, mv::Order("NHWC"));
+    if (activationStorageElement->hasAttr("splitStrategy") &&
+        (activationStorageElement->get<std::string>("splitStrategy") == "SplitOverH"))
+    {
+        activationStorageElement->matchSubTensors();
+    }
 }
 
 int64_t getSmallestInputAddress(mv::Data::OpListIterator implicitJoin)
@@ -667,10 +711,9 @@ void createPWLTable(const double& quantOutLow, const double& quantOutHigh,
     const int closing_interval = static_cast<int>(std::numeric_limits<int8_t>::max());
     range_vector.push_back(closing_interval);
 
-    /*The PWL table currently only works with exactly 8 intervals, so here the table is expanded to 8 intervals if
-      required. The table expansion inserts dummy intervals of the max point n times to ensure that there are 9
-      intervals.
-    */
+    /*The PWL table currently only works with exactly 8 intervals, so here the table is expanded to 8 intervals if required.
+      The table expansion inserts dummy intervals of the max point n times to ensure that there are 9 intervals.*/
+
     size_t extraIntervals = 9 - range_vector.size();
     size_t lastIntervalShift = shift_vector.back();
     size_t lastIntervalBias = bias_vector.back();
@@ -711,7 +754,7 @@ void populateInstructionListMap(mv::Data::TensorIterator instructionListTable, s
     std::size_t MASK_FIRST2_BITS = 3;
     std::size_t first2_bits, last3_bits;
 
-    // Populate the instruction list from the table
+    //Populate the instruction list from the table
     std::size_t k = 0;
     for (std::size_t j = 0; j < 32; j++) {
         first2_bits = j & MASK_FIRST2_BITS;

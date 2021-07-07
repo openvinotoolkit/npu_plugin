@@ -132,6 +132,7 @@ namespace mv
         void populate(const std::vector<int64_t>& data, Order order);
         void populate(const std::vector<mv::DataElement>& data);
         void populate(const std::vector<mv::DataElement>& data, Order order);
+        void matchSubTensors();
 
         void unpopulate();
 
@@ -295,7 +296,7 @@ namespace mv
         std::size_t computeTotalSize(unsigned int alignment = 16, bool base = false,
                                      bool fatherTensorAligned = false, bool graphOptimizer = false, bool dilation = false) const;
         std::size_t getClusterSize(unsigned int alignment = 16, bool base = false) const;
-        void splitAcrossClusters(std::vector<Workload>, bool splitOverH, bool multicast);
+        void splitAcrossClusters(std::vector<Workload>, bool splitOverH, bool multicast, bool doubleStrategy = false);
         void splitPopulatedActivationAcrossClusters(std::vector<Workload>, bool splitOverH, bool multicast);
         void shareAcrossClusters(std::vector<Workload>, unsigned int numClusters, bool clustering = true);
         void cleanSubtensors();

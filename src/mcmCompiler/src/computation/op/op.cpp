@@ -380,7 +380,7 @@ bool mv::Op::isHardwarizable() const
 {
     bool isHardwarizableOp = false;
     std::vector<std::string> hardwarizableTypes =
-        {"Conv", "Eltwise", "DepthwiseConv", "MaxPool", "HwConvert"};
+        {"Conv", "Eltwise", "DepthwiseConv", "MaxPool", "HwConvert", "ChannelMajorConvolution"};
 
     auto opType = getOpType();
     if (std::count(hardwarizableTypes.cbegin(), hardwarizableTypes.cend(), opType))
@@ -448,7 +448,7 @@ bool mv::Op::isEltwiseSingleInputTypeOp() const
 
 bool mv::Op::hasWeights() const
 {
-    std::vector<std::string> weightTypes = {"Conv", "DepthwiseConv"};
+    std::vector<std::string> weightTypes = {"Conv", "DepthwiseConv", "ChannelMajorConvolution"};
 
     return isDpuTypeOp(weightTypes);
 }
