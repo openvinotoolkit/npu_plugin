@@ -279,13 +279,20 @@ mlir::AffineMap vpux::DimsOrder::toPermutationAffineMap(mlir::MLIRContext* ctx) 
     return mlir::AffineMap::getPermutationMap(permutation, ctx);
 }
 
-DimsOrder vpux::DimsOrder::fromType(mlir::MemRefType type) {
-    const auto maps = type.getAffineMaps();
+DimsOrder vpux::DimsOrder::fromType(mlir::ShapedType type) {
+    if (type.isa<mlir::RankedTensorType>()) {
+        return fromNumDims(type.getRank());
+    }
+
+    const auto memref = type.dyn_cast<mlir::MemRefType>();
+    VPUX_THROW_UNLESS(memref != nullptr, "Can't get DimsOrder from Type '{0}'", type);
+
+    const auto maps = memref.getAffineMaps();
     if (!maps.empty() && maps.front().isPermutation()) {
         return fromPermutationAffineMap(maps.front());
     }
 
-    const auto logicalStrides = getStrides(type);
+    const auto logicalStrides = getStrides(memref);
 
     SmallVector<Dim> perm(logicalStrides.size());
     for (auto i : irange(perm.size())) {
@@ -300,7 +307,7 @@ DimsOrder vpux::DimsOrder::fromType(mlir::MemRefType type) {
 }
 
 DimsOrder vpux::DimsOrder::fromValue(mlir::Value val) {
-    const auto type = val.getType().dyn_cast<mlir::MemRefType>();
+    const auto type = val.getType().dyn_cast<mlir::ShapedType>();
     VPUX_THROW_UNLESS(type != nullptr, "Can't get DimsOrder from Type '{0}'", val.getType());
     return fromType(type);
 }

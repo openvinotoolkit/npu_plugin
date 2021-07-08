@@ -246,6 +246,16 @@ TEST_P(IEClassLoadNetworkTest, checkBlobCachingSingleDevice) {
         if (deviceIDs.empty())
             GTEST_SKIP() << "No devices available";
 
+        // ***********************************************
+        // TODO Get rid of this skip - TBH is detected as KMB B0 (swID by XLink is incorrect)
+        const auto numDev3700 = std::count_if(deviceIDs.cbegin(), deviceIDs.cend(), [](const std::string& devName) -> bool {
+            return (devName.find("3700.") == 0);
+        });
+        if (numDev3700 > 1) {
+            GTEST_SKIP() << "TBH incorrect swID";
+        }
+        // ***********************************************
+
         std::string architecture;
         const std::string fullDeviceName = deviceName + "." + deviceIDs[0];
         ASSERT_NO_THROW(architecture = ie.GetMetric(fullDeviceName, METRIC_KEY(DEVICE_ARCHITECTURE)).as<std::string>());

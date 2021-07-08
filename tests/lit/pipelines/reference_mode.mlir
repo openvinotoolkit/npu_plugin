@@ -78,7 +78,7 @@ IE.CNNNetwork
 // CHECK-SAME:      [[ARG0:%.+]]: memref<1x2x2x2xf16>, [[ARG1:%.+]]: memref<1x2x2x2xf16>,
 // CHECK-SAME:      [[ARG2:%.+]]: memref<1x2x2x2xf16>) -> (memref<1x2x2x2xf16>, memref<1x2x2x2xf16>) {
 func @main(%arg0: tensor<1x2x2x2xf16>) -> (tensor<1x2x2x2xf16>, tensor<1x2x2x2xf16>) {
-    %cst = IE.Constant tensor<1x2x2x2xf16> =
+    %cst = const.Declare tensor<1x2x2x2xf16> = #const.Content<
         dense<[
             [
                 [
@@ -90,14 +90,14 @@ func @main(%arg0: tensor<1x2x2x2xf16>) -> (tensor<1x2x2x2xf16>, tensor<1x2x2x2xf
                     [7.0, 8.0]
                 ]
             ]
-        ]> : tensor<1x2x2x2xf32>
+        ]> : tensor<1x2x2x2xf16>>
 
     %0 = IE.SoftMax(%arg0) {axisInd = 1 : i32} : tensor<1x2x2x2xf16> -> tensor<1x2x2x2xf16>
     %1 = IE.SoftMax(%cst) {axisInd = 1 : i32} : tensor<1x2x2x2xf16> -> tensor<1x2x2x2xf16>
 
     return %0, %1 : tensor<1x2x2x2xf16>, tensor<1x2x2x2xf16>
 
-    // CHECK-DAG:   [[CST:%.+]] = VPUIP.DeclareConstantTensor[0]
+    // CHECK-DAG:   [[CST:%.+]] = const.Declare
     // CHECK-DAG:   [[BUF0:%.+]] = VPUIP.DeclareTensor "VPU_DDR_Heap" [0] <0> -> memref<1x2x2x2xf16, "DDR">
     // CHECK-DAG:   [[BAR0:%.+]] = VPUIP.ConfigureBarrier<0> -> !VPUIP.Barrier
 
@@ -154,7 +154,7 @@ IE.CNNNetwork
 // CHECK:       func @main(
 // CHECK-SAME:      [[ARG:%.+]]: memref<1x2x4x2xf16>) -> memref<1x2x4x2xf16> {
 func @main() -> tensor<1x2x4x2xf16> {
-    %0 = IE.Constant tensor<1x2x4x2xf16> =
+    %0 = const.Declare tensor<1x2x4x2xf16> = #const.Content<
         dense<[[
                 [
                     [1.0, 2.0],
@@ -168,13 +168,13 @@ func @main() -> tensor<1x2x4x2xf16> {
                     [33.0, 44.0],
                     [44.0, 55.0]
                 ]
-        ]]> : tensor<1x2x4x2xf32>
+        ]]> : tensor<1x2x4x2xf16>>
 
     %prob = IE.SoftMax(%0) {axisInd = 0 : i32} : tensor<1x2x4x2xf16> -> tensor<1x2x4x2xf16>
 
     return %prob : tensor<1x2x4x2xf16>
 
-    // CHECK:       [[CST:%.+]] = VPUIP.DeclareConstantTensor[0]
+    // CHECK:       [[CST:%.+]] = const.Declare
 
     // CHECK-NEXT:  [[VAR0:%.+]] = VPUIP.NNDMA
     // CHECK-SAME:      inputs([[CST]] : memref<1x2x4x2xf16>)

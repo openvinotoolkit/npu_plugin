@@ -11,53 +11,52 @@
 // included with the Software Package for additional details.
 //
 
-
-#include <fstream>
-#include <vector>
-#include <string>
 #include <algorithm>
-#include <tuple>
-#include <list>
+#include <fstream>
 #include <limits>
+#include <list>
 #include <memory>
 #include <sstream>
+#include <string>
+#include <tuple>
+#include <vector>
 
 #include <inference_engine.hpp>
 
-#include <samples/common.hpp>
 #include <samples/args_helper.hpp>
+#include <samples/common.hpp>
 #include <samples/slog.hpp>
 
 #include "detection_sample_yolov2tiny.h"
 #include "region_yolov2tiny.h"
 
-#include <ie_compound_blob.h>
 #include <format_reader_ptr.h>
+#include <ie_compound_blob.h>
 
 #include <vpumgr.h>
 
-#include <unistd.h>
-#include <sys/mman.h>
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <fcntl.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
 #include <yolo_helpers.hpp>
 
 #include "vpux/utils/IE/blob.hpp"
 
 using namespace InferenceEngine;
 
-enum preprocessingType {
-    PT_RESIZE, PT_NV12
-};
+enum preprocessingType { PT_RESIZE, PT_NV12 };
 
 class VPUAllocator {
 public:
-    VPUAllocator() {}
+    VPUAllocator() {
+    }
     virtual ~VPUAllocator();
     void* allocate(size_t requestedSize);
+
 private:
-    std::list< std::tuple<int, void*, size_t> > _memChunks;
+    std::list<std::tuple<int, void*, size_t>> _memChunks;
     static uint32_t _pageSize;
 };
 
@@ -84,7 +83,7 @@ void* VPUAllocator::allocate(size_t requestedSize) {
         throw std::runtime_error("VPUAllocator::allocate: vpusmm_import_dmabuf failed");
     }
 
-    void* virtAddr = mmap(0, requiredBlobSize, PROT_READ|PROT_WRITE, MAP_SHARED, fileDesc, 0);
+    void* virtAddr = mmap(0, requiredBlobSize, PROT_READ | PROT_WRITE, MAP_SHARED, fileDesc, 0);
     if (virtAddr == MAP_FAILED) {
         throw std::runtime_error("VPUAllocator::allocate: mmap failed");
     }
@@ -95,7 +94,7 @@ void* VPUAllocator::allocate(size_t requestedSize) {
 }
 
 VPUAllocator::~VPUAllocator() {
-    for (const std::tuple<int, void*, size_t> & chunk : _memChunks) {
+    for (const std::tuple<int, void*, size_t>& chunk : _memChunks) {
         int fileDesc = std::get<0>(chunk);
         void* virtAddr = std::get<1>(chunk);
         size_t allocatedSize = std::get<2>(chunk);
@@ -105,10 +104,8 @@ VPUAllocator::~VPUAllocator() {
     }
 }
 
-static Blob::Ptr fromNV12File(const std::string &filePath,
-                       size_t imageWidth,
-                       size_t imageHeight,
-                       VPUAllocator &allocator) {
+static Blob::Ptr fromNV12File(const std::string& filePath, size_t imageWidth, size_t imageHeight,
+                              VPUAllocator& allocator) {
     std::ifstream fileReader(filePath, std::ios_base::ate | std::ios_base::binary);
     if (!fileReader.good()) {
         throw std::runtime_error("fromNV12File: failed to open file " + filePath);
@@ -121,18 +118,18 @@ static Blob::Ptr fromNV12File(const std::string &filePath,
     }
     fileReader.seekg(0);
 
-    uint8_t *imageData = reinterpret_cast<uint8_t *>(allocator.allocate(fileSize));
+    uint8_t* imageData = reinterpret_cast<uint8_t*>(allocator.allocate(fileSize));
     if (!imageData) {
         throw std::runtime_error("fromNV12File: failed to allocate memory");
     }
 
-    fileReader.read(reinterpret_cast<char *>(imageData), fileSize);
+    fileReader.read(reinterpret_cast<char*>(imageData), fileSize);
     fileReader.close();
 
-    InferenceEngine::TensorDesc planeY(InferenceEngine::Precision::U8,
-        {1, 1, imageHeight, imageWidth}, InferenceEngine::Layout::NHWC);
-    InferenceEngine::TensorDesc planeUV(InferenceEngine::Precision::U8,
-        {1, 2, imageHeight / 2, imageWidth / 2}, InferenceEngine::Layout::NHWC);
+    InferenceEngine::TensorDesc planeY(InferenceEngine::Precision::U8, {1, 1, imageHeight, imageWidth},
+                                       InferenceEngine::Layout::NHWC);
+    InferenceEngine::TensorDesc planeUV(InferenceEngine::Precision::U8, {1, 2, imageHeight / 2, imageWidth / 2},
+                                        InferenceEngine::Layout::NHWC);
     const size_t offset = imageHeight * imageWidth;
 
     Blob::Ptr blobY = make_shared_blob<uint8_t>(planeY, imageData);
@@ -142,10 +139,8 @@ static Blob::Ptr fromNV12File(const std::string &filePath,
     return nv12Blob;
 }
 
-static void setPreprocForInputBlob(const std::string &inputName,
-                                   const std::string &inputFilePath,
-                                   InferenceEngine::InferRequest &inferRequest,
-                                   VPUAllocator &allocator) {
+static void setPreprocForInputBlob(const std::string& inputName, const std::string& inputFilePath,
+                                   InferenceEngine::InferRequest& inferRequest, VPUAllocator& allocator) {
     Blob::Ptr inputBlobNV12;
     const size_t expectedWidth = FLAGS_iw;
     const size_t expectedHeight = FLAGS_ih;
@@ -156,19 +151,15 @@ static void setPreprocForInputBlob(const std::string &inputName,
     inferRequest.SetBlob(inputName, inputBlobNV12, preprocInfo);
 }
 
-Blob::Ptr deQuantize(const Blob::Ptr &quantBlob, float scale, uint8_t zeroPoint) {
+Blob::Ptr deQuantize(const Blob::Ptr& quantBlob, float scale, uint8_t zeroPoint) {
     const TensorDesc quantTensor = quantBlob->getTensorDesc();
-    const TensorDesc outTensor = TensorDesc(
-        InferenceEngine::Precision::FP32,
-        quantTensor.getDims(),
-        quantTensor.getLayout());
-    const uint8_t *quantRaw = quantBlob->cbuffer().as<const uint8_t *>();
-
-    std::vector<size_t> dims = quantTensor.getDims();
+    const TensorDesc outTensor =
+            TensorDesc(InferenceEngine::Precision::FP32, quantTensor.getDims(), quantTensor.getLayout());
+    const uint8_t* quantRaw = quantBlob->cbuffer().as<const uint8_t*>();
 
     Blob::Ptr outputBlob = make_shared_blob<float>(outTensor);
     outputBlob->allocate();
-    float *outRaw = outputBlob->buffer().as<PrecisionTrait<Precision::FP32>::value_type *>();
+    float* outRaw = outputBlob->buffer().as<PrecisionTrait<Precision::FP32>::value_type*>();
     for (size_t pos = 0; pos < quantBlob->byteSize(); pos++) {
         outRaw[pos] = (quantRaw[pos] - zeroPoint) * scale;
     }
@@ -178,7 +169,7 @@ Blob::Ptr deQuantize(const Blob::Ptr &quantBlob, float scale, uint8_t zeroPoint)
 
 //===========================================================================
 
-bool ParseAndCheckCommandLine(int argc, char *argv[]) {
+bool ParseAndCheckCommandLine(int argc, char* argv[]) {
     // ---------------------------Parsing and validation of input args--------------------------------------
     gflags::ParseCommandLineNonHelpFlags(&argc, &argv, true);
     if (FLAGS_h) {
@@ -208,20 +199,6 @@ bool ParseAndCheckCommandLine(int argc, char *argv[]) {
     return true;
 }
 
-bool readBinaryFile(std::string input_binary, std::string& data) {
-    std::ifstream in(input_binary, std::ios_base::binary | std::ios_base::ate);
-
-    size_t sizeFile = in.tellg();
-    in.seekg(0, std::ios_base::beg);
-    data.resize(sizeFile);
-    bool status = false;
-    if (in.good()) {
-        in.read(&data.front(), sizeFile);
-        status = true;
-    }
-    return status;
-}
-
 std::vector<std::string> readLabelsFromFile(const std::string& labelFileName) {
     std::vector<std::string> labels;
 
@@ -238,11 +215,11 @@ std::vector<std::string> readLabelsFromFile(const std::string& labelFileName) {
 }
 
 /**
-* @brief The entry point the Inference Engine sample application
-* @file detection_sample/main.cpp
-* @example detection_sample/main.cpp
-*/
-int main(int argc, char *argv[]) {
+ * @brief The entry point the Inference Engine sample application
+ * @file detection_sample/main.cpp
+ * @example detection_sample/main.cpp
+ */
+int main(int argc, char* argv[]) {
     try {
         slog::info << "InferenceEngine: " << GetInferenceEngineVersion() << slog::endl;
         VPUAllocator kmbAllocator;
@@ -270,7 +247,8 @@ int main(int argc, char *argv[]) {
 
         // --------------------------- 3. Configure input & output ---------------------------------------------
         ConstInputsDataMap inputInfo = importedNetwork.GetInputsInfo();
-        if (inputInfo.empty()) throw std::logic_error("inputInfo is empty");
+        if (inputInfo.empty())
+            throw std::logic_error("inputInfo is empty");
 
         // -----------------------------------------------------------------------------------------------------
 
@@ -306,9 +284,8 @@ int main(int argc, char *argv[]) {
             size_t imageHeight = inputBlobDims.at(2);
 
             imageData = image_reader->getData(imageWidth, imageHeight);
-            Blob::Ptr imageBlob = make_shared_blob<uint8_t>(TensorDesc(Precision::U8,
-                inputBlobDims,
-                Layout::NHWC), imageData.get());
+            Blob::Ptr imageBlob =
+                    make_shared_blob<uint8_t>(TensorDesc(Precision::U8, inputBlobDims, Layout::NHWC), imageData.get());
 
             inferRequest.SetBlob(firstInputName.c_str(), imageBlob);
         }
@@ -321,7 +298,8 @@ int main(int argc, char *argv[]) {
         slog::info << "Processing output blobs" << slog::endl;
 
         ConstOutputsDataMap outputInfo = importedNetwork.GetOutputsInfo();
-        if (outputInfo.size() != 1) throw std::logic_error("Sample supports topologies only with 1 output");
+        if (outputInfo.size() != 1)
+            throw std::logic_error("Sample supports topologies only with 1 output");
 
         std::string firstOutputName = outputInfo.begin()->first;
 
@@ -370,12 +348,10 @@ int main(int argc, char *argv[]) {
         std::ostringstream resultString;
         utils::printDetectionBBoxOutputs(detectionResult, resultString, postprocess::YOLOV2_TINY_LABELS);
         slog::info << resultString.str() << slog::endl;
-    }
-    catch (const std::exception& error) {
+    } catch (const std::exception& error) {
         slog::err << "" << error.what() << slog::endl;
         return 1;
-    }
-    catch (...) {
+    } catch (...) {
         slog::err << "Unknown/internal exception happened." << slog::endl;
         return 1;
     }

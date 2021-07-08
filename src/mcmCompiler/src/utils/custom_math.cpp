@@ -56,7 +56,13 @@ uint16_t mv::fp32_to_fp16(float value)
 
 uint16_t mv::fp32_to_bf16(float value)
 {
-    return (*reinterpret_cast<unsigned int *>(&value))>>16;
+    static_assert(sizeof(float) == sizeof(uint32_t), "float and uint32_t bit size mismatch");
+    uint32_t tmp = 0u;
+    std::memcpy(&tmp, &value, sizeof(uint32_t));
+    return static_cast<uint16_t>(tmp >> 16u);
+
+    // pointer cast violates strict-aliasing rule. Using union is also UB.
+    // return (*reinterpret_cast<unsigned int *>(&value))>>16;
 }
 
 uint16_t mv::fp32_to_bf16(double value)

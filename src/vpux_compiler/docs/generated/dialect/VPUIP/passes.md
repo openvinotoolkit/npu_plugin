@@ -6,6 +6,8 @@ This pass replaces virtual barriers with physical barriers and assign IDs to the
 ```
 -num-barriers : Number of physical barriers, available for usage
 ```
+### `-convert-wtable-op-to-constant`: Convert WeightsTable Operations to IERT.ConstantOp
+This pass fills weights table considering the information about the offset in the memory of the weights or activation window.
 ### `-set-compile-params`: Set compilation parameters related to VPUIP Dialect
 This pass attaches compilation parameters related to **VPUIP Dialect** to Module attributes and
 initializes **IERT Dialect** run-time resources information.

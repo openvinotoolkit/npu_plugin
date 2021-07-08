@@ -27,6 +27,7 @@
 #include "ngraph_mcm_frontend/passes/align_eltwise_scales.hpp"
 #include "ngraph_mcm_frontend/passes/align_concat_scales.hpp"
 #include "ngraph_mcm_frontend/passes/fuse_scaleshift.hpp"
+#include "ngraph_mcm_frontend/passes/fuse_padding.hpp"
 #include "ngraph_mcm_frontend/passes/convert_extract_image_patches_to_reorg_vpu.hpp"
 #include "ngraph_mcm_frontend/passes/broadcast_eltwise_inputs.hpp"
 #include "ngraph_mcm_frontend/passes/replace_onnx_pattern_to_reorg.hpp"
@@ -42,6 +43,7 @@
 
 #include <file_utils.h>
 #include <vpu/utils/logger.hpp>
+#include <device_helpers.hpp>
 
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pass/constant_folding.hpp>
@@ -148,7 +150,19 @@ std::unique_ptr<mv::CompilationUnit> createCompilationUnit(
                               config.mcmTargetDesciptor() : "release_kmb";
         }
         else {
-            switch (config.platform()) {
+            auto platform = config.platform();
+            if (platform == InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR) {
+                const auto platformName = utils::getPlatformNameByDeviceName(config.deviceId());
+                const auto targetPos = platformName.rfind("_EMU");
+                if (targetPos == std::string::npos) {
+                    errMsg = "Error: Emulator target platform is not defined.";
+                    return nullptr;
+                }
+                const auto targetName = platformName.substr(0, targetPos);
+                platform = utils::getPlatformByDeviceName(targetName);
+            }
+
+            switch (platform) {
                 case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3800:
                 case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3900: {
                     targetDescName = "release_thb";
@@ -166,7 +180,7 @@ std::unique_ptr<mv::CompilationUnit> createCompilationUnit(
                 case InferenceEngine::VPUXConfigParams::VPUXPlatform::AUTO:
                 default:
                     errMsg = "Error: VPUXPlatform is not defined.";
-                    return {};
+                    return nullptr;
             }
         }
 
@@ -190,15 +204,14 @@ std::unique_ptr<mv::CompilationUnit> createCompilationUnit(
                 case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3900:
                     compDescName = "release_kmb";
                     break;
+                case InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR:
+                    compDescName = "emulator_kmb_SC-Prefetch1";
+                    break;
                 case InferenceEngine::VPUXConfigParams::VPUXPlatform::AUTO:
                 default:
                     errMsg = "Error: VPUXPlatform is not defined.";
-                    return {};
+                    return nullptr;
             }
-        }
-
-        if (config.deviceId() == "EMULATOR") {
-            compDescName = "emulator_kmb_SC-Prefetch1";
         }
 
         const auto targetPath = ie::getIELibraryPath() + "/" + config.mcmTargetDesciptorPath() + "/" + targetDescName + ".json";
@@ -247,7 +260,8 @@ std::unique_ptr<mv::CompilationUnit> createCompilationUnit(
 
             graphFileInstance.header->identifier = netName;
         };
-        if (config.deviceId() != "EMULATOR") {
+
+        if (config.platform() != InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR) {
             mcmCompDesc.setPassArg("GenerateBlobKmb", "metaInfoSerializer", metaInfoSerializer);
         }
 
@@ -442,6 +456,7 @@ void applyTransformations(
     passManager.register_pass<ngraph::pass::ConvertQuantizeDequantize>();
     passManager.register_pass<ngraph::pass::WeightsDequantizeToFakeQuantize>();
     passManager.register_pass<ngraph::pass::ConstantFolding>();
+    passManager.register_pass<ngraph::pass::FusePadding>();
 
     if (config.scaleShiftFusing()) {
         passManager.register_pass<FuseScaleShift>();

@@ -185,26 +185,6 @@ def SplitFakeQuant : PassBase<"split-fake-quant", "vpux::FunctionPass"> {
 }
 
 //
-// QuantizeConst
-//
-
-def QuantizeConst : PassBase<"quantize-const", "vpux::FunctionPass"> {
-    let summary = "Quantize constant tensors";
-
-    let description = [{
-        The pass is a part of `LowPrecision` pipeline.
-
-        It performs constant folding for `Constant -> quant.qcast` case.
-    }];
-
-    let constructor = "vpux::IE::createQuantizeConstPass()";
-
-    let dependentDialects = [
-        "vpux::IE::IEDialect"
-    ];
-}
-
-//
 // DequantizeConst
 //
 

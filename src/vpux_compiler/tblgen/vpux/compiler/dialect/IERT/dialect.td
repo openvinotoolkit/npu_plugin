@@ -114,6 +114,7 @@ The `IERT.RunTimeResources` is filled by underlying low-level dialect to provide
     let cppNamespace = "vpux::IERT";
 
     let dependentDialects = [
+        "vpux::Const::ConstDialect",
         "vpux::IE::IEDialect",
         "mlir::StandardOpsDialect",
         "mlir::memref::MemRefDialect",

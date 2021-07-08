@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -41,6 +41,7 @@
 //
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
+#include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
@@ -78,17 +79,18 @@ mlir::LogicalResult vpux::IE::DeconvolutionOp::inferReturnTypeComponents(
         const SmallVector<ngraph::Dimension> nDataShape(std::next(featureShape.begin(), 2), featureShape.end());
         const SmallVector<ngraph::Dimension> nFilterShape(std::next(filterShape.begin(), 2), filterShape.end());
 
-        auto outputShapeConst = outputShape.getDefiningOp<ConstantInterface>();
+        auto outputShapeConst = outputShape.getDefiningOp<Const::DeclareOp>();
         if (outputShapeConst == nullptr) {
             return errorAt(loc, "Only constant input is supported for output_shape");
         }
 
-        const auto outputShapeContent = outputShapeConst.getContent().getValues<int64_t>();
+        const auto outputShapeContent = outputShapeConst.content();
+        const auto outputShapeVals = outputShapeContent.getValues<int64_t>();
 
         SmallVector<int64_t> mlirOutputShape;
         mlirOutputShape.push_back(featureShape[0]);
         mlirOutputShape.push_back(filterShape[1]);
-        std::copy(outputShapeContent.begin(), outputShapeContent.end(), std::back_inserter(mlirOutputShape));
+        std::copy(outputShapeVals.begin(), outputShapeVals.end(), std::back_inserter(mlirOutputShape));
 
         inferredReturnShapes.emplace_back(mlirOutputShape, featureType);
     } else {

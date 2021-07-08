@@ -1,5 +1,5 @@
 
-// Copyright 2020-2021 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -12,6 +12,7 @@
 //
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
+#include "vpux/compiler/dialect/const/ops.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
 
@@ -26,14 +27,13 @@ mlir::FailureOr<SmallVector<int64_t>> extractIntVector(mlir::Location loc, const
     if (attr != nullptr) {
         return parseIntArrayAttr(attr);
     } else if (value != nullptr) {
-        auto valueConst = value.getDefiningOp<ConstantInterface>();
-
+        auto valueConst = value.getDefiningOp<Const::DeclareOp>();
         if (valueConst == nullptr) {
             return errorAt(loc, "Only constant input is supported for interpolate attribute");
         }
 
-        auto valueContent = valueConst.getContent().getValues<int64_t>();
-        return to_small_vector(valueContent);
+        const auto valueContent = valueConst.content();
+        return to_small_vector(valueContent.getValues<int64_t>());
     }
     return errorAt(loc, "Parameter were not provided");
 }
@@ -43,14 +43,14 @@ mlir::FailureOr<SmallVector<double>> extractFPVector(mlir::Location loc, const m
     if (attr != nullptr) {
         return parseFPArrayAttr(attr);
     } else if (value != nullptr) {
-        auto valueConst = value.getDefiningOp<ConstantInterface>();
+        auto valueConst = value.getDefiningOp<Const::DeclareOp>();
 
         if (valueConst == nullptr) {
             return errorAt(loc, "Only constant input is supported for interpolate attribute");
         }
 
-        auto valueContent = valueConst.getContent().getValues<double>();
-        return to_small_vector(valueContent);
+        const auto valueContent = valueConst.content();
+        return to_small_vector(valueContent.getValues<double>());
     }
     return errorAt(loc, "Parameter were not provided");
 }

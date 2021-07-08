@@ -9,6 +9,7 @@
             "ConvertOpsToTasks",
             "ValidateVerticalAdds",
             "AdaptFixedPointCompute",
+            "GenerateAndPopulateInstructionListTables",
             "SetUpPPETasks",
             "TaskMultiplePostOps",
             "ForceSerialize",
@@ -25,7 +26,6 @@
             "EnsureDTypeCompatibility",
             "GenerateSparsityMapsPopulatedTensors",
             "GenerateWeightsTables",
-            "GenerateInstructionListTables",
             "ComputeTensorsQuantParams",
             "UpdateImplicitLayersQuantizationParams",
             "PopulateWeightsTablesQuantization",
@@ -44,6 +44,7 @@
             {
               "name" : "LocateInplaceEltwiseOps"
             },
+            "UPATaskChainScheduleHandling",
             {
                  "name" : "ChainPipeliningTransform",
                  "select_stages" : 2,
@@ -99,8 +100,7 @@
             "SetSliceAddressesInCMX",
             "LayerNumbering",
             "PopulateWeightsTablesPointers",
-            "PopulateStorageElementPointers",
-            "PopulateInstructionListTables"
+            "PopulateStorageElementPointers"
         ]
     },
 

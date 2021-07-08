@@ -15,6 +15,7 @@
 #include "include/mcm/logger/log_sender.hpp"
 #include "include/mcm/computation/op/op_registry.hpp"
 #include "include/mcm/base/element.hpp"
+#include "include/mcm/target/kmb/custom_pwl_table.hpp"
 
 namespace mv
 {
@@ -66,6 +67,7 @@ namespace mv
         bool allowMultipleInputScales;
         size_t leakyAccuracyBits;
         bool pwlEnabled;
+        PWLTableMap pwlTables;
     };
 
     struct BTCDescriptor : public CodecDescriptor
@@ -137,7 +139,6 @@ namespace mv
         const std::shared_ptr<CodecDescriptor>& codecDef() const;
         const std::map<std::string, WorkloadConfig> & getWorkloadConfigs() const;
         const std::vector<mv::DataTypeSupport> & dtypeSupport() const;
-        bool isDpuPwl(const std::string& opName) const;
 
         std::string getLogID() const override;
 

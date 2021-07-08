@@ -17,6 +17,7 @@ addIeTargetTest(
         "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/tests/functional/subgraph_tests"
         "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/src/custom_extension_library"
         "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/artifacts/vpuip_2"
+        "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/src/vpual_backend"
         "${CMAKE_CURRENT_SOURCE_DIR}/internal"
         "${CMAKE_CURRENT_SOURCE_DIR}/shared_test_classes/include"
     DEPENDENCIES

@@ -39,6 +39,7 @@ It handles such VPU-specifics as:
     let cppNamespace = "vpux::VPUIP";
 
     let dependentDialects = [
+        "vpux::Const::ConstDialect",
         "vpux::IE::IEDialect",
         "vpux::IERT::IERTDialect",
         "mlir::StandardOpsDialect",

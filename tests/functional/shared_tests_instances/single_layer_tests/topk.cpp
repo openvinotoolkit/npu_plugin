@@ -11,10 +11,10 @@
 
 namespace LayerTestsDefinitions {
 
-class KmbTopKLayerTest: public TopKLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
+class KmbTopKLayerTest: virtual public TopKLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
 
 TEST_P(KmbTopKLayerTest, CompareWithRefs) {
-    Run();
+    KmbLayerTestsCommon::Run();
 }
 }  // namespace LayerTestsDefinitions
 

@@ -7,7 +7,7 @@
 #include "include/mcm/pass/pass_utils.hpp"
 
 static void alignTo16ChannelsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
-static void alignWeightsTensor(mv::OpModel& om, const mv::Data::TensorIterator &weightsTensor, unsigned channelsPadded, size_t axis, std::string typeOp);
+static void alignWeightsTensor(mv::OpModel& om, const mv::Data::TensorIterator &weightsTensor, unsigned channelsPadded, size_t axis, const std::string& typeOp);
 static void alignBiasTensor(mv::Data::OpListIterator &opIt, const mv::Data::TensorIterator biasTensor, unsigned biasTensorSizePadded, mv::DataModel dm);
 
 namespace mv
@@ -106,7 +106,7 @@ void alignTo16ChannelsFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
     }
 }
 
-static void alignWeightsTensor(mv::OpModel& om, const mv::Data::TensorIterator &weightsTensor, unsigned channelsPadded, size_t axis, std::string typeOp)
+static void alignWeightsTensor(mv::OpModel& om, const mv::Data::TensorIterator &weightsTensor, unsigned channelsPadded, size_t axis, const std::string& typeOp)
 {
     auto weightsTensorShape = weightsTensor->getShape();
     auto weightsTensorOrder = weightsTensor->getOrder();

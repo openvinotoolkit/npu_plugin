@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -12,6 +12,7 @@
 //
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
+#include "vpux/compiler/dialect/const/ops.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
 
@@ -62,12 +63,12 @@ public:
 };
 
 mlir::LogicalResult UseLeakyRelu::matchAndRewrite(IE::PReluOp origOp, mlir::PatternRewriter& rewriter) const {
-    auto negativeSlopeOp = origOp.negative_slope().getDefiningOp<IE::ConstantOp>();
+    auto negativeSlopeOp = origOp.negative_slope().getDefiningOp<Const::DeclareOp>();
     if (negativeSlopeOp == nullptr) {
         return mlir::failure();
     }
 
-    auto negativeSlopeContent = negativeSlopeOp.getContent();
+    const auto negativeSlopeContent = negativeSlopeOp.content();
     if (!negativeSlopeContent.isSplat()) {
         return mlir::failure();
     }

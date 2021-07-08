@@ -8,49 +8,26 @@ namespace mv
 {
     class BarrierDependencies : public LogSender
     {
-        //TODO(vamsikku): why is barrierID int and these are unsigned ?
-        std::vector<unsigned> waitBarriers_;
-        std::vector<unsigned> updateBarriers_;
-
-        void toStringBarrierVector(const std::vector<unsigned>&,
-              std::string& ) const;
-    
     public:
-
-        BarrierDependencies();
-        bool hasWaitBarriers() const { return !(waitBarriers_.empty()); }
-        void addUpdateBarrier(int barrierId);
-        void addWaitBarrier(int barrierId);
-        void removeWaitBarrier(int barrierId);
-        void removeUpdateBarrier(int barrierId);
-
-        void clear() { waitBarriers_.clear(); updateBarriers_.clear(); }
-        void clearUpdateBarriers(void) { updateBarriers_.clear(); }
-
-        const std::vector<unsigned>& getWait();
-        const std::vector<unsigned>& getUpdate();
-
-        size_t getUpdateSize() const { return updateBarriers_.size(); }
-        size_t getWaitSize() const { return waitBarriers_.size(); }
-
-        bool hasWaitBarrierWithID(unsigned id) const {
-          for (auto itr=waitBarriers_.begin();
-                itr!=waitBarriers_.end(); ++itr) {
-            if (*itr == id) { return true; }
-          }
-          return false;
-        }
-
-        bool hasUpdateBarrierWithID(unsigned id) const {
-          for (auto itr=updateBarriers_.begin();
-                itr!=updateBarriers_.end(); ++itr) {
-            if (*itr == id) { return true; }
-          }
-          return false;
-        }
-
+        BarrierDependencies() = default;
+        void addUpdateBarrier(uint32_t id);
+        void addWaitBarrier(uint32_t id);
+        void removeUpdateBarrier(uint32_t id);
+        void removeWaitBarrier(uint32_t id);
+        bool hasWaitBarriers() const;
+        bool hasUpdateBarrierWithID(uint32_t) const;
+        bool hasWaitBarrierWithID(uint32_t) const;
+        void clear();
+        void clearUpdateBarriers(void);
+        const std::vector<uint32_t>& getWait() const;
+        const std::vector<uint32_t>& getUpdate() const;
+        std::size_t getUpdateSize() const;
+        std::size_t getWaitSize() const;
         std::string getLogID() const override;
         std::string toString() const;
+    private:
+        std::vector<uint32_t> waitBarriers_;
+        std::vector<uint32_t> updateBarriers_;
     };
 }
 

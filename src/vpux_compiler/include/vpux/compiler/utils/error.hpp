@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -14,6 +14,7 @@
 #pragma once
 
 #include "vpux/utils/core/format.hpp"
+#include "vpux/utils/core/logger.hpp"
 
 #include <mlir/IR/Location.h>
 #include <mlir/IR/Operation.h>
@@ -36,6 +37,13 @@ template <typename... Args>
 mlir::LogicalResult matchFailed(mlir::RewriterBase& rewriter, mlir::Operation* op, StringRef format, Args&&... args) {
     const auto msg = llvm::formatv(format.data(), std::forward<Args>(args)...);
     return rewriter.notifyMatchFailure(op, msg.str());
+}
+
+template <typename... Args>
+mlir::LogicalResult matchFailed(Logger log, mlir::RewriterBase& rewriter, mlir::Operation* op, StringRef format,
+                                Args&&... args) {
+    log.trace(format, std::forward<Args>(args)...);
+    return matchFailed(rewriter, op, format, std::forward<Args>(args)...);
 }
 
 }  // namespace vpux

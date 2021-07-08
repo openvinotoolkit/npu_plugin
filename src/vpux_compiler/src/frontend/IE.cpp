@@ -16,6 +16,7 @@
 #include "vpux/compiler/core/attributes/dims_order.hpp"
 #include "vpux/compiler/core/attributes/strides.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
+#include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/logging.hpp"
 #include "vpux/compiler/utils/types.hpp"
@@ -72,7 +73,7 @@ public:
     }
 
 public:
-    mlir::FuncOp buildMainFunc(mlir::OpBuilder& moduleBuilder, StringRef funcName);
+    mlir::FuncOp buildMainFunc(mlir::OpBuilder& moduleBuilder, StringRef funcName, mlir::TimingScope& rootTiming);
 
 private:
     using OrigNode = ngraph::Node;
@@ -172,7 +173,10 @@ private:
 // buildMainFunc
 //
 
-mlir::FuncOp NGraphImporter::buildMainFunc(mlir::OpBuilder& moduleBuilder, StringRef funcName) {
+mlir::FuncOp NGraphImporter::buildMainFunc(mlir::OpBuilder& moduleBuilder, StringRef funcName,
+                                           mlir::TimingScope& rootTiming) {
+    auto scopeTiming = rootTiming.nest("Import nGraph function");
+
     using Callback = void (NGraphImporter::*)(mlir::OpBuilder & builder, const OrigNodePtr& origNode);
     using DispatchMap = std::map<ngraph::NodeTypeInfo, Callback>;
 
@@ -330,7 +334,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
         value = mlir::DenseElementsAttr::getFromRawBuffer(tensorType, rawBuffer, isSplatBuffer);
     }
 
-    auto op = builder.create<IE::ConstantOp>(createLocation(origNode), tensorType, value);
+    auto op = builder.create<Const::DeclareOp>(createLocation(origNode), tensorType, Const::ContentAttr::get(value));
     addOutputs(origNode, op);
 }
 
@@ -1436,7 +1440,9 @@ std::string getValidOutputName(const std::shared_ptr<ngraph::op::Result>& result
 // runNGraphPasses
 //
 
-void runNGraphPasses(std::shared_ptr<ngraph::Function> netGraph) {
+void runNGraphPasses(const std::shared_ptr<ngraph::Function>& netGraph, mlir::TimingScope& rootTiming) {
+    auto scopeTiming = rootTiming.nest("Common nGraph passes");
+
     const auto passConfig = std::make_shared<ngraph::pass::PassConfig>();
     passConfig->disable<ngraph::pass::HSwishDecomposition>();
     passConfig->disable<ngraph::pass::HSigmoidDecomposition>();
@@ -1458,40 +1464,24 @@ void runNGraphPasses(std::shared_ptr<ngraph::Function> netGraph) {
     manager.run_passes(netGraph);
 }
 
-}  // namespace
-
 //
-// importNetwork
+// addCNNNetworkOp
 //
 
-mlir::OwningModuleRef vpux::IE::importNetwork(mlir::MLIRContext* ctx, InferenceEngine::CNNNetwork cnnNet,
-                                              bool sharedConstants, Logger log) {
-    log.setName("IE::FrontEnd");
-
-    log.trace("Load IE::FrontEnd dependent Dialects");
-    ctx->loadDialect<IE::IEDialect>();
-
-    const auto netGraph = cnnNet.getFunction();
-    VPUX_THROW_UNLESS(netGraph != nullptr, "Old IR versions (prior v10) are not supported : {0}", cnnNet.getName());
-
-    log.trace("Run nGraph passes");
-    runNGraphPasses(netGraph);
+void addCNNNetworkOp(mlir::OpBuilder& builder, mlir::FlatSymbolRefAttr mainFuncName, InferenceEngine::CNNNetwork cnnNet,
+                     const std::shared_ptr<ngraph::Function>& netGraph, mlir::TimingScope& rootTiming) {
+    auto scopeTiming = rootTiming.nest("Add CNNNetwork Operation");
 
     const auto inputsInfo = cnnNet.getInputsInfo();
     const auto outputsInfo = cnnNet.getOutputsInfo();
 
-    const auto mainFuncName = mlir::FlatSymbolRefAttr::get(ctx, "main");
-
-    auto module = mlir::ModuleOp::create(mlir::UnknownLoc::get(ctx), StringRef(cnnNet.getName()));
-
-    OpBuilderLogger builderLog(log.nest());
-    auto builder = mlir::OpBuilder::atBlockBegin(module.getBody(), &builderLog);
+    auto* ctx = builder.getContext();
 
     auto cnnOp = builder.create<IE::CNNNetworkOp>(mlir::UnknownLoc::get(ctx), mainFuncName);
     cnnOp.inputsInfo().emplaceBlock();
     cnnOp.outputsInfo().emplaceBlock();
 
-    auto inputsInfoBuilder = mlir::OpBuilder::atBlockBegin(&cnnOp.inputsInfo().front(), &builderLog);
+    auto inputsInfoBuilder = mlir::OpBuilder::atBlockBegin(&cnnOp.inputsInfo().front(), builder.getListener());
     for (const auto& param : netGraph->get_parameters()) {
         const auto& inputName = param->get_friendly_name();
         const auto& userInput = inputsInfo.at(inputName);
@@ -1503,7 +1493,7 @@ mlir::OwningModuleRef vpux::IE::importNetwork(mlir::MLIRContext* ctx, InferenceE
         inputsInfoBuilder.create<IE::DataInfoOp>(mlir::UnknownLoc::get(ctx), nameAttr, userTypeAttr);
     }
 
-    auto outputsInfoBuilder = mlir::OpBuilder::atBlockBegin(&cnnOp.outputsInfo().front(), &builderLog);
+    auto outputsInfoBuilder = mlir::OpBuilder::atBlockBegin(&cnnOp.outputsInfo().front(), builder.getListener());
     for (const auto& result : netGraph->get_results()) {
         const auto& resultName = getValidOutputName(result);
         const auto& userOutput = outputsInfo.at(resultName);
@@ -1514,10 +1504,42 @@ mlir::OwningModuleRef vpux::IE::importNetwork(mlir::MLIRContext* ctx, InferenceE
 
         outputsInfoBuilder.create<IE::DataInfoOp>(mlir::UnknownLoc::get(ctx), nameAttr, userTypeAttr);
     }
+}
 
+}  // namespace
+
+//
+// importNetwork
+//
+
+mlir::OwningModuleRef vpux::IE::importNetwork(mlir::MLIRContext* ctx, InferenceEngine::CNNNetwork cnnNet,
+                                              bool sharedConstants, mlir::TimingScope& rootTiming, Logger log) {
+    log.setName("IE::FrontEnd");
+
+    log.trace("Load IE::FrontEnd dependent Dialects");
+    ctx->loadDialect<IE::IEDialect>();
+
+    const auto netGraph = cnnNet.getFunction();
+    VPUX_THROW_UNLESS(netGraph != nullptr, "Old IR versions (prior v10) are not supported : {0}", cnnNet.getName());
+
+    log.trace("Run common nGraph passes");
+    runNGraphPasses(netGraph, rootTiming);
+
+    auto module = mlir::ModuleOp::create(mlir::UnknownLoc::get(ctx), StringRef(cnnNet.getName()));
+    const auto mainFuncName = mlir::FlatSymbolRefAttr::get(ctx, "main");
+
+    OpBuilderLogger builderLog(log.nest());
+    auto builder = mlir::OpBuilder::atBlockBegin(module.getBody(), &builderLog);
+
+    log.trace("Add CNNNetwork Operation");
+    addCNNNetworkOp(builder, mainFuncName, cnnNet, netGraph, rootTiming);
+
+    log.trace("Import nGraph function");
     NGraphImporter importer(ctx, netGraph, sharedConstants, log);
-    importer.buildMainFunc(builder, mainFuncName.getValue());
+    importer.buildMainFunc(builder, mainFuncName.getValue(), rootTiming);
 
+    log.trace("Validate MLIR module");
+    auto finalTiming = rootTiming.nest("Validate MLIR module");
     VPUX_THROW_UNLESS(mlir::succeeded(mlir::verify(module)),
                       "Failed to create a valid MLIR module for InferenceEngine IR");
 

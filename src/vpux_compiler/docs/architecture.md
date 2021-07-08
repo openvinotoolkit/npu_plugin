@@ -28,24 +28,6 @@ One part of the core utilities is tensor shape/stride/layout manipulation API:
 
 The later is described in details in [separate section](tensor_descriptor.md)
 
-### Lazy constant folding
-
-The **VPUX NN Compiler** uses lazy constant folding approach to reduce memory footprint for large constant values (like dense tensors).
-
-Constant Operations in all Dialects supports lazy folding for the following transformations:
-
-* Precision conversion.
-* Layout conversion.
-* Reshape.
-
-The Operations deals with 2 separate Types:
-
-* **Actual Value Type** - final type of the resulting tensor/buffer.
-* **Content Type** - storage type for the attirubute data.
-
-The **VPUX NN Compiler** provides separate `ConstContentAttr` class, which allows to do this transformations on the fly
-when the data is accessed.
-
 ## FrontEnd
 
 **FrontEnd** is used to import external source into MLIR infrastructure.
@@ -61,6 +43,7 @@ This mode is used for **LLVM LIT** based unit testing, for example.
 
 The **VPUX NN Compiler** defines the following own Dialects:
 
+* [Const Dialect](generated/dialect/const.md)
 * [IE Dialect](generated/dialect/IE.md)
 * [IERT Dialect](generated/dialect/IERT.md)
 * [VPUIP Dialect](generated/dialect/VPUIP.md)

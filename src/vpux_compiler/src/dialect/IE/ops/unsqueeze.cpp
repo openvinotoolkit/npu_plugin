@@ -12,6 +12,7 @@
 //
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
+#include "vpux/compiler/dialect/const/ops.hpp"
 
 #include "vpux/compiler/utils/attributes.hpp"
 
@@ -42,12 +43,13 @@ mlir::FailureOr<SmallVector<int64_t>> getAxes(IE::UnsqueezeOpAdaptor unsqueeze, 
         return parseIntArrayAttr(unsqueeze.axes_value());
     }
 
-    auto axesConst = unsqueeze.axes().getDefiningOp<ConstantInterface>();
+    auto axesConst = unsqueeze.axes().getDefiningOp<Const::DeclareOp>();
     if (axesConst == nullptr) {
         return errorAt(loc, "Only constant axes are supported");
     }
 
-    auto axes = to_small_vector(axesConst.getContent().getValues<int64_t>());
+    const auto axesContent = axesConst.content();
+    auto axes = to_small_vector(axesContent.getValues<int64_t>());
     std::sort(axes.begin(), axes.end());
 
     const auto inType = unsqueeze.input().getType().cast<mlir::ShapedType>();
@@ -139,8 +141,8 @@ mlir::OpFoldResult vpux::IE::UnsqueezeOp::fold(ArrayRef<mlir::Attribute> operand
 
     VPUX_THROW_UNLESS(!operands.empty(), "Wrong number of operands : {0}", operands.size());
 
-    if (const auto attr = operands[0].dyn_cast_or_null<ConstContentAttr>()) {
-        return attr;
+    if (const auto attr = operands[0].dyn_cast_or_null<Const::ContentAttr>()) {
+        return attr.reshape(getShape(output()));
     }
 
     return nullptr;

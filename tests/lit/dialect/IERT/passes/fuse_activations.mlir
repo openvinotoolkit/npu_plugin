@@ -12,7 +12,8 @@
 #filter_mem_strides = affine_map<(md0, md1, md2, md3) -> (md0 * 64 + md1 * 32 + md2 * 16 + md3)>
 
 func @MLIRConv2dWithReluTest(%arg0: memref<1x16x4x4xf16>, %arg1: memref<1x16x3x3xf16>) -> memref<1x16x3x3xf16> {
-    %0 = IERT.Constant memref<16x16x2x2xf16, #NHWC, #filter_mem_strides> = dense<0.0> : tensor<16x16x2x2xf32>
+    %0 = const.Declare memref<16x16x2x2xf16, #NHWC, #filter_mem_strides> =
+        #const.Content<dense<0.0> : tensor<16x16x2x2xf16>, [#const.Reorder<#NHWC>]>
 
     %1 = memref.alloc() : memref<1x16x3x3xf16>
     %2 = memref.alloc() : memref<1x16x4x4xf16, #NHWC, #in_mem_strides>
@@ -30,7 +31,7 @@ func @MLIRConv2dWithReluTest(%arg0: memref<1x16x4x4xf16>, %arg1: memref<1x16x3x3
         outputs(%5 : memref<16x16x2x2xf16, #NHWC, #filter_mem_strides, "CMX_NN">)
         -> memref<16x16x2x2xf16, #NHWC, #filter_mem_strides, "CMX_NN">
 
-    %7 = IERT.Constant memref<16x1x1x4xsi32> = dense<0> : tensor<16x1x1x4xsi32>
+    %7 = const.Declare memref<16x1x1x4xsi32> = #const.Content<dense<0> : tensor<16x1x1x4xsi32>>
 
     %8 = memref.alloc() : memref<16x1x1x4xsi32, "CMX_NN">
     %9 = IERT.Copy

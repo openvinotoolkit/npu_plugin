@@ -13,6 +13,7 @@
 
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
+#include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/quantization.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 
@@ -25,27 +26,10 @@ using namespace vpux;
 namespace {
 
 //
-// MergeFakeQuantPass
-//
-
-class MergeFakeQuantPass final : public IE::MergeFakeQuantBase<MergeFakeQuantPass> {
-public:
-    explicit MergeFakeQuantPass(Logger log) {
-        Base::initLogger(log, Base::getArgumentName());
-    }
-
-public:
-    class UseFakeQuant;
-
-private:
-    void safeRunOnFunc() final;
-};
-
-//
 // UseFakeQuant
 //
 
-class MergeFakeQuantPass::UseFakeQuant final : public mlir::OpRewritePattern<mlir::quant::DequantizeCastOp> {
+class UseFakeQuant final : public mlir::OpRewritePattern<mlir::quant::DequantizeCastOp> {
 public:
     UseFakeQuant(mlir::MLIRContext* ctx, Logger log)
             : mlir::OpRewritePattern<mlir::quant::DequantizeCastOp>(ctx), _log(log) {
@@ -59,8 +43,8 @@ private:
     Logger _log;
 };
 
-mlir::LogicalResult MergeFakeQuantPass::UseFakeQuant::matchAndRewrite(mlir::quant::DequantizeCastOp dCastOp,
-                                                                      mlir::PatternRewriter& rewriter) const {
+mlir::LogicalResult UseFakeQuant::matchAndRewrite(mlir::quant::DequantizeCastOp dCastOp,
+                                                  mlir::PatternRewriter& rewriter) const {
     auto qCastOp = dCastOp.arg().getDefiningOp<mlir::quant::QuantizeCastOp>();
 
     if (qCastOp == nullptr) {
@@ -79,8 +63,8 @@ mlir::LogicalResult MergeFakeQuantPass::UseFakeQuant::matchAndRewrite(mlir::quan
         return mlir::failure();
     }
 
-    auto rMinOp = rewriter.create<IE::ConstantOp>(dCastOp.getLoc(), attrType, rMinAttr);
-    auto rMaxOp = rewriter.create<IE::ConstantOp>(dCastOp.getLoc(), attrType, rMaxAttr);
+    auto rMinOp = rewriter.create<Const::DeclareOp>(dCastOp.getLoc(), attrType, Const::ContentAttr::get(rMinAttr));
+    auto rMaxOp = rewriter.create<Const::DeclareOp>(dCastOp.getLoc(), attrType, Const::ContentAttr::get(rMaxAttr));
 
     rewriter.replaceOpWithNewOp<IE::FakeQuantizeOp>(dCastOp, qCastOp.arg(), rMinOp.output(), rMaxOp.output(),
                                                     rMinOp.output(), rMaxOp.output(), levels,
@@ -90,8 +74,18 @@ mlir::LogicalResult MergeFakeQuantPass::UseFakeQuant::matchAndRewrite(mlir::quan
 }
 
 //
-// safeRunOnFunc
+// MergeFakeQuantPass
 //
+
+class MergeFakeQuantPass final : public IE::MergeFakeQuantBase<MergeFakeQuantPass> {
+public:
+    explicit MergeFakeQuantPass(Logger log) {
+        Base::initLogger(log, Base::getArgumentName());
+    }
+
+private:
+    void safeRunOnFunc() final;
+};
 
 void MergeFakeQuantPass::safeRunOnFunc() {
     auto& ctx = getContext();

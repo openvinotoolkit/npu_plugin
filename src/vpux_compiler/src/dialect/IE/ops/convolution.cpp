@@ -13,6 +13,7 @@
 
 #include "vpux/compiler/core/attributes/shape.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
+#include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/types.hpp"
 
@@ -218,16 +219,11 @@ mlir::LogicalResult GroupsToAttr::matchAndRewrite(IE::GroupConvolutionOp convOp,
     filterShape[1] *= groups;
     filterShape.erase(filterShape.begin());
 
-    const auto filterShapeType = mlir::RankedTensorType::get({checked_cast<int64_t>(filterShape.size())},
-                                                             getSInt64Type(convOp->getContext()));
-    const auto filterShapeAttr = mlir::DenseElementsAttr::get(filterShapeType, makeArrayRef(filterShape));
-    auto filterShapeOp = rewriter.create<IE::ConstantOp>(convOp->getLoc(), filterShapeType, filterShapeAttr);
-
-    auto newFilter =
-            rewriter.createOrFold<IE::ReshapeOp>(convOp->getLoc(), convOp.filter(), filterShapeOp, false, nullptr);
+    const auto filterShapeAttr = getInt64ArrayAttr(getContext(), filterShape);
+    auto newFilter = rewriter.create<IE::ReshapeOp>(convOp->getLoc(), convOp.filter(), nullptr, false, filterShapeAttr);
 
     rewriter.replaceOpWithNewOp<IE::GroupConvolutionOp>(
-            convOp, convOp.input(), newFilter, convOp.bias(), convOp.stridesAttr(), convOp.pads_beginAttr(),
+            convOp, convOp.input(), newFilter.output(), convOp.bias(), convOp.stridesAttr(), convOp.pads_beginAttr(),
             convOp.pads_endAttr(), convOp.dilationsAttr(),
             getInt32Attr(convOp.getContext(), checked_cast<uint32_t>(groups)));
 

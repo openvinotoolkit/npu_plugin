@@ -55,12 +55,7 @@ mlir::LogicalResult ViewLikeRewrite::matchAndRewrite(mlir::ViewLikeOpInterface o
     SmallVector<int64_t> localeIndex;
     Byte dataOffset(0);
 
-    if (auto constOp = rootVal.getDefiningOp<VPUIP::DeclareConstantTensorOp>()) {
-        _log.nest().trace("It aliases constant buffer produced by '{0}'", constOp->getLoc());
-
-        locale = VPUIP::MemoryLocation::GraphFile;
-        localeIndex.push_back(constOp.localeIndex());
-    } else if (auto declareOp = rootVal.getDefiningOp<VPUIP::DeclareTensorOp>()) {
+    if (auto declareOp = rootVal.getDefiningOp<VPUIP::DeclareTensorOp>()) {
         _log.nest().trace("It aliases internal buffer produced by '{0}'", declareOp->getLoc());
 
         locale = declareOp.locale();
@@ -141,6 +136,7 @@ void ConvertViewOps2VPUIPPass::safeRunOnFunc() {
 
     mlir::ConversionTarget target(ctx);
     target.addLegalDialect<mlir::async::AsyncDialect>();
+    target.addLegalDialect<Const::ConstDialect>();
     target.addLegalDialect<VPUIP::VPUIPDialect>();
     target.addLegalOp<mlir::FuncOp, mlir::ReturnOp>();
 

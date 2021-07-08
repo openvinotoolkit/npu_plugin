@@ -151,6 +151,7 @@ void ConvertAsyncOps2VPUIPPass::safeRunOnFunc() {
     typeConverter.addSourceMaterialization(dummyConverter<mlir::async::ValueType>);
 
     mlir::ConversionTarget target(ctx);
+    target.addLegalDialect<Const::ConstDialect>();
     target.addLegalDialect<VPUIP::VPUIPDialect>();
     target.addLegalOp<mlir::UnrealizedConversionCastOp>();
     target.addLegalOp<mlir::FuncOp, mlir::ReturnOp>();

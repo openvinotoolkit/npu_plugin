@@ -624,9 +624,9 @@ public:
         const TestNetworkDesc& netDesc,
         const std::string& left_eye_input_name,
         const TestImageDesc& left_eye_image,
-        const std::string right_eye_input_name,
+        const std::string& right_eye_input_name,
         const TestImageDesc& right_eye_image,
-        const std::string head_pos_input_name,
+        const std::string& head_pos_input_name,
         std::vector<float> head_pos);
 };
 

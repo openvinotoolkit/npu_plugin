@@ -55,7 +55,6 @@
             "TensorsToU8",
             "TensorsToFP16",
             "FusePostOps",
-            "PreprocessForPWL",
             "CheckPWLForRequantize",
             "ConvDilationUsingStorageElement",
             "TileOps",

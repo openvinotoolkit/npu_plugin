@@ -531,13 +531,13 @@ bool after_concat(const std::string &name, mv::OpModel& om)
     return (previousOp->getOpType() == "Concat" ||  previousOp->getOpType() == "ImplicitConcat");
 }
 
-bool excludedFromSubgraphs(const std::string &name, const std::vector<std::string> excluded)
+bool excludedFromSubgraphs(const std::string &name, const std::vector<std::string>& excluded)
 {
     auto exists = std::find(excluded.begin(), excluded.end(), name) != excluded.end();
     return exists;
 }
 
-bool subgraphHasAnOpFollowedFromConcat(const std::list<std::string> sugraphOps, const std::set<std::string> followingConcats)
+bool subgraphHasAnOpFollowedFromConcat(const std::list<std::string>& sugraphOps, const std::set<std::string>& followingConcats)
 {
     bool subgraphHasAnOpFollowedFromConcat = false;
     for (auto opName = sugraphOps.begin(); opName != sugraphOps.end(); ++opName)
@@ -604,7 +604,7 @@ void computeSubgraphs(mv::ComputationModel& model,
             //NOTE: this is a specific modification for the yolo subgraphs
             bool concatExists = (std::find(followedFromConcatOps.begin(), followedFromConcatOps.end(), *opName) != followedFromConcatOps.end());
             if (concatExists)
-                candidateVerticalFusionOpsSorted.erase(opName);
+                opName = candidateVerticalFusionOpsSorted.erase(opName);
             else
                 opName++;
         }

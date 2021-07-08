@@ -46,10 +46,11 @@ static const std::unordered_map<DimsOrder, std::vector<float>> orderMapping = {
 InferenceEngine::Precision extractPrecisionFromDType(MVCNN::DType dtype) {
     static const EnumMap<MVCNN::DType, Precision> dataTypeMapping = {
             {MVCNN::DType_FP32, Precision::FP32}, {MVCNN::DType_FP16, Precision::FP16},
-            {MVCNN::DType_U64, Precision::U64},   {MVCNN::DType_U16, Precision::U16},
-            {MVCNN::DType_U8, Precision::U8},     {MVCNN::DType_I64, Precision::I64},
-            {MVCNN::DType_I32, Precision::I32},   {MVCNN::DType_I16, Precision::I16},
-            {MVCNN::DType_I8, Precision::I8},     {MVCNN::DType_BIN, Precision::BIN},
+            {MVCNN::DType_U64, Precision::U64},   {MVCNN::DType_U32, Precision::U32},
+            {MVCNN::DType_U16, Precision::U16},   {MVCNN::DType_U8, Precision::U8},
+            {MVCNN::DType_I64, Precision::I64},   {MVCNN::DType_I32, Precision::I32},
+            {MVCNN::DType_I16, Precision::I16},   {MVCNN::DType_I8, Precision::I8},
+            {MVCNN::DType_BIN, Precision::BIN},
     };
 
     return dataTypeMapping.at(dtype);

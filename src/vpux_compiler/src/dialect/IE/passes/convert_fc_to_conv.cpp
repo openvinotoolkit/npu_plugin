@@ -106,7 +106,6 @@ void ConvertFCToConvPass::safeRunOnFunc() {
 
     mlir::ConversionTarget target(ctx);
     target.addIllegalOp<IE::FullyConnectedOp>();
-    target.addLegalOp<IE::ConstantOp>();
     target.addLegalOp<IE::ConvolutionOp>();
     target.addLegalOp<IE::ReshapeOp>();
 

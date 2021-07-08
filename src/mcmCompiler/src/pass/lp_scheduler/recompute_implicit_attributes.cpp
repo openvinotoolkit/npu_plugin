@@ -34,7 +34,7 @@ class Attribute_Propagator {
   public:
     typedef std::unordered_map<operation_t, T> table_t;
     
-    Attribute_Propagator(std::string name, mv::OpModel& om, op_list_t& zero_in_degree, degree_map_t in_degree_map) :
+    Attribute_Propagator(const std::string& name, mv::OpModel& om, op_list_t& zero_in_degree, degree_map_t in_degree_map) :
       attr_name_(name),
       omodel_(om),
       zero_in_degree_nodes_(zero_in_degree),

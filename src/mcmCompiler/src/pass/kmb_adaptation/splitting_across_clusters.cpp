@@ -325,7 +325,6 @@ void subTensorsGen(mv::ComputationModel& model, const tensorSet& tensors, unsign
                     //SplitOverHOverlapped - so hardCoding to 'H' for axis
 
                     std::vector<mv::Tiling> childtiles;
-                    std::vector<size_t> heightSizes;
                     std::string axis = "H";
                     if (sinkOperators[0]->getOpType() == "DPUTask")
                     {

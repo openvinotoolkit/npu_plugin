@@ -988,7 +988,7 @@ class CMX_Concatenation {
 
 
     bool is_cmx_concateable_in_current_opmodel(
-        const concat_subgraph_t& subgraph, FILE *fptr=NULL) const {
+        const concat_subgraph_t& subgraph, FILE* = NULL) const {
 
       if (is_this_an_unsupported_concat(subgraph)) { return false; }
 

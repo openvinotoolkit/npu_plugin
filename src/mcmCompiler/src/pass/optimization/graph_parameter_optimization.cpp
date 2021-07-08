@@ -1195,7 +1195,7 @@ namespace mv
                 return false;
             }
 
-            bool requiresActivationSparsity(Op& op, std::string clustering)
+            bool requiresActivationSparsity(Op& op, const std::string& clustering)
             {
                 if(requiresRealActivationSparsity(op, clustering))
                     return true;
@@ -1232,7 +1232,7 @@ namespace mv
                 return false;
             }
 
-            bool requiresRealActivationSparsity(Op& op, std::string clustering){
+            bool requiresRealActivationSparsity(Op& op, const std::string& clustering){
                 //An fp16 Conv Z-major must have activation sparsity
                 bool isCMConv = enableChannelMajorConv && op.supportsCMConv();
 

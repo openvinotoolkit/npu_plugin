@@ -100,7 +100,13 @@ void vpux::VPUXConfig::parse(const std::map<std::string, std::string>& config) {
             {"VPU3700", IE::VPUXConfigParams::VPUXPlatform::VPU3700},
             {"VPU3800", IE::VPUXConfigParams::VPUXPlatform::VPU3800},
             {"VPU3900", IE::VPUXConfigParams::VPUXPlatform::VPU3900},
-            {"VPU3720", IE::VPUXConfigParams::VPUXPlatform::VPU3720}};
+            {"VPU3720", IE::VPUXConfigParams::VPUXPlatform::VPU3720},
+            {"3400_A0_EMU", IE::VPUXConfigParams::VPUXPlatform::EMULATOR},
+            {"3400_EMU", IE::VPUXConfigParams::VPUXPlatform::EMULATOR},
+            {"3700_EMU", IE::VPUXConfigParams::VPUXPlatform::EMULATOR},
+            {"3800_EMU", IE::VPUXConfigParams::VPUXPlatform::EMULATOR},
+            {"3900_EMU", IE::VPUXConfigParams::VPUXPlatform::EMULATOR},
+            {"3720_EMU", IE::VPUXConfigParams::VPUXPlatform::EMULATOR}};
     setOption(_platform, vpuxPlatform, config, VPUX_CONFIG_KEY(PLATFORM));
 
     // Private options

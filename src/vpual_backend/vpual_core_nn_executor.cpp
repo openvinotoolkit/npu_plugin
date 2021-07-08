@@ -31,19 +31,27 @@
 #include "mcm/utils/profiling_parser.hpp"
 
 #if (defined(__arm__) || defined(__aarch64__)) && defined(VPUX_DEVELOPER_BUILD)
+#include "mmapped_pointer.hpp"
+
 #include <atomic>
 #include <cstdio>
 #include <mutex>
 #include <thread>
 #include <errno.h>
-#include <fcntl.h>
 #include <mvLog.h>
-#include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <time.h>
 #include <unistd.h>
+
+
+#if __has_include("consoleTxQueue.h")
+# include "consoleTxQueue.h"
+#else
+# define MV_CONSOLE_TX_QUEUE 0x0000000094400040
+#endif
+
 #endif
 
 #include "vpual_config.hpp"
@@ -81,17 +89,18 @@ public:
     ~PipePrintHandler();
 
 private:
-    static constexpr size_t CONFIGURED_PIPEPRINT_BUFFER_SIZE_MAX = 1024*1024;
     static constexpr size_t VPU_CACHE_LINE_SIZE = 64;
     static constexpr size_t PAGE_SIZE = 4096;
-
+    static constexpr uint64_t PIPEPRINT_CANARY_START = 0x22334455;
+    static constexpr uint64_t PIPEPRINT_CANARY_END  = 0xBBCCDDEE;
+    
     struct tyMvConsoleQueue {
         volatile uint32_t canaryStart;
         volatile uint32_t in;
         volatile uint32_t out;
         volatile uint32_t queueSize;
+        volatile uint32_t queuePtr;
         volatile uint32_t canaryEnd;
-        volatile uint8_t buffer[CONFIGURED_PIPEPRINT_BUFFER_SIZE_MAX];
     };
 
 private:
@@ -99,8 +108,8 @@ private:
 
     static void threadBody(PipePrintHandler* obj);
 
-    static constexpr size_t vpuAlignDown(size_t val) {
-        return val & (~(VPU_CACHE_LINE_SIZE-1));
+    static constexpr size_t alignDown(size_t val, size_t size) {
+        return ((val) & (~(size - 1)));
     }
 
 private:
@@ -150,63 +159,65 @@ VpualCoreNNExecutor::PipePrintHandler::~PipePrintHandler() {
 }
 
 void VpualCoreNNExecutor::PipePrintHandler::threadBody(PipePrintHandler* obj) {
-    static constexpr uint64_t DEFAULT_PIPEPRINT_PHY_ADDR = 0x94500000;
+    uint64_t phyAddr = MV_CONSOLE_TX_QUEUE;
 
-    uint64_t phyAddr = DEFAULT_PIPEPRINT_PHY_ADDR;
     if (const auto* env = std::getenv("IE_VPUX_PIPEPRINT_PHY_ADDR")) {
         phyAddr = std::stoull(env);
     }
-    IE_ASSERT((phyAddr & (PAGE_SIZE - 1)) == 0);
+    MMappedPtr<tyMvConsoleQueue> header(phyAddr);
+    MMappedPtr<uint8_t> queBuffer(static_cast<uint64_t>(header->queuePtr), header->queueSize);
+    MMappedPtr<volatile uint32_t> inputCounterPtr(static_cast<uint64_t>(header->in));
 
-    const auto fd = open("/dev/mem", O_RDONLY | O_SYNC);
-    IE_ASSERT(fd >= 0);
+    if (PIPEPRINT_CANARY_START != header->canaryStart) {
+        std::cerr << "Invalid start Canary at given address: expected to be "
+                                 + std::to_string(PIPEPRINT_CANARY_START);
+        return;
+    }
+    if (PIPEPRINT_CANARY_END != header->canaryEnd) {
+        std::cerr << "Invalid end Canary at given address: expected to be "
+                                 + std::to_string(PIPEPRINT_CANARY_END);
+        return;
+    }
 
-    using FdDeleter = std::function<void(const int*)>;
-    using FdHnd = std::unique_ptr<const int, FdDeleter>;
-    FdHnd fdHnd(&fd, [](const int* fd) {
-        close(*fd);
-    });
+    uint32_t no_data_ticks = 0;
 
-    const auto mapSize = (sizeof(tyMvConsoleQueue) + PAGE_SIZE - 1) / PAGE_SIZE * PAGE_SIZE;
-
-    auto* const rawPtr = mmap(NULL, mapSize, PROT_READ, MAP_SHARED, fd, phyAddr);
-    IE_ASSERT(rawPtr != MAP_FAILED);
-
-    using MapDeleter = std::function<void(void*)>;
-    using MapHnd = std::unique_ptr<void, MapDeleter>;
-    MapHnd mapHnd(rawPtr, [](void* p) {
-        munmap(p, mapSize);
-    });
-
-    const auto bufferBase = reinterpret_cast<uintptr_t>(reinterpret_cast<const tyMvConsoleQueue*>(phyAddr)->buffer);
-
-    const auto* console = static_cast<const tyMvConsoleQueue*>(rawPtr);
-    auto curOffset = console->in;
+    auto in = 0;
+    auto queueSize = header->queueSize;
+    auto queuePtr = header->queuePtr;
 
     while (obj->_enabled) {
-        const auto queueSize = console->queueSize;
-        const auto nextOffset = console->in;
+        const auto nextOffset = *(*inputCounterPtr);
+        auto cnt = (nextOffset - in) % queueSize;
 
-        if (nextOffset > curOffset) {
+        if (cnt > 0) {
             // only 64bit aligned part is flushed from cache to RAM in time
-            // the rest part will be flushed later by subsequent logs or forcely with timeout
-            const auto count = (vpuAlignDown(bufferBase + nextOffset) - (bufferBase + curOffset)) % queueSize;
+            // the rest part will be flushed later by subsequent logs or forcefully with timeout
+            const auto count_caligned = (alignDown((queuePtr + nextOffset), VPU_CACHE_LINE_SIZE) -
+                     ((queuePtr + in))) % queueSize;
 
-            if (count != 0) {
-                const auto res = write(1, const_cast<const uint8_t*>(console->buffer + curOffset), count);
+            if (count_caligned != 0)
+                cnt = count_caligned;
+            else if (no_data_ticks < 10000)
+                cnt = 0;
+
+            if (cnt != 0) {
+                const auto res = write(STDOUT_FILENO, *queBuffer + in, cnt);
                 (void)res;
 
                 std::fputs(ANSI_COLOR_RESET, stdout);
                 std::fflush(stdout);
 
-                curOffset = (curOffset + count) % queueSize;
+                in = (in + cnt) % queueSize;
+                no_data_ticks = 0;
                 continue;
             }
         }
 
         // 1ms sleep when no logs are presented.
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        no_data_ticks ++;
     }
+    std::cout << std::endl;
 }
 
 #endif  // VPUX_DEVELOPER_BUILD

@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -68,39 +68,6 @@ void DataOrderInfo::printFormat(llvm::raw_ostream& stream) const {
     }
 
     stream << " ]";
-}
-
-//
-// ConstantInterface
-//
-
-mlir::LogicalResult vpux::verifyConstant(mlir::Operation* op) {
-    VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in verifyConstant");
-
-    if (!op->hasTrait<mlir::OpTrait::ConstantLike>()) {
-        return errorAt(op, "Operation '{0}' is not a ConstantLike", op->getName());
-    }
-
-    auto constant = mlir::dyn_cast<ConstantInterface>(op);
-    if (constant == nullptr) {
-        return errorAt(op, "Operation '{0}' is not a Constant", op->getName());
-    }
-
-    const auto contentType = constant.getContentType();
-    const auto actualType = constant.getActualType();
-
-    if (!contentType.hasStaticShape()) {
-        return errorAt(op, "Can't use dynamic shape for constant content");
-    }
-    if (!actualType.hasStaticShape()) {
-        return errorAt(op, "Can't use dynamic shape for constant result value");
-    }
-
-    if (contentType.getNumElements() != actualType.getNumElements()) {
-        return errorAt(op, "Content type '{0}' and actual type '{1}' are not compatible", contentType, actualType);
-    }
-
-    return mlir::success();
 }
 
 //

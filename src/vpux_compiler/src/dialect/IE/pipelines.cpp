@@ -24,7 +24,6 @@ using namespace vpux;
 //
 
 void vpux::IE::buildAdjustForVPUPipeline(mlir::OpPassManager& pm, Logger log) {
-    pm.addPass(IE::createConvertFCToConvPass(log));
     pm.addPass(IE::createConvertTile2PerAxisTilePass(log));
     pm.addPass(IE::createConvertPrecisionToFP16Pass(log));
     pm.addPass(IE::createConvertShapeTo4DPass(log));
@@ -39,7 +38,6 @@ void vpux::IE::buildAdjustForVPUPipeline(mlir::OpPassManager& pm, Logger log) {
 
 void vpux::IE::buildLowPrecisionPipeline(mlir::OpPassManager& pm, Logger log) {
     pm.addPass(IE::createSplitFakeQuantPass(log));
-    pm.addPass(IE::createQuantizeConstPass(log));
     // TODO: insert advanced LPT pipeline here
     pm.addPass(IE::createDequantizeConstPass(log));
     pm.addPass(IE::createMergeFakeQuantPass(log));

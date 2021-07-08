@@ -149,7 +149,7 @@ mlir::LogicalResult VPUIPLayerInfo::isSupportedLayout(mlir::Operation* origOp, D
     CASE(IERT::PerAxisTileOp, VPUIP::PerAxisTileUPAOp)
     CASE(IERT::NegativeOp, VPUIP::NegativeUPAOp)
     CASE(IERT::ROIPoolingOp, VPUIP::ROIPoolingUPAOp)
-    CASE(IERT::FullyConnectedOp, VPUIP::ConvolutionUPAOp)
+    CASE(IERT::FullyConnectedOp, VPUIP::FullyConnectedUPAOp)
     CASE(IERT::DetectionOutputOp, VPUIP::DetectionOutputUPAOp)
     CASE(IERT::ScaleShiftOp, VPUIP::ScaleShiftUPAOp)
     CASE(IERT::TransposeOp, VPUIP::PermuteUPAOp)

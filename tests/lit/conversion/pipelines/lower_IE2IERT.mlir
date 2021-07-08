@@ -1,4 +1,4 @@
-// RUN: vpux-opt --split-input-file --set-compile-params="vpu-arch=VPU3400_A0" --lower-IE-to-IERT %s | FileCheck %s
+// RUN: vpux-opt --split-input-file --set-compile-params="vpu-arch=VPU3700" --lower-IE-to-IERT %s | FileCheck %s
 
 //
 // The 'lower-IE-to-IERT' pass:
@@ -6,7 +6,7 @@
 //   * Fully replaces IE Dialect with IERT Dielect.
 //   * Changes all Values types from `tensor` to `memref`.
 //   * Changes Function results tensors to arguments.
-//   * Inserts `IERT.Copy` for `IERT.Constant` as result case.
+//   * Inserts `IERT.Copy` for `const.Declare` as result case.
 //
 
 // CHECK: func @SingleLayer([[ARG0:%.*]]: memref<1x1000xf16>, [[ARG1:%.*]]: memref<1x1000xf16>) -> memref<1x1000xf16> {
@@ -31,10 +31,10 @@ func @SingleLayer(%arg0: tensor<1x1000xf16>) -> tensor<1x1000xf16> {
 
 // CHECK: func @ConstantLayer([[ARG0:%.*]]: memref<1x2x2x2xf16>) -> memref<1x2x2x2xf16> {
 func @ConstantLayer() -> tensor<1x2x2x2xf16> {
-    %0 = IE.Constant tensor<1x2x2x2xf16> = dense<1.0> : tensor<1x2x2x2xf32>
+    %0 = const.Declare tensor<1x2x2x2xf16> = #const.Content<dense<1.0> : tensor<1x2x2x2xf16>>
     return %0 : tensor<1x2x2x2xf16>
 
-    // CHECK: [[VAR0:%.*]] = IERT.Constant memref<1x2x2x2xf16> = dense<1.000000e+00> : tensor<1x2x2x2xf32>
+    // CHECK: [[VAR0:%.*]] = const.Declare memref<1x2x2x2xf16> = #const.Content<dense<1.000000e+00> : tensor<1x2x2x2xf16>>
     // CHECK: [[VAR1:%.*]] = IERT.Copy inputs([[VAR0]] : memref<1x2x2x2xf16>) outputs([[ARG0]] : memref<1x2x2x2xf16>) -> memref<1x2x2x2xf16>
     // CHECK: return [[VAR1]] : memref<1x2x2x2xf16>
 }

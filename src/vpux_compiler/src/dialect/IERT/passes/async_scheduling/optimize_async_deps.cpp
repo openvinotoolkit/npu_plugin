@@ -21,6 +21,7 @@
 
 #include <llvm/ADT/DenseMap.h>
 #include <llvm/ADT/STLExtras.h>
+#include <llvm/ADT/SetOperations.h>
 #include <llvm/ADT/SmallPtrSet.h>
 
 #include <algorithm>
@@ -36,15 +37,12 @@ namespace {
 class Optimizer final {
 public:
     void buildDepsMap(mlir::FuncOp func, Logger log);
-    void optimizeDepsMap(Logger log);
+    void optimizeDepsMap(mlir::FuncOp func, Logger log);
     void addTokenDependencies(mlir::FuncOp func, Logger log);
     void optimizeWaitOps(Logger log);
 
 private:
     using OperationSet = llvm::SmallPtrSet<mlir::Operation*, 16>;
-
-private:
-    bool removeDepsOfDeps(OperationSet& curDepsSet, mlir::Operation* curDep, Logger log);
 
 private:
     SmallVector<mlir::async::ExecuteOp> _allExecOps;
@@ -115,30 +113,7 @@ void Optimizer::buildDepsMap(mlir::FuncOp func, Logger log) {
 // Optimizer::optimizeDepsMap
 //
 
-void Optimizer::optimizeDepsMap(Logger log) {
-    log.trace("Remove redundant dependencies");
-
-    for (auto execOp : _allExecOps) {
-        log.nest(1).trace("Process 'async.execute' Operation at '{0}'", execOp->getLoc());
-
-        auto& execDeps = _depsMap[execOp];
-
-        bool hasChanges = false;
-
-        do {
-            hasChanges = false;
-
-            for (auto* curDep : execDeps) {
-                if (removeDepsOfDeps(execDeps, curDep, log.nest(2))) {
-                    hasChanges = true;
-                    break;
-                }
-            }
-        } while (hasChanges);
-    }
-}
-
-bool Optimizer::removeDepsOfDeps(OperationSet& curDepsSet, mlir::Operation* curDep, Logger log) {
+void Optimizer::optimizeDepsMap(mlir::FuncOp func, Logger log) {
     //
     // A -> B -> C
     //
@@ -146,20 +121,20 @@ bool Optimizer::removeDepsOfDeps(OperationSet& curDepsSet, mlir::Operation* curD
     // since it will be implicit dependency taken from B.
     //
 
-    auto& depOfDeps = _depsMap[curDep];
+    log.trace("Remove redundant dependencies");
 
-    for (auto* redundantDep : depOfDeps) {
-        if (curDepsSet.erase(redundantDep)) {
-            log.trace("Remove 'async.execute' at '{0}' as redundant dependency", redundantDep->getLoc());
-            return true;
-        }
+    auto allExecOps = to_small_vector(func.getOps<mlir::async::ExecuteOp>());
 
-        if (removeDepsOfDeps(curDepsSet, redundantDep, log)) {
-            return true;
+    for (auto execOp : allExecOps | reversed) {
+        log.nest(1).trace("Process 'async.execute' Operation at '{0}'", execOp->getLoc());
+
+        auto& curDeps = _depsMap[execOp];
+
+        for (auto* curDep : curDeps) {
+            auto& depOfDeps = _depsMap[curDep];
+            llvm::set_subtract(curDeps, depOfDeps);
         }
     }
-
-    return false;
 }
 
 //
@@ -234,7 +209,7 @@ void OptimizeAsyncDepsPass::safeRunOnFunc() {
 
     Optimizer optimizer;
     optimizer.buildDepsMap(func, _log);
-    optimizer.optimizeDepsMap(_log);
+    optimizer.optimizeDepsMap(func, _log);
     optimizer.addTokenDependencies(func, _log);
     optimizer.optimizeWaitOps(_log);
 }

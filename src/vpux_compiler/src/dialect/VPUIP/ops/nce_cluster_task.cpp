@@ -122,8 +122,17 @@ mlir::LogicalResult verifyNCEConv(VPUIP::NCEClusterTaskOp op) {
         return errorAt(op, "weight_table is required for NCETaskType : '{0}'", op.task_type());
     }
 
-    if (mlir::failed(VPUIP::NCEInvariant::verifyKernel(op.kernel_sizeAttr(), op.kernel_stridesAttr(),
-                                                       op.kernel_paddingAttr()))) {
+    if (op.kernel_sizeAttr() == nullptr) {
+        return errorAt(op, "kernel_size is required for NCETaskType : '{0}'", op.task_type());
+    }
+    if (op.kernel_stridesAttr() == nullptr) {
+        return errorAt(op, "kernel_strides is required for NCETaskType : '{0}'", op.task_type());
+    }
+    if (op.kernel_paddingAttr() == nullptr) {
+        return errorAt(op, "kernel_padding is required for NCETaskType : '{0}'", op.task_type());
+    }
+
+    if (mlir::failed(VPUIP::NCEInvariant::verifyKernel(op->getLoc(), op.kernel_sizeAttr(), op.kernel_stridesAttr()))) {
         return mlir::failure();
     }
 
@@ -162,12 +171,21 @@ mlir::LogicalResult verifyNCEPool(VPUIP::NCEClusterTaskOp op) {
         return errorAt(op, "activation_window is required for NCETaskType : '{0}'", op.task_type());
     }
 
+    if (op.kernel_sizeAttr() == nullptr) {
+        return errorAt(op, "kernel_size is required for NCETaskType : '{0}'", op.task_type());
+    }
+    if (op.kernel_stridesAttr() == nullptr) {
+        return errorAt(op, "kernel_strides is required for NCETaskType : '{0}'", op.task_type());
+    }
+    if (op.kernel_paddingAttr() == nullptr) {
+        return errorAt(op, "kernel_padding is required for NCETaskType : '{0}'", op.task_type());
+    }
+
     if (op.activation_window_channel_lengthAttr() == nullptr) {
         return errorAt(op, "activation_window_channel_length is required for NCETaskType : '{0}'", op.task_type());
     }
 
-    if (mlir::failed(VPUIP::NCEInvariant::verifyKernel(op.kernel_sizeAttr(), op.kernel_stridesAttr(),
-                                                       op.kernel_paddingAttr()))) {
+    if (mlir::failed(VPUIP::NCEInvariant::verifyKernel(op->getLoc(), op.kernel_sizeAttr(), op.kernel_stridesAttr()))) {
         return mlir::failure();
     }
 

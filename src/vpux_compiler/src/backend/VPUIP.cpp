@@ -167,7 +167,12 @@ MVCNN::TargetDeviceRevision mapTargetDeviceRevision(const VPUIP::ArchKind kind) 
 
 flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(VPUIP::BlobWriter& writer, mlir::ModuleOp module,
                                                               VPUIP::GraphOp graphOp, IE::CNNNetworkOp netOp,
-                                                              mlir::FuncOp netFunc, ptrdiff_t taskCount) {
+                                                              mlir::FuncOp netFunc, mlir::TimingScope& rootTiming) {
+    auto scopeTiming = rootTiming.nest("Create summary header");
+
+    const auto allTasks = netFunc.getOps<VPUIP::TaskOpInterface>();
+    const auto taskCount = std::distance(allTasks.begin(), allTasks.end());
+
     auto inputsInfo = netOp.getInputsInfo();
     auto outputsInfo = netOp.getOutputsInfo();
 
@@ -239,48 +244,28 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(VPUIP::BlobWriter&
     return builder.Finish();
 }
 
-}  // namespace
+using TaskList = std::vector<VPUIP::BlobWriter::Task>;
+using TaskListMap = EnumMap<VPUIP::TaskType, TaskList>;
 
-flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, Logger log) {
-    log.setName("VPUIP::BackEnd");
-
-    log.trace("Extract 'IE.{0}' from Module", IE::CNNNetworkOp::getOperationName());
-    IE::CNNNetworkOp netOp;
-    mlir::FuncOp netFunc;
-    IE::CNNNetworkOp::getFromModule(module, netOp, netFunc);
-
-    log.trace("Extract 'VPUIP.{0}' from Module", VPUIP::GraphOp::getOperationName());
-    auto graphOp = VPUIP::GraphOp::getFromModule(module);
-
-    VPUIP::BlobWriter writer(log.nest());
-
-    const auto allTasks = netFunc.getOps<VPUIP::TaskOpInterface>();
-    const auto taskCount = std::distance(allTasks.begin(), allTasks.end());
-
-    const auto header = createSummaryHeader(writer, module, graphOp, netOp, netFunc, taskCount);
-
-    using TaskList = std::vector<VPUIP::BlobWriter::Task>;
-    using TaskListMap = EnumMap<VPUIP::TaskType, TaskList>;
-    TaskListMap tasksMap;
-
-    SmallVector<VPUIP::BlobWriter::BinaryData> binaryData;
-    SmallVector<VPUIP::BlobWriter::Barrier> virtBarriers;
-
-    uint32_t numBinaryBufs = 0;
-    netFunc.walk([&](VPUIP::DeclareConstantTensorOp op) {
-        numBinaryBufs = std::max(op.localeIndex() + 1, numBinaryBufs);
-    });
-    binaryData.resize(numBinaryBufs);
+void serializeNetFunc(VPUIP::BlobWriter& writer, mlir::FuncOp netFunc, VPUIP::GraphOp graphOp, TaskListMap& tasksMap,
+                      SmallVectorImpl<VPUIP::BlobWriter::BinaryData>& binaryData,
+                      SmallVectorImpl<VPUIP::BlobWriter::Barrier>& virtBarriers, mlir::TimingScope& rootTiming,
+                      Logger log) {
+    auto scopeTiming = rootTiming.nest("Serialize network function");
 
     size_t tempTensorInd = 0;
+    size_t constTensorInd = 0;
     const auto callback = [&](mlir::Operation* op) {
         log.trace("Serialize Operation '{0}' at '{1}'", op->getName(), op->getLoc());
 
         if (auto task = mlir::dyn_cast<VPUIP::TaskOpInterface>(op)) {
+            auto opTiming = scopeTiming.nest("Serialize task operation");
             log.nest().trace("Got '{0}' Task", task.getTaskType());
 
             tasksMap[task.getTaskType()].push_back(writer.createTask(task));
         } else if (auto tensorOp = mlir::dyn_cast<VPUIP::DeclareTensorOp>(op)) {
+            auto opTiming = scopeTiming.nest("Serialize tensor declaration");
+
             SmallVector<uint32_t> localeIndex;
             for (auto attr : tensorOp.localeIndex()) {
                 localeIndex.emplace_back(checked_cast<uint32_t>(attr.cast<mlir::IntegerAttr>().getInt()));
@@ -292,20 +277,20 @@ flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, Log
                                 tensorOp.trailingOffset());
 
             ++tempTensorInd;
-        } else if (auto constOp = mlir::dyn_cast<VPUIP::DeclareConstantTensorOp>(op)) {
-            log.nest().trace("Got constant with actual type '{0} and storage type '{1}'", constOp.getActualType(),
-                             constOp.getContentType());
+        } else if (auto constOp = mlir::dyn_cast<Const::DeclareOp>(op)) {
+            auto opTiming = scopeTiming.nest("Serialize constant declaration");
+            log.nest().trace("Got constant with type '{0}'", constOp.getType());
 
-            const auto content = constOp.getContent();
-            const auto actualType = constOp.getType();
-            const auto csramCacheable = constOp.csramCacheable();
+            const auto binData = writer.createBinaryData(constOp.contentAttr());
+            binaryData.push_back(binData);
 
-            const auto binData = writer.createBinaryData(content, actualType, csramCacheable);
-            binaryData[constOp.localeIndex()] = binData;
+            writer.createTensor(constOp.output(), llvm::formatv("constant-{0}", constTensorInd).str(),
+                                VPUIP::MemoryLocation::GraphFile, checked_cast<uint32_t>(constTensorInd), 0);
 
-            writer.createTensor(constOp.output(), llvm::formatv("constant-{0}", constOp.localeIndex()).str(),
-                                MemoryLocation::GraphFile, constOp.localeIndex(), 0);
+            ++constTensorInd;
         } else if (auto barrierOp = mlir::dyn_cast<VPUIP::DeclareVirtualBarrierOp>(op)) {
+            auto opTiming = scopeTiming.nest("Serialize barrier declaration");
+
             VPUX_THROW_UNLESS(VPUIP::bitEnumContains(graphOp.options(), VPUIP::ExecutionFlag::DynamicBarriers),
                               "Graph was not configured for virtual barriers usage");
 
@@ -321,9 +306,15 @@ flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, Log
     };
 
     netFunc.walk(callback);
+}
+
+std::vector<VPUIP::BlobWriter::TaskList> buildTaskLists(VPUIP::BlobWriter& writer, const TaskListMap& tasksMap,
+                                                        mlir::TimingScope& rootTiming, Logger log) {
+    auto scopeTiming = rootTiming.nest("Build task lists");
 
     std::vector<VPUIP::BlobWriter::TaskList> taskLists;
     taskLists.reserve(tasksMap.size());
+
     for (const auto& taskList : tasksMap) {
         log.trace("Serialize task list '{0}'", taskList.first);
 
@@ -334,22 +325,58 @@ flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, Log
         taskLists.push_back(builder.Finish());
     }
 
-    for (const auto& off : binaryData) {
-        VPUX_THROW_UNLESS(!off.IsNull(), "Binary data array was not serialized correctly");
-    }
+    return taskLists;
+}
+
+flatbuffers::Offset<MVCNN::GraphFile> createGraphFile(VPUIP::BlobWriter& writer,
+                                                      flatbuffers::Offset<MVCNN::SummaryHeader> header,
+                                                      ArrayRef<VPUIP::BlobWriter::TaskList> taskLists,
+                                                      ArrayRef<VPUIP::BlobWriter::BinaryData> binaryData,
+                                                      ArrayRef<VPUIP::BlobWriter::Barrier> virtBarriers,
+                                                      mlir::TimingScope& rootTiming) {
+    auto scopeTiming = rootTiming.nest("Create graph file");
 
     const auto serializedTaskLists = writer.createVector(taskLists);
-    const auto barrierTable = writer.createVector(virtBarriers);
     const auto serializedBinaryData = writer.createVector(binaryData);
+    const auto barrierTable = writer.createVector(virtBarriers);
 
     MVCNN::GraphFileBuilder graphBuilder(writer);
     graphBuilder.add_header(header);
     graphBuilder.add_task_lists(serializedTaskLists);
-    graphBuilder.add_barrier_table(barrierTable);
     graphBuilder.add_binary_data(serializedBinaryData);
-    const auto serializedGraph = graphBuilder.Finish();
+    graphBuilder.add_barrier_table(barrierTable);
 
-    writer.impl().Finish(serializedGraph, "BLOB");
+    return graphBuilder.Finish();
+}
 
+}  // namespace
+
+flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, mlir::TimingScope& rootTiming,
+                                                      Logger log) {
+    log.setName("VPUIP::BackEnd");
+
+    log.trace("Extract 'IE.{0}' from Module", IE::CNNNetworkOp::getOperationName());
+    IE::CNNNetworkOp netOp;
+    mlir::FuncOp netFunc;
+    IE::CNNNetworkOp::getFromModule(module, netOp, netFunc);
+
+    log.trace("Extract 'VPUIP.{0}' from Module", VPUIP::GraphOp::getOperationName());
+    auto graphOp = VPUIP::GraphOp::getFromModule(module);
+
+    VPUIP::BlobWriter writer(log.nest());
+
+    const auto header = createSummaryHeader(writer, module, graphOp, netOp, netFunc, rootTiming);
+
+    TaskListMap tasksMap;
+    SmallVector<VPUIP::BlobWriter::BinaryData> binaryData;
+    SmallVector<VPUIP::BlobWriter::Barrier> virtBarriers;
+    serializeNetFunc(writer, netFunc, graphOp, tasksMap, binaryData, virtBarriers, rootTiming, log);
+
+    const auto taskLists = buildTaskLists(writer, tasksMap, rootTiming, log);
+
+    const auto graphFile = createGraphFile(writer, header, taskLists, binaryData, virtBarriers, rootTiming);
+
+    auto finalTiming = rootTiming.nest("Finalize serialized graph");
+    writer.impl().Finish(graphFile, "BLOB");
     return writer.impl().Release();
 }

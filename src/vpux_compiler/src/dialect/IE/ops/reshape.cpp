@@ -12,6 +12,7 @@
 //
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
+#include "vpux/compiler/dialect/const/ops.hpp"
 
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/types.hpp"
@@ -43,12 +44,13 @@ mlir::FailureOr<SmallVector<int64_t>> getOutShape(IE::ReshapeOpAdaptor reshape, 
         return parseIntArrayAttr(reshape.shape_value());
     }
 
-    auto shapeConst = reshape.shape().getDefiningOp<ConstantInterface>();
+    auto shapeConst = reshape.shape().getDefiningOp<Const::DeclareOp>();
     if (shapeConst == nullptr) {
         return errorAt(loc, "Only constant input is supported for shape");
     }
 
-    auto shapeVec = to_small_vector(shapeConst.getContent().getValues<int64_t>());
+    const auto shapeContent = shapeConst.content();
+    auto shapeVec = to_small_vector(shapeContent.getValues<int64_t>());
 
     const auto specialZero = reshape.special_zero();
 
@@ -146,8 +148,9 @@ mlir::OpFoldResult vpux::IE::ReshapeOp::fold(ArrayRef<mlir::Attribute> operands)
     }
 
     VPUX_THROW_UNLESS(!operands.empty(), "Wrong number of operands : {0}", operands.size());
-    if (const auto attr = operands[0].dyn_cast_or_null<ConstContentAttr>()) {
-        return attr;
+
+    if (const auto attr = operands[0].dyn_cast_or_null<Const::ContentAttr>()) {
+        return attr.reshape(getShape(output()));
     }
 
     return nullptr;

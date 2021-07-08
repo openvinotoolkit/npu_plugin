@@ -124,6 +124,9 @@ void ConvertShapeTo4DPass::safeRunOnModule() {
     };
 
     mlir::ConversionTarget target(ctx);
+    target.addLegalDialect<Const::ConstDialect>();
+    target.addLegalDialect<IE::IEDialect>();
+    target.addLegalOp<mlir::ModuleOp>();
     target.addDynamicallyLegalOp<mlir::FuncOp>([&](mlir::FuncOp funcOp) {
         return typeConverter.isSignatureLegal(funcOp.getType());
     });
@@ -139,8 +142,6 @@ void ConvertShapeTo4DPass::safeRunOnModule() {
     target.addDynamicallyLegalOp<IE::AddOp>(isLegalOp);
     target.addDynamicallyLegalOp<IE::MultiplyOp>(isLegalOp);
     target.addDynamicallyLegalOp<IE::ScaleShiftOp>(isLegalOp);
-    target.addLegalOp<IE::ReshapeOp>();
-    target.addLegalOp<IE::ConstantOp>();
 
     mlir::RewritePatternSet patterns(&ctx);
     mlir::populateFuncOpTypeConversionPattern(patterns, typeConverter);

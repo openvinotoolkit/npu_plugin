@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -64,7 +64,7 @@ std::tuple<double, int64_t> vpux::calcScaleAndZeroPoint(int64_t qMin, int64_t qM
     return std::make_tuple(scale, zp);
 }
 
-mlir::quant::QuantizedType vpux::getQuantizedType(ConstantInterface lowConst, ConstantInterface highConst,
+mlir::quant::QuantizedType vpux::getQuantizedType(Const::ContentAttr lowConst, Const::ContentAttr highConst,
                                                   uint32_t levels, mlir::FloatType realType, mlir::Location loc) {
     if (lowConst == nullptr || highConst == nullptr) {
         (void)errorAt(loc, "Got non constant quantization parameters (low and high values)");
@@ -131,8 +131,8 @@ mlir::quant::QuantizedType vpux::getQuantizedType(ConstantInterface lowConst, Co
         return nullptr;
     }
 
-    const auto lowAttr = lowConst.getContent();
-    const auto highAttr = highConst.getContent();
+    const auto lowAttr = lowConst.fold();
+    const auto highAttr = highConst.fold();
 
     if (lowAttr.isSplat() && highAttr.isSplat()) {
         const auto low = lowAttr.getSplatValue<double>();
@@ -145,8 +145,8 @@ mlir::quant::QuantizedType vpux::getQuantizedType(ConstantInterface lowConst, Co
         return mlir::quant::UniformQuantizedType::getChecked(loc, isSigned ? mlir::quant::QuantizationFlags::Signed : 0,
                                                              storageType, realType, scale, zeroPoint, qMin, qMax);
     } else {
-        const auto lowShape = lowConst.getActualType().getShape();
-        const auto highShape = highConst.getActualType().getShape();
+        const auto lowShape = lowAttr.getShape();
+        const auto highShape = highAttr.getShape();
 
         if (lowShape != highShape) {
             (void)errorAt(loc, "Low values shape '{0}' doesn't match with high values shape '{1}'", lowShape,
@@ -156,7 +156,7 @@ mlir::quant::QuantizedType vpux::getQuantizedType(ConstantInterface lowConst, Co
 
         Optional<int32_t> axisInd;
         for (size_t i = 0; i < lowShape.size(); ++i) {
-            if (lowShape[i] == 1) {
+            if (lowShape[Dim(i)] == 1) {
                 continue;
             }
 
@@ -244,78 +244,14 @@ mlir::LogicalResult vpux::getFakeQuantParams(mlir::ShapedType qType, uint32_t& l
     }
 }
 
-//
-// Quantize support
-//
-
-int16_t vpux::quantize(float realVal, double scale, int64_t zeroPoint, int64_t qMin, int64_t qMax) {
-    const int64_t temp = static_cast<int64_t>(std::round(realVal / scale + zeroPoint));
-    return checked_cast<int16_t>(std::min(qMax, std::max(qMin, temp)));
-}
-
-mlir::DenseElementsAttr vpux::quantize(ConstContentAttr input, mlir::ShapedType qType, mlir::Location loc) {
-    const auto qElemType = qType.getElementType().dyn_cast<mlir::quant::QuantizedType>();
-    if (qElemType == nullptr) {
-        (void)errorAt(loc, "Unsupported Quantized Type '{0}'", qType.getElementType());
-        return nullptr;
+mlir::Type vpux::normalizeQuantStorageType(mlir::Type type) {
+    if (const auto intType = type.dyn_cast<mlir::IntegerType>()) {
+        // add sign semantic
+        if (intType.isSignless()) {
+            return mlir::IntegerType::get(intType.getContext(), intType.getWidth(), mlir::IntegerType::Unsigned);
+        }
     }
-
-    // I16 should be enough to hold all supported quantized storage types
-    const auto attrStorageType =
-            mlir::RankedTensorType::getChecked(loc, qType.getShape(), getSInt16Type(input.getContext()));
-    if (attrStorageType == nullptr) {
-        return nullptr;
-    }
-
-    const auto attrType = mlir::RankedTensorType::getChecked(loc, qType.getShape(), qElemType.getStorageType());
-    if (attrType == nullptr) {
-        return nullptr;
-    }
-
-    const auto qMin = qElemType.getStorageTypeMin();
-    const auto qMax = qElemType.getStorageTypeMax();
-
-    const auto realVals = input.getValues<float>();
-    SmallVector<int16_t> qVals(realVals.size());
-
-    if (const auto uniformType = qElemType.dyn_cast<mlir::quant::UniformQuantizedType>()) {
-        const auto scale = uniformType.getScale();
-        const auto zeroPoint = uniformType.getZeroPoint();
-
-        loop_1d(LoopExecPolicy::Parallel, realVals.size(), [&](size_t i) {
-            qVals[i] = quantize(realVals[i], scale, zeroPoint, qMin, qMax);
-        });
-    } else if (const auto uniformType = qElemType.dyn_cast<mlir::quant::UniformQuantizedPerAxisType>()) {
-        const auto scales = uniformType.getScales();
-        const auto zeroPoints = uniformType.getZeroPoints();
-        const auto axis = Dim(uniformType.getQuantizedDimension());
-
-        const auto dimsOrder = DimsOrder::fromNumDims(qType.getRank());
-        const auto memAxis = dimsOrder.toMemDim(axis);
-        const auto memShape = dimsOrder.toMemoryOrder(getShape(qType));
-
-        const auto innerSize = memShape[memAxis];
-        const auto outerSize = subspace::getTotalLines(memShape, memAxis);
-        const auto outerShape = subspace::arrayElementExclude(memShape, memAxis);
-
-        VPUX_THROW_UNLESS(scales.size() == checked_cast<size_t>(innerSize), "Wrong scales size '{0}', expected '{1}'",
-                          scales.size(), innerSize);
-        VPUX_THROW_UNLESS(zeroPoints.size() == checked_cast<size_t>(innerSize),
-                          "Wrong zeroPoints size '{0}', expected '{1}'", zeroPoints.size(), innerSize);
-
-        loop_2d(LoopExecPolicy::Parallel, outerSize, innerSize, [&](int64_t outerInd, int64_t innerInd) {
-            const auto outerIndND = getMemIndexND(outerInd, outerShape);
-            const auto fullIndND = subspace::arrayElementInclude(outerIndND, memAxis, innerInd);
-            const auto fullInd1D = getMemIndex1D(fullIndND, memShape);
-
-            qVals[fullInd1D] = quantize(realVals[fullInd1D], scales[innerInd], zeroPoints[innerInd], qMin, qMax);
-        });
-    } else {
-        (void)errorAt(loc, "Unsupported Quantized Type '{0}'", qElemType);
-        return nullptr;
-    }
-
-    return mlir::DenseElementsAttr::get(attrStorageType, makeArrayRef(qVals));
+    return type;
 }
 
 //
@@ -324,65 +260,4 @@ mlir::DenseElementsAttr vpux::quantize(ConstContentAttr input, mlir::ShapedType 
 
 float vpux::dequantize(int64_t qVal, double scale, int64_t zeroPoint) {
     return static_cast<float>((qVal - zeroPoint) * scale);
-}
-
-mlir::DenseElementsAttr vpux::dequantize(ConstContentAttr input, mlir::ShapedType qType, mlir::Location loc) {
-    const auto qElemType = qType.getElementType().dyn_cast<mlir::quant::QuantizedType>();
-    if (qElemType == nullptr) {
-        (void)errorAt(loc, "Unsupported Quantized Type '{0}'", qType.getElementType());
-        return nullptr;
-    }
-
-    const auto attrStorageType =
-            mlir::RankedTensorType::getChecked(loc, qType.getShape(), mlir::Float32Type::get(input.getContext()));
-    if (attrStorageType == nullptr) {
-        return nullptr;
-    }
-
-    const auto attrType = mlir::RankedTensorType::getChecked(loc, qType.getShape(), qElemType.getExpressedType());
-    if (attrType == nullptr) {
-        return nullptr;
-    }
-
-    const auto qVals = input.getValues<int64_t>();
-    SmallVector<float> realVals(qVals.size());
-
-    if (const auto uniformType = qElemType.dyn_cast<mlir::quant::UniformQuantizedType>()) {
-        const auto scale = uniformType.getScale();
-        const auto zeroPoint = uniformType.getZeroPoint();
-
-        loop_1d(LoopExecPolicy::Parallel, realVals.size(), [&](size_t i) {
-            realVals[i] = dequantize(qVals[i], scale, zeroPoint);
-        });
-    } else if (const auto uniformType = qElemType.dyn_cast<mlir::quant::UniformQuantizedPerAxisType>()) {
-        const auto scales = uniformType.getScales();
-        const auto zeroPoints = uniformType.getZeroPoints();
-        const auto axis = Dim(uniformType.getQuantizedDimension());
-
-        const auto dimsOrder = DimsOrder::fromNumDims(qType.getRank());
-        const auto memAxis = dimsOrder.toMemDim(axis);
-        const auto memShape = dimsOrder.toMemoryOrder(getShape(qType));
-
-        const auto innerSize = memShape[memAxis];
-        const auto outerSize = subspace::getTotalLines(memShape, memAxis);
-        const auto outerShape = subspace::arrayElementExclude(memShape, memAxis);
-
-        VPUX_THROW_UNLESS(scales.size() == checked_cast<size_t>(innerSize), "Wrong scales size '{0}', expected '{1}'",
-                          scales.size(), innerSize);
-        VPUX_THROW_UNLESS(zeroPoints.size() == checked_cast<size_t>(innerSize),
-                          "Wrong zeroPoints size '{0}', expected '{1}'", zeroPoints.size(), innerSize);
-
-        loop_2d(LoopExecPolicy::Parallel, outerSize, innerSize, [&](int64_t outerInd, int64_t innerInd) {
-            const auto outerIndND = getMemIndexND(outerInd, outerShape);
-            const auto fullIndND = subspace::arrayElementInclude(outerIndND, memAxis, innerInd);
-            const auto fullInd1D = getMemIndex1D(fullIndND, memShape);
-
-            realVals[fullInd1D] = dequantize(qVals[fullInd1D], scales[innerInd], zeroPoints[innerInd]);
-        });
-    } else {
-        (void)errorAt(loc, "Unsupported Quantized Type '{0}'", qElemType);
-        return nullptr;
-    }
-
-    return mlir::DenseElementsAttr::get(attrStorageType, makeArrayRef(realVals));
 }
