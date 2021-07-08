@@ -32,39 +32,11 @@ using namespace vpux;
 namespace {
 
 //
-// BufferizeIEPass
-//
-
-class BufferizeIEPass final : public BufferizeIEBase<BufferizeIEPass> {
-public:
-    explicit BufferizeIEPass(Logger log) {
-        Base::initLogger(log, Base::getArgumentName());
-    }
-
-public:
-    class ConstantRewrite;
-    class GenericReshapeRewrite;
-    class SplitRewrite;
-    class ConcatRewrite;
-    class SubtensorRewrite;
-    class ExpandRewrite;
-    class LayerRewrite;
-
-public:
-    static SmallVector<mlir::Value> allocateResults(mlir::Location loc, mlir::OpBuilder& builder,
-                                                    mlir::TypeConverter& typeConverter, mlir::ValueRange origResults);
-
-private:
-    void safeRunOnFunc() final;
-};
-
-//
 // allocateResults
 //
 
-SmallVector<mlir::Value> BufferizeIEPass::allocateResults(mlir::Location loc, mlir::OpBuilder& builder,
-                                                          mlir::TypeConverter& typeConverter,
-                                                          mlir::ValueRange origResults) {
+SmallVector<mlir::Value> allocateResults(mlir::Location loc, mlir::OpBuilder& builder,
+                                         mlir::TypeConverter& typeConverter, mlir::ValueRange origResults) {
     return to_small_vector(origResults | transformed([&](mlir::Value origVal) -> mlir::Value {
                                auto origType = origVal.getType();
                                auto memRefType = typeConverter.convertType(origType);
@@ -75,14 +47,14 @@ SmallVector<mlir::Value> BufferizeIEPass::allocateResults(mlir::Location loc, ml
 }
 
 //
-// GenericReshapeRewrite
+// ReshapeRewrite
 //
 
-class BufferizeIEPass::GenericReshapeRewrite final :
-        public mlir::OpInterfaceConversionPattern<mlir::ViewLikeOpInterface> {
+class ReshapeRewrite final : public mlir::OpInterfaceConversionPattern<mlir::ViewLikeOpInterface> {
 public:
-    GenericReshapeRewrite(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
+    ReshapeRewrite(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
             : mlir::OpInterfaceConversionPattern<mlir::ViewLikeOpInterface>(typeConverter, ctx), _log(log) {
+        setDebugName("ReshapeRewrite");
     }
 
 public:
@@ -93,14 +65,13 @@ private:
     Logger _log;
 };
 
-mlir::LogicalResult BufferizeIEPass::GenericReshapeRewrite::matchAndRewrite(
-        mlir::ViewLikeOpInterface origOp, ArrayRef<mlir::Value> newOperands,
-        mlir::ConversionPatternRewriter& rewriter) const {
+mlir::LogicalResult ReshapeRewrite::matchAndRewrite(mlir::ViewLikeOpInterface origOp, ArrayRef<mlir::Value> newOperands,
+                                                    mlir::ConversionPatternRewriter& rewriter) const {
     if (!mlir::isa<IE::ReshapeOp, IE::SqueezeOp, IE::UnsqueezeOp>(origOp)) {
         return mlir::failure();
     }
 
-    _log.trace("Found GenericReshape Operation '{0}' at '{1}'", origOp->getName(), origOp->getLoc());
+    _log.trace("Found Reshape Operation '{0}' at '{1}'", origOp->getName(), origOp->getLoc());
 
     const auto outType = origOp->getResult(0).getType().cast<mlir::ShapedType>();
 
@@ -123,10 +94,11 @@ mlir::LogicalResult BufferizeIEPass::GenericReshapeRewrite::matchAndRewrite(
 // SplitRewrite
 //
 
-class BufferizeIEPass::SplitRewrite final : public mlir::OpConversionPattern<IE::SplitOp> {
+class SplitRewrite final : public mlir::OpConversionPattern<IE::SplitOp> {
 public:
     SplitRewrite(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
             : mlir::OpConversionPattern<IE::SplitOp>(typeConverter, ctx), _log(log) {
+        setDebugName("SplitRewrite");
     }
 
 public:
@@ -137,9 +109,8 @@ private:
     Logger _log;
 };
 
-mlir::LogicalResult BufferizeIEPass::SplitRewrite::matchAndRewrite(IE::SplitOp origOp,
-                                                                   ArrayRef<mlir::Value> newOperands,
-                                                                   mlir::ConversionPatternRewriter& rewriter) const {
+mlir::LogicalResult SplitRewrite::matchAndRewrite(IE::SplitOp origOp, ArrayRef<mlir::Value> newOperands,
+                                                  mlir::ConversionPatternRewriter& rewriter) const {
     _log.trace("Found Split Operation '{0}'", origOp->getLoc());
 
     VPUX_THROW_UNLESS(newOperands.size() == origOp->getNumOperands(),
@@ -192,10 +163,11 @@ mlir::LogicalResult BufferizeIEPass::SplitRewrite::matchAndRewrite(IE::SplitOp o
 // ConcatRewrite
 //
 
-class BufferizeIEPass::ConcatRewrite final : public mlir::OpConversionPattern<IE::ConcatOp> {
+class ConcatRewrite final : public mlir::OpConversionPattern<IE::ConcatOp> {
 public:
     ConcatRewrite(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
             : mlir::OpConversionPattern<IE::ConcatOp>(typeConverter, ctx), _log(log) {
+        setDebugName("ConcatRewrite");
     }
 
 public:
@@ -206,10 +178,9 @@ private:
     Logger _log;
 };
 
-mlir::LogicalResult BufferizeIEPass::ConcatRewrite::matchAndRewrite(IE::ConcatOp origOp,
-                                                                    ArrayRef<mlir::Value> newOperands,
-                                                                    mlir::ConversionPatternRewriter& rewriter) const {
-    _log.trace("Found Layer Operation '{0}'", origOp->getLoc());
+mlir::LogicalResult ConcatRewrite::matchAndRewrite(IE::ConcatOp origOp, ArrayRef<mlir::Value> newOperands,
+                                                   mlir::ConversionPatternRewriter& rewriter) const {
+    _log.trace("Found Concat Operation '{0}'", origOp->getLoc());
 
     VPUX_THROW_UNLESS(newOperands.size() == origOp->getNumOperands(),
                       "Got wrong newOperands size : '{0}', expected '{1}'", newOperands.size(),
@@ -250,26 +221,28 @@ mlir::LogicalResult BufferizeIEPass::ConcatRewrite::matchAndRewrite(IE::ConcatOp
 }
 
 //
-// StdSubtensorRewrite
+// SubTensorRewrite
 //
 
-class BufferizeIEPass::SubtensorRewrite final : public mlir::OpConversionPattern<mlir::SubTensorOp> {
+class SubTensorRewrite final : public mlir::OpConversionPattern<mlir::tensor::ExtractSliceOp> {
 public:
-    SubtensorRewrite(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
-            : mlir::OpConversionPattern<mlir::SubTensorOp>(typeConverter, ctx), _log(log) {
+    SubTensorRewrite(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
+            : mlir::OpConversionPattern<mlir::tensor::ExtractSliceOp>(typeConverter, ctx), _log(log) {
+        setDebugName("SubTensorRewrite");
     }
 
 public:
-    mlir::LogicalResult matchAndRewrite(mlir::SubTensorOp origOp, ArrayRef<mlir::Value> newOperands,
+    mlir::LogicalResult matchAndRewrite(mlir::tensor::ExtractSliceOp origOp, ArrayRef<mlir::Value> newOperands,
                                         mlir::ConversionPatternRewriter& rewriter) const final;
 
 private:
     Logger _log;
 };
 
-mlir::LogicalResult BufferizeIEPass::SubtensorRewrite::matchAndRewrite(
-        mlir::SubTensorOp origOp, ArrayRef<mlir::Value> newOperands, mlir::ConversionPatternRewriter& rewriter) const {
-    _log.trace("Found Layer Operation '{0}'", origOp->getLoc());
+mlir::LogicalResult SubTensorRewrite::matchAndRewrite(mlir::tensor::ExtractSliceOp origOp,
+                                                      ArrayRef<mlir::Value> newOperands,
+                                                      mlir::ConversionPatternRewriter& rewriter) const {
+    _log.trace("Found SubTensor Operation '{0}'", origOp->getLoc());
 
     VPUX_THROW_UNLESS(newOperands.size() == origOp->getNumOperands(),
                       "Got wrong newOperands size : '{0}', expected '{1}'", newOperands.size(),
@@ -291,10 +264,11 @@ mlir::LogicalResult BufferizeIEPass::SubtensorRewrite::matchAndRewrite(
 // ExpandRewrite
 //
 
-class BufferizeIEPass::ExpandRewrite final : public mlir::OpConversionPattern<IE::ExpandOp> {
+class ExpandRewrite final : public mlir::OpConversionPattern<IE::ExpandOp> {
 public:
     ExpandRewrite(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
             : mlir::OpConversionPattern<IE::ExpandOp>(typeConverter, ctx), _log(log) {
+        setDebugName("ExpandRewrite");
     }
 
 public:
@@ -305,10 +279,10 @@ private:
     Logger _log;
 };
 
-mlir::LogicalResult BufferizeIEPass::ExpandRewrite::matchAndRewrite(IE::ExpandOp origOp,
-                                                                    ArrayRef<mlir::Value> newOperands,
-                                                                    mlir::ConversionPatternRewriter& rewriter) const {
+mlir::LogicalResult ExpandRewrite::matchAndRewrite(IE::ExpandOp origOp, ArrayRef<mlir::Value> newOperands,
+                                                   mlir::ConversionPatternRewriter& rewriter) const {
     _log.trace("Found Expand Operation '{0}'", origOp->getLoc());
+
     auto* typeConverter = getTypeConverter();
     VPUX_THROW_UNLESS(typeConverter != nullptr, "ExpandRewrite: failed to get type converter");
 
@@ -438,7 +412,8 @@ mlir::Operation* createRTLayer(IE::AvgPoolOp origOp, ArrayRef<mlir::Value> allBu
 mlir::Operation* createRTLayer(IE::MaxPoolOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::MaxPoolOp::Adaptor newOp(allBufs);
     return b.create<IERT::MaxPoolOp>(origOp.getLoc(), newOp.input(), newOp.output_buff(), origOp.kernel_sizeAttr(),
-                                     origOp.stridesAttr(), origOp.pads_beginAttr(), origOp.pads_endAttr());
+                                     origOp.stridesAttr(), origOp.pads_beginAttr(), origOp.pads_endAttr(),
+                                     origOp.post_opAttr());
 }
 
 mlir::Operation* createRTLayer(IE::ClampOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
@@ -486,7 +461,7 @@ mlir::Operation* createRTLayer(IE::ConvolutionOp origOp, ArrayRef<mlir::Value> a
     IERT::ConvolutionOp::Adaptor newOp(allBufs);
     return b.create<IERT::ConvolutionOp>(origOp.getLoc(), newOp.input(), newOp.filter(), newOp.bias(),
                                          newOp.output_buff(), origOp.stridesAttr(), origOp.pads_beginAttr(),
-                                         origOp.pads_endAttr(), origOp.dilationsAttr());
+                                         origOp.pads_endAttr(), origOp.dilationsAttr(), origOp.post_opAttr());
 }
 
 mlir::Operation* createRTLayer(IE::GroupConvolutionOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
@@ -590,10 +565,11 @@ mlir::Operation* createRTLayer(IE::StridedSliceOp origOp, ArrayRef<mlir::Value> 
                                           origOp.ends_attr().getValue(), origOp.strides_attr().getValue());
 }
 
-class BufferizeIEPass::LayerRewrite final : public mlir::ConversionPattern {
+class LayerRewrite final : public mlir::ConversionPattern {
 public:
     LayerRewrite(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
             : mlir::ConversionPattern(typeConverter, mlir::Pattern::MatchAnyOpTypeTag{}, benefitLow, ctx), _log(log) {
+        setDebugName("LayerRewrite");
     }
 
 public:
@@ -609,14 +585,12 @@ private:
 };
 
 template <class InLayerOp>
-mlir::Operation* BufferizeIEPass::LayerRewrite::dispatch(mlir::Operation* origOp, ArrayRef<mlir::Value> allBufs,
-                                                         mlir::OpBuilder& b) {
+mlir::Operation* LayerRewrite::dispatch(mlir::Operation* origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     return createRTLayer(mlir::cast<InLayerOp>(origOp), allBufs, b);
 }
 
-mlir::LogicalResult BufferizeIEPass::LayerRewrite::matchAndRewrite(mlir::Operation* origOp,
-                                                                   ArrayRef<mlir::Value> newOperands,
-                                                                   mlir::ConversionPatternRewriter& rewriter) const {
+mlir::LogicalResult LayerRewrite::matchAndRewrite(mlir::Operation* origOp, ArrayRef<mlir::Value> newOperands,
+                                                  mlir::ConversionPatternRewriter& rewriter) const {
     using CreateFunc =
             mlir::Operation* (*)(mlir::Operation * origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder & b);
 
@@ -699,8 +673,18 @@ mlir::LogicalResult BufferizeIEPass::LayerRewrite::matchAndRewrite(mlir::Operati
 }
 
 //
-// safeRunOnFunc
+// BufferizeIEPass
 //
+
+class BufferizeIEPass final : public BufferizeIEBase<BufferizeIEPass> {
+public:
+    explicit BufferizeIEPass(Logger log) {
+        Base::initLogger(log, Base::getArgumentName());
+    }
+
+private:
+    void safeRunOnFunc() final;
+};
 
 void BufferizeIEPass::safeRunOnFunc() {
     auto& ctx = getContext();
@@ -722,11 +706,11 @@ void BufferizeIEPass::safeRunOnFunc() {
     mlir::populateBufferizeMaterializationLegality(target);
 
     mlir::RewritePatternSet patterns(&ctx);
-    patterns.insert<GenericReshapeRewrite>(typeConverter, &ctx, _log);
+    patterns.insert<ReshapeRewrite>(typeConverter, &ctx, _log);
     patterns.insert<SplitRewrite>(typeConverter, &ctx, _log);
     patterns.insert<ConcatRewrite>(typeConverter, &ctx, _log);
     patterns.insert<LayerRewrite>(typeConverter, &ctx, _log);
-    patterns.insert<SubtensorRewrite>(typeConverter, &ctx, _log);
+    patterns.insert<SubTensorRewrite>(typeConverter, &ctx, _log);
     patterns.insert<ExpandRewrite>(typeConverter, &ctx, _log);
     Const::ConstDialect::populateBufferizePatterns(patterns, typeConverter, _log);
 

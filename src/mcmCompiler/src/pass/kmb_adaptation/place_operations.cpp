@@ -59,7 +59,7 @@ void placeNeutralMaxPoolBefore(const mv::pass::PassEntry&, mv::ComputationModel&
             {
                 auto inputFlow = concatOp.leftmostInput();
                 const auto outputTensor = sourceOp->getOutputTensor(mv::IO_TENSOR_OUTPUT);
-                auto neutralMaxPool = om.maxPool(concatOp->getName() + "MaxPool", outputTensor, {1,1}, {1,1}, {0, 0, 0, 0}, false);
+                auto neutralMaxPool = om.maxPool(concatOp->getName() + "MaxPool" + std::to_string(i), outputTensor, {1,1}, {1,1}, {0, 0, 0, 0}, false);
                 neutralMaxPool->setQuantParams(outputTensor->getQuantParams());
                 auto maxPoolOp = om.getSourceOp(neutralMaxPool);
                 maxPoolOp->set<unsigned>("opId", sourceOp->get<unsigned>("opId"));

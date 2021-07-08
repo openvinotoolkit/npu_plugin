@@ -35,9 +35,10 @@
 #include "ngraph_mcm_frontend/passes/insert_maxpool.hpp"
 #include "ngraph_mcm_frontend/passes/replace_shuffle.hpp"
 #include "ngraph_mcm_frontend/passes/handle_3d_transpose.hpp"
-#include <ngraph_mcm_frontend/passes/propagate_fq.hpp>
+#include "vpux/passes/propagate_fq.hpp"
 #include <ngraph_mcm_frontend/passes/align_scales.hpp>
 #include <ngraph_mcm_frontend/passes/detect_input_fq.hpp>
+#include <ngraph_mcm_frontend/passes/remove_splitConcat.hpp>
 
 #include "vpux/utils/core/error.hpp"
 
@@ -453,6 +454,7 @@ void applyTransformations(
 
     ngraph::pass::Manager passManager;
     passManager.register_pass<ngraph::pass::InitNodeInfo>();
+    passManager.register_pass<RemoveSplitConcat>();
     passManager.register_pass<ngraph::pass::ConvertQuantizeDequantize>();
     passManager.register_pass<ngraph::pass::WeightsDequantizeToFakeQuantize>();
     passManager.register_pass<ngraph::pass::ConstantFolding>();

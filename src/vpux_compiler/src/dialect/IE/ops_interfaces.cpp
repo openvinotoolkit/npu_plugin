@@ -38,3 +38,9 @@ mlir::LogicalResult IE::verifyIELayerOp(mlir::Operation* op) {
 
     return mlir::success();
 }
+
+//
+// Generated
+//
+
+#include <vpux/compiler/dialect/IE/generated/ops_interfaces.cpp.inc>

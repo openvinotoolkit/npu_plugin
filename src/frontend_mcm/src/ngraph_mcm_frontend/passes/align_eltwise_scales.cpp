@@ -23,7 +23,7 @@
 
 #include <legacy/ngraph_ops/eltwise.hpp>
 
-#include "ngraph_mcm_frontend/quantization_helpers.hpp"
+#include "vpux/quantization_helpers.hpp"
 
 namespace {
 

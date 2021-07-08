@@ -20,10 +20,8 @@ static void validateImplicitResampleConvStreaming(const mv::pass::PassEntry&, mv
 
 namespace mv
 {
-
     namespace pass
     {
-
         MV_REGISTER_PASS(StoreGraphOptimizerDecisions)
         .setFunc(storeGraphOptimizerDecisions)
         .setDescription(
@@ -516,10 +514,7 @@ void ensureCMXConcatsDMASPlacedCorrectly(const mv::pass::PassEntry&,
                 if (opIt->isHardwarizable() && streaming_strategy[1].get<int>("H") > 1 &&
                         opIt->hasAttr("splitStrategy"))
                 {
-                    if (opIt->get<std::string>("splitStrategy") == "SplitOverH")
-                    {
-                        opIt->set<bool>("avoidCmxConcat", true);
-                    }
+                    opIt->set<bool>("avoidCmxConcat", true);
                 }
             }
             else if (opIt->getOpType() == "Concat")
@@ -574,6 +569,4 @@ void validateImplicitResampleConvStreaming(const mv::pass::PassEntry&, mv::Compu
             }
         }
     }
-
-
 }

@@ -589,7 +589,7 @@ def VPUIP_ConvolutionUPAOp :
     }];
 
     let extraClassDeclaration = [{
-        static mlir::LogicalResult isSupportedLayout(mlir::Operation* op, vpux::DataOrderInfo& info);
+        static bool isSupportedLayout(mlir::Operation* op, vpux::DataOrderInfo& info);
     }] # commonExtraClassDeclaration;
 
     let verifier = [{
@@ -1074,7 +1074,7 @@ def VPUIP_QuantCastUPAOp :
     }];
 
     let extraClassDeclaration = [{
-        static mlir::LogicalResult isSupportedLayout(mlir::Operation* op, vpux::DataOrderInfo& info);
+        static bool isSupportedLayout(mlir::Operation* op, vpux::DataOrderInfo& info);
     }] # commonExtraClassDeclaration;
 }
 
@@ -1818,7 +1818,7 @@ def VPUIP_NCEClusterTaskOp :
         vpux::VPUIP::PPETaskOp addPPETask(mlir::OpBuilder& builder,
                                           vpux::VPUIP::PPELayerType ppe_layer_type);
 
-        static mlir::LogicalResult isSupportedLayout(mlir::Operation* op, vpux::DataOrderInfo& info);
+        static bool isSupportedLayout(mlir::Operation* op, vpux::DataOrderInfo& info);
 
         static vpux::VPUIP::TaskType getTaskType() {
             return vpux::VPUIP::TaskType::NCE2;
@@ -1880,7 +1880,7 @@ def VPUIP_CTCGreedyDecoderUPAOp :
     }];
 
     let extraClassDeclaration = [{
-        static mlir::LogicalResult isSupportedLayout(mlir::Operation* op, vpux::DataOrderInfo& info);
+        static bool isSupportedLayout(mlir::Operation* op, vpux::DataOrderInfo& info);
     }] # commonExtraClassDeclaration;
 }
 
@@ -1937,7 +1937,7 @@ def VPUIP_CTCGreedyDecoderSeqLenUPAOp :
     }];
 
     let extraClassDeclaration = [{
-        static mlir::LogicalResult isSupportedLayout(mlir::Operation* op, vpux::DataOrderInfo& info);
+        static bool isSupportedLayout(mlir::Operation* op, vpux::DataOrderInfo& info);
     }] # commonExtraClassDeclaration;
 }
 
@@ -2204,7 +2204,7 @@ def VPUIP_FullyConnectedUPAOp :
     ];
 
     let extraClassDeclaration = [{
-        static mlir::LogicalResult isSupportedLayout(mlir::Operation* op, vpux::DataOrderInfo& info);
+        static bool isSupportedLayout(mlir::Operation* op, vpux::DataOrderInfo& info);
     }] # commonExtraClassDeclaration;
 
     let assemblyFormat = [{

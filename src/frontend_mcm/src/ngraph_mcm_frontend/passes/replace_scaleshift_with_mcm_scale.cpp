@@ -26,7 +26,7 @@
 
 #include <ngraph/op/constant.hpp>
 
-#include "ngraph_mcm_frontend/quantization_helpers.hpp"
+#include "vpux/quantization_helpers.hpp"
 
 #include <ngraph/op/fake_quantize.hpp>
 

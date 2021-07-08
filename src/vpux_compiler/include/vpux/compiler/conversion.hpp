@@ -49,7 +49,6 @@ std::unique_ptr<mlir::Pass> createAddBuffersForNetResults(Logger log = Logger::g
 //
 
 std::unique_ptr<mlir::Pass> createConvertToNCEOpsPass(Logger log = Logger::global());
-std::unique_ptr<mlir::Pass> createFuseActivationsPass(Logger log = Logger::global());
 
 //
 // Performs full lowering from the IERT Dialect to VPUIP Dialect.

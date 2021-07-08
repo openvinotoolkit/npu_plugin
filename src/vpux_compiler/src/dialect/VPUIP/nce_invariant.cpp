@@ -34,6 +34,11 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyConvChannels(mlir::Location
                                                                   Logger log) {
     log.setName("NCEInvariant");
 
+    if (filterType.getRank() != 4) {
+        log.trace("[{0}] Filter has unsupported rank: {1}", loc, filterType.getRank());
+        return mlir::failure();
+    }
+
     const auto filterShape = getShape(filterType);
     const auto OC = filterShape[IERT::ConvolutionOp::filter_out_channel_dim()];
     const auto IC = filterShape[IERT::ConvolutionOp::filter_in_channel_dim()];
@@ -66,6 +71,11 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPoolChannels(mlir::Location
                                                                   Logger log) {
     log.setName("NCEInvariant");
 
+    if (inputType.getRank() != 4) {
+        log.trace("[{0}] Input has unsupported rank: {1}", loc, inputType.getRank());
+        return mlir::failure();
+    }
+
     const auto inputShape = getShape(inputType);
     const auto IC = inputShape[IERT::MaxPoolOp::act_channel_dim()];
 
@@ -86,8 +96,52 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyChannels(IERT::MaxPoolOp or
 }
 
 //
+// verifyEltwiseChannels
+//
+
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyEltwiseChannels(mlir::Location loc,
+                                                                     mlir::ShapedType firstInputType,
+                                                                     mlir::ShapedType secondInputType, Logger log) {
+    log.setName("NCEInvariant");
+    if (firstInputType.getRank() != 4) {
+        log.trace("[{0}] Eltwise input1 shape does not have 4 dimensions. Not supported.", loc);
+        return mlir::failure();
+    }
+
+    if (secondInputType.getRank() != 4) {
+        log.trace("[{0}] Eltwise input2 shape does not have 4 dimensions. Not supported.", loc);
+        return mlir::failure();
+    }
+
+    const auto firstInputShape = getShape(firstInputType);
+    const auto secondInputShape = getShape(secondInputType);
+    const auto firstIC = firstInputShape[IERT::MaxPoolOp::act_channel_dim()];
+    const auto secondIC = secondInputShape[IERT::MaxPoolOp::act_channel_dim()];
+
+    if (firstIC % getChannelAlignment(firstInputType.getElementType()) != 0) {
+        log.trace("[{0}] Eltwise input1 channels are not aligned", loc);
+        return mlir::failure();
+    }
+
+    if (secondIC % getChannelAlignment(secondInputType.getElementType()) != 0) {
+        log.trace("[{0}] Eltwise input2 channels are not aligned", loc);
+        return mlir::failure();
+    }
+
+    return mlir::success();
+}
+
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyChannels(IERT::AddOp origOp, Logger log) {
+    auto input1Type = origOp.input1().getType().cast<mlir::ShapedType>();
+    auto input2Type = origOp.input2().getType().cast<mlir::ShapedType>();
+    return verifyEltwiseChannels(origOp->getLoc(), input1Type, input2Type, log);
+}
+
+//
 // verifyConvCMX
 //
+
+namespace {
 
 Byte getCMXSize(mlir::ModuleOp module) {
     auto resOp = IERT::RunTimeResourcesOp::getFromModule(module);
@@ -111,6 +165,8 @@ Byte getRequiredCMX(ArrayRef<mlir::MemRefType> operands, int64_t numChannels) {
 
     return requiredCMX;
 }
+
+}  // namespace
 
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyConvCMX(mlir::Location loc, mlir::ModuleOp module,
                                                              mlir::MemRefType inputType, mlir::MemRefType filterType,
@@ -178,6 +234,35 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyCMX(IERT::MaxPoolOp origOp,
                          origOp.input().getType().cast<mlir::MemRefType>(),
                          origOp.output().getType().cast<mlir::MemRefType>(), origOp.kernel_size(), origOp.strides(),
                          log);
+}
+
+//
+// verifyEltwiseCMX
+//
+
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyEltwiseCMX(mlir::Location loc, mlir::ModuleOp module,
+                                                                mlir::MemRefType firstInputType,
+                                                                mlir::MemRefType secondInputType,
+                                                                mlir::MemRefType outputType, Logger log) {
+    log.setName("NCEInvariant");
+
+    const auto requiredCMX = getRequiredCMX({firstInputType, secondInputType, outputType}, 0);
+
+    const auto cmxSize = getCMXSize(module);
+    if (requiredCMX > cmxSize) {
+        log.trace("[{0}] CMX memory is not enough for Eltwise, available '{1}', required '{2}'", loc, cmxSize,
+                  requiredCMX);
+        return mlir::failure();
+    }
+
+    return mlir::success();
+}
+
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyCMX(IERT::AddOp origOp, Logger log) {
+    return verifyEltwiseCMX(origOp->getLoc(), origOp->getParentOfType<mlir::ModuleOp>(),
+                            origOp.input1().getType().cast<mlir::MemRefType>(),
+                            origOp.input2().getType().cast<mlir::MemRefType>(),
+                            origOp.output().getType().cast<mlir::MemRefType>(), log);
 }
 
 //
@@ -287,6 +372,11 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IERT::MaxPoolOp orig
     return verifyKernel(origOp->getLoc(), origOp.kernel_size(), origOp.strides(), log);
 }
 
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IERT::AddOp, Logger) {
+    // Eltwise add does not have kernels. Nothing to verify.
+    return mlir::success();
+}
+
 //
 // verifyOp
 //
@@ -318,6 +408,9 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyOp(mlir::Operation* op, Log
                 return verifyConcreteOp(origOp, log);
             })
             .Case<IERT::MaxPoolOp>([&](IERT::MaxPoolOp origOp) {
+                return verifyConcreteOp(origOp, log);
+            })
+            .Case<IERT::AddOp>([&](IERT::AddOp origOp) {
                 return verifyConcreteOp(origOp, log);
             })
             .Default([](mlir::Operation* unknownOp) -> mlir::LogicalResult {

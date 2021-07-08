@@ -113,7 +113,7 @@ VPUXRemoteBlob::VPUXRemoteBlob(const VPUXRemoteBlob& origBlob, const IE::ROI& re
     const auto orig_W = origBlobTensorDesc.getDims()[3];
     const auto orig_H = origBlobTensorDesc.getDims()[2];
     auto newROI = makeROIOverROI(_parsedParams.getROIPtr(), regionOfInterest, orig_W, orig_H);
-    IE::ParamMap updatedROIPtrParam = {{IE::VPUX_PARAM_KEY(ROI_PTR), newROI}};
+    const auto updatedROIPtrParam = IE::ParamMap{{IE::VPUX_PARAM_KEY(ROI_PTR), newROI}};
     _parsedParams.updateFull(updatedROIPtrParam);
 
     // TODO Remove this cast
@@ -125,18 +125,20 @@ VPUXRemoteBlob::VPUXRemoteBlob(const VPUXRemoteBlob& origBlob, const IE::ROI& re
 }
 
 void VPUXRemoteBlob::updateColorFormat(const IE::ColorFormat colorFormat) {
-    if (_parsedParams.getBlobColorFormat() == colorFormat)
+    if (_parsedParams.getBlobColorFormat() == colorFormat) {
         return;
+    }
 
-    auto updatedParams = IE::ParamMap(_parsedParams.getParamMap());
-    updatedParams.insert({{IE::VPUX_PARAM_KEY(BLOB_COLOR_FORMAT), colorFormat}});
+    const auto updatedParams = IE::ParamMap{{IE::VPUX_PARAM_KEY(BLOB_COLOR_FORMAT), colorFormat}};
     _parsedParams.updateFull(updatedParams);
 
     // Update RemoteMemory information inside allocator
     const auto privateAllocator = std::static_pointer_cast<Allocator>(_allocatorPtr);
-    void* newMemoryHandle = privateAllocator->wrapRemoteMemory(updatedParams);
+    void* newMemoryHandle = privateAllocator->wrapRemoteMemory(_parsedParams.getParamMap());
     if (newMemoryHandle != _memoryHandle) {
-        IE_THROW() << "Memory handle changed suddenly.";
+        const auto memHandleParams = IE::ParamMap{{IE::VPUX_PARAM_KEY(MEM_HANDLE), newMemoryHandle}};
+        _parsedParams.updateFull(memHandleParams);
+        _memoryHandle = newMemoryHandle;
     }
 }
 

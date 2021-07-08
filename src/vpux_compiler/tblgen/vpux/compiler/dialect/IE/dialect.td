@@ -69,6 +69,7 @@ IE.CNNNetwork
     let dependentDialects = [
         "vpux::Const::ConstDialect",
         "mlir::StandardOpsDialect",
+        "mlir::tensor::TensorDialect",
         "mlir::quant::QuantizationDialect"
     ];
 

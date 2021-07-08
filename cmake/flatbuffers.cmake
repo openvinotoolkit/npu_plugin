@@ -57,4 +57,38 @@ function(vpux_add_flatc_target FLATC_TARGET_NAME)
         SOURCES
             ${FLATC_SOURCES}
     )
+
+    vpux_gf_version_generate(${FLATC_SRC_DIR} ${FLATC_DST_DIR})
+
 endfunction()
+
+find_package(Git REQUIRED)
+function(vpux_gf_version_generate SRC_DIR DST_DIR)
+
+    execute_process(
+        COMMAND ${GIT_EXECUTABLE} describe --tags
+        WORKING_DIRECTORY ${SRC_DIR}
+        OUTPUT_VARIABLE GIT_DESCRIBE_DIRTY
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+
+    if ("${GIT_DESCRIBE_DIRTY}" STREQUAL "")
+        message(FATAL_ERROR "GraphFile version cannot be read from ${SRC_DIR}")
+    endif()
+
+    string(REGEX REPLACE "^v([0-9]+)\\..*" "\\1" VERSION_MAJOR "${GIT_DESCRIBE_DIRTY}")
+    string(REGEX REPLACE "^v[0-9]+\\.([0-9]+).*" "\\1" VERSION_MINOR "${GIT_DESCRIBE_DIRTY}")
+    string(REGEX REPLACE "^v[0-9]+\\.[0-9]+\\.([0-9]+).*" "\\1" VERSION_PATCH "${GIT_DESCRIBE_DIRTY}")
+
+    file(WRITE ${DST_DIR}/gf_version.h
+"
+#ifndef GF_VERSION_H
+#define GF_VERSION_H
+
+#define MVCNN_VERSION_MAJOR ${VERSION_MAJOR}
+#define MVCNN_VERSION_MINOR ${VERSION_MINOR}
+#define MVCNN_VERSION_PATCH ${VERSION_PATCH}
+
+#endif")
+endfunction()
+

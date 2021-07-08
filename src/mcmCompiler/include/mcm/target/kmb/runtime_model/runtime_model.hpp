@@ -46,6 +46,8 @@ namespace mv
             static std::vector<unsigned> reduceQuantVector_(std::vector<unsigned> inVec);
 
         public:
+            static constexpr size_t default_weight_alignment = 256;
+
             static RuntimeModel& getInstance(const mv::TargetDescriptor& td)
             {
                 static RuntimeModel instance(td);
@@ -68,13 +70,13 @@ namespace mv
             static bool DMAinAfterDMAout(mv::ComputationModel& cm, std::unique_ptr<MVCNN::TensorReferenceT>& tensorT, Tensor &tensor, const size_t dimension, bool padFinalOutput = false);
 
             static std::unique_ptr<MVCNN::TensorReferenceT> buildTensorReferenceT(ComputationModel &cm, Element&, Data::TensorIterator t, const std::string& allocatorName = "");
-            static std::unique_ptr<MVCNN::TensorReferenceT> buildTensorReferenceT(ComputationModel &cm, Element&, Data::TensorIterator t, unsigned clusterId, const std::string &allocatorName = "");
+            static std::unique_ptr<MVCNN::TensorReferenceT> buildTensorReferenceT(ComputationModel &cm, Element&, Data::TensorIterator t, unsigned clusterId, const std::string &allocatorName = "", bool isOutput = false);
             static void updateTensorReferenceT(ComputationModel &cm, Element&, Data::TensorIterator s, Data::TensorIterator d, unsigned clusterId, std::unique_ptr<MVCNN::TensorReferenceT>& tensorT, const std::string &allocatorName = "");
             static std::unique_ptr<MVCNN::GraphNodeT> buildGraphNodeT(ComputationModel &cm, Element&, Data::OpListIterator op);
             static std::unique_ptr<MVCNN::SourceStructureT> buildSourceStructureT(ComputationModel &cm, Element& compilationDescriptor);
             static std::unique_ptr<MVCNN::SummaryHeaderT> buildSummaryHeaderT(ComputationModel& cm, const mv::TargetDescriptor& td, Element& compilationDescriptor, std::unique_ptr<MVCNN::SummaryHeaderT> originalHeader);
             static std::unique_ptr<MVCNN::SummaryHeaderT> buildSummaryHeaderMetaInformations(ComputationModel& cm, mv::Element& compilationDescriptor);
-            static std::unique_ptr<MVCNN::VersionT> buildVersionT(ComputationModel&, Element& compilationDescriptor);
+            static std::unique_ptr<MVCNN::VersionT> buildVersionT();
             static std::unique_ptr<MVCNN::ResourcesT> buildResourcesT(ComputationModel&, const mv::TargetDescriptor& td, Element& compilationDescriptor);
             std::unique_ptr<MVCNN::BinaryDataT> buildBinaryDataT(ComputationModel&, Element&, mv::Tensor& t, bool huffmanCompression, bool csramCacheable);
             static std::vector<std::unique_ptr<MVCNN::TaskListT>> buildTaskListT(ComputationModel& cm, Element& compilationDescriptor);
@@ -102,7 +104,7 @@ namespace mv
             static std::vector<std::unique_ptr<MVCNN::NCEVariantFieldsT>> buildNCEVariantFieldsTVector(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt, unsigned numTask, std::string strategy);
             static std::unique_ptr<MVCNN::NCEVariantFieldsT> buildNCEVariantFieldsT(ComputationModel& cm, Element& compilationDescriptor, Control::OpListIterator opIt, Workload workload, unsigned clusterId, std::string strategy);
             //PADDING HAVE TO BE DIFFERENT FUNCTIONS CAUSE OF THE LOGIC (PADS FOR CLUSTER ZERO WHEN SUBTENSORING OVER H->NO PAD DOWN)
-            static void getWorkloadPadding(Control::OpListIterator opIt, Workload &workload, unsigned clusterId, const std::string strategy);
+            static void getWorkloadPadding(Control::OpListIterator opIt, Workload &workload, unsigned clusterId, std::string strategy);
             static std::array<unsigned short, 4> getNewPadding(std::array<unsigned short, 4> padding, int clusterId, int numClusters);
             static std::array <unsigned short, 4> getPadding(Control::OpListIterator opIt, unsigned clusterId);
             static bool hardwareBugDepthwise(Control::OpListIterator opIt);
@@ -175,8 +177,8 @@ namespace mv
             static unsigned countProducerConsumerTasks(mv::ComputationModel& cm, mv::Control::OpListIterator opIt, bool trimEmptyTensors = false);
             static void specializeBasePtrs(const mv::Control::OpListIterator& opIt, std::unique_ptr<MVCNN::NCEInvariantFieldsT>& toBuild, const unsigned int clusterId, const unsigned int maxClusters = 4);
 
-            void serialize(const std::string& path);
-            void serialize();
+            void serialize(const std::string& path, size_t weight_alignment = default_weight_alignment);
+            void serialize(size_t weight_alignment = default_weight_alignment);
             void deserialize(const std::string& path);
             void deserialize(const char *buffer, int length);
             void buildGraphFile(ComputationModel& cm, const mv::TargetDescriptor& td, Element& compilationDescriptor);

@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,16 +11,16 @@
 
 namespace LayerTestsDefinitions {
 
-class KmbConvolutionLayerTest : public ConvolutionLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
-};
+class KmbConvolutionLayerTest : public ConvolutionLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
 
 // Comparisons fail (ticket???)
 TEST_P(KmbConvolutionLayerTest, DISABLED_CompareWithRefs) {
     Run();
 }
 
-TEST_P(KmbConvolutionLayerTest, CompareWithRefs_MLIR) {
+TEST_P(KmbConvolutionLayerTest, CompareWithRefs_MLIR_SW) {
     useCompilerMLIR();
+    setReferenceSoftwareModeMLIR();
     Run();
 }
 
@@ -153,6 +153,50 @@ INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_Dilated, KmbConvolutionLayerTest,
                                            ::testing::Values(Layout::ANY),                     // outLayout
                                            ::testing::ValuesIn<SizeVector>({{1, 3, 16, 16}}),  // inputShapes
                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                        ConvolutionLayerTest::getTestCaseName);
+
+/* ============= 2D Convolution / LargeSize ============= */
+
+const auto conv2DParams_LargeSize1 =
+        ::testing::Combine(::testing::ValuesIn<SizeVector>({{3, 3}}),              // kernels
+                           ::testing::ValuesIn<SizeVector>({{2, 2}}),              // strides
+                           ::testing::ValuesIn<std::vector<ptrdiff_t>>({{0, 0}}),  // padBegins
+                           ::testing::ValuesIn<std::vector<ptrdiff_t>>({{0, 0}}),  // padEnds
+                           ::testing::ValuesIn<SizeVector>({{1, 1}}),              // dilations
+                           ::testing::Values(64),                                  // numOutChannels
+                           ::testing::Values(ngraph::op::PadType::VALID)           // padType
+        );
+
+INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_LargeSize1, KmbConvolutionLayerTest,
+                        ::testing::Combine(conv2DParams_LargeSize1,                               //
+                                           ::testing::Values(Precision::FP16),                    // netPrc
+                                           ::testing::Values(Precision::UNSPECIFIED),             // inPrc
+                                           ::testing::Values(Precision::UNSPECIFIED),             // outPrc
+                                           ::testing::Values(Layout::ANY),                        // inLayout
+                                           ::testing::Values(Layout::ANY),                        // outLayout
+                                           ::testing::ValuesIn<SizeVector>({{1, 16, 128, 128}}),  // inputShapes
+                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),  //
+                        ConvolutionLayerTest::getTestCaseName);
+
+const auto conv2DParams_LargeSize2 =
+        ::testing::Combine(::testing::ValuesIn<SizeVector>({{3, 3}}),              // kernels
+                           ::testing::ValuesIn<SizeVector>({{2, 2}}),              // strides
+                           ::testing::ValuesIn<std::vector<ptrdiff_t>>({{0, 0}}),  // padBegins
+                           ::testing::ValuesIn<std::vector<ptrdiff_t>>({{0, 0}}),  // padEnds
+                           ::testing::ValuesIn<SizeVector>({{1, 1}}),              // dilations
+                           ::testing::Values(16),                                  // numOutChannels
+                           ::testing::Values(ngraph::op::PadType::VALID)           // padType
+        );
+
+INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_LargeSize2, KmbConvolutionLayerTest,
+                        ::testing::Combine(conv2DParams_LargeSize2,                               //
+                                           ::testing::Values(Precision::FP16),                    // netPrc
+                                           ::testing::Values(Precision::UNSPECIFIED),             // inPrc
+                                           ::testing::Values(Precision::UNSPECIFIED),             // outPrc
+                                           ::testing::Values(Layout::ANY),                        // inLayout
+                                           ::testing::Values(Layout::ANY),                        // outLayout
+                                           ::testing::ValuesIn<SizeVector>({{1, 16, 256, 256}}),  // inputShapes
+                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),  //
                         ConvolutionLayerTest::getTestCaseName);
 
 }  // namespace

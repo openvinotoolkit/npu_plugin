@@ -15,6 +15,9 @@
 
 #include "vpux/utils/core/small_vector.hpp"
 
+#include "vpux/compiler/dialect/IE/attributes/structs.hpp"
+
+#include <mlir/IR/DialectInterface.h>
 #include <mlir/IR/OpDefinition.h>
 #include <mlir/IR/Operation.h>
 #include <mlir/Interfaces/SideEffectInterfaces.h>
@@ -36,5 +39,24 @@ public:
     }
 };
 
+//
+// LayerInfoDialectInterface
+//
+
+class LayerInfoDialectInterface : public mlir::DialectInterface::Base<LayerInfoDialectInterface> {
+public:
+    explicit LayerInfoDialectInterface(mlir::Dialect* dialect): Base(dialect) {
+    }
+
+    virtual bool isSupportedPostProcessing(mlir::Operation* origOp, mlir::Operation* postOp) const = 0;
+    virtual bool needToExpandChannels(mlir::Operation* origOp) const = 0;
+};
+
 }  // namespace IE
 }  // namespace vpux
+
+//
+// Generated
+//
+
+#include <vpux/compiler/dialect/IE/generated/ops_interfaces.hpp.inc>

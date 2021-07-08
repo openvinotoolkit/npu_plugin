@@ -251,7 +251,7 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
                                 w+=1;
                         }
                     }
-                   
+
                     //every element of sparsity map describes 8 elements of normal tensor
                     auto mapShape = mv::Shape({w,
                                             {inputTensor->getShape()[mv::IO_HEIGHT_DIMENSION]},
@@ -397,8 +397,11 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
                 seTensorIdx.push_back(newSize - 1);
                 dpuTask->set<std::vector<size_t>>("storageElementIndex", seTensorIdx);
 
+                auto previousOp = om.getSourceOp(dpuTask->getInputTensor(implicitResampleIdx));
                 // Store original inputTensor shape, used later to compute SEP table offsets
-                auto originalShape = om.getSourceOp(dpuTask->getInputTensor(implicitResampleIdx))->get<mv::Shape>("originalShape");
+                while (previousOp->getOpType() != "ImplicitResample")
+                    previousOp = om.getSourceOp(previousOp->getInputTensor()[0]);
+                auto originalShape = previousOp->get<mv::Shape>("originalShape");
                 storageElement->set<mv::Shape>("originalShape", originalShape);
             }
         }
@@ -411,10 +414,14 @@ bool compilerSolvesSparsity(mv::Data::FlowListIterator flow)
         flow.sink()->hasAttr("activationSparsityCompilerSolvingForDilatedConv") &&
         flow.sink()->get<bool>("activationSparsityCompilerSolvingForDilatedConv");
 
+    auto isInterpRelated =
+        flow.sink()->hasAttr("activationSparsityCompilerSolvingForInterpNN") &&
+        flow.sink()->get<bool>("activationSparsityCompilerSolvingForInterpNN");
+
     if((!flow->getTensor()->isPopulated() &&
         flow.sink()->hasAttr("activationSparsityCompilerSolving") &&
         flow.sink()->get<bool>("activationSparsityCompilerSolving")) ||
-        isDilatedConvRelated)
+        isDilatedConvRelated || isInterpRelated)
            return true;
     return false;
 }

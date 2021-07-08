@@ -36,4 +36,6 @@ mlir::LogicalResult convertBufferizedFunc(mlir::FuncOp funcOp, ArrayRef<mlir::Ty
 
 mlir::GreedyRewriteConfig getDefaultGreedyRewriteConfig();
 
+mlir::Location appendLoc(mlir::Location baseLoc, StringRef suffix);
+
 }  // namespace vpux

@@ -18,5 +18,3 @@ VPUIP virtual barriers.
 ### `-convert-to-nce-ops`: Convert to NCE2 ops
 Convert ops which can be executed on NCE to explicit NCE ops.
 ### `-convert-view-ops-to-VPUIP`: Convert view-like Operations to VPUIP Dialect
-### `-fuse-activations`: Fuse activation functions to NCE tasks
-Fuse activation functions (e.g. ReLU, leaky ReLU) into NCE post-processing engine.

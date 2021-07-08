@@ -1,14 +1,14 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <tuple>
-#include <vector>
-#include <string>
 #include <memory>
 #include <stdexcept>
+#include <string>
+#include <tuple>
+#include <vector>
 #include "kmb_test_env_cfg.hpp"
 #include "kmb_test_tool.hpp"
 
@@ -20,9 +20,11 @@ class KmbLayerTestsCommon : virtual public LayerTestsCommon {
 protected:
     static const KmbTestEnvConfig envConfig;
     KmbTestTool kmbTestTool;
+
 public:
     explicit KmbLayerTestsCommon();
     void Run() override;
+
 protected:
     void BuildNetworkWithoutCompile();
     virtual void ImportNetwork();
@@ -35,12 +37,17 @@ protected:
 
     void Validate() override;
 
-    virtual void SkipBeforeLoad() {}
-    virtual void SkipBeforeImport() {}
-    virtual void SkipBeforeInfer() {}
-    virtual void SkipBeforeValidate() {}
+    virtual void SkipBeforeLoad() {
+    }
+    virtual void SkipBeforeImport() {
+    }
+    virtual void SkipBeforeInfer() {
+    }
+    virtual void SkipBeforeValidate() {
+    }
 
     void useCompilerMLIR();
+    void setReferenceSoftwareModeMLIR();
     void setReferenceHardwareModeMLIR();
     bool isCompilerMCM() const;
     bool isCompilerMLIR() const;
@@ -50,9 +57,9 @@ protected:
     void TearDown() override;
 };
 
-class KmbSkipTestException: public std::runtime_error {
+class KmbSkipTestException : public std::runtime_error {
 public:
-    KmbSkipTestException(const std::string& what_arg): runtime_error(what_arg) {};
+    KmbSkipTestException(const std::string& what_arg): runtime_error(what_arg){};
 };
 
 extern const TargetDevice testPlatformTargetDevice;

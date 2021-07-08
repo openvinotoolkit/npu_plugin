@@ -272,3 +272,13 @@ mlir::GreedyRewriteConfig vpux::getDefaultGreedyRewriteConfig() {
     config.maxIterations = 10;
     return config;
 }
+
+//
+// appendLoc
+//
+
+mlir::Location vpux::appendLoc(mlir::Location baseLoc, StringRef suffix) {
+    const auto suffixIdentifier = mlir::Identifier::get(suffix, baseLoc.getContext());
+    const mlir::Location suffixLoc = mlir::NameLoc::get(suffixIdentifier);
+    return mlir::FusedLoc::get(baseLoc.getContext(), {baseLoc, suffixLoc});
+}

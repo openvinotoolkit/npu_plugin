@@ -24,4 +24,32 @@ def IE_Layer : NativeOpTrait<"IELayer"> {
     let cppNamespace = "vpux::IE";
 }
 
+//
+// MultiLayerInterface
+//
+
+def MultiLayerInterface : OpInterface<"MultiLayerInterface"> {
+    let description = "Interface for operations that support post-processing";
+
+    let cppNamespace = "vpux::IE";
+
+    let methods = [
+        InterfaceMethod<
+            "Get the post-processing operation",
+            "vpux::IE::PostOp", "getPostOp", (ins),
+            [{
+                return $_op.post_opAttr();
+            }]
+        >,
+
+        InterfaceMethod<
+            "Set post-processing operation attribute",
+            "void", "setPostOp", (ins "vpux::IE::PostOp":$postOp),
+            [{
+                $_op.post_opAttr(postOp);
+            }]
+        >,
+    ];
+}
+
 #endif

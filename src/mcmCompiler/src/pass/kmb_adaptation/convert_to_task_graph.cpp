@@ -1322,20 +1322,31 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& pass,
         for(auto& opIt: ops)
         {
             bool software = false;
+            bool placed = false;
             //Note: That condition is coming due to limitations like add with different scales
             if (opIt->hasAttr("softwareExecuted") && opIt->get<bool>("softwareExecuted"))
                 software = true;
             auto name = opIt->getName();
             auto attrsToCopy = opIt->getAttrs();
             auto inputs = opIt->getInputTensor();
-            auto quantParams = opIt->getOutputTensor(0)->getQuantParams();
-            auto dType = opIt->getOutputTensor(0)->getDType();
-            auto order = opIt->getOutputTensor(0)->getOrder();
-            auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
-            auto hasLeadingOffset = opIt->getOutputTensor(0)->hasAttr("leadingOffset");
+            auto outputTensor = opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT);
+            auto quantParams = outputTensor->getQuantParams();
+            auto dType = outputTensor->getDType();
+            auto order = outputTensor->getOrder();
+            auto outputMemoryLocation = outputTensor->get<mv::Tensor::MemoryLocation>("Location");
+            bool tensorResamplePlaced = false;
+            mv::Shape tensorMasterDim;
+            if (outputTensor->hasAttr("placed") && outputTensor->hasAttr("masterDim"))
+            {
+                placed = true;
+                tensorResamplePlaced = outputTensor->get<bool>("placed");
+                tensorMasterDim =  outputTensor->get<mv::Shape>("masterDim");
+            }
+            auto hasLeadingOffset = outputTensor->hasAttr("leadingOffset");
+
             uint64_t leadingOffset = 0;
             if (hasLeadingOffset)
-                leadingOffset =  opIt->getOutputTensor(0)->get<uint64_t>("leadingOffset");
+                leadingOffset =  outputTensor->get<uint64_t>("leadingOffset");
             auto inputControlFlows = mv::getInputControlFlow(cm, cm.switchContext(opIt));
             auto outputControlFlows = mv::getOutputControlFlow(cm, cm.switchContext(opIt));
             auto outputDataFlows = mv::getOutputDataFlow(om, opIt);
@@ -1343,7 +1354,8 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& pass,
             newTensor = opsFunctors[opType](om, inputs, attrsToCopy, name, software, quantParams, dType, order);
 
             newTensor->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
-
+            if (placed)
+                newTensor->setPlaced(tensorResamplePlaced, tensorMasterDim);
             auto newTensorOp = om.getSourceOp(newTensor);
             newTensorOp->setAttrs(attrsToCopy);
             auto newOpType = newTensorOp->getOpType();
@@ -1390,8 +1402,8 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& pass,
                     op_itr_bfs.pop();
                 }
                 for (auto implOp : implicit_ops)
-                    for (auto outputTensor : implOp->getOutputTensor())
-                        outputTensor->setDType(mv::DType("Float16"));
+                    for (auto implOutputTensor : implOp->getOutputTensor())
+                        implOutputTensor->setDType(mv::DType("Float16"));
             }
         }
     }

@@ -108,7 +108,9 @@ void populateTheSlotKeeper(mv::ComputationModel& model, std::map <std::string, s
     for (std::size_t idx = 0; idx < concatChild->getInputTensor().size(); idx++)
     {
         auto previousOp = om.getSourceOp(concatChild->getInputTensor()[idx]);
-        if (previousOp->getOpType() == "ImplicitConcat") //NOTE: belongs To first, normally!!
+        if (previousOp->getOpType() == "ImplicitConcat" &&  //NOTE: belongs To first, normally!!
+            previousOp->get<std::string>("axis") == concatChild->get<std::string>("axis"))
+
         {
             foundConcat = true;
             slotKeeper.erase(concatChild->getInputTensor()[idx]->getName());
@@ -354,7 +356,8 @@ void fuseSliceSliceFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
             sinkFlow.sink()->set<mv::Shape>("begin", new_begin);
             pass.log(mv::Logger::MessageType::Debug, "Adjust slice begin: " + sinkFlow.sink()->getName());
             auto last_slice = (slice_num == sliceOp.childrenSize()-1);
-            if (last_slice)
+            // Check if this is last child slice, but discard case if this is the only slice.
+            if (last_slice && slice_num)
             {
                 // Adjust last slice's size
                 auto tensorSize = sinkFlow.sink()->get<mv::Shape>("size");
