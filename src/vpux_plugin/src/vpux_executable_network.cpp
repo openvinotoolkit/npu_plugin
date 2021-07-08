@@ -167,9 +167,23 @@ InferenceEngine::IInferRequestInternal::Ptr ExecutableNetwork::CreateInferReques
 //------------------------------------------------------------------------------
 //      Export
 //------------------------------------------------------------------------------
+
+namespace {
+std::uint32_t hash(const std::vector<char>& data) {
+    std::uint32_t result = 1171117u;
+    for (const char& c : data)
+        result = ((result << 7) + result) + static_cast<uint32_t>(c);
+    return result;
+}
+
+}  // namespace
+
 void ExecutableNetwork::Export(std::ostream& model) {
     auto graphBlob = _networkPtr->getCompiledNetwork();
     model.write(graphBlob.data(), graphBlob.size());
+    std::stringstream str;
+    str << "Blob hash: " << std::hex << hash(graphBlob);
+    _logger->info(str.str().c_str());
 }
 
 void ExecutableNetwork::Export(const std::string& modelFileName) {
