@@ -13,15 +13,16 @@
 
 #include "vpux/compiler/dialect/IERT/passes.hpp"
 
+#include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/extentions.hpp"
 
 #include "vpux/utils/core/range.hpp"
 
 #include <mlir/Transforms/GreedyPatternRewriteDriver.h>
 
+#include <llvm/ADT/BitVector.h>
 #include <llvm/ADT/DenseMap.h>
 #include <llvm/ADT/STLExtras.h>
-#include <llvm/ADT/SetOperations.h>
 #include <llvm/ADT/SmallPtrSet.h>
 
 #include <algorithm>
@@ -36,21 +37,39 @@ namespace {
 
 class Optimizer final {
 public:
+    explicit Optimizer(mlir::MLIRContext* ctx): _indexAttrName(mlir::Identifier::get("IERT.async_execute_index", ctx)) {
+    }
+
     void buildDepsMap(mlir::FuncOp func, Logger log);
-    void optimizeDepsMap(mlir::FuncOp func, Logger log);
-    void addTokenDependencies(mlir::FuncOp func, Logger log);
+    void optimizeDepsMap(Logger log);
+    void addTokenDependencies(Logger log);
     void optimizeWaitOps(Logger log);
 
 private:
-    using OperationSet = llvm::SmallPtrSet<mlir::Operation*, 16>;
+    void setIndex(mlir::async::ExecuteOp execOp, uint64_t index);
+    uint32_t getIndex(mlir::async::ExecuteOp execOp);
 
 private:
+    mlir::Identifier _indexAttrName;
+
     SmallVector<mlir::async::ExecuteOp> _allExecOps;
     SmallVector<mlir::async::AwaitOp> _allWaitOps;
 
-    // mlir::async::ExecuteOp 'depends on' [ mlir::async::ExecuteOp ]
-    llvm::DenseMap<mlir::Operation*, OperationSet> _depsMap;
+    // indexOf(mlir::async::ExecuteOp) 'depends on' [ indexOf(mlir::async::ExecuteOp)... ].
+    SmallVector<llvm::BitVector> _depsMap;
 };
+
+void Optimizer::setIndex(mlir::async::ExecuteOp execOp, uint64_t index) {
+    execOp->setAttr(_indexAttrName, getInt64Attr(execOp.getContext(), index));
+}
+
+uint32_t Optimizer::getIndex(mlir::async::ExecuteOp execOp) {
+    const auto attr = execOp->getAttrOfType<mlir::IntegerAttr>(_indexAttrName);
+    VPUX_THROW_UNLESS(attr != nullptr, "Attribute '{0}' was not set for '{1}' operation at '{2}'", _indexAttrName,
+                      execOp->getName(), execOp->getLoc());
+
+    return checked_cast<uint32_t>(attr.getValue().getZExtValue());
+}
 
 //
 // Optimizer::buildDepsMap
@@ -58,6 +77,17 @@ private:
 
 void Optimizer::buildDepsMap(mlir::FuncOp func, Logger log) {
     log.trace("Collect initial dependencies maps");
+
+    _allExecOps = to_small_vector(func.getOps<mlir::async::ExecuteOp>());
+
+    for (const auto& p : _allExecOps | indexed) {
+        setIndex(p.value(), p.index());
+    }
+
+    _depsMap.resize(_allExecOps.size());
+    for (auto& deps : _depsMap) {
+        deps.resize(checked_cast<uint32_t>(_allExecOps.size()));
+    }
 
     for (auto& op : func.getOps()) {
         if (auto waitOp = mlir::dyn_cast<mlir::async::AwaitOp>(op)) {
@@ -69,14 +99,17 @@ void Optimizer::buildDepsMap(mlir::FuncOp func, Logger log) {
             log.nest(2).trace("It was produced by 'async.execute' at '{0}'", producerExecOp->getLoc());
 
             if (waitOp.result() != nullptr) {
+                const auto producerExecInd = getIndex(producerExecOp);
+
                 for (auto* user : waitOp.result().getUsers()) {
                     if (auto userExecOp = user->getParentOfType<mlir::async::ExecuteOp>()) {
                         log.nest(2).trace("It has a user at '{0}' located in 'async.execute' region at '{1}'",
                                           user->getLoc(), userExecOp->getLoc());
-
                         log.nest(2).trace("Add '{0}' to dependency list of '{1}'", producerExecOp->getLoc(),
                                           userExecOp->getLoc());
-                        _depsMap[userExecOp].insert(producerExecOp);
+
+                        const auto userExecInd = getIndex(userExecOp);
+                        _depsMap[userExecInd].set(producerExecInd);
                     }
                 }
             }
@@ -85,12 +118,16 @@ void Optimizer::buildDepsMap(mlir::FuncOp func, Logger log) {
         } else if (auto execOp = mlir::dyn_cast<mlir::async::ExecuteOp>(op)) {
             log.nest(1).trace("Found 'async.execute' Operation at '{0}'", op.getLoc());
 
+            const auto execInd = getIndex(execOp);
+
             log.nest(2).trace("Extend its wait deps list with all previous 'async.await' Operations");
             for (auto prevWaitOp : _allWaitOps) {
                 auto producerExecOp = mlir::cast<mlir::async::ExecuteOp>(prevWaitOp.operand().getDefiningOp());
 
                 log.nest(3).trace("Add '{0}' to dependency list of '{1}'", producerExecOp->getLoc(), execOp->getLoc());
-                _depsMap[execOp].insert(producerExecOp);
+
+                const auto producerExecInd = getIndex(producerExecOp);
+                _depsMap[execInd].set(producerExecInd);
             }
 
             for (auto arg : execOp->getOperands()) {
@@ -101,10 +138,10 @@ void Optimizer::buildDepsMap(mlir::FuncOp func, Logger log) {
 
                 log.nest(2).trace("It has a dependency from other 'async.execute' Operation at '{0}'",
                                   argExecOp->getLoc());
-                _depsMap[execOp].insert(argExecOp);
-            }
 
-            _allExecOps.push_back(execOp);
+                const auto argExecInd = getIndex(argExecOp);
+                _depsMap[execInd].set(argExecInd);
+            }
         }
     }
 }
@@ -113,7 +150,7 @@ void Optimizer::buildDepsMap(mlir::FuncOp func, Logger log) {
 // Optimizer::optimizeDepsMap
 //
 
-void Optimizer::optimizeDepsMap(mlir::FuncOp func, Logger log) {
+void Optimizer::optimizeDepsMap(Logger log) {
     //
     // A -> B -> C
     //
@@ -123,16 +160,15 @@ void Optimizer::optimizeDepsMap(mlir::FuncOp func, Logger log) {
 
     log.trace("Remove redundant dependencies");
 
-    auto allExecOps = to_small_vector(func.getOps<mlir::async::ExecuteOp>());
-
-    for (auto execOp : allExecOps | reversed) {
+    for (auto execOp : _allExecOps | reversed) {
         log.nest(1).trace("Process 'async.execute' Operation at '{0}'", execOp->getLoc());
 
-        auto& curDeps = _depsMap[execOp];
+        const auto execInd = getIndex(execOp);
+        auto& curDeps = _depsMap[execInd];
 
-        for (auto* curDep : curDeps) {
-            auto& depOfDeps = _depsMap[curDep];
-            llvm::set_subtract(curDeps, depOfDeps);
+        for (auto curDepInd : curDeps.set_bits()) {
+            const auto& depOfDeps = _depsMap[curDepInd];
+            curDeps.reset(depOfDeps);
         }
     }
 }
@@ -141,21 +177,20 @@ void Optimizer::optimizeDepsMap(mlir::FuncOp func, Logger log) {
 // Optimizer::addTokenDependencies
 //
 
-void Optimizer::addTokenDependencies(mlir::FuncOp func, Logger log) {
+void Optimizer::addTokenDependencies(Logger log) {
     log.trace("Add explicit '!async.token' based dependencies between 'async.execute' operations");
 
-    for (auto execOp : func.getOps<mlir::async::ExecuteOp>()) {
+    for (auto execOp : _allExecOps) {
         log.nest(1).trace("Process 'async.execute' Operation at '{0}'", execOp->getLoc());
 
-        const auto& execDeps = _depsMap[execOp];
+        const auto execInd = getIndex(execOp);
+        const auto& execDeps = _depsMap[execInd];
 
-        llvm::SmallPtrSet<mlir::Value, 4> depsSet;
-        for (auto* depOp : execDeps) {
-            const auto tokenVal = mlir::cast<mlir::async::ExecuteOp>(depOp).token();
-            depsSet.insert(tokenVal);
+        SmallVector<mlir::Value> depsVec;
+
+        for (auto depInd : execDeps.set_bits()) {
+            depsVec.push_back(_allExecOps[depInd].token());
         }
-
-        auto depsVec = to_small_vector(depsSet);
 
         std::sort(depsVec.begin(), depsVec.end(), [](mlir::Value val1, mlir::Value val2) {
             return val1.getParentBlock() == val2.getParentBlock() &&
@@ -207,10 +242,10 @@ private:
 void OptimizeAsyncDepsPass::safeRunOnFunc() {
     auto func = getFunction();
 
-    Optimizer optimizer;
+    Optimizer optimizer(func.getContext());
     optimizer.buildDepsMap(func, _log);
-    optimizer.optimizeDepsMap(func, _log);
-    optimizer.addTokenDependencies(func, _log);
+    optimizer.optimizeDepsMap(_log);
+    optimizer.addTokenDependencies(_log);
     optimizer.optimizeWaitOps(_log);
 }
 
