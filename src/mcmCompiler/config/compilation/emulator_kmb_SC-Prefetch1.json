@@ -80,6 +80,7 @@
             "PlacementOfOps",
             "PostTrainingQuantize",
             "EltwiseToSWEltwise",
+            "HwConvertToEltwise",
             "MarkEltWiseUpaInputs",
             "MarkCMCompatibleConvs",
             "AddPermuteToNonCMConvPaths"

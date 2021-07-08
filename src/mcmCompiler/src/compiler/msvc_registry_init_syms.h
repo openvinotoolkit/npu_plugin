@@ -383,6 +383,7 @@
 #pragma comment(linker, "/include:__MCM_REGISTER__PassEntry_HackExecutionSchedule")
 #pragma comment(linker, "/include:__MCM_REGISTER__PassEntry_HandleGroupConvolution")
 #pragma comment(linker, "/include:__MCM_REGISTER__PassEntry_HangingDmaControlFlows")
+#pragma comment(linker, "/include:__MCM_REGISTER__PassEntry_HwConvertToEltwise")
 #pragma comment(linker, "/include:__MCM_REGISTER__PassEntry_ImplicitOutputDTypeUpdate")
 #pragma comment(linker, "/include:__MCM_REGISTER__PassEntry_InsertBarrierTasks")
 #pragma comment(linker, "/include:__MCM_REGISTER__PassEntry_IsDAG")
