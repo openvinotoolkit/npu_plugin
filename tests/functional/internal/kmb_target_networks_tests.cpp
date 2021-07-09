@@ -267,11 +267,8 @@ TEST_F(KmbDetectionNetworkTest, precommit_vehicle_license_plate_detection_barrie
 // General scope
 //
 
-TEST_F(SmokeNetworkTest, yolo_v4_subgraph_ddr_output_test) {
-#ifdef _WIN32
-    SKIP() << "SEH exception";
-#endif
-    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "bad results");
+// [Track number: E#15571]
+TEST_F(SmokeNetworkTest, DISABLED_yolo_v4_subgraph_ddr_output_test) {
     runTest(
             TestNetworkDesc("KMB_models/INT8/public/yolo_v4_subgraph/FP16-INT8/yolo_v4_subgraph.xml")
                     .setUserInputPrecision("input", Precision::U8)
