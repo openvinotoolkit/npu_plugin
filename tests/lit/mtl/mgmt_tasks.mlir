@@ -9,7 +9,7 @@
 // RUN: vpux-opt %s | FileCheck %s
 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
-module @mainModule attributes {VPUIP.arch = "VPU3720", VPUIP.compilationMode = "ReferenceSW"}  {
+module @mainModule attributes {VPUIP.arch = "MTL", VPUIP.compilationMode = "ReferenceSW"}  {
   VPUIP.Graph options : "NONE" version : {contextStr = "VPUX Compiler", hash = "", majorV = 3 : i32, minorV = 11 : i32, patchV = 0 : i32}
   IERT.RunTimeResources availableMemory :  {
     IERT.MemoryResource 1073741824 bytes
@@ -41,4 +41,4 @@ module @mainModule attributes {VPUIP.arch = "VPU3720", VPUIP.compilationMode = "
   }
 }
 
-// CHECK-LABEL: module @mainModule attributes {VPUIP.arch = "VPU3720", VPUIP.compilationMode = "ReferenceSW"}
+// CHECK-LABEL: module @mainModule attributes {VPUIP.arch = "MTL", VPUIP.compilationMode = "ReferenceSW"}

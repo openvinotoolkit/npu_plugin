@@ -3,7 +3,7 @@
 #NHCW = affine_map<(d0, d1, d2, d3) -> (d0, d2, d1, d3)>
 
 // CHECK-LABEL: @InOutNHCW
-module @InOutNHCW attributes {VPUIP.arch = "VPU3700", VPUIP.compilationMode = "ReferenceSW"} {
+module @InOutNHCW attributes {VPUIP.arch = "KMB", VPUIP.compilationMode = "ReferenceSW"} {
 
 IE.CNNNetwork
     entryPoint : @main
@@ -41,7 +41,7 @@ func @main(%arg0: tensor<1x8x4x2xf16, {order = #NHCW}>) -> tensor<1x8x4x2xf16, {
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @DifferentOrders
-module @DifferentOrders attributes {VPUIP.arch = "VPU3700", VPUIP.compilationMode = "ReferenceSW"} {
+module @DifferentOrders attributes {VPUIP.arch = "KMB", VPUIP.compilationMode = "ReferenceSW"} {
 
 IE.CNNNetwork
     entryPoint : @main
@@ -67,7 +67,7 @@ func @main(%arg0: tensor<1x8x4x2xf16>) -> tensor<1x8x4x2xf16, {order = #NHWC}> {
 // -----
 
 // CHECK-LABEL: @HwOp
-module @HwOp attributes {VPUIP.arch = "VPU3700", VPUIP.compilationMode = "ReferenceHW"} {
+module @HwOp attributes {VPUIP.arch = "KMB", VPUIP.compilationMode = "ReferenceHW"} {
 
 IERT.RunTimeResources
     availableMemory :  {

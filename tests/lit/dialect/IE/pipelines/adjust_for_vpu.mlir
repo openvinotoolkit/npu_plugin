@@ -1,4 +1,4 @@
-// RUN: vpux-opt --set-compile-params="vpu-arch=VPU3400_A0" --adjust-for-vpu %s | FileCheck %s
+// RUN: vpux-opt --set-compile-params="vpu-arch=KMB" --adjust-for-vpu %s | FileCheck %s
 
 module @Test {
 

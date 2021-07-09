@@ -1,4 +1,4 @@
-// RUN: vpux-opt --split-input-file --set-compile-params="vpu-arch=VPU3700" --lower-IE-to-IERT %s | FileCheck %s
+// RUN: vpux-opt --split-input-file --set-compile-params="vpu-arch=KMB" --lower-IE-to-IERT %s | FileCheck %s
 
 //
 // The 'lower-IE-to-IERT' pass:

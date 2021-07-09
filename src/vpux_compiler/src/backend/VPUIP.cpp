@@ -139,14 +139,12 @@ flatbuffers::Offset<MVCNN::Resources> createResources(VPUIP::BlobWriter& writer,
 
 MVCNN::TargetDevice mapTargetDevice(const VPUIP::ArchKind kind) {
     switch (kind) {
-    case VPUIP::ArchKind::VPU3400_A0:
-    case VPUIP::ArchKind::VPU3400:
-    case VPUIP::ArchKind::VPU3700:
+    case VPUIP::ArchKind::KMB:
         return MVCNN::TargetDevice::TargetDevice_KMB;
-    case VPUIP::ArchKind::VPU3720:
-        return MVCNN::TargetDevice::TargetDevice_MTL;
-    case VPUIP::ArchKind::VPU3900:
+    case VPUIP::ArchKind::TBH:
         return MVCNN::TargetDevice::TargetDevice_TBH;
+    case VPUIP::ArchKind::MTL:
+        return MVCNN::TargetDevice::TargetDevice_MTL;
     default:
         VPUX_THROW("Unsupported TargetDevice '{0}'", kind);
     }
@@ -154,13 +152,8 @@ MVCNN::TargetDevice mapTargetDevice(const VPUIP::ArchKind kind) {
 
 MVCNN::TargetDeviceRevision mapTargetDeviceRevision(const VPUIP::ArchKind kind) {
     switch (kind) {
-    case VPUIP::ArchKind::VPU3400_A0:
-        return MVCNN::TargetDeviceRevision::TargetDeviceRevision_A0;
-    case VPUIP::ArchKind::VPU3400:
-    case VPUIP::ArchKind::VPU3700:
+    case VPUIP::ArchKind::KMB:
         return MVCNN::TargetDeviceRevision::TargetDeviceRevision_B0;
-    case VPUIP::ArchKind::VPU3720:
-    case VPUIP::ArchKind::VPU3900:
     default:
         return MVCNN::TargetDeviceRevision::TargetDeviceRevision_NONE;
     }

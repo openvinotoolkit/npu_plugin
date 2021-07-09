@@ -1,4 +1,4 @@
-// RUN: vpux-opt --split-input-file --set-compile-params="vpu-arch=VPU3700 compilation-mode=ReferenceHW" --expand-activation-channels --canonicalize %s | FileCheck %s
+// RUN: vpux-opt --split-input-file --set-compile-params="vpu-arch=KMB compilation-mode=ReferenceHW" --expand-activation-channels --canonicalize %s | FileCheck %s
 
 // CHECK-LABEL: @ExpandMaxPoolChannels
 func @ExpandMaxPoolChannels(%arg0: tensor<1x3x30x30xf16>) -> tensor<1x3x15x13xf16> {

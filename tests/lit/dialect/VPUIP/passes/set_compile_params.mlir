@@ -1,6 +1,6 @@
-// RUN: vpux-opt --set-compile-params="vpu-arch=VPU3700" %s | FileCheck %s
+// RUN: vpux-opt --set-compile-params="vpu-arch=KMB" %s | FileCheck %s
 
-// CHECK: module @test attributes {VPUIP.arch = "VPU3700", VPUIP.compilationMode = "ReferenceSW"}
+// CHECK: module @test attributes {VPUIP.arch = "KMB", VPUIP.compilationMode = "ReferenceSW"}
 module @test {
 
 // CHECK:       VPUIP.Graph

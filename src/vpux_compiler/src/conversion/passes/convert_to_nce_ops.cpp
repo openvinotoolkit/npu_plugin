@@ -59,11 +59,9 @@ VPUIP::PPELayerType convertPostOp(IE::PostOpKind postOp) {
 }
 
 const EnumMap<VPUIP::ArchKind, VPUIP::MPEMode> mpeMap = {
-        {VPUIP::ArchKind::VPU3400_A0, VPUIP::MPEMode::VECTOR_FP16},  //
-        {VPUIP::ArchKind::VPU3400, VPUIP::MPEMode::VECTOR_FP16},     //
-        {VPUIP::ArchKind::VPU3700, VPUIP::MPEMode::VECTOR_FP16},     //
-        {VPUIP::ArchKind::VPU3900, VPUIP::MPEMode::VECTOR_FP16},     //
-        {VPUIP::ArchKind::VPU3720, VPUIP::MPEMode::CUBOID_16x16},    //
+        {VPUIP::ArchKind::KMB, VPUIP::MPEMode::VECTOR_FP16},   //
+        {VPUIP::ArchKind::TBH, VPUIP::MPEMode::VECTOR_FP16},   //
+        {VPUIP::ArchKind::MTL, VPUIP::MPEMode::CUBOID_16x16},  //
 };
 
 mlir::Value createWeightsTableTensor(mlir::OpBuilder& builder, mlir::Location loc, int64_t OC, mlir::Value op_input,

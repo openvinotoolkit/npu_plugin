@@ -1,6 +1,6 @@
 // RUN: vpux-translate --import-HWTEST %s | FileCheck %s
 
-// CHECK-LABEL: module @mainModule attributes {VPUIP.arch = "VPU3720", VPUIP.compilationMode = "ReferenceHW"}
+// CHECK-LABEL: module @mainModule attributes {VPUIP.arch = "MTL", VPUIP.compilationMode = "ReferenceHW"}
 
 // CHECK:       VPUIP.Graph
 // CHECK-SAME:      options : "NONE"

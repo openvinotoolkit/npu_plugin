@@ -390,7 +390,7 @@ void buildSimpleZMajorConv(mlir::ModuleOp module, mlir::OpBuilder builder, Logge
 
     // set runtime resources
     mlir::PassManager pm(builder.getContext(), mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(createSetCompileParamsPass(VPUIP::ArchKind::VPU3720, VPUIP::CompilationMode::ReferenceHW, log));
+    pm.addPass(createSetCompileParamsPass(VPUIP::ArchKind::MTL, VPUIP::CompilationMode::ReferenceHW, log));
 
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module)), "Compilation failed");
 
