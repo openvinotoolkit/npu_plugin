@@ -192,7 +192,9 @@ std::unique_ptr<mv::CompilationUnit> createCompilationUnit(
         else {
             switch (config.platform()) {
                 case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3400:
-                case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3700: {
+                case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3700:
+                case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3800:
+                case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3900: {
                     compDescName = "release_kmb_B0";
                     break;
                 }
@@ -200,14 +202,14 @@ std::unique_ptr<mv::CompilationUnit> createCompilationUnit(
                     compDescName = "release_mtl";
                     break;
                 }
-                case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3400_A0:
-                case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3800:
-                case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3900:
+                case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3400_A0: {
                     compDescName = "release_kmb";
                     break;
-                case InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR:
+                }
+                case InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR: {
                     compDescName = "emulator_kmb_SC-Prefetch1";
                     break;
+                }
                 case InferenceEngine::VPUXConfigParams::VPUXPlatform::AUTO:
                 default:
                     errMsg = "Error: VPUXPlatform is not defined.";
