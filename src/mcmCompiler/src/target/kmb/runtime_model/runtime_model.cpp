@@ -2488,8 +2488,10 @@ void mv::RuntimeModel::getWorkloadPadding(Control::OpListIterator opIt, Workload
         auto outputHeight = opIt->getOutputTensor(0)->getShape()[mv::IO_HEIGHT_DIMENSION];
 
        
-        workload.padLeft = (workload.MinX == 0) ? padding[mv::PADDING_LEFT] : 0;
-        workload.padTop = (workload.MinY == 0) ? padding[mv::PADDING_TOP] : 0;
+        long long  pad_left = padding[mv::PADDING_LEFT] - workload.MinX;
+        workload.padLeft = (pad_left > 0) ? pad_left : 0;
+        long long  pad_top = padding[mv::PADDING_TOP] -  workload.MinY;
+        workload.padTop = (pad_top > 0) ? pad_top : 0;
         long long  pad_right = workload.MaxX + 1 + padding[mv::PADDING_RIGHT] - outputWidth;
         workload.padRight = (pad_right > 0) ? pad_right : 0;
         long long  pad_bottom = workload.MaxY + 1 + padding[mv::PADDING_BOT] - outputHeight;
