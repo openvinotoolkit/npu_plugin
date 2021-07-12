@@ -510,6 +510,11 @@ void replaceStridedSliceWithSlice(const mv::pass::PassEntry&, mv::ComputationMod
         if (parentOp->getOpType() == "Input" && childOp->getOpType() == "Output")
             continue;
 
+        // Skip if strides not all 1
+        auto strides = sliceOp->get<std::vector<unsigned>>("strides");
+        if (!(strides[mv::IO_WIDTH_DIMENSION] == 1 && strides[mv::IO_HEIGHT_DIMENSION] == 1 && strides[mv::IO_CHANNEL_DIMENSION] == 1 && strides[mv::IO_BATCH_DIMENSION] == 1))
+            continue;
+
         auto stridedSlice_begins = sliceOp->get<std::vector<unsigned>>("begins");
         auto slice_begin = mv::Shape({stridedSlice_begins[3], stridedSlice_begins[2], stridedSlice_begins[1], stridedSlice_begins[0]});
         auto slice_size = sliceOp->getOutputTensor(0)->getShape();
