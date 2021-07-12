@@ -101,7 +101,8 @@
             "SetSliceAddressesInCMX",
             "LayerNumbering",
             "PopulateWeightsTablesPointers",
-            "PopulateStorageElementPointers"
+            "PopulateStorageElementPointers",
+            "MarkAsymmetricalStideTensorsLeadToCMXConcat"
         ]
     },
 

@@ -12,6 +12,7 @@ static void allocateCMXTensorsKmbFcn(const mv::pass::PassEntry& pass, mv::Comput
 static void allocateInputOutputTensorsKmbFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void allocateImplicitOperationsKmbFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void setSliceAddressesInCMXFunc(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void markAsymmetricalStideTensorsLeadToCMXConcatFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 namespace mv
 {
@@ -45,6 +46,10 @@ namespace mv
         MV_REGISTER_PASS(SetSliceAddressesInCMX)
         .setFunc(setSliceAddressesInCMXFunc)
         .setDescription("Iterates over all Streaming that happens in CMX and assigns the right address for Slice Output");
+
+        MV_REGISTER_PASS(MarkAsymmetricalStideTensorsLeadToCMXConcat)
+        .setFunc(markAsymmetricalStideTensorsLeadToCMXConcatFcn)
+        .setDescription("Marks concat subgraphs that have asymmetrical stride and are cmx subgraphs in order to compute approrpriate stride/index");
     }
 }
 
@@ -572,7 +577,23 @@ void allocateImplicitOperationsOp(mv::Data::OpListIterator opIterator, mv::Contr
                 if(inp->getShape()[mv::IO_HEIGHT_DIMENSION] != out->getShape()[mv::IO_HEIGHT_DIMENSION])
                 {
                     if (inp->getOrder() == mv::Order("NHWC"))
+                    {
                         left_index = lhs_padding.at(axis) * inp->getShape()[mv::IO_WIDTH_DIMENSION] * inp->getShape()[mv::IO_CHANNEL_DIMENSION];
+                        if (inp->hasAttr("fusedConcatReshape") && inp->get<bool>("fusedConcatReshape"))
+                        {
+                            std::size_t left_asymmetric_index = inp->get<std::size_t>("asymmetricConvIndex") * inp->getShape()[mv::IO_WIDTH_DIMENSION] * inp->getShape()[mv::IO_CHANNEL_DIMENSION];
+                            left_index *= inp->get<std::size_t>("numberOfConvsForAsymmetricalStride");
+                            inp->set<std::size_t>("left_asymmetric_index", left_asymmetric_index);
+                            if (inp->hasAttr("inputIndexDecrease") && inp->get<bool>("inputIndexDecrease"))
+                            {
+                                left_index = 0;
+                            }
+                        }
+                        if (inp->hasAttr("indexDecrease") && inp->get<bool>("indexDecrease"))
+                        {
+                            inp->set<std::size_t>("leftIndexDecrease", lhs_padding.at(axis) * inp->getShape()[mv::IO_WIDTH_DIMENSION] * inp->getShape()[mv::IO_CHANNEL_DIMENSION]);
+                        }
+                    }
                     else if (inp->getOrder() == mv::Order("NCHW"))
                         left_index = lhs_padding.at(axis) * inp->getShape()[mv::IO_WIDTH_DIMENSION];
                     axisConcat = "H";
@@ -790,6 +811,42 @@ void allocateImplicitOperationsOp(mv::Data::OpListIterator opIterator, mv::Contr
     }
 }
 
+void matchAsymmetricStrideIndex(mv::ComputationModel& model)
+{
+    mv::OpModel om(model);
+    mv::DataModel dm(model);
+    auto sortedOps = om.topologicalSort();
+    for (auto opIt = sortedOps.begin(); opIt != sortedOps.end(); ++opIt)
+    {
+        if ((*opIt)->getOpType() == "ImplicitConcat")
+        {
+            auto nextOps = mv::findSinkLayers(dm, (*opIt)->getOutputTensor(0));
+            if (nextOps.empty())
+                throw mv::RuntimeError("allocateImplicitOperationsKmbFcn", "Not a sink after Concat");
+            if (nextOps[0]->getOpType() == "ImplicitConcat")
+            {
+                for (std::size_t idx = 0; idx < (*opIt)->getInputTensor().size(); ++idx)
+                {
+                    auto inputTensor = (*opIt)->getInputTensor(idx);
+                    if (inputTensor->hasAttr("asymmetricConvIndex") && (inputTensor->get<std::size_t>("asymmetricConvIndex") != 0))
+                    {
+                        auto outputTensor = (*opIt)->getOutputTensor(0);
+                        outputTensor->set<bool>("indexDecrease", true);
+                    }
+                }
+            }
+            else
+            {
+                for (std::size_t idx = 1; idx < (*opIt)->getInputTensor().size(); ++idx)
+                {
+                    auto inputTensor = (*opIt)->getInputTensor(idx);
+                    inputTensor->set<bool>("inputIndexDecrease", true);
+                }
+            }
+        }
+    }
+}
+
 void allocateImplicitOperationsKmbFcn(const mv::pass::PassEntry& pass,
                                             mv::ComputationModel& model,
                                             mv::TargetDescriptor&,
@@ -807,6 +864,7 @@ void allocateImplicitOperationsKmbFcn(const mv::pass::PassEntry& pass,
     auto stageIt = cm.getStage(0);
 
     auto sortedOps = om.topologicalSort();
+    matchAsymmetricStrideIndex(model);
 
     for (auto opIterator: sortedOps)
     {
@@ -908,5 +966,28 @@ void setSliceAddressesInCMXFunc(const mv::pass::PassEntry& /*pass*/, mv::Computa
             }
         }
         sliceIt++;
+    }
+}
+
+void markAsymmetricalStideTensorsLeadToCMXConcatFcn(const mv::pass::PassEntry& /*pass*/, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+{
+    mv::OpModel om(model);
+    mv::DataModel dm(model);
+    auto concatOps = om.getOps("ImplicitConcat");
+
+    for (auto concatIt = concatOps.begin(); concatIt != concatOps.end(); ++concatIt)
+    {
+        auto concatOp = *concatIt;
+        if (concatOp->hasAttr("fusedConcatReshape") && concatOp->get<bool>("fusedConcatReshape"))
+        {
+            for (std::size_t idx = 0; idx < concatOp->getInputTensor().size(); ++idx)
+            {
+                auto previousOp = om.getSourceOp(concatOp->getInputTensor(mv::IO_TENSOR_INPUT));
+                if (previousOp->getOpType() == "DPUTask")
+                {
+                    concatOp->getInputTensor(idx)->set<bool>("asymmetricCmxConcat", true);
+                }
+            }
+        }
     }
 }

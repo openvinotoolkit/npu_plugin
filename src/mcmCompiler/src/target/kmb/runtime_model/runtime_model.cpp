@@ -386,6 +386,15 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         numericStrides = dilatedStrides;
         dilatedStrides = bufferStrides;
     }
+    if ((*tensorAllocatorName == "VPU_DDR_Heap" && (t->hasAttr("fusedConcatReshape") && t->get<bool>("fusedConcatReshape"))) ||
+        (*tensorAllocatorName == "VPU_CMX_NN" && (t->hasAttr("asymmetricCmxConcat") && t->get<bool>("asymmetricCmxConcat"))))
+    {
+        for (unsigned idx = 0; idx < numericStrides.size(); idx++)
+        {
+            if (idx == mv::IO_HEIGHT_DIMENSION || idx == mv::IO_BATCH_DIMENSION)
+                numericStrides[idx] = numericStrides[idx] * t->get<std::size_t>("numberOfConvsForAsymmetricalStride");
+        }
+    }
 
     numericStrides.push_back(underlyingTensor->getDType().getSizeInBits() / 8);
 
@@ -495,8 +504,14 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
                     if (dm.getTensor(temporaryBuffer->getData()->getName())->hasAttr("leftIndex"))
                         leading_offset += dm.getTensor(temporaryBuffer->getData()->getName())->get<std::size_t>("leftIndex") *
                                 toBuild->strides[0];
+                    if (dm.getTensor(temporaryBuffer->getData()->getName())->hasAttr("indexDecrease") &&
+                        dm.getTensor(temporaryBuffer->getData()->getName())->get<bool>("indexDecrease"))
+                        leading_offset -= dm.getTensor(temporaryBuffer->getData()->getName())->get<std::size_t>("leftIndexDecrease") *
+                                toBuild->strides[0];
                 }
             }
+            if (t->hasAttr("left_asymmetric_index"))
+                leading_offset += t->get<std::size_t>("left_asymmetric_index");
         }
 //        if (leading_offset != strides[0])
 //        {
@@ -761,13 +776,13 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
             numericStrides = (*masterBuffer)->getData()->computeNumericStrides();
         numericStrides.push_back(subtensor.getDType().getSizeInBits() / 8);
     }
-    else if (*tensorAllocatorName == "ProgrammableInput") 
+    else if (*tensorAllocatorName == "ProgrammableInput")
     {
         // this section updates the strides for inputs to ChMajor Conv where Streams:H>1 and SOH
         // Strides need to be based on masterBuffer (parent tensor), not the streamed slice
         auto masterBuffer = tensorAllocator.getTopMasterBuffer(tensorBufferIt);
-        if ( (*masterBuffer)->getData()->hasAttr("splitStrategy") && 
-            ((*masterBuffer)->getData()->get<std::string>("splitStrategy") == "SplitOverH" || 
+        if ( (*masterBuffer)->getData()->hasAttr("splitStrategy") &&
+            ((*masterBuffer)->getData()->get<std::string>("splitStrategy") == "SplitOverH" ||
              (*masterBuffer)->getData()->get<std::string>("splitStrategy") == "SplitOverHOverlapped") )
         {
             numericStrides = (*masterBuffer)->getData()->computeNumericStrides();
@@ -2483,18 +2498,18 @@ void mv::RuntimeModel::getWorkloadPadding(Control::OpListIterator opIt, Workload
             padding = getPadding(opIt, clusterId);
         else
             padding = opIt->get<std::array<unsigned short, 4>>("padding");
-        
+
         auto outputWidth = opIt->getOutputTensor(0)->getShape()[mv::IO_WIDTH_DIMENSION];
         auto outputHeight = opIt->getOutputTensor(0)->getShape()[mv::IO_HEIGHT_DIMENSION];
 
-       
+
         workload.padLeft = (workload.MinX == 0) ? padding[mv::PADDING_LEFT] : 0;
         workload.padTop = (workload.MinY == 0) ? padding[mv::PADDING_TOP] : 0;
         long long  pad_right = workload.MaxX + 1 + padding[mv::PADDING_RIGHT] - outputWidth;
         workload.padRight = (pad_right > 0) ? pad_right : 0;
         long long  pad_bottom = workload.MaxY + 1 + padding[mv::PADDING_BOT] - outputHeight;
         workload.padBottom = (pad_bottom > 0) ? pad_bottom : 0;
-    
+
     }
     return;
 }
