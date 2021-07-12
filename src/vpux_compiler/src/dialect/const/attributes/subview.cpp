@@ -14,6 +14,7 @@
 #include "vpux/compiler/dialect/const/attributes/content.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/subspaces.hpp"
+#include "vpux/compiler/utils/types.hpp"
 
 #include "vpux/utils/IE/loop.hpp"
 #include "vpux/utils/core/format.hpp"
@@ -114,7 +115,7 @@ mlir::ShapedType vpux::Const::SubViewAttr::inferOutputType(mlir::ShapedType inpu
     VPUX_THROW_UNLESS(shape.size() == checked_cast<size_t>(input.getRank()),
                       "View shape and input shape are not consistent in 'SubViewAttr'");
 
-    return input.clone(shape);
+    return changeShape(input, ShapeRef(shape));
 }
 
 //

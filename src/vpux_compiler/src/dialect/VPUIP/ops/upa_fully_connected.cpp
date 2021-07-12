@@ -11,8 +11,9 @@
 // included with the Software Package for additional details.
 //
 
-#include <vpux/compiler/utils/extentions.hpp>
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
+
+#include "vpux/compiler/utils/analysis.hpp"
 
 using namespace vpux;
 

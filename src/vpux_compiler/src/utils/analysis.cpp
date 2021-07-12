@@ -11,23 +11,27 @@
 // included with the Software Package for additional details.
 //
 
-#pragma once
+#include "vpux/compiler/utils/analysis.hpp"
 
-#include <mlir/IR/Value.h>
-#include <vpux/compiler/conversion.hpp>
+#include "vpux/utils/core/error.hpp"
 
-namespace vpux {
+#include <mlir/IR/Operation.h>
 
-//
-// mlir::Value
-//
+#include <algorithm>
 
-mlir::Operation* getFirstUser(mlir::Value output);
+using namespace vpux;
 
 //
-// DataOrderInfo
+// getFirstUser
 //
 
-void fillDataInfo(DataOrderInfo& info, size_t inNum, size_t outNum, const DimsOrder& mainOrder);
+mlir::Operation* vpux::getFirstUser(mlir::Value output) {
+    VPUX_THROW_UNLESS(output != nullptr, "Got NULL pointer in getFirstUser");
 
-}  // namespace vpux
+    const auto users = output.getUsers();
+    const auto firstUser = std::min_element(users.begin(), users.end(), [](mlir::Operation* lhs, mlir::Operation* rhs) {
+        return lhs->getBlock() == rhs->getBlock() && lhs->isBeforeInBlock(rhs);
+    });
+
+    return firstUser == users.end() ? nullptr : *firstUser;
+}

@@ -14,6 +14,7 @@
 #include "vpux/compiler/dialect/const/attributes/content.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/subspaces.hpp"
+#include "vpux/compiler/utils/types.hpp"
 
 #include "vpux/utils/IE/loop.hpp"
 #include "vpux/utils/core/format.hpp"
@@ -117,7 +118,7 @@ mlir::ShapedType vpux::Const::PadWithZeroAttr::inferOutputType(mlir::ShapedType 
         outShape[d] = inShape[d] + padBefore[d] + padAfter[d];
     }
 
-    return input.clone(outShape.raw());
+    return changeShape(input, outShape);
 }
 
 //

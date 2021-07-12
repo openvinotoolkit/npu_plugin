@@ -1314,6 +1314,36 @@ operation ::= `IE.RegionYolo` `(` operands `)` attr-dict `:` type(operands) `->`
 | :----: | ----------- |
 `output` | ranked tensor of any type values
 
+### `IE.Reorder` (vpux::IE::ReorderOp)
+
+InferenceEngine Reorder layer
+
+
+Syntax:
+
+```
+operation ::= `IE.Reorder` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`dstOrder` | ::mlir::AffineMapAttr | AffineMap attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values
+
 ### `IE.ReorgYolo` (vpux::IE::ReorgYoloOp)
 
 InferenceEngine ReorgYolo layer

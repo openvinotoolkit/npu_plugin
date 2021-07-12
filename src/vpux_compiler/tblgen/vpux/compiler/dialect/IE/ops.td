@@ -41,9 +41,11 @@ class IE_LayerOp<string mnemonic, list<OpTrait> traits = []> :
         IE_Op<
             mnemonic,
             [
+                InferTypeOpInterface,
+                DeclareOpInterfaceMethods<InferShapedTypeOpInterface, ["inferReturnTypeComponents"]>,
                 IE_Layer,
                 NoSideEffect
-            ] # InferTensorType<["inferReturnTypeComponents"]>.traits # traits
+            ] # traits
         > {
     let assemblyFormat = [{
         `(` operands `)` attr-dict `:` type(operands) `->` type(results)
@@ -169,6 +171,33 @@ def IE_ConvertOp :
         AnyRankedTensor:$input,
 
         TypeAttr:$dstType
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+
+    let hasCanonicalizer = 1;
+    let hasFolder = 1;
+}
+
+//
+// ReorderOp
+//
+
+def IE_ReorderOp :
+        IE_LayerOp<
+            "Reorder",
+            [
+                SameOperandsShape
+            ]
+        > {
+    let summary = "InferenceEngine Reorder layer";
+
+    let arguments = (ins
+        AnyRankedTensor:$input,
+
+        AffineMapAttr:$dstOrder
     );
 
     let results = (outs

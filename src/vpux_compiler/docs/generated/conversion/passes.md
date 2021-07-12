@@ -10,6 +10,10 @@ This pass bufferizes **IE Dialect** into **IERT Dialect**:
 * Doesn't change Function signatures.
 * Replaces Layer Operations with IERT analogues.
 * Replaces Quant Dialect Operations with IERT analogues.
+### `-bufferize-func-and-return`: Bufferize func/return ops
+A bufferize pass that bufferizes std.func ops.
+In contrast to MLIR standard analogue pass, this pass uses vpux::BufferizeTypeConverter
+to process encoding attribute in mlir::RankedTensorType
 ### `-convert-async-ops-to-VPUIP`: Convert Async Dialect Operations to VPUIP Dialect
 This pass inlines 'async.execute' body to parent Block and replaces '!async.token' based dependencies with
 VPUIP virtual barriers.

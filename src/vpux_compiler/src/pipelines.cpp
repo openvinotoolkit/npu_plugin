@@ -40,6 +40,7 @@ void buildIECommonPipeline(mlir::OpPassManager& pm, Logger log) {
     pm.addPass(mlir::createCanonicalizerPass(getDefaultGreedyRewriteConfig()));
     IE::buildAdjustForVPUPipeline(pm, log);
     pm.addPass(IE::createUseUserPrecisionPass(log));
+    pm.addPass(IE::createUseUserLayout(log));
     pm.addPass(mlir::createCanonicalizerPass(getDefaultGreedyRewriteConfig()));
 }
 
@@ -50,7 +51,6 @@ void buildIEReferenceLowPrecisionPipeline(mlir::OpPassManager& pm, Logger log) {
 }
 
 void buildIERTLayoutsPipeline(mlir::OpPassManager& pm, Logger log) {
-    pm.addPass(IERT::createUseUserLayout(log));
     pm.addPass(IERT::createAdjustLayoutsPass(log));
     pm.addPass(mlir::createCanonicalizerPass(getDefaultGreedyRewriteConfig()));
 }

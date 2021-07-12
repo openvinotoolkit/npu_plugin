@@ -101,7 +101,7 @@ void ConvertPrecisionToFP16Pass::safeRunOnModule() {
     mlir::TypeConverter typeConverter;
     typeConverter.addConversion([](mlir::RankedTensorType tensor) {
         if (tensor.getElementType().isF32()) {
-            return mlir::RankedTensorType::get(tensor.getShape(), mlir::Float16Type::get(tensor.getContext()));
+            return changeElemType(tensor, mlir::Float16Type::get(tensor.getContext()));
         } else {
             return tensor;
         }

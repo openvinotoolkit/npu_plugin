@@ -17,6 +17,19 @@
 include "vpux/compiler/dialect/IE/dialect.td"
 
 //
+// TensorAttr
+//
+
+def IE_TensorAttr :
+        StructAttr<
+            "TensorAttr",
+            IE_Dialect,
+            [
+                StructFieldAttr<"order", OptionalAttr<AffineMapAttr>>,
+            ]
+        >;
+
+//
 // EpsMode
 //
 

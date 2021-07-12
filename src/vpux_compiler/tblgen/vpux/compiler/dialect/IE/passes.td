@@ -35,6 +35,26 @@ def UseUserPrecision : PassBase<"use-user-precision", "vpux::ModulePass"> {
     ];
 }
 
+//
+// UseUserLayout
+//
+
+def UseUserLayout : PassBase<"use-user-layout", "vpux::ModulePass"> {
+    let summary = "Use user layouts for entry point function prototype";
+
+    let description = [{
+        This pass updates the CNNNetwork entry point function prototype
+        and uses user-provided layouts for its operands and results.
+        The pass inserts Reorder operations from/to topology layout.
+    }];
+
+    let constructor = "vpux::IE::createUseUserLayout()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
+
 //=================================================================================
 // AdjustForVPU
 //=================================================================================

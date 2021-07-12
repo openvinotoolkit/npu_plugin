@@ -37,9 +37,9 @@ module @dual_tile attributes {VPUIP.arch = "VPU3720", VPUIP.compilationMode = "R
   IE.CNNNetwork
     entryPoint : @main
     inputsInfo : {
-      IE.DataInfo "input_0" : memref<1x16x16x16xui8, #NHWC, "ProgrammableInput">
+      IE.DataInfo "input_0" : tensor<1x16x16x16xui8, {order = #NHWC}>
     } outputsInfo : {
-      IE.DataInfo "output_0" : memref<2x16x16x16xf16, #NHWC, "ProgrammableOutput">
+      IE.DataInfo "output_0" : tensor<2x16x16x16xf16, {order = #NHWC}>
     }
 
   IERT.RunTimeResources

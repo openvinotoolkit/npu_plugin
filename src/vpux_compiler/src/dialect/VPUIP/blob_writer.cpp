@@ -14,6 +14,7 @@
 #include "vpux/compiler/dialect/VPUIP/blob_writer.hpp"
 
 #include "vpux/compiler/core/attributes/dims_order.hpp"
+#include "vpux/compiler/core/attributes/stride_reqs.hpp"
 #include "vpux/compiler/dialect/IERT/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/effects.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
@@ -122,7 +123,7 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createUPALayerTask(mlir
 }
 
 VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensor(
-        StringRef name, mlir::MemRefType type, MemoryLocation locale, ArrayRef<uint32_t> localeIndex,
+        StringRef name, mlir::ShapedType type, MemoryLocation locale, ArrayRef<uint32_t> localeIndex,
         uint64_t dataIndex, Optional<uint64_t> sparsityIndex, Optional<uint64_t> storageElementIndex,
         Optional<uint32_t> storageElementSize, Optional<uint32_t> leadingOffset, Optional<uint32_t> trailingOffset,
         Optional<float> density_rate, Optional<uint8_t> swizzling_key) {
@@ -217,7 +218,7 @@ VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensor(
         Optional<uint8_t> swizzling_key) {
     VPUX_THROW_UNLESS(_tensors.count(val) == 0, "Value {0} was already serialized", val);
 
-    const auto off = createTensor(name, val.getType().cast<mlir::MemRefType>(), locale, localeIndex, dataIndex,
+    const auto off = createTensor(name, val.getType().cast<mlir::ShapedType>(), locale, localeIndex, dataIndex,
                                   sparsityIndex, storageElementIndex, storageElementSize, leadingOffset, trailingOffset,
                                   density_rate, swizzling_key);
 
@@ -342,7 +343,7 @@ VPUIP::BlobWriter::Vector<uint32_t> vpux::VPUIP::BlobWriter::createDims(ShapeRef
                         }));
 }
 
-VPUIP::BlobWriter::Vector<uint32_t> vpux::VPUIP::BlobWriter::createDims(mlir::MemRefType type) {
+VPUIP::BlobWriter::Vector<uint32_t> vpux::VPUIP::BlobWriter::createDims(mlir::ShapedType type) {
     return createDims(getShape(type));
 }
 
@@ -362,8 +363,18 @@ VPUIP::BlobWriter::Vector<float> vpux::VPUIP::BlobWriter::createStrides(StridesR
     return createVector(temp | transformed(cvtBitStrideToByteFP));
 }
 
-VPUIP::BlobWriter::Vector<float> vpux::VPUIP::BlobWriter::createStrides(mlir::MemRefType type) {
-    return createStrides(getStrides(type), getElemTypeSize(type));
+VPUIP::BlobWriter::Vector<float> vpux::VPUIP::BlobWriter::createStrides(mlir::ShapedType type) {
+    if (const auto memref = type.dyn_cast<mlir::MemRefType>()) {
+        return createStrides(getStrides(memref), getElemTypeSize(type));
+    }
+
+    const auto order = DimsOrder::fromType(type);
+
+    const auto stridesReqs = StrideReqs::simple(checked_cast<size_t>(type.getRank()));
+    const auto memStrides = stridesReqs.calcStrides(order, type);
+    const auto strides = order.toLogicalOrder(memStrides);
+
+    return createStrides(strides, getElemTypeSize(type));
 }
 
 MVCNN::MemoryLocation vpux::VPUIP::BlobWriter::createMemoryLocation(MemoryLocation location) {

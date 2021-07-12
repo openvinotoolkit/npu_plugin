@@ -441,13 +441,13 @@
 // CHECK:   minorV = 11 : i32
 // CHECK:   patchV = 0 : i32
 
-// CHECK:   IE.DataInfo "input" : memref<1x1000xf32, #map0>
-// CHECK:   IE.DataInfo "softmax" : memref<1x1000xf32, #map0>
+// CHECK:   IE.DataInfo "input" : tensor<1x1000xf32>
+// CHECK:   IE.DataInfo "softmax" : tensor<1x1000xf32>
 
-// CHECK:   func @main(%arg0: memref<1x1x1x1000xf16, #map1>, %arg1: memref<1x1x1x1000xf16, #map1>) -> memref<1x1x1x1000xf16, #map1> {
+// CHECK:   func @main(%arg0: memref<1x1x1x1000xf16, #map>, %arg1: memref<1x1x1x1000xf16, #map>) -> memref<1x1x1x1000xf16, #map> {
 // CHECK:   %0 = VPUIP.ConfigureBarrier<0> -> !VPUIP.Barrier
-// CHECK:   %1 = VPUIP.DeclareTensor "VPU_DDR_Heap" [0] <0> -> memref<1x1x1x1000xf16, #map1>
-// CHECK:   %2 = VPUIP.NNDMA {port = 0 : i32} inputs(%1 : memref<1x1x1x1000xf16, #map1>) outputs(%arg1 : memref<1x1x1x1000xf16, #map1>) waits(%0 : !VPUIP.Barrier) -> memref<1x1x1x1000xf16, #map1>
-// CHECK:   %3 = VPUIP.DeclareTensor "VPU_DDR_Heap" [0] <0> -> memref<1x1x1x1000xf16, #map1>
-// CHECK:   %4 = VPUIP.SoftMaxUPA {axisInd = 3 : i32} inputs(%arg0 : memref<1x1x1x1000xf16, #map1>) outputs(%3 : memref<1x1x1x1000xf16, #map1>) updates(%0 : !VPUIP.Barrier) -> memref<1x1x1x1000xf16, #map1>
-// CHECK:   return %arg1 : memref<1x1x1x1000xf16, #map1>
+// CHECK:   %1 = VPUIP.DeclareTensor "VPU_DDR_Heap" [0] <0> -> memref<1x1x1x1000xf16, #map>
+// CHECK:   %2 = VPUIP.NNDMA {port = 0 : i32} inputs(%1 : memref<1x1x1x1000xf16, #map>) outputs(%arg1 : memref<1x1x1x1000xf16, #map>) waits(%0 : !VPUIP.Barrier) -> memref<1x1x1x1000xf16, #map>
+// CHECK:   %3 = VPUIP.DeclareTensor "VPU_DDR_Heap" [0] <0> -> memref<1x1x1x1000xf16, #map>
+// CHECK:   %4 = VPUIP.SoftMaxUPA {axisInd = 3 : i32} inputs(%arg0 : memref<1x1x1x1000xf16, #map>) outputs(%3 : memref<1x1x1x1000xf16, #map>) updates(%0 : !VPUIP.Barrier) -> memref<1x1x1x1000xf16, #map>
+// CHECK:   return %arg1 : memref<1x1x1x1000xf16, #map>

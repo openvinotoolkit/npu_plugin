@@ -50,7 +50,7 @@ class IERT_LayerOp<int numResult, string mnemonic, list<OpTrait> traits = []> :
             )
         > {
 
-    let extraClassDeclaration = InferReturnTypesForLayer<numResult>.impl;
+    let extraClassDeclaration = InferReturnTypesForRTLayer<numResult>.impl;
 }
 
 //
@@ -1525,7 +1525,7 @@ def IERT_ConcatViewOp :
         mlir::Value getViewSource() {
             return output_buff();
         }
-    }] # InferReturnTypesForLayer<1>.impl;
+    }] # InferReturnTypesForRTLayer<1>.impl;
 }
 
 //

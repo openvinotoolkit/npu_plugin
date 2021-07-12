@@ -40,6 +40,7 @@ namespace vpux {
 void buildLowerIE2IERTPipeline(mlir::OpPassManager& pm, Logger log = Logger::global());
 
 std::unique_ptr<mlir::Pass> createBufferizeIEPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createBufferizeFuncAndReturnPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createAddBuffersForNetResults(Logger log = Logger::global());
 
 //

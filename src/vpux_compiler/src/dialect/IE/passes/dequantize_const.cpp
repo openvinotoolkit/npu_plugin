@@ -55,12 +55,7 @@ mlir::LogicalResult DequantizeConst::matchAndRewrite(mlir::quant::DequantizeCast
     const auto qType = inputConst.getType().cast<mlir::ShapedType>();
     const auto qElemType = qType.getElementType().cast<mlir::quant::QuantizedType>();
 
-    const auto newConstType =
-            mlir::RankedTensorType::getChecked(dCastOp.getLoc(), qType.getShape(), qElemType.getExpressedType());
-    if (newConstType == nullptr) {
-        return mlir::failure();
-    }
-
+    const auto newConstType = changeElemType(dCastOp.getType().cast<mlir::ShapedType>(), qElemType.getExpressedType());
     const auto newConstAttr = inputConst.contentAttr().dequantize();
     rewriter.replaceOpWithNewOp<Const::DeclareOp>(dCastOp, newConstType, newConstAttr);
 

@@ -13,6 +13,7 @@
 
 #include "vpux/compiler/dialect/const/attributes/content.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
+#include "vpux/compiler/utils/types.hpp"
 
 #include "vpux/utils/core/format.hpp"
 #include "vpux/utils/core/func_ref.hpp"
@@ -84,7 +85,7 @@ mlir::ShapedType vpux::Const::ReshapeAttr::inferOutputType(mlir::ShapedType inpu
                       "Can't apply Reshape transformation to DimsOrder '{0}'", inOrder);
 
     const auto newShape = parseIntArrayAttr(getShape());
-    return input.clone(newShape);
+    return changeShape(input, ShapeRef(newShape));
 }
 
 //

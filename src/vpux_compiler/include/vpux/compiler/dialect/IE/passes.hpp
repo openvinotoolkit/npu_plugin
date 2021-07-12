@@ -32,6 +32,7 @@ namespace IE {
 //
 
 std::unique_ptr<mlir::Pass> createUseUserPrecisionPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createUseUserLayout(Logger log = Logger::global());
 
 //
 // Adjust IE Dialect IR for VPU target.

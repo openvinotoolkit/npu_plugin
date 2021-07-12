@@ -75,7 +75,7 @@ public:
     SpecificTask createUPALayerTask(mlir::Operation* op, const SoftwareLayerParams& params);
 
 public:
-    TensorReference createTensor(StringRef name, mlir::MemRefType type, MemoryLocation locale,
+    TensorReference createTensor(StringRef name, mlir::ShapedType type, MemoryLocation locale,
                                  ArrayRef<uint32_t> localeIndex, uint64_t dataIndex,
                                  Optional<uint64_t> sparsityIndex = None, Optional<uint64_t> storageElementIndex = None,
                                  Optional<uint32_t> storageElementSize = None, Optional<uint32_t> leadingOffset = None,
@@ -100,10 +100,10 @@ public:
     static MVCNN::DType createDType(mlir::Type type);
 
     Vector<uint32_t> createDims(ShapeRef shape);
-    Vector<uint32_t> createDims(mlir::MemRefType type);
+    Vector<uint32_t> createDims(mlir::ShapedType type);
 
     VPUIP::BlobWriter::Vector<float> createStrides(StridesRef strides, Bit elemSize);
-    Vector<float> createStrides(mlir::MemRefType type);
+    Vector<float> createStrides(mlir::ShapedType type);
 
     static MVCNN::MemoryLocation createMemoryLocation(MemoryLocation location);
     IndirectDataReference createIndirectDataReference(uint64_t dataIndex, Optional<uint64_t> sparsityIndex = None,

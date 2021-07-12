@@ -187,7 +187,7 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(VPUIP::BlobWriter&
         auto userInfo = p.value();
         const auto val = netFunc.getArgument(ind);
 
-        const auto userType = userInfo.userType().cast<mlir::MemRefType>();
+        const auto userType = userInfo.userType().cast<mlir::ShapedType>();
 
         graphInputs.push_back(
                 writer.createTensor(val, userInfo.name(), VPUIP::MemoryLocation::ProgrammableInput, ind, 0));
@@ -207,7 +207,7 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(VPUIP::BlobWriter&
         auto userInfo = p.value();
         const auto val = netFunc.getArgument(checked_cast<uint32_t>(funcArgInd));
 
-        const auto userType = userInfo.userType().cast<mlir::MemRefType>();
+        const auto userType = userInfo.userType().cast<mlir::ShapedType>();
 
         graphOutputs.push_back(
                 writer.createTensor(val, userInfo.name(), VPUIP::MemoryLocation::ProgrammableOutput, ind, 0));

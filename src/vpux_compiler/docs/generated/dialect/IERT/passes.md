@@ -25,9 +25,5 @@ It uses simple LinearScan algorithm.
 ```
 -memory-space : Memory space to perform allocation
 ```
-### `-use-user-layout`: Use user layouts for entry point function prototype
-This pass updates the CNNNetwork entry point function prototype
-and use user-provided layouts for its operands and results.
-The pass inserts Reorder operations from/to topology layout.
 ### `-wrap-into-async-regions`: Wraps layer operations into asynchronous regions
 This pass wraps each IERT layer operation into async region preserving linear execution.
