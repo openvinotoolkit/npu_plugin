@@ -517,6 +517,8 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model,
             auto sliceShape = childTiles[split].getActivationShape();
             auto sliceStart = childTiles[split].getActivationStart();
 
+            bool fusedConcatReshape = outputTensor->hasAttr("fusedConcatReshape") && outputTensor->get<bool>("fusedConcatReshape");
+
             auto slice = om.slice(op->getName() + "_sliceH" + std::to_string(split),
                                 inputTensor,
                                 sliceStart,
@@ -558,6 +560,14 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model,
 
             newTensor->setDType(outputDType);
             newTensor->setQuantParams(outputQuantParams);
+            if (fusedConcatReshape)
+            {
+                std::size_t numberOfConvsForAsymmetricalStride = outputTensor->hasAttr("numberOfConvsForAsymmetricalStride") ? outputTensor->get<std::size_t>("numberOfConvsForAsymmetricalStride") : 0;
+                std::size_t asymmetricConvIndex = outputTensor->hasAttr("asymmetricConvIndex") ? outputTensor->get<std::size_t>("asymmetricConvIndex") : 0;
+                newTensor->set<bool>("fusedConcatReshape", fusedConcatReshape);
+                newTensor->set<std::size_t>("numberOfConvsForAsymmetricalStride", numberOfConvsForAsymmetricalStride);
+                newTensor->set<std::size_t>("asymmetricConvIndex", asymmetricConvIndex);
+            }
 
             if (split != number_of_splits - 1)
             {
@@ -1217,7 +1227,7 @@ void streamingOperationsFcn(const mv::pass::PassEntry& pass,
     {
         //NOTE: if we have vertical fusion we need to compute some extra overlaps
         //so we will start only with the tails and the streaming ops
-        std::string nodeName = layerNameStrategy.get<std::string>("name_filter");  
+        std::string nodeName = layerNameStrategy.get<std::string>("name_filter");
         //NOTE: ensure that the op with that name exists in the opModel
         if (!om.checkOp(nodeName))
         {
