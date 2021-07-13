@@ -2585,6 +2585,10 @@ mv::Data::OpListIterator splitOperationSlicingV2(
                 auto opSlice = om.getSourceOp(op);
                 opSlice->set<unsigned>("opId", initialOpId);
                 opSlice->set<bool>("forceClustering", true);
+                op->set<bool>("fusedConcatReshape", true);
+                op->set<std::size_t>("numberOfConvsForAsymmetricalStride", newStride[mv::STRIDE_HORIZONTAL]);
+                op->set<std::size_t>("asymmetricConvIndex", j);
+
                 opsHorizontal.push_back(op);
 
                 i++;
@@ -2612,40 +2616,19 @@ mv::Data::OpListIterator splitOperationSlicingV2(
         else {
             opConcat = om.concat(operation->getName() + "concat_full",
                                 opsSlicesConcatHorizontally,
-                                "W");
+                                "H");
             opConcat->setDType(dType);
             opConcat->setQuantParams(outputQuantParams);
         }
         opConcat->set<unsigned>("opId", initialOpId);
         auto opConcatSlice = om.getSourceOp(opConcat);
         opConcatSlice->set<unsigned>("opId", initialOpId);
-
-        mv::Shape newShape = opConcat->getShape();
-        if (hslices == 0 || vslices == 0)
-            throw std::runtime_error("Invalid hslice or vslice value");
-        else if(hslices > 1)
-        {
-            newShape[mv::IO_WIDTH_DIMENSION] = newShape[mv::IO_WIDTH_DIMENSION] * hslices;
-            newShape[mv::IO_CHANNEL_DIMENSION] = newShape[mv::IO_CHANNEL_DIMENSION] / hslices;
-        }
-        else if(vslices > 1)
-        {
-            newShape[mv::IO_WIDTH_DIMENSION] = newShape[mv::IO_WIDTH_DIMENSION] / vslices;
-            newShape[mv::IO_HEIGHT_DIMENSION] = newShape[mv::IO_HEIGHT_DIMENSION] * vslices;
-        }
-
-        auto passthrough = om.identity(operation->getName() + "_dma", opConcat);
-        passthrough->setShape(newShape);
-        passthrough->setDType(dType);
-        passthrough->setQuantParams(outputQuantParams);
-        passthrough->set<unsigned>("opId", initialOpId);
-        auto passthroughOp = om.getSourceOp(passthrough);
-        passthroughOp->set<unsigned>("opId", initialOpId);
-        passthroughOp->set<bool>("forceU8", true);
-        passthroughOp->set<mv::Shape>("forceShape", newShape);
+        //NOTE: This is a special case of concat dmas/strides cause it needs to do the reshape as well
+        opConcatSlice->set<bool>("fusedConcatReshape", true);
+        opConcatSlice->set<std::size_t>("numberOfConvsForAsymmetricalStride", newStride[mv::STRIDE_HORIZONTAL]);
 
         //recircuit the graph flow
-        operation = linkNewOperationsReplacementRemoveFlows(nextOpIt, passthrough, om, operation);
+        operation = linkNewOperationsReplacementRemoveFlows(nextOpIt, opConcat, om, operation);
 
         return operation;
     }
