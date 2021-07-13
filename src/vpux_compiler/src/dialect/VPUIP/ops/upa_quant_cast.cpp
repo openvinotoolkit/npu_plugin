@@ -90,13 +90,13 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(QuantCastUPAOp op) {
 }
 
 bool vpux::VPUIP::QuantCastUPAOp::isSupportedLayout(mlir::Operation* op, vpux::DataOrderInfo& info) {
-    const auto quantizeOp = mlir::dyn_cast<IERT::QuantizeOp>(op);
-    const auto dequantizeOp = mlir::dyn_cast<IERT::DequantizeOp>(op);
+    const auto quantizeOp = mlir::dyn_cast<mlir::quant::QuantizeCastOp>(op);
+    const auto dequantizeOp = mlir::dyn_cast<mlir::quant::DequantizeCastOp>(op);
 
     VPUX_THROW_UNLESS(quantizeOp != nullptr && dequantizeOp != nullptr, "Operation {0} is not quantizer",
                       op->getName());
 
-    LayerInterface layer = quantizeOp ? quantizeOp : dequantizeOp;
+    auto layer = mlir::cast<LayerInterface>(op);
     const auto scales = getScalesAndZeroPoints(layer.getInputs()[0], layer.getOutputs()[0]).first;
 
     if (scales.size() > 1) {

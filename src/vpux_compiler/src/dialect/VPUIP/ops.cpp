@@ -37,6 +37,7 @@ public:
 public:
     bool isSupportedPostProcessing(mlir::Operation* origOp, mlir::Operation* postOp) const final;
     bool needToExpandChannels(mlir::Operation* origOp) const final;
+    bool isSupportedLayout(mlir::Operation* origOp, DataOrderInfo& info) const final;
 };
 
 bool LayerInfo::isSupportedPostProcessing(mlir::Operation* origOp, mlir::Operation* postOp) const {
@@ -69,8 +70,8 @@ bool LayerInfo::needToExpandChannels(mlir::Operation* origOp) const {
     auto module = origOp->getParentOfType<mlir::ModuleOp>();
     const auto compileMode = VPUIP::getCompilationMode(module);
 
-#define HW_OPS_CASE(_IERT_OP_)                                       \
-    .Case<_IERT_OP_>([&](_IERT_OP_ op) {                             \
+#define HW_OPS_CASE(_IE_OP_)                                         \
+    .Case<_IE_OP_>([&](_IE_OP_ op) {                                 \
         if (compileMode == VPUIP::CompilationMode::ReferenceSW) {    \
             return false;                                            \
         }                                                            \
@@ -90,6 +91,78 @@ bool LayerInfo::needToExpandChannels(mlir::Operation* origOp) const {
 #undef HW_OPS_CASE
 }
 
+bool LayerInfo::isSupportedLayout(mlir::Operation* origOp, DataOrderInfo& info) const {
+    auto module = origOp->getParentOfType<mlir::ModuleOp>();
+    const auto compileMode = VPUIP::getCompilationMode(module);
+
+#define CASE(_IE_OP_, _VPUIP_OP_)                       \
+    .Case<_IE_OP_>([&](_IE_OP_ op) {                    \
+        return _VPUIP_OP_::isSupportedLayout(op, info); \
+    })
+
+#define HW_OPS_CASE(_IE_OP_, _VPUIP_OP_)                             \
+    .Case<_IE_OP_>([&](_IE_OP_ op) {                                 \
+        if (compileMode == VPUIP::CompilationMode::ReferenceSW) {    \
+            return _VPUIP_OP_::isSupportedLayout(op, info);          \
+        }                                                            \
+        if (VPUIP::NCEInvariant::verifyKernel(op).failed()) {        \
+            return _VPUIP_OP_::isSupportedLayout(op, info);          \
+        }                                                            \
+        if (VPUIP::NCEInvariant::verifyChannels(op).failed()) {      \
+            return _VPUIP_OP_::isSupportedLayout(op, info);          \
+        }                                                            \
+        return VPUIP::NCEClusterTaskOp::isSupportedLayout(op, info); \
+    })
+
+    return llvm::TypeSwitch<mlir::Operation*, bool>(origOp)  //
+            CASE(IE::ConvertOp, VPUIP::ConvertUPAOp)
+    CASE(IE::SoftMaxOp, VPUIP::SoftMaxUPAOp)
+    CASE(IE::AvgPoolOp, VPUIP::PoolingUPAOp)
+    HW_OPS_CASE(IE::MaxPoolOp, VPUIP::PoolingUPAOp)
+    HW_OPS_CASE(IE::ConvolutionOp, VPUIP::ConvolutionUPAOp)
+    HW_OPS_CASE(IE::AddOp, VPUIP::EltwiseUPAOp)
+    CASE(IE::GroupConvolutionOp, VPUIP::ConvolutionUPAOp)
+    CASE(IE::ReLUOp, VPUIP::ReLUUPAOp)
+    CASE(IE::SigmoidOp, VPUIP::SigmoidUPAOp)
+    CASE(IE::ClampOp, VPUIP::ClampUPAOp)
+    CASE(IE::EluOp, VPUIP::EluUPAOp)
+    CASE(IE::HSwishOp, VPUIP::HSwishUPAOp)
+    CASE(IE::TanhOp, VPUIP::TanhUPAOp)
+    CASE(IE::FakeQuantizeOp, VPUIP::FakeQuantizeUPAOp)
+    CASE(IE::PReluOp, VPUIP::PReluUPAOp)
+    CASE(IE::LeakyReluOp, VPUIP::LeakyReluUPAOp)
+    CASE(IE::MultiplyOp, VPUIP::EltwiseUPAOp)
+    CASE(IE::DivideOp, VPUIP::EltwiseUPAOp)
+    CASE(IE::SquaredDifferenceOp, VPUIP::EltwiseUPAOp)
+    CASE(IE::PowerOp, VPUIP::EltwiseUPAOp)
+    CASE(IE::FloorModOp, VPUIP::EltwiseUPAOp)
+    CASE(IE::MinimumOp, VPUIP::EltwiseUPAOp)
+    CASE(IE::MaximumOp, VPUIP::EltwiseUPAOp)
+    CASE(IE::SwishOp, VPUIP::SwishUPAOp)
+    CASE(IE::GRNOp, VPUIP::GRNUPAOp)
+    CASE(IE::TileOp, VPUIP::PerAxisTileUPAOp)
+    CASE(IE::PerAxisTileOp, VPUIP::PerAxisTileUPAOp)
+    CASE(IE::NegativeOp, VPUIP::NegativeUPAOp)
+    CASE(IE::ROIPoolingOp, VPUIP::ROIPoolingUPAOp)
+    CASE(IE::FullyConnectedOp, VPUIP::FullyConnectedUPAOp)
+    CASE(IE::DetectionOutputOp, VPUIP::DetectionOutputUPAOp)
+    CASE(IE::ScaleShiftOp, VPUIP::ScaleShiftUPAOp)
+    CASE(IE::TransposeOp, VPUIP::PermuteUPAOp)
+    CASE(IE::ReorderOp, VPUIP::PermuteUPAOp)
+    CASE(IE::CTCGreedyDecoderOp, VPUIP::CTCGreedyDecoderUPAOp)
+    CASE(IE::CTCGreedyDecoderSeqLenOp, VPUIP::CTCGreedyDecoderSeqLenUPAOp)
+    CASE(IE::PadOp, VPUIP::PadUPAOp)
+    CASE(IE::ExpOp, VPUIP::ExpUPAOp)
+    CASE(IE::InterpolateOp, VPUIP::InterpolateUPAOp)
+    CASE(IE::StridedSliceOp, VPUIP::StridedSliceUPAOp)
+    .Default([](mlir::Operation* unknownOp) -> bool {
+        VPUX_THROW("Operation '{0}' does not support layout propagation", unknownOp->getName());
+    });
+
+#undef CASE
+#undef HW_OPS_CASE
+}
+
 //
 // RTLayerInfo
 //
@@ -100,7 +173,6 @@ public:
 
 public:
     mlir::Attribute getExecutor(mlir::Operation* op, uint32_t& numUnits) const final;
-    bool isSupportedLayout(mlir::Operation* origOp, DataOrderInfo& info) const final;
 };
 
 mlir::Attribute RTLayerInfo::getExecutor(mlir::Operation* op, uint32_t& numUnits) const {
@@ -144,95 +216,11 @@ mlir::Attribute RTLayerInfo::getExecutor(mlir::Operation* op, uint32_t& numUnits
         }
     }
 
-    if (mlir::isa<IERT::ConvolutionOp, IERT::MaxPoolOp, IERT::AddOp>(op)) {
-        auto module = op->getParentOfType<mlir::ModuleOp>();
-        const auto compileMode = VPUIP::getCompilationMode(module);
-
-        if (compileMode == VPUIP::CompilationMode::ReferenceHW && VPUIP::NCEInvariant::verifyOp(op).succeeded()) {
-            return getPhysicalProcessor(VPUIP::PhysicalProcessor::NCE_Cluster);
-        }
-    }
-
     if (mlir::isa<IERT::CopyOp>(op)) {
         return getDMAEngine(VPUIP::DMAEngine::DMA_NN);
     }
 
     return getPhysicalProcessor(VPUIP::PhysicalProcessor::SHAVE_UPA);
-}
-
-bool RTLayerInfo::isSupportedLayout(mlir::Operation* origOp, DataOrderInfo& info) const {
-    auto module = origOp->getParentOfType<mlir::ModuleOp>();
-    const auto compileMode = VPUIP::getCompilationMode(module);
-
-#define CASE(_IERT_OP_, _VPUIP_OP_)                     \
-    .Case<_IERT_OP_>([&](_IERT_OP_ op) {                \
-        return _VPUIP_OP_::isSupportedLayout(op, info); \
-    })
-
-#define HW_OPS_CASE(_IERT_OP_, _VPUIP_OP_)                           \
-    .Case<_IERT_OP_>([&](_IERT_OP_ op) {                             \
-        if (compileMode == VPUIP::CompilationMode::ReferenceSW) {    \
-            return _VPUIP_OP_::isSupportedLayout(op, info);          \
-        }                                                            \
-        if (VPUIP::NCEInvariant::verifyKernel(op).failed()) {        \
-            return _VPUIP_OP_::isSupportedLayout(op, info);          \
-        }                                                            \
-        if (VPUIP::NCEInvariant::verifyChannels(op).failed()) {      \
-            return _VPUIP_OP_::isSupportedLayout(op, info);          \
-        }                                                            \
-        return VPUIP::NCEClusterTaskOp::isSupportedLayout(op, info); \
-    })
-
-    return llvm::TypeSwitch<mlir::Operation*, bool>(origOp)                   //
-            CASE(IERT::QuantizeOp, VPUIP::QuantCastUPAOp)                     //
-    CASE(IERT::DequantizeOp, VPUIP::QuantCastUPAOp)                           //
-    CASE(IERT::ConvertOp, VPUIP::ConvertUPAOp)                                //
-    CASE(IERT::CopyOp, VPUIP::UPADMAOp)                                       //
-    CASE(IERT::SoftMaxOp, VPUIP::SoftMaxUPAOp)                                //
-    CASE(IERT::AvgPoolOp, VPUIP::PoolingUPAOp)                                //
-    HW_OPS_CASE(IERT::MaxPoolOp, VPUIP::PoolingUPAOp)                         //
-    HW_OPS_CASE(IERT::ConvolutionOp, VPUIP::ConvolutionUPAOp)                 //
-    HW_OPS_CASE(IERT::AddOp, VPUIP::EltwiseUPAOp)                             //
-    CASE(IERT::GroupConvolutionOp, VPUIP::ConvolutionUPAOp)                   //
-    CASE(IERT::ReLUOp, VPUIP::ReLUUPAOp)                                      //
-    CASE(IERT::SigmoidOp, VPUIP::SigmoidUPAOp)                                //
-    CASE(IERT::ClampOp, VPUIP::ClampUPAOp)                                    //
-    CASE(IERT::EluOp, VPUIP::EluUPAOp)                                        //
-    CASE(IERT::HSwishOp, VPUIP::HSwishUPAOp)                                  //
-    CASE(IERT::TanhOp, VPUIP::TanhUPAOp)                                      //
-    CASE(IERT::FakeQuantizeOp, VPUIP::FakeQuantizeUPAOp)                      //
-    CASE(IERT::PReluOp, VPUIP::PReluUPAOp)                                    //
-    CASE(IERT::LeakyReluOp, VPUIP::LeakyReluUPAOp)                            //
-    CASE(IERT::MultiplyOp, VPUIP::EltwiseUPAOp)                               //
-    CASE(IERT::DivideOp, VPUIP::EltwiseUPAOp)                                 //
-    CASE(IERT::SquaredDifferenceOp, VPUIP::EltwiseUPAOp)                      //
-    CASE(IERT::PowerOp, VPUIP::EltwiseUPAOp)                                  //
-    CASE(IERT::FloorModOp, VPUIP::EltwiseUPAOp)                               //
-    CASE(IERT::MinimumOp, VPUIP::EltwiseUPAOp)                                //
-    CASE(IERT::MaximumOp, VPUIP::EltwiseUPAOp)                                //
-    CASE(IERT::SwishOp, VPUIP::SwishUPAOp)                                    //
-    CASE(IERT::GRNOp, VPUIP::GRNUPAOp)                                        //
-    CASE(IERT::TileOp, VPUIP::PerAxisTileUPAOp)                               //
-    CASE(IERT::PerAxisTileOp, VPUIP::PerAxisTileUPAOp)                        //
-    CASE(IERT::NegativeOp, VPUIP::NegativeUPAOp)                              //
-    CASE(IERT::ROIPoolingOp, VPUIP::ROIPoolingUPAOp)                          //
-    CASE(IERT::FullyConnectedOp, VPUIP::FullyConnectedUPAOp)                  //
-    CASE(IERT::DetectionOutputOp, VPUIP::DetectionOutputUPAOp)                //
-    CASE(IERT::ScaleShiftOp, VPUIP::ScaleShiftUPAOp)                          //
-    CASE(IERT::TransposeOp, VPUIP::PermuteUPAOp)                              //
-    CASE(IERT::ReorderOp, VPUIP::PermuteUPAOp)                                //
-    CASE(IERT::CTCGreedyDecoderOp, VPUIP::CTCGreedyDecoderUPAOp)              //
-    CASE(IERT::CTCGreedyDecoderSeqLenOp, VPUIP::CTCGreedyDecoderSeqLenUPAOp)  //
-    CASE(IERT::PadOp, VPUIP::PadUPAOp)                                        //
-    CASE(IERT::ExpOp, VPUIP::ExpUPAOp)                                        //
-    CASE(IERT::InterpolateOp, VPUIP::InterpolateUPAOp)                        //
-    CASE(IERT::StridedSliceOp, VPUIP::StridedSliceUPAOp)                      //
-    .Default([](mlir::Operation* unknownOp) -> bool {
-        VPUX_THROW("Operation '{0}' does not support layout propagation", unknownOp->getName());
-    });
-
-#undef CASE
-#undef HW_OPS_CASE
 }
 
 }  // namespace

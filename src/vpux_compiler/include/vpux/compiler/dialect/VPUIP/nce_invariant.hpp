@@ -57,6 +57,7 @@ public:
     static mlir::LogicalResult verifyPoolChannels(mlir::Location loc, mlir::ShapedType inputType,
                                                   Logger log = Logger::global());
 
+    static mlir::LogicalResult verifyChannels(IE::AddOp origOp, Logger log = Logger::global());
     static mlir::LogicalResult verifyChannels(IERT::AddOp origOp, Logger log = Logger::global());
     static mlir::LogicalResult verifyEltwiseChannels(mlir::Location loc, mlir::ShapedType firstInputType,
                                                      mlir::ShapedType secondInputType, Logger log = Logger::global());
@@ -70,6 +71,7 @@ public:
     static mlir::LogicalResult verifyKernel(IE::MaxPoolOp origOp, Logger log = Logger::global());
     static mlir::LogicalResult verifyKernel(IERT::MaxPoolOp origOp, Logger log = Logger::global());
 
+    static mlir::LogicalResult verifyKernel(IE::AddOp origOp, Logger log = Logger::global());
     static mlir::LogicalResult verifyKernel(IERT::AddOp origOp, Logger log = Logger::global());
 
     static mlir::LogicalResult verifyKernel(mlir::Location loc, mlir::ArrayAttr kernelSize,

@@ -37,7 +37,7 @@ def MultiViewOpInterface : OpInterface<"MultiViewOpInterface"> {
 }
 
 //===========================================================================================
-// Generic layer interfaces and traits
+// Layer interfaces and traits
 //===========================================================================================
 
 //
@@ -51,35 +51,144 @@ def LayerInterface : OpInterface<"LayerInterface"> {
 
     let methods = [
         InterfaceMethod<
-            "Get all inputs (tensors or memory buffers) for the Operation",
-            "vpux::DataOrderInfo", "getDataOrderInfo", (ins)>,
+            "Get all layer input tensors",
+            "mlir::OperandRange", "getInputs", (ins),
+            [{}],
+            [{
+                return $_op->getOperands();
+            }]
+        >,
 
         InterfaceMethod<
-            "Get all inputs (tensors or memory buffers) for the Operation",
-            "mlir::OperandRange", "getInputs", (ins)>,
+            "Get all layer output tensors",
+            "mlir::ResultRange", "getOutputs", (ins),
+            [{}],
+            [{
+                return $_op->getResults();
+            }]
+        >,
 
         InterfaceMethod<
-            "Get the outputs (tensors or memory buffers) for the Operation",
-            "mlir::OperandRange", "getOutputs", (ins)>,
-
-        InterfaceMethod<
-            "Get all inputs (tensors or memory buffers) for the Operation",
-            "llvm::detail::concat_range<mlir::OpOperand, MutableArrayRef<mlir::OpOperand>, MutableArrayRef<mlir::OpOperand>>", "getOpOperands", (ins)>,
-
-        InterfaceMethod<
-            "Get all inputs (tensors or memory buffers) for the Operation",
-            "MutableArrayRef<mlir::OpOperand>", "getInOpOperands", (ins)>,
-
-        InterfaceMethod<
-            "Get the outputs (tensors or memory buffers) for the Operation",
-            "MutableArrayRef<mlir::OpOperand>", "getOutOpOperands", (ins)>,
+            "Get information about current layout for Layer inputs and outputs",
+            "vpux::DataOrderInfo", "getDataOrderInfo", (ins),
+            [{}],
+            [{
+                return vpux::getLayerDataOrderInfo($_op);
+            }]
+        >,
     ];
+
+    let extraTraitClassDeclaration = [{
+        static mlir::LogicalResult inferReturnTypes(mlir::MLIRContext* ctx, mlir::Optional<mlir::Location> loc,
+                                                    mlir::ValueRange operands, mlir::DictionaryAttr attrs,
+                                                    mlir::RegionRange regions, mlir::SmallVectorImpl<mlir::Type>& inferredTypes) {
+            return vpux::inferTensorTypes(ConcreteOp::inferReturnTypeComponents, ctx, loc, operands, attrs, regions, inferredTypes);
+        }
+    }];
 
     let verify = [{
         return vpux::verifyLayer($_op);
     }];
 }
 
+//===========================================================================================
+// Run-time layer interfaces and traits
+//===========================================================================================
+
+//
+// RTLayerInterface
+//
+
+def RTLayerInterface : OpInterface<"RTLayerInterface"> {
+    let description = "Base interface for RT Layer Operation";
+
+    let cppNamespace = "vpux";
+
+    let methods = [
+        InterfaceMethod<
+            "Get all layer input memory buffers",
+            "mlir::OperandRange", "getInputs", (ins),
+            [{}],
+            [{
+                return vpux::getRTLayerInputs($_op);
+            }]
+        >,
+
+        InterfaceMethod<
+            "Get all layer output memory buffers",
+            "mlir::OperandRange", "getOutputs", (ins),
+            [{}],
+            [{
+                return vpux::getRTLayerOutputs($_op);
+            }]
+        >,
+
+        InterfaceMethod<
+            "Get all layer memory buffers",
+            "llvm::detail::concat_range<mlir::OpOperand, llvm::MutableArrayRef<mlir::OpOperand>, llvm::MutableArrayRef<mlir::OpOperand>>",
+            "getOpOperands", (ins),
+            [{}],
+            [{
+                return llvm::concat<mlir::OpOperand>($_op.getInOpOperands(), $_op.getOutOpOperands());
+            }]
+        >,
+
+        InterfaceMethod<
+            "Get all layer input memory buffers",
+            "llvm::MutableArrayRef<mlir::OpOperand>", "getInOpOperands", (ins),
+            [{}],
+            [{
+                return vpux::getRTLayerInOpOperands($_op);
+            }]
+        >,
+
+        InterfaceMethod<
+            "Get all layer output memory buffers",
+            "llvm::MutableArrayRef<mlir::OpOperand>", "getOutOpOperands", (ins),
+            [{}],
+            [{
+                return vpux::getRTLayerOutOpOperands($_op);
+            }]
+        >,
+
+        InterfaceMethod<
+            "Get information about current layout for Layer inputs and outputs",
+            "vpux::DataOrderInfo", "getDataOrderInfo", (ins),
+            [{}],
+            [{
+                return vpux::getRTLayerDataOrderInfo($_op);
+            }]
+        >,
+    ];
+
+    let extraTraitClassDeclaration = [{
+        mlir::Value getViewSource(ptrdiff_t resultInd = 0) {
+            return vpux::getRTLayerViewSource($_op, resultInd);
+        }
+    }];
+
+    let verify = [{
+        return vpux::verifyRTLayer($_op);
+    }];
+}
+
+//
+// InferReturnTypesForRTLayer
+//
+
+class InferReturnTypesForRTLayer<int numResult> {
+    code impl = [{
+        static mlir::LogicalResult inferReturnTypes(
+                mlir::MLIRContext*,
+                llvm::Optional<mlir::Location>,
+                mlir::ValueRange operands,
+                mlir::DictionaryAttr,
+                mlir::RegionRange,
+                llvm::SmallVectorImpl<mlir::Type>& inferredReturnTypes) {
+            return vpux::inferRTLayerReturnTypes(operands, }] #numResult# [{, inferredReturnTypes);
+        }
+    }];
+}
 //
 // SameShape
 //
@@ -134,37 +243,6 @@ def SameInOutDimsOrder_CHW_HWC_NCHW_NHWC : NativeOpTrait<"SameInOutDimsOrder_CHW
 
 def AnyDimsOrder : NativeOpTrait<"AnyDimsOrder"> {
     let cppNamespace = "vpux";
-}
-
-//===========================================================================================
-// Run-time layer interfaces and traits
-//===========================================================================================
-
-//
-// RTLayer
-//
-
-def RTLayer : NativeOpTrait<"RTLayer"> {
-    let cppNamespace = "vpux";
-}
-
-//
-// InferReturnTypesForRTLayer
-//
-
-class InferReturnTypesForRTLayer<int numResult> {
-    code impl = [{
-        static mlir::LogicalResult inferReturnTypes(
-                mlir::MLIRContext*,
-                llvm::Optional<mlir::Location>,
-                mlir::ValueRange operands,
-                mlir::DictionaryAttr,
-                mlir::RegionRange,
-                llvm::SmallVectorImpl<mlir::Type>& inferredReturnTypes) {
-            vpux::inferRTLayerReturnTypes(operands, }] #numResult# [{, inferredReturnTypes);
-            return mlir::success();
-        }
-    }];
 }
 
 //===========================================================================================

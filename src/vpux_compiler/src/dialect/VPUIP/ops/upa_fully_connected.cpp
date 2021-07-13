@@ -23,7 +23,7 @@ void vpux::VPUIP::FullyConnectedUPAOp::build(mlir::OpBuilder& builder, mlir::Ope
 }
 
 bool vpux::VPUIP::FullyConnectedUPAOp::isSupportedLayout(mlir::Operation* op, vpux::DataOrderInfo& info) {
-    VPUX_THROW_UNLESS(mlir::isa<IERT::FullyConnectedOp>(op), "Operation {0} is not FullyConnected", op->getName());
+    VPUX_THROW_UNLESS(mlir::isa<IE::FullyConnectedOp>(op), "Operation {0} is not FullyConnected", op->getName());
 
     if (!isSupportedLayoutSameInOutSpecificDimsOrder(op, info, {DimsOrder::NC})) {
         // weights layout

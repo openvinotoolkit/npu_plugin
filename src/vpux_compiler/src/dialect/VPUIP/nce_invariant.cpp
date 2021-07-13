@@ -131,6 +131,12 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyEltwiseChannels(mlir::Locat
     return mlir::success();
 }
 
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyChannels(IE::AddOp origOp, Logger log) {
+    auto input1Type = origOp.input1().getType().cast<mlir::ShapedType>();
+    auto input2Type = origOp.input2().getType().cast<mlir::ShapedType>();
+    return verifyEltwiseChannels(origOp->getLoc(), input1Type, input2Type, log);
+}
+
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyChannels(IERT::AddOp origOp, Logger log) {
     auto input1Type = origOp.input1().getType().cast<mlir::ShapedType>();
     auto input2Type = origOp.input2().getType().cast<mlir::ShapedType>();
@@ -370,6 +376,11 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IERT::MaxPoolOp orig
     }
 
     return verifyKernel(origOp->getLoc(), origOp.kernel_size(), origOp.strides(), log);
+}
+
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IE::AddOp, Logger) {
+    // Eltwise add does not have kernels. Nothing to verify.
+    return mlir::success();
 }
 
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IERT::AddOp, Logger) {

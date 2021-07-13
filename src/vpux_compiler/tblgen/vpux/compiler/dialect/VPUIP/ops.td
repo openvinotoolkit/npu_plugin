@@ -47,16 +47,14 @@ class VPUIP_TaskOp<int numResult, string mnemonic, list<OpTrait> traits = []> :
             !listconcat(
                 traits,
                 [
-                    RTLayer,
-                    LayerInterface,
+                    AttrSizedOperandSegments,
                     InferTypeOpInterface,
                     MemoryEffectsOpInterface,
-                    AttrSizedOperandSegments,
+                    DeclareOpInterfaceMethods<RTLayerInterface>,
                     DeclareOpInterfaceMethods<VPUIP_TaskOpInterface>
                 ]
             )
         > {
-
     code commonExtraClassDeclaration = InferReturnTypesForRTLayer<numResult>.impl;
 
     let extraClassDeclaration = commonExtraClassDeclaration;
@@ -2002,11 +2000,10 @@ def VPUIP_PadUPAOp :
 def VPUIP_EdslUPAOp :
         VPUIP_Op<"EdslUPA",
             [
-                RTLayer,
-                LayerInterface,
-                MemoryEffectsOpInterface,
                 AttrSizedOperandSegments,
+                MemoryEffectsOpInterface,
                 ViewLikeOpInterface,
+                DeclareOpInterfaceMethods<RTLayerInterface>,
                 DeclareOpInterfaceMethods<VPUIP_TaskOpInterface>,
                 DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>,
             ]

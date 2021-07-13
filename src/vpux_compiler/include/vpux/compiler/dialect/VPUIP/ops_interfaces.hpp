@@ -54,7 +54,7 @@ void getTaskEffects(mlir::Operation* op, SmallVectorImpl<MemoryEffect>& effects)
 mlir::LogicalResult verifyLegacy4D(mlir::Operation* op);
 
 template <typename ConcreteOp>
-class Legacy4D : public mlir::OpTrait::TraitBase<ConcreteOp, SameDimsOrder> {
+class Legacy4D : public mlir::OpTrait::TraitBase<ConcreteOp, Legacy4D> {
 public:
     static mlir::LogicalResult verifyTrait(mlir::Operation* op) {
         return verifyLegacy4D(op);

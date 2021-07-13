@@ -55,6 +55,25 @@ def UseUserLayout : PassBase<"use-user-layout", "vpux::ModulePass"> {
     ];
 }
 
+//
+// AdjustLayouts
+//
+
+def AdjustLayouts : PassBase<"adjust-layouts", "vpux::FunctionPass"> {
+    let summary = "Adjust required layouts for all layers";
+
+    let description = [{
+        This pass adds the required layouts instead of the default one
+        depending on the layer specification from underlying Dialect.
+    }];
+
+    let constructor = "vpux::IE::createAdjustLayoutsPass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
+
 //=================================================================================
 // AdjustForVPU
 //=================================================================================

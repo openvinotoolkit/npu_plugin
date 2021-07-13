@@ -96,52 +96,28 @@ NOTE: This method *must* be implemented by the user.
 
 Base interface for Layer Operation
 ### Methods:
-#### `getDataOrderInfo`
-
-```c++
-vpux::DataOrderInfo getDataOrderInfo();
-```
-Get all inputs (tensors or memory buffers) for the Operation
-NOTE: This method *must* be implemented by the user.
-
 #### `getInputs`
 
 ```c++
 mlir::OperandRange getInputs();
 ```
-Get all inputs (tensors or memory buffers) for the Operation
+Get all layer input tensors
 NOTE: This method *must* be implemented by the user.
 
 #### `getOutputs`
 
 ```c++
-mlir::OperandRange getOutputs();
+mlir::ResultRange getOutputs();
 ```
-Get the outputs (tensors or memory buffers) for the Operation
+Get all layer output tensors
 NOTE: This method *must* be implemented by the user.
 
-#### `getOpOperands`
+#### `getDataOrderInfo`
 
 ```c++
-llvm::detail::concat_range<mlir::OpOperand, MutableArrayRef<mlir::OpOperand>, MutableArrayRef<mlir::OpOperand>> getOpOperands();
+vpux::DataOrderInfo getDataOrderInfo();
 ```
-Get all inputs (tensors or memory buffers) for the Operation
-NOTE: This method *must* be implemented by the user.
-
-#### `getInOpOperands`
-
-```c++
-MutableArrayRef<mlir::OpOperand> getInOpOperands();
-```
-Get all inputs (tensors or memory buffers) for the Operation
-NOTE: This method *must* be implemented by the user.
-
-#### `getOutOpOperands`
-
-```c++
-MutableArrayRef<mlir::OpOperand> getOutOpOperands();
-```
-Get the outputs (tensors or memory buffers) for the Operation
+Get information about current layout for Layer inputs and outputs
 NOTE: This method *must* be implemented by the user.
 
 ## MultiViewOpInterface (`MultiViewOpInterface`)
@@ -156,6 +132,58 @@ It allows to define several resulting views in single operation.
 mlir::Value getViewSource(ptrdiff_t resultInd);
 ```
 The source buffer from which the corresponding view is created, NULL if the result is not a view
+NOTE: This method *must* be implemented by the user.
+
+## RTLayerInterface (`RTLayerInterface`)
+
+Base interface for RT Layer Operation
+### Methods:
+#### `getInputs`
+
+```c++
+mlir::OperandRange getInputs();
+```
+Get all layer input memory buffers
+NOTE: This method *must* be implemented by the user.
+
+#### `getOutputs`
+
+```c++
+mlir::OperandRange getOutputs();
+```
+Get all layer output memory buffers
+NOTE: This method *must* be implemented by the user.
+
+#### `getOpOperands`
+
+```c++
+llvm::detail::concat_range<mlir::OpOperand, llvm::MutableArrayRef<mlir::OpOperand>, llvm::MutableArrayRef<mlir::OpOperand>> getOpOperands();
+```
+Get all layer memory buffers
+NOTE: This method *must* be implemented by the user.
+
+#### `getInOpOperands`
+
+```c++
+llvm::MutableArrayRef<mlir::OpOperand> getInOpOperands();
+```
+Get all layer input memory buffers
+NOTE: This method *must* be implemented by the user.
+
+#### `getOutOpOperands`
+
+```c++
+llvm::MutableArrayRef<mlir::OpOperand> getOutOpOperands();
+```
+Get all layer output memory buffers
+NOTE: This method *must* be implemented by the user.
+
+#### `getDataOrderInfo`
+
+```c++
+vpux::DataOrderInfo getDataOrderInfo();
+```
+Get information about current layout for Layer inputs and outputs
 NOTE: This method *must* be implemented by the user.
 
 ## SoftMaxLayerInterface (`SoftMaxLayerInterface`)

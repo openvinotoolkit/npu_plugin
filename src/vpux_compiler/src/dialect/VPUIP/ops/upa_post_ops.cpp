@@ -27,9 +27,9 @@ using namespace vpux;
 mlir::LogicalResult vpux::VPUIP::verifyPostOp(mlir::Operation* op) {
     VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in verifyPostOp");
 
-    auto layer = mlir::dyn_cast<LayerInterface>(op);
+    auto layer = mlir::dyn_cast<RTLayerInterface>(op);
     if (layer == nullptr) {
-        return errorAt(op, "Operation '{0}' doesn't implement Layer interface", op->getName());
+        return errorAt(op, "Operation '{0}' doesn't implement RT Layer interface", op->getName());
     }
 
     for (auto& operand : layer.getOpOperands()) {
