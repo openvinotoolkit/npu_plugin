@@ -304,7 +304,6 @@ compile_commands.json
 service/dot-net-service/Output
 **/sublime_build
 /.project
-.vscode/
 /vsx32
 /service/dot-net-service/.klocwork/DotNetService
 cmake-build-*/
@@ -320,3 +319,12 @@ tmp.*
 *report.txt
 output/
 .cenv/
+
+# Tools output files
+*.csv
+
+# VS Code
+.vscode/
+CMakePresets.json
+CMakeSettings.json
+CMakeUserPresets.json
