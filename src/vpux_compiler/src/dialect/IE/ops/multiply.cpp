@@ -38,11 +38,17 @@ public:
 mlir::LogicalResult ConvertMultiplyToScale::matchAndRewrite(IE::MultiplyOp mulOp,
                                                             mlir::PatternRewriter& rewriter) const {
     static const auto N = Dim(0);
+    static const auto C = Dim(1);
     static const auto H = Dim(2);
     static const auto W = Dim(3);
 
+    const auto input2 = mulOp.input2();
+    if (input2 == nullptr) {
+        return mlir::failure();
+    }
+
     auto mulOutShape = getShape(mulOp.output());
-    auto weightsShape = getShape(mulOp.input2());
+    auto weightsShape = getShape(input2);
 
     if (mulOutShape.size() != 4 || weightsShape.size() != 4) {
         return mlir::failure();
@@ -51,8 +57,46 @@ mlir::LogicalResult ConvertMultiplyToScale::matchAndRewrite(IE::MultiplyOp mulOp
         return mlir::failure();
     }
 
-    rewriter.replaceOpWithNewOp<IE::ScaleShiftOp>(mulOp, mulOp.getType(), mulOp.input1(), mulOp.input2(), nullptr);
+    if (weightsShape[C] != mulOutShape[C] && weightsShape[C] != 1) {
+        return mlir::failure();
+    }
 
+    auto weightsInput = mulOp.input2();
+    // Broadcast scalar for all channels
+    if (weightsShape[C] != mulOutShape[C] && weightsShape[C] == 1) {
+        auto input2Const = input2.getDefiningOp<Const::DeclareOp>();
+        if (input2Const == nullptr) {
+            return mlir::failure();
+        }
+        const auto input2Content = input2Const.content();
+
+        const auto elemType = input2Content.getElementType();
+        SmallVector<int64_t> newWeightsShape{1, mulOutShape[C], 1, 1};
+        mlir::DenseElementsAttr dataAttr;
+
+        // Handle fp16 / fp32 case separately
+        if (elemType == mlir::Float16Type::get(rewriter.getContext())) {
+            const float scaleValue = input2Content.getSplatValue<float16>();
+            const auto arrayRef = SmallVector<float16>{scaleValue};
+            const auto dataStorageType = mlir::RankedTensorType::get(newWeightsShape, elemType);
+            dataAttr = mlir::DenseElementsAttr::get(dataStorageType, makeArrayRef(arrayRef));
+        } else if (elemType == mlir::Float32Type::get(rewriter.getContext())) {
+            const float scaleValue = input2Content.getSplatValue<float>();
+            const auto arrayRef = SmallVector<float>{scaleValue};
+            const auto dataStorageType = mlir::RankedTensorType::get(newWeightsShape, elemType);
+            dataAttr = mlir::DenseElementsAttr::get(dataStorageType, makeArrayRef(arrayRef));
+        } else {
+            return mlir::failure();
+        }
+
+        const auto dataType = mlir::RankedTensorType::get(newWeightsShape, elemType);
+        auto dataConstOp =
+                rewriter.create<Const::DeclareOp>(mulOp.getLoc(), dataType, Const::ContentAttr::get(dataAttr));
+
+        weightsInput = dataConstOp.output();
+    }
+
+    rewriter.replaceOpWithNewOp<IE::ScaleShiftOp>(mulOp, mulOp.getType(), mulOp.input1(), weightsInput, nullptr);
     return mlir::success();
 }
 
