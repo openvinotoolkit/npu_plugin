@@ -371,6 +371,59 @@ void removeFQ(const mv::pass::PassEntry&, mv::ComputationModel& model) {
     }
 }
 
+// This is a helper function for Scale op quantization handling
+// It will calculate new quant params based on Scale op scale factor
+static void rescaleQuantParams(mv::QuantizationParams& quant_params, std::vector<double>& scale, size_t num_of_channels)
+{
+    if (scale.size() == 0 || quant_params.isEmpty() || quant_params.isInitial() || quant_params.isNeutral())
+        return;
+    
+    // Initialize quantization params with existing ones and later rescale them
+    // to take into account impact of scaling on min/max range
+    auto new_min = quant_params.getMin();
+    auto new_max = quant_params.getMax();
+    auto new_scale = quant_params.getScale();
+    auto new_zp = quant_params.getZeroPoint();
+
+    // Check if all elements of scale data is the same
+    // In such case rescale quant params based on scale factor
+    if (std::equal(scale.begin() + 1, scale.end(), scale.begin()) )
+    {
+        double scale_factor = scale[0];
+        std::for_each(new_min.begin(), new_min.end(), [scale_factor](double &el){ el /= scale_factor; });
+        std::for_each(new_max.begin(), new_max.end(), [scale_factor](double &el){ el /= scale_factor; });
+        std::for_each(new_scale.begin(), new_scale.end(), [scale_factor](double &el){ el /= scale_factor; });
+    }
+    // Check if number of elements are the same for all parameters
+    // In such case perform elementwise rescaling
+    else if (scale.size() == new_min.size() && scale.size() == new_max.size() && scale.size() == new_scale.size())
+    {
+        std::transform(new_min.begin(), new_min.end(), scale.begin(), new_min.begin(), std::divides<double>() );
+        std::transform(new_max.begin(), new_max.end(), scale.begin(), new_max.begin(), std::divides<double>() );
+        std::transform(new_scale.begin(), new_scale.end(), scale.begin(), new_scale.begin(), std::divides<double>() );
+    }
+    // Check if for quant params per tensor size of scale vector is equal to number of channels
+    // In such case create new per channel quant params
+    else if (quant_params.isScalePerTensor() && scale.size() == num_of_channels)
+    {
+        new_min.resize(num_of_channels, new_min[0]);
+        new_max.resize(num_of_channels, new_max[0]);
+        new_scale.resize(num_of_channels, new_scale[0]);
+        new_zp.resize(num_of_channels, new_zp[0]);
+
+        std::transform(new_min.begin(), new_min.end(), scale.begin(), new_min.begin(), std::divides<double>() );
+        std::transform(new_max.begin(), new_max.end(), scale.begin(), new_max.begin(), std::divides<double>() );
+        std::transform(new_scale.begin(), new_scale.end(), scale.begin(), new_scale.begin(), std::divides<double>() );
+    }
+    else
+    {
+        throw mv::ArgumentError("Rescale quant params error", "Unable to rescale, quant params size: ", std::to_string(new_scale.size()),
+            " scale size: " + std::to_string(scale.size()));
+    }
+
+    quant_params = mv::QuantizationParams(new_zp, new_scale, new_min, new_max);
+}
+
 void quantizeScaleShift(mv::ComputationModel& model, const mv::pass::PassEntry& pass) {
     mv::OpModel om(model);
     mv::DataModel dm(model);
@@ -382,7 +435,7 @@ void quantizeScaleShift(mv::ComputationModel& model, const mv::pass::PassEntry& 
         if (fqOps.empty())
             continue;
 
-        const auto outputQuantParams = extractQuantParamsO(fqOps[0], false);
+        auto outputQuantParams = extractQuantParamsO(fqOps[0], false);
         const auto equalQuantParams = std::all_of(fqOps.begin(), fqOps.end(),
             [&outputQuantParams](const mv::Data::OpListIterator& fqOp) {
                 return isEqual(outputQuantParams, extractQuantParamsO(fqOp, false));
@@ -397,6 +450,12 @@ void quantizeScaleShift(mv::ComputationModel& model, const mv::pass::PassEntry& 
             auto scaleTensor = scaleOp->getInputTensor(1);
             auto originalConstOp = om.getSourceOp(scaleTensor);
             auto scaleData = scaleTensor->getDoubleData();
+            size_t num_of_channels = fqOps[0]->getInputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION];
+
+            // Since quant params will be propagated up the graph rescale
+            // them based on Scale op params
+            rescaleQuantParams(outputQuantParams, scaleData, num_of_channels);
+
             auto quantizedScaleData = std::vector<int64_t>(scaleData.size(), 127+127);
             for (size_t c = 0; c < scaleData.size(); c++) {
                 if (scaleData[c] < 0) {
