@@ -6,267 +6,17 @@
 #include "include/mcm/pass/pass_quantization.hpp"
 
 static void quantizeGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& compilationDescriptor, mv::Element&);
-static void decideComputePrecisionFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& compilationDescriptor, mv::Element&);
 
 
 namespace mv
 {
     namespace pass
     {
-        MV_REGISTER_PASS(DecideComputePrecision)
-        .setFunc(decideComputePrecisionFcn)
-        .setDescription(
-            "This pass checks FQ node after input and makes decision on internal network compute precision"
-        );
-
         MV_REGISTER_PASS(FakeQuantize)
         .setFunc(quantizeGraphFcn)
         .setDescription(
             "This pass propagate parameters from FakeQuantize ops to all other operations and quantize const data"
         );
-    }
-}
-
-// This recursive function will traverse down and update each op output tensor precision to destination type
-static void updateChildrenPrecisionRecursiveDown(mv::Data::OpListIterator exploreOp, mv::OpModel& om, mv::DType dataType)
-{
-    for(auto nextOp = exploreOp.leftmostChild(); nextOp != om.opEnd(); ++nextOp)
-    {
-        auto opType = nextOp->getOpType();
-        if(opType != "Output" && opType != "Constant")
-        {
-            auto outputTensors = nextOp->getOutputTensor();
-
-            // If precision is already properly set skip this path
-            if (outputTensors[0]->getDType() == dataType)
-            {
-                continue;
-            }
-
-            for (auto& outputTensor : outputTensors)
-            {
-                outputTensor->setDType(dataType);
-            }
-            updateChildrenPrecisionRecursiveDown(nextOp, om, dataType);
-        }
-    }
-}
-
-// This recursive function will traverse up and update each tensor precision to destination type
-static void updateParentPrecisionRecursiveUp(mv::Data::OpListIterator exploreOp, mv::OpModel& om, mv::DType dataType)
-{
-    auto inputTensor = exploreOp->getInputTensor(0);
-    auto parentOp = om.getSourceOp(inputTensor);
-    inputTensor->setDType(dataType);
-    inputTensor->set<bool>("FPConversionPath", true);
-    parentOp->set<mv::DType>("dType", dataType);
-    if (parentOp->getOpType() != "Input")
-    {
-        updateParentPrecisionRecursiveUp(parentOp, om, dataType);
-    }
-}
-
-// This recursive function will search down for FakeQuantize operations. It will stop until either FQ is encountered
-// or if it got to output or DPU task
-static void getFakeQuantizeRecursiveDown(mv::Data::OpListIterator exploreOp, std::vector<mv::Data::OpListIterator>& fqOps, std::vector<mv::Data::OpListIterator>& notQuantizedDpuTasks, mv::OpModel& om)
-{
-    for(auto nextOp = exploreOp.leftmostChild(); nextOp != om.opEnd(); ++nextOp)
-    {
-        auto opType = nextOp->getOpType();
-        if (opType == "FakeQuantize")
-        {
-            fqOps.push_back(nextOp);
-        }
-        else if (opType == "Output")
-        {
-            continue;
-        }
-        else
-        {
-            if (nextOp->isHardwarizable())
-                notQuantizedDpuTasks.push_back(nextOp);
-            getFakeQuantizeRecursiveDown(nextOp, fqOps, notQuantizedDpuTasks, om);
-        }
-    }
-}
-
-// This pass will analyze if network inputs contain also FakeQuantize operations which would allow to make
-// computation in a lower precision then input precision.
-// Currently it is limited in making decision if with FP32/16 input precision computation can be done
-// in U8 - this will happen if FQ levels match U8 precision
-static void decideComputePrecisionFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& /* compilationDescriptor*/, mv::Element&)
-{
-    MV_PROFILED_FUNCTION(MV_PROFILE_PASS);
-
-    mv::OpModel om(model);
-    mv::DataModel dm(model);
-
-    if (om.getOps("FakeQuantize").empty())
-    {
-        return;
-    }
-
-    auto networkInputs = om.getNetworkInputs();
-
-    // This pass 'DecideComputePrecision' is only a WA to make FP-input SuperResolution pass. 
-    // Will be removed after ticket CVS-40814 being merged.
-    // This condition is to avoid regression on aclnet network.
-    if (networkInputs.size() < 2)
-        return;
-    
-    // Vector of FakeQuantize operations for input node
-    std::vector<mv::Data::OpListIterator> inputFqOps;
-    std::vector<mv::Data::OpListIterator> notQuantizedDpuTasks;
-    bool inputIsU8 = true;
-
-    for (size_t i = 0; i < networkInputs.size(); i++)
-    {
-        auto inputDtype = networkInputs[i]->get<mv::DType>("dType");
-        // Check network input precision. If it is already U8 then there
-        // is no need to analize FQ ops as we are alrady at the lowest compute precision
-        // and no need to convert from FP16/32 to U8
-        if (inputDtype != mv::DType("Float16") && inputDtype != mv::DType("Float32"))
-            continue;
-
-        inputIsU8 = false;
-        getFakeQuantizeRecursiveDown(networkInputs[i], inputFqOps, notQuantizedDpuTasks, om);
-    }
-
-    // If all the input is U8 no need for any transition
-    if (inputIsU8)
-        return;
-
-    // Check if all input paths have FQ with 256 levels that allow to change precision to U8
-    unsigned fqLevels;
-    for (auto& inputFqOp : inputFqOps)
-    {
-        // Check FQ op levels. If it is above 256 then we cannot convert to U8
-        fqLevels = inputFqOp->get<unsigned>("levels");
-        if (fqLevels > 256)
-        {
-            pass.log(mv::Logger::MessageType::Warning, "Input is served by FakeQuantize " + inputFqOp->getName() + " which has " +
-                std::to_string(fqLevels) + " levels - not supported case for transition to U8 compute precision");
-            return;
-        }
-    }
-
-    // Check if DPU tasks that will operate on U8 have weight inputs with FQ operation for U8 precision
-    auto ops = om.getOps();
-    for(auto& opIt : ops)
-    {
-        if (!opIt->hasWeights())
-            continue;
-
-        // Check if an op has already been identified as a not quantized dpu task
-        if (std::find(notQuantizedDpuTasks.begin(), notQuantizedDpuTasks.end(), opIt) != notQuantizedDpuTasks.end())
-        {
-            continue;
-        }
-
-        auto weightTensor = opIt->getInputTensor(1);
-        if (weightTensor->getDType() == mv::DType("UInt8"))
-        {
-            // If weight tensor is already U8 then no need to check FQ op
-            continue;
-        }
-
-        auto parentOp = om.getSourceOp(weightTensor);
-        std::string parentOpType;
-        // Analyze weight input branch and check it if has any FQ node
-        while(true)
-        {
-            if (!parentOp)
-                return;
-
-            parentOpType = parentOp->getOpType();
-            if (parentOpType == "FakeQuantize")
-            {
-                // If there are more than 256 levels of quantization
-                // then it means we cannot convert to U8, thus exit early
-                fqLevels = parentOp->get<unsigned>("levels");
-                if (fqLevels > 256)
-                {
-                    pass.log(mv::Logger::MessageType::Warning, "Weight input is served by FakeQuantize " + parentOp->getName() + " which has " +
-                        std::to_string(fqLevels) + " levels - not supported case for transition to U8 compute precision");
-                    return;
-                }
-                // Else move to next DPU task and stop analyzing this branch
-                else
-                {
-                    break;
-                }
-            }
-            else if (parentOpType == "Constant")
-            {
-                pass.log(mv::Logger::MessageType::Warning, "Weight input " + parentOp->getName() +
-                " doesn't have FakeQuantize operation - not supported case for transition to U8 compute precision");
-                return;
-            }
-            parentOp = parentOp.leftmostParent();
-        }
-    }
-
-
-    // Store all conversion ops in a vector. Later it will be used as
-    // a starting point for data type update
-    std::vector<mv::Data::OpListIterator> conversionOps;
-
-    // Insert Conversion from FP to U8 node before each FQ with 256 levels
-    for (auto& inputFqOp : inputFqOps)
-    {
-        std::vector<mv::Data::OpListIterator> opsToLink;
-        std::vector<std::size_t> inputSlots;
-        std::vector<mv::Data::FlowSiblingIterator> flowsToRemove;
-
-        // Input to FQ will become new input for Conversion layer
-        auto inputTensor = inputFqOp->getInputTensor(0);
-
-        auto sourceFlowStart = om.getSourceOp(inputTensor).leftmostOutput();
-
-        for (mv::Data::FlowSiblingIterator sinkFlow(sourceFlowStart); sinkFlow != om.flowEnd(); ++sinkFlow)
-        {
-            opsToLink.push_back(sinkFlow.sink());
-            inputSlots.push_back(sinkFlow->get<std::size_t>("sinkInput"));
-            flowsToRemove.push_back(sinkFlow);
-        }
-
-        // Create a conversion layer (SomeOp->Conversion->FQ) and update
-        // tensors quant params so that later passes will correctly propagate quant settings
-        // and proper Scale and ZeroPoint will be set for Conversion UPA task
-        mv::QuantizationParams conversionInputQuantParams = extractQuantParamsI(inputFqOp, 1);
-        mv::QuantizationParams conversionOutputQuantParams = extractQuantParamsO(inputFqOp, 1);
-        auto conversionOutput = om.conversion(om.getSourceOp(inputTensor)->getName() + "_convert_to_U8", inputTensor, mv::DType("UInt8"));
-        conversionOutput->setQuantParams(conversionOutputQuantParams);
-        inputTensor->setQuantParams(conversionInputQuantParams);
-
-        auto conversionOp = om.getSourceOp(conversionOutput);
-        conversionOp->set("scale", 1.0 / conversionInputQuantParams.getScale()[0]);
-        conversionOp->set("bias", conversionInputQuantParams.getZeroPoint()[0]);
-
-        conversionOps.push_back(conversionOp);
-
-        // Remove previous flows: SomeOps->FQ
-        for (unsigned flowIdx = 0; flowIdx < flowsToRemove.size(); flowIdx++)
-        {
-            om.undefineFlow(flowsToRemove[flowIdx]);
-        }
-
-        // Define new flows: Conversion->FQ
-        for(unsigned op = 0 ; op < opsToLink.size(); ++op)
-        {
-            opsToLink[op]->setInputTensor(conversionOutput, inputSlots[op], false);
-            om.defineFlow(conversionOutput, opsToLink[op], inputSlots[op]);
-        }
-
-        if (om.getSourceOp(inputTensor)->getOpType() == "ImplicitInput") {
-            updateParentPrecisionRecursiveUp(conversionOp, om, inputTensor->getDType());
-        }
-    }
-
-    // Recursively update all children nodes with U8 data type
-    for (auto& conversionOp : conversionOps)
-    {
-        updateChildrenPrecisionRecursiveDown(conversionOp, om, mv::DType("UInt8"));
     }
 }
 
@@ -599,50 +349,14 @@ void quantizeBias(mv::ComputationModel& model) {
     }
 }
 
-void quantizeIO(mv::ComputationModel& model) {
-    mv::OpModel om(model);
-    mv::DataModel dm(om);
-
-    auto inputOps = om.getOps("Input");
-    auto implicitInputOps = om.getOps("ImplicitInput");
-    inputOps.insert(inputOps.end(), implicitInputOps.begin(), implicitInputOps.end());
-
-    for (auto& inputOp : inputOps) {
-        auto inputTensor = inputOp->getOutputTensor(0);
-        auto consumerOps = findSinkLayers(dm, inputTensor);
-        for (auto& consumerOp : consumerOps) {
-            if (consumerOp->getOpType() != "FakeQuantize")
-                continue;
-
-            const auto inputQuantParams  = extractQuantParamsI(consumerOp, true);
-            const auto outputQuantParams = extractQuantParamsO(consumerOp, true);
-
-            if (inputOp->get<mv::DType>("dType") != getDType(mv::Precision::U8)) {
-                auto convertedTensor = om.conversion(inputOp->getName() + "_convert", inputTensor, getDType(mv::Precision::U8));
-                inputTensor->setQuantParams(inputQuantParams);
-                convertedTensor->setQuantParams(outputQuantParams);
-
-                auto conversionOp = om.getSourceOp(convertedTensor);
-                conversionOp->set<double>("scale", 1.0 / inputQuantParams.getScale()[0]);
-                conversionOp->set<int64_t>("bias", inputQuantParams.getZeroPoint()[0]);
-                if (consumerOp->hasAttr("opId"))
-                    conversionOp->set<unsigned>("opId", consumerOp->get<unsigned>("opId"));
-
-                mv::linkNewMultipleOperationsReplacement(inputOp, {convertedTensor}, om, consumerOp);
-            } else {
-                mv::linkNewOperationsRemove(inputOp, inputTensor, om, consumerOp);
-                inputTensor->setDType(getDType(mv::Precision::U8));
-                inputTensor->setQuantParams(outputQuantParams);
-            }
-        }
-    }
-}
-
 void removeFQ(const mv::pass::PassEntry&, mv::ComputationModel& model) {
     mv::OpModel om(model);
     auto fqOps = om.getOps("FakeQuantize");
     for (auto& fqOp : fqOps) {
         const auto parentOp = om.getSourceOp(fqOp->getInputTensor(0));
+
+        if (hasScaleShiftFused(fqOp))
+            parentOp->getOutputTensor(0)->set<bool>("scaleShiftFused", true);
 
         const auto inputQuantParams  = extractQuantParamsI(fqOp, true);
         const auto outputQuantParams = extractQuantParamsO(fqOp, true);
@@ -910,7 +624,6 @@ void quantizeGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mod
     }
 
     quantizeScaleShift(model, pass);
-    quantizeIO(model);
 
     propagateActivationParameters(model);
 

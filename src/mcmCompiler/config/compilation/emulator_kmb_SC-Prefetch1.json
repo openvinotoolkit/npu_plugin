@@ -27,7 +27,6 @@
             },
             "AssignInputNode",
             "AssignOutputNode",
-            "DecideComputePrecision",
             "AssignUniqueOpId",
             {
                 "name": "ApplyTargetVars",
@@ -102,7 +101,7 @@
             "UpdateImplicitLayersQuantizationParams",
             "ImplicitOutputDTypeUpdate",
             "KMBQuantizeConversion",
-            "ConfigureOutputPrecision",
+            "ConfigureIOPrecision",
             "EnsureDTypeCompatibility"
         ]
     },

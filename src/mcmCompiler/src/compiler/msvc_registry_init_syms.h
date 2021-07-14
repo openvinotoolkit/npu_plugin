@@ -344,7 +344,7 @@
 #pragma comment(linker, "/include:__MCM_REGISTER__PassEntry_ComputeSparsitySolution")
 #pragma comment(linker, "/include:__MCM_REGISTER__PassEntry_ComputeTensorsQuantParams")
 #pragma comment(linker, "/include:__MCM_REGISTER__PassEntry_ConcatAsImplicit")
-#pragma comment(linker, "/include:__MCM_REGISTER__PassEntry_ConfigureOutputPrecision")
+#pragma comment(linker, "/include:__MCM_REGISTER__PassEntry_ConfigureIOPrecision")
 #pragma comment(linker, "/include:__MCM_REGISTER__PassEntry_ConvDilationUsingStorageElement")
 #pragma comment(linker, "/include:__MCM_REGISTER__PassEntry_ConvDilationUsingWeights")
 #pragma comment(linker, "/include:__MCM_REGISTER__PassEntry_ConvertDot")
