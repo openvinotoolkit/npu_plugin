@@ -54,3 +54,28 @@ func @UseDequantize() -> tensor<1x3x30x30xf32> {
 
     // CHECK:       return [[VAL1]]
 }
+
+// -----
+
+// CHECK-LABEL: @UseRescale
+func @UseRescale() -> tensor<1x2x30x30xf32> {
+    %input = const.Declare tensor<1x2x30x30xf32> = #const.Content<dense<1.0> : tensor<1x2x30x30xf32>>
+    %input_low = const.Declare tensor<1x2x1x1xf32> = #const.Content<dense<[[[[-2.0]],[[-1.0]]]]> : tensor<1x2x1x1xf32>>
+    %input_high = const.Declare tensor<1x2x1x1xf32> = #const.Content<dense<[[[[2.0]],[[1.0]]]]> : tensor<1x2x1x1xf32>>
+    %output_low = const.Declare tensor<1x2x1x1xf32> = #const.Content<dense<[[[[-1.0]],[[-0.5]]]]> : tensor<1x2x1x1xf32>>
+    %output_high = const.Declare tensor<1x2x1x1xf32> = #const.Content<dense<[[[[1.0]],[[0.5]]]]> : tensor<1x2x1x1xf32>>
+
+    %0 = IE.FakeQuantize(%input, %input_low, %input_high, %output_low, %output_high)
+        { auto_broadcast = "NUMPY", levels = 256 : i32 } :
+        tensor<1x2x30x30xf32>, tensor<1x2x1x1xf32>, tensor<1x2x1x1xf32>, tensor<1x2x1x1xf32>, tensor<1x2x1x1xf32> -> tensor<1x2x30x30xf32>
+
+    return %0 : tensor<1x2x30x30xf32>
+
+    // CHECK:       [[VAL0:%.*]] = const.Declare tensor<1x2x30x30xf32> =
+    // CHECK-SAME:      #const.Content<dense<1.000000e+00> : tensor<1x2x30x30xf32>>
+
+    // CHECK:       [[VAL1:%.*]] = const.Declare tensor<1x2x30x30xf32> = 
+    // CHECK-SAME:      #const.Content<dense<1.000000e+00> : tensor<1x2x30x30xf32>, [#const.Rescale<2.000000e+00 : f32>]>
+
+    // CHECK:       return [[VAL1]]
+}
