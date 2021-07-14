@@ -200,7 +200,7 @@ void registerOutputs(std::shared_ptr<ngraph::Node> node, const std::vector<mv::D
 }
 
 bool isInputPrecisionSupported(const ie::Precision& inputPrecision) {
-    const std::set<ie::Precision> supportedInPrecisions = {ie::Precision::BF16, ie::Precision::U8, ie::Precision::FP16, ie::Precision::FP32};
+    const std::set<ie::Precision> supportedInPrecisions = {ie::Precision::BF16, ie::Precision::U8, ie::Precision::FP16, ie::Precision::FP32, ie::Precision::I32};
     return supportedInPrecisions.find(inputPrecision) != supportedInPrecisions.end();
 }
 
@@ -2339,7 +2339,6 @@ bool ConvertToMcmModel::run_on_function(std::shared_ptr<ngraph::Function> func) 
         for (const auto& mcmInput : _mcmModel.getNetworkInputs()) {
             if (mcmInput->getName() == _ioMap.at(inputInfo.first)) {
                 mcmInput->set<mv::DType>("dType", dType);
-                mcmInput->getOutputTensor(0)->set<mv::DType>("dType", dType);
                 break;
             }
         }

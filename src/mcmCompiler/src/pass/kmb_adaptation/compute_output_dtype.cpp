@@ -328,10 +328,6 @@ void tensorsToFP16Fcn(const mv::pass::PassEntry&  , mv::ComputationModel& model,
             if(outputTensor->getDType() == mv::DType("Float64") ||
                outputTensor->getDType() == mv::DType("Float32"))
             {
-                if (outputTensor->hasAttr("FPConversionPath")) {
-                    ++kernelOp;
-                    continue;
-                }
                 auto opId = kernelOp->get<unsigned>("opId");
                 if (outputTensor->isPopulated())
                 {

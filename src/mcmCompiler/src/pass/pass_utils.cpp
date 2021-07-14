@@ -582,3 +582,91 @@ bool mv::matchPattern(const std::vector<std::string>& pattern, mv::Data::OpListI
 
     return true;
 }
+
+/**
+ *  Propagate the tensor attributes recursively through the parent operations of the given types.
+ *  @param om The OpModel.
+ *  @param dm The DataModel.
+ *  @param opIt The starting operation.
+ *  @param opTypes The types of operations that the attributes will be propagated through.
+ *                 If empty, it will propagate until the start of the model.
+ *  @param attributes The tensor attributes.
+ *  @param stopAtMultipleConsumers Stop propagating when encountering tensors with multiple consumers.
+ *                                 These tensors will be the last ones with the attributes set on their particular paths.
+ *  @param stopAtMultiOutputOps Stop propagating when encountering ops with multiple output tensors.
+ */
+void mv::propagateUpThroughOps(
+    mv::OpModel& om,
+    mv::DataModel& dm,
+    const mv::Data::OpListIterator& opIt,
+    const std::vector<std::string>& opTypes,
+    const std::unordered_map<std::string, mv::Attribute>& attributes,
+    const bool stopAtMultipleConsumers,
+    const bool stopAtMultiOutputOps)
+{
+    if (!opIt->inputSlots())
+        return;
+
+    std::vector<mv::Data::TensorIterator> inputTensors = {opIt->getInputTensor(0)};
+    if (mv::op::OpRegistry::instance().find(opIt->getOpType())->hasVectorTypesAsInput())
+        inputTensors = opIt->getInputTensor();
+
+    for (auto inputTensor : inputTensors) {
+        if (stopAtMultipleConsumers && mv::findSinkLayers(dm, inputTensor).size() > 1)
+            continue;
+
+        for (const auto& attribute : attributes) {
+            if (inputTensor->hasAttr(attribute.first))
+                inputTensor->erase(attribute.first);
+            inputTensor->set(attribute.first, attribute.second);
+        }
+
+        const auto parentOp = om.getSourceOp(inputTensor);
+        if (!opTypes.empty() && std::find(opTypes.begin(), opTypes.end(), parentOp->getOpType()) == opTypes.end())
+            continue;
+
+        if (stopAtMultiOutputOps && parentOp->outputSlots() > 1)
+            continue;
+
+        propagateUpThroughOps(om, dm, parentOp, opTypes, attributes, stopAtMultipleConsumers, stopAtMultiOutputOps);
+    }
+}
+
+/**
+ *  Propagate the tensor attributes recursively through the children operations of the given types.
+ *  @param dm The DataModel.
+ *  @param opIt The starting operation.
+ *  @param opTypes The types of operations that the attributes will be propagated through.
+ *                 If empty, it will propagate until the end of the model.
+ *  @param attributes The tensor attributes.
+ *  @param stopAtMultiOutputOps Stop propagating when encountering ops with multiple output tensors.
+ */
+void mv::propagateDownThroughOps(
+    mv::DataModel& dm,
+    const mv::Data::OpListIterator& opIt,
+    const std::vector<std::string>& opTypes,
+    const std::unordered_map<std::string, mv::Attribute>& attributes,
+    const bool stopAtMultiOutputOps)
+{
+    if (!opIt->outputSlots())
+        return;
+
+    for (auto& outputTensor : opIt->getOutputTensor()) {
+        for (const auto& attribute : attributes) {
+            if (outputTensor->hasAttr(attribute.first))
+                outputTensor->erase(attribute.first);
+            outputTensor->set(attribute.first, attribute.second);
+        }
+
+        const auto childOps = mv::findSinkLayers(dm, outputTensor);
+        for (auto& childOp : childOps) {
+            if (!opTypes.empty() && std::find(opTypes.begin(), opTypes.end(), childOp->getOpType()) == opTypes.end())
+                continue;
+
+            if (stopAtMultiOutputOps && childOp->outputSlots() > 1)
+                continue;
+
+            propagateDownThroughOps(dm, childOp, opTypes, attributes, stopAtMultiOutputOps);
+        }
+    }
+}

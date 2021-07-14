@@ -22,7 +22,7 @@
             "AlignTaskWeights",
             "ImplicitOutputDTypeUpdate",
             "KMBQuantizeConversion",
-            "ConfigureOutputPrecision",
+            "ConfigureIOPrecision",
             "EnsureDTypeCompatibility",
             "GenerateSparsityMapsPopulatedTensors",
             "GenerateWeightsTables",

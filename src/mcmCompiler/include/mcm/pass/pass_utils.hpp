@@ -43,6 +43,21 @@ namespace mv
     std::vector<std::string>::const_iterator findIsDPUPwlPostOp(const std::vector<std::string>& postOps, const mv::TargetDescriptor& td);
     bool matchPattern(const std::vector<std::string>& pattern, mv::Data::OpListIterator it, mv::ComputationModel& model);
     bool matchPattern(const std::vector<std::string>& pattern, mv::Data::OpListIterator it, mv::Data::OpListIterator& lastIt, mv::ComputationModel& model);
+
+    void propagateUpThroughOps(
+        mv::OpModel& om,
+        mv::DataModel& dm,
+        const mv::Data::OpListIterator& opIt,
+        const std::vector<std::string>& opTypes,
+        const std::unordered_map<std::string, mv::Attribute>& attributes,
+        const bool stopAtMultipleConsumers = false,
+        const bool stopAtMultiOutputOps = false);
+    void propagateDownThroughOps(
+        mv::DataModel& dm,
+        const mv::Data::OpListIterator& opIt,
+        const std::vector<std::string>& opTypes,
+        const std::unordered_map<std::string, mv::Attribute>& attributes,
+        const bool stopAtMultiOutputOps = false);
 }
 
 void fuseLeakyReluAccPPEFcn(mv::Data::OpListIterator& opIt, mv::ComputationModel& model, const std::string& opType, mv::TargetDescriptor& td);
