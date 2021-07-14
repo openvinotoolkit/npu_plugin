@@ -90,7 +90,7 @@ protected:
     int _throughputStreams = 2;
     int _numberOfNnCoreShaves = 0;
     InferenceEngine::VPUXConfigParams::VPUXPlatform _platform = InferenceEngine::VPUXConfigParams::VPUXPlatform::AUTO;
-    int32_t _csramSize = -1;
+    int32_t _csramSize = 0;
 
     // Private options
     InferenceEngine::ColorFormat _graphColorFormat = InferenceEngine::ColorFormat::BGR;
