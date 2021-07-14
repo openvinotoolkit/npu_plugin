@@ -21,7 +21,7 @@
 using namespace vpux;
 
 //
-// getAxis
+// inferReturnTypeComponents
 //
 
 namespace {
@@ -44,18 +44,6 @@ Dim normalizeAxis(IE::SplitOpAdaptor split) {
 
     return Dim(axisInd);
 }
-
-}  // namespace
-
-Dim vpux::IE::SplitOp::getAxis() {
-    return normalizeAxis(*this);
-}
-
-//
-// inferReturnTypeComponents
-//
-
-namespace {
 
 mlir::FailureOr<Dim> extractAxis(mlir::Location loc, IE::SplitOpAdaptor split) {
     if (split.axis() != nullptr) {

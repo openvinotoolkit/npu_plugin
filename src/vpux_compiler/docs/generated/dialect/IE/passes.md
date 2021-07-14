@@ -46,6 +46,9 @@ The pass is a part of `LowPrecision` pipeline.
 
 It merges pair `quant.qcast -> quant.dcast` into single `IE.FakeQuantize`.
 The pass is used as a fallback to FP16 computations for the cases, where quantized types where not used by layers.
+### `-optimize-reorders`: Optimize extra Reorder operations
+This pass tries to optimize out Reorder operations for common cases
+by propagating them from inputs to outputs and merging into layers.
 ### `-resolve-strided-slice`: Decouple strided slice to slice + reshape
 The pass is a part of `AdjustForVPU` pipeline.
 

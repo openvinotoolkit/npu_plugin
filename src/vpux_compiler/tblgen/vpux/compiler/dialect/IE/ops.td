@@ -338,10 +338,6 @@ def IE_SplitOp :
     );
 
     let hasCanonicalizer = 1;
-
-    let extraClassDeclaration = [{
-        vpux::Dim getAxis();
-    }];
 }
 
 //
@@ -1231,10 +1227,6 @@ def IE_ConcatOp :
     let results = (outs
         AnyRankedTensor:$output
     );
-
-    let extraClassDeclaration = [{
-        vpux::Dim getAxis();
-    }];
 }
 
 //
