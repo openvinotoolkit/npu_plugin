@@ -227,6 +227,53 @@ mlir::LogicalResult ConvolutionRewriter::matchAndRewrite(IE::ConvolutionOp origO
 }
 
 //
+// EltwiseAddRewriter
+//
+
+class EltwiseAddRewriter final : public mlir::OpRewritePattern<IE::AddOp> {
+public:
+    EltwiseAddRewriter(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<IE::AddOp>(ctx), _log(log) {
+        setDebugName("EltwiseAddRewriter");
+    }
+
+    mlir::LogicalResult matchAndRewrite(IE::AddOp origOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult EltwiseAddRewriter::matchAndRewrite(IE::AddOp origOp, mlir::PatternRewriter& rewriter) const {
+    _log.trace("[{0}] Got AddOp layer at '{1}'", getDebugName(), origOp->getLoc());
+
+    const auto opCreator = [&](mlir::Value expandedInput, int64_t) -> mlir::Operation* {
+        const auto inputType = origOp.input2().getType().cast<mlir::ShapedType>();
+
+        const auto channelAlignement = VPUIP::NCEInvariant::getChannelAlignment(inputType.getElementType());
+        const auto inPadsEnd = calcPadsEnd(inputType, channelAlignement);
+
+        _log.trace("Second input padding : {0}", inPadsEnd);
+
+        mlir::Value paddedInput;
+        const auto act_channel_dim = IE::ConvolutionOp::act_channel_dim();
+        if (inPadsEnd[act_channel_dim] == 0) {
+            _log.trace("Second input channels are already aligned");
+            paddedInput = origOp.input2();
+        } else {
+            _log.trace("Expand second input tensor");
+
+            const SmallVector<int64_t> inPadsBegin(inPadsEnd.size(), 0);
+
+            paddedInput = rewriter.create<IE::ExpandOp>(origOp->getLoc(), origOp.input2(),
+                                                        getInt32ArrayAttr(getContext(), inPadsBegin),
+                                                        getInt32ArrayAttr(getContext(), inPadsEnd));
+        }
+        return rewriter.create<IE::AddOp>(origOp.getLoc(), expandedInput, paddedInput, origOp.auto_broadcast());
+    };
+
+    return generalRewrite(origOp, rewriter, opCreator, _log.nest());
+}
+
+//
 // ExpandActivationChannelsPass
 //
 
@@ -255,6 +302,7 @@ void ExpandActivationChannelsPass::safeRunOnFunc() {
     mlir::ConversionTarget target(ctx);
     target.addDynamicallyLegalOp<IE::MaxPoolOp>(isLegal);
     target.addDynamicallyLegalOp<IE::ConvolutionOp>(isLegal);
+    target.addDynamicallyLegalOp<IE::AddOp>(isLegal);
     target.addLegalOp<Const::DeclareOp>();
     target.addLegalOp<IE::ExpandOp, IE::PadOp>();
     target.addLegalOp<mlir::tensor::ExtractSliceOp>();
@@ -262,6 +310,7 @@ void ExpandActivationChannelsPass::safeRunOnFunc() {
     mlir::RewritePatternSet patterns(&ctx);
     patterns.insert<MaxPoolRewriter>(&ctx, _log);
     patterns.insert<ConvolutionRewriter>(&ctx, _log);
+    patterns.insert<EltwiseAddRewriter>(&ctx, _log);
 
     auto func = getFunction();
     if (mlir::failed(mlir::applyPartialConversion(func, target, std::move(patterns)))) {
