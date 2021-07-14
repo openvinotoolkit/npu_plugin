@@ -75,16 +75,16 @@ mlir::LogicalResult ConvertMultiplyToScale::matchAndRewrite(IE::MultiplyOp mulOp
         mlir::DenseElementsAttr dataAttr;
 
         // Handle fp16 / fp32 case separately
-        if (elemType == mlir::Float16Type::get(rewriter.getContext())) {
+        if (elemType.isF16()) {
             const float scaleValue = input2Content.getSplatValue<float16>();
-            const auto arrayRef = SmallVector<float16>{scaleValue};
+            const auto arrayValue = SmallVector<float16>{scaleValue};
             const auto dataStorageType = mlir::RankedTensorType::get(newWeightsShape, elemType);
-            dataAttr = mlir::DenseElementsAttr::get(dataStorageType, makeArrayRef(arrayRef));
-        } else if (elemType == mlir::Float32Type::get(rewriter.getContext())) {
+            dataAttr = mlir::DenseElementsAttr::get(dataStorageType, makeArrayRef(arrayValue));
+        } else if (elemType.isF32()) {
             const float scaleValue = input2Content.getSplatValue<float>();
-            const auto arrayRef = SmallVector<float>{scaleValue};
+            const auto arrayValue = SmallVector<float>{scaleValue};
             const auto dataStorageType = mlir::RankedTensorType::get(newWeightsShape, elemType);
-            dataAttr = mlir::DenseElementsAttr::get(dataStorageType, makeArrayRef(arrayRef));
+            dataAttr = mlir::DenseElementsAttr::get(dataStorageType, makeArrayRef(arrayValue));
         } else {
             return mlir::failure();
         }
