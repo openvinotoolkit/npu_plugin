@@ -44,7 +44,6 @@ std::unique_ptr<mlir::Pass> createOptimizeReordersPass(Logger log = Logger::glob
 
 void buildAdjustForVPUPipeline(mlir::OpPassManager& pm, Logger log = Logger::global());
 
-std::unique_ptr<mlir::Pass> createConvertFCToConvPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertTile2PerAxisTilePass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertPrecisionToFP16Pass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertShapeTo4DPass(Logger log = Logger::global());
@@ -55,6 +54,9 @@ std::unique_ptr<mlir::Pass> createResolveStridedSlicePass(Logger log = Logger::g
 // HW related passes
 //
 
+void buildHWOpsConversionPipeline(mlir::OpPassManager& pm, Logger log = Logger::global());
+
+std::unique_ptr<mlir::Pass> createConvertFCToConvPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createFusePostOpsPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createExpandActivationChannelsPass(Logger log = Logger::global());
 

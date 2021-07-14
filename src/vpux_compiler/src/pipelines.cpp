@@ -90,6 +90,7 @@ void vpux::buildReferenceModePipeline(mlir::OpPassManager& pm, Logger log) {
 
 void vpux::buildHardwareModePipeline(mlir::OpPassManager& pm, Logger log) {
     // IE Dialect level
+    IE::buildHWOpsConversionPipeline(pm, log);
     buildIECommonPipeline(pm, log);
     IE::buildLowPrecisionPipeline(pm, log);
 
