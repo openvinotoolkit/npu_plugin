@@ -289,15 +289,23 @@ void prepareInputForInference(const IE::Blob::Ptr& userInput, const IE::TensorDe
     const auto deviceLayout = deviceTensorDesc.getLayout();
 
     IE::Blob::Ptr expectedInput = userInput;
-    if (userPrecision != devicePrecision) {
-        logger->info("Different precisions of push blobs. Conversion required");
-        expectedInput = toPrecision(IE::as<IE::MemoryBlob>(expectedInput), devicePrecision);
-        if (expectedInput == nullptr) {
-            IE_THROW() << "Blob data null pointer";
-        }
+    const bool isPrecisionMatched = userPrecision == devicePrecision;
+    const bool isLayoutMatched = userLayout == deviceLayout;
+    if (isPrecisionMatched && isLayoutMatched) {
+        IE_THROW() << "There is nothing to repack";
     }
-    if (userLayout != deviceLayout) {
-        logger->info("Different layouts of push blobs. Conversion required");
+
+    if (!isPrecisionMatched) {
+        logger->info("Different precisions of user and device input blobs. Conversion required from %s to %s", userPrecision, devicePrecision);
+        if (!isLayoutMatched) {
+            expectedInput = toPrecision(IE::as<IE::MemoryBlob>(expectedInput), devicePrecision);
+            logger->info("Different layouts of user and device input blobs. Conversion required from %s to %s", userLayout, deviceLayout);
+            toLayout(IE::as<IE::MemoryBlob>(expectedInput), deviceLayout, nullptr, destData);
+        } else {
+            toPrecision(IE::as<IE::MemoryBlob>(expectedInput), devicePrecision, nullptr, destData);
+        }
+    } else if (!isLayoutMatched) {
+        logger->info("Different layouts of user and device input blobs. Conversion required from %s to %s", userLayout, deviceLayout);
         toLayout(IE::as<IE::MemoryBlob>(expectedInput), deviceLayout, nullptr, destData);
     }
 }
