@@ -250,10 +250,35 @@ def ResolveStridedSlice : PassBase<"resolve-strided-slice", "vpux::FunctionPass"
     let description = [{
         The pass is a part of `AdjustForVPU` pipeline.
 
-        It replaces IE::StridedSlice operation to simple StridedSlice and Reshape.
+        It replaces IE::StridedSlice operation with simple StridedSlice and Reshape.
     }];
 
     let constructor = "vpux::IE::createResolveStridedSlicePass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
+
+//
+// ConvertConv1DToConv2D
+//
+
+def ConvertConv1DToConv2D : PassBase<"convert-conv1d-to-conv2d", "vpux::FunctionPass"> {
+    let summary = "Convert Convolution1D and GroupConvolution1D to its 2D variance";
+
+    let description = [{
+        The pass is a part of `AdjustForVPU` pipeline.
+
+        Extends input, filter and output tensors with height = 1.
+        [N, C, W] -> [N, C, 1, W]
+        strides:    {2} -> strides:    {1, 2}
+        pads_begin: {2} -> pads_begin: {0, 2}
+        pads_end:   {2} -> pads_end:   {0, 2}
+        dilations:  {2} -> dilations:  {1, 2}
+    }];
+
+    let constructor = "vpux::IE::createConvertConv1DToConv2DPass()";
 
     let dependentDialects = [
         "vpux::IE::IEDialect"

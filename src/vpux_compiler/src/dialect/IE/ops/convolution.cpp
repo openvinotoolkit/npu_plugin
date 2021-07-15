@@ -185,13 +185,13 @@ mlir::LogicalResult vpux::IE::GroupConvolutionOp::inferReturnTypeComponents(
 
     int64_t groups = 0;
     if (conv.groups() != 0) {
-        if (filterShape.size() != 4) {
+        if (filterShape.size() != inShape.size()) {
             return errorAt(loc, "Wrong filter shape '{0}'", filterShape);
         }
 
         groups = conv.groups().getInt();
     } else {
-        if (filterShape.size() != 5) {
+        if (filterShape.size() != inShape.size() + 1) {
             return errorAt(loc, "Wrong filter shape '{0}'", filterShape);
         }
 
