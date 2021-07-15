@@ -69,7 +69,7 @@ class KmbScaleShiftLayerTest: public ScaleShiftLayerTest, virtual public LayerTe
             //        NnXlinkPlg: Close channel failed: 8
             // [Track number: S#11028]
             if (inShape == std::vector<std::vector<size_t>>{{1, 8, 4, 4},     {1, 8, 1, 1}}) {
-                throw LayerTestsUtils::KmbSkipTestException("Error on KMB-board: NnXlinkPlg: Close channel failed: 8");
+                throw LayerTestsUtils::KmbSkipTestException("Error on KMB-board: NnXlinkPlg: Close channel with error code 8");
             }
         }
     }

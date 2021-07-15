@@ -2,6 +2,15 @@
 ### `-adjust-layouts`: Adjust required layouts for all layers
 This pass adds the required layouts instead of the default one
 depending on the layer specification from underlying Dialect.
+### `-convert-conv1d-to-conv2d`: Convert Convolution1D and GroupConvolution1D to its 2D variance
+The pass is a part of `AdjustForVPU` pipeline.
+
+Extends input, filter and output tensors with height = 1.
+[N, C, W] -> [N, C, 1, W]
+strides:    {2} -> strides:    {1, 2}
+pads_begin: {2} -> pads_begin: {0, 2}
+pads_end:   {2} -> pads_end:   {0, 2}
+dilations:  {2} -> dilations:  {1, 2}
 ### `-convert-fc-to-conv`: Convert FullyConnected op to Convolution operation
 The pass is a part of `AdjustForVPU` pipeline.
 
@@ -52,7 +61,7 @@ by propagating them from inputs to outputs and merging into layers.
 ### `-resolve-strided-slice`: Decouple strided slice to slice + reshape
 The pass is a part of `AdjustForVPU` pipeline.
 
-It replaces IE::StridedSlice operation to simple StridedSlice and Reshape.
+It replaces IE::StridedSlice operation with simple StridedSlice and Reshape.
 ### `-split-fake-quant`: Splits FakeQuantize
 The pass is a part of `LowPrecision` pipeline.
 
