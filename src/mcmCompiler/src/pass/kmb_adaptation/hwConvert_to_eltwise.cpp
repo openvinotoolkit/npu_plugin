@@ -32,15 +32,24 @@ void hwConvertToEltwiseFcn(const mv::pass::PassEntry&, mv::ComputationModel& mod
         }
         auto sourceTensor = opIt->getInputTensor(mv::IO_TENSOR_INPUT);
         auto parentOpIt = om.getSourceOp(sourceTensor);
-        const auto attrs = opIt->getAttrs({"flows", "Location"});
+        const auto dType = opIt->getOutputTensor(0)->getDType();
+        const auto attrs = opIt->getOutputTensor(0)->getAttrs({"flows", "Location"});
+        const auto sourceTensorName = sourceTensor->getName() + "_copy";
+        const auto sourceTensorDType = sourceTensor->getDType();
+        
+        auto sourceTensorCopy = om.copy(sourceTensorName, sourceTensor);
+        om.getOp(sourceTensorName)->set<unsigned>("opId", opIt->get<unsigned>("opId"));
+        sourceTensorCopy->setDType(sourceTensorDType);
 
-        auto sourceTensorCopy = om.copy(sourceTensor->getName() + "_1",sourceTensor);
         if (sourceTensor->isQuantized())
             sourceTensorCopy->setQuantParams(sourceTensor->getQuantParams());
 
-        auto eltwiseOp = om.eltwise(opIt->getName() + "_Eltwise", { sourceTensor , sourceTensorCopy }, "And");
+        const auto eltwiseOpName = opIt->getName() + "_Eltwise";
+        auto eltwiseOp = om.eltwise(eltwiseOpName, { sourceTensor , sourceTensorCopy }, "And");
         eltwiseOp->setAttrs(attrs);
+        eltwiseOp->setDType(dType);
         eltwiseOp->setQuantParams(outputTensorQuantizationParams);
+        om.getOp(eltwiseOpName)->set<unsigned>("opId", opIt->get<unsigned>("opId"));
 
         mv::linkNewOperationsReplacement(parentOpIt, eltwiseOp, om, opIt);
     }
