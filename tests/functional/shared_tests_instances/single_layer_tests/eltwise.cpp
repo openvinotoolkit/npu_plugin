@@ -95,7 +95,6 @@ class KmbEltwiseLayerTest_MLIR : public KmbEltwiseLayerTest {
 
         std::set<ngraph::helpers::EltwiseTypes> fusedToScaleShiftOpMLIR = {
                 ngraph::helpers::EltwiseTypes::ADD,
-                ngraph::helpers::EltwiseTypes::MULTIPLY
         };
 
         std::set<std::vector<std::vector<size_t>>> fusedToScaleShiftOpShapes = {
@@ -152,10 +151,9 @@ TEST_P(KmbEltwiseLayerTest_MCM, DISABLED_CompareWithRefs) {
     Run();
 }
 
-//
-//[Track number: E#15146]
-//
-TEST_P(KmbEltwiseLayerTest_MLIR, DISABLED_CompareWithRefs) {
+// [Track number: E#15146]
+// Initialization disabled partly
+TEST_P(KmbEltwiseLayerTest_MLIR, CompareWithRefs) {
     useCompilerMLIR();
     Run();
 }
@@ -277,7 +275,32 @@ const auto eltwise_params_mlir = ::testing::Combine(
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
         ::testing::Values(additional_config));
 
+// [Track number: E#15146]
+// Initialization disabled partly
+/*
 INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs, KmbEltwiseLayerTest_MLIR, eltwise_params_mlir,
+                        KmbEltwiseLayerTest::getTestCaseName);
+*/
+
+// Specific multiply case
+
+std::vector<std::vector<std::vector<size_t>>> inSpecificMultiplyShapes = {
+        {{1, 3, 224, 224}, {1, 1, 1, 1}},  
+};
+
+const auto multiply_params_mlir = ::testing::Combine(
+        ::testing::ValuesIn(inSpecificMultiplyShapes),
+        ::testing::Values(ngraph::helpers::EltwiseTypes::MULTIPLY),
+        ::testing::ValuesIn(secondaryInputTypes),
+        ::testing::ValuesIn(opTypes),
+        ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+        ::testing::Values(additional_config));
+
+INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs_Specific, KmbEltwiseLayerTest_MLIR, multiply_params_mlir,
                         KmbEltwiseLayerTest::getTestCaseName);
 
 }  // namespace
