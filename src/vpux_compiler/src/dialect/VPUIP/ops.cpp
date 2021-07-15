@@ -84,6 +84,7 @@ bool LayerInfo::needToExpandChannels(mlir::Operation* origOp) const {
     return llvm::TypeSwitch<mlir::Operation*, bool>(origOp)  //
             HW_OPS_CASE(IE::ConvolutionOp)                   //
     HW_OPS_CASE(IE::MaxPoolOp)                               //
+    HW_OPS_CASE(IE::AddOp)                                   //
     .Default([](mlir::Operation*) {
         return false;
     });
