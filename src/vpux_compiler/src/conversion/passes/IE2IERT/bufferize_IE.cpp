@@ -305,6 +305,58 @@ mlir::LogicalResult ExpandRewrite::matchAndRewrite(IE::ExpandOp origOp, ArrayRef
 }
 
 //
+// LSTMCellRewrite
+//
+
+class LSTMCellRewrite final : public mlir::OpConversionPattern<IE::LSTMCellOp> {
+public:
+    LSTMCellRewrite(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
+            : mlir::OpConversionPattern<IE::LSTMCellOp>(typeConverter, ctx), _log(log) {
+        setDebugName("LSTMCellRewrite");
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(IE::LSTMCellOp origOp, ArrayRef<mlir::Value> newOperands,
+                                        mlir::ConversionPatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult LSTMCellRewrite::matchAndRewrite(IE::LSTMCellOp origOp, ArrayRef<mlir::Value> newOperands,
+                                                   mlir::ConversionPatternRewriter& rewriter) const {
+    _log.trace("Found LSTMCell Operation '{0}'", origOp->getLoc());
+
+    auto* typeConverter = getTypeConverter();
+    VPUX_THROW_UNLESS(typeConverter != nullptr, "TypeConverter is not set");
+
+    auto expandedBuffer = allocateResults(origOp->getLoc(), rewriter, *typeConverter, {origOp.outputHiddenState(), origOp.outputCellState()});
+
+    const auto weightsType = newOperands[3].getType().cast<mlir::ShapedType>();
+    const auto reccurenceWeightsType = newOperands[4].getType().cast<mlir::ShapedType>();
+    const auto weightsShape = weightsType.getShape();
+    const auto reccurenceWeightsShape = reccurenceWeightsType.getShape();
+    VPUX_THROW_UNLESS(weightsShape.size() == 2, "Weights must be 2D");
+    VPUX_THROW_UNLESS(reccurenceWeightsShape.size() == 2, "Reccurence weights must be 2D");
+    SmallVector<int64_t> svSizes(weightsShape.size(), 0);
+    svSizes[0] = weightsShape[0];
+    svSizes[1] = weightsShape[1] + reccurenceWeightsShape[1];
+    auto origType = origOp.weights().getType();
+    auto memRefType = typeConverter->convertType(origType);
+    mlir::MemRefType::Builder memRefBuilder(memRefType.cast<mlir::MemRefType>());
+    memRefBuilder.setShape(svSizes);
+    auto subView = rewriter.create<mlir::memref::AllocOp>(origOp->getLoc(), memRefBuilder);
+
+    SmallVector<mlir::Value> concatInputs{newOperands[3], newOperands[4]};
+    auto concat = rewriter.create<IERT::ConcatViewOp>(origOp->getLoc(), concatInputs, subView.memref());
+
+    rewriter.replaceOpWithNewOp<IERT::LSTMCellOp>(origOp, newOperands[0], newOperands[1], newOperands[2],
+                                    concat.output(), newOperands[5], expandedBuffer[0], expandedBuffer[1], origOp.hiddenSizeAttr());
+
+    return mlir::success();
+}
+
+//
 // LayerRewrite
 //
 
@@ -720,6 +772,7 @@ void BufferizeIEPass::safeRunOnFunc() {
     patterns.insert<LayerRewrite>(typeConverter, &ctx, _log);
     patterns.insert<SubTensorRewrite>(typeConverter, &ctx, _log);
     patterns.insert<ExpandRewrite>(typeConverter, &ctx, _log);
+    patterns.insert<LSTMCellRewrite>(typeConverter, &ctx, _log);
     Const::ConstDialect::populateBufferizePatterns(patterns, typeConverter, _log);
 
     auto func = getFunction();

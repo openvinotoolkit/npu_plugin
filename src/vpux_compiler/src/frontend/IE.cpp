@@ -49,6 +49,7 @@
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/common_optimizations/convert_quantize_dequantize.hpp>
 #include <transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp>
+#include <transformations/op_conversions/lstm_cell_decomposition.hpp>
 #include <transformations/op_conversions/convert_divide.hpp>
 #include <transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp>
 #include <transformations/op_conversions/convert_minimum_to_power_and_max.hpp>
@@ -131,6 +132,7 @@ private:
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::CTCGreedyDecoder>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::CTCGreedyDecoderSeqLen>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Pad>& origNode);
+    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::LSTMCell>& origNode);
 
     template <class NodeType>
     void parseDispatch(mlir::OpBuilder& builder, const OrigNodePtr& origNode) {
@@ -237,6 +239,7 @@ mlir::FuncOp NGraphImporter::buildMainFunc(mlir::OpBuilder& moduleBuilder, Strin
             MAP_ENTRY(opset_latest::CTCGreedyDecoder),
             MAP_ENTRY(opset_latest::CTCGreedyDecoderSeqLen),
             MAP_ENTRY(opset_latest::Pad),
+            MAP_ENTRY(opset_latest::LSTMCell),
     };
 
 #undef MAP_ENTRY
@@ -1063,6 +1066,25 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
     }
 }
 
+void NGraphImporter::parseNode(mlir::OpBuilder& builder,
+                               const std::shared_ptr<opset_latest::LSTMCell>& origNode) {
+    static_assert(std::is_same<std::decay<decltype(*origNode)>::type, opset_latest::LSTMCell>::value,
+                  "opset operation mismatch");
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS(inputs.size() == 6, "nGraph LSTMCell node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
+
+    VPUX_THROW_UNLESS(origNode->get_clip() == 0.0f, "nGraph LSTMCell node '{0}' has unsupported clip value '{1}'",
+                      origNode->get_friendly_name(), origNode->get_clip());
+
+    VPUX_THROW_UNLESS(origNode->get_activations() == std::vector<std::string>({"sigmoid", "tanh", "tanh"}), "nGraph LSTMCell node '{0}' has unsupported activations '{1}'",
+                      origNode->get_friendly_name(), origNode->get_activations());
+
+    auto op = builder.create<IE::LSTMCellOp>(createLocation(origNode), inputs[0], inputs[1], inputs[2], inputs[3], inputs[4], inputs[5],
+                                                     origNode->get_hidden_size());
+    addOutputs(origNode, op);
+}
+
 //
 // IR builder helpers
 //
@@ -1433,6 +1455,7 @@ void runNGraphPasses(const std::shared_ptr<ngraph::Function>& netGraph, mlir::Ti
     passConfig->disable<ngraph::pass::ConvertSubtract>();
     passConfig->disable<ngraph::pass::ConvertDivide>();
     passConfig->disable<ngraph::pass::ConvertNegative>();
+    passConfig->disable<ngraph::pass::LSTMCellDecomposition>();
     passConfig->disable<ngraph::pass::SimplifyCTCGreedyDecoderSeqLen>();
     passConfig->disable<ngraph::pass::ConvertStridedSliceToCropMatcher>();
 

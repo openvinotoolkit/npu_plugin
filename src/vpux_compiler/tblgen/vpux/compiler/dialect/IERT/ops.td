@@ -1694,4 +1694,43 @@ def IERT_StridedSliceOp :
     }];
 }
 
+//
+// LSTMCellOp
+//
+
+def IERT_LSTMCellOp :
+        IERT_LayerOp<2,"LSTMCell",
+            [
+                MultiViewOpInterface
+            ]
+        > {
+    let summary = "InferenceEngine run-time LSTMCell layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$inputData,
+        MemRefOf<[F16, F32]>:$initialHiddenState,
+        MemRefOf<[F16, F32]>:$initialCellState,
+        MemRefOf<[F16, F32]>:$weights,
+        MemRefOf<[F16, F32]>:$biases,
+
+        MemRefOf<[F16, F32]>:$outputHiddenState_buff,
+        MemRefOf<[F16, F32]>:$outputCellState_buff,
+
+        I32Attr:$hiddenSize
+    );
+
+    let results = (outs
+        MemRefOf<[F16, F32]>:$outputHiddenState,
+        MemRefOf<[F16, F32]>:$outputCellState
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $inputData `:` type($inputData) `,` $initialHiddenState `:` type($initialHiddenState) `,` $initialCellState `:` type($initialCellState)
+                    `,` $weights `:` type($weights) `,` $biases `:` type($biases) `)`
+        `outputs` `(` $outputHiddenState_buff `:` type($outputHiddenState_buff) `,` $outputCellState_buff `:` type($outputCellState_buff) `)`
+        `->` type(results)
+    }];
+}
+
 #endif
