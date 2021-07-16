@@ -92,6 +92,7 @@ def Const_ContentAttr : Const_Attr<"Content"> {
         vpux::Const::ContentAttr convertElemType(mlir::Type newElemType) const;
         vpux::Const::ContentAttr quantCast(mlir::quant::QuantizedType newElemType) const;
         vpux::Const::ContentAttr dequantize() const;
+        vpux::Const::ContentAttr rescale(mlir::FloatAttr scale) const;
         vpux::Const::ContentAttr reshape(vpux::ShapeRef newShape) const;
         vpux::Const::ContentAttr reorder(vpux::DimsOrder newOrder) const;
         vpux::Const::ContentAttr padWithZero(vpux::ShapeRef padBefore, vpux::ShapeRef padAfter) const;
@@ -157,6 +158,30 @@ def Const_QuantCastAttr : Const_Attr<"QuantCast", [DeclareAttrInterfaceMethods<C
 
 def Const_DequantizeAttr : Const_Attr<"Dequantize", [DeclareAttrInterfaceMethods<Const_TransformAttrInterface>]> {
     let summary = "Dequantize constant content";
+}
+
+//
+// RescaleAttr
+//
+
+def Const_RescaleAttr : Const_Attr<"Rescale", [DeclareAttrInterfaceMethods<Const_TransformAttrInterface>]> {
+    let summary = "Rescale constant content";
+
+    let parameters = (ins
+        "mlir::FloatAttr":$scale
+    );
+
+    let builders = [
+        AttrBuilderWithInferredContext<
+            (ins "mlir::FloatAttr":$scale), [{
+                return $_get(scale.getContext(), scale);
+            }]
+        >
+    ];
+
+    let storageNamespace = "details";
+    let genVerifyDecl = 1;
+    let skipDefaultBuilders = 1;
 }
 
 //

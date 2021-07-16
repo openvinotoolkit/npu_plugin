@@ -43,7 +43,8 @@ void vpux::VPUIP::setArch(mlir::ModuleOp module, ArchKind kind) {
     };
 
     // Size 192 found manually through experimentation. May be incorrect.
-    addMem(VPUIP::PhysicalMemory::DDR, 192_MB, 0.6, 8);
+    // Changed to 500 for Deblur AA compilation
+    addMem(VPUIP::PhysicalMemory::DDR, 500_MB, 0.6, 8);
 
     if (kind == VPUIP::ArchKind::VPU3900) {
         addMem(VPUIP::PhysicalMemory::CSRAM, 24_MB, 0.85, 64);
