@@ -223,6 +223,32 @@ def IERT_StaticAllocOp :
 }
 
 //
+// TimestampOp
+//
+
+def IERT_TimestampOp :
+        IERT_Op<
+            "Timestamp",
+            [
+                NoSideEffect,
+            ]
+        > {
+    let summary = "Get timer timestamp operation";
+
+    let description = [{
+        Get timer timestamp operation
+    }];
+
+    let results = (outs
+        AnyStaticShapeMemRef:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict `->` type(results)
+    }];
+}
+
+//
 // ConvertOp
 //
 

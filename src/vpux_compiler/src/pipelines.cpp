@@ -64,13 +64,16 @@ void buildIERTAllocationPipelineForDDR(mlir::OpPassManager& pm, Logger log) {
 // ReferenceMode
 //
 
-void vpux::buildReferenceModePipeline(mlir::OpPassManager& pm, Logger log) {
+void vpux::buildReferenceModePipeline(mlir::OpPassManager& pm, bool enableProfiling, Logger log) {
     // IE Dialect level
     buildIECommonPipeline(pm, log);
     buildIEReferenceLowPrecisionPipeline(pm, log);
 
     // Lower IE->IERT
     buildLowerIE2IERTPipeline(pm, log);
+
+    if (enableProfiling)
+        pm.addPass(IERT::createTimestampProfilingPass(getMemSpace<VPUIP::PhysicalMemory::DDR>, log));
 
     // IERT Dialect level
     pm.addPass(createComposeSubViewPass(log));
@@ -88,7 +91,7 @@ void vpux::buildReferenceModePipeline(mlir::OpPassManager& pm, Logger log) {
 // HardwareMode
 //
 
-void vpux::buildHardwareModePipeline(mlir::OpPassManager& pm, Logger log) {
+void vpux::buildHardwareModePipeline(mlir::OpPassManager& pm, bool enableProfiling, Logger log) {
     // IE Dialect level
     IE::buildHWOpsConversionPipeline(pm, log);
     buildIECommonPipeline(pm, log);
@@ -96,6 +99,9 @@ void vpux::buildHardwareModePipeline(mlir::OpPassManager& pm, Logger log) {
 
     // Lower IE->IERT
     buildLowerIE2IERTPipeline(pm, log);
+
+    if (enableProfiling)
+        pm.addPass(IERT::createTimestampProfilingPass(getMemSpace<VPUIP::PhysicalMemory::CMX_NN>, log));
 
     // Partially lower IERT->VPUIP (NCE Operations only)
     pm.addPass(IERT::createCMXTilingPass(log));

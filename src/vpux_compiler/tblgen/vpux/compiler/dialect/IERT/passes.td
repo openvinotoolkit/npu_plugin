@@ -90,6 +90,24 @@ def CXMTiling : PassBase<"cmx-tiling", "vpux::FunctionPass"> {
     let constructor = "vpux::IERT::createCMXTilingPass()";
 }
 
+// TimestampProfiling
+//
+
+def TimestampProfiling : PassBase<"profiling-timestamp", "vpux::ModulePass"> {
+    let summary = "DMA-Timestamp based network profiling";
+
+    let description = [{
+        This pass add dma-timestamp based network profiling.
+    }];
+
+    let constructor = [{
+        vpux::IERT::createTimestampProfilingPass([](mlir::MLIRContext* ctx, vpux::StringRef memSpaceName) -> mlir::Attribute {
+            VPUX_THROW_UNLESS(!memSpaceName.empty(), "Missing memory space option");
+            return mlir::StringAttr::get(ctx, memSpaceName);
+        })
+    }];
+}
+
 //=================================================================================
 // Asynchronous Scheduling
 //=================================================================================

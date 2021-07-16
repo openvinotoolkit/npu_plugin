@@ -261,16 +261,19 @@ InferenceEngine::QueryNetworkResult vpux::CompilerImpl::query(const InferenceEng
 
 namespace {
 
-void buildPipeline(mlir::PassManager& pm, VPUIP::ArchKind archKind, VPUIP::CompilationMode compilationMode,
-                   mlir::TimingScope& rootTiming, Logger log) {
+void buildPipeline(mlir::PassManager& pm, const VPUXConfig& config, mlir::TimingScope& rootTiming, Logger log) {
     auto buildTiming = rootTiming.nest("Build compilation pipeline");
+
+    const auto archKind = getArchKind(config);
+    const auto compilationMode = getCompilationMode(config);
+    const auto enableProfiling = config.performanceCounting();
 
     pm.addPass(createSetCompileParamsPass(archKind, compilationMode, log.nest()));
 
     if (compilationMode == VPUIP::CompilationMode::ReferenceSW) {
-        buildReferenceModePipeline(pm, log.nest());
+        buildReferenceModePipeline(pm, enableProfiling, log.nest());
     } else if (compilationMode == VPUIP::CompilationMode::ReferenceHW) {
-        buildHardwareModePipeline(pm, log.nest());
+        buildHardwareModePipeline(pm, enableProfiling, log.nest());
     } else {
         VPUX_THROW("Unsupported compilation mode '{0}'", compilationMode);
     }
@@ -319,9 +322,6 @@ std::shared_ptr<INetworkDescription> vpux::CompilerImpl::compile(const std::shar
                                                                  const VPUXConfig& config) {
     Logger log("vpux-compiler", getLogLevel(config));
 
-    const auto archKind = getArchKind(config);
-    const auto compilationMode = getCompilationMode(config);
-
     DeveloperConfig devConf(log);
 
     mlir::DefaultTimingManager tm;
@@ -338,7 +338,8 @@ std::shared_ptr<INetworkDescription> vpux::CompilerImpl::compile(const std::shar
     devConf.setup(pm);
 
     auto rootTiming = tm.getRootScope();
-    buildPipeline(pm, archKind, compilationMode, rootTiming, log);
+    buildPipeline(pm, config, rootTiming, log);
+
     const auto cnnNet = prepareNetwork(func, inputsInfo, outputsInfo, rootTiming);
     const auto module = importNetwork(&ctx, cnnNet, devConf, rootTiming, log);
     compileNetwork(module.get(), pm, rootTiming);
