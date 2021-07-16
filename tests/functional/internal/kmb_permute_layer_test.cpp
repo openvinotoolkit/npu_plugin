@@ -134,16 +134,21 @@ const std::vector<PermuteTestParams> supportedCases {
     PermuteTestParams()
         .in_desc(TensorDesc{Precision::FP16, {1, 18, 19, 19}, Layout::NCHW})
         .order({0, 2, 3, 1}),
+    // Unsupported shape size = 5
+    // PermuteTestParams()
+    //     .in_desc(TensorDesc{Precision::FP16, {3, 10, 1, 5, 15}, Layout::NCDHW})
+    //     .order({0, 4, 2, 3, 1}),
 
     ///// use permuteND
     PermuteTestParams()
         .in_desc(TensorDesc{Precision::FP16, {1, 3, 10, 5}, Layout::NCHW})
         .order({0, 1, 2, 3})
         .permute_nd(InferenceEngine::PluginConfigParams::YES),
-    PermuteTestParams()
-        .in_desc(TensorDesc{Precision::FP16, {1, 13, 13, 3, 85}, Layout::NCDHW})
-        .order({0, 1, 2, 4, 3})
-        .permute_nd(InferenceEngine::PluginConfigParams::YES),
+    // Unsupported shape size = 5
+    // PermuteTestParams()
+    //     .in_desc(TensorDesc{Precision::FP16, {13, 13, 1, 3, 85}, Layout::NCDHW})
+    //     .order({0, 4, 2, 3, 1})
+    //     .permute_nd(InferenceEngine::PluginConfigParams::YES),
     PermuteTestParams()
         .in_desc(TensorDesc{Precision::FP16, {1, 3, 10, 5}, Layout::NCHW})
         .order({0, 2, 3, 1})
