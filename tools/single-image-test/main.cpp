@@ -350,7 +350,7 @@ ie::MemoryBlob::Ptr loadBinary(const ie::TensorDesc& desc, const std::string& fi
     const int fileSize = binaryFile.tellg();
     binaryFile.seekg(0, std::ios_base::beg);
     const int expectedSize = static_cast<int>(blob->byteSize());
-    IE_ASSERT(fileSize != expectedSize) << "File contains " << fileSize << " bytes, but " << expectedSize << " expected";
+    IE_ASSERT(fileSize == expectedSize) << "File contains " << fileSize << " bytes, but " << expectedSize << " expected";
 
     IE_ASSERT(binaryFile.good()) << "While reading a file an error is encountered";
 
