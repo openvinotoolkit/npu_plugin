@@ -1596,4 +1596,34 @@ def IE_ExpandOp :
         AnyRankedTensor:$output
     );
 }
+
+//
+// LSTMCellOp
+//
+
+def IE_LSTMCellOp :
+        IE_LayerOp<
+            "LSTMCell",
+            [
+                ResultsAreFloatLike
+            ]
+        > {
+    let summary = "InferenceEngine LSTMCell layer";
+
+    let arguments = (ins
+        2DTensorOf<[F16, F32]>:$inputData,
+        2DTensorOf<[F16, F32]>:$initialHiddenState,
+        2DTensorOf<[F16, F32]>:$initialCellState,
+        2DTensorOf<[F16, F32]>:$weights,
+        2DTensorOf<[F16, F32]>:$reccurenceWeights,
+        1DTensorOf<[F16, F32]>:$biases,
+
+        I32Attr:$hiddenSize
+    );
+
+    let results = (outs
+        2DTensorOf<[F16, F32]>:$outputHiddenState,
+        2DTensorOf<[F16, F32]>:$outputCellState
+    );
+}
 #endif

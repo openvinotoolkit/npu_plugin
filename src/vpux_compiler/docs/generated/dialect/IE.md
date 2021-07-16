@@ -819,6 +819,42 @@ operation ::= `IE.LRN` `(` operands `)` attr-dict `:` type(operands) `->` type(r
 | :----: | ----------- |
 `output` | ranked tensor of 16-bit float or 32-bit float values
 
+### `IE.LSTMCell` (vpux::IE::LSTMCellOp)
+
+InferenceEngine LSTMCell layer
+
+
+Syntax:
+
+```
+operation ::= `IE.LSTMCell` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`hiddenSize` | ::mlir::IntegerAttr | 32-bit signless integer attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`inputData` | 2D tensor of 16-bit float or 32-bit float values
+`initialHiddenState` | 2D tensor of 16-bit float or 32-bit float values
+`initialCellState` | 2D tensor of 16-bit float or 32-bit float values
+`weights` | 2D tensor of 16-bit float or 32-bit float values
+`reccurenceWeights` | 2D tensor of 16-bit float or 32-bit float values
+`biases` | 1D tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`outputHiddenState` | 2D tensor of 16-bit float or 32-bit float values
+`outputCellState` | 2D tensor of 16-bit float or 32-bit float values
+
 ### `IE.LeakyRelu` (vpux::IE::LeakyReluOp)
 
 InferenceEngine LeakyRelu layer

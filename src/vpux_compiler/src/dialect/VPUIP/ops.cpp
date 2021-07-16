@@ -155,6 +155,7 @@ bool LayerInfo::isSupportedLayout(mlir::Operation* origOp, DataOrderInfo& info) 
     CASE(IE::PadOp, VPUIP::PadUPAOp)
     CASE(IE::ExpOp, VPUIP::ExpUPAOp)
     CASE(IE::InterpolateOp, VPUIP::InterpolateUPAOp)
+    CASE(IE::LSTMCellOp, VPUIP::LSTMCellUPAOp)
     CASE(IE::StridedSliceOp, VPUIP::StridedSliceUPAOp)
     .Default([](mlir::Operation* unknownOp) -> bool {
         VPUX_THROW("Operation '{0}' does not support layout propagation", unknownOp->getName());

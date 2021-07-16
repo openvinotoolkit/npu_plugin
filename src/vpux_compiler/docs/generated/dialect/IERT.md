@@ -836,6 +836,47 @@ operation ::= `IERT.Interpolate` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float or 32-bit float values
 
+### `IERT.LSTMCell` (vpux::IERT::LSTMCellOp)
+
+InferenceEngine run-time LSTMCell layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.LSTMCell` attr-dict
+              `inputs` `(` $inputData `:` type($inputData) `,` $initialHiddenState `:` type($initialHiddenState) `,` $initialCellState `:` type($initialCellState)
+              `,` $weights `:` type($weights) `,` $biases `:` type($biases) `)`
+              `outputs` `(` $outputHiddenState_buff `:` type($outputHiddenState_buff) `,` $outputCellState_buff `:` type($outputCellState_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`hiddenSize` | ::mlir::IntegerAttr | 32-bit signless integer attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`inputData` | memref of 16-bit float or 32-bit float values
+`initialHiddenState` | memref of 16-bit float or 32-bit float values
+`initialCellState` | memref of 16-bit float or 32-bit float values
+`weights` | memref of 16-bit float or 32-bit float values
+`biases` | memref of 16-bit float or 32-bit float values
+`outputHiddenState_buff` | memref of 16-bit float or 32-bit float values
+`outputCellState_buff` | memref of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`outputHiddenState` | memref of 16-bit float or 32-bit float values
+`outputCellState` | memref of 16-bit float or 32-bit float values
+
 ### `IERT.LeakyRelu` (vpux::IERT::LeakyReluOp)
 
 InferenceEngine run-time LeakyRelu layer
