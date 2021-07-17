@@ -426,7 +426,8 @@ static mlir::Value alignDepthwiseWeightTensor(mlir::OpBuilder& builder, mlir::Lo
     const auto KY = filterShape[IERT::ConvolutionOp::filter_spatial_height_dim()];
     const auto KX = filterShape[IERT::ConvolutionOp::filter_spatial_width_dim()];
 
-    constexpr int64_t depthwiseConvAlignment = 16;
+    const auto origFilterType = origFilter.getType().cast<mlir::ShapedType>();
+    const auto depthwiseConvAlignment = VPUIP::NCEInvariant::getChannelAlignment(origFilterType.getElementType());
     const int64_t remainder = (filtersPerInChan * KY * KX) % depthwiseConvAlignment;
     VPUX_THROW_UNLESS(remainder >= 0, "Channel alignment cannot be negative: {0}", remainder);
     if (remainder == 0) {
@@ -447,8 +448,7 @@ static mlir::Value alignDepthwiseWeightTensor(mlir::OpBuilder& builder, mlir::Lo
     auto nhwcWeightsContentAttr = alignedWeightsContentAttr.reorder(DimsOrder::NHWC);
 
     auto alignedWeightShape = SmallVector<int64_t>{OC, filtersPerInChan * KY * KX + alignment, 1, 1};
-    const auto outAllocType =
-            mlir::MemRefType::get(alignedWeightShape, origFilter.getType().cast<mlir::ShapedType>().getElementType());
+    const auto outAllocType = mlir::MemRefType::get(alignedWeightShape, origFilterType.getElementType());
     const auto outAllocTypeNHWC = changeDimsOrder(outAllocType, DimsOrder::NHWC);
     auto alignedWeightsOp = builder.create<Const::DeclareOp>(loc, outAllocTypeNHWC, nhwcWeightsContentAttr);
 
@@ -468,7 +468,6 @@ mlir::LogicalResult DepthwiseConvRewrite::matchAndRewrite(IERT::GroupConvolution
     const auto filterShape = getShape(origOp.filter());
 
     const auto OC = filterShape[IERT::ConvolutionOp::filter_out_channel_dim()];
-    const auto filtersPerInChan = filterShape[IERT::ConvolutionOp::filter_in_channel_dim()];
     const auto KY = filterShape[IERT::ConvolutionOp::filter_spatial_height_dim()];
     const auto KX = filterShape[IERT::ConvolutionOp::filter_spatial_width_dim()];
 
@@ -493,10 +492,9 @@ mlir::LogicalResult DepthwiseConvRewrite::matchAndRewrite(IERT::GroupConvolution
             VPUIP::NCESparsity::getBitPatternSize(kernelSize, kernelStrides[0], origInputType.getElementType());
     const auto actWindowChanLen = getInt32Attr(getContext(), static_cast<uint32_t>(bitPatternSize));
 
-    const auto fakeSparsity = VPUIP::NCESparsity::getFakeSparsity(kernelSize, kernelStrides[0],
-                                                                  origInputType.getElementType(), filtersPerInChan);
-    const auto activationWindow =
-            createActivationWindowTensor(rewriter, origOp->getLoc(), fakeSparsity, filtersPerInChan);
+    const auto fakeSparsity =
+            VPUIP::NCESparsity::getFakeSparsity(kernelSize, kernelStrides[0], origInputType.getElementType(), OC);
+    const auto activationWindow = createActivationWindowTensor(rewriter, origOp->getLoc(), fakeSparsity, OC);
     auto weightsTable =
             createWeightsTableTensor(rewriter, origOp->getLoc(), OC, filterDPU, origOp.bias(), activationWindow);
 

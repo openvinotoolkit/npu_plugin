@@ -136,7 +136,7 @@ llvm::unique_function<float(int64_t)> getBiasFunc(mlir::Value bias) {
 
 int64_t getOC(VPUIP::WeightsTableOp createWTableOp) {
     if (createWTableOp.weights() != nullptr && createWTableOp.activation_window() != nullptr) {
-        // depthwise convolution case
+        // Depthwise convolution case. Weights table contains both activation window and weights.
         // FIXME the logic repeats row-major convolution
         const auto filterShape = getShape(createWTableOp.weights());
         return filterShape[IERT::ConvolutionOp::filter_out_channel_dim()];
@@ -164,7 +164,9 @@ int32_t getWeightPtrStep(VPUIP::WeightsTableOp createWTableOp) {
             // Weights table contains both activation window and weights.
             // Check that weights have expected alignment.
             // Other than that, weight step is the same for both z-major (OYXI) and depthwise convolutions.
-            constexpr int64_t depthwiseConvAlignment = 16;
+            const auto origFilterType = createWTableOp.weights().getType().cast<mlir::ShapedType>();
+            const auto depthwiseConvAlignment =
+                    VPUIP::NCEInvariant::getChannelAlignment(origFilterType.getElementType());
             const int64_t weightsElementCount = IC * KY * KX;
             VPUX_THROW_UNLESS(weightsElementCount % depthwiseConvAlignment == 0,
                               "Depthwise convolution weights size must be a multiple of {0}, got {1}",

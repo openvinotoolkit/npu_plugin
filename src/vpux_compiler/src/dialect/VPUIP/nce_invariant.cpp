@@ -338,16 +338,24 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyGroupConvCMX(mlir::Location
     const auto filtersPerInChan = filterShape[IERT::ConvolutionOp::filter_in_channel_dim()];
     const auto KY = filterShape[IERT::ConvolutionOp::filter_spatial_height_dim()];
     const auto KX = filterShape[IERT::ConvolutionOp::filter_spatial_width_dim()];
+    // Setting more than 16 groups results in worse accuracy.
+    // FIXME verify CMX is not a proper place for this. But it is required to fail CMX check during tiling.
+    const auto depthwiseOutChanCount = VPUIP::NCEInvariant::getChannelAlignment(outputType.getElementType());
+    if (OC != depthwiseOutChanCount) {
+        log.trace("[{0}] Depthwise convolution must have exactly {1} output channels, got {2}", loc,
+                  depthwiseOutChanCount, OC);
+        return mlir::failure();
+    }
 
     // FIXME why does fake sparsity expects this order of kernel dimensions?
     const auto kernelSizeVals = SmallVector<int64_t>{KX, KY};
     const auto kernelStridesVals = parseIntArrayAttr(kernelStrides);
 
-    const auto activationWindowSize = VPUIP::NCESparsity::getActivationWindowSize(
-            kernelSizeVals, kernelStridesVals[0], inputType.getElementType(), filtersPerInChan);
+    const auto activationWindowSize = VPUIP::NCESparsity::getActivationWindowSize(kernelSizeVals, kernelStridesVals[0],
+                                                                                  inputType.getElementType(), OC);
 
     // consider alignment when calculating required CMX
-    constexpr int64_t depthwiseConvAlignment = 16;
+    const auto depthwiseConvAlignment = VPUIP::NCEInvariant::getChannelAlignment(outputType.getElementType());
     const int64_t remainder = (filtersPerInChan * KY * KX) % depthwiseConvAlignment;
     VPUX_THROW_UNLESS(remainder >= 0, "Channel alignment cannot be negative: {0}", remainder);
 

@@ -216,6 +216,29 @@ private:
     Logger _log;
 };
 
+static mlir::Value reshapeDepthwiseWeightTensor(mlir::OpBuilder& builder, mlir::Location loc,
+                                                const mlir::Value origFilter) {
+    auto* ctx = builder.getContext();
+    const auto elemType = mlir::Float16Type::get(ctx);
+    const auto filtShape = getShape(origFilter);
+
+    const auto OC = filtShape[Dim(0)];
+    const auto KY = filtShape[Dim(2)];
+    const auto KX = filtShape[Dim(3)];
+
+    SmallVector<int64_t> weightShape{OC, 1, KY, KX};
+
+    auto weightsConst = origFilter.getDefiningOp<Const::DeclareOp>();
+    VPUX_THROW_UNLESS(weightsConst != nullptr, "Grouped convolution does not provide constant weights");
+
+    const auto dataType = mlir::MemRefType::get(weightShape, elemType);
+    const auto dataTypeNHWC = changeDimsOrder(dataType, DimsOrder::NCHW);
+    const auto dataContentAttr = weightsConst.contentAttr();
+    const auto dataContentAttrNHWC = dataContentAttr.reorder(DimsOrder::NCHW);
+    auto dataConstOp = builder.create<Const::DeclareOp>(loc, dataTypeNHWC, dataContentAttrNHWC);
+    return dataConstOp.output();
+}
+
 mlir::LogicalResult GroupConvolutionTiling::matchAndRewrite(IERT::GroupConvolutionOp origOp,
                                                             mlir::PatternRewriter& rewriter) const {
     _log.trace("[{0}] Got GroupConvolution at '{1}'", getDebugName(), origOp->getLoc());
@@ -230,6 +253,11 @@ mlir::LogicalResult GroupConvolutionTiling::matchAndRewrite(IERT::GroupConvoluti
     SmallVector<mlir::Value> finalResults;
     finalResults.reserve(tilings.size());
 
+    // Depthwise weight tensor has 5 dimensions.
+    // Tiling over channels takes wrong dimension for some reason.
+    // FIXME reshaping to 4 dimensions is a workaround. Real cause still has to be fixed.
+    const auto filter4d = reshapeDepthwiseWeightTensor(rewriter, origOp->getLoc(), origOp.filter());
+
     for (const auto& outputTile : tilings) {
         const auto tileConf = backInferGroupConvTile(origOp, outputTile);
 
@@ -241,7 +269,7 @@ mlir::LogicalResult GroupConvolutionTiling::matchAndRewrite(IERT::GroupConvoluti
         const auto& padsEnd = tileConf.pads.end;
 
         const auto actInput = makeTile(rewriter, origOp->getLoc(), origOp.input(), inputTile, "input");
-        const auto filterInput = makeTile(rewriter, origOp->getLoc(), origOp.filter(), filterTile, "filter");
+        const auto filterInput = makeTile(rewriter, origOp->getLoc(), filter4d, filterTile, "filter");
         const auto biasInput = origOp.bias() != nullptr
                                        ? makeTile(rewriter, origOp->getLoc(), origOp.bias(), biasTile, "bias")
                                        : nullptr;
@@ -367,23 +395,28 @@ OutputTiling SimpleTiler::genericTiler(mlir::Operation* op, mlir::MemRefType out
 OutputTiling SimpleTiler::groupConvTiler(mlir::Operation* op, mlir::MemRefType outputType,
                                          FuncRef<bool(ShapeRef)> isSupportedTileSize) const {
     const auto outputShape = getShape(outputType);
+    const auto actChannelDim = IERT::ConvolutionOp::act_channel_dim();
 
     Shape nTilesOnDim(outputShape.size(), 1);
+    // FIXME tiling over channels has to leave 16 channels in each tile.
+    // Otherwise, depthwise convolutions produce worse accuracy.
+    const auto depthwiseOutChanCount = VPUIP::NCEInvariant::getChannelAlignment(outputType.getElementType());
+    VPUX_THROW_UNLESS(outputShape[actChannelDim] % depthwiseOutChanCount == 0,
+                      "Depthwise convolution output channels must be a multiple of {0}, got {1}", depthwiseOutChanCount,
+                      outputShape[actChannelDim]);
+    nTilesOnDim[actChannelDim] = outputShape[actChannelDim] / depthwiseOutChanCount;
 
     while (!isSupportedTileSize(nTilesOnDim)) {
-        // Try tiling over spatial dimensions only.
-        // FIXME Split over channels does not seem to work properly with depthwise convolution.
-
         Optional<Dim> dimToTile;
 
         for (auto spatialDim : irange(IERT::ConvolutionOp::act_spatial_dims())) {
-            const auto act_spatial_dim = IERT::ConvolutionOp::act_spatial_dim(spatialDim);
+            const auto actSpatialDim = IERT::ConvolutionOp::act_spatial_dim(spatialDim);
 
-            const auto origSize = outputShape[act_spatial_dim];
-            const auto prevDivisor = nTilesOnDim[act_spatial_dim];
+            const auto origSize = outputShape[actSpatialDim];
+            const auto prevDivisor = nTilesOnDim[actSpatialDim];
 
             if (origSize / prevDivisor > 1) {
-                dimToTile = act_spatial_dim;
+                dimToTile = actSpatialDim;
                 break;
             }
         }
