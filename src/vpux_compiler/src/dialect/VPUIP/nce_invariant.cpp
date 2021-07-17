@@ -347,8 +347,11 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyGroupConvCMX(mlir::Location
             kernelSizeVals, kernelStridesVals[0], inputType.getElementType(), filtersPerInChan);
 
     // consider alignment when calculating required CMX
-    const int64_t remainder = (filtersPerInChan * KY * KX) % 16;
-    const int64_t alignment = (remainder > 0) ? (16 - remainder) : 0;
+    constexpr int64_t depthwiseConvAlignment = 16;
+    const int64_t remainder = (filtersPerInChan * KY * KX) % depthwiseConvAlignment;
+    VPUX_THROW_UNLESS(remainder >= 0, "Channel alignment cannot be negative: {0}", remainder);
+
+    const int64_t alignment = (remainder > 0) ? (depthwiseConvAlignment - remainder) : 0;
     const auto alignedWeightShape = SmallVector<int64_t>{OC, 1, 1, filtersPerInChan * KY * KX + alignment};
     const auto alignedFilterType = mlir::MemRefType::get(alignedWeightShape, filterType.getElementType());
 

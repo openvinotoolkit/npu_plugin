@@ -307,6 +307,7 @@ void SimpleTiler::buildTilingPatterns(mlir::RewritePatternSet& patterns) {
 
     const auto groupConvTilerFunc = std::bind(&SimpleTiler::groupConvolutionTiler, this, std::placeholders::_1);
     patterns.add<GroupConvolutionTiling>(patterns.getContext(), groupConvTilerFunc, _log);
+    // TODO Replace std::bind calls with corresponding anonymous functions.
 }
 
 OutputTiling SimpleTiler::genericTiler(mlir::Operation* op, mlir::MemRefType outputType,

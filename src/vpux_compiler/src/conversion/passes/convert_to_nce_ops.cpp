@@ -426,7 +426,9 @@ static mlir::Value alignDepthwiseWeightTensor(mlir::OpBuilder& builder, mlir::Lo
     const auto KY = filterShape[IERT::ConvolutionOp::filter_spatial_height_dim()];
     const auto KX = filterShape[IERT::ConvolutionOp::filter_spatial_width_dim()];
 
-    const int64_t remainder = (filtersPerInChan * KY * KX) % 16;
+    constexpr int64_t depthwiseConvAlignment = 16;
+    const int64_t remainder = (filtersPerInChan * KY * KX) % depthwiseConvAlignment;
+    VPUX_THROW_UNLESS(remainder >= 0, "Channel alignment cannot be negative: {0}", remainder);
     if (remainder == 0) {
         // nothing to align
         return origFilter;
@@ -435,7 +437,7 @@ static mlir::Value alignDepthwiseWeightTensor(mlir::OpBuilder& builder, mlir::Lo
     auto weightsConst = origFilter.getDefiningOp<Const::DeclareOp>();
     VPUX_THROW_UNLESS(weightsConst != nullptr, "Grouped convolution does not provide constant weights");
 
-    const int64_t alignment = (remainder > 0) ? (16 - remainder) : 0;
+    const int64_t alignment = depthwiseConvAlignment - remainder;
     auto weightsContentAttr = weightsConst.contentAttr();
     auto nchwWeightsContentAttr = weightsContentAttr.reorder(DimsOrder::NCHW);
 
@@ -489,7 +491,7 @@ mlir::LogicalResult DepthwiseConvRewrite::matchAndRewrite(IERT::GroupConvolution
     const auto kernelStrides = parseIntArrayAttr(origOp.strides());
     const auto bitPatternSize =
             VPUIP::NCESparsity::getBitPatternSize(kernelSize, kernelStrides[0], origInputType.getElementType());
-    const auto activation_window_channel_length = getInt32Attr(getContext(), static_cast<uint32_t>(bitPatternSize));
+    const auto actWindowChanLen = getInt32Attr(getContext(), static_cast<uint32_t>(bitPatternSize));
 
     const auto fakeSparsity = VPUIP::NCESparsity::getFakeSparsity(kernelSize, kernelStrides[0],
                                                                   origInputType.getElementType(), filtersPerInChan);
@@ -525,7 +527,7 @@ mlir::LogicalResult DepthwiseConvRewrite::matchAndRewrite(IERT::GroupConvolution
             /*parent_input=*/inputDPU,
             /*parent_output=*/outAllocOpCMX.memref(),
             /*output_buff=*/outAllocOpCMX.memref(), VPUIP::NCETaskType::DWCONV, kernelSizeAttr, origOp.strides(),
-            kernelPaddingAttr, activation_window_channel_length);
+            kernelPaddingAttr, actWindowChanLen);
 
     addDPUTasks(nceOp, rewriter, _numDPU, padsBegin, padsEnd, mpeMap.at(_arch));
     addPPETask(nceOp, rewriter, origOp.post_opAttr());
