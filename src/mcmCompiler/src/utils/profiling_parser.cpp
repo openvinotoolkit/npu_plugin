@@ -47,6 +47,9 @@ void mv::utils::getProfilingInfo(const void* data, const void* output, std::vect
                             EnumNameTargetDeviceRevision(graphFile.header->device_revision), "value is not supported");
                 }
                 break;
+            case MVCNN::TargetDevice::TargetDevice_TBH:
+                frc_speed_mhz = 700;
+                break;
             default:
                 throw mv::ArgumentError("profiling", "TargetDevice", 
                             EnumNameTargetDevice(graphFile.header->device), "value is not supported");
