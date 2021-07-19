@@ -18,12 +18,12 @@
 
 #include <mlir/IR/BuiltinTypes.h>
 
-void vpux::VPUIP::LSTMCellUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state,
-                                        mlir::Value inputData, mlir::Value initialHiddenState,
-                                        mlir::Value initialCellState, mlir::Value weights, mlir::Value biases,
-                                        mlir::Value outputHiddenState, mlir::Value outputCellState) {
-    build(builder, state, inputData, initialHiddenState, initialCellState, weights, biases,
-            outputHiddenState, outputCellState, mlir::ValueRange{}, mlir::ValueRange{}, nullptr, nullptr);
+void vpux::VPUIP::LSTMCellUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value inputData,
+                                       mlir::Value initialHiddenState, mlir::Value initialCellState,
+                                       mlir::Value weights, mlir::Value biases, mlir::Value outputHiddenState,
+                                       mlir::Value outputCellState) {
+    build(builder, state, inputData, initialHiddenState, initialCellState, weights, biases, outputHiddenState,
+          outputCellState, mlir::ValueRange{}, mlir::ValueRange{}, nullptr, nullptr);
 }
 
 vpux::VPUIP::BlobWriter::SpecificTask vpux::VPUIP::LSTMCellUPAOp::serialize(VPUIP::BlobWriter& writer) {
@@ -42,11 +42,11 @@ vpux::VPUIP::BlobWriter::SpecificTask vpux::VPUIP::LSTMCellUPAOp::serialize(VPUI
 }
 
 mlir::Operation* vpux::VPUIP::BlobReader::parseLSTMCell(mlir::OpBuilder& builder, ArrayRef<mlir::Value> inputs,
-                                                                ArrayRef<mlir::Value> outputs,
-                                                                const MVCNN::UPALayerTask* /*task*/) {
+                                                        ArrayRef<mlir::Value> outputs,
+                                                        const MVCNN::UPALayerTask* /*task*/) {
     VPUX_THROW_UNLESS(inputs.size() == 5, "LSTMCell supports only 5 inputs, got {0}", inputs.size());
     VPUX_THROW_UNLESS(outputs.size() == 2, "LSTMCell supports only 2 output, got {0}", outputs.size());
 
-    return builder.create<VPUIP::LSTMCellUPAOp>(
-            mlir::UnknownLoc::get(_ctx), inputs[0], inputs[1], inputs[2], inputs[3], inputs[4], outputs[1], outputs[2]);
+    return builder.create<VPUIP::LSTMCellUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], inputs[1], inputs[2], inputs[3],
+                                                inputs[4], outputs[1], outputs[2]);
 }
