@@ -123,6 +123,55 @@ void KmbLayerTestsCommon::ImportReference(
     }
 }
 
+std::vector<InferenceEngine::Blob::Ptr> KmbLayerTestsCommon::ImportOutputs(){
+    std::vector<InferenceEngine::Blob::Ptr> outputs = std::vector<InferenceEngine::Blob::Ptr>{};
+    InferenceEngine::ConstOutputsDataMap mapInfo = executableNetwork.GetOutputsInfo();
+    std::vector<std::pair<std::string, InferenceEngine::CDataPtr>> outputsInfo(mapInfo.begin(), mapInfo.end());
+
+    for(const auto &output : outputsInfo){
+        const auto ext = llvm::formatv(".{0}.{1}", output.first, "out").str();
+
+        InferenceEngine::Blob::Ptr blob = make_blob_with_precision(output.second->getTensorDesc());
+        blob->allocate();
+
+        kmbTestTool.importBlob(blob,
+            filesysName(testing::UnitTest::GetInstance()->current_test_info(), ext, !envConfig.IE_KMB_TESTS_LONG_FILE_NAME));
+        outputs.push_back(blob);
+    }
+
+    return outputs;
+}
+
+void KmbLayerTestsCommon::InferVpuip() {
+    int ret, count;
+
+    count = 0;
+    for(const auto &input : executableNetwork.GetInputsInfo()) {
+        const auto &info = input.second;
+        const auto ext = llvm::formatv(".{0}.{1}", info->name(), "in").str();
+        const auto inputFileName1  = filesysName(testing::UnitTest::GetInstance()->current_test_info(), ext, !envConfig.IE_KMB_TESTS_LONG_FILE_NAME);
+        const auto inputFileName2 = "input-" + std::to_string(count++) + ".bin";
+
+        ret = system(("cp $IE_KMB_TESTS_DUMP_PATH/" + inputFileName1 + " $VPUIP_HOME/application/demo/InferenceManagerDemo/" + inputFileName2).c_str());
+    }
+
+    const auto netFileName = filesysName(testing::UnitTest::GetInstance()->current_test_info(), ".net", !envConfig.IE_KMB_TESTS_LONG_FILE_NAME);
+    ret = system(("cp $IE_KMB_TESTS_DUMP_PATH/" + netFileName + " $VPUIP_HOME/application/demo/InferenceManagerDemo/test.blob").c_str());
+    ret = system("make -C $VPUIP_HOME/application/demo/InferenceManagerDemo run -j SOC_REVISION=B0");
+    IE_ASSERT(ret == 0); // InferenceManagerDemo fail
+
+    count = 0;
+    for(const auto &output : executableNetwork.GetOutputsInfo()) {
+        const auto ext = llvm::formatv(".{0}.{1}", output.first, "out").str();
+        const auto outputFileName1 = filesysName(testing::UnitTest::GetInstance()->current_test_info(), ext, !envConfig.IE_KMB_TESTS_LONG_FILE_NAME);
+        const auto outputFileName2 = "output-" + std::to_string(count++) + ".bin";
+
+        ret = system(("cp $VPUIP_HOME/application/demo/InferenceManagerDemo/" + outputFileName2 + " $IE_KMB_TESTS_DUMP_PATH/" + outputFileName1).c_str());
+        IE_ASSERT(ret == 0); // InferenceManagerDemo fail
+        ret = system(("rm $VPUIP_HOME/application/demo/InferenceManagerDemo/" + outputFileName2).c_str());
+    }
+}
+
 void KmbLayerTestsCommon::Validate() {
     std::cout << "LayerTestsCommon::Validate()" << std::endl;
 
@@ -140,7 +189,15 @@ void KmbLayerTestsCommon::Validate() {
     rearrangeDataToLayoutFromNumDims(inputs);
 
     auto expectedOutputs = CalculateRefs();
-    auto actualOutputs = GetOutputs();
+
+    std::vector<InferenceEngine::Blob::Ptr> actualOutputs;
+    if(envConfig.IE_KMB_TESTS_RUN_INFER_VPUIP){
+        actualOutputs = ImportOutputs();
+    }
+
+    if(envConfig.IE_KMB_TESTS_RUN_INFER){
+        actualOutputs = GetOutputs();
+    }
 
     if (envConfig.IE_KMB_TESTS_IMPORT_REF) {
         std::cout << "KmbLayerTestsCommon::ImportReference()" << std::endl;
@@ -230,6 +287,10 @@ void KmbLayerTestsCommon::Run() {
         } else {
             std::cout << "Skip KmbLayerTestsCommon::Infer() due to: " << runInferSkipReason << std::endl;
         }
+        if(envConfig.IE_KMB_TESTS_RUN_INFER_VPUIP){
+            std::cout << "KmbLayerTestsCommon::InferVpuip()" << std::endl;
+            InferVpuip();
+        }
         if (envConfig.IE_KMB_TESTS_EXPORT_REF) {
             std::cout << "KmbLayerTestsCommon::ExportReference()" << std::endl;
             ExportReference(CalculateRefs());
@@ -238,7 +299,7 @@ void KmbLayerTestsCommon::Run() {
             std::cout << "KmbLayerTestsCommon::ExportOutput()" << std::endl;
             ExportOutput();
         }
-        if (runInfer) {
+        if (runInfer || envConfig.IE_KMB_TESTS_RUN_INFER_VPUIP) {
             std::cout << "KmbLayerTestsCommon::Validate()" << std::endl;
             SkipBeforeValidate();
             Validate();
