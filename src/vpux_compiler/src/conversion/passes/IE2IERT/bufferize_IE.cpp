@@ -324,13 +324,14 @@ private:
 };
 
 mlir::LogicalResult LSTMCellRewrite::matchAndRewrite(IE::LSTMCellOp origOp, ArrayRef<mlir::Value> newOperands,
-                                                   mlir::ConversionPatternRewriter& rewriter) const {
+                                                     mlir::ConversionPatternRewriter& rewriter) const {
     _log.trace("Found LSTMCell Operation '{0}'", origOp->getLoc());
 
     auto* typeConverter = getTypeConverter();
     VPUX_THROW_UNLESS(typeConverter != nullptr, "TypeConverter is not set");
 
-    auto expandedBuffer = allocateResults(origOp->getLoc(), rewriter, *typeConverter, {origOp.outputHiddenState(), origOp.outputCellState()});
+    auto expandedBuffer = allocateResults(origOp->getLoc(), rewriter, *typeConverter,
+                                          {origOp.outputHiddenState(), origOp.outputCellState()});
 
     const auto weightsType = newOperands[3].getType().cast<mlir::ShapedType>();
     const auto reccurenceWeightsType = newOperands[4].getType().cast<mlir::ShapedType>();
@@ -351,7 +352,8 @@ mlir::LogicalResult LSTMCellRewrite::matchAndRewrite(IE::LSTMCellOp origOp, Arra
     auto concat = rewriter.create<IERT::ConcatViewOp>(origOp->getLoc(), concatInputs, subView.memref());
 
     rewriter.replaceOpWithNewOp<IERT::LSTMCellOp>(origOp, newOperands[0], newOperands[1], newOperands[2],
-                                    concat.output(), newOperands[5], expandedBuffer[0], expandedBuffer[1], origOp.hiddenSizeAttr());
+                                                  concat.output(), newOperands[5], expandedBuffer[0], expandedBuffer[1],
+                                                  origOp.hiddenSizeAttr());
 
     return mlir::success();
 }

@@ -57,24 +57,21 @@ mlir::LogicalResult CTCGreedyDecoderSeqLenRewrite::matchAndRewrite(IERT::CTCGree
 
 class LSTMCellRewrite final : public mlir::OpRewritePattern<IERT::LSTMCellOp> {
 public:
-    LSTMCellRewrite(mlir::MLIRContext* ctx, Logger log)
-            : mlir::OpRewritePattern<IERT::LSTMCellOp>(ctx), _log(log) {
+    LSTMCellRewrite(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<IERT::LSTMCellOp>(ctx), _log(log) {
     }
 
 public:
-    mlir::LogicalResult matchAndRewrite(IERT::LSTMCellOp origOp,
-                                        mlir::PatternRewriter& rewriter) const final;
+    mlir::LogicalResult matchAndRewrite(IERT::LSTMCellOp origOp, mlir::PatternRewriter& rewriter) const final;
 
 private:
     Logger _log;
 };
 
-mlir::LogicalResult LSTMCellRewrite::matchAndRewrite(IERT::LSTMCellOp origOp,
-                                                        mlir::PatternRewriter& rewriter) const {
+mlir::LogicalResult LSTMCellRewrite::matchAndRewrite(IERT::LSTMCellOp origOp, mlir::PatternRewriter& rewriter) const {
     _log.trace("Found LSTMCell Operation '{0}'", origOp->getLoc());
-    rewriter.replaceOpWithNewOp<VPUIP::LSTMCellUPAOp>(
-            origOp, origOp.inputData(), origOp.initialHiddenState(), origOp.initialCellState(), origOp.weights(), origOp.biases(),
-            origOp.outputHiddenState_buff(), origOp.outputCellState_buff());
+    rewriter.replaceOpWithNewOp<VPUIP::LSTMCellUPAOp>(origOp, origOp.inputData(), origOp.initialHiddenState(),
+                                                      origOp.initialCellState(), origOp.weights(), origOp.biases(),
+                                                      origOp.outputHiddenState_buff(), origOp.outputCellState_buff());
     _log.trace("Replaced with 'VPUIP.LSTMCellOp'");
 
     return mlir::success();
