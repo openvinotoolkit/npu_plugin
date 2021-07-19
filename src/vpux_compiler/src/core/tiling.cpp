@@ -398,3 +398,65 @@ PoolTileConfig vpux::backInferPoolTile(IERT::MaxPoolOp origOp, const Tile& outpu
 
     return {inputTile, {padsBegin, padsEnd}};
 }
+
+ConvTileConfig vpux::backInferGroupConvTile(IERT::GroupConvolutionOp origOp, const Tile& outputTile) {
+    const auto actChannelDim = IERT::ConvolutionOp::act_channel_dim();
+    const auto actHeightDim = IERT::ConvolutionOp::act_height_dim();
+    const auto actWidthDim = IERT::ConvolutionOp::act_width_dim();
+
+    const auto filterOutChannelDim = IERT::ConvolutionOp::filter_out_channel_dim();
+    const auto filterHeightDim = IERT::ConvolutionOp::filter_spatial_height_dim();
+    const auto filterWidthDim = IERT::ConvolutionOp::filter_spatial_width_dim();
+
+    const auto origInputShape = getShape(origOp.input());
+    const auto origFilterShape = getShape(origOp.filter());
+    const auto origBiasShape = origOp.bias() != nullptr ? getShape(origOp.bias()) : ShapeRef();
+
+    PlaneTile output;
+    output.height.begin = outputTile.offsets[actHeightDim];
+    output.height.end = outputTile.offsets[actHeightDim] + outputTile.shape[actHeightDim];
+    output.width.begin = outputTile.offsets[actWidthDim];
+    output.width.end = outputTile.offsets[actWidthDim] + outputTile.shape[actWidthDim];
+
+    PadInfo initialPad;
+    initialPad.top = origOp.pads_begin()[0].cast<mlir::IntegerAttr>().getInt();
+    initialPad.bottom = origOp.pads_end()[0].cast<mlir::IntegerAttr>().getInt();
+    initialPad.left = origOp.pads_begin()[1].cast<mlir::IntegerAttr>().getInt();
+    initialPad.right = origOp.pads_end()[1].cast<mlir::IntegerAttr>().getInt();
+
+    const auto solution =
+            solutionForOutputTile(output, origFilterShape[filterWidthDim], origFilterShape[filterHeightDim],
+                                  origOp.strides()[1].cast<mlir::IntegerAttr>().getInt(),
+                                  origOp.strides()[0].cast<mlir::IntegerAttr>().getInt(), origInputShape, initialPad);
+
+    Tile inputTile(origInputShape);
+    Tile filterTile(origFilterShape);
+    Tile biasTile(origBiasShape);
+
+    inputTile.shape[actChannelDim] = outputTile.shape[actChannelDim];
+    inputTile.offsets[actChannelDim] = outputTile.offsets[actChannelDim];
+
+    inputTile.offsets[actHeightDim] = solution.inputTile.height.begin;
+    inputTile.shape[actHeightDim] = solution.inputTile.height.length();
+
+    inputTile.offsets[actWidthDim] = solution.inputTile.width.begin;
+    inputTile.shape[actWidthDim] = solution.inputTile.width.length();
+
+    filterTile.shape[filterOutChannelDim] = outputTile.shape[actChannelDim];
+    filterTile.offsets[filterOutChannelDim] = outputTile.offsets[actChannelDim];
+
+    if (!biasTile.shape.empty()) {
+        biasTile.shape[actChannelDim] = outputTile.shape[actChannelDim];
+        biasTile.offsets[actChannelDim] = outputTile.offsets[actChannelDim];
+    }
+
+    SmallVector<int64_t> padsBegin(IERT::ConvolutionOp::filter_spatial_dims());
+    SmallVector<int64_t> padsEnd(IERT::ConvolutionOp::filter_spatial_dims());
+
+    padsBegin[0] = solution.inputPad.top;
+    padsEnd[0] = solution.inputPad.bottom;
+    padsBegin[1] = solution.inputPad.left;
+    padsEnd[1] = solution.inputPad.right;
+
+    return {inputTile, filterTile, biasTile, {padsBegin, padsEnd}};
+}

@@ -115,6 +115,21 @@ bool vpux::VPUIP::NCEClusterTaskOp::isSupportedLayout(mlir::Operation* op, vpux:
 
                 return true;
             })
+            .Case<IE::GroupConvolutionOp>([&](IE::GroupConvolutionOp op) {
+                if (!isSupportedLayoutSameInOutSpecificDimsOrder(op, info, {DimsOrder::NHWC})) {
+                    // weights layout
+                    info.setInput(1, DimsOrder::OYXI);
+                    return false;
+                }
+
+                // check weights layout
+                if (!info.hasInput(1) || info.getInput(1) != DimsOrder::OYXI) {
+                    fillDataInfo(info, 2, 1, DimsOrder::OYXI);
+                    return false;
+                }
+
+                return true;
+            })
             .Default([](mlir::Operation* unknownOp) -> bool {
                 VPUX_THROW("Operation '{0}' the operation is not supported by the DPU", unknownOp->getName());
             });
@@ -235,6 +250,57 @@ mlir::LogicalResult verifyNCEEltwise(VPUIP::NCEClusterTaskOp op) {
     return mlir::success();
 }
 
+mlir::LogicalResult verifyNCEDWConv(VPUIP::NCEClusterTaskOp op) {
+    VPUX_THROW_UNLESS(op.task_type() == VPUIP::NCETaskType::DWCONV, "Expected task type '{0}', but got '{1}'",
+                      VPUIP::NCETaskType::CONV, op.task_type());
+
+    if (op.weights() == nullptr) {
+        return errorAt(op, "weights is required for NCETaskType : '{0}'", op.task_type());
+    }
+    if (op.weight_table() == nullptr) {
+        return errorAt(op, "weight_table is required for NCETaskType : '{0}'", op.task_type());
+    }
+    if (op.activation_window() == nullptr) {
+        return errorAt(op, "activation_window is required for NCETaskType : '{0}'", op.task_type());
+    }
+
+    if (op.kernel_sizeAttr() == nullptr) {
+        return errorAt(op, "kernel_size is required for NCETaskType : '{0}'", op.task_type());
+    }
+    if (op.kernel_stridesAttr() == nullptr) {
+        return errorAt(op, "kernel_strides is required for NCETaskType : '{0}'", op.task_type());
+    }
+    if (op.kernel_paddingAttr() == nullptr) {
+        return errorAt(op, "kernel_padding is required for NCETaskType : '{0}'", op.task_type());
+    }
+
+    if (mlir::failed(VPUIP::NCEInvariant::verifyKernel(op->getLoc(), op.kernel_sizeAttr(), op.kernel_stridesAttr()))) {
+        return mlir::failure();
+    }
+
+    const auto weightsShape = getShape(op.weights());
+    const auto OC = weightsShape[IERT::ConvolutionOp::filter_out_channel_dim()];
+
+    const auto weightTableShape = getShape(op.weight_table());
+    const auto weightTableNumElements = weightTableShape.totalSize();
+
+    if (OC * VPUIP::NCEInvariant::WEIGHT_TABLE_NUM_ELEMENTS_PER_OC != weightTableNumElements) {
+        return errorAt(op, "Weight table must have '{0}' elements, got '{1}'",
+                       OC * VPUIP::NCEInvariant::WEIGHT_TABLE_NUM_ELEMENTS_PER_OC, weightTableNumElements);
+    }
+
+    if (verifySameInOutSpecificDimsOrder(op, {DimsOrder::NHWC}).failed()) {
+        return mlir::failure();
+    }
+
+    const auto weightsLayout = DimsOrder::fromValue(op.weights());
+    if (weightsLayout != DimsOrder::NHWC) {
+        return errorAt(op, "weights layout must be NHWC, got {0}", weightsLayout);
+    }
+
+    return mlir::success();
+}
+
 }  // namespace
 
 mlir::LogicalResult vpux::VPUIP::verifyOp(VPUIP::DPUTaskOp op) {
@@ -268,6 +334,10 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(VPUIP::NCEClusterTaskOp op) {
         }
     } else if (op.task_type() == VPUIP::NCETaskType::ELTWISE) {
         if (mlir::failed(verifyNCEEltwise(op))) {
+            return mlir::failure();
+        }
+    } else if (op.task_type() == VPUIP::NCETaskType::DWCONV) {
+        if (mlir::failed(verifyNCEDWConv(op))) {
             return mlir::failure();
         }
     } else {

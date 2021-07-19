@@ -144,6 +144,55 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyChannels(IERT::AddOp origOp
 }
 
 //
+// verifyGroupConvChannels
+//
+
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyGroupConvChannels(mlir::Location loc, mlir::ShapedType inputType,
+                                                                       mlir::ShapedType filterType, Logger log) {
+    log.setName("NCEInvariant");
+
+    if (inputType.getRank() != 4) {
+        log.trace("[{0}] Input has unsupported rank: {1}", loc, inputType.getRank());
+        return mlir::failure();
+    }
+
+    if (filterType.getRank() != 4) {
+        log.trace("[{0}] Filter has unsupported rank: {1}", loc, filterType.getRank());
+        return mlir::failure();
+    }
+
+    const auto inputShape = getShape(inputType);
+    const auto inputChan = inputShape[IERT::ConvolutionOp::filter_in_channel_dim()];
+    const auto filterShape = getShape(filterType);
+    const auto OC = filterShape[IERT::ConvolutionOp::filter_out_channel_dim()];
+    const auto filtersPerInChan = filterShape[IERT::ConvolutionOp::filter_in_channel_dim()];
+    if (filtersPerInChan != 1) {
+        log.trace("[{0}] Group Convolution with more than one filter per channel is not supported", loc);
+        return mlir::failure();
+    }
+    if (OC % getChannelAlignment(filterType.getElementType()) != 0) {
+        log.trace("[{0}] Group Convolution output channels are not aligned", loc);
+        return mlir::failure();
+    }
+    if (OC != inputChan) {
+        log.trace("[{0}] Group Convolution has {1} groups, expected {2}", loc, OC, inputChan);
+        return mlir::failure();
+    }
+
+    return mlir::success();
+}
+
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyChannels(IE::GroupConvolutionOp origOp, Logger log) {
+    return verifyGroupConvChannels(origOp->getLoc(), origOp.input().getType().cast<mlir::ShapedType>(),
+                                   origOp.filter().getType().cast<mlir::ShapedType>(), log);
+}
+
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyChannels(IERT::GroupConvolutionOp origOp, Logger log) {
+    return verifyGroupConvChannels(origOp->getLoc(), origOp.input().getType().cast<mlir::ShapedType>(),
+                                   origOp.filter().getType().cast<mlir::ShapedType>(), log);
+}
+
+//
 // verifyConvCMX
 //
 
@@ -180,8 +229,8 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyConvCMX(mlir::Location loc,
     log.setName("NCEInvariant");
 
     const auto filterShape = getShape(filterType);
+    // consider alignment when calculating required CMX
     const auto OC = filterShape[IERT::ConvolutionOp::filter_out_channel_dim()];
-
     const auto requiredCMX = getRequiredCMX({inputType, filterType, outputType}, OC);
 
     const auto cmxSize = getCMXSize(module);
@@ -269,6 +318,69 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyCMX(IERT::AddOp origOp, Log
                             origOp.input1().getType().cast<mlir::MemRefType>(),
                             origOp.input2().getType().cast<mlir::MemRefType>(),
                             origOp.output().getType().cast<mlir::MemRefType>(), log);
+}
+
+//
+// verifyGroupConvCMX
+//
+
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyGroupConvCMX(mlir::Location loc, mlir::ModuleOp module,
+                                                                  mlir::MemRefType inputType,
+                                                                  mlir::MemRefType filterType,
+                                                                  mlir::MemRefType outputType,
+                                                                  mlir::ArrayAttr kernelStrides, Logger log) {
+    log.setName("NCEInvariant");
+
+    VPUX_THROW_UNLESS(kernelStrides.size() == 2, "Unsupported strides size: {0}", kernelStrides.size());
+
+    const auto filterShape = getShape(filterType);
+    const auto OC = filterShape[IERT::ConvolutionOp::filter_out_channel_dim()];
+    const auto filtersPerInChan = filterShape[IERT::ConvolutionOp::filter_in_channel_dim()];
+    const auto KY = filterShape[IERT::ConvolutionOp::filter_spatial_height_dim()];
+    const auto KX = filterShape[IERT::ConvolutionOp::filter_spatial_width_dim()];
+    // Setting more than 16 groups results in worse accuracy.
+    // FIXME verify CMX is not a proper place for this. But it is required to fail CMX check during tiling.
+    const auto depthwiseOutChanCount = VPUIP::NCEInvariant::getChannelAlignment(outputType.getElementType());
+    if (OC != depthwiseOutChanCount) {
+        log.trace("[{0}] Depthwise convolution must have exactly {1} output channels, got {2}", loc,
+                  depthwiseOutChanCount, OC);
+        return mlir::failure();
+    }
+
+    // FIXME why does fake sparsity expects this order of kernel dimensions?
+    const auto kernelSizeVals = SmallVector<int64_t>{KX, KY};
+    const auto kernelStridesVals = parseIntArrayAttr(kernelStrides);
+
+    const auto activationWindowSize = VPUIP::NCESparsity::getActivationWindowSize(kernelSizeVals, kernelStridesVals[0],
+                                                                                  inputType.getElementType(), OC);
+
+    // consider alignment when calculating required CMX
+    const auto depthwiseConvAlignment = VPUIP::NCEInvariant::getChannelAlignment(outputType.getElementType());
+    const int64_t remainder = (filtersPerInChan * KY * KX) % depthwiseConvAlignment;
+    VPUX_THROW_UNLESS(remainder >= 0, "Channel alignment cannot be negative: {0}", remainder);
+
+    const int64_t alignment = (remainder > 0) ? (depthwiseConvAlignment - remainder) : 0;
+    const auto alignedWeightShape = SmallVector<int64_t>{OC, 1, 1, filtersPerInChan * KY * KX + alignment};
+    const auto alignedFilterType = mlir::MemRefType::get(alignedWeightShape, filterType.getElementType());
+
+    const auto requiredCMX =
+            getRequiredCMX({inputType, alignedFilterType, outputType}, OC) + activationWindowSize * 1_Byte;
+
+    const auto cmxSize = getCMXSize(module);
+    if (requiredCMX > cmxSize) {
+        log.trace("[{0}] CMX memory is not enough for Depthwise Convolution, available '{1}', required '{2}'", loc,
+                  cmxSize, requiredCMX);
+        return mlir::failure();
+    }
+
+    return mlir::success();
+}
+
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyCMX(IERT::GroupConvolutionOp origOp, Logger log) {
+    return verifyGroupConvCMX(origOp->getLoc(), origOp->getParentOfType<mlir::ModuleOp>(),
+                              origOp.input().getType().cast<mlir::MemRefType>(),
+                              origOp.filter().getType().cast<mlir::MemRefType>(),
+                              origOp.output().getType().cast<mlir::MemRefType>(), origOp.strides(), log);
 }
 
 //
@@ -388,6 +500,62 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IERT::AddOp, Logger)
     return mlir::success();
 }
 
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IE::GroupConvolutionOp origOp, Logger log) {
+    log.setName("NCEInvariant");
+
+    const auto dilations = parseIntArrayAttr(origOp.dilations());
+    if (dilations[0] != 1 || dilations[1] != 1) {
+        log.trace("[{0}] Unsupported kernel dilations '{1}'", origOp->getLoc(), dilations);
+        return mlir::failure();
+    }
+
+    const auto filterShape = getShape(origOp.filter());
+    if (!origOp.groups().hasValue()) {
+        log.trace("[{0}] Grouped convolution does not have groups", origOp->getLoc());
+        return mlir::failure();
+    }
+
+    const auto OC = filterShape[IERT::ConvolutionOp::filter_out_channel_dim()];
+    if (origOp.groups().getValue() != OC) {
+        log.trace("[{0}] Unsupported group size: '{1}' expected '{2}'", origOp->getLoc(), origOp.groups(), OC);
+        return mlir::failure();
+    }
+
+    const auto KY = filterShape[IERT::ConvolutionOp::filter_spatial_height_dim()];
+    const auto KX = filterShape[IERT::ConvolutionOp::filter_spatial_width_dim()];
+
+    const auto kernelSizeAttr = getInt32ArrayAttr(origOp.getContext(), makeArrayRef({KY, KX}));
+    return verifyKernel(origOp->getLoc(), kernelSizeAttr, origOp.strides(), log);
+}
+
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IERT::GroupConvolutionOp origOp, Logger log) {
+    log.setName("NCEInvariant");
+
+    const auto dilations = parseIntArrayAttr(origOp.dilations());
+    if (dilations[0] != 1 || dilations[1] != 1) {
+        log.trace("[{0}] Unsupported kernel dilations '{1}'", origOp->getLoc(), dilations);
+        return mlir::failure();
+    }
+
+    const auto filterShape = getShape(origOp.filter());
+    if (!origOp.groups().hasValue()) {
+        log.trace("[{0}] Grouped convolution does not have groups", origOp->getLoc());
+        return mlir::failure();
+    }
+
+    const auto OC = filterShape[IERT::ConvolutionOp::filter_out_channel_dim()];
+    if (origOp.groups().getValue() != OC) {
+        log.trace("[{0}] Unsupported group size: '{1}' expected '{2}'", origOp->getLoc(), origOp.groups(), OC);
+        return mlir::failure();
+    }
+
+    const auto KY = filterShape[IERT::ConvolutionOp::filter_spatial_height_dim()];
+    const auto KX = filterShape[IERT::ConvolutionOp::filter_spatial_width_dim()];
+
+    const auto kernelSizeAttr = getInt32ArrayAttr(origOp.getContext(), makeArrayRef({KY, KX}));
+    return verifyKernel(origOp->getLoc(), kernelSizeAttr, origOp.strides(), log);
+}
+
 //
 // verifyOp
 //
@@ -422,6 +590,9 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyOp(mlir::Operation* op, Log
                 return verifyConcreteOp(origOp, log);
             })
             .Case<IERT::AddOp>([&](IERT::AddOp origOp) {
+                return verifyConcreteOp(origOp, log);
+            })
+            .Case<IERT::GroupConvolutionOp>([&](IERT::GroupConvolutionOp origOp) {
                 return verifyConcreteOp(origOp, log);
             })
             .Default([](mlir::Operation* unknownOp) -> mlir::LogicalResult {
