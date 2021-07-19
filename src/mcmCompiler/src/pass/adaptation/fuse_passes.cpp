@@ -283,6 +283,72 @@ void fuseScaleFcn(mv::Data::OpListIterator& opIt, mv::ComputationModel& model, c
     }
 }
 
+/// Refer to src/mcmCompiler/src/pass/kmb_adaptation/compute_output_dtype.cpp: decideOutputDataType()
+bool floatOutput(mv::Data::OpListIterator& op, mv::ComputationModel& model) {
+    mv::OpModel om(model);
+    auto returnedParams = model.getGlobalConfigParams();
+
+    auto perTensorScale = [](const mv::Data::TensorIterator& tensor) {
+        const auto& channelScale = tensor->get<mv::QuantizationParams>("quantParams").getScale();
+        return std::all_of(channelScale.begin(), channelScale.end(), [&](double x) {
+            return std::abs(x - channelScale[0]) <= 0.01f;
+        });
+    };
+
+    bool floatOutput = op->getOutputTensor(mv::IO_TENSOR_OUTPUT)->isFloatingPointType();
+    auto opType = op->getOpType();
+
+    if (returnedParams->hasAttr("PredictionOfQuantizationOutput") &&
+        returnedParams->get<bool>("PredictionOfQuantizationOutput")) {
+        floatOutput = false;
+    } else {
+        if (op->isHardwarizable()) {
+            bool inputQuantized = true;
+            /// check conv with fp16 weights and also no quan params
+            /// need do with fp16 conv
+            for (size_t i = 0; i < (opType == "Eltwise" || opType == "Conv" ? 2 : 1); ++i) {
+                inputQuantized &= !op->getInputTensor(i)->isFloatingPointType() &&
+                                  !op->getInputTensor(i)->getQuantParams().isEmpty();
+            }
+            bool outputQuantized = !floatOutput &&
+                                   !op->getOutputTensor(mv::IO_TENSOR_OUTPUT)->getQuantParams().isEmpty();
+
+            if (!inputQuantized && !outputQuantized) {
+                if (returnedParams->hasAttr("FloatOutput") && returnedParams->get<bool>("FloatOutput")) {
+                    // This will ensure that the constants are properly dequantized and tensors are set
+                    // to fp16 for cases such as u8 with neutral quantParams
+                    floatOutput = true;
+                }
+            } else if (inputQuantized && !outputQuantized) {
+                if (returnedParams->hasAttr("Int32Output") && returnedParams->get<bool>("Int32Output")) {
+                    floatOutput = false;
+                }
+                // NOTE: HW limitation, in mixed mode the grids of the MPEs are conflicting between
+                // each other, which leads to 1x1 workloads, so we will do an explicit conversion
+                // in different cases
+                if (returnedParams->hasAttr("FloatOutput") && returnedParams->get<bool>("FloatOutput")) {
+                    if (op->getOutputTensor(mv::IO_TENSOR_OUTPUT)->getShape()[mv::IO_WIDTH_DIMENSION] == 1 &&
+                        op->getOutputTensor(mv::IO_TENSOR_OUTPUT)->getShape()[mv::IO_HEIGHT_DIMENSION] == 1) {
+                        floatOutput = true;
+                    } else {
+                        if (perTensorScale(op->getInputTensor(mv::IO_TENSOR_OUTPUT))) {
+                            floatOutput = true;
+                        }
+                    }
+                }
+            } else if (!inputQuantized && outputQuantized) {
+                if (returnedParams->hasAttr("FloatOutput") && returnedParams->get<bool>("FloatOutput")) {
+                    if (perTensorScale(op->getInputTensor(mv::IO_TENSOR_INPUT))) {
+                        floatOutput = true;
+                    }
+                }
+            }
+        }
+    }
+
+    return floatOutput;
+}
+
 /**
  * @brief fuse PPE function to parent op
  */
@@ -318,6 +384,20 @@ void fusePPEBaseFcn(mv::Data::OpListIterator& opIt, mv::ComputationModel& model,
                 }
             }
             op_itr_bfs.pop();
+        }
+    }
+
+    /// Disable last sigmoid fusion when fp16 precision
+    if (opType == "Sigmoid") {
+        auto nextOps = mv::findSinkLayers(dm, opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT));
+        for (auto& nextOp : nextOps) {
+            if (nextOp->getOpType() == "Output") {
+                for (auto& parent : fusableParents) {
+                    if (floatOutput(parent, model)) {
+                        return;
+                    }
+                }
+            }
         }
     }
 
