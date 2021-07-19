@@ -40,6 +40,7 @@ void resampleAsDepthDeConvFcn(const mv::pass::PassEntry& pass, mv::ComputationMo
 void resampleWithStorageElementPointerTable(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 static void detectEltWiseUpaInputs(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void markCMCompatibleConvsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void markSOHnonCompatibleConcatsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void addPermuteToNonCMConvPathsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 void replaceLargeGlobalPoolingFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void replaceBroadcastEltwiseMultWithConv(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
@@ -75,6 +76,12 @@ namespace mv
         .setFunc(markCMCompatibleConvsFcn)
         .setDescription(
             "Mark Convs that support CMConv, & ops on Input that require C-Major input tensor"
+        );
+
+        MV_REGISTER_PASS(MarkSOHnonCompatibleConcats)
+        .setFunc(markSOHnonCompatibleConcatsFcn)
+        .setDescription(
+            "Mark Concats that do not support SOH"
         );
 
         MV_REGISTER_PASS(AddPermuteToNonCMConvPaths)
@@ -663,6 +670,42 @@ static void markCMCompatibleConvsFcn(const mv::pass::PassEntry&, mv::Computation
         (*conv).set<bool>("supportsCM", supports_CMConv);
         if(supports_CMConv)
             om.getGlobalConfigParams()->set<bool>("enable_channel_major_conv", true);
+    }
+}
+
+static void markSOHnonCompatibleConcatsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+{
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+
+    mv::OpModel om(model);
+    auto concatOps = om.getOps("ImplicitConcat");
+
+    for (auto &concatOp : concatOps)
+    {
+        if (concatOp->hasAttr("axis") && concatOp->get<std::string>("axis") != "W") { continue; }
+        bool moreThanOneLevelConcat = false;
+        for (auto childOp = concatOp.leftmostChild(); childOp != om.opEnd(); ++childOp)
+        {
+            if (childOp->getOpType() == "ImplicitConcat")
+            {
+                moreThanOneLevelConcat = true;
+            }
+        }
+        if (!moreThanOneLevelConcat)
+        {
+            for (auto parentOp = concatOp.leftmostParent(); parentOp != om.opEnd(); ++parentOp)
+            {
+                if (parentOp->getOpType() == "ImplicitConcat")
+                {
+                    moreThanOneLevelConcat = true;
+                    break;
+                }
+            }
+        }
+        if (moreThanOneLevelConcat)
+        {
+            concatOp->set<bool>("disableSOH", true);
+        }
     }
 }
 
@@ -2541,6 +2584,9 @@ mv::Data::OpListIterator splitOperationSlicingV2(
         auto outputQuantParams = operation->getOutputTensor(0)->getQuantParams();
         auto dType = operation->getInputTensor(mv::IO_TENSOR_INPUT)->getDType();
 
+        // NOTE: if the channel dimensions are not aligned an issue might appear with
+        // the Slice and the Align operations being consecutive with a DDR spill.
+
         unsigned int i = 0; //counts the slices on the width axis
         unsigned int j = 0; //counts the slices on the height axis
         do {//slicing on the vertical axis , agnostic whether we need to slice vertically that's why [do .. while] is chosen to execute at least once the code if we not slice on height axis
@@ -2625,6 +2671,8 @@ mv::Data::OpListIterator splitOperationSlicingV2(
         opConcatSlice->set<unsigned>("opId", initialOpId);
         //NOTE: This is a special case of concat dmas/strides cause it needs to do the reshape as well
         opConcatSlice->set<bool>("fusedConcatReshape", true);
+        //NOTE: Change for SOH integration
+        opConcatSlice->set<bool>("avoid_cmx_concat", true);
         opConcatSlice->set<std::size_t>("numberOfConvsForAsymmetricalStride", newStride[mv::STRIDE_HORIZONTAL]);
 
         //recircuit the graph flow

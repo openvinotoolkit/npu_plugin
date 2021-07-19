@@ -588,6 +588,21 @@ void allocateImplicitOperationsOp(mv::Data::OpListIterator opIterator, mv::Contr
                             {
                                 left_index = 0;
                             }
+                            if (opIterator->get<std::string>("splitStrategy") == "SplitOverH")
+                            {
+                                std::size_t nrOfConvs = inp->get<std::size_t>("numberOfConvsForAsymmetricalStride");
+                                std::size_t fusedOffset = inp->getShape()[mv::IO_CHANNEL_DIMENSION] * inp->getShape()[mv::IO_WIDTH_DIMENSION];
+                                std::size_t prevOffset = 0UL;
+                                for (std::size_t idx = 0UL; idx < inp->numSubTensors(); ++idx)
+                                {
+                                    std::size_t subOffset = (prevOffset * nrOfConvs + fusedOffset * i);
+                                    inp->getSubTensor(idx).set<bool>("fusedConcatReshape", true);
+                                    inp->getSubTensor(idx).set<std::size_t>("fused_concat_offset", subOffset);
+                                    inp->getSubTensor(idx).set<std::size_t>("numberOfConvsForAsymmetricalStride", 
+                                        inp->get<std::size_t>("numberOfConvsForAsymmetricalStride"));
+                                    prevOffset += inp->getSubTensor(idx).size();
+                                }
+                            }
                         }
                         if (inp->hasAttr("indexDecrease") && inp->get<bool>("indexDecrease"))
                         {
