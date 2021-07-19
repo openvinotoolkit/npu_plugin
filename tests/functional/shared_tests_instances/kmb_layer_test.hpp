@@ -35,6 +35,9 @@ protected:
     void ImportReference(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>& refs);
     void ExportReference(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>& refs);
 
+    std::vector<InferenceEngine::Blob::Ptr> ImportOutputs();
+    void InferVpuip();
+
     void Validate() override;
 
     virtual void SkipBeforeLoad() {
