@@ -57,9 +57,9 @@ mlir::FailureOr<StridedSliceInputData> extractData(mlir::Location loc, IE::Strid
         auto ends = parseIntArrayAttr(stridedSlice.ends_attr());
         auto strides = parseIntArrayAttr(stridedSlice.strides_attr());
         return StridedSliceInputData{begins, ends, strides};
-    } else {
-        VPUX_THROW("StridedSlice operation is invalid");
     }
+    VPUX_THROW("StridedSlice operation is invalid");
+    return mlir::failure();
 }
 
 }  // namespace
