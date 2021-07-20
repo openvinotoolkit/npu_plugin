@@ -32,7 +32,7 @@ If the platform is not specified, VPUX Plugin tries to determine it by analyzing
 compile_tool -d VPUX -m model.xml
 ```
 
-If system doesn't have any devices and platform for compilation is not provided, you will get an error `No devices found - DEVICE_ID with platform is required for compilation`
+If system doesn't have any devices and platform for compilation is not provided, you will get an error `No devices found - platform must be explicitly specified for compilation. Example: -d VPUX.3700 instead of -d VPUX.`
 
 The table below contains VPU devices and corresponding VPU platform:
 
