@@ -103,8 +103,13 @@ void fusePostOpsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
         for (auto bias : biasOperations)
             fuseTaskMap["Bias"].second(bias, model, "Bias", td);
 
-        /* Change fuse function for LeakyRelu to PPE Accuracy variant */
-        fuseTaskMap["LeakyRelu"].second = fuseLeakyReluAccPPEFcn;
+        provideAccuracyinPPEs(model);
+
+        /* Bias ops already fused */
+        fuseTaskMap.erase("Bias");
+
+        /* LeakyRelu ops already fused */
+        fuseTaskMap.erase("LeakyRelu");
     }
 
     /* Collect all fusable op types from fuseTaskMap */
@@ -352,7 +357,7 @@ void fusePPEBaseFcn(mv::Data::OpListIterator& opIt, mv::ComputationModel& model,
         {
             opIt->set<bool>("softwareExecuted", true);
         }
-                
+
         return;
     }
 
