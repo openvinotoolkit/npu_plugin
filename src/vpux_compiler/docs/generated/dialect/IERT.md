@@ -353,10 +353,10 @@ operation ::= `IERT.Convolution` attr-dict
 
 | Operand | Description |
 | :-----: | ----------- |
-`input` | memref of 16-bit float or 32-bit float values
-`filter` | memref of 16-bit float or 32-bit float values
+`input` | memref of 16-bit float or 32-bit float or QuantizedType values
+`filter` | memref of 16-bit float or 32-bit float or QuantizedType values
 `bias` | memref of 16-bit float or 32-bit float values
-`output_buff` | memref of 16-bit float or 32-bit float values
+`output_buff` | memref of 16-bit float or 32-bit float or QuantizedType values
 
 #### Results:
 
@@ -941,14 +941,14 @@ operation ::= `IERT.MaxPool` attr-dict
 
 | Operand | Description |
 | :-----: | ----------- |
-`input` | memref of 16-bit float or 32-bit float values
-`output_buff` | memref of 16-bit float or 32-bit float values
+`input` | memref of 16-bit float or 32-bit float or QuantizedType values
+`output_buff` | memref of 16-bit float or 32-bit float or QuantizedType values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-`output` | memref of 16-bit float or 32-bit float values
+`output` | memref of 16-bit float or 32-bit float or QuantizedType values
 
 ### `IERT.Maximum` (vpux::IERT::MaximumOp)
 

@@ -1645,6 +1645,8 @@ def VPUIP_WeightsTableOp :
     let summary = "Intermediate task for creating weights table based on the addresses of CMX buffers";
 
     let arguments = (ins
+        Optional<MemRefOf<[F16, quant_QuantizedType]>>:$op_input,
+        Optional<MemRefOf<[F16, quant_QuantizedType]>>:$op_output,
         Optional<MemRefOf<[F16, quant_QuantizedType]>>:$weights,
         Optional<MemRefOf<[F16, F32]>>:$bias,
         Optional<MemRefOf<[UI8]>>:$activation_window
@@ -1656,6 +1658,8 @@ def VPUIP_WeightsTableOp :
 
     let assemblyFormat = [{
         attr-dict
+        (`op_input` `(` $op_input^  `:` type($op_input) `)`)?
+        (`op_output` `(` $op_output^  `:` type($op_output) `)`)?
         (`weights` `(` $weights^  `:` type($weights) `)`)?
         (`bias` `(` $bias^  `:` type($bias) `)`)?
         (`activation_window` `(` $activation_window^  `:` type($activation_window) `)`)?

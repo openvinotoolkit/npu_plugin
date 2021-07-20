@@ -319,15 +319,15 @@ operation ::= `IE.Convolution` `(` operands `)` attr-dict `:` type(operands) `->
 
 | Operand | Description |
 | :-----: | ----------- |
-`input` | ranked tensor of 16-bit float or 32-bit float values
-`filter` | ranked tensor of 16-bit float or 32-bit float values
+`input` | ranked tensor of 16-bit float or 32-bit float or QuantizedType values
+`filter` | ranked tensor of 16-bit float or 32-bit float or QuantizedType values
 `bias` | ranked tensor of 16-bit float or 32-bit float values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-`output` | ranked tensor of 16-bit float or 32-bit float values
+`output` | ranked tensor of 16-bit float or 32-bit float or QuantizedType values
 
 ### `IE.DataInfo` (vpux::IE::DataInfoOp)
 
@@ -945,13 +945,13 @@ operation ::= `IE.MaxPool` `(` operands `)` attr-dict `:` type(operands) `->` ty
 
 | Operand | Description |
 | :-----: | ----------- |
-`input` | ranked tensor of 16-bit float or 32-bit float values
+`input` | ranked tensor of 16-bit float or 32-bit float or QuantizedType values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-`output` | ranked tensor of 16-bit float or 32-bit float values
+`output` | ranked tensor of 16-bit float or 32-bit float or QuantizedType values
 
 ### `IE.Maximum` (vpux::IE::MaximumOp)
 

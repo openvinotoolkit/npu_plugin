@@ -25,6 +25,7 @@ include "mlir/Interfaces/SideEffectInterfaces.td"
 include "mlir/Interfaces/ViewLikeInterface.td"
 include "mlir/IR/RegionKindInterface.td"
 include "mlir/IR/SymbolInterfaces.td"
+include "mlir/Dialect/Quant/QuantOpsBase.td"
 
 //
 // Base classes
@@ -506,7 +507,6 @@ def IE_ConvolutionOp :
         IE_LayerOp<
             "Convolution",
             [
-                ResultsAreFloatLike,
                 DeclareOpInterfaceMethods<TensorInterface_4D>,
                 DeclareOpInterfaceMethods<MultiLayerInterface>,
                 DeclareOpInterfaceMethods<ConvolutionLayerInterface>
@@ -515,8 +515,8 @@ def IE_ConvolutionOp :
     let summary = "InferenceEngine Convolution layer";
 
     let arguments = (ins
-        RankedTensorOf<[F16, F32]>:$input,
-        RankedTensorOf<[F16, F32]>:$filter,
+        RankedTensorOf<[F16, F32, quant_QuantizedType]>:$input,
+        RankedTensorOf<[F16, F32, quant_QuantizedType]>:$filter,
         Optional<RankedTensorOf<[F16, F32]>>:$bias,
 
         I32ArrayAttr:$strides,
@@ -528,7 +528,7 @@ def IE_ConvolutionOp :
     );
 
     let results = (outs
-        RankedTensorOf<[F16, F32]>:$output
+        RankedTensorOf<[F16, F32, quant_QuantizedType]>:$output
     );
 
     let hasCanonicalizer = 1;
@@ -607,7 +607,6 @@ def IE_MaxPoolOp :
         IE_LayerOp<
             "MaxPool",
             [
-                ResultsAreFloatLike,
                 DeclareOpInterfaceMethods<TensorInterface_4D>,
                 DeclareOpInterfaceMethods<MultiLayerInterface>
             ]
@@ -615,7 +614,7 @@ def IE_MaxPoolOp :
     let summary = "InferenceEngine MaxPool layer";
 
     let arguments = (ins
-        RankedTensorOf<[F16, F32]>:$input,
+        RankedTensorOf<[F16, F32, quant_QuantizedType]>:$input,
 
         I32ArrayAttr:$kernel_size,
         I32ArrayAttr:$strides,
@@ -627,7 +626,7 @@ def IE_MaxPoolOp :
     );
 
     let results = (outs
-        RankedTensorOf<[F16, F32]>:$output
+        RankedTensorOf<[F16, F32, quant_QuantizedType]>:$output
     );
 }
 
