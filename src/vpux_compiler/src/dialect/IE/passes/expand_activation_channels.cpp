@@ -138,9 +138,20 @@ mlir::LogicalResult MaxPoolRewriter::matchAndRewrite(IE::MaxPoolOp origOp, mlir:
     _log.trace("[{0}] Got MaxPool layer at '{1}'", getDebugName(), origOp->getLoc());
 
     const auto opCreator = [&](mlir::Value expandedInput, int64_t) -> mlir::Operation* {
-        return rewriter.create<IE::MaxPoolOp>(origOp.getLoc(), expandedInput, origOp.kernel_size(), origOp.strides(),
-                                              origOp.pads_begin(), origOp.pads_end(), origOp.rounding_type(),
-                                              origOp.post_opAttr());
+        if (origOp.getType().getElementType().dyn_cast<mlir::quant::UniformQuantizedPerAxisType>() != nullptr) {
+            VPUX_THROW("Unsupported quantized type");
+        } else {
+            auto newPoolOutShape = getShape(origOp.output()).toValues();
+            const auto act_channel_dim = IE::MaxPoolOp::act_channel_dim();
+            const auto newInputShape = getShape(expandedInput);
+            const auto inChanPadEnd = newInputShape[act_channel_dim];
+            newPoolOutShape[act_channel_dim] = inChanPadEnd;
+            auto newOutputType = origOp.getType().clone(newPoolOutShape.raw());
+
+            return rewriter.create<IE::MaxPoolOp>(origOp.getLoc(), newOutputType, expandedInput, origOp.kernel_size(),
+                                                  origOp.strides(), origOp.pads_begin(), origOp.pads_end(),
+                                                  origOp.rounding_type(), origOp.post_opAttr());
+        }
     };
 
     return generalRewrite(origOp, rewriter, opCreator, _log.nest());
@@ -218,9 +229,17 @@ mlir::LogicalResult ConvolutionRewriter::matchAndRewrite(IE::ConvolutionOp origO
             }
         }
 
-        return rewriter.create<IE::ConvolutionOp>(origOp.getLoc(), expandedInput, paddedFilter, paddedBiases,
-                                                  origOp.strides(), origOp.pads_begin(), origOp.pads_end(),
-                                                  origOp.dilations(), origOp.post_opAttr());
+        if (origOp.getType().getElementType().dyn_cast<mlir::quant::UniformQuantizedPerAxisType>() != nullptr) {
+            VPUX_THROW("Unsupported quantized type");
+        } else {
+            auto newConvOutShape = getShape(origOp.output()).toValues();
+            newConvOutShape[act_channel_dim] += outChanPadEnd;
+            auto newOutputType = origOp.getType().clone(newConvOutShape.raw());
+
+            return rewriter.create<IE::ConvolutionOp>(origOp.getLoc(), newOutputType, expandedInput, paddedFilter,
+                                                      paddedBiases, origOp.strides(), origOp.pads_begin(),
+                                                      origOp.pads_end(), origOp.dilations(), origOp.post_opAttr());
+        }
     };
 
     return generalRewrite(origOp, rewriter, opCreator, _log.nest());

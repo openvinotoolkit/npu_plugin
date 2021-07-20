@@ -166,17 +166,6 @@ Reorder constant content
 | :-------: | :-------: | ----------- |
 | order | `mlir::AffineMapAttr` |  |
 
-### RescaleAttr
-
-Rescale constant content
-
-
-#### Parameters:
-
-| Parameter | C++ type | Description |
-| :-------: | :-------: | ----------- |
-| scale | `mlir::FloatAttr` |  |
-
 ### ReshapeAttr
 
 Reshape constant content

@@ -61,7 +61,7 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(QuantCastUPAOp op) {
     const auto qType = inType.isa<mlir::quant::QuantizedType>() ? inType.cast<mlir::quant::QuantizedType>()
                                                                 : outType.cast<mlir::quant::QuantizedType>();
 
-    if (!qType.getStorageType().isSignlessInteger(8)) {
+    if (!qType.getStorageType().isInteger(8)) {
         return errorAt(op, "Unsupported quantized storage type '{0}'", qType.getStorageType());
     }
 
@@ -93,7 +93,7 @@ bool vpux::VPUIP::QuantCastUPAOp::isSupportedLayout(mlir::Operation* op, vpux::D
     const auto quantizeOp = mlir::dyn_cast<mlir::quant::QuantizeCastOp>(op);
     const auto dequantizeOp = mlir::dyn_cast<mlir::quant::DequantizeCastOp>(op);
 
-    VPUX_THROW_UNLESS(quantizeOp != nullptr && dequantizeOp != nullptr, "Operation {0} is not quantizer",
+    VPUX_THROW_UNLESS(quantizeOp != nullptr || dequantizeOp != nullptr, "Operation {0} is not quantizer",
                       op->getName());
 
     auto layer = mlir::cast<LayerInterface>(op);

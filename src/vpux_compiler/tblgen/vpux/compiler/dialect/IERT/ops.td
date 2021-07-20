@@ -421,14 +421,13 @@ def IERT_MaxPoolOp :
             [
                 ViewLikeOpInterface,
                 DeclareOpInterfaceMethods<TensorInterface_4D>,
-                SameOperandsElementType
             ]
         > {
     let summary = "InferenceEngine run-time MaxPool layer";
 
     let arguments = (ins
-        MemRefOf<[F16, F32]>:$input,
-        MemRefOf<[F16, F32]>:$output_buff,
+        MemRefOf<[F16, F32, quant_QuantizedType]>:$input,
+        MemRefOf<[F16, F32, quant_QuantizedType]>:$output_buff,
 
         I32ArrayAttr:$kernel_size,
         I32ArrayAttr:$strides,
@@ -439,7 +438,7 @@ def IERT_MaxPoolOp :
     );
 
     let results = (outs
-        MemRefOf<[F16, F32]>:$output
+        MemRefOf<[F16, F32, quant_QuantizedType]>:$output
     );
 
     let assemblyFormat = [{
@@ -458,7 +457,6 @@ def IERT_ConvolutionOp :
         IERT_LayerOp<1, "Convolution",
             [
                 ViewLikeOpInterface,
-                SameOperandsElementType,
                 DeclareOpInterfaceMethods<TensorInterface_4D>,
                 DeclareOpInterfaceMethods<ConvolutionLayerInterface>
             ]
@@ -466,10 +464,10 @@ def IERT_ConvolutionOp :
     let summary = "InferenceEngine run-time Convolution layer";
 
     let arguments = (ins
-        MemRefOf<[F16, F32]>:$input,
-        MemRefOf<[F16, F32]>:$filter,
+        MemRefOf<[F16, F32, quant_QuantizedType]>:$input,
+        MemRefOf<[F16, F32, quant_QuantizedType]>:$filter,
         Optional<MemRefOf<[F16, F32]>>:$bias,
-        MemRefOf<[F16, F32]>:$output_buff,
+        MemRefOf<[F16, F32, quant_QuantizedType]>:$output_buff,
 
         I32ArrayAttr:$strides,
         I32ArrayAttr:$pads_begin,

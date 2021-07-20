@@ -20,6 +20,7 @@
 #include "vpux/utils/core/optional.hpp"
 #include "vpux/utils/core/small_vector.hpp"
 
+#include <mlir/Dialect/Quant/QuantTypes.h>
 #include <mlir/IR/DialectInterface.h>
 #include <mlir/IR/OpDefinition.h>
 #include <mlir/IR/Operation.h>

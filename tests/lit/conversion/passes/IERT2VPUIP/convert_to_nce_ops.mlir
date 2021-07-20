@@ -41,7 +41,11 @@ func @Conv2dTest(%arg0: memref<1x16x16x16xf16, #NHWC, #map0>, %arg1: memref<1x16
 // CHECK-SAME:      inputs([[FILTER_CST]] : memref<16x16x1x1xf16, #NHWC, #map1>)
 // CHECK-SAME:      outputs([[FILTER_CMX_BUF]] : memref<16x16x1x1xf16, #NHWC, #map1, "CMX_NN">)
 
+// CHECK:       [[OUTPUT_CMX_BUF:%.+]] = memref.alloc() : memref<1x16x16x16xf16, #NHWC, #map0, "CMX_NN">
+
 // CHECK:       [[WEIGHTS_TABLE:%.+]] = VPUIP.WeightsTableOp
+// CHECK-SAME:      op_input(%arg0 : memref<1x16x16x16xf16, #NHWC, #map0>)
+// CHECK-SAME:      op_output([[OUTPUT_CMX_BUF]] : memref<1x16x16x16xf16, #NHWC, #map0, "CMX_NN">)
 // CHECK-SAME:      weights([[FILTER_CMX]] : memref<16x16x1x1xf16, #NHWC, #map1, "CMX_NN">)
 // CHECK-SAME:      bias([[BIAS_CST]] : memref<1x16x1x1xf16>)
 
@@ -50,7 +54,6 @@ func @Conv2dTest(%arg0: memref<1x16x16x16xf16, #NHWC, #map0>, %arg1: memref<1x16
 // CHECK-SAME:      inputs([[WEIGHTS_TABLE]] : memref<16x1x1x4xsi32>)
 // CHECK-SAME:      outputs([[WEIGHTS_TABLE_CMX_BUF]] : memref<16x1x1x4xsi32, "CMX_NN">)
 
-// CHECK:       [[OUTPUT_CMX_BUF:%.+]] = memref.alloc() : memref<1x16x16x16xf16, #NHWC, #map0, "CMX_NN">
 // CHECK:       [[OUTPUT_CMX:%.+]] = VPUIP.NCEClusterTask
 // CHECK-SAME:          kernel_padding = [0 : i32, 0 : i32, 0 : i32, 0 : i32]
 // CHECK-SAME:          kernel_size = [1 : i32, 1 : i32]
@@ -77,7 +80,6 @@ func @Conv2dTest(%arg0: memref<1x16x16x16xf16, #NHWC, #map0>, %arg1: memref<1x16
 // CHECK-SAME:      inputs([[OUTPUT]] : memref<1x16x16x16xf16, #NHWC, #map0>)
 // CHECK-SAME:      outputs(%arg1 : memref<1x16x16x16xf16, #NHWC, #map0>)
 // CHECK:       return [[OUTPUT_COPY]] : memref<1x16x16x16xf16, #NHWC, #map0>
-
 
 // -----
 
@@ -114,6 +116,8 @@ func @MaxPoolTest(%arg0: memref<1x16x1x4xf16, #NHWC, #map>, %arg1: memref<1x16x1
 // CHECK-SAME:      inputs([[ACT_WINDOW_CST]] : memref<16x1x1x16xui8>)
 // CHECK-SAME:      outputs([[ACT_WINDOW_CMX_BUF]] : memref<16x1x1x16xui8, "CMX_NN">)
 
+// CHECK:       [[OUTPUT_CMX_BUF:%.+]] = memref.alloc() : memref<1x16x1x4xf16, #NHWC, #map, "CMX_NN">
+
 // CHECK:       [[WEIGHTS_TABLE:%.+]] = VPUIP.WeightsTableOp
 // CHECK-SAME:      activation_window([[ACT_WINDOW_CMX]] : memref<16x1x1x16xui8, "CMX_NN">)
 
@@ -122,7 +126,6 @@ func @MaxPoolTest(%arg0: memref<1x16x1x4xf16, #NHWC, #map>, %arg1: memref<1x16x1
 // CHECK-SAME:      inputs([[WEIGHTS_TABLE]] : memref<16x1x1x4xsi32>)
 // CHECK-SAME:      outputs([[WEIGHTS_TABLE_CMX_BUF]] : memref<16x1x1x4xsi32, "CMX_NN">)
 
-// CHECK:       [[OUTPUT_CMX_BUF:%.+]] = memref.alloc() : memref<1x16x1x4xf16, #NHWC, #map, "CMX_NN">
 // CHECK:       [[OUTPUT_CMX:%.+]] = VPUIP.NCEClusterTask
 // CHECK-SAME:          activation_window_channel_length = 4 : i32
 // CHECK-SAME:          kernel_padding = [0 : i32, 0 : i32, 0 : i32, 0 : i32]
@@ -260,6 +263,8 @@ func @DepthwiseConvTest(%arg0: memref<1x16x40x80xf16, #NHWC, #map0>,
 // CHECK-SAME:      inputs([[ACT_WINDOW_CST]] : memref<16x1x1x16xui8>)
 // CHECK-SAME:      outputs([[ACT_WINDOW_CMX_BUF]] : memref<16x1x1x16xui8, "CMX_NN">)
 
+// CHECK:       [[OUTPUT_CMX_BUF:%.+]] = memref.alloc() : memref<1x16x37x73xf16, #NHWC, #map1, "CMX_NN">
+
 // CHECK:       [[WEIGHTS_TABLE:%.+]] = VPUIP.WeightsTableOp
 // CHECK-SAME:      weights([[FILTER_CMX]] : memref<16x1x4x8xf16, #NHWC, #map2, "CMX_NN">)
 // CHECK-SAME:      bias([[BIAS_CST]] : memref<1x16x1x1xf16>)
@@ -270,7 +275,6 @@ func @DepthwiseConvTest(%arg0: memref<1x16x40x80xf16, #NHWC, #map0>,
 // CHECK-SAME:      inputs([[WEIGHTS_TABLE]] : memref<16x1x1x4xsi32>)
 // CHECK-SAME:      outputs([[WEIGHTS_TABLE_CMX_BUF]] : memref<16x1x1x4xsi32, "CMX_NN">)
 
-// CHECK:       [[OUTPUT_CMX_BUF:%.+]] = memref.alloc() : memref<1x16x37x73xf16, #NHWC, #map1, "CMX_NN">
 // CHECK:       [[OUTPUT_CMX:%.+]] = VPUIP.NCEClusterTask
 // CHECK-SAME:          kernel_padding = [0 : i32, 0 : i32, 0 : i32, 0 : i32]
 // CHECK-SAME:          kernel_size = [4 : i32, 8 : i32]

@@ -64,14 +64,16 @@ const EnumMap<VPUIP::ArchKind, VPUIP::MPEMode> mpeMap = {
         {VPUIP::ArchKind::VPU3720, VPUIP::MPEMode::CUBOID_16x16},    //
 };
 
-mlir::Value createWeightsTableTensor(mlir::OpBuilder& builder, mlir::Location loc, int64_t OC, mlir::Value weights,
-                                     mlir::Value bias, mlir::Value activationWindow) {
+mlir::Value createWeightsTableTensor(mlir::OpBuilder& builder, mlir::Location loc, int64_t OC, mlir::Value op_input,
+                                     mlir::Value op_output, mlir::Value weights, mlir::Value bias,
+                                     mlir::Value activationWindow) {
     SmallVector<int64_t> weightTableShape{OC, 1, 1, VPUIP::NCEInvariant::WEIGHT_TABLE_NUM_ELEMENTS_PER_OC};
 
     auto* ctx = builder.getContext();
 
     const auto dataType = mlir::MemRefType::get(weightTableShape, getSInt32Type(builder.getContext()));
-    auto createWeightsTableOp = builder.create<VPUIP::WeightsTableOp>(loc, dataType, weights, bias, activationWindow);
+    auto createWeightsTableOp =
+            builder.create<VPUIP::WeightsTableOp>(loc, dataType, op_input, op_output, weights, bias, activationWindow);
 
     const auto cmxMemSpaceAttr = VPUIP::PhysicalMemoryAttr::get(ctx, VPUIP::PhysicalMemory::CMX_NN);
     const auto dataTypeCMX = changeMemSpace(dataType, cmxMemSpaceAttr);
@@ -162,7 +164,6 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
 
     auto inputDPU = prepareTensorForDPU(rewriter, origOp->getLoc(), origOp.input());
     auto filterDPU = prepareTensorForDPU(rewriter, origOp->getLoc(), origOp.filter());
-    auto weightsTable = createWeightsTableTensor(rewriter, origOp->getLoc(), OC, filterDPU, origOp.bias(), nullptr);
 
     //
     // Prepare output buffer for DPU
@@ -174,6 +175,9 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
             changeMemSpace(outReorderType, VPUIP::PhysicalMemoryAttr::get(getContext(), VPUIP::PhysicalMemory::CMX_NN));
 
     auto outAllocOpCMX = rewriter.create<mlir::memref::AllocOp>(origOp->getLoc(), outTypeCMX);
+
+    auto weightsTable = createWeightsTableTensor(rewriter, origOp->getLoc(), OC, origOp.input(), outAllocOpCMX.memref(),
+                                                 filterDPU, origOp.bias(), nullptr);
 
     //
     // Create NCE per-cluster Operation
@@ -279,7 +283,6 @@ mlir::LogicalResult MaxPoolRewrite::matchAndRewrite(IERT::MaxPoolOp origOp, mlir
     const auto fakeSparsity =
             VPUIP::NCESparsity::getFakeSparsity(kernelSize, kernelStrides[0], origInputType.getElementType(), IC);
     const auto activationWindow = createActivationWindowTensor(rewriter, origOp->getLoc(), fakeSparsity, IC);
-    auto weightsTable = createWeightsTableTensor(rewriter, origOp->getLoc(), IC, nullptr, nullptr, activationWindow);
 
     //
     // Prepare output buffer for DPU
@@ -291,6 +294,9 @@ mlir::LogicalResult MaxPoolRewrite::matchAndRewrite(IERT::MaxPoolOp origOp, mlir
             changeMemSpace(outReorderType, VPUIP::PhysicalMemoryAttr::get(getContext(), VPUIP::PhysicalMemory::CMX_NN));
 
     auto outAllocOpCMX = rewriter.create<mlir::memref::AllocOp>(origOp->getLoc(), outTypeCMX);
+
+    auto weightsTable = createWeightsTableTensor(rewriter, origOp->getLoc(), IC, origOp.input(), outAllocOpCMX.memref(),
+                                                 nullptr, nullptr, activationWindow);
 
     //
     // Create NCE per-cluster Operation
@@ -495,8 +501,6 @@ mlir::LogicalResult DepthwiseConvRewrite::matchAndRewrite(IERT::GroupConvolution
     const auto fakeSparsity =
             VPUIP::NCESparsity::getFakeSparsity(kernelSize, kernelStrides[0], origInputType.getElementType(), OC);
     const auto activationWindow = createActivationWindowTensor(rewriter, origOp->getLoc(), fakeSparsity, OC);
-    auto weightsTable =
-            createWeightsTableTensor(rewriter, origOp->getLoc(), OC, filterDPU, origOp.bias(), activationWindow);
 
     //
     // Prepare output buffer for DPU
@@ -508,6 +512,9 @@ mlir::LogicalResult DepthwiseConvRewrite::matchAndRewrite(IERT::GroupConvolution
             changeMemSpace(outReorderType, VPUIP::PhysicalMemoryAttr::get(getContext(), VPUIP::PhysicalMemory::CMX_NN));
 
     auto outAllocOpCMX = rewriter.create<mlir::memref::AllocOp>(origOp->getLoc(), outTypeCMX);
+
+    auto weightsTable = createWeightsTableTensor(rewriter, origOp->getLoc(), OC, origOp.input(), outAllocOpCMX.memref(),
+                                                 filterDPU, origOp.bias(), activationWindow);
 
     //
     // Create NCE per-cluster Operation

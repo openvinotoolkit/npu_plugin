@@ -15,6 +15,7 @@
 #define VPUX_COMPILER_DIALECT_IE
 
 include "mlir/IR/OpBase.td"
+include "mlir/Dialect/Quant/QuantOpsBase.td"
 
 def IE_Dialect : Dialect {
     let summary = "InferenceEngine IR Dialect";
