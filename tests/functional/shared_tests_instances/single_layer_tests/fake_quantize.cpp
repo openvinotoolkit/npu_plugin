@@ -9,7 +9,7 @@
 
 namespace LayerTestsDefinitions {
 
-class KmbFakeQuantizeLayerTest : public FakeQuantizeLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+class KmbFakeQuantizeLayerTest : public FakeQuantizeLayerTestRevise, virtual public LayerTestsUtils::KmbLayerTestsCommon {
     void SkipBeforeLoad() override {
         if (isCompilerMCM()) {
             // [Track number: S#42747]
@@ -54,14 +54,16 @@ const auto fqParams = ::testing::Combine(
     ::testing::ValuesIn(levels),
     ::testing::ValuesIn(constShapes),
     ::testing::Values(fqArgs),
-    ::testing::Values(inputParams)
+    ::testing::Values(inputParams),
+    ::testing::Values(ngraph::op::AutoBroadcastType::NUMPY)
 );
 
 const auto fqParamsND = ::testing::Combine(
     ::testing::ValuesIn(levels),
     ::testing::ValuesIn(constShapesND),
     ::testing::Values(fqArgs),
-    ::testing::Values(inputParams)
+    ::testing::Values(inputParams),
+    ::testing::Values(ngraph::op::AutoBroadcastType::NUMPY)
 );
 
 INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantize, KmbFakeQuantizeLayerTest,
