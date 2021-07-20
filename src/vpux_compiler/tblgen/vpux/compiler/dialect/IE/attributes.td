@@ -304,6 +304,7 @@ def IE_PostOpKind :
                 StrEnumAttrCase<"EXP">,
                 StrEnumAttrCase<"SIGMOID">,
                 StrEnumAttrCase<"TANH">,
+                StrEnumAttrCase<"RELUX">,
             ]
         > {
     let cppNamespace = "vpux::IE";
