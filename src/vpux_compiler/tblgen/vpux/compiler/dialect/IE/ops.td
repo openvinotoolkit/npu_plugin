@@ -544,6 +544,7 @@ def IE_GroupConvolutionOp :
             [
                 ResultsAreFloatLike,
                 DeclareOpInterfaceMethods<TensorInterface_4D>,
+                DeclareOpInterfaceMethods<MultiLayerInterface>,
                 DeclareOpInterfaceMethods<ConvolutionLayerInterface>
             ]
         > {
