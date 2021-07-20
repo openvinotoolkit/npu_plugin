@@ -45,6 +45,7 @@ void replaceLargeGlobalPoolingFcn(const mv::pass::PassEntry& pass, mv::Computati
 void replaceBroadcastEltwiseMultWithConv(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void insertUpaDmaAfterSliceOnOutputFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void cloneConvForNonReluOutput(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
+void bilinearInterpAsDPUSFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 
 namespace mv
 {
@@ -99,7 +100,8 @@ void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
     replaceAsymmetricStridesFcn(pass, model);
     replaceBigInputChannels(pass, model);
     topKAsArgMaxFcn(pass, model);
-    //interpAsAvgPoolingFcn(pass, model); for now we are using SW layer
+    resampleWithStorageElementPointerTable(pass, model);
+    bilinearInterpAsDPUSFcn(pass, model); //apart from modelE, for the rest for now we are using SW layer
     interpAsDepthConvFcn(pass, model);
     averageAsDepthWiseFcn(pass, model, td);
     scaleAsDepthwiseFcn(pass, model);
@@ -310,9 +312,9 @@ void replaceBroadcastEltwiseMultWithConv(const mv::pass::PassEntry& /*pass*/, mv
             weights_quantParams = populated_input->get<mv::QuantizationParams>("quantParams");
             output_quantParams = opIt->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams");
         }
-        
+
         //
-        // replace eltwise with depthwise conv when weights have only one element 
+        // replace eltwise with depthwise conv when weights have only one element
         //
         mv::Data::TensorIterator conv2D, weights;
         if (weightsData.size()==1){
@@ -745,7 +747,315 @@ static void addPermuteToNonCMConvPathsFcn(const mv::pass::PassEntry&, mv::Comput
     permuteOp->set<bool>("ZMoutput", true);
 }
 
-void interpAsAvgPoolingFcn(const mv::pass::PassEntry&, mv::ComputationModel& model)
+void initializeValues(mv::Shape& outputShape, mv::Shape& inputShape, mv::Data::TensorIterator& sourceTensor, mv::Data::TensorIterator& outputTensor,
+                        std::size_t& inWidth, std::size_t& inHeight, std::size_t& inChannels,
+                        std::size_t& outWidth, std::size_t& outHeight, std::size_t& outChannels, mv::Data::OpListIterator& opIt)
+{
+    outputTensor = opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT);
+    outputShape = outputTensor->getShape();
+    sourceTensor = opIt->getInputTensor(mv::IO_TENSOR_INPUT);
+    inputShape = sourceTensor->getShape();
+    inWidth = inputShape[mv::IO_WIDTH_DIMENSION];
+    inHeight = inputShape[mv::IO_HEIGHT_DIMENSION];
+    inChannels = inputShape[mv::IO_CHANNEL_DIMENSION];
+    outWidth = outputShape[mv::IO_WIDTH_DIMENSION];
+    outHeight = outputShape[mv::IO_HEIGHT_DIMENSION];
+    outChannels = outputShape[mv::IO_CHANNEL_DIMENSION];
+    return;
+}
+
+mv::QuantizationParams computeQuantization(mv::Data::TensorIterator& outputTensor,  mv::Data::TensorIterator& sourceTensor)
+{
+    mv::QuantizationParams outQuantParams = mv::QuantizationParams({},{},{},{});
+    if ((!outputTensor->isQuantized() || outputTensor->get<mv::QuantizationParams>("quantParams").isNeutral()) &&
+        sourceTensor->isQuantized())
+        outQuantParams = sourceTensor->get<mv::QuantizationParams>("quantParams");
+    else if (outputTensor->isQuantized() && !outputTensor->get<mv::QuantizationParams>("quantParams").isNeutral())
+        outQuantParams = outputTensor->get<mv::QuantizationParams>("quantParams");
+    return outQuantParams;
+}
+
+mv::Data::FlowListIterator findAppropriateFlow(mv::Data::TensorIterator& outputTensor, mv::OpModel& om, mv::Data::OpListIterator& opIt)
+{
+    auto flow = opIt.leftmostInput();
+    while(flow != om.flowEnd())
+    {
+        auto tensor = flow->getTensor();
+        if (tensor->getName() == outputTensor->getName())
+            break;
+        ++flow;
+    }
+
+    return flow;
+}
+
+std::size_t getPortIdx(mv::Data::OpListIterator& childOpIt, mv::Data::TensorIterator& outputTensor)
+{
+    std::string name = outputTensor->getName();
+    auto inputTensors = childOpIt->getInputTensor();
+    auto tensorIt = std::find_if(inputTensors.begin(), inputTensors.end(),
+        [name](mv::Data::TensorIterator& tensor)
+        {
+            return (tensor->getName() == name);
+        });
+    if (tensorIt == inputTensors.end())
+        throw std::runtime_error("Error: OutputTensor with name " + outputTensor->getName() + " is not connected with child" + childOpIt->getName());
+
+    auto tensorBegin = inputTensors.begin();
+    auto portIdx = std::distance(tensorBegin, tensorIt);
+    return portIdx;
+}
+
+mv::Data::TensorIterator populateCreateConstant(mv::OpModel& om, const mv::Shape weightShape, const int64_t weightsValue)
+{
+    std::vector<int64_t> weightsData(weightShape.totalSize(), 0);
+    auto kernel_width = weightShape[mv::KERNEL_WIDTH];
+    auto kernel_height = weightShape[mv::KERNEL_HEIGHT];
+    auto inChannels = weightShape[mv::KERNEL_INPUT_CHANNELS];
+    auto outChannels = weightShape[mv::KERNEL_OUTPUT_CHANNELS];
+    for (std::size_t o_ch = 0; o_ch < outChannels; ++o_ch)
+        for (std::size_t i_ch = 0; i_ch < inChannels; ++i_ch)
+            for (std::size_t k_h = 0; k_h < kernel_height; ++k_h)
+                for (std::size_t k_w = 0; k_w < kernel_width; ++k_w)
+                    if (o_ch == i_ch)
+                        weightsData.at(k_w + k_h * kernel_width + i_ch * kernel_width * kernel_height + o_ch * inChannels * kernel_height * kernel_width) = weightsValue;
+
+
+    mv::Data::TensorIterator weights = om.constantInt("",
+                        weightsData,
+                        weightShape,
+                        mv::DType("UInt8"),
+                        mv::Order("NCHW"));
+
+    return weights;
+}
+
+mv::Data::TensorIterator addFusedConv(mv::ComputationModel& model, mv::Data::OpListIterator& opIt)
+{
+    mv::Shape outputShape, inputShape;
+    mv::Data::TensorIterator sourceTensor, outputTensor;
+    std::size_t inWidth, inHeight, inChannels, outWidth, outHeight, outChannels;
+    initializeValues(outputShape, inputShape, sourceTensor, outputTensor, inWidth, inHeight, inChannels, outWidth, outHeight, outChannels, opIt);
+
+    mv::OpModel om(model);
+    mv::DataModel dm(model);
+    auto childOps = mv::findSinkLayers(dm, outputTensor);
+    if (childOps.empty())
+        throw std::runtime_error("Error: OutputTensor with name " + outputTensor->getName() + " does not have child ops");
+    auto childOpIt = childOps[0];
+    mv::Data::FlowListIterator inputFlow = findAppropriateFlow(outputTensor, om, childOpIt);
+    std::size_t port_num = getPortIdx(childOpIt, outputTensor);
+
+    // Populate storageElement Conv weights
+    auto factor_x = outWidth/inWidth;
+    auto factor_y = outHeight/inHeight;
+    auto kernel_width = factor_x;
+    auto kernel_height = factor_y;
+    int64_t weightsValue = 255;
+    mv::Shape weightsShape = mv::Shape({kernel_width, kernel_height, inChannels, outChannels});
+
+    mv::Data::TensorIterator weights = populateCreateConstant(om, weightsShape, weightsValue);
+    double scaleWeightsValue = 1.0/double(weightsValue * kernel_width * kernel_height);
+    weights->setQuantParams(mv::QuantizationParams({0},{scaleWeightsValue},{0},{255}));
+
+
+    //NOTE: these values come from the convolution output vs input computation
+    std::size_t padding_right = 0;
+    std::size_t padding_bottom = 0;
+    if (outWidth >= 1 && kernel_width >= 1)
+        padding_right = (outWidth - 1) - outWidth + kernel_width;
+    else
+        throw std::runtime_error("Unsupported combination of tensors width");
+    if (outHeight >= 1 && kernel_height >= 1)
+        padding_bottom = (outHeight - 1) - outHeight + kernel_height;
+    else
+        throw std::runtime_error("Unsupported combination of tensors height");
+    outputTensor->setShape(mv::Shape({outputShape[mv::IO_WIDTH_DIMENSION] + padding_right,
+        outputShape[mv::IO_HEIGHT_DIMENSION] + padding_bottom, outChannels, 1}));
+
+    const std::array<unsigned short, 4>  zero_padding = {0, 0, 0, 0};
+    // Insert identity Conv
+    auto identityConv = om.conv(opIt->getName() + "_identityConv", outputTensor, weights, {1,1}, zero_padding, 1);
+    identityConv->setDType(mv::DType("UInt8"));
+
+
+    mv::QuantizationParams outQuantParams = computeQuantization(outputTensor, sourceTensor);
+
+    identityConv->setQuantParams(outQuantParams);
+    auto identityConvOp = om.getSourceOp(identityConv);
+    identityConvOp->set<std::size_t>("storageElementRightPadding", padding_right);
+    identityConvOp->set<std::size_t>("storageElementBottomPadding", padding_bottom);
+    auto weightsOp = om.getSourceOp(weights);
+    identityConvOp->set<unsigned>("opId", childOpIt->get<unsigned>("opId"));
+    weightsOp->set<unsigned>("opId", childOpIt->get<unsigned>("opId"));
+
+    om.undefineFlow(inputFlow);
+    childOpIt->setInputTensor(identityConv, port_num, false);
+    om.defineFlow(identityConv, childOpIt, port_num);
+    // Mark Resample to be converted to implicit in later pass
+    opIt->set<bool>("isImplicit", true);
+    // Mark Identity Conv to add SE map in later pass
+    identityConvOp->set<bool>("activationSparsityCompilerSolvingForInterpNN", true);
+    return identityConv;
+}
+
+bool isConvStreaming (mv::ComputationModel& model, mv::Data::OpListIterator opIt)
+{
+    auto globalParams = model.getGlobalConfigParams();
+    size_t clusterMemory = globalParams->get<int>("cmx");
+
+    size_t input = 0, output = 0, weights = 0;
+    mv::Shape streamConfig = {1,1,1,1,1}; //To check memory size without streaming we pass streaming config as w=1,h=1,k=1,n=1,b=1
+
+    bool enableChannelMajorConv = globalParams->get<bool>("enable_channel_major_conv");
+    size_t totalClusters = globalParams->get<int>("Number_of_Clusters");
+
+    //The following parameters are identified from the decisions of GO pass for the cases of resample->identityConv
+    auto clustering = "Clustering";
+    auto inputSparse = false;
+    auto outputSparse = false;
+    auto weightsSparse = true;;
+    //check if requires fakse Sparsity
+    auto fakeSparse = enableChannelMajorConv && opIt->supportsCMConv();
+    //global 'forceSpilling' is set false in release_kmb_base
+    bool spilling = false;
+    //eltwiseParentSpliing true for ops other than eltwise
+    bool parentSpilling = true;
+
+    std::tie(input, output, weights) = mv::memorySize(*opIt, totalClusters, clustering, inputSparse, outputSparse, weightsSparse, streamConfig,
+                        fakeSparse, spilling, parentSpilling);
+    bool result = clusterMemory < (input + output + weights);
+    return result;
+}
+
+mv::Data::TensorIterator addNeutralConv(mv::ComputationModel& model, mv::Data::OpListIterator& opIt)
+{
+    mv::Shape outputShape, inputShape;
+    mv::Data::TensorIterator sourceTensor, outputTensor;
+    std::size_t inWidth, inHeight, inChannels, outWidth, outHeight, outChannels;
+    initializeValues(outputShape, inputShape, sourceTensor, outputTensor, inWidth, inHeight, inChannels, outWidth, outHeight, outChannels, opIt);
+
+    mv::OpModel om(model);
+    mv::DataModel dm(model);
+    auto childOps = mv::findSinkLayers(dm, outputTensor);
+    if (childOps.empty())
+        throw std::runtime_error("Error: OutputTensor with name " + outputTensor->getName() + " does not have child ops");
+    auto childOpIt = childOps[0];
+    // Find Resample sink op
+    mv::Data::FlowListIterator inputFlow = findAppropriateFlow(outputTensor, om, childOpIt);
+    std::size_t port_num = getPortIdx(childOpIt, outputTensor);
+
+    // Populate storageElement Conv weights
+    auto factor_x = outWidth/inWidth;
+    auto factor_y = outHeight/inHeight;
+
+    std::size_t kernel_height = 1;
+    std::size_t kernel_width = 1;
+    int64_t weightsValue = 255;
+    mv::Shape weightsShape = mv::Shape({kernel_width, kernel_height, inChannels, outChannels});
+    mv::Data::TensorIterator weights = populateCreateConstant(om, weightsShape, weightsValue);
+    double scaleWeightsValue = 1.0/double(weightsValue);
+    weights->setQuantParams(mv::QuantizationParams({0},{scaleWeightsValue},{0},{255}));
+
+    const std::size_t padding_right = factor_x - 1;
+    const std::size_t padding_bottom = factor_y - 1;
+    auto oldOutputTensorShape = outputTensor->getShape();
+    outputTensor->setShape(mv::Shape({outputShape[mv::IO_WIDTH_DIMENSION] + padding_right,
+        outputShape[mv::IO_HEIGHT_DIMENSION] + padding_bottom, outChannels, 1}));
+
+    const std::array<unsigned short, 4>  zero_padding = {0, 0, 0, 0};
+    // Insert identity Conv
+    auto identityConv = om.conv(opIt->getName() + "_identityConv", outputTensor, weights, {1,1}, zero_padding, 1);
+    identityConv->setDType(mv::DType("UInt8"));
+
+    mv::QuantizationParams outQuantParams = computeQuantization(outputTensor, sourceTensor);
+    identityConv->setQuantParams(outQuantParams);
+    auto identityConvOp = om.getSourceOp(identityConv);
+    identityConvOp->set<std::size_t>("storageElementRightPadding", padding_right);
+    identityConvOp->set<std::size_t>("storageElementBottomPadding", padding_bottom);
+    auto weightsOp = om.getSourceOp(weights);
+    identityConvOp->set<unsigned>("opId", childOpIt->get<unsigned>("opId"));
+    identityConvOp->set<unsigned>("factor_x", factor_x);
+    identityConvOp->set<unsigned>("factor_y", factor_y);
+    weightsOp->set<unsigned>("opId", childOpIt->get<unsigned>("opId"));
+
+    om.undefineFlow(inputFlow);
+    childOpIt->setInputTensor(identityConv, port_num, false);
+    om.defineFlow(identityConv, childOpIt, port_num);
+    if (isConvStreaming(model, identityConvOp))
+    {
+        outputTensor->setShape(oldOutputTensorShape);
+        linkNewOperationsRemove(opIt, opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT), om, identityConvOp);
+        return opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT);
+    }
+    // Mark Resample to be converted to implicit in later pass
+    opIt->set<bool>("isImplicit", true);
+    // Mark Identity Conv to add SE map in later pass
+    identityConvOp->set<bool>("activationSparsityCompilerSolvingForInterpNN", true);
+    return identityConv;
+}
+
+mv::Data::TensorIterator addAverageConv(mv::ComputationModel& model, mv::Data::TensorIterator& outputTensor, mv::Data::OpListIterator& opIt)
+{
+    auto outputShape = outputTensor->getShape();
+    auto sourceTensor = opIt->getInputTensor()[0];
+    auto inputShape = sourceTensor->getShape();
+    auto inChannels = inputShape[mv::IO_CHANNEL_DIMENSION];
+
+    mv::OpModel om(model);
+    mv::DataModel dm(model);
+    auto childOps = mv::findSinkLayers(dm, outputTensor);
+    if (childOps.empty())
+        throw std::runtime_error("Error: OutputTensor with name " + outputTensor->getName() + " does not have child ops");
+    auto childOpIt = childOps[0];
+    // Find Resample sink op
+    mv::Data::FlowListIterator inputFlow = findAppropriateFlow(outputTensor, om, childOpIt);
+    std::size_t port_num = getPortIdx(childOpIt, outputTensor);
+
+    std::size_t kernel_width = 0;
+    std::size_t kernel_height = 0;
+    if (opIt->hasAttr("factor_x"))
+        kernel_width = opIt->get<unsigned>("factor_x");
+    else
+        kernel_width = outputShape[mv::IO_WIDTH_DIMENSION]/inputShape[mv::IO_WIDTH_DIMENSION];
+    if (opIt->hasAttr("factor_y"))
+        kernel_height = opIt->get<unsigned>("factor_y");
+    else
+        kernel_width = outputShape[mv::IO_HEIGHT_DIMENSION]/inputShape[mv::IO_HEIGHT_DIMENSION];
+
+
+    int64_t weightsValue = 255;
+    //alternative-1: dwconv
+    mv::Shape weightsShape = mv::Shape({kernel_width, kernel_height, inChannels, 1});
+    std::vector<int64_t> weightsData(weightsShape.totalSize(), weightsValue);
+
+    auto weights = om.constantInt("",
+                        weightsData,
+                        weightsShape,
+                        mv::DType("UInt8"),
+                        mv::Order("NCHW"));
+    double scaleWeightsValue = 1.0/double(weightsValue * kernel_width * kernel_height);
+    weights->setQuantParams(mv::QuantizationParams({0},{scaleWeightsValue},{0},{255}));
+
+    const std::array<unsigned short, 4>  zero_padding = {0, 0, 0, 0};
+    // Insert identity Conv
+    auto identityConv = om.depthwiseConv(opIt->getName() + "_averageConv", outputTensor, weights, {1,1}, zero_padding, 1);
+    identityConv->setDType(mv::DType("UInt8"));
+
+    mv::QuantizationParams outQuantParams = computeQuantization(outputTensor, sourceTensor);
+    identityConv->setQuantParams(outQuantParams);
+    auto identityConvOp = om.getSourceOp(identityConv);
+    auto weightsOp = om.getSourceOp(weights);
+    identityConvOp->set<unsigned>("opId", childOpIt->get<unsigned>("opId"));
+    weightsOp->set<unsigned>("opId", childOpIt->get<unsigned>("opId"));
+
+    om.undefineFlow(inputFlow);
+    childOpIt->setInputTensor(identityConv, port_num, false);
+    om.defineFlow(identityConv, childOpIt, port_num);
+    return identityConv;
+}
+
+void bilinearInterpAsDPUSFcn(const mv::pass::PassEntry&, mv::ComputationModel& model)
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
@@ -757,43 +1067,37 @@ void interpAsAvgPoolingFcn(const mv::pass::PassEntry&, mv::ComputationModel& mod
 
     for (auto& opIt : interpOps)
     {
-        auto sourceTensor = opIt->getInputTensor(0);
-        auto inputShape = sourceTensor->getShape();
-        auto outputTensor = opIt->getOutputTensor(0);
-        auto outputShape = outputTensor->getShape();
-
-        auto inWidth = inputShape[mv::IO_WIDTH_DIMENSION];
-        auto inHeight = inputShape[mv::IO_HEIGHT_DIMENSION];
-        auto outWidth = outputShape[mv::IO_WIDTH_DIMENSION];
-        auto outHeight = outputShape[mv::IO_HEIGHT_DIMENSION];
-        if (inWidth > outWidth && inHeight > outHeight &&
-            (inHeight % outHeight == 0) && (inWidth % outWidth == 0) &&
-            (inHeight / outHeight) == inWidth / outWidth)
+        mv::Shape outputShape, inputShape;
+        mv::Data::TensorIterator sourceTensor, outputTensor;
+        std::size_t inWidth, inHeight, inChannels, outWidth, outHeight, outChannels;
+        initializeValues(outputShape, inputShape, sourceTensor, outputTensor, inWidth, inHeight, inChannels, outWidth, outHeight, outChannels, opIt);
+        auto sourceOp = om.getSourceOp(sourceTensor);
+        if (sourceOp->isHardwarizable() && sourceOp->hasWeights())
         {
-            auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
-            unsigned short factor = inHeight / outHeight;
-            auto parentOpIt = om.getSourceOp(sourceTensor);
+            if (isConvStreaming(model, sourceOp))
+                continue;
+        }
 
-            std::array<unsigned short, 2> kSize = {factor, factor};
-            std::array<unsigned short, 2> stride = {factor, factor};
-            auto name = opIt->getName();
-
-            auto quantParams = mv::QuantizationParams::empty();
-            if (sourceTensor->isQuantized())
-                quantParams = outputTensor->getQuantParams();
-
-            auto avgPool = om.averagePool(name + "_AvgPool", sourceTensor, kSize, stride, {0,0,0,0}, false);
-            avgPool->setQuantParams(quantParams);
-
-            auto avgOp = om.getSourceOp(avgPool);
-
-            if (opIt->hasAttr("opId"))
+        bool modelEV2 = false;
+        if (inChannels == outChannels && outChannels == 1 && inWidth == 80 && outWidth == 320 && outHeight == 192 && inHeight == 48)
+            modelEV2 = true;
+        //NOTE: in case of 1 channel upa seems to be faster cause of the 16-alignement and the
+        //fact that the dequantization will happen earlier, however i will check more dimensions
+        //not to hurt other networks apart from modelE-V2
+        if (!modelEV2)
+        {
+            auto neutralConv = outputTensor;
+            if (outHeight > inHeight && outWidth > inWidth)
             {
-                unsigned currentOpId = opIt->get<unsigned>("opId");
-                avgOp->set<unsigned>("opId", currentOpId);
+                //NOTE: the fusedConv would do both the re-sample and the average computation with one conv,
+                //however this seems impossible, due to some limitation->so breaking in 2 ops.
+                // auto identityConv = addFusedConv(model, opIt);
+                neutralConv = addNeutralConv(model, opIt);
+                auto neutralConvOp = om.getSourceOp(neutralConv);
+                if (neutralConvOp->getName() == opIt->getName())
+                    continue;
+                auto averageConv = addAverageConv(model, neutralConv, neutralConvOp);
             }
-            avgOp->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
-            linkNewOperationsReplacement(parentOpIt, avgPool, om, opIt);
         }
     }
 }
@@ -2854,35 +3158,6 @@ void resampleAsDepthDeConvFcn(const mv::pass::PassEntry& /*pass*/, mv::Computati
     }
 }
 
-bool isConvStreaming (mv::ComputationModel& model, mv::Data::OpListIterator opIt)
-{
-    auto globalParams = model.getGlobalConfigParams();
-    size_t clusterMemory = globalParams->get<int>("cmx");
-
-    size_t input = 0, output = 0, weights = 0;
-    mv::Shape streamConfig = {1,1,1,1,1}; //To check memory size without streaming we pass streaming config as w=1,h=1,k=1,n=1,b=1
-
-    bool enableChannelMajorConv = globalParams->get<bool>("enable_channel_major_conv");
-    size_t totalClusters = globalParams->get<int>("Number_of_Clusters");
-
-    //The following parameters are identified from the decisions of GO pass for the cases of resample->identityConv
-    auto clustering = "Clustering";
-    auto inputSparse = false;
-    auto outputSparse = false;
-    auto weightsSparse = true;;
-    //check if requires fakse Sparsity
-    auto fakeSparse = enableChannelMajorConv && opIt->supportsCMConv();
-    //global 'forceSpilling' is set false in release_kmb_base
-    bool spilling = false;
-    //eltwiseParentSpliing true for ops other than eltwise
-    bool parentSpilling = true;
-
-    std::tie(input, output, weights) = mv::memorySize(*opIt, totalClusters, enableChannelMajorConv, clustering, inputSparse, outputSparse, weightsSparse, streamConfig,
-                        fakeSparse, spilling, parentSpilling);
-    bool result = clusterMemory < (input + output + weights);
-    return result;
-}
-
 void resampleWithStorageElementPointerTable(const mv::pass::PassEntry&, mv::ComputationModel& model)
 {
 
@@ -2924,36 +3199,18 @@ void resampleWithStorageElementPointerTable(const mv::pass::PassEntry&, mv::Comp
 
         if(interpolation == "NEAREST" && scaleW == static_cast<int>(scaleW) && scaleH == static_cast<int>(scaleH))
         {
-            // Find Resample sink op
-            auto inputFlow = childOpIt.leftmostInput();
-            while(inputFlow != om.flowEnd())
-            {
-                auto tensor = inputFlow->getTensor();
-                if (tensor->getName() == outputTensor->getName())
-                {
-                    break;
-                }
-                ++inputFlow;
-            }
-
-            // Get sink op port num
-            auto port_num=0;
-            for (std::size_t i = 0u; i < childOpIt->getInputTensor().size(); ++i){
-                if (outputTensor == childOpIt->getInputTensor(i)){
-                    port_num = i;
-                    break;
-                }
-            }
-
+            mv::Data::FlowListIterator inputFlow = findAppropriateFlow(outputTensor, om, childOpIt);
+            std::size_t port_num = getPortIdx(childOpIt, outputTensor);
             // Populate identity weights
             const int64_t weightsValue_i = 1;
             auto K = inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION];
+
             std::vector<int64_t> weightsData_i(K*K, 0);
             for (auto i = 0u; i < K; ++i)
                 weightsData_i.at(i*(K+1)) = weightsValue_i;
             mv::Data::TensorIterator weights_i = om.constantInt("",
                                 weightsData_i,
-                                {1, 1, K, K},
+                               {1, 1, K, K},
                                 mv::DType("UInt8"),
                                 mv::Order(mv::Order::getRowMajorID(4)));
             weights_i->setQuantParams(mv::QuantizationParams({0},{1.0},{0},{255}));

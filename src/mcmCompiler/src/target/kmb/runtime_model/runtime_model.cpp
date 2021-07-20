@@ -11,6 +11,10 @@
 #include <unordered_set>
 #include <memory>
 
+#include <version.hpp>
+
+#include "schema/graphfile/gf_version.h"
+
 const std::unordered_map<std::string, MVCNN::DType> mv::RuntimeModel::dTypeMapping_ =
 {
     {"Float64", MVCNN::DType::DType_FP64},
@@ -699,11 +703,12 @@ void mv::RuntimeModel::updateTensorReferenceT(mv::ComputationModel& cm, mv::Elem
 }
 
 //build tensorReference for subTensors - multiple clusters
-std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT(mv::ComputationModel& cm, mv::Element&, mv::Data::TensorIterator t, unsigned clusterId, const std::string& allocatorName)
+std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT(mv::ComputationModel& cm, mv::Element&, mv::Data::TensorIterator t, unsigned clusterId, const std::string& allocatorName, bool isOutput)
 {
     mv::DataModel dm(cm);
     mv::OpModel om(cm);
-
+    unsigned numTask = 0;
+    numTask = cm.getGlobalConfigParams()->get<int>("Number_of_Clusters");
     const mv::Tensor& subtensor = t->getSubTensor(clusterId);
 
     std::unique_ptr<MVCNN::TensorReferenceT> toBuild = std::unique_ptr<MVCNN::TensorReferenceT>(new MVCNN::TensorReferenceT());
@@ -755,6 +760,19 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         else
             numericStrides = (*masterBuffer)->getData()->computeNumericStrides();
         numericStrides.push_back(subtensor.getDType().getSizeInBits() / 8);
+    }
+    else if (*tensorAllocatorName == "ProgrammableInput") 
+    {
+        // this section updates the strides for inputs to ChMajor Conv where Streams:H>1 and SOH
+        // Strides need to be based on masterBuffer (parent tensor), not the streamed slice
+        auto masterBuffer = tensorAllocator.getTopMasterBuffer(tensorBufferIt);
+        if ( (*masterBuffer)->getData()->hasAttr("splitStrategy") && 
+            ((*masterBuffer)->getData()->get<std::string>("splitStrategy") == "SplitOverH" || 
+             (*masterBuffer)->getData()->get<std::string>("splitStrategy") == "SplitOverHOverlapped") )
+        {
+            numericStrides = (*masterBuffer)->getData()->computeNumericStrides();
+            numericStrides.push_back(subtensor.getDType().getSizeInBits() / 8);
+        }
     }
 
     //Because according to graphfile order is given as NCHW, which is exactly the reverse of our shape assumption WHCN
@@ -877,7 +895,20 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
 
         // This part is for concat
         if(t->hasAttr("address"))
-            toBuild->data->data_index = subtensor.getAddress();
+        {
+            if (t->hasAttr("splitStrategy") &&
+                    t->get<std::string>("splitStrategy") == "ClusteringAndSOH" && !isOutput)
+            {
+                auto firstSetSubTensor = t->getSubTensor(clusterId - numTask);
+                toBuild->data->data_index = firstSetSubTensor.getAddress() +
+                        (clusterId - numTask) * t->getSubTensor(clusterId).getShape()[mv::IO_CHANNEL_DIMENSION] *
+                        t->getSubTensor(clusterId).getShape()[mv::IO_WIDTH_DIMENSION] *
+                        t->getSubTensor(clusterId).getShape()[mv::IO_HEIGHT_DIMENSION] *
+                        t->getDType().getSizeInBits() / 8;
+            }
+            else
+                toBuild->data->data_index = subtensor.getAddress();
+        }
         else if (t->hasAttr("cmx_concat_buffer")) {
           size_t net_address = tensorBufferIt->getOffset();
           if (subtensor.hasAttr("offset")) {
@@ -902,7 +933,11 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         auto leading_offset = strides[0];
         toBuild->data->data_index += leading_offset;
 
-        toBuild->locale_index = std::vector<unsigned int>(1, clusterId);
+        if (t->hasAttr("splitStrategy") &&
+                t->get<std::string>("splitStrategy") == "ClusteringAndSOH" && !isOutput)
+            toBuild->locale_index = std::vector<unsigned int>(1, clusterId - numTask);
+        else
+            toBuild->locale_index = std::vector<unsigned int>(1, clusterId);
 
         if(t->isSparse())
         {
@@ -956,7 +991,7 @@ std::unique_ptr<MVCNN::SummaryHeaderT> mv::RuntimeModel::buildSummaryHeaderMetaI
 
     std::unique_ptr<MVCNN::SummaryHeaderT> toBuild = std::unique_ptr<MVCNN::SummaryHeaderT>(new MVCNN::SummaryHeaderT());
 
-    toBuild->version = buildVersionT(cm, compilationDescriptor);
+    toBuild->version = buildVersionT();
     toBuild->original_structure = buildSourceStructureT(cm, compilationDescriptor);
     toBuild->layer_count = om.opsCount();
 
@@ -1050,14 +1085,24 @@ std::unique_ptr<MVCNN::SummaryHeaderT> mv::RuntimeModel::buildSummaryHeaderT(Com
     return toBuild;
 }
 
-std::unique_ptr<MVCNN::VersionT> mv::RuntimeModel::buildVersionT(ComputationModel&, mv::Element& compilationDescriptor)
+std::unique_ptr<MVCNN::VersionT> mv::RuntimeModel::buildVersionT()
 {
     std::unique_ptr<MVCNN::VersionT> toBuild = std::unique_ptr<MVCNN::VersionT>(new MVCNN::VersionT());
 
-    setIfPresent<uint32_t, int>(toBuild->majorV, compilationDescriptor, "VersionMajor");
-    setIfPresent<uint32_t, int>(toBuild->minorV, compilationDescriptor, "VersionMinor");
-    setIfPresent<uint32_t, int>(toBuild->patchV, compilationDescriptor, "VersionPatch");
-    setIfPresent<std::string, std::string>(toBuild->hash, compilationDescriptor, "VersionHash");
+#if defined(MVCNN_VERSION_MAJOR) && defined(MVCNN_VERSION_MINOR) && defined(MVCNN_VERSION_PATCH)
+    toBuild->majorV = MVCNN_VERSION_MAJOR;
+    toBuild->minorV = MVCNN_VERSION_MINOR;
+    toBuild->patchV = MVCNN_VERSION_PATCH;
+#endif
+
+    toBuild->hash = vpux::VPUX_PLUGIN_VERSION;
+    toBuild->context = "MCM Compiler";
+
+    std::stringstream version_log;
+    version_log << "Blob version: majorV= " << toBuild->majorV << ", minorV= "
+                << toBuild->minorV << ", patch= " << toBuild->patchV
+                << ", hash= " << toBuild->hash << ", context= " << toBuild->context;
+    Logger::log(Logger::MessageType::Info, "HeadMetaInfo", version_log.str());
 
     return toBuild;
 }
@@ -2185,6 +2230,8 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
 // Multicluster version
 std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantFieldsT(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt, int clusterId)
 {
+    unsigned numTask = 0;
+    numTask = cm.getGlobalConfigParams()->get<int>("Number_of_Clusters");
     std::unique_ptr<MVCNN::NCEInvariantFieldsT> toBuild = std::unique_ptr<MVCNN::NCEInvariantFieldsT>(new MVCNN::NCEInvariantFieldsT());
 
     auto taskOp = opIt->get<std::string>("taskOp");
@@ -2225,7 +2272,10 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
     }
     //input
     auto parentInputTensor = opIt->getInputTensor(0);
-    if (opIt->get<std::string>("splitStrategy") == "SplitOverK")
+    if (opIt->get<std::string>("splitStrategy") == "SplitOverH" &&
+            opIt->getInputTensor(0)->get<std::string>("splitStrategy") == "ClusteringAndSOH")
+        toBuild->input_data = buildTensorReferenceT(cm, compilationDescriptor, parentInputTensor, clusterId + numTask);
+    else if (opIt->get<std::string>("splitStrategy") == "SplitOverK")
     {
         toBuild->input_data = buildTensorReferenceT(cm, compilationDescriptor, parentInputTensor);
         std::vector<unsigned int> locale_index;
@@ -2248,12 +2298,12 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
 
     //output
     auto parentOutputTensor = opIt->getOutputTensor(0);
-    toBuild->output_data = buildTensorReferenceT(cm, compilationDescriptor, parentOutputTensor, clusterId);
+    toBuild->output_data = buildTensorReferenceT(cm, compilationDescriptor, parentOutputTensor, clusterId, "", true);
 
     if (opIt->hasAttr("multiCast") && opIt->get<bool>("multiCast") )
     {
         unsigned numTasks = cm.getGlobalConfigParams()->get<int>("Number_of_Clusters");
-        toBuild->output_data = buildTensorReferenceT(cm, compilationDescriptor, parentOutputTensor, clusterId);
+        toBuild->output_data = buildTensorReferenceT(cm, compilationDescriptor, parentOutputTensor, clusterId, "", true);
         std::vector<unsigned int> locale_index;
 
         // if SOK and spill to DDR - no need to broadcast to all clusters.
@@ -2332,6 +2382,9 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
             if (opIt->isEltwiseSingleInputTypeOp())
                 // Single input Eltwise ops are Eltwise with weight_data = input_data
                 toBuild->weights_data = buildTensorReferenceT(cm, compilationDescriptor, parentInputTensor, clusterId);
+            else if (opIt->get<std::string>("splitStrategy") == "SplitOverH" &&
+                opIt->getInputTensor(1)->get<std::string>("splitStrategy") == "ClusteringAndSOH")
+                toBuild->weights_data = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(1), clusterId + numTask);
             else
                 toBuild->weights_data = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(1), clusterId);
             break;
@@ -2395,6 +2448,7 @@ bool mv::RuntimeModel::hardwareBugDepthwise(Control::OpListIterator opIt)
         (kernelSize[mv::KERNEL_HEIGHT] > 1));
 }
 
+
 std::array<unsigned short, 4> mv::RuntimeModel::getNewPadding(std::array<unsigned short, 4> padding, int clusterId, int numClusters)
 {
         if (clusterId == 0)
@@ -2429,16 +2483,18 @@ void mv::RuntimeModel::getWorkloadPadding(Control::OpListIterator opIt, Workload
             padding = getPadding(opIt, clusterId);
         else
             padding = opIt->get<std::array<unsigned short, 4>>("padding");
-
+        
         auto outputWidth = opIt->getOutputTensor(0)->getShape()[mv::IO_WIDTH_DIMENSION];
         auto outputHeight = opIt->getOutputTensor(0)->getShape()[mv::IO_HEIGHT_DIMENSION];
 
+       
         workload.padLeft = (workload.MinX == 0) ? padding[mv::PADDING_LEFT] : 0;
         workload.padTop = (workload.MinY == 0) ? padding[mv::PADDING_TOP] : 0;
         long long  pad_right = workload.MaxX + 1 + padding[mv::PADDING_RIGHT] - outputWidth;
         workload.padRight = (pad_right > 0) ? pad_right : 0;
         long long  pad_bottom = workload.MaxY + 1 + padding[mv::PADDING_BOT] - outputHeight;
         workload.padBottom = (pad_bottom > 0) ? pad_bottom : 0;
+    
     }
     return;
 }
@@ -4670,18 +4726,81 @@ void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, const mv::TargetDesc
         graphFile_.barrier_table = buildBarrierTable(cm, compilationDescriptor);
 }
 
-void mv::RuntimeModel::serialize()
+void mv::RuntimeModel::serialize(size_t weight_alignment)
 {
     flatbuffers::FlatBufferBuilder fbb;
-    auto offset = MVCNN::CreateGraphFile(fbb, &graphFile_);
-    MVCNN::FinishGraphFileBuffer(fbb, offset);
-    binaryData_ = std::shared_ptr<std::vector<char>>(new std::vector<char>(fbb.GetSize()));
+
+    // N.B. In order to build the embedded weight vectors with the correct
+    // alignment (which slightly reduces first-run latency, as the runtime
+    // doesn't need to re-align the weights), we unpack and serialize the
+    // GraphFile components ourselves, instead of using MVCNN::CreateGraphFile()
+    // directly on graphFile_.
+    //
+    // Note that flatbuffers are built back-to-front, which is why it looks like
+    // we're building things in reverse.
+
+    flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<MVCNN::BinaryData>>> binary_data_offset = 0;
+    {
+        std::vector<flatbuffers::Offset<MVCNN::BinaryData>> binary_datas;
+        binary_datas.reserve(graphFile_.binary_data.size());
+        for (auto it = graphFile_.binary_data.rbegin(); it != graphFile_.binary_data.rend(); ++it) {
+            auto& binary_data = *it;
+            fbb.ForceVectorAlignment(binary_data->data.size(), sizeof(binary_data->data[0]), weight_alignment);
+            auto data_offset = fbb.CreateVector(binary_data->data);
+            MVCNN::BinaryDataBuilder bdb(fbb);
+            bdb.add_underlying_type(binary_data->underlying_type);
+            bdb.add_csram_cacheable(binary_data->csram_cacheable);
+            bdb.add_length(binary_data->length);
+            bdb.add_data(data_offset);
+            binary_datas.emplace_back(bdb.Finish());
+        }
+        reverse(binary_datas.begin(), binary_datas.end());
+        binary_data_offset = fbb.CreateVector(binary_datas);
+    }
+
+    flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<MVCNN::TaskList>>> task_lists_offset = 0;
+    {
+        std::vector<flatbuffers::Offset<MVCNN::TaskList>> task_lists;
+        task_lists.reserve(graphFile_.task_lists.size());
+        for (auto it = graphFile_.task_lists.rbegin(); it != graphFile_.task_lists.rend(); ++it) {
+            task_lists.emplace_back(MVCNN::CreateTaskList(fbb, it->get()));
+        }
+        reverse(task_lists.begin(), task_lists.end());
+        task_lists_offset = fbb.CreateVector(task_lists);
+    }
+
+    flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<MVCNN::Barrier>>> barrier_table_offset = 0;
+    {
+        std::vector<flatbuffers::Offset<MVCNN::Barrier>> barriers;
+        barriers.reserve(graphFile_.barrier_table.size());
+        for (auto it = graphFile_.barrier_table.rbegin(); it != graphFile_.barrier_table.rend(); ++it) {
+            barriers.emplace_back(MVCNN::CreateBarrier(fbb, it->get()));
+        }
+        reverse(barriers.begin(), barriers.end());
+        barrier_table_offset = fbb.CreateVector(barriers);
+    }
+
+    flatbuffers::Offset<MVCNN::SummaryHeader> header = 0;
+    if (graphFile_.header) {
+        header = MVCNN::CreateSummaryHeader(fbb, graphFile_.header.get());
+    }
+
+    MVCNN::GraphFileBuilder gfb(fbb);
+    gfb.add_header(header);
+    gfb.add_barrier_table(barrier_table_offset);
+    gfb.add_task_lists(task_lists_offset);
+    gfb.add_binary_data(binary_data_offset);
+    auto graphfile_offset = gfb.Finish();
+
+    MVCNN::FinishGraphFileBuffer(fbb, graphfile_offset);
+
+    binaryData_ = std::make_shared<std::vector<char>>(fbb.GetSize());
     std::memcpy(binaryData_->data(), (char*)fbb.GetBufferPointer(), binaryData_->size());
 }
 
-void mv::RuntimeModel::serialize(const std::string& filename)
+void mv::RuntimeModel::serialize(const std::string& filename, size_t weight_alignment)
 {
-    serialize();
+    serialize(weight_alignment);
     if (flatbuffers::SaveFile((filename).c_str(), binaryData_->data(), binaryData_->size(), true))
         Logger::log(mv::Logger::MessageType::Debug, "RuntimeModel", "File successfully written to: " + filename);
     else

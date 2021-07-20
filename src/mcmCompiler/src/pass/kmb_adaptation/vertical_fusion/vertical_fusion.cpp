@@ -54,10 +54,28 @@ namespace mv
 static size_t MAXIMUM_STATIC_OVERLAPING_OPS_IN_SUBGRAPH = 3UL;
 static size_t MAXIMUM_HEIGHT_WORTHY_FOR_VF = 38UL;
 static size_t CMX_TO_AVOID_FRAGMENTATION = 360800;
-static size_t YOLO_V4_NUMBER_OF_SUBS_DOUBLE_TAIL = 1;
-static size_t YOLO_V4_NUMBER_OF_SUBS_SINGLE_TAIL = 11;
-static size_t YOLO_V3_NUMBER_OF_SUBS_SINGLE_TAIL = 12;
 ////////////////////////////////////////////////////////////////////////////////
+
+bool hasLargeKernel(mv::Data::OpListIterator testOp, size_t kSize)
+{
+    bool hasLargeKernel = false;
+    if (testOp->getOpType() == "Conv" || testOp->getOpType() == "DepthwiseConv")
+    {
+        auto weightTensorShape = testOp->getInputTensor(mv::IO_TENSOR_WEIGHTS_SET)->getShape();
+        auto kernelHeight = weightTensorShape[mv::IO_HEIGHT_DIMENSION];
+        if (kernelHeight >= kSize)
+            hasLargeKernel = true;
+    }
+    // MaxPool kernel
+    else if (testOp->hasAttr("kSize"))
+    {
+        auto kernel = testOp->get<std::array<unsigned short, 2UL>>("kSize");
+        auto kernelHeight = kernel[mv::IO_HEIGHT_DIMENSION];
+        if (kernelHeight >= kSize)
+            hasLargeKernel = true;
+    }
+    return hasLargeKernel;
+}
 
 void populateCandidateVerticalFusionOps(std::vector<std::string> & candidateVerticalFusionOps, const std::vector<mv::Element> &strategyList,
     mv::OpModel &om, const uint64_t& cmxV)
@@ -68,6 +86,9 @@ void populateCandidateVerticalFusionOps(std::vector<std::string> & candidateVert
     {
         auto layerNameStrategy = *layerStrategy;
         std::string nodeName = layerNameStrategy.get<std::string>("name_filter");
+        // large kernels set large overlaps, so no value adding to VF subgraph
+        if (hasLargeKernel(om.getOp(nodeName), 7))
+            continue;
         auto splitList = layerNameStrategy.get<std::vector<mv::Element>>("splits");
         bool isStreamingOnH = false;
         bool isStreamingOnlyOnH = false;
@@ -192,8 +213,28 @@ std::size_t computeMemoryResources(const mv::Data::OpListIterator& op, const std
     return memoryResources;
 }
 
+// This function will check if resulting from given stream number tiles are valid
+// Main idea is to check last tile and have its size not bigger then previous tiles
+// This is to prevent from potential situations in which last tile can be bigger
+// than CMX size
+static bool resultingTilesAreValid(mv::OpModel& om, std::list<std::string>& subgraph, const std::size_t maxStream)
+{
+    for (auto& opName : subgraph)
+    {
+        auto op = om.getOp(opName);
+
+        auto tileSizes = mv::tileSpatialOutputSize(op->getOutputTensor(0)->getShape()[mv::IO_HEIGHT_DIMENSION], maxStream);
+
+        // Check if last tile doesn't have the biggest size
+        if (maxStream > 1 && tileSizes.size() >= maxStream && tileSizes[maxStream-1] > tileSizes[maxStream-2])
+            return false;
+    }
+
+    return true;
+}
+
 bool willMaxStreamingBePossible(mv::OpModel& om, const std::vector<mv::Element>& strategyList,
-    const std::list<std::string>& subgraph, const std::string &opName)
+    const std::list<std::string>& subgraph, const std::string &opName, size_t nClusters)
 {
     auto op = om.getOp(opName);
     std::set<int> streamNumbers = {};
@@ -245,6 +286,11 @@ bool willMaxStreamingBePossible(mv::OpModel& om, const std::vector<mv::Element>&
             auto kernel = subbgraphOp->get<std::array<unsigned short, 2UL>>("kSize");
             kernelHeight = kernel[mv::IO_HEIGHT_DIMENSION];
         }
+
+        // ensure height is adjusted if SOH or HKSwitch to divide by number of clusters
+        if (std::find(activationSegmentableStrategies.cbegin(), activationSegmentableStrategies.cend(),
+            subbgraphOp->get<std::string>("splitStrategy")) != activationSegmentableStrategies.cend())
+            inputHeight /= nClusters;
         if (kernelHeight > inputHeight/maxStream)
             return false;
     }
@@ -552,6 +598,66 @@ bool subgraphHasAnOpFollowedFromConcat(const std::list<std::string>& sugraphOps,
     return subgraphHasAnOpFollowedFromConcat;
 }
 
+
+static size_t YOLO_V4_NUMBER_OF_SUBS_DOUBLE_TAIL = 1;
+static size_t YOLO_V4_NUMBER_OF_SUBS_SINGLE_TAIL = 11;
+static size_t YOLO_V3_NUMBER_OF_SUBS_SINGLE_TAIL = 12;
+
+// Perform simple check on input node dimensions to not accidently apply
+// yolo_v4 specific code if the number of subgraphs check is not enough
+// (this happened on yolo-v5m model)
+static bool isYoloV4(mv::OpModel& om)
+{
+    auto op = om.getInput();
+    auto networkInputShape = op->getOutputTensor(0)->getShape();
+
+    // Check for yolo-v4 input dimensions
+    if (networkInputShape[mv::IO_WIDTH_DIMENSION] != 608 ||
+        networkInputShape[mv::IO_HEIGHT_DIMENSION] != 608 ||
+        networkInputShape[mv::IO_CHANNEL_DIMENSION] != 3)
+        return false;
+
+    // Check for yolo-v4 first DPU task weights shape
+    while(op != om.opEnd())
+    {
+        if (op->isHardwarizable() && op->hasWeights())
+        {
+            auto weightsShape = op->getInputTensor(1)->getShape();
+            if (weightsShape[mv::IO_WIDTH_DIMENSION] == 3 &&
+                weightsShape[mv::IO_HEIGHT_DIMENSION] == 3 &&
+                weightsShape[mv::IO_CHANNEL_DIMENSION] == 3 &&
+                weightsShape[mv::IO_BATCH_DIMENSION] == 32)
+            {
+                return true;
+            }
+            break;
+        }
+        op = op.leftmostChild();
+    }
+
+    return false;
+}
+
+static bool isYoloV4NumberOfSubgraphs(bool double_tail, std::size_t numberOfSubgraphs)
+{
+    if (!double_tail && numberOfSubgraphs == YOLO_V4_NUMBER_OF_SUBS_SINGLE_TAIL)
+        return true;
+    else if (double_tail && numberOfSubgraphs >= YOLO_V4_NUMBER_OF_SUBS_DOUBLE_TAIL)
+        return true;
+
+    return false;
+}
+
+static bool isYoloV4VerticalFusionSubgraphsSize(bool double_tail, std::size_t verticalFusionSubgraphsSize)
+{
+    if (verticalFusionSubgraphsSize == YOLO_V3_NUMBER_OF_SUBS_SINGLE_TAIL || verticalFusionSubgraphsSize == YOLO_V4_NUMBER_OF_SUBS_SINGLE_TAIL ||
+        (double_tail && verticalFusionSubgraphsSize == YOLO_V4_NUMBER_OF_SUBS_DOUBLE_TAIL))
+    {
+        return true;
+    }
+    return false;
+}
+
 void computeSubgraphs(mv::ComputationModel& model,
                                 mv::Element& passDesc,
                                 bool double_tail)
@@ -643,6 +749,7 @@ void computeSubgraphs(mv::ComputationModel& model,
     std::vector<std::list<std::string>> verticalFusionSubgraphs;
     std::vector<std::string> excludedVFnodes;
     std::size_t numberOfSubgraphs = 0;
+    bool yolov4 = isYoloV4(om);
 
     for (auto name = candidateVerticalFusionOpsSorted.begin(); name != candidateVerticalFusionOpsSorted.end(); ++name)
     {
@@ -667,7 +774,7 @@ void computeSubgraphs(mv::ComputationModel& model,
 
             //NOTE: the target here is to find out that all the ops that belong to the same subgraph will be
             //divisible with the maximum number of streams
-            bool streamPossible = willMaxStreamingBePossible(om, strategyList, verticalFusionSubgraphs[numberOfSubgraphs], *node);
+            bool streamPossible = willMaxStreamingBePossible(om, strategyList, verticalFusionSubgraphs[numberOfSubgraphs], *node, globalParams->get<int>("Number_of_Clusters"));
 
             bool isNeighbour = nodeIsNeighbour(om, dm, *node, verticalFusionSubgraphs[numberOfSubgraphs]);
             bool kernelLargeOverlapFlag = kernelLargeOverlap(om, verticalFusionSubgraphs[numberOfSubgraphs], *node);
@@ -690,9 +797,7 @@ void computeSubgraphs(mv::ComputationModel& model,
         if (verticalFusionSubgraphs[numberOfSubgraphs].size() <= std::size_t(min_subgraph_depth))
             verticalFusionSubgraphs.erase(verticalFusionSubgraphs.begin() + numberOfSubgraphs);
         //NOTE: normally this condition should check if the tail kernel != stride and the tail that is later than the head
-        else if (!double_tail && numberOfSubgraphs == YOLO_V4_NUMBER_OF_SUBS_SINGLE_TAIL)
-            verticalFusionSubgraphs.erase(verticalFusionSubgraphs.begin() + numberOfSubgraphs);
-        else if (double_tail && numberOfSubgraphs >= YOLO_V4_NUMBER_OF_SUBS_DOUBLE_TAIL)
+        else if (yolov4 && isYoloV4NumberOfSubgraphs(double_tail, numberOfSubgraphs))
             verticalFusionSubgraphs.erase(verticalFusionSubgraphs.begin() + numberOfSubgraphs);
         else if (!double_tail && isNotValidSubgraph(om, verticalFusionSubgraphs[numberOfSubgraphs]))
             verticalFusionSubgraphs.erase(verticalFusionSubgraphs.begin() + numberOfSubgraphs);
@@ -704,13 +809,11 @@ void computeSubgraphs(mv::ComputationModel& model,
     //normally here we should have a cost function that will predict the appropriate number of tiles
     std::size_t idx = 0;
     std::vector<std::size_t> verticalTiles;
-    bool yolov4 = false;
-    if (verticalFusionSubgraphs.size() == YOLO_V3_NUMBER_OF_SUBS_SINGLE_TAIL || verticalFusionSubgraphs.size() == YOLO_V4_NUMBER_OF_SUBS_SINGLE_TAIL ||
-        (double_tail && verticalFusionSubgraphs.size() == YOLO_V4_NUMBER_OF_SUBS_DOUBLE_TAIL))
-    {
-        yolov4 = true;
+
+    if (yolov4 && isYoloV4VerticalFusionSubgraphsSize(double_tail, verticalFusionSubgraphs.size()))
         om.getInput()->set<bool>("yolo_v4", true);
-    }
+    else
+        yolov4 = false;
 
     if (yolov4 && !double_tail)
         verticalTiles = {38, 19, 19, 8, 4, 4, 4, 4, 4, 4, 4, 6};
@@ -784,6 +887,9 @@ void computeSubgraphs(mv::ComputationModel& model,
             auto op = om.getOp(*it);
 
             while (computeMemoryResources(op, maxStream) > CMX_TO_AVOID_FRAGMENTATION)
+                ++maxStream;
+
+            while (!resultingTilesAreValid(om, *subgraph, maxStream))
                 ++maxStream;
 
             streamNumbers.insert(maxStream);

@@ -17,6 +17,7 @@ add_subdirectory(vpual_backend)
 add_subdirectory(mcmCompiler)
 add_subdirectory(frontend_mcm)
 add_subdirectory(custom_extension_library)
+add_subdirectory(vpux_ngraph_transformations)
 
 # TODO Should be only on AARCH64. Enabled for kmbPlugin Windows build
 #if(AARCH64)

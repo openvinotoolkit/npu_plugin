@@ -37,6 +37,10 @@ public:
         return llvm::StringLiteral("test.multiview");
     }
 
+    static llvm::ArrayRef<llvm::StringRef> getAttributeNames() {
+        return {};
+    }
+
     mlir::Value getViewSource(ptrdiff_t resIndex) {
         return (*this)->getOperand((*this)->getNumOperands() - (*this)->getNumResults() + resIndex);
     }

@@ -1,4 +1,4 @@
-// RUN: vpux-opt --split-input-file --canonicalize %s | FileCheck %s
+// RUN: vpux-opt --set-compile-params="vpu-arch=VPU3700 compilation-mode=ReferenceHW" --canonicalize %s | FileCheck %s
 
 // CHECK-LABEL: @FuseConvAndBias
 func @FuseConvAndBias(%arg0: tensor<1x3x300x300xf32>) -> tensor<1x16x300x300xf32> {
@@ -28,8 +28,6 @@ func @FuseConvAndBias(%arg0: tensor<1x3x300x300xf32>) -> tensor<1x16x300x300xf32
     // CHECK-SAME:      strides = [1 : i32, 1 : i32]
     // CHECK:       return %[[VAL0]]
 }
-
-// -----
 
 // CHECK-LABEL: @GroupsToAttr
 func @GroupsToAttr(%arg0: tensor<1x16x300x300xf32>) -> tensor<1x16x300x300xf32> {

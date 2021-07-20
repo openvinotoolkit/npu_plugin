@@ -20,6 +20,12 @@ include "vpux/compiler/dialect/VPUIP/ops.td"
 include "mlir/IR/OpBase.td"
 
 //
+// Constraints
+//
+
+def HasNoValue : Constraint<CPred<"$0 == nullptr">>;
+
+//
 // IERT.Copy -> VPUIP.NNDMA
 //
 
@@ -93,8 +99,11 @@ def RewriteAvgPool :
 
 def RewriteMaxPool :
         Pat<
-            (IERT_MaxPoolOp $input, $output, $kernel_size, $strides, $pads_begin, $pads_end),
-            (createPoolingUPAOp<"MAX"> $input, $output, $kernel_size, $strides, $pads_begin, $pads_end)
+            (IERT_MaxPoolOp $input, $output, $kernel_size, $strides, $pads_begin, $pads_end, $post_op),
+            (createPoolingUPAOp<"MAX"> $input, $output, $kernel_size, $strides, $pads_begin, $pads_end),
+            [
+                (HasNoValue $post_op)
+            ]
         >;
 
 //
@@ -111,8 +120,11 @@ def createConvolutionUPAOp :
 
 def RewriteConvolution :
         Pat<
-            (IERT_ConvolutionOp $input, $filter, $bias, $output, $strides, $pads_begin, $pads_end, $dilations),
-            (createConvolutionUPAOp $input, $filter, $bias, $output, $strides, $dilations, $pads_begin, $pads_end)
+            (IERT_ConvolutionOp $input, $filter, $bias, $output, $strides, $pads_begin, $pads_end, $dilations, $post_op),
+            (createConvolutionUPAOp $input, $filter, $bias, $output, $strides, $dilations, $pads_begin, $pads_end),
+            [
+                (HasNoValue $post_op)
+            ]
         >;
 
 def createGroupConvolutionUPAOp :

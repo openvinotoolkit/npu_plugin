@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -17,6 +17,21 @@
 #include <mlir/IR/BuiltinTypes.h>
 #include <mlir/IR/Identifier.h>
 #include <mlir/IR/Types.h>
+
+using namespace vpux;
+
+IE::PostOp vpux::IE::getPostOpAttr(mlir::MLIRContext* ctx, IE::PostOpKindAttr kindAttr,
+                                   mlir::ArrayRef<mlir::NamedAttribute> attrs) {
+    return IE::PostOp::get(kindAttr, mlir::DictionaryAttr::get(ctx, attrs), ctx);
+}
+
+IE::PostOpKind vpux::IE::getPostOpKind(IE::PostOp postOp) {
+    return postOp.kind().getValue();
+}
+
+mlir::Attribute vpux::IE::getPostOpParam(IE::PostOp postOp, mlir::Identifier name) {
+    return postOp.params().get(name);
+}
 
 //
 // Generated

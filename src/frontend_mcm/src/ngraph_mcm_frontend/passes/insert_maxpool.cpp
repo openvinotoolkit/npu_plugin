@@ -24,7 +24,7 @@
 #include <ngraph/op/variadic_split.hpp>
 #include <ngraph/type/element_type.hpp>
 
-#include "ngraph_mcm_frontend/quantization_helpers.hpp"
+#include "vpux/quantization_helpers.hpp"
 
 namespace {
 bool hasVarSplitParent(const std::shared_ptr<ngraph::Node>& fq_node) {
@@ -41,8 +41,16 @@ void insertPooling(const std::shared_ptr<ngraph::Node>& fq_node) {
     const auto kernel = ngraph::Shape{1, 1};
     const auto rounding_mode = ngraph::op::RoundingType::FLOOR;
     const auto auto_pad = ngraph::op::PadType::EXPLICIT;
+    size_t index = 0;
+    for (const auto& output : input_values.at(0).get_node_shared_ptr()->outputs()) {
+        if (output == input_values.at(0))
+            break;
+        else
+            index++;
+    }
+
     const auto max_pool =
-            std::make_shared<ngraph::op::v1::MaxPool>(input_values.at(0).get_node_shared_ptr()->output(0), strides,
+            std::make_shared<ngraph::op::v1::MaxPool>(input_values.at(0).get_node_shared_ptr()->output(index), strides,
                                                       pads_begin, pads_end, kernel, rounding_mode, auto_pad);
 
     const auto input_low = input_values.at(1).get_node_shared_ptr();

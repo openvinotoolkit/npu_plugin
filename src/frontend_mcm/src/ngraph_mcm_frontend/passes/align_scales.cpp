@@ -23,7 +23,7 @@
 #include "ngraph_mcm_frontend/ops/mcm_eltwise.hpp"
 #include <ngraph/ops.hpp>
 
-#include "ngraph_mcm_frontend/quantization_helpers.hpp"
+#include "vpux/quantization_helpers.hpp"
 
 static bool node_is_add_or_concat(std::shared_ptr<ngraph::Node> node) {
     return (std::dynamic_pointer_cast<ngraph::op::v0::Concat>(node) != nullptr ||

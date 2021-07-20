@@ -43,6 +43,11 @@ struct ConvTileConfig final {
     PadsTileConfig pads;
 };
 
+struct PoolTileConfig final {
+    Tile inputTile;
+    PadsTileConfig pads;
+};
+
 // helper function to generate a set of tiles from dividing a shape. A shape divided across multiple dimensions will
 // generate a set of tiles, each having its own size and offsets
 SmallVector<Tile> fillDividedTiles(ShapeRef divisors, ShapeRef orig);
@@ -52,5 +57,8 @@ PadsTileConfig backInferPadsTile(const Tile& outputTile, ShapeRef outShape, Arra
 
 // TODO: Replace IERT::ConvolutionOp with Operation Interface
 ConvTileConfig backInferConvTile(IERT::ConvolutionOp origOp, const Tile& outputTile);
+
+// TODO: Replace IERT::MaxPoolOp with Operation Interface
+PoolTileConfig backInferPoolTile(IERT::MaxPoolOp origOp, const Tile& outputTile);
 
 }  // namespace vpux

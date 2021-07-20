@@ -132,8 +132,6 @@ Const::Content vpux::Const::PadWithZeroAttr::transform(vpux::Const::Content& inp
 
     std::fill_n(outBuf.data(), outBuf.size(), char(0));
 
-    const auto padBefore = Shape(parseIntArrayAttr(getPadBefore()));
-
     const Byte elemSize = getElemTypeSize(input.getStorageElemType());
     const auto order = DimsOrder::fromType(input.getType());
 
@@ -143,27 +141,141 @@ Const::Content vpux::Const::PadWithZeroAttr::transform(vpux::Const::Content& inp
     const auto outShape = getShape(output.getType());
     const auto outMemShape = order.toMemoryOrder(outShape);
 
-    loop_1d(LoopExecPolicy::Parallel, input.getNumElements(), [&](int64_t inMemInd1D) {
-        const auto inMemIndND = getMemIndexND(inMemInd1D, inMemShape);
-        const auto inIndND = order.toLogicalOrder(inMemIndND);
+    const auto padBefore = Shape(parseIntArrayAttr(getPadBefore()));
+    const auto memPadBefore = order.toMemoryOrder(padBefore);
 
-        Shape outIndND(inIndND.size());
-        for (auto ind : irange(outIndND.size())) {
-            const auto d = Dim(ind);
-            outIndND[d] = inIndND[d] + padBefore[d];
+    if (memPadBefore.size() == 1) {
+        // Opitimized 1D case
+
+        if (input.isSplat()) {
+            const auto md0 = MemDim(0);
+            const auto IN0 = inMemShape[md0];
+            const auto off0 = memPadBefore[md0];
+
+            loop_1d(LoopExecPolicy::Parallel, IN0, [&](int64_t in0) {
+                const auto out0 = in0 + off0;
+
+                std::copy_n(inBuf.data(), checked_cast<size_t>(elemSize.count()),
+                            outBuf.data() + checked_cast<size_t>(out0 * elemSize.count()));
+            });
+        } else {
+            std::copy_n(inBuf.data(), checked_cast<size_t>(input.getNumElements() * elemSize.count()),
+                        outBuf.data() + memPadBefore.front() * elemSize.count());
         }
+    } else if (memPadBefore.size() == 2) {
+        // Opitimized 2D case
 
-        const auto outMemIndND = order.toMemoryOrder(outIndND);
-        const auto outMemInd1D = getMemIndex1D(outMemIndND, outMemShape);
+        const auto md0 = MemDim(0);
+        const auto md1 = MemDim(1);
 
-        const auto inMemRawInd = input.isSplat() ? 0 : checked_cast<size_t>(inMemInd1D * elemSize.count());
-        VPUX_THROW_UNLESS(inMemRawInd < inBuf.size(), "Out-of-bound access in 'PadWithZeroAttr'");
+        const auto IN0 = inMemShape[md0];
+        const auto IN1 = inMemShape[md1];
 
-        const auto outMemRawInd = checked_cast<size_t>(outMemInd1D * elemSize.count());
-        VPUX_THROW_UNLESS(outMemRawInd < outBuf.size(), "Out-of-bound access in 'PadWithZeroAttr'");
+        const auto OUT1 = outMemShape[md1];
 
-        std::copy_n(inBuf.data() + inMemRawInd, checked_cast<size_t>(elemSize.count()), outBuf.data() + outMemRawInd);
-    });
+        const auto off0 = memPadBefore[md0];
+        const auto off1 = memPadBefore[md1];
+
+        loop_2d(LoopExecPolicy::Parallel, IN0, IN1, [&](int64_t in0, int64_t in1) {
+            const auto out0 = in0 + off0;
+            const auto out1 = in1 + off1;
+
+            const auto outRawInd = out1 + out0 * OUT1;
+            const auto inRawInd = input.isSplat() ? 0 : in1 + in0 * IN1;
+
+            std::copy_n(inBuf.data() + checked_cast<size_t>(inRawInd * elemSize.count()),
+                        checked_cast<size_t>(elemSize.count()),
+                        outBuf.data() + checked_cast<size_t>(outRawInd * elemSize.count()));
+        });
+    } else if (memPadBefore.size() == 3) {
+        // Opitimized 3D case
+
+        const auto md0 = MemDim(0);
+        const auto md1 = MemDim(1);
+        const auto md2 = MemDim(2);
+
+        const auto IN0 = inMemShape[md0];
+        const auto IN1 = inMemShape[md1];
+        const auto IN2 = inMemShape[md2];
+
+        const auto OUT1 = outMemShape[md1];
+        const auto OUT2 = outMemShape[md2];
+
+        const auto off0 = memPadBefore[md0];
+        const auto off1 = memPadBefore[md1];
+        const auto off2 = memPadBefore[md2];
+
+        loop_3d(LoopExecPolicy::Parallel, IN0, IN1, IN2, [&](int64_t in0, int64_t in1, int64_t in2) {
+            const auto out0 = in0 + off0;
+            const auto out1 = in1 + off1;
+            const auto out2 = in2 + off2;
+
+            const auto outRawInd = out2 + out1 * OUT2 + out0 * OUT2 * OUT1;
+            const auto inRawInd = input.isSplat() ? 0 : in2 + in1 * IN2 + in0 * IN2 * IN1;
+
+            std::copy_n(inBuf.data() + checked_cast<size_t>(inRawInd * elemSize.count()),
+                        checked_cast<size_t>(elemSize.count()),
+                        outBuf.data() + checked_cast<size_t>(outRawInd * elemSize.count()));
+        });
+    } else if (memPadBefore.size() == 4) {
+        // Opitimized 4D case
+
+        const auto md0 = MemDim(0);
+        const auto md1 = MemDim(1);
+        const auto md2 = MemDim(2);
+        const auto md3 = MemDim(3);
+
+        const auto IN0 = inMemShape[md0];
+        const auto IN1 = inMemShape[md1];
+        const auto IN2 = inMemShape[md2];
+        const auto IN3 = inMemShape[md3];
+
+        const auto OUT1 = outMemShape[md1];
+        const auto OUT2 = outMemShape[md2];
+        const auto OUT3 = outMemShape[md3];
+
+        const auto off0 = memPadBefore[md0];
+        const auto off1 = memPadBefore[md1];
+        const auto off2 = memPadBefore[md2];
+        const auto off3 = memPadBefore[md3];
+
+        loop_4d(LoopExecPolicy::Parallel, IN0, IN1, IN2, IN3, [&](int64_t in0, int64_t in1, int64_t in2, int64_t in3) {
+            const auto out0 = in0 + off0;
+            const auto out1 = in1 + off1;
+            const auto out2 = in2 + off2;
+            const auto out3 = in3 + off3;
+
+            const auto outRawInd = out3 + out2 * OUT3 + out1 * OUT3 * OUT2 + out0 * OUT3 * OUT2 * OUT1;
+            const auto inRawInd = input.isSplat() ? 0 : in3 + in2 * IN3 + in1 * IN3 * IN2 + in0 * IN3 * IN2 * IN1;
+
+            std::copy_n(inBuf.data() + checked_cast<size_t>(inRawInd * elemSize.count()),
+                        checked_cast<size_t>(elemSize.count()),
+                        outBuf.data() + checked_cast<size_t>(outRawInd * elemSize.count()));
+        });
+    } else {
+        // Generic case
+
+        loop_1d(LoopExecPolicy::Parallel, input.getNumElements(), [&](int64_t inMemInd1D) {
+            const auto inMemIndND = getMemIndexND(inMemInd1D, inMemShape);
+
+            MemShape outMemIndND(inMemIndND.size());
+            for (auto ind : irange(outMemIndND.size())) {
+                const auto md = MemDim(ind);
+                outMemIndND[md] = inMemIndND[md] + memPadBefore[md];
+            }
+
+            const auto outMemInd1D = getMemIndex1D(outMemIndND, outMemShape);
+
+            const auto inMemRawInd = input.isSplat() ? 0 : checked_cast<size_t>(inMemInd1D * elemSize.count());
+            VPUX_THROW_UNLESS(inMemRawInd < inBuf.size(), "Out-of-bound access in 'PadWithZeroAttr'");
+
+            const auto outMemRawInd = checked_cast<size_t>(outMemInd1D * elemSize.count());
+            VPUX_THROW_UNLESS(outMemRawInd < outBuf.size(), "Out-of-bound access in 'PadWithZeroAttr'");
+
+            std::copy_n(inBuf.data() + inMemRawInd, checked_cast<size_t>(elemSize.count()),
+                        outBuf.data() + outMemRawInd);
+        });
+    }
 
     return output;
 }

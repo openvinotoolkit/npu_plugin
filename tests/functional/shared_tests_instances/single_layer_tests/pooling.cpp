@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,9 +44,9 @@ TEST_P(KmbPoolingLayerTest, CompareWithRefs_MCM) {
     Run();
 }
 
-// [Track number: S#49089]
-TEST_P(KmbPoolingLayerTest, CompareWithRefs_MLIR) {
+TEST_P(KmbPoolingLayerTest, CompareWithRefs_MLIR_SW) {
     useCompilerMLIR();
+    setReferenceSoftwareModeMLIR();
     Run();
 }
 
@@ -157,6 +157,50 @@ INSTANTIATE_TEST_SUITE_P(smoke_Pooling_AsymmetricStrides, KmbPoolingLayerTest,
                                            ::testing::Values(Layout::ANY),                      // inLayout
                                            ::testing::Values(Layout::ANY),                      // outLayout
                                            ::testing::ValuesIn<SizeVector>({{1, 16, 30, 30}}),  // inputShapes
+                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),  //
+                        PoolingLayerTest::getTestCaseName);
+
+/* ============= LargeSize ============= */
+
+const auto pool_LargeSize1 = ::testing::Combine(::testing::Values(PoolingTypes::MAX),                //
+                                                ::testing::ValuesIn<SizeVector>({{3, 3}}),           // kernels
+                                                ::testing::ValuesIn<SizeVector>({{2, 2}}),           // strides
+                                                ::testing::ValuesIn<SizeVector>({{0, 0}}),           // padBegins
+                                                ::testing::ValuesIn<SizeVector>({{0, 0}}),           // padEnds
+                                                ::testing::Values(ngraph::op::RoundingType::FLOOR),  //
+                                                ::testing::Values(ngraph::op::PadType::VALID),       //
+                                                ::testing::Values(false)                             // excludePad
+);
+
+INSTANTIATE_TEST_CASE_P(smoke_Pooling_LargeSize1, KmbPoolingLayerTest,
+                        ::testing::Combine(pool_LargeSize1,                                       //
+                                           ::testing::Values(Precision::FP16),                    // netPrc
+                                           ::testing::Values(Precision::UNSPECIFIED),             // inPrc
+                                           ::testing::Values(Precision::UNSPECIFIED),             // outPrc
+                                           ::testing::Values(Layout::ANY),                        // inLayout
+                                           ::testing::Values(Layout::ANY),                        // outLayout
+                                           ::testing::ValuesIn<SizeVector>({{1, 64, 128, 128}}),  // inputShapes
+                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),  //
+                        PoolingLayerTest::getTestCaseName);
+
+const auto pool_LargeSize2 = ::testing::Combine(::testing::Values(PoolingTypes::MAX),                //
+                                                ::testing::ValuesIn<SizeVector>({{3, 3}}),           // kernels
+                                                ::testing::ValuesIn<SizeVector>({{2, 2}}),           // strides
+                                                ::testing::ValuesIn<SizeVector>({{0, 0}}),           // padBegins
+                                                ::testing::ValuesIn<SizeVector>({{0, 0}}),           // padEnds
+                                                ::testing::Values(ngraph::op::RoundingType::FLOOR),  //
+                                                ::testing::Values(ngraph::op::PadType::VALID),       //
+                                                ::testing::Values(false)                             // excludePad
+);
+
+INSTANTIATE_TEST_CASE_P(smoke_Pooling_LargeSize2, KmbPoolingLayerTest,
+                        ::testing::Combine(pool_LargeSize2,                                       //
+                                           ::testing::Values(Precision::FP16),                    // netPrc
+                                           ::testing::Values(Precision::UNSPECIFIED),             // inPrc
+                                           ::testing::Values(Precision::UNSPECIFIED),             // outPrc
+                                           ::testing::Values(Layout::ANY),                        // inLayout
+                                           ::testing::Values(Layout::ANY),                        // outLayout
+                                           ::testing::ValuesIn<SizeVector>({{1, 16, 256, 256}}),  // inputShapes
                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),  //
                         PoolingLayerTest::getTestCaseName);
 

@@ -7,10 +7,10 @@ module @test {
 // CHECK-SAME:      options : "NONE"
 // CHECK-SAME:      version : {
 // CHECK-SAME:          contextStr = "VPUX Compiler"
-// CHECK-SAME:          hash = ""
-// CHECK-SAME:          majorV = 3
-// CHECK-SAME:          minorV = 11
-// CHECK-SAME:          patchV = 0
+// CHECK-SAME:          hash = "{{.*}}"
+// CHECK-SAME:          majorV = {{[0-9]+}}
+// CHECK-SAME:          minorV = {{[0-9]+}}
+// CHECK-SAME:          patchV = {{[0-9]+}}
 // CHECK-SAME:      }
 
 // CHECK:       IERT.RunTimeResources

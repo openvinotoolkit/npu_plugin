@@ -153,7 +153,7 @@ namespace mv
             };
 
             void readGlobalConfigs()
-            { 
+            {
                 referenceDevice = model_.getGlobalConfigParam("referenceDevice").get<std::string>();
                 totalClusters = model_.getGlobalConfigParam("Number_of_Clusters").get<int>();
                 clusterMemoryKb = model_.getGlobalConfigParam("cmx").get<int>() / 1024;
@@ -322,10 +322,10 @@ namespace mv
 
                         bool enableNestedStreaming = false;
                         auto maxK = streamsOverK.back();
-                        auto memK = memorySize(op, totalClusters,enableChannelMajorConv, clustering.get<std::string>(),inputSparsity.get<bool>(),outputSparsity.get<bool>(),weightsSparsity,{1,1,1,maxK,n},fakeSparsity, spilling.get<bool>());
+                        auto memK = memorySize(op, totalClusters, clustering.get<std::string>(),inputSparsity.get<bool>(),outputSparsity.get<bool>(),weightsSparsity,{1,1,1,maxK,n},fakeSparsity, spilling.get<bool>());
                         auto memoryMaxK = std::get<0>(memK) + std::get<1>(memK) + std::get<2>(memK);
                         auto maxH = streamsOverH.front();
-                        auto memH = memorySize(op,totalClusters,enableChannelMajorConv, clustering.get<std::string>(),inputSparsity.get<bool>(),outputSparsity.get<bool>(),weightsSparsity,{1,maxH,1,1,n},fakeSparsity, spilling.get<bool>());
+                        auto memH = memorySize(op,totalClusters, clustering.get<std::string>(),inputSparsity.get<bool>(),outputSparsity.get<bool>(),weightsSparsity,{1,maxH,1,1,n},fakeSparsity, spilling.get<bool>());
                         auto memoryMaxH =  std::get<0>(memH) + std::get<1>(memH) + std::get<2>(memH);
 
 
@@ -450,7 +450,7 @@ namespace mv
                 size_t input, output, weights;
                 // in case initialization in memorySize fails
                 input = output = weights = 0;
-                std::tie(input, output, weights) = memorySize(op,totalClusters,enableChannelMajorConv,clustering.get<std::string>(),iSparsity,oSparsity,wSparsity,streams,fSparsity,spilling,parentSpilling);
+                std::tie(input, output, weights) = memorySize(op,totalClusters,clustering.get<std::string>(),iSparsity,oSparsity,wSparsity,streams,fSparsity,spilling,parentSpilling);
                 auto activationsSize = input + output;
                 auto weightsSize = weights;
                 double availableMemory = (double) clusterMemory - (double) weightsSize;
@@ -472,7 +472,7 @@ namespace mv
                 for(unsigned splits = ceil((double)activationsSize/availableMemory); splits <= upperBoundH; splits++)
                 {
                     Shape updatedStreams({1,splits,1,streams["K"],streams["B"]});
-                    auto memFitCheck = memorySize(op,totalClusters, enableChannelMajorConv, clustering.get<std::string>(),iSparsity,oSparsity,wSparsity,updatedStreams,fSparsity,spilling,parentSpilling);
+                    auto memFitCheck = memorySize(op,totalClusters, clustering.get<std::string>(),iSparsity,oSparsity,wSparsity,updatedStreams,fSparsity,spilling,parentSpilling);
 
                     if( pipelined && //TODO inputCMX here too
                         (2*std::get<0>(memFitCheck) + std::get<1>(memFitCheck) + std::get<2>(memFitCheck) < clusterMemory) &&
@@ -521,7 +521,7 @@ namespace mv
                     //Reject H streams were the last stream isn't equal or smaller than the rest
                     //Reject H streams were the last stream is 1, unless they are all 1
                     if(newOutputSizes.back() > newOutputSizes.front() ||
-                        (newOutputSizes.back() == 1 && newOutputSizes.front() != 1)) 
+                        (newOutputSizes.back() == 1 && newOutputSizes.front() != 1))
                             return false;
 
                     unsigned short kernelStride;
@@ -603,7 +603,7 @@ namespace mv
 
                 for(unsigned split = 1; split <= maxSplit; split++)
                 {
-                    auto memFitCheck = memorySize(op,totalClusters,enableChannelMajorConv, clustering.get<std::string>(),iSparsity,oSparsity,wSparsity,{1,1,1,split,streams["B"]},fSparsity, spilling);
+                    auto memFitCheck = memorySize(op,totalClusters, clustering.get<std::string>(),iSparsity,oSparsity,wSparsity,{1,1,1,split,streams["B"]},fSparsity, spilling);
                     if( pipelined && //pipelining weights requires 2 weights streams to fit
                         (std::get<0>(memFitCheck) + std::get<1>(memFitCheck) + 2*std::get<2>(memFitCheck) < clusterMemory) &&
                         validateKStream(op, clustering, split, spilling) )
@@ -695,7 +695,7 @@ namespace mv
 
                 for(unsigned split = startSplit; split <= inputChannelSize; split++)
                 {
-                    auto memFitCheck = memorySize(op, totalClusters,enableChannelMajorConv,clustering.get<std::string>(),iSparsity,oSparsity,wSparsity,{1,1,split,1,streams["B"]},fSparsity, spilling);
+                    auto memFitCheck = memorySize(op, totalClusters,clustering.get<std::string>(),iSparsity,oSparsity,wSparsity,{1,1,split,1,streams["B"]},fSparsity, spilling);
                     if((std::get<0>(memFitCheck) + std::get<1>(memFitCheck) + std::get<2>(memFitCheck) < clusterMemory))
                         return split;
                 }
@@ -792,12 +792,34 @@ namespace mv
                 if(enableChannelMajorConv && op.supportsCMConv())
                     return false;
 
-                // Size of weights, actual sparsity of tensor determine speedup
-                auto weightsSize = realTensorSize(op.getInputTensor(1), {1,1,1,1}, false);
-                auto zeroPoints = op.getInputTensor(1)->getZeroValuesCount();
-                double actualSparsity = (double) zeroPoints/ (double)weightsSize;
-                auto sparsityOverhead = op.getInputTensor(0)->isFloatingPointType() ?
+                auto inputTensor = op.getInputTensor()[mv::IO_TENSOR_INPUT];
+                auto weightTensor = op.getInputTensor()[mv::IO_TENSOR_WEIGHTS_SET];
+                auto outputTensor = op.getOutputTensor()[mv::IO_TENSOR_OUTPUT];
+                auto sparsityOverhead = inputTensor->isFloatingPointType() ?
                     floatOverhead : intOverhead;
+
+                auto inputTensorChannels = inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION];
+                auto outputTensorChannels = outputTensor->getShape()[mv::IO_CHANNEL_DIMENSION];
+                auto demandPaddingInputChannels = (inputTensorChannels % 16 != 0);
+                auto demandPaddingOutputChannels = (outputTensorChannels % 16 != 0);
+                if (demandPaddingOutputChannels || demandPaddingInputChannels)
+                {
+                    float limitInputChannels = 0;
+                    float limitOutputChannels = 0;
+                    if (demandPaddingOutputChannels)
+                        limitOutputChannels = mv::round_up(outputTensorChannels, 16) * sparsityOverhead;
+                    if (demandPaddingInputChannels)
+                        limitInputChannels = mv::round_up(inputTensorChannels, 16) * sparsityOverhead;
+                    if(inputTensorChannels <= std::round(limitInputChannels) ||
+                        outputTensorChannels <= std::round(limitOutputChannels))
+                        return true;
+
+                }
+
+                // Size of weights, actual sparsity of tensor determine speedup
+                auto weightsSize = realTensorSize(weightTensor, {1,1,1,1}, false);
+                auto zeroPoints = weightTensor->getZeroValuesCount();
+                double actualSparsity = (double) zeroPoints/ (double)weightsSize;
 
                 // Enable weights sparsity if actual sparsity level observed in the tensor
                 // is high enough to warrant the overhead of enabling sparsity
@@ -879,7 +901,7 @@ namespace mv
                 // https://jira.devtools.intel.com/browse/CVS-43222
                 {
                     if (op.getOpType() == "Conv")
-                    {   
+                    {
                         if (op.getInputTensor()[0]->getShape() == mv::Shape({13,13,512,1}) &&
                             op.getInputTensor()[1]->getShape() == mv::Shape({3,3,512,1024}) &&
                             op.getOutputTensor()[0]->getShape() == mv::Shape({13,13,1024,1}))
@@ -928,7 +950,7 @@ namespace mv
                     // in case initialization in memorySize fails
                     input = output = weights = 0;
                     std::tie(input, output, weights) = memorySize(op,
-                                                                    totalClusters,enableChannelMajorConv,
+                                                                    totalClusters,
                                                                     clustering,
                                                                     strategy["inputSparsity"],
                                                                     strategy["outputSparsity"],
@@ -1086,7 +1108,7 @@ namespace mv
                     return FailCause::DilatedSOH;
 
                 if (clustering == "SplitOverH" && op.getOpType() == "Conv" && !isChanMajor &&
-                    (streamShape["K"]  * streamShape["H"]) > 1 && spilling)
+                    (streamShape["K"] > 1) && spilling)
                     return FailCause::SpiltOverHWithStreamOverK;
 
                 //NOTE: This is not a HACK!!! if an operation is assigned with streamOverH + SplitOverH
@@ -1100,7 +1122,7 @@ namespace mv
                     (streamShape["H"] > 1) && !spilling &&
                     op.getOutputTensor(mv::IO_TENSOR_OUTPUT)->getDType() == mv::DType("UInt8"))
                     return FailCause::SpiltOverHWithStreamOverHInCMX;
-                
+
                 // This is intended to be a temporary workaround for ModelE, layer '97' & '113', which does work with SOH
                 // It has not been root caused to the compiler or runtime but as of now the compiler logic seems OK
                 if (clustering == "SplitOverH" && op.getOpType() == "Conv" && !isChanMajor && op.getInputTensor()[0]->getShape()[mv::IO_CHANNEL_DIMENSION] == 64 &&
@@ -1145,7 +1167,7 @@ namespace mv
                                 return FailCause::SoftwareDeconvolutionSet;
                      }
                 }
-           
+
                 //temporarily disable the SplitOverHOverlapped for custom network kernel size 7x7 subtensors not correct
                 if (clustering == "SplitOverH" && op.getOpType() == "Conv" && isChanMajor && op.getInputTensor()[0]->getShape()[mv::IO_CHANNEL_DIMENSION] == 3 &&
                     op.getInputTensor()[0]->getShape()[mv::IO_WIDTH_DIMENSION] == 72 && op.getInputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 72 &&
@@ -1228,6 +1250,11 @@ namespace mv
                 if (op.getOpType() == "Conv" && !isCMConv
                        && (op.hasAttr("DilatedSubConv") && op.get<bool>("DilatedSubConv")))
                     return true;
+
+                if (op.getOpType() == "Conv" && !isCMConv
+                       && (op.hasAttr("activationSparsityCompilerSolvingForInterpNN") && op.get<bool>("activationSparsityCompilerSolvingForInterpNN")))
+                    return true;
+
 
                 return false;
             }
@@ -1456,7 +1483,7 @@ namespace mv
                     size_t input, output, weights;
                     // in case initialization in memorySize fails
                     input = output = weights = 0;
-                    std::tie(input, output, weights) = memorySize(childOp, totalClusters,enableChannelMajorConv,
+                    std::tie(input, output, weights) = memorySize(childOp, totalClusters,
                                                                 childClustering,
                                                                 child["inputSparsity"].get<bool>(),
                                                                 child["outputSparsity"].get<bool>(),
@@ -1605,7 +1632,7 @@ namespace mv
                 }
 
                 // For performance in YoloV2 and other networks with large input which don't allow SOH to stay in CMX
-                // at the start of the network, here we preference being clustering or SOK rather than SOH. 
+                // at the start of the network, here we preference being clustering or SOK rather than SOH.
                 // This will allow us to use the AddActivationStreaming pass to speed up these layers.
                 // Needed because SOH can only stream over K, and that pass only speeds up streaming over H...
                 if(parentOpType == "Input" && isChildChanMajor && willAlwaysSpill(childOp) &&
@@ -2144,7 +2171,7 @@ namespace mv
                 // in case initialization in memorySize fails
                 input = output = weights = 0;
                 std::tie(input, output, weights) = memorySize(op,
-                                                                totalClusters,enableChannelMajorConv,
+                                                                totalClusters,
                                                                 clustering,
                                                                 inputSparsity,
                                                                 outputSparsity,
@@ -2218,7 +2245,6 @@ namespace mv
                 parentInput = parentOutput = parentWeight = 0;
                 std::tie(parentInput, parentOutput, parentWeight) = memorySize( parentOp,
                                                                                 totalClusters,
-                                                                                enableChannelMajorConv,
                                                                                 parent["clustering"].get<std::string>(),
                                                                                 parent["inputSparsity"].get<bool>(),
                                                                                 parent["outputSparsity"].get<bool>(),

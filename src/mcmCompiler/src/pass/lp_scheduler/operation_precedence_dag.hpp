@@ -1541,7 +1541,7 @@ class Operation_Dag {
         om.undefineFlow(eitr);
       }
     }
-    
+
     void drop_all_resource_control_edges(mv::OpModel& om) {
       mv::DataModel dm(om);
       std::list<mv::Data::FlowListIterator> edges_to_drop;

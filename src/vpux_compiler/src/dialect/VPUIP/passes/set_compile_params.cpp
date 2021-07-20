@@ -15,8 +15,11 @@
 
 #include "vpux/compiler/dialect/VPUIP/attributes/arch.hpp"
 #include "vpux/compiler/dialect/VPUIP/attributes/enums.hpp"
+#include "vpux/compiler/dialect/VPUIP/generated/schema/gf_version.h"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/utils/logging.hpp"
+
+#include <version.hpp>
 
 using namespace vpux;
 
@@ -75,12 +78,15 @@ void SetCompileParamsPass::safeRunOnModule() {
 
     const auto options = VPUIP::ExecutionFlagAttr::get(&ctx, VPUIP::ExecutionFlag::NONE);
 
-    const auto version = VPUIP::VersionAttr::get(getInt32Attr(&ctx, 3),                         // majorV
-                                                 getInt32Attr(&ctx, 11),                        // minorV
-                                                 getInt32Attr(&ctx, 0),                         // patchV
-                                                 mlir::StringAttr::get(&ctx, ""),               // hash
-                                                 mlir::StringAttr::get(&ctx, "VPUX Compiler"),  // contextStr
+    const auto version = VPUIP::VersionAttr::get(getInt32Attr(&ctx, MVCNN_VERSION_MAJOR),           // majorV
+                                                 getInt32Attr(&ctx, MVCNN_VERSION_MINOR),           // minorV
+                                                 getInt32Attr(&ctx, MVCNN_VERSION_PATCH),           // patchV
+                                                 mlir::StringAttr::get(&ctx, VPUX_PLUGIN_VERSION),  // hash
+                                                 mlir::StringAttr::get(&ctx, "VPUX Compiler"),      // contextStr
                                                  &ctx);
+
+    _log.info("Blob version: majorV={0}, minorV={1}, patch={2}, hash={3}, context={4}", version.majorV().getValue(),
+              version.minorV().getValue(), version.patchV().getValue(), version.hash(), version.contextStr());
 
     OpBuilderLogger builderLog(_log);
     auto builder = mlir::OpBuilder::atBlockBegin(module.getBody(), &builderLog);

@@ -341,6 +341,18 @@ void mv::Tensor::populate(const std::vector<int64_t>& data)
         populateSparsityMapTensor_();
 }
 
+void mv::Tensor::matchSubTensors()
+{
+    auto data = getIntData();
+    auto sum = subTensors_[0]->getShape().totalSize();
+    for (size_t tIdx = 1; tIdx < subTensors_.size(); tIdx++)
+    {
+        for(size_t m = 0; m < subTensors_[tIdx]->getShape().totalSize(); ++m)
+            data.at(m + sum) = data.at(m);
+        sum += subTensors_[tIdx]->getShape().totalSize();
+    }
+}
+
 void mv::Tensor::populate(const std::vector<mv::DataElement>& data, Order order)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_BULD)
@@ -516,9 +528,9 @@ void mv::Tensor::setAddress(int64_t address)
         {
             auto storageElementSize = storageElement_->getClusterSize();
             storageElement_->setAddress(address + (tensorSize - storageElementSize - sparsitySize));
-        } 
+        }
     }
-   
+
     for (size_t tIdx = 0; tIdx < subTensors_.size(); tIdx++)
     {
         subTensors_[tIdx]->setAddress(address);
@@ -528,7 +540,7 @@ void mv::Tensor::setAddress(int64_t address)
             auto se_addr = subTensors_[0]->getStorageElement()->getAddress();
             subTensors_[tIdx]->getSparsityMap()->setAddress(sm_addr);
             subTensors_[tIdx]->getStorageElement()->setAddress(se_addr);
-        } 
+        }
     }
 }
 
@@ -564,7 +576,7 @@ bool mv::Tensor::setSparse()
     sparsityMap_->set<bool>("sparsityMap", true);
     noneZeroElements_ = 0;
 
-    
+
 
     //populate sparsity map
     if (isPopulated())
@@ -583,7 +595,7 @@ bool mv::Tensor::setSparse()
 
     unsigned sm_offset_byte_index = 0UL, se_offset_byte_index = 0UL;
     for (size_t tIdx = 0; tIdx < subTensors_.size(); tIdx++) {
-        
+
         subTensors_[tIdx]->setSparse();
         if (!isPopulated()) {
           auto sub_sparsity_map = subTensors_[tIdx]->getSparsityMap();
@@ -654,6 +666,12 @@ void mv::Tensor::setOrder(Order order, bool updateSubtensors)
         if (updateSubtensors)
             setSubtensorsOrder_(order);
     }
+}
+
+void mv::Tensor::setPlaced(bool placed, const Shape& masterDim)
+{
+    set<bool>("placed", placed);
+    set<mv::Shape>("masterDim", masterDim);
 }
 
 void mv::Tensor::setSubtensorsOrder_(Order order)
@@ -1271,7 +1289,7 @@ mv::Tensor& mv::Tensor::operator=(const Tensor& other)
     subTensors_ = other.subTensors_;
     kernelDataOffsets_ = other.kernelDataOffsets_;
 
-   
+
 
     if (other.hasSubTensors())
     {
@@ -1338,6 +1356,15 @@ std::size_t mv::Tensor::getClusterSize(unsigned int alignment, bool isBase) cons
                 res = size;
         }
     }
+    else if (hasAttr("placedHSegmented") && get<bool>("placedHSegmented"))
+    {
+        res = 0;
+        for (size_t tIdx = 0; tIdx < subTensors_.size(); tIdx++)
+        {
+            auto shapeToAllocate = get<mv::Shape>("shapeToAllocate");
+            res = shapeToAllocate.totalSize() * std::ceil(getDType().getSizeInBits()/8.0);
+        }
+    }
     else
     {
         res = computeTotalSize(alignment, isBase);
@@ -1350,10 +1377,20 @@ std::size_t mv::Tensor::computeTotalSize(unsigned int alignment, bool isBase, bo
                                          , bool graphOptimizer, bool dilation) const
 {
     std::size_t res;
-
-    auto shape = getShape();
-    if (dilation)
+    bool isTensorPlaced = hasAttr("placed") ? get<bool>("placed") : false;
+    mv::Shape shape;
+    if (!isTensorPlaced)
+        shape = getShape();
+    else if (dilation)
         shape = get<mv::Shape>("originalShape");
+    else
+    {
+        if (hasAttr("masterDim"))
+            shape = get<mv::Shape>("masterDim");
+        else
+            throw ArgumentError(*this, "tesnsor with ", getName(), "is placed and does not have masterDim");
+    }
+
     //use shape of master
     if (!isBase && hasAttr("master"))
     {
@@ -1502,7 +1539,7 @@ void mv::Tensor::splitPopulatedActivationAcrossClusters(std::vector<mv::Workload
     set<bool>("broadcasted", (!splitOverH || multicast));
 }
 
-void mv::Tensor::splitAcrossClusters(std::vector<mv::Workload> workloads, bool splitOverH, bool multicast)
+void mv::Tensor::splitAcrossClusters(std::vector<mv::Workload> workloads, bool splitOverH, bool multicast, bool doubleStrategy)
 {
 
     if (isPopulated())
@@ -1567,7 +1604,26 @@ void mv::Tensor::splitAcrossClusters(std::vector<mv::Workload> workloads, bool s
             auto width = wlItr->MaxX - wlItr->MinX + 1;
             auto height = wlItr->MaxY - wlItr->MinY + 1;
 
-            if (splitOverH)
+            if (isSparse() && doubleStrategy)
+            {
+                mv::Shape newShape = { static_cast<size_t>(width), static_cast<size_t>(height) ,shape[2], shape[3]};
+                subTensors_.push_back(std::make_shared<mv::Tensor>(getName() + "subSparse" + std::to_string(idx), newShape, getDType(), getOrder()));
+                std::vector<std::size_t> offset = {static_cast<size_t>(wlItr->MinX), static_cast<size_t>(wlItr->MinY), 0 , 0};
+                subTensors_[idx]->set<std::vector<std::size_t>>("offset", offset);
+                auto is_last_subtensor = (workloads.size() - 1 == idx);
+                auto is_sparse = (isSparse() || ((this->hasAttr("needs_sparse") && this->get<bool>("needs_sparse"))));
+
+                if (is_sparse && is_last_subtensor){
+                    subTensors_[idx]->set<bool>("use_sub0_addrs", true);
+                }
+
+                if (hasAttr("quantParams"))
+                    subTensors_[idx + workloads.size()]->set<mv::QuantizationParams>("quantParams", get<mv::QuantizationParams>("quantParams"));
+                if (isSparse())
+                    subTensors_[idx + workloads.size()]->setSparse();
+
+            }
+            else if (splitOverH || doubleStrategy)
             {
                 mv::Shape newShape = { static_cast<size_t>(width), static_cast<size_t>(height) ,shape[2], shape[3]};
                 subTensors_.push_back(std::make_shared<mv::Tensor>(getName() + "sub" + std::to_string(idx), newShape, getDType(), getOrder()));

@@ -1,5 +1,5 @@
 //
-// Copyright 2021 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -80,27 +80,42 @@ VPUIP::PPETaskOp vpux::VPUIP::NCEClusterTaskOp::addPPETask(mlir::OpBuilder& buil
 // NCEClusterTaskOp::isSupportedLayout
 //
 
-mlir::LogicalResult vpux::VPUIP::NCEClusterTaskOp::isSupportedLayout(mlir::Operation* op, vpux::DataOrderInfo& info) {
-    return llvm::TypeSwitch<mlir::Operation*, mlir::LogicalResult>(op)
-            .Case<IERT::MaxPoolOp>([&](mlir::Operation* op) {
+bool vpux::VPUIP::NCEClusterTaskOp::isSupportedLayout(mlir::Operation* op, vpux::DataOrderInfo& info) {
+    return llvm::TypeSwitch<mlir::Operation*, bool>(op)
+            .Case<IERT::MaxPoolOp>([&](IERT::MaxPoolOp op) {
                 return isSupportedLayoutSameInOutSpecificDimsOrder(op, info, {DimsOrder::NHWC});
             })
-            .Case<IERT::ConvolutionOp>([&](IERT::ConvolutionOp originOp) {
-                if (isSupportedLayoutSameInOutSpecificDimsOrder(originOp, info, {DimsOrder::NHWC}).failed()) {
+            .Case<IERT::ConvolutionOp>([&](IERT::ConvolutionOp op) {
+                if (!isSupportedLayoutSameInOutSpecificDimsOrder(op, info, {DimsOrder::NHWC})) {
+                    // weights layout
+                    info.setInput(1, DimsOrder::OYXI);
+                    return false;
+                }
+
+                // check weights layout
+                if (!info.hasInput(1) || info.getInput(1) != DimsOrder::OYXI) {
+                    fillDataInfo(info, 2, 1, DimsOrder::OYXI);
+                    return false;
+                }
+
+                return true;
+            })
+            .Case<IERT::AddOp>([&](IERT::AddOp originOp) {
+                if (!isSupportedLayoutSameInOutSpecificDimsOrder(originOp, info, {DimsOrder::NHWC})) {
                     // weights layout
                     info.setInput(1, DimsOrder::NHWC);
-                    return mlir::failure();
+                    return false;
                 }
 
                 // check weights layout
                 if (!info.hasInput(1) || info.getInput(1) != DimsOrder::NHWC) {
                     fillDataInfo(info, 2, 1, DimsOrder::NHWC);
-                    return mlir::failure();
+                    return false;
                 }
 
-                return mlir::success();
+                return true;
             })
-            .Default([](mlir::Operation* unknownOp) -> mlir::LogicalResult {
+            .Default([](mlir::Operation* unknownOp) -> bool {
                 VPUX_THROW("Operation '{0}' the operation is not supported by the DPU", unknownOp->getName());
             });
 }
@@ -200,9 +215,6 @@ mlir::LogicalResult verifyNCEEltwise(VPUIP::NCEClusterTaskOp op) {
     VPUX_THROW_UNLESS(op.task_type() == VPUIP::NCETaskType::ELTWISE, "Expected task type '{0}', but got '{1}'",
                       VPUIP::NCETaskType::ELTWISE, op.task_type());
 
-    if (op.weights() != nullptr) {
-        return errorAt(op, "weights should be empty for NCETaskType : '{0}'", op.task_type());
-    }
     if (op.weight_table() != nullptr) {
         return errorAt(op, "weight_table should be empty for NCETaskType : '{0}'", op.task_type());
     }

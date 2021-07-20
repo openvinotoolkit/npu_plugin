@@ -390,7 +390,15 @@ static void kmbQuantizeConversionFcn(const mv::pass::PassEntry& pass, mv::Comput
     }
 
     for (auto& sliceFP16 : slicesFP16)
+    {
         slices.erase(std::remove(slices.begin(), slices.end(), sliceFP16), slices.end());
+        auto outputFlow = sliceFP16.leftmostOutput();
+        if(outputFlow.sink()->getOpType() == "UPATask")
+        {
+            auto outputTensor = sliceFP16->getOutputTensor(0);
+            outputTensor->setDType(mv::DType("Float16"));
+        }
+    }
 
     auto U8 = mv::DType("UInt8");
     auto FP16 = mv::DType("Float16");

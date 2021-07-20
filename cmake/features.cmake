@@ -75,6 +75,27 @@ if(ENABLE_PLAIDML)
     add_compile_definitions(ENABLE_PLAIDML)
 endif()
 
+ie_option(ENABLE_VPUX_DOCS "Documentation for VPUX plugin" OFF)
+
+if(ENABLE_VPUX_DOCS)
+    find_package(Doxygen)
+    if(DOXYGEN_FOUND)
+        set(DOXYGEN_IN ${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/docs/VPUX_DG/Doxyfile.in)
+        set(DOXYGEN_OUT ${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/docs/VPUX_DG/generated/Doxyfile)
+
+        configure_file(${DOXYGEN_IN} ${DOXYGEN_OUT} @ONLY)
+        message("Doxygen build started")
+
+        add_custom_target(vpux_plugin_docs ALL
+            COMMAND ${DOXYGEN_EXECUTABLE} ${DOXYGEN_OUT}
+            WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+            COMMENT "Generating API documentation with Doxygen"
+            VERBATIM)
+    else()
+        message(WARNING "Doxygen need to be installed to generate the doxygen documentation")
+    endif()
+endif()
+
 function (print_enabled_kmb_features)
     message(STATUS "KMB Plugin enabled features: ")
     message(STATUS "")

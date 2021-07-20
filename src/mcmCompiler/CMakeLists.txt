@@ -265,6 +265,8 @@ set(pass
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/assign_se_base_ptr.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/pass/optimization/graph_parameter_optimization.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/optimization/heuristic_strategy.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/optimization/simple_strategy_manager.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/optimization/strategy_manager.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/optimization/MetaGraph.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/optimization/strategy_registry.cpp"
@@ -373,7 +375,7 @@ target_include_directories(mcmCompiler
         "${PROJECT_SOURCE_DIR}/../../thirdparty/bitcompactor/include/"
 )
 
-target_link_libraries(mcmCompiler PUBLIC ${EMULATOR} PRIVATE flatbuffers)
+target_link_libraries(mcmCompiler PUBLIC ${EMULATOR} vpux_al PRIVATE flatbuffers)
 
 if(ENABLE_MCM_COMPILER_PYTHON)
     add_subdirectory(python/api)

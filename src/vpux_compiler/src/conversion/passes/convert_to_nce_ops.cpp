@@ -37,6 +37,25 @@ namespace {
 // Utilities
 //
 
+VPUIP::PPELayerType convertPostOp(IE::PostOpKind postOp) {
+    switch (postOp) {
+    case IE::PostOpKind::RELU:
+        return VPUIP::PPELayerType::LRELU;
+    case IE::PostOpKind::PRELU:
+        return VPUIP::PPELayerType::LPRELU;
+    case IE::PostOpKind::LEAKY_RELU:
+        return VPUIP::PPELayerType::LPRELU;
+    case IE::PostOpKind::EXP:
+        return VPUIP::PPELayerType::EXP;
+    case IE::PostOpKind::SIGMOID:
+        return VPUIP::PPELayerType::SIGMOID;
+    case IE::PostOpKind::TANH:
+        return VPUIP::PPELayerType::TANH;
+    default:
+        VPUX_THROW("Unsupported post op type: '{0}'", postOp);
+    }
+}
+
 const EnumMap<VPUIP::ArchKind, VPUIP::MPEMode> mpeMap = {
         {VPUIP::ArchKind::VPU3400_A0, VPUIP::MPEMode::VECTOR_FP16},  //
         {VPUIP::ArchKind::VPU3400, VPUIP::MPEMode::VECTOR_FP16},     //
@@ -63,7 +82,7 @@ mlir::Value createWeightsTableTensor(mlir::OpBuilder& builder, mlir::Location lo
     return copyOp.output();
 }
 
-mlir::Value prepareInputForDPU(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value input) {
+mlir::Value prepareTensorForDPU(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value input) {
     // DMA DDR -> CMX
     const auto origType = input.getType().cast<mlir::MemRefType>();
     auto typeCMX = changeMemSpace(origType,
@@ -92,6 +111,17 @@ void addDPUTasks(VPUIP::NCEClusterTaskOp nceOp, mlir::PatternRewriter& rewriter,
     }
 }
 
+void addPPETask(VPUIP::NCEClusterTaskOp nceOp, mlir::PatternRewriter& rewriter, IE::PostOp postOp) {
+    if (!postOp) {
+        return;
+    }
+
+    VPUX_THROW_UNLESS(postOp.params().empty(), "Parameters are not yet supported for ppe task");
+
+    const auto ppeType = convertPostOp(IE::getPostOpKind(postOp));
+    nceOp.addPPETask(rewriter, ppeType);
+}
+
 //
 // ConvRewrite
 //
@@ -110,18 +140,6 @@ private:
     vpux::VPUIP::ArchKind _arch;
     Logger _log;
 };
-
-mlir::Value prepareFilterForDPU(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value filter) {
-    const auto origType = filter.getType().cast<mlir::MemRefType>();
-
-    // DMA DDR -> CMX
-    const auto typeCMX = changeMemSpace(
-            origType, VPUIP::PhysicalMemoryAttr::get(builder.getContext(), VPUIP::PhysicalMemory::CMX_NN));
-    auto dmaAllocOp = builder.create<mlir::memref::AllocOp>(loc, typeCMX);
-    auto dmaOp = builder.create<IERT::CopyOp>(loc, filter, dmaAllocOp.memref());
-
-    return dmaOp.output();
-}
 
 mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mlir::PatternRewriter& rewriter) const {
     if (VPUIP::NCEInvariant::verifyOp(origOp, _log).failed()) {
@@ -142,8 +160,8 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
     // Prepare input for DPU
     //
 
-    auto inputDPU = prepareInputForDPU(rewriter, origOp->getLoc(), origOp.input());
-    auto filterDPU = prepareFilterForDPU(rewriter, origOp->getLoc(), origOp.filter());
+    auto inputDPU = prepareTensorForDPU(rewriter, origOp->getLoc(), origOp.input());
+    auto filterDPU = prepareTensorForDPU(rewriter, origOp->getLoc(), origOp.filter());
     auto weightsTable = createWeightsTableTensor(rewriter, origOp->getLoc(), OC, filterDPU, origOp.bias(), nullptr);
 
     //
@@ -175,11 +193,8 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
             /*output_buff=*/outAllocOpCMX.memref(), VPUIP::NCETaskType::CONV, kernelSizeAttr, origOp.strides(),
             kernelPaddingAttr, /*activation_window_channel_length=*/nullptr);
 
-    //
-    // Create DPU sub-task
-    //
-
     addDPUTasks(nceOp, rewriter, _numDPU, padsBegin, padsEnd, mpeMap.at(_arch));
+    addPPETask(nceOp, rewriter, origOp.post_opAttr());
 
     //
     // DMA output CMX -> DDR
@@ -255,7 +270,7 @@ mlir::LogicalResult MaxPoolRewrite::matchAndRewrite(IERT::MaxPoolOp origOp, mlir
     // Prepare input for DPU
     //
 
-    auto inputDPU = prepareInputForDPU(rewriter, origOp->getLoc(), origOp.input());
+    auto inputDPU = prepareTensorForDPU(rewriter, origOp->getLoc(), origOp.input());
 
     //
     // Generate activation window
@@ -295,10 +310,84 @@ mlir::LogicalResult MaxPoolRewrite::matchAndRewrite(IERT::MaxPoolOp origOp, mlir
             /*output_buff=*/outAllocOpCMX.memref(), VPUIP::NCETaskType::MAXPOOL, origOp.kernel_size(), origOp.strides(),
             kernelPaddingAttr, activation_window_channel_length);
 
+    addDPUTasks(nceOp, rewriter, _numDPU, padsBegin, padsEnd, mpeMap.at(_arch));
+    addPPETask(nceOp, rewriter, origOp.post_opAttr());
+
+    //
+    // DMA output CMX -> DDR
+    //
+
+    rewriter.replaceOpWithNewOp<IERT::CopyOp>(origOp, nceOp.output(), origOp.output_buff());
+
+    return mlir::success();
+}
+
+//
+// EltwiseAddRewrite
+//
+
+class EltwiseAddRewrite final : public mlir::OpRewritePattern<IERT::AddOp> {
+public:
+    EltwiseAddRewrite(mlir::MLIRContext* ctx, uint32_t numDPU, vpux::VPUIP::ArchKind arch, Logger log)
+            : mlir::OpRewritePattern<IERT::AddOp>(ctx), _numDPU(numDPU), _arch(arch), _log(log) {
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(IERT::AddOp origOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    const uint32_t _numDPU;
+    vpux::VPUIP::ArchKind _arch;
+    Logger _log;
+};
+
+mlir::LogicalResult EltwiseAddRewrite::matchAndRewrite(IERT::AddOp origOp, mlir::PatternRewriter& rewriter) const {
+    if (VPUIP::NCEInvariant::verifyOp(origOp, _log).failed()) {
+        return matchFailed(rewriter, origOp, "Operation {0} does not satisfy the NCE invariant", origOp);
+    }
+
+    //
+    // Prepare input for DPU
+    //
+
+    auto firstInputDPU = prepareTensorForDPU(rewriter, origOp->getLoc(), origOp.input1());
+    auto secondInputDPU = prepareTensorForDPU(rewriter, origOp->getLoc(), origOp.input2());
+
+    //
+    // Prepare output buffer for DPU
+    //
+
+    const auto origOutType = origOp.output().getType().cast<mlir::MemRefType>();
+    const auto outReorderType = changeDimsOrder(origOutType, DimsOrder::NHWC);
+    const auto outTypeCMX =
+            changeMemSpace(outReorderType, VPUIP::PhysicalMemoryAttr::get(getContext(), VPUIP::PhysicalMemory::CMX_NN));
+
+    auto outAllocOpCMX = rewriter.create<mlir::memref::AllocOp>(origOp->getLoc(), outTypeCMX);
+
+    //
+    // Create NCE per-cluster Operation
+    //
+
+    const auto activation_window_channel_length = getInt32Attr(getContext(), static_cast<int32_t>(0));
+
+    auto nceOp = rewriter.create<VPUIP::NCEClusterTaskOp>(origOp->getLoc(), firstInputDPU, secondInputDPU,
+                                                          /*weightsTable=*/nullptr,
+                                                          /*activation_window=*/nullptr,
+                                                          /*parent_input=*/firstInputDPU,
+                                                          /*parent_output=*/outAllocOpCMX.memref(),
+                                                          /*output_buff=*/outAllocOpCMX.memref(),
+                                                          VPUIP::NCETaskType::ELTWISE,
+                                                          /*kernel_size=*/nullptr,
+                                                          /*kernel_strides=*/nullptr,
+                                                          /*kernel_padding=*/nullptr, activation_window_channel_length);
+    nceOp.addPPETask(rewriter, VPUIP::PPELayerType::ADD);
+
     //
     // Create DPU sub-task
     //
 
+    const SmallVector<int64_t> padsBegin = {0, 0};
+    const SmallVector<int64_t> padsEnd = {0, 0};
     addDPUTasks(nceOp, rewriter, _numDPU, padsBegin, padsEnd, mpeMap.at(_arch));
 
     //
@@ -349,6 +438,7 @@ void ConvertToNCEOpsPass::safeRunOnFunc() {
     mlir::OwningRewritePatternList patterns(&ctx);
     patterns.insert<ConvRewrite>(&ctx, dpuExec.count(), arch, _log);
     patterns.insert<MaxPoolRewrite>(&ctx, dpuExec.count(), arch, _log);
+    patterns.insert<EltwiseAddRewrite>(&ctx, dpuExec.count(), arch, _log);
 
     if (mlir::failed(applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig()))) {
         signalPassFailure();

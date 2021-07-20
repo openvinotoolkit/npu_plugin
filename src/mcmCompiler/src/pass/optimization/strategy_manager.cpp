@@ -139,22 +139,9 @@ void StrategyManager::updateValuesFromJSON()
         for(auto strategySet : strategySets)
         {
             auto strategySetName = strategySet.getName();
-//            auto strategies = strategySet.get<vector<string>>("value");
 
             auto strategyValue = strategySet.get("value");
             layerStrategies_[layerName][strategySetName] = strategyValue;
-//            if(strategiesType == typeid(vector<string>))
-//            {
-//                auto strategies = strategySet.get<vector<string>>("value");
-//                for( auto strategy : strategies)
-//                {
-//                    layerStrategies_[layerName][strategySetName].insert(strategy);
-//                }
-//            }
-//            else
-//            {
-//                layerStrategies_[layerName][strategySetName].insert(strategySet.get("value"));
-//            }
         }
     }
 }
@@ -222,6 +209,165 @@ void convertToStreamingElement(mv::Element& element, mv::Shape strategy , std::s
     element.set("splits",copySplits);
 }
 
+mv::Element convertToLocationElement(bool spilling, std::string name)
+{
+    std::string DDRLocation = "DDR";
+    std::string CMXLocation = "CMX";
+    mv::Element element("");
+    element.set("name_filter",name);
+    if(spilling)
+        element.set("mem_location",DDRLocation);
+    else
+        element.set("mem_location",CMXLocation);
+
+    return element;
+}
+
+mv::Element convertToSparsityElement(bool input, bool output, bool weights, std::string name)
+{
+    mv::Element element("");
+    element.set("inputActivationSparsity",input);
+    element.set("outputActivationSparsity",output);
+    element.set("weightsSparsity",weights);
+    element.set("name_filter", name);
+    return element;
+}
+
+mv::Element convertToClusteringElement(std::string strategy , std::string name)
+{
+    mv::Element element("");
+    element.set("name_filter",name);
+    element.set("strategy",strategy);
+
+    return element;
+}
+
+bool setOptimalTensorLocation(mv::Data::OpListIterator op, bool spilling, const Shape& streamShape) {
+    bool inDDR = true;
+    if (op->getOpType() != "Output") {
+        auto outTensor = op->getOutputTensor(0);
+        auto executable = op->hasTypeTrait("executable") ? true : false;
+        op->set<bool>("goPredictsSpill", spilling);
+
+        bool isStreaming = (streamShape["W"] * streamShape["H"] * streamShape["C"] * streamShape["K"] * streamShape["B"]) > 1;
+        if ((spilling && executable) || isStreaming || op->getOpType() == "ImplicitInput" || op->getOpType() == "Concat") // TODO remove this isStreaming check
+            outTensor->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::DDR);
+        else
+        {
+            outTensor->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::NNCMX);
+            inDDR = false;
+        }
+        op->log(Logger::MessageType::Debug, "GraphOptimizer: Output tensor location (from tensor attribute) for node " +
+                                                    op->getName() + " is " + outTensor->get("Location").toString());
+    }    
+    return inDDR;
+}
+
+std::vector<std::vector<mv::Element>> StrategyManager::convertStrategiesToElements(StrategyMap& strategiesToConvert, std::shared_ptr<mv::Element> compDesc)
+{
+    std::vector<std::vector<mv::Element>> strategyLists;
+    std::vector<mv::Element> streamingStrategyList;
+    std::vector<mv::Element> clusteringStrategyList;
+    std::vector<mv::Element> locationStrategyList;
+    std::vector<mv::Element> sparsityStrategyList;
+
+    // We can accept manual strategy for splitting, streaming, and sparsity
+    std::unordered_set<std::string> hasStreamingSpec;
+    if(compDesc->hasAttr("streaming_strategy"))
+    {
+        streamingStrategyList = compDesc->get<std::vector<mv::Element>>("streaming_strategy");
+        //determine if node already has streaming strategy from JSON text, do not override text specification
+        for (const auto& s : streamingStrategyList)
+        {
+            auto splitList = s.get<std::vector<mv::Element>>("splits");
+            for (unsigned i = 0; i < splitList.size(); i++)
+            {
+                if ((splitList[i].hasAttr("C")) ||
+                    (splitList[i].hasAttr("H")) ||
+                    (splitList[i].hasAttr("W")) ||
+                    (splitList[i].hasAttr("K")) ||
+                    (splitList[i].hasAttr("N")))
+                    hasStreamingSpec.emplace(s.get<std::string>("name_filter"));
+            }
+        }
+    }
+    std::unordered_set<std::string> hasClusterSpec ;
+    if(compDesc->hasAttr("split_strategy"))
+    {
+        clusteringStrategyList = compDesc->get<std::vector<mv::Element>>("split_strategy");
+        //determine if node already has clustering strategy from JSON text, do not override text specification
+        for (const auto& s : clusteringStrategyList)
+        {
+            const std::string& strategyName = s.get<std::string>("strategy");
+            if (strategyName=="SplitOverH" ||
+                strategyName=="SplitOverK" ||
+                strategyName=="SplitOverHOverlapped" ||
+                strategyName=="HKSwitch")
+            {
+                hasClusterSpec.emplace(s.get<std::string>("name_filter"));
+            }
+        }
+    }
+    std::unordered_set<std::string> hasSparsitySpec;
+    if(compDesc->hasAttr("sparsity_strategy"))
+    {
+        sparsityStrategyList = compDesc->get<std::vector<mv::Element>>("sparsity_strategy");
+        //determine if node already has streaming strategy from JSON text, do not override text specification
+        for (const auto& s : sparsityStrategyList)
+        {
+            if( (s.hasAttr("inputActivationSparsity")) ||
+                (s.hasAttr("outputActivationSparsity")) ||
+                (s.hasAttr("weightsSparsity")) )
+                    hasSparsitySpec.emplace(s.get<std::string>("name_filter"));
+        }
+
+    }
+    vector<std::string>opNames;
+    for(auto op: topologicalModel_)
+        if(op->hasAttr("StrategySet"))
+            opNames.push_back(op->getName());
+
+    // To match GO alphabetical order of json printing (for debug) enable this sort
+    // sort(opNames.begin(), opNames.end());
+
+    mv::Element copyElement("");
+    for(auto opName : opNames)
+    {
+        auto op = model_.getOp(opName);
+        auto strategyToConvert = strategiesToConvert.at(opName);
+        if(hasStreamingSpec.find(opName) == hasStreamingSpec.cend())
+        {
+            convertToStreamingElement(copyElement,strategyToConvert["streaming"],opName);
+            streamingStrategyList.emplace_back(copyElement);
+        }
+        if(hasClusterSpec.find(opName) == hasClusterSpec.cend())
+        {
+            clusteringStrategyList.emplace_back(convertToClusteringElement(strategyToConvert["clustering"].get<std::string>(),opName));
+        }
+        // Save location info directly to the model as well TODO move this to save go decisions pass
+        auto spilling = strategyToConvert["spilling"].get<bool>();
+        bool inDDR = setOptimalTensorLocation(op, spilling, strategyToConvert["streaming"].get<mv::Shape>());
+        if(op->getOpType() == "Concat")
+            spilling = inDDR; // special case
+        locationStrategyList.emplace_back(convertToLocationElement(spilling, opName));
+        if(hasSparsitySpec.find(opName) == hasSparsitySpec.cend())
+        {
+            sparsityStrategyList.emplace_back(convertToSparsityElement(strategyToConvert["inputSparsity"].get<bool>(),
+                                                                        strategyToConvert["outputSparsity"].get<bool>(),
+                                                                        strategyToConvert["weightsSparsity"].get<bool>(),
+                                                                        opName));
+        }
+    }
+
+    strategyLists.push_back(streamingStrategyList);
+    strategyLists.push_back(clusteringStrategyList);
+    strategyLists.push_back(locationStrategyList);
+    strategyLists.push_back(sparsityStrategyList);
+
+    return strategyLists;
+}
+
+
 std::vector<mv::Element> StrategyManager::convertStreamingStrategyToElement(CriticalPathNodes &strategiesToConvert, std::shared_ptr<mv::Element> compDesc)
 {
 
@@ -277,14 +423,6 @@ std::vector<mv::Element> StrategyManager::convertStreamingStrategyToElement(Crit
    
 }
 
-mv::Element convertToClusteringElement(std::string strategy , std::string name)
-{
-    mv::Element element("");
-    element.set("name_filter",name);
-    element.set("strategy",strategy);
-
-    return element;
-}
 
 std::vector<mv::Element> StrategyManager::convertClusteringStrategyToElement(CriticalPathNodes &strategiesToConvert,
                                                                                  std::shared_ptr<mv::Element> compDesc)
@@ -478,6 +616,61 @@ std::vector<mv::Element> StrategyManager::convertPipeliningStrategyToElement(Cri
     return pipeliningStrategyList;
 }
 
+void StrategyManager::saveLayerStrategies(StrategyMap& strategiesToSave)
+{
+    auto globalParams = model_.getGlobalConfigParams();
+    const bool enableSaveStrategyToDescriptor = true;
+    const bool enableSaveStrategyToJsonFile = true;
+
+    auto strategyLists = convertStrategiesToElements(strategiesToSave, globalParams);
+    std::vector<mv::Element> streamingStrategyElements = strategyLists[0];
+    std::vector<mv::Element> multiClusterStrategyElements = strategyLists[1];
+    std::vector<mv::Element> locationStrategyElements = strategyLists[2];
+    std::vector<mv::Element> sparsityStrategyElements = strategyLists[3];
+
+    if (enableSaveStrategyToDescriptor)
+    {
+        log(Logger::MessageType::Debug, "GraphOptimizer: Saving Strategy to Compilation Descriptor");
+        auto compDesc = model_.getGlobalConfigParams();
+        compDesc->set("streaming_strategy", streamingStrategyElements);
+        compDesc->set("split_strategy", multiClusterStrategyElements);
+        compDesc->set("sparsity_strategy", sparsityStrategyElements);
+    }
+
+    if (enableSaveStrategyToJsonFile)
+    {
+        log(Logger::MessageType::Debug, "GraphOptimizer: Saving Strategy to JSON file");
+        std::ofstream jsonOutputFile ;
+        jsonOutFileName = "./output/mcmCompiler_simple_strategy_output.json";
+        jsonOutputFile.open(jsonOutFileName, std::ios::out );
+        if (!(jsonOutputFile.is_open()))
+            log(Logger::MessageType::Debug, "GraphOptimizer: Could not open output file " + jsonOutFileName);
+
+        auto currentTime= chrono::system_clock::to_time_t(chrono::system_clock::now());
+        std::string timeStamp(ctime(&currentTime));
+        if (!timeStamp.empty() && timeStamp[timeStamp.length()-1] == '\n')
+            timeStamp.pop_back();
+
+        mv::Element strategiesToSaveElement("Strategies generated by mcmCompiler " + timeStamp);
+        strategiesToSaveElement.set("streaming_strategy", streamingStrategyElements);
+        strategiesToSaveElement.set("split_strategy", multiClusterStrategyElements);
+        strategiesToSaveElement.set("tensor_placement_override", locationStrategyElements);
+        strategiesToSaveElement.set("sparsity_strategy", sparsityStrategyElements);
+        auto jsonStrategy = strategiesToSaveElement.toJSON(true);
+        jsonOutputFile << jsonStrategy.stringifyPretty() << std::endl;
+
+        jsonOutputFile.close();
+    }
+}
+
+void StrategyManager::printStrategy(StrategySet s)
+{
+     std::cout << s["name"].toString() << ", " << s["clustering"].toString() << ", ";
+    std::cout << "\""<<s["streaming"].get<mv::Shape>().toString() << "\", ";
+    std::cout << std::boolalpha << s["spilling"].get<bool>() << ", ";
+    std::cout << std::boolalpha << s["inputSparsity"].get<bool>() << ", "<< s["outputSparsity"].get<bool>()<<  ", " <<s["weightsSparsity"].get<bool>()<< std::endl;
+}
+
 void StrategyManager::saveMetaStrategy(CriticalPathNodes& criticalPathNodes)
 {
     struct {
@@ -498,6 +691,7 @@ void StrategyManager::saveMetaStrategy(CriticalPathNodes& criticalPathNodes)
     for(auto elem : criticalPathNodes)
     {
         auto& strategy = *elem;
+        // printStrategy(strategy);
         auto opName = strategy["name"].get<std::string>();
 
         auto op = model_.getOp(opName);
@@ -572,30 +766,19 @@ void StrategyManager::saveMetaStrategy(CriticalPathNodes& criticalPathNodes)
 void StrategyManager::loadSavedStrategies()
 {
     jsonInFileName = globalConfig_["jsonInFileName"].get<std::string>();
+    loadSavedStrategies(jsonInFileName);
+}
+
+void StrategyManager::loadSavedStrategies(const std::string& jsonInFileNameString)
+{
     mv::json::Value root;
     JSONTextParser parser;
 
-    if (!parser.parseFile(jsonInFileName, root)) {
-        throw ArgumentError("CompilationDescriptor", "filePath", jsonInFileName, "Unable to parse JSON file");
+    if (!parser.parseFile(jsonInFileNameString, root)) {
+        throw ArgumentError("CompilationDescriptor", "filePath", jsonInFileNameString, "Unable to parse JSON file");
     }
     mv::Element strategies(root, true, "");
     model_.addGlobalConfigParams(strategies, true);
-}
-
-void setOptimalTensorLocation(mv::Data::OpListIterator op, bool spilling, const Shape& streamShape) {
-    if (op->getOpType() != "Output") {
-        auto outTensor = op->getOutputTensor(0);
-        auto executable = op->hasTypeTrait("executable") ? true : false;
-        op->set<bool>("goPredictsSpill", spilling);
-
-        bool isStreaming = (streamShape["W"] * streamShape["H"] * streamShape["C"] * streamShape["K"] * streamShape["B"]) > 1;
-        if ((spilling && executable) || isStreaming || op->getOpType() == "ImplicitInput") // TODO remove this isStreaming check
-            outTensor->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::DDR);
-        else
-            outTensor->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::NNCMX);
-        op->log(Logger::MessageType::Debug, "GraphOptimizer: Output tensor location (from tensor attribute) for node " +
-                                                    op->getName() + " is " + outTensor->get("Location").toString());
-    }
 }
 
 void updateTensorLocationFromCriticalPath(StrategyManager::CriticalPathNodes& criticalPathNodes, OpModel& model)
@@ -613,9 +796,9 @@ void updateTensorLocationFromCriticalPath(StrategyManager::CriticalPathNodes& cr
     }
 }
 
-void updateTensorLocationAfterLoadStrategies(OpModel& model)
+void StrategyManager::updateTensorLocationAfterLoadStrategies()
 {
-    auto globalParams = model.getGlobalConfigParams();
+    auto globalParams = model_.getGlobalConfigParams();
     std::vector<mv::Element> streamingStrategyList = globalParams->get<std::vector<mv::Element>>("streaming_strategy");
     std::vector<mv::Element> tensorPlacementList = globalParams->get<std::vector<mv::Element>>("tensor_placement_override");
 
@@ -641,7 +824,7 @@ void updateTensorLocationAfterLoadStrategies(OpModel& model)
                        return loc.get<std::string>("name_filter") == opName &&
                               loc.get<std::string>("mem_location") == "DDR";
                    }) != tensorPlacementList.cend();
-        auto op = model.getOp(opName);
+        auto op = model_.getOp(opName);
         setOptimalTensorLocation(op, spilling, streamShape);
     }
 }
@@ -1039,7 +1222,7 @@ void StrategyManager::graphParameterOptimizations()
 {
     if (loadStrategiesFromFile) {
         loadSavedStrategies();
-        updateTensorLocationAfterLoadStrategies(model_);
+        updateTensorLocationAfterLoadStrategies();
     } else {
         initLayerStrategySets();
 

@@ -108,7 +108,7 @@ protected:
     InferenceEngine::VPUXConfigParams::CompilerType _compilerType =
             InferenceEngine::VPUXConfigParams::CompilerType::MCM;
 
-    std::string _compilationMode = "ReferenceSW";
+    std::string _compilationMode = "ReferenceHW";
 
 private:
     void parseEnvironment();

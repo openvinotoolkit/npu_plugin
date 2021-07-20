@@ -53,15 +53,9 @@ class KmbScaleShiftLayerTest: public ScaleShiftLayerTest, virtual public LayerTe
         if (isCompilerMLIR()) {
             std::set<std::vector<std::vector<size_t>>> badShapesForMLIR = {
                 {{100}},
-                {{200}},
                 {{100}, {100}},
                 {{1, 8}},
-                {{2, 16}},
-                {{3, 32}},
                 {{4, 64}},
-                {{5, 128}},
-                {{6, 256}},
-                {{7, 512}},
                 {{8, 1024}}
             };
             if (badShapesForMLIR.find(inShape) != badShapesForMLIR.end() ) {
@@ -115,12 +109,7 @@ class KmbScaleShiftLayerTest: public ScaleShiftLayerTest, virtual public LayerTe
         // [Track number: E#11537]
         if (isCompilerMCM()) {
             std::set<std::vector<std::vector<size_t>>> badShapesForMCM = {
-                {{2, 16}},
-                {{3, 32}},
                 {{4, 64}},
-                {{5, 128}},
-                {{6, 256}},
-                {{7, 512}},
                 {{8, 1024}}
             };
             if (badShapesForMCM.find(inShape) != badShapesForMCM.end() ) {
@@ -148,34 +137,23 @@ namespace {
 
 std::vector<std::vector<std::vector<size_t>>> inShapes = {
     {{100}},
-    {{200}},
     {{100}, {100}},
     {{4, 64}, {64}},
     {{1, 8}},
-    {{2, 16}},
-    {{3, 32}},
     {{4, 64}},
-    {{5, 128}},
-    {{6, 256}},
-    {{7, 512}},
     {{8, 1024}},
     {{1, 8, 4, 4},     {1, 8, 1, 1}},
     {{1, 128, 32, 32}, {1, 128, 1, 1}},
-    {{1, 512, 64, 64}, {1, 512, 1, 1}},
     {{1, 111, 3, 3},   {1, 111, 1, 1}},
 };
 
 std::vector<std::vector<float>> Scales = {
         {3.0f},
-        {2.0f},
-        {-1.0f},
         {-3.0f}
 };
 
 std::vector<std::vector<float>> Shifts = {
         {3.0f},
-        {1.0f},
-        {-1.0f},
         {-3.0f}
 };
 

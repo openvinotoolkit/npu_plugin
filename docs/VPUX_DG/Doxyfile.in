@@ -1,0 +1,25 @@
+PROJECT_NAME = "VPUX Plugin for Inference Engine"
+PROJECT_NUMBER = 0.0.0
+
+OUTPUT_DIRECTORY        = @IE_MAIN_VPUX_PLUGIN_SOURCE_DIR@/docs/VPUX_DG/generated
+INPUT                   = @IE_MAIN_VPUX_PLUGIN_SOURCE_DIR@/src/vpux_al
+INPUT                  += @IE_MAIN_VPUX_PLUGIN_SOURCE_DIR@/src/vpux_plugin
+INPUT                  += @IE_MAIN_VPUX_PLUGIN_SOURCE_DIR@/src/vpux_utils
+INPUT                  += @IE_MAIN_VPUX_PLUGIN_SOURCE_DIR@/src/utils
+INPUT                  += @IE_MAIN_VPUX_PLUGIN_SOURCE_DIR@/src/vpual_backend
+INPUT                  += @IE_MAIN_VPUX_PLUGIN_SOURCE_DIR@/src/hddl2_backend
+INPUT                  += @IE_MAIN_VPUX_PLUGIN_SOURCE_DIR@/src/zero_backend
+INPUT                  += @IE_MAIN_VPUX_PLUGIN_SOURCE_DIR@/src/emulator_backend
+INPUT                  += @IE_MAIN_VPUX_PLUGIN_SOURCE_DIR@/docs/VPUX_DG/index.md
+
+USE_MDFILE_AS_MAINPAGE = @IE_MAIN_VPUX_PLUGIN_SOURCE_DIR@/docs/VPUX_DG/index.md
+PLANTUML_JAR_PATH      = @IE_MAIN_VPUX_PLUGIN_SOURCE_DIR@/artifacts/plantuml/plantuml.jar
+
+GENERATE_XML = YES
+XML_OUTPUT = xml
+
+RECURSIVE = YES
+EXTRACT_ALL = YES
+EXCLUDE_PATTERNS       = */vpux_compiler/*
+EXCLUDE_PATTERNS      += */docs/*
+EXCLUDE_PATTERNS      += */published/*

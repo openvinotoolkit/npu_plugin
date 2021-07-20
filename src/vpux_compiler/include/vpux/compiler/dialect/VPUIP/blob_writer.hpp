@@ -90,7 +90,7 @@ public:
     TensorReference getTensor(mlir::Value val) const;
 
 public:
-    BinaryData createBinaryData(Const::ContentAttr attr, bool csram_cacheable = false);
+    BinaryData createBinaryData(ArrayRef<uint64_t> content, mlir::ShapedType type, bool csram_cacheable = false);
 
 public:
     Barrier createBarrier(mlir::Value val, uint32_t physicalID = 0);

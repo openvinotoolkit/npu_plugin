@@ -98,10 +98,16 @@ void updatePhysicalIDinGraphFileFcn(const mv::pass::PassEntry&, mv::ComputationM
     update_physical_id(dmaTasks);
 }
 
-void generateBlobKmbFcn(const mv::pass::PassEntry&, mv::ComputationModel&, mv::TargetDescriptor& td, mv::Element& passDesc, mv::Element&)
+void generateBlobKmbFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor& td, mv::Element& passDesc, mv::Element&)
 {   
     MV_PROFILED_FUNCTION(MV_PROFILE_PHASE)
     mv::RuntimeModel& rm = mv::RuntimeModel::getInstance(td);
+
+    size_t weight_alignment = mv::RuntimeModel::default_weight_alignment;
+    if (model.hasGlobalConfigParam("weight_alignment"))
+        weight_alignment = static_cast<size_t>(model.getGlobalConfigParam("weight_alignment").get<int>());
+    else if (passDesc.hasAttr("weight_alignment"))
+        weight_alignment = static_cast<size_t>(passDesc.get<int>("weight_alignment"));
 
     if (passDesc.hasAttr("metaInfoSerializer"))
     {
@@ -114,7 +120,7 @@ void generateBlobKmbFcn(const mv::pass::PassEntry&, mv::ComputationModel&, mv::T
         auto output = passDesc.get<std::string>("output");
         mv::utils::validatePath(output);
 
-        rm.serialize(output);
+        rm.serialize(output, weight_alignment);
     }
 }
 

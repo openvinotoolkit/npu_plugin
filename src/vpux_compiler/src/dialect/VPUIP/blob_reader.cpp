@@ -1,5 +1,5 @@
 //
-// Copyright 2021 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -405,6 +405,7 @@ void BlobReader::buildMainFunc() {
 
     static const SoftLayersDispatchMap softLayersDispatchMap = {
             {MVCNN::SoftwareLayerParams::SoftwareLayerParams_ConvertParams, &BlobReader::parseConvert},
+            {MVCNN::SoftwareLayerParams::SoftwareLayerParams_SWConvolutionParams, &BlobReader::parseConvolution},
             {MVCNN::SoftwareLayerParams::SoftwareLayerParams_ConvolutionParams, &BlobReader::parseConvolution},
             {MVCNN::SoftwareLayerParams::SoftwareLayerParams_CTCDecoderParams, &BlobReader::parseCTCGreedyDecoder},
             {MVCNN::SoftwareLayerParams::SoftwareLayerParams_CTCGreedyDecoderSeqLenParams,

@@ -81,7 +81,7 @@ NOTE: This method *must* be implemented by the user.
 ```c++
 static uint32_t filter_spatial_dims();
 ```
-Get the nr of kernel dims available
+Get the nr of kernel spatial dims available
 NOTE: This method *must* be implemented by the user.
 
 #### `filter_spatial_dim`
@@ -225,6 +225,14 @@ NOTE: This method *must* be implemented by the user.
 static vpux::Dim act_width_dim();
 ```
 Get the activation width Dim
+NOTE: This method *must* be implemented by the user.
+
+#### `act_spatial_dims`
+
+```c++
+static uint32_t act_spatial_dims();
+```
+Get the nr of activation spatial dims available
 NOTE: This method *must* be implemented by the user.
 
 #### `act_spatial_dim`
