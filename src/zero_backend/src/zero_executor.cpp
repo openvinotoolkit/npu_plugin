@@ -216,8 +216,7 @@ bool isRepackingRequired(const IE::TensorDesc& userTensorDesc, const IE::TensorD
     return true;
 }
 
-bool isRepackingPossible(const bool isInput, const IE::TensorDesc& userTensorDesc,
-                         const IE::TensorDesc& deviceTensorDesc) {
+bool isRepackingPossible(const IE::TensorDesc& userTensorDesc, const IE::TensorDesc& deviceTensorDesc) {
     const auto userPrecision = userTensorDesc.getPrecision();
     const auto devicePrecision = deviceTensorDesc.getPrecision();
     const auto userLayout = userTensorDesc.getLayout();
@@ -242,12 +241,6 @@ bool isRepackingPossible(const bool isInput, const IE::TensorDesc& userTensorDes
     }
 
     // Layouts are OK for repacking, checking precisions
-    if (isInput) {
-        // TODO add cases?
-        if (devicePrecision != IE::Precision::U8) {
-            return false;
-        }
-    }
     std::vector<IE::Precision> precisions{userPrecision, devicePrecision};
     const auto unsupportedPrecision =
             std::find_if(precisions.cbegin(), precisions.cend(), [](const IE::Precision& precision) -> bool {
@@ -627,7 +620,7 @@ void ZeroExecutor::push(const IE::BlobMap& inputs) {
         if (!isRepackingRequired(input->getTensorDesc(), deviceInput->getTensorDesc())) {
             hostMem.copyFrom(input);
         } else {
-            if (!isRepackingPossible(true, input->getTensorDesc(), deviceInput->getTensorDesc())) {
+            if (!isRepackingPossible(input->getTensorDesc(), deviceInput->getTensorDesc())) {
                 IE_THROW() << "Push blobs: repacking is not possible";
             }
             prepareInputForInference(input, deviceInput->getTensorDesc(), hostMem.data(), _logger);
@@ -680,7 +673,7 @@ void ZeroExecutor::pull(IE::BlobMap& outputs) {
         if (!isRepackingRequired(output->getTensorDesc(), deviceOutput->getTensorDesc())) {
             hostMem.copyTo(output);
         } else {
-            if (!isRepackingPossible(false, output->getTensorDesc(), deviceOutput->getTensorDesc())) {
+            if (!isRepackingPossible(output->getTensorDesc(), deviceOutput->getTensorDesc())) {
                 IE_THROW() << "Pull blobs: repacking is not possible";
             }
             getOutputAfterInference(output, deviceOutput->getTensorDesc(), hostMem.data(), _logger);
