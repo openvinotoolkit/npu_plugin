@@ -7,6 +7,7 @@
 #include "single_layer_tests/interpolate.hpp"
 #include "common_test_utils/test_constants.hpp"
 #include "kmb_layer_test.hpp"
+#include "kmb_test_report.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -17,6 +18,80 @@ TEST_P(KmbInterpolateLayerTest, CompareWithRefs) {
 }
 
 TEST_P(KmbInterpolateLayerTest, CompareWithRefs_MLIR) {
+    useCompilerMLIR();
+    Run();
+}
+
+class KmbInterpolate1Test: public Interpolate1LayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+
+public:
+// Reference version for Interpolate-1 layer doesn't implemented in OpenVino.
+// It is enough to check the conversion of Interpolate-1 layer to Interpolate-4 layer,
+// as test for Interpolate-4 has already exist. So skip Validate step.
+void Run() override {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    std::cout << "KmbLayerTestsCommon::BuildNetworkWithoutCompile" << std::endl;
+    BuildNetworkWithoutCompile();
+    LayerTestsUtils::KmbTestReport& report = LayerTestsUtils::KmbTestReport::getInstance();
+    const auto& testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    report.run(testInfo);
+
+    try {
+        if (envConfig.IE_KMB_TESTS_RUN_COMPILER) {
+            std::cout << "KmbLayerTestsCommon::Compile" << std::endl;
+            std::ostringstream ostr;
+            ostr << "LoadNetwork Config: ";
+            for (const auto& item : configuration) {
+                ostr << item.first << "=" << item.second << "; ";
+            }
+            std::cout << ostr.str() << std::endl;
+            SkipBeforeLoad();
+
+            ASSERT_NO_THROW(executableNetwork = getCore()->LoadNetwork(cnnNetwork, targetDevice, configuration));
+            report.compiled(testInfo);
+
+            if (envConfig.IE_KMB_TESTS_RUN_EXPORT) {
+                std::cout << "KmbLayerTestsCommon::ExportNetwork()" << std::endl;
+                ASSERT_NO_THROW(ExportNetwork());
+            }
+        } else {
+            std::cout << "KmbLayerTestsCommon::ImportNetwork()" << std::endl;
+            SkipBeforeLoad();
+            SkipBeforeImport();
+            ImportNetwork();
+            report.imported(testInfo);
+        }
+        GenerateInputs();
+        if (envConfig.IE_KMB_TESTS_EXPORT_INPUT) {
+            std::cout << "KmbLayerTestsCommon::ExportInput()" << std::endl;
+            ExportInput();
+        }
+        if (envConfig.IE_KMB_TESTS_IMPORT_INPUT) {
+            std::cout << "KmbLayerTestsCommon::ImportInput()" << std::endl;
+            ImportInput();
+        }
+        if (envConfig.IE_KMB_TESTS_RUN_INFER) {
+            std::cout << "KmbLayerTestsCommon::Infer()" << std::endl;
+            SkipBeforeInfer();
+            Infer();
+            report.inferred(testInfo);
+        }
+        if (envConfig.IE_KMB_TESTS_EXPORT_OUTPUT) {
+            std::cout << "KmbLayerTestsCommon::ExportOutput()" << std::endl;
+            ExportOutput();
+        }
+        //skip Validate step
+        std::cout << "Skip KmbLayerTestsCommon::Validate()" << std::endl;
+    } catch (const LayerTestsUtils::KmbSkipTestException& e) {
+        std::cout << "Skipping the test due to: " << e.what() << std::endl;
+        report.skipped(testInfo);
+        SKIP() << "Skipping the test due to: " << e.what();
+    }
+}
+};
+
+TEST_P(KmbInterpolate1Test, CompareWithRefs_MLIR) {
     useCompilerMLIR();
     Run();
 }
@@ -164,5 +239,21 @@ INSTANTIATE_TEST_CASE_P(smoke_Interpolate_without_nearest, KmbInterpolateLayerTe
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
         ::testing::Values(additional_config)),
                             KmbInterpolateLayerTest::getTestCaseName);
+
+const std::vector<std::string> mode = {"nearest", "linear"};
+const std::vector<ngraph::AxisSet> axes ={{2, 3}};
+
+INSTANTIATE_TEST_CASE_P(smoke_Interpolate_1, KmbInterpolate1Test, ::testing::Combine(
+        ::testing::Values(InferenceEngine::Precision::FP16),
+        ::testing::Values(InferenceEngine::Precision::FP16),
+        ::testing::Values(InferenceEngine::Layout::NCHW),
+        ::testing::ValuesIn(inShapes),
+        ::testing::ValuesIn(targetShapes),
+        ::testing::ValuesIn(mode),
+        ::testing::ValuesIn(axes),
+        ::testing::ValuesIn(antialias),
+        ::testing::ValuesIn(pads),
+        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                            KmbInterpolate1Test::getTestCaseName);
 
 } // namespace
