@@ -374,7 +374,7 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
             (t->hasAttr("dilatedSlices3DDMA") && t->get<bool>("dilatedSlices3DDMA")))
     {
         //NOTE: Covered only strides for z-major convolution
-        for (unsigned idx = 0; idx < numericStrides.size(); idx++)
+        for (std::size_t idx = 0; idx < numericStrides.size(); idx++)
         {
             auto dilationFactor = t->get<unsigned>("dilationFactor");
             if (idx == 0 || idx == 1)
@@ -389,7 +389,7 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     if ((*tensorAllocatorName == "VPU_DDR_Heap" && (t->hasAttr("fusedConcatReshape") && t->get<bool>("fusedConcatReshape"))) ||
         (*tensorAllocatorName == "VPU_CMX_NN" && (t->hasAttr("asymmetricCmxConcat") && t->get<bool>("asymmetricCmxConcat"))))
     {
-        for (unsigned idx = 0; idx < numericStrides.size(); idx++)
+        for (std::size_t idx = 0; idx < numericStrides.size(); idx++)
         {
             if (idx == mv::IO_HEIGHT_DIMENSION || idx == mv::IO_BATCH_DIMENSION)
                 numericStrides[idx] = numericStrides[idx] * t->get<std::size_t>("numberOfConvsForAsymmetricalStride");
@@ -774,6 +774,14 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
             numericStrides = t->computeNumericStrides();
         else
             numericStrides = (*masterBuffer)->getData()->computeNumericStrides();
+        if (*tensorAllocatorName == "VPU_DDR_Heap" && (t->hasAttr("fusedConcatReshape") && t->get<bool>("fusedConcatReshape")))
+        {
+            for (std::size_t idx = 0; idx < numericStrides.size(); idx++)
+            {
+                if (idx == mv::IO_HEIGHT_DIMENSION || idx == mv::IO_BATCH_DIMENSION)
+                    numericStrides[idx] = numericStrides[idx] * t->get<std::size_t>("numberOfConvsForAsymmetricalStride");
+            }
+        }
         numericStrides.push_back(subtensor.getDType().getSizeInBits() / 8);
     }
     else if (*tensorAllocatorName == "ProgrammableInput")
@@ -881,6 +889,17 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
           //NOTE: the division is going to extinguish the data type offset!!!
           if(numericStrides[4] != tensorStrides[4])
               byte_index = index * (double(numericStrides[4])/double(tensorStrides[4])) * t->getDType().getSizeInBits() / 8;
+
+        // If SOH subtensors have one size but master buffer has different dims in C or W 
+        // need to multiply to find correct index in DDR
+        if( t->get<std::string>("splitStrategy") == "SplitOverH" &&
+            numericStrides[3] != tensorStrides[3]) // W
+            byte_index = index * (double(numericStrides[3])/double(tensorStrides[3])) * t->getDType().getSizeInBits() / 8;
+
+        if( t->get<std::string>("splitStrategy") == "SplitOverH" &&
+            numericStrides[2] != tensorStrides[2]) // C
+            byte_index = index * (double(numericStrides[2])/double(tensorStrides[2])) * t->getDType().getSizeInBits() / 8;
+
         }
 
         auto masterBuffer = tensorAllocator.getTopMasterBuffer(tensorBufferIt);
@@ -896,12 +915,15 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
             starting_address = (*masterBuffer)->getOffset();
         }
 
-        toBuild->data->data_index = starting_address + byte_index;
+        if(subtensor.hasAttr("fused_concat_offset"))
+            toBuild->data->data_index = starting_address + subtensor.get<std::size_t>("fused_concat_offset");
+        else
+            toBuild->data->data_index = starting_address + byte_index;
 
         auto strides = tensorBufferIt->getStrides();
         auto leading_offset = strides[0];
         toBuild->locale_index = std::vector<unsigned int>(1,0);
-        if (leading_offset)
+        if (leading_offset && !t->hasAttr("fusedConcatReshape"))
             toBuild->data->data_index += leading_offset;
 
     }

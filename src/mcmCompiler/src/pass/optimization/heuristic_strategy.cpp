@@ -729,6 +729,11 @@ StrategySet HeuristicGraphOptimizer::assignStrategyCost(mv::Data::OpListIterator
         {
             cost *= 0.95; //this heuristic could/should be moved to the activation streaming pass...
         }
+        if(isFirstOp && clustering == "SplitOverH" && opIt->isHardwarizable() && opIt->hasAttr("kSize")
+            && (!opIt->hasAttr("supportsCM") || !opIt->get<bool>("supportsCM")))
+        {
+            cost = COST_MAX; // prevent SOH until SOHOverlapped implemented 
+        }
             
         // TODO add sparsity for performance calculation
         if(strategy["inputSparsity"].get<bool>())
@@ -1131,6 +1136,38 @@ bool isModelAWA(mv::Data::OpListIterator opIt)
     return false;
 }
 
+bool isModelFWA(mv::Data::OpListIterator opIt)
+{
+    if(opIt->getOpType() == "Conv")
+    {
+        auto inputShape = opIt->getInputTensor(mv::IO_TENSOR_INPUT)->getShape();
+        auto outputShape = opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT)->getShape();
+        auto weightsShape = opIt->getInputTensor(mv::IO_TENSOR_WEIGHTS_SET)->getShape();
+        if( inputShape[mv::IO_CHANNEL_DIMENSION] == 16 &&
+            inputShape[mv::IO_WIDTH_DIMENSION] == 1024 && inputShape[mv::IO_HEIGHT_DIMENSION] == 64 &&
+            outputShape[mv::IO_CHANNEL_DIMENSION] == 16 && outputShape[mv::IO_WIDTH_DIMENSION] == 1024 &&
+            outputShape[mv::IO_HEIGHT_DIMENSION] == 64 && weightsShape[mv::KERNEL_HEIGHT] == 7 &&
+            weightsShape[mv::KERNEL_WIDTH] == 1)
+            return true;
+    }
+    if(opIt->getOpType() == "Concat")
+        return true;
+    if(opIt->getOpType() == "Slice" && opIt.leftmostParent()->getOpType() == "Concat")
+        return true;
+
+    return false;
+}
+
+bool parentOpSupportsHK(mv::Data::OpListIterator opIt)
+{
+    auto opType = opIt->getOpType();
+    if (opType == "MaxPool" || opType == "Eltwise" || opType == "HwConvert")
+    {
+        return true;   
+    }
+    return false;
+}
+
 bool HeuristicGraphOptimizer::forceRollback(mv::Data::OpListIterator opIt)
 {
     bool opKCompatible = isKCompatible(opIt);
@@ -1143,16 +1180,27 @@ bool HeuristicGraphOptimizer::forceRollback(mv::Data::OpListIterator opIt)
     {
         if(!child->hasAttr("StrategySet")) continue; //Note, this shouldn't happen for children
 
-        // SOH->SOK disallowed if both are ZM conv
+        // SOH->SOK disallowed if...
         if(!opKCompatible && isKCompatible(child))
         {
             // SOH->SOK disallowed if both are ZM conv
             if(isZMconv(opIt) && isZMconv(child)
                 && !isModelAWA(opIt))
                 return true;
-            // Can't solve this with a DMA?
-            if(child->getOpType() == "Slice")
-                return true;
+
+            // SOH->SOK disallowed if one is Implicit Op in CMX
+            // Note: Ops aren't marked as implicit yet, so "Default" strategy
+            // assume they all happen in DDR. To be more accurate, consider Slice
+            // as it's own, which can be in CMX or in DDR depending on preceeding
+            // and following ops
+            auto childStrategy = bestStrategies_.at(child->getName());
+            if (opIt->getOpType() == "Slice" && !isModelFWA(opIt)
+                && (!strategy["spilling"].get<bool>() || !childStrategy["parentSpilling"].get<bool>()))
+                    return true;
+            // ssd512 workaround - TODO disable when HKSwitch enabled for all ops
+            if (opIt->getOpType() == "Slice" && parentOpSupportsHK(opIt) && !isModelFWA(opIt)
+                && (!strategy["spilling"].get<bool>() || !childStrategy["parentSpilling"].get<bool>()))
+                    return true;
         }
 
         // HK -> HK disallowed
@@ -1573,6 +1621,8 @@ void HeuristicGraphOptimizer::alignAndValidateSpecialOps()
             if(sink->hasAttr("supportsCM") && sink->get<bool>("supportsCM") &&
                 sinkClustering == "SplitOverH")
                 assignBestStrategyOfType(input, "SplitOverHOverlapped");
+            else if(sinkClustering == "SplitOverH")
+                assignBestStrategyOfType(input, "Clustering");
             else if(inputClustering != sinkClustering)
                 assignBestStrategyOfType(input, sinkClustering);
         }
