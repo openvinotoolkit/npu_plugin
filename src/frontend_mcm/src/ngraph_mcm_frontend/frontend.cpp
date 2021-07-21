@@ -39,6 +39,7 @@
 #include <ngraph_mcm_frontend/passes/align_scales.hpp>
 #include <ngraph_mcm_frontend/passes/detect_input_fq.hpp>
 #include <ngraph_mcm_frontend/passes/remove_splitConcat.hpp>
+#include <ngraph_mcm_frontend/passes/convert_min_max_to_clamp.hpp>
 
 #include "vpux/utils/core/error.hpp"
 
@@ -555,6 +556,7 @@ void applyTransformations(
     // TBD Should be ngraph::pass too in order to be applied in between other passes.
     const auto ioMap = MapInputOutputInfoToNgraphOps(func, inputsInfo, outputsInfo);
 
+    passManager.register_pass<ConvertMinMaxToClamp>();
     passManager.register_pass<FuseScaleAfterClamp>();
     passManager.register_pass<ConvertToMcmConv>();
     passManager.register_pass<ConvertToMcmFC>();
@@ -583,7 +585,8 @@ void applyTransformations(
     const auto transformationsPredicate = [](const std::shared_ptr<const ngraph::Node>& node) -> bool {
         const bool skipLayers =
             std::dynamic_pointer_cast<const ngraph::opset4::SoftPlus>(node) ||
-            std::dynamic_pointer_cast<const ngraph::opset4::HSwish>(node);
+            std::dynamic_pointer_cast<const ngraph::opset4::HSwish>(node) ||
+            std::dynamic_pointer_cast<const ngraph::op::v1::Minimum>(node);
 
         return skipLayers;
     };
