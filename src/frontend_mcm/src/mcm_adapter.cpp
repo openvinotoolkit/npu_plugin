@@ -49,6 +49,32 @@ std::unique_ptr<MVCNN::TensorReferenceT> buildTensorReference(const std::string&
     return toBuild;
 }
 
+std::unique_ptr<MVCNN::TensorReferenceT> buildTensorReference(const std::string& tensorName,
+                                                              const InferenceEngine::TensorDesc& tensorInfo,
+                                                              const mv::Data::TensorIterator& opModelTensor) {
+    InferenceEngine::TensorDesc newTensorInfo(tensorInfo);
+
+    const InferenceEngine::SizeVector& tensorInfoDimVec = tensorInfo.getDims();
+    auto shape = opModelTensor->getShape();
+
+    // For now support case in which dim reduction from 5D to 4D has happened (yolo-v5 cases)
+    if (tensorInfoDimVec.size() == 5 && shape.ndims() == 4) {
+        // Try to update tensor information in case of 5D to 4D dimension reduction
+        InferenceEngine::SizeVector newDimVec;
+        for (size_t i = 0; i < shape.ndims(); i++)
+            newDimVec.push_back(shape[shape.ndims() - 1 - i]);
+
+        // Update layout and dimensions of vector.
+        // Note: current solution has limited implementation to satisfy just yolo-v5 case
+        if (newTensorInfo.getLayout() == Layout::NCDHW)
+            newTensorInfo.reshape(newDimVec, Layout::NCHW);
+        else if (newTensorInfo.getLayout() == Layout::NDHWC)
+            newTensorInfo.reshape(newDimVec, Layout::NHWC);
+    }
+
+    return buildTensorReference(tensorName, newTensorInfo);
+}
+
 bool vpu::MCMAdapter::isMCMCompilerAvailable() {
     return true;
 }
