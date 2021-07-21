@@ -35,9 +35,20 @@ class KmbAsymmetricStrideConvSubGraphTest : public LayerTestsUtils::KmbLayerTest
         const std::vector<float> dataHigh = {255.0f};
         const auto dataFq = ngraph::builder::makeFakeQuantize(paramOuts[0], ngraph::element::f32, dataLevels, {}, dataLow, dataHigh, dataLow, dataHigh);
 
-        const auto weightsU8 = ngraph::builder::makeConstant<uint8_t>(ngraph::element::u8, weightsShape, {1,1,2,2});
+        std::vector<uint64_t> poolStridesVec = {1, 1};
+        std::vector<uint64_t> poolKernelVec = {1, 1};
+        const ngraph::Strides poolStrides = poolStridesVec;
+        const ngraph::Shape padsBegin = {0, 0};
+        const ngraph::Shape padsEnd = {0, 0};
+        const ngraph::Shape poolKernel = poolKernelVec;
+        const auto pool = std::make_shared<ngraph::opset2::MaxPool>(dataFq, poolStrides, padsBegin, padsEnd, poolKernel);
 
-        const auto weightsFP32 = std::make_shared<ngraph::opset2::Convert>(weightsU8, ngraph::element::f32);
+        std::vector<float> weights(weightsShape[0] * weightsShape[1] * weightsShape[2] * weightsShape[3]);
+        for (std::size_t i = 0; i < weights.size(); i++) {
+            weights.at(i) = std::cos(i * 3.14 / 6);
+        }
+        auto weightsFP32 = std::make_shared<ngraph::op::Constant>(
+                ngraph::element::Type_t::f32, weightsShape, weights.data());
 
         const size_t weightsLevels = 255;
 
@@ -61,7 +72,7 @@ class KmbAsymmetricStrideConvSubGraphTest : public LayerTestsUtils::KmbLayerTest
         const ngraph::CoordinateDiff pads_begin = test_params._pads_begin;
         const ngraph::CoordinateDiff pads_end = test_params._pads_end;
         const ngraph::Strides dilations = {1, 1};
-        const auto conv = std::make_shared<ngraph::opset2::Convolution>(dataFq, weightsFq, strides, pads_begin, pads_end, dilations);
+        const auto conv = std::make_shared<ngraph::opset2::Convolution>(pool, weightsFq, strides, pads_begin, pads_end, dilations);
 
         const std::vector<float> outLow = {0.0f};
         const std::vector<float> outHigh = {255.0f};
@@ -86,6 +97,14 @@ INSTANTIATE_TEST_CASE_P(smoke, KmbAsymmetricStrideConvSubGraphTest,
         LayerTestsUtils::testPlatformTargetDevice,  // _device
         {1, 1, 16, 16},    // in dims
         {2, 1, 1, 2},      // weights dims
+        {1, 2},            // strides
+        {0, 0},            // pads_begin
+        {0, 0},            // pads_end
+    },
+    KmbAsymmetricStrideConvSubGraphTestParams {
+        LayerTestsUtils::testPlatformTargetDevice,  // _device
+        {1, 16, 64, 64},   // in dims
+        {16, 16, 1, 2},    // weights dims
         {1, 2},            // strides
         {0, 0},            // pads_begin
         {0, 0},            // pads_end

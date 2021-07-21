@@ -66,6 +66,7 @@
             "PostTrainingQuantize",
             "MarkEltWiseUpaInputs",
             "MarkCMCompatibleConvs",
+            "MarkSOHnonCompatibleConcats",
             "AddPermuteToNonCMConvPaths",
             {
                 "name" : "SimpleStrategyManager",
