@@ -27,18 +27,22 @@ namespace {
 //
 
 template <class ConcreteOp>
-class GenericConverter final : public mlir::OpRewritePattern<ConcreteOp> {
+class GenericConverter : public mlir::OpRewritePattern<ConcreteOp> {
+    using PostOpAttributeGetter = std::function<mlir::ArrayRef<mlir::NamedAttribute>(ConcreteOp)>;
+
 public:
     GenericConverter(mlir::MLIRContext* ctx, IE::PostOpKind postOp, const IE::LayerInfoDialectInterface* layerInfo,
                      Logger log)
-            : mlir::OpRewritePattern<IE::ReLUOp>(ctx), _postOp(postOp), _layerInfo(layerInfo), _log(log) {
+            : mlir::OpRewritePattern<ConcreteOp>(ctx), _postOp(postOp), _layerInfo(layerInfo), _log(log) {
         this->setDebugName("FusePostOps::GenericConverter");
     }
 
 public:
-    mlir::LogicalResult matchAndRewrite(ConcreteOp activationOp, mlir::PatternRewriter& rewriter) const final;
+    virtual mlir::LogicalResult matchAndRewrite(ConcreteOp activationOp, mlir::PatternRewriter& rewriter) const;
 
-private:
+protected:
+    virtual mlir::SmallVector<mlir::NamedAttribute> postOpAttributes(ConcreteOp) const;
+
     IE::PostOpKind _postOp;
     const IE::LayerInfoDialectInterface* _layerInfo = nullptr;
     Logger _log;
@@ -57,7 +61,7 @@ mlir::LogicalResult GenericConverter<ConcreteOp>::matchAndRewrite(ConcreteOp pos
     auto* mainOp = postOp.input().getDefiningOp();
     auto multiLayer = mlir::dyn_cast_or_null<IE::MultiLayerInterface>(mainOp);
 
-    if (!multiLayer || !_layerInfo->isSupportedPostProcessing(mainOp, postOp)) {
+    if (!multiLayer || (_layerInfo && !_layerInfo->isSupportedPostProcessing(mainOp, postOp))) {
         return matchFailed(_log, rewriter, postOp,
                            "Failed to fuse PostOp, since its producer does not support post-processing");
     }
@@ -68,12 +72,43 @@ mlir::LogicalResult GenericConverter<ConcreteOp>::matchAndRewrite(ConcreteOp pos
     }
 
     const auto postOpKindAttr = IE::PostOpKindAttr::get(this->getContext(), _postOp);
-    const auto postOpAttr = IE::getPostOpAttr(this->getContext(), postOpKindAttr);
+    const auto postOpAttr = IE::getPostOpAttr(this->getContext(), postOpKindAttr, postOpAttributes(postOp));
 
     multiLayer.setPostOp(postOpAttr);
     rewriter.replaceOp(postOp, mainOp->getResult(0));
 
     return mlir::success();
+}
+
+template <class ConcreteOp>
+mlir::SmallVector<mlir::NamedAttribute> GenericConverter<ConcreteOp>::postOpAttributes(ConcreteOp) const {
+    return {};
+}
+
+class ClampConverter final : public GenericConverter<IE::ClampOp> {
+public:
+    ClampConverter(mlir::MLIRContext* ctx, const IE::LayerInfoDialectInterface* layerInfo, Logger log)
+            : GenericConverter(ctx, IE::PostOpKind::RELUX, layerInfo, log) {
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(IE::ClampOp activationOp, mlir::PatternRewriter& rewriter) const override final;
+
+protected:
+    mlir::SmallVector<mlir::NamedAttribute> postOpAttributes(IE::ClampOp) const override final;
+};
+
+mlir::LogicalResult ClampConverter::matchAndRewrite(IE::ClampOp postOp, mlir::PatternRewriter& rewriter) const {
+    if (std::abs(postOp.minAttr().getValueAsDouble()) > std::numeric_limits<double>::epsilon()) {
+        return matchFailed(_log, rewriter, postOp,
+                           "Failed to fuse ClampOp like ReluX, since min value is not equal to zero");
+    }
+    return GenericConverter<IE::ClampOp>::matchAndRewrite(postOp, rewriter);
+}
+
+mlir::SmallVector<mlir::NamedAttribute> ClampConverter::postOpAttributes(IE::ClampOp op) const {
+    return {mlir::NamedAttribute(mlir::Identifier::get("Minimum", op.getContext()), op.minAttr()),
+            mlir::NamedAttribute(mlir::Identifier::get("Maximum", op.getContext()), op.maxAttr())};
 }
 
 //
@@ -104,6 +139,7 @@ void FusePostOpsPass::safeRunOnFunc() {
 
     mlir::OwningRewritePatternList patterns(&ctx);
     patterns.add<GenericConverter<IE::ReLUOp>>(&ctx, IE::PostOpKind::RELU, layerInfo, _log);
+    patterns.add<ClampConverter>(&ctx, layerInfo, _log);
 
     auto func = getFunction();
     if (mlir::failed(applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig()))) {

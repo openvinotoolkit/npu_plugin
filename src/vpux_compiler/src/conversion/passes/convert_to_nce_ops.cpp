@@ -51,6 +51,8 @@ VPUIP::PPELayerType convertPostOp(IE::PostOpKind postOp) {
         return VPUIP::PPELayerType::SIGMOID;
     case IE::PostOpKind::TANH:
         return VPUIP::PPELayerType::TANH;
+    case IE::PostOpKind::RELUX:
+        return VPUIP::PPELayerType::LRELUX;
     default:
         VPUX_THROW("Unsupported post op type: '{0}'", postOp);
     }
@@ -118,7 +120,8 @@ void addPPETask(VPUIP::NCEClusterTaskOp nceOp, mlir::PatternRewriter& rewriter, 
         return;
     }
 
-    VPUX_THROW_UNLESS(postOp.params().empty(), "Parameters are not yet supported for ppe task");
+    // TODO Add ppe_task parameters support
+    // VPUX_THROW_UNLESS(postOp.params().empty(), "Parameters are not yet supported for ppe task");
 
     const auto ppeType = convertPostOp(IE::getPostOpKind(postOp));
     nceOp.addPPETask(rewriter, ppeType);

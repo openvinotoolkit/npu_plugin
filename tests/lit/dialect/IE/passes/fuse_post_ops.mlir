@@ -81,3 +81,34 @@ func @DepthWiseConv2dWithReluTest(%arg0: tensor<1x16x4x4xf16>) -> tensor<1x16x3x
     // CHECK-SAME:     strides = [1 : i32, 1 : i32]
     // CHECK-NOT:   IE.ReLU
 }
+
+// -----
+
+func @Conv2dWithClampTest(%arg0: tensor<1x16x4x4xf16>) -> tensor<1x16x3x3xf16> {
+    %filters = const.Declare tensor<16x16x2x2xf16> = #const.Content<dense<1.0> : tensor<16x16x2x2xf16>>
+    %0 = IE.Convolution(%arg0, %filters)
+        {
+            strides = [1 : i32, 1 : i32],
+            pads_begin = [0 : i32, 0 : i32],
+            pads_end = [0 : i32, 0 : i32],
+            dilations = [1 : i32, 1 : i32]
+        } :
+        tensor<1x16x4x4xf16>, tensor<16x16x2x2xf16> -> tensor<1x16x3x3xf16>
+
+    %1 = IE.Clamp(%0)
+        {
+            max = 6.000000e+00 : f32,
+            min = 0.000000e+00 : f32
+        } :
+        tensor<1x16x3x3xf16> -> tensor<1x16x3x3xf16>
+
+    return %1 : tensor<1x16x3x3xf16>
+
+    // CHECK:       %1 = IE.Convolution(%arg0, %0)
+    // CHECK-SAME:     dilations = [1 : i32, 1 : i32],
+    // CHECK-SAME:     pads_begin = [0 : i32, 0 : i32],
+    // CHECK-SAME:     pads_end = [0 : i32, 0 : i32],
+    // CHECK-SAME:     post_op = {kind = "RELUX", params = {Maximum = 6.000000e+00 : f32, Minimum = 0.000000e+00 : f32}},
+    // CHECK-SAME:     strides = [1 : i32, 1 : i32]
+    // CHECK-NOT:   IE.Clamp
+}
