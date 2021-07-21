@@ -18,31 +18,6 @@
 // TODO: [Track number: C#40310]
 //       We need to remove or transform XML based tests before opening the source.
 
-//
-// precommit scope
-//
-
-
-TEST_F(KmbStereoNetworkTest, precommit_INT8_Stereo_720p) {
-    runTest(
-            TestNetworkDesc("KMB_models/INT8/customnets/stereo/ngraph_stereo_720p.xml")
-                    .setUserInputPrecision("input", Precision::U8)
-                    .setUserInputLayout("input", Layout::NCHW)
-                    .setUserOutputPrecision("output", Precision::FP32),
-            TestBinFileDesc("1280x720/stereo_1280x720.bin", {1, 1, 720, 1280}, Precision::U8), 0.0f);
-}
-//
-// Stereo360p
-//
-TEST_F(KmbStereoNetworkTest, precommit_INT8_Stereo_360p) {
-    runTest(
-        TestNetworkDesc("KMB_models/INT8/customnets/stereo/ngraph_stereo_360p.xml")
-            .setUserInputPrecision("input", Precision::U8)
-            .setUserInputLayout("input", Layout::NCHW)
-            .setUserOutputPrecision("output", Precision::FP32),
-        TestBinFileDesc("640x360/stereo_640x360.bin", {1, 1, 360, 640}, Precision::U8), 0.0f);
-}
-
 #ifdef KMB_HAS_CUSTOM_OCL_KERNELS
 TEST_F(KmbYoloV2NetworkTest, precommit_yolo_tiny_v2_ava_0001_tf_dense_int8_IRv10_from_fp32_custom) {
     const auto customLayers = std::make_pair(VPU_COMPILER_CONFIG_KEY(CUSTOM_LAYERS),
