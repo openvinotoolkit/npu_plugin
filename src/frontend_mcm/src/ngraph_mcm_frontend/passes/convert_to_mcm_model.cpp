@@ -752,19 +752,15 @@ void convert(std::shared_ptr<ngraph::op::v1::Reshape> reshape, mv::OpModel& mcmM
     }
 
     ngraph::Shape outShape = reshape->get_output_shape(0);
-    size_t outShape_size = outShape.size();
     // Reduce shape size if number of dims is > 4 to 4 dims by removing dims == 1
-    outShape.erase(std::remove_if(outShape.begin(), outShape.end(),
-        [&outShape_size](size_t dim)
-        {
-            // Remove elements if shape size is still bigger than 4 and dimension is equal to 1
-            if (outShape_size > 4 && dim == 1) {
-                outShape_size--;
-                return true;
-            } else
-                return false;
-
-        }),  outShape.end());
+    while (outShape.size() > 4) {
+        const auto firstTrivialDimIter = std::find(outShape.begin(), outShape.end(), 1);
+        if (*firstTrivialDimIter == 1) {
+            outShape.erase(firstTrivialDimIter);
+        } else {
+            throw std::runtime_error("Reshape op: shape rank cannot be reduced to 4");
+        }
+    }
 
     mv::Shape newShape = getMemoryOrder(outShape);
 
@@ -917,40 +913,57 @@ void convert(std::shared_ptr<ngraph::op::v1::Transpose> permute, mv::OpModel& mc
 
     // Reduce input tensor shape size to 4 dims if the number of dims is > 4 by removing
     // first dims == 1
-    const std::vector<std::size_t> inpShape = mcmData->getShape();
-    const int inpShape_size = inpShape.size();
-    if (inpShape_size > 4) {
-        const std::string inpOrder = (mcmData->getOrder()).toString();
-        std::vector<std::size_t> reducedShape;
-        std::string reducedOrder;
-        for (int i = 0, j = 0; i < inpShape_size; i++) {
-            if (inpShape[i] == 1 && inpShape_size - i > 4 - j)
-                continue;
-            reducedShape.push_back(inpShape[i]);
-            reducedOrder.push_back(inpOrder[i]);
-            j++;
+    std::vector<std::size_t> inpShape = mcmData->getShape();
+    std::string inpOrder = (mcmData->getOrder()).toString();
+    std::size_t numbOfReducedDims = 0;
+    while (inpShape.size() > 4) {
+        const auto firstTrivialDimIter = std::find(inpShape.begin(), inpShape.end(), 1);
+        if (*firstTrivialDimIter == 1) {
+            inpShape.erase(firstTrivialDimIter);
+            inpOrder.erase(inpOrder.begin());
+            numbOfReducedDims++;
+        } else {
+            break;
         }
-        mv::Shape newShape = getMemoryOrder(reducedShape);
+    }
+
+    // Check if shape has changed and update both shape
+    // and order in the input tensor
+    if (numbOfReducedDims > 0)
+    {
+        mv::Shape newShape = getMemoryOrder(inpShape);
         mcmData->setShape(newShape);
-        mcmData->setOrder(reducedOrder);
+        mcmData->setOrder(inpOrder);
     }
 
     // Remove order index corresponding to reduced dim in input tensor
-    const auto ieShape = permute->input(0).get_shape();
+    auto ieShape = permute->input(0).get_shape();
     const size_t orderSize = orderIndices.size();
-    std::vector<int64_t> permNDOrder;
-    std::vector<int64_t> reducedDims;
-    std::vector<size_t> newIEShape;
-    for (size_t i = 0, j = 0; i < orderSize; i++) {
-        if (orderSize > 4 && ieShape[i] == 1 && orderSize - i > 4 - j) {
-            reducedDims.push_back(orderIndices[i]);
-            continue;
+    std::vector<int64_t> permNDOrder(orderIndices.begin(), orderIndices.end());
+    std::vector<size_t> reducedDims;
+
+    // Try to reduce major dims above dim index > 4 if they are 1.
+    // If dim != 1 stop process
+    numbOfReducedDims = 0;
+    while (ieShape.size() > 4) {
+        const auto firstTrivialDimIter = ieShape.begin();
+        if (*firstTrivialDimIter == 1) {
+            // Store information about what indexes where removed from order indicies
+            // to later properly update permutation values
+            reducedDims.push_back(orderIndices[numbOfReducedDims]);
+            ieShape.erase(firstTrivialDimIter);
+            numbOfReducedDims++;
+        } else {
+            break;
         }
-        newIEShape.push_back(ieShape[i]);
-        permNDOrder.push_back(orderIndices[i]);
-        j++;
     }
-    IE_ASSERT(newIEShape.size() == permNDOrder.size());
+    // Remove part of permutation vector to align with dim reduction
+    permNDOrder.erase(permNDOrder.begin(), permNDOrder.begin() + numbOfReducedDims);
+
+    IE_ASSERT(ieShape.size() == permNDOrder.size());
+    // Update permutation indicies based on information what was removed
+    // as part of dimension reduction so that they do not refer to dimension
+    // which is no longer present
     for (int64_t dim: reducedDims) {
         for (int64_t &orderElm: permNDOrder) {
             if (orderElm > dim) {
@@ -959,10 +972,10 @@ void convert(std::shared_ptr<ngraph::op::v1::Transpose> permute, mv::OpModel& mc
         }
     }
 
-    const auto ieLayout = ie::TensorDesc::getLayoutByDims(newIEShape);
+    const auto ieLayout = ie::TensorDesc::getLayoutByDims(ieShape);
     std::string newOrder;
-    for (size_t i = 0; i < newIEShape.size(); i++){
-        newOrder += getDimLabel(permNDOrder[newIEShape.size() - 1 - i], ieLayout);
+    for (size_t i = 0; i < ieShape.size(); i++){
+        newOrder += getDimLabel(permNDOrder[ieShape.size() - 1 - i], ieLayout);
     }
 
     for (size_t i = 1; i < mcmInputs.size(); i++) {
