@@ -77,6 +77,18 @@ class VPUIP_UPATaskOp<int numResult, string mnemonic, list<OpTrait> traits = []>
             )
         >;
 
+class VPUIP_ACTShaveTaskOp<int numResult, string mnemonic, list<OpTrait> traits = []> :
+        VPUIP_TaskOp<
+            numResult,
+            mnemonic,
+            !listconcat(
+                traits,
+            [
+                DeclareOpInterfaceMethods<VPUIP_ACTShaveTaskOpInterface>
+            ]
+        )
+>;
+
 //
 // GraphOp
 //
@@ -2492,6 +2504,67 @@ def VPUIP_LSTMCellUPAOp :
         `->` type(results)
     }];
 }
+
+
+//
+// ACTShaveTaskOp
+//
+
+def VPUIP_ACTShaveTaskOp :
+        VPUIP_Op<"ACTShaveTaskOp",
+            [
+                AttrSizedOperandSegments,
+                MemoryEffectsOpInterface,
+                ViewLikeOpInterface,
+                DeclareOpInterfaceMethods<RTLayerInterface>,
+                DeclareOpInterfaceMethods<VPUIP_TaskOpInterface>,
+                DeclareOpInterfaceMethods<VPUIP_ACTShaveTaskOpInterface>,
+            ]
+        > {
+    let summary = "Activation Shave kernel";
+
+    let arguments = (ins
+        Variadic<AnyMemRef>:$inputs,
+        Variadic<AnyMemRef>:$outputs,
+
+        Variadic<VPUIP_Barrier>:$waitBarriers,
+        Variadic<VPUIP_Barrier>:$updateBarriers,
+
+        SymbolRefAttr:$kernel,
+        I64ArrayAttr:$outers,
+        I64ArrayAttr:$middles,
+        ArrayAttr:$inits,
+//        VPUIP_EdslDMADescArrayAttr:$transfers,
+
+        OptionalAttr<I32Attr>:$maxShaves
+    );
+
+    let results = (outs Variadic<AnyMemRef>:$results);
+
+    let builders = [
+        OpBuilder<
+            (ins
+                "mlir::ValueRange":$inputs,
+                "mlir::ValueRange":$outputs,
+                "::mlir::SymbolRefAttr":$kernel,
+                "::mlir::ArrayAttr":$outers,
+                "::mlir::ArrayAttr":$middles,
+                "::mlir::ArrayAttr":$inits
+                //"::mlir::ArrayAttr":$transfers
+            )
+        >
+    ];
+
+    let assemblyFormat = [{
+        attr-dict
+        (`inputs` `(` $inputs^ `:` type($inputs) `)`)?
+        (`outputs` `(` $outputs^ `:` type($outputs) `)`)?
+        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+        `->` type(results)
+    }];
+}
+
 
 //
 // LSTMSequenceUPAOp

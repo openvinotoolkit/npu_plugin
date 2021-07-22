@@ -43,6 +43,21 @@ mlir::Attribute getPhysicalProcessor(uint32_t& numUnits, mlir::Operation* op, VP
 mlir::Attribute getTaskOpExecutor(mlir::Operation* op, uint32_t& numUnits);
 
 //
+// verifyActShaveTask
+//
+
+mlir::LogicalResult verifyACTShaveTask(mlir::Operation* op);
+
+//
+// getTaskEffects
+//
+
+using MemoryEffect = mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>;
+
+void getTaskEffects(mlir::Operation* op, SmallVectorImpl<MemoryEffect>& effects);
+
+
+//
 // UPATaskOpInterface
 //
 
