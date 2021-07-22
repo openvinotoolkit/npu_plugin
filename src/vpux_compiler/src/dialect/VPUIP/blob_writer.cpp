@@ -80,6 +80,45 @@ VPUIP::BlobWriter::Task vpux::VPUIP::BlobWriter::createTask(mlir::Operation* op)
     return off;
 }
 
+VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createACTShaveTask(mlir::Operation* op,
+                                                                            const ActShaveTaskParams& params) {
+    VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in createACTShaveTask");
+
+    auto layer = mlir::dyn_cast<RTLayerInterface>(op);
+    VPUX_THROW_UNLESS(layer != nullptr, "Operation '{0}' is not a RT Layer", op->getName());
+
+    auto upaTask = mlir::dyn_cast<VPUIP::ACTShaveTaskOpInterface>(op);
+    VPUX_THROW_UNLESS(upaTask != nullptr, "Operation '{0}' is not a ACTShave Task", op->getName());
+
+    const auto getTensorCb = [this](mlir::Value val) {
+      return getTensor(val);
+    };
+
+    const auto inputs = createVector(layer.getInputs() | transformed(getTensorCb));
+    const auto outputs = createVector(layer.getOutputs() | transformed(getTensorCb));
+
+    MVCNN::ActKernelBuilder kernelbuilder(_impl);
+    kernelbuilder.add_kernelData(params.obj);
+    kernelbuilder.add_type(params.type);
+    kernelbuilder.add_kernelEntry(0);
+
+
+    MVCNN::ActKernelInvocationBuilder invocationBuilder(_impl);
+    //invocationBuilder.add_kernelArgs()
+    //invocationBuilder.add_dataSection()
+
+    std::vector<flatbuffers::Offset<MVCNN::ActKernelInvocation>> invocations_v1 = {invocationBuilder.Finish()};
+
+    auto invocations_v2 = _impl.CreateVector(invocations_v1);
+
+    MVCNN::ActKernelTaskBuilder builder(_impl);
+
+    builder.add_kernel(kernelbuilder.Finish());
+    builder.add_invocations(invocations_v2);
+
+    return {builder.Finish().Union(), MVCNN::SpecificTask_ActKernelTask};
+}
+
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createUPALayerTask(mlir::Operation* op,
                                                                             const SoftwareLayerParams& params) {
     VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in createUPALayerTask");
