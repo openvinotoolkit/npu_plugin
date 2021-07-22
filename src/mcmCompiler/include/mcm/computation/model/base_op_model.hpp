@@ -41,6 +41,7 @@ namespace mv
         void setNumNetworkOutputs(size_t numOutputs);
         void setOutputNode(Data::OpListIterator output);
         void replaceNetworkOutputAtIdx(std::size_t idx, mv::Data::OpListIterator op);
+        void addNetworkOutput(mv::Data::OpListIterator outputOp);
 
         std::vector<Data::OpListIterator> getNetworkInputs();
         mv::Data::OpListIterator getNetworkInput(std::size_t idx);
