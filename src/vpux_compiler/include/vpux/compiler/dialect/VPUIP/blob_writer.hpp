@@ -52,6 +52,12 @@ public:
         MVCNN::SoftwareLayerParams type;
     };
 
+    struct ActShaveTaskParams {
+        flatbuffers::Offset<MVCNN::KernelData> obj;
+        MVCNN::ActKernelType type;
+    };
+
+
     using TensorReference = flatbuffers::Offset<MVCNN::TensorReference>;
     using Barrier = flatbuffers::Offset<MVCNN::Barrier>;
 
@@ -73,6 +79,8 @@ public:
 
 public:
     SpecificTask createUPALayerTask(mlir::Operation* op, const SoftwareLayerParams& params);
+
+    SpecificTask createACTShaveTask(mlir::Operation* op, const ActShaveTaskParams& params);
 
 public:
     TensorReference createTensor(StringRef name, mlir::ShapedType type, MemoryLocation locale,
