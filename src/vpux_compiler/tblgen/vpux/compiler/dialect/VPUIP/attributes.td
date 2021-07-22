@@ -123,6 +123,7 @@ def VPUIP_TaskType :
                 StrEnumAttrCase<"NCE2">,
                 StrEnumAttrCase<"Controller">,
                 StrEnumAttrCase<"UPA">,
+                StrEnumAttrCase<"ACTShave">,
                 StrEnumAttrCase<"SNN">,
                 StrEnumAttrCase<"Generic">,
             ]
