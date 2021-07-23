@@ -46,8 +46,7 @@ BlobVector refConv(const TestNetwork::NodePtr& layer, const BlobVector& inputs, 
     ngraph::runtime::reference::convolution(
         inputPtr, weightsPtr, outputPtr,
         layer->input(0).get_shape(), layer->input(1).get_shape(), layer->output(0).get_shape(),
-        convLayer->get_strides(), convLayer->get_dilations(), convLayer->get_pads_begin(), convLayer->get_pads_end(),
-        ngraph::Strides {1, 1});
+        convLayer->get_strides(), convLayer->get_dilations(), convLayer->get_pads_begin(), convLayer->get_pads_end());
 
     return {output};
 };
