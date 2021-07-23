@@ -71,10 +71,9 @@ BlobVector refDeconv(const TestNetwork::NodePtr& layer, const BlobVector& inputs
             {unsigned(deconvLayer->get_pads_begin()[0] + deconvLayer->get_strides()[0] / 2),
                 unsigned(deconvLayer->get_pads_begin()[1] + deconvLayer->get_strides()[1] / 2)},
             {unsigned(deconvLayer->get_pads_end()[0] + deconvLayer->get_strides()[0] / 2),
-                unsigned(deconvLayer->get_pads_end()[1] + deconvLayer->get_strides()[1] / 2)},
+                unsigned(deconvLayer->get_pads_end()[1] + deconvLayer->get_strides()[1] / 2)}
             // input dilation = 1 + k stride / 2
-            ngraph::Strides {unsigned(1 + deconvLayer->get_strides()[0] / 2),
-                unsigned(1 + deconvLayer->get_strides()[1] / 2)});
+            );
     }
 
     return {output};
