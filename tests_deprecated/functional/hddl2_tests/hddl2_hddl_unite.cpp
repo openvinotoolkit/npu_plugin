@@ -366,7 +366,6 @@ TEST_F(
 TEST_F(HddlUnite_BlobDescr_LocalMemory_Output, DISABLED_CreatedOutputBlobDesc_WillHaveSaveSizeAsProvided_CustomSize) {
     HddlUnite_Graph_Helper graphHelper;
     const int isInput = false;
-
     const bool isRemoteMem = false;
     const bool needAllocate = true;
 
