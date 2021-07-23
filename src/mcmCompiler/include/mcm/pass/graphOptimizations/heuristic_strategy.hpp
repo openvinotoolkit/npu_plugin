@@ -92,6 +92,7 @@ class HeuristicGraphOptimizer : public LogSender
     bool isRemoveableSpill(mv::Data::OpListIterator opIt);
     bool isCMXable(mv::Data::OpListIterator opIt, StrategySet& strategy, bool isInput);
     bool hasGreedySOK(mv::Data::OpListIterator opIt);
+    bool isGreedyEligible(mv::Data::OpListIterator opIt);
     void doSingleRollback(mv::Data::OpListIterator opIt);
     bool checkMultipleInputOp(mv::Data::OpListIterator opIt);
     bool forceRollback(mv::Data::OpListIterator opIt);

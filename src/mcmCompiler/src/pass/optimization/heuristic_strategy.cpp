@@ -1113,6 +1113,17 @@ bool HeuristicGraphOptimizer::hasGreedySOK(mv::Data::OpListIterator opIt)
     return false;
 }
 
+//Note: make sure that all the children are K compatible 
+bool HeuristicGraphOptimizer::isGreedyEligible(mv::Data::OpListIterator opIt)
+{
+    for (auto child = opIt.leftmostChild(); child != model_.opEnd(); ++child)
+    {
+        if (!isKCompatible(child))
+            return false;
+    }
+    return true;
+}
+
 void HeuristicGraphOptimizer::doSingleRollback(mv::Data::OpListIterator opIt)
 {
     findKCompatible(opIt, true, true);
@@ -1207,6 +1218,8 @@ bool HeuristicGraphOptimizer::forceRollback(mv::Data::OpListIterator opIt)
     bool opKCompatible = isKCompatible(opIt);
 
     auto strategy = bestStrategies_.at(opIt->getName());
+    bool childExpectsFullInput = false;
+    bool childExpectsSlicedInput = false;
     bool opHK = isHK(opIt);
 
     // Check K-compatability for this op and all children matches
@@ -1236,11 +1249,20 @@ bool HeuristicGraphOptimizer::forceRollback(mv::Data::OpListIterator opIt)
                 && (!strategy["spilling"].get<bool>() || !childStrategy["parentSpilling"].get<bool>()))
                     return true;
         }
+        if (isKCompatible(child))
+            childExpectsFullInput = true;
+        else
+            childExpectsSlicedInput = true;
 
         // HK -> HK disallowed
         if(opHK && isHK(child))
             return true;
     }
+
+    // check if all children expect the same type of input
+    // split input or full input (H vs K compat)
+    if (childExpectsFullInput && childExpectsSlicedInput)
+        return true;
 
     return false;
 }
@@ -1417,7 +1439,7 @@ void HeuristicGraphOptimizer::chooseRollbackOrSpill()
         if(!opIt->hasAttr("StrategySet")) continue;
         // std::cout <<std::endl<< "Processing op: " << opIt->getName() << std::endl;
         // Iff the spill is caused by strategy shift only (not CMX related, etc)
-        if(isRemoveableSpill(opIt) && hasGreedySOK(opIt))
+        if(isRemoveableSpill(opIt) && hasGreedySOK(opIt) && isGreedyEligible(opIt))
         {
             // This op was actually better in SOK, just got SOH b/c heuristic
             doSingleRollback(opIt);
@@ -1655,8 +1677,6 @@ void HeuristicGraphOptimizer::alignAndValidateSpecialOps()
             if(sink->hasAttr("supportsCM") && sink->get<bool>("supportsCM") &&
                 sinkClustering == "SplitOverH")
                 assignBestStrategyOfType(input, "SplitOverHOverlapped");
-            else if(sinkClustering == "SplitOverH")
-                assignBestStrategyOfType(input, "Clustering");
             else if(inputClustering != sinkClustering)
                 assignBestStrategyOfType(input, sinkClustering);
         }
