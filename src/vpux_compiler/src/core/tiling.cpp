@@ -399,6 +399,10 @@ PoolTileConfig vpux::backInferPoolTile(IERT::MaxPoolOp origOp, const Tile& outpu
     return {inputTile, {padsBegin, padsEnd}};
 }
 
+EltwiseTileConfig vpux::backInferEltwiseAddTile(const Tile& outputTile) {
+    return EltwiseTileConfig{outputTile};
+}
+
 ConvTileConfig vpux::backInferGroupConvTile(IERT::GroupConvolutionOp origOp, const Tile& outputTile) {
     const auto actChannelDim = IERT::ConvolutionOp::act_channel_dim();
     const auto actHeightDim = IERT::ConvolutionOp::act_height_dim();
