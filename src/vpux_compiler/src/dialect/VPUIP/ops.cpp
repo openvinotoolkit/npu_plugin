@@ -59,16 +59,8 @@ bool LayerInfo::isSupportedPostProcessing(mlir::Operation* origOp, mlir::Operati
     return llvm::TypeSwitch<mlir::Operation*, bool>(origOp)  //
             HW_OPS_CASE(IE::ConvolutionOp)                   //
     HW_OPS_CASE(IE::MaxPoolOp)                               //
-    .Case<IE::GroupConvolutionOp>([&](IE::GroupConvolutionOp op) {
-        if (compileMode == VPUIP::CompilationMode::ReferenceSW) {
-            return false;
-        }
-        // It is required to check that depthwise convolution channels are aligned.
-        // Otherwise, post-ops are getting fused into depthwise convolution.
-        // But then verifyChannels fails, so depthwise convolution doesn't go to DPU and post-ops are lost.
-        // [Track number: E#16751]
-        return VPUIP::NCEInvariant::verifyKernel(op).succeeded() && VPUIP::NCEInvariant::verifyChannels(op).succeeded();
-    }).Default([](mlir::Operation*) {
+    HW_OPS_CASE(IE::GroupConvolutionOp)                      //
+    .Default([](mlir::Operation*) {
         return false;
     });
 
@@ -94,6 +86,7 @@ bool LayerInfo::needToExpandChannels(mlir::Operation* origOp) const {
             HW_OPS_CASE(IE::ConvolutionOp)                   //
     HW_OPS_CASE(IE::MaxPoolOp)                               //
     HW_OPS_CASE(IE::AddOp)                                   //
+    HW_OPS_CASE(IE::GroupConvolutionOp)                      //
     .Default([](mlir::Operation*) {
         return false;
     });

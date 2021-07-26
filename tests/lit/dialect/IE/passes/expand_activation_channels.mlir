@@ -56,3 +56,23 @@ func @ExpandEltwiseAddChannels(%arg0: tensor<1x3x30x25xf16>, %arg1: tensor<1x3x3
   return %0 : tensor<1x3x30x25xf16>
   // CHECK        return %[[OUT]]
 }
+
+// CHECK-LABEL: @ExpandGroupConvolutionChannels
+func @ExpandGroupConvolutionChannels(%arg0: tensor<1x72x56x56xf16>) -> tensor<1x72x28x28xf16> {
+  %0 = const.Declare tensor<72x1x3x3xf16> = #const.Content<dense<1.0> : tensor<72x1x3x3xf16>>
+  %1 = const.Declare tensor<1x72x1x1xf16> = #const.Content<dense<1.0> : tensor<1x72x1x1xf16>>
+
+  // CHECK:       %[[EXTENDED_GROUP:.*]] = const.Declare tensor<1x80x1x1xf16> = 
+  // CHECK-SAME:      #const.Content<dense<1.000000e+00> : tensor<1x72x1x1xf16>, [#const.PadWithZero<[0, 0, 0, 0], [0, 8, 0, 0]>]>
+  // CHECK:       %[[EXTENDED_FILTER:.*]] = const.Declare tensor<80x1x3x3xf16> =
+  // CHECK-SAME:      #const.Content<dense<1.000000e+00> : tensor<72x1x3x3xf16>, [#const.PadWithZero<[0, 0, 0, 0], [8, 0, 0, 0]>]> 
+
+  // CHECK:       %[[EXTENDED_INPUT:.*]] = IE.Expand(%arg0) 
+
+  %2 = IE.GroupConvolution(%arg0, %0, %1) {dilations = [1 : i32, 1 : i32], groups = 72 : i32, pads_begin = [0 : i32, 0 : i32], pads_end = [1 : i32, 1 : i32], strides = [2 : i32, 2 : i32]} : tensor<1x72x56x56xf16>, tensor<72x1x3x3xf16>, tensor<1x72x1x1xf16> -> tensor<1x72x28x28xf16>
+  // CHECK:       %[[EXTENDED_CONV:.*]] = IE.GroupConvolution(%[[EXTENDED_INPUT]], %[[EXTENDED_FILTER]], %[[EXTENDED_GROUP]])
+  // CHECK:       %[[REDUNDRANT_SUBTENSOR:.*]] = tensor.extract_slice %[[EXTENDED_CONV]]
+
+  return %2 : tensor<1x72x28x28xf16>
+  // CHECK        return %[[REDUNDRANT_SUBTENSOR]]
+}
