@@ -99,6 +99,7 @@ class HeuristicGraphOptimizer : public LogSender
     bool assignBestStrategyOfType(mv::Data::OpListIterator opIt, std::string clusteringStrategy);
     bool hasLayerWorkaroundAvoidPipeline(mv::Data::OpListIterator opIt, StrategySet& strategy);
     bool hasLayerWorkaroundAvoidStrategy(mv::Data::OpListIterator opIt, StrategySet& strategy);
+    bool strategyChangeRequiresSpill(mv::Data::OpListIterator& opIt, mv::Data::OpListIterator& pIt);
     double findBestStrategyOfLocation(mv::Data::OpListIterator opIt, bool doAssignment, bool inputDDR, bool lockOutput, bool outputDDR, bool lockClustering, std::string clustering);
 };
 

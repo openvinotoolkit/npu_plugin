@@ -1747,6 +1747,11 @@ double HeuristicGraphOptimizer::findBestStrategyOfLocation(mv::Data::OpListItera
     return bestCost;
 }
 
+bool HeuristicGraphOptimizer::strategyChangeRequiresSpill(mv::Data::OpListIterator& opIt, mv::Data::OpListIterator& pIt)
+{
+    return isKCompatible(opIt, false) != isKCompatible(pIt, true) && pIt->getOpType() != "Input";
+}
+
 void HeuristicGraphOptimizer::verifySpillStrategies(bool lockClusteringStrategy = false)
 {
     mv::DataModel dm(model_);
@@ -1766,64 +1771,52 @@ void HeuristicGraphOptimizer::verifySpillStrategies(bool lockClusteringStrategy 
                                                     opStrategy["clustering"].get<std::string>()); // if can take input cmx, find cost
 
         bool foundCMXinput = false;
+        bool strategyRequiresSpill = false;
         for(auto inputTensor : inputTensors)
         {
             auto inputOp = model_.getSourceOp(inputTensor);
             if(!inputOp->hasAttr("StrategySet") || opIt->getOpType() == "Concat") continue;
-
             auto parentStrategy = bestStrategies_.at(inputOp->getName());
-            if(!parentStrategy["spilling"].get<bool>()) //input in CMX, mismatch found
+            bool parentSpilling = parentStrategy["spilling"].get<bool>();
+            //Check for required spill due to strategy change
+            if (strategyChangeRequiresSpill(opIt, inputOp))
+            {
+                strategyRequiresSpill = true;
+                parentSpilling = true;
+            }
+            if(!parentSpilling) //input in CMX, mismatch found
             {    
                 foundCMXinput = true;
-                ddrCost += findBestStrategyOfLocation(inputOp, false, parentStrategy["parentSpilling"].get<bool>(), true, true, 
+                ddrCost += findBestStrategyOfLocation(inputOp, false, parentSpilling, true, true, 
                                                         lockClusteringStrategy, parentStrategy["clustering"].get<std::string>());
                 cmxCost += parentStrategy["cost"].get<double>();
             }
             else
             {
                 ddrCost += parentStrategy["cost"].get<double>(); // this input won't need to change, same as current
-                auto cost = findBestStrategyOfLocation(inputOp, false, parentStrategy["parentSpilling"].get<bool>(), true, false, 
+                auto cost = findBestStrategyOfLocation(inputOp, false, parentSpilling, true, false, 
                                                         lockClusteringStrategy, parentStrategy["clustering"].get<std::string>());
                 if(cost < COST_MAX)
                     cmxCost += cost; //If this input could provide cmx input, use, but not required if it didn't exist
             }
             
         }
-        if(foundCMXinput)
+        if(foundCMXinput || strategyRequiresSpill)
         {
-            if(cmxCost < ddrCost)
+            bool inputDDR = cmxCost > ddrCost;
+            findBestStrategyOfLocation(opIt, true, inputDDR, false, 
+                                            opStrategy["spilling"].get<bool>(), 
+                                            lockClusteringStrategy, 
+                                            opStrategy["clustering"].get<std::string>() ); //This op takes CMX input, can spill or not
+            for(auto inputTensor : inputTensors)
             {
-                //Try to CMX this tensor
-                findBestStrategyOfLocation(opIt, true, false, false, 
-                                                opStrategy["spilling"].get<bool>(), 
-                                                lockClusteringStrategy, 
-                                                opStrategy["clustering"].get<std::string>() ); //This op takes CMX input, can spill or not
-                for(auto inputTensor : inputTensors)
-                {
-                    auto inputOp = model_.getSourceOp(inputTensor);
-                    if(!inputOp->hasAttr("StrategySet") || opIt->getOpType() == "Concat") continue;
-                    auto parentStrategy = bestStrategies_.at(inputOp->getName());
-                    //For each input, get the best spill=false strategy (lock parent spilling)
-                    findBestStrategyOfLocation(inputOp, true, parentStrategy["parentSpilling"].get<bool>(), true, false,
-                                                lockClusteringStrategy, parentStrategy["clustering"].get<std::string>());
-                }
-            }
-            else
-            {
-                //DDR this tensor
-                findBestStrategyOfLocation(opIt, true, true, false,
-                                                opStrategy["spilling"].get<bool>(), 
-                                                lockClusteringStrategy, 
-                                                opStrategy["clustering"].get<std::string>()); //This op takes DDR input, can spill or not
-                for(auto inputTensor : inputTensors)
-                {
-                    auto inputOp = model_.getSourceOp(inputTensor);
-                    if(!inputOp->hasAttr("StrategySet") || opIt->getOpType() == "Concat") continue;
-                    auto parentStrategy = bestStrategies_.at(inputOp->getName());
-                    //For each input, get the best spill=false strategy (lock parent spilling)
-                    findBestStrategyOfLocation(inputOp, true, parentStrategy["parentSpilling"].get<bool>(), true, true,
-                                                lockClusteringStrategy, parentStrategy["clustering"].get<std::string>());
-                }
+                auto inputOp = model_.getSourceOp(inputTensor);
+                if(!inputOp->hasAttr("StrategySet") || opIt->getOpType() == "Concat") continue;
+                auto parentStrategy = bestStrategies_.at(inputOp->getName());
+                strategyRequiresSpill = strategyChangeRequiresSpill(opIt, inputOp);
+                //For each input, get the best spill=false strategy (lock parent spilling)
+                findBestStrategyOfLocation(inputOp, true, (parentStrategy["parentSpilling"].get<bool>() || strategyRequiresSpill), true, inputDDR,
+                                            lockClusteringStrategy, parentStrategy["clustering"].get<std::string>());
             }
         }
     }
