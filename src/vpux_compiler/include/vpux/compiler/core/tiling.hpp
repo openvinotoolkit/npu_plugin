@@ -43,6 +43,10 @@ struct ConvTileConfig final {
     PadsTileConfig pads;
 };
 
+struct EltwiseTileConfig final {
+    Tile inputTile;
+};
+
 struct PoolTileConfig final {
     Tile inputTile;
     PadsTileConfig pads;
@@ -60,6 +64,8 @@ ConvTileConfig backInferConvTile(IERT::ConvolutionOp origOp, const Tile& outputT
 
 // TODO: Replace IERT::MaxPoolOp with Operation Interface
 PoolTileConfig backInferPoolTile(IERT::MaxPoolOp origOp, const Tile& outputTile);
+
+EltwiseTileConfig backInferEltwiseAddTile(const Tile& outputTile);
 
 // TODO: Replace IERT::GroupConvolutionOp with Operation Interface
 ConvTileConfig backInferGroupConvTile(IERT::GroupConvolutionOp origOp, const Tile& outputTile);
