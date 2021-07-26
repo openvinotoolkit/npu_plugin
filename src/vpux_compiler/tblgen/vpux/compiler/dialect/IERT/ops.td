@@ -1759,4 +1759,42 @@ def IERT_LSTMCellOp :
     }];
 }
 
+//
+// RegionYoloOp
+//
+
+def IERT_RegionYoloOp :
+        IERT_LayerOp<1, "RegionYolo",
+            [
+                ViewLikeOpInterface
+            ]
+        > {
+    let summary = "InferenceEngine run-time RegionYolo layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input,
+        MemRefOf<[F16, F32]>:$output_buff,
+
+        I32Attr:$coords,
+        I32Attr:$classes,
+        I32Attr:$regions,
+        BoolAttr:$do_softmax,
+        I64ArrayAttr:$mask,
+        I32Attr:$axis,
+        I32Attr:$end_axis,
+        F32ArrayAttr:$anchors
+    );
+
+    let results = (outs
+        MemRefOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
 #endif

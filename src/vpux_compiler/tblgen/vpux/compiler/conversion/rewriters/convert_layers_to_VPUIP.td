@@ -584,4 +584,20 @@ def RewriteInterpolate :
             (createInterpolateUPAOp $input, $output, $mode, $coord_mode, $nearest_mode, $antialias)
         >;
 
+//
+// IERT.RegionYolo -> VPUIP.RegionYoloUPA
+//
+
+def createRegionYoloUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::RegionYoloUPAOp>(
+                $_loc, $0, $1, $2, $3, $4, $5, $6)
+        }]>;
+
+def RewriteRegionYolo :
+        Pat<
+            (IERT_RegionYoloOp $input, $output, $coords, $classes, $regions, $do_softmax, $mask, $axis, $end_axis, $anchors),
+            (createRegionYoloUPAOp $input, $output, $coords, $classes, $regions, $do_softmax, $mask)
+        >;
+
 #endif

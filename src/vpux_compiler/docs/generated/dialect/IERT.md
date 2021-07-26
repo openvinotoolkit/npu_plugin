@@ -1312,6 +1312,47 @@ operation ::= `IERT.ReLU` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float or 32-bit float values
 
+### `IERT.RegionYolo` (vpux::IERT::RegionYoloOp)
+
+InferenceEngine run-time RegionYolo layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.RegionYolo` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`coords` | ::mlir::IntegerAttr | 32-bit signless integer attribute
+`classes` | ::mlir::IntegerAttr | 32-bit signless integer attribute
+`regions` | ::mlir::IntegerAttr | 32-bit signless integer attribute
+`do_softmax` | ::mlir::BoolAttr | bool attribute
+`mask` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`axis` | ::mlir::IntegerAttr | 32-bit signless integer attribute
+`end_axis` | ::mlir::IntegerAttr | 32-bit signless integer attribute
+`anchors` | ::mlir::ArrayAttr | 32-bit float array attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float or 32-bit float values
+`output_buff` | memref of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float or 32-bit float values
+
 ### `IERT.Reorder` (vpux::IERT::ReorderOp)
 
 InferenceEngine run-time Reorder layer

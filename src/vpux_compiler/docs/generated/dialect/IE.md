@@ -1330,7 +1330,7 @@ operation ::= `IE.RegionYolo` `(` operands `)` attr-dict `:` type(operands) `->`
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`coord` | ::mlir::IntegerAttr | 32-bit signless integer attribute
+`coords` | ::mlir::IntegerAttr | 32-bit signless integer attribute
 `classes` | ::mlir::IntegerAttr | 32-bit signless integer attribute
 `regions` | ::mlir::IntegerAttr | 32-bit signless integer attribute
 `do_softmax` | ::mlir::BoolAttr | bool attribute
