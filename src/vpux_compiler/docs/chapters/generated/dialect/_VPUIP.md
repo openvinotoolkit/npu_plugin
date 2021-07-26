@@ -25,6 +25,45 @@ It handles such VPU-specifics as:
 This object represents closely a Barrier in the device
 ## Operation definition
 
+### `VPUIP.ACTShaveTaskOp` (vpux::VPUIP::ACTShaveTaskOp)
+
+Activation Shave kernel
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.ACTShaveTaskOp` attr-dict
+              (`inputs` `(` $inputs^ `:` type($inputs) `)`)?
+              (`outputs` `(` $outputs^ `:` type($outputs) `)`)?
+              (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+              (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`kernel` | ::mlir::StringAttr | string attribute
+`maxShaves` | ::mlir::IntegerAttr | 32-bit signless integer attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`inputs` | memref of any type values
+`outputs` | memref of any type values
+`waitBarriers` | VPUIP Barrier Type
+`updateBarriers` | VPUIP Barrier Type
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`results` | memref of any type values
+
 ### `VPUIP.CTCGreedyDecoderSeqLenUPA` (vpux::VPUIP::CTCGreedyDecoderSeqLenUPAOp)
 
 CTCGreedyDecoderSeqLen UPA SHAVE kernel
