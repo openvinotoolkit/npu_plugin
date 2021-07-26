@@ -1123,7 +1123,7 @@ def IE_RegionYoloOp :
     let arguments = (ins
         4DTensorOf<[AnyFloat]>:$input,
 
-        I32Attr:$coord,
+        I32Attr:$coords,
         I32Attr:$classes,
         I32Attr:$regions,
         BoolAttr:$do_softmax,
