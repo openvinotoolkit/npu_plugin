@@ -33,6 +33,7 @@ include "mlir/Interfaces/SideEffectInterfaces.td"
 include "mlir/IR/OpAsmInterface.td"
 include "mlir/IR/RegionKindInterface.td"
 include "mlir/IR/SymbolInterfaces.td"
+include "mlir/IR/BuiltinAttributes.td"
 
 //
 // Base classes
@@ -2635,10 +2636,10 @@ def VPUIP_ACTShaveTaskOp :
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers,
 
-        SymbolRefAttr:$kernel,
-        I64ArrayAttr:$outers,
-        I64ArrayAttr:$middles,
-        ArrayAttr:$inits,
+        StrAttr:$kernel,
+//        I64ArrayAttr:$outers,
+//        I64ArrayAttr:$middles,
+//        ArrayAttr:$inits,
 //        VPUIP_EdslDMADescArrayAttr:$transfers,
 
         OptionalAttr<I32Attr>:$maxShaves
@@ -2651,10 +2652,10 @@ def VPUIP_ACTShaveTaskOp :
             (ins
                 "mlir::ValueRange":$inputs,
                 "mlir::ValueRange":$outputs,
-                "::mlir::SymbolRefAttr":$kernel,
-                "::mlir::ArrayAttr":$outers,
-                "::mlir::ArrayAttr":$middles,
-                "::mlir::ArrayAttr":$inits
+                "mlir::StringAttr":$kernel
+//                "::mlir::ArrayAttr":$outers,
+//                "::mlir::ArrayAttr":$middles,
+//                "::mlir::ArrayAttr":$inits
                 //"::mlir::ArrayAttr":$transfers
             )
         >

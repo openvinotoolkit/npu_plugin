@@ -29,10 +29,9 @@ namespace VPUIP {
 
 VPUIP::BlobWriter::SpecificTask ACTShaveTaskOp::serialize(VPUIP::BlobWriter& writer) {
     // Kernel binary
-    SymbolRefAttr kernelRef = kernel();
-    auto module = (*this)->getParentOfType<ModuleOp>();
-    auto func = module.lookupSymbol<FuncOp>(kernelRef);
-    VPUX_THROW_UNLESS(func != nullptr, "Could not resolve kernel symbol reference '{0}'", kernelRef);
+    StringRef kernelRef = kernel();
+    VPUX_THROW_UNLESS(!kernelRef.empty(), "no kernel name provided");
+
     movitools::MoviCompileParams params = {
             /*cpu=*/"3010xx",
             /*moviCompile=*/"linux64/bin/moviCompile",
@@ -52,7 +51,7 @@ VPUIP::BlobWriter::SpecificTask ACTShaveTaskOp::serialize(VPUIP::BlobWriter& wri
 
     //    const auto axisDim = getAxisDim();
 
-    flatbuffers::Offset<MVCNN::BinaryData> elfBinary = generateKernelForACTShave(func, params, writer);
+    flatbuffers::Offset<MVCNN::BinaryData> elfBinary = generateKernelForACTShave(kernelRef, params, writer);
 
 
     // TODO: figure out current approach seems based on some structure
