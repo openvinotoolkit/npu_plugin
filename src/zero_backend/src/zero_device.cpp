@@ -26,7 +26,7 @@ std::shared_ptr<Allocator> ZeroDevice::getAllocator() const {
 std::shared_ptr<Executor> ZeroDevice::createExecutor(const NetworkDescription::Ptr& networkDescription,
                                                      const VPUXConfig& config) {
     return std::make_shared<ZeroExecutor>(_driver_handle, _device_handle, _context, _graph_ddi_table_ext,
-                                          _fence_ddi_table_ext, networkDescription, config);
+                                          networkDescription, config);
 }
 
 std::string ZeroDevice::getName() const {

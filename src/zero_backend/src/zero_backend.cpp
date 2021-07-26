@@ -34,7 +34,6 @@ class ZeroDevicesSingleton {
         ze_context_handle_t context = nullptr;
 
         ze_graph_dditable_ext_t* _graph_ddi_table_ext = nullptr;
-        ze_fence_dditable_ext_t* _fence_ddi_table_ext = nullptr;
 
         uint32_t drivers = 0;
         if (ZE_RESULT_SUCCESS != zeDriverGet(&drivers, nullptr)) {
@@ -61,13 +60,6 @@ class ZeroDevicesSingleton {
             return;
         }
 
-        // Load our fence extension
-        if (ZE_RESULT_SUCCESS != zeDriverGetExtensionFunctionAddress(driver_handle, "ZE_extension_fence",
-                                                                     reinterpret_cast<void**>(&_fence_ddi_table_ext))) {
-            std::cerr << "ZeroDevicesSingleton zeDriverGetExtensionFunctionAddress failed\n";
-            return;
-        }
-
         uint32_t device_count = 1;
         // Get our target device
         if (ZE_RESULT_SUCCESS != zeDeviceGet(driver_handle, &device_count, &device_handle)) {
@@ -82,8 +74,7 @@ class ZeroDevicesSingleton {
             return;
         }
 
-        auto device = std::make_shared<ZeroDevice>(driver_handle, device_handle, context, _graph_ddi_table_ext,
-                                                   _fence_ddi_table_ext);
+        auto device = std::make_shared<ZeroDevice>(driver_handle, device_handle, context, _graph_ddi_table_ext);
         devices.emplace(std::make_pair(device->getName(), device));
     }
 
