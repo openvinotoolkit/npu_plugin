@@ -90,7 +90,7 @@ static void makeLinkerScript(StringRef searchDir, StringRef input, StringRef out
 }
 
 
-static void compileAndLinkSHAVE(StringRef cSourceCode, const movitools::MoviCompileParams& params, StringRef name,
+static void compileAndLinkSHAVE(const movitools::MoviCompileParams& params, StringRef name,
                                 std::vector<uint8_t>& elfBinary) {
    // IVLOG(1, "Kernel C source code:\n" << cSourceCode.str());
 
@@ -98,7 +98,7 @@ static void compileAndLinkSHAVE(StringRef cSourceCode, const movitools::MoviComp
     //IVLOG(1, "MV_TOOLS_DIR = " << mvToolsDir);
 
     std::string genDir = ".";
-    auto KERNEL_GENDIR = llvm::sys::Process::GetEnv("KERNEL_GENDIR");
+    auto KERNEL_GENDIR = llvm::sys::Process::GetEnv("KERNEL_DIR");
     if (KERNEL_GENDIR) {
         genDir = *KERNEL_GENDIR;
     }
@@ -106,20 +106,18 @@ static void compileAndLinkSHAVE(StringRef cSourceCode, const movitools::MoviComp
     // Generate linker script
     std::string srcName = name.str();
     SmallString<128> srcPath(genDir);
-    sys::path::append(srcPath, srcName + ".c");
-    SmallString<128> objPath(genDir);
-    sys::path::append(objPath, srcName + ".o");
+    sys::path::append(srcPath, srcName);
+    sys::path::append(srcPath, "src");
+    sys::path::append(srcPath, srcName + "_fp16.c");
 
-    auto MANUAL_SRC = llvm::sys::Process::GetEnv("MANUAL_SRC");
-    if (!MANUAL_SRC) {
-        std::string err;
-        auto srcFile = mlir::openOutputFile(srcPath, &err);
-        if (!err.empty()) {
-            VPUX_THROW("Failed to create C source file: {0}", err);
-        }
-        srcFile->os() << cSourceCode;
-        srcFile->keep();
-    }
+    SmallString<128> incPath(genDir);
+    sys::path::append(incPath, "common");
+    sys::path::append(incPath, "inc");
+
+    SmallString<128> objPath(genDir);
+    sys::path::append(objPath, "common");
+    sys::path::append(objPath, "build");
+    sys::path::append(objPath, srcName + ".o");
 
     SmallString<128> searchDir(mvToolsDir);
     sys::path::append(searchDir, params.mdkLibDir);
@@ -131,12 +129,13 @@ static void compileAndLinkSHAVE(StringRef cSourceCode, const movitools::MoviComp
 
     SmallString<128> moviCompile(mvToolsDir);
     sys::path::append(moviCompile, params.moviCompile);
-    auto compileCmd = formatv("cd {5}; {0} -mcpu={1} -O3 -c {2} -o {3} -I {4} --save-temps", moviCompile, params.cpu,
-                              srcPath, objPath, mvToolsDir, genDir)
+
+    auto compileCmd = formatv("cd {6}; {0} -mcpu={1} -O3 -c {2} -o {3} -I {4} -I {5} --save-temps", moviCompile, params.cpu,
+                              srcPath, objPath, mvToolsDir, incPath, genDir)
             .str();
     //IVLOG(1, compileCmd);
     if (std::system(compileCmd.c_str())) {
-        VPUX_THROW("moviCompile failed");
+        VPUX_THROW((std::string("moviCompile failed: ") + compileCmd).c_str());
     }
 
     SmallString<128> linker(mvToolsDir);
@@ -159,19 +158,16 @@ static void compileAndLinkSHAVE(StringRef cSourceCode, const movitools::MoviComp
     }
 }
 
-flatbuffers::Offset<MVCNN::BinaryData> generateKernelForACTShave(mlir::FuncOp func, const movitools::MoviCompileParams& params,
+flatbuffers::Offset<MVCNN::BinaryData> generateKernelForACTShave(mlir::StringRef funcName, const movitools::MoviCompileParams& params,
                                                               flatbuffers::FlatBufferBuilder& fbb) {
-    // Translate the module into C source code.
-    std::string src;
-    llvm::raw_string_ostream os(src);
-    auto module = func->getParentOfType<mlir::ModuleOp>();
+    //auto module = func->getParentOfType<mlir::ModuleOp>();
     //if (translateSCFToC(module, func, os, func.getName()).failed()) {
       //  VPUX_THROW("Cannot generate C code from SCF.");
     //}
 
     // Use moviCompile to compile and link C source code into an ELF binary.
     std::vector<uint8_t> elfBinary;
-    compileAndLinkSHAVE(os.str(), params, func.getName(), elfBinary);
+    compileAndLinkSHAVE(params, funcName, elfBinary);
     return buildBinaryData(fbb, elfBinary);
 }
 
