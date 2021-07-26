@@ -293,6 +293,91 @@ mlir::LogicalResult EltwiseAddRewriter::matchAndRewrite(IE::AddOp origOp, mlir::
 }
 
 //
+// GroupConvolutionRewriter
+//
+
+class GroupConvolutionRewriter final : public mlir::OpRewritePattern<IE::GroupConvolutionOp> {
+public:
+    GroupConvolutionRewriter(mlir::MLIRContext* ctx, Logger log)
+            : mlir::OpRewritePattern<IE::GroupConvolutionOp>(ctx), _log(log) {
+        setDebugName("GroupConvolutionRewriter");
+    }
+
+    mlir::LogicalResult matchAndRewrite(IE::GroupConvolutionOp origOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult GroupConvolutionRewriter::matchAndRewrite(IE::GroupConvolutionOp origOp,
+                                                              mlir::PatternRewriter& rewriter) const {
+    _log.trace("[{0}] Got GroupConvolutionOp layer at '{1}'", getDebugName(), origOp->getLoc());
+
+    const auto opCreator = [&](mlir::Value expandedInput, int64_t outChanPadEnd) -> mlir::Operation* {
+        const auto filter_out_channel_dim = IE::GroupConvolutionOp::filter_out_channel_dim();
+        const auto act_channel_dim = IE::GroupConvolutionOp::act_channel_dim();
+
+        const auto filterShape = getShape(origOp.filter());
+
+        mlir::Value paddedFilter;
+
+        if (outChanPadEnd == 0) {
+            paddedFilter = origOp.filter();
+        } else {
+            const SmallVector<int64_t> filterPadsBegin(filterShape.size(), 0);
+
+            Shape filterPadsEnd(filterShape.size(), 0);
+            filterPadsEnd[filter_out_channel_dim] = outChanPadEnd;
+
+            const auto padValue = getFP32Attr(getContext(), 0.0f);
+
+            paddedFilter = rewriter.createOrFold<IE::PadOp>(origOp->getLoc(), origOp.filter(), nullptr, nullptr,
+                                                            nullptr, getInt32ArrayAttr(getContext(), filterPadsBegin),
+                                                            getInt32ArrayAttr(getContext(), filterPadsEnd.raw()),
+                                                            padValue, IE::PadMode::CONSTANT);
+        }
+
+        mlir::Value paddedBiases;
+
+        if (origOp.bias() != nullptr) {
+            if (outChanPadEnd == 0) {
+                paddedBiases = origOp.bias();
+            } else {
+                const auto biasShape = getShape(origOp.bias());
+
+                const SmallVector<uint32_t> biasPadsBegin(biasShape.size(), 0);
+
+                Shape biasPadsEnd(biasShape.size(), 0);
+                biasPadsEnd[act_channel_dim] = checked_cast<uint32_t>(outChanPadEnd);
+
+                const auto padValue = getFP32Attr(getContext(), 0.0f);
+
+                paddedBiases = rewriter.createOrFold<IE::PadOp>(origOp->getLoc(), origOp.bias(), nullptr, nullptr,
+                                                                nullptr, getInt32ArrayAttr(getContext(), biasPadsBegin),
+                                                                getInt32ArrayAttr(getContext(), biasPadsEnd.raw()),
+                                                                padValue, IE::PadMode::CONSTANT);
+            }
+        }
+
+        if (origOp.getType().getElementType().dyn_cast<mlir::quant::UniformQuantizedPerAxisType>() != nullptr) {
+            VPUX_THROW("Unsupported quantized type");
+        } else {
+            auto newConvOutShape = getShape(origOp.output()).toValues();
+            newConvOutShape[act_channel_dim] += outChanPadEnd;
+            auto newOutputType = origOp.getType().clone(newConvOutShape.raw());
+
+            return rewriter.create<IE::GroupConvolutionOp>(
+                    origOp.getLoc(), newOutputType, expandedInput, paddedFilter, paddedBiases, origOp.strides(),
+                    origOp.pads_begin(), origOp.pads_end(), origOp.dilations(),
+                    vpux::getInt32Attr(getContext(), static_cast<uint32_t>(newConvOutShape[act_channel_dim])),
+                    origOp.post_opAttr());
+        }
+    };
+
+    return generalRewrite(origOp, rewriter, opCreator, _log.nest());
+}
+
+//
 // ExpandActivationChannelsPass
 //
 
@@ -322,6 +407,7 @@ void ExpandActivationChannelsPass::safeRunOnFunc() {
     target.addDynamicallyLegalOp<IE::MaxPoolOp>(isLegal);
     target.addDynamicallyLegalOp<IE::ConvolutionOp>(isLegal);
     target.addDynamicallyLegalOp<IE::AddOp>(isLegal);
+    target.addDynamicallyLegalOp<IE::GroupConvolutionOp>(isLegal);
     target.addLegalOp<Const::DeclareOp>();
     target.addLegalOp<IE::ExpandOp, IE::PadOp>();
     target.addLegalOp<mlir::tensor::ExtractSliceOp>();
@@ -330,6 +416,7 @@ void ExpandActivationChannelsPass::safeRunOnFunc() {
     patterns.insert<MaxPoolRewriter>(&ctx, _log);
     patterns.insert<ConvolutionRewriter>(&ctx, _log);
     patterns.insert<EltwiseAddRewriter>(&ctx, _log);
+    patterns.insert<GroupConvolutionRewriter>(&ctx, _log);
 
     auto func = getFunction();
     if (mlir::failed(mlir::applyPartialConversion(func, target, std::move(patterns)))) {
