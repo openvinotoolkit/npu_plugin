@@ -30,7 +30,7 @@ namespace vpux {
 //static constexpr const uint8_t kDmaAfterMiddle = 0x8;
 //
 
-flatbuffers::Offset<MVCNN::BinaryData> generateKernelForACTShave(mlir::FuncOp func,
+flatbuffers::Offset<MVCNN::BinaryData> generateKernelForACTShave(mlir::StringRef funcName,
                                                                  const movitools::MoviCompileParams& params,
                                                                  flatbuffers::FlatBufferBuilder& fbb);
 
