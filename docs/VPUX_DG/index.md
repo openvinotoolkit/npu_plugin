@@ -193,6 +193,13 @@ If both `[id]` and `[platform]` are ommited, then behavior depends on a platform
 
 #### Specific config option
 
+The VPUX plugin supports the following private metrics:
+
+| Metric Name                         | Metric Type | Description                            |
+| :---                                | :---        | :---                                   |
+| `VPUX_METRIC_KEY(BACKEND_NAME)`     | std::string |  The name of used backend              |
+
+
 ### VPUAL Backend Developer Guide
 
 ### HDDL2 Backend Developer Guide

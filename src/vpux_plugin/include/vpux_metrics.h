@@ -37,6 +37,7 @@ public:
     const std::tuple<uint32_t, uint32_t, uint32_t>& GetRangeForAsyncInferRequest() const;
     const std::tuple<uint32_t, uint32_t>& GetRangeForStreams() const;
     std::string GetDeviceArchitecture(const std::string& specifiedDeviceName) const;
+    std::string GetBackendName() const;
 
     ~Metrics() = default;
 
