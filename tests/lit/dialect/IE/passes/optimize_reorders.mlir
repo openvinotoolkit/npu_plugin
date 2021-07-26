@@ -4,7 +4,7 @@
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @ReorderWithSubView
-module @ReorderWithSubView attributes {VPUIP.arch = "VPU3700", VPUIP.compilationMode = "ReferenceSW"} {
+module @ReorderWithSubView attributes {VPUIP.arch = "KMB", VPUIP.compilationMode = "ReferenceSW"} {
 
 // CHECK: func @main([[ARG0:%arg[0-9]+]]: tensor<1x8x4x2xf16>)
 func @main(%arg0: tensor<1x8x4x2xf16>) -> tensor<1x4x4x2xf16> {
@@ -26,7 +26,7 @@ func @main(%arg0: tensor<1x8x4x2xf16>) -> tensor<1x4x4x2xf16> {
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @ReorderWithExpand
-module @ReorderWithExpand attributes {VPUIP.arch = "VPU3700", VPUIP.compilationMode = "ReferenceSW"} {
+module @ReorderWithExpand attributes {VPUIP.arch = "KMB", VPUIP.compilationMode = "ReferenceSW"} {
 
 // CHECK: func @main([[ARG0:%arg[0-9]+]]: tensor<1x3x30x30xf16, {order = #NHWC}>)
 func @main(%arg0: tensor<1x3x30x30xf16, {order = #NHWC}>) -> tensor<1x3x15x13xf16, {order = #NHWC}> {
@@ -77,7 +77,7 @@ func @main(%arg0: tensor<1x3x30x30xf16, {order = #NHWC}>) -> tensor<1x3x15x13xf1
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @ReorderWithSplit
-module @ReorderWithSplit attributes {VPUIP.arch = "VPU3700", VPUIP.compilationMode = "ReferenceSW"} {
+module @ReorderWithSplit attributes {VPUIP.arch = "KMB", VPUIP.compilationMode = "ReferenceSW"} {
 
 // CHECK: func @main([[ARG0:%arg[0-9]+]]: tensor<1x3x30x30xf16, {order = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>}>)
 func @main(%arg0: tensor<1x3x30x30xf16, {order = #NHWC}>) ->
@@ -113,7 +113,7 @@ func @main(%arg0: tensor<1x3x30x30xf16, {order = #NHWC}>) ->
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @ReorderWithConcat
-module @ReorderWithConcat attributes {VPUIP.arch = "VPU3700", VPUIP.compilationMode = "ReferenceSW"} {
+module @ReorderWithConcat attributes {VPUIP.arch = "KMB", VPUIP.compilationMode = "ReferenceSW"} {
 
 // CHECK:       func @main(
 // CHECK-SAME:      [[ARG0:%arg[0-9]+]]: tensor<1x1x30x30xf16, {order = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>}>,

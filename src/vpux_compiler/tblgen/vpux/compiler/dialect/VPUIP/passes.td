@@ -33,7 +33,7 @@ def SetCompileParams : PassBase<"set-compile-params", "vpux::ModulePass"> {
     let options = [
         Option<
             "archOpt", "vpu-arch",
-            "std::string", [{"VPU3700"}],
+            "std::string", [{"KMB"}],
             "VPU architecture to compile for"
         >,
         Option<

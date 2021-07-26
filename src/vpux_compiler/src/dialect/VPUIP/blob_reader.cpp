@@ -219,17 +219,15 @@ VPUIP::ArchKind BlobReader::parseDeviceRevision() {
     switch (header->device()) {
     case MVCNN::TargetDevice_KMB:
         switch (header->device_revision()) {
-        case MVCNN::TargetDeviceRevision::TargetDeviceRevision_A0:
-            return VPUIP::ArchKind::VPU3400_A0;
         case MVCNN::TargetDeviceRevision::TargetDeviceRevision_B0:
-            return VPUIP::ArchKind::VPU3400;
+            return VPUIP::ArchKind::KMB;
         default:
             VPUX_THROW("Unsupported KMB Revision '{0}'", header->device_revision());
         }
     case MVCNN::TargetDevice_TBH:
-        return VPUIP::ArchKind::VPU3900;
+        return VPUIP::ArchKind::TBH;
     case MVCNN::TargetDevice::TargetDevice_MTL:
-        return VPUIP::ArchKind::VPU3720;
+        return VPUIP::ArchKind::MTL;
     default:
         VPUX_THROW("Unsupported TargetDevice '{0}'", header->device());
     }

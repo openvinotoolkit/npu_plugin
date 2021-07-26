@@ -46,14 +46,14 @@ void vpux::VPUIP::setArch(mlir::ModuleOp module, ArchKind kind) {
     // Changed to 500 for Deblur AA compilation
     addMem(VPUIP::PhysicalMemory::DDR, 500_MB, 0.6, 8);
 
-    if (kind == VPUIP::ArchKind::VPU3900) {
+    if (kind == VPUIP::ArchKind::TBH) {
         addMem(VPUIP::PhysicalMemory::CSRAM, 24_MB, 0.85, 64);
     }
 
     // Run-time will use part of CMX to store DPU workload configuration.
     const Byte extraSpaceForWorkload = 128_KB;
 
-    if (kind == VPUIP::ArchKind::VPU3720) {
+    if (kind == VPUIP::ArchKind::MTL) {
         addMem(VPUIP::PhysicalMemory::CMX_NN, Byte(2_MB) - extraSpaceForWorkload, 1.0, 32);
     } else {
         addMem(VPUIP::PhysicalMemory::CMX_NN, Byte(1_MB) - extraSpaceForWorkload, 1.0, 32);
@@ -70,7 +70,7 @@ void vpux::VPUIP::setArch(mlir::ModuleOp module, ArchKind kind) {
     IERT::ExecutorResourceOp nceCluster;
 
     switch (kind) {
-    case VPUIP::ArchKind::VPU3720:
+    case VPUIP::ArchKind::MTL:
         resources.addExecutor(getDmaKind(DMAEngine::DMA_NN), 2);
 
         nceCluster = resources.addExecutor(getProcKind(PhysicalProcessor::NCE_Cluster), 1, true);
@@ -79,7 +79,7 @@ void vpux::VPUIP::setArch(mlir::ModuleOp module, ArchKind kind) {
         break;
 
     default:
-        if (kind == VPUIP::ArchKind::VPU3900) {
+        if (kind == VPUIP::ArchKind::TBH) {
             resources.addExecutor(getDmaKind(DMAEngine::DMA_NN), 2);
         } else {
             resources.addExecutor(getDmaKind(DMAEngine::DMA_NN), 1);

@@ -54,7 +54,7 @@ TEST(MLIR_VPUIP_LayerInfoInterface, GetExecutor) {
     ASSERT_TRUE(func != nullptr);
 
     mlir::PassManager pm(&ctx, mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(vpux::VPUIP::createSetCompileParamsPass(vpux::VPUIP::ArchKind::VPU3700,
+    pm.addPass(vpux::VPUIP::createSetCompileParamsPass(vpux::VPUIP::ArchKind::KMB,
                                                        vpux::VPUIP::CompilationMode::ReferenceSW));
 
     ASSERT_TRUE(mlir::succeeded(pm.run(module.get())));

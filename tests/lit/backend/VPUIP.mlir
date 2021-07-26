@@ -1,6 +1,6 @@
 // RUN: vpux-translate --export-VPUIP -o %t %s && flatc --raw-binary --json %vpuip_schema_file% -- %t && FileCheck %s --input-file %basename_t.json
 
-module @Test attributes {VPUIP.arch = "VPU3400_A0"} {
+module @Test attributes {VPUIP.arch = "KMB"} {
 
 IERT.RunTimeResources
     availableMemory : {

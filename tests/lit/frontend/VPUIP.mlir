@@ -423,7 +423,7 @@
   ]
 }
 
-// CHECK:   module @Test attributes {VPUIP.arch = "VPU3400"} {
+// CHECK:   module @Test attributes {VPUIP.arch = "KMB"} {
 
 // CHECK:   IERT.MemoryResource 524288000 bytes of "DDR" {VPUIP.bandwidth = 8 : i64, VPUIP.derateFactor = 6.000000e-01 : f64}
 // CHECK:   IERT.MemoryResource 917504 bytes of "CMX_NN" {VPUIP.bandwidth = 32 : i64, VPUIP.derateFactor = 1.000000e+00 : f64}

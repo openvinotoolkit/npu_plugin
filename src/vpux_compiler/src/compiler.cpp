@@ -76,17 +76,13 @@ LogLevel getLogLevel(const VPUXConfig& config) {
 
 VPUIP::ArchKind getArchKind(const VPUXConfig& config) {
     switch (config.platform()) {
-    case InferenceEngine::VPUXConfigParams::VPUXPlatform::AUTO:
-    case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3400_A0:
-        return VPUIP::ArchKind::VPU3400_A0;
     case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3400:
-        return VPUIP::ArchKind::VPU3400;
     case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3700:
-        return VPUIP::ArchKind::VPU3700;
+        return VPUIP::ArchKind::KMB;
     case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3900:
-        return VPUIP::ArchKind::VPU3900;
+        return VPUIP::ArchKind::TBH;
     case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3720:
-        return VPUIP::ArchKind::VPU3720;
+        return VPUIP::ArchKind::MTL;
     default:
         VPUX_THROW("Unsupported VPUX platform");
     }

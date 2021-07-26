@@ -1,4 +1,4 @@
-// RUN: vpux-opt --split-input-file --set-compile-params="vpu-arch=VPU3700 compilation-mode=ReferenceHW" --convert-to-nce-ops %s | FileCheck %s
+// RUN: vpux-opt --split-input-file --set-compile-params="vpu-arch=KMB compilation-mode=ReferenceHW" --convert-to-nce-ops %s | FileCheck %s
 
 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>

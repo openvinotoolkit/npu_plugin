@@ -1,4 +1,4 @@
-// RUN: vpux-opt --split-input-file --set-compile-params="vpu-arch=VPU3700" --reference-mode %s | FileCheck %s
+// RUN: vpux-opt --split-input-file --set-compile-params="vpu-arch=KMB" --reference-mode %s | FileCheck %s
 
 // CHECK-LABEL: @SingleLayer
 module @SingleLayer {

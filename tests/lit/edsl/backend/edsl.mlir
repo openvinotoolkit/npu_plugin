@@ -2,7 +2,7 @@
 
 #map = affine_map<(d0) -> (d0 * 8192)>
 
-module @EDSL attributes {VPUIP.arch = "VPU3400_A0"} {
+module @EDSL attributes {VPUIP.arch = "KMB"} {
 
 IERT.RunTimeResources
     availableMemory :  {

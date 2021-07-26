@@ -39,7 +39,7 @@ private:
     void safeRunOnModule() final;
 
 private:
-    VPUIP::ArchKind _arch = VPUIP::ArchKind::VPU3700;
+    VPUIP::ArchKind _arch = VPUIP::ArchKind::KMB;
     VPUIP::CompilationMode _compilationMode = VPUIP::CompilationMode::ReferenceSW;
 };
 

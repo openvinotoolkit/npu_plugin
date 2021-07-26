@@ -1,4 +1,4 @@
-// RUN: vpux-opt --split-input-file --set-compile-params="vpu-arch=VPU3400_A0" --static-allocation="memory-space=DDR" %s | FileCheck %s
+// RUN: vpux-opt --split-input-file --set-compile-params="vpu-arch=KMB" --static-allocation="memory-space=DDR" %s | FileCheck %s
 
 //
 // The 'static-allocation' pass:
