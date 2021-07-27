@@ -522,7 +522,11 @@ void mv::Tensor::setAddress(int64_t address)
         // Order assumed for unpopulated: Tensor - Storage Element - Sparsity Map
         // Order assumed for populated: Tensor (packed data) - Sparsity Map
         auto sparsitySize = sparsityMap_->getClusterSize();
-        sparsityMap_->setAddress(address + (tensorSize - sparsitySize));
+        //NOTE: if the tensor is fused, sparsity maps might take totally different addresses
+        if (hasAttr("sparsityMapAddress"))
+            sparsityMap_->setAddress(get<std::size_t>("sparsityMapAddress"));
+        else if (!hasAttr("fusedOffset"))
+            sparsityMap_->setAddress(address + (tensorSize - sparsitySize));
 
         if(!isPopulated())
         {
@@ -1661,6 +1665,46 @@ void mv::Tensor::splitAcrossClusters(std::vector<mv::Workload> workloads, bool s
 
         set<bool>("broadcasted", (!splitOverH || multicast));
     }
+}
+
+void mv::Tensor::splitFusedAcrossClusters(std::vector<mv::Shape> workloads)
+{
+
+    if (isPopulated())
+    {
+        size_t nOffset = 0UL;
+        for (std::size_t idx = 0; idx < workloads.size(); ++idx)
+        {
+            std::size_t unit = 1;
+            std::size_t batch_shape = 0;
+            batch_shape = workloads[idx][mv::IO_BATCH_DIMENSION];
+            mv::Shape newShape = { unit, unit, unit, batch_shape};
+            auto order = getOrder();
+
+            if ((hasAttr("splitStrategy") && this->get<std::string>("splitStrategy") == "SplitOverK"))
+            {
+                std::vector<mv::DataElement> splittedData(newShape.totalSize(), mv::DataElement(this->isDoubleType()));
+                for (size_t n = 0; n < newShape[3]; n++)
+                    for (size_t c = 0; c < newShape[2]; c++)
+                        for (size_t h = 0; h < newShape[1]; h++)
+                            for (size_t w = 0; w < newShape[0]; w++)
+                                splittedData[order.subToInd(newShape, {w, h, c, n})] = this->at({w , h, c, n+nOffset});
+                subTensors_.push_back(std::make_shared<mv::Tensor>(getName() + "sub" + std::to_string(idx),
+                    newShape, getDType(), order, splittedData));
+                nOffset += batch_shape;
+            }
+
+            std::vector<std::size_t> offset = {0 , 0,
+                0, idx * workloads[idx][mv::IO_BATCH_DIMENSION]};
+            subTensors_[idx]->set<std::vector<std::size_t>>("offset", offset);
+
+            if (hasAttr("quantParams"))
+                subTensors_[idx]->set<mv::QuantizationParams>("quantParams", get<mv::QuantizationParams>("quantParams"));
+        }
+    }
+
+    set<bool>("broadcasted", false);
+
 }
 
 void mv::Tensor::cleanSubtensors()

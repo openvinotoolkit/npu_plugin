@@ -1107,8 +1107,15 @@ std::unique_ptr<MVCNN::SummaryHeaderT> mv::RuntimeModel::buildSummaryHeaderT(Com
     {
         unsigned i = 0;
         for(auto opIt = m.opBegin(); opIt != m.opEnd(); ++opIt)
-            if(opIt->getOpType().find("Task") != std::string::npos)
-                ++i;
+        {
+            if (opIt->hasAttr("toIgnore") && opIt->get<bool>("toIgnore"))
+                continue;
+            else
+            {
+                if(opIt->getOpType().find("Task") != std::string::npos)
+                    ++i;
+            }
+        }
         return i;
     };
 
@@ -1355,6 +1362,8 @@ std::vector<std::unique_ptr<MVCNN::TaskListT>> mv::RuntimeModel::buildTaskListT(
     for(auto vecIt = sortedOps.begin(); vecIt != sortedOps.end(); ++vecIt)
     {
         auto opIt = *vecIt;
+        if (opIt->hasAttr("toIgnore") && opIt->get<bool>("toIgnore"))
+            continue;
         std::unique_ptr<MVCNN::TaskListT> * listToUse = &toBuild[0]; // default to DPU task
         std::string opType = opIt->getOpType();
         if(opType.find("DPU") != std::string::npos)
@@ -4689,9 +4698,13 @@ void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, const mv::TargetDesc
     for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
     {
         std::string opType = opIterator->getOpType();
+        if (opIterator->hasAttr("toIgnore"))
+            continue;
         if (opType == "Constant" || opType == "ConstantInt" || opType == "ConstantDataElement")
         {
             auto tIt = opIterator->getOutputTensor(0);
+            if (tIt->hasAttr("toIgnore") && tIt->get<bool>("toIgnore"))
+                continue;
 
             // Weights sparsity new approach: there is a separate constant for
             // each cluster

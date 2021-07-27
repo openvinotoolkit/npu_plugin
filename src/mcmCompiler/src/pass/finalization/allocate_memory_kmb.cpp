@@ -12,7 +12,7 @@ static void allocateCMXTensorsKmbFcn(const mv::pass::PassEntry& pass, mv::Comput
 static void allocateInputOutputTensorsKmbFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void allocateImplicitOperationsKmbFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void setSliceAddressesInCMXFunc(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
-static void markAsymmetricalStideTensorsLeadToCMXConcatFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void markAsymmetricalStrideTensorsLeadToCMXConcatFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 namespace mv
 {
@@ -47,8 +47,8 @@ namespace mv
         .setFunc(setSliceAddressesInCMXFunc)
         .setDescription("Iterates over all Streaming that happens in CMX and assigns the right address for Slice Output");
 
-        MV_REGISTER_PASS(MarkAsymmetricalStideTensorsLeadToCMXConcat)
-        .setFunc(markAsymmetricalStideTensorsLeadToCMXConcatFcn)
+        MV_REGISTER_PASS(MarkAsymmetricalStrideTensorsLeadToCMXConcat)
+        .setFunc(markAsymmetricalStrideTensorsLeadToCMXConcatFcn)
         .setDescription("Marks concat subgraphs that have asymmetrical stride and are cmx subgraphs in order to compute approrpriate stride/index");
     }
 }
@@ -123,7 +123,8 @@ void allocateGraphfileTensorsKmbFcn(const mv::pass::PassEntry& pass, mv::Computa
         if (opType == "Constant" || opType == "ConstantInt" || opType == "ConstantDataElement")
         {
             auto tIt = opIterator->getOutputTensor(0);
-
+            if (tIt->hasAttr("toIgnore") && tIt->get<bool>("toIgnore"))
+                continue;
             // Main tensor is always allocated to GraphFile
             // Subtensors are not
             dm.allocateTensor("GraphFile", stageIt, tIt);
@@ -984,7 +985,7 @@ void setSliceAddressesInCMXFunc(const mv::pass::PassEntry& /*pass*/, mv::Computa
     }
 }
 
-void markAsymmetricalStideTensorsLeadToCMXConcatFcn(const mv::pass::PassEntry& /*pass*/, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+void markAsymmetricalStrideTensorsLeadToCMXConcatFcn(const mv::pass::PassEntry& /*pass*/, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     mv::OpModel om(model);
     mv::DataModel dm(model);

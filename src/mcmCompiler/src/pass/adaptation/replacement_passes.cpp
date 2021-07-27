@@ -2636,6 +2636,7 @@ mv::Data::OpListIterator splitOperationSlicingV2(
                 auto opSlice = om.getSourceOp(op);
                 opSlice->set<unsigned>("opId", initialOpId);
                 opSlice->set<bool>("forceClustering", true);
+                opSlice->set<bool>("slicingV2", true);
                 op->set<bool>("fusedConcatReshape", true);
                 op->set<std::size_t>("numberOfConvsForAsymmetricalStride", newStride[mv::STRIDE_HORIZONTAL]);
                 op->set<std::size_t>("asymmetricConvIndex", j);

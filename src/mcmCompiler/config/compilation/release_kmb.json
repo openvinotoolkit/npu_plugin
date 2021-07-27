@@ -31,6 +31,7 @@
                 "enableSplitBarriers" : true,
                 "enableSparsityA0" : true,
                 "enableWeightsSparsity": true,
+                "enableTensorFusion": true,
                 "real_physical_barriers": 32,
                 "barrier_bound": 16
             }
