@@ -181,7 +181,7 @@ mlir::LogicalResult UseConstDequant::matchAndRewrite(IE::FakeQuantizeOp origOp, 
                 // FQ input and output ranges are NOT equal, rescale weights
                 innerLog.trace("Rescale weights");
                 auto ctx = getContext();
-                mlir::FloatAttr scale = vpux::getFP32Attr(ctx, checked_cast<float>(ratioHigh));
+                const auto scale = getFPAttr(ctx, ratioHigh);
                 const auto newConstAttr = inConst.contentAttr().rescale(scale);
                 rewriter.replaceOpWithNewOp<Const::DeclareOp>(origOp, origOp.getType(), newConstAttr);
             }

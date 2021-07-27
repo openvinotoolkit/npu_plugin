@@ -45,7 +45,7 @@ operation ::= `VPUIP.CTCGreedyDecoderSeqLenUPA` attr-dict
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
 `mergeRepeated` | ::mlir::UnitAttr | unit attribute
-`maxShaves` | ::mlir::IntegerAttr | 32-bit signless integer attribute
+`maxShaves` | mlir::IntegerAttr | Integer attribute
 `isTrailingSWLayer` | ::mlir::UnitAttr | unit attribute
 
 #### Operands:
@@ -89,7 +89,7 @@ operation ::= `VPUIP.CTCGreedyDecoderUPA` attr-dict
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
 `mergeRepeated` | ::mlir::UnitAttr | unit attribute
-`maxShaves` | ::mlir::IntegerAttr | 32-bit signless integer attribute
+`maxShaves` | mlir::IntegerAttr | Integer attribute
 `isTrailingSWLayer` | ::mlir::UnitAttr | unit attribute
 
 #### Operands:
@@ -129,9 +129,9 @@ operation ::= `VPUIP.ClampUPA` attr-dict
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`min` | ::mlir::FloatAttr | 32-bit float attribute
-`max` | ::mlir::FloatAttr | 32-bit float attribute
-`maxShaves` | ::mlir::IntegerAttr | 32-bit signless integer attribute
+`min` | ::mlir::FloatAttr | 64-bit float attribute
+`max` | ::mlir::FloatAttr | 64-bit float attribute
+`maxShaves` | mlir::IntegerAttr | Integer attribute
 `isTrailingSWLayer` | ::mlir::UnitAttr | unit attribute
 
 #### Operands:
@@ -169,7 +169,7 @@ operation ::= `VPUIP.ConfigureBarrier` attr-dict
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`id` | ::mlir::IntegerAttr | 32-bit signless integer attribute
+`id` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
@@ -205,12 +205,12 @@ operation ::= `VPUIP.ConvertUPA` attr-dict
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`scale` | ::mlir::FloatAttr | 32-bit float attribute
-`bias` | ::mlir::FloatAttr | 32-bit float attribute
+`scale` | ::mlir::FloatAttr | 64-bit float attribute
+`bias` | ::mlir::FloatAttr | 64-bit float attribute
 `fromDetectionOutput` | ::mlir::UnitAttr | unit attribute
 `haveBatch` | ::mlir::UnitAttr | unit attribute
-`batchID` | ::mlir::IntegerAttr | 32-bit signless integer attribute
-`maxShaves` | ::mlir::IntegerAttr | 32-bit signless integer attribute
+`batchID` | mlir::IntegerAttr | Integer attribute
+`maxShaves` | mlir::IntegerAttr | Integer attribute
 `isTrailingSWLayer` | ::mlir::UnitAttr | unit attribute
 
 #### Operands:
@@ -249,12 +249,12 @@ operation ::= `VPUIP.ConvolutionUPA` attr-dict
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`strides` | ::mlir::ArrayAttr | 32-bit integer array attribute
-`dilations` | ::mlir::ArrayAttr | 32-bit integer array attribute
-`padsBegin` | ::mlir::ArrayAttr | 32-bit integer array attribute
-`padsEnd` | ::mlir::ArrayAttr | 32-bit integer array attribute
-`groups` | ::mlir::IntegerAttr | 32-bit signless integer attribute
-`maxShaves` | ::mlir::IntegerAttr | 32-bit signless integer attribute
+`strides` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`dilations` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`padsBegin` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`padsEnd` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`groups` | mlir::IntegerAttr | Integer attribute
+`maxShaves` | mlir::IntegerAttr | Integer attribute
 `isTrailingSWLayer` | ::mlir::UnitAttr | unit attribute
 
 #### Operands:
@@ -290,10 +290,10 @@ operation ::= `VPUIP.DPUTask` attr-dict
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`start` | ::mlir::ArrayAttr | 32-bit integer array attribute
-`end` | ::mlir::ArrayAttr | 32-bit integer array attribute
-`pads_begin` | ::mlir::ArrayAttr | 32-bit integer array attribute
-`pads_end` | ::mlir::ArrayAttr | 32-bit integer array attribute
+`start` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`end` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`pads_begin` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`pads_end` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `mpe_mode` | vpux::VPUIP::MPEModeAttr | MPE Mode
 
 ### `VPUIP.DeclareTensor` (vpux::VPUIP::DeclareTensorOp)
@@ -313,13 +313,13 @@ operation ::= `VPUIP.DeclareTensor` $locale custom<LocaleIndex>($localeIndex) `<
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
 `locale` | vpux::VPUIP::MemoryLocationAttr | Values indicating which type of memory a tensor resides in
-`localeIndex` | ::mlir::ArrayAttr | 32-bit integer array attribute
-`dataIndex` | ::mlir::IntegerAttr | 64-bit signless integer attribute
-`sparsityIndex` | ::mlir::IntegerAttr | 64-bit signless integer attribute
-`storageElementIndex` | ::mlir::IntegerAttr | 64-bit signless integer attribute
-`storageElementSize` | ::mlir::IntegerAttr | 32-bit signless integer attribute
-`leadingOffset` | ::mlir::IntegerAttr | 32-bit signless integer attribute
-`trailingOffset` | ::mlir::IntegerAttr | 32-bit signless integer attribute
+`localeIndex` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`dataIndex` | mlir::IntegerAttr | Integer attribute
+`sparsityIndex` | mlir::IntegerAttr | Integer attribute
+`storageElementIndex` | mlir::IntegerAttr | Integer attribute
+`storageElementSize` | mlir::IntegerAttr | Integer attribute
+`leadingOffset` | mlir::IntegerAttr | Integer attribute
+`trailingOffset` | mlir::IntegerAttr | Integer attribute
 
 #### Results:
 
@@ -367,7 +367,7 @@ operation ::= `VPUIP.DetectionOutputUPA` attr-dict
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
 `attr` | vpux::IE::DetectionOutputAttr | DictionaryAttr with field(s): 'num_classes', 'background_label_id', 'top_k', 'variance_encoded_in_target', 'keep_top_k', 'code_type', 'share_location', 'nms_threshold', 'confidence_threshold', 'clip_after_nms', 'clip_before_nms', 'decrease_label_id', 'normalized', 'input_height', 'input_width', 'objectness_score' (each field having its own constraints)
-`maxShaves` | ::mlir::IntegerAttr | 32-bit signless integer attribute
+`maxShaves` | mlir::IntegerAttr | Integer attribute
 `isTrailingSWLayer` | ::mlir::UnitAttr | unit attribute
 
 #### Operands:
@@ -415,7 +415,7 @@ operation ::= `VPUIP.EdslUPA` attr-dict
 `middles` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `inits` | ::mlir::ArrayAttr | array attribute
 `transfers` | ::mlir::ArrayAttr | eDSL DMA descriptor array attribute
-`maxShaves` | ::mlir::IntegerAttr | 32-bit signless integer attribute
+`maxShaves` | mlir::IntegerAttr | Integer attribute
 `isTrailingSWLayer` | ::mlir::UnitAttr | unit attribute
 
 #### Operands:
@@ -455,7 +455,7 @@ operation ::= `VPUIP.EltwiseUPA` attr-dict
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
 `type` | vpux::VPUIP::EltwiseLayerTypeAttr | Type of Eltwise layer
-`maxShaves` | ::mlir::IntegerAttr | 32-bit signless integer attribute
+`maxShaves` | mlir::IntegerAttr | Integer attribute
 `isTrailingSWLayer` | ::mlir::UnitAttr | unit attribute
 
 #### Operands:
@@ -495,8 +495,8 @@ operation ::= `VPUIP.EluUPA` attr-dict
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`x` | ::mlir::FloatAttr | 32-bit float attribute
-`maxShaves` | ::mlir::IntegerAttr | 32-bit signless integer attribute
+`x` | ::mlir::FloatAttr | 64-bit float attribute
+`maxShaves` | mlir::IntegerAttr | Integer attribute
 `isTrailingSWLayer` | ::mlir::UnitAttr | unit attribute
 
 #### Operands:
@@ -556,7 +556,7 @@ operation ::= `VPUIP.ExpUPA` attr-dict
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`maxShaves` | ::mlir::IntegerAttr | 32-bit signless integer attribute
+`maxShaves` | mlir::IntegerAttr | Integer attribute
 `isTrailingSWLayer` | ::mlir::UnitAttr | unit attribute
 
 #### Operands:
@@ -595,12 +595,12 @@ operation ::= `VPUIP.FakeQuantizeUPA` attr-dict
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`levels` | ::mlir::IntegerAttr | 32-bit signless integer attribute
+`levels` | mlir::IntegerAttr | Integer attribute
 `input_low` | vpux::Const::ContentAttr | Lazy folded constant content
 `input_high` | vpux::Const::ContentAttr | Lazy folded constant content
 `output_low` | vpux::Const::ContentAttr | Lazy folded constant content
 `output_high` | vpux::Const::ContentAttr | Lazy folded constant content
-`maxShaves` | ::mlir::IntegerAttr | 32-bit signless integer attribute
+`maxShaves` | mlir::IntegerAttr | Integer attribute
 `isTrailingSWLayer` | ::mlir::UnitAttr | unit attribute
 
 #### Operands:
@@ -639,7 +639,7 @@ operation ::= `VPUIP.FullyConnectedUPA` attr-dict
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`maxShaves` | ::mlir::IntegerAttr | 32-bit signless integer attribute
+`maxShaves` | mlir::IntegerAttr | Integer attribute
 `isTrailingSWLayer` | ::mlir::UnitAttr | unit attribute
 
 #### Operands:
@@ -680,8 +680,8 @@ operation ::= `VPUIP.GRNUPA` attr-dict
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`bias` | ::mlir::FloatAttr | 32-bit float attribute
-`maxShaves` | ::mlir::IntegerAttr | 32-bit signless integer attribute
+`bias` | ::mlir::FloatAttr | 64-bit float attribute
+`maxShaves` | mlir::IntegerAttr | Integer attribute
 `isTrailingSWLayer` | ::mlir::UnitAttr | unit attribute
 
 #### Operands:
@@ -741,7 +741,7 @@ operation ::= `VPUIP.HSwishUPA` attr-dict
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`maxShaves` | ::mlir::IntegerAttr | 32-bit signless integer attribute
+`maxShaves` | mlir::IntegerAttr | Integer attribute
 `isTrailingSWLayer` | ::mlir::UnitAttr | unit attribute
 
 #### Operands:
@@ -784,7 +784,7 @@ operation ::= `VPUIP.Interpolate` attr-dict
 `coord_mode` | vpux::IE::InterpolateCoordModeAttr | coordinate_transformation_mode specifies how to transform the coordinate.
 `nearest_mode` | vpux::IE::InterpolateNearestModeAttr | specifies round mode when mode == nearest
 `antialias` | ::mlir::UnitAttr | unit attribute
-`maxShaves` | ::mlir::IntegerAttr | 32-bit signless integer attribute
+`maxShaves` | mlir::IntegerAttr | Integer attribute
 `isTrailingSWLayer` | ::mlir::UnitAttr | unit attribute
 
 #### Operands:
@@ -825,7 +825,7 @@ operation ::= `VPUIP.LSTMCellUPA` attr-dict
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`maxShaves` | ::mlir::IntegerAttr | 32-bit signless integer attribute
+`maxShaves` | mlir::IntegerAttr | Integer attribute
 `isTrailingSWLayer` | ::mlir::UnitAttr | unit attribute
 
 #### Operands:
@@ -870,8 +870,8 @@ operation ::= `VPUIP.LeakyReluUPA` attr-dict
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`negative_slope` | ::mlir::FloatAttr | 32-bit float attribute
-`maxShaves` | ::mlir::IntegerAttr | 32-bit signless integer attribute
+`negative_slope` | ::mlir::FloatAttr | 64-bit float attribute
+`maxShaves` | mlir::IntegerAttr | Integer attribute
 `isTrailingSWLayer` | ::mlir::UnitAttr | unit attribute
 
 #### Operands:
@@ -931,10 +931,10 @@ mutually exclusive.
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
 `task_type` | vpux::VPUIP::NCETaskTypeAttr | NCE task type
-`kernel_size` | ::mlir::ArrayAttr | 32-bit integer array attribute
-`kernel_strides` | ::mlir::ArrayAttr | 32-bit integer array attribute
-`kernel_padding` | ::mlir::ArrayAttr | 32-bit integer array attribute
-`activation_window_channel_length` | ::mlir::IntegerAttr | 32-bit signless integer attribute
+`kernel_size` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`kernel_strides` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`kernel_padding` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`activation_window_channel_length` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
@@ -978,7 +978,7 @@ operation ::= `VPUIP.NNDMA` attr-dict
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
 `compression` | ::mlir::UnitAttr | unit attribute
-`port` | ::mlir::IntegerAttr | 32-bit signless integer attribute
+`port` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
@@ -1016,7 +1016,7 @@ operation ::= `VPUIP.NegativeUPA` attr-dict
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`maxShaves` | ::mlir::IntegerAttr | 32-bit signless integer attribute
+`maxShaves` | mlir::IntegerAttr | Integer attribute
 `isTrailingSWLayer` | ::mlir::UnitAttr | unit attribute
 
 #### Operands:
@@ -1073,7 +1073,7 @@ operation ::= `VPUIP.PReluUPA` attr-dict
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`maxShaves` | ::mlir::IntegerAttr | 32-bit signless integer attribute
+`maxShaves` | mlir::IntegerAttr | Integer attribute
 `isTrailingSWLayer` | ::mlir::UnitAttr | unit attribute
 
 #### Operands:
@@ -1113,11 +1113,11 @@ operation ::= `VPUIP.Pad` attr-dict
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`pads_begin` | ::mlir::ArrayAttr | 32-bit integer array attribute
-`pads_end` | ::mlir::ArrayAttr | 32-bit integer array attribute
-`pad_value` | ::mlir::FloatAttr | 32-bit float attribute
+`pads_begin` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`pads_end` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`pad_value` | ::mlir::FloatAttr | 64-bit float attribute
 `mode` | vpux::IE::PadModeAttr | TPadMode that the InferenceEngine supports
-`maxShaves` | ::mlir::IntegerAttr | 32-bit signless integer attribute
+`maxShaves` | mlir::IntegerAttr | Integer attribute
 `isTrailingSWLayer` | ::mlir::UnitAttr | unit attribute
 
 #### Operands:
@@ -1156,9 +1156,9 @@ operation ::= `VPUIP.PerAxisTileUPA` attr-dict
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`axis` | ::mlir::IntegerAttr | 32-bit signless integer attribute
-`tiles` | ::mlir::IntegerAttr | 32-bit signless integer attribute
-`maxShaves` | ::mlir::IntegerAttr | 32-bit signless integer attribute
+`axis` | mlir::IntegerAttr | Integer attribute
+`tiles` | mlir::IntegerAttr | Integer attribute
+`maxShaves` | mlir::IntegerAttr | Integer attribute
 `isTrailingSWLayer` | ::mlir::UnitAttr | unit attribute
 
 #### Operands:
@@ -1198,7 +1198,7 @@ operation ::= `VPUIP.PermuteUPA` attr-dict
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
 `order_value` | ::mlir::AffineMapAttr | AffineMap attribute
-`maxShaves` | ::mlir::IntegerAttr | 32-bit signless integer attribute
+`maxShaves` | mlir::IntegerAttr | Integer attribute
 `isTrailingSWLayer` | ::mlir::UnitAttr | unit attribute
 
 #### Operands:
@@ -1238,12 +1238,12 @@ operation ::= `VPUIP.PoolingUPA` attr-dict
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
 `type` | vpux::VPUIP::PoolLayerTypeAttr | Type of Pooling layer
-`kernel` | ::mlir::ArrayAttr | 32-bit integer array attribute
-`strides` | ::mlir::ArrayAttr | 32-bit integer array attribute
-`padsBegin` | ::mlir::ArrayAttr | 32-bit integer array attribute
-`padsEnd` | ::mlir::ArrayAttr | 32-bit integer array attribute
+`kernel` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`strides` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`padsBegin` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`padsEnd` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `excludePad` | ::mlir::UnitAttr | unit attribute
-`maxShaves` | ::mlir::IntegerAttr | 32-bit signless integer attribute
+`maxShaves` | mlir::IntegerAttr | Integer attribute
 `isTrailingSWLayer` | ::mlir::UnitAttr | unit attribute
 
 #### Operands:
@@ -1282,7 +1282,7 @@ operation ::= `VPUIP.QuantCastUPA` attr-dict
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`maxShaves` | ::mlir::IntegerAttr | 32-bit signless integer attribute
+`maxShaves` | mlir::IntegerAttr | Integer attribute
 `isTrailingSWLayer` | ::mlir::UnitAttr | unit attribute
 
 #### Operands:
@@ -1321,10 +1321,10 @@ operation ::= `VPUIP.ROIPoolingUPA` attr-dict
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`output_size` | ::mlir::ArrayAttr | 32-bit integer array attribute
-`spatial_scale` | ::mlir::FloatAttr | 32-bit float attribute
+`output_size` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`spatial_scale` | ::mlir::FloatAttr | 64-bit float attribute
 `method` | vpux::IE::ROIPoolingMethodAttr | ROIPoolingMethod that the InferenceEngine supports
-`maxShaves` | ::mlir::IntegerAttr | 32-bit signless integer attribute
+`maxShaves` | mlir::IntegerAttr | Integer attribute
 `isTrailingSWLayer` | ::mlir::UnitAttr | unit attribute
 
 #### Operands:
@@ -1364,7 +1364,7 @@ operation ::= `VPUIP.ReLUUPA` attr-dict
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`maxShaves` | ::mlir::IntegerAttr | 32-bit signless integer attribute
+`maxShaves` | mlir::IntegerAttr | Integer attribute
 `isTrailingSWLayer` | ::mlir::UnitAttr | unit attribute
 
 #### Operands:
@@ -1403,12 +1403,12 @@ operation ::= `VPUIP.RegionYoloUPA` attr-dict
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`coords` | ::mlir::IntegerAttr | 32-bit signless integer attribute
-`classes` | ::mlir::IntegerAttr | 32-bit signless integer attribute
-`regions` | ::mlir::IntegerAttr | 32-bit signless integer attribute
+`coords` | mlir::IntegerAttr | Integer attribute
+`classes` | mlir::IntegerAttr | Integer attribute
+`regions` | mlir::IntegerAttr | Integer attribute
 `do_softmax` | ::mlir::BoolAttr | bool attribute
 `mask` | ::mlir::ArrayAttr | 64-bit integer array attribute
-`maxShaves` | ::mlir::IntegerAttr | 32-bit signless integer attribute
+`maxShaves` | mlir::IntegerAttr | Integer attribute
 `isTrailingSWLayer` | ::mlir::UnitAttr | unit attribute
 
 #### Operands:
@@ -1447,7 +1447,7 @@ operation ::= `VPUIP.ScaleShiftUPA` attr-dict
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`maxShaves` | ::mlir::IntegerAttr | 32-bit signless integer attribute
+`maxShaves` | mlir::IntegerAttr | Integer attribute
 `isTrailingSWLayer` | ::mlir::UnitAttr | unit attribute
 
 #### Operands:
@@ -1488,7 +1488,7 @@ operation ::= `VPUIP.SigmoidUPA` attr-dict
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`maxShaves` | ::mlir::IntegerAttr | 32-bit signless integer attribute
+`maxShaves` | mlir::IntegerAttr | Integer attribute
 `isTrailingSWLayer` | ::mlir::UnitAttr | unit attribute
 
 #### Operands:
@@ -1527,8 +1527,8 @@ operation ::= `VPUIP.SoftMaxUPA` attr-dict
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`axisInd` | ::mlir::IntegerAttr | 32-bit signless integer attribute
-`maxShaves` | ::mlir::IntegerAttr | 32-bit signless integer attribute
+`axisInd` | mlir::IntegerAttr | Integer attribute
+`maxShaves` | mlir::IntegerAttr | Integer attribute
 `isTrailingSWLayer` | ::mlir::UnitAttr | unit attribute
 
 #### Operands:
@@ -1567,10 +1567,10 @@ operation ::= `VPUIP.StridedSlice` attr-dict
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`begins` | ::mlir::ArrayAttr | 32-bit integer array attribute
-`ends` | ::mlir::ArrayAttr | 32-bit integer array attribute
-`strides` | ::mlir::ArrayAttr | 32-bit integer array attribute
-`maxShaves` | ::mlir::IntegerAttr | 32-bit signless integer attribute
+`begins` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`ends` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`strides` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`maxShaves` | mlir::IntegerAttr | Integer attribute
 `isTrailingSWLayer` | ::mlir::UnitAttr | unit attribute
 
 #### Operands:
@@ -1609,8 +1609,8 @@ operation ::= `VPUIP.SwishUPA` attr-dict
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`beta_value` | ::mlir::FloatAttr | 32-bit float attribute
-`maxShaves` | ::mlir::IntegerAttr | 32-bit signless integer attribute
+`beta_value` | ::mlir::FloatAttr | 64-bit float attribute
+`maxShaves` | mlir::IntegerAttr | Integer attribute
 `isTrailingSWLayer` | ::mlir::UnitAttr | unit attribute
 
 #### Operands:
@@ -1649,7 +1649,7 @@ operation ::= `VPUIP.TanhUPA` attr-dict
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`maxShaves` | ::mlir::IntegerAttr | 32-bit signless integer attribute
+`maxShaves` | mlir::IntegerAttr | Integer attribute
 `isTrailingSWLayer` | ::mlir::UnitAttr | unit attribute
 
 #### Operands:

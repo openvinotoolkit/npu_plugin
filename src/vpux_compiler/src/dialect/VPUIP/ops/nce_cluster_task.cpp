@@ -515,10 +515,10 @@ VPUIP::MPEMode getMPEFrequentModeFromDPUTasks(mlir::Region& dpuTaskOps) {
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::BlobWriter& writer) {
     SmallVector<flatbuffers::Offset<MVCNN::NCEVariantFields>> variantList;
     for (auto dpuTaskOp : variants().getOps<VPUIP::DPUTaskOp>()) {
-        const auto start = parseIntArrayAttr(dpuTaskOp.start());
-        const auto end = parseIntArrayAttr(dpuTaskOp.end());
-        const auto padsBegin = parseIntArrayAttr(dpuTaskOp.pads_begin());
-        const auto padsEnd = parseIntArrayAttr(dpuTaskOp.pads_end());
+        const auto start = parseIntArrayAttr<int64_t>(dpuTaskOp.start());
+        const auto end = parseIntArrayAttr<int64_t>(dpuTaskOp.end());
+        const auto padsBegin = parseIntArrayAttr<int64_t>(dpuTaskOp.pads_begin());
+        const auto padsEnd = parseIntArrayAttr<int64_t>(dpuTaskOp.pads_end());
 
         // TODO: [Track number: E#13226]
         // Make padding indexing more obvious
@@ -570,19 +570,19 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
     int16_t kernelPadL = 0, kernelPadR = 0, kernelPadT = 0, kernelPadB = 0;
 
     if (kernel_sizeAttr() != nullptr) {
-        const auto kernelSize = parseIntArrayAttr(kernel_sizeAttr());
+        const auto kernelSize = parseIntArrayAttr<int64_t>(kernel_sizeAttr());
         kernelSizeH = checked_cast<int16_t>(kernelSize[0]);
         kernelSizeW = checked_cast<int16_t>(kernelSize[1]);
     }
 
     if (kernel_stridesAttr() != nullptr) {
-        const auto kernelStrides = parseIntArrayAttr(kernel_stridesAttr());
+        const auto kernelStrides = parseIntArrayAttr<int64_t>(kernel_stridesAttr());
         kernelStridesH = checked_cast<int16_t>(kernelStrides[0]);
         kernelStridesW = checked_cast<int16_t>(kernelStrides[1]);
     }
 
     if (kernel_paddingAttr() != nullptr) {
-        const auto kernelPadding = parseIntArrayAttr(kernel_paddingAttr());
+        const auto kernelPadding = parseIntArrayAttr<int64_t>(kernel_paddingAttr());
         kernelPadL = checked_cast<int16_t>(kernelPadding[0]);
         kernelPadR = checked_cast<int16_t>(kernelPadding[1]);
         kernelPadT = checked_cast<int16_t>(kernelPadding[2]);
@@ -593,7 +593,7 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
     const auto weightsData = weights() != nullptr ? writer.getTensor(weights()) : 0;
     const auto weightsTable = weight_table() != nullptr ? writer.getTensor(weight_table()) : 0;
     const auto activationWindow = activation_window() != nullptr ? writer.getTensor(activation_window()) : 0;
-    const auto activationWindowChannelLength = activation_window_channel_length().getValueOr(0);
+    const auto activationWindowChannelLength = checked_cast<int32_t>(activation_window_channel_length().getValueOr(0));
 
     const auto outputData = writer.getTensor(output());
 

@@ -14,6 +14,7 @@
 #ifndef VPUX_COMPILER_DIALECT_VPUIP_OPS
 #define VPUX_COMPILER_DIALECT_VPUIP_OPS
 
+include "vpux/compiler/core/attributes.td"
 include "vpux/compiler/core/ops_interfaces.td"
 include "vpux/compiler/dialect/const/attributes.td"
 include "vpux/compiler/dialect/IE/attributes.td"
@@ -116,15 +117,15 @@ def VPUIP_DeclareTensorOp :
 
     let arguments = (ins
         VPUIP_MemoryLocation:$locale,
-        I32ArrayAttr:$localeIndex,
+        I64ArrayAttr:$localeIndex,
 
-        I64Attr:$dataIndex,
-        OptionalAttr<I64Attr>:$sparsityIndex,
-        OptionalAttr<I64Attr>:$storageElementIndex,
-        OptionalAttr<I32Attr>:$storageElementSize,
+        IntAttr:$dataIndex,
+        OptionalAttr<IntAttr>:$sparsityIndex,
+        OptionalAttr<IntAttr>:$storageElementIndex,
+        OptionalAttr<IntAttr>:$storageElementSize,
 
-        OptionalAttr<I32Attr>:$leadingOffset,
-        OptionalAttr<I32Attr>:$trailingOffset
+        OptionalAttr<IntAttr>:$leadingOffset,
+        OptionalAttr<IntAttr>:$trailingOffset
     );
 
     let results = (outs
@@ -194,7 +195,7 @@ def VPUIP_ConfigureBarrierOp :
     let summary = "A task to configure the setup for a barrier";
 
     let arguments = (ins
-        I32Attr:$id,
+        IntAttr:$id,
 
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers
@@ -205,7 +206,7 @@ def VPUIP_ConfigureBarrierOp :
     );
 
     let builders = [
-        OpBuilder<(ins "uint32_t":$id)>
+        OpBuilder<(ins "int64_t":$id)>
     ];
 
     let extraClassDeclaration = [{
@@ -326,7 +327,7 @@ def VPUIP_NNDMAOp :
         Variadic<VPUIP_Barrier>:$updateBarriers,
 
         UnitAttr:$compression,
-        DefaultValuedAttr<I32Attr, "0">:$port
+        DefaultValuedAttr<IntAttr, "0">:$port
     );
 
     let results = (outs
@@ -377,13 +378,13 @@ def VPUIP_ConvertUPAOp :
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers,
 
-        OptionalAttr<F32Attr>:$scale,
-        OptionalAttr<F32Attr>:$bias,
+        OptionalAttr<F64Attr>:$scale,
+        OptionalAttr<F64Attr>:$bias,
         UnitAttr:$fromDetectionOutput,
         UnitAttr:$haveBatch,
-        OptionalAttr<I32Attr>:$batchID,
+        OptionalAttr<IntAttr>:$batchID,
 
-        OptionalAttr<I32Attr>:$maxShaves,
+        OptionalAttr<IntAttr>:$maxShaves,
         UnitAttr:$isTrailingSWLayer
     );
 
@@ -434,9 +435,9 @@ def VPUIP_SoftMaxUPAOp :
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers,
 
-        I32Attr:$axisInd,
+        IntAttr:$axisInd,
 
-        OptionalAttr<I32Attr>:$maxShaves,
+        OptionalAttr<IntAttr>:$maxShaves,
         UnitAttr:$isTrailingSWLayer
     );
 
@@ -489,13 +490,13 @@ def VPUIP_PoolingUPAOp :
         Variadic<VPUIP_Barrier>:$updateBarriers,
 
         VPUIP_PoolLayerType:$type,
-        I32ArrayAttr:$kernel,
-        I32ArrayAttr:$strides,
-        I32ArrayAttr:$padsBegin,
-        I32ArrayAttr:$padsEnd,
+        I64ArrayAttr:$kernel,
+        I64ArrayAttr:$strides,
+        I64ArrayAttr:$padsBegin,
+        I64ArrayAttr:$padsEnd,
         UnitAttr:$excludePad,
 
-        OptionalAttr<I32Attr>:$maxShaves,
+        OptionalAttr<IntAttr>:$maxShaves,
         UnitAttr:$isTrailingSWLayer
     );
 
@@ -552,13 +553,13 @@ def VPUIP_ConvolutionUPAOp :
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers,
 
-        I32ArrayAttr:$strides,
-        I32ArrayAttr:$dilations,
-        I32ArrayAttr:$padsBegin,
-        I32ArrayAttr:$padsEnd,
-        I32Attr:$groups,
+        I64ArrayAttr:$strides,
+        I64ArrayAttr:$dilations,
+        I64ArrayAttr:$padsBegin,
+        I64ArrayAttr:$padsEnd,
+        IntAttr:$groups,
 
-        OptionalAttr<I32Attr>:$maxShaves,
+        OptionalAttr<IntAttr>:$maxShaves,
         UnitAttr:$isTrailingSWLayer
     );
 
@@ -618,7 +619,7 @@ def VPUIP_ReLUUPAOp :
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers,
 
-        OptionalAttr<I32Attr>:$maxShaves,
+        OptionalAttr<IntAttr>:$maxShaves,
         UnitAttr:$isTrailingSWLayer
     );
 
@@ -669,7 +670,7 @@ def VPUIP_SigmoidUPAOp :
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers,
 
-        OptionalAttr<I32Attr>:$maxShaves,
+        OptionalAttr<IntAttr>:$maxShaves,
         UnitAttr:$isTrailingSWLayer
     );
 
@@ -720,7 +721,7 @@ def VPUIP_HSwishUPAOp :
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers,
 
-        OptionalAttr<I32Attr>:$maxShaves,
+        OptionalAttr<IntAttr>:$maxShaves,
         UnitAttr:$isTrailingSWLayer
     );
 
@@ -771,10 +772,10 @@ def VPUIP_ClampUPAOp :
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers,
 
-        F32Attr:$min,
-        F32Attr:$max,
+        F64Attr:$min,
+        F64Attr:$max,
 
-        OptionalAttr<I32Attr>:$maxShaves,
+        OptionalAttr<IntAttr>:$maxShaves,
         UnitAttr:$isTrailingSWLayer
     );
 
@@ -828,9 +829,9 @@ def VPUIP_EluUPAOp :
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers,
 
-        F32Attr:$x,
+        F64Attr:$x,
 
-        OptionalAttr<I32Attr>:$maxShaves,
+        OptionalAttr<IntAttr>:$maxShaves,
         UnitAttr:$isTrailingSWLayer
     );
 
@@ -884,7 +885,7 @@ def VPUIP_TanhUPAOp :
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers,
 
-        OptionalAttr<I32Attr>:$maxShaves,
+        OptionalAttr<IntAttr>:$maxShaves,
         UnitAttr:$isTrailingSWLayer
     );
 
@@ -935,7 +936,7 @@ def VPUIP_ExpUPAOp :
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers,
 
-        OptionalAttr<I32Attr>:$maxShaves,
+        OptionalAttr<IntAttr>:$maxShaves,
         UnitAttr:$isTrailingSWLayer
     );
 
@@ -986,13 +987,13 @@ def VPUIP_FakeQuantizeUPAOp :
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers,
 
-        I32Attr:$levels,
+        IntAttr:$levels,
         Const_ContentAttr:$input_low,
         Const_ContentAttr:$input_high,
         Const_ContentAttr:$output_low,
         Const_ContentAttr:$output_high,
 
-        OptionalAttr<I32Attr>:$maxShaves,
+        OptionalAttr<IntAttr>:$maxShaves,
         UnitAttr:$isTrailingSWLayer
     );
 
@@ -1046,7 +1047,7 @@ def VPUIP_QuantCastUPAOp :
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers,
 
-        OptionalAttr<I32Attr>:$maxShaves,
+        OptionalAttr<IntAttr>:$maxShaves,
         UnitAttr:$isTrailingSWLayer
     );
 
@@ -1097,7 +1098,7 @@ def VPUIP_PReluUPAOp :
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers,
 
-        OptionalAttr<I32Attr>:$maxShaves,
+        OptionalAttr<IntAttr>:$maxShaves,
         UnitAttr:$isTrailingSWLayer
     );
 
@@ -1144,9 +1145,9 @@ def VPUIP_LeakyReluUPAOp :
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers,
 
-        F32Attr:$negative_slope,
+        F64Attr:$negative_slope,
 
-        OptionalAttr<I32Attr>:$maxShaves,
+        OptionalAttr<IntAttr>:$maxShaves,
         UnitAttr:$isTrailingSWLayer
     );
 
@@ -1196,7 +1197,7 @@ def VPUIP_EltwiseUPAOp :
 
         VPUIP_EltwiseLayerType:$type,
 
-        OptionalAttr<I32Attr>:$maxShaves,
+        OptionalAttr<IntAttr>:$maxShaves,
         UnitAttr:$isTrailingSWLayer
     );
 
@@ -1251,7 +1252,7 @@ def VPUIP_DetectionOutputUPAOp :
 
         IE_DetectionOutputAttrs:$attr,
 
-        OptionalAttr<I32Attr>:$maxShaves,
+        OptionalAttr<IntAttr>:$maxShaves,
         UnitAttr:$isTrailingSWLayer
     );
 
@@ -1299,9 +1300,9 @@ def VPUIP_SwishUPAOp :
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers,
 
-        F32Attr:$beta_value,
+        F64Attr:$beta_value,
 
-        OptionalAttr<I32Attr>:$maxShaves,
+        OptionalAttr<IntAttr>:$maxShaves,
         UnitAttr:$isTrailingSWLayer
     );
 
@@ -1348,9 +1349,9 @@ def VPUIP_GRNUPAOp :
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers,
 
-        F32Attr:$bias,
+        F64Attr:$bias,
 
-        OptionalAttr<I32Attr>:$maxShaves,
+        OptionalAttr<IntAttr>:$maxShaves,
         UnitAttr:$isTrailingSWLayer
     );
 
@@ -1401,7 +1402,7 @@ def VPUIP_ScaleShiftUPAOp :
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers,
 
-        OptionalAttr<I32Attr>:$maxShaves,
+        OptionalAttr<IntAttr>:$maxShaves,
         UnitAttr:$isTrailingSWLayer
     );
 
@@ -1452,10 +1453,10 @@ def VPUIP_PerAxisTileUPAOp :
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers,
 
-        I32Attr:$axis,
-        I32Attr:$tiles,
+        IntAttr:$axis,
+        IntAttr:$tiles,
 
-        OptionalAttr<I32Attr>:$maxShaves,
+        OptionalAttr<IntAttr>:$maxShaves,
         UnitAttr:$isTrailingSWLayer
     );
 
@@ -1502,7 +1503,7 @@ def VPUIP_NegativeUPAOp :
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers,
 
-        OptionalAttr<I32Attr>:$maxShaves,
+        OptionalAttr<IntAttr>:$maxShaves,
         UnitAttr:$isTrailingSWLayer
     );
 
@@ -1547,11 +1548,11 @@ def VPUIP_ROIPoolingUPAOp :
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers,
 
-        I32ArrayAttr:$output_size,
-        F32Attr:$spatial_scale,
+        I64ArrayAttr:$output_size,
+        F64Attr:$spatial_scale,
         IE_ROIPoolingMethod:$method,
 
-        OptionalAttr<I32Attr>:$maxShaves,
+        OptionalAttr<IntAttr>:$maxShaves,
         UnitAttr:$isTrailingSWLayer
     );
 
@@ -1601,7 +1602,7 @@ def VPUIP_PermuteUPAOp :
 
         OptionalAttr<AffineMapAttr>:$order_value,
 
-        OptionalAttr<I32Attr>:$maxShaves,
+        OptionalAttr<IntAttr>:$maxShaves,
         UnitAttr:$isTrailingSWLayer
     );
 
@@ -1681,10 +1682,10 @@ def VPUIP_DPUTaskOp :
     let summary = "This object represents workload for a single DPU tile";
 
     let arguments = (ins
-        I32ArrayAttr:$start,
-        I32ArrayAttr:$end,
-        I32ArrayAttr:$pads_begin,
-        I32ArrayAttr:$pads_end,
+        I64ArrayAttr:$start,
+        I64ArrayAttr:$end,
+        I64ArrayAttr:$pads_begin,
+        I64ArrayAttr:$pads_end,
         VPUIP_MPEMode:$mpe_mode
     );
 
@@ -1765,10 +1766,10 @@ def VPUIP_NCEClusterTaskOp :
         Variadic<VPUIP_Barrier>:$updateBarriers,
 
         VPUIP_NCETaskType:$task_type,
-        OptionalAttr<I32ArrayAttr>:$kernel_size,
-        OptionalAttr<I32ArrayAttr>:$kernel_strides,
-        OptionalAttr<I32ArrayAttr>:$kernel_padding,
-        OptionalAttr<I32Attr>:$activation_window_channel_length
+        OptionalAttr<I64ArrayAttr>:$kernel_size,
+        OptionalAttr<I64ArrayAttr>:$kernel_strides,
+        OptionalAttr<I64ArrayAttr>:$kernel_padding,
+        OptionalAttr<IntAttr>:$activation_window_channel_length
     );
 
     let results = (outs
@@ -1850,7 +1851,7 @@ def VPUIP_CTCGreedyDecoderUPAOp :
 
         UnitAttr:$mergeRepeated,
 
-        OptionalAttr<I32Attr>:$maxShaves,
+        OptionalAttr<IntAttr>:$maxShaves,
         UnitAttr:$isTrailingSWLayer
     );
 
@@ -1910,7 +1911,7 @@ def VPUIP_CTCGreedyDecoderSeqLenUPAOp :
 
         UnitAttr:$mergeRepeated,
 
-        OptionalAttr<I32Attr>:$maxShaves,
+        OptionalAttr<IntAttr>:$maxShaves,
         UnitAttr:$isTrailingSWLayer
     );
 
@@ -1963,12 +1964,12 @@ def VPUIP_PadUPAOp :
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers,
 
-        I32ArrayAttr:$pads_begin,
-        I32ArrayAttr:$pads_end,
-        OptionalAttr<F32Attr>:$pad_value,
+        I64ArrayAttr:$pads_begin,
+        I64ArrayAttr:$pads_end,
+        OptionalAttr<F64Attr>:$pad_value,
         IE_PadMode:$mode,
 
-        OptionalAttr<I32Attr>:$maxShaves,
+        OptionalAttr<IntAttr>:$maxShaves,
         UnitAttr:$isTrailingSWLayer
     );
 
@@ -2022,7 +2023,7 @@ def VPUIP_LSTMCellUPAOp :
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers,
 
-        OptionalAttr<I32Attr>:$maxShaves,
+        OptionalAttr<IntAttr>:$maxShaves,
         UnitAttr:$isTrailingSWLayer
     );
 
@@ -2083,7 +2084,7 @@ def VPUIP_EdslUPAOp :
         ArrayAttr:$inits,
         VPUIP_EdslDMADescArrayAttr:$transfers,
 
-        OptionalAttr<I32Attr>:$maxShaves,
+        OptionalAttr<IntAttr>:$maxShaves,
         UnitAttr:$isTrailingSWLayer
     );
 
@@ -2139,7 +2140,7 @@ def VPUIP_InterpolateUPAOp :
         IE_InterpolateNearestMode:$nearest_mode,
         UnitAttr:$antialias,
 
-        OptionalAttr<I32Attr>:$maxShaves,
+        OptionalAttr<IntAttr>:$maxShaves,
         UnitAttr:$isTrailingSWLayer
     );
 
@@ -2192,11 +2193,11 @@ def VPUIP_StridedSliceUPAOp :
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers,
 
-        I32ArrayAttr:$begins,
-        I32ArrayAttr:$ends,
-        I32ArrayAttr:$strides,
+        I64ArrayAttr:$begins,
+        I64ArrayAttr:$ends,
+        I64ArrayAttr:$strides,
 
-        OptionalAttr<I32Attr>:$maxShaves,
+        OptionalAttr<IntAttr>:$maxShaves,
         UnitAttr:$isTrailingSWLayer
     );
 
@@ -2244,7 +2245,7 @@ def VPUIP_FullyConnectedUPAOp :
 
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers,
-        OptionalAttr<I32Attr>:$maxShaves,
+        OptionalAttr<IntAttr>:$maxShaves,
         UnitAttr:$isTrailingSWLayer
     );
 
@@ -2290,15 +2291,15 @@ def VPUIP_RegionYoloUPAOp :
         F16MemRef:$input,
         F16MemRef:$output_buff,
 
-        I32Attr:$coords,
-        I32Attr:$classes,
-        I32Attr:$regions,
+        IntAttr:$coords,
+        IntAttr:$classes,
+        IntAttr:$regions,
         OptionalAttr<BoolAttr>:$do_softmax,
         OptionalAttr<I64ArrayAttr>:$mask,
 
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers,
-        OptionalAttr<I32Attr>:$maxShaves,
+        OptionalAttr<IntAttr>:$maxShaves,
         UnitAttr:$isTrailingSWLayer
     );
 
@@ -2319,7 +2320,7 @@ def VPUIP_RegionYoloUPAOp :
             )
         >
     ];
- 
+
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $input `:` type($input) `)`

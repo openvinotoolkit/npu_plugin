@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -21,7 +21,7 @@ using namespace vpux;
 // ConfigureBarrierOp
 //
 
-void vpux::VPUIP::ConfigureBarrierOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, uint32_t id) {
+void vpux::VPUIP::ConfigureBarrierOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, int64_t id) {
     build(builder, state, vpux::VPUIP::BarrierType::get(builder.getContext()), id, mlir::ValueRange{},
           mlir::ValueRange{});
 }

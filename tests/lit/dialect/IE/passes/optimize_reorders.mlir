@@ -33,16 +33,16 @@ func @main(%arg0: tensor<1x3x30x30xf16, {order = #NHWC}>) -> tensor<1x3x15x13xf1
     %0 = IE.Reorder(%arg0) {dstOrder = #NCHW} : tensor<1x3x30x30xf16, {order = #NHWC}> -> tensor<1x3x30x30xf16>
 
     %1 = IE.Expand(%0) {
-        pads_begin_attr = [0 : i32, 0 : i32, 0 : i32, 0 : i32],
-        pads_end_attr = [0 : i32, 13 : i32, 0 : i32, 0 : i32]
+        pads_begin_attr = [0, 0, 0, 0],
+        pads_end_attr = [0, 13, 0, 0]
     } : tensor<1x3x30x30xf16> -> tensor<1x16x30x30xf16>
 
     %2 = IE.MaxPool(%1) {
-        kernel_size = [5 : i32, 5 : i32],
-        pads_begin = [2 : i32, 0 : i32],
-        pads_end = [2 : i32, 0 : i32],
+        kernel_size = [5, 5],
+        pads_begin = [2, 0],
+        pads_end = [2, 0],
         rounding_type = "FLOOR",
-        strides = [2 : i32, 2 : i32]
+        strides = [2, 2]
     } : tensor<1x16x30x30xf16> -> tensor<1x16x15x13xf16>
 
     %3 = tensor.extract_slice %2[0, 0, 0, 0] [1, 3, 15, 13] [1, 1, 1, 1] : tensor<1x16x15x13xf16> to tensor<1x3x15x13xf16>
@@ -84,7 +84,7 @@ func @main(%arg0: tensor<1x3x30x30xf16, {order = #NHWC}>) ->
         (tensor<1x1x30x30xf16, {order = #NHWC}>, tensor<1x1x30x30xf16, {order = #NHWC}>, tensor<1x1x30x30xf16, {order = #NHWC}>){
     %0 = IE.Reorder(%arg0) {dstOrder = #NCHW} : tensor<1x3x30x30xf16, {order = #NHWC}> -> tensor<1x3x30x30xf16>
 
-    %1:3 = IE.Split(%0) {axis_value = 1 : si32, num_splits = 3 : i32} :
+    %1:3 = IE.Split(%0) {axis_value = 1, num_splits = 3} :
         tensor<1x3x30x30xf16> -> tensor<1x1x30x30xf16>, tensor<1x1x30x30xf16>, tensor<1x1x30x30xf16>
 
     %2 = IE.Reorder(%1#0) {dstOrder = #NHWC} : tensor<1x1x30x30xf16> -> tensor<1x1x30x30xf16, {order = #NHWC}>
@@ -122,11 +122,11 @@ func @main(%arg0: tensor<1x1x30x30xf16, {order = #NHWC}>, %arg1: tensor<1x1x30x3
         -> tensor<1x2x30x30xf16, {order = #NHWC}> {
     %0 = IE.Reorder(%arg0) {dstOrder = #NCHW} : tensor<1x1x30x30xf16, {order = #NHWC}> -> tensor<1x1x30x30xf16>
     %1 = IE.Reorder(%arg1) {dstOrder = #NCHW} : tensor<1x1x30x30xf16, {order = #NHWC}> -> tensor<1x1x30x30xf16>
-    %2 = IE.Concat(%0, %1) {axis = 1 : si32} : tensor<1x1x30x30xf16>, tensor<1x1x30x30xf16> -> tensor<1x2x30x30xf16>
+    %2 = IE.Concat(%0, %1) {axis = 1} : tensor<1x1x30x30xf16>, tensor<1x1x30x30xf16> -> tensor<1x2x30x30xf16>
     %3 = IE.Reorder(%2) {dstOrder = #NHWC} : tensor<1x2x30x30xf16> -> tensor<1x2x30x30xf16, {order = #NHWC}>
     return %3 : tensor<1x2x30x30xf16, {order = #NHWC}>
 
-    // CHECK:       [[VAR0:%.+]] = IE.Concat([[ARG0]], [[ARG1]]) {axis = 1 : si32}
+    // CHECK:       [[VAR0:%.+]] = IE.Concat([[ARG0]], [[ARG1]]) {axis = 1 : i64}
     // CHECK-SAME:      tensor<1x1x30x30xf16, {order = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>}>,
     // CHECK-SAME:      tensor<1x1x30x30xf16, {order = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>}>
     // CHECK-SAME:      -> tensor<1x2x30x30xf16, {order = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>}>

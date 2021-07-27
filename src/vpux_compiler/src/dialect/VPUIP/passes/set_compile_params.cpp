@@ -78,9 +78,9 @@ void SetCompileParamsPass::safeRunOnModule() {
 
     const auto options = VPUIP::ExecutionFlagAttr::get(&ctx, VPUIP::ExecutionFlag::NONE);
 
-    const auto version = VPUIP::VersionAttr::get(getInt32Attr(&ctx, MVCNN_VERSION_MAJOR),           // majorV
-                                                 getInt32Attr(&ctx, MVCNN_VERSION_MINOR),           // minorV
-                                                 getInt32Attr(&ctx, MVCNN_VERSION_PATCH),           // patchV
+    const auto version = VPUIP::VersionAttr::get(getIntAttr(&ctx, MVCNN_VERSION_MAJOR),             // majorV
+                                                 getIntAttr(&ctx, MVCNN_VERSION_MINOR),             // minorV
+                                                 getIntAttr(&ctx, MVCNN_VERSION_PATCH),             // patchV
                                                  mlir::StringAttr::get(&ctx, VPUX_PLUGIN_VERSION),  // hash
                                                  mlir::StringAttr::get(&ctx, "VPUX Compiler"),      // contextStr
                                                  &ctx);

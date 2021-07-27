@@ -23,7 +23,7 @@ using namespace vpux;
 
 void vpux::VPUIP::DeclareTensorOp::build(mlir::OpBuilder& builder, ::mlir::OperationState& state, mlir::Type memory,
                                          VPUIP::MemoryLocation locale, uint64_t dataIndex) {
-    build(builder, state, memory, locale, builder.getI32ArrayAttr(ArrayRef<int32_t>{0}),  // localeIndex
+    build(builder, state, memory, locale, builder.getI64ArrayAttr(ArrayRef<int64_t>{0}),  // localeIndex
           dataIndex,
           nullptr,  // sparsityIndex
           nullptr,  // storageElementIndex
@@ -35,7 +35,7 @@ void vpux::VPUIP::DeclareTensorOp::build(mlir::OpBuilder& builder, ::mlir::Opera
 
 void vpux::VPUIP::DeclareTensorOp::build(mlir::OpBuilder& builder, ::mlir::OperationState& state, mlir::Type memory,
                                          VPUIP::MemoryLocation locale, uint32_t localeIndex, uint64_t dataIndex) {
-    build(builder, state, memory, locale, builder.getI32ArrayAttr(ArrayRef<int32_t>(static_cast<int32_t>(localeIndex))),
+    build(builder, state, memory, locale, builder.getI64ArrayAttr(ArrayRef<int64_t>(static_cast<int64_t>(localeIndex))),
           dataIndex,
           nullptr,  // sparsityIndex
           nullptr,  // storageElementIndex
@@ -48,7 +48,7 @@ void vpux::VPUIP::DeclareTensorOp::build(mlir::OpBuilder& builder, ::mlir::Opera
 void vpux::VPUIP::DeclareTensorOp::build(mlir::OpBuilder& builder, ::mlir::OperationState& state, mlir::Type memory,
                                          VPUIP::MemoryLocation locale, ArrayRef<int64_t> localeIndex,
                                          uint64_t dataIndex) {
-    build(builder, state, memory, locale, getInt32ArrayAttr(builder.getContext(), localeIndex), dataIndex,
+    build(builder, state, memory, locale, getIntArrayAttr(builder, localeIndex), dataIndex,
           nullptr,  // sparsityIndex
           nullptr,  // storageElementIndex
           nullptr,  // storageElementSize
@@ -75,10 +75,10 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(DeclareTensorOp op) {
 
 mlir::ParseResult vpux::VPUIP::DeclareTensorOp::parseLocaleIndex(mlir::OpAsmParser& parser,
                                                                  mlir::ArrayAttr& localeIndex) {
-    SmallVector<int32_t> indicies;
+    SmallVector<int64_t> indicies;
     if (!parser.parseOptionalLSquare() && parser.parseOptionalRSquare()) {
         for (;;) {
-            int32_t idx = 0;
+            int64_t idx = 0;
             if (parser.parseInteger(idx)) {
                 return mlir::failure();
             }
@@ -92,7 +92,7 @@ mlir::ParseResult vpux::VPUIP::DeclareTensorOp::parseLocaleIndex(mlir::OpAsmPars
             break;
         }
     }
-    localeIndex = parser.getBuilder().getI32ArrayAttr(indicies);
+    localeIndex = parser.getBuilder().getI64ArrayAttr(indicies);
     return mlir::success();
 }
 

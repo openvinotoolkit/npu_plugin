@@ -1,4 +1,4 @@
-
+//
 // Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
@@ -25,7 +25,7 @@ namespace {
 mlir::FailureOr<SmallVector<int64_t>> extractIntVector(mlir::Location loc, const mlir::Value& value,
                                                        const mlir::ArrayAttr& attr) {
     if (attr != nullptr) {
-        return parseIntArrayAttr(attr);
+        return parseIntArrayAttr<int64_t>(attr);
     } else if (value != nullptr) {
         auto valueConst = value.getDefiningOp<Const::DeclareOp>();
         if (valueConst == nullptr) {
@@ -41,7 +41,7 @@ mlir::FailureOr<SmallVector<int64_t>> extractIntVector(mlir::Location loc, const
 mlir::FailureOr<SmallVector<double>> extractFPVector(mlir::Location loc, const mlir::Value& value,
                                                      const mlir::ArrayAttr& attr) {
     if (attr != nullptr) {
-        return parseFPArrayAttr(attr);
+        return parseFPArrayAttr<double>(attr);
     } else if (value != nullptr) {
         auto valueConst = value.getDefiningOp<Const::DeclareOp>();
 
@@ -159,7 +159,7 @@ mlir::LogicalResult ConvertInputsToAttr::matchAndRewrite(IE::InterpolateOp Inter
     if (mlir::failed(sizes)) {
         return mlir::failure();
     }
-    const auto sizesAttr = getInt32ArrayAttr(InterpolateOp.getContext(), sizes.getValue());
+    const auto sizesAttr = getIntArrayAttr(InterpolateOp.getContext(), sizes.getValue());
 
     // convert scales
     auto scales = extractFPVector(InterpolateOp.getLoc(), InterpolateOp.scales(), nullptr);
@@ -167,7 +167,7 @@ mlir::LogicalResult ConvertInputsToAttr::matchAndRewrite(IE::InterpolateOp Inter
     if (mlir::failed(scales)) {
         return mlir::failure();
     }
-    const auto scalesAttr = getFP32ArrayAttr(InterpolateOp.getContext(), scales.getValue());
+    const auto scalesAttr = getFPArrayAttr(InterpolateOp.getContext(), scales.getValue());
 
     // convert axes
     auto axes = extractIntVector(InterpolateOp.getLoc(), InterpolateOp.axes(), nullptr);
@@ -175,7 +175,7 @@ mlir::LogicalResult ConvertInputsToAttr::matchAndRewrite(IE::InterpolateOp Inter
     if (mlir::failed(axes)) {
         return mlir::failure();
     }
-    const auto axesAttr = getInt32ArrayAttr(InterpolateOp.getContext(), axes.getValue());
+    const auto axesAttr = getIntArrayAttr(InterpolateOp.getContext(), axes.getValue());
 
     // rewrite layer
     rewriter.replaceOpWithNewOp<IE::InterpolateOp>(InterpolateOp, InterpolateOp.input(), nullptr, nullptr, nullptr,

@@ -16,10 +16,10 @@ func @SplitOverOC(
         %output_buff: memref<1x64x100x100xf16>)
             -> memref<1x64x100x100xf16> {
     %1 = IERT.Convolution {
-            dilations = [1 : i32, 1 : i32],
-            pads_begin = [1 : i32, 1 : i32],
-            pads_end = [1 : i32, 1 : i32],
-            strides = [1 : i32, 1 : i32]
+            dilations = [1, 1],
+            pads_begin = [1, 1],
+            pads_end = [1, 1],
+            strides = [1, 1]
         }
         inputs(%input: memref<1x32x100x100xf16>, %filter: memref<64x32x3x3xf16>, %bias : memref<1x64x1x1xf16>)
         outputs(%output_buff : memref<1x64x100x100xf16>)
@@ -49,10 +49,10 @@ func @SplitOverOC(
 
 // CHECK:       [[OUTPUT_TILE0_BUFF:%.+]] = memref.alloc() : memref<1x32x100x100xf16>
 // CHECK:       [[OUTPUT_TILE0:%.+]] = IERT.Convolution
-// CHECK-SAME:          dilations = [1 : i32, 1 : i32]
-// CHECK-SAME:          pads_begin = [1 : i32, 1 : i32]
-// CHECK-SAME:          pads_end = [1 : i32, 1 : i32]
-// CHECK-SAME:          strides = [1 : i32, 1 : i32]}
+// CHECK-SAME:          dilations = [1, 1]
+// CHECK-SAME:          pads_begin = [1, 1]
+// CHECK-SAME:          pads_end = [1, 1]
+// CHECK-SAME:          strides = [1, 1]}
 // CHECK-SAME:      inputs([[INPUT]] : memref<1x32x100x100xf16>,
 // CHECK-SAME:             [[FILTER_TILE0]] : memref<32x32x3x3xf16>,
 // CHECK-SAME:             [[BIAS_TILE0]] : memref<1x32x1x1xf16>)
@@ -79,10 +79,10 @@ func @SplitOverOC(
 
 // CHECK:       [[OUTPUT_TILE1_BUFF:%.+]] = memref.alloc() : memref<1x32x100x100xf16>
 // CHECK:       [[OUTPUT_TILE1:%.+]] = IERT.Convolution
-// CHECK-SAME:          dilations = [1 : i32, 1 : i32]
-// CHECK-SAME:          pads_begin = [1 : i32, 1 : i32]
-// CHECK-SAME:          pads_end = [1 : i32, 1 : i32]
-// CHECK-SAME:          strides = [1 : i32, 1 : i32]}
+// CHECK-SAME:          dilations = [1, 1]
+// CHECK-SAME:          pads_begin = [1, 1]
+// CHECK-SAME:          pads_end = [1, 1]
+// CHECK-SAME:          strides = [1, 1]}
 // CHECK-SAME:      inputs([[INPUT]] : memref<1x32x100x100xf16>,
 // CHECK-SAME:             [[FILTER_TILE1]] : memref<32x32x3x3xf16>,
 // CHECK-SAME:             [[BIAS_TILE1]] : memref<1x32x1x1xf16>)
@@ -117,10 +117,10 @@ func @SplitOverH(
         %output_buff: memref<1x16x100x100xf16>)
             -> memref<1x16x100x100xf16> {
     %1 = IERT.MaxPool {
-            kernel_size = [3 : i32, 3 : i32],
-            pads_begin = [1 : i32, 1 : i32],
-            pads_end = [1 : i32, 1 : i32],
-            strides = [1 : i32, 1 : i32]
+            kernel_size = [3, 3],
+            pads_begin = [1, 1],
+            pads_end = [1, 1],
+            strides = [1, 1]
         }
         inputs(%input: memref<1x16x100x100xf16>)
         outputs(%output_buff : memref<1x16x100x100xf16>)
@@ -142,10 +142,10 @@ func @SplitOverH(
 
 // CHECK:       [[OUTPUT_TILE0_BUFF:%.+]] = memref.alloc() : memref<1x16x50x100xf16>
 // CHECK:       [[OUTPUT_TILE0:%.+]] = IERT.MaxPool
-// CHECK-SAME:          kernel_size = [3 : i32, 3 : i32]
-// CHECK-SAME:          pads_begin = [1 : i32, 1 : i32]
-// CHECK-SAME:          pads_end = [0 : i32, 1 : i32]
-// CHECK-SAME:          strides = [1 : i32, 1 : i32]}
+// CHECK-SAME:          kernel_size = [3, 3]
+// CHECK-SAME:          pads_begin = [1, 1]
+// CHECK-SAME:          pads_end = [0, 1]
+// CHECK-SAME:          strides = [1, 1]}
 // CHECK-SAME:      inputs([[INPUT_TILE0]] : memref<1x16x51x100xf16>)
 // CHECK-SAME:      outputs([[OUTPUT_TILE0_BUFF]] : memref<1x16x50x100xf16>
 
@@ -164,10 +164,10 @@ func @SplitOverH(
 
 // CHECK:       [[OUTPUT_TILE1_BUFF:%.+]] = memref.alloc() : memref<1x16x50x100xf16>
 // CHECK:       [[OUTPUT_TILE1:%.+]] = IERT.MaxPool
-// CHECK-SAME:          kernel_size = [3 : i32, 3 : i32]
-// CHECK-SAME:          pads_begin = [0 : i32, 1 : i32]
-// CHECK-SAME:          pads_end = [1 : i32, 1 : i32]
-// CHECK-SAME:          strides = [1 : i32, 1 : i32]}
+// CHECK-SAME:          kernel_size = [3, 3]
+// CHECK-SAME:          pads_begin = [0, 1]
+// CHECK-SAME:          pads_end = [1, 1]
+// CHECK-SAME:          strides = [1, 1]}
 // CHECK-SAME:      inputs([[INPUT_TILE1]] : memref<1x16x51x100xf16>)
 // CHECK-SAME:      outputs([[OUTPUT_TILE1_BUFF]] : memref<1x16x50x100xf16>
 

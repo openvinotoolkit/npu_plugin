@@ -24,7 +24,7 @@ IE.CNNNetwork
 
 // CHECK: func @main(%arg0: tensor<1x1000xf16>) -> tensor<1x1000xf16>
 func @main(%arg0: tensor<1x1000xf32>) -> tensor<1x1000xf32> {
-    %prob = IE.SoftMax(%arg0) {axisInd = 1 : i32} : tensor<1x1000xf32> -> tensor<1x1000xf32>
+    %prob = IE.SoftMax(%arg0) {axisInd = 1} : tensor<1x1000xf32> -> tensor<1x1000xf32>
     // CHECK:       %[[OUT:.*]] = IE.SoftMax(%arg0)
     // CHECK-SAME:      tensor<1x1000xf16> -> tensor<1x1000xf16>
 

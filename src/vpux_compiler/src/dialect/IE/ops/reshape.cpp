@@ -41,7 +41,7 @@ mlir::FailureOr<SmallVector<int64_t>> getOutShape(IE::ReshapeOpAdaptor reshape, 
     }
 
     if (reshape.shape_value() != nullptr) {
-        return parseIntArrayAttr(reshape.shape_value());
+        return parseIntArrayAttr<int64_t>(reshape.shape_value());
     }
 
     auto shapeConst = reshape.shape().getDefiningOp<Const::DeclareOp>();
@@ -180,7 +180,7 @@ mlir::LogicalResult FuseReshapes::matchAndRewrite(IE::ReshapeOp origOp, mlir::Pa
     }
 
     const auto outputShape = origOp.getType().getShape();
-    const auto outputShapeAttr = getInt64ArrayAttr(getContext(), outputShape);
+    const auto outputShapeAttr = getIntArrayAttr(getContext(), outputShape);
 
     rewriter.replaceOpWithNewOp<IE::ReshapeOp>(origOp, prevOp->getOperand(0), nullptr, false, outputShapeAttr);
     return mlir::success();
@@ -212,7 +212,7 @@ mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::ReshapeOp origOp, ml
         return mlir::failure();
     }
 
-    const auto outShapeAttr = getInt64ArrayAttr(getContext(), outShape.getValue());
+    const auto outShapeAttr = getIntArrayAttr(getContext(), outShape.getValue());
 
     rewriter.replaceOpWithNewOp<IE::ReshapeOp>(origOp, origOp.input(), nullptr, false, outShapeAttr);
     return mlir::success();

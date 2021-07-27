@@ -266,8 +266,8 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPoolCMX(mlir::Location loc,
     const auto inputShape = getShape(inputType);
     const auto IC = inputShape[IERT::MaxPoolOp::act_channel_dim()];
 
-    const auto kernelSizeVals = parseIntArrayAttr(kernelSize);
-    const auto kernelStridesVals = parseIntArrayAttr(kernelStrides);
+    const auto kernelSizeVals = parseIntArrayAttr<int64_t>(kernelSize);
+    const auto kernelStridesVals = parseIntArrayAttr<int64_t>(kernelStrides);
 
     const auto activationWindowSize = VPUIP::NCESparsity::getActivationWindowSize(kernelSizeVals, kernelStridesVals[0],
                                                                                   inputType.getElementType(), IC);
@@ -349,7 +349,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyGroupConvCMX(mlir::Location
 
     // FIXME why does fake sparsity expects this order of kernel dimensions?
     const auto kernelSizeVals = SmallVector<int64_t>{KX, KY};
-    const auto kernelStridesVals = parseIntArrayAttr(kernelStrides);
+    const auto kernelStridesVals = parseIntArrayAttr<int64_t>(kernelStrides);
 
     const auto activationWindowSize = VPUIP::NCESparsity::getActivationWindowSize(kernelSizeVals, kernelStridesVals[0],
                                                                                   inputType.getElementType(), OC);
@@ -391,7 +391,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(mlir::Location loc, 
                                                             mlir::ArrayAttr kernelStridesAttr, Logger log) {
     log.setName("NCEInvariant");
 
-    const auto kernelSize = parseIntArrayAttr(kernelSizeAttr);
+    const auto kernelSize = parseIntArrayAttr<int64_t>(kernelSizeAttr);
     const auto KY = kernelSize[0];
     const auto KX = kernelSize[1];
 
@@ -408,7 +408,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(mlir::Location loc, 
         return mlir::failure();
     }
 
-    const auto kernelStrides = parseIntArrayAttr(kernelStridesAttr);
+    const auto kernelStrides = parseIntArrayAttr<int64_t>(kernelStridesAttr);
     const auto SY = kernelStrides[0];
     const auto SX = kernelStrides[1];
 
@@ -435,7 +435,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(mlir::Location loc, 
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IE::ConvolutionOp origOp, Logger log) {
     log.setName("NCEInvariant");
 
-    const auto dilations = parseIntArrayAttr(origOp.dilations());
+    const auto dilations = parseIntArrayAttr<int64_t>(origOp.dilations());
     if (dilations[0] != 1 || dilations[1] != 1) {
         log.trace("[{0}] Unsupported kernel dilations '{1}'", origOp->getLoc(), dilations);
         return mlir::failure();
@@ -444,7 +444,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IE::ConvolutionOp or
     const auto filterShape = getShape(origOp.filter());
     const auto KY = filterShape[IERT::ConvolutionOp::filter_spatial_height_dim()];
     const auto KX = filterShape[IERT::ConvolutionOp::filter_spatial_width_dim()];
-    const auto kernelSizeAttr = getInt32ArrayAttr(origOp.getContext(), makeArrayRef({KY, KX}));
+    const auto kernelSizeAttr = getIntArrayAttr(origOp.getContext(), makeArrayRef({KY, KX}));
 
     return verifyKernel(origOp->getLoc(), kernelSizeAttr, origOp.strides(), log);
 }
@@ -452,7 +452,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IE::ConvolutionOp or
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IERT::ConvolutionOp origOp, Logger log) {
     log.setName("NCEInvariant");
 
-    const auto dilations = parseIntArrayAttr(origOp.dilations());
+    const auto dilations = parseIntArrayAttr<int64_t>(origOp.dilations());
     if (dilations[0] != 1 || dilations[1] != 1) {
         log.trace("[{0}] Unsupported kernel dilations '{1}'", origOp->getLoc(), dilations);
         return mlir::failure();
@@ -461,7 +461,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IERT::ConvolutionOp 
     const auto filterShape = getShape(origOp.filter());
     const auto KY = filterShape[IERT::ConvolutionOp::filter_spatial_height_dim()];
     const auto KX = filterShape[IERT::ConvolutionOp::filter_spatial_width_dim()];
-    const auto kernelSizeAttr = getInt32ArrayAttr(origOp.getContext(), makeArrayRef({KY, KX}));
+    const auto kernelSizeAttr = getIntArrayAttr(origOp.getContext(), makeArrayRef({KY, KX}));
 
     return verifyKernel(origOp->getLoc(), kernelSizeAttr, origOp.strides(), log);
 }
@@ -469,7 +469,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IERT::ConvolutionOp 
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IE::MaxPoolOp origOp, Logger log) {
     log.setName("NCEInvariant");
 
-    const auto kernelSize = parseIntArrayAttr(origOp.kernel_size());
+    const auto kernelSize = parseIntArrayAttr<int64_t>(origOp.kernel_size());
     if (kernelSize[0] != kernelSize[1]) {
         log.trace("[{0}] Assymetric kernel is not supported", origOp->getLoc());
         return mlir::failure();
@@ -481,7 +481,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IE::MaxPoolOp origOp
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IERT::MaxPoolOp origOp, Logger log) {
     log.setName("NCEInvariant");
 
-    const auto kernelSize = parseIntArrayAttr(origOp.kernel_size());
+    const auto kernelSize = parseIntArrayAttr<int64_t>(origOp.kernel_size());
     if (kernelSize[0] != kernelSize[1]) {
         log.trace("[{0}] Assymetric kernel is not supported", origOp->getLoc());
         return mlir::failure();
@@ -533,7 +533,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IERT::AddOp origOp, 
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IE::GroupConvolutionOp origOp, Logger log) {
     log.setName("NCEInvariant");
 
-    const auto dilations = parseIntArrayAttr(origOp.dilations());
+    const auto dilations = parseIntArrayAttr<int64_t>(origOp.dilations());
     if (dilations[0] != 1 || dilations[1] != 1) {
         log.trace("[{0}] Unsupported kernel dilations '{1}'", origOp->getLoc(), dilations);
         return mlir::failure();
@@ -554,14 +554,14 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IE::GroupConvolution
     const auto KY = filterShape[IERT::ConvolutionOp::filter_spatial_height_dim()];
     const auto KX = filterShape[IERT::ConvolutionOp::filter_spatial_width_dim()];
 
-    const auto kernelSizeAttr = getInt32ArrayAttr(origOp.getContext(), makeArrayRef({KY, KX}));
+    const auto kernelSizeAttr = getIntArrayAttr(origOp.getContext(), makeArrayRef({KY, KX}));
     return verifyKernel(origOp->getLoc(), kernelSizeAttr, origOp.strides(), log);
 }
 
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IERT::GroupConvolutionOp origOp, Logger log) {
     log.setName("NCEInvariant");
 
-    const auto dilations = parseIntArrayAttr(origOp.dilations());
+    const auto dilations = parseIntArrayAttr<int64_t>(origOp.dilations());
     if (dilations[0] != 1 || dilations[1] != 1) {
         log.trace("[{0}] Unsupported kernel dilations '{1}'", origOp->getLoc(), dilations);
         return mlir::failure();
@@ -582,7 +582,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IERT::GroupConvoluti
     const auto KY = filterShape[IERT::ConvolutionOp::filter_spatial_height_dim()];
     const auto KX = filterShape[IERT::ConvolutionOp::filter_spatial_width_dim()];
 
-    const auto kernelSizeAttr = getInt32ArrayAttr(origOp.getContext(), makeArrayRef({KY, KX}));
+    const auto kernelSizeAttr = getIntArrayAttr(origOp.getContext(), makeArrayRef({KY, KX}));
     return verifyKernel(origOp->getLoc(), kernelSizeAttr, origOp.strides(), log);
 }
 

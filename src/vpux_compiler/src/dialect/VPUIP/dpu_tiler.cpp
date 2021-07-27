@@ -17,16 +17,16 @@
 
 using namespace vpux;
 
-SmallVector<VPUIP::DpuTile> vpux::VPUIP::DpuTiler::tileOverH(uint32_t numDPU, ShapeRef outShape,
+SmallVector<VPUIP::DpuTile> vpux::VPUIP::DpuTiler::tileOverH(int64_t numDPU, ShapeRef outShape,
                                                              ArrayRef<int64_t> opPadsBegin,
                                                              ArrayRef<int64_t> opPadsEnd) {
     // FIXME: find the optimal number of tiles
-    const auto minTileSize = 1;
+    const int64_t minTileSize = 1;
 
     const int64_t minTilesCount = 1;
-    const auto maxTilesCount = static_cast<int64_t>(numDPU);
+    const int64_t maxTilesCount = numDPU;
 
-    auto tilesCount = outShape[IERT::ConvolutionOp::act_height_dim()] / minTileSize;
+    int64_t tilesCount = outShape[IERT::ConvolutionOp::act_height_dim()] / minTileSize;
     tilesCount = std::min(std::max(tilesCount, minTilesCount), maxTilesCount);
 
     Shape nTilesOnDim(outShape.size(), minTilesCount);

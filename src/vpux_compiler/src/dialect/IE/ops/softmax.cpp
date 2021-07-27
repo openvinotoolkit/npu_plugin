@@ -37,7 +37,7 @@ mlir::OpFoldResult vpux::IE::SoftMaxOp::fold(ArrayRef<mlir::Attribute>) {
     const auto inType = input().getType().cast<mlir::ShapedType>();
     const auto inShape = inType.getShape();
 
-    const auto axis = axisInd();
+    const auto axis = checked_cast<size_t>(axisInd());
     VPUX_THROW_UNLESS(axis < inShape.size(), "Wrong axis idx {0} for {1} dim tensor", axis, inShape.size());
 
     if (inShape[axis] > 1) {

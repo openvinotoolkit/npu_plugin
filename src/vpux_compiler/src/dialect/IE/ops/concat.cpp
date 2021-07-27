@@ -25,7 +25,7 @@ Dim normalizeAxis(IE::ConcatOpAdaptor concat) {
     const auto inType = concat.inputs().front().getType().cast<mlir::ShapedType>();
     const auto inRank = inType.getRank();
 
-    auto axisInd = concat.axis().getSInt();
+    auto axisInd = concat.axis().getValue().getSExtValue();
 
     // Negative value means counting dimension from the end
     if (axisInd < 0) {

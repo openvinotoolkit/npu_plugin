@@ -38,8 +38,8 @@ void vpux::VPUIP::setArch(mlir::ModuleOp module, ArchKind kind) {
 
     const auto addMem = [&](VPUIP::PhysicalMemory kind, Byte size, double derateFactor, uint32_t bandwidth) {
         auto mem = resources.addAvailableMemory(VPUIP::PhysicalMemoryAttr::get(module.getContext(), kind), size);
-        mem->setAttr(derateFactorAttrName, getFP64Attr(module.getContext(), derateFactor));
-        mem->setAttr(bandwidthAttrName, getInt64Attr(module.getContext(), bandwidth));
+        mem->setAttr(derateFactorAttrName, getFPAttr(module.getContext(), derateFactor));
+        mem->setAttr(bandwidthAttrName, getIntAttr(module.getContext(), bandwidth));
     };
 
     // Size 192 found manually through experimentation. May be incorrect.
