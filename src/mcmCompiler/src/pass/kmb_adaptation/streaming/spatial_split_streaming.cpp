@@ -1572,7 +1572,8 @@ static void streamBinaryDataWeightsFcn(const mv::pass::PassEntry& ,
     mv::OpModel om(model);
 
     std::set <std::string> removeConstantsSet;
-    for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
+    auto opIterator = om.opBegin();
+    while (opIterator != om.opEnd())
     {
         std::string opType = opIterator->getOpType();
 
@@ -1584,7 +1585,7 @@ static void streamBinaryDataWeightsFcn(const mv::pass::PassEntry& ,
             auto parentOpIt = om.getSourceOp(opIterator->getInputTensor(0));
             auto shape = outTensorSlice->getShape();
             auto quantParams = outTensorSlice->getQuantParams();
-
+        
             auto newConstant = om.constantDataElement(opIterator->getName() + "_weights",
                                                       outTensorSlice->getData(), shape,
                                                       outTensorSlice->getDType(), outTensorSlice->getOrder());
@@ -1596,8 +1597,12 @@ static void streamBinaryDataWeightsFcn(const mv::pass::PassEntry& ,
                 unsigned currentOpId = opIterator->get<unsigned>("opId");
                 constantOp->set<unsigned>("opId", currentOpId);
             }
-            opIterator = operationsReplacement(parentOpIt, newConstant, om, opIterator);
+            auto copyIterator = opIterator;
+            ++opIterator;
+            copyIterator = operationsReplacement(parentOpIt, newConstant, om, copyIterator);
         }
+        else
+            ++opIterator;
     }
     for (auto& opName:removeConstantsSet)
         om.removeOp(om.getOp(opName));
