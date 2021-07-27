@@ -451,6 +451,14 @@ void ZeroExecutor::commandList::appendGraphInitialize(const ze_graph_handle_t& g
 void ZeroExecutor::commandList::appendGraphExecute(const ze_graph_handle_t& graph_handle) {
     throwOnFail("pfnAppendGraphExecute", _graph_ddi_table_ext->pfnAppendGraphExecute(_handle, graph_handle));
 }
+// TODO This is a work-around due to bug on ARM side
+// ARM sends signal before all necessary copying operations are completed
+// Should be removed when the bug is resolved
+// [Track number: E#13355]
+// [Track number: E#16690]
+void ZeroExecutor::commandList::appendBarrier() {
+    throwOnFail("zeCommandListAppendBarrier", zeCommandListAppendBarrier(_handle, nullptr, 0, nullptr));
+}
 void ZeroExecutor::commandList::close() {
     throwOnFail("zeCommandListClose", zeCommandListClose(_handle));
 }
@@ -540,6 +548,7 @@ ZeroExecutor::pipeline::pipeline(const ze_driver_handle_t& driver_handle, const 
 
         graph->setArgumentValue(desc.second.idx, deviceMem.data());
     }
+    _command_list[stage::UPLOAD].appendBarrier();
     _event[stage::UPLOAD].AppendSignalEvent(_command_list[stage::UPLOAD]);
 
     for (const auto& desc : graph->_outputs_desc_map) {

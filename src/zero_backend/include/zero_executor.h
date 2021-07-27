@@ -175,6 +175,7 @@ protected:
         void appendMemoryCopy(void* dst, const void* src, size_t size);
         void appendGraphInitialize(const ze_graph_handle_t& graph_handle);
         void appendGraphExecute(const ze_graph_handle_t& graph_handle);
+        void appendBarrier();
         void close();
         ~commandList();
         ze_command_list_handle_t _handle = nullptr;
