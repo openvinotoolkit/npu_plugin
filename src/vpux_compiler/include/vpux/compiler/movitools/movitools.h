@@ -28,6 +28,7 @@ struct MoviCompileParams {
     std::string cpu;
     std::string moviCompile;
     std::string mdkLinker;
+    std::string mdkObjCopy;
     std::string mdkLibDir;
     std::vector<std::string> mdkLibs;
 };
