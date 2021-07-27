@@ -663,6 +663,8 @@ class CMX_Concatenation {
             fprintf(fptr.get(), "dpu_name=%s\n", (*ditr)->getName().c_str());
             for (auto ritr = read_list.begin(); ritr != read_list.end();
                   ++ritr) {
+              if (omodel_.getOp((*ritr)->getName())->hasAttr("toIgnore"))
+                continue;
               size_t rsize = (const_cast<mv::Op *>(*ritr))->
                   getOutputTensor(0UL)->getClusterSize();
               fprintf(fptr.get(), "r=%s size=%lu : ",
@@ -809,6 +811,8 @@ class CMX_Concatenation {
         mv::Data::TensorIterator tensor_itr =
           const_cast<non_const_operation_t>(op)->getInputTensor(i);
         mv::Data::OpListIterator pop = omodel_.getSourceOp(tensor_itr);
+        if (pop->hasAttr("toIgnore"))
+          continue;
         if (!pop->isImplicit()) {
           size_t curr_size = 0UL;
           if (is_the_output_of_this_op_in_cmx(pop)) {

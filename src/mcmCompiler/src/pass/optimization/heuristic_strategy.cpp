@@ -365,10 +365,26 @@ double HeuristicGraphOptimizer::dmaTime(mv::Data::OpListIterator opIt, StrategyS
             stream = streamShape["C"];
             weightsSize += realTensorSize(opIt->getInputTensor(1),{1,1,stream,1,1}, isCMConv);
         }
-        weightsSize += 16 * alignedSplittedChannels; //weights table size
-        //In nested streaming for each slice of H, we cycle through all the slices of K
-        size_t nestedStreams = stream * streamShape["H"];
-        weightsCycles = nestedStreams*(LATENCY_DDR_ + ((double)weightsSize / DDR_BANDWIDTH_));
+        std::size_t weightTableSize = 16 * alignedSplittedChannels; //weights table size
+        if (streamShape["H"] > 1)
+        {
+            // streaming over h - shared weights
+            std::size_t nestedStreams = stream;
+            std::size_t nestedWeightTableStreams = stream * streamShape["H"];
+            if (stream > 1)
+            {
+                // In nested streaming for each slice of H, we cycle through all the slices of K
+                nestedStreams *= streamShape["H"];
+            }
+            weightsCycles = nestedStreams*(LATENCY_DDR_ + ((double)weightsSize / DDR_BANDWIDTH_));
+            weightsCycles += nestedWeightTableStreams*(LATENCY_DDR_ + ((double)weightTableSize / DDR_BANDWIDTH_));
+        }
+        else
+        {
+            // if not streaming over h - tensors fused
+            weightsSize += weightTableSize;
+            weightsCycles = stream*(LATENCY_DDR_ + ((double)weightsSize / DDR_BANDWIDTH_));
+        }
     }
 
     // If parent tensor stays in CMX, no further cost. Otherwise, calculate bring the input tensor back into CMX
@@ -555,10 +571,28 @@ double HeuristicGraphOptimizer::averageWeightsDmaTime(mv::Data::OpListIterator o
             stream = streamShape["C"];
             weightsSize += realTensorSize(opIt->getInputTensor(1),{1,1,stream,1,1}, isCMConv);
         }
-        weightsSize += 16 * alignedSplittedChannels; //weights table size
-        //In nested streaming for each slice of H, we cycle through all the slices of K
-        size_t nestedStreams = stream * streamShape["H"];
-        return nestedStreams*(LATENCY_DDR_ + ((double)weightsSize / DDR_BANDWIDTH_));
+        std::size_t weightsCycles = 0UL;
+        std::size_t weightTableSize = 16 * alignedSplittedChannels; //weights table size
+        if (streamShape["H"] > 1)
+        {
+            // streaming over h - shared weights
+            std::size_t nestedStreams = stream;
+            std::size_t nestedWeightTableStreams = stream * streamShape["H"];
+            if (stream > 1)
+            {
+                // In nested streaming for each slice of H, we cycle through all the slices of K
+                nestedStreams *= streamShape["H"];
+            }
+            weightsCycles = nestedStreams*(LATENCY_DDR_ + ((double)weightsSize / DDR_BANDWIDTH_));
+            weightsCycles += nestedWeightTableStreams*(LATENCY_DDR_ + ((double)weightTableSize / DDR_BANDWIDTH_));
+        }
+        else
+        {
+            // if not streaming over h - tensors fused
+            weightsSize += weightTableSize;
+            weightsCycles = stream*(LATENCY_DDR_ + ((double)weightsSize / DDR_BANDWIDTH_));
+        }
+        return weightsCycles;
     }
 
     return 0;
