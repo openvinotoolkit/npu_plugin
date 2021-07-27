@@ -24,8 +24,10 @@ using namespace vpux;
 namespace {
 class ZeroDevicesSingleton {
     ZeroDevicesSingleton() {
-        if (ZE_RESULT_SUCCESS != zeInit(0)) {
-            std::cerr << "ZeroDevicesSingleton zeInit failed\n";
+        auto result = zeInit(0);
+        if (ZE_RESULT_SUCCESS != result) {
+            std::cerr << "ZeroDevicesSingleton zeInit failed 0x" << std::hex << uint64_t(result) << std::dec
+                      << std::endl;
             return;
         }
 
@@ -36,13 +38,17 @@ class ZeroDevicesSingleton {
         ze_graph_dditable_ext_t* _graph_ddi_table_ext = nullptr;
 
         uint32_t drivers = 0;
-        if (ZE_RESULT_SUCCESS != zeDriverGet(&drivers, nullptr)) {
-            std::cerr << "ZeroDevicesSingleton zeDriverGet count failed\n";
+        result = zeDriverGet(&drivers, nullptr);
+        if (ZE_RESULT_SUCCESS != result) {
+            std::cerr << "ZeroDevicesSingleton zeDriverGet count failed 0x" << std::hex << uint64_t(result) << std::dec
+                      << std::endl;
             return;
         }
         std::vector<ze_driver_handle_t> all_drivers(drivers);
-        if (ZE_RESULT_SUCCESS != zeDriverGet(&drivers, all_drivers.data())) {
-            std::cerr << "ZeroDevicesSingleton zeDriverGet get failed\n";
+        result = zeDriverGet(&drivers, all_drivers.data());
+        if (ZE_RESULT_SUCCESS != result) {
+            std::cerr << "ZeroDevicesSingleton zeDriverGet get failed 0x" << std::hex << uint64_t(result) << std::dec
+                      << std::endl;
             return;
         }
         // Get our target driver
@@ -54,23 +60,28 @@ class ZeroDevicesSingleton {
         }
 
         // Load our graph extension
-        if (ZE_RESULT_SUCCESS != zeDriverGetExtensionFunctionAddress(driver_handle, "ZE_extension_graph",
-                                                                     reinterpret_cast<void**>(&_graph_ddi_table_ext))) {
-            std::cerr << "ZeroDevicesSingleton zeDriverGetExtensionFunctionAddress failed\n";
+        result = zeDriverGetExtensionFunctionAddress(driver_handle, "ZE_extension_graph",
+                                                     reinterpret_cast<void**>(&_graph_ddi_table_ext));
+        if (ZE_RESULT_SUCCESS != result) {
+            std::cerr << "ZeroDevicesSingleton zeDriverGetExtensionFunctionAddress failed 0x" << std::hex
+                      << uint64_t(result) << std::dec << std::endl;
             return;
         }
 
         uint32_t device_count = 1;
         // Get our target device
-        if (ZE_RESULT_SUCCESS != zeDeviceGet(driver_handle, &device_count, &device_handle)) {
-            std::cerr << "ZeroDevicesSingleton zeDeviceGet failed\n";
+        result = zeDeviceGet(driver_handle, &device_count, &device_handle);
+        if (ZE_RESULT_SUCCESS != result) {
+            std::cerr << "ZeroDevicesSingleton zeDeviceGet failed 0x" << std::hex << uint64_t(result) << std::dec
+                      << std::endl;
             return;
         }
 
         ze_context_desc_t context_desc = {ZE_STRUCTURE_TYPE_CONTEXT_DESC, 0, 0};
-
-        if (ZE_RESULT_SUCCESS != zeContextCreate(driver_handle, &context_desc, &context)) {
-            std::cerr << "ZeroDevicesSingleton zeContextCreate failed\n";
+        result = zeContextCreate(driver_handle, &context_desc, &context);
+        if (ZE_RESULT_SUCCESS != result) {
+            std::cerr << "ZeroDevicesSingleton zeContextCreate failed 0x" << std::hex << uint64_t(result) << std::dec
+                      << std::endl;
             return;
         }
 
