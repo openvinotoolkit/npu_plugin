@@ -1,5 +1,5 @@
 //
-// Copyright 2021 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -55,7 +55,7 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(ROIPoolingUPAOp op) {
                        inShapeCoord.size());
     }
 
-    const auto output_size = parseIntArrayAttr(op.output_size());
+    const auto output_size = parseIntArrayAttr<int64_t>(op.output_size());
     if (output_size.size() != 2) {
         return errorAt(op, "Dimension of pooled size is expected to be equal to 2. Got {0}", output_size.size());
     }
@@ -76,9 +76,9 @@ void vpux::VPUIP::ROIPoolingUPAOp::build(::mlir::OpBuilder& odsBuilder, ::mlir::
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ROIPoolingUPAOp::serialize(VPUIP::BlobWriter& writer) {
-    float spatial_scale_val = spatial_scale().convertToFloat();
+    const float spatial_scale_val = static_cast<float>(spatial_scale().convertToDouble());
     uint32_t num_rois = checked_cast<uint32_t>(coords().getType().cast<mlir::ShapedType>().getShape()[0]);
-    const auto output_size = parseIntArrayAttr(output_sizeAttr());
+    const auto output_size = parseIntArrayAttr<int64_t>(output_sizeAttr());
 
     MVCNN::ROIPoolingParamsBuilder builder(writer);
     builder.add_spatial_scale(spatial_scale_val);
@@ -98,8 +98,8 @@ mlir::Operation* vpux::VPUIP::BlobReader::parseROIPooling(mlir::OpBuilder& build
     VPUX_THROW_UNLESS(inputs.size() == 2, "UPAROIPooling supports only 2 inputs, got {0}", inputs.size());
     VPUX_THROW_UNLESS(outputs.size() == 1, "UPAROIPooling supports only 1 output, got {0}", outputs.size());
     const auto params = task->softLayerParams_as_ROIPoolingParams();
-    const auto outputSize = getUInt32ArrayAttr(_ctx, SmallVector<uint32_t>{params->pooled_h(), params->pooled_w()});
-    const auto spatialScale = getFP32Attr(_ctx, params->spatial_scale());
+    const auto outputSize = getIntArrayAttr(_ctx, SmallVector<uint32_t>{params->pooled_h(), params->pooled_w()});
+    const auto spatialScale = getFPAttr(_ctx, params->spatial_scale());
     IE::ROIPoolingMethod method;
     switch (params->roi_pooling_method()) {
     case 0:

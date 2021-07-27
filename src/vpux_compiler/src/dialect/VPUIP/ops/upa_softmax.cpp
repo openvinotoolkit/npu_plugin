@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -57,6 +57,6 @@ mlir::Operation* vpux::VPUIP::BlobReader::parseSoftmax(mlir::OpBuilder& builder,
     VPUX_THROW_UNLESS(inputs.size() == 1, "UPASoftMax supports only 1 input, got {0}", inputs.size());
     VPUX_THROW_UNLESS(outputs.size() == 1, "UPASoftMax supports only 1 output, got {0}", outputs.size());
     const auto params = task->softLayerParams_as_SoftmaxParams();
-    const auto axis = getInt32Attr(_ctx, params->axis());
+    const auto axis = getIntAttr(_ctx, params->axis());
     return builder.create<VPUIP::SoftMaxUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], outputs[0], axis);
 }

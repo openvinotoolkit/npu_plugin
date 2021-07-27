@@ -11,25 +11,17 @@
 // included with the Software Package for additional details.
 //
 
-#include "vpux/compiler/core/attributes/shape.hpp"
+#ifndef VPUX_COMPILER_CORE_ATTRIBUTES
+#define VPUX_COMPILER_CORE_ATTRIBUTES
 
-#pragma once
+include "mlir/IR/OpBase.td"
 
-namespace vpux {
-namespace VPUIP {
+def IntAttr : Attr<CPred<"$_self.isa<mlir::IntegerAttr>()">, "Integer attribute"> {
+    let storageType = "mlir::IntegerAttr";
+    let valueType = I64;
+    let returnType = "int64_t";
+    let convertFromStorage = "$_self.getValue().getSExtValue()";
+    let constBuilderCall = "$_builder.getI64IntegerAttr($0)";
+}
 
-struct DpuTile final {
-    SmallVector<int64_t> start;
-    SmallVector<int64_t> end;
-    SmallVector<int64_t> padsBegin;
-    SmallVector<int64_t> padsEnd;
-};
-
-class DpuTiler final {
-public:
-    static SmallVector<DpuTile> tileOverH(int64_t numDPU, ShapeRef outShape, ArrayRef<int64_t> opPadsBegin,
-                                          ArrayRef<int64_t> opPadsEnd);
-};
-
-}  // namespace VPUIP
-}  // namespace vpux
+#endif

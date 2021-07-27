@@ -90,17 +90,17 @@ def VPUIP_UPATaskOpInterface : OpInterface<"UPATaskOpInterface"> {
     let methods = [
         InterfaceMethod<
             "Get maximal number of UPA SHAVEs to use",
-            "vpux::Optional<uint32_t>", "maxShaves", (ins),
+            "vpux::Optional<int64_t>", "maxShaves", (ins),
             [{
                 return $_op.maxShaves();
             }]
         >,
         InterfaceMethod<
             "Update maximal number of UPA SHAVEs to use",
-            "void", "setMaxShaves", (ins "uint32_t":$maxShaves),
+            "void", "setMaxShaves", (ins "int64_t":$maxShaves),
             [{}],
             [{
-                $_op.maxShavesAttr(vpux::getInt32Attr($_op.getContext(), maxShaves));
+                $_op.maxShavesAttr(vpux::getIntAttr($_op.getContext(), maxShaves));
             }]
         >,
 

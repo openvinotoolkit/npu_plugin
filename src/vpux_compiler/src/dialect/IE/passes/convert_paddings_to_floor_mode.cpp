@@ -116,15 +116,15 @@ void ConvertPaddingsToFloorModePass::updateOperation(IE::MaxPoolOp op) {
     const auto inShape = getShape(op.input());
     const auto outShape = getShape(op.output());
 
-    const auto kernel = parseIntArrayAttr(op.kernel_size());
-    const auto strides = parseIntArrayAttr(op.strides());
-    auto padsBegin = parseIntArrayAttr(op.pads_begin());
-    auto padsEnd = parseIntArrayAttr(op.pads_end());
+    const auto kernel = parseIntArrayAttr<int64_t>(op.kernel_size());
+    const auto strides = parseIntArrayAttr<int64_t>(op.strides());
+    auto padsBegin = parseIntArrayAttr<int64_t>(op.pads_begin());
+    auto padsEnd = parseIntArrayAttr<int64_t>(op.pads_end());
 
     cvtPaddingsToFloorMode(inShape, outShape, kernel, strides, {1, 1}, padsBegin, padsEnd);
 
-    const auto newPadsBeginAttr = getInt32ArrayAttr(op.getContext(), padsBegin);
-    const auto newPadsEndAttr = getInt32ArrayAttr(op.getContext(), padsEnd);
+    const auto newPadsBeginAttr = getIntArrayAttr(op.getContext(), padsBegin);
+    const auto newPadsEndAttr = getIntArrayAttr(op.getContext(), padsEnd);
 
     op.pads_beginAttr(newPadsBeginAttr);
     op.pads_endAttr(newPadsEndAttr);
@@ -135,15 +135,15 @@ void ConvertPaddingsToFloorModePass::updateOperation(IE::AvgPoolOp op) {
     const auto inShape = getShape(op.input());
     const auto outShape = getShape(op.output());
 
-    const auto kernel = parseIntArrayAttr(op.kernel_size());
-    const auto strides = parseIntArrayAttr(op.strides());
-    auto padsBegin = parseIntArrayAttr(op.pads_begin());
-    auto padsEnd = parseIntArrayAttr(op.pads_end());
+    const auto kernel = parseIntArrayAttr<int64_t>(op.kernel_size());
+    const auto strides = parseIntArrayAttr<int64_t>(op.strides());
+    auto padsBegin = parseIntArrayAttr<int64_t>(op.pads_begin());
+    auto padsEnd = parseIntArrayAttr<int64_t>(op.pads_end());
 
     cvtPaddingsToFloorMode(inShape, outShape, kernel, strides, {1, 1}, padsBegin, padsEnd);
 
-    const auto newPadsBeginAttr = getInt32ArrayAttr(op.getContext(), padsBegin);
-    const auto newPadsEndAttr = getInt32ArrayAttr(op.getContext(), padsEnd);
+    const auto newPadsBeginAttr = getIntArrayAttr(op.getContext(), padsBegin);
+    const auto newPadsEndAttr = getIntArrayAttr(op.getContext(), padsEnd);
 
     op.pads_beginAttr(newPadsBeginAttr);
     op.pads_endAttr(newPadsEndAttr);
@@ -159,15 +159,15 @@ void ConvertPaddingsToFloorModePass::updateOperation(IE::ConvolutionOp op) {
     const auto outShape = getShape(op.output());
 
     const std::array<int64_t, 2> kernel = {filterShape[KY], filterShape[KX]};
-    const auto strides = parseIntArrayAttr(op.strides());
-    const auto dilations = parseIntArrayAttr(op.dilations());
-    auto padsBegin = parseIntArrayAttr(op.pads_begin());
-    auto padsEnd = parseIntArrayAttr(op.pads_end());
+    const auto strides = parseIntArrayAttr<int64_t>(op.strides());
+    const auto dilations = parseIntArrayAttr<int64_t>(op.dilations());
+    auto padsBegin = parseIntArrayAttr<int64_t>(op.pads_begin());
+    auto padsEnd = parseIntArrayAttr<int64_t>(op.pads_end());
 
     cvtPaddingsToFloorMode(inShape, outShape, kernel, strides, dilations, padsBegin, padsEnd);
 
-    const auto newPadsBeginAttr = getInt32ArrayAttr(op.getContext(), padsBegin);
-    const auto newPadsEndAttr = getInt32ArrayAttr(op.getContext(), padsEnd);
+    const auto newPadsBeginAttr = getIntArrayAttr(op.getContext(), padsBegin);
+    const auto newPadsEndAttr = getIntArrayAttr(op.getContext(), padsEnd);
 
     op.pads_beginAttr(newPadsBeginAttr);
     op.pads_endAttr(newPadsEndAttr);

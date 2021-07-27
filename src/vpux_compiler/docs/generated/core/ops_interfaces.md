@@ -209,7 +209,7 @@ NOTE: This method *must* be implemented by the user.
 #### `axisInd`
 
 ```c++
-uint32_t axisInd();
+int64_t axisInd();
 ```
 Get the axis index in logical dimensions#### `getAxisDim`
 

@@ -59,7 +59,7 @@ private:
 };
 
 void Optimizer::setIndex(mlir::async::ExecuteOp execOp, uint64_t index) {
-    execOp->setAttr(_indexAttrName, getInt64Attr(execOp.getContext(), index));
+    execOp->setAttr(_indexAttrName, getIntAttr(execOp.getContext(), index));
 }
 
 uint32_t Optimizer::getIndex(mlir::async::ExecuteOp execOp) {

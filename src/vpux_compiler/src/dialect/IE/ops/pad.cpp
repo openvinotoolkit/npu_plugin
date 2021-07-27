@@ -26,7 +26,7 @@ mlir::FailureOr<SmallVector<int64_t>> extractPads(mlir::Location loc, const mlir
                                                   const mlir::ArrayAttr& padAttr,
                                                   const mlir::ArrayRef<int64_t>& inputShape) {
     if (padAttr != nullptr) {
-        return parseIntArrayAttr(padAttr);
+        return parseIntArrayAttr<int64_t>(padAttr);
     } else if (padValue != nullptr) {
         auto padsConst = padValue.getDefiningOp<Const::DeclareOp>();
         if (padsConst == nullptr) {
@@ -114,7 +114,7 @@ mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::PadOp padOp, mlir::P
     if (mlir::failed(padsBegin)) {
         return mlir::failure();
     }
-    const auto padsBeginAttr = getInt32ArrayAttr(padOp.getContext(), padsBegin.getValue());
+    const auto padsBeginAttr = getIntArrayAttr(padOp.getContext(), padsBegin.getValue());
 
     // convert pads_end
 
@@ -124,7 +124,7 @@ mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::PadOp padOp, mlir::P
     if (mlir::failed(padsEnd)) {
         return mlir::failure();
     }
-    const auto padsEndAttr = getInt32ArrayAttr(padOp.getContext(), padsEnd.getValue());
+    const auto padsEndAttr = getIntArrayAttr(padOp.getContext(), padsEnd.getValue());
 
     // convert pad_value
 
@@ -146,7 +146,7 @@ mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::PadOp padOp, mlir::P
         }
 
         const auto padValue = padValueContent.getSplatValue<float>();
-        const auto padValueAttr = getFP32Attr(padOp.getContext(), padValue);
+        const auto padValueAttr = getFPAttr(padOp.getContext(), padValue);
 
         rewriter.replaceOpWithNewOp<IE::PadOp>(padOp, padOp.input(), nullptr, nullptr, nullptr, padsBeginAttr,
                                                padsEndAttr, padValueAttr, padOp.mode());
@@ -182,9 +182,9 @@ mlir::OpFoldResult vpux::IE::PadOp::fold(ArrayRef<mlir::Attribute> operands) {
     if (const auto attr = operands[0].dyn_cast_or_null<Const::ContentAttr>()) {
         if (mode() == IE::PadMode::CONSTANT) {
             if (pads_begin_attr().hasValue() && pads_end_attr().hasValue() && pad_value_attr().hasValue()) {
-                if (pad_value_attr()->convertToFloat() == 0.0f) {
-                    const auto padsBefore = Shape(parseIntArrayAttr(pads_begin_attr().getValue()));
-                    const auto padsAfter = Shape(parseIntArrayAttr(pads_end_attr().getValue()));
+                if (pad_value_attr()->convertToDouble() == 0.0) {
+                    const auto padsBefore = Shape(parseIntArrayAttr<int64_t>(pads_begin_attr().getValue()));
+                    const auto padsAfter = Shape(parseIntArrayAttr<int64_t>(pads_end_attr().getValue()));
 
                     return attr.padWithZero(padsBefore, padsAfter);
                 }

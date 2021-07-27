@@ -243,14 +243,10 @@ void serializeTensorDecls(VPUIP::BlobWriter& writer, mlir::FuncOp netFunc, mlir:
 
     size_t tempTensorInd = 0;
     netFunc.walk([&](VPUIP::DeclareTensorOp tensorOp) {
-        SmallVector<uint32_t> localeIndex;
-        for (auto attr : tensorOp.localeIndex()) {
-            localeIndex.emplace_back(checked_cast<uint32_t>(attr.cast<mlir::IntegerAttr>().getInt()));
-        }
-
         writer.createTensor(tensorOp.memory(), llvm::formatv("temp-{0}", tempTensorInd).str(), tensorOp.locale(),
-                            localeIndex, tensorOp.dataIndex(), tensorOp.sparsityIndex(), tensorOp.storageElementIndex(),
-                            tensorOp.storageElementSize(), tensorOp.leadingOffset(), tensorOp.trailingOffset());
+                            parseIntArrayAttr<uint32_t>(tensorOp.localeIndex()), tensorOp.dataIndex(),
+                            tensorOp.sparsityIndex(), tensorOp.storageElementIndex(), tensorOp.storageElementSize(),
+                            tensorOp.leadingOffset(), tensorOp.trailingOffset());
 
         ++tempTensorInd;
     });

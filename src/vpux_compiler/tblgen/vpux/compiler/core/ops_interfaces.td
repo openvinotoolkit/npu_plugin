@@ -310,7 +310,7 @@ def SoftMaxLayerInterface : OpInterface<"SoftMaxLayerInterface"> {
         >,
         InterfaceMethod<
             "Get the axis index in logical dimensions",
-            "uint32_t", "axisInd", (ins),
+            "int64_t", "axisInd", (ins),
             [{
                 return $_op.axisInd();
             }]

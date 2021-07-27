@@ -69,11 +69,11 @@ mlir::LogicalResult vpux::IE::DeconvolutionOp::inferReturnTypeComponents(
     const auto outputShape = convBackpropData.output_shape();
     const auto filterShape = convBackpropData.filter().getType().cast<mlir::ShapedType>().getShape();
 
-    const auto dataPaddingBelow = parseIntArrayAttr(convBackpropData.pads_end());
-    const auto dataPaddingAbove = parseIntArrayAttr(convBackpropData.pads_begin());
-    const auto windowStrides = parseIntArrayAttr(convBackpropData.strides());
-    const auto windowDilations = parseIntArrayAttr(convBackpropData.dilations());
-    const auto outputPadding = parseIntArrayAttr(convBackpropData.output_padding());
+    const auto dataPaddingBelow = parseIntArrayAttr<int64_t>(convBackpropData.pads_end());
+    const auto dataPaddingAbove = parseIntArrayAttr<int64_t>(convBackpropData.pads_begin());
+    const auto windowStrides = parseIntArrayAttr<int64_t>(convBackpropData.strides());
+    const auto windowDilations = parseIntArrayAttr<int64_t>(convBackpropData.dilations());
+    const auto outputPadding = parseIntArrayAttr<int64_t>(convBackpropData.output_padding());
 
     if (outputShape != nullptr) {
         const SmallVector<ngraph::Dimension> nDataShape(std::next(featureShape.begin(), 2), featureShape.end());

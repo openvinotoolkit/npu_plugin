@@ -21,8 +21,8 @@ using namespace vpux;
 
 namespace {
 
-constexpr uint32_t MAX_BARRIERS_PER_INFERENCE = 32;
-constexpr uint32_t BARRIERS_PER_CLUSTER = 8;
+constexpr int64_t MAX_BARRIERS_PER_INFERENCE = 32;
+constexpr int64_t BARRIERS_PER_CLUSTER = 8;
 
 //
 // BarrierAllocation
@@ -30,17 +30,17 @@ constexpr uint32_t BARRIERS_PER_CLUSTER = 8;
 
 class BarrierAllocation final {
 public:
-    BarrierAllocation(mlir::Operation* op, uint32_t numBarriers, Logger log);
+    BarrierAllocation(mlir::Operation* op, int64_t numBarriers, Logger log);
 
-    uint32_t getID(mlir::Value val) const;
+    int64_t getID(mlir::Value val) const;
 
 private:
-    llvm::DenseMap<mlir::Value, uint32_t> _idMap;
+    llvm::DenseMap<mlir::Value, int64_t> _idMap;
 };
 
 // TODO: [#6150] Implement safe static barriers allocation
-BarrierAllocation::BarrierAllocation(mlir::Operation* op, uint32_t numBarriers, Logger log) {
-    uint32_t barrierID = 0;
+BarrierAllocation::BarrierAllocation(mlir::Operation* op, int64_t numBarriers, Logger log) {
+    int64_t barrierID = 0;
 
     log.trace("Assign {0} physical barriers", numBarriers);
 
@@ -52,7 +52,7 @@ BarrierAllocation::BarrierAllocation(mlir::Operation* op, uint32_t numBarriers, 
     op->walk(callback);
 }
 
-uint32_t BarrierAllocation::getID(mlir::Value val) const {
+int64_t BarrierAllocation::getID(mlir::Value val) const {
     const auto it = _idMap.find(val);
     VPUX_THROW_UNLESS(it != _idMap.end(), "Value '{0}' was not covered by BarrierAllocation");
     return it->second;
@@ -113,7 +113,7 @@ void AssignPhysicalBarriersPass::safeRunOnFunc() {
     auto nceResOp = resOp.getExecutor(nceAttr);
     VPUX_THROW_UNLESS(nceResOp != nullptr, "Failed to get NCE_Cluster information");
 
-    const uint32_t numClusters = nceResOp.count();
+    const auto numClusters = nceResOp.count();
     const auto maxNumBarriers = std::min(MAX_BARRIERS_PER_INFERENCE, BARRIERS_PER_CLUSTER * numClusters);
 
     const auto numBarriers = _numBarriersOpt.hasValue() ? _numBarriersOpt.getValue() : maxNumBarriers;

@@ -186,17 +186,17 @@ mlir::Attribute RTLayerInfo::getExecutor(mlir::Operation* op, uint32_t& numUnits
         return VPUIP::DMAEngineAttr::get(op->getContext(), engine);
     };
 
-    const auto getPhysicalProcessor = [&](VPUIP::PhysicalProcessor proc, Optional<uint32_t> units = None) {
+    const auto getPhysicalProcessor = [&](VPUIP::PhysicalProcessor proc, Optional<int64_t> units = None) {
         const auto procAttr = VPUIP::PhysicalProcessorAttr::get(op->getContext(), proc);
 
         if (units.hasValue()) {
-            numUnits = units.getValue();
+            numUnits = checked_cast<uint32_t>(units.getValue());
         } else {
             auto module = op->getParentOfType<mlir::ModuleOp>();
             auto resources = IERT::RunTimeResourcesOp::getFromModule(module);
             auto available = resources.getExecutor(procAttr);
             VPUX_THROW_UNLESS(available != nullptr, "Executor for '{0}' is not available", procAttr);
-            numUnits = available.count();
+            numUnits = checked_cast<uint32_t>(available.count());
         }
 
         return procAttr;

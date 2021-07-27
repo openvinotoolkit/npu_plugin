@@ -59,14 +59,14 @@ mlir::Value ConvertConv1DToConv2DPass::extendTensor(mlir::PatternRewriter& rewri
     auto newShape = to_small_vector(shape);
     newShape.insert(newShape.end() - 1, 1);
 
-    const auto newShapeAttr = getInt64ArrayAttr(rewriter.getContext(), newShape);
+    const auto newShapeAttr = getIntArrayAttr(rewriter.getContext(), newShape);
     return rewriter.create<IE::ReshapeOp>(loc, input, nullptr, false, newShapeAttr);
 }
 
 mlir::ArrayAttr ConvertConv1DToConv2DPass::append(mlir::MLIRContext* context, mlir::ArrayAttr attr, int64_t value) {
-    auto vector = parseIntArrayAttr(attr);
+    auto vector = parseIntArrayAttr<int64_t>(attr);
     vector.insert(vector.begin(), value);
-    return getInt32ArrayAttr(context, vector);
+    return getIntArrayAttr(context, vector);
 }
 
 //
@@ -103,7 +103,7 @@ mlir::LogicalResult ConvertConv1DToConv2DPass::ConvolutionExpansion::matchAndRew
                                                         newPadsBegin, newPadsEnd, newDilations, origOp.post_opAttr());
 
     const auto outputShape = origOp.output().getType().cast<mlir::ShapedType>().getShape();
-    const auto outputShapeAttr = getInt64ArrayAttr(getContext(), outputShape);
+    const auto outputShapeAttr = getIntArrayAttr(getContext(), outputShape);
     rewriter.replaceOpWithNewOp<IE::ReshapeOp>(origOp, newConvOp.output(), nullptr, false, outputShapeAttr);
 
     _log.trace("Replaced with 'IE::Convolution' (2D)");
@@ -147,7 +147,7 @@ mlir::LogicalResult ConvertConv1DToConv2DPass::GroupConvolutionExpansion::matchA
                                                              origOp.groupsAttr(), origOp.post_opAttr());
 
     const auto outputShape = origOp.output().getType().cast<mlir::ShapedType>().getShape();
-    const auto outputShapeAttr = getInt64ArrayAttr(getContext(), outputShape);
+    const auto outputShapeAttr = getIntArrayAttr(getContext(), outputShape);
     rewriter.replaceOpWithNewOp<IE::ReshapeOp>(origOp, newConvOp.output(), nullptr, false, outputShapeAttr);
 
     _log.trace("Replaced with 'IE::GroupConvolution' (2D)");

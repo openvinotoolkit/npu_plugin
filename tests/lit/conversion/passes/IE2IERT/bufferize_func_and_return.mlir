@@ -4,7 +4,7 @@
 func @SingleLayer(%arg0: tensor<1x1000xf16>) -> tensor<1x1000xf16> {
     %0 = unrealized_conversion_cast %arg0 : tensor<1x1000xf16> to memref<1x1000xf16>
     %1 = memref.alloc() : memref<1x1000xf16>
-    %2 = IERT.SoftMax {axisInd = 1 : i32} inputs(%0 : memref<1x1000xf16>) outputs(%1 : memref<1x1000xf16>) -> memref<1x1000xf16>
+    %2 = IERT.SoftMax {axisInd = 1} inputs(%0 : memref<1x1000xf16>) outputs(%1 : memref<1x1000xf16>) -> memref<1x1000xf16>
     %3 = unrealized_conversion_cast %2 : memref<1x1000xf16> to tensor<1x1000xf16>
     return %3 : tensor<1x1000xf16>
 

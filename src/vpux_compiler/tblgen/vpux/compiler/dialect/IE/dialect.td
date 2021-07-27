@@ -44,7 +44,7 @@ The network topology (nGraph) is represented as a MLIR Function, which works wit
 
 ```MLIR
 func @main(%input: tensor<1x1000xf32>) -> tensor<1x1000xf32> {
-    %output = IE.SoftMax(%input) {axisInd = 1 : i32} : tensor<1x1000xf32> -> tensor<1x1000xf32>
+    %output = IE.SoftMax(%input) {axisInd = 1} : tensor<1x1000xf32> -> tensor<1x1000xf32>
     return %output
 }
 ```

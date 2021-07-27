@@ -66,7 +66,7 @@ ngraph::SlicePlan ResolveStridedSlicePass::SlicePlanning::getSlicePlan(IE::Strid
     const auto getAxisSetArr = [](mlir::ArrayAttr attr) {
         ngraph::AxisSet axis_set;
 
-        const auto arr = parseIntArrayAttr(attr);
+        const auto arr = parseIntArrayAttr<int64_t>(attr);
         for (const auto& p : arr | indexed) {
             if (p.value() == 1) {
                 axis_set.emplace(p.index());
@@ -80,9 +80,9 @@ ngraph::SlicePlan ResolveStridedSlicePass::SlicePlanning::getSlicePlan(IE::Strid
     VPUX_THROW_UNLESS(origOp.ends_attr().hasValue(), "ends_attr is null");
     VPUX_THROW_UNLESS(origOp.strides_attr().hasValue(), "strides_attr is null");
 
-    const auto beginsVec = to_std_vector(parseIntArrayAttr(origOp.begins_attr().getValue()));
-    const auto endsVec = to_std_vector(parseIntArrayAttr(origOp.ends_attr().getValue()));
-    const auto stridesVec = to_std_vector(parseIntArrayAttr(origOp.strides_attr().getValue()));
+    const auto beginsVec = to_std_vector(parseIntArrayAttr<int64_t>(origOp.begins_attr().getValue()));
+    const auto endsVec = to_std_vector(parseIntArrayAttr<int64_t>(origOp.ends_attr().getValue()));
+    const auto stridesVec = to_std_vector(parseIntArrayAttr<int64_t>(origOp.strides_attr().getValue()));
 
     const auto beginMask = getAxisSetArr(origOp.begin_mask());
     const auto endMask = getAxisSetArr(origOp.end_mask());
@@ -103,16 +103,16 @@ mlir::LogicalResult ResolveStridedSlicePass::SlicePlanning::matchAndRewrite(IE::
 
     const auto plan = getSlicePlan(origOp);
 
-    const auto beginAttr = getInt64ArrayAttr(getContext(), plan.begins);
-    const auto endsAttr = getInt64ArrayAttr(getContext(), plan.ends);
-    const auto stridesAttr = getInt64ArrayAttr(getContext(), plan.strides);
-    const auto zeroesArrayAttr = getInt64ArrayAttr(getContext(), llvm::SmallVector<int64_t>(plan.begins.size(), 0));
+    const auto beginAttr = getIntArrayAttr(getContext(), plan.begins);
+    const auto endsAttr = getIntArrayAttr(getContext(), plan.ends);
+    const auto stridesAttr = getIntArrayAttr(getContext(), plan.strides);
+    const auto zeroesArrayAttr = getIntArrayAttr(getContext(), llvm::SmallVector<int64_t>(plan.begins.size(), 0));
 
     auto newOp = rewriter.create<IE::StridedSliceOp>(
             origOp->getLoc(), origOp.input(), origOp.begins(), origOp.ends(), origOp.strides(), beginAttr, endsAttr,
             stridesAttr, zeroesArrayAttr, zeroesArrayAttr, zeroesArrayAttr, zeroesArrayAttr, zeroesArrayAttr);
 
-    const auto outputShapeAttr = getInt64ArrayAttr(getContext(), plan.reshape_out_shape);
+    const auto outputShapeAttr = getIntArrayAttr(getContext(), plan.reshape_out_shape);
     rewriter.replaceOpWithNewOp<IE::ReshapeOp>(origOp, newOp.output(), nullptr, false, outputShapeAttr);
 
     _log.trace("Replaced with 'IE::StridedSlice' -> 'IE::Reshape'");
@@ -138,13 +138,13 @@ void ResolveStridedSlicePass::safeRunOnFunc() {
         VPUX_THROW_UNLESS(slice.begins_attr().hasValue(), "begins_attr is null");
         VPUX_THROW_UNLESS(slice.ends_attr().hasValue(), "ends_attr is null");
 
-        return llvm::all_of(parseIntArrayAttr(slice.new_axis_mask()), isZero) &&
-               llvm::all_of(parseIntArrayAttr(slice.shrink_axis_mask()), isZero) &&
-               llvm::all_of(parseIntArrayAttr(slice.ellipsis_mask()), isZero) &&
-               llvm::all_of(parseIntArrayAttr(slice.begin_mask()), isZero) &&
-               llvm::all_of(parseIntArrayAttr(slice.end_mask()), isZero) &&
-               llvm::all_of(parseIntArrayAttr(slice.begins_attr().getValue()), isPositive) &&
-               llvm::all_of(parseIntArrayAttr(slice.ends_attr().getValue()), isPositive);
+        return llvm::all_of(parseIntArrayAttr<int64_t>(slice.new_axis_mask()), isZero) &&
+               llvm::all_of(parseIntArrayAttr<int64_t>(slice.shrink_axis_mask()), isZero) &&
+               llvm::all_of(parseIntArrayAttr<int64_t>(slice.ellipsis_mask()), isZero) &&
+               llvm::all_of(parseIntArrayAttr<int64_t>(slice.begin_mask()), isZero) &&
+               llvm::all_of(parseIntArrayAttr<int64_t>(slice.end_mask()), isZero) &&
+               llvm::all_of(parseIntArrayAttr<int64_t>(slice.begins_attr().getValue()), isPositive) &&
+               llvm::all_of(parseIntArrayAttr<int64_t>(slice.ends_attr().getValue()), isPositive);
     };
 
     mlir::ConversionTarget target(ctx);

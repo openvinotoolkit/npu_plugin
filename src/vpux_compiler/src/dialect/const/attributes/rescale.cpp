@@ -91,7 +91,7 @@ Const::Content vpux::Const::RescaleAttr::transform(vpux::Const::Content& input) 
     mlir::FloatAttr scale = getScale();
 
     loop_1d(LoopExecPolicy::Parallel, scaledVals.size(), [&](size_t i) {
-        scaledVals[i] = values[i] * scale.getValue().convertToFloat();
+        scaledVals[i] = values[i] * static_cast<float>(scale.getValue().convertToDouble());
     });
 
     return output;

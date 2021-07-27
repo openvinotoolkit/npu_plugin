@@ -14,6 +14,7 @@
 #ifndef VPUX_COMPILER_DIALECT_IE_OPS
 #define VPUX_COMPILER_DIALECT_IE_OPS
 
+include "vpux/compiler/core/attributes.td"
 include "vpux/compiler/core/ops_interfaces.td"
 include "vpux/compiler/dialect/IE/dialect.td"
 include "vpux/compiler/dialect/IE/ops_interfaces.td"
@@ -239,7 +240,7 @@ def IE_SoftMaxOp :
     let arguments = (ins
         RankedTensorOf<[F16, F32]>:$input,
 
-        I32Attr:$axisInd
+        IntAttr:$axisInd
     );
 
     let results = (outs
@@ -285,8 +286,8 @@ def IE_PerAxisTileOp :
     let arguments = (ins
         AnyRankedTensor:$input,
 
-        I32Attr:$axis,
-        I32Attr:$tiles
+        IntAttr:$axis,
+        IntAttr:$tiles
     );
 
     let results = (outs
@@ -330,8 +331,8 @@ def IE_SplitOp :
         AnyRankedTensor:$input,
         Optional<AnyRankedTensor>:$axis,
 
-        I32Attr:$num_splits,
-        OptionalAttr<SI32Attr>:$axis_value
+        IntAttr:$num_splits,
+        OptionalAttr<IntAttr>:$axis_value
     );
 
     let results = (outs
@@ -519,10 +520,10 @@ def IE_ConvolutionOp :
         RankedTensorOf<[F16, F32, quant_QuantizedType]>:$filter,
         Optional<RankedTensorOf<[F16, F32]>>:$bias,
 
-        I32ArrayAttr:$strides,
-        I32ArrayAttr:$pads_begin,
-        I32ArrayAttr:$pads_end,
-        I32ArrayAttr:$dilations,
+        I64ArrayAttr:$strides,
+        I64ArrayAttr:$pads_begin,
+        I64ArrayAttr:$pads_end,
+        I64ArrayAttr:$dilations,
 
         OptionalAttr<IE_PostOp>:$post_op
     );
@@ -555,11 +556,11 @@ def IE_GroupConvolutionOp :
         RankedTensorOf<[F16, F32]>:$filter,
         Optional<RankedTensorOf<[F16, F32]>>:$bias,
 
-        I32ArrayAttr:$strides,
-        I32ArrayAttr:$pads_begin,
-        I32ArrayAttr:$pads_end,
-        I32ArrayAttr:$dilations,
-        OptionalAttr<I32Attr>:$groups,
+        I64ArrayAttr:$strides,
+        I64ArrayAttr:$pads_begin,
+        I64ArrayAttr:$pads_end,
+        I64ArrayAttr:$dilations,
+        OptionalAttr<IntAttr>:$groups,
 
         OptionalAttr<IE_PostOp>:$post_op
     );
@@ -588,10 +589,10 @@ def IE_AvgPoolOp :
     let arguments = (ins
         RankedTensorOf<[F16, F32]>:$input,
 
-        I32ArrayAttr:$kernel_size,
-        I32ArrayAttr:$strides,
-        I32ArrayAttr:$pads_begin,
-        I32ArrayAttr:$pads_end,
+        I64ArrayAttr:$kernel_size,
+        I64ArrayAttr:$strides,
+        I64ArrayAttr:$pads_begin,
+        I64ArrayAttr:$pads_end,
         IE_RoundingType:$rounding_type
     );
 
@@ -617,10 +618,10 @@ def IE_MaxPoolOp :
     let arguments = (ins
         RankedTensorOf<[F16, F32, quant_QuantizedType]>:$input,
 
-        I32ArrayAttr:$kernel_size,
-        I32ArrayAttr:$strides,
-        I32ArrayAttr:$pads_begin,
-        I32ArrayAttr:$pads_end,
+        I64ArrayAttr:$kernel_size,
+        I64ArrayAttr:$strides,
+        I64ArrayAttr:$pads_begin,
+        I64ArrayAttr:$pads_end,
         IE_RoundingType:$rounding_type,
 
         OptionalAttr<IE_PostOp>:$post_op
@@ -669,8 +670,8 @@ def IE_ClampOp :
     let arguments = (ins
         RankedTensorOf<[F16, F32]>:$input,
 
-        F32Attr:$min,
-        F32Attr:$max
+        F64Attr:$min,
+        F64Attr:$max
     );
 
     let results = (outs
@@ -695,7 +696,7 @@ def IE_EluOp :
     let arguments = (ins
         RankedTensorOf<[F16, F32]>:$input,
 
-        F32Attr:$x
+        F64Attr:$x
     );
 
     let results = (outs
@@ -829,7 +830,7 @@ def IE_LRNOp :
         F64Attr:$alpha,
         F64Attr:$beta,
         F64Attr:$bias,
-        I32Attr:$size
+        IntAttr:$size
     );
 
     let results = (outs
@@ -897,7 +898,7 @@ def IE_FakeQuantizeOp :
         RankedTensorOf<[F16, F32]>:$output_low,
         RankedTensorOf<[F16, F32]>:$output_high,
 
-        I32Attr:$levels,
+        IntAttr:$levels,
         IE_AutoBroadcastType:$auto_broadcast
     );
 
@@ -1070,9 +1071,9 @@ def IE_InterpolateOp :
         Optional<RankedTensorOf<[F16, F32]>>:$scales,
         Optional<RankedTensorOf<[AnyInteger]>>:$axes,
 
-        OptionalAttr<I32ArrayAttr>:$sizes_attr,
-        OptionalAttr<F32ArrayAttr>:$scales_attr,
-        OptionalAttr<I32ArrayAttr>:$axes_attr,
+        OptionalAttr<I64ArrayAttr>:$sizes_attr,
+        OptionalAttr<F64ArrayAttr>:$scales_attr,
+        OptionalAttr<I64ArrayAttr>:$axes_attr,
 
         IE_InterpolateAttr:$attr
     );
@@ -1098,7 +1099,7 @@ def IE_TopKOp :
         AnyRankedTensor:$input,
         0DTensorOf<[AnyInteger]>:$k,
 
-        I64Attr:$axis,
+        IntAttr:$axis,
         IE_TopKMode:$mode,
         IE_TopKSortType:$sort,
         TypeAttr:$element_type
@@ -1123,14 +1124,14 @@ def IE_RegionYoloOp :
     let arguments = (ins
         4DTensorOf<[AnyFloat]>:$input,
 
-        I32Attr:$coords,
-        I32Attr:$classes,
-        I32Attr:$regions,
+        IntAttr:$coords,
+        IntAttr:$classes,
+        IntAttr:$regions,
         BoolAttr:$do_softmax,
         I64ArrayAttr:$mask,
-        I32Attr:$axis,
-        I32Attr:$end_axis,
-        F32ArrayAttr:$anchors
+        IntAttr:$axis,
+        IntAttr:$end_axis,
+        F64ArrayAttr:$anchors
     );
 
     let results = (outs
@@ -1151,7 +1152,7 @@ def IE_ReorgYoloOp :
     let arguments = (ins
         4DTensorOf<[AnyInteger, AnyFloat]>:$input,
 
-        I32Attr:$stride
+        IntAttr:$stride
     );
 
     let results = (outs
@@ -1201,7 +1202,7 @@ def IE_NormalizeL2Op :
         AnyRankedTensor:$data,
         RankedTensorOf<[AnyInteger]>:$axes,
 
-        F32Attr:$eps,
+        F64Attr:$eps,
         IE_EpsMode:$eps_mod
     );
 
@@ -1223,7 +1224,7 @@ def IE_ConcatOp :
     let arguments = (ins
         Variadic<AnyRankedTensor>:$inputs,
 
-        SI32Attr:$axis
+        IntAttr:$axis
     );
 
     let results = (outs
@@ -1248,8 +1249,8 @@ def IE_ROIPoolingOp :
         RankedTensorOf<[F16, F32]>:$input,
         RankedTensorOf<[F16, F32]>:$coords,
 
-        I32ArrayAttr:$output_size,
-        F32Attr:$spatial_scale,
+        I64ArrayAttr:$output_size,
+        F64Attr:$spatial_scale,
         IE_ROIPoolingMethod:$method
     );
 
@@ -1310,11 +1311,11 @@ def IE_DeconvolutionOp:
         AnyRankedTensor:$filter,
         Optional<1DTensorOf<[AnyInteger]>>:$output_shape,
 
-        I32ArrayAttr:$strides,
-        I32ArrayAttr:$pads_begin,
-        I32ArrayAttr:$pads_end,
-        I32ArrayAttr:$dilations,
-        I32ArrayAttr:$output_padding
+        I64ArrayAttr:$strides,
+        I64ArrayAttr:$pads_begin,
+        I64ArrayAttr:$pads_end,
+        I64ArrayAttr:$dilations,
+        I64ArrayAttr:$output_padding
     );
 
     let results = (outs
@@ -1360,7 +1361,7 @@ def IE_LeakyReluOp :
     let arguments = (ins
         RankedTensorOf<[F16, F32]>:$input,
 
-        F32Attr:$negative_slope
+        F64Attr:$negative_slope
     );
 
     let results = (outs
@@ -1382,7 +1383,7 @@ def IE_SwishOp :
         RankedTensorOf<[F16, F32]>:$input,
         Optional<RankedTensorOf<[F16, F32]>>:$beta,
 
-        OptionalAttr<F32Attr>:$beta_value
+        OptionalAttr<F64Attr>:$beta_value
     );
 
     let results = (outs
@@ -1434,7 +1435,7 @@ def IE_GRNOp :
     let arguments = (ins
         RankedTensorOf<[F16, F32]>:$input,
 
-        F32Attr:$bias
+        F64Attr:$bias
     );
 
     let results = (outs
@@ -1558,9 +1559,9 @@ def IE_PadOp :
         Optional<RankedTensorOf<[AnyInteger]>>:$pads_end,
         Optional<RankedTensorOf<[AnyInteger, AnyFloat]>>:$pad_value,
 
-        OptionalAttr<I32ArrayAttr>:$pads_begin_attr,
-        OptionalAttr<I32ArrayAttr>:$pads_end_attr,
-        OptionalAttr<F32Attr>:$pad_value_attr,
+        OptionalAttr<I64ArrayAttr>:$pads_begin_attr,
+        OptionalAttr<I64ArrayAttr>:$pads_end_attr,
+        OptionalAttr<F64Attr>:$pad_value_attr,
 
         IE_PadMode:$mode
     );
@@ -1590,8 +1591,8 @@ def IE_ExpandOp :
     let arguments = (ins
         AnyRankedTensor:$input,
 
-        I32ArrayAttr:$pads_begin_attr,
-        I32ArrayAttr:$pads_end_attr
+        I64ArrayAttr:$pads_begin_attr,
+        I64ArrayAttr:$pads_end_attr
     );
 
     let results = (outs
@@ -1620,7 +1621,7 @@ def IE_LSTMCellOp :
         2DTensorOf<[F16, F32]>:$reccurenceWeights,
         1DTensorOf<[F16, F32]>:$biases,
 
-        I32Attr:$hiddenSize
+        IntAttr:$hiddenSize
     );
 
     let results = (outs

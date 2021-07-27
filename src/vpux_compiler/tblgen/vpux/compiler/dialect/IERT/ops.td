@@ -14,6 +14,7 @@
 #ifndef VPUX_COMPILER_DIALECT_IERT_OPS
 #define VPUX_COMPILER_DIALECT_IERT_OPS
 
+include "vpux/compiler/core/attributes.td"
 include "vpux/compiler/core/ops_interfaces.td"
 include "vpux/compiler/dialect/IE/attributes.td"
 include "vpux/compiler/dialect/IERT/dialect.td"
@@ -136,7 +137,7 @@ def IERT_MemoryResourceOp :
 
     let arguments = (ins
         OptionalAttr<AnyAttr>:$kind,
-        I64Attr:$byteSize
+        IntAttr:$byteSize
     );
 
     let extraClassDeclaration = [{
@@ -173,7 +174,7 @@ def IERT_ExecutorResourceOp :
 
     let arguments = (ins
         AnyAttr:$kind,
-        I32Attr:$count
+        IntAttr:$count
     );
 
     let regions = (region
@@ -210,7 +211,7 @@ def IERT_StaticAllocOp :
     let summary = "InferenceEngine run-time static buffer allocation";
 
     let arguments = (ins
-        I64Attr:$offset
+        IntAttr:$offset
     );
 
     let results = (outs
@@ -362,7 +363,7 @@ def IERT_SoftMaxOp :
         MemRefOf<[F16, F32]>:$input,
         MemRefOf<[F16, F32]>:$output_buff,
 
-        I32Attr:$axisInd
+        IntAttr:$axisInd
     );
 
     let results = (outs
@@ -394,10 +395,10 @@ def IERT_AvgPoolOp :
         MemRefOf<[F16, F32]>:$input,
         MemRefOf<[F16, F32]>:$output_buff,
 
-        I32ArrayAttr:$kernel_size,
-        I32ArrayAttr:$strides,
-        I32ArrayAttr:$pads_begin,
-        I32ArrayAttr:$pads_end
+        I64ArrayAttr:$kernel_size,
+        I64ArrayAttr:$strides,
+        I64ArrayAttr:$pads_begin,
+        I64ArrayAttr:$pads_end
     );
 
     let results = (outs
@@ -429,10 +430,10 @@ def IERT_MaxPoolOp :
         MemRefOf<[F16, F32, quant_QuantizedType]>:$input,
         MemRefOf<[F16, F32, quant_QuantizedType]>:$output_buff,
 
-        I32ArrayAttr:$kernel_size,
-        I32ArrayAttr:$strides,
-        I32ArrayAttr:$pads_begin,
-        I32ArrayAttr:$pads_end,
+        I64ArrayAttr:$kernel_size,
+        I64ArrayAttr:$strides,
+        I64ArrayAttr:$pads_begin,
+        I64ArrayAttr:$pads_end,
 
         OptionalAttr<IE_PostOp>:$post_op
     );
@@ -469,10 +470,10 @@ def IERT_ConvolutionOp :
         Optional<MemRefOf<[F16, F32]>>:$bias,
         MemRefOf<[F16, F32, quant_QuantizedType]>:$output_buff,
 
-        I32ArrayAttr:$strides,
-        I32ArrayAttr:$pads_begin,
-        I32ArrayAttr:$pads_end,
-        I32ArrayAttr:$dilations,
+        I64ArrayAttr:$strides,
+        I64ArrayAttr:$pads_begin,
+        I64ArrayAttr:$pads_end,
+        I64ArrayAttr:$dilations,
 
         OptionalAttr<IE_PostOp>:$post_op
     );
@@ -509,11 +510,11 @@ def IERT_GroupConvolutionOp :
         Optional<MemRefOf<[F16, F32]>>:$bias,
         MemRefOf<[F16, F32]>:$output_buff,
 
-        I32ArrayAttr:$strides,
-        I32ArrayAttr:$pads_begin,
-        I32ArrayAttr:$pads_end,
-        I32ArrayAttr:$dilations,
-        OptionalAttr<I32Attr>:$groups,
+        I64ArrayAttr:$strides,
+        I64ArrayAttr:$pads_begin,
+        I64ArrayAttr:$pads_end,
+        I64ArrayAttr:$dilations,
+        OptionalAttr<IntAttr>:$groups,
 
         OptionalAttr<IE_PostOp>:$post_op
     );
@@ -606,8 +607,8 @@ def IERT_ClampOp :
         MemRefOf<[F16, F32]>:$input,
         MemRefOf<[F16, F32]>:$output_buff,
 
-        F32Attr:$min,
-        F32Attr:$max
+        F64Attr:$min,
+        F64Attr:$max
     );
 
     let results = (outs
@@ -640,7 +641,7 @@ def IERT_EluOp :
         MemRefOf<[F16, F32]>:$input,
         MemRefOf<[F16, F32]>:$output_buff,
 
-        F32Attr:$x
+        F64Attr:$x
     );
 
     let results = (outs
@@ -768,7 +769,7 @@ def IERT_FakeQuantizeOp :
         MemRefOf<[F16, F32]>:$output_high,
         MemRefOf<[F16, F32]>:$output_buff,
 
-        I32Attr:$levels
+        IntAttr:$levels
     );
 
     let results = (outs
@@ -890,7 +891,7 @@ def IERT_LeakyReluOp :
         MemRefOf<[F16, F32]>:$input,
         MemRefOf<[F16, F32]>:$output_buff,
 
-        F32Attr:$negative_slope
+        F64Attr:$negative_slope
     );
 
     let results = (outs
@@ -1244,7 +1245,7 @@ def IERT_SwishOp :
         Optional<MemRefOf<[F16, F32]>>:$beta,
         MemRefOf<[F16, F32]>:$output_buff,
 
-        OptionalAttr<F32Attr>:$beta_value
+        OptionalAttr<F64Attr>:$beta_value
     );
 
     let results = (outs
@@ -1309,7 +1310,7 @@ def IERT_GRNOp :
         MemRefOf<[F16, F32]>:$input,
         MemRefOf<[F16, F32]>:$output_buff,
 
-        F32Attr:$bias
+        F64Attr:$bias
     );
 
     let results = (outs
@@ -1371,8 +1372,8 @@ def IERT_PerAxisTileOp :
         MemRefOf<[F16, F32]>:$input,
         MemRefOf<[F16, F32]>:$output_buff,
 
-        I32Attr:$axis,
-        I32Attr:$tiles
+        IntAttr:$axis,
+        IntAttr:$tiles
     );
 
     let results = (outs
@@ -1434,8 +1435,8 @@ def IERT_ROIPoolingOp :
         MemRefOf<[F16, F32]>:$coords,
         MemRefOf<[F16, F32]>:$output_buff,
 
-        I32ArrayAttr:$output_size,
-        F32Attr:$spatial_scale,
+        I64ArrayAttr:$output_size,
+        F64Attr:$spatial_scale,
         IE_ROIPoolingMethod:$method
     );
 
@@ -1635,9 +1636,9 @@ def IERT_PadOp :
         MemRefOf<[F16, F32]>:$input,
         MemRefOf<[F16, F32]>:$output_buff,
 
-        I32ArrayAttr:$pads_begin,
-        I32ArrayAttr:$pads_end,
-        OptionalAttr<F32Attr>:$pad_value,
+        I64ArrayAttr:$pads_begin,
+        I64ArrayAttr:$pads_end,
+        OptionalAttr<F64Attr>:$pad_value,
         IE_PadMode:$mode
     );
 
@@ -1742,7 +1743,7 @@ def IERT_LSTMCellOp :
         MemRefOf<[F16, F32]>:$outputHiddenState_buff,
         MemRefOf<[F16, F32]>:$outputCellState_buff,
 
-        I32Attr:$hiddenSize
+        IntAttr:$hiddenSize
     );
 
     let results = (outs
@@ -1775,14 +1776,14 @@ def IERT_RegionYoloOp :
         MemRefOf<[F16, F32]>:$input,
         MemRefOf<[F16, F32]>:$output_buff,
 
-        I32Attr:$coords,
-        I32Attr:$classes,
-        I32Attr:$regions,
+        IntAttr:$coords,
+        IntAttr:$classes,
+        IntAttr:$regions,
         BoolAttr:$do_softmax,
         I64ArrayAttr:$mask,
-        I32Attr:$axis,
-        I32Attr:$end_axis,
-        F32ArrayAttr:$anchors
+        IntAttr:$axis,
+        IntAttr:$end_axis,
+        F64ArrayAttr:$anchors
     );
 
     let results = (outs

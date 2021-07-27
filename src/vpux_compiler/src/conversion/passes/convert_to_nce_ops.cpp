@@ -95,7 +95,7 @@ mlir::Value prepareTensorForDPU(mlir::OpBuilder& builder, mlir::Location loc, ml
     return dmaOp.output();
 }
 
-void addDPUTasks(VPUIP::NCEClusterTaskOp nceOp, mlir::PatternRewriter& rewriter, int32_t numDPU,
+void addDPUTasks(VPUIP::NCEClusterTaskOp nceOp, mlir::PatternRewriter& rewriter, int64_t numDPU,
                  ArrayRef<int64_t> opPadsBegin, ArrayRef<int64_t> opPadsEnd, VPUIP::MPEMode mpeMode) {
     auto* ctx = nceOp.getContext();
 
@@ -103,11 +103,11 @@ void addDPUTasks(VPUIP::NCEClusterTaskOp nceOp, mlir::PatternRewriter& rewriter,
     const auto dpuTiles = VPUIP::DpuTiler::tileOverH(numDPU, outputShape, opPadsBegin, opPadsEnd);
 
     for (const auto& dpuTile : dpuTiles) {
-        const auto startAttr = getInt32ArrayAttr(ctx, makeArrayRef(dpuTile.start));
-        const auto endAttr = getInt32ArrayAttr(ctx, makeArrayRef(dpuTile.end));
+        const auto startAttr = getIntArrayAttr(ctx, makeArrayRef(dpuTile.start));
+        const auto endAttr = getIntArrayAttr(ctx, makeArrayRef(dpuTile.end));
 
-        const auto padsBeginAttr = getInt32ArrayAttr(ctx, dpuTile.padsBegin);
-        const auto padsEndAttr = getInt32ArrayAttr(ctx, dpuTile.padsEnd);
+        const auto padsBeginAttr = getIntArrayAttr(ctx, dpuTile.padsBegin);
+        const auto padsEndAttr = getIntArrayAttr(ctx, dpuTile.padsEnd);
 
         nceOp.addDPUTask(rewriter, startAttr, endAttr, padsBeginAttr, padsEndAttr, mpeMode);
     }
@@ -131,7 +131,7 @@ void addPPETask(VPUIP::NCEClusterTaskOp nceOp, mlir::PatternRewriter& rewriter, 
 
 class ConvRewrite final : public mlir::OpRewritePattern<IERT::ConvolutionOp> {
 public:
-    ConvRewrite(mlir::MLIRContext* ctx, uint32_t numDPU, vpux::VPUIP::ArchKind arch, Logger log)
+    ConvRewrite(mlir::MLIRContext* ctx, int64_t numDPU, vpux::VPUIP::ArchKind arch, Logger log)
             : mlir::OpRewritePattern<IERT::ConvolutionOp>(ctx), _numDPU(numDPU), _arch(arch), _log(log) {
     }
 
@@ -139,7 +139,7 @@ public:
     mlir::LogicalResult matchAndRewrite(IERT::ConvolutionOp origOp, mlir::PatternRewriter& rewriter) const final;
 
 private:
-    const uint32_t _numDPU;
+    const int64_t _numDPU;
     vpux::VPUIP::ArchKind _arch;
     Logger _log;
 };
@@ -184,12 +184,12 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
     // Create NCE per-cluster Operation
     //
 
-    const auto padsBegin = parseIntArrayAttr(origOp.pads_begin());
-    const auto padsEnd = parseIntArrayAttr(origOp.pads_end());
+    const auto padsBegin = parseIntArrayAttr<int64_t>(origOp.pads_begin());
+    const auto padsEnd = parseIntArrayAttr<int64_t>(origOp.pads_end());
     const auto kernelPaddingAttr =
-            getInt32ArrayAttr(getContext(), makeArrayRef({padsBegin[1], padsEnd[1], padsBegin[0], padsEnd[0]}));
+            getIntArrayAttr(getContext(), makeArrayRef({padsBegin[1], padsEnd[1], padsBegin[0], padsEnd[0]}));
 
-    const auto kernelSizeAttr = getInt32ArrayAttr(getContext(), makeArrayRef({KY, KX}));
+    const auto kernelSizeAttr = getIntArrayAttr(getContext(), makeArrayRef({KY, KX}));
 
     auto nceOp = rewriter.create<VPUIP::NCEClusterTaskOp>(
             origOp->getLoc(), inputDPU, filterDPU, weightsTable, /*activation_window=*/nullptr,
@@ -216,7 +216,7 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
 
 class MaxPoolRewrite final : public mlir::OpRewritePattern<IERT::MaxPoolOp> {
 public:
-    MaxPoolRewrite(mlir::MLIRContext* ctx, uint32_t numDPU, vpux::VPUIP::ArchKind arch, Logger log)
+    MaxPoolRewrite(mlir::MLIRContext* ctx, int64_t numDPU, vpux::VPUIP::ArchKind arch, Logger log)
             : mlir::OpRewritePattern<IERT::MaxPoolOp>(ctx), _numDPU(numDPU), _arch(arch), _log(log) {
     }
 
@@ -224,7 +224,7 @@ public:
     mlir::LogicalResult matchAndRewrite(IERT::MaxPoolOp origOp, mlir::PatternRewriter& rewriter) const final;
 
 private:
-    const uint32_t _numDPU;
+    const int64_t _numDPU;
     vpux::VPUIP::ArchKind _arch;
     Logger _log;
 };
@@ -265,8 +265,8 @@ mlir::LogicalResult MaxPoolRewrite::matchAndRewrite(IERT::MaxPoolOp origOp, mlir
 
     const auto IC = inputShape[IERT::MaxPoolOp::act_channel_dim()];
 
-    const auto kernelSize = parseIntArrayAttr(origOp.kernel_size());
-    const auto kernelStrides = parseIntArrayAttr(origOp.strides());
+    const auto kernelSize = parseIntArrayAttr<int64_t>(origOp.kernel_size());
+    const auto kernelStrides = parseIntArrayAttr<int64_t>(origOp.strides());
 
     const auto bitPatternSize =
             VPUIP::NCESparsity::getBitPatternSize(kernelSize, kernelStrides[0], origInputType.getElementType());
@@ -303,12 +303,12 @@ mlir::LogicalResult MaxPoolRewrite::matchAndRewrite(IERT::MaxPoolOp origOp, mlir
     // Create NCE per-cluster Operation
     //
 
-    const auto padsBegin = parseIntArrayAttr(origOp.pads_begin());
-    const auto padsEnd = parseIntArrayAttr(origOp.pads_end());
+    const auto padsBegin = parseIntArrayAttr<int64_t>(origOp.pads_begin());
+    const auto padsEnd = parseIntArrayAttr<int64_t>(origOp.pads_end());
     const auto kernelPaddingAttr =
-            getInt32ArrayAttr(getContext(), makeArrayRef({padsBegin[1], padsEnd[1], padsBegin[0], padsEnd[0]}));
+            getIntArrayAttr(getContext(), makeArrayRef({padsBegin[1], padsEnd[1], padsBegin[0], padsEnd[0]}));
 
-    const auto activation_window_channel_length = getInt32Attr(getContext(), static_cast<uint32_t>(bitPatternSize));
+    const auto activation_window_channel_length = getIntAttr(getContext(), static_cast<uint32_t>(bitPatternSize));
 
     auto nceOp = rewriter.create<VPUIP::NCEClusterTaskOp>(
             origOp->getLoc(), inputDPU, /*weights=*/nullptr, weightsTable, activationWindow,
@@ -335,7 +335,7 @@ mlir::LogicalResult MaxPoolRewrite::matchAndRewrite(IERT::MaxPoolOp origOp, mlir
 
 class EltwiseAddRewrite final : public mlir::OpRewritePattern<IERT::AddOp> {
 public:
-    EltwiseAddRewrite(mlir::MLIRContext* ctx, uint32_t numDPU, vpux::VPUIP::ArchKind arch, Logger log)
+    EltwiseAddRewrite(mlir::MLIRContext* ctx, int64_t numDPU, vpux::VPUIP::ArchKind arch, Logger log)
             : mlir::OpRewritePattern<IERT::AddOp>(ctx), _numDPU(numDPU), _arch(arch), _log(log) {
     }
 
@@ -343,7 +343,7 @@ public:
     mlir::LogicalResult matchAndRewrite(IERT::AddOp origOp, mlir::PatternRewriter& rewriter) const final;
 
 private:
-    const uint32_t _numDPU;
+    const int64_t _numDPU;
     vpux::VPUIP::ArchKind _arch;
     Logger _log;
 };
@@ -375,7 +375,7 @@ mlir::LogicalResult EltwiseAddRewrite::matchAndRewrite(IERT::AddOp origOp, mlir:
     // Create NCE per-cluster Operation
     //
 
-    const auto activation_window_channel_length = getInt32Attr(getContext(), static_cast<int32_t>(0));
+    const auto activation_window_channel_length = getIntAttr(getContext(), static_cast<int32_t>(0));
 
     auto nceOp = rewriter.create<VPUIP::NCEClusterTaskOp>(origOp->getLoc(), firstInputDPU, secondInputDPU,
                                                           /*weightsTable=*/nullptr,
@@ -412,7 +412,7 @@ mlir::LogicalResult EltwiseAddRewrite::matchAndRewrite(IERT::AddOp origOp, mlir:
 
 class DepthwiseConvRewrite final : public mlir::OpRewritePattern<IERT::GroupConvolutionOp> {
 public:
-    DepthwiseConvRewrite(mlir::MLIRContext* ctx, uint32_t numDPU, vpux::VPUIP::ArchKind arch, Logger log)
+    DepthwiseConvRewrite(mlir::MLIRContext* ctx, int64_t numDPU, vpux::VPUIP::ArchKind arch, Logger log)
             : mlir::OpRewritePattern<IERT::GroupConvolutionOp>(ctx), _numDPU(numDPU), _arch(arch), _log(log) {
     }
 
@@ -420,7 +420,7 @@ public:
     mlir::LogicalResult matchAndRewrite(IERT::GroupConvolutionOp origOp, mlir::PatternRewriter& rewriter) const final;
 
 private:
-    const uint32_t _numDPU;
+    const int64_t _numDPU;
     vpux::VPUIP::ArchKind _arch;
     Logger _log;
 };
@@ -494,10 +494,10 @@ mlir::LogicalResult DepthwiseConvRewrite::matchAndRewrite(IERT::GroupConvolution
     const auto origInputType = origOp.input().getType().cast<mlir::MemRefType>();
     // FIXME why does fake sparsity expects this order of kernel dimensions?
     const auto kernelSize = SmallVector<int64_t>{KX, KY};
-    const auto kernelStrides = parseIntArrayAttr(origOp.strides());
+    const auto kernelStrides = parseIntArrayAttr<int64_t>(origOp.strides());
     const auto bitPatternSize =
             VPUIP::NCESparsity::getBitPatternSize(kernelSize, kernelStrides[0], origInputType.getElementType());
-    const auto actWindowChanLen = getInt32Attr(getContext(), static_cast<uint32_t>(bitPatternSize));
+    const auto actWindowChanLen = getIntAttr(getContext(), bitPatternSize);
 
     const auto fakeSparsity =
             VPUIP::NCESparsity::getFakeSparsity(kernelSize, kernelStrides[0], origInputType.getElementType(), OC);
@@ -521,12 +521,12 @@ mlir::LogicalResult DepthwiseConvRewrite::matchAndRewrite(IERT::GroupConvolution
     // Create NCE per-cluster Operation
     //
 
-    const auto padsBegin = parseIntArrayAttr(origOp.pads_begin());
-    const auto padsEnd = parseIntArrayAttr(origOp.pads_end());
+    const auto padsBegin = parseIntArrayAttr<int64_t>(origOp.pads_begin());
+    const auto padsEnd = parseIntArrayAttr<int64_t>(origOp.pads_end());
     const auto kernelPaddingAttr =
-            getInt32ArrayAttr(getContext(), makeArrayRef({padsBegin[1], padsEnd[1], padsBegin[0], padsEnd[0]}));
+            getIntArrayAttr(getContext(), makeArrayRef({padsBegin[1], padsEnd[1], padsBegin[0], padsEnd[0]}));
 
-    const auto kernelSizeAttr = getInt32ArrayAttr(getContext(), makeArrayRef({KY, KX}));
+    const auto kernelSizeAttr = getIntArrayAttr(getContext(), makeArrayRef({KY, KX}));
 
     auto nceOp = rewriter.create<VPUIP::NCEClusterTaskOp>(
             origOp->getLoc(), inputDPU, filterDPU, weightsTable, activationWindow,

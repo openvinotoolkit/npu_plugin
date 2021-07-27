@@ -250,8 +250,8 @@ mlir::LogicalResult SubTensorRewrite::matchAndRewrite(mlir::tensor::ExtractSlice
                       origOp->getNumOperands());
 
     auto subView = rewriter.create<mlir::memref::SubViewOp>(
-            origOp->getLoc(), newOperands[0], parseIntArrayAttr(origOp.static_offsets()),
-            parseIntArrayAttr(origOp.static_sizes()), parseIntArrayAttr(origOp.static_strides()));
+            origOp->getLoc(), newOperands[0], parseIntArrayAttr<int64_t>(origOp.static_offsets()),
+            parseIntArrayAttr<int64_t>(origOp.static_sizes()), parseIntArrayAttr<int64_t>(origOp.static_strides()));
 
     auto allocatedBuf = allocateResults(origOp->getLoc(), rewriter, *typeConverter, origOp.getResult());
 
@@ -290,7 +290,7 @@ mlir::LogicalResult ExpandRewrite::matchAndRewrite(IE::ExpandOp origOp, ArrayRef
     auto expandedBuffer = allocateResults(origOp->getLoc(), rewriter, *typeConverter, origOp.output());
     const auto inputType = newOperands[0].getType().cast<mlir::ShapedType>();
 
-    const SmallVector<int64_t> subOffsets = parseIntArrayAttr(origOp.pads_begin_attr());
+    const auto subOffsets = parseIntArrayAttr<int64_t>(origOp.pads_begin_attr());
     const auto subShape = inputType.getShape();
     const SmallVector<int64_t> subDilations(subShape.size(), 1);
     auto subView = rewriter.create<mlir::memref::SubViewOp>(origOp.getLoc(), expandedBuffer[0], subOffsets, subShape,

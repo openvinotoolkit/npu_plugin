@@ -84,7 +84,7 @@ mlir::ShapedType vpux::Const::ReshapeAttr::inferOutputType(mlir::ShapedType inpu
     VPUX_THROW_UNLESS(inOrder == DimsOrder::fromNumDims(input.getRank()),
                       "Can't apply Reshape transformation to DimsOrder '{0}'", inOrder);
 
-    const auto newShape = parseIntArrayAttr(getShape());
+    const auto newShape = parseIntArrayAttr<int64_t>(getShape());
     return changeShape(input, ShapeRef(newShape));
 }
 
@@ -101,7 +101,6 @@ Const::Content vpux::Const::ReshapeAttr::transform(vpux::Const::Content& input) 
 //
 
 Const::ContentAttr vpux::Const::ContentAttr::reshape(ShapeRef newShape) const {
-    return get(
-            *this,
-            Const::ReshapeAttr::get(getInt64ArrayAttr(getContext(), newShape)).cast<Const::TransformAttrInterface>());
+    return get(*this,
+               Const::ReshapeAttr::get(getIntArrayAttr(getContext(), newShape)).cast<Const::TransformAttrInterface>());
 }

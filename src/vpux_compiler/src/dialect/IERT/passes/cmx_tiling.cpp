@@ -114,10 +114,10 @@ mlir::LogicalResult ConvolutionTiling::matchAndRewrite(IERT::ConvolutionOp origO
         const auto tileTypeOut = changeShape(origOp.output().getType().cast<mlir::MemRefType>(), outputTile.shape);
         auto allocOutOp = rewriter.create<mlir::memref::AllocOp>(loc, tileTypeOut);
 
-        auto tiledOp = rewriter.create<IERT::ConvolutionOp>(
-                loc, actInput, filterInput, biasInput, allocOutOp.memref(), origOp.strides(),
-                getInt32ArrayAttr(getContext(), padsBegin), getInt32ArrayAttr(getContext(), padsEnd),
-                origOp.dilations(), origOp.post_opAttr());
+        auto tiledOp = rewriter.create<IERT::ConvolutionOp>(loc, actInput, filterInput, biasInput, allocOutOp.memref(),
+                                                            origOp.strides(), getIntArrayAttr(getContext(), padsBegin),
+                                                            getIntArrayAttr(getContext(), padsEnd), origOp.dilations(),
+                                                            origOp.post_opAttr());
 
         SmallVector<int64_t> viewStrides(outputTile.shape.size(), 1);
         auto subViewOut = rewriter.create<mlir::memref::SubViewOp>(loc, origOp.output_buff(), outputTile.offsets.raw(),
@@ -243,8 +243,8 @@ mlir::LogicalResult MaxPoolTiling::matchAndRewrite(IERT::MaxPoolOp origOp, mlir:
         auto allocOutOp = rewriter.create<mlir::memref::AllocOp>(loc, tileTypeOut);
 
         auto tiledOp = rewriter.create<IERT::MaxPoolOp>(loc, actInput, allocOutOp.memref(), origOp.kernel_size(),
-                                                        origOp.strides(), getInt32ArrayAttr(getContext(), padsBegin),
-                                                        getInt32ArrayAttr(getContext(), padsEnd), origOp.post_opAttr());
+                                                        origOp.strides(), getIntArrayAttr(getContext(), padsBegin),
+                                                        getIntArrayAttr(getContext(), padsEnd), origOp.post_opAttr());
 
         SmallVector<int64_t> viewStrides(outputTile.shape.size(), 1);
         auto subViewOut = rewriter.create<mlir::memref::SubViewOp>(loc, origOp.output_buff(), outputTile.offsets.raw(),
@@ -344,12 +344,12 @@ mlir::LogicalResult GroupConvolutionTiling::matchAndRewrite(IERT::GroupConvoluti
 
         const auto filter_out_channel_dim = IERT::ConvolutionOp::filter_out_channel_dim();
         const auto groups = filterTile.shape[filter_out_channel_dim];
-        const auto groupsAttr = getInt32Attr(getContext(), checked_cast<uint32_t>(groups));
+        const auto groupsAttr = getIntAttr(getContext(), groups);
 
         auto tiledOp = rewriter.create<IERT::GroupConvolutionOp>(
                 loc, actInput, filterInput, biasInput, allocOutOp.memref(), origOp.strides(),
-                getInt32ArrayAttr(getContext(), padsBegin), getInt32ArrayAttr(getContext(), padsEnd),
-                origOp.dilations(), groupsAttr, origOp.post_opAttr());
+                getIntArrayAttr(getContext(), padsBegin), getIntArrayAttr(getContext(), padsEnd), origOp.dilations(),
+                groupsAttr, origOp.post_opAttr());
 
         SmallVector<int64_t> viewStrides(outputTile.shape.size(), 1);
         auto subViewOut = rewriter.create<mlir::memref::SubViewOp>(loc, origOp.output_buff(), outputTile.offsets.raw(),

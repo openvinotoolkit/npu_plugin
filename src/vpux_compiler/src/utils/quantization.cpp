@@ -65,7 +65,7 @@ std::tuple<double, int64_t> vpux::calcScaleAndZeroPoint(int64_t qMin, int64_t qM
 }
 
 mlir::quant::QuantizedType vpux::getQuantizedType(Const::ContentAttr lowConst, Const::ContentAttr highConst,
-                                                  uint32_t levels, mlir::FloatType realType, mlir::Location loc) {
+                                                  int64_t levels, mlir::FloatType realType, mlir::Location loc) {
     if (lowConst == nullptr || highConst == nullptr) {
         (void)errorAt(loc, "Got non constant quantization parameters (low and high values)");
         return nullptr;
@@ -190,7 +190,7 @@ mlir::quant::QuantizedType vpux::getQuantizedType(Const::ContentAttr lowConst, C
     }
 }
 
-mlir::LogicalResult vpux::getFakeQuantParams(mlir::ShapedType qType, uint32_t& levels, mlir::RankedTensorType& attrType,
+mlir::LogicalResult vpux::getFakeQuantParams(mlir::ShapedType qType, int64_t& levels, mlir::RankedTensorType& attrType,
                                              mlir::DenseElementsAttr& rMinAttr, mlir::DenseElementsAttr& rMaxAttr,
                                              mlir::Location loc) {
     const auto qElemType = qType.getElementType().dyn_cast<mlir::quant::QuantizedType>();
@@ -201,7 +201,7 @@ mlir::LogicalResult vpux::getFakeQuantParams(mlir::ShapedType qType, uint32_t& l
     const auto qMin = qElemType.getStorageTypeMin();
     const auto qMax = qElemType.getStorageTypeMax();
 
-    levels = checked_cast<uint32_t>(qMax - qMin + 1);
+    levels = qMax - qMin + 1;
 
     if (const auto uniformType = qElemType.dyn_cast<mlir::quant::UniformQuantizedType>()) {
         const auto scale = uniformType.getScale();

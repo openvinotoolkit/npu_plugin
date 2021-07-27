@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -51,7 +51,7 @@ IERT::ExecutorResourceOp addExecutor(mlir::Location loc, mlir::Region& executor,
         VPUX_THROW_UNLESS(kind != res.kind(), "Executor kind '{0}' was already added", kind);
     }
 
-    auto countAttr = getInt32Attr(loc.getContext(), count);
+    auto countAttr = getIntAttr(loc.getContext(), count);
     auto builder = mlir::OpBuilder::atBlockEnd(&executor.front());
     auto resOp = builder.create<IERT::ExecutorResourceOp>(loc, kind, countAttr, withSubRegion ? 1 : 0);
     if (withSubRegion) {
@@ -117,7 +117,7 @@ IERT::MemoryResourceOp vpux::IERT::RunTimeResourcesOp::addAvailableMemory(mlir::
         VPUX_THROW_UNLESS(kind != res.kind(), "Available memory kind '{0}' was already added", kind);
     }
 
-    auto byteSizeAttr = getInt64Attr(getContext(), size.count());
+    auto byteSizeAttr = getIntAttr(getContext(), size.count());
 
     auto builder = mlir::OpBuilder::atBlockEnd(&availableMemory().front());
     return builder.create<IERT::MemoryResourceOp>(getLoc(), kind, byteSizeAttr);
@@ -139,7 +139,7 @@ IERT::MemoryResourceOp vpux::IERT::RunTimeResourcesOp::setUsedMemory(mlir::Attri
     VPUX_THROW_UNLESS(size <= available.size(), "Memory kind '{0}' used size '{1}' exceeds available size '{2}'", kind,
                       size, available.size());
 
-    auto byteSizeAttr = getInt64Attr(getContext(), size.count());
+    auto byteSizeAttr = getIntAttr(getContext(), size.count());
 
     for (auto res : getUsedMemory()) {
         if (res.kind() == kind) {

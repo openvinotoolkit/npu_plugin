@@ -29,9 +29,9 @@ module @dual_tile attributes {VPUIP.arch = "MTL", VPUIP.compilationMode = "Refer
     version : {
       contextStr = "VPUX Compiler",
       hash = "",
-      majorV = 3 : i32,
-      minorV = 11 : i32,
-      patchV = 0 : i32
+      majorV = 3,
+      minorV = 11,
+      patchV = 0
     }
 
   IE.CNNNetwork
@@ -45,8 +45,8 @@ module @dual_tile attributes {VPUIP.arch = "MTL", VPUIP.compilationMode = "Refer
   IERT.RunTimeResources
     availableMemory :  {
       IERT.MemoryResource 1073741824 bytes
-      IERT.MemoryResource 31457280 bytes of "DDR" {VPUIP.bandwidth = 8 : i64, VPUIP.derateFactor = 6.000000e-01 : f64}
-      IERT.MemoryResource 2097152 bytes of "CMX_NN" {VPUIP.bandwidth = 32 : i64, VPUIP.derateFactor = 1.000000e+00 : f64}
+      IERT.MemoryResource 31457280 bytes of "DDR" {VPUIP.bandwidth = 8, VPUIP.derateFactor = 6.000000e-01}
+      IERT.MemoryResource 2097152 bytes of "CMX_NN" {VPUIP.bandwidth = 32, VPUIP.derateFactor = 1.000000e+00}
     } usedMemory :  {
     } executors :  {
       IERT.ExecutorResource 1 of "Leon_RT"
@@ -106,28 +106,28 @@ module @dual_tile attributes {VPUIP.arch = "MTL", VPUIP.compilationMode = "Refer
     %conv_complete = VPUIP.ConfigureBarrier<1> -> !VPUIP.Barrier
     %output_ready = VPUIP.ConfigureBarrier<2> -> !VPUIP.Barrier
 
-    VPUIP.NNDMA {port = 0 : i32}
+    VPUIP.NNDMA {port = 0}
       inputs(%input_arg : memref<1x16x16x16x!qtype, #NHWC, #act_mem_strides, "ProgrammableInput">)
       outputs(%input_broadcast : memref<1x16x16x16x!qtype, #NHWC, #act_mem_strides, "VPU_CMX_NN">)
       updates(%inputs_ready : !VPUIP.Barrier)
       -> memref<1x16x16x16x!qtype, #NHWC, #act_mem_strides, "VPU_CMX_NN">
 
-    VPUIP.NNDMA {port = 0 : i32}
+    VPUIP.NNDMA {port = 0}
       inputs(%weights_constant : memref<16x1x1x16x!qtype, #NHWC, #filter_mem_strides, "GraphFile">)
       outputs(%weights : memref<16x1x1x16x!qtype, #NHWC, #filter_mem_strides, "VPU_CMX_NN">)
       updates(%inputs_ready : !VPUIP.Barrier)
       -> memref<16x1x1x16x!qtype, #NHWC, #filter_mem_strides, "VPU_CMX_NN">
 
-    VPUIP.NNDMA {port = 0 : i32}
+    VPUIP.NNDMA {port = 0}
       inputs(%weight_table_constant : memref<16x1x1x4xsi32, #NHWC, #wt_mem_strides, "GraphFile">)
       outputs(%weight_table : memref<16x1x1x4xsi32, #NHWC, #wt_mem_strides, "VPU_CMX_NN">)
       updates(%inputs_ready : !VPUIP.Barrier)
       -> memref<16x1x1x4xsi32, #NHWC, #wt_mem_strides, "VPU_CMX_NN">
 
     VPUIP.NCEClusterTask {
-        kernel_padding = [0 : i32, 0 : i32, 0 : i32, 0 : i32],
-        kernel_size = [1 : i32, 8 : i32],
-        kernel_strides = [1 : i32, 1 : i32],
+        kernel_padding = [0, 0, 0, 0],
+        kernel_size = [1, 8],
+        kernel_strides = [1, 1],
         task_type = "CONV"
       }
       input(%input_0 : memref<1x16x16x16x!qtype, #NHWC, #act_mem_strides, "VPU_CMX_NN">)
@@ -141,20 +141,20 @@ module @dual_tile attributes {VPUIP.arch = "MTL", VPUIP.compilationMode = "Refer
       -> memref<1x16x16x16xf16, #NHWC, #act_mem_strides, "VPU_CMX_NN">
       variants : {
         VPUIP.DPUTask {
-          end = [15 : i32, 15 : i32, 15 : i32],
+          end = [15, 15, 15],
           mpe_mode = "CUBOID_16x16",
-          pads_begin = [0 : i32, 0 : i32],
-          pads_end = [0 : i32, 0 : i32],
-          start = [0 : i32, 0 : i32, 0 : i32]
+          pads_begin = [0, 0],
+          pads_end = [0, 0],
+          start = [0, 0, 0]
         }
       }
       PPE : {
       }
 
     VPUIP.NCEClusterTask {
-        kernel_padding = [0 : i32, 0 : i32, 0 : i32, 0 : i32],
-        kernel_size = [1 : i32, 8 : i32],
-        kernel_strides = [1 : i32, 1 : i32],
+        kernel_padding = [0, 0, 0, 0],
+        kernel_size = [1, 8],
+        kernel_strides = [1, 1],
         task_type = "CONV"
       }
       input(%input_1 : memref<1x16x16x16x!qtype, #NHWC, #act_mem_strides, "VPU_CMX_NN">)
@@ -168,31 +168,31 @@ module @dual_tile attributes {VPUIP.arch = "MTL", VPUIP.compilationMode = "Refer
       -> memref<1x16x16x16xf16, #NHWC, #act_mem_strides, "VPU_CMX_NN">
       variants : {
         VPUIP.DPUTask {
-          end = [15 : i32, 15 : i32, 15 : i32],
+          end = [15, 15, 15],
           mpe_mode = "CUBOID_16x16",
-          pads_begin = [0 : i32, 0 : i32],
-          pads_end = [0 : i32, 0 : i32],
-          start = [0 : i32, 0 : i32, 0 : i32]
+          pads_begin = [0, 0],
+          pads_end = [0, 0],
+          start = [0, 0, 0]
         }
       }
       PPE : {
       }
 
-    VPUIP.NNDMA {port = 0 : i32}
+    VPUIP.NNDMA {port = 0}
       inputs(%output_0 : memref<1x16x16x16xf16, #NHWC, #act_mem_strides, "VPU_CMX_NN">)
       outputs(%output_ddr_0 : memref<1x16x16x16xf16, #NHWC, #act_mem_strides, "VPU_DDR_Heap">)
       waits(%conv_complete : !VPUIP.Barrier)
       updates(%output_ready : !VPUIP.Barrier)
       -> memref<1x16x16x16xf16, #NHWC, #act_mem_strides, "VPU_DDR_Heap">
 
-    VPUIP.NNDMA {port = 0 : i32}
+    VPUIP.NNDMA {port = 0}
       inputs(%output_1 : memref<1x16x16x16xf16, #NHWC, #act_mem_strides, "VPU_CMX_NN">)
       outputs(%output_ddr_1 : memref<1x16x16x16xf16, #NHWC, #act_mem_strides, "VPU_DDR_Heap">)
       waits(%conv_complete : !VPUIP.Barrier)
       updates(%output_ready : !VPUIP.Barrier)
       -> memref<1x16x16x16xf16, #NHWC, #act_mem_strides, "VPU_DDR_Heap">
 
-    VPUIP.NNDMA {port = 0 : i32}
+    VPUIP.NNDMA {port = 0}
       inputs(%output_ddr : memref<2x16x16x16xf16, #NHWC, #act_mem_strides, "VPU_DDR_Heap">)
       outputs(%output_arg : memref<2x16x16x16xf16, #NHWC, #act_mem_strides, "ProgrammableOutput">)
       waits(%output_ready : !VPUIP.Barrier)

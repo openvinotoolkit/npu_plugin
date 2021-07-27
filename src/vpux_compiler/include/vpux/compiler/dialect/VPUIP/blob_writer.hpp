@@ -76,24 +76,24 @@ public:
 
 public:
     TensorReference createTensor(StringRef name, mlir::ShapedType type, MemoryLocation locale,
-                                 ArrayRef<uint32_t> localeIndex, uint64_t dataIndex,
-                                 Optional<uint64_t> sparsityIndex = None, Optional<uint64_t> storageElementIndex = None,
-                                 Optional<uint32_t> storageElementSize = None, Optional<uint32_t> leadingOffset = None,
-                                 Optional<uint32_t> trailingOffset = None, Optional<float> density_rate = None,
-                                 Optional<uint8_t> swizzling_key = None);
+                                 ArrayRef<uint32_t> localeIndex, int64_t dataIndex,
+                                 Optional<int64_t> sparsityIndex = None, Optional<int64_t> storageElementIndex = None,
+                                 Optional<int64_t> storageElementSize = None, Optional<int64_t> leadingOffset = None,
+                                 Optional<int64_t> trailingOffset = None, Optional<double> density_rate = None,
+                                 Optional<int64_t> swizzling_key = None);
     TensorReference createTensor(mlir::Value val, StringRef name, MemoryLocation locale, ArrayRef<uint32_t> localeIndex,
-                                 uint64_t dataIndex, Optional<uint64_t> sparsityIndex = None,
-                                 Optional<uint64_t> storageElementIndex = None,
-                                 Optional<uint32_t> storageElementSize = None, Optional<uint32_t> leadingOffset = None,
-                                 Optional<uint32_t> trailingOffset = None, Optional<float> density_rate = None,
-                                 Optional<uint8_t> swizzling_key = None);
+                                 int64_t dataIndex, Optional<int64_t> sparsityIndex = None,
+                                 Optional<int64_t> storageElementIndex = None,
+                                 Optional<int64_t> storageElementSize = None, Optional<int64_t> leadingOffset = None,
+                                 Optional<int64_t> trailingOffset = None, Optional<double> density_rate = None,
+                                 Optional<int64_t> swizzling_key = None);
     TensorReference getTensor(mlir::Value val) const;
 
 public:
     BinaryData createBinaryData(ArrayRef<uint64_t> content, mlir::ShapedType type, bool csram_cacheable = false);
 
 public:
-    Barrier createBarrier(mlir::Value val, uint32_t physicalID = 0);
+    Barrier createBarrier(mlir::Value val, int64_t physicalID = 0);
     uint32_t getBarrierVirtualID(mlir::Value val) const;
 
 public:
@@ -106,9 +106,9 @@ public:
     Vector<float> createStrides(mlir::ShapedType type);
 
     static MVCNN::MemoryLocation createMemoryLocation(MemoryLocation location);
-    IndirectDataReference createIndirectDataReference(uint64_t dataIndex, Optional<uint64_t> sparsityIndex = None,
-                                                      Optional<uint64_t> storageElementIndex = None,
-                                                      Optional<uint32_t> storageElementSize = None);
+    IndirectDataReference createIndirectDataReference(int64_t dataIndex, Optional<int64_t> sparsityIndex = None,
+                                                      Optional<int64_t> storageElementIndex = None,
+                                                      Optional<int64_t> storageElementSize = None);
 
     static MVCNN::order3 createOrder3(mlir::ArrayAttr attr);
 

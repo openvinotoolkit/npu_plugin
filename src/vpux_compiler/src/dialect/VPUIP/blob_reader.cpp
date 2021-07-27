@@ -211,7 +211,7 @@ mlir::ArrayAttr BlobReader::parseOrder3(const MVCNN::order3* order, int32_t ndim
         coords.push_back(order->x());
     }
 
-    return getInt32ArrayAttr(_ctx, coords);
+    return getIntArrayAttr(_ctx, coords);
 }
 
 VPUIP::ArchKind BlobReader::parseDeviceRevision() {
@@ -370,8 +370,8 @@ void BlobReader::buildGraphOp() {
     const auto options = VPUIP::ExecutionFlagAttr::get(_ctx, execFlag);
     VPUX_THROW_UNLESS(header->version(), "Blob has no version");
     const auto version = VPUIP::VersionAttr::get(
-            getInt32Attr(_ctx, header->version()->majorV()), getInt32Attr(_ctx, header->version()->minorV()),
-            getInt32Attr(_ctx, header->version()->patchV()),
+            getIntAttr(_ctx, header->version()->majorV()), getIntAttr(_ctx, header->version()->minorV()),
+            getIntAttr(_ctx, header->version()->patchV()),
             mlir::StringAttr::get(_ctx, header->version()->hash()->str()),
             mlir::StringAttr::get(_ctx, header->version()->context()->str()), _ctx);
     builder.create<VPUIP::GraphOp>(mlir::UnknownLoc::get(_ctx), options, version);

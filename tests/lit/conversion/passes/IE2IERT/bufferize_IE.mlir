@@ -1,7 +1,7 @@
 // RUN: vpux-opt --split-input-file --bufferize-IE %s | FileCheck %s
 
 func @SingleLayer(%arg0: tensor<1x1000xf16>) -> tensor<1x1000xf16> {
-    %prob = IE.SoftMax(%arg0) {axisInd = 1 : i32} : tensor<1x1000xf16> -> tensor<1x1000xf16>
+    %prob = IE.SoftMax(%arg0) {axisInd = 1} : tensor<1x1000xf16> -> tensor<1x1000xf16>
     return %prob : tensor<1x1000xf16>
 
     // CHECK: [[VAR0:%.*]] = unrealized_conversion_cast %arg0 : tensor<1x1000xf16> to memref<1x1000xf16>
@@ -45,7 +45,7 @@ func @Reshape(%arg0 : tensor<1x512x1x1xf32>) -> tensor<1x512xf32> {
 // CHECK:       #map1 = affine_map<(d0, d1, d2, d3) -> (d0 * 48 + d1 * 8 + d2 * 2 + d3 + 48)>
 
 func @Split(%tensor: tensor<2x6x4x2xf32>) -> (tensor<1x6x4x2xf32>, tensor<1x6x4x2xf32>) {
-    %0:2 = IE.Split(%tensor) {num_splits = 2 : i32, axis_value = 0 : si32} : tensor<2x6x4x2xf32> -> tensor<1x6x4x2xf32>, tensor<1x6x4x2xf32>
+    %0:2 = IE.Split(%tensor) {num_splits = 2, axis_value = 0} : tensor<2x6x4x2xf32> -> tensor<1x6x4x2xf32>, tensor<1x6x4x2xf32>
     return %0#0, %0#1 : tensor<1x6x4x2xf32>, tensor<1x6x4x2xf32>
 
     // CHECK-NOT:   IE.Split
@@ -66,7 +66,7 @@ func @Split(%tensor: tensor<2x6x4x2xf32>) -> (tensor<1x6x4x2xf32>, tensor<1x6x4x
 // -----
 
 func @Concat(%arg0: tensor<1x2x3x4xf32>, %arg1: tensor<1x2x3x4xf32>) -> tensor<1x4x3x4xf32> {
-  %0 = IE.Concat(%arg0, %arg1) {axis = 1 : si32} : tensor<1x2x3x4xf32>, tensor<1x2x3x4xf32> -> tensor<1x4x3x4xf32>
+  %0 = IE.Concat(%arg0, %arg1) {axis = 1} : tensor<1x2x3x4xf32>, tensor<1x2x3x4xf32> -> tensor<1x4x3x4xf32>
   return %0 : tensor<1x4x3x4xf32>
 
   // CHECK-NOT:   IE.Concat
@@ -85,7 +85,7 @@ func @Concat(%arg0: tensor<1x2x3x4xf32>, %arg1: tensor<1x2x3x4xf32>) -> tensor<1
 // -----
 
 func @ExpandToSubview(%arg0: tensor<1x3x4x4xf16>) -> tensor<1x8x4x4xf16> {
-  %0 = IE.Expand(%arg0) {pads_begin_attr = [0 : i32, 0 : i32, 0 : i32, 0 : i32], pads_end_attr = [0 : i32, 5 : i32, 0 : i32, 0 : i32]} : tensor<1x3x4x4xf16> -> tensor<1x8x4x4xf16>
+  %0 = IE.Expand(%arg0) {pads_begin_attr = [0, 0, 0, 0], pads_end_attr = [0, 5, 0, 0]} : tensor<1x3x4x4xf16> -> tensor<1x8x4x4xf16>
   // CHECK:       %0 = unrealized_conversion_cast %arg0 : tensor<1x3x4x4xf16> to memref<1x3x4x4xf16>
   // CHECK:       %1 = memref.alloc() : memref<1x8x4x4xf16>
   // CHECK:       %2 = memref.subview %1[0, 0, 0, 0] [1, 3, 4, 4] [1, 1, 1, 1] : memref<1x8x4x4xf16> to memref<1x3x4x4xf16, #map>

@@ -16,7 +16,7 @@ IE.CNNNetwork
 
 // CHECK: func @main(%[[ARG0:arg.*]]: tensor<1x1000xui8>) -> tensor<1x1000xf32>
 func @main(%arg0: tensor<1x1000xf16>) -> tensor<1x1000xf16> {
-    %prob = IE.SoftMax(%arg0) {axisInd = 1 : i32} : tensor<1x1000xf16> -> tensor<1x1000xf16>
+    %prob = IE.SoftMax(%arg0) {axisInd = 1} : tensor<1x1000xf16> -> tensor<1x1000xf16>
     return %prob : tensor<1x1000xf16>
 
     // CHECK:       %[[VAR0:.*]] = IE.Convert(%[[ARG0]])
@@ -53,7 +53,7 @@ IE.CNNNetwork
 
 // CHECK: func @main(%[[ARG0:arg.*]]: tensor<1x1000xf16>) -> tensor<1x1000xf16>
 func @main(%arg0: tensor<1x1000xf16>) -> tensor<1x1000xf16> {
-    %prob = IE.SoftMax(%arg0) {axisInd = 1 : i32} : tensor<1x1000xf16> -> tensor<1x1000xf16>
+    %prob = IE.SoftMax(%arg0) {axisInd = 1} : tensor<1x1000xf16> -> tensor<1x1000xf16>
     return %prob : tensor<1x1000xf16>
 
     // CHECK-NOT:   IE.Convert

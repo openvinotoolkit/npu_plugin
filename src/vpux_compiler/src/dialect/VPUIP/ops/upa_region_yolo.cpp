@@ -28,19 +28,19 @@ void vpux::VPUIP::RegionYoloUPAOp::build(mlir::OpBuilder& builder, mlir::Operati
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::RegionYoloUPAOp::serialize(VPUIP::BlobWriter& writer) {
-    auto attrToVector = [&](mlir::ArrayAttr attr) {
-        auto values = parseIntArrayAttr(attr) | transformed([](auto value) {
-                          return checked_cast<int32_t>(value);
-                      });
-        return to_std_vector(values);
-    };
+    VPUIP::BlobWriter::Vector<int32_t> serializedMask;
+    if (mask().hasValue()) {
+        serializedMask = writer.createVector(parseIntArrayAttr<int32_t>(mask().getValue()));
+    }
 
     MVCNN::RegionYOLOParamsBuilder builder(writer);
-    builder.add_coords(coords());
-    builder.add_classes(classes());
-    builder.add_num(regions());
+    builder.add_coords(checked_cast<int32_t>(coords()));
+    builder.add_classes(checked_cast<int32_t>(classes()));
+    builder.add_num(checked_cast<int32_t>(regions()));
     builder.add_do_softmax(do_softmax().getValueOr(false));
-    builder.add_mask(builder.fbb_.CreateVector(attrToVector(mask().getValue())));
+    if (mask().hasValue()) {
+        builder.add_mask(serializedMask);
+    }
 
     const auto paramsOff = builder.Finish();
 

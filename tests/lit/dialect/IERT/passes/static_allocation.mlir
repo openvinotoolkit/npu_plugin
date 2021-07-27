@@ -27,14 +27,14 @@ IE.CNNNetwork
 // CHECK: func @main([[ARG0:%arg[0-9]*]]: memref<1x1000xf16>, [[ARG1:%arg[0-9]*]]: memref<1x1000xf16>) -> memref<1x1000xf16> {
 func @main(%arg0: memref<1x1000xf16>, %arg1: memref<1x1000xf16>) -> memref<1x1000xf16> {
     %0 = memref.alloc() : memref<1x1000xf16, "DDR">
-    %1 = IERT.SoftMax {axisInd = 1 : i32} inputs(%arg0 : memref<1x1000xf16>) outputs(%0 : memref<1x1000xf16, "DDR">) -> memref<1x1000xf16, "DDR">
+    %1 = IERT.SoftMax {axisInd = 1} inputs(%arg0 : memref<1x1000xf16>) outputs(%0 : memref<1x1000xf16, "DDR">) -> memref<1x1000xf16, "DDR">
 
     %2 = memref.alloc() : memref<1x1000xf16, "DDR">
-    %3 = IERT.SoftMax {axisInd = 1 : i32} inputs(%1: memref<1x1000xf16, "DDR">) outputs(%2 : memref<1x1000xf16, "DDR">) -> memref<1x1000xf16, "DDR">
+    %3 = IERT.SoftMax {axisInd = 1} inputs(%1: memref<1x1000xf16, "DDR">) outputs(%2 : memref<1x1000xf16, "DDR">) -> memref<1x1000xf16, "DDR">
     memref.dealloc %0 : memref<1x1000xf16, "DDR">
 
     %4 = memref.alloc() : memref<1x1000xf16, "DDR">
-    %5 = IERT.SoftMax {axisInd = 1 : i32} inputs(%3: memref<1x1000xf16, "DDR">) outputs(%4 : memref<1x1000xf16, "DDR">) -> memref<1x1000xf16, "DDR">
+    %5 = IERT.SoftMax {axisInd = 1} inputs(%3: memref<1x1000xf16, "DDR">) outputs(%4 : memref<1x1000xf16, "DDR">) -> memref<1x1000xf16, "DDR">
     memref.dealloc %2 : memref<1x1000xf16, "DDR">
 
     %6 = IERT.Copy inputs(%5 : memref<1x1000xf16, "DDR">) outputs(%arg1 : memref<1x1000xf16>) -> memref<1x1000xf16>

@@ -7,8 +7,8 @@ module @EDSL attributes {VPUIP.arch = "KMB"} {
 IERT.RunTimeResources
     availableMemory :  {
         IERT.MemoryResource 1073741824 bytes
-        IERT.MemoryResource 31457280 bytes of "DDR" {VPUIP.bandwidth = 8 : i64, VPUIP.derateFactor = 6.000000e-01 : f64}
-        IERT.MemoryResource 2097152 bytes of "CMX_NN" {VPUIP.bandwidth = 32 : i64, VPUIP.derateFactor = 1.000000e+00 : f64}
+        IERT.MemoryResource 31457280 bytes of "DDR" {VPUIP.bandwidth = 8, VPUIP.derateFactor = 6.000000e-01}
+        IERT.MemoryResource 2097152 bytes of "CMX_NN" {VPUIP.bandwidth = 32, VPUIP.derateFactor = 1.000000e+00}
     }
     usedMemory :  {}
     executors :  {
@@ -26,9 +26,9 @@ IERT.RunTimeResources
 VPUIP.Graph
     options : "NONE"
     version : {
-        majorV = 3 : i32,
-        minorV = 11 : i32,
-        patchV = 0 : i32,
+        majorV = 3,
+        minorV = 11,
+        patchV = 0,
         hash = "",
         contextStr = "VPUX Compiler"
     }

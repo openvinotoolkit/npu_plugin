@@ -44,12 +44,12 @@ Interface for VPUIP UPA Task
 #### `maxShaves`
 
 ```c++
-vpux::Optional<uint32_t> maxShaves();
+vpux::Optional<int64_t> maxShaves();
 ```
 Get maximal number of UPA SHAVEs to use#### `setMaxShaves`
 
 ```c++
-void setMaxShaves(uint32_t maxShaves);
+void setMaxShaves(int64_t maxShaves);
 ```
 Update maximal number of UPA SHAVEs to use
 NOTE: This method *must* be implemented by the user.

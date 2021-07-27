@@ -4,7 +4,7 @@
 func @Reshape(%arg0: memref<1x512xf16>, %arg1: memref<1x512xf16>) -> memref<1x512xf16> {
     %0 = IERT.GenericReshape inputs(%arg0 : memref<1x512xf16>) -> memref<1x512x1x1xf16>
     %1 = VPUIP.DeclareTensor "VPU_DDR_Heap" [0] <0> -> memref<1x512x1x1xf16, "DDR">
-    %2 = VPUIP.SoftMaxUPA {axisInd = 1 : i32} inputs(%0 : memref<1x512x1x1xf16>) outputs(%1 : memref<1x512x1x1xf16, "DDR">) -> memref<1x512x1x1xf16, "DDR">
+    %2 = VPUIP.SoftMaxUPA {axisInd = 1} inputs(%0 : memref<1x512x1x1xf16>) outputs(%1 : memref<1x512x1x1xf16, "DDR">) -> memref<1x512x1x1xf16, "DDR">
     %3 = IERT.GenericReshape inputs(%2 : memref<1x512x1x1xf16, "DDR">) -> memref<1x512xf16, "DDR">
     %4 = VPUIP.NNDMA inputs(%3 : memref<1x512xf16, "DDR">) outputs(%arg1 : memref<1x512xf16>) -> memref<1x512xf16>
     return %4 : memref<1x512xf16>
@@ -96,7 +96,7 @@ func @WithAsyncRegions(%arg0: memref<1x512xf16>, %arg1: memref<1x512xf16>) -> me
 
     %t2, %f2 = async.execute -> !async.value<memref<1x512x1x1xf16, "DDR">> {
         %1 = IERT.GenericReshape inputs(%arg0 : memref<1x512xf16>) -> memref<1x512x1x1xf16>
-        %2 = VPUIP.SoftMaxUPA {axisInd = 1 : i32}
+        %2 = VPUIP.SoftMaxUPA {axisInd = 1}
             inputs(%1 : memref<1x512x1x1xf16>)
             outputs(%0 : memref<1x512x1x1xf16, "DDR">)
             -> memref<1x512x1x1xf16, "DDR">

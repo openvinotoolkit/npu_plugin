@@ -69,7 +69,7 @@ module @wrong_entry_point_sig {
 IE.CNNNetwork
     entryPoint: @main
     inputsInfo : {
-        IE.DataInfo "input" : f32
+        IE.DataInfo "input" : f16
     }
     outputsInfo : {
         IE.DataInfo "softmax" : tensor<1x3x16x16xf32>
