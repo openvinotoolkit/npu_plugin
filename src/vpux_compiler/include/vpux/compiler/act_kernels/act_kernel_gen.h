@@ -24,14 +24,13 @@
 
 namespace vpux {
 
-//static constexpr const uint8_t kDmaBeforeInner = 0x1;
-//static constexpr const uint8_t kDmaAfterInner = 0x2;
-//static constexpr const uint8_t kDmaBeforeMiddle = 0x4;
-//static constexpr const uint8_t kDmaAfterMiddle = 0x8;
-//
+struct ActKernelDesc {
+    flatbuffers::Offset<MVCNN::KernelData> text;
+    flatbuffers::Offset<MVCNN::KernelData> data;
+};
 
-flatbuffers::Offset<MVCNN::BinaryData> generateKernelForACTShave(mlir::StringRef funcName,
-                                                                 const movitools::MoviCompileParams& params,
-                                                                 flatbuffers::FlatBufferBuilder& fbb);
+ActKernelDesc generateKernelForACTShave(mlir::StringRef funcName,
+                                        const movitools::MoviCompileParams& params,
+                                        flatbuffers::FlatBufferBuilder& fbb);
 
 }  // namespace vpux
