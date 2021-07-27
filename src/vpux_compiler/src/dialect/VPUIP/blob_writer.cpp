@@ -97,10 +97,14 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createACTShaveTask(mlir
     const auto inputs = createVector(layer.getInputs() | transformed(getTensorCb));
     const auto outputs = createVector(layer.getOutputs() | transformed(getTensorCb));
 
+
+
     MVCNN::ActKernelBuilder kernelbuilder(_impl);
     kernelbuilder.add_kernelData(params.obj);
     kernelbuilder.add_type(params.type);
     kernelbuilder.add_kernelEntry(0);
+
+    auto kernel = kernelbuilder.Finish();
 
 
     MVCNN::ActKernelInvocationBuilder invocationBuilder(_impl);
@@ -111,12 +115,11 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createACTShaveTask(mlir
 
     auto invocations_v2 = _impl.CreateVector(invocations_v1);
 
-    MVCNN::ActKernelTaskBuilder builder(_impl);
+    MVCNN::ActKernelTaskBuilder taskbuilder(_impl);
+    taskbuilder.add_kernel(kernel);
+    taskbuilder.add_invocations(invocations_v2);
 
-    builder.add_kernel(kernelbuilder.Finish());
-    builder.add_invocations(invocations_v2);
-
-    return {builder.Finish().Union(), MVCNN::SpecificTask_ActKernelTask};
+    return {taskbuilder.Finish().Union(), MVCNN::SpecificTask_ActKernelTask};
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createUPALayerTask(mlir::Operation* op,
