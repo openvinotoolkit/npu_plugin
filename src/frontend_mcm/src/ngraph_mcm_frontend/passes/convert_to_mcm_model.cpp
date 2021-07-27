@@ -938,7 +938,6 @@ void convert(std::shared_ptr<ngraph::op::v1::Transpose> permute, mv::OpModel& mc
 
     // Remove order index corresponding to reduced dim in input tensor
     auto ieShape = permute->input(0).get_shape();
-    const size_t orderSize = orderIndices.size();
     std::vector<int64_t> permNDOrder(orderIndices.begin(), orderIndices.end());
     std::vector<size_t> reducedDims;
 
