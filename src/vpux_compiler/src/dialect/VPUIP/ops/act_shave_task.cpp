@@ -36,42 +36,24 @@ VPUIP::BlobWriter::SpecificTask ACTShaveTaskOp::serialize(VPUIP::BlobWriter& wri
             /*cpu=*/"3010xx",
             /*moviCompile=*/"linux64/bin/moviCompile",
             /*mdkLinker=*/"linux64/sparc-myriad-rtems-6.3.0/bin/sparc-myriad-rtems-ld",
+            /*mdkObjCopy=*/"linux64/sparc-myriad-rtems-6.3.0/bin/sparc-myriad-rtems-objcopy",
             /*mdkLibDir=*/"common/moviCompile/lib/30xxxx-leon",
             /*mdkLibs=*/
             {
+                    "mlibm.a",
                     "mlibcxx.a",
                     "mlibneon.a",
                     "mlibVecUtils.a",
-                    "mlibm.a",
                     "mlibc_lite.a",
                     "mlibc_lite_lgpl.a",
                     "mlibcrt.a",
             },
     };
 
-    //    const auto axisDim = getAxisDim();
+    auto elfBinary = generateKernelForACTShave(kernelRef, params, writer);
 
-    flatbuffers::Offset<MVCNN::BinaryData> elfBinary = generateKernelForACTShave(kernelRef, params, writer);
-
-
-    // TODO: figure out current approach seems based on some structure
-    /*MVCNN::ActKernelParamsBuilder builder(writer);
-
-    builder.add_axis(checked_cast<uint32_t>(axisDim.ind()));
-    const auto paramsOff = builder.Finish();*/
-    MVCNN::KernelDataBuilder shaveKernelBuilder(writer);
-
-    return writer.createACTShaveTask(*this, {shaveKernelBuilder.Finish(), MVCNN::ActKernelType_KERNEL});
+    return writer.createACTShaveTask(*this, {elfBinary.text, MVCNN::ActKernelType_KERNEL});
 }
-/*
-mlir::Operation* vpux::VPUIP::BlobReader::parseActShave(mlir::OpBuilder& builder, ArrayRef<mlir::Value> inputs,
-        ArrayRef<mlir::Value> outputs, const MVCNN::ActShaveTask* task) {
-VPUX_THROW_UNLESS(inputs.size() == 1, "UPASoftMax supports only 1 input, got {0}", inputs.size());
-VPUX_THROW_UNLESS(outputs.size() == 1, "UPASoftMax supports only 1 output, got {0}", outputs.size());
-const auto params = task->softLayerParams_as_SoftmaxParams();
-const auto axis = getInt32Attr(_ctx, params->axis());
-return builder.create<VPUIP::SoftMaxUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], outputs[0], axis);
-}*/
 
 }  // namespace VPUIP
 }  // namespace vpux
