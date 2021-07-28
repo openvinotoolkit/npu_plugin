@@ -54,7 +54,7 @@ DEFINE_bool(run_test, false, "Run the test (compare current results with previou
 DEFINE_string(mode, "", "Comparison mode to use");
 
 DEFINE_uint32(top_k, 1, "Top K parameter for 'classification' mode");
-DEFINE_double(prob_tolerance, 1e-4, "Probability tolerance for 'classification/ssd' mode");
+DEFINE_double(prob_tolerance, 1e-4, "Probability tolerance for 'classification/ssd/yolo' mode");
 
 DEFINE_double(raw_tolerance, 1e-4, "Tolerance for 'raw' mode (absolute diff)");
 DEFINE_double(confidence_threshold, 1e-4, "Confidence threshold for Detection mode");
@@ -62,6 +62,9 @@ DEFINE_double(box_tolerance, 1e-4, "Box tolerance for 'detection' mode");
 
 DEFINE_string(log_level, "", "IE logger level (optional)");
 DEFINE_string(color_format, "BGR", "Color format for input: RGB or BGR");
+
+// for Yolo
+DEFINE_bool(is_tiny_yolo, false, "Is it Tiny Yolo or not (true or false)?");
 
 std::vector<std::string> splitStringList(const std::string& str, char delim) {
     std::vector<std::string> out;
@@ -731,6 +734,36 @@ bool testRAW(const ie::BlobMap& outputs, const ie::BlobMap& refOutputs) {
 }
 
 //
+// Yolo V2 mode
+//
+bool testYoloV2 (const ie::BlobMap& actualBlobs,
+                 const ie::BlobMap& refBlobs,
+                 const ie::ConstInputsDataMap& inputsDesc) {
+
+    IE_ASSERT(inputsDesc.size() == 1);
+    IE_ASSERT(actualBlobs.size() == 1u && actualBlobs.size() == refBlobs.size());
+    auto actualBlob = actualBlobs.begin()->second;
+    auto refBlob    = refBlobs.begin()->second;
+
+    const auto& inputDesc = inputsDesc.begin()->second->getTensorDesc();
+
+    const auto imgWidth = inputDesc.getDims().at(3);
+    const auto imgHeight = inputDesc.getDims().at(2);
+    double confThresh = FLAGS_confidence_threshold;
+    double probTolerance = FLAGS_prob_tolerance;
+    double boxTolerance = FLAGS_box_tolerance;
+    bool isTiny = FLAGS_is_tiny_yolo;
+
+    auto actualOutput = utils::parseYoloOutput(vpux::toFP32(InferenceEngine::as<InferenceEngine::MemoryBlob>(actualBlob)),
+                                               imgWidth, imgHeight, confThresh, isTiny);
+    auto refOutput = utils::parseYoloOutput(vpux::toFP32(InferenceEngine::as<InferenceEngine::MemoryBlob>(refBlob)),
+                                            imgWidth, imgHeight, confThresh, isTiny);
+
+    bool result = checkBBoxOutputs(actualOutput, refOutput, imgWidth, imgHeight, boxTolerance, probTolerance);
+    return result;
+}
+
+//
 // main
 //
 
@@ -922,6 +955,13 @@ int main(int argc, char* argv[]) {
                     }
                 } else if (strEq(FLAGS_mode, "ssd")) {
                     if (testSSDDetection(outputs, refOutputs, inputsInfo)) {
+                        std::cout << "PASSED" << std::endl;
+                    } else {
+                        std::cout << "FAILED" << std::endl;
+                        return EXIT_FAILURE;
+                    }
+                } else if (strEq(FLAGS_mode, "yolo_v2")) {
+                    if (testYoloV2(outputs, refOutputs, inputsInfo)) {
                         std::cout << "PASSED" << std::endl;
                     } else {
                         std::cout << "FAILED" << std::endl;
