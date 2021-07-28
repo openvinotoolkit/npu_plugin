@@ -97,8 +97,8 @@ mlir::quant::QuantizedType vpux::getQuantizedType(Const::ContentAttr lowConst, C
             qMax = 127;
         } else {
             storageType = getUInt8Type(lowConst.getContext());
-            qMin = 1;
-            qMax = 255;
+            qMin = 0;
+            qMax = 254;
         }
         break;
 
@@ -121,8 +121,8 @@ mlir::quant::QuantizedType vpux::getQuantizedType(Const::ContentAttr lowConst, C
             qMax = 7;
         } else {
             storageType = getUInt4Type(lowConst.getContext());
-            qMin = 1;
-            qMax = 15;
+            qMin = 0;
+            qMax = 14;
         }
         break;
 
