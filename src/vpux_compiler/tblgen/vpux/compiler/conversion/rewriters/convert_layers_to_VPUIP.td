@@ -76,31 +76,45 @@ def RewriteSoftMax :
         >;
 
 //
-// IERT.[Max|Avg]Pool -> VPUIP.PoolingUPA
+// IERT.AvgPool -> VPUIP.PoolingUPA
 //
 
-class createPoolingUPAOp<string method> :
+def createAvgPoolingUPAOp :
         NativeCodeCall<[{
             $_builder.create<vpux::VPUIP::PoolingUPAOp>(
                 $_loc, $0, $1,
                 vpux::VPUIP::PoolLayerTypeAttr::get(
                     $_builder.getContext(),
-                    vpux::VPUIP::PoolLayerType::}] # method # [{
+                    vpux::VPUIP::PoolLayerType::AVG
                 ),
-                $2, $3, $4, $5,
-                nullptr)
+                $2, $3, $4, $5, $6)
         }]>;
 
 def RewriteAvgPool :
         Pat<
-            (IERT_AvgPoolOp $input, $output, $kernel_size, $strides, $pads_begin, $pads_end),
-            (createPoolingUPAOp<"AVG"> $input, $output, $kernel_size, $strides, $pads_begin, $pads_end)
+            (IERT_AvgPoolOp $input, $output, $kernel_size, $strides, $pads_begin, $pads_end, $exclude_pads),
+            (createAvgPoolingUPAOp $input, $output, $kernel_size, $strides, $pads_begin, $pads_end, $exclude_pads)
         >;
+
+//
+// IERT.MaxPool -> VPUIP.PoolingUPA
+//
+
+def createMaxPoolingUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::PoolingUPAOp>(
+                $_loc, $0, $1,
+                vpux::VPUIP::PoolLayerTypeAttr::get(
+                    $_builder.getContext(),
+                    vpux::VPUIP::PoolLayerType::MAX
+                ),
+                $2, $3, $4, $5, nullptr)
+        }]>;
 
 def RewriteMaxPool :
         Pat<
             (IERT_MaxPoolOp $input, $output, $kernel_size, $strides, $pads_begin, $pads_end, $post_op),
-            (createPoolingUPAOp<"MAX"> $input, $output, $kernel_size, $strides, $pads_begin, $pads_end),
+            (createMaxPoolingUPAOp $input, $output, $kernel_size, $strides, $pads_begin, $pads_end),
             [
                 (HasNoValue $post_op)
             ]

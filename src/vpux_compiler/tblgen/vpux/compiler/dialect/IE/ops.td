@@ -593,7 +593,8 @@ def IE_AvgPoolOp :
         I64ArrayAttr:$strides,
         I64ArrayAttr:$pads_begin,
         I64ArrayAttr:$pads_end,
-        IE_RoundingType:$rounding_type
+        IE_RoundingType:$rounding_type,
+        UnitAttr:$exclude_pads
     );
 
     let results = (outs

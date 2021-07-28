@@ -461,7 +461,8 @@ mlir::Operation* createRTLayer(IE::SoftMaxOp origOp, ArrayRef<mlir::Value> allBu
 mlir::Operation* createRTLayer(IE::AvgPoolOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::AvgPoolOp::Adaptor newOp(allBufs);
     return b.create<IERT::AvgPoolOp>(origOp.getLoc(), newOp.input(), newOp.output_buff(), origOp.kernel_sizeAttr(),
-                                     origOp.stridesAttr(), origOp.pads_beginAttr(), origOp.pads_endAttr());
+                                     origOp.stridesAttr(), origOp.pads_beginAttr(), origOp.pads_endAttr(),
+                                     origOp.exclude_padsAttr());
 }
 
 mlir::Operation* createRTLayer(IE::MaxPoolOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
