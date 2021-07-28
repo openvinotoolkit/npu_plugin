@@ -2055,66 +2055,6 @@ def VPUIP_LSTMCellUPAOp :
 }
 
 //
-// EdslUPAOp
-//
-
-def VPUIP_EdslUPAOp :
-        VPUIP_Op<"EdslUPA",
-            [
-                AttrSizedOperandSegments,
-                MemoryEffectsOpInterface,
-                ViewLikeOpInterface,
-                DeclareOpInterfaceMethods<RTLayerInterface>,
-                DeclareOpInterfaceMethods<VPUIP_TaskOpInterface>,
-                DeclareOpInterfaceMethods<VPUIP_UPATaskOpInterface>,
-            ]
-        > {
-    let summary = "eDSL UPA SHAVE kernel";
-
-    let arguments = (ins
-        Variadic<AnyMemRef>:$inputs,
-        Variadic<AnyMemRef>:$outputs,
-
-        Variadic<VPUIP_Barrier>:$waitBarriers,
-        Variadic<VPUIP_Barrier>:$updateBarriers,
-
-        SymbolRefAttr:$kernel,
-        I64ArrayAttr:$outers,
-        I64ArrayAttr:$middles,
-        ArrayAttr:$inits,
-        VPUIP_EdslDMADescArrayAttr:$transfers,
-
-        OptionalAttr<IntAttr>:$maxShaves,
-        UnitAttr:$isTrailingSWLayer
-    );
-
-    let results = (outs Variadic<AnyMemRef>:$results);
-
-    let builders = [
-        OpBuilder<
-            (ins
-                "mlir::ValueRange":$inputs,
-                "mlir::ValueRange":$outputs,
-                "::mlir::SymbolRefAttr":$kernel,
-                "::mlir::ArrayAttr":$outers,
-                "::mlir::ArrayAttr":$middles,
-                "::mlir::ArrayAttr":$inits,
-                "::mlir::ArrayAttr":$transfers
-            )
-        >
-    ];
-
-    let assemblyFormat = [{
-        attr-dict
-        (`inputs` `(` $inputs^ `:` type($inputs) `)`)?
-        (`outputs` `(` $outputs^ `:` type($outputs) `)`)?
-        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
-        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
-        `->` type(results)
-    }];
-}
-
-//
 // InterpolateOp
 //
 

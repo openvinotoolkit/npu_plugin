@@ -389,50 +389,6 @@ operation ::= `VPUIP.DetectionOutputUPA` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float values
 
-### `VPUIP.EdslUPA` (vpux::VPUIP::EdslUPAOp)
-
-eDSL UPA SHAVE kernel
-
-
-Syntax:
-
-```
-operation ::= `VPUIP.EdslUPA` attr-dict
-              (`inputs` `(` $inputs^ `:` type($inputs) `)`)?
-              (`outputs` `(` $outputs^ `:` type($outputs) `)`)?
-              (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
-              (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
-              `->` type(results)
-```
-
-
-#### Attributes:
-
-| Attribute | MLIR Type | Description |
-| :-------: | :-------: | ----------- |
-`kernel` | ::mlir::SymbolRefAttr | symbol reference attribute
-`outers` | ::mlir::ArrayAttr | 64-bit integer array attribute
-`middles` | ::mlir::ArrayAttr | 64-bit integer array attribute
-`inits` | ::mlir::ArrayAttr | array attribute
-`transfers` | ::mlir::ArrayAttr | eDSL DMA descriptor array attribute
-`maxShaves` | mlir::IntegerAttr | Integer attribute
-`isTrailingSWLayer` | ::mlir::UnitAttr | unit attribute
-
-#### Operands:
-
-| Operand | Description |
-| :-----: | ----------- |
-`inputs` | memref of any type values
-`outputs` | memref of any type values
-`waitBarriers` | VPUIP Barrier Type
-`updateBarriers` | VPUIP Barrier Type
-
-#### Results:
-
-| Result | Description |
-| :----: | ----------- |
-`results` | memref of any type values
-
 ### `VPUIP.EltwiseUPA` (vpux::VPUIP::EltwiseUPAOp)
 
 Eltwise UPA SHAVE kernel

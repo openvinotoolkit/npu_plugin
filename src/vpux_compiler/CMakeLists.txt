@@ -371,24 +371,6 @@ target_link_libraries(${OBJ_TARGET_NAME}
         vpux_utils
         vpux_al
 )
-if(ENABLE_PLAIDML)
-    link_system_libraries(${OBJ_TARGET_NAME}
-        PUBLIC
-            pmlc::compiler
-            pmlc::conversion::pxa_to_affine
-            pmlc::conversion::tile_to_pxa
-            pmlc::dialect::affinex::transforms
-            pmlc::dialect::layer::ir
-            pmlc::dialect::layer::transforms
-            pmlc::dialect::pxa::ir
-            pmlc::dialect::pxa::transforms
-            pmlc::dialect::stdx::ir
-            pmlc::dialect::stdx::transforms
-            pmlc::dialect::tile::ir
-            pmlc::dialect::tile::transforms
-            pmlc::transforms
-    )
-endif()
 
 #
 # MODULE target
