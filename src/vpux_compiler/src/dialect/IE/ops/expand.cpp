@@ -13,11 +13,30 @@
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 
-#include "vpux/utils/core/checked_cast.hpp"
-
 #include "vpux/compiler/utils/attributes.hpp"
 
+#include "vpux/utils/core/checked_cast.hpp"
+
 using namespace vpux;
+
+void vpux::IE::ExpandOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
+                               Optional<ShapeRef> pads_begin, Optional<ShapeRef> pads_end) {
+    VPUX_THROW_UNLESS(pads_begin.hasValue() || pads_end.hasValue(),
+                      "pads_begin and/or pads_end must be provided for IE::ExpandOp");
+
+    const auto origShape = getShape(input);
+
+    const auto getPadsAttr = [&](Optional<ShapeRef> pads) {
+        if (pads.hasValue()) {
+            return getIntArrayAttr(builder.getContext(), pads.getValue());
+        }
+
+        const SmallVector<int64_t> zero(origShape.size(), 0);
+        return getIntArrayAttr(builder.getContext(), zero);
+    };
+
+    build(builder, state, input, getPadsAttr(pads_begin), getPadsAttr(pads_end));
+}
 
 mlir::LogicalResult vpux::IE::ExpandOp::inferReturnTypeComponents(
         mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueRange operands, mlir::DictionaryAttr attrs,
@@ -29,8 +48,8 @@ mlir::LogicalResult vpux::IE::ExpandOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto padBegin = parseIntArrayAttr<int64_t>(expand.pads_begin_attr());
-    const auto padEnd = parseIntArrayAttr<int64_t>(expand.pads_end_attr());
+    const auto padBegin = parseIntArrayAttr<int64_t>(expand.pads_begin());
+    const auto padEnd = parseIntArrayAttr<int64_t>(expand.pads_end());
 
     const auto inType = expand.input().getType().cast<mlir::ShapedType>();
     if (!inType) {

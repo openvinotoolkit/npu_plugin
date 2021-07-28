@@ -37,7 +37,6 @@ mlir::Attribute getMemSpace(mlir::MLIRContext* ctx, StringRef) {
 }
 
 void buildIECommonPipeline(mlir::OpPassManager& pm, Logger log) {
-    pm.addPass(mlir::createCanonicalizerPass(getDefaultGreedyRewriteConfig()));
     IE::buildAdjustForVPUPipeline(pm, log);
     pm.addPass(IE::createUseUserPrecisionPass(log));
     pm.addPass(IE::createUseUserLayout(log));
@@ -65,6 +64,8 @@ void buildIERTAllocationPipelineForDDR(mlir::OpPassManager& pm, Logger log) {
 //
 
 void vpux::buildReferenceModePipeline(mlir::OpPassManager& pm, bool enableProfiling, Logger log) {
+    pm.addPass(mlir::createCanonicalizerPass(getDefaultGreedyRewriteConfig()));
+
     // IE Dialect level
     buildIECommonPipeline(pm, log);
     buildIEReferenceLowPrecisionPipeline(pm, log);
@@ -72,8 +73,9 @@ void vpux::buildReferenceModePipeline(mlir::OpPassManager& pm, bool enableProfil
     // Lower IE->IERT
     buildLowerIE2IERTPipeline(pm, log);
 
-    if (enableProfiling)
+    if (enableProfiling) {
         pm.addPass(IERT::createTimestampProfilingPass(getMemSpace<VPUIP::PhysicalMemory::DDR>, log));
+    }
 
     // IERT Dialect level
     pm.addPass(createComposeSubViewPass(log));
@@ -92,16 +94,19 @@ void vpux::buildReferenceModePipeline(mlir::OpPassManager& pm, bool enableProfil
 //
 
 void vpux::buildHardwareModePipeline(mlir::OpPassManager& pm, bool enableProfiling, Logger log) {
+    pm.addPass(mlir::createCanonicalizerPass(getDefaultGreedyRewriteConfig()));
+
     // IE Dialect level
-    IE::buildHWOpsConversionPipeline(pm, log);
+    pm.addPass(IE::createConvertFCToConvPass(log));
     buildIECommonPipeline(pm, log);
     IE::buildLowPrecisionPipeline(pm, log);
 
     // Lower IE->IERT
     buildLowerIE2IERTPipeline(pm, log);
 
-    if (enableProfiling)
+    if (enableProfiling) {
         pm.addPass(IERT::createTimestampProfilingPass(getMemSpace<VPUIP::PhysicalMemory::CMX_NN>, log));
+    }
 
     // Partially lower IERT->VPUIP (NCE Operations only)
     pm.addPass(IERT::createCMXTilingPass(log));

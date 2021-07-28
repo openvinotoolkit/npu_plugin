@@ -99,7 +99,7 @@ mlir::LogicalResult ReorderWithExpand::matchAndRewrite(IE::ExpandOp origExpandOp
     const auto expandShape = getShape(origExpandOp.output());
     const auto newExpandType = changeShape(origReorderOp.input().getType().cast<mlir::ShapedType>(), expandShape);
     auto newExpandOp = rewriter.create<IE::ExpandOp>(origExpandOp->getLoc(), newExpandType, origReorderOp.input(),
-                                                     origExpandOp.pads_begin_attr(), origExpandOp.pads_end_attr());
+                                                     origExpandOp.pads_begin(), origExpandOp.pads_end());
 
     rewriter.replaceOpWithNewOp<IE::ReorderOp>(origExpandOp, newExpandOp.output(), origReorderOp.dstOrderAttr());
     return mlir::success();

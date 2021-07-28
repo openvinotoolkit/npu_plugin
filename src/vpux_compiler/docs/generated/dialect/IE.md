@@ -527,8 +527,8 @@ operation ::= `IE.Expand` `(` operands `)` attr-dict `:` type(operands) `->` typ
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`pads_begin_attr` | ::mlir::ArrayAttr | 64-bit integer array attribute
-`pads_end_attr` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`pads_begin` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`pads_end` | ::mlir::ArrayAttr | 64-bit integer array attribute
 
 #### Operands:
 
@@ -847,7 +847,7 @@ operation ::= `IE.LSTMCell` `(` operands `)` attr-dict `:` type(operands) `->` t
 `initialHiddenState` | 2D tensor of 16-bit float or 32-bit float values
 `initialCellState` | 2D tensor of 16-bit float or 32-bit float values
 `weights` | 2D tensor of 16-bit float or 32-bit float values
-`reccurenceWeights` | 2D tensor of 16-bit float or 32-bit float values
+`recurrenceWeights` | 2D tensor of 16-bit float or 32-bit float values
 `biases` | 1D tensor of 16-bit float or 32-bit float values
 
 #### Results:

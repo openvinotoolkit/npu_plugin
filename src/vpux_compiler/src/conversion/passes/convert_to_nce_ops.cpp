@@ -41,17 +41,7 @@ VPUIP::PPELayerType convertPostOp(IE::PostOpKind postOp) {
     switch (postOp) {
     case IE::PostOpKind::RELU:
         return VPUIP::PPELayerType::LRELU;
-    case IE::PostOpKind::PRELU:
-        return VPUIP::PPELayerType::LPRELU;
-    case IE::PostOpKind::LEAKY_RELU:
-        return VPUIP::PPELayerType::LPRELU;
-    case IE::PostOpKind::EXP:
-        return VPUIP::PPELayerType::EXP;
-    case IE::PostOpKind::SIGMOID:
-        return VPUIP::PPELayerType::SIGMOID;
-    case IE::PostOpKind::TANH:
-        return VPUIP::PPELayerType::TANH;
-    case IE::PostOpKind::RELUX:
+    case IE::PostOpKind::CLAMP:
         return VPUIP::PPELayerType::LRELUX;
     default:
         VPUX_THROW("Unsupported post op type: '{0}'", postOp);

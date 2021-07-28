@@ -36,14 +36,6 @@ void vpux::IE::buildAdjustForVPUPipeline(mlir::OpPassManager& pm, Logger log) {
 }
 
 //
-// HWConversions
-//
-void vpux::IE::buildHWOpsConversionPipeline(mlir::OpPassManager& pm, Logger log) {
-    pm.addPass(mlir::createCanonicalizerPass(getDefaultGreedyRewriteConfig()));
-    pm.addPass(IE::createConvertFCToConvPass(log));
-}
-
-//
 // LowPrecision
 //
 
@@ -67,9 +59,4 @@ void vpux::IE::registerIEPipelines() {
     mlir::PassPipelineRegistration<>("low-precision", "Low precision transformations", [](mlir::OpPassManager& pm) {
         IE::buildLowPrecisionPipeline(pm);
     });
-
-    mlir::PassPipelineRegistration<>("hw-conversion", "HW-specific  conversions of operations",
-                                     [](mlir::OpPassManager& pm) {
-                                         IE::buildHWOpsConversionPipeline(pm);
-                                     });
 }

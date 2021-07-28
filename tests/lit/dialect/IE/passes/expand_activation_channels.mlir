@@ -3,7 +3,7 @@
 // CHECK-LABEL: @ExpandMaxPoolChannels
 func @ExpandMaxPoolChannels(%arg0: tensor<1x3x30x30xf16>) -> tensor<1x3x15x13xf16> {
   %0 = IE.MaxPool(%arg0) {kernel_size = [5, 5], pads_begin = [2, 0], pads_end = [2, 0], rounding_type = "FLOOR", strides = [2, 2]} : tensor<1x3x30x30xf16> -> tensor<1x3x15x13xf16>
-  // CHECK:       %[[PAD:.*]] = IE.Expand(%arg0) {pads_begin_attr = [0, 0, 0, 0], pads_end_attr = [0, 13, 0, 0]} : tensor<1x3x30x30xf16> -> tensor<1x16x30x30xf16>
+  // CHECK:       %[[PAD:.*]] = IE.Expand(%arg0) {pads_begin = [0, 0, 0, 0], pads_end = [0, 13, 0, 0]} : tensor<1x3x30x30xf16> -> tensor<1x16x30x30xf16>
   // CHECK:       %[[POOL:.*]] = IE.MaxPool(%[[PAD]]) {kernel_size = [5, 5], pads_begin = [2, 0], pads_end = [2, 0], rounding_type = "FLOOR", strides = [2, 2]} : tensor<1x16x30x30xf16> -> tensor<1x16x15x13xf16>
   // CHECK:       %[[OUT:.*]] = tensor.extract_slice %[[POOL]][0, 0, 0, 0] [1, 3, 15, 13] [1, 1, 1, 1] : tensor<1x16x15x13xf16> to tensor<1x3x15x13xf16>
 
@@ -48,8 +48,8 @@ func @ExpandBiasesConvolutionChannels(%arg0: tensor<1x3x30x30xf16>) -> tensor<1x
 // CHECK-LABEL: @ExpandEltwiseAddChannels
 func @ExpandEltwiseAddChannels(%arg0: tensor<1x3x30x25xf16>, %arg1: tensor<1x3x30x25xf16>) -> tensor<1x3x30x25xf16> {
   %0 = IE.Add(%arg0, %arg1) {auto_broadcast = "NUMPY"} : tensor<1x3x30x25xf16>, tensor<1x3x30x25xf16> -> tensor<1x3x30x25xf16>
-  // CHECK:       %[[EXPAND_LEFT_INPUT:.*]] = IE.Expand(%arg0) {pads_begin_attr = [0, 0, 0, 0], pads_end_attr = [0, 13, 0, 0]} : tensor<1x3x30x25xf16> -> tensor<1x16x30x25xf16>
-  // CHECK:       %[[EXPAND_RIGHT_INPUT:.*]] = IE.Expand(%arg1) {pads_begin_attr = [0, 0, 0, 0], pads_end_attr = [0, 13, 0, 0]} : tensor<1x3x30x25xf16> -> tensor<1x16x30x25xf16>
+  // CHECK:       %[[EXPAND_LEFT_INPUT:.*]] = IE.Expand(%arg0) {pads_begin = [0, 0, 0, 0], pads_end = [0, 13, 0, 0]} : tensor<1x3x30x25xf16> -> tensor<1x16x30x25xf16>
+  // CHECK:       %[[EXPAND_RIGHT_INPUT:.*]] = IE.Expand(%arg1) {pads_begin = [0, 0, 0, 0], pads_end = [0, 13, 0, 0]} : tensor<1x3x30x25xf16> -> tensor<1x16x30x25xf16>
   // CHECK:       %[[ELTWISE_ADD:.*]] = IE.Add(%[[EXPAND_LEFT_INPUT]], %[[EXPAND_RIGHT_INPUT]]) {auto_broadcast = "NUMPY"} : tensor<1x16x30x25xf16>, tensor<1x16x30x25xf16> -> tensor<1x16x30x25xf16>
   // CHECK:       %[[OUT:.*]] = tensor.extract_slice %[[ELTWISE_ADD]][0, 0, 0, 0] [1, 3, 30, 25] [1, 1, 1, 1] : tensor<1x16x30x25xf16> to tensor<1x3x30x25xf16>
 

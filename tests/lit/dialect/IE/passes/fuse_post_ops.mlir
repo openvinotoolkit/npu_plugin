@@ -108,7 +108,7 @@ func @Conv2dWithClampTest(%arg0: tensor<1x16x4x4xf16>) -> tensor<1x16x3x3xf16> {
     // CHECK-SAME:     dilations = [1, 1]
     // CHECK-SAME:     pads_begin = [0, 0]
     // CHECK-SAME:     pads_end = [0, 0]
-    // CHECK-SAME:     post_op = {kind = "RELUX", params = {Maximum = 6.000000e+00 : f64, Minimum = 0.000000e+00 : f64}}
+    // CHECK-SAME:     post_op = {kind = "CLAMP", params = {max = 6.000000e+00 : f64, min = 0.000000e+00 : f64}}
     // CHECK-SAME:     strides = [1, 1]
     // CHECK-NOT:   IE.Clamp
 }
