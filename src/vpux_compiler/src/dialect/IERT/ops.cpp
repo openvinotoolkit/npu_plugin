@@ -31,7 +31,6 @@ void vpux::IERT::IERTDialect::initialize() {
     addOperations<
 #define GET_OP_LIST
 #include <vpux/compiler/dialect/IERT/generated/ops.cpp.inc>
-#undef GET_OP_LIST
             >();
 }
 
@@ -88,6 +87,7 @@ mlir::Attribute vpux::IERT::IERTDialect::getExecutor(mlir::async::ExecuteOp exec
 // Generated
 //
 
+#include <vpux/compiler/dialect/IERT/generated/dialect.cpp.inc>
+
 #define GET_OP_CLASSES
 #include <vpux/compiler/dialect/IERT/generated/ops.cpp.inc>
-#undef GET_OP_CLASSES

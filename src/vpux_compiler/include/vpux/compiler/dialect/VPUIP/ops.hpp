@@ -42,7 +42,6 @@
 
 #define GET_OP_CLASSES
 #include <vpux/compiler/dialect/VPUIP/generated/ops.hpp.inc>
-#undef GET_OP_CLASSES
 
 //
 // Operation verifiers

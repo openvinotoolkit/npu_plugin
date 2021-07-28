@@ -229,5 +229,7 @@ mlir::LogicalResult verifyOp(Const::DeclareOp op) {
 // Generated
 //
 
+#include <vpux/compiler/dialect/const/generated/dialect.cpp.inc>
+
 #define GET_OP_CLASSES
 #include <vpux/compiler/dialect/const/generated/ops.cpp.inc>
