@@ -147,17 +147,29 @@ IE::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(const std::string& mod
 IE::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(std::istream& networkModel,
                                                           const std::map<std::string, std::string>& config) {
     OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "ImportNetwork");
-    auto networkConfig = mergePluginAndNetworkConfigs(_parsedConfig, config);
-    auto device = _backends->getDevice(networkConfig.deviceId());
-    return std::make_shared<ExecutableNetwork>(networkModel, device, networkConfig);
+    try {
+        auto networkConfig = mergePluginAndNetworkConfigs(_parsedConfig, config);
+        auto device = _backends->getDevice(networkConfig.deviceId());
+        return std::make_shared<ExecutableNetwork>(networkModel, device, networkConfig);
+    } catch (const std::exception&) {
+        throw;
+    } catch (...) {
+        IE_THROW() << "VPUX ImportNetwork got unexpected exception from ExecutableNetwork";
+    }
 }
 
 IE::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(std::istream& networkModel, const IE::RemoteContext::Ptr& context,
                                                           const std::map<std::string, std::string>& config) {
     OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "ImportNetwork");
-    auto networkConfig = mergePluginAndNetworkConfigs(_parsedConfig, config);
-    auto device = _backends->getDevice(context);
-    return std::make_shared<ExecutableNetwork>(networkModel, device, networkConfig);
+    try {
+        auto networkConfig = mergePluginAndNetworkConfigs(_parsedConfig, config);
+        auto device = _backends->getDevice(context);
+        return std::make_shared<ExecutableNetwork>(networkModel, device, networkConfig);
+    } catch (const std::exception&) {
+        throw;
+    } catch (...) {
+        IE_THROW() << "VPUX ImportNetwork got unexpected exception from ExecutableNetwork";
+    }
 }
 
 //------------------------------------------------------------------------------

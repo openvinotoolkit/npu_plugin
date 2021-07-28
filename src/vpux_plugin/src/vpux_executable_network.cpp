@@ -104,12 +104,19 @@ ExecutableNetwork::ExecutableNetwork(const IE::CNNNetwork& orignet, const Device
 //------------------------------------------------------------------------------
 ExecutableNetwork::ExecutableNetwork(std::istream& networkModel, const Device::Ptr& device, const VPUXConfig& config)
         : ExecutableNetwork(config, device) {
-    const std::string networkName = "net" + std::to_string(loadBlobCounter);
-    _networkPtr = _compiler->parse(networkModel, _config, networkName);
-    _executorPtr = createExecutor(_networkPtr, _config, device);
-    _networkInputs = helpers::dataMapIntoInputsDataMap(_networkPtr->getInputsInfo());
-    _networkOutputs = helpers::dataMapIntoOutputsDataMap(_networkPtr->getOutputsInfo());
-    ConfigureStreamsExecutor(networkName);
+    try {
+        const std::string networkName = "net" + std::to_string(loadBlobCounter);
+        _networkPtr = _compiler->parse(networkModel, _config, networkName);
+        _executorPtr = createExecutor(_networkPtr, _config, device);
+        _networkInputs = helpers::dataMapIntoInputsDataMap(_networkPtr->getInputsInfo());
+        _networkOutputs = helpers::dataMapIntoOutputsDataMap(_networkPtr->getOutputsInfo());
+        ConfigureStreamsExecutor(networkName);
+    } catch (const std::exception& ex) {
+        IE_THROW() << ex.what();
+    } catch (...) {
+        _logger->error("Unexpected exception");
+        IE_THROW() << "VPUX ExecutableNetwork got unexpected exception from compiler";
+    }
 }
 
 void ExecutableNetwork::ConfigureStreamsExecutor(const std::string& networkName) {
