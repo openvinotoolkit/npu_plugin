@@ -13,7 +13,6 @@
 
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
-#include "vpux/compiler/dialect/VPUIP/blob_reader.hpp"
 #include "vpux/compiler/utils/subspaces.hpp"
 
 #include "vpux/compiler/act_kernels/act_kernel_gen.h"
@@ -52,7 +51,11 @@ VPUIP::BlobWriter::SpecificTask ACTShaveTaskOp::serialize(VPUIP::BlobWriter& wri
 
     auto elfBinary = generateKernelForACTShave(kernelRef, params, writer);
 
-    return writer.createACTShaveTask(*this, {elfBinary.text, MVCNN::ActKernelType_KERNEL});
+    return writer.createACTShaveTask(*this, {
+        elfBinary.text,
+        elfBinary.data,
+        {},
+        MVCNN::ActKernelType_KERNEL});
 }
 
 }  // namespace VPUIP
