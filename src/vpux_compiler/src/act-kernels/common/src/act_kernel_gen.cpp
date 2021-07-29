@@ -12,6 +12,7 @@
 //
 
 #include "vpux/compiler/act_kernels/act_kernel_gen.h"
+#include "../inc/nn_act_args.h"
 
 #include <algorithm>
 #include <string>
@@ -37,6 +38,27 @@ flatbuffers::Offset<MVCNN::KernelData> buildKernelData(flatbuffers::FlatBufferBu
     MVCNN::KernelDataBuilder builder(fbb);
     builder.add_data(packedData);
     builder.add_length(data.size());
+    return builder.Finish();
+}
+
+flatbuffers::Offset<MVCNN::BinaryData> buildKernelArgsData(flatbuffers::FlatBufferBuilder& fbb,
+                                                           act_kernel_args &) {
+
+    //serialize structure raw view
+    const auto pack = [](const std::vector<uint8_t>& src) {
+      std::vector<uint64_t> packed(llvm::divideCeil(src.size(), sizeof(uint64_t)));
+      auto ptr = reinterpret_cast<uint8_t*>(packed.data());
+      for (size_t i = 0; i < src.size(); i++) {
+          ptr[i] = src[i];
+      }
+      return packed;
+    };
+    //auto packedData = fbb.CreateVector(pack(data));
+    MVCNN::BinaryDataBuilder builder(fbb);
+    //builder.add_data(packedData);
+    builder.add_csram_cacheable(true);
+    //builder.add_length(data.size());
+    builder.add_underlying_type(MVCNN::DType::DType_U8);
     return builder.Finish();
 }
 
@@ -204,7 +226,7 @@ static void compileAndLinkSHAVE(const movitools::MoviCompileParams& params, Stri
     }
 
 
-    auto readBinary = [](SmallString<128> & path, std::vector<uint8_t>& buffer) {
+    auto readBinary = [](SmallString<128> & path, std::vector<uint8_t>& buffer, uint32_t alignment = 1) {
           std::string err;
           auto elfFile = mlir::openInputFile(path, &err);
           if (!elfFile) {
@@ -213,10 +235,19 @@ static void compileAndLinkSHAVE(const movitools::MoviCompileParams& params, Stri
 
           auto elfBuffer = elfFile->getBuffer();
           std::copy(elfBuffer.begin(), elfBuffer.end(), std::back_inserter(buffer));
+
+          if (alignment  & (alignment - 1)) {
+              VPUX_THROW("Could not align to now power of 2:{1}", alignment);
+          }
+          auto totalBytes = std::distance(elfBuffer.begin(), elfBuffer.end());
+          auto padBytes = -totalBytes & (alignment - 1);
+          if (padBytes) {
+              std::fill_n(back_inserter(buffer), padBytes, 0);
+          }
     };
 
-    readBinary(textPath, textBinary);
-    readBinary(dataPath, dataBinary);
+    readBinary(textPath, textBinary, 0x10);
+    readBinary(dataPath, dataBinary, 0x10);
 }
 
 ActKernelDesc generateKernelForACTShave(mlir::StringRef funcName, const movitools::MoviCompileParams& params,
@@ -236,5 +267,12 @@ ActKernelDesc generateKernelForACTShave(mlir::StringRef funcName, const movitool
     return result;
 }
 
+// todo provide some arguments for kernel
+flatbuffers::Offset<flatbuffers::Vector<uint64_t>> packKernelArgs(flatbuffers::FlatBufferBuilder& fbb) {
+    act_kernel_args dummyArgs;
+    auto packedData = buildKernelArgsData(fbb, dummyArgs);
+
+    throw std::runtime_error("dont know what next");
+}
 
 }  // namespace vpux
