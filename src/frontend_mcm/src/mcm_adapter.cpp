@@ -111,7 +111,26 @@ vpu::MCMAdapter::MetaInfo vpu::MCMAdapter::deserializeMetaData(const MVCNN::Summ
         inputSerializer << "}" << std::endl;
         std::vector<float> inputTensorOrder;
         std::copy(tensorRef->strides()->cbegin(), tensorRef->strides()->cend(), std::back_inserter(inputTensorOrder));
-        const auto ieLayout = orderVectorToLayout(inputTensorOrder);
+        auto order = tensorRef->order();
+        InferenceEngine::Layout ieLayout = InferenceEngine::Layout::ANY;
+        if (order == 0x1)
+            ieLayout = InferenceEngine::Layout::C;
+        else if (order == 0x12)
+            ieLayout = InferenceEngine::Layout::NC;
+        else if (order == 0x123)
+            ieLayout = InferenceEngine::Layout::CHW;
+        else if (order == 0x231)
+            ieLayout = InferenceEngine::Layout::HWC;
+        else if (order == 0x1234)
+            ieLayout = InferenceEngine::Layout::NCHW;
+        else if (order == 0x1342)
+            ieLayout = InferenceEngine::Layout::NHWC;
+        else if (order == 0x12345)
+            ieLayout = InferenceEngine::Layout::NCDHW;
+        else if (order == 0x13452)
+            ieLayout = InferenceEngine::Layout::NDHWC;
+        else
+            ieLayout = orderVectorToLayout(inputTensorOrder);
         const auto iePrecision = MvcnnDTypeToPrecision(tensorRef->data_dtype());
         inputSerializer << "Layout: " << ieLayout << std::endl;
         inputSerializer << "Precision: " << iePrecision << std::endl;
@@ -144,7 +163,26 @@ vpu::MCMAdapter::MetaInfo vpu::MCMAdapter::deserializeMetaData(const MVCNN::Summ
         outputSerializer << "}" << std::endl;
         std::vector<float> outputTensorOrder;
         std::copy(tensorRef->strides()->cbegin(), tensorRef->strides()->cend(), std::back_inserter(outputTensorOrder));
-        const auto ieLayout = orderVectorToLayout(outputTensorOrder);
+        auto order = tensorRef->order();
+        InferenceEngine::Layout ieLayout = InferenceEngine::Layout::ANY;
+        if (order == 0x1)
+            ieLayout = InferenceEngine::Layout::C;
+        else if (order == 0x12)
+            ieLayout = InferenceEngine::Layout::NC;
+        else if (order == 0x123)
+            ieLayout = InferenceEngine::Layout::CHW;
+        else if (order == 0x231)
+            ieLayout = InferenceEngine::Layout::HWC;
+        else if (order == 0x1234)
+            ieLayout = InferenceEngine::Layout::NCHW;
+        else if (order == 0x1342)
+            ieLayout = InferenceEngine::Layout::NHWC;
+        else if (order == 0x12345)
+            ieLayout = InferenceEngine::Layout::NCDHW;
+        else if (order == 0x13452)
+            ieLayout = InferenceEngine::Layout::NDHWC;
+        else
+            ieLayout = orderVectorToLayout(outputTensorOrder);
         const auto iePrecision = MvcnnDTypeToPrecision(tensorRef->data_dtype());
         outputSerializer << "Layout: " << ieLayout << std::endl;
         outputSerializer << "Precision: " << iePrecision << std::endl;
