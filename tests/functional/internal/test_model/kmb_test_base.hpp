@@ -76,56 +76,64 @@ PRETTY_PARAM(UseCustomLayers, KernelType);
 
 #ifdef RUN_SKIPPED_TESTS
 #   define SKIP_INFER_ON(...)
+#   define SKIP_INFER(_reason_)
 #   define SKIP_ON(...)
 #else
 
-#   define SKIP_ON1(_device0_, _reason_)                                        \
-        do {                                                                    \
-            std::set<std::string> devices({_device0_});                         \
-            if (devices.count(DEVICE_NAME) != 0) {                              \
-                SKIP() << "Skip on " << DEVICE_NAME << " due to " << _reason_;  \
-            }                                                                   \
+#   define SKIP_ON1(_backend0_, _reason_)                                           \
+        do {                                                                        \
+            std::set<std::string> backends({_backend0_});                           \
+            if (backends.count(BACKEND_NAME)) {           \
+                SKIP() << "Skip on " << BACKEND_NAME << " due to " << _reason_;     \
+            }                                                                       \
         } while (false)
 
-#   define SKIP_ON2(_device0_, _device1_, _reason_)                             \
-        do {                                                                    \
-            std::set<std::string> devices({_device0_, _device1_});              \
-            if (devices.count(DEVICE_NAME) != 0) {                              \
-                SKIP() << "Skip on " << DEVICE_NAME << " due to " << _reason_;  \
-            }                                                                   \
+#   define SKIP_ON2(_backend0_, _backend1_, _reason_)                               \
+        do {                                                                        \
+            std::set<std::string> backends({_backend0_, _backend1_});               \
+            if (backends.count(BACKEND_NAME)) {           \
+                SKIP() << "Skip on " << BACKEND_NAME << " due to " << _reason_;     \
+            }                                                                       \
         } while (false)
 
-#   define SKIP_ON3(_device0_, _device1_, _device2_, _reason_)                  \
-        do {                                                                    \
-            std::set<std::string> devices({_device0_, _device1_, _device2_,});  \
-            if (devices.count(DEVICE_NAME) != 0) {                              \
-                SKIP() << "Skip on " << DEVICE_NAME << " due to " << _reason_;  \
-            }                                                                   \
+#   define SKIP_ON3(_backend0_, _backend1_, _backend2_, _reason_)                   \
+        do {                                                                        \
+            std::set<std::string> backends({_backend0_, _backend1_, _backend2_});   \
+            if (backends.count(BACKEND_NAME)) {           \
+                SKIP() << "Skip on " << BACKEND_NAME << " due to " << _reason_;     \
+            }                                                                       \
         } while (false)
 
 
-#   define SKIP_INFER_ON1(_device0_, _reason_)                                          \
-        do {                                                                            \
-            std::set<std::string> devices({_device0_});                                 \
-            if (KmbTestBase::RUN_INFER && devices.count(DEVICE_NAME) != 0) {            \
-                SKIP() << "Skip infer on " << DEVICE_NAME << " due to " << _reason_;    \
-            }                                                                           \
+#   define SKIP_INFER_ON1(_backend0_, _reason_)                                                         \
+        do {                                                                                            \
+            std::set<std::string> backends({_backend0_});                                               \
+            if (KmbTestBase::RUN_INFER && backends.count(BACKEND_NAME)) {                               \
+                SKIP() << "Skip infer on " << BACKEND_NAME << " due to " << _reason_;                   \
+            }                                                                                           \
         } while (false)
 
-#   define SKIP_INFER_ON2(_device0_, _device1_, _reason_)                               \
-        do {                                                                            \
-            std::set<std::string> devices({_device0_, _device1_});                      \
-            if (KmbTestBase::RUN_INFER && devices.count(DEVICE_NAME) != 0) {            \
-                SKIP() << "Skip infer on " << DEVICE_NAME << " due to " << _reason_;    \
-            }                                                                           \
+#   define SKIP_INFER_ON2(_backend0_, _backend1_, _reason_)                                             \
+        do {                                                                                            \
+            std::set<std::string> backends({_backend0_, _backend1_});                                   \
+            if (KmbTestBase::RUN_INFER && backends.count(BACKEND_NAME)) {                               \
+                SKIP() << "Skip infer on " << BACKEND_NAME << " due to " << _reason_;                   \
+            }                                                                                           \
         } while (false)
 
-#   define SKIP_INFER_ON3(_device0_, _device1_, _device2_, _reason_)                    \
-        do {                                                                            \
-            std::set<std::string> devices({_device0_, _device1_, _device2_});           \
-            if (KmbTestBase::RUN_INFER && devices.count(DEVICE_NAME) != 0) {            \
-                SKIP() << "Skip infer on " << DEVICE_NAME << " due to " << _reason_;    \
-            }                                                                           \
+#   define SKIP_INFER_ON3(_backend0_, _backend1_, _backend2_, _reason_)                                 \
+        do {                                                                                            \
+            std::set<std::string> backends({_backend0_, _backend1_, _backend2_});                       \
+            if (KmbTestBase::RUN_INFER && backends.count(BACKEND_NAME)) {                               \
+                SKIP() << "Skip infer on " << BACKEND_NAME << " due to " << _reason_;                   \
+            }                                                                                           \
+        } while (false)
+
+#   define SKIP_INFER(_reason_)                                                                         \
+        do {                                                                                            \
+            if (KmbTestBase::RUN_INFER) {                                                               \
+                SKIP() << "Skip infer due to " << _reason_;                                             \
+            }                                                                                           \
         } while (false)
 
 #endif
@@ -184,6 +192,9 @@ public:
     // RUN_INFER was made non-const to be able
     // to disable inference but keep compilation for tests
     bool RUN_INFER;
+    // BACKEND_NAME was made non-const due to
+    // necessity to use InferenceEngine core object
+    std::string BACKEND_NAME;
     static const std::string DUMP_PATH;
     static const bool EXPORT_NETWORK;
     static const bool RAW_EXPORT;
@@ -237,10 +248,6 @@ protected:
     Blob::Ptr importBlob(const std::string& name, const TensorDesc& desc);
 
     BlobMap runInfer(ExecutableNetwork& exeNet, const BlobMap& inputs, bool printTime);
-
-    // TODO Workaround to disable some inference tests for by-pass mode
-    // [Track number: E#9485]
-    bool isByPass() const;
 
 protected:
     std::default_random_engine rd;

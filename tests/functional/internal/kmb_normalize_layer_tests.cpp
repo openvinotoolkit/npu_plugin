@@ -64,7 +64,7 @@ class KmbNormalizeLayerTests : public KmbLayerTestBase, public testing::WithPara
 
 // [Track number: S#39423]
 TEST_P(KmbNormalizeLayerTests, EqualWithCPU) {
-    SKIP_ON("KMB", "HDDL2", "VPUX", "Bad results");
+    SKIP() << "Skip due to bad results";
     const auto& p = GetParam();
 
     const auto netPresicion = p._netPrecision;

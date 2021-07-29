@@ -80,7 +80,7 @@ TEST_P(KmbConvolutionLayerTests, FP16) {
     const auto swMode = std::get<3>(p);
 
     if (!swMode) {
-        SKIP_ON("KMB", "HDDL2", "VPUX", "HW FP16 Convolution is not supported yet");
+        SKIP() << "Skip due to HW FP16 Convolution is not supported yet";
     }
 
     const auto netBuidler = [&](TestNetwork& testNet) {

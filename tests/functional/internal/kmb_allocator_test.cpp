@@ -158,9 +158,7 @@ TEST_F(KmbAllocatorTest, DISABLED_checkPreprocReallocation) {
     network.getOutputsInfo().begin()->second->setPrecision(Precision::FP16);
     network.getOutputsInfo().begin()->second->setLayout(Layout::NHWC);
 
-    if (isByPass()) {
-        SKIP() << "Skip inference for by-pass mode due to autonomous mode related test";
-    }
+    SKIP_ON("HDDL2", "Autonomous mode related test");
 
     if (RUN_INFER) {
         double virt_before_with_realloc = 0.f;
