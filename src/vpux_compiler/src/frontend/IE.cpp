@@ -523,9 +523,10 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
     const auto attrPadsEnd = getIntArrayAttr(_ctx, origNode->get_pads_end());
 
     const auto attrRoundingType = importRoundingType(origNode->get_rounding_type());
+    const auto attrExcludePads = origNode->get_exclude_pad() ? mlir::UnitAttr::get(_ctx) : nullptr;
 
     auto op = builder.create<IE::AvgPoolOp>(createLocation(origNode), inputs[0], attrKernelSize, attrStride,
-                                            attrPadsBegin, attrPadsEnd, attrRoundingType);
+                                            attrPadsBegin, attrPadsEnd, attrRoundingType, attrExcludePads);
     addOutputs(origNode, op);
 }
 

@@ -146,6 +146,7 @@ operation ::= `IERT.AvgPool` attr-dict
 `strides` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `pads_begin` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `pads_end` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`exclude_pads` | ::mlir::UnitAttr | unit attribute
 
 #### Operands:
 

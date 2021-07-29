@@ -99,6 +99,7 @@ operation ::= `IE.AvgPool` `(` operands `)` attr-dict `:` type(operands) `->` ty
 `pads_begin` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `pads_end` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `rounding_type` | vpux::IE::RoundingTypeAttr | Rounding type that operations support
+`exclude_pads` | ::mlir::UnitAttr | unit attribute
 
 #### Operands:
 

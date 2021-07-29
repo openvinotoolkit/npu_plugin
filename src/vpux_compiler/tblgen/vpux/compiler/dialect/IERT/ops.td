@@ -398,7 +398,8 @@ def IERT_AvgPoolOp :
         I64ArrayAttr:$kernel_size,
         I64ArrayAttr:$strides,
         I64ArrayAttr:$pads_begin,
-        I64ArrayAttr:$pads_end
+        I64ArrayAttr:$pads_end,
+        UnitAttr:$exclude_pads
     );
 
     let results = (outs
