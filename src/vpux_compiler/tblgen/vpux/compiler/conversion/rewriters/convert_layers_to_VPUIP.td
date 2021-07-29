@@ -236,6 +236,21 @@ def RewriteHSwish :
         >;
 
 //
+// IERT.Mish -> VPUIP.MishUPA
+//
+
+def createMishUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::MishUPAOp>($_loc, $0, $1)
+        }]>;
+
+def RewriteMish :
+        Pat<
+            (IERT_MishOp $input, $output),
+            (createMishUPAOp $input, $output)
+        >;
+
+//
 // IERT.Tanh -> VPUIP.TanhUPA
 //
 

@@ -1016,6 +1016,30 @@ operation ::= `IE.Minimum` `(` operands `)` attr-dict `:` type(operands) `->` ty
 | :----: | ----------- |
 `output` | ranked tensor of any type values
 
+### `IE.Mish` (vpux::IE::MishOp)
+
+InferenceEngine Mish layer
+
+
+Syntax:
+
+```
+operation ::= `IE.Mish` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
 ### `IE.Multiply` (vpux::IE::MultiplyOp)
 
 InferenceEngine Multiply layer
