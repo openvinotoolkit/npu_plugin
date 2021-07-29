@@ -113,7 +113,8 @@ def VPUIP_DeclareTensorOp :
         VPUIP_Op<
             "DeclareTensor",
             [
-                NoSideEffect
+                NoSideEffect,
+                DotInterface
             ]
         > {
     let summary = "TensorReference value declaration";
@@ -158,6 +159,12 @@ def VPUIP_DeclareTensorOp :
     let extraClassDeclaration = [{
         static mlir::ParseResult parseLocaleIndex(mlir::OpAsmParser& parser, mlir::ArrayAttr& localeIndex);
         static void printLocaleIndex(mlir::OpAsmPrinter& printer, vpux::VPUIP::DeclareTensorOp& op, mlir::ArrayAttr localeIndex);
+        bool isDeclaration() {
+            return true;
+        }
+        vpux::DotNodeColor getNodeColor() {
+            return DotNodeColor::ORANGE;
+        }
     }];
 }
 
@@ -192,7 +199,8 @@ def VPUIP_ConfigureBarrierOp :
             [
                 MemoryEffectsOpInterface,
                 AttrSizedOperandSegments,
-                DeclareOpInterfaceMethods<VPUIP_TaskOpInterface>
+                DeclareOpInterfaceMethods<VPUIP_TaskOpInterface>,
+                DotInterface
             ]
         > {
     let summary = "A task to configure the setup for a barrier";
@@ -215,6 +223,14 @@ def VPUIP_ConfigureBarrierOp :
     let extraClassDeclaration = [{
         static vpux::VPUIP::TaskType getTaskType() {
             return vpux::VPUIP::TaskType::Controller;
+        }
+        vpux::DotNodeColor getNodeColor() {
+            return vpux::DotNodeColor::AQUA;
+        }
+        std::string printAttributes() {
+            std::ostringstream os;
+            os << "id: " << idAttr().getInt() << std::endl;
+            return os.str();
         }
     }];
 
@@ -317,7 +333,8 @@ def VPUIP_NNDMAOp :
                 ViewLikeOpInterface,
                 IERT_SameShape,
                 IERT_SameElementType,
-                IERT_SameInOutDimsOrder
+                IERT_SameInOutDimsOrder,
+                DotInterface
             ]
         > {
     let summary = "NN DMA task";
@@ -346,6 +363,12 @@ def VPUIP_NNDMAOp :
     let extraClassDeclaration = [{
         static vpux::VPUIP::TaskType getTaskType() {
             return vpux::VPUIP::TaskType::NNDMA;
+        }
+        vpux::DotNodeColor getNodeColor() {
+            auto memResource = VPUIP::getPhysicalMemory(output().getType().cast<mlir::MemRefType>());
+            if (!mlir::failed(memResource) && memResource.getValue() == VPUIP::PhysicalMemory::DDR)
+                return DotNodeColor::RED;
+            return DotNodeColor::GREEN;
         }
     }] # IERT_InferLayerReturnTypes<1>.impl;
 

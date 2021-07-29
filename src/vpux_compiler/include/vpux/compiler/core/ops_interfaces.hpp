@@ -17,6 +17,12 @@
 #include <mlir/IR/OpImplementation.h>
 #include <mlir/IR/Operation.h>
 
+namespace vpux {
+
+enum class DotNodeColor { NONE, RED, GREEN, ORANGE, BLUE, AQUA, AQUAMARINE };
+
+}  // namespace vpux
+
 //
 // Generated
 //

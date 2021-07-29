@@ -13,20 +13,11 @@
 
 #pragma once
 
-#include "vpux/compiler/core/ops_interfaces.hpp"
-#include "vpux/compiler/dialect/const/attributes/content.hpp"
+#include <mlir/Pass/PassManager.h>
 
-#include "vpux/utils/core/logger.hpp"
+namespace vpux {
 
-#include <mlir/IR/Dialect.h>
-#include <mlir/Interfaces/SideEffectInterfaces.h>
-#include <mlir/Transforms/DialectConversion.h>
+void addDotPrinter(mlir::PassManager& pm);
+void addDotPrinterFromEnvVar(mlir::PassManager& pm, mlir::StringRef options);
 
-//
-// Generated
-//
-
-#include <vpux/compiler/dialect/const/generated/dialect.hpp.inc>
-
-#define GET_OP_CLASSES
-#include <vpux/compiler/dialect/const/generated/ops.hpp.inc>
+}  // namespace vpux
