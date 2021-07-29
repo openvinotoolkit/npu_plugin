@@ -152,6 +152,7 @@ VPUSMMAllocatorParams::VPUSMMAllocatorParams(const InferenceEngine::ParamMap& pa
 VpusmmAllocator::VpusmmAllocator(const int deviceId): _deviceId(deviceId) {}
 
 void* VpusmmAllocator::lock(void* handle, InferenceEngine::LockOp) noexcept {
+    std::lock_guard<std::mutex> lock(_allocatedMemoryMutex);
     // isValidPtr check required when handle is allocated by external app via vpurm
     if (_allocatedMemory.find(handle) == _allocatedMemory.end() && !isValidPtr(handle)) return nullptr;
 
@@ -192,6 +193,7 @@ void* VpusmmAllocator::wrapRemoteMemoryHandle(
         physAddr,        // physical address
         false            // memory wasn't allocated, it was imported
     };
+    std::lock_guard<std::mutex> lock(_allocatedMemoryMutex);
     _allocatedMemory[memHandle] = memDesc;
 
     return memHandle;
@@ -223,6 +225,7 @@ void* VpusmmAllocator::wrapRemoteMemoryOffset(
         physAddr,        // physical address
         false            // memory wasn't allocated, it was imported
     };
+    std::lock_guard<std::mutex> lock(_allocatedMemoryMutex);
     _allocatedMemory[virtAddr] = memDesc;
 
     return virtAddr;
@@ -252,6 +255,7 @@ void* VpusmmAllocator::alloc(size_t size) noexcept {
         physAddr,  // physical address
         true       // memory was allocated
     };
+    std::lock_guard<std::mutex> lock(_allocatedMemoryMutex);
     _allocatedMemory[virtAddr] = memDesc;
 
     return virtAddr;
@@ -263,6 +267,7 @@ void* VpusmmAllocator::alloc(size_t size) noexcept {
 
 bool VpusmmAllocator::free(void* handle) noexcept {
 #if defined(__arm__) || defined(__aarch64__)
+    std::lock_guard<std::mutex> lock(_allocatedMemoryMutex);
     auto memoryIt = _allocatedMemory.find(handle);
     if (memoryIt == _allocatedMemory.end()) {
         return false;
@@ -291,6 +296,7 @@ bool VpusmmAllocator::free(void* handle) noexcept {
 }
 
 VpusmmAllocator::~VpusmmAllocator() {
+    std::lock_guard<std::mutex> lock(_allocatedMemoryMutex);
     if (!_allocatedMemory.empty()) {
         std::size_t allocatedChunksCount = 0;
         std::size_t amount = 0;
@@ -309,7 +315,6 @@ VpusmmAllocator::~VpusmmAllocator() {
 }
 
 void* VpusmmAllocator::wrapRemoteMemory(const InferenceEngine::ParamMap& map) noexcept {
-    std::lock_guard<std::mutex> lock(wrapMemoryMutex);
     VPUSMMAllocatorParams params(map);
     const auto& remoteMemoryFd = params.getRemoteMemoryFD();
     const auto& size = params.getSize();

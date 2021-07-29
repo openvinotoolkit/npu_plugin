@@ -55,7 +55,7 @@ TEST_P(InferRequestRunTests, AllocatorCanDisposeBlobWhenOnlyInferRequestIsInScop
 
 using InferRequestRunMultipleExecutorStreamsTests = BehaviorTestsUtils::BehaviorTestsBasic;
 
-TEST_P(InferRequestRunMultipleExecutorStreamsTests, DISABLED_RunFewSyncInfers) {
+TEST_P(InferRequestRunMultipleExecutorStreamsTests, RunFewSyncInfers) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     InferenceEngine::CNNNetwork cnnNet = buildSingleLayerSoftMaxNetwork();
