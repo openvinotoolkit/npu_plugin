@@ -9,7 +9,7 @@
 
 namespace LayerTestsDefinitions {
 
-class KmbFakeQuantizeLayerTest : public FakeQuantizeLayerTestRevise, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+class KmbFakeQuantizeLayerTest : public FakeQuantizeLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
     void SkipBeforeLoad() override {
         if (isCompilerMCM()) {
             // [Track number: S#42747]
