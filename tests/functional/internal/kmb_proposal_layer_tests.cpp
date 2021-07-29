@@ -52,7 +52,7 @@ std::ostream& operator<<(std::ostream& os, const ProposalTestParams& p) {
 class KmbProposalLayerTests : public KmbLayerTestBase,
                               public testing::WithParamInterface<ProposalTestParams> {};
 TEST_P(KmbProposalLayerTests, AccuracyTest) {
-    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "bad results");
+    SKIP_INFER("bad results");
 
     const auto& p = GetParam();
     const auto precision = Precision::FP32;

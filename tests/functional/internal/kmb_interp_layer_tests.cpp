@@ -54,7 +54,7 @@ TEST_P(KmbInterpLayerTests, EqualWithCPU) {
     // [Track number: E#11436]
     if (useCustomLayers == KernelType::Cpp)
     {
-        SKIP_ON("KMB", "HDDL2", "VPUX", "Error in infer");
+        SKIP() << "Skip due to error in infer";
     }
 
     const auto userInDesc = TensorDesc(Precision::U8, p._inDims, Layout::NHWC);

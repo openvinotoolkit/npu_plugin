@@ -36,9 +36,7 @@ TEST_P(VpuxAsyncTests, regression_ADK) {
 
     // for KMB/TBH standalone (VPUAL backend): there is a data race, the test sporadicaly fails: S#49626
     // TODO: it makes sense to introduce a separate macro for such SKIP
-#ifdef __aarch64__
-    SKIP_INFER_ON("VPUX", "data race");
-#endif
+    SKIP_INFER_ON("VPUAL", "data race");
 
     if (RUN_COMPILER) {
         const std::vector<size_t> dims = {1, 3, 32, 32};

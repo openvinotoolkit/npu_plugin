@@ -14,7 +14,7 @@
 #include "test_model/kmb_test_base.hpp"
 
 TEST_F(KmbNetworkTestBase, split_conv_concat) {
-    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "Wrong results due to precision issues"); // TODO: create JIRA ticket
+    SKIP_INFER("Wrong results - precision issues"); // TODO: create JIRA ticket
     const auto init_input = [=](const ConstInputsDataMap& inputs) {
         IE_ASSERT(inputs.size() == 1);
         registerSingleImage("28x28/image_1_28x28.bmp", inputs.begin()->first, inputs.begin()->second->getTensorDesc());
@@ -32,7 +32,7 @@ TEST_F(KmbNetworkTestBase, split_conv_concat) {
 }
 
 TEST_F(KmbNetworkTestBase, precommit_customnet_conv_strided_slice) {
-    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "Wrong results due to precision issues"); // TODO: create JIRA ticket
+    SKIP_INFER("Wrong results - precision issues"); // TODO: create JIRA ticket
     const auto init_input = [=](const ConstInputsDataMap& inputs) {
         IE_ASSERT(inputs.size() == 1);
         registerSingleImage("28x28/image_1_28x28.bmp", inputs.begin()->first, inputs.begin()->second->getTensorDesc());
@@ -50,7 +50,7 @@ TEST_F(KmbNetworkTestBase, precommit_customnet_conv_strided_slice) {
 }
 
 TEST_F(KmbClassifyNetworkTest, precommit_customnet1_tf_int8_dense_grayscale_fashionmnist) {
-    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "hangs on infer");  // [Track number: S#43799]
+    SKIP_INFER("hangs on infer");  // [Track number: S#43799]
     runTest(
         TestNetworkDesc("KMB_models/INT8/customnets/customnet1_tf_int8_dense_grayscale_fashionmnist.xml")
             .setUserInputPrecision("input", Precision::U8)
@@ -71,7 +71,7 @@ TEST_F(KmbClassifyNetworkTest, precommit_customnet_sigmoid) {
 }
 
 TEST_F(KmbClassifyNetworkTest, customnet2_pytorch_int8_dense_cifar10) {
-    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "hangs on infer");  // TODO: create JIRA ticket
+    SKIP_INFER("hangs on infer");  // TODO: create JIRA ticket
     runTest(
         TestNetworkDesc("KMB_models/INT8/customnets/customnet2_pytorch_int8_dense_cifar10.xml")
             .setUserInputPrecision("input", Precision::U8)
@@ -93,7 +93,7 @@ TEST_F(KmbClassifyNetworkTest, customnet3_mobilenet_v1_caffe_int8_dense) {
 }
 
 TEST_F(KmbClassifyNetworkTest, customnet_tanh) {
-    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "Wrong results"); // TODO: create JIRA ticket
+    SKIP_INFER("Wrong results"); // TODO: create JIRA ticket
     runTest(
         TestNetworkDesc("KMB_models/INT8/customnets/customnet_tanh.xml")
             .setUserInputPrecision("input", Precision::U8)
@@ -159,9 +159,7 @@ TEST_F(KmbClassifyNetworkTest, mobilenet_v3_cars) {
 
 // TODO: [Track number: E#9578]
 TEST_F(KmbClassifyNetworkTest, precommit_mobilenet_v3_dogs) {
-    if (isByPass()) {
-        SKIP() << "Skip for by-pass mode due to bad accuracy";
-    }
+    SKIP_ON("HDDL2", "Bad accuracy");
     runTest(
             TestNetworkDesc("mobilenet-v3-small-stanford-dogs/caffe2/FP16-INT8/mobilenet-v3-small-stanford-dogs.xml", EXPERIMENTAL)
                     .setUserInputPrecision("input", Precision::U8)
@@ -190,9 +188,7 @@ TEST_P(ModelAdk, precommit_ModelA_ADK3) {
 
 // TODO: [Track number: E#9578]
 TEST_F(SmokeNetworkTest, SuperResolution_AA_ADK3) {
-    if (isByPass()) {
-        SKIP() << "Skip inference for by-pass mode due to exception - dims and format are inconsistent.";
-    }
+    SKIP_ON("HDDL2", "Exception - dims and format are inconsistent");
     runTest(
             TestNetworkDesc("ADK3/SuperRes_INT8/SuperRes_INT8_AA.xml", EXPERIMENTAL)
                     .setUserInputPrecision("netInput", Precision::U8)
@@ -217,7 +213,7 @@ TEST_F(ModelAdk, ModelE_ADK3) {
 
 // [Track number: EISW-10831]
 TEST_F(ModelAdk, DISABLED_DeBlur_AA_BDK2) {
-    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "bad results");
+    SKIP_INFER("bad results");
     runTest(
             TestNetworkDesc("../clientmodels/BDK2/Deblur/AccuracyAware/2020.1_INT8_Deblur_AccuracyAwareQuantization.xml", EXPERIMENTAL)
                     .setUserInputPrecision("img_placeholder", Precision::U8)
@@ -254,7 +250,7 @@ TEST_F(KmbClassifyNetworkTest, precommit_MobilenetV2_ADK3) {
 
 // [Track number: S#47647]
 TEST_F(KmbSuperResNetworkTest, precommit_SuperResolution_ADK3) {
-    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "bad results");
+    SKIP_INFER("bad results");
     const std::string imgName  = "netInput";
     const std::string paramName1 = "t_param";
     const std::string paramName2 = "t_param1";
@@ -282,7 +278,7 @@ class KmbSuperResNetworkTestParameterized : public KmbSuperResNetworkTest,
 
 // [Track number: S#47647]
 TEST_P(KmbSuperResNetworkTestParameterized, PrecisionTest) {
-    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "bad results");
+    SKIP_INFER("bad results");
     auto inputPrecision = std::get<0>(GetParam());
     auto outputPrecision = std::get<1>(GetParam());
     const std::string imgName  = "netInput";

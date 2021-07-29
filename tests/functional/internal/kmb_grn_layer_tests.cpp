@@ -38,12 +38,12 @@ TEST_P(KmbGRNLayerTests, accuracy) {
     // [Track number: E#11436]
     if (useCustomLayers == KernelType::Cpp)
     {
-        SKIP_ON("KMB", "HDDL2", "VPUX", "Error in infer");
+        SKIP() << "Skip due to error in infer";
     }
 
 #ifdef _WIN32
     // [Track number: E#13238]
-    SKIP_ON("KMB", "HDDL2", "VPUX", "CallVpu error: -1");
+    SKIP() << "Skip due to CalcVpu error: -1";
 #endif
 
     const auto dims = p.dims();
