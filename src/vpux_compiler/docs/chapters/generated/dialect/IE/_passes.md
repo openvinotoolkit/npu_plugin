@@ -43,6 +43,10 @@ Also this pass replaces ND network inputs and outputs with 4D analogues to overc
 The pass is a part of `AdjustForVPU` pipeline.
 
 This pass replaces all `Tile` op with a set of `PerAxisTile` operations.
+### `-convert-weights-to-u8`: Shift data from a signed range to an unsigned one
+The pass is a part of `LowPrecision` pipeline.
+
+Pass detects quantized convolution and shifts weights data from a signed range to an unsigned one
 ### `-dequantize-const`: Dequantize constant tensors
 The pass is a part of `LowPrecision` pipeline.
 

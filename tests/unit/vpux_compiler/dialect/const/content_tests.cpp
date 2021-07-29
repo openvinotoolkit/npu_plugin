@@ -222,6 +222,38 @@ TEST_F(MLIR_ConstContentAttrTest, ConvertElemTypeSplat) {
     }
 }
 
+TEST_F(MLIR_ConstContentAttrTest, Add) {
+    const auto baseType = mlir::RankedTensorType::get({1, 2, 3, 4}, mlir::Float32Type::get(&ctx));
+
+    const auto bias = 10;
+    const auto vals = generateValues<float>(baseType.getNumElements());
+    std::vector<float> expectedVals(vals.size());
+    std::transform(vals.begin(), vals.end(), expectedVals.begin(), [bias](float item) {
+        return item + bias;
+    });
+
+    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, makeArrayRef(vals));
+
+    const auto baseContentAttr = Const::ContentAttr::get(baseAttr);
+    ASSERT_NE(baseContentAttr, nullptr);
+    EXPECT_EQ(baseContentAttr.getType(), baseType);
+
+    const auto contentAttr = baseContentAttr.add(bias);
+    ASSERT_NE(contentAttr, nullptr);
+    EXPECT_EQ(contentAttr.getType(), baseType);
+
+    const auto content = contentAttr.fold();
+    EXPECT_EQ(content.getType(), baseType);
+    EXPECT_FALSE(content.isSplat());
+
+    const auto contentVals = content.getValues<float>();
+    EXPECT_EQ(contentVals.size(), vals.size());
+
+    for (size_t i = 0; i < contentVals.size(); ++i) {
+        EXPECT_EQ(contentVals[i], expectedVals[i]);
+    }
+}
+
 TEST_F(MLIR_ConstContentAttrTest, QuantCast) {
     ctx.loadDialect<mlir::quant::QuantizationDialect>();
 

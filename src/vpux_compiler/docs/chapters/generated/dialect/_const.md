@@ -103,6 +103,17 @@ to quantized type with quantization parameters:
 
 ## Attribute definition
 
+### AddAttr
+
+Add constant content
+
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| bias | `mlir::FloatAttr` |  |
+
 ### BroadcastAttr
 
 Broadcast axis by value of constant content
