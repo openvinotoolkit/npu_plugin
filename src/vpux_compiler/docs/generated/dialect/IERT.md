@@ -1032,6 +1032,34 @@ operation ::= `IERT.Minimum` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float or 32-bit float values
 
+### `IERT.Mish` (vpux::IERT::MishOp)
+
+InferenceEngine run-time Mish layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.Mish` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float or 32-bit float values
+`output_buff` | memref of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float or 32-bit float values
+
 ### `IERT.Multiply` (vpux::IERT::MultiplyOp)
 
 InferenceEngine run-time Multiply layer

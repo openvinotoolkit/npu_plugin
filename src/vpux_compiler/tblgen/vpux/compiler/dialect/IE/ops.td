@@ -1005,6 +1005,29 @@ def IE_HSwishOp :
 }
 
 //
+// MishOp
+//
+
+def IE_MishOp :
+        IE_LayerOp<
+            "Mish",
+            [
+                ResultsAreFloatLike,
+                SameOperandsAndResultType
+            ]
+        > {
+    let summary = "InferenceEngine Mish layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+}
+
+//
 // TransposeOp
 //
 
