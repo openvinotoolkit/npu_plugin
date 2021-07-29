@@ -53,10 +53,11 @@ public:
     };
 
     struct ActShaveTaskParams {
-        flatbuffers::Offset<MVCNN::KernelData> obj;
+        flatbuffers::Offset<MVCNN::KernelData> text;
+        flatbuffers::Offset<MVCNN::KernelData> data;
+        flatbuffers::Offset<flatbuffers::Vector<uint64_t>> args;
         MVCNN::ActKernelType type;
     };
-
 
     using TensorReference = flatbuffers::Offset<MVCNN::TensorReference>;
     using Barrier = flatbuffers::Offset<MVCNN::Barrier>;

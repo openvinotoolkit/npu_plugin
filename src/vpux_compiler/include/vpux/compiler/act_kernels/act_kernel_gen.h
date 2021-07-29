@@ -33,4 +33,6 @@ ActKernelDesc generateKernelForACTShave(mlir::StringRef funcName,
                                         const movitools::MoviCompileParams& params,
                                         flatbuffers::FlatBufferBuilder& fbb);
 
+flatbuffers::Offset<flatbuffers::Vector<uint64_t>> packKernelArgs(flatbuffers::FlatBufferBuilder& fbb);
+
 }  // namespace vpux
