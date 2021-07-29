@@ -806,6 +806,10 @@ void VpualCoreNNExecutor::pull(ie::BlobMap& outputs) {
         IE_THROW() << "VpualCoreNNExecutor::pull: " << ", for inference: " << response.inferenceID
                            << " received error response: " << status;
     }
+    if (0u == _outputPhysAddrs.size()) {
+        _logger->error("_outputPhysAddrs.size() == 0");
+        IE_THROW() << "Bad device output phys address";
+    }
     ie::BlobMap deviceOutputs = extractOutputsFromPhysAddr(_outputPhysAddrs.at(0));
     repackDeviceOutputsToNetworkOutputs(deviceOutputs, outputs);
     _logger->info("pull finished");
@@ -837,7 +841,11 @@ void VpualCoreNNExecutor::repackDeviceOutputsToNetworkOutputs(
         const auto deviceBlob = ie::as<ie::MemoryBlob>(item.second);
         const auto& deviceDesc = deviceBlob->getTensorDesc();
 
-        const auto outputBlob = ie::as<ie::MemoryBlob>(networkOutputs.at(name));
+        const auto& output = networkOutputs.find(name);
+        if (networkOutputs.end() == output) {
+            IE_THROW() << "VPUX Plugin cannot find output: " << name;
+        }
+        const auto outputBlob = ie::as<ie::MemoryBlob>(output->second);
         const auto& networkDesc = outputBlob->getTensorDesc();
 
         if (deviceDesc.getPrecision() != networkDesc.getPrecision()) {
