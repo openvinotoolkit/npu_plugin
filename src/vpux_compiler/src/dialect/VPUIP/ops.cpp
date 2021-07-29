@@ -238,13 +238,11 @@ void vpux::VPUIP::VPUIPDialect::initialize() {
     addOperations<
 #define GET_OP_LIST
 #include <vpux/compiler/dialect/VPUIP/generated/ops.cpp.inc>
-#undef GET_OP_LIST
             >();
 
     addTypes<
 #define GET_TYPEDEF_LIST
 #include <vpux/compiler/dialect/VPUIP/generated/types.cpp.inc>
-#undef GET_TYPEDEF_LIST
             >();
 }
 
@@ -261,6 +259,7 @@ void vpux::VPUIP::VPUIPDialect::setupExtraInterfaces(mlir::DialectRegistry& regi
 // Generated
 //
 
+#include <vpux/compiler/dialect/VPUIP/generated/dialect.cpp.inc>
+
 #define GET_OP_CLASSES
 #include <vpux/compiler/dialect/VPUIP/generated/ops.cpp.inc>
-#undef GET_OP_CLASSES

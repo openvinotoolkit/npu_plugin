@@ -21,14 +21,22 @@
 #include <mlir/Dialect/Async/IR/Async.h>
 #include <mlir/Dialect/MemRef/IR/MemRef.h>
 #include <mlir/Dialect/Quant/QuantOps.h>
+#include <mlir/Dialect/Quant/QuantTypes.h>
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/Dialect/Tensor/IR/Tensor.h>
+#include <mlir/IR/BuiltinTypes.h>
 
 using namespace vpux;
 
 //
 // registerDialects
 //
+
+namespace {
+
+class MemRefElementTypeModel final : public mlir::MemRefElementTypeInterface::FallbackModel<MemRefElementTypeModel> {};
+
+}  // namespace
 
 void vpux::registerDialects(mlir::DialectRegistry& registry) {
     registry.insert<vpux::Const::ConstDialect,  //
@@ -41,6 +49,15 @@ void vpux::registerDialects(mlir::DialectRegistry& registry) {
                     mlir::memref::MemRefDialect,       //
                     mlir::quant::QuantizationDialect,  //
                     mlir::tensor::TensorDialect>();
+
+    registry.addTypeInterface<mlir::quant::QuantizationDialect, mlir::quant::AnyQuantizedType,
+                              MemRefElementTypeModel>();
+    registry.addTypeInterface<mlir::quant::QuantizationDialect, mlir::quant::UniformQuantizedType,
+                              MemRefElementTypeModel>();
+    registry.addTypeInterface<mlir::quant::QuantizationDialect, mlir::quant::UniformQuantizedPerAxisType,
+                              MemRefElementTypeModel>();
+    registry.addTypeInterface<mlir::quant::QuantizationDialect, mlir::quant::CalibratedQuantizedType,
+                              MemRefElementTypeModel>();
 
     VPUIP::VPUIPDialect::setupExtraInterfaces(registry);
 }

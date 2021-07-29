@@ -165,6 +165,13 @@ macro(add_dialect dialect)
         SOURCE "${gen_base_src_dir}/dialect/${dialect}/ops.td"
         OUTPUT "${gen_base_dst_include_dir}/dialect/${dialect}/generated/dialect.hpp.inc"
     )
+    vpux_add_tblgen_command(
+        TOOL "MLIR"
+        MODE "-gen-dialect-defs"
+        EXTRA_ARGS "-dialect=${dialect}"
+        SOURCE "${gen_base_src_dir}/dialect/${dialect}/ops.td"
+        OUTPUT "${gen_base_dst_include_dir}/dialect/${dialect}/generated/dialect.cpp.inc"
+    )
 
     vpux_add_tblgen_command(
         TOOL "MLIR"

@@ -40,7 +40,6 @@
 
 #define GET_OP_CLASSES
 #include <vpux/compiler/dialect/IE/generated/ops.hpp.inc>
-#undef GET_OP_CLASSES
 
 //
 // Operation verifiers

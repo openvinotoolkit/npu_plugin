@@ -103,7 +103,6 @@ void vpux::IE::IEDialect::initialize() {
     addOperations<
 #define GET_OP_LIST
 #include <vpux/compiler/dialect/IE/generated/ops.cpp.inc>
-#undef GET_OP_LIST
             >();
 
     addInterfaces<IEAsmHooks, IEDecodeAttributesHooks>();
@@ -132,6 +131,7 @@ mlir::Operation* vpux::IE::IEDialect::materializeConstant(mlir::OpBuilder& build
 // Generated
 //
 
+#include <vpux/compiler/dialect/IE/generated/dialect.cpp.inc>
+
 #define GET_OP_CLASSES
 #include <vpux/compiler/dialect/IE/generated/ops.cpp.inc>
-#undef GET_OP_CLASSES
