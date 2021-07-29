@@ -97,19 +97,22 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createACTShaveTask(mlir
     const auto inputs = createVector(layer.getInputs() | transformed(getTensorCb));
     const auto outputs = createVector(layer.getOutputs() | transformed(getTensorCb));
 
-
-
     MVCNN::ActKernelBuilder kernelbuilder(_impl);
-    kernelbuilder.add_kernelData(params.obj);
+    //kernelbuilder.add_globalArgs()
     kernelbuilder.add_type(params.type);
     kernelbuilder.add_kernelEntry(0);
 
     auto kernel = kernelbuilder.Finish();
 
+    // TODO: currently only single invocation
+    MVCNN::KernelDataReferenceBuilder kdrBuilder(_impl);
+    //kdrBuilder.
+    auto kdrReference = kdrBuilder.Finish();
 
     MVCNN::ActKernelInvocationBuilder invocationBuilder(_impl);
-    //invocationBuilder.add_kernelArgs()
-    //invocationBuilder.add_dataSection()
+    //kdrBuilder.
+    invocationBuilder.add_dataSection(kdrReference);
+    //invocationBuilder.add_invocationArgs();
 
     std::vector<flatbuffers::Offset<MVCNN::ActKernelInvocation>> invocations_v1 = {invocationBuilder.Finish()};
 
