@@ -66,6 +66,10 @@ public:
 
     using BinaryData = flatbuffers::Offset<MVCNN::BinaryData>;
 
+    using KernelData = flatbuffers::Offset<MVCNN::KernelData>;
+
+    using KernelDataRef = flatbuffers::Offset<MVCNN::KernelDataReference>;
+
     using String = flatbuffers::Offset<flatbuffers::String>;
 
     template <typename T>
@@ -81,7 +85,12 @@ public:
 public:
     SpecificTask createUPALayerTask(mlir::Operation* op, const SoftwareLayerParams& params);
 
-    SpecificTask createACTShaveTask(mlir::Operation* op, const ActShaveTaskParams& params);
+public:
+    SpecificTask createACTShaveTask(mlir::Operation* op);
+    KernelData createKernelData(StringRef name);
+    KernelDataRef createKernelDataRef(StringRef name, MemoryLocation locale,
+                                      ArrayRef<uint32_t> localeIndex, uint64_t dataOffset, uint64_t dataSize,
+                                      ArrayRef<uint64_t> content= None);
 
 public:
     TensorReference createTensor(StringRef name, mlir::ShapedType type, MemoryLocation locale,
