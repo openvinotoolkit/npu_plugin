@@ -20,6 +20,17 @@ macro(replace_compile_visibility_options)
     set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -rdynamic -export-dynamic")
 endmacro()
 
+macro(replace_noerror)
+    # foreach(flag IN ITEMS "-Wno-error")
+    foreach(flag IN ITEMS "-Wno-error=unused-variable" "-Wno-error=unused-but-set-variable" "-Wno-error=deprecated-declarations")
+        string(REPLACE ${flag} "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+        string(REPLACE ${flag} "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+        string(REPLACE ${flag} "" CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS}")
+        string(REPLACE ${flag} "" CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS}")
+        string(REPLACE ${flag} "" CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS}")
+    endforeach()
+endmacro()
+
 function(enable_warnings_as_errors TARGET_NAME)
     cmake_parse_arguments(WARNIGS "WIN_STRICT" "" "" ${ARGN})
 

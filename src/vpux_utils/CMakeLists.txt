@@ -11,6 +11,8 @@
 # included with the Software Package for additional details.
 #
 
+replace_noerror()
+
 set(TARGET_NAME "vpux_utils")
 
 file(GLOB_RECURSE SOURCES "*.cpp" "*.hpp")
