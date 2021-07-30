@@ -56,6 +56,13 @@ target_link_libraries(${HDDL2_BACKEND_MODULE_TARGET}
         kmb_utils
         IE::vpu_common_lib)
 
+# FIXME: this is a WA for E#13996
+# for some reason, compile_tool hangs after hddlUnite.so fini
+# if the openvino built with ENABLE_LTO=ON
+if(LINUX AND LINUX_OS_NAME MATCHES "Ubuntu")
+    set_target_properties(${HDDL2_BACKEND_MODULE_TARGET} PROPERTIES LINK_OPTIONS "-Wl,-z,nodelete")
+endif()
+
 if(ENABLE_CLANG_FORMAT)
     add_clang_format_target(clang_format_${HDDL2_BACKEND_MODULE_TARGET} FOR_TARGETS ${HDDL2_BACKEND_MODULE_TARGET} ALL)
     add_dependencies(${HDDL2_BACKEND_MODULE_TARGET} clang_format_${HDDL2_BACKEND_MODULE_TARGET})
