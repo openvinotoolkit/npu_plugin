@@ -422,7 +422,6 @@ def IERT_MaxPoolOp :
         IERT_LayerOp<1, "MaxPool",
             [
                 ViewLikeOpInterface,
-                DeclareOpInterfaceMethods<TensorInterface_4D>,
             ]
         > {
     let summary = "InferenceEngine run-time MaxPool layer";
@@ -458,9 +457,7 @@ def IERT_MaxPoolOp :
 def IERT_ConvolutionOp :
         IERT_LayerOp<1, "Convolution",
             [
-                ViewLikeOpInterface,
-                DeclareOpInterfaceMethods<TensorInterface_4D>,
-                DeclareOpInterfaceMethods<ConvolutionLayerInterface>
+                ViewLikeOpInterface
             ]
         > {
     let summary = "InferenceEngine run-time Convolution layer";
@@ -499,8 +496,7 @@ def IERT_GroupConvolutionOp :
         IERT_LayerOp<1, "GroupConvolution",
             [
                 ViewLikeOpInterface,
-                SameOperandsElementType,
-                DeclareOpInterfaceMethods<ConvolutionLayerInterface>
+                SameOperandsElementType
             ]
         > {
     let summary = "InferenceEngine run-time GroupConvolution layer";

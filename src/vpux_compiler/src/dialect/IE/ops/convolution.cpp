@@ -48,11 +48,6 @@ public:
 };
 
 mlir::LogicalResult FuseConvAndBias::matchAndRewrite(IE::ScaleShiftOp biasOp, mlir::PatternRewriter& rewriter) const {
-    const auto act_batch_dim = IE::ConvolutionOp::act_batch_dim();
-    const auto act_channel_dim = IE::ConvolutionOp::act_channel_dim();
-    const auto act_height_dim = IE::ConvolutionOp::act_height_dim();
-    const auto act_width_dim = IE::ConvolutionOp::act_width_dim();
-
     if (biasOp.weights() != nullptr) {
         return matchFailed(rewriter, biasOp, "Failed to fuse ScaleShift, since it has scales");
     }
@@ -76,16 +71,16 @@ mlir::LogicalResult FuseConvAndBias::matchAndRewrite(IE::ScaleShiftOp biasOp, ml
     if (biasShape.size() != 4) {
         return matchFailed(rewriter, biasOp, "Failed to fuse ScaleShift, unsupported bias shape");
     }
-    if (biasShape[act_batch_dim] != 1) {
+    if (biasShape[IE::Dims4D::Act::N] != 1) {
         return matchFailed(rewriter, biasOp, "Failed to fuse ScaleShift, unsupported bias shape");
     }
-    if (biasShape[act_channel_dim] != convOutShape[act_channel_dim]) {
+    if (biasShape[IE::Dims4D::Act::C] != convOutShape[IE::Dims4D::Act::C]) {
         return matchFailed(rewriter, biasOp, "Failed to fuse ScaleShift, unsupported bias shape");
     }
-    if (biasShape[act_height_dim] != 1) {
+    if (biasShape[IE::Dims4D::Act::H] != 1) {
         return matchFailed(rewriter, biasOp, "Failed to fuse ScaleShift, unsupported bias shape");
     }
-    if (biasShape[act_width_dim] != 1) {
+    if (biasShape[IE::Dims4D::Act::W] != 1) {
         return matchFailed(rewriter, biasOp, "Failed to fuse ScaleShift, unsupported bias shape");
     }
 

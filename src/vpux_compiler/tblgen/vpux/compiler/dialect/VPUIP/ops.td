@@ -538,8 +538,7 @@ def VPUIP_ConvolutionUPAOp :
         VPUIP_UPATaskOp<1, "ConvolutionUPA",
             [
                 ViewLikeOpInterface,
-                SameElementType,
-                DeclareOpInterfaceMethods<ConvolutionLayerInterface>
+                SameElementType
             ]
         > {
     let summary = "Convolution UPA SHAVE kernel (reference implementation)";

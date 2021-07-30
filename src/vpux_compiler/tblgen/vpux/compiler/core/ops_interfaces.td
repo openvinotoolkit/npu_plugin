@@ -342,152 +342,21 @@ def ConvolutionLayerInterface : OpInterface<"ConvolutionLayerInterface"> {
     let methods = [
         InterfaceMethod<
             "Get the source Value for the Operation",
-            "mlir::Value", "input", (ins),
-            [{
-                return $_op.input();
-            }]
+            "mlir::Value", "input", (ins)
         >,
         InterfaceMethod<
             "Get the source Value for the Operation",
-            "mlir::Value", "filter", (ins),
-            [{
-                return $_op.filter();
-            }]
+            "mlir::Value", "filter", (ins)
         >,
         InterfaceMethod<
             "Get the source Value for the Operation",
-            "mlir::Value", "bias", (ins),
-            [{
-                return $_op.bias();
-            }]
+            "mlir::Value", "bias", (ins)
         >,
 
         InterfaceMethod<
             "Get destination Value for the Operation",
-            "mlir::Value", "output", (ins),
-            [{
-                return $_op.output();
-            }]
+            "mlir::Value", "output", (ins)
         >,
-
-        StaticInterfaceMethod<
-            "Get the filter outChannel Dim",
-            "vpux::Dim", "filter_out_channel_dim", (ins),
-            [{}],
-            [{
-                return vpux::Dim(0);
-            }]
-        >,
-
-        StaticInterfaceMethod<
-            "Get the filter inChannel Dim",
-            "vpux::Dim", "filter_in_channel_dim", (ins),
-            [{}],
-            [{
-                return vpux::Dim(1);
-            }]
-        >,
-
-        StaticInterfaceMethod<
-            "Get the filter spatial Y Dim",
-            "vpux::Dim", "filter_spatial_height_dim", (ins),
-            [{}],
-            [{
-                return vpux::Dim(2);
-            }]
-        >,
-
-        StaticInterfaceMethod<
-            "Get the filter spatial X Dim",
-            "vpux::Dim", "filter_spatial_width_dim", (ins),
-            [{}],
-            [{
-                return vpux::Dim(3);
-            }]
-        >,
-
-        StaticInterfaceMethod<
-            "Get the nr of kernel spatial dims available",
-            "uint32_t", "filter_spatial_dims", (ins),
-            [{}],
-            [{
-                return 2;
-            }]
-        >,
-
-        StaticInterfaceMethod<
-            "Get the filter dim index of a spatial dim",
-            "vpux::Dim", "filter_spatial_dim", (ins "size_t":$index),
-            [{}],
-            [{
-                VPUX_THROW_UNLESS(index < 2, "Wrong spatial dimension index '{0}'", index);
-                return vpux::Dim(index + 2);
-            }]
-        >,
-    ];
-}
-
-//
-// TensorInterface_4D
-//
-
-def TensorInterface_4D : OpInterface<"TensorInterface_4D"> {
-    let description = "Interface for getting tensor DIM infromation";
-
-    let cppNamespace = "vpux";
-
-    let methods = [
-        StaticInterfaceMethod<
-            "Get the activation batch Dim",
-            "vpux::Dim", "act_batch_dim", (ins),
-            [{}],
-            [{
-                return vpux::Dim(0);
-            }]
-        >,
-        StaticInterfaceMethod<
-            "Get the activation channel Dim",
-            "vpux::Dim", "act_channel_dim", (ins),
-            [{}],
-            [{
-                return vpux::Dim(1);
-            }]
-        >,
-        StaticInterfaceMethod<
-            "Get the activation height Dim",
-            "vpux::Dim", "act_height_dim", (ins),
-            [{}],
-            [{
-                return vpux::Dim(2);
-            }]
-        >,
-        StaticInterfaceMethod<
-            "Get the activation width Dim",
-            "vpux::Dim", "act_width_dim", (ins),
-            [{}],
-            [{
-                return vpux::Dim(3);
-            }]
-        >,
-
-        StaticInterfaceMethod<
-            "Get the nr of activation spatial dims available",
-            "uint32_t", "act_spatial_dims", (ins),
-            [{}],
-            [{
-                return 2;
-            }]
-        >,
-
-        StaticInterfaceMethod<
-            "Get the tensor Dim index of a spatial dim index",
-            "vpux::Dim", "act_spatial_dim", (ins "size_t":$index),
-            [{}],
-            [{
-                VPUX_THROW_UNLESS(index < 2, "Wrong spatial dimension index '{0}'", index);
-                return vpux::Dim(index + 2);
-            }]
-        >
     ];
 }
 

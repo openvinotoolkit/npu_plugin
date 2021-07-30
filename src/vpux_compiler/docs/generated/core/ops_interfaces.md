@@ -29,67 +29,31 @@ Interface for Convolution Layer
 ```c++
 mlir::Value input();
 ```
-Get the source Value for the Operation#### `filter`
+Get the source Value for the Operation
+NOTE: This method *must* be implemented by the user.
+
+#### `filter`
 
 ```c++
 mlir::Value filter();
 ```
-Get the source Value for the Operation#### `bias`
+Get the source Value for the Operation
+NOTE: This method *must* be implemented by the user.
+
+#### `bias`
 
 ```c++
 mlir::Value bias();
 ```
-Get the source Value for the Operation#### `output`
+Get the source Value for the Operation
+NOTE: This method *must* be implemented by the user.
+
+#### `output`
 
 ```c++
 mlir::Value output();
 ```
-Get destination Value for the Operation#### `filter_out_channel_dim`
-
-```c++
-static vpux::Dim filter_out_channel_dim();
-```
-Get the filter outChannel Dim
-NOTE: This method *must* be implemented by the user.
-
-#### `filter_in_channel_dim`
-
-```c++
-static vpux::Dim filter_in_channel_dim();
-```
-Get the filter inChannel Dim
-NOTE: This method *must* be implemented by the user.
-
-#### `filter_spatial_height_dim`
-
-```c++
-static vpux::Dim filter_spatial_height_dim();
-```
-Get the filter spatial Y Dim
-NOTE: This method *must* be implemented by the user.
-
-#### `filter_spatial_width_dim`
-
-```c++
-static vpux::Dim filter_spatial_width_dim();
-```
-Get the filter spatial X Dim
-NOTE: This method *must* be implemented by the user.
-
-#### `filter_spatial_dims`
-
-```c++
-static uint32_t filter_spatial_dims();
-```
-Get the nr of kernel spatial dims available
-NOTE: This method *must* be implemented by the user.
-
-#### `filter_spatial_dim`
-
-```c++
-static vpux::Dim filter_spatial_dim(size_t index);
-```
-Get the filter dim index of a spatial dim
+Get destination Value for the Operation
 NOTE: This method *must* be implemented by the user.
 
 ## LayerInterface (`LayerInterface`)
@@ -217,57 +181,5 @@ Get the axis index in logical dimensions#### `getAxisDim`
 vpux::Dim getAxisDim();
 ```
 Get the axis parameter in logical dimensions
-NOTE: This method *must* be implemented by the user.
-
-## TensorInterface_4D (`TensorInterface_4D`)
-
-Interface for getting tensor DIM infromation
-### Methods:
-#### `act_batch_dim`
-
-```c++
-static vpux::Dim act_batch_dim();
-```
-Get the activation batch Dim
-NOTE: This method *must* be implemented by the user.
-
-#### `act_channel_dim`
-
-```c++
-static vpux::Dim act_channel_dim();
-```
-Get the activation channel Dim
-NOTE: This method *must* be implemented by the user.
-
-#### `act_height_dim`
-
-```c++
-static vpux::Dim act_height_dim();
-```
-Get the activation height Dim
-NOTE: This method *must* be implemented by the user.
-
-#### `act_width_dim`
-
-```c++
-static vpux::Dim act_width_dim();
-```
-Get the activation width Dim
-NOTE: This method *must* be implemented by the user.
-
-#### `act_spatial_dims`
-
-```c++
-static uint32_t act_spatial_dims();
-```
-Get the nr of activation spatial dims available
-NOTE: This method *must* be implemented by the user.
-
-#### `act_spatial_dim`
-
-```c++
-static vpux::Dim act_spatial_dim(size_t index);
-```
-Get the tensor Dim index of a spatial dim index
 NOTE: This method *must* be implemented by the user.
 

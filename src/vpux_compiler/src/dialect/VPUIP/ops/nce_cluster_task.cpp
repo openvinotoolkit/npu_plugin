@@ -167,7 +167,7 @@ mlir::LogicalResult verifyNCEConv(VPUIP::NCEClusterTaskOp op) {
     }
 
     const auto weightsShape = getShape(op.weights());
-    const auto OC = weightsShape[IERT::ConvolutionOp::filter_out_channel_dim()];
+    const auto OC = weightsShape[IE::Dims4D::Filter::OC];
 
     const auto weightTableShape = getShape(op.weight_table());
     const auto weightTableNumElements = weightTableShape.totalSize();
@@ -279,7 +279,7 @@ mlir::LogicalResult verifyNCEDWConv(VPUIP::NCEClusterTaskOp op) {
     }
 
     const auto weightsShape = getShape(op.weights());
-    const auto OC = weightsShape[IERT::ConvolutionOp::filter_out_channel_dim()];
+    const auto OC = weightsShape[IE::Dims4D::Filter::OC];
 
     const auto weightTableShape = getShape(op.weight_table());
     const auto weightTableNumElements = weightTableShape.totalSize();

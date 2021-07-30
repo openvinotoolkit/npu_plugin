@@ -508,9 +508,8 @@ def IE_ConvolutionOp :
         IE_LayerOp<
             "Convolution",
             [
-                DeclareOpInterfaceMethods<TensorInterface_4D>,
                 DeclareOpInterfaceMethods<MultiLayerInterface>,
-                DeclareOpInterfaceMethods<ConvolutionLayerInterface>
+                ConvolutionLayerInterface
             ]
         > {
     let summary = "InferenceEngine Convolution layer";
@@ -544,9 +543,8 @@ def IE_GroupConvolutionOp :
             "GroupConvolution",
             [
                 ResultsAreFloatLike,
-                DeclareOpInterfaceMethods<TensorInterface_4D>,
                 DeclareOpInterfaceMethods<MultiLayerInterface>,
-                DeclareOpInterfaceMethods<ConvolutionLayerInterface>
+                ConvolutionLayerInterface
             ]
         > {
     let summary = "InferenceEngine GroupConvolution layer";
@@ -580,8 +578,7 @@ def IE_AvgPoolOp :
         IE_LayerOp<
             "AvgPool",
             [
-                ResultsAreFloatLike,
-                DeclareOpInterfaceMethods<TensorInterface_4D>
+                ResultsAreFloatLike
             ]
         > {
     let summary = "InferenceEngine AvgPool layer";
@@ -610,7 +607,6 @@ def IE_MaxPoolOp :
         IE_LayerOp<
             "MaxPool",
             [
-                DeclareOpInterfaceMethods<TensorInterface_4D>,
                 DeclareOpInterfaceMethods<MultiLayerInterface>
             ]
         > {

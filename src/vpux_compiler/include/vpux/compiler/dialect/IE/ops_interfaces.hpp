@@ -13,6 +13,8 @@
 
 #pragma once
 
+#include "vpux/compiler/core/attributes/dim.hpp"
+#include "vpux/compiler/core/attributes/dims_order.hpp"
 #include "vpux/compiler/core/ops_interfaces.hpp"
 #include "vpux/compiler/dialect/IE/attributes/structs.hpp"
 
@@ -27,6 +29,44 @@
 
 namespace vpux {
 namespace IE {
+
+//
+// Dims4D
+//
+
+struct Dims4D final {
+    // Convolution2D/Pooling2D activations
+
+    struct Act final {
+        static const Dim N;
+        static const Dim C;
+        static const Dim H;
+        static const Dim W;
+
+        static constexpr size_t numSpatialDims = 2;
+
+        static Dim getSpatialDim(size_t index) {
+            VPUX_THROW_UNLESS(index < 2, "Dims4D::Act: Wrong spatial dimension index '{0}'", index);
+            return Dim(index + 2);
+        }
+    };
+
+    // Convolution2D filter
+
+    struct Filter final {
+        static const Dim OC;
+        static const Dim IC;
+        static const Dim KY;
+        static const Dim KX;
+
+        static constexpr size_t numSpatialDims = 2;
+
+        static Dim getSpatialDim(size_t index) {
+            VPUX_THROW_UNLESS(index < 2, "Dims4D::Filter: Wrong spatial dimension index '{0}'", index);
+            return Dim(index + 2);
+        }
+    };
+};
 
 //
 // LayerInfoDialectInterface
