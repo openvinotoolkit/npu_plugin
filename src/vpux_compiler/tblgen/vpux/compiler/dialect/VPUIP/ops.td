@@ -1735,8 +1735,7 @@ def VPUIP_DPUTaskOp :
     let arguments = (ins
         I64ArrayAttr:$start,
         I64ArrayAttr:$end,
-        I64ArrayAttr:$pads_begin,
-        I64ArrayAttr:$pads_end,
+        VPUIP_PaddingAttr:$pad,
         VPUIP_MPEMode:$mpe_mode
     );
 
@@ -1866,8 +1865,7 @@ def VPUIP_NCEClusterTaskOp :
     let extraClassDeclaration = [{
         vpux::VPUIP::DPUTaskOp addDPUTask(mlir::OpBuilder& builder,
                                           mlir::ArrayAttr start, mlir::ArrayAttr end,
-                                          mlir::ArrayAttr padsBegin, mlir::ArrayAttr padsEnd,
-                                          VPUIP::MPEMode mpeMode);
+                                          VPUIP::PaddingAttr pad, VPUIP::MPEMode mpeMode);
 
         vpux::VPUIP::PPETaskOp addPPETask(mlir::OpBuilder& builder,
                                           vpux::VPUIP::PPELayerType ppe_layer_type);

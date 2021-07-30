@@ -95,21 +95,22 @@ mlir::Value prepareTensorForDPU(mlir::OpBuilder& builder, mlir::Location loc, ml
     return dmaOp.output();
 }
 
-void addDPUTasks(VPUIP::NCEClusterTaskOp nceOp, mlir::PatternRewriter& rewriter, int64_t numDPU,
-                 ArrayRef<int64_t> opPadsBegin, ArrayRef<int64_t> opPadsEnd, VPUIP::MPEMode mpeMode) {
+void addDPUTasks(VPUIP::NCEClusterTaskOp nceOp, mlir::PatternRewriter& rewriter, int64_t numDPU, int64_t opPadLeft,
+                 int64_t opPadRight, int64_t opPadTop, int64_t opPadBottom, VPUIP::MPEMode mpeMode) {
     auto* ctx = nceOp.getContext();
 
     const auto outputShape = getShape(nceOp.output());
-    const auto dpuTiles = VPUIP::DpuTiler::tileOverH(numDPU, outputShape, opPadsBegin, opPadsEnd);
+    const auto dpuTiles = VPUIP::DpuTiler::tileOverH(numDPU, outputShape, opPadLeft, opPadRight, opPadTop, opPadBottom);
 
     for (const auto& dpuTile : dpuTiles) {
         const auto startAttr = getIntArrayAttr(ctx, makeArrayRef(dpuTile.start));
         const auto endAttr = getIntArrayAttr(ctx, makeArrayRef(dpuTile.end));
 
-        const auto padsBeginAttr = getIntArrayAttr(ctx, dpuTile.padsBegin);
-        const auto padsEndAttr = getIntArrayAttr(ctx, dpuTile.padsEnd);
+        const auto pad =
+                VPUIP::PaddingAttr::get(getIntAttr(ctx, dpuTile.padLeft), getIntAttr(ctx, dpuTile.padRight),
+                                        getIntAttr(ctx, dpuTile.padTop), getIntAttr(ctx, dpuTile.padBottom), ctx);
 
-        nceOp.addDPUTask(rewriter, startAttr, endAttr, padsBeginAttr, padsEndAttr, mpeMode);
+        nceOp.addDPUTask(rewriter, startAttr, endAttr, pad, mpeMode);
     }
 }
 
@@ -198,7 +199,7 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
             /*output_buff=*/outAllocOpCMX.memref(), VPUIP::NCETaskType::CONV, kernelSizeAttr, origOp.strides(),
             kernelPaddingAttr, /*activation_window_channel_length=*/nullptr);
 
-    addDPUTasks(nceOp, rewriter, _numDPU, padsBegin, padsEnd, mpeMap.at(_arch));
+    addDPUTasks(nceOp, rewriter, _numDPU, padsBegin[1], padsEnd[1], padsBegin[0], padsEnd[0], mpeMap.at(_arch));
     addPPETask(nceOp, rewriter, origOp.post_opAttr());
 
     //
@@ -317,7 +318,7 @@ mlir::LogicalResult MaxPoolRewrite::matchAndRewrite(IERT::MaxPoolOp origOp, mlir
             /*output_buff=*/outAllocOpCMX.memref(), VPUIP::NCETaskType::MAXPOOL, origOp.kernel_size(), origOp.strides(),
             kernelPaddingAttr, activation_window_channel_length);
 
-    addDPUTasks(nceOp, rewriter, _numDPU, padsBegin, padsEnd, mpeMap.at(_arch));
+    addDPUTasks(nceOp, rewriter, _numDPU, padsBegin[1], padsEnd[1], padsBegin[0], padsEnd[0], mpeMap.at(_arch));
     addPPETask(nceOp, rewriter, origOp.post_opAttr());
 
     //
@@ -395,7 +396,7 @@ mlir::LogicalResult EltwiseAddRewrite::matchAndRewrite(IERT::AddOp origOp, mlir:
 
     const SmallVector<int64_t> padsBegin = {0, 0};
     const SmallVector<int64_t> padsEnd = {0, 0};
-    addDPUTasks(nceOp, rewriter, _numDPU, padsBegin, padsEnd, mpeMap.at(_arch));
+    addDPUTasks(nceOp, rewriter, _numDPU, padsBegin[1], padsEnd[1], padsBegin[0], padsEnd[0], mpeMap.at(_arch));
 
     //
     // DMA output CMX -> DDR
@@ -535,7 +536,7 @@ mlir::LogicalResult DepthwiseConvRewrite::matchAndRewrite(IERT::GroupConvolution
             /*output_buff=*/outAllocOpCMX.memref(), VPUIP::NCETaskType::DWCONV, kernelSizeAttr, origOp.strides(),
             kernelPaddingAttr, actWindowChanLen);
 
-    addDPUTasks(nceOp, rewriter, _numDPU, padsBegin, padsEnd, mpeMap.at(_arch));
+    addDPUTasks(nceOp, rewriter, _numDPU, padsBegin[1], padsEnd[1], padsBegin[0], padsEnd[0], mpeMap.at(_arch));
     addPPETask(nceOp, rewriter, origOp.post_opAttr());
 
     //

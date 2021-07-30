@@ -32,8 +32,10 @@ struct Tile final {
 };
 
 struct PadsTileConfig final {
-    SmallVector<int64_t> begin;
-    SmallVector<int64_t> end;
+    int64_t padLeft;
+    int64_t padRight;
+    int64_t padTop;
+    int64_t padBottom;
 };
 
 struct ConvTileConfig final {
@@ -56,8 +58,8 @@ struct PoolTileConfig final {
 // generate a set of tiles, each having its own size and offsets
 SmallVector<Tile> fillDividedTiles(ShapeRef divisors, ShapeRef orig);
 
-PadsTileConfig backInferPadsTile(const Tile& outputTile, ShapeRef outShape, ArrayRef<int64_t> opPadsBegin,
-                                 ArrayRef<int64_t> opPadsEnd);
+PadsTileConfig backInferPadsTile(const Tile& outputTile, ShapeRef outShape, int64_t padLeft, int64_t padRight,
+                                 int64_t padTop, int64_t padBottom);
 
 // TODO: Replace IERT::ConvolutionOp with Operation Interface
 ConvTileConfig backInferConvTile(IERT::ConvolutionOp origOp, const Tile& outputTile);

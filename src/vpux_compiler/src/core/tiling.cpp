@@ -68,10 +68,12 @@ SmallVector<Tile> vpux::fillDividedTiles(ShapeRef divisors, ShapeRef orig) {
     return dividedTiles;
 }
 
-PadsTileConfig vpux::backInferPadsTile(const Tile& outputTile, ShapeRef outShape, ArrayRef<int64_t> opPadsBegin,
-                                       ArrayRef<int64_t> opPadsEnd) {
+PadsTileConfig vpux::backInferPadsTile(const Tile& outputTile, ShapeRef outShape, int64_t padLeft, int64_t padRight,
+                                       int64_t padTop, int64_t padBottom) {
     SmallVector<int64_t> padsBegin(IERT::ConvolutionOp::filter_spatial_dims());
     SmallVector<int64_t> padsEnd(IERT::ConvolutionOp::filter_spatial_dims());
+    SmallVector<int64_t> opPadsBegin = {padTop, padLeft};
+    SmallVector<int64_t> opPadsEnd = {padBottom, padRight};
 
     for (auto spatialDim : irange(IERT::ConvolutionOp::filter_spatial_dims())) {
         const auto act_spatial_dim = IERT::ConvolutionOp::act_spatial_dim(spatialDim);
@@ -86,7 +88,7 @@ PadsTileConfig vpux::backInferPadsTile(const Tile& outputTile, ShapeRef outShape
         padsEnd[spatialDim] = tilePadEnd;
     }
 
-    return {padsBegin, padsEnd};
+    return {padsBegin[1], padsEnd[1], padsBegin[0], padsEnd[0]};
 }
 
 //
@@ -340,12 +342,10 @@ ConvTileConfig vpux::backInferConvTile(IERT::ConvolutionOp origOp, const Tile& o
     SmallVector<int64_t> padsBegin(IERT::ConvolutionOp::filter_spatial_dims());
     SmallVector<int64_t> padsEnd(IERT::ConvolutionOp::filter_spatial_dims());
 
-    padsBegin[0] = solution.inputPad.top;
-    padsEnd[0] = solution.inputPad.bottom;
-    padsBegin[1] = solution.inputPad.left;
-    padsEnd[1] = solution.inputPad.right;
-
-    return {inputTile, filterTile, biasTile, {padsBegin, padsEnd}};
+    return {inputTile,
+            filterTile,
+            biasTile,
+            {solution.inputPad.left, solution.inputPad.right, solution.inputPad.top, solution.inputPad.bottom}};
 }
 
 PoolTileConfig vpux::backInferPoolTile(IERT::MaxPoolOp origOp, const Tile& outputTile) {
@@ -388,15 +388,8 @@ PoolTileConfig vpux::backInferPoolTile(IERT::MaxPoolOp origOp, const Tile& outpu
     inputTile.offsets[act_width_dim] = solution.inputTile.width.begin;
     inputTile.shape[act_width_dim] = solution.inputTile.width.length();
 
-    SmallVector<int64_t> padsBegin(IERT::MaxPoolOp::act_spatial_dims());
-    SmallVector<int64_t> padsEnd(IERT::MaxPoolOp::act_spatial_dims());
-
-    padsBegin[0] = solution.inputPad.top;
-    padsEnd[0] = solution.inputPad.bottom;
-    padsBegin[1] = solution.inputPad.left;
-    padsEnd[1] = solution.inputPad.right;
-
-    return {inputTile, {padsBegin, padsEnd}};
+    return {inputTile,
+            {solution.inputPad.left, solution.inputPad.right, solution.inputPad.top, solution.inputPad.bottom}};
 }
 
 EltwiseTileConfig vpux::backInferEltwiseAddTile(const Tile& outputTile) {
@@ -457,10 +450,8 @@ ConvTileConfig vpux::backInferGroupConvTile(IERT::GroupConvolutionOp origOp, con
     SmallVector<int64_t> padsBegin(IERT::ConvolutionOp::filter_spatial_dims());
     SmallVector<int64_t> padsEnd(IERT::ConvolutionOp::filter_spatial_dims());
 
-    padsBegin[0] = solution.inputPad.top;
-    padsEnd[0] = solution.inputPad.bottom;
-    padsBegin[1] = solution.inputPad.left;
-    padsEnd[1] = solution.inputPad.right;
-
-    return {inputTile, filterTile, biasTile, {padsBegin, padsEnd}};
+    return {inputTile,
+            filterTile,
+            biasTile,
+            {solution.inputPad.left, solution.inputPad.right, solution.inputPad.top, solution.inputPad.bottom}};
 }

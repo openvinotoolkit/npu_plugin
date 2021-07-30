@@ -66,11 +66,11 @@ func @Conv2dTest(%arg0: memref<1x16x16x16xf16, #NHWC, #map0>, %arg1: memref<1x16
 // CHECK-SAME:      parent_output([[OUTPUT_CMX_BUF]] : memref<1x16x16x16xf16, #NHWC, #map0, "CMX_NN">)
 // CHECK-SAME:      outputs([[OUTPUT_CMX_BUF]] : memref<1x16x16x16xf16, #NHWC, #map0, "CMX_NN">)
 // CHECK-SAME:      variants :
-// CHECK:               VPUIP.DPUTask {end = [15, 2, 15], mpe_mode = "VECTOR_FP16", pads_begin = [0, 0], pads_end = [0, 0], start = [0, 0, 0]}
-// CHECK:               VPUIP.DPUTask {end = [15, 5, 15], mpe_mode = "VECTOR_FP16", pads_begin = [0, 0], pads_end = [0, 0], start = [0, 3, 0]}
-// CHECK:               VPUIP.DPUTask {end = [15, 8, 15], mpe_mode = "VECTOR_FP16", pads_begin = [0, 0], pads_end = [0, 0], start = [0, 6, 0]}
-// CHECK:               VPUIP.DPUTask {end = [15, 11, 15], mpe_mode = "VECTOR_FP16", pads_begin = [0, 0], pads_end = [0, 0], start = [0, 9, 0]}
-// CHECK:               VPUIP.DPUTask {end = [15, 15, 15], mpe_mode = "VECTOR_FP16", pads_begin = [0, 0], pads_end = [0, 0], start = [0, 12, 0]}
+// CHECK:               VPUIP.DPUTask {end = [15, 2, 15], mpe_mode = "VECTOR_FP16", pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, start = [0, 0, 0]}
+// CHECK:               VPUIP.DPUTask {end = [15, 5, 15], mpe_mode = "VECTOR_FP16", pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, start = [0, 3, 0]}
+// CHECK:               VPUIP.DPUTask {end = [15, 8, 15], mpe_mode = "VECTOR_FP16", pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, start = [0, 6, 0]}
+// CHECK:               VPUIP.DPUTask {end = [15, 11, 15], mpe_mode = "VECTOR_FP16", pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, start = [0, 9, 0]}
+// CHECK:               VPUIP.DPUTask {end = [15, 15, 15], mpe_mode = "VECTOR_FP16", pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, start = [0, 12, 0]}
 
 // CHECK:       [[OUTPUT:%.+]] = IERT.Copy
 // CHECK-SAME:      inputs([[OUTPUT_CMX]] : memref<1x16x16x16xf16, #NHWC, #map0, "CMX_NN">)
@@ -142,8 +142,7 @@ func @MaxPoolTest(%arg0: memref<1x16x1x4xf16, #NHWC, #map>, %arg1: memref<1x16x1
 // CHECK:               VPUIP.DPUTask {
 // CHECK-SAME:              end = [3, 0, 15]
 // CHECK-SAME:              mpe_mode = "VECTOR_FP16"
-// CHECK-SAME:              pads_begin = [0, 0]
-// CHECK-SAME:              pads_end = [0, 0]
+// CHECK-SAME:              pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}
 // CHECK-SAME:              start = [0, 0, 0]
 
 // CHECK:       [[OUTPUT:%.+]] = IERT.Copy
@@ -199,8 +198,7 @@ func @EltwiseAddTest(%arg0: memref<1x64x28x28xf16, #NHWC, #map>,
 // CHECK:               VPUIP.DPUTask {
 // CHECK-SAME:              end = [27, 4, 63]
 // CHECK-SAME:              mpe_mode = "VECTOR_FP16"
-// CHECK-SAME:              pads_begin = [0, 0]
-// CHECK-SAME:              pads_end = [0, 0]
+// CHECK-SAME:              pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}
 // CHECK-SAME:              start = [0, 0, 0]
 
 // CHECK:           } PPE : {
@@ -288,7 +286,7 @@ func @DepthwiseConvTest(%arg0: memref<1x16x40x80xf16, #NHWC, #map0>,
 // CHECK-SAME:      parent_output([[OUTPUT_CMX_BUF]] : memref<1x16x37x73xf16, #NHWC, #map1, "CMX_NN">)
 // CHECK-SAME:      outputs([[OUTPUT_CMX_BUF]] : memref<1x16x37x73xf16, #NHWC, #map1, "CMX_NN">)
 // CHECK-SAME:      variants :
-// CHECK:               VPUIP.DPUTask {end = [72, 6, 15], mpe_mode = "VECTOR_FP16", pads_begin = [0, 0], pads_end = [0, 0], start = [0, 0, 0]}
+// CHECK:               VPUIP.DPUTask {end = [72, 6, 15], mpe_mode = "VECTOR_FP16", pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, start = [0, 0, 0]}
 
 // CHECK:       [[OUTPUT:%.+]] = IERT.Copy
 // CHECK-SAME:      inputs([[OUTPUT_CMX]] : memref<1x16x37x73xf16, #NHWC, #map1, "CMX_NN">)

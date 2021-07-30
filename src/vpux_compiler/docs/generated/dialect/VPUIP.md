@@ -292,8 +292,7 @@ operation ::= `VPUIP.DPUTask` attr-dict
 | :-------: | :-------: | ----------- |
 `start` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `end` | ::mlir::ArrayAttr | 64-bit integer array attribute
-`pads_begin` | ::mlir::ArrayAttr | 64-bit integer array attribute
-`pads_end` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`pad` | vpux::VPUIP::PaddingAttr | DictionaryAttr with field(s): 'left', 'right', 'top', 'bottom' (each field having its own constraints)
 `mpe_mode` | vpux::VPUIP::MPEModeAttr | MPE Mode
 
 ### `VPUIP.DeclareTensor` (vpux::VPUIP::DeclareTensorOp)
@@ -866,7 +865,7 @@ operation ::= `VPUIP.MishUPA` attr-dict
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`maxShaves` | ::mlir::IntegerAttr | 32-bit signless integer attribute
+`maxShaves` | mlir::IntegerAttr | Integer attribute
 `isTrailingSWLayer` | ::mlir::UnitAttr | unit attribute
 
 #### Operands:

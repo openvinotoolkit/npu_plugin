@@ -48,8 +48,8 @@ void vpux::VPUIP::NCEClusterTaskOp::build(mlir::OpBuilder& builder, mlir::Operat
 //
 
 VPUIP::DPUTaskOp vpux::VPUIP::NCEClusterTaskOp::addDPUTask(mlir::OpBuilder& builder, mlir::ArrayAttr start,
-                                                           mlir::ArrayAttr end, mlir::ArrayAttr padsBegin,
-                                                           mlir::ArrayAttr padsEnd, VPUIP::MPEMode mpeMode) {
+                                                           mlir::ArrayAttr end, VPUIP::PaddingAttr pad,
+                                                           VPUIP::MPEMode mpeMode) {
     if (variants().empty()) {
         variants().emplaceBlock();
     }
@@ -57,7 +57,7 @@ VPUIP::DPUTaskOp vpux::VPUIP::NCEClusterTaskOp::addDPUTask(mlir::OpBuilder& buil
     mlir::OpBuilder::InsertionGuard guard(builder);
     builder.setInsertionPointToEnd(&variants().front());
 
-    return builder.create<VPUIP::DPUTaskOp>(getLoc(), start, end, padsBegin, padsEnd, mpeMode);
+    return builder.create<VPUIP::DPUTaskOp>(getLoc(), start, end, pad, mpeMode);
 }
 
 //
@@ -305,19 +305,12 @@ mlir::LogicalResult verifyNCEDWConv(VPUIP::NCEClusterTaskOp op) {
 
 mlir::LogicalResult vpux::VPUIP::verifyOp(VPUIP::DPUTaskOp op) {
     static const size_t NUM_WORKLOAD_DIMS = 3;
-    static const size_t NUM_WORKLOAD_PADS = 2;
 
     if (op.start().size() != NUM_WORKLOAD_DIMS) {
         return errorAt(op, "start coords should {0}-D, but got {1}-D", NUM_WORKLOAD_DIMS, op.start().size());
     }
     if (op.end().size() != NUM_WORKLOAD_DIMS) {
         return errorAt(op, "end coords should {0}-D, but got {1}-D", NUM_WORKLOAD_DIMS, op.end().size());
-    }
-    if (op.pads_begin().size() != NUM_WORKLOAD_PADS) {
-        return errorAt(op, "pads_begin coords should {0}-D, but got {1}-D", NUM_WORKLOAD_PADS, op.pads_begin().size());
-    }
-    if (op.pads_end().size() != NUM_WORKLOAD_PADS) {
-        return errorAt(op, "pads_end coords should {0}-D, but got {1}-D", NUM_WORKLOAD_PADS, op.pads_end().size());
     }
 
     return mlir::success();
@@ -517,24 +510,21 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
     for (auto dpuTaskOp : variants().getOps<VPUIP::DPUTaskOp>()) {
         const auto start = parseIntArrayAttr<int64_t>(dpuTaskOp.start());
         const auto end = parseIntArrayAttr<int64_t>(dpuTaskOp.end());
-        const auto padsBegin = parseIntArrayAttr<int64_t>(dpuTaskOp.pads_begin());
-        const auto padsEnd = parseIntArrayAttr<int64_t>(dpuTaskOp.pads_end());
+        const auto pad = dpuTaskOp.pad();
 
-        // TODO: [Track number: E#13226]
-        // Make padding indexing more obvious
         const auto variant = MVCNN::CreateNCEVariantFields(writer,
-                                                           0,                                   // Barriers
-                                                           getMPEMode(dpuTaskOp.mpe_mode()),    // MPE mode
-                                                           static_cast<int16_t>(padsBegin[1]),  // padLeft
-                                                           static_cast<int16_t>(padsEnd[1]),    // padRight
-                                                           static_cast<int16_t>(padsBegin[0]),  // padTop
-                                                           static_cast<int16_t>(padsEnd[0]),    // padBottom
-                                                           static_cast<int16_t>(start[0]),      // workload_start_X
-                                                           static_cast<int16_t>(start[1]),      // workload_start_Y
-                                                           static_cast<int16_t>(start[2]),      // workload_start_Z
-                                                           static_cast<int16_t>(end[0]),        // workload_end_X
-                                                           static_cast<int16_t>(end[1]),        // workload_end_Y
-                                                           static_cast<int16_t>(end[2])         // workload_end_Z
+                                                           0,                                            // Barriers
+                                                           getMPEMode(dpuTaskOp.mpe_mode()),             // MPE mode
+                                                           static_cast<int16_t>(pad.left().getInt()),    // padLeft
+                                                           static_cast<int16_t>(pad.right().getInt()),   // padRight
+                                                           static_cast<int16_t>(pad.top().getInt()),     // padTop
+                                                           static_cast<int16_t>(pad.bottom().getInt()),  // padBottom
+                                                           static_cast<int16_t>(start[0]),  // workload_start_X
+                                                           static_cast<int16_t>(start[1]),  // workload_start_Y
+                                                           static_cast<int16_t>(start[2]),  // workload_start_Z
+                                                           static_cast<int16_t>(end[0]),    // workload_end_X
+                                                           static_cast<int16_t>(end[1]),    // workload_end_Y
+                                                           static_cast<int16_t>(end[2])     // workload_end_Z
         );
         variantList.push_back(variant);
     }

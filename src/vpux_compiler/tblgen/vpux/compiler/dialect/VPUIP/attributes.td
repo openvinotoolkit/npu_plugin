@@ -322,6 +322,21 @@ def VPUIP_CompilationMode  :
     let genSpecializedAttr = 1;
 }
 
+//
+// PaddingAttr
+//
+
+def VPUIP_PaddingAttr :
+        StructAttr<
+            "PaddingAttr",
+            VPUIP_Dialect,
+            [
+                StructFieldAttr<"left",   IntAttr>,
+                StructFieldAttr<"right",  IntAttr>,
+                StructFieldAttr<"top",    IntAttr>,
+                StructFieldAttr<"bottom", IntAttr>,
+            ]
+        >;
 
 //
 // eDSL DMA

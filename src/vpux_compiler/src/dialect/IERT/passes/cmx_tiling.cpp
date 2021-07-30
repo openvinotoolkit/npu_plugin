@@ -99,8 +99,8 @@ mlir::LogicalResult ConvolutionTiling::matchAndRewrite(IERT::ConvolutionOp origO
         const auto& filterTile = tileConf.filterTile;
         const auto& biasTile = tileConf.biasTile;
 
-        const auto& padsBegin = tileConf.pads.begin;
-        const auto& padsEnd = tileConf.pads.end;
+        SmallVector<int64_t> padsBegin = {tileConf.pads.padTop, tileConf.pads.padLeft};
+        SmallVector<int64_t> padsEnd = {tileConf.pads.padBottom, tileConf.pads.padRight};
 
         const auto actInput = makeTile(rewriter, origOp->getLoc(), origOp.input(), inputTile, "input");
         const auto filterInput = makeTile(rewriter, origOp->getLoc(), origOp.filter(), filterTile, "filter");
@@ -231,8 +231,8 @@ mlir::LogicalResult MaxPoolTiling::matchAndRewrite(IERT::MaxPoolOp origOp, mlir:
 
         const auto& inputTile = tileConf.inputTile;
 
-        const auto& padsBegin = tileConf.pads.begin;
-        const auto& padsEnd = tileConf.pads.end;
+        SmallVector<int64_t> padsBegin = {tileConf.pads.padTop, tileConf.pads.padLeft};
+        SmallVector<int64_t> padsEnd = {tileConf.pads.padBottom, tileConf.pads.padRight};
 
         const auto actInput = makeTile(rewriter, origOp->getLoc(), origOp.input(), inputTile, "input");
 
@@ -327,8 +327,8 @@ mlir::LogicalResult GroupConvolutionTiling::matchAndRewrite(IERT::GroupConvoluti
         const auto& filterTile = tileConf.filterTile;
         const auto& biasTile = tileConf.biasTile;
 
-        const auto& padsBegin = tileConf.pads.begin;
-        const auto& padsEnd = tileConf.pads.end;
+        SmallVector<int64_t> padsBegin = {tileConf.pads.padTop, tileConf.pads.padLeft};
+        SmallVector<int64_t> padsEnd = {tileConf.pads.padBottom, tileConf.pads.padRight};
 
         const auto actInput = makeTile(rewriter, origOp->getLoc(), origOp.input(), inputTile, "input");
         const auto filterInput = makeTile(rewriter, origOp->getLoc(), filter4d, filterTile, "filter");
