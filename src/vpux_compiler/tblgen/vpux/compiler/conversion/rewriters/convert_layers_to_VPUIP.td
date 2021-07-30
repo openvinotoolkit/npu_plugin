@@ -501,6 +501,20 @@ def RewriteNegative :
         >;
 
 //
+// IERT.Proposal -> VPUIP.ProposalUPA
+//
+def createProposalUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::ProposalUPAOp>(
+                $_loc, $0, $1, $2, $3, $4)
+        }]>;
+def RewriteProposal :
+        Pat<
+            (IERT_ProposalOp $class_probs, $bbox_deltas, $image_shape, $output, $proposal_attrs),
+            (createProposalUPAOp $class_probs, $bbox_deltas, $image_shape, $output, $proposal_attrs)
+        >;
+
+//
 // IERT.ROIPooling -> VPUIP.ROIPoolingUPA
 //
 def createROIPoolingUPAOp :

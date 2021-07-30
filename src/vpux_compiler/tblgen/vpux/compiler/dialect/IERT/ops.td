@@ -1451,6 +1451,39 @@ def IERT_NegativeOp :
 }
 
 //
+// ProposalOp
+//
+
+def IERT_ProposalOp :
+        IERT_LayerOp<1, "Proposal",
+            [
+                ViewLikeOpInterface
+            ]
+        > {
+    let summary = "InferenceEngine run-time Proposal layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$class_probs,
+        MemRefOf<[F16, F32]>:$bbox_deltas,
+        MemRefOf<[F16, F32]>:$image_shape,
+        MemRefOf<[F16, F32]>:$output_buff,
+
+        IE_ProposalAttrs:$proposal_attrs
+    );
+
+    let results = (outs
+        MemRefOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $class_probs `:` type($class_probs) `,` $bbox_deltas `:` type($bbox_deltas) `,` $image_shape `:` type($image_shape) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
 // ROIPoolingOp
 //
 
