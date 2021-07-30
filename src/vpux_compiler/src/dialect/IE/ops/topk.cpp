@@ -12,7 +12,9 @@
 //
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
+
 #include "vpux/compiler/dialect/const/ops.hpp"
+#include "vpux/compiler/utils/error.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
 

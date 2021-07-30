@@ -1,5 +1,5 @@
 //
-// Copyright 2021 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -11,9 +11,12 @@
 // included with the Software Package for additional details.
 //
 
-#include <mlir/IR/BuiltinTypes.h>
-#include "vpux/compiler/dialect/VPUIP/blob_reader.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
+
+#include "vpux/compiler/dialect/VPUIP/blob_reader.hpp"
+#include "vpux/compiler/utils/error.hpp"
+
+#include <mlir/IR/BuiltinTypes.h>
 
 using namespace vpux;
 

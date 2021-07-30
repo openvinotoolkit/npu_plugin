@@ -13,7 +13,8 @@
 
 #include "vpux/compiler/dialect/IE/ops_interfaces.hpp"
 
-#include "vpux/compiler/conversion.hpp"
+#include "vpux/compiler/utils/error.hpp"
+
 #include "vpux/utils/core/format.hpp"
 #include "vpux/utils/core/range.hpp"
 

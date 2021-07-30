@@ -15,6 +15,7 @@
 
 #include "vpux/compiler/core/attributes/dims_order.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
+#include "vpux/compiler/utils/error.hpp"
 
 #include <mlir/Dialect/Quant/QuantOps.h>
 #include <mlir/IR/BuiltinAttributes.h>

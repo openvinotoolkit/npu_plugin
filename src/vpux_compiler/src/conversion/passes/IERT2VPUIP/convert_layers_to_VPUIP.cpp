@@ -12,7 +12,9 @@
 //
 
 #include "vpux/compiler/conversion.hpp"
+
 #include "vpux/compiler/dialect/const/ops.hpp"
+#include "vpux/compiler/utils/error.hpp"
 
 #include <mlir/Dialect/Quant/QuantTypes.h>
 #include <mlir/Transforms/DialectConversion.h>

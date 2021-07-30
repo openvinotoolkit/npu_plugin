@@ -15,6 +15,7 @@
 
 #include "vpux/compiler/core/attributes/stride_reqs.hpp"
 #include "vpux/compiler/dialect/VPUIP/blob_reader.hpp"
+#include "vpux/compiler/utils/error.hpp"
 
 #include <mlir/IR/BuiltinTypes.h>
 

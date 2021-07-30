@@ -12,6 +12,8 @@
 //
 
 #include "vpux/compiler/dialect/IE/passes.hpp"
+
+#include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 
 #include <mlir/Transforms/GreedyPatternRewriteDriver.h>
