@@ -17,10 +17,61 @@
 include "mlir/IR/OpBase.td"
 
 //
-// MultiLayerInterface
+// LayerOpInterface
 //
 
-def MultiLayerInterface : OpInterface<"MultiLayerInterface"> {
+def IE_LayerOpInterface : OpInterface<"LayerOpInterface"> {
+    let description = "Base interface for IE Layer Operation";
+
+    let cppNamespace = "vpux::IE";
+
+    let methods = [
+        InterfaceMethod<
+            "Get all layer input tensors",
+            "mlir::OperandRange", "getInputs", (ins),
+            [{}],
+            [{
+                return $_op->getOperands();
+            }]
+        >,
+
+        InterfaceMethod<
+            "Get all layer output tensors",
+            "mlir::ResultRange", "getOutputs", (ins),
+            [{}],
+            [{
+                return $_op->getResults();
+            }]
+        >,
+
+        InterfaceMethod<
+            "Get information about current layout for Layer inputs and outputs",
+            "vpux::IE::DataOrderInfo", "getDataOrderInfo", (ins),
+            [{}],
+            [{
+                return vpux::IE::getLayerDataOrderInfo($_op);
+            }]
+        >,
+    ];
+
+    let extraTraitClassDeclaration = [{
+        static mlir::LogicalResult inferReturnTypes(mlir::MLIRContext* ctx, mlir::Optional<mlir::Location> loc,
+                                                    mlir::ValueRange operands, mlir::DictionaryAttr attrs, mlir::RegionRange regions,
+                                                    mlir::SmallVectorImpl<mlir::Type>& inferredTypes) {
+            return vpux::IE::inferTensorTypes(ConcreteOp::inferReturnTypeComponents, ctx, loc, operands, attrs, regions, inferredTypes);
+        }
+    }];
+
+    let verify = [{
+        return vpux::IE::verifyLayer($_op);
+    }];
+}
+
+//
+// LayerWithPostOpInterface
+//
+
+def IE_LayerWithPostOpInterface : OpInterface<"LayerWithPostOpInterface"> {
     let description = "Interface for operations that support post-processing";
 
     let cppNamespace = "vpux::IE";
@@ -28,18 +79,12 @@ def MultiLayerInterface : OpInterface<"MultiLayerInterface"> {
     let methods = [
         InterfaceMethod<
             "Get the post-processing operation",
-            "vpux::IE::PostOp", "getPostOp", (ins),
-            [{
-                return $_op.post_opAttr();
-            }]
+            "vpux::Optional<vpux::IE::PostOp>", "post_op", (ins)
         >,
 
         InterfaceMethod<
             "Set post-processing operation attribute",
-            "void", "setPostOp", (ins "vpux::IE::PostOp":$postOp),
-            [{
-                $_op.post_opAttr(postOp);
-            }]
+            "void", "post_opAttr", (ins "vpux::IE::PostOp":$postOp)
         >,
     ];
 }

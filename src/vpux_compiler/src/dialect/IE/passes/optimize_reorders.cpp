@@ -253,22 +253,22 @@ mlir::LogicalResult ReorderWithConcat::matchAndRewrite(IE::ConcatOp origConcatOp
 // ReorderWithLayer
 //
 
-class ReorderWithLayer final : public mlir::OpInterfaceRewritePattern<LayerInterface> {
+class ReorderWithLayer final : public mlir::OpInterfaceRewritePattern<IE::LayerOpInterface> {
 public:
     ReorderWithLayer(mlir::MLIRContext* ctx, const IE::LayerInfoDialectInterface* layerInfo, Logger log)
-            : mlir::OpInterfaceRewritePattern<LayerInterface>(ctx), _layerInfo(layerInfo), _log(log) {
+            : mlir::OpInterfaceRewritePattern<IE::LayerOpInterface>(ctx), _layerInfo(layerInfo), _log(log) {
         setDebugName("ReorderWithLayer");
     }
 
 public:
-    mlir::LogicalResult matchAndRewrite(LayerInterface layerOp, mlir::PatternRewriter& rewriter) const final;
+    mlir::LogicalResult matchAndRewrite(IE::LayerOpInterface layerOp, mlir::PatternRewriter& rewriter) const final;
 
 private:
     const IE::LayerInfoDialectInterface* _layerInfo = nullptr;
     Logger _log;
 };
 
-mlir::LogicalResult ReorderWithLayer::matchAndRewrite(LayerInterface layerOp, mlir::PatternRewriter& rewriter) const {
+mlir::LogicalResult ReorderWithLayer::matchAndRewrite(IE::LayerOpInterface layerOp, mlir::PatternRewriter& rewriter) const {
     if (mlir::isa<mlir::ViewLikeOpInterface, IE::SplitOp, IE::ConcatOp, IE::ExpandOp, IE::ReorderOp>(
                 layerOp.getOperation())) {
         return mlir::failure();

@@ -43,7 +43,7 @@ mlir::LogicalResult vpux::VPUIP::verifyUPATask(mlir::Operation* op) {
         return errorAt(op, "Operation '{0}' doesn't implement VPUIP UPATask interface", op->getName());
     }
 
-    auto layer = mlir::dyn_cast<RTLayerInterface>(op);
+    auto layer = mlir::dyn_cast<IERT::LayerOpInterface>(op);
     if (layer == nullptr) {
         return errorAt(op, "Operation '{0}' doesn't implement RT Layer interface", op->getName());
     }
@@ -115,7 +115,7 @@ mlir::LogicalResult vpux::VPUIP::verifyUPATask(mlir::Operation* op) {
 void vpux::VPUIP::getTaskEffects(mlir::Operation* op, SmallVectorImpl<MemoryEffect>& effects) {
     VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in getTaskEffects");
 
-    if (auto layer = mlir::dyn_cast<RTLayerInterface>(op)) {
+    if (auto layer = mlir::dyn_cast<IERT::LayerOpInterface>(op)) {
         for (const auto input : layer.getInputs()) {
             auto inputType = input.getType().cast<mlir::MemRefType>();
             auto resource = getMemoryResource(inputType);
@@ -148,7 +148,7 @@ void vpux::VPUIP::getTaskEffects(mlir::Operation* op, SmallVectorImpl<MemoryEffe
 mlir::LogicalResult vpux::VPUIP::verifyLegacy4D(mlir::Operation* op) {
     VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in verifySameDimsOrder");
 
-    auto layer = mlir::dyn_cast<RTLayerInterface>(op);
+    auto layer = mlir::dyn_cast<IERT::LayerOpInterface>(op);
     if (layer == nullptr) {
         return errorAt(op, "Operation '{0}' doesn't implement RT Layer interface", op->getName());
     }

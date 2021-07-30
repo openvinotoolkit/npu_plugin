@@ -48,13 +48,13 @@ void vpux::VPUIP::ConvolutionUPAOp::build(mlir::OpBuilder& builder, mlir::Operat
           padsBegin, padsEnd, groups, nullptr, false);
 }
 
-bool vpux::VPUIP::ConvolutionUPAOp::isSupportedLayout(mlir::Operation* op, vpux::DataOrderInfo& info) {
+bool vpux::VPUIP::ConvolutionUPAOp::isSupportedLayout(mlir::Operation* op, IE::DataOrderInfo& info) {
     VPUX_THROW_UNLESS(mlir::isa<IE::GroupConvolutionOp>(op) || mlir::isa<IE::ConvolutionOp>(op),
                       "Operation {0} is not Convolution like", op->getName());
 
     const auto expectedFilterLayout = mlir::isa<IE::GroupConvolutionOp>(op) ? DimsOrder::OIYX : DimsOrder::YXOI;
 
-    if (!isSupportedLayoutSameInOutSpecificDimsOrder(op, info, {DimsOrder::NCHW})) {
+    if (!IERT::isSupportedLayoutSameInOutSpecificDimsOrder(op, info, {DimsOrder::NCHW})) {
         // filter layout
         info.setInput(1, expectedFilterLayout);
         return false;

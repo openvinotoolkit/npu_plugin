@@ -28,22 +28,22 @@ namespace {
 // LayerRewriter
 //
 
-class LayerRewriter final : public mlir::OpInterfaceRewritePattern<LayerInterface> {
+class LayerRewriter final : public mlir::OpInterfaceRewritePattern<IE::LayerOpInterface> {
 public:
     LayerRewriter(mlir::MLIRContext* ctx, const IE::LayerInfoDialectInterface* layerInfo, Logger log)
-            : mlir::OpInterfaceRewritePattern<LayerInterface>(ctx), _layerInfo(layerInfo), _log(log) {
+            : mlir::OpInterfaceRewritePattern<IE::LayerOpInterface>(ctx), _layerInfo(layerInfo), _log(log) {
     }
 
 public:
-    mlir::LogicalResult matchAndRewrite(LayerInterface layerOp, mlir::PatternRewriter& rewriter) const final;
+    mlir::LogicalResult matchAndRewrite(IE::LayerOpInterface layerOp, mlir::PatternRewriter& rewriter) const final;
 
 private:
-    IE::ReorderOp createReorder(LayerInterface op, mlir::Value output, DimsOrder dstOrder,
+    IE::ReorderOp createReorder(IE::LayerOpInterface op, mlir::Value output, DimsOrder dstOrder,
                                 mlir::PatternRewriter& rewriter) const;
 
-    void insertReorderForInput(LayerInterface op, mlir::OpOperand& input, DimsOrder dstOrder,
+    void insertReorderForInput(IE::LayerOpInterface op, mlir::OpOperand& input, DimsOrder dstOrder,
                                mlir::PatternRewriter& rewriter) const;
-    void insertReorderForOutput(LayerInterface op, mlir::Value output, DimsOrder dstOrder,
+    void insertReorderForOutput(IE::LayerOpInterface op, mlir::Value output, DimsOrder dstOrder,
                                 mlir::PatternRewriter& rewriter) const;
 
     void setNewType(mlir::Value operand, DimsOrder newOrder) const;
@@ -53,13 +53,13 @@ private:
     Logger _log;
 };
 
-IE::ReorderOp LayerRewriter::createReorder(LayerInterface op, mlir::Value input, DimsOrder dstOrder,
+IE::ReorderOp LayerRewriter::createReorder(IE::LayerOpInterface op, mlir::Value input, DimsOrder dstOrder,
                                            mlir::PatternRewriter& rewriter) const {
     _log.nest(2).trace("Create Reorder: '{0}' -> '{1}'", DimsOrder::fromValue(input), dstOrder);
     return rewriter.create<IE::ReorderOp>(op->getLoc(), input, dstOrder.toPermutationAffineMap(rewriter.getContext()));
 }
 
-void LayerRewriter::insertReorderForInput(LayerInterface op, mlir::OpOperand& input, DimsOrder dstOrder,
+void LayerRewriter::insertReorderForInput(IE::LayerOpInterface op, mlir::OpOperand& input, DimsOrder dstOrder,
                                           mlir::PatternRewriter& rewriter) const {
     _log.nest(2).trace("Insert ReorderOp for input[{0}]", input.getOperandNumber());
 
@@ -67,7 +67,7 @@ void LayerRewriter::insertReorderForInput(LayerInterface op, mlir::OpOperand& in
     input.set(reorderOp.output());
 }
 
-void LayerRewriter::insertReorderForOutput(LayerInterface op, mlir::Value output, DimsOrder dstOrder,
+void LayerRewriter::insertReorderForOutput(IE::LayerOpInterface op, mlir::Value output, DimsOrder dstOrder,
                                            mlir::PatternRewriter& rewriter) const {
     _log.nest(2).trace("Insert ReorderOp for output {0}", output.getType());
 
@@ -84,7 +84,8 @@ void LayerRewriter::setNewType(mlir::Value operand, DimsOrder newOrder) const {
     operand.setType(newType);
 }
 
-mlir::LogicalResult LayerRewriter::matchAndRewrite(LayerInterface layerOp, mlir::PatternRewriter& rewriter) const {
+mlir::LogicalResult LayerRewriter::matchAndRewrite(IE::LayerOpInterface layerOp,
+                                                   mlir::PatternRewriter& rewriter) const {
     _log.trace("Got layer operation '{0}' at '{1}'", layerOp->getName(), layerOp->getLoc());
 
     auto orderInfo = layerOp.getDataOrderInfo();
@@ -165,7 +166,7 @@ void AdjustLayoutsPass::safeRunOnFunc() {
             return true;
         }
 
-        if (auto layerOp = mlir::dyn_cast<LayerInterface>(op)) {
+        if (auto layerOp = mlir::dyn_cast<IE::LayerOpInterface>(op)) {
             auto orderInfo = layerOp.getDataOrderInfo();
             return layerInfo->isSupportedLayout(layerOp, orderInfo);
         }

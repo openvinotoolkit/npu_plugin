@@ -17,7 +17,9 @@
 include "vpux/compiler/core/attributes.td"
 include "vpux/compiler/core/ops_interfaces.td"
 include "vpux/compiler/dialect/const/attributes.td"
+include "vpux/compiler/dialect/IE/ops_interfaces.td"
 include "vpux/compiler/dialect/IE/attributes.td"
+include "vpux/compiler/dialect/IERT/ops_interfaces.td"
 include "vpux/compiler/dialect/VPUIP/attributes.td"
 include "vpux/compiler/dialect/VPUIP/dialect.td"
 include "vpux/compiler/dialect/VPUIP/ops_interfaces.td"
@@ -51,12 +53,12 @@ class VPUIP_TaskOp<int numResult, string mnemonic, list<OpTrait> traits = []> :
                     AttrSizedOperandSegments,
                     InferTypeOpInterface,
                     MemoryEffectsOpInterface,
-                    DeclareOpInterfaceMethods<RTLayerInterface>,
+                    DeclareOpInterfaceMethods<IERT_LayerOpInterface>,
                     DeclareOpInterfaceMethods<VPUIP_TaskOpInterface>
                 ]
             )
         > {
-    code commonExtraClassDeclaration = InferReturnTypesForRTLayer<numResult>.impl;
+    code commonExtraClassDeclaration = IERT_InferLayerReturnTypes<numResult>.impl;
 
     let extraClassDeclaration = commonExtraClassDeclaration;
 }
@@ -263,9 +265,9 @@ def VPUIP_UPADMAOp :
         VPUIP_TaskOp<1, "UPADMA",
             [
                 ViewLikeOpInterface,
-                SameShape,
-                SameElementType,
-                SameInOutDimsOrder
+                IERT_SameShape,
+                IERT_SameElementType,
+                IERT_SameInOutDimsOrder
             ]
         > {
     let summary = "UPA DMA task";
@@ -292,7 +294,7 @@ def VPUIP_UPADMAOp :
         static vpux::VPUIP::TaskType getTaskType() {
             return vpux::VPUIP::TaskType::UPADMA;
         }
-    }] # InferReturnTypesForRTLayer<1>.impl;
+    }] # IERT_InferLayerReturnTypes<1>.impl;
 
     let assemblyFormat = [{
         attr-dict
@@ -312,9 +314,9 @@ def VPUIP_NNDMAOp :
         VPUIP_TaskOp<1, "NNDMA",
             [
                 ViewLikeOpInterface,
-                SameShape,
-                SameElementType,
-                SameInOutDimsOrder
+                IERT_SameShape,
+                IERT_SameElementType,
+                IERT_SameInOutDimsOrder
             ]
         > {
     let summary = "NN DMA task";
@@ -344,7 +346,7 @@ def VPUIP_NNDMAOp :
         static vpux::VPUIP::TaskType getTaskType() {
             return vpux::VPUIP::TaskType::NNDMA;
         }
-    }] # InferReturnTypesForRTLayer<1>.impl;
+    }] # IERT_InferLayerReturnTypes<1>.impl;
 
     let assemblyFormat = [{
         attr-dict
@@ -364,9 +366,8 @@ def VPUIP_ConvertUPAOp :
         VPUIP_UPATaskOp<1, "ConvertUPA",
             [
                 ViewLikeOpInterface,
-                SameShape,
-                SameInOutDimsOrder,
-                DeclareOpInterfaceMethods<ConvertLayerInterface>
+                IERT_SameShape,
+                IERT_SameInOutDimsOrder
             ]
         > {
     let summary = "Convert UPA SHAVE kernel";
@@ -420,10 +421,9 @@ def VPUIP_SoftMaxUPAOp :
         VPUIP_UPATaskOp<1, "SoftMaxUPA",
             [
                 ViewLikeOpInterface,
-                SameShape,
-                SameElementType,
-                SameInOutDimsOrder,
-                DeclareOpInterfaceMethods<SoftMaxLayerInterface>
+                IERT_SameShape,
+                IERT_SameElementType,
+                IERT_SameInOutDimsOrder
             ]
         > {
     let summary = "SoftMax UPA SHAVE kernel";
@@ -476,8 +476,8 @@ def VPUIP_PoolingUPAOp :
         VPUIP_UPATaskOp<1, "PoolingUPA",
             [
                 ViewLikeOpInterface,
-                SameElementType,
-                SameInOutDimsOrder_CHW_HWC_NCHW_NHWC
+                IERT_SameElementType,
+                IERT_SameInOutDimsOrder_CHW_HWC_NCHW_NHWC
             ]
         > {
     let summary = "MAX and AVG Pooling UPA SHAVE kernel";
@@ -538,7 +538,7 @@ def VPUIP_ConvolutionUPAOp :
         VPUIP_UPATaskOp<1, "ConvolutionUPA",
             [
                 ViewLikeOpInterface,
-                SameElementType
+                IERT_SameElementType
             ]
         > {
     let summary = "Convolution UPA SHAVE kernel (reference implementation)";
@@ -587,7 +587,7 @@ def VPUIP_ConvolutionUPAOp :
     }];
 
     let extraClassDeclaration = [{
-        static bool isSupportedLayout(mlir::Operation* op, vpux::DataOrderInfo& info);
+        static bool isSupportedLayout(mlir::Operation* op, vpux::IE::DataOrderInfo& info);
     }] # commonExtraClassDeclaration;
 
     let verifier = [{
@@ -603,9 +603,9 @@ def VPUIP_ReLUUPAOp :
         VPUIP_UPATaskOp<1, "ReLUUPA",
             [
                 ViewLikeOpInterface,
-                SameShape,
-                SameElementType,
-                SameInOutDimsOrder,
+                IERT_SameShape,
+                IERT_SameElementType,
+                IERT_SameInOutDimsOrder,
                 VPUIP_Legacy4D
             ]
         > {
@@ -654,9 +654,9 @@ def VPUIP_SigmoidUPAOp :
         VPUIP_UPATaskOp<1, "SigmoidUPA",
             [
                 ViewLikeOpInterface,
-                SameShape,
-                SameElementType,
-                SameInOutDimsOrder,
+                IERT_SameShape,
+                IERT_SameElementType,
+                IERT_SameInOutDimsOrder,
                 VPUIP_Legacy4D
             ]
         > {
@@ -705,9 +705,9 @@ def VPUIP_HSwishUPAOp :
         VPUIP_UPATaskOp<1, "HSwishUPA",
             [
                 ViewLikeOpInterface,
-                SameShape,
-                SameElementType,
-                SameInOutDimsOrder,
+                IERT_SameShape,
+                IERT_SameElementType,
+                IERT_SameInOutDimsOrder,
                 VPUIP_Legacy4D
             ]
         > {
@@ -756,9 +756,9 @@ def VPUIP_MishUPAOp :
         VPUIP_UPATaskOp<1, "MishUPA",
             [
                 ViewLikeOpInterface,
-                SameShape,
-                SameElementType,
-                SameInOutDimsOrder,
+                IERT_SameShape,
+                IERT_SameElementType,
+                IERT_SameInOutDimsOrder,
                 VPUIP_Legacy4D
             ]
         > {
@@ -807,9 +807,9 @@ def VPUIP_ClampUPAOp :
         VPUIP_UPATaskOp<1, "ClampUPA",
             [
                 ViewLikeOpInterface,
-                SameShape,
-                SameElementType,
-                SameInOutDimsOrder,
+                IERT_SameShape,
+                IERT_SameElementType,
+                IERT_SameInOutDimsOrder,
                 VPUIP_Legacy4D
             ]
         > {
@@ -864,9 +864,9 @@ def VPUIP_EluUPAOp :
         VPUIP_UPATaskOp<1, "EluUPA",
             [
                 ViewLikeOpInterface,
-                SameShape,
-                SameElementType,
-                SameInOutDimsOrder,
+                IERT_SameShape,
+                IERT_SameElementType,
+                IERT_SameInOutDimsOrder,
                 VPUIP_Legacy4D
             ]
         > {
@@ -920,9 +920,9 @@ def VPUIP_TanhUPAOp :
         VPUIP_UPATaskOp<1, "TanhUPA",
             [
                 ViewLikeOpInterface,
-                SameShape,
-                SameElementType,
-                SameInOutDimsOrder,
+                IERT_SameShape,
+                IERT_SameElementType,
+                IERT_SameInOutDimsOrder,
                 VPUIP_Legacy4D
             ]
         > {
@@ -971,9 +971,9 @@ def VPUIP_ExpUPAOp :
         VPUIP_UPATaskOp<1, "ExpUPA",
             [
                 ViewLikeOpInterface,
-                SameShape,
-                SameElementType,
-                SameDimsOrder,
+                IERT_SameShape,
+                IERT_SameElementType,
+                IERT_SameDimsOrder,
                 VPUIP_Legacy4D
             ]
         > {
@@ -1022,9 +1022,9 @@ def VPUIP_FakeQuantizeUPAOp :
         VPUIP_UPATaskOp<1, "FakeQuantizeUPA",
             [
                 ViewLikeOpInterface,
-                SameShape,
-                SameElementType,
-                SameInOutDimsOrder_CHW_HWC_NCHW_NHWC,
+                IERT_SameShape,
+                IERT_SameElementType,
+                IERT_SameInOutDimsOrder_CHW_HWC_NCHW_NHWC,
                 VPUIP_Legacy4D
             ]
         > {
@@ -1084,7 +1084,7 @@ def VPUIP_QuantCastUPAOp :
         VPUIP_UPATaskOp<1, "QuantCastUPA",
             [
                 ViewLikeOpInterface,
-                SameShape,
+                IERT_SameShape,
                 VPUIP_Legacy4D
             ]
         > {
@@ -1123,7 +1123,7 @@ def VPUIP_QuantCastUPAOp :
     }];
 
     let extraClassDeclaration = [{
-        static bool isSupportedLayout(mlir::Operation* op, vpux::DataOrderInfo& info);
+        static bool isSupportedLayout(mlir::Operation* op, vpux::IE::DataOrderInfo& info);
     }] # commonExtraClassDeclaration;
 }
 
@@ -1135,7 +1135,7 @@ def VPUIP_PReluUPAOp :
         VPUIP_UPATaskOp<1, "PReluUPA",
             [
                 ViewLikeOpInterface,
-                SameInOutDimsOrder
+                IERT_SameInOutDimsOrder
             ]
         > {
     let summary = "PRelu UPA SHAVE kernel";
@@ -1183,7 +1183,7 @@ def VPUIP_LeakyReluUPAOp :
         VPUIP_UPATaskOp<1,  "LeakyReluUPA",
             [
                 ViewLikeOpInterface,
-                SameInOutDimsOrder
+                IERT_SameInOutDimsOrder
             ]
         > {
     let summary = "LeakyRelu UPA SHAVE kernel";
@@ -1232,7 +1232,7 @@ def VPUIP_EltwiseUPAOp :
         VPUIP_UPATaskOp<1, "EltwiseUPA",
             [
                 ViewLikeOpInterface,
-                AnyDimsOrder
+                IERT_AnyDimsOrder
             ]
         > {
     let summary = "Eltwise UPA SHAVE kernel";
@@ -1283,7 +1283,7 @@ def VPUIP_DetectionOutputUPAOp :
         VPUIP_UPATaskOp<1, "DetectionOutputUPA",
             [
                 ViewLikeOpInterface,
-                AnyDimsOrder
+                IERT_AnyDimsOrder
             ]
         > {
     let summary = "DetectionOutput UPA SHAVE kernel";
@@ -1338,7 +1338,7 @@ def VPUIP_SwishUPAOp :
         VPUIP_UPATaskOp<1, "SwishUPA",
             [
                 ViewLikeOpInterface,
-                SameInOutDimsOrder
+                IERT_SameInOutDimsOrder
             ]
         > {
     let summary = "Swish UPA SHAVE kernel";
@@ -1387,7 +1387,7 @@ def VPUIP_GRNUPAOp :
         VPUIP_UPATaskOp<1, "GRNUPA",
             [
                 ViewLikeOpInterface,
-                SameInOutDimsOrder_NCHW_NHWC
+                IERT_SameInOutDimsOrder_NCHW_NHWC
             ]
         > {
     let summary = "GRN UPA SHAVE kernel";
@@ -1436,9 +1436,9 @@ def VPUIP_ScaleShiftUPAOp :
         VPUIP_UPATaskOp<1, "ScaleShiftUPA",
             [
                 ViewLikeOpInterface,
-                SameElementType,
-                SameDimsOrder,
-		VPUIP_Legacy4D
+                IERT_SameElementType,
+                IERT_SameDimsOrder,
+                VPUIP_Legacy4D
             ]
         > {
     let summary = "ScaleShift UPA SHAVE kernel";
@@ -1491,7 +1491,7 @@ def VPUIP_PerAxisTileUPAOp :
         VPUIP_UPATaskOp<1, "PerAxisTileUPA",
             [
                 ViewLikeOpInterface,
-                SameInOutDimsOrder
+                IERT_SameInOutDimsOrder
             ]
         > {
     let summary = "Tile for per axis case UPA SHAVE kernel";
@@ -1541,7 +1541,7 @@ def VPUIP_NegativeUPAOp :
         VPUIP_UPATaskOp<1, "NegativeUPA",
             [
                 ViewLikeOpInterface,
-                AnyDimsOrder
+                IERT_AnyDimsOrder
             ]
         > {
     let summary = "Negative UPA SHAVE kernel";
@@ -1585,7 +1585,7 @@ def VPUIP_ProposalUPAOp :
         VPUIP_UPATaskOp<1, "ProposalUPA",
             [
                 ViewLikeOpInterface,
-                AnyDimsOrder
+                IERT_AnyDimsOrder
             ]
         > {
     let summary = "Proposal UPA SHAVE kernel";
@@ -1636,7 +1636,7 @@ def VPUIP_ROIPoolingUPAOp :
         VPUIP_UPATaskOp<1, "ROIPoolingUPA",
             [
                 ViewLikeOpInterface,
-                SameInOutDimsOrder_CHW_HWC_NCHW_NHWC
+                IERT_SameInOutDimsOrder_CHW_HWC_NCHW_NHWC
             ]
         > {
     let summary = "ROIPooling UPA SHAVE kernel";
@@ -1689,7 +1689,7 @@ def VPUIP_PermuteUPAOp :
         VPUIP_UPATaskOp<1, "PermuteUPA",
             [
                 ViewLikeOpInterface,
-                AnyDimsOrder
+                IERT_AnyDimsOrder
             ]
         > {
     let summary = "Permute UPA SHAVE kernel";
@@ -1920,12 +1920,12 @@ def VPUIP_NCEClusterTaskOp :
         vpux::VPUIP::PPETaskOp addPPETask(mlir::OpBuilder& builder,
                                           vpux::VPUIP::PPELayerType ppe_layer_type);
 
-        static bool isSupportedLayout(mlir::Operation* op, vpux::DataOrderInfo& info);
+        static bool isSupportedLayout(mlir::Operation* op, vpux::IE::DataOrderInfo& info);
 
         static vpux::VPUIP::TaskType getTaskType() {
             return vpux::VPUIP::TaskType::NCE2;
         }
-    }] # InferReturnTypesForRTLayer<1>.impl;
+    }] # IERT_InferLayerReturnTypes<1>.impl;
 }
 
 //
@@ -1982,7 +1982,7 @@ def VPUIP_CTCGreedyDecoderUPAOp :
     }];
 
     let extraClassDeclaration = [{
-        static bool isSupportedLayout(mlir::Operation* op, vpux::DataOrderInfo& info);
+        static bool isSupportedLayout(mlir::Operation* op, vpux::IE::DataOrderInfo& info);
     }] # commonExtraClassDeclaration;
 }
 
@@ -2039,7 +2039,7 @@ def VPUIP_CTCGreedyDecoderSeqLenUPAOp :
     }];
 
     let extraClassDeclaration = [{
-        static bool isSupportedLayout(mlir::Operation* op, vpux::DataOrderInfo& info);
+        static bool isSupportedLayout(mlir::Operation* op, vpux::IE::DataOrderInfo& info);
     }] # commonExtraClassDeclaration;
 }
 
@@ -2051,7 +2051,7 @@ def VPUIP_PadUPAOp :
         VPUIP_UPATaskOp<1,"Pad",
             [
                 ViewLikeOpInterface,
-                SameInOutDimsOrder
+                IERT_SameInOutDimsOrder
             ]
         > {
     let summary = "Pad UPA SHAVE kernel";
@@ -2105,7 +2105,7 @@ def VPUIP_LSTMCellUPAOp :
         VPUIP_UPATaskOp<2, "LSTMCellUPA",
             [
                 MultiViewOpInterface,
-                SameInOutDimsOrder
+                IERT_SameInOutDimsOrder
             ]
         > {
     let summary = "LSTMCell UPA SHAVE kernel";
@@ -2161,7 +2161,7 @@ def VPUIP_InterpolateUPAOp :
         VPUIP_UPATaskOp<1,"Interpolate",
             [
                 ViewLikeOpInterface,
-                SameInOutDimsOrder_NCHW_NHWC
+                IERT_SameInOutDimsOrder_NCHW_NHWC
             ]
         > {
     let summary = "Interpolate UPA SHAVE kernel";
@@ -2220,7 +2220,7 @@ def VPUIP_StridedSliceUPAOp :
      VPUIP_UPATaskOp<1, "StridedSlice",
          [
              ViewLikeOpInterface,
-             AnyDimsOrder
+             IERT_AnyDimsOrder
          ]
      > {
     let summary = "StridedSlice UPA SHAVE kernel";
@@ -2301,7 +2301,7 @@ def VPUIP_FullyConnectedUPAOp :
     ];
 
     let extraClassDeclaration = [{
-        static bool isSupportedLayout(mlir::Operation* op, vpux::DataOrderInfo& info);
+        static bool isSupportedLayout(mlir::Operation* op, vpux::IE::DataOrderInfo& info);
     }] # commonExtraClassDeclaration;
 
     let assemblyFormat = [{
@@ -2370,7 +2370,7 @@ def VPUIP_RegionYoloUPAOp :
     }];
 
     let extraClassDeclaration = [{
-        static bool isSupportedLayout(mlir::Operation* op, vpux::DataOrderInfo& info);
+        static bool isSupportedLayout(mlir::Operation* op, vpux::IE::DataOrderInfo& info);
     }] # commonExtraClassDeclaration;
 }
 

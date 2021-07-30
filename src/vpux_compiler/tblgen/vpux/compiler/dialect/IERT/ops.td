@@ -17,7 +17,9 @@
 include "vpux/compiler/core/attributes.td"
 include "vpux/compiler/core/ops_interfaces.td"
 include "vpux/compiler/dialect/IE/attributes.td"
+include "vpux/compiler/dialect/IE/ops_interfaces.td"
 include "vpux/compiler/dialect/IERT/dialect.td"
+include "vpux/compiler/dialect/IERT/ops_interfaces.td"
 include "vpux/compiler/dialect/IE/attributes.td"
 
 include "mlir/Dialect/Quant/QuantOpsBase.td"
@@ -45,11 +47,11 @@ class IERT_LayerOp<int numResult, string mnemonic, list<OpTrait> traits = []> :
                 [
                     NoSideEffect,
                     InferTypeOpInterface,
-                    DeclareOpInterfaceMethods<RTLayerInterface>
+                    DeclareOpInterfaceMethods<IERT_LayerOpInterface>
                 ]
             )
         > {
-    let extraClassDeclaration = InferReturnTypesForRTLayer<numResult>.impl;
+    let extraClassDeclaration = IERT_InferLayerReturnTypes<numResult>.impl;
 }
 
 //
@@ -257,8 +259,7 @@ def IERT_ConvertOp :
         IERT_LayerOp<1, "Convert",
             [
                 SameOperandsShape,
-                ViewLikeOpInterface,
-                DeclareOpInterfaceMethods<ConvertLayerInterface>
+                ViewLikeOpInterface
             ]
         > {
     let summary = "InferenceEngine run-time Convert layer";
@@ -352,9 +353,8 @@ def IERT_SoftMaxOp :
         IERT_LayerOp<1, "SoftMax",
             [
                 SameOperandsShape,
-                ViewLikeOpInterface,
                 SameOperandsElementType,
-                DeclareOpInterfaceMethods<SoftMaxLayerInterface>
+                ViewLikeOpInterface
             ]
         > {
     let summary = "InferenceEngine run-time SoftMax layer";
@@ -1611,7 +1611,7 @@ def IERT_ConcatViewOp :
         mlir::Value getViewSource() {
             return output_buff();
         }
-    }] # InferReturnTypesForRTLayer<1>.impl;
+    }] # IERT_InferLayerReturnTypes<1>.impl;
 }
 
 //

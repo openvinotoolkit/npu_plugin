@@ -74,21 +74,21 @@ mlir::LogicalResult GenericConverter<ConcreteOp>::matchAndRewrite(ConcreteOp pos
     }
 
     auto* mainOp = postOp.input().getDefiningOp();
-    auto multiLayer = mlir::dyn_cast_or_null<IE::MultiLayerInterface>(mainOp);
+    auto baseLayer = mlir::dyn_cast_or_null<IE::LayerWithPostOpInterface>(mainOp);
 
-    if (!multiLayer || !_layerInfo->isSupportedPostProcessing(mainOp, postOp)) {
+    if (!baseLayer || !_layerInfo->isSupportedPostProcessing(mainOp, postOp)) {
         return matchFailed(_log, rewriter, postOp,
                            "Failed to fuse PostOp, since its producer does not support post-processing");
     }
 
-    if (multiLayer.getPostOp() != nullptr) {
+    if (baseLayer.post_op().hasValue()) {
         return matchFailed(_log, rewriter, postOp,
                            "Failed to fuse PostOp, since its producer already have post-processing");
     }
 
     const auto postOpAttr = getPostOpAttr(postOp);
 
-    multiLayer.setPostOp(postOpAttr);
+    baseLayer.post_opAttr(postOpAttr);
     rewriter.replaceOp(postOp, mainOp->getResult(0));
 
     return mlir::success();

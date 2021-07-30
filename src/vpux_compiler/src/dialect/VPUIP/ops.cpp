@@ -39,7 +39,7 @@ public:
 public:
     bool isSupportedPostProcessing(mlir::Operation* origOp, mlir::Operation* postOp) const final;
     bool needToExpandChannels(mlir::Operation* origOp) const final;
-    bool isSupportedLayout(mlir::Operation* origOp, DataOrderInfo& info) const final;
+    bool isSupportedLayout(mlir::Operation* origOp, IE::DataOrderInfo& info) const final;
 };
 
 bool LayerInfo::isSupportedPostProcessing(mlir::Operation* origOp, mlir::Operation* postOp) const {
@@ -105,7 +105,7 @@ bool LayerInfo::needToExpandChannels(mlir::Operation* origOp) const {
 #undef HW_OPS_CASE
 }
 
-bool LayerInfo::isSupportedLayout(mlir::Operation* origOp, DataOrderInfo& info) const {
+bool LayerInfo::isSupportedLayout(mlir::Operation* origOp, IE::DataOrderInfo& info) const {
     auto module = origOp->getParentOfType<mlir::ModuleOp>();
     const auto compileMode = VPUIP::getCompilationMode(module);
 

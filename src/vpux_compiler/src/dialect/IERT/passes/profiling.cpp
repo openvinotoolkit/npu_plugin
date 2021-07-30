@@ -75,7 +75,7 @@ void TimestampProfilingPass::safeRunOnModule() {
     const auto callback = [&](mlir::Operation* op) {
         _log.trace("Process Operation '{0}'", op->getLoc());
 
-        auto curTask = mlir::dyn_cast<RTLayerInterface>(op);
+        auto curTask = mlir::dyn_cast<IERT::LayerOpInterface>(op);
         if (curTask == nullptr) {
             _log.trace("It is not a VPUIP Task");
             return;

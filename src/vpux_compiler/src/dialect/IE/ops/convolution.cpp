@@ -58,16 +58,16 @@ mlir::LogicalResult FuseConvAndBias::matchAndRewrite(IE::ScaleShiftOp biasOp, ml
                            "Failed to fuse ScaleShift, since it is not the only user of its input Value");
     }
 
-    auto convOp = mlir::dyn_cast_or_null<ConvolutionLayerInterface>(biasOp.input().getDefiningOp());
-
-    if (convOp == nullptr) {
+    auto* convOp = biasOp.input().getDefiningOp();
+    if (convOp == nullptr || !mlir::isa<IE::ConvolutionOp, IE::GroupConvolutionOp>(convOp)) {
         return matchFailed(rewriter, biasOp, "Failed to fuse ScaleShift, its producer is not a Convolution layer");
     }
-    if (convOp->getNumOperands() != 2 || convOp.bias() != nullptr) {
+
+    if (convOp->getNumOperands() != 2) {
         return matchFailed(rewriter, biasOp, "Failed to fuse ScaleShift, its producer already has fused biases");
     }
 
-    const auto convOutShape = getShape(convOp.output());
+    const auto convOutShape = getShape(convOp->getOpResult(0));
     const auto biasShape = getShape(biasOp.biases());
 
     if (biasShape.size() != 4) {

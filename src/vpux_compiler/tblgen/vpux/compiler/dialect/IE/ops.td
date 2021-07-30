@@ -46,12 +46,12 @@ class IE_LayerOp<string mnemonic, list<OpTrait> traits = []> :
                 NoSideEffect,
                 InferTypeOpInterface,
                 DeclareOpInterfaceMethods<InferShapedTypeOpInterface, ["inferReturnTypeComponents"]>,
-                DeclareOpInterfaceMethods<LayerInterface>
+                DeclareOpInterfaceMethods<IE_LayerOpInterface>
             ] # traits
         > {
     let extraClassDeclaration = [{
         static bool isCompatibleReturnTypes(mlir::TypeRange lhs, mlir::TypeRange rhs) {
-            return vpux::isCompatibleShapeAndElemType(lhs, rhs);
+            return vpux::IE::isCompatibleShapeAndElemType(lhs, rhs);
         }
     }];
 
@@ -169,8 +169,7 @@ def IE_ConvertOp :
         IE_LayerOp<
             "Convert",
             [
-                DeclareOpInterfaceMethods<CastOpInterface>,
-                DeclareOpInterfaceMethods<ConvertLayerInterface>
+                DeclareOpInterfaceMethods<CastOpInterface>
             ]
         > {
     let summary = "InferenceEngine Convert layer";
@@ -231,8 +230,7 @@ def IE_SoftMaxOp :
             "SoftMax",
             [
                 ResultsAreFloatLike,
-                SameOperandsAndResultType,
-                DeclareOpInterfaceMethods<SoftMaxLayerInterface>
+                SameOperandsAndResultType
             ]
         > {
     let summary = "InferenceEngine SoftMax layer";
@@ -508,8 +506,7 @@ def IE_ConvolutionOp :
         IE_LayerOp<
             "Convolution",
             [
-                DeclareOpInterfaceMethods<MultiLayerInterface>,
-                ConvolutionLayerInterface
+                IE_LayerWithPostOpInterface
             ]
         > {
     let summary = "InferenceEngine Convolution layer";
@@ -543,8 +540,7 @@ def IE_GroupConvolutionOp :
             "GroupConvolution",
             [
                 ResultsAreFloatLike,
-                DeclareOpInterfaceMethods<MultiLayerInterface>,
-                ConvolutionLayerInterface
+                IE_LayerWithPostOpInterface
             ]
         > {
     let summary = "InferenceEngine GroupConvolution layer";
@@ -607,7 +603,7 @@ def IE_MaxPoolOp :
         IE_LayerOp<
             "MaxPool",
             [
-                DeclareOpInterfaceMethods<MultiLayerInterface>
+                IE_LayerWithPostOpInterface
             ]
         > {
     let summary = "InferenceEngine MaxPool layer";

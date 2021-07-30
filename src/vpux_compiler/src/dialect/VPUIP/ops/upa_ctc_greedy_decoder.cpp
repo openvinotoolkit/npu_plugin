@@ -36,7 +36,7 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(CTCGreedyDecoderUPAOp op) {
     return mlir::success();
 }
 
-bool vpux::VPUIP::CTCGreedyDecoderUPAOp::isSupportedLayout(mlir::Operation* op, vpux::DataOrderInfo& info) {
+bool vpux::VPUIP::CTCGreedyDecoderUPAOp::isSupportedLayout(mlir::Operation* op, IE::DataOrderInfo& info) {
     const auto ctcGreedyDecoderOp = mlir::dyn_cast<IE::CTCGreedyDecoderOp>(op);
     VPUX_THROW_UNLESS(ctcGreedyDecoderOp != nullptr, "Operation {0} is not CTCGreedyDecoderOp", op->getName());
 

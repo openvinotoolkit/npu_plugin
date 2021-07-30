@@ -23,7 +23,7 @@ using namespace vpux;
 
 mlir::LogicalResult vpux::VPUIP::verifyOp(SoftMaxUPAOp op) {
     const auto inShape = getShape(op.input());
-    const auto axis = op.getAxisDim();
+    const auto axis = Dim(op.axisInd());
 
     if (inShape[axis] == 1) {
         return errorAt(op, "Softmax on 1 element doesn't make sense (dim along the 'axis' equal 1)");
@@ -44,10 +44,8 @@ void vpux::VPUIP::SoftMaxUPAOp::build(mlir::OpBuilder& builder, mlir::OperationS
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::SoftMaxUPAOp::serialize(VPUIP::BlobWriter& writer) {
-    const auto axisDim = getAxisDim();
-
     MVCNN::SoftmaxParamsBuilder builder(writer);
-    builder.add_axis(checked_cast<uint32_t>(axisDim.ind()));
+    builder.add_axis(checked_cast<uint32_t>(axisInd()));
     const auto paramsOff = builder.Finish();
 
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_SoftmaxParams});
