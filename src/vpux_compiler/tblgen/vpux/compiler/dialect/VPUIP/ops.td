@@ -182,6 +182,45 @@ def VPUIP_DeclareTensorOp :
 }
 
 //
+// DeclareKernelDataOp
+//
+
+def VPUIP_DeclareKernelDataOp :
+        VPUIP_Op<
+            "DeclareKernelData",
+            [
+                NoSideEffect
+            ]
+        > {
+    let summary = "KernelData Reference declaration";
+
+    let arguments = (ins
+        StrAttr:$name,
+        VPUIP_MemoryLocation:$locale,
+        UI32Attr:$localeIndex,
+
+        OptionalAttr<UI32Attr>:$dataOffset,
+        OptionalAttr<UI32Attr>:$dataSize
+    );
+
+    let results = (outs
+        AnyMemRef:$memory
+    );
+
+
+    let assemblyFormat = [{
+        `<` $name `>`
+        $locale
+        $localeIndex
+        attr-dict
+        `->` type(results)
+    }];
+
+
+}
+
+
+//
 // DeclareVirtualBarrierOp
 //
 
@@ -2531,7 +2570,9 @@ def VPUIP_ACTShaveTaskOp :
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers,
 
-        StrAttr:$kernel,
+        AnyMemRef:$kernelData,
+
+//        StrAttr:$kernel,
 //        I64ArrayAttr:$outers,
 //        I64ArrayAttr:$middles,
 //        ArrayAttr:$inits,
@@ -2547,7 +2588,8 @@ def VPUIP_ACTShaveTaskOp :
             (ins
                 "mlir::ValueRange":$inputs,
                 "mlir::ValueRange":$outputs,
-                "mlir::StringAttr":$kernel
+                "mlir::Value":$kernelData
+//                "mlir::StringAttr":$kernel
 //                "::mlir::ArrayAttr":$outers,
 //                "::mlir::ArrayAttr":$middles,
 //                "::mlir::ArrayAttr":$inits
@@ -2556,8 +2598,10 @@ def VPUIP_ACTShaveTaskOp :
         >
     ];
 
+
     let assemblyFormat = [{
         attr-dict
+        `kernel` `(` $kernelData `:` type($kernelData) `)`
         (`inputs` `(` $inputs^ `:` type($inputs) `)`)?
         (`outputs` `(` $outputs^ `:` type($outputs) `)`)?
         (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?

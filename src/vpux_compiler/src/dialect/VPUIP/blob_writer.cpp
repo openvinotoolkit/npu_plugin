@@ -32,6 +32,7 @@
 
 #include <mlir/Dialect/Quant/QuantTypes.h>
 
+#include <vpux/compiler/act_kernels/act_kernel_gen.h>
 #include <algorithm>
 
 using namespace vpux;
@@ -80,15 +81,42 @@ VPUIP::BlobWriter::Task vpux::VPUIP::BlobWriter::createTask(mlir::Operation* op)
     return off;
 }
 
-VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createACTShaveTask(mlir::Operation* op,
-                                                                            const ActShaveTaskParams& params) {
+VPUIP::BlobWriter::KernelData vpux::VPUIP::BlobWriter::createKernelData(StringRef name) {
+
+    movitools::MoviCompileParams params = {
+            /*cpu=*/"3010xx",
+            /*moviCompile=*/"linux64/bin/moviCompile",
+            /*mdkLinker=*/"linux64/sparc-myriad-rtems-6.3.0/bin/sparc-myriad-rtems-ld",
+            /*mdkObjCopy=*/"linux64/sparc-myriad-rtems-6.3.0/bin/sparc-myriad-rtems-objcopy",
+            /*mdkLibDir=*/"common/moviCompile/lib/30xxxx-leon",
+            /*mdkLibs=*/
+            {
+                "mlibm.a",
+                "mlibcxx.a",
+                "mlibneon.a",
+                "mlibVecUtils.a",
+                "mlibc_lite.a",
+                "mlibc_lite_lgpl.a",
+                "mlibcrt.a",
+                },
+                };
+
+    auto elfBinary = generateKernelForACTShave(name, params, _impl);
+
+    return elfBinary.text;
+}
+
+VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createACTShaveTask(mlir::Operation* op) {
     VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in createACTShaveTask");
 
     auto layer = mlir::dyn_cast<RTLayerInterface>(op);
     VPUX_THROW_UNLESS(layer != nullptr, "Operation '{0}' is not a RT Layer", op->getName());
 
-    auto upaTask = mlir::dyn_cast<VPUIP::ACTShaveTaskOpInterface>(op);
-    VPUX_THROW_UNLESS(upaTask != nullptr, "Operation '{0}' is not a ACTShave Task", op->getName());
+    //auto actShaveTask = mlir::dyn_cast<VPUIP::ACTShaveTaskOpInterface>(op);
+    //VPUX_THROW_UNLESS(actShaveTask != nullptr, "Operation '{0}' is not a ACTShave Task", op->getName());
+
+    auto actShaveTask = mlir::dyn_cast<VPUIP::ACTShaveTaskOp>(op);
+    VPUX_THROW_UNLESS(actShaveTask != nullptr, "Operation '{0}' is not a ACTShave Task", op->getName());
 
     const auto getTensorCb = [this](mlir::Value val) {
       return getTensor(val);
@@ -97,21 +125,28 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createACTShaveTask(mlir
     const auto inputs = createVector(layer.getInputs() | transformed(getTensorCb));
     const auto outputs = createVector(layer.getOutputs() | transformed(getTensorCb));
 
+    ///TODO: how to access this kernel data using ANYMemref
+    //VPUIP::DeclareKernelDataOpAdaptor kernelDataAdaptor({}, actShaveTask.kernelData().getType());
+
+    MVCNN::MemoryLocation location;
+    auto str = _impl.CreateString("sigmoid");
+    MVCNN::KernelDataReferenceBuilder kernelDataBuilder(_impl);
+    //kernelDataBuilder.add_locale(::mlir::cast<MVCNN::MemoryLocation>(op->getAttr(kernelDataAdaptor.locale()));
+
+    kernelDataBuilder.add_name(str);
+
+    auto dataRef = kernelDataBuilder.Finish();
+
     MVCNN::ActKernelBuilder kernelbuilder(_impl);
     //kernelbuilder.add_globalArgs()
-    kernelbuilder.add_type(params.type);
+    kernelbuilder.add_kernelText(dataRef);
+    kernelbuilder.add_type(MVCNN::ActKernelType_KERNEL);
     kernelbuilder.add_kernelEntry(0);
 
     auto kernel = kernelbuilder.Finish();
 
-    // TODO: currently only single invocation
-    MVCNN::KernelDataReferenceBuilder kdrBuilder(_impl);
-    //kdrBuilder.
-    auto kdrReference = kdrBuilder.Finish();
-
     MVCNN::ActKernelInvocationBuilder invocationBuilder(_impl);
-    //kdrBuilder.
-    invocationBuilder.add_dataSection(kdrReference);
+    invocationBuilder.add_dataSection(dataRef);
     //invocationBuilder.add_invocationArgs();
 
     std::vector<flatbuffers::Offset<MVCNN::ActKernelInvocation>> invocations_v1 = {invocationBuilder.Finish()};
