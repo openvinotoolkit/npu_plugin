@@ -33,8 +33,8 @@ func @main(%arg0: tensor<1x3x30x30xf16, {order = #NHWC}>) -> tensor<1x3x15x13xf1
     %0 = IE.Reorder(%arg0) {dstOrder = #NCHW} : tensor<1x3x30x30xf16, {order = #NHWC}> -> tensor<1x3x30x30xf16>
 
     %1 = IE.Expand(%0) {
-        pads_begin_attr = [0, 0, 0, 0],
-        pads_end_attr = [0, 13, 0, 0]
+        pads_begin = [0, 0, 0, 0],
+        pads_end = [0, 13, 0, 0]
     } : tensor<1x3x30x30xf16> -> tensor<1x16x30x30xf16>
 
     %2 = IE.MaxPool(%1) {

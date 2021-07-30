@@ -17,6 +17,8 @@
 #include "vpux/compiler/dialect/IERT/ops_interfaces.hpp"
 #include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
 
+#include "vpux/utils/core/numeric.hpp"
+
 #include <mlir/Dialect/Quant/QuantTypes.h>
 #include <mlir/IR/BuiltinAttributes.h>
 
@@ -46,6 +48,15 @@ bool LayerInfo::isSupportedPostProcessing(mlir::Operation* origOp, mlir::Operati
 
     if (!mlir::isa<IE::ReLUOp, IE::ScaleShiftOp, IE::ClampOp>(postOp)) {
         return false;
+    }
+
+    if (auto clampOp = mlir::dyn_cast<IE::ClampOp>(postOp)) {
+        const auto minVal = clampOp.minAttr().getValueAsDouble();
+        if (!isDoubleEqual(minVal, 0.0)) {
+            return false;
+        }
+
+        // TODO: should be check maxVal?
     }
 
 #define HW_OPS_CASE(_IE_OP_)                                      \

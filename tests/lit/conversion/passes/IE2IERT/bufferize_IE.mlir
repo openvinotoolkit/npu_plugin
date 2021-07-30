@@ -85,7 +85,7 @@ func @Concat(%arg0: tensor<1x2x3x4xf32>, %arg1: tensor<1x2x3x4xf32>) -> tensor<1
 // -----
 
 func @ExpandToSubview(%arg0: tensor<1x3x4x4xf16>) -> tensor<1x8x4x4xf16> {
-  %0 = IE.Expand(%arg0) {pads_begin_attr = [0, 0, 0, 0], pads_end_attr = [0, 5, 0, 0]} : tensor<1x3x4x4xf16> -> tensor<1x8x4x4xf16>
+  %0 = IE.Expand(%arg0) {pads_begin = [0, 0, 0, 0], pads_end = [0, 5, 0, 0]} : tensor<1x3x4x4xf16> -> tensor<1x8x4x4xf16>
   // CHECK:       %0 = unrealized_conversion_cast %arg0 : tensor<1x3x4x4xf16> to memref<1x3x4x4xf16>
   // CHECK:       %1 = memref.alloc() : memref<1x8x4x4xf16>
   // CHECK:       %2 = memref.subview %1[0, 0, 0, 0] [1, 3, 4, 4] [1, 1, 1, 1] : memref<1x8x4x4xf16> to memref<1x3x4x4xf16, #map>

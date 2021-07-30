@@ -13,112 +13,128 @@
 
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
+#include "vpux/compiler/dialect/IE/ops.hpp"
+#include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/quantization.hpp"
+#include "vpux/compiler/utils/rewriter.hpp"
+#include "vpux/compiler/utils/types.hpp"
 
 #include <mlir/Dialect/Quant/QuantTypes.h>
 #include <mlir/IR/PatternMatch.h>
 #include <mlir/Transforms/DialectConversion.h>
 #include <mlir/Transforms/GreedyPatternRewriteDriver.h>
-#include "vpux/compiler/dialect/IE/ops.hpp"
-#include "vpux/compiler/utils/attributes.hpp"
-#include "vpux/compiler/utils/rewriter.hpp"
-#include "vpux/compiler/utils/types.hpp"
 
 using namespace vpux;
 
 namespace {
 
-class CanFuseDeQuantAndQuantIntoConv final : public mlir::OpRewritePattern<mlir::quant::QuantizeCastOp> {
+//
+// FuseWithConv
+//
+
+//
+//       [input]
+//          |
+//     (dequantize)
+//          |
+//        (conv) --- (dequantize) -- [filter]
+//          |
+//       [output]
+//          |
+//      (quantize)
+//
+
+class FuseWithConv final : public mlir::OpRewritePattern<mlir::quant::QuantizeCastOp> {
 public:
-    CanFuseDeQuantAndQuantIntoConv(mlir::MLIRContext* ctx, Logger log)
+    FuseWithConv(mlir::MLIRContext* ctx, Logger log)
             : mlir::OpRewritePattern<mlir::quant::QuantizeCastOp>(ctx), _log(log) {
+        setDebugName("FuseWithConv");
     }
 
 public:
-    mlir::LogicalResult matchAndRewrite(mlir::quant::QuantizeCastOp origOp,
+    mlir::LogicalResult matchAndRewrite(mlir::quant::QuantizeCastOp quantizeOp,
                                         mlir::PatternRewriter& rewriter) const final;
 
 private:
     Logger _log;
 };
 
-mlir::LogicalResult CanFuseDeQuantAndQuantIntoConv::matchAndRewrite(mlir::quant::QuantizeCastOp origOp,
-                                                                    mlir::PatternRewriter& rewriter) const {
-    //     convInputDeQuantize
-    //          |
-    //          |
-    //         conv --- dequant -- weights
-    //          |
-    //          |
-    //      outputQuantize
-
-    auto conv = origOp.arg().getDefiningOp<IE::ConvolutionOp>();
-    if (conv == nullptr) {
+mlir::LogicalResult FuseWithConv::matchAndRewrite(mlir::quant::QuantizeCastOp quantizeOp,
+                                                  mlir::PatternRewriter& rewriter) const {
+    auto convOp = quantizeOp.arg().getDefiningOp<IE::ConvolutionOp>();
+    if (convOp == nullptr) {
         return mlir::failure();
     }
 
-    auto dequantizeWeights = conv.filter().getDefiningOp<mlir::quant::DequantizeCastOp>();
-    if (dequantizeWeights == nullptr) {
+    auto inputDequantizeOp = convOp.input().getDefiningOp<mlir::quant::DequantizeCastOp>();
+    if (inputDequantizeOp == nullptr) {
         return mlir::failure();
     }
 
-    auto convInputDeQuantize = conv.input().getDefiningOp<mlir::quant::DequantizeCastOp>();
-    if (convInputDeQuantize == nullptr) {
+    auto filterDequantizeOp = convOp.filter().getDefiningOp<mlir::quant::DequantizeCastOp>();
+    if (filterDequantizeOp == nullptr) {
         return mlir::failure();
     }
 
-    auto newConv = rewriter.create<IE::ConvolutionOp>(
-            conv.getLoc(), origOp.getType(), convInputDeQuantize.arg(), dequantizeWeights.arg(), conv.bias(),
-            conv.strides(), conv.pads_begin(), conv.pads_end(), conv.dilations(), conv.post_opAttr());
+    rewriter.replaceOpWithNewOp<IE::ConvolutionOp>(
+            quantizeOp, quantizeOp.getType(), inputDequantizeOp.arg(), filterDequantizeOp.arg(), convOp.bias(),
+            convOp.strides(), convOp.pads_begin(), convOp.pads_end(), convOp.dilations(), convOp.post_opAttr());
 
-    rewriter.replaceOp(origOp, newConv->getResults());
-    return mlir::success();
-}
-
-class CanFuseDeQuantAndQuantIntoPool final : public mlir::OpRewritePattern<mlir::quant::QuantizeCastOp> {
-public:
-    CanFuseDeQuantAndQuantIntoPool(mlir::MLIRContext* ctx, Logger log)
-            : mlir::OpRewritePattern<mlir::quant::QuantizeCastOp>(ctx), _log(log) {
-    }
-
-public:
-    mlir::LogicalResult matchAndRewrite(mlir::quant::QuantizeCastOp origOp,
-                                        mlir::PatternRewriter& rewriter) const final;
-
-private:
-    Logger _log;
-};
-
-mlir::LogicalResult CanFuseDeQuantAndQuantIntoPool::matchAndRewrite(mlir::quant::QuantizeCastOp origOp,
-                                                                    mlir::PatternRewriter& rewriter) const {
-    //     convInputDeQuantize
-    //          |
-    //          |
-    //         pool
-    //          |
-    //          |
-    //      outputQuantize
-
-    auto maxPool = origOp.arg().getDefiningOp<IE::MaxPoolOp>();
-    if (maxPool == nullptr) {
-        return mlir::failure();
-    }
-
-    auto maxPoolInputDeQuantize = maxPool.input().getDefiningOp<mlir::quant::DequantizeCastOp>();
-    if (maxPoolInputDeQuantize == nullptr) {
-        return mlir::failure();
-    }
-
-    auto newMaxPool = rewriter.create<IE::MaxPoolOp>(
-            maxPool.getLoc(), origOp.getType(), maxPoolInputDeQuantize.arg(), maxPool.kernel_size(), maxPool.strides(),
-            maxPool.pads_begin(), maxPool.pads_end(), maxPool.rounding_type(), maxPool.post_opAttr());
-
-    rewriter.replaceOp(origOp, newMaxPool->getResults());
     return mlir::success();
 }
 
 //
-// PropagateQuantizeDequantize
+// FuseWithMaxPool
+//
+
+//
+//       [input]
+//          |
+//     (dequantize)
+//          |
+//        (pool)
+//          |
+//       [output]
+//          |
+//      (quantize)
+//
+
+class FuseWithMaxPool final : public mlir::OpRewritePattern<mlir::quant::QuantizeCastOp> {
+public:
+    FuseWithMaxPool(mlir::MLIRContext* ctx, Logger log)
+            : mlir::OpRewritePattern<mlir::quant::QuantizeCastOp>(ctx), _log(log) {
+        setDebugName("FuseWithMaxPool");
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(mlir::quant::QuantizeCastOp origOp,
+                                        mlir::PatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult FuseWithMaxPool::matchAndRewrite(mlir::quant::QuantizeCastOp quantizeOp,
+                                                     mlir::PatternRewriter& rewriter) const {
+    auto maxPoolOp = quantizeOp.arg().getDefiningOp<IE::MaxPoolOp>();
+    if (maxPoolOp == nullptr) {
+        return mlir::failure();
+    }
+
+    auto inputDequantizeOp = maxPoolOp.input().getDefiningOp<mlir::quant::DequantizeCastOp>();
+    if (inputDequantizeOp == nullptr) {
+        return mlir::failure();
+    }
+
+    rewriter.replaceOpWithNewOp<IE::MaxPoolOp>(
+            quantizeOp, quantizeOp.getType(), inputDequantizeOp.arg(), maxPoolOp.kernel_size(), maxPoolOp.strides(),
+            maxPoolOp.pads_begin(), maxPoolOp.pads_end(), maxPoolOp.rounding_type(), maxPoolOp.post_opAttr());
+
+    return mlir::success();
+}
+
+//
+// PropagateQuantizeDequantizePass
 //
 
 class PropagateQuantizeDequantizePass final :
@@ -134,15 +150,17 @@ private:
 
 void PropagateQuantizeDequantizePass::safeRunOnFunc() {
     auto& ctx = getContext();
-    auto func = getFunction();
 
     mlir::OwningRewritePatternList patterns(&ctx);
-    patterns.insert<CanFuseDeQuantAndQuantIntoConv>(&ctx, _log);
-    patterns.insert<CanFuseDeQuantAndQuantIntoPool>(&ctx, _log);
-    if (mlir::failed(applyPatternsAndFoldGreedily(func, std::move(patterns)))) {
+    patterns.add<FuseWithConv>(&ctx, _log);
+    patterns.add<FuseWithMaxPool>(&ctx, _log);
+
+    auto func = getFunction();
+    if (mlir::failed(applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig()))) {
         signalPassFailure();
     }
 }
+
 }  // namespace
 
 //

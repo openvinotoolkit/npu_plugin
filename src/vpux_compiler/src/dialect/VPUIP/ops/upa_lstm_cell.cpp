@@ -1,5 +1,5 @@
 //
-// Copyright 2021 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -14,9 +14,6 @@
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
 #include "vpux/compiler/dialect/VPUIP/blob_reader.hpp"
-#include "vpux/compiler/utils/subspaces.hpp"
-
-#include <mlir/IR/BuiltinTypes.h>
 
 void vpux::VPUIP::LSTMCellUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value inputData,
                                        mlir::Value initialHiddenState, mlir::Value initialCellState,
@@ -27,12 +24,14 @@ void vpux::VPUIP::LSTMCellUPAOp::build(mlir::OpBuilder& builder, mlir::Operation
 }
 
 vpux::VPUIP::BlobWriter::SpecificTask vpux::VPUIP::LSTMCellUPAOp::serialize(VPUIP::BlobWriter& writer) {
+    const auto inputDataShape = inputData().getType().cast<mlir::ShapedType>().getShape();
+    VPUX_THROW_UNLESS(inputDataShape.size() == 2, "LSTMCellUPAOp inputData shape must be 2D");
+
+    const auto batchSize = inputDataShape[0];
+
     MVCNN::LSTMCellParamsBuilder builder(writer);
     builder.add_RNNForward(1);
     builder.add_nCells(1);
-    const auto inputDataShape = inputData().getType().cast<mlir::ShapedType>().getShape();
-    VPUX_THROW_UNLESS(inputDataShape.size() == 2, "LSTMCellUPAOp inputData shape must be 2D");
-    const auto batchSize = inputDataShape[0];
     builder.add_nBatches(static_cast<int32_t>(batchSize));
     builder.add_useCellState(1);
     builder.add_outputsNumber(2);

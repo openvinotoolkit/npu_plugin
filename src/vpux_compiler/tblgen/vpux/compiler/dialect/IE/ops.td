@@ -1615,13 +1615,19 @@ def IE_ExpandOp :
     let arguments = (ins
         AnyRankedTensor:$input,
 
-        I64ArrayAttr:$pads_begin_attr,
-        I64ArrayAttr:$pads_end_attr
+        I64ArrayAttr:$pads_begin,
+        I64ArrayAttr:$pads_end
     );
 
     let results = (outs
         AnyRankedTensor:$output
     );
+
+    let builders = [
+        OpBuilder<
+            (ins "mlir::Value":$input, "vpux::Optional<vpux::ShapeRef>":$pads_begin, "vpux::Optional<vpux::ShapeRef>":$pads_end)
+        >
+    ];
 }
 
 //
@@ -1642,7 +1648,7 @@ def IE_LSTMCellOp :
         2DTensorOf<[F16, F32]>:$initialHiddenState,
         2DTensorOf<[F16, F32]>:$initialCellState,
         2DTensorOf<[F16, F32]>:$weights,
-        2DTensorOf<[F16, F32]>:$reccurenceWeights,
+        2DTensorOf<[F16, F32]>:$recurrenceWeights,
         1DTensorOf<[F16, F32]>:$biases,
 
         IntAttr:$hiddenSize

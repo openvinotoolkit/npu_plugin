@@ -26,24 +26,37 @@ namespace {
 // GenericConverter
 //
 
-template <class ConcreteOp>
-class GenericConverter : public mlir::OpRewritePattern<ConcreteOp> {
-    using PostOpAttributeGetter = std::function<mlir::ArrayRef<mlir::NamedAttribute>(ConcreteOp)>;
+IE::PostOp getPostOpAttr(IE::ReLUOp op) {
+    auto* ctx = op->getContext();
 
+    const auto kindAttr = IE::PostOpKindAttr::get(ctx, IE::PostOpKind::RELU);
+    return IE::getPostOpAttr(ctx, kindAttr);
+}
+
+IE::PostOp getPostOpAttr(IE::ClampOp op) {
+    auto* ctx = op->getContext();
+
+    const std::array<mlir::NamedAttribute, 2> params = {mlir::NamedAttribute(op.minAttrName(), op.minAttr()),
+                                                        mlir::NamedAttribute(op.maxAttrName(), op.maxAttr())};
+
+    const auto kindAttr = IE::PostOpKindAttr::get(ctx, IE::PostOpKind::CLAMP);
+    return IE::getPostOpAttr(ctx, kindAttr, params);
+}
+
+template <class ConcreteOp>
+class GenericConverter final : public mlir::OpRewritePattern<ConcreteOp> {
 public:
-    GenericConverter(mlir::MLIRContext* ctx, IE::PostOpKind postOp, const IE::LayerInfoDialectInterface* layerInfo,
-                     Logger log)
-            : mlir::OpRewritePattern<ConcreteOp>(ctx), _postOp(postOp), _layerInfo(layerInfo), _log(log) {
+    GenericConverter(mlir::MLIRContext* ctx, const IE::LayerInfoDialectInterface* layerInfo, Logger log)
+            : mlir::OpRewritePattern<ConcreteOp>(ctx), _layerInfo(layerInfo), _log(log) {
         this->setDebugName("FusePostOps::GenericConverter");
+
+        VPUX_THROW_UNLESS(_layerInfo != nullptr, "Got NULL pointer in {0}", this->getDebugName());
     }
 
-public:
-    virtual mlir::LogicalResult matchAndRewrite(ConcreteOp activationOp, mlir::PatternRewriter& rewriter) const;
+private:
+    mlir::LogicalResult matchAndRewrite(ConcreteOp activationOp, mlir::PatternRewriter& rewriter) const final;
 
-protected:
-    virtual mlir::SmallVector<mlir::NamedAttribute> postOpAttributes(ConcreteOp) const;
-
-    IE::PostOpKind _postOp;
+private:
     const IE::LayerInfoDialectInterface* _layerInfo = nullptr;
     Logger _log;
 };
@@ -61,7 +74,7 @@ mlir::LogicalResult GenericConverter<ConcreteOp>::matchAndRewrite(ConcreteOp pos
     auto* mainOp = postOp.input().getDefiningOp();
     auto multiLayer = mlir::dyn_cast_or_null<IE::MultiLayerInterface>(mainOp);
 
-    if (!multiLayer || (_layerInfo && !_layerInfo->isSupportedPostProcessing(mainOp, postOp))) {
+    if (!multiLayer || !_layerInfo->isSupportedPostProcessing(mainOp, postOp)) {
         return matchFailed(_log, rewriter, postOp,
                            "Failed to fuse PostOp, since its producer does not support post-processing");
     }
@@ -71,44 +84,12 @@ mlir::LogicalResult GenericConverter<ConcreteOp>::matchAndRewrite(ConcreteOp pos
                            "Failed to fuse PostOp, since its producer already have post-processing");
     }
 
-    const auto postOpKindAttr = IE::PostOpKindAttr::get(this->getContext(), _postOp);
-    const auto postOpAttr = IE::getPostOpAttr(this->getContext(), postOpKindAttr, postOpAttributes(postOp));
+    const auto postOpAttr = getPostOpAttr(postOp);
 
     multiLayer.setPostOp(postOpAttr);
     rewriter.replaceOp(postOp, mainOp->getResult(0));
 
     return mlir::success();
-}
-
-template <class ConcreteOp>
-mlir::SmallVector<mlir::NamedAttribute> GenericConverter<ConcreteOp>::postOpAttributes(ConcreteOp) const {
-    return {};
-}
-
-class ClampConverter final : public GenericConverter<IE::ClampOp> {
-public:
-    ClampConverter(mlir::MLIRContext* ctx, const IE::LayerInfoDialectInterface* layerInfo, Logger log)
-            : GenericConverter(ctx, IE::PostOpKind::RELUX, layerInfo, log) {
-    }
-
-public:
-    mlir::LogicalResult matchAndRewrite(IE::ClampOp activationOp, mlir::PatternRewriter& rewriter) const override final;
-
-protected:
-    mlir::SmallVector<mlir::NamedAttribute> postOpAttributes(IE::ClampOp) const override final;
-};
-
-mlir::LogicalResult ClampConverter::matchAndRewrite(IE::ClampOp postOp, mlir::PatternRewriter& rewriter) const {
-    if (std::abs(postOp.minAttr().getValueAsDouble()) > std::numeric_limits<double>::epsilon()) {
-        return matchFailed(_log, rewriter, postOp,
-                           "Failed to fuse ClampOp like ReluX, since min value is not equal to zero");
-    }
-    return GenericConverter<IE::ClampOp>::matchAndRewrite(postOp, rewriter);
-}
-
-mlir::SmallVector<mlir::NamedAttribute> ClampConverter::postOpAttributes(IE::ClampOp op) const {
-    return {mlir::NamedAttribute(mlir::Identifier::get("Minimum", op.getContext()), op.minAttr()),
-            mlir::NamedAttribute(mlir::Identifier::get("Maximum", op.getContext()), op.maxAttr())};
 }
 
 //
@@ -138,8 +119,8 @@ void FusePostOpsPass::safeRunOnFunc() {
     VPUX_THROW_UNLESS(layerInfo != nullptr, "LayerInfoDialect is not registered");
 
     mlir::OwningRewritePatternList patterns(&ctx);
-    patterns.add<GenericConverter<IE::ReLUOp>>(&ctx, IE::PostOpKind::RELU, layerInfo, _log);
-    patterns.add<ClampConverter>(&ctx, layerInfo, _log);
+    patterns.add<GenericConverter<IE::ReLUOp>>(&ctx, layerInfo, _log);
+    patterns.add<GenericConverter<IE::ClampOp>>(&ctx, layerInfo, _log);
 
     auto func = getFunction();
     if (mlir::failed(applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig()))) {

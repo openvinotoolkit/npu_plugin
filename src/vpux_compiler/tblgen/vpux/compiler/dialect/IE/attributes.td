@@ -300,12 +300,7 @@ def IE_PostOpKind :
             [
                 // Activations
                 StrEnumAttrCase<"RELU">,
-                StrEnumAttrCase<"PRELU">,
-                StrEnumAttrCase<"LEAKY_RELU">,
-                StrEnumAttrCase<"EXP">,
-                StrEnumAttrCase<"SIGMOID">,
-                StrEnumAttrCase<"TANH">,
-                StrEnumAttrCase<"RELUX">,
+                StrEnumAttrCase<"CLAMP">,
             ]
         > {
     let cppNamespace = "vpux::IE";

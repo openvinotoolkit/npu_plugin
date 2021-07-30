@@ -148,31 +148,31 @@ int64_t getOC(VPUIP::WeightsTableOp createWTableOp) {
 }
 
 int32_t getWeightPtrStep(VPUIP::WeightsTableOp createWTableOp) {
-    if (createWTableOp.weights() != nullptr) {
-        const auto filterShape = getShape(createWTableOp.weights());
-
-        const auto IC = filterShape[IERT::ConvolutionOp::filter_in_channel_dim()];
-        const auto KY = filterShape[IERT::ConvolutionOp::filter_spatial_height_dim()];
-        const auto KX = filterShape[IERT::ConvolutionOp::filter_spatial_width_dim()];
-        const auto eltSize = Byte(getElemTypeSize(createWTableOp.weights().getType())).count();
-        if (createWTableOp.activation_window() != nullptr) {
-            // Depthwise convolution case.
-            // Weights table contains both activation window and weights.
-            // Check that weights have expected alignment.
-            // Other than that, weight step is the same for both z-major (OYXI) and depthwise convolutions.
-            const auto origFilterType = createWTableOp.weights().getType().cast<mlir::ShapedType>();
-            const auto depthwiseConvAlignment =
-                    VPUIP::NCEInvariant::getChannelAlignment(origFilterType.getElementType());
-            const int64_t weightsElementCount = IC * KY * KX;
-            VPUX_THROW_UNLESS(weightsElementCount % depthwiseConvAlignment == 0,
-                              "Depthwise convolution weights size must be a multiple of {0}, got {1}",
-                              depthwiseConvAlignment, weightsElementCount);
-        }
-
-        return checked_cast<int32_t>(IC * KY * KX * eltSize);
+    if (createWTableOp.weights() == nullptr) {
+        return 0;
     }
 
-    return 0;
+    const auto filterShape = getShape(createWTableOp.weights());
+
+    const auto IC = filterShape[IERT::ConvolutionOp::filter_in_channel_dim()];
+    const auto KY = filterShape[IERT::ConvolutionOp::filter_spatial_height_dim()];
+    const auto KX = filterShape[IERT::ConvolutionOp::filter_spatial_width_dim()];
+
+    if (createWTableOp.activation_window() != nullptr) {
+        // Depthwise convolution case.
+        // Weights table contains both activation window and weights.
+        // Check that weights have expected alignment.
+        // Other than that, weight step is the same for both z-major (OYXI) and depthwise convolutions.
+        const auto origFilterType = createWTableOp.weights().getType().cast<mlir::ShapedType>();
+        const auto depthwiseConvAlignment = VPUIP::NCEInvariant::getChannelAlignment(origFilterType.getElementType());
+        const auto weightsElementCount = IC * KY * KX;
+        VPUX_THROW_UNLESS(weightsElementCount % depthwiseConvAlignment == 0,
+                          "Depthwise convolution weights size must be a multiple of {0}, got {1}",
+                          depthwiseConvAlignment, weightsElementCount);
+    }
+
+    const Byte eltSize = getElemTypeSize(createWTableOp.weights().getType());
+    return checked_cast<int32_t>(IC * KY * KX * eltSize.count());
 }
 
 int32_t getTensorPtrOffset(mlir::Value input, const AliasesInfo* aliasInfo) {
