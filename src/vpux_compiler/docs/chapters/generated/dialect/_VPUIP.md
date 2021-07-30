@@ -76,6 +76,7 @@ Syntax:
 
 ```
 operation ::= `VPUIP.ACTShaveTaskOp` attr-dict
+              `kernel` `(` $kernelData `:` type($kernelData) `)`
               (`inputs` `(` $inputs^ `:` type($inputs) `)`)?
               (`outputs` `(` $outputs^ `:` type($outputs) `)`)?
               (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
@@ -88,7 +89,6 @@ operation ::= `VPUIP.ACTShaveTaskOp` attr-dict
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`kernel` | ::mlir::StringAttr | string attribute
 `maxShaves` | ::mlir::IntegerAttr | 32-bit signless integer attribute
 
 #### Operands:
@@ -99,6 +99,7 @@ operation ::= `VPUIP.ACTShaveTaskOp` attr-dict
 `outputs` | memref of any type values
 `waitBarriers` | VPUIP Barrier Type
 `updateBarriers` | VPUIP Barrier Type
+`kernelData` | memref of any type values
 
 #### Results:
 
@@ -377,6 +378,38 @@ operation ::= `VPUIP.DPUTask` attr-dict
 `end` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `pad` | vpux::VPUIP::PaddingAttr | DictionaryAttr with field(s): 'left', 'right', 'top', 'bottom' (each field having its own constraints)
 `mpe_mode` | vpux::VPUIP::MPEModeAttr | MPE Mode
+
+### `VPUIP.DeclareKernelData` (vpux::VPUIP::DeclareKernelDataOp)
+
+KernelData Reference declaration
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.DeclareKernelData` `<` $name `>`
+              $locale
+              $localeIndex
+              attr-dict
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`name` | ::mlir::StringAttr | string attribute
+`locale` | vpux::VPUIP::MemoryLocationAttr | Values indicating which type of memory a tensor resides in
+`localeIndex` | ::mlir::IntegerAttr | 32-bit unsigned integer attribute
+`dataOffset` | ::mlir::IntegerAttr | 32-bit unsigned integer attribute
+`dataSize` | ::mlir::IntegerAttr | 32-bit unsigned integer attribute
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`memory` | memref of any type values
 
 ### `VPUIP.DeclareTensor` (vpux::VPUIP::DeclareTensorOp)
 
