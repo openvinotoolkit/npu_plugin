@@ -267,6 +267,7 @@ ActKernelDesc generateKernelForACTShave(mlir::StringRef funcName, const movitool
     return result;
 }
 
+
 // todo provide some arguments for kernel
 flatbuffers::Offset<flatbuffers::Vector<uint64_t>> packKernelArgs(flatbuffers::FlatBufferBuilder& fbb) {
     act_kernel_args dummyArgs;

@@ -366,6 +366,27 @@ SmallVector<VPUIP::BlobWriter::BinaryData> serializeBinaryData(VPUIP::BlobWriter
     return binaryData;
 }
 
+SmallVector<VPUIP::BlobWriter::KernelData> serializeKernelData(VPUIP::BlobWriter& writer, mlir::FuncOp netFunc,
+                                                               mlir::TimingScope& rootTiming, Logger log) {
+    auto scopeTiming = rootTiming.nest("Serialize kernel data");
+
+    // only ACTShaveTasks are generating kernelData
+    auto kernelGenOps = to_small_vector(netFunc.getOps<VPUIP::DeclareKernelDataOp>());
+
+    SmallVector<VPUIP::BlobWriter::KernelData> kernelData(kernelGenOps.size());
+
+    for (auto KernelIndex : irange(kernelGenOps.size())) {
+        auto kernel = kernelGenOps[KernelIndex];
+
+        log.trace("Got act-shave kernel at '{0}' with type '{1}'", kernel->getLoc(), kernel->getName());
+
+        kernelData[KernelIndex] = writer.createKernelData(kernel.name());
+    }
+
+    return kernelData;
+}
+
+
 SmallVector<VPUIP::BlobWriter::Barrier> serializeVirtBarriers(VPUIP::BlobWriter& writer, mlir::FuncOp netFunc,
                                                               VPUIP::GraphOp graphOp, mlir::TimingScope& rootTiming,
                                                               Logger log) {
@@ -419,6 +440,7 @@ flatbuffers::Offset<MVCNN::GraphFile> createGraphFile(VPUIP::BlobWriter& writer,
                                                       flatbuffers::Offset<MVCNN::SummaryHeader> header,
                                                       ArrayRef<VPUIP::BlobWriter::TaskList> taskLists,
                                                       ArrayRef<VPUIP::BlobWriter::BinaryData> binaryData,
+                                                      ArrayRef<VPUIP::BlobWriter::KernelData> kernelData,
                                                       ArrayRef<VPUIP::BlobWriter::Barrier> virtBarriers,
                                                       mlir::TimingScope& rootTiming) {
     auto scopeTiming = rootTiming.nest("Create graph file");
@@ -426,12 +448,14 @@ flatbuffers::Offset<MVCNN::GraphFile> createGraphFile(VPUIP::BlobWriter& writer,
     const auto serializedTaskLists = writer.createVector(taskLists);
     const auto serializedBinaryData = writer.createVector(binaryData);
     const auto barrierTable = writer.createVector(virtBarriers);
+    const auto serializedKernelData = writer.createVector(kernelData);
 
     MVCNN::GraphFileBuilder graphBuilder(writer);
     graphBuilder.add_header(header);
     graphBuilder.add_task_lists(serializedTaskLists);
     graphBuilder.add_binary_data(serializedBinaryData);
     graphBuilder.add_barrier_table(barrierTable);
+    graphBuilder.add_kernel_data(serializedKernelData);
 
     return graphBuilder.Finish();
 }
@@ -456,10 +480,11 @@ flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, mli
 
     serializeTensorDecls(writer, netFunc, rootTiming);
     const auto binaryData = serializeBinaryData(writer, netFunc, rootTiming, log);
+    const auto kernelData = serializeKernelData(writer, netFunc, rootTiming, log);
     const auto virtBarriers = serializeVirtBarriers(writer, netFunc, graphOp, rootTiming, log);
     const auto taskLists = serializeTaskLists(writer, netFunc, rootTiming, log);
 
-    const auto graphFile = createGraphFile(writer, header, taskLists, binaryData, virtBarriers, rootTiming);
+    const auto graphFile = createGraphFile(writer, header, taskLists, binaryData, kernelData, virtBarriers, rootTiming);
 
     auto finalTiming = rootTiming.nest("Finalize serialized graph");
     writer.impl().Finish(graphFile, "BLOB");

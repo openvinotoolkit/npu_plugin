@@ -48,12 +48,15 @@ IE.CNNNetwork
 func @main(%arg0: memref<1x1x1x1000xf16>, %arg1: memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16> {
     %0 = VPUIP.DeclareTensor "VPU_CMX_NN" [0,1,2,3] <0> -> memref<1x1x1x1000xf16, "VPU_CMX_NN">
     %1 = VPUIP.DeclareTensor "VPU_CMX_NN" [0,1,2,3] <1> -> memref<1x1x1x1000xf16, "VPU_CMX_NN">
+
+    %sigmoid_krn = VPUIP.DeclareKernelData <"sigmoid"> "GraphFile" 0 -> memref<1000xui8, "VPU_CMX_NN">
+
     %2 = VPUIP.ConfigureBarrier<0> -> !VPUIP.Barrier
     %3 = VPUIP.ConfigureBarrier<1> -> !VPUIP.Barrier
 
     %4 = VPUIP.NNDMA inputs(%arg0 : memref<1x1x1x1000xf16>) outputs(%0 : memref<1x1x1x1000xf16, "VPU_CMX_NN">) updates(%2 : !VPUIP.Barrier) -> memref<1x1x1x1000xf16, "VPU_CMX_NN">
 
-    %5 = VPUIP.ACTShaveTaskOp{ kernel = "sigmoid"}  inputs(%0 : memref<1x1x1x1000xf16, "VPU_CMX_NN">) outputs(%1 : memref<1x1x1x1000xf16, "VPU_CMX_NN">) waits(%2 : !VPUIP.Barrier) updates(%3 : !VPUIP.Barrier) -> memref<1x1x1x1000xf16, "VPU_CMX_NN">
+    %5 = VPUIP.ACTShaveTaskOp kernel(%sigmoid_krn : memref<1000xui8, "VPU_CMX_NN">)  inputs(%0 : memref<1x1x1x1000xf16, "VPU_CMX_NN">) outputs(%1 : memref<1x1x1x1000xf16, "VPU_CMX_NN">) waits(%2 : !VPUIP.Barrier) updates(%3 : !VPUIP.Barrier) -> memref<1x1x1x1000xf16, "VPU_CMX_NN">
 
     %6 = VPUIP.NNDMA inputs(%1 : memref<1x1x1x1000xf16, "VPU_CMX_NN">) outputs(%arg1 : memref<1x1x1x1000xf16>) waits(%3 : !VPUIP.Barrier) -> memref<1x1x1x1000xf16>
     return %6: memref<1x1x1x1000xf16>
