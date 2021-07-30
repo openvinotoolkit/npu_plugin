@@ -27,35 +27,7 @@ namespace vpux {
 namespace VPUIP {
 
 VPUIP::BlobWriter::SpecificTask ACTShaveTaskOp::serialize(VPUIP::BlobWriter& writer) {
-    // Kernel binary
-    StringRef kernelRef = kernel();
-    VPUX_THROW_UNLESS(!kernelRef.empty(), "no kernel name provided");
-
-    movitools::MoviCompileParams params = {
-            /*cpu=*/"3010xx",
-            /*moviCompile=*/"linux64/bin/moviCompile",
-            /*mdkLinker=*/"linux64/sparc-myriad-rtems-6.3.0/bin/sparc-myriad-rtems-ld",
-            /*mdkObjCopy=*/"linux64/sparc-myriad-rtems-6.3.0/bin/sparc-myriad-rtems-objcopy",
-            /*mdkLibDir=*/"common/moviCompile/lib/30xxxx-leon",
-            /*mdkLibs=*/
-            {
-                    "mlibm.a",
-                    "mlibcxx.a",
-                    "mlibneon.a",
-                    "mlibVecUtils.a",
-                    "mlibc_lite.a",
-                    "mlibc_lite_lgpl.a",
-                    "mlibcrt.a",
-            },
-    };
-
-    auto elfBinary = generateKernelForACTShave(kernelRef, params, writer);
-
-    return writer.createACTShaveTask(*this, {
-        elfBinary.text,
-        elfBinary.data,
-        {},
-        MVCNN::ActKernelType_KERNEL});
+    return writer.createACTShaveTask(*this);
 }
 
 }  // namespace VPUIP
