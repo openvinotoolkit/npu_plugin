@@ -21,6 +21,11 @@ TEST_P(KmbProposalLayerTest, CompareWithRefs) {
     Run();
 }
 
+TEST_P(KmbProposalLayerTest, CompareWithRefs_MLIR) {
+    useCompilerMLIR();
+    Run();
+}
+
 }  // namespace LayerTestsDefinitions
 
 using namespace ngraph::helpers;

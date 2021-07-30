@@ -1579,6 +1579,57 @@ def VPUIP_NegativeUPAOp :
 }
 
 //
+// ProposalUPAOp
+//
+
+def VPUIP_ProposalUPAOp :
+        VPUIP_UPATaskOp<1, "ProposalUPA",
+            [
+                ViewLikeOpInterface,
+                AnyDimsOrder
+            ]
+        > {
+    let summary = "Proposal UPA SHAVE kernel";
+
+    let arguments = (ins
+        F16MemRef:$class_probs,
+        F16MemRef:$bbox_deltas,
+        F16MemRef:$image_shape,
+        F16MemRef:$output_buff,
+
+        Variadic<VPUIP_Barrier>:$waitBarriers,
+        Variadic<VPUIP_Barrier>:$updateBarriers,
+
+        IE_ProposalAttrs:$proposal_attrs,
+
+        OptionalAttr<IntAttr>:$maxShaves,
+        UnitAttr:$isTrailingSWLayer
+    );
+
+    let results = (outs
+        F16MemRef:$output
+    );
+
+    let builders = [
+        OpBuilder<
+            (ins
+                "mlir::Value":$class_probs, "mlir::Value":$bbox_deltas,"mlir::Value":$image_shape,
+                "mlir::Value":$output, "vpux::IE::ProposalAttr":$attr
+            )
+        >
+    ];
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $class_probs `:` type($class_probs) `,` $bbox_deltas `:` type($bbox_deltas) `,` $image_shape `:` type($image_shape) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+        `->` type(results)
+    }];
+}
+
+//
 // ROIPoolingUPAOp
 //
 
