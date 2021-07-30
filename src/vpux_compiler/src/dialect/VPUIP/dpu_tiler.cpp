@@ -17,9 +17,8 @@
 
 using namespace vpux;
 
-SmallVector<VPUIP::DpuTile> vpux::VPUIP::DpuTiler::tileOverH(int64_t numDPU, ShapeRef outShape,
-                                                             ArrayRef<int64_t> opPadsBegin,
-                                                             ArrayRef<int64_t> opPadsEnd) {
+SmallVector<VPUIP::DpuTile> vpux::VPUIP::DpuTiler::tileOverH(int64_t numDPU, ShapeRef outShape, int64_t padLeft,
+                                                             int64_t padRight, int64_t padTop, int64_t padBottom) {
     // FIXME: find the optimal number of tiles
     const int64_t minTileSize = 1;
 
@@ -41,13 +40,14 @@ SmallVector<VPUIP::DpuTile> vpux::VPUIP::DpuTiler::tileOverH(int64_t numDPU, Sha
     const auto W = IERT::ConvolutionOp::act_width_dim();
 
     for (const auto& outTile : outTiles) {
-        const auto padsTileConf = backInferPadsTile(outTile, outShape, opPadsBegin, opPadsEnd);
+        const auto padsTileConf = backInferPadsTile(outTile, outShape, padLeft, padRight, padTop, padBottom);
 
         SmallVector<int64_t> start{outTile.offsets[W], outTile.offsets[H], outTile.offsets[C]};
         SmallVector<int64_t> end{outTile.offsets[W] + outTile.shape[W] - 1, outTile.offsets[H] + outTile.shape[H] - 1,
                                  outTile.offsets[C] + outTile.shape[C] - 1};
 
-        dpuTiles.push_back({start, end, padsTileConf.begin, padsTileConf.end});
+        dpuTiles.push_back(
+                {start, end, padsTileConf.padLeft, padsTileConf.padRight, padsTileConf.padTop, padsTileConf.padBottom});
     }
 
     return dpuTiles;

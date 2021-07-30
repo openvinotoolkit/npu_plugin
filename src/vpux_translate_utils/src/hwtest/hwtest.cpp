@@ -377,13 +377,11 @@ void buildSimpleZMajorConv(mlir::ModuleOp module, mlir::OpBuilder builder, Logge
     auto start = getIntArrayAttr(builder, start_vec);
     std::vector<int32_t> end_vec{15, 15, 15};
     auto end = getIntArrayAttr(builder, end_vec);
-    std::vector<int32_t> pad_begin_vec{0, 0};
-    auto pad_begin = getIntArrayAttr(builder, pad_begin_vec);
-    std::vector<int32_t> pad_end_vec{0, 0};
-    auto pad_end = getIntArrayAttr(builder, pad_end_vec);
+    auto pad = VPUIP::PaddingAttr::get(getIntAttr(builder, 0), getIntAttr(builder, 0), getIntAttr(builder, 0),
+                                       getIntAttr(builder, 0), builder.getContext());
 
-    /* auto dpuTask = */ variantbuilder.create<VPUIP::DPUTaskOp>(builder.getUnknownLoc(), start, end, pad_begin,
-                                                                 pad_end, VPUIP::MPEMode::CUBOID_16x16);
+    /* auto dpuTask = */ variantbuilder.create<VPUIP::DPUTaskOp>(builder.getUnknownLoc(), start, end, pad,
+                                                                 VPUIP::MPEMode::CUBOID_16x16);
 
     // TODO : return empty as func does not return anything
     /* auto returnOp = */ funcbuilder.create<mlir::ReturnOp>(builder.getUnknownLoc(), funcoutput);
