@@ -25,10 +25,9 @@ namespace {
 #if defined(__arm__) || defined(__aarch64__)
     const std::vector<std::map<std::string, std::string>> configsExecStreams = {
             {{CONFIG_KEY(LOG_LEVEL), CONFIG_VALUE(LOG_INFO)}, {VPUX_CONFIG_KEY(EXECUTOR_STREAMS), "1"}},
-// observed failures with multi executors
-//            {{CONFIG_KEY(LOG_LEVEL), CONFIG_VALUE(LOG_INFO)}, {VPUX_CONFIG_KEY(EXECUTOR_STREAMS), "2"}},
-//            {{CONFIG_KEY(LOG_LEVEL), CONFIG_VALUE(LOG_INFO)}, {VPUX_CONFIG_KEY(EXECUTOR_STREAMS), "3"}},
-//            {{CONFIG_KEY(LOG_LEVEL), CONFIG_VALUE(LOG_INFO)}, {VPUX_CONFIG_KEY(EXECUTOR_STREAMS), "4"}},
+            {{CONFIG_KEY(LOG_LEVEL), CONFIG_VALUE(LOG_INFO)}, {VPUX_CONFIG_KEY(EXECUTOR_STREAMS), "2"}},
+            {{CONFIG_KEY(LOG_LEVEL), CONFIG_VALUE(LOG_INFO)}, {VPUX_CONFIG_KEY(EXECUTOR_STREAMS), "3"}},
+            {{CONFIG_KEY(LOG_LEVEL), CONFIG_VALUE(LOG_INFO)}, {VPUX_CONFIG_KEY(EXECUTOR_STREAMS), "4"}},
     };
 
     INSTANTIATE_TEST_CASE_P(smoke_BehaviorTest, InferRequestRunMultipleExecutorStreamsTests,
