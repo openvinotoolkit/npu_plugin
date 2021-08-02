@@ -89,4 +89,14 @@ def IE_LayerWithPostOpInterface : OpInterface<"LayerWithPostOpInterface"> {
     ];
 }
 
+//
+// EltwiseOp
+//
+
+// Single output element depends only on single input element.
+// In other words - the iteration space is fully parallel across all indexes.
+def IE_EltwiseOp : NativeOpTrait<"EltwiseOp"> {
+    let cppNamespace = "vpux::IE";
+}
+
 #endif

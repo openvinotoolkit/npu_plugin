@@ -169,7 +169,8 @@ def IE_ConvertOp :
         IE_LayerOp<
             "Convert",
             [
-                DeclareOpInterfaceMethods<CastOpInterface>
+                DeclareOpInterfaceMethods<CastOpInterface>,
+                IE_EltwiseOp
             ]
         > {
     let summary = "InferenceEngine Convert layer";
@@ -292,6 +293,7 @@ def IE_PerAxisTileOp :
         AnyRankedTensor:$output
     );
 }
+
 //
 // ReLUOp
 //
@@ -301,7 +303,8 @@ def IE_ReLUOp :
             "ReLU",
             [
                 ResultsAreFloatLike,
-                SameOperandsAndResultType
+                SameOperandsAndResultType,
+                IE_EltwiseOp
             ]
         > {
     let summary = "InferenceEngine ReLU layer";
@@ -348,7 +351,8 @@ def IE_PowerOp :
         IE_LayerOp<
             "Power",
             [
-                ResultsAreFloatLike
+                ResultsAreFloatLike,
+                IE_EltwiseOp
             ]
         > {
     let summary = "InferenceEngine Power layer";
@@ -374,7 +378,8 @@ def IE_AddOp :
             "Add",
             [
                 Commutative,
-                ResultsAreFloatLike
+                ResultsAreFloatLike,
+                IE_EltwiseOp
             ]
         > {
     let summary = "InferenceEngine Add layer";
@@ -402,7 +407,8 @@ def IE_DivideOp :
         IE_LayerOp<
             "Divide",
             [
-                ResultsAreFloatLike
+                ResultsAreFloatLike,
+                IE_EltwiseOp
             ]
         > {
     let summary = "InferenceEngine Divide layer";
@@ -427,7 +433,8 @@ def IE_SquaredDifferenceOp :
         IE_LayerOp<
             "SquaredDiff",
             [
-                ResultsAreFloatLike
+                ResultsAreFloatLike,
+                IE_EltwiseOp
             ]
         > {
     let summary = "InferenceEngine SquaredDiff layer";
@@ -452,7 +459,8 @@ def IE_FloorModOp :
         IE_LayerOp<
             "FloorMod",
             [
-                ResultsAreFloatLike
+                ResultsAreFloatLike,
+                IE_EltwiseOp
             ]
         > {
     let summary = "InferenceEngine FloorMod layer";
@@ -478,7 +486,8 @@ def IE_MultiplyOp :
             "Multiply",
             [
                 Commutative,
-                ResultsAreFloatLike
+                ResultsAreFloatLike,
+                IE_EltwiseOp
             ]
         > {
     let summary = "InferenceEngine Multiply layer";
@@ -655,7 +664,8 @@ def IE_ClampOp :
             "Clamp",
             [
                 ResultsAreFloatLike,
-                SameOperandsAndResultType
+                SameOperandsAndResultType,
+                IE_EltwiseOp
             ]
         > {
     let summary = "InferenceEngine Clamp layer";
@@ -681,7 +691,8 @@ def IE_EluOp :
             "Elu",
             [
                 ResultsAreFloatLike,
-                SameOperandsAndResultType
+                SameOperandsAndResultType,
+                IE_EltwiseOp
             ]
         > {
     let summary = "InferenceEngine Elu layer";
@@ -792,7 +803,8 @@ def IE_SigmoidOp :
             "Sigmoid",
             [
                 ResultsAreFloatLike,
-                SameOperandsAndResultType
+                SameOperandsAndResultType,
+                IE_EltwiseOp
             ]
         > {
     let summary = "InferenceEngine Sigmoid layer";
@@ -836,7 +848,12 @@ def IE_LRNOp :
 //
 
 def IE_MinimumOp :
-        IE_LayerOp<"Minimum"> {
+        IE_LayerOp<
+            "Minimum",
+            [
+                IE_EltwiseOp
+            ]
+        > {
     let summary = "InferenceEngine Minimum layer";
 
     let arguments = (ins
@@ -856,7 +873,12 @@ def IE_MinimumOp :
 //
 
 def IE_MaximumOp :
-        IE_LayerOp<"Maximum"> {
+        IE_LayerOp<
+            "Maximum",
+            [
+                IE_EltwiseOp
+            ]
+        > {
     let summary = "InferenceEngine Maximum layer";
 
     let arguments = (ins
@@ -879,7 +901,8 @@ def IE_FakeQuantizeOp :
         IE_LayerOp<
             "FakeQuantize",
             [
-                ResultsAreFloatLike
+                ResultsAreFloatLike,
+                IE_EltwiseOp
             ]
         > {
     let summary = "InferenceEngine FakeQuantize layer";
@@ -937,7 +960,8 @@ def IE_TanhOp :
             "Tanh",
             [
                 ResultsAreFloatLike,
-                SameOperandsAndResultType
+                SameOperandsAndResultType,
+                IE_EltwiseOp
             ]
         > {
     let summary = "InferenceEngine Tanh layer";
@@ -960,7 +984,8 @@ def IE_ExpOp :
             "Exp",
             [
                 ResultsAreFloatLike,
-                SameOperandsAndResultType
+                SameOperandsAndResultType,
+                IE_EltwiseOp
             ]
         > {
     let summary = "InferenceEngine Exp layer";
@@ -983,7 +1008,8 @@ def IE_HSwishOp :
             "HSwish",
             [
                 ResultsAreFloatLike,
-                SameOperandsAndResultType
+                SameOperandsAndResultType,
+                IE_EltwiseOp
             ]
         > {
     let summary = "InferenceEngine HSwish layer";
@@ -1006,7 +1032,8 @@ def IE_MishOp :
             "Mish",
             [
                 ResultsAreFloatLike,
-                SameOperandsAndResultType
+                SameOperandsAndResultType,
+                IE_EltwiseOp
             ]
         > {
     let summary = "InferenceEngine Mish layer";
@@ -1345,7 +1372,10 @@ def IE_DeconvolutionOp:
 
 def IE_PReluOp :
         IE_LayerOp<
-            "PRelu"
+            "PRelu",
+            [
+                IE_EltwiseOp
+            ]
         > {
     let summary = "InferenceEngine PRelu layer";
 
@@ -1369,7 +1399,8 @@ def IE_LeakyReluOp :
         IE_LayerOp<
             "LeakyRelu",
             [
-                SameOperandsAndResultType
+                SameOperandsAndResultType,
+                IE_EltwiseOp
             ]
         > {
     let summary = "InferenceEngine LeakyRelu layer";
@@ -1391,7 +1422,10 @@ def IE_LeakyReluOp :
 
 def IE_SwishOp :
         IE_LayerOp<
-            "Swish"
+            "Swish",
+            [
+                IE_EltwiseOp
+            ]
         > {
     let summary = "InferenceEngine Swish layer";
 
@@ -1417,7 +1451,8 @@ def IE_ScaleShiftOp :
         IE_LayerOp<
             "ScaleShift",
             [
-                AttrSizedOperandSegments
+                AttrSizedOperandSegments,
+                IE_EltwiseOp
             ]
         > {
     let summary = "InferenceEngine ScaleShift layer";
@@ -1467,7 +1502,8 @@ def IE_NegativeOp :
         IE_LayerOp<
             "Negative",
             [
-                SameOperandsAndResultType
+                SameOperandsAndResultType,
+                IE_EltwiseOp
             ]
         > {
     let summary = "InferenceEngine Negative layer";
@@ -1651,4 +1687,5 @@ def IE_LSTMCellOp :
         2DTensorOf<[F16, F32]>:$outputCellState
     );
 }
+
 #endif

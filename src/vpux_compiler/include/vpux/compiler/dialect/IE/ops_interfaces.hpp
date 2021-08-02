@@ -142,6 +142,13 @@ mlir::LogicalResult inferTensorTypes(InferTypeComponentsCb componentsCb, mlir::M
 bool isCompatibleShapeAndElemType(mlir::TypeRange lhs, mlir::TypeRange rhs);
 
 //
+// EltwiseOp
+//
+
+template <typename ConcreteOp>
+class EltwiseOp : public mlir::OpTrait::TraitBase<ConcreteOp, EltwiseOp> {};
+
+//
 // LayerInfoDialectInterface
 //
 
