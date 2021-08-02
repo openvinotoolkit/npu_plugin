@@ -235,43 +235,9 @@ TEST_F(KmbYoloV1NetworkTest, INT8_Dense_Cntk_TinyYoloV2) {
         0.6, 0.4, 0.4, true);
 }
 
-//
-// Yolo V3
-//
-
 const static std::vector<InferenceEngine::Layout> inputLayout = {
         InferenceEngine::Layout::NCHW,
         InferenceEngine::Layout::NHWC};
-
-const static std::vector<InferenceEngine::Layout> outputLayout = {
-        InferenceEngine::Layout::NCHW,
-        InferenceEngine::Layout::NHWC};
-
-class KmbYoloV3NetworkTestWithSpecificLayout : public KmbYoloV3NetworkTest,
-    public testing::WithParamInterface<std::tuple<InferenceEngine::Layout, InferenceEngine::Layout>> {};
-
-// [Track number: S#48139]
-TEST_P(KmbYoloV3NetworkTestWithSpecificLayout, INT8_Dense_TF_YoloV3) {
-    SKIP_INFER_ON("VPUAL", "exception - load graph to device");
-    std::vector<float> anchors = {10.0, 13.0, 16.0, 30.0, 33.0, 23.0, 30.0, 61.0, 62.0,
-                        45.0, 59.0, 119.0, 116.0, 90.0, 156.0, 198.0, 373.0, 326.0};
-    runTest(
-        TestNetworkDesc("KMB_models/INT8/public/yolo_v3/yolo_v3_tf_dense_int8_IRv10.xml")
-            .setUserInputPrecision("input", Precision::U8)
-            .setUserInputLayout("input", std::get<0>(GetParam()))
-            .setUserOutputPrecision("conv2d_58/Conv2D/YoloRegion", Precision::FP32)
-            .setUserOutputPrecision("conv2d_66/Conv2D/YoloRegion", Precision::FP32)
-            .setUserOutputPrecision("conv2d_74/Conv2D/YoloRegion", Precision::FP32)
-            .setUserOutputLayout("conv2d_58/Conv2D/YoloRegion", std::get<1>(GetParam()))
-            .setUserOutputLayout("conv2d_66/Conv2D/YoloRegion", std::get<1>(GetParam()))
-            .setUserOutputLayout("conv2d_74/Conv2D/YoloRegion", std::get<1>(GetParam())),
-        TestImageDesc("416x416/person.bmp", ImageFormat::RGB),
-        0.6, 0.4, 0.4, 80, 4, 3,
-        anchors);
-}
-
-INSTANTIATE_TEST_CASE_P(all_layouts, KmbYoloV3NetworkTestWithSpecificLayout,
-    ::testing::Combine(::testing::ValuesIn(inputLayout), ::testing::ValuesIn(outputLayout)));
 
 class KmbClassifyNetworkTestWithSpecificLayout : public KmbClassifyNetworkTest, public testing::WithParamInterface<InferenceEngine::Layout> {};
 

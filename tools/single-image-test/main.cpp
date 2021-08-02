@@ -65,6 +65,9 @@ DEFINE_string(color_format, "BGR", "Color format for input: RGB or BGR");
 
 // for Yolo
 DEFINE_bool(is_tiny_yolo, false, "Is it Tiny Yolo or not (true or false)?");
+DEFINE_int32(classes, 80, "Number of classes for Yolo V3");
+DEFINE_int32(coords, 4, "Number of coordinates for Yolo V3");
+DEFINE_int32(num, 3, "Number of scales for Yolo V3");
 
 std::vector<std::string> splitStringList(const std::string& str, char delim) {
     std::vector<std::string> out;
@@ -764,6 +767,39 @@ bool testYoloV2 (const ie::BlobMap& actualBlobs,
 }
 
 //
+// Yolo V3 mode
+//
+bool testYoloV3(const ie::BlobMap& actBlobs,
+                const ie::BlobMap& refBlobs,
+                const ie::ConstInputsDataMap& inputsDesc) {
+    IE_ASSERT(inputsDesc.size() == 1);
+    IE_ASSERT(actBlobs.size() == 3);
+    IE_ASSERT(actBlobs.size() == refBlobs.size());
+
+    const auto& inputDesc = inputsDesc.begin()->second->getTensorDesc();
+    const auto imgWidth = inputDesc.getDims().at(3);
+    const auto imgHeight = inputDesc.getDims().at(2);
+
+    double confThresh = FLAGS_confidence_threshold;
+    double probTolerance = FLAGS_prob_tolerance;
+    double boxTolerance = FLAGS_box_tolerance;
+    int classes = FLAGS_classes;
+    int coords = FLAGS_coords;
+    int num = FLAGS_num;
+    std::vector<float> anchors = {10.0, 13.0, 16.0, 30.0, 33.0, 23.0, 30.0, 61.0, 62.0,
+                                  45.0, 59.0, 119.0, 116.0, 90.0, 156.0, 198.0, 373.0, 326.0};
+
+    auto actOutput = utils::parseYoloV3Output(actBlobs, imgWidth, imgHeight, classes, coords, num, anchors,
+                                            confThresh, InferenceEngine::NCHW);
+    auto refOutput = utils::parseYoloV3Output(refBlobs, imgWidth, imgHeight, classes, coords, num, anchors,
+                                            confThresh, refBlobs.begin()->second->getTensorDesc().getLayout());
+
+    bool result = checkBBoxOutputs(actOutput, refOutput, imgWidth, imgHeight, boxTolerance, probTolerance);
+    return result;
+};
+
+
+//
 // main
 //
 
@@ -962,6 +998,13 @@ int main(int argc, char* argv[]) {
                     }
                 } else if (strEq(FLAGS_mode, "yolo_v2")) {
                     if (testYoloV2(outputs, refOutputs, inputsInfo)) {
+                        std::cout << "PASSED" << std::endl;
+                    } else {
+                        std::cout << "FAILED" << std::endl;
+                        return EXIT_FAILURE;
+                    }
+                } else if (strEq(FLAGS_mode, "yolo_v3")) {
+                    if (testYoloV3(outputs, refOutputs, inputsInfo)) {
                         std::cout << "PASSED" << std::endl;
                     } else {
                         std::cout << "FAILED" << std::endl;
