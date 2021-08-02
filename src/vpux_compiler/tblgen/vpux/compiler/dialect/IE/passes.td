@@ -198,6 +198,26 @@ def ConvertFCToConv : PassBase<"convert-fc-to-conv", "vpux::FunctionPass"> {
 }
 
 //
+// ConvertScaleShiftToDW
+//
+
+def ConvertScaleShiftToDW : PassBase<"convert-scale-shift-depthwise", "vpux::FunctionPass"> {
+    let summary = "Convert Scale-Shift operation to Depthwise Convolution";
+
+    let description = [{
+        The pass is a part of `HardwareMode` pipeline.
+
+        Convert Scale-Shift operation to Depthwise convolution.
+    }];
+
+    let constructor = "vpux::IE::createConvertScaleShiftToDWPass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
+
+//
 // FusePostOps
 //
 
