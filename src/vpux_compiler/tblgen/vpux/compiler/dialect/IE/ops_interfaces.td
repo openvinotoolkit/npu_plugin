@@ -42,16 +42,7 @@ def IE_LayerOpInterface : OpInterface<"LayerOpInterface"> {
             [{
                 return $_op->getResults();
             }]
-        >,
-
-        InterfaceMethod<
-            "Get information about current layout for Layer inputs and outputs",
-            "vpux::IE::DataOrderInfo", "getDataOrderInfo", (ins),
-            [{}],
-            [{
-                return vpux::IE::getLayerDataOrderInfo($_op);
-            }]
-        >,
+        >
     ];
 
     let extraTraitClassDeclaration = [{
@@ -79,13 +70,83 @@ def IE_LayerWithPostOpInterface : OpInterface<"LayerWithPostOpInterface"> {
     let methods = [
         InterfaceMethod<
             "Get the post-processing operation",
-            "vpux::Optional<vpux::IE::PostOp>", "post_op", (ins)
+            "llvm::Optional<mlir::OperationName>", "getPostOp", (ins),
+            [{}],
+            [{
+                return vpux::IE::getLayerPostOp($_op);
+            }]
+        >,
+
+        InterfaceMethod<
+            "Get the post-processing operation attributes",
+            "mlir::DictionaryAttr", "getPostOpAttrs", (ins),
+            [{}],
+            [{
+                return vpux::IE::getLayerPostOpAttrs($_op);
+            }]
         >,
 
         InterfaceMethod<
             "Set post-processing operation attribute",
-            "void", "post_opAttr", (ins "vpux::IE::PostOp":$postOp)
+            "void", "setPostOp", (ins "mlir::Operation*":$postOp),
+            [{}],
+            [{
+                return vpux::IE::setLayerPostOp($_op, postOp);
+            }]
         >,
+
+        InterfaceMethod<
+            "Set post-processing operation attribute",
+            "bool", "isSupportedPostOp", (ins "mlir::Operation*":$postOp)
+        >,
+    ];
+}
+
+//
+// AlignedChannelsOpInterface
+//
+
+def IE_AlignedChannelsOpInterface : OpInterface<"AlignedChannelsOpInterface"> {
+    let description = "Interface for operations that require channel alignment";
+
+    let cppNamespace = "vpux::IE";
+
+    let methods = [
+        InterfaceMethod<
+            "Verify channel alignement",
+            "mlir::LogicalResult", "verifyChannels", (ins)
+        >,
+
+        InterfaceMethod<
+            "Get channel alignement factor in elements",
+            "int64_t", "getChannelAlignment", (ins)
+        >
+    ];
+}
+
+//
+// LayoutInfoOpInterface
+//
+
+def IE_LayoutInfoOpInterface : OpInterface<"LayoutInfoOpInterface"> {
+    let description = "Interface for operations to provide information about supported layout for inputs/outputs";
+
+    let cppNamespace = "vpux::IE";
+
+    let methods = [
+        InterfaceMethod<
+            "Verify provided layout combination",
+            "bool", "isSupportedLayout", (ins "vpux::IE::DataOrderInfo&":$info)
+        >,
+
+        InterfaceMethod<
+            "Get information about current layout for Layer inputs and outputs",
+            "vpux::IE::DataOrderInfo", "getDataOrderInfo", (ins),
+            [{}],
+            [{
+                return vpux::IE::getDataOrderInfo($_op);
+            }]
+        >
     ];
 }
 

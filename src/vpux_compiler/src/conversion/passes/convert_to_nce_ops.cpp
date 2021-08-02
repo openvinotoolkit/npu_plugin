@@ -25,6 +25,7 @@
 #include "vpux/compiler/utils/types.hpp"
 
 #include "vpux/utils/core/enums.hpp"
+#include "vpux/utils/core/numeric.hpp"
 
 #include <mlir/Dialect/MemRef/IR/MemRef.h>
 #include <mlir/IR/Value.h>
@@ -37,17 +38,6 @@ namespace {
 //
 // Utilities
 //
-
-VPUIP::PPELayerType convertPostOp(IE::PostOpKind postOp) {
-    switch (postOp) {
-    case IE::PostOpKind::RELU:
-        return VPUIP::PPELayerType::LRELU;
-    case IE::PostOpKind::CLAMP:
-        return VPUIP::PPELayerType::LRELUX;
-    default:
-        VPUX_THROW("Unsupported post op type: '{0}'", postOp);
-    }
-}
 
 const EnumMap<VPUIP::ArchKind, VPUIP::MPEMode> mpeMap = {
         {VPUIP::ArchKind::KMB, VPUIP::MPEMode::VECTOR_FP16},   //
@@ -106,15 +96,28 @@ void addDPUTasks(VPUIP::NCEClusterTaskOp nceOp, mlir::PatternRewriter& rewriter,
 }
 
 void addPPETask(VPUIP::NCEClusterTaskOp nceOp, mlir::PatternRewriter& rewriter, IE::PostOp postOp) {
-    if (!postOp) {
+    if (postOp == nullptr) {
         return;
     }
 
-    // TODO Add ppe_task parameters support
-    // VPUX_THROW_UNLESS(postOp.params().empty(), "Parameters are not yet supported for ppe task");
+    if (postOp.name().getValue() == IE::ReLUOp::getOperationName()) {
+        VPUX_THROW_UNLESS(postOp.attrs().empty(), "'{0}' PostOp should not have any attributes", postOp.name());
 
-    const auto ppeType = convertPostOp(IE::getPostOpKind(postOp));
-    nceOp.addPPETask(rewriter, ppeType);
+        nceOp.addPPETask(rewriter, VPUIP::PPELayerType::LRELU);
+    } else if (postOp.name().getValue() == IE::ClampOp::getOperationName()) {
+        IE::ClampOp::Adaptor clamp(None, postOp.attrs());
+        VPUX_THROW_UNLESS(clamp.verify(nceOp->getLoc()).succeeded(), "Wrong attributes '{0}' for '{1}' PostOp",
+                          postOp.attrs(), postOp.name());
+        VPUX_THROW_UNLESS(isDoubleEqual(clamp.min().getValueAsDouble(), 0.0),
+                          "'{0}' PostOp can only be converted to '{1}' PPE task, but minimal value is not equal to 0",
+                          postOp.name(), VPUIP::PPELayerType::LRELUX);
+
+        // TODO: should be check/use maxVal?
+
+        nceOp.addPPETask(rewriter, VPUIP::PPELayerType::LRELUX);
+    } else {
+        VPUX_THROW("Unsupported PostOp '{0}'", postOp.name());
+    }
 }
 
 //

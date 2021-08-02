@@ -513,10 +513,7 @@ def IE_MultiplyOp :
 
 def IE_ConvolutionOp :
         IE_LayerOp<
-            "Convolution",
-            [
-                IE_LayerWithPostOpInterface
-            ]
+            "Convolution"
         > {
     let summary = "InferenceEngine Convolution layer";
 
@@ -548,8 +545,7 @@ def IE_GroupConvolutionOp :
         IE_LayerOp<
             "GroupConvolution",
             [
-                ResultsAreFloatLike,
-                IE_LayerWithPostOpInterface
+                ResultsAreFloatLike
             ]
         > {
     let summary = "InferenceEngine GroupConvolution layer";
@@ -610,10 +606,7 @@ def IE_AvgPoolOp :
 
 def IE_MaxPoolOp :
         IE_LayerOp<
-            "MaxPool",
-            [
-                IE_LayerWithPostOpInterface
-            ]
+            "MaxPool"
         > {
     let summary = "InferenceEngine MaxPool layer";
 

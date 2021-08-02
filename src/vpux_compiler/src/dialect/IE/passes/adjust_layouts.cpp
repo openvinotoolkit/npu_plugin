@@ -28,38 +28,37 @@ namespace {
 // LayerRewriter
 //
 
-class LayerRewriter final : public mlir::OpInterfaceRewritePattern<IE::LayerOpInterface> {
+class LayerRewriter final : public mlir::OpInterfaceRewritePattern<IE::LayoutInfoOpInterface> {
 public:
-    LayerRewriter(mlir::MLIRContext* ctx, const IE::LayerInfoDialectInterface* layerInfo, Logger log)
-            : mlir::OpInterfaceRewritePattern<IE::LayerOpInterface>(ctx), _layerInfo(layerInfo), _log(log) {
+    LayerRewriter(mlir::MLIRContext* ctx, Logger log)
+            : mlir::OpInterfaceRewritePattern<IE::LayoutInfoOpInterface>(ctx), _log(log) {
     }
 
 public:
-    mlir::LogicalResult matchAndRewrite(IE::LayerOpInterface layerOp, mlir::PatternRewriter& rewriter) const final;
+    mlir::LogicalResult matchAndRewrite(IE::LayoutInfoOpInterface origOp, mlir::PatternRewriter& rewriter) const final;
 
 private:
-    IE::ReorderOp createReorder(IE::LayerOpInterface op, mlir::Value output, DimsOrder dstOrder,
+    IE::ReorderOp createReorder(mlir::Operation* op, mlir::Value output, DimsOrder dstOrder,
                                 mlir::PatternRewriter& rewriter) const;
 
-    void insertReorderForInput(IE::LayerOpInterface op, mlir::OpOperand& input, DimsOrder dstOrder,
+    void insertReorderForInput(mlir::Operation* op, mlir::OpOperand& input, DimsOrder dstOrder,
                                mlir::PatternRewriter& rewriter) const;
-    void insertReorderForOutput(IE::LayerOpInterface op, mlir::Value output, DimsOrder dstOrder,
+    void insertReorderForOutput(mlir::Operation* op, mlir::Value output, DimsOrder dstOrder,
                                 mlir::PatternRewriter& rewriter) const;
 
     void setNewType(mlir::Value operand, DimsOrder newOrder) const;
 
 private:
-    const IE::LayerInfoDialectInterface* _layerInfo = nullptr;
     Logger _log;
 };
 
-IE::ReorderOp LayerRewriter::createReorder(IE::LayerOpInterface op, mlir::Value input, DimsOrder dstOrder,
+IE::ReorderOp LayerRewriter::createReorder(mlir::Operation* op, mlir::Value input, DimsOrder dstOrder,
                                            mlir::PatternRewriter& rewriter) const {
     _log.nest(2).trace("Create Reorder: '{0}' -> '{1}'", DimsOrder::fromValue(input), dstOrder);
     return rewriter.create<IE::ReorderOp>(op->getLoc(), input, dstOrder.toPermutationAffineMap(rewriter.getContext()));
 }
 
-void LayerRewriter::insertReorderForInput(IE::LayerOpInterface op, mlir::OpOperand& input, DimsOrder dstOrder,
+void LayerRewriter::insertReorderForInput(mlir::Operation* op, mlir::OpOperand& input, DimsOrder dstOrder,
                                           mlir::PatternRewriter& rewriter) const {
     _log.nest(2).trace("Insert ReorderOp for input[{0}]", input.getOperandNumber());
 
@@ -67,7 +66,7 @@ void LayerRewriter::insertReorderForInput(IE::LayerOpInterface op, mlir::OpOpera
     input.set(reorderOp.output());
 }
 
-void LayerRewriter::insertReorderForOutput(IE::LayerOpInterface op, mlir::Value output, DimsOrder dstOrder,
+void LayerRewriter::insertReorderForOutput(mlir::Operation* op, mlir::Value output, DimsOrder dstOrder,
                                            mlir::PatternRewriter& rewriter) const {
     _log.nest(2).trace("Insert ReorderOp for output {0}", output.getType());
 
@@ -84,22 +83,22 @@ void LayerRewriter::setNewType(mlir::Value operand, DimsOrder newOrder) const {
     operand.setType(newType);
 }
 
-mlir::LogicalResult LayerRewriter::matchAndRewrite(IE::LayerOpInterface layerOp,
+mlir::LogicalResult LayerRewriter::matchAndRewrite(IE::LayoutInfoOpInterface origOp,
                                                    mlir::PatternRewriter& rewriter) const {
-    _log.trace("Got layer operation '{0}' at '{1}'", layerOp->getName(), layerOp->getLoc());
+    _log.trace("Got layer operation '{0}' at '{1}'", origOp->getName(), origOp->getLoc());
 
-    auto orderInfo = layerOp.getDataOrderInfo();
+    auto orderInfo = origOp.getDataOrderInfo();
     _log.nest().trace("Current layouts: {0}", orderInfo);
 
-    if (_layerInfo->isSupportedLayout(layerOp, orderInfo)) {
-        return matchFailed(_log.nest(), rewriter, layerOp, "Current layouts are supported");
+    if (origOp.isSupportedLayout(orderInfo)) {
+        return matchFailed(_log.nest(), rewriter, origOp, "Current layouts are supported");
     }
 
     _log.nest().trace("Required layouts: {0}", orderInfo);
 
-    rewriter.startRootUpdate(layerOp);
+    rewriter.startRootUpdate(origOp);
 
-    const auto inputs = layerOp->getOpOperands();
+    const auto inputs = origOp->getOpOperands();
     for (auto i : irange(inputs.size())) {
         if (!orderInfo.hasInput(i)) {
             continue;
@@ -111,11 +110,11 @@ mlir::LogicalResult LayerRewriter::matchAndRewrite(IE::LayerOpInterface layerOp,
         const auto supportedOrder = orderInfo.getInput(i);
 
         if (curOrder != supportedOrder) {
-            insertReorderForInput(layerOp, input, supportedOrder, rewriter);
+            insertReorderForInput(origOp, input, supportedOrder, rewriter);
         }
     }
 
-    const auto outputs = layerOp->getOpResults();
+    const auto outputs = origOp->getOpResults();
     for (auto i : irange(outputs.size())) {
         if (!orderInfo.hasOutput(i)) {
             continue;
@@ -128,11 +127,11 @@ mlir::LogicalResult LayerRewriter::matchAndRewrite(IE::LayerOpInterface layerOp,
 
         if (curOrder != supportedOrder) {
             setNewType(output, supportedOrder);
-            insertReorderForOutput(layerOp, output, curOrder, rewriter);
+            insertReorderForOutput(origOp, output, curOrder, rewriter);
         }
     }
 
-    rewriter.finalizeRootUpdate(layerOp);
+    rewriter.finalizeRootUpdate(origOp);
 
     return mlir::success();
 }
@@ -154,21 +153,11 @@ private:
 void AdjustLayoutsPass::safeRunOnFunc() {
     auto& ctx = getContext();
 
-    auto* dialect = ctx.getOrLoadDialect<IE::IEDialect>();
-    VPUX_THROW_UNLESS(dialect != nullptr, "IE Dialect was not loaded");
-
-    const auto* layerInfo = dialect->getRegisteredInterface<IE::LayerInfoDialectInterface>();
-    VPUX_THROW_UNLESS(layerInfo != nullptr, "LayerInfoDialect is not registered");
-
     mlir::ConversionTarget target(ctx);
     target.addDynamicallyLegalDialect<IE::IEDialect>([&](mlir::Operation* op) {
-        if (mlir::isa<mlir::ViewLikeOpInterface>(op)) {
-            return true;
-        }
-
-        if (auto layerOp = mlir::dyn_cast<IE::LayerOpInterface>(op)) {
-            auto orderInfo = layerOp.getDataOrderInfo();
-            return layerInfo->isSupportedLayout(layerOp, orderInfo);
+        if (auto iface = mlir::dyn_cast<IE::LayoutInfoOpInterface>(op)) {
+            auto orderInfo = iface.getDataOrderInfo();
+            return iface.isSupportedLayout(orderInfo);
         }
 
         return true;
@@ -177,7 +166,7 @@ void AdjustLayoutsPass::safeRunOnFunc() {
     target.addLegalOp<IE::ReorderOp>();
 
     mlir::RewritePatternSet patterns(&ctx);
-    patterns.insert<LayerRewriter>(&ctx, layerInfo, _log);
+    patterns.insert<LayerRewriter>(&ctx, _log);
 
     auto func = getFunction();
     if (mlir::failed(mlir::applyPartialConversion(func, target, std::move(patterns)))) {

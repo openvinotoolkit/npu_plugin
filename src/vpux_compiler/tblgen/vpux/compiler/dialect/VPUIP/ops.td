@@ -54,6 +54,7 @@ class VPUIP_TaskOp<int numResult, string mnemonic, list<OpTrait> traits = []> :
                     InferTypeOpInterface,
                     MemoryEffectsOpInterface,
                     DeclareOpInterfaceMethods<IERT_LayerOpInterface>,
+                    IERT_AsyncLayerOpInterface,
                     DeclareOpInterfaceMethods<VPUIP_TaskOpInterface>
                 ]
             )

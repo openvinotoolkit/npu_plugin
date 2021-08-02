@@ -14,7 +14,6 @@
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
-#include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
@@ -69,10 +68,12 @@ mlir::LogicalResult generalRewrite(mlir::Operation* origOp, mlir::PatternRewrite
                                    FuncRef<mlir::Operation*(mlir::Value, int64_t)> opCreator, Logger log) {
     auto* ctx = origOp->getContext();
 
+    auto iface = mlir::cast<IE::AlignedChannelsOpInterface>(origOp);
+    const auto channelAlignement = iface.getChannelAlignment();
+
     const auto inputType = origOp->getOperand(0).getType().cast<mlir::ShapedType>();
     const auto outputType = origOp->getResult(0).getType().cast<mlir::ShapedType>();
 
-    const auto channelAlignement = VPUIP::NCEInvariant::getChannelAlignment(inputType.getElementType());
     const auto inPadsEnd = calcPadsEnd(inputType, channelAlignement);
     const auto outPadsEnd = calcPadsEnd(outputType, channelAlignement);
 
@@ -376,20 +377,16 @@ private:
 void ExpandActivationChannelsPass::safeRunOnFunc() {
     auto& ctx = getContext();
 
-    const auto dialect = ctx.getOrLoadDialect<IE::IEDialect>();
-    VPUX_THROW_UNLESS(dialect != nullptr, "IE Dialect was not loaded");
-    const auto layerInfo = dialect->getRegisteredInterface<IE::LayerInfoDialectInterface>();
-    VPUX_THROW_UNLESS(layerInfo != nullptr, "LayerInfoDialect is not registered");
-
     const auto isLegal = [&](mlir::Operation* op) {
-        return !layerInfo->needToExpandChannels(op);
+        if (auto iface = mlir::dyn_cast<IE::AlignedChannelsOpInterface>(op)) {
+            return iface.verifyChannels().succeeded();
+        }
+
+        return true;
     };
 
     mlir::ConversionTarget target(ctx);
-    target.addDynamicallyLegalOp<IE::MaxPoolOp>(isLegal);
-    target.addDynamicallyLegalOp<IE::ConvolutionOp>(isLegal);
-    target.addDynamicallyLegalOp<IE::AddOp>(isLegal);
-    target.addDynamicallyLegalOp<IE::GroupConvolutionOp>(isLegal);
+    target.markUnknownOpDynamicallyLegal(isLegal);
     target.addLegalOp<Const::DeclareOp>();
     target.addLegalOp<IE::ExpandOp, IE::PadOp, IE::SliceOp>();
 

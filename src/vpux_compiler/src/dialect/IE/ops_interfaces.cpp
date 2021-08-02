@@ -79,8 +79,6 @@ void vpux::IE::fillDataInfo(IE::DataOrderInfo& info, size_t inNum, size_t outNum
 //
 
 mlir::LogicalResult vpux::IE::verifyLayer(mlir::Operation* op) {
-    VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in verifyLayer");
-
     for (auto& arg : op->getOpOperands()) {
         const auto type = arg.get().getType();
 
@@ -97,25 +95,6 @@ mlir::LogicalResult vpux::IE::verifyLayer(mlir::Operation* op) {
     }
 
     return mlir::success();
-}
-
-IE::DataOrderInfo vpux::IE::getLayerDataOrderInfo(mlir::Operation* op) {
-    VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in getLayerDataOrderInfo");
-
-    const auto inputs = op->getOperands();
-    const auto outputs = op->getOpResults();
-
-    IE::DataOrderInfo orderInfo{inputs.size(), outputs.size()};
-
-    for (const auto& val : inputs | indexed) {
-        orderInfo.setInput(val.index(), DimsOrder::fromValue(val.value()));
-    }
-
-    for (const auto& val : outputs | indexed) {
-        orderInfo.setOutput(val.index(), DimsOrder::fromValue(val.value()));
-    }
-
-    return orderInfo;
 }
 
 mlir::LogicalResult vpux::IE::inferTensorTypes(InferTypeComponentsCb componentsCb, mlir::MLIRContext* ctx,
@@ -177,6 +156,43 @@ bool vpux::IE::isCompatibleShapeAndElemType(mlir::TypeRange lhs, mlir::TypeRange
     }
 
     return true;
+}
+
+//
+// LayoutInfoOpInterface
+//
+
+IE::DataOrderInfo vpux::IE::getDataOrderInfo(mlir::Operation* op) {
+    const auto inputs = op->getOperands();
+    const auto outputs = op->getOpResults();
+
+    IE::DataOrderInfo orderInfo{inputs.size(), outputs.size()};
+
+    for (const auto& val : inputs | indexed) {
+        orderInfo.setInput(val.index(), DimsOrder::fromValue(val.value()));
+    }
+
+    for (const auto& val : outputs | indexed) {
+        orderInfo.setOutput(val.index(), DimsOrder::fromValue(val.value()));
+    }
+
+    return orderInfo;
+}
+
+//
+// EltwiseOp
+//
+
+mlir::LogicalResult vpux::IE::verifyEltwiseOp(mlir::Operation* op) {
+    if (!mlir::isa<IE::LayerOpInterface>(op)) {
+        return errorAt(op, "EltwiseOp trait is applied to non layer operation");
+    }
+
+    if (op->getNumResults() != 1) {
+        return errorAt(op, "Operation with multiple results can't be EltwiseOp");
+    }
+
+    return mlir::success();
 }
 
 //

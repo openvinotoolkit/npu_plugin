@@ -24,14 +24,14 @@ using namespace vpux;
 
 namespace {
 
-void warpIntoAsyncRegion(mlir::Operation* op, const IERT::LayerInfoDialectInterface* layerInfo, Logger log) {
+void warpIntoAsyncRegion(IERT::AsyncLayerOpInterface op, Logger log) {
     if (op->getParentOfType<mlir::async::ExecuteOp>() != nullptr) {
         log.trace("[SKIP] The Operation already wrapped into asynchronous region");
         return;
     }
 
     uint32_t numExecutorUnits = 0;
-    const auto executor = layerInfo->getExecutor(op, numExecutorUnits);
+    const auto executor = op.getExecutor(numExecutorUnits);
     if (executor != nullptr) {
         log.trace("It will be executed on '{0}' units of '{1}' Executor", numExecutorUnits, executor);
     }
@@ -81,19 +81,9 @@ private:
 };
 
 void WrapIntoAsyncRegionsPass::safeRunOnFunc() {
-    auto* iert = getContext().getLoadedDialect<IERT::IERTDialect>();
-    VPUX_THROW_UNLESS(iert != nullptr, "IERT Dialect was not loaded");
-
-    const auto* layerInfo = iert->getRegisteredInterface<IERT::LayerInfoDialectInterface>();
-    VPUX_THROW_UNLESS(layerInfo != nullptr, "IERT Dialect was not initialized with LayerInfo interface");
-
-    const auto callback = [&](mlir::Operation* op) {
-        if (!mlir::isa<IERT::LayerOpInterface>(op)) {
-            return;
-        }
-
+    const auto callback = [&](IERT::AsyncLayerOpInterface op) {
         _log.trace("Process Layer Operation '{0}' at '{1}'", op->getName(), op->getLoc());
-        warpIntoAsyncRegion(op, layerInfo, _log.nest());
+        warpIntoAsyncRegion(op, _log.nest());
     };
 
     getFunction().walk(callback);

@@ -75,6 +75,10 @@ def VPUIP_TaskOpInterface : OpInterface<"TaskOpInterface"> {
         void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects) {
             vpux::VPUIP::getTaskEffects($_op, effects);
         }
+
+        mlir::Attribute getExecutor(uint32_t& numUnits) {
+            return vpux::VPUIP::getTaskOpExecutor($_op, numUnits);
+        }
     }];
 }
 

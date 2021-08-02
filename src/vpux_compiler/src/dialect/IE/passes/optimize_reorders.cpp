@@ -249,31 +249,30 @@ mlir::LogicalResult ReorderWithConcat::matchAndRewrite(IE::ConcatOp origConcatOp
 // ReorderWithLayer
 //
 
-class ReorderWithLayer final : public mlir::OpInterfaceRewritePattern<IE::LayerOpInterface> {
+class ReorderWithLayer final : public mlir::OpInterfaceRewritePattern<IE::LayoutInfoOpInterface> {
 public:
-    ReorderWithLayer(mlir::MLIRContext* ctx, const IE::LayerInfoDialectInterface* layerInfo, Logger log)
-            : mlir::OpInterfaceRewritePattern<IE::LayerOpInterface>(ctx), _layerInfo(layerInfo), _log(log) {
+    ReorderWithLayer(mlir::MLIRContext* ctx, Logger log)
+            : mlir::OpInterfaceRewritePattern<IE::LayoutInfoOpInterface>(ctx), _log(log) {
         setDebugName("ReorderWithLayer");
     }
 
 public:
-    mlir::LogicalResult matchAndRewrite(IE::LayerOpInterface layerOp, mlir::PatternRewriter& rewriter) const final;
+    mlir::LogicalResult matchAndRewrite(IE::LayoutInfoOpInterface layerOp, mlir::PatternRewriter& rewriter) const final;
 
 private:
-    const IE::LayerInfoDialectInterface* _layerInfo = nullptr;
     Logger _log;
 };
 
-mlir::LogicalResult ReorderWithLayer::matchAndRewrite(IE::LayerOpInterface layerOp, mlir::PatternRewriter& rewriter) const {
-    if (mlir::isa<mlir::ViewLikeOpInterface, IE::SplitOp, IE::ConcatOp, IE::ExpandOp, IE::ReorderOp>(
-                layerOp.getOperation())) {
-        return mlir::failure();
-    }
-
+mlir::LogicalResult ReorderWithLayer::matchAndRewrite(IE::LayoutInfoOpInterface layerOp,
+                                                      mlir::PatternRewriter& rewriter) const {
     auto orderInfo = layerOp.getDataOrderInfo();
 
     bool hasChanges = false;
-    for (const auto p : layerOp.getInputs() | indexed) {
+    for (const auto p : layerOp->getOperands() | indexed) {
+        if (!orderInfo.hasInput(p.index())) {
+            continue;
+        }
+
         const auto arg = p.value();
 
         auto argReorderOp = arg.getDefiningOp<IE::ReorderOp>();
@@ -284,7 +283,11 @@ mlir::LogicalResult ReorderWithLayer::matchAndRewrite(IE::LayerOpInterface layer
         orderInfo.setInput(p.index(), DimsOrder::fromValue(argReorderOp.input()));
         hasChanges = true;
     }
-    for (const auto p : layerOp.getOutputs() | indexed) {
+    for (const auto p : layerOp->getResults() | indexed) {
+        if (!orderInfo.hasOutput(p.index())) {
+            continue;
+        }
+
         const auto res = p.value();
 
         if (!res.hasOneUse()) {
@@ -304,13 +307,17 @@ mlir::LogicalResult ReorderWithLayer::matchAndRewrite(IE::LayerOpInterface layer
         return mlir::failure();
     }
 
-    if (!_layerInfo->isSupportedLayout(layerOp, orderInfo)) {
+    if (!layerOp.isSupportedLayout(orderInfo)) {
         return mlir::failure();
     }
 
     rewriter.startRootUpdate(layerOp);
 
     for (const auto p : layerOp->getOpOperands() | indexed) {
+        if (!orderInfo.hasInput(p.index())) {
+            continue;
+        }
+
         auto& arg = p.value();
 
         auto argReorderOp = arg.get().getDefiningOp<IE::ReorderOp>();
@@ -321,6 +328,10 @@ mlir::LogicalResult ReorderWithLayer::matchAndRewrite(IE::LayerOpInterface layer
         arg.set(argReorderOp.input());
     }
     for (const auto p : layerOp->getOpResults() | indexed) {
+        if (!orderInfo.hasOutput(p.index())) {
+            continue;
+        }
+
         auto res = p.value();
 
         if (!res.hasOneUse()) {
@@ -361,18 +372,12 @@ private:
 void OptimizeReordersPass::safeRunOnFunc() {
     auto& ctx = getContext();
 
-    auto* dialect = ctx.getOrLoadDialect<IE::IEDialect>();
-    VPUX_THROW_UNLESS(dialect != nullptr, "IE Dialect was not loaded");
-
-    const auto* layerInfo = dialect->getRegisteredInterface<IE::LayerInfoDialectInterface>();
-    VPUX_THROW_UNLESS(layerInfo != nullptr, "LayerInfoDialect is not registered");
-
     mlir::RewritePatternSet patterns(&ctx);
     patterns.add<ReorderWithSubView>(&ctx, _log);
     patterns.add<ReorderWithExpand>(&ctx, _log);
     patterns.add<ReorderWithSplit>(&ctx, _log);
     patterns.add<ReorderWithConcat>(&ctx, _log);
-    // patterns.add<ReorderWithLayer>(&ctx, layerInfo, _log);
+    // patterns.add<ReorderWithLayer>(&ctx, _log);
     IE::ReorderOp::getCanonicalizationPatterns(patterns, &ctx);
 
     auto func = getFunction();
