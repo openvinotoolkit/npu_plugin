@@ -147,7 +147,7 @@ VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensor(
     const auto fixedPointFP16Mult = [](float val) {
         const static int BITS = 15;
         int exp;
-        auto mantissa = std::frexp(val, &exp);
+        double mantissa = std::frexp(val, &exp);
         return static_cast<uint16_t>(mantissa * std::pow(2, BITS));
     };
 
