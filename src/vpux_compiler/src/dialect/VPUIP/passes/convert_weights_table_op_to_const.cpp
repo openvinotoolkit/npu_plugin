@@ -135,16 +135,16 @@ int64_t getOC(VPUIP::WeightsTableOp createWTableOp) {
         // Depthwise convolution case. Weights table contains both activation window and weights.
         // FIXME the logic repeats row-major convolution
         const auto filterShape = getShape(createWTableOp.weights());
-        return filterShape[IERT::ConvolutionOp::filter_out_channel_dim()];
+        return filterShape[IE::Dims4D::Filter::OC];
     }
 
     if (createWTableOp.weights() != nullptr) {
         const auto filterShape = getShape(createWTableOp.weights());
-        return filterShape[IERT::ConvolutionOp::filter_out_channel_dim()];
+        return filterShape[IE::Dims4D::Filter::OC];
     }
 
     const auto fakeSparsity = getShape(createWTableOp.activation_window());
-    return fakeSparsity[IERT::ConvolutionOp::filter_out_channel_dim()];  // actually this is input channel
+    return fakeSparsity[IE::Dims4D::Filter::OC];  // actually this is input channel
 }
 
 int32_t getWeightPtrStep(VPUIP::WeightsTableOp createWTableOp) {
@@ -154,9 +154,9 @@ int32_t getWeightPtrStep(VPUIP::WeightsTableOp createWTableOp) {
 
     const auto filterShape = getShape(createWTableOp.weights());
 
-    const auto IC = filterShape[IERT::ConvolutionOp::filter_in_channel_dim()];
-    const auto KY = filterShape[IERT::ConvolutionOp::filter_spatial_height_dim()];
-    const auto KX = filterShape[IERT::ConvolutionOp::filter_spatial_width_dim()];
+    const auto IC = filterShape[IE::Dims4D::Filter::IC];
+    const auto KY = filterShape[IE::Dims4D::Filter::KY];
+    const auto KX = filterShape[IE::Dims4D::Filter::KX];
 
     if (createWTableOp.activation_window() != nullptr) {
         // Depthwise convolution case.

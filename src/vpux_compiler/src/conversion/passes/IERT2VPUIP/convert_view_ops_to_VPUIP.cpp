@@ -14,6 +14,7 @@
 #include "vpux/compiler/conversion.hpp"
 
 #include "vpux/compiler/core/aliases_info.hpp"
+#include "vpux/compiler/utils/error.hpp"
 
 #include <mlir/Transforms/DialectConversion.h>
 

@@ -19,6 +19,7 @@
 #include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
 #include "vpux/compiler/dialect/VPUIP/nce_sparsity.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
+#include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/logging.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 #include "vpux/compiler/utils/types.hpp"
@@ -146,9 +147,9 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
 
     const auto filterShape = getShape(origOp.filter());
 
-    const auto OC = filterShape[IERT::ConvolutionOp::filter_out_channel_dim()];
-    const auto KY = filterShape[IERT::ConvolutionOp::filter_spatial_height_dim()];
-    const auto KX = filterShape[IERT::ConvolutionOp::filter_spatial_width_dim()];
+    const auto OC = filterShape[IE::Dims4D::Filter::OC];
+    const auto KY = filterShape[IE::Dims4D::Filter::KY];
+    const auto KX = filterShape[IE::Dims4D::Filter::KX];
 
     //
     // Prepare input for DPU
@@ -254,7 +255,7 @@ mlir::LogicalResult MaxPoolRewrite::matchAndRewrite(IERT::MaxPoolOp origOp, mlir
     const auto origInputType = origOp.input().getType().cast<mlir::MemRefType>();
     const auto inputShape = getShape(origInputType);
 
-    const auto IC = inputShape[IERT::MaxPoolOp::act_channel_dim()];
+    const auto IC = inputShape[IE::Dims4D::Act::C];
 
     const auto kernelSize = parseIntArrayAttr<int64_t>(origOp.kernel_size());
     const auto kernelStrides = parseIntArrayAttr<int64_t>(origOp.strides());
@@ -419,10 +420,10 @@ private:
 static mlir::Value alignDepthwiseWeightTensor(mlir::OpBuilder& builder, mlir::Location loc,
                                               const mlir::Value origFilter) {
     const auto filterShape = getShape(origFilter);
-    const auto OC = filterShape[IERT::ConvolutionOp::filter_out_channel_dim()];
-    const auto filtersPerInChan = filterShape[IERT::ConvolutionOp::filter_in_channel_dim()];
-    const auto KY = filterShape[IERT::ConvolutionOp::filter_spatial_height_dim()];
-    const auto KX = filterShape[IERT::ConvolutionOp::filter_spatial_width_dim()];
+    const auto OC = filterShape[IE::Dims4D::Filter::OC];
+    const auto filtersPerInChan = filterShape[IE::Dims4D::Filter::IC];
+    const auto KY = filterShape[IE::Dims4D::Filter::KY];
+    const auto KX = filterShape[IE::Dims4D::Filter::KX];
 
     const auto origFilterType = origFilter.getType().cast<mlir::ShapedType>();
     const auto depthwiseConvAlignment = VPUIP::NCEInvariant::getChannelAlignment(origFilterType.getElementType());
@@ -465,9 +466,9 @@ mlir::LogicalResult DepthwiseConvRewrite::matchAndRewrite(IERT::GroupConvolution
 
     const auto filterShape = getShape(origOp.filter());
 
-    const auto OC = filterShape[IERT::ConvolutionOp::filter_out_channel_dim()];
-    const auto KY = filterShape[IERT::ConvolutionOp::filter_spatial_height_dim()];
-    const auto KX = filterShape[IERT::ConvolutionOp::filter_spatial_width_dim()];
+    const auto OC = filterShape[IE::Dims4D::Filter::OC];
+    const auto KY = filterShape[IE::Dims4D::Filter::KY];
+    const auto KX = filterShape[IE::Dims4D::Filter::KX];
 
     //
     // Prepare input for DPU

@@ -66,7 +66,6 @@ The goal of pipeline is to establish correct order of underlying passes, while k
 ## Topics
 
 * [Architecture](architecture.md)
-* [EDSL Integration](edsl.md)
 * [Custom Layers](custom_layers.md)
 * [Dynamic Shapes Support](dynamism.md)
 * [Build and Test Instructions](build_and_test.md)

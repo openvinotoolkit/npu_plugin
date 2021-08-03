@@ -16,6 +16,7 @@
 #include "vpux/compiler/core/attributes/dims_order.hpp"
 #include "vpux/compiler/dialect/VPUIP/blob_reader.hpp"
 #include "vpux/compiler/utils/analysis.hpp"
+#include "vpux/compiler/utils/error.hpp"
 
 #include "vpux/utils/IE/float16.hpp"
 #include "vpux/utils/core/mem_size.hpp"
@@ -89,32 +90,32 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(QuantCastUPAOp op) {
     return mlir::success();
 }
 
-bool vpux::VPUIP::QuantCastUPAOp::isSupportedLayout(mlir::Operation* op, vpux::DataOrderInfo& info) {
+bool vpux::VPUIP::QuantCastUPAOp::isSupportedLayout(mlir::Operation* op, IE::DataOrderInfo& info) {
     const auto quantizeOp = mlir::dyn_cast<mlir::quant::QuantizeCastOp>(op);
     const auto dequantizeOp = mlir::dyn_cast<mlir::quant::DequantizeCastOp>(op);
 
     VPUX_THROW_UNLESS(quantizeOp != nullptr || dequantizeOp != nullptr, "Operation {0} is not quantizer",
                       op->getName());
 
-    auto layer = mlir::cast<LayerInterface>(op);
+    auto layer = mlir::cast<IE::LayerOpInterface>(op);
     const auto scales = getScalesAndZeroPoints(layer.getInputs()[0], layer.getOutputs()[0]).first;
 
     if (scales.size() > 1) {
         const auto numDims = layer.getInputs()[0].getType().cast<mlir::ShapedType>().getRank();
         const auto supportedLayout = numDims == 3 ? DimsOrder::HCW : DimsOrder::NHCW;
         if (!info.hasInput(0)) {
-            fillDataInfo(info, 1, 1, supportedLayout);
+            IE::fillDataInfo(info, 1, 1, supportedLayout);
             return false;
         }
 
         const auto mainOrder = info.getInput(0);
         if (mainOrder != DimsOrder::HCW && mainOrder != DimsOrder::NHCW) {
-            fillDataInfo(info, 1, 1, supportedLayout);
+            IE::fillDataInfo(info, 1, 1, supportedLayout);
             return false;
         }
     }
 
-    return isSupportedLayoutSameDimsOrder(op, info);
+    return IERT::isSupportedLayoutSameDimsOrder(op, info);
 }
 
 void vpux::VPUIP::QuantCastUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,

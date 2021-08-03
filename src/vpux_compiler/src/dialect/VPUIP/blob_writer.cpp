@@ -85,7 +85,7 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createUPALayerTask(mlir
                                                                             const SoftwareLayerParams& params) {
     VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in createUPALayerTask");
 
-    auto layer = mlir::dyn_cast<RTLayerInterface>(op);
+    auto layer = mlir::dyn_cast<IERT::LayerOpInterface>(op);
     VPUX_THROW_UNLESS(layer != nullptr, "Operation '{0}' is not a RT Layer", op->getName());
 
     auto upaTask = mlir::dyn_cast<VPUIP::UPATaskOpInterface>(op);

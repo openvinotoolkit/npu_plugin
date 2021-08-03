@@ -47,16 +47,16 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::RegionYoloUPAOp::serialize(VPUIP::B
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_RegionYOLOParams});
 }
 
-bool vpux::VPUIP::RegionYoloUPAOp::isSupportedLayout(mlir::Operation* op, vpux::DataOrderInfo& info) {
+bool vpux::VPUIP::RegionYoloUPAOp::isSupportedLayout(mlir::Operation* op, IE::DataOrderInfo& info) {
     VPUX_THROW_UNLESS(mlir::isa<IE::RegionYoloOp>(op), "Operation {0} is not RegionYolo", op->getName());
 
     auto regionYoloOp = mlir::dyn_cast<IE::RegionYoloOp>(op);
     if (regionYoloOp.do_softmax() == false) {
-        return isSupportedLayoutSameInOutSpecificDimsOrder(op, info, CHW_HWC_NCHW_NHWC);
+        return IERT::isSupportedLayoutSameInOutSpecificDimsOrder(op, info, IERT::CHW_HWC_NCHW_NHWC);
     } else {
         if (info.hasInput(0)) {
             const auto order = info.getInput(0);
-            if (!std::count(CHW_HWC_NCHW_NHWC.cbegin(), CHW_HWC_NCHW_NHWC.cend(), order)) {
+            if (!std::count(IERT::CHW_HWC_NCHW_NHWC.cbegin(), IERT::CHW_HWC_NCHW_NHWC.cend(), order)) {
                 if (order.numDims() == 3)
                     info.setInput(0, DimsOrder::CHW);
                 else

@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -12,6 +12,8 @@
 //
 
 #include "vpux/compiler/dialect/IE/utils/shape_infer.hpp"
+
+#include "vpux/compiler/utils/error.hpp"
 
 using namespace vpux;
 

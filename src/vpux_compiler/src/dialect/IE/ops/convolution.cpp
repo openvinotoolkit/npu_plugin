@@ -11,10 +11,12 @@
 // included with the Software Package for additional details.
 //
 
-#include "vpux/compiler/core/attributes/shape.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
+
+#include "vpux/compiler/core/attributes/shape.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
+#include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/types.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
@@ -48,11 +50,6 @@ public:
 };
 
 mlir::LogicalResult FuseConvAndBias::matchAndRewrite(IE::ScaleShiftOp biasOp, mlir::PatternRewriter& rewriter) const {
-    const auto act_batch_dim = IE::ConvolutionOp::act_batch_dim();
-    const auto act_channel_dim = IE::ConvolutionOp::act_channel_dim();
-    const auto act_height_dim = IE::ConvolutionOp::act_height_dim();
-    const auto act_width_dim = IE::ConvolutionOp::act_width_dim();
-
     if (biasOp.weights() != nullptr) {
         return matchFailed(rewriter, biasOp, "Failed to fuse ScaleShift, since it has scales");
     }
@@ -61,31 +58,31 @@ mlir::LogicalResult FuseConvAndBias::matchAndRewrite(IE::ScaleShiftOp biasOp, ml
                            "Failed to fuse ScaleShift, since it is not the only user of its input Value");
     }
 
-    auto convOp = mlir::dyn_cast_or_null<ConvolutionLayerInterface>(biasOp.input().getDefiningOp());
-
-    if (convOp == nullptr) {
+    auto* convOp = biasOp.input().getDefiningOp();
+    if (convOp == nullptr || !mlir::isa<IE::ConvolutionOp, IE::GroupConvolutionOp>(convOp)) {
         return matchFailed(rewriter, biasOp, "Failed to fuse ScaleShift, its producer is not a Convolution layer");
     }
-    if (convOp->getNumOperands() != 2 || convOp.bias() != nullptr) {
+
+    if (convOp->getNumOperands() != 2) {
         return matchFailed(rewriter, biasOp, "Failed to fuse ScaleShift, its producer already has fused biases");
     }
 
-    const auto convOutShape = getShape(convOp.output());
+    const auto convOutShape = getShape(convOp->getOpResult(0));
     const auto biasShape = getShape(biasOp.biases());
 
     if (biasShape.size() != 4) {
         return matchFailed(rewriter, biasOp, "Failed to fuse ScaleShift, unsupported bias shape");
     }
-    if (biasShape[act_batch_dim] != 1) {
+    if (biasShape[IE::Dims4D::Act::N] != 1) {
         return matchFailed(rewriter, biasOp, "Failed to fuse ScaleShift, unsupported bias shape");
     }
-    if (biasShape[act_channel_dim] != convOutShape[act_channel_dim]) {
+    if (biasShape[IE::Dims4D::Act::C] != convOutShape[IE::Dims4D::Act::C]) {
         return matchFailed(rewriter, biasOp, "Failed to fuse ScaleShift, unsupported bias shape");
     }
-    if (biasShape[act_height_dim] != 1) {
+    if (biasShape[IE::Dims4D::Act::H] != 1) {
         return matchFailed(rewriter, biasOp, "Failed to fuse ScaleShift, unsupported bias shape");
     }
-    if (biasShape[act_width_dim] != 1) {
+    if (biasShape[IE::Dims4D::Act::W] != 1) {
         return matchFailed(rewriter, biasOp, "Failed to fuse ScaleShift, unsupported bias shape");
     }
 

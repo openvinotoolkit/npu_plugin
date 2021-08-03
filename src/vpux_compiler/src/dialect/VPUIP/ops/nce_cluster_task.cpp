@@ -18,6 +18,7 @@
 #include "vpux/compiler/core/attributes/stride_reqs.hpp"
 #include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
 #include "vpux/compiler/utils/analysis.hpp"
+#include "vpux/compiler/utils/error.hpp"
 
 #include <llvm/ADT/TypeSwitch.h>
 
@@ -80,13 +81,13 @@ VPUIP::PPETaskOp vpux::VPUIP::NCEClusterTaskOp::addPPETask(mlir::OpBuilder& buil
 // NCEClusterTaskOp::isSupportedLayout
 //
 
-bool vpux::VPUIP::NCEClusterTaskOp::isSupportedLayout(mlir::Operation* op, vpux::DataOrderInfo& info) {
+bool vpux::VPUIP::NCEClusterTaskOp::isSupportedLayout(mlir::Operation* op, IE::DataOrderInfo& info) {
     return llvm::TypeSwitch<mlir::Operation*, bool>(op)
             .Case<IE::MaxPoolOp>([&](IE::MaxPoolOp op) {
-                return isSupportedLayoutSameInOutSpecificDimsOrder(op, info, {DimsOrder::NHWC});
+                return IERT::isSupportedLayoutSameInOutSpecificDimsOrder(op, info, {DimsOrder::NHWC});
             })
             .Case<IE::ConvolutionOp>([&](IE::ConvolutionOp op) {
-                if (!isSupportedLayoutSameInOutSpecificDimsOrder(op, info, {DimsOrder::NHWC})) {
+                if (!IERT::isSupportedLayoutSameInOutSpecificDimsOrder(op, info, {DimsOrder::NHWC})) {
                     // weights layout
                     info.setInput(1, DimsOrder::OYXI);
                     return false;
@@ -94,14 +95,14 @@ bool vpux::VPUIP::NCEClusterTaskOp::isSupportedLayout(mlir::Operation* op, vpux:
 
                 // check weights layout
                 if (!info.hasInput(1) || info.getInput(1) != DimsOrder::OYXI) {
-                    fillDataInfo(info, 2, 1, DimsOrder::OYXI);
+                    IE::fillDataInfo(info, 2, 1, DimsOrder::OYXI);
                     return false;
                 }
 
                 return true;
             })
             .Case<IE::AddOp>([&](IE::AddOp originOp) {
-                if (!isSupportedLayoutSameInOutSpecificDimsOrder(originOp, info, {DimsOrder::NHWC})) {
+                if (!IERT::isSupportedLayoutSameInOutSpecificDimsOrder(originOp, info, {DimsOrder::NHWC})) {
                     // weights layout
                     info.setInput(1, DimsOrder::NHWC);
                     return false;
@@ -109,14 +110,14 @@ bool vpux::VPUIP::NCEClusterTaskOp::isSupportedLayout(mlir::Operation* op, vpux:
 
                 // check weights layout
                 if (!info.hasInput(1) || info.getInput(1) != DimsOrder::NHWC) {
-                    fillDataInfo(info, 2, 1, DimsOrder::NHWC);
+                    IE::fillDataInfo(info, 2, 1, DimsOrder::NHWC);
                     return false;
                 }
 
                 return true;
             })
             .Case<IE::GroupConvolutionOp>([&](IE::GroupConvolutionOp op) {
-                if (!isSupportedLayoutSameInOutSpecificDimsOrder(op, info, {DimsOrder::NHWC})) {
+                if (!IERT::isSupportedLayoutSameInOutSpecificDimsOrder(op, info, {DimsOrder::NHWC})) {
                     // weights layout
                     info.setInput(1, DimsOrder::OYXI);
                     return false;
@@ -124,7 +125,7 @@ bool vpux::VPUIP::NCEClusterTaskOp::isSupportedLayout(mlir::Operation* op, vpux:
 
                 // check weights layout
                 if (!info.hasInput(1) || info.getInput(1) != DimsOrder::OYXI) {
-                    fillDataInfo(info, 2, 1, DimsOrder::OYXI);
+                    IE::fillDataInfo(info, 2, 1, DimsOrder::OYXI);
                     return false;
                 }
 
@@ -167,7 +168,7 @@ mlir::LogicalResult verifyNCEConv(VPUIP::NCEClusterTaskOp op) {
     }
 
     const auto weightsShape = getShape(op.weights());
-    const auto OC = weightsShape[IERT::ConvolutionOp::filter_out_channel_dim()];
+    const auto OC = weightsShape[IE::Dims4D::Filter::OC];
 
     const auto weightTableShape = getShape(op.weight_table());
     const auto weightTableNumElements = weightTableShape.totalSize();
@@ -279,7 +280,7 @@ mlir::LogicalResult verifyNCEDWConv(VPUIP::NCEClusterTaskOp op) {
     }
 
     const auto weightsShape = getShape(op.weights());
-    const auto OC = weightsShape[IERT::ConvolutionOp::filter_out_channel_dim()];
+    const auto OC = weightsShape[IE::Dims4D::Filter::OC];
 
     const auto weightTableShape = getShape(op.weight_table());
     const auto weightTableNumElements = weightTableShape.totalSize();

@@ -13,6 +13,7 @@
 
 #include "vpux/compiler/dialect/IERT/passes.hpp"
 
+#include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 
 #include <mlir/IR/PatternMatch.h>
@@ -31,7 +32,7 @@ namespace {
 //
 
 bool isPureViewOp(mlir::Operation* op) {
-    return mlir::isa<mlir::ViewLikeOpInterface>(op) && !mlir::isa<RTLayerInterface>(op);
+    return mlir::isa<mlir::ViewLikeOpInterface>(op) && !mlir::isa<IERT::LayerOpInterface>(op);
 }
 
 SmallVector<mlir::Operation*> getOuterViewLikeDeps(mlir::Block* block) {

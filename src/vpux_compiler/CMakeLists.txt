@@ -256,6 +256,7 @@ add_passes("dialect/IE" "IE")
 add_rewriters("dialect/IE")
 
 add_dialect("IERT")
+add_op_interfaces("dialect/IERT")
 add_passes("dialect/IERT" "IERT")
 add_rewriters("dialect/IERT")
 
@@ -268,8 +269,6 @@ add_passes("dialect/VPUIP" "VPUIP")
 
 add_passes("conversion" "Conversion")
 add_rewriters("conversion")
-
-add_passes("edsl" "eDSL")
 
 file(GLOB_RECURSE TBLGEN_SOURCES CONFIGURE_DEPENDS "*.td")
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${TBLGEN_SOURCES})
