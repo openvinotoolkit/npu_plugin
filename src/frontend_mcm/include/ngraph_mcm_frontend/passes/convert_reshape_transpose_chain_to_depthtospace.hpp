@@ -13,9 +13,11 @@
 
 #pragma once
 
+#include <memory>
+#include <ngraph/pass/graph_rewrite.hpp>
 #include <ngraph/pass/pass.hpp>
 
-class ConvertReshapeTransposeChainToDepthToSpace final : public ngraph::pass::NodePass {
+class ConvertReshapeTransposeChainToDepthToSpace : public ngraph::pass::MatcherPass {
 public:
-    bool run_on_node(std::shared_ptr<ngraph::Node> node) override;
+    ConvertReshapeTransposeChainToDepthToSpace();
 };
