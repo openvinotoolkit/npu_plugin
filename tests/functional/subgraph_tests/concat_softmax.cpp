@@ -43,7 +43,7 @@ namespace ConcatSoftmaxSubGraphTestsDefinitions {
 // Note: KMB-plugin does not support batch-size > 1.
 
 // 4d cases
-    InferenceEngine::SizeVector axes4d = {1, 2, 3};
+    std::vector<int> axes4d = {1, 2, 3};
     std::vector<std::vector<std::vector<size_t>>> inShapes4d = {
             {{1, 2, 3, 4}, {1, 2, 3, 4}, {1, 2, 3, 4}},
             {{1, 10, 10, 10}, {1, 10, 10, 10}, {1, 10, 10, 10}},
@@ -64,7 +64,7 @@ namespace ConcatSoftmaxSubGraphTestsDefinitions {
 
 
 // 3d cases
-    InferenceEngine::SizeVector axes3d = {1, 2};
+    std::vector<int> axes3d = {1, 2};
     std::vector<std::vector<std::vector<size_t>>> inShapes3d = {
             {{1, 2, 3}, {1, 2, 3}, {1, 2, 3}},
             {{1, 10, 33}, {1, 10, 33}, {1, 10, 33}, {1, 10, 33}},
@@ -83,7 +83,7 @@ namespace ConcatSoftmaxSubGraphTestsDefinitions {
                             KmbConcatSoftmaxSubGraphTest::getTestCaseName);
 
 // Check parameters from squeezenet1_1
-    InferenceEngine::SizeVector axes_squeeznet1_1 = {1};
+    std::vector<int> axes_squeeznet1_1 = {1};
 
     std::vector<std::vector<std::vector<size_t>>> inShapes_squeeznet1_1 = {
             {{1, 64, 56, 56}, {1, 64, 56, 56}},
