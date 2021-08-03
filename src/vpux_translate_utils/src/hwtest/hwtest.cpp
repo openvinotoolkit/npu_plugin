@@ -13,19 +13,20 @@
 
 #include "vpux/hwtest/hwtest.hpp"
 
-#include <numeric>
+#include "vpux/compiler/dialect/VPUIP/ops.hpp"
+#include "vpux/compiler/dialect/VPUIP/passes.hpp"
+#include "vpux/compiler/dialect/const/ops.hpp"
+#include "vpux/compiler/init.hpp"
+#include "vpux/compiler/utils/logging.hpp"
+#include "vpux/compiler/utils/types.hpp"
+
+#include "vpux/utils/core/error.hpp"
 
 #include <mlir/Dialect/Quant/QuantTypes.h>
 #include <mlir/IR/BuiltinOps.h>
 #include <mlir/IR/Verifier.h>
 
-#include "vpux/compiler/dialect/VPUIP/ops.hpp"
-#include "vpux/compiler/dialect/VPUIP/passes.hpp"
-#include "vpux/compiler/dialect/const/ops.hpp"
-#include "vpux/compiler/utils/logging.hpp"
-#include "vpux/compiler/utils/types.hpp"
-#include "vpux/utils/core/error.hpp"
-#include "vpux_config.hpp"
+#include <numeric>
 
 namespace vpux {
 namespace {
@@ -434,7 +435,12 @@ void buildSimpleZMajorConv(mlir::ModuleOp module, mlir::OpBuilder builder, Logge
 }  // namespace
 
 mlir::OwningModuleRef importHWTEST(llvm::StringRef, mlir::MLIRContext* ctx) {
+    mlir::DialectRegistry registry;
+    registerDialects(registry);
+    ctx->appendDialectRegistry(registry);
+
     ctx->loadDialect<VPUIP::VPUIPDialect>();
+
     auto module = mlir::ModuleOp::create(mlir::UnknownLoc::get(ctx), StringRef("mainModule"));
     auto log = Logger{"vpux-hwtest", LogLevel::Info};
     auto builderLog = OpBuilderLogger{log.nest()};
