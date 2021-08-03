@@ -151,5 +151,12 @@ DECLARE_VPUX_CONFIG_VALUE(MLIR);
 
 DECLARE_VPUX_CONFIG_KEY(COMPILATION_MODE);
 
+/**
+ * @brief [Only for VPUX Plugin]
+ * Type: integer, default is None
+ * Number of DPU groups
+ */
+DECLARE_VPUX_CONFIG_KEY(DPU_GROUPS);
+
 }  // namespace VPUXConfigParams
 }  // namespace InferenceEngine

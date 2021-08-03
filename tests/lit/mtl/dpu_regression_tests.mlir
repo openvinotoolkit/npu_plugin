@@ -17,7 +17,7 @@
 // CHECK:           }
 // CHECK-SAME:      executors :  {
 // CHECK:               IERT.ExecutorResource 2 of "DMA_NN"
-// CHECK:               IERT.ExecutorResource 1 of "NCE_Cluster" {
+// CHECK:               IERT.ExecutorResource 2 of "NCE_Cluster" {
 // CHECK:                   IERT.ExecutorResource 1 of "NCE_PerClusterDPU"
 // CHECK:               }
 // CHECK:           }

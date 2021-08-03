@@ -15,6 +15,7 @@
 
 #include <vpux/vpux_plugin_config.hpp>
 
+#include "vpux/utils/core/optional.hpp"
 #include "vpux_config_base.hpp"
 #include "vpux_private_config.hpp"
 
@@ -78,6 +79,9 @@ public:
     const std::string& compilationMode() const {
         return _compilationMode;
     }
+    Optional<int> numberOfDPUGroups() const {
+        return _numberOfDPUGroups;
+    }
 
     void parseFrom(const VPUXConfig& other);
 
@@ -109,6 +113,7 @@ protected:
             InferenceEngine::VPUXConfigParams::CompilerType::MCM;
 
     std::string _compilationMode = "ReferenceHW";
+    Optional<int> _numberOfDPUGroups = None;
 
 private:
     void parseEnvironment();

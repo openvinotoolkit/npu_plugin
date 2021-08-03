@@ -490,11 +490,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IERT::MaxPoolOp orig
     return verifyKernel(origOp->getLoc(), origOp.kernel_size(), origOp.strides(), log);
 }
 
-mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IE::AddOp origOp, Logger log) {
-    log.setName("NCEInvariant");
-    log.trace("origOp.input1().getType(): {0}", origOp.input1().getType());
-    log.trace("origOp.input2().getType(): {0}", origOp.input2().getType());
-    log.trace("origOp.output().getType(): {0}", origOp.output().getType());
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IE::AddOp origOp, Logger) {
     // Eltwise add is expected to have the same shapes for all operands
     if (origOp.input1().getType().cast<mlir::ShapedType>().getRank() != 4 ||
         origOp.input2().getType().cast<mlir::ShapedType>().getRank() != 4 ||
@@ -503,18 +499,12 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IE::AddOp origOp, Lo
     }
     if (origOp.input1().getType() != origOp.input2().getType() ||
         origOp.input1().getType() != origOp.output().getType()) {
-        log.trace("origOp.input1().getType() != origOp.input2().getType()");
         return mlir::failure();
     }
-    log.trace("verifyKernel");
     return mlir::success();
 }
 
-mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IERT::AddOp origOp, Logger log) {
-    log.setName("NCEInvariant");
-    log.trace("origOp.input1().getType(): {0}", origOp.input1().getType());
-    log.trace("origOp.input2().getType(): {0}", origOp.input2().getType());
-    log.trace("origOp.output().getType(): {0}", origOp.output().getType());
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IERT::AddOp origOp, Logger) {
     // Eltwise add is expected to have the same shapes for all operands
     if (origOp.input1().getType().cast<mlir::ShapedType>().getRank() != 4 ||
         origOp.input2().getType().cast<mlir::ShapedType>().getRank() != 4 ||
@@ -523,10 +513,8 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IERT::AddOp origOp, 
     }
     if (origOp.input1().getType() != origOp.input2().getType() ||
         origOp.input1().getType() != origOp.output().getType()) {
-        log.trace("origOp.input1().getType() != origOp.input2().getType()");
         return mlir::failure();
     }
-    log.trace("verifyKernel");
     return mlir::success();
 }
 

@@ -263,8 +263,9 @@ void buildPipeline(mlir::PassManager& pm, const VPUXConfig& config, mlir::Timing
     const auto archKind = getArchKind(config);
     const auto compilationMode = getCompilationMode(config);
     const auto enableProfiling = config.performanceCounting();
+    const auto numOfDPUGroups = config.numberOfDPUGroups();
 
-    pm.addPass(createSetCompileParamsPass(archKind, compilationMode, log.nest()));
+    pm.addPass(createSetCompileParamsPass(archKind, compilationMode, numOfDPUGroups, log.nest()));
 
     if (compilationMode == VPUIP::CompilationMode::ReferenceSW) {
         buildReferenceModePipeline(pm, enableProfiling, log.nest());
