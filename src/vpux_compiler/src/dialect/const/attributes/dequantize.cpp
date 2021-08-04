@@ -25,6 +25,14 @@
 using namespace vpux;
 
 //
+// DequantizeAttr::walkImmediateSubElements
+//
+
+void vpux::Const::DequantizeAttr::walkImmediateSubElements(llvm::function_ref<void(Attribute)>,
+                                                           llvm::function_ref<void(mlir::Type)>) const {
+}
+
+//
 // DequantizeAttr::inferOutputType
 //
 

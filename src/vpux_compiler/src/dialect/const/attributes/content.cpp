@@ -76,6 +76,17 @@ void vpux::Const::ConstDialect::printAttribute(mlir::Attribute attr, mlir::Diale
 }
 
 //
+// ContentAttr::walkImmediateSubElements
+//
+
+void vpux::Const::ContentAttr::walkImmediateSubElements(llvm::function_ref<void(Attribute)> walkAttrsFn,
+                                                        llvm::function_ref<void(mlir::Type)> walkTypesFn) const {
+    walkAttrsFn(getBaseContent());
+    walkAttrsFn(getImpl()->transformations);
+    walkTypesFn(getType());
+}
+
+//
 // ContentAttr::verify
 //
 

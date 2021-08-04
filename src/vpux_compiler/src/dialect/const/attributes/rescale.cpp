@@ -27,6 +27,15 @@
 using namespace vpux;
 
 //
+// RescaleAttr::walkImmediateSubElements
+//
+
+void vpux::Const::RescaleAttr::walkImmediateSubElements(llvm::function_ref<void(Attribute)> walkAttrsFn,
+                                                        llvm::function_ref<void(mlir::Type)>) const {
+    walkAttrsFn(getScale());
+}
+
+//
 // RescaleAttr::print
 //
 

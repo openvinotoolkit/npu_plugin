@@ -37,6 +37,7 @@ public:
 
 public:
     mlir::LogicalResult getAlias(mlir::Attribute attr, llvm::raw_ostream& os) const final;
+    mlir::LogicalResult getAlias(mlir::Type type, llvm::raw_ostream& os) const final;
 };
 
 mlir::LogicalResult IEAsmHooks::getAlias(mlir::Attribute attr, llvm::raw_ostream& os) const {
@@ -51,6 +52,15 @@ mlir::LogicalResult IEAsmHooks::getAlias(mlir::Attribute attr, llvm::raw_ostream
                 return mlir::success();
             }
         }
+    }
+
+    return mlir::failure();
+}
+
+mlir::LogicalResult IEAsmHooks::getAlias(mlir::Type type, llvm::raw_ostream& os) const {
+    if (type.isa<mlir::quant::QuantizedType>()) {
+        os << "qElemType";
+        return mlir::success();
     }
 
     return mlir::failure();

@@ -23,6 +23,15 @@
 using namespace vpux;
 
 //
+// ContentAttr::walkImmediateSubElements
+//
+
+void vpux::Const::QuantCastAttr::walkImmediateSubElements(llvm::function_ref<void(Attribute)>,
+                                                          llvm::function_ref<void(mlir::Type)> walkTypesFn) const {
+    walkTypesFn(getElemType());
+}
+
+//
 // QuantCastAttr::verify
 //
 
@@ -71,7 +80,7 @@ mlir::Attribute vpux::Const::QuantCastAttr::parse(mlir::MLIRContext*, mlir::Dial
 //
 
 mlir::ShapedType vpux::Const::QuantCastAttr::inferOutputType(mlir::ShapedType input) const {
-    const auto quantStorateType = normalizeQuantStorageType(getElemType().getStorageType());
+    const auto quantStorateType = normalizeQuantStorageType(getElemType());
 
     VPUX_THROW_UNLESS(input.getElementType() == quantStorateType, "Can't cast '{0}' element type to '{1}'",
                       input.getElementType(), getElemType());
