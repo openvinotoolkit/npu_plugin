@@ -724,4 +724,108 @@ void quantizeGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mod
     removeFQ(pass, model);
 
     reduceConversionsPatterns(model);
+
+    mv::DataModel dm(model);
+    auto avgOps = om.getOps("AveragePool");
+    for(auto& avgOp: avgOps)
+    {
+        auto inputTensor = avgOp->getInputTensor(0);
+        auto outputTensor = avgOp->getOutputTensor(0);
+        auto childOps = mv::findSinkLayers(dm, avgOp->getOutputTensor(0));
+
+        if((inputTensor->getShape()[mv::IO_HEIGHT_DIMENSION] == 1) && (inputTensor->getShape()[mv::IO_WIDTH_DIMENSION] == 1) &&
+        (outputTensor->getShape()[mv::IO_HEIGHT_DIMENSION] == 1) && (outputTensor->getShape()[mv::IO_WIDTH_DIMENSION] == 1))
+        {
+            om.removeOp(avgOp);
+
+            for(auto& childOp: childOps)
+            {
+                om.defineFlow(inputTensor, childOp, 0);
+                childOp->setInputTensor(inputTensor, 0, false);
+            }
+        }
+    }
+
+    
+    auto hswishOps = om.getOps("HSwish");
+    for(auto& hswishOp: hswishOps)
+    {
+        auto name = hswishOp->getName();
+        auto inputTensor = hswishOp->getInputTensor(0);
+        auto outputTensor = hswishOp->getOutputTensor(0);
+        auto childOps = mv::findSinkLayers(dm, hswishOp->getOutputTensor(0));
+        unsigned opId = hswishOp->get<unsigned>("opId");
+        auto quantParam = inputTensor->getQuantParams();
+        auto outQuantParam = outputTensor->getQuantParams();
+        auto outputDtype = outputTensor->getDType();
+        std::cout << quantParam.getScale()[0] << " " << quantParam.getScale()[0] << std::endl;
+
+        auto maxpool = om.averagePool(name + "_new_maxpool", inputTensor, {1, 1}, {1, 1}, {0, 0, 0, 0});
+        maxpool->setQuantParams(mv::QuantizationParams::initial());
+        auto maxpoolOp = om.getSourceOp(maxpool);
+        maxpoolOp->set<unsigned>("opId", opId);
+
+        std::vector<double> biasValue(inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION], 3.0);
+        auto biasConst = om.constant(name + "_bias_const", biasValue, {inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION]}, mv::DType("Float32"), mv::Order("W"));
+        biasConst->setQuantParams(mv::QuantizationParams::initial());
+        auto biasConstOp = om.getSourceOp(biasConst);
+        biasConstOp->set<unsigned>("opId", opId);
+        auto bias = om.bias(name + "_new_bias", maxpool, biasConst);
+        bias->setQuantParams(mv::QuantizationParams::initial());
+        auto biasOp = om.getSourceOp(bias);
+        biasOp->set<unsigned>("opId", opId);
+
+        auto min = om.minimum(name + "_new_minimum", bias, 6);
+        min->setQuantParams(mv::QuantizationParams::initial());
+        auto minOp = om.getSourceOp(min);
+        minOp->set<unsigned>("opId", opId);
+
+        auto max = om.maximum(name + "_new_maximum", min, 0);
+        max->setQuantParams(mv::QuantizationParams::initial());
+        auto maxOp = om.getSourceOp(max);
+        maxOp->set<unsigned>("opId", opId);
+
+        // Populate identity weights
+        const int64_t weightsValue_i = 1;
+        auto K = inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION];
+
+        std::vector<int64_t> weightsData_i(K*K, 0);
+        for (auto i = 0u; i < K; ++i)
+            weightsData_i.at(i*(K+1)) = weightsValue_i;
+        mv::Data::TensorIterator weights_i = om.constantInt("",
+                            weightsData_i,
+                            {1, 1, K, K},
+                            mv::DType("UInt8"),
+                            mv::Order(mv::Order::getRowMajorID(4)));
+        weights_i->setQuantParams(mv::QuantizationParams({0},{1.0 / 6},{0},{255.0 / 6}));
+
+        // Insert identity Conv
+        auto identityConv = om.conv(name + "_scale_conv", max, weights_i, {1,1}, {0, 0, 0, 0}, 1);
+        identityConv->setQuantParams(mv::QuantizationParams::initial());
+        auto identityConvOp = om.getSourceOp(identityConv);
+
+        auto weightsOp_i = om.getSourceOp(weights_i);
+        identityConvOp->set<unsigned>("opId", opId);
+        weightsOp_i->set<unsigned>("opId", opId);
+
+        auto eltwiseMul = om.eltwise(name + "_new_eltwise", {inputTensor, identityConv}, "Multiply");
+        eltwiseMul->setQuantParams(outQuantParam);
+        eltwiseMul->setDType(outputDtype);
+        auto eltwiseMulOp = om.getSourceOp(eltwiseMul);
+        eltwiseMulOp->set<unsigned>("opId", opId);
+
+        // auto eltwiseMul = om.relu(name + "_new_eltwise", inputTensor);
+        // eltwiseMul->setQuantParams(outQuantParam);
+        // eltwiseMul->setDType(outputDtype);
+        // auto eltwiseMulOp = om.getSourceOp(eltwiseMul);
+        // eltwiseMulOp->set<unsigned>("opId", opId);
+
+        om.removeOp(hswishOp);
+
+        for(auto& childOp: childOps)
+        {
+            om.defineFlow(eltwiseMul, childOp, 0);
+            childOp->setInputTensor(eltwiseMul, 0, false);
+        }
+    }
 }
