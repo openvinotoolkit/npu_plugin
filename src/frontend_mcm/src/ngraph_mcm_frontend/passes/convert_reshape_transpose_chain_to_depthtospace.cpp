@@ -55,18 +55,6 @@ ConvertReshapeTransposeChainToDepthToSpace::ConvertReshapeTransposeChainToDepthT
             return false;
         }
 
-        std::vector<size_t> first_transpose_in_dims = first_transpose->get_input_shape(0);
-        std::vector<size_t> last_transpose_out_dims = last_transpose->get_output_shape(0);
-
-        // Input\Output shapes for depthToSpace layer from original edsr3 network
-        // Expectations that this pass will only work on the bdk3 version of the network
-        std::vector<size_t> expected_in_shape = {1, 80, 360, 640};
-        std::vector<size_t> expected_out_shape = {1, 20, 720, 1280};
-
-        if ((first_transpose_in_dims != expected_in_shape) || (last_transpose_out_dims != expected_out_shape)) {
-            return false;
-        }
-
         auto depthToSpace = std::make_shared<ngraph::op::v0::DepthToSpace>(depthtospace_input, "DEPTH_FIRST", 2);
 
         depthToSpace->set_friendly_name(m.get_match_root()->get_friendly_name());
