@@ -61,7 +61,7 @@ using namespace LayerTestsDefinitions;
 
 namespace {
 
-InferenceEngine::SizeVector axes = {0, 1, 2, 3};
+std::vector<int> axes = {0, 1, 2, 3};
 std::vector<std::vector<std::vector<size_t>>> inShapes = {
     {{10, 10, 10, 10}},
     {{10, 10, 10, 10}, {10, 10, 10, 10}},
@@ -98,7 +98,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_NoReshape, KmbConcatLayerTest,
 // Check parameters from InceptionV3
 // This test is just attempt to use parameters other than in CPU-plugin.
 // Note: KMB-plugin does not support batch-size > 1.
-    InferenceEngine::SizeVector axes_check = {1};
+    std::vector<int> axes_check = {1};
 
     std::vector<std::vector<std::vector<size_t>>> inShapes_check = {
             {{1, 64, 35, 35}, {1, 64, 35, 35}},
