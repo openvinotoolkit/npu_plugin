@@ -36,7 +36,7 @@ mlir::quant::QuantizedType tileScalesAndZP(mlir::quant::UniformQuantizedPerAxisT
 std::tuple<double, int64_t> calcScaleAndZeroPoint(int64_t qMin, int64_t qMax, double rMin, double rMax, bool isSigned);
 
 mlir::quant::QuantizedType getQuantizedType(Const::ContentAttr lowConst, Const::ContentAttr highConst, int64_t levels,
-                                            mlir::FloatType realType, mlir::Location loc);
+                                            mlir::FloatType realType, bool isSigned, mlir::Location loc);
 
 mlir::LogicalResult getFakeQuantParams(mlir::ShapedType qType, int64_t& levels, mlir::RankedTensorType& attrType,
                                        mlir::DenseElementsAttr& rMinAttr, mlir::DenseElementsAttr& rMaxAttr,

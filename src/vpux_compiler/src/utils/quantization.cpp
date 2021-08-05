@@ -161,14 +161,12 @@ std::tuple<double, int64_t> vpux::calcScaleAndZeroPoint(int64_t qMin, int64_t qM
 }
 
 mlir::quant::QuantizedType vpux::getQuantizedType(Const::ContentAttr lowConst, Const::ContentAttr highConst,
-                                                  int64_t levels, mlir::FloatType realType, mlir::Location loc) {
+                                                  int64_t levels, mlir::FloatType realType, bool isSigned,
+                                                  mlir::Location loc) {
     if (lowConst == nullptr || highConst == nullptr) {
         (void)errorAt(loc, "Got non constant quantization parameters (low and high values)");
         return nullptr;
     }
-
-    // TODO: how to choose this?
-    const bool isSigned = false;
 
     mlir::Type storageType;
     int64_t qMin = 0;
