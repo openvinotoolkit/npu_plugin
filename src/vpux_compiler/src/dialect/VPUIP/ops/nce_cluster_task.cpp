@@ -163,7 +163,22 @@ mlir::LogicalResult verifyNCEConv(VPUIP::NCEClusterTaskOp op) {
         return errorAt(op, "kernel_padding is required for NCETaskType : '{0}'", op.task_type());
     }
 
-    if (mlir::failed(VPUIP::NCEInvariant::verifyKernel(op->getLoc(), op.kernel_sizeAttr(), op.kernel_stridesAttr()))) {
+    const auto kernelSize = parseIntArrayAttr<int64_t>(op.kernel_sizeAttr());
+    const auto KY = kernelSize[0];
+    const auto KX = kernelSize[1];
+
+    const auto kernelStrides = parseIntArrayAttr<int64_t>(op.kernel_stridesAttr());
+    const auto SY = kernelStrides[0];
+    const auto SX = kernelStrides[1];
+
+    const auto kernelPadding = parseIntArrayAttr<int64_t>(op.kernel_paddingAttr());
+    const auto padLeft = kernelPadding[0];
+    const auto padRight = kernelPadding[1];
+    const auto padTop = kernelPadding[2];
+    const auto padBottom = kernelPadding[3];
+
+    if (mlir::failed(VPUIP::NCEInvariant::verifyKernel(op->getLoc(), KY, KX, SY, SX, padTop, padBottom, padLeft,
+                                                       padRight))) {
         return mlir::failure();
     }
 
@@ -216,7 +231,22 @@ mlir::LogicalResult verifyNCEPool(VPUIP::NCEClusterTaskOp op) {
         return errorAt(op, "activation_window_channel_length is required for NCETaskType : '{0}'", op.task_type());
     }
 
-    if (mlir::failed(VPUIP::NCEInvariant::verifyKernel(op->getLoc(), op.kernel_sizeAttr(), op.kernel_stridesAttr()))) {
+    const auto kernelSize = parseIntArrayAttr<int64_t>(op.kernel_sizeAttr());
+    const auto KY = kernelSize[0];
+    const auto KX = kernelSize[1];
+
+    const auto kernelStrides = parseIntArrayAttr<int64_t>(op.kernel_stridesAttr());
+    const auto SY = kernelStrides[0];
+    const auto SX = kernelStrides[1];
+
+    const auto kernelPadding = parseIntArrayAttr<int64_t>(op.kernel_paddingAttr());
+    const auto padLeft = kernelPadding[0];
+    const auto padRight = kernelPadding[1];
+    const auto padTop = kernelPadding[2];
+    const auto padBottom = kernelPadding[3];
+
+    if (mlir::failed(VPUIP::NCEInvariant::verifyKernel(op->getLoc(), KY, KX, SY, SX, padTop, padBottom, padLeft,
+                                                       padRight))) {
         return mlir::failure();
     }
 
@@ -275,7 +305,22 @@ mlir::LogicalResult verifyNCEDWConv(VPUIP::NCEClusterTaskOp op) {
         return errorAt(op, "kernel_padding is required for NCETaskType : '{0}'", op.task_type());
     }
 
-    if (mlir::failed(VPUIP::NCEInvariant::verifyKernel(op->getLoc(), op.kernel_sizeAttr(), op.kernel_stridesAttr()))) {
+    const auto kernelSize = parseIntArrayAttr<int64_t>(op.kernel_sizeAttr());
+    const auto KY = kernelSize[0];
+    const auto KX = kernelSize[1];
+
+    const auto kernelStrides = parseIntArrayAttr<int64_t>(op.kernel_stridesAttr());
+    const auto SY = kernelStrides[0];
+    const auto SX = kernelStrides[1];
+
+    const auto kernelPadding = parseIntArrayAttr<int64_t>(op.kernel_paddingAttr());
+    const auto padLeft = kernelPadding[0];
+    const auto padRight = kernelPadding[1];
+    const auto padTop = kernelPadding[2];
+    const auto padBottom = kernelPadding[3];
+
+    if (mlir::failed(VPUIP::NCEInvariant::verifyKernel(op->getLoc(), KY, KX, SY, SX, padTop, padBottom, padLeft,
+                                                       padRight))) {
         return mlir::failure();
     }
 
