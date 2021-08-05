@@ -1109,6 +1109,30 @@ def IE_MishOp :
 }
 
 //
+// ErfOp
+//
+
+def IE_ErfOp :
+        IE_LayerOp<
+            "Erf",
+            [
+                ResultsAreFloatLike,
+                SameOperandsAndResultType,
+                IE_EltwiseOp
+            ]
+        > {
+    let summary = "InferenceEngine Erf layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+}
+
+//
 // TransposeOp
 //
 

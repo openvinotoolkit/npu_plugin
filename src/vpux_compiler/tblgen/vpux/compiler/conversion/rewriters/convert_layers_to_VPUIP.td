@@ -249,6 +249,21 @@ def RewriteMish :
         >;
 
 //
+// IERT.Erf -> VPUIP.ErfUPA
+//
+
+def createErfUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::ErfUPAOp>($_loc, $0, $1)
+        }]>;
+
+def RewriteErf :
+        Pat<
+            (IERT_ErfOp $input, $output),
+            (createErfUPAOp $input, $output)
+        >;
+
+//
 // IERT.Tanh -> VPUIP.TanhUPA
 //
 
