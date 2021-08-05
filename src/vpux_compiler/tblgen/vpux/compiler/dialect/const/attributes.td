@@ -17,6 +17,8 @@
 include "vpux/compiler/dialect/const/dialect.td"
 include "vpux/compiler/dialect/const/attr_interfaces.td"
 
+include "mlir/IR/SubElementInterfaces.td"
+
 //
 // Base classes
 //
@@ -30,7 +32,7 @@ class Const_Attr<string name, list<Trait> traits = [], string baseCppClass = "ml
 // ContentAttr
 //
 
-def Const_ContentAttr : Const_Attr<"Content"> {
+def Const_ContentAttr : Const_Attr<"Content", [DeclareAttrInterfaceMethods<SubElementAttrInterface>]> {
     let summary = "Lazy folded constant content";
 
     let description = [{
@@ -108,7 +110,8 @@ def Const_ContentAttr : Const_Attr<"Content"> {
 // ConvertElemTypeAttr
 //
 
-def Const_ConvertElemTypeAttr : Const_Attr<"ConvertElemType", [DeclareAttrInterfaceMethods<Const_TransformAttrInterface>]> {
+def Const_ConvertElemTypeAttr : Const_Attr<"ConvertElemType",
+        [DeclareAttrInterfaceMethods<Const_TransformAttrInterface>, DeclareAttrInterfaceMethods<SubElementAttrInterface>]> {
     let summary = "Convert constant content element type";
 
     let parameters = (ins
@@ -132,7 +135,8 @@ def Const_ConvertElemTypeAttr : Const_Attr<"ConvertElemType", [DeclareAttrInterf
 // QuantCastAttr
 //
 
-def Const_QuantCastAttr : Const_Attr<"QuantCast", [DeclareAttrInterfaceMethods<Const_TransformAttrInterface>]> {
+def Const_QuantCastAttr : Const_Attr<"QuantCast",
+        [DeclareAttrInterfaceMethods<Const_TransformAttrInterface>, DeclareAttrInterfaceMethods<SubElementAttrInterface>]> {
     let summary = "Cast element type from raw integer to quantized type";
 
     let parameters = (ins
@@ -156,7 +160,8 @@ def Const_QuantCastAttr : Const_Attr<"QuantCast", [DeclareAttrInterfaceMethods<C
 // DequantizeAttr
 //
 
-def Const_DequantizeAttr : Const_Attr<"Dequantize", [DeclareAttrInterfaceMethods<Const_TransformAttrInterface>]> {
+def Const_DequantizeAttr : Const_Attr<"Dequantize",
+        [DeclareAttrInterfaceMethods<Const_TransformAttrInterface>, DeclareAttrInterfaceMethods<SubElementAttrInterface>]> {
     let summary = "Dequantize constant content";
 }
 
@@ -164,7 +169,8 @@ def Const_DequantizeAttr : Const_Attr<"Dequantize", [DeclareAttrInterfaceMethods
 // RescaleAttr
 //
 
-def Const_RescaleAttr : Const_Attr<"Rescale", [DeclareAttrInterfaceMethods<Const_TransformAttrInterface>]> {
+def Const_RescaleAttr : Const_Attr<"Rescale",
+        [DeclareAttrInterfaceMethods<Const_TransformAttrInterface>, DeclareAttrInterfaceMethods<SubElementAttrInterface>]> {
     let summary = "Rescale constant content";
 
     let parameters = (ins
@@ -187,7 +193,8 @@ def Const_RescaleAttr : Const_Attr<"Rescale", [DeclareAttrInterfaceMethods<Const
 // ReshapeAttr
 //
 
-def Const_ReshapeAttr : Const_Attr<"Reshape", [DeclareAttrInterfaceMethods<Const_TransformAttrInterface>]> {
+def Const_ReshapeAttr : Const_Attr<"Reshape",
+        [DeclareAttrInterfaceMethods<Const_TransformAttrInterface>, DeclareAttrInterfaceMethods<SubElementAttrInterface>]> {
     let summary = "Reshape constant content";
 
     let parameters = (ins
@@ -211,7 +218,8 @@ def Const_ReshapeAttr : Const_Attr<"Reshape", [DeclareAttrInterfaceMethods<Const
 // ReorderAttr
 //
 
-def Const_ReorderAttr : Const_Attr<"Reorder", [DeclareAttrInterfaceMethods<Const_TransformAttrInterface>]> {
+def Const_ReorderAttr : Const_Attr<"Reorder",
+        [DeclareAttrInterfaceMethods<Const_TransformAttrInterface>, DeclareAttrInterfaceMethods<SubElementAttrInterface>]> {
     let summary = "Reorder constant content";
 
     let parameters = (ins
@@ -235,7 +243,8 @@ def Const_ReorderAttr : Const_Attr<"Reorder", [DeclareAttrInterfaceMethods<Const
 // PadWithZeroAttr
 //
 
-def Const_PadWithZeroAttr : Const_Attr<"PadWithZero", [DeclareAttrInterfaceMethods<Const_TransformAttrInterface>]> {
+def Const_PadWithZeroAttr : Const_Attr<"PadWithZero",
+        [DeclareAttrInterfaceMethods<Const_TransformAttrInterface>, DeclareAttrInterfaceMethods<SubElementAttrInterface>]> {
     let summary = "Pad constant content with zeros";
 
     let parameters = (ins
@@ -260,7 +269,8 @@ def Const_PadWithZeroAttr : Const_Attr<"PadWithZero", [DeclareAttrInterfaceMetho
 // SubViewAttr
 //
 
-def Const_SubViewAttr : Const_Attr<"SubView", [DeclareAttrInterfaceMethods<Const_TransformAttrInterface>]> {
+def Const_SubViewAttr : Const_Attr<"SubView",
+        [DeclareAttrInterfaceMethods<Const_TransformAttrInterface>, DeclareAttrInterfaceMethods<SubElementAttrInterface>]> {
     let summary = "Extract subview from constant content";
 
     let parameters = (ins

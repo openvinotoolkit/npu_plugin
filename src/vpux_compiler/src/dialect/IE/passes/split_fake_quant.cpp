@@ -203,8 +203,7 @@ mlir::LogicalResult UseConstDequant::matchAndRewrite(IE::FakeQuantizeOp origOp, 
 
     const auto qType = changeElemType(realType, qElemType);
 
-    const auto newInConstAttr =
-            inConstAttr.convertElemType(normalizeQuantStorageType(qElemType.getStorageType())).quantCast(qElemType);
+    const auto newInConstAttr = inConstAttr.convertElemType(normalizeQuantStorageType(qElemType)).quantCast(qElemType);
     auto newInOp = rewriter.create<Const::DeclareOp>(inConst->getLoc(), qType, newInConstAttr);
 
     rewriter.replaceOpWithNewOp<mlir::quant::DequantizeCastOp>(origOp, origOp.getType(), newInOp.output());

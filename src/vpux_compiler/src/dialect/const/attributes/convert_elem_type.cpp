@@ -22,6 +22,15 @@
 using namespace vpux;
 
 //
+// ContentAttr::walkImmediateSubElements
+//
+
+void vpux::Const::ConvertElemTypeAttr::walkImmediateSubElements(
+        llvm::function_ref<void(Attribute)>, llvm::function_ref<void(mlir::Type)> walkTypesFn) const {
+    walkTypesFn(getElemType());
+}
+
+//
 // ConvertElemTypeAttr::verify
 //
 

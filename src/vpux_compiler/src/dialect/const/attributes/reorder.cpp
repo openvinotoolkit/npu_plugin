@@ -28,6 +28,15 @@
 using namespace vpux;
 
 //
+// ReorderAttr::walkImmediateSubElements
+//
+
+void vpux::Const::ReorderAttr::walkImmediateSubElements(llvm::function_ref<void(Attribute)> walkAttrsFn,
+                                                        llvm::function_ref<void(mlir::Type)>) const {
+    walkAttrsFn(getOrder());
+}
+
+//
 // ReorderAttr::verify
 //
 

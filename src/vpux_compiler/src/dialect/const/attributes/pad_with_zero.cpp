@@ -26,6 +26,16 @@
 using namespace vpux;
 
 //
+// PadWithZeroAttr::walkImmediateSubElements
+//
+
+void vpux::Const::PadWithZeroAttr::walkImmediateSubElements(llvm::function_ref<void(Attribute)> walkAttrsFn,
+                                                            llvm::function_ref<void(mlir::Type)>) const {
+    walkAttrsFn(getPadBefore());
+    walkAttrsFn(getPadAfter());
+}
+
+//
 // PadWithZeroAttr::verify
 //
 
