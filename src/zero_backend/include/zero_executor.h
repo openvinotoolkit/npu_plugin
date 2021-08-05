@@ -25,8 +25,7 @@
 #include "vpux.hpp"
 #include "ze_api.h"
 
-#include "extensions/ze_fence_ext.h"
-#include "extensions/ze_graph_ext.h"
+#include "ze_graph_ext.h"
 
 namespace vpux {
 
@@ -44,12 +43,11 @@ protected:
 
 public:
     ZeroExecutor(ze_driver_handle_t driver_handle, ze_device_handle_t device_handle, ze_context_handle_t context,
-                 ze_graph_dditable_ext_t* graph_ddi_table_ext, ze_fence_dditable_ext_t* fence_ddi_table_ext,
-                 const vpux::NetworkDescription::Ptr& networkDescription, const VPUXConfig& config);
+                 ze_graph_dditable_ext_t* graph_ddi_table_ext, const vpux::NetworkDescription::Ptr& networkDescription,
+                 const VPUXConfig& config);
 
     ZeroExecutor(ze_driver_handle_t driver_handle, ze_device_handle_t device_handle, ze_context_handle_t context,
-                 ze_graph_dditable_ext_t* graph_ddi_table_ext, ze_fence_dditable_ext_t* fence_ddi_table_ext,
-                 const vpux::NetworkDescription::Ptr& networkDescription,
+                 ze_graph_dditable_ext_t* graph_ddi_table_ext, const vpux::NetworkDescription::Ptr& networkDescription,
                  const std::array<std::shared_ptr<commandQueue>, stage::COUNT>& command_queue,
                  const std::shared_ptr<graph>& graph, const VPUXConfig& config);
 
@@ -175,11 +173,23 @@ protected:
         void appendMemoryCopy(void* dst, const void* src, size_t size);
         void appendGraphInitialize(const ze_graph_handle_t& graph_handle);
         void appendGraphExecute(const ze_graph_handle_t& graph_handle);
+        void appendBarrier();
         void close();
         ~commandList();
         ze_command_list_handle_t _handle = nullptr;
         const ze_context_handle_t _context = nullptr;
         ze_graph_dditable_ext_t* _graph_ddi_table_ext = nullptr;
+    };
+
+    struct fence {
+        fence() = default;
+        fence(const std::shared_ptr<commandQueue>& command_queue);
+        fence(const fence&) = delete;
+        fence& operator=(const fence&) = delete;
+        void reset();
+        void hostSynchronize();
+        ~fence();
+        ze_fence_handle_t _handle = nullptr;
     };
 
     struct commandQueue {
@@ -188,23 +198,10 @@ protected:
         commandQueue(const commandQueue&) = delete;
         commandQueue& operator=(const commandQueue&) = delete;
         void executeCommandList(commandList& command_list);
+        void executeCommandList(commandList& command_list, fence& fence);
         ~commandQueue();
         ze_command_queue_handle_t _handle = nullptr;
         ze_context_handle_t _context = nullptr;
-    };
-
-    struct fence {
-        fence() = default;
-        fence(const std::shared_ptr<commandQueue>& command_queue, ze_fence_dditable_ext_t* fence_ddi_table_ext);
-        fence(const fence&) = delete;
-        fence& operator=(const fence&) = delete;
-        void reset();
-        void hostSynchronize(uint64_t fence_value);
-        void deviceSynchronize(const std::shared_ptr<commandQueue>& queue, uint64_t fence_value);
-        void deviceSignal(uint64_t fence_value);
-        ~fence();
-        ze_fence_handle_t _handle = nullptr;
-        ze_fence_dditable_ext_t* _fence_ddi_table_ext = nullptr;
     };
 
     struct eventPool_t {
@@ -246,8 +243,7 @@ protected:
 
     struct graph {
         graph(const ze_device_handle_t& device_handle, const ze_context_handle_t& context,
-              const NetworkDescription::CPtr networkDesc, ze_graph_dditable_ext_t* graph_ddi_table_ext,
-              ze_fence_dditable_ext_t* fence_ddi_table_ext);
+              const NetworkDescription::CPtr networkDesc, ze_graph_dditable_ext_t* graph_ddi_table_ext);
         graph(const graph&) = delete;
         graph& operator=(const graph&) = delete;
         void init();
@@ -262,7 +258,6 @@ protected:
         std::shared_ptr<commandQueue> _command_queue;
         commandList _command_list;
         std::shared_ptr<fence> _fence;
-        uint64_t _fence_value;
 
         ze_graph_dditable_ext_t* _graph_ddi_table_ext = nullptr;
     };
@@ -270,7 +265,8 @@ protected:
     struct pipeline {
         pipeline(const ze_driver_handle_t& driver_handle, const ze_device_handle_t& device_handle,
                  const ze_context_handle_t context, ze_graph_dditable_ext_t* graph_ddi_table_ext,
-                 const std::shared_ptr<graph>& graph);
+                 const std::shared_ptr<graph>& graph,
+                 const std::array<std::shared_ptr<commandQueue>, stage::COUNT>& command_queue);
         pipeline(const pipeline&) = delete;
         pipeline& operator=(const pipeline&) = delete;
         ~pipeline();
@@ -279,7 +275,9 @@ protected:
         std::map<std::string, deviceMem> _inputs_device_mem_map;
         std::map<std::string, hostMem> _outputs_host_mem_map;
         std::map<std::string, deviceMem> _outputs_device_mem_map;
+
         std::array<commandList, stage::COUNT> _command_list;
+        std::array<fence, stage::COUNT> _fence;
 
         eventPool_t _event_pool;
         std::array<event_t, stage::COUNT> _event;
@@ -294,17 +292,12 @@ private:
     ze_context_handle_t _context = nullptr;
 
     ze_graph_dditable_ext_t* _graph_ddi_table_ext = nullptr;
-    ze_fence_dditable_ext_t* _fence_ddi_table_ext = nullptr;
-
-    uint64_t _push_count;
-    uint64_t _pull_count;
 
     NetworkDescription::Ptr _networkDesc;
 
     std::shared_ptr<graph> _graph;
 
     std::array<std::shared_ptr<commandQueue>, stage::COUNT> _command_queue;
-    std::array<std::unique_ptr<fence>, stage::COUNT> _fence;
 
     std::unique_ptr<pipeline> _pipeline;
 };

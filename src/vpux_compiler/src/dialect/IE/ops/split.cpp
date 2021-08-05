@@ -21,7 +21,7 @@
 using namespace vpux;
 
 //
-// getAxis
+// inferReturnTypeComponents
 //
 
 namespace {
@@ -32,7 +32,7 @@ Dim normalizeAxis(IE::SplitOpAdaptor split) {
     const auto inType = split.input().getType().cast<mlir::ShapedType>();
     const auto inRank = inType.getRank();
 
-    auto axisInd = split.axis_value().getSInt();
+    auto axisInd = split.axis_value().getValue().getSExtValue();
 
     // Negative value means counting dimension from the end
     if (axisInd < 0) {
@@ -44,18 +44,6 @@ Dim normalizeAxis(IE::SplitOpAdaptor split) {
 
     return Dim(axisInd);
 }
-
-}  // namespace
-
-Dim vpux::IE::SplitOp::getAxis() {
-    return normalizeAxis(*this);
-}
-
-//
-// inferReturnTypeComponents
-//
-
-namespace {
 
 mlir::FailureOr<Dim> extractAxis(mlir::Location loc, IE::SplitOpAdaptor split) {
     if (split.axis() != nullptr) {
@@ -147,7 +135,7 @@ mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::SplitOp splitOp, mli
         return mlir::failure();
     }
 
-    const auto axisAttr = getSInt32Attr(splitOp.getContext(), axis->ind());
+    const auto axisAttr = getIntAttr(splitOp.getContext(), axis->ind());
     rewriter.replaceOpWithNewOp<IE::SplitOp>(splitOp, splitOp.input(), nullptr, splitOp.num_splitsAttr(), axisAttr);
 
     return mlir::success();

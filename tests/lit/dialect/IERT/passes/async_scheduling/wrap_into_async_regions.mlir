@@ -1,4 +1,4 @@
-// RUN: vpux-opt --split-input-file --set-compile-params="vpu-arch=VPU3700" --wrap-into-async-regions %s | FileCheck %s
+// RUN: vpux-opt --split-input-file --set-compile-params="vpu-arch=KMB" --wrap-into-async-regions %s | FileCheck %s
 
 // CHECK-LABEL: @LinearGraph
 func @LinearGraph(%arg0: memref<100xf16>, %arg1: memref<100xf16>) -> memref<100xf16> {

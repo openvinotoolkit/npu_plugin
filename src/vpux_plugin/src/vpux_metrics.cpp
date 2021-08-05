@@ -52,7 +52,7 @@ const std::vector<std::string>& Metrics::SupportedMetrics() const {
 
 // TODO: Need to add the full name
 std::string Metrics::GetFullDevicesNames() const {
-    return {""};
+    return {};
 }
 
 // TODO each backend may support different configs
@@ -88,6 +88,14 @@ std::string Metrics::GetDeviceArchitecture(const std::string& specifiedDeviceNam
     }
 
     return utils::getPlatformNameByDeviceName(specifiedDeviceName);
+}
+
+std::string Metrics::GetBackendName() const {
+    if (_backends == nullptr) {
+        return {};
+    }
+
+    return _backends->getBackendName();
 }
 
 }  // namespace vpux

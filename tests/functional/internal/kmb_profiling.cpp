@@ -12,20 +12,24 @@
 //
 
 #include "test_model/kmb_test_base.hpp"
+#include "vpux_private_config.hpp"
 
 class KmbProfilingTest : public KmbLayerTestBase {
 public:
-    void runTest(const std::string output_name);
+    void runTest(const std::string output_name, bool mlir=false);
 };
 
-void KmbProfilingTest::runTest(const std::string output_name) {
+void KmbProfilingTest::runTest(const std::string output_name, bool mlir) {
     SKIP_ON("KMB", "HDDL2", "Not supported");
     const SizeVector inDims = {1, 3, 64, 64};
     const TensorDesc userInDesc = TensorDesc(Precision::U8, inDims, Layout::NHWC);
     const TensorDesc userOutDesc = TensorDesc(Precision::FP16, Layout::NHWC);
     const auto scaleDesc = TensorDesc(Precision::FP32, inDims, Layout::NHWC);
     const Precision netPresicion = Precision::FP32;
-    const std::map<std::string, std::string> netConfig = {{CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES)}};
+    std::map<std::string, std::string> netConfig = {{CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES)}};
+    if (mlir) {
+        netConfig[VPUX_CONFIG_KEY(COMPILER_TYPE)] = VPUX_CONFIG_VALUE(MLIR);
+    }
 
     registerBlobGenerator("input", userInDesc, [&](const TensorDesc& desc) {
         return vpux::makeSplatBlob(desc, 1.0f);
@@ -88,4 +92,12 @@ TEST_F(KmbProfilingTest, precommit_profilingMatchedName) {
 
 TEST_F(KmbProfilingTest, precommit_profilingNonMatchedName) {
     runTest("conv");
+}
+
+TEST_F(KmbProfilingTest, profilingMatchedName_MLIR) {
+    runTest("Result", true);
+}
+
+TEST_F(KmbProfilingTest, profilingNonMatchedName_MLIR) {
+    runTest("conv", true);
 }

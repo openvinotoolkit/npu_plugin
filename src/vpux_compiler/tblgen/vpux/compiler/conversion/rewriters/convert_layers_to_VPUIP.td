@@ -139,7 +139,7 @@ def HasGroupsAttr : Constraint<CPred<"$0 != nullptr">>;
 
 def RewriteGroupConvolution :
         Pat<
-            (IERT_GroupConvolutionOp $input, $filter, $bias, $output, $strides, $pads_begin, $pads_end, $dilations, $groups),
+            (IERT_GroupConvolutionOp $input, $filter, $bias, $output, $strides, $pads_begin, $pads_end, $dilations, $groups, $post_op),
             (createGroupConvolutionUPAOp $input, $filter, $bias, $output, $strides, $dilations, $pads_begin, $pads_end, $groups),
             [
                 (HasGroupsAttr $groups)
@@ -582,6 +582,22 @@ def RewriteInterpolate :
         Pat<
             (IERT_InterpolateOp $input, $output, $mode, $coord_mode, $nearest_mode, $antialias),
             (createInterpolateUPAOp $input, $output, $mode, $coord_mode, $nearest_mode, $antialias)
+        >;
+
+//
+// IERT.RegionYolo -> VPUIP.RegionYoloUPA
+//
+
+def createRegionYoloUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::RegionYoloUPAOp>(
+                $_loc, $0, $1, $2, $3, $4, $5, $6)
+        }]>;
+
+def RewriteRegionYolo :
+        Pat<
+            (IERT_RegionYoloOp $input, $output, $coords, $classes, $regions, $do_softmax, $mask, $axis, $end_axis, $anchors),
+            (createRegionYoloUPAOp $input, $output, $coords, $classes, $regions, $do_softmax, $mask)
         >;
 
 #endif

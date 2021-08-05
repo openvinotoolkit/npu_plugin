@@ -138,7 +138,8 @@ std::string VPUXBackends::getCompilationPlatform(const IE::VPUXConfigParams::VPU
     // Automatic detection of compilation platform
     const auto devNames = getAvailableDevicesNames();
     if (devNames.empty()) {
-        IE_THROW() << "No devices found - DEVICE_ID with platform is required for compilation";
+        IE_THROW() << "No devices found - platform must be explicitly specified for compilation. Example: -d VPUX.3700 "
+                      "instead of -d VPUX.";
     }
 
     if (std::find(devNames.cbegin(), devNames.cend(), "EMULATOR") != devNames.end()) {

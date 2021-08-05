@@ -1,5 +1,5 @@
 //
-// Copyright 2021 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -73,18 +73,14 @@ void vpux::VPUIP::PadUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::PadUPAOp::serialize(VPUIP::BlobWriter& writer) {
-    const auto padsBegin = writer.createVector(parseIntArrayAttr(pads_begin()) | transformed([](int64_t val) {
-                                                   return static_cast<uint32_t>(val);
-                                               }));
-    const auto padsEnd = writer.createVector<>(parseIntArrayAttr(pads_end()) | transformed([](int64_t val) {
-                                                   return static_cast<uint32_t>(val);
-                                               }));
+    const auto padsBegin = writer.createVector(parseIntArrayAttr<uint32_t>(pads_begin()));
+    const auto padsEnd = writer.createVector(parseIntArrayAttr<uint32_t>(pads_end()));
 
     MVCNN::PadParamsBuilder builder(writer);
     const auto padMode = converVPUXPadModeToMVCNN(mode());
     builder.add_pad_mode(padMode);
     if (padMode == MVCNN::PadMode::PadMode_Constant) {
-        builder.add_padValue(pad_value()->convertToFloat());
+        builder.add_padValue(static_cast<float>(pad_value()->convertToDouble()));
     }
     builder.add_pads_begin(padsBegin);
     builder.add_pads_end(padsEnd);
@@ -101,7 +97,7 @@ mlir::Operation* vpux::VPUIP::BlobReader::parsePad(mlir::OpBuilder& builder, Arr
     const auto params = task->softLayerParams_as_PadParams();
     const SmallVector<uint32_t> padBegin{params->pads_begin()->cbegin(), params->pads_begin()->cend()};
     const SmallVector<uint32_t> padEnd{params->pads_end()->cbegin(), params->pads_end()->cend()};
-    const auto padValue = getFP32Attr(_ctx, params->padValue());
+    const auto padValue = getFPAttr(_ctx, params->padValue());
     IE::PadMode padMode;
     switch (params->pad_mode()) {
     case MVCNN::PadMode::PadMode_Edge:
@@ -121,6 +117,6 @@ mlir::Operation* vpux::VPUIP::BlobReader::parsePad(mlir::OpBuilder& builder, Arr
     }
 
     return builder.create<VPUIP::PadUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], outputs[0],
-                                           getUInt32ArrayAttr(_ctx, padBegin), getUInt32ArrayAttr(_ctx, padEnd),
-                                           padValue, IE::PadModeAttr::get(_ctx, padMode));
+                                           getIntArrayAttr(_ctx, padBegin), getIntArrayAttr(_ctx, padEnd), padValue,
+                                           IE::PadModeAttr::get(_ctx, padMode));
 }

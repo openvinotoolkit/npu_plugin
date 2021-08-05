@@ -139,14 +139,12 @@ flatbuffers::Offset<MVCNN::Resources> createResources(VPUIP::BlobWriter& writer,
 
 MVCNN::TargetDevice mapTargetDevice(const VPUIP::ArchKind kind) {
     switch (kind) {
-    case VPUIP::ArchKind::VPU3400_A0:
-    case VPUIP::ArchKind::VPU3400:
-    case VPUIP::ArchKind::VPU3700:
+    case VPUIP::ArchKind::KMB:
         return MVCNN::TargetDevice::TargetDevice_KMB;
-    case VPUIP::ArchKind::VPU3720:
-        return MVCNN::TargetDevice::TargetDevice_MTL;
-    case VPUIP::ArchKind::VPU3900:
+    case VPUIP::ArchKind::TBH:
         return MVCNN::TargetDevice::TargetDevice_TBH;
+    case VPUIP::ArchKind::MTL:
+        return MVCNN::TargetDevice::TargetDevice_MTL;
     default:
         VPUX_THROW("Unsupported TargetDevice '{0}'", kind);
     }
@@ -154,13 +152,8 @@ MVCNN::TargetDevice mapTargetDevice(const VPUIP::ArchKind kind) {
 
 MVCNN::TargetDeviceRevision mapTargetDeviceRevision(const VPUIP::ArchKind kind) {
     switch (kind) {
-    case VPUIP::ArchKind::VPU3400_A0:
-        return MVCNN::TargetDeviceRevision::TargetDeviceRevision_A0;
-    case VPUIP::ArchKind::VPU3400:
-    case VPUIP::ArchKind::VPU3700:
+    case VPUIP::ArchKind::KMB:
         return MVCNN::TargetDeviceRevision::TargetDeviceRevision_B0;
-    case VPUIP::ArchKind::VPU3720:
-    case VPUIP::ArchKind::VPU3900:
     default:
         return MVCNN::TargetDeviceRevision::TargetDeviceRevision_NONE;
     }
@@ -187,7 +180,7 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(VPUIP::BlobWriter&
         auto userInfo = p.value();
         const auto val = netFunc.getArgument(ind);
 
-        const auto userType = userInfo.userType().cast<mlir::MemRefType>();
+        const auto userType = userInfo.userType().cast<mlir::ShapedType>();
 
         graphInputs.push_back(
                 writer.createTensor(val, userInfo.name(), VPUIP::MemoryLocation::ProgrammableInput, ind, 0));
@@ -207,7 +200,7 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(VPUIP::BlobWriter&
         auto userInfo = p.value();
         const auto val = netFunc.getArgument(checked_cast<uint32_t>(funcArgInd));
 
-        const auto userType = userInfo.userType().cast<mlir::MemRefType>();
+        const auto userType = userInfo.userType().cast<mlir::ShapedType>();
 
         graphOutputs.push_back(
                 writer.createTensor(val, userInfo.name(), VPUIP::MemoryLocation::ProgrammableOutput, ind, 0));
@@ -250,14 +243,10 @@ void serializeTensorDecls(VPUIP::BlobWriter& writer, mlir::FuncOp netFunc, mlir:
 
     size_t tempTensorInd = 0;
     netFunc.walk([&](VPUIP::DeclareTensorOp tensorOp) {
-        SmallVector<uint32_t> localeIndex;
-        for (auto attr : tensorOp.localeIndex()) {
-            localeIndex.emplace_back(checked_cast<uint32_t>(attr.cast<mlir::IntegerAttr>().getInt()));
-        }
-
         writer.createTensor(tensorOp.memory(), llvm::formatv("temp-{0}", tempTensorInd).str(), tensorOp.locale(),
-                            localeIndex, tensorOp.dataIndex(), tensorOp.sparsityIndex(), tensorOp.storageElementIndex(),
-                            tensorOp.storageElementSize(), tensorOp.leadingOffset(), tensorOp.trailingOffset());
+                            parseIntArrayAttr<uint32_t>(tensorOp.localeIndex()), tensorOp.dataIndex(),
+                            tensorOp.sparsityIndex(), tensorOp.storageElementIndex(), tensorOp.storageElementSize(),
+                            tensorOp.leadingOffset(), tensorOp.trailingOffset());
 
         ++tempTensorInd;
     });

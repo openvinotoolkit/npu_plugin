@@ -1,4 +1,5 @@
-// Copyright 2021 Intel Corporation.
+//
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -28,8 +29,8 @@ mlir::LogicalResult vpux::IE::ExpandOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto padBegin = parseIntArrayAttr(expand.pads_begin_attr());
-    const auto padEnd = parseIntArrayAttr(expand.pads_end_attr());
+    const auto padBegin = parseIntArrayAttr<int64_t>(expand.pads_begin_attr());
+    const auto padEnd = parseIntArrayAttr<int64_t>(expand.pads_end_attr());
 
     const auto inType = expand.input().getType().cast<mlir::ShapedType>();
     if (!inType) {

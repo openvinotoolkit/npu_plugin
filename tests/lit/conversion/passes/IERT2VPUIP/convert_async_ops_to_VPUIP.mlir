@@ -229,7 +229,7 @@ func @WithReshape(%arg0: memref<1x512xf16>, %arg1: memref<1x512xf16>) -> memref<
 
     %t2, %f2 = async.execute -> !async.value<memref<1x512x1x1xf16, "DDR">> {
         %1 = VPUIP.DeclareTensor "ProgrammableInput" [0] <0> -> memref<1x512x1x1xf16>
-        %2 = VPUIP.SoftMaxUPA {axisInd = 1 : i32}
+        %2 = VPUIP.SoftMaxUPA {axisInd = 1}
             inputs(%1 : memref<1x512x1x1xf16>)
             outputs(%0 : memref<1x512x1x1xf16, "DDR">)
             -> memref<1x512x1x1xf16, "DDR">

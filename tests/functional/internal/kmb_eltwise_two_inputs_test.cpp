@@ -13,23 +13,14 @@
 
 #include "test_model/kmb_test_base.hpp"
 
-struct EltwiseTwoInputsTestParams final {
-    SizeVector _inDims;
-    Precision _outPrecision;
-
-    EltwiseTwoInputsTestParams& inDims(const SizeVector& inDims) {
-        this->_inDims = inDims;
-        return *this;
-    }
-
-    EltwiseTwoInputsTestParams& outPrecision(const Precision& outPrecision) {
-        this->_outPrecision = outPrecision;
-        return *this;
-    }
-};
+using EltwiseTwoInputsTestParams = std::tuple<
+    SizeVector,  // inDims
+    Precision,   // inPrecision
+    Precision    // outPrecision
+>;
 
 std::ostream& operator<<(std::ostream& os, const EltwiseTwoInputsTestParams& p) {
-    vpu::formatPrint(os, "[inDims:%v, outPrecision:%v]", p._inDims, p._outPrecision);
+    vpu::formatPrint(os, "[inDims:%v, inPrecision:%v, outPrecision:%v]", std::get<0>(p), std::get<1>(p), std::get<2>(p));
     return os;
 }
 
@@ -37,13 +28,16 @@ class KmbEltwiseTwoInputsTest : public KmbLayerTestBase, public testing::WithPar
 
 TEST_P(KmbEltwiseTwoInputsTest, eltwiseAdd) {
     const auto &p = GetParam();
+    const auto& inDims = std::get<0>(p);
+    const auto& inPrecision  = std::get<1>(p);
+    const auto& outPrecision = std::get<2>(p);
 
-    const auto userInDesc = TensorDesc(Precision::U8, p._inDims, Layout::NHWC);
-    const auto userOutDesc = TensorDesc(p._outPrecision, Layout::NHWC);
+    const auto userInDesc = TensorDesc(inPrecision, inDims, Layout::NHWC);
+    const auto userOutDesc = TensorDesc(outPrecision, Layout::NHWC);
 
     const auto inputRange = std::make_pair(0.0f, 10.0f);
 
-    const auto tolerance = 1e-2f;
+    const auto tolerance = 5e-2f;
 
     registerBlobGenerator(
         "input1", userInDesc,
@@ -77,10 +71,16 @@ TEST_P(KmbEltwiseTwoInputsTest, eltwiseAdd) {
     runTest(netBuidler, tolerance, CompareMethod::Absolute);
 }
 
-const std::vector<EltwiseTwoInputsTestParams> eltwiseParams {
-        EltwiseTwoInputsTestParams()
-            .inDims({1, 3, 32, 32})
-            .outPrecision(Precision::FP16),
+const std::set<Precision> inPrecisions = {
+    Precision::U8,
+    Precision::FP16,
+    Precision::FP32
 };
 
-INSTANTIATE_TEST_SUITE_P(precommit, KmbEltwiseTwoInputsTest, testing::ValuesIn(eltwiseParams));
+INSTANTIATE_TEST_SUITE_P(precommit, KmbEltwiseTwoInputsTest,
+    testing::Combine(
+        testing::Values(SizeVector({1, 3, 32, 32})),
+        testing::ValuesIn(inPrecisions),
+        testing::Values(Precision::FP16)
+    )
+);

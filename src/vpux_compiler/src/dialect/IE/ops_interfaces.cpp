@@ -21,24 +21,6 @@
 
 using namespace vpux;
 
-mlir::LogicalResult IE::verifyIELayerOp(mlir::Operation* op) {
-    VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in verifyRTLayerOp");
-
-    auto isTensorized = std::all_of(op->getOperands().begin(), op->getOperands().end(), [](mlir::Value type) {
-        return type.getType().isa<mlir::RankedTensorType>();
-    });
-
-    isTensorized &= std::all_of(op->getResults().begin(), op->getResults().end(), [](mlir::Value type) {
-        return type.getType().isa<mlir::RankedTensorType>();
-    });
-
-    if (!isTensorized) {
-        return errorAt(op, "Operation '{0}' is not a IE Layer, it operates with non Tensor types", op->getName());
-    }
-
-    return mlir::success();
-}
-
 //
 // Generated
 //

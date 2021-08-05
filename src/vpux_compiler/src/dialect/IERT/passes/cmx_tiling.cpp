@@ -114,10 +114,72 @@ mlir::LogicalResult ConvolutionTiling::matchAndRewrite(IERT::ConvolutionOp origO
         const auto tileTypeOut = changeShape(origOp.output().getType().cast<mlir::MemRefType>(), outputTile.shape);
         auto allocOutOp = rewriter.create<mlir::memref::AllocOp>(loc, tileTypeOut);
 
-        auto tiledOp = rewriter.create<IERT::ConvolutionOp>(
-                loc, actInput, filterInput, biasInput, allocOutOp.memref(), origOp.strides(),
-                getInt32ArrayAttr(getContext(), padsBegin), getInt32ArrayAttr(getContext(), padsEnd),
-                origOp.dilations(), origOp.post_opAttr());
+        auto tiledOp = rewriter.create<IERT::ConvolutionOp>(loc, actInput, filterInput, biasInput, allocOutOp.memref(),
+                                                            origOp.strides(), getIntArrayAttr(getContext(), padsBegin),
+                                                            getIntArrayAttr(getContext(), padsEnd), origOp.dilations(),
+                                                            origOp.post_opAttr());
+
+        SmallVector<int64_t> viewStrides(outputTile.shape.size(), 1);
+        auto subViewOut = rewriter.create<mlir::memref::SubViewOp>(loc, origOp.output_buff(), outputTile.offsets.raw(),
+                                                                   outputTile.shape.raw(), viewStrides);
+
+        auto copyOut = rewriter.create<IERT::CopyOp>(loc, tiledOp.output(), subViewOut.result());
+        finalResults.push_back(copyOut);
+    }
+
+    rewriter.replaceOpWithNewOp<IERT::ConcatViewOp>(origOp, finalResults, origOp.output_buff());
+    return mlir::success();
+}
+
+//
+// EltwiseAddTiling
+//
+
+class EltwiseAddTiling final : public mlir::OpRewritePattern<IERT::AddOp> {
+    using TilerFunc = std::function<OutputTiling(IERT::AddOp)>;
+
+public:
+    EltwiseAddTiling(mlir::MLIRContext* ctx, TilerFunc tiler, Logger log)
+            : mlir::OpRewritePattern<IERT::AddOp>(ctx), _tiler(std::move(tiler)), _log(log) {
+        setDebugName("EltwiseAddTiling");
+    }
+
+    mlir::LogicalResult matchAndRewrite(IERT::AddOp origOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    TilerFunc _tiler;
+    Logger _log;
+};
+
+mlir::LogicalResult EltwiseAddTiling::matchAndRewrite(IERT::AddOp origOp, mlir::PatternRewriter& rewriter) const {
+    _log.trace("[{0}] Got Eltwise Add at '{1}'", getDebugName(), origOp->getLoc());
+
+    const OutputTiling tilings = _tiler(origOp);
+
+    _log.nest(1).trace("Create {0} tiles:", tilings.size());
+    for (const auto& outputTile : tilings) {
+        _log.nest(2).trace("Output tile shape '{0}' offsets '{1}'", outputTile.shape, outputTile.offsets);
+    }
+
+    SmallVector<mlir::Value> finalResults;
+    finalResults.reserve(tilings.size());
+
+    for (const Tile& outputTile : tilings) {
+        const EltwiseTileConfig tileConf = backInferEltwiseAddTile(outputTile);
+
+        const Tile& inputTile = tileConf.inputTile;
+
+        const mlir::Value actInput1 = makeTile(rewriter, origOp->getLoc(), origOp.input1(), inputTile, "input1");
+        const mlir::Value actInput2 = makeTile(rewriter, origOp->getLoc(), origOp.input2(), inputTile, "input2");
+
+        const std::string tileName = llvm::formatv("output tile {0}", outputTile.offsets).str();
+        const mlir::Location loc = appendLoc(origOp->getLoc(), tileName);
+
+        const mlir::MemRefType tileTypeOut =
+                changeShape(origOp.output().getType().cast<mlir::MemRefType>(), outputTile.shape);
+        auto allocOutOp = rewriter.create<mlir::memref::AllocOp>(loc, tileTypeOut);
+
+        auto tiledOp = rewriter.create<IERT::AddOp>(loc, actInput1, actInput2, allocOutOp.memref());
 
         SmallVector<int64_t> viewStrides(outputTile.shape.size(), 1);
         auto subViewOut = rewriter.create<mlir::memref::SubViewOp>(loc, origOp.output_buff(), outputTile.offsets.raw(),
@@ -181,8 +243,113 @@ mlir::LogicalResult MaxPoolTiling::matchAndRewrite(IERT::MaxPoolOp origOp, mlir:
         auto allocOutOp = rewriter.create<mlir::memref::AllocOp>(loc, tileTypeOut);
 
         auto tiledOp = rewriter.create<IERT::MaxPoolOp>(loc, actInput, allocOutOp.memref(), origOp.kernel_size(),
-                                                        origOp.strides(), getInt32ArrayAttr(getContext(), padsBegin),
-                                                        getInt32ArrayAttr(getContext(), padsEnd), origOp.post_opAttr());
+                                                        origOp.strides(), getIntArrayAttr(getContext(), padsBegin),
+                                                        getIntArrayAttr(getContext(), padsEnd), origOp.post_opAttr());
+
+        SmallVector<int64_t> viewStrides(outputTile.shape.size(), 1);
+        auto subViewOut = rewriter.create<mlir::memref::SubViewOp>(loc, origOp.output_buff(), outputTile.offsets.raw(),
+                                                                   outputTile.shape.raw(), viewStrides);
+
+        auto copyOut = rewriter.create<IERT::CopyOp>(loc, tiledOp.output(), subViewOut.result());
+        finalResults.push_back(copyOut);
+    }
+
+    rewriter.replaceOpWithNewOp<IERT::ConcatViewOp>(origOp, finalResults, origOp.output_buff());
+    return mlir::success();
+}
+
+//
+// GroupConvolutionTiling
+//
+
+class GroupConvolutionTiling final : public mlir::OpRewritePattern<IERT::GroupConvolutionOp> {
+    using TilerFunc = std::function<OutputTiling(IERT::GroupConvolutionOp)>;
+
+public:
+    GroupConvolutionTiling(mlir::MLIRContext* ctx, TilerFunc tiler, Logger log)
+            : mlir::OpRewritePattern<IERT::GroupConvolutionOp>(ctx), _tiler(std::move(tiler)), _log(log) {
+        setDebugName("GroupConvolutionTiling");
+    }
+
+    mlir::LogicalResult matchAndRewrite(IERT::GroupConvolutionOp origOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    TilerFunc _tiler;
+    Logger _log;
+};
+
+static mlir::Value reshapeDepthwiseWeightTensor(mlir::OpBuilder& builder, mlir::Location loc,
+                                                const mlir::Value origFilter) {
+    auto* ctx = builder.getContext();
+    const auto elemType = mlir::Float16Type::get(ctx);
+    const auto filtShape = getShape(origFilter);
+
+    const auto OC = filtShape[Dim(0)];
+    const auto KY = filtShape[Dim(2)];
+    const auto KX = filtShape[Dim(3)];
+
+    SmallVector<int64_t> weightShape{OC, 1, KY, KX};
+
+    auto weightsConst = origFilter.getDefiningOp<Const::DeclareOp>();
+    VPUX_THROW_UNLESS(weightsConst != nullptr, "Grouped convolution does not provide constant weights");
+
+    const auto dataType = mlir::MemRefType::get(weightShape, elemType);
+    const auto dataTypeNHWC = changeDimsOrder(dataType, DimsOrder::NCHW);
+    const auto dataContentAttr = weightsConst.contentAttr();
+    const auto dataContentAttrNHWC = dataContentAttr.reorder(DimsOrder::NCHW);
+    auto dataConstOp = builder.create<Const::DeclareOp>(loc, dataTypeNHWC, dataContentAttrNHWC);
+    return dataConstOp.output();
+}
+
+mlir::LogicalResult GroupConvolutionTiling::matchAndRewrite(IERT::GroupConvolutionOp origOp,
+                                                            mlir::PatternRewriter& rewriter) const {
+    _log.trace("[{0}] Got GroupConvolution at '{1}'", getDebugName(), origOp->getLoc());
+
+    const auto tilings = _tiler(origOp);
+
+    _log.nest(1).trace("Create {0} tiles:", tilings.size());
+    for (const auto& outputTile : tilings) {
+        _log.nest(2).trace("Output tile shape '{0}' offsets '{1}'", outputTile.shape, outputTile.offsets);
+    }
+
+    SmallVector<mlir::Value> finalResults;
+    finalResults.reserve(tilings.size());
+
+    // Depthwise weight tensor has 5 dimensions.
+    // Tiling over channels takes wrong dimension for some reason.
+    // FIXME reshaping to 4 dimensions is a workaround. Real cause still has to be fixed.
+    const auto filter4d = reshapeDepthwiseWeightTensor(rewriter, origOp->getLoc(), origOp.filter());
+
+    for (const auto& outputTile : tilings) {
+        const auto tileConf = backInferGroupConvTile(origOp, outputTile);
+
+        const auto& inputTile = tileConf.inputTile;
+        const auto& filterTile = tileConf.filterTile;
+        const auto& biasTile = tileConf.biasTile;
+
+        const auto& padsBegin = tileConf.pads.begin;
+        const auto& padsEnd = tileConf.pads.end;
+
+        const auto actInput = makeTile(rewriter, origOp->getLoc(), origOp.input(), inputTile, "input");
+        const auto filterInput = makeTile(rewriter, origOp->getLoc(), filter4d, filterTile, "filter");
+        const auto biasInput = origOp.bias() != nullptr
+                                       ? makeTile(rewriter, origOp->getLoc(), origOp.bias(), biasTile, "bias")
+                                       : nullptr;
+
+        const auto tileName = llvm::formatv("output tile {0}", outputTile.offsets).str();
+        const auto loc = appendLoc(origOp->getLoc(), tileName);
+
+        const auto tileTypeOut = changeShape(origOp.output().getType().cast<mlir::MemRefType>(), outputTile.shape);
+        auto allocOutOp = rewriter.create<mlir::memref::AllocOp>(loc, tileTypeOut);
+
+        const auto filter_out_channel_dim = IERT::ConvolutionOp::filter_out_channel_dim();
+        const auto groups = filterTile.shape[filter_out_channel_dim];
+        const auto groupsAttr = getIntAttr(getContext(), groups);
+
+        auto tiledOp = rewriter.create<IERT::GroupConvolutionOp>(
+                loc, actInput, filterInput, biasInput, allocOutOp.memref(), origOp.strides(),
+                getIntArrayAttr(getContext(), padsBegin), getIntArrayAttr(getContext(), padsEnd), origOp.dilations(),
+                groupsAttr, origOp.post_opAttr());
 
         SmallVector<int64_t> viewStrides(outputTile.shape.size(), 1);
         auto subViewOut = rewriter.create<mlir::memref::SubViewOp>(loc, origOp.output_buff(), outputTile.offsets.raw(),
@@ -209,10 +376,14 @@ public:
 
 private:
     OutputTiling convolutionTiler(IERT::ConvolutionOp op) const;
+    OutputTiling eltwiseAddTiler(IERT::AddOp op) const;
     OutputTiling maxPoolTiler(IERT::MaxPoolOp op) const;
+    OutputTiling groupConvolutionTiler(IERT::GroupConvolutionOp op) const;
 
     OutputTiling genericTiler(mlir::Operation* op, mlir::MemRefType outputType,
                               FuncRef<bool(ShapeRef)> isSupportedTileSize) const;
+    OutputTiling groupConvTiler(mlir::Operation* op, mlir::MemRefType outputType,
+                                FuncRef<bool(ShapeRef)> isSupportedTileSize) const;
 
 private:
     Logger _log;
@@ -222,8 +393,15 @@ void SimpleTiler::buildTilingPatterns(mlir::RewritePatternSet& patterns) {
     const auto convTilerFunc = std::bind(&SimpleTiler::convolutionTiler, this, std::placeholders::_1);
     patterns.add<ConvolutionTiling>(patterns.getContext(), convTilerFunc, _log);
 
+    const auto eltwiseTilerFunc = std::bind(&SimpleTiler::eltwiseAddTiler, this, std::placeholders::_1);
+    patterns.add<EltwiseAddTiling>(patterns.getContext(), eltwiseTilerFunc, _log);
+
     const auto maxPoolTilerFunc = std::bind(&SimpleTiler::maxPoolTiler, this, std::placeholders::_1);
     patterns.add<MaxPoolTiling>(patterns.getContext(), maxPoolTilerFunc, _log);
+
+    const auto groupConvTilerFunc = std::bind(&SimpleTiler::groupConvolutionTiler, this, std::placeholders::_1);
+    patterns.add<GroupConvolutionTiling>(patterns.getContext(), groupConvTilerFunc, _log);
+    // TODO Replace std::bind calls with corresponding anonymous functions.
 }
 
 OutputTiling SimpleTiler::genericTiler(mlir::Operation* op, mlir::MemRefType outputType,
@@ -280,6 +458,42 @@ OutputTiling SimpleTiler::genericTiler(mlir::Operation* op, mlir::MemRefType out
     return fillDividedTiles(nTilesOnDim, outputShape);
 }
 
+OutputTiling SimpleTiler::groupConvTiler(mlir::Operation* op, mlir::MemRefType outputType,
+                                         FuncRef<bool(ShapeRef)> isSupportedTileSize) const {
+    const auto outputShape = getShape(outputType);
+    const auto actChannelDim = IERT::ConvolutionOp::act_channel_dim();
+
+    Shape nTilesOnDim(outputShape.size(), 1);
+    // FIXME tiling over channels has to leave 16 channels in each tile.
+    // Otherwise, depthwise convolutions produce worse accuracy.
+    const auto depthwiseOutChanCount = VPUIP::NCEInvariant::getChannelAlignment(outputType.getElementType());
+    VPUX_THROW_UNLESS(outputShape[actChannelDim] % depthwiseOutChanCount == 0,
+                      "Depthwise convolution output channels must be a multiple of {0}, got {1}", depthwiseOutChanCount,
+                      outputShape[actChannelDim]);
+    nTilesOnDim[actChannelDim] = outputShape[actChannelDim] / depthwiseOutChanCount;
+
+    while (!isSupportedTileSize(nTilesOnDim)) {
+        Optional<Dim> dimToTile;
+
+        for (auto spatialDim : irange(IERT::ConvolutionOp::act_spatial_dims())) {
+            const auto actSpatialDim = IERT::ConvolutionOp::act_spatial_dim(spatialDim);
+
+            const auto origSize = outputShape[actSpatialDim];
+            const auto prevDivisor = nTilesOnDim[actSpatialDim];
+
+            if (origSize / prevDivisor > 1) {
+                dimToTile = actSpatialDim;
+                break;
+            }
+        }
+
+        VPUX_THROW_UNLESS(dimToTile.hasValue(), "Failed to tile {0} at '{1}'", op->getName(), op->getLoc());
+        nTilesOnDim[dimToTile.getValue()]++;
+    }
+
+    return fillDividedTiles(nTilesOnDim, outputShape);
+}
+
 OutputTiling SimpleTiler::convolutionTiler(IERT::ConvolutionOp op) const {
     const auto inputType = op.input().getType().cast<mlir::MemRefType>();
     const auto filterType = op.filter().getType().cast<mlir::MemRefType>();
@@ -300,6 +514,32 @@ OutputTiling SimpleTiler::convolutionTiler(IERT::ConvolutionOp op) const {
             return mlir::succeeded(
                     VPUIP::NCEInvariant::verifyConvCMX(op->getLoc(), op->getParentOfType<mlir::ModuleOp>(),
                                                        inputTileType, filterTileType, outputTileType, _log));
+        });
+    };
+
+    return genericTiler(op, outputType, isSupportedTileSize);
+}
+
+OutputTiling SimpleTiler::eltwiseAddTiler(IERT::AddOp op) const {
+    const auto input1Type = op.input1().getType().cast<mlir::MemRefType>();
+    const auto input2Type = op.input2().getType().cast<mlir::MemRefType>();
+    const auto outputType = op.output().getType().cast<mlir::MemRefType>();
+
+    const ShapeRef outputShape = getShape(outputType);
+
+    const auto isSupportedTileSize = [&](ShapeRef nTilesOnDim) -> bool {
+        const auto outputTiles = fillDividedTiles(nTilesOnDim, outputShape);
+
+        return llvm::all_of(outputTiles, [&](const auto& outputTile) {
+            const EltwiseTileConfig tileConf = backInferEltwiseAddTile(outputTile);
+
+            const mlir::MemRefType input1TileType = changeShape(input1Type, tileConf.inputTile.shape);
+            const mlir::MemRefType input2TileType = changeShape(input2Type, tileConf.inputTile.shape);
+            const mlir::MemRefType outputTileType = changeShape(outputType, outputTile.shape);
+
+            return mlir::succeeded(
+                    VPUIP::NCEInvariant::verifyEltwiseCMX(op->getLoc(), op->getParentOfType<mlir::ModuleOp>(),
+                                                          input1TileType, input2TileType, outputTileType, _log));
         });
     };
 
@@ -328,6 +568,32 @@ OutputTiling SimpleTiler::maxPoolTiler(IERT::MaxPoolOp op) const {
     };
 
     return genericTiler(op, outputType, isSupportedTileSize);
+}
+
+OutputTiling SimpleTiler::groupConvolutionTiler(IERT::GroupConvolutionOp op) const {
+    const auto inputType = op.input().getType().cast<mlir::MemRefType>();
+    const auto filterType = op.filter().getType().cast<mlir::MemRefType>();
+    const auto outputType = op.output().getType().cast<mlir::MemRefType>();
+
+    const auto outputShape = getShape(outputType);
+
+    const auto isSupportedTileSize = [&](ShapeRef nTilesOnDim) -> bool {
+        const auto outputTiles = fillDividedTiles(nTilesOnDim, outputShape);
+
+        return llvm::all_of(outputTiles, [&](const auto& outputTile) {
+            const auto tileConf = backInferGroupConvTile(op, outputTile);
+
+            const auto inputTileType = changeShape(inputType, tileConf.inputTile.shape);
+            const auto filterTileType = changeShape(filterType, tileConf.filterTile.shape);
+            const auto outputTileType = changeShape(outputType, outputTile.shape);
+
+            return mlir::succeeded(
+                    VPUIP::NCEInvariant::verifyConvCMX(op->getLoc(), op->getParentOfType<mlir::ModuleOp>(),
+                                                       inputTileType, filterTileType, outputTileType, _log));
+        });
+    };
+
+    return groupConvTiler(op, outputType, isSupportedTileSize);
 }
 
 //
@@ -366,9 +632,25 @@ void CMXTilingPass::safeRunOnFunc() {
 
         return VPUIP::NCEInvariant::verifyCMX(op, _log.nest()).succeeded();
     });
+    target.addDynamicallyLegalOp<IERT::AddOp>([&](IERT::AddOp op) {
+        if (!isSupportedByNCE(op, _log.nest())) {
+            // It will be computed on SHAVEs
+            return true;
+        }
+
+        return VPUIP::NCEInvariant::verifyCMX(op, _log.nest()).succeeded();
+    });
     target.addDynamicallyLegalOp<IERT::MaxPoolOp>([&](IERT::MaxPoolOp op) {
         if (!isSupportedByNCE(op, _log.nest())) {
             // It will be computed on SHAVEs
+            return true;
+        }
+
+        return VPUIP::NCEInvariant::verifyCMX(op, _log.nest()).succeeded();
+    });
+    target.addDynamicallyLegalOp<IERT::GroupConvolutionOp>([&](IERT::GroupConvolutionOp op) {
+        if (!isSupportedByNCE(op, _log.nest())) {
+            // Falls back to Conv2dUPA
             return true;
         }
 

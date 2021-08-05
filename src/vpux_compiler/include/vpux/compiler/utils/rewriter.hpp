@@ -16,26 +16,61 @@
 #include "vpux/utils/core/array_ref.hpp"
 #include "vpux/utils/core/func_ref.hpp"
 #include "vpux/utils/core/logger.hpp"
+#include "vpux/utils/core/small_vector.hpp"
 
 #include <mlir/IR/Builders.h>
 #include <mlir/IR/BuiltinOps.h>
+#include <mlir/Transforms/DialectConversion.h>
 #include <mlir/Transforms/GreedyPatternRewriteDriver.h>
 
 namespace vpux {
 
+//
+// convertFunc
+//
+
 using CvtOpBuilderCb = FuncRef<mlir::Operation*(mlir::OpBuilder&, mlir::Location, mlir::Value, mlir::Type)>;
-using CvtBufferizedOpBuilderCb = FuncRef<mlir::Operation*(mlir::OpBuilder&, mlir::Location, mlir::Value, mlir::Value)>;
 
 mlir::LogicalResult convertFunc(mlir::FuncOp funcOp, ArrayRef<mlir::Type> newArgTypes,
                                 ArrayRef<mlir::Type> newResultTypes, CvtOpBuilderCb cvtOpBuilder,
                                 Logger log = Logger::global());
 
-mlir::LogicalResult convertBufferizedFunc(mlir::FuncOp funcOp, ArrayRef<mlir::Type> newArgTypes,
-                                          ArrayRef<mlir::Type> newResultTypes, CvtBufferizedOpBuilderCb cvtOpBuilder,
-                                          Logger log = Logger::global());
+//
+// getDefaultGreedyRewriteConfig
+//
 
 mlir::GreedyRewriteConfig getDefaultGreedyRewriteConfig();
 
+//
+// appendLoc
+//
+
 mlir::Location appendLoc(mlir::Location baseLoc, StringRef suffix);
+
+//
+// dummyConverter
+//
+
+template <class ConcreteType>
+mlir::Value dummyConverter(mlir::OpBuilder& builder, ConcreteType type, mlir::ValueRange inputs, mlir::Location loc) {
+    SmallVector<mlir::Value> results;
+    builder.createOrFold<mlir::UnrealizedConversionCastOp>(results, loc, type, inputs);
+    return results.front();
+}
+
+//
+// BufferizeTypeConverter
+//
+
+class BufferizeTypeConverter : public mlir::TypeConverter {
+public:
+    BufferizeTypeConverter();
+};
+
+//
+// populateBufferizeMaterializationLegality
+//
+
+void populateBufferizeMaterializationLegality(mlir::ConversionTarget& target);
 
 }  // namespace vpux

@@ -18,6 +18,7 @@
 #include "vpux/compiler/dialect/IERT/ops.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
+#include "vpux/compiler/utils/rewriter.hpp"
 
 #include "vpux/utils/core/format.hpp"
 #include "vpux/utils/core/range.hpp"
@@ -124,7 +125,7 @@ mlir::LogicalResult SplitRewrite::matchAndRewrite(IE::SplitOp origOp, ArrayRef<m
     const auto inputType = newOperands[0].getType().cast<mlir::ShapedType>();
     const auto inputShape = getShape(inputType);
 
-    const auto axis = origOp.getAxis();
+    const auto axis = Dim(origOp.axis_value().getValue());
 
     auto* typeConverter = getTypeConverter();
     VPUX_THROW_UNLESS(typeConverter != nullptr, "TypeConverter is not set");
@@ -186,7 +187,7 @@ mlir::LogicalResult ConcatRewrite::matchAndRewrite(IE::ConcatOp origOp, ArrayRef
                       "Got wrong newOperands size : '{0}', expected '{1}'", newOperands.size(),
                       origOp->getNumOperands());
 
-    const auto axis = origOp.getAxis();
+    const auto axis = Dim(origOp.axis());
 
     auto* typeConverter = getTypeConverter();
     VPUX_THROW_UNLESS(typeConverter != nullptr, "TypeConverter is not set");
@@ -249,8 +250,8 @@ mlir::LogicalResult SubTensorRewrite::matchAndRewrite(mlir::tensor::ExtractSlice
                       origOp->getNumOperands());
 
     auto subView = rewriter.create<mlir::memref::SubViewOp>(
-            origOp->getLoc(), newOperands[0], parseIntArrayAttr(origOp.static_offsets()),
-            parseIntArrayAttr(origOp.static_sizes()), parseIntArrayAttr(origOp.static_strides()));
+            origOp->getLoc(), newOperands[0], parseIntArrayAttr<int64_t>(origOp.static_offsets()),
+            parseIntArrayAttr<int64_t>(origOp.static_sizes()), parseIntArrayAttr<int64_t>(origOp.static_strides()));
 
     auto allocatedBuf = allocateResults(origOp->getLoc(), rewriter, *typeConverter, origOp.getResult());
 
@@ -289,7 +290,7 @@ mlir::LogicalResult ExpandRewrite::matchAndRewrite(IE::ExpandOp origOp, ArrayRef
     auto expandedBuffer = allocateResults(origOp->getLoc(), rewriter, *typeConverter, origOp.output());
     const auto inputType = newOperands[0].getType().cast<mlir::ShapedType>();
 
-    const SmallVector<int64_t> subOffsets = parseIntArrayAttr(origOp.pads_begin_attr());
+    const auto subOffsets = parseIntArrayAttr<int64_t>(origOp.pads_begin_attr());
     const auto subShape = inputType.getShape();
     const SmallVector<int64_t> subDilations(subShape.size(), 1);
     auto subView = rewriter.create<mlir::memref::SubViewOp>(origOp.getLoc(), expandedBuffer[0], subOffsets, subShape,
@@ -299,6 +300,60 @@ mlir::LogicalResult ExpandRewrite::matchAndRewrite(IE::ExpandOp origOp, ArrayRef
     SmallVector<mlir::Value> concatInputs;
     concatInputs.push_back(subViewCopy.output());
     rewriter.replaceOpWithNewOp<IERT::ConcatViewOp>(origOp, concatInputs, expandedBuffer[0]);
+
+    return mlir::success();
+}
+
+//
+// LSTMCellRewrite
+//
+
+class LSTMCellRewrite final : public mlir::OpConversionPattern<IE::LSTMCellOp> {
+public:
+    LSTMCellRewrite(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
+            : mlir::OpConversionPattern<IE::LSTMCellOp>(typeConverter, ctx), _log(log) {
+        setDebugName("LSTMCellRewrite");
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(IE::LSTMCellOp origOp, ArrayRef<mlir::Value> newOperands,
+                                        mlir::ConversionPatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult LSTMCellRewrite::matchAndRewrite(IE::LSTMCellOp origOp, ArrayRef<mlir::Value> newOperands,
+                                                     mlir::ConversionPatternRewriter& rewriter) const {
+    _log.trace("Found LSTMCell Operation '{0}'", origOp->getLoc());
+
+    auto* typeConverter = getTypeConverter();
+    VPUX_THROW_UNLESS(typeConverter != nullptr, "TypeConverter is not set");
+
+    auto expandedBuffer = allocateResults(origOp->getLoc(), rewriter, *typeConverter,
+                                          {origOp.outputHiddenState(), origOp.outputCellState()});
+
+    const auto weightsType = newOperands[3].getType().cast<mlir::ShapedType>();
+    const auto reccurenceWeightsType = newOperands[4].getType().cast<mlir::ShapedType>();
+    const auto weightsShape = weightsType.getShape();
+    const auto reccurenceWeightsShape = reccurenceWeightsType.getShape();
+    VPUX_THROW_UNLESS(weightsShape.size() == 2, "Weights must be 2D");
+    VPUX_THROW_UNLESS(reccurenceWeightsShape.size() == 2, "Reccurence weights must be 2D");
+    SmallVector<int64_t> svSizes(weightsShape.size(), 0);
+    svSizes[0] = weightsShape[0];
+    svSizes[1] = weightsShape[1] + reccurenceWeightsShape[1];
+    auto origType = origOp.weights().getType();
+    auto memRefType = typeConverter->convertType(origType);
+    mlir::MemRefType::Builder memRefBuilder(memRefType.cast<mlir::MemRefType>());
+    memRefBuilder.setShape(svSizes);
+    auto subView = rewriter.create<mlir::memref::AllocOp>(origOp->getLoc(), memRefBuilder);
+
+    SmallVector<mlir::Value> concatInputs{newOperands[3], newOperands[4]};
+    auto concat = rewriter.create<IERT::ConcatViewOp>(origOp->getLoc(), concatInputs, subView.memref());
+
+    rewriter.replaceOpWithNewOp<IERT::LSTMCellOp>(origOp, newOperands[0], newOperands[1], newOperands[2],
+                                                  concat.output(), newOperands[5], expandedBuffer[0], expandedBuffer[1],
+                                                  origOp.hiddenSizeAttr());
 
     return mlir::success();
 }
@@ -468,7 +523,8 @@ mlir::Operation* createRTLayer(IE::GroupConvolutionOp origOp, ArrayRef<mlir::Val
     IERT::GroupConvolutionOp::Adaptor newOp(allBufs);
     return b.create<IERT::GroupConvolutionOp>(origOp.getLoc(), newOp.input(), newOp.filter(), newOp.bias(),
                                               newOp.output_buff(), origOp.stridesAttr(), origOp.pads_beginAttr(),
-                                              origOp.pads_endAttr(), origOp.dilationsAttr(), origOp.groupsAttr());
+                                              origOp.pads_endAttr(), origOp.dilationsAttr(), origOp.groupsAttr(),
+                                              origOp.post_opAttr());
 }
 
 mlir::Operation* createRTLayer(IE::SwishOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
@@ -565,6 +621,19 @@ mlir::Operation* createRTLayer(IE::StridedSliceOp origOp, ArrayRef<mlir::Value> 
                                           origOp.ends_attr().getValue(), origOp.strides_attr().getValue());
 }
 
+mlir::Operation* createRTLayer(IE::ReorderOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::ReorderOp::Adaptor newOp(allBufs);
+
+    return b.create<IERT::ReorderOp>(origOp.getLoc(), newOp.input(), newOp.output_buff());
+}
+
+mlir::Operation* createRTLayer(IE::RegionYoloOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::RegionYoloOp::Adaptor newOp(allBufs);
+    return b.create<IERT::RegionYoloOp>(origOp.getLoc(), newOp.input(), newOp.output_buff(), origOp.coords(),
+                                        origOp.classes(), origOp.regions(), origOp.do_softmax(), origOp.mask(),
+                                        origOp.axis(), origOp.end_axis(), origOp.anchors());
+}
+
 class LayerRewrite final : public mlir::ConversionPattern {
 public:
     LayerRewrite(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
@@ -599,8 +668,8 @@ mlir::LogicalResult LayerRewrite::matchAndRewrite(mlir::Operation* origOp, Array
         return dispatch<_OP_>;                       \
     })
 
-    const CreateFunc createFunc =
-            llvm::TypeSwitch<mlir::Operation*, CreateFunc>(origOp) CASE(mlir::quant::QuantizeCastOp)
+    const CreateFunc createFunc = llvm::TypeSwitch<mlir::Operation*, CreateFunc>(origOp)  //
+            CASE(mlir::quant::QuantizeCastOp)
     CASE(mlir::quant::DequantizeCastOp)
     CASE(IE::ConvertOp)
     CASE(IE::SoftMaxOp)
@@ -641,6 +710,8 @@ mlir::LogicalResult LayerRewrite::matchAndRewrite(mlir::Operation* origOp, Array
     CASE(IE::ExpOp)
     CASE(IE::InterpolateOp)
     CASE(IE::StridedSliceOp)
+    CASE(IE::ReorderOp)
+    CASE(IE::RegionYoloOp)
     .Default([](mlir::Operation*) {
         return nullptr;
     });
@@ -689,7 +760,7 @@ private:
 void BufferizeIEPass::safeRunOnFunc() {
     auto& ctx = getContext();
 
-    mlir::BufferizeTypeConverter typeConverter;
+    vpux::BufferizeTypeConverter typeConverter;
 
     const auto isLegalOp = [&](mlir::Operation* op) {
         return typeConverter.isLegal(op);
@@ -703,7 +774,7 @@ void BufferizeIEPass::safeRunOnFunc() {
     target.addLegalOp<IE::CNNNetworkOp, IE::DataInfoOp>();
     target.addLegalOp<mlir::memref::AllocOp>();
     target.addLegalOp<mlir::memref::SubViewOp>();
-    mlir::populateBufferizeMaterializationLegality(target);
+    vpux::populateBufferizeMaterializationLegality(target);
 
     mlir::RewritePatternSet patterns(&ctx);
     patterns.insert<ReshapeRewrite>(typeConverter, &ctx, _log);
@@ -712,6 +783,7 @@ void BufferizeIEPass::safeRunOnFunc() {
     patterns.insert<LayerRewrite>(typeConverter, &ctx, _log);
     patterns.insert<SubTensorRewrite>(typeConverter, &ctx, _log);
     patterns.insert<ExpandRewrite>(typeConverter, &ctx, _log);
+    patterns.insert<LSTMCellRewrite>(typeConverter, &ctx, _log);
     Const::ConstDialect::populateBufferizePatterns(patterns, typeConverter, _log);
 
     auto func = getFunction();

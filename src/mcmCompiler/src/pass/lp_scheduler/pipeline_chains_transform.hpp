@@ -136,6 +136,7 @@ class Pipeline_Chains {
     bool is_weight_read(T op) const {
       mv::Data::OpListIterator oitr = omodel_.getOp(op->getName());
       if (oitr->getOpType() != "DMATask") { return false; }
+      if (oitr->getOpType() == "DMATask" && oitr->hasAttr("toIgnore")) { return false; }
       // indegree must be 1 and
       auto pitr = oitr.leftmostParent();
       auto pitr_next = pitr;
@@ -1032,7 +1033,9 @@ class Pipeline_Chains {
             if (!omodel_.pathExists(prev_op, curr_op) && !omodel_.pathExists(curr_op, prev_op))
             {
               std::size_t inputIdx = curr_op.parentsSize();
-              omodel_.defineFlow(prev_op->getOutputTensor(0UL), curr_op, inputIdx + 1);
+              mv::Data::FlowListIterator flow_itr = 
+                omodel_.defineFlow(prev_op->getOutputTensor(0UL), curr_op, inputIdx + 1);
+              flow_itr->set<bool>("vertical_fusion_flow", true);
             }
             ++dpu_flow_control;
             ++dpu_flow_control_prev;

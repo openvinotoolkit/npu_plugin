@@ -76,17 +76,13 @@ LogLevel getLogLevel(const VPUXConfig& config) {
 
 VPUIP::ArchKind getArchKind(const VPUXConfig& config) {
     switch (config.platform()) {
-    case InferenceEngine::VPUXConfigParams::VPUXPlatform::AUTO:
-    case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3400_A0:
-        return VPUIP::ArchKind::VPU3400_A0;
     case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3400:
-        return VPUIP::ArchKind::VPU3400;
     case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3700:
-        return VPUIP::ArchKind::VPU3700;
+        return VPUIP::ArchKind::KMB;
     case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3900:
-        return VPUIP::ArchKind::VPU3900;
+        return VPUIP::ArchKind::TBH;
     case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3720:
-        return VPUIP::ArchKind::VPU3720;
+        return VPUIP::ArchKind::MTL;
     default:
         VPUX_THROW("Unsupported VPUX platform");
     }
@@ -261,16 +257,19 @@ InferenceEngine::QueryNetworkResult vpux::CompilerImpl::query(const InferenceEng
 
 namespace {
 
-void buildPipeline(mlir::PassManager& pm, VPUIP::ArchKind archKind, VPUIP::CompilationMode compilationMode,
-                   mlir::TimingScope& rootTiming, Logger log) {
+void buildPipeline(mlir::PassManager& pm, const VPUXConfig& config, mlir::TimingScope& rootTiming, Logger log) {
     auto buildTiming = rootTiming.nest("Build compilation pipeline");
+
+    const auto archKind = getArchKind(config);
+    const auto compilationMode = getCompilationMode(config);
+    const auto enableProfiling = config.performanceCounting();
 
     pm.addPass(createSetCompileParamsPass(archKind, compilationMode, log.nest()));
 
     if (compilationMode == VPUIP::CompilationMode::ReferenceSW) {
-        buildReferenceModePipeline(pm, log.nest());
+        buildReferenceModePipeline(pm, enableProfiling, log.nest());
     } else if (compilationMode == VPUIP::CompilationMode::ReferenceHW) {
-        buildHardwareModePipeline(pm, log.nest());
+        buildHardwareModePipeline(pm, enableProfiling, log.nest());
     } else {
         VPUX_THROW("Unsupported compilation mode '{0}'", compilationMode);
     }
@@ -319,9 +318,6 @@ std::shared_ptr<INetworkDescription> vpux::CompilerImpl::compile(const std::shar
                                                                  const VPUXConfig& config) {
     Logger log("vpux-compiler", getLogLevel(config));
 
-    const auto archKind = getArchKind(config);
-    const auto compilationMode = getCompilationMode(config);
-
     DeveloperConfig devConf(log);
 
     mlir::DefaultTimingManager tm;
@@ -338,7 +334,8 @@ std::shared_ptr<INetworkDescription> vpux::CompilerImpl::compile(const std::shar
     devConf.setup(pm);
 
     auto rootTiming = tm.getRootScope();
-    buildPipeline(pm, archKind, compilationMode, rootTiming, log);
+    buildPipeline(pm, config, rootTiming, log);
+
     const auto cnnNet = prepareNetwork(func, inputsInfo, outputsInfo, rootTiming);
     const auto module = importNetwork(&ctx, cnnNet, devConf, rootTiming, log);
     compileNetwork(module.get(), pm, rootTiming);

@@ -40,7 +40,7 @@ It combines both memory effects and buffer aliasing for this:
 #NHWC = affine_map<(n, c, h, w) -> (n, h, w, c)>
 
 func @main(%input: memref<1x3x240x240xf16, #NHWC>, %output: memref<1x3x240x240xf16, #NHWC>) -> memref<1x3x240x240xf16, #NHWC> {
-    %1 = IERT.SoftMax(%input, %output) {axisInd = 1 : i32} // %1 is an alias for %output
+    %1 = IERT.SoftMax(%input, %output) {axisInd = 1} // %1 is an alias for %output
     return %1
 }
 ```

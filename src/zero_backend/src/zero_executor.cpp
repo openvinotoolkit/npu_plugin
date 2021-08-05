@@ -216,8 +216,7 @@ bool isRepackingRequired(const IE::TensorDesc& userTensorDesc, const IE::TensorD
     return true;
 }
 
-bool isRepackingPossible(const bool isInput, const IE::TensorDesc& userTensorDesc,
-                         const IE::TensorDesc& deviceTensorDesc) {
+bool isRepackingPossible(const IE::TensorDesc& userTensorDesc, const IE::TensorDesc& deviceTensorDesc) {
     const auto userPrecision = userTensorDesc.getPrecision();
     const auto devicePrecision = deviceTensorDesc.getPrecision();
     const auto userLayout = userTensorDesc.getLayout();
@@ -242,12 +241,6 @@ bool isRepackingPossible(const bool isInput, const IE::TensorDesc& userTensorDes
     }
 
     // Layouts are OK for repacking, checking precisions
-    if (isInput) {
-        // TODO add cases?
-        if (devicePrecision != IE::Precision::U8) {
-            return false;
-        }
-    }
     std::vector<IE::Precision> precisions{userPrecision, devicePrecision};
     const auto unsupportedPrecision =
             std::find_if(precisions.cbegin(), precisions.cend(), [](const IE::Precision& precision) -> bool {
@@ -354,7 +347,6 @@ void getOutputAfterInference(IE::Blob::Ptr& userOutput, const IE::TensorDesc& de
 
 ZeroExecutor::ZeroExecutor(ze_driver_handle_t driver_handle, ze_device_handle_t device_handle,
                            ze_context_handle_t context, ze_graph_dditable_ext_t* graph_ddi_table_ext,
-                           ze_fence_dditable_ext_t* fence_ddi_table_ext,
                            const vpux::NetworkDescription::Ptr& networkDescription, const VPUXConfig& config)
         : _config(config),
           _logger(std::make_shared<vpu::Logger>("ZeroExecutor", _config.logLevel(), vpu::consoleOutput())),
@@ -362,25 +354,18 @@ ZeroExecutor::ZeroExecutor(ze_driver_handle_t driver_handle, ze_device_handle_t 
           _device_handle(device_handle),
           _context(context),
           _graph_ddi_table_ext(graph_ddi_table_ext),
-          _fence_ddi_table_ext(fence_ddi_table_ext),
-          _push_count(0),
-          _pull_count(0),
           _networkDesc(networkDescription),
-          _graph(std::make_shared<graph>(_device_handle, _context, _networkDesc, _graph_ddi_table_ext,
-                                         _fence_ddi_table_ext)),
+          _graph(std::make_shared<graph>(_device_handle, _context, _networkDesc, _graph_ddi_table_ext)),
           _command_queue{{std::make_shared<commandQueue>(device_handle, context),
                           std::make_shared<commandQueue>(device_handle, context),
                           std::make_shared<commandQueue>(device_handle, context)}},
-          _fence{{std::make_unique<fence>(_command_queue[stage::UPLOAD], fence_ddi_table_ext),
-                  std::make_unique<fence>(_command_queue[stage::EXECUTE], fence_ddi_table_ext),
-                  std::make_unique<fence>(_command_queue[stage::READBACK], fence_ddi_table_ext)}},
-          _pipeline(std::make_unique<pipeline>(driver_handle, device_handle, context, graph_ddi_table_ext, _graph)) {
+          _pipeline(std::make_unique<pipeline>(driver_handle, device_handle, context, graph_ddi_table_ext, _graph,
+                                               _command_queue)) {
     _graph->init();
 }
 
 ZeroExecutor::ZeroExecutor(ze_driver_handle_t driver_handle, ze_device_handle_t device_handle,
                            ze_context_handle_t context, ze_graph_dditable_ext_t* graph_ddi_table_ext,
-                           ze_fence_dditable_ext_t* fence_ddi_table_ext,
                            const vpux::NetworkDescription::Ptr& networkDescription,
                            const std::array<std::shared_ptr<commandQueue>, stage::COUNT>& command_queue,
                            const std::shared_ptr<graph>& graph, const VPUXConfig& config)
@@ -390,16 +375,11 @@ ZeroExecutor::ZeroExecutor(ze_driver_handle_t driver_handle, ze_device_handle_t 
           _device_handle(device_handle),
           _context(context),
           _graph_ddi_table_ext(graph_ddi_table_ext),
-          _fence_ddi_table_ext(fence_ddi_table_ext),
-          _push_count(0),
-          _pull_count(0),
           _networkDesc(networkDescription),
           _graph(graph),
           _command_queue(command_queue),
-          _fence{{std::make_unique<fence>(_command_queue[stage::UPLOAD], fence_ddi_table_ext),
-                  std::make_unique<fence>(_command_queue[stage::EXECUTE], fence_ddi_table_ext),
-                  std::make_unique<fence>(_command_queue[stage::READBACK], fence_ddi_table_ext)}},
-          _pipeline(std::make_unique<pipeline>(driver_handle, device_handle, context, graph_ddi_table_ext, graph)) {
+          _pipeline(std::make_unique<pipeline>(driver_handle, device_handle, context, graph_ddi_table_ext, graph,
+                                               _command_queue)) {
 }
 
 ZeroExecutor::hostMem::hostMem(const ze_driver_handle_t driver_handle, const ze_context_handle_t context,
@@ -447,6 +427,14 @@ void ZeroExecutor::commandList::appendGraphInitialize(const ze_graph_handle_t& g
 void ZeroExecutor::commandList::appendGraphExecute(const ze_graph_handle_t& graph_handle) {
     throwOnFail("pfnAppendGraphExecute", _graph_ddi_table_ext->pfnAppendGraphExecute(_handle, graph_handle));
 }
+// TODO This is a work-around due to bug on ARM side
+// ARM sends signal before all necessary copying operations are completed
+// Should be removed when the bug is resolved
+// [Track number: E#13355]
+// [Track number: E#16690]
+void ZeroExecutor::commandList::appendBarrier() {
+    throwOnFail("zeCommandListAppendBarrier", zeCommandListAppendBarrier(_handle, nullptr, 0, nullptr));
+}
 void ZeroExecutor::commandList::close() {
     throwOnFail("zeCommandListClose", zeCommandListClose(_handle));
 }
@@ -455,14 +443,12 @@ ZeroExecutor::commandList::~commandList() {
 }
 
 ZeroExecutor::graph::graph(const ze_device_handle_t& device_handle, const ze_context_handle_t& context,
-                           const NetworkDescription::CPtr networkDesc, ze_graph_dditable_ext_t* graph_ddi_table_ext,
-                           ze_fence_dditable_ext_t* fence_ddi_table_ext)
+                           const NetworkDescription::CPtr networkDesc, ze_graph_dditable_ext_t* graph_ddi_table_ext)
         : _context(context),
           _blob(networkDesc->getCompiledNetwork()),
           _command_queue(std::make_shared<commandQueue>(device_handle, _context)),
           _command_list(device_handle, _context, graph_ddi_table_ext),
-          _fence(std::make_shared<fence>(_command_queue, fence_ddi_table_ext)),
-          _fence_value(0),
+          _fence(std::make_shared<fence>(_command_queue)),
           _graph_ddi_table_ext(graph_ddi_table_ext) {
     ze_graph_desc_t desc = {ZE_GRAPH_FORMAT_NATIVE, _blob.size(), reinterpret_cast<const uint8_t*>(_blob.data())};
     throwOnFail("pfnCreate", _graph_ddi_table_ext->pfnCreate(device_handle, &desc, &_handle));
@@ -488,9 +474,8 @@ ZeroExecutor::graph::graph(const ze_device_handle_t& device_handle, const ze_con
     _command_list.close();
 }
 void ZeroExecutor::graph::init() {
-    _command_queue->executeCommandList(_command_list);
-    _fence->deviceSignal(++_fence_value);
-    _fence->hostSynchronize(_fence_value);
+    _command_queue->executeCommandList(_command_list, *_fence);
+    _fence->hostSynchronize();
 }
 void ZeroExecutor::graph::setArgumentValue(uint32_t argi_, const void* argv_) const {
     throwOnFail("zeGraphSetArgumentValue", _graph_ddi_table_ext->pfnSetArgumentValue(_handle, argi_, argv_));
@@ -510,16 +495,22 @@ void ZeroExecutor::commandQueue::executeCommandList(commandList& command_list) {
     throwOnFail("zeCommandQueueExecuteCommandLists",
                 zeCommandQueueExecuteCommandLists(_handle, 1, &command_list._handle, nullptr));
 }
+void ZeroExecutor::commandQueue::executeCommandList(commandList& command_list, fence& fence) {
+    throwOnFail("zeCommandQueueExecuteCommandLists",
+                zeCommandQueueExecuteCommandLists(_handle, 1, &command_list._handle, fence._handle));
+}
 ZeroExecutor::commandQueue::~commandQueue() {
     throwOnFail("zeCommandQueueDestroy", zeCommandQueueDestroy(_handle));
 }
 
 ZeroExecutor::pipeline::pipeline(const ze_driver_handle_t& driver_handle, const ze_device_handle_t& device_handle,
                                  const ze_context_handle_t context, ze_graph_dditable_ext_t* graph_ddi_table_ext,
-                                 const std::shared_ptr<graph>& graph)
+                                 const std::shared_ptr<graph>& graph,
+                                 const std::array<std::shared_ptr<commandQueue>, stage::COUNT>& command_queue)
         : _command_list{{{device_handle, context, graph_ddi_table_ext},
                          {device_handle, context, graph_ddi_table_ext},
                          {device_handle, context, graph_ddi_table_ext}}},
+          _fence{{{command_queue[stage::UPLOAD]}, {command_queue[stage::EXECUTE]}, {command_queue[stage::READBACK]}}},
           _event_pool(device_handle, context, stage::COUNT),
           _event{{{device_handle, context, _event_pool._handle, stage::UPLOAD},
                   {device_handle, context, _event_pool._handle, stage::EXECUTE},
@@ -536,6 +527,7 @@ ZeroExecutor::pipeline::pipeline(const ze_driver_handle_t& driver_handle, const 
 
         graph->setArgumentValue(desc.second.idx, deviceMem.data());
     }
+    _command_list[stage::UPLOAD].appendBarrier();
     _event[stage::UPLOAD].AppendSignalEvent(_command_list[stage::UPLOAD]);
 
     for (const auto& desc : graph->_outputs_desc_map) {
@@ -565,24 +557,15 @@ ZeroExecutor::pipeline::~pipeline() {
     zeEventPoolDestroy(_event_pool._handle);
 }
 
-ZeroExecutor::fence::fence(const std::shared_ptr<commandQueue>& command_queue,
-                           ze_fence_dditable_ext_t* fence_ddi_table_ext)
-        : _fence_ddi_table_ext(fence_ddi_table_ext) {
+ZeroExecutor::fence::fence(const std::shared_ptr<commandQueue>& command_queue) {
     ze_fence_desc_t fence_desc = {ZE_STRUCTURE_TYPE_FENCE_DESC, nullptr, 0};
     throwOnFail("zeFenceCreate", zeFenceCreate(command_queue->_handle, &fence_desc, &_handle));
 }
 void ZeroExecutor::fence::reset() {
     throwOnFail("zeFenceReset", zeFenceReset(_handle));
 }
-void ZeroExecutor::fence::hostSynchronize(uint64_t fence_value) {
-    throwOnFail("zeFenceHostSynchronize", zeFenceHostSynchronize(_handle, fence_value));
-}
-void ZeroExecutor::fence::deviceSynchronize(const std::shared_ptr<commandQueue>& queue, uint64_t fence_value) {
-    throwOnFail("pfnDeviceSynchronize",
-                _fence_ddi_table_ext->pfnDeviceSynchronize(queue->_handle, _handle, fence_value));
-}
-void ZeroExecutor::fence::deviceSignal(uint64_t fence_value) {
-    throwOnFail("pfnDeviceSignal", _fence_ddi_table_ext->pfnDeviceSignal(_handle, fence_value));
+void ZeroExecutor::fence::hostSynchronize() {
+    throwOnFail("zeFenceHostSynchronize", zeFenceHostSynchronize(_handle, UINT64_MAX));
 }
 ZeroExecutor::fence::~fence() {
     throwOnFail("zeFenceDestroy", zeFenceDestroy(_handle));
@@ -615,8 +598,6 @@ void ZeroExecutor::push(const IE::BlobMap& inputs) {
     _logger->info("ZeroExecutor::push started");
     const auto& deviceInputs = _networkDesc->getDeviceInputsInfo();
 
-    const auto iteration = _push_count++;
-
     // Copy input data to staging buffer on Cpu (input always first argument)
     for (const auto& inferInput : inputs) {
         const auto& name = inferInput.first;
@@ -639,7 +620,7 @@ void ZeroExecutor::push(const IE::BlobMap& inputs) {
         if (!isRepackingRequired(input->getTensorDesc(), deviceInput->getTensorDesc())) {
             hostMem.copyFrom(input);
         } else {
-            if (!isRepackingPossible(true, input->getTensorDesc(), deviceInput->getTensorDesc())) {
+            if (!isRepackingPossible(input->getTensorDesc(), deviceInput->getTensorDesc())) {
                 IE_THROW() << "Push blobs: repacking is not possible";
             }
             prepareInputForInference(input, deviceInput->getTensorDesc(), hostMem.data(), _logger);
@@ -650,34 +631,27 @@ void ZeroExecutor::push(const IE::BlobMap& inputs) {
     _command_queue[stage::UPLOAD]->executeCommandList(_pipeline->_command_list[stage::UPLOAD]);
 
     // Submit the command list for execute
-    _command_queue[stage::EXECUTE]->executeCommandList(_pipeline->_command_list[stage::EXECUTE]);
-
-    // Signal fence from device after inference is executed from execute command queue on device
-    _fence[stage::EXECUTE]->deviceSignal(iteration + 1);
-
-    // Wait for inference to finish for _pull_count from the readback command queue on device,
-    // to make sure that output data is available
-    _fence[stage::EXECUTE]->deviceSynchronize(_command_queue[READBACK], iteration + 1);
-
-    // Schedule the copy of outputs from zeDriverAllocDeviceMem to zeDriverAllocHostMem
-    _command_queue[stage::READBACK]->executeCommandList(_pipeline->_command_list[stage::READBACK]);
-
-    // Signal fence from device after output copy is completed from readback command queue on device
-    _fence[stage::READBACK]->deviceSignal(iteration + 1);
+    _command_queue[stage::EXECUTE]->executeCommandList(_pipeline->_command_list[stage::EXECUTE],
+                                                       _pipeline->_fence[stage::EXECUTE]);
 }
 
 Executor::Ptr ZeroExecutor::clone() const {
-    return std::make_shared<ZeroExecutor>(_driver_handle, _device_handle, _context, _graph_ddi_table_ext,
-                                          _fence_ddi_table_ext, _networkDesc, _command_queue, _graph, _config);
+    return std::make_shared<ZeroExecutor>(_driver_handle, _device_handle, _context, _graph_ddi_table_ext, _networkDesc,
+                                          _command_queue, _graph, _config);
 }
 
 void ZeroExecutor::pull(IE::BlobMap& outputs) {
-    const auto iteration = _pull_count++;
     const auto& deviceOutputs = _networkDesc->getDeviceOutputsInfo();
 
-    // Wait for output copy to finish execution for _pull_count from the host, to make sure that data
+    // Wait for execute to finish
+    _pipeline->_fence[stage::EXECUTE].hostSynchronize();
+
+    // Schedule the copy of outputs from zeDriverAllocDeviceMem to zeDriverAllocHostMem
+    _command_queue[stage::READBACK]->executeCommandList(_pipeline->_command_list[stage::READBACK],
+                                                        _pipeline->_fence[stage::READBACK]);
+    // Wait for output copy to finish execution for _fence from the host, to make sure that data
     // is available in the hostMem buffer of the output
-    _fence[stage::READBACK]->hostSynchronize(iteration + 1);
+    _pipeline->_fence[stage::READBACK].hostSynchronize();
 
     // Copy output data to staging buffer on Cpu (input always first argument)
     for (auto& inferOutput : outputs) {
@@ -699,11 +673,16 @@ void ZeroExecutor::pull(IE::BlobMap& outputs) {
         if (!isRepackingRequired(output->getTensorDesc(), deviceOutput->getTensorDesc())) {
             hostMem.copyTo(output);
         } else {
-            if (!isRepackingPossible(false, output->getTensorDesc(), deviceOutput->getTensorDesc())) {
+            if (!isRepackingPossible(output->getTensorDesc(), deviceOutput->getTensorDesc())) {
                 IE_THROW() << "Pull blobs: repacking is not possible";
             }
             getOutputAfterInference(output, deviceOutput->getTensorDesc(), hostMem.data(), _logger);
         }
+    }
+
+    // Reset the fence objects
+    for (auto& fence : _pipeline->_fence) {
+        fence.reset();
     }
 }
 

@@ -17,9 +17,9 @@
 #include "vpux/compiler/core/attributes/shape.hpp"
 #include "vpux/compiler/core/attributes/stride_reqs.hpp"
 #include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
+#include "vpux/compiler/utils/analysis.hpp"
 
 #include <llvm/ADT/TypeSwitch.h>
-#include <vpux/compiler/utils/extentions.hpp>
 
 using namespace vpux;
 
@@ -82,10 +82,10 @@ VPUIP::PPETaskOp vpux::VPUIP::NCEClusterTaskOp::addPPETask(mlir::OpBuilder& buil
 
 bool vpux::VPUIP::NCEClusterTaskOp::isSupportedLayout(mlir::Operation* op, vpux::DataOrderInfo& info) {
     return llvm::TypeSwitch<mlir::Operation*, bool>(op)
-            .Case<IERT::MaxPoolOp>([&](IERT::MaxPoolOp op) {
+            .Case<IE::MaxPoolOp>([&](IE::MaxPoolOp op) {
                 return isSupportedLayoutSameInOutSpecificDimsOrder(op, info, {DimsOrder::NHWC});
             })
-            .Case<IERT::ConvolutionOp>([&](IERT::ConvolutionOp op) {
+            .Case<IE::ConvolutionOp>([&](IE::ConvolutionOp op) {
                 if (!isSupportedLayoutSameInOutSpecificDimsOrder(op, info, {DimsOrder::NHWC})) {
                     // weights layout
                     info.setInput(1, DimsOrder::OYXI);
@@ -100,7 +100,7 @@ bool vpux::VPUIP::NCEClusterTaskOp::isSupportedLayout(mlir::Operation* op, vpux:
 
                 return true;
             })
-            .Case<IERT::AddOp>([&](IERT::AddOp originOp) {
+            .Case<IE::AddOp>([&](IE::AddOp originOp) {
                 if (!isSupportedLayoutSameInOutSpecificDimsOrder(originOp, info, {DimsOrder::NHWC})) {
                     // weights layout
                     info.setInput(1, DimsOrder::NHWC);
@@ -110,6 +110,21 @@ bool vpux::VPUIP::NCEClusterTaskOp::isSupportedLayout(mlir::Operation* op, vpux:
                 // check weights layout
                 if (!info.hasInput(1) || info.getInput(1) != DimsOrder::NHWC) {
                     fillDataInfo(info, 2, 1, DimsOrder::NHWC);
+                    return false;
+                }
+
+                return true;
+            })
+            .Case<IE::GroupConvolutionOp>([&](IE::GroupConvolutionOp op) {
+                if (!isSupportedLayoutSameInOutSpecificDimsOrder(op, info, {DimsOrder::NHWC})) {
+                    // weights layout
+                    info.setInput(1, DimsOrder::OYXI);
+                    return false;
+                }
+
+                // check weights layout
+                if (!info.hasInput(1) || info.getInput(1) != DimsOrder::OYXI) {
+                    fillDataInfo(info, 2, 1, DimsOrder::OYXI);
                     return false;
                 }
 
@@ -235,6 +250,57 @@ mlir::LogicalResult verifyNCEEltwise(VPUIP::NCEClusterTaskOp op) {
     return mlir::success();
 }
 
+mlir::LogicalResult verifyNCEDWConv(VPUIP::NCEClusterTaskOp op) {
+    VPUX_THROW_UNLESS(op.task_type() == VPUIP::NCETaskType::DWCONV, "Expected task type '{0}', but got '{1}'",
+                      VPUIP::NCETaskType::CONV, op.task_type());
+
+    if (op.weights() == nullptr) {
+        return errorAt(op, "weights is required for NCETaskType : '{0}'", op.task_type());
+    }
+    if (op.weight_table() == nullptr) {
+        return errorAt(op, "weight_table is required for NCETaskType : '{0}'", op.task_type());
+    }
+    if (op.activation_window() == nullptr) {
+        return errorAt(op, "activation_window is required for NCETaskType : '{0}'", op.task_type());
+    }
+
+    if (op.kernel_sizeAttr() == nullptr) {
+        return errorAt(op, "kernel_size is required for NCETaskType : '{0}'", op.task_type());
+    }
+    if (op.kernel_stridesAttr() == nullptr) {
+        return errorAt(op, "kernel_strides is required for NCETaskType : '{0}'", op.task_type());
+    }
+    if (op.kernel_paddingAttr() == nullptr) {
+        return errorAt(op, "kernel_padding is required for NCETaskType : '{0}'", op.task_type());
+    }
+
+    if (mlir::failed(VPUIP::NCEInvariant::verifyKernel(op->getLoc(), op.kernel_sizeAttr(), op.kernel_stridesAttr()))) {
+        return mlir::failure();
+    }
+
+    const auto weightsShape = getShape(op.weights());
+    const auto OC = weightsShape[IERT::ConvolutionOp::filter_out_channel_dim()];
+
+    const auto weightTableShape = getShape(op.weight_table());
+    const auto weightTableNumElements = weightTableShape.totalSize();
+
+    if (OC * VPUIP::NCEInvariant::WEIGHT_TABLE_NUM_ELEMENTS_PER_OC != weightTableNumElements) {
+        return errorAt(op, "Weight table must have '{0}' elements, got '{1}'",
+                       OC * VPUIP::NCEInvariant::WEIGHT_TABLE_NUM_ELEMENTS_PER_OC, weightTableNumElements);
+    }
+
+    if (verifySameInOutSpecificDimsOrder(op, {DimsOrder::NHWC}).failed()) {
+        return mlir::failure();
+    }
+
+    const auto weightsLayout = DimsOrder::fromValue(op.weights());
+    if (weightsLayout != DimsOrder::NHWC) {
+        return errorAt(op, "weights layout must be NHWC, got {0}", weightsLayout);
+    }
+
+    return mlir::success();
+}
+
 }  // namespace
 
 mlir::LogicalResult vpux::VPUIP::verifyOp(VPUIP::DPUTaskOp op) {
@@ -268,6 +334,10 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(VPUIP::NCEClusterTaskOp op) {
         }
     } else if (op.task_type() == VPUIP::NCETaskType::ELTWISE) {
         if (mlir::failed(verifyNCEEltwise(op))) {
+            return mlir::failure();
+        }
+    } else if (op.task_type() == VPUIP::NCETaskType::DWCONV) {
+        if (mlir::failed(verifyNCEDWConv(op))) {
             return mlir::failure();
         }
     } else {
@@ -445,10 +515,10 @@ VPUIP::MPEMode getMPEFrequentModeFromDPUTasks(mlir::Region& dpuTaskOps) {
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::BlobWriter& writer) {
     SmallVector<flatbuffers::Offset<MVCNN::NCEVariantFields>> variantList;
     for (auto dpuTaskOp : variants().getOps<VPUIP::DPUTaskOp>()) {
-        const auto start = parseIntArrayAttr(dpuTaskOp.start());
-        const auto end = parseIntArrayAttr(dpuTaskOp.end());
-        const auto padsBegin = parseIntArrayAttr(dpuTaskOp.pads_begin());
-        const auto padsEnd = parseIntArrayAttr(dpuTaskOp.pads_end());
+        const auto start = parseIntArrayAttr<int64_t>(dpuTaskOp.start());
+        const auto end = parseIntArrayAttr<int64_t>(dpuTaskOp.end());
+        const auto padsBegin = parseIntArrayAttr<int64_t>(dpuTaskOp.pads_begin());
+        const auto padsEnd = parseIntArrayAttr<int64_t>(dpuTaskOp.pads_end());
 
         // TODO: [Track number: E#13226]
         // Make padding indexing more obvious
@@ -474,9 +544,24 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
     for (auto ppeOp : ppe().getOps<VPUIP::PPETaskOp>()) {
         ppeList.push_back(getPPELayerType(ppeOp.ppe_layer_type()));
     }
+
+    // TODO delete it after implementing passing postop parameters
+    // and quant parameters for tasks (it was added to fix accuracy of fused Clamp)
+    int32_t ClampLow = std::numeric_limits<int32_t>::min();
+    int32_t ClampHigh = std::numeric_limits<int32_t>::max();
+    if (std::find(ppeList.begin(), ppeList.end(), MVCNN::PPELayerType_LRELUX) != ppeList.end()) {
+        ppeList.clear();
+        // here we handle only Relu6 case
+        // for common one it should be deleted
+        // TODO: [Track number: E#14813]
+        ClampLow = 0;
+        ClampHigh =
+                input().getType().cast<mlir::MemRefType>().getElementType().isa<mlir::FloatType>() ? 6 * (1 << 16) : 6;
+    }
+
     auto ppeLayerTypes = writer.createVector(ppeList);
     // TODO: Clamp_Low, Clamp_High, Lrelu_Mult, Lrelu_Shift
-    auto ppeFixedFunction = MVCNN::CreatePPEFixedFunction(writer, ppeLayerTypes);
+    auto ppeFixedFunction = MVCNN::CreatePPEFixedFunction(writer, ppeLayerTypes, ClampLow, ClampHigh);
     // TODO: scale_data, rounding, instruction_list_data
     auto ppeTask = MVCNN::CreatePPETask(writer, 0, ppeFixedFunction);
 
@@ -485,19 +570,19 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
     int16_t kernelPadL = 0, kernelPadR = 0, kernelPadT = 0, kernelPadB = 0;
 
     if (kernel_sizeAttr() != nullptr) {
-        const auto kernelSize = parseIntArrayAttr(kernel_sizeAttr());
+        const auto kernelSize = parseIntArrayAttr<int64_t>(kernel_sizeAttr());
         kernelSizeH = checked_cast<int16_t>(kernelSize[0]);
         kernelSizeW = checked_cast<int16_t>(kernelSize[1]);
     }
 
     if (kernel_stridesAttr() != nullptr) {
-        const auto kernelStrides = parseIntArrayAttr(kernel_stridesAttr());
+        const auto kernelStrides = parseIntArrayAttr<int64_t>(kernel_stridesAttr());
         kernelStridesH = checked_cast<int16_t>(kernelStrides[0]);
         kernelStridesW = checked_cast<int16_t>(kernelStrides[1]);
     }
 
     if (kernel_paddingAttr() != nullptr) {
-        const auto kernelPadding = parseIntArrayAttr(kernel_paddingAttr());
+        const auto kernelPadding = parseIntArrayAttr<int64_t>(kernel_paddingAttr());
         kernelPadL = checked_cast<int16_t>(kernelPadding[0]);
         kernelPadR = checked_cast<int16_t>(kernelPadding[1]);
         kernelPadT = checked_cast<int16_t>(kernelPadding[2]);
@@ -508,7 +593,7 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
     const auto weightsData = weights() != nullptr ? writer.getTensor(weights()) : 0;
     const auto weightsTable = weight_table() != nullptr ? writer.getTensor(weight_table()) : 0;
     const auto activationWindow = activation_window() != nullptr ? writer.getTensor(activation_window()) : 0;
-    const auto activationWindowChannelLength = activation_window_channel_length().getValueOr(0);
+    const auto activationWindowChannelLength = checked_cast<int32_t>(activation_window_channel_length().getValueOr(0));
 
     const auto outputData = writer.getTensor(output());
 

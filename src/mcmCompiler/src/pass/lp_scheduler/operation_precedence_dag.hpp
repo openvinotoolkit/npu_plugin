@@ -359,7 +359,7 @@ class Operation_Dag {
       mv::DataModel dm(om);
       pseudo_edge_set_.clear();
       for (auto eitr=dm.flowBegin(); eitr!=dm.flowEnd(); ++eitr) {
-        if (eitr->hasAttr("pseudo_data_flow")) {
+        if (eitr->hasAttr("pseudo_data_flow") || eitr->hasAttr("vertical_fusion_flow")) {
           pseudo_edge_set_.insert(
               pseudo_edge_t( &(*(eitr.source())), &(*(eitr.sink())) )
           );
@@ -1170,18 +1170,22 @@ class Operation_Dag {
     //ideally we need to take a functor which decides if the scheduler can
     //ignore the operation.
     bool is_operation_ignored(operation_t op,
-          mv::ControlModel&) const {
+          mv::ControlModel& model) const {
       const std::string& op_type = op->getOpType();
+      auto opIt = model.getOp(op->getName());
       return (op_type == "ConstantInt") || (op_type == "ConstantDataElement") ||
         (op_type == "ImplicitConcat") ||
-        (implicit_op_types_.find(op_type) != implicit_op_types_.end());
+        (implicit_op_types_.find(op_type) != implicit_op_types_.end()) ||
+        (op_type == "DMATask" && opIt->hasAttr("toIgnore"));
     }
 
 
 
-    bool is_operation_ignored(operation_t op, mv::OpModel&) const {
+    bool is_operation_ignored(operation_t op, mv::OpModel& model) const {
       const std::string& op_type = op->getOpType();
-      return (op_type == "ConstantInt") || (op_type == "ConstantDataElement");
+      auto opIt = model.getOp(op->getName());
+      return (op_type == "ConstantInt") || (op_type == "ConstantDataElement") || (op_type == "DMATask"
+        && opIt->hasAttr("toIgnore"));
     }
 
     // For all the DMA ops moving data from DDR2CMX followed by an Align

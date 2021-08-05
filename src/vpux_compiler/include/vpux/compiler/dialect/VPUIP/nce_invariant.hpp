@@ -46,6 +46,11 @@ public:
                                                 mlir::MemRefType firstInputType, mlir::MemRefType secondInputType,
                                                 mlir::MemRefType outputType, Logger log = Logger::global());
 
+    static mlir::LogicalResult verifyCMX(IERT::GroupConvolutionOp origOp, Logger log = Logger::global());
+    static mlir::LogicalResult verifyGroupConvCMX(mlir::Location loc, mlir::ModuleOp module, mlir::MemRefType inputType,
+                                                  mlir::MemRefType filterType, mlir::MemRefType outputType,
+                                                  mlir::ArrayAttr kernelStrides, Logger log = Logger::global());
+
 public:
     static mlir::LogicalResult verifyChannels(IE::ConvolutionOp origOp, Logger log = Logger::global());
     static mlir::LogicalResult verifyChannels(IERT::ConvolutionOp origOp, Logger log = Logger::global());
@@ -57,9 +62,15 @@ public:
     static mlir::LogicalResult verifyPoolChannels(mlir::Location loc, mlir::ShapedType inputType,
                                                   Logger log = Logger::global());
 
+    static mlir::LogicalResult verifyChannels(IE::AddOp origOp, Logger log = Logger::global());
     static mlir::LogicalResult verifyChannels(IERT::AddOp origOp, Logger log = Logger::global());
     static mlir::LogicalResult verifyEltwiseChannels(mlir::Location loc, mlir::ShapedType firstInputType,
                                                      mlir::ShapedType secondInputType, Logger log = Logger::global());
+
+    static mlir::LogicalResult verifyChannels(IE::GroupConvolutionOp origOp, Logger log = Logger::global());
+    static mlir::LogicalResult verifyChannels(IERT::GroupConvolutionOp origOp, Logger log = Logger::global());
+    static mlir::LogicalResult verifyGroupConvChannels(mlir::Location loc, mlir::ShapedType inputType,
+                                                       mlir::ShapedType filterType, Logger log = Logger::global());
 
     static int64_t getChannelAlignment(mlir::Type elemType);
 
@@ -70,7 +81,11 @@ public:
     static mlir::LogicalResult verifyKernel(IE::MaxPoolOp origOp, Logger log = Logger::global());
     static mlir::LogicalResult verifyKernel(IERT::MaxPoolOp origOp, Logger log = Logger::global());
 
+    static mlir::LogicalResult verifyKernel(IE::AddOp origOp, Logger log = Logger::global());
     static mlir::LogicalResult verifyKernel(IERT::AddOp origOp, Logger log = Logger::global());
+
+    static mlir::LogicalResult verifyKernel(IE::GroupConvolutionOp origOp, Logger log = Logger::global());
+    static mlir::LogicalResult verifyKernel(IERT::GroupConvolutionOp origOp, Logger log = Logger::global());
 
     static mlir::LogicalResult verifyKernel(mlir::Location loc, mlir::ArrayAttr kernelSize,
                                             mlir::ArrayAttr kernelStrides, Logger log = Logger::global());

@@ -59,7 +59,7 @@ mlir::LogicalResult ViewLikeRewrite::matchAndRewrite(mlir::ViewLikeOpInterface o
         _log.nest().trace("It aliases internal buffer produced by '{0}'", declareOp->getLoc());
 
         locale = declareOp.locale();
-        localeIndex = parseIntArrayAttr(declareOp.localeIndex());
+        localeIndex = parseIntArrayAttr<int64_t>(declareOp.localeIndex());
         dataOffset = Byte(declareOp.dataIndex());
     } else if (auto blockArg = rootVal.dyn_cast<mlir::BlockArgument>()) {
         _log.nest().trace("It aliases Block argument '{0}'", blockArg);

@@ -1,6 +1,6 @@
-// RUN: vpux-opt --set-compile-params="vpu-arch=VPU3700" %s | FileCheck %s
+// RUN: vpux-opt --set-compile-params="vpu-arch=KMB" %s | FileCheck %s
 
-// CHECK: module @test attributes {VPUIP.arch = "VPU3700", VPUIP.compilationMode = "ReferenceSW"}
+// CHECK: module @test attributes {VPUIP.arch = "KMB", VPUIP.compilationMode = "ReferenceSW"}
 module @test {
 
 // CHECK:       VPUIP.Graph
@@ -15,7 +15,7 @@ module @test {
 
 // CHECK:       IERT.RunTimeResources
 // CHECK-SAME:      availableMemory :  {
-// CHECK:               IERT.MemoryResource 201326592 bytes of "DDR" {VPUIP.bandwidth = 8 : i64, VPUIP.derateFactor = 6.000000e-01 : f64}
+// CHECK:               IERT.MemoryResource 524288000 bytes of "DDR" {VPUIP.bandwidth = 8 : i64, VPUIP.derateFactor = 6.000000e-01 : f64}
 // CHECK:               IERT.MemoryResource 917504 bytes of "CMX_NN" {VPUIP.bandwidth = 32 : i64, VPUIP.derateFactor = 1.000000e+00 : f64}
 // CHECK:           }
 // CHECK-SAME:      usedMemory :  {

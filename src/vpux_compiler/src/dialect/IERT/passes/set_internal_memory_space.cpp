@@ -81,9 +81,7 @@ void SetInternalMemorySpacePass::safeRunOnFunc() {
             const auto origType = var.getType().dyn_cast<mlir::MemRefType>();
             VPUX_THROW_UNLESS(origType != nullptr, "Got non MemRef Type '{0}'", var.getType());
 
-            const auto newType = mlir::MemRefType::get(origType.getShape(), origType.getElementType(),
-                                                       origType.getAffineMaps(), _memSpace);
-
+            const auto newType = changeMemSpace(origType, _memSpace, true);
             var.setType(newType);
         }
     };

@@ -12,6 +12,9 @@
 namespace SubgraphTestsDefinitions {
 
 class KmbScaleShiftLayerTest: public ScaleShiftLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+};
+
+class KmbScaleShiftLayerTestMCM: public KmbScaleShiftLayerTest {
     void SkipBeforeLoad() override {
         std::vector<std::vector<size_t>> inShape;
         std::tie(inShape, std::ignore, std::ignore, std::ignore, std::ignore) = GetParam();
@@ -23,79 +26,20 @@ class KmbScaleShiftLayerTest: public ScaleShiftLayerTest, virtual public LayerTe
         // Expected: executableNetwork = getCore()->LoadNetwork(cnnNetwork, targetDevice, configuration) doesn't throw an exception.
         //  Actual: it throws:Shape:{100} - ArgumentError: index subscript 1 - Exceeds the dimensionality 1
         // [Track number: E#11548]
-        if (isCompilerMCM()) {
-            std::set<std::vector<std::vector<size_t>>> badShapesForMcm = {
+        std::set<std::vector<std::vector<size_t>>> badShapesForMcm = {
                 {{100}, {100}},
                 {{4, 64}, {64}}
-            };
+        };
 
-            if (badShapesForMcm.find(inShape) != badShapesForMcm.end() ) {
-                throw LayerTestsUtils::KmbSkipTestException("Bad shape: - ArgumentError: index subscript 1 - "
-                                                            "Exceeds the dimensionality 1");
-            }
-        }
-    }
-
-    void SkipBeforeInfer() override {
-        std::vector<std::vector<size_t>> inShape;
-        std::tie(inShape, std::ignore, std::ignore, std::ignore, std::ignore) = GetParam();
-        // Some input shapes with using of MLIR compiler lead to hang the board during infer step:
-        // Last test output:
-        // KmbLayerTestsCommon::Infer()
-        // [Debug  ][VPU][VpualCoreNNExecutor] Allocated buffer for input with the size:
-        // [Debug  ][VPU][VpualCoreNNExecutor] Allocated buffer for output with the size: 0
-        // [Warning][VPU][InferRequest] SIPP/M2I is enabled but configuration is not supported.
-        // [Info   ][VPU][VpualCoreNNExecutor] ::push started
-        // [Warning][VPU][VpualCoreNNExecutor] Input blob is located in non-shareable memory. Need to do re-allocation.
-        // [Info   ][VPU][VpualCoreNNExecutor] ::push finished
-        // [Info   ][VPU][VpualCoreNNExecutor] pull started
-        // [Track number: E#11546]
-        if (isCompilerMLIR()) {
-            std::set<std::vector<std::vector<size_t>>> badShapesForMLIR = {
-                {{100}},
-                {{100}, {100}},
-                {{1, 8}},
-                {{4, 64}},
-                {{8, 1024}}
-            };
-            if (badShapesForMLIR.find(inShape) != badShapesForMLIR.end() ) {
-                throw LayerTestsUtils::KmbSkipTestException("Infer hangs the board.");
-            }
-
-            // Skip below is due to error during run of tests on KMB-board (MLIR compiler, 16 shaves used):
-            // [Error  ][VPU][VpualCoreNNExecutor] pull: WaitForResponse failed
-            // unknown file: Failure
-            // C++ exception with description "VpualCoreNNExecutor::pull: WaitForResponse failed8" thrown in the test body.
-            //        NnXlinkPlg: Close channel failed: 8
-            // [Track number: S#11028]
-            if (inShape == std::vector<std::vector<size_t>>{{1, 8, 4, 4},     {1, 8, 1, 1}}) {
-                throw LayerTestsUtils::KmbSkipTestException("Error on KMB-board: NnXlinkPlg: Close channel failed: 8");
-            }
+        if (badShapesForMcm.find(inShape) != badShapesForMcm.end() ) {
+            throw LayerTestsUtils::KmbSkipTestException("Bad shape: - ArgumentError: index subscript 1 - "
+                                                        "Exceeds the dimensionality 1");
         }
     }
 
     void SkipBeforeValidate() override {
         std::vector<std::vector<size_t>> inShape;
         std::tie(inShape, std::ignore, std::ignore, std::ignore, std::ignore) = GetParam();
-        // There are errors on validation step for some input shapes with using of MLIR compiler:
-        // KmbLayerTestsCommon::Validate()
-        // LayerTestsCommon::Validate()
-        // openvino/inference-engine/tests/functional/shared_test_classes/
-        // include/shared_test_classes/base/layer_test_utils.hpp:173: Failure
-        // Value of: max != 0 && (diff <= static_cast<float>(threshold))
-        //  Actual: false
-        // Expected: true
-        // Relative comparison of values expected: -24 and actual: 0 at index 2048
-        // with threshold 0.0099999997764825821 failed TestReportProgress: KmbScaleShiftLayerTest validated
-        // [Track number: E#11542]
-        if (isCompilerMLIR()) {
-            std::set<std::vector<std::vector<size_t>>> badShapesForMLIR = {
-                {{4, 64}, {64}}
-            };
-            if (badShapesForMLIR.find(inShape) != badShapesForMLIR.end() ) {
-                throw LayerTestsUtils::KmbSkipTestException("Comparison fails for this input shape");
-            }
-        }
         // There are errors on validation step for some input shapes with using of MCM compiler:
         // KmbLayerTestsCommon::Validate()
         // LayerTestsCommon::Validate()
@@ -107,24 +51,24 @@ class KmbScaleShiftLayerTest: public ScaleShiftLayerTest, virtual public LayerTe
         // Relative comparison of values expected: -15 and actual: 0.00019502639770507812 at index 1024
         // with threshold 0.0099999997764825821 failed TestReportProgress: KmbScaleShiftLayerTest validated
         // [Track number: E#11537]
-        if (isCompilerMCM()) {
-            std::set<std::vector<std::vector<size_t>>> badShapesForMCM = {
+        std::set<std::vector<std::vector<size_t>>> badShapesForMCM = {
                 {{4, 64}},
                 {{8, 1024}}
-            };
-            if (badShapesForMCM.find(inShape) != badShapesForMCM.end() ) {
-                throw LayerTestsUtils::KmbSkipTestException("Comparison fails for this input shape");
-            }
+        };
+        if (badShapesForMCM.find(inShape) != badShapesForMCM.end() ) {
+            throw LayerTestsUtils::KmbSkipTestException("Comparison fails for this input shape");
         }
-
     }
 };
 
-TEST_P(KmbScaleShiftLayerTest, CompareWithRefs) {
+class KmbScaleShiftLayerTestMLIR: public KmbScaleShiftLayerTest {
+};
+
+TEST_P(KmbScaleShiftLayerTestMCM, CompareWithRefs) {
     Run();
 }
 
-TEST_P(KmbScaleShiftLayerTest, CompareWithRefs_MLIR) {
+TEST_P(KmbScaleShiftLayerTestMLIR, CompareWithRefs_MLIR) {
     useCompilerMLIR();
     Run();
 }
@@ -161,13 +105,22 @@ std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precis
                                                          InferenceEngine::Precision::FP16,
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_scale_shift, KmbScaleShiftLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_scale_shift_mcm, KmbScaleShiftLayerTestMCM,
                         ::testing::Combine(
                             ::testing::ValuesIn(inShapes),
                             ::testing::ValuesIn(netPrecisions),
                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
                             ::testing::ValuesIn(Scales),
                             ::testing::ValuesIn(Shifts)),
+                        KmbScaleShiftLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_scale_shift_mlir, KmbScaleShiftLayerTestMLIR,
+                        ::testing::Combine(
+                                ::testing::ValuesIn(inShapes),
+                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+                                ::testing::ValuesIn(Scales),
+                                ::testing::ValuesIn(Shifts)),
                         KmbScaleShiftLayerTest::getTestCaseName);
 
 }  // namespace

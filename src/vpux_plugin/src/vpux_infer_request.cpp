@@ -43,9 +43,9 @@ namespace IE = InferenceEngine;
 //------------------------------------------------------------------------------
 static void checkNetworkPrecision(const IE::Precision& precision) {
     if (precision != IE::Precision::FP32 && precision != IE::Precision::FP16 && precision != IE::Precision::U8 &&
-        precision != IE::Precision::I8) {
+        precision != IE::Precision::I8 && precision != IE::Precision::I32 && precision != IE::Precision::U32) {
         IE_THROW(ParameterMismatch) << "Unsupported input precision: " << precision
-                                    << "! Supported precisions: FP32, FP16, U8, I8";
+                                    << "! Supported precisions: FP32, FP16, U8, I8, I32, U32";
     }
 }
 

@@ -55,10 +55,9 @@ mlir::LogicalResult UseFakeQuant::matchAndRewrite(mlir::quant::DequantizeCastOp 
 
     const auto qType = dCastOp.arg().getType().cast<mlir::ShapedType>();
 
-    uint32_t levels = 0;
+    int64_t levels = 0;
     mlir::RankedTensorType attrType;
     mlir::DenseElementsAttr rMinAttr, rMaxAttr;
-
     if (mlir::failed(getFakeQuantParams(qType, levels, attrType, rMinAttr, rMaxAttr, dCastOp.getLoc()))) {
         return mlir::failure();
     }

@@ -18,6 +18,7 @@
 
 #include "vpux/utils/core/mem_size.hpp"
 
+#include <mlir/IR/BuiltinAttributes.h>
 #include <mlir/IR/BuiltinTypes.h>
 #include <mlir/IR/Value.h>
 
@@ -57,9 +58,27 @@ Byte getTotalSize(mlir::Value val);
 // MemRefType utilities
 //
 
-mlir::MemRefType changeShape(mlir::MemRefType origType, ShapeRef shape);
+mlir::MemRefType changeElemType(mlir::MemRefType origType, mlir::Type elemType, bool preserveStrides = false);
+mlir::MemRefType changeShape(mlir::MemRefType origType, ShapeRef shape, bool preserveStrides = false);
 mlir::MemRefType changeDimsOrder(mlir::MemRefType origType, DimsOrder order);
-mlir::MemRefType changeElemType(mlir::MemRefType origType, mlir::Type elemType);
-mlir::MemRefType changeMemSpace(mlir::MemRefType origType, mlir::Attribute memSpace);
+mlir::MemRefType changeMemSpace(mlir::MemRefType origType, mlir::Attribute memSpace, bool preserveStrides = false);
+
+//
+// RankedTensorType utilities
+//
+
+mlir::RankedTensorType getTensorType(ArrayRef<int64_t> shape, mlir::Type elementType, DimsOrder order);
+
+mlir::RankedTensorType changeElemType(mlir::RankedTensorType origType, mlir::Type elemType);
+mlir::RankedTensorType changeShape(mlir::RankedTensorType origType, ShapeRef shape);
+mlir::RankedTensorType changeDimsOrder(mlir::RankedTensorType origType, DimsOrder order);
+
+//
+// ShapedType utilities
+//
+
+mlir::ShapedType changeElemType(mlir::ShapedType origType, mlir::Type elemType);
+mlir::ShapedType changeShape(mlir::ShapedType origType, ShapeRef shape);
+mlir::ShapedType changeDimsOrder(mlir::ShapedType origType, DimsOrder order);
 
 }  // namespace vpux

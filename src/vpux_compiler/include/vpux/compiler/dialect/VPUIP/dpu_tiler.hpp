@@ -27,7 +27,7 @@ struct DpuTile final {
 
 class DpuTiler final {
 public:
-    static SmallVector<DpuTile> tileOverH(uint32_t numDPU, ShapeRef outShape, ArrayRef<int64_t> opPadsBegin,
+    static SmallVector<DpuTile> tileOverH(int64_t numDPU, ShapeRef outShape, ArrayRef<int64_t> opPadsBegin,
                                           ArrayRef<int64_t> opPadsEnd);
 };
 

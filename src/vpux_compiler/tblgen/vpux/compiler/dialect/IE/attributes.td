@@ -14,7 +14,21 @@
 #ifndef VPUX_COMPILER_DIALECT_IE_ATTRIBUTES
 #define VPUX_COMPILER_DIALECT_IE_ATTRIBUTES
 
+include "vpux/compiler/core/attributes.td"
 include "vpux/compiler/dialect/IE/dialect.td"
+
+//
+// TensorAttr
+//
+
+def IE_TensorAttr :
+        StructAttr<
+            "TensorAttr",
+            IE_Dialect,
+            [
+                StructFieldAttr<"order", OptionalAttr<AffineMapAttr>>,
+            ]
+        >;
 
 //
 // EpsMode
@@ -129,21 +143,21 @@ def IE_ProposalAttrs :
             "ProposalAttr",
             IE_Dialect,
             [
-                StructFieldAttr<"baseSize",           I32Attr>,
-                StructFieldAttr<"preNmsTopN",         I32Attr>,
-                StructFieldAttr<"postNmsTopN",        I32Attr>,
-                StructFieldAttr<"nmsThresh",          DefaultValuedAttr<F32Attr, "0.0f">>,
-                StructFieldAttr<"featStride",         DefaultValuedAttr<I32Attr, "1">>,
-                StructFieldAttr<"minSize",            DefaultValuedAttr<I32Attr, "1">>,
-                StructFieldAttr<"ratio",              F32ArrayAttr>,
-                StructFieldAttr<"scale",              F32ArrayAttr>,
-                StructFieldAttr<"clipBeforeNms",      DefaultValuedAttr<BoolAttr, "true">>,
-                StructFieldAttr<"clipAfterNms",       DefaultValuedAttr<BoolAttr, "false">>,
-                StructFieldAttr<"normalize",          DefaultValuedAttr<BoolAttr, "false">>,
-                StructFieldAttr<"boxSizeScale",       DefaultValuedAttr<F32Attr,  "1.0f">>,
-                StructFieldAttr<"boxCoordinateScale", DefaultValuedAttr<F32Attr,  "1.0f">>,
-                StructFieldAttr<"framework",          DefaultValuedAttr<StrAttr,  "">>,
-                StructFieldAttr<"inferProbs",         DefaultValuedAttr<BoolAttr, "false">>,
+                StructFieldAttr<"baseSize",           IntAttr>,
+                StructFieldAttr<"preNmsTopN",         IntAttr>,
+                StructFieldAttr<"postNmsTopN",        IntAttr>,
+                StructFieldAttr<"nmsThresh",          F64Attr>,
+                StructFieldAttr<"featStride",         IntAttr>,
+                StructFieldAttr<"minSize",            IntAttr>,
+                StructFieldAttr<"ratio",              F64ArrayAttr>,
+                StructFieldAttr<"scale",              F64ArrayAttr>,
+                StructFieldAttr<"clipBeforeNms",      BoolAttr>,
+                StructFieldAttr<"clipAfterNms",       BoolAttr>,
+                StructFieldAttr<"normalize",          BoolAttr>,
+                StructFieldAttr<"boxSizeScale",       F64Attr>,
+                StructFieldAttr<"boxCoordinateScale", F64Attr>,
+                StructFieldAttr<"framework",          StrAttr>,
+                StructFieldAttr<"inferProbs",         BoolAttr>,
             ]
         >;
 
@@ -216,14 +230,14 @@ def IE_InterpolateAttr :
             "InterpolateAttr",
             IE_Dialect,
             [
-                StructFieldAttr<"mode",            IE_InterpolateMode>,
-                StructFieldAttr<"shape_calc_mode", IE_InterpolateCalcMode>,
-                StructFieldAttr<"coord_mode",      IE_InterpolateCoordMode>,
-                StructFieldAttr<"nearest_mode",    IE_InterpolateNearestMode>,
-                StructFieldAttr<"antialias",  DefaultValuedAttr<BoolAttr, "false">>,
-                StructFieldAttr<"pads_begin", DefaultValuedAttr<I32ArrayAttr, "{0}">>,
-                StructFieldAttr<"pads_end",   DefaultValuedAttr<I32ArrayAttr, "{0}">>,
-                StructFieldAttr<"cube_coeff", DefaultValuedAttr<F32Attr, "-0.75f">>,
+                StructFieldAttr<"mode",             IE_InterpolateMode>,
+                StructFieldAttr<"shape_calc_mode",  IE_InterpolateCalcMode>,
+                StructFieldAttr<"coord_mode",       IE_InterpolateCoordMode>,
+                StructFieldAttr<"nearest_mode",     IE_InterpolateNearestMode>,
+                StructFieldAttr<"antialias",        BoolAttr>,
+                StructFieldAttr<"pads_begin",       I64ArrayAttr>,
+                StructFieldAttr<"pads_end",         I64ArrayAttr>,
+                StructFieldAttr<"cube_coeff",       F64Attr>,
             ]
         >;
 
@@ -237,22 +251,22 @@ def IE_DetectionOutputAttrs :
             "DetectionOutputAttr",
             IE_Dialect,
             [
-                StructFieldAttr<"num_classes",                I32Attr>,
-                StructFieldAttr<"background_label_id",        DefaultValuedAttr<I32Attr, "0">>,
-                StructFieldAttr<"top_k",                      DefaultValuedAttr<I32Attr, "-1">>,
-                StructFieldAttr<"variance_encoded_in_target", DefaultValuedAttr<BoolAttr, "false">>,
-                StructFieldAttr<"keep_top_k",                 I32ArrayAttr>,
-                StructFieldAttr<"code_type",                  DefaultValuedAttr<StrAttr,  "">>,
-                StructFieldAttr<"share_location",             DefaultValuedAttr<BoolAttr, "false">>,
-                StructFieldAttr<"nms_threshold",              DefaultValuedAttr<F32Attr,  "0.0f">>,
-                StructFieldAttr<"confidence_threshold",       DefaultValuedAttr<F32Attr,  "0.0f">>,
-                StructFieldAttr<"clip_after_nms",             DefaultValuedAttr<BoolAttr, "false">>,
-                StructFieldAttr<"clip_before_nms",            DefaultValuedAttr<BoolAttr, "false">>,
-                StructFieldAttr<"decrease_label_id",          DefaultValuedAttr<BoolAttr, "false">>,
-                StructFieldAttr<"normalized",                 DefaultValuedAttr<BoolAttr, "false">>,
-                StructFieldAttr<"input_height",               DefaultValuedAttr<UI32Attr, "1">>,
-                StructFieldAttr<"input_width",                DefaultValuedAttr<UI32Attr, "1">>,
-                StructFieldAttr<"objectness_score",           DefaultValuedAttr<F32Attr,  "0.0f">>,
+                StructFieldAttr<"num_classes",                IntAttr>,
+                StructFieldAttr<"background_label_id",        IntAttr>,
+                StructFieldAttr<"top_k",                      IntAttr>,
+                StructFieldAttr<"variance_encoded_in_target", BoolAttr>,
+                StructFieldAttr<"keep_top_k",                 I64ArrayAttr>,
+                StructFieldAttr<"code_type",                  StrAttr>,
+                StructFieldAttr<"share_location",             BoolAttr>,
+                StructFieldAttr<"nms_threshold",              F64Attr>,
+                StructFieldAttr<"confidence_threshold",       F64Attr>,
+                StructFieldAttr<"clip_after_nms",             BoolAttr>,
+                StructFieldAttr<"clip_before_nms",            BoolAttr>,
+                StructFieldAttr<"decrease_label_id",          BoolAttr>,
+                StructFieldAttr<"normalized",                 BoolAttr>,
+                StructFieldAttr<"input_height",               IntAttr>,
+                StructFieldAttr<"input_width",                IntAttr>,
+                StructFieldAttr<"objectness_score",           F64Attr>,
             ]
         >;
 
@@ -291,6 +305,7 @@ def IE_PostOpKind :
                 StrEnumAttrCase<"EXP">,
                 StrEnumAttrCase<"SIGMOID">,
                 StrEnumAttrCase<"TANH">,
+                StrEnumAttrCase<"RELUX">,
             ]
         > {
     let cppNamespace = "vpux::IE";

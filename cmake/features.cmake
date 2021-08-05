@@ -70,11 +70,6 @@ if(ENABLE_EMULATOR)
     add_definitions(-DENABLE_EMULATOR)
 endif()
 
-ie_dependent_option(ENABLE_PLAIDML "Enable PlaidML/SHAVE kernel autogeneration" ON "LINUX;NOT CMAKE_CROSSCOMPILING" OFF)
-if(ENABLE_PLAIDML)
-    add_compile_definitions(ENABLE_PLAIDML)
-endif()
-
 ie_option(ENABLE_VPUX_DOCS "Documentation for VPUX plugin" OFF)
 
 if(ENABLE_VPUX_DOCS)

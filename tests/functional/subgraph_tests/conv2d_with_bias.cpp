@@ -42,7 +42,7 @@ class KmbConv2dWithBiasTest :
                 ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
         std::vector<float> weights(FILT_IN * FILT_OUT * KERNEL_W * KERNEL_H);
-        for (int i = 0; i < weights.size(); i++) {
+        for (std::size_t i = 0; i < weights.size(); i++) {
             weights.at(i) = std::cos(i * 3.14 / 6);
         }
         auto constLayer_node = std::make_shared<ngraph::op::Constant>(
@@ -54,7 +54,7 @@ class KmbConv2dWithBiasTest :
                 ngraph::CoordinateDiff(std::vector<ptrdiff_t>{0, 0}), ngraph::Strides(std::vector<size_t>{1, 1}));
 
         std::vector<float> biases(FILT_OUT, 1.0);
-        for (int i = 0; i < biases.size(); i++) {
+        for (std::size_t i = 0; i < biases.size(); i++) {
             biases.at(i) = i * 0.25f;
         }
         auto bias_weights_node = std::make_shared<ngraph::op::Constant>(

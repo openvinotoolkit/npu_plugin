@@ -365,10 +365,26 @@ double HeuristicGraphOptimizer::dmaTime(mv::Data::OpListIterator opIt, StrategyS
             stream = streamShape["C"];
             weightsSize += realTensorSize(opIt->getInputTensor(1),{1,1,stream,1,1}, isCMConv);
         }
-        weightsSize += 16 * alignedSplittedChannels; //weights table size
-        //In nested streaming for each slice of H, we cycle through all the slices of K
-        size_t nestedStreams = stream * streamShape["H"];
-        weightsCycles = nestedStreams*(LATENCY_DDR_ + ((double)weightsSize / DDR_BANDWIDTH_));
+        std::size_t weightTableSize = 16 * alignedSplittedChannels; //weights table size
+        if (streamShape["H"] > 1)
+        {
+            // streaming over h - shared weights
+            std::size_t nestedStreams = stream;
+            std::size_t nestedWeightTableStreams = stream * streamShape["H"];
+            if (stream > 1)
+            {
+                // In nested streaming for each slice of H, we cycle through all the slices of K
+                nestedStreams *= streamShape["H"];
+            }
+            weightsCycles = nestedStreams*(LATENCY_DDR_ + ((double)weightsSize / DDR_BANDWIDTH_));
+            weightsCycles += nestedWeightTableStreams*(LATENCY_DDR_ + ((double)weightTableSize / DDR_BANDWIDTH_));
+        }
+        else
+        {
+            // if not streaming over h - tensors fused
+            weightsSize += weightTableSize;
+            weightsCycles = stream*(LATENCY_DDR_ + ((double)weightsSize / DDR_BANDWIDTH_));
+        }
     }
 
     // If parent tensor stays in CMX, no further cost. Otherwise, calculate bring the input tensor back into CMX
@@ -555,10 +571,28 @@ double HeuristicGraphOptimizer::averageWeightsDmaTime(mv::Data::OpListIterator o
             stream = streamShape["C"];
             weightsSize += realTensorSize(opIt->getInputTensor(1),{1,1,stream,1,1}, isCMConv);
         }
-        weightsSize += 16 * alignedSplittedChannels; //weights table size
-        //In nested streaming for each slice of H, we cycle through all the slices of K
-        size_t nestedStreams = stream * streamShape["H"];
-        return nestedStreams*(LATENCY_DDR_ + ((double)weightsSize / DDR_BANDWIDTH_));
+        std::size_t weightsCycles = 0UL;
+        std::size_t weightTableSize = 16 * alignedSplittedChannels; //weights table size
+        if (streamShape["H"] > 1)
+        {
+            // streaming over h - shared weights
+            std::size_t nestedStreams = stream;
+            std::size_t nestedWeightTableStreams = stream * streamShape["H"];
+            if (stream > 1)
+            {
+                // In nested streaming for each slice of H, we cycle through all the slices of K
+                nestedStreams *= streamShape["H"];
+            }
+            weightsCycles = nestedStreams*(LATENCY_DDR_ + ((double)weightsSize / DDR_BANDWIDTH_));
+            weightsCycles += nestedWeightTableStreams*(LATENCY_DDR_ + ((double)weightTableSize / DDR_BANDWIDTH_));
+        }
+        else
+        {
+            // if not streaming over h - tensors fused
+            weightsSize += weightTableSize;
+            weightsCycles = stream*(LATENCY_DDR_ + ((double)weightsSize / DDR_BANDWIDTH_));
+        }
+        return weightsCycles;
     }
 
     return 0;
@@ -728,6 +762,11 @@ StrategySet HeuristicGraphOptimizer::assignStrategyCost(mv::Data::OpListIterator
         if(isFirstOp && streamShape["H"] > 1)
         {
             cost *= 0.95; //this heuristic could/should be moved to the activation streaming pass...
+        }
+        if(isFirstOp && clustering == "SplitOverH" && opIt->isHardwarizable() && opIt->hasAttr("kSize")
+            && (!opIt->hasAttr("supportsCM") || !opIt->get<bool>("supportsCM")))
+        {
+            cost = COST_MAX; // prevent SOH until SOHOverlapped implemented 
         }
             
         // TODO add sparsity for performance calculation
@@ -1074,6 +1113,17 @@ bool HeuristicGraphOptimizer::hasGreedySOK(mv::Data::OpListIterator opIt)
     return false;
 }
 
+//Note: make sure that all the children are K compatible 
+bool HeuristicGraphOptimizer::isGreedyEligible(mv::Data::OpListIterator opIt)
+{
+    for (auto child = opIt.leftmostChild(); child != model_.opEnd(); ++child)
+    {
+        if (!isKCompatible(child))
+            return false;
+    }
+    return true;
+}
+
 void HeuristicGraphOptimizer::doSingleRollback(mv::Data::OpListIterator opIt)
 {
     findKCompatible(opIt, true, true);
@@ -1131,11 +1181,45 @@ bool isModelAWA(mv::Data::OpListIterator opIt)
     return false;
 }
 
+bool isModelFWA(mv::Data::OpListIterator opIt)
+{
+    if(opIt->getOpType() == "Conv")
+    {
+        auto inputShape = opIt->getInputTensor(mv::IO_TENSOR_INPUT)->getShape();
+        auto outputShape = opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT)->getShape();
+        auto weightsShape = opIt->getInputTensor(mv::IO_TENSOR_WEIGHTS_SET)->getShape();
+        if( inputShape[mv::IO_CHANNEL_DIMENSION] == 16 &&
+            inputShape[mv::IO_WIDTH_DIMENSION] == 1024 && inputShape[mv::IO_HEIGHT_DIMENSION] == 64 &&
+            outputShape[mv::IO_CHANNEL_DIMENSION] == 16 && outputShape[mv::IO_WIDTH_DIMENSION] == 1024 &&
+            outputShape[mv::IO_HEIGHT_DIMENSION] == 64 && weightsShape[mv::KERNEL_HEIGHT] == 7 &&
+            weightsShape[mv::KERNEL_WIDTH] == 1)
+            return true;
+    }
+    if(opIt->getOpType() == "Concat")
+        return true;
+    if(opIt->getOpType() == "Slice" && opIt.leftmostParent()->getOpType() == "Concat")
+        return true;
+
+    return false;
+}
+
+bool parentOpSupportsHK(mv::Data::OpListIterator opIt)
+{
+    auto opType = opIt->getOpType();
+    if (opType == "MaxPool" || opType == "Eltwise" || opType == "HwConvert")
+    {
+        return true;   
+    }
+    return false;
+}
+
 bool HeuristicGraphOptimizer::forceRollback(mv::Data::OpListIterator opIt)
 {
     bool opKCompatible = isKCompatible(opIt);
 
     auto strategy = bestStrategies_.at(opIt->getName());
+    bool childExpectsFullInput = false;
+    bool childExpectsSlicedInput = false;
     bool opHK = isHK(opIt);
 
     // Check K-compatability for this op and all children matches
@@ -1143,22 +1227,42 @@ bool HeuristicGraphOptimizer::forceRollback(mv::Data::OpListIterator opIt)
     {
         if(!child->hasAttr("StrategySet")) continue; //Note, this shouldn't happen for children
 
-        // SOH->SOK disallowed if both are ZM conv
+        // SOH->SOK disallowed if...
         if(!opKCompatible && isKCompatible(child))
         {
             // SOH->SOK disallowed if both are ZM conv
             if(isZMconv(opIt) && isZMconv(child)
                 && !isModelAWA(opIt))
                 return true;
-            // Can't solve this with a DMA?
-            if(child->getOpType() == "Slice")
-                return true;
+
+            // SOH->SOK disallowed if one is Implicit Op in CMX
+            // Note: Ops aren't marked as implicit yet, so "Default" strategy
+            // assume they all happen in DDR. To be more accurate, consider Slice
+            // as it's own, which can be in CMX or in DDR depending on preceeding
+            // and following ops
+            auto childStrategy = bestStrategies_.at(child->getName());
+            if (opIt->getOpType() == "Slice" && !isModelFWA(opIt)
+                && (!strategy["spilling"].get<bool>() || !childStrategy["parentSpilling"].get<bool>()))
+                    return true;
+            // ssd512 workaround - TODO disable when HKSwitch enabled for all ops
+            if (opIt->getOpType() == "Slice" && parentOpSupportsHK(opIt) && !isModelFWA(opIt)
+                && (!strategy["spilling"].get<bool>() || !childStrategy["parentSpilling"].get<bool>()))
+                    return true;
         }
+        if (isKCompatible(child))
+            childExpectsFullInput = true;
+        else
+            childExpectsSlicedInput = true;
 
         // HK -> HK disallowed
         if(opHK && isHK(child))
             return true;
     }
+
+    // check if all children expect the same type of input
+    // split input or full input (H vs K compat)
+    if (childExpectsFullInput && childExpectsSlicedInput)
+        return true;
 
     return false;
 }
@@ -1335,7 +1439,7 @@ void HeuristicGraphOptimizer::chooseRollbackOrSpill()
         if(!opIt->hasAttr("StrategySet")) continue;
         // std::cout <<std::endl<< "Processing op: " << opIt->getName() << std::endl;
         // Iff the spill is caused by strategy shift only (not CMX related, etc)
-        if(isRemoveableSpill(opIt) && hasGreedySOK(opIt))
+        if(isRemoveableSpill(opIt) && hasGreedySOK(opIt) && isGreedyEligible(opIt))
         {
             // This op was actually better in SOK, just got SOH b/c heuristic
             doSingleRollback(opIt);
@@ -1643,6 +1747,11 @@ double HeuristicGraphOptimizer::findBestStrategyOfLocation(mv::Data::OpListItera
     return bestCost;
 }
 
+bool HeuristicGraphOptimizer::strategyChangeRequiresSpill(mv::Data::OpListIterator& opIt, mv::Data::OpListIterator& pIt)
+{
+    return isKCompatible(opIt, false) != isKCompatible(pIt, true) && pIt->getOpType() != "Input";
+}
+
 void HeuristicGraphOptimizer::verifySpillStrategies(bool lockClusteringStrategy = false)
 {
     mv::DataModel dm(model_);
@@ -1662,64 +1771,52 @@ void HeuristicGraphOptimizer::verifySpillStrategies(bool lockClusteringStrategy 
                                                     opStrategy["clustering"].get<std::string>()); // if can take input cmx, find cost
 
         bool foundCMXinput = false;
+        bool strategyRequiresSpill = false;
         for(auto inputTensor : inputTensors)
         {
             auto inputOp = model_.getSourceOp(inputTensor);
             if(!inputOp->hasAttr("StrategySet") || opIt->getOpType() == "Concat") continue;
-
             auto parentStrategy = bestStrategies_.at(inputOp->getName());
-            if(!parentStrategy["spilling"].get<bool>()) //input in CMX, mismatch found
+            bool parentSpilling = parentStrategy["spilling"].get<bool>();
+            //Check for required spill due to strategy change
+            if (strategyChangeRequiresSpill(opIt, inputOp))
+            {
+                strategyRequiresSpill = true;
+                parentSpilling = true;
+            }
+            if(!parentSpilling) //input in CMX, mismatch found
             {    
                 foundCMXinput = true;
-                ddrCost += findBestStrategyOfLocation(inputOp, false, parentStrategy["parentSpilling"].get<bool>(), true, true, 
+                ddrCost += findBestStrategyOfLocation(inputOp, false, parentSpilling, true, true, 
                                                         lockClusteringStrategy, parentStrategy["clustering"].get<std::string>());
                 cmxCost += parentStrategy["cost"].get<double>();
             }
             else
             {
                 ddrCost += parentStrategy["cost"].get<double>(); // this input won't need to change, same as current
-                auto cost = findBestStrategyOfLocation(inputOp, false, parentStrategy["parentSpilling"].get<bool>(), true, false, 
+                auto cost = findBestStrategyOfLocation(inputOp, false, parentSpilling, true, false, 
                                                         lockClusteringStrategy, parentStrategy["clustering"].get<std::string>());
                 if(cost < COST_MAX)
                     cmxCost += cost; //If this input could provide cmx input, use, but not required if it didn't exist
             }
             
         }
-        if(foundCMXinput)
+        if(foundCMXinput || strategyRequiresSpill)
         {
-            if(cmxCost < ddrCost)
+            bool inputDDR = cmxCost > ddrCost;
+            findBestStrategyOfLocation(opIt, true, inputDDR, false, 
+                                            opStrategy["spilling"].get<bool>(), 
+                                            lockClusteringStrategy, 
+                                            opStrategy["clustering"].get<std::string>() ); //This op takes CMX input, can spill or not
+            for(auto inputTensor : inputTensors)
             {
-                //Try to CMX this tensor
-                findBestStrategyOfLocation(opIt, true, false, false, 
-                                                opStrategy["spilling"].get<bool>(), 
-                                                lockClusteringStrategy, 
-                                                opStrategy["clustering"].get<std::string>() ); //This op takes CMX input, can spill or not
-                for(auto inputTensor : inputTensors)
-                {
-                    auto inputOp = model_.getSourceOp(inputTensor);
-                    if(!inputOp->hasAttr("StrategySet") || opIt->getOpType() == "Concat") continue;
-                    auto parentStrategy = bestStrategies_.at(inputOp->getName());
-                    //For each input, get the best spill=false strategy (lock parent spilling)
-                    findBestStrategyOfLocation(inputOp, true, parentStrategy["parentSpilling"].get<bool>(), true, false,
-                                                lockClusteringStrategy, parentStrategy["clustering"].get<std::string>());
-                }
-            }
-            else
-            {
-                //DDR this tensor
-                findBestStrategyOfLocation(opIt, true, true, false,
-                                                opStrategy["spilling"].get<bool>(), 
-                                                lockClusteringStrategy, 
-                                                opStrategy["clustering"].get<std::string>()); //This op takes DDR input, can spill or not
-                for(auto inputTensor : inputTensors)
-                {
-                    auto inputOp = model_.getSourceOp(inputTensor);
-                    if(!inputOp->hasAttr("StrategySet") || opIt->getOpType() == "Concat") continue;
-                    auto parentStrategy = bestStrategies_.at(inputOp->getName());
-                    //For each input, get the best spill=false strategy (lock parent spilling)
-                    findBestStrategyOfLocation(inputOp, true, parentStrategy["parentSpilling"].get<bool>(), true, true,
-                                                lockClusteringStrategy, parentStrategy["clustering"].get<std::string>());
-                }
+                auto inputOp = model_.getSourceOp(inputTensor);
+                if(!inputOp->hasAttr("StrategySet") || opIt->getOpType() == "Concat") continue;
+                auto parentStrategy = bestStrategies_.at(inputOp->getName());
+                strategyRequiresSpill = strategyChangeRequiresSpill(opIt, inputOp);
+                //For each input, get the best spill=false strategy (lock parent spilling)
+                findBestStrategyOfLocation(inputOp, true, (parentStrategy["parentSpilling"].get<bool>() || strategyRequiresSpill), true, inputDDR,
+                                            lockClusteringStrategy, parentStrategy["clustering"].get<std::string>());
             }
         }
     }

@@ -128,8 +128,11 @@ The following environment variables should be set:
 To enable incertion of additional timer DMAs in the network:
 
 1. Compile and run inference using benchmark_app with additional flag "-pc" (For using existing blob see 2.)
-2. To compile blob (using compile_tool) with profiling enabled user should enable it in the compiler config file(*json): 
-    look for "PerformanceCounting" in "GlobalConfigParams"
+2. To compile blob (using compile_tool) with profiling enabled: 
+    a) Enable it in the compiler config file(*json): look for "PerformanceCounting" in "GlobalConfigParams"
+    b) Add "PERF_COUNT YES" to compiler config file (-c option in compile_tool)  
+3. To parse profiling data manually you can use prof_parser. Run prof_parser -h to get info about its usage.
+
 
 ## === Integration ===
 #### How to update graph schema in mcmCompiler

@@ -52,6 +52,32 @@ mlir::LogicalResult CTCGreedyDecoderSeqLenRewrite::matchAndRewrite(IERT::CTCGree
 }
 
 //
+// LSTMCellRewrite
+//
+
+class LSTMCellRewrite final : public mlir::OpRewritePattern<IERT::LSTMCellOp> {
+public:
+    LSTMCellRewrite(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<IERT::LSTMCellOp>(ctx), _log(log) {
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(IERT::LSTMCellOp origOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult LSTMCellRewrite::matchAndRewrite(IERT::LSTMCellOp origOp, mlir::PatternRewriter& rewriter) const {
+    _log.trace("Found LSTMCell Operation '{0}'", origOp->getLoc());
+    rewriter.replaceOpWithNewOp<VPUIP::LSTMCellUPAOp>(origOp, origOp.inputData(), origOp.initialHiddenState(),
+                                                      origOp.initialCellState(), origOp.weights(), origOp.biases(),
+                                                      origOp.outputHiddenState_buff(), origOp.outputCellState_buff());
+    _log.trace("Replaced with 'VPUIP.LSTMCellOp'");
+
+    return mlir::success();
+}
+
+//
 // FakeQuantizeRewrite
 //
 
@@ -115,17 +141,17 @@ mlir::LogicalResult FullyConnectedRewrite::matchAndRewrite(IERT::FullyConnectedO
         return mlir::success();
     }
 
-    const auto biasShape = origOp.bias().getType().cast<mlir::ShapedType>().getShape();
+    const auto origBiasType = origOp.bias().getType().cast<mlir::ShapedType>();
 
-    VPUX_THROW_UNLESS(biasShape[0] == 1, "Biases batch size is not equal 1");
+    const auto origBiasShape = origBiasType.getShape();
+    VPUX_THROW_UNLESS(origBiasShape[0] == 1, "Biases batch size is not equal 1");
 
-    const std::array<int64_t, 1> newBiasShape = {biasShape[1]};
-    auto newType =
-            mlir::MemRefType::get(newBiasShape, origOp.bias().getType().cast<mlir::MemRefType>().getElementType());
+    const std::array<int64_t, 1> newBiasShape = {origBiasShape[1]};
+    const auto newBiasType = changeShape(origBiasType, ShapeRef(newBiasShape));
+    ;
+    auto newBias = rewriter.create<IERT::GenericReshapeOp>(origOp->getLoc(), newBiasType, origOp.bias());
 
-    auto newBias = rewriter.create<IERT::GenericReshapeOp>(origOp->getLoc(), newType, origOp.bias());
-
-    rewriter.replaceOpWithNewOp<VPUIP::FullyConnectedUPAOp>(origOp, origOp.input(), origOp.weights(), newBias,
+    rewriter.replaceOpWithNewOp<VPUIP::FullyConnectedUPAOp>(origOp, origOp.input(), origOp.weights(), newBias.output(),
                                                             origOp.output_buff());
 
     return mlir::success();
@@ -162,9 +188,11 @@ void ConvertLayers2VPUIPPass::safeRunOnFunc() {
     target.addLegalOp<mlir::FuncOp, mlir::ReturnOp>();
     target.addLegalOp<Const::DeclareOp, IERT::StaticAllocOp>();
     target.addLegalOp<IERT::GenericReshapeOp, IERT::ConcatViewOp, mlir::memref::SubViewOp>();
+    target.addLegalOp<IERT::TimestampOp>();
 
     mlir::RewritePatternSet patterns(&ctx);
     patterns.insert<CTCGreedyDecoderSeqLenRewrite>(&ctx, _log);
+    patterns.insert<LSTMCellRewrite>(&ctx, _log);
     patterns.insert<FakeQuantizeRewrite>(&ctx, _log);
     patterns.insert<FullyConnectedRewrite>(&ctx, _log);
     populateWithGenerated(patterns);

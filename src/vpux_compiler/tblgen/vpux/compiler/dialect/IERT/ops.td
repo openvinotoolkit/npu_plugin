@@ -14,6 +14,7 @@
 #ifndef VPUX_COMPILER_DIALECT_IERT_OPS
 #define VPUX_COMPILER_DIALECT_IERT_OPS
 
+include "vpux/compiler/core/attributes.td"
 include "vpux/compiler/core/ops_interfaces.td"
 include "vpux/compiler/dialect/IE/attributes.td"
 include "vpux/compiler/dialect/IERT/dialect.td"
@@ -42,15 +43,13 @@ class IERT_LayerOp<int numResult, string mnemonic, list<OpTrait> traits = []> :
             !listconcat(
                 traits,
                 [
-                    RTLayer,
-                    LayerInterface,
+                    NoSideEffect,
                     InferTypeOpInterface,
-                    NoSideEffect
+                    DeclareOpInterfaceMethods<RTLayerInterface>
                 ]
             )
         > {
-
-    let extraClassDeclaration = InferReturnTypesForLayer<numResult>.impl;
+    let extraClassDeclaration = InferReturnTypesForRTLayer<numResult>.impl;
 }
 
 //
@@ -138,7 +137,7 @@ def IERT_MemoryResourceOp :
 
     let arguments = (ins
         OptionalAttr<AnyAttr>:$kind,
-        I64Attr:$byteSize
+        IntAttr:$byteSize
     );
 
     let extraClassDeclaration = [{
@@ -175,7 +174,7 @@ def IERT_ExecutorResourceOp :
 
     let arguments = (ins
         AnyAttr:$kind,
-        I32Attr:$count
+        IntAttr:$count
     );
 
     let regions = (region
@@ -212,7 +211,7 @@ def IERT_StaticAllocOp :
     let summary = "InferenceEngine run-time static buffer allocation";
 
     let arguments = (ins
-        I64Attr:$offset
+        IntAttr:$offset
     );
 
     let results = (outs
@@ -221,6 +220,32 @@ def IERT_StaticAllocOp :
 
     let assemblyFormat = [{
         `<` $offset `>` attr-dict `->` type(results)
+    }];
+}
+
+//
+// TimestampOp
+//
+
+def IERT_TimestampOp :
+        IERT_Op<
+            "Timestamp",
+            [
+                NoSideEffect,
+            ]
+        > {
+    let summary = "Get timer timestamp operation";
+
+    let description = [{
+        Get timer timestamp operation
+    }];
+
+    let results = (outs
+        AnyStaticShapeMemRef:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict `->` type(results)
     }];
 }
 
@@ -338,7 +363,7 @@ def IERT_SoftMaxOp :
         MemRefOf<[F16, F32]>:$input,
         MemRefOf<[F16, F32]>:$output_buff,
 
-        I32Attr:$axisInd
+        IntAttr:$axisInd
     );
 
     let results = (outs
@@ -370,10 +395,10 @@ def IERT_AvgPoolOp :
         MemRefOf<[F16, F32]>:$input,
         MemRefOf<[F16, F32]>:$output_buff,
 
-        I32ArrayAttr:$kernel_size,
-        I32ArrayAttr:$strides,
-        I32ArrayAttr:$pads_begin,
-        I32ArrayAttr:$pads_end
+        I64ArrayAttr:$kernel_size,
+        I64ArrayAttr:$strides,
+        I64ArrayAttr:$pads_begin,
+        I64ArrayAttr:$pads_end
     );
 
     let results = (outs
@@ -397,25 +422,24 @@ def IERT_MaxPoolOp :
             [
                 ViewLikeOpInterface,
                 DeclareOpInterfaceMethods<TensorInterface_4D>,
-                SameOperandsElementType
             ]
         > {
     let summary = "InferenceEngine run-time MaxPool layer";
 
     let arguments = (ins
-        MemRefOf<[F16, F32]>:$input,
-        MemRefOf<[F16, F32]>:$output_buff,
+        MemRefOf<[F16, F32, quant_QuantizedType]>:$input,
+        MemRefOf<[F16, F32, quant_QuantizedType]>:$output_buff,
 
-        I32ArrayAttr:$kernel_size,
-        I32ArrayAttr:$strides,
-        I32ArrayAttr:$pads_begin,
-        I32ArrayAttr:$pads_end,
+        I64ArrayAttr:$kernel_size,
+        I64ArrayAttr:$strides,
+        I64ArrayAttr:$pads_begin,
+        I64ArrayAttr:$pads_end,
 
         OptionalAttr<IE_PostOp>:$post_op
     );
 
     let results = (outs
-        MemRefOf<[F16, F32]>:$output
+        MemRefOf<[F16, F32, quant_QuantizedType]>:$output
     );
 
     let assemblyFormat = [{
@@ -434,7 +458,6 @@ def IERT_ConvolutionOp :
         IERT_LayerOp<1, "Convolution",
             [
                 ViewLikeOpInterface,
-                SameOperandsElementType,
                 DeclareOpInterfaceMethods<TensorInterface_4D>,
                 DeclareOpInterfaceMethods<ConvolutionLayerInterface>
             ]
@@ -442,15 +465,15 @@ def IERT_ConvolutionOp :
     let summary = "InferenceEngine run-time Convolution layer";
 
     let arguments = (ins
-        MemRefOf<[F16, F32]>:$input,
-        MemRefOf<[F16, F32]>:$filter,
+        MemRefOf<[F16, F32, quant_QuantizedType]>:$input,
+        MemRefOf<[F16, F32, quant_QuantizedType]>:$filter,
         Optional<MemRefOf<[F16, F32]>>:$bias,
-        MemRefOf<[F16, F32]>:$output_buff,
+        MemRefOf<[F16, F32, quant_QuantizedType]>:$output_buff,
 
-        I32ArrayAttr:$strides,
-        I32ArrayAttr:$pads_begin,
-        I32ArrayAttr:$pads_end,
-        I32ArrayAttr:$dilations,
+        I64ArrayAttr:$strides,
+        I64ArrayAttr:$pads_begin,
+        I64ArrayAttr:$pads_end,
+        I64ArrayAttr:$dilations,
 
         OptionalAttr<IE_PostOp>:$post_op
     );
@@ -487,11 +510,13 @@ def IERT_GroupConvolutionOp :
         Optional<MemRefOf<[F16, F32]>>:$bias,
         MemRefOf<[F16, F32]>:$output_buff,
 
-        I32ArrayAttr:$strides,
-        I32ArrayAttr:$pads_begin,
-        I32ArrayAttr:$pads_end,
-        I32ArrayAttr:$dilations,
-        OptionalAttr<I32Attr>:$groups
+        I64ArrayAttr:$strides,
+        I64ArrayAttr:$pads_begin,
+        I64ArrayAttr:$pads_end,
+        I64ArrayAttr:$dilations,
+        OptionalAttr<IntAttr>:$groups,
+
+        OptionalAttr<IE_PostOp>:$post_op
     );
 
     let results = (outs
@@ -582,8 +607,8 @@ def IERT_ClampOp :
         MemRefOf<[F16, F32]>:$input,
         MemRefOf<[F16, F32]>:$output_buff,
 
-        F32Attr:$min,
-        F32Attr:$max
+        F64Attr:$min,
+        F64Attr:$max
     );
 
     let results = (outs
@@ -616,7 +641,7 @@ def IERT_EluOp :
         MemRefOf<[F16, F32]>:$input,
         MemRefOf<[F16, F32]>:$output_buff,
 
-        F32Attr:$x
+        F64Attr:$x
     );
 
     let results = (outs
@@ -744,7 +769,7 @@ def IERT_FakeQuantizeOp :
         MemRefOf<[F16, F32]>:$output_high,
         MemRefOf<[F16, F32]>:$output_buff,
 
-        I32Attr:$levels
+        IntAttr:$levels
     );
 
     let results = (outs
@@ -866,7 +891,7 @@ def IERT_LeakyReluOp :
         MemRefOf<[F16, F32]>:$input,
         MemRefOf<[F16, F32]>:$output_buff,
 
-        F32Attr:$negative_slope
+        F64Attr:$negative_slope
     );
 
     let results = (outs
@@ -1220,7 +1245,7 @@ def IERT_SwishOp :
         Optional<MemRefOf<[F16, F32]>>:$beta,
         MemRefOf<[F16, F32]>:$output_buff,
 
-        OptionalAttr<F32Attr>:$beta_value
+        OptionalAttr<F64Attr>:$beta_value
     );
 
     let results = (outs
@@ -1285,7 +1310,7 @@ def IERT_GRNOp :
         MemRefOf<[F16, F32]>:$input,
         MemRefOf<[F16, F32]>:$output_buff,
 
-        F32Attr:$bias
+        F64Attr:$bias
     );
 
     let results = (outs
@@ -1347,8 +1372,8 @@ def IERT_PerAxisTileOp :
         MemRefOf<[F16, F32]>:$input,
         MemRefOf<[F16, F32]>:$output_buff,
 
-        I32Attr:$axis,
-        I32Attr:$tiles
+        IntAttr:$axis,
+        IntAttr:$tiles
     );
 
     let results = (outs
@@ -1410,8 +1435,8 @@ def IERT_ROIPoolingOp :
         MemRefOf<[F16, F32]>:$coords,
         MemRefOf<[F16, F32]>:$output_buff,
 
-        I32ArrayAttr:$output_size,
-        F32Attr:$spatial_scale,
+        I64ArrayAttr:$output_size,
+        F64Attr:$spatial_scale,
         IE_ROIPoolingMethod:$method
     );
 
@@ -1525,7 +1550,7 @@ def IERT_ConcatViewOp :
         mlir::Value getViewSource() {
             return output_buff();
         }
-    }] # InferReturnTypesForLayer<1>.impl;
+    }] # InferReturnTypesForRTLayer<1>.impl;
 }
 
 //
@@ -1611,9 +1636,9 @@ def IERT_PadOp :
         MemRefOf<[F16, F32]>:$input,
         MemRefOf<[F16, F32]>:$output_buff,
 
-        I32ArrayAttr:$pads_begin,
-        I32ArrayAttr:$pads_end,
-        OptionalAttr<F32Attr>:$pad_value,
+        I64ArrayAttr:$pads_begin,
+        I64ArrayAttr:$pads_end,
+        OptionalAttr<F64Attr>:$pad_value,
         IE_PadMode:$mode
     );
 
@@ -1686,6 +1711,83 @@ def IERT_StridedSliceOp :
 
     let results = (outs
         AnyMemRef:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
+// LSTMCellOp
+//
+
+def IERT_LSTMCellOp :
+        IERT_LayerOp<2,"LSTMCell",
+            [
+                MultiViewOpInterface
+            ]
+        > {
+    let summary = "InferenceEngine run-time LSTMCell layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$inputData,
+        MemRefOf<[F16, F32]>:$initialHiddenState,
+        MemRefOf<[F16, F32]>:$initialCellState,
+        MemRefOf<[F16, F32]>:$weights,
+        MemRefOf<[F16, F32]>:$biases,
+
+        MemRefOf<[F16, F32]>:$outputHiddenState_buff,
+        MemRefOf<[F16, F32]>:$outputCellState_buff,
+
+        IntAttr:$hiddenSize
+    );
+
+    let results = (outs
+        MemRefOf<[F16, F32]>:$outputHiddenState,
+        MemRefOf<[F16, F32]>:$outputCellState
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $inputData `:` type($inputData) `,` $initialHiddenState `:` type($initialHiddenState) `,` $initialCellState `:` type($initialCellState)
+                    `,` $weights `:` type($weights) `,` $biases `:` type($biases) `)`
+        `outputs` `(` $outputHiddenState_buff `:` type($outputHiddenState_buff) `,` $outputCellState_buff `:` type($outputCellState_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
+// RegionYoloOp
+//
+
+def IERT_RegionYoloOp :
+        IERT_LayerOp<1, "RegionYolo",
+            [
+                ViewLikeOpInterface
+            ]
+        > {
+    let summary = "InferenceEngine run-time RegionYolo layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input,
+        MemRefOf<[F16, F32]>:$output_buff,
+
+        IntAttr:$coords,
+        IntAttr:$classes,
+        IntAttr:$regions,
+        BoolAttr:$do_softmax,
+        I64ArrayAttr:$mask,
+        IntAttr:$axis,
+        IntAttr:$end_axis,
+        F64ArrayAttr:$anchors
+    );
+
+    let results = (outs
+        MemRefOf<[F16, F32]>:$output
     );
 
     let assemblyFormat = [{

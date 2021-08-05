@@ -22,7 +22,7 @@ It combines both memory effects and buffer aliasing for this:
 #NHWC = affine_map<(n, c, h, w) -> (n, h, w, c)>
 
 func @main(%input: memref<1x3x240x240xf16, #NHWC>, %output: memref<1x3x240x240xf16, #NHWC>) -> memref<1x3x240x240xf16, #NHWC> {
-    %1 = IERT.SoftMax(%input, %output) {axisInd = 1 : i32} // %1 is an alias for %output
+    %1 = IERT.SoftMax(%input, %output) {axisInd = 1} // %1 is an alias for %output
     return %1
 }
 ```
@@ -142,10 +142,10 @@ operation ::= `IERT.AvgPool` attr-dict
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`kernel_size` | ::mlir::ArrayAttr | 32-bit integer array attribute
-`strides` | ::mlir::ArrayAttr | 32-bit integer array attribute
-`pads_begin` | ::mlir::ArrayAttr | 32-bit integer array attribute
-`pads_end` | ::mlir::ArrayAttr | 32-bit integer array attribute
+`kernel_size` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`strides` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`pads_begin` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`pads_end` | ::mlir::ArrayAttr | 64-bit integer array attribute
 
 #### Operands:
 
@@ -252,8 +252,8 @@ operation ::= `IERT.Clamp` attr-dict
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`min` | ::mlir::FloatAttr | 32-bit float attribute
-`max` | ::mlir::FloatAttr | 32-bit float attribute
+`min` | ::mlir::FloatAttr | 64-bit float attribute
+`max` | ::mlir::FloatAttr | 64-bit float attribute
 
 #### Operands:
 
@@ -343,20 +343,20 @@ operation ::= `IERT.Convolution` attr-dict
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`strides` | ::mlir::ArrayAttr | 32-bit integer array attribute
-`pads_begin` | ::mlir::ArrayAttr | 32-bit integer array attribute
-`pads_end` | ::mlir::ArrayAttr | 32-bit integer array attribute
-`dilations` | ::mlir::ArrayAttr | 32-bit integer array attribute
+`strides` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`pads_begin` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`pads_end` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`dilations` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `post_op` | vpux::IE::PostOp | DictionaryAttr with field(s): 'kind', 'params' (each field having its own constraints)
 
 #### Operands:
 
 | Operand | Description |
 | :-----: | ----------- |
-`input` | memref of 16-bit float or 32-bit float values
-`filter` | memref of 16-bit float or 32-bit float values
+`input` | memref of 16-bit float or 32-bit float or QuantizedType values
+`filter` | memref of 16-bit float or 32-bit float or QuantizedType values
 `bias` | memref of 16-bit float or 32-bit float values
-`output_buff` | memref of 16-bit float or 32-bit float values
+`output_buff` | memref of 16-bit float or 32-bit float or QuantizedType values
 
 #### Results:
 
@@ -506,7 +506,7 @@ operation ::= `IERT.Elu` attr-dict
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`x` | ::mlir::FloatAttr | 32-bit float attribute
+`x` | ::mlir::FloatAttr | 64-bit float attribute
 
 #### Operands:
 
@@ -544,7 +544,7 @@ The executor resource is defined by the following attributes:
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
 `kind` | ::mlir::Attribute | any attribute
-`count` | ::mlir::IntegerAttr | 32-bit signless integer attribute
+`count` | mlir::IntegerAttr | Integer attribute
 
 ### `IERT.Exp` (vpux::IERT::ExpOp)
 
@@ -593,7 +593,7 @@ operation ::= `IERT.FakeQuantize` attr-dict
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`levels` | ::mlir::IntegerAttr | 32-bit signless integer attribute
+`levels` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
@@ -690,7 +690,7 @@ operation ::= `IERT.GRN` attr-dict
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`bias` | ::mlir::FloatAttr | 32-bit float attribute
+`bias` | ::mlir::FloatAttr | 64-bit float attribute
 
 #### Operands:
 
@@ -750,11 +750,12 @@ operation ::= `IERT.GroupConvolution` attr-dict
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`strides` | ::mlir::ArrayAttr | 32-bit integer array attribute
-`pads_begin` | ::mlir::ArrayAttr | 32-bit integer array attribute
-`pads_end` | ::mlir::ArrayAttr | 32-bit integer array attribute
-`dilations` | ::mlir::ArrayAttr | 32-bit integer array attribute
-`groups` | ::mlir::IntegerAttr | 32-bit signless integer attribute
+`strides` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`pads_begin` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`pads_end` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`dilations` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`groups` | mlir::IntegerAttr | Integer attribute
+`post_op` | vpux::IE::PostOp | DictionaryAttr with field(s): 'kind', 'params' (each field having its own constraints)
 
 #### Operands:
 
@@ -836,6 +837,47 @@ operation ::= `IERT.Interpolate` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float or 32-bit float values
 
+### `IERT.LSTMCell` (vpux::IERT::LSTMCellOp)
+
+InferenceEngine run-time LSTMCell layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.LSTMCell` attr-dict
+              `inputs` `(` $inputData `:` type($inputData) `,` $initialHiddenState `:` type($initialHiddenState) `,` $initialCellState `:` type($initialCellState)
+              `,` $weights `:` type($weights) `,` $biases `:` type($biases) `)`
+              `outputs` `(` $outputHiddenState_buff `:` type($outputHiddenState_buff) `,` $outputCellState_buff `:` type($outputCellState_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`hiddenSize` | mlir::IntegerAttr | Integer attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`inputData` | memref of 16-bit float or 32-bit float values
+`initialHiddenState` | memref of 16-bit float or 32-bit float values
+`initialCellState` | memref of 16-bit float or 32-bit float values
+`weights` | memref of 16-bit float or 32-bit float values
+`biases` | memref of 16-bit float or 32-bit float values
+`outputHiddenState_buff` | memref of 16-bit float or 32-bit float values
+`outputCellState_buff` | memref of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`outputHiddenState` | memref of 16-bit float or 32-bit float values
+`outputCellState` | memref of 16-bit float or 32-bit float values
+
 ### `IERT.LeakyRelu` (vpux::IERT::LeakyReluOp)
 
 InferenceEngine run-time LeakyRelu layer
@@ -855,7 +897,7 @@ operation ::= `IERT.LeakyRelu` attr-dict
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`negative_slope` | ::mlir::FloatAttr | 32-bit float attribute
+`negative_slope` | ::mlir::FloatAttr | 64-bit float attribute
 
 #### Operands:
 
@@ -889,24 +931,24 @@ operation ::= `IERT.MaxPool` attr-dict
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`kernel_size` | ::mlir::ArrayAttr | 32-bit integer array attribute
-`strides` | ::mlir::ArrayAttr | 32-bit integer array attribute
-`pads_begin` | ::mlir::ArrayAttr | 32-bit integer array attribute
-`pads_end` | ::mlir::ArrayAttr | 32-bit integer array attribute
+`kernel_size` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`strides` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`pads_begin` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`pads_end` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `post_op` | vpux::IE::PostOp | DictionaryAttr with field(s): 'kind', 'params' (each field having its own constraints)
 
 #### Operands:
 
 | Operand | Description |
 | :-----: | ----------- |
-`input` | memref of 16-bit float or 32-bit float values
-`output_buff` | memref of 16-bit float or 32-bit float values
+`input` | memref of 16-bit float or 32-bit float or QuantizedType values
+`output_buff` | memref of 16-bit float or 32-bit float or QuantizedType values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-`output` | memref of 16-bit float or 32-bit float values
+`output` | memref of 16-bit float or 32-bit float or QuantizedType values
 
 ### `IERT.Maximum` (vpux::IERT::MaximumOp)
 
@@ -959,7 +1001,7 @@ The memory resource is defined by the following attributes:
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
 `kind` | ::mlir::Attribute | any attribute
-`byteSize` | ::mlir::IntegerAttr | 64-bit signless integer attribute
+`byteSize` | mlir::IntegerAttr | Integer attribute
 
 ### `IERT.Minimum` (vpux::IERT::MinimumOp)
 
@@ -1095,9 +1137,9 @@ operation ::= `IERT.Pad` attr-dict
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`pads_begin` | ::mlir::ArrayAttr | 32-bit integer array attribute
-`pads_end` | ::mlir::ArrayAttr | 32-bit integer array attribute
-`pad_value` | ::mlir::FloatAttr | 32-bit float attribute
+`pads_begin` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`pads_end` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`pad_value` | ::mlir::FloatAttr | 64-bit float attribute
 `mode` | vpux::IE::PadModeAttr | TPadMode that the InferenceEngine supports
 
 #### Operands:
@@ -1132,8 +1174,8 @@ operation ::= `IERT.PerAxisTile` attr-dict
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`axis` | ::mlir::IntegerAttr | 32-bit signless integer attribute
-`tiles` | ::mlir::IntegerAttr | 32-bit signless integer attribute
+`axis` | mlir::IntegerAttr | Integer attribute
+`tiles` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
@@ -1224,8 +1266,8 @@ operation ::= `IERT.ROIPooling` attr-dict
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`output_size` | ::mlir::ArrayAttr | 32-bit integer array attribute
-`spatial_scale` | ::mlir::FloatAttr | 32-bit float attribute
+`output_size` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`spatial_scale` | ::mlir::FloatAttr | 64-bit float attribute
 `method` | vpux::IE::ROIPoolingMethodAttr | ROIPoolingMethod that the InferenceEngine supports
 
 #### Operands:
@@ -1256,6 +1298,47 @@ operation ::= `IERT.ReLU` attr-dict
               `->` type(results)
 ```
 
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float or 32-bit float values
+`output_buff` | memref of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float or 32-bit float values
+
+### `IERT.RegionYolo` (vpux::IERT::RegionYoloOp)
+
+InferenceEngine run-time RegionYolo layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.RegionYolo` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`coords` | mlir::IntegerAttr | Integer attribute
+`classes` | mlir::IntegerAttr | Integer attribute
+`regions` | mlir::IntegerAttr | Integer attribute
+`do_softmax` | ::mlir::BoolAttr | bool attribute
+`mask` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`axis` | mlir::IntegerAttr | Integer attribute
+`end_axis` | mlir::IntegerAttr | Integer attribute
+`anchors` | ::mlir::ArrayAttr | 64-bit float array attribute
 
 #### Operands:
 
@@ -1395,7 +1478,7 @@ operation ::= `IERT.SoftMax` attr-dict
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`axisInd` | ::mlir::IntegerAttr | 32-bit signless integer attribute
+`axisInd` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
@@ -1455,7 +1538,7 @@ operation ::= `IERT.StaticAlloc` `<` $offset `>` attr-dict `->` type(results)
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`offset` | ::mlir::IntegerAttr | 64-bit signless integer attribute
+`offset` | mlir::IntegerAttr | Integer attribute
 
 #### Results:
 
@@ -1518,7 +1601,7 @@ operation ::= `IERT.Swish` attr-dict
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`beta_value` | ::mlir::FloatAttr | 32-bit float attribute
+`beta_value` | ::mlir::FloatAttr | 64-bit float attribute
 
 #### Operands:
 
@@ -1590,6 +1673,25 @@ operation ::= `IERT.Tile` attr-dict
 | Result | Description |
 | :----: | ----------- |
 `output` | memref of 16-bit float or 32-bit float values
+
+### `IERT.Timestamp` (vpux::IERT::TimestampOp)
+
+Get timer timestamp operation
+
+
+Syntax:
+
+```
+operation ::= `IERT.Timestamp` attr-dict `->` type(results)
+```
+
+Get timer timestamp operation
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | statically shaped memref of any type values
 
 ### `IERT.Transpose` (vpux::IERT::TransposeOp)
 

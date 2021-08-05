@@ -12,6 +12,7 @@
 //
 
 #include "vpux/compiler/core/attributes/dims_order.hpp"
+#include "vpux/compiler/utils/types.hpp"
 
 #include <mlir/IR/AffineMap.h>
 #include <mlir/IR/BuiltinTypes.h>
@@ -94,14 +95,18 @@ std::vector<ShapeType> getFromType() {
     };
 }
 
-std::vector<std::tuple<ExpectedDimsOrderType, ValueDimsOrderType, ShapeType, MapsBuilder>> getFromType_WithMaps() {
+std::vector<std::tuple<ValueDimsOrderType, ShapeType, MapsBuilder>> getFromMemRefType_WithMaps() {
     return {
-            {DimsOrder::CHW, DimsOrder::CHW, {8, 4, 2}, createPermMap},
-            {DimsOrder::HCW, DimsOrder::HCW, {1, 3, 6}, createPermMap},
-            {DimsOrder::NHCW, DimsOrder::NHCW, {5, 4, 3, 2}, createPermMap},
-            {DimsOrder::NHCW, DimsOrder::NHCW, {5, 1, 2, 3}, createPermMap},
-            {DimsOrder::HCW, DimsOrder::HCW, {1, 3, 6}, createMapList},
-            {DimsOrder::NHCW, DimsOrder::NHCW, {5, 1, 2, 3}, createMapList},
+            {DimsOrder::CHW, {8, 4, 2}, createPermMap},     {DimsOrder::HCW, {1, 3, 6}, createPermMap},
+            {DimsOrder::NHCW, {5, 4, 3, 2}, createPermMap}, {DimsOrder::NHCW, {5, 1, 2, 3}, createPermMap},
+            {DimsOrder::HCW, {1, 3, 6}, createMapList},     {DimsOrder::NHCW, {5, 1, 2, 3}, createMapList},
+    };
+}
+
+std::vector<std::tuple<ValueDimsOrderType, ShapeType>> getFromTensorType() {
+    return {
+            {DimsOrder::CHW, {8, 4, 2}},     {DimsOrder::HCW, {1, 3, 6}}, {DimsOrder::NHCW, {5, 4, 3, 2}},
+            {DimsOrder::NHCW, {5, 1, 2, 3}}, {DimsOrder::HCW, {1, 3, 6}}, {DimsOrder::NHCW, {5, 1, 2, 3}},
     };
 }
 
@@ -401,7 +406,7 @@ TEST(MLIR_DimsOrderTest, getCanonicalName) {
     ASSERT_FALSE(nonDefault.hasValue());
 }
 
-TEST(MLIR_DimsOrderTest, fromTypeTest) {
+TEST(MLIR_DimsOrderTest, fromMemrefTypeTest) {
     const auto testData = getFromType();
 
     mlir::MLIRContext ctx;
@@ -413,22 +418,50 @@ TEST(MLIR_DimsOrderTest, fromTypeTest) {
     }
 }
 
-TEST(MLIR_DimsOrderTest, fromTypeTest_WithMaps) {
-    const auto testData = getFromType_WithMaps();
+TEST(MLIR_DimsOrderTest, fromMemrefTypeTest_WithMaps) {
+    const auto testData = getFromMemRefType_WithMaps();
 
     mlir::MLIRContext ctx;
     for (const auto& testCase : testData) {
-        DimsOrder originOrder;
         DimsOrder expOrder;
         SmallVector<int64_t> shape{};
         MapsBuilder mapBuilder;
 
-        std::tie(expOrder, originOrder, shape, mapBuilder) = testCase;
+        std::tie(expOrder, shape, mapBuilder) = testCase;
 
-        const auto layoutMaps = mapBuilder(originOrder, &ctx, Shape(shape));
+        const auto layoutMaps = mapBuilder(expOrder, &ctx, Shape(shape));
         const auto memRefType = mlir::MemRefType::get(shape, mlir::Float16Type::get(&ctx), layoutMaps);
 
         const auto actualOrder = DimsOrder::fromType(memRefType);
+        EXPECT_EQ(expOrder, actualOrder);
+    }
+}
+
+TEST(MLIR_DimsOrderTest, fromTensorTypeTest) {
+    const auto testData = getFromType();
+
+    mlir::MLIRContext ctx;
+    for (const auto& shape : testData) {
+        const auto tensorType = mlir::RankedTensorType::get(shape, mlir::Float16Type::get(&ctx));
+
+        const auto actualOrder = DimsOrder::fromType(tensorType);
+        EXPECT_EQ(DimsOrder::fromNumDims(shape.size()), actualOrder);
+    }
+}
+
+TEST(MLIR_DimsOrderTest, fromTensorTypeTest_WithMaps) {
+    const auto testData = getFromTensorType();
+
+    mlir::MLIRContext ctx;
+    for (const auto& testCase : testData) {
+        DimsOrder expOrder;
+        SmallVector<int64_t> shape{};
+
+        std::tie(expOrder, shape) = testCase;
+
+        const auto tensorType = getTensorType(shape, mlir::Float16Type::get(&ctx), expOrder);
+
+        const auto actualOrder = DimsOrder::fromType(tensorType);
         EXPECT_EQ(expOrder, actualOrder);
     }
 }

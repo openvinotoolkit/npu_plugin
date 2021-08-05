@@ -14,6 +14,7 @@
 #include "vpux/compiler/dialect/const/attributes/content.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/subspaces.hpp"
+#include "vpux/compiler/utils/types.hpp"
 
 #include "vpux/utils/IE/loop.hpp"
 #include "vpux/utils/core/format.hpp"
@@ -109,12 +110,12 @@ mlir::Attribute vpux::Const::SubViewAttr::parse(mlir::MLIRContext*, mlir::Dialec
 //
 
 mlir::ShapedType vpux::Const::SubViewAttr::inferOutputType(mlir::ShapedType input) const {
-    const auto shape = parseIntArrayAttr(getShape());
+    const auto shape = parseIntArrayAttr<int64_t>(getShape());
 
     VPUX_THROW_UNLESS(shape.size() == checked_cast<size_t>(input.getRank()),
                       "View shape and input shape are not consistent in 'SubViewAttr'");
 
-    return input.clone(shape);
+    return changeShape(input, ShapeRef(shape));
 }
 
 //
@@ -140,7 +141,7 @@ Const::Content vpux::Const::SubViewAttr::transform(vpux::Const::Content& input) 
         const auto outShape = vpux::getShape(output.getType());
         const auto outMemShape = order.toMemoryOrder(outShape);
 
-        const auto offset = Shape(parseIntArrayAttr(getOffset()));
+        const auto offset = Shape(parseIntArrayAttr<int64_t>(getOffset()));
         const auto memOffset = order.toMemoryOrder(offset);
 
         if (memOffset.size() == 1) {
@@ -274,6 +275,6 @@ Const::Content vpux::Const::SubViewAttr::transform(vpux::Const::Content& input) 
 
 Const::ContentAttr vpux::Const::ContentAttr::subview(ShapeRef offset, ShapeRef shape) const {
     return get(*this,
-               Const::SubViewAttr::get(getInt64ArrayAttr(getContext(), offset), getInt64ArrayAttr(getContext(), shape))
+               Const::SubViewAttr::get(getIntArrayAttr(getContext(), offset), getIntArrayAttr(getContext(), shape))
                        .cast<Const::TransformAttrInterface>());
 }

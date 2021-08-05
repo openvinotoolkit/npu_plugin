@@ -91,19 +91,26 @@ void populatePointerMultiCluster(mv::Data::TensorIterator weightsTableData, mv::
         std::size_t sizeToIterate = 0;
         std::size_t totalSizeToIterate = 0;
         std::size_t k = 0;
+        std::vector<std::size_t> fusedClusterOffsets;
+        if (tensor->hasAttr("fusedClusterOffsets"))
+            fusedClusterOffsets = tensor->get<std::vector<std::size_t>>("fusedClusterOffsets");
         bool isSparse = tensor->isSparse();
         for (unsigned i = 0; i < numClusters; i++)
         {
             // Resetting offset at the beginning of the cluster
             offset = new_offset;
+            if (fusedClusterOffsets.size() > i)
+                offset += fusedClusterOffsets.at(i);
             // Resetting k index only when weights are not sparse
             if(!isSparse)
                 k = 0;
 
-            // Filling cluster
+            // Filling cluster and subtensors
             for (size_t j = 0; j < weightsTableData->getSubTensor(i).size(); j+=WT_ELEMENTS_PER_CHANNEL)
+            {
+                weightsTableData->getSubTensor(i).at(j + addingIndex) = offset + increments[k];
                 weightsTableData->at(j + addingIndex + totalSizeToIterate) = offset + increments[k++];
-
+            }
             // Preparing for next iteration
             sizeToIterate = tensor->getSubTensor(i).getShape()[mv::KERNEL_OUTPUT_CHANNELS] * WT_ELEMENTS_PER_CHANNEL;
             totalSizeToIterate += sizeToIterate;
@@ -129,6 +136,15 @@ void populateWeightsTablesDataPointers(mv::Data::TensorIterator weightsTableData
 
         long int offset = weights->getAddress();
         std::vector<int64_t> increments;
+
+        if (dpuTaskOp->hasAttr("fusedConstantIndex") && weights->hasAttr("fusedOffset"))
+        {
+            auto fusedConstantIndex = dpuTaskOp->get<size_t>("fusedConstantIndex");
+            auto fusedConstant = dpuTaskOp->getInputTensor(fusedConstantIndex);
+            offset = fusedConstant->getAddress();
+            if(strategy != "SplitOverK")
+                offset += weights->get<std::size_t>("fusedOffset");
+        }
 
         if(weights->isSparse())
         {
@@ -162,6 +178,7 @@ void populateWeightsTablesSparsityPointers(mv::Data::TensorIterator weightsTable
     mv::DataModel dm(model);
 
     auto taskOp = dpuTaskOp->get<std::string>("taskOp");
+    auto strategy = dpuTaskOp->get<std::string>("splitStrategy");
     if(taskOp == "Conv")
     {
         auto weights = dpuTaskOp->getInputTensor(1);
@@ -172,6 +189,12 @@ void populateWeightsTablesSparsityPointers(mv::Data::TensorIterator weightsTable
         {
             auto weightsSparsityMap = dm.getTensor(weights->getSparsityMap()->getName());
             long int offset = weightsSparsityMap->getAddress();
+            if (strategy == "SplitOverK" && dpuTaskOp->hasAttr("fusedConstantIndex"))
+            {
+                auto fusedConstantIndex = dpuTaskOp->get<size_t>("fusedConstantIndex");
+                auto fusedConstant = dpuTaskOp->getInputTensor(fusedConstantIndex);
+                offset = fusedConstant->getAddress();
+            }
             auto sparsityMapSizeInWords = weightsSparsityMap->getShape().totalSize();
             auto sparsityMapSizeInBytes = sparsityMapSizeInWords * weightsSparsityMap->getDType().getSizeInBits() / 8;
             long int increment = sparsityMapSizeInBytes / outputChannels;
@@ -188,7 +211,15 @@ void populateWeightsTablesSparsityPointers(mv::Data::TensorIterator weightsTable
             // Not using the generic function because it's a super simple case
             int64_t offset = 0xFFFFFF; // NOTE: Implementation defined
             for (size_t i = 0; i < weightsTableData->size(); i+=WT_ELEMENTS_PER_CHANNEL)
-                  weightsTableData->at(i+1) = offset;
+                weightsTableData->at(i+1) = offset;
+            
+            if (strategy == "SplitOverK")
+            {
+                // also fill sub tensors
+                for (unsigned i = 0; i < weightsTableData->numSubTensors(); i++)
+                    for (size_t j = 0; j < weightsTableData->getSubTensor(i).size(); j+=WT_ELEMENTS_PER_CHANNEL)
+                        weightsTableData->getSubTensor(i).at(j+1) = offset;
+            }
         }
     }
     else if(taskOp == "DepthwiseConv"  ||
@@ -210,6 +241,13 @@ void populateWeightsTablesSparsityPointers(mv::Data::TensorIterator weightsTable
         auto increment = activationWindowSizeInBytes / paddedOutputChannels;
 
         long int offset = activationWindow->getAddress();
+        if (strategy == "SplitOverK" && dpuTaskOp->hasAttr("fusedConstantIndex"))
+        {
+            auto fusedConstantIndex = dpuTaskOp->get<size_t>("fusedConstantIndex");
+            auto fusedConstant = dpuTaskOp->getInputTensor(fusedConstantIndex);
+            offset = fusedConstant->getAddress();
+        }
+
         std::vector<int64_t> increments = std::vector<int64_t>(paddedOutputChannels, 0);
         for(unsigned i = 1; i < paddedOutputChannels; ++i)
             increments[i] = increments[i-1] + increment;

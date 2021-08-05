@@ -3,10 +3,11 @@
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/pass/pass_utils.hpp"
+#include "include/mcm/pass/pass_dtype_utils.hpp"
 #include "mcm/utils/custom_math.hpp"
 
 static void kmbQuantizeConversionFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
-static void configureOutputPrecisionFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void configureIOPrecisionFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void deQuantizeU8ConstToFP16ConstFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 namespace mv
@@ -27,10 +28,10 @@ namespace mv
             "This pass inserts Quantize conversion layers between DPUTask-to-UPATask transitions (& vice-versa)."
         );
 
-        MV_REGISTER_PASS(ConfigureOutputPrecision)
-        .setFunc(configureOutputPrecisionFcn)
+        MV_REGISTER_PASS(ConfigureIOPrecision)
+        .setFunc(configureIOPrecisionFcn)
         .setDescription(
-            "This pass inserts Quantize conversion layers in order to guarantee the appropriate precision."
+            "This pass inserts Conversion layers in order to guarantee the appropriate input / output precision."
         );
     }
 
@@ -458,27 +459,98 @@ void propagateLocationToParents(mv::OpModel& om, const mv::Data::OpListIterator&
     }
 }
 
-static void configureOutputPrecisionFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+bool isConversionSupported(const mv::DType& from, const mv::DType& to)
+{
+    return mv::supportedConversions.find(std::make_pair(from, to)) != mv::supportedConversions.end();
+}
+
+static void configureIOPrecisionFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     mv::OpModel om(model);
-
-    auto multipleOutputs = [&om](const mv::Data::OpListIterator& outputOp) {
-        return om.getSourceOp(outputOp->getInputTensor(0))->getOpType() == "ImplicitUnion";
-    };
+    mv::DataModel dm(model);
 
     auto requiresQuantize = [](const mv::DType& type1, const mv::DType& type2) {
         return (type1 == mv::DType("Float16") && type2 == mv::DType("UInt8")) ||
                (type1 == mv::DType("UInt8") && type2 == mv::DType("Float16"));
     };
 
-    auto supportedConversion = [](const mv::DType& type1, const mv::DType& type2) {
-        return (type1 == mv::DType("Float16") && type2 == mv::DType("Float32")) ||
-               (type1 == mv::DType("Float32") && type2 == mv::DType("Float16")) ||
-               (type1 == mv::DType("Float16") && type2 == mv::DType("Int32")) ||
-               (type1 == mv::DType("Int32") && type2 == mv::DType("Float16")) ||
-               (type1 == mv::DType("UInt8") && type2 == mv::DType("Float32")) ||
-               (type1 == mv::DType("Float32") && type2 == mv::DType("UInt8")) ||
-               (type1 == mv::DType("Int32") && type2 == mv::DType("UInt8"));
+    auto processInput = [&](mv::Data::OpListIterator& inputOp) {
+        auto tensor = inputOp->getOutputTensor(0);
+        const auto quantParams = tensor->getQuantParams();
+        const auto inputPrecision  = inputOp->get<mv::DType>("dType");
+        const auto targetPrecision = tensor->getDType();
+        if (inputPrecision == tensor->getDType())
+            return;
+
+        // Save child ops and their flows to link to converted ops
+        std::vector<mv::Data::FlowListIterator> flows;
+        std::vector<mv::Data::OpListIterator> opsToLink;
+        std::vector<std::size_t> inputSlots;
+        for (auto sinkFlow = inputOp.leftmostOutput(); sinkFlow != om.flowEnd(); ++sinkFlow)
+        {
+            flows.push_back(sinkFlow);
+            opsToLink.push_back(sinkFlow.sink());
+            inputSlots.push_back(sinkFlow->get<std::size_t>("sinkInput"));
+        }
+
+        // Check if input is consumed by Conversion op(s) and a direct conversion is supported
+        if (std::all_of(opsToLink.cbegin(), opsToLink.cend(), [&opsToLink](const mv::Data::OpListIterator& childOp) {
+                return childOp->getOpType() == "Conversion" &&
+                       childOp->getOutputTensor(0)->getDType() == opsToLink[0]->getOutputTensor(0)->getDType();
+            }))
+        {
+            const auto childOutputDType = opsToLink[0]->getOutputTensor(0)->getDType();
+            if (isConversionSupported(inputPrecision, childOutputDType))
+            {
+                tensor->setDType(inputPrecision);
+                return;
+            }
+        }
+
+        // Add conversion layer
+        tensor->setDType(inputPrecision);
+        mv::Data::TensorIterator convertedTensor;
+        if (isConversionSupported(inputPrecision, targetPrecision))
+            convertedTensor = om.uPATaskConversion(inputOp->getName() + "_conversion", {tensor}, targetPrecision);
+        else
+            throw std::runtime_error("Unsupported input conversion: " +
+                  inputPrecision.toString() + " to " + targetPrecision.toString());
+
+        mv::propagateUpThroughOps(om, dm, inputOp, {}, {{"dType", inputPrecision}});
+
+        // Set quantization parameters
+        convertedTensor->setQuantParams(quantParams);
+        if (tensor->isFloatingPointType())
+            tensor->setQuantParams(mv::QuantizationParams::initial());
+        if (convertedTensor->isFloatingPointType())
+            convertedTensor->setQuantParams(mv::QuantizationParams::initial());
+
+        // Set operation and tensor specific attributes
+        auto conversionOp = om.getSourceOp(convertedTensor);
+        if (tensor->hasAttr("scaleShiftFused") && tensor->get<bool>("scaleShiftFused"))
+        {
+            // When ScaleShift is fused into the first Convolution, FakeQuantize is altered so that the
+            // input range is [0-255] and the output range is adapted based on the ScaleShift parameters
+            // This neutral input range is meant to be used to quantize the data while the tensor only
+            // has the quantization parameters from the output range
+            conversionOp->set<double>("scale", 1.0);
+            conversionOp->set<int64_t>("bias", 0);
+        }
+        conversionOp->set<unsigned>("opId", inputOp->get<unsigned>("opId"));
+        if (inputOp->hasAttr("splitStrategy"))
+            conversionOp->set<std::string>("splitStrategy", inputOp->get<std::string>("splitStrategy"));
+        convertedTensor->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::DDR);
+
+        // Undefine previous flows between input op and consumers
+        for (auto& flow : flows)
+            om.undefineFlow(flow);
+        
+        // Link converted tensor to consumers
+        for (unsigned i = 0; i < opsToLink.size(); ++i)
+        {
+            opsToLink[i]->setInputTensor(convertedTensor, inputSlots[i], false);
+            om.defineFlow(convertedTensor, opsToLink[i], inputSlots[i]);
+        }
     };
 
     auto processOutput = [&](mv::Data::OpListIterator& outputOp) {
@@ -492,7 +564,7 @@ static void configureOutputPrecisionFcn(const mv::pass::PassEntry&, mv::Computat
         mv::Data::TensorIterator tensor;
         if (requiresQuantize(inputPrecision, targetPrecision))
             tensor = om.uPATaskQuantize(outputOp->getName() + "_quantize", {inputTensor});
-        else if (supportedConversion(inputPrecision, targetPrecision))
+        else if (isConversionSupported(inputPrecision, targetPrecision))
             tensor = om.uPATaskConversion(outputOp->getName() + "_conversion", {inputTensor}, targetPrecision);
         else
             throw std::runtime_error("Unsupported output conversion: " +
@@ -520,22 +592,17 @@ static void configureOutputPrecisionFcn(const mv::pass::PassEntry&, mv::Computat
         om.defineFlow(tensor, outputOp, 0);
     };
 
-    for (auto outputOp : om.getOps("Output"))
-    {
-        if (multipleOutputs(outputOp))
-        {
-            auto implicitUnionOp = om.getSourceOp(outputOp->getInputTensor(0));
-            for (auto& implicitOutput : implicitUnionOp->getInputTensor())
-            {
-                auto implicitOutputOp = om.getSourceOp(implicitOutput);
-                processOutput(implicitOutputOp);
-            }
-        }
-        else
-        {
-            processOutput(outputOp);
-        }
-    }
+    auto inputOps = om.getOps("ImplicitInput");
+    if (inputOps.empty())
+        inputOps = om.getOps("Input");
+    for (auto inputOp : inputOps)
+        processInput(inputOp);
+
+    auto outputOps = om.getOps("ImplicitOutput");
+    if (outputOps.empty())
+        outputOps = om.getOps("Output");
+    for (auto outputOp : outputOps)
+        processOutput(outputOp);
 }
 
 

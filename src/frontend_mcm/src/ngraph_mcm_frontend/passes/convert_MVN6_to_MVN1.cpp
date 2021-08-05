@@ -38,7 +38,6 @@ ConvertMVN6toMVN1::ConvertMVN6toMVN1()
 
         const bool normalize_variance = mvn6->get_normalize_variance();
         const float eps = mvn6->get_eps();
-        const auto eps_mode = mvn6->get_eps_mode();
 
         auto const_axes = std::dynamic_pointer_cast<ngraph::op::Constant>(mvn6->input(1).get_source_output().get_node_shared_ptr());
         IE_ASSERT(nullptr != const_axes);

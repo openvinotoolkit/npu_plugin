@@ -88,7 +88,7 @@ void WrapIntoAsyncRegionsPass::safeRunOnFunc() {
     VPUX_THROW_UNLESS(layerInfo != nullptr, "IERT Dialect was not initialized with LayerInfo interface");
 
     const auto callback = [&](mlir::Operation* op) {
-        if (!op->hasTrait<RTLayer>()) {
+        if (!mlir::isa<RTLayerInterface>(op)) {
             return;
         }
 

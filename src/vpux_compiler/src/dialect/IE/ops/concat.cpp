@@ -18,16 +18,14 @@
 using namespace vpux;
 
 //
-// getAxis
+// inferReturnTypeComponents
 //
-
-namespace {
 
 Dim normalizeAxis(IE::ConcatOpAdaptor concat) {
     const auto inType = concat.inputs().front().getType().cast<mlir::ShapedType>();
     const auto inRank = inType.getRank();
 
-    auto axisInd = concat.axis().getSInt();
+    auto axisInd = concat.axis().getValue().getSExtValue();
 
     // Negative value means counting dimension from the end
     if (axisInd < 0) {
@@ -39,16 +37,6 @@ Dim normalizeAxis(IE::ConcatOpAdaptor concat) {
 
     return Dim(axisInd);
 }
-
-}  // namespace
-
-Dim vpux::IE::ConcatOp::getAxis() {
-    return normalizeAxis(*this);
-}
-
-//
-// inferReturnTypeComponents
-//
 
 mlir::LogicalResult vpux::IE::ConcatOp::inferReturnTypeComponents(
         mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueRange operands, mlir::DictionaryAttr attrs,

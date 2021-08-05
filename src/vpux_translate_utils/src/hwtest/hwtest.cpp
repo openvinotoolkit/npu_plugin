@@ -356,11 +356,11 @@ void buildSimpleZMajorConv(mlir::ModuleOp module, mlir::OpBuilder builder, Logge
 
     // NCE Task
     std::vector<int32_t> stried_vec{1, 1};
-    auto strides = getInt32ArrayAttr(builder.getContext(), stried_vec);
+    auto strides = getIntArrayAttr(builder.getContext(), stried_vec);
     std::vector<int32_t> padding_vec{0, 0, 0, 0};
-    auto kernel_padding = getInt32ArrayAttr(builder.getContext(), padding_vec);
+    auto kernel_padding = getIntArrayAttr(builder.getContext(), padding_vec);
     SmallVector<int64_t> kernel_vec = {wt_data_shape[2], wt_data_shape[3]};
-    auto kernel_size = getInt32ArrayAttr(builder.getContext(), kernel_vec);
+    auto kernel_size = getIntArrayAttr(builder.getContext(), kernel_vec);
 
     auto nceTask = funcbuilder.create<VPUIP::NCEClusterTaskOp>(
             builder.getUnknownLoc(), inputcmx.memory(), wtData_cmx.memory(), wtTbl_cmx.memory(),
@@ -374,13 +374,13 @@ void buildSimpleZMajorConv(mlir::ModuleOp module, mlir::OpBuilder builder, Logge
     auto variantbuilder = mlir::OpBuilder::atBlockBegin(&nceTask.variants().front(), builder.getListener());
 
     std::vector<int32_t> start_vec{0, 0, 0};
-    auto start = getInt32ArrayAttr(builder.getContext(), start_vec);
+    auto start = getIntArrayAttr(builder, start_vec);
     std::vector<int32_t> end_vec{15, 15, 15};
-    auto end = getInt32ArrayAttr(builder.getContext(), end_vec);
+    auto end = getIntArrayAttr(builder, end_vec);
     std::vector<int32_t> pad_begin_vec{0, 0};
-    auto pad_begin = getInt32ArrayAttr(builder.getContext(), pad_begin_vec);
+    auto pad_begin = getIntArrayAttr(builder, pad_begin_vec);
     std::vector<int32_t> pad_end_vec{0, 0};
-    auto pad_end = getInt32ArrayAttr(builder.getContext(), pad_end_vec);
+    auto pad_end = getIntArrayAttr(builder, pad_end_vec);
 
     /* auto dpuTask = */ variantbuilder.create<VPUIP::DPUTaskOp>(builder.getUnknownLoc(), start, end, pad_begin,
                                                                  pad_end, VPUIP::MPEMode::CUBOID_16x16);
@@ -390,7 +390,7 @@ void buildSimpleZMajorConv(mlir::ModuleOp module, mlir::OpBuilder builder, Logge
 
     // set runtime resources
     mlir::PassManager pm(builder.getContext(), mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(createSetCompileParamsPass(VPUIP::ArchKind::VPU3720, VPUIP::CompilationMode::ReferenceHW, log));
+    pm.addPass(createSetCompileParamsPass(VPUIP::ArchKind::MTL, VPUIP::CompilationMode::ReferenceHW, log));
 
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module)), "Compilation failed");
 
@@ -401,31 +401,34 @@ void buildSimpleZMajorConv(mlir::ModuleOp module, mlir::OpBuilder builder, Logge
     cnnOp.outputsInfo().emplaceBlock();
 
     auto inputsInfoBuilder = mlir::OpBuilder::atBlockBegin(&cnnOp.inputsInfo().front(), builder.getListener());
-
-    for (size_t i = 0; i < num_inputs; ++i) {
-        const auto& inputName = "input_" + std::to_string(i);
-        const auto nameAttr = mlir::StringAttr::get(builder.getContext(), inputName);
+    for (auto i : irange(num_inputs)) {
         auto precision = inputType;
         if (precision.isa<mlir::quant::QuantizedType>()) {
             precision = mlir::quant::QuantizedType::castToStorageType(precision);
         }
-        const auto affineMaps = DimsOrder::NHWC.toAffineMapsList(builder.getContext(), Shape(in_shape));
-        const auto userTypeAttr =
-                mlir::TypeAttr::get(mlir::MemRefType::get(in_shape, precision, affineMaps, memSpaceAttr_in));
+
+        const auto tensor = getTensorType(in_shape, precision, DimsOrder::NHWC);
+
+        const auto inputName = llvm::formatv("input_{0}", i).str();
+        const auto nameAttr = mlir::StringAttr::get(builder.getContext(), inputName);
+
+        const auto userTypeAttr = mlir::TypeAttr::get(tensor);
         inputsInfoBuilder.create<IE::DataInfoOp>(builder.getUnknownLoc(), nameAttr, userTypeAttr);
     }
 
     auto outputsInfoBuilder = mlir::OpBuilder::atBlockBegin(&cnnOp.outputsInfo().front(), builder.getListener());
-    for (size_t i = 0; i < num_outputs; ++i) {
-        const auto& resultName = "output_" + std::to_string(i);
-        const auto nameAttr = mlir::StringAttr::get(builder.getContext(), resultName);
+    for (auto i : irange(num_outputs)) {
         auto precision = outputType;
         if (precision.isa<mlir::quant::QuantizedType>()) {
             precision = mlir::quant::QuantizedType::castToStorageType(precision);
         }
-        const auto affineMaps = DimsOrder::NHWC.toAffineMapsList(builder.getContext(), Shape(out_shape));
-        const auto userTypeAttr =
-                mlir::TypeAttr::get(mlir::MemRefType::get(out_shape, precision, affineMaps, memSpaceAttr_out));
+
+        const auto tensor = getTensorType(out_shape, precision, DimsOrder::NHWC);
+
+        const auto resultName = llvm::formatv("output_{0}", i).str();
+        const auto nameAttr = mlir::StringAttr::get(builder.getContext(), resultName);
+
+        const auto userTypeAttr = mlir::TypeAttr::get(tensor);
         outputsInfoBuilder.create<IE::DataInfoOp>(builder.getUnknownLoc(), nameAttr, userTypeAttr);
     }
 }

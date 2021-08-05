@@ -13,6 +13,7 @@
 
 #include "vpux/compiler/dialect/const/attributes/content.hpp"
 #include "vpux/compiler/utils/quantization.hpp"
+#include "vpux/compiler/utils/types.hpp"
 
 #include "vpux/utils/core/format.hpp"
 #include "vpux/utils/core/func_ref.hpp"
@@ -75,7 +76,7 @@ mlir::ShapedType vpux::Const::QuantCastAttr::inferOutputType(mlir::ShapedType in
     VPUX_THROW_UNLESS(input.getElementType() == quantStorateType, "Can't cast '{0}' element type to '{1}'",
                       input.getElementType(), getElemType());
 
-    return input.clone(getElemType());
+    return changeElemType(input, getElemType());
 }
 
 //
