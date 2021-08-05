@@ -348,6 +348,7 @@ ie::MemoryBlob::Ptr loadImage(const ie::TensorDesc& desc, const std::string& fil
 
 ie::MemoryBlob::Ptr loadBinary(const ie::TensorDesc& desc, const std::string& filePath) {
     const auto blob = ie::as<ie::MemoryBlob>(make_blob_with_precision(desc));
+    IE_ASSERT(blob != nullptr) << "Can't create MemoryBlob for binary file";
 
     std::ifstream binaryFile(filePath, std::ios_base::binary | std::ios_base::ate);
 
