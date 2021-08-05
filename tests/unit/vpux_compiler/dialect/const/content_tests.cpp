@@ -23,8 +23,47 @@
 #include <mlir/IR/MLIRContext.h>
 
 #include <gtest/gtest.h>
+#include <vpux/compiler/utils/quantization.hpp>
 
 using namespace vpux;
+
+namespace {
+    template<typename T>
+    std::vector<T> generateValues(size_t n) {
+        std::vector<T> vals(n);
+        for (size_t i = 0; i < vals.size(); ++i) {
+            vals[i] = static_cast<T>(i);
+        }
+
+        return vals;
+    }
+
+    template<typename T>
+    void checkPaddedBuffer(const Const::Content& actual, const std::vector<T>& expVals, ShapeRef buf, ShapeRef pad, T zp, size_t actOffset = 0, size_t originOffset = 0) {
+        const int64_t IC = buf[Dim(0)];
+        const int64_t IH = buf[Dim(1)];
+        const int64_t IW = buf[Dim(2)];
+
+        const int64_t PC = pad[Dim(0)];
+        const int64_t PH = pad[Dim(1)];
+        const int64_t PW = pad[Dim(2)];
+
+        const auto actVals = actual.getValues<T>();
+        for (int64_t c = 0; c < IC + 2 * PC; ++c) {
+            for (int64_t h = 0; h < IH + 2 * PH; ++h) {
+                for (int64_t w = 0; w < IW + 2 * PW; ++w) {
+                    const auto newIndex = w + h * (IW + 2 * PW) + c * (IW + 2 * PW) * (IH + 2 * PH) + actOffset;
+                    if (c < PC || c >= IC + PC || h < PH || h >= IH + PH || w < PW || w >= IW + PW) {
+                        EXPECT_EQ(actVals[newIndex], zp) << c << " " << h << " " << w;
+                    } else {
+                        const auto origIndex = (w - PW) + (h - PH) * IW + (c - PC) * IW * IH + originOffset;
+                        EXPECT_EQ(actVals[newIndex], expVals[origIndex]) << c << " " << h << " " << w;
+                    }
+                }
+            }
+        }
+    }
+}
 
 class MLIR_ConstContentAttrTest : public testing::Test {
 public:
@@ -39,11 +78,7 @@ public:
 TEST_F(MLIR_ConstContentAttrTest, FromDenseElementsAttr) {
     const auto baseType = mlir::RankedTensorType::get({1, 2, 3, 4}, mlir::Float32Type::get(&ctx));
 
-    std::vector<float> vals(baseType.getNumElements());
-    for (size_t i = 0; i < vals.size(); ++i) {
-        vals[i] = static_cast<float>(i);
-    }
-
+    const auto vals = generateValues<float>(baseType.getNumElements());
     const auto baseAttr = mlir::DenseElementsAttr::get(baseType, makeArrayRef(vals));
 
     const auto contentAttr = Const::ContentAttr::get(baseAttr);
@@ -91,11 +126,7 @@ TEST_F(MLIR_ConstContentAttrTest, FromOpaqueElementsAttr) {
 
     const auto baseType = mlir::RankedTensorType::get({1, 2, 3, 4}, mlir::Float32Type::get(&ctx));
 
-    std::vector<float> vals(baseType.getNumElements());
-    for (size_t i = 0; i < vals.size(); ++i) {
-        vals[i] = static_cast<float>(i);
-    }
-
+    const auto vals = generateValues<float>(baseType.getNumElements());
     const auto bytes = StringRef(reinterpret_cast<const char*>(vals.data()), vals.size() * sizeof(float));
     const auto baseAttr = mlir::OpaqueElementsAttr::get(dialect, baseType, bytes);
 
@@ -118,11 +149,7 @@ TEST_F(MLIR_ConstContentAttrTest, FromOpaqueElementsAttr) {
 TEST_F(MLIR_ConstContentAttrTest, ConvertStorageElemType) {
     const auto baseType = mlir::RankedTensorType::get({1, 2, 3, 4}, mlir::Float32Type::get(&ctx));
 
-    std::vector<float> vals(baseType.getNumElements());
-    for (size_t i = 0; i < vals.size(); ++i) {
-        vals[i] = static_cast<float>(i);
-    }
-
+    const auto vals = generateValues<float>(baseType.getNumElements());
     const auto baseAttr = mlir::DenseElementsAttr::get(baseType, makeArrayRef(vals));
 
     const auto contentAttr = Const::ContentAttr::get(baseAttr);
@@ -144,11 +171,7 @@ TEST_F(MLIR_ConstContentAttrTest, ConvertStorageElemType) {
 TEST_F(MLIR_ConstContentAttrTest, ConvertElemType) {
     const auto baseType = mlir::RankedTensorType::get({1, 2, 3, 4}, mlir::Float32Type::get(&ctx));
 
-    std::vector<float> vals(baseType.getNumElements());
-    for (size_t i = 0; i < vals.size(); ++i) {
-        vals[i] = static_cast<float>(i);
-    }
-
+    const auto vals = generateValues<float>(baseType.getNumElements());
     const auto baseAttr = mlir::DenseElementsAttr::get(baseType, makeArrayRef(vals));
 
     const auto baseContentAttr = Const::ContentAttr::get(baseAttr);
@@ -204,11 +227,7 @@ TEST_F(MLIR_ConstContentAttrTest, QuantCast) {
 
     const auto baseType = mlir::RankedTensorType::get({1, 16}, getUInt8Type(&ctx));
 
-    std::vector<uint8_t> vals(baseType.getNumElements());
-    for (size_t i = 0; i < vals.size(); ++i) {
-        vals[i] = static_cast<uint8_t>(i);
-    }
-
+    const auto vals = generateValues<uint8_t>(baseType.getNumElements());
     const auto baseAttr = mlir::DenseElementsAttr::get(baseType, makeArrayRef(vals));
 
     const auto baseContentAttr = Const::ContentAttr::get(baseAttr);
@@ -277,11 +296,7 @@ TEST_F(MLIR_ConstContentAttrTest, Dequantize) {
 TEST_F(MLIR_ConstContentAttrTest, Reshape) {
     const auto baseType = mlir::RankedTensorType::get({1, 9, 2}, mlir::Float32Type::get(&ctx));
 
-    std::vector<float> vals(baseType.getNumElements());
-    for (size_t i = 0; i < vals.size(); ++i) {
-        vals[i] = static_cast<float>(i);
-    }
-
+    const auto vals = generateValues<float>(baseType.getNumElements());
     const auto baseAttr = mlir::DenseElementsAttr::get(baseType, makeArrayRef(vals));
 
     const auto baseContentAttr = Const::ContentAttr::get(baseAttr);
@@ -311,11 +326,7 @@ TEST_F(MLIR_ConstContentAttrTest, Reorder) {
     const int64_t W = 2;
     const auto baseType = mlir::RankedTensorType::get({N, C, H, W}, mlir::Float32Type::get(&ctx));
 
-    std::vector<float> vals(baseType.getNumElements());
-    for (size_t i = 0; i < vals.size(); ++i) {
-        vals[i] = static_cast<float>(i);
-    }
-
+    const auto vals = generateValues<float>(baseType.getNumElements());
     const auto baseAttr = mlir::DenseElementsAttr::get(baseType, makeArrayRef(vals));
 
     const auto baseContentAttr = Const::ContentAttr::get(baseAttr);
@@ -353,11 +364,7 @@ TEST_F(MLIR_ConstContentAttrTest, ReorderAfterReshape) {
     const int64_t W = 2;
     const auto baseType = mlir::RankedTensorType::get({N, C * H * W}, mlir::Float32Type::get(&ctx));
 
-    std::vector<float> vals(baseType.getNumElements());
-    for (size_t i = 0; i < vals.size(); ++i) {
-        vals[i] = static_cast<float>(i);
-    }
-
+    const auto vals = generateValues<float>(baseType.getNumElements());
     const auto baseAttr = mlir::DenseElementsAttr::get(baseType, makeArrayRef(vals));
 
     const auto baseContentAttr = Const::ContentAttr::get(baseAttr);
@@ -394,11 +401,7 @@ TEST_F(MLIR_ConstContentAttrTest, Pad) {
     const int64_t IW = 3;
     const auto baseType = mlir::RankedTensorType::get({IC, IH, IW}, getSInt32Type(&ctx));
 
-    std::vector<int32_t> vals(baseType.getNumElements());
-    for (size_t i = 0; i < vals.size(); ++i) {
-        vals[i] = static_cast<int32_t>(i);
-    }
-
+    const auto vals = generateValues<int32_t>(baseType.getNumElements());
     const auto baseAttr = mlir::DenseElementsAttr::get(baseType, makeArrayRef(vals));
 
     const auto baseContentAttr = Const::ContentAttr::get(baseAttr);
@@ -420,19 +423,7 @@ TEST_F(MLIR_ConstContentAttrTest, Pad) {
     const auto contentVals = content.getValues<int32_t>();
     EXPECT_GT(contentVals.size(), vals.size());
 
-    for (int64_t c = 0; c < IC + 2 * PC; ++c) {
-        for (int64_t h = 0; h < IH + 2 * PH; ++h) {
-            for (int64_t w = 0; w < IW + 2 * PW; ++w) {
-                const auto newIndex = w + h * (IW + 2 * PW) + c * (IW + 2 * PW) * (IH + 2 * PH);
-                if (c < PC || c >= IC + PC || h < PH || h >= IH + PH || w < PW || w >= IW + PW) {
-                    EXPECT_EQ(contentVals[newIndex], 0) << c << " " << h << " " << w;
-                } else {
-                    const auto origIndex = (w - PW) + (h - PH) * IW + (c - PC) * IW * IH;
-                    EXPECT_EQ(contentVals[newIndex], vals[origIndex]) << c << " " << h << " " << w;
-                }
-            }
-        }
-    }
+    checkPaddedBuffer<int32_t>(content, vals, {IC, IH, IW}, {PC, PH, PW}, 0);
 }
 
 TEST_F(MLIR_ConstContentAttrTest, PadSplat) {
@@ -460,19 +451,111 @@ TEST_F(MLIR_ConstContentAttrTest, PadSplat) {
     EXPECT_NE(content.getType(), baseType);
     EXPECT_FALSE(content.isSplat());
 
-    const auto contentVals = content.getValues<int32_t>();
+    std::vector<int32_t> vals(baseType.getNumElements(), splatVal);
+    checkPaddedBuffer<int32_t>(content, vals, {IC, IH, IW}, {PC, PH, PW}, 0);
+}
 
-    for (int64_t c = 0; c < IC + 2 * PC; ++c) {
-        for (int64_t h = 0; h < IH + 2 * PH; ++h) {
-            for (int64_t w = 0; w < IW + 2 * PW; ++w) {
-                const auto newIndex = w + h * (IW + 2 * PW) + c * (IW + 2 * PW) * (IH + 2 * PH);
-                if (c < PC || c >= IC + PC || h < PH || h >= IH + PH || w < PW || w >= IW + PW) {
-                    EXPECT_EQ(contentVals[newIndex], 0) << c << " " << h << " " << w;
-                } else {
-                    EXPECT_EQ(contentVals[newIndex], splatVal) << c << " " << h << " " << w;
-                }
-            }
-        }
+TEST_F(MLIR_ConstContentAttrTest, PadUniformQuant) {
+    ctx.loadDialect<mlir::quant::QuantizationDialect>();
+
+    const int64_t OC = 2;
+    const int64_t IC = 1;
+    const int64_t IH = 2;
+    const int64_t IW = 3;
+    const auto baseType = mlir::RankedTensorType::get({OC, IC, IH, IW}, mlir::Float32Type::get(&ctx));
+
+    const auto vals = generateValues<float>(baseType.getNumElements());
+    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, makeArrayRef(vals));
+
+    const auto baseContentAttr = Const::ContentAttr::get(baseAttr);
+    ASSERT_NE(baseContentAttr, nullptr);
+    EXPECT_EQ(baseContentAttr.getType(), baseType);
+
+    const auto zp = 128;
+    const auto quantType = mlir::quant::UniformQuantizedType::get(0, getUInt8Type(&ctx), mlir::Float32Type::get(&ctx),
+                                                                  0.078431372549019607, zp, 0, 255);
+
+    const auto quantContentAttr = baseContentAttr.convertElemType(normalizeQuantStorageType(quantType)).quantCast(quantType);
+    ASSERT_NE(quantContentAttr, nullptr);
+    EXPECT_NE(quantContentAttr.getType(), baseType);
+
+    const int64_t PC = 2;
+    const int64_t PH = 2;
+    const int64_t PW = 2;
+
+    const auto contentAttr = quantContentAttr.padWithZero({0, PC, PH, PW}, {0, PC, PH, PW});
+    ASSERT_NE(contentAttr, nullptr);
+    EXPECT_NE(contentAttr.getType(), baseType);
+
+    const auto content = contentAttr.fold();
+    EXPECT_NE(content.getType(), baseType);
+    EXPECT_FALSE(content.isSplat());
+
+    const auto contentVals = content.getValues<int32_t>();
+    EXPECT_GT(contentVals.size(), vals.size());
+
+    for (int64_t oc = 0; oc < OC; ++oc) {
+        checkPaddedBuffer<float>(content, vals, {IC, IH, IW}, {PC, PH, PW}, zp,
+                                 oc * (IC + 2 * PC) * (IW + 2 * PW) * (IH + 2 * PH),
+                                 oc * IC * IW * IH);
+    }
+}
+
+
+TEST_F(MLIR_ConstContentAttrTest, PadPerAxisQuant) {
+    ctx.loadDialect<mlir::quant::QuantizationDialect>();
+
+    const int64_t OC = 2;
+    const int64_t IC = 1;
+    const int64_t IH = 2;
+    const int64_t IW = 3;
+    const auto baseType = mlir::RankedTensorType::get({OC, IC, IH, IW}, mlir::Float32Type::get(&ctx));
+
+    const auto vals = generateValues<float>(baseType.getNumElements());
+    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, makeArrayRef(vals));
+
+    const auto baseContentAttr = Const::ContentAttr::get(baseAttr);
+    ASSERT_NE(baseContentAttr, nullptr);
+    EXPECT_EQ(baseContentAttr.getType(), baseType);
+
+    std::vector<double> scales(2, 0.5);
+    std::vector<int64_t> zeroPoints {128, 127};
+    const auto quantType = mlir::quant::UniformQuantizedPerAxisType::get(0, getUInt8Type(&ctx), mlir::Float32Type::get(&ctx),
+                                                                         scales, zeroPoints, 0, 0, 255);
+
+    const auto quantContentAttr = baseContentAttr.convertElemType(normalizeQuantStorageType(quantType)).quantCast(quantType);
+    ASSERT_NE(quantContentAttr, nullptr);
+    EXPECT_NE(quantContentAttr.getType(), baseType);
+
+    const int64_t POC = 2;
+    const int64_t PIC = 2;
+    const int64_t PH = 2;
+    const int64_t PW = 2;
+
+    const auto contentAttr = quantContentAttr.padWithZero({POC, PIC, PH, PW}, {POC, PIC, PH, PW});
+    ASSERT_NE(contentAttr, nullptr);
+    EXPECT_NE(contentAttr.getType(), baseType);
+
+    const auto content = contentAttr.fold();
+    EXPECT_NE(content.getType(), baseType);
+    EXPECT_FALSE(content.isSplat());
+
+    const auto contentVals = content.getValues<int32_t>();
+    EXPECT_GT(contentVals.size(), vals.size());
+
+    std::vector<int64_t> expZP(POC, 0);
+    expZP.insert(expZP.end(), zeroPoints.begin(), zeroPoints.end());
+    expZP.insert(expZP.end(), POC, 0);
+
+    const auto channelSize = IC * IW * IH;
+    std::vector<float> expVals(channelSize * POC, 0);
+    expVals.insert(expVals.end(), vals.begin(), vals.end());
+    expVals.insert(expVals.end(), channelSize * POC, 0);
+
+    for (int64_t oc = 0; oc < OC + 2 * POC; ++oc) {
+        checkPaddedBuffer<float>(content, expVals, {IC, IH, IW}, {PIC, PH, PW}, expZP[oc],
+                                 oc * (IC + 2 * PIC) * (IW + 2 * PW) * (IH + 2 * PH),
+                                 oc * channelSize);
     }
 }
 
@@ -482,11 +565,7 @@ TEST_F(MLIR_ConstContentAttrTest, SubView) {
     const int64_t IW = 3;
     const auto baseType = mlir::RankedTensorType::get({IC, IH, IW}, getSInt32Type(&ctx));
 
-    std::vector<int32_t> vals(baseType.getNumElements());
-    for (size_t i = 0; i < vals.size(); ++i) {
-        vals[i] = static_cast<int32_t>(i);
-    }
-
+    const auto vals = generateValues<int32_t>(baseType.getNumElements());
     const auto baseAttr = mlir::DenseElementsAttr::get(baseType, makeArrayRef(vals));
 
     const auto baseContentAttr = Const::ContentAttr::get(baseAttr);
