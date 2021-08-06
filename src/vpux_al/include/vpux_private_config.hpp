@@ -144,6 +144,11 @@ DECLARE_VPU_KMB_CONFIG_KEY(EXECUTOR_STREAMS);
  */
 DECLARE_VPUX_CONFIG_KEY(INFERENCE_TIMEOUT);
 
+/**
+ * @brief [Only for VPUX Plugin]
+ * Type: string, default is MCM.
+ * Type of VPU compiler to be used for compilation of a network
+ */
 enum class CompilerType { MCM, MLIR };
 DECLARE_VPUX_CONFIG_KEY(COMPILER_TYPE);
 DECLARE_VPUX_CONFIG_VALUE(MCM);
