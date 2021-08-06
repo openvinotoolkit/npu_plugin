@@ -521,3 +521,13 @@ TEST(MLIR_DimsOrderTest, toAffineMapsListTest) {
     const SmallVector<int64_t> refStrides{4, 1, 4, 1};
     EXPECT_EQ(strides, refStrides);
 }
+
+TEST(MLIR_DimsOrderTest, AffineMapsNegativeOffsetTest) {
+    mlir::MLIRContext ctx;
+
+    const Shape shape({16, 1, 1, 4});
+    const auto order = DimsOrder::NHWC;
+
+    const int64_t negativeOffset = -10;
+    EXPECT_ANY_THROW(order.toAffineMapsList(&ctx, shape, negativeOffset));
+}

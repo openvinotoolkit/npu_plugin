@@ -62,6 +62,8 @@ mlir::MemRefType changeElemType(mlir::MemRefType origType, mlir::Type elemType, 
 mlir::MemRefType changeShape(mlir::MemRefType origType, ShapeRef shape, bool preserveStrides = false);
 mlir::MemRefType changeDimsOrder(mlir::MemRefType origType, DimsOrder order);
 mlir::MemRefType changeMemSpace(mlir::MemRefType origType, mlir::Attribute memSpace, bool preserveStrides = false);
+mlir::MemRefType getTileType(const mlir::MemRefType origType, const ShapeRef tileShape, const ShapeRef tileOffsets);
+mlir::MemRefType eraseTiledInfo(const mlir::MemRefType origType);
 
 //
 // RankedTensorType utilities

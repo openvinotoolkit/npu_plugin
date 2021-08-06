@@ -51,7 +51,8 @@ mlir::Operation* vpux::IERT::IERTDialect::materializeConstant(mlir::OpBuilder& b
         return nullptr;
     }
 
-    return builder.create<Const::DeclareOp>(loc, type, value.cast<Const::ContentAttr>());
+    return builder.create<Const::DeclareOp>(loc, eraseTiledInfo(type.cast<mlir::MemRefType>()),
+                                            value.cast<Const::ContentAttr>());
 }
 
 //

@@ -1647,6 +1647,38 @@ operation ::= `IERT.StridedSlice` attr-dict
 | :----: | ----------- |
 `output` | memref of any type values
 
+### `IERT.SubView` (vpux::IERT::SubViewOp)
+
+Compile-time subview layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.SubView` $source $static_offsets $static_sizes
+              attr-dict `:` type($source) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`static_offsets` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`static_sizes` | ::mlir::ArrayAttr | 64-bit integer array attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`source` | memref of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`result` | memref of any type values
+
 ### `IERT.Swish` (vpux::IERT::SwishOp)
 
 InferenceEngine run-time Swish layer

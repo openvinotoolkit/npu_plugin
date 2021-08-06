@@ -196,6 +196,32 @@ mlir::MemRefType vpux::changeMemSpace(mlir::MemRefType origType, mlir::Attribute
     return memRefBuilder;
 }
 
+mlir::MemRefType vpux::getTileType(const mlir::MemRefType origType, const ShapeRef tileShape,
+                                   const ShapeRef tileOffsets) {
+    const auto strides = getStrides(origType);
+    Bit totalOffset(0);
+    for (size_t dimIdx = 0; dimIdx < strides.size(); dimIdx++) {
+        totalOffset += tileOffsets[Dim(dimIdx)] * strides[Dim(dimIdx)];
+    }
+    const Bit elemSize = getElemTypeSize(origType);
+    const auto affineMaps = DimsOrder::fromType(origType).toAffineMapsList(origType.getContext(), getShape(origType),
+                                                                           totalOffset.count() / elemSize.count());
+
+    const auto tileType =
+            mlir::MemRefType::get(tileShape.raw(), origType.getElementType(), affineMaps, origType.getMemorySpace());
+    return tileType;
+}
+
+mlir::MemRefType vpux::eraseTiledInfo(const mlir::MemRefType origType) {
+    // Erase strides and offsets information from memory reference.
+    const auto origShape = getShape(origType);
+    const auto origOrder = DimsOrder::fromType(origType);
+    mlir::MemRefType::Builder memRefBuilder(origType);
+    setAffineMaps(memRefBuilder, origType.getContext(), origOrder, origShape);
+
+    return memRefBuilder;
+}
+
 //
 // RankedTensorType utilities
 //

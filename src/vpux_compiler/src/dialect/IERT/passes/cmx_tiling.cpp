@@ -58,6 +58,31 @@ mlir::Value makeTile(mlir::OpBuilder& builder, mlir::Location baseLoc, mlir::Val
     return copyOp.output();
 }
 
+mlir::Value makeFilterTile(mlir::OpBuilder& builder, mlir::Location baseLoc, mlir::Value origVal, const Tile& tile,
+                           StringRef valName) {
+    const auto origType = origVal.getType().cast<mlir::MemRefType>();
+
+    if (tile.shape == getShape(origType)) {
+        return origVal;
+    }
+
+    const auto tileName = llvm::formatv("{0} tile {1}", valName, tile.offsets).str();
+    const auto loc = appendLoc(baseLoc, tileName);
+
+    const auto tileShape = tile.shape.raw();
+    const auto tileOffsets = tile.offsets.raw();
+
+    const auto attrOffsets = getIntArrayAttr(builder.getContext(), tileOffsets);
+    const auto attrShape = getIntArrayAttr(builder.getContext(), tileShape);
+    auto viewOp = builder.create<IERT::SubViewOp>(loc, origVal, attrOffsets, attrShape);
+
+    const auto tileType = changeShape(origType, tile.shape);
+    auto allocOp = builder.create<mlir::memref::AllocOp>(loc, tileType);
+
+    auto copyOp = builder.create<IERT::CopyOp>(loc, viewOp.result(), allocOp.memref());
+    return copyOp.output();
+}
+
 //
 // ConvolutionTiling
 //
@@ -103,7 +128,7 @@ mlir::LogicalResult ConvolutionTiling::matchAndRewrite(IERT::ConvolutionOp origO
         SmallVector<int64_t> padsEnd = {tileConf.pads.padBottom, tileConf.pads.padRight};
 
         const auto actInput = makeTile(rewriter, origOp->getLoc(), origOp.input(), inputTile, "input");
-        const auto filterInput = makeTile(rewriter, origOp->getLoc(), origOp.filter(), filterTile, "filter");
+        const auto filterInput = makeFilterTile(rewriter, origOp->getLoc(), origOp.filter(), filterTile, "filter");
         const auto biasInput = origOp.bias() != nullptr
                                        ? makeTile(rewriter, origOp->getLoc(), origOp.bias(), biasTile, "bias")
                                        : nullptr;
@@ -278,29 +303,6 @@ private:
     Logger _log;
 };
 
-static mlir::Value reshapeDepthwiseWeightTensor(mlir::OpBuilder& builder, mlir::Location loc,
-                                                const mlir::Value origFilter) {
-    auto* ctx = builder.getContext();
-    const auto elemType = mlir::Float16Type::get(ctx);
-    const auto filtShape = getShape(origFilter);
-
-    const auto OC = filtShape[Dim(0)];
-    const auto KY = filtShape[Dim(2)];
-    const auto KX = filtShape[Dim(3)];
-
-    SmallVector<int64_t> weightShape{OC, 1, KY, KX};
-
-    auto weightsConst = origFilter.getDefiningOp<Const::DeclareOp>();
-    VPUX_THROW_UNLESS(weightsConst != nullptr, "Grouped convolution does not provide constant weights");
-
-    const auto dataType = mlir::MemRefType::get(weightShape, elemType);
-    const auto dataTypeNHWC = changeDimsOrder(dataType, DimsOrder::NCHW);
-    const auto dataContentAttr = weightsConst.contentAttr();
-    const auto dataContentAttrNHWC = dataContentAttr.reorder(DimsOrder::NCHW);
-    auto dataConstOp = builder.create<Const::DeclareOp>(loc, dataTypeNHWC, dataContentAttrNHWC);
-    return dataConstOp.output();
-}
-
 mlir::LogicalResult GroupConvolutionTiling::matchAndRewrite(IERT::GroupConvolutionOp origOp,
                                                             mlir::PatternRewriter& rewriter) const {
     _log.trace("[{0}] Got GroupConvolution at '{1}'", getDebugName(), origOp->getLoc());
@@ -315,11 +317,6 @@ mlir::LogicalResult GroupConvolutionTiling::matchAndRewrite(IERT::GroupConvoluti
     SmallVector<mlir::Value> finalResults;
     finalResults.reserve(tilings.size());
 
-    // Depthwise weight tensor has 5 dimensions.
-    // Tiling over channels takes wrong dimension for some reason.
-    // FIXME reshaping to 4 dimensions is a workaround. Real cause still has to be fixed.
-    const auto filter4d = reshapeDepthwiseWeightTensor(rewriter, origOp->getLoc(), origOp.filter());
-
     for (const auto& outputTile : tilings) {
         const auto tileConf = backInferGroupConvTile(origOp, outputTile);
 
@@ -331,7 +328,7 @@ mlir::LogicalResult GroupConvolutionTiling::matchAndRewrite(IERT::GroupConvoluti
         SmallVector<int64_t> padsEnd = {tileConf.pads.padBottom, tileConf.pads.padRight};
 
         const auto actInput = makeTile(rewriter, origOp->getLoc(), origOp.input(), inputTile, "input");
-        const auto filterInput = makeTile(rewriter, origOp->getLoc(), filter4d, filterTile, "filter");
+        const auto filterInput = makeFilterTile(rewriter, origOp->getLoc(), origOp.filter(), filterTile, "filter");
         const auto biasInput = origOp.bias() != nullptr
                                        ? makeTile(rewriter, origOp->getLoc(), origOp.bias(), biasTile, "bias")
                                        : nullptr;
