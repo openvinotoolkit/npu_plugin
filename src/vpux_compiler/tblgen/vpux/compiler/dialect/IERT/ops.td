@@ -1859,4 +1859,38 @@ def IERT_RegionYoloOp :
     }];
 }
 
+//
+// SubViewOp
+//
+
+def IERT_SubViewOp :
+        IERT_Op<
+            "SubView",
+            [
+                DeclareOpInterfaceMethods<ViewLikeOpInterface>,
+                SameOperandsAndResultElementType,
+                DeclareOpInterfaceMethods<InferTypeOpInterface>,
+                NoSideEffect
+            ]
+        > {
+    let summary = "Compile-time subview layer";
+
+    let arguments = (ins
+        AnyMemRef:$source,
+        I64ArrayAttr:$static_offsets,
+        I64ArrayAttr:$static_sizes
+    );
+
+    let results = (outs
+        AnyMemRef:$result
+    );
+
+    let assemblyFormat = [{
+        $source $static_offsets $static_sizes
+        attr-dict `:` type($source) `->` type(results)
+    }];
+
+    let hasFolder = 1;
+}
+
 #endif
