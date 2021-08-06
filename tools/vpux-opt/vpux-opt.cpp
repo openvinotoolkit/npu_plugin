@@ -22,21 +22,6 @@
 #include "vpux/compiler/init.hpp"
 #include "vpux/compiler/pipelines.hpp"
 
-#ifdef ENABLE_PLAIDML
-#include "pmlc/conversion/pxa_to_affine/passes.h"
-#include "pmlc/conversion/tile_to_pxa/passes.h"
-#include "pmlc/dialect/affinex/transforms/passes.h"
-#include "pmlc/dialect/layer/transforms/passes.h"
-#include "pmlc/dialect/pxa/transforms/passes.h"
-#include "pmlc/dialect/stdx/transforms/passes.h"
-#include "pmlc/dialect/tile/transforms/passes.h"
-#include "pmlc/transforms/passes.h"
-#include "vpux/compiler/edsl/passes.hpp"
-#include "vpux/compiler/edsl/pipeline.hpp"
-#endif
-
-#include <mlir/Dialect/Affine/Passes.h>
-#include <mlir/Dialect/SCF/Passes.h>
 #include <mlir/Dialect/StandardOps/Transforms/Passes.h>
 #include <mlir/Support/MlirOptMain.h>
 #include <mlir/Transforms/Passes.h>
@@ -44,39 +29,23 @@
 #include <cstdlib>
 #include <iostream>
 
-using namespace vpux;
-
 int main(int argc, char* argv[]) {
     try {
         mlir::DialectRegistry registry;
-        registerDialects(registry);
+        vpux::registerDialects(registry);
 
-        registerCorePasses();
-        IE::registerIEPasses();
-        IE::registerIEPipelines();
-        IERT::registerIERTPasses();
-        IERT::registerIERTPipelines();
-        VPUIP::registerVPUIPPasses();
-        registerConversionPasses();
-        registerConversionPipelines();
-        registerPipelines();
+        vpux::registerCorePasses();
+        vpux::IE::registerIEPasses();
+        vpux::IE::registerIEPipelines();
+        vpux::IERT::registerIERTPasses();
+        vpux::IERT::registerIERTPipelines();
+        vpux::VPUIP::registerVPUIPPasses();
+        vpux::registerConversionPasses();
+        vpux::registerConversionPipelines();
+        vpux::registerPipelines();
+
         mlir::registerTransformsPasses();
-        mlir::registerAffinePasses();
-        mlir::registerSCFPasses();
         mlir::registerStandardPasses();
-
-#ifdef ENABLE_PLAIDML
-        pmlc::conversion::pxa_to_affine::registerPasses();
-        pmlc::conversion::tile_to_pxa::registerPasses();
-        pmlc::dialect::affinex::registerPasses();
-        pmlc::dialect::layer::registerPasses();
-        pmlc::dialect::pxa::registerPasses();
-        pmlc::dialect::stdx::registerPasses();
-        pmlc::dialect::tile::registerPasses();
-        pmlc::transforms::registerPasses();
-        edsl::registereDSLPasses();
-        edsl::registerPipeline();
-#endif
 
         return mlir::asMainReturnCode(mlir::MlirOptMain(argc, argv, "VPUX Optimizer Testing Tool", registry, false));
     } catch (const std::exception& e) {

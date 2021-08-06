@@ -28,14 +28,14 @@ class KmbQuantizedConvSubGraphTest :
                                                               dataLow, dataHigh, dataLow, dataHigh);
 
         const auto weightsU8 =
-                ngraph::builder::makeConstant<uint8_t>(ngraph::element::u8, weightsShape, {}, true, 255, 1);
+                ngraph::builder::makeConstant<uint8_t>(ngraph::element::u8, weightsShape, {}, true, 254, 0);
 
         const auto weightsFP32 = std::make_shared<ngraph::opset2::Convert>(weightsU8, ngraph::element::f32);
 
         const size_t weightsLevels = 255;
 
-        const auto weightsInLow = ngraph::builder::makeConstant<float>(ngraph::element::f32, {1}, {1.0f}, false);
-        const auto weightsInHigh = ngraph::builder::makeConstant<float>(ngraph::element::f32, {1}, {255.0f}, false);
+        const auto weightsInLow = ngraph::builder::makeConstant<float>(ngraph::element::f32, {1}, {0.0f}, false);
+        const auto weightsInHigh = ngraph::builder::makeConstant<float>(ngraph::element::f32, {1}, {254.0f}, false);
 
         std::vector<float> perChannelLow(weightsShape[0]);
         std::vector<float> perChannelHigh(weightsShape[0]);

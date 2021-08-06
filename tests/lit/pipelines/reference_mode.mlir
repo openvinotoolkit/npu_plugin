@@ -1,4 +1,4 @@
-// RUN: vpux-opt --split-input-file --set-compile-params="vpu-arch=VPU3700" --reference-mode %s | FileCheck %s
+// RUN: vpux-opt --split-input-file --set-compile-params="vpu-arch=KMB" --reference-mode %s | FileCheck %s
 
 // CHECK-LABEL: @SingleLayer
 module @SingleLayer {
@@ -14,19 +14,19 @@ module @SingleLayer {
 IE.CNNNetwork
     entryPoint : @main
     inputsInfo : {
-        // CHECK: IE.DataInfo "input" : memref<1x1000xf16>
-        IE.DataInfo "input" : memref<1x1000xf16>
+        // CHECK: IE.DataInfo "input" : tensor<1x1000xf16>
+        IE.DataInfo "input" : tensor<1x1000xf16>
     }
     outputsInfo : {
-        // CHECK: IE.DataInfo "softmax" : memref<1x1000xf16>
-        IE.DataInfo "softmax" : memref<1x1000xf16>
+        // CHECK: IE.DataInfo "softmax" : tensor<1x1000xf16>
+        IE.DataInfo "softmax" : tensor<1x1000xf16>
     }
 
 // CHECK:       func @main(
 // CHECK-SAME:      [[ARG0:%.+]]: memref<1x1x1x1000xf16>,
 // CHECK-SAME:      [[ARG1:%.+]]: memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16> {
 func @main(%arg0: tensor<1x1000xf16>) -> tensor<1x1000xf16> {
-    %0 = IE.SoftMax(%arg0) {axisInd = 1 : i32} : tensor<1x1000xf16> -> tensor<1x1000xf16>
+    %0 = IE.SoftMax(%arg0) {axisInd = 1} : tensor<1x1000xf16> -> tensor<1x1000xf16>
     return %0 : tensor<1x1000xf16>
 
     // CHECK-DAG:   [[VAR0:%.+]] = VPUIP.DeclareTensor "ProgrammableInput" [0] <0> -> memref<1x1000xf16>
@@ -67,11 +67,11 @@ module @ConstantLayer {
 IE.CNNNetwork
     entryPoint : @main
     inputsInfo : {
-        IE.DataInfo "input" : memref<1x2x2x2xf16>
+        IE.DataInfo "input" : tensor<1x2x2x2xf16>
     }
     outputsInfo : {
-        IE.DataInfo "output1" : memref<1x2x2x2xf16>
-        IE.DataInfo "output2" : memref<1x2x2x2xf16>
+        IE.DataInfo "output1" : tensor<1x2x2x2xf16>
+        IE.DataInfo "output2" : tensor<1x2x2x2xf16>
     }
 
 // CHECK:       func @main(
@@ -92,8 +92,8 @@ func @main(%arg0: tensor<1x2x2x2xf16>) -> (tensor<1x2x2x2xf16>, tensor<1x2x2x2xf
             ]
         ]> : tensor<1x2x2x2xf16>>
 
-    %0 = IE.SoftMax(%arg0) {axisInd = 1 : i32} : tensor<1x2x2x2xf16> -> tensor<1x2x2x2xf16>
-    %1 = IE.SoftMax(%cst) {axisInd = 1 : i32} : tensor<1x2x2x2xf16> -> tensor<1x2x2x2xf16>
+    %0 = IE.SoftMax(%arg0) {axisInd = 1} : tensor<1x2x2x2xf16> -> tensor<1x2x2x2xf16>
+    %1 = IE.SoftMax(%cst) {axisInd = 1} : tensor<1x2x2x2xf16> -> tensor<1x2x2x2xf16>
 
     return %0, %1 : tensor<1x2x2x2xf16>, tensor<1x2x2x2xf16>
 
@@ -148,7 +148,7 @@ IE.CNNNetwork
     inputsInfo : {
     }
     outputsInfo : {
-        IE.DataInfo "prob" : memref<1x2x4x2xf16>
+        IE.DataInfo "prob" : tensor<1x2x4x2xf16>
     }
 
 // CHECK:       func @main(
@@ -170,7 +170,7 @@ func @main() -> tensor<1x2x4x2xf16> {
                 ]
         ]]> : tensor<1x2x4x2xf16>>
 
-    %prob = IE.SoftMax(%0) {axisInd = 0 : i32} : tensor<1x2x4x2xf16> -> tensor<1x2x4x2xf16>
+    %prob = IE.SoftMax(%0) {axisInd = 0} : tensor<1x2x4x2xf16> -> tensor<1x2x4x2xf16>
 
     return %prob : tensor<1x2x4x2xf16>
 

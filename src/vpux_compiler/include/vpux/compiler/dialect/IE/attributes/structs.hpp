@@ -13,11 +13,13 @@
 
 #pragma once
 
+#include "vpux/compiler/core/attributes/dims_order.hpp"
 #include "vpux/compiler/dialect/IE/attributes/enums.hpp"
 
 #include "vpux/utils/core/array_ref.hpp"
 
 #include <mlir/IR/BuiltinAttributes.h>
+#include <mlir/IR/BuiltinTypes.h>
 
 //
 // Generated
@@ -25,17 +27,27 @@
 
 #include <vpux/compiler/dialect/IE/generated/attributes/structs.hpp.inc>
 
+namespace vpux {
+namespace IE {
+
 //
 // PostOp
 //
-
-namespace vpux {
-namespace IE {
 
 PostOp getPostOpAttr(mlir::MLIRContext* ctx, PostOpKindAttr kind, ArrayRef<mlir::NamedAttribute> attrs = None);
 
 PostOpKind getPostOpKind(PostOp postOp);
 mlir::Attribute getPostOpParam(PostOp postOp, mlir::Identifier name);
+
+//
+// TensorAttr
+//
+
+IE::TensorAttr getTensorAttr(mlir::AffineMapAttr order);
+IE::TensorAttr getTensorAttr(mlir::AffineMap order);
+IE::TensorAttr getTensorAttr(mlir::MLIRContext* ctx, DimsOrder order);
+
+IE::TensorAttr getTensorAttr(mlir::RankedTensorType origType);
 
 }  // namespace IE
 }  // namespace vpux

@@ -17,38 +17,6 @@
 include "mlir/Pass/PassBase.td"
 
 //
-// AdjustLayouts
-//
-
-def AdjustLayouts : PassBase<"adjust-layouts", "vpux::FunctionPass"> {
-    let summary = "Add required layouts to memref";
-
-    let description = [{
-        This pass adds the required layouts instead of the default value
-        depending on the layer specification
-    }];
-
-    let constructor = "vpux::IERT::createAdjustLayoutsPass()";
-}
-
-//
-// UseUserLayout
-//
-
-def UseUserLayout : PassBase<"use-user-layout", "vpux::ModulePass"> {
-    let summary = "Use user layouts for entry point function prototype";
-
-    let description = [{
-        This pass updates the CNNNetwork entry point function prototype
-        and use user-provided layouts for its operands and results.
-        The pass inserts Reorder operations from/to topology layout.
-    }];
-
-    let constructor = "vpux::IERT::createUseUserLayout()";
-}
-
-
-//
 // SetInternalMemorySpace
 //
 
@@ -120,6 +88,24 @@ def CXMTiling : PassBase<"cmx-tiling", "vpux::FunctionPass"> {
     }];
 
     let constructor = "vpux::IERT::createCMXTilingPass()";
+}
+
+// TimestampProfiling
+//
+
+def TimestampProfiling : PassBase<"profiling-timestamp", "vpux::ModulePass"> {
+    let summary = "DMA-Timestamp based network profiling";
+
+    let description = [{
+        This pass add dma-timestamp based network profiling.
+    }];
+
+    let constructor = [{
+        vpux::IERT::createTimestampProfilingPass([](mlir::MLIRContext* ctx, vpux::StringRef memSpaceName) -> mlir::Attribute {
+            VPUX_THROW_UNLESS(!memSpaceName.empty(), "Missing memory space option");
+            return mlir::StringAttr::get(ctx, memSpaceName);
+        })
+    }];
 }
 
 //=================================================================================

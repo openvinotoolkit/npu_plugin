@@ -74,7 +74,7 @@ mlir::LogicalResult UseLeakyRelu::matchAndRewrite(IE::PReluOp origOp, mlir::Patt
     }
 
     rewriter.replaceOpWithNewOp<IE::LeakyReluOp>(origOp, origOp.getType(), origOp.input(),
-                                                 rewriter.getF32FloatAttr(negativeSlopeContent.getSplatValue<float>()));
+                                                 rewriter.getF64FloatAttr(negativeSlopeContent.getSplatValue<float>()));
 
     return mlir::success();
 }

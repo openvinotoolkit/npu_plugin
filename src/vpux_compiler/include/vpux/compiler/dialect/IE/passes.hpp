@@ -32,6 +32,9 @@ namespace IE {
 //
 
 std::unique_ptr<mlir::Pass> createUseUserPrecisionPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createUseUserLayout(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createAdjustLayoutsPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createOptimizeReordersPass(Logger log = Logger::global());
 
 //
 // Adjust IE Dialect IR for VPU target.
@@ -41,17 +44,20 @@ std::unique_ptr<mlir::Pass> createUseUserPrecisionPass(Logger log = Logger::glob
 
 void buildAdjustForVPUPipeline(mlir::OpPassManager& pm, Logger log = Logger::global());
 
-std::unique_ptr<mlir::Pass> createConvertFCToConvPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertTile2PerAxisTilePass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertPrecisionToFP16Pass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertShapeTo4DPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertPaddingsToFloorModePass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createResolveStridedSlicePass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createConvertConv1DToConv2DPass(Logger log = Logger::global());
 
 //
 // HW related passes
 //
 
+void buildHWOpsConversionPipeline(mlir::OpPassManager& pm, Logger log = Logger::global());
+
+std::unique_ptr<mlir::Pass> createConvertFCToConvPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createFusePostOpsPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createExpandActivationChannelsPass(Logger log = Logger::global());
 
@@ -66,6 +72,7 @@ void buildLowPrecisionPipeline(mlir::OpPassManager& pm, Logger log = Logger::glo
 std::unique_ptr<mlir::Pass> createSplitFakeQuantPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createDequantizeConstPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createMergeFakeQuantPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createPropagateQuantizeDequantizePass(Logger log = Logger::global());
 
 //
 // Registration

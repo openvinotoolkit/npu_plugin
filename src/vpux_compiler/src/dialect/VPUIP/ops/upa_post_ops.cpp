@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -27,9 +27,9 @@ using namespace vpux;
 mlir::LogicalResult vpux::VPUIP::verifyPostOp(mlir::Operation* op) {
     VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in verifyPostOp");
 
-    auto layer = mlir::dyn_cast<LayerInterface>(op);
+    auto layer = mlir::dyn_cast<RTLayerInterface>(op);
     if (layer == nullptr) {
-        return errorAt(op, "Operation '{0}' doesn't implement Layer interface", op->getName());
+        return errorAt(op, "Operation '{0}' doesn't implement RT Layer interface", op->getName());
     }
 
     for (auto& operand : layer.getOpOperands()) {
@@ -56,8 +56,8 @@ void vpux::VPUIP::ClampUPAOp::build(mlir::OpBuilder& builder, mlir::OperationSta
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ClampUPAOp::serialize(VPUIP::BlobWriter& writer) {
-    const float min_val = min().convertToFloat();
-    const float max_val = max().convertToFloat();
+    const float min_val = static_cast<float>(min().convertToDouble());
+    const float max_val = static_cast<float>(max().convertToDouble());
 
     const auto clamp = MVCNN::CreateClampParams(writer, min_val, max_val);
 
@@ -79,7 +79,7 @@ void vpux::VPUIP::EluUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::EluUPAOp::serialize(VPUIP::BlobWriter& writer) {
-    const float x_val = x().convertToFloat();
+    const float x_val = static_cast<float>(x().convertToDouble());
 
     const auto elu = MVCNN::CreateEluParams(writer, x_val);
 
@@ -221,7 +221,7 @@ void vpux::VPUIP::LeakyReluUPAOp::build(mlir::OpBuilder& builder, mlir::Operatio
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::LeakyReluUPAOp::serialize(VPUIP::BlobWriter& writer) {
-    const float negative_slope_val = negative_slope().convertToFloat();
+    const float negative_slope_val = static_cast<float>(negative_slope().convertToDouble());
 
     const auto leaky_relu = MVCNN::CreateLeakyReluParams(writer, negative_slope_val);
 
@@ -298,14 +298,14 @@ mlir::Operation* vpux::VPUIP::BlobReader::parsePostOps(mlir::OpBuilder& builder,
     case MVCNN::PostOpsNestedParams_ClampParams: {
         const auto clampParams = params->nested_params_as_ClampParams();
         op = builder.create<VPUIP::ClampUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], outputs[0],
-                                               getFP32Attr(_ctx, clampParams->min()),
-                                               getFP32Attr(_ctx, clampParams->max()));
+                                               getFPAttr(_ctx, clampParams->min()),
+                                               getFPAttr(_ctx, clampParams->max()));
         break;
     }
     case MVCNN::PostOpsNestedParams_EluParams: {
         const auto eluParams = params->nested_params_as_EluParams();
         op = builder.create<VPUIP::EluUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], outputs[0],
-                                             getFP32Attr(_ctx, eluParams->x()));
+                                             getFPAttr(_ctx, eluParams->x()));
         break;
     }
     case MVCNN::PostOpsNestedParams_HSwishParams:
@@ -326,13 +326,13 @@ mlir::Operation* vpux::VPUIP::BlobReader::parsePostOps(mlir::OpBuilder& builder,
     case MVCNN::PostOpsNestedParams_LeakyReluParams: {
         const auto leakyReluParams = params->nested_params_as_LeakyReluParams();
         op = builder.create<VPUIP::LeakyReluUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], outputs[0],
-                                                   getFP32Attr(_ctx, leakyReluParams->negative_slope()));
+                                                   getFPAttr(_ctx, leakyReluParams->negative_slope()));
         break;
     }
     case MVCNN::PostOpsNestedParams_SwishParams: {
         const auto swishParams = params->nested_params_as_SwishParams();
         op = builder.create<VPUIP::SwishUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], outputs[0],
-                                               getFP32Attr(_ctx, swishParams->beta()));
+                                               getFPAttr(_ctx, swishParams->beta()));
         break;
     }
     case MVCNN::PostOpsNestedParams_BiasParams:

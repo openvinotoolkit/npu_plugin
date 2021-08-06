@@ -49,6 +49,8 @@ void concatAsImplicitFcn(const mv::pass::PassEntry& , mv::ComputationModel& mode
         bool cmxConcatenation = false;
         bool avoidCmxConcatenation = false;
         bool mixedToFloat = false;
+        bool concatFusedReshape = false;
+        std::size_t numberOfConvsForAsymmetricalStride = 0UL;
         if(concat->hasAttr("splitStrategy"))
             splitStrategy = concat->get<std::string>("splitStrategy");
         if(concat->hasAttr("schedule_for_dpu_dma_overlap"))
@@ -62,6 +64,10 @@ void concatAsImplicitFcn(const mv::pass::PassEntry& , mv::ComputationModel& mode
             avoidCmxConcatenation = concat->get<bool>("avoid_cmx_concat");
         if(concat->hasAttr("mixedToFloat"))
             mixedToFloat = concat->get<bool>("mixedToFloat");
+        if(concat->hasAttr("fusedConcatReshape"))
+            concatFusedReshape = concat->get<bool>("fusedConcatReshape");
+        if(concat->hasAttr("numberOfConvsForAsymmetricalStride"))
+            numberOfConvsForAsymmetricalStride = concat->get<std::size_t>("numberOfConvsForAsymmetricalStride");
 
         auto outputLocation = concat->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
         auto opId = concat->get<unsigned>("opId");
@@ -78,6 +84,10 @@ void concatAsImplicitFcn(const mv::pass::PassEntry& , mv::ComputationModel& mode
             om.getSourceOp(implicitConcat)->set<bool>("cmxConcatenation", cmxConcatenation);
         if(avoidCmxConcatenation)
             om.getSourceOp(implicitConcat)->set<bool>("avoid_cmx_concat", avoidCmxConcatenation);
+        if(concatFusedReshape)
+            om.getSourceOp(implicitConcat)->set<bool>("fusedConcatReshape", concatFusedReshape);
+        if(numberOfConvsForAsymmetricalStride)
+            om.getSourceOp(implicitConcat)->set<std::size_t>("numberOfConvsForAsymmetricalStride", numberOfConvsForAsymmetricalStride);
         mv::setOutputDataFlow(om, implicitConcat, outputFlows);
         if(mixedToFloat)
         {

@@ -1,5 +1,5 @@
 //
-// Copyright 2021 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -45,20 +45,22 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::DetectionOutputUPAOp::serialize(VPU
     builder.add_num_classes(checked_cast<int32_t>(detectionOutputAttr.num_classes().getInt()));
     builder.add_keep_top_k(
             checked_cast<int32_t>(detectionOutputAttr.keep_top_k()[0].cast<mlir::IntegerAttr>().getInt()));
-    builder.add_nms_threshold(detectionOutputAttr.nms_threshold().getValue().convertToFloat());
+    builder.add_nms_threshold(static_cast<float>(detectionOutputAttr.nms_threshold().getValue().convertToDouble()));
     builder.add_background_label_id(checked_cast<int32_t>(detectionOutputAttr.background_label_id().getInt()));
     builder.add_top_k(checked_cast<int32_t>(detectionOutputAttr.top_k().getInt()));
     builder.add_variance_encoded_in_target(detectionOutputAttr.variance_encoded_in_target().getValue());
     builder.add_code_type(fb_code_type);
     builder.add_share_location(detectionOutputAttr.share_location().getValue());
-    builder.add_confidence_threshold(detectionOutputAttr.confidence_threshold().getValue().convertToFloat());
+    builder.add_confidence_threshold(
+            static_cast<float>(detectionOutputAttr.confidence_threshold().getValue().convertToDouble()));
     builder.add_clip_before_nms(detectionOutputAttr.clip_before_nms().getValue());
     builder.add_clip_after_nms(detectionOutputAttr.clip_after_nms().getValue());
     builder.add_decrease_label_id(detectionOutputAttr.decrease_label_id().getValue());
     builder.add_normalized(detectionOutputAttr.normalized().getValue());
     builder.add_input_height(checked_cast<uint32_t>(detectionOutputAttr.input_height().getUInt()));
     builder.add_input_width(checked_cast<uint32_t>(detectionOutputAttr.input_width().getUInt()));
-    builder.add_objectness_score(detectionOutputAttr.objectness_score().getValue().convertToFloat());
+    builder.add_objectness_score(
+            static_cast<float>(detectionOutputAttr.objectness_score().getValue().convertToDouble()));
     const auto paramsOff = builder.Finish();
 
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_DetectionOutputParams});
@@ -70,22 +72,22 @@ mlir::Operation* vpux::VPUIP::BlobReader::parseDetectionOutput(mlir::OpBuilder& 
     VPUX_THROW_UNLESS(inputs.size() == 5, "UPADetectionOutput supports only 5 inputs, got {0}", inputs.size());
     VPUX_THROW_UNLESS(outputs.size() == 1, "UPADetectionOutput supports only 1 output, got {0}", outputs.size());
     const auto params = task->softLayerParams_as_DetectionOutputParams();
-    const auto numClasses = getInt32Attr(_ctx, params->num_classes());
-    const auto backgroundLabelId = getInt32Attr(_ctx, params->background_label_id());
-    const auto topK = getInt32Attr(_ctx, params->top_k());
+    const auto numClasses = getIntAttr(_ctx, params->num_classes());
+    const auto backgroundLabelId = getIntAttr(_ctx, params->background_label_id());
+    const auto topK = getIntAttr(_ctx, params->top_k());
     const auto varianceEncodedInTarget = mlir::BoolAttr::get(_ctx, params->variance_encoded_in_target());
-    const auto keepTopK = getInt32ArrayAttr(_ctx, SmallVector<int32_t>{params->keep_top_k()});
+    const auto keepTopK = getIntArrayAttr(_ctx, SmallVector<int32_t>{params->keep_top_k()});
     const auto codeType = mlir::StringAttr::get(_ctx, params->code_type()->str());
     const auto shareLocation = mlir::BoolAttr::get(_ctx, params->share_location());
-    const auto nmsThreshold = getFP32Attr(_ctx, params->nms_threshold());
-    const auto confidenceThreshold = getFP32Attr(_ctx, params->confidence_threshold());
+    const auto nmsThreshold = getFPAttr(_ctx, params->nms_threshold());
+    const auto confidenceThreshold = getFPAttr(_ctx, params->confidence_threshold());
     const auto clipAfterNms = mlir::BoolAttr::get(_ctx, params->clip_after_nms());
     const auto clipBeforeNms = mlir::BoolAttr::get(_ctx, params->clip_before_nms());
     const auto decreaseLabelId = mlir::BoolAttr::get(_ctx, params->decrease_label_id());
     const auto normalized = mlir::BoolAttr::get(_ctx, params->normalized());
-    const auto inputHeight = getUInt32Attr(_ctx, params->input_height());
-    const auto inputWidth = getUInt32Attr(_ctx, params->input_width());
-    const auto objectnessScore = getFP32Attr(_ctx, params->objectness_score());
+    const auto inputHeight = getIntAttr(_ctx, params->input_height());
+    const auto inputWidth = getIntAttr(_ctx, params->input_width());
+    const auto objectnessScore = getFPAttr(_ctx, params->objectness_score());
 
     const auto detectionOutputAttr = IE::DetectionOutputAttr::get(
             numClasses, backgroundLabelId, topK, varianceEncodedInTarget, keepTopK, codeType, shareLocation,

@@ -15,7 +15,7 @@
 
 #include "vpux/compiler/core/attributes/dims_order.hpp"
 #include "vpux/compiler/dialect/VPUIP/blob_reader.hpp"
-#include "vpux/compiler/utils/extentions.hpp"
+#include "vpux/compiler/utils/analysis.hpp"
 
 #include "vpux/utils/IE/float16.hpp"
 #include "vpux/utils/core/mem_size.hpp"
@@ -61,7 +61,7 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(QuantCastUPAOp op) {
     const auto qType = inType.isa<mlir::quant::QuantizedType>() ? inType.cast<mlir::quant::QuantizedType>()
                                                                 : outType.cast<mlir::quant::QuantizedType>();
 
-    if (!qType.getStorageType().isSignlessInteger(8)) {
+    if (!qType.getStorageType().isInteger(8)) {
         return errorAt(op, "Unsupported quantized storage type '{0}'", qType.getStorageType());
     }
 
@@ -90,13 +90,13 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(QuantCastUPAOp op) {
 }
 
 bool vpux::VPUIP::QuantCastUPAOp::isSupportedLayout(mlir::Operation* op, vpux::DataOrderInfo& info) {
-    const auto quantizeOp = mlir::dyn_cast<IERT::QuantizeOp>(op);
-    const auto dequantizeOp = mlir::dyn_cast<IERT::DequantizeOp>(op);
+    const auto quantizeOp = mlir::dyn_cast<mlir::quant::QuantizeCastOp>(op);
+    const auto dequantizeOp = mlir::dyn_cast<mlir::quant::DequantizeCastOp>(op);
 
-    VPUX_THROW_UNLESS(quantizeOp != nullptr && dequantizeOp != nullptr, "Operation {0} is not quantizer",
+    VPUX_THROW_UNLESS(quantizeOp != nullptr || dequantizeOp != nullptr, "Operation {0} is not quantizer",
                       op->getName());
 
-    LayerInterface layer = quantizeOp ? quantizeOp : dequantizeOp;
+    auto layer = mlir::cast<LayerInterface>(op);
     const auto scales = getScalesAndZeroPoints(layer.getInputs()[0], layer.getOutputs()[0]).first;
 
     if (scales.size() > 1) {

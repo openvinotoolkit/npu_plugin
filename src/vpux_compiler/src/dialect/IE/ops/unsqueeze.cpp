@@ -40,7 +40,7 @@ mlir::FailureOr<SmallVector<int64_t>> getAxes(IE::UnsqueezeOpAdaptor unsqueeze, 
     }
 
     if (unsqueeze.axes_value() != nullptr) {
-        return parseIntArrayAttr(unsqueeze.axes_value());
+        return parseIntArrayAttr<int64_t>(unsqueeze.axes_value());
     }
 
     auto axesConst = unsqueeze.axes().getDefiningOp<Const::DeclareOp>();
@@ -172,7 +172,7 @@ mlir::LogicalResult FuseWithReshape::matchAndRewrite(IE::UnsqueezeOp origOp, mli
     }
 
     const auto outputShape = origOp.getType().getShape();
-    const auto outputShapeAttr = getInt64ArrayAttr(getContext(), outputShape);
+    const auto outputShapeAttr = getIntArrayAttr(getContext(), outputShape);
 
     rewriter.replaceOpWithNewOp<IE::ReshapeOp>(origOp, prevOp->getOperand(0), nullptr, false, outputShapeAttr);
     return mlir::success();
@@ -204,7 +204,7 @@ mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::UnsqueezeOp origOp, 
         return mlir::failure();
     }
 
-    const auto axesAttr = getInt64ArrayAttr(getContext(), axes.getValue());
+    const auto axesAttr = getIntArrayAttr(getContext(), axes.getValue());
 
     rewriter.replaceOpWithNewOp<IE::UnsqueezeOp>(origOp, origOp.input(), nullptr, axesAttr);
     return mlir::success();

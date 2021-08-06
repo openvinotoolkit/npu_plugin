@@ -14,6 +14,7 @@
 #include "vpux/compiler/dialect/const/attributes/content.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/subspaces.hpp"
+#include "vpux/compiler/utils/types.hpp"
 
 #include "vpux/utils/IE/loop.hpp"
 #include "vpux/utils/core/format.hpp"
@@ -103,8 +104,8 @@ mlir::Attribute vpux::Const::PadWithZeroAttr::parse(mlir::MLIRContext*, mlir::Di
 
 mlir::ShapedType vpux::Const::PadWithZeroAttr::inferOutputType(mlir::ShapedType input) const {
     const auto inShape = getShape(input);
-    const auto padBefore = Shape(parseIntArrayAttr(getPadBefore()));
-    const auto padAfter = Shape(parseIntArrayAttr(getPadAfter()));
+    const auto padBefore = Shape(parseIntArrayAttr<int64_t>(getPadBefore()));
+    const auto padAfter = Shape(parseIntArrayAttr<int64_t>(getPadAfter()));
 
     VPUX_THROW_UNLESS(padBefore.size() == padAfter.size(),
                       "Got non consistent 'padBefore' and 'padAfter' values in 'PadWithZeroAttr'");
@@ -117,7 +118,7 @@ mlir::ShapedType vpux::Const::PadWithZeroAttr::inferOutputType(mlir::ShapedType 
         outShape[d] = inShape[d] + padBefore[d] + padAfter[d];
     }
 
-    return input.clone(outShape.raw());
+    return changeShape(input, outShape);
 }
 
 //
@@ -141,7 +142,7 @@ Const::Content vpux::Const::PadWithZeroAttr::transform(vpux::Const::Content& inp
     const auto outShape = getShape(output.getType());
     const auto outMemShape = order.toMemoryOrder(outShape);
 
-    const auto padBefore = Shape(parseIntArrayAttr(getPadBefore()));
+    const auto padBefore = Shape(parseIntArrayAttr<int64_t>(getPadBefore()));
     const auto memPadBefore = order.toMemoryOrder(padBefore);
 
     if (memPadBefore.size() == 1) {
@@ -285,7 +286,7 @@ Const::Content vpux::Const::PadWithZeroAttr::transform(vpux::Const::Content& inp
 //
 
 Const::ContentAttr vpux::Const::ContentAttr::padWithZero(ShapeRef padBefore, ShapeRef padAfter) const {
-    return get(*this, Const::PadWithZeroAttr::get(getInt64ArrayAttr(getContext(), padBefore),
-                                                  getInt64ArrayAttr(getContext(), padAfter))
+    return get(*this, Const::PadWithZeroAttr::get(getIntArrayAttr(getContext(), padBefore),
+                                                  getIntArrayAttr(getContext(), padAfter))
                               .cast<Const::TransformAttrInterface>());
 }

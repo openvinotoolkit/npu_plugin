@@ -12,6 +12,7 @@
 //
 
 #include "vpux/compiler/conversion.hpp"
+#include "vpux/compiler/utils/rewriter.hpp"
 
 #include <mlir/Transforms/DialectConversion.h>
 
@@ -123,13 +124,6 @@ mlir::LogicalResult RemoveWait::matchAndRewrite(mlir::async::AwaitOp waitOp, Arr
 //
 // safeRunOnFunc
 //
-
-template <class ConcreteType>
-mlir::Value dummyConverter(mlir::OpBuilder& builder, ConcreteType type, mlir::ValueRange inputs, mlir::Location loc) {
-    SmallVector<mlir::Value> results;
-    builder.createOrFold<mlir::UnrealizedConversionCastOp>(results, loc, type, inputs);
-    return results.front();
-}
 
 void ConvertAsyncOps2VPUIPPass::safeRunOnFunc() {
     auto& ctx = getContext();

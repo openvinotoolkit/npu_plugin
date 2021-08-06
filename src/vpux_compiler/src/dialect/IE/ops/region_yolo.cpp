@@ -46,7 +46,7 @@ mlir::LogicalResult vpux::IE::RegionYoloOp::inferReturnTypeComponents(
         }
     } else {
         outputShape.push_back(inType.getShape()[0]);
-        outputShape.push_back((regionYolo.classes().getInt() + regionYolo.coord().getInt() + 1) *
+        outputShape.push_back((regionYolo.classes().getInt() + regionYolo.coords().getInt() + 1) *
                               (int64_t)regionYolo.mask().size());
         outputShape.push_back(inType.getShape()[2]);
         outputShape.push_back(inType.getShape()[3]);

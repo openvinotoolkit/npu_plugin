@@ -40,13 +40,17 @@ void assignInputFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model
     auto networkInputs = om.getNetworkInputs();
     for (size_t i = 0; i < networkInputs.size(); i++) {
         auto networkInput = networkInputs[i]->getOutputTensor(0);
-        auto quantParams = networkInput->getQuantParams();
+        const auto quantParams = networkInput->getQuantParams();
+        const auto tensorDType = networkInput->getDType();
+        const auto targetDType = networkInputs[i]->get<mv::DType>("dType");
+
+        networkInput->setDType(targetDType);
 
         // Create an implicit Input slice op, connect respective network input to that op, and attach.
         auto implicitInputSlice = om.implicitInputSlice("", inputTensor);
 
         implicitInputSlice->setShape(networkInput->getShape());
-        implicitInputSlice->setDType(networkInput->getDType());
+        implicitInputSlice->setDType(targetDType);
         implicitInputSlice->setOrder(networkInput->getOrder());
         implicitInputSlice->setQuantParams(quantParams);
 
@@ -54,8 +58,9 @@ void assignInputFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model
         // Assumes one input per outputNode
         auto implicitInput =
                 om.implicitInput(networkInput->getName() + "_implicit", implicitInputSlice, networkInput->getShape(),
-                                 networkInput->getDType(), networkInput->getOrder());
+                                 targetDType, networkInput->getOrder());
         implicitInput->setQuantParams(quantParams);
+        implicitInput->setDType(tensorDType);
 
         implicitInput->set<uint8_t>("inputIndex", i);
 

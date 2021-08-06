@@ -154,9 +154,12 @@ void BlobReader::parseUserInputsOutputs(OpBuilderLogger& builderLog, IE::CNNNetw
             if (const auto* tensorReference = ioTensorDescriptors->Get(j)) {
                 const auto& inputName = tensorReference->name();
 
+                const auto memref = parseTensorRef(tensorReference);
+                const auto tensor =
+                        getTensorType(memref.getShape(), memref.getElementType(), DimsOrder::fromType(memref));
+
                 const auto nameAttr = mlir::StringAttr::get(_ctx, inputName->str());
-                const auto memRef = parseTensorRef(tensorReference);
-                const auto userTypeAttr = mlir::TypeAttr::get(memRef);
+                const auto userTypeAttr = mlir::TypeAttr::get(tensor);
 
                 builder.create<IE::DataInfoOp>(mlir::UnknownLoc::get(_ctx), nameAttr, userTypeAttr);
             } else {
@@ -208,7 +211,7 @@ mlir::ArrayAttr BlobReader::parseOrder3(const MVCNN::order3* order, int32_t ndim
         coords.push_back(order->x());
     }
 
-    return getInt32ArrayAttr(_ctx, coords);
+    return getIntArrayAttr(_ctx, coords);
 }
 
 VPUIP::ArchKind BlobReader::parseDeviceRevision() {
@@ -216,17 +219,15 @@ VPUIP::ArchKind BlobReader::parseDeviceRevision() {
     switch (header->device()) {
     case MVCNN::TargetDevice_KMB:
         switch (header->device_revision()) {
-        case MVCNN::TargetDeviceRevision::TargetDeviceRevision_A0:
-            return VPUIP::ArchKind::VPU3400_A0;
         case MVCNN::TargetDeviceRevision::TargetDeviceRevision_B0:
-            return VPUIP::ArchKind::VPU3400;
+            return VPUIP::ArchKind::KMB;
         default:
             VPUX_THROW("Unsupported KMB Revision '{0}'", header->device_revision());
         }
     case MVCNN::TargetDevice_TBH:
-        return VPUIP::ArchKind::VPU3900;
+        return VPUIP::ArchKind::TBH;
     case MVCNN::TargetDevice::TargetDevice_MTL:
-        return VPUIP::ArchKind::VPU3720;
+        return VPUIP::ArchKind::MTL;
     default:
         VPUX_THROW("Unsupported TargetDevice '{0}'", header->device());
     }
@@ -369,8 +370,8 @@ void BlobReader::buildGraphOp() {
     const auto options = VPUIP::ExecutionFlagAttr::get(_ctx, execFlag);
     VPUX_THROW_UNLESS(header->version(), "Blob has no version");
     const auto version = VPUIP::VersionAttr::get(
-            getInt32Attr(_ctx, header->version()->majorV()), getInt32Attr(_ctx, header->version()->minorV()),
-            getInt32Attr(_ctx, header->version()->patchV()),
+            getIntAttr(_ctx, header->version()->majorV()), getIntAttr(_ctx, header->version()->minorV()),
+            getIntAttr(_ctx, header->version()->patchV()),
             mlir::StringAttr::get(_ctx, header->version()->hash()->str()),
             mlir::StringAttr::get(_ctx, header->version()->context()->str()), _ctx);
     builder.create<VPUIP::GraphOp>(mlir::UnknownLoc::get(_ctx), options, version);

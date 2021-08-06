@@ -40,6 +40,7 @@ link_system_libraries(${TARGET_NAME}
         IE::inference_engine_plugin_api
         IE::vpu_common_lib
         ze_loader_vpu64)
+
 target_link_libraries(${TARGET_NAME}
     PRIVATE
         vpux_al

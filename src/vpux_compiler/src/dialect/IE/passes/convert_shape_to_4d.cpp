@@ -112,7 +112,7 @@ void ConvertShapeTo4DPass::safeRunOnModule() {
         } else {
             SmallVector<int64_t> newShape(TARGET_TENSOR_DIM - tensor.getRank(), 1);
             newShape.append(tensor.getShape().begin(), tensor.getShape().end());
-            return mlir::RankedTensorType::get(newShape, tensor.getElementType());
+            return changeShape(tensor, ShapeRef(newShape));
         }
     });
     typeConverter.addSourceMaterialization(reshape);

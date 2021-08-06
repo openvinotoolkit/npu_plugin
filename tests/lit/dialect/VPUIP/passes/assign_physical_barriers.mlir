@@ -1,4 +1,4 @@
-// RUN: vpux-opt --set-compile-params="vpu-arch=VPU3700" --assign-physical-barriers %s | FileCheck %s
+// RUN: vpux-opt --set-compile-params="vpu-arch=KMB" --assign-physical-barriers %s | FileCheck %s
 
 func @main(%arg0: memref<10xf16>, %arg1: memref<10xf16>) -> memref<10xf16> {
     // CHECK-NOT: VPUIP.DeclareVirtualBarrier

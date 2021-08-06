@@ -374,7 +374,7 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
             (t->hasAttr("dilatedSlices3DDMA") && t->get<bool>("dilatedSlices3DDMA")))
     {
         //NOTE: Covered only strides for z-major convolution
-        for (unsigned idx = 0; idx < numericStrides.size(); idx++)
+        for (std::size_t idx = 0; idx < numericStrides.size(); idx++)
         {
             auto dilationFactor = t->get<unsigned>("dilationFactor");
             if (idx == 0 || idx == 1)
@@ -385,6 +385,15 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         bufferStrides = numericStrides;
         numericStrides = dilatedStrides;
         dilatedStrides = bufferStrides;
+    }
+    if ((*tensorAllocatorName == "VPU_DDR_Heap" && (t->hasAttr("fusedConcatReshape") && t->get<bool>("fusedConcatReshape"))) ||
+        (*tensorAllocatorName == "VPU_CMX_NN" && (t->hasAttr("asymmetricCmxConcat") && t->get<bool>("asymmetricCmxConcat"))))
+    {
+        for (std::size_t idx = 0; idx < numericStrides.size(); idx++)
+        {
+            if (idx == mv::IO_HEIGHT_DIMENSION || idx == mv::IO_BATCH_DIMENSION)
+                numericStrides[idx] = numericStrides[idx] * t->get<std::size_t>("numberOfConvsForAsymmetricalStride");
+        }
     }
 
     numericStrides.push_back(underlyingTensor->getDType().getSizeInBits() / 8);
@@ -495,8 +504,14 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
                     if (dm.getTensor(temporaryBuffer->getData()->getName())->hasAttr("leftIndex"))
                         leading_offset += dm.getTensor(temporaryBuffer->getData()->getName())->get<std::size_t>("leftIndex") *
                                 toBuild->strides[0];
+                    if (dm.getTensor(temporaryBuffer->getData()->getName())->hasAttr("indexDecrease") &&
+                        dm.getTensor(temporaryBuffer->getData()->getName())->get<bool>("indexDecrease"))
+                        leading_offset -= dm.getTensor(temporaryBuffer->getData()->getName())->get<std::size_t>("leftIndexDecrease") *
+                                toBuild->strides[0];
                 }
             }
+            if (t->hasAttr("left_asymmetric_index"))
+                leading_offset += t->get<std::size_t>("left_asymmetric_index");
         }
 //        if (leading_offset != strides[0])
 //        {
@@ -759,15 +774,23 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
             numericStrides = t->computeNumericStrides();
         else
             numericStrides = (*masterBuffer)->getData()->computeNumericStrides();
+        if (*tensorAllocatorName == "VPU_DDR_Heap" && (t->hasAttr("fusedConcatReshape") && t->get<bool>("fusedConcatReshape")))
+        {
+            for (std::size_t idx = 0; idx < numericStrides.size(); idx++)
+            {
+                if (idx == mv::IO_HEIGHT_DIMENSION || idx == mv::IO_BATCH_DIMENSION)
+                    numericStrides[idx] = numericStrides[idx] * t->get<std::size_t>("numberOfConvsForAsymmetricalStride");
+            }
+        }
         numericStrides.push_back(subtensor.getDType().getSizeInBits() / 8);
     }
-    else if (*tensorAllocatorName == "ProgrammableInput") 
+    else if (*tensorAllocatorName == "ProgrammableInput")
     {
         // this section updates the strides for inputs to ChMajor Conv where Streams:H>1 and SOH
         // Strides need to be based on masterBuffer (parent tensor), not the streamed slice
         auto masterBuffer = tensorAllocator.getTopMasterBuffer(tensorBufferIt);
-        if ( (*masterBuffer)->getData()->hasAttr("splitStrategy") && 
-            ((*masterBuffer)->getData()->get<std::string>("splitStrategy") == "SplitOverH" || 
+        if ( (*masterBuffer)->getData()->hasAttr("splitStrategy") &&
+            ((*masterBuffer)->getData()->get<std::string>("splitStrategy") == "SplitOverH" ||
              (*masterBuffer)->getData()->get<std::string>("splitStrategy") == "SplitOverHOverlapped") )
         {
             numericStrides = (*masterBuffer)->getData()->computeNumericStrides();
@@ -866,6 +889,17 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
           //NOTE: the division is going to extinguish the data type offset!!!
           if(numericStrides[4] != tensorStrides[4])
               byte_index = index * (double(numericStrides[4])/double(tensorStrides[4])) * t->getDType().getSizeInBits() / 8;
+
+        // If SOH subtensors have one size but master buffer has different dims in C or W 
+        // need to multiply to find correct index in DDR
+        if( t->get<std::string>("splitStrategy") == "SplitOverH" &&
+            numericStrides[3] != tensorStrides[3]) // W
+            byte_index = index * (double(numericStrides[3])/double(tensorStrides[3])) * t->getDType().getSizeInBits() / 8;
+
+        if( t->get<std::string>("splitStrategy") == "SplitOverH" &&
+            numericStrides[2] != tensorStrides[2]) // C
+            byte_index = index * (double(numericStrides[2])/double(tensorStrides[2])) * t->getDType().getSizeInBits() / 8;
+
         }
 
         auto masterBuffer = tensorAllocator.getTopMasterBuffer(tensorBufferIt);
@@ -881,12 +915,15 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
             starting_address = (*masterBuffer)->getOffset();
         }
 
-        toBuild->data->data_index = starting_address + byte_index;
+        if(subtensor.hasAttr("fused_concat_offset"))
+            toBuild->data->data_index = starting_address + subtensor.get<std::size_t>("fused_concat_offset");
+        else
+            toBuild->data->data_index = starting_address + byte_index;
 
         auto strides = tensorBufferIt->getStrides();
         auto leading_offset = strides[0];
         toBuild->locale_index = std::vector<unsigned int>(1,0);
-        if (leading_offset)
+        if (leading_offset && !t->hasAttr("fusedConcatReshape"))
             toBuild->data->data_index += leading_offset;
 
     }
@@ -1070,8 +1107,15 @@ std::unique_ptr<MVCNN::SummaryHeaderT> mv::RuntimeModel::buildSummaryHeaderT(Com
     {
         unsigned i = 0;
         for(auto opIt = m.opBegin(); opIt != m.opEnd(); ++opIt)
-            if(opIt->getOpType().find("Task") != std::string::npos)
-                ++i;
+        {
+            if (opIt->hasAttr("toIgnore") && opIt->get<bool>("toIgnore"))
+                continue;
+            else
+            {
+                if(opIt->getOpType().find("Task") != std::string::npos)
+                    ++i;
+            }
+        }
         return i;
     };
 
@@ -1318,6 +1362,8 @@ std::vector<std::unique_ptr<MVCNN::TaskListT>> mv::RuntimeModel::buildTaskListT(
     for(auto vecIt = sortedOps.begin(); vecIt != sortedOps.end(); ++vecIt)
     {
         auto opIt = *vecIt;
+        if (opIt->hasAttr("toIgnore") && opIt->get<bool>("toIgnore"))
+            continue;
         std::unique_ptr<MVCNN::TaskListT> * listToUse = &toBuild[0]; // default to DPU task
         std::string opType = opIt->getOpType();
         if(opType.find("DPU") != std::string::npos)
@@ -2483,18 +2529,20 @@ void mv::RuntimeModel::getWorkloadPadding(Control::OpListIterator opIt, Workload
             padding = getPadding(opIt, clusterId);
         else
             padding = opIt->get<std::array<unsigned short, 4>>("padding");
-        
+
         auto outputWidth = opIt->getOutputTensor(0)->getShape()[mv::IO_WIDTH_DIMENSION];
         auto outputHeight = opIt->getOutputTensor(0)->getShape()[mv::IO_HEIGHT_DIMENSION];
 
        
-        workload.padLeft = (workload.MinX == 0) ? padding[mv::PADDING_LEFT] : 0;
-        workload.padTop = (workload.MinY == 0) ? padding[mv::PADDING_TOP] : 0;
+        long long  pad_left = padding[mv::PADDING_LEFT] - workload.MinX;
+        workload.padLeft = (pad_left > 0) ? pad_left : 0;
+        long long  pad_top = padding[mv::PADDING_TOP] -  workload.MinY;
+        workload.padTop = (pad_top > 0) ? pad_top : 0;
         long long  pad_right = workload.MaxX + 1 + padding[mv::PADDING_RIGHT] - outputWidth;
         workload.padRight = (pad_right > 0) ? pad_right : 0;
         long long  pad_bottom = workload.MaxY + 1 + padding[mv::PADDING_BOT] - outputHeight;
         workload.padBottom = (pad_bottom > 0) ? pad_bottom : 0;
-    
+
     }
     return;
 }
@@ -3987,8 +4035,8 @@ MVCNN::UPALayerTaskT *mv::RuntimeModel::buildUPAConversionTask(mv::ComputationMo
         else if ((input->getDType() == mv::DType("Float16") || input->getDType() == mv::DType("Float32")) &&
                 output->getDType() == mv::DType("UInt8"))
         {
-            softLayerParamsValue->scale = 1.0 / input->getQuantParams().getScale()[0];
-            softLayerParamsValue->bias  = input->getQuantParams().getZeroPoint()[0];
+            softLayerParamsValue->scale = 1.0 / output->getQuantParams().getScale()[0];
+            softLayerParamsValue->bias  = output->getQuantParams().getZeroPoint()[0];
         }
     }
 
@@ -4650,9 +4698,13 @@ void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, const mv::TargetDesc
     for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
     {
         std::string opType = opIterator->getOpType();
+        if (opIterator->hasAttr("toIgnore"))
+            continue;
         if (opType == "Constant" || opType == "ConstantInt" || opType == "ConstantDataElement")
         {
             auto tIt = opIterator->getOutputTensor(0);
+            if (tIt->hasAttr("toIgnore") && tIt->get<bool>("toIgnore"))
+                continue;
 
             // Weights sparsity new approach: there is a separate constant for
             // each cluster

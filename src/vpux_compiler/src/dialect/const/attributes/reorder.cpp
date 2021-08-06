@@ -84,12 +84,7 @@ mlir::ShapedType vpux::Const::ReorderAttr::inferOutputType(mlir::ShapedType inpu
     VPUX_THROW_UNLESS(order.numDims() == checked_cast<size_t>(input.getRank()),
                       "DimsOrder '{0}' doesn't match type '{1}'", order, input);
 
-    if (const auto memref = input.dyn_cast<mlir::MemRefType>()) {
-        return changeDimsOrder(memref, order);
-    }
-
-    return mlir::MemRefType::get(input.getShape(), input.getElementType(),
-                                 order.toAffineMapsList(getContext(), getShape(input)));
+    return changeDimsOrder(input, order);
 }
 
 //

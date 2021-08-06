@@ -67,7 +67,7 @@ constexpr StringLiteral numUnitsAttrName = "IERT.num_units";
 
 void vpux::IERT::IERTDialect::setExecutor(mlir::async::ExecuteOp execOp, mlir::Attribute executor, uint32_t numUnits) {
     execOp->setAttr(executorAttrName, executor);
-    execOp->setAttr(numUnitsAttrName, getInt32Attr(execOp->getContext(), numUnits));
+    execOp->setAttr(numUnitsAttrName, getIntAttr(execOp->getContext(), numUnits));
 }
 
 mlir::Attribute vpux::IERT::IERTDialect::getExecutor(mlir::async::ExecuteOp execOp, uint32_t& numUnits) {

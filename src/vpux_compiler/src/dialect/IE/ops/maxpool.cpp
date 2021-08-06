@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -34,10 +34,10 @@ mlir::LogicalResult vpux::IE::MaxPoolOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto dataPaddingBelow = parseIntArrayAttr(maxPool.pads_end());
-    const auto dataPaddingAbove = parseIntArrayAttr(maxPool.pads_begin());
-    const auto windowShape = parseIntArrayAttr(maxPool.kernel_size());
-    const auto windowStrides = parseIntArrayAttr(maxPool.strides());
+    const auto dataPaddingBelow = parseIntArrayAttr<int64_t>(maxPool.pads_end());
+    const auto dataPaddingAbove = parseIntArrayAttr<int64_t>(maxPool.pads_begin());
+    const auto windowShape = parseIntArrayAttr<int64_t>(maxPool.kernel_size());
+    const auto windowStrides = parseIntArrayAttr<int64_t>(maxPool.strides());
     const auto roundingType = maxPool.rounding_type().getValue();
 
     const auto inType = maxPool.input().getType().cast<mlir::ShapedType>().getElementType();

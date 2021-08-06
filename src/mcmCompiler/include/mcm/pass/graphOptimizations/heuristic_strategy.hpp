@@ -92,12 +92,14 @@ class HeuristicGraphOptimizer : public LogSender
     bool isRemoveableSpill(mv::Data::OpListIterator opIt);
     bool isCMXable(mv::Data::OpListIterator opIt, StrategySet& strategy, bool isInput);
     bool hasGreedySOK(mv::Data::OpListIterator opIt);
+    bool isGreedyEligible(mv::Data::OpListIterator opIt);
     void doSingleRollback(mv::Data::OpListIterator opIt);
     bool checkMultipleInputOp(mv::Data::OpListIterator opIt);
     bool forceRollback(mv::Data::OpListIterator opIt);
     bool assignBestStrategyOfType(mv::Data::OpListIterator opIt, std::string clusteringStrategy);
     bool hasLayerWorkaroundAvoidPipeline(mv::Data::OpListIterator opIt, StrategySet& strategy);
     bool hasLayerWorkaroundAvoidStrategy(mv::Data::OpListIterator opIt, StrategySet& strategy);
+    bool strategyChangeRequiresSpill(mv::Data::OpListIterator& opIt, mv::Data::OpListIterator& pIt);
     double findBestStrategyOfLocation(mv::Data::OpListIterator opIt, bool doAssignment, bool inputDDR, bool lockOutput, bool outputDDR, bool lockClustering, std::string clustering);
 };
 

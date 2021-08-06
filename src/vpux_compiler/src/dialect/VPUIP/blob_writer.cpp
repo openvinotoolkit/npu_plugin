@@ -14,6 +14,7 @@
 #include "vpux/compiler/dialect/VPUIP/blob_writer.hpp"
 
 #include "vpux/compiler/core/attributes/dims_order.hpp"
+#include "vpux/compiler/core/attributes/stride_reqs.hpp"
 #include "vpux/compiler/dialect/IERT/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/effects.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
@@ -84,8 +85,8 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createUPALayerTask(mlir
                                                                             const SoftwareLayerParams& params) {
     VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in createUPALayerTask");
 
-    auto layer = mlir::dyn_cast<LayerInterface>(op);
-    VPUX_THROW_UNLESS(layer != nullptr, "Operation '{0}' is not a Layer", op->getName());
+    auto layer = mlir::dyn_cast<RTLayerInterface>(op);
+    VPUX_THROW_UNLESS(layer != nullptr, "Operation '{0}' is not a RT Layer", op->getName());
 
     auto upaTask = mlir::dyn_cast<VPUIP::UPATaskOpInterface>(op);
     VPUX_THROW_UNLESS(upaTask != nullptr, "Operation '{0}' is not a UPA Task", op->getName());
@@ -122,10 +123,10 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createUPALayerTask(mlir
 }
 
 VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensor(
-        StringRef name, mlir::MemRefType type, MemoryLocation locale, ArrayRef<uint32_t> localeIndex,
-        uint64_t dataIndex, Optional<uint64_t> sparsityIndex, Optional<uint64_t> storageElementIndex,
-        Optional<uint32_t> storageElementSize, Optional<uint32_t> leadingOffset, Optional<uint32_t> trailingOffset,
-        Optional<float> density_rate, Optional<uint8_t> swizzling_key) {
+        StringRef name, mlir::ShapedType type, MemoryLocation locale, ArrayRef<uint32_t> localeIndex, int64_t dataIndex,
+        Optional<int64_t> sparsityIndex, Optional<int64_t> storageElementIndex, Optional<int64_t> storageElementSize,
+        Optional<int64_t> leadingOffset, Optional<int64_t> trailingOffset, Optional<double> density_rate,
+        Optional<int64_t> swizzling_key) {
     const auto serializedName = createString(name);
 
     const auto serializedDataType = createDType(type.getElementType());
@@ -196,28 +197,28 @@ VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensor(
     builder.add_order(dimsOrder.code());
     builder.add_base_ptrs(basePtrs);
     if (leadingOffset.hasValue()) {
-        builder.add_leading_offset(leadingOffset.getValue());
+        builder.add_leading_offset(checked_cast<uint32_t>(leadingOffset.getValue()));
     }
     if (trailingOffset.hasValue()) {
-        builder.add_trailing_offset(trailingOffset.getValue());
+        builder.add_trailing_offset(checked_cast<uint32_t>(trailingOffset.getValue()));
     }
     if (density_rate.hasValue()) {
-        builder.add_density_rate(density_rate.getValue());
+        builder.add_density_rate(static_cast<float>(density_rate.getValue()));
     }
     if (swizzling_key.hasValue()) {
-        builder.add_swizzling_key(swizzling_key.getValue());
+        builder.add_swizzling_key(checked_cast<uint8_t>(swizzling_key.getValue()));
     }
     return builder.Finish();
 }
 
 VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensor(
-        mlir::Value val, StringRef name, MemoryLocation locale, ArrayRef<uint32_t> localeIndex, uint64_t dataIndex,
-        Optional<uint64_t> sparsityIndex, Optional<uint64_t> storageElementIndex, Optional<uint32_t> storageElementSize,
-        Optional<uint32_t> leadingOffset, Optional<uint32_t> trailingOffset, Optional<float> density_rate,
-        Optional<uint8_t> swizzling_key) {
+        mlir::Value val, StringRef name, MemoryLocation locale, ArrayRef<uint32_t> localeIndex, int64_t dataIndex,
+        Optional<int64_t> sparsityIndex, Optional<int64_t> storageElementIndex, Optional<int64_t> storageElementSize,
+        Optional<int64_t> leadingOffset, Optional<int64_t> trailingOffset, Optional<double> density_rate,
+        Optional<int64_t> swizzling_key) {
     VPUX_THROW_UNLESS(_tensors.count(val) == 0, "Value {0} was already serialized", val);
 
-    const auto off = createTensor(name, val.getType().cast<mlir::MemRefType>(), locale, localeIndex, dataIndex,
+    const auto off = createTensor(name, val.getType().cast<mlir::ShapedType>(), locale, localeIndex, dataIndex,
                                   sparsityIndex, storageElementIndex, storageElementSize, leadingOffset, trailingOffset,
                                   density_rate, swizzling_key);
 
@@ -232,7 +233,7 @@ VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::getTensor(mlir::Valu
     return it->second;
 }
 
-VPUIP::BlobWriter::Barrier vpux::VPUIP::BlobWriter::createBarrier(mlir::Value val, uint32_t physicalID) {
+VPUIP::BlobWriter::Barrier vpux::VPUIP::BlobWriter::createBarrier(mlir::Value val, int64_t physicalID) {
     VPUX_THROW_UNLESS(_barriers.count(val) == 0, "Value {0} was already serialized", val);
 
     size_t numConsumers = 0;
@@ -342,7 +343,7 @@ VPUIP::BlobWriter::Vector<uint32_t> vpux::VPUIP::BlobWriter::createDims(ShapeRef
                         }));
 }
 
-VPUIP::BlobWriter::Vector<uint32_t> vpux::VPUIP::BlobWriter::createDims(mlir::MemRefType type) {
+VPUIP::BlobWriter::Vector<uint32_t> vpux::VPUIP::BlobWriter::createDims(mlir::ShapedType type) {
     return createDims(getShape(type));
 }
 
@@ -362,8 +363,18 @@ VPUIP::BlobWriter::Vector<float> vpux::VPUIP::BlobWriter::createStrides(StridesR
     return createVector(temp | transformed(cvtBitStrideToByteFP));
 }
 
-VPUIP::BlobWriter::Vector<float> vpux::VPUIP::BlobWriter::createStrides(mlir::MemRefType type) {
-    return createStrides(getStrides(type), getElemTypeSize(type));
+VPUIP::BlobWriter::Vector<float> vpux::VPUIP::BlobWriter::createStrides(mlir::ShapedType type) {
+    if (const auto memref = type.dyn_cast<mlir::MemRefType>()) {
+        return createStrides(getStrides(memref), getElemTypeSize(type));
+    }
+
+    const auto order = DimsOrder::fromType(type);
+
+    const auto stridesReqs = StrideReqs::simple(checked_cast<size_t>(type.getRank()));
+    const auto memStrides = stridesReqs.calcStrides(order, type);
+    const auto strides = order.toLogicalOrder(memStrides);
+
+    return createStrides(strides, getElemTypeSize(type));
 }
 
 MVCNN::MemoryLocation vpux::VPUIP::BlobWriter::createMemoryLocation(MemoryLocation location) {
@@ -389,24 +400,24 @@ MVCNN::MemoryLocation vpux::VPUIP::BlobWriter::createMemoryLocation(MemoryLocati
 }
 
 VPUIP::BlobWriter::IndirectDataReference vpux::VPUIP::BlobWriter::createIndirectDataReference(
-        uint64_t dataIndex, Optional<uint64_t> sparsityIndex, Optional<uint64_t> storageElementIndex,
-        Optional<uint32_t> storageElementSize) {
+        int64_t dataIndex, Optional<int64_t> sparsityIndex, Optional<int64_t> storageElementIndex,
+        Optional<int64_t> storageElementSize) {
     MVCNN::IndirectDataReferenceBuilder builder(_impl);
-    builder.add_data_index(dataIndex);
+    builder.add_data_index(checked_cast<uint64_t>(dataIndex));
     if (sparsityIndex.hasValue()) {
-        builder.add_sparsity_index(sparsityIndex.getValue());
+        builder.add_sparsity_index(checked_cast<uint64_t>(sparsityIndex.getValue()));
     }
     if (storageElementIndex.hasValue()) {
-        builder.add_storage_element_index(storageElementIndex.getValue());
+        builder.add_storage_element_index(checked_cast<uint64_t>(storageElementIndex.getValue()));
     }
     if (storageElementSize.hasValue()) {
-        builder.add_storage_element_size(storageElementSize.getValue());
+        builder.add_storage_element_size(checked_cast<uint32_t>(storageElementSize.getValue()));
     }
     return builder.Finish();
 }
 
 MVCNN::order3 vpux::VPUIP::BlobWriter::createOrder3(mlir::ArrayAttr attr) {
-    auto vec = parseIntArrayAttr(attr);
+    auto vec = parseIntArrayAttr<int64_t>(attr);
     std::reverse(vec.begin(), vec.end());
 
     VPUX_THROW_UNLESS(vec.size() <= 3, "Got wrong order array : {0}", vec);

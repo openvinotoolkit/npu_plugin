@@ -149,6 +149,14 @@ const std::vector<ReshapeTestParams> supportedReshapeParams {
     ReshapeTestParams()
         .in_dims({1, 32})
         .shape({8, 2, 2}),
+// Inference fails with "C++ exception with description "Unsupported layout for actual blob: NCDHW" thrown in the test body."
+//    ReshapeTestParams()
+//        .in_dims({1, 10, 8, 16})
+//        .shape({1, 2, 5, 8, 16}),
+// Inference fails with "C++ exception with description "VpualCoreNNExecutor::allocateGraph: failed to create NnCorePlg: 1" thrown in the test body."
+//    ReshapeTestParams()
+//        .in_dims({1, 1, 2, 1})
+//        .shape({1, 1, 1, 1, 2}),
 };
 
 const std::vector<ReshapeTestParams> unsupportedReshapeParams {

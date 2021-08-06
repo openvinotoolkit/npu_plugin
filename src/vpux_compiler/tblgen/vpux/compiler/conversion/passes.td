@@ -46,6 +46,22 @@ def BufferizeIE : PassBase<"bufferize-IE", "vpux::FunctionPass"> {
 }
 
 //
+// BufferizeFuncAndReturn
+//
+
+def BufferizeFuncAndReturn : PassBase<"bufferize-func-and-return", "vpux::ModulePass"> {
+    let summary = "Bufferize func/return ops";
+
+    let description = [{
+        A bufferize pass that bufferizes std.func ops.
+        In contrast to MLIR standard analogue pass, this pass uses vpux::BufferizeTypeConverter
+        to process encoding attribute in mlir::RankedTensorType
+    }];
+
+    let constructor = "vpux::createBufferizeFuncAndReturnPass()";
+}
+
+//
 // AddBuffersForNetResults
 //
 

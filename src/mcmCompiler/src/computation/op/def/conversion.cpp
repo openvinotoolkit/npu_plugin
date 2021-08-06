@@ -1,24 +1,11 @@
 #include "include/mcm/computation/op/op_registry.hpp"
+#include "include/mcm/pass/pass_dtype_utils.hpp"
 
 namespace mv
 {
 
     namespace op_conversion
     {
-
-        static const std::set<std::pair<DType, DType>> supportedConversions = {
-            std::make_pair(DType("Float16"), DType("Float32")),
-            std::make_pair(DType("Float32"), DType("Float16")),
-            std::make_pair(DType("Float16"), DType("Int32")),
-            std::make_pair(DType("Int32"),   DType("Float16")),
-            std::make_pair(DType("Float16"), DType("UInt8")),
-            std::make_pair(DType("UInt8"),   DType("Float16")),
-            std::make_pair(DType("UInt8"),   DType("Float32")),
-            std::make_pair(DType("Float32"), DType("UInt8")),
-            std::make_pair(DType("Int32"),   DType("UInt8")),
-        //  std::make_pair(DType("UInt8"),   DType("Int32")),   // not supported by SW kernel
-        };
-
         bool isConversionSupported(const DType& inDType, const DType& outDType, const std::string& opName, std::string& errMsg) {
             const auto dTypeIter = supportedConversions.find(std::make_pair(inDType, outDType));
 

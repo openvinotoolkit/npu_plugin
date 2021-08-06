@@ -318,6 +318,7 @@ void tensorsToFP16Fcn(const mv::pass::PassEntry&  , mv::ComputationModel& model,
 {
     using namespace mv;
     OpModel om(model);
+    auto targetDType = mv::DType("Float16");
 
     auto kernelOp = om.opBegin();
     while (kernelOp != om.opEnd())
@@ -328,31 +329,40 @@ void tensorsToFP16Fcn(const mv::pass::PassEntry&  , mv::ComputationModel& model,
             if(outputTensor->getDType() == mv::DType("Float64") ||
                outputTensor->getDType() == mv::DType("Float32"))
             {
-                if (outputTensor->hasAttr("FPConversionPath")) {
-                    ++kernelOp;
-                    continue;
-                }
                 auto opId = kernelOp->get<unsigned>("opId");
+                const auto opType = kernelOp->getOpType();
                 if (outputTensor->isPopulated())
                 {
-                    std::vector<double> oldData = kernelOp->getOutputTensor(0)->getDoubleData();
+
+                    const std::vector<double>& oldData = outputTensor->getDoubleData();
                     std::vector<int64_t> newData(oldData.size());
 
                     for (size_t i = 0; i < oldData.size(); ++i)
                     {
                         newData[i] = mv::fp32_to_fp16(oldData[i]);
+                    } 
+
+                    if(opType == "Constant" || opType == "ConstantInt" || opType == "ConstantDataElement")
+                    {
+                        auto kernelShape = outputTensor->getShape();
+                        auto kernelOrder = outputTensor->getOrder();
+                        //with data flows I am finding where the op was attached to attache the new one!!!
+                        auto outputDataFlows = mv::getOutputDataFlow(om, kernelOp);
+
+                        auto newKernel = om.constantInt("", newData, kernelShape, mv::DType("Float16"), kernelOrder);
+                        auto newKernelOp = om.getSourceOp(newKernel);
+                        newKernelOp->set<unsigned>("opId", opId);
+                        newKernelOp->set<mv::DType>("dType",  mv::DType("Float16"));
+                        mv::setOutputDataFlow(om, newKernel, outputDataFlows);
+
                     }
+                    else
+                    {
+                        outputTensor->setDType(targetDType); 
 
-                    auto kernelShape = kernelOp->getOutputTensor(0)->getShape();
-                    auto kernelOrder = kernelOp->getOutputTensor(0)->getOrder();
-                    //with data flows I am finding where the op was attached to attache the new one!!!
-                    auto outputDataFlows = mv::getOutputDataFlow(om, kernelOp);
-
-                    auto newKernel = om.constantInt("", newData, kernelShape, mv::DType("Float16"), kernelOrder);
-                    auto newKernelOp = om.getSourceOp(newKernel);
-                    newKernelOp->set<unsigned>("opId", opId);
-                    newKernelOp->set<mv::DType>("dType",  mv::DType("Float16"));
-                    mv::setOutputDataFlow(om, newKernel, outputDataFlows);
+                        for(unsigned i = 0; i < outputTensor->size(); ++i)
+                            outputTensor->at(i) = newData[i];
+                    }
                 }
                 // In case there is an Input->Conversion sequence then tensor precision doesn't have to be
                 // limited to FP16

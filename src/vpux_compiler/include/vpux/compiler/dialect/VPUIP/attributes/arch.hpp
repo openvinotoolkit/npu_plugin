@@ -21,6 +21,8 @@
 namespace vpux {
 namespace VPUIP {
 
+constexpr uint32_t HW_TIMER_ABSOLUTE_ADDR = 0x208200BC;
+
 void setArch(mlir::ModuleOp module, ArchKind kind);
 ArchKind getArch(mlir::ModuleOp module);
 

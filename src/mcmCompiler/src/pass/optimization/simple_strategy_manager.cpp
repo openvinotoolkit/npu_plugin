@@ -853,21 +853,11 @@ StrategyManagerSimple::FailCause StrategyManagerSimple::validateStrategy(mv::Op&
         op.getInputTensor()[0]->getShape()[mv::IO_WIDTH_DIMENSION] == 72 && op.getInputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 72 &&
         op.getInputTensor(1)->getShape()[mv::KERNEL_HEIGHT] == 7 && op.getInputTensor(1)->getShape()[mv::KERNEL_WIDTH] == 7)
         return FailCause::SplitOverHOverlappedWronglyComputed;
-
-        //temporarily disable the SplitOverHOverlapped for custom network kernel size 1x7 subtensors not correct
-    if (clustering == "SplitOverH" && op.getOpType() == "Conv" && isCMConv && op.getInputTensor()[0]->getShape()[mv::IO_CHANNEL_DIMENSION] == 1 &&
-        op.getInputTensor()[0]->getShape()[mv::IO_WIDTH_DIMENSION] == 1024 && op.getInputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 64 &&
-        op.getInputTensor(1)->getShape()[mv::KERNEL_HEIGHT] == 1 && op.getInputTensor(1)->getShape()[mv::KERNEL_WIDTH] == 7)
-        return FailCause::SplitOverHOverlappedWronglyComputed;
-
-    // This is intended to be a temporary workaround for ModelF, layer 'af_01/01_conv/Conv2D', which does work with SOH
-    // It has not been root caused to the compiler or runtime but as of now the compiler logic seems OK
-    if (clustering == "SplitOverH" && op.getOpType() == "Conv" && !isCMConv && op.getInputTensor()[0]->getShape()[mv::IO_CHANNEL_DIMENSION] == 16 &&
-        op.getInputTensor()[0]->getShape()[mv::IO_WIDTH_DIMENSION] == 1024 && op.getInputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 64 &&
-        op.getOutputTensor()[0]->getShape()[mv::IO_CHANNEL_DIMENSION] == 16 && op.getOutputTensor()[0]->getShape()[mv::IO_WIDTH_DIMENSION] == 1024 &&
-        op.getOutputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 64 && op.getInputTensor(1)->getShape()[mv::KERNEL_HEIGHT] == 7 &&
-        op.getInputTensor(1)->getShape()[mv::KERNEL_WIDTH] == 1)
-        return FailCause::SpiltOverHForConvModelF;
+    
+    // disable SOH for Concat on w-axis if two consecutive concats exist until implementation for w-axis is done
+    if((op.getOpType() == "Concat" || op.getOpType() == "ImplicitConcat") && clustering == "SplitOverH" && op.get<std::string>("axis") == "W"
+        && op.hasAttr("disableSOH") && op.get<bool>("disableSOH"))
+        return FailCause::SpiltOverHWithStreamOverHInCMX;
 
     return FailCause::Pass; //good strategy
 }
@@ -1100,7 +1090,7 @@ void StrategyManagerSimple::generateStrategySetForLayer(mv::Op& op,std::vector<S
 
     std::vector<Attribute> clusteringStrategyPool;
 
-    if(totalClusters == 1)
+    if(totalClusters == 1 || opType == "ImplicitInputSlice" || op.isUPA())
         clusteringStrategyPool.push_back(std::string("Clustering"));
     else if (totalClusters > 1)
         clusteringStrategyPool = createStrategyPoolFromStrategySet(op,"clusteringStrategies");

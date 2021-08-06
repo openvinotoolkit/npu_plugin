@@ -29,6 +29,7 @@
 #include "vpux.hpp"
 #include "vpux_executable_network.h"
 #include "vpux_metrics.h"
+#include "vpux_private_metrics.hpp"
 #include "vpux_plugin.h"
 #include "vpux_remote_context.h"
 
@@ -233,6 +234,8 @@ IE::Parameter Engine::GetMetric(const std::string& name,
             specifiedDeviceName = options.at(CONFIG_KEY(DEVICE_ID)).as<std::string>();
         }
         IE_SET_METRIC_RETURN(DEVICE_ARCHITECTURE, _metrics.GetDeviceArchitecture(specifiedDeviceName));
+    } else if (name == VPUX_METRIC_KEY(BACKEND_NAME)) {
+        IE_SET_METRIC_RETURN(VPUX_BACKEND_NAME, _metrics.GetBackendName());
     }
     IE_THROW(NotImplemented);
 }

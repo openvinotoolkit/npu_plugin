@@ -53,13 +53,13 @@ mlir::FailureOr<StridedSliceInputData> extractData(mlir::Location loc, IE::Strid
         }
         return StridedSliceInputData{begins.getValue(), ends.getValue(), strides.getValue()};
     } else if (stridedSlice.begins_attr() != nullptr) {
-        auto begins = parseIntArrayAttr(stridedSlice.begins_attr());
-        auto ends = parseIntArrayAttr(stridedSlice.ends_attr());
-        auto strides = parseIntArrayAttr(stridedSlice.strides_attr());
+        auto begins = parseIntArrayAttr<int64_t>(stridedSlice.begins_attr());
+        auto ends = parseIntArrayAttr<int64_t>(stridedSlice.ends_attr());
+        auto strides = parseIntArrayAttr<int64_t>(stridedSlice.strides_attr());
         return StridedSliceInputData{begins, ends, strides};
-    } else {
-        VPUX_THROW("StridedSlice operation is invalid");
     }
+    VPUX_THROW("StridedSlice operation is invalid");
+    return mlir::failure();
 }
 
 }  // namespace
@@ -77,7 +77,7 @@ mlir::LogicalResult vpux::IE::StridedSliceOp::inferReturnTypeComponents(
     const auto getAxisSetArr = [](mlir::ArrayAttr attr) {
         ngraph::AxisSet axis_set;
 
-        const auto arr = parseIntArrayAttr(attr);
+        const auto arr = parseIntArrayAttr<int64_t>(attr);
         for (const auto& p : arr | indexed) {
             if (p.value() == 1) {
                 axis_set.emplace(p.index());
@@ -142,9 +142,9 @@ mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::StridedSliceOp slice
         return mlir::failure();
     }
 
-    const auto beginsAttr = getInt64ArrayAttr(getContext(), inputData.getValue().begins);
-    const auto endsAttr = getInt64ArrayAttr(getContext(), inputData.getValue().ends);
-    const auto stridesAttr = getInt64ArrayAttr(getContext(), inputData.getValue().strides);
+    const auto beginsAttr = getIntArrayAttr(getContext(), inputData.getValue().begins);
+    const auto endsAttr = getIntArrayAttr(getContext(), inputData.getValue().ends);
+    const auto stridesAttr = getIntArrayAttr(getContext(), inputData.getValue().strides);
 
     rewriter.replaceOpWithNewOp<IE::StridedSliceOp>(
             slice, slice.input(), nullptr, nullptr, nullptr, beginsAttr, endsAttr, stridesAttr, slice.begin_mask(),

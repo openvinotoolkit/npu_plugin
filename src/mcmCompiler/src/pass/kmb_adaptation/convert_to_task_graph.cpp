@@ -1336,11 +1336,21 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& pass,
             auto outputMemoryLocation = outputTensor->get<mv::Tensor::MemoryLocation>("Location");
             bool tensorResamplePlaced = false;
             mv::Shape tensorMasterDim;
+            bool fusedConcatReshape = false;
+            std::size_t numberOfConvsForAsymmetricalStride = 0;
+            std::size_t asymmetricConvIndex = 0;
+
             if (outputTensor->hasAttr("placed") && outputTensor->hasAttr("masterDim"))
             {
                 placed = true;
                 tensorResamplePlaced = outputTensor->get<bool>("placed");
                 tensorMasterDim =  outputTensor->get<mv::Shape>("masterDim");
+            }
+            if (outputTensor->hasAttr("fusedConcatReshape") && outputTensor->get<bool>("fusedConcatReshape"))
+            {
+                fusedConcatReshape = true;
+                numberOfConvsForAsymmetricalStride = outputTensor->get<std::size_t>("numberOfConvsForAsymmetricalStride");
+                asymmetricConvIndex = outputTensor->get<std::size_t>("asymmetricConvIndex");
             }
             auto hasLeadingOffset = outputTensor->hasAttr("leadingOffset");
 
@@ -1356,6 +1366,14 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& pass,
             newTensor->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
             if (placed)
                 newTensor->setPlaced(tensorResamplePlaced, tensorMasterDim);
+
+            if (fusedConcatReshape)
+            {
+                newTensor->set<bool>("fusedConcatReshape", true);
+                newTensor->set<std::size_t>("numberOfConvsForAsymmetricalStride", numberOfConvsForAsymmetricalStride);
+                newTensor->set<std::size_t>("asymmetricConvIndex", asymmetricConvIndex);
+            }
+
             auto newTensorOp = om.getSourceOp(newTensor);
             newTensorOp->setAttrs(attrsToCopy);
             auto newOpType = newTensorOp->getOpType();

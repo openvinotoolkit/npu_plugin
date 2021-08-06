@@ -1,13 +1,13 @@
 // RUN: vpux-translate --export-VPUIP -o %t %s && flatc --raw-binary --json %vpuip_schema_file% -- %t && FileCheck %s --input-file %basename_t.json
 
-module @Test attributes {VPUIP.arch = "VPU3400_A0"} {
+module @Test attributes {VPUIP.arch = "KMB"} {
 
 IERT.RunTimeResources
     availableMemory : {
         IERT.MemoryResource 1073741824 bytes
-        IERT.MemoryResource 31457280 bytes of "DDR" {VPUIP.bandwidth = 8 : i64, VPUIP.derateFactor = 6.000000e-01 : f64}
-        IERT.MemoryResource 4194304 bytes of "CMX_UPA" {VPUIP.bandwidth = 16 : i64, VPUIP.derateFactor = 8.500000e-01 : f64}
-        IERT.MemoryResource 1048576 bytes of "CMX_NN" {VPUIP.bandwidth = 32 : i64, VPUIP.derateFactor = 1.000000e+00 : f64}
+        IERT.MemoryResource 31457280 bytes of "DDR" {VPUIP.bandwidth = 8, VPUIP.derateFactor = 6.000000e-01}
+        IERT.MemoryResource 4194304 bytes of "CMX_UPA" {VPUIP.bandwidth = 16, VPUIP.derateFactor = 8.500000e-01}
+        IERT.MemoryResource 1048576 bytes of "CMX_NN" {VPUIP.bandwidth = 32, VPUIP.derateFactor = 1.000000e+00}
     }
     usedMemory : {
         IERT.MemoryResource 2048 bytes of "DDR"
@@ -28,25 +28,26 @@ IERT.RunTimeResources
 VPUIP.Graph
     options : "NONE"
     version : {
-        majorV = 3 : i32,
-        minorV = 11 : i32,
-        patchV = 0 : i32, hash = "",
+        majorV = 3,
+        minorV = 11,
+        patchV = 0,
+        hash = "",
         contextStr = "VPUX Compiler"
     }
 
 IE.CNNNetwork
     entryPoint : @main
     inputsInfo : {
-        IE.DataInfo "input" : memref<1x1000xf32>
+        IE.DataInfo "input" : tensor<1x1000xf32>
     }
     outputsInfo : {
-        IE.DataInfo "softmax" : memref<1x1000xf32>
+        IE.DataInfo "softmax" : tensor<1x1000xf32>
     }
 
 func @main(%arg0: memref<1x1x1x1000xf16>, %arg1: memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16> {
     %0 = VPUIP.DeclareTensor "VPU_DDR_Heap" <0> -> memref<1x1x1x1000xf16>
     %1 = VPUIP.ConfigureBarrier<0> -> !VPUIP.Barrier
-    %2 = VPUIP.SoftMaxUPA {axisInd = 3 : i32} inputs(%arg0 : memref<1x1x1x1000xf16>) outputs(%0 : memref<1x1x1x1000xf16>) updates(%1 : !VPUIP.Barrier) -> memref<1x1x1x1000xf16>
+    %2 = VPUIP.SoftMaxUPA {axisInd = 3} inputs(%arg0 : memref<1x1x1x1000xf16>) outputs(%0 : memref<1x1x1x1000xf16>) updates(%1 : !VPUIP.Barrier) -> memref<1x1x1x1000xf16>
     %3 = VPUIP.UPADMA inputs(%2 : memref<1x1x1x1000xf16>) outputs(%arg1 : memref<1x1x1x1000xf16>) waits(%1 : !VPUIP.Barrier) -> memref<1x1x1x1000xf16>
     return %3: memref<1x1x1x1000xf16>
 }

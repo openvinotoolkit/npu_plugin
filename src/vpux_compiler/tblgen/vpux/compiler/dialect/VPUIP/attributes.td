@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -14,6 +14,7 @@
 #ifndef VPUX_COMPILER_DIALECT_VPUIP_ATTRIBUTES
 #define VPUX_COMPILER_DIALECT_VPUIP_ATTRIBUTES
 
+include "vpux/compiler/core/attributes.td"
 include "vpux/compiler/dialect/VPUIP/dialect.td"
 
 //
@@ -84,11 +85,11 @@ def VPUIP_Version :
             "VersionAttr",
             VPUIP_Dialect,
             [
-                StructFieldAttr<"majorV",     I32Attr>,
-                StructFieldAttr<"minorV",     I32Attr>,
-                StructFieldAttr<"patchV",     I32Attr>,
-                StructFieldAttr<"hash",       DefaultValuedAttr<StrAttr, "">>,
-                StructFieldAttr<"contextStr", DefaultValuedAttr<StrAttr, "">>,
+                StructFieldAttr<"majorV",     IntAttr>,
+                StructFieldAttr<"minorV",     IntAttr>,
+                StructFieldAttr<"patchV",     IntAttr>,
+                StructFieldAttr<"hash",       StrAttr>,
+                StructFieldAttr<"contextStr", StrAttr>,
             ]
         >;
 
@@ -163,11 +164,9 @@ def VPUIP_ArchKind :
             "ArchKind",
             "Represents VPU architecture generation",
             [
-                StrEnumAttrCase<"VPU3400_A0">, // Keem bay A0
-                StrEnumAttrCase<"VPU3400">,    // Keem bay B0
-                StrEnumAttrCase<"VPU3700">,    // Keem bay B0
-                StrEnumAttrCase<"VPU3900">,    // Thunder bay harbor A0
-                StrEnumAttrCase<"VPU3720">,    // Meteor lake
+                StrEnumAttrCase<"KMB">,
+                StrEnumAttrCase<"TBH">,
+                StrEnumAttrCase<"MTL">,
             ]
         > {
     let cppNamespace = "vpux::VPUIP";

@@ -127,10 +127,10 @@ mlir::LogicalResult vpux::IE::ConvolutionOp::inferReturnTypeComponents(
     const auto inType = conv.input().getType().cast<mlir::ShapedType>().getElementType();
     const auto filterShape = conv.filter().getType().cast<mlir::ShapedType>().getShape();
 
-    const auto dataPaddingBelow = parseIntArrayAttr(conv.pads_end());
-    const auto dataPaddingAbove = parseIntArrayAttr(conv.pads_begin());
-    const auto windowStrides = parseIntArrayAttr(conv.strides());
-    const auto windowDilations = parseIntArrayAttr(conv.dilations());
+    const auto dataPaddingBelow = parseIntArrayAttr<int64_t>(conv.pads_end());
+    const auto dataPaddingAbove = parseIntArrayAttr<int64_t>(conv.pads_begin());
+    const auto windowStrides = parseIntArrayAttr<int64_t>(conv.strides());
+    const auto windowDilations = parseIntArrayAttr<int64_t>(conv.dilations());
 
     static const auto ChanDim = Dim(1);
     if (inShape[ChanDim.ind()] != filterShape[ChanDim.ind()]) {
@@ -178,20 +178,20 @@ mlir::LogicalResult vpux::IE::GroupConvolutionOp::inferReturnTypeComponents(
     const auto inType = conv.input().getType().cast<mlir::ShapedType>().getElementType();
     auto filterShape = to_small_vector(conv.filter().getType().cast<mlir::ShapedType>().getShape());
 
-    const auto dataPaddingBelow = parseIntArrayAttr(conv.pads_end());
-    const auto dataPaddingAbove = parseIntArrayAttr(conv.pads_begin());
-    const auto windowStrides = parseIntArrayAttr(conv.strides());
-    const auto windowDilations = parseIntArrayAttr(conv.dilations());
+    const auto dataPaddingBelow = parseIntArrayAttr<int64_t>(conv.pads_end());
+    const auto dataPaddingAbove = parseIntArrayAttr<int64_t>(conv.pads_begin());
+    const auto windowStrides = parseIntArrayAttr<int64_t>(conv.strides());
+    const auto windowDilations = parseIntArrayAttr<int64_t>(conv.dilations());
 
     int64_t groups = 0;
     if (conv.groups() != 0) {
-        if (filterShape.size() != 4) {
+        if (filterShape.size() != inShape.size()) {
             return errorAt(loc, "Wrong filter shape '{0}'", filterShape);
         }
 
         groups = conv.groups().getInt();
     } else {
-        if (filterShape.size() != 5) {
+        if (filterShape.size() != inShape.size() + 1) {
             return errorAt(loc, "Wrong filter shape '{0}'", filterShape);
         }
 
@@ -245,13 +245,13 @@ mlir::LogicalResult GroupsToAttr::matchAndRewrite(IE::GroupConvolutionOp convOp,
     filterShape[1] *= groups;
     filterShape.erase(filterShape.begin());
 
-    const auto filterShapeAttr = getInt64ArrayAttr(getContext(), filterShape);
+    const auto filterShapeAttr = getIntArrayAttr(getContext(), filterShape);
     auto newFilter = rewriter.create<IE::ReshapeOp>(convOp->getLoc(), convOp.filter(), nullptr, false, filterShapeAttr);
 
-    rewriter.replaceOpWithNewOp<IE::GroupConvolutionOp>(
-            convOp, convOp.input(), newFilter.output(), convOp.bias(), convOp.stridesAttr(), convOp.pads_beginAttr(),
-            convOp.pads_endAttr(), convOp.dilationsAttr(),
-            getInt32Attr(convOp.getContext(), checked_cast<uint32_t>(groups)));
+    rewriter.replaceOpWithNewOp<IE::GroupConvolutionOp>(convOp, convOp.input(), newFilter.output(), convOp.bias(),
+                                                        convOp.stridesAttr(), convOp.pads_beginAttr(),
+                                                        convOp.pads_endAttr(), convOp.dilationsAttr(),
+                                                        getIntAttr(convOp.getContext(), groups), convOp.post_opAttr());
 
     return mlir::success();
 }

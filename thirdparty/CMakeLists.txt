@@ -61,16 +61,6 @@ include_directories(SYSTEM
 )
 
 #
-# PlaidML
-#
-if(ENABLE_PLAIDML)
-    set(PML_BUILD_TESTS OFF)
-    set(PML_OPENVINO_BRIDGE ON)
-    set(PML_INCLUDE_LLVM OFF)
-    add_subdirectory(plaidml EXCLUDE_FROM_ALL)
-endif()
-
-#
 # flatbuffers
 #
 

@@ -26,7 +26,7 @@ namespace vpux {
  */
 class Encryption {
 public:
-    explicit Encryption(const std::string& nameOfLib = "libSecureDeviceDataEncrypt.so");
+    explicit Encryption(const std::string& nameOfLib = "/usr/lib/libSecureDeviceDataEncrypt.so");
 
     /**
      * The function decrypts the model if it is encrypted

@@ -119,9 +119,9 @@ mlir::LogicalResult FoldSubTensor::matchAndRewrite(mlir::tensor::ExtractSliceOp 
         return matchFailed(rewriter, origOp, "SubTensor has dynamic parameters");
     }
 
-    const auto offset = Shape(parseIntArrayAttr(origOp.static_offsets()));
-    const auto shape = Shape(parseIntArrayAttr(origOp.static_sizes()));
-    const auto strides = Shape(parseIntArrayAttr(origOp.static_strides()));
+    const auto offset = Shape(parseIntArrayAttr<int64_t>(origOp.static_offsets()));
+    const auto shape = Shape(parseIntArrayAttr<int64_t>(origOp.static_sizes()));
+    const auto strides = Shape(parseIntArrayAttr<int64_t>(origOp.static_strides()));
 
     for (auto s : strides) {
         if (s != 1) {
@@ -163,9 +163,9 @@ mlir::LogicalResult FoldSubView::matchAndRewrite(mlir::memref::SubViewOp origOp,
         return matchFailed(rewriter, origOp, "SubView has dynamic parameters");
     }
 
-    const auto offset = Shape(parseIntArrayAttr(origOp.static_offsets()));
-    const auto shape = Shape(parseIntArrayAttr(origOp.static_sizes()));
-    const auto strides = Shape(parseIntArrayAttr(origOp.static_strides()));
+    const auto offset = Shape(parseIntArrayAttr<int64_t>(origOp.static_offsets()));
+    const auto shape = Shape(parseIntArrayAttr<int64_t>(origOp.static_sizes()));
+    const auto strides = Shape(parseIntArrayAttr<int64_t>(origOp.static_strides()));
 
     for (auto s : strides) {
         if (s != 1) {

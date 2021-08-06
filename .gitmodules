@@ -19,9 +19,6 @@
 [submodule "thirdparty/hddlunite"]
 	path = thirdparty/hddlunite
 	url = ssh://git@gitlab-icv.inn.intel.com/movidius/hddlunite.git
-[submodule "thirdparty/plaidml"]
-	path = thirdparty/plaidml
-	url = https://github.com/plaidml/plaidml.git
-[submodule "level-zero"]
+[submodule "thirdparty/level-zero"]
 	path = thirdparty/level-zero
 	url = https://github.com/jbdallastx/level-zero.git

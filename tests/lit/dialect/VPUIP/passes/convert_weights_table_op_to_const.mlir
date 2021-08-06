@@ -1,4 +1,4 @@
-// RUN: vpux-opt --split-input-file --set-compile-params="vpu-arch=VPU3700" --convert-wtable-op-to-constant %s | FileCheck %s
+// RUN: vpux-opt --split-input-file --set-compile-params="vpu-arch=KMB" --convert-wtable-op-to-constant %s | FileCheck %s
 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 #map0 = affine_map<(d0, d1, d2, d3) -> (d0 * 3200 + d1 * 160 + d2 * 8 + d3)>
@@ -20,12 +20,12 @@ func @Conv2dTest(%arg0: memref<1x8x20x20xf16, #NHWC, #map0>, %arg1: memref<1x11x
     %9 = IERT.StaticAlloc<7424> -> memref<16x1x1x4xsi32, "CMX_NN">
     %10 = IERT.Copy inputs(%8 : memref<16x1x1x4xsi32>) outputs(%9 : memref<16x1x1x4xsi32, "CMX_NN">) -> memref<16x1x1x4xsi32, "CMX_NN">
     %11 = IERT.StaticAlloc<7680> -> memref<1x16x19x19xf16, #NHWC, #map3, "CMX_NN">
-    %12 = VPUIP.NCEClusterTask {kernel_padding = [0 : i32, 0 : i32, 0 : i32, 0 : i32], kernel_size = [2 : i32, 2 : i32], kernel_strides = [1 : i32, 1 : i32], task_type = "CONV"} input(%5 : memref<1x8x20x20xf16, #NHWC, #map0, "CMX_NN">) weights(%7 : memref<16x8x2x2xf16, #NHWC, #map2, "CMX_NN">) weight_table(%10 : memref<16x1x1x4xsi32, "CMX_NN">) parent_input(%5 : memref<1x8x20x20xf16, #NHWC, #map0, "CMX_NN">) parent_output(%11 : memref<1x16x19x19xf16, #NHWC, #map3, "CMX_NN">) outputs(%11 : memref<1x16x19x19xf16, #NHWC, #map3, "CMX_NN">) -> memref<1x16x19x19xf16, #NHWC, #map3, "CMX_NN"> variants :  {
-      VPUIP.DPUTask {end = [18 : i32, 2 : i32, 15 : i32], mpe_mode = "VECTOR_FP16", pads_begin = [0 : i32, 0 : i32], pads_end = [0 : i32, 0 : i32], start = [0 : i32, 0 : i32, 0 : i32]}
-      VPUIP.DPUTask {end = [18 : i32, 5 : i32, 15 : i32], mpe_mode = "VECTOR_FP16", pads_begin = [0 : i32, 0 : i32], pads_end = [0 : i32, 0 : i32], start = [0 : i32, 3 : i32, 0 : i32]}
-      VPUIP.DPUTask {end = [18 : i32, 8 : i32, 15 : i32], mpe_mode = "VECTOR_FP16", pads_begin = [0 : i32, 0 : i32], pads_end = [0 : i32, 0 : i32], start = [0 : i32, 6 : i32, 0 : i32]}
-      VPUIP.DPUTask {end = [18 : i32, 11 : i32, 15 : i32], mpe_mode = "VECTOR_FP16", pads_begin = [0 : i32, 0 : i32], pads_end = [0 : i32, 0 : i32], start = [0 : i32, 9 : i32, 0 : i32]}
-      VPUIP.DPUTask {end = [18 : i32, 18 : i32, 15 : i32], mpe_mode = "VECTOR_FP16", pads_begin = [0 : i32, 0 : i32], pads_end = [0 : i32, 0 : i32], start = [0 : i32, 12 : i32, 0 : i32]}
+    %12 = VPUIP.NCEClusterTask {kernel_padding = [0, 0, 0, 0], kernel_size = [2, 2], kernel_strides = [1, 1], task_type = "CONV"} input(%5 : memref<1x8x20x20xf16, #NHWC, #map0, "CMX_NN">) weights(%7 : memref<16x8x2x2xf16, #NHWC, #map2, "CMX_NN">) weight_table(%10 : memref<16x1x1x4xsi32, "CMX_NN">) parent_input(%5 : memref<1x8x20x20xf16, #NHWC, #map0, "CMX_NN">) parent_output(%11 : memref<1x16x19x19xf16, #NHWC, #map3, "CMX_NN">) outputs(%11 : memref<1x16x19x19xf16, #NHWC, #map3, "CMX_NN">) -> memref<1x16x19x19xf16, #NHWC, #map3, "CMX_NN"> variants :  {
+      VPUIP.DPUTask {end = [18, 2, 15], mpe_mode = "VECTOR_FP16", pads_begin = [0, 0], pads_end = [0, 0], start = [0, 0, 0]}
+      VPUIP.DPUTask {end = [18, 5, 15], mpe_mode = "VECTOR_FP16", pads_begin = [0, 0], pads_end = [0, 0], start = [0, 3, 0]}
+      VPUIP.DPUTask {end = [18, 8, 15], mpe_mode = "VECTOR_FP16", pads_begin = [0, 0], pads_end = [0, 0], start = [0, 6, 0]}
+      VPUIP.DPUTask {end = [18, 11, 15], mpe_mode = "VECTOR_FP16", pads_begin = [0, 0], pads_end = [0, 0], start = [0, 9, 0]}
+      VPUIP.DPUTask {end = [18, 18, 15], mpe_mode = "VECTOR_FP16", pads_begin = [0, 0], pads_end = [0, 0], start = [0, 12, 0]}
     } PPE :  {
     }
     %13 = IERT.Copy inputs(%12 : memref<1x16x19x19xf16, #NHWC, #map3, "CMX_NN">) outputs(%3 : memref<1x16x19x19xf16, #NHWC, #map3, "DDR">) -> memref<1x16x19x19xf16, #NHWC, #map3, "DDR">
@@ -65,12 +65,12 @@ func @MaxPoolTest(%arg0: memref<1x16x30x30xf16, #NHWC, #map0>, %arg1: memref<1x1
     %7 = IERT.StaticAlloc<29056> -> memref<16x1x1x4xsi32, "CMX_NN">
     %8 = IERT.Copy inputs(%6 : memref<16x1x1x4xsi32>) outputs(%7 : memref<16x1x1x4xsi32, "CMX_NN">) -> memref<16x1x1x4xsi32, "CMX_NN">
     %9 = IERT.StaticAlloc<29312> -> memref<1x16x28x28xf16, #NHWC, #map1, "CMX_NN">
-    %10 = VPUIP.NCEClusterTask {activation_window_channel_length = 18 : i32, kernel_padding = [0 : i32, 0 : i32, 0 : i32, 0 : i32], kernel_size = [3 : i32, 3 : i32], kernel_strides = [1 : i32, 1 : i32], task_type = "MAXPOOL"} input(%3 : memref<1x16x30x30xf16, #NHWC, #map0, "CMX_NN">) weight_table(%8 : memref<16x1x1x4xsi32, "CMX_NN">) activation_window(%5 : memref<16x1x1x16xui8, "CMX_NN">) parent_input(%3 : memref<1x16x30x30xf16, #NHWC, #map0, "CMX_NN">) parent_output(%9 : memref<1x16x28x28xf16, #NHWC, #map1, "CMX_NN">) outputs(%9 : memref<1x16x28x28xf16, #NHWC, #map1, "CMX_NN">) -> memref<1x16x28x28xf16, #NHWC, #map1, "CMX_NN"> variants :  {
-      VPUIP.DPUTask {end = [27 : i32, 4 : i32, 15 : i32], mpe_mode = "VECTOR_FP16", pads_begin = [0 : i32, 0 : i32], pads_end = [0 : i32, 0 : i32], start = [0 : i32, 0 : i32, 0 : i32]}
-      VPUIP.DPUTask {end = [27 : i32, 9 : i32, 15 : i32], mpe_mode = "VECTOR_FP16", pads_begin = [0 : i32, 0 : i32], pads_end = [0 : i32, 0 : i32], start = [0 : i32, 5 : i32, 0 : i32]}
-      VPUIP.DPUTask {end = [27 : i32, 14 : i32, 15 : i32], mpe_mode = "VECTOR_FP16", pads_begin = [0 : i32, 0 : i32], pads_end = [0 : i32, 0 : i32], start = [0 : i32, 10 : i32, 0 : i32]}
-      VPUIP.DPUTask {end = [27 : i32, 19 : i32, 15 : i32], mpe_mode = "VECTOR_FP16", pads_begin = [0 : i32, 0 : i32], pads_end = [0 : i32, 0 : i32], start = [0 : i32, 15 : i32, 0 : i32]}
-      VPUIP.DPUTask {end = [27 : i32, 27 : i32, 15 : i32], mpe_mode = "VECTOR_FP16", pads_begin = [0 : i32, 0 : i32], pads_end = [0 : i32, 0 : i32], start = [0 : i32, 20 : i32, 0 : i32]}
+    %10 = VPUIP.NCEClusterTask {activation_window_channel_length = 18, kernel_padding = [0, 0, 0, 0], kernel_size = [3, 3], kernel_strides = [1, 1], task_type = "MAXPOOL"} input(%3 : memref<1x16x30x30xf16, #NHWC, #map0, "CMX_NN">) weight_table(%8 : memref<16x1x1x4xsi32, "CMX_NN">) activation_window(%5 : memref<16x1x1x16xui8, "CMX_NN">) parent_input(%3 : memref<1x16x30x30xf16, #NHWC, #map0, "CMX_NN">) parent_output(%9 : memref<1x16x28x28xf16, #NHWC, #map1, "CMX_NN">) outputs(%9 : memref<1x16x28x28xf16, #NHWC, #map1, "CMX_NN">) -> memref<1x16x28x28xf16, #NHWC, #map1, "CMX_NN"> variants :  {
+      VPUIP.DPUTask {end = [27, 4, 15], mpe_mode = "VECTOR_FP16", pads_begin = [0, 0], pads_end = [0, 0], start = [0, 0, 0]}
+      VPUIP.DPUTask {end = [27, 9, 15], mpe_mode = "VECTOR_FP16", pads_begin = [0, 0], pads_end = [0, 0], start = [0, 5, 0]}
+      VPUIP.DPUTask {end = [27, 14, 15], mpe_mode = "VECTOR_FP16", pads_begin = [0, 0], pads_end = [0, 0], start = [0, 10, 0]}
+      VPUIP.DPUTask {end = [27, 19, 15], mpe_mode = "VECTOR_FP16", pads_begin = [0, 0], pads_end = [0, 0], start = [0, 15, 0]}
+      VPUIP.DPUTask {end = [27, 27, 15], mpe_mode = "VECTOR_FP16", pads_begin = [0, 0], pads_end = [0, 0], start = [0, 20, 0]}
     } PPE :  {
     }
     %11 = IERT.Copy inputs(%10 : memref<1x16x28x28xf16, #NHWC, #map1, "CMX_NN">) outputs(%1 : memref<1x16x28x28xf16, #NHWC, #map1, "DDR">) -> memref<1x16x28x28xf16, #NHWC, #map1, "DDR">

@@ -12,12 +12,12 @@
 //
 
 #include "vpux/compiler/dialect/VPUIP/ops_interfaces.hpp"
+
+#include "vpux/compiler/core/attributes/stride_reqs.hpp"
 #include "vpux/compiler/dialect/IERT/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/effects.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
-
-#include "vpux/compiler/core/attributes/stride_reqs.hpp"
-#include "vpux/compiler/utils/extentions.hpp"
+#include "vpux/compiler/utils/analysis.hpp"
 
 #include "vpux/utils/core/format.hpp"
 
@@ -42,9 +42,9 @@ mlir::LogicalResult vpux::VPUIP::verifyUPATask(mlir::Operation* op) {
         return errorAt(op, "Operation '{0}' doesn't implement VPUIP UPATask interface", op->getName());
     }
 
-    auto layer = mlir::dyn_cast<LayerInterface>(op);
+    auto layer = mlir::dyn_cast<RTLayerInterface>(op);
     if (layer == nullptr) {
-        return errorAt(op, "Operation '{0}' doesn't implement Layer interface", op->getName());
+        return errorAt(op, "Operation '{0}' doesn't implement RT Layer interface", op->getName());
     }
 
     for (auto& operand : layer.getOpOperands()) {
@@ -114,7 +114,7 @@ mlir::LogicalResult vpux::VPUIP::verifyUPATask(mlir::Operation* op) {
 void vpux::VPUIP::getTaskEffects(mlir::Operation* op, SmallVectorImpl<MemoryEffect>& effects) {
     VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in getTaskEffects");
 
-    if (auto layer = mlir::dyn_cast<LayerInterface>(op)) {
+    if (auto layer = mlir::dyn_cast<RTLayerInterface>(op)) {
         for (const auto input : layer.getInputs()) {
             auto inputType = input.getType().cast<mlir::MemRefType>();
             auto resource = getMemoryResource(inputType);
@@ -141,232 +141,15 @@ void vpux::VPUIP::getTaskEffects(mlir::Operation* op, SmallVectorImpl<MemoryEffe
 }
 
 //
-// SameShape
-//
-
-mlir::LogicalResult vpux::VPUIP::verifySameShape(mlir::Operation* op) {
-    VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in verifySameShape");
-
-    auto layer = mlir::dyn_cast<LayerInterface>(op);
-    if (layer == nullptr) {
-        return errorAt(op, "Operation '{0}' doesn't implement Layer interface", op->getName());
-    }
-
-    auto inputs = layer.getInputs();
-
-    const auto firstInput = inputs.front();
-    const auto mainShape = getShape(firstInput);
-
-    for (const auto& val : layer.getOpOperands()) {
-        const auto shape = getShape(val.get());
-
-        if (shape != mainShape) {
-            return errorAt(op, "Operation's input/output shapes mismatch");
-        }
-    }
-
-    return mlir::success();
-}
-
-//
-// SameElementType
-//
-
-mlir::LogicalResult vpux::VPUIP::verifySameElementType(mlir::Operation* op) {
-    VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in verifySameElementType");
-
-    auto layer = mlir::dyn_cast<LayerInterface>(op);
-    if (layer == nullptr) {
-        return errorAt(op, "Operation '{0}' doesn't implement Layer interface", op->getName());
-    }
-
-    auto inputs = layer.getInputs();
-
-    const auto firstInput = inputs.front();
-    const auto mainElemType = firstInput.getType().cast<mlir::ShapedType>().getElementType();
-
-    for (const auto& val : layer.getOpOperands()) {
-        const auto elemType = val.get().getType().cast<mlir::ShapedType>().getElementType();
-
-        if (elemType != mainElemType) {
-            return errorAt(op, "Operation's input/output element types mismatch");
-        }
-    }
-
-    return mlir::success();
-}
-
-//
-// SameDimsOrder
-//
-
-mlir::LogicalResult vpux::VPUIP::verifySameDimsOrder(mlir::Operation* op) {
-    VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in verifySameDimsOrder");
-
-    auto layer = mlir::dyn_cast<LayerInterface>(op);
-    if (layer == nullptr) {
-        return errorAt(op, "Operation '{0}' doesn't implement Layer interface", op->getName());
-    }
-
-    auto inputs = layer.getInputs();
-
-    const auto firstInput = inputs.front();
-    const auto mainOrder = DimsOrder::fromValue(firstInput);
-
-    for (const auto& val : layer.getOpOperands()) {
-        const auto order = DimsOrder::fromValue(val.get());
-
-        if (order != mainOrder) {
-            return errorAt(op, "Operation's input/output layout mismatch");
-        }
-    }
-
-    return mlir::success();
-}
-
-bool vpux::VPUIP::isSupportedLayoutSameDimsOrder(mlir::Operation* op, DataOrderInfo& info) {
-    VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in isSupportedLayoutSameDimsOrder");
-
-    auto layer = mlir::dyn_cast<LayerInterface>(op);
-    VPUX_THROW_UNLESS(layer != nullptr, "Operation '{0}' doesn't implement Layer interface", op->getName());
-
-    const auto inputs = layer.getInputs();
-    const auto outputs = layer.getOutputs();
-
-    const auto inNum = inputs.size();
-    const auto outNum = outputs.size();
-
-    const auto mainOrder = info.hasInput(0) ? info.getInput(0) : DimsOrder::fromValue(inputs[0]);
-
-    for (size_t i = 0; i < inNum; ++i) {
-        if (!info.hasInput(i) || info.getInput(i) != mainOrder) {
-            fillDataInfo(info, inNum, outNum, mainOrder);
-            return false;
-        }
-    }
-
-    for (size_t i = 0; i < outNum; ++i) {
-        if (!info.hasOutput(i) || info.getOutput(i) != mainOrder) {
-            fillDataInfo(info, inNum, outNum, mainOrder);
-            return false;
-        }
-    }
-
-    return true;
-}
-
-//
-// SameInOutDimsOrder
-//
-
-mlir::LogicalResult vpux::VPUIP::verifySameInOutDimsOrder(mlir::Operation* op) {
-    auto layer = mlir::dyn_cast<LayerInterface>(op);
-    VPUX_THROW_UNLESS(layer != nullptr, "Operation {0} is not layer", op->getName());
-
-    const auto input = layer.getInputs()[0];
-    const auto output = layer.getOutputs()[0];
-
-    const auto inOrder = DimsOrder::fromValue(input);
-    const auto outOrder = DimsOrder::fromValue(output);
-
-    if (inOrder != outOrder) {
-        return errorAt(op->getLoc(), "Operation must have the same input and output order. inL={0}, outL={1}", inOrder,
-                       outOrder);
-    }
-
-    return mlir::success();
-}
-
-bool vpux::VPUIP::isSupportedLayoutSameInOutDimsOrder(mlir::Operation* op, DataOrderInfo& info) {
-    auto layer = mlir::dyn_cast<LayerInterface>(op);
-    VPUX_THROW_UNLESS(layer != nullptr, "Operation {0} is not layer", op->getName());
-
-    if (!info.hasInput(0) || !info.hasOutput(0)) {
-        const auto intType = layer.getInputs()[0].getType();
-        const auto supportedOrder = info.hasInput(0)
-                                            ? info.getInput(0)
-                                            : DimsOrder::fromNumDims(intType.cast<mlir::ShapedType>().getRank());
-
-        fillDataInfo(info, 1, 1, supportedOrder);
-        return false;
-    }
-
-    if (info.getInput(0) != info.getOutput(0)) {
-        info.setOutput(0, info.getInput(0));
-        return false;
-    }
-
-    return true;
-}
-
-//
-// SameInOutSpecificDimsOrder
-//
-
-const std::array<DimsOrder, 2> VPUIP::NCHW_NHWC = {DimsOrder::NCHW, DimsOrder::NHWC};
-const std::array<DimsOrder, 4> VPUIP::CHW_HWC_NCHW_NHWC = {DimsOrder::CHW, DimsOrder::HWC, DimsOrder::NCHW,
-                                                           DimsOrder::NHWC};
-
-mlir::LogicalResult vpux::VPUIP::verifySameInOutSpecificDimsOrder(mlir::Operation* op,
-                                                                  ArrayRef<DimsOrder> supportedLayouts) {
-    if (verifySameInOutDimsOrder(op).failed()) {
-        return mlir::failure();
-    }
-
-    auto layerOp = mlir::dyn_cast<LayerInterface>(op);
-
-    const auto input = layerOp.getInputs()[0];
-    const auto inOrder = DimsOrder::fromValue(input);
-
-    const auto isSupported = std::count(supportedLayouts.begin(), supportedLayouts.end(), inOrder);
-    if (!isSupported) {
-        return errorAt(op->getLoc(), "Operation does not support {0} layout", inOrder);
-    }
-
-    return mlir::success();
-}
-
-bool vpux::VPUIP::isSupportedLayoutSameInOutSpecificDimsOrder(mlir::Operation* op, DataOrderInfo& info,
-                                                              ArrayRef<DimsOrder> supportedLayouts) {
-    auto layer = mlir::dyn_cast<LayerInterface>(op);
-    VPUX_THROW_UNLESS(layer != nullptr, "Operation '{0}' doesn't implement Layer interface", op->getName());
-
-    const auto intType = layer.getInputs()[0].getType().cast<mlir::ShapedType>();
-    const auto defaultOrderIt =
-            std::find_if(supportedLayouts.begin(), supportedLayouts.end(), [intType](DimsOrder order) {
-                return static_cast<int64_t>(order.numDims()) == intType.getRank();
-            });
-
-    VPUX_THROW_UNLESS(defaultOrderIt != supportedLayouts.end(),
-                      "Layouts supported ({0}) by the operation '{1}' do not match the rank {2} of the input shape ",
-                      supportedLayouts, op->getName(), intType.getRank());
-
-    const auto defaultOrder = *defaultOrderIt;
-    if (!info.hasInput(0)) {
-        fillDataInfo(info, 1, 1, defaultOrder);
-        return false;
-    }
-
-    const auto mainOrder = info.getInput(0);
-    const auto isSupportedLayout = std::count(supportedLayouts.begin(), supportedLayouts.end(), mainOrder);
-    if (isSupportedLayout) {
-        return isSupportedLayoutSameInOutDimsOrder(op, info);
-    }
-
-    fillDataInfo(info, 1, 1, defaultOrder);
-    return false;
-}
-
-//
 // Legacy4D
 //
 
 mlir::LogicalResult vpux::VPUIP::verifyLegacy4D(mlir::Operation* op) {
     VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in verifySameDimsOrder");
 
-    auto layer = mlir::dyn_cast<LayerInterface>(op);
+    auto layer = mlir::dyn_cast<RTLayerInterface>(op);
     if (layer == nullptr) {
-        return errorAt(op, "Operation '{0}' doesn't implement Layer interface", op->getName());
+        return errorAt(op, "Operation '{0}' doesn't implement RT Layer interface", op->getName());
     }
 
     for (const auto& val : layer.getOpOperands()) {

@@ -34,6 +34,7 @@ static void unpopulatedSplitOverH(const unsigned nWorkloads, std::vector<mv::Wor
 static void populatedSplitOverH(const unsigned nClusters, std::vector<mv::Workload> &subTensors, mv::Workloads& Tensor,
                                 const mv::pass::PassEntry& pass, int &success);
 static std::vector<mv::Workload> fixRectangularHeuristicBug(std::vector<mv::Workload> subTensors, const mv::Data::TensorIterator &tensor, const std::size_t nWorkloads, const std::size_t outputChannels);
+static std::vector<mv::Shape> calculateFusedSubTensorDimensions(const std::size_t nWorkloads, const mv::Data::OpListIterator &sink, mv::ComputationModel& model);
 static void ensureSplitStrategiesForSpilling(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void ensureSplitStrategiesForNonSpillingFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
@@ -105,6 +106,8 @@ void SplittingTensorsAcrossClusters(const mv::pass::PassEntry& pass, mv::Computa
     //as unpopulated, cases where compiler handes the activation sparsity!!!
     //terrible...compiler concludes a solver of hardware limitations
     tensorSet specialTensors(compareTensor);
+    //NOTE: used only to ensure all other tensors are split before
+    tensorSet fusedTensors(compareTensor);
 
     //Todo:: the construction and logic of this pass needs to be refactored.
     // The pass should not target specific ops to determine if it's output needs to have subtensors generated,
@@ -163,6 +166,8 @@ void SplittingTensorsAcrossClusters(const mv::pass::PassEntry& pass, mv::Computa
                 if (findSparseTensorIndex(op, "unpopulatedSparsityMapIndex", i) ||
                     findSparseTensorIndex(op, "storageElementIndex", i))
                     insertTensor(specialTensors, inputTensor, om.getSourceOp(inputTensor));
+                else if (inputTensor->hasAttr("fusedTensor") && inputTensor->get<bool>("fusedTensor"))
+                    insertTensor(fusedTensors, inputTensor, om.getSourceOp(inputTensor));
                 else
                 {
                     insertTensor(tensors, inputTensor, om.getSourceOp(inputTensor));
@@ -184,6 +189,7 @@ void SplittingTensorsAcrossClusters(const mv::pass::PassEntry& pass, mv::Computa
 
     subTensorsGen(model, tensors, numClusters, pass);
     subTensorsGen(model, specialTensors, numClusters, pass, 1);
+    subTensorsGen(model, fusedTensors, numClusters, pass, 2);
 
     tensors.clear();
     auto srcImplicitChainTypes = std::vector<std::string>({"Concat"});
@@ -215,7 +221,7 @@ void subTensorsGen(mv::ComputationModel& model, const tensorSet& tensors, unsign
     mv::OpModel om(model);
     unsigned nWorkloads = nClusters;
 
-    if (id == 0)
+    if (id == 0 || id == 2)
     {
         for (auto& tensor : tensors)
         {
@@ -357,7 +363,7 @@ void subTensorsGen(mv::ComputationModel& model, const tensorSet& tensors, unsign
                 }
                 tensor->splitAcrossClusters(subTensors, true, false);
             }
-            else if (tensor->get<std::string>("splitStrategy") == "SplitOverK")
+            else if (tensor->get<std::string>("splitStrategy") == "SplitOverK" && !tensor->hasAttr("fusedTensor"))
             {
                 if(!tensor->isPopulated())
                     success = Tensor.partitionTensorWithRectangleHeuristic(TENSOR_MPE[2], nWorkloads, false, true, true,
@@ -386,6 +392,12 @@ void subTensorsGen(mv::ComputationModel& model, const tensorSet& tensors, unsign
                     subTensors = newSubTensors;
                 }
                 tensor->splitAcrossClusters(subTensors, false, false);
+            }
+            else if (tensor->get<std::string>("splitStrategy") == "SplitOverK" && tensor->hasAttr("fusedTensor"))
+            {
+                std::vector<mv::Data::OpListIterator> sinkOperators = findSinkLayers(dm, tensor);
+                std::vector<mv::Shape> subs = calculateFusedSubTensorDimensions(nWorkloads, sinkOperators[0], model);
+                tensor->splitFusedAcrossClusters(subs);
             }
             else if (tensor->get<std::string>("splitStrategy") == "HKSwitch")
             {
@@ -461,6 +473,42 @@ static void populatedSplitOverH(const unsigned nClusters, std::vector<mv::Worklo
     }
     subTensors = newSubTensors;
     return;
+}
+
+static std::vector<mv::Shape> calculateFusedSubTensorDimensions(const std::size_t nWorkloads, const mv::Data::OpListIterator &sink, mv::ComputationModel& model)
+{
+    mv::DataModel dm(model);
+    std::vector<mv::Shape> subs(nWorkloads, {0,0,0,0});
+    std::vector<std::size_t> fusionOrder = sink->get<std::vector<std::size_t>>("fusionOrder");
+    bool sparseWeights = sink->hasAttr("weightsSparsity") && sink->get<bool>("weightsSparsity");
+    bool weightPackedData = false;
+    auto inputTensors = sink->getInputTensor();
+    std::vector<std::size_t> fusedClusterOffsets {0,0,0,0};
+    for (auto tensorIndex = fusionOrder.begin(); tensorIndex != fusionOrder.end(); ++tensorIndex)
+    {
+        auto inputTensor = inputTensors[*tensorIndex];
+        if (sparseWeights && *tensorIndex == mv::IO_TENSOR_WEIGHTS_SET)
+        {
+            inputTensor = dm.getTensor(inputTensor->getSparsityMap()->getName());
+            sparseWeights = false;
+            weightPackedData = true;
+            --tensorIndex;
+        }
+        inputTensor->set<std::vector<std::size_t>>("fusedClusterOffsets", fusedClusterOffsets);
+        for (std::size_t idx = 0; idx < inputTensor->numSubTensors(); ++idx)
+        {
+            auto subTensor = inputTensor->getSubTensor(idx);
+            std::size_t sizeU8 = 0UL;
+            if (weightPackedData && *tensorIndex == mv::IO_TENSOR_WEIGHTS_SET)
+                sizeU8 = subTensor.getDataPacked().size() * subTensor.getDType().getSizeInBytes();
+            else
+                sizeU8 = subTensor.getShape().totalSize() * subTensor.getDType().getSizeInBytes();
+            fusedClusterOffsets.at(idx) += sizeU8;
+            subs[idx][mv::IO_BATCH_DIMENSION] += sizeU8;
+        }
+    }
+    
+    return subs;
 }
 
 //TODO re-enable this version

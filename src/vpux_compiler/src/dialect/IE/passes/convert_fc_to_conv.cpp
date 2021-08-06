@@ -65,12 +65,12 @@ mlir::LogicalResult ConvertFCToConvPass::FullyConnectedOpConverter::matchAndRewr
         IE::FullyConnectedOp origOp, mlir::PatternRewriter& rewriter) const {
     const auto inputShape = origOp.input().getType().cast<mlir::ShapedType>().getShape();
     const std::array<int64_t, 4> newInShape = {inputShape[0], inputShape[1], 1, 1};
-    const auto inputShapeAttr = getInt64ArrayAttr(getContext(), newInShape);
+    const auto inputShapeAttr = getIntArrayAttr(getContext(), newInShape);
     auto newInput = rewriter.create<IE::ReshapeOp>(origOp->getLoc(), origOp.input(), nullptr, false, inputShapeAttr);
 
     const auto weightsShape = origOp.weights().getType().cast<mlir::ShapedType>().getShape();
     const std::array<int64_t, 4> newWeightsShape = {weightsShape[0], weightsShape[1], 1, 1};
-    const auto filterShapeAttr = getInt64ArrayAttr(getContext(), newWeightsShape);
+    const auto filterShapeAttr = getIntArrayAttr(getContext(), newWeightsShape);
     auto newFilter =
             rewriter.create<IE::ReshapeOp>(origOp->getLoc(), origOp.weights(), nullptr, false, filterShapeAttr);
 
@@ -78,20 +78,20 @@ mlir::LogicalResult ConvertFCToConvPass::FullyConnectedOpConverter::matchAndRewr
     if (origOp.bias() != nullptr) {
         const auto biasShape = origOp.bias().getType().cast<mlir::ShapedType>().getShape();
         const std::array<int64_t, 4> newBiasShape = {biasShape[0], biasShape[1], 1, 1};
-        const auto biasShapeAttr = getInt64ArrayAttr(getContext(), newBiasShape);
+        const auto biasShapeAttr = getIntArrayAttr(getContext(), newBiasShape);
         newBias = rewriter.create<IE::ReshapeOp>(origOp->getLoc(), origOp.bias(), nullptr, false, biasShapeAttr);
     }
 
-    auto newStrides = getInt32ArrayAttr(getContext(), ngraph::Strides{1, 1});
-    auto newPadsBegin = getInt32ArrayAttr(getContext(), ngraph::CoordinateDiff{0, 0});
-    auto newPadsEnd = getInt32ArrayAttr(getContext(), ngraph::CoordinateDiff{0, 0});
-    auto newDilations = getInt32ArrayAttr(getContext(), ngraph::Strides{1, 1});
+    auto newStrides = getIntArrayAttr(getContext(), ngraph::Strides{1, 1});
+    auto newPadsBegin = getIntArrayAttr(getContext(), ngraph::CoordinateDiff{0, 0});
+    auto newPadsEnd = getIntArrayAttr(getContext(), ngraph::CoordinateDiff{0, 0});
+    auto newDilations = getIntArrayAttr(getContext(), ngraph::Strides{1, 1});
     auto convOp = rewriter.create<IE::ConvolutionOp>(origOp->getLoc(), newInput, newFilter, newBias, newStrides,
                                                      newPadsBegin, newPadsEnd, newDilations, nullptr);
 
     const auto convShape = convOp.output().getType().cast<mlir::ShapedType>().getShape();
     const std::array<int64_t, 2> outputShape = {convShape[0], convShape[1]};
-    const auto outputShapeAttr = getInt64ArrayAttr(getContext(), outputShape);
+    const auto outputShapeAttr = getIntArrayAttr(getContext(), outputShape);
     rewriter.replaceOpWithNewOp<IE::ReshapeOp>(origOp, convOp.output(), nullptr, false, outputShapeAttr);
 
     return mlir::success();

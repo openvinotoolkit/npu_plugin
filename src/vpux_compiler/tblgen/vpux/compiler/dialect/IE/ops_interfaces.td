@@ -17,14 +17,6 @@
 include "mlir/IR/OpBase.td"
 
 //
-// IELayer
-//
-
-def IE_Layer : NativeOpTrait<"IELayer"> {
-    let cppNamespace = "vpux::IE";
-}
-
-//
 // MultiLayerInterface
 //
 

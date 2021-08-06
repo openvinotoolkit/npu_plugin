@@ -121,7 +121,16 @@ void addCropNode(mv::OpModel& om, mv::Data::OpListIterator& opIt, mv::Data::Tens
     cropOp->set<unsigned>("opId", opIt->get<unsigned>("opId"));
     if (opIt->hasAttr("splitStrategy"))
         cropOp->set<std::string>("splitStrategy", opIt->get<std::string>("splitStrategy"));
-
+    if (outputTensor->hasAttr("fusedConcatReshape"))
+    {
+        croppedTensor->set<bool>("fusedConcatReshape", outputTensor->get<bool>("fusedConcatReshape"));
+        if (outputTensor->hasAttr("asymmetricConvIndex"))
+            croppedTensor->set<std::size_t>("asymmetricConvIndex",
+                outputTensor->get<std::size_t>("asymmetricConvIndex"));
+        if (outputTensor->hasAttr("numberOfConvsForAsymmetricalStride"))
+            croppedTensor->set<std::size_t>("numberOfConvsForAsymmetricalStride",
+                outputTensor->get<std::size_t>("numberOfConvsForAsymmetricalStride"));
+    }
 
     for (unsigned flowIdx = 0; flowIdx < flowsToRemove.size(); flowIdx++)
     {

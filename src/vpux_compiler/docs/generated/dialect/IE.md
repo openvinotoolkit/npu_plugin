@@ -25,7 +25,7 @@ The network topology (nGraph) is represented as a MLIR Function, which works wit
 
 ```MLIR
 func @main(%input: tensor<1x1000xf32>) -> tensor<1x1000xf32> {
-    %output = IE.SoftMax(%input) {axisInd = 1 : i32} : tensor<1x1000xf32> -> tensor<1x1000xf32>
+    %output = IE.SoftMax(%input) {axisInd = 1} : tensor<1x1000xf32> -> tensor<1x1000xf32>
     return %output
 }
 ```
@@ -94,10 +94,10 @@ operation ::= `IE.AvgPool` `(` operands `)` attr-dict `:` type(operands) `->` ty
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`kernel_size` | ::mlir::ArrayAttr | 32-bit integer array attribute
-`strides` | ::mlir::ArrayAttr | 32-bit integer array attribute
-`pads_begin` | ::mlir::ArrayAttr | 32-bit integer array attribute
-`pads_end` | ::mlir::ArrayAttr | 32-bit integer array attribute
+`kernel_size` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`strides` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`pads_begin` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`pads_end` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `rounding_type` | vpux::IE::RoundingTypeAttr | Rounding type that operations support
 
 #### Operands:
@@ -218,8 +218,8 @@ operation ::= `IE.Clamp` `(` operands `)` attr-dict `:` type(operands) `->` type
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`min` | ::mlir::FloatAttr | 32-bit float attribute
-`max` | ::mlir::FloatAttr | 32-bit float attribute
+`min` | ::mlir::FloatAttr | 64-bit float attribute
+`max` | ::mlir::FloatAttr | 64-bit float attribute
 
 #### Operands:
 
@@ -249,7 +249,7 @@ operation ::= `IE.Concat` `(` operands `)` attr-dict `:` type(operands) `->` typ
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`axis` | ::mlir::IntegerAttr | 32-bit signed integer attribute
+`axis` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
@@ -309,25 +309,25 @@ operation ::= `IE.Convolution` `(` operands `)` attr-dict `:` type(operands) `->
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`strides` | ::mlir::ArrayAttr | 32-bit integer array attribute
-`pads_begin` | ::mlir::ArrayAttr | 32-bit integer array attribute
-`pads_end` | ::mlir::ArrayAttr | 32-bit integer array attribute
-`dilations` | ::mlir::ArrayAttr | 32-bit integer array attribute
+`strides` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`pads_begin` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`pads_end` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`dilations` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `post_op` | vpux::IE::PostOp | DictionaryAttr with field(s): 'kind', 'params' (each field having its own constraints)
 
 #### Operands:
 
 | Operand | Description |
 | :-----: | ----------- |
-`input` | ranked tensor of 16-bit float or 32-bit float values
-`filter` | ranked tensor of 16-bit float or 32-bit float values
+`input` | ranked tensor of 16-bit float or 32-bit float or QuantizedType values
+`filter` | ranked tensor of 16-bit float or 32-bit float or QuantizedType values
 `bias` | ranked tensor of 16-bit float or 32-bit float values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-`output` | ranked tensor of 16-bit float or 32-bit float values
+`output` | ranked tensor of 16-bit float or 32-bit float or QuantizedType values
 
 ### `IE.DataInfo` (vpux::IE::DataInfoOp)
 
@@ -371,11 +371,11 @@ operation ::= `IE.Deconvolution` `(` operands `)` attr-dict `:` type(operands) `
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`strides` | ::mlir::ArrayAttr | 32-bit integer array attribute
-`pads_begin` | ::mlir::ArrayAttr | 32-bit integer array attribute
-`pads_end` | ::mlir::ArrayAttr | 32-bit integer array attribute
-`dilations` | ::mlir::ArrayAttr | 32-bit integer array attribute
-`output_padding` | ::mlir::ArrayAttr | 32-bit integer array attribute
+`strides` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`pads_begin` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`pads_end` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`dilations` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`output_padding` | ::mlir::ArrayAttr | 64-bit integer array attribute
 
 #### Operands:
 
@@ -472,7 +472,7 @@ operation ::= `IE.Elu` `(` operands `)` attr-dict `:` type(operands) `->` type(r
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`x` | ::mlir::FloatAttr | 32-bit float attribute
+`x` | ::mlir::FloatAttr | 64-bit float attribute
 
 #### Operands:
 
@@ -526,8 +526,8 @@ operation ::= `IE.Expand` `(` operands `)` attr-dict `:` type(operands) `->` typ
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`pads_begin_attr` | ::mlir::ArrayAttr | 32-bit integer array attribute
-`pads_end_attr` | ::mlir::ArrayAttr | 32-bit integer array attribute
+`pads_begin_attr` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`pads_end_attr` | ::mlir::ArrayAttr | 64-bit integer array attribute
 
 #### Operands:
 
@@ -557,7 +557,7 @@ operation ::= `IE.FakeQuantize` `(` operands `)` attr-dict `:` type(operands) `-
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`levels` | ::mlir::IntegerAttr | 32-bit signless integer attribute
+`levels` | mlir::IntegerAttr | Integer attribute
 `auto_broadcast` | vpux::IE::AutoBroadcastTypeAttr | Specifies rules used for auto-broadcasting of input tensors
 
 #### Operands:
@@ -649,7 +649,7 @@ operation ::= `IE.GRN` `(` operands `)` attr-dict `:` type(operands) `->` type(r
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`bias` | ::mlir::FloatAttr | 32-bit float attribute
+`bias` | ::mlir::FloatAttr | 64-bit float attribute
 
 #### Operands:
 
@@ -705,11 +705,12 @@ operation ::= `IE.GroupConvolution` `(` operands `)` attr-dict `:` type(operands
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`strides` | ::mlir::ArrayAttr | 32-bit integer array attribute
-`pads_begin` | ::mlir::ArrayAttr | 32-bit integer array attribute
-`pads_end` | ::mlir::ArrayAttr | 32-bit integer array attribute
-`dilations` | ::mlir::ArrayAttr | 32-bit integer array attribute
-`groups` | ::mlir::IntegerAttr | 32-bit signless integer attribute
+`strides` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`pads_begin` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`pads_end` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`dilations` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`groups` | mlir::IntegerAttr | Integer attribute
+`post_op` | vpux::IE::PostOp | DictionaryAttr with field(s): 'kind', 'params' (each field having its own constraints)
 
 #### Operands:
 
@@ -765,9 +766,9 @@ operation ::= `IE.Interpolate` `(` operands `)` attr-dict `:` type(operands) `->
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`sizes_attr` | ::mlir::ArrayAttr | 32-bit integer array attribute
-`scales_attr` | ::mlir::ArrayAttr | 32-bit float array attribute
-`axes_attr` | ::mlir::ArrayAttr | 32-bit integer array attribute
+`sizes_attr` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`scales_attr` | ::mlir::ArrayAttr | 64-bit float array attribute
+`axes_attr` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `attr` | vpux::IE::InterpolateAttr | DictionaryAttr with field(s): 'mode', 'shape_calc_mode', 'coord_mode', 'nearest_mode', 'antialias', 'pads_begin', 'pads_end', 'cube_coeff' (each field having its own constraints)
 
 #### Operands:
@@ -804,7 +805,7 @@ operation ::= `IE.LRN` `(` operands `)` attr-dict `:` type(operands) `->` type(r
 `alpha` | ::mlir::FloatAttr | 64-bit float attribute
 `beta` | ::mlir::FloatAttr | 64-bit float attribute
 `bias` | ::mlir::FloatAttr | 64-bit float attribute
-`size` | ::mlir::IntegerAttr | 32-bit signless integer attribute
+`size` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
@@ -818,6 +819,42 @@ operation ::= `IE.LRN` `(` operands `)` attr-dict `:` type(operands) `->` type(r
 | Result | Description |
 | :----: | ----------- |
 `output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `IE.LSTMCell` (vpux::IE::LSTMCellOp)
+
+InferenceEngine LSTMCell layer
+
+
+Syntax:
+
+```
+operation ::= `IE.LSTMCell` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`hiddenSize` | mlir::IntegerAttr | Integer attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`inputData` | 2D tensor of 16-bit float or 32-bit float values
+`initialHiddenState` | 2D tensor of 16-bit float or 32-bit float values
+`initialCellState` | 2D tensor of 16-bit float or 32-bit float values
+`weights` | 2D tensor of 16-bit float or 32-bit float values
+`reccurenceWeights` | 2D tensor of 16-bit float or 32-bit float values
+`biases` | 1D tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`outputHiddenState` | 2D tensor of 16-bit float or 32-bit float values
+`outputCellState` | 2D tensor of 16-bit float or 32-bit float values
 
 ### `IE.LeakyRelu` (vpux::IE::LeakyReluOp)
 
@@ -835,7 +872,7 @@ operation ::= `IE.LeakyRelu` `(` operands `)` attr-dict `:` type(operands) `->` 
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`negative_slope` | ::mlir::FloatAttr | 32-bit float attribute
+`negative_slope` | ::mlir::FloatAttr | 64-bit float attribute
 
 #### Operands:
 
@@ -897,10 +934,10 @@ operation ::= `IE.MaxPool` `(` operands `)` attr-dict `:` type(operands) `->` ty
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`kernel_size` | ::mlir::ArrayAttr | 32-bit integer array attribute
-`strides` | ::mlir::ArrayAttr | 32-bit integer array attribute
-`pads_begin` | ::mlir::ArrayAttr | 32-bit integer array attribute
-`pads_end` | ::mlir::ArrayAttr | 32-bit integer array attribute
+`kernel_size` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`strides` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`pads_begin` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`pads_end` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `rounding_type` | vpux::IE::RoundingTypeAttr | Rounding type that operations support
 `post_op` | vpux::IE::PostOp | DictionaryAttr with field(s): 'kind', 'params' (each field having its own constraints)
 
@@ -908,13 +945,13 @@ operation ::= `IE.MaxPool` `(` operands `)` attr-dict `:` type(operands) `->` ty
 
 | Operand | Description |
 | :-----: | ----------- |
-`input` | ranked tensor of 16-bit float or 32-bit float values
+`input` | ranked tensor of 16-bit float or 32-bit float or QuantizedType values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-`output` | ranked tensor of 16-bit float or 32-bit float values
+`output` | ranked tensor of 16-bit float or 32-bit float or QuantizedType values
 
 ### `IE.Maximum` (vpux::IE::MaximumOp)
 
@@ -1049,7 +1086,7 @@ operation ::= `IE.NormalizeL2` `(` operands `)` attr-dict `:` type(operands) `->
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`eps` | ::mlir::FloatAttr | 32-bit float attribute
+`eps` | ::mlir::FloatAttr | 64-bit float attribute
 `eps_mod` | vpux::IE::EpsModeAttr | EpsMode that the InferenceEngine supports
 
 #### Operands:
@@ -1106,9 +1143,9 @@ operation ::= `IE.Pad` `(` $input `)` (`[` $pads_begin^ `,` $pads_end (`,` $pad_
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`pads_begin_attr` | ::mlir::ArrayAttr | 32-bit integer array attribute
-`pads_end_attr` | ::mlir::ArrayAttr | 32-bit integer array attribute
-`pad_value_attr` | ::mlir::FloatAttr | 32-bit float attribute
+`pads_begin_attr` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`pads_end_attr` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`pad_value_attr` | ::mlir::FloatAttr | 64-bit float attribute
 `mode` | vpux::IE::PadModeAttr | TPadMode that the InferenceEngine supports
 
 #### Operands:
@@ -1142,8 +1179,8 @@ operation ::= `IE.PerAxisTile` `(` operands `)` attr-dict `:` type(operands) `->
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`axis` | ::mlir::IntegerAttr | 32-bit signless integer attribute
-`tiles` | ::mlir::IntegerAttr | 32-bit signless integer attribute
+`axis` | mlir::IntegerAttr | Integer attribute
+`tiles` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
@@ -1236,8 +1273,8 @@ operation ::= `IE.ROIPooling` `(` operands `)` attr-dict `:` type(operands) `->`
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`output_size` | ::mlir::ArrayAttr | 32-bit integer array attribute
-`spatial_scale` | ::mlir::FloatAttr | 32-bit float attribute
+`output_size` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`spatial_scale` | ::mlir::FloatAttr | 64-bit float attribute
 `method` | vpux::IE::ROIPoolingMethodAttr | ROIPoolingMethod that the InferenceEngine supports
 
 #### Operands:
@@ -1293,20 +1330,50 @@ operation ::= `IE.RegionYolo` `(` operands `)` attr-dict `:` type(operands) `->`
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`coord` | ::mlir::IntegerAttr | 32-bit signless integer attribute
-`classes` | ::mlir::IntegerAttr | 32-bit signless integer attribute
-`regions` | ::mlir::IntegerAttr | 32-bit signless integer attribute
+`coords` | mlir::IntegerAttr | Integer attribute
+`classes` | mlir::IntegerAttr | Integer attribute
+`regions` | mlir::IntegerAttr | Integer attribute
 `do_softmax` | ::mlir::BoolAttr | bool attribute
 `mask` | ::mlir::ArrayAttr | 64-bit integer array attribute
-`axis` | ::mlir::IntegerAttr | 32-bit signless integer attribute
-`end_axis` | ::mlir::IntegerAttr | 32-bit signless integer attribute
-`anchors` | ::mlir::ArrayAttr | 32-bit float array attribute
+`axis` | mlir::IntegerAttr | Integer attribute
+`end_axis` | mlir::IntegerAttr | Integer attribute
+`anchors` | ::mlir::ArrayAttr | 64-bit float array attribute
 
 #### Operands:
 
 | Operand | Description |
 | :-----: | ----------- |
 `input` | 4D tensor of floating-point values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values
+
+### `IE.Reorder` (vpux::IE::ReorderOp)
+
+InferenceEngine Reorder layer
+
+
+Syntax:
+
+```
+operation ::= `IE.Reorder` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`dstOrder` | ::mlir::AffineMapAttr | AffineMap attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of any type values
 
 #### Results:
 
@@ -1330,7 +1397,7 @@ operation ::= `IE.ReorgYolo` `(` operands `)` attr-dict `:` type(operands) `->` 
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`stride` | ::mlir::IntegerAttr | 32-bit signless integer attribute
+`stride` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
@@ -1442,7 +1509,7 @@ operation ::= `IE.SoftMax` `(` operands `)` attr-dict `:` type(operands) `->` ty
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`axisInd` | ::mlir::IntegerAttr | 32-bit signless integer attribute
+`axisInd` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
@@ -1472,8 +1539,8 @@ operation ::= `IE.Split` `(` operands `)` attr-dict `:` type(operands) `->` type
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`num_splits` | ::mlir::IntegerAttr | 32-bit signless integer attribute
-`axis_value` | ::mlir::IntegerAttr | 32-bit signed integer attribute
+`num_splits` | mlir::IntegerAttr | Integer attribute
+`axis_value` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
@@ -1606,7 +1673,7 @@ operation ::= `IE.Swish` `(` operands `)` attr-dict `:` type(operands) `->` type
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`beta_value` | ::mlir::FloatAttr | 32-bit float attribute
+`beta_value` | ::mlir::FloatAttr | 64-bit float attribute
 
 #### Operands:
 
@@ -1686,7 +1753,7 @@ operation ::= `IE.TopK` `(` operands `)` attr-dict `:` type(operands) `->` type(
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`axis` | ::mlir::IntegerAttr | 64-bit signless integer attribute
+`axis` | mlir::IntegerAttr | Integer attribute
 `mode` | vpux::IE::TopKModeAttr | TopKMode that the InferenceEngine supports
 `sort` | vpux::IE::TopKSortTypeAttr | TopKSortType that the InferenceEngine supports
 `element_type` | ::mlir::TypeAttr | any type attribute

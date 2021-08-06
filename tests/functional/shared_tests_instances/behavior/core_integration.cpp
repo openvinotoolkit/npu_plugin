@@ -7,6 +7,7 @@
 #include "common_test_utils/file_utils.hpp"
 #include "common/functions.h"
 #include "vpux_private_config.hpp"
+#include "vpux_private_metrics.hpp"
 
 using namespace BehaviorTestsDefinitions;
 using IEClassExecutableNetworkGetMetricTest_nightly = IEClassExecutableNetworkGetMetricTest;
@@ -330,6 +331,30 @@ TEST_P(IEClassGetMetricTest_DEVICE_ARCHITECTURE, GetAllArchitectures) {
 INSTANTIATE_TEST_CASE_P(
         IEClassGetMetricTest_nightly,
         IEClassGetMetricTest_DEVICE_ARCHITECTURE,
+        ::testing::ValuesIn(devices));
+
+// Testing private VPUX Plugin metric "BACKEND_NAME"
+using IEClassGetMetricTest_BACKEND_NAME = IEClassBaseTestP;
+
+TEST_P(IEClassGetMetricTest_BACKEND_NAME, GetBackendName) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    Core ie;
+
+    const std::unordered_set<std::string> availableBackends = {"HDDL2", "VPUAL", "LEVEL0", "EMULATOR"};
+    const auto deviceIDs = ie.GetMetric(deviceName, METRIC_KEY(AVAILABLE_DEVICES)).as<std::vector<std::string>>();
+    const auto backendName = ie.GetMetric(deviceName, VPUX_METRIC_KEY(BACKEND_NAME)).as<std::string>();
+    std::cout << "Devices: " << deviceIDs.size() << std::endl;
+    std::cout << "Backend name: " << backendName << std::endl;
+    if (deviceIDs.empty()) {
+        ASSERT_TRUE(backendName.empty());
+    } else {
+        ASSERT_TRUE(availableBackends.find(backendName) != availableBackends.end());
+    }
+}
+
+INSTANTIATE_TEST_CASE_P(
+        IEClassGetMetricTest_nightly,
+        IEClassGetMetricTest_BACKEND_NAME,
         ::testing::ValuesIn(devices));
 
 } // namespace

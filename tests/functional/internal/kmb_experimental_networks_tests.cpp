@@ -188,17 +188,6 @@ TEST_P(ModelAdk, precommit_ModelA_ADK3) {
             0.0035f);
 }
 
-// [Track number: D#7790]
-TEST_P(ModelAdk, precommit_StackedHourGlass_BDK1) {
-    runTest(
-            TestNetworkDesc("BDK1/StackedHourGlass_INT8/hg-s8-b1-mpii.xml", EXPERIMENTAL)
-                    .setUserInputPrecision("input.1", Precision::U8)
-                    .setUserInputLayout("input.1", Layout::NCHW)
-                    .setUserOutputPrecision("4702", Precision::FP16),
-            TestImageDesc("224x224/cat3.bmp", ImageFormat::RGB),
-            0.0025f);
-}
-
 // TODO: [Track number: E#9578]
 TEST_F(SmokeNetworkTest, SuperResolution_AA_ADK3) {
     if (isByPass()) {

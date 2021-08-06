@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -13,137 +13,95 @@
 
 #pragma once
 
+#include "vpux/compiler/utils/types.hpp"
+
 #include "vpux/utils/core/checked_cast.hpp"
+#include "vpux/utils/core/range.hpp"
 #include "vpux/utils/core/small_vector.hpp"
 
+#include <mlir/IR/Builders.h>
 #include <mlir/IR/BuiltinAttributes.h>
 
 namespace vpux {
 
 //
-// get<scalar>Attr
+// get<Scalar>Attr
 //
 
-mlir::IntegerAttr getInt32Attr(mlir::MLIRContext* ctx, uint32_t val);
-mlir::IntegerAttr getInt64Attr(mlir::MLIRContext* ctx, uint64_t val);
-
-mlir::IntegerAttr getSInt32Attr(mlir::MLIRContext* ctx, int32_t val);
-mlir::IntegerAttr getSInt64Attr(mlir::MLIRContext* ctx, int64_t val);
-
-mlir::IntegerAttr getUInt32Attr(mlir::MLIRContext* ctx, uint32_t val);
-mlir::IntegerAttr getUInt64Attr(mlir::MLIRContext* ctx, uint64_t val);
-
-mlir::FloatAttr getFP32Attr(mlir::MLIRContext* ctx, float val);
-mlir::FloatAttr getFP64Attr(mlir::MLIRContext* ctx, double val);
-
-//
-// get<scalar>ArrayAttr
-//
-
-template <class Range>
-mlir::ArrayAttr getInt32ArrayAttr(mlir::MLIRContext* ctx, Range range) {
-    SmallVector<mlir::Attribute> attrs;
-
-    for (const auto val : range) {
-        attrs.push_back(getInt32Attr(ctx, checked_cast<int32_t>(val)));
-    }
-
-    return mlir::ArrayAttr::get(ctx, attrs);
+template <typename T>
+mlir::IntegerAttr getIntAttr(mlir::MLIRContext* ctx, T val) {
+    return mlir::IntegerAttr::get(getInt64Type(ctx), checked_cast<int64_t>(val));
+}
+template <typename T>
+mlir::IntegerAttr getIntAttr(mlir::Builder& b, T val) {
+    return getIntAttr(b.getContext(), val);
 }
 
-template <class Range>
-mlir::ArrayAttr getInt64ArrayAttr(mlir::MLIRContext* ctx, Range range) {
-    SmallVector<mlir::Attribute> attrs;
-
-    for (const auto val : range) {
-        attrs.push_back(getInt64Attr(ctx, checked_cast<int64_t>(val)));
-    }
-
-    return mlir::ArrayAttr::get(ctx, attrs);
+template <typename T>
+mlir::FloatAttr getFPAttr(mlir::MLIRContext* ctx, T val) {
+    return mlir::FloatAttr::get(mlir::FloatType::getF64(ctx), checked_cast<double>(val));
 }
-
-template <class Range>
-mlir::ArrayAttr getSInt32ArrayAttr(mlir::MLIRContext* ctx, Range range) {
-    SmallVector<mlir::Attribute> attrs;
-
-    for (const auto val : range) {
-        attrs.push_back(getSInt32Attr(ctx, checked_cast<int32_t>(val)));
-    }
-
-    return mlir::ArrayAttr::get(ctx, attrs);
-}
-
-template <class Range>
-mlir::ArrayAttr getSInt64ArrayAttr(mlir::MLIRContext* ctx, Range range) {
-    SmallVector<mlir::Attribute> attrs;
-
-    for (const auto val : range) {
-        attrs.push_back(getSInt64Attr(ctx, checked_cast<int64_t>(val)));
-    }
-
-    return mlir::ArrayAttr::get(ctx, attrs);
-}
-
-template <class Range>
-mlir::ArrayAttr getUInt32ArrayAttr(mlir::MLIRContext* ctx, Range range) {
-    SmallVector<mlir::Attribute> attrs;
-
-    for (const auto val : range) {
-        attrs.push_back(getUInt32Attr(ctx, checked_cast<uint32_t>(val)));
-    }
-
-    return mlir::ArrayAttr::get(ctx, attrs);
-}
-
-template <class Range>
-mlir::ArrayAttr getUInt64ArrayAttr(mlir::MLIRContext* ctx, Range range) {
-    SmallVector<mlir::Attribute> attrs;
-
-    for (const auto val : range) {
-        attrs.push_back(getUInt64Attr(ctx, checked_cast<uint64_t>(val)));
-    }
-
-    return mlir::ArrayAttr::get(ctx, attrs);
-}
-
-template <class Range>
-mlir::ArrayAttr getFP32ArrayAttr(mlir::MLIRContext* ctx, Range range) {
-    SmallVector<mlir::Attribute> attrs;
-
-    for (const auto val : range) {
-        attrs.push_back(getFP32Attr(ctx, checked_cast<float>(val)));
-    }
-
-    return mlir::ArrayAttr::get(ctx, attrs);
-}
-
-template <class Range>
-mlir::ArrayAttr getFP64ArrayAttr(mlir::MLIRContext* ctx, Range range) {
-    SmallVector<mlir::Attribute> attrs;
-
-    for (const auto val : range) {
-        attrs.push_back(getFP64Attr(ctx, checked_cast<double>(val)));
-    }
-
-    return mlir::ArrayAttr::get(ctx, attrs);
-}
-
-template <class Range>
-mlir::ArrayAttr getBoolArrayAttr(mlir::MLIRContext* ctx, Range range) {
-    SmallVector<mlir::Attribute> attrs;
-
-    for (const auto val : range) {
-        attrs.push_back(mlir::BoolAttr::get(ctx, checked_cast<bool>(val)));
-    }
-
-    return mlir::ArrayAttr::get(ctx, attrs);
+template <typename T>
+mlir::FloatAttr getFPAttr(mlir::Builder& b, T val) {
+    return getFPAttr(b.getContext(), val);
 }
 
 //
-// parse<scalar>ArrayAttr
+// get<Scalar>ArrayAttr
 //
 
-SmallVector<int64_t> parseIntArrayAttr(mlir::ArrayAttr arr);
-SmallVector<double> parseFPArrayAttr(mlir::ArrayAttr arr);
+template <class Range>
+mlir::ArrayAttr getIntArrayAttr(mlir::MLIRContext* ctx, Range range) {
+    SmallVector<mlir::Attribute> attrs;
+
+    for (const auto val : range) {
+        attrs.push_back(getIntAttr(ctx, val));
+    }
+
+    return mlir::ArrayAttr::get(ctx, attrs);
+}
+template <class Range>
+mlir::ArrayAttr getIntArrayAttr(mlir::Builder& b, Range range) {
+    return getIntArrayAttr(b.getContext(), range);
+}
+
+template <class Range>
+mlir::ArrayAttr getFPArrayAttr(mlir::MLIRContext* ctx, Range range) {
+    SmallVector<mlir::Attribute> attrs;
+
+    for (const auto val : range) {
+        attrs.push_back(getFPAttr(ctx, val));
+    }
+
+    return mlir::ArrayAttr::get(ctx, attrs);
+}
+template <class Range>
+mlir::ArrayAttr getFPArrayAttr(mlir::Builder& b, Range range) {
+    return getFPArrayAttr(b.getContext(), range);
+}
+
+//
+// parse<Scalar>ArrayAttr
+//
+
+template <typename T>
+SmallVector<T> parseIntArrayAttr(mlir::ArrayAttr arr) {
+    return to_small_vector(arr.getValue() | transformed([](mlir::Attribute attr) {
+                               const auto intAttr = attr.dyn_cast_or_null<mlir::IntegerAttr>();
+                               VPUX_THROW_UNLESS(intAttr != nullptr, "Got non Integer Attribute '{0}' in Array", attr);
+
+                               return checked_cast<T>(intAttr.getValue().getSExtValue());
+                           }));
+}
+
+template <typename T>
+SmallVector<T> parseFPArrayAttr(mlir::ArrayAttr arr) {
+    return to_small_vector(arr.getValue() | transformed([](mlir::Attribute attr) {
+                               const auto fpAttr = attr.dyn_cast_or_null<mlir::FloatAttr>();
+                               VPUX_THROW_UNLESS(fpAttr != nullptr, "Got non fpAttr Attribute '{0}' in Array", attr);
+
+                               return checked_cast<T>(fpAttr.getValueAsDouble());
+                           }));
+}
 
 }  // namespace vpux

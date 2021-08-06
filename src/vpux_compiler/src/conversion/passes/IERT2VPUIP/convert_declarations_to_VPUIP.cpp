@@ -12,6 +12,7 @@
 //
 
 #include "vpux/compiler/conversion.hpp"
+#include "vpux/compiler/dialect/VPUIP/attributes/arch.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 
@@ -20,6 +21,41 @@
 using namespace vpux;
 
 namespace {
+
+//
+// TimestampRewrite
+//
+
+class TimestampRewrite final : public mlir::OpRewritePattern<IERT::TimestampOp> {
+public:
+    TimestampRewrite(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<IERT::TimestampOp>(ctx), _log(log) {
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(IERT::TimestampOp origOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult TimestampRewrite::matchAndRewrite(IERT::TimestampOp origOp, mlir::PatternRewriter& rewriter) const {
+    _log.trace("Found Timestamp Operation '{0}'", origOp->getLoc());
+
+    auto origType = origOp.getType();
+    VPUX_THROW_UNLESS(origType.getNumElements() == 1, "Got wrong elements number for TimestampOp");
+    VPUX_THROW_UNLESS(origType.getElementType() == getUInt32Type(getContext()),
+                      "Got wrong element type for TimestampOp");
+
+    auto timerType =
+            mlir::MemRefType::get(origType.getShape(), origType.getElementType(), {},
+                                  VPUIP::MemoryLocationAttr::get(getContext(), VPUIP::MemoryLocation::AbsoluteAddr));
+
+    rewriter.replaceOpWithNewOp<VPUIP::DeclareTensorOp>(origOp, timerType, VPUIP::MemoryLocation::AbsoluteAddr, 0,
+                                                        VPUIP::HW_TIMER_ABSOLUTE_ADDR);
+    _log.trace("Replaced with 'VPUIP.DeclareTensorOp'");
+
+    return mlir::success();
+}  // namespace
 
 //
 // Generated
@@ -53,6 +89,7 @@ void ConvertDeclarations2VPUIPPass::safeRunOnFunc() {
     target.addLegalOp<IERT::GenericReshapeOp, IERT::ConcatViewOp, mlir::memref::SubViewOp>();
 
     mlir::RewritePatternSet patterns(&ctx);
+    patterns.insert<TimestampRewrite>(&ctx, _log);
     populateWithGenerated(patterns);
 
     if (mlir::failed(mlir::applyFullConversion(func, target, std::move(patterns)))) {

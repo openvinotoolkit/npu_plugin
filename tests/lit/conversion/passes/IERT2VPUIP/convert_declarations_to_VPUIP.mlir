@@ -21,11 +21,11 @@ func @ConstantLayer(%arg0: memref<1x2x2x2xf16>) -> memref<1x2x2x2xf16> {
 // CHECK-LABEL: @StaticAlloc
 func @StaticAlloc(%arg0: memref<1x1x1x1000xf16>, %arg1: memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16> {
     %0 = IERT.StaticAlloc<0> -> memref<1x1x1x1000xf16, "DDR">
-    %1 = VPUIP.SoftMaxUPA {axisInd = 3 : i32} inputs(%arg0 : memref<1x1x1x1000xf16>) outputs(%0 : memref<1x1x1x1000xf16, "DDR">) -> memref<1x1x1x1000xf16, "DDR">
+    %1 = VPUIP.SoftMaxUPA {axisInd = 3} inputs(%arg0 : memref<1x1x1x1000xf16>) outputs(%0 : memref<1x1x1x1000xf16, "DDR">) -> memref<1x1x1x1000xf16, "DDR">
 
     %2 = IERT.StaticAlloc<2048> -> memref<1x1x1x1000xf16, "DDR">
-    %3 = VPUIP.SoftMaxUPA {axisInd = 3 : i32} inputs(%1 : memref<1x1x1x1000xf16, "DDR">) outputs(%2 : memref<1x1x1x1000xf16, "DDR">) -> memref<1x1x1x1000xf16, "DDR">
-    %4 = VPUIP.SoftMaxUPA {axisInd = 3 : i32} inputs(%3 : memref<1x1x1x1000xf16, "DDR">) outputs(%arg1 : memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16>
+    %3 = VPUIP.SoftMaxUPA {axisInd = 3} inputs(%1 : memref<1x1x1x1000xf16, "DDR">) outputs(%2 : memref<1x1x1x1000xf16, "DDR">) -> memref<1x1x1x1000xf16, "DDR">
+    %4 = VPUIP.SoftMaxUPA {axisInd = 3} inputs(%3 : memref<1x1x1x1000xf16, "DDR">) outputs(%arg1 : memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16>
 
     return %4: memref<1x1x1x1000xf16>
 
@@ -57,7 +57,7 @@ func @StaticAlloc(%arg0: memref<1x1x1x1000xf16>, %arg1: memref<1x1x1x1000xf16>) 
 func @ReshapeInGraph(%arg0: memref<1x512xf16>, %arg1: memref<1x512xf16>) -> memref<1x512xf16> {
     %0 = IERT.GenericReshape inputs(%arg0 : memref<1x512xf16>) -> memref<1x512x1x1xf16>
     %1 = IERT.StaticAlloc<0> -> memref<1x512x1x1xf16, "DDR">
-    %2 = VPUIP.SoftMaxUPA {axisInd = 1 : i32} inputs(%0 : memref<1x512x1x1xf16>) outputs(%1 : memref<1x512x1x1xf16, "DDR">) -> memref<1x512x1x1xf16, "DDR">
+    %2 = VPUIP.SoftMaxUPA {axisInd = 1} inputs(%0 : memref<1x512x1x1xf16>) outputs(%1 : memref<1x512x1x1xf16, "DDR">) -> memref<1x512x1x1xf16, "DDR">
     %3 = IERT.GenericReshape inputs(%2 : memref<1x512x1x1xf16, "DDR">) -> memref<1x512xf16, "DDR">
     %4 = VPUIP.NNDMA inputs(%3 : memref<1x512xf16, "DDR">) outputs(%arg1 : memref<1x512xf16>) -> memref<1x512xf16>
     return %4: memref<1x512xf16>

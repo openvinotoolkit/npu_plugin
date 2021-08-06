@@ -59,7 +59,7 @@ void UseUserPrecisionPass::safeRunOnModule() {
         const auto origType = p.value().cast<mlir::ShapedType>();
         const auto userType = userInputs[ind].userType().cast<mlir::ShapedType>();
 
-        const auto newType = mlir::RankedTensorType::get(origType.getShape(), userType.getElementType());
+        const auto newType = changeElemType(origType, userType.getElementType());
         newArgTypes[ind] = newType;
     }
 
@@ -71,13 +71,13 @@ void UseUserPrecisionPass::safeRunOnModule() {
         const auto origType = p.value().cast<mlir::ShapedType>();
         const auto userType = userOutputs[ind].userType().cast<mlir::ShapedType>();
 
-        const auto newType = mlir::RankedTensorType::get(origType.getShape(), userType.getElementType());
+        const auto newType = changeElemType(origType, userType.getElementType());
         newResultTypes[ind] = newType;
     }
 
     const auto cvtOpBuilder = [](mlir::OpBuilder& builder, mlir::Location loc, mlir::Value val,
                                  mlir::Type newType) -> mlir::Operation* {
-        return builder.create<IE::ConvertOp>(loc, val,
+        return builder.create<IE::ConvertOp>(loc, newType, val,
                                              mlir::TypeAttr::get(newType.cast<mlir::ShapedType>().getElementType()));
     };
 

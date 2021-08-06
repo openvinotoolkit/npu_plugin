@@ -22,7 +22,7 @@
             "AlignTaskWeights",
             "ImplicitOutputDTypeUpdate",
             "KMBQuantizeConversion",
-            "ConfigureOutputPrecision",
+            "ConfigureIOPrecision",
             "EnsureDTypeCompatibility",
             "GenerateSparsityMapsPopulatedTensors",
             "GenerateWeightsTables",
@@ -32,6 +32,7 @@
             "RemoveBiasTensors",
             "StrategyLayersToTensors",
             "SetSparsityAttrForUnpopulatedTensors",
+            "FuseConstants",
             "SplittingTensorsAcrossClusters",
             "DeQuantizeU8ConstToFP16Const",
             "FuseImplicits"
@@ -41,6 +42,7 @@
         "Singular": [
             "GenerateSparsityMapsUnpopulatedTensors",
             "GenerateSparsityMapsEltwise",
+            "MarkDMATasksToIgnore",
             {
               "name" : "LocateInplaceEltwiseOps"
             },
@@ -94,6 +96,7 @@
               "allocator_mode": true,
               "ddr_control_edges" : true
             },
+            "SetNotFusedDataIndexes",
             {
                 "name" : "RecomputeImplicitOpAttr",
                 "attribute" : "address"
@@ -101,7 +104,9 @@
             "SetSliceAddressesInCMX",
             "LayerNumbering",
             "PopulateWeightsTablesPointers",
-            "PopulateStorageElementPointers"
+            "PopulateStorageElementPointers",
+            "MarkAsymmetricalStrideTensorsLeadToCMXConcat",
+            "RepopulateFusedConstants"
         ]
     },
 

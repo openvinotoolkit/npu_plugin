@@ -7,10 +7,10 @@ module @wrong_entry_point {
 IE.CNNNetwork
     entryPoint: @foo
     inputsInfo : {
-        IE.DataInfo "input" : memref<1x3x16x16xf32>
+        IE.DataInfo "input" : tensor<1x3x16x16xf32>
     }
     outputsInfo : {
-        IE.DataInfo "softmax" : memref<1x3x16x16xf32>
+        IE.DataInfo "softmax" : tensor<1x3x16x16xf32>
     }
 
 func @main(%arg0: tensor<1x3x16x16xf32>) -> tensor<1x3x16x16xf32> {
@@ -28,10 +28,10 @@ module @wrong_num_inputs {
 IE.CNNNetwork
     entryPoint: @main
     inputsInfo : {
-        IE.DataInfo "input" : memref<1x3x16x16xf32>
+        IE.DataInfo "input" : tensor<1x3x16x16xf32>
     }
     outputsInfo : {
-        IE.DataInfo "softmax" : memref<1x3x16x16xf32>
+        IE.DataInfo "softmax" : tensor<1x3x16x16xf32>
     }
 
 func @main(%arg0: tensor<1x3x16x16xf32>, %arg1: tensor<1x3x16x16xf32>) -> tensor<1x3x16x16xf32> {
@@ -49,10 +49,10 @@ module @wrong_num_outputs {
 IE.CNNNetwork
     entryPoint: @main
     inputsInfo : {
-        IE.DataInfo "input" : memref<1x3x16x16xf32>
+        IE.DataInfo "input" : tensor<1x3x16x16xf32>
     }
     outputsInfo : {
-        IE.DataInfo "softmax" : memref<1x3x16x16xf32>
+        IE.DataInfo "softmax" : tensor<1x3x16x16xf32>
     }
 
 func @main(%arg0: tensor<1x3x16x16xf32>) {
@@ -69,10 +69,10 @@ module @wrong_entry_point_sig {
 IE.CNNNetwork
     entryPoint: @main
     inputsInfo : {
-        IE.DataInfo "input" : f32
+        IE.DataInfo "input" : f16
     }
     outputsInfo : {
-        IE.DataInfo "softmax" : memref<1x3x16x16xf32>
+        IE.DataInfo "softmax" : tensor<1x3x16x16xf32>
     }
 
 func @main(%arg0: memref<1x3x16x16xf32>) -> memref<1x3x16x16xf32> {

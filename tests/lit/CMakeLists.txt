@@ -27,15 +27,9 @@ set_target_properties(copy_vpuip_schema_tests PROPERTIES FOLDER "tests")
 
 set(vpuip_schema_file "path('../schema/graphfile.fbs')")
 
-if(ENABLE_PLAIDML)
-    set(has_plaidml "True")
-else()
-    set(has_plaidml "False")
-endif()
-
 vpux_setup_lit_tests(VPUX
     PATTERNS "*.mlir"
     EXTRA_SOURCES "lit.local.cfg"
-    VARS "vpuip_schema_file" "has_plaidml"
+    VARS "vpuip_schema_file"
     SUBSTITUTIONS "vpuip_schema_file"
 )

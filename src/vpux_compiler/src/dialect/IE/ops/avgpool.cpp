@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -35,10 +35,10 @@ mlir::LogicalResult vpux::IE::AvgPoolOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto dataPaddingBelow = parseIntArrayAttr(avgPool.pads_end());
-    const auto dataPaddingAbove = parseIntArrayAttr(avgPool.pads_begin());
-    const auto windowShape = parseIntArrayAttr(avgPool.kernel_size());
-    const auto windowStrides = parseIntArrayAttr(avgPool.strides());
+    const auto dataPaddingBelow = parseIntArrayAttr<int64_t>(avgPool.pads_end());
+    const auto dataPaddingAbove = parseIntArrayAttr<int64_t>(avgPool.pads_begin());
+    const auto windowShape = parseIntArrayAttr<int64_t>(avgPool.kernel_size());
+    const auto windowStrides = parseIntArrayAttr<int64_t>(avgPool.strides());
     const auto roundingType = avgPool.rounding_type().getValue();
 
     const auto inType = avgPool.input().getType().cast<mlir::ShapedType>().getElementType();

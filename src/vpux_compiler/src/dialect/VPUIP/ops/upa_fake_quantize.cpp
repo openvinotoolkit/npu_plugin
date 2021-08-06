@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -128,7 +128,7 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::FakeQuantizeUPAOp::serialize(VPUIP:
     const auto output_high = getVecFP16(this->output_highAttr());
 
     MVCNN::FakeQuantizeParamsBuilder builder(writer);
-    builder.add_levels(levels());
+    builder.add_levels(checked_cast<uint32_t>(levels()));
     builder.add_input_low(input_low);
     builder.add_input_high(input_high);
     builder.add_output_low(output_low);

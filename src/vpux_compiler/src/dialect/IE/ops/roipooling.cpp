@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -28,7 +28,7 @@ mlir::LogicalResult vpux::IE::ROIPoolingOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto output_size = parseIntArrayAttr(roiPooling.output_size());
+    const auto output_size = parseIntArrayAttr<int64_t>(roiPooling.output_size());
     const auto inTypeFeatureMap = roiPooling.input().getType().cast<mlir::ShapedType>();
     const auto inShapeFeatureMap = inTypeFeatureMap.getShape();
 

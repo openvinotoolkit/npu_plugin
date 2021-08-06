@@ -27,7 +27,6 @@
             },
             "AssignInputNode",
             "AssignOutputNode",
-            "DecideComputePrecision",
             "AssignUniqueOpId",
             {
                 "name": "ApplyTargetVars",
@@ -80,6 +79,7 @@
             "PlacementOfOps",
             "PostTrainingQuantize",
             "EltwiseToSWEltwise",
+            "HwConvertToEltwise",
             "MarkEltWiseUpaInputs",
             "MarkCMCompatibleConvs",
             "AddPermuteToNonCMConvPaths"
@@ -101,7 +101,7 @@
             "UpdateImplicitLayersQuantizationParams",
             "ImplicitOutputDTypeUpdate",
             "KMBQuantizeConversion",
-            "ConfigureOutputPrecision",
+            "ConfigureIOPrecision",
             "EnsureDTypeCompatibility"
         ]
     },

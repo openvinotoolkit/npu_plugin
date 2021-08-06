@@ -15,9 +15,6 @@
 
 #include "vpux/utils/core/small_vector.hpp"
 
-#include "vpux/compiler/core/attributes/dims_order.hpp"
-#include "vpux/compiler/core/ops_interfaces.hpp"
-
 #include <mlir/IR/DialectInterface.h>
 #include <mlir/IR/OpDefinition.h>
 #include <mlir/IR/Operation.h>
@@ -36,7 +33,6 @@ public:
     }
 
     virtual mlir::Attribute getExecutor(mlir::Operation* op, uint32_t& numUnits) const = 0;
-    virtual bool isSupportedLayout(mlir::Operation* origOp, DataOrderInfo& info) const = 0;
 };
 
 }  // namespace IERT

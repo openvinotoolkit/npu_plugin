@@ -35,6 +35,64 @@ def UseUserPrecision : PassBase<"use-user-precision", "vpux::ModulePass"> {
     ];
 }
 
+//
+// UseUserLayout
+//
+
+def UseUserLayout : PassBase<"use-user-layout", "vpux::ModulePass"> {
+    let summary = "Use user layouts for entry point function prototype";
+
+    let description = [{
+        This pass updates the CNNNetwork entry point function prototype
+        and uses user-provided layouts for its operands and results.
+        The pass inserts Reorder operations from/to topology layout.
+    }];
+
+    let constructor = "vpux::IE::createUseUserLayout()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
+
+//
+// AdjustLayouts
+//
+
+def AdjustLayouts : PassBase<"adjust-layouts", "vpux::FunctionPass"> {
+    let summary = "Adjust required layouts for all layers";
+
+    let description = [{
+        This pass adds the required layouts instead of the default one
+        depending on the layer specification from underlying Dialect.
+    }];
+
+    let constructor = "vpux::IE::createAdjustLayoutsPass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
+
+//
+// OptimizeReorders
+//
+
+def OptimizeReorders : PassBase<"optimize-reorders", "vpux::FunctionPass"> {
+    let summary = "Optimize extra Reorder operations";
+
+    let description = [{
+        This pass tries to optimize out Reorder operations for common cases
+        by propagating them from inputs to outputs and merging into layers.
+    }];
+
+    let constructor = "vpux::IE::createOptimizeReordersPass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
+
 //=================================================================================
 // AdjustForVPU
 //=================================================================================
@@ -192,10 +250,35 @@ def ResolveStridedSlice : PassBase<"resolve-strided-slice", "vpux::FunctionPass"
     let description = [{
         The pass is a part of `AdjustForVPU` pipeline.
 
-        It replaces IE::StridedSlice operation to simple StridedSlice and Reshape.
+        It replaces IE::StridedSlice operation with simple StridedSlice and Reshape.
     }];
 
     let constructor = "vpux::IE::createResolveStridedSlicePass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
+
+//
+// ConvertConv1DToConv2D
+//
+
+def ConvertConv1DToConv2D : PassBase<"convert-conv1d-to-conv2d", "vpux::FunctionPass"> {
+    let summary = "Convert Convolution1D and GroupConvolution1D to its 2D variance";
+
+    let description = [{
+        The pass is a part of `AdjustForVPU` pipeline.
+
+        Extends input, filter and output tensors with height = 1.
+        [N, C, W] -> [N, C, 1, W]
+        strides:    {2} -> strides:    {1, 2}
+        pads_begin: {2} -> pads_begin: {0, 2}
+        pads_end:   {2} -> pads_end:   {0, 2}
+        dilations:  {2} -> dilations:  {1, 2}
+    }];
+
+    let constructor = "vpux::IE::createConvertConv1DToConv2DPass()";
 
     let dependentDialects = [
         "vpux::IE::IEDialect"
@@ -266,6 +349,27 @@ def MergeFakeQuant : PassBase<"merge-fake-quant", "vpux::FunctionPass"> {
 
     let dependentDialects = [
         "vpux::IE::IEDialect"
+    ];
+}
+
+//
+// PropagateQuantizeDequantize
+//
+
+def PropagateQuantizeDequantize : PassBase<"propagate-quantize-dequantize", "vpux::FunctionPass"> {
+    let summary = "Update quantize/dequantize ops";
+
+    let description = [{
+        The pass is a part of `LowPrecision` pipeline.
+
+        Pass detect pattern `quant.dcast -> op -> quant.qcast` into single quantized Op
+    }];
+
+    let constructor = "vpux::IE::createPropagateQuantizeDequantizePass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect",
+        "mlir::quant::QuantizationDialect"
     ];
 }
 

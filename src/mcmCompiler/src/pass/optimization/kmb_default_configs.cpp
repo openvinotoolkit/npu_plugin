@@ -134,13 +134,11 @@ MV_OPTIMIZER_LAYER_STRATEGY_REGISTRY(KmbOptLayerInitOutput)
     .registerSet("weightsSparsity").insert(false)
     .registerSet("pipelining").insert(false);
 
-
-
 //################# DEFAULT SW layers #####################
 MV_OPTIMIZER_LAYER_STRATEGY_REGISTRY(KmbOptLayerInitDefault)
    .enter("Default")
    .registerSet("streamingStrategies").insert(vector<string>(0))
-   .registerSet("clusteringStrategies").insert(vector<string>{"Clustering"})
+   .registerSet("clusteringStrategies").insert(vector<string>{"Clustering", "SplitOverH"})
    .registerSet("forceSpilling").insert(true)
    .registerSet("inputActivationSparsity").insert(false)
    .registerSet("outputActivationSparsity").insert(false)

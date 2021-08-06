@@ -101,6 +101,7 @@ To enable it on Ubuntu follow the next steps:
 
     ```bash
     cd <kmb-plugin>/thirdparty/llvm-project/mlir/utils/vscode
+    npm install
     vsce package
     ```
 

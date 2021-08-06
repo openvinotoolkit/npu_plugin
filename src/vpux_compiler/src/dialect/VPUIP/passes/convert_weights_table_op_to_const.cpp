@@ -46,11 +46,9 @@ int32_t toHex(float realVal) {
 
 using BiasConverterCb = int32_t (*)(float);
 const EnumMap<VPUIP::ArchKind, BiasConverterCb> biasConvertersMap = {
-        {VPUIP::ArchKind::VPU3400_A0, toFixedPoint},  //
-        {VPUIP::ArchKind::VPU3400, toFixedPoint},     //
-        {VPUIP::ArchKind::VPU3700, toFixedPoint},     //
-        {VPUIP::ArchKind::VPU3900, toFixedPoint},     //
-        {VPUIP::ArchKind::VPU3720, toHex},            //
+        {VPUIP::ArchKind::KMB, toFixedPoint},  //
+        {VPUIP::ArchKind::TBH, toFixedPoint},  //
+        {VPUIP::ArchKind::MTL, toHex},         //
 };
 
 constexpr int32_t getKMBScale() {
@@ -79,11 +77,9 @@ int32_t getMTLScale() {
 
 using PPEConverterCb = int32_t (*)();
 const EnumMap<VPUIP::ArchKind, PPEConverterCb> ppeConvertersMap = {
-        {VPUIP::ArchKind::VPU3400_A0, getKMBScale},  //
-        {VPUIP::ArchKind::VPU3400, getKMBScale},     //
-        {VPUIP::ArchKind::VPU3700, getKMBScale},     //
-        {VPUIP::ArchKind::VPU3900, getKMBScale},     //
-        {VPUIP::ArchKind::VPU3720, getMTLScale},     //
+        {VPUIP::ArchKind::KMB, getKMBScale},  //
+        {VPUIP::ArchKind::TBH, getKMBScale},  //
+        {VPUIP::ArchKind::MTL, getMTLScale},  //
 };
 
 using GetBiasCb = FuncRef<float(int64_t)>;
@@ -93,7 +89,7 @@ std::vector<int32_t> getWeightsTable(int64_t OC, GetBiasCb getBiasFP, int32_t we
     const auto ppeConverter = ppeConvertersMap.at(arch);
     const int32_t multShift = ppeConverter();
 
-    const int32_t sparsityPtr = arch == VPUIP::ArchKind::VPU3720 ? MTL_SPARSITY : sparsityPtrOffset;
+    const int32_t sparsityPtr = arch == VPUIP::ArchKind::MTL ? MTL_SPARSITY : sparsityPtrOffset;
 
     const auto convertBias = [&](int64_t oc) -> int32_t {
         const auto biasVal = getBiasFP(oc);
@@ -135,8 +131,12 @@ llvm::unique_function<float(int64_t)> getBiasFunc(mlir::Value bias) {
 }
 
 int64_t getOC(VPUIP::WeightsTableOp createWTableOp) {
-    VPUX_THROW_WHEN(createWTableOp.weights() != nullptr && createWTableOp.activation_window() != nullptr,
-                    "Ambiguous output channel representation");
+    if (createWTableOp.weights() != nullptr && createWTableOp.activation_window() != nullptr) {
+        // Depthwise convolution case. Weights table contains both activation window and weights.
+        // FIXME the logic repeats row-major convolution
+        const auto filterShape = getShape(createWTableOp.weights());
+        return filterShape[IERT::ConvolutionOp::filter_out_channel_dim()];
+    }
 
     if (createWTableOp.weights() != nullptr) {
         const auto filterShape = getShape(createWTableOp.weights());
@@ -148,17 +148,28 @@ int64_t getOC(VPUIP::WeightsTableOp createWTableOp) {
 }
 
 int32_t getWeightPtrStep(VPUIP::WeightsTableOp createWTableOp) {
-    VPUX_THROW_WHEN(createWTableOp.weights() != nullptr && createWTableOp.activation_window() != nullptr,
-                    "Ambiguous weights pointer step representation");
-
     if (createWTableOp.weights() != nullptr) {
         const auto filterShape = getShape(createWTableOp.weights());
 
         const auto IC = filterShape[IERT::ConvolutionOp::filter_in_channel_dim()];
         const auto KY = filterShape[IERT::ConvolutionOp::filter_spatial_height_dim()];
         const auto KX = filterShape[IERT::ConvolutionOp::filter_spatial_width_dim()];
+        const auto eltSize = Byte(getElemTypeSize(createWTableOp.weights().getType())).count();
+        if (createWTableOp.activation_window() != nullptr) {
+            // Depthwise convolution case.
+            // Weights table contains both activation window and weights.
+            // Check that weights have expected alignment.
+            // Other than that, weight step is the same for both z-major (OYXI) and depthwise convolutions.
+            const auto origFilterType = createWTableOp.weights().getType().cast<mlir::ShapedType>();
+            const auto depthwiseConvAlignment =
+                    VPUIP::NCEInvariant::getChannelAlignment(origFilterType.getElementType());
+            const int64_t weightsElementCount = IC * KY * KX;
+            VPUX_THROW_UNLESS(weightsElementCount % depthwiseConvAlignment == 0,
+                              "Depthwise convolution weights size must be a multiple of {0}, got {1}",
+                              depthwiseConvAlignment, weightsElementCount);
+        }
 
-        return checked_cast<int32_t>(IC * KY * KX * sizeof(int16_t));
+        return checked_cast<int32_t>(IC * KY * KX * eltSize);
     }
 
     return 0;

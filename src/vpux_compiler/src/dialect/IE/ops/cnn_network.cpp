@@ -228,10 +228,10 @@ void vpux::IE::CNNNetworkOp::getFromModule(mlir::ModuleOp module, CNNNetworkOp& 
 //
 
 mlir::LogicalResult vpux::IE::verifyOp(DataInfoOp op) {
-    const auto userType = op.userType().dyn_cast<mlir::MemRefType>();
+    const auto userType = op.userType().dyn_cast<mlir::RankedTensorType>();
 
     if (userType == nullptr) {
-        return errorAt(op, "User type is not a 'MemRefType', got '{0}'", userType);
+        return errorAt(op, "User type is not a 'RankedTensorType', got '{0}'", userType);
     }
 
     const auto precision = userType.getElementType();
@@ -245,5 +245,5 @@ mlir::LogicalResult vpux::IE::verifyOp(DataInfoOp op) {
 }
 
 DimsOrder vpux::IE::DataInfoOp::getDimsOrder() {
-    return DimsOrder::fromType(userType().cast<mlir::MemRefType>());
+    return DimsOrder::fromType(userType().cast<mlir::RankedTensorType>());
 }

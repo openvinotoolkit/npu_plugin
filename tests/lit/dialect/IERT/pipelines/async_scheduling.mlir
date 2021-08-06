@@ -1,4 +1,4 @@
-// RUN: vpux-opt --set-compile-params="vpu-arch=VPU3700" --async-scheduling %s | FileCheck %s
+// RUN: vpux-opt --set-compile-params="vpu-arch=KMB" --async-scheduling %s | FileCheck %s
 
 func @main(%arg0: memref<1x100xf16>, %arg1: memref<100xf16>) -> memref<100xf16> {
     %0 = IERT.StaticAlloc<0> -> memref<1x100xf16>

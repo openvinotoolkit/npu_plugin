@@ -24,7 +24,7 @@ public:
     virtual const std::shared_ptr<IDevice> getDevice() const override;
     virtual const std::shared_ptr<IDevice> getDevice(const std::string&) const override;
     const std::string getName() const override {
-        return "dKMB";
+        return "LEVEL0";
     }
     const std::vector<std::string> getDeviceNames() const override;
     std::unordered_set<std::string> getSupportedOptions() const override {

@@ -1,8 +1,18 @@
 # How to build VPUX Plugin
 
 ## Requirements
-### x86_64 host
-For now only Ubuntu 18.04 x86 hosts are supported.
+### x86_64 host - Linux
+* Ubuntu 18.04 LTS
+
+### x86_64 host - Windows
+* Windows 10 Enterprise 20H2
+
+#### Windows SDK and spectre libraries
+
+Latest windows SDK and spectre libraries are required for building OpenVINO & VPUX Plugin - install them via `Visual Studio Installer`:
+Modify -> Individual components -> Search components
+1. "Windows SDK"
+2. "Spectre x64/x86 latest"
 
 ### ARM
 #### Yocto SDK
@@ -15,7 +25,7 @@ wget -q http://nnt-srv01.inn.intel.com/dl_score_engine/thirdparty/linux/keembay/
     rm oecore-x86_64-aarch64-toolchain-1.0.sh
 ```
 
-## Dependencies
+## Dependencies - Linux
 
 1. Install OpenVINO build dependencies using [OpenVINO Linux Setup Script].
 
@@ -39,9 +49,9 @@ wget -q http://nnt-srv01.inn.intel.com/dl_score_engine/thirdparty/linux/keembay/
 
 For details about OpenVINO build please refer to [OpenVINO Build Instructions].
 
-## Build for X86_64
+## Build for X86_64 - Linux
 
-The X86_64 build is needed to get reference results for the tests.
+The X86_64 build is needed to get reference results for the tests run on ARM
 
 1. Move to [OpenVINO Project] base directory and build it with the following commands:
 
@@ -65,6 +75,31 @@ The X86_64 build is needed to get reference results for the tests.
         -D InferenceEngineDeveloperPackage_DIR=$OPENVINO_HOME/build-x86_64 \
         ..
     make -j${nproc}
+    ```
+
+## Build for X86_64 - Windows
+
+1. Move to [OpenVINO Project] base directory and build it with the following commands in `Developer Command Prompt for Visual Studio`:
+
+    ```bat
+    mkdir -p %OPENVINO_HOME%\build-x86_64
+    cd %OPENVINO_HOME%\build-x86_64
+    cmake ^
+        -D ENABLE_TESTS=ON ^
+        -D ENABLE_FUNCTIONAL_TESTS=ON ^
+        ..
+    cmake --build . --config Release -j 8
+    ```
+
+2. Move to [KMB Plugin Project] base directory and build it with commands  in `Developer Command Prompt for Visual Studio`:
+
+    ```bat
+    mkdir -p %KMB_PLUGIN_HOME%\build-x86_64
+    cd %KMB_PLUGIN_HOME%\build-x86_64
+    cmake ^
+        -D InferenceEngineDeveloperPackage_DIR=%OPENVINO_HOME%\build-x86_64 ^
+        ..
+    cmake --build . --config Release -j 8
     ```
 
 ## Build for ARM64

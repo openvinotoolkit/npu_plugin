@@ -12,6 +12,7 @@
 //
 
 #include "vpux/compiler/dialect/const/attributes/content.hpp"
+#include "vpux/compiler/utils/types.hpp"
 
 #include "vpux/utils/core/format.hpp"
 #include "vpux/utils/core/func_ref.hpp"
@@ -76,7 +77,8 @@ mlir::Attribute vpux::Const::ConvertElemTypeAttr::parse(mlir::MLIRContext*, mlir
 mlir::ShapedType vpux::Const::ConvertElemTypeAttr::inferOutputType(mlir::ShapedType input) const {
     VPUX_THROW_UNLESS(input.getElementType().isIntOrFloat(), "Can't convert '{0}' element type to '{1}'",
                       input.getElementType(), getElemType());
-    return input.clone(getElemType());
+
+    return changeElemType(input, getElemType());
 }
 
 //

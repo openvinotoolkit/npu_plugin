@@ -1,4 +1,4 @@
-// RUN: vpux-opt --split-input-file --set-compile-params="vpu-arch=VPU3700" --lower-IE-to-IERT %s | FileCheck %s
+// RUN: vpux-opt --split-input-file --set-compile-params="vpu-arch=KMB" --lower-IE-to-IERT %s | FileCheck %s
 
 //
 // The 'lower-IE-to-IERT' pass:
@@ -11,7 +11,7 @@
 
 // CHECK: func @SingleLayer([[ARG0:%.*]]: memref<1x1000xf16>, [[ARG1:%.*]]: memref<1x1000xf16>) -> memref<1x1000xf16> {
 func @SingleLayer(%arg0: tensor<1x1000xf16>) -> tensor<1x1000xf16> {
-    %0 = IE.SoftMax(%arg0) {axisInd = 1 : i32} : tensor<1x1000xf16> -> tensor<1x1000xf16>
+    %0 = IE.SoftMax(%arg0) {axisInd = 1} : tensor<1x1000xf16> -> tensor<1x1000xf16>
     return %0 : tensor<1x1000xf16>
 
     // CHECK: [[VAR0:%.*]] = memref.alloc() : memref<1x1000xf16>
@@ -56,7 +56,7 @@ func @Reshape(%arg0 : tensor<1x512x1x1xf32>) -> tensor<1x512xf32> {
 // CHECK: func @ReshapeInGraph([[ARG0:%.*]]: memref<1x512x1x1xf32>, [[ARG1:%.*]]: memref<1x512x1x1xf32>) -> memref<1x512x1x1xf32> {
 func @ReshapeInGraph(%arg0 : tensor<1x512x1x1xf32>) -> tensor<1x512x1x1xf32> {
     %0 = IE.Reshape(%arg0) { shape_value = [1, 512] } : tensor<1x512x1x1xf32> -> tensor<1x512xf32>
-    %1 = IE.SoftMax(%0) {axisInd = 1 : i32} : tensor<1x512xf32> -> tensor<1x512xf32>
+    %1 = IE.SoftMax(%0) {axisInd = 1} : tensor<1x512xf32> -> tensor<1x512xf32>
     %2 = IE.Reshape(%1) { shape_value = [1, 512, 1, 1] } : tensor<1x512xf32> -> tensor<1x512x1x1xf32>
     return %2 : tensor<1x512x1x1xf32>
 

@@ -68,7 +68,7 @@ mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::SwishOp swishOp, mli
     }
 
     rewriter.replaceOpWithNewOp<IE::SwishOp>(swishOp, swishOp.getType(), swishOp.input(), nullptr,
-                                             rewriter.getF32FloatAttr(betaContent.getSplatValue<float>()));
+                                             rewriter.getF64FloatAttr(betaContent.getSplatValue<float>()));
 
     return mlir::success();
 }

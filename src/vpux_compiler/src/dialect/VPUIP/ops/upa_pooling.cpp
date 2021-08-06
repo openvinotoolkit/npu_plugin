@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -71,10 +71,10 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(PoolingUPAOp op) {
         return errorAt(op, "Input number of channels '{0}' doesn't match with output '{1}'", inShape[C], outShape[C]);
     }
 
-    const auto kernel = parseIntArrayAttr(op.kernel());
-    const auto strides = parseIntArrayAttr(op.strides());
-    const auto padsBegin = parseIntArrayAttr(op.padsBegin());
-    const auto padsEnd = parseIntArrayAttr(op.padsEnd());
+    const auto kernel = parseIntArrayAttr<int64_t>(op.kernel());
+    const auto strides = parseIntArrayAttr<int64_t>(op.strides());
+    const auto padsBegin = parseIntArrayAttr<int64_t>(op.padsBegin());
+    const auto padsEnd = parseIntArrayAttr<int64_t>(op.padsEnd());
 
     if (kernel.size() != 2) {
         return errorAt(op, "Got unsupported kernel '{0}', only 2D is supported", kernel);

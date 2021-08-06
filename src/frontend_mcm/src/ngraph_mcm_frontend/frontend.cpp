@@ -77,6 +77,11 @@ std::unique_ptr<MVCNN::TensorReferenceT> buildTensorReference(
     const std::string& tensorName,
     const InferenceEngine::TensorDesc& tensorInfo);
 
+std::unique_ptr<MVCNN::TensorReferenceT> buildTensorReference(
+    const std::string& tensorName,
+    const InferenceEngine::TensorDesc& tensorInfo,
+    const mv::Data::TensorIterator& opModelTensor);
+
 namespace {
     std::map<std::string, std::string> MapInputOutputInfoToNgraphOps(const std::shared_ptr<ngraph::Function>& func,
         const ie::InputsDataMap& inputsInfo,
@@ -192,7 +197,9 @@ std::unique_ptr<mv::CompilationUnit> createCompilationUnit(
         else {
             switch (config.platform()) {
                 case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3400:
-                case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3700: {
+                case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3700:
+                case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3800:
+                case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3900: {
                     compDescName = "release_kmb_B0";
                     break;
                 }
@@ -200,14 +207,14 @@ std::unique_ptr<mv::CompilationUnit> createCompilationUnit(
                     compDescName = "release_mtl";
                     break;
                 }
-                case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3400_A0:
-                case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3800:
-                case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3900:
+                case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3400_A0: {
                     compDescName = "release_kmb";
                     break;
-                case InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR:
+                }
+                case InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR: {
                     compDescName = "emulator_kmb_SC-Prefetch1";
                     break;
+                }
                 case InferenceEngine::VPUXConfigParams::VPUXPlatform::AUTO:
                 default:
                     errMsg = "Error: VPUXPlatform is not defined.";
@@ -243,20 +250,75 @@ std::unique_ptr<mv::CompilationUnit> createCompilationUnit(
             mcmCompDesc.setPassArg("GlobalConfigParams", "PerformanceCounting", true);
         }
 
+        auto& mcmModel = mcmCompiler->model();
+
         std::function<void(MVCNN::GraphFileT&)> metaInfoSerializer =
-            [&inputsInfo, &outputsInfo, &netName](MVCNN::GraphFileT& graphFileInstance) {
+            [&inputsInfo, &outputsInfo, &netName, &mcmModel](MVCNN::GraphFileT& graphFileInstance) {
             if (graphFileInstance.header == nullptr) {
                 IE_THROW() << "metaInfoSerializer: graph file header points to null";
             }
 
-            for (const auto& inInfo : inputsInfo) {
-                graphFileInstance.header->in_tensor_desc.push_back(
-                    buildTensorReference(inInfo.first, inInfo.second->getTensorDesc()));
+            // Gather information about inputs and outputs of model in opModel
+            // to check if input and output shapes aren't different compared to
+            // what is in the graphFile
+            std::vector<mv::Data::OpListIterator> opModelOutputs;
+            std::vector<mv::Data::OpListIterator> opModelInputs;
+            for(auto& op: mcmModel.getOps())
+            {
+                auto opType = op->getOpType();
+                if(opType == "Output" || opType == "ImplicitOutput")
+                    opModelOutputs.push_back(op);
+                else if (opType == "Input" || opType == "ImplicitInput")
+                    opModelInputs.push_back(op);
+            }
+
+            for (const auto& inInfo : inputsInfo){
+                bool foundOpModelTensor = false;
+                for (auto& opModelOp : opModelInputs)
+                {
+                    // Try to match based on op name
+                    auto name = opModelOp->getName();
+                    auto strPos = name.find(inInfo.first);
+                    if (strPos != std::string::npos && !strPos)
+                    {
+                        // If a match was found use it to build input tensor information in the blob
+                        foundOpModelTensor = true;
+                        graphFileInstance.header->in_tensor_desc.push_back(
+                            buildTensorReference(inInfo.first, inInfo.second->getTensorDesc(), opModelOp->getOutputTensor(0)));
+                        break;
+                    }
+                }
+
+                if (!foundOpModelTensor)
+                    graphFileInstance.header->in_tensor_desc.push_back(
+                        buildTensorReference(inInfo.first, inInfo.second->getTensorDesc()));
             }
 
             for (const auto& outInfo : outputsInfo) {
-                graphFileInstance.header->out_tensor_desc.push_back(
-                    buildTensorReference(outInfo.first, outInfo.second->getTensorDesc()));
+                bool foundOpModelTensor = false;
+                for (auto& opModelOp : opModelOutputs)
+                {
+                    std::string name;
+                    // Try to match based on output name attribute or output node name
+                    if (opModelOp->hasAttr("networkOutputName"))
+                        name = opModelOp->get<std::string>("networkOutputName");
+                    else
+                        name = opModelOp->getName();
+
+                    auto strPos = name.find(outInfo.first);
+                    if (strPos != std::string::npos && !strPos)
+                    {
+                        // If a match was found use it to build output tensor information in the blob
+                        foundOpModelTensor = true;
+                        graphFileInstance.header->out_tensor_desc.push_back(
+                            buildTensorReference(outInfo.first, outInfo.second->getTensorDesc(), opModelOp->getInputTensor(0)));
+                        break;
+                    }
+                }
+
+                if (!foundOpModelTensor)
+                    graphFileInstance.header->out_tensor_desc.push_back(
+                        buildTensorReference(outInfo.first, outInfo.second->getTensorDesc()));
             }
 
             graphFileInstance.header->identifier = netName;

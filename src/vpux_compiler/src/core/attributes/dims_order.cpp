@@ -14,9 +14,13 @@
 #include "vpux/compiler/core/attributes/dims_order.hpp"
 #include "vpux/compiler/core/attributes/stride_reqs.hpp"
 #include "vpux/compiler/core/attributes/strides.hpp"
+#include "vpux/compiler/dialect/IE/attributes/structs.hpp"
+#include "vpux/compiler/utils/types.hpp"
 
 #include "vpux/utils/IE/format.hpp"
 #include "vpux/utils/core/range.hpp"
+
+#include <llvm/ADT/TypeSwitch.h>
 
 #include <array>
 
@@ -280,31 +284,47 @@ mlir::AffineMap vpux::DimsOrder::toPermutationAffineMap(mlir::MLIRContext* ctx) 
                                                  return static_cast<unsigned>(d.ind());
                                              }));
 
-    return mlir::AffineMap::getPermutationMap(permutation, ctx);
+    return permutation.empty() ? mlir::AffineMap::get(ctx) : mlir::AffineMap::getPermutationMap(permutation, ctx);
 }
 
 DimsOrder vpux::DimsOrder::fromType(mlir::ShapedType type) {
-    if (type.isa<mlir::RankedTensorType>()) {
-        return fromNumDims(type.getRank());
+    return llvm::TypeSwitch<mlir::ShapedType, DimsOrder>(type)
+            .Case<mlir::RankedTensorType>([](mlir::RankedTensorType tensor) {
+                return DimsOrder::fromType(tensor);
+            })
+            .Case<mlir::MemRefType>([](mlir::MemRefType memref) {
+                return DimsOrder::fromType(memref);
+            })
+            .Default([](mlir::ShapedType type) -> DimsOrder {
+                VPUX_THROW("Can't get DimsOrder from Type '{0}'", type);
+            });
+}
+
+DimsOrder vpux::DimsOrder::fromType(mlir::RankedTensorType type) {
+    if (const auto tensorAttr = IE::getTensorAttr(type)) {
+        if (const auto orderAttr = tensorAttr.order()) {
+            return DimsOrder::fromPermutationAffineMap(orderAttr.getValue());
+        }
     }
 
-    const auto memref = type.dyn_cast<mlir::MemRefType>();
-    VPUX_THROW_UNLESS(memref != nullptr, "Can't get DimsOrder from Type '{0}'", type);
+    return DimsOrder::fromNumDims(type.getRank());
+}
 
-    const auto maps = memref.getAffineMaps();
+DimsOrder vpux::DimsOrder::fromType(mlir::MemRefType type) {
+    const auto maps = type.getAffineMaps();
     if (!maps.empty() && maps.front().isPermutation()) {
         return fromPermutationAffineMap(maps.front());
     }
 
-    const auto logicalStrides = getStrides(memref);
+    const auto strides = getStrides(type);
 
-    SmallVector<Dim> perm(logicalStrides.size());
+    SmallVector<Dim> perm(strides.size());
     for (auto i : irange(perm.size())) {
         perm[i] = Dim(i);
     }
 
     std::stable_sort(perm.begin(), perm.end(), [&](Dim d1, Dim d2) {
-        return logicalStrides[d1] > logicalStrides[d2];
+        return strides[d1] > strides[d2];
     });
 
     return fromPermutation(perm);
@@ -431,6 +451,8 @@ Optional<StringLiteral> vpux::DimsOrder::getCanonicalName() const {
         return StringLiteral("NCDHW");
     } else if (*this == DimsOrder::NDHWC) {
         return StringLiteral("NDHWC");
+    } else if (*this == DimsOrder::YXOI) {
+        return StringLiteral("YXOI");
     } else {
         return None;
     }

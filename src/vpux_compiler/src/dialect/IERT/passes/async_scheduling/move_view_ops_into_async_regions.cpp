@@ -31,7 +31,7 @@ namespace {
 //
 
 bool isPureViewOp(mlir::Operation* op) {
-    return mlir::isa<mlir::ViewLikeOpInterface>(op) && !op->hasTrait<RTLayer>();
+    return mlir::isa<mlir::ViewLikeOpInterface>(op) && !mlir::isa<RTLayerInterface>(op);
 }
 
 SmallVector<mlir::Operation*> getOuterViewLikeDeps(mlir::Block* block) {
