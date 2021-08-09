@@ -26,44 +26,35 @@
 namespace vpux {
 namespace hwtest {
 
-void buildAvgpoolWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module, mlir::OpBuilder builder,
-                            Logger& log, mlir::Type inputType, mlir::Type outputType) {
+void buildDWConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module, mlir::OpBuilder builder,
+                 Logger& log, mlir::Type inputType, mlir::Type weightsType, mlir::Type outputType) {
     auto input = testDesc.getInputLayer();
-    auto avgpool = testDesc.getPoolLayer();
+    auto weight = testDesc.getWeightLayer();
+    auto conv = testDesc.getConvLayer();
     auto output = testDesc.getOutputLayer();
 
     SmallVector<int64_t> in_shape(input.shape.begin(), input.shape.end());
     SmallVector<int64_t> out_shape(output.shape.begin(), output.shape.end());
 
-    std::vector<int64_t> filter_size{avgpool.kernel_shape.at(0), avgpool.kernel_shape.at(1)};
-    std::vector<int64_t> stried_vec(avgpool.stride.begin(), avgpool.stride.end());
-    std::vector<int64_t> padding_vec(avgpool.pad.begin(), avgpool.pad.end());
+    VPUX_THROW_UNLESS(conv.group == in_shape[1],
+                      "For Depthwise convolution group should be equal to no. of input channels");
 
-    SmallVector<int64_t> wt_data_shape{in_shape[1], 1, avgpool.kernel_shape.at(0), avgpool.kernel_shape.at(1)};
-    mlir::Type weightsType;
-    auto scaleValue = 1 / double(avgpool.kernel_shape.at(0) * avgpool.kernel_shape.at(1));
+    std::vector<int64_t> filter_size{weight.shape[2], weight.shape[3]};
+    std::vector<int64_t> stried_vec(conv.stride.begin(), conv.stride.end());
+    std::vector<int64_t> padding_vec(conv.pad.begin(), conv.pad.end());
 
-    if (inputType.isF16() || inputType.isBF16()) {
-        weightsType = inputType;
-    } else if (auto qtype = inputType.dyn_cast<mlir::quant::QuantizedType>()) {
-        weightsType = mlir::quant::QuantizedType::castToStorageType(qtype);
-        int64_t zeroPoint = 0;
-        if (weightsType.isSignedInteger(8)) {
-            weightsType = mlir::quant::UniformQuantizedType::get(mlir::quant::QuantizationFlags::FlagValue::Signed,
-                                                                 getSInt8Type(builder.getContext()),
-                                                                 builder.getF32Type(), scaleValue, zeroPoint, 0, 1);
-        } else {
-            weightsType = mlir::quant::UniformQuantizedType::get(0, getUInt8Type(builder.getContext()),
-                                                                 builder.getF32Type(), scaleValue, zeroPoint, 0, 1);
-        }
-    }
+    SmallVector<int64_t> wt_data_shape{weight.shape[0], weight.shape[1], weight.shape[2], weight.shape[3]};
+
+    const char* weight_file_name = "weight.dat";
 
     auto output_totalsize = totalTensorSize(out_shape, outputType);
     auto input_totalsize = totalTensorSize(in_shape, inputType);
+    auto weight_totalsize = totalTensorSize(wt_data_shape, weightsType);
 
     const auto OUTPUT_CMX_OFFSET = 0;
     const auto INPUT_CMX_OFFSET = OUTPUT_CMX_OFFSET + output_totalsize;
     const auto WEIGHTS_CMX_OFFSET = INPUT_CMX_OFFSET + input_totalsize;
+    const auto ACTIVATIONWINDOW_CMX_OFFSET = WEIGHTS_CMX_OFFSET + weight_totalsize;
 
     SmallVector<mlir::Type> inputTypes;
     const auto inputAffineMaps = DimsOrder::NHWC.toAffineMapsList(builder.getContext(), Shape(in_shape));
@@ -76,14 +67,13 @@ void buildAvgpoolWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mo
     auto outputParamType =
             mlir::MemRefType::get(makeArrayRef(out_shape), outputType, outputAffineMaps, memSpaceAttr_out);
     inputTypes.push_back(outputParamType);
-    SmallVector<ArrayRef<mlir::AffineMap>> argsAffineMaps{inputAffineMaps, outputAffineMaps};
 
     const auto funcType = builder.getFunctionType(makeArrayRef(inputTypes), outputParamType);
 
     // TODO: Func should not return
-    auto func = builder.create<mlir::FuncOp>(builder.getUnknownLoc(),
-                                             llvm::formatv("avgPool_{0}_{1}", inputType, outputType).str(), funcType,
-                                             builder.getStringAttr("private"));
+    auto func = builder.create<mlir::FuncOp>(
+            builder.getUnknownLoc(), llvm::formatv("dw_conv_{0}_{1}_{2}", inputType, weightsType, outputType).str(),
+            funcType, builder.getStringAttr("private"));
 
     auto funcbuilder = mlir::OpBuilder::atBlockBegin(func.addEntryBlock(), builder.getListener());
 
@@ -94,32 +84,27 @@ void buildAvgpoolWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mo
     // weights data
     auto weight_data_ddr_memSpaceAttr =
             VPUIP::MemoryLocationAttr::get(builder.getContext(), VPUIP::MemoryLocation::GraphFile);
-    auto wt_data_shape_padded = getWeightsPaddedShape(wt_data_shape, /*isDepthwiseConv=*/true);
-    const auto weightDataPaddedAffineMaps =
-            DimsOrder::NHWC.toAffineMapsList(builder.getContext(), Shape(wt_data_shape_padded));
-    auto weightData_ddr_type = mlir::MemRefType::get(makeArrayRef(wt_data_shape_padded), weightsType,
-                                                     weightDataPaddedAffineMaps, weight_data_ddr_memSpaceAttr);
+    const auto weightDataAffineMaps = DimsOrder::NHWC.toAffineMapsList(builder.getContext(), Shape(wt_data_shape));
+    auto weightData_ddr_type = mlir::MemRefType::get(makeArrayRef(wt_data_shape), weightsType, weightDataAffineMaps,
+                                                     weight_data_ddr_memSpaceAttr);
 
-    // Generate weights for kh x kw DW conv
-    auto wt_data_vals = generateDWConvWeightsForAvgPool(wt_data_shape, weightsType, scaleValue, builder.getContext());
+    auto wt_data_vals = generateWeights(wt_data_shape, weightsType, builder.getContext(), weight_file_name);
     auto wt_data_attr = Const::ContentAttr::get(wt_data_vals);
     if (auto qty = weightsType.dyn_cast<mlir::quant::QuantizedType>()) {
         wt_data_attr = wt_data_attr.quantCast(qty);
     }
+
     auto weight_data_ddr = funcbuilder.create<Const::DeclareOp>(builder.getUnknownLoc(), weightData_ddr_type,
                                                                 wt_data_attr.reorder(DimsOrder::NHWC));
 
     // weights cmx tensor
     auto wtData_cmx_memSpaceAttr =
             VPUIP::MemoryLocationAttr::get(builder.getContext(), VPUIP::MemoryLocation::VPU_CMX_NN);
-    auto wtData_cmx_type = mlir::MemRefType::get(makeArrayRef(wt_data_shape_padded), weightsType,
-                                                 weightDataPaddedAffineMaps, wtData_cmx_memSpaceAttr);
+    auto wtData_cmx_type = mlir::MemRefType::get(makeArrayRef(wt_data_shape), weightsType, weightDataAffineMaps,
+                                                 wtData_cmx_memSpaceAttr);
     auto wtData_cmx = funcbuilder.create<VPUIP::DeclareTensorOp>(builder.getUnknownLoc(), wtData_cmx_type,
                                                                  VPUIP::MemoryLocation::VPU_CMX_NN, /*locale index=*/0,
                                                                  /*data idx=*/WEIGHTS_CMX_OFFSET);
-
-    auto weight_padded_totalsize = totalTensorSize(wt_data_shape_padded, weightsType);
-    const auto ACTIVATIONWINDOW_CMX_OFFSET = WEIGHTS_CMX_OFFSET + weight_padded_totalsize;
 
     // input - output cmx tensors
     auto inputcmx_memSpaceAttr =
@@ -239,7 +224,7 @@ void buildAvgpoolWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mo
             actWindow_cmx.getOperation()->getResult(0), parent_inputcmx.getOperation()->getResult(0),
             parent_outputcmx.getOperation()->getResult(0), outputcmx.getOperation()->getResult(0),
             mlir::ValueRange(barrier0.barrier()), mlir::ValueRange(barrier1.barrier()), VPUIP::NCETaskType::DWCONV,
-            filtersize, strides, kernel_padding, actChannelLength, nullptr);
+            filtersize, strides, kernel_padding, actChannelLength, /*is_continued*/ nullptr);
 
     nceTask.addPPETask(funcbuilder);
 

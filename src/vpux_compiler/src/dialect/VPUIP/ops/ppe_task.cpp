@@ -16,18 +16,19 @@
 using namespace vpux;
 
 void vpux::VPUIP::PPETaskOp::build(mlir::OpBuilder& builder, mlir::OperationState& state,
-                                   vpux::VPUIP::PPELayerType ppe_layer_type, int32_t clamp_low, int32_t clamp_high,
-                                   int32_t lrelu_mult, uint32_t lrelu_shift) {
-    build(builder, state, VPUIP::PPELayerTypeAttr::get(builder.getContext(), ppe_layer_type),
+                                   vpux::VPUIP::PPELayerType ppe_layer_type, mlir::Value instruction_table,
+                                   int32_t clamp_low, int32_t clamp_high, int32_t lrelu_mult, uint32_t lrelu_shift) {
+    build(builder, state, VPUIP::PPELayerTypeAttr::get(builder.getContext(), ppe_layer_type), instruction_table,
           builder.getI32IntegerAttr(clamp_low), builder.getI32IntegerAttr(clamp_high),
           builder.getI32IntegerAttr(lrelu_mult), builder.getUI32IntegerAttr(lrelu_shift), nullptr, nullptr, nullptr);
 }
 
 void vpux::VPUIP::PPETaskOp::build(mlir::OpBuilder& builder, mlir::OperationState& state,
-                                   vpux::VPUIP::PPELayerType ppe_layer_type, int32_t clamp_low, int32_t clamp_high,
-                                   int32_t lrelu_mult, uint32_t lrelu_shift, ArrayRef<int32_t> quant_mult,
-                                   ArrayRef<int32_t> quant_shift, int32_t quant_post_shift) {
-    build(builder, state, VPUIP::PPELayerTypeAttr::get(builder.getContext(), ppe_layer_type),
+                                   vpux::VPUIP::PPELayerType ppe_layer_type, mlir::Value instruction_table,
+                                   int32_t clamp_low, int32_t clamp_high, int32_t lrelu_mult, uint32_t lrelu_shift,
+                                   ArrayRef<int32_t> quant_mult, ArrayRef<int32_t> quant_shift,
+                                   int32_t quant_post_shift) {
+    build(builder, state, VPUIP::PPELayerTypeAttr::get(builder.getContext(), ppe_layer_type), instruction_table,
           builder.getI32IntegerAttr(clamp_low), builder.getI32IntegerAttr(clamp_high),
           builder.getI32IntegerAttr(lrelu_mult), builder.getUI32IntegerAttr(lrelu_shift),
           builder.getI32ArrayAttr(quant_mult), builder.getI32ArrayAttr(quant_shift),

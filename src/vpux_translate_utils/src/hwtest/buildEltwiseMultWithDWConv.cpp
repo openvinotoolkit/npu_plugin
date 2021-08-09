@@ -288,7 +288,7 @@ void buildEltwiseMultWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir
             LOC_UNKNOWN, output_cmx_memreftype, getTensorResult(input_nce_cmx), getTensorResult(weights_nce_cmx),
             getTensorResult(weightstable_cmx), getTensorResult(act_window_cmx), getTensorResult(parent_input_nce_cmx),
             getTensorResult(parent_output_nce_cmx), getTensorResult(output_nce_cmx), BARRIER_0, BARRIER_1,
-            NCETaskType::DWCONV, filtersize, strides, kernel_padding, actChannelLength);
+            NCETaskType::DWCONV, filtersize, strides, kernel_padding, actChannelLength, /*is_continued*/ nullptr);
 
     nceTask.addPPETask(funcbuilder);
 
@@ -312,9 +312,9 @@ void buildEltwiseMultWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir
 
     // IE.CNNNetwork
     buildCNNOp(builder, func.getName(),
-               {getTensorType(input_shape, inputType, DimsOrder::NHWC),
-                getTensorType(weights_shape, weightsType, DimsOrder::NHWC)},
-               {getTensorType(input_shape, outputType, DimsOrder::NHWC)});
+               {getTensorType(input_shape, inputType, DimsOrder::NHWC, nullptr),
+                getTensorType(weights_shape, weightsType, DimsOrder::NHWC, nullptr)},
+               {getTensorType(input_shape, outputType, DimsOrder::NHWC, nullptr)});
 }
 
 }  // namespace hwtest

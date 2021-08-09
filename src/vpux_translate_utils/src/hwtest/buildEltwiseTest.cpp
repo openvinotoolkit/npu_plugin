@@ -120,7 +120,7 @@ void buildEltwiseAdd(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp 
             parent_inputcmx.getOperation()->getResult(0), parent_outputcmx.getOperation()->getResult(0),
             outputcmx.getOperation()->getResult(0), mlir::ValueRange(barrier0.barrier()),
             mlir::ValueRange(barrier1.barrier()), VPUIP::NCETaskType::ELTWISE, mlir::ArrayAttr(), mlir::ArrayAttr(),
-            mlir::ArrayAttr(), actChannelLength);
+            mlir::ArrayAttr(), actChannelLength, nullptr);
 
     nceTask.addPPETask(funcbuilder);
 
@@ -152,9 +152,9 @@ void buildEltwiseAdd(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp 
 
     // IE.CNNNetwork
     buildCNNOp(builder, func.getName(),
-               {getTensorType(input_shape, inputType, DimsOrder::NHWC),
-                getTensorType(weights_shape, weightsType, DimsOrder::NHWC)},
-               {getTensorType(input_shape, outputType, DimsOrder::NHWC)});
+               {getTensorType(input_shape, inputType, DimsOrder::NHWC, nullptr),
+                getTensorType(weights_shape, weightsType, DimsOrder::NHWC, nullptr)},
+               {getTensorType(input_shape, outputType, DimsOrder::NHWC, nullptr)});
 }
 }  // namespace hwtest
 }  // namespace vpux
