@@ -36,6 +36,7 @@ import json
 import itertools
 import pandas as pd
 from pathlib import Path
+import re
 import sys
 from typing import Callable, List, Optional, Sequence, Union
 
@@ -1245,12 +1246,18 @@ def generate_options(args):
 
 
 def create_config_files(args):
+    filt = re.compile(args.filter)
     args.root.mkdir(parents=True, exist_ok=args.exist_ok)
     found = {}
-    for option in (o for o in generate_options(args) if filter_issues(args, o)):
-        if option.ident in found:
-            raise Exception(f'Duplicate option ident: {option.ident}:\n  {option.settings}')
-        found[option.ident] = 1
+    for option in generate_options(args):
+        ident = option.ident
+        if ident in found:
+            raise Exception(f'Duplicate option ident: {ident}:\n  {option.settings}')
+        found[ident] = 1
+        if not filter_issues(args, option):
+            continue
+        if not filt.match(ident):
+            continue
         option.compute_values()
         path = args.root / option.ident
         path.mkdir(parents=True, exist_ok=True)
@@ -1277,6 +1284,7 @@ def main():
     parser_write_configs = subparsers.add_parser('write-configs', help='Write test case configurations and sample data')
     parser_write_configs.add_argument('root', type=Path, help='The directory where the test cases should be written')
     parser_write_configs.add_argument('--exist-ok', help='Reuse the contents of the root', action='store_true')
+    parser_write_configs.add_argument('--filter', help='Regex filter for the generated tests', default='.*')
     parser_write_configs.set_defaults(func=create_config_files)
 
     parser_export_excel = subparsers.add_parser('export-excel', help='Write test cases as an Excel spreadsheet')
