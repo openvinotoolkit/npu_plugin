@@ -84,7 +84,7 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(QuantCastUPAOp op) {
 
     if (const auto perAxis = qType.dyn_cast<mlir::quant::UniformQuantizedPerAxisType>()) {
         if (perAxis.getQuantizedDimension() != 1) {
-            return errorAt(op, "Only per-channel quantization is suppoted");
+            return errorAt(op, "Only per-channel quantization is supported");
         }
 
         // TODO: support per-channel zero point
