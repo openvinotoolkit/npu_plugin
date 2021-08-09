@@ -32,16 +32,25 @@ public:
 public:
     explicit AliasesInfo(mlir::FuncOp func);
 
+    // Will return NULL if the `val` is a root value.
+    mlir::Value getSource(mlir::Value val) const;
+
+    // Will return `val` itlsef if the `val` is a root value.
     mlir::Value getRoot(mlir::Value val) const;
-    const ValuesSet& getAliases(mlir::Value val) const;
+
+    // The `val` must be a root value.
+    const ValuesSet& getAllAliases(mlir::Value val) const;
 
 private:
-    void addAlias(mlir::Value root, mlir::Value alias);
+    void addAlias(mlir::Value source, mlir::Value alias);
     void traverse(OpRange ops);
 
 private:
-    AliasesMap _aliases;
-    ValuesMap _roots;
+    ValuesMap _sources;  // closest source of the alias
+    ValuesMap _roots;    // top-root of the alias
+
+    AliasesMap _allAliases;  // all aliases, direct and indirect
+
     Logger _log;
 };
 

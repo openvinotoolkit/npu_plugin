@@ -1663,7 +1663,7 @@ operation ::= `IE.Sigmoid` `(` operands `)` attr-dict `:` type(operands) `->` ty
 
 ### `IE.Slice` (vpux::IE::SliceOp)
 
-Extract slice operation
+Extract single slice from tensor
 
 
 Syntax:

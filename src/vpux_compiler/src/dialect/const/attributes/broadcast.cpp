@@ -84,22 +84,12 @@ mlir::ShapedType vpux::Const::BroadcastAttr::inferOutputType(mlir::ShapedType in
                       "Value cannot be broadcasted due to new value's size is less than old one: {0} < {1}", value,
                       inShape[axis]);
 
-    auto outShape = inShape.toValues();
-    outShape[axis] = value;
+    const Shape padBefore(inShape.size(), 0);
 
-    auto newType = changeShape(input, outShape);
+    Shape padAfter(inShape.size(), 0);
+    padAfter[axis] = value;
 
-    if (const auto perAxisQType =
-                newType.getElementType().dyn_cast_or_null<mlir::quant::UniformQuantizedPerAxisType>()) {
-        if (axis == Dim(perAxisQType.getQuantizedDimension())) {
-            Shape padAfter{0, 0, 0, 0};
-            padAfter[Dim(perAxisQType.getQuantizedDimension())] = value;
-            const auto newQType = expandScalesAndZP(perAxisQType, {0, 0, 0, 0}, padAfter);
-            return changeElemType(newType, newQType);
-        }
-    }
-
-    return newType;
+    return getPaddedType(input, padBefore, padAfter);
 }
 
 //

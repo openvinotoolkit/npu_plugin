@@ -127,14 +127,7 @@ mlir::ShapedType vpux::Const::SubViewAttr::inferOutputType(mlir::ShapedType inpu
     VPUX_THROW_UNLESS(shape.size() == checked_cast<size_t>(input.getRank()),
                       "View shape and input shape are not consistent in 'SubViewAttr'");
 
-    auto tileTypeOut = changeShape(input, ShapeRef(shape));
-    if (const auto perAxisQType =
-                tileTypeOut.getElementType().dyn_cast_or_null<mlir::quant::UniformQuantizedPerAxisType>()) {
-        const auto newQType = tileScalesAndZP(perAxisQType, ShapeRef(shape), ShapeRef(offset));
-        tileTypeOut = changeElemType(tileTypeOut, newQType);
-    }
-
-    return tileTypeOut;
+    return getDenseTileType(input, ShapeRef(offset), ShapeRef(shape));
 }
 
 //

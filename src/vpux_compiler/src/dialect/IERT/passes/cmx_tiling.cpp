@@ -53,13 +53,7 @@ mlir::Value makeTile(mlir::OpBuilder& builder, mlir::Location baseLoc, mlir::Val
     const auto attrShape = getIntArrayAttr(builder.getContext(), tileShape);
     auto viewOp = builder.create<IERT::SubViewOp>(loc, origVal, attrOffsets, attrShape);
 
-    auto tileType = changeShape(origType, tile.shape);
-    if (const auto perAxisQType =
-                tileType.getElementType().dyn_cast_or_null<mlir::quant::UniformQuantizedPerAxisType>()) {
-        const auto newQType = tileScalesAndZP(perAxisQType, tile.shape, tile.offsets);
-        tileType = changeElemType(tileType, newQType);
-    }
-
+    const auto tileType = getDenseTileType(origType, tile.offsets, tile.shape);
     auto allocOp = builder.create<mlir::memref::AllocOp>(loc, tileType);
 
     auto copyOp = builder.create<IERT::CopyOp>(loc, viewOp.result(), allocOp.memref());
@@ -119,14 +113,10 @@ mlir::LogicalResult ConvolutionTiling::matchAndRewrite(IERT::ConvolutionOp origO
         const auto tileName = llvm::formatv("output tile {0}", outputTile.offsets).str();
         const auto loc = appendLoc(origOp->getLoc(), tileName);
 
-        auto tileTypeOut = changeShape(origOp.output().getType().cast<mlir::MemRefType>(), outputTile.shape);
-        if (const auto perAxisQType =
-                    tileTypeOut.getElementType().dyn_cast_or_null<mlir::quant::UniformQuantizedPerAxisType>()) {
-            const auto newQType = tileScalesAndZP(perAxisQType, outputTile.shape, outputTile.offsets);
-            tileTypeOut = changeElemType(tileTypeOut, newQType);
-        }
-
+        const auto tileTypeOut = getDenseTileType(origOp.output().getType().cast<mlir::MemRefType>(),
+                                                  outputTile.offsets, outputTile.shape);
         auto allocOutOp = rewriter.create<mlir::memref::AllocOp>(loc, tileTypeOut);
+
         auto tiledOp = rewriter.create<IERT::ConvolutionOp>(loc, actInput, filterInput, biasInput, allocOutOp.memref(),
                                                             origOp.strides(), getIntArrayAttr(getContext(), padsBegin),
                                                             getIntArrayAttr(getContext(), padsEnd), origOp.dilations(),
@@ -188,14 +178,10 @@ mlir::LogicalResult EltwiseAddTiling::matchAndRewrite(IERT::AddOp origOp, mlir::
         const std::string tileName = llvm::formatv("output tile {0}", outputTile.offsets).str();
         const mlir::Location loc = appendLoc(origOp->getLoc(), tileName);
 
-        auto tileTypeOut = changeShape(origOp.output().getType().cast<mlir::MemRefType>(), outputTile.shape);
-        if (const auto perAxisQType =
-                    tileTypeOut.getElementType().dyn_cast_or_null<mlir::quant::UniformQuantizedPerAxisType>()) {
-            const auto newQType = tileScalesAndZP(perAxisQType, outputTile.shape, outputTile.offsets);
-            tileTypeOut = changeElemType(tileTypeOut, newQType);
-        }
-
+        const auto tileTypeOut = getDenseTileType(origOp.output().getType().cast<mlir::MemRefType>(),
+                                                  outputTile.offsets, outputTile.shape);
         auto allocOutOp = rewriter.create<mlir::memref::AllocOp>(loc, tileTypeOut);
+
         auto tiledOp =
                 rewriter.create<IERT::AddOp>(loc, actInput1, actInput2, allocOutOp.memref(), origOp.post_opAttr());
 
@@ -257,14 +243,10 @@ mlir::LogicalResult MaxPoolTiling::matchAndRewrite(IERT::MaxPoolOp origOp, mlir:
         const auto tileName = llvm::formatv("output tile {0}", outputTile.offsets).str();
         const auto loc = appendLoc(origOp->getLoc(), tileName);
 
-        auto tileTypeOut = changeShape(origOp.output().getType().cast<mlir::MemRefType>(), outputTile.shape);
-        if (const auto perAxisQType =
-                    tileTypeOut.getElementType().dyn_cast_or_null<mlir::quant::UniformQuantizedPerAxisType>()) {
-            const auto newQType = tileScalesAndZP(perAxisQType, outputTile.shape, outputTile.offsets);
-            tileTypeOut = changeElemType(tileTypeOut, newQType);
-        }
-
+        const auto tileTypeOut = getDenseTileType(origOp.output().getType().cast<mlir::MemRefType>(),
+                                                  outputTile.offsets, outputTile.shape);
         auto allocOutOp = rewriter.create<mlir::memref::AllocOp>(loc, tileTypeOut);
+
         auto tiledOp = rewriter.create<IERT::MaxPoolOp>(loc, actInput, allocOutOp.memref(), origOp.kernel_size(),
                                                         origOp.strides(), getIntArrayAttr(getContext(), padsBegin),
                                                         getIntArrayAttr(getContext(), padsEnd), origOp.post_opAttr());
@@ -334,14 +316,10 @@ mlir::LogicalResult GroupConvolutionTiling::matchAndRewrite(IERT::GroupConvoluti
         const auto tileName = llvm::formatv("output tile {0}", outputTile.offsets).str();
         const auto loc = appendLoc(origOp->getLoc(), tileName);
 
-        auto tileTypeOut = changeShape(origOp.output().getType().cast<mlir::MemRefType>(), outputTile.shape);
-        if (const auto perAxisQType =
-                    tileTypeOut.getElementType().dyn_cast_or_null<mlir::quant::UniformQuantizedPerAxisType>()) {
-            const auto newQType = tileScalesAndZP(perAxisQType, outputTile.shape, outputTile.offsets);
-            tileTypeOut = changeElemType(tileTypeOut, newQType);
-        }
-
+        const auto tileTypeOut = getDenseTileType(origOp.output().getType().cast<mlir::MemRefType>(),
+                                                  outputTile.offsets, outputTile.shape);
         auto allocOutOp = rewriter.create<mlir::memref::AllocOp>(loc, tileTypeOut);
+
         const auto groups = filterTile.shape[IE::Dims4D::Filter::OC];
         const auto groupsAttr = getIntAttr(getContext(), groups);
 
@@ -504,9 +482,11 @@ OutputTiling SimpleTiler::convolutionTiler(IERT::ConvolutionOp op) const {
         return llvm::all_of(outputTiles, [&](const auto& outputTile) {
             const auto tileConf = backInferConvTile(op, outputTile);
 
-            const auto inputTileType = changeShape(inputType, tileConf.inputTile.shape);
-            const auto filterTileType = changeShape(filterType, tileConf.filterTile.shape);
-            const auto outputTileType = changeShape(outputType, outputTile.shape);
+            const auto inputTileType =
+                    getDenseTileType(inputType, tileConf.inputTile.offsets, tileConf.inputTile.shape);
+            const auto filterTileType =
+                    getDenseTileType(filterType, tileConf.filterTile.offsets, tileConf.filterTile.shape);
+            const auto outputTileType = getDenseTileType(outputType, outputTile.offsets, outputTile.shape);
 
             return mlir::succeeded(
                     VPUIP::NCEInvariant::verifyConvCMX(op->getLoc(), op->getParentOfType<mlir::ModuleOp>(),
@@ -530,9 +510,11 @@ OutputTiling SimpleTiler::eltwiseAddTiler(IERT::AddOp op) const {
         return llvm::all_of(outputTiles, [&](const auto& outputTile) {
             const EltwiseTileConfig tileConf = backInferEltwiseAddTile(outputTile);
 
-            const mlir::MemRefType input1TileType = changeShape(input1Type, tileConf.inputTile.shape);
-            const mlir::MemRefType input2TileType = changeShape(input2Type, tileConf.inputTile.shape);
-            const mlir::MemRefType outputTileType = changeShape(outputType, outputTile.shape);
+            const auto input1TileType =
+                    getDenseTileType(input1Type, tileConf.inputTile.offsets, tileConf.inputTile.shape);
+            const auto input2TileType =
+                    getDenseTileType(input2Type, tileConf.inputTile.offsets, tileConf.inputTile.shape);
+            const auto outputTileType = getDenseTileType(outputType, outputTile.offsets, outputTile.shape);
 
             return mlir::succeeded(
                     VPUIP::NCEInvariant::verifyEltwiseCMX(op->getLoc(), op->getParentOfType<mlir::ModuleOp>(),
@@ -555,8 +537,9 @@ OutputTiling SimpleTiler::maxPoolTiler(IERT::MaxPoolOp op) const {
         return llvm::all_of(outputTiles, [&](const auto& outputTile) {
             const auto tileConf = backInferPoolTile(op, outputTile);
 
-            const auto inputTileType = changeShape(inputType, tileConf.inputTile.shape);
-            const auto outputTileType = changeShape(outputType, outputTile.shape);
+            const auto inputTileType =
+                    getDenseTileType(inputType, tileConf.inputTile.offsets, tileConf.inputTile.shape);
+            const auto outputTileType = getDenseTileType(outputType, outputTile.offsets, outputTile.shape);
 
             return mlir::succeeded(VPUIP::NCEInvariant::verifyPoolCMX(
                     op->getLoc(), op->getParentOfType<mlir::ModuleOp>(), inputTileType, outputTileType,
@@ -580,9 +563,11 @@ OutputTiling SimpleTiler::groupConvolutionTiler(IERT::GroupConvolutionOp op) con
         return llvm::all_of(outputTiles, [&](const auto& outputTile) {
             const auto tileConf = backInferGroupConvTile(op, outputTile);
 
-            const auto inputTileType = changeShape(inputType, tileConf.inputTile.shape);
-            const auto filterTileType = changeShape(filterType, tileConf.filterTile.shape);
-            const auto outputTileType = changeShape(outputType, outputTile.shape);
+            const auto inputTileType =
+                    getDenseTileType(inputType, tileConf.inputTile.offsets, tileConf.inputTile.shape);
+            const auto filterTileType =
+                    getDenseTileType(filterType, tileConf.filterTile.offsets, tileConf.filterTile.shape);
+            const auto outputTileType = getDenseTileType(outputType, outputTile.offsets, outputTile.shape);
 
             return mlir::succeeded(
                     VPUIP::NCEInvariant::verifyConvCMX(op->getLoc(), op->getParentOfType<mlir::ModuleOp>(),

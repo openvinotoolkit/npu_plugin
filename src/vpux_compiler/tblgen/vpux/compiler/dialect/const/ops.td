@@ -59,7 +59,6 @@ def Const_DeclareOp :
         AnyTypeOf<[AnyStaticShapeTensor, AnyStaticShapeMemRef]>:$output
     );
 
-    let hasCanonicalizer = 1;
     let hasFolder = 1;
 
     let verifier = [{

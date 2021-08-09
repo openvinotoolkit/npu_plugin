@@ -91,8 +91,6 @@ func @IndependentBranchesLinearSched(%arg0: memref<10xf16>, %arg1: memref<10xf16
 
 // -----
 
-#map = affine_map<(d0) -> (d0 + 10)>
-
 // CHECK-LABEL: @IndependentBranchesParallelSched
 func @IndependentBranchesParallelSched(%arg0: memref<10xf16>, %arg1: memref<10xf16>, %arg2: memref<20xf16>) -> memref<20xf16> {
     %buf = VPUIP.DeclareTensor "VPU_DDR_Heap" [0] <0> -> memref<20xf16, "DDR">
@@ -103,15 +101,15 @@ func @IndependentBranchesParallelSched(%arg0: memref<10xf16>, %arg1: memref<10xf
         async.yield %0 : memref<10xf16, "DDR">
     }
 
-    %t1, %f1 = async.execute -> !async.value<memref<10xf16, #map, "DDR">> {
-        %buf1 = VPUIP.DeclareTensor "VPU_DDR_Heap" [0] <20> -> memref<10xf16, #map, "DDR">
-        %1 = VPUIP.NNDMA inputs(%arg1 : memref<10xf16>) outputs(%buf1 : memref<10xf16, #map, "DDR">) -> memref<10xf16, #map, "DDR">
-        async.yield %1 : memref<10xf16, #map, "DDR">
+    %t1, %f1 = async.execute -> !async.value<memref<10xf16, "DDR">> {
+        %buf1 = VPUIP.DeclareTensor "VPU_DDR_Heap" [0] <20> -> memref<10xf16, "DDR">
+        %1 = VPUIP.NNDMA inputs(%arg1 : memref<10xf16>) outputs(%buf1 : memref<10xf16, "DDR">) -> memref<10xf16, "DDR">
+        async.yield %1 : memref<10xf16, "DDR">
     }
 
     %t3, %f3 = async.execute [%t0, %t1](
                 %f0 as %0 : !async.value<memref<10xf16, "DDR">>,
-                %f1 as %1 : !async.value<memref<10xf16, #map, "DDR">>
+                %f1 as %1 : !async.value<memref<10xf16, "DDR">>
             ) -> !async.value<memref<20xf16>> {
         %3 = VPUIP.NNDMA inputs(%buf : memref<20xf16, "DDR">) outputs(%arg2 : memref<20xf16>) -> memref<20xf16>
         async.yield %3 : memref<20xf16>
@@ -122,7 +120,7 @@ func @IndependentBranchesParallelSched(%arg0: memref<10xf16>, %arg1: memref<10xf
 
     // CHECK-DAG:   [[BUF:%.+]] = VPUIP.DeclareTensor "VPU_DDR_Heap" [0] <0> -> memref<20xf16, "DDR">
     // CHECK-DAG:   [[BUF0:%.+]] = VPUIP.DeclareTensor "VPU_DDR_Heap" [0] <0> -> memref<10xf16, "DDR">
-    // CHECK-DAG:   [[BUF1:%.+]] = VPUIP.DeclareTensor "VPU_DDR_Heap" [0] <20> -> memref<10xf16, #map, "DDR">
+    // CHECK-DAG:   [[BUF1:%.+]] = VPUIP.DeclareTensor "VPU_DDR_Heap" [0] <20> -> memref<10xf16, "DDR">
 
     // CHECK-DAG:   [[B0:%.+]] = VPUIP.DeclareVirtualBarrier -> !VPUIP.Barrier
     // CHECK-DAG:   [[B1:%.+]] = VPUIP.DeclareVirtualBarrier -> !VPUIP.Barrier
@@ -134,7 +132,7 @@ func @IndependentBranchesParallelSched(%arg0: memref<10xf16>, %arg1: memref<10xf
 
     // CHECK-NEXT:  [[VAL1:%.+]] = VPUIP.NNDMA
     // CHECK-SAME:      inputs(%arg1 : memref<10xf16>)
-    // CHECK-SAME:      outputs([[BUF1]] : memref<10xf16, #map, "DDR">)
+    // CHECK-SAME:      outputs([[BUF1]] : memref<10xf16, "DDR">)
     // CHECK-SAME:      updates([[B1]] : !VPUIP.Barrier)
 
     // CHECK-NEXT:  [[VAL2:%.+]] = VPUIP.NNDMA

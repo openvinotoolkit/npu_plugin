@@ -63,11 +63,44 @@ std::tuple<int64_t, int64_t, mlir::Type> getStorageParams(mlir::MLIRContext* ctx
 }  // namespace
 
 //
-// FakeQuantize support
+// Utilities for quantized types
 //
 
-mlir::quant::QuantizedType vpux::expandScalesAndZP(mlir::quant::UniformQuantizedPerAxisType perAxisQType,
-                                                   ShapeRef padBefore, ShapeRef padAfter) {
+mlir::LogicalResult vpux::validateQuantElemType(mlir::Location loc, mlir::ShapedType mainType) {
+    if (auto perAxisQType = mainType.getElementType().dyn_cast<mlir::quant::UniformQuantizedPerAxisType>()) {
+        const auto qDim = perAxisQType.getQuantizedDimension();
+
+        if (qDim < 0 || static_cast<int64_t>(qDim) >= mainType.getRank()) {
+            return errorAt(loc, "Quantized axis '{0}' is out of main type rank '{1}'", qDim, mainType.getRank());
+        }
+
+        const auto qDimSize = mainType.getDimSize(static_cast<uint32_t>(qDim));
+        const auto numScales = perAxisQType.getScales().size();
+
+        if (qDimSize != mlir::ShapedType::kDynamicSize) {
+            if (checked_cast<size_t>(qDimSize) != numScales) {
+                return errorAt(loc,
+                               "Number of scales '{0}' in per-axis quantized type do not match the quantized dimension "
+                               "size '{1}'",
+                               numScales, qDimSize);
+            }
+        }
+    }
+
+    return mlir::success();
+}
+
+mlir::Type vpux::normalizeQuantStorageType(mlir::quant::QuantizedType qType) {
+    auto elemType = qType.getStorageType();
+    const auto intType = elemType.dyn_cast_or_null<mlir::IntegerType>();
+    VPUX_THROW_UNLESS(intType, "Unsupported storage element type {0}", elemType);
+
+    return mlir::IntegerType::get(intType.getContext(), intType.getWidth(),
+                                  qType.isSigned() ? mlir::IntegerType::Signed : mlir::IntegerType::Unsigned);
+}
+
+mlir::quant::UniformQuantizedPerAxisType vpux::expandScalesAndZP(mlir::quant::UniformQuantizedPerAxisType perAxisQType,
+                                                                 ShapeRef padBefore, ShapeRef padAfter) {
     VPUX_THROW_UNLESS(padBefore.size() >= static_cast<size_t>(perAxisQType.getQuantizedDimension()),
                       "Unsupported shape size {0}. Quantized dimension index {1}", padBefore.size(),
                       perAxisQType.getQuantizedDimension());
@@ -101,32 +134,36 @@ mlir::quant::QuantizedType vpux::expandScalesAndZP(mlir::quant::UniformQuantized
             perAxisQType.getStorageTypeMax());
 }
 
-mlir::quant::QuantizedType vpux::tileScalesAndZP(mlir::quant::UniformQuantizedPerAxisType perAxisQType, ShapeRef shape,
-                                                 ShapeRef offsets) {
+mlir::quant::UniformQuantizedPerAxisType vpux::tileScalesAndZP(mlir::quant::UniformQuantizedPerAxisType perAxisQType,
+                                                               ShapeRef shape, ShapeRef offsets) {
+    VPUX_THROW_UNLESS(offsets.size() == shape.size(), "Offsets '{0}' doesn't match shape '{1}'", offsets, shape);
     VPUX_THROW_UNLESS(shape.size() >= static_cast<size_t>(perAxisQType.getQuantizedDimension()),
                       "Unsupported shape size {0}. Quantized dimension index {1}", shape.size(),
                       perAxisQType.getQuantizedDimension());
 
-    const auto quantizedDim = Dim(perAxisQType.getQuantizedDimension());
-
-    const auto OC = shape[quantizedDim];
-    const auto newBegin = offsets[quantizedDim];
+    const auto qDim = Dim(perAxisQType.getQuantizedDimension());
+    const auto qSliceSize = checked_cast<size_t>(shape[qDim]);
+    const auto qSliceOffset = checked_cast<size_t>(offsets[qDim]);
 
     const auto scales = perAxisQType.getScales();
     const auto zeroPoints = perAxisQType.getZeroPoints();
 
-    if (scales.size() == static_cast<size_t>(OC)) {
+    if (qSliceOffset == 0 && qSliceSize == scales.size()) {
         return perAxisQType;
     }
 
-    const auto newScales = scales.slice(newBegin, OC);
-    const auto newZeroPoints = zeroPoints.slice(newBegin, OC);
+    const auto newScales = scales.slice(qSliceOffset, qSliceSize);
+    const auto newZeroPoints = zeroPoints.slice(qSliceOffset, qSliceSize);
 
     return mlir::quant::UniformQuantizedPerAxisType::get(
             perAxisQType.getFlags(), perAxisQType.getStorageType(), perAxisQType.getExpressedType(), newScales,
             newZeroPoints, perAxisQType.getQuantizedDimension(), perAxisQType.getStorageTypeMin(),
             perAxisQType.getStorageTypeMax());
 }
+
+//
+// FakeQuantize support
+//
 
 std::tuple<double, int64_t> vpux::calcScaleAndZeroPoint(int64_t qMin, int64_t qMax, double rMin, double rMax,
                                                         bool isSigned) {
@@ -282,15 +319,6 @@ mlir::LogicalResult vpux::getFakeQuantParams(mlir::ShapedType qType, int64_t& le
     } else {
         return errorAt(loc, "Unsupported Quantized Type '{0}'", qElemType);
     }
-}
-
-mlir::Type vpux::normalizeQuantStorageType(mlir::quant::QuantizedType qType) {
-    auto elemType = qType.getStorageType();
-    const auto intType = elemType.dyn_cast_or_null<mlir::IntegerType>();
-    VPUX_THROW_UNLESS(intType, "Unsupported storage element type {0}", elemType);
-
-    return mlir::IntegerType::get(intType.getContext(), intType.getWidth(),
-                                  qType.isSigned() ? mlir::IntegerType::Signed : mlir::IntegerType::Unsigned);
 }
 
 //

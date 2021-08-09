@@ -50,7 +50,7 @@ mlir::Operation* DeallocPlacementPass::getLastUser(mlir::Value val, const Aliase
 
     auto* lastUser = producer;
 
-    const auto& aliases = info.getAliases(val);
+    const auto& aliases = info.getAllAliases(val);
 
     for (auto alias : aliases) {
         VPUX_THROW_UNLESS(alias.getParentBlock() == val.getParentBlock(),

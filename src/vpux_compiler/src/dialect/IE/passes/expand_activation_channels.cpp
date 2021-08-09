@@ -135,21 +135,13 @@ private:
 mlir::LogicalResult MaxPoolRewriter::matchAndRewrite(IE::MaxPoolOp origOp, mlir::PatternRewriter& rewriter) const {
     _log.trace("[{0}] Got MaxPool layer at '{1}'", getDebugName(), origOp->getLoc());
 
-    const auto opCreator = [&](mlir::Value expandedInput, int64_t) -> mlir::Operation* {
-        const auto newInputShape = getShape(expandedInput);
-        const auto inChanPadEnd = newInputShape[IE::Dims4D::Act::C];
+    const auto opCreator = [&](mlir::Value expandedInput, int64_t outChanPadsEnd) -> mlir::Operation* {
+        const Shape outPadBefore(checked_cast<size_t>(origOp.getType().getRank()), 0);
 
-        auto newPoolOutShape = getShape(origOp.output()).toValues();
-        newPoolOutShape[IE::Dims4D::Act::C] = inChanPadEnd;
+        Shape outPadAfter(checked_cast<size_t>(origOp.getType().getRank()), 0);
+        outPadAfter[IE::Dims4D::Act::C] = outChanPadsEnd;
 
-        auto newOutputType = changeShape(origOp.getType(), newPoolOutShape);
-        if (const auto perAxisQType =
-                    origOp.getType().getElementType().dyn_cast<mlir::quant::UniformQuantizedPerAxisType>()) {
-            Shape padAfter{0, 0, 0, 0};
-            padAfter[Dim(perAxisQType.getQuantizedDimension())] = inChanPadEnd;
-            const auto newQType = expandScalesAndZP(perAxisQType, {0, 0, 0, 0}, padAfter);
-            newOutputType = changeElemType(newOutputType, newQType);
-        }
+        const auto newOutputType = getPaddedType(origOp.getType(), outPadBefore, outPadAfter);
 
         return rewriter.create<IE::MaxPoolOp>(origOp.getLoc(), newOutputType, expandedInput, origOp.kernel_size(),
                                               origOp.strides(), origOp.pads_begin(), origOp.pads_end(),
@@ -227,17 +219,12 @@ mlir::LogicalResult ConvolutionRewriter::matchAndRewrite(IE::ConvolutionOp origO
             }
         }
 
-        auto newConvOutShape = getShape(origOp.output()).toValues();
-        newConvOutShape[IE::Dims4D::Act::C] += outChanPadEnd;
+        const Shape outPadBefore(checked_cast<size_t>(origOp.getType().getRank()), 0);
 
-        auto newOutputType = changeShape(origOp.getType(), newConvOutShape);
-        if (const auto perAxisQType =
-                    origOp.getType().getElementType().dyn_cast<mlir::quant::UniformQuantizedPerAxisType>()) {
-            Shape padAfter{0, 0, 0, 0};
-            padAfter[Dim(perAxisQType.getQuantizedDimension())] = outChanPadEnd;
-            const auto newQType = expandScalesAndZP(perAxisQType, {0, 0, 0, 0}, padAfter);
-            newOutputType = changeElemType(newOutputType, newQType);
-        }
+        Shape outPadAfter(checked_cast<size_t>(origOp.getType().getRank()), 0);
+        outPadAfter[IE::Dims4D::Act::C] = outChanPadEnd;
+
+        const auto newOutputType = getPaddedType(origOp.getType(), outPadBefore, outPadAfter);
 
         return rewriter.create<IE::ConvolutionOp>(origOp.getLoc(), newOutputType, expandedInput, paddedFilter,
                                                   paddedBiases, origOp.strides(), origOp.pads_begin(),
@@ -353,17 +340,13 @@ mlir::LogicalResult GroupConvolutionRewriter::matchAndRewrite(IE::GroupConvoluti
             }
         }
 
-        auto newConvOutShape = getShape(origOp.output()).toValues();
-        newConvOutShape[IE::Dims4D::Act::C] += outChanPadEnd;
+        const Shape outPadBefore(checked_cast<size_t>(origOp.getType().getRank()), 0);
 
-        auto newOutputType = changeShape(origOp.getType(), newConvOutShape);
-        if (const auto perAxisQType =
-                    origOp.getType().getElementType().dyn_cast<mlir::quant::UniformQuantizedPerAxisType>()) {
-            Shape padAfter{0, 0, 0, 0};
-            padAfter[Dim(perAxisQType.getQuantizedDimension())] = outChanPadEnd;
-            const auto newQType = expandScalesAndZP(perAxisQType, {0, 0, 0, 0}, padAfter);
-            newOutputType = changeElemType(newOutputType, newQType);
-        }
+        Shape outPadAfter(checked_cast<size_t>(origOp.getType().getRank()), 0);
+        outPadAfter[IE::Dims4D::Act::C] = outChanPadEnd;
+
+        const auto newOutputType = getPaddedType(origOp.getType(), outPadBefore, outPadAfter);
+        const auto newConvOutShape = getShape(newOutputType);
 
         return rewriter.create<IE::GroupConvolutionOp>(
                 origOp.getLoc(), newOutputType, expandedInput, paddedFilter, paddedBiases, origOp.strides(),

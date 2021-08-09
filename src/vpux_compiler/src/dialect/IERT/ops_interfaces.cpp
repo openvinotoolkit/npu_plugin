@@ -14,6 +14,7 @@
 #include "vpux/compiler/dialect/IERT/ops_interfaces.hpp"
 
 #include "vpux/compiler/utils/error.hpp"
+#include "vpux/compiler/utils/quantization.hpp"
 
 using namespace vpux;
 
@@ -45,18 +46,28 @@ mlir::LogicalResult vpux::IERT::verifyLayer(mlir::Operation* op) {
         return errorAt(op, "RunTime Layer Operation has no results");
     }
 
-    for (auto& arg : op->getOpOperands()) {
-        const auto type = arg.get().getType();
-
+    const auto verifyType = [&](mlir::Type type, StringRef name, unsigned ind) {
         if (type.isa<mlir::RankedTensorType>()) {
-            return errorAt(op, "RunTime Layer Operation has Tensor operand #{0}", arg.getOperandNumber());
+            return errorAt(op, "RunTime Layer Operation has Tensor {0} #{1}", name, ind);
+        }
+
+        if (auto mainType = type.dyn_cast<mlir::ShapedType>()) {
+            if (validateQuantElemType(op->getLoc(), mainType).failed()) {
+                return mlir::failure();
+            }
+        }
+
+        return mlir::success();
+    };
+
+    for (auto& arg : op->getOpOperands()) {
+        if (verifyType(arg.get().getType(), "operand", arg.getOperandNumber()).failed()) {
+            return mlir::failure();
         }
     }
     for (auto res : op->getOpResults()) {
-        const auto type = res.getType();
-
-        if (type.isa<mlir::RankedTensorType>()) {
-            return errorAt(op, "RunTime Layer Operation has Tensor result #{0}", res.getResultNumber());
+        if (verifyType(res.getType(), "result", res.getResultNumber()).failed()) {
+            return mlir::failure();
         }
     }
 

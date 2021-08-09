@@ -109,7 +109,6 @@ void vpux::buildReferenceModePipeline(mlir::OpPassManager& pm, bool enableProfil
     }
 
     // IERT Dialect level
-    pm.addPass(createComposeSubViewPass(log));
     buildIERTAllocationPipelineForDDR(pm, log);
     IERT::buildAsyncSchedulingPipeline(pm, log);
 
@@ -152,7 +151,6 @@ void vpux::buildHardwareModePipeline(mlir::OpPassManager& pm, bool enableProfili
     pm.addPass(mlir::createCanonicalizerPass(grc));
 
     // IERT Dialect level (cont.)
-    pm.addPass(createComposeSubViewPass(log));
     buildIERTAllocationPipelineForDDR(pm, log);
     pm.addPass(IERT::createStaticAllocationPass(getMemSpace<VPUIP::PhysicalMemory::CMX_NN>, log));
     pm.addPass(VPUIP::createConvertWeightsTableOp2ConstPass(log));
