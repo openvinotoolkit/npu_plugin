@@ -812,6 +812,27 @@ def filter_issues(args, p: DPUPipeline) -> bool:
     return 'EISW-13321' not in p.issues
 
 
+def genZMConvs(input_types=[UInt8(2)],
+               input_shapes=[[1, 16, 16, 16]],
+               weight_types=[UInt8(1)],
+               kernel_channels=[64],
+               kernel_shapes=[[1, 1]],
+               output_types=[Int4(), UInt4(), UInt8()],
+               strides=[[1, 1]],
+               pads=[[0, 0, 0, 0]]):
+    return (DPUPipeline(ZMajorConvolution.PARAMS, x) for x in itertools.product(
+            [ZMajorConvolution],
+            input_types,
+            input_shapes,
+            weight_types,
+            kernel_channels,
+            kernel_shapes,
+            output_types,
+            strides,
+            pads
+            ))
+
+
 def generate_options(args):
     ppe_type_options = ['null']
     input_size_options = [16, 32]
@@ -822,13 +843,8 @@ def generate_options(args):
     strides_options = [1, 2]
     padding_options = [0, 1]
 
-    zmconv_kernel_channels = [64]
-    zmconv_kernel_shapes = [[1, 1]]
-
     dwconv_kernel_channels = [16]
     dwconv_kernel_shapes = [[4, 4]]
-
-    zmconv_kernel_shapes_ex = [[r, c] for r in range(1, 12) for c in range(1, 12) if (r, c) != (1, 1)]
 
     return itertools.chain(
         # Z-Major Convolution
@@ -842,175 +858,100 @@ def generate_options(args):
         #    fp16 weights.
 
         # Z-Major Convolution, int4/int8 activations
-        (DPUPipeline(ZMajorConvolution.PARAMS, x) for x in itertools.product(
-                     [ZMajorConvolution],                        # mpe operation
-                     [Int4(2), Int8(2)],                         # input type
-                     [[1, 16, 16, 16]],                          # input shape
-                     [Int4(2), Int8(2)],                         # weight type
-                     zmconv_kernel_channels,                     # kernel channels
-                     zmconv_kernel_shapes,                       # kernel shape
-                     [Int4(), UInt4(), Int8(), UInt8(), FP16()], # output type
-                     [[1, 1]],                                   # strides
-                     [[0, 0, 0, 0]]                              # pads
-                     )),
+        genZMConvs(input_types=[Int4(2), Int8(2)],
+                   weight_types=[Int4(2), Int8(2)],
+                   output_types=[Int4(), UInt4(), Int8(), UInt8(), FP16()]),
 
         # Z-Major Convolution, uint4/uint8 activations
-        (DPUPipeline(ZMajorConvolution.PARAMS, x) for x in itertools.product(
-                     [ZMajorConvolution],                        # mpe operation
-                     [UInt4(2), UInt8(2)],                       # input type
-                     [[1, 16, 16, 16]],                          # input shape
-                     [UInt4(2), UInt8(2)],                       # weight type
-                     zmconv_kernel_channels,                     # kernel channels
-                     zmconv_kernel_shapes,                       # kernel shape
-                     [Int4(), UInt4(), Int8(), UInt8(), FP16()], # output type
-                     [[1, 1]],                                   # strides
-                     [[0, 0, 0, 0]]                              # pads
-                     )),
+        genZMConvs(input_types=[UInt4(2), UInt8(2)],
+                   weight_types=[UInt4(2), UInt8(2)],
+                   output_types=[Int4(), UInt4(), Int8(), UInt8(), FP16()]),
 
         # Z-Major Convolution, uint8 activations with extended kernel shapes
         # NB The number of bits used is turned pretty far down, to avoid issues
         # with floating point rounding.
-        (DPUPipeline(ZMajorConvolution.PARAMS, x) for x in itertools.product(
-                     [ZMajorConvolution],      # mpe operation
-                     [UInt8(1)],               # input type
-                     [[1, 16, 16, 16]],        # input shape
-                     [UInt8(1)],               # weight type
-                     zmconv_kernel_channels,   # kernel channels
-                     zmconv_kernel_shapes_ex,  # kernel shape
-                     [FP16()],                 # output type
-                     [[1, 1]],                 # strides
-                     [[0, 0, 0, 0]]            # pads
-                     )),
+        genZMConvs(input_types=[UInt8(1)],
+                   weight_types=[UInt8(1)],
+                   kernel_shapes=[[r, c] for r in range(1, 12) for c in range(1, 12) if (r, c) != (1, 1)],
+                   output_types=[FP16()]),
 
         # Z-Major Convolution, fp16 activations, non-fp16 weights
-        (DPUPipeline(ZMajorConvolution.PARAMS, x) for x in itertools.product(
-                     [ZMajorConvolution],                        # mpe operation
-                     [FP16(2)],                                  # input type
-                     [[1, 16, 16, 16]],                          # input shape
-                     [Int4(2), UInt4(2), Int8(2), UInt8(2)],     # weight type
-                     zmconv_kernel_channels,                     # kernel channels
-                     zmconv_kernel_shapes,                       # kernel shape
-                     [Int4(), UInt4(), Int8(), UInt8(), FP16()], # output type
-                     [[1, 1]],                                   # strides
-                     [[0, 0, 0, 0]]                              # pads
-                     )),
+        genZMConvs(input_types=[FP16(2)],
+                   weight_types=[Int4(2), UInt4(2), Int8(2), UInt8(2)],
+                   output_types=[Int4(), UInt4(), Int8(), UInt8(), FP16()]),
 
         # Z-Major Convolution, fp16 activations, fp16 weights
-        (DPUPipeline(ZMajorConvolution.PARAMS, x) for x in itertools.product(
-                     [ZMajorConvolution],                                # mpe operation
-                     [FP16(2)],                                          # input type
-                     [[1, 16, 16, 16]],                                  # input shape
-                     [FP16(2)],                                          # weight type
-                     zmconv_kernel_channels,                             # kernel channels
-                     zmconv_kernel_shapes,                               # kernel shape
-                     [Int4(), UInt4(), Int8(), UInt8(), FP16(), FP32()], # output type
-                     [[1, 1]],                                           # strides
-                     [[0, 0, 0, 0]]                                      # pads
-                     )),
+        genZMConvs(input_types=[FP16(2)],
+                   weight_types=[FP16(2)],
+                   output_types=[Int4(), UInt4(), Int8(), UInt8(), FP16(), FP32()]),
 
         # Z-Major Convolution, bf16->[bf16, fp32]
-        (DPUPipeline(ZMajorConvolution.PARAMS, x) for x in itertools.product(
-                     [ZMajorConvolution],     # mpe operation
-                     [BF16(2)],               # input type
-                     [[1, 16, 16, 16]],       # input shape
-                     [BF16(2)],               # weight type
-                     zmconv_kernel_channels,  # kernel channels
-                     zmconv_kernel_shapes,    # kernel shape
-                     [BF16(), FP32()],        # output type
-                     [[1, 1]],                # strides
-                     [[0, 0, 0, 0]]           # pads
-                     )),
+        genZMConvs(input_types=[BF16(2)],
+                   weight_types=[BF16(2)],
+                   output_types=[BF16(), FP32()]),
 
         # Z-Major Convolution, padding, uint8
-        (DPUPipeline(ZMajorConvolution.PARAMS, x) for x in itertools.product(
-                     [ZMajorConvolution],                                                # mpe operation
-                     [UInt8(2)],                                                         # input type
-                     [[1, 16, 2, 2]],                                                    # input shape
-                     [UInt4(1), UInt8(1)],                                               # weight type
-                     [16],                                                               # kernel channels
-                     [[2, 2]],                                                           # kernel shape
-                     [Int4(), UInt4(), UInt8()],                                         # output type
-                     [[1, 1]],                                                           # strides
-                     Pad.none + Pad.top(7) + Pad.left(7) + Pad.bottom(7) + Pad.right(7)  # pads
-                     )),
+        genZMConvs(input_types=[UInt8(2)],
+                   input_shapes=[[1, 16, 2, 2]],
+                   weight_types=[UInt4(1), UInt8(1)],
+                   kernel_channels=[16],
+                   kernel_shapes=[[2, 2]],
+                   output_types=[Int4(), UInt4(), UInt8()],
+                   pads=Pad.none + Pad.top(7) + Pad.left(7) + Pad.bottom(7) + Pad.right(7)),
 
         # Z-Major Convolution, padding, int8
-        (DPUPipeline(ZMajorConvolution.PARAMS, x) for x in itertools.product(
-                     [ZMajorConvolution],                                                # mpe operation
-                     [Int8(2)],                                                          # input type
-                     [[1, 16, 2, 2]],                                                    # input shape
-                     [Int4(2), Int8(2)],                                                 # weight type
-                     [16],                                                               # kernel channels
-                     [[2, 2]],                                                           # kernel shape
-                     [Int4(), UInt4(), Int8()],                                          # output type
-                     [[1, 1]],                                                           # strides
-                     Pad.none + Pad.top(7) + Pad.left(7) + Pad.bottom(7) + Pad.right(7)  # pads
-                     )),
+        genZMConvs(input_types=[Int8(2)],
+                   input_shapes=[[1, 16, 2, 2]],
+                   weight_types=[Int4(2), Int8(2)],
+                   kernel_channels=[16],
+                   kernel_shapes=[[2, 2]],
+                   output_types=[Int4(), UInt4(), Int8()],
+                   pads=Pad.none + Pad.top(7) + Pad.left(7) + Pad.bottom(7) + Pad.right(7)),
 
         # Z-Major Convolution, padding, fp16
-        (DPUPipeline(ZMajorConvolution.PARAMS, x) for x in itertools.product(
-                     [ZMajorConvolution],                                                # mpe operation
-                     [FP16(2)],                                                          # input type
-                     [[1, 16, 2, 2]],                                                    # input shape
-                     [FP16(2)],                                                          # weight type
-                     [16],                                                               # kernel channels
-                     [[2, 2]],                                                           # kernel shape
-                     [FP16()],                                                           # output type
-                     [[1, 1]],                                                           # strides
-                     Pad.none + Pad.top(7) + Pad.left(7) + Pad.bottom(7) + Pad.right(7)  # pads
-                     )),
+        genZMConvs(input_types=[FP16(2)],
+                   input_shapes=[[1, 16, 2, 2]],
+                   weight_types=[FP16(2)],
+                   kernel_channels=[16],
+                   kernel_shapes=[[2, 2]],
+                   output_types=[FP16()],
+                   pads=Pad.none + Pad.top(7) + Pad.left(7) + Pad.bottom(7) + Pad.right(7)),
 
         # Z-Major Convolution, padding, bf16
-        (DPUPipeline(ZMajorConvolution.PARAMS, x) for x in itertools.product(
-                     [ZMajorConvolution],                                                # mpe operation
-                     [BF16(2)],                                                          # input type
-                     [[1, 16, 2, 2]],                                                    # input shape
-                     [BF16(2)],                                                          # weight type
-                     [16],                                                               # kernel channels
-                     [[2, 2]],                                                           # kernel shape
-                     [BF16()],                                                           # output type
-                     [[1, 1]],                                                           # strides
-                     Pad.none + Pad.top(7) + Pad.left(7) + Pad.bottom(7) + Pad.right(7)  # pads
-                     )),
+        genZMConvs(input_types=[BF16(2)],
+                   input_shapes=[[1, 16, 2, 2]],
+                   weight_types=[BF16(2)],
+                   kernel_channels=[16],
+                   kernel_shapes=[[2, 2]],
+                   output_types=[BF16()],
+                   pads=Pad.none + Pad.top(7) + Pad.left(7) + Pad.bottom(7) + Pad.right(7)),
 
         # Z-Major Convolution, padding, 3x3 kernel, uint8
-        (DPUPipeline(ZMajorConvolution.PARAMS, x) for x in itertools.product(
-                     [ZMajorConvolution],         # mpe operation
-                     [UInt8(2)],                  # input type
-                     [[1, 16, 3, 3]],             # input shape
-                     [UInt8(1)],                  # weight type
-                     [16],                        # kernel channels
-                     [[3, 3]],                    # kernel shape
-                     [Int4(), UInt4(), UInt8()],  # output type
-                     [[1, 1]],                    # strides
-                     [[2,0,0,0],[3,0,0,0]]        # pads
-                     )),
+        genZMConvs(input_types=[UInt8(2)],
+                   input_shapes=[[1, 16, 3, 3]],
+                   weight_types=[UInt8(1)],
+                   kernel_channels=[16],
+                   kernel_shapes=[[3, 3]],
+                   output_types=[Int4(), UInt4(), UInt8()],
+                   pads=[[2,0,0,0],[3,0,0,0]]),
 
         # Z-Major Convolution, padding, 4x4 kernel, uint8
-        (DPUPipeline(ZMajorConvolution.PARAMS, x) for x in itertools.product(
-                     [ZMajorConvolution],         # mpe operation
-                     [UInt8(2)],                  # input type
-                     [[1, 16, 4, 4]],             # input shape
-                     [UInt8(1)],                  # weight type
-                     [16],                        # kernel channels
-                     [[4, 4]],                    # kernel shape
-                     [Int4(), UInt4(), UInt8()],  # output type
-                     [[1, 1]],                    # strides
-                     [[6,0,0,0],[7,0,0,0]]        # pads
-                     )),
+        genZMConvs(input_types=[UInt8(2)],
+                   input_shapes=[[1, 16, 4, 4]],
+                   weight_types=[UInt8(1)],
+                   kernel_channels=[16],
+                   kernel_shapes=[[4, 4]],
+                   output_types=[Int4(), UInt4(), UInt8()],
+                   pads=[[6,0,0,0],[7,0,0,0]]),
 
         # Z-Major Convolution, padding, 5x5 kernel, uint8
-        (DPUPipeline(ZMajorConvolution.PARAMS, x) for x in itertools.product(
-                     [ZMajorConvolution],         # mpe operation
-                     [UInt8(2)],                  # input type
-                     [[1, 16, 5, 5]],             # input shape
-                     [UInt8(1)],                  # weight type
-                     [16],                        # kernel channels
-                     [[5, 5]],                    # kernel shape
-                     [Int4(), UInt4(), UInt8()],  # output type
-                     [[1, 1]],                    # strides
-                     [[4,0,0,0],[5,0,0,0]]        # pads
-                     )),
+        genZMConvs(input_types=[UInt8(2)],
+                   input_shapes=[[1, 16, 5, 5]],
+                   weight_types=[UInt8(1)],
+                   kernel_channels=[16],
+                   kernel_shapes=[[5, 5]],
+                   output_types=[Int4(), UInt4(), UInt8()],
+                   pads=[[4,0,0,0],[5,0,0,0]]),
 
         # Eltwise Add
         # NB bf16 can only be used as an input, per the MTL layer mapping spec
@@ -1234,148 +1175,72 @@ def generate_options(args):
                      [UInt8()]                 # output type
                      )),
 
-        # MobileNet CONV (ZMajorConv), uint8
-        (DPUPipeline(ZMajorConvolution.PARAMS, x) for x in itertools.product(
-                     [ZMajorConvolution],     # mpe operation
-                     [UInt8(2)],              # input type
-                     [[1, 32, 112, 112]],     # input shape
-                     [UInt8(2)],              # weight type
-                     [16],                    # kernel channels
-                     [[1, 1]],                # kernel shape
-                     [UInt8()],               # output type
-                     [[1, 1]],                # strides
-                     [[0, 0, 0, 0]]           # pads
-                     )),
+        # MobileNet CONV (ZMajorConv)
+        genZMConvs(input_types=[UInt8(2)],
+                   input_shapes=[[1, 32, 112, 112]],
+                   weight_types=[UInt8(2)],
+                   kernel_channels=[16],
+                   output_types=[UInt8()]),
 
-        # MobileNet CONV (ZMajorConv), uint8
-        (DPUPipeline(ZMajorConvolution.PARAMS, x) for x in itertools.product(
-                     [ZMajorConvolution],     # mpe operation
-                     [UInt8(2)],              # input type
-                     [[1, 16, 112, 112]],     # input shape
-                     [UInt8(2)],              # weight type
-                     [96],                    # kernel channels
-                     [[1, 1]],                # kernel shape
-                     [UInt8()],               # output type
-                     [[1, 1]],                # strides
-                     [[0, 0, 0, 0]]           # pads
-                     )),
+        genZMConvs(input_types=[UInt8(2)],
+                   input_shapes=[[1, 16, 112, 112]],
+                   weight_types=[UInt8(2)],
+                   kernel_channels=[96],
+                   output_types=[UInt8()]),
 
-        # MobileNet CONV (ZMajorConv), uint8
-        (DPUPipeline(ZMajorConvolution.PARAMS, x) for x in itertools.product(
-                     [ZMajorConvolution],     # mpe operation
-                     [UInt8(2)],              # input type
-                     [[1, 96, 56, 56]],       # input shape
-                     [UInt8(2)],              # weight type
-                     [32],                    # kernel channels
-                     [[1, 1]],                # kernel shape
-                     [UInt8()],               # output type
-                     [[1, 1]],                # strides
-                     [[0, 0, 0, 0]]           # pads
-                     )),
+        genZMConvs(input_types=[UInt8(2)],
+                   input_shapes=[[1, 96, 56, 56]],
+                   weight_types=[UInt8(2)],
+                   kernel_channels=[32],
+                   output_types=[UInt8()]),
 
-        # MobileNet CONV (ZMajorConv), uint8
-        (DPUPipeline(ZMajorConvolution.PARAMS, x) for x in itertools.product(
-                     [ZMajorConvolution],     # mpe operation
-                     [UInt8(2)],              # input type
-                     [[1, 32, 56, 56]],       # input shape
-                     [UInt8(2)],              # weight type
-                     [144],                   # kernel channels
-                     [[1, 1]],                # kernel shape
-                     [UInt8()],               # output type
-                     [[1, 1]],                # strides
-                     [[0, 0, 0, 0]]           # pads
-                     )),
+        genZMConvs(input_types=[UInt8(2)],
+                   input_shapes=[[1, 32, 56, 56]],
+                   weight_types=[UInt8(2)],
+                   kernel_channels=[144],
+                   output_types=[UInt8()]),
 
-        # MobileNet CONV (ZMajorConv), uint8
-        (DPUPipeline(ZMajorConvolution.PARAMS, x) for x in itertools.product(
-                     [ZMajorConvolution],     # mpe operation
-                     [UInt8(2)],              # input type
-                     [[1, 144, 56, 56]],      # input shape
-                     [UInt8(2)],              # weight type
-                     [32],                    # kernel channels
-                     [[1, 1]],                # kernel shape
-                     [UInt8()],               # output type
-                     [[1, 1]],                # strides
-                     [[0, 0, 0, 0]]           # pads
-                     )),
+        genZMConvs(input_types=[UInt8(2)],
+                   input_shapes=[[1, 144, 56, 56]],
+                   weight_types=[UInt8(2)],
+                   kernel_channels=[32],
+                   output_types=[UInt8()]),
 
-        # MobileNet CONV (ZMajorConv), uint8
-        (DPUPipeline(ZMajorConvolution.PARAMS, x) for x in itertools.product(
-                     [ZMajorConvolution],     # mpe operation
-                     [UInt8(2)],              # input type
-                     [[1, 144, 28, 28]],      # input shape
-                     [UInt8(2)],              # weight type
-                     [32],                    # kernel channels
-                     [[1, 1]],                # kernel shape
-                     [UInt8()],               # output type
-                     [[1, 1]],                # strides
-                     [[0, 0, 0, 0]]           # pads
-                     )),
+        genZMConvs(input_types=[UInt8(2)],
+                   input_shapes=[[1, 144, 28, 28]],
+                   weight_types=[UInt8(2)],
+                   kernel_channels=[32],
+                   output_types=[UInt8()]),
 
-        # MobileNet CONV (ZMajorConv), uint8
-        (DPUPipeline(ZMajorConvolution.PARAMS, x) for x in itertools.product(
-                     [ZMajorConvolution],     # mpe operation
-                     [UInt8(2)],              # input type
-                     [[1, 32, 28, 28]],       # input shape
-                     [UInt8(2)],              # weight type
-                     [192],                   # kernel channels
-                     [[1, 1]],                # kernel shape
-                     [UInt8()],               # output type
-                     [[1, 1]],                # strides
-                     [[0, 0, 0, 0]]           # pads
-                     )),
+        genZMConvs(input_types=[UInt8(2)],
+                   input_shapes=[[1, 32, 28, 28]],
+                   weight_types=[UInt8(2)],
+                   kernel_channels=[192],
+                   output_types=[UInt8()]),
 
-        # MobileNet CONV (ZMajorConv), uint8
-        (DPUPipeline(ZMajorConvolution.PARAMS, x) for x in itertools.product(
-                     [ZMajorConvolution],     # mpe operation
-                     [UInt8(2)],              # input type
-                     [[1, 192, 28, 28]],      # input shape
-                     [UInt8(2)],              # weight type
-                     [32],                    # kernel channels
-                     [[1, 1]],                # kernel shape
-                     [UInt8()],               # output type
-                     [[1, 1]],                # strides
-                     [[0, 0, 0, 0]]           # pads
-                     )),
+        genZMConvs(input_types=[UInt8(2)],
+                   input_shapes=[[1, 192, 28, 28]],
+                   weight_types=[UInt8(2)],
+                   kernel_channels=[32],
+                   output_types=[UInt8()]),
 
-        # MobileNet CONV (ZMajorConv), uint8
-        (DPUPipeline(ZMajorConvolution.PARAMS, x) for x in itertools.product(
-                     [ZMajorConvolution],     # mpe operation
-                     [UInt8(2)],              # input type
-                     [[1, 192, 14, 14]],      # input shape
-                     [UInt8(2)],              # weight type
-                     [64],                    # kernel channels
-                     [[1, 1]],                # kernel shape
-                     [UInt8()],               # output type
-                     [[1, 1]],                # strides
-                     [[0, 0, 0, 0]]           # pads
-                     )),
+        genZMConvs(input_types=[UInt8(2)],
+                   input_shapes=[[1, 192, 14, 14]],
+                   weight_types=[UInt8(2)],
+                   kernel_channels=[64],
+                   output_types=[UInt8()]),
 
-        # MobileNet CONV (ZMajorConv), uint8
-        (DPUPipeline(ZMajorConvolution.PARAMS, x) for x in itertools.product(
-                     [ZMajorConvolution],     # mpe operation
-                     [UInt8(2)],              # input type
-                     [[1, 64, 14, 14]],       # input shape
-                     [UInt8(2)],              # weight type
-                     [384],                   # kernel channels
-                     [[1, 1]],                # kernel shape
-                     [UInt8()],               # output type
-                     [[1, 1]],                # strides
-                     [[0, 0, 0, 0]]           # pads
-                     )),
+        genZMConvs(input_types=[UInt8(2)],
+                   input_shapes=[[1, 64, 14, 14]],
+                   weight_types=[UInt8(2)],
+                   kernel_channels=[384],
+                   output_types=[UInt8()]),
 
-        # MobileNet CONV (ZMajorConv), uint8
-        (DPUPipeline(ZMajorConvolution.PARAMS, x) for x in itertools.product(
-                     [ZMajorConvolution],     # mpe operation
-                     [UInt8(2)],              # input type
-                     [[1, 384, 14, 14]],      # input shape
-                     [UInt8(2)],              # weight type
-                     [64],                    # kernel channels
-                     [[1, 1]],                # kernel shape
-                     [UInt8()],               # output type
-                     [[1, 1]],                # strides
-                     [[0, 0, 0, 0]]           # pads
-                     )),
+        genZMConvs(input_types=[UInt8(2)],
+                   input_shapes=[[1, 384, 14, 14]],
+                   weight_types=[UInt8(2)],
+                   kernel_channels=[64],
+                   output_types=[UInt8()]),
     )
 
 
