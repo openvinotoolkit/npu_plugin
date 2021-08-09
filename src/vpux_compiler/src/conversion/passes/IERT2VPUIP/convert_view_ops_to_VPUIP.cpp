@@ -41,9 +41,21 @@ private:
     Logger _log;
 };
 
+template <typename SubViewType>
+static Byte calculateDataOffset(SubViewType subViewOp) {
+    int64_t subviewOffset = 0;
+    SmallVector<int64_t> resultStrides;
+    VPUX_THROW_UNLESS(mlir::getStridesAndOffset(subViewOp.getType(), resultStrides, subviewOffset).succeeded(),
+                      "Can't extract offset from biases subview '{0}'", subViewOp);
+
+    // Add offset for subview memref in bytes
+    const Byte elemSize = getElemTypeSize(subViewOp.getType().getElementType());
+    return subviewOffset * elemSize;
+}
+
 mlir::LogicalResult ViewLikeRewrite::matchAndRewrite(mlir::ViewLikeOpInterface origOp,
                                                      mlir::PatternRewriter& rewriter) const {
-    if (!mlir::isa<IERT::GenericReshapeOp, mlir::memref::SubViewOp>(origOp.getOperation())) {
+    if (!mlir::isa<IERT::GenericReshapeOp, mlir::memref::SubViewOp, IERT::SubViewOp>(origOp.getOperation())) {
         return matchFailed(rewriter, origOp, "Unknown view-like operation '{0}'", origOp->getName());
     }
 
@@ -94,14 +106,9 @@ mlir::LogicalResult ViewLikeRewrite::matchAndRewrite(mlir::ViewLikeOpInterface o
     }
 
     if (auto subViewOp = mlir::dyn_cast<mlir::memref::SubViewOp>(origOp.getOperation())) {
-        int64_t subviewOffset = 0;
-        SmallVector<int64_t> resultStrides;
-        VPUX_THROW_UNLESS(mlir::getStridesAndOffset(subViewOp.getType(), resultStrides, subviewOffset).succeeded(),
-                          "Can't extract offset from biases subview '{0}'", subViewOp);
-
-        // Add offset for subview memref in bytes
-        const Byte elemSize = getElemTypeSize(subViewOp.getType().getElementType());
-        dataOffset += subviewOffset * elemSize;
+        dataOffset += calculateDataOffset(subViewOp);
+    } else if (auto subViewOp = mlir::dyn_cast<IERT::SubViewOp>(origOp.getOperation())) {
+        dataOffset += calculateDataOffset(subViewOp);
     }
 
     const auto outType = origOp->getResult(0).getType();
