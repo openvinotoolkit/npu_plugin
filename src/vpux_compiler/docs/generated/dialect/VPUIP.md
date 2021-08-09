@@ -23,6 +23,36 @@ It handles such VPU-specifics as:
 This object represents closely a Barrier in the device
 ## Operation definition
 
+### `VPUIP.ActKernel` (vpux::VPUIP::ActKernelOp)
+
+Runs a kernel on an activation shave
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.ActKernel` attr-dict $invocations
+              (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+              (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`kernelText` | ::mlir::SymbolRefAttr | symbol reference attribute
+`kernelData` | ::mlir::SymbolRefAttr | symbol reference attribute
+`entryOffset` | ::mlir::IntegerAttr | 64-bit unsigned integer attribute
+`invocations` | ::mlir::ArrayAttr | array attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`waitBarriers` | VPUIP Barrier Type
+`updateBarriers` | VPUIP Barrier Type
+
 ### `VPUIP.CTCGreedyDecoderSeqLenUPA` (vpux::VPUIP::CTCGreedyDecoderSeqLenUPAOp)
 
 CTCGreedyDecoderSeqLen UPA SHAVE kernel
@@ -283,6 +313,7 @@ Syntax:
 
 ```
 operation ::= `VPUIP.DPUTask` attr-dict
+              (`inputs` `(` $profiling_data^ `:` type($profiling_data) `)`)?
 ```
 
 
@@ -294,6 +325,12 @@ operation ::= `VPUIP.DPUTask` attr-dict
 `end` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `pad` | vpux::VPUIP::PaddingAttr | DictionaryAttr with field(s): 'left', 'right', 'top', 'bottom' (each field having its own constraints)
 `mpe_mode` | vpux::VPUIP::MPEModeAttr | MPE Mode
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`profiling_data` | memref of any type values
 
 ### `VPUIP.DeclareTensor` (vpux::VPUIP::DeclareTensorOp)
 
@@ -934,13 +971,13 @@ mutually exclusive.
 
 | Operand | Description |
 | :-----: | ----------- |
-`input` | memref of 16-bit float or QuantizedType values
-`weights` | memref of 16-bit float or QuantizedType values
+`input` | memref of 16-bit float or bfloat16 type or QuantizedType values
+`weights` | memref of 16-bit float or bfloat16 type or QuantizedType values
 `weight_table` | memref of 32-bit signed integer values
 `activation_window` | memref of 8-bit unsigned integer values
 `parent_input` | memref of any type values
 `parent_output` | memref of any type values
-`output_buff` | memref of 16-bit float or QuantizedType values
+`output_buff` | memref of 16-bit float or 32-bit float or bfloat16 type or QuantizedType values
 `waitBarriers` | VPUIP Barrier Type
 `updateBarriers` | VPUIP Barrier Type
 
@@ -948,7 +985,7 @@ mutually exclusive.
 
 | Result | Description |
 | :----: | ----------- |
-`output` | memref of 16-bit float or QuantizedType values
+`output` | memref of 16-bit float or bfloat16 type or 32-bit float or QuantizedType values
 
 ### `VPUIP.NNDMA` (vpux::VPUIP::NNDMAOp)
 
@@ -1036,7 +1073,9 @@ PPE Type for NCE Task
 Syntax:
 
 ```
-operation ::= `VPUIP.PPETask` $ppe_layer_type attr-dict
+operation ::= `VPUIP.PPETask` $ppe_layer_type
+              (`instruction_table` `(` $instruction_table^ `:` type($instruction_table) `)`)?
+              attr-dict
 ```
 
 
@@ -1045,6 +1084,16 @@ operation ::= `VPUIP.PPETask` $ppe_layer_type attr-dict
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
 `ppe_layer_type` | vpux::VPUIP::PPELayerTypeAttr | Post Processing Element Type
+`clamp_low` | mlir::IntegerAttr | Integer attribute
+`clamp_high` | mlir::IntegerAttr | Integer attribute
+`lrelu_mult` | mlir::IntegerAttr | Integer attribute
+`lrelu_shift` | mlir::IntegerAttr | Integer attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`instruction_table` | memref of 32-bit signed integer values
 
 ### `VPUIP.PReluUPA` (vpux::VPUIP::PReluUPAOp)
 
@@ -1325,8 +1374,8 @@ operation ::= `VPUIP.QuantCastUPA` attr-dict
 
 | Operand | Description |
 | :-----: | ----------- |
-`input` | memref of 16-bit float or QuantizedType values
-`output_buff` | memref of 16-bit float or QuantizedType values
+`input` | memref of 16-bit float or bfloat16 type or QuantizedType values
+`output_buff` | memref of 16-bit float or bfloat16 type or QuantizedType values
 `waitBarriers` | VPUIP Barrier Type
 `updateBarriers` | VPUIP Barrier Type
 
@@ -1334,7 +1383,7 @@ operation ::= `VPUIP.QuantCastUPA` attr-dict
 
 | Result | Description |
 | :----: | ----------- |
-`output` | memref of 16-bit float or QuantizedType values
+`output` | memref of 16-bit float or bfloat16 type or QuantizedType values
 
 ### `VPUIP.ROIPoolingUPA` (vpux::VPUIP::ROIPoolingUPAOp)
 

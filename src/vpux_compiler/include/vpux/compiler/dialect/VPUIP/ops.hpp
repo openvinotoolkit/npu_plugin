@@ -73,3 +73,25 @@ mlir::LogicalResult verifyPostOp(mlir::Operation* op);
 
 }  // namespace VPUIP
 }  // namespace vpux
+
+//
+// Template methods
+//
+
+namespace vpux {
+namespace VPUIP {
+
+template <typename... Args>
+VPUIP::PPETaskOp NCEClusterTaskOp::addPPETask(mlir::OpBuilder& builder, Args&&... args) {
+    if (ppe().empty()) {
+        ppe().emplaceBlock();
+    }
+
+    mlir::OpBuilder::InsertionGuard guard(builder);
+    builder.setInsertionPointToEnd(&ppe().front());
+
+    return builder.create<VPUIP::PPETaskOp>(getLoc(), std::forward<Args>(args)...);
+}
+
+}  // namespace VPUIP
+}  // namespace vpux

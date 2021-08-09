@@ -95,8 +95,17 @@ void fillBuf(const Range& range, MutableArrayRef<char> buf) {
 }  // namespace
 
 void vpux::Const::Content::copyTo(MutableArrayRef<char> buf) const {
-    dispatchByElemType<void>(getElementType(), [this, buf](auto dummy) {
-        using ElemT = std::decay_t<decltype(dummy)>;
-        fillBuf(this->getValues<ElemT>(), buf);
-    });
+    auto qtype = getElementType().dyn_cast<mlir::quant::QuantizedType>();
+    if (getElementType().isInteger(4) || getElementType().isUnsignedInteger(4) || getElementType().isSignedInteger(4) ||
+        (qtype && (qtype.getStorageType().isInteger(4) || qtype.getStorageType().isUnsignedInteger(4) ||
+                   qtype.getStorageType().isSignedInteger(4)))) {
+        details::ContentRange<uint8_t> range(_data, _isSplat, vpux::getElemTypeSize(_storageElemType),
+                                             getNumElements() / 2, details::makeConvertCb<uint8_t, uint8_t>());
+        fillBuf(range, buf);
+    } else {
+        dispatchByElemType<void>(getElementType(), [this, buf](auto dummy) {
+            using ElemT = std::decay_t<decltype(dummy)>;
+            fillBuf(this->getValues<ElemT>(), buf);
+        });
+    }
 }

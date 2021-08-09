@@ -20,6 +20,7 @@
 #include "vpux/utils/core/hash.hpp"
 #include "vpux/utils/core/range.hpp"
 
+#include <mlir/Dialect/Quant/QuantTypes.h>
 #include <mlir/IR/BuiltinOps.h>
 
 #include <unordered_set>
@@ -238,7 +239,8 @@ mlir::LogicalResult vpux::IE::verifyOp(DataInfoOp op) {
 
     const auto precision = userType.getElementType();
 
-    if (!(precision.isSignedInteger() || precision.isUnsignedInteger() || precision.isa<mlir::FloatType>())) {
+    if (!(precision.isSignedInteger() || precision.isUnsignedInteger() || precision.isa<mlir::FloatType>() ||
+          precision.isa<mlir::quant::QuantizedType>())) {
         return errorAt(op, "Operation has unsupported userType precision '{0}', it must be either Float or Integer",
                        precision);
     }

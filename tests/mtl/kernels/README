@@ -1,0 +1,41 @@
+Build simple single-file test kernels for MTL activation SHAVE. You can use the
+makefile to build the kernels included in ./src:
+
+    make <target>
+    make all
+    make clean
+
+Targets:
+    hello
+    vau_tanh
+    vau_sigm
+    vau_exp
+    vau_log
+
+For each kernel, we will produce two output files. The ".text" file will
+contain the reusable, read-only kernel data located in the 0x1D window, and the
+".data" file will contain the argument block and other writable data located in
+the 0x1E window:
+    output/
+        <target>.text
+        <target>.data
+
+In addition, for debugging purposes, we will produce assembler output, ELF
+executable, and file contents:
+    output/
+        <target>.asm
+        <target>.elf
+        <target>_sections.txt
+        <target>_symbols.txt
+        <target>_relocations.txt
+
+For other test kernels, outside ./src, you may invoke the script directly:
+
+  bash compile.sh <source>
+
+If you want to place output elsewhere, provide a second parameter:
+
+    bash compile.sh <source> <output_dir>
+
+
+

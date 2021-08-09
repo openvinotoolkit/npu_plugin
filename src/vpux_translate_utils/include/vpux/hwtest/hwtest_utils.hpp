@@ -25,6 +25,7 @@
 
 namespace vpux {
 namespace hwtest {
+using llvm::ArrayRef;
 
 // NumericsBench padding definition
 // NB ref: NumericsBench/operators/op_utils/sliding_window.py#L47
@@ -56,8 +57,96 @@ mlir::Type parseWeightsType(mlir::OpBuilder builder, const nb::WeightLayer& weig
 void buildCNNOp(mlir::OpBuilder& builder, llvm::StringRef mainFuncName, llvm::ArrayRef<mlir::Type> inputs,
                 llvm::ArrayRef<mlir::Type> outputs);
 
+void computeQuantMultShift(float scale, unsigned& shift, unsigned& mult);
+size_t calcWeightsTableMultShift(const nb::TestCaseJsonDescriptor& testDesc, mlir::MemRefType input,
+                                 mlir::MemRefType output, mlir::MemRefType weights);
+std::vector<int32_t> generateWeightsTablesValues(const nb::TestCaseJsonDescriptor& testDesc, size_t weights_offset,
+                                                 mlir::MemRefType input, mlir::MemRefType output,
+                                                 mlir::MemRefType weights);
+uint16_t getWindowSize(mlir::OpBuilder builder, uint16_t kx, uint16_t sx, mlir::Type dataType);
+std::vector<int8_t> createBitPattern(uint16_t kernelW, uint16_t kernelH, uint16_t windowsSize, uint16_t inputChannels);
+mlir::DenseElementsAttr getactivationWindow(mlir::OpBuilder builder, const std::vector<int64_t>& filter_size,
+                                            const std::vector<int64_t>& strides, int64_t outputChannels,
+                                            int64_t inputChannels, mlir::Type dtype,
+                                            SmallVector<int64_t>& sparsity_shape,
+                                            mlir::IntegerAttr& activationChannelLength, bool isOutFloat, bool isPool,
+                                            bool isDepthWiseConv);
+unsigned round_up(unsigned x, unsigned mult);
+std::vector<int32_t> generateWeightsTablesValuesForMaxPool(const nb::TestCaseJsonDescriptor& testDesc,
+                                                           mlir::MemRefType input, mlir::MemRefType output,
+                                                           mlir::MemRefType actWindow_cmx_type, std::size_t offset,
+                                                           ArrayRef<int64_t> wtTbl_data_shape);
+
+std::vector<int32_t> generateWeightsTablesValuesWithSparsity(const nb::TestCaseJsonDescriptor& testDesc,
+                                                             mlir::MemRefType input, mlir::MemRefType output,
+                                                             mlir::MemRefType weights,
+                                                             mlir::MemRefType actWindow_cmx_type, std::size_t offset,
+                                                             ArrayRef<int64_t> wtTbl_data_shape, size_t weights_offset);
+SmallVector<int64_t> getWeightsPaddedShape(SmallVector<int64_t> wt_shape, bool isDepthwiseConv);
+mlir::DenseElementsAttr generateDWConvWeightsForAvgPool(ArrayRef<int64_t> wt_shape, mlir::Type dtype, double scaleVal,
+                                                        mlir::MLIRContext* ctx);
+mlir::DenseElementsAttr generateZeroPadForEltwiseMultWeights(ArrayRef<int64_t> wt_shape_padded, mlir::Type dtype,
+                                                             mlir::MLIRContext* ctx);
+mlir::Type convertToMLIRType(mlir::OpBuilder builder, nb::DType dtype);
+VPUIP::PPELayerType getPPELayerFromConfig(nb::ActivationLayer activation);
+int32_t computeclampLow(nb::InputLayer input, nb::OutputLayer output, bool flexarbINT8, bool isMaxpool,
+                        nb::ActivationLayer activation);
+int32_t computeclampHigh(nb::InputLayer input, nb::OutputLayer output, bool flexarbINT8, bool isMaxpool,
+                         nb::ActivationLayer activation);
+
+void calculateppeParams(const nb::TestCaseJsonDescriptor& testDesc, int32_t& clampLow, int32_t& clamHigh,
+                        int32_t& lreluMult, uint32_t& lreluShift);
+
 void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module, mlir::OpBuilder builder,
                            Logger& log, mlir::Type inputType, mlir::Type weightsType, mlir::Type outputType);
+
+void buildDWConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module, mlir::OpBuilder builder,
+                 Logger& log, mlir::Type inputType, mlir::Type weightsType, mlir::Type outputType);
+
+void buildSimpleZMajorConvActivation(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module,
+                                     mlir::OpBuilder builder, Logger& log, mlir::Type inputType, mlir::Type weightsType,
+                                     mlir::Type outputType);
+
+void buildEltwiseAdd(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module, mlir::OpBuilder builder,
+                     Logger& log, mlir::Type inputType, mlir::Type weightsType, mlir::Type outputType);
+
+void buildEltwiseMultWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module,
+                                mlir::OpBuilder builder, Logger& log, mlir::Type inputType, mlir::Type weightsType,
+                                mlir::Type outputType);
+
+void buildMaxpool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module, mlir::OpBuilder builder,
+                  Logger& log, mlir::Type input0Type, mlir::Type outputType);
+
+void buildActKernelTest(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module, mlir::OpBuilder builder,
+                        Logger& log);
+
+void buildPipeline(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module, mlir::OpBuilder builder,
+                   Logger& log, mlir::Type inputType, mlir::Type weightsType, mlir::Type outputType, bool isSequential);
+
+void buildRaceConditionDMATest(const nb::TestCaseJsonDescriptor&, mlir::ModuleOp module, mlir::OpBuilder builder,
+                               Logger& log, mlir::Type inputType, mlir::Type outputType);
+void buildRaceConditionDPUTest(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module,
+                               mlir::OpBuilder builder, Logger& log, mlir::Type inputType, mlir::Type weightsType,
+                               mlir::Type outputType);
+void buildAvgpoolWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module, mlir::OpBuilder builder,
+                            Logger& log, mlir::Type inputType, mlir::Type outputType);
+
+std::vector<int32_t> getInstructionListVals(nb::ActivationType pwlType,
+                                            llvm::ArrayRef<int64_t> instructionList_data_shape);
+
+mlir::MemRefType getMemRefType(mlir::OpBuilder builder, VPUIP::MemoryLocation memlocation, SmallVector<int64_t> shape,
+                               mlir::Type type, SmallVector<mlir::AffineMap> affineMaps);
+
+vpux::VPUIP::DeclareTensorOp createDeclareTensorOp(mlir::OpBuilder builder, VPUIP::MemoryLocation memlocation,
+                                                   SmallVector<int64_t> shape, mlir::Type type,
+                                                   SmallVector<mlir::AffineMap> affineMaps, int locale, int offset);
+
+mlir::OpResult getTensorResult(VPUIP::DeclareTensorOp op);
+
+mlir::OpResult getConstResult(vpux::Const::DeclareOp op);
+
+vpux::VPUIP::DPUTaskOp createDPUTaskOp(mlir::OpBuilder builder, mlir::OpBuilder variantbuilder,
+                                       llvm::SmallVector<int64_t> output_shape, std::vector<int64_t> padding_vec);
 
 }  // namespace hwtest
 }  // namespace vpux

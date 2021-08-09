@@ -36,6 +36,15 @@
 namespace nb {
 enum class CaseType {
     ZMajorConvolution,
+    DepthWiseConv,
+    EltwiseAdd,
+    EltwiseMult,
+    MaxPool,
+    AvgPool,
+    activationKernelSimple,
+    pipeline,
+    raceConditionDMA,
+    raceConditionDPU,
     Unknown
 };
 
