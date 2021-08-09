@@ -50,9 +50,9 @@ void vpux::VPUIP::NCEClusterTaskOp::build(mlir::OpBuilder& builder, mlir::Operat
 // NCEClusterTaskOp::addDPUTask
 //
 
-VPUIP::DPUTaskOp vpux::VPUIP::NCEClusterTaskOp::addDPUTask(mlir::OpBuilder& builder, mlir::ArrayAttr start,
-                                                           mlir::ArrayAttr end, VPUIP::PaddingAttr pad,
-                                                           VPUIP::MPEMode mpeMode) {
+VPUIP::DPUTaskOp vpux::VPUIP::NCEClusterTaskOp::addDPUTask(mlir::OpBuilder& builder, mlir::Value profiling_data,
+                                                           mlir::ArrayAttr start, mlir::ArrayAttr end,
+                                                           VPUIP::PaddingAttr pad, VPUIP::MPEMode mpeMode) {
     if (variants().empty()) {
         variants().emplaceBlock();
     }
@@ -60,7 +60,7 @@ VPUIP::DPUTaskOp vpux::VPUIP::NCEClusterTaskOp::addDPUTask(mlir::OpBuilder& buil
     mlir::OpBuilder::InsertionGuard guard(builder);
     builder.setInsertionPointToEnd(&variants().front());
 
-    return builder.create<VPUIP::DPUTaskOp>(getLoc(), start, end, pad, mpeMode);
+    return builder.create<VPUIP::DPUTaskOp>(getLoc(), profiling_data, start, end, pad, mpeMode);
 }
 
 //
@@ -120,7 +120,7 @@ mlir::LogicalResult verifyNCEConv(VPUIP::NCEClusterTaskOp op) {
     if (op.weights() == nullptr) {
         return errorAt(op, "weights is required for NCETaskType : '{0}'", op.task_type());
     }
-    if (op.weight_table() == nullptr) {
+    if (op.weight_table() == nullptr && op.task_type() != VPUIP::NCETaskType::MAXPOOL) {
         return errorAt(op, "weight_table is required for NCETaskType : '{0}'", op.task_type());
     }
 
@@ -576,6 +576,7 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
         const auto end = parseIntArrayAttr<int64_t>(dpuTaskOp.end());
         const auto pad = dpuTaskOp.pad();
 
+        auto profilingData = dpuTaskOp.profiling_data() ? writer.getTensor(dpuTaskOp.profiling_data()) : 0;
         const auto variant = MVCNN::CreateNCEVariantFields(writer,
                                                            0,                                            // Barriers
                                                            getMPEMode(dpuTaskOp.mpe_mode()),             // MPE mode
@@ -588,7 +589,13 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
                                                            static_cast<int16_t>(start[2]),  // workload_start_Z
                                                            static_cast<int16_t>(end[0]),    // workload_end_X
                                                            static_cast<int16_t>(end[1]),    // workload_end_Y
-                                                           static_cast<int16_t>(end[2])     // workload_end_Z
+                                                           static_cast<int16_t>(end[2]),    // workload_end_Z
+                                                           0,                               // flex_map_column
+                                                           0,                               // flex_map_array
+                                                           0,                               // flex_inner
+                                                           0,                               // flex_outer
+                                                           0,                               // flex_outer_order
+                                                           profilingData                    // profiling_data
         );
         variantList.push_back(variant);
     }
@@ -602,6 +609,8 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
     ::llvm::Optional<SmallVector<uint16_t>> ppeQuantMult;
     ::llvm::Optional<SmallVector<uint8_t>> ppeQuantShift;
     ::llvm::Optional<int8_t> ppeQuantPostShift;
+
+    mlir::Value instructionTable;
 
     for (auto ppeOp : ppe().getOps<VPUIP::PPETaskOp>()) {
         const auto type = getPPELayerType(ppeOp.ppe_layer_type());
@@ -629,6 +638,9 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
         if (ppeOp.quant_post_shift().hasValue()) {
             ppeQuantPostShift = checked_cast<int8_t>(ppeOp.quant_post_shift().getValue());
         }
+        if (ppeOp.instruction_table()) {
+            instructionTable = ppeOp.instruction_table();
+        }
     }
     VPUX_THROW_UNLESS(ppeList.size() <= 1, "Cannot set more than one PPE task");
 
@@ -636,8 +648,10 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
     // TODO: Lrelu_Mult, Lrelu_Shift
     auto ppeFixedFunction =
             MVCNN::CreatePPEFixedFunction(writer, ppeLayerTypes, clampLow, clampHigh, LreluMult, LreluShift);
+    auto instructionTableData = instructionTable ? writer.getTensor(instructionTable) : 0;
+
     // TODO: scale_data, rounding, instruction_list_data
-    auto ppeTask = MVCNN::CreatePPETask(writer, 0, ppeFixedFunction);
+    auto ppeTask = MVCNN::CreatePPETask(writer, 0, ppeFixedFunction, MVCNN::PPERoundingMode_RNE, instructionTableData);
 
     int16_t kernelSizeH = 1, kernelSizeW = 1;
     int16_t kernelStridesH = 1, kernelStridesW = 1;

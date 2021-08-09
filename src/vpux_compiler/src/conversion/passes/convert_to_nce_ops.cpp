@@ -94,7 +94,7 @@ void addDPUTasks(VPUIP::NCEClusterTaskOp nceOp, mlir::PatternRewriter& rewriter,
                 VPUIP::PaddingAttr::get(getIntAttr(ctx, dpuTile.padLeft), getIntAttr(ctx, dpuTile.padRight),
                                         getIntAttr(ctx, dpuTile.padTop), getIntAttr(ctx, dpuTile.padBottom), ctx);
 
-        nceOp.addDPUTask(rewriter, startAttr, endAttr, pad, mpeMode);
+        nceOp.addDPUTask(rewriter, mlir::Value{}, startAttr, endAttr, pad, mpeMode);
     }
 }
 
@@ -211,7 +211,7 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
     addDPUTasks(nceOp, rewriter, _numDPU, padsBegin[1], padsEnd[1], padsBegin[0], padsEnd[0], mpeMap.at(_arch));
     const auto postOpParams = parsePostOp(nceOp, origOp.post_opAttr());
     if (postOpParams.hasValue()) {
-        nceOp.addPPETask(rewriter, postOpParams->layerType, postOpParams->clampLow, postOpParams->clampHigh,
+        nceOp.addPPETask(rewriter, postOpParams->layerType, nullptr, postOpParams->clampLow, postOpParams->clampHigh,
                          postOpParams->LreluMult, postOpParams->LreluShift);
     }
 
@@ -334,7 +334,7 @@ mlir::LogicalResult MaxPoolRewrite::matchAndRewrite(IERT::MaxPoolOp origOp, mlir
     addDPUTasks(nceOp, rewriter, _numDPU, padsBegin[1], padsEnd[1], padsBegin[0], padsEnd[0], mpeMap.at(_arch));
     const auto postOpParams = parsePostOp(nceOp, origOp.post_opAttr());
     if (postOpParams.hasValue()) {
-        nceOp.addPPETask(rewriter, postOpParams->layerType, postOpParams->clampLow, postOpParams->clampHigh,
+        nceOp.addPPETask(rewriter, postOpParams->layerType, nullptr, postOpParams->clampLow, postOpParams->clampHigh,
                          postOpParams->LreluMult, postOpParams->LreluShift);
     }
 
@@ -505,10 +505,10 @@ mlir::LogicalResult GenericEltwiseConverter<ConcreteOp>::matchAndRewrite(Concret
         const auto shift = shifts.first;
         const auto post_shift = shifts.second;
 
-        nceOp.addPPETask(rewriter, _ppeType, clampLow, clampHigh, LreluMult, LreluShift, SmallVector<int32_t>{mult},
-                         SmallVector<int32_t>{shift}, post_shift);
+        nceOp.addPPETask(rewriter, _ppeType, nullptr, clampLow, clampHigh, LreluMult, LreluShift,
+                         SmallVector<int32_t>{mult}, SmallVector<int32_t>{shift}, post_shift);
     } else {
-        nceOp.addPPETask(rewriter, _ppeType, clampLow, clampHigh, LreluMult, LreluShift);
+        nceOp.addPPETask(rewriter, _ppeType, nullptr, clampLow, clampHigh, LreluMult, LreluShift);
     }
 
     //
@@ -623,7 +623,7 @@ mlir::LogicalResult DepthwiseConvRewrite::matchAndRewrite(IERT::GroupConvolution
     addDPUTasks(nceOp, rewriter, _numDPU, padsBegin[1], padsEnd[1], padsBegin[0], padsEnd[0], mpeMap.at(_arch));
     const auto postOpParams = parsePostOp(nceOp, origOp.post_opAttr());
     if (postOpParams.hasValue()) {
-        nceOp.addPPETask(rewriter, postOpParams->layerType, postOpParams->clampLow, postOpParams->clampHigh,
+        nceOp.addPPETask(rewriter, postOpParams->layerType, nullptr, postOpParams->clampLow, postOpParams->clampHigh,
                          postOpParams->LreluMult, postOpParams->LreluShift);
     }
 

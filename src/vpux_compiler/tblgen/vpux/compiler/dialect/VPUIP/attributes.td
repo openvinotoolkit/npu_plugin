@@ -124,6 +124,7 @@ def VPUIP_TaskType :
                 StrEnumAttrCase<"Controller">,
                 StrEnumAttrCase<"UPA">,
                 StrEnumAttrCase<"SNN">,
+                StrEnumAttrCase<"ActKernel">,
                 StrEnumAttrCase<"Generic">,
             ]
         > {

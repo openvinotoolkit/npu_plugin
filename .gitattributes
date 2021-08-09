@@ -9,3 +9,4 @@ artifacts/mcmCompilerInstallPackage/bin/* filter=lfs diff=lfs merge=lfs -text
 *.lib filter=lfs diff=lfs merge=lfs -text
 *.elf filter=lfs diff=lfs merge=lfs -text
 ./artifacts/plantuml/plantuml.jar filter=lfs diff=lfs merge=lfs -text
+*.mvlib filter=lfs diff=lfs merge=lfs -text

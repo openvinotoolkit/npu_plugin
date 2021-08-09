@@ -115,6 +115,8 @@ std::string nb::to_string(CaseType case_) {
     switch (case_) {
     case CaseType::ZMajorConvolution:
         return "ZMajorConvolution";
+    case CaseType::DepthWiseConv:
+        return "DepthWiseConv";
     case CaseType::EltwiseAdd:
         return "EltwiseAdd";
     case CaseType::EltwiseMult:
@@ -123,6 +125,14 @@ std::string nb::to_string(CaseType case_) {
         return "MaxPool";
     case CaseType::AvgPool:
         return "AvgPool";
+    case CaseType::activationKernelSimple:
+        return "activationKernelSimple";
+    case CaseType::pipeline:
+        return "pipeline";
+    case CaseType::raceConditionDMA:
+        return "raceConditionDMA";
+    case CaseType::raceConditionDPU:
+        return "raceConditionDPU";
     default:
         return "unknown";
     }
@@ -131,6 +141,8 @@ std::string nb::to_string(CaseType case_) {
 nb::CaseType nb::to_case(llvm::StringRef str) {
     if (isEqual(str, "ZMajorConvolution"))
         return CaseType::ZMajorConvolution;
+    if (isEqual(str, "DepthWiseConv"))
+        return CaseType::DepthWiseConv;
     if (isEqual(str, "EltwiseAdd"))
         return CaseType::EltwiseAdd;
     if (isEqual(str, "EltwiseMult"))
@@ -139,6 +151,14 @@ nb::CaseType nb::to_case(llvm::StringRef str) {
         return CaseType::MaxPool;
     if (isEqual(str, "AvgPool"))
         return CaseType::AvgPool;
+    if (isEqual(str, "activationKernelSimple"))
+        return CaseType::activationKernelSimple;
+    if (isEqual(str, "pipeline"))
+        return CaseType::pipeline;
+    if (isEqual(str, "raceConditionDMA"))
+        return CaseType::raceConditionDMA;
+    if (isEqual(str, "raceConditionDPU"))
+        return CaseType::raceConditionDPU;
     return CaseType::Unknown;
 };
 
@@ -149,8 +169,8 @@ nb::QuantParams nb::TestCaseJsonDescriptor::loadQuantizationParams(llvm::json::O
         result.present = true;
         result.scale = qp->getNumber("scale").getValue();
         result.zeropoint = qp->getInteger("zeropoint").getValue();
-        result.low_range = static_cast<std::int64_t>(qp->getNumber("low_range").getValue());
-        result.high_range = static_cast<std::int64_t>(qp->getNumber("high_range").getValue());
+        result.low_range = qp->getInteger("low_range").getValue();
+        result.high_range = qp->getInteger("high_range").getValue();
     }
     return result;
 }
@@ -275,12 +295,6 @@ nb::ConvLayer nb::TestCaseJsonDescriptor::loadConvLayer(llvm::json::Object* json
 
     result.group = op->getInteger("group").getValue();
     result.dilation = op->getInteger("dilation").getValue();
-    auto compress = op->getInteger("compress");
-    if (compress.hasValue()) {
-        result.compress = (compress.getValue() > 0);
-    } else {
-        result.compress = false;
-    }
 
     return result;
 }
@@ -407,9 +421,18 @@ void nb::TestCaseJsonDescriptor::parse(llvm::StringRef jsonString) {
 
     // Load conv json attribute values. Similar implementation for ALL HW layers (DW, group conv, Av/Max pooling and
     // eltwise needed).
-    if (caseType_ == CaseType::ZMajorConvolution) {
+    if (caseType_ == CaseType::ZMajorConvolution || caseType_ == CaseType::DepthWiseConv ||
+        caseType_ == CaseType::pipeline || caseType_ == CaseType::raceConditionDPU) {
         wtLayer_ = loadWeightLayer(json_obj);
         convLayer_ = loadConvLayer(json_obj);
+
+        auto* activation = json_obj->getObject("activation");
+        if (activation && activation->getString("name").hasValue()) {
+            hasActivationLayer_ = true;
+            activationLayer_ = loadActivationLayer(json_obj);
+        } else {
+            hasActivationLayer_ = false;
+        }
         return;
     }
 
@@ -418,8 +441,25 @@ void nb::TestCaseJsonDescriptor::parse(llvm::StringRef jsonString) {
         return;
     }
 
-    if (caseType_ == CaseType::MaxPool || caseType_ == CaseType::AvgPool) {
+    if (caseType_ == CaseType::MaxPool) {
         poolLayer_ = loadPoolLayer(json_obj);
+        return;
+    }
+
+    if (caseType_ == CaseType::AvgPool) {
+        poolLayer_ = loadPoolLayer(json_obj);
+        return;
+    }
+
+    if (caseType_ == CaseType::activationKernelSimple) {
+        auto kernelFileName = json_obj->getString("kernel_filename");
+        if (kernelFileName.hasValue()) {
+            kernelFilename_ = kernelFileName.getValue().str();
+        }
+        return;
+    }
+
+    if (caseType_ == CaseType::raceConditionDMA || caseType_ == CaseType::raceConditionDPU) {
         return;
     }
 

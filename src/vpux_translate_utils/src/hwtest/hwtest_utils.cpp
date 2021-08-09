@@ -307,10 +307,625 @@ vpux::VPUIP::DPUTaskOp createDPUTaskOp(mlir::OpBuilder builder, mlir::OpBuilder 
                                        getIntAttr(builder, padding_vec[PAD_NCETASK_TOP]),
                                        getIntAttr(builder, padding_vec[PAD_NCETASK_BOTTOM]), builder.getContext());
 
-    auto dpuTask = variantbuilder.create<VPUIP::DPUTaskOp>(builder.getUnknownLoc(), start, end, pad,
+    auto dpuTask = variantbuilder.create<VPUIP::DPUTaskOp>(builder.getUnknownLoc(), nullptr, start, end, pad,
                                                            VPUIP::MPEMode::CUBOID_16x16);
 
     return dpuTask;
+}
+
+//
+
+void computeQuantMultShift(float scale, unsigned& shift, unsigned& mult) {
+    auto bits = 15;
+    int exponent;
+    double mantissa = std::frexp(scale, &exponent);
+    shift = bits - exponent;
+    mult = static_cast<unsigned>((mantissa * pow(2, bits)));
+}
+
+size_t calcWeightsTableMultShift(const nb::TestCaseJsonDescriptor& testDesc, mlir::MemRefType input,
+                                 mlir::MemRefType output, mlir::MemRefType weights) {
+    size_t multshift = 0;
+    // 8bit mult mask
+    static const uint32_t PRELU_MULT_MASK = 0x000000FF;
+    // 6bit shift mask
+    static const uint32_t PRELU_SHIFT_MASK = 0x00003F00;
+    static const uint32_t PRELU_SHIFT_SHIFT = 8;
+    // round mode mask
+    static const uint32_t ROUND_MODE_MASK = 0x0000C000;
+    static const uint32_t ROUND_MODE_SHIFT = 14;
+    // scale mask
+    static const uint32_t SCALE_MODE_MASK = 0xFFFF0000;
+    static const uint32_t SCALE_MODE_SHIFT = 16;
+
+    float out_scale = testDesc.getOutputLayer().qp.scale;
+    float in_Scale = testDesc.getInputLayer().qp.scale;
+    float weights_Scale = testDesc.getWeightLayer().qp.scale;
+    auto inputtype = input.getElementType();
+    auto outtype = output.getElementType();
+    auto isMaxPool = testDesc.getCaseType() == nb::CaseType::MaxPool;
+
+    // For pool, no weights in config.json
+    if (!isMaxPool) {
+        auto wt_type = weights.getElementType();
+        if (auto wt_qType = wt_type.dyn_cast<mlir::quant::UniformQuantizedType>()) {
+            weights_Scale = static_cast<float>(wt_qType.getScale());
+        } else {
+            weights_Scale = 1.0f;
+        }
+    } else {
+        weights_Scale = 1.0f;
+    }
+
+    if (auto in_qType = inputtype.dyn_cast<mlir::quant::UniformQuantizedType>()) {
+        in_Scale = static_cast<float>(in_qType.getScale());
+    }
+
+    if (auto out_qType = outtype.dyn_cast<mlir::quant::UniformQuantizedType>()) {
+        out_scale = static_cast<float>(out_qType.getScale());
+    }
+
+    float result_Scale = (in_Scale * weights_Scale) / out_scale;
+
+    auto float_as_int = [&](float f) {
+        union bit_field32 {
+            float fp;
+            unsigned int ui;
+        };
+        bit_field32 v;
+        v.fp = f;
+        return v.ui;
+    };
+
+    if (input.getElementType().isBF16() || input.getElementType().isF16()) {
+        multshift = float_as_int(result_Scale);
+    } else {
+        // harcoded
+        int32_t round32 = 1;
+        int32_t reluMult = 0;
+        unsigned mult;
+        unsigned shift;
+        computeQuantMultShift(result_Scale, shift, mult);
+        multshift = static_cast<int64_t>(
+                ((mult << SCALE_MODE_SHIFT) & SCALE_MODE_MASK) | ((round32 << ROUND_MODE_SHIFT) & ROUND_MODE_MASK) |
+                ((shift << PRELU_SHIFT_SHIFT) & PRELU_SHIFT_MASK) | (reluMult & PRELU_MULT_MASK));
+    }
+
+    return multshift;
+}
+
+unsigned round_up(unsigned x, unsigned mult) {
+    return ((x + mult - 1) / mult) * mult;  // logic borrowed from MCM
+}
+VPUIP::PPELayerType getPPELayerFromConfig(nb::ActivationLayer activation) {
+    switch (activation.activationType) {
+    case nb::ActivationType::ReLU:
+    case nb::ActivationType::ReLUX: {
+        return VPUIP::PPELayerType::LRELU;
+    }
+    case nb::ActivationType::LeakyReLU: {
+        // TODO : remove throw  after adding support
+        throw std::domain_error{llvm::formatv("Only relu and relux parsing supported for hwtest").str()};
+
+        return VPUIP::PPELayerType::LRELUX;
+    }
+    default:
+        throw std::domain_error{llvm::formatv("Only relu and relux parsing supported for hwtest").str()};
+    }
+}
+
+int32_t computeclampLow(nb::InputLayer input, nb::OutputLayer output, bool flexarbINT8, bool isMaxpool,
+                        nb::ActivationLayer activation) {
+    auto inputdType = input.dtype;
+    auto outputdType = output.dtype;
+    int32_t clamp = -2147483648;
+
+    if (!isMaxpool) {
+        if (outputdType == nb::DType::U8 || outputdType == nb::DType::I8) {
+            // Saturation clamp has to be computed in this case
+            int32_t saturationClamp = -output.qp.zeropoint;
+            if (outputdType == nb::DType::I8)
+                saturationClamp -= 128;
+
+            clamp = saturationClamp;
+
+            if (inputdType == nb::DType::FP16 || inputdType == nb::DType::BF16)
+                clamp <<= 16;
+        } else if (outputdType == nb::DType::FP16 || outputdType == nb::DType::BF16) {
+            if (activation.activationType == nb::ActivationType::ReLU ||
+                activation.activationType == nb::ActivationType::ReLUX) {
+                clamp = 0;
+            }
+        }
+    }
+
+    double alpha = 1.0;
+    if (activation.activationType == nb::ActivationType::LeakyReLU) {
+        alpha = activation.alpha;
+
+        if (alpha > 0.0) {
+            clamp = static_cast<int32_t>(clamp / alpha);
+        } else {
+            // no negative values
+            clamp = 0;
+        }
+    }
+
+    // TODO: Handle Prelu slopes
+    // TODO : HAndle PWL acivations - Sigmoid, tanh
+
+    if (flexarbINT8) {
+        std::cout << "\nWarning : Output min value required for accurate clamp low value" << std::endl;
+        // TODO :
+        // minimum = output.minimum
+        auto minimum = 0;
+        if (alpha < 0.0) {
+            minimum = 0;  // no negative values
+        } else if (alpha != 1.0) {
+            minimum /= alpha;
+        }
+
+        clamp = round(minimum / output.qp.scale);
+        clamp = std::max(clamp, -128);
+
+        // TODO : handle Mish
+    }
+
+    return clamp;
+}
+
+int32_t computeclampHigh(nb::InputLayer input, nb::OutputLayer output, bool flexarbINT8, bool isMaxpool,
+                         nb::ActivationLayer activation) {
+    auto inputdType = input.dtype;
+    auto outputdType = output.dtype;
+    int32_t clamp = 2147483647;
+
+    if (!isMaxpool) {
+        if (outputdType == nb::DType::U8 || outputdType == nb::DType::I8) {
+            // Saturation clamp has to be computed in this case
+            int32_t saturationClamp = -output.qp.zeropoint;
+            if (outputdType == nb::DType::I8) {
+                saturationClamp += 127;
+            } else {
+                saturationClamp += 255;
+            }
+
+            clamp = saturationClamp;
+
+            // Ex: relu6--> minimum(relu, max=6);
+            if (activation.activationType == nb::ActivationType::ReLUX) {
+                double clampValue = activation.maximum;
+                double outputScale = output.qp.scale;
+                int32_t quantizedClampValue = static_cast<int32_t>(clampValue / outputScale);
+
+                if (quantizedClampValue > clamp)
+                    clamp = quantizedClampValue;
+            }
+
+            if (inputdType == nb::DType::FP16 || inputdType == nb::DType::BF16)
+                clamp <<= 16;
+        } else if (outputdType == nb::DType::FP16 || outputdType == nb::DType::BF16) {
+            if (activation.activationType == nb::ActivationType::ReLUX) {
+                double clampValue = activation.maximum;
+
+                if (inputdType == nb::DType::U8 || inputdType == nb::DType::I8)
+                    clamp = static_cast<int32_t>(clampValue);
+                else if (inputdType == nb::DType::FP16)
+                    clamp = static_cast<int32_t>(clampValue * pow(2, 16));
+            }
+        }
+    }
+
+    // TODO : HAndle PWL acivations - Sigmoid, tanh
+
+    if (flexarbINT8) {
+        std::cout << "\nWarning : Output max value required for accurate clamp high value" << std::endl;
+        // TODO :
+        // minimum = output minimum
+        auto maximum = 0;
+        clamp = round(maximum / output.qp.scale);
+        clamp = std::min(clamp, 127);
+
+        // TODO : handle Mish
+    }
+
+    return clamp;
+}
+
+void calculateppeParams(const nb::TestCaseJsonDescriptor& testDesc, int32_t& clampLow, int32_t& clamHigh,
+                        int32_t& lreluMult, uint32_t& lreluShift) {
+    auto input = testDesc.getInputLayer();
+    auto activation = testDesc.getActivationLayer();
+    auto output = testDesc.getOutputLayer();
+    const int LEAKYRELU_BITS_MTL = 31;
+    const double leakyReluHack = 1.0;
+    if (activation.activationType != nb::ActivationType::None) {
+        if (!(activation.activationType == nb::ActivationType::ReLU ||
+              activation.activationType == nb::ActivationType::ReLUX ||
+              activation.activationType == nb::ActivationType::LeakyReLU)) {
+            throw std::domain_error{
+                    llvm::formatv("Activation parsing supported only for relu, relux and leaky_relu ,found {0}",
+                                  to_string(activation.activationType))
+                            .str()};
+        }
+
+        if (activation.activationType == nb::ActivationType::LeakyReLU) {
+            double leakyAlpha = 1.0;
+            leakyAlpha = activation.alpha;
+
+            if (leakyAlpha == 0.0) {
+                lreluMult = 0;
+            } else if (leakyAlpha != 1.0) {
+                int exponent;
+                double mantissa;
+
+                mantissa = std::frexp(leakyAlpha, &exponent);
+                lreluShift = static_cast<uint32_t>(LEAKYRELU_BITS_MTL - exponent);
+                lreluMult = static_cast<int32_t>((mantissa * pow(2, LEAKYRELU_BITS_MTL)) * leakyReluHack);
+            }
+        }
+
+        bool flexarbINT8 = (activation.activationType == nb::ActivationType::LeakyReLU);
+        bool isMaxpool = testDesc.getCaseStr().find("Pool") != std::string::npos;
+
+        clampLow = computeclampLow(input, output, flexarbINT8, isMaxpool, activation);
+        clamHigh = computeclampHigh(input, output, flexarbINT8, isMaxpool, activation);
+    }
+}
+
+std::vector<int32_t> getInstructionListVals(nb::ActivationType pwlType,
+                                            llvm::ArrayRef<int64_t> instructionList_data_shape) {
+    // NOTE : The instruction list has 5 bits of addresses so the biggest count of instructions is 11111 = 27
+    // 27 of course will be aligned to 32 and will contain NOPS inside
+    auto instructionListShape = instructionList_data_shape;
+    size_t totalSize = static_cast<size_t>(std::accumulate(instructionListShape.begin(), instructionListShape.end(),
+                                                           static_cast<int64_t>(1), std::multiplies<int64_t>()));
+    std::vector<uint32_t> template_table(totalSize, 0);
+
+    // NOTE: first 2 are hardware reserved areas
+    std::size_t ADDR_OF_RESERVED = 6;
+    std::size_t ADDR_OF_ADDR_FLEX = 11;
+    std::size_t ADDR_OF_FIRST2_BITS = 9;
+    std::size_t ADDR_OF_REST_BITS = 16;
+    std::size_t ADDR_OF_VALUE = 19;
+    std::size_t MASK_FIRST2_BITS = 3;
+    const std::size_t ALU_HALT_OPCODE = 6;
+    const std::size_t ALU_LOAD = 2;
+    std::size_t first2_bits, last3_bits;
+    std::vector<int> range_vector;
+    std::vector<int> shift_vector;
+    std::vector<int> bias_vector;
+    std::function<double(double)> refFunction;
+
+    if (pwlType == nb::ActivationType::LeakyReLU) {
+        range_vector = {-128, -109, -90, -72, -54, -36, -18, 0, 128};
+        shift_vector = {1, -1, 0, 0, 0, -1, -1, -4};
+        bias_vector = {-119, 44, -43, -31, -19, 18, 10, 0};
+    } else if (pwlType == nb::ActivationType::Mish) {
+        // TODO : Handle Mish
+        throw std::domain_error{llvm::formatv("Mish activation parsing not supported for hwtest").str()};
+        /*
+        refFunction = mish;
+        const auto& quantOutHigh = outQuantParams.getMax();
+        const auto& quantOutLow = outQuantParams.getMin();
+        if (quantOutHigh.empty()) {
+            throw std::runtime_error("populateInstructionListMap: empty output quantization parameters");
+        }
+
+        createPWLTable(quantOutLow.at(0), quantOutHigh.at(0), refFunction, range_vector, shift_vector, bias_vector);
+        */
+    }
+
+    // Populate the instruction list from the table
+    std::size_t k = 0;
+    for (std::size_t j = 0; j < 32; j++) {
+        first2_bits = j & MASK_FIRST2_BITS;
+        last3_bits = j >> 2;
+
+        if (j == 15)
+            template_table[j] = (ALU_HALT_OPCODE);
+        else if (j > 25)
+            template_table[j] = (ALU_HALT_OPCODE);
+        else {
+            if (j < range_vector.size()) {
+                template_table[j] = ((range_vector[j] << ADDR_OF_VALUE) | (last3_bits << ADDR_OF_REST_BITS) |
+                                     (8 << ADDR_OF_ADDR_FLEX) | (first2_bits << ADDR_OF_FIRST2_BITS) |
+                                     (0 << ADDR_OF_RESERVED) | ALU_LOAD);
+            } else if (j < range_vector.size() + shift_vector.size() + 1) {
+                if (j < 16)
+                    template_table[j] = ((shift_vector[j - range_vector.size()] << ADDR_OF_VALUE) |
+                                         (last3_bits << ADDR_OF_REST_BITS) | (8 << ADDR_OF_ADDR_FLEX) |
+                                         (first2_bits << ADDR_OF_FIRST2_BITS) | (0 << ADDR_OF_RESERVED) | ALU_LOAD);
+                else {
+                    k = j - 1;
+                    first2_bits = k & MASK_FIRST2_BITS;
+                    last3_bits = k >> 2;
+                    template_table[j] = ((shift_vector[k - range_vector.size()] << ADDR_OF_VALUE) |
+                                         (last3_bits << ADDR_OF_REST_BITS) | (8 << ADDR_OF_ADDR_FLEX) |
+                                         (first2_bits << ADDR_OF_FIRST2_BITS) | (0 << ADDR_OF_RESERVED) | ALU_LOAD);
+                }
+            } else if (j < range_vector.size() + shift_vector.size() + bias_vector.size() + 1) {
+                k = j - 1;
+                first2_bits = k & MASK_FIRST2_BITS;
+                last3_bits = k >> 2;
+                template_table[j] = ((bias_vector[k - range_vector.size() - shift_vector.size()] << ADDR_OF_VALUE) |
+                                     (last3_bits << ADDR_OF_REST_BITS) | (8 << ADDR_OF_ADDR_FLEX) |
+                                     (first2_bits << ADDR_OF_FIRST2_BITS) | (0 << ADDR_OF_RESERVED) | ALU_LOAD);
+            }
+        }
+    }
+
+    std::vector<int32_t> template_table_appropriate_type(template_table.begin(), template_table.end());
+    return template_table_appropriate_type;
+}
+
+uint16_t getWindowSize(mlir::OpBuilder builder, uint16_t kx, uint16_t sx, mlir::Type dataType) {
+    // Find max mpe where if calc window <= 32
+    // return window size for the max mpe
+    uint16_t windowSize, maxMpeWindowSize = 64;
+    int mpe = 1;
+    auto ctx = builder.getContext();
+
+    if (dataType == getUInt8Type(ctx)) {
+        // mpe in [1,2,4,8,16] for uint8
+        while (mpe <= 16) {
+            if (sx <= kx)
+                windowSize = kx + sx * (mpe - 1);
+            else
+                windowSize = kx * mpe;
+
+            if (windowSize <= 32)
+                maxMpeWindowSize = windowSize;
+
+            mpe *= 2;
+        }
+    } else if (dataType == builder.getF16Type()) {
+        // mpe in [1,2,4] for float
+        while (mpe <= 4) {
+            if (sx <= kx)
+                windowSize = kx + sx * (mpe - 1);
+            else
+                windowSize = kx * mpe;
+
+            if (windowSize <= 32)
+                maxMpeWindowSize = windowSize;
+
+            mpe *= 2;
+        }
+    }
+
+    return maxMpeWindowSize;
+}
+
+std::vector<int8_t> createBitPattern(uint16_t kernelW, uint16_t kernelH, uint16_t windowsSize, uint16_t inputChannels) {
+    std::vector<int8_t> bitpattern;
+    bitpattern.reserve(windowsSize * kernelH * inputChannels);
+    for (size_t c = 0; c < inputChannels; c++)
+        for (size_t y = 0; y < kernelH; y++)
+            for (size_t x = 0; x < windowsSize; x++)
+                if (x < kernelW)
+                    bitpattern.emplace_back(1);
+                else
+                    bitpattern.emplace_back(0);
+    return bitpattern;
+}
+
+mlir::DenseElementsAttr getactivationWindow(mlir::OpBuilder builder, const std::vector<int64_t>& filter_size,
+                                            const std::vector<int64_t>& strides, int64_t outputChannels,
+                                            int64_t inputChannels, mlir::Type dtype,
+                                            SmallVector<int64_t>& sparsity_shape,
+                                            mlir::IntegerAttr& activationChannelLength, bool isOutFloat, bool isPool,
+                                            bool isDepthWiseConv) {
+    auto kernelH = filter_size[0];
+    auto kernelW = filter_size[1];
+
+    auto ctx = builder.getContext();
+
+    if (isOutFloat) {
+        dtype = builder.getF16Type();
+    }
+
+    auto windowsSize = getWindowSize(builder, kernelW, strides[0], dtype);
+
+    std::vector<int8_t> bitpattern;
+    std::vector<uint8_t> perChannelSparsity;
+    SmallVector<int64_t> ndims(4);
+    if (isPool || isDepthWiseConv) {
+        bitpattern = std::move(createBitPattern(kernelW, kernelH, windowsSize, 1));
+        perChannelSparsity.resize(static_cast<std::size_t>(std::ceil(bitpattern.size() / 128.0)) * 16);  // allocate
+                                                                                                         // once
+        ndims = {16 * static_cast<int64_t>(std::ceil(bitpattern.size() / 128.0)), 1, 1, inputChannels};
+    } else  // isChannelMajorConvolution
+    {
+        bitpattern = std::move(createBitPattern(kernelW, kernelH, windowsSize, inputChannels));
+        auto windowSparsitySize =
+                static_cast<std::size_t>(std::ceil(windowsSize / 8.0));  // how many bytes we need per window
+        auto NumberOfRowsSparistyBytes =
+                static_cast<int64_t>(std::ceil((kernelH * inputChannels * windowSparsitySize) / 16.0));
+        perChannelSparsity.resize(NumberOfRowsSparistyBytes * 16);  // allocate once
+        ndims = {16, NumberOfRowsSparistyBytes, 1, static_cast<int64_t>(outputChannels)};
+    }
+
+    activationChannelLength = builder.getI32IntegerAttr(bitpattern.size());
+
+    // populate sparsity
+
+    for (size_t i = 0; i < bitpattern.size(); i++) {
+        perChannelSparsity.at((i / 128) * 16 + (i % 128) / 8) |=
+                bitpattern[i] << (i % 8);  // use at to check boundaries - just in case
+    }
+
+    // Create Tensor with Sparsity Data
+    SmallVector<int64_t> sparsityShape = ndims;
+    std::vector<uint8_t> data;
+    // mv::Tensor sparsityTensor("backup", sparsityShape, mv::DType("UInt8"), mv::Order("WHCN"), data);
+    // auto sparsityTensor = mv::Tensor(dpuTask->getName() + "_sparse_dw", sparsityShape, mv::DType("UInt8"),
+    // mv::Order("NHWC"), data);
+
+    // NOTE: This loop can probably be simplified without using an auxiliary tensor
+    for (unsigned oc = 0; oc < sparsityShape[3]; ++oc)
+        for (unsigned ic = 0; ic < sparsityShape[2]; ++ic)
+            for (unsigned ky = 0; ky < sparsityShape[1]; ++ky)
+                for (unsigned kx = 0; kx < sparsityShape[0]; ++kx) {
+                    // sparsityTensor.at({kx, ky, ic, oc}) =
+                    // static_cast<int64_t>(perChannelSparsity[ky*sparsityShape[0]
+                    // + kx]);
+                    data.push_back(perChannelSparsity[ky * sparsityShape[0] + kx]);
+                }
+
+    std::reverse(sparsityShape.begin(), sparsityShape.end());
+    auto sparsityTensor_valueType = mlir::RankedTensorType::get(makeArrayRef(sparsityShape), getUInt8Type(ctx));
+    auto sparsityTensor_values = makeArrayRef<uint8_t>(data);
+    auto sparsityTensor_attr = mlir::DenseElementsAttr::get(sparsityTensor_valueType, sparsityTensor_values);
+    sparsity_shape = sparsityShape;
+
+    return sparsityTensor_attr;
+}
+
+std::vector<int32_t> generateWeightsTablesValues(const nb::TestCaseJsonDescriptor& testDesc, size_t weights_offset,
+                                                 mlir::MemRefType input, mlir::MemRefType output,
+                                                 mlir::MemRefType weights) {
+    /*
+    Each Weight table[4] represents per channel layout of weights data,
+    For ex : {8448, 16777215, 1354584320, 0}
+    with each index as :
+    [0] -> Starting address of each weight data,
+    [1] -> Sparsity map address,
+    [2] -> mult << 16 | round << 14 | shift << 8 | prelu
+    [3] -> bias ]
+    */
+    const size_t DATA_POINTER_IDX = 0;
+    const size_t SPARSITY_POINTER_IDX = 1;
+    const size_t MULTSHIFT_IDX = 2;
+    const size_t BIAS_IDX = 3;
+    const size_t BYTE_SIZE = 8;  // bits
+
+    auto first_channel_offset = weights_offset;
+    auto weights_outChannel = weights.getShape()[0];
+    auto weights_set_size = weights.getShape()[1] * weights.getShape()[2] * weights.getShape()[3];
+    size_t elementsize_bytes = 0;
+    if (auto qType = weights.getElementType().dyn_cast<mlir::quant::UniformQuantizedType>()) {
+        elementsize_bytes = qType.getStorageType().getIntOrFloatBitWidth() / BYTE_SIZE;
+
+    } else {
+        elementsize_bytes = (weights.getElementType().getIntOrFloatBitWidth()) / BYTE_SIZE;
+    }
+    auto weights_set_nbytes = weights_set_size * elementsize_bytes;
+
+    // TODO: generic dtype
+    int32_t bias_value = 0;
+
+    // TODO: calculate
+    // currently hard coded
+    size_t sparsity_pointer = 16777215;
+
+    auto mult_shift = calcWeightsTableMultShift(testDesc, input, output, weights);
+
+    // generate data pointers
+    std::vector<int32_t> weightsTableVals(weights_outChannel * 4, 0);
+
+    for (int64_t i = 0; i < weights_outChannel; ++i) {
+        weightsTableVals[i * 4 + DATA_POINTER_IDX] = static_cast<int32_t>(first_channel_offset);
+        first_channel_offset += weights_set_nbytes;
+
+        weightsTableVals[i * 4 + SPARSITY_POINTER_IDX] = static_cast<int32_t>(sparsity_pointer);
+        weightsTableVals[i * 4 + MULTSHIFT_IDX] = static_cast<int32_t>(mult_shift);
+        weightsTableVals[i * 4 + BIAS_IDX] = bias_value;
+    }
+
+    return weightsTableVals;
+}
+
+std::vector<int32_t> generateWeightsTablesValuesWithSparsity(const nb::TestCaseJsonDescriptor& testDesc,
+                                                             mlir::MemRefType input, mlir::MemRefType output,
+                                                             mlir::MemRefType weights,
+                                                             mlir::MemRefType actWindow_cmx_type, std::size_t offset,
+                                                             ArrayRef<int64_t> wtTbl_data_shape,
+                                                             size_t weights_offset) {
+    const std::size_t WT_ELEMENTS_PER_CHANNEL = 4UL;
+
+    const size_t DATA_POINTER_IDX = 0;
+    const size_t SPARSITY_POINTER_IDX = 1;
+    const size_t MULTSHIFT_IDX = 2;
+    const size_t BIAS_IDX = 3;
+    const size_t BYTE_SIZE = 8;  // bits
+    auto isMaxPool = testDesc.getCaseType() == nb::CaseType::MaxPool;
+
+    std::vector<int32_t> weightsTableVals(wtTbl_data_shape[0] * WT_ELEMENTS_PER_CHANNEL, 0);
+
+    if (!isMaxPool) {
+        auto first_channel_offset = weights_offset;
+        auto weights_outChannel = weights.getShape()[0];
+        auto weights_set_size = weights.getShape()[1] * weights.getShape()[2] * weights.getShape()[3];
+        size_t elementsize_bytes = 0;
+        if (auto qType = weights.getElementType().dyn_cast<mlir::quant::UniformQuantizedType>()) {
+            elementsize_bytes = qType.getStorageType().getIntOrFloatBitWidth() / BYTE_SIZE;
+
+        } else {
+            elementsize_bytes = (weights.getElementType().getIntOrFloatBitWidth()) / BYTE_SIZE;
+        }
+        auto weights_set_nbytes = weights_set_size * elementsize_bytes;
+
+        // generate data pointers
+        for (int64_t i = 0; i < weights_outChannel; ++i) {
+            weightsTableVals[i * 4 + DATA_POINTER_IDX] = static_cast<int32_t>(first_channel_offset);
+            first_channel_offset += weights_set_nbytes;
+        }
+    }
+
+    auto actWindowShape = actWindow_cmx_type.getShape();
+    auto activationWindowSizeInWords = static_cast<size_t>(std::accumulate(
+            actWindowShape.begin(), actWindowShape.end(), static_cast<int64_t>(1), std::multiplies<int64_t>()));
+    auto actElementTypeBits = actWindow_cmx_type.getElementTypeBitWidth();
+    auto activationWindowSizeInBytes = activationWindowSizeInWords * actElementTypeBits / 8;
+
+    auto outputChannels = wtTbl_data_shape[0];
+    auto paddedOutputChannels = outputChannels;
+
+    paddedOutputChannels = round_up(outputChannels, 16);
+    auto increment = activationWindowSizeInBytes / paddedOutputChannels;
+
+    std::vector<int64_t> increments = std::vector<int64_t>(paddedOutputChannels, 0);
+    for (unsigned i = 1; i < paddedOutputChannels; ++i) {
+        increments[i] = increments[i - 1] + increment;
+    }
+
+    long int new_offset = offset;
+
+    // TODO : later can be changed for multi-cluster test
+    unsigned numClusters = 1;
+
+    std::size_t sizeToIterate = 0;
+    std::size_t totalSizeToIterate = 0;
+    std::size_t k = 0;
+    for (unsigned i = 0; i < numClusters; i++) {
+        // Resetting offset at the beginning of the cluster
+        offset = new_offset;
+
+        // Filling cluster
+        for (size_t j = 0; j < weightsTableVals.size(); j += WT_ELEMENTS_PER_CHANNEL)
+            weightsTableVals[j + SPARSITY_POINTER_IDX + totalSizeToIterate] = offset + increments[k++];
+
+        // Preparing for next iteration
+        sizeToIterate = actWindowShape[0] * WT_ELEMENTS_PER_CHANNEL;
+        totalSizeToIterate += sizeToIterate;
+    }
+    // TODO: generic dtype
+    int32_t bias_value = 0;
+
+    size_t mult_shift;
+    if (isMaxPool) {
+        mult_shift = calcWeightsTableMultShift(testDesc, input, output, mlir::MemRefType());
+    } else {
+        mult_shift = calcWeightsTableMultShift(testDesc, input, output, weights);
+    }
+
+    for (int64_t i = 0; i < outputChannels; ++i) {
+        weightsTableVals[i * 4 + MULTSHIFT_IDX] = static_cast<int32_t>(mult_shift);
+        weightsTableVals[i * 4 + BIAS_IDX] = bias_value;
+    }
+
+    return weightsTableVals;
 }
 
 }  // namespace hwtest

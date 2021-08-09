@@ -69,6 +69,22 @@ void buildMaxPool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
                   Logger& log, mlir::Type input0Type, mlir::Type outputType);
 void buildAvgpoolWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module, mlir::OpBuilder builder,
                             Logger& log, mlir::Type inputType, mlir::Type outputType);
+void buildActKernelTest(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module, mlir::OpBuilder builder,
+                        Logger& log);
+void buildPipeline(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module, mlir::OpBuilder builder,
+                   Logger& log, mlir::Type inputType, mlir::Type weightsType, mlir::Type outputType, bool isSequential);
+
+void buildRaceConditionDMATest(const nb::TestCaseJsonDescriptor&, mlir::ModuleOp module, mlir::OpBuilder builder,
+                               Logger& log, mlir::Type inputType, mlir::Type outputType);
+void buildRaceConditionDPUTest(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module,
+                               mlir::OpBuilder builder, Logger& log, mlir::Type inputType, mlir::Type weightsType,
+                               mlir::Type outputType);
+void buildSimpleZMajorConvActivation(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module,
+                                     mlir::OpBuilder builder, Logger& log, mlir::Type inputType, mlir::Type weightsType,
+                                     mlir::Type outputType);
+void buildDWConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module, mlir::OpBuilder builder,
+                 Logger& log, mlir::Type inputType, mlir::Type weightsType, mlir::Type outputType);
+
 mlir::DenseElementsAttr splitWeightsOverC(mlir::DenseElementsAttr wt_vec, ArrayRef<int64_t> wt_shape, mlir::Type dtype,
                                           mlir::MLIRContext* ctx, size_t startC, size_t endC);
 template <typename T>
@@ -91,6 +107,29 @@ mlir::OpResult getConstResult(vpux::Const::DeclareOp op);
 
 vpux::VPUIP::DPUTaskOp createDPUTaskOp(mlir::OpBuilder builder, mlir::OpBuilder variantbuilder,
                                        llvm::SmallVector<int64_t> output_shape, std::vector<int64_t> padding_vec);
+
+// redundrant funcs
+unsigned round_up(unsigned x, unsigned mult);
+VPUIP::PPELayerType getPPELayerFromConfig(nb::ActivationLayer activation);
+void calculateppeParams(const nb::TestCaseJsonDescriptor& testDesc, int32_t& clampLow, int32_t& clamHigh,
+                        int32_t& lreluMult, uint32_t& lreluShift);
+std::vector<int32_t> getInstructionListVals(nb::ActivationType pwlType,
+                                            llvm::ArrayRef<int64_t> instructionList_data_shape);
+
+mlir::DenseElementsAttr getactivationWindow(mlir::OpBuilder builder, const std::vector<int64_t>& filter_size,
+                                            const std::vector<int64_t>& strides, int64_t outputChannels,
+                                            int64_t inputChannels, mlir::Type dtype,
+                                            SmallVector<int64_t>& sparsity_shape,
+                                            mlir::IntegerAttr& activationChannelLength, bool isOutFloat, bool isPool,
+                                            bool isDepthWiseConv);
+std::vector<int32_t> generateWeightsTablesValues(const nb::TestCaseJsonDescriptor& testDesc, size_t weights_offset,
+                                                 mlir::MemRefType input, mlir::MemRefType output,
+                                                 mlir::MemRefType weights);
+std::vector<int32_t> generateWeightsTablesValuesWithSparsity(const nb::TestCaseJsonDescriptor& testDesc,
+                                                             mlir::MemRefType input, mlir::MemRefType output,
+                                                             mlir::MemRefType weights,
+                                                             mlir::MemRefType actWindow_cmx_type, std::size_t offset,
+                                                             ArrayRef<int64_t> wtTbl_data_shape, size_t weights_offset);
 
 }  // namespace hwtest
 }  // namespace vpux

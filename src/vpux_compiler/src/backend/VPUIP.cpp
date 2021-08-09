@@ -324,10 +324,12 @@ SmallVector<VPUIP::BlobWriter::BinaryData> serializeBinaryData(VPUIP::BlobWriter
         const auto type = attr.getType();
         const auto content = attr.fold();
 
-        const Byte elemTypeSize = getElemTypeSize(type);
-        const size_t totalNumElements = type.getNumElements();
-        const size_t totalByteSize = totalNumElements * elemTypeSize.count();
+        const Bit elemTypeBitSize = getElemTypeSize(type);
 
+        const size_t totalNumElements = type.getNumElements();
+        const size_t totalBitSize = totalNumElements * elemTypeBitSize.count();
+        VPUX_THROW_UNLESS(totalBitSize % 8 == 0, "totalBitSize is not alligned to 8 bit");
+        const size_t totalByteSize = totalBitSize / 8;
         bufs[static_cast<size_t>(ind)].resize(alignVal(totalByteSize, sizeof(uint64_t)) / sizeof(uint64_t), 0);
 
         const auto buf =
