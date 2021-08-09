@@ -859,6 +859,21 @@ bool HeuristicGraphOptimizer::hasLayerWorkaroundAvoidStrategy(mv::Data::OpListIt
                 return true;
     }
 
+    // Small accuracy regression on ICnet for Interp->CM conv or ZM conv when conv takes SOH
+    // Root cause unknown, for now let it take SOK stream over H
+    if(opType == "Conv" && clustering == "SplitOverH")
+    {
+        auto inputShape = opIt->getInputTensor(mv::IO_TENSOR_INPUT)->getShape();
+        auto weightsShape = opIt->getInputTensor(mv::IO_TENSOR_WEIGHTS_SET)->getShape();
+        auto outputShape = opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT)->getShape();
+
+        if(inputShape[mv::IO_HEIGHT_DIMENSION] == 360 && inputShape[mv::IO_WIDTH_DIMENSION] == 480 &&
+            weightsShape[mv::KERNEL_HEIGHT] == 3 && weightsShape[mv::KERNEL_WIDTH] == 3 &&
+            weightsShape[mv::KERNEL_INPUT_CHANNELS] == 3 && weightsShape[mv::KERNEL_OUTPUT_CHANNELS] == 64 &&
+            outputShape[mv::IO_HEIGHT_DIMENSION] == 180 && outputShape[mv::IO_WIDTH_DIMENSION] == 240)
+                return true;
+    }
+
     return false;
 }
 
@@ -1604,6 +1619,8 @@ void HeuristicGraphOptimizer::alignAndValidateSpecialOps()
             if(sink->hasAttr("supportsCM") && sink->get<bool>("supportsCM") &&
                 sinkClustering == "SplitOverH")
                 assignBestStrategyOfType(input, "SplitOverHOverlapped");
+            else if(sink->isUPA())
+                assignBestStrategyOfType(input, "Clustering");
             else if(inputClustering != sinkClustering)
                 assignBestStrategyOfType(input, sinkClustering);
         }

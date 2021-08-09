@@ -1090,7 +1090,7 @@ void StrategyManagerSimple::generateStrategySetForLayer(mv::Op& op,std::vector<S
 
     std::vector<Attribute> clusteringStrategyPool;
 
-    if(totalClusters == 1 || opType == "ImplicitInputSlice" || op.isUPA())
+    if(totalClusters == 1 || opType == "ImplicitInputSlice")
         clusteringStrategyPool.push_back(std::string("Clustering"));
     else if (totalClusters > 1)
         clusteringStrategyPool = createStrategyPoolFromStrategySet(op,"clusteringStrategies");
