@@ -987,7 +987,7 @@ std::vector<int32_t> getInstructionListVals(nb::ActivationType pwlType,
 void buildCNNOp(mlir::OpBuilder& builder, llvm::StringRef mainFuncName, llvm::ArrayRef<mlir::Type> inputs,
                 llvm::ArrayRef<mlir::Type> outputs) {
     const auto mainFuncNameAttr = mlir::SymbolRefAttr::get(builder.getContext(), mainFuncName);
-    auto cnnOp = builder.create<IE::CNNNetworkOp>(builder.getUnknownLoc(), mainFuncNameAttr);
+    auto cnnOp = builder.create<IE::CNNNetworkOp>(builder.getUnknownLoc(), mainFuncNameAttr, false);
     cnnOp.inputsInfo().emplaceBlock();
     cnnOp.outputsInfo().emplaceBlock();
 
@@ -1069,6 +1069,7 @@ std::vector<std::int64_t> convertNBPadtoNCETaskPad(const std::array<std::int64_t
 
     return ncetask_pad;
 }
+
 //
 template <typename T>
 mlir::DenseElementsAttr splitWeightsOverCLoop(mlir::DenseElementsAttr wt_vec, ArrayRef<int64_t> wt_shape,

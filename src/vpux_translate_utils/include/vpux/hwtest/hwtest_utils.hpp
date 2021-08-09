@@ -25,6 +25,7 @@
 
 namespace vpux {
 namespace hwtest {
+using llvm::ArrayRef;
 
 // NumericsBench padding definition
 // NB ref: NumericsBench/operators/op_utils/sliding_window.py#L47
@@ -139,6 +140,54 @@ mlir::MemRefType getMemRefType(mlir::OpBuilder& builder, VPUIP::MemoryLocation m
 vpux::VPUIP::DeclareTensorOp createDeclareTensorOp(mlir::OpBuilder& builder, VPUIP::MemoryLocation memlocation,
                                                    ArrayRef<int64_t> shape, mlir::Type elemType, DimsOrder order,
                                                    int locale, size_t offset);
+
+mlir::OpResult getTensorResult(VPUIP::DeclareTensorOp op);
+
+mlir::OpResult getConstResult(vpux::Const::DeclareOp op);
+
+vpux::VPUIP::DPUTaskOp createDPUTaskOp(mlir::OpBuilder builder, mlir::OpBuilder variantbuilder,
+                                       llvm::SmallVector<int64_t> output_shape, std::vector<int64_t> padding_vec);
+
+void buildDWConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module, mlir::OpBuilder builder,
+                 Logger& log, mlir::Type inputType, mlir::Type weightsType, mlir::Type outputType);
+
+void buildSimpleZMajorConvActivation(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module,
+                                     mlir::OpBuilder builder, Logger& log, mlir::Type inputType, mlir::Type weightsType,
+                                     mlir::Type outputType);
+
+void buildEltwiseAdd(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module, mlir::OpBuilder builder,
+                     Logger& log, mlir::Type inputType, mlir::Type weightsType, mlir::Type outputType);
+
+void buildEltwiseMultWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module,
+                                mlir::OpBuilder builder, Logger& log, mlir::Type inputType, mlir::Type weightsType,
+                                mlir::Type outputType);
+
+void buildMaxpool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module, mlir::OpBuilder builder,
+                  Logger& log, mlir::Type input0Type, mlir::Type outputType);
+
+void buildActKernelTest(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module, mlir::OpBuilder builder,
+                        Logger& log);
+
+void buildPipeline(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module, mlir::OpBuilder builder,
+                   Logger& log, mlir::Type inputType, mlir::Type weightsType, mlir::Type outputType, bool isSequential);
+
+void buildRaceConditionDMATest(const nb::TestCaseJsonDescriptor&, mlir::ModuleOp module, mlir::OpBuilder builder,
+                               Logger& log, mlir::Type inputType, mlir::Type outputType);
+void buildRaceConditionDPUTest(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module,
+                               mlir::OpBuilder builder, Logger& log, mlir::Type inputType, mlir::Type weightsType,
+                               mlir::Type outputType);
+void buildAvgpoolWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module, mlir::OpBuilder builder,
+                            Logger& log, mlir::Type inputType, mlir::Type outputType);
+
+std::vector<int32_t> getInstructionListVals(nb::ActivationType pwlType,
+                                            llvm::ArrayRef<int64_t> instructionList_data_shape);
+
+mlir::MemRefType getMemRefType(mlir::OpBuilder builder, VPUIP::MemoryLocation memlocation, SmallVector<int64_t> shape,
+                               mlir::Type type, SmallVector<mlir::AffineMap> affineMaps);
+
+vpux::VPUIP::DeclareTensorOp createDeclareTensorOp(mlir::OpBuilder builder, VPUIP::MemoryLocation memlocation,
+                                                   SmallVector<int64_t> shape, mlir::Type type,
+                                                   SmallVector<mlir::AffineMap> affineMaps, int locale, int offset);
 
 mlir::OpResult getTensorResult(VPUIP::DeclareTensorOp op);
 

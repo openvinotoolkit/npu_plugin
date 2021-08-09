@@ -233,7 +233,7 @@ void buildContinuedConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Module
                                                    vpux::getIntAttr(builder, paddings[PAD_NCETASK_BOTTOM]),
                                                    builder.getContext());
 
-    nceTask_0.addDPUTask(functionBuilder, start, end, pad, vpux::VPUIP::MPEMode::CUBOID_16x16);
+    nceTask_0.addDPUTask(functionBuilder, nullptr, start, end, pad, vpux::VPUIP::MPEMode::CUBOID_16x16);
 
     // NCE Task 1
     auto nceTask_1 = functionBuilder.create<NCEClusterTaskOp>(
@@ -247,7 +247,7 @@ void buildContinuedConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Module
     nceTask_1.waitBarriersMutable().append(barriers[1]);
     nceTask_1.updateBarriersMutable().append(barriers[2]);
 
-    nceTask_1.addDPUTask(functionBuilder, start, end, pad, vpux::VPUIP::MPEMode::CUBOID_16x16);
+    nceTask_1.addDPUTask(functionBuilder, nullptr, start, end, pad, vpux::VPUIP::MPEMode::CUBOID_16x16);
 
     functionBuilder.create<NNDMAOp>(builder.getUnknownLoc(), output1CMX.getOperation()->getResult(0), functionOutput,
                                     barriers[2], mlir::ValueRange(), false);

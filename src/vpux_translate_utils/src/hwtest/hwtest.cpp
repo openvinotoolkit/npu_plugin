@@ -147,7 +147,7 @@ mlir::OwningModuleRef importHWTEST(llvm::StringRef sourceJson, mlir::MLIRContext
     log.info("Saving blob to {0}", outFile->getFilename());
 
     return module;
-}
+}  // namespace vpux
 
 mlir::LogicalResult exportHWTEST(mlir::ModuleOp module, llvm::raw_ostream&) {
     auto resources = IERT::RunTimeResourcesOp::getFromModule(module);
