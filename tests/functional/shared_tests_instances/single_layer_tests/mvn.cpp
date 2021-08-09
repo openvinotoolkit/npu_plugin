@@ -10,7 +10,7 @@
 
 namespace LayerTestsDefinitions {
 
-class KmbMvnLayerTest : public MvnLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
+class KmbMvnLayerTest : public Mvn1LayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
 
 TEST_P(KmbMvnLayerTest, basicTest) {
     Run();
@@ -32,6 +32,8 @@ const std::vector<std::vector<size_t>> inputShapes3D = {
     {1, 32, 17},
     {1, 37, 9}
 };
+
+const std::vector<ngraph::AxisSet> emptyReductionAxes = {{}};
 
 const std::vector<bool> acrossChannels3D = {
     true
@@ -75,6 +77,7 @@ INSTANTIATE_TEST_SUITE_P(
     smoke_TestsMVN_3D, KmbMvnLayerTest, ::testing::Combine(
         ::testing::ValuesIn(inputShapes3D),
         ::testing::Values(InferenceEngine::Precision::FP32),
+        ::testing::ValuesIn(emptyReductionAxes),
         ::testing::ValuesIn(acrossChannels3D),
         ::testing::ValuesIn(normalizeVariance),
         ::testing::ValuesIn(epsilon),
@@ -85,6 +88,7 @@ INSTANTIATE_TEST_SUITE_P(
     smoke_TestsMVN, KmbMvnLayerTest, ::testing::Combine(
         ::testing::ValuesIn(inputShapes),
         ::testing::Values(InferenceEngine::Precision::FP32),
+        ::testing::ValuesIn(emptyReductionAxes),
         ::testing::ValuesIn(acrossChannels),
         ::testing::ValuesIn(normalizeVariance),
         ::testing::ValuesIn(epsilon),
