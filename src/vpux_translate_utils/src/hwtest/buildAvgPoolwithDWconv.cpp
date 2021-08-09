@@ -284,7 +284,7 @@ void buildAvgpoolWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mo
                                        getIntAttr(builder, padding_vec[PAD_NCETASK_TOP]),
                                        getIntAttr(builder, padding_vec[PAD_NCETASK_BOTTOM]), ctx);
 
-    variantbuilder.create<VPUIP::DPUTaskOp>(loc, start, end, pad, VPUIP::MPEMode::CUBOID_16x16);
+    variantbuilder.create<VPUIP::DPUTaskOp>(loc, nullptr, start, end, pad, VPUIP::MPEMode::CUBOID_16x16);
 
     funcbuilder.create<VPUIP::NNDMAOp>(loc, outputcmx.getOperation()->getResult(0), funcoutput,
                                        mlir::ValueRange(barrier1.barrier()), mlir::ValueRange(), false);

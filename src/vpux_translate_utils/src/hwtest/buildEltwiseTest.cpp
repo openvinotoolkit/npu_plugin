@@ -124,7 +124,7 @@ void buildEltwiseAdd(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp 
 
     // NB For eltwise operations, NTHW_NTK=(8, 8) is the only mode supported by
     // the hardware; this corresponds to CUBOID_8x16.
-    nceTask.addDPUTask(variantbuilder, start, end, pad, VPUIP::MPEMode::CUBOID_8x16);
+    nceTask.addDPUTask(variantbuilder, nullptr, start, end, pad, VPUIP::MPEMode::CUBOID_8x16);
 
     funcbuilder.create<mlir::ReturnOp>(builder.getUnknownLoc(), funcoutput);
 

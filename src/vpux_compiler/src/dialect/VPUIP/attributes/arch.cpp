@@ -29,8 +29,12 @@ constexpr StringLiteral derateFactorAttrName = "VPUIP.derateFactor";
 constexpr StringLiteral bandwidthAttrName = "VPUIP.bandwidth";
 constexpr StringLiteral processorFrequencyAttrName = "VPUIP.processorFrequency";
 
-constexpr int MAX_DPU_GROUPS_MTL = 2;
-constexpr int MAX_DPU_GROUPS_KMB = 4;
+// MTL has 2 clusters (tiles), but due to lack of support in runtime we use 1 for now
+// #-13139
+// nceCluster = resources.addExecutor(getProcKind(PhysicalProcessor::NCE_Cluster), 2, true);
+const int MAX_DPU_GROUPS_MTL = 1;
+// const int MAX_DPU_GROUPS_MTL = 2;
+const int MAX_DPU_GROUPS_KMB = 4;
 
 }  // namespace
 

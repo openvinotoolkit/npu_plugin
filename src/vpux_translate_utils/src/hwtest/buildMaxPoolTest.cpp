@@ -192,7 +192,8 @@ void buildMaxPool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
                                        getIntAttr(builder, padding_vec[PAD_NCETASK_TOP]),
                                        getIntAttr(builder, padding_vec[PAD_NCETASK_BOTTOM]), ctx);
 
-    variantbuilder.create<VPUIP::DPUTaskOp>(builder.getUnknownLoc(), start, end, pad, VPUIP::MPEMode::CUBOID_16x16);
+    variantbuilder.create<VPUIP::DPUTaskOp>(builder.getUnknownLoc(), nullptr, start, end, pad,
+                                            VPUIP::MPEMode::CUBOID_16x16);
     funcbuilder.create<VPUIP::NNDMAOp>(builder.getUnknownLoc(), outputcmx.getOperation()->getResult(0), funcoutput,
                                        mlir::ValueRange(barrier1.barrier()), mlir::ValueRange(), false);
 

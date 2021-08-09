@@ -30,7 +30,9 @@
 #include "vpux/utils/core/numeric.hpp"
 #include "vpux/utils/core/small_vector.hpp"
 
+#include <mlir/Dialect/MemRef/IR/MemRef.h>
 #include <mlir/Dialect/Quant/QuantTypes.h>
+#include <mlir/IR/SymbolTable.h>
 
 #include <algorithm>
 
@@ -305,7 +307,7 @@ MVCNN::DType vpux::VPUIP::BlobWriter::createDType(mlir::Type type) {
     } else if (type.isF16()) {
         return MVCNN::DType_FP16;
     } else if (type.isBF16()) {
-        return MVCNN::DType_FP16;
+        return MVCNN::DType_BFP16;
     } else if (type.isSignedInteger(CHAR_BIT * sizeof(int64_t))) {
         return MVCNN::DType_I64;
     } else if (type.isSignedInteger(CHAR_BIT * sizeof(int32_t))) {
@@ -437,10 +439,12 @@ MVCNN::order3 vpux::VPUIP::BlobWriter::createOrder3(mlir::ArrayAttr attr) {
 
 VPUIP::BlobWriter::BinaryData vpux::VPUIP::BlobWriter::createBinaryData(ArrayRef<uint64_t> content,
                                                                         mlir::ShapedType type, bool csram_cacheable) {
-    const Byte elemTypeSize = getElemTypeSize(type);
+    const Bit elemTypeBitSize = getElemTypeSize(type);
     const size_t totalNumElements = type.getNumElements();
-    const size_t totalByteSize = totalNumElements * elemTypeSize.count();
+    const size_t totalBitSize = totalNumElements * elemTypeBitSize.count();
 
+    VPUX_THROW_UNLESS(totalBitSize % 8 == 0, "Binary data size {0} is not alligned to 8 bit", totalBitSize);
+    const size_t totalByteSize = totalBitSize / 8;
     const auto serializedContent = createVector(content);
 
     MVCNN::BinaryDataBuilder builder(_impl);
@@ -448,6 +452,38 @@ VPUIP::BlobWriter::BinaryData vpux::VPUIP::BlobWriter::createBinaryData(ArrayRef
     builder.add_length(totalByteSize);
     builder.add_data(serializedContent);
     builder.add_csram_cacheable(csram_cacheable);
+    return builder.Finish();
+}
+
+VPUIP::BlobWriter::KernelData vpux::VPUIP::BlobWriter::getKernelData(mlir::Operation* op, mlir::SymbolRefAttr sym) {
+    auto* targetOp = mlir::SymbolTable::lookupNearestSymbolFrom(op, sym);
+    VPUX_THROW_UNLESS(targetOp, "Undefined symbol: '{0}'", sym);
+    if (!_knownKernelData.count(targetOp)) {
+        _knownKernelData[targetOp] = createKernelData(targetOp);
+    }
+    return _knownKernelData[targetOp];
+}
+
+VPUIP::BlobWriter::KernelData vpux::VPUIP::BlobWriter::createKernelData(mlir::Operation* targetOp) {
+    // N.B. The symbol must refer to a memref.global constant whose initial
+    // value is the contents of the KernelData.
+    auto target = mlir::dyn_cast<mlir::memref::GlobalOp>(targetOp);
+    VPUX_THROW_UNLESS(target && target.constant(), "'{0}' must be a memref.global constant", targetOp->getName());
+    auto valueAttr = target.initial_value();
+    VPUX_THROW_UNLESS(valueAttr.hasValue(), "'{0}' must define a constant value", targetOp->getName());
+    auto value = valueAttr.getValue().dyn_cast<mlir::ElementsAttr>();
+    VPUX_THROW_UNLESS(value, "'{0}' does not define its initializer as elements", targetOp->getName());
+    VPUX_THROW_UNLESS(value.getType().getElementType().isUnsignedInteger(8),
+                      "'{0}' elements must be 8-bit unsigned integers", targetOp->getName());
+    std::vector<uint8_t> data;
+    data.reserve(value.getNumElements());
+    for (auto datum : value.getValues<mlir::APInt>()) {
+        data.push_back(datum.getZExtValue());
+    }
+    const auto dataVector = createVector(data);
+    MVCNN::KernelDataBuilder builder(_impl);
+    builder.add_length(value.getNumElements());
+    builder.add_data(dataVector);
     return builder.Finish();
 }
 

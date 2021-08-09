@@ -34,12 +34,24 @@
 #endif
 
 namespace nb {
-enum class CaseType { ZMajorConvolution, EltwiseAdd, EltwiseMult, MaxPool, AvgPool, Unknown };
+enum class CaseType {
+    ZMajorConvolution,
+    DepthWiseConv,
+    EltwiseAdd,
+    EltwiseMult,
+    MaxPool,
+    AvgPool,
+    activationKernelSimple,
+    pipeline,
+    raceConditionDMA,
+    raceConditionDPU,
+    Unknown
+};
 
 std::string to_string(CaseType case_);
 CaseType to_case(llvm::StringRef str);
 
-enum class DType { U4, I4, U8, I8, FP8, FP16, FP32, BF16, UNK };
+enum class DType { U4, I4, U8, I8, I32, FP8, FP16, FP32, BF16, UNK };
 
 DType to_dtype(llvm::StringRef str);
 std::string to_string(DType dtype);

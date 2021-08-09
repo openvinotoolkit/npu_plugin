@@ -93,7 +93,7 @@ void addDPUTasks(VPUIP::NCEClusterTaskOp nceOp, mlir::PatternRewriter& rewriter,
                 VPUIP::PaddingAttr::get(getIntAttr(ctx, dpuTile.padLeft), getIntAttr(ctx, dpuTile.padRight),
                                         getIntAttr(ctx, dpuTile.padTop), getIntAttr(ctx, dpuTile.padBottom), ctx);
 
-        nceOp.addDPUTask(rewriter, startAttr, endAttr, pad, mpeMode);
+        nceOp.addDPUTask(rewriter, mlir::Value{}, startAttr, endAttr, pad, mpeMode);
     }
 }
 

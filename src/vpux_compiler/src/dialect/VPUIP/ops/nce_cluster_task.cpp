@@ -49,9 +49,9 @@ void vpux::VPUIP::NCEClusterTaskOp::build(mlir::OpBuilder& builder, mlir::Operat
 // NCEClusterTaskOp::addDPUTask
 //
 
-VPUIP::DPUTaskOp vpux::VPUIP::NCEClusterTaskOp::addDPUTask(mlir::OpBuilder& builder, mlir::ArrayAttr start,
-                                                           mlir::ArrayAttr end, VPUIP::PaddingAttr pad,
-                                                           VPUIP::MPEMode mpeMode) {
+VPUIP::DPUTaskOp vpux::VPUIP::NCEClusterTaskOp::addDPUTask(mlir::OpBuilder& builder, mlir::Value profiling_data,
+                                                           mlir::ArrayAttr start, mlir::ArrayAttr end,
+                                                           VPUIP::PaddingAttr pad, VPUIP::MPEMode mpeMode) {
     if (variants().empty()) {
         variants().emplaceBlock();
     }
@@ -59,7 +59,7 @@ VPUIP::DPUTaskOp vpux::VPUIP::NCEClusterTaskOp::addDPUTask(mlir::OpBuilder& buil
     mlir::OpBuilder::InsertionGuard guard(builder);
     builder.setInsertionPointToEnd(&variants().front());
 
-    return builder.create<VPUIP::DPUTaskOp>(getLoc(), start, end, pad, mpeMode);
+    return builder.create<VPUIP::DPUTaskOp>(getLoc(), profiling_data, start, end, pad, mpeMode);
 }
 
 //
@@ -119,7 +119,7 @@ mlir::LogicalResult verifyNCEConv(VPUIP::NCEClusterTaskOp op) {
     if (op.weights() == nullptr) {
         return errorAt(op, "weights is required for NCETaskType : '{0}'", op.task_type());
     }
-    if (op.weight_table() == nullptr) {
+    if (op.weight_table() == nullptr && op.task_type() != VPUIP::NCETaskType::MAXPOOL) {
         return errorAt(op, "weight_table is required for NCETaskType : '{0}'", op.task_type());
     }
 
@@ -576,6 +576,7 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
         const auto end = parseIntArrayAttr<int64_t>(dpuTaskOp.end());
         const auto pad = dpuTaskOp.pad();
 
+        auto profilingData = dpuTaskOp.profiling_data() ? writer.getTensor(dpuTaskOp.profiling_data()) : 0;
         const auto variant = MVCNN::CreateNCEVariantFields(writer,
                                                            0,                                            // Barriers
                                                            getMPEMode(dpuTaskOp.mpe_mode()),             // MPE mode
@@ -588,7 +589,13 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
                                                            static_cast<int16_t>(start[2]),  // workload_start_Z
                                                            static_cast<int16_t>(end[0]),    // workload_end_X
                                                            static_cast<int16_t>(end[1]),    // workload_end_Y
-                                                           static_cast<int16_t>(end[2])     // workload_end_Z
+                                                           static_cast<int16_t>(end[2]),    // workload_end_Z
+                                                           0,                               // flex_map_colum
+                                                           0,                               // flex_map_array
+                                                           0,                               // flex_inner
+                                                           0,                               // flex_outer
+                                                           0,                               // flex_outer_order
+                                                           profilingData                    // profiling_data
         );
         variantList.push_back(variant);
     }
@@ -644,7 +651,7 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
     bool is_segmented = false;
     bool is_continued = false;
 
-    if (kernel_sizeAttr() != nullptr) {
+    if (kernel_sizeAttr() != nullptr && (getDPULayerType(task_type()) != MVCNN::DPULayerType_ELTWISE)) {
         const auto kernelSize = parseIntArrayAttr<int64_t>(kernel_sizeAttr());
         kernelSizeH = checked_cast<int16_t>(kernelSize[0]);
         kernelSizeW = checked_cast<int16_t>(kernelSize[1]);

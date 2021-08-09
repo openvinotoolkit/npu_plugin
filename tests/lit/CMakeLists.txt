@@ -21,7 +21,7 @@ add_custom_target(copy_vpuip_schema_tests ALL
         ${CMAKE_COMMAND} -E copy_directory
             "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/thirdparty/graphFile-schema/src/schema"
             "$<TARGET_FILE_DIR:vpuxUnitTests>/lit-tests/schema"
-    COMMENT "[LIT] Copy VPUIP schema files for tests"
+            COMMENT "[LIT] Copy VPUIP schema files for tests"
 )
 set_target_properties(copy_vpuip_schema_tests PROPERTIES FOLDER "tests")
 
@@ -29,7 +29,7 @@ set(vpuip_schema_file "path('../schema/graphfile.fbs')")
 
 vpux_setup_lit_tests(VPUX
     PATTERNS "*.mlir"
-    EXTRA_SOURCES "lit.local.cfg"
+    EXTRA_SOURCES "lit.local.cfg" "*.mvlib"
     VARS "vpuip_schema_file"
     SUBSTITUTIONS "vpuip_schema_file"
 )
