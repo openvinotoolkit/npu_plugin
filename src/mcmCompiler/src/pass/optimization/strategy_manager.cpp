@@ -342,7 +342,10 @@ std::vector<std::vector<mv::Element>> StrategyManager::convertStrategiesToElemen
         }
         if(hasClusterSpec.find(opName) == hasClusterSpec.cend())
         {
-            clusteringStrategyList.emplace_back(convertToClusteringElement(strategyToConvert["clustering"].get<std::string>(),opName));
+            auto clusteringStrategy = strategyToConvert["clustering"].get<std::string>();
+            if(op->isUPA())
+                clusteringStrategy = "Clustering";
+            clusteringStrategyList.emplace_back(convertToClusteringElement(clusteringStrategy, opName));
         }
         // Save location info directly to the model as well TODO move this to save go decisions pass
         auto spilling = strategyToConvert["spilling"].get<bool>();
