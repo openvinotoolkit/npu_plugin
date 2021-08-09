@@ -17,6 +17,14 @@
 include "vpux/compiler/dialect/VPUIP/dialect.td"
 
 //
+// Base types
+//
+
+def I4  : I<4>;
+def SI4  : SI<4>;
+def UI4  : UI<4>;
+
+//
 // Base classes
 //
 

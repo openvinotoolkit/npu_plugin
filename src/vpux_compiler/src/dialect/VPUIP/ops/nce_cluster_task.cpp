@@ -48,9 +48,9 @@ void vpux::VPUIP::NCEClusterTaskOp::build(mlir::OpBuilder& builder, mlir::Operat
 // NCEClusterTaskOp::addDPUTask
 //
 
-VPUIP::DPUTaskOp vpux::VPUIP::NCEClusterTaskOp::addDPUTask(mlir::OpBuilder& builder, mlir::ArrayAttr start,
-                                                           mlir::ArrayAttr end, VPUIP::PaddingAttr pad,
-                                                           VPUIP::MPEMode mpeMode) {
+VPUIP::DPUTaskOp vpux::VPUIP::NCEClusterTaskOp::addDPUTask(mlir::OpBuilder& builder, mlir::Value profiling_data,
+                                                           mlir::ArrayAttr start, mlir::ArrayAttr end,
+                                                           VPUIP::PaddingAttr pad, VPUIP::MPEMode mpeMode) {
     if (variants().empty()) {
         variants().emplaceBlock();
     }
@@ -58,23 +58,7 @@ VPUIP::DPUTaskOp vpux::VPUIP::NCEClusterTaskOp::addDPUTask(mlir::OpBuilder& buil
     mlir::OpBuilder::InsertionGuard guard(builder);
     builder.setInsertionPointToEnd(&variants().front());
 
-    return builder.create<VPUIP::DPUTaskOp>(getLoc(), start, end, pad, mpeMode);
-}
-
-//
-// NCEClusterTaskOp::addPPETask
-//
-
-VPUIP::PPETaskOp vpux::VPUIP::NCEClusterTaskOp::addPPETask(mlir::OpBuilder& builder,
-                                                           vpux::VPUIP::PPELayerType ppe_layer_type) {
-    if (ppe().empty()) {
-        ppe().emplaceBlock();
-    }
-
-    mlir::OpBuilder::InsertionGuard guard(builder);
-    builder.setInsertionPointToEnd(&ppe().front());
-
-    return builder.create<VPUIP::PPETaskOp>(getLoc(), ppe_layer_type);
+    return builder.create<VPUIP::DPUTaskOp>(getLoc(), profiling_data, start, end, pad, mpeMode);
 }
 
 //
@@ -195,7 +179,7 @@ mlir::LogicalResult verifyNCEPool(VPUIP::NCEClusterTaskOp op) {
                       "Expected task type '{0}' or '{1}', but got '{2}'", VPUIP::NCETaskType::AVEPOOL,
                       VPUIP::NCETaskType::MAXPOOL, op.task_type());
 
-    if (op.weight_table() == nullptr) {
+    if (op.weight_table() == nullptr && op.task_type() != VPUIP::NCETaskType::MAXPOOL) {
         return errorAt(op, "weight_table is required for NCETaskType : '{0}'", op.task_type());
     }
     if (op.activation_window() == nullptr) {
@@ -320,6 +304,10 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(VPUIP::DPUTaskOp op) {
 mlir::LogicalResult vpux::VPUIP::verifyOp(VPUIP::NCEClusterTaskOp op) {
     if (op.task_type() == VPUIP::NCETaskType::CONV) {
         if (mlir::failed(verifyNCEConv(op))) {
+            return mlir::failure();
+        }
+    } else if (op.task_type() == VPUIP::NCETaskType::DWCONV) {
+        if (mlir::failed(verifyNCEDWConv(op))) {
             return mlir::failure();
         }
     } else if (op.task_type() == VPUIP::NCETaskType::MAXPOOL || op.task_type() == VPUIP::NCETaskType::AVEPOOL) {
@@ -513,6 +501,7 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
         const auto end = parseIntArrayAttr<int64_t>(dpuTaskOp.end());
         const auto pad = dpuTaskOp.pad();
 
+        auto profilingData = dpuTaskOp.profiling_data() ? writer.getTensor(dpuTaskOp.profiling_data()) : 0;
         const auto variant = MVCNN::CreateNCEVariantFields(writer,
                                                            0,                                            // Barriers
                                                            getMPEMode(dpuTaskOp.mpe_mode()),             // MPE mode
@@ -525,42 +514,54 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
                                                            static_cast<int16_t>(start[2]),  // workload_start_Z
                                                            static_cast<int16_t>(end[0]),    // workload_end_X
                                                            static_cast<int16_t>(end[1]),    // workload_end_Y
-                                                           static_cast<int16_t>(end[2])     // workload_end_Z
+                                                           static_cast<int16_t>(end[2]),    // workload_end_Z
+                                                           0,                               // flex_map_column
+                                                           0,                               // flex_map_array
+                                                           0,                               // flex_inner
+                                                           0,                               // flex_outer
+                                                           0,                               // flex_outer_order
+                                                           profilingData                    // profiling_data
         );
         variantList.push_back(variant);
     }
     const auto variant = writer.createVector(variantList);
 
     SmallVector<uint8_t> ppeList;
+    int32_t clampLow = std::numeric_limits<int32_t>::min();
+    int32_t clampHigh = std::numeric_limits<int32_t>::max();
+    int32_t LreluMult = 1;
+    uint32_t LreluShift = 0;
+    mlir::Value instructionTable;
     for (auto ppeOp : ppe().getOps<VPUIP::PPETaskOp>()) {
         ppeList.push_back(getPPELayerType(ppeOp.ppe_layer_type()));
-    }
-
-    // TODO delete it after implementing passing postop parameters
-    // and quant parameters for tasks (it was added to fix accuracy of fused Clamp)
-    int32_t ClampLow = std::numeric_limits<int32_t>::min();
-    int32_t ClampHigh = std::numeric_limits<int32_t>::max();
-    if (std::find(ppeList.begin(), ppeList.end(), MVCNN::PPELayerType_LRELUX) != ppeList.end()) {
-        ppeList.clear();
-        // here we handle only Relu6 case
-        // for common one it should be deleted
-        // TODO: [Track number: E#14813]
-        ClampLow = 0;
-        ClampHigh =
-                input().getType().cast<mlir::MemRefType>().getElementType().isa<mlir::FloatType>() ? 6 * (1 << 16) : 6;
+        if (ppeOp.clamp_low()) {
+            clampLow = ppeOp.clamp_low().getValue();
+        }
+        if (ppeOp.clamp_high()) {
+            clampHigh = ppeOp.clamp_high().getValue();
+        }
+        if (ppeOp.lrelu_mult()) {
+            LreluMult = ppeOp.lrelu_mult().getValue();
+        }
+        if (ppeOp.lrelu_shift()) {
+            LreluShift = ppeOp.lrelu_shift().getValue();
+        }
+        if (ppeOp.instruction_table()) {
+            instructionTable = ppeOp.instruction_table();
+        }
     }
 
     auto ppeLayerTypes = writer.createVector(ppeList);
-    // TODO: Clamp_Low, Clamp_High, Lrelu_Mult, Lrelu_Shift
-    auto ppeFixedFunction = MVCNN::CreatePPEFixedFunction(writer, ppeLayerTypes, ClampLow, ClampHigh);
-    // TODO: scale_data, rounding, instruction_list_data
-    auto ppeTask = MVCNN::CreatePPETask(writer, 0, ppeFixedFunction);
+    auto ppeFixedFunction =
+            MVCNN::CreatePPEFixedFunction(writer, ppeLayerTypes, clampLow, clampHigh, LreluMult, LreluShift);
+    auto instructionTableData = instructionTable ? writer.getTensor(instructionTable) : 0;
+    auto ppeTask = MVCNN::CreatePPETask(writer, 0, ppeFixedFunction, MVCNN::PPERoundingMode_RNE, instructionTableData);
 
     int16_t kernelSizeH = 1, kernelSizeW = 1;
     int16_t kernelStridesH = 1, kernelStridesW = 1;
     int16_t kernelPadL = 0, kernelPadR = 0, kernelPadT = 0, kernelPadB = 0;
 
-    if (kernel_sizeAttr() != nullptr) {
+    if ((kernel_sizeAttr() != nullptr) && (getDPULayerType(task_type()) != MVCNN::DPULayerType_ELTWISE)) {
         const auto kernelSize = parseIntArrayAttr<int64_t>(kernel_sizeAttr());
         kernelSizeH = checked_cast<int16_t>(kernelSize[0]);
         kernelSizeW = checked_cast<int16_t>(kernelSize[1]);

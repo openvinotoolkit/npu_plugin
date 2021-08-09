@@ -58,6 +58,7 @@ public:
     using IndirectDataReference = flatbuffers::Offset<MVCNN::IndirectDataReference>;
 
     using BinaryData = flatbuffers::Offset<MVCNN::BinaryData>;
+    using KernelData = flatbuffers::Offset<MVCNN::KernelData>;
 
     using String = flatbuffers::Offset<flatbuffers::String>;
 
@@ -91,6 +92,7 @@ public:
 
 public:
     BinaryData createBinaryData(ArrayRef<uint64_t> content, mlir::ShapedType type, bool csram_cacheable = false);
+    KernelData getKernelData(mlir::Operation* op, mlir::SymbolRefAttr sym);
 
 public:
     Barrier createBarrier(mlir::Value val, int64_t physicalID = 0);
@@ -144,6 +146,7 @@ public:
 
 private:
     void setAliasForSerializedTensors(mlir::Operation* op);
+    KernelData createKernelData(mlir::Operation* targetOp);
 
 private:
     using TaskMap = std::unordered_map<mlir::Operation*, Task>;
@@ -156,6 +159,7 @@ private:
     TaskMap _tasks;
     TensorReferenceMap _tensors;
     BarrierMap _barriers;
+    std::unordered_map<mlir::Operation*, KernelData> _knownKernelData;
 };
 
 }  // namespace VPUIP

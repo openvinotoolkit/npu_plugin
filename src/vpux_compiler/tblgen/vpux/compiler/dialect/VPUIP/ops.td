@@ -258,6 +258,41 @@ def VPUIP_EmptyOp :
 }
 
 //
+// ActKernelOp
+//
+
+def VPUIP_ActKernelOp :
+        VPUIP_Op<"ActKernel",
+            [
+                AttrSizedOperandSegments,
+                DeclareOpInterfaceMethods<VPUIP_TaskOpInterface>
+            ]
+        > {
+    let summary = "Runs a kernel on an activation shave";
+
+    let arguments = (ins
+        SymbolRefAttr:$kernelText,
+        SymbolRefAttr:$kernelData,
+        UI64Attr:$entryOffset,
+        ArrayAttr:$invocations,
+        Variadic<VPUIP_Barrier>:$waitBarriers,
+        Variadic<VPUIP_Barrier>:$updateBarriers
+    );
+
+    let extraClassDeclaration = [{
+        static vpux::VPUIP::TaskType getTaskType() {
+            return vpux::VPUIP::TaskType::ActKernel;
+        }
+    }];
+
+    let assemblyFormat = [{
+        attr-dict $invocations
+        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+    }];
+}
+
+//
 // UPADMAOp
 //
 
@@ -1091,8 +1126,8 @@ def VPUIP_QuantCastUPAOp :
     let summary = "FakeQuantize UPA SHAVE kernel";
 
     let arguments = (ins
-        MemRefOf<[F16, quant_QuantizedType]>:$input,
-        MemRefOf<[F16, quant_QuantizedType]>:$output_buff,
+        MemRefOf<[F16, BF16, quant_QuantizedType]>:$input,
+        MemRefOf<[F16, BF16, quant_QuantizedType]>:$output_buff,
 
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers,
@@ -1102,7 +1137,7 @@ def VPUIP_QuantCastUPAOp :
     );
 
     let results = (outs
-        MemRefOf<[F16, quant_QuantizedType]>:$output
+        MemRefOf<[F16, BF16, quant_QuantizedType]>:$output
     );
 
     let builders = [
@@ -1783,6 +1818,7 @@ def VPUIP_DPUTaskOp :
     let summary = "This object represents workload for a single DPU tile";
 
     let arguments = (ins
+        Optional<AnyMemRef>:$profiling_data,
         I64ArrayAttr:$start,
         I64ArrayAttr:$end,
         VPUIP_PaddingAttr:$pad,
@@ -1791,6 +1827,7 @@ def VPUIP_DPUTaskOp :
 
     let assemblyFormat = [{
         attr-dict
+        (`inputs` `(` $profiling_data^ `:` type($profiling_data) `)`)?
     }];
 
     let verifier = [{
@@ -1812,11 +1849,29 @@ def VPUIP_PPETaskOp :
     let summary = "PPE Type for NCE Task";
 
     let arguments = (ins
-        VPUIP_PPELayerType:$ppe_layer_type
+        VPUIP_PPELayerType:$ppe_layer_type,
+        Optional<MemRefOf<[SI32]>>:$instruction_table,
+        OptionalAttr<IntAttr>:$clamp_low,
+        OptionalAttr<IntAttr>:$clamp_high,
+        OptionalAttr<IntAttr>:$lrelu_mult,
+        OptionalAttr<IntAttr>:$lrelu_shift
     );
 
+    let builders = [
+        OpBuilder<(ins
+            CArg<"vpux::VPUIP::PPELayerType", "vpux::VPUIP::PPELayerType::NOOP">:$ppe_layer_type,
+            CArg<"mlir::Value", "mlir::Value{}">:$instruction_table,
+            CArg<"int32_t", "std::numeric_limits<int32_t>::min()">:$clamp_low,
+            CArg<"int32_t", "std::numeric_limits<int32_t>::max()">:$clamp_high,
+            CArg<"int32_t", "1">:$lrelu_mult,
+            CArg<"uint32_t", "0">:$lrelu_shift
+        )>
+    ];
+
     let assemblyFormat = [{
-        $ppe_layer_type attr-dict
+        $ppe_layer_type
+        (`instruction_table` `(` $instruction_table^ `:` type($instruction_table) `)`)?
+        attr-dict
     }];
 }
 
@@ -1852,15 +1907,15 @@ def VPUIP_NCEClusterTaskOp :
     }];
 
     let arguments = (ins
-        MemRefOf<[F16, quant_QuantizedType]>:$input,
-        Optional<MemRefOf<[F16, quant_QuantizedType]>>:$weights,
+        MemRefOf<[F16, BF16, quant_QuantizedType]>:$input,
+        Optional<MemRefOf<[F16, BF16, quant_QuantizedType]>>:$weights,
         Optional<MemRefOf<[SI32]>>:$weight_table,
         Optional<MemRefOf<[UI8]>>:$activation_window,
 
         AnyMemRef:$parent_input,
         AnyMemRef:$parent_output,
 
-        MemRefOf<[F16, quant_QuantizedType]>:$output_buff,
+        MemRefOf<[F16, F32, BF16, quant_QuantizedType]>:$output_buff,
 
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers,
@@ -1873,7 +1928,7 @@ def VPUIP_NCEClusterTaskOp :
     );
 
     let results = (outs
-        MemRefOf<[F16, quant_QuantizedType]>:$output
+        MemRefOf<[F16, BF16, F32, quant_QuantizedType]>:$output
     );
 
     let regions = (region
@@ -1913,12 +1968,12 @@ def VPUIP_NCEClusterTaskOp :
     }];
 
     let extraClassDeclaration = [{
-        vpux::VPUIP::DPUTaskOp addDPUTask(mlir::OpBuilder& builder,
+        vpux::VPUIP::DPUTaskOp addDPUTask(mlir::OpBuilder& builder, mlir::Value profiling_data,
                                           mlir::ArrayAttr start, mlir::ArrayAttr end,
                                           VPUIP::PaddingAttr pad, VPUIP::MPEMode mpeMode);
 
-        vpux::VPUIP::PPETaskOp addPPETask(mlir::OpBuilder& builder,
-                                          vpux::VPUIP::PPELayerType ppe_layer_type);
+        template <typename... Args>
+        VPUIP::PPETaskOp addPPETask(mlir::OpBuilder& builder, Args&&... args);
 
         static bool isSupportedLayout(mlir::Operation* op, vpux::IE::DataOrderInfo& info);
 

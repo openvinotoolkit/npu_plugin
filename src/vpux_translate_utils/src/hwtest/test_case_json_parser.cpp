@@ -111,11 +111,54 @@ std::string nb::to_string(nb::ActivationType activationType) {
     }
 }
 
-std::string nb::to_string(CaseType) {
-    return "unknown";
+std::string nb::to_string(CaseType case_) {
+    switch (case_) {
+    case CaseType::ZMajorConvolution:
+        return "ZMajorConvolution";
+    case CaseType::DepthWiseConv:
+        return "DepthWiseConv";
+    case CaseType::EltwiseAdd:
+        return "EltwiseAdd";
+    case CaseType::EltwiseMult:
+        return "EltwiseMult";
+    case CaseType::MaxPool:
+        return "MaxPool";
+    case CaseType::AvgPool:
+        return "AvgPool";
+    case CaseType::activationKernelSimple:
+        return "activationKernelSimple";
+    case CaseType::pipeline:
+        return "pipeline";
+    case CaseType::raceConditionDMA:
+        return "raceConditionDMA";
+    case CaseType::raceConditionDPU:
+        return "raceConditionDPU";
+    default:
+        return "unknown";
+    }
 }
 
-nb::CaseType nb::to_case(llvm::StringRef) {
+nb::CaseType nb::to_case(llvm::StringRef str) {
+    if (isEqual(str, "ZMajorConvolution"))
+        return CaseType::ZMajorConvolution;
+    if (isEqual(str, "DepthWiseConv"))
+        return CaseType::DepthWiseConv;
+    if (isEqual(str, "EltwiseAdd"))
+        return CaseType::EltwiseAdd;
+    if (isEqual(str, "EltwiseMult"))
+        return CaseType::EltwiseMult;
+    if (isEqual(str, "MaxPool"))
+        return CaseType::MaxPool;
+    if (isEqual(str, "AvgPool"))
+        return CaseType::AvgPool;
+    if (isEqual(str, "activationKernelSimple"))
+        return CaseType::activationKernelSimple;
+    if (isEqual(str, "pipeline"))
+        return CaseType::pipeline;
+    if (isEqual(str, "raceConditionDMA"))
+        return CaseType::raceConditionDMA;
+    if (isEqual(str, "raceConditionDPU"))
+        return CaseType::raceConditionDPU;
     return CaseType::Unknown;
 };
 
@@ -375,6 +418,50 @@ void nb::TestCaseJsonDescriptor::parse(llvm::StringRef jsonString) {
     caseTypeStr_ = case_type.getValue().str();
     inLayer_ = loadInputLayer(json_obj);
     outLayer_ = loadOutputLayer(json_obj);
+
+    // Load conv json attribute values. Similar implementation for ALL HW layers (DW, group conv, Av/Max pooling and
+    // eltwise needed).
+    if (caseType_ == CaseType::ZMajorConvolution || caseType_ == CaseType::DepthWiseConv ||
+        caseType_ == CaseType::pipeline || caseType_ == CaseType::raceConditionDPU) {
+        wtLayer_ = loadWeightLayer(json_obj);
+        convLayer_ = loadConvLayer(json_obj);
+
+        auto* activation = json_obj->getObject("activation");
+        if (activation && activation->getString("name").hasValue()) {
+            hasActivationLayer_ = true;
+            activationLayer_ = loadActivationLayer(json_obj);
+        } else {
+            hasActivationLayer_ = false;
+        }
+        return;
+    }
+
+    if (caseType_ == CaseType::EltwiseAdd || caseType_ == CaseType::EltwiseMult) {
+        wtLayer_ = loadWeightLayer(json_obj);
+        return;
+    }
+
+    if (caseType_ == CaseType::MaxPool) {
+        poolLayer_ = loadPoolLayer(json_obj);
+        return;
+    }
+
+    if (caseType_ == CaseType::AvgPool) {
+        poolLayer_ = loadPoolLayer(json_obj);
+        return;
+    }
+
+    if (caseType_ == CaseType::activationKernelSimple) {
+        auto kernelFileName = json_obj->getString("kernel_filename");
+        if (kernelFileName.hasValue()) {
+            kernelFilename_ = kernelFileName.getValue().str();
+        }
+        return;
+    }
+
+    if (caseType_ == CaseType::raceConditionDMA || caseType_ == CaseType::raceConditionDPU) {
+        return;
+    }
 
     throw std::runtime_error{llvm::formatv("Unsupported case type: {0}", caseTypeStr_).str()};
 }

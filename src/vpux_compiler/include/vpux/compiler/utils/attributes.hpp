@@ -95,6 +95,16 @@ SmallVector<T> parseIntArrayAttr(mlir::ArrayAttr arr) {
 }
 
 template <typename T>
+SmallVector<T> parseUIntArrayAttr(mlir::ArrayAttr arr) {
+    return to_small_vector(arr.getValue() | transformed([](mlir::Attribute attr) {
+                               const auto uintAttr = attr.dyn_cast_or_null<mlir::IntegerAttr>();
+                               VPUX_THROW_UNLESS(uintAttr != nullptr, "Got non Integer Attribute '{0}' in Array", attr);
+
+                               return checked_cast<T>(uintAttr.getValue().getZExtValue());
+                           }));
+}
+
+template <typename T>
 SmallVector<T> parseFPArrayAttr(mlir::ArrayAttr arr) {
     return to_small_vector(arr.getValue() | transformed([](mlir::Attribute attr) {
                                const auto fpAttr = attr.dyn_cast_or_null<mlir::FloatAttr>();
