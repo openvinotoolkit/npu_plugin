@@ -43,29 +43,6 @@ mlir::Value makeTile(mlir::OpBuilder& builder, mlir::Location baseLoc, mlir::Val
         return origVal;
     }
 
-    const SmallVector<int64_t> viewStrides(tile.shape.size(), 1);
-
-    const auto tileName = llvm::formatv("{0} tile {1}", valName, tile.offsets).str();
-    const auto loc = appendLoc(baseLoc, tileName);
-
-    auto viewOp =
-            builder.create<mlir::memref::SubViewOp>(loc, origVal, tile.offsets.raw(), tile.shape.raw(), viewStrides);
-
-    const auto tileType = changeShape(origType, tile.shape);
-    auto allocOp = builder.create<mlir::memref::AllocOp>(loc, tileType);
-
-    auto copyOp = builder.create<IERT::CopyOp>(loc, viewOp.result(), allocOp.memref());
-    return copyOp.output();
-}
-
-mlir::Value makeFilterTile(mlir::OpBuilder& builder, mlir::Location baseLoc, mlir::Value origVal, const Tile& tile,
-                           StringRef valName) {
-    const auto origType = origVal.getType().cast<mlir::MemRefType>();
-
-    if (tile.shape == getShape(origType)) {
-        return origVal;
-    }
-
     const auto tileName = llvm::formatv("{0} tile {1}", valName, tile.offsets).str();
     const auto loc = appendLoc(baseLoc, tileName);
 
@@ -128,7 +105,7 @@ mlir::LogicalResult ConvolutionTiling::matchAndRewrite(IERT::ConvolutionOp origO
         SmallVector<int64_t> padsEnd = {tileConf.pads.padBottom, tileConf.pads.padRight};
 
         const auto actInput = makeTile(rewriter, origOp->getLoc(), origOp.input(), inputTile, "input");
-        const auto filterInput = makeFilterTile(rewriter, origOp->getLoc(), origOp.filter(), filterTile, "filter");
+        const auto filterInput = makeTile(rewriter, origOp->getLoc(), origOp.filter(), filterTile, "filter");
         const auto biasInput = origOp.bias() != nullptr
                                        ? makeTile(rewriter, origOp->getLoc(), origOp.bias(), biasTile, "bias")
                                        : nullptr;
@@ -144,9 +121,9 @@ mlir::LogicalResult ConvolutionTiling::matchAndRewrite(IERT::ConvolutionOp origO
                                                             getIntArrayAttr(getContext(), padsEnd), origOp.dilations(),
                                                             origOp.post_opAttr());
 
-        SmallVector<int64_t> viewStrides(outputTile.shape.size(), 1);
-        auto subViewOut = rewriter.create<mlir::memref::SubViewOp>(loc, origOp.output_buff(), outputTile.offsets.raw(),
-                                                                   outputTile.shape.raw(), viewStrides);
+        const auto attrOffsets = getIntArrayAttr(rewriter.getContext(), outputTile.offsets.raw());
+        const auto attrShape = getIntArrayAttr(rewriter.getContext(), outputTile.shape.raw());
+        auto subViewOut = rewriter.create<IERT::SubViewOp>(loc, origOp.output_buff(), attrOffsets, attrShape);
 
         auto copyOut = rewriter.create<IERT::CopyOp>(loc, tiledOp.output(), subViewOut.result());
         finalResults.push_back(copyOut);
@@ -206,9 +183,9 @@ mlir::LogicalResult EltwiseAddTiling::matchAndRewrite(IERT::AddOp origOp, mlir::
 
         auto tiledOp = rewriter.create<IERT::AddOp>(loc, actInput1, actInput2, allocOutOp.memref());
 
-        SmallVector<int64_t> viewStrides(outputTile.shape.size(), 1);
-        auto subViewOut = rewriter.create<mlir::memref::SubViewOp>(loc, origOp.output_buff(), outputTile.offsets.raw(),
-                                                                   outputTile.shape.raw(), viewStrides);
+        const auto attrOffsets = getIntArrayAttr(rewriter.getContext(), outputTile.offsets.raw());
+        const auto attrShape = getIntArrayAttr(rewriter.getContext(), outputTile.shape.raw());
+        auto subViewOut = rewriter.create<IERT::SubViewOp>(loc, origOp.output_buff(), attrOffsets, attrShape);
 
         auto copyOut = rewriter.create<IERT::CopyOp>(loc, tiledOp.output(), subViewOut.result());
         finalResults.push_back(copyOut);
@@ -271,9 +248,9 @@ mlir::LogicalResult MaxPoolTiling::matchAndRewrite(IERT::MaxPoolOp origOp, mlir:
                                                         origOp.strides(), getIntArrayAttr(getContext(), padsBegin),
                                                         getIntArrayAttr(getContext(), padsEnd), origOp.post_opAttr());
 
-        SmallVector<int64_t> viewStrides(outputTile.shape.size(), 1);
-        auto subViewOut = rewriter.create<mlir::memref::SubViewOp>(loc, origOp.output_buff(), outputTile.offsets.raw(),
-                                                                   outputTile.shape.raw(), viewStrides);
+        const auto attrOffsets = getIntArrayAttr(rewriter.getContext(), outputTile.offsets.raw());
+        const auto attrShape = getIntArrayAttr(rewriter.getContext(), outputTile.shape.raw());
+        auto subViewOut = rewriter.create<IERT::SubViewOp>(loc, origOp.output_buff(), attrOffsets, attrShape);
 
         auto copyOut = rewriter.create<IERT::CopyOp>(loc, tiledOp.output(), subViewOut.result());
         finalResults.push_back(copyOut);
@@ -328,7 +305,7 @@ mlir::LogicalResult GroupConvolutionTiling::matchAndRewrite(IERT::GroupConvoluti
         SmallVector<int64_t> padsEnd = {tileConf.pads.padBottom, tileConf.pads.padRight};
 
         const auto actInput = makeTile(rewriter, origOp->getLoc(), origOp.input(), inputTile, "input");
-        const auto filterInput = makeFilterTile(rewriter, origOp->getLoc(), origOp.filter(), filterTile, "filter");
+        const auto filterInput = makeTile(rewriter, origOp->getLoc(), origOp.filter(), filterTile, "filter");
         const auto biasInput = origOp.bias() != nullptr
                                        ? makeTile(rewriter, origOp->getLoc(), origOp.bias(), biasTile, "bias")
                                        : nullptr;
@@ -347,9 +324,9 @@ mlir::LogicalResult GroupConvolutionTiling::matchAndRewrite(IERT::GroupConvoluti
                 getIntArrayAttr(getContext(), padsBegin), getIntArrayAttr(getContext(), padsEnd), origOp.dilations(),
                 groupsAttr, origOp.post_opAttr());
 
-        SmallVector<int64_t> viewStrides(outputTile.shape.size(), 1);
-        auto subViewOut = rewriter.create<mlir::memref::SubViewOp>(loc, origOp.output_buff(), outputTile.offsets.raw(),
-                                                                   outputTile.shape.raw(), viewStrides);
+        const auto attrOffsets = getIntArrayAttr(rewriter.getContext(), outputTile.offsets.raw());
+        const auto attrShape = getIntArrayAttr(rewriter.getContext(), outputTile.shape.raw());
+        auto subViewOut = rewriter.create<IERT::SubViewOp>(loc, origOp.output_buff(), attrOffsets, attrShape);
 
         auto copyOut = rewriter.create<IERT::CopyOp>(loc, tiledOp.output(), subViewOut.result());
         finalResults.push_back(copyOut);
