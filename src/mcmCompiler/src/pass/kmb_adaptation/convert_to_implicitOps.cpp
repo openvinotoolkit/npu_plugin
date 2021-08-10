@@ -93,6 +93,8 @@ void convertToImplicitOpsFcn(const mv::pass::PassEntry& , mv::ComputationModel& 
             splitStrategy = opIt->get<std::string>("splitStrategy");
         auto quantParams = output->getQuantParams();
         auto opId = opIt->get<unsigned>("opId");
+        auto explicitStrides = opIt->hasAttr("explicitStrides") && opIt->get<bool>("explicitStrides");
+        auto forceU8 = opIt->hasAttr("forceU8") && opIt->get<bool>("forceU8");
 
         auto outputFlows = mv::getOutputDataFlow(om, opIt);
 
@@ -116,10 +118,11 @@ void convertToImplicitOpsFcn(const mv::pass::PassEntry& , mv::ComputationModel& 
         implicitOp->setQuantParams(quantParams);
         om.getSourceOp(implicitOp)->set<unsigned>("opId", opId);
         implicitOp->set<mv::Tensor::MemoryLocation>("Location", outputLocation);
-        if (opIt->hasAttr("explicitStrides"))
-            om.getSourceOp(implicitOp)->set<bool>("explicitStrides", opIt->get<bool>("explicitStrides"));
 
-        if (opIt->hasAttr("forceU8") && opIt->get<bool>("forceU8"))
+        if (explicitStrides)
+            om.getSourceOp(implicitOp)->set<bool>("explicitStrides", true);
+
+        if (forceU8)
         {
             om.getSourceOp(implicitOp)->set<bool>("forceU8", true);
             implicitOp->setDType(mv::DType("UInt8"));
