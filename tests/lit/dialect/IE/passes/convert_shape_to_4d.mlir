@@ -1,4 +1,4 @@
-// RUN: vpux-opt --convert-shape-to-4d --canonicalize %s | FileCheck %s
+// RUN: vpux-opt --split-input-file --convert-shape-to-4d --canonicalize %s | FileCheck %s
 
 // CHECK:       func @main(
 // CHECK-SAME:      %[[VAL_0:.*]]: tensor<1x1x1x1000xf32>
@@ -37,4 +37,30 @@ func @main(%arg0: tensor<1x1000xf32>, %arg1: tensor<1x224x224xf32>, %arg2: tenso
     // CHECK:   %[[VAL_11:.*]] = IE.FakeQuantize(%[[VAL_2]], %[[VAL_4]], %[[VAL_5]], %[[VAL_4]], %[[VAL_5]])
     // CHECK:   %[[VAL_12:.*]] = IE.ScaleShift(%[[VAL_3]], %[[VAL_6]], %[[VAL_7]])
     // CHECK:   return %[[VAL_8]], %[[VAL_10]], %[[VAL_11]], %[[VAL_12]]
+}
+
+// -----
+
+// CHECK:       func @FakeQuantizePerChannel(
+// CHECK-SAME:      %[[VAL_0:.*]]: tensor<1x1x512x64xf32>
+func @FakeQuantizePerChannel(%arg0: tensor<1x512x64xf32>) -> (tensor<1x512x64xf32>) {
+    %input_low = const.Declare tensor<1x512x1xf32> = #const.Content<dense<0.0> : tensor<1x512x1xf32>>
+    %input_high = const.Declare tensor<1x512x1xf32> = #const.Content<dense<255.0> : tensor<1x512x1xf32>>
+    %output_low = const.Declare tensor<1x512x1xf32> = #const.Content<dense<10.0> : tensor<1x512x1xf32>>
+    %output_high = const.Declare tensor<1x512x1xf32> = #const.Content<dense<205.0> : tensor<1x512x1xf32>>
+    %3 = IE.FakeQuantize(%arg0, %input_low, %input_high, %output_low, %output_high)
+        { auto_broadcast = "NUMPY", levels = 256 : i32 } :
+        tensor<1x512x64xf32>, tensor<1x512x1xf32>, tensor<1x512x1xf32>, tensor<1x512x1xf32>, tensor<1x512x1xf32> -> tensor<1x512x64xf32>
+
+    return %3 : tensor<1x512x64xf32>
+
+    // CHECK-DAG: %[[VAL_4:.*]] = const.Declare tensor<1x512x1x1xf32> = #const.Content<dense<2.050000e+02> : tensor<1x512x1xf32>, [#const.Reshape<[1, 512, 1, 1]>]>
+    // CHECK-DAG: %[[VAL_3:.*]] = const.Declare tensor<1x512x1x1xf32> = #const.Content<dense<1.000000e+01> : tensor<1x512x1xf32>, [#const.Reshape<[1, 512, 1, 1]>]>
+    // CHECK-DAG: %[[VAL_2:.*]] = const.Declare tensor<1x512x1x1xf32> = #const.Content<dense<2.550000e+02> : tensor<1x512x1xf32>, [#const.Reshape<[1, 512, 1, 1]>]>
+    // CHECK-DAG: %[[VAL_1:.*]] = const.Declare tensor<1x512x1x1xf32> = #const.Content<dense<0.000000e+00> : tensor<1x512x1xf32>, [#const.Reshape<[1, 512, 1, 1]>]>
+
+    // CHECK:   %[[RESHAPE_BEFORE:.*]] = IE.Reshape(%[[VAL_0]])
+    // CHECK:   %[[FQ:.*]] = IE.FakeQuantize(%[[RESHAPE_BEFORE]], %[[VAL_1]], %[[VAL_2]], %[[VAL_3]], %[[VAL_4]])
+    // CHECK:   %[[RESHAPE_AFTER:.*]] = IE.Reshape(%[[FQ]])
+    // CHECK:   return %[[RESHAPE_AFTER]]
 }
