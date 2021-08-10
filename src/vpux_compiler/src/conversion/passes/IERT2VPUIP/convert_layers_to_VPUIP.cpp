@@ -160,6 +160,47 @@ mlir::LogicalResult FullyConnectedRewrite::matchAndRewrite(IERT::FullyConnectedO
 }
 
 //
+// RewriteConvolution
+//
+
+class RewriteConvolution final : public mlir::OpRewritePattern<IERT::ConvolutionOp> {
+public:
+    RewriteConvolution(mlir::MLIRContext* ctx, Logger log)
+            : mlir::OpRewritePattern<IERT::ConvolutionOp>(ctx), _log(log) {
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(IERT::ConvolutionOp origOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult RewriteConvolution::matchAndRewrite(IERT::ConvolutionOp origOp,
+                                                        mlir::PatternRewriter& rewriter) const {
+    _log.trace("Found Convolution Operation '{0}'", origOp->getLoc());
+
+    const int64_t groups = 1;
+    if (origOp.bias() == nullptr) {
+        rewriter.replaceOpWithNewOp<VPUIP::ConvolutionUPAOp>(origOp, origOp.input(), origOp.filter(), nullptr,
+                                                             origOp.output_buff(), origOp.strides(), origOp.dilations(),
+                                                             origOp.pads_begin(), origOp.pads_end(), groups);
+        return mlir::success();
+    }
+
+    const auto origBiasType = origOp.bias().getType().cast<mlir::ShapedType>();
+    const auto origBiasShape = origBiasType.getShape();
+
+    const std::array<int64_t, 1> newBiasShape = {origBiasShape[1]};
+    const auto newBiasType = changeShape(origBiasType, ShapeRef(newBiasShape));
+    auto newBias = rewriter.create<IERT::GenericReshapeOp>(origOp->getLoc(), newBiasType, origOp.bias());
+    rewriter.replaceOpWithNewOp<VPUIP::ConvolutionUPAOp>(origOp, origOp.input(), origOp.filter(), newBias.output(),
+                                                         origOp.output_buff(), origOp.strides(), origOp.dilations(),
+                                                         origOp.pads_begin(), origOp.pads_end(), groups);
+    return mlir::success();
+}
+
+//
 // Generated
 //
 
@@ -197,6 +238,7 @@ void ConvertLayers2VPUIPPass::safeRunOnFunc() {
     patterns.insert<LSTMCellRewrite>(&ctx, _log);
     patterns.insert<FakeQuantizeRewrite>(&ctx, _log);
     patterns.insert<FullyConnectedRewrite>(&ctx, _log);
+    patterns.insert<RewriteConvolution>(&ctx, _log);
     populateWithGenerated(patterns);
 
     auto func = getFunction();
