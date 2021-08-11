@@ -417,8 +417,7 @@ static void rescaleQuantParams(mv::QuantizationParams& quant_params, std::vector
     }
     else
     {
-        throw mv::ArgumentError("Rescale quant params error", "Unable to rescale, quant params size: ", std::to_string(new_scale.size()),
-            " scale size: " + std::to_string(scale.size()));
+        return;
     }
 
     quant_params = mv::QuantizationParams(new_zp, new_scale, new_min, new_max);
