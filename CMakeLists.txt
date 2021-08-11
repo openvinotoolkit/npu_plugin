@@ -116,6 +116,10 @@ if(ENABLE_KMB_SAMPLES)
     add_subdirectory(samples)
 endif()
 
+if(ENABLE_HDDL2_TESTS)
+    add_subdirectory(hddl2_samples)
+endif()
+
 add_subdirectory(tools)
 
 #
