@@ -4,13 +4,13 @@
 
 #include <vector>
 
-#include "single_layer_tests/convolution_backprop.hpp"
+#include "single_layer_tests/convolution_backprop_data.hpp"
 #include "common_test_utils/test_constants.hpp"
 #include "kmb_layer_test.hpp"
 
 namespace LayerTestsDefinitions {
 
-    class KmbConvolutionBackpropDataLayerTest: public ConvolutionBackpropLayerTest,
+    class KmbConvolutionBackpropDataLayerTest: public ConvolutionBackpropDataLayerTest,
                                                virtual public LayerTestsUtils::KmbLayerTestsCommon {
     };
 
