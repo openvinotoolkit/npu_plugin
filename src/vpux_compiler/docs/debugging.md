@@ -90,14 +90,16 @@ To enable it on Ubuntu follow the next steps:
 1. Copy `<kmb-plugin>/thirdparty/llvm-project/mlir/utils/textmate/mlir.json` to the extension directory
    (`<kmb-plugin>/thirdparty/llvm-project/mlir/utils/vscode`) and rename to `grammar.json`.
 
-2. Install `npm` and `vsce` tools:
+2. Copy `https://mlir.llvm.org//LogoAssets/logo/PNG/full_color/mlir-identity-03.png` to the extension directory (`<kmb-plugin>/thirdparty/llvm-project/mlir/utils/vscode`) and rename to `icon.png`.
+
+3. Install `npm` and `vsce` tools:
 
     ```bash
     sudo apt install npm
     sudo npm install -g vsce
     ```
 
-3. Build the extension from the sources:
+4. Build the extension from the sources:
 
     ```bash
     cd <kmb-plugin>/thirdparty/llvm-project/mlir/utils/vscode
@@ -105,7 +107,7 @@ To enable it on Ubuntu follow the next steps:
     vsce package
     ```
 
-4. Install the extension from generated file (`<kmb-plugin>/thirdparty/llvm-project/mlir/utils/vscode/mlir-0.0.1.vsix`).
+5. Install the extension from generated file (`<kmb-plugin>/thirdparty/llvm-project/mlir/utils/vscode/mlir-0.0.1.vsix`).
 
-5. Set `server_path` parameter in the extension configuration to `vpux-lsp-server` application.
+6. Set `server_path` parameter in the extension configuration to `vpux-lsp-server` application.
    The application is built as a part of the plugin build and can be found in OpenVINO binaries directory.
