@@ -57,7 +57,6 @@ ConvertReshapeTransposeChainToDepthToSpace::ConvertReshapeTransposeChainToDepthT
 
         auto depthToSpace = std::make_shared<ngraph::op::v0::DepthToSpace>(depthtospace_input, "DEPTH_FIRST", 2);
 
-        depthToSpace->set_friendly_name(m.get_match_root()->get_friendly_name());
         ngraph::copy_runtime_info(
                 {
                         pattern_to_output.at(transpose1).get_node_shared_ptr(),

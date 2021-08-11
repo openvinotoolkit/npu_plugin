@@ -21,8 +21,8 @@
 #include <ngraph/op/minimum.hpp>
 #include "ngraph/op/clamp.hpp"
 
-static bool convert_to_clamp(std::shared_ptr<ngraph::Node> min_node, std::shared_ptr<ngraph::Node> max_node,
-                             bool min_first) {
+static bool convert_to_clamp(std::shared_ptr<ngraph::op::v1::Minimum>& min_node,
+                             std::shared_ptr<ngraph::op::v1::Maximum>& max_node, bool min_first) {
     auto max_constant =
             std::dynamic_pointer_cast<ngraph::op::v0::Constant>(max_node->input_value(1).get_node_shared_ptr());
     auto min_constant =
@@ -33,7 +33,10 @@ static bool convert_to_clamp(std::shared_ptr<ngraph::Node> min_node, std::shared
         if ((max_value.size() == 1) && (min_value.size() == 1)) {
             const auto clamp = std::make_shared<ngraph::op::v0::Clamp>(
                     min_first ? min_node->input_value(0) : max_node->input_value(0), max_value[0], min_value[0]);
-            ngraph::replace_node(min_first ? max_node : min_node, clamp);
+            if (min_first)
+                ngraph::replace_node(max_node, clamp);
+            else
+                ngraph::replace_node(min_node, clamp);
             return true;
         }
     }
