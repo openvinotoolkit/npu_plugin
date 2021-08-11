@@ -111,9 +111,24 @@ void ConvertAvgPoolToDWConvPass::safeRunOnFunc() {
     auto& ctx = getContext();
 
     const auto isLegal = [&](IE::AvgPoolOp origOp) {
+        const auto kernelSize = parseIntArrayAttr<int64_t>(origOp.kernel_size());
+        const auto KY = kernelSize[0];
+        const auto KX = kernelSize[1];
+
+        const auto kernelStrides = parseIntArrayAttr<int64_t>(origOp.strides());
+        const auto SY = kernelStrides[0];
+        const auto SX = kernelStrides[1];
+
+        const auto padsBegin = parseIntArrayAttr<int64_t>(origOp.pads_begin());
+        const auto padsEnd = parseIntArrayAttr<int64_t>(origOp.pads_end());
+        const auto padTop = padsBegin[0];
+        const auto padBottom = padsEnd[0];
+        const auto padLeft = padsBegin[1];
+        const auto padRight = padsEnd[1];
+
         // The logic is reversed here. If AvgPoolOp can be represented as an NCE task, it becomes illegal.
-        return mlir::failed(
-                VPUIP::NCEInvariant::verifyKernel(origOp->getLoc(), origOp.kernel_sizeAttr(), origOp.stridesAttr()));
+        return mlir::failed(VPUIP::NCEInvariant::verifyKernel(origOp->getLoc(), KY, KX, SY, SX, padTop, padBottom,
+                                                              padLeft, padRight));
     };
 
     mlir::ConversionTarget target(ctx);
