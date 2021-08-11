@@ -603,22 +603,30 @@ bool iterateThroughPassthroughOps(mv::DataModel& dm, const mv::Data::OpListItera
     if (fallbackToFloat) {
         opIt->getOutputTensor(0)->setDType(mv::DType("Float16"));
         opIt->getOutputTensor(0)->setQuantParams(mv::QuantizationParams::initial());
-    }
-
-    auto childOps = mv::findSinkLayers(dm, opIt->getOutputTensor(0));
-    for (auto& childOp : childOps) {
-        if (isOpPassthrough(childOp)) {
-            if (childOp->outputSlots() && childOp->getOutputTensor(0)->isFloatingPointType())
-                return false;
-            if (!iterateThroughPassthroughOps(dm, childOp, fallbackToFloat))
-                return false;
-        } else {
-            if (childOp->outputSlots() && !childOp->getOutputTensor(0)->isFloatingPointType())
-                return false;
+        if (opIt->getOpType()=="Concat") {
+            auto inputTensors = opIt->getInputTensor();
+            for (auto& tensor : inputTensors) {
+               tensor->setDType(mv::DType("Float16"));
+               tensor->setQuantParams(mv::QuantizationParams::initial());
+            }
         }
     }
 
-    return true;
+    auto childOps = mv::findSinkLayers(dm, opIt->getOutputTensor(0));
+    bool checkChild = true;
+    for (auto& childOp : childOps) {
+        if (isOpPassthrough(childOp)) {
+            if (childOp->outputSlots() && childOp->getOutputTensor(0)->isFloatingPointType())
+                checkChild = false;
+            if (!iterateThroughPassthroughOps(dm, childOp, fallbackToFloat))
+                checkChild = false;
+        } else {
+            if (childOp->outputSlots() && !childOp->getOutputTensor(0)->isFloatingPointType())
+                checkChild = false;
+        }
+    }
+
+    return checkChild;
 }
 
 // This pass will treat cases where conversions back and forth could be avoided to improve performance.
