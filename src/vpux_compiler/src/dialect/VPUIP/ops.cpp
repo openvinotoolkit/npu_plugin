@@ -62,7 +62,8 @@ bool LayerInfo::isSupportedPostProcessing(mlir::Operation* origOp, mlir::Operati
 #define HW_OPS_CASE(_IE_OP_)                                      \
     .Case<_IE_OP_>([&](_IE_OP_ op) {                              \
         if (compileMode == VPUIP::CompilationMode::ReferenceSW) { \
-            return false;                                         \
+            /* reference SW mode supports fusing only for bias */ \
+            return mlir::isa<IE::ScaleShiftOp>(postOp);           \
         }                                                         \
         return VPUIP::NCEInvariant::verifyKernel(op).succeeded(); \
     })
