@@ -373,4 +373,24 @@ def PropagateQuantizeDequantize : PassBase<"propagate-quantize-dequantize", "vpu
     ];
 }
 
+//
+// ConvertAvgPoolToDWConv
+//
+
+def ConvertAvgPoolToDWConv : PassBase<"convert-avg-pool-to-dw-conv", "vpux::FunctionPass"> {
+    let summary = "Convert AvgPool op to GroupConvolution op";
+
+    let description = [{
+        The pass is a part of `AdjustForVPU` pipeline.
+
+        This pass replaces suitable `AvgPool` operations with `GroupConvolution` operation.
+    }];
+
+    let constructor = "vpux::IE::createConvertAvgPoolToDWConvPass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
+
 #endif
