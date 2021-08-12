@@ -23,9 +23,9 @@
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/utils/types.hpp"
 
+#include "vpux/hwtest/test_case_json_parser.hpp"
 #include "vpux/utils/core/error.hpp"
 #include "vpux_config.hpp"
-#include "vpux/hwtest/test_case_json_parser.hpp"
 
 namespace vpux {
 
