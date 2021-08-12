@@ -348,7 +348,7 @@ operation ::= `IERT.Convolution` attr-dict
 `pads_begin` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `pads_end` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `dilations` | ::mlir::ArrayAttr | 64-bit integer array attribute
-`post_op` | vpux::IE::PostOp | DictionaryAttr with field(s): 'kind', 'params' (each field having its own constraints)
+`post_op` | vpux::IE::PostOp | DictionaryAttr with field(s): 'name', 'attrs' (each field having its own constraints)
 
 #### Operands:
 
@@ -756,7 +756,7 @@ operation ::= `IERT.GroupConvolution` attr-dict
 `pads_end` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `dilations` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `groups` | mlir::IntegerAttr | Integer attribute
-`post_op` | vpux::IE::PostOp | DictionaryAttr with field(s): 'kind', 'params' (each field having its own constraints)
+`post_op` | vpux::IE::PostOp | DictionaryAttr with field(s): 'name', 'attrs' (each field having its own constraints)
 
 #### Operands:
 
@@ -936,7 +936,7 @@ operation ::= `IERT.MaxPool` attr-dict
 `strides` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `pads_begin` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `pads_end` | ::mlir::ArrayAttr | 64-bit integer array attribute
-`post_op` | vpux::IE::PostOp | DictionaryAttr with field(s): 'kind', 'params' (each field having its own constraints)
+`post_op` | vpux::IE::PostOp | DictionaryAttr with field(s): 'name', 'attrs' (each field having its own constraints)
 
 #### Operands:
 

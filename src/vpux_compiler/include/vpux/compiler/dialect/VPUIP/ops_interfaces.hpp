@@ -27,25 +27,26 @@
 namespace vpux {
 namespace VPUIP {
 
-//
-// Forward declarations
-//
-
 class BlobWriter;
 
 //
-// verifyUPATask
-//
-
-mlir::LogicalResult verifyUPATask(mlir::Operation* op);
-
-//
-// getTaskEffects
+// TaskOpInterface
 //
 
 using MemoryEffect = mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>;
-
 void getTaskEffects(mlir::Operation* op, SmallVectorImpl<MemoryEffect>& effects);
+
+mlir::Attribute getDMAEngine(uint32_t& numUnits, mlir::MLIRContext* ctx, VPUIP::DMAEngine engine);
+mlir::Attribute getPhysicalProcessor(uint32_t& numUnits, mlir::Operation* op, VPUIP::PhysicalProcessor proc,
+                                     Optional<int64_t> opUnits = None);
+
+mlir::Attribute getTaskOpExecutor(mlir::Operation* op, uint32_t& numUnits);
+
+//
+// UPATaskOpInterface
+//
+
+mlir::LogicalResult verifyUPATask(mlir::Operation* op);
 
 //
 // Legacy4D

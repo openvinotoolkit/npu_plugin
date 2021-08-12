@@ -51,49 +51,45 @@ public:
 
 mlir::LogicalResult FuseConvAndBias::matchAndRewrite(IE::ScaleShiftOp biasOp, mlir::PatternRewriter& rewriter) const {
     if (biasOp.weights() != nullptr) {
-        return matchFailed(rewriter, biasOp, "Failed to fuse ScaleShift, since it has scales");
+        return matchFailed(rewriter, biasOp, "ScaleShift has scales operand");
     }
     if (!biasOp.input().hasOneUse()) {
-        return matchFailed(rewriter, biasOp,
-                           "Failed to fuse ScaleShift, since it is not the only user of its input Value");
+        return matchFailed(rewriter, biasOp, "ScaleShift is not the only user of its operand");
     }
 
     auto* convOp = biasOp.input().getDefiningOp();
     if (convOp == nullptr || !mlir::isa<IE::ConvolutionOp, IE::GroupConvolutionOp>(convOp)) {
-        return matchFailed(rewriter, biasOp, "Failed to fuse ScaleShift, its producer is not a Convolution layer");
+        return matchFailed(rewriter, biasOp, "ScaleShift producer is not a Convolution layer");
     }
-
     if (convOp->getNumOperands() != 2) {
-        return matchFailed(rewriter, biasOp, "Failed to fuse ScaleShift, its producer already has fused biases");
+        return matchFailed(rewriter, biasOp, "ScaleShift producer already has fused biases");
     }
 
     const auto convOutShape = getShape(convOp->getOpResult(0));
     const auto biasShape = getShape(biasOp.biases());
 
     if (biasShape.size() != 4) {
-        return matchFailed(rewriter, biasOp, "Failed to fuse ScaleShift, unsupported bias shape");
+        return matchFailed(rewriter, biasOp, "ScaleShift 'shift' operand shape doesn't match bias restrictions");
     }
     if (biasShape[IE::Dims4D::Act::N] != 1) {
-        return matchFailed(rewriter, biasOp, "Failed to fuse ScaleShift, unsupported bias shape");
+        return matchFailed(rewriter, biasOp, "ScaleShift 'shift' operand shape doesn't match bias restrictions");
     }
     if (biasShape[IE::Dims4D::Act::C] != convOutShape[IE::Dims4D::Act::C]) {
-        return matchFailed(rewriter, biasOp, "Failed to fuse ScaleShift, unsupported bias shape");
+        return matchFailed(rewriter, biasOp, "ScaleShift 'shift' operand shape doesn't match bias restrictions");
     }
     if (biasShape[IE::Dims4D::Act::H] != 1) {
-        return matchFailed(rewriter, biasOp, "Failed to fuse ScaleShift, unsupported bias shape");
+        return matchFailed(rewriter, biasOp, "ScaleShift 'shift' operand shape doesn't match bias restrictions");
     }
     if (biasShape[IE::Dims4D::Act::W] != 1) {
-        return matchFailed(rewriter, biasOp, "Failed to fuse ScaleShift, unsupported bias shape");
+        return matchFailed(rewriter, biasOp, "ScaleShift 'shift' operand shape doesn't match bias restrictions");
     }
 
-    auto* dialect = biasOp->getDialect();
-    VPUX_THROW_UNLESS(dialect != nullptr, "IE Dialect was not loaded");
-
-    const auto layerInfo = dialect->getRegisteredInterface<IE::LayerInfoDialectInterface>();
-    VPUX_THROW_UNLESS(layerInfo != nullptr, "LayerInfoDialect is not registered");
-
-    if (!layerInfo->isSupportedPostProcessing(convOp, biasOp)) {
-        return matchFailed(rewriter, biasOp, "Failed to fuse Bias into Convolution, it's not supported");
+    auto mainOp = mlir::dyn_cast<IE::LayerWithPostOpInterface>(convOp);
+    if (mainOp == nullptr) {
+        return matchFailed(rewriter, biasOp, "Convolution implementation doesn't support PostOp fusing");
+    }
+    if (!mainOp.isSupportedPostOp(biasOp)) {
+        return matchFailed(rewriter, biasOp, "Convolution implementation doesn't support Bias fusing");
     }
 
     auto* newConv = rewriter.clone(*convOp);

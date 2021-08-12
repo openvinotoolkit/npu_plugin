@@ -38,8 +38,6 @@ ptrdiff_t getLastMemRefPosition(mlir::ValueRange vals) {
 }  // namespace
 
 mlir::LogicalResult vpux::IERT::verifyLayer(mlir::Operation* op) {
-    VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in verifyLayer");
-
     if (op->getOperands().empty()) {
         return errorAt(op, "RunTime Layer Operation has no operands");
     }
@@ -76,8 +74,6 @@ mlir::LogicalResult vpux::IERT::verifyLayer(mlir::Operation* op) {
 }
 
 mlir::OperandRange vpux::IERT::getLayerInputs(mlir::Operation* op) {
-    VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in getLayerInputs");
-
     const auto inNum = getLastMemRefPosition(op->getOperands());
     const auto outNum = getLastMemRefPosition(op->getResults());
 
@@ -85,8 +81,6 @@ mlir::OperandRange vpux::IERT::getLayerInputs(mlir::Operation* op) {
 }
 
 mlir::OperandRange vpux::IERT::getLayerOutputs(mlir::Operation* op) {
-    VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in getLayerOutputs");
-
     const auto inNum = getLastMemRefPosition(op->getOperands());
     const auto outNum = getLastMemRefPosition(op->getResults());
 
@@ -94,8 +88,6 @@ mlir::OperandRange vpux::IERT::getLayerOutputs(mlir::Operation* op) {
 }
 
 MutableArrayRef<mlir::OpOperand> vpux::IERT::getLayerInOpOperands(mlir::Operation* op) {
-    VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in getLayerInOpOperands");
-
     const auto inNum = getLastMemRefPosition(op->getOperands());
     const auto outNum = getLastMemRefPosition(op->getResults());
 
@@ -103,8 +95,6 @@ MutableArrayRef<mlir::OpOperand> vpux::IERT::getLayerInOpOperands(mlir::Operatio
 }
 
 MutableArrayRef<mlir::OpOperand> vpux::IERT::getLayerOutOpOperands(mlir::Operation* op) {
-    VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in getLayerOutOpOperands");
-
     const auto inNum = getLastMemRefPosition(op->getOperands());
     const auto outNum = getLastMemRefPosition(op->getResults());
 
@@ -112,8 +102,6 @@ MutableArrayRef<mlir::OpOperand> vpux::IERT::getLayerOutOpOperands(mlir::Operati
 }
 
 IE::DataOrderInfo vpux::IERT::getLayerDataOrderInfo(mlir::Operation* op) {
-    VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in getLayerDataOrderInfo");
-
     const auto inputs = getLayerInputs(op);
     const auto outputs = getLayerOutputs(op);
 
@@ -131,8 +119,6 @@ IE::DataOrderInfo vpux::IERT::getLayerDataOrderInfo(mlir::Operation* op) {
 }
 
 mlir::Value vpux::IERT::getLayerViewSource(mlir::Operation* op, ptrdiff_t resultInd) {
-    VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in getLayerViewSource");
-
     const auto inNum = getLastMemRefPosition(op->getOperands());
     const auto outNum = getLastMemRefPosition(op->getResults());
 
@@ -160,8 +146,6 @@ mlir::LogicalResult vpux::IERT::inferLayerReturnTypes(mlir::ValueRange operands,
 //
 
 mlir::LogicalResult vpux::IERT::verifySameShape(mlir::Operation* op) {
-    VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in verifySameShape");
-
     auto layer = mlir::dyn_cast<IERT::LayerOpInterface>(op);
     if (layer == nullptr) {
         return errorAt(op, "Operation '{0}' doesn't implement Layer interface", op->getName());
@@ -188,8 +172,6 @@ mlir::LogicalResult vpux::IERT::verifySameShape(mlir::Operation* op) {
 //
 
 mlir::LogicalResult vpux::IERT::verifySameElementType(mlir::Operation* op) {
-    VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in verifySameElementType");
-
     auto layer = mlir::dyn_cast<IERT::LayerOpInterface>(op);
     if (layer == nullptr) {
         return errorAt(op, "Operation '{0}' doesn't implement Layer interface", op->getName());
@@ -222,8 +204,6 @@ mlir::LogicalResult vpux::IERT::verifySameElementType(mlir::Operation* op) {
 //
 
 mlir::LogicalResult vpux::IERT::verifySameDimsOrder(mlir::Operation* op) {
-    VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in verifySameDimsOrder");
-
     auto layer = mlir::dyn_cast<IERT::LayerOpInterface>(op);
     if (layer == nullptr) {
         return errorAt(op, "Operation '{0}' doesn't implement Layer interface", op->getName());
@@ -246,8 +226,6 @@ mlir::LogicalResult vpux::IERT::verifySameDimsOrder(mlir::Operation* op) {
 }
 
 bool vpux::IERT::isSupportedLayoutSameDimsOrder(mlir::Operation* op, IE::DataOrderInfo& info) {
-    VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in isSupportedLayoutSameDimsOrder");
-
     auto layer = mlir::dyn_cast<IE::LayerOpInterface>(op);
     VPUX_THROW_UNLESS(layer != nullptr, "Operation '{0}' doesn't implement Layer interface", op->getName());
 

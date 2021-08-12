@@ -23,7 +23,6 @@
 #include "vpux/utils/core/small_vector.hpp"
 
 #include <mlir/Dialect/Quant/QuantTypes.h>
-#include <mlir/IR/DialectInterface.h>
 #include <mlir/IR/OpDefinition.h>
 #include <mlir/IR/Operation.h>
 #include <mlir/Interfaces/InferTypeOpInterface.h>
@@ -128,8 +127,6 @@ void fillDataInfo(DataOrderInfo& info, size_t inNum, size_t outNum, DimsOrder ma
 
 mlir::LogicalResult verifyLayer(mlir::Operation* op);
 
-DataOrderInfo getLayerDataOrderInfo(mlir::Operation* op);
-
 using InferTypeComponentsCb = FuncRef<mlir::LogicalResult(mlir::MLIRContext*, Optional<mlir::Location>,
                                                           mlir::ValueRange, mlir::DictionaryAttr, mlir::RegionRange,
                                                           SmallVectorImpl<mlir::ShapedTypeComponents>&)>;
@@ -142,24 +139,56 @@ mlir::LogicalResult inferTensorTypes(InferTypeComponentsCb componentsCb, mlir::M
 bool isCompatibleShapeAndElemType(mlir::TypeRange lhs, mlir::TypeRange rhs);
 
 //
-// EltwiseOp
+// LayerWithPostOpInterface
 //
 
 template <typename ConcreteOp>
-class EltwiseOp : public mlir::OpTrait::TraitBase<ConcreteOp, EltwiseOp> {};
-
-//
-// LayerInfoDialectInterface
-//
-
-class LayerInfoDialectInterface : public mlir::DialectInterface::Base<LayerInfoDialectInterface> {
-public:
-    explicit LayerInfoDialectInterface(mlir::Dialect* dialect): Base(dialect) {
+Optional<mlir::OperationName> getLayerPostOp(ConcreteOp mainOp) {
+    if (auto postOpInfo = mainOp.post_opAttr()) {
+        return mlir::OperationName(postOpInfo.name().getValue(), mainOp->getContext());
     }
 
-    virtual bool isSupportedPostProcessing(mlir::Operation* origOp, mlir::Operation* postOp) const = 0;
-    virtual bool needToExpandChannels(mlir::Operation* origOp) const = 0;
-    virtual bool isSupportedLayout(mlir::Operation* origOp, IE::DataOrderInfo& info) const = 0;
+    return None;
+}
+
+template <typename ConcreteOp>
+mlir::DictionaryAttr getLayerPostOpAttrs(ConcreteOp mainOp) {
+    if (auto postOpInfo = mainOp.post_opAttr()) {
+        return postOpInfo.attrs();
+    }
+
+    return nullptr;
+}
+
+template <typename ConcreteOp>
+void setLayerPostOp(ConcreteOp mainOp, mlir::Operation* postOp) {
+    VPUX_THROW_UNLESS(mainOp.post_opAttr() == nullptr, "Operation '{0}' at '{1}' already has a PostOp '{2}'",
+                      mainOp->getName(), mainOp->getLoc(), mainOp.post_opAttr());
+    VPUX_THROW_UNLESS(postOp->getNumOperands() == 1,
+                      "Only single input operation can be attached as PostOp via attributes");
+
+    const auto postOpName = mlir::StringAttr::get(mainOp->getContext(), postOp->getName().getStringRef());
+    const auto postOpInfo = IE::PostOp::get(postOpName, postOp->getAttrDictionary(), mainOp->getContext());
+    mainOp.post_opAttr(postOpInfo);
+}
+
+//
+// LayoutInfoOpInterface
+//
+
+DataOrderInfo getDataOrderInfo(mlir::Operation* op);
+
+//
+// EltwiseOp
+//
+
+mlir::LogicalResult verifyEltwiseOp(mlir::Operation* op);
+
+template <typename ConcreteOp>
+class EltwiseOp : public mlir::OpTrait::TraitBase<ConcreteOp, EltwiseOp> {
+    static mlir::LogicalResult verifyTrait(mlir::Operation* op) {
+        return verifyEltwiseOp(op);
+    }
 };
 
 }  // namespace IE

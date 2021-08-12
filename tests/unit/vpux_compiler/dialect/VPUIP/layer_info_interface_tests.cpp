@@ -23,7 +23,7 @@
 
 #include <gtest/gtest.h>
 
-TEST(MLIR_VPUIP_LayerInfoInterface, GetExecutor) {
+TEST(MLIR_VPUIP_LayerInfo, AsyncLayerOpInterface) {
     mlir::DialectRegistry registry;
     vpux::registerDialects(registry);
 
@@ -41,12 +41,6 @@ TEST(MLIR_VPUIP_LayerInfoInterface, GetExecutor) {
         }
     )";
 
-    auto* iert = ctx.getOrLoadDialect<vpux::IERT::IERTDialect>();
-    ASSERT_TRUE(iert != nullptr);
-
-    const auto* info = iert->getRegisteredInterface<vpux::IERT::LayerInfoDialectInterface>();
-    ASSERT_TRUE(info != nullptr);
-
     auto module = mlir::parseSourceString(inputIR, &ctx);
     ASSERT_TRUE(module.get() != nullptr);
 
@@ -61,16 +55,24 @@ TEST(MLIR_VPUIP_LayerInfoInterface, GetExecutor) {
 
     for (auto& op : func.getOps()) {
         if (mlir::isa<vpux::IERT::SoftMaxOp>(op)) {
+            auto iface = mlir::dyn_cast<vpux::IERT::AsyncLayerOpInterface>(op);
+            ASSERT_NE(iface, nullptr);
+
             uint32_t numUnits = 0;
-            auto kind = info->getExecutor(&op, numUnits);
+            auto kind = iface.getExecutor(numUnits);
+
             ASSERT_TRUE(kind != nullptr);
             ASSERT_TRUE(kind.isa<vpux::VPUIP::PhysicalProcessorAttr>());
             EXPECT_EQ(kind.cast<vpux::VPUIP::PhysicalProcessorAttr>().getValue(),
                       vpux::VPUIP::PhysicalProcessor::SHAVE_UPA);
             EXPECT_GE(numUnits, 1u);
         } else if (mlir::isa<vpux::IERT::CopyOp>(op)) {
+            auto iface = mlir::dyn_cast<vpux::IERT::AsyncLayerOpInterface>(op);
+            ASSERT_NE(iface, nullptr);
+
             uint32_t numUnits = 0;
-            auto kind = info->getExecutor(&op, numUnits);
+            auto kind = iface.getExecutor(numUnits);
+
             ASSERT_TRUE(kind != nullptr);
             ASSERT_TRUE(kind.isa<vpux::VPUIP::DMAEngineAttr>());
             EXPECT_EQ(kind.cast<vpux::VPUIP::DMAEngineAttr>().getValue(), vpux::VPUIP::DMAEngine::DMA_NN);

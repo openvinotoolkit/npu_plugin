@@ -45,18 +45,6 @@ mlir::LogicalResult inferLayerReturnTypes(mlir::ValueRange operands, size_t numR
                                           SmallVectorImpl<mlir::Type>& inferredReturnTypes);
 
 //
-// LayerInfoDialectInterface
-//
-
-class LayerInfoDialectInterface : public mlir::DialectInterface::Base<LayerInfoDialectInterface> {
-public:
-    explicit LayerInfoDialectInterface(mlir::Dialect* dialect): Base(dialect) {
-    }
-
-    virtual mlir::Attribute getExecutor(mlir::Operation* op, uint32_t& numUnits) const = 0;
-};
-
-//
 // SameShape
 //
 

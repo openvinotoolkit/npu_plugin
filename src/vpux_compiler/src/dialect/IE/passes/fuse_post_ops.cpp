@@ -28,68 +28,42 @@ namespace {
 // GenericConverter
 //
 
-IE::PostOp getPostOpAttr(IE::ReLUOp op) {
-    auto* ctx = op->getContext();
-
-    const auto kindAttr = IE::PostOpKindAttr::get(ctx, IE::PostOpKind::RELU);
-    return IE::getPostOpAttr(ctx, kindAttr);
-}
-
-IE::PostOp getPostOpAttr(IE::ClampOp op) {
-    auto* ctx = op->getContext();
-
-    const std::array<mlir::NamedAttribute, 2> params = {mlir::NamedAttribute(op.minAttrName(), op.minAttr()),
-                                                        mlir::NamedAttribute(op.maxAttrName(), op.maxAttr())};
-
-    const auto kindAttr = IE::PostOpKindAttr::get(ctx, IE::PostOpKind::CLAMP);
-    return IE::getPostOpAttr(ctx, kindAttr, params);
-}
-
-template <class ConcreteOp>
-class GenericConverter final : public mlir::OpRewritePattern<ConcreteOp> {
+class GenericConverter final : public mlir::OpTraitRewritePattern<IE::EltwiseOp> {
 public:
-    GenericConverter(mlir::MLIRContext* ctx, const IE::LayerInfoDialectInterface* layerInfo, Logger log)
-            : mlir::OpRewritePattern<ConcreteOp>(ctx), _layerInfo(layerInfo), _log(log) {
+    GenericConverter(mlir::MLIRContext* ctx, Logger log): mlir::OpTraitRewritePattern<IE::EltwiseOp>(ctx), _log(log) {
         this->setDebugName("FusePostOps::GenericConverter");
-
-        VPUX_THROW_UNLESS(_layerInfo != nullptr, "Got NULL pointer in {0}", this->getDebugName());
     }
 
 private:
-    mlir::LogicalResult matchAndRewrite(ConcreteOp activationOp, mlir::PatternRewriter& rewriter) const final;
+    mlir::LogicalResult matchAndRewrite(mlir::Operation* postOp, mlir::PatternRewriter& rewriter) const final;
 
 private:
-    const IE::LayerInfoDialectInterface* _layerInfo = nullptr;
     Logger _log;
 };
 
-template <class ConcreteOp>
-mlir::LogicalResult GenericConverter<ConcreteOp>::matchAndRewrite(ConcreteOp postOp,
-                                                                  mlir::PatternRewriter& rewriter) const {
-    _log.trace("[{0}] Got PostOp '{1}' at '{2}'", this->getDebugName(), postOp->getName(), postOp->getLoc());
+mlir::LogicalResult GenericConverter::matchAndRewrite(mlir::Operation* postOp, mlir::PatternRewriter& rewriter) const {
+    _log.trace("[{0}] Got Eltwise operation '{1}' at '{2}'", getDebugName(), postOp->getName(), postOp->getLoc());
 
-    if (!postOp.input().hasOneUse()) {
-        return matchFailed(_log, rewriter, postOp,
-                           "Failed to fuse PostOp, since it is not the only user of its input Value");
+    if (!postOp->getOperand(0).hasOneUse()) {
+        return matchFailed(_log, rewriter, postOp, "PostOp is not the only user of its input Value");
     }
 
-    auto* mainOp = postOp.input().getDefiningOp();
-    auto baseLayer = mlir::dyn_cast_or_null<IE::LayerWithPostOpInterface>(mainOp);
-
-    if (!baseLayer || !_layerInfo->isSupportedPostProcessing(mainOp, postOp)) {
-        return matchFailed(_log, rewriter, postOp,
-                           "Failed to fuse PostOp, since its producer does not support post-processing");
+    auto producerOp = postOp->getOperand(0).getDefiningOp<IE::LayerWithPostOpInterface>();
+    if (producerOp == nullptr) {
+        return matchFailed(
+                _log, rewriter, postOp,
+                "PostOp input was not produced by another Operation or the producer does not support post-processing");
+    }
+    if (!producerOp.isSupportedPostOp(postOp)) {
+        return matchFailed(_log, rewriter, postOp, "PostOp producer does not support post-processing for current case");
+    }
+    if (producerOp.getPostOp().hasValue()) {
+        return matchFailed(_log, rewriter, postOp, "PostOp producer already has post-processing '{0}'",
+                           producerOp.getPostOp());
     }
 
-    if (baseLayer.post_op().hasValue()) {
-        return matchFailed(_log, rewriter, postOp,
-                           "Failed to fuse PostOp, since its producer already have post-processing");
-    }
-
-    const auto postOpAttr = getPostOpAttr(postOp);
-
-    baseLayer.post_opAttr(postOpAttr);
-    rewriter.replaceOp(postOp, mainOp->getResult(0));
+    producerOp.setPostOp(postOp);
+    rewriter.replaceOp(postOp, producerOp->getResult(0));
 
     return mlir::success();
 }
@@ -114,15 +88,8 @@ private:
 void FusePostOpsPass::safeRunOnFunc() {
     auto& ctx = getContext();
 
-    auto* dialect = ctx.getOrLoadDialect<IE::IEDialect>();
-    VPUX_THROW_UNLESS(dialect != nullptr, "IE Dialect was not loaded");
-
-    const auto layerInfo = dialect->getRegisteredInterface<IE::LayerInfoDialectInterface>();
-    VPUX_THROW_UNLESS(layerInfo != nullptr, "LayerInfoDialect is not registered");
-
     mlir::OwningRewritePatternList patterns(&ctx);
-    patterns.add<GenericConverter<IE::ReLUOp>>(&ctx, layerInfo, _log);
-    patterns.add<GenericConverter<IE::ClampOp>>(&ctx, layerInfo, _log);
+    patterns.add<GenericConverter>(&ctx, _log);
 
     auto func = getFunction();
     if (mlir::failed(applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig()))) {

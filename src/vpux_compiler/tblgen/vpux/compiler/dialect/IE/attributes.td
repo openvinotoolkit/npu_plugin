@@ -290,24 +290,6 @@ def IE_PadMode :
 }
 
 //
-// PostOpKind
-//
-
-def IE_PostOpKind :
-        StrEnumAttr<
-            "PostOpKind",
-            "Operations that can be performed during post-processing",
-            [
-                // Activations
-                StrEnumAttrCase<"RELU">,
-                StrEnumAttrCase<"CLAMP">,
-            ]
-        > {
-    let cppNamespace = "vpux::IE";
-    let genSpecializedAttr = 1;
-}
-
-//
 // PostOp
 //
 
@@ -316,8 +298,8 @@ def IE_PostOp :
             "PostOp",
             IE_Dialect,
             [
-                StructFieldAttr<"kind",   IE_PostOpKind>,
-                StructFieldAttr<"params", DictionaryAttr>,
+                StructFieldAttr<"name",     StrAttr>,
+                StructFieldAttr<"attrs",    DictionaryAttr>,
             ]
         > {
     let cppNamespace = "vpux::IE";

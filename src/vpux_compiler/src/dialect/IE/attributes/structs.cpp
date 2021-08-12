@@ -23,23 +23,6 @@
 using namespace vpux;
 
 //
-// PostOp
-//
-
-IE::PostOp vpux::IE::getPostOpAttr(mlir::MLIRContext* ctx, IE::PostOpKindAttr kindAttr,
-                                   mlir::ArrayRef<mlir::NamedAttribute> attrs) {
-    return IE::PostOp::get(kindAttr, mlir::DictionaryAttr::get(ctx, attrs), ctx);
-}
-
-IE::PostOpKind vpux::IE::getPostOpKind(IE::PostOp postOp) {
-    return postOp.kind().getValue();
-}
-
-mlir::Attribute vpux::IE::getPostOpParam(IE::PostOp postOp, mlir::Identifier name) {
-    return postOp.params().get(name);
-}
-
-//
 // TensorAttr
 //
 

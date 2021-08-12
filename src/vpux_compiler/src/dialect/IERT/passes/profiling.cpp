@@ -63,33 +63,22 @@ void TimestampProfilingPass::safeRunOnModule() {
     OpBuilderLogger builderLog(_log.nest());
     mlir::OpBuilder builder(&netFunc.getBody().front().front(), &builderLog);
 
-    auto* iert = getContext().getLoadedDialect<IERT::IERTDialect>();
-    VPUX_THROW_UNLESS(iert != nullptr, "IERT Dialect was not loaded");
-    const auto* layerInfo = iert->getRegisteredInterface<IERT::LayerInfoDialectInterface>();
-    VPUX_THROW_UNLESS(layerInfo != nullptr, "IERT Dialect was not initialized with LayerInfo interface");
-
     int dmaId = 0;
     SmallVector<IERT::TimestampOp> results;
     auto timestampType = mlir::MemRefType::get({1, 1, 1, 1}, getUInt32Type(ctx));
 
-    const auto callback = [&](mlir::Operation* op) {
-        _log.trace("Process Operation '{0}'", op->getLoc());
-
-        auto curTask = mlir::dyn_cast<IERT::LayerOpInterface>(op);
-        if (curTask == nullptr) {
-            _log.trace("It is not a VPUIP Task");
-            return;
-        }
+    const auto callback = [&](IERT::AsyncLayerOpInterface curTask) {
+        _log.trace("Process Operation '{0}'", curTask->getLoc());
 
         uint32_t curNumUnits = 0;
-        const auto curExecutor = layerInfo->getExecutor(op, curNumUnits);
+        const auto curExecutor = curTask.getExecutor(curNumUnits);
         auto physType = curExecutor.dyn_cast<VPUIP::PhysicalProcessorAttr>();
         if (physType == nullptr) {
             _log.trace("It is not a PhysicalProcessor Task");
             return;
         }
 
-        builder.setInsertionPointAfter(op);
+        builder.setInsertionPointAfter(curTask);
         int layerNumber = 0;
         std::string curTaskName = "[";
         curTaskName += curTask->getName().getStringRef().data();

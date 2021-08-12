@@ -93,6 +93,10 @@ def IERT_LayerOpInterface : OpInterface<"LayerOpInterface"> {
     }];
 }
 
+//
+// InferLayerReturnTypes
+//
+
 class IERT_InferLayerReturnTypes<int numResult> {
     code impl = [{
         static mlir::LogicalResult inferReturnTypes(
@@ -105,6 +109,23 @@ class IERT_InferLayerReturnTypes<int numResult> {
             return vpux::IERT::inferLayerReturnTypes(operands, }] #numResult# [{, inferredReturnTypes);
         }
     }];
+}
+
+//
+// AsyncLayerOpInterface
+//
+
+def IERT_AsyncLayerOpInterface : OpInterface<"AsyncLayerOpInterface"> {
+    let description = "Interface for layers that will be executed asynchronously in separate Executor";
+
+    let cppNamespace = "vpux::IERT";
+
+    let methods = [
+        InterfaceMethod<
+            "Get Executor for the asynchronous launch",
+            "mlir::Attribute", "getExecutor", (ins "uint32_t&":$numUnits)
+        >
+    ];
 }
 
 //
