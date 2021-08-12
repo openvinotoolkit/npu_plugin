@@ -477,7 +477,7 @@ def IERT_ConvolutionOp :
     );
 
     let results = (outs
-        MemRefOf<[F16, F32]>:$output
+        MemRefOf<[F16, F32, quant_QuantizedType]>:$output
     );
 
     let assemblyFormat = [{

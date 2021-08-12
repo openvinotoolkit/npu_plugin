@@ -13,6 +13,7 @@
 
 #include "vpux/compiler/utils/quantization.hpp"
 
+#include "vpux/compiler/conversion.hpp"
 #include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/subspaces.hpp"
 #include "vpux/compiler/utils/types.hpp"
@@ -52,7 +53,7 @@ std::tuple<int64_t, int64_t, mlir::Type> getStorageParams(mlir::MLIRContext* ctx
             return {-7, 7, getSInt4Type(ctx)};
         }
 
-        return {1, levels - 1, getUInt4Type(ctx)};
+        return {0, levels - 1, getUInt4Type(ctx)};
 
     default:
         VPUX_THROW("Got unsupported levels '{0}'", levels);
@@ -64,6 +65,41 @@ std::tuple<int64_t, int64_t, mlir::Type> getStorageParams(mlir::MLIRContext* ctx
 //
 // FakeQuantize support
 //
+
+mlir::quant::QuantizedType vpux::expandScalesAndZP(mlir::quant::UniformQuantizedPerAxisType perAxisQType,
+                                                   ShapeRef padBefore, ShapeRef padAfter) {
+    VPUX_THROW_UNLESS(padBefore.size() >= static_cast<size_t>(perAxisQType.getQuantizedDimension()),
+                      "Unsupported shape size {0}. Quantized dimension index {1}", padBefore.size(),
+                      perAxisQType.getQuantizedDimension());
+    VPUX_THROW_UNLESS(padAfter.size() >= static_cast<size_t>(perAxisQType.getQuantizedDimension()),
+                      "Unsupported shape size {0}. Quantized dimension index {1}", padAfter.size(),
+                      perAxisQType.getQuantizedDimension());
+
+    const auto quantizedDim = Dim(perAxisQType.getQuantizedDimension());
+
+    const auto padBeforeOC = padBefore[quantizedDim];
+    const auto padAfterOC = padAfter[quantizedDim];
+
+    if (padBeforeOC == 0 && padAfterOC == 0) {
+        return perAxisQType;
+    }
+
+    const auto scales = perAxisQType.getScales();
+    const auto zeroPoints = perAxisQType.getZeroPoints();
+
+    std::vector<double> newScales(padBeforeOC, 1);
+    newScales.insert(newScales.end(), scales.begin(), scales.end());
+    newScales.insert(newScales.end(), padAfterOC, 1);
+
+    std::vector<int64_t> newZeroPoints(padBeforeOC, 0);
+    newZeroPoints.insert(newZeroPoints.end(), zeroPoints.begin(), zeroPoints.end());
+    newZeroPoints.insert(newZeroPoints.end(), padAfterOC, 0);
+
+    return mlir::quant::UniformQuantizedPerAxisType::get(
+            perAxisQType.getFlags(), perAxisQType.getStorageType(), perAxisQType.getExpressedType(), newScales,
+            newZeroPoints, perAxisQType.getQuantizedDimension(), perAxisQType.getStorageTypeMin(),
+            perAxisQType.getStorageTypeMax());
+}
 
 std::tuple<double, int64_t> vpux::calcScaleAndZeroPoint(int64_t qMin, int64_t qMax, double rMin, double rMax,
                                                         bool isSigned) {
