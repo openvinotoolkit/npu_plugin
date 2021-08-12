@@ -1,2 +1,2 @@
-tag:ci_tag_vpu_release_21ww32.4.1
-commit:fe3ebe5803b4b969ee269936ebbb731d0f507755
+tag:ci_tag_vpu_release_21ww33.2.1
+commit:2571151c004afcf05e179b81eaa8ebab305d5cf4

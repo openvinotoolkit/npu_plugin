@@ -21,7 +21,7 @@
 // Macros for the default configs of the stereo component
 #define RATIO_THR (200)
 #define DIV_FACTOR (1)
-#define INVALID_THR (4)
+#define INVALID_THR (1)
 #define INVALID_DSP (0)
 #define OUT_REMOVE_THR (15)
 #define OUT_CENSUS_THR (32)
