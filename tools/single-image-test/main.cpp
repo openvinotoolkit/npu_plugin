@@ -439,7 +439,8 @@ ie::BlobMap runInfer(ie::ExecutableNetwork& exeNet, const ie::BlobMap& inputs, c
 #ifdef ENABLE_MOVISIM
         out = ms::runMoviSimEmulator(exeNet, FLAGS_network, dumpedInputsPaths);
 #else
-        std::cout<< "Can't run MoviSim emulator because python hasn't been found"<< std::endl;
+        std::cout<< "Can't run MoviSim emulator. Please check your python installation. "
+                    "Inference on MoviSim emulator is aviable for Lunix platforms only"<< std::endl;
 #endif
     } else {
         auto inferRequest = exeNet.CreateInferRequest();
