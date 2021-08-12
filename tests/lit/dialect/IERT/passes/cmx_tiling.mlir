@@ -327,7 +327,7 @@ func @SplitQuantOverOC(
 // Tile 0
 
 // CHECK:       [[FILTER_TILE0_VIEW:%.+]] = IERT.SubView [[FILTER]] [0, 0, 0, 0] [32, 32, 3, 3] : memref<64x32x3x3x!qElemType1>
-// CHECK-SAME:      -> memref<32x32x3x3x!qElemType1, {{#map[0-9]}}>
+// CHECK-SAME:      to memref<32x32x3x3x!qElemType1, {{#map[0-9]}}>
 // CHECK:       [[FILTER_TILE0_BUFF:%.+]] = memref.alloc() : memref<32x32x3x3x!qElemType3>
 // CHECK:       [[FILTER_TILE0:%.+]] = IERT.Copy
 // CHECK-SAME:      inputs([[FILTER_TILE0_VIEW]] : memref<32x32x3x3x!qElemType1, {{#map[0-9]}}>)
@@ -344,7 +344,7 @@ func @SplitQuantOverOC(
 // CHECK-SAME:      outputs([[OUTPUT_TILE0_BUFF]] : memref<1x32x100x100x!qElemType2>
 
 // CHECK:       [[OUTPUT_BUFF_TILE0_VIEW:%.+]] = IERT.SubView [[OUTPUT_BUFF]] [0, 0, 0, 0] [1, 32, 100, 100] : memref<1x64x100x100x!qElemType2>
-// CHECK-SAME:      -> memref<1x32x100x100x!qElemType2, {{#map[0-9]}}>
+// CHECK-SAME:      to memref<1x32x100x100x!qElemType2, {{#map[0-9]}}>
 // CHECK:       [[OUTPUT_BUFF_TILE0:%.+]] = IERT.Copy
 // CHECK-SAME:      inputs([[OUTPUT_TILE0]] : memref<1x32x100x100x!qElemType2>)
 // CHECK-SAME:      outputs([[OUTPUT_BUFF_TILE0_VIEW]] : memref<1x32x100x100x!qElemType2, {{#map[0-9]}}>)
@@ -352,7 +352,7 @@ func @SplitQuantOverOC(
 // Tile 1
 
 // CHECK:       [[FILTER_TILE1_VIEW:%.+]] = IERT.SubView [[FILTER]] [32, 0, 0, 0] [32, 32, 3, 3] : memref<64x32x3x3x!qElemType1>
-// CHECK-SAME:      -> memref<32x32x3x3x!qElemType1, {{#map[0-9]}}>
+// CHECK-SAME:      to memref<32x32x3x3x!qElemType1, {{#map[0-9]}}>
 // CHECK:       [[FILTER_TILE1_BUFF:%.+]] = memref.alloc() : memref<32x32x3x3x!qElemType4>
 // CHECK:       [[FILTER_TILE1:%.+]] = IERT.Copy
 // CHECK-SAME:      inputs([[FILTER_TILE1_VIEW]] : memref<32x32x3x3x!qElemType1, {{#map[0-9]}}>)
@@ -369,7 +369,7 @@ func @SplitQuantOverOC(
 // CHECK-SAME:      outputs([[OUTPUT_TILE1_BUFF]] : memref<1x32x100x100x!qElemType2>
 
 // CHECK:       [[OUTPUT_BUFF_TILE1_VIEW:%.+]] = IERT.SubView [[OUTPUT_BUFF]] [0, 32, 0, 0] [1, 32, 100, 100] : memref<1x64x100x100x!qElemType2>
-// CHECK-SAME:      -> memref<1x32x100x100x!qElemType2, {{#map[0-9]}}>
+// CHECK-SAME:      to memref<1x32x100x100x!qElemType2, {{#map[0-9]}}>
 // CHECK:       [[OUTPUT_BUFF_TILE1:%.+]] = IERT.Copy
 // CHECK-SAME:      inputs([[OUTPUT_TILE1]] : memref<1x32x100x100x!qElemType2>)
 // CHECK-SAME:      outputs([[OUTPUT_BUFF_TILE1_VIEW]] : memref<1x32x100x100x!qElemType2, {{#map[0-9]}}>)
