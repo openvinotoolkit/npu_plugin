@@ -34,12 +34,12 @@ func @Reshape(%arg0: memref<1x512xf16>, %arg1: memref<1x512xf16>) -> memref<1x51
 
 // CHECK-LABEL: @SubView
 func @SubView(%arg0: memref<4x4xf16>, %arg1: memref<4x4xf16>) -> memref<4x4xf16> {
-    %0 = memref.subview %arg0[0, 0][2, 4][1, 1] : memref<4x4xf16> to memref<2x4xf16, #map0>
-    %1 = memref.subview %arg1[0, 0][2, 4][1, 1] : memref<4x4xf16> to memref<2x4xf16, #map0>
+    %0 = IERT.SubView %arg0[0, 0][2, 4] : memref<4x4xf16> to memref<2x4xf16, #map0>
+    %1 = IERT.SubView %arg1[0, 0][2, 4] : memref<4x4xf16> to memref<2x4xf16, #map0>
     %2 = VPUIP.NNDMA inputs(%0 : memref<2x4xf16, #map0>) outputs(%1 : memref<2x4xf16, #map0>) -> memref<2x4xf16, #map0>
 
-    %3 = memref.subview %arg0[2, 0][2, 4][1, 1] : memref<4x4xf16> to memref<2x4xf16, #map1>
-    %4 = memref.subview %arg1[2, 0][2, 4][1, 1] : memref<4x4xf16> to memref<2x4xf16, #map1>
+    %3 = IERT.SubView %arg0[2, 0][2, 4] : memref<4x4xf16> to memref<2x4xf16, #map1>
+    %4 = IERT.SubView %arg1[2, 0][2, 4] : memref<4x4xf16> to memref<2x4xf16, #map1>
     %5 = VPUIP.NNDMA inputs(%3 : memref<2x4xf16, #map1>) outputs(%4 : memref<2x4xf16, #map1>) -> memref<2x4xf16, #map1>
 
     return %arg1 : memref<4x4xf16>
@@ -67,10 +67,10 @@ func @SubView(%arg0: memref<4x4xf16>, %arg1: memref<4x4xf16>) -> memref<4x4xf16>
 func @Broadcasting(%arg0: memref<256xf16>) -> memref<256xf16> {
     %0 = VPUIP.DeclareTensor "VPU_CMX_NN" [0, 1, 2, 3] <0> -> memref<512xf16, "CMX_NN">
 
-    %1 = memref.subview %0[0][256][1] : memref<512xf16, "CMX_NN"> to memref<256xf16, "CMX_NN">
+    %1 = IERT.SubView %0[0][256] : memref<512xf16, "CMX_NN"> to memref<256xf16, "CMX_NN">
     %2 = VPUIP.NNDMA inputs(%arg0 : memref<256xf16>) outputs(%1 : memref<256xf16, "CMX_NN">) -> memref<256xf16, "CMX_NN">
 
-    %3 = memref.subview %0[256][256][1] : memref<512xf16, "CMX_NN"> to memref<256xf16, #map, "CMX_NN">
+    %3 = IERT.SubView %0[256][256] : memref<512xf16, "CMX_NN"> to memref<256xf16, #map, "CMX_NN">
     %4 = VPUIP.NNDMA inputs(%arg0 : memref<256xf16>) outputs(%3 : memref<256xf16, #map, "CMX_NN">) -> memref<256xf16, #map, "CMX_NN">
 
     return %arg0 : memref<256xf16>

@@ -9,11 +9,11 @@ module @ReorderWithSubView attributes {VPUIP.arch = "KMB", VPUIP.compilationMode
 // CHECK: func @main([[ARG0:%arg[0-9]+]]: tensor<1x8x4x2xf16>)
 func @main(%arg0: tensor<1x8x4x2xf16>) -> tensor<1x4x4x2xf16> {
     %0 = IE.Reorder(%arg0) {dstOrder = #NHWC} : tensor<1x8x4x2xf16> -> tensor<1x8x4x2xf16, {order = #NHWC}>
-    %1 = tensor.extract_slice %0[0, 2, 0, 0] [1, 4, 4, 2] [1, 1, 1, 1] : tensor<1x8x4x2xf16, {order = #NHWC}> to tensor<1x4x4x2xf16, {order = #NHWC}>
+    %1 = IE.Slice %0 [0, 2, 0, 0] [1, 4, 4, 2] : tensor<1x8x4x2xf16, {order = #NHWC}> to tensor<1x4x4x2xf16, {order = #NHWC}>
     %2 = IE.Reorder(%1) {dstOrder = #NCHW} : tensor<1x4x4x2xf16, {order = #NHWC}> -> tensor<1x4x4x2xf16>
     return %2 : tensor<1x4x4x2xf16>
 
-    // CHECK:       [[VAR0:%.+]] = tensor.extract_slice [[ARG0]]
+    // CHECK:       [[VAR0:%.+]] = IE.Slice [[ARG0]]
     // CHECK-SAME:      tensor<1x8x4x2xf16> to tensor<1x4x4x2xf16>
     // CHECK:       return [[VAR0]] : tensor<1x4x4x2xf16>
 }
@@ -45,7 +45,7 @@ func @main(%arg0: tensor<1x3x30x30xf16, {order = #NHWC}>) -> tensor<1x3x15x13xf1
         strides = [2, 2]
     } : tensor<1x16x30x30xf16> -> tensor<1x16x15x13xf16>
 
-    %3 = tensor.extract_slice %2[0, 0, 0, 0] [1, 3, 15, 13] [1, 1, 1, 1] : tensor<1x16x15x13xf16> to tensor<1x3x15x13xf16>
+    %3 = IE.Slice %2 [0, 0, 0, 0] [1, 3, 15, 13] : tensor<1x16x15x13xf16> to tensor<1x3x15x13xf16>
 
     %4 = IE.Reorder(%3) {dstOrder = #NHWC} : tensor<1x3x15x13xf16> -> tensor<1x3x15x13xf16, {order = #NHWC}>
 
@@ -60,7 +60,7 @@ func @main(%arg0: tensor<1x3x30x30xf16, {order = #NHWC}>) -> tensor<1x3x15x13xf1
     // CHECK:       [[VAR2:%.+]] = IE.MaxPool([[VAR1]])
     // CHECK-SAME:      tensor<1x16x30x30xf16> -> tensor<1x16x15x13xf16>
 
-    // CHECK:       [[VAR3:%.+]] = tensor.extract_slice [[VAR2]]
+    // CHECK:       [[VAR3:%.+]] = IE.Slice [[VAR2]]
     // CHECK-SAME:      tensor<1x16x15x13xf16> to tensor<1x3x15x13xf16>
 
     // CHECK:       [[VAR4:%.+]] = IE.Reorder([[VAR3]]) {dstOrder = #NHWC}

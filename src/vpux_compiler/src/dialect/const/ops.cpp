@@ -12,6 +12,7 @@
 //
 
 #include "vpux/compiler/dialect/const/ops.hpp"
+#include "vpux/compiler/dialect/IERT/ops.hpp"
 
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
@@ -99,35 +100,22 @@ mlir::OpFoldResult vpux::Const::DeclareOp::fold(ArrayRef<mlir::Attribute> operan
 
 namespace {
 
-class FoldSubTensor final : public mlir::OpRewritePattern<mlir::tensor::ExtractSliceOp> {
+class FoldSubTensor final : public mlir::OpRewritePattern<IE::SliceOp> {
 public:
-    using mlir::OpRewritePattern<mlir::tensor::ExtractSliceOp>::OpRewritePattern;
+    using mlir::OpRewritePattern<IE::SliceOp>::OpRewritePattern;
 
 public:
-    mlir::LogicalResult matchAndRewrite(mlir::tensor::ExtractSliceOp origOp,
-                                        mlir::PatternRewriter& rewriter) const final;
+    mlir::LogicalResult matchAndRewrite(IE::SliceOp origOp, mlir::PatternRewriter& rewriter) const final;
 };
 
-mlir::LogicalResult FoldSubTensor::matchAndRewrite(mlir::tensor::ExtractSliceOp origOp,
-                                                   mlir::PatternRewriter& rewriter) const {
+mlir::LogicalResult FoldSubTensor::matchAndRewrite(IE::SliceOp origOp, mlir::PatternRewriter& rewriter) const {
     auto constOp = origOp.source().getDefiningOp<Const::DeclareOp>();
     if (constOp == nullptr) {
         return matchFailed(rewriter, origOp, "SubTensor source is not a constant");
     }
 
-    if (origOp.static_offsets() == nullptr || origOp.static_sizes() == nullptr || origOp.static_strides() == nullptr) {
-        return matchFailed(rewriter, origOp, "SubTensor has dynamic parameters");
-    }
-
     const auto offset = Shape(parseIntArrayAttr<int64_t>(origOp.static_offsets()));
     const auto shape = Shape(parseIntArrayAttr<int64_t>(origOp.static_sizes()));
-    const auto strides = Shape(parseIntArrayAttr<int64_t>(origOp.static_strides()));
-
-    for (auto s : strides) {
-        if (s != 1) {
-            return matchFailed(rewriter, origOp, "SubTensor has unsupported strides");
-        }
-    }
 
     const auto origContent = constOp.contentAttr();
     const auto newContent = origContent.subview(offset, shape);
@@ -139,58 +127,11 @@ mlir::LogicalResult FoldSubTensor::matchAndRewrite(mlir::tensor::ExtractSliceOp 
 }  // namespace
 
 //
-// FoldSubView
-//
-
-namespace {
-
-class FoldSubView final : public mlir::OpRewritePattern<mlir::memref::SubViewOp> {
-public:
-    using mlir::OpRewritePattern<mlir::memref::SubViewOp>::OpRewritePattern;
-
-public:
-    mlir::LogicalResult matchAndRewrite(mlir::memref::SubViewOp origOp, mlir::PatternRewriter& rewriter) const final;
-};
-
-mlir::LogicalResult FoldSubView::matchAndRewrite(mlir::memref::SubViewOp origOp,
-                                                 mlir::PatternRewriter& rewriter) const {
-    auto constOp = origOp.source().getDefiningOp<Const::DeclareOp>();
-    if (constOp == nullptr) {
-        return matchFailed(rewriter, origOp, "SubView source is not a constant");
-    }
-
-    if (origOp.static_offsets() == nullptr || origOp.static_sizes() == nullptr || origOp.static_strides() == nullptr) {
-        return matchFailed(rewriter, origOp, "SubView has dynamic parameters");
-    }
-
-    const auto offset = Shape(parseIntArrayAttr<int64_t>(origOp.static_offsets()));
-    const auto shape = Shape(parseIntArrayAttr<int64_t>(origOp.static_sizes()));
-    const auto strides = Shape(parseIntArrayAttr<int64_t>(origOp.static_strides()));
-
-    for (auto s : strides) {
-        if (s != 1) {
-            return matchFailed(rewriter, origOp, "SubView has unsupported strides");
-        }
-    }
-
-    const auto newType = changeShape(origOp.getType(), shape);
-
-    const auto origContent = constOp.contentAttr();
-    const auto newContent = origContent.subview(offset, shape);
-
-    rewriter.replaceOpWithNewOp<Const::DeclareOp>(origOp, newType, newContent);
-    return mlir::success();
-}
-
-}  // namespace
-
-//
 // DeclareOp::getCanonicalizationPatterns
 //
 
 void vpux::Const::DeclareOp::getCanonicalizationPatterns(mlir::RewritePatternSet& patterns, mlir::MLIRContext* ctx) {
     patterns.insert<FoldSubTensor>(ctx);
-    patterns.insert<FoldSubView>(ctx);
 }
 
 //
