@@ -198,10 +198,16 @@ mlir::LogicalResult vpux::IERT::verifySameElementType(mlir::Operation* op) {
     auto inputs = layer.getInputs();
 
     const auto firstInput = inputs.front();
-    const auto mainElemType = firstInput.getType().cast<mlir::ShapedType>().getElementType();
+    auto mainElemType = firstInput.getType().cast<mlir::ShapedType>().getElementType();
+    if (auto qType = mainElemType.dyn_cast<mlir::quant::QuantizedType>()) {
+        mainElemType = qType.getStorageType();
+    }
 
     for (const auto& val : layer.getOpOperands()) {
-        const auto elemType = val.get().getType().cast<mlir::ShapedType>().getElementType();
+        auto elemType = val.get().getType().cast<mlir::ShapedType>().getElementType();
+        if (auto qType = elemType.dyn_cast<mlir::quant::QuantizedType>()) {
+            elemType = qType.getStorageType();
+        }
 
         if (elemType != mainElemType) {
             return errorAt(op, "Operation's input/output element types mismatch");

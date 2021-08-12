@@ -363,7 +363,7 @@ operation ::= `IERT.Convolution` attr-dict
 
 | Result | Description |
 | :----: | ----------- |
-`output` | memref of 16-bit float or 32-bit float values
+`output` | memref of 16-bit float or 32-bit float or QuantizedType values
 
 ### `IERT.Copy` (vpux::IERT::CopyOp)
 

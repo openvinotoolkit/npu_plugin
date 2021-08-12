@@ -19,6 +19,7 @@
 #include "vpux/utils/core/checked_cast.hpp"
 
 #include "vpux/compiler/utils/attributes.hpp"
+#include "vpux/compiler/utils/quantization.hpp"
 
 using namespace vpux;
 
@@ -82,7 +83,15 @@ mlir::LogicalResult vpux::IE::PadOp::inferReturnTypeComponents(
         outShape[i] = (padBegin.getValue()[i] + inputShape[i] + padEnd.getValue()[i]);
     }
 
-    inferredReturnShapes.emplace_back(outShape, inType.getElementType());
+    auto elemType = inType.getElementType();
+    if (const auto perAxisQType = elemType.dyn_cast_or_null<mlir::quant::UniformQuantizedPerAxisType>()) {
+        const auto padBefore = Shape(padBegin.getValue());
+        const auto padAfter = Shape(padEnd.getValue());
+
+        elemType = expandScalesAndZP(perAxisQType, padBefore, padAfter);
+    }
+
+    inferredReturnShapes.emplace_back(outShape, elemType);
 
     return mlir::success();
 }

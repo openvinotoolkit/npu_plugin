@@ -28,6 +28,8 @@ namespace vpux {
 // FakeQuantize support
 //
 
+mlir::quant::QuantizedType expandScalesAndZP(mlir::quant::UniformQuantizedPerAxisType perAxisQType, ShapeRef padBefore,
+                                             ShapeRef padAfter);
 std::tuple<double, int64_t> calcScaleAndZeroPoint(int64_t qMin, int64_t qMax, double rMin, double rMax, bool isSigned);
 
 mlir::quant::QuantizedType getQuantizedType(Const::ContentAttr lowConst, Const::ContentAttr highConst, int64_t levels,

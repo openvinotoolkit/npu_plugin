@@ -14,6 +14,7 @@
 #include "vpux/compiler/conversion.hpp"
 #include "vpux/compiler/dialect/const/attributes/content.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
+#include "vpux/compiler/utils/quantization.hpp"
 #include "vpux/compiler/utils/subspaces.hpp"
 #include "vpux/compiler/utils/types.hpp"
 
@@ -76,25 +77,6 @@ void fillWithZero(Const::Content& output) {
         auto outBuf = output.getRawTempBuf();
         std::fill_n(outBuf.data(), outBuf.size(), char(0));
     }
-}
-
-mlir::quant::QuantizedType expandScalesAndZP(mlir::quant::UniformQuantizedPerAxisType perAxisQType, size_t padBeforeOC,
-                                             size_t padAfterOC) {
-    const auto scales = perAxisQType.getScales();
-    const auto zeroPoints = perAxisQType.getZeroPoints();
-
-    std::vector<double> newScales(padBeforeOC, 1);
-    newScales.insert(newScales.end(), scales.begin(), scales.end());
-    newScales.insert(newScales.end(), padAfterOC, 1);
-
-    std::vector<int64_t> newZeroPoints(padBeforeOC, 0);
-    newZeroPoints.insert(newZeroPoints.end(), zeroPoints.begin(), zeroPoints.end());
-    newZeroPoints.insert(newZeroPoints.end(), padAfterOC, 0);
-
-    return mlir::quant::UniformQuantizedPerAxisType::get(
-            perAxisQType.getFlags(), perAxisQType.getStorageType(), perAxisQType.getExpressedType(), newScales,
-            newZeroPoints, perAxisQType.getQuantizedDimension(), perAxisQType.getStorageTypeMin(),
-            perAxisQType.getStorageTypeMax());
 }
 
 }  // namespace
@@ -205,23 +187,7 @@ mlir::ShapedType vpux::Const::PadWithZeroAttr::inferOutputType(mlir::ShapedType 
     const auto newType = changeShape(input, outShape);
     if (const auto perAxisQType =
                 newType.getElementType().dyn_cast_or_null<mlir::quant::UniformQuantizedPerAxisType>()) {
-        VPUX_THROW_UNLESS(outShape.size() == 4, "Unsupported shape size {0}", outShape.size());
-        VPUX_THROW_UNLESS(perAxisQType.getQuantizedDimension() == 0, "Only per-channel quantization is supported");
-
-        const auto padBeforeOC = padBefore[IE::Dims4D::Filter::OC];
-        const auto padAfterOC = padAfter[IE::Dims4D::Filter::OC];
-
-        if (padBeforeOC == 0 && padAfterOC == 0) {
-            return newType;
-        }
-
-        const auto scales = perAxisQType.getScales();
-        VPUX_THROW_UNLESS(scales.size() <= static_cast<size_t>(outShape[IE::Dims4D::Filter::OC]),
-                          "Number of scales and zero points must be less than or equal to size of output channel. Got "
-                          "scale size {0}; OC {1}",
-                          scales.size(), outShape[IE::Dims4D::Filter::OC]);
-
-        const auto newQType = expandScalesAndZP(perAxisQType, padBeforeOC, padAfterOC);
+        const auto newQType = expandScalesAndZP(perAxisQType, padBefore, padAfter);
         return changeElemType(newType, newQType);
     }
 
