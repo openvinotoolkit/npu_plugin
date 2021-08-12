@@ -11,10 +11,14 @@
 // included with the Software Package for additional details.
 //
 
+#pragma once
+
 #include <array>
 #include <fstream>
 #include <set>
 #include <string>
+
+#include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
 #ifdef _MSC_VER
 #pragma warning(push)
@@ -31,85 +35,83 @@
 
 namespace nb {
 enum class CaseType {
-    conv2du8,
-    conv2du8tofp16,
-    conv2du8tobf8,
-    conv2dfp16,
-    conv2dfp16tobf16,
-    conv2dfp16tou8,
-    conv2dbf16,
-    conv2dbf16tofp16,
-    conv2dbf16tou8,
-    conv2dbf16tobf8,
-    conv2dbf8tobf8,
-    conv2dbf8tobf16,
-    conv2dbf8tofp16,
-    conv2dbf8tou8,
-    elementwiseU8toU8,
-    elementwiseI8toI8,
-    avpoolfp16tofp16,
-    avpoolI8toI8,
-    maxpoolfp16tofp16,
-    maxpoolI8toI8,
     Unknown
 };
 
 std::string to_string(CaseType case_);
 CaseType to_case(llvm::StringRef str);
 
-enum class DType { I4, U8, I8, FP8, FP16, FP32, BF16, UNK };
+enum class DType { U4, I4, U8, I8, FP8, FP16, FP32, BF16, UNK };
 
 DType to_dtype(llvm::StringRef str);
 std::string to_string(DType dtype);
 
 struct QuantParams {
+    bool present = false;
     double scale = 0.;
-    int64_t zeropoint = 0;
-};
-
-struct DataGenerator {
-    std::string name;
-    DType dtype = DType::UNK;
-    int64_t low_range = 0;
-    int64_t high_range = 0;
+    std::int64_t zeropoint = 0;
+    std::int64_t low_range = 0;
+    std::int64_t high_range = 0;
 };
 
 struct Shape {};
 
 // Input and weight layers have similar structure in rtl config descriptor
-struct IWLayer {
-    DataGenerator dg;
+struct InputLayer {
+    DType dtype = DType::UNK;
     QuantParams qp;
-    std::array<int64_t, 4> shape = {0};
+    std::array<std::int64_t, 4> shape = {0};
+};
+
+struct WeightLayer {
+    DType dtype = DType::UNK;
+    QuantParams qp;
+    std::array<std::int64_t, 4> shape = {0};
+    std::string filename;
 };
 
 struct ConvLayer {
-    std::array<int64_t, 2> stride = {0};
-    std::array<int64_t, 4> pad = {0};
-    int64_t group = 0;
-    int64_t dilation = 0;
+    std::array<std::int64_t, 2> stride = {0};
+    std::array<std::int64_t, 4> pad = {0};
+    std::int64_t group = 0;
+    std::int64_t dilation = 0;
+};
+
+struct PoolLayer {
+    std::string pool_type = "max";
+    std::array<std::int64_t, 2> kernel_shape = {0};
+    std::array<std::int64_t, 2> stride = {0};
+    std::array<std::int64_t, 4> pad = {0};
+    std::int64_t group = 0;
+    std::int64_t dilation = 0;
 };
 
 struct OutputLayer {
-    std::array<int64_t, 4> shape = {0};
+    std::array<std::int64_t, 4> shape = {0};
     DType dtype = DType::UNK;
     QuantParams qp;
 };
 
+enum class ActivationType { None, ReLU, ReLUX, LeakyReLU, Mish, Unknown };
+
+ActivationType to_activation_type(llvm::StringRef str);
+std::string to_string(ActivationType activationType);
+
 struct ActivationLayer {
-    std::string activationType;
+    ActivationType activationType = ActivationType::None;
     double alpha = 0.;
+    double maximum = 0;
     // TODO: add support for activation functions that take parameters
 };
 
 class TestCaseJsonDescriptor {
 public:
     TestCaseJsonDescriptor(llvm::StringRef jsonString = "");
-    bool parse(llvm::StringRef jsonString);
-    IWLayer getInputLayer() const {
+    void parse(llvm::StringRef jsonString);
+    InputLayer getInputLayer() const {
         return inLayer_;
     }
-    IWLayer getWeightLayer() const {
+    WeightLayer getWeightLayer() const {
         return wtLayer_;
     }
     OutputLayer getOutputLayer() const {
@@ -118,27 +120,46 @@ public:
     ConvLayer getConvLayer() const {
         return convLayer_;
     }
+    PoolLayer getPoolLayer() const {
+        return poolLayer_;
+    }
     ActivationLayer getActivationLayer() const {
         return activationLayer_;
     }
     CaseType getCaseType() const {
         return caseType_;
     }
+    llvm::StringRef getKernelFilename() const {
+        return kernelFilename_;
+    }
+    std::string getCaseStr() const {
+        return caseTypeStr_;
+    };
+    vpux::VPUIP::PPELayerType getPPELayerType() const {
+        return ppeLayerType_;
+    }
 
 private:
-    IWLayer loadIWLayer(llvm::json::Object* jsonObj, std::string layerType);
+    InputLayer loadInputLayer(llvm::json::Object* jsonObj);
+    WeightLayer loadWeightLayer(llvm::json::Object* jsonObj);
     OutputLayer loadOutputLayer(llvm::json::Object* jsonObj);
     ConvLayer loadConvLayer(llvm::json::Object* jsonObj);
+    PoolLayer loadPoolLayer(llvm::json::Object* jsonObj);
     ActivationLayer loadActivationLayer(llvm::json::Object* jsonObj);
     CaseType loadCaseType(llvm::json::Object* jsonObj);
+    QuantParams loadQuantizationParams(llvm::json::Object* obj);
 
     CaseType caseType_;
     ConvLayer convLayer_;
-    IWLayer inLayer_;
-    IWLayer wtLayer_;
+    PoolLayer poolLayer_;
+    InputLayer inLayer_;
+    WeightLayer wtLayer_;
     OutputLayer outLayer_;
     ActivationLayer activationLayer_;
     bool hasActivationLayer_;
+    std::string kernelFilename_;
+    std::string caseTypeStr_;
+    vpux::VPUIP::PPELayerType ppeLayerType_ = vpux::VPUIP::PPELayerType::ADD;
 };
 
 }  // namespace nb
