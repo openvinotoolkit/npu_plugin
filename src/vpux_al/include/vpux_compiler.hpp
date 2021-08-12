@@ -26,6 +26,9 @@
 
 namespace vpux {
 
+// Input name and surface FP quantization flag
+using QuantizationParamMap = std::unordered_map<std::string, bool>;
+
 ///////////////////////////////////// INetworkDescription /////////////////////////////////////////
 using DataMap = std::map<std::string, InferenceEngine::DataPtr>;
 class INetworkDescription : public std::enable_shared_from_this<INetworkDescription> {
@@ -38,6 +41,10 @@ public:
     virtual const DataMap& getOutputsInfo() const = 0;
     virtual const DataMap& getDeviceInputsInfo() const = 0;
     virtual const DataMap& getDeviceOutputsInfo() const = 0;
+    virtual const vpux::QuantizationParamMap getQuantParamsInfo() const {
+        return {};
+    }
+
     // TODO Remove interface returning std::vector<char>.
     /**
      * @deprecated Return type should follow the function below.
@@ -71,6 +78,9 @@ public:
     }
     const DataMap& getDeviceOutputsInfo() const {
         return _actual->getDeviceOutputsInfo();
+    }
+    const vpux::QuantizationParamMap getQuantParamsInfo() const {
+        return _actual->getQuantParamsInfo();
     }
     const std::vector<char>& getCompiledNetwork() const {
         return _actual->getCompiledNetwork();

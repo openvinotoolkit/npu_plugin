@@ -82,6 +82,8 @@ MCMNetworkDescription::MCMNetworkDescription(const std::vector<char>& compiledNe
     _networkInputs = inputsDataMapToDataMap(deserializedInputs);
     _networkOutputs = outputsDataMapToDataMap(deserializedOutputs);
 
+    _quantParams = metaInfo._quantParams;
+
     // network name is preferable
     // override default name 'net#' if flatbuffer contains the name
     if (!networkName.empty()) {
@@ -105,6 +107,10 @@ const vpux::DataMap& MCMNetworkDescription::getDeviceInputsInfo() const {
 
 const vpux::DataMap& MCMNetworkDescription::getDeviceOutputsInfo() const {
     return _deviceOutputs;
+}
+
+const vpux::QuantizationParamMap MCMNetworkDescription::getQuantParamsInfo() const {
+    return _quantParams;
 }
 
 const std::vector<char>& MCMNetworkDescription::getCompiledNetwork() const {
