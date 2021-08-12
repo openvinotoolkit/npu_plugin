@@ -52,9 +52,9 @@ const std::vector<char>& EmulatorNetworkDescription::getCompiledNetwork() const 
 }
 
 const void* EmulatorNetworkDescription::getNetworkModel() const {
-    if (_compiler.get() == nullptr)
-        _logger->error("EmulatorNetworkDescription::getNetworkModel() - _compiler is nullptr\n");
-    return &_compiler->model();
+    if (_compiledNetwork.empty())
+        _logger->warning("EmulatorNetworkDescription::getCompiledNetwork() - _compiledNetwork is empty\n");
+    return _compiledNetwork.data();
 }
 
 std::size_t EmulatorNetworkDescription::getNetworkModelSize() const {

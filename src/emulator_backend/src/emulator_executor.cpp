@@ -32,12 +32,11 @@ void EmulatorExecutor::push(const ie::BlobMap& inputs, const PreprocMap&) {
 
 void EmulatorExecutor::push(const ie::BlobMap& inputs) {
     _logger.debug("EmulatorExecutor::push() started");
-    _manager.reset(*reinterpret_cast<mv::OpModel*>(const_cast<void*>(_network->getNetworkModel())));
+    _manager.reset(*reinterpret_cast<const std::vector<char>*>(_network->getNetworkModel()));
     auto inputIt = inputs.cbegin();
-    for (const auto inputOp : _manager.opModel().getNetworkInputs()) {
+    for (const auto inputName : _manager.getNetworkInputs()) {
         const ie::Blob& blob = *inputIt->second;
-        const mv::Tensor& tensor = *inputOp->getOutputTensor(0);
-        _manager.populate(tensor, tensor.getOrder(), blob.cbuffer().as<const void*>());
+        _manager.populate(inputName, blob.cbuffer().as<const void*>());
         ++inputIt;
     }
     _manager.run();
@@ -47,9 +46,9 @@ void EmulatorExecutor::push(const ie::BlobMap& inputs) {
 void EmulatorExecutor::pull(ie::BlobMap& outputs) {
     _logger.debug("EmulatorExecutor::pull() started");
     auto outputIt = outputs.begin();
-    for (const auto outputOp : _manager.opModel().getNetworkOutputs()) {
+    for (const auto outputName : _manager.getNetworkOutputs()) {
         ie::Blob& blob = *outputIt->second;
-        std::copy_n(_manager.data(*outputOp->getInputTensor(0)).cbegin(), blob.byteSize(), blob.buffer().as<char*>());
+        std::copy_n(_manager.data(outputName).cbegin(), blob.byteSize(), blob.buffer().as<char*>());
         ++outputIt;
     }
     _logger.debug("EmulatorExecutor::pull() finished");
