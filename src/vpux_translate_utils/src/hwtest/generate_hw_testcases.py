@@ -57,6 +57,7 @@ from operators.platform.quantized_tensor import NBQuantized
 from operators.platform.vpu26 import PlatformVPU26
 
 import numpy as np
+from numpy.random import default_rng
 
 
 Orderer = Callable[[np.ndarray], np.ndarray]
@@ -126,7 +127,7 @@ class TType(ABC):
         self.signed = signed
 
     @abstractmethod
-    def generate(self, filename, shape) -> Value:
+    def generate(self, filename, shape, rng) -> Value:
         pass
 
     @abstractproperty
@@ -157,16 +158,17 @@ def pack_int4(data: np.ndarray) -> np.ndarray:
         result.append(datum)
     return np.array(result).astype(np.uint8)
 
+
 class UInt4(TType):
     def __init__(self, bitwidth=4):
         super().__init__(np.uint8, 'uint4', 'uint8', bitwidth, False)
         self.low = np.uint8(0)
         self.high = np.uint8((2 ** bitwidth) - 1)
 
-    def generate(self, filename: str, shape, orderer=None) -> Value:
+    def generate(self, filename: str, shape, rng, orderer=None) -> Value:
         return Value(self,
                       filename,
-                      np.random.random_integers(self.low, self.high, shape).astype(np.uint8),
+                      rng.integers(self.low, self.high, endpoint=True, size=shape, dtype=np.uint8),
                       self.bitwidth,
                       False,
                       orderer)
@@ -188,10 +190,10 @@ class Int4(TType):
         self.low = np.int8(-(2 ** bitwidth))
         self.high = np.int8((2 ** bitwidth) - 1)
 
-    def generate(self, filename: str, shape, orderer=None) -> Value:
+    def generate(self, filename: str, shape, rng, orderer=None) -> Value:
         return Value(self,
                       filename,
-                      np.random.random_integers(self.low, self.high, shape).astype(np.int8),
+                      rng.integers(self.low, self.high, endpoint=True, size=shape, dtype=np.int8),
                       self.bitwidth,
                       True,
                       orderer)
@@ -213,10 +215,10 @@ class UInt8(TType):
         self.low = np.uint8(0)
         self.high = np.uint8((2 ** bitwidth) - 1)
 
-    def generate(self, filename: str, shape, orderer=None) -> Value:
+    def generate(self, filename: str, shape, rng, orderer=None) -> Value:
         return Value(self,
                       filename,
-                      np.random.random_integers(self.low, self.high, shape).astype(np.uint8),
+                      rng.integers(self.low, self.high, endpoint=True, size=shape, dtype=np.uint8),
                       self.bitwidth,
                       False,
                       orderer)
@@ -234,10 +236,10 @@ class Int8(TType):
         self.low = np.int8(-(2 ** bitwidth))
         self.high = np.int8((2 ** bitwidth) - 1)
 
-    def generate(self, filename: str, shape, orderer=None) -> np.ndarray:
+    def generate(self, filename: str, shape, rng, orderer=None) -> np.ndarray:
         return Value(self,
                       filename,
-                      np.random.random_integers(self.low, self.high, shape).astype(np.int8),
+                      rng.integers(self.low, self.high, endpoint=True, size=shape, dtype=np.int8),
                       self.bitwidth,
                       True,
                       orderer)
@@ -253,10 +255,11 @@ class FP16(TType):
     def __init__(self, bitwidth=16):
         super().__init__(np.float16, 'fp16', None, bitwidth, True)
 
-    def generate(self, filename: str, shape, orderer=None) -> np.ndarray:
+    def generate(self, filename: str, shape, rng, orderer=None) -> np.ndarray:
         # NB For now, we restrict the number of bits in our floats in order
         #    to ensure we're not running into rounding issues.
-        data = np.around(np.random.random(shape) * 8.) / 8.
+        data = np.around(rng.random(size=shape, dtype=np.float32) * 8.) / 8.
+
         return Value(self,
                       filename,
                       (data * (2. ** self.bitwidth)).astype(np.float16),
@@ -288,10 +291,10 @@ class FP32(TType):
     def __init__(self, bitwidth=127):
         super().__init__(np.float32, 'fp32', None, bitwidth, True)
 
-    def generate(self, filename: str, shape, orderer=None) -> np.ndarray:
+    def generate(self, filename: str, shape, rng, orderer=None) -> np.ndarray:
         # NB For now, we restrict the number of bits in our floats in order
         #    to ensure we're not running into rounding issues.
-        data = np.around(np.random.random(shape) * 8.) / 8.
+        data = np.around(rng.random(size=shape, dtype=np.float32) * 8.) / 8.
         return Value(self,
                       filename,
                       (data * (2. ** self.bitwidth)).astype(np.float32),
@@ -308,10 +311,10 @@ class BF16(TType):
     def __init__(self, bitwidth=127):
         super().__init__(bfloat16, 'bfloat16', None, bitwidth, True)
 
-    def generate(self, filename: str, shape, orderer=None) -> np.ndarray:
+    def generate(self, filename: str, shape, rng, orderer=None) -> np.ndarray:
         # NB For now, we restrict the number of bits in our floats in order
         #    to ensure we're not running into rounding issues.
-        data = np.around(np.random.random(shape) * 8.) / 8.
+        data = np.around(rng.random(size=shape, dtype=np.float32) * 8.) / 8.
         return Value(self,
                       filename,
                       (data * (2. ** self.bitwidth)).astype(bfloat16),
@@ -353,7 +356,7 @@ class MPE(ABC):
         pass
 
     @abstractmethod
-    def generate_inputs(self, settings) -> List[Value]:
+    def generate_inputs(self, rng) -> List[Value]:
         pass
 
     @abstractmethod
@@ -412,10 +415,10 @@ class ZMajorConvolution(MPE):
             'Output Type': self.settings.output_ttype.stype
         }
 
-    def generate_inputs(self) -> List[Value]:
+    def generate_inputs(self, rng) -> List[Value]:
         return [
-            self.settings.input_ttype.generate('input-0.bin', self.settings.input_shape),
-            self.settings.weight_ttype.generate('weight.dat', self.settings.weight_shape, orderer=OrderNCHW)
+            self.settings.input_ttype.generate('input-0.bin', self.settings.input_shape, rng),
+            self.settings.weight_ttype.generate('weight.dat', self.settings.weight_shape, rng, orderer=OrderNCHW)
         ]
 
     def apply(self, values: List[Value]) -> np.ndarray:
@@ -474,10 +477,10 @@ class DepthWiseConv(MPE):
             'Output Type': self.settings.output_ttype.stype
         }
 
-    def generate_inputs(self) -> List[Value]:
+    def generate_inputs(self, rng) -> List[Value]:
         return [
-            self.settings.input_ttype.generate('input-0.bin', self.settings.input_shape),
-            self.settings.weight_ttype.generate('weight.dat', self.settings.weight_shape, orderer=OrderNCHW)
+            self.settings.input_ttype.generate('input-0.bin', self.settings.input_shape, rng),
+            self.settings.weight_ttype.generate('weight.dat', self.settings.weight_shape, rng, orderer=OrderNCHW)
         ]
 
     def apply(self, values: List[Value]) -> np.ndarray:
@@ -526,10 +529,10 @@ class EltwiseAdd(MPE):
             'Output Type': self.settings.output_ttype.stype
         }
 
-    def generate_inputs(self) -> List[Value]:
+    def generate_inputs(self, rng) -> List[Value]:
         return [
-            self.settings.input_ttype.generate('input-0.bin', self.settings.input_shape),
-            self.settings.input_ttype.generate('input-1.bin', self.settings.input_shape)
+            self.settings.input_ttype.generate('input-0.bin', self.settings.input_shape, rng),
+            self.settings.input_ttype.generate('input-1.bin', self.settings.input_shape, rng)
         ]
 
     def apply(self, values: List[Value]) -> np.ndarray:
@@ -579,10 +582,10 @@ class EltwiseMult(MPE):
             'Output Type': self.settings.output_ttype.stype
         }
 
-    def generate_inputs(self) -> List[Value]:
+    def generate_inputs(self, rng) -> List[Value]:
         return [
-            self.settings.input_ttype.generate('input-0.bin', self.settings.input_shape),
-            self.settings.input_ttype.generate('input-1.bin', self.settings.input_shape)
+            self.settings.input_ttype.generate('input-0.bin', self.settings.input_shape, rng),
+            self.settings.input_ttype.generate('input-1.bin', self.settings.input_shape, rng)
         ]
 
     def apply(self, values: List[Value]) -> np.ndarray:
@@ -634,9 +637,9 @@ class Maxpool(MPE):
             'Output Type': self.settings.output_ttype.stype
         }
 
-    def generate_inputs(self) -> List[Value]:
+    def generate_inputs(self, rng) -> List[Value]:
         return [
-            self.settings.input_ttype.generate('input-0.bin', self.settings.input_shape)
+            self.settings.input_ttype.generate('input-0.bin', self.settings.input_shape, rng)
         ]
 
     def apply(self, values: List[Value]) -> np.ndarray:
@@ -686,9 +689,9 @@ class AvgPool(MPE):
             'Output Type': self.settings.output_ttype.stype
         }
 
-    def generate_inputs(self) -> List[Value]:
+    def generate_inputs(self, rng) -> List[Value]:
         return [
-            self.settings.input_ttype.generate('input-0.bin', self.settings.input_shape)
+            self.settings.input_ttype.generate('input-0.bin', self.settings.input_shape, rng)
         ]
 
     def apply(self, values: List[Value]) -> np.ndarray:
@@ -745,7 +748,7 @@ class DPUPipeline:
             self.issues.add('EISW-15074')  # MaxPool produces zeros with fp16 and bf16 inputs
 
     def compute_values(self):
-        self.inputs = self.mpe_op.generate_inputs()
+        self.inputs = self.mpe_op.generate_inputs(default_rng(1))
         self.mpe_data = self.mpe_op.apply(self.inputs)
         if isinstance(self.mpe_data, NBQuantized):
             self.mpe_data = self.mpe_data.value
