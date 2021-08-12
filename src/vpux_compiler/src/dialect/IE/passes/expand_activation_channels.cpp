@@ -103,12 +103,10 @@ mlir::LogicalResult generalRewrite(mlir::Operation* origOp, mlir::PatternRewrite
 
         const auto outShape = outputType.getShape();
         const SmallVector<int64_t> offsets(outShape.size(), 0);
-        const SmallVector<int64_t> strides(outShape.size(), 1);
 
-        auto subTensorOp = rewriter.create<mlir::tensor::ExtractSliceOp>(
-                origOp->getLoc(), origOp->getResult(0).getType(), newOp->getResult(0), mlir::ValueRange{},
-                mlir::ValueRange{}, mlir::ValueRange{}, getIntArrayAttr(ctx, offsets), getIntArrayAttr(ctx, outShape),
-                getIntArrayAttr(ctx, strides));
+        auto subTensorOp =
+                rewriter.create<IE::SliceOp>(origOp->getLoc(), origOp->getResult(0).getType(), newOp->getResult(0),
+                                             getIntArrayAttr(ctx, offsets), getIntArrayAttr(ctx, outShape));
 
         rewriter.replaceOp(origOp, subTensorOp.result());
     }
@@ -393,8 +391,7 @@ void ExpandActivationChannelsPass::safeRunOnFunc() {
     target.addDynamicallyLegalOp<IE::AddOp>(isLegal);
     target.addDynamicallyLegalOp<IE::GroupConvolutionOp>(isLegal);
     target.addLegalOp<Const::DeclareOp>();
-    target.addLegalOp<IE::ExpandOp, IE::PadOp>();
-    target.addLegalOp<mlir::tensor::ExtractSliceOp>();
+    target.addLegalOp<IE::ExpandOp, IE::PadOp, IE::SliceOp>();
 
     mlir::RewritePatternSet patterns(&ctx);
     patterns.insert<MaxPoolRewriter>(&ctx, _log);

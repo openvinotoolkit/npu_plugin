@@ -173,7 +173,7 @@ void AdjustLayoutsPass::safeRunOnFunc() {
 
         return true;
     });
-    target.addLegalOp<IE::SplitOp, IE::ConcatOp, IE::ExpandOp>();
+    target.addLegalOp<IE::SplitOp, IE::ConcatOp, IE::ExpandOp, IE::SliceOp>();
     target.addLegalOp<IE::ReorderOp>();
 
     mlir::RewritePatternSet patterns(&ctx);

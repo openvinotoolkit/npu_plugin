@@ -57,7 +57,7 @@ func @IndependentBranchesLinearSched(%arg0: memref<10xf16>, %arg1: memref<10xf16
     %buf = IERT.StaticAlloc<0> -> memref<20xf16>
 
     %t0, %f0 = async.execute -> !async.value<memref<10xf16>> {
-        %buf0 = memref.subview %buf[0][10][1] : memref<20xf16> to memref<10xf16>
+        %buf0 = IERT.SubView %buf[0][10] : memref<20xf16> to memref<10xf16>
         %0 = IERT.ReLU inputs(%arg0 : memref<10xf16>) outputs(%buf0 : memref<10xf16>) -> memref<10xf16>
         async.yield %0 : memref<10xf16>
     }
@@ -65,7 +65,7 @@ func @IndependentBranchesLinearSched(%arg0: memref<10xf16>, %arg1: memref<10xf16
     async.await %t0 : !async.token
 
     %t1, %f1 = async.execute -> !async.value<memref<10xf16, #map>> {
-        %buf1 = memref.subview %buf[10][10][1] : memref<20xf16> to memref<10xf16, #map>
+        %buf1 = IERT.SubView %buf[10][10] : memref<20xf16> to memref<10xf16, #map>
         %1 = IERT.ReLU inputs(%arg1 : memref<10xf16>) outputs(%buf1 : memref<10xf16, #map>) -> memref<10xf16, #map>
         async.yield %1 : memref<10xf16, #map>
     }
@@ -114,13 +114,13 @@ func @IndependentBranchesParallelSched(%arg0: memref<10xf16>, %arg1: memref<10xf
     %buf = IERT.StaticAlloc<0> -> memref<20xf16>
 
     %t0, %f0 = async.execute -> !async.value<memref<10xf16>> {
-        %buf0 = memref.subview %buf[0][10][1] : memref<20xf16> to memref<10xf16>
+        %buf0 = IERT.SubView %buf[0][10] : memref<20xf16> to memref<10xf16>
         %0 = IERT.ReLU inputs(%arg0 : memref<10xf16>) outputs(%buf0 : memref<10xf16>) -> memref<10xf16>
         async.yield %0 : memref<10xf16>
     }
 
     %t1, %f1 = async.execute -> !async.value<memref<10xf16, #map>> {
-        %buf1 = memref.subview %buf[10][10][1] : memref<20xf16> to memref<10xf16, #map>
+        %buf1 = IERT.SubView %buf[10][10] : memref<20xf16> to memref<10xf16, #map>
         %1 = IERT.ReLU inputs(%arg1 : memref<10xf16>) outputs(%buf1 : memref<10xf16, #map>) -> memref<10xf16, #map>
         async.yield %1 : memref<10xf16, #map>
     }

@@ -28,22 +28,20 @@ namespace {
 // ReorderWithSubView
 //
 
-class ReorderWithSubView final : public mlir::OpRewritePattern<mlir::tensor::ExtractSliceOp> {
+class ReorderWithSubView final : public mlir::OpRewritePattern<IE::SliceOp> {
 public:
-    ReorderWithSubView(mlir::MLIRContext* ctx, Logger log)
-            : mlir::OpRewritePattern<mlir::tensor::ExtractSliceOp>(ctx), _log(log) {
+    ReorderWithSubView(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<IE::SliceOp>(ctx), _log(log) {
         setDebugName("ReorderWithSubView");
     }
 
 public:
-    mlir::LogicalResult matchAndRewrite(mlir::tensor::ExtractSliceOp origSubViewOp,
-                                        mlir::PatternRewriter& rewriter) const final;
+    mlir::LogicalResult matchAndRewrite(IE::SliceOp origSubViewOp, mlir::PatternRewriter& rewriter) const final;
 
 private:
     Logger _log;
 };
 
-mlir::LogicalResult ReorderWithSubView::matchAndRewrite(mlir::tensor::ExtractSliceOp origSubViewOp,
+mlir::LogicalResult ReorderWithSubView::matchAndRewrite(IE::SliceOp origSubViewOp,
                                                         mlir::PatternRewriter& rewriter) const {
     auto origReorderOp = origSubViewOp.source().getDefiningOp<IE::ReorderOp>();
     if (origReorderOp == nullptr) {
@@ -58,10 +56,8 @@ mlir::LogicalResult ReorderWithSubView::matchAndRewrite(mlir::tensor::ExtractSli
 
     const auto subViewShape = getShape(origSubViewOp.result());
     const auto newSubViewType = changeShape(origReorderOp.input().getType().cast<mlir::ShapedType>(), subViewShape);
-    auto newSubViewOp = rewriter.create<mlir::tensor::ExtractSliceOp>(
-            origSubViewOp->getLoc(), newSubViewType, origReorderOp.input(), origSubViewOp.offsets(),
-            origSubViewOp.sizes(), origSubViewOp.strides(), origSubViewOp.static_offsets(),
-            origSubViewOp.static_sizes(), origSubViewOp.static_strides());
+    auto newSubViewOp = rewriter.create<IE::SliceOp>(origSubViewOp->getLoc(), newSubViewType, origReorderOp.input(),
+                                                     origSubViewOp.static_offsets(), origSubViewOp.static_sizes());
 
     rewriter.replaceOpWithNewOp<IE::ReorderOp>(origSubViewOp, newSubViewOp.result(), origReorderOp.dstOrderAttr());
     return mlir::success();

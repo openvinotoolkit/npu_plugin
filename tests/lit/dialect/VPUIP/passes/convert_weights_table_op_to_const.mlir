@@ -30,7 +30,7 @@ func @Conv2dTest(%arg0: memref<1x8x20x20xf16, #NHWC, #map0>, %arg1: memref<1x11x
     }
     %13 = IERT.Copy inputs(%12 : memref<1x16x19x19xf16, #NHWC, #map3, "CMX_NN">) outputs(%3 : memref<1x16x19x19xf16, #NHWC, #map3, "DDR">) -> memref<1x16x19x19xf16, #NHWC, #map3, "DDR">
     %14 = IERT.Reorder inputs(%13 : memref<1x16x19x19xf16, #NHWC, #map3, "DDR">) outputs(%2 : memref<1x16x19x19xf16, "DDR">) -> memref<1x16x19x19xf16, "DDR">
-    %15 = memref.subview %14[0, 0, 0, 0] [1, 11, 19, 19] [1, 1, 1, 1] : memref<1x16x19x19xf16, "DDR"> to memref<1x11x19x19xf16, #map4, "DDR">
+    %15 = IERT.SubView %14[0, 0, 0, 0] [1, 11, 19, 19] : memref<1x16x19x19xf16, "DDR"> to memref<1x11x19x19xf16, #map4, "DDR">
     %16 = IERT.StaticAlloc<11584> -> memref<1x11x19x19xf16, "DDR">
     %17 = IERT.Copy inputs(%15 : memref<1x11x19x19xf16, #map4, "DDR">) outputs(%16 : memref<1x11x19x19xf16, "DDR">) -> memref<1x11x19x19xf16, "DDR">
     %18 = IERT.Reorder inputs(%17 : memref<1x11x19x19xf16, "DDR">) outputs(%arg1 : memref<1x11x19x19xf16, #NHWC, #map1>) -> memref<1x11x19x19xf16, #NHWC, #map1>

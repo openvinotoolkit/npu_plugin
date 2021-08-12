@@ -1688,4 +1688,31 @@ def IE_LSTMCellOp :
     );
 }
 
+//
+// SliceOp
+//
+
+def IE_SliceOp :
+        IE_LayerOp<
+            "Slice"
+        > {
+    let summary = "Extract slice operation";
+
+    let arguments = (ins
+        AnyRankedTensor:$source,
+
+        I64ArrayAttr:$static_offsets,
+        I64ArrayAttr:$static_sizes
+    );
+
+    let results = (outs
+        AnyRankedTensor:$result
+    );
+
+    let assemblyFormat = [{
+        $source $static_offsets $static_sizes
+        attr-dict `:` type($source) `to` type(results)
+    }];
+}
+
 #endif

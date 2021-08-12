@@ -128,13 +128,11 @@ void TimestampProfilingPass::safeRunOnModule() {
     builder.setInsertionPointAfter(&netFunc.getBody().front().front());
     auto memOp = builder.create<mlir::memref::AllocOp>(mlir::UnknownLoc::get(ctx), cmxMemType);
 
-    SmallVector<int64_t> svStrides(timestampType.getShape().size(), 1);
     SmallVector<mlir::Value> dmas;
     for (uint32_t id = 0; id < results.size(); id++) {
         builder.setInsertionPointAfter(results[id]);
-        auto sub = builder.create<mlir::memref::SubViewOp>(mlir::NameLoc::get(mlir::Identifier::get("subview", ctx)),
-                                                           memOp, SmallVector<int64_t>({0, id, 0, 0}),
-                                                           timestampType.getShape(), svStrides);
+        auto sub = builder.create<IERT::SubViewOp>(mlir::NameLoc::get(mlir::Identifier::get("subview", ctx)), memOp,
+                                                   SmallVector<int64_t>({0, id, 0, 0}), timestampType.getShape());
 
         dmas.push_back(builder.create<IERT::CopyOp>(results[id].getLoc(), results[id].output(), sub).output());
     }

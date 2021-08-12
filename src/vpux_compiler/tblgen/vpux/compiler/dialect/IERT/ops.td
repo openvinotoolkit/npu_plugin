@@ -1887,8 +1887,14 @@ def IERT_SubViewOp :
 
     let assemblyFormat = [{
         $source $static_offsets $static_sizes
-        attr-dict `:` type($source) `->` type(results)
+        attr-dict `:` type($source) `to` type(results)
     }];
+
+    let builders = [
+        OpBuilder<
+            (ins "mlir::Value":$source, "ArrayRef<int64_t>":$static_offsets, "ArrayRef<int64_t>":$static_sizes)
+        >
+    ];
 
     let hasFolder = 1;
 }

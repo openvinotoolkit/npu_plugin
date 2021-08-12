@@ -41,8 +41,7 @@ private:
     Logger _log;
 };
 
-template <typename SubViewType>
-static Byte calculateDataOffset(SubViewType subViewOp) {
+Byte calculateDataOffset(IERT::SubViewOp subViewOp) {
     int64_t subviewOffset = 0;
     SmallVector<int64_t> resultStrides;
     VPUX_THROW_UNLESS(mlir::getStridesAndOffset(subViewOp.getType(), resultStrides, subviewOffset).succeeded(),
@@ -55,7 +54,7 @@ static Byte calculateDataOffset(SubViewType subViewOp) {
 
 mlir::LogicalResult ViewLikeRewrite::matchAndRewrite(mlir::ViewLikeOpInterface origOp,
                                                      mlir::PatternRewriter& rewriter) const {
-    if (!mlir::isa<IERT::GenericReshapeOp, mlir::memref::SubViewOp, IERT::SubViewOp>(origOp.getOperation())) {
+    if (!mlir::isa<IERT::GenericReshapeOp, IERT::SubViewOp>(origOp.getOperation())) {
         return matchFailed(rewriter, origOp, "Unknown view-like operation '{0}'", origOp->getName());
     }
 
@@ -105,9 +104,7 @@ mlir::LogicalResult ViewLikeRewrite::matchAndRewrite(mlir::ViewLikeOpInterface o
         VPUX_THROW("Unknown source owner");
     }
 
-    if (auto subViewOp = mlir::dyn_cast<mlir::memref::SubViewOp>(origOp.getOperation())) {
-        dataOffset += calculateDataOffset(subViewOp);
-    } else if (auto subViewOp = mlir::dyn_cast<IERT::SubViewOp>(origOp.getOperation())) {
+    if (const auto subViewOp = mlir::dyn_cast<IERT::SubViewOp>(origOp.getOperation())) {
         dataOffset += calculateDataOffset(subViewOp);
     }
 

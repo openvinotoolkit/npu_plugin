@@ -1656,7 +1656,7 @@ Syntax:
 
 ```
 operation ::= `IERT.SubView` $source $static_offsets $static_sizes
-              attr-dict `:` type($source) `->` type(results)
+              attr-dict `:` type($source) `to` type(results)
 ```
 
 

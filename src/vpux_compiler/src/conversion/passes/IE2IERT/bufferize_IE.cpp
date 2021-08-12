@@ -134,7 +134,6 @@ mlir::LogicalResult SplitRewrite::matchAndRewrite(IE::SplitOp origOp, ArrayRef<m
     auto allocatedBufs = allocateResults(origOp->getLoc(), rewriter, *typeConverter, origOp.getResults());
 
     // Prepare strides array for subview. We have dense array, so all strides have to be equal 1
-    SmallVector<int64_t> svStrides(inputShape.size(), 1);
     SmallVector<int64_t> svOffsets(inputShape.size(), 0);
     SmallVector<mlir::Value> results;
 
@@ -145,8 +144,7 @@ mlir::LogicalResult SplitRewrite::matchAndRewrite(IE::SplitOp origOp, ArrayRef<m
         const auto svSizes = origOutputType.getShape();
 
         _log.trace("Create SubView for output #'{0}'", i);
-        auto subView = rewriter.create<mlir::memref::SubViewOp>(origOp.getLoc(), newOperands[0], svOffsets, svSizes,
-                                                                svStrides);
+        auto subView = rewriter.create<IERT::SubViewOp>(origOp.getLoc(), newOperands[0], svOffsets, svSizes);
 
         _log.trace("Copy SubView result to output buffer");
 
@@ -198,8 +196,6 @@ mlir::LogicalResult ConcatRewrite::matchAndRewrite(IE::ConcatOp origOp, ArrayRef
 
     const auto outputRank = origOp.getType().getRank();
 
-    // Prepare strides array for subview. We have dense array, so all strides have to be equal 1
-    SmallVector<int64_t> svStrides(outputRank, 1);
     SmallVector<int64_t> svOffsets(outputRank, 0);
     SmallVector<mlir::Value> results;
 
@@ -208,8 +204,7 @@ mlir::LogicalResult ConcatRewrite::matchAndRewrite(IE::ConcatOp origOp, ArrayRef
         const auto svSizes = newInputType.getShape();
 
         _log.trace("Create SubView for input #'{0}'", i);
-        auto subView = rewriter.create<mlir::memref::SubViewOp>(origOp->getLoc(), allocatedBufs[0], svOffsets, svSizes,
-                                                                svStrides);
+        auto subView = rewriter.create<IERT::SubViewOp>(origOp->getLoc(), allocatedBufs[0], svOffsets, svSizes);
 
         _log.trace("Copy new operand to SubView");
         auto copyOp = rewriter.create<IERT::CopyOp>(origOp->getLoc(), newOperands[i], subView);
@@ -226,23 +221,22 @@ mlir::LogicalResult ConcatRewrite::matchAndRewrite(IE::ConcatOp origOp, ArrayRef
 // SubTensorRewrite
 //
 
-class SubTensorRewrite final : public mlir::OpConversionPattern<mlir::tensor::ExtractSliceOp> {
+class SubTensorRewrite final : public mlir::OpConversionPattern<IE::SliceOp> {
 public:
     SubTensorRewrite(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
-            : mlir::OpConversionPattern<mlir::tensor::ExtractSliceOp>(typeConverter, ctx), _log(log) {
+            : mlir::OpConversionPattern<IE::SliceOp>(typeConverter, ctx), _log(log) {
         setDebugName("SubTensorRewrite");
     }
 
 public:
-    mlir::LogicalResult matchAndRewrite(mlir::tensor::ExtractSliceOp origOp, ArrayRef<mlir::Value> newOperands,
+    mlir::LogicalResult matchAndRewrite(IE::SliceOp origOp, ArrayRef<mlir::Value> newOperands,
                                         mlir::ConversionPatternRewriter& rewriter) const final;
 
 private:
     Logger _log;
 };
 
-mlir::LogicalResult SubTensorRewrite::matchAndRewrite(mlir::tensor::ExtractSliceOp origOp,
-                                                      ArrayRef<mlir::Value> newOperands,
+mlir::LogicalResult SubTensorRewrite::matchAndRewrite(IE::SliceOp origOp, ArrayRef<mlir::Value> newOperands,
                                                       mlir::ConversionPatternRewriter& rewriter) const {
     _log.trace("Found SubTensor Operation '{0}'", origOp->getLoc());
 
@@ -250,9 +244,8 @@ mlir::LogicalResult SubTensorRewrite::matchAndRewrite(mlir::tensor::ExtractSlice
                       "Got wrong newOperands size : '{0}', expected '{1}'", newOperands.size(),
                       origOp->getNumOperands());
 
-    auto subView = rewriter.create<mlir::memref::SubViewOp>(
-            origOp->getLoc(), newOperands[0], parseIntArrayAttr<int64_t>(origOp.static_offsets()),
-            parseIntArrayAttr<int64_t>(origOp.static_sizes()), parseIntArrayAttr<int64_t>(origOp.static_strides()));
+    auto subView = rewriter.create<IERT::SubViewOp>(origOp->getLoc(), newOperands[0], origOp.static_offsetsAttr(),
+                                                    origOp.static_sizesAttr());
 
     auto allocatedBuf = allocateResults(origOp->getLoc(), rewriter, *typeConverter, origOp.getResult());
 
@@ -293,9 +286,7 @@ mlir::LogicalResult ExpandRewrite::matchAndRewrite(IE::ExpandOp origOp, ArrayRef
 
     const auto subOffsets = parseIntArrayAttr<int64_t>(origOp.pads_begin());
     const auto subShape = inputType.getShape();
-    const SmallVector<int64_t> subDilations(subShape.size(), 1);
-    auto subView = rewriter.create<mlir::memref::SubViewOp>(origOp.getLoc(), expandedBuffer[0], subOffsets, subShape,
-                                                            subDilations);
+    auto subView = rewriter.create<IERT::SubViewOp>(origOp.getLoc(), expandedBuffer[0], subOffsets, subShape);
     auto subViewCopy = rewriter.create<IERT::CopyOp>(origOp->getLoc(), newOperands[0], subView);
 
     SmallVector<mlir::Value> concatInputs;
@@ -774,7 +765,6 @@ void BufferizeIEPass::safeRunOnFunc() {
     target.addIllegalDialect<mlir::quant::QuantizationDialect>();
     target.addLegalOp<IE::CNNNetworkOp, IE::DataInfoOp>();
     target.addLegalOp<mlir::memref::AllocOp>();
-    target.addLegalOp<mlir::memref::SubViewOp>();
     vpux::populateBufferizeMaterializationLegality(target);
 
     mlir::RewritePatternSet patterns(&ctx);

@@ -19,6 +19,12 @@
 
 using namespace vpux;
 
+void vpux::IERT::SubViewOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
+                                  ArrayRef<int64_t> static_offsets, ArrayRef<int64_t> static_sizes) {
+    build(builder, state, input, getIntArrayAttr(builder.getContext(), static_offsets),
+          getIntArrayAttr(builder.getContext(), static_sizes));
+}
+
 mlir::Value vpux::IERT::SubViewOp::getViewSource() {
     return source();
 }

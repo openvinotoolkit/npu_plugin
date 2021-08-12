@@ -1518,6 +1518,38 @@ operation ::= `IE.Sigmoid` `(` operands `)` attr-dict `:` type(operands) `->` ty
 | :----: | ----------- |
 `output` | ranked tensor of 16-bit float or 32-bit float values
 
+### `IE.Slice` (vpux::IE::SliceOp)
+
+Extract slice operation
+
+
+Syntax:
+
+```
+operation ::= `IE.Slice` $source $static_offsets $static_sizes
+              attr-dict `:` type($source) `to` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`static_offsets` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`static_sizes` | ::mlir::ArrayAttr | 64-bit integer array attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`source` | ranked tensor of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`result` | ranked tensor of any type values
+
 ### `IE.SoftMax` (vpux::IE::SoftMaxOp)
 
 InferenceEngine SoftMax layer

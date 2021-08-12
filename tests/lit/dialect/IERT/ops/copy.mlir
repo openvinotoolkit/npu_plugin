@@ -53,7 +53,7 @@ func @FoldSubViewCopy(%arg0: memref<16x1x3x3xf16, #NHWC, #map0>) -> memref<16x1x
     %0 = const.Declare memref<64x1x3x3xf16, #NHWC, #map0> =
         #const.Content<dense<1.000000e+00> : tensor<64x1x1x3x3xf16>,
         [#const.Reshape<[64, 1, 3, 3]>, #const.Reorder<#NHWC>]>
-    %1 = IERT.SubView %0 [48, 0, 0, 0] [16, 1, 3, 3] : memref<64x1x3x3xf16, #NHWC, #map0> -> memref<16x1x3x3xf16, #NHWC, #map1>
+    %1 = IERT.SubView %0 [48, 0, 0, 0] [16, 1, 3, 3] : memref<64x1x3x3xf16, #NHWC, #map0> to memref<16x1x3x3xf16, #NHWC, #map1>
     %2 = memref.alloc() : memref<16x1x3x3xf16, #NHWC, #map0>
     %3 = IERT.Copy
         inputs(%1 : memref<16x1x3x3xf16, #NHWC, #map1>)
