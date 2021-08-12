@@ -24,6 +24,13 @@
 
 namespace vpux {
 
+struct QuantizeParameters {
+    explicit QuantizeParameters(const bool surfaceFPQuantization): _surfaceFPQuantization(surfaceFPQuantization) {
+    }
+    bool _surfaceFPQuantization;
+    const float _surfaceFPScale = 255.f;
+};
+
 //
 // makeSplatBlob
 //
@@ -60,10 +67,12 @@ InferenceEngine::MemoryBlob::Ptr copyBlob(const InferenceEngine::MemoryBlob::Ptr
 // cvtBlobPrecision
 //
 
-void cvtBlobPrecision(const InferenceEngine::MemoryBlob::Ptr& in, const InferenceEngine::MemoryBlob::Ptr& out);
+void cvtBlobPrecision(const InferenceEngine::MemoryBlob::Ptr& in, const InferenceEngine::MemoryBlob::Ptr& out,
+                      const QuantizeParameters& quantParams);
 
 InferenceEngine::MemoryBlob::Ptr toPrecision(const InferenceEngine::MemoryBlob::Ptr& in,
                                              const InferenceEngine::Precision& precision,
+                                             const QuantizeParameters& quantParams = QuantizeParameters(false),
                                              const std::shared_ptr<InferenceEngine::IAllocator>& allocator = nullptr,
                                              void* ptr = nullptr);
 InferenceEngine::MemoryBlob::Ptr toDefPrecision(const InferenceEngine::MemoryBlob::Ptr& in,
@@ -73,12 +82,12 @@ InferenceEngine::MemoryBlob::Ptr toDefPrecision(const InferenceEngine::MemoryBlo
 inline InferenceEngine::MemoryBlob::Ptr toFP32(const InferenceEngine::MemoryBlob::Ptr& in,
                                                const std::shared_ptr<InferenceEngine::IAllocator>& allocator = nullptr,
                                                void* ptr = nullptr) {
-    return toPrecision(in, InferenceEngine::Precision::FP32, allocator, ptr);
+    return toPrecision(in, InferenceEngine::Precision::FP32, QuantizeParameters(false), allocator, ptr);
 }
 inline InferenceEngine::MemoryBlob::Ptr toFP16(const InferenceEngine::MemoryBlob::Ptr& in,
                                                const std::shared_ptr<InferenceEngine::IAllocator>& allocator = nullptr,
                                                void* ptr = nullptr) {
-    return toPrecision(in, InferenceEngine::Precision::FP16, allocator, ptr);
+    return toPrecision(in, InferenceEngine::Precision::FP16, QuantizeParameters(false), allocator, ptr);
 }
 
 //

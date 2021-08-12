@@ -49,6 +49,49 @@ std::unique_ptr<MVCNN::TensorReferenceT> buildTensorReference(const std::string&
     return toBuild;
 }
 
+std::unique_ptr<MVCNN::TensorReferenceT> buildTensorReference(const std::string& tensorName,
+                                                              const InferenceEngine::TensorDesc& tensorInfo,
+                                                              const mv::QuantizationParams& quantParams) {
+    auto mainData = buildTensorReference(tensorName, tensorInfo);
+    std::unique_ptr<MVCNN::TensorReferenceT> toBuild = buildTensorReference(tensorName, tensorInfo);
+    const auto epsilon = 1.e-5;
+    const auto isSurfaceFPQuantization = quantParams.getZeroPoint().size() >= 1 && !quantParams.getZeroPoint()[0] &&
+                                         quantParams.getMin().size() >= 1 &&
+                                         fabs(quantParams.getMin()[0] - 0.) <= epsilon && quantParams.getMax().size() &&
+                                         fabs(quantParams.getMax()[0] - 1.) <= epsilon;
+    // Consider to use quant_mult parameter as a flag for surface FP Quantization [0-1]
+    toBuild->quant_mult.push_back(static_cast<uint16_t>(isSurfaceFPQuantization));
+
+    return toBuild;
+}
+
+std::unique_ptr<MVCNN::TensorReferenceT> buildTensorReference(const std::string& tensorName,
+                                                              const InferenceEngine::TensorDesc& tensorInfo,
+                                                              const mv::Data::TensorIterator& opModelTensor) {
+    InferenceEngine::TensorDesc newTensorInfo(tensorInfo);
+
+    const InferenceEngine::SizeVector& tensorInfoDimVec = tensorInfo.getDims();
+    const auto shape = opModelTensor->getShape();
+    const auto quantParams = opModelTensor->getQuantParams();
+
+    // For now support case in which dim reduction from 5D to 4D has happened (yolo-v5 cases)
+    if (tensorInfoDimVec.size() == 5 && shape.ndims() == 4) {
+        // Try to update tensor information in case of 5D to 4D dimension reduction
+        InferenceEngine::SizeVector newDimVec;
+        for (size_t i = 0; i < shape.ndims(); i++)
+            newDimVec.push_back(shape[shape.ndims() - 1 - i]);
+
+        // Update layout and dimensions of vector.
+        // Note: current solution has limited implementation to satisfy just yolo-v5 case
+        if (newTensorInfo.getLayout() == Layout::NCDHW)
+            newTensorInfo.reshape(newDimVec, Layout::NCHW);
+        else if (newTensorInfo.getLayout() == Layout::NDHWC)
+            newTensorInfo.reshape(newDimVec, Layout::NHWC);
+    }
+
+    return buildTensorReference(tensorName, newTensorInfo, quantParams);
+}
+
 bool vpu::MCMAdapter::isMCMCompilerAvailable() {
     return true;
 }
@@ -66,6 +109,7 @@ vpu::MCMAdapter::MetaInfo vpu::MCMAdapter::deserializeMetaData(const MVCNN::Summ
     const std::string& resultNetworkName = header.identifier()->str();
     logger->debug("networkName: %s", resultNetworkName);
 
+    vpux::QuantizationParamMap resultQuantParamMap;
     InferenceEngine::InputsDataMap resultNetworkInputs;
     const auto& inputTensorDesc = *header.in_tensor_desc();
     size_t inputTensorsCount = inputTensorDesc.size();
@@ -97,6 +141,11 @@ vpu::MCMAdapter::MetaInfo vpu::MCMAdapter::deserializeMetaData(const MVCNN::Summ
         InferenceEngine::InputInfo inputInfo;
         inputInfo.setInputData(std::make_shared<InferenceEngine::Data>(inputData));
         resultNetworkInputs[inputInfo.name()] = std::make_shared<InferenceEngine::InputInfo>(inputInfo);
+        IE_ASSERT(tensorRef->quant_mult() != nullptr);
+        IE_ASSERT(tensorRef->quant_mult()->size() == 1);
+
+        const auto surfaceFPQuantization = static_cast<bool>(*tensorRef->quant_mult()->cbegin());
+        resultQuantParamMap.insert({inputInfo.name(), surfaceFPQuantization});
     }
 
     InferenceEngine::OutputsDataMap resultNetworkOutputs;
@@ -129,5 +178,5 @@ vpu::MCMAdapter::MetaInfo vpu::MCMAdapter::deserializeMetaData(const MVCNN::Summ
         resultNetworkOutputs[outputData.getName()] = std::make_shared<InferenceEngine::Data>(outputData);
     }
 
-    return {resultNetworkName, resultNetworkInputs, resultNetworkOutputs};
+    return {resultNetworkName, resultNetworkInputs, resultNetworkOutputs, resultQuantParamMap};
 }
