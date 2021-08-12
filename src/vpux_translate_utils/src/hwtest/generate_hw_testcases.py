@@ -901,7 +901,7 @@ def generate_options(args):
                    kernel_channels=[16],
                    kernel_shapes=[[2, 2]],
                    output_types=[Int4(), UInt4(), UInt8()],
-                   pads=Pad.none + Pad.top(7) + Pad.left(7) + Pad.bottom(7) + Pad.right(7)),
+                   pads=Pad.none + Pad.all(7) + Pad.top(7) + Pad.left(7) + Pad.bottom(7) + Pad.right(7)),
 
         # Z-Major Convolution, padding, int8
         genZMConvs(input_types=[Int8(2)],
