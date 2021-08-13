@@ -245,9 +245,23 @@ void DeveloperConfig::setup(mlir::PassManager& pm) const {
 // CompilerImpl::query
 //
 
-InferenceEngine::QueryNetworkResult vpux::CompilerImpl::query(const InferenceEngine::CNNNetwork& /*network*/,
-                                                              const vpux::VPUXConfig& /*config*/) {
+InferenceEngine::QueryNetworkResult vpux::CompilerImpl::query(const InferenceEngine::CNNNetwork& network,
+                                                              const vpux::VPUXConfig& config) {
+    Logger log("vpux-compiler", getLogLevel(config));
     InferenceEngine::QueryNetworkResult result;
+    const std::string plugin_name = DEVICE_NAME;
+
+    DeveloperConfig devConf(log);
+    mlir::DefaultTimingManager tm;
+    devConf.setup(tm);
+    auto rootTiming = tm.getRootScope();
+
+    auto supportedLayers = IE::queryNetwork(network, rootTiming, log);
+
+    for (auto&& layerName : supportedLayers) {
+        result.supportedLayersMap.emplace(layerName, plugin_name);
+    }
+
     return result;
 }
 
