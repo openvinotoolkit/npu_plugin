@@ -66,7 +66,8 @@ VPUIP::DPUTaskOp vpux::VPUIP::NCEClusterTaskOp::addDPUTask(mlir::OpBuilder& buil
 //
 
 VPUIP::PPETaskOp vpux::VPUIP::NCEClusterTaskOp::addPPETask(mlir::OpBuilder& builder,
-                                                           vpux::VPUIP::PPELayerType ppe_layer_type) {
+                                                           vpux::VPUIP::PPELayerType ppeLayerType,
+                                                           const int64_t clampLow, const int64_t clampHigh) {
     if (ppe().empty()) {
         ppe().emplaceBlock();
     }
@@ -74,7 +75,7 @@ VPUIP::PPETaskOp vpux::VPUIP::NCEClusterTaskOp::addPPETask(mlir::OpBuilder& buil
     mlir::OpBuilder::InsertionGuard guard(builder);
     builder.setInsertionPointToEnd(&ppe().front());
 
-    return builder.create<VPUIP::PPETaskOp>(getLoc(), ppe_layer_type);
+    return builder.create<VPUIP::PPETaskOp>(getLoc(), ppeLayerType, clampLow, clampHigh);
 }
 
 //
@@ -577,27 +578,19 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
     const auto variant = writer.createVector(variantList);
 
     SmallVector<uint8_t> ppeList;
+    int32_t clampLow = std::numeric_limits<int32_t>::min();
+    int32_t clampHigh = std::numeric_limits<int32_t>::max();
+
     for (auto ppeOp : ppe().getOps<VPUIP::PPETaskOp>()) {
         ppeList.push_back(getPPELayerType(ppeOp.ppe_layer_type()));
+        clampLow = checked_cast<int32_t>(ppeOp.clamp_low());
+        clampHigh = checked_cast<int32_t>(ppeOp.clamp_high());
     }
-
-    // TODO delete it after implementing passing postop parameters
-    // and quant parameters for tasks (it was added to fix accuracy of fused Clamp)
-    int32_t ClampLow = std::numeric_limits<int32_t>::min();
-    int32_t ClampHigh = std::numeric_limits<int32_t>::max();
-    if (std::find(ppeList.begin(), ppeList.end(), MVCNN::PPELayerType_LRELUX) != ppeList.end()) {
-        ppeList.clear();
-        // here we handle only Relu6 case
-        // for common one it should be deleted
-        // TODO: [Track number: E#14813]
-        ClampLow = 0;
-        ClampHigh =
-                input().getType().cast<mlir::MemRefType>().getElementType().isa<mlir::FloatType>() ? 6 * (1 << 16) : 6;
-    }
+    VPUX_THROW_UNLESS(ppeList.size() <= 1, "Cannot set more than one PPE task");
 
     auto ppeLayerTypes = writer.createVector(ppeList);
-    // TODO: Clamp_Low, Clamp_High, Lrelu_Mult, Lrelu_Shift
-    auto ppeFixedFunction = MVCNN::CreatePPEFixedFunction(writer, ppeLayerTypes, ClampLow, ClampHigh);
+    // TODO: Lrelu_Mult, Lrelu_Shift
+    auto ppeFixedFunction = MVCNN::CreatePPEFixedFunction(writer, ppeLayerTypes, clampLow, clampHigh);
     // TODO: scale_data, rounding, instruction_list_data
     auto ppeTask = MVCNN::CreatePPETask(writer, 0, ppeFixedFunction);
 

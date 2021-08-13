@@ -15,6 +15,7 @@
 #include <vpux/compiler/dialect/VPUIP/blob_reader.hpp>
 #include <vpux/compiler/dialect/VPUIP/nce_invariant.hpp>
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
+#include "vpux/compiler/utils/quantization.hpp"
 
 #include "vpux/utils/core/enums.hpp"
 
@@ -28,27 +29,22 @@ namespace {
 
 constexpr int32_t MTL_SPARSITY = 0xffffffff;
 
-int32_t toFixedPoint(float realVal) {
-    // FIXME: 2 ^ 16 might be more obvious
-    return std::lround(realVal * 65536.f);
-}
-
-int32_t toHex(float realVal) {
+int32_t toHex(double realVal) {
     union f32toint32 {
         int32_t m_i32;
         float m_f32;
     };
 
     f32toint32 biasVal;
-    biasVal.m_f32 = realVal;
+    biasVal.m_f32 = static_cast<float>(realVal);
     return biasVal.m_i32;
 }
 
-using BiasConverterCb = int32_t (*)(float);
+using BiasConverterCb = int32_t (*)(double);
 const EnumMap<VPUIP::ArchKind, BiasConverterCb> biasConvertersMap = {
-        {VPUIP::ArchKind::KMB, toFixedPoint},  //
-        {VPUIP::ArchKind::TBH, toFixedPoint},  //
-        {VPUIP::ArchKind::MTL, toHex},         //
+        {VPUIP::ArchKind::KMB, vpux::toFixedPoint},  //
+        {VPUIP::ArchKind::TBH, vpux::toFixedPoint},  //
+        {VPUIP::ArchKind::MTL, toHex},               //
 };
 
 constexpr int32_t getKMBScale() {
@@ -70,7 +66,7 @@ constexpr int32_t getKMBScale() {
 }
 
 int32_t getMTLScale() {
-    constexpr float MTL_SCALE = 1.0f;
+    constexpr double MTL_SCALE = 1.0f;
 
     return toHex(MTL_SCALE);
 }
@@ -82,7 +78,7 @@ const EnumMap<VPUIP::ArchKind, PPEConverterCb> ppeConvertersMap = {
         {VPUIP::ArchKind::MTL, getMTLScale},  //
 };
 
-using GetBiasCb = FuncRef<float(int64_t)>;
+using GetBiasCb = FuncRef<double(int64_t)>;
 
 std::vector<int32_t> getWeightsTable(int64_t OC, GetBiasCb getBiasFP, int32_t weightPtrOffset, int32_t weightPtrStep,
                                      int32_t sparsityPtrOffset, vpux::VPUIP::ArchKind arch) {
@@ -113,9 +109,9 @@ std::vector<int32_t> getWeightsTable(int64_t OC, GetBiasCb getBiasFP, int32_t we
     return weightsTableVals;
 }
 
-llvm::unique_function<float(int64_t)> getBiasFunc(mlir::Value bias) {
+llvm::unique_function<double(int64_t)> getBiasFunc(mlir::Value bias) {
     if (bias == nullptr) {
-        return [](int64_t) -> float {
+        return [](int64_t) -> double {
             return 0.0f;
         };
     }
@@ -125,8 +121,8 @@ llvm::unique_function<float(int64_t)> getBiasFunc(mlir::Value bias) {
 
     auto biasContent = biasConst.content();
 
-    return [biasContent = std::move(biasContent)](int64_t oc) -> float {
-        return biasContent.getValues<float>()[oc];
+    return [biasContent = std::move(biasContent)](int64_t oc) -> double {
+        return biasContent.getValues<double>()[oc];
     };
 }
 

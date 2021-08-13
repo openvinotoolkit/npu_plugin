@@ -21,6 +21,7 @@
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/logging.hpp"
+#include "vpux/compiler/utils/quantization.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 #include "vpux/compiler/utils/types.hpp"
 
@@ -103,18 +104,21 @@ void addPPETask(VPUIP::NCEClusterTaskOp nceOp, mlir::PatternRewriter& rewriter, 
     if (postOp.name().getValue() == IE::ReLUOp::getOperationName()) {
         VPUX_THROW_UNLESS(postOp.attrs().empty(), "'{0}' PostOp should not have any attributes", postOp.name());
 
-        nceOp.addPPETask(rewriter, VPUIP::PPELayerType::LRELU);
+        const int64_t clampLow = 0;
+        const int64_t clampHigh = std::numeric_limits<int32_t>::max();
+        nceOp.addPPETask(rewriter, VPUIP::PPELayerType::LRELU, clampLow, clampHigh);
     } else if (postOp.name().getValue() == IE::ClampOp::getOperationName()) {
         IE::ClampOp::Adaptor clamp(None, postOp.attrs());
         VPUX_THROW_UNLESS(clamp.verify(nceOp->getLoc()).succeeded(), "Wrong attributes '{0}' for '{1}' PostOp",
                           postOp.attrs(), postOp.name());
-        VPUX_THROW_UNLESS(isDoubleEqual(clamp.min().getValueAsDouble(), 0.0),
+
+        const int64_t clampLow = vpux::toFixedPoint(clamp.min().getValueAsDouble());
+        const int64_t clampHigh = vpux::toFixedPoint(clamp.max().getValueAsDouble());
+        VPUX_THROW_UNLESS(clampLow == 0,
                           "'{0}' PostOp can only be converted to '{1}' PPE task, but minimal value is not equal to 0",
                           postOp.name(), VPUIP::PPELayerType::LRELUX);
 
-        // TODO: should be check/use maxVal?
-
-        nceOp.addPPETask(rewriter, VPUIP::PPELayerType::LRELUX);
+        nceOp.addPPETask(rewriter, VPUIP::PPELayerType::LRELUX, clampLow, clampHigh);
     } else {
         VPUX_THROW("Unsupported PostOp '{0}'", postOp.name());
     }
@@ -382,7 +386,10 @@ mlir::LogicalResult EltwiseAddRewrite::matchAndRewrite(IERT::AddOp origOp, mlir:
                                                           /*kernel_size=*/nullptr,
                                                           /*kernel_strides=*/nullptr,
                                                           /*kernel_padding=*/nullptr, activation_window_channel_length);
-    nceOp.addPPETask(rewriter, VPUIP::PPELayerType::ADD);
+
+    const int64_t clampLow = std::numeric_limits<int32_t>::min();
+    const int64_t clampHigh = std::numeric_limits<int32_t>::max();
+    nceOp.addPPETask(rewriter, VPUIP::PPELayerType::ADD, clampLow, clampHigh);
 
     //
     // Create DPU sub-task
