@@ -5,16 +5,6 @@
 namespace vpu {
 namespace MCMAdapter {
 
-EmulatorNetworkDescription::EmulatorNetworkDescription(std::unique_ptr<mv::CompilationUnit>&& compiler,
-                                                       const vpu::MCMConfig& config, const std::string& name)
-        : _name{name},
-          _compiler{std::move(compiler)},
-          _logger{std::unique_ptr<vpu::Logger>(
-                  new vpu::Logger("EmulatorNetworkDescription", config.logLevel(), consoleOutput()))},
-          _dataMapPlaceholder{},
-          _compiledNetwork{} {
-}
-
 EmulatorNetworkDescription::EmulatorNetworkDescription(const std::vector<char>& compiledNetwork,
                                                        const vpu::MCMConfig& config, const std::string& name)
         : _name{name},

@@ -32,7 +32,7 @@ void EmulatorExecutor::push(const ie::BlobMap& inputs, const PreprocMap&) {
 
 void EmulatorExecutor::push(const ie::BlobMap& inputs) {
     _logger.debug("EmulatorExecutor::push() started");
-    _manager.reset(*reinterpret_cast<const std::vector<char>*>(_network->getNetworkModel()));
+    _manager.reset(_network->getNetworkModel());
     auto inputIt = inputs.cbegin();
     for (const auto inputName : _manager.getNetworkInputs()) {
         const ie::Blob& blob = *inputIt->second;

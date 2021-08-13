@@ -27,8 +27,6 @@ class EmulatorNetworkDescription final : public vpux::INetworkDescription {
 public:
     // TODO: Remove mv::CompilationUnit dependency once all mv::OpModel & Mv::Tensor dependencies are
     // removed
-    EmulatorNetworkDescription(std::unique_ptr<mv::CompilationUnit>&& compiler, const vpu::MCMConfig& config,
-                               const std::string& name);
 
     EmulatorNetworkDescription(const std::vector<char>& compiledNetwork, const vpu::MCMConfig& config,
                                const std::string& name);
