@@ -13,7 +13,14 @@
 
 namespace LayerTestsUtils {
 
-const TargetDevice testPlatformTargetDevice("VPUX");
+const TargetDevice testPlatformTargetDevice = []() -> std::string {
+    if (const auto var = std::getenv("IE_KMB_TESTS_DEVICE_NAME")) {
+        return var;
+    }
+
+    return "VPUX";
+}();
+
 const auto DEFAULT_IE_KMB_TESTS_INFERENCE_SHAVES = "16";
 
 const KmbTestEnvConfig KmbLayerTestsCommon::envConfig;
