@@ -338,6 +338,7 @@ vpux_enable_clang_format(${OBJ_TARGET_NAME})
 target_compile_definitions(${OBJ_TARGET_NAME}
     PRIVATE
         IMPLEMENT_INFERENCE_ENGINE_PLUGIN
+        "DEVICE_NAME=\"${VPUX_DEVICE_NAME}\""
 )
 
 target_include_directories(${OBJ_TARGET_NAME}

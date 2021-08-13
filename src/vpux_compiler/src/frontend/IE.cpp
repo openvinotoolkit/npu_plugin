@@ -60,6 +60,9 @@
 #include <transformations/op_conversions/simplify_ctc_greedy_decoder_seq_len.hpp>
 #include "legacy/transformations/convert_opset1_to_legacy/convert_strided_slice_to_crop.hpp"
 
+#include <transformations/init_node_info.hpp>
+#include <transformations/rt_info/fused_names_attribute.hpp>
+
 using namespace vpux;
 
 namespace {
@@ -73,15 +76,23 @@ public:
             : _ctx(ctx), _netGraph(std::move(netGraph)), _sharedConstants(sharedConstants), _log(log) {
     }
 
-public:
     mlir::FuncOp buildMainFunc(mlir::OpBuilder& moduleBuilder, StringRef funcName, mlir::TimingScope& rootTiming);
+    static std::unordered_set<std::string> getSupportedOps(std::shared_ptr<const ngraph::Function> netGraph);
 
 private:
     using OrigNode = ngraph::Node;
     using OrigNodePtr = std::shared_ptr<OrigNode>;
     using NodeOutputMap = std::unordered_map<ngraph::Output<OrigNode>, mlir::Value>;
+    using Callback = void (NGraphImporter::*)(mlir::OpBuilder& builder, const OrigNodePtr& origNode);
 
-private:
+    static Callback getParser(const std::shared_ptr<ngraph::Node>& op);
+
+    template <class NodeType>
+    void parseDispatch(mlir::OpBuilder& builder, const OrigNodePtr& origNode);
+
+    void parseEmpty(mlir::OpBuilder&, const OrigNodePtr&) {
+    }
+
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Constant>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Convert>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Softmax>& origNode);
@@ -135,20 +146,10 @@ private:
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Pad>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::LSTMCell>& origNode);
 
-    template <class NodeType>
-    void parseDispatch(mlir::OpBuilder& builder, const OrigNodePtr& origNode) {
-        parseNode(builder, std::dynamic_pointer_cast<NodeType>(origNode));
-    }
-
-    void parseEmpty(mlir::OpBuilder&, const OrigNodePtr&) {
-    }
-
-private:
     SmallVector<mlir::Value> getInputs(const OrigNodePtr& node);
     void addOutputs(const OrigNodePtr& node, mlir::Operation* op);
     mlir::Location createLocation(const OrigNodePtr& node);
 
-private:
     static SmallVector<int64_t> importShape(const ngraph::PartialShape& shape);
     mlir::Type importElemType(const ngraph::element::Type& elemType);
     mlir::RankedTensorType importTensor(const ngraph::PartialShape& shape, const ngraph::element::Type& elemType);
@@ -163,7 +164,6 @@ private:
     IE::ROIPoolingMethodAttr importROIPoolingMethod(const std::string& method);
     IE::PadModeAttr importPadMode(const ngraph::op::PadMode val);
 
-private:
     mlir::MLIRContext* _ctx = nullptr;
     std::shared_ptr<const ngraph::Function> _netGraph;
     bool _sharedConstants = false;
@@ -172,15 +172,12 @@ private:
     NodeOutputMap _importedVals;
 };
 
-//
-// buildMainFunc
-//
+template <class NodeType>
+void NGraphImporter::parseDispatch(mlir::OpBuilder& builder, const OrigNodePtr& origNode) {
+    parseNode(builder, std::dynamic_pointer_cast<NodeType>(origNode));
+}
 
-mlir::FuncOp NGraphImporter::buildMainFunc(mlir::OpBuilder& moduleBuilder, StringRef funcName,
-                                           mlir::TimingScope& rootTiming) {
-    auto scopeTiming = rootTiming.nest("Import nGraph function");
-
-    using Callback = void (NGraphImporter::*)(mlir::OpBuilder & builder, const OrigNodePtr& origNode);
+NGraphImporter::Callback NGraphImporter::getParser(const std::shared_ptr<ngraph::Node>& op) {
     using DispatchMap = std::map<ngraph::NodeTypeInfo, Callback>;
 
 #define MAP_ENTRY(_NodeType_) \
@@ -246,6 +243,37 @@ mlir::FuncOp NGraphImporter::buildMainFunc(mlir::OpBuilder& moduleBuilder, Strin
 
 #undef MAP_ENTRY
 
+    const auto dispatchIt = dispatchMap.find(op->get_type_info());
+    return (dispatchIt != dispatchMap.end()) ? dispatchIt->second : nullptr;
+}
+
+std::unordered_set<std::string> NGraphImporter::getSupportedOps(std::shared_ptr<const ngraph::Function> netGraph) {
+    std::unordered_set<std::string> supported;
+    std::unordered_set<std::string> unsupported;
+    for (const auto& op : netGraph->get_ordered_ops()) {
+        const bool hasParser = (getParser(op) != nullptr);
+        for (auto&& fusedLayerName : ngraph::getFusedNamesVector(op)) {
+            if (hasParser) {
+                supported.emplace(fusedLayerName);
+            } else {
+                unsupported.emplace(fusedLayerName);
+            }
+        }
+    }
+    for (auto&& unsupportedNode : unsupported) {
+        supported.erase(unsupportedNode);
+    }
+    return supported;
+}
+
+//
+// buildMainFunc
+//
+
+mlir::FuncOp NGraphImporter::buildMainFunc(mlir::OpBuilder& moduleBuilder, StringRef funcName,
+                                           mlir::TimingScope& rootTiming) {
+    auto scopeTiming = rootTiming.nest("Import nGraph function");
+
     SmallVector<mlir::Type> inputTypes;
     inputTypes.reserve(_netGraph->get_parameters().size());
     for (const auto& param : _netGraph->get_parameters()) {
@@ -277,12 +305,10 @@ mlir::FuncOp NGraphImporter::buildMainFunc(mlir::OpBuilder& moduleBuilder, Strin
 
     for (const auto& origNode : _netGraph->get_ordered_ops()) {
         _log.trace("Convert {0} layer {1}", origNode->get_type_name(), origNode->get_friendly_name());
+        const auto parser = NGraphImporter::getParser(origNode);
+        VPUX_THROW_UNLESS(nullptr != parser, "Unsupported operation {0} with type {1}", origNode->get_friendly_name(),
+                          origNode->get_type_name());
 
-        const auto dispatchIt = dispatchMap.find(origNode->get_type_info());
-        VPUX_THROW_UNLESS(dispatchIt != dispatchMap.end(), "Unsupported operation {0} with type {1}",
-                          origNode->get_friendly_name(), origNode->get_type_name());
-
-        const auto parser = dispatchIt->second;
         (this->*parser)(builder, origNode);
     }
 
@@ -1528,6 +1554,7 @@ void runNGraphPasses(const std::shared_ptr<ngraph::Function>& netGraph, mlir::Ti
     passConfig->disable<ngraph::pass::ConvertStridedSliceToCropMatcher>();
 
     ngraph::pass::Manager manager(passConfig);
+    manager.register_pass<ngraph::pass::InitNodeInfo>();
     manager.register_pass<ngraph::pass::ConvertInterpolate1ToInterpolate4>();
     manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<ngraph::pass::ConvertQuantizeDequantize>();
@@ -1581,6 +1608,25 @@ void addCNNNetworkOp(mlir::OpBuilder& builder, mlir::FlatSymbolRefAttr mainFuncN
 }
 
 }  // namespace
+
+//
+// queryNetwork
+//
+
+std::unordered_set<std::string> vpux::IE::queryNetwork(const InferenceEngine::CNNNetwork& cnnNet,
+                                                       mlir::TimingScope& rootTiming, Logger log) {
+    log.setName("IE::FrontEnd");
+    log.trace("Run queryNetwork");
+
+    const auto netGraph = ngraph::clone_function(*(cnnNet.getFunction()));
+    VPUX_THROW_UNLESS(netGraph != nullptr, "Old IR versions (prior v10) are not supported : {0}", cnnNet.getName());
+
+    log.trace("Run common nGraph passes");
+    runNGraphPasses(netGraph, rootTiming);
+
+    log.trace("Get supported operations list");
+    return NGraphImporter::getSupportedOps(netGraph);
+}
 
 //
 // importNetwork
