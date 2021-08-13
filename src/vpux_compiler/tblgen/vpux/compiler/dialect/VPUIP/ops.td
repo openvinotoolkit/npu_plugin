@@ -1813,7 +1813,10 @@ def VPUIP_PPETaskOp :
     let summary = "PPE Type for NCE Task";
 
     let arguments = (ins
-        VPUIP_PPELayerType:$ppe_layer_type
+        VPUIP_PPELayerType:$ppe_layer_type,
+
+        IntAttr:$clamp_low,
+        IntAttr:$clamp_high
     );
 
     let assemblyFormat = [{
@@ -1919,7 +1922,9 @@ def VPUIP_NCEClusterTaskOp :
                                           VPUIP::PaddingAttr pad, VPUIP::MPEMode mpeMode);
 
         vpux::VPUIP::PPETaskOp addPPETask(mlir::OpBuilder& builder,
-                                          vpux::VPUIP::PPELayerType ppe_layer_type);
+                                          vpux::VPUIP::PPELayerType ppeLayerType,
+                                          const int64_t clampLow,
+                                          const int64_t clampHigh);
 
         static bool isSupportedLayout(mlir::Operation* op, vpux::IE::DataOrderInfo& info);
 

@@ -1045,6 +1045,8 @@ operation ::= `VPUIP.PPETask` $ppe_layer_type attr-dict
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
 `ppe_layer_type` | vpux::VPUIP::PPELayerTypeAttr | Post Processing Element Type
+`clamp_low` | mlir::IntegerAttr | Integer attribute
+`clamp_high` | mlir::IntegerAttr | Integer attribute
 
 ### `VPUIP.PReluUPA` (vpux::VPUIP::PReluUPAOp)
 

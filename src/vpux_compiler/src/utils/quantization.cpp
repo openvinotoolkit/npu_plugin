@@ -275,3 +275,12 @@ mlir::Type vpux::normalizeQuantStorageType(mlir::quant::QuantizedType qType) {
 float vpux::dequantize(int64_t qVal, double scale, int64_t zeroPoint) {
     return static_cast<float>((qVal - zeroPoint) * scale);
 }
+
+//
+// Convert real numbers to fixed point S16.16 format.
+//
+
+int32_t vpux::toFixedPoint(const double realVal) {
+    const double mult = 1 << 16;
+    return std::lround(realVal * mult);
+}

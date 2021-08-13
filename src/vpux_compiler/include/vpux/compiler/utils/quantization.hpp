@@ -47,4 +47,10 @@ mlir::Type normalizeQuantStorageType(mlir::quant::QuantizedType qType);
 
 float dequantize(int64_t qVal, double scale, int64_t zeroPoint);
 
+//
+// Convert real numbers to fixed point S16.16 format.
+//
+
+int32_t toFixedPoint(const double realVal);
+
 }  // namespace vpux
