@@ -115,7 +115,8 @@ namespace mv
                 SpiltOverHForFaceDetectionRetail0004,
                 SplitOverHOverlappedWronglyComputed,
                 SoftwareDeconvolutionSet,
-                UpaHKSwitch
+                UpaHKSwitch,
+                SplitOverHForYoloV4Tiny
             };
 
             std::unordered_map<FailCause, std::string, ::EnumClassHash> failure_causes = {
@@ -149,7 +150,8 @@ namespace mv
                 {FailCause::SpiltOverHForFaceDetectionRetail0004, "SpiltOverHForFaceDetectionRetail0004"},
                 {FailCause::SplitOverHOverlappedWronglyComputed, "SplitOverHOverlappedWronglyComputed"},
                 {FailCause::SoftwareDeconvolutionSet, "SoftwareDeconvolutionSet"},
-                {FailCause::UpaHKSwitch, "UpaHKSwitch"}
+                {FailCause::UpaHKSwitch, "UpaHKSwitch"},
+                {FailCause::SplitOverHForYoloV4Tiny, "SplitOverHForYoloV4Tiny"}
             };
 
             void readGlobalConfigs()
@@ -1171,6 +1173,20 @@ namespace mv
                      (op.getInputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 8 && op.getOutputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 4) ||
                      (op.getInputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 4 && op.getOutputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 2)))
                     return FailCause::SpiltOverKForConvModelF;
+
+                // This is intended to be a temporary workaround for YoloV4 tiny customer network, 
+                // Accuracy issues observed with SOH when CM
+                // Gives approx 6 fps drop to avoid SOH, but acceptable for now
+                if (clustering == "SplitOverH" && op.getOpType() == "Conv" && isChanMajor && 
+                    op.getInputTensor(mv::IO_TENSOR_INPUT)->getShape()[mv::IO_HEIGHT_DIMENSION] == 608 &&
+                    op.getInputTensor(mv::IO_TENSOR_INPUT)->getShape()[mv::IO_WIDTH_DIMENSION] == 608 &&
+                    op.getInputTensor(mv::IO_TENSOR_INPUT)->getShape()[mv::IO_CHANNEL_DIMENSION] == 3 &&
+                    op.getInputTensor(mv::IO_TENSOR_WEIGHTS_SET)->getShape()[mv::KERNEL_HEIGHT] == 3 &&
+                    op.getInputTensor(mv::IO_TENSOR_WEIGHTS_SET)->getShape()[mv::KERNEL_WIDTH] == 3 &&
+                    op.getOutputTensor(mv::IO_TENSOR_OUTPUT)->getShape()[mv::IO_CHANNEL_DIMENSION] == 32 &&
+                    op.getOutputTensor(mv::IO_TENSOR_OUTPUT)->getShape()[mv::IO_WIDTH_DIMENSION] == 304 &&
+                    op.getOutputTensor(mv::IO_TENSOR_OUTPUT)->getShape()[mv::IO_HEIGHT_DIMENSION] == 304)
+                        return FailCause::SplitOverHForYoloV4Tiny;
 
                 return FailCause::Pass; //good strategy
             }
