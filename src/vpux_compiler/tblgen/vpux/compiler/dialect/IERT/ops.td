@@ -950,7 +950,9 @@ def IERT_AddOp :
     let arguments = (ins
         MemRefOf<[F16, F32]>:$input1,
         MemRefOf<[F16, F32]>:$input2,
-        MemRefOf<[F16, F32]>:$output_buff
+        MemRefOf<[F16, F32]>:$output_buff,
+
+        OptionalAttr<IE_PostOp>:$post_op
     );
 
     let results = (outs

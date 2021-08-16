@@ -214,7 +214,8 @@ mlir::LogicalResult EltwiseAddTiling::matchAndRewrite(IERT::AddOp origOp, mlir::
                 changeShape(origOp.output().getType().cast<mlir::MemRefType>(), outputTile.shape);
         auto allocOutOp = rewriter.create<mlir::memref::AllocOp>(loc, tileTypeOut);
 
-        auto tiledOp = rewriter.create<IERT::AddOp>(loc, actInput1, actInput2, allocOutOp.memref());
+        auto tiledOp =
+                rewriter.create<IERT::AddOp>(loc, actInput1, actInput2, allocOutOp.memref(), origOp.post_opAttr());
 
         const auto attrOffsets = getIntArrayAttr(rewriter.getContext(), outputTile.offsets.raw());
         const auto attrShape = getIntArrayAttr(rewriter.getContext(), outputTile.shape.raw());

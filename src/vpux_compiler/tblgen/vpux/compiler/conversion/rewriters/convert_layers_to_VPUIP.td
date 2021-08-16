@@ -348,8 +348,11 @@ class createEltwiseUPAOp<string method> :
 
 def RewriteAdd :
         Pat<
-            (IERT_AddOp $input1, $input2, $output),
-            (createEltwiseUPAOp<"ADD"> $input1, $input2, $output)
+            (IERT_AddOp $input1, $input2, $output, $post_op),
+            (createEltwiseUPAOp<"ADD"> $input1, $input2, $output),
+            [
+                (HasNoValue $post_op)
+            ]
         >;
 
 def RewriteMultiply :

@@ -601,8 +601,9 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
 
     const auto& autob = origNode->get_autob();
 
-    auto op = builder.create<IE::AddOp>(createLocation(origNode), inputs[0], inputs[1],
-                                        importBroadcastType(autob.m_type));
+    auto op =
+            builder.create<IE::AddOp>(createLocation(origNode), inputs[0], inputs[1], importBroadcastType(autob.m_type),
+                                      /*post_op=*/nullptr);
     addOutputs(origNode, op);
 }
 

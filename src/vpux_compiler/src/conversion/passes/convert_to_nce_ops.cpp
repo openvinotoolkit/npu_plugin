@@ -96,9 +96,15 @@ void addDPUTasks(VPUIP::NCEClusterTaskOp nceOp, mlir::PatternRewriter& rewriter,
     }
 }
 
-void addPPETask(VPUIP::NCEClusterTaskOp nceOp, mlir::PatternRewriter& rewriter, IE::PostOp postOp) {
+struct PostOpParams {
+    VPUIP::PPELayerType layerType;
+    int64_t clampLow;
+    int64_t clampHigh;
+};
+
+static mlir::Optional<PostOpParams> parsePostOp(VPUIP::NCEClusterTaskOp nceOp, IE::PostOp postOp) {
     if (postOp == nullptr) {
-        return;
+        return mlir::None;
     }
 
     if (postOp.name().getValue() == IE::ReLUOp::getOperationName()) {
@@ -106,7 +112,7 @@ void addPPETask(VPUIP::NCEClusterTaskOp nceOp, mlir::PatternRewriter& rewriter, 
 
         const int64_t clampLow = 0;
         const int64_t clampHigh = std::numeric_limits<int32_t>::max();
-        nceOp.addPPETask(rewriter, VPUIP::PPELayerType::LRELU, clampLow, clampHigh);
+        return PostOpParams{VPUIP::PPELayerType::LRELU, clampLow, clampHigh};
     } else if (postOp.name().getValue() == IE::ClampOp::getOperationName()) {
         IE::ClampOp::Adaptor clamp(None, postOp.attrs());
         VPUX_THROW_UNLESS(clamp.verify(nceOp->getLoc()).succeeded(), "Wrong attributes '{0}' for '{1}' PostOp",
@@ -114,14 +120,14 @@ void addPPETask(VPUIP::NCEClusterTaskOp nceOp, mlir::PatternRewriter& rewriter, 
 
         const int64_t clampLow = vpux::toFixedPoint(clamp.min().getValueAsDouble());
         const int64_t clampHigh = vpux::toFixedPoint(clamp.max().getValueAsDouble());
-        VPUX_THROW_UNLESS(clampLow == 0,
-                          "'{0}' PostOp can only be converted to '{1}' PPE task, but minimal value is not equal to 0",
-                          postOp.name(), VPUIP::PPELayerType::LRELUX);
+        VPUX_THROW_UNLESS(clampLow == 0, "'{0}' PostOp with non-zero minimum is not supported", postOp.name());
 
-        nceOp.addPPETask(rewriter, VPUIP::PPELayerType::LRELUX, clampLow, clampHigh);
+        return PostOpParams{VPUIP::PPELayerType::LRELUX, clampLow, clampHigh};
     } else {
         VPUX_THROW("Unsupported PostOp '{0}'", postOp.name());
     }
+
+    return mlir::None;
 }
 
 //
@@ -198,7 +204,10 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
             kernelPaddingAttr, /*activation_window_channel_length=*/nullptr);
 
     addDPUTasks(nceOp, rewriter, _numDPU, padsBegin[1], padsEnd[1], padsBegin[0], padsEnd[0], mpeMap.at(_arch));
-    addPPETask(nceOp, rewriter, origOp.post_opAttr());
+    const auto postOpParams = parsePostOp(nceOp, origOp.post_opAttr());
+    if (postOpParams.hasValue()) {
+        nceOp.addPPETask(rewriter, postOpParams->layerType, postOpParams->clampLow, postOpParams->clampHigh);
+    }
 
     //
     // DMA output CMX -> DDR
@@ -317,7 +326,10 @@ mlir::LogicalResult MaxPoolRewrite::matchAndRewrite(IERT::MaxPoolOp origOp, mlir
             kernelPaddingAttr, activation_window_channel_length);
 
     addDPUTasks(nceOp, rewriter, _numDPU, padsBegin[1], padsEnd[1], padsBegin[0], padsEnd[0], mpeMap.at(_arch));
-    addPPETask(nceOp, rewriter, origOp.post_opAttr());
+    const auto postOpParams = parsePostOp(nceOp, origOp.post_opAttr());
+    if (postOpParams.hasValue()) {
+        nceOp.addPPETask(rewriter, postOpParams->layerType, postOpParams->clampLow, postOpParams->clampHigh);
+    }
 
     //
     // DMA output CMX -> DDR
@@ -387,8 +399,13 @@ mlir::LogicalResult EltwiseAddRewrite::matchAndRewrite(IERT::AddOp origOp, mlir:
                                                           /*kernel_strides=*/nullptr,
                                                           /*kernel_padding=*/nullptr, activation_window_channel_length);
 
-    const int64_t clampLow = std::numeric_limits<int32_t>::min();
-    const int64_t clampHigh = std::numeric_limits<int32_t>::max();
+    int64_t clampLow = std::numeric_limits<int32_t>::min();
+    int64_t clampHigh = std::numeric_limits<int32_t>::max();
+    const auto postOpParams = parsePostOp(nceOp, origOp.post_opAttr());
+    if (postOpParams.hasValue()) {
+        clampLow = postOpParams->clampLow;
+        clampHigh = postOpParams->clampHigh;
+    }
     nceOp.addPPETask(rewriter, VPUIP::PPELayerType::ADD, clampLow, clampHigh);
 
     //
@@ -538,7 +555,10 @@ mlir::LogicalResult DepthwiseConvRewrite::matchAndRewrite(IERT::GroupConvolution
             kernelPaddingAttr, actWindowChanLen);
 
     addDPUTasks(nceOp, rewriter, _numDPU, padsBegin[1], padsEnd[1], padsBegin[0], padsEnd[0], mpeMap.at(_arch));
-    addPPETask(nceOp, rewriter, origOp.post_opAttr());
+    const auto postOpParams = parsePostOp(nceOp, origOp.post_opAttr());
+    if (postOpParams.hasValue()) {
+        nceOp.addPPETask(rewriter, postOpParams->layerType, postOpParams->clampLow, postOpParams->clampHigh);
+    }
 
     //
     // DMA output CMX -> DDR
