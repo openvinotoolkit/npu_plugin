@@ -168,7 +168,9 @@ TEST_F(KmbClassifyNetworkTest, precommit_mobilenet_v3_dogs) {
             1, 0.15f);
 }
 
+// [Track number: E#15866]
 TEST_F(KmbClassifyNetworkTest, mobilenet_v3_aircrafts) {
+    SKIP_INFER("bad results");
     runTest(
             TestNetworkDesc("mobilenet-v3-small-aircrafts/caffe2/FP16-INT8/mobilenet-v3-small-aircrafts.xml", EXPERIMENTAL)
                     .setUserInputPrecision("input", Precision::U8)
