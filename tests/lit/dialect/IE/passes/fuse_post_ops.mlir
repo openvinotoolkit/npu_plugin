@@ -112,3 +112,22 @@ func @Conv2dWithClampTest(%arg0: tensor<1x16x4x4xf16>) -> tensor<1x16x3x3xf16> {
     // CHECK-SAME:     strides = [1, 1]
     // CHECK-NOT:   IE.Clamp
 }
+
+// -----
+
+func @AddWithReLUTest() -> tensor<1x16x4x4xf16> {
+    %0 = const.Declare tensor<1x16x4x4xf16> = #const.Content<dense<6.0> : tensor<1x16x4x4xf16>>
+    %1 = const.Declare tensor<1x16x4x4xf16> = #const.Content<dense<-7.0> : tensor<1x16x4x4xf16>>
+    %sum = IE.Add(%0, %1) { auto_broadcast = "NUMPY" } : tensor<1x16x4x4xf16>, tensor<1x16x4x4xf16> -> tensor<1x16x4x4xf16>
+    %relu = IE.ReLU(%sum) : tensor<1x16x4x4xf16> -> tensor<1x16x4x4xf16>
+
+    return %relu : tensor<1x16x4x4xf16>
+
+    // CHECK:       %[[RIGHT:.*]] = const.Declare tensor<1x16x4x4xf16> = #const.Content<dense<-7.000000e+00> : tensor<1x16x4x4xf16>>
+    // CHECK:       %[[LEFT:.*]] = const.Declare tensor<1x16x4x4xf16> = #const.Content<dense<6.000000e+00> : tensor<1x16x4x4xf16>>
+    // CHECK:       %[[SUM:.*]] = IE.Add(%[[LEFT]], %[[RIGHT]])
+    // CHECK-SAME:     auto_broadcast = "NUMPY"
+    // CHECK-SAME:     post_op = {attrs = {}, name = "IE.ReLU"}
+    // CHECK-NOT:   IE.ReLU
+}
+

@@ -273,7 +273,8 @@ mlir::LogicalResult EltwiseAddRewriter::matchAndRewrite(IE::AddOp origOp, mlir::
             expandedInput2 = rewriter.create<IE::ExpandOp>(origOp->getLoc(), origOp.input2(), None, ShapeRef(padsEnd));
         }
 
-        return rewriter.create<IE::AddOp>(origOp.getLoc(), expandedInput1, expandedInput2, origOp.auto_broadcast());
+        return rewriter.create<IE::AddOp>(origOp.getLoc(), expandedInput1, expandedInput2, origOp.auto_broadcast(),
+                                          origOp.post_opAttr());
     };
 
     return generalRewrite(origOp, rewriter, opCreator, _log.nest());

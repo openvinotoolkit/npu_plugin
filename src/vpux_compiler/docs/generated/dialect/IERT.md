@@ -109,6 +109,12 @@ operation ::= `IERT.Add` attr-dict
 ```
 
 
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`post_op` | vpux::IE::PostOp | DictionaryAttr with field(s): 'name', 'attrs' (each field having its own constraints)
+
 #### Operands:
 
 | Operand | Description |
