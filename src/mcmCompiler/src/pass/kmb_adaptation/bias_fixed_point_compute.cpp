@@ -62,18 +62,21 @@ static void adaptFixedPointComputeFcn(const mv::pass::PassEntry&, mv::Computatio
         }
         };
 
-    auto floatBiasTensors = std::set<std::string>();
+    auto floatBiasTensors = std::map<std::string, const mv::Data::OpListIterator>();
     for (auto& opIt : om.getOps("DPUTask"))
     {
         //NOTE: The order of the hardware is mult_acc->bias->mult/shift
         //So when there is fp16 input there should be s16.16 bias
-        auto accDtype = opIt->getInputTensor(0)->getDType();
-        if (opIt->hasAttr("bias") && accDtype == mv::DType("Float16") && opIt->hasFloatPrecision())
-            floatBiasTensors.insert(opIt->get<std::string>("bias"));
+        if (opIt->hasAttr("bias") && opIt->getInputTensor(0)->isFloatingPointType())
+        {
+            if (floatBiasTensors.find(opIt->get<std::string>("bias")) == floatBiasTensors.end())
+                floatBiasTensors.insert({opIt->get<std::string>("bias"), opIt});
+        }
     }
 
-    for (auto biasTensorName : floatBiasTensors){
-        auto biasTensor = dm.getTensor(biasTensorName);
+    for (auto tensorIt : floatBiasTensors){
+        auto biasTensor = dm.getTensor(tensorIt.first);
+        auto opIt = tensorIt.second;
         auto conversionFunctor = toFloatConversionMap.find(
             biasTensor->getDType().toString());
 
@@ -90,6 +93,46 @@ static void adaptFixedPointComputeFcn(const mv::pass::PassEntry&, mv::Computatio
             biasData.cend(),
             fixedPointBiasData.begin(),
             conversionFunctor->second);
+
+        // Admit the case that input was U8 when bias was quantized
+        // but afterwards input precision changed to float.
+        // Then we would need to dequantize the current bias values
+        // before requantizing and conveting to S16.16.
+        auto biasQuantParams = biasTensor->getQuantParams();
+        if (!biasQuantParams.isEmpty() && !biasQuantParams.isInitial())
+        {
+            auto biasScale = extendToK(fixedPointBiasData.size(), biasQuantParams.getScale(),
+                opIt->getName());
+            std::transform(
+                fixedPointBiasData.begin(),
+                fixedPointBiasData.end(),
+                biasScale.cbegin(),
+                fixedPointBiasData.begin(),
+                std::multiplies<double>());
+            biasTensor->setQuantParams(mv::QuantizationParams::initial());
+        }
+
+        // At this stage bias data should be float or dequantized.
+        // Still need to handle the case of FP16 input and quantized weights
+        // so requantize the bias with weights scale before packing as S16.16.
+        if (opIt->hasWeights() &&
+            opIt->getInputTensor(1)->isQuantized())
+        {
+            auto quantParams = opIt->getInputTensor(1)->getQuantParams();
+            if (!quantParams.isEmpty() && !quantParams.isInitial())
+            {
+                auto weightsScale = extendToK(fixedPointBiasData.size(), quantParams.getScale(),
+                    opIt->getName());
+                std::transform(
+                    fixedPointBiasData.begin(),
+                    fixedPointBiasData.end(),
+                    weightsScale.cbegin(),
+                    fixedPointBiasData.begin(),
+                    std::divides<double>());
+                std::vector<int64_t> biasZp(fixedPointBiasData.size(), 0);
+                biasTensor->setQuantParams({biasZp, weightsScale, {}, {}});
+            }
+        }
 
         // Regardless if the data is float or integer, we need to convert
         // it to a S16.16 format for the HW compute, which is equivalent
