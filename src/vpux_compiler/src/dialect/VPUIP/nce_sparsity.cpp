@@ -13,6 +13,9 @@
 
 #include "vpux/compiler/dialect/VPUIP/nce_sparsity.hpp"
 #include "vpux/compiler/conversion.hpp"
+#include "vpux/utils/core/func_ref.hpp"
+#include "vpux/utils/core/enums.hpp"
+#include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
 
 using namespace vpux;
 using namespace VPUIP;
@@ -82,7 +85,92 @@ std::vector<uint8_t> getBitPattern(mlir::ArrayRef<int64_t> kernelSize, int64_t w
     return bitPattern;
 }
 
+constexpr std::int32_t MTL_SPARSITY = 0xFFFFFF;
+
+std::int32_t toFixedPoint(double realVal) {
+    // FIXME: 2 ^ 16 might be more obvious
+    return std::lround(realVal * 65536.);
+}
+
+std::int32_t toHex(double realVal) {
+    union f32toint32 {
+        std::int32_t m_i32;
+        float m_f32;
+    };
+
+    f32toint32 biasVal;
+    biasVal.m_f32 = static_cast<float>(realVal);
+    return biasVal.m_i32;
+}
+
+constexpr std::int32_t getKMBScale(double scale = 1.0) {
+    (void) scale;
+
+    constexpr std::int32_t PRELU_SCALE_OFFSET = 0;
+    constexpr std::int32_t PRELU_SCALE_VALUE = 1;
+
+    // FIXME: PPE shift is actually 6 bit long, 2 higher bits stand for rounding mode
+    constexpr std::int32_t PPE_SHIFT_OFFSET = 8;
+    constexpr std::int32_t PPE_SHIFT_VALUE = 0;
+
+    constexpr std::int32_t PPE_MULT_OFFSET = 16;
+    // FIXME: PPE multiplier has sign, which may affect lower bits
+    constexpr std::int32_t PPE_MULT_VALUE = 1;
+
+    constexpr std::int32_t KMB_SCALE = (PRELU_SCALE_VALUE << PRELU_SCALE_OFFSET) | (PPE_SHIFT_VALUE << PPE_SHIFT_OFFSET) |
+                                       (PPE_MULT_VALUE << PPE_MULT_OFFSET);
+
+    return KMB_SCALE;
+}
+
+void computeQuantMultShift(double scale, std::uint32_t& shift, std::uint32_t& mult) {
+    auto bits = 15;
+    auto exponent = 0;
+    double mantissa = std::frexp(scale, &exponent);
+    shift = bits - exponent;
+    mult = static_cast<std::uint32_t>((mantissa * pow(2, bits)));
+}
+
+std::int32_t getMTLScale(double scale) {
+    std::int32_t multshift = 0;
+    // 8bit mult mask
+    static constexpr std::uint32_t PRELU_MULT_MASK = 0x000000FF;
+    // 6bit shift mask
+    static constexpr std::uint32_t PRELU_SHIFT_MASK = 0x00003F00;
+    static constexpr std::uint32_t PRELU_SHIFT_SHIFT = 8;
+    // round mode mask
+    static constexpr std::uint32_t ROUND_MODE_MASK = 0x0000C000;
+    static constexpr std::uint32_t ROUND_MODE_SHIFT = 14;
+    // scale mask
+    static constexpr std::uint32_t SCALE_MODE_MASK = 0xFFFF0000;
+    static constexpr std::uint32_t SCALE_MODE_SHIFT = 16;
+
+    // harcoded
+    std::int32_t round32 = 1;
+    std::int32_t reluMult = 0;
+    std::uint32_t mult = 0;
+    std::uint32_t shift = 0;
+    computeQuantMultShift(scale, shift, mult);
+    multshift = static_cast<std::int32_t>(
+            ((mult << SCALE_MODE_SHIFT) & SCALE_MODE_MASK) | ((round32 << ROUND_MODE_SHIFT) & ROUND_MODE_MASK) |
+            ((shift << PRELU_SHIFT_SHIFT) & PRELU_SHIFT_MASK) | (reluMult & PRELU_MULT_MASK));
+
+    return multshift;
+}
+
 }  // namespace
+
+const vpux::EnumMap<vpux::VPUIP::ArchKind, vpux::VPUIP::NCESparsity::PPEConverterCb> vpux::VPUIP::NCESparsity::ppeConvertersMap = {
+    {vpux::VPUIP::ArchKind::KMB, getKMBScale},
+    {vpux::VPUIP::ArchKind::TBH, getKMBScale},
+    {vpux::VPUIP::ArchKind::MTL, getMTLScale},
+};
+
+const vpux::EnumMap<vpux::VPUIP::ArchKind, vpux::VPUIP::NCESparsity::BiasConverterCb> vpux::VPUIP::NCESparsity::biasConvertersMap = {
+    {vpux::VPUIP::ArchKind::KMB, toFixedPoint},
+    {vpux::VPUIP::ArchKind::TBH, toFixedPoint},
+    {vpux::VPUIP::ArchKind::MTL, toHex},
+};
 
 int64_t vpux::VPUIP::NCESparsity::getBitPatternSize(mlir::ArrayRef<int64_t> kernelSize, int64_t strideW,
                                                     mlir::Type elemType) {
@@ -129,4 +217,55 @@ std::vector<uint8_t> vpux::VPUIP::NCESparsity::getFakeSparsity(mlir::ArrayRef<in
     }
 
     return fakeSparsity;
+}
+
+std::vector<std::int32_t> vpux::VPUIP::NCESparsity::getWeightsTable(std::int64_t OC, vpux::VPUIP::NCESparsity::GetBiasCb getBiasFP, std::int32_t weightPtrOffset, std::int32_t weightPtrStep,
+                                                                    std::int32_t sparsityPtrOffset, vpux::VPUIP::ArchKind arch,
+                                                                    mlir::Type inputType, mlir::Type weightsType, mlir::Type outputType) {
+    const auto getMultShift = [inputType, weightsType, outputType](vpux::VPUIP::ArchKind architecture) -> std::int32_t {
+        const auto ppeConverter = ppeConvertersMap.at(architecture);
+        const auto getScale = [](mlir::Type type) -> double {
+            if (auto quantized = type.dyn_cast_or_null<mlir::quant::UniformQuantizedType>()) {
+                return quantized.getScale();
+            } else {
+                return 1.0;
+            }
+        };
+
+        if (architecture == vpux::VPUIP::ArchKind::MTL) {
+            const auto inputScale   = getScale(inputType);
+            const auto weightsScale = getScale(weightsType);
+            const auto outputScale  = getScale(outputType);
+
+            const auto scale = (inputScale * weightsScale) / outputScale;
+            return inputType.isBF16() || inputType.isF16() ? toHex(scale) : ppeConverter(scale);
+        } else {
+            return ppeConverter(1.0);
+        }
+    };
+
+    const auto multShift = getMultShift(arch);
+
+    const std::int32_t sparsityPtr = arch == vpux::VPUIP::ArchKind::MTL ? MTL_SPARSITY : sparsityPtrOffset;
+
+    const auto convertBias = [&](std::int64_t oc) -> std::int32_t {
+        const auto biasVal = getBiasFP(oc);
+        const auto biasConverter = biasConvertersMap.at(arch);
+        return biasConverter(biasVal);
+    };
+
+    std::vector<std::int32_t> weightsTableVals(OC * vpux::VPUIP::NCEInvariant::WEIGHT_TABLE_NUM_ELEMENTS_PER_OC, 0);
+
+    for (auto oc : irange(checked_cast<std::size_t>(OC))) {
+        const auto wtInd = oc * static_cast<std::size_t>(vpux::VPUIP::NCEInvariant::WEIGHT_TABLE_NUM_ELEMENTS_PER_OC);
+
+        weightsTableVals[wtInd + 0] = weightPtrOffset;
+        weightsTableVals[wtInd + 1] = sparsityPtr;
+        weightsTableVals[wtInd + 2] = multShift;
+        weightsTableVals[wtInd + 3] = convertBias(oc);
+
+        weightPtrOffset += weightPtrStep;
+    }
+
+    return weightsTableVals;
 }
