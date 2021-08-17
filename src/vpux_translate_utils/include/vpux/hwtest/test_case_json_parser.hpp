@@ -35,6 +35,7 @@
 
 namespace nb {
 enum class CaseType {
+    ZMajorConvolution,
     Unknown
 };
 
