@@ -7,6 +7,7 @@
     - VPUAL Backend
     - Zero Backend
     - HDDL2 Backend
+- [Sofrware kernels implementation](./sw_runtime_kernels)
 
 ## Documentation
 

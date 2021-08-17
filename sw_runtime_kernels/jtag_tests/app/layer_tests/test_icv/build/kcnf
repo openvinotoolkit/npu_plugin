@@ -1,0 +1,57 @@
+source ../../../kcnf
+
+
+config TEST_FILTER
+  string "TEST_FILTER"
+  default "*"
+
+config MIN_SHAVES
+  int "MIN_SHAVES"
+  default 1
+
+config MAX_SHAVES
+  int "MAX_SHAVES"
+  default 1
+
+config ALL_TESTS
+  bool "ALL_TESTS"
+  default n
+
+config SOFT_ASSERT
+  bool "SOFT_ASSERT"
+  default n
+
+config CALL_ONCE
+  bool "CALL_ONCE"
+  default y
+
+config REPEAT_COUNT
+  int "REPEAT_COUNT"
+  default 1
+
+config PRINT_DIFFS
+  bool "PRINT_DIFFS"
+  default n
+
+config PRINT_PERF_COUNTERS
+  bool "PRINT_PERF_COUNTERS"
+  default n
+
+choice
+  prompt "Test mode"
+
+  config TEST_MODE_QUIET
+    bool "TEST_MODE_QUIET"
+
+  config TEST_MODE_BRIEF
+    bool "TEST_MODE_BRIEF"
+
+  config TEST_MODE_FULL
+    bool "TEST_MODE_FULL"
+
+  config TEST_MODE_LISTSUITES
+    bool "TEST_MODE_LISTSUITES"
+
+  config TEST_MODE_LISTTESTS
+    bool "TEST_MODE_LISTTESTS"
+endchoice
