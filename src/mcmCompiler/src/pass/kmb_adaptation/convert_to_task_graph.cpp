@@ -1757,7 +1757,9 @@ int32_t computeClampHigh(mv::Data::OpListIterator &opIt, bool flex)
             {
                 double clampValue = opIt->get<double>("Minimum");
 
-                if(computeDType == U8 || computeDType == I8)
+                if(opIt->hasAttr("mixedToFloat") && opIt->get<bool>("mixedToFloat"))
+                    clamp = static_cast<int32_t>(clampValue * pow(2,16));
+                else if(computeDType == U8 || computeDType == I8)
                     clamp = static_cast<int32_t>(clampValue);
                 else if (computeDType == FP16)
                     clamp = static_cast<int32_t>(clampValue * pow(2,16));
