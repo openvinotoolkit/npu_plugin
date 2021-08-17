@@ -213,7 +213,6 @@ void createAndRunConvTest() {
     ASSERT_EQ(weight.qp.scale, 0.01);
 }
 
-// TODO: Enable once some case types are supported
-// TEST(MTL_JSON_Parser, conv_test) {
-//     createAndRunConvTest();
-// }
+TEST(MTL_JSON_Parser, conv_test) {
+    createAndRunConvTest();
+}
