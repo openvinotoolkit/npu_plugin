@@ -19,6 +19,7 @@
 #include "vpux/compiler/dialect/VPUIP/effects.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops_interfaces.hpp"
+#include "vpux/compiler/utils/strings.hpp"
 
 #include "vpux/utils/IE/float16.hpp"
 #include "vpux/utils/core/checked_cast.hpp"
@@ -44,10 +45,7 @@ VPUIP::BlobWriter::Task vpux::VPUIP::BlobWriter::createTask(mlir::Operation* op)
 
     setAliasForSerializedTensors(op);
 
-    String name;
-    if (const auto nameLoc = op->getLoc().dyn_cast<mlir::NameLoc>()) {
-        name = createString(nameLoc.getName().strref());
-    }
+    String name = createString(StringRef(stringifyLocation(op->getLoc())));
 
     const auto waitBarriers = createVector(task.waitBarriers() | transformed([this](mlir::Value val) {
                                                return getBarrierVirtualID(val);
