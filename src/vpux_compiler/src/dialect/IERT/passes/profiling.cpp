@@ -14,6 +14,7 @@
 #include "vpux/compiler/dialect/IERT/ops.hpp"
 #include "vpux/compiler/dialect/IERT/passes.hpp"
 #include "vpux/compiler/utils/logging.hpp"
+#include "vpux/compiler/utils/strings.hpp"
 #include "vpux/compiler/utils/types.hpp"
 
 #include "mlir/IR/Attributes.h"
@@ -89,14 +90,8 @@ void TimestampProfilingPass::safeRunOnModule() {
             curTaskName += "_NA]";
         }
 
-        if (const auto fusedLoc = curTask->getLoc().dyn_cast<mlir::FusedLoc>()) {
-            auto locs = fusedLoc.getLocations();
-            VPUX_THROW_UNLESS(locs.size() > 0, "FusedLoc is emply");
-            if (const auto name = locs[0].dyn_cast<mlir::NameLoc>())
-                curTaskName += name.getName().strref().data();
-        } else if (const auto loc = curTask->getLoc().dyn_cast<mlir::NameLoc>()) {
-            curTaskName += loc.getName().strref().data();
-        }
+        curTaskName += stringifyLocation(curTask->getLoc());
+
         auto name = mlir::NameLoc::get(mlir::Identifier::get(
                 curTaskName + ((dmaId == 0) ? "_PROFBEGIN_0" : ("_PROFMIDDLE_" + std::to_string(dmaId - 1))) + "_" +
                         std::to_string(layerNumber),
