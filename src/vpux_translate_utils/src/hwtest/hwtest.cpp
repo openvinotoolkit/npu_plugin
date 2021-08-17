@@ -29,6 +29,9 @@
 namespace vpux {
 
 mlir::OwningModuleRef importHWTEST(llvm::StringRef sourceJson, mlir::MLIRContext* ctx) {
+    mlir::DialectRegistry registry;
+    registerDialects(registry);
+    ctx->appendDialectRegistry(registry);
     ctx->loadDialect<VPUIP::VPUIPDialect>();
     auto module = mlir::ModuleOp::create(mlir::UnknownLoc::get(ctx), StringRef("mainModule"));
     auto log = Logger{"vpux-hwtest", LogLevel::Trace};
