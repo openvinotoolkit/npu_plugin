@@ -30,6 +30,9 @@ namespace vpux {
 
 mlir::quant::QuantizedType expandScalesAndZP(mlir::quant::UniformQuantizedPerAxisType perAxisQType, ShapeRef padBefore,
                                              ShapeRef padAfter);
+mlir::quant::QuantizedType tileScalesAndZP(mlir::quant::UniformQuantizedPerAxisType perAxisQType, ShapeRef shape,
+                                           ShapeRef offsets);
+
 std::tuple<double, int64_t> calcScaleAndZeroPoint(int64_t qMin, int64_t qMax, double rMin, double rMax, bool isSigned);
 
 mlir::quant::QuantizedType getQuantizedType(Const::ContentAttr lowConst, Const::ContentAttr highConst, int64_t levels,

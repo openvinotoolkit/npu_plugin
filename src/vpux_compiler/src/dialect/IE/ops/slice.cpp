@@ -13,6 +13,7 @@
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
+#include "vpux/compiler/utils/quantization.hpp"
 
 #include "vpux/utils/core/range.hpp"
 
@@ -32,9 +33,15 @@ mlir::LogicalResult vpux::IE::SliceOp::inferReturnTypeComponents(
     }
 
     const auto sizes = parseIntArrayAttr<int64_t>(slice.static_sizes());
-    const auto inType = slice.source().getType().cast<mlir::ShapedType>().getElementType();
+    const auto inType = slice.source().getType().cast<mlir::ShapedType>();
 
-    inferredReturnShapes.emplace_back(sizes, inType);
+    auto elemType = inType.getElementType();
+    if (const auto perAxisQType = elemType.dyn_cast_or_null<mlir::quant::UniformQuantizedPerAxisType>()) {
+        const Shape offsets(sizes.size(), 0);
+        elemType = tileScalesAndZP(perAxisQType, ShapeRef{sizes}, offsets);
+    }
+
+    inferredReturnShapes.emplace_back(sizes, elemType);
 
     return mlir::success();
 }

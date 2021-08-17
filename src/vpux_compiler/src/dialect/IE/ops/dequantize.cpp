@@ -26,7 +26,7 @@ mlir::LogicalResult vpux::IE::DequantizeOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto inType = dequantize.input().getType().cast<mlir::RankedTensorType>();
+    const auto inType = dequantize.input().getType().cast<mlir::ShapedType>();
     const auto dstElemType = dequantize.dstElemType().getValue();
 
     inferredReturnShapes.emplace_back(inType.getShape(), dstElemType);
