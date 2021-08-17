@@ -1,0 +1,14 @@
+# {% copyright %}
+
+LINES = $(shell cat list.txt)
+noop=
+space = $(noop) $(noop)
+TestFilter=CONFIG_TEST_FILTER="$(subst $(space),*:,$(strip $(subst \#,,$(subst define,,$(subst ICV_TEST_SUITE_NAME,,$(LINES))))))*"
+GOALS = $(MAKECMDGOALS)
+ifneq ($(MAKECMDGOALS), MovidiusCI)
+ifneq ($(MAKECMDGOALS), MovidiusCI_clean)
+$(MAKECMDGOALS):
+	$(MAKE) -C ../../build $(GOALS) $(TestFilter)
+endif
+endif
+
