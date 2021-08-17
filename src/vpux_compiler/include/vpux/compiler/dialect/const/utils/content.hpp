@@ -207,6 +207,14 @@ public:
 public:
     void copyTo(MutableArrayRef<char> buf) const;
 
+    template <typename Caller>
+    void mutate(Caller&& caller) & {
+        dispatchByElemType<void>(getStorageElemType(), [this, caller](auto dummy) {
+            using ElemT = std::decay_t<decltype(dummy)>;
+            caller(this->getTempBuf<ElemT>());
+        });
+    }
+
 public:
     template <typename OutT>
     MutableArrayRef<OutT> getTempBuf() & {

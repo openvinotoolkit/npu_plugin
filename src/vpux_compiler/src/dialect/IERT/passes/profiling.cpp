@@ -14,6 +14,7 @@
 #include "vpux/compiler/dialect/IERT/ops.hpp"
 #include "vpux/compiler/dialect/IERT/passes.hpp"
 #include "vpux/compiler/utils/logging.hpp"
+#include "vpux/compiler/utils/strings.hpp"
 #include "vpux/compiler/utils/types.hpp"
 
 #include "mlir/IR/Attributes.h"
@@ -63,33 +64,22 @@ void TimestampProfilingPass::safeRunOnModule() {
     OpBuilderLogger builderLog(_log.nest());
     mlir::OpBuilder builder(&netFunc.getBody().front().front(), &builderLog);
 
-    auto* iert = getContext().getLoadedDialect<IERT::IERTDialect>();
-    VPUX_THROW_UNLESS(iert != nullptr, "IERT Dialect was not loaded");
-    const auto* layerInfo = iert->getRegisteredInterface<IERT::LayerInfoDialectInterface>();
-    VPUX_THROW_UNLESS(layerInfo != nullptr, "IERT Dialect was not initialized with LayerInfo interface");
-
     int dmaId = 0;
     SmallVector<IERT::TimestampOp> results;
     auto timestampType = mlir::MemRefType::get({1, 1, 1, 1}, getUInt32Type(ctx));
 
-    const auto callback = [&](mlir::Operation* op) {
-        _log.trace("Process Operation '{0}'", op->getLoc());
-
-        auto curTask = mlir::dyn_cast<RTLayerInterface>(op);
-        if (curTask == nullptr) {
-            _log.trace("It is not a VPUIP Task");
-            return;
-        }
+    const auto callback = [&](IERT::AsyncLayerOpInterface curTask) {
+        _log.trace("Process Operation '{0}'", curTask->getLoc());
 
         uint32_t curNumUnits = 0;
-        const auto curExecutor = layerInfo->getExecutor(op, curNumUnits);
+        const auto curExecutor = curTask.getExecutor(curNumUnits);
         auto physType = curExecutor.dyn_cast<VPUIP::PhysicalProcessorAttr>();
         if (physType == nullptr) {
             _log.trace("It is not a PhysicalProcessor Task");
             return;
         }
 
-        builder.setInsertionPointAfter(op);
+        builder.setInsertionPointAfter(curTask);
         int layerNumber = 0;
         std::string curTaskName = "[";
         curTaskName += curTask->getName().getStringRef().data();
@@ -100,14 +90,8 @@ void TimestampProfilingPass::safeRunOnModule() {
             curTaskName += "_NA]";
         }
 
-        if (const auto fusedLoc = curTask->getLoc().dyn_cast<mlir::FusedLoc>()) {
-            auto locs = fusedLoc.getLocations();
-            VPUX_THROW_UNLESS(locs.size() > 0, "FusedLoc is emply");
-            if (const auto name = locs[0].dyn_cast<mlir::NameLoc>())
-                curTaskName += name.getName().strref().data();
-        } else if (const auto loc = curTask->getLoc().dyn_cast<mlir::NameLoc>()) {
-            curTaskName += loc.getName().strref().data();
-        }
+        curTaskName += stringifyLocation(curTask->getLoc());
+
         auto name = mlir::NameLoc::get(mlir::Identifier::get(
                 curTaskName + ((dmaId == 0) ? "_PROFBEGIN_0" : ("_PROFMIDDLE_" + std::to_string(dmaId - 1))) + "_" +
                         std::to_string(layerNumber),
@@ -128,13 +112,11 @@ void TimestampProfilingPass::safeRunOnModule() {
     builder.setInsertionPointAfter(&netFunc.getBody().front().front());
     auto memOp = builder.create<mlir::memref::AllocOp>(mlir::UnknownLoc::get(ctx), cmxMemType);
 
-    SmallVector<int64_t> svStrides(timestampType.getShape().size(), 1);
     SmallVector<mlir::Value> dmas;
     for (uint32_t id = 0; id < results.size(); id++) {
         builder.setInsertionPointAfter(results[id]);
-        auto sub = builder.create<mlir::memref::SubViewOp>(mlir::NameLoc::get(mlir::Identifier::get("subview", ctx)),
-                                                           memOp, SmallVector<int64_t>({0, id, 0, 0}),
-                                                           timestampType.getShape(), svStrides);
+        auto sub = builder.create<IERT::SubViewOp>(mlir::NameLoc::get(mlir::Identifier::get("subview", ctx)), memOp,
+                                                   SmallVector<int64_t>({0, id, 0, 0}), timestampType.getShape());
 
         dmas.push_back(builder.create<IERT::CopyOp>(results[id].getLoc(), results[id].output(), sub).output());
     }

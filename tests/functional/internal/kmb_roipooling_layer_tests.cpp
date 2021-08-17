@@ -82,7 +82,7 @@ class KmbROIPoolingLayerTests : public KmbLayerTestBase,
 
 // [Track number: D#36225]
 TEST_P(KmbROIPoolingLayerTests, AccuracyTest) {
-    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "bad results");
+    SKIP_INFER("bad results");
 
     const auto& p = GetParam();
 

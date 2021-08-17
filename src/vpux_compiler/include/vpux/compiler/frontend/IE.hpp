@@ -27,5 +27,8 @@ namespace IE {
 mlir::OwningModuleRef importNetwork(mlir::MLIRContext* ctx, InferenceEngine::CNNNetwork cnnNet, bool sharedConstants,
                                     mlir::TimingScope& rootTiming, Logger log = Logger::global());
 
+std::unordered_set<std::string> queryNetwork(const InferenceEngine::CNNNetwork& cnnNet, mlir::TimingScope& rootTiming,
+                                             Logger log = Logger::global());
+
 }  // namespace IE
 }  // namespace vpux

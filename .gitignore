@@ -328,3 +328,6 @@ output/
 CMakePresets.json
 CMakeSettings.json
 CMakeUserPresets.json
+
+# Plugin documentation
+docs/VPUX_DG/generated

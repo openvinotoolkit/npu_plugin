@@ -40,8 +40,8 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyConvChannels(mlir::Location
     }
 
     const auto filterShape = getShape(filterType);
-    const auto OC = filterShape[IERT::ConvolutionOp::filter_out_channel_dim()];
-    const auto IC = filterShape[IERT::ConvolutionOp::filter_in_channel_dim()];
+    const auto OC = filterShape[IE::Dims4D::Filter::OC];
+    const auto IC = filterShape[IE::Dims4D::Filter::IC];
 
     if (OC % getChannelAlignment(filterType.getElementType()) != 0) {
         log.trace("[{0}] Convolution output channels are not aligned", loc);
@@ -77,7 +77,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPoolChannels(mlir::Location
     }
 
     const auto inputShape = getShape(inputType);
-    const auto IC = inputShape[IERT::MaxPoolOp::act_channel_dim()];
+    const auto IC = inputShape[IE::Dims4D::Act::C];
 
     if (IC % getChannelAlignment(inputType.getElementType()) != 0) {
         log.trace("[{0}] Pooling channels are not aligned", loc);
@@ -115,8 +115,8 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyEltwiseChannels(mlir::Locat
 
     const auto firstInputShape = getShape(firstInputType);
     const auto secondInputShape = getShape(secondInputType);
-    const auto firstIC = firstInputShape[IERT::MaxPoolOp::act_channel_dim()];
-    const auto secondIC = secondInputShape[IERT::MaxPoolOp::act_channel_dim()];
+    const auto firstIC = firstInputShape[IE::Dims4D::Act::C];
+    const auto secondIC = secondInputShape[IE::Dims4D::Act::C];
 
     if (firstIC % getChannelAlignment(firstInputType.getElementType()) != 0) {
         log.trace("[{0}] Eltwise input1 channels are not aligned", loc);
@@ -162,10 +162,10 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyGroupConvChannels(mlir::Loc
     }
 
     const auto inputShape = getShape(inputType);
-    const auto inputChan = inputShape[IERT::ConvolutionOp::filter_in_channel_dim()];
+    const auto inputChan = inputShape[IE::Dims4D::Act::C];
     const auto filterShape = getShape(filterType);
-    const auto OC = filterShape[IERT::ConvolutionOp::filter_out_channel_dim()];
-    const auto filtersPerInChan = filterShape[IERT::ConvolutionOp::filter_in_channel_dim()];
+    const auto OC = filterShape[IE::Dims4D::Filter::OC];
+    const auto filtersPerInChan = filterShape[IE::Dims4D::Filter::IC];
     if (filtersPerInChan != 1) {
         log.trace("[{0}] Group Convolution with more than one filter per channel is not supported", loc);
         return mlir::failure();
@@ -230,7 +230,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyConvCMX(mlir::Location loc,
 
     const auto filterShape = getShape(filterType);
     // consider alignment when calculating required CMX
-    const auto OC = filterShape[IERT::ConvolutionOp::filter_out_channel_dim()];
+    const auto OC = filterShape[IE::Dims4D::Filter::OC];
     const auto requiredCMX = getRequiredCMX({inputType, filterType, outputType}, OC);
 
     const auto cmxSize = getCMXSize(module);
@@ -264,7 +264,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPoolCMX(mlir::Location loc,
     VPUX_THROW_UNLESS(kernelStrides.size() == 2, "Unsupported strides size: {0}", kernelSize.size());
 
     const auto inputShape = getShape(inputType);
-    const auto IC = inputShape[IERT::MaxPoolOp::act_channel_dim()];
+    const auto IC = inputShape[IE::Dims4D::Act::C];
 
     const auto kernelSizeVals = parseIntArrayAttr<int64_t>(kernelSize);
     const auto kernelStridesVals = parseIntArrayAttr<int64_t>(kernelStrides);
@@ -334,10 +334,11 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyGroupConvCMX(mlir::Location
     VPUX_THROW_UNLESS(kernelStrides.size() == 2, "Unsupported strides size: {0}", kernelStrides.size());
 
     const auto filterShape = getShape(filterType);
-    const auto OC = filterShape[IERT::ConvolutionOp::filter_out_channel_dim()];
-    const auto filtersPerInChan = filterShape[IERT::ConvolutionOp::filter_in_channel_dim()];
-    const auto KY = filterShape[IERT::ConvolutionOp::filter_spatial_height_dim()];
-    const auto KX = filterShape[IERT::ConvolutionOp::filter_spatial_width_dim()];
+    const auto OC = filterShape[IE::Dims4D::Filter::OC];
+    const auto filtersPerInChan = filterShape[IE::Dims4D::Filter::IC];
+    const auto KY = filterShape[IE::Dims4D::Filter::KY];
+    const auto KX = filterShape[IE::Dims4D::Filter::KX];
+
     // Setting more than 16 groups results in worse accuracy.
     // FIXME verify CMX is not a proper place for this. But it is required to fail CMX check during tiling.
     const auto depthwiseOutChanCount = VPUIP::NCEInvariant::getChannelAlignment(outputType.getElementType());
@@ -387,15 +388,13 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyCMX(IERT::GroupConvolutionO
 // verifyKernel
 //
 
-mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(mlir::Location loc, mlir::ArrayAttr kernelSizeAttr,
-                                                            mlir::ArrayAttr kernelStridesAttr, Logger log) {
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(mlir::Location loc, int64_t KY, int64_t KX, int64_t SY,
+                                                            int64_t SX, int64_t padTop, int64_t padBottom,
+                                                            int64_t padLeft, int64_t padRight, Logger log) {
     log.setName("NCEInvariant");
 
-    const auto kernelSize = parseIntArrayAttr<int64_t>(kernelSizeAttr);
-    const auto KY = kernelSize[0];
-    const auto KX = kernelSize[1];
-
     static const int32_t NCE_MAX_KERNEL_SIZE = 11;
+    static const int32_t NCE_MAX_STRIDE_SIZE = 8;
 
     if (KY > NCE_MAX_KERNEL_SIZE || KY <= 0) {
         log.trace("[{0}] Unsupported kernel height dimension '{1}', must be in range [1, {2}]", loc, KY,
@@ -407,12 +406,6 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(mlir::Location loc, 
                   NCE_MAX_KERNEL_SIZE);
         return mlir::failure();
     }
-
-    const auto kernelStrides = parseIntArrayAttr<int64_t>(kernelStridesAttr);
-    const auto SY = kernelStrides[0];
-    const auto SX = kernelStrides[1];
-
-    static const int32_t NCE_MAX_STRIDE_SIZE = 8;
 
     if (SX != SY) {
         log.trace("[{0}] Assymetric strides are not supported", loc);
@@ -429,12 +422,33 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(mlir::Location loc, 
         return mlir::failure();
     }
 
+    if (padTop < 0 || padTop > KY / 2) {
+        log.trace("[{0}] Unsupported padding '{1}', must be in range [0, {2}]", loc, padTop, KY / 2);
+        return mlir::failure();
+    }
+    if (padBottom < 0 || padBottom > KY / 2) {
+        log.trace("[{0}] Unsupported padding '{1}', must be in range [0, {2}]", loc, padBottom, KY / 2);
+        return mlir::failure();
+    }
+    if (padLeft < 0 || padLeft > KX / 2) {
+        log.trace("[{0}] Unsupported padding '{1}', must be in range [0, {2}]", loc, padLeft, KX / 2);
+        return mlir::failure();
+    }
+    if (padRight < 0 || padRight > KX / 2) {
+        log.trace("[{0}] Unsupported padding '{1}', must be in range [0, {2}]", loc, padRight, KX / 2);
+        return mlir::failure();
+    }
+
     return mlir::success();
 }
 
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IE::ConvolutionOp origOp, Logger log) {
     log.setName("NCEInvariant");
 
+    if (origOp.input().getType().cast<mlir::ShapedType>().getRank() != 4) {
+        return mlir::failure();
+    }
+
     const auto dilations = parseIntArrayAttr<int64_t>(origOp.dilations());
     if (dilations[0] != 1 || dilations[1] != 1) {
         log.trace("[{0}] Unsupported kernel dilations '{1}'", origOp->getLoc(), dilations);
@@ -442,16 +456,30 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IE::ConvolutionOp or
     }
 
     const auto filterShape = getShape(origOp.filter());
-    const auto KY = filterShape[IERT::ConvolutionOp::filter_spatial_height_dim()];
-    const auto KX = filterShape[IERT::ConvolutionOp::filter_spatial_width_dim()];
-    const auto kernelSizeAttr = getIntArrayAttr(origOp.getContext(), makeArrayRef({KY, KX}));
+    const auto KY = filterShape[IE::Dims4D::Filter::KY];
+    const auto KX = filterShape[IE::Dims4D::Filter::KX];
 
-    return verifyKernel(origOp->getLoc(), kernelSizeAttr, origOp.strides(), log);
+    const auto kernelStrides = parseIntArrayAttr<int64_t>(origOp.strides());
+    const auto SY = kernelStrides[0];
+    const auto SX = kernelStrides[1];
+
+    const auto padsBegin = parseIntArrayAttr<int64_t>(origOp.pads_begin());
+    const auto padsEnd = parseIntArrayAttr<int64_t>(origOp.pads_end());
+    const auto padTop = padsBegin[0];
+    const auto padBottom = padsEnd[0];
+    const auto padLeft = padsBegin[1];
+    const auto padRight = padsEnd[1];
+
+    return verifyKernel(origOp->getLoc(), KY, KX, SY, SX, padTop, padBottom, padLeft, padRight, log);
 }
 
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IERT::ConvolutionOp origOp, Logger log) {
     log.setName("NCEInvariant");
 
+    if (origOp.input().getType().cast<mlir::ShapedType>().getRank() != 4) {
+        return mlir::failure();
+    }
+
     const auto dilations = parseIntArrayAttr<int64_t>(origOp.dilations());
     if (dilations[0] != 1 || dilations[1] != 1) {
         log.trace("[{0}] Unsupported kernel dilations '{1}'", origOp->getLoc(), dilations);
@@ -459,42 +487,82 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IERT::ConvolutionOp 
     }
 
     const auto filterShape = getShape(origOp.filter());
-    const auto KY = filterShape[IERT::ConvolutionOp::filter_spatial_height_dim()];
-    const auto KX = filterShape[IERT::ConvolutionOp::filter_spatial_width_dim()];
-    const auto kernelSizeAttr = getIntArrayAttr(origOp.getContext(), makeArrayRef({KY, KX}));
+    const auto KY = filterShape[IE::Dims4D::Filter::KY];
+    const auto KX = filterShape[IE::Dims4D::Filter::KX];
 
-    return verifyKernel(origOp->getLoc(), kernelSizeAttr, origOp.strides(), log);
+    const auto kernelStrides = parseIntArrayAttr<int64_t>(origOp.strides());
+    const auto SY = kernelStrides[0];
+    const auto SX = kernelStrides[1];
+
+    const auto padsBegin = parseIntArrayAttr<int64_t>(origOp.pads_begin());
+    const auto padsEnd = parseIntArrayAttr<int64_t>(origOp.pads_end());
+    const auto padTop = padsBegin[0];
+    const auto padBottom = padsEnd[0];
+    const auto padLeft = padsBegin[1];
+    const auto padRight = padsEnd[1];
+
+    return verifyKernel(origOp->getLoc(), KY, KX, SY, SX, padTop, padBottom, padLeft, padRight, log);
 }
 
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IE::MaxPoolOp origOp, Logger log) {
     log.setName("NCEInvariant");
 
+    if (origOp.input().getType().cast<mlir::ShapedType>().getRank() != 4) {
+        return mlir::failure();
+    }
+
     const auto kernelSize = parseIntArrayAttr<int64_t>(origOp.kernel_size());
     if (kernelSize[0] != kernelSize[1]) {
         log.trace("[{0}] Assymetric kernel is not supported", origOp->getLoc());
         return mlir::failure();
     }
+    const auto KY = kernelSize[0];
+    const auto KX = kernelSize[1];
 
-    return verifyKernel(origOp->getLoc(), origOp.kernel_size(), origOp.strides(), log);
+    const auto kernelStrides = parseIntArrayAttr<int64_t>(origOp.strides());
+    const auto SY = kernelStrides[0];
+    const auto SX = kernelStrides[1];
+
+    const auto padsBegin = parseIntArrayAttr<int64_t>(origOp.pads_begin());
+    const auto padsEnd = parseIntArrayAttr<int64_t>(origOp.pads_end());
+    const auto padTop = padsBegin[0];
+    const auto padBottom = padsEnd[0];
+    const auto padLeft = padsBegin[1];
+    const auto padRight = padsEnd[1];
+
+    return verifyKernel(origOp->getLoc(), KY, KX, SY, SX, padTop, padBottom, padLeft, padRight, log);
 }
 
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IERT::MaxPoolOp origOp, Logger log) {
     log.setName("NCEInvariant");
 
+    if (origOp.input().getType().cast<mlir::ShapedType>().getRank() != 4) {
+        return mlir::failure();
+    }
+
     const auto kernelSize = parseIntArrayAttr<int64_t>(origOp.kernel_size());
     if (kernelSize[0] != kernelSize[1]) {
         log.trace("[{0}] Assymetric kernel is not supported", origOp->getLoc());
         return mlir::failure();
     }
+    const auto KY = kernelSize[0];
+    const auto KX = kernelSize[1];
 
-    return verifyKernel(origOp->getLoc(), origOp.kernel_size(), origOp.strides(), log);
+    const auto kernelStrides = parseIntArrayAttr<int64_t>(origOp.strides());
+    const auto SY = kernelStrides[0];
+    const auto SX = kernelStrides[1];
+
+    const auto padsBegin = parseIntArrayAttr<int64_t>(origOp.pads_begin());
+    const auto padsEnd = parseIntArrayAttr<int64_t>(origOp.pads_end());
+    const auto padTop = padsBegin[0];
+    const auto padBottom = padsEnd[0];
+    const auto padLeft = padsBegin[1];
+    const auto padRight = padsEnd[1];
+
+    return verifyKernel(origOp->getLoc(), KY, KX, SY, SX, padTop, padBottom, padLeft, padRight, log);
 }
 
-mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IE::AddOp origOp, Logger log) {
-    log.setName("NCEInvariant");
-    log.trace("origOp.input1().getType(): {0}", origOp.input1().getType());
-    log.trace("origOp.input2().getType(): {0}", origOp.input2().getType());
-    log.trace("origOp.output().getType(): {0}", origOp.output().getType());
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IE::AddOp origOp, Logger) {
     // Eltwise add is expected to have the same shapes for all operands
     if (origOp.input1().getType().cast<mlir::ShapedType>().getRank() != 4 ||
         origOp.input2().getType().cast<mlir::ShapedType>().getRank() != 4 ||
@@ -503,18 +571,12 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IE::AddOp origOp, Lo
     }
     if (origOp.input1().getType() != origOp.input2().getType() ||
         origOp.input1().getType() != origOp.output().getType()) {
-        log.trace("origOp.input1().getType() != origOp.input2().getType()");
         return mlir::failure();
     }
-    log.trace("verifyKernel");
     return mlir::success();
 }
 
-mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IERT::AddOp origOp, Logger log) {
-    log.setName("NCEInvariant");
-    log.trace("origOp.input1().getType(): {0}", origOp.input1().getType());
-    log.trace("origOp.input2().getType(): {0}", origOp.input2().getType());
-    log.trace("origOp.output().getType(): {0}", origOp.output().getType());
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IERT::AddOp origOp, Logger) {
     // Eltwise add is expected to have the same shapes for all operands
     if (origOp.input1().getType().cast<mlir::ShapedType>().getRank() != 4 ||
         origOp.input2().getType().cast<mlir::ShapedType>().getRank() != 4 ||
@@ -523,16 +585,18 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IERT::AddOp origOp, 
     }
     if (origOp.input1().getType() != origOp.input2().getType() ||
         origOp.input1().getType() != origOp.output().getType()) {
-        log.trace("origOp.input1().getType() != origOp.input2().getType()");
         return mlir::failure();
     }
-    log.trace("verifyKernel");
     return mlir::success();
 }
 
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IE::GroupConvolutionOp origOp, Logger log) {
     log.setName("NCEInvariant");
 
+    if (origOp.input().getType().cast<mlir::ShapedType>().getRank() != 4) {
+        return mlir::failure();
+    }
+
     const auto dilations = parseIntArrayAttr<int64_t>(origOp.dilations());
     if (dilations[0] != 1 || dilations[1] != 1) {
         log.trace("[{0}] Unsupported kernel dilations '{1}'", origOp->getLoc(), dilations);
@@ -540,27 +604,40 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IE::GroupConvolution
     }
 
     const auto filterShape = getShape(origOp.filter());
+    const auto OC = filterShape[IE::Dims4D::Filter::OC];
+    const auto KY = filterShape[IE::Dims4D::Filter::KY];
+    const auto KX = filterShape[IE::Dims4D::Filter::KX];
+
     if (!origOp.groups().hasValue()) {
         log.trace("[{0}] Grouped convolution does not have groups", origOp->getLoc());
         return mlir::failure();
     }
-
-    const auto OC = filterShape[IERT::ConvolutionOp::filter_out_channel_dim()];
     if (origOp.groups().getValue() != OC) {
         log.trace("[{0}] Unsupported group size: '{1}' expected '{2}'", origOp->getLoc(), origOp.groups(), OC);
         return mlir::failure();
     }
 
-    const auto KY = filterShape[IERT::ConvolutionOp::filter_spatial_height_dim()];
-    const auto KX = filterShape[IERT::ConvolutionOp::filter_spatial_width_dim()];
+    const auto kernelStrides = parseIntArrayAttr<int64_t>(origOp.strides());
+    const auto SY = kernelStrides[0];
+    const auto SX = kernelStrides[1];
 
-    const auto kernelSizeAttr = getIntArrayAttr(origOp.getContext(), makeArrayRef({KY, KX}));
-    return verifyKernel(origOp->getLoc(), kernelSizeAttr, origOp.strides(), log);
+    const auto padsBegin = parseIntArrayAttr<int64_t>(origOp.pads_begin());
+    const auto padsEnd = parseIntArrayAttr<int64_t>(origOp.pads_end());
+    const auto padTop = padsBegin[0];
+    const auto padBottom = padsEnd[0];
+    const auto padLeft = padsBegin[1];
+    const auto padRight = padsEnd[1];
+
+    return verifyKernel(origOp->getLoc(), KY, KX, SY, SX, padTop, padBottom, padLeft, padRight, log);
 }
 
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IERT::GroupConvolutionOp origOp, Logger log) {
     log.setName("NCEInvariant");
 
+    if (origOp.input().getType().cast<mlir::ShapedType>().getRank() != 4) {
+        return mlir::failure();
+    }
+
     const auto dilations = parseIntArrayAttr<int64_t>(origOp.dilations());
     if (dilations[0] != 1 || dilations[1] != 1) {
         log.trace("[{0}] Unsupported kernel dilations '{1}'", origOp->getLoc(), dilations);
@@ -568,22 +645,31 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IERT::GroupConvoluti
     }
 
     const auto filterShape = getShape(origOp.filter());
+    const auto OC = filterShape[IE::Dims4D::Filter::OC];
+    const auto KY = filterShape[IE::Dims4D::Filter::KY];
+    const auto KX = filterShape[IE::Dims4D::Filter::KX];
+
     if (!origOp.groups().hasValue()) {
         log.trace("[{0}] Grouped convolution does not have groups", origOp->getLoc());
         return mlir::failure();
     }
-
-    const auto OC = filterShape[IERT::ConvolutionOp::filter_out_channel_dim()];
     if (origOp.groups().getValue() != OC) {
         log.trace("[{0}] Unsupported group size: '{1}' expected '{2}'", origOp->getLoc(), origOp.groups(), OC);
         return mlir::failure();
     }
 
-    const auto KY = filterShape[IERT::ConvolutionOp::filter_spatial_height_dim()];
-    const auto KX = filterShape[IERT::ConvolutionOp::filter_spatial_width_dim()];
+    const auto kernelStrides = parseIntArrayAttr<int64_t>(origOp.strides());
+    const auto SY = kernelStrides[0];
+    const auto SX = kernelStrides[1];
 
-    const auto kernelSizeAttr = getIntArrayAttr(origOp.getContext(), makeArrayRef({KY, KX}));
-    return verifyKernel(origOp->getLoc(), kernelSizeAttr, origOp.strides(), log);
+    const auto padsBegin = parseIntArrayAttr<int64_t>(origOp.pads_begin());
+    const auto padsEnd = parseIntArrayAttr<int64_t>(origOp.pads_end());
+    const auto padTop = padsBegin[0];
+    const auto padBottom = padsEnd[0];
+    const auto padLeft = padsBegin[1];
+    const auto padRight = padsEnd[1];
+
+    return verifyKernel(origOp->getLoc(), KY, KX, SY, SX, padTop, padBottom, padLeft, padRight, log);
 }
 
 //

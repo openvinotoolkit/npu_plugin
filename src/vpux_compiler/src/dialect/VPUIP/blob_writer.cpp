@@ -19,6 +19,7 @@
 #include "vpux/compiler/dialect/VPUIP/effects.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops_interfaces.hpp"
+#include "vpux/compiler/utils/strings.hpp"
 
 #include "vpux/utils/IE/float16.hpp"
 #include "vpux/utils/core/checked_cast.hpp"
@@ -44,10 +45,7 @@ VPUIP::BlobWriter::Task vpux::VPUIP::BlobWriter::createTask(mlir::Operation* op)
 
     setAliasForSerializedTensors(op);
 
-    String name;
-    if (const auto nameLoc = op->getLoc().dyn_cast<mlir::NameLoc>()) {
-        name = createString(nameLoc.getName().strref());
-    }
+    String name = createString(StringRef(stringifyLocation(op->getLoc())));
 
     const auto waitBarriers = createVector(task.waitBarriers() | transformed([this](mlir::Value val) {
                                                return getBarrierVirtualID(val);
@@ -85,7 +83,7 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createUPALayerTask(mlir
                                                                             const SoftwareLayerParams& params) {
     VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in createUPALayerTask");
 
-    auto layer = mlir::dyn_cast<RTLayerInterface>(op);
+    auto layer = mlir::dyn_cast<IERT::LayerOpInterface>(op);
     VPUX_THROW_UNLESS(layer != nullptr, "Operation '{0}' is not a RT Layer", op->getName());
 
     auto upaTask = mlir::dyn_cast<VPUIP::UPATaskOpInterface>(op);
@@ -147,7 +145,7 @@ VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensor(
     const auto fixedPointFP16Mult = [](float val) {
         const static int BITS = 15;
         int exp;
-        auto mantissa = std::frexp(val, &exp);
+        double mantissa = std::frexp(val, &exp);
         return static_cast<uint16_t>(mantissa * std::pow(2, BITS));
     };
 

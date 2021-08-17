@@ -34,9 +34,9 @@ func @TwoInputs(%arg0: tensor<1x2x3x4xf32>, %arg1: tensor<1x2x3x4xf32>) -> tenso
     %0 = unrealized_conversion_cast %arg0 : tensor<1x2x3x4xf32> to memref<1x2x3x4xf32>
     %1 = unrealized_conversion_cast %arg1 : tensor<1x2x3x4xf32> to memref<1x2x3x4xf32>
     %2 = memref.alloc() : memref<1x4x3x4xf32>
-    %3 = memref.subview %2[0, 0, 0, 0] [1, 2, 3, 4] [1, 1, 1, 1] : memref<1x4x3x4xf32> to memref<1x2x3x4xf32, #map0>
+    %3 = IERT.SubView %2[0, 0, 0, 0] [1, 2, 3, 4] : memref<1x4x3x4xf32> to memref<1x2x3x4xf32, #map0>
     %4 = IERT.Copy inputs(%0 : memref<1x2x3x4xf32>) outputs(%3 : memref<1x2x3x4xf32, #map0>) -> memref<1x2x3x4xf32, #map0>
-    %5 = memref.subview %2[0, 2, 0, 0] [1, 2, 3, 4] [1, 1, 1, 1] : memref<1x4x3x4xf32> to memref<1x2x3x4xf32, #map1>
+    %5 = IERT.SubView %2[0, 2, 0, 0] [1, 2, 3, 4] : memref<1x4x3x4xf32> to memref<1x2x3x4xf32, #map1>
     %6 = IERT.Copy inputs(%1 : memref<1x2x3x4xf32>) outputs(%5 : memref<1x2x3x4xf32, #map1>) -> memref<1x2x3x4xf32, #map1>
     %7 = IERT.ConcatView inputs(%4, %6 : memref<1x2x3x4xf32, #map0>, memref<1x2x3x4xf32, #map1>) outputs(%2 : memref<1x4x3x4xf32>) -> memref<1x4x3x4xf32>
     %8 = unrealized_conversion_cast %7 : memref<1x4x3x4xf32> to tensor<1x4x3x4xf32>

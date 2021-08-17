@@ -59,8 +59,9 @@ mlir::LogicalResult ConvertAddToScale::matchAndRewrite(IE::AddOp biasOp, mlir::P
 }  // namespace
 
 mlir::LogicalResult vpux::IE::AddOp::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueRange operands, mlir::DictionaryAttr attrs,
-        mlir::RegionRange, SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
+        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
+        mlir::DictionaryAttr attrs, mlir::RegionRange,
+        SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
 
     IE::AddOpAdaptor add(operands, attrs);

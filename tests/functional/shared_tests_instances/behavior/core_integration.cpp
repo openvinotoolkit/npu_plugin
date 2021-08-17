@@ -212,7 +212,7 @@ TEST_P(IEClassQueryNetworkTest_VPU, QueryNetworkWithCorrectDeviceID) {
         auto deviceIDs = ie.GetMetric(deviceName, METRIC_KEY(AVAILABLE_DEVICES)).as<std::vector<std::string>>();
         if (deviceIDs.empty())
             GTEST_SKIP();
-        ASSERT_NO_THROW(ie.LoadNetwork(simpleNetwork, deviceName + "." + deviceIDs[0], config));
+        ASSERT_NO_THROW(ie.QueryNetwork(simpleNetwork, deviceName + "." + deviceIDs[0], config));
     } else {
         GTEST_SKIP();
     }
@@ -229,7 +229,6 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn(devices));
 
 // IE Class Load network
-
 INSTANTIATE_TEST_SUITE_P(
         IEClassLoadNetworkTest_smoke,
         IEClassLoadNetworkTest,

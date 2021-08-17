@@ -100,9 +100,7 @@ TEST_F(AgeGenderNetworkTest, precommit_age_gender_retail_0013) {
 
 TEST_F(KmbVasFDStage1Test, precommit_vasfd_stage1) {
 // [Track number: #7733]
-#ifdef __aarch64__
-    SKIP_INFER_ON("VPUX", "Wrong results");
-#endif
+    SKIP_INFER_ON("VPUAL", "Wrong results");
     const std::string inputName = "data";
     const std::vector<std::string> layerNames = {
             "b12", "b16", "b24", "b32", "b48",
@@ -147,7 +145,7 @@ TEST_F(KmbClassifyNetworkTest, precommit_resnet_50_pytorch_dense_int8_IRv10_fp16
 }
 
 TEST_F(KmbClassifyNetworkTest, precommit_squeezenet1_1_pytorch_caffe2_dense_int8_IRv10_fp16_to_int8_MTL) {
-    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "Wrong detection results");  // At the moment no EVM is setup so cannot run
+    SKIP_INFER("Wrong detection results");  // At the moment no EVM is setup so cannot run
     runTest(
             TestNetworkDesc("KMB_models/INT8/public/squeezenet1_1/squeezenet1_1_pytorch_caffe2_dense_int8_IRv10_fp16_to_int8.xml")
                     .setUserInputPrecision("input", Precision::U8)
@@ -171,9 +169,7 @@ TEST_F(PersonAttrRecNetworkTest, precommit_person_attribute_recognitnion_crossro
 }
 
 TEST_F(KmbClassifyNetworkTest, precommit_aclnet_des_53_vpu) {
-#ifndef __aarch64__
-    SKIP_INFER_ON("VPUX", "exception - load graph to device");
-#endif
+    SKIP_INFER_ON("VPUAL", "exception - load graph to device");
     runTest(
             TestNetworkDesc("KMB_models/FP16-INT8/public/aclnet-des-53-vpu/aclnet-des-53-vpu.xml")
                     .setUserInputPrecision("input", Precision::FP16),
@@ -204,9 +200,7 @@ TEST_F(KmbDetectionNetworkTest, precommit_peleenet) {
 
 // TODO: [Track number: E#9578]
 TEST_F(KmbDetectionNetworkTest, precommit_vehicle_license_plate_detection_barrier_0106_tf_dense_int8_IRv10_from_fp32) {
-    if (isByPass()) {
-        GTEST_SKIP() << "Skip for by-pass mode due to bad accuracy";
-    }
+    SKIP_ON("HDDL2", "Bad accuracy");
     runTest(
             TestNetworkDesc("KMB_models/INT8/icv/vehicle-license-plate-detection-barrier-0106/vehicle_license_plate_detection_barrier_0106_tf_dense_int8_IRv10_from_fp32.xml")
                     .setUserInputPrecision("input", Precision::U8),
@@ -232,7 +226,7 @@ TEST_F(SmokeNetworkTest, DISABLED_yolo_v4_subgraph_ddr_output_test) {
 
 // [Track number: S#40783]
 TEST_F(KmbYoloV1NetworkTest, INT8_Dense_Cntk_TinyYoloV2) {
-    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "bad results");
+    SKIP_INFER("bad results");
     runTest(
         TestNetworkDesc("KMB_models/INT8/private/tiny_yolo_v2/tiny_yolo_v2_cntk_dense_int8_IRv10.xml")
             .setUserInputPrecision("input", Precision::U8)
@@ -241,45 +235,9 @@ TEST_F(KmbYoloV1NetworkTest, INT8_Dense_Cntk_TinyYoloV2) {
         0.6, 0.4, 0.4, true);
 }
 
-//
-// Yolo V3
-//
-
 const static std::vector<InferenceEngine::Layout> inputLayout = {
         InferenceEngine::Layout::NCHW,
         InferenceEngine::Layout::NHWC};
-
-const static std::vector<InferenceEngine::Layout> outputLayout = {
-        InferenceEngine::Layout::NCHW,
-        InferenceEngine::Layout::NHWC};
-
-class KmbYoloV3NetworkTestWithSpecificLayout : public KmbYoloV3NetworkTest,
-    public testing::WithParamInterface<std::tuple<InferenceEngine::Layout, InferenceEngine::Layout>> {};
-
-// [Track number: S#48139]
-TEST_P(KmbYoloV3NetworkTestWithSpecificLayout, INT8_Dense_TF_YoloV3) {
-#ifndef __aarch64__
-    SKIP_INFER_ON("VPUX", "exception - load graph to device");
-#endif
-    std::vector<float> anchors = {10.0, 13.0, 16.0, 30.0, 33.0, 23.0, 30.0, 61.0, 62.0,
-                        45.0, 59.0, 119.0, 116.0, 90.0, 156.0, 198.0, 373.0, 326.0};
-    runTest(
-        TestNetworkDesc("KMB_models/INT8/public/yolo_v3/yolo_v3_tf_dense_int8_IRv10.xml")
-            .setUserInputPrecision("input", Precision::U8)
-            .setUserInputLayout("input", std::get<0>(GetParam()))
-            .setUserOutputPrecision("conv2d_58/Conv2D/YoloRegion", Precision::FP32)
-            .setUserOutputPrecision("conv2d_66/Conv2D/YoloRegion", Precision::FP32)
-            .setUserOutputPrecision("conv2d_74/Conv2D/YoloRegion", Precision::FP32)
-            .setUserOutputLayout("conv2d_58/Conv2D/YoloRegion", std::get<1>(GetParam()))
-            .setUserOutputLayout("conv2d_66/Conv2D/YoloRegion", std::get<1>(GetParam()))
-            .setUserOutputLayout("conv2d_74/Conv2D/YoloRegion", std::get<1>(GetParam())),
-        TestImageDesc("416x416/person.bmp", ImageFormat::RGB),
-        0.6, 0.4, 0.4, 80, 4, 3,
-        anchors);
-}
-
-INSTANTIATE_TEST_SUITE_P(all_layouts, KmbYoloV3NetworkTestWithSpecificLayout,
-    ::testing::Combine(::testing::ValuesIn(inputLayout), ::testing::ValuesIn(outputLayout)));
 
 class KmbClassifyNetworkTestWithSpecificLayout : public KmbClassifyNetworkTest, public testing::WithParamInterface<InferenceEngine::Layout> {};
 
@@ -351,7 +309,7 @@ TEST_F(KmbDetectionNetworkTest, face_detection_adas_0001) {
 
 // TODO Create ticket
 TEST_F(HeadPoseEstimationNetworkTest, head_pose_estimation_adas_0001) {
-    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "hang on infer");
+    SKIP_INFER("hang on infer");
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/head_pose_estimation_adas_0001/head-pose-estimation-adas-0001.xml")
 	    .setUserInputPrecision("input", Precision::U8),
@@ -369,7 +327,7 @@ TEST_F(PersonAttrRecNetworkTest, person_attribute_recognitnion_crossroad_0234) {
 }
 
 TEST_F(KmbDetectionNetworkTest, person_detection_retail_0013) {
-    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "hang on infer");
+    SKIP_INFER("hang on infer");
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/person-detection-retail-0013/person-detection-retail-0013.xml")
 	    .setUserInputPrecision("input", Precision::U8),
@@ -396,7 +354,7 @@ TEST_F(KmbClassifyNetworkTest, DISABLED_efficientnet_b0) {
 // Ngraph pass to align concat scales is under development
 // Once that is merged, re enable this networks compilation
 TEST_F(KmbClassifyNetworkTest, DISABLED_mobilenet_v3_small) {
-    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "hang on infer");
+    SKIP_INFER("hang on infer");
     runTest(
         TestNetworkDesc("KMB_models/FP16-INT8/private/mobilenet-v3-small-1.0-224/mobilenet-v3-small-1.0-224.xml")
             .setUserInputPrecision("input", Precision::U8),

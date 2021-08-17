@@ -41,6 +41,7 @@ static const std::map<InferenceEngine::Precision, MVCNN::DType> dataTypeMapping 
         {InferenceEngine::Precision::BIN, MVCNN::DType::DType_BIN},
 };
 
+namespace {
 InferenceEngine::Layout orderVectorToLayout(const std::vector<float>& tensorOrder) {
     std::function<bool(const std::pair<InferenceEngine::Layout, std::vector<float>>&)> mapSearchPredicate =
             [tensorOrder](const std::pair<InferenceEngine::Layout, std::vector<float>>& orderPair) -> bool {
@@ -54,6 +55,36 @@ InferenceEngine::Layout orderVectorToLayout(const std::vector<float>& tensorOrde
         IE_THROW() << "orderToLayout: failed to convert input order";
     }
     return mapIter->first;
+}
+}  // namespace
+
+InferenceEngine::Layout getLayout(const MVCNN::TensorReference* const tensorRef) {
+    IE_ASSERT(tensorRef != nullptr);
+    const uint64_t order = tensorRef->order();
+    InferenceEngine::Layout ieLayout = InferenceEngine::Layout::ANY;
+    if (order == 0x1)
+        ieLayout = InferenceEngine::Layout::C;
+    else if (order == 0x12)
+        ieLayout = InferenceEngine::Layout::NC;
+    else if (order == 0x123)
+        ieLayout = InferenceEngine::Layout::CHW;
+    else if (order == 0x231)
+        ieLayout = InferenceEngine::Layout::HWC;
+    else if (order == 0x1234)
+        ieLayout = InferenceEngine::Layout::NCHW;
+    else if (order == 0x1342)
+        ieLayout = InferenceEngine::Layout::NHWC;
+    else if (order == 0x12345)
+        ieLayout = InferenceEngine::Layout::NCDHW;
+    else if (order == 0x13452)
+        ieLayout = InferenceEngine::Layout::NDHWC;
+    else {
+        std::vector<float> tensorOrder;
+        IE_ASSERT(tensorRef->strides() != nullptr);
+        std::copy(tensorRef->strides()->cbegin(), tensorRef->strides()->cend(), std::back_inserter(tensorOrder));
+        ieLayout = orderVectorToLayout(tensorOrder);
+    }
+    return ieLayout;
 }
 
 InferenceEngine::Precision MvcnnDTypeToPrecision(const MVCNN::DType& dtype) {

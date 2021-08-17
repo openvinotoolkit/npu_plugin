@@ -26,30 +26,93 @@
 
 namespace vpux {
 
-///////////////////////////////////// INetworkDescription /////////////////////////////////////////
+/**
+ * @brief A helper map to represent descriptions for inputs and outputs
+ * of a network
+ */
 using DataMap = std::map<std::string, InferenceEngine::DataPtr>;
+
+/**
+ * @interface INetworkDescription
+ * @brief The interface to be implemented by a concrete compiler
+ * to provide such information about a network as description of inputs and outputs,
+ * name and compiled network in a format executable by device
+ */
 class INetworkDescription : public std::enable_shared_from_this<INetworkDescription> {
 public:
+    /**
+     * @brief A shared pointer to INetworkDescription interface
+     */
     using Ptr = std::shared_ptr<INetworkDescription>;
+    /**
+     * @brief A const shared pointer to INetworkDescription interface
+     */
     using CPtr = std::shared_ptr<const INetworkDescription>;
 
+    /**
+     * @brief Returns name of a network
+     * @return Network name
+     */
     virtual const std::string& getName() const = 0;
+
+    /**
+     * @brief Returns a map with information about network inputs. The inputs
+     * shall be obtained from the network
+     * @return Constant reference to an internally held DataMap object
+     */
     virtual const DataMap& getInputsInfo() const = 0;
+
+    /**
+     * @brief Returns a map with information about network outputs. The outputs
+     * shall be obtained from the network
+     * @return Constant reference to an internally held DataMap object
+     */
     virtual const DataMap& getOutputsInfo() const = 0;
+
+    /**
+     * @brief Returns a map with information about network inputs which
+     * will be executed. The inputs are defined by a compiler and can be different
+     * from the original inputs due to compiler restrictions or optimizations
+     * @return Constant reference to an internally held DataMap object
+     */
     virtual const DataMap& getDeviceInputsInfo() const = 0;
+
+    /**
+     * @brief Returns a map with information about network outputs which
+     * will be executed. The outputs are defined by a compiler and can be different
+     * from the original outputs due to compiler restrictions or optimizations
+     * @return Constant reference to an internally held DataMap object
+     */
     virtual const DataMap& getDeviceOutputsInfo() const = 0;
+
     // TODO Remove interface returning std::vector<char>.
     /**
      * @deprecated Return type should follow the function below.
      * The name itself can be reused once the old return type is dropped.
      */
     virtual const std::vector<char>& getCompiledNetwork() const = 0;
+
+    /**
+     * @brief Returns a raw pointer to the compiled model
+     * @return Pointer to void
+     */
     virtual const void* getNetworkModel() const = 0;
+
+    /**
+     * @brief Returns size of the compiled model in bytes
+     * @return size in bytes
+     */
     virtual std::size_t getNetworkModelSize() const = 0;
     virtual ~INetworkDescription() = default;
 };
 
-///////////////////////////////////// NetworkDescription //////////////////////////////////////////
+/**
+ * @brief NetworkDescription is a wrapper around INetworkDescription and
+ * duplicates all its methods.
+ * NetworkDescription is created by Compiler which is object from shared
+ * library, so it has to keep pointer to this lib in case Compiler lifecycle
+ * less than objects which created by it
+ */
 class NetworkDescription final {
 public:
     using Ptr = std::shared_ptr<NetworkDescription>;
@@ -88,34 +151,66 @@ public:
 
 private:
     INetworkDescription::Ptr _actual = nullptr;
-    // NB: NetworkDescription is created by Compiler which is object from shared library,
-    // so it has to keep pointer to this lib in case Compiler lifecycle less than objects which created by it
     InferenceEngine::details::SharedObjectLoader _plg;
 };
 
-//////////////////////////////////////////ICompiler ///////////////////////////////////////////////
+/**
+ * @interface ICompiler
+ * @brief An interface to be implemented by a concrete compiler to provide
+ * methods for preparing a network for execution on a VPU device
+ */
 class ICompiler : public std::enable_shared_from_this<ICompiler> {
 public:
     using Ptr = std::shared_ptr<ICompiler>;
     using CPtr = std::shared_ptr<const ICompiler>;
 
+    /**
+     * @brief Transforms a network from ngraph representation to a format executable
+     * by a VPU device
+     * @param func a shared pointer to ngraph function representing the model
+     * @param netName a reference to the string describing network name
+     *        to be used for creating network description
+     * @param inputsInfo a reference to map describing inputs of the network
+     * @param outputsInfo a reference to map describing outputs of the network
+     * @param config a reference to VPUXConfig containing plugin config options
+     *        including config options related to compilation
+     * @return a shared pointer on an object implementing INetworkDescription interface
+     */
     virtual std::shared_ptr<INetworkDescription> compile(const std::shared_ptr<ngraph::Function>& func,
                                                          const std::string& netName,
                                                          const InferenceEngine::InputsDataMap& inputsInfo,
                                                          const InferenceEngine::OutputsDataMap& outputsInfo,
                                                          const VPUXConfig& config = {}) = 0;
 
+    /**
+     * @brief Returns information about supported layers of the network passed
+     * @param network a const reference to CNNNetwork
+     * @param config a reference to VPUXConfig containing plugin config options
+     *        including config options related to compilation
+     * @returns QueryNetworkResult structure with information about supported layers
+     */
     virtual InferenceEngine::QueryNetworkResult query(const InferenceEngine::CNNNetwork& network,
                                                       const VPUXConfig& config = {}) = 0;
 
+    /**
+     * @brief Parses already compiled network to extract meta information:
+     *        inputs and outputs descriptions
+     * @param network compiled network represented as a vector of char
+     * @param config a reference to VPUXConfig containing plugin config options
+     *        Note: compilation options will be ignored,
+     *        since the network is already compiled
+     * @param netName a reference to the string describing network name
+     *        to be used for creating network description
+     * @return a shared pointer on an object implementing INetworkDescription interface
+     */
     virtual std::shared_ptr<vpux::INetworkDescription> parse(const std::vector<char>& network,
                                                              const VPUXConfig& config = {},
-                                                             const std::string& graphName = "") = 0;
+                                                             const std::string& netName = "") = 0;
 
     virtual std::shared_ptr<vpux::INetworkDescription> parse(const std::string& filename,
                                                              const VPUXConfig& config = {});
     virtual std::shared_ptr<vpux::INetworkDescription> parse(std::istream& stream, const VPUXConfig& config = {},
-                                                             const std::string& graphName = "");
+                                                             const std::string& netName = "");
 
     virtual std::unordered_set<std::string> getSupportedOptions() {
         return {};

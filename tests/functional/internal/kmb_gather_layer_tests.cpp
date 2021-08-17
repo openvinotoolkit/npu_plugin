@@ -87,7 +87,7 @@ class internal_KmbGatherLayerTests : public KmbLayerTestBase, public testing::Wi
 
 TEST_P(internal_KmbGatherLayerTests, EqualWithCPU) {
     // TODO: Need to fix bad check in gather layer parser in runtime
-    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "Hangs on runtime");
+    SKIP_INFER("Hangs on runtime");
     const auto &p = GetParam();
 
     const auto userDataDesc = TensorDesc(p._dataPrecision, p._dataDims, p._dataLayout);

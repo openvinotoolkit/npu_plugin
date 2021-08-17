@@ -17,10 +17,52 @@
 include "mlir/IR/OpBase.td"
 
 //
-// MultiLayerInterface
+// LayerOpInterface
 //
 
-def MultiLayerInterface : OpInterface<"MultiLayerInterface"> {
+def IE_LayerOpInterface : OpInterface<"LayerOpInterface"> {
+    let description = "Base interface for IE Layer Operation";
+
+    let cppNamespace = "vpux::IE";
+
+    let methods = [
+        InterfaceMethod<
+            "Get all layer input tensors",
+            "mlir::OperandRange", "getInputs", (ins),
+            [{}],
+            [{
+                return $_op->getOperands();
+            }]
+        >,
+
+        InterfaceMethod<
+            "Get all layer output tensors",
+            "mlir::ResultRange", "getOutputs", (ins),
+            [{}],
+            [{
+                return $_op->getResults();
+            }]
+        >
+    ];
+
+    let extraTraitClassDeclaration = [{
+        static mlir::LogicalResult inferReturnTypes(mlir::MLIRContext* ctx, mlir::Optional<mlir::Location> loc,
+                                                    mlir::ValueShapeRange operands, mlir::DictionaryAttr attrs, mlir::RegionRange regions,
+                                                    mlir::SmallVectorImpl<mlir::Type>& inferredTypes) {
+            return vpux::IE::inferTensorTypes(ConcreteOp::inferReturnTypeComponents, ctx, loc, operands, attrs, regions, inferredTypes);
+        }
+    }];
+
+    let verify = [{
+        return vpux::IE::verifyLayer($_op);
+    }];
+}
+
+//
+// LayerWithPostOpInterface
+//
+
+def IE_LayerWithPostOpInterface : OpInterface<"LayerWithPostOpInterface"> {
     let description = "Interface for operations that support post-processing";
 
     let cppNamespace = "vpux::IE";
@@ -28,20 +70,94 @@ def MultiLayerInterface : OpInterface<"MultiLayerInterface"> {
     let methods = [
         InterfaceMethod<
             "Get the post-processing operation",
-            "vpux::IE::PostOp", "getPostOp", (ins),
+            "llvm::Optional<mlir::OperationName>", "getPostOp", (ins),
+            [{}],
             [{
-                return $_op.post_opAttr();
+                return vpux::IE::getLayerPostOp($_op);
+            }]
+        >,
+
+        InterfaceMethod<
+            "Get the post-processing operation attributes",
+            "mlir::DictionaryAttr", "getPostOpAttrs", (ins),
+            [{}],
+            [{
+                return vpux::IE::getLayerPostOpAttrs($_op);
             }]
         >,
 
         InterfaceMethod<
             "Set post-processing operation attribute",
-            "void", "setPostOp", (ins "vpux::IE::PostOp":$postOp),
+            "void", "setPostOp", (ins "mlir::Operation*":$postOp),
+            [{}],
             [{
-                $_op.post_opAttr(postOp);
+                return vpux::IE::setLayerPostOp($_op, postOp);
             }]
         >,
+
+        InterfaceMethod<
+            "Set post-processing operation attribute",
+            "bool", "isSupportedPostOp", (ins "mlir::Operation*":$postOp)
+        >,
     ];
+}
+
+//
+// AlignedChannelsOpInterface
+//
+
+def IE_AlignedChannelsOpInterface : OpInterface<"AlignedChannelsOpInterface"> {
+    let description = "Interface for operations that require channel alignment";
+
+    let cppNamespace = "vpux::IE";
+
+    let methods = [
+        InterfaceMethod<
+            "Verify channel alignement",
+            "mlir::LogicalResult", "verifyChannels", (ins)
+        >,
+
+        InterfaceMethod<
+            "Get channel alignement factor in elements",
+            "int64_t", "getChannelAlignment", (ins)
+        >
+    ];
+}
+
+//
+// LayoutInfoOpInterface
+//
+
+def IE_LayoutInfoOpInterface : OpInterface<"LayoutInfoOpInterface"> {
+    let description = "Interface for operations to provide information about supported layout for inputs/outputs";
+
+    let cppNamespace = "vpux::IE";
+
+    let methods = [
+        InterfaceMethod<
+            "Verify provided layout combination",
+            "bool", "isSupportedLayout", (ins "vpux::IE::DataOrderInfo&":$info)
+        >,
+
+        InterfaceMethod<
+            "Get information about current layout for Layer inputs and outputs",
+            "vpux::IE::DataOrderInfo", "getDataOrderInfo", (ins),
+            [{}],
+            [{
+                return vpux::IE::getDataOrderInfo($_op);
+            }]
+        >
+    ];
+}
+
+//
+// EltwiseOp
+//
+
+// Single output element depends only on single input element.
+// In other words - the iteration space is fully parallel across all indexes.
+def IE_EltwiseOp : NativeOpTrait<"EltwiseOp"> {
+    let cppNamespace = "vpux::IE";
 }
 
 #endif

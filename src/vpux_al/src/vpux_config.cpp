@@ -46,6 +46,7 @@ vpux::VPUXConfig::VPUXConfig() {
                                                                                VPUX_CONFIG_KEY(EXECUTOR_STREAMS),
                                                                                VPU_KMB_CONFIG_KEY(EXECUTOR_STREAMS),
                                                                                VPUX_CONFIG_KEY(INFERENCE_TIMEOUT),
+                                                                               VPUX_CONFIG_KEY(DPU_GROUPS),
                                                                        });
 }
 
@@ -143,6 +144,7 @@ void vpux::VPUXConfig::parse(const std::map<std::string, std::string>& config) {
             {VPUX_CONFIG_VALUE(MLIR), IE::VPUXConfigParams::CompilerType::MLIR}};
     setOption(_compilerType, vpuxCompilerType, config, VPUX_CONFIG_KEY(COMPILER_TYPE));
     setOption(_compilationMode, config, VPUX_CONFIG_KEY(COMPILATION_MODE));
+    setOption(_numberOfDPUGroups, config, VPUX_CONFIG_KEY(DPU_GROUPS), parseInt);
 
     parseEnvironment();
 }

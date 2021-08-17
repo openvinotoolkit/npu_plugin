@@ -21,14 +21,16 @@ namespace VPUIP {
 struct DpuTile final {
     SmallVector<int64_t> start;
     SmallVector<int64_t> end;
-    SmallVector<int64_t> padsBegin;
-    SmallVector<int64_t> padsEnd;
+    int64_t padLeft;
+    int64_t padRight;
+    int64_t padTop;
+    int64_t padBottom;
 };
 
 class DpuTiler final {
 public:
-    static SmallVector<DpuTile> tileOverH(int64_t numDPU, ShapeRef outShape, ArrayRef<int64_t> opPadsBegin,
-                                          ArrayRef<int64_t> opPadsEnd);
+    static SmallVector<DpuTile> tileOverH(int64_t numDPU, ShapeRef outShape, int64_t padLeft, int64_t padRight,
+                                          int64_t padTop, int64_t padBottom);
 };
 
 }  // namespace VPUIP

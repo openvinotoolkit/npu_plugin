@@ -11,6 +11,8 @@
 # included with the Software Package for additional details.
 #
 
+replace_noerror()
+
 set(TARGET_NAME "vpux_compiler")
 set(TBLGEN_TARGET_NAME "${TARGET_NAME}_tblgen")
 set(SCHEMA_TARGET_NAME "${TARGET_NAME}_schema")
@@ -165,6 +167,13 @@ macro(add_dialect dialect)
         SOURCE "${gen_base_src_dir}/dialect/${dialect}/ops.td"
         OUTPUT "${gen_base_dst_include_dir}/dialect/${dialect}/generated/dialect.hpp.inc"
     )
+    vpux_add_tblgen_command(
+        TOOL "MLIR"
+        MODE "-gen-dialect-defs"
+        EXTRA_ARGS "-dialect=${dialect}"
+        SOURCE "${gen_base_src_dir}/dialect/${dialect}/ops.td"
+        OUTPUT "${gen_base_dst_include_dir}/dialect/${dialect}/generated/dialect.cpp.inc"
+    )
 
     vpux_add_tblgen_command(
         TOOL "MLIR"
@@ -247,6 +256,7 @@ add_passes("dialect/IE" "IE")
 add_rewriters("dialect/IE")
 
 add_dialect("IERT")
+add_op_interfaces("dialect/IERT")
 add_passes("dialect/IERT" "IERT")
 add_rewriters("dialect/IERT")
 
@@ -259,8 +269,6 @@ add_passes("dialect/VPUIP" "VPUIP")
 
 add_passes("conversion" "Conversion")
 add_rewriters("conversion")
-
-add_passes("edsl" "eDSL")
 
 file(GLOB_RECURSE TBLGEN_SOURCES CONFIGURE_DEPENDS "*.td")
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${TBLGEN_SOURCES})
@@ -330,6 +338,7 @@ vpux_enable_clang_format(${OBJ_TARGET_NAME})
 target_compile_definitions(${OBJ_TARGET_NAME}
     PRIVATE
         IMPLEMENT_INFERENCE_ENGINE_PLUGIN
+        "DEVICE_NAME=\"${VPUX_DEVICE_NAME}\""
 )
 
 target_include_directories(${OBJ_TARGET_NAME}

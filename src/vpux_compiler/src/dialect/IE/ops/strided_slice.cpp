@@ -12,8 +12,10 @@
 //
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
+
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
+#include "vpux/compiler/utils/error.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
 #include "vpux/utils/core/range.hpp"
@@ -27,7 +29,7 @@ using namespace vpux;
 
 namespace {
 
-mlir::FailureOr<llvm::SmallVector<int64_t>> constInputToData(mlir::Location loc, mlir::Value input) {
+mlir::FailureOr<SmallVector<int64_t>> constInputToData(mlir::Location loc, mlir::Value input) {
     auto constantOp = input.getDefiningOp<Const::DeclareOp>();
     if (constantOp == nullptr) {
         return errorAt(loc, "Only constant input is supported");
@@ -37,10 +39,10 @@ mlir::FailureOr<llvm::SmallVector<int64_t>> constInputToData(mlir::Location loc,
     return to_small_vector(content.getValues<int64_t>());
 }
 
-struct StridedSliceInputData {
-    llvm::SmallVector<int64_t> begins;
-    llvm::SmallVector<int64_t> ends;
-    llvm::SmallVector<int64_t> strides;
+struct StridedSliceInputData final {
+    SmallVector<int64_t> begins;
+    SmallVector<int64_t> ends;
+    SmallVector<int64_t> strides;
 };
 
 mlir::FailureOr<StridedSliceInputData> extractData(mlir::Location loc, IE::StridedSliceOpAdaptor stridedSlice) {
@@ -48,25 +50,31 @@ mlir::FailureOr<StridedSliceInputData> extractData(mlir::Location loc, IE::Strid
         auto begins = constInputToData(loc, stridedSlice.begins());
         auto ends = constInputToData(loc, stridedSlice.ends());
         auto strides = constInputToData(loc, stridedSlice.strides());
+
         if (mlir::failed(begins) || mlir::failed(ends) || mlir::failed(strides)) {
             return mlir::failure();
         }
+
         return StridedSliceInputData{begins.getValue(), ends.getValue(), strides.getValue()};
-    } else if (stridedSlice.begins_attr() != nullptr) {
+    }
+
+    if (stridedSlice.begins_attr() != nullptr) {
         auto begins = parseIntArrayAttr<int64_t>(stridedSlice.begins_attr());
         auto ends = parseIntArrayAttr<int64_t>(stridedSlice.ends_attr());
         auto strides = parseIntArrayAttr<int64_t>(stridedSlice.strides_attr());
-        return StridedSliceInputData{begins, ends, strides};
+
+        return StridedSliceInputData{std::move(begins), std::move(ends), std::move(strides)};
     }
-    VPUX_THROW("StridedSlice operation is invalid");
+
     return mlir::failure();
 }
 
 }  // namespace
 
 mlir::LogicalResult vpux::IE::StridedSliceOp::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueRange operands, mlir::DictionaryAttr attrs,
-        mlir::RegionRange, SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
+        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
+        mlir::DictionaryAttr attrs, mlir::RegionRange,
+        SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
 
     IE::StridedSliceOpAdaptor slice(operands, attrs);

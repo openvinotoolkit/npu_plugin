@@ -27,14 +27,12 @@
 using namespace vpux;
 
 //
-// RescaleAttr::verify
+// RescaleAttr::walkImmediateSubElements
 //
 
-mlir::LogicalResult vpux::Const::RescaleAttr::verify(FuncRef<mlir::InFlightDiagnostic()> emitError,
-                                                     mlir::FloatAttr scale) {
-    emitError = emitError;
-    scale = scale;
-    return mlir::success();
+void vpux::Const::RescaleAttr::walkImmediateSubElements(llvm::function_ref<void(Attribute)> walkAttrsFn,
+                                                        llvm::function_ref<void(mlir::Type)>) const {
+    walkAttrsFn(getScale());
 }
 
 //
@@ -65,7 +63,7 @@ mlir::Attribute vpux::Const::RescaleAttr::parse(mlir::MLIRContext*, mlir::Dialec
         return nullptr;
     }
 
-    return parser.getChecked<Const::RescaleAttr>(scale);
+    return Const::RescaleAttr::get(scale);
 }
 
 //
@@ -73,8 +71,7 @@ mlir::Attribute vpux::Const::RescaleAttr::parse(mlir::MLIRContext*, mlir::Dialec
 //
 
 mlir::ShapedType vpux::Const::RescaleAttr::inferOutputType(mlir::ShapedType input) const {
-    const auto Type = input.getElementType();
-    return input.clone(Type);
+    return input;
 }
 
 //
@@ -88,15 +85,15 @@ Const::Content vpux::Const::RescaleAttr::transform(vpux::Const::Content& input) 
     const auto values = input.getValues<float>();
     auto scaledVals = output.getTempBuf<float>();
 
-    mlir::FloatAttr scale = getScale();
+    const auto scale = static_cast<float>(getScale().getValue().convertToDouble());
 
     loop_1d(LoopExecPolicy::Parallel, scaledVals.size(), [&](size_t i) {
-        scaledVals[i] = values[i] * static_cast<float>(scale.getValue().convertToDouble());
+        scaledVals[i] = values[i] * scale;
     });
 
     return output;
 }
 
-Const::ContentAttr vpux::Const::ContentAttr::rescale(mlir::FloatAttr scale) const {
-    return get(*this, Const::RescaleAttr::get(scale).cast<Const::TransformAttrInterface>());  // getContext(),
+Const::ContentAttr vpux::Const::ContentAttr::rescale(double scale) const {
+    return get(*this, Const::RescaleAttr::get(getFPAttr(getContext(), scale)).cast<Const::TransformAttrInterface>());
 }

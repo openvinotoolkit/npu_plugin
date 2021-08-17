@@ -20,7 +20,7 @@ func @Conv2dWithReluTest(%arg0: tensor<1x16x4x4xf16>) -> tensor<1x16x3x3xf16> {
     // CHECK-SAME:     dilations = [1, 1]
     // CHECK-SAME:     pads_begin = [0, 0]
     // CHECK-SAME:     pads_end = [0, 0]
-    // CHECK-SAME:     post_op = {kind = "RELU", params = {}}
+    // CHECK-SAME:     post_op = {attrs = {}, name = "IE.ReLU"}
     // CHECK-SAME:     strides = [1, 1]
     // CHECK-NOT:   IE.ReLU
 }
@@ -47,7 +47,7 @@ func @MaxPoolWithReluTest(%arg0: tensor<1x16x4x4xf16>) -> tensor<1x16x3x3xf16> {
     // CHECK-SAME:     kernel_size = [2, 2]
     // CHECK-SAME:     pads_begin = [0, 0]
     // CHECK-SAME:     pads_end = [0, 0]
-    // CHECK-SAME:     post_op = {kind = "RELU", params = {}}
+    // CHECK-SAME:     post_op = {attrs = {}, name = "IE.ReLU"}
     // CHECK-SAME:     rounding_type = "CEIL"
     // CHECK-SAME:     strides = [1, 1]
     // CHECK-NOT:   IE.ReLU
@@ -77,7 +77,7 @@ func @DepthWiseConv2dWithReluTest(%arg0: tensor<1x16x4x4xf16>) -> tensor<1x16x3x
     // CHECK-SAME:     groups = 16
     // CHECK-SAME:     pads_begin = [0, 0]
     // CHECK-SAME:     pads_end = [0, 0]
-    // CHECK-SAME:     post_op = {kind = "RELU", params = {}}
+    // CHECK-SAME:     post_op = {attrs = {}, name = "IE.ReLU"}
     // CHECK-SAME:     strides = [1, 1]
     // CHECK-NOT:   IE.ReLU
 }
@@ -108,7 +108,26 @@ func @Conv2dWithClampTest(%arg0: tensor<1x16x4x4xf16>) -> tensor<1x16x3x3xf16> {
     // CHECK-SAME:     dilations = [1, 1]
     // CHECK-SAME:     pads_begin = [0, 0]
     // CHECK-SAME:     pads_end = [0, 0]
-    // CHECK-SAME:     post_op = {kind = "RELUX", params = {Maximum = 6.000000e+00 : f64, Minimum = 0.000000e+00 : f64}}
+    // CHECK-SAME:     post_op = {attrs = {max = 6.000000e+00 : f64, min = 0.000000e+00 : f64}, name = "IE.Clamp"}
     // CHECK-SAME:     strides = [1, 1]
     // CHECK-NOT:   IE.Clamp
 }
+
+// -----
+
+func @AddWithReLUTest() -> tensor<1x16x4x4xf16> {
+    %0 = const.Declare tensor<1x16x4x4xf16> = #const.Content<dense<6.0> : tensor<1x16x4x4xf16>>
+    %1 = const.Declare tensor<1x16x4x4xf16> = #const.Content<dense<-7.0> : tensor<1x16x4x4xf16>>
+    %sum = IE.Add(%0, %1) { auto_broadcast = "NUMPY" } : tensor<1x16x4x4xf16>, tensor<1x16x4x4xf16> -> tensor<1x16x4x4xf16>
+    %relu = IE.ReLU(%sum) : tensor<1x16x4x4xf16> -> tensor<1x16x4x4xf16>
+
+    return %relu : tensor<1x16x4x4xf16>
+
+    // CHECK:       %[[RIGHT:.*]] = const.Declare tensor<1x16x4x4xf16> = #const.Content<dense<-7.000000e+00> : tensor<1x16x4x4xf16>>
+    // CHECK:       %[[LEFT:.*]] = const.Declare tensor<1x16x4x4xf16> = #const.Content<dense<6.000000e+00> : tensor<1x16x4x4xf16>>
+    // CHECK:       %[[SUM:.*]] = IE.Add(%[[LEFT]], %[[RIGHT]])
+    // CHECK-SAME:     auto_broadcast = "NUMPY"
+    // CHECK-SAME:     post_op = {attrs = {}, name = "IE.ReLU"}
+    // CHECK-NOT:   IE.ReLU
+}
+

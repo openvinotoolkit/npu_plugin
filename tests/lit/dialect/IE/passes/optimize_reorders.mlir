@@ -9,11 +9,11 @@ module @ReorderWithSubView attributes {VPUIP.arch = "KMB", VPUIP.compilationMode
 // CHECK: func @main([[ARG0:%arg[0-9]+]]: tensor<1x8x4x2xf16>)
 func @main(%arg0: tensor<1x8x4x2xf16>) -> tensor<1x4x4x2xf16> {
     %0 = IE.Reorder(%arg0) {dstOrder = #NHWC} : tensor<1x8x4x2xf16> -> tensor<1x8x4x2xf16, {order = #NHWC}>
-    %1 = tensor.extract_slice %0[0, 2, 0, 0] [1, 4, 4, 2] [1, 1, 1, 1] : tensor<1x8x4x2xf16, {order = #NHWC}> to tensor<1x4x4x2xf16, {order = #NHWC}>
+    %1 = IE.Slice %0 [0, 2, 0, 0] [1, 4, 4, 2] : tensor<1x8x4x2xf16, {order = #NHWC}> to tensor<1x4x4x2xf16, {order = #NHWC}>
     %2 = IE.Reorder(%1) {dstOrder = #NCHW} : tensor<1x4x4x2xf16, {order = #NHWC}> -> tensor<1x4x4x2xf16>
     return %2 : tensor<1x4x4x2xf16>
 
-    // CHECK:       [[VAR0:%.+]] = tensor.extract_slice [[ARG0]]
+    // CHECK:       [[VAR0:%.+]] = IE.Slice [[ARG0]]
     // CHECK-SAME:      tensor<1x8x4x2xf16> to tensor<1x4x4x2xf16>
     // CHECK:       return [[VAR0]] : tensor<1x4x4x2xf16>
 }
@@ -33,8 +33,8 @@ func @main(%arg0: tensor<1x3x30x30xf16, {order = #NHWC}>) -> tensor<1x3x15x13xf1
     %0 = IE.Reorder(%arg0) {dstOrder = #NCHW} : tensor<1x3x30x30xf16, {order = #NHWC}> -> tensor<1x3x30x30xf16>
 
     %1 = IE.Expand(%0) {
-        pads_begin_attr = [0, 0, 0, 0],
-        pads_end_attr = [0, 13, 0, 0]
+        pads_begin = [0, 0, 0, 0],
+        pads_end = [0, 13, 0, 0]
     } : tensor<1x3x30x30xf16> -> tensor<1x16x30x30xf16>
 
     %2 = IE.MaxPool(%1) {
@@ -45,7 +45,7 @@ func @main(%arg0: tensor<1x3x30x30xf16, {order = #NHWC}>) -> tensor<1x3x15x13xf1
         strides = [2, 2]
     } : tensor<1x16x30x30xf16> -> tensor<1x16x15x13xf16>
 
-    %3 = tensor.extract_slice %2[0, 0, 0, 0] [1, 3, 15, 13] [1, 1, 1, 1] : tensor<1x16x15x13xf16> to tensor<1x3x15x13xf16>
+    %3 = IE.Slice %2 [0, 0, 0, 0] [1, 3, 15, 13] : tensor<1x16x15x13xf16> to tensor<1x3x15x13xf16>
 
     %4 = IE.Reorder(%3) {dstOrder = #NHWC} : tensor<1x3x15x13xf16> -> tensor<1x3x15x13xf16, {order = #NHWC}>
 
@@ -60,7 +60,7 @@ func @main(%arg0: tensor<1x3x30x30xf16, {order = #NHWC}>) -> tensor<1x3x15x13xf1
     // CHECK:       [[VAR2:%.+]] = IE.MaxPool([[VAR1]])
     // CHECK-SAME:      tensor<1x16x30x30xf16> -> tensor<1x16x15x13xf16>
 
-    // CHECK:       [[VAR3:%.+]] = tensor.extract_slice [[VAR2]]
+    // CHECK:       [[VAR3:%.+]] = IE.Slice [[VAR2]]
     // CHECK-SAME:      tensor<1x16x15x13xf16> to tensor<1x3x15x13xf16>
 
     // CHECK:       [[VAR4:%.+]] = IE.Reorder([[VAR3]]) {dstOrder = #NHWC}
@@ -79,7 +79,7 @@ func @main(%arg0: tensor<1x3x30x30xf16, {order = #NHWC}>) -> tensor<1x3x15x13xf1
 // CHECK-LABEL: @ReorderWithSplit
 module @ReorderWithSplit attributes {VPUIP.arch = "KMB", VPUIP.compilationMode = "ReferenceSW"} {
 
-// CHECK: func @main([[ARG0:%arg[0-9]+]]: tensor<1x3x30x30xf16, {order = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>}>)
+// CHECK: func @main([[ARG0:%arg[0-9]+]]: tensor<1x3x30x30xf16, {order = #NHWC}>)
 func @main(%arg0: tensor<1x3x30x30xf16, {order = #NHWC}>) ->
         (tensor<1x1x30x30xf16, {order = #NHWC}>, tensor<1x1x30x30xf16, {order = #NHWC}>, tensor<1x1x30x30xf16, {order = #NHWC}>){
     %0 = IE.Reorder(%arg0) {dstOrder = #NCHW} : tensor<1x3x30x30xf16, {order = #NHWC}> -> tensor<1x3x30x30xf16>
@@ -94,15 +94,15 @@ func @main(%arg0: tensor<1x3x30x30xf16, {order = #NHWC}>) ->
     return %2, %3, %4 : tensor<1x1x30x30xf16, {order = #NHWC}>, tensor<1x1x30x30xf16, {order = #NHWC}>, tensor<1x1x30x30xf16, {order = #NHWC}>
 
     // CHECK:       [[VAR0:%[0-9]+]]:3 = IE.Split([[ARG0]])
-    // CHECK-SAME:      tensor<1x3x30x30xf16, {order = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>}> ->
-    // CHECK-SAME:          tensor<1x1x30x30xf16, {order = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>}>,
-    // CHECK-SAME:          tensor<1x1x30x30xf16, {order = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>}>,
-    // CHECK-SAME:          tensor<1x1x30x30xf16, {order = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>}>
+    // CHECK-SAME:      tensor<1x3x30x30xf16, {order = #NHWC}> ->
+    // CHECK-SAME:          tensor<1x1x30x30xf16, {order = #NHWC}>,
+    // CHECK-SAME:          tensor<1x1x30x30xf16, {order = #NHWC}>,
+    // CHECK-SAME:          tensor<1x1x30x30xf16, {order = #NHWC}>
 
     // CHECK:       return [[VAR0]]#0, [[VAR0]]#1, [[VAR0]]#2
-    // CHECK-SAME:      tensor<1x1x30x30xf16, {order = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>}>,
-    // CHECK-SAME:      tensor<1x1x30x30xf16, {order = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>}>,
-    // CHECK-SAME:      tensor<1x1x30x30xf16, {order = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>}>
+    // CHECK-SAME:      tensor<1x1x30x30xf16, {order = #NHWC}>,
+    // CHECK-SAME:      tensor<1x1x30x30xf16, {order = #NHWC}>,
+    // CHECK-SAME:      tensor<1x1x30x30xf16, {order = #NHWC}>
 }
 
 }
@@ -116,8 +116,8 @@ func @main(%arg0: tensor<1x3x30x30xf16, {order = #NHWC}>) ->
 module @ReorderWithConcat attributes {VPUIP.arch = "KMB", VPUIP.compilationMode = "ReferenceSW"} {
 
 // CHECK:       func @main(
-// CHECK-SAME:      [[ARG0:%arg[0-9]+]]: tensor<1x1x30x30xf16, {order = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>}>,
-// CHECK-SAME:      [[ARG1:%arg[0-9]+]]: tensor<1x1x30x30xf16, {order = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>}>)
+// CHECK-SAME:      [[ARG0:%arg[0-9]+]]: tensor<1x1x30x30xf16, {order = #NHWC}>,
+// CHECK-SAME:      [[ARG1:%arg[0-9]+]]: tensor<1x1x30x30xf16, {order = #NHWC}>)
 func @main(%arg0: tensor<1x1x30x30xf16, {order = #NHWC}>, %arg1: tensor<1x1x30x30xf16, {order = #NHWC}>)
         -> tensor<1x2x30x30xf16, {order = #NHWC}> {
     %0 = IE.Reorder(%arg0) {dstOrder = #NCHW} : tensor<1x1x30x30xf16, {order = #NHWC}> -> tensor<1x1x30x30xf16>
@@ -127,10 +127,10 @@ func @main(%arg0: tensor<1x1x30x30xf16, {order = #NHWC}>, %arg1: tensor<1x1x30x3
     return %3 : tensor<1x2x30x30xf16, {order = #NHWC}>
 
     // CHECK:       [[VAR0:%.+]] = IE.Concat([[ARG0]], [[ARG1]]) {axis = 1 : i64}
-    // CHECK-SAME:      tensor<1x1x30x30xf16, {order = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>}>,
-    // CHECK-SAME:      tensor<1x1x30x30xf16, {order = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>}>
-    // CHECK-SAME:      -> tensor<1x2x30x30xf16, {order = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>}>
-    // CHECK:       return [[VAR0]] : tensor<1x2x30x30xf16, {order = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>}>
+    // CHECK-SAME:      tensor<1x1x30x30xf16, {order = #NHWC}>,
+    // CHECK-SAME:      tensor<1x1x30x30xf16, {order = #NHWC}>
+    // CHECK-SAME:      -> tensor<1x2x30x30xf16, {order = #NHWC}>
+    // CHECK:       return [[VAR0]] : tensor<1x2x30x30xf16, {order = #NHWC}>
 }
 
 }

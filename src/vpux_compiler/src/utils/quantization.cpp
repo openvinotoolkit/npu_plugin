@@ -13,6 +13,7 @@
 
 #include "vpux/compiler/utils/quantization.hpp"
 
+#include "vpux/compiler/conversion.hpp"
 #include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/subspaces.hpp"
 #include "vpux/compiler/utils/types.hpp"
@@ -23,11 +24,85 @@
 
 using namespace vpux;
 
+namespace {
+
+std::tuple<int64_t, int64_t, mlir::Type> getStorageParams(mlir::MLIRContext* ctx, int64_t levels, bool isSigned) {
+    switch (levels) {
+    case 256:
+        if (isSigned) {
+            return {-128, 127, getSInt8Type(ctx)};
+        }
+
+        return {0, levels - 1, getUInt8Type(ctx)};
+    case 255:
+        if (isSigned) {
+            return {-127, 127, getSInt8Type(ctx)};
+        }
+
+        return {0, levels - 1, getUInt8Type(ctx)};
+
+    case 16:
+        if (isSigned) {
+            return {-8, 7, getSInt4Type(ctx)};
+        }
+
+        return {0, levels - 1, getUInt4Type(ctx)};
+
+    case 15:
+        if (isSigned) {
+            return {-7, 7, getSInt4Type(ctx)};
+        }
+
+        return {0, levels - 1, getUInt4Type(ctx)};
+
+    default:
+        VPUX_THROW("Got unsupported levels '{0}'", levels);
+    }
+}
+
+}  // namespace
+
 //
 // FakeQuantize support
 //
 
-std::tuple<double, int64_t> vpux::calcScaleAndZeroPoint(int64_t qMin, int64_t qMax, double rMin, double rMax) {
+mlir::quant::QuantizedType vpux::expandScalesAndZP(mlir::quant::UniformQuantizedPerAxisType perAxisQType,
+                                                   ShapeRef padBefore, ShapeRef padAfter) {
+    VPUX_THROW_UNLESS(padBefore.size() >= static_cast<size_t>(perAxisQType.getQuantizedDimension()),
+                      "Unsupported shape size {0}. Quantized dimension index {1}", padBefore.size(),
+                      perAxisQType.getQuantizedDimension());
+    VPUX_THROW_UNLESS(padAfter.size() >= static_cast<size_t>(perAxisQType.getQuantizedDimension()),
+                      "Unsupported shape size {0}. Quantized dimension index {1}", padAfter.size(),
+                      perAxisQType.getQuantizedDimension());
+
+    const auto quantizedDim = Dim(perAxisQType.getQuantizedDimension());
+
+    const auto padBeforeOC = padBefore[quantizedDim];
+    const auto padAfterOC = padAfter[quantizedDim];
+
+    if (padBeforeOC == 0 && padAfterOC == 0) {
+        return perAxisQType;
+    }
+
+    const auto scales = perAxisQType.getScales();
+    const auto zeroPoints = perAxisQType.getZeroPoints();
+
+    std::vector<double> newScales(padBeforeOC, 1);
+    newScales.insert(newScales.end(), scales.begin(), scales.end());
+    newScales.insert(newScales.end(), padAfterOC, 1);
+
+    std::vector<int64_t> newZeroPoints(padBeforeOC, 0);
+    newZeroPoints.insert(newZeroPoints.end(), zeroPoints.begin(), zeroPoints.end());
+    newZeroPoints.insert(newZeroPoints.end(), padAfterOC, 0);
+
+    return mlir::quant::UniformQuantizedPerAxisType::get(
+            perAxisQType.getFlags(), perAxisQType.getStorageType(), perAxisQType.getExpressedType(), newScales,
+            newZeroPoints, perAxisQType.getQuantizedDimension(), perAxisQType.getStorageTypeMin(),
+            perAxisQType.getStorageTypeMax());
+}
+
+std::tuple<double, int64_t> vpux::calcScaleAndZeroPoint(int64_t qMin, int64_t qMax, double rMin, double rMax,
+                                                        bool isSigned) {
     VPUX_THROW_UNLESS(qMax > qMin, "Wrong quantized storage values range ['{0}', '{1}']", qMin, qMax);
     VPUX_THROW_UNLESS(rMax > rMin, "Wrong real values range ['{0}', '{1}']", rMin, rMax);
 
@@ -35,8 +110,8 @@ std::tuple<double, int64_t> vpux::calcScaleAndZeroPoint(int64_t qMin, int64_t qM
     // Determine the scale.
     //
 
-    const double qMinFP = static_cast<double>(qMin);
-    const double qMaxFP = static_cast<double>(qMax);
+    const auto qMinFP = static_cast<double>(qMin);
+    const auto qMaxFP = static_cast<double>(qMax);
     const double scale = (rMax - rMin) / (qMaxFP - qMinFP);
 
     VPUX_THROW_UNLESS(std::fabs(scale) > std::numeric_limits<double>::epsilon(),
@@ -44,22 +119,16 @@ std::tuple<double, int64_t> vpux::calcScaleAndZeroPoint(int64_t qMin, int64_t qM
 
     //
     // Zero point computation.
-    // In float, solve the affine equation for any known pair
-    // (real value, corresponding quantized value), of which, two such pairs
-    // are known: (rmin, qmin), (rmax, qmax).
-    // The arithmetic error on the zero point computed from either pair will be
-    // roughly machine_epsilon * (sum of absolute values of terms).
-    // Use the variant that adds the smaller error.
     //
 
-    const double zpFromMin = qMinFP - rMin / scale;
-    const double zpFromMax = qMaxFP - rMax / scale;
-
-    const double zpFromMinErr = std::fabs(qMinFP) + std::fabs(rMin / scale);
-    const double zpFromMaxErr = std::fabs(qMaxFP) + std::fabs(rMax / scale);
-
-    const double zpFP = (zpFromMinErr < zpFromMaxErr) ? zpFromMin : zpFromMax;
-    const int64_t zp = static_cast<int64_t>(std::round(zpFP));
+    int64_t zp = 0;
+    if (isSigned) {
+        double x = -static_cast<double>(qMaxFP - qMinFP) * ((rMax + rMin) * 0.5f) / (rMax - rMin);
+        zp = static_cast<int64_t>(std::round(x));
+    } else {
+        double x = -static_cast<double>(qMaxFP - qMinFP) * rMin / (rMax - rMin);
+        zp = static_cast<int64_t>(std::round(x));
+    }
 
     return std::make_tuple(scale, zp);
 }
@@ -77,117 +146,63 @@ mlir::quant::QuantizedType vpux::getQuantizedType(Const::ContentAttr lowConst, C
     mlir::Type storageType;
     int64_t qMin = 0;
     int64_t qMax = 0;
-    switch (levels) {
-    case 256:
-        if (isSigned) {
-            storageType = getSInt8Type(lowConst.getContext());
-            qMin = -128;
-            qMax = 127;
-        } else {
-            storageType = getUInt8Type(lowConst.getContext());
-            qMin = 0;
-            qMax = 255;
-        }
-        break;
-
-    case 255:
-        if (isSigned) {
-            storageType = getSInt8Type(lowConst.getContext());
-            qMin = -127;
-            qMax = 127;
-        } else {
-            storageType = getUInt8Type(lowConst.getContext());
-            qMin = 0;
-            qMax = 254;
-        }
-        break;
-
-    case 16:
-        if (isSigned) {
-            storageType = getSInt4Type(lowConst.getContext());
-            qMin = -8;
-            qMax = 7;
-        } else {
-            storageType = getUInt4Type(lowConst.getContext());
-            qMin = 0;
-            qMax = 15;
-        }
-        break;
-
-    case 15:
-        if (isSigned) {
-            storageType = getSInt4Type(lowConst.getContext());
-            qMin = -7;
-            qMax = 7;
-        } else {
-            storageType = getUInt4Type(lowConst.getContext());
-            qMin = 0;
-            qMax = 14;
-        }
-        break;
-
-    default:
-        (void)errorAt(loc, "Got unsupported levels '{0}'", levels);
-        return nullptr;
-    }
+    std::tie(qMin, qMax, storageType) = getStorageParams(lowConst.getContext(), levels, isSigned);
 
     const auto lowAttr = lowConst.fold();
     const auto highAttr = highConst.fold();
-
     if (lowAttr.isSplat() && highAttr.isSplat()) {
         const auto low = lowAttr.getSplatValue<double>();
         const auto high = highAttr.getSplatValue<double>();
 
         double scale = 0.0;
         int64_t zeroPoint = 0;
-        std::tie(scale, zeroPoint) = calcScaleAndZeroPoint(qMin, qMax, low, high);
+        std::tie(scale, zeroPoint) = calcScaleAndZeroPoint(qMin, qMax, low, high, isSigned);
 
         return mlir::quant::UniformQuantizedType::getChecked(loc, isSigned ? mlir::quant::QuantizationFlags::Signed : 0,
                                                              storageType, realType, scale, zeroPoint, qMin, qMax);
-    } else {
-        const auto lowShape = lowAttr.getShape();
-        const auto highShape = highAttr.getShape();
+    }
 
-        if (lowShape != highShape) {
-            (void)errorAt(loc, "Low values shape '{0}' doesn't match with high values shape '{1}'", lowShape,
-                          highShape);
-            return nullptr;
+    const auto lowShape = lowAttr.getShape();
+    const auto highShape = highAttr.getShape();
+
+    if (lowShape != highShape) {
+        (void)errorAt(loc, "Low values shape '{0}' doesn't match with high values shape '{1}'", lowShape, highShape);
+        return nullptr;
+    }
+
+    Optional<int32_t> axisInd;
+    for (size_t i = 0; i < lowShape.size(); ++i) {
+        if (lowShape[Dim(i)] == 1) {
+            continue;
         }
 
-        Optional<int32_t> axisInd;
-        for (size_t i = 0; i < lowShape.size(); ++i) {
-            if (lowShape[Dim(i)] == 1) {
-                continue;
-            }
-
-            if (axisInd.hasValue()) {
-                (void)errorAt(loc, "Can't get axis index from shape '{0}'", lowShape);
-                return nullptr;
-            }
-
-            axisInd = checked_cast<int32_t>(i);
-        }
-        if (!axisInd.hasValue()) {
+        if (axisInd.hasValue()) {
             (void)errorAt(loc, "Can't get axis index from shape '{0}'", lowShape);
             return nullptr;
         }
 
-        const auto lowVals = lowAttr.getValues<double>();
-        const auto highVals = highAttr.getValues<double>();
-        VPUX_THROW_UNLESS(lowVals.size() == highVals.size(), "Low/high attributes size mismatch : '{0}' vs '{1}'",
-                          lowVals.size(), highVals.size());
-
-        SmallVector<double> scales(lowVals.size());
-        SmallVector<int64_t> zeroPoints(lowVals.size());
-
-        loop_1d(LoopExecPolicy::Parallel, lowVals.size(), [&](size_t i) {
-            std::tie(scales[i], zeroPoints[i]) = calcScaleAndZeroPoint(qMin, qMax, lowVals[i], highVals[i]);
-        });
-
-        return mlir::quant::UniformQuantizedPerAxisType::getChecked(
-                loc, isSigned ? mlir::quant::QuantizationFlags::Signed : 0, storageType, realType, scales, zeroPoints,
-                axisInd.getValue(), qMin, qMax);
+        axisInd = checked_cast<int32_t>(i);
     }
+    if (!axisInd.hasValue()) {
+        (void)errorAt(loc, "Can't get axis index from shape '{0}'", lowShape);
+        return nullptr;
+    }
+
+    const auto lowVals = lowAttr.getValues<double>();
+    const auto highVals = highAttr.getValues<double>();
+    VPUX_THROW_UNLESS(lowVals.size() == highVals.size(), "Low/high attributes size mismatch : '{0}' vs '{1}'",
+                      lowVals.size(), highVals.size());
+
+    SmallVector<double> scales(lowVals.size());
+    SmallVector<int64_t> zeroPoints(lowVals.size());
+
+    loop_1d(LoopExecPolicy::Parallel, lowVals.size(), [&](size_t i) {
+        std::tie(scales[i], zeroPoints[i]) = calcScaleAndZeroPoint(qMin, qMax, lowVals[i], highVals[i], isSigned);
+    });
+
+    return mlir::quant::UniformQuantizedPerAxisType::getChecked(
+            loc, isSigned ? mlir::quant::QuantizationFlags::Signed : 0, storageType, realType, scales, zeroPoints,
+            axisInd.getValue(), qMin, qMax);
 }
 
 mlir::LogicalResult vpux::getFakeQuantParams(mlir::ShapedType qType, int64_t& levels, mlir::RankedTensorType& attrType,
@@ -244,14 +259,13 @@ mlir::LogicalResult vpux::getFakeQuantParams(mlir::ShapedType qType, int64_t& le
     }
 }
 
-mlir::Type vpux::normalizeQuantStorageType(mlir::Type type) {
-    if (const auto intType = type.dyn_cast<mlir::IntegerType>()) {
-        // add sign semantic
-        if (intType.isSignless()) {
-            return mlir::IntegerType::get(intType.getContext(), intType.getWidth(), mlir::IntegerType::Unsigned);
-        }
-    }
-    return type;
+mlir::Type vpux::normalizeQuantStorageType(mlir::quant::QuantizedType qType) {
+    auto elemType = qType.getStorageType();
+    const auto intType = elemType.dyn_cast_or_null<mlir::IntegerType>();
+    VPUX_THROW_UNLESS(intType, "Unsupported storage element type {0}", elemType);
+
+    return mlir::IntegerType::get(intType.getContext(), intType.getWidth(),
+                                  qType.isSigned() ? mlir::IntegerType::Signed : mlir::IntegerType::Unsigned);
 }
 
 //
@@ -260,4 +274,13 @@ mlir::Type vpux::normalizeQuantStorageType(mlir::Type type) {
 
 float vpux::dequantize(int64_t qVal, double scale, int64_t zeroPoint) {
     return static_cast<float>((qVal - zeroPoint) * scale);
+}
+
+//
+// Convert real numbers to fixed point S16.16 format.
+//
+
+int32_t vpux::toFixedPoint(const double realVal) {
+    const double mult = 1 << 16;
+    return std::lround(realVal * mult);
 }

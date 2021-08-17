@@ -6,7 +6,7 @@
 #include "include/mcm/pass/pass_quantization.hpp"
 
 static void quantizeGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& compilationDescriptor, mv::Element&);
-
+bool isOpPassthrough(const mv::Data::OpListIterator& op);
 
 namespace mv
 {
@@ -34,19 +34,19 @@ static bool isQuantizableOp(mv::Data::OpListIterator op) {
     return quantizable_ops.count(op->getOpType());
 }
 
-bool isOpQuantized(mv::OpModel& om, const mv::Data::OpListIterator& op) {
+bool isOpInputQuantized(mv::OpModel& om, const mv::Data::OpListIterator& op) {
     if (!isQuantizableOp(op)) {
         return false;
     }
 
-    if (op->getOpType() == "AveragePool") {
-        return om.getSourceOp(op->getInputTensor(0))->getOpType() == "FakeQuantize";
-    }
+    // Navigate through chain of FQ invariant parents
+    auto sourceOp = om.getSourceOp(op->getInputTensor(0));
+    while (isOpPassthrough(sourceOp) && sourceOp->inputSlots())
+        sourceOp = om.getSourceOp(sourceOp->getInputTensor(0));
 
-    assert(op->getInputTensor().size() > 1);
-    return (om.getSourceOp(op->getInputTensor(1))->getOpType() == "FakeQuantize") ||
-            op->getInputTensor(1)->getDType() == getDType(mv::Precision::U8) ||
-            op->getInputTensor(1)->getDType() == getDType(mv::Precision::I8);
+    return (sourceOp->getOpType() == "FakeQuantize") ||
+            op->getInputTensor(0)->getDType() == getDType(mv::Precision::U8) ||
+            op->getInputTensor(0)->getDType() == getDType(mv::Precision::I8);
 }
 
 bool isOpPassthrough(const mv::Data::OpListIterator& op)
@@ -340,7 +340,7 @@ void quantizeBias(mv::ComputationModel& model) {
     for (auto& biasOp : biasOps) {
         const auto parentOp = om.getSourceOp(biasOp->getInputTensor(0));
 
-        if (isOpQuantized(om, parentOp)) {
+        if (isOpInputQuantized(om, parentOp)) {
             const auto inputQuantParams   = parentOp->getInputTensor(0)->getQuantParams();
             const auto weightsQuantParams = parentOp->getInputTensor(1)->getQuantParams();
 
@@ -417,8 +417,7 @@ static void rescaleQuantParams(mv::QuantizationParams& quant_params, std::vector
     }
     else
     {
-        throw mv::ArgumentError("Rescale quant params error", "Unable to rescale, quant params size: ", std::to_string(new_scale.size()),
-            " scale size: " + std::to_string(scale.size()));
+        return;
     }
 
     quant_params = mv::QuantizationParams(new_zp, new_scale, new_min, new_max);
@@ -603,22 +602,30 @@ bool iterateThroughPassthroughOps(mv::DataModel& dm, const mv::Data::OpListItera
     if (fallbackToFloat) {
         opIt->getOutputTensor(0)->setDType(mv::DType("Float16"));
         opIt->getOutputTensor(0)->setQuantParams(mv::QuantizationParams::initial());
-    }
-
-    auto childOps = mv::findSinkLayers(dm, opIt->getOutputTensor(0));
-    for (auto& childOp : childOps) {
-        if (isOpPassthrough(childOp)) {
-            if (childOp->outputSlots() && childOp->getOutputTensor(0)->isFloatingPointType())
-                return false;
-            if (!iterateThroughPassthroughOps(dm, childOp, fallbackToFloat))
-                return false;
-        } else {
-            if (childOp->outputSlots() && !childOp->getOutputTensor(0)->isFloatingPointType())
-                return false;
+        if (opIt->getOpType()=="Concat") {
+            auto inputTensors = opIt->getInputTensor();
+            for (auto& tensor : inputTensors) {
+               tensor->setDType(mv::DType("Float16"));
+               tensor->setQuantParams(mv::QuantizationParams::initial());
+            }
         }
     }
 
-    return true;
+    auto childOps = mv::findSinkLayers(dm, opIt->getOutputTensor(0));
+    bool checkChild = true;
+    for (auto& childOp : childOps) {
+        if (isOpPassthrough(childOp)) {
+            if (childOp->outputSlots() && childOp->getOutputTensor(0)->isFloatingPointType())
+                checkChild = false;
+            if (!iterateThroughPassthroughOps(dm, childOp, fallbackToFloat))
+                checkChild = false;
+        } else {
+            if (childOp->outputSlots() && !childOp->getOutputTensor(0)->isFloatingPointType())
+                checkChild = false;
+        }
+    }
+
+    return checkChild;
 }
 
 // This pass will treat cases where conversions back and forth could be avoided to improve performance.

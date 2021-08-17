@@ -11,39 +11,7 @@
 
 namespace LayerTestsDefinitions {
 
-class KmbConvolutionLayerTest : public ConvolutionLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
-    void SkipBeforeValidate() override {
-        if (isCompilerMLIR()) {
-            auto params = std::get<0>(GetParam());
-
-            auto strides = std::get<1>(params);
-            auto padsBegin = std::get<2>(params);
-            auto dilations = std::get<4>(params);
-            auto padType = std::get<6>(params);
-
-            // [Track number: E#16206]
-            if (strides.size() == 1 && padType == ngraph::op::PadType::EXPLICIT) {
-                auto isBadPadsBegin = padsBegin[0] > 1;
-                auto isBadDilations = dilations[0] == 1;
-                if (isBadPadsBegin && isBadDilations) {
-                    throw LayerTestsUtils::KmbSkipTestException("Comparison fails");
-                }
-            }
-
-            // [Track number: E#16206]
-            if (strides.size() == 2 && padType == ngraph::op::PadType::EXPLICIT) {
-                auto isBadStrides = strides[0] == strides[1] && strides[0] < 5;
-                auto isGoodPadsBegin =
-                        (padsBegin[0] == 0 && padsBegin[1] == 0) || (padsBegin[0] == 1 && padsBegin[1] == 0) ||
-                        (padsBegin[0] == 0 && padsBegin[1] == 1) || (padsBegin[0] == 1 && padsBegin[1] == 1);
-                auto isBadDilations = dilations[0] == 1 && dilations[1] == 1;
-
-                if (isBadStrides && !isGoodPadsBegin && isBadDilations)
-                    throw LayerTestsUtils::KmbSkipTestException("Comparison fails");
-            }
-        }
-    }
-};
+class KmbConvolutionLayerTest : public ConvolutionLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
 
 // Comparisons fail (ticket???)
 TEST_P(KmbConvolutionLayerTest, DISABLED_CompareWithRefs) {
@@ -120,13 +88,13 @@ INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_AutoPadValid, KmbConvolutionLayerTe
 /* ============= 2D Convolution / ExplicitPadding ============= */
 
 const auto conv2DParams_ExplicitPadding =
-        ::testing::Combine(::testing::ValuesIn<SizeVector>({{3, 3}}),                              // kernels
+        ::testing::Combine(::testing::ValuesIn<SizeVector>({{3, 3}}),                                      // kernels
                            ::testing::ValuesIn<SizeVector>({{1, 1}, {2, 2}}),                              // strides
                            ::testing::ValuesIn<std::vector<ptrdiff_t>>({{0, 0}, {1, 1}, {0, 1}, {0, 2}}),  // padBegins
-                           ::testing::ValuesIn<std::vector<ptrdiff_t>>({{0, 0}, {1, 1}, {0, 1}}),  // padEnds
-                           ::testing::ValuesIn<SizeVector>({{1, 1}}),                              // dilations
-                           ::testing::Values(1),                                                   // numOutChannels
-                           ::testing::Values(ngraph::op::PadType::EXPLICIT)                        // padType
+                           ::testing::ValuesIn<std::vector<ptrdiff_t>>({{0, 0}, {1, 1}, {0, 1}}),          // padEnds
+                           ::testing::ValuesIn<SizeVector>({{1, 1}}),                                      // dilations
+                           ::testing::Values(1),                             // numOutChannels
+                           ::testing::Values(ngraph::op::PadType::EXPLICIT)  // padType
         );
 
 INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_ExplicitPadding, KmbConvolutionLayerTest,
@@ -137,6 +105,29 @@ INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_ExplicitPadding, KmbConvolutionLaye
                                            ::testing::Values(Layout::ANY),                     // inLayout
                                            ::testing::Values(Layout::ANY),                     // outLayout
                                            ::testing::ValuesIn<SizeVector>({{1, 3, 16, 16}}),  // inputShapes
+                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                        ConvolutionLayerTest::getTestCaseName);
+
+/* ============= 2D Convolution / AsymmetricPadding ============= */
+
+const auto conv2DParams_AsymmetricPadding =
+        ::testing::Combine(::testing::ValuesIn<SizeVector>({{5, 5}}),                                      // kernels
+                           ::testing::ValuesIn<SizeVector>({{1, 1}}),                                      // strides
+                           ::testing::ValuesIn<std::vector<ptrdiff_t>>({{0, 0}, {1, 1}, {1, 2}, {2, 2}}),  // padBegins
+                           ::testing::ValuesIn<std::vector<ptrdiff_t>>({{0, 0}, {1, 1}, {1, 2}, {2, 2}}),  // padEnds
+                           ::testing::ValuesIn<SizeVector>({{1, 1}}),                                      // dilations
+                           ::testing::Values(1),                             // numOutChannels
+                           ::testing::Values(ngraph::op::PadType::EXPLICIT)  // padType
+        );
+
+INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_AsymmetricPadding, KmbConvolutionLayerTest,
+                        ::testing::Combine(conv2DParams_AsymmetricPadding,                     //
+                                           ::testing::Values(Precision::FP16),                 // netPrc
+                                           ::testing::Values(Precision::UNSPECIFIED),          // inPrc
+                                           ::testing::Values(Precision::UNSPECIFIED),          // outPrc
+                                           ::testing::Values(Layout::ANY),                     // inLayout
+                                           ::testing::Values(Layout::ANY),                     // outLayout
+                                           ::testing::ValuesIn<SizeVector>({{1, 3, 64, 64}}),  // inputShapes
                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
                         ConvolutionLayerTest::getTestCaseName);
 

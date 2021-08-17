@@ -19,7 +19,7 @@
 #include <ie_precision.hpp>
 #include <vpux_config.hpp>
 
-InferenceEngine::Layout orderVectorToLayout(const std::vector<float>& tensorOrder);
+InferenceEngine::Layout getLayout(const MVCNN::TensorReference* const tensorRef);
 InferenceEngine::Precision MvcnnDTypeToPrecision(const MVCNN::DType& dtype);
 
 #include <mcm/tensor/dtype/dtype.hpp>

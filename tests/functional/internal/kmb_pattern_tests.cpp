@@ -48,7 +48,7 @@ class KmbPatternTests : public KmbLayerTestBase,
 TEST_P(KmbPatternTests, BatchNotEqualToOneInTheMiddle) {
     /* FIXME: "Flic NN doesn't support batch not equal to one"
      * [Track number: H#18011923106] */
-    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "bad results");
+    SKIP_INFER("bad results");
 
     const auto& p = GetParam();
 

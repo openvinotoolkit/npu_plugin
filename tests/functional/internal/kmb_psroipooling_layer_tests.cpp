@@ -77,7 +77,7 @@ class KmbPSROIPoolingLayerTests : public KmbLayerTestBase,
                                   public testing::WithParamInterface<PSROIPoolingTestParams> {};
 // [Track number: D#3458]
 TEST_P(KmbPSROIPoolingLayerTests, AccuracyTest) {
-    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "bad results");
+    SKIP_INFER("bad results");
     const auto& p = GetParam();
 
     const auto precision = Precision::FP32;

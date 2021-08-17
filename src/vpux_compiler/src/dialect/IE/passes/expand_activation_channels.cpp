@@ -1,25 +1,23 @@
 //
 // Copyright Intel Corporation.
 //
-// This software and the related documents are Intel copyrighted materials,
-// and your use of them is governed by the express license under which they
-// were provided to you (End User License Agreement for the Intel(R) Software
-// Development Products (Version May 2017)). Unless the License provides
-// otherwise, you may not use, modify, copy, publish, distribute, disclose or
-// transmit this software or the related documents without Intel's prior
-// written permission.
-//
-// This software and the related documents are provided as is, with no
-// express or implied warranties, other than those that are expressly
-// stated in the License.
+// LEGAL NOTICE: Your use of this software and any required dependent software
+// (the "Software Package") is subject to the terms and conditions of
+// the Intel(R) OpenVINO(TM) Distribution License for the Software Package,
+// which may also include notices, disclaimers, or license terms for
+// third party or open source software included in or with the Software Package,
+// and your use indicates your acceptance of all such terms. Please refer
+// to the "third-party-programs.txt" or other similarly-named text file
+// included with the Software Package for additional details.
 //
 
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
+#include <vpux/compiler/utils/quantization.hpp>
 #include "vpux/compiler/dialect/IE/ops.hpp"
-#include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
+#include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 #include "vpux/compiler/utils/types.hpp"
 
@@ -37,17 +35,24 @@ namespace {
 // calcPadsEnd
 //
 
-Shape calcPadsEnd(mlir::ShapedType origType, int64_t channelAlignment) {
-    const auto act_channel_dim = IE::ConvolutionOp::act_channel_dim();
+Shape calcPadsEnd(ShapeRef origShape, ShapeRef extendedShape) {
+    Shape padsEnd(origShape.size());
 
+    for (auto i : irange(origShape.size())) {
+        const auto d = Dim(i);
+        padsEnd[d] = extendedShape[d] - origShape[d];
+    }
+
+    return padsEnd;
+}
+
+Shape calcPadsEnd(mlir::ShapedType origType, int64_t channelAlignment) {
     const auto origShape = getShape(origType);
 
-    const auto extendedChannels = alignVal(origShape[act_channel_dim], channelAlignment);
+    auto extendedShape = origShape.toValues();
+    extendedShape[IE::Dims4D::Act::C] = alignVal(origShape[IE::Dims4D::Act::C], channelAlignment);
 
-    Shape padsEndArrayShape(origShape.size(), 0);
-    padsEndArrayShape[act_channel_dim] = extendedChannels - origShape[act_channel_dim];
-
-    return padsEndArrayShape;
+    return calcPadsEnd(origShape, extendedShape);
 }
 
 //
@@ -62,54 +67,48 @@ Shape calcPadsEnd(mlir::ShapedType origType, int64_t channelAlignment) {
 
 mlir::LogicalResult generalRewrite(mlir::Operation* origOp, mlir::PatternRewriter& rewriter,
                                    FuncRef<mlir::Operation*(mlir::Value, int64_t)> opCreator, Logger log) {
-    const auto act_channel_dim = IE::ConvolutionOp::act_channel_dim();
-
     auto* ctx = origOp->getContext();
+
+    auto iface = mlir::cast<IE::AlignedChannelsOpInterface>(origOp);
+    const auto channelAlignement = iface.getChannelAlignment();
 
     const auto inputType = origOp->getOperand(0).getType().cast<mlir::ShapedType>();
     const auto outputType = origOp->getResult(0).getType().cast<mlir::ShapedType>();
 
-    const auto channelAlignement = VPUIP::NCEInvariant::getChannelAlignment(inputType.getElementType());
     const auto inPadsEnd = calcPadsEnd(inputType, channelAlignement);
     const auto outPadsEnd = calcPadsEnd(outputType, channelAlignement);
 
     log.trace("Input padding : {0}", inPadsEnd);
     log.trace("Output padding : {0}", outPadsEnd);
 
-    if (inPadsEnd[act_channel_dim] == 0 && outPadsEnd[act_channel_dim] == 0) {
+    if (inPadsEnd[IE::Dims4D::Act::C] == 0 && outPadsEnd[IE::Dims4D::Act::C] == 0) {
         return matchFailed(log, rewriter, origOp, "Both input and output channels are already aligned");
     }
 
     mlir::Value paddedInput;
-    if (inPadsEnd[act_channel_dim] == 0) {
+    if (inPadsEnd[IE::Dims4D::Act::C] == 0) {
         log.trace("Input channels are already aligned");
         paddedInput = origOp->getOperand(0);
     } else {
         log.trace("Expand input tensor");
-
-        const SmallVector<int64_t> inPadsBegin(inPadsEnd.size(), 0);
-
-        paddedInput = rewriter.create<IE::ExpandOp>(origOp->getLoc(), origOp->getOperand(0),
-                                                    getIntArrayAttr(ctx, inPadsBegin), getIntArrayAttr(ctx, inPadsEnd));
+        paddedInput = rewriter.create<IE::ExpandOp>(origOp->getLoc(), origOp->getOperand(0), None, ShapeRef(inPadsEnd));
     }
 
     log.trace("Create new operation with extended input and output");
-    auto* newOp = opCreator(paddedInput, outPadsEnd[act_channel_dim]);
+    auto* newOp = opCreator(paddedInput, outPadsEnd[IE::Dims4D::Act::C]);
 
-    if (outPadsEnd[act_channel_dim] == 0) {
+    if (outPadsEnd[IE::Dims4D::Act::C] == 0) {
         log.trace("Output channels are already aligned");
         rewriter.replaceOp(origOp, newOp->getResult(0));
     } else {
-        log.trace("Extract meaningful part from extened output");
+        log.trace("Extract meaningful part from extended output");
 
         const auto outShape = outputType.getShape();
         const SmallVector<int64_t> offsets(outShape.size(), 0);
-        const SmallVector<int64_t> strides(outShape.size(), 1);
 
-        auto subTensorOp = rewriter.create<mlir::tensor::ExtractSliceOp>(
-                origOp->getLoc(), origOp->getResult(0).getType(), newOp->getResult(0), mlir::ValueRange{},
-                mlir::ValueRange{}, mlir::ValueRange{}, getIntArrayAttr(ctx, offsets), getIntArrayAttr(ctx, outShape),
-                getIntArrayAttr(ctx, strides));
+        auto subTensorOp =
+                rewriter.create<IE::SliceOp>(origOp->getLoc(), origOp->getResult(0).getType(), newOp->getResult(0),
+                                             getIntArrayAttr(ctx, offsets), getIntArrayAttr(ctx, outShape));
 
         rewriter.replaceOp(origOp, subTensorOp.result());
     }
@@ -137,20 +136,24 @@ mlir::LogicalResult MaxPoolRewriter::matchAndRewrite(IE::MaxPoolOp origOp, mlir:
     _log.trace("[{0}] Got MaxPool layer at '{1}'", getDebugName(), origOp->getLoc());
 
     const auto opCreator = [&](mlir::Value expandedInput, int64_t) -> mlir::Operation* {
-        if (origOp.getType().getElementType().dyn_cast<mlir::quant::UniformQuantizedPerAxisType>() != nullptr) {
-            VPUX_THROW("Unsupported quantized type");
-        } else {
-            auto newPoolOutShape = getShape(origOp.output()).toValues();
-            const auto act_channel_dim = IE::MaxPoolOp::act_channel_dim();
-            const auto newInputShape = getShape(expandedInput);
-            const auto inChanPadEnd = newInputShape[act_channel_dim];
-            newPoolOutShape[act_channel_dim] = inChanPadEnd;
-            auto newOutputType = origOp.getType().clone(newPoolOutShape.raw());
+        const auto newInputShape = getShape(expandedInput);
+        const auto inChanPadEnd = newInputShape[IE::Dims4D::Act::C];
 
-            return rewriter.create<IE::MaxPoolOp>(origOp.getLoc(), newOutputType, expandedInput, origOp.kernel_size(),
-                                                  origOp.strides(), origOp.pads_begin(), origOp.pads_end(),
-                                                  origOp.rounding_type(), origOp.post_opAttr());
+        auto newPoolOutShape = getShape(origOp.output()).toValues();
+        newPoolOutShape[IE::Dims4D::Act::C] = inChanPadEnd;
+
+        auto newOutputType = changeShape(origOp.getType(), newPoolOutShape);
+        if (const auto perAxisQType =
+                    origOp.getType().getElementType().dyn_cast<mlir::quant::UniformQuantizedPerAxisType>()) {
+            Shape padAfter{0, 0, 0, 0};
+            padAfter[Dim(perAxisQType.getQuantizedDimension())] = inChanPadEnd;
+            const auto newQType = expandScalesAndZP(perAxisQType, {0, 0, 0, 0}, padAfter);
+            newOutputType = changeElemType(newOutputType, newQType);
         }
+
+        return rewriter.create<IE::MaxPoolOp>(origOp.getLoc(), newOutputType, expandedInput, origOp.kernel_size(),
+                                              origOp.strides(), origOp.pads_begin(), origOp.pads_end(),
+                                              origOp.rounding_type(), origOp.post_opAttr());
     };
 
     return generalRewrite(origOp, rewriter, opCreator, _log.nest());
@@ -178,14 +181,10 @@ mlir::LogicalResult ConvolutionRewriter::matchAndRewrite(IE::ConvolutionOp origO
 
     const auto opCreator = [&](mlir::Value expandedInput, int64_t outChanPadEnd) -> mlir::Operation* {
         // We have to expand channels count for filter as well
-        const auto filter_out_channel_dim = IE::ConvolutionOp::filter_out_channel_dim();
-        const auto filter_in_channel_dim = IE::ConvolutionOp::filter_in_channel_dim();
-        const auto act_channel_dim = IE::ConvolutionOp::act_channel_dim();
-
         const auto filterShape = getShape(origOp.filter());
 
         const auto newInputShape = getShape(expandedInput);
-        const auto inChanPadEnd = newInputShape[act_channel_dim] - filterShape[filter_in_channel_dim];
+        const auto inChanPadEnd = newInputShape[IE::Dims4D::Act::C] - filterShape[IE::Dims4D::Filter::IC];
 
         mlir::Value paddedFilter;
 
@@ -195,8 +194,8 @@ mlir::LogicalResult ConvolutionRewriter::matchAndRewrite(IE::ConvolutionOp origO
             const SmallVector<int64_t> filterPadsBegin(filterShape.size(), 0);
 
             Shape filterPadsEnd(filterShape.size(), 0);
-            filterPadsEnd[filter_out_channel_dim] = outChanPadEnd;
-            filterPadsEnd[filter_in_channel_dim] = inChanPadEnd;
+            filterPadsEnd[IE::Dims4D::Filter::OC] = outChanPadEnd;
+            filterPadsEnd[IE::Dims4D::Filter::IC] = inChanPadEnd;
 
             const auto padValue = getFPAttr(getContext(), 0.0f);
 
@@ -217,7 +216,7 @@ mlir::LogicalResult ConvolutionRewriter::matchAndRewrite(IE::ConvolutionOp origO
                 const SmallVector<uint32_t> biasPadsBegin(biasShape.size(), 0);
 
                 Shape biasPadsEnd(biasShape.size(), 0);
-                biasPadsEnd[act_channel_dim] = checked_cast<uint32_t>(outChanPadEnd);
+                biasPadsEnd[IE::Dims4D::Act::C] = checked_cast<uint32_t>(outChanPadEnd);
 
                 const auto padValue = getFPAttr(getContext(), 0.0f);
 
@@ -228,17 +227,21 @@ mlir::LogicalResult ConvolutionRewriter::matchAndRewrite(IE::ConvolutionOp origO
             }
         }
 
-        if (origOp.getType().getElementType().dyn_cast<mlir::quant::UniformQuantizedPerAxisType>() != nullptr) {
-            VPUX_THROW("Unsupported quantized type");
-        } else {
-            auto newConvOutShape = getShape(origOp.output()).toValues();
-            newConvOutShape[act_channel_dim] += outChanPadEnd;
-            auto newOutputType = origOp.getType().clone(newConvOutShape.raw());
+        auto newConvOutShape = getShape(origOp.output()).toValues();
+        newConvOutShape[IE::Dims4D::Act::C] += outChanPadEnd;
 
-            return rewriter.create<IE::ConvolutionOp>(origOp.getLoc(), newOutputType, expandedInput, paddedFilter,
-                                                      paddedBiases, origOp.strides(), origOp.pads_begin(),
-                                                      origOp.pads_end(), origOp.dilations(), origOp.post_opAttr());
+        auto newOutputType = changeShape(origOp.getType(), newConvOutShape);
+        if (const auto perAxisQType =
+                    origOp.getType().getElementType().dyn_cast<mlir::quant::UniformQuantizedPerAxisType>()) {
+            Shape padAfter{0, 0, 0, 0};
+            padAfter[Dim(perAxisQType.getQuantizedDimension())] = outChanPadEnd;
+            const auto newQType = expandScalesAndZP(perAxisQType, {0, 0, 0, 0}, padAfter);
+            newOutputType = changeElemType(newOutputType, newQType);
         }
+
+        return rewriter.create<IE::ConvolutionOp>(origOp.getLoc(), newOutputType, expandedInput, paddedFilter,
+                                                  paddedBiases, origOp.strides(), origOp.pads_begin(),
+                                                  origOp.pads_end(), origOp.dilations(), origOp.post_opAttr());
     };
 
     return generalRewrite(origOp, rewriter, opCreator, _log.nest());
@@ -263,29 +266,24 @@ private:
 mlir::LogicalResult EltwiseAddRewriter::matchAndRewrite(IE::AddOp origOp, mlir::PatternRewriter& rewriter) const {
     _log.trace("[{0}] Got AddOp layer at '{1}'", getDebugName(), origOp->getLoc());
 
-    const auto opCreator = [&](mlir::Value expandedInput, int64_t) -> mlir::Operation* {
-        const auto inputType = origOp.input2().getType().cast<mlir::ShapedType>();
-
-        const auto channelAlignement = VPUIP::NCEInvariant::getChannelAlignment(inputType.getElementType());
-        const auto inPadsEnd = calcPadsEnd(inputType, channelAlignement);
-
-        _log.trace("Second input padding : {0}", inPadsEnd);
-
-        mlir::Value paddedInput;
-        const auto act_channel_dim = IE::ConvolutionOp::act_channel_dim();
-        if (inPadsEnd[act_channel_dim] == 0) {
-            _log.trace("Second input channels are already aligned");
-            paddedInput = origOp.input2();
+    const auto opCreator = [&](mlir::Value expandedInput1, int64_t outChanPadEnd) -> mlir::Operation* {
+        mlir::Value expandedInput2;
+        if (outChanPadEnd == 0) {
+            expandedInput2 = origOp.input2();
         } else {
             _log.trace("Expand second input tensor");
 
-            const SmallVector<int64_t> inPadsBegin(inPadsEnd.size(), 0);
+            const auto origShape = getShape(origOp.input2());
+            const auto extendedShape = getShape(expandedInput1);
+            VPUX_THROW_UNLESS(origShape.size() == extendedShape.size(), "Got non equal shapes in EltwiseAddRewriter");
 
-            paddedInput = rewriter.create<IE::ExpandOp>(origOp->getLoc(), origOp.input2(),
-                                                        getIntArrayAttr(getContext(), inPadsBegin),
-                                                        getIntArrayAttr(getContext(), inPadsEnd));
+            const auto padsEnd = calcPadsEnd(origShape, extendedShape);
+
+            expandedInput2 = rewriter.create<IE::ExpandOp>(origOp->getLoc(), origOp.input2(), None, ShapeRef(padsEnd));
         }
-        return rewriter.create<IE::AddOp>(origOp.getLoc(), expandedInput, paddedInput, origOp.auto_broadcast());
+
+        return rewriter.create<IE::AddOp>(origOp.getLoc(), expandedInput1, expandedInput2, origOp.auto_broadcast(),
+                                          origOp.post_opAttr());
     };
 
     return generalRewrite(origOp, rewriter, opCreator, _log.nest());
@@ -313,9 +311,6 @@ mlir::LogicalResult GroupConvolutionRewriter::matchAndRewrite(IE::GroupConvoluti
     _log.trace("[{0}] Got GroupConvolutionOp layer at '{1}'", getDebugName(), origOp->getLoc());
 
     const auto opCreator = [&](mlir::Value expandedInput, int64_t outChanPadEnd) -> mlir::Operation* {
-        const auto filter_out_channel_dim = IE::GroupConvolutionOp::filter_out_channel_dim();
-        const auto act_channel_dim = IE::GroupConvolutionOp::act_channel_dim();
-
         const auto filterShape = getShape(origOp.filter());
 
         mlir::Value paddedFilter;
@@ -326,7 +321,7 @@ mlir::LogicalResult GroupConvolutionRewriter::matchAndRewrite(IE::GroupConvoluti
             const SmallVector<int64_t> filterPadsBegin(filterShape.size(), 0);
 
             Shape filterPadsEnd(filterShape.size(), 0);
-            filterPadsEnd[filter_out_channel_dim] = outChanPadEnd;
+            filterPadsEnd[IE::Dims4D::Filter::OC] = outChanPadEnd;
 
             const auto padValue = getFPAttr(getContext(), 0.0);
 
@@ -347,7 +342,7 @@ mlir::LogicalResult GroupConvolutionRewriter::matchAndRewrite(IE::GroupConvoluti
                 const SmallVector<uint32_t> biasPadsBegin(biasShape.size(), 0);
 
                 Shape biasPadsEnd(biasShape.size(), 0);
-                biasPadsEnd[act_channel_dim] = checked_cast<uint32_t>(outChanPadEnd);
+                biasPadsEnd[IE::Dims4D::Act::C] = checked_cast<uint32_t>(outChanPadEnd);
 
                 const auto padValue = getFPAttr(getContext(), 0.0);
 
@@ -358,18 +353,22 @@ mlir::LogicalResult GroupConvolutionRewriter::matchAndRewrite(IE::GroupConvoluti
             }
         }
 
-        if (origOp.getType().getElementType().dyn_cast<mlir::quant::UniformQuantizedPerAxisType>() != nullptr) {
-            VPUX_THROW("Unsupported quantized type");
-        } else {
-            auto newConvOutShape = getShape(origOp.output()).toValues();
-            newConvOutShape[act_channel_dim] += outChanPadEnd;
-            auto newOutputType = origOp.getType().clone(newConvOutShape.raw());
+        auto newConvOutShape = getShape(origOp.output()).toValues();
+        newConvOutShape[IE::Dims4D::Act::C] += outChanPadEnd;
 
-            return rewriter.create<IE::GroupConvolutionOp>(
-                    origOp.getLoc(), newOutputType, expandedInput, paddedFilter, paddedBiases, origOp.strides(),
-                    origOp.pads_begin(), origOp.pads_end(), origOp.dilations(),
-                    getIntAttr(getContext(), newConvOutShape[act_channel_dim]), origOp.post_opAttr());
+        auto newOutputType = changeShape(origOp.getType(), newConvOutShape);
+        if (const auto perAxisQType =
+                    origOp.getType().getElementType().dyn_cast<mlir::quant::UniformQuantizedPerAxisType>()) {
+            Shape padAfter{0, 0, 0, 0};
+            padAfter[Dim(perAxisQType.getQuantizedDimension())] = outChanPadEnd;
+            const auto newQType = expandScalesAndZP(perAxisQType, {0, 0, 0, 0}, padAfter);
+            newOutputType = changeElemType(newOutputType, newQType);
         }
+
+        return rewriter.create<IE::GroupConvolutionOp>(
+                origOp.getLoc(), newOutputType, expandedInput, paddedFilter, paddedBiases, origOp.strides(),
+                origOp.pads_begin(), origOp.pads_end(), origOp.dilations(),
+                getIntAttr(getContext(), newConvOutShape[IE::Dims4D::Act::C]), origOp.post_opAttr());
     };
 
     return generalRewrite(origOp, rewriter, opCreator, _log.nest());
@@ -392,23 +391,18 @@ private:
 void ExpandActivationChannelsPass::safeRunOnFunc() {
     auto& ctx = getContext();
 
-    const auto dialect = ctx.getOrLoadDialect<IE::IEDialect>();
-    VPUX_THROW_UNLESS(dialect != nullptr, "IE Dialect was not loaded");
-    const auto layerInfo = dialect->getRegisteredInterface<IE::LayerInfoDialectInterface>();
-    VPUX_THROW_UNLESS(layerInfo != nullptr, "LayerInfoDialect is not registered");
-
     const auto isLegal = [&](mlir::Operation* op) {
-        return !layerInfo->needToExpandChannels(op);
+        if (auto iface = mlir::dyn_cast<IE::AlignedChannelsOpInterface>(op)) {
+            return iface.verifyChannels().succeeded();
+        }
+
+        return true;
     };
 
     mlir::ConversionTarget target(ctx);
-    target.addDynamicallyLegalOp<IE::MaxPoolOp>(isLegal);
-    target.addDynamicallyLegalOp<IE::ConvolutionOp>(isLegal);
-    target.addDynamicallyLegalOp<IE::AddOp>(isLegal);
-    target.addDynamicallyLegalOp<IE::GroupConvolutionOp>(isLegal);
+    target.markUnknownOpDynamicallyLegal(isLegal);
     target.addLegalOp<Const::DeclareOp>();
-    target.addLegalOp<IE::ExpandOp, IE::PadOp>();
-    target.addLegalOp<mlir::tensor::ExtractSliceOp>();
+    target.addLegalOp<IE::ExpandOp, IE::PadOp, IE::SliceOp>();
 
     mlir::RewritePatternSet patterns(&ctx);
     patterns.insert<MaxPoolRewriter>(&ctx, _log);

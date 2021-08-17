@@ -64,6 +64,7 @@ operation ::= `IE.Add` `(` operands `)` attr-dict `:` type(operands) `->` type(r
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
 `auto_broadcast` | vpux::IE::AutoBroadcastTypeAttr | Specifies rules used for auto-broadcasting of input tensors
+`post_op` | vpux::IE::PostOp | DictionaryAttr with field(s): 'name', 'attrs' (each field having its own constraints)
 
 #### Operands:
 
@@ -99,6 +100,7 @@ operation ::= `IE.AvgPool` `(` operands `)` attr-dict `:` type(operands) `->` ty
 `pads_begin` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `pads_end` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `rounding_type` | vpux::IE::RoundingTypeAttr | Rounding type that operations support
+`exclude_pads` | ::mlir::UnitAttr | unit attribute
 
 #### Operands:
 
@@ -313,7 +315,7 @@ operation ::= `IE.Convolution` `(` operands `)` attr-dict `:` type(operands) `->
 `pads_begin` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `pads_end` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `dilations` | ::mlir::ArrayAttr | 64-bit integer array attribute
-`post_op` | vpux::IE::PostOp | DictionaryAttr with field(s): 'kind', 'params' (each field having its own constraints)
+`post_op` | vpux::IE::PostOp | DictionaryAttr with field(s): 'name', 'attrs' (each field having its own constraints)
 
 #### Operands:
 
@@ -526,8 +528,8 @@ operation ::= `IE.Expand` `(` operands `)` attr-dict `:` type(operands) `->` typ
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`pads_begin_attr` | ::mlir::ArrayAttr | 64-bit integer array attribute
-`pads_end_attr` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`pads_begin` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`pads_end` | ::mlir::ArrayAttr | 64-bit integer array attribute
 
 #### Operands:
 
@@ -600,6 +602,30 @@ operation ::= `IE.FloorMod` `(` operands `)` attr-dict `:` type(operands) `->` t
 | :-----: | ----------- |
 `input1` | ranked tensor of 16-bit float or 32-bit float values
 `input2` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `IE.Floor` (vpux::IE::FloorOp)
+
+InferenceEngine Floor layer
+
+
+Syntax:
+
+```
+operation ::= `IE.Floor` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
 
 #### Results:
 
@@ -710,21 +736,21 @@ operation ::= `IE.GroupConvolution` `(` operands `)` attr-dict `:` type(operands
 `pads_end` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `dilations` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `groups` | mlir::IntegerAttr | Integer attribute
-`post_op` | vpux::IE::PostOp | DictionaryAttr with field(s): 'kind', 'params' (each field having its own constraints)
+`post_op` | vpux::IE::PostOp | DictionaryAttr with field(s): 'name', 'attrs' (each field having its own constraints)
 
 #### Operands:
 
 | Operand | Description |
 | :-----: | ----------- |
-`input` | ranked tensor of 16-bit float or 32-bit float values
-`filter` | ranked tensor of 16-bit float or 32-bit float values
-`bias` | ranked tensor of 16-bit float or 32-bit float values
+`input` | ranked tensor of 16-bit float or 32-bit float or QuantizedType values
+`filter` | ranked tensor of 16-bit float or 32-bit float or QuantizedType values
+`bias` | ranked tensor of 16-bit float or 32-bit float or QuantizedType values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-`output` | ranked tensor of 16-bit float or 32-bit float values
+`output` | ranked tensor of 16-bit float or 32-bit float or QuantizedType values
 
 ### `IE.HSwish` (vpux::IE::HSwishOp)
 
@@ -846,7 +872,7 @@ operation ::= `IE.LSTMCell` `(` operands `)` attr-dict `:` type(operands) `->` t
 `initialHiddenState` | 2D tensor of 16-bit float or 32-bit float values
 `initialCellState` | 2D tensor of 16-bit float or 32-bit float values
 `weights` | 2D tensor of 16-bit float or 32-bit float values
-`reccurenceWeights` | 2D tensor of 16-bit float or 32-bit float values
+`recurrenceWeights` | 2D tensor of 16-bit float or 32-bit float values
 `biases` | 1D tensor of 16-bit float or 32-bit float values
 
 #### Results:
@@ -939,7 +965,7 @@ operation ::= `IE.MaxPool` `(` operands `)` attr-dict `:` type(operands) `->` ty
 `pads_begin` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `pads_end` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `rounding_type` | vpux::IE::RoundingTypeAttr | Rounding type that operations support
-`post_op` | vpux::IE::PostOp | DictionaryAttr with field(s): 'kind', 'params' (each field having its own constraints)
+`post_op` | vpux::IE::PostOp | DictionaryAttr with field(s): 'name', 'attrs' (each field having its own constraints)
 
 #### Operands:
 
@@ -1014,6 +1040,30 @@ operation ::= `IE.Minimum` `(` operands `)` attr-dict `:` type(operands) `->` ty
 | Result | Description |
 | :----: | ----------- |
 `output` | ranked tensor of any type values
+
+### `IE.Mish` (vpux::IE::MishOp)
+
+InferenceEngine Mish layer
+
+
+Syntax:
+
+```
+operation ::= `IE.Mish` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
 
 ### `IE.Multiply` (vpux::IE::MultiplyOp)
 
@@ -1492,6 +1542,38 @@ operation ::= `IE.Sigmoid` `(` operands `)` attr-dict `:` type(operands) `->` ty
 | Result | Description |
 | :----: | ----------- |
 `output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `IE.Slice` (vpux::IE::SliceOp)
+
+Extract slice operation
+
+
+Syntax:
+
+```
+operation ::= `IE.Slice` $source $static_offsets $static_sizes
+              attr-dict `:` type($source) `to` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`static_offsets` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`static_sizes` | ::mlir::ArrayAttr | 64-bit integer array attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`source` | ranked tensor of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`result` | ranked tensor of any type values
 
 ### `IE.SoftMax` (vpux::IE::SoftMaxOp)
 

@@ -13,6 +13,7 @@
 
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
+#include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/logging.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 #include "vpux/compiler/utils/types.hpp"
@@ -27,22 +28,20 @@ namespace {
 // ReorderWithSubView
 //
 
-class ReorderWithSubView final : public mlir::OpRewritePattern<mlir::tensor::ExtractSliceOp> {
+class ReorderWithSubView final : public mlir::OpRewritePattern<IE::SliceOp> {
 public:
-    ReorderWithSubView(mlir::MLIRContext* ctx, Logger log)
-            : mlir::OpRewritePattern<mlir::tensor::ExtractSliceOp>(ctx), _log(log) {
+    ReorderWithSubView(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<IE::SliceOp>(ctx), _log(log) {
         setDebugName("ReorderWithSubView");
     }
 
 public:
-    mlir::LogicalResult matchAndRewrite(mlir::tensor::ExtractSliceOp origSubViewOp,
-                                        mlir::PatternRewriter& rewriter) const final;
+    mlir::LogicalResult matchAndRewrite(IE::SliceOp origSubViewOp, mlir::PatternRewriter& rewriter) const final;
 
 private:
     Logger _log;
 };
 
-mlir::LogicalResult ReorderWithSubView::matchAndRewrite(mlir::tensor::ExtractSliceOp origSubViewOp,
+mlir::LogicalResult ReorderWithSubView::matchAndRewrite(IE::SliceOp origSubViewOp,
                                                         mlir::PatternRewriter& rewriter) const {
     auto origReorderOp = origSubViewOp.source().getDefiningOp<IE::ReorderOp>();
     if (origReorderOp == nullptr) {
@@ -57,10 +56,8 @@ mlir::LogicalResult ReorderWithSubView::matchAndRewrite(mlir::tensor::ExtractSli
 
     const auto subViewShape = getShape(origSubViewOp.result());
     const auto newSubViewType = changeShape(origReorderOp.input().getType().cast<mlir::ShapedType>(), subViewShape);
-    auto newSubViewOp = rewriter.create<mlir::tensor::ExtractSliceOp>(
-            origSubViewOp->getLoc(), newSubViewType, origReorderOp.input(), origSubViewOp.offsets(),
-            origSubViewOp.sizes(), origSubViewOp.strides(), origSubViewOp.static_offsets(),
-            origSubViewOp.static_sizes(), origSubViewOp.static_strides());
+    auto newSubViewOp = rewriter.create<IE::SliceOp>(origSubViewOp->getLoc(), newSubViewType, origReorderOp.input(),
+                                                     origSubViewOp.static_offsets(), origSubViewOp.static_sizes());
 
     rewriter.replaceOpWithNewOp<IE::ReorderOp>(origSubViewOp, newSubViewOp.result(), origReorderOp.dstOrderAttr());
     return mlir::success();
@@ -99,7 +96,7 @@ mlir::LogicalResult ReorderWithExpand::matchAndRewrite(IE::ExpandOp origExpandOp
     const auto expandShape = getShape(origExpandOp.output());
     const auto newExpandType = changeShape(origReorderOp.input().getType().cast<mlir::ShapedType>(), expandShape);
     auto newExpandOp = rewriter.create<IE::ExpandOp>(origExpandOp->getLoc(), newExpandType, origReorderOp.input(),
-                                                     origExpandOp.pads_begin_attr(), origExpandOp.pads_end_attr());
+                                                     origExpandOp.pads_begin(), origExpandOp.pads_end());
 
     rewriter.replaceOpWithNewOp<IE::ReorderOp>(origExpandOp, newExpandOp.output(), origReorderOp.dstOrderAttr());
     return mlir::success();
@@ -252,31 +249,30 @@ mlir::LogicalResult ReorderWithConcat::matchAndRewrite(IE::ConcatOp origConcatOp
 // ReorderWithLayer
 //
 
-class ReorderWithLayer final : public mlir::OpInterfaceRewritePattern<LayerInterface> {
+class ReorderWithLayer final : public mlir::OpInterfaceRewritePattern<IE::LayoutInfoOpInterface> {
 public:
-    ReorderWithLayer(mlir::MLIRContext* ctx, const IE::LayerInfoDialectInterface* layerInfo, Logger log)
-            : mlir::OpInterfaceRewritePattern<LayerInterface>(ctx), _layerInfo(layerInfo), _log(log) {
+    ReorderWithLayer(mlir::MLIRContext* ctx, Logger log)
+            : mlir::OpInterfaceRewritePattern<IE::LayoutInfoOpInterface>(ctx), _log(log) {
         setDebugName("ReorderWithLayer");
     }
 
 public:
-    mlir::LogicalResult matchAndRewrite(LayerInterface layerOp, mlir::PatternRewriter& rewriter) const final;
+    mlir::LogicalResult matchAndRewrite(IE::LayoutInfoOpInterface layerOp, mlir::PatternRewriter& rewriter) const final;
 
 private:
-    const IE::LayerInfoDialectInterface* _layerInfo = nullptr;
     Logger _log;
 };
 
-mlir::LogicalResult ReorderWithLayer::matchAndRewrite(LayerInterface layerOp, mlir::PatternRewriter& rewriter) const {
-    if (mlir::isa<mlir::ViewLikeOpInterface, IE::SplitOp, IE::ConcatOp, IE::ExpandOp, IE::ReorderOp>(
-                layerOp.getOperation())) {
-        return mlir::failure();
-    }
-
+mlir::LogicalResult ReorderWithLayer::matchAndRewrite(IE::LayoutInfoOpInterface layerOp,
+                                                      mlir::PatternRewriter& rewriter) const {
     auto orderInfo = layerOp.getDataOrderInfo();
 
     bool hasChanges = false;
-    for (const auto p : layerOp.getInputs() | indexed) {
+    for (const auto p : layerOp->getOperands() | indexed) {
+        if (!orderInfo.hasInput(p.index())) {
+            continue;
+        }
+
         const auto arg = p.value();
 
         auto argReorderOp = arg.getDefiningOp<IE::ReorderOp>();
@@ -287,7 +283,11 @@ mlir::LogicalResult ReorderWithLayer::matchAndRewrite(LayerInterface layerOp, ml
         orderInfo.setInput(p.index(), DimsOrder::fromValue(argReorderOp.input()));
         hasChanges = true;
     }
-    for (const auto p : layerOp.getOutputs() | indexed) {
+    for (const auto p : layerOp->getResults() | indexed) {
+        if (!orderInfo.hasOutput(p.index())) {
+            continue;
+        }
+
         const auto res = p.value();
 
         if (!res.hasOneUse()) {
@@ -307,13 +307,17 @@ mlir::LogicalResult ReorderWithLayer::matchAndRewrite(LayerInterface layerOp, ml
         return mlir::failure();
     }
 
-    if (!_layerInfo->isSupportedLayout(layerOp, orderInfo)) {
+    if (!layerOp.isSupportedLayout(orderInfo)) {
         return mlir::failure();
     }
 
     rewriter.startRootUpdate(layerOp);
 
     for (const auto p : layerOp->getOpOperands() | indexed) {
+        if (!orderInfo.hasInput(p.index())) {
+            continue;
+        }
+
         auto& arg = p.value();
 
         auto argReorderOp = arg.get().getDefiningOp<IE::ReorderOp>();
@@ -324,6 +328,10 @@ mlir::LogicalResult ReorderWithLayer::matchAndRewrite(LayerInterface layerOp, ml
         arg.set(argReorderOp.input());
     }
     for (const auto p : layerOp->getOpResults() | indexed) {
+        if (!orderInfo.hasOutput(p.index())) {
+            continue;
+        }
+
         auto res = p.value();
 
         if (!res.hasOneUse()) {
@@ -364,18 +372,12 @@ private:
 void OptimizeReordersPass::safeRunOnFunc() {
     auto& ctx = getContext();
 
-    auto* dialect = ctx.getOrLoadDialect<IE::IEDialect>();
-    VPUX_THROW_UNLESS(dialect != nullptr, "IE Dialect was not loaded");
-
-    const auto* layerInfo = dialect->getRegisteredInterface<IE::LayerInfoDialectInterface>();
-    VPUX_THROW_UNLESS(layerInfo != nullptr, "LayerInfoDialect is not registered");
-
     mlir::RewritePatternSet patterns(&ctx);
     patterns.add<ReorderWithSubView>(&ctx, _log);
     patterns.add<ReorderWithExpand>(&ctx, _log);
     patterns.add<ReorderWithSplit>(&ctx, _log);
     patterns.add<ReorderWithConcat>(&ctx, _log);
-    // patterns.add<ReorderWithLayer>(&ctx, layerInfo, _log);
+    // patterns.add<ReorderWithLayer>(&ctx, _log);
     IE::ReorderOp::getCanonicalizationPatterns(patterns, &ctx);
 
     auto func = getFunction();

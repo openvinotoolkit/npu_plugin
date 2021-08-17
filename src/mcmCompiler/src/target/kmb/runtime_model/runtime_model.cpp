@@ -2988,17 +2988,17 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAInterpolateTask(ComputationMode
     const auto interpolateModeIter = interpModeMap.find(mode);
     if (interpolateModeIter == interpModeMap.end())
         throw std::runtime_error("interpModeMap map doesn't contain reqested interpolate mode");
-    softLayerParamsValue->interpolationMode = interpolateModeIter->second;
+    softLayerParamsValue->interpolationMode = MVCNN::InterpolationMethod(interpolateModeIter->second);
 
     const auto coordModeIter = coordTransformModeMap.find(coord);
     if (coordModeIter == coordTransformModeMap.end())
         throw std::runtime_error("coordTransformModeMap map doesn't contain reqested coordinate transformation mode");
-    softLayerParamsValue->coordTransformMode = coordModeIter->second;
+    softLayerParamsValue->coordTransformMode = MVCNN::InterpolationCoordTransMode(coordModeIter->second);
 
     const auto nearestModeIter = nearestModeMap.find(near);
     if (nearestModeIter == nearestModeMap.end())
         throw std::runtime_error("nearestModeMap map doesn't contain reqested nearest mode");
-    softLayerParamsValue->nearestMode = nearestModeIter->second;
+    softLayerParamsValue->nearestMode = MVCNN::InterpolationNearestMode(nearestModeIter->second);
 
     softLayerParamsValue->align_corners = softLayerParamsValue->coordTransformMode == coordTransformModeMap.find("align_corners")->second;
 

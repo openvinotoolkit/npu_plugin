@@ -2,6 +2,10 @@
 ### `-adjust-layouts`: Adjust required layouts for all layers
 This pass adds the required layouts instead of the default one
 depending on the layer specification from underlying Dialect.
+### `-convert-avg-pool-to-dw-conv`: Convert AvgPool op to GroupConvolution op
+The pass is a part of `AdjustForVPU` pipeline.
+
+This pass replaces suitable `AvgPool` operations with `GroupConvolution` operation.
 ### `-convert-conv1d-to-conv2d`: Convert Convolution1D and GroupConvolution1D to its 2D variance
 The pass is a part of `AdjustForVPU` pipeline.
 

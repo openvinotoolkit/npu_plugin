@@ -28,6 +28,8 @@ namespace LayerTestsDefinitions {
 
    TEST_P(KmbReduceOpsLayerTest, CompareWithRefs_MLIR) {
        useCompilerMLIR();
+       // FIXME [Track number: E#18190]
+       setReferenceSoftwareModeMLIR();
        Run();
    }
 

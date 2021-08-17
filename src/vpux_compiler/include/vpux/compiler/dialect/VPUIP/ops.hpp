@@ -16,6 +16,7 @@
 #include "vpux/compiler/core/ops_interfaces.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IERT/ops.hpp"
+#include "vpux/compiler/dialect/IERT/ops_interfaces.hpp"
 #include "vpux/compiler/dialect/VPUIP/attributes/enums.hpp"
 #include "vpux/compiler/dialect/VPUIP/attributes/structs.hpp"
 #include "vpux/compiler/dialect/VPUIP/effects.hpp"
@@ -42,7 +43,6 @@
 
 #define GET_OP_CLASSES
 #include <vpux/compiler/dialect/VPUIP/generated/ops.hpp.inc>
-#undef GET_OP_CLASSES
 
 //
 // Operation verifiers
@@ -62,6 +62,7 @@ mlir::LogicalResult verifyOp(FakeQuantizeUPAOp op);
 mlir::LogicalResult verifyOp(QuantCastUPAOp op);
 mlir::LogicalResult verifyOp(PerAxisTileUPAOp op);
 mlir::LogicalResult verifyOp(ROIPoolingUPAOp op);
+mlir::LogicalResult verifyOp(ProposalUPAOp op);
 mlir::LogicalResult verifyOp(PermuteUPAOp op);
 mlir::LogicalResult verifyOp(CTCGreedyDecoderUPAOp op);
 mlir::LogicalResult verifyOp(PadUPAOp op);

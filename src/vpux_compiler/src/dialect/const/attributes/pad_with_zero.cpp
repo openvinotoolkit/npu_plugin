@@ -11,8 +11,10 @@
 // included with the Software Package for additional details.
 //
 
+#include "vpux/compiler/conversion.hpp"
 #include "vpux/compiler/dialect/const/attributes/content.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
+#include "vpux/compiler/utils/quantization.hpp"
 #include "vpux/compiler/utils/subspaces.hpp"
 #include "vpux/compiler/utils/types.hpp"
 
@@ -24,6 +26,70 @@
 #include <mlir/IR/DialectImplementation.h>
 
 using namespace vpux;
+
+namespace {
+
+void fillWithZero(Const::Content& output) {
+    if (auto perAxisQType = output.getElementType().dyn_cast_or_null<mlir::quant::UniformQuantizedPerAxisType>()) {
+        const auto outShape = getShape(output.getType());
+        const auto order = DimsOrder::fromType(output.getType());
+        const auto outMemShape = order.toMemoryOrder(outShape);
+
+        VPUX_THROW_UNLESS(outShape.size() == 4, "Unsupported shape size {0}", outShape.size());
+        VPUX_THROW_UNLESS(perAxisQType.getQuantizedDimension() == 0, "Only per-channel quantization is supported");
+
+        const auto OC = outShape[IE::Dims4D::Filter::OC];
+        const auto IC = outShape[IE::Dims4D::Filter::IC];
+        const auto H = outShape[IE::Dims4D::Filter::KY];
+        const auto W = outShape[IE::Dims4D::Filter::KX];
+
+        const auto zeroPoints = perAxisQType.getZeroPoints();
+        for (int i = 0; i < OC; ++i) {
+            const auto zp = zeroPoints[i];
+
+            const auto fillChannel = [&](auto buffer) {
+                loop_3d(LoopExecPolicy::Parallel, IC, H, W, [&](int64_t ic, int64_t h, int64_t w) {
+                    using BufferType = std::decay_t<decltype(buffer)>;
+                    using ElemType = typename BufferType::value_type;
+
+                    const auto inMemIndND = order.toMemoryOrder(Shape{i, ic, h, w});
+                    const auto inMemInd1D = getMemIndex1D(inMemIndND, outMemShape);
+
+                    buffer[inMemInd1D] = checked_cast<ElemType>(zp);
+                });
+            };
+
+            output.mutate(fillChannel);
+        }
+
+    } else if (auto qType = output.getElementType().dyn_cast_or_null<mlir::quant::UniformQuantizedType>()) {
+        const auto zp = qType.getZeroPoint();
+
+        const auto fillBuffer = [&](auto buffer) {
+            using BufferType = std::decay_t<decltype(buffer)>;
+            using ElemType = typename BufferType::value_type;
+
+            std::fill_n(buffer.data(), buffer.size(), checked_cast<ElemType>(zp));
+        };
+
+        output.mutate(fillBuffer);
+    } else {
+        auto outBuf = output.getRawTempBuf();
+        std::fill_n(outBuf.data(), outBuf.size(), char(0));
+    }
+}
+
+}  // namespace
+
+//
+// PadWithZeroAttr::walkImmediateSubElements
+//
+
+void vpux::Const::PadWithZeroAttr::walkImmediateSubElements(llvm::function_ref<void(Attribute)> walkAttrsFn,
+                                                            llvm::function_ref<void(mlir::Type)>) const {
+    walkAttrsFn(getPadBefore());
+    walkAttrsFn(getPadAfter());
+}
 
 //
 // PadWithZeroAttr::verify
@@ -118,7 +184,14 @@ mlir::ShapedType vpux::Const::PadWithZeroAttr::inferOutputType(mlir::ShapedType 
         outShape[d] = inShape[d] + padBefore[d] + padAfter[d];
     }
 
-    return changeShape(input, outShape);
+    const auto newType = changeShape(input, outShape);
+    if (const auto perAxisQType =
+                newType.getElementType().dyn_cast_or_null<mlir::quant::UniformQuantizedPerAxisType>()) {
+        const auto newQType = expandScalesAndZP(perAxisQType, padBefore, padAfter);
+        return changeElemType(newType, newQType);
+    }
+
+    return newType;
 }
 
 //
@@ -128,10 +201,10 @@ mlir::ShapedType vpux::Const::PadWithZeroAttr::inferOutputType(mlir::ShapedType 
 Const::Content vpux::Const::PadWithZeroAttr::transform(vpux::Const::Content& input) const {
     auto output = Const::Content::allocTempBuffer(inferOutputType(input.getType()), input.getStorageElemType(), false);
 
+    fillWithZero(output);
+
     const auto inBuf = input.getRawStorageBuf();
     auto outBuf = output.getRawTempBuf();
-
-    std::fill_n(outBuf.data(), outBuf.size(), char(0));
 
     const Byte elemSize = getElemTypeSize(input.getStorageElemType());
     const auto order = DimsOrder::fromType(input.getType());

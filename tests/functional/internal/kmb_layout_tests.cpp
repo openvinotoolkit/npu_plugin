@@ -121,7 +121,7 @@ TEST_P(KmbLayoutTests, DISABLED_SetUnsupportedLayout) {
                       userOutDesc.getPrecision(),
                       userOutDesc.getLayout(),
                       KmbTestBase::RUN_INFER)) {
-        SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "Parameters are not supported, no graph to infer");
+        SKIP_INFER("Parameters are not supported, no graph to infer");
     }
 
     const auto netBuidler = [&](TestNetwork& testNet) {

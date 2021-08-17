@@ -15,6 +15,7 @@
 
 #include "vpux/compiler/core/attributes/dims_order.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
+#include "vpux/compiler/utils/error.hpp"
 
 #include <mlir/Dialect/Quant/QuantOps.h>
 #include <mlir/IR/BuiltinAttributes.h>
@@ -35,10 +36,11 @@ public:
     using mlir::OpAsmDialectInterface::OpAsmDialectInterface;
 
 public:
-    mlir::LogicalResult getAlias(mlir::Attribute attr, llvm::raw_ostream& os) const final;
+    AliasResult getAlias(mlir::Attribute attr, llvm::raw_ostream& os) const final;
+    AliasResult getAlias(mlir::Type type, llvm::raw_ostream& os) const final;
 };
 
-mlir::LogicalResult IEAsmHooks::getAlias(mlir::Attribute attr, llvm::raw_ostream& os) const {
+IEAsmHooks::AliasResult IEAsmHooks::getAlias(mlir::Attribute attr, llvm::raw_ostream& os) const {
     if (const auto mapAttr = attr.dyn_cast<mlir::AffineMapAttr>()) {
         const auto map = mapAttr.getValue();
 
@@ -47,12 +49,21 @@ mlir::LogicalResult IEAsmHooks::getAlias(mlir::Attribute attr, llvm::raw_ostream
 
             if (const auto name = dimsOrder.getCanonicalName()) {
                 os << name.getValue();
-                return mlir::success();
+                return AliasResult::FinalAlias;
             }
         }
     }
 
-    return mlir::failure();
+    return AliasResult::NoAlias;
+}
+
+IEAsmHooks::AliasResult IEAsmHooks::getAlias(mlir::Type type, llvm::raw_ostream& os) const {
+    if (type.isa<mlir::quant::QuantizedType>()) {
+        os << "qElemType";
+        return AliasResult::OverridableAlias;
+    }
+
+    return AliasResult::NoAlias;
 }
 
 //
@@ -103,7 +114,6 @@ void vpux::IE::IEDialect::initialize() {
     addOperations<
 #define GET_OP_LIST
 #include <vpux/compiler/dialect/IE/generated/ops.cpp.inc>
-#undef GET_OP_LIST
             >();
 
     addInterfaces<IEAsmHooks, IEDecodeAttributesHooks>();
@@ -132,6 +142,7 @@ mlir::Operation* vpux::IE::IEDialect::materializeConstant(mlir::OpBuilder& build
 // Generated
 //
 
+#include <vpux/compiler/dialect/IE/generated/dialect.cpp.inc>
+
 #define GET_OP_CLASSES
 #include <vpux/compiler/dialect/IE/generated/ops.cpp.inc>
-#undef GET_OP_CLASSES

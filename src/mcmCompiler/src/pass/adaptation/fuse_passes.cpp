@@ -406,6 +406,11 @@ void fusePPEBaseFcn(mv::Data::OpListIterator& opIt, mv::ComputationModel& model,
         }
     }
 
+    // Disable Prelu fusion if slopes are per-channel
+    if (opType == "Prelu" && (opIt->getInputTensor(mv::IO_TENSOR_WEIGHTS_SET)->getData().size() != 1)) {
+        return;
+    }
+
     // Check number of children of each fusable parent;
     // normally if all children are the same opType,
     // one could attempt to fuse all siblings.

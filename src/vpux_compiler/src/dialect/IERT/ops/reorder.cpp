@@ -14,6 +14,7 @@
 #include "vpux/compiler/dialect/IERT/ops.hpp"
 
 #include "vpux/compiler/dialect/const/ops.hpp"
+#include "vpux/compiler/utils/error.hpp"
 
 using namespace vpux;
 

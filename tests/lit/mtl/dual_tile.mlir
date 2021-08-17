@@ -143,8 +143,7 @@ module @dual_tile attributes {VPUIP.arch = "MTL", VPUIP.compilationMode = "Refer
         VPUIP.DPUTask {
           end = [15, 15, 15],
           mpe_mode = "CUBOID_16x16",
-          pads_begin = [0, 0],
-          pads_end = [0, 0],
+          pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
           start = [0, 0, 0]
         }
       }
@@ -170,8 +169,7 @@ module @dual_tile attributes {VPUIP.arch = "MTL", VPUIP.compilationMode = "Refer
         VPUIP.DPUTask {
           end = [15, 15, 15],
           mpe_mode = "CUBOID_16x16",
-          pads_begin = [0, 0],
-          pads_end = [0, 0],
+          pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
           start = [0, 0, 0]
         }
       }
