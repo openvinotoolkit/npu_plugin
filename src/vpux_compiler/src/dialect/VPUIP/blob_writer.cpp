@@ -145,8 +145,18 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createACTShaveTask(mlir
 
     auto kernel = kernelbuilder.Finish();
 
+    const auto getBarrierIdCb = [this](mlir::Value val) {
+        return getBarrierVirtualID(val);
+    };
+
+    const auto waitBarriers = createVector(actShaveTask.waitBarriers() | transformed(getBarrierIdCb));
+    const auto updateBarriers = createVector(actShaveTask.updateBarriers() | transformed(getBarrierIdCb));
+
+    auto barrierReference = MVCNN::CreateBarrierReference(_impl, waitBarriers, updateBarriers);
+
     MVCNN::ActKernelInvocationBuilder invocationBuilder(_impl);
     invocationBuilder.add_dataSection(dataRef);
+    invocationBuilder.add_associatedBarriers(barrierReference);
     //invocationBuilder.add_invocationArgs();
 
     std::vector<flatbuffers::Offset<MVCNN::ActKernelInvocation>> invocations_v1 = {invocationBuilder.Finish()};
