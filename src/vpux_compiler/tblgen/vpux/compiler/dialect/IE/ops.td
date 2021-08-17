@@ -544,17 +544,14 @@ def IE_ConvolutionOp :
 
 def IE_GroupConvolutionOp :
         IE_LayerOp<
-            "GroupConvolution",
-            [
-                ResultsAreFloatLike
-            ]
+            "GroupConvolution"
         > {
     let summary = "InferenceEngine GroupConvolution layer";
 
     let arguments = (ins
-        RankedTensorOf<[F16, F32]>:$input,
-        RankedTensorOf<[F16, F32]>:$filter,
-        Optional<RankedTensorOf<[F16, F32]>>:$bias,
+        RankedTensorOf<[F16, F32, quant_QuantizedType]>:$input,
+        RankedTensorOf<[F16, F32, quant_QuantizedType]>:$filter,
+        Optional<RankedTensorOf<[F16, F32, quant_QuantizedType]>>:$bias,
 
         I64ArrayAttr:$strides,
         I64ArrayAttr:$pads_begin,
@@ -566,7 +563,7 @@ def IE_GroupConvolutionOp :
     );
 
     let results = (outs
-        RankedTensorOf<[F16, F32]>:$output
+        RankedTensorOf<[F16, F32, quant_QuantizedType]>:$output
     );
 
     let hasCanonicalizer = 1;

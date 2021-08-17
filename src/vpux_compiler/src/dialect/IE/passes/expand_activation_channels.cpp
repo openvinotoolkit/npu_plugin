@@ -13,6 +13,7 @@
 
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
+#include <vpux/compiler/utils/quantization.hpp>
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
@@ -100,7 +101,7 @@ mlir::LogicalResult generalRewrite(mlir::Operation* origOp, mlir::PatternRewrite
         log.trace("Output channels are already aligned");
         rewriter.replaceOp(origOp, newOp->getResult(0));
     } else {
-        log.trace("Extract meaningful part from extened output");
+        log.trace("Extract meaningful part from extended output");
 
         const auto outShape = outputType.getShape();
         const SmallVector<int64_t> offsets(outShape.size(), 0);
@@ -135,16 +136,20 @@ mlir::LogicalResult MaxPoolRewriter::matchAndRewrite(IE::MaxPoolOp origOp, mlir:
     _log.trace("[{0}] Got MaxPool layer at '{1}'", getDebugName(), origOp->getLoc());
 
     const auto opCreator = [&](mlir::Value expandedInput, int64_t) -> mlir::Operation* {
-        VPUX_THROW_WHEN(origOp.getType().getElementType().isa<mlir::quant::UniformQuantizedPerAxisType>(),
-                        "Unsupported quantized type '{0}'", origOp.getType().getElementType());
-
         const auto newInputShape = getShape(expandedInput);
         const auto inChanPadEnd = newInputShape[IE::Dims4D::Act::C];
 
         auto newPoolOutShape = getShape(origOp.output()).toValues();
         newPoolOutShape[IE::Dims4D::Act::C] = inChanPadEnd;
 
-        const auto newOutputType = changeShape(origOp.getType(), newPoolOutShape);
+        auto newOutputType = changeShape(origOp.getType(), newPoolOutShape);
+        if (const auto perAxisQType =
+                    origOp.getType().getElementType().dyn_cast<mlir::quant::UniformQuantizedPerAxisType>()) {
+            Shape padAfter{0, 0, 0, 0};
+            padAfter[Dim(perAxisQType.getQuantizedDimension())] = inChanPadEnd;
+            const auto newQType = expandScalesAndZP(perAxisQType, {0, 0, 0, 0}, padAfter);
+            newOutputType = changeElemType(newOutputType, newQType);
+        }
 
         return rewriter.create<IE::MaxPoolOp>(origOp.getLoc(), newOutputType, expandedInput, origOp.kernel_size(),
                                               origOp.strides(), origOp.pads_begin(), origOp.pads_end(),
@@ -222,13 +227,17 @@ mlir::LogicalResult ConvolutionRewriter::matchAndRewrite(IE::ConvolutionOp origO
             }
         }
 
-        VPUX_THROW_WHEN(origOp.getType().getElementType().isa<mlir::quant::UniformQuantizedPerAxisType>(),
-                        "Unsupported quantized type '{0}'", origOp.getType().getElementType());
-
         auto newConvOutShape = getShape(origOp.output()).toValues();
         newConvOutShape[IE::Dims4D::Act::C] += outChanPadEnd;
 
-        const auto newOutputType = changeShape(origOp.getType(), newConvOutShape);
+        auto newOutputType = changeShape(origOp.getType(), newConvOutShape);
+        if (const auto perAxisQType =
+                    origOp.getType().getElementType().dyn_cast<mlir::quant::UniformQuantizedPerAxisType>()) {
+            Shape padAfter{0, 0, 0, 0};
+            padAfter[Dim(perAxisQType.getQuantizedDimension())] = outChanPadEnd;
+            const auto newQType = expandScalesAndZP(perAxisQType, {0, 0, 0, 0}, padAfter);
+            newOutputType = changeElemType(newOutputType, newQType);
+        }
 
         return rewriter.create<IE::ConvolutionOp>(origOp.getLoc(), newOutputType, expandedInput, paddedFilter,
                                                   paddedBiases, origOp.strides(), origOp.pads_begin(),
@@ -344,18 +353,22 @@ mlir::LogicalResult GroupConvolutionRewriter::matchAndRewrite(IE::GroupConvoluti
             }
         }
 
-        if (origOp.getType().getElementType().dyn_cast<mlir::quant::UniformQuantizedPerAxisType>() != nullptr) {
-            VPUX_THROW("Unsupported quantized type");
-        } else {
-            auto newConvOutShape = getShape(origOp.output()).toValues();
-            newConvOutShape[IE::Dims4D::Act::C] += outChanPadEnd;
-            auto newOutputType = origOp.getType().clone(newConvOutShape.raw());
+        auto newConvOutShape = getShape(origOp.output()).toValues();
+        newConvOutShape[IE::Dims4D::Act::C] += outChanPadEnd;
 
-            return rewriter.create<IE::GroupConvolutionOp>(
-                    origOp.getLoc(), newOutputType, expandedInput, paddedFilter, paddedBiases, origOp.strides(),
-                    origOp.pads_begin(), origOp.pads_end(), origOp.dilations(),
-                    getIntAttr(getContext(), newConvOutShape[IE::Dims4D::Act::C]), origOp.post_opAttr());
+        auto newOutputType = changeShape(origOp.getType(), newConvOutShape);
+        if (const auto perAxisQType =
+                    origOp.getType().getElementType().dyn_cast<mlir::quant::UniformQuantizedPerAxisType>()) {
+            Shape padAfter{0, 0, 0, 0};
+            padAfter[Dim(perAxisQType.getQuantizedDimension())] = outChanPadEnd;
+            const auto newQType = expandScalesAndZP(perAxisQType, {0, 0, 0, 0}, padAfter);
+            newOutputType = changeElemType(newOutputType, newQType);
         }
+
+        return rewriter.create<IE::GroupConvolutionOp>(
+                origOp.getLoc(), newOutputType, expandedInput, paddedFilter, paddedBiases, origOp.strides(),
+                origOp.pads_begin(), origOp.pads_end(), origOp.dilations(),
+                getIntAttr(getContext(), newConvOutShape[IE::Dims4D::Act::C]), origOp.post_opAttr());
     };
 
     return generalRewrite(origOp, rewriter, opCreator, _log.nest());

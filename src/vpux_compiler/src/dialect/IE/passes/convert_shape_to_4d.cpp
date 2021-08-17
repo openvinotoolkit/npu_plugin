@@ -128,7 +128,9 @@ ExtendedShape FakeQuantizeConverter::extendInputShapeTo4D(IE::FakeQuantizeOp ori
             return {1, inShape[0], 1, 1};
         }
         case 2: {
-            VPUX_THROW_UNLESS(*axis == 1, "FakeQuantize constant input has incorrect shape");
+            if (*axis == 0) {
+                return {1, inShape[0], inShape[1], 1};
+            }
             return {inShape[0], inShape[1], 1, 1};
         }
         case 3: {
@@ -190,15 +192,12 @@ mlir::Value FakeQuantizeConverter::reshapeConstInput(mlir::PatternRewriter& rewr
                                                      mlir::Value input, llvm::Optional<int64_t> axis) {
     VPUX_THROW_UNLESS(input, "FakeQuantize input is null");
 
+    Shape constInputShape{1, 1, 1, 1};
     const auto inShape = getShape(input);
-    const auto fqPerTensor = inShape.empty();
-    if (fqPerTensor) {
-        return input;
-    }
 
-    auto constInputShape = SmallVector<int64_t>{1, 1, 1, 1};
-    if (axis.hasValue()) {
-        constInputShape[*axis] = inShape[Dim(*axis)];
+    if (axis.hasValue() && !inShape.empty()) {
+        const auto C = Dim(1);
+        constInputShape[C] = inShape[Dim(*axis)];
     }
 
     const auto constInputShapeAttr = getIntArrayAttr(rewriter.getContext(), constInputShape);

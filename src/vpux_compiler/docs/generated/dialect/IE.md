@@ -718,15 +718,15 @@ operation ::= `IE.GroupConvolution` `(` operands `)` attr-dict `:` type(operands
 
 | Operand | Description |
 | :-----: | ----------- |
-`input` | ranked tensor of 16-bit float or 32-bit float values
-`filter` | ranked tensor of 16-bit float or 32-bit float values
-`bias` | ranked tensor of 16-bit float or 32-bit float values
+`input` | ranked tensor of 16-bit float or 32-bit float or QuantizedType values
+`filter` | ranked tensor of 16-bit float or 32-bit float or QuantizedType values
+`bias` | ranked tensor of 16-bit float or 32-bit float or QuantizedType values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-`output` | ranked tensor of 16-bit float or 32-bit float values
+`output` | ranked tensor of 16-bit float or 32-bit float or QuantizedType values
 
 ### `IE.HSwish` (vpux::IE::HSwishOp)
 
