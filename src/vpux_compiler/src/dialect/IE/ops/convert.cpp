@@ -30,7 +30,7 @@ mlir::LogicalResult vpux::IE::ConvertOp::inferReturnTypeComponents(
     }
 
     const auto inType = cvt.input().getType().cast<mlir::RankedTensorType>();
-    const auto dstElemType = cvt.dstType().getValue();
+    const auto dstElemType = cvt.dstElemType().getValue();
 
     inferredReturnShapes.emplace_back(inType.getShape(), dstElemType);
     return mlir::success();
@@ -65,7 +65,7 @@ mlir::OpFoldResult vpux::IE::ConvertOp::fold(ArrayRef<mlir::Attribute> operands)
     VPUX_THROW_UNLESS(operands.size() == 1, "Wrong number of operands : {0}", operands.size());
 
     if (const auto attr = operands[0].dyn_cast_or_null<Const::ContentAttr>()) {
-        return attr.convertElemType(dstType());
+        return attr.convertElemType(dstElemType());
     }
 
     return nullptr;

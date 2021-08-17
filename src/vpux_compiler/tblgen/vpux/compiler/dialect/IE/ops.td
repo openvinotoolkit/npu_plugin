@@ -178,7 +178,7 @@ def IE_ConvertOp :
     let arguments = (ins
         AnyRankedTensor:$input,
 
-        TypeAttr:$dstType
+        TypeAttr:$dstElemType
     );
 
     let results = (outs
@@ -907,6 +907,52 @@ def IE_FakeQuantizeOp :
 
         IntAttr:$levels,
         IE_AutoBroadcastType:$auto_broadcast
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+}
+
+//
+// QuantizeOp
+//
+
+def IE_QuantizeOp :
+        IE_LayerOp<"Quantize",
+            [
+                IE_EltwiseOp
+            ]
+        > {
+    let summary = "InferenceEngine Quantize layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input,
+
+        TypeAttr:$dstElemType
+    );
+
+    let results = (outs
+        RankedTensorOf<[quant_QuantizedType]>:$output
+    );
+}
+
+//
+// DequantizeOp
+//
+
+def IE_DequantizeOp :
+        IE_LayerOp<"Dequantize",
+            [
+                IE_EltwiseOp
+            ]
+        > {
+    let summary = "InferenceEngine Dequantize layer";
+
+    let arguments = (ins
+        RankedTensorOf<[quant_QuantizedType]>:$input,
+
+        TypeAttr:$dstElemType
     );
 
     let results = (outs

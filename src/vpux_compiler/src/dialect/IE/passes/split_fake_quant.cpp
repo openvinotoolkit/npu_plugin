@@ -75,10 +75,8 @@ mlir::LogicalResult UseQuantDequant::matchAndRewrite(IE::FakeQuantizeOp origOp, 
 
     innerLog.trace("Use quantized element type '{0}'", qElemType);
 
-    const auto qType = changeElemType(realType, qElemType);
-
-    auto quantOp = rewriter.create<mlir::quant::QuantizeCastOp>(origOp.getLoc(), qType, origOp.input());
-    rewriter.replaceOpWithNewOp<mlir::quant::DequantizeCastOp>(origOp, realType, quantOp.getResult());
+    auto quantOp = rewriter.create<IE::QuantizeOp>(origOp.getLoc(), origOp.input(), qElemType);
+    rewriter.replaceOpWithNewOp<IE::DequantizeOp>(origOp, quantOp.getResult(), realElemType);
 
     return mlir::success();
 }
@@ -206,7 +204,7 @@ mlir::LogicalResult UseConstDequant::matchAndRewrite(IE::FakeQuantizeOp origOp, 
     const auto newInConstAttr = inConstAttr.convertElemType(normalizeQuantStorageType(qElemType)).quantCast(qElemType);
     auto newInOp = rewriter.create<Const::DeclareOp>(inConst->getLoc(), qType, newInConstAttr);
 
-    rewriter.replaceOpWithNewOp<mlir::quant::DequantizeCastOp>(origOp, origOp.getType(), newInOp.output());
+    rewriter.replaceOpWithNewOp<IE::DequantizeOp>(origOp, newInOp.output(), realElemType);
     return mlir::success();
 }
 
@@ -230,8 +228,8 @@ void SplitFakeQuantPass::safeRunOnFunc() {
     mlir::ConversionTarget target(ctx);
     target.addIllegalOp<IE::FakeQuantizeOp>();
     target.addLegalOp<Const::DeclareOp>();
-    target.addLegalOp<mlir::quant::QuantizeCastOp>();
-    target.addLegalOp<mlir::quant::DequantizeCastOp>();
+    target.addLegalOp<IE::QuantizeOp>();
+    target.addLegalOp<IE::DequantizeOp>();
 
     mlir::RewritePatternSet patterns(&ctx);
     patterns.insert<UseQuantDequant>(&ctx, _log);

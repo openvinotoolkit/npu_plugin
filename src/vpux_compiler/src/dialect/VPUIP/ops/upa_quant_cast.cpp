@@ -107,8 +107,8 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(QuantCastUPAOp op) {
 }
 
 bool vpux::VPUIP::QuantCastUPAOp::isSupportedLayout(mlir::Operation* op, IE::DataOrderInfo& info) {
-    const auto quantizeOp = mlir::dyn_cast<mlir::quant::QuantizeCastOp>(op);
-    const auto dequantizeOp = mlir::dyn_cast<mlir::quant::DequantizeCastOp>(op);
+    const auto quantizeOp = mlir::dyn_cast<IE::QuantizeOp>(op);
+    const auto dequantizeOp = mlir::dyn_cast<IE::DequantizeOp>(op);
 
     VPUX_THROW_UNLESS(quantizeOp != nullptr || dequantizeOp != nullptr, "Operation {0} is not quantizer",
                       op->getName());
@@ -116,22 +116,22 @@ bool vpux::VPUIP::QuantCastUPAOp::isSupportedLayout(mlir::Operation* op, IE::Dat
     IE::LayerOpInterface layer = quantizeOp ? quantizeOp : dequantizeOp;
     auto input = layer.getInputs()[0];
     auto output = layer.getOutputs()[0];
-    const auto inType = input.getType().cast<mlir::MemRefType>().getElementType();
-    const auto outType = output.getType().cast<mlir::MemRefType>().getElementType();
+    const auto inType = input.getType().cast<mlir::RankedTensorType>().getElementType();
+    const auto outType = output.getType().cast<mlir::RankedTensorType>().getElementType();
 
     const auto qType = inType.isa<mlir::quant::QuantizedType>() ? inType.cast<mlir::quant::QuantizedType>()
                                                                 : outType.cast<mlir::quant::QuantizedType>();
 
     if (qType.isa<mlir::quant::UniformQuantizedPerAxisType>()) {
         const auto numDims = layer.getInputs()[0].getType().cast<mlir::ShapedType>().getRank();
-        const auto supportedLayout = numDims == 3 ? DimsOrder::HCW : DimsOrder::NHCW;
+        const auto supportedLayout = numDims == 3 ? DimsOrder::HWC : DimsOrder::NHWC;
         if (!info.hasInput(0)) {
             IE::fillDataInfo(info, 1, 1, supportedLayout);
             return false;
         }
 
         const auto mainOrder = info.getInput(0);
-        if (mainOrder != DimsOrder::HCW && mainOrder != DimsOrder::NHCW) {
+        if (mainOrder != DimsOrder::HWC && mainOrder != DimsOrder::NHWC) {
             IE::fillDataInfo(info, 1, 1, supportedLayout);
             return false;
         }

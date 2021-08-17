@@ -351,13 +351,12 @@ mlir::LogicalResult LSTMCellRewrite::matchAndRewrite(IE::LSTMCellOp origOp, Arra
 // LayerRewrite
 //
 
-mlir::Operation* createRTLayer(mlir::quant::QuantizeCastOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+mlir::Operation* createRTLayer(IE::QuantizeOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::QuantizeOp::Adaptor newOp(allBufs);
     return b.create<IERT::QuantizeOp>(origOp.getLoc(), newOp.input(), newOp.output_buff());
 }
 
-mlir::Operation* createRTLayer(mlir::quant::DequantizeCastOp origOp, ArrayRef<mlir::Value> allBufs,
-                               mlir::OpBuilder& b) {
+mlir::Operation* createRTLayer(IE::DequantizeOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::DequantizeOp::Adaptor newOp(allBufs);
     return b.create<IERT::DequantizeOp>(origOp.getLoc(), newOp.input(), newOp.output_buff());
 }
@@ -666,8 +665,8 @@ mlir::LogicalResult LayerRewrite::matchAndRewrite(mlir::Operation* origOp, Array
     })
 
     const CreateFunc createFunc = llvm::TypeSwitch<mlir::Operation*, CreateFunc>(origOp)  //
-            CASE(mlir::quant::QuantizeCastOp)
-    CASE(mlir::quant::DequantizeCastOp)
+            CASE(IE::QuantizeOp)
+    CASE(IE::DequantizeOp)
     CASE(IE::ConvertOp)
     CASE(IE::SoftMaxOp)
     CASE(IE::AvgPoolOp)
@@ -769,7 +768,6 @@ void BufferizeIEPass::safeRunOnFunc() {
     target.addDynamicallyLegalDialect<Const::ConstDialect>(isLegalOp);
     target.addLegalDialect<IERT::IERTDialect>();
     target.addIllegalDialect<IE::IEDialect>();
-    target.addIllegalDialect<mlir::quant::QuantizationDialect>();
     target.addLegalOp<IE::CNNNetworkOp, IE::DataInfoOp>();
     target.addLegalOp<mlir::memref::AllocOp>();
     vpux::populateBufferizeMaterializationLegality(target);

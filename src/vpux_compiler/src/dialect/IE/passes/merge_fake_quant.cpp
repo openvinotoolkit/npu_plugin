@@ -29,23 +29,20 @@ namespace {
 // UseFakeQuant
 //
 
-class UseFakeQuant final : public mlir::OpRewritePattern<mlir::quant::DequantizeCastOp> {
+class UseFakeQuant final : public mlir::OpRewritePattern<IE::DequantizeOp> {
 public:
-    UseFakeQuant(mlir::MLIRContext* ctx, Logger log)
-            : mlir::OpRewritePattern<mlir::quant::DequantizeCastOp>(ctx), _log(log) {
+    UseFakeQuant(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<IE::DequantizeOp>(ctx), _log(log) {
     }
 
 public:
-    mlir::LogicalResult matchAndRewrite(mlir::quant::DequantizeCastOp dCastOp,
-                                        mlir::PatternRewriter& rewriter) const final;
+    mlir::LogicalResult matchAndRewrite(IE::DequantizeOp dCastOp, mlir::PatternRewriter& rewriter) const final;
 
 private:
     Logger _log;
 };
 
-mlir::LogicalResult UseFakeQuant::matchAndRewrite(mlir::quant::DequantizeCastOp dCastOp,
-                                                  mlir::PatternRewriter& rewriter) const {
-    auto qCastOp = dCastOp.arg().getDefiningOp<mlir::quant::QuantizeCastOp>();
+mlir::LogicalResult UseFakeQuant::matchAndRewrite(IE::DequantizeOp dCastOp, mlir::PatternRewriter& rewriter) const {
+    auto qCastOp = dCastOp.input().getDefiningOp<IE::QuantizeOp>();
 
     if (qCastOp == nullptr) {
         return mlir::failure();
@@ -53,7 +50,7 @@ mlir::LogicalResult UseFakeQuant::matchAndRewrite(mlir::quant::DequantizeCastOp 
 
     _log.trace("Got QuantizeCast ('{0}') -> DequantizeCast ('{1}') pair", qCastOp.getLoc(), dCastOp.getLoc());
 
-    const auto qType = dCastOp.arg().getType().cast<mlir::ShapedType>();
+    const auto qType = dCastOp.input().getType().cast<mlir::ShapedType>();
 
     int64_t levels = 0;
     mlir::RankedTensorType attrType;
@@ -65,7 +62,7 @@ mlir::LogicalResult UseFakeQuant::matchAndRewrite(mlir::quant::DequantizeCastOp 
     auto rMinOp = rewriter.create<Const::DeclareOp>(dCastOp.getLoc(), attrType, Const::ContentAttr::get(rMinAttr));
     auto rMaxOp = rewriter.create<Const::DeclareOp>(dCastOp.getLoc(), attrType, Const::ContentAttr::get(rMaxAttr));
 
-    rewriter.replaceOpWithNewOp<IE::FakeQuantizeOp>(dCastOp, qCastOp.arg(), rMinOp.output(), rMaxOp.output(),
+    rewriter.replaceOpWithNewOp<IE::FakeQuantizeOp>(dCastOp, qCastOp.input(), rMinOp.output(), rMaxOp.output(),
                                                     rMinOp.output(), rMaxOp.output(), levels,
                                                     IE::AutoBroadcastType::NUMPY);
 
