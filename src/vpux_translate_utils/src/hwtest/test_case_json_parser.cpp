@@ -111,11 +111,18 @@ std::string nb::to_string(nb::ActivationType activationType) {
     }
 }
 
-std::string nb::to_string(CaseType) {
-    return "unknown";
+std::string nb::to_string(CaseType case_) {
+    switch (case_) {
+    case CaseType::ZMajorConvolution:
+        return "ZMajorConvolution";
+    default:
+        return "unknown";
+    }
 }
 
-nb::CaseType nb::to_case(llvm::StringRef) {
+nb::CaseType nb::to_case(llvm::StringRef str) {
+    if (isEqual(str, "ZMajorConvolution"))
+        return CaseType::ZMajorConvolution;
     return CaseType::Unknown;
 };
 
@@ -375,6 +382,14 @@ void nb::TestCaseJsonDescriptor::parse(llvm::StringRef jsonString) {
     caseTypeStr_ = case_type.getValue().str();
     inLayer_ = loadInputLayer(json_obj);
     outLayer_ = loadOutputLayer(json_obj);
+
+    // Load conv json attribute values. Similar implementation for ALL HW layers (DW, group conv, Av/Max pooling and
+    // eltwise needed).
+    if (caseType_ == CaseType::ZMajorConvolution) {
+        wtLayer_ = loadWeightLayer(json_obj);
+        convLayer_ = loadConvLayer(json_obj);
+        return;
+    }
 
     throw std::runtime_error{llvm::formatv("Unsupported case type: {0}", caseTypeStr_).str()};
 }
