@@ -63,58 +63,26 @@ VPUIP::DPUTaskOp vpux::VPUIP::NCEClusterTaskOp::addDPUTask(mlir::OpBuilder& buil
 }
 
 //
-// NCEClusterTaskOp::isSupportedLayout
+// NCEClusterTaskOp::inferLayoutInfo
 //
 
-bool vpux::VPUIP::NCEClusterTaskOp::isSupportedLayout(mlir::Operation* op, IE::DataOrderInfo& info) {
-    return llvm::TypeSwitch<mlir::Operation*, bool>(op)
-            .Case<IE::MaxPoolOp>([&](IE::MaxPoolOp op) {
-                return IERT::isSupportedLayoutSameInOutSpecificDimsOrder(op, info, {DimsOrder::NHWC});
+void vpux::VPUIP::NCEClusterTaskOp::inferLayoutInfo(mlir::Operation* origOp, IE::LayerLayoutInfo& info) {
+    llvm::TypeSwitch<mlir::Operation*, void>(origOp)
+            .Case<IE::ConvolutionOp>([&](IE::ConvolutionOp) {
+                info.setInput(0, DimsOrder::NHWC);
+                info.setInput(1, DimsOrder::OYXI);
+                info.setOutput(0, DimsOrder::NHWC);
             })
-            .Case<IE::ConvolutionOp>([&](IE::ConvolutionOp op) {
-                if (!IERT::isSupportedLayoutSameInOutSpecificDimsOrder(op, info, {DimsOrder::NHWC})) {
-                    // weights layout
-                    info.setInput(1, DimsOrder::OYXI);
-                    return false;
-                }
-
-                // check weights layout
-                if (!info.hasInput(1) || info.getInput(1) != DimsOrder::OYXI) {
-                    IE::fillDataInfo(info, 2, 1, DimsOrder::OYXI);
-                    return false;
-                }
-
-                return true;
+            .Case<IE::GroupConvolutionOp>([&](IE::GroupConvolutionOp) {
+                info.setInput(0, DimsOrder::NHWC);
+                info.setInput(1, DimsOrder::OYXI);
+                info.setOutput(0, DimsOrder::NHWC);
             })
-            .Case<IE::AddOp>([&](IE::AddOp originOp) {
-                if (!IERT::isSupportedLayoutSameInOutSpecificDimsOrder(originOp, info, {DimsOrder::NHWC})) {
-                    // weights layout
-                    info.setInput(1, DimsOrder::NHWC);
-                    return false;
-                }
-
-                // check weights layout
-                if (!info.hasInput(1) || info.getInput(1) != DimsOrder::NHWC) {
-                    IE::fillDataInfo(info, 2, 1, DimsOrder::NHWC);
-                    return false;
-                }
-
-                return true;
+            .Case<IE::MaxPoolOp>([&](IE::MaxPoolOp) {
+                info.fill(DimsOrder::NHWC);
             })
-            .Case<IE::GroupConvolutionOp>([&](IE::GroupConvolutionOp op) {
-                if (!IERT::isSupportedLayoutSameInOutSpecificDimsOrder(op, info, {DimsOrder::NHWC})) {
-                    // weights layout
-                    info.setInput(1, DimsOrder::OYXI);
-                    return false;
-                }
-
-                // check weights layout
-                if (!info.hasInput(1) || info.getInput(1) != DimsOrder::OYXI) {
-                    IE::fillDataInfo(info, 2, 1, DimsOrder::OYXI);
-                    return false;
-                }
-
-                return true;
+            .Case<IE::AddOp>([&](IE::AddOp) {
+                info.fill(DimsOrder::NHWC);
             })
             .Default([](mlir::Operation* unknownOp) -> bool {
                 VPUX_THROW("Operation '{0}' the operation is not supported by the DPU", unknownOp->getName());

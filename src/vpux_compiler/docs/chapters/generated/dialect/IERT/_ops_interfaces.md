@@ -56,11 +56,3 @@ llvm::MutableArrayRef<mlir::OpOperand> getOutOpOperands();
 Get all layer output memory buffers
 NOTE: This method *must* be implemented by the user.
 
-#### `getDataOrderInfo`
-
-```c++
-vpux::IE::DataOrderInfo getDataOrderInfo();
-```
-Get information about current layout for Layer inputs and outputs
-NOTE: This method *must* be implemented by the user.
-

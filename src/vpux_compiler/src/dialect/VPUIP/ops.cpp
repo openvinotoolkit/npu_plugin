@@ -118,12 +118,12 @@ template <class ImplOpType>
 class LayoutInfoOpModelForSW final :
         public IE::LayoutInfoOpInterface::FallbackModel<LayoutInfoOpModelForSW<ImplOpType>> {
 public:
-    IE::DataOrderInfo getDataOrderInfo(mlir::Operation* origOp) const {
-        return IE::getDataOrderInfo(origOp);
+    void inferLayoutInfo(mlir::Operation* origOp, IE::LayerLayoutInfo& info) const {
+        ImplOpType::inferLayoutInfo(origOp, info);
     }
 
-    bool isSupportedLayout(mlir::Operation* origOp, IE::DataOrderInfo& info) const {
-        return ImplOpType::isSupportedLayout(origOp, info);
+    IE::LayerLayoutInfo getLayoutInfo(mlir::Operation* origOp) const {
+        return IE::getLayoutInfo(origOp);
     }
 };
 
@@ -132,12 +132,13 @@ class LayoutInfoOpModelForHW final :
         public IE::LayoutInfoOpInterface::ExternalModel<LayoutInfoOpModelForHW<OrigOpType, FallbackImplOpType>,
                                                         OrigOpType> {
 public:
-    bool isSupportedLayout(mlir::Operation* origOp, IE::DataOrderInfo& info) const {
+    void inferLayoutInfo(mlir::Operation* origOp, IE::LayerLayoutInfo& info) const {
         if (!canBeExecutedOnNCE(origOp)) {
-            return FallbackImplOpType::isSupportedLayout(origOp, info);
+            FallbackImplOpType::inferLayoutInfo(origOp, info);
+            return;
         }
 
-        return VPUIP::NCEClusterTaskOp::isSupportedLayout(origOp, info);
+        VPUIP::NCEClusterTaskOp::inferLayoutInfo(origOp, info);
     }
 
 private:

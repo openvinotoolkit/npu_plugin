@@ -80,18 +80,18 @@ NOTE: This method *must* be implemented by the user.
 
 Interface for operations to provide information about supported layout for inputs/outputs
 ### Methods:
-#### `isSupportedLayout`
+#### `inferLayoutInfo`
 
 ```c++
-bool isSupportedLayout(vpux::IE::DataOrderInfo&info);
+void inferLayoutInfo(vpux::IE::LayerLayoutInfo&info);
 ```
-Verify provided layout combination
+Infer supported Data Layouts from inputs to outputs or describe the supported combination
 NOTE: This method *must* be implemented by the user.
 
-#### `getDataOrderInfo`
+#### `getLayoutInfo`
 
 ```c++
-vpux::IE::DataOrderInfo getDataOrderInfo();
+vpux::IE::LayerLayoutInfo getLayoutInfo();
 ```
 Get information about current layout for Layer inputs and outputs
 NOTE: This method *must* be implemented by the user.

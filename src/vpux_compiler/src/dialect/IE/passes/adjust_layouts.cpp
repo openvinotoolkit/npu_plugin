@@ -87,10 +87,12 @@ mlir::LogicalResult LayerRewriter::matchAndRewrite(IE::LayoutInfoOpInterface ori
                                                    mlir::PatternRewriter& rewriter) const {
     _log.trace("Got layer operation '{0}' at '{1}'", origOp->getName(), origOp->getLoc());
 
-    auto orderInfo = origOp.getDataOrderInfo();
+    auto orderInfo = origOp.getLayoutInfo();
     _log.nest().trace("Current layouts: {0}", orderInfo);
 
-    if (origOp.isSupportedLayout(orderInfo)) {
+    origOp.inferLayoutInfo(orderInfo);
+
+    if (!orderInfo.hasChanges()) {
         return matchFailed(_log.nest(), rewriter, origOp, "Current layouts are supported");
     }
 
@@ -100,10 +102,6 @@ mlir::LogicalResult LayerRewriter::matchAndRewrite(IE::LayoutInfoOpInterface ori
 
     const auto inputs = origOp->getOpOperands();
     for (auto i : irange(inputs.size())) {
-        if (!orderInfo.hasInput(i)) {
-            continue;
-        }
-
         auto& input = inputs[i];
 
         const auto curOrder = DimsOrder::fromValue(input.get());
@@ -116,10 +114,6 @@ mlir::LogicalResult LayerRewriter::matchAndRewrite(IE::LayoutInfoOpInterface ori
 
     const auto outputs = origOp->getOpResults();
     for (auto i : irange(outputs.size())) {
-        if (!orderInfo.hasOutput(i)) {
-            continue;
-        }
-
         auto output = outputs[i];
 
         const auto curOrder = DimsOrder::fromValue(output);
@@ -156,8 +150,9 @@ void AdjustLayoutsPass::safeRunOnFunc() {
     mlir::ConversionTarget target(ctx);
     target.addDynamicallyLegalDialect<IE::IEDialect>([&](mlir::Operation* op) {
         if (auto iface = mlir::dyn_cast<IE::LayoutInfoOpInterface>(op)) {
-            auto orderInfo = iface.getDataOrderInfo();
-            return iface.isSupportedLayout(orderInfo);
+            auto orderInfo = iface.getLayoutInfo();
+            iface.inferLayoutInfo(orderInfo);
+            return !orderInfo.hasChanges();
         }
 
         return true;

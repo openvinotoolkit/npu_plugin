@@ -135,16 +135,17 @@ def IE_LayoutInfoOpInterface : OpInterface<"LayoutInfoOpInterface"> {
 
     let methods = [
         InterfaceMethod<
-            "Verify provided layout combination",
-            "bool", "isSupportedLayout", (ins "vpux::IE::DataOrderInfo&":$info)
+            "Infer supported Data Layouts from inputs to outputs or describe the supported combination",
+            "void", "inferLayoutInfo",
+            (ins "vpux::IE::LayerLayoutInfo&":$info)
         >,
 
         InterfaceMethod<
             "Get information about current layout for Layer inputs and outputs",
-            "vpux::IE::DataOrderInfo", "getDataOrderInfo", (ins),
+            "vpux::IE::LayerLayoutInfo", "getLayoutInfo", (ins),
             [{}],
             [{
-                return vpux::IE::getDataOrderInfo($_op);
+                return vpux::IE::getLayoutInfo($_op);
             }]
         >
     ];

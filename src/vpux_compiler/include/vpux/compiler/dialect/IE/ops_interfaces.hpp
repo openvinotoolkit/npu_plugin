@@ -18,6 +18,7 @@
 #include "vpux/compiler/core/ops_interfaces.hpp"
 #include "vpux/compiler/dialect/IE/attributes/structs.hpp"
 
+#include "vpux/utils/core/format.hpp"
 #include "vpux/utils/core/func_ref.hpp"
 #include "vpux/utils/core/optional.hpp"
 #include "vpux/utils/core/small_vector.hpp"
@@ -69,57 +70,93 @@ struct Dims4D final {
 };
 
 //
-// DataOrderInfo
+// LayerDataInfo
 //
 
-class DataOrderInfo final {
+template <class InfoT>
+class LayerDataInfo {
 public:
-    DataOrderInfo(size_t numInputs, size_t numOutputs) {
-        _inputOrders.resize(numInputs);
-        _outputOrders.resize(numOutputs);
-    }
-
-public:
-    void setInput(size_t argNum, DimsOrder order) {
-        VPUX_THROW_UNLESS(argNum < _inputOrders.size(), "Argument number {0} is out of range {1}", argNum,
-                          _inputOrders.size());
-        _inputOrders[argNum] = order;
-    }
-    void setOutput(size_t argNum, DimsOrder order) {
-        VPUX_THROW_UNLESS(argNum < _outputOrders.size(), "Argument number {0} is out of range {1}", argNum,
-                          _outputOrders.size());
-        _outputOrders[argNum] = order;
-    }
-
-    bool hasInput(size_t argNum) const {
-        VPUX_THROW_UNLESS(argNum < _inputOrders.size(), "Argument number {0} is out of range {1}", argNum,
-                          _inputOrders.size());
-        return _inputOrders[argNum].hasValue();
-    }
-    bool hasOutput(size_t argNum) const {
-        VPUX_THROW_UNLESS(argNum < _outputOrders.size(), "Argument number {0} is out of range {1}", argNum,
-                          _outputOrders.size());
-        return _outputOrders[argNum].hasValue();
-    }
-
-    DimsOrder getInput(size_t argNum) const {
-        VPUX_THROW_UNLESS(hasInput(argNum), "No value for argument {0}", argNum);
-        return _inputOrders[argNum].getValue();
-    }
-    DimsOrder getOutput(size_t argNum) const {
-        VPUX_THROW_UNLESS(hasOutput(argNum), "No value for argument {0}", argNum);
-        return _outputOrders[argNum].getValue();
+    template <class Range1, class Range2>
+    LayerDataInfo(Range1&& inputInfo, Range2&& outputInfo)
+            : _inputInfo(std::forward<Range1>(inputInfo)), _outputInfo(std::forward<Range1>(outputInfo)) {
     }
 
 public:
-    void printFormat(llvm::raw_ostream& stream) const;
+    bool hasChanges() const {
+        return _hasChanges;
+    }
+
+public:
+    size_t getNumInputs() const {
+        return _inputInfo.size();
+    }
+    size_t getNumOutputs() const {
+        return _outputInfo.size();
+    }
+
+    const InfoT& getInput(size_t ind) const {
+        VPUX_THROW_UNLESS(ind < _inputInfo.size(), "Input index '{0}' is out of range '{1}'", ind, _inputInfo.size());
+        return _inputInfo[ind];
+    }
+    const InfoT& getOutput(size_t ind) const {
+        VPUX_THROW_UNLESS(ind < _outputInfo.size(), "Output index '{0}' is out of range '{1}'", ind,
+                          _outputInfo.size());
+        return _outputInfo[ind];
+    }
+
+public:
+    virtual void setInput(size_t ind, const InfoT& info) {
+        VPUX_THROW_UNLESS(ind < _inputInfo.size(), "Input index '{0}' is out of range '{1}'", ind, _inputInfo.size());
+
+        if (info != _inputInfo[ind]) {
+            _hasChanges = true;
+        }
+
+        _inputInfo[ind] = info;
+    }
+
+    virtual void setOutput(size_t ind, const InfoT& info) {
+        VPUX_THROW_UNLESS(ind < _outputInfo.size(), "Output index '{0}' is out of range '{1}'", ind,
+                          _outputInfo.size());
+
+        if (info != _outputInfo[ind]) {
+            _hasChanges = true;
+        }
+
+        _outputInfo[ind] = info;
+    }
+
+    void fill(const InfoT& info) {
+        for (size_t i = 0; i < getNumInputs(); ++i) {
+            setInput(i, info);
+        }
+
+        for (size_t i = 0; i < getNumOutputs(); ++i) {
+            setOutput(i, info);
+        }
+    }
+
+public:
+    void printFormat(llvm::raw_ostream& stream) const {
+        stream << "LayerDataInfo {";
+
+        for (size_t i = 0; i < _inputInfo.size(); ++i) {
+            printTo(stream, " in[{0}] = {1}", i, _inputInfo[i]);
+        }
+
+        stream << ";";
+        for (size_t i = 0; i < _outputInfo.size(); ++i) {
+            printTo(stream, " out[{0}] = {1}", i, _outputInfo[i]);
+        }
+
+        stream << " }";
+    }
 
 private:
-    SmallVector<Optional<DimsOrder>> _inputOrders;
-    SmallVector<Optional<DimsOrder>> _outputOrders;
+    SmallVector<InfoT> _inputInfo;
+    SmallVector<InfoT> _outputInfo;
+    bool _hasChanges = false;
 };
-
-void fillDataInfo(DataOrderInfo& info, size_t inNum, size_t outNum, DimsOrder mainOrder);
 
 //
 // LayerOpInterface
@@ -176,7 +213,19 @@ void setLayerPostOp(ConcreteOp mainOp, mlir::Operation* postOp) {
 // LayoutInfoOpInterface
 //
 
-DataOrderInfo getDataOrderInfo(mlir::Operation* op);
+class LayerLayoutInfo final : public LayerDataInfo<DimsOrder> {
+public:
+    using LayerDataInfo<DimsOrder>::LayerDataInfo;
+
+public:
+    void setInput(size_t ind, const DimsOrder& info) final;
+    void setOutput(size_t ind, const DimsOrder& info) final;
+};
+
+LayerLayoutInfo getLayoutInfo(mlir::Operation* op);
+void fillDefaultLayoutInfo(LayerLayoutInfo& info);
+void fillDefaultLayoutInfo(LayerLayoutInfo& info, FuncRef<bool(size_t)> inputFilter,
+                           FuncRef<bool(size_t)> outputFilter);
 
 //
 // EltwiseOp
