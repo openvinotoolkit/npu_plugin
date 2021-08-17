@@ -1015,6 +1015,30 @@ def IE_HSwishOp :
 }
 
 //
+// FloorOp
+//
+
+def IE_FloorOp :
+        IE_LayerOp<
+            "Floor",
+            [
+                ResultsAreFloatLike,
+                SameOperandsAndResultType,
+                IE_EltwiseOp
+            ]
+        > {
+    let summary = "InferenceEngine Floor layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+}
+
+//
 // MishOp
 //
 

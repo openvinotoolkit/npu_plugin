@@ -219,6 +219,21 @@ def RewriteHSwish :
         >;
 
 //
+// IERT.Floor -> VPUIP.FloorUPA
+//
+
+def createFloorUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::FloorUPAOp>($_loc, $0, $1)
+        }]>;
+
+def RewriteFloor :
+        Pat<
+            (IERT_FloorOp $input, $output),
+            (createFloorUPAOp $input, $output)
+        >;
+
+//
 // IERT.Mish -> VPUIP.MishUPA
 //
 

@@ -609,6 +609,30 @@ operation ::= `IE.FloorMod` `(` operands `)` attr-dict `:` type(operands) `->` t
 | :----: | ----------- |
 `output` | ranked tensor of 16-bit float or 32-bit float values
 
+### `IE.Floor` (vpux::IE::FloorOp)
+
+InferenceEngine Floor layer
+
+
+Syntax:
+
+```
+operation ::= `IE.Floor` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
 ### `IE.FullyConnected` (vpux::IE::FullyConnectedOp)
 
 InferenceEngine FullyConnected layer
