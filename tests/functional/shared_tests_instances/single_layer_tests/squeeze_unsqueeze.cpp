@@ -11,11 +11,12 @@ namespace LayerTestsDefinitions {
 
 class KmbSqueezeUnsqueezeLayerTest: public SqueezeUnsqueezeLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
     void SkipBeforeLoad() override {
+        #ifdef __aarch64__
         if (isCompilerMCM()) {
             // [Track number: S#42749]
-            throw LayerTestsUtils::KmbSkipTestException("Issues with MCM compiler");
+            throw LayerTestsUtils::KmbSkipTestException("failed to create NnCorePlg or inference fails due to time out");
         }
-
+        #endif
         const auto netPrc = std::get<2>(GetParam());
 
         // Use FP16 network precision as a marker for MCM supported test
