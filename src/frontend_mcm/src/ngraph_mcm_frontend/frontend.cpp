@@ -36,7 +36,7 @@
 #include "ngraph_mcm_frontend/passes/replace_shuffle.hpp"
 #include "ngraph_mcm_frontend/passes/handle_3d_transpose.hpp"
 #include "vpux/passes/propagate_fq.hpp"
-#include <ngraph_mcm_frontend/passes/align_scales.hpp>
+#include "vpux/passes/align_scales.hpp"
 #include <ngraph_mcm_frontend/passes/detect_input_fq.hpp>
 #include <vpux/passes/remove_split_concat.hpp>
 #include <ngraph_mcm_frontend/passes/convert_min_max_to_clamp.hpp>
@@ -537,7 +537,7 @@ void applyTransformations(
     passManager.register_pass<vpux::passes::ConvertExtractImagePatchesToReorgYoloVPU>();
     passManager.register_pass<ConvertReshapeTransposeChainToDepthToSpace>();
     passManager.register_pass<PropagateFQ>();
-    passManager.register_pass<AlignScales>();
+    passManager.register_pass<vpux::passes::AlignScales>();
     passManager.register_pass<ConvertMinMaxToClamp>();
 
     if (!config.serializeCNNBeforeCompileFile().empty()) {
