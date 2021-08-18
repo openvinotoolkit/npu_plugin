@@ -105,6 +105,10 @@ public:
     }
 
 public:
+    void resetChanges() {
+        _hasChanges = false;
+    }
+
     virtual void setInput(size_t ind, const InfoT& info) {
         VPUX_THROW_UNLESS(ind < _inputInfo.size(), "Input index '{0}' is out of range '{1}'", ind, _inputInfo.size());
 
