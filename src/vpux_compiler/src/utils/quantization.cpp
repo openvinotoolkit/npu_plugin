@@ -101,6 +101,33 @@ mlir::quant::QuantizedType vpux::expandScalesAndZP(mlir::quant::UniformQuantized
             perAxisQType.getStorageTypeMax());
 }
 
+mlir::quant::QuantizedType vpux::tileScalesAndZP(mlir::quant::UniformQuantizedPerAxisType perAxisQType, ShapeRef shape,
+                                                 ShapeRef offsets) {
+    VPUX_THROW_UNLESS(shape.size() >= static_cast<size_t>(perAxisQType.getQuantizedDimension()),
+                      "Unsupported shape size {0}. Quantized dimension index {1}", shape.size(),
+                      perAxisQType.getQuantizedDimension());
+
+    const auto quantizedDim = Dim(perAxisQType.getQuantizedDimension());
+
+    const auto OC = shape[quantizedDim];
+    const auto newBegin = offsets[quantizedDim];
+
+    const auto scales = perAxisQType.getScales();
+    const auto zeroPoints = perAxisQType.getZeroPoints();
+
+    if (scales.size() == static_cast<size_t>(OC)) {
+        return perAxisQType;
+    }
+
+    const auto newScales = scales.slice(newBegin, OC);
+    const auto newZeroPoints = zeroPoints.slice(newBegin, OC);
+
+    return mlir::quant::UniformQuantizedPerAxisType::get(
+            perAxisQType.getFlags(), perAxisQType.getStorageType(), perAxisQType.getExpressedType(), newScales,
+            newZeroPoints, perAxisQType.getQuantizedDimension(), perAxisQType.getStorageTypeMin(),
+            perAxisQType.getStorageTypeMax());
+}
+
 std::tuple<double, int64_t> vpux::calcScaleAndZeroPoint(int64_t qMin, int64_t qMax, double rMin, double rMax,
                                                         bool isSigned) {
     VPUX_THROW_UNLESS(qMax > qMin, "Wrong quantized storage values range ['{0}', '{1}']", qMin, qMax);

@@ -44,40 +44,37 @@ namespace {
 //      (quantize)
 //
 
-class FuseWithConv final : public mlir::OpRewritePattern<mlir::quant::QuantizeCastOp> {
+class FuseWithConv final : public mlir::OpRewritePattern<IE::QuantizeOp> {
 public:
-    FuseWithConv(mlir::MLIRContext* ctx, Logger log)
-            : mlir::OpRewritePattern<mlir::quant::QuantizeCastOp>(ctx), _log(log) {
+    FuseWithConv(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<IE::QuantizeOp>(ctx), _log(log) {
         setDebugName("FuseWithConv");
     }
 
 public:
-    mlir::LogicalResult matchAndRewrite(mlir::quant::QuantizeCastOp quantizeOp,
-                                        mlir::PatternRewriter& rewriter) const final;
+    mlir::LogicalResult matchAndRewrite(IE::QuantizeOp quantizeOp, mlir::PatternRewriter& rewriter) const final;
 
 private:
     Logger _log;
 };
 
-mlir::LogicalResult FuseWithConv::matchAndRewrite(mlir::quant::QuantizeCastOp quantizeOp,
-                                                  mlir::PatternRewriter& rewriter) const {
-    auto convOp = quantizeOp.arg().getDefiningOp<IE::ConvolutionOp>();
+mlir::LogicalResult FuseWithConv::matchAndRewrite(IE::QuantizeOp quantizeOp, mlir::PatternRewriter& rewriter) const {
+    auto convOp = quantizeOp.input().getDefiningOp<IE::ConvolutionOp>();
     if (convOp == nullptr) {
         return mlir::failure();
     }
 
-    auto inputDequantizeOp = convOp.input().getDefiningOp<mlir::quant::DequantizeCastOp>();
+    auto inputDequantizeOp = convOp.input().getDefiningOp<IE::DequantizeOp>();
     if (inputDequantizeOp == nullptr) {
         return mlir::failure();
     }
 
-    auto filterDequantizeOp = convOp.filter().getDefiningOp<mlir::quant::DequantizeCastOp>();
+    auto filterDequantizeOp = convOp.filter().getDefiningOp<IE::DequantizeOp>();
     if (filterDequantizeOp == nullptr) {
         return mlir::failure();
     }
 
     rewriter.replaceOpWithNewOp<IE::ConvolutionOp>(
-            quantizeOp, quantizeOp.getType(), inputDequantizeOp.arg(), filterDequantizeOp.arg(), convOp.bias(),
+            quantizeOp, quantizeOp.getType(), inputDequantizeOp.input(), filterDequantizeOp.input(), convOp.bias(),
             convOp.strides(), convOp.pads_begin(), convOp.pads_end(), convOp.dilations(), convOp.post_opAttr());
 
     return mlir::success();
@@ -99,35 +96,32 @@ mlir::LogicalResult FuseWithConv::matchAndRewrite(mlir::quant::QuantizeCastOp qu
 //      (quantize)
 //
 
-class FuseWithMaxPool final : public mlir::OpRewritePattern<mlir::quant::QuantizeCastOp> {
+class FuseWithMaxPool final : public mlir::OpRewritePattern<IE::QuantizeOp> {
 public:
-    FuseWithMaxPool(mlir::MLIRContext* ctx, Logger log)
-            : mlir::OpRewritePattern<mlir::quant::QuantizeCastOp>(ctx), _log(log) {
+    FuseWithMaxPool(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<IE::QuantizeOp>(ctx), _log(log) {
         setDebugName("FuseWithMaxPool");
     }
 
 public:
-    mlir::LogicalResult matchAndRewrite(mlir::quant::QuantizeCastOp origOp,
-                                        mlir::PatternRewriter& rewriter) const final;
+    mlir::LogicalResult matchAndRewrite(IE::QuantizeOp origOp, mlir::PatternRewriter& rewriter) const final;
 
 private:
     Logger _log;
 };
 
-mlir::LogicalResult FuseWithMaxPool::matchAndRewrite(mlir::quant::QuantizeCastOp quantizeOp,
-                                                     mlir::PatternRewriter& rewriter) const {
-    auto maxPoolOp = quantizeOp.arg().getDefiningOp<IE::MaxPoolOp>();
+mlir::LogicalResult FuseWithMaxPool::matchAndRewrite(IE::QuantizeOp quantizeOp, mlir::PatternRewriter& rewriter) const {
+    auto maxPoolOp = quantizeOp.input().getDefiningOp<IE::MaxPoolOp>();
     if (maxPoolOp == nullptr) {
         return mlir::failure();
     }
 
-    auto inputDequantizeOp = maxPoolOp.input().getDefiningOp<mlir::quant::DequantizeCastOp>();
+    auto inputDequantizeOp = maxPoolOp.input().getDefiningOp<IE::DequantizeOp>();
     if (inputDequantizeOp == nullptr) {
         return mlir::failure();
     }
 
     rewriter.replaceOpWithNewOp<IE::MaxPoolOp>(
-            quantizeOp, quantizeOp.getType(), inputDequantizeOp.arg(), maxPoolOp.kernel_size(), maxPoolOp.strides(),
+            quantizeOp, quantizeOp.getType(), inputDequantizeOp.input(), maxPoolOp.kernel_size(), maxPoolOp.strides(),
             maxPoolOp.pads_begin(), maxPoolOp.pads_end(), maxPoolOp.rounding_type(), maxPoolOp.post_opAttr());
 
     return mlir::success();

@@ -12,36 +12,23 @@
 //
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
-#include "vpux/compiler/utils/attributes.hpp"
-#include "vpux/compiler/utils/quantization.hpp"
-
-#include "vpux/utils/core/range.hpp"
-
-#include <ngraph/coordinate.hpp>
 
 using namespace vpux;
 
-mlir::LogicalResult vpux::IE::SliceOp::inferReturnTypeComponents(
+mlir::LogicalResult vpux::IE::DequantizeOp::inferReturnTypeComponents(
         mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
         mlir::DictionaryAttr attrs, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
 
-    IE::SliceOpAdaptor slice(operands, attrs);
-    if (mlir::failed(slice.verify(loc))) {
+    IE::DequantizeOpAdaptor dequantize(operands, attrs);
+    if (mlir::failed(dequantize.verify(loc))) {
         return mlir::failure();
     }
 
-    const auto sizes = parseIntArrayAttr<int64_t>(slice.static_sizes());
-    const auto inType = slice.source().getType().cast<mlir::ShapedType>();
+    const auto inType = dequantize.input().getType().cast<mlir::ShapedType>();
+    const auto dstElemType = dequantize.dstElemType().getValue();
 
-    auto elemType = inType.getElementType();
-    if (const auto perAxisQType = elemType.dyn_cast_or_null<mlir::quant::UniformQuantizedPerAxisType>()) {
-        const Shape offsets(sizes.size(), 0);
-        elemType = tileScalesAndZP(perAxisQType, ShapeRef{sizes}, offsets);
-    }
-
-    inferredReturnShapes.emplace_back(sizes, elemType);
-
+    inferredReturnShapes.emplace_back(inType.getShape(), dstElemType);
     return mlir::success();
 }

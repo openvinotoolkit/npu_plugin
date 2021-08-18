@@ -281,7 +281,7 @@ operation ::= `IE.Convert` `(` operands `)` attr-dict `:` type(operands) `->` ty
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`dstType` | ::mlir::TypeAttr | any type attribute
+`dstElemType` | ::mlir::TypeAttr | any type attribute
 
 #### Operands:
 
@@ -392,6 +392,36 @@ operation ::= `IE.Deconvolution` `(` operands `)` attr-dict `:` type(operands) `
 | Result | Description |
 | :----: | ----------- |
 `output` | ranked tensor of any type values
+
+### `IE.Dequantize` (vpux::IE::DequantizeOp)
+
+InferenceEngine Dequantize layer
+
+
+Syntax:
+
+```
+operation ::= `IE.Dequantize` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`dstElemType` | ::mlir::TypeAttr | any type attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of QuantizedType values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
 
 ### `IE.DetectionOutput` (vpux::IE::DetectionOutputOp)
 
@@ -1306,6 +1336,36 @@ operation ::= `IE.Proposal` `(` operands `)` attr-dict `:` type(operands) `->` t
 | Result | Description |
 | :----: | ----------- |
 `output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `IE.Quantize` (vpux::IE::QuantizeOp)
+
+InferenceEngine Quantize layer
+
+
+Syntax:
+
+```
+operation ::= `IE.Quantize` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`dstElemType` | ::mlir::TypeAttr | any type attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of QuantizedType values
 
 ### `IE.ROIPooling` (vpux::IE::ROIPoolingOp)
 

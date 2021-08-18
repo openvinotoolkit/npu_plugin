@@ -14,8 +14,8 @@
 #include "vpux/compiler/core/tiling.hpp"
 #include "vpux/compiler/dialect/IERT/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
-#include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
+#include "vpux/compiler/utils/quantization.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 #include "vpux/compiler/utils/types.hpp"
 
@@ -30,33 +30,6 @@ using namespace vpux;
 namespace {
 
 using OutputTiling = SmallVector<Tile>;
-
-mlir::quant::QuantizedType tileScalesAndZP(mlir::quant::UniformQuantizedPerAxisType perAxisQType, const Tile& tile) {
-    VPUX_THROW_UNLESS(tile.shape.size() >= static_cast<size_t>(perAxisQType.getQuantizedDimension()),
-                      "Unsupported shape size {0}. Quantized dimension index {1}", tile.shape.size(),
-                      perAxisQType.getQuantizedDimension());
-
-    const auto quantizedDim = Dim(perAxisQType.getQuantizedDimension());
-    const auto OC = tile.shape[quantizedDim];
-
-    const auto newBegin = tile.offsets[quantizedDim];
-    const auto newEnd = newBegin + OC;
-
-    const auto scales = perAxisQType.getScales();
-    const auto zeroPoints = perAxisQType.getZeroPoints();
-
-    if (scales.size() == static_cast<size_t>(OC)) {
-        return perAxisQType;
-    }
-
-    std::vector<double> newScales(scales.begin() + newBegin, scales.begin() + newEnd);
-    std::vector<int64_t> newZeroPoints(zeroPoints.begin() + newBegin, zeroPoints.begin() + newEnd);
-
-    return mlir::quant::UniformQuantizedPerAxisType::get(
-            perAxisQType.getFlags(), perAxisQType.getStorageType(), perAxisQType.getExpressedType(), newScales,
-            newZeroPoints, perAxisQType.getQuantizedDimension(), perAxisQType.getStorageTypeMin(),
-            perAxisQType.getStorageTypeMax());
-}
 
 //
 // makeTile
@@ -83,7 +56,7 @@ mlir::Value makeTile(mlir::OpBuilder& builder, mlir::Location baseLoc, mlir::Val
     auto tileType = changeShape(origType, tile.shape);
     if (const auto perAxisQType =
                 tileType.getElementType().dyn_cast_or_null<mlir::quant::UniformQuantizedPerAxisType>()) {
-        const auto newQType = tileScalesAndZP(perAxisQType, tile);
+        const auto newQType = tileScalesAndZP(perAxisQType, tile.shape, tile.offsets);
         tileType = changeElemType(tileType, newQType);
     }
 

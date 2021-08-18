@@ -55,7 +55,11 @@ mlir::LogicalResult ReorderWithSubView::matchAndRewrite(IE::SliceOp origSubViewO
     }
 
     const auto subViewShape = getShape(origSubViewOp.result());
-    const auto newSubViewType = changeShape(origReorderOp.input().getType().cast<mlir::ShapedType>(), subViewShape);
+    const auto subViewElemType = origSubViewOp.result().getType().cast<mlir::ShapedType>().getElementType();
+
+    auto newSubViewType = changeShape(origReorderOp.input().getType().cast<mlir::ShapedType>(), subViewShape);
+    newSubViewType = changeElemType(newSubViewType, subViewElemType);
+
     auto newSubViewOp = rewriter.create<IE::SliceOp>(origSubViewOp->getLoc(), newSubViewType, origReorderOp.input(),
                                                      origSubViewOp.static_offsets(), origSubViewOp.static_sizes());
 
@@ -94,7 +98,11 @@ mlir::LogicalResult ReorderWithExpand::matchAndRewrite(IE::ExpandOp origExpandOp
     }
 
     const auto expandShape = getShape(origExpandOp.output());
-    const auto newExpandType = changeShape(origReorderOp.input().getType().cast<mlir::ShapedType>(), expandShape);
+    const auto expandElemType = origExpandOp.output().getType().cast<mlir::ShapedType>().getElementType();
+
+    auto newExpandType = changeShape(origReorderOp.input().getType().cast<mlir::ShapedType>(), expandShape);
+    newExpandType = changeElemType(newExpandType, expandElemType);
+
     auto newExpandOp = rewriter.create<IE::ExpandOp>(origExpandOp->getLoc(), newExpandType, origReorderOp.input(),
                                                      origExpandOp.pads_begin(), origExpandOp.pads_end());
 

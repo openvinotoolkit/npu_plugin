@@ -20,14 +20,14 @@ func @main(%arg0: tensor<1x1000xf16>) -> tensor<1x1000xf16> {
     return %prob : tensor<1x1000xf16>
 
     // CHECK:       %[[VAR0:.*]] = IE.Convert(%[[ARG0]])
-    // CHECK-SAME:      dstType = f16
+    // CHECK-SAME:      dstElemType = f16
     // CHECK-SAME:      tensor<1x1000xui8> -> tensor<1x1000xf16>
 
     // CHECK:       %[[VAR1:.*]] = IE.SoftMax(%[[VAR0]])
     // CHECK-SAME:      tensor<1x1000xf16> -> tensor<1x1000xf16>
 
     // CHECK:       %[[VAR2:.*]] = IE.Convert(%[[VAR1]])
-    // CHECK-SAME:      dstType = f32
+    // CHECK-SAME:      dstElemType = f32
     // CHECK-SAME:      tensor<1x1000xf16> -> tensor<1x1000xf32>
 
     // CHECK:       return %[[VAR2]] : tensor<1x1000xf32>
