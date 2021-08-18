@@ -36,4 +36,33 @@ def MultiViewOpInterface : OpInterface<"MultiViewOpInterface"> {
     ];
 }
 
+def DotInterface : OpInterface<"DotInterface"> {
+    let description = "Base interface for Dot graph generation";
+
+    let cppNamespace = "vpux";
+
+    let methods = [
+        InterfaceMethod<
+            "Get node color",
+            "vpux::DotNodeColor", "getNodeColor", (ins),
+            [{}],
+            [{return vpux::DotNodeColor::NONE;}]
+        >,
+
+        InterfaceMethod<
+            "Node type is a declaration",
+            "bool", "isDeclaration", (ins),
+            [{}],
+            [{return false;}]
+        >,
+
+        InterfaceMethod<
+            "If non empty overrides the default attributes in the dot graph",
+            "std::string", "printAttributes", (ins),
+            [{}],
+            [{return "";}]
+        >
+    ];
+}
+
 #endif

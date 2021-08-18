@@ -42,9 +42,15 @@ if (const auto loc = op->getLoc().dyn_cast<mlir::NameLoc>()) {
 
 ## Generating of Dot graph
 
-Currently you can use this pass but new pass is going to be created soon for simple comparision to MCM compiler
-`./vpux-opt --print-op-graph net.mlir 2> graph.dot 1>nul`
-Remove all graphs in output file except `digraph "main"`
+There is a pass which will generate Dot graph during pipeline execution. 
+1. Generation using enviroment variable in the DEVELOPER_BUILD:
+  Provide standard print-dot pass options to the `IE_VPUX_PRINT_DOT`, if you want couple of entries separate them using comma. 
+  Example: `export IE_VPUX_PRINT_DOT="output=temp.dot pass=OptimizeAsyncDeps,output=temp2.dot pass=AddBuffersForNetResults"` 
+2. Generation using vpux-opt tool with option `--print-dot`:
+  With this option user can specify the output file and additional generation options(see `vpu-opt -h`). Note: option `pass` is not available in this mode.
+  Example: `--print-dot="output=dot1.dot"`
+3. Via compiler pipeline. Add printDot pass into compiler pipline in the code and rebuild the project. 
+  Example: `pm.addPass(createPrintDot(<FileName>, <Options>));` to generate file with <FileName> name.
 
 ## IR dumping (Developer build)
 

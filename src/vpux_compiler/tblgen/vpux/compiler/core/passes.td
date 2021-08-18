@@ -48,4 +48,40 @@ def DeallocPlacement : PassBase<"dealloc-placement", "vpux::FunctionPass"> {
     ];
 }
 
+// opGraph
+//
+
+def PrintDot : PassBase<"print-dot", "vpux::ModulePass"> {
+    let summary = "Convert current MLIR graph to Dot graph";
+
+    let description = [{
+        Convert current MLIR graph to Dot graph.
+    }];
+
+    let options = [
+        Option<
+            "declareOp", "declareOp",
+            "bool", "",
+            "Print declare memory operations"
+        >,
+        Option<
+            "constOp", "constOp",
+            "bool", "",
+            "Print const declare operations"
+        >,
+        Option<
+            "outputFile", "output",
+            "std::string", "",
+            "Path to the output file"
+        >,
+        Option<
+            "afterPass", "pass",
+            "std::string", "",
+            "Print Dot after the pass"
+        >
+    ];
+
+    let constructor = "vpux::createPrintDot(\"\")";
+}
+
 #endif

@@ -207,7 +207,8 @@ def IERT_StaticAllocOp :
         IERT_Op<
             "StaticAlloc",
             [
-                NoSideEffect
+                NoSideEffect,
+                DotInterface
             ]
         > {
     let summary = "InferenceEngine run-time static buffer allocation";
@@ -219,6 +220,15 @@ def IERT_StaticAllocOp :
     let results = (outs
         AnyMemRef:$memory
     );
+
+    let extraClassDeclaration = [{
+        bool isDeclaration() {
+            return true;
+        }
+        vpux::DotNodeColor getNodeColor() {
+            return DotNodeColor::ORANGE;
+        }
+    }];
 
     let assemblyFormat = [{
         `<` $offset `>` attr-dict `->` type(results)
@@ -288,7 +298,8 @@ def IERT_ConvertOp :
 def IERT_CopyOp :
         IERT_LayerOp<1, "Copy",
             [
-                ViewLikeOpInterface
+                ViewLikeOpInterface,
+                DotInterface
             ]
         > {
     let summary = "InferenceEngine run-time Copy layer";
