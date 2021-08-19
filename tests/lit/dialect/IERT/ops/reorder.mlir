@@ -55,3 +55,23 @@ func @main(%arg0: memref<1x8x4x2xf16>, %arg1: memref<1x8x4x2xf16, #map0>) -> mem
 }
 
 }
+
+// -----
+
+#NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
+#NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
+#map = affine_map<(d0, d1, d2, d3) -> (d0 * 1000 + d1 * 1000 + d2 * 1000 + d3)>
+
+func @ConvertTrivialReorder(%arg0: memref<1x1000x1x1xf16, #NHWC, #map>) -> memref<1x1000x1x1xf16> {
+    %0 = memref.alloc() : memref<1x1000x1x1xf16>
+    %1 = IERT.Reorder inputs(%arg0 : memref<1x1000x1x1xf16, #NHWC, #map>) outputs(%0 : memref<1x1000x1x1xf16>) -> memref<1x1000x1x1xf16>
+
+    // CHECK: [[REORDER:%.*]] = IERT.ImplicitReorder
+    // CHECK-SAME:  {dstOrder = #NCHW}
+    // CHECK-SAME:  inputs(%arg0 : memref<1x1000x1x1xf16, #NHWC, #map>)
+    // CHECK-SAME:  -> memref<1x1000x1x1xf16>
+
+    return %1 : memref<1x1000x1x1xf16>
+
+    // CHECK: return [[REORDER]] : memref<1x1000x1x1xf16>
+}

@@ -54,7 +54,7 @@ Byte calculateDataOffset(IERT::SubViewOp subViewOp) {
 
 mlir::LogicalResult ViewLikeRewrite::matchAndRewrite(mlir::ViewLikeOpInterface origOp,
                                                      mlir::PatternRewriter& rewriter) const {
-    if (!mlir::isa<IERT::GenericReshapeOp, IERT::SubViewOp>(origOp.getOperation())) {
+    if (!mlir::isa<IERT::GenericReshapeOp, IERT::SubViewOp, IERT::ImplicitReorderOp>(origOp.getOperation())) {
         return matchFailed(rewriter, origOp, "Unknown view-like operation '{0}'", origOp->getName());
     }
 
