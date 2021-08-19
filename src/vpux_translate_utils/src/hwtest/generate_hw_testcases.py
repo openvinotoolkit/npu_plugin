@@ -70,6 +70,34 @@ def OrderNCHW(data: np.ndarray) -> np.ndarray:
 def OrderNHWC(data: np.ndarray) -> np.ndarray:
     return np.concatenate([a.transpose(1, 2, 0).flatten() for a in data])
 
+def PaddingsIsValidForThisKernel(kernel, paddings):
+    # kernel size are width|height
+    # The padding order is top|left|bottom|right
+    # Regarding documentation (http://dub30.ir.intel.com/svn/TRUNK/keembay/docs/specification/pdf/Gen3_Intel_Movidius_VPU_3400VE-A0_Databook_v1.4.pdf KB databook (page 5558)) 
+    # we have next paddings constaints:
+    # When the kernel x dimension is odd, the PAD amount is [KERNEL_X-1]/2 on left and right
+    # When the kernel y dimension is odd, the PAD amount is [KERNEL_Y-1]/2 on top and bottom
+    # When the kernel x dimension is even, the PAD amount is [KERNEL_X]/2 on left and [KERNEL_X]/2-1 on right
+    # When the kernel y dimension is even, the PAD amount is [KERNEL_Y]/2 on top and [KERNEL_Y]/2-1 on bottom
+
+    kernel_x = kernel[0]
+    kernel_y = kernel[1]
+
+    top = paddings[0]
+    left = paddings[1]
+    bottom = paddings[2]
+    right = paddings[3]
+
+    if kernel_x % 2 != 0 and (left > (kernel_x-1)/2 or right > (kernel_x-1)/2):
+        return False
+    if kernel_y % 2 != 0 and (top > (kernel_y-1)/2 or bottom > (kernel_y-1)/2):
+        return False
+    if kernel_x % 2 == 0 and (left > kernel_x/2 or right > kernel_x/2-1):
+        return False
+    if kernel_x % 2 == 0 and (top > kernel_y/2 or bottom > kernel_y/2-1):
+        return False
+
+    return True
 
 @dataclass
 class Value:
@@ -344,6 +372,10 @@ class MPE(ABC):
         pass
 
     @abstractproperty
+    def valid(self) -> bool:
+        pass
+
+    @abstractproperty
     def ident(self) -> str:
         pass
 
@@ -394,6 +426,10 @@ class ZMajorConvolution(MPE):
                 'dilation': 1
             }
         }
+
+    @property
+    def valid(self) -> bool:
+        return PaddingsIsValidForThisKernel(self.settings.kernel_shape, self.settings.kernel_pads)
 
     @property
     def ident(self) -> str:
@@ -458,6 +494,10 @@ class DepthWiseConv(MPE):
         }
 
     @property
+    def valid(self) -> bool:
+        return PaddingsIsValidForThisKernel(self.settings.kernel_shape, self.settings.kernel_pads)
+
+    @property
     def ident(self) -> str:
         return f'dw_conv_{shape_to_str(self.settings.input_shape)}x{self.settings.input_ttype.stype}_{shape_to_str(self.settings.weight_shape)}x{self.settings.weight_ttype.stype}_pads_{shape_to_str(self.settings.kernel_pads)}_strides_{shape_to_str(self.settings.kernel_strides)}_kern_chan_{self.settings.kernel_channels}'
 
@@ -513,6 +553,10 @@ class EltwiseAdd(MPE):
         }
 
     @property
+    def valid(self) -> bool:
+        return True
+
+    @property
     def ident(self) -> str:
         return f'ew_add_{shape_to_str(self.settings.input_shape)}x{self.settings.input_ttype.stype}'
 
@@ -566,6 +610,10 @@ class EltwiseMult(MPE):
         }
 
     @property
+    def valid(self) -> bool:
+        return True
+
+    @property
     def ident(self) -> str:
         return f'ew_mult_{self.settings.input_ttype.stype}'
 
@@ -604,6 +652,7 @@ class Maxpool(MPE):
     # kernel_strides are x|y directions
     # The padding order is top|left|bottom|right
     PARAMS = ['mpe_op_class', 'input_ttype', 'input_shape', 'output_ttype', 'kernel_strides', 'kernel_pads']
+    kernel_shape = [2, 2]
 
     def __init__(self, settings):
         self.settings = settings
@@ -614,11 +663,15 @@ class Maxpool(MPE):
             'input': inputs[0].json_info,
             'pool_op': {
                 'sub_type': 'max',
-                'kernel_shape': [2, 2],
+                'kernel_shape': self.kernel_shape,
                 'stride': self.settings.kernel_strides,
                 'pad': self.settings.kernel_pads
             }
         }
+
+    @property
+    def valid(self) -> bool:
+        return PaddingsIsValidForThisKernel(self.kernel_shape, self.settings.kernel_pads)
 
     @property
     def ident(self) -> str:
@@ -656,6 +709,7 @@ class AvgPool(MPE):
     # kernel_strides are x|y directions
     # The padding order is top|left|bottom|right
     PARAMS = ['mpe_op_class', 'input_ttype', 'input_shape', 'output_ttype', 'kernel_strides', 'kernel_pads']
+    kernel_shape = [2, 2]
 
     def __init__(self, settings):
         self.settings = settings
@@ -666,11 +720,15 @@ class AvgPool(MPE):
             'input': inputs[0].json_info,
             'pool_op': {
                 'sub_type': 'avg',
-                'kernel_shape': [2, 2],
+                'kernel_shape': self.kernel_shape,
                 'stride': self.settings.kernel_strides,
                 'pad': self.settings.kernel_pads
             }
         }
+
+    @property
+    def valid(self) -> bool:
+        return PaddingsIsValidForThisKernel(self.kernel_shape, self.settings.kernel_pads)
 
     @property
     def ident(self) -> str:
@@ -756,6 +814,10 @@ class DPUPipeline:
         bitshift = max(result_bitwidth - self.settings.output_ttype.bitwidth, 0)
         ppe_value = ppe(self.inputs, self.settings.output_ttype, self.mpe_data, bitshift)
         self.o = odu(ppe_value)
+
+    @property
+    def valid(self) -> bool:
+        return self.mpe_op.valid
 
     @property
     def ident(self):
@@ -967,17 +1029,17 @@ def generate_options(args):
         #    fp16 and bfloat16 inputs.
         (DPUPipeline(EltwiseAdd.PARAMS, x) for x in itertools.product(
                      [EltwiseAdd],                                    # mpe operation
-                     [Int4(2), Int8(6), UInt8(6), FP16(6), BF16(6)],  # input type
+                     [Int8(6), UInt8(6), FP16(6), BF16(6)],           # input type
                      [[1, 256, 16, 16]],                              # input shape
-                     [Int4(), UInt4(), Int8(), UInt8(), FP16()]       # output type
+                     [Int8(), UInt8(), FP16()]                        # output type
                      )),
 
         # Eltwise Mult - int8/uint8/fp16
         (DPUPipeline(EltwiseMult.PARAMS, x) for x in itertools.product(
                      [EltwiseMult],                              # mpe operation
-                     [Int4(2), Int8(3), UInt8(4), FP16(6)],      # input type
+                     [Int8(3), UInt8(4), FP16(6)],               # input type
                      [[1, 1, 1, 32]],                            # input shape
-                     [Int4(), UInt4(), Int8(), UInt8(), FP16()]  # output type
+                     [Int8(), UInt8(), FP16()]                   # output type
                      )),
 
         # Eltwise Mult - bf16
@@ -1253,6 +1315,8 @@ def create_config_files(args):
     args.root.mkdir(parents=True, exist_ok=args.exist_ok)
     found = {}
     for option in generate_options(args):
+        if not option.valid :    # exclude all cases which has incorrect parameters
+            continue
         ident = option.ident
         if ident in found:
             raise Exception(f'Duplicate option ident: {ident}:\n  {option.settings}')
