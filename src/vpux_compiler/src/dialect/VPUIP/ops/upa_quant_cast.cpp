@@ -16,6 +16,7 @@
 #include "vpux/compiler/core/attributes/dims_order.hpp"
 #include "vpux/compiler/dialect/VPUIP/blob_reader.hpp"
 #include "vpux/compiler/utils/analysis.hpp"
+#include "vpux/compiler/utils/error.hpp"
 
 #include "vpux/utils/IE/float16.hpp"
 #include "vpux/utils/core/mem_size.hpp"
@@ -29,22 +30,38 @@ using namespace vpux;
 
 namespace {
 
-std::pair<ArrayRef<double>, ArrayRef<int64_t>> getScalesAndZeroPoints(mlir::Value input, mlir::Value output) {
+std::pair<VPUIP::BlobWriter::Vector<uint16_t>, VPUIP::BlobWriter::Vector<uint16_t>> serializeScalesAndZeroPoints(
+        mlir::Value input, mlir::Value output, VPUIP::BlobWriter& writer) {
     const auto inType = input.getType().cast<mlir::MemRefType>().getElementType();
     const auto outType = output.getType().cast<mlir::MemRefType>().getElementType();
 
     const auto qType = inType.isa<mlir::quant::QuantizedType>() ? inType.cast<mlir::quant::QuantizedType>()
                                                                 : outType.cast<mlir::quant::QuantizedType>();
 
+    const auto getRawFP16 = [](auto val) {
+        const auto valFP16 = float16(val);
+        return valFP16.to_bits();
+    };
+
+    const auto getVecFP16 = [&](auto range) {
+        return writer.createVector(range | transformed(getRawFP16));
+    };
+
+    SmallVector<double> scales;
+    SmallVector<int64_t> zeroPoints;
     if (qType.isa<mlir::quant::UniformQuantizedType>()) {
-        return {makeArrayRef(qType.cast<mlir::quant::UniformQuantizedType>().getScale()),
-                makeArrayRef(qType.cast<mlir::quant::UniformQuantizedType>().getZeroPoint())};
+        auto quantParams = qType.cast<mlir::quant::UniformQuantizedType>();
+        scales = {quantParams.getScale()};
+        zeroPoints = {quantParams.getZeroPoint()};
     } else if (qType.isa<mlir::quant::UniformQuantizedPerAxisType>()) {
-        return {makeArrayRef(qType.cast<mlir::quant::UniformQuantizedPerAxisType>().getScales()),
-                makeArrayRef(qType.cast<mlir::quant::UniformQuantizedPerAxisType>().getZeroPoints())};
+        auto quantParams = qType.cast<mlir::quant::UniformQuantizedPerAxisType>();
+        scales = {quantParams.getScales().begin(), quantParams.getScales().end()};
+        zeroPoints = {quantParams.getZeroPoints().begin(), quantParams.getZeroPoints().end()};
+    } else {
+        VPUX_THROW("Unsupported quantized type {0}", qType);
     }
 
-    VPUX_THROW("Unsupported quantized type {0}", qType);
+    return {getVecFP16(scales), getVecFP16(zeroPoints)};
 }
 
 }  // namespace
@@ -67,7 +84,7 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(QuantCastUPAOp op) {
 
     if (const auto perAxis = qType.dyn_cast<mlir::quant::UniformQuantizedPerAxisType>()) {
         if (perAxis.getQuantizedDimension() != 1) {
-            return errorAt(op, "Only per-channel quantization is suppoted");
+            return errorAt(op, "Only per-channel quantization is supported");
         }
 
         // TODO: support per-channel zero point
@@ -89,32 +106,38 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(QuantCastUPAOp op) {
     return mlir::success();
 }
 
-bool vpux::VPUIP::QuantCastUPAOp::isSupportedLayout(mlir::Operation* op, vpux::DataOrderInfo& info) {
+bool vpux::VPUIP::QuantCastUPAOp::isSupportedLayout(mlir::Operation* op, IE::DataOrderInfo& info) {
     const auto quantizeOp = mlir::dyn_cast<mlir::quant::QuantizeCastOp>(op);
     const auto dequantizeOp = mlir::dyn_cast<mlir::quant::DequantizeCastOp>(op);
 
     VPUX_THROW_UNLESS(quantizeOp != nullptr || dequantizeOp != nullptr, "Operation {0} is not quantizer",
                       op->getName());
 
-    auto layer = mlir::cast<LayerInterface>(op);
-    const auto scales = getScalesAndZeroPoints(layer.getInputs()[0], layer.getOutputs()[0]).first;
+    IE::LayerOpInterface layer = quantizeOp ? quantizeOp : dequantizeOp;
+    auto input = layer.getInputs()[0];
+    auto output = layer.getOutputs()[0];
+    const auto inType = input.getType().cast<mlir::MemRefType>().getElementType();
+    const auto outType = output.getType().cast<mlir::MemRefType>().getElementType();
 
-    if (scales.size() > 1) {
+    const auto qType = inType.isa<mlir::quant::QuantizedType>() ? inType.cast<mlir::quant::QuantizedType>()
+                                                                : outType.cast<mlir::quant::QuantizedType>();
+
+    if (qType.isa<mlir::quant::UniformQuantizedPerAxisType>()) {
         const auto numDims = layer.getInputs()[0].getType().cast<mlir::ShapedType>().getRank();
         const auto supportedLayout = numDims == 3 ? DimsOrder::HCW : DimsOrder::NHCW;
         if (!info.hasInput(0)) {
-            fillDataInfo(info, 1, 1, supportedLayout);
+            IE::fillDataInfo(info, 1, 1, supportedLayout);
             return false;
         }
 
         const auto mainOrder = info.getInput(0);
         if (mainOrder != DimsOrder::HCW && mainOrder != DimsOrder::NHCW) {
-            fillDataInfo(info, 1, 1, supportedLayout);
+            IE::fillDataInfo(info, 1, 1, supportedLayout);
             return false;
         }
     }
 
-    return isSupportedLayoutSameDimsOrder(op, info);
+    return IERT::isSupportedLayoutSameDimsOrder(op, info);
 }
 
 void vpux::VPUIP::QuantCastUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
@@ -123,23 +146,11 @@ void vpux::VPUIP::QuantCastUPAOp::build(mlir::OpBuilder& builder, mlir::Operatio
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::QuantCastUPAOp::serialize(BlobWriter& writer) {
-    const auto getRawFP16 = [](auto val) {
-        const auto valFP16 = float16(val);
-        return valFP16.to_bits();
-    };
-
-    const auto getVecFP16 = [&](auto range) {
-        return writer.createVector(range | transformed(getRawFP16));
-    };
-
-    auto scalesAndZeroPoints = getScalesAndZeroPoints(input(), output());
-
-    BlobWriter::Vector<uint16_t> scales = getVecFP16(scalesAndZeroPoints.first);
-    BlobWriter::Vector<uint16_t> zeroPoints = getVecFP16(scalesAndZeroPoints.second);
+    auto scalesAndZeroPoints = serializeScalesAndZeroPoints(input(), output(), writer);
 
     MVCNN::QuantizeParamsBuilder builder(writer);
-    builder.add_scale(scales);
-    builder.add_zero(zeroPoints);
+    builder.add_scale(scalesAndZeroPoints.first);
+    builder.add_zero(scalesAndZeroPoints.second);
     const auto paramsOff = builder.Finish();
 
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_QuantizeParams});

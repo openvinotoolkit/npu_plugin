@@ -1,5 +1,7 @@
 // RUN: vpux-opt --split-input-file --dequantize-const %s | FileCheck %s
 
+!qElemType = type !quant.uniform<u8:f32:0, {1.000000e-01:128,2.000000e-01:128,3.000000e-01:128,4.000000e-01:128}>
+
 // CHECK-LABEL: @PerAxis
 func @PerAxis() -> tensor<4x1x1x1xf32> {
     %0 = const.Declare
@@ -15,7 +17,7 @@ func @PerAxis() -> tensor<4x1x1x1xf32> {
 
     // CHECK:       [[CST:%.*]] = const.Declare
     // CHECK-SAME:      #const.Content<dense<129> : tensor<4x1x1x1xui8>
-    // CHECK-SAME:      #const.QuantCast<!quant.uniform<u8:f32:0, {1.000000e-01:128,2.000000e-01:128,3.000000e-01:128,4.000000e-01:128}>>
+    // CHECK-SAME:      #const.QuantCast<!qElemType>
     // CHECK-SAME:      #const.Dequantize
 
     // CHECK:       return [[CST]]

@@ -17,7 +17,9 @@
 include "vpux/compiler/core/attributes.td"
 include "vpux/compiler/core/ops_interfaces.td"
 include "vpux/compiler/dialect/IE/attributes.td"
+include "vpux/compiler/dialect/IE/ops_interfaces.td"
 include "vpux/compiler/dialect/IERT/dialect.td"
+include "vpux/compiler/dialect/IERT/ops_interfaces.td"
 include "vpux/compiler/dialect/IE/attributes.td"
 
 include "mlir/Dialect/Quant/QuantOpsBase.td"
@@ -45,11 +47,11 @@ class IERT_LayerOp<int numResult, string mnemonic, list<OpTrait> traits = []> :
                 [
                     NoSideEffect,
                     InferTypeOpInterface,
-                    DeclareOpInterfaceMethods<RTLayerInterface>
+                    DeclareOpInterfaceMethods<IERT_LayerOpInterface>
                 ]
             )
         > {
-    let extraClassDeclaration = InferReturnTypesForRTLayer<numResult>.impl;
+    let extraClassDeclaration = IERT_InferLayerReturnTypes<numResult>.impl;
 }
 
 //
@@ -257,8 +259,7 @@ def IERT_ConvertOp :
         IERT_LayerOp<1, "Convert",
             [
                 SameOperandsShape,
-                ViewLikeOpInterface,
-                DeclareOpInterfaceMethods<ConvertLayerInterface>
+                ViewLikeOpInterface
             ]
         > {
     let summary = "InferenceEngine run-time Convert layer";
@@ -352,9 +353,8 @@ def IERT_SoftMaxOp :
         IERT_LayerOp<1, "SoftMax",
             [
                 SameOperandsShape,
-                ViewLikeOpInterface,
                 SameOperandsElementType,
-                DeclareOpInterfaceMethods<SoftMaxLayerInterface>
+                ViewLikeOpInterface
             ]
         > {
     let summary = "InferenceEngine run-time SoftMax layer";
@@ -398,7 +398,8 @@ def IERT_AvgPoolOp :
         I64ArrayAttr:$kernel_size,
         I64ArrayAttr:$strides,
         I64ArrayAttr:$pads_begin,
-        I64ArrayAttr:$pads_end
+        I64ArrayAttr:$pads_end,
+        UnitAttr:$exclude_pads
     );
 
     let results = (outs
@@ -421,7 +422,6 @@ def IERT_MaxPoolOp :
         IERT_LayerOp<1, "MaxPool",
             [
                 ViewLikeOpInterface,
-                DeclareOpInterfaceMethods<TensorInterface_4D>,
             ]
         > {
     let summary = "InferenceEngine run-time MaxPool layer";
@@ -457,9 +457,7 @@ def IERT_MaxPoolOp :
 def IERT_ConvolutionOp :
         IERT_LayerOp<1, "Convolution",
             [
-                ViewLikeOpInterface,
-                DeclareOpInterfaceMethods<TensorInterface_4D>,
-                DeclareOpInterfaceMethods<ConvolutionLayerInterface>
+                ViewLikeOpInterface
             ]
         > {
     let summary = "InferenceEngine run-time Convolution layer";
@@ -479,7 +477,7 @@ def IERT_ConvolutionOp :
     );
 
     let results = (outs
-        MemRefOf<[F16, F32]>:$output
+        MemRefOf<[F16, F32, quant_QuantizedType]>:$output
     );
 
     let assemblyFormat = [{
@@ -498,8 +496,7 @@ def IERT_GroupConvolutionOp :
         IERT_LayerOp<1, "GroupConvolution",
             [
                 ViewLikeOpInterface,
-                SameOperandsElementType,
-                DeclareOpInterfaceMethods<ConvolutionLayerInterface>
+                SameOperandsElementType
             ]
         > {
     let summary = "InferenceEngine run-time GroupConvolution layer";
@@ -669,6 +666,68 @@ def IERT_HSwishOp :
             ]
         > {
     let summary = "InferenceEngine run-time HSwish layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input,
+        MemRefOf<[F16, F32]>:$output_buff
+    );
+
+    let results = (outs
+        MemRefOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
+// FloorOp
+//
+
+def IERT_FloorOp :
+        IERT_LayerOp<1, "Floor",
+            [
+                ViewLikeOpInterface,
+                SameOperandsShape,
+                SameOperandsElementType
+            ]
+        > {
+    let summary = "InferenceEngine run-time Floor layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input,
+        MemRefOf<[F16, F32]>:$output_buff
+    );
+
+    let results = (outs
+        MemRefOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
+// MishOp
+//
+
+def IERT_MishOp :
+        IERT_LayerOp<1, "Mish",
+            [
+                ViewLikeOpInterface,
+                SameOperandsShape,
+                SameOperandsElementType
+            ]
+        > {
+    let summary = "InferenceEngine run-time Mish layer";
 
     let arguments = (ins
         MemRefOf<[F16, F32]>:$input,
@@ -922,7 +981,9 @@ def IERT_AddOp :
     let arguments = (ins
         MemRefOf<[F16, F32]>:$input1,
         MemRefOf<[F16, F32]>:$input2,
-        MemRefOf<[F16, F32]>:$output_buff
+        MemRefOf<[F16, F32]>:$output_buff,
+
+        OptionalAttr<IE_PostOp>:$post_op
     );
 
     let results = (outs
@@ -1419,6 +1480,39 @@ def IERT_NegativeOp :
 }
 
 //
+// ProposalOp
+//
+
+def IERT_ProposalOp :
+        IERT_LayerOp<1, "Proposal",
+            [
+                ViewLikeOpInterface
+            ]
+        > {
+    let summary = "InferenceEngine run-time Proposal layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$class_probs,
+        MemRefOf<[F16, F32]>:$bbox_deltas,
+        MemRefOf<[F16, F32]>:$image_shape,
+        MemRefOf<[F16, F32]>:$output_buff,
+
+        IE_ProposalAttrs:$proposal_attrs
+    );
+
+    let results = (outs
+        MemRefOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $class_probs `:` type($class_probs) `,` $bbox_deltas `:` type($bbox_deltas) `,` $image_shape `:` type($image_shape) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
 // ROIPoolingOp
 //
 
@@ -1550,7 +1644,7 @@ def IERT_ConcatViewOp :
         mlir::Value getViewSource() {
             return output_buff();
         }
-    }] # InferReturnTypesForRTLayer<1>.impl;
+    }] # IERT_InferLayerReturnTypes<1>.impl;
 }
 
 //
@@ -1796,6 +1890,46 @@ def IERT_RegionYoloOp :
         `outputs` `(` $output_buff `:` type($output_buff) `)`
         `->` type(results)
     }];
+}
+
+//
+// SubViewOp
+//
+
+def IERT_SubViewOp :
+        IERT_Op<
+            "SubView",
+            [
+                DeclareOpInterfaceMethods<ViewLikeOpInterface>,
+                SameOperandsAndResultElementType,
+                DeclareOpInterfaceMethods<InferTypeOpInterface>,
+                NoSideEffect
+            ]
+        > {
+    let summary = "Compile-time subview layer";
+
+    let arguments = (ins
+        AnyMemRef:$source,
+        I64ArrayAttr:$static_offsets,
+        I64ArrayAttr:$static_sizes
+    );
+
+    let results = (outs
+        AnyMemRef:$result
+    );
+
+    let assemblyFormat = [{
+        $source $static_offsets $static_sizes
+        attr-dict `:` type($source) `to` type(results)
+    }];
+
+    let builders = [
+        OpBuilder<
+            (ins "mlir::Value":$source, "ArrayRef<int64_t>":$static_offsets, "ArrayRef<int64_t>":$static_sizes)
+        >
+    ];
+
+    let hasFolder = 1;
 }
 
 #endif

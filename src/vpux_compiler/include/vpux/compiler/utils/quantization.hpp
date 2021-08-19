@@ -28,7 +28,9 @@ namespace vpux {
 // FakeQuantize support
 //
 
-std::tuple<double, int64_t> calcScaleAndZeroPoint(int64_t qMin, int64_t qMax, double rMin, double rMax);
+mlir::quant::QuantizedType expandScalesAndZP(mlir::quant::UniformQuantizedPerAxisType perAxisQType, ShapeRef padBefore,
+                                             ShapeRef padAfter);
+std::tuple<double, int64_t> calcScaleAndZeroPoint(int64_t qMin, int64_t qMax, double rMin, double rMax, bool isSigned);
 
 mlir::quant::QuantizedType getQuantizedType(Const::ContentAttr lowConst, Const::ContentAttr highConst, int64_t levels,
                                             mlir::FloatType realType, mlir::Location loc);
@@ -37,12 +39,18 @@ mlir::LogicalResult getFakeQuantParams(mlir::ShapedType qType, int64_t& levels, 
                                        mlir::DenseElementsAttr& rMinAttr, mlir::DenseElementsAttr& rMaxAttr,
                                        mlir::Location loc);
 
-mlir::Type normalizeQuantStorageType(mlir::Type type);
+mlir::Type normalizeQuantStorageType(mlir::quant::QuantizedType qType);
 
 //
 // Dequantize support
 //
 
 float dequantize(int64_t qVal, double scale, int64_t zeroPoint);
+
+//
+// Convert real numbers to fixed point S16.16 format.
+//
+
+int32_t toFixedPoint(const double realVal);
 
 }  // namespace vpux

@@ -55,11 +55,10 @@ std::unique_ptr<mlir::Pass> createConvertConv1DToConv2DPass(Logger log = Logger:
 // HW related passes
 //
 
-void buildHWOpsConversionPipeline(mlir::OpPassManager& pm, Logger log = Logger::global());
-
 std::unique_ptr<mlir::Pass> createConvertFCToConvPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createFusePostOpsPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createExpandActivationChannelsPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createConvertAvgPoolToDWConvPass(Logger log = Logger::global());
 
 //
 // Low precision transformations.

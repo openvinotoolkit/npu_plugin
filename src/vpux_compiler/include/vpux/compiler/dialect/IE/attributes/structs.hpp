@@ -31,15 +31,6 @@ namespace vpux {
 namespace IE {
 
 //
-// PostOp
-//
-
-PostOp getPostOpAttr(mlir::MLIRContext* ctx, PostOpKindAttr kind, ArrayRef<mlir::NamedAttribute> attrs = None);
-
-PostOpKind getPostOpKind(PostOp postOp);
-mlir::Attribute getPostOpParam(PostOp postOp, mlir::Identifier name);
-
-//
 // TensorAttr
 //
 

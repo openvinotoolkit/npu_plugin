@@ -31,12 +31,14 @@ int64_t mv::calculateZeroPoint(
     int levels,
     mv::DType dtype)
 {
-    if ((low > 0.f) || (high < 0.f) || (low == high))
+    int64_t zeroPoint = 0;
+    if (std::fabs(high - low) < std::numeric_limits<float>::epsilon())
+        return zeroPoint;
+
+    if ((low > 0.f) || (high < 0.f))
         throw std::runtime_error("Unsupported FQ low/high");
     if (levels > 256)
         throw std::runtime_error("Unsupported FQ levels");
-
-    int64_t zeroPoint = 0;
 
     if (dtype == getDType(Precision::U8)) {
         float x = -static_cast<float>(levels - 1.0f) * low / (high - low);
@@ -55,8 +57,10 @@ int64_t mv::calculateZeroPoint(
 // quantized networks accuracy, some have slightly better accuracy
 // while the most of them have slightly worse accuracy.
 double mv::calculateScale(float low, float high, int levels) {
-    if (low == high)
-        throw std::runtime_error("Unsupported FQ low/high");
+    //To avoid divide by zero, and also float clamping
+    if (std::fabs(high - low) < std::numeric_limits<float>::epsilon())
+        return (low < std::numeric_limits<float>::epsilon()) ? 1 : low;
+
     if (levels > 256)
         throw std::runtime_error("Unsupported FQ levels");
 

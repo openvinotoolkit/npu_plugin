@@ -92,7 +92,6 @@
             "ReshapeAsImplicit",
             "LoadPWLQuantParams",
             "ConvertOpsToTasks",
-            "AdaptFixedPointCompute",
             "GenerateAndPopulateInstructionListTables",
             "SetUpPPETasks",
             "TaskMultiplePostOps",
@@ -101,6 +100,7 @@
             "UpdateImplicitLayersQuantizationParams",
             "ImplicitOutputDTypeUpdate",
             "KMBQuantizeConversion",
+            "AdaptFixedPointCompute",
             "ConfigureIOPrecision",
             "EnsureDTypeCompatibility"
         ]

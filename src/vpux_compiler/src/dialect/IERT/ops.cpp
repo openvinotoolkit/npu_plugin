@@ -15,6 +15,7 @@
 
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
+#include "vpux/compiler/utils/error.hpp"
 
 #include <mlir/Dialect/Quant/QuantTypes.h>
 #include <mlir/IR/BuiltinAttributes.h>
@@ -31,7 +32,6 @@ void vpux::IERT::IERTDialect::initialize() {
     addOperations<
 #define GET_OP_LIST
 #include <vpux/compiler/dialect/IERT/generated/ops.cpp.inc>
-#undef GET_OP_LIST
             >();
 }
 
@@ -51,7 +51,8 @@ mlir::Operation* vpux::IERT::IERTDialect::materializeConstant(mlir::OpBuilder& b
         return nullptr;
     }
 
-    return builder.create<Const::DeclareOp>(loc, type, value.cast<Const::ContentAttr>());
+    return builder.create<Const::DeclareOp>(loc, eraseTiledInfo(type.cast<mlir::MemRefType>()),
+                                            value.cast<Const::ContentAttr>());
 }
 
 //
@@ -88,6 +89,7 @@ mlir::Attribute vpux::IERT::IERTDialect::getExecutor(mlir::async::ExecuteOp exec
 // Generated
 //
 
+#include <vpux/compiler/dialect/IERT/generated/dialect.cpp.inc>
+
 #define GET_OP_CLASSES
 #include <vpux/compiler/dialect/IERT/generated/ops.cpp.inc>
-#undef GET_OP_CLASSES

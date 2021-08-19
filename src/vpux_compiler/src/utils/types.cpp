@@ -134,17 +134,17 @@ Byte vpux::getTotalSize(mlir::Value val) {
 
 namespace {
 
-void setAffineMaps(mlir::MemRefType::Builder& memRefBuilder, mlir::MLIRContext* ctx, DimsOrder order, ShapeRef shape) {
+mlir::MemRefType addAffineMaps(mlir::MemRefType::Builder& memRefBuilder, mlir::MLIRContext* ctx, DimsOrder order,
+                               ShapeRef shape) {
     // MLIR has canonicalization for default permutations such as affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
     // in this case we will only have a strided map, which means the same as having no maps at all.
     // Let's skip strided map as it makes IR and test writing easier.
     if (order.isIdentity()) {
-        memRefBuilder.setAffineMaps({});
-        return;
+        return memRefBuilder.setAffineMaps({});
     }
 
     const auto affineMaps = order.toAffineMapsList(ctx, shape);
-    memRefBuilder.setAffineMaps(affineMaps);
+    return memRefBuilder.setAffineMaps(affineMaps);
 }
 
 }  // namespace
@@ -153,47 +153,69 @@ mlir::MemRefType vpux::changeElemType(mlir::MemRefType origType, mlir::Type elem
     mlir::MemRefType::Builder memRefBuilder(origType);
     memRefBuilder.setElementType(elemType);
 
-    if (!preserveStrides) {
-        const auto origOrder = DimsOrder::fromType(origType);
-        const auto shape = getShape(origType);
-        setAffineMaps(memRefBuilder, origType.getContext(), origOrder, shape);
+    if (preserveStrides) {
+        return memRefBuilder;
     }
 
-    return memRefBuilder;
+    const auto origOrder = DimsOrder::fromType(origType);
+    const auto shape = getShape(origType);
+    return addAffineMaps(memRefBuilder, origType.getContext(), origOrder, shape);
 }
 
 mlir::MemRefType vpux::changeShape(mlir::MemRefType origType, ShapeRef shape, bool preserveStrides) {
     mlir::MemRefType::Builder memRefBuilder(origType);
     memRefBuilder.setShape(shape.raw());
 
-    if (!preserveStrides) {
-        const auto origOrder = DimsOrder::fromType(origType);
-        setAffineMaps(memRefBuilder, origType.getContext(), origOrder, shape);
+    if (preserveStrides) {
+        return memRefBuilder;
     }
 
-    return memRefBuilder;
+    const auto origOrder = DimsOrder::fromType(origType);
+    return addAffineMaps(memRefBuilder, origType.getContext(), origOrder, shape);
 }
 
 mlir::MemRefType vpux::changeDimsOrder(mlir::MemRefType origType, DimsOrder order) {
     mlir::MemRefType::Builder memRefBuilder(origType);
 
     const auto shape = getShape(origType);
-    setAffineMaps(memRefBuilder, origType.getContext(), order, shape);
-
-    return memRefBuilder;
+    return addAffineMaps(memRefBuilder, origType.getContext(), order, shape);
 }
 
 mlir::MemRefType vpux::changeMemSpace(mlir::MemRefType origType, mlir::Attribute memSpace, bool preserveStrides) {
     mlir::MemRefType::Builder memRefBuilder(origType);
     memRefBuilder.setMemorySpace(memSpace);
 
-    if (!preserveStrides) {
-        const auto origOrder = DimsOrder::fromType(origType);
-        const auto shape = getShape(origType);
-        setAffineMaps(memRefBuilder, origType.getContext(), origOrder, shape);
+    if (preserveStrides) {
+        return memRefBuilder;
     }
 
-    return memRefBuilder;
+    const auto origOrder = DimsOrder::fromType(origType);
+    const auto shape = getShape(origType);
+    return addAffineMaps(memRefBuilder, origType.getContext(), origOrder, shape);
+}
+
+mlir::MemRefType vpux::getTileType(const mlir::MemRefType origType, const ShapeRef tileShape,
+                                   const ShapeRef tileOffsets) {
+    const auto strides = getStrides(origType);
+    Bit totalOffset(0);
+    for (size_t dimIdx = 0; dimIdx < strides.size(); dimIdx++) {
+        totalOffset += tileOffsets[Dim(dimIdx)] * strides[Dim(dimIdx)];
+    }
+    const Bit elemSize = getElemTypeSize(origType);
+    const auto affineMaps = DimsOrder::fromType(origType).toAffineMapsList(origType.getContext(), getShape(origType),
+                                                                           totalOffset.count() / elemSize.count());
+
+    const auto tileType =
+            mlir::MemRefType::get(tileShape.raw(), origType.getElementType(), affineMaps, origType.getMemorySpace());
+    return tileType;
+}
+
+mlir::MemRefType vpux::eraseTiledInfo(const mlir::MemRefType origType) {
+    // Erase strides and offsets information from memory reference.
+    const auto origShape = getShape(origType);
+    const auto origOrder = DimsOrder::fromType(origType);
+    mlir::MemRefType::Builder memRefBuilder(origType);
+    return addAffineMaps(memRefBuilder, origType.getContext(), origOrder, origShape);
 }
 
 //

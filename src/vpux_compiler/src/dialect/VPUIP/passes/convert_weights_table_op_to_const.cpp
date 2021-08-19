@@ -15,6 +15,7 @@
 #include <vpux/compiler/dialect/VPUIP/blob_reader.hpp>
 #include <vpux/compiler/dialect/VPUIP/nce_invariant.hpp>
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
+#include "vpux/compiler/utils/quantization.hpp"
 
 #include "vpux/utils/core/enums.hpp"
 
@@ -28,27 +29,22 @@ namespace {
 
 constexpr int32_t MTL_SPARSITY = 0xffffffff;
 
-int32_t toFixedPoint(float realVal) {
-    // FIXME: 2 ^ 16 might be more obvious
-    return std::lround(realVal * 65536.f);
-}
-
-int32_t toHex(float realVal) {
+int32_t toHex(double realVal) {
     union f32toint32 {
         int32_t m_i32;
         float m_f32;
     };
 
     f32toint32 biasVal;
-    biasVal.m_f32 = realVal;
+    biasVal.m_f32 = static_cast<float>(realVal);
     return biasVal.m_i32;
 }
 
-using BiasConverterCb = int32_t (*)(float);
+using BiasConverterCb = int32_t (*)(double);
 const EnumMap<VPUIP::ArchKind, BiasConverterCb> biasConvertersMap = {
-        {VPUIP::ArchKind::KMB, toFixedPoint},  //
-        {VPUIP::ArchKind::TBH, toFixedPoint},  //
-        {VPUIP::ArchKind::MTL, toHex},         //
+        {VPUIP::ArchKind::KMB, vpux::toFixedPoint},  //
+        {VPUIP::ArchKind::TBH, vpux::toFixedPoint},  //
+        {VPUIP::ArchKind::MTL, toHex},               //
 };
 
 constexpr int32_t getKMBScale() {
@@ -70,7 +66,7 @@ constexpr int32_t getKMBScale() {
 }
 
 int32_t getMTLScale() {
-    constexpr float MTL_SCALE = 1.0f;
+    constexpr double MTL_SCALE = 1.0f;
 
     return toHex(MTL_SCALE);
 }
@@ -82,7 +78,7 @@ const EnumMap<VPUIP::ArchKind, PPEConverterCb> ppeConvertersMap = {
         {VPUIP::ArchKind::MTL, getMTLScale},  //
 };
 
-using GetBiasCb = FuncRef<float(int64_t)>;
+using GetBiasCb = FuncRef<double(int64_t)>;
 
 std::vector<int32_t> getWeightsTable(int64_t OC, GetBiasCb getBiasFP, int32_t weightPtrOffset, int32_t weightPtrStep,
                                      int32_t sparsityPtrOffset, vpux::VPUIP::ArchKind arch) {
@@ -113,9 +109,9 @@ std::vector<int32_t> getWeightsTable(int64_t OC, GetBiasCb getBiasFP, int32_t we
     return weightsTableVals;
 }
 
-llvm::unique_function<float(int64_t)> getBiasFunc(mlir::Value bias) {
+llvm::unique_function<double(int64_t)> getBiasFunc(mlir::Value bias) {
     if (bias == nullptr) {
-        return [](int64_t) -> float {
+        return [](int64_t) -> double {
             return 0.0f;
         };
     }
@@ -125,8 +121,8 @@ llvm::unique_function<float(int64_t)> getBiasFunc(mlir::Value bias) {
 
     auto biasContent = biasConst.content();
 
-    return [biasContent = std::move(biasContent)](int64_t oc) -> float {
-        return biasContent.getValues<float>()[oc];
+    return [biasContent = std::move(biasContent)](int64_t oc) -> double {
+        return biasContent.getValues<double>()[oc];
     };
 }
 
@@ -135,44 +131,44 @@ int64_t getOC(VPUIP::WeightsTableOp createWTableOp) {
         // Depthwise convolution case. Weights table contains both activation window and weights.
         // FIXME the logic repeats row-major convolution
         const auto filterShape = getShape(createWTableOp.weights());
-        return filterShape[IERT::ConvolutionOp::filter_out_channel_dim()];
+        return filterShape[IE::Dims4D::Filter::OC];
     }
 
     if (createWTableOp.weights() != nullptr) {
         const auto filterShape = getShape(createWTableOp.weights());
-        return filterShape[IERT::ConvolutionOp::filter_out_channel_dim()];
+        return filterShape[IE::Dims4D::Filter::OC];
     }
 
     const auto fakeSparsity = getShape(createWTableOp.activation_window());
-    return fakeSparsity[IERT::ConvolutionOp::filter_out_channel_dim()];  // actually this is input channel
+    return fakeSparsity[IE::Dims4D::Filter::OC];  // actually this is input channel
 }
 
 int32_t getWeightPtrStep(VPUIP::WeightsTableOp createWTableOp) {
-    if (createWTableOp.weights() != nullptr) {
-        const auto filterShape = getShape(createWTableOp.weights());
-
-        const auto IC = filterShape[IERT::ConvolutionOp::filter_in_channel_dim()];
-        const auto KY = filterShape[IERT::ConvolutionOp::filter_spatial_height_dim()];
-        const auto KX = filterShape[IERT::ConvolutionOp::filter_spatial_width_dim()];
-        const auto eltSize = Byte(getElemTypeSize(createWTableOp.weights().getType())).count();
-        if (createWTableOp.activation_window() != nullptr) {
-            // Depthwise convolution case.
-            // Weights table contains both activation window and weights.
-            // Check that weights have expected alignment.
-            // Other than that, weight step is the same for both z-major (OYXI) and depthwise convolutions.
-            const auto origFilterType = createWTableOp.weights().getType().cast<mlir::ShapedType>();
-            const auto depthwiseConvAlignment =
-                    VPUIP::NCEInvariant::getChannelAlignment(origFilterType.getElementType());
-            const int64_t weightsElementCount = IC * KY * KX;
-            VPUX_THROW_UNLESS(weightsElementCount % depthwiseConvAlignment == 0,
-                              "Depthwise convolution weights size must be a multiple of {0}, got {1}",
-                              depthwiseConvAlignment, weightsElementCount);
-        }
-
-        return checked_cast<int32_t>(IC * KY * KX * eltSize);
+    if (createWTableOp.weights() == nullptr) {
+        return 0;
     }
 
-    return 0;
+    const auto filterShape = getShape(createWTableOp.weights());
+
+    const auto IC = filterShape[IE::Dims4D::Filter::IC];
+    const auto KY = filterShape[IE::Dims4D::Filter::KY];
+    const auto KX = filterShape[IE::Dims4D::Filter::KX];
+
+    if (createWTableOp.activation_window() != nullptr) {
+        // Depthwise convolution case.
+        // Weights table contains both activation window and weights.
+        // Check that weights have expected alignment.
+        // Other than that, weight step is the same for both z-major (OYXI) and depthwise convolutions.
+        const auto origFilterType = createWTableOp.weights().getType().cast<mlir::ShapedType>();
+        const auto depthwiseConvAlignment = VPUIP::NCEInvariant::getChannelAlignment(origFilterType.getElementType());
+        const auto weightsElementCount = IC * KY * KX;
+        VPUX_THROW_UNLESS(weightsElementCount % depthwiseConvAlignment == 0,
+                          "Depthwise convolution weights size must be a multiple of {0}, got {1}",
+                          depthwiseConvAlignment, weightsElementCount);
+    }
+
+    const Byte eltSize = getElemTypeSize(createWTableOp.weights().getType());
+    return checked_cast<int32_t>(IC * KY * KX * eltSize.count());
 }
 
 int32_t getTensorPtrOffset(mlir::Value input, const AliasesInfo* aliasInfo) {

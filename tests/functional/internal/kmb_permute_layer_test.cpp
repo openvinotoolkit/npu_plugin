@@ -51,7 +51,7 @@ TEST_P(KmbPermuteLayerTests, Accuracy) {
     const size_t num_dims = p.in_desc_.getDims().size();
     IE_ASSERT(p.order_.size() == num_dims && "Order size must match the size of the input dimensions");
     if (num_dims >= 5) {
-        SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "Inference does not yet support 5-d inputs and outputs");
+        SKIP_INFER("Inference does not yet support 5-d inputs and outputs");
     }
 
     const auto output_desc = TensorDesc(p.in_desc_.getPrecision(), p.in_desc_.getLayout());

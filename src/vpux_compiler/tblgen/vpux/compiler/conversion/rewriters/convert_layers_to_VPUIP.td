@@ -76,31 +76,45 @@ def RewriteSoftMax :
         >;
 
 //
-// IERT.[Max|Avg]Pool -> VPUIP.PoolingUPA
+// IERT.AvgPool -> VPUIP.PoolingUPA
 //
 
-class createPoolingUPAOp<string method> :
+def createAvgPoolingUPAOp :
         NativeCodeCall<[{
             $_builder.create<vpux::VPUIP::PoolingUPAOp>(
                 $_loc, $0, $1,
                 vpux::VPUIP::PoolLayerTypeAttr::get(
                     $_builder.getContext(),
-                    vpux::VPUIP::PoolLayerType::}] # method # [{
+                    vpux::VPUIP::PoolLayerType::AVG
                 ),
-                $2, $3, $4, $5,
-                nullptr)
+                $2, $3, $4, $5, $6)
         }]>;
 
 def RewriteAvgPool :
         Pat<
-            (IERT_AvgPoolOp $input, $output, $kernel_size, $strides, $pads_begin, $pads_end),
-            (createPoolingUPAOp<"AVG"> $input, $output, $kernel_size, $strides, $pads_begin, $pads_end)
+            (IERT_AvgPoolOp $input, $output, $kernel_size, $strides, $pads_begin, $pads_end, $exclude_pads),
+            (createAvgPoolingUPAOp $input, $output, $kernel_size, $strides, $pads_begin, $pads_end, $exclude_pads)
         >;
+
+//
+// IERT.MaxPool -> VPUIP.PoolingUPA
+//
+
+def createMaxPoolingUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::PoolingUPAOp>(
+                $_loc, $0, $1,
+                vpux::VPUIP::PoolLayerTypeAttr::get(
+                    $_builder.getContext(),
+                    vpux::VPUIP::PoolLayerType::MAX
+                ),
+                $2, $3, $4, $5, nullptr)
+        }]>;
 
 def RewriteMaxPool :
         Pat<
             (IERT_MaxPoolOp $input, $output, $kernel_size, $strides, $pads_begin, $pads_end, $post_op),
-            (createPoolingUPAOp<"MAX"> $input, $output, $kernel_size, $strides, $pads_begin, $pads_end),
+            (createMaxPoolingUPAOp $input, $output, $kernel_size, $strides, $pads_begin, $pads_end),
             [
                 (HasNoValue $post_op)
             ]
@@ -109,23 +123,6 @@ def RewriteMaxPool :
 //
 // IERT.Convolution -> VPUIP.ConvolutionUPA
 //
-
-def createConvolutionUPAOp :
-        NativeCodeCall<[{
-            $_builder.create<vpux::VPUIP::ConvolutionUPAOp>(
-                $_loc, $0, $1,
-                $2.size() == 1 ? $2[0] : nullptr,
-                $3, $4, $5, $6, $7, 1)
-        }]>;
-
-def RewriteConvolution :
-        Pat<
-            (IERT_ConvolutionOp $input, $filter, $bias, $output, $strides, $pads_begin, $pads_end, $dilations, $post_op),
-            (createConvolutionUPAOp $input, $filter, $bias, $output, $strides, $dilations, $pads_begin, $pads_end),
-            [
-                (HasNoValue $post_op)
-            ]
-        >;
 
 def createGroupConvolutionUPAOp :
         NativeCodeCall<[{
@@ -219,6 +216,36 @@ def RewriteHSwish :
         Pat<
             (IERT_HSwishOp $input, $output),
             (createHSwishUPAOp $input, $output)
+        >;
+
+//
+// IERT.Floor -> VPUIP.FloorUPA
+//
+
+def createFloorUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::FloorUPAOp>($_loc, $0, $1)
+        }]>;
+
+def RewriteFloor :
+        Pat<
+            (IERT_FloorOp $input, $output),
+            (createFloorUPAOp $input, $output)
+        >;
+
+//
+// IERT.Mish -> VPUIP.MishUPA
+//
+
+def createMishUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::MishUPAOp>($_loc, $0, $1)
+        }]>;
+
+def RewriteMish :
+        Pat<
+            (IERT_MishOp $input, $output),
+            (createMishUPAOp $input, $output)
         >;
 
 //
@@ -336,8 +363,11 @@ class createEltwiseUPAOp<string method> :
 
 def RewriteAdd :
         Pat<
-            (IERT_AddOp $input1, $input2, $output),
-            (createEltwiseUPAOp<"ADD"> $input1, $input2, $output)
+            (IERT_AddOp $input1, $input2, $output, $post_op),
+            (createEltwiseUPAOp<"ADD"> $input1, $input2, $output),
+            [
+                (HasNoValue $post_op)
+            ]
         >;
 
 def RewriteMultiply :
@@ -469,6 +499,20 @@ def RewriteNegative :
         Pat<
             (IERT_NegativeOp $input, $output),
             (createNegativeUPAOp $input, $output)
+        >;
+
+//
+// IERT.Proposal -> VPUIP.ProposalUPA
+//
+def createProposalUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::ProposalUPAOp>(
+                $_loc, $0, $1, $2, $3, $4)
+        }]>;
+def RewriteProposal :
+        Pat<
+            (IERT_ProposalOp $class_probs, $bbox_deltas, $image_shape, $output, $proposal_attrs),
+            (createProposalUPAOp $class_probs, $bbox_deltas, $image_shape, $output, $proposal_attrs)
         >;
 
 //

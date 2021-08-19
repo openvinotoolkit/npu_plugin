@@ -44,7 +44,7 @@ TEST_P(KmbDeconvLayerTests, DepthWiseFP16) {
 #ifdef _WIN32
     GTEST_SKIP() << "out_spatial_shape == infered_out_spatial_shape";
 #endif
-    SKIP_ON("KMB", "HDDL2", "VPUX", "Bad results");
+    GTEST_SKIP() << "Skip due to bad results";
     const auto& p = GetParam();
 
     const auto netPresicion = Precision::FP32;

@@ -60,6 +60,9 @@
 #include <transformations/op_conversions/simplify_ctc_greedy_decoder_seq_len.hpp>
 #include "legacy/transformations/convert_opset1_to_legacy/convert_strided_slice_to_crop.hpp"
 
+#include <transformations/init_node_info.hpp>
+#include <transformations/rt_info/fused_names_attribute.hpp>
+
 using namespace vpux;
 
 namespace {
@@ -73,15 +76,23 @@ public:
             : _ctx(ctx), _netGraph(std::move(netGraph)), _sharedConstants(sharedConstants), _log(log) {
     }
 
-public:
     mlir::FuncOp buildMainFunc(mlir::OpBuilder& moduleBuilder, StringRef funcName, mlir::TimingScope& rootTiming);
+    static std::unordered_set<std::string> getSupportedOps(std::shared_ptr<const ngraph::Function> netGraph);
 
 private:
     using OrigNode = ngraph::Node;
     using OrigNodePtr = std::shared_ptr<OrigNode>;
     using NodeOutputMap = std::unordered_map<ngraph::Output<OrigNode>, mlir::Value>;
+    using Callback = void (NGraphImporter::*)(mlir::OpBuilder& builder, const OrigNodePtr& origNode);
 
-private:
+    static Callback getParser(const std::shared_ptr<ngraph::Node>& op);
+
+    template <class NodeType>
+    void parseDispatch(mlir::OpBuilder& builder, const OrigNodePtr& origNode);
+
+    void parseEmpty(mlir::OpBuilder&, const OrigNodePtr&) {
+    }
+
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Constant>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Convert>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Softmax>& origNode);
@@ -115,8 +126,10 @@ private:
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Tanh>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Exp>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::HSwish>& origNode);
+    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Floor>& origNode);
+    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Mish>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Transpose>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset4::Interpolate>& origNode);
+    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Interpolate>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::TopK>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::RegionYolo>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::ReorgYolo>& origNode);
@@ -134,20 +147,10 @@ private:
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Pad>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::LSTMCell>& origNode);
 
-    template <class NodeType>
-    void parseDispatch(mlir::OpBuilder& builder, const OrigNodePtr& origNode) {
-        parseNode(builder, std::dynamic_pointer_cast<NodeType>(origNode));
-    }
-
-    void parseEmpty(mlir::OpBuilder&, const OrigNodePtr&) {
-    }
-
-private:
     SmallVector<mlir::Value> getInputs(const OrigNodePtr& node);
     void addOutputs(const OrigNodePtr& node, mlir::Operation* op);
     mlir::Location createLocation(const OrigNodePtr& node);
 
-private:
     static SmallVector<int64_t> importShape(const ngraph::PartialShape& shape);
     mlir::Type importElemType(const ngraph::element::Type& elemType);
     mlir::RankedTensorType importTensor(const ngraph::PartialShape& shape, const ngraph::element::Type& elemType);
@@ -157,12 +160,11 @@ private:
     IE::TopKModeAttr importTopKMode(ngraph::op::TopKMode val);
     IE::TopKSortTypeAttr importTopKSortType(ngraph::op::TopKSortType val);
     IE::ProposalAttr importProposalAttrs(const ngraph::op::ProposalAttrs& val);
-    IE::InterpolateAttr importInterpolateAttrs(const ngraph::op::v4::Interpolate::InterpolateAttrs& val);
+    IE::InterpolateAttr importInterpolateAttrs(const opset_latest::Interpolate::InterpolateAttrs& val);
     IE::DetectionOutputAttr importDetectionOutputAttrs(const ngraph::op::DetectionOutputAttrs& val);
     IE::ROIPoolingMethodAttr importROIPoolingMethod(const std::string& method);
     IE::PadModeAttr importPadMode(const ngraph::op::PadMode val);
 
-private:
     mlir::MLIRContext* _ctx = nullptr;
     std::shared_ptr<const ngraph::Function> _netGraph;
     bool _sharedConstants = false;
@@ -171,15 +173,12 @@ private:
     NodeOutputMap _importedVals;
 };
 
-//
-// buildMainFunc
-//
+template <class NodeType>
+void NGraphImporter::parseDispatch(mlir::OpBuilder& builder, const OrigNodePtr& origNode) {
+    parseNode(builder, std::dynamic_pointer_cast<NodeType>(origNode));
+}
 
-mlir::FuncOp NGraphImporter::buildMainFunc(mlir::OpBuilder& moduleBuilder, StringRef funcName,
-                                           mlir::TimingScope& rootTiming) {
-    auto scopeTiming = rootTiming.nest("Import nGraph function");
-
-    using Callback = void (NGraphImporter::*)(mlir::OpBuilder & builder, const OrigNodePtr& origNode);
+NGraphImporter::Callback NGraphImporter::getParser(const std::shared_ptr<ngraph::Node>& op) {
     using DispatchMap = std::map<ngraph::NodeTypeInfo, Callback>;
 
 #define MAP_ENTRY(_NodeType_) \
@@ -222,8 +221,10 @@ mlir::FuncOp NGraphImporter::buildMainFunc(mlir::OpBuilder& moduleBuilder, Strin
             MAP_ENTRY(opset_latest::Tanh),
             MAP_ENTRY(opset_latest::Exp),
             MAP_ENTRY(opset_latest::HSwish),
+            MAP_ENTRY(opset_latest::Floor),
+            MAP_ENTRY(opset_latest::Mish),
             MAP_ENTRY(opset_latest::Transpose),
-            MAP_ENTRY(ngraph::opset4::Interpolate),
+            MAP_ENTRY(opset_latest::Interpolate),
             MAP_ENTRY(ngraph::opset1::TopK),
             MAP_ENTRY(opset_latest::RegionYolo),
             MAP_ENTRY(opset_latest::ReorgYolo),
@@ -243,6 +244,37 @@ mlir::FuncOp NGraphImporter::buildMainFunc(mlir::OpBuilder& moduleBuilder, Strin
     };
 
 #undef MAP_ENTRY
+
+    const auto dispatchIt = dispatchMap.find(op->get_type_info());
+    return (dispatchIt != dispatchMap.end()) ? dispatchIt->second : nullptr;
+}
+
+std::unordered_set<std::string> NGraphImporter::getSupportedOps(std::shared_ptr<const ngraph::Function> netGraph) {
+    std::unordered_set<std::string> supported;
+    std::unordered_set<std::string> unsupported;
+    for (const auto& op : netGraph->get_ordered_ops()) {
+        const bool hasParser = (getParser(op) != nullptr);
+        for (auto&& fusedLayerName : ngraph::getFusedNamesVector(op)) {
+            if (hasParser) {
+                supported.emplace(fusedLayerName);
+            } else {
+                unsupported.emplace(fusedLayerName);
+            }
+        }
+    }
+    for (auto&& unsupportedNode : unsupported) {
+        supported.erase(unsupportedNode);
+    }
+    return supported;
+}
+
+//
+// buildMainFunc
+//
+
+mlir::FuncOp NGraphImporter::buildMainFunc(mlir::OpBuilder& moduleBuilder, StringRef funcName,
+                                           mlir::TimingScope& rootTiming) {
+    auto scopeTiming = rootTiming.nest("Import nGraph function");
 
     SmallVector<mlir::Type> inputTypes;
     inputTypes.reserve(_netGraph->get_parameters().size());
@@ -275,12 +307,10 @@ mlir::FuncOp NGraphImporter::buildMainFunc(mlir::OpBuilder& moduleBuilder, Strin
 
     for (const auto& origNode : _netGraph->get_ordered_ops()) {
         _log.trace("Convert {0} layer {1}", origNode->get_type_name(), origNode->get_friendly_name());
+        const auto parser = NGraphImporter::getParser(origNode);
+        VPUX_THROW_UNLESS(nullptr != parser, "Unsupported operation {0} with type {1}", origNode->get_friendly_name(),
+                          origNode->get_type_name());
 
-        const auto dispatchIt = dispatchMap.find(origNode->get_type_info());
-        VPUX_THROW_UNLESS(dispatchIt != dispatchMap.end(), "Unsupported operation {0} with type {1}",
-                          origNode->get_friendly_name(), origNode->get_type_name());
-
-        const auto parser = dispatchIt->second;
         (this->*parser)(builder, origNode);
     }
 
@@ -311,6 +341,7 @@ mlir::FuncOp NGraphImporter::buildMainFunc(mlir::OpBuilder& moduleBuilder, Strin
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Constant>& origNode) {
     static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v0::Constant>::value,
                   "opset operation mismatch");
+
     const auto inputs = getInputs(origNode);
     VPUX_THROW_UNLESS(inputs.empty(), "nGraph Constant node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
@@ -344,6 +375,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Convert>& origNode) {
     static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v0::Convert>::value,
                   "opset operation mismatch");
+
     const auto inputs = getInputs(origNode);
     VPUX_THROW_UNLESS(inputs.size() == 1, "nGraph Convert node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
@@ -358,6 +390,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Softmax>& origNode) {
     static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v1::Softmax>::value,
                   "opset operation mismatch");
+
     const auto inputs = getInputs(origNode);
     VPUX_THROW_UNLESS(inputs.size() == 1, "nGraph Softmax node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
@@ -372,6 +405,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Tile>& origNode) {
     static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v0::Tile>::value,
                   "opset operation mismatch");
+
     const auto inputs = getInputs(origNode);
     VPUX_THROW_UNLESS(inputs.size() == 2, "nGraph Tile node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
@@ -383,6 +417,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Relu>& origNode) {
     static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v0::Relu>::value,
                   "opset operation mismatch");
+
     const auto inputs = getInputs(origNode);
     VPUX_THROW_UNLESS(inputs.size() == 1, "nGraph node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
@@ -394,6 +429,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Split>& origNode) {
     static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v1::Split>::value,
                   "opset operation mismatch");
+
     const auto inputs = getInputs(origNode);
     VPUX_THROW_UNLESS(inputs.size() == 2, "nGraph Split node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
@@ -408,6 +444,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Power>& origNode) {
     static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v1::Power>::value,
                   "opset operation mismatch");
+
     const auto inputs = getInputs(origNode);
     VPUX_THROW_UNLESS(inputs.size() == 2, "nGraph Power node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
@@ -422,6 +459,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Multiply>& origNode) {
     static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v1::Multiply>::value,
                   "opset operation mismatch");
+
     const auto inputs = getInputs(origNode);
     VPUX_THROW_UNLESS(inputs.size() == 2, "nGraph Multiply node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
@@ -436,6 +474,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::MatMul>& origNode) {
     static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v0::MatMul>::value,
                   "opset operation mismatch");
+
     const auto inputs = getInputs(origNode);
     VPUX_THROW_UNLESS(inputs.size() == 2, "nGraph node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
@@ -448,6 +487,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Convolution>& origNode) {
     static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v1::Convolution>::value,
                   "opset operation mismatch");
+
     const auto inputs = getInputs(origNode);
     VPUX_THROW_UNLESS(inputs.size() == 2, "nGraph node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
@@ -466,6 +506,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder,
                                const std::shared_ptr<opset_latest::GroupConvolution>& origNode) {
     static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v1::GroupConvolution>::value,
                   "opset operation mismatch");
+
     const auto inputs = getInputs(origNode);
     VPUX_THROW_UNLESS(inputs.size() == 2, "nGraph node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
@@ -486,6 +527,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder,
                                const std::shared_ptr<opset_latest::ConvolutionBackpropData>& origNode) {
     static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v1::ConvolutionBackpropData>::value,
                   "opset operation mismatch");
+
     const auto inputs = getInputs(origNode);
     VPUX_THROW_UNLESS((inputs.size() == 2) || (inputs.size() == 3),
                       "nGraph node '{0}' has unsupported number of inputs '{1}'", origNode->get_friendly_name(),
@@ -513,6 +555,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder,
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::AvgPool>& origNode) {
     static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v1::AvgPool>::value,
                   "opset operation mismatch");
+
     const auto inputs = getInputs(origNode);
     VPUX_THROW_UNLESS(inputs.size() == 1, "nGraph node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
@@ -523,15 +566,17 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
     const auto attrPadsEnd = getIntArrayAttr(_ctx, origNode->get_pads_end());
 
     const auto attrRoundingType = importRoundingType(origNode->get_rounding_type());
+    const auto attrExcludePads = origNode->get_exclude_pad() ? mlir::UnitAttr::get(_ctx) : nullptr;
 
     auto op = builder.create<IE::AvgPoolOp>(createLocation(origNode), inputs[0], attrKernelSize, attrStride,
-                                            attrPadsBegin, attrPadsEnd, attrRoundingType);
+                                            attrPadsBegin, attrPadsEnd, attrRoundingType, attrExcludePads);
     addOutputs(origNode, op);
 }
 
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::MaxPool>& origNode) {
     static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v1::MaxPool>::value,
                   "opset operation mismatch");
+
     const auto inputs = getInputs(origNode);
     VPUX_THROW_UNLESS(inputs.size() == 1, "nGraph node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
@@ -551,20 +596,23 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Add>& origNode) {
     static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v1::Add>::value,
                   "opset operation mismatch");
+
     const auto inputs = getInputs(origNode);
     VPUX_THROW_UNLESS(inputs.size() == 2, "nGraph node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
 
     const auto& autob = origNode->get_autob();
 
-    auto op = builder.create<IE::AddOp>(createLocation(origNode), inputs[0], inputs[1],
-                                        importBroadcastType(autob.m_type));
+    auto op =
+            builder.create<IE::AddOp>(createLocation(origNode), inputs[0], inputs[1], importBroadcastType(autob.m_type),
+                                      /*post_op=*/nullptr);
     addOutputs(origNode, op);
 }
 
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Divide>& origNode) {
     static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v1::Divide>::value,
                   "opset operation mismatch");
+
     const auto inputs = getInputs(origNode);
     VPUX_THROW_UNLESS(inputs.size() == 2, "nGraph node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
@@ -580,6 +628,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder,
                                const std::shared_ptr<opset_latest::SquaredDifference>& origNode) {
     static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v0::SquaredDifference>::value,
                   "opset operation mismatch");
+
     const auto inputs = getInputs(origNode);
     VPUX_THROW_UNLESS(inputs.size() == 2, "nGraph node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
@@ -594,6 +643,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder,
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::FloorMod>& origNode) {
     static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v1::FloorMod>::value,
                   "opset operation mismatch");
+
     const auto inputs = getInputs(origNode);
     VPUX_THROW_UNLESS(inputs.size() == 2, "nGraph node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
@@ -608,6 +658,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Gather>& origNode) {
     static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v1::Gather>::value,
                   "opset operation mismatch");
+
     const auto inputs = getInputs(origNode);
     VPUX_THROW_UNLESS(inputs.size() == 3, "nGraph Gather node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
@@ -619,6 +670,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Reshape>& origNode) {
     static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v1::Reshape>::value,
                   "opset operation mismatch");
+
     const auto inputs = getInputs(origNode);
     VPUX_THROW_UNLESS(inputs.size() == 2, "nGraph Reshape node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
@@ -631,6 +683,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Minimum>& origNode) {
     static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v1::Minimum>::value,
                   "opset operation mismatch");
+
     const auto inputs = getInputs(origNode);
     VPUX_THROW_UNLESS(inputs.size() == 2, "nGraph Minimum node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
@@ -645,6 +698,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Maximum>& origNode) {
     static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v1::Maximum>::value,
                   "opset operation mismatch");
+
     const auto inputs = getInputs(origNode);
     VPUX_THROW_UNLESS(inputs.size() == 2, "nGraph Maximum node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
@@ -659,6 +713,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Clamp>& origNode) {
     static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v0::Clamp>::value,
                   "opset operation mismatch");
+
     const auto inputs = getInputs(origNode);
     VPUX_THROW_UNLESS(inputs.size() == 1, "nGraph Clamp node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
@@ -675,6 +730,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::Proposal>& origNode) {
     static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v0::Proposal>::value,
                   "opset operation mismatch");
+
     const auto inputs = getInputs(origNode);
     VPUX_THROW_UNLESS(inputs.size() == 3, "nGraph Proposal node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
@@ -690,6 +746,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Unsqueeze>& origNode) {
     static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v0::Unsqueeze>::value,
                   "opset operation mismatch");
+
     const auto inputs = getInputs(origNode);
     VPUX_THROW_UNLESS(inputs.size() == 2, "nGraph Squeeze node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
@@ -701,6 +758,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::LRN>& origNode) {
     static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v0::LRN>::value,
                   "opset operation mismatch");
+
     const auto inputs = getInputs(origNode);
     VPUX_THROW_UNLESS(inputs.size() == 2, "nGraph LRN node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
@@ -723,6 +781,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Sigmoid>& origNode) {
     static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v0::Sigmoid>::value,
                   "opset operation mismatch");
+
     const auto inputs = getInputs(origNode);
     VPUX_THROW_UNLESS(inputs.size() == 1, "nGraph Sigmoid node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
@@ -735,6 +794,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Squeeze>& origNode) {
     static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v0::Squeeze>::value,
                   "opset operation mismatch");
+
     const auto inputs = getInputs(origNode);
     VPUX_THROW_UNLESS(inputs.size() <= 2, "nGraph Squeeze node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
@@ -746,6 +806,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Transpose>& origNode) {
     static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v1::Transpose>::value,
                   "opset operation mismatch");
+
     const auto inputs = getInputs(origNode);
 
     VPUX_THROW_UNLESS(inputs.size() == 2, "nGraph Transpose node '{0}' has unsupported number of inputs '{1}'",
@@ -758,6 +819,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Tanh>& origNode) {
     static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v0::Tanh>::value,
                   "opset operation mismatch");
+
     const auto inputs = getInputs(origNode);
     VPUX_THROW_UNLESS(inputs.size() == 1, "nGraph Tanh node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
@@ -769,6 +831,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Elu>& origNode) {
     static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v0::Elu>::value,
                   "opset operation mismatch");
+
     const auto inputs = getInputs(origNode);
     VPUX_THROW_UNLESS(inputs.size() == 1, "nGraph Elu node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
@@ -783,6 +846,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::HSwish>& origNode) {
     static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v4::HSwish>::value,
                   "opset operation mismatch");
+
     const auto inputs = getInputs(origNode);
     VPUX_THROW_UNLESS(inputs.size() == 1, "nGraph HSwish node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
@@ -791,9 +855,33 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
     addOutputs(origNode, op);
 }
 
+void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Floor>& origNode) {
+    static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v0::Floor>::value,
+                  "opset operation mismatch");
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS(inputs.size() == 1, "nGraph Floor node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
+
+    auto op = builder.create<IE::FloorOp>(createLocation(origNode), inputs[0]);
+    addOutputs(origNode, op);
+}
+
+void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Mish>& origNode) {
+    static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v4::Mish>::value,
+                  "opset operation mismatch");
+
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS(inputs.size() == 1, "nGraph Mish node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
+
+    auto op = builder.create<IE::MishOp>(createLocation(origNode), inputs[0]);
+    addOutputs(origNode, op);
+}
+
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::FakeQuantize>& origNode) {
     static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v0::FakeQuantize>::value,
                   "opset operation mismatch");
+
     const auto inputs = getInputs(origNode);
     VPUX_THROW_UNLESS(inputs.size() == 5, "nGraph FakeQuantize node '{0}' has unsupported number of inputs '{1}'.",
                       origNode->get_friendly_name(), inputs.size());
@@ -810,6 +898,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Exp>& origNode) {
     static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v0::Exp>::value,
                   "opset operation mismatch");
+
     const auto inputs = getInputs(origNode);
     VPUX_THROW_UNLESS(inputs.size() == 1, "nGraph Exp node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
@@ -821,6 +910,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::StridedSlice>& origNode) {
     static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v1::StridedSlice>::value,
                   "opset operation mismatch");
+
     const auto inputs = getInputs(origNode);
     VPUX_THROW_UNLESS(inputs.size() == 4, "nGraph StridedSlice node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
@@ -840,6 +930,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::ROIPooling>& origNode) {
     static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v0::ROIPooling>::value,
                   "opset operation mismatch");
+
     const auto inputs = getInputs(origNode);
     VPUX_THROW_UNLESS(inputs.size() == 2, "nGraph ROIPooling node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
@@ -856,6 +947,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Concat>& origNode) {
     static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v0::Concat>::value,
                   "opset operation mismatch");
+
     const auto inputs = getInputs(origNode);
     VPUX_THROW_UNLESS(inputs.size() >= 1, "nGraph Concat node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
@@ -867,9 +959,10 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
     addOutputs(origNode, op);
 }
 
-void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset4::Interpolate>& origNode) {
+void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Interpolate>& origNode) {
     static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v4::Interpolate>::value,
                   "opset operation mismatch");
+
     const auto inputs = getInputs(origNode);
     VPUX_THROW_UNLESS(inputs.size() == 4, "nGraph Interpolate node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
@@ -884,6 +977,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset1::TopK>& origNode) {
     static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v1::TopK>::value,
                   "opset operation mismatch");
+
     const auto inputs = getInputs(origNode);
     VPUX_THROW_UNLESS(inputs.size() == 2, "nGraph TopK node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
@@ -901,6 +995,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::RegionYolo>& origNode) {
     static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v0::RegionYolo>::value,
                   "opset operation mismatch");
+
     const auto inputs = getInputs(origNode);
     VPUX_THROW_UNLESS(inputs.size() == 1, "nGraph RegionYolo node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
@@ -922,6 +1017,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::ReorgYolo>& origNode) {
     static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v0::ReorgYolo>::value,
                   "opset operation mismatch");
+
     const auto inputs = getInputs(origNode);
     VPUX_THROW_UNLESS(inputs.size() == 1, "nGraph ReorgYolo node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
@@ -944,6 +1040,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder,
                                const std::shared_ptr<opset_latest::DetectionOutput>& origNode) {
     static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v0::DetectionOutput>::value,
                   "opset operation mismatch");
+
     const auto inputs = getInputs(origNode);
     VPUX_THROW_UNLESS(inputs.size() == 3 || inputs.size() == 5,
                       "nGraph DetectionOutput node '{0}' has unsupported number of inputs '{1}'",
@@ -965,6 +1062,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder,
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::NormalizeL2>& origNode) {
     static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v0::NormalizeL2>::value,
                   "opset operation mismatch");
+
     const auto inputs = getInputs(origNode);
     VPUX_THROW_UNLESS(inputs.size() == 2, "nGraph Normalize node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
@@ -979,6 +1077,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::PRelu>& origNode) {
     static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v0::PRelu>::value,
                   "opset operation mismatch");
+
     const auto inputs = getInputs(origNode);
     VPUX_THROW_UNLESS(inputs.size() == 2, "nGraph PRelu node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
@@ -990,6 +1089,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Swish>& origNode) {
     static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v4::Swish>::value,
                   "opset operation mismatch");
+
     const auto inputs = getInputs(origNode);
     VPUX_THROW_UNLESS(inputs.size() == 2, "nGraph Swish node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
@@ -1001,6 +1101,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::GRN>& origNode) {
     static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v0::GRN>::value,
                   "opset operation mismatch");
+
     const auto inputs = getInputs(origNode);
     VPUX_THROW_UNLESS(inputs.size() == 1, "nGraph GRN node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
@@ -1014,6 +1115,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Negative>& origNode) {
     static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v0::Negative>::value,
                   "opset operation mismatch");
+
     const auto inputs = getInputs(origNode);
     VPUX_THROW_UNLESS(inputs.size() == 1, "nGraph Negative node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
@@ -1026,6 +1128,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder,
                                const std::shared_ptr<opset_latest::CTCGreedyDecoder>& origNode) {
     static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v0::CTCGreedyDecoder>::value,
                   "opset operation mismatch");
+
     const auto inputs = getInputs(origNode);
     VPUX_THROW_UNLESS(inputs.size() == 2, "nGraph CTCGreedyDecoder node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
@@ -1039,6 +1142,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder,
                                const std::shared_ptr<opset_latest::CTCGreedyDecoderSeqLen>& origNode) {
     static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v6::CTCGreedyDecoderSeqLen>::value,
                   "opset operation mismatch");
+
     const auto inputs = getInputs(origNode);
     VPUX_THROW_UNLESS(inputs.size() == 3,
                       "nGraph CTCGreedyDecoderSeqLen node '{0}' has unsupported number of inputs '{1}'",
@@ -1052,6 +1156,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder,
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Pad>& origNode) {
     static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v1::Pad>::value,
                   "opset operation mismatch");
+
     const auto inputs = getInputs(origNode);
 
     if (inputs.size() == 4) {
@@ -1069,8 +1174,9 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
 }
 
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::LSTMCell>& origNode) {
-    static_assert(std::is_same<std::decay<decltype(*origNode)>::type, opset_latest::LSTMCell>::value,
+    static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v4::LSTMCell>::value,
                   "opset operation mismatch");
+
     const auto inputs = getInputs(origNode);
     VPUX_THROW_UNLESS(inputs.size() == 6, "nGraph LSTMCell node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
@@ -1252,20 +1358,20 @@ IE::ProposalAttr NGraphImporter::importProposalAttrs(const ngraph::op::ProposalA
                                  boxSizeScaleAttr, boxCoordinateScaleAttr, frameworkAttr, inferProbsAttr, _ctx);
 }
 
-IE::InterpolateAttr NGraphImporter::importInterpolateAttrs(const ngraph::op::v4::Interpolate::InterpolateAttrs& val) {
+IE::InterpolateAttr NGraphImporter::importInterpolateAttrs(const opset_latest::Interpolate::InterpolateAttrs& val) {
     // mode
     IE::InterpolateModeAttr modeAttr;
     switch (val.mode) {
-    case ngraph::op::v4::Interpolate::InterpolateMode::nearest:
+    case opset_latest::Interpolate::InterpolateMode::nearest:
         modeAttr = IE::InterpolateModeAttr::get(_ctx, IE::InterpolateMode::nearest);
         break;
-    case ngraph::op::v4::Interpolate::InterpolateMode::linear:
+    case opset_latest::Interpolate::InterpolateMode::linear:
         modeAttr = IE::InterpolateModeAttr::get(_ctx, IE::InterpolateMode::linear);
         break;
-    case ngraph::op::v4::Interpolate::InterpolateMode::linear_onnx:
+    case opset_latest::Interpolate::InterpolateMode::linear_onnx:
         modeAttr = IE::InterpolateModeAttr::get(_ctx, IE::InterpolateMode::linear_onnx);
         break;
-    case ngraph::op::v4::Interpolate::InterpolateMode::cubic:
+    case opset_latest::Interpolate::InterpolateMode::cubic:
         modeAttr = IE::InterpolateModeAttr::get(_ctx, IE::InterpolateMode::cubic);
         break;
     default:
@@ -1275,10 +1381,10 @@ IE::InterpolateAttr NGraphImporter::importInterpolateAttrs(const ngraph::op::v4:
     // shape calculation mode
     IE::InterpolateCalcModeAttr calcModeAttr;
     switch (val.shape_calculation_mode) {
-    case ngraph::op::v4::Interpolate::ShapeCalcMode::sizes:
+    case opset_latest::Interpolate::ShapeCalcMode::sizes:
         calcModeAttr = IE::InterpolateCalcModeAttr::get(_ctx, IE::InterpolateCalcMode::sizes);
         break;
-    case ngraph::op::v4::Interpolate::ShapeCalcMode::scales:
+    case opset_latest::Interpolate::ShapeCalcMode::scales:
         calcModeAttr = IE::InterpolateCalcModeAttr::get(_ctx, IE::InterpolateCalcMode::scales);
         break;
     default:
@@ -1288,19 +1394,19 @@ IE::InterpolateAttr NGraphImporter::importInterpolateAttrs(const ngraph::op::v4:
     // coordinate transformation mode
     IE::InterpolateCoordModeAttr coordModeAttr;
     switch (val.coordinate_transformation_mode) {
-    case ngraph::op::v4::Interpolate::CoordinateTransformMode::half_pixel:
+    case opset_latest::Interpolate::CoordinateTransformMode::half_pixel:
         coordModeAttr = IE::InterpolateCoordModeAttr::get(_ctx, IE::InterpolateCoordMode::half_pixel);
         break;
-    case ngraph::op::v4::Interpolate::CoordinateTransformMode::pytorch_half_pixel:
+    case opset_latest::Interpolate::CoordinateTransformMode::pytorch_half_pixel:
         coordModeAttr = IE::InterpolateCoordModeAttr::get(_ctx, IE::InterpolateCoordMode::pytorch_half_pixel);
         break;
-    case ngraph::op::v4::Interpolate::CoordinateTransformMode::asymmetric:
+    case opset_latest::Interpolate::CoordinateTransformMode::asymmetric:
         coordModeAttr = IE::InterpolateCoordModeAttr::get(_ctx, IE::InterpolateCoordMode::asymmetric);
         break;
-    case ngraph::op::v4::Interpolate::CoordinateTransformMode::tf_half_pixel_for_nn:
+    case opset_latest::Interpolate::CoordinateTransformMode::tf_half_pixel_for_nn:
         coordModeAttr = IE::InterpolateCoordModeAttr::get(_ctx, IE::InterpolateCoordMode::tf_half_pixel_for_nn);
         break;
-    case ngraph::op::v4::Interpolate::CoordinateTransformMode::align_corners:
+    case opset_latest::Interpolate::CoordinateTransformMode::align_corners:
         coordModeAttr = IE::InterpolateCoordModeAttr::get(_ctx, IE::InterpolateCoordMode::align_corners);
         break;
     default:
@@ -1310,19 +1416,19 @@ IE::InterpolateAttr NGraphImporter::importInterpolateAttrs(const ngraph::op::v4:
     // coordinate transformation mode
     IE::InterpolateNearestModeAttr nearestModeAttr;
     switch (val.nearest_mode) {
-    case ngraph::op::v4::Interpolate::NearestMode::round_prefer_floor:
+    case opset_latest::Interpolate::NearestMode::round_prefer_floor:
         nearestModeAttr = IE::InterpolateNearestModeAttr::get(_ctx, IE::InterpolateNearestMode::round_prefer_floor);
         break;
-    case ngraph::op::v4::Interpolate::NearestMode::round_prefer_ceil:
+    case opset_latest::Interpolate::NearestMode::round_prefer_ceil:
         nearestModeAttr = IE::InterpolateNearestModeAttr::get(_ctx, IE::InterpolateNearestMode::round_prefer_ceil);
         break;
-    case ngraph::op::v4::Interpolate::NearestMode::floor:
+    case opset_latest::Interpolate::NearestMode::floor:
         nearestModeAttr = IE::InterpolateNearestModeAttr::get(_ctx, IE::InterpolateNearestMode::floor);
         break;
-    case ngraph::op::v4::Interpolate::NearestMode::ceil:
+    case opset_latest::Interpolate::NearestMode::ceil:
         nearestModeAttr = IE::InterpolateNearestModeAttr::get(_ctx, IE::InterpolateNearestMode::ceil);
         break;
-    case ngraph::op::v4::Interpolate::NearestMode::simple:
+    case opset_latest::Interpolate::NearestMode::simple:
         nearestModeAttr = IE::InterpolateNearestModeAttr::get(_ctx, IE::InterpolateNearestMode::simple);
         break;
     default:
@@ -1462,6 +1568,7 @@ void runNGraphPasses(const std::shared_ptr<ngraph::Function>& netGraph, mlir::Ti
     passConfig->disable<ngraph::pass::ConvertStridedSliceToCropMatcher>();
 
     ngraph::pass::Manager manager(passConfig);
+    manager.register_pass<ngraph::pass::InitNodeInfo>();
     manager.register_pass<ngraph::pass::ConvertInterpolate1ToInterpolate4>();
     manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<ngraph::pass::ConvertQuantizeDequantize>();
@@ -1515,6 +1622,25 @@ void addCNNNetworkOp(mlir::OpBuilder& builder, mlir::FlatSymbolRefAttr mainFuncN
 }
 
 }  // namespace
+
+//
+// queryNetwork
+//
+
+std::unordered_set<std::string> vpux::IE::queryNetwork(const InferenceEngine::CNNNetwork& cnnNet,
+                                                       mlir::TimingScope& rootTiming, Logger log) {
+    log.setName("IE::FrontEnd");
+    log.trace("Run queryNetwork");
+
+    const auto netGraph = ngraph::clone_function(*(cnnNet.getFunction()));
+    VPUX_THROW_UNLESS(netGraph != nullptr, "Old IR versions (prior v10) are not supported : {0}", cnnNet.getName());
+
+    log.trace("Run common nGraph passes");
+    runNGraphPasses(netGraph, rootTiming);
+
+    log.trace("Get supported operations list");
+    return NGraphImporter::getSupportedOps(netGraph);
+}
 
 //
 // importNetwork

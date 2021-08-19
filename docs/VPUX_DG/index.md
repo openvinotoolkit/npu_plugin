@@ -181,6 +181,33 @@ If both `[id]` and `[platform]` are ommited, then behavior depends on a platform
 
 #### Adding a compiler
 
+VPUX Plugin has modular structure and one of its modules is a graph compiler. Responsibility of the graph compiler is to transform a model from ngraph representation to a format which can be executed by a VPU device. The graph compiler shall implement interfaces \ref vpux::ICompiler "ICompiler" and \ref vpux::INetworkDescription "INetworkDescription". Implementation of those interfaces allows VPUX Abstraction Layer to include the compiler into VPUX Plugin.
+
+Refer to the links below for more detailed description of interfaces to be implemented by a concrete compiler:
+
+* \ref vpux::ICompiler "ICompiler"
+* \ref vpux::INetworkDescription "INetworkDescription"
+
+The graph compiler module shall be implemented as a runtime loaded library with the only one function exported: `CreateVPUXCompiler`. This function is an entry point to the compiler library and responsible for instantiating concrete implementation of \ref vpux::ICompiler "ICompiler" interface.  A typical implementation of `CreateVPUXCompiler` may look like the following:
+
+```
+INFERENCE_PLUGIN_API(void)
+CreateVPUXCompiler(std::shared_ptr<ICompiler>& compiler) {
+    compiler = std::make_shared<CompilerImpl>();
+}
+```
+
+where `INFERENCE_PLUGIN_API` macro exports the function and `CompilerImpl` is a concrete implementation of \ref vpux::ICompiler "ICompiler" interface.
+
+#### Including a compiler into VPUX Plugin
+
+The selection of a compiler is controlled by a config option `VPUX_COMPILER_TYPE`. Currently, it supports two options: `MLIR` and `MCM` with the default value set to `MCM`.
+A newly added compiler shall be registered:
+1. Range of values for `VPUX_COMPILER_TYPE` shall be extended:
+  * \ref vpux_private_config.hpp "vpux_private_config.hpp" to add a new value for the config option
+  * \ref vpux_config.cpp "vpux_config.cpp" to parse the value into `_compilerType`
+2. Factory method \ref vpux::Compiler::create "vpux::Compiler::create" shall be updated to create the new compiler if a corresponding config option is selected.
+
 #### Adding an engine backend
 
 ### Level Zero Backend Developer Guide

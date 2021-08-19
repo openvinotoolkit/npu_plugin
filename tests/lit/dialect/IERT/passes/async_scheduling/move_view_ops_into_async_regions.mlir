@@ -8,11 +8,11 @@
 func @main(%in : memref<10x10xf16>, %out_buf : memref<10x10xf16>) -> memref<10x10xf16> {
     %in_flat = IERT.GenericReshape inputs(%in : memref<10x10xf16>) -> memref<100xf16>
 
-    %in_tile_0 = memref.subview %in_flat [ 0][50][1] : memref<100xf16> to memref<50xf16>
-    %in_tile_1 = memref.subview %in_flat [50][50][1] : memref<100xf16> to memref<50xf16, #in_tile_1>
+    %in_tile_0 = IERT.SubView %in_flat [ 0][50] : memref<100xf16> to memref<50xf16>
+    %in_tile_1 = IERT.SubView %in_flat [50][50] : memref<100xf16> to memref<50xf16, #in_tile_1>
 
-    %out_buf_tile_0 = memref.subview %out_buf [0, 0][5, 10][1, 1] : memref<10x10xf16> to memref<5x10xf16, #out_buf_tile_0>
-    %out_buf_tile_1 = memref.subview %out_buf [5, 0][5, 10][1, 1] : memref<10x10xf16> to memref<5x10xf16, #out_buf_tile_1>
+    %out_buf_tile_0 = IERT.SubView %out_buf [0, 0][5, 10] : memref<10x10xf16> to memref<5x10xf16, #out_buf_tile_0>
+    %out_buf_tile_1 = IERT.SubView %out_buf [5, 0][5, 10] : memref<10x10xf16> to memref<5x10xf16, #out_buf_tile_1>
 
     // Tile 0
 
@@ -91,7 +91,7 @@ func @main(%in : memref<10x10xf16>, %out_buf : memref<10x10xf16>) -> memref<10x1
 // CHECK:       [[temp_buf_0:%.*]] = memref.alloc()
 // CHECK:       [[temp_token_0:%.*]], [[temp_future_0:%.*]] = async.execute
 // CHECK:           [[in_flat_0:%.*]] = IERT.GenericReshape inputs([[in]] : memref<10x10xf16>)
-// CHECK:           [[in_tile_0:%.*]] = memref.subview [[in_flat_0]][0] [50] [1]
+// CHECK:           [[in_tile_0:%.*]] = IERT.SubView [[in_flat_0]] [0] [50]
 // CHECK:           [[inner_temp_0:%.*]] = IERT.ReLU
 // CHECK-SAME:          inputs(
 // CHECK-SAME:              [[in_tile_0]]
@@ -101,7 +101,7 @@ func @main(%in : memref<10x10xf16>, %out_buf : memref<10x10xf16>) -> memref<10x1
 // CHECK:           async.yield [[inner_temp_0]]
 // CHECK:       [[temp_0:%.*]] = async.await [[temp_future_0]]
 // CHECK:       [[out_tile_token_0:%.*]], [[out_tile_future_0:%.*]] = async.execute
-// CHECK:           [[out_buf_tile_0:%.*]] = memref.subview [[out_buf]][0, 0] [5, 10] [1, 1]
+// CHECK:           [[out_buf_tile_0:%.*]] = IERT.SubView [[out_buf]] [0, 0] [5, 10]
 // CHECK:           [[temp_0_unflat:%.*]] = IERT.GenericReshape inputs([[temp_0]] : memref<50xf16>)
 // CHECK:           [[out_tile_0:%.*]] = IERT.Copy
 // CHECK-SAME:          inputs(
@@ -116,7 +116,7 @@ func @main(%in : memref<10x10xf16>, %out_buf : memref<10x10xf16>) -> memref<10x1
 // CHECK:       [[temp_buf_1:%.*]] = memref.alloc()
 // CHECK:       [[temp_token_1:%.*]], [[temp_future_1:%.*]] = async.execute
 // CHECK:           [[in_flat_1:%.*]] = IERT.GenericReshape inputs([[in]] : memref<10x10xf16>)
-// CHECK:           [[in_tile_1:%.*]] = memref.subview [[in_flat_1]][50] [50] [1]
+// CHECK:           [[in_tile_1:%.*]] = IERT.SubView [[in_flat_1]] [50] [50]
 // CHECK:           [[inner_temp_1:%.*]] = IERT.ReLU
 // CHECK-SAME:          inputs(
 // CHECK-SAME:              [[in_tile_1]]
@@ -126,7 +126,7 @@ func @main(%in : memref<10x10xf16>, %out_buf : memref<10x10xf16>) -> memref<10x1
 // CHECK:           async.yield [[inner_temp_1]]
 // CHECK:       [[temp_1:%.*]] = async.await [[temp_future_1]]
 // CHECK:       [[out_tile_token_1:%.*]], [[out_tile_future_1:%.*]] = async.execute
-// CHECK:           [[out_buf_tile_1:%.*]] = memref.subview [[out_buf]][5, 0] [5, 10] [1, 1]
+// CHECK:           [[out_buf_tile_1:%.*]] = IERT.SubView [[out_buf]] [5, 0] [5, 10]
 // CHECK:           [[temp_1_unflat:%.*]] = IERT.GenericReshape inputs([[temp_1]] : memref<50xf16>)
 // CHECK:           [[out_tile_1:%.*]] = IERT.Copy
 // CHECK-SAME:          inputs(

@@ -23,6 +23,15 @@
 using namespace vpux;
 
 //
+// ReshapeAttr::walkImmediateSubElements
+//
+
+void vpux::Const::ReshapeAttr::walkImmediateSubElements(llvm::function_ref<void(Attribute)> walkAttrsFn,
+                                                        llvm::function_ref<void(mlir::Type)>) const {
+    walkAttrsFn(getShape());
+}
+
+//
 // ReshapeAttr::verify
 //
 

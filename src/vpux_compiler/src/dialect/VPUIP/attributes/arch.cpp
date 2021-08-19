@@ -28,9 +28,12 @@ constexpr StringLiteral archAttrName = "VPUIP.arch";
 constexpr StringLiteral derateFactorAttrName = "VPUIP.derateFactor";
 constexpr StringLiteral bandwidthAttrName = "VPUIP.bandwidth";
 
+const int MAX_DPU_GROUPS_MTL = 2;
+const int MAX_DPU_GROUPS_KMB = 4;
+
 }  // namespace
 
-void vpux::VPUIP::setArch(mlir::ModuleOp module, ArchKind kind) {
+void vpux::VPUIP::setArch(mlir::ModuleOp module, ArchKind kind, Optional<int> numOfDPUGroups) {
     module->setAttr(archAttrName, VPUIP::ArchKindAttr::get(module.getContext(), kind));
 
     auto builder = mlir::OpBuilder::atBlockBegin(module.getBody());
@@ -67,13 +70,21 @@ void vpux::VPUIP::setArch(mlir::ModuleOp module, ArchKind kind) {
         return VPUIP::DMAEngineAttr::get(module.getContext(), kind);
     };
 
+    const auto getNumOfDPUGroupsVal = [&](int maxDpuGroups) {
+        int numOfDPUGroupsVal = numOfDPUGroups.hasValue() ? numOfDPUGroups.getValue() : maxDpuGroups;
+        VPUX_THROW_UNLESS(1 <= numOfDPUGroupsVal && numOfDPUGroupsVal <= maxDpuGroups,
+                          "Invalid number of DPU groups: '{0}'", numOfDPUGroupsVal);
+        return numOfDPUGroupsVal;
+    };
+
     IERT::ExecutorResourceOp nceCluster;
 
     switch (kind) {
     case VPUIP::ArchKind::MTL:
         resources.addExecutor(getDmaKind(DMAEngine::DMA_NN), 2);
 
-        nceCluster = resources.addExecutor(getProcKind(PhysicalProcessor::NCE_Cluster), 1, true);
+        nceCluster = resources.addExecutor(getProcKind(PhysicalProcessor::NCE_Cluster),
+                                           getNumOfDPUGroupsVal(MAX_DPU_GROUPS_MTL), true);
         nceCluster.addSubExecutor(getProcKind(PhysicalProcessor::NCE_PerClusterDPU), 1);
 
         break;
@@ -87,7 +98,8 @@ void vpux::VPUIP::setArch(mlir::ModuleOp module, ArchKind kind) {
 
         resources.addExecutor(getProcKind(PhysicalProcessor::SHAVE_UPA), 16);
 
-        nceCluster = resources.addExecutor(getProcKind(PhysicalProcessor::NCE_Cluster), 4, true);
+        nceCluster = resources.addExecutor(getProcKind(PhysicalProcessor::NCE_Cluster),
+                                           getNumOfDPUGroupsVal(MAX_DPU_GROUPS_KMB), true);
         nceCluster.addSubExecutor(getProcKind(PhysicalProcessor::NCE_PerClusterDPU), 5);
     }
 }

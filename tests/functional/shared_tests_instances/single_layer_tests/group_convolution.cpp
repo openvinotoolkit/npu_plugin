@@ -38,36 +38,6 @@ class KmbGroupConvolutionLayerTest :
         if (isCompilerMCM()) {
             throw LayerTestsUtils::KmbSkipTestException("Comparison fails");
         }
-
-        if (isCompilerMLIR()) {
-            auto params = std::get<0>(GetParam());
-
-            auto strides = std::get<1>(params);
-            auto padsBegin = std::get<2>(params);
-            auto dilations = std::get<4>(params);
-            auto padType = std::get<7>(params);
-
-            // [Track number: E#16206]
-            if (strides.size() == 1 && padType == ngraph::op::PadType::EXPLICIT) {
-                auto isBadPadsBegin = padsBegin[0] > 1;
-                auto isBadDilations = dilations[0] == 1;
-                if (isBadPadsBegin && isBadDilations) {
-                    throw LayerTestsUtils::KmbSkipTestException("Comparison fails");
-                }
-            }
-
-            // [Track number: E#16206]
-            if (strides.size() == 2 && padType == ngraph::op::PadType::EXPLICIT) {
-                auto isBadStrides = strides[0] == strides[1] && strides[0] < 5;
-                auto isGoodPadsBegin =
-                        (padsBegin[0] == 0 && padsBegin[1] == 0) || (padsBegin[0] == 1 && padsBegin[1] == 0) ||
-                        (padsBegin[0] == 0 && padsBegin[1] == 1) || (padsBegin[0] == 1 && padsBegin[1] == 1);
-                auto isBadDilations = dilations[0] == 1 && dilations[1] == 1;
-
-                if (isBadStrides && !isGoodPadsBegin && isBadDilations)
-                    throw LayerTestsUtils::KmbSkipTestException("Comparison fails");
-            }
-        }
     }
 
     // [Track number: E#12804]

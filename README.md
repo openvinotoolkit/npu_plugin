@@ -7,9 +7,22 @@
     - VPUAL Backend
     - Zero Backend
     - HDDL2 Backend
+- [Sofrware kernels implementation](./sw_runtime_kernels)
 
 ## Documentation
 
+### Prerequisites
+
+* Doxygen
+```
+sudo apt install doxygen
+```
+* OpenJDK (for plantuml diagrams)
+```
+sudo apt install default-jdk
+```
+
+### How to generate
 VPUX Plugin has automatically generated documentation describing the plugin design and API used for implementing it. Documentation can be built by the following commands
 
 ```
@@ -24,16 +37,6 @@ chromium-browser ./docs/VPUX_DG/generated/html/index.html # chromium users
 firefox ./docs/VPUX_DG/generated/html/index.html # firefox users
 ```
 
-### Prerequisites
-
-* Doxygen
-```
-sudo apt install doxygen
-```
-* OpenJDK (for plantuml diagrams)
-```
-sudo apt install default-jdk
-```
 
 ## = Environment =
 ### Git projects

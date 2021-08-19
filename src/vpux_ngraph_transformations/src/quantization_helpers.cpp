@@ -113,7 +113,8 @@ bool is_fq_agnostic(const std::shared_ptr<ngraph::Node>& node) {
              std::dynamic_pointer_cast<ngraph::op::v1::GroupConvolution>(node->output(0).get_target_inputs().begin()->get_node()->shared_from_this()) == nullptr) ||
             std::dynamic_pointer_cast<ngraph::op::v1::Transpose>(node) != nullptr ||
             std::dynamic_pointer_cast<ngraph::op::v0::Squeeze>(node) != nullptr ||
-            std::dynamic_pointer_cast<ngraph::op::v0::Unsqueeze>(node) != nullptr);
+            std::dynamic_pointer_cast<ngraph::op::v0::Unsqueeze>(node) != nullptr ||
+            std::dynamic_pointer_cast<ngraph::op::v0::DepthToSpace>(node) != nullptr);
 }
 
 void replace_node_if_changed(const std::shared_ptr<ngraph::op::v0::Constant>& node, const std::vector<double> &data, const std::string &name_postfix) {

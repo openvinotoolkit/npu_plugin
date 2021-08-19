@@ -46,12 +46,12 @@ class IE_LayerOp<string mnemonic, list<OpTrait> traits = []> :
                 NoSideEffect,
                 InferTypeOpInterface,
                 DeclareOpInterfaceMethods<InferShapedTypeOpInterface, ["inferReturnTypeComponents"]>,
-                DeclareOpInterfaceMethods<LayerInterface>
+                DeclareOpInterfaceMethods<IE_LayerOpInterface>
             ] # traits
         > {
     let extraClassDeclaration = [{
         static bool isCompatibleReturnTypes(mlir::TypeRange lhs, mlir::TypeRange rhs) {
-            return vpux::isCompatibleShapeAndElemType(lhs, rhs);
+            return vpux::IE::isCompatibleShapeAndElemType(lhs, rhs);
         }
     }];
 
@@ -170,7 +170,7 @@ def IE_ConvertOp :
             "Convert",
             [
                 DeclareOpInterfaceMethods<CastOpInterface>,
-                DeclareOpInterfaceMethods<ConvertLayerInterface>
+                IE_EltwiseOp
             ]
         > {
     let summary = "InferenceEngine Convert layer";
@@ -231,8 +231,7 @@ def IE_SoftMaxOp :
             "SoftMax",
             [
                 ResultsAreFloatLike,
-                SameOperandsAndResultType,
-                DeclareOpInterfaceMethods<SoftMaxLayerInterface>
+                SameOperandsAndResultType
             ]
         > {
     let summary = "InferenceEngine SoftMax layer";
@@ -294,6 +293,7 @@ def IE_PerAxisTileOp :
         AnyRankedTensor:$output
     );
 }
+
 //
 // ReLUOp
 //
@@ -303,7 +303,8 @@ def IE_ReLUOp :
             "ReLU",
             [
                 ResultsAreFloatLike,
-                SameOperandsAndResultType
+                SameOperandsAndResultType,
+                IE_EltwiseOp
             ]
         > {
     let summary = "InferenceEngine ReLU layer";
@@ -350,7 +351,8 @@ def IE_PowerOp :
         IE_LayerOp<
             "Power",
             [
-                ResultsAreFloatLike
+                ResultsAreFloatLike,
+                IE_EltwiseOp
             ]
         > {
     let summary = "InferenceEngine Power layer";
@@ -376,7 +378,8 @@ def IE_AddOp :
             "Add",
             [
                 Commutative,
-                ResultsAreFloatLike
+                ResultsAreFloatLike,
+                IE_EltwiseOp
             ]
         > {
     let summary = "InferenceEngine Add layer";
@@ -385,7 +388,8 @@ def IE_AddOp :
         RankedTensorOf<[F16, F32]>:$input1,
         RankedTensorOf<[F16, F32]>:$input2,
 
-        IE_AutoBroadcastType:$auto_broadcast
+        IE_AutoBroadcastType:$auto_broadcast,
+        OptionalAttr<IE_PostOp>:$post_op
     );
 
     let results = (outs
@@ -404,7 +408,8 @@ def IE_DivideOp :
         IE_LayerOp<
             "Divide",
             [
-                ResultsAreFloatLike
+                ResultsAreFloatLike,
+                IE_EltwiseOp
             ]
         > {
     let summary = "InferenceEngine Divide layer";
@@ -429,7 +434,8 @@ def IE_SquaredDifferenceOp :
         IE_LayerOp<
             "SquaredDiff",
             [
-                ResultsAreFloatLike
+                ResultsAreFloatLike,
+                IE_EltwiseOp
             ]
         > {
     let summary = "InferenceEngine SquaredDiff layer";
@@ -454,7 +460,8 @@ def IE_FloorModOp :
         IE_LayerOp<
             "FloorMod",
             [
-                ResultsAreFloatLike
+                ResultsAreFloatLike,
+                IE_EltwiseOp
             ]
         > {
     let summary = "InferenceEngine FloorMod layer";
@@ -480,7 +487,8 @@ def IE_MultiplyOp :
             "Multiply",
             [
                 Commutative,
-                ResultsAreFloatLike
+                ResultsAreFloatLike,
+                IE_EltwiseOp
             ]
         > {
     let summary = "InferenceEngine Multiply layer";
@@ -506,12 +514,7 @@ def IE_MultiplyOp :
 
 def IE_ConvolutionOp :
         IE_LayerOp<
-            "Convolution",
-            [
-                DeclareOpInterfaceMethods<TensorInterface_4D>,
-                DeclareOpInterfaceMethods<MultiLayerInterface>,
-                DeclareOpInterfaceMethods<ConvolutionLayerInterface>
-            ]
+            "Convolution"
         > {
     let summary = "InferenceEngine Convolution layer";
 
@@ -541,20 +544,14 @@ def IE_ConvolutionOp :
 
 def IE_GroupConvolutionOp :
         IE_LayerOp<
-            "GroupConvolution",
-            [
-                ResultsAreFloatLike,
-                DeclareOpInterfaceMethods<TensorInterface_4D>,
-                DeclareOpInterfaceMethods<MultiLayerInterface>,
-                DeclareOpInterfaceMethods<ConvolutionLayerInterface>
-            ]
+            "GroupConvolution"
         > {
     let summary = "InferenceEngine GroupConvolution layer";
 
     let arguments = (ins
-        RankedTensorOf<[F16, F32]>:$input,
-        RankedTensorOf<[F16, F32]>:$filter,
-        Optional<RankedTensorOf<[F16, F32]>>:$bias,
+        RankedTensorOf<[F16, F32, quant_QuantizedType]>:$input,
+        RankedTensorOf<[F16, F32, quant_QuantizedType]>:$filter,
+        Optional<RankedTensorOf<[F16, F32, quant_QuantizedType]>>:$bias,
 
         I64ArrayAttr:$strides,
         I64ArrayAttr:$pads_begin,
@@ -566,7 +563,7 @@ def IE_GroupConvolutionOp :
     );
 
     let results = (outs
-        RankedTensorOf<[F16, F32]>:$output
+        RankedTensorOf<[F16, F32, quant_QuantizedType]>:$output
     );
 
     let hasCanonicalizer = 1;
@@ -580,8 +577,7 @@ def IE_AvgPoolOp :
         IE_LayerOp<
             "AvgPool",
             [
-                ResultsAreFloatLike,
-                DeclareOpInterfaceMethods<TensorInterface_4D>
+                ResultsAreFloatLike
             ]
         > {
     let summary = "InferenceEngine AvgPool layer";
@@ -593,7 +589,8 @@ def IE_AvgPoolOp :
         I64ArrayAttr:$strides,
         I64ArrayAttr:$pads_begin,
         I64ArrayAttr:$pads_end,
-        IE_RoundingType:$rounding_type
+        IE_RoundingType:$rounding_type,
+        UnitAttr:$exclude_pads
     );
 
     let results = (outs
@@ -607,11 +604,7 @@ def IE_AvgPoolOp :
 
 def IE_MaxPoolOp :
         IE_LayerOp<
-            "MaxPool",
-            [
-                DeclareOpInterfaceMethods<TensorInterface_4D>,
-                DeclareOpInterfaceMethods<MultiLayerInterface>
-            ]
+            "MaxPool"
         > {
     let summary = "InferenceEngine MaxPool layer";
 
@@ -662,7 +655,8 @@ def IE_ClampOp :
             "Clamp",
             [
                 ResultsAreFloatLike,
-                SameOperandsAndResultType
+                SameOperandsAndResultType,
+                IE_EltwiseOp
             ]
         > {
     let summary = "InferenceEngine Clamp layer";
@@ -688,7 +682,8 @@ def IE_EluOp :
             "Elu",
             [
                 ResultsAreFloatLike,
-                SameOperandsAndResultType
+                SameOperandsAndResultType,
+                IE_EltwiseOp
             ]
         > {
     let summary = "InferenceEngine Elu layer";
@@ -799,7 +794,8 @@ def IE_SigmoidOp :
             "Sigmoid",
             [
                 ResultsAreFloatLike,
-                SameOperandsAndResultType
+                SameOperandsAndResultType,
+                IE_EltwiseOp
             ]
         > {
     let summary = "InferenceEngine Sigmoid layer";
@@ -843,7 +839,12 @@ def IE_LRNOp :
 //
 
 def IE_MinimumOp :
-        IE_LayerOp<"Minimum"> {
+        IE_LayerOp<
+            "Minimum",
+            [
+                IE_EltwiseOp
+            ]
+        > {
     let summary = "InferenceEngine Minimum layer";
 
     let arguments = (ins
@@ -863,7 +864,12 @@ def IE_MinimumOp :
 //
 
 def IE_MaximumOp :
-        IE_LayerOp<"Maximum"> {
+        IE_LayerOp<
+            "Maximum",
+            [
+                IE_EltwiseOp
+            ]
+        > {
     let summary = "InferenceEngine Maximum layer";
 
     let arguments = (ins
@@ -886,7 +892,8 @@ def IE_FakeQuantizeOp :
         IE_LayerOp<
             "FakeQuantize",
             [
-                ResultsAreFloatLike
+                ResultsAreFloatLike,
+                IE_EltwiseOp
             ]
         > {
     let summary = "InferenceEngine FakeQuantize layer";
@@ -944,7 +951,8 @@ def IE_TanhOp :
             "Tanh",
             [
                 ResultsAreFloatLike,
-                SameOperandsAndResultType
+                SameOperandsAndResultType,
+                IE_EltwiseOp
             ]
         > {
     let summary = "InferenceEngine Tanh layer";
@@ -967,7 +975,8 @@ def IE_ExpOp :
             "Exp",
             [
                 ResultsAreFloatLike,
-                SameOperandsAndResultType
+                SameOperandsAndResultType,
+                IE_EltwiseOp
             ]
         > {
     let summary = "InferenceEngine Exp layer";
@@ -990,10 +999,59 @@ def IE_HSwishOp :
             "HSwish",
             [
                 ResultsAreFloatLike,
-                SameOperandsAndResultType
+                SameOperandsAndResultType,
+                IE_EltwiseOp
             ]
         > {
     let summary = "InferenceEngine HSwish layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+}
+
+//
+// FloorOp
+//
+
+def IE_FloorOp :
+        IE_LayerOp<
+            "Floor",
+            [
+                ResultsAreFloatLike,
+                SameOperandsAndResultType,
+                IE_EltwiseOp
+            ]
+        > {
+    let summary = "InferenceEngine Floor layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+}
+
+//
+// MishOp
+//
+
+def IE_MishOp :
+        IE_LayerOp<
+            "Mish",
+            [
+                ResultsAreFloatLike,
+                SameOperandsAndResultType,
+                IE_EltwiseOp
+            ]
+        > {
+    let summary = "InferenceEngine Mish layer";
 
     let arguments = (ins
         RankedTensorOf<[F16, F32]>:$input
@@ -1329,7 +1387,10 @@ def IE_DeconvolutionOp:
 
 def IE_PReluOp :
         IE_LayerOp<
-            "PRelu"
+            "PRelu",
+            [
+                IE_EltwiseOp
+            ]
         > {
     let summary = "InferenceEngine PRelu layer";
 
@@ -1353,7 +1414,8 @@ def IE_LeakyReluOp :
         IE_LayerOp<
             "LeakyRelu",
             [
-                SameOperandsAndResultType
+                SameOperandsAndResultType,
+                IE_EltwiseOp
             ]
         > {
     let summary = "InferenceEngine LeakyRelu layer";
@@ -1375,7 +1437,10 @@ def IE_LeakyReluOp :
 
 def IE_SwishOp :
         IE_LayerOp<
-            "Swish"
+            "Swish",
+            [
+                IE_EltwiseOp
+            ]
         > {
     let summary = "InferenceEngine Swish layer";
 
@@ -1401,7 +1466,8 @@ def IE_ScaleShiftOp :
         IE_LayerOp<
             "ScaleShift",
             [
-                AttrSizedOperandSegments
+                AttrSizedOperandSegments,
+                IE_EltwiseOp
             ]
         > {
     let summary = "InferenceEngine ScaleShift layer";
@@ -1451,7 +1517,8 @@ def IE_NegativeOp :
         IE_LayerOp<
             "Negative",
             [
-                SameOperandsAndResultType
+                SameOperandsAndResultType,
+                IE_EltwiseOp
             ]
         > {
     let summary = "InferenceEngine Negative layer";
@@ -1591,13 +1658,19 @@ def IE_ExpandOp :
     let arguments = (ins
         AnyRankedTensor:$input,
 
-        I64ArrayAttr:$pads_begin_attr,
-        I64ArrayAttr:$pads_end_attr
+        I64ArrayAttr:$pads_begin,
+        I64ArrayAttr:$pads_end
     );
 
     let results = (outs
         AnyRankedTensor:$output
     );
+
+    let builders = [
+        OpBuilder<
+            (ins "mlir::Value":$input, "vpux::Optional<vpux::ShapeRef>":$pads_begin, "vpux::Optional<vpux::ShapeRef>":$pads_end)
+        >
+    ];
 }
 
 //
@@ -1618,7 +1691,7 @@ def IE_LSTMCellOp :
         2DTensorOf<[F16, F32]>:$initialHiddenState,
         2DTensorOf<[F16, F32]>:$initialCellState,
         2DTensorOf<[F16, F32]>:$weights,
-        2DTensorOf<[F16, F32]>:$reccurenceWeights,
+        2DTensorOf<[F16, F32]>:$recurrenceWeights,
         1DTensorOf<[F16, F32]>:$biases,
 
         IntAttr:$hiddenSize
@@ -1629,4 +1702,32 @@ def IE_LSTMCellOp :
         2DTensorOf<[F16, F32]>:$outputCellState
     );
 }
+
+//
+// SliceOp
+//
+
+def IE_SliceOp :
+        IE_LayerOp<
+            "Slice"
+        > {
+    let summary = "Extract slice operation";
+
+    let arguments = (ins
+        AnyRankedTensor:$source,
+
+        I64ArrayAttr:$static_offsets,
+        I64ArrayAttr:$static_sizes
+    );
+
+    let results = (outs
+        AnyRankedTensor:$result
+    );
+
+    let assemblyFormat = [{
+        $source $static_offsets $static_sizes
+        attr-dict `:` type($source) `to` type(results)
+    }];
+}
+
 #endif

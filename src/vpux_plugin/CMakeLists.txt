@@ -11,6 +11,8 @@
 # included with the Software Package for additional details.
 #
 
+replace_noerror()
+
 if(ENABLE_LTO)
     ie_enable_lto()
 endif()

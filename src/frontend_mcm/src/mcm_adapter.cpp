@@ -109,9 +109,7 @@ vpu::MCMAdapter::MetaInfo vpu::MCMAdapter::deserializeMetaData(const MVCNN::Summ
             inputSerializer << " " << dim << " ";
         }
         inputSerializer << "}" << std::endl;
-        std::vector<float> inputTensorOrder;
-        std::copy(tensorRef->strides()->cbegin(), tensorRef->strides()->cend(), std::back_inserter(inputTensorOrder));
-        const auto ieLayout = orderVectorToLayout(inputTensorOrder);
+        const InferenceEngine::Layout ieLayout = getLayout(tensorRef);
         const auto iePrecision = MvcnnDTypeToPrecision(tensorRef->data_dtype());
         inputSerializer << "Layout: " << ieLayout << std::endl;
         inputSerializer << "Precision: " << iePrecision << std::endl;
@@ -142,9 +140,7 @@ vpu::MCMAdapter::MetaInfo vpu::MCMAdapter::deserializeMetaData(const MVCNN::Summ
             outputSerializer << " " << dim << " ";
         }
         outputSerializer << "}" << std::endl;
-        std::vector<float> outputTensorOrder;
-        std::copy(tensorRef->strides()->cbegin(), tensorRef->strides()->cend(), std::back_inserter(outputTensorOrder));
-        const auto ieLayout = orderVectorToLayout(outputTensorOrder);
+        const InferenceEngine::Layout ieLayout = getLayout(tensorRef);
         const auto iePrecision = MvcnnDTypeToPrecision(tensorRef->data_dtype());
         outputSerializer << "Layout: " << ieLayout << std::endl;
         outputSerializer << "Precision: " << iePrecision << std::endl;

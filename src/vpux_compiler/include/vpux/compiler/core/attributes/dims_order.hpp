@@ -120,7 +120,8 @@ public:
 
     static DimsOrder fromValue(mlir::Value val);
 
-    SmallVector<mlir::AffineMap> toAffineMapsList(mlir::MLIRContext* ctx, ShapeRef shape) const;
+    SmallVector<mlir::AffineMap> toAffineMapsList(mlir::MLIRContext* ctx, ShapeRef shape,
+                                                  const int64_t dataOffset = 0) const;
 
 public:
     bool isCompatibleLayout(mlir::MemRefType type) const;

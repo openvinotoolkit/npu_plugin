@@ -109,6 +109,12 @@ operation ::= `IERT.Add` attr-dict
 ```
 
 
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`post_op` | vpux::IE::PostOp | DictionaryAttr with field(s): 'name', 'attrs' (each field having its own constraints)
+
 #### Operands:
 
 | Operand | Description |
@@ -146,6 +152,7 @@ operation ::= `IERT.AvgPool` attr-dict
 `strides` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `pads_begin` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `pads_end` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`exclude_pads` | ::mlir::UnitAttr | unit attribute
 
 #### Operands:
 
@@ -347,7 +354,7 @@ operation ::= `IERT.Convolution` attr-dict
 `pads_begin` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `pads_end` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `dilations` | ::mlir::ArrayAttr | 64-bit integer array attribute
-`post_op` | vpux::IE::PostOp | DictionaryAttr with field(s): 'kind', 'params' (each field having its own constraints)
+`post_op` | vpux::IE::PostOp | DictionaryAttr with field(s): 'name', 'attrs' (each field having its own constraints)
 
 #### Operands:
 
@@ -362,7 +369,7 @@ operation ::= `IERT.Convolution` attr-dict
 
 | Result | Description |
 | :----: | ----------- |
-`output` | memref of 16-bit float or 32-bit float values
+`output` | memref of 16-bit float or 32-bit float or QuantizedType values
 
 ### `IERT.Copy` (vpux::IERT::CopyOp)
 
@@ -641,6 +648,34 @@ operation ::= `IERT.FloorMod` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float or 32-bit float values
 
+### `IERT.Floor` (vpux::IERT::FloorOp)
+
+InferenceEngine run-time Floor layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.Floor` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float or 32-bit float values
+`output_buff` | memref of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float or 32-bit float values
+
 ### `IERT.FullyConnected` (vpux::IERT::FullyConnectedOp)
 
 InferenceEngine run-time FullyConnected layer
@@ -755,7 +790,7 @@ operation ::= `IERT.GroupConvolution` attr-dict
 `pads_end` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `dilations` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `groups` | mlir::IntegerAttr | Integer attribute
-`post_op` | vpux::IE::PostOp | DictionaryAttr with field(s): 'kind', 'params' (each field having its own constraints)
+`post_op` | vpux::IE::PostOp | DictionaryAttr with field(s): 'name', 'attrs' (each field having its own constraints)
 
 #### Operands:
 
@@ -935,7 +970,7 @@ operation ::= `IERT.MaxPool` attr-dict
 `strides` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `pads_begin` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `pads_end` | ::mlir::ArrayAttr | 64-bit integer array attribute
-`post_op` | vpux::IE::PostOp | DictionaryAttr with field(s): 'kind', 'params' (each field having its own constraints)
+`post_op` | vpux::IE::PostOp | DictionaryAttr with field(s): 'name', 'attrs' (each field having its own constraints)
 
 #### Operands:
 
@@ -1024,6 +1059,34 @@ operation ::= `IERT.Minimum` attr-dict
 | :-----: | ----------- |
 `input1` | memref of 16-bit float or 32-bit float values
 `input2` | memref of 16-bit float or 32-bit float values
+`output_buff` | memref of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float or 32-bit float values
+
+### `IERT.Mish` (vpux::IERT::MishOp)
+
+InferenceEngine run-time Mish layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.Mish` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float or 32-bit float values
 `output_buff` | memref of 16-bit float or 32-bit float values
 
 #### Results:
@@ -1211,6 +1274,42 @@ operation ::= `IERT.Power` attr-dict
 | :-----: | ----------- |
 `input1` | memref of 16-bit float or 32-bit float values
 `input2` | memref of 16-bit float or 32-bit float values
+`output_buff` | memref of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float or 32-bit float values
+
+### `IERT.Proposal` (vpux::IERT::ProposalOp)
+
+InferenceEngine run-time Proposal layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.Proposal` attr-dict
+              `inputs` `(` $class_probs `:` type($class_probs) `,` $bbox_deltas `:` type($bbox_deltas) `,` $image_shape `:` type($image_shape) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`proposal_attrs` | vpux::IE::ProposalAttr | DictionaryAttr with field(s): 'baseSize', 'preNmsTopN', 'postNmsTopN', 'nmsThresh', 'featStride', 'minSize', 'ratio', 'scale', 'clipBeforeNms', 'clipAfterNms', 'normalize', 'boxSizeScale', 'boxCoordinateScale', 'framework', 'inferProbs' (each field having its own constraints)
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`class_probs` | memref of 16-bit float or 32-bit float values
+`bbox_deltas` | memref of 16-bit float or 32-bit float values
+`image_shape` | memref of 16-bit float or 32-bit float values
 `output_buff` | memref of 16-bit float or 32-bit float values
 
 #### Results:
@@ -1581,6 +1680,38 @@ operation ::= `IERT.StridedSlice` attr-dict
 | Result | Description |
 | :----: | ----------- |
 `output` | memref of any type values
+
+### `IERT.SubView` (vpux::IERT::SubViewOp)
+
+Compile-time subview layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.SubView` $source $static_offsets $static_sizes
+              attr-dict `:` type($source) `to` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`static_offsets` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`static_sizes` | ::mlir::ArrayAttr | 64-bit integer array attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`source` | memref of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`result` | memref of any type values
 
 ### `IERT.Swish` (vpux::IERT::SwishOp)
 

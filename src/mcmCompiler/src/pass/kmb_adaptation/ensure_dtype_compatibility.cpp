@@ -78,10 +78,11 @@ const std::vector<std::pair<mv::Data::TensorIterator, std::string>> dataTypeDisc
 }
 
 using dtypeConversionFunc =
-        std::function<mv::Data::TensorIterator(mv::Data::TensorIterator&, mv::Data::OpListIterator&, mv::OpModel&)>;
+        std::function<mv::Data::TensorIterator(mv::Data::TensorIterator&, mv::Data::OpListIterator&, mv::ComputationModel&)>;
 
 mv::Data::TensorIterator convertFP16ToU8(mv::Data::TensorIterator& tensorIt, mv::Data::OpListIterator& opIt,
-                                         mv::OpModel& opModel) {
+                                         mv::ComputationModel& model) {
+    mv::OpModel opModel(model);
     auto quantTensor = opModel.tensorEnd();
     if (tensorIt->isPopulated()) {
         // For both fast access by avoiding data transposing
@@ -130,14 +131,18 @@ mv::Data::TensorIterator convertFP16ToU8(mv::Data::TensorIterator& tensorIt, mv:
         calcAlignedZeroPointAndScalePerChannel(maxRange, minRange, 256, mv::getDType(mv::Precision::U8), scale, zp);
 
         // Step 2 quantized the float weights data
+        // From our experiments std::round((floatVal - minRange[chIdx]) / chScale)
+        // generate slightly better results because of using not rounded zero point
+        // Altough this may be true, for cases of low_range == high_range and
+        // subtracting by min will render all weights 0 and thus create output of 0s
         auto quantTensorData = std::vector<int64_t>(floatTensorData.size());
         for (std::size_t chIdx = 0; chIdx < numChannelsToCompute; chIdx++) {
             auto chScale = scale.at(chIdx);
-            auto min = minRange.at(chIdx);
+            auto chZp = zp.at(chIdx);
             std::transform(floatTensorData.cbegin() + chIdx * wSetSize,
                            floatTensorData.cbegin() + (chIdx + 1) * wSetSize,
-                           quantTensorData.begin() + chIdx * wSetSize, [chScale, min](const double& floatVal) {
-                               return std::round((floatVal - min) / chScale);
+                           quantTensorData.begin() + chIdx * wSetSize, [chScale, chZp](const double& floatVal) {
+                               return std::round(floatVal / chScale + chZp);
                            });
         }
 
@@ -147,6 +152,32 @@ mv::Data::TensorIterator convertFP16ToU8(mv::Data::TensorIterator& tensorIt, mv:
             scale.resize(numChannels, 1);
             minRange.resize(numChannels, 0);
             maxRange.resize(numChannels, 0);
+        }
+
+        // Step 4 BONUS STAGE: handle bias now that weights quantization changed
+        if (opIt->hasAttr("bias"))
+        {
+            mv::DataModel dm(model);
+            auto biasTensor = dm.getTensor(opIt->get<std::string>("bias"));
+            // Regardless of S16.16 or INT32 both are stored on INT64
+            auto biasData = std::vector<int64_t>(biasTensor->size());
+            std::vector<double> oldBiasData;
+            if (opIt->getInputTensor(0)->isFloatingPointType()) {
+                const auto fixedPointBiasData = biasTensor->getIntData();
+                // Shift back decimal point and store as double
+                std::transform(fixedPointBiasData.cbegin(), fixedPointBiasData.cend(), oldBiasData.begin(),
+                    [](const int64_t& arg) { return static_cast<double>(arg) / (1<<16);});
+            } else {
+                const auto intBiasData = biasTensor->getIntData();
+                oldBiasData = std::vector<double>(intBiasData.cbegin(), intBiasData.cend());
+            }
+            std::transform(oldBiasData.cbegin(), oldBiasData.cend(), scale.cbegin(),
+                biasData.begin(), [](const double& oldBias, const double& scaleVal)
+                {return std::round(oldBias / (scaleVal));});
+            // No better way to populate already existing tensors
+            // unpopulate/populate methods appear to be broken
+            for (size_t idx = 0; idx < biasTensor->size(); idx++)
+                biasTensor->at(idx) = biasData[idx];
         }
 
         // Step 3 create new constantInt op and link correctly
@@ -173,7 +204,8 @@ mv::Data::TensorIterator convertFP16ToU8(mv::Data::TensorIterator& tensorIt, mv:
 }
 
 mv::Data::TensorIterator convertU8ToI8(mv::Data::TensorIterator& tensorIt, mv::Data::OpListIterator& opIt,
-                                       mv::OpModel& opModel) {
+                                       mv::ComputationModel& model) {
+    mv::OpModel opModel(model);
     auto requantTensor = opModel.tensorEnd();
     if (tensorIt->isPopulated()) {
         // For both fast access by avoiding data transposing
@@ -269,7 +301,8 @@ mv::Data::TensorIterator convertU8ToI8(mv::Data::TensorIterator& tensorIt, mv::D
 }
 
 mv::Data::TensorIterator convertU8ToFP16(mv::Data::TensorIterator& tensorIt, mv::Data::OpListIterator& opIt,
-                                         mv::OpModel& opModel) {
+                                         mv::ComputationModel& model) {
+    mv::OpModel opModel(model);
     auto dequantTensor = opModel.tensorEnd();
     if (tensorIt->isPopulated()) {
         // For both fast access by avoiding data transposing
@@ -332,8 +365,6 @@ static void ensureDTypeCompatibilityFcn(const mv::pass::PassEntry&, mv::Computat
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
 
     mv::OpModel om(model);
-    mv::DataModel dm(model);
-
     // TODO: dtype conversions will behave differently for populated and unpopulated tensors
     // also need to determine of the tensor is input or output of current invetigated op
     // for either input or output flow, placinng a conversion layer will differ.
@@ -366,7 +397,7 @@ static void ensureDTypeCompatibilityFcn(const mv::pass::PassEntry&, mv::Computat
                             om, tensorIt->getName() + ": No dtype conversion registered for target dtype " +
                                         tensorIt->getDType().toString() + " from source dtype " + targetDtype);
 
-                conversionFunctor->second(tensorIt, opIt, om);
+                conversionFunctor->second(tensorIt, opIt, model);
             }
         }
     }

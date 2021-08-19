@@ -26,6 +26,16 @@
 using namespace vpux;
 
 //
+// ReshapeAttr::walkImmediateSubElements
+//
+
+void vpux::Const::SubViewAttr::walkImmediateSubElements(llvm::function_ref<void(Attribute)> walkAttrsFn,
+                                                        llvm::function_ref<void(mlir::Type)>) const {
+    walkAttrsFn(getOffset());
+    walkAttrsFn(getShape());
+}
+
+//
 // SubViewAttr::verify
 //
 

@@ -52,14 +52,14 @@ IE.CNNNetwork
         IE.DataInfo "prob" : tensor<1x8x4x2xf16>
     }
 
-// CHECK:       func @main([[ARG0:%arg[0-9]+]]: tensor<1x8x4x2xf16, {order = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>}>)
+// CHECK:       func @main([[ARG0:%arg[0-9]+]]: tensor<1x8x4x2xf16, {order = #NHWC}>)
 // CHECK-SAME:      -> tensor<1x8x4x2xf16> {
 func @main(%arg0: tensor<1x8x4x2xf16>) -> tensor<1x8x4x2xf16> {
     %0 = IE.SoftMax(%arg0) {axisInd = 1} : tensor<1x8x4x2xf16> -> tensor<1x8x4x2xf16>
     return %0 : tensor<1x8x4x2xf16>
 
     // CHECK:       [[VAR0:%.+]] = IE.Reorder([[ARG0]]) {dstOrder = #NCHW} :
-    // CHECK-SAME:      tensor<1x8x4x2xf16, {order = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>}> -> tensor<1x8x4x2xf16>
+    // CHECK-SAME:      tensor<1x8x4x2xf16, {order = #NHWC}> -> tensor<1x8x4x2xf16>
     // CHECK:       [[VAR1:%.+]] = IE.SoftMax([[VAR0]]) {axisInd = 1 : i64} : tensor<1x8x4x2xf16> -> tensor<1x8x4x2xf16>
     // CHECK:       return [[VAR1]] : tensor<1x8x4x2xf16>
 }

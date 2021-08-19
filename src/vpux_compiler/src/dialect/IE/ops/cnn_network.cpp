@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -11,8 +11,10 @@
 // included with the Software Package for additional details.
 //
 
-#include <vpux/compiler/core/aliases_info.hpp>
 #include "vpux/compiler/dialect/IE/ops.hpp"
+
+#include "vpux/compiler/core/aliases_info.hpp"
+#include "vpux/compiler/utils/error.hpp"
 
 #include "vpux/utils/core/format.hpp"
 #include "vpux/utils/core/hash.hpp"

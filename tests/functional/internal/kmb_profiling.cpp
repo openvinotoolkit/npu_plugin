@@ -20,7 +20,7 @@ public:
 };
 
 void KmbProfilingTest::runTest(const std::string output_name, bool mlir) {
-    SKIP_ON("KMB", "HDDL2", "Not supported");
+    SKIP_ON("HDDL2", "EMULATOR", "Not supported");
     const SizeVector inDims = {1, 3, 64, 64};
     const TensorDesc userInDesc = TensorDesc(Precision::U8, inDims, Layout::NHWC);
     const TensorDesc userOutDesc = TensorDesc(Precision::FP16, Layout::NHWC);

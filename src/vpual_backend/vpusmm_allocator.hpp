@@ -48,7 +48,7 @@ public:
     virtual ~VpusmmAllocator();
 
 protected:
-    std::mutex wrapMemoryMutex;
+    std::mutex _allocatedMemoryMutex;
 
     struct MemoryDescriptor {
         size_t size;

@@ -31,6 +31,33 @@ namespace {
 
 using OutputTiling = SmallVector<Tile>;
 
+mlir::quant::QuantizedType tileScalesAndZP(mlir::quant::UniformQuantizedPerAxisType perAxisQType, const Tile& tile) {
+    VPUX_THROW_UNLESS(tile.shape.size() >= static_cast<size_t>(perAxisQType.getQuantizedDimension()),
+                      "Unsupported shape size {0}. Quantized dimension index {1}", tile.shape.size(),
+                      perAxisQType.getQuantizedDimension());
+
+    const auto quantizedDim = Dim(perAxisQType.getQuantizedDimension());
+    const auto OC = tile.shape[quantizedDim];
+
+    const auto newBegin = tile.offsets[quantizedDim];
+    const auto newEnd = newBegin + OC;
+
+    const auto scales = perAxisQType.getScales();
+    const auto zeroPoints = perAxisQType.getZeroPoints();
+
+    if (scales.size() == static_cast<size_t>(OC)) {
+        return perAxisQType;
+    }
+
+    std::vector<double> newScales(scales.begin() + newBegin, scales.begin() + newEnd);
+    std::vector<int64_t> newZeroPoints(zeroPoints.begin() + newBegin, zeroPoints.begin() + newEnd);
+
+    return mlir::quant::UniformQuantizedPerAxisType::get(
+            perAxisQType.getFlags(), perAxisQType.getStorageType(), perAxisQType.getExpressedType(), newScales,
+            newZeroPoints, perAxisQType.getQuantizedDimension(), perAxisQType.getStorageTypeMin(),
+            perAxisQType.getStorageTypeMax());
+}
+
 //
 // makeTile
 //
@@ -43,15 +70,23 @@ mlir::Value makeTile(mlir::OpBuilder& builder, mlir::Location baseLoc, mlir::Val
         return origVal;
     }
 
-    const SmallVector<int64_t> viewStrides(tile.shape.size(), 1);
-
     const auto tileName = llvm::formatv("{0} tile {1}", valName, tile.offsets).str();
     const auto loc = appendLoc(baseLoc, tileName);
 
-    auto viewOp =
-            builder.create<mlir::memref::SubViewOp>(loc, origVal, tile.offsets.raw(), tile.shape.raw(), viewStrides);
+    const auto tileShape = tile.shape.raw();
+    const auto tileOffsets = tile.offsets.raw();
 
-    const auto tileType = changeShape(origType, tile.shape);
+    const auto attrOffsets = getIntArrayAttr(builder.getContext(), tileOffsets);
+    const auto attrShape = getIntArrayAttr(builder.getContext(), tileShape);
+    auto viewOp = builder.create<IERT::SubViewOp>(loc, origVal, attrOffsets, attrShape);
+
+    auto tileType = changeShape(origType, tile.shape);
+    if (const auto perAxisQType =
+                tileType.getElementType().dyn_cast_or_null<mlir::quant::UniformQuantizedPerAxisType>()) {
+        const auto newQType = tileScalesAndZP(perAxisQType, tile);
+        tileType = changeElemType(tileType, newQType);
+    }
+
     auto allocOp = builder.create<mlir::memref::AllocOp>(loc, tileType);
 
     auto copyOp = builder.create<IERT::CopyOp>(loc, viewOp.result(), allocOp.memref());
@@ -99,8 +134,8 @@ mlir::LogicalResult ConvolutionTiling::matchAndRewrite(IERT::ConvolutionOp origO
         const auto& filterTile = tileConf.filterTile;
         const auto& biasTile = tileConf.biasTile;
 
-        const auto& padsBegin = tileConf.pads.begin;
-        const auto& padsEnd = tileConf.pads.end;
+        SmallVector<int64_t> padsBegin = {tileConf.pads.padTop, tileConf.pads.padLeft};
+        SmallVector<int64_t> padsEnd = {tileConf.pads.padBottom, tileConf.pads.padRight};
 
         const auto actInput = makeTile(rewriter, origOp->getLoc(), origOp.input(), inputTile, "input");
         const auto filterInput = makeTile(rewriter, origOp->getLoc(), origOp.filter(), filterTile, "filter");
@@ -119,9 +154,9 @@ mlir::LogicalResult ConvolutionTiling::matchAndRewrite(IERT::ConvolutionOp origO
                                                             getIntArrayAttr(getContext(), padsEnd), origOp.dilations(),
                                                             origOp.post_opAttr());
 
-        SmallVector<int64_t> viewStrides(outputTile.shape.size(), 1);
-        auto subViewOut = rewriter.create<mlir::memref::SubViewOp>(loc, origOp.output_buff(), outputTile.offsets.raw(),
-                                                                   outputTile.shape.raw(), viewStrides);
+        const auto attrOffsets = getIntArrayAttr(rewriter.getContext(), outputTile.offsets.raw());
+        const auto attrShape = getIntArrayAttr(rewriter.getContext(), outputTile.shape.raw());
+        auto subViewOut = rewriter.create<IERT::SubViewOp>(loc, origOp.output_buff(), attrOffsets, attrShape);
 
         auto copyOut = rewriter.create<IERT::CopyOp>(loc, tiledOp.output(), subViewOut.result());
         finalResults.push_back(copyOut);
@@ -179,11 +214,12 @@ mlir::LogicalResult EltwiseAddTiling::matchAndRewrite(IERT::AddOp origOp, mlir::
                 changeShape(origOp.output().getType().cast<mlir::MemRefType>(), outputTile.shape);
         auto allocOutOp = rewriter.create<mlir::memref::AllocOp>(loc, tileTypeOut);
 
-        auto tiledOp = rewriter.create<IERT::AddOp>(loc, actInput1, actInput2, allocOutOp.memref());
+        auto tiledOp =
+                rewriter.create<IERT::AddOp>(loc, actInput1, actInput2, allocOutOp.memref(), origOp.post_opAttr());
 
-        SmallVector<int64_t> viewStrides(outputTile.shape.size(), 1);
-        auto subViewOut = rewriter.create<mlir::memref::SubViewOp>(loc, origOp.output_buff(), outputTile.offsets.raw(),
-                                                                   outputTile.shape.raw(), viewStrides);
+        const auto attrOffsets = getIntArrayAttr(rewriter.getContext(), outputTile.offsets.raw());
+        const auto attrShape = getIntArrayAttr(rewriter.getContext(), outputTile.shape.raw());
+        auto subViewOut = rewriter.create<IERT::SubViewOp>(loc, origOp.output_buff(), attrOffsets, attrShape);
 
         auto copyOut = rewriter.create<IERT::CopyOp>(loc, tiledOp.output(), subViewOut.result());
         finalResults.push_back(copyOut);
@@ -231,8 +267,8 @@ mlir::LogicalResult MaxPoolTiling::matchAndRewrite(IERT::MaxPoolOp origOp, mlir:
 
         const auto& inputTile = tileConf.inputTile;
 
-        const auto& padsBegin = tileConf.pads.begin;
-        const auto& padsEnd = tileConf.pads.end;
+        SmallVector<int64_t> padsBegin = {tileConf.pads.padTop, tileConf.pads.padLeft};
+        SmallVector<int64_t> padsEnd = {tileConf.pads.padBottom, tileConf.pads.padRight};
 
         const auto actInput = makeTile(rewriter, origOp->getLoc(), origOp.input(), inputTile, "input");
 
@@ -246,9 +282,9 @@ mlir::LogicalResult MaxPoolTiling::matchAndRewrite(IERT::MaxPoolOp origOp, mlir:
                                                         origOp.strides(), getIntArrayAttr(getContext(), padsBegin),
                                                         getIntArrayAttr(getContext(), padsEnd), origOp.post_opAttr());
 
-        SmallVector<int64_t> viewStrides(outputTile.shape.size(), 1);
-        auto subViewOut = rewriter.create<mlir::memref::SubViewOp>(loc, origOp.output_buff(), outputTile.offsets.raw(),
-                                                                   outputTile.shape.raw(), viewStrides);
+        const auto attrOffsets = getIntArrayAttr(rewriter.getContext(), outputTile.offsets.raw());
+        const auto attrShape = getIntArrayAttr(rewriter.getContext(), outputTile.shape.raw());
+        auto subViewOut = rewriter.create<IERT::SubViewOp>(loc, origOp.output_buff(), attrOffsets, attrShape);
 
         auto copyOut = rewriter.create<IERT::CopyOp>(loc, tiledOp.output(), subViewOut.result());
         finalResults.push_back(copyOut);
@@ -278,29 +314,6 @@ private:
     Logger _log;
 };
 
-static mlir::Value reshapeDepthwiseWeightTensor(mlir::OpBuilder& builder, mlir::Location loc,
-                                                const mlir::Value origFilter) {
-    auto* ctx = builder.getContext();
-    const auto elemType = mlir::Float16Type::get(ctx);
-    const auto filtShape = getShape(origFilter);
-
-    const auto OC = filtShape[Dim(0)];
-    const auto KY = filtShape[Dim(2)];
-    const auto KX = filtShape[Dim(3)];
-
-    SmallVector<int64_t> weightShape{OC, 1, KY, KX};
-
-    auto weightsConst = origFilter.getDefiningOp<Const::DeclareOp>();
-    VPUX_THROW_UNLESS(weightsConst != nullptr, "Grouped convolution does not provide constant weights");
-
-    const auto dataType = mlir::MemRefType::get(weightShape, elemType);
-    const auto dataTypeNHWC = changeDimsOrder(dataType, DimsOrder::NCHW);
-    const auto dataContentAttr = weightsConst.contentAttr();
-    const auto dataContentAttrNHWC = dataContentAttr.reorder(DimsOrder::NCHW);
-    auto dataConstOp = builder.create<Const::DeclareOp>(loc, dataTypeNHWC, dataContentAttrNHWC);
-    return dataConstOp.output();
-}
-
 mlir::LogicalResult GroupConvolutionTiling::matchAndRewrite(IERT::GroupConvolutionOp origOp,
                                                             mlir::PatternRewriter& rewriter) const {
     _log.trace("[{0}] Got GroupConvolution at '{1}'", getDebugName(), origOp->getLoc());
@@ -315,11 +328,6 @@ mlir::LogicalResult GroupConvolutionTiling::matchAndRewrite(IERT::GroupConvoluti
     SmallVector<mlir::Value> finalResults;
     finalResults.reserve(tilings.size());
 
-    // Depthwise weight tensor has 5 dimensions.
-    // Tiling over channels takes wrong dimension for some reason.
-    // FIXME reshaping to 4 dimensions is a workaround. Real cause still has to be fixed.
-    const auto filter4d = reshapeDepthwiseWeightTensor(rewriter, origOp->getLoc(), origOp.filter());
-
     for (const auto& outputTile : tilings) {
         const auto tileConf = backInferGroupConvTile(origOp, outputTile);
 
@@ -327,11 +335,11 @@ mlir::LogicalResult GroupConvolutionTiling::matchAndRewrite(IERT::GroupConvoluti
         const auto& filterTile = tileConf.filterTile;
         const auto& biasTile = tileConf.biasTile;
 
-        const auto& padsBegin = tileConf.pads.begin;
-        const auto& padsEnd = tileConf.pads.end;
+        SmallVector<int64_t> padsBegin = {tileConf.pads.padTop, tileConf.pads.padLeft};
+        SmallVector<int64_t> padsEnd = {tileConf.pads.padBottom, tileConf.pads.padRight};
 
         const auto actInput = makeTile(rewriter, origOp->getLoc(), origOp.input(), inputTile, "input");
-        const auto filterInput = makeTile(rewriter, origOp->getLoc(), filter4d, filterTile, "filter");
+        const auto filterInput = makeTile(rewriter, origOp->getLoc(), origOp.filter(), filterTile, "filter");
         const auto biasInput = origOp.bias() != nullptr
                                        ? makeTile(rewriter, origOp->getLoc(), origOp.bias(), biasTile, "bias")
                                        : nullptr;
@@ -342,8 +350,7 @@ mlir::LogicalResult GroupConvolutionTiling::matchAndRewrite(IERT::GroupConvoluti
         const auto tileTypeOut = changeShape(origOp.output().getType().cast<mlir::MemRefType>(), outputTile.shape);
         auto allocOutOp = rewriter.create<mlir::memref::AllocOp>(loc, tileTypeOut);
 
-        const auto filter_out_channel_dim = IERT::ConvolutionOp::filter_out_channel_dim();
-        const auto groups = filterTile.shape[filter_out_channel_dim];
+        const auto groups = filterTile.shape[IE::Dims4D::Filter::OC];
         const auto groupsAttr = getIntAttr(getContext(), groups);
 
         auto tiledOp = rewriter.create<IERT::GroupConvolutionOp>(
@@ -351,9 +358,9 @@ mlir::LogicalResult GroupConvolutionTiling::matchAndRewrite(IERT::GroupConvoluti
                 getIntArrayAttr(getContext(), padsBegin), getIntArrayAttr(getContext(), padsEnd), origOp.dilations(),
                 groupsAttr, origOp.post_opAttr());
 
-        SmallVector<int64_t> viewStrides(outputTile.shape.size(), 1);
-        auto subViewOut = rewriter.create<mlir::memref::SubViewOp>(loc, origOp.output_buff(), outputTile.offsets.raw(),
-                                                                   outputTile.shape.raw(), viewStrides);
+        const auto attrOffsets = getIntArrayAttr(rewriter.getContext(), outputTile.offsets.raw());
+        const auto attrShape = getIntArrayAttr(rewriter.getContext(), outputTile.shape.raw());
+        auto subViewOut = rewriter.create<IERT::SubViewOp>(loc, origOp.output_buff(), attrOffsets, attrShape);
 
         auto copyOut = rewriter.create<IERT::CopyOp>(loc, tiledOp.output(), subViewOut.result());
         finalResults.push_back(copyOut);
@@ -406,30 +413,28 @@ void SimpleTiler::buildTilingPatterns(mlir::RewritePatternSet& patterns) {
 
 OutputTiling SimpleTiler::genericTiler(mlir::Operation* op, mlir::MemRefType outputType,
                                        FuncRef<bool(ShapeRef)> isSupportedTileSize) const {
-    const auto act_channel_dim = IERT::ConvolutionOp::act_channel_dim();
-
     const auto outputShape = getShape(outputType);
 
     const auto minChannelSize = VPUIP::NCEInvariant::getChannelAlignment(outputType.getElementType());
-    const auto maxChannelTiles = outputShape[act_channel_dim] / minChannelSize;
+    const auto maxChannelTiles = outputShape[IE::Dims4D::Act::C] / minChannelSize;
 
     Shape nTilesOnDim(outputShape.size(), 1);
 
     const auto isSupportedChannelDivision = [&]() {
-        if ((outputShape[act_channel_dim] % nTilesOnDim[act_channel_dim]) != 0) {
+        if ((outputShape[IE::Dims4D::Act::C] % nTilesOnDim[IE::Dims4D::Act::C]) != 0) {
             return false;
         }
 
-        const auto tileChannels = outputShape[act_channel_dim] / nTilesOnDim[act_channel_dim];
+        const auto tileChannels = outputShape[IE::Dims4D::Act::C] / nTilesOnDim[IE::Dims4D::Act::C];
         return (tileChannels % minChannelSize) == 0;
     };
 
     while (!isSupportedTileSize(nTilesOnDim)) {
         // First try tiling over output channels
 
-        if (nTilesOnDim[act_channel_dim] < maxChannelTiles) {
+        if (nTilesOnDim[IE::Dims4D::Act::C] < maxChannelTiles) {
             do {
-                ++nTilesOnDim[act_channel_dim];
+                ++nTilesOnDim[IE::Dims4D::Act::C];
             } while (!isSupportedChannelDivision());
 
             continue;
@@ -439,14 +444,14 @@ OutputTiling SimpleTiler::genericTiler(mlir::Operation* op, mlir::MemRefType out
 
         Optional<Dim> dimToTile;
 
-        for (auto spatialDim : irange(IERT::ConvolutionOp::act_spatial_dims())) {
-            const auto act_spatial_dim = IERT::ConvolutionOp::act_spatial_dim(spatialDim);
+        for (auto ind : irange(IE::Dims4D::Act::numSpatialDims)) {
+            const auto spatialDim = IE::Dims4D::Act::getSpatialDim(ind);
 
-            const auto origSize = outputShape[act_spatial_dim];
-            const auto prevDivisor = nTilesOnDim[act_spatial_dim];
+            const auto origSize = outputShape[spatialDim];
+            const auto prevDivisor = nTilesOnDim[spatialDim];
 
             if (origSize / prevDivisor > 1) {
-                dimToTile = act_spatial_dim;
+                dimToTile = spatialDim;
                 break;
             }
         }
@@ -461,28 +466,28 @@ OutputTiling SimpleTiler::genericTiler(mlir::Operation* op, mlir::MemRefType out
 OutputTiling SimpleTiler::groupConvTiler(mlir::Operation* op, mlir::MemRefType outputType,
                                          FuncRef<bool(ShapeRef)> isSupportedTileSize) const {
     const auto outputShape = getShape(outputType);
-    const auto actChannelDim = IERT::ConvolutionOp::act_channel_dim();
 
     Shape nTilesOnDim(outputShape.size(), 1);
+
     // FIXME tiling over channels has to leave 16 channels in each tile.
     // Otherwise, depthwise convolutions produce worse accuracy.
     const auto depthwiseOutChanCount = VPUIP::NCEInvariant::getChannelAlignment(outputType.getElementType());
-    VPUX_THROW_UNLESS(outputShape[actChannelDim] % depthwiseOutChanCount == 0,
+    VPUX_THROW_UNLESS(outputShape[IE::Dims4D::Act::C] % depthwiseOutChanCount == 0,
                       "Depthwise convolution output channels must be a multiple of {0}, got {1}", depthwiseOutChanCount,
-                      outputShape[actChannelDim]);
-    nTilesOnDim[actChannelDim] = outputShape[actChannelDim] / depthwiseOutChanCount;
+                      outputShape[IE::Dims4D::Act::C]);
+    nTilesOnDim[IE::Dims4D::Act::C] = outputShape[IE::Dims4D::Act::C] / depthwiseOutChanCount;
 
     while (!isSupportedTileSize(nTilesOnDim)) {
         Optional<Dim> dimToTile;
 
-        for (auto spatialDim : irange(IERT::ConvolutionOp::act_spatial_dims())) {
-            const auto actSpatialDim = IERT::ConvolutionOp::act_spatial_dim(spatialDim);
+        for (auto ind : irange(IE::Dims4D::Act::numSpatialDims)) {
+            const auto spatialDim = IE::Dims4D::Act::getSpatialDim(ind);
 
-            const auto origSize = outputShape[actSpatialDim];
-            const auto prevDivisor = nTilesOnDim[actSpatialDim];
+            const auto origSize = outputShape[spatialDim];
+            const auto prevDivisor = nTilesOnDim[spatialDim];
 
             if (origSize / prevDivisor > 1) {
-                dimToTile = actSpatialDim;
+                dimToTile = spatialDim;
                 break;
             }
         }

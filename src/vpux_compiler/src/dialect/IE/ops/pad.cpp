@@ -12,11 +12,14 @@
 //
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
+
 #include "vpux/compiler/dialect/const/ops.hpp"
+#include "vpux/compiler/utils/error.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
 
 #include "vpux/compiler/utils/attributes.hpp"
+#include "vpux/compiler/utils/quantization.hpp"
 
 using namespace vpux;
 
@@ -49,8 +52,9 @@ mlir::FailureOr<SmallVector<int64_t>> extractPads(mlir::Location loc, const mlir
 }  // namespace
 
 mlir::LogicalResult vpux::IE::PadOp::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueRange operands, mlir::DictionaryAttr attrs,
-        mlir::RegionRange, SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
+        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
+        mlir::DictionaryAttr attrs, mlir::RegionRange,
+        SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
 
     IE::PadOpAdaptor pad(operands, attrs);
@@ -79,7 +83,15 @@ mlir::LogicalResult vpux::IE::PadOp::inferReturnTypeComponents(
         outShape[i] = (padBegin.getValue()[i] + inputShape[i] + padEnd.getValue()[i]);
     }
 
-    inferredReturnShapes.emplace_back(outShape, inType.getElementType());
+    auto elemType = inType.getElementType();
+    if (const auto perAxisQType = elemType.dyn_cast_or_null<mlir::quant::UniformQuantizedPerAxisType>()) {
+        const auto padBefore = Shape(padBegin.getValue());
+        const auto padAfter = Shape(padEnd.getValue());
+
+        elemType = expandScalesAndZP(perAxisQType, padBefore, padAfter);
+    }
+
+    inferredReturnShapes.emplace_back(outShape, elemType);
 
     return mlir::success();
 }

@@ -23,7 +23,7 @@ namespace VPUIP {
 
 constexpr uint32_t HW_TIMER_ABSOLUTE_ADDR = 0x208200BC;
 
-void setArch(mlir::ModuleOp module, ArchKind kind);
+void setArch(mlir::ModuleOp module, ArchKind kind, Optional<int> numOfDPUGroups = None);
 ArchKind getArch(mlir::ModuleOp module);
 
 double getMemoryDerateFactor(IERT::MemoryResourceOp mem);

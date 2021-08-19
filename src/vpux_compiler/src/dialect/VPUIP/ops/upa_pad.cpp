@@ -14,6 +14,7 @@
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
 #include "vpux/compiler/dialect/VPUIP/blob_reader.hpp"
+#include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/subspaces.hpp"
 
 #include <mlir/IR/BuiltinTypes.h>

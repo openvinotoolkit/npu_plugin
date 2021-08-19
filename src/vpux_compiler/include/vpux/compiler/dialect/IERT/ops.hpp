@@ -39,7 +39,6 @@
 
 #define GET_OP_CLASSES
 #include <vpux/compiler/dialect/IERT/generated/ops.hpp.inc>
-#undef GET_OP_CLASSES
 
 //
 // Operation verifiers

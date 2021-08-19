@@ -15,6 +15,7 @@
 
 #include <vpux/vpux_plugin_config.hpp>
 
+#include "vpux/utils/core/optional.hpp"
 #include "vpux_config_base.hpp"
 #include "vpux_private_config.hpp"
 
@@ -78,6 +79,9 @@ public:
     const std::string& compilationMode() const {
         return _compilationMode;
     }
+    Optional<int> numberOfDPUGroups() const {
+        return _numberOfDPUGroups;
+    }
 
     void parseFrom(const VPUXConfig& other);
 
@@ -87,7 +91,7 @@ protected:
     // Public options
     bool _performanceCounting = false;
     std::string _deviceId = "";
-    int _throughputStreams = 2;
+    int _throughputStreams = 6;
     int _numberOfNnCoreShaves = 0;
     InferenceEngine::VPUXConfigParams::VPUXPlatform _platform = InferenceEngine::VPUXConfigParams::VPUXPlatform::AUTO;
     int32_t _csramSize = -1;
@@ -109,6 +113,7 @@ protected:
             InferenceEngine::VPUXConfigParams::CompilerType::MCM;
 
     std::string _compilationMode = "ReferenceHW";
+    Optional<int> _numberOfDPUGroups = 1;
 
 private:
     void parseEnvironment();

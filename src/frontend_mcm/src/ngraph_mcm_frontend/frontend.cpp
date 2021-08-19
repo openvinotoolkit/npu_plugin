@@ -39,6 +39,8 @@
 #include <ngraph_mcm_frontend/passes/align_scales.hpp>
 #include <ngraph_mcm_frontend/passes/detect_input_fq.hpp>
 #include <ngraph_mcm_frontend/passes/remove_splitConcat.hpp>
+#include <ngraph_mcm_frontend/passes/convert_min_max_to_clamp.hpp>
+#include <ngraph_mcm_frontend/passes/convert_reshape_transpose_chain_to_depthtospace.hpp>
 
 #include "vpux/utils/core/error.hpp"
 
@@ -533,8 +535,10 @@ void applyTransformations(
 
     passManager.register_pass<OnnxReorgPatternToDarkNetReorg>();
     passManager.register_pass<ConvertExtractImagePatchesToReorgYoloVPU>();
+    passManager.register_pass<ConvertReshapeTransposeChainToDepthToSpace>();
     passManager.register_pass<PropagateFQ>();
     passManager.register_pass<AlignScales>();
+    passManager.register_pass<ConvertMinMaxToClamp>();
 
     if (!config.serializeCNNBeforeCompileFile().empty()) {
         std::string origFileName = config.serializeCNNBeforeCompileFile();
@@ -584,7 +588,6 @@ void applyTransformations(
         const bool skipLayers =
             std::dynamic_pointer_cast<const ngraph::opset4::SoftPlus>(node) ||
             std::dynamic_pointer_cast<const ngraph::opset4::HSwish>(node);
-
         return skipLayers;
     };
 

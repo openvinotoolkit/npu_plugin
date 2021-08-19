@@ -11,10 +11,10 @@
 // included with the Software Package for additional details.
 //
 
-#include <vpux/compiler/dialect/VPUIP/blob_reader.hpp>
+#include "vpux/compiler/dialect/VPUIP/blob_reader.hpp"
 
-#include <vpux/compiler/frontend/VPUIP.hpp>
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
+#include "vpux/compiler/frontend/VPUIP.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/types.hpp"
 

@@ -26,6 +26,8 @@ func @SingleQuantParams(%arg0: tensor<1x3x30x30xf32>) -> tensor<1x3x30x30xf32> {
 
 // -----
 
+!qElemType = type !quant.uniform<u8:f32, 0.078431372549019607:128>
+
 // CHECK-LABEL: @UseDequantize
 func @UseDequantize() -> tensor<1x3x30x30xf32> {
     %input = const.Declare tensor<1x3x30x30xf32> =
@@ -46,7 +48,7 @@ func @UseDequantize() -> tensor<1x3x30x30xf32> {
     // CHECK-SAME:      #const.Content<dense<10> : tensor<1x3x30x30xui8>
     // CHECK-SAME:      #const.ConvertElemType<f32>
     // CHECK-SAME:      #const.ConvertElemType<ui8>
-    // CHECK-SAME:      #const.QuantCast<!quant.uniform<u8:f32, 0.078431372549019607:128>>
+    // CHECK-SAME:      #const.QuantCast<!qElemType>
 
     // CHECK:       [[VAL1:%.*]] = "quant.dcast"([[VAL0]])
     // CHECK-SAME:      tensor<1x3x30x30x!quant.uniform<u8:f32, 0.078431372549019607:128>>

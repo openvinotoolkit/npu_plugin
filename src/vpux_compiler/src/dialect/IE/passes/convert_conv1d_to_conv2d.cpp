@@ -18,52 +18,31 @@
 #include "vpux/compiler/utils/rewriter.hpp"
 #include "vpux/compiler/utils/types.hpp"
 
-#include <ngraph_ops/convolution_ie.hpp>
-
 #include <mlir/Pass/PassManager.h>
 #include <mlir/Transforms/DialectConversion.h>
+
+#include <ngraph_ops/convolution_ie.hpp>
 
 using namespace vpux;
 
 namespace {
 
-//
-// ConvertConv1DToConv2DPass
-//
-
-class ConvertConv1DToConv2DPass final : public IE::ConvertConv1DToConv2DBase<ConvertConv1DToConv2DPass> {
-public:
-    explicit ConvertConv1DToConv2DPass(Logger log) {
-        Base::initLogger(log, Base::getArgumentName());
-    }
-
-    static mlir::Value extendTensor(mlir::PatternRewriter& rewriter, mlir::Location loc, mlir::Value input);
-    static mlir::ArrayAttr append(mlir::MLIRContext* context, mlir::ArrayAttr attr, int64_t value);
-
-public:
-    class ConvolutionExpansion;
-    class GroupConvolutionExpansion;
-
-private:
-    void safeRunOnFunc() final;
-};
-
-mlir::Value ConvertConv1DToConv2DPass::extendTensor(mlir::PatternRewriter& rewriter, mlir::Location loc,
-                                                    mlir::Value input) {
+mlir::Value extendTensor(mlir::PatternRewriter& rewriter, mlir::Location loc, mlir::Value input) {
     if (!input) {
-        return {};
+        return nullptr;
     }
 
     // Extend shape with Height = 1. [N C W] -> [N C 1 W]
     const auto shape = input.getType().cast<mlir::ShapedType>().getShape();
+
     auto newShape = to_small_vector(shape);
     newShape.insert(newShape.end() - 1, 1);
 
     const auto newShapeAttr = getIntArrayAttr(rewriter.getContext(), newShape);
-    return rewriter.create<IE::ReshapeOp>(loc, input, nullptr, false, newShapeAttr);
+    return rewriter.create<IE::ReshapeOp>(loc, input, nullptr, false, newShapeAttr).output();
 }
 
-mlir::ArrayAttr ConvertConv1DToConv2DPass::append(mlir::MLIRContext* context, mlir::ArrayAttr attr, int64_t value) {
+mlir::ArrayAttr append(mlir::MLIRContext* context, mlir::ArrayAttr attr, int64_t value) {
     auto vector = parseIntArrayAttr<int64_t>(attr);
     vector.insert(vector.begin(), value);
     return getIntArrayAttr(context, vector);
@@ -73,10 +52,11 @@ mlir::ArrayAttr ConvertConv1DToConv2DPass::append(mlir::MLIRContext* context, ml
 // ConvolutionExpansion
 //
 
-class ConvertConv1DToConv2DPass::ConvolutionExpansion final : public mlir::OpRewritePattern<IE::ConvolutionOp> {
+class ConvolutionExpansion final : public mlir::OpRewritePattern<IE::ConvolutionOp> {
 public:
     ConvolutionExpansion(mlir::MLIRContext* ctx, Logger log)
             : mlir::OpRewritePattern<IE::ConvolutionOp>(ctx), _log(log) {
+        setDebugName("ConvolutionExpansion");
     }
 
 public:
@@ -86,13 +66,13 @@ private:
     Logger _log;
 };
 
-mlir::LogicalResult ConvertConv1DToConv2DPass::ConvolutionExpansion::matchAndRewrite(
-        IE::ConvolutionOp origOp, mlir::PatternRewriter& rewriter) const {
+mlir::LogicalResult ConvolutionExpansion::matchAndRewrite(IE::ConvolutionOp origOp,
+                                                          mlir::PatternRewriter& rewriter) const {
     _log.trace("Found IE::Convolution Operation '{0}'", origOp->getLoc());
 
-    auto newInput = extendTensor(rewriter, origOp->getLoc(), origOp.input());
-    auto newFilter = extendTensor(rewriter, origOp->getLoc(), origOp.filter());
-    auto newBias = extendTensor(rewriter, origOp->getLoc(), origOp.bias());
+    const auto newInput = extendTensor(rewriter, origOp->getLoc(), origOp.input());
+    const auto newFilter = extendTensor(rewriter, origOp->getLoc(), origOp.filter());
+    const auto newBias = extendTensor(rewriter, origOp->getLoc(), origOp.bias());
 
     const auto newStrides = append(getContext(), origOp.strides(), 1);
     const auto newPadsBegin = append(getContext(), origOp.pads_begin(), 0);
@@ -115,11 +95,11 @@ mlir::LogicalResult ConvertConv1DToConv2DPass::ConvolutionExpansion::matchAndRew
 // GroupConvolutionExpansion
 //
 
-class ConvertConv1DToConv2DPass::GroupConvolutionExpansion final :
-        public mlir::OpRewritePattern<IE::GroupConvolutionOp> {
+class GroupConvolutionExpansion final : public mlir::OpRewritePattern<IE::GroupConvolutionOp> {
 public:
     GroupConvolutionExpansion(mlir::MLIRContext* ctx, Logger log)
             : mlir::OpRewritePattern<IE::GroupConvolutionOp>(ctx), _log(log) {
+        setDebugName("GroupConvolutionExpansion");
     }
 
 public:
@@ -129,13 +109,13 @@ private:
     Logger _log;
 };
 
-mlir::LogicalResult ConvertConv1DToConv2DPass::GroupConvolutionExpansion::matchAndRewrite(
-        IE::GroupConvolutionOp origOp, mlir::PatternRewriter& rewriter) const {
+mlir::LogicalResult GroupConvolutionExpansion::matchAndRewrite(IE::GroupConvolutionOp origOp,
+                                                               mlir::PatternRewriter& rewriter) const {
     _log.trace("Found IE::GroupConvolution Operation '{0}'", origOp->getLoc());
 
-    auto newInput = extendTensor(rewriter, origOp->getLoc(), origOp.input());
-    auto newFilter = extendTensor(rewriter, origOp->getLoc(), origOp.filter());
-    auto newBias = extendTensor(rewriter, origOp->getLoc(), origOp.bias());
+    const auto newInput = extendTensor(rewriter, origOp->getLoc(), origOp.input());
+    const auto newFilter = extendTensor(rewriter, origOp->getLoc(), origOp.filter());
+    const auto newBias = extendTensor(rewriter, origOp->getLoc(), origOp.bias());
 
     const auto newStrides = append(getContext(), origOp.strides(), 1);
     const auto newPadsBegin = append(getContext(), origOp.pads_begin(), 0);
@@ -156,8 +136,18 @@ mlir::LogicalResult ConvertConv1DToConv2DPass::GroupConvolutionExpansion::matchA
 }
 
 //
-// safeRunOnFunc
+// ConvertConv1DToConv2DPass
 //
+
+class ConvertConv1DToConv2DPass final : public IE::ConvertConv1DToConv2DBase<ConvertConv1DToConv2DPass> {
+public:
+    explicit ConvertConv1DToConv2DPass(Logger log) {
+        Base::initLogger(log, Base::getArgumentName());
+    }
+
+private:
+    void safeRunOnFunc() final;
+};
 
 void ConvertConv1DToConv2DPass::safeRunOnFunc() {
     auto& ctx = getContext();

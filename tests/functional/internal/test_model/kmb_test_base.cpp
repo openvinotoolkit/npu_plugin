@@ -22,6 +22,7 @@
 #include "functional_test_utils/plugin_cache.hpp"
 #include <format_reader_ptr.h>
 #include "vpux_private_config.hpp"
+#include "vpux_private_metrics.hpp"
 
 //
 // KmbTestBase
@@ -162,17 +163,6 @@ const bool KmbTestBase::PRINT_PERF_COUNTERS = []() -> bool {
     return false;
 }();
 
-// TODO Workaround to disable some inference tests for by-pass mode
-// If HDDL scheduler is running on Linux host, this is by-pass mode
-bool KmbTestBase::isByPass() const {
-#if defined(_WIN32) || defined(__arm__) || defined(__aarch64__)
-    return false;
-#else
-    int result = system("pidof hddl_scheduler_service");
-    return (!result);
-#endif
-}
-
 void KmbTestBase::SetUp() {
     ASSERT_NO_FATAL_FAILURE(CommonTestUtils::TestsCommon::SetUp());
 
@@ -193,6 +183,11 @@ void KmbTestBase::SetUp() {
             }) != devices.cend();
 
         return isVPUXDeviceAvailable;
+    }();
+
+    BACKEND_NAME = [this]() -> std::string {
+        const auto backendName = core->GetMetric("VPUX", VPUX_METRIC_KEY(BACKEND_NAME)).as<std::string>();
+        return backendName;
     }();
 
     const std::string configDevice = DEVICE_NAME.substr(0, DEVICE_NAME.find("."));
