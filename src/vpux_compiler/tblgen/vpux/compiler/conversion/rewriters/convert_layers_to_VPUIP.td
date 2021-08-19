@@ -696,4 +696,21 @@ def RewriteMVN :
             (createMVNUPAOp $input, $output, $across_channels, $normalize_variance, $eps)
         >;
 
+//
+// IERT.ReduceMean -> VPUIP.ReduceMeanUPA
+//
+
+def createReduceMeanUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::ReduceMeanUPAOp>(
+                    $_loc, $0, $1, $2, $3)
+        }]>;
+
+def RewriteReduceMean :
+        Pat<
+            (IERT_ReduceMeanOp $input, $output, $axes, $keep_dims),
+            (createReduceMeanUPAOp $input, $output, $axes, $keep_dims)
+        >;
+
+
 #endif

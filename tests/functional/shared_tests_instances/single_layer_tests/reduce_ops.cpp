@@ -167,6 +167,23 @@ namespace {
     );
 
     INSTANTIATE_TEST_CASE_P(
+            smoke_ReduceMean,
+            KmbReduceOpsLayerWithSpecificInputTest,
+            testing::Combine(
+                    testing::ValuesIn(decltype(axes) {{0}}),
+                    testing::Values(opTypes[1]),
+                    testing::Values(true),
+                    testing::Values(ngraph::helpers::ReductionType::Mean),
+                    testing::Values(InferenceEngine::Precision::FP32),
+                    testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                    testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                    testing::Values(InferenceEngine::Layout::ANY),
+                    testing::Values(std::vector<size_t> {1, 512, 7, 7}),
+                    testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+            KmbReduceOpsLayerWithSpecificInputTest::getTestCaseName
+    );
+
+    INSTANTIATE_TEST_CASE_P(
         smoke_ReduceSum,
         KmbReduceOpsLayerWithSpecificInputTest,
         testing::Combine(

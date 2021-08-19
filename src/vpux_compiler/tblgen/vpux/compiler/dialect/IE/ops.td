@@ -705,6 +705,34 @@ def IE_EluOp :
 }
 
 //
+// ReduceMeanOp
+//
+
+def IE_ReduceMeanOp :
+        IE_LayerOp<
+            "ReduceMean",
+            [
+                SameOperandsAndResultType
+            ]
+        > {
+    let summary = "InferenceEngine ReduceMean Layer";
+
+    let arguments = (ins
+        AnyRankedTensor:$input,
+        Optional<1DTensorOf<[AnyInteger]>>:$axes,
+        OptionalAttr<I64ArrayAttr>:$axes_value,
+
+        OptionalAttr<BoolAttr>:$keep_dims
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+
+    let hasCanonicalizer = 1;
+}
+
+//
 // ReshapeOp
 //
 

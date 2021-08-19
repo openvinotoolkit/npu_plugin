@@ -2726,4 +2726,55 @@ def VPUIP_MVNUPAOp :
     }];
 }
 
+//
+// ReduceMeanOp
+//
+
+def VPUIP_ReduceMeanUPAOp :
+        VPUIP_UPATaskOp<1,"ReduceMean",
+            [
+                ViewLikeOpInterface,
+            ]
+        > {
+    let summary = "ReduceMean UPA SHAVE kernel";
+
+    let arguments = (ins
+        F16MemRef:$input,
+        F16MemRef:$output_buff,
+
+        Variadic<VPUIP_Barrier>:$waitBarriers,
+        Variadic<VPUIP_Barrier>:$updateBarriers,
+
+        I64ArrayAttr:$axes,
+        OptionalAttr<BoolAttr>:$keep_dims,
+
+        OptionalAttr<IntAttr>:$maxShaves,
+        UnitAttr:$isTrailingSWLayer
+    );
+
+    let results = (outs
+        F16MemRef:$output
+    );
+
+    let builders = [
+        OpBuilder<
+            (ins
+                "mlir::Value":$input,
+                "mlir::Value":$output,
+                "mlir::ArrayAttr":$axes,
+                "mlir::BoolAttr":$keep_dims
+            )
+        >
+    ];
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+        `->` type(results)
+    }];
+}
+
 #endif

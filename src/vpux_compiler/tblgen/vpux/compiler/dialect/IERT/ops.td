@@ -2172,5 +2172,36 @@ def IERT_SubtractOp :
         `->` type(results)
     }];
 }
+//
+// ReduceMeanOp
+//
+
+def IERT_ReduceMeanOp :
+    IERT_LayerOp<1, "ReduceMean",
+        [
+            ViewLikeOpInterface
+        ]
+    > {
+    let summary = "InferenceEngine run-time ReduceMean layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input,
+        MemRefOf<[F16, F32]>:$output_buff,
+
+        I64ArrayAttr:$axes,
+        OptionalAttr<BoolAttr>:$keep_dims
+    );
+
+    let results = (outs
+        MemRefOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
 
 #endif
