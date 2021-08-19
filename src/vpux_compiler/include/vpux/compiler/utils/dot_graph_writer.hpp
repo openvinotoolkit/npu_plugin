@@ -85,14 +85,15 @@ class GraphWriter {
     }
 
     bool isNodeHidden(NodeRef Node) {
-        if (auto dotInterface = mlir::dyn_cast<DotInterface>(Node)) {
-            if (dotInterface.isDeclaration() && !PrintDeclarations)
-                return true;
+        if (Node->hasTrait<mlir::OpTrait::ConstantLike>() && !PrintConst) {
+            return true;
         }
-        if (Node->hasTrait<mlir::OpTrait::ConstantLike>() && !PrintConst)
+        if (!Node->hasTrait<mlir::OpTrait::ConstantLike>() && Node->hasTrait<DeclarationOp>() && !PrintDeclarations) {
             return true;
-        if (Node->hasTrait<mlir::OpTrait::IsTerminator>())
+        }
+        if (Node->hasTrait<mlir::OpTrait::IsTerminator>()) {
             return true;
+        }
 
         return false;
     }

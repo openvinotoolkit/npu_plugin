@@ -28,6 +28,7 @@ namespace vpux {
 
 std::unique_ptr<mlir::Pass> createComposeSubViewPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createDeallocPlacementPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createMoveDeclarationsToTopPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createPrintDot(StringRef fileName, bool printConst = false, bool printDeclarations = false);
 
 //

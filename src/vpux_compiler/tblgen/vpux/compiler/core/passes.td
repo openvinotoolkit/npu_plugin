@@ -48,7 +48,18 @@ def DeallocPlacement : PassBase<"dealloc-placement", "vpux::FunctionPass"> {
     ];
 }
 
-// opGraph
+//
+// MoveDeclarationsToTop
+//
+
+def MoveDeclarationsToTop : PassBase<"move-declarations-to-top", "vpux::FunctionPass"> {
+    let summary = "Move all declaration ops to top of parent block";
+
+    let constructor = "vpux::createMoveDeclarationsToTopPass()";
+}
+
+//
+// PrintDot
 //
 
 def PrintDot : PassBase<"print-dot", "vpux::ModulePass"> {

@@ -31,6 +31,8 @@ func @main(%arg0: tensor<1x1000xf16>) -> tensor<1x1000xf16> {
 
     // CHECK-DAG:   [[VAR0:%.+]] = VPUIP.DeclareTensor "ProgrammableInput" [0] <0> -> memref<1x1000xf16>
     // CHECK-DAG:   [[VAR1:%.+]] = VPUIP.DeclareTensor "VPU_DDR_Heap" [0] <0> -> memref<1x1000xf16, "DDR">
+    // CHECK-DAG:   [[VAR4:%.+]] = VPUIP.DeclareTensor "VPU_DDR_Heap" [0] <0> -> memref<1x1x1x1000xf16, "DDR">
+
     // CHECK-DAG:   [[VAR2:%.+]] = VPUIP.ConfigureBarrier<0> -> !VPUIP.Barrier
 
     // CHECK-NEXT:  [[VAR3:%.+]] = VPUIP.SoftMaxUPA
@@ -38,8 +40,6 @@ func @main(%arg0: tensor<1x1000xf16>) -> tensor<1x1000xf16> {
     // CHECK-SAME:              inputs([[VAR0]] : memref<1x1000xf16>)
     // CHECK-SAME:              outputs([[VAR1]] : memref<1x1000xf16, "DDR">)
     // CHECK-SAME:              updates([[VAR2]] : !VPUIP.Barrier)
-
-    // CHECK-NEXT:  [[VAR4:%.+]] = VPUIP.DeclareTensor "VPU_DDR_Heap" [0] <0> -> memref<1x1x1x1000xf16, "DDR">
 
     // CHECK-NEXT:  [[VAR5:%.+]] = VPUIP.NNDMA
     // CHECK-SAME:              inputs([[VAR4]] : memref<1x1x1x1000xf16, "DDR">)
@@ -98,16 +98,17 @@ func @main(%arg0: tensor<1x2x2x2xf16>) -> (tensor<1x2x2x2xf16>, tensor<1x2x2x2xf
     return %0, %1 : tensor<1x2x2x2xf16>, tensor<1x2x2x2xf16>
 
     // CHECK-DAG:   [[CST:%.+]] = const.Declare
-    // CHECK-DAG:   [[BAR0:%.+]] = VPUIP.ConfigureBarrier<0> -> !VPUIP.Barrier
+
     // CHECK-DAG:   [[BUF0:%.+]] = VPUIP.DeclareTensor "VPU_DDR_Heap" [0] <0> -> memref<1x2x2x2xf16, "DDR">
+    // CHECK-DAG:   [[BUF1:%.+]] = VPUIP.DeclareTensor "VPU_DDR_Heap" [0] <64> -> memref<1x2x2x2xf16, "DDR">
+
+    // CHECK-DAG:   [[BAR0:%.+]] = VPUIP.ConfigureBarrier<0> -> !VPUIP.Barrier
 
     // CHECK-NEXT:  [[VAR0:%.+]] = VPUIP.SoftMaxUPA
     // CHECK-SAME:              axisInd = 1
     // CHECK-SAME:              inputs([[ARG0]] : memref<1x2x2x2xf16>)
     // CHECK-SAME:              outputs([[BUF0]] : memref<1x2x2x2xf16, "DDR">)
     // CHECK-SAME:              updates([[BAR0]] : !VPUIP.Barrier)
-
-    // CHECK-DAG:   [[BUF1:%.+]] = VPUIP.DeclareTensor "VPU_DDR_Heap" [0] <64> -> memref<1x2x2x2xf16, "DDR">
 
     // CHECK-NEXT:  [[VAR1:%.+]] = VPUIP.SoftMaxUPA
     // CHECK-SAME:              axisInd = 1
@@ -169,7 +170,7 @@ func @main() -> tensor<1x2x4x2xf16> {
 
     return %prob : tensor<1x2x4x2xf16>
 
-    // CHECK:       [[CST:%.+]] = const.Declare
+    // CHECK-DAG:   [[CST:%.+]] = const.Declare
 
     // CHECK-NEXT:  [[VAR0:%.+]] = VPUIP.NNDMA
     // CHECK-SAME:      inputs([[CST]] : memref<1x2x4x2xf16>)

@@ -114,6 +114,7 @@ def VPUIP_DeclareTensorOp :
             "DeclareTensor",
             [
                 NoSideEffect,
+                DeclarationOp,
                 DotInterface
             ]
         > {
@@ -159,11 +160,9 @@ def VPUIP_DeclareTensorOp :
     let extraClassDeclaration = [{
         static mlir::ParseResult parseLocaleIndex(mlir::OpAsmParser& parser, mlir::ArrayAttr& localeIndex);
         static void printLocaleIndex(mlir::OpAsmPrinter& printer, vpux::VPUIP::DeclareTensorOp& op, mlir::ArrayAttr localeIndex);
-        bool isDeclaration() {
-            return true;
-        }
+
         vpux::DotNodeColor getNodeColor() {
-            return DotNodeColor::ORANGE;
+            return vpux::DotNodeColor::ORANGE;
         }
     }];
 }
@@ -176,7 +175,8 @@ def VPUIP_DeclareVirtualBarrierOp :
         VPUIP_Op<
             "DeclareVirtualBarrier",
             [
-                NoSideEffect
+                NoSideEffect,
+                DeclarationOp
             ]
         > {
     let summary = "VPUIP virtual Barrier declaration";
@@ -200,6 +200,7 @@ def VPUIP_ConfigureBarrierOp :
                 MemoryEffectsOpInterface,
                 AttrSizedOperandSegments,
                 DeclareOpInterfaceMethods<VPUIP_TaskOpInterface>,
+                DeclarationOp,
                 DotInterface
             ]
         > {
@@ -224,9 +225,11 @@ def VPUIP_ConfigureBarrierOp :
         static vpux::VPUIP::TaskType getTaskType() {
             return vpux::VPUIP::TaskType::Controller;
         }
+
         vpux::DotNodeColor getNodeColor() {
             return vpux::DotNodeColor::AQUA;
         }
+
         std::string printAttributes() {
             std::ostringstream os;
             os << "id: " << idAttr().getInt() << std::endl;
@@ -2562,7 +2565,7 @@ def VPUIP_MVNUPAOp :
             )
         >
     ];
-    
+
     let verifier = [{
         return vpux::VPUIP::verifyOp(*this);
     }];

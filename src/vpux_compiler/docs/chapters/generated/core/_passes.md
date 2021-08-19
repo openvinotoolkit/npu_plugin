@@ -2,6 +2,7 @@
 ### `-compose-subview`: Combine composed subview ops
 ### `-dealloc-placement`: Insert dealloc operations for dynamically allocated memory buffers
 This pass supports multi-view Operations in contrast to the MLIR standard pass.
+### `-move-declarations-to-top`: Move all declaration ops to top of parent block
 ### `-print-dot`: Convert current MLIR graph to Dot graph
 Convert current MLIR graph to Dot graph.
 
