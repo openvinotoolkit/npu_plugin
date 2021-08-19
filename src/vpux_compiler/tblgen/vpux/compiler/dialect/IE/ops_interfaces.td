@@ -47,7 +47,7 @@ def IE_LayerOpInterface : OpInterface<"LayerOpInterface"> {
 
     let extraTraitClassDeclaration = [{
         static mlir::LogicalResult inferReturnTypes(mlir::MLIRContext* ctx, mlir::Optional<mlir::Location> loc,
-                                                    mlir::ValueShapeRange operands, mlir::DictionaryAttr attrs, mlir::RegionRange regions,
+                                                    mlir::ValueRange operands, mlir::DictionaryAttr attrs, mlir::RegionRange regions,
                                                     mlir::SmallVectorImpl<mlir::Type>& inferredTypes) {
             return vpux::IE::inferTensorTypes(ConcreteOp::inferReturnTypeComponents, ctx, loc, operands, attrs, regions, inferredTypes);
         }
