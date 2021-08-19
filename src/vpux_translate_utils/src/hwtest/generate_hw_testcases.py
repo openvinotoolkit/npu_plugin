@@ -743,7 +743,6 @@ class DPUPipeline:
         if settings.mpe_op_class is Maxpool and settings.input_ttype.__class__ in [FP16, BF16]:
             self.issues.add('EISW-15074')  # MaxPool produces zeros with fp16 and bf16 inputs
 
-
     def compute_values(self):
         self.inputs = self.mpe_op.generate_inputs()
         self.mpe_data = self.mpe_op.apply(self.inputs)
