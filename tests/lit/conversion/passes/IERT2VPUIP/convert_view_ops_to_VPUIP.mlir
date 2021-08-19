@@ -133,3 +133,39 @@ func @WithAsyncRegions(%arg0: memref<1x512xf16>, %arg1: memref<1x512xf16>) -> me
     // CHECK:       [[VAR4:%.+]] = async.await [[F4]] : !async.value<memref<1x512xf16>>
     // CHECK:       return [[VAR4]] : memref<1x512xf16>
 }
+
+// -----
+
+#NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
+#map = affine_map<(d0, d1, d2, d3) -> (d0 * 1000 + d1 * 1000 + d2 * 1000 + d3)>
+
+// CHECK-LABEL: @ImplicitReorder
+func @ImplicitReorder(%arg0: memref<1x1000x1x1xf16>, %arg1: memref<1x1000x1x1xf16, #NHWC, #map>) -> memref<1x1000x1x1xf16, #NHWC, #map> {
+    %0 = IERT.ImplicitReorder
+        {dstOrder = #NHWC}
+        inputs(%arg0 : memref<1x1000x1x1xf16>)
+        -> memref<1x1000x1x1xf16, #NHWC, #map>
+
+    %1 = VPUIP.DeclareTensor "VPU_DDR_Heap" [0] <2000> -> memref<1x1000x1x1xf16, #NHWC, #map, "DDR">
+    %2 = VPUIP.SoftMaxUPA {axisInd = 1}
+        inputs(%0 : memref<1x1000x1x1xf16, #NHWC, #map>)
+        outputs(%1 : memref<1x1000x1x1xf16, #NHWC, #map, "DDR">) -> memref<1x1000x1x1xf16, #NHWC, #map, "DDR">
+    %3 = VPUIP.NNDMA
+        inputs(%2 : memref<1x1000x1x1xf16, #NHWC, #map, "DDR">)
+        outputs(%arg1 : memref<1x1000x1x1xf16, #NHWC, #map>) -> memref<1x1000x1x1xf16, #NHWC, #map>
+    return %3 : memref<1x1000x1x1xf16, #NHWC, #map>
+
+    // CHECK:       [[VAR1:%.*]] = VPUIP.DeclareTensor "ProgrammableInput" [0] <0> -> memref<1x1000x1x1xf16, #NHWC, #map>
+    // CHECK:       [[VAR2:%.*]] = VPUIP.DeclareTensor "VPU_DDR_Heap" [0] <2000> -> memref<1x1000x1x1xf16, #NHWC, #map, "DDR">
+
+    // CHECK:       [[VAR3:%.*]] = VPUIP.SoftMaxUPA
+    // CHECK-SAME:      axisInd = 1
+    // CHECK-SAME:      inputs([[VAR1]] : memref<1x1000x1x1xf16, #NHWC, #map>)
+    // CHECK-SAME:      outputs([[VAR2]] : memref<1x1000x1x1xf16, #NHWC, #map, "DDR">)
+
+    // CHECK:       [[VAR4:%.*]] = VPUIP.NNDMA
+    // CHECK-SAME:      inputs([[VAR3]] : memref<1x1000x1x1xf16, #NHWC, #map, "DDR">)
+    // CHECK-SAME:      outputs(%arg1 : memref<1x1000x1x1xf16, #NHWC, #map>) -> memref<1x1000x1x1xf16, #NHWC, #map>
+
+    // CHECK: return [[VAR4]] : memref<1x1000x1x1xf16, #NHWC, #map>
+}

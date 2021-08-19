@@ -835,6 +835,38 @@ operation ::= `IERT.HSwish` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float or 32-bit float values
 
+### `IERT.ImplicitReorder` (vpux::IERT::ImplicitReorderOp)
+
+Compile-time reorder layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.ImplicitReorder` attr-dict
+              `inputs` `(` $source `:` type($source) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`dstOrder` | ::mlir::AffineMapAttr | AffineMap attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`source` | memref of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`result` | memref of any type values
+
 ### `IERT.Interpolate` (vpux::IERT::InterpolateOp)
 
 InferenceEngine run-time Interpolate layer

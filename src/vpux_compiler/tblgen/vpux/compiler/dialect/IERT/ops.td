@@ -1943,4 +1943,37 @@ def IERT_SubViewOp :
     let hasFolder = 1;
 }
 
+//
+// ImplicitReorderOp
+//
+
+def IERT_ImplicitReorderOp :
+        IERT_Op<
+            "ImplicitReorder",
+            [
+                SameOperandsAndResultElementType,
+                DeclareOpInterfaceMethods<ViewLikeOpInterface>,
+                DeclareOpInterfaceMethods<InferTypeOpInterface>,
+                NoSideEffect
+            ]
+        > {
+    let summary = "Compile-time reorder layer";
+
+    let arguments = (ins
+        AnyMemRef:$source,
+
+        AffineMapAttr:$dstOrder
+    );
+
+    let results = (outs
+        AnyMemRef:$result
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $source `:` type($source) `)`
+        `->` type(results)
+    }];
+}
+
 #endif
