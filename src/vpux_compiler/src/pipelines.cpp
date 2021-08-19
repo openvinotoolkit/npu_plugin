@@ -63,7 +63,6 @@ void buildIEReferenceLowPrecisionPipeline(mlir::OpPassManager& pm, Logger log) {
 }
 
 void buildIERTAllocationPipelineForDDR(mlir::OpPassManager& pm, Logger log) {
-    pm.addPass(createDeallocPlacementPass(log));
     pm.addPass(IERT::createSetInternalMemorySpacePass(getMemSpace<VPUIP::PhysicalMemory::DDR>, log));
     pm.addPass(IERT::createStaticAllocationPass(getMemSpace<VPUIP::PhysicalMemory::DDR>, log));
 }
@@ -111,8 +110,9 @@ void vpux::buildReferenceModePipeline(mlir::OpPassManager& pm, bool enableProfil
     }
 
     // IERT Dialect level
-    buildIERTAllocationPipelineForDDR(pm, log);
     IERT::buildAsyncSchedulingPipeline(pm, log);
+    buildIERTAllocationPipelineForDDR(pm, log);
+    pm.addPass(IERT::createOptimizeAsyncDepsPass(log));
 
     // Lower IERT->VPUIP (SW mode)
     buildLowerIERT2VPUIPPipeline(pm, log);
@@ -160,10 +160,13 @@ void vpux::buildHardwareModePipeline(mlir::OpPassManager& pm, bool enableProfili
     pm.addPass(mlir::createCanonicalizerPass(grc));
 
     // IERT Dialect level (cont.)
+    IERT::buildAsyncSchedulingPipeline(pm, log);
     buildIERTAllocationPipelineForDDR(pm, log);
     pm.addPass(IERT::createStaticAllocationPass(getMemSpace<VPUIP::PhysicalMemory::CMX_NN>, log));
+    pm.addPass(IERT::createOptimizeAsyncDepsPass(log));
+
+    // Handle WeightsTable, which requires statically allocated memory
     pm.addPass(VPUIP::createConvertWeightsTableOp2ConstPass(log));
-    IERT::buildAsyncSchedulingPipeline(pm, log);
 
     // Finally lower remaining IERT->VPUIP (SW mode)
     buildLowerIERT2VPUIPPipeline(pm, log);

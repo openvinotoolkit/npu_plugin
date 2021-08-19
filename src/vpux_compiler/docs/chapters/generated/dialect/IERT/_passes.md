@@ -7,8 +7,8 @@ Groups consecutive operations which utilizes the same executor and max resources
 ### `-move-view-ops-into-async-regions`: Moves view-like Operations inside the asynchronous regions which depends on them
 ### `-move-wait-result-to-async-block-args`: Moves 'async.await' result usage from 'async.execute' body to it's operands
 ### `-optimize-async-deps`: Optimizes dependencies between 'async.execute' operations
-The pass removes 'async.await' Operations between two consecutive 'async.execute' regions and
-establish token-based dependencies between 'async.execute' operations.
+The pass tries to remove extra explicit `!async.token` based dependencies,
+if they are represented implicitly (as a result of transitive dependencies).
 ### `-profiling-timestamp`: DMA-Timestamp based network profiling
 This pass add dma-timestamp based network profiling.
 ### `-set-internal-memory-space`: Set specific memory space for all internal memory buffers

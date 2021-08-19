@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -13,34 +13,29 @@
 
 #pragma once
 
-#include "vpux/utils/core/mem_size.hpp"
-#include "vpux/utils/core/optional.hpp"
-
 #include <mlir/IR/Operation.h>
 #include <mlir/IR/Value.h>
 
+#include <map>
+#include <set>
+
 namespace vpux {
 
-class StaticAllocation final {
-public:
-    explicit StaticAllocation(mlir::Operation* rootOp, mlir::Attribute memSpace = nullptr,
-                              Byte maxSize = Byte(std::numeric_limits<uint64_t>::max()), uint64_t alignment = 1);
-
-public:
-    Optional<int64_t> getValOffset(mlir::Value val) const;
-
-    auto maxAllocatedSize() const {
-        return _maxAllocatedSize;
-    }
-
-private:
-    struct Handler;
-    friend Handler;
-
-private:
-    uint64_t _alignment = 1;
-    mlir::DenseMap<mlir::Value, int64_t> _valOffsets;
-    Byte _maxAllocatedSize;
+struct OpOrderCmp final {
+    bool operator()(mlir::Operation* lhs, mlir::Operation* rhs) const;
 };
+
+struct ValueOrderCmp final {
+    bool operator()(mlir::Value lhs, mlir::Value rhs) const;
+};
+
+using OpOrderedSet = std::set<mlir::Operation*, OpOrderCmp>;
+using ValueOrderedSet = std::set<mlir::Value, ValueOrderCmp>;
+
+template <typename T>
+using OpOrderedMap = std::map<mlir::Operation*, T, OpOrderCmp>;
+
+template <typename T>
+using ValueOrderedMap = std::map<mlir::Value, T, ValueOrderCmp>;
 
 }  // namespace vpux

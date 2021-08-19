@@ -26,7 +26,6 @@ namespace vpux {
 // Passes
 //
 
-std::unique_ptr<mlir::Pass> createDeallocPlacementPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createMoveDeclarationsToTopPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createPrintDot(StringRef fileName, StringRef startAfter = "", StringRef stopBefore = "",
                                            bool printConst = false, bool printDeclarations = false);
