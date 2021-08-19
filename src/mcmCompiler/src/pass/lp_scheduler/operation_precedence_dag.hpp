@@ -1760,8 +1760,7 @@ struct scheduler_traits< mv::scheduler::Operation_Dag<mv::ControlModel> >
 }; // scheduler_traits<mv::scheduler::Operation_Dag> //
 
 
-typedef Feasible_Memory_Schedule_Generator< mv::scheduler::Operation_Dag<> >
-  mv_memory_scheduler_with_spilling_t;
+typedef Feasible_Memory_Schedule_Generator< mv::scheduler::Operation_Dag<> >mv_memory_scheduler_with_spilling_t;
 
 } // namespace lp_scheduler //
 } // namespace mv //

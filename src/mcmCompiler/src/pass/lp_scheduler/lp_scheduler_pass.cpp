@@ -170,8 +170,7 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
   }
 
   // generate tensor addresses //
-  mv::lp_scheduler::Tensor_Address_Assignment<scheduler_t>
-      cmx_address_alloc(model);
+  mv::lp_scheduler::Tensor_Address_Assignment<scheduler_t> cmx_address_alloc(model);
   scheduler_t scheduler(input_dag, upper_bound), scheduler_end;
   typedef std::list<scheduled_op_t> scheduled_op_list_t;
   typedef typename scheduled_op_list_t::iterator scheduled_op_list_iterator_t;
@@ -183,7 +182,8 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
     mv::Op const *op = scheduled_op.op_;
     size_t rbegin = scheduled_op.begin_resource();
     size_t rend = scheduled_op.end_resource();
-
+    std::cout << "In scheduling loop: The scheduled op is " << op->getName() << " and the interval is [" << rbegin << ", " <<rend << " ]"<< std::endl;
+    std::cout << " " << std::endl;
     scheduled_op_type = scheduled_op.op_type_name();
 
     if (input_dag.is_input_op(op)) {
@@ -380,24 +380,24 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
 
   ///////////////////// REPACKING //////////////////////////////////////////////
   //TODO(vamsikku): get rid of repacking.
-  if (passDesc.hasAttr("enable_simple_repacking"))
-  {
-    // Repack all ops are now original//
-    std::list<scheduled_op_t> new_scheduled_ops;
-    typedef mv::lp_scheduler::Repack_Input_DMA_Tasks<dag_t> repacker_t;
-    typename dag_t::data_op_selector_t repackable_op_selector(input_dag);
+  // if (passDesc.hasAttr("enable_simple_repacking"))
+  // {
+  //   // Repack all ops are now original//
+  //   std::list<scheduled_op_t> new_scheduled_ops;
+  //   typedef mv::lp_scheduler::Repack_Input_DMA_Tasks<dag_t> repacker_t;
+  //   typename dag_t::data_op_selector_t repackable_op_selector(input_dag);
 
-    repacker_t repacker(input_dag, repackable_op_selector);
+  //   repacker_t repacker(input_dag, repackable_op_selector);
 
-    repacker.repack(scheduled_ops.begin(), scheduled_ops.end(),
-        std::back_inserter(new_scheduled_ops));
+  //   repacker.repack(scheduled_ops.begin(), scheduled_ops.end(),
+  //       std::back_inserter(new_scheduled_ops));
 
-    scheduled_ops = new_scheduled_ops;
-    if (fptr) {
-      fprintf(fptr, "[Average Repack Level]: %0.5lf\n",
-            repacker.average_repack_level());
-    }
-  }
+  //   scheduled_ops = new_scheduled_ops;
+  //   if (fptr) {
+  //     fprintf(fptr, "[Average Repack Level]: %0.5lf\n",
+  //           repacker.average_repack_level());
+  //   }
+  // }
   //////////////////////////////////////////////////////////////////////////////
 
 

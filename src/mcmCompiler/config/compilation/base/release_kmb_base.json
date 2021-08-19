@@ -72,9 +72,20 @@
             {
                 "name" : "SimpleStrategyManager",
                 "loadStrategiesFromFile" : false,
-                "jsonInFileName" : "./output/mcmCompiler_simple_strategy_output.json"
+                "jsonInFileName" : "/home/johnbrad/git/openvino/bin/intel64/Debug/output/strategy.json"
             },
             "StoreGraphOptimizerDecisions",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/op_model-in1.dot",
+                "scope": "OpModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/op_model-in1.dot"
+            },
             {
                 "name" : "AddActivationStreaming",
                 "max_streams" : 1000,
@@ -151,6 +162,17 @@
                 "real_physical_barriers": 32
             },
             "VerifyDMASchedulingOrder",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/op_model-in.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/op_model-in.dot"
+            },
             "BuildGraphFileKmb",
             "UpdatePhysicalIDinGraphFile",
             {

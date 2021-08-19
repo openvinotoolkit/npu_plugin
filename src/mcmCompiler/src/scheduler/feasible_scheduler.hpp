@@ -296,8 +296,7 @@ class Contiguous_Resource_State {
       // 1D bin-packing problem.
 
       free_interval_iterator_t fitr = active_resources_.begin_free_intervals();
-      free_interval_iterator_t fitr_end =
-          active_resources_.end_free_intervals();
+      free_interval_iterator_t fitr_end = active_resources_.end_free_intervals();
       if (fitr == fitr_end) { return false; }
 
       // sort the free bins based on their length //
@@ -309,29 +308,50 @@ class Contiguous_Resource_State {
         unit_t a = std::max(location_begin_-1, fitr.interval_begin());
         unit_t b = std::min(location_end_+1, fitr.interval_end());
 
+        std::cout << "[location_begin_-1] " << location_begin_-1 << " " << "[fitr.interval_begin()] "<< fitr.interval_begin() << " : a= " << std::max(location_begin_-1, fitr.interval_begin()) << std::endl;
+        std::cout << "[location_end_+1] " << location_end_+1 << " " <<  "[fitr.interval_end()] " << fitr.interval_end() << " : b= " << std::min(location_end_+1, fitr.interval_end()) << std::endl; 
+        std::cout << "a = " << a << " " << "b = " << b << std::endl;
         if ((b-a) > 1) {
           // bin has capacity of at least one //
+          std::cout << "In pack_demands_into_free_bins: Adding interval [" << a+1 << ", " << b-1 << " ]" << " to free_bins " << std::endl; 
           free_bins.emplace_back( interval_info_t(a+1, b-1) );
+          std::cout << "The amount of free bins is " << free_bins.size() << std::endl;
         }
       }
       std::sort(free_bins.begin(), free_bins.end(),
             interval_length_ordering_t());
+      std::cout << "In pack_demands_into_free_bins: Sorted free_bins " << std::endl;
+
+      std::cout << "In pack_demands_into_free_bins: Printing free_bins " << std::endl;
+      for (auto i = free_bins.begin(); i != free_bins.end(); ++i)
+        std::cout << "[ " <<(*i).begin_ << " " << (*i).end_ << " ]" << std::endl;
 
       demands_t demands;
       for (; ditr_in != ditr_in_end; ++ditr_in) {
         unit_t demand = *ditr_in;
+        std::cout << "In pack_demands_into_free_bins: Demand is " << demand << std::endl;
         if (demand > 0) {
           demands.emplace_back(*ditr_in);
         }
       }
 
-      if (demands.empty())
+      if (demands.empty()) {
+       std::cout << "In pack_demands_into_free_bins: Demand empty returning " << std::endl;
         return true;
+      }
 
-      if (free_bins.empty())
+      if (free_bins.empty()) {
+        std::cout << "In pack_demands_into_free_bins: No free bins " << std::endl;
         return false;
+      }
 
       std::sort(demands.begin(), demands.end(), demand_ordering_t());
+
+      std::cout << "In pack_demands_into_free_bins: Sorted demands " << std::endl;
+
+      std::cout << "In pack_demands_into_free_bins: Printing demands " << std::endl;
+      for (auto i = demands.begin(); i != demands.end(); ++i)
+        std::cout << (*i) << std::endl;
 
 
       // we should have atleast one bin at this time //
@@ -340,6 +360,7 @@ class Contiguous_Resource_State {
       typename bins_t::const_iterator bitr = free_bins.begin();
       typename bins_t::const_iterator bitr_end = free_bins.end();
       size_t remaining_space_in_curr_bin = (free_bins.size() == 0) ? 0 : (*bitr).length();
+      std::cout << "In pack_demands_into_free_bins: Remaining_space_in_curr_bin " << remaining_space_in_curr_bin << std::endl;
       bool is_fresh_bin = true;
 
       // In each iterator either we move to next demand or
@@ -348,7 +369,9 @@ class Contiguous_Resource_State {
 
         unit_t curr_demand = *ditr;
         if (curr_demand <=  remaining_space_in_curr_bin) {
+          std::cout << "curr_demand is " << curr_demand << "remaining_space_in_curr_bin " << remaining_space_in_curr_bin << std::endl; 
           remaining_space_in_curr_bin -= curr_demand;
+          std::cout << "The Remaining_space_in_curr_bin is now :" << remaining_space_in_curr_bin << std::endl;
 
           {
             // compute the addresses of this demand //
@@ -357,18 +380,22 @@ class Contiguous_Resource_State {
             address_info.end_ =
                 ((bin_info.end_) - remaining_space_in_curr_bin);
             address_info.begin_ = (address_info.end_ - curr_demand) + 1;
+            std::cout << "The address for this demand is " << address_info.begin_ << "-> " << address_info.end_ << std::endl;
             output = address_info;
             ++output;
           }
-
+          std::cout << "In pack_demands_into_free_bins: Moving to the next demand " << std::endl;
           ++ditr; // move to next demand //
           if (is_fresh_bin) { is_fresh_bin = false; }
         } else if (!is_fresh_bin) {
+          std::cout << "In pack_demands_into_free_bins: Moving to the next bin " << std::endl;
           ++bitr; // move to next bin //
           is_fresh_bin = true;
           remaining_space_in_curr_bin =
               (bitr == bitr_end) ? 0UL : (*bitr).length();
+          std::cout << "In pack_demands_into_free_bins: Remaining_space_in_curr_bin " << remaining_space_in_curr_bin << std::endl;
         } else { // the demand does not fit in a fresh bin //
+          std::cout << "In pack_demands_into_free_bins: The demand does not fit in a fresh bin "  << std::endl;
           break;
         }
       }
@@ -1323,11 +1350,21 @@ class Feasible_Memory_Schedule_Generator {
     ////////////////////////////////////////////////////////////////////////////
 
     Feasible_Memory_Schedule_Generator(const dag_t& in, const resource_t& bound)
-      : current_scheduled_op_(), ready_list_(), op_in_degree_(),
-      ready_active_list_(), ready_data_list_(), processed_ops_(),
-      completion_time_heap_(), start_time_heap_(), current_time_(),
-      memory_state_(), op_output_table_(), active_resource_table_(),
-      input_ptr_(&in), total_compute_ops_(0UL), scheduled_compute_ops_(0UL){
+      : current_scheduled_op_(), 
+      ready_list_(), 
+      op_in_degree_(),
+      ready_active_list_(), 
+      ready_data_list_(), 
+      processed_ops_(),
+      completion_time_heap_(), 
+      start_time_heap_(), 
+      current_time_(),
+      memory_state_(), 
+      op_output_table_(), 
+      active_resource_table_(),
+      input_ptr_(&in), 
+      total_compute_ops_(0UL), 
+      scheduled_compute_ops_(0UL){
         init(in, bound);
     }
 
@@ -1537,6 +1574,7 @@ class Feasible_Memory_Schedule_Generator {
 
       for (; citr != citr_end; ++citr) {
         operation_t pop = *citr;
+         
         deg_itr = op_in_degree_.find(pop);
 
         assert((deg_itr != op_in_degree_.end()) && (deg_itr->second > 0) );
@@ -1545,6 +1583,8 @@ class Feasible_Memory_Schedule_Generator {
           op_in_degree_.erase(deg_itr);
           output = pop;
         } else {
+          std::cout << "Decreasing indegree of " << traits::operation_name(pop) << std::endl;
+
           --(deg_itr->second);
         }
       }
@@ -1559,7 +1599,8 @@ class Feasible_Memory_Schedule_Generator {
 
       for (; op_begin != op_end; ++op_begin) {
         operation_t op = *op_begin;
-
+        std::cout << traits::operation_name(op) << std::endl;
+        
         const_operation_iterator_t cop_begin =
             traits::outgoing_operations_begin(in, op);
         const_operation_iterator_t cop_end =
@@ -1570,12 +1611,16 @@ class Feasible_Memory_Schedule_Generator {
           typename op_in_degree_t::iterator ditr = op_in_degree_.find(cop);
 
           if (ditr == op_in_degree_.end()) {
+            std::cout << "Adding " << traits::operation_name(cop) << " to indegree " << std::endl;
             ditr = (op_in_degree_.insert(std::make_pair(cop, 0UL))).first;
           }
           ditr->second++;
 
         }
       }
+      for (auto const &pair: op_in_degree_) {
+        std::cout << "{" << traits::operation_name(pair.first) << ": " << pair.second << "}\n";
+    }
     }
 
     bool is_zero_in_degree_op(const operation_t& op) const {
@@ -1597,8 +1642,11 @@ class Feasible_Memory_Schedule_Generator {
 
       for (;itr != itr_end; ++itr) {
         const operation_t & op = *itr;
+        std::cout << "Checking if " << traits::operation_name(op) << " can be added to the data ready list" << std::endl;
         if ( traits::is_data_operation(*input_ptr_, op) &&
               is_zero_in_degree_op(op) ) {
+          std::cout << "Adding op to data ready list " << traits::operation_name(op) << std::endl;
+          std::cout << " " << std::endl;
           ready_data_list_.insert(op);
           // this may create new ready compute-ops //
           reduce_in_degree_of_adjacent_operations(op);
@@ -1618,6 +1666,7 @@ class Feasible_Memory_Schedule_Generator {
         if (traits::is_compute_operation(*input_ptr_, op)) {
           ++total_compute_ops_;
           if (is_zero_in_degree_op(op)) {
+            std::cout << "Adding to ready list " << traits::operation_name(op) << std::endl;
             ready_list_.insert(op);
           }
         }
@@ -1700,12 +1749,24 @@ class Feasible_Memory_Schedule_Generator {
 
       current_time_ = schedule_time_t(1);
       clear_lists();
-
+      
+      std::cout << "Calculating in-degree" << std::endl;
       compute_op_in_degree();
+      std::cout << "Finished calculating in-degree" << std::endl;
+      std::cout << " " << std::endl;
       check_if_input_is_dag();
       compute_ready_data_list();
+      std::cout << "Finished calculating ready data list" << std::endl;
+      std::cout << " " << std::endl;
       compute_ready_compute_list();
+      std::cout << "Finished calculating ready compute list" << std::endl;
 
+      std::cout << "All the ops in the ready list are " << std::endl;
+      for (auto it = ready_list_.begin(); it !=ready_list_.end(); ++it)
+          std::cout << ' ' << traits::operation_name(*it) << std::endl;
+      
+      std::cout << "Attempting to schedule ops in the ready list now " << std::endl;
+      std::cout << " " << std::endl;
       schedule_all_possible_ready_ops_and_update(ready_list_);
       next_schedulable_op();
       return true;
@@ -1771,13 +1832,25 @@ class Feasible_Memory_Schedule_Generator {
       //if (!is_operation_using_non_empty_resources(op)) { return true; }
       // first check if output resources for this operation are available //
       resource_t demand = traits::resource_utility(*input_ptr_, op);
+      std::cout << "The output tensor size in the cluster [Demand] is " << demand << std::endl;
 
       if (!memory_state_.is_resource_available(demand)) {
         return false;
       }
 
       std::list<resource_t> demand_list;
+
+      std::cout << "Generating a list of input and output tensor demands for " << traits::operation_name(op) << std::endl;
       get_non_empty_op_demand_list(op, std::back_inserter(demand_list));
+
+
+      std::cout << "Checking if resource are available simultaneously for the demands (not inclusing active inputs) : " << traits::operation_name(op) << std::endl;
+      std::cout << "The demands are :" << std::endl;
+
+      for (auto const &i: demand_list) {
+        std::cout << i << std::endl;
+      }
+      std::cout << "***" << std::endl;
 
       return memory_state_.are_resources_available_simultaneously(
           demand_list.begin(), demand_list.end());
@@ -1800,6 +1873,7 @@ class Feasible_Memory_Schedule_Generator {
         schedule_all_possible_ready_ops_gen(ready_ops.begin(), ready_ops.end(),
           std::back_inserter(scheduled_ops));
 
+      //Remove from ready list
       for (auto itr=scheduled_ops.begin(); itr!=scheduled_ops.end(); ++itr) {
         ready_ops.erase(*itr);
       }
@@ -1813,8 +1887,16 @@ class Feasible_Memory_Schedule_Generator {
         ReadyListIterator ritr_end, BackInsertIterator output) {
       size_t scheduled_ops_count = 0UL;
 
+      // std::cout << "The active ready compute operations are :" << std::endl;
+      // for (; ritr != ritr_end; ++ritr) {
+      //   const operation_t& op = *ritr;
+      //   std::cout << traits::operation_name(op) << std::endl;
+      // }
+
       for (; ritr != ritr_end; ++ritr) {
         const operation_t& op = *ritr;
+        std::cout << "Attempting to schedule op :" << traits::operation_name(op) << std::endl;
+        //std::cout << is_ready_compute_operation_schedulable(op) << std::endl;
         if (is_ready_compute_operation_schedulable(op)) {
           // schedule_compute_op() will also allocate resources for all missing
           // inputs for this compute op.
@@ -1884,12 +1966,17 @@ class Feasible_Memory_Schedule_Generator {
         const operation_t& output_op, size_t demand_index=0UL) {
       //NOTE: use demand_index if an operation can generate multiple outputs.
       //So the tuple (operation, demand_index) is the resource key.
+
+      std::cout << "Assinging resources in memory state for operation " << traits::operation_name(output_op) << " demand index " << demand_index << " interval " << rinfo.begin_ << " " << rinfo.end_ << std::endl;
+      std::cout << " " << std::endl;
       bool assigned = memory_state_.assign_resources(
           op_demand_info_t(output_op, demand_index), rinfo.begin_, rinfo.end_);
 
       if (!assigned) { return false; }
 
       // create an entry in the active resources table //
+      std::cout << "Creating an entry in the active resource table for " << traits::operation_name(output_op) << std::endl;
+      std::cout << " " << std::endl;
       typename active_resource_table_t::iterator aitr =
           active_resource_table_.find(output_op);
       if (aitr != active_resource_table_.end()) { return false; }
@@ -1983,6 +2070,8 @@ class Feasible_Memory_Schedule_Generator {
       assert(traits::is_compute_operation(*input_ptr_, op));
       assert(op_output_table_.find(op) == op_output_table_.end());
 
+      std::cout << "Now scheduling op : " << traits::operation_name(op) << std::endl;
+      std::cout << " " << std::endl;
       //////////////////////////////////////////////////////////////////////////
       //STEP-1: add to the output result table. //
       //TODO(vamsikku): add an additional out_degree datastructure so that this
@@ -1999,6 +2088,9 @@ class Feasible_Memory_Schedule_Generator {
         }
         ++outstanding_consumers;
       }
+      std::cout <<  "Step 1: Inserting op into op_output_table " << traits::operation_name(op) << std::endl;
+      std::cout <<  traits::operation_name(op) << " is now ACTIVE and has " << outstanding_consumers << " outstanding consumers" << std::endl;
+      std::cout << " " << std::endl;
       op_output_table_.insert( std::make_pair(op,
             op_output_info_t(operation_output_e::ACTIVE,
                 outstanding_consumers)) );
@@ -2012,34 +2104,73 @@ class Feasible_Memory_Schedule_Generator {
       std::vector<operation_t> ops_corresponding_to_demands;
       decreasing_demand_ordering_t demand_ordering(*input_ptr_);
 
+      std::cout << "Step 2: Assign resources simultaneously get all the info about resource allocations " << std::endl;
       get_non_empty_op_demand_list(op, std::back_inserter(op_demands),
           std::back_inserter(ops_corresponding_to_demands));
+
+      std::cout << traits::operation_name(op) << "'s Total demands are : " << std::endl;
+      for (auto const &i: op_demands) {
+        std::cout << i << std::endl;
+      }
+      std::cout << " " << std::endl;
+
+      std::cout << "The ops corresponding to these demands are : " << std::endl;
+      for (auto const &i: ops_corresponding_to_demands) {
+        std::cout << traits::operation_name(i) << std::endl;
+      }
+      std::cout << " " << std::endl;
 
       assert(op_demands.size() == ops_corresponding_to_demands.size());
 
       //TODO(vamsikku): this is a small technicality since the function
       //pack_demands_into_free_bins gives a packing with decreasing demands
       //we can remove this by reconciling all demand
+
+      std::cout << "Sorting the demands and the ops_corresponding_to_demands because pack_demands_into_free_bins gives a packing with decreasing demands " << std::endl;
       std::sort(op_demands.begin(), op_demands.end(),
             decreasing_demand_ordering_t(*input_ptr_));
       std::sort(ops_corresponding_to_demands.begin(),
           ops_corresponding_to_demands.end(),
           decreasing_demand_ordering_t(*input_ptr_));
 
+      std::cout << traits::operation_name(op) << " The SORTED total demands are : " << std::endl;
+      for (auto const &i: op_demands) {
+        std::cout << i << std::endl;
+      }
+      std::cout << " " << std::endl;
+
+      std::cout << "The SORTED ops corresponding to these demands are : " << std::endl;
+      for (auto const &i: ops_corresponding_to_demands) {
+        std::cout << traits::operation_name(i) << std::endl;
+      }
+      std::cout << " " << std::endl;
+
       std::vector<interval_info_t> resource_intervals;
+      std::cout << "Packing demands into free bins, this returns resource intervals " << std::endl;
       memory_state_.pack_demands_into_free_bins(op_demands.begin(),
           op_demands.end(), std::back_inserter(resource_intervals) );
+
+      std::cout << " " << std::endl;
+      std::cout << "Finished packing demands into bins and we now have "<< resource_intervals.size() << " resource intervals " << std::endl;
+      std::cout << " " << std::endl;
 
       // resource_intervals are ordered not according to the demands //
 
       delay_t max_input_delay = delay_t(0);
       size_t demand_idx = 0UL;
+      std::cout << "Looping over " << resource_intervals.size() <<" resource intervals " << std::endl;
       for (auto itr=resource_intervals.begin(); itr!=resource_intervals.end();
             ++itr, ++demand_idx) {
+
         assert(demand_idx < ops_corresponding_to_demands.size());
 
         const interval_info_t rinfo = *itr;
         const operation_t& input_op = ops_corresponding_to_demands[demand_idx];
+        std::cout << "The operation corresponding to demand_idx " << demand_idx << " is " <<  traits::operation_name(input_op) << std::endl;
+        std::cout << "The interval info is " << rinfo.begin_ << " " << rinfo.end_ << std::endl;
+        std::cout << " " << std::endl;
+
+        std::cout << "Assigning resource and updating active table for operation " << traits::operation_name(input_op) << std::endl;
         bool assigned = assign_resources_and_update_active_table(rinfo,
               input_op);
 
@@ -2062,52 +2193,52 @@ class Feasible_Memory_Schedule_Generator {
       //inplace op then all its inputs should now have active resources in the
       //active resource table.
       //TODO(vamsikku): now locate the
-      if (traits::is_inplace_op(*input_ptr_, op)) {
-        // transfer the resources from input to this op//
-        operation_t overwrite_op =
-            traits::get_inplace_output_op(*input_ptr_, op);
-        // STEP-1:
-        //  a. locate overwrite_op in op_output_table_
-        //  b. this must be active.
-        //  c. this must have exactly one outstanding consumers //
-        //  d. resource utility must be exactly the same. //
-        typename op_output_table_t::iterator
-            overwrite_out_itr = op_output_table_.find(overwrite_op);
+      // if (traits::is_inplace_op(*input_ptr_, op)) {
+      //   // transfer the resources from input to this op//
+      //   operation_t overwrite_op =
+      //       traits::get_inplace_output_op(*input_ptr_, op);
+      //   // STEP-1:
+      //   //  a. locate overwrite_op in op_output_table_
+      //   //  b. this must be active.
+      //   //  c. this must have exactly one outstanding consumers //
+      //   //  d. resource utility must be exactly the same. //
+      //   typename op_output_table_t::iterator
+      //       overwrite_out_itr = op_output_table_.find(overwrite_op);
 
-        if ( !((overwrite_out_itr != op_output_table_.end()) &&
-              (overwrite_out_itr->second).active() &&
-              (overwrite_out_itr->second).has_single_outstanding_consumer()) ) {
-          throw "Invalid overwrite state of inplace output";
-        }
+      //   if ( !((overwrite_out_itr != op_output_table_.end()) &&
+      //         (overwrite_out_itr->second).active() &&
+      //         (overwrite_out_itr->second).has_single_outstanding_consumer()) ) {
+      //     throw "Invalid overwrite state of inplace output";
+      //   }
 
-        // STEP-2: set relocated flag in active
-        typename active_resource_table_t::iterator aitr =
-            active_resource_table_.find(overwrite_op);
-        if ( (aitr == active_resource_table_.end()) ||
-              ((aitr->second).size() != 1UL) ) {
-          throw "Unable to find inplace overwrite op in active_resource_table"
-              " (or) Invalid active resource table entry.";
-        }
-        active_result_info_t &overwrite_active_result_info =
-            (aitr->second).front();
-        overwrite_active_result_info.is_relocated_ = true;
+      //   // STEP-2: set relocated flag in active
+      //   typename active_resource_table_t::iterator aitr =
+      //       active_resource_table_.find(overwrite_op);
+      //   if ( (aitr == active_resource_table_.end()) ||
+      //         ((aitr->second).size() != 1UL) ) {
+      //     throw "Unable to find inplace overwrite op in active_resource_table"
+      //         " (or) Invalid active resource table entry.";
+      //   }
+      //   active_result_info_t &overwrite_active_result_info =
+      //       (aitr->second).front();
+      //   overwrite_active_result_info.is_relocated_ = true;
 
-        // STEP-3: relocate resources in the //
-        memory_state_.relocate_resources( op_demand_info_t(overwrite_op, 0UL),
-            op_demand_info_t(op, 0UL) );
+      //   // STEP-3: relocate resources in the //
+      //   memory_state_.relocate_resources( op_demand_info_t(overwrite_op, 0UL),
+      //       op_demand_info_t(op, 0UL) );
 
-        // create an entry in the active resources table //
-        typename active_resource_table_t::iterator op_aitr =
-            active_resource_table_.find(op);
-        if (op_aitr != active_resource_table_.end()) {
-          throw "Invalid active_resource state for currently scheduled op";
-        }
+      //   // create an entry in the active resources table //
+      //   typename active_resource_table_t::iterator op_aitr =
+      //       active_resource_table_.find(op);
+      //   if (op_aitr != active_resource_table_.end()) {
+      //     throw "Invalid active_resource state for currently scheduled op";
+      //   }
 
-        op_aitr = active_resource_table_.insert(
-            std::make_pair(op, active_op_resources_t())).first;
-        (op_aitr->second).push_back( active_result_info_t(op, 0UL,
-                overwrite_active_result_info.interval_info_));
-      }
+      //   op_aitr = active_resource_table_.insert(
+      //       std::make_pair(op, active_op_resources_t())).first;
+      //   (op_aitr->second).push_back( active_result_info_t(op, 0UL,
+      //           overwrite_active_result_info.interval_info_));
+      // }
       //////////////////////////////////////////////////////////////////////////
 
 
@@ -2118,6 +2249,8 @@ class Feasible_Memory_Schedule_Generator {
       //STEP-3: schedule this compute op
       schedule_time_t op_start_time = current_time_ + max_input_delay;
       // compute op is always original //
+      std::cout << "Step 3: Pushing " << traits::operation_name(op) << " to start time heap " << " start time is " << op_start_time << std::endl;
+      std::cout << " " << std::endl;
       push_to_heap_start_time(heap_element_t(op, op_start_time,
               op_type_e::ORIGINAL_OP));
       //////////////////////////////////////////////////////////////////////////
@@ -2254,17 +2387,21 @@ class Feasible_Memory_Schedule_Generator {
 
         if (is_data_op(op)) {
           assert(ready_data_list_.find(op) == ready_data_list_.end());
+          std::cout << "Adding " << traits::operation_name(op) << " to the ready data list " << std::endl;
           ready_data_list_.insert(op);
 
           std::list<operation_t> ready_ops;
+          std::cout << "Reducing the in-degree of adjacent ops " << std::endl;
           reduce_in_degree_of_adjacent_operations_gen(op,
               std::back_inserter(ready_ops));
           // assert all the ready ops are compute ops //
           distribute_ready_ops(ready_ops.begin(), ready_ops.end());
         } else if (is_compute_op_with_some_active_inputs(op)) {
           assert(ready_active_list_.find(op) == ready_active_list_.end());
+           std::cout << "Adding " << traits::operation_name(op) << " to the ready ACTIVE List compute list because some inputs are active" << std::endl;
           ready_active_list_.insert(op);
         } else {
+          std::cout << "Adding " << traits::operation_name(op) << " to the ready compute list " << std::endl;
           ready_list_.insert(op);
         }
       }
@@ -2273,10 +2410,12 @@ class Feasible_Memory_Schedule_Generator {
     void unschedule_all_completing_ops_at_next_earliest_time() {
       assert(top_element_completion_time());
       const heap_element_t *completion_top_ptr = top_element_completion_time();
-
+      
+      std::cout << "Unscheduling operations " << std::endl;
       assert(completion_top_ptr);
       current_time_ = completion_top_ptr->time_;
 
+      std::cout << "The current time is " << current_time_ << std::endl;
       std::list<heap_element_t> unsched_ops;
       pop_all_elements_at_this_time(current_time_,
             std::back_inserter(unsched_ops));
@@ -2285,25 +2424,31 @@ class Feasible_Memory_Schedule_Generator {
       for (auto uitr=unsched_ops.begin(); uitr != unsched_ops.end();
             ++uitr) {
         const operation_t& op = uitr->op_;
+        std::cout << "Unscheduling operation " <<  traits::operation_name(op) << " and freeing resources" << std::endl; 
 
         unschedule_op(*uitr);
 
         if (is_compute_op(op) && (uitr->is_original_op())) {
+          std::cout << "Reducing in-degree of adjacent op and getting new ready ops " << std::endl;
           reduce_in_degree_of_adjacent_operations_gen(op,
               std::back_inserter(ready_ops));
         }
       }
+      std::cout << "There are " <<  ready_ops.size() <<" ready ops (with zero in-degree) are " << std::endl;
       distribute_ready_ops(ready_ops.begin(), ready_ops.end());
     }
 
 
     // Precondition: at least some ready operations //
     void next_schedulable_op() {
+      std::cout << "In next_schedulable op " << std::endl;
       bool found_schedulable_op = false;
 
 
       do {
         // pick the min among the start time and completion time heaps //
+        std::cout << "Picking the min among the start time and completion time heaps " << std::endl;
+        std::cout << " " << std::endl;
         const heap_element_t *start_top_ptr = top_element_start_time();
         const heap_element_t *completion_top_ptr = top_element_completion_time();
 
@@ -2312,8 +2457,19 @@ class Feasible_Memory_Schedule_Generator {
                 "Both start time and completion heaps are empty.");
         }
 
-        bool pop_from_start_heap = start_top_ptr && ( !completion_top_ptr ||
-            (start_top_ptr->time_ < completion_top_ptr->time_) );
+        if(start_top_ptr!=0)
+        {
+          std::cout << "The time from the start time heap is " << start_top_ptr->time_ << std::endl;
+          std::cout << " " << std::endl;
+        }
+        
+        if(completion_top_ptr!=0)
+        {
+        std::cout << "The time from the completion time heap is " << completion_top_ptr->time_ << std::endl;
+        
+        }
+        
+        bool pop_from_start_heap = start_top_ptr && ( !completion_top_ptr || (start_top_ptr->time_ < completion_top_ptr->time_) );
 
         heap_element_t helement;
         if (pop_from_start_heap) {
@@ -2321,30 +2477,36 @@ class Feasible_Memory_Schedule_Generator {
 
           helement = pop_from_heap_start_time();
 
+          std::cout << "Poping operation " <<  traits::operation_name(helement.op_) <<" from heap start time is : " << helement.time_ << std::endl;
           current_time_ = helement.time_;
 
           // output this scheduled operation //
           current_scheduled_op_.op_ = helement.op_;
           current_scheduled_op_.op_type_ = helement.op_type_;
           current_scheduled_op_.time_ = current_time_;
+          std::cout << "Operation " << traits::operation_name(helement.op_) << " is " << helement.is_implicit_write_op() << " an is_implicit_write_op and " << is_operation_using_non_empty_resources(helement.op_) << " is_operation_using_non_empty_resources" << std::endl;
           if (!helement.is_implicit_write_op() &&
                 is_operation_using_non_empty_resources(helement.op_)) {
             current_scheduled_op_.resource_info_ =
                 get_active_resource_info(helement.op_);
           } else {
+            std::cout << "Invalidating resources " << std::endl;
             current_scheduled_op_.resource_info_.invalidate();
           }
           found_schedulable_op = true; /*break-out*/
 
 
           // now move this scheduled op to the completion heap //
+          
           helement.time_ += traits::delay(*input_ptr_, helement.op_);
+          std::cout << "Adding " << traits::operation_name(helement.op_) << " to the completion heap " << " at time " << helement.time_  << std::endl;
           push_to_heap(helement); // add to the completion heap //
         } else {
 
           do {
             // Move the time to next earliest time and unschedule all ops ending
             // at this time. This creates new ready lists.
+            std::cout << "Creating new ready list " << std::endl;
             unschedule_all_completing_ops_at_next_earliest_time();
 
             // since we have unscheduled some ops try to see if we could

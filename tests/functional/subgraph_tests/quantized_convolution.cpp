@@ -112,8 +112,7 @@ TEST_P(KmbQuantizedConvSubGraphTest, CompareWithRefs_MLIR_SW) {
 }
 
 TEST_P(KmbQuantizedConvSubGraphTest, CompareWithRefs_MLIR_HW) {
-    useCompilerMLIR();
-    setDefaultHardwareModeMLIR();
+    setReferenceHardwareModeMLIR();
     Run();
 }
 
