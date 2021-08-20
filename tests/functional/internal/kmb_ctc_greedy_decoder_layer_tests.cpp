@@ -92,6 +92,5 @@ const std::vector<CTCDecoderTestParams> ctcParams = {
             .layout(Layout::CHW)
 };
 
-// [Track number: #-12236]
-INSTANTIATE_TEST_CASE_P(DISABLED_precommit, KmbCTCDecoderLayerTests,
+INSTANTIATE_TEST_CASE_P(precommit, KmbCTCDecoderLayerTests,
     testing::Combine(testing::ValuesIn(ctcParams), testing::ValuesIn(layerType)));
