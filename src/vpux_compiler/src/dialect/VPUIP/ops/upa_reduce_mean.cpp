@@ -21,10 +21,18 @@
 
 using namespace vpux;
 
-
 void vpux::VPUIP::ReduceMeanUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
                                          mlir::Value output, mlir::ArrayAttr axes, mlir::BoolAttr keep_dims) {
     build(builder, state, input, output, mlir::ValueRange{}, mlir::ValueRange{}, axes, keep_dims, nullptr, nullptr);
+}
+
+bool vpux::VPUIP::ReduceMeanUPAOp::isSupportedLayout(mlir::Operation* op, vpux::IE::DataOrderInfo& info) {
+    VPUX_THROW_UNLESS(mlir::isa<IE::ReduceMeanOp>(op), "Operation {0} is not a ReduceMean Op", op->getName());
+
+    if (!info.hasInput(1)) {
+        return false;
+    }
+    return true;
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ReduceMeanUPAOp::serialize(VPUIP::BlobWriter& writer) {

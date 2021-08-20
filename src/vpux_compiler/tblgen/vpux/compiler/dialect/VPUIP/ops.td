@@ -2775,6 +2775,10 @@ def VPUIP_ReduceMeanUPAOp :
         (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `->` type(results)
     }];
+
+    let extraClassDeclaration = [{
+        static bool isSupportedLayout(mlir::Operation* op, vpux::IE::DataOrderInfo& info);
+    }] # commonExtraClassDeclaration;
 }
 
 #endif

@@ -70,8 +70,9 @@ mlir::FailureOr<SmallVector<int64_t>> getAxes(IE::ReduceMeanOpAdaptor reduceMean
 //
 
 mlir::LogicalResult vpux::IE::ReduceMeanOp::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueRange operands, mlir::DictionaryAttr attrs,
-        mlir::RegionRange, SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
+        mlir::MLIRContext* ctx, mlir::Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
+        mlir::DictionaryAttr attrs, mlir::RegionRange,
+        mlir::SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
 
     IE::ReduceMeanOpAdaptor reduceMean(operands, attrs);
