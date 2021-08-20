@@ -12,6 +12,7 @@
 //
 
 #include "vpux/compiler/utils/types.hpp"
+#include "vpux/utils/IE/loop.hpp"
 
 #include "vpux/compiler/core/attributes/strides.hpp"
 #include "vpux/compiler/dialect/IE/attributes/structs.hpp"
@@ -212,7 +213,8 @@ mlir::MemRefType vpux::getDenseTileType(mlir::MemRefType origType, ShapeRef tile
     return eraseTiledInfo(getViewTileType(origType, tileOffsets, tileShape));
 }
 
-mlir::MemRefType vpux::getViewTileType(mlir::MemRefType origType, ShapeRef tileOffsets, ShapeRef tileShape) {
+mlir::MemRefType vpux::getViewTileType(mlir::MemRefType origType, ShapeRef tileOffsets, ShapeRef tileShape,
+                                       ShapeRef strides) {
     mlir::MemRefType::Builder memRefBuilder(origType);
 
     memRefBuilder.setShape(tileShape.raw());
@@ -221,11 +223,25 @@ mlir::MemRefType vpux::getViewTileType(mlir::MemRefType origType, ShapeRef tileO
         memRefBuilder.setElementType(tileScalesAndZP(perAxisQType, tileShape, tileOffsets));
     }
 
-    const auto order = DimsOrder::fromType(origType);
+    auto order = DimsOrder::fromType(origType);
     const auto elemSize = getElemTypeSize(origType);
-    const auto origStrides = getStrides(origType);
+    auto origStrides = getStrides(origType);
 
-    const auto affineMaps = order.toAffineMapsList(origType.getContext(), elemSize, origStrides);
+    auto memStrides = order.toMemoryOrder(origStrides);
+
+    if (!strides.raw().empty()) {
+        auto memExternalStrides = order.toMemoryOrder(strides);
+
+        VPUX_THROW_UNLESS(memExternalStrides.raw().size() == checked_cast<size_t>(origType.getRank()),
+                          "Strides' size {0}  is not aligned with rank {1}", memExternalStrides.raw().size(),
+                          origType.getRank());
+
+        loop_1d(LoopExecPolicy::Parallel, origType.getRank(), [&](int64_t memInd1D) {
+            memStrides[MemDim(memInd1D)] *= memExternalStrides[MemDim(memInd1D)];
+        });
+    }
+
+    const auto affineMaps = order.toAffineMapsList(origType.getContext(), elemSize, memStrides);
     memRefBuilder.setAffineMaps(affineMaps);
 
     const mlir::MemRefType newType = memRefBuilder;

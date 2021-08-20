@@ -12,10 +12,25 @@
 //
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
+#include "vpux/compiler/utils/attributes.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
 
 using namespace vpux;
+
+//
+// build
+//
+
+void vpux::IE::ConcatOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ValueRange inputs,
+                               mlir::IntegerAttr axis) {
+    build(builder, state, inputs, axis, getIntAttr(axis.getContext(), 0), getIntAttr(axis.getContext(), 1));
+}
+
+void vpux::IE::ConcatOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type type,
+                               mlir::ValueRange inputs, mlir::IntegerAttr axis) {
+    build(builder, state, type, inputs, axis, getIntAttr(axis.getContext(), 0), getIntAttr(axis.getContext(), 1));
+}
 
 //
 // inferReturnTypeComponents
@@ -59,6 +74,11 @@ mlir::LogicalResult vpux::IE::ConcatOp::inferReturnTypeComponents(
         const auto curShape = getShape(concat.inputs()[i]);
         outShape[axis] += curShape[axis];
     }
+
+    VPUX_THROW_WHEN(concat.offset().getInt() > outShape[axis] ||
+                            concat.offset().getInt() + concat.stride().getInt() > outShape[axis],
+                    "Concat offset {0} and stride {1} are larger than output dimention {2}", concat.offset(),
+                    concat.stride(), outShape[axis]);
 
     const auto elemType = concat.inputs().front().getType().cast<mlir::ShapedType>().getElementType();
     inferredReturnShapes.emplace_back(outShape.raw(), elemType);

@@ -410,7 +410,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(mlir::Location loc, 
     }
 
     if (SX != SY) {
-        log.trace("[{0}] Assymetric strides are not supported", loc);
+        log.trace("[{0}] Asymmetric strides are not supported", loc);
         return mlir::failure();
     }
     if (SY > NCE_MAX_STRIDE_SIZE || SY <= 0) {
@@ -424,19 +424,19 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(mlir::Location loc, 
         return mlir::failure();
     }
 
-    if (padTop < 0 || padTop > KY / 2) {
+    if (padTop < 0 || (padTop > 1 && padTop > KY / 2)) {
         log.trace("[{0}] Unsupported padding '{1}', must be in range [0, {2}]", loc, padTop, KY / 2);
         return mlir::failure();
     }
-    if (padBottom < 0 || padBottom > KY / 2) {
+    if (padBottom < 0 || (padBottom > 1 && padBottom > KY / 2)) {
         log.trace("[{0}] Unsupported padding '{1}', must be in range [0, {2}]", loc, padBottom, KY / 2);
         return mlir::failure();
     }
-    if (padLeft < 0 || padLeft > KX / 2) {
+    if (padLeft < 0 || (padLeft > 1 && padLeft > KX / 2)) {
         log.trace("[{0}] Unsupported padding '{1}', must be in range [0, {2}]", loc, padLeft, KX / 2);
         return mlir::failure();
     }
-    if (padRight < 0 || padRight > KX / 2) {
+    if (padRight < 0 || (padRight > 1 && padRight > KX / 2)) {
         log.trace("[{0}] Unsupported padding '{1}', must be in range [0, {2}]", loc, padRight, KX / 2);
         return mlir::failure();
     }

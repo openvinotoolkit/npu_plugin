@@ -163,7 +163,7 @@ const auto conv2DParams_AsymmetricStrides =
                            ::testing::ValuesIn<std::vector<ptrdiff_t>>({{0, 0}}),  // padEnds
                            ::testing::ValuesIn<SizeVector>({{1, 1}}),              // dilations
                            ::testing::Values(1),                                   // numOutChannels
-                           ::testing::Values(ngraph::op::PadType::VALID)           // padType
+                           ::testing::Values(ngraph::op::PadType::EXPLICIT)        // padType
         );
 
 INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_AsymmetricStrides, KmbConvolutionLayerTest,

@@ -433,4 +433,25 @@ def ConvertAvgPoolToDWConv : PassBase<"convert-avg-pool-to-dw-conv", "vpux::Func
     ];
 }
 
+//
+// HandleAsymmetricStrides
+//
+
+def HandleAsymmetricStrides : PassBase<"handle-asymmetric-strides", "vpux::FunctionPass"> {
+    let summary = "Handle operations with asymmetric strides";
+
+    let description = [{
+        The pass is a part of `AdjustForVPU` pipeline.
+
+        This pass splits operations so that they are able to be infered with symmetric strides
+            on dpu because of hardware limitation.
+    }];
+
+    let constructor = "vpux::IE::createHandleAsymmetricStridesPass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
+
 #endif
