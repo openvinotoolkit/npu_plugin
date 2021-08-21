@@ -411,7 +411,7 @@ void ExpandActivationChannelsPass::safeRunOnFunc() {
     patterns.insert<GroupConvolutionRewriter>(&ctx, _log);
 
     auto func = getFunction();
-    if (mlir::failed(mlir::applyPartialConversion(func, target, std::move(patterns)))) {
+    if (mlir::failed(mlir::applyFullConversion(func, target, std::move(patterns)))) {
         signalPassFailure();
     }
 }
