@@ -111,11 +111,16 @@ void vpux::VPUIP::setCompilationMode(mlir::ModuleOp module, CompilationMode comp
     module->setAttr(compilationModeAttrName, VPUIP::CompilationModeAttr::get(module.getContext(), compilationMode));
 }
 
-VPUIP::CompilationMode vpux::VPUIP::getCompilationMode(mlir::ModuleOp module) {
+VPUIP::CompilationMode vpux::VPUIP::getCompilationMode(mlir::Operation* op) {
+    auto module = op->getParentOfType<mlir::ModuleOp>();
+    VPUX_THROW_UNLESS(module != nullptr, "Can't get parent Module from Operation '{0}' at '{1}'", op->getName(),
+                      op->getLoc());
+
     auto attr = module->getAttr(compilationModeAttrName);
     VPUX_THROW_UNLESS(attr != nullptr, "Module doesn't contain '{0}' attribute", compilationModeAttrName);
     VPUX_THROW_UNLESS(attr.isa<VPUIP::CompilationModeAttr>(), "Module attribute '{0}' has unsupported value '{1}'",
                       compilationModeAttrName, attr);
+
     return attr.cast<VPUIP::CompilationModeAttr>().getValue();
 }
 
