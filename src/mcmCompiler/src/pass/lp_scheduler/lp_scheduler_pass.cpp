@@ -486,4 +486,5 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
     mv::OpModel omodel(model);
     input_dag.drop_all_resource_control_edges(omodel);
   }
+  exit(1);
 }

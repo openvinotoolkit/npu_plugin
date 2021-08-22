@@ -301,26 +301,29 @@ class Contiguous_Resource_State {
 
       // sort the free bins based on their length //
       bins_t free_bins;
+      size_t bin_number=0;
+      std::cout << "Getting the bins that are free " << std::endl;
       for (; fitr != fitr_end; ++fitr) {
+        std::cout << "Bin number " << bin_number << std::endl;
         // NOTE: the disjoint interval set is on open interval:
         // (-\infty, +\infty) and will return free intervals which
         // may not be in the range [location_begin_, location_end_]
         unit_t a = std::max(location_begin_-1, fitr.interval_begin());
         unit_t b = std::min(location_end_+1, fitr.interval_end());
 
-        std::cout << "[location_begin_-1] " << location_begin_-1 << " " << "[fitr.interval_begin()] "<< fitr.interval_begin() << " : a= " << std::max(location_begin_-1, fitr.interval_begin()) << std::endl;
-        std::cout << "[location_end_+1] " << location_end_+1 << " " <<  "[fitr.interval_end()] " << fitr.interval_end() << " : b= " << std::min(location_end_+1, fitr.interval_end()) << std::endl; 
-        std::cout << "a = " << a << " " << "b = " << b << std::endl;
+        //std::cout << "[location_begin_-1] " << location_begin_-1 << " " << "[fitr.interval_begin()] "<< fitr.interval_begin() << " : a= " << std::max(location_begin_-1, fitr.interval_begin()) << std::endl;
+        //std::cout << "[location_end_+1] " << location_end_+1 << " " <<  "[fitr.interval_end()] " << fitr.interval_end() << " : b= " << std::min(location_end_+1, fitr.interval_end()) << std::endl; 
         if ((b-a) > 1) {
           // bin has capacity of at least one //
           std::cout << "In pack_demands_into_free_bins: Adding interval [" << a+1 << ", " << b-1 << " ]" << " to free_bins " << std::endl; 
           free_bins.emplace_back( interval_info_t(a+1, b-1) );
           std::cout << "The amount of free bins is " << free_bins.size() << std::endl;
+          bin_number++;
         }
       }
       std::sort(free_bins.begin(), free_bins.end(),
             interval_length_ordering_t());
-      std::cout << "In pack_demands_into_free_bins: Sorted free_bins " << std::endl;
+      //std::cout << "In pack_demands_into_free_bins: Sorted free_bins " << std::endl;
 
       std::cout << "In pack_demands_into_free_bins: Printing free_bins " << std::endl;
       for (auto i = free_bins.begin(); i != free_bins.end(); ++i)
@@ -336,18 +339,18 @@ class Contiguous_Resource_State {
       }
 
       if (demands.empty()) {
-       std::cout << "In pack_demands_into_free_bins: Demand empty returning " << std::endl;
+       std::cout << "In pack_demands_into_free_bins: Demand is empty. Op IS schedulable " << std::endl;
         return true;
       }
 
       if (free_bins.empty()) {
-        std::cout << "In pack_demands_into_free_bins: No free bins " << std::endl;
+        std::cout << "In pack_demands_into_free_bins: No free bins. Op is NOT schedulable " << std::endl;
         return false;
       }
 
       std::sort(demands.begin(), demands.end(), demand_ordering_t());
 
-      std::cout << "In pack_demands_into_free_bins: Sorted demands " << std::endl;
+      //std::cout << "In pack_demands_into_free_bins: Sorted demands " << std::endl;
 
       std::cout << "In pack_demands_into_free_bins: Printing demands " << std::endl;
       for (auto i = demands.begin(); i != demands.end(); ++i)
@@ -369,9 +372,9 @@ class Contiguous_Resource_State {
 
         unit_t curr_demand = *ditr;
         if (curr_demand <=  remaining_space_in_curr_bin) {
-          std::cout << "curr_demand is " << curr_demand << "remaining_space_in_curr_bin " << remaining_space_in_curr_bin << std::endl; 
+          std::cout << "Current demand is " << curr_demand << " and the remaining space in the current bin is " << remaining_space_in_curr_bin << std::endl; 
           remaining_space_in_curr_bin -= curr_demand;
-          std::cout << "The Remaining_space_in_curr_bin is now :" << remaining_space_in_curr_bin << std::endl;
+          std::cout << "The remaining space in the current bin is now :" << remaining_space_in_curr_bin << std::endl;
 
           {
             // compute the addresses of this demand //
@@ -384,18 +387,18 @@ class Contiguous_Resource_State {
             output = address_info;
             ++output;
           }
-          std::cout << "In pack_demands_into_free_bins: Moving to the next demand " << std::endl;
+          std::cout << "Moving to the next demand " << std::endl;
           ++ditr; // move to next demand //
           if (is_fresh_bin) { is_fresh_bin = false; }
         } else if (!is_fresh_bin) {
-          std::cout << "In pack_demands_into_free_bins: Moving to the next bin " << std::endl;
+          std::cout << "Moving to the next bin " << std::endl;
           ++bitr; // move to next bin //
           is_fresh_bin = true;
           remaining_space_in_curr_bin =
               (bitr == bitr_end) ? 0UL : (*bitr).length();
-          std::cout << "In pack_demands_into_free_bins: Remaining_space_in_curr_bin " << remaining_space_in_curr_bin << std::endl;
+          std::cout << "The remaining space in the current bin is now :" << remaining_space_in_curr_bin << std::endl;
         } else { // the demand does not fit in a fresh bin //
-          std::cout << "In pack_demands_into_free_bins: The demand does not fit in a fresh bin "  << std::endl;
+          std::cout << "The demand does not fit in a fresh bin, breaking "  << std::endl;
           break;
         }
       }
@@ -1093,9 +1096,9 @@ class Feasible_Memory_Schedule_Generator {
         return outstanding_consumers_ == 1UL;
       }
 
-      void change_state_to_active() { state_ = operation_output_e::ACTIVE; }
-      void change_state_to_consumed() { state_ = operation_output_e::CONSUMED; }
-      void change_state_to_spilled() { state_ = operation_output_e::SPILLED; }
+      void change_state_to_active() { std::cout << "Changing state to ACTIVE" << std::endl; state_ = operation_output_e::ACTIVE; }
+      void change_state_to_consumed() {std::cout << "Changing state to CONSUMED" << std::endl; state_ = operation_output_e::CONSUMED; }
+      void change_state_to_spilled() {std::cout << "Changing state to ACTIVE" << std::endl; state_ = operation_output_e::SPILLED; }
 
       void decrement_consumers() {
         assert(outstanding_consumers_ > 0UL);
@@ -1507,6 +1510,7 @@ class Feasible_Memory_Schedule_Generator {
     template<typename ordering_t>
     void push_to_heap_gen(const heap_element_t& elem, heap_t& heap,
         const ordering_t& order) {
+      std::cout << "push to heap " << traits::operation_name(elem.op_) << std::endl;
       heap.push_back(elem);
       std::push_heap(heap.begin(), heap.end(), order);
     }
@@ -1845,6 +1849,7 @@ class Feasible_Memory_Schedule_Generator {
 
 
       std::cout << "Checking if resource are available simultaneously for the demands (not inclusing active inputs) : " << traits::operation_name(op) << std::endl;
+      std::cout << "Operation will be scheduled in next step - just checking is resources are available " << std::endl;
       std::cout << "The demands are :" << std::endl;
 
       for (auto const &i: demand_list) {
@@ -1869,9 +1874,7 @@ class Feasible_Memory_Schedule_Generator {
       std::list<operation_t> scheduled_ops;
       size_t ret;
 
-      ret =
-        schedule_all_possible_ready_ops_gen(ready_ops.begin(), ready_ops.end(),
-          std::back_inserter(scheduled_ops));
+      ret = schedule_all_possible_ready_ops_gen(ready_ops.begin(), ready_ops.end(), std::back_inserter(scheduled_ops));
 
       //Remove from ready list
       for (auto itr=scheduled_ops.begin(); itr!=scheduled_ops.end(); ++itr) {
@@ -2178,7 +2181,7 @@ class Feasible_Memory_Schedule_Generator {
 
         if (input_op == op) { continue; }
 
-
+        std::cout << "Scheduling input " << traits::operation_name(input_op) << " for " << traits::operation_name(op) << std::endl;
         schedule_input_op_for_compute_op(input_op);
 
         // update the max delay to set the start time //
@@ -2317,6 +2320,7 @@ class Feasible_Memory_Schedule_Generator {
     void unschedule_op(const heap_element_t &helement) {
 
       const operation_t& op = helement.op_;
+      std::cout << "Unscheduling " << traits::operation_name(op) << std::endl;
       const_operation_iterator_t pitr, pitr_end;
 
       if (helement.is_original_op()) {
@@ -2330,6 +2334,7 @@ class Feasible_Memory_Schedule_Generator {
 
       for (; pitr != pitr_end; ++pitr) {
         const operation_t& pop = *pitr;
+        std::cout << traits::operation_name(pop) << std::endl; 
         if (traits::is_pseudo_input_edge(*input_ptr_, pop, op)) { continue; }
 
         typename op_output_table_t::iterator itr = op_output_table_.find(pop);
@@ -2371,7 +2376,10 @@ class Feasible_Memory_Schedule_Generator {
 
       op_output_info_t &op_output_info = itr->second;
 
+      std::cout << "operation states are { ACTIVE=0, SPILLED=1, CONSUMED=2 }" << std::endl;
+      std::cout << traits::operation_name(op) << " state is " << static_cast<int>(op_output_info.state_) << std::endl;
       if (op_output_info.consumed()) {
+        std::cout << "changing state to consumed " << std::endl;
         op_output_info.change_state_to_consumed();
       }
     }
