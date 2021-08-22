@@ -1256,6 +1256,7 @@ class Operation_Dag {
     }
 
     void clear_state() {
+      std::cout << "Clearning the state of the operation precedance dag " << std::endl;
       adj_map_.clear();
       adj_map_rev_.clear();
       op_name_table_.clear();
@@ -1268,6 +1269,7 @@ class Operation_Dag {
 
 
     void create_resource_utility_table_for_cmx_scheduling(mv::OpModel& model) {
+      std::cout << "Creating the resource utility table for CMX scheduling " << std::endl;
       for (op_itr_t itr = mtraits::begin_operations(model);
             itr != mtraits::end_operations(model); ++itr) {
         operation_t op = &(*itr);
@@ -1276,9 +1278,11 @@ class Operation_Dag {
         if ( !does_the_op_run_on_hardware(op) ||
             is_dma_op_moving_data_from_cmx_to_ddr(op) ||
             is_dma_op_moving_data_from_ddr_to_ddr(op)) {
+          std::cout << op->getName() << " has no demands on CMX (not an NCE task or it is a CMX->DDR operation " << std::endl;
           resource_utility = 0UL;
         } else {
           resource_utility = output_tensor_size(op);
+          std::cout << op->getName() << " has a CMX output tensor size (resource utility of ) " << resource_utility << std::endl;
         }
         // resource utility //
         resource_utility_map_.insert(std::make_pair(op, resource_utility ));

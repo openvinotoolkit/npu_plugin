@@ -202,6 +202,7 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
       } else {
         scheduled_op_enum = mv::lp_scheduler::op_type_e::SPILLED_WRITE_OP;
       }
+      std::cout << "Adding Op "<<  op->getName() << " to scheduled operations " << std::endl;
       scheduled_ops.push_back(scheduled_op_t(op, scheduled_op.time_,
             rbegin, rend, scheduled_op_enum));
     }

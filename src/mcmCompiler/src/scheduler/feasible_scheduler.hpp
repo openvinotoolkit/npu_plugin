@@ -1754,22 +1754,24 @@ class Feasible_Memory_Schedule_Generator {
       current_time_ = schedule_time_t(1);
       clear_lists();
       
-      std::cout << "Calculating in-degree" << std::endl;
+      std::cout << "Step 1: Starting calculating in-degree" << std::endl;
       compute_op_in_degree();
       std::cout << "Finished calculating in-degree" << std::endl;
       std::cout << " " << std::endl;
       check_if_input_is_dag();
+      std::cout << "Starting calculating ready data list" << std::endl;
       compute_ready_data_list();
       std::cout << "Finished calculating ready data list" << std::endl;
       std::cout << " " << std::endl;
+      std::cout << "starting calculating ready compute list" << std::endl;
       compute_ready_compute_list();
       std::cout << "Finished calculating ready compute list" << std::endl;
 
-      std::cout << "All the ops in the ready list are " << std::endl;
+      std::cout << "The ops in the ready compute list are " << std::endl;
       for (auto it = ready_list_.begin(); it !=ready_list_.end(); ++it)
-          std::cout << ' ' << traits::operation_name(*it) << std::endl;
+          std::cout << traits::operation_name(*it) << std::endl;
       
-      std::cout << "Attempting to schedule ops in the ready list now " << std::endl;
+      std::cout << "Attempting to schedule ops in the ready compute list now " << std::endl;
       std::cout << " " << std::endl;
       schedule_all_possible_ready_ops_and_update(ready_list_);
       next_schedulable_op();
@@ -2149,12 +2151,12 @@ class Feasible_Memory_Schedule_Generator {
       std::cout << " " << std::endl;
 
       std::vector<interval_info_t> resource_intervals;
-      std::cout << "Packing demands into free bins, this returns resource intervals " << std::endl;
+      std::cout << "Packing demands into free bins, this returns resource intervals, which are the tensor virtual addresses " << std::endl;
       memory_state_.pack_demands_into_free_bins(op_demands.begin(),
           op_demands.end(), std::back_inserter(resource_intervals) );
 
       std::cout << " " << std::endl;
-      std::cout << "Finished packing demands into bins and we now have "<< resource_intervals.size() << " resource intervals " << std::endl;
+      std::cout << "Finished packing demands into bins and we now have "<< resource_intervals.size() << " resource intervals (tensor virtual addresses)" << std::endl;
       std::cout << " " << std::endl;
 
       // resource_intervals are ordered not according to the demands //
@@ -2181,7 +2183,7 @@ class Feasible_Memory_Schedule_Generator {
 
         if (input_op == op) { continue; }
 
-        std::cout << "Scheduling input " << traits::operation_name(input_op) << " for " << traits::operation_name(op) << std::endl;
+        std::cout << "Scheduling input " << traits::operation_name(input_op) << " for the compute operation" << traits::operation_name(op) << std::endl;
         schedule_input_op_for_compute_op(input_op);
 
         // update the max delay to set the start time //
