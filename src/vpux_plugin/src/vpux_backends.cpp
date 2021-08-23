@@ -89,7 +89,7 @@ std::shared_ptr<Device> VPUXBackends::getDevice(const IE::ParamMap& paramMap) co
     return _backend->getDevice(paramMap);
 }
 
-std::shared_ptr<Device> VPUXBackends::getDevice(const IE::RemoteContext::Ptr& context) const {
+std::shared_ptr<Device> VPUXBackends::getDevice(const IE::IRemoteContext::Ptr& context) const {
     // TODO more complicated logic should be here. Might require changing in backend implementation
     const auto privateContext = std::dynamic_pointer_cast<VPUXRemoteContext>(context);
     if (context == nullptr) {

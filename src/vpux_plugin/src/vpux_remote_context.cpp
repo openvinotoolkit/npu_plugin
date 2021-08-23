@@ -40,8 +40,9 @@ IE::RemoteBlob::Ptr VPUXRemoteContext::CreateBlob(const IE::TensorDesc& tensorDe
     }
     try {
         auto allocator = _devicePtr->getAllocator(blobParams);
-        return std::make_shared<VPUXRemoteBlob>(tensorDesc, shared_from_this(), allocator, blobParams,
-                                                _config.logLevel());
+        return std::make_shared<VPUXRemoteBlob>(tensorDesc,
+                                                std::dynamic_pointer_cast<VPUXRemoteContext>(shared_from_this()),
+                                                allocator, blobParams, _config.logLevel());
     } catch (const std::exception& ex) {
         _logger->warning("Incorrect parameters for CreateBlob call.\n"
                          "Please make sure remote memory is correct.\nError: %s\n",

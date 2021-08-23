@@ -115,7 +115,7 @@ IE::IExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(const IE::CNNNetw
 }
 
 IE::IExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(const IE::CNNNetwork& network,
-                                                              const IE::RemoteContext::Ptr& context,
+                                                              const IE::IRemoteContext::Ptr& context,
                                                               const std::map<std::string, std::string>& config) {
     auto networkConfig = mergePluginAndNetworkConfigs(_parsedConfig, config);
     const auto platform = _backends->getCompilationPlatform(networkConfig.platform(), networkConfig.deviceId());
@@ -158,7 +158,7 @@ IE::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(std::istream& networkM
     }
 }
 
-IE::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(std::istream& networkModel, const IE::RemoteContext::Ptr& context,
+IE::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(std::istream& networkModel, const IE::IRemoteContext::Ptr& context,
                                                           const std::map<std::string, std::string>& config) {
     OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "ImportNetwork");
     try {
@@ -196,7 +196,7 @@ IE::QueryNetworkResult Engine::QueryNetwork(const IE::CNNNetwork& network,
     return compiler->query(network, networkConfig);
 }
 
-IE::RemoteContext::Ptr Engine::CreateContext(const IE::ParamMap& map) {
+IE::IRemoteContext::Ptr Engine::CreateContext(const IE::ParamMap& map) {
     // Device in this case will be searched inside RemoteContext creation
     const auto device = _backends->getDevice(map);
     if (device == nullptr) {

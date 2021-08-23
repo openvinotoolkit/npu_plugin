@@ -39,7 +39,7 @@ public:
             const InferenceEngine::CNNNetwork& network, const std::map<std::string, std::string>& config) override;
 
     InferenceEngine::IExecutableNetworkInternal::Ptr LoadExeNetworkImpl(
-            const InferenceEngine::CNNNetwork& network, const std::shared_ptr<InferenceEngine::RemoteContext>& ptr,
+            const InferenceEngine::CNNNetwork& network, const std::shared_ptr<InferenceEngine::IRemoteContext>& ptr,
             const std::map<std::string, std::string>& map) override;
 
     InferenceEngine::IExecutableNetworkInternal::Ptr ImportNetwork(
@@ -49,7 +49,7 @@ public:
             std::istream& networkModel, const std::map<std::string, std::string>& config) override;
 
     InferenceEngine::IExecutableNetworkInternal::Ptr ImportNetwork(
-            std::istream& networkModel, const InferenceEngine::RemoteContext::Ptr& context,
+            std::istream& networkModel, const std::shared_ptr<InferenceEngine::IRemoteContext>& context,
             const std::map<std::string, std::string>& config) override;
 
     void SetConfig(const std::map<std::string, std::string>& config) override;
@@ -67,7 +67,7 @@ public:
      * @brief Create context form param map. Will reuse already created workloadContext (workload
      * context id should be specified in param map)
      */
-    InferenceEngine::RemoteContext::Ptr CreateContext(const InferenceEngine::ParamMap& map) override;
+    std::shared_ptr<InferenceEngine::IRemoteContext> CreateContext(const InferenceEngine::ParamMap& map) override;
 
 private:
     InferenceEngine::IExecutableNetworkInternal::Ptr LoadExeNetwork(const InferenceEngine::CNNNetwork& network,
