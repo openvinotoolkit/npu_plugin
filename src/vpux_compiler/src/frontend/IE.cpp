@@ -21,6 +21,8 @@
 #include "vpux/compiler/utils/logging.hpp"
 #include "vpux/compiler/utils/types.hpp"
 
+#include "vpux/passes/replace_onnx_pattern_to_reorg.hpp"
+
 #include "vpux/utils/IE/format.hpp"
 #include "vpux/utils/IE/hash.hpp"
 #include "vpux/utils/core/array_ref.hpp"
@@ -1595,6 +1597,7 @@ void runNGraphPasses(const std::shared_ptr<ngraph::Function>& netGraph, mlir::Ti
     manager.register_pass<ngraph::pass::ConvertQuantizeDequantize>();
     manager.register_pass<ngraph::pass::WeightsDequantizeToFakeQuantize>();
     manager.register_pass<ngraph::pass::ConstantFolding>();
+    manager.register_pass<vpux::passes::OnnxReorgPatternToDarkNetReorg>();
     manager.register_pass<ngraph::pass::CommonOptimizations>();
 
     manager.run_passes(netGraph);
