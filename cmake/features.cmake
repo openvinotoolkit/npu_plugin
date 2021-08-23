@@ -58,6 +58,7 @@ ie_option(ENABLE_EXPORT_SYMBOLS "Enable compiler -fvisibility=default and linker
 ie_option(ENABLE_MCM_COMPILER_PACKAGE "Enable build of separate mcmCompiler package" OFF)
 
 ie_dependent_option(ENABLE_ZEROAPI_BACKEND "Enable zero-api as a plugin backend" ON "NOT AARCH64" OFF)
+ie_option(ENABLE_ZERO_COMPILER_ADAPTER "Enable zero compiler adapter" OFF)
 
 ie_option(ENABLE_DEVELOPER_BUILD "Enable developer build with extra validation/logging functionality" OFF)
 
