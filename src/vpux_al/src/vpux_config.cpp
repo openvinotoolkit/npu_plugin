@@ -61,6 +61,8 @@ void vpux::VPUXConfig::parseEnvironment() {
             _compilerType = IE::VPUXConfigParams::CompilerType::MCM;
         } else if (std::strcmp(env, VPUX_CONFIG_VALUE(MLIR)) == 0) {
             _compilerType = IE::VPUXConfigParams::CompilerType::MLIR;
+        } else if (std::strcmp(env, VPUX_CONFIG_VALUE(ZERO_ADAPTER)) == 0) {
+            _compilerType = IE::VPUXConfigParams::CompilerType::ZERO_ADAPTER;
         } else {
             IE_THROW() << "Invalid value "
                        << "\"" << env << "\""
@@ -141,7 +143,8 @@ void vpux::VPUXConfig::parse(const std::map<std::string, std::string>& config) {
     setOption(_executorStreams, config, VPU_KMB_CONFIG_KEY(EXECUTOR_STREAMS), parseInt);
     static const std::unordered_map<std::string, IE::VPUXConfigParams::CompilerType> vpuxCompilerType = {
             {VPUX_CONFIG_VALUE(MCM), IE::VPUXConfigParams::CompilerType::MCM},
-            {VPUX_CONFIG_VALUE(MLIR), IE::VPUXConfigParams::CompilerType::MLIR}};
+            {VPUX_CONFIG_VALUE(MLIR), IE::VPUXConfigParams::CompilerType::MLIR},
+            {VPUX_CONFIG_VALUE(ZERO_ADAPTER), IE::VPUXConfigParams::CompilerType::ZERO_ADAPTER}};
     setOption(_compilerType, vpuxCompilerType, config, VPUX_CONFIG_KEY(COMPILER_TYPE));
     setOption(_compilationMode, config, VPUX_CONFIG_KEY(COMPILATION_MODE));
     setOption(_numberOfDPUGroups, config, VPUX_CONFIG_KEY(DPU_GROUPS), parseInt);

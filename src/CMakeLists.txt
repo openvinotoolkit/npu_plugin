@@ -30,9 +30,17 @@ endif()
 if(ENABLE_HDDL2 AND UNIX)
     add_subdirectory(hddl2_backend)
 endif()
+
+if(ENABLE_ZERO_COMPILER_ADAPTER)
+# FIXME temporary solution to allow test this adapter on ARM (autonomous mode)
+add_subdirectory(zero_compiler_adapter)
+message("Zero compiler adapter enabled.")
+endif()
+
 if(ENABLE_ZEROAPI_BACKEND)
     add_subdirectory(zero_backend)
 endif()
+
 add_subdirectory(vpux_plugin)
 
 add_subdirectory(vpux_utils)
