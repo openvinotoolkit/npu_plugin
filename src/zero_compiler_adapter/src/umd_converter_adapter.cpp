@@ -52,22 +52,22 @@ Blob::Blob(const std::vector<char>& data): data(data) {
 UMD_Converter::UMD_Converter() {
     handle = OPENLIB(LIBNAME);
     if (handle == NULL) {
-        printf("Failed to open %s\n", LIBNAME);
+        _logger->error("Failed to open %s", LIBNAME);
 #if defined(_WIN32)
-        printf("Error: %d\n", GetLastError());
+        _logger->error("Error: %d\n", GetLastError());
 #else
-        printf("Error: %s\n", dlerror());
+        _logger->error("Error: %s\n", dlerror());
 #endif
         exit(EXIT_FAILURE);
     }
 
     getConverter = (gc_result_t(*)(vpux_converter_t*))LIBFUNC(handle, GET_CONVERTER);
     if (!getConverter) {
-        printf("can not find %s in %s\n", GET_CONVERTER, LIBNAME);
+        _logger->error("can not find %s in %s\n", GET_CONVERTER, LIBNAME);
 #if defined(_WIN32)
-        printf("Error: %d\n", GetLastError());
+        _logger->error("Error: %d\n", GetLastError());
 #else
-        printf("Error: %s\n", dlerror());
+        _logger->error("Error: %s\n", dlerror());
 #endif
         exit(EXIT_FAILURE);
     }
@@ -84,19 +84,17 @@ UMD_Converter::~UMD_Converter() {
     //    gc_result_t ret = GC_RESULT_SUCCESS;
     //    ret = converter.methods.deinitCompiler();
     //    if(ret != GC_RESULT_SUCCESS) {
-    //        printf("Failed to deinit compiler!\n");
+    //        _logger->error("Failed to deinit compiler!\n");
     //        exit(2);
     //    }
-
     CLOSELIB(handle);
 }
 
 // This function based on convertTest.c sample
 Blob::Ptr UMD_Converter::compileIR(std::vector<char>& xml, std::vector<char>& weights) {
-    std::cout << "=============== callUMDConverter start" << std::endl;
+    _logger->debug("UMD_Converter::compileIR start");
     gc_result_t ret = GC_RESULT_SUCCESS;
 
-    // =================temp_transformed_ir
     uint32_t blobSize = 0;
     std::vector<char> blob;
     ret = converter.methods.getSerializableBlob(reinterpret_cast<uint8_t*>(xml.data()), xml.size(),
@@ -111,18 +109,16 @@ Blob::Ptr UMD_Converter::compileIR(std::vector<char>& xml, std::vector<char>& we
                                                     reinterpret_cast<uint8_t*>(blob.data()), &blobSize);
     }
 
-    printf("All finished!\n");
-    std::cout << "blob size: " << blob.size() << " expected: " << blobSize << std::endl;
-    std::cout << "=============== callUMDConverter end" << std::endl;
+    _logger->debug("UMD_Converter::compileIR end");
     return std::make_shared<Blob>(blob);
 }
 
 std::tuple<const std::string, const DataMap, const DataMap, const DataMap, const DataMap> UMD_Converter::getNetworkMeta(
         const Blob::Ptr compiledNetwork) {
-    std::cout << "cg_api::getNetworkMeta call" << std::endl;
+    _logger->debug("UMD_Converter::getNetworkMeta start");
     vpux::Compiler::Ptr compiler = std::make_shared<Compiler>(getLibFilePath("vpux_compiler"));
     const auto networkDesc = compiler->parse(compiledNetwork->data);
-    std::cout << "cg_api::getNetworkMeta end" << std::endl;
+    _logger->debug("UMD_Converter::getNetworkMeta end");
     return std::make_tuple(networkDesc->getName(), networkDesc->getInputsInfo(), networkDesc->getOutputsInfo(),
                            networkDesc->getDeviceInputsInfo(), networkDesc->getDeviceOutputsInfo());
 }
@@ -140,20 +136,19 @@ std::string getEnvVarDefault(const std::string& varName, const std::string& defa
 
 Opset UMD_Converter::getSupportedOpset() {
     gc_result_t ret = GC_RESULT_SUCCESS;
-    // TODO move it to different function
     gc_compiler_properties_t compilerInfo;
     ret = converter.methods.getCompilerProperties(&compilerInfo);
     if (ret) {
         CLOSELIB(handle);
         THROW_IE_EXCEPTION << "Failed to query compiler props! result: " << ret;
     } else {
-        printf("Compiler version:%d.%d\n", compilerInfo.compiler_version.major, compilerInfo.compiler_version.minor);
-        printf("\tSupported format:\n\
+        _logger->info("Compiler version:%d.%d\n", compilerInfo.compiler_version.major, compilerInfo.compiler_version.minor);
+        _logger->info("\tSupported format:\n\
           \t\tNATIVE:%d\n\
         \t\tNGRAPH_LITE:%d\n",
                compilerInfo.supported_formats & GC_EXECUTABLE_INPUT_TYPE_NATIVE && 1,
                compilerInfo.supported_formats & GC_EXECUTABLE_INPUT_TYPE_NGRAPH_LITE && 1);
-        printf("\tSupported opsets:\n\
+        _logger->info("\tSupported opsets:\n\
               \t\tOV6:%d\n\
         \t\tOV7:%d\n",
                compilerInfo.supported_opsets & GC_EXECUTABLE_OPSET_TYPE_OV6 && 1,
