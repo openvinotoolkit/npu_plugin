@@ -630,6 +630,12 @@ mlir::Operation* createRTLayer(IE::RegionYoloOp origOp, ArrayRef<mlir::Value> al
                                         origOp.axis(), origOp.end_axis(), origOp.anchors());
 }
 
+mlir::Operation* createRTLayer(IE::MVNOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::MVNOp::Adaptor newOp(allBufs);
+    return b.create<IERT::MVNOp>(origOp.getLoc(), newOp.input(), newOp.output_buff(), origOp.across_channels(),
+                                        origOp.normalize_variance(), origOp.eps());
+}
+
 class LayerRewrite final : public mlir::ConversionPattern {
 public:
     LayerRewrite(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
@@ -710,6 +716,7 @@ mlir::LogicalResult LayerRewrite::matchAndRewrite(mlir::Operation* origOp, Array
     CASE(IE::StridedSliceOp)
     CASE(IE::ReorderOp)
     CASE(IE::RegionYoloOp)
+    CASE(IE::MVNOp)
     .Default([](mlir::Operation*) {
         return nullptr;
     });

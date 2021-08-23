@@ -2454,4 +2454,64 @@ def VPUIP_RegionYoloUPAOp :
     }] # commonExtraClassDeclaration;
 }
 
+//
+// MVNOp
+//
+
+def VPUIP_MVNUPAOp :
+        VPUIP_UPATaskOp<1, "MVNUPA",
+            [
+                ViewLikeOpInterface,
+                IERT_SameShape,
+                IERT_SameElementType,
+                IERT_SameInOutDimsOrder
+            ]
+        > {
+    let summary = "MVN UPA SHAVE kernel";
+
+    let arguments = (ins
+        F16MemRef:$input,
+        F16MemRef:$output_buff,
+
+        Variadic<VPUIP_Barrier>:$waitBarriers,
+        Variadic<VPUIP_Barrier>:$updateBarriers,
+
+        OptionalAttr<BoolAttr>:$across_channels,
+        OptionalAttr<BoolAttr>:$normalize_variance,
+        F64Attr:$eps,
+
+        OptionalAttr<IntAttr>:$maxShaves,
+        UnitAttr:$isTrailingSWLayer
+    );
+
+    let results = (outs
+        F16MemRef:$output
+    );
+
+    let builders = [
+        OpBuilder<
+            (ins
+                "mlir::Value":$input,
+                "mlir::Value":$output,
+                "mlir::BoolAttr":$across_channels,
+                "mlir::BoolAttr":$normalize_variance,
+                "mlir::FloatAttr":$eps
+            )
+        >
+    ];
+    
+    let verifier = [{
+        return vpux::VPUIP::verifyOp(*this);
+    }];
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+        `->` type(results)
+    }];
+}
+
 #endif

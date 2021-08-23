@@ -942,6 +942,38 @@ operation ::= `IE.LeakyRelu` `(` operands `)` attr-dict `:` type(operands) `->` 
 | :----: | ----------- |
 `output` | ranked tensor of 16-bit float or 32-bit float values
 
+### `IE.MVN` (vpux::IE::MVNOp)
+
+InferenceEngine MVN layer
+
+
+Syntax:
+
+```
+operation ::= `IE.MVN` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`across_channels` | ::mlir::BoolAttr | bool attribute
+`normalize_variance` | ::mlir::BoolAttr | bool attribute
+`eps` | ::mlir::FloatAttr | 64-bit float attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values
+
 ### `IE.MatMul` (vpux::IE::MatMulOp)
 
 InferenceEngine MatMul layer

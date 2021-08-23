@@ -1944,6 +1944,39 @@ def IERT_SubViewOp :
 }
 
 //
+// MVNOp
+//
+
+def IERT_MVNOp :
+        IERT_LayerOp<1, "MVN",
+            [
+                ViewLikeOpInterface
+            ]
+        > {
+    let summary = "InferenceEngine Run-Time MVN layer";
+
+    let arguments = (ins
+        AnyMemRef:$input,
+        AnyMemRef:$output_buff,
+        BoolAttr:$across_channels,
+        BoolAttr:$normalize_variance,
+        F64Attr:$eps
+        
+    );
+
+    let results = (outs
+        AnyMemRef:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
 // ImplicitReorderOp
 //
 
@@ -1975,5 +2008,6 @@ def IERT_ImplicitReorderOp :
         `->` type(results)
     }];
 }
+
 
 #endif
