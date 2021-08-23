@@ -10,6 +10,7 @@
 #include "mvTensorDebug.h"
 
 #include <mvSubspaces8d.h>
+#include <sw_layer.h>
 
 #include <nn_perf_measurement.h>
 
@@ -68,7 +69,7 @@ public:
                      t_MvTensorMyriadResources& myriadRes,
                      t_MvTensorDebugInfo& debugInfo);
 
-
+    virtual bool parse(Layer */*layer*/) {return true;};
 
     virtual unsigned int getBytesRead() const;
 

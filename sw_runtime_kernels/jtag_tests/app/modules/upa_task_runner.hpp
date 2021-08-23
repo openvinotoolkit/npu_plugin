@@ -19,6 +19,11 @@ class UPATaskRunner {
      * @breif enque certain task with giver inputs and outputs buffers
      * @return true if succeeded
      */
+    bool enqueTask(Op * operation,
+                   const std::vector<Buffer> &inputs,
+                   const std::vector<Buffer> &outputs,
+                   int numSHAVEs,
+                   PerformanceData *perfData);
     bool enqueTask(std::unique_ptr<MVCNN::UPALayerTaskT> && task,
                    const std::vector<Buffer> &inputs,
                    const std::vector<Buffer> &outputs,
