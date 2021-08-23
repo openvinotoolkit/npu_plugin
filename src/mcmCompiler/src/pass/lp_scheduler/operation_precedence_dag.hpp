@@ -1205,6 +1205,7 @@ class Operation_Dag {
 
     template<typename model_t>
     void build_adj_tables(model_t& model) {
+      std::cout << "Building adjancey tables " << std::endl;
       for (op_itr_t itr = mtraits::begin_operations(model);
             itr != mtraits::end_operations(model); ++itr) {
         operation_t op = &(*itr);
@@ -1305,6 +1306,7 @@ class Operation_Dag {
     }
 
     void connect_all_non_unit_outdegree_dmas_to_input(mv::OpModel& model) {
+      std::cout << "Connecting all on-unit outdegree DMAS to input (pre-fetching) " << std::endl;
 
       // connect all non-unit outdegree DMAS to input //
       for (op_itr_t itr = mtraits::begin_operations(model);
@@ -1551,6 +1553,7 @@ class Operation_Dag {
     }
 
     void drop_all_resource_control_edges(mv::OpModel& om) {
+      std::cout << "Droping all resource control flows " << std::endl;
       mv::DataModel dm(om);
       std::list<mv::Data::FlowListIterator> edges_to_drop;
       for (mv::Data::FlowListIterator eitr=dm.flowBegin(); eitr!=dm.flowEnd();

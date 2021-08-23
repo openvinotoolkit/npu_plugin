@@ -189,6 +189,7 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
     if (input_dag.is_input_op(op)) {
       // explicitly set the resource bounds so that the prefetch edges can
       // be done as high as possible.
+      std::cout << "Setting resouce bounds for input to be [" << 1 << ", " << upper_bound << "]" << std::endl; 
       rbegin = 1UL;
       rend = upper_bound;
     }
@@ -202,7 +203,7 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
       } else {
         scheduled_op_enum = mv::lp_scheduler::op_type_e::SPILLED_WRITE_OP;
       }
-      std::cout << "Adding Op "<<  op->getName() << " to scheduled operations " << std::endl;
+      std::cout << "Adding Op "<<  op->getName() << " to scheduled operations " << ": scheduled_op.time_ " << scheduled_op.time_ << " rbegin " << rbegin << " rend" << rend << std::endl;
       scheduled_ops.push_back(scheduled_op_t(op, scheduled_op.time_,
             rbegin, rend, scheduled_op_enum));
     }
@@ -414,12 +415,14 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
     UNUSED(status);
     assert(status);
     // save the schedule state in global params //
+    std::cout << "Saving the schedule state im global parameters " << std::endl;
     auto global_params = model.getGlobalConfigParams();
     global_params->set<std::string>(writer_t::ddr_address_attribute(),
           schedule_state.str());
   }
 
   ////////////////////// Control Edge Generation ///////////////////////////////
+  std::cout << "Starting control edge generation " << std::endl;
   mv::ControlModel cmodel(model);
   control_edge_set_t control_edges(cmodel);
   bool generate_temporal_edges = !passDesc.hasAttr("no_temporal_edges");
@@ -428,6 +431,8 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
   control_edges.set_zero_indegree_temporal_control(
       passDesc.hasAttr("zero_degree_temporal_edges") );
 
+  std::cout << " Passing the scheduled operations to the control edge generation algorithm " << std::endl;
+  algo.printResouceIntervals(scheduled_ops.begin(), scheduled_ops.end());
   algo.generate_control_edges(scheduled_ops.begin(), scheduled_ops.end(),
       control_edges);
 
@@ -437,7 +442,10 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
     scheduled_ops_set.insert( (op.op_)->getName() );
   }
 
-
+  std::cout << "Prining CMX control edges " << std::endl;
+  for (auto itr=control_edges.begin(); itr != control_edges.end(); ++itr) {
+    std::cout << "Control edge to be inserted between : " << (*itr).source_name() << " -> " << (*itr).sink_name() << std::endl;
+  }
   if (fptr) {
     fprintf(fptr, "\n\n");
     for (auto itr=control_edges.begin(); itr != control_edges.end(); ++itr) {
@@ -487,5 +495,5 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
     mv::OpModel omodel(model);
     input_dag.drop_all_resource_control_edges(omodel);
   }
-  exit(1);
+  
 }

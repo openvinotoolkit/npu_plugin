@@ -28,14 +28,29 @@ class Control_Edge_Generator {
 
     Control_Edge_Generator() : interval_tree_() {}
 
+    template<typename IntervalIterator>
+    void printResouceIntervals(IntervalIterator begin, IntervalIterator end){
+
+      std::cout << "Starting Printing all the interval (virtual memory addresses) " << std::endl;
+      std::cout << " " << std::endl;
+       for (;begin != end; ++begin) {
+        unit_t curr_beg = traits::interval_begin(*begin);
+        unit_t curr_end = traits::interval_end(*begin);
+        std::cout << (*begin).op_->getName() << " interval is [" << curr_beg << ", " << curr_end << "]" << std::endl;
+      }
+      std::cout << "Finished Printing all the interval (virtual memory addresses) " << std::endl;
+      std::cout << " " << std::endl;
+    }
 
     template<typename IntervalIterator, typename OutputFunctor=noop_functor_t>
     size_t generate_control_edges(IntervalIterator begin, IntervalIterator end,
         OutputFunctor &output=OutputFunctor()) {
       size_t edge_count = 0UL;
+      
       for (;begin != end; ++begin) {
         unit_t curr_beg = traits::interval_begin(*begin);
         unit_t curr_end = traits::interval_end(*begin);
+        std::cout << (*begin).op_->getName() << " interval is [" << curr_beg << ", " << curr_end << "]" << std::endl;
         if (curr_beg > curr_end) { continue; }
         edge_count += process_next_interval(*begin, output);
       }
@@ -54,9 +69,12 @@ class Control_Edge_Generator {
     size_t process_next_interval(const interval_t& curr_interval,
         OutputFunctor &output=OutputFunctor()) {
 
+      std::cout << "Processing the next interval for operation " << (*curr_interval).getName() <<  std::endl;
+
       size_t edge_count = 0UL;
       unit_t curr_beg = traits::interval_begin(curr_interval);
       unit_t curr_end = traits::interval_end(curr_interval);
+      std::cout << "The next interval is [" << curr_beg << ", " << curr_end << "]" << std::endl;
       assert(curr_beg <= curr_end);
 
       query_iterator_t qitr = interval_tree_.query(curr_beg, curr_end);
@@ -65,6 +83,7 @@ class Control_Edge_Generator {
       // Invariant: [curr_rem_beg, curr_rem_end] is the reminder of the
       // current interval which does not overlap intervals until qitr //
       unit_t curr_rem_beg = curr_beg, curr_rem_end = curr_end;
+      std::cout << "Curr curr_rem_beg is " << curr_beg << " curr_rem_end is " << curr_rem_end << std::endl;
       while ((qitr != qitr_end) &&
             overlaps(qitr, curr_rem_beg, curr_rem_end)) { // foreach overlap //
         interval_t qinterval = *qitr;
@@ -90,6 +109,7 @@ class Control_Edge_Generator {
         unit_t inter_beg = std::max(curr_rem_beg, qbeg);
         unit_t inter_end = std::min(curr_rem_end, qend);
         assert(inter_beg <= inter_end);
+        std::cout << "The intersecting interval is [" << inter_beg << ", " << inter_end << "]" << std::endl; 
 
         unit_t result_beg[2UL], result_end[2UL];
         interval_t const * result_val[2UL];
@@ -144,6 +164,7 @@ class Control_Edge_Generator {
           }
 
           // insert the intersection part //
+          std::cout << "Overlapping section " << "inserting interval [" << inter_beg << ", " << inter_end << "]" << " into the interval tree " << std::endl;
           interval_tree_.insert(inter_beg, inter_end, curr_interval);
 
 
@@ -171,6 +192,7 @@ class Control_Edge_Generator {
 
       if (curr_rem_beg <= curr_rem_end) {
         // process the trailing part this also covers the trailing case.//
+        std::cout << "No overlap ? " << "inserting interval [" << curr_rem_beg << ", " << curr_rem_end << "]" << " into the interval tree " << std::endl;
         const bool status = interval_tree_.insert(curr_rem_beg, curr_rem_end,
               curr_interval);
         UNUSED(status);
@@ -201,6 +223,7 @@ class Control_Edge_Generator {
         //TODO(vamsikku): implement an erase using iterators instead of
         //end point values so that this takes O(1) time.
         qitr_next = qitr; ++qitr_next;
+        std::cout << "In merge_abutting_intervals(): Erasing interval from the interval_tree " << std::endl; 
         interval_tree_.erase(qitr.interval_begin(), qitr.interval_end());
         qitr = qitr_next;
       }

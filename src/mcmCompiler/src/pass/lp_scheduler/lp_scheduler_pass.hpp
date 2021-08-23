@@ -75,7 +75,8 @@ struct Tensor_Address_Assignment {
   }
 
   void operator()(const Scheduled_Op& op_info) {
-
+    
+    std::cout << "Setting tensor address for operation : " << op_info.op_->getName() << std::endl;
     if (!op_info.has_valid_address()) { return; }
 
     // get its output tensor and set the address //
@@ -343,6 +344,7 @@ class Control_Edge_Set {
     const_edge_iterator_t end() const { return control_edge_set_.end(); }
 
     void set_zero_indegree_temporal_control(bool flag) {
+      std::cout << "set_zero_indegree_temporal_control to be (what is this?) :" << flag << std::endl;
       zero_indegree_temporal_control_ = flag;
     }
 
@@ -396,6 +398,7 @@ class Control_Edge_Set {
         ScheduledOpIterator sbegin, ScheduledOpIterator send,
         bool generate_temporal_edges=true) {
 
+      std::cout << "Adding CMX control edges to the model " << std::endl;
       mv::ControlModel cm(model);
       mv::OpModel om(model);
 
@@ -667,6 +670,7 @@ class Control_Edge_Set {
       mv::ControlModel cm(model);
       mv::Control::FlowListIterator fitr, fitr_next;
       for (fitr=cm.flowBegin(); fitr!=cm.flowEnd();) {
+        std::cout << "Deleting an original control edge from the model " << std::endl;
         fitr_next = fitr; ++fitr_next;
         cm.undefineFlow(fitr);
         fitr = fitr_next;
@@ -910,6 +914,7 @@ class Control_Edge_Set {
     }
 
     void init(mv::ControlModel& cmodel, bool clear_control_edges) {
+      std::cout << "Initialising the control edge class object in scheduler " << std::endl;
       iterator_lookup_.clear();
       for (op_iterator_t itr=mtraits::begin_operations(cmodel);
           itr!=mtraits::end_operations(cmodel); ++itr) {
