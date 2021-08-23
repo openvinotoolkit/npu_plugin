@@ -60,6 +60,9 @@ vpux::Compiler::Ptr vpux::Compiler::create(const VPUXConfig& config) {
     case InferenceEngine::VPUXConfigParams::CompilerType::MLIR: {
         return std::make_shared<Compiler>(getLibFilePath("vpux_compiler"));
     }
+    case InferenceEngine::VPUXConfigParams::CompilerType::ZERO_ADAPTER: {
+        return std::make_shared<Compiler>(getLibFilePath("zero_compiler_adapter"));
+    }
     default:
         IE_THROW() << "Compiler type not found";
     }
