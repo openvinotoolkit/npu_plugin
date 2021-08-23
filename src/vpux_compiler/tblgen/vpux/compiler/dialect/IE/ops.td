@@ -1316,6 +1316,29 @@ def IE_NormalizeL2Op :
 }
 
 //
+// MVNOp
+//
+
+def IE_MVNOp :
+        IE_LayerOp<
+            "MVN"
+        > {
+    let summary = "InferenceEngine MVN layer";
+
+    let arguments = (ins
+        AnyRankedTensor:$input,
+
+        BoolAttr:$across_channels,
+        BoolAttr:$normalize_variance,
+        F64Attr:$eps
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+}
+
+//
 // ConcatOp
 //
 

@@ -644,4 +644,20 @@ def RewriteRegionYolo :
             (createRegionYoloUPAOp $input, $output, $coords, $classes, $regions, $do_softmax, $mask)
         >;
 
+//
+// IERT.MVN -> VPUIP.MVNUPA
+//
+
+def createMVNUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::MVNUPAOp>(
+                $_loc, $0, $1, $2, $3, $4)
+        }]>;
+
+def RewriteMVN :
+        Pat<
+            (IERT_MVNOp $input, $output, $across_channels, $normalize_variance, $eps),
+            (createMVNUPAOp $input, $output, $across_channels, $normalize_variance, $eps)
+        >;
+
 #endif

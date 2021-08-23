@@ -40,6 +40,7 @@
 #include <ngraph/function.hpp>
 #include <ngraph/node.hpp>
 #include <ngraph/opsets/opset7.hpp>
+#include <ngraph/opsets/opset4.hpp>
 #include <ngraph/pass/constant_folding.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/type/element_type.hpp>
@@ -133,6 +134,7 @@ private:
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::ReorgYolo>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::DetectionOutput>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::NormalizeL2>& origNode);
+    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset4::MVN>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Concat>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::ROIPooling>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::StridedSlice>& origNode);
@@ -228,6 +230,7 @@ NGraphImporter::Callback NGraphImporter::getParser(const std::shared_ptr<ngraph:
             MAP_ENTRY(opset_latest::ReorgYolo),
             MAP_ENTRY(opset_latest::DetectionOutput),
             MAP_ENTRY(opset_latest::NormalizeL2),
+            MAP_ENTRY(ngraph::opset4::MVN),
             MAP_ENTRY(opset_latest::Concat),
             MAP_ENTRY(opset_latest::ROIPooling),
             MAP_ENTRY(opset_latest::StridedSlice),
@@ -1072,6 +1075,22 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
     const auto epsModeAttr = importEpsMode(origNode->get_eps_mode());
 
     auto op = builder.create<IE::NormalizeL2Op>(createLocation(origNode), inputs[0], inputs[1], epsAttr, epsModeAttr);
+    addOutputs(origNode, op);
+}
+
+void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset4::MVN>& origNode) {
+    static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v0::MVN>::value,
+                  "opset operation mismatch");
+
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS(inputs.size() == 1, "nGraph MVN node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
+
+    const auto normalize_varianceAttr = mlir::BoolAttr::get(_ctx, origNode->get_normalize_variance());
+    const auto across_channelsAttr = mlir::BoolAttr::get(_ctx, origNode->get_across_channels());
+    const auto epsAttr = getFPAttr(_ctx, origNode->get_eps());
+
+    auto op = builder.create<IE::MVNOp>(createLocation(origNode), inputs[0], across_channelsAttr, normalize_varianceAttr, epsAttr);
     addOutputs(origNode, op);
 }
 

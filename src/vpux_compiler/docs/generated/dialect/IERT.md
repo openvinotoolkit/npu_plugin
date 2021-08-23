@@ -979,6 +979,42 @@ operation ::= `IERT.LeakyRelu` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float or 32-bit float values
 
+### `IERT.MVN` (vpux::IERT::MVNOp)
+
+InferenceEngine Run-Time MVN layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.MVN` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`across_channels` | ::mlir::BoolAttr | bool attribute
+`normalize_variance` | ::mlir::BoolAttr | bool attribute
+`eps` | ::mlir::FloatAttr | 64-bit float attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of any type values
+`output_buff` | memref of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of any type values
+
 ### `IERT.MaxPool` (vpux::IERT::MaxPoolOp)
 
 InferenceEngine run-time MaxPool layer

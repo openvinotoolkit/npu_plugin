@@ -16,6 +16,13 @@ TEST_P(KmbMvnLayerTest, basicTest) {
     Run();
 }
 
+class KmbMvnLayerTestMLIR : public MvnLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
+
+TEST_P(KmbMvnLayerTestMLIR, CompareWithRefs_MLIR) {
+    useCompilerMLIR();
+    Run();
+}
+
 class KmbMvn6LayerTest : public Mvn6LayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
 
 TEST_P(KmbMvn6LayerTest, basicTest) {
@@ -48,7 +55,25 @@ const std::vector<std::vector<size_t>> inputShapes = {
     {7, 32, 2, 8},
     {5, 8, 3, 5},
     {4, 41, 6, 9},
-// Currently input dim > 4 is not supported by KMB-plugin and mcmCompiler
+// Currently input dim > 4 is not supported by KMB-plugin and mcmCompiler 
+    {1, 32, 8, 1, 6},
+    {1, 9, 1, 15, 9},
+    {6, 64, 6, 1, 18},
+    {2, 31, 2, 9, 1},
+    {10, 16, 5, 10, 6}
+#endif
+};
+
+// only 4d and 5d input shape is supported according to the OpenVino documentation 
+const std::vector<std::vector<size_t>> MLIRinputShapes = {
+    {1, 16, 5, 8},
+#if 0
+// Batch size > 1 is not supported by Soft and Custom Layer MVN implementation
+    {2, 19, 5, 10},
+    {7, 32, 2, 8},
+    {5, 8, 3, 5},
+    {4, 41, 6, 9},
+// Currently input dim > 4 is not supported by KMB-plugin
     {1, 32, 8, 1, 6},
     {1, 9, 1, 15, 9},
     {6, 64, 6, 1, 18},
@@ -90,6 +115,19 @@ INSTANTIATE_TEST_CASE_P(
         ::testing::ValuesIn(epsilon),
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)
     ), KmbMvnLayerTest::getTestCaseName);
+
+//Test MVN MLIR
+
+INSTANTIATE_TEST_CASE_P(
+    smoke_TestsMVN, KmbMvnLayerTestMLIR, ::testing::Combine(
+        ::testing::ValuesIn(MLIRinputShapes),
+        ::testing::Values(InferenceEngine::Precision::FP32),
+        ::testing::ValuesIn(acrossChannels),
+        ::testing::ValuesIn(normalizeVariance),
+        ::testing::ValuesIn(epsilon),
+        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)
+    ), KmbMvnLayerTestMLIR::getTestCaseName);
+
 
 //Test MVN-6
 
