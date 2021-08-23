@@ -45,6 +45,10 @@ public:
 private:
     LIBTYPE handle;
     vpux_converter_t converter;
+
+    // TODO Switch log level to Debug when it will be production solution
+    const std::unique_ptr<vpu::Logger> _logger = std::unique_ptr<vpu::Logger>(
+            new vpu::Logger("UMD_Converter", vpu::LogLevel::Debug /*_config.logLevel()*/, vpu::consoleOutput()));
 };
 }  // namespace zeroCompilerAdapter
 }  // namespace vpux
