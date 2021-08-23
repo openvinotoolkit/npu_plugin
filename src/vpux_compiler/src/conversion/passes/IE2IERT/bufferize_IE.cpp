@@ -633,7 +633,7 @@ mlir::Operation* createRTLayer(IE::RegionYoloOp origOp, ArrayRef<mlir::Value> al
 mlir::Operation* createRTLayer(IE::MVNOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::MVNOp::Adaptor newOp(allBufs);
     return b.create<IERT::MVNOp>(origOp.getLoc(), newOp.input(), newOp.output_buff(), origOp.across_channels(),
-                                        origOp.normalize_variance(), origOp.eps());
+                                 origOp.normalize_variance(), origOp.eps());
 }
 
 class LayerRewrite final : public mlir::ConversionPattern {

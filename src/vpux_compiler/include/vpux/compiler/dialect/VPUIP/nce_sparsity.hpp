@@ -16,9 +16,9 @@
 #include <llvm/ADT/ArrayRef.h>
 #include <mlir/IR/Value.h>
 
-#include "vpux/utils/core/func_ref.hpp"
 #include "vpux/compiler/dialect/VPUIP/attributes/enums.hpp"
 #include "vpux/utils/core/enums.hpp"
+#include "vpux/utils/core/func_ref.hpp"
 
 namespace vpux {
 namespace VPUIP {
@@ -37,9 +37,10 @@ public:
                                            int64_t inputChannels);
     static std::vector<uint8_t> getFakeSparsity(mlir::ArrayRef<int64_t> kernelSize, int64_t strideW,
                                                 mlir::Type elemType, int64_t inputChannels);
-    static std::vector<std::int32_t> getWeightsTable(std::int64_t OC, GetBiasCb getBiasFP, std::int32_t weightPtrOffset, std::int32_t weightPtrStep,
-                                                     std::int32_t sparsityPtrOffset, vpux::VPUIP::ArchKind arch,
-                                                     mlir::Type inputType = nullptr, mlir::Type weightsType = nullptr, mlir::Type outputType = nullptr);
+    static std::vector<std::int32_t> getWeightsTable(std::int64_t OC, GetBiasCb getBiasFP, std::int32_t weightPtrOffset,
+                                                     std::int32_t weightPtrStep, std::int32_t sparsityPtrOffset,
+                                                     vpux::VPUIP::ArchKind arch, mlir::Type inputType = nullptr,
+                                                     mlir::Type weightsType = nullptr, mlir::Type outputType = nullptr);
 };
 
 }  // namespace VPUIP

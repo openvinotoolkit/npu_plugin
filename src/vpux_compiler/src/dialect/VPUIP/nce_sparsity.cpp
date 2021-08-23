@@ -13,9 +13,9 @@
 
 #include "vpux/compiler/dialect/VPUIP/nce_sparsity.hpp"
 #include "vpux/compiler/conversion.hpp"
-#include "vpux/utils/core/func_ref.hpp"
-#include "vpux/utils/core/enums.hpp"
 #include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
+#include "vpux/utils/core/enums.hpp"
+#include "vpux/utils/core/func_ref.hpp"
 
 using namespace vpux;
 using namespace VPUIP;
@@ -104,7 +104,7 @@ std::int32_t toHex(double realVal) {
 }
 
 constexpr std::int32_t getKMBScale(double scale = 1.0) {
-    (void) scale;
+    (void)scale;
 
     constexpr std::int32_t PRELU_SCALE_OFFSET = 0;
     constexpr std::int32_t PRELU_SCALE_VALUE = 1;
@@ -117,8 +117,8 @@ constexpr std::int32_t getKMBScale(double scale = 1.0) {
     // FIXME: PPE multiplier has sign, which may affect lower bits
     constexpr std::int32_t PPE_MULT_VALUE = 1;
 
-    constexpr std::int32_t KMB_SCALE = (PRELU_SCALE_VALUE << PRELU_SCALE_OFFSET) | (PPE_SHIFT_VALUE << PPE_SHIFT_OFFSET) |
-                                       (PPE_MULT_VALUE << PPE_MULT_OFFSET);
+    constexpr std::int32_t KMB_SCALE = (PRELU_SCALE_VALUE << PRELU_SCALE_OFFSET) |
+                                       (PPE_SHIFT_VALUE << PPE_SHIFT_OFFSET) | (PPE_MULT_VALUE << PPE_MULT_OFFSET);
 
     return KMB_SCALE;
 }
@@ -160,16 +160,18 @@ std::int32_t getMTLScale(double scale) {
 
 }  // namespace
 
-const vpux::EnumMap<vpux::VPUIP::ArchKind, vpux::VPUIP::NCESparsity::PPEConverterCb> vpux::VPUIP::NCESparsity::ppeConvertersMap = {
-    {vpux::VPUIP::ArchKind::KMB, getKMBScale},
-    {vpux::VPUIP::ArchKind::TBH, getKMBScale},
-    {vpux::VPUIP::ArchKind::MTL, getMTLScale},
+const vpux::EnumMap<vpux::VPUIP::ArchKind, vpux::VPUIP::NCESparsity::PPEConverterCb>
+        vpux::VPUIP::NCESparsity::ppeConvertersMap = {
+                {vpux::VPUIP::ArchKind::KMB, getKMBScale},
+                {vpux::VPUIP::ArchKind::TBH, getKMBScale},
+                {vpux::VPUIP::ArchKind::MTL, getMTLScale},
 };
 
-const vpux::EnumMap<vpux::VPUIP::ArchKind, vpux::VPUIP::NCESparsity::BiasConverterCb> vpux::VPUIP::NCESparsity::biasConvertersMap = {
-    {vpux::VPUIP::ArchKind::KMB, toFixedPoint},
-    {vpux::VPUIP::ArchKind::TBH, toFixedPoint},
-    {vpux::VPUIP::ArchKind::MTL, toHex},
+const vpux::EnumMap<vpux::VPUIP::ArchKind, vpux::VPUIP::NCESparsity::BiasConverterCb>
+        vpux::VPUIP::NCESparsity::biasConvertersMap = {
+                {vpux::VPUIP::ArchKind::KMB, toFixedPoint},
+                {vpux::VPUIP::ArchKind::TBH, toFixedPoint},
+                {vpux::VPUIP::ArchKind::MTL, toHex},
 };
 
 int64_t vpux::VPUIP::NCESparsity::getBitPatternSize(mlir::ArrayRef<int64_t> kernelSize, int64_t strideW,
@@ -219,9 +221,10 @@ std::vector<uint8_t> vpux::VPUIP::NCESparsity::getFakeSparsity(mlir::ArrayRef<in
     return fakeSparsity;
 }
 
-std::vector<std::int32_t> vpux::VPUIP::NCESparsity::getWeightsTable(std::int64_t OC, vpux::VPUIP::NCESparsity::GetBiasCb getBiasFP, std::int32_t weightPtrOffset, std::int32_t weightPtrStep,
-                                                                    std::int32_t sparsityPtrOffset, vpux::VPUIP::ArchKind arch,
-                                                                    mlir::Type inputType, mlir::Type weightsType, mlir::Type outputType) {
+std::vector<std::int32_t> vpux::VPUIP::NCESparsity::getWeightsTable(
+        std::int64_t OC, vpux::VPUIP::NCESparsity::GetBiasCb getBiasFP, std::int32_t weightPtrOffset,
+        std::int32_t weightPtrStep, std::int32_t sparsityPtrOffset, vpux::VPUIP::ArchKind arch, mlir::Type inputType,
+        mlir::Type weightsType, mlir::Type outputType) {
     const auto getMultShift = [inputType, weightsType, outputType](vpux::VPUIP::ArchKind architecture) -> std::int32_t {
         const auto ppeConverter = ppeConvertersMap.at(architecture);
         const auto getScale = [](mlir::Type type) -> double {
@@ -233,9 +236,9 @@ std::vector<std::int32_t> vpux::VPUIP::NCESparsity::getWeightsTable(std::int64_t
         };
 
         if (architecture == vpux::VPUIP::ArchKind::MTL) {
-            const auto inputScale   = getScale(inputType);
+            const auto inputScale = getScale(inputType);
             const auto weightsScale = getScale(weightsType);
-            const auto outputScale  = getScale(outputType);
+            const auto outputScale = getScale(outputType);
 
             const auto scale = (inputScale * weightsScale) / outputScale;
             return inputType.isBF16() || inputType.isF16() ? toHex(scale) : ppeConverter(scale);
