@@ -152,6 +152,7 @@ def VPUIP_MemoryLocation :
                 StrEnumAttrCase<"AbsoluteAddr">,
                 StrEnumAttrCase<"MAC_Accumulators">,
                 StrEnumAttrCase<"ProfilingOutput">,
+                StrEnumAttrCase<"GFEmbeddedKernel">,
             ]
         > {
     let cppNamespace = "vpux::VPUIP";
