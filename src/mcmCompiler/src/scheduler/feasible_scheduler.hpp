@@ -1916,6 +1916,7 @@ class Feasible_Memory_Schedule_Generator {
     }
 
     void schedule_input_op_for_compute_op(const operation_t& input_op) {
+      
       // Does this op need any implicit read ops ? //
       //
       // 1. If input_op does not exist in op_output_table_ then this must be
@@ -1927,10 +1928,13 @@ class Feasible_Memory_Schedule_Generator {
       typename op_output_table_t::iterator op_out_itr =
           op_output_table_.find(input_op);
 
+      std::cout << "Checking if input " << traits::operation_name(input_op) << " is in the op output table " << std::endl; 
       op_type_e op_type;
       if (op_out_itr == op_output_table_.end()) {
+         std::cout << "Input " << traits::operation_name(input_op) << " is not in the op output table " << std::endl;
         assert(traits::is_data_operation(*input_ptr_, input_op));
         //TODO(vamsikku): keep an outdegree table for each op //
+        std::cout << "Getting all out going operations for " << traits::operation_name(input_op) << std::endl;
         const_operation_iterator_t citr =
             traits::outgoing_operations_begin(*input_ptr_, input_op);
         const_operation_iterator_t citr_end =
@@ -1938,6 +1942,7 @@ class Feasible_Memory_Schedule_Generator {
         size_t outstanding_consumers = 0UL;
         for (; citr != citr_end; ++citr, ++outstanding_consumers) {}
 
+        std::cout << "Inserting " << traits::operation_name(input_op) << " in op output table, it is ACTIVE and type ORIGINAL and has " << outstanding_consumers << " outstanding_consumers" << std::endl;
         op_output_table_.insert( std::make_pair(input_op,
               op_output_info_t(operation_output_e::ACTIVE,
                   outstanding_consumers)) );
@@ -1947,9 +1952,12 @@ class Feasible_Memory_Schedule_Generator {
         assert((op_out_itr->second).spilled());
         (op_out_itr->second).change_state_to_active();
         op_type = op_type_e::IMPLICIT_OP_READ;
+        std::cout << "Not inserting " << traits::operation_name(input_op) << " to the output table " << " It is ACTIVE and type IMPLICIT_OP_READ " << std::endl;
       }
 
       // schedule the op //
+      std::cout << "Step 3: Pushing " << traits::operation_name(input_op) << " to start time heap " << " start time is " << current_time_ << std::endl;
+      std::cout << " " << std::endl;
       push_to_heap_start_time(heap_element_t(input_op, current_time_, op_type));
     }
 
@@ -2164,6 +2172,7 @@ class Feasible_Memory_Schedule_Generator {
       delay_t max_input_delay = delay_t(0);
       size_t demand_idx = 0UL;
       std::cout << "Looping over " << resource_intervals.size() <<" resource intervals " << std::endl;
+      std::cout << "We need to schedule the inputs before the compute operation, we have already checked that they will fit in CMX but they need to be scheduled and pushed to the min-heap start time " << std::endl;
       for (auto itr=resource_intervals.begin(); itr!=resource_intervals.end();
             ++itr, ++demand_idx) {
 
@@ -2171,7 +2180,7 @@ class Feasible_Memory_Schedule_Generator {
 
         const interval_info_t rinfo = *itr;
         const operation_t& input_op = ops_corresponding_to_demands[demand_idx];
-        std::cout << "The operation corresponding to demand_idx " << demand_idx << " is " <<  traits::operation_name(input_op) << std::endl;
+        std::cout << "The input operation corresponding to demand_idx " << demand_idx << " is " <<  traits::operation_name(input_op) << std::endl;
         std::cout << "The interval info is " << rinfo.begin_ << " " << rinfo.end_ << std::endl;
         std::cout << " " << std::endl;
 
@@ -2181,14 +2190,19 @@ class Feasible_Memory_Schedule_Generator {
 
         if (!assigned) { return false; }
 
-        if (input_op == op) { continue; }
+        std::cout << "Checking if the compute operation "<< traits::operation_name(op) << " is the same as this demand " << traits::operation_name(input_op) << std::endl;
+        if (input_op == op) { 
+        std::cout << "The input to this compute op is the same as the operation, moving to the next demand " << std::endl; 
+          continue; 
+        }
 
-        std::cout << "Scheduling input " << traits::operation_name(input_op) << " for the compute operation" << traits::operation_name(op) << std::endl;
+        std::cout << "Scheduling input operation " << traits::operation_name(input_op) << " for the compute operation " << traits::operation_name(op) << std::endl;
         schedule_input_op_for_compute_op(input_op);
 
         // update the max delay to set the start time //
         max_input_delay = std::max(max_input_delay,
               traits::delay(*input_ptr_, input_op));
+        std::cout << "The max input delay is " << max_input_delay << std::endl;
       } // foreach resource in the demand list //
       //////////////////////////////////////////////////////////////////////////
 
