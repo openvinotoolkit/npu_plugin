@@ -21,11 +21,11 @@
 
 #include "vpux/compiler/backend/VPUIP.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
+#include "vpux/compiler/init.hpp"
 #include "vpux/compiler/utils/types.hpp"
 #include "vpux/hwtest/hwtest_utils.hpp"
 #include "vpux/utils/core/error.hpp"
 #include "vpux_config.hpp"
-#include "vpux/compiler/init.hpp"
 
 namespace vpux {
 

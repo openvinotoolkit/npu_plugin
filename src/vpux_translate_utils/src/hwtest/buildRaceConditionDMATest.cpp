@@ -90,7 +90,8 @@ void buildRaceConditionDMATest(const nb::TestCaseJsonDescriptor&, mlir::ModuleOp
 
     // IE.CNNNetwork
     buildCNNOp(builder, func.getName(), {getTensorType(in_shape, inputType, DimsOrder::NHWC)},
-               {getTensorType(out_shape, outputType, DimsOrder::NHWC), getTensorType(out_shape, outputType, DimsOrder::NHWC)});
+               {getTensorType(out_shape, outputType, DimsOrder::NHWC),
+                getTensorType(out_shape, outputType, DimsOrder::NHWC)});
 }
 
 }  // namespace hwtest

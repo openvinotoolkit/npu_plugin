@@ -38,10 +38,10 @@ static constexpr auto PAD_NB_RIGHT = 3;
 // NCETask padding definition
 // IERT::ConvolutionOp -> VPUIP::NCEInvariant ref:
 // kmb-plugin/src/vpux_compiler/src/conversion/passes/convert_to_nce_ops.cpp#L185
-static constexpr auto PAD_NCETASK_LEFT  = 0;
-static constexpr auto PAD_NCETASK_RIGHT  = 1;
-static constexpr auto PAD_NCETASK_TOP  = 2;
-static constexpr auto PAD_NCETASK_BOTTOM  = 3;
+static constexpr auto PAD_NCETASK_LEFT = 0;
+static constexpr auto PAD_NCETASK_RIGHT = 1;
+static constexpr auto PAD_NCETASK_TOP = 2;
+static constexpr auto PAD_NCETASK_BOTTOM = 3;
 
 mlir::DenseElementsAttr generateWeights(llvm::ArrayRef<int64_t> wt_shape, mlir::Type dtype, mlir::MLIRContext* ctx,
                                         const char* weight_file_name);

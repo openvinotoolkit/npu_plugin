@@ -14,8 +14,8 @@
 #include <vpux/compiler/core/aliases_info.hpp>
 #include <vpux/compiler/dialect/VPUIP/blob_reader.hpp>
 #include <vpux/compiler/dialect/VPUIP/nce_invariant.hpp>
-#include "vpux/compiler/dialect/VPUIP/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/nce_sparsity.hpp"
+#include "vpux/compiler/dialect/VPUIP/passes.hpp"
 
 #include "vpux/utils/core/enums.hpp"
 
@@ -133,7 +133,8 @@ mlir::LogicalResult CreateWTableOpsConverter::matchAndRewrite(VPUIP::WeightsTabl
 
     auto getBiasFP = getBiasFunc(createWTableOp.bias());
 
-    const auto weightsTable = vpux::VPUIP::NCESparsity::getWeightsTable(OC, getBiasFP, weightPtrOffset, weightPtrStep, sparsityPtrOffset, _arch);
+    const auto weightsTable = vpux::VPUIP::NCESparsity::getWeightsTable(OC, getBiasFP, weightPtrOffset, weightPtrStep,
+                                                                        sparsityPtrOffset, _arch);
 
     const auto outType = createWTableOp.output().getType();
     const auto shapedType = outType.dyn_cast_or_null<mlir::ShapedType>();
@@ -175,10 +176,12 @@ void ConvertWeightsTableOp2Const::safeRunOnFunc() {
 
     const auto arch = VPUIP::getArch(module);
 
-    VPUX_THROW_UNLESS(vpux::VPUIP::NCESparsity::biasConvertersMap.find(arch) != vpux::VPUIP::NCESparsity::biasConvertersMap.end(),
-                      "Failed to map bias converter to target arch");
-    VPUX_THROW_UNLESS(vpux::VPUIP::NCESparsity::ppeConvertersMap.find(arch) != vpux::VPUIP::NCESparsity::ppeConvertersMap.end(),
-                      "Failed to map PPE converter to target arch");
+    VPUX_THROW_UNLESS(
+            vpux::VPUIP::NCESparsity::biasConvertersMap.find(arch) != vpux::VPUIP::NCESparsity::biasConvertersMap.end(),
+            "Failed to map bias converter to target arch");
+    VPUX_THROW_UNLESS(
+            vpux::VPUIP::NCESparsity::ppeConvertersMap.find(arch) != vpux::VPUIP::NCESparsity::ppeConvertersMap.end(),
+            "Failed to map PPE converter to target arch");
 
     mlir::ConversionTarget target(ctx);
     target.addIllegalOp<VPUIP::WeightsTableOp>();

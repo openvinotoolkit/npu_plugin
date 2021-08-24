@@ -78,7 +78,7 @@ void buildPipeline(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mo
                                                            weightDataAffineMaps, weight_data_ddr_memSpaceAttr);
 
     // get weights from a file
-    const auto wt_data_vals = generateWeights(wt_data_shape, weightsType, builder.getContext(), "weight.dat");
+    const auto wt_data_vals = generateWeights(wt_data_shape, weightsType, builder.getContext(), "weights.dat");
     auto wt_data_attr = Const::ContentAttr::get(wt_data_vals);
     if (auto qty = weightsType.dyn_cast<mlir::quant::QuantizedType>()) {
         wt_data_attr = wt_data_attr.quantCast(qty);

@@ -66,12 +66,14 @@ mlir::DenseElementsAttr generateWeights(std::ifstream& stream, mlir::RankedTenso
     VPUX_THROW_UNLESS((state & std::ifstream::eofbit) == 0,
                       "Failed to read {0} bytes from weghts file, read {1} bytes before EOF has been reached",
                       expectedBytesCountToRead, actualBytesCountRead);
-    VPUX_THROW_UNLESS((state & std::ifstream::failbit) == 0,
-                      "Failed to read {0} bytes from weghts file, read {1} bytes before logical error on i/o operation occured",
-                      expectedBytesCountToRead, actualBytesCountRead);
-    VPUX_THROW_UNLESS((state & std::ifstream::badbit) == 0,
-                      "Failed to read {0} bytes from weghts file, read {1} bytes before read error on i/o operation occured",
-                      expectedBytesCountToRead, actualBytesCountRead);
+    VPUX_THROW_UNLESS(
+            (state & std::ifstream::failbit) == 0,
+            "Failed to read {0} bytes from weghts file, read {1} bytes before logical error on i/o operation occured",
+            expectedBytesCountToRead, actualBytesCountRead);
+    VPUX_THROW_UNLESS(
+            (state & std::ifstream::badbit) == 0,
+            "Failed to read {0} bytes from weghts file, read {1} bytes before read error on i/o operation occured",
+            expectedBytesCountToRead, actualBytesCountRead);
     VPUX_THROW("Unexpected std::ifstream::rdstate value {}", state);
 }
 
@@ -92,8 +94,7 @@ mlir::DenseElementsAttr generateWeights(llvm::ArrayRef<std::int64_t> shape, mlir
     mlir::DenseElementsAttr wt_data_vals;
     auto wtData_ddr_valueType = mlir::RankedTensorType::get(shape, type);
     const auto vecSize = static_cast<std::size_t>(
-        std::accumulate(shape.begin(), shape.end(), static_cast<std::int64_t>(1), std::multiplies<std::int64_t>())
-    );
+            std::accumulate(shape.begin(), shape.end(), static_cast<std::int64_t>(1), std::multiplies<std::int64_t>()));
 
     if (auto qtype = type.dyn_cast_or_null<mlir::quant::QuantizedType>()) {
         type = mlir::quant::QuantizedType::castToStorageType(qtype);
