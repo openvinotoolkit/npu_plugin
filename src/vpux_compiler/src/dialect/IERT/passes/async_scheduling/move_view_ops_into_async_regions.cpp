@@ -35,6 +35,10 @@ bool isPureViewOp(mlir::Operation* op) {
     return mlir::isa<mlir::ViewLikeOpInterface>(op) && !mlir::isa<IERT::LayerOpInterface>(op);
 }
 
+bool isStaticAllocOp(mlir::Operation* op) {
+    return mlir::dyn_cast<vpux::IERT::StaticAllocOp>(op) != nullptr;
+}
+
 SmallVector<mlir::Operation*> getOuterViewLikeDeps(mlir::Block* block) {
     llvm::SmallPtrSet<mlir::Operation*, 16> outSet;
 
@@ -42,7 +46,8 @@ SmallVector<mlir::Operation*> getOuterViewLikeDeps(mlir::Block* block) {
         for (auto arg : op.getOperands()) {
             auto* producer = arg.getDefiningOp();
 
-            if (producer != nullptr && producer->getBlock() != block && isPureViewOp(producer)) {
+            if (producer != nullptr && producer->getBlock() != block &&
+                (isPureViewOp(producer) || isStaticAllocOp(producer))) {
                 outSet.insert(producer);
             }
         }
