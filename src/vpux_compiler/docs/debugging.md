@@ -89,31 +89,12 @@ Also it can be enabled with `export IE_VPUX_COMPILER_LOG_FILTER=vpux-compiler`.
 
 ## VS Code extension
 
-MLIR provides an [extension](https://mlir.llvm.org/docs/Tools/MLIRLSP/) for VS Code IDE with extra MLIR code analysis support.
+There is a [MLIR](https://mlir.llvm.org/docs/Tools/MLIRLSP/) extension by LLVM Extensions provided for VS Code with extra MLIR code analysis support.
 
-To enable it on Ubuntu follow the next steps:
+To enable full feature support set `Mlir:Server_path` parameter in the extension configuration to `vpux-lsp-server` application.
+The application is built as a part of the plugin build and can be found in OpenVINO binaries directory (for ex.: \<openvino-dir\>/bin/intel64/Debug/vpux-lsp-server).
 
-1. Copy `<kmb-plugin>/thirdparty/llvm-project/mlir/utils/textmate/mlir.json` to the extension directory
-   (`<kmb-plugin>/thirdparty/llvm-project/mlir/utils/vscode`) and rename to `grammar.json`.
+**Note:**
 
-2. Copy `https://mlir.llvm.org//LogoAssets/logo/PNG/full_color/mlir-identity-03.png` to the extension directory (`<kmb-plugin>/thirdparty/llvm-project/mlir/utils/vscode`) and rename to `icon.png`.
-
-3. Install `npm` and `vsce` tools:
-
-    ```bash
-    sudo apt install npm
-    sudo npm install -g vsce
-    ```
-
-4. Build the extension from the sources:
-
-    ```bash
-    cd <kmb-plugin>/thirdparty/llvm-project/mlir/utils/vscode
-    npm install
-    vsce package
-    ```
-
-5. Install the extension from generated file (`<kmb-plugin>/thirdparty/llvm-project/mlir/utils/vscode/mlir-0.0.1.vsix`).
-
-6. Set `server_path` parameter in the extension configuration to `vpux-lsp-server` application.
-   The application is built as a part of the plugin build and can be found in OpenVINO binaries directory.
+* LSP stands for [Language Server Protocol](https://microsoft.github.io/language-server-protocol/).
+* If you have [MLIR Highlighting for VSCode](https://marketplace.visualstudio.com/items?itemName=MomenAbdelkarim-WyattCalandro-LuisPrieto.mlir) extension by Momen Abdelkarim-Wyatt Calandro-Luis Prieto installed - remove it.
