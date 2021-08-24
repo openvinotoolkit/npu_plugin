@@ -49,7 +49,6 @@ mlir::FailureOr<SmallVector<int64_t>> getAxes(IE::ReduceMeanOpAdaptor reduceMean
 
     const auto axesContent = axesConst.content();
     auto axes = to_small_vector(axesContent.getValues<int64_t>());
-    std::sort(axes.begin(), axes.end());
 
     const auto inType = reduceMean.input().getType().cast<mlir::ShapedType>();
     const auto inRank = inType.getRank();
@@ -59,6 +58,7 @@ mlir::FailureOr<SmallVector<int64_t>> getAxes(IE::ReduceMeanOpAdaptor reduceMean
             axis += inRank;
         }
     }
+    std::sort(axes.begin(), axes.end());
 
     return axes;
 }
@@ -85,16 +85,16 @@ mlir::LogicalResult vpux::IE::ReduceMeanOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    // axes has only one element
-    auto axis = axes->front();
     const auto inType = reduceMean.input().getType().cast<mlir::ShapedType>();
     const auto inShape = inType.getShape();
 
     const auto keepDims = reduceMean.keep_dims().getValue();
 
+    int axesInd = 0;
     SmallVector<int64_t> outShape;
     for (auto inInd : irange(inType.getRank())) {
-        if (inInd == axis) {
+        if (inInd == axes->begin()[axesInd]) {
+            axesInd++;
             if (keepDims) {
                 outShape.push_back(1);
             } else {

@@ -21,26 +21,27 @@
 
 using namespace vpux;
 
-void vpux::VPUIP::ReduceMeanUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
-                                         mlir::Value output, mlir::ArrayAttr axes, mlir::BoolAttr keep_dims) {
-    build(builder, state, input, output, mlir::ValueRange{}, mlir::ValueRange{}, axes, keep_dims, nullptr, nullptr);
+void vpux::VPUIP::ReduceUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
+                                     mlir::Value output, mlir::ArrayAttr axes, mlir::BoolAttr keep_dims,
+                                     VPUIP::ReduceLayerTypeAttr type) {
+    build(builder, state, input, output, mlir::ValueRange{}, mlir::ValueRange{}, axes, keep_dims, type, nullptr,
+          nullptr);
 }
 
-bool vpux::VPUIP::ReduceMeanUPAOp::isSupportedLayout(mlir::Operation* op, vpux::IE::DataOrderInfo& info) {
-    VPUX_THROW_UNLESS(mlir::isa<IE::ReduceMeanOp>(op), "Operation {0} is not a ReduceMean Op", op->getName());
-
-    if (!info.hasInput(1)) {
-        return false;
+VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ReduceUPAOp::serialize(VPUIP::BlobWriter& writer) {
+    VPUIP::BlobWriter::String type;
+    switch (this->type()) {
+    case VPUIP::ReduceLayerType::MEAN:
+        type = writer.createString("mean");
+        break;
+    default:
+        VPUX_THROW("Unsupported ReduceLayerType {0}", this->type());
     }
-    return true;
-}
 
-VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ReduceMeanUPAOp::serialize(VPUIP::BlobWriter& writer) {
-    const auto axes = writer.createVector(parseIntArrayAttr<int32_t>(axesAttr()));
     const auto keepDims = keep_dimsAttr().getValue();
 
     MVCNN::ReduceParamsBuilder builder(writer);
-    builder.add_axes(axes);
+    builder.add_operation(type);
     builder.add_keep_dims(keepDims);
     const auto paramsOff = builder.Finish();
 

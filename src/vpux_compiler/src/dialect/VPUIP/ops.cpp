@@ -261,7 +261,7 @@ void redirectOpInterfacesForIE(mlir::DialectRegistry& registry) {
     registry.addOpInterface<IE::MVNOp, OpModelForSW<VPUIP::MVNUPAOp>>();
     registry.addOpInterface<IE::SubtractOp, OpModelForSW<VPUIP::EltwiseUPAOp>>();
     registry.addOpInterface<IE::LSTMSequenceOp, OpModelForSW<VPUIP::LSTMSequenceUPAOp>>();
-    registry.addOpInterface<IE::ReduceMeanOp, OpModelForSW<VPUIP::ReduceMeanUPAOp>>();
+    registry.addOpInterface<IE::ReduceMeanOp, OpModelForSW<VPUIP::ReduceUPAOp>>();
 }
 
 //

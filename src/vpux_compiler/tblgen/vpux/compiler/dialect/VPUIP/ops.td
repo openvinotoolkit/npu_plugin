@@ -2730,13 +2730,14 @@ def VPUIP_MVNUPAOp :
 // ReduceMeanOp
 //
 
-def VPUIP_ReduceMeanUPAOp :
-        VPUIP_UPATaskOp<1,"ReduceMean",
+def VPUIP_ReduceUPAOp :
+        VPUIP_UPATaskOp<1,"ReduceUPA",
             [
                 ViewLikeOpInterface,
+                IERT_AnyDimsOrder
             ]
         > {
-    let summary = "ReduceMean UPA SHAVE kernel";
+    let summary = "Reduce UPA SHAVE kernel";
 
     let arguments = (ins
         F16MemRef:$input,
@@ -2747,6 +2748,7 @@ def VPUIP_ReduceMeanUPAOp :
 
         I64ArrayAttr:$axes,
         OptionalAttr<BoolAttr>:$keep_dims,
+        VPUIP_ReduceLayerType:$type,
 
         OptionalAttr<IntAttr>:$maxShaves,
         UnitAttr:$isTrailingSWLayer
@@ -2762,7 +2764,8 @@ def VPUIP_ReduceMeanUPAOp :
                 "mlir::Value":$input,
                 "mlir::Value":$output,
                 "mlir::ArrayAttr":$axes,
-                "mlir::BoolAttr":$keep_dims
+                "mlir::BoolAttr":$keep_dims,
+                "vpux::VPUIP::ReduceLayerTypeAttr":$type
             )
         >
     ];
@@ -2775,10 +2778,6 @@ def VPUIP_ReduceMeanUPAOp :
         (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `->` type(results)
     }];
-
-    let extraClassDeclaration = [{
-        static bool isSupportedLayout(mlir::Operation* op, vpux::IE::DataOrderInfo& info);
-    }] # commonExtraClassDeclaration;
 }
 
 #endif
