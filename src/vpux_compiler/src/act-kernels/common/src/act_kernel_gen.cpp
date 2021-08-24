@@ -12,7 +12,7 @@
 //
 
 #include "vpux/compiler/act_kernels/act_kernel_gen.h"
-#include "../inc/nn_act_args.h"
+#include "vpux/compiler/act_kernels/nn_act_args.h"
 
 #include <algorithm>
 #include <string>
@@ -120,7 +120,7 @@ static void compileAndLinkSHAVE(const movitools::MoviCompileParams& params, Stri
     // Generate linker script name
     SmallString<128> linkerScriptPath(genDir);
     sys::path::append(linkerScriptPath, "build");
-    sys::path::append(linkerScriptPath, srcName + "_kernel.ld");
+    sys::path::append(linkerScriptPath, "shave_kernel.ld");
 
     SmallString<128> srcPath(genDir);
     sys::path::append(srcPath, srcName);

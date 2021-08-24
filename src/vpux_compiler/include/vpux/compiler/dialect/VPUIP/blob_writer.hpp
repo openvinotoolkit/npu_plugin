@@ -88,8 +88,10 @@ public:
 public:
     SpecificTask createACTShaveTask(mlir::Operation* op);
     KernelData createKernelData(StringRef name);
+    //KernelDataRef createKernelStack(StringRef name);
+
     KernelDataRef createKernelDataRef(StringRef name, MemoryLocation locale,
-                                      ArrayRef<uint32_t> localeIndex, uint64_t dataOffset, uint64_t dataSize,
+                                      uint32_t localeIndex, uint64_t dataOffset, uint64_t dataSize,
                                       ArrayRef<uint64_t> content= None);
 
 public:

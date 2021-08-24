@@ -193,6 +193,67 @@ flatbuffers::Offset<MVCNN::Resources> createResources(VPUIP::BlobWriter& writer,
     return builder.Finish();
 }
 
+flatbuffers::Offset<MVCNN::ActKernelRuntime> createActKernelRuntime(VPUIP::BlobWriter& writer,
+                                                                    mlir::ModuleOp /*module*/,
+                                                                    mlir::FuncOp netFunc,
+                                                                    Logger log) {
+
+    // only ACTShaveTasks are generating kernelData
+    auto kernelGenOps = to_small_vector(netFunc.getOps<VPUIP::DeclareKernelDataOp>());
+
+    // lets create stack buffers
+    if (kernelGenOps.empty()) {
+        return {};
+    }
+    auto kernelTasks = to_small_vector(netFunc.getOps<VPUIP::ACTShaveTaskOp>());
+    uint32_t maxShaves = 0;
+
+    // TODO: this looks works only for 1 executors
+    //  otherwise need to hardcode all 4 stacks and then just use certain in runtime
+    for (auto invocationIndex : irange(kernelTasks.size())) {
+        auto invocation = kernelTasks[invocationIndex];
+        auto numShaves = invocation.maxShaves();
+        if (!numShaves.hasValue()) {
+            continue;
+        }
+        maxShaves = std::max(numShaves.getValue(), maxShaves);
+    }
+    //TODO: cap numshaves by maximum HW number of 4
+    const auto stack_size { 1U << 12 }; // 4KB stack
+
+    std::vector<uint8_t> shave_stack_data(stack_size);
+    std::vector<flatbuffers::Offset<MVCNN::KernelDataReference>> stacks(maxShaves); // 4 Activation SHAVEs for MTL
+
+    for(uint32_t shv{}; shv < maxShaves; ++shv) {
+        log.trace("act-shave {0}_stack size is {1}", shv, stack_size);
+
+//        const auto stack_local_index {
+        //        kernel_data_manager_.add_kernel_data(ss.str(), shave_stack_data)
+//        };
+
+        stacks[shv] = writer.createKernelDataRef(
+                "actSHAVE" + std::to_string(shv) + "_stack",
+                vpux::VPUIP::MemoryLocation::GFEmbeddedKernel, shv, 0, stack_size);
+    }
+
+    const auto stackBuffers = writer.createVector(stacks);
+
+    std::vector<uint8_t> scratch_buffer(1U << 16); // 64KB scratch buffer
+    const std::string scratch_buffer_name{ "scratch_buffer" };
+    const auto scratch_buffer_index {maxShaves};
+
+    const auto scratchBuffer = writer.createKernelDataRef(
+            scratch_buffer_name,
+            vpux::VPUIP::MemoryLocation::GFEmbeddedKernel,
+            scratch_buffer_index, 0, scratch_buffer.size());
+
+    MVCNN::ActKernelRuntimeBuilder builder(writer);
+    builder.add_shaveStacks(stackBuffers);
+    builder.add_codeScratchBuffer(scratchBuffer);
+
+    return builder.Finish();
+}
+
 MVCNN::TargetDevice mapTargetDevice(const VPUIP::ArchKind kind) {
     switch (kind) {
     case VPUIP::ArchKind::KMB:
@@ -217,7 +278,8 @@ MVCNN::TargetDeviceRevision mapTargetDeviceRevision(const VPUIP::ArchKind kind) 
 
 flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(VPUIP::BlobWriter& writer, mlir::ModuleOp module,
                                                               VPUIP::GraphOp graphOp, IE::CNNNetworkOp netOp,
-                                                              mlir::FuncOp netFunc, mlir::TimingScope& rootTiming) {
+                                                              mlir::FuncOp netFunc, mlir::TimingScope& rootTiming,
+                                                              Logger log) {
     auto scopeTiming = rootTiming.nest("Create summary header");
 
     const auto allTasks = netFunc.getOps<VPUIP::TaskOpInterface>();
@@ -278,6 +340,7 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(VPUIP::BlobWriter&
     const auto serializedGraphOutputs = writer.createVector(graphOutputs);
     const auto serializedUserOutputs = writer.createVector(userOutputs);
     const auto serializedResources = createResources(writer, module);
+    const auto serializedActKernelsRuntime = createActKernelRuntime(writer, module, netFunc, log);
 
     MVCNN::SummaryHeaderBuilder builder(writer);
     builder.add_version(serializedVersion);
@@ -291,6 +354,7 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(VPUIP::BlobWriter&
     builder.add_out_tensor_desc(serializedUserOutputs);
     builder.add_device(mapTargetDevice(VPUIP::getArch(module)));
     builder.add_device_revision(mapTargetDeviceRevision(VPUIP::getArch(module)));
+    builder.add_act_kernel_runtime(serializedActKernelsRuntime);
     return builder.Finish();
 }
 
@@ -460,7 +524,7 @@ flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, mli
 
     VPUIP::BlobWriter writer(log.nest());
 
-    const auto header = createSummaryHeader(writer, module, graphOp, netOp, netFunc, rootTiming);
+    const auto header = createSummaryHeader(writer, module, graphOp, netOp, netFunc, rootTiming, log);
 
     serializeTensorDecls(writer, netFunc, rootTiming);
     const auto binaryData = serializeBinaryData(writer, netFunc, rootTiming, log);

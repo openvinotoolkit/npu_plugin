@@ -33,6 +33,8 @@
 #include <mlir/Dialect/Quant/QuantTypes.h>
 
 #include <vpux/compiler/act_kernels/act_kernel_gen.h>
+#include <vpux/compiler/act_kernels/nn_act_args.h>
+
 #include <algorithm>
 
 using namespace vpux;
@@ -106,6 +108,26 @@ VPUIP::BlobWriter::KernelData vpux::VPUIP::BlobWriter::createKernelData(StringRe
     return elfBinary.text;
 }
 
+vpux::VPUIP::BlobWriter::KernelDataRef vpux::VPUIP::BlobWriter::createKernelDataRef(StringRef name, MemoryLocation locale,
+    uint32_t localeIndex, uint64_t dataOffset, uint64_t dataSize,
+    ArrayRef<uint64_t> /*content*/) {
+
+    auto strName = _impl.CreateString(name.data());
+
+    const auto serializedLocale = createMemoryLocation(locale);
+
+    MVCNN::KernelDataReferenceBuilder kernelData(_impl);
+
+    kernelData.add_referenced_data_size(dataSize);
+    kernelData.add_locale(serializedLocale);
+    kernelData.add_locale_index(localeIndex);
+    kernelData.add_data_offset(dataOffset);
+    kernelData.add_name(strName);
+
+    return kernelData.Finish();
+}
+
+
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createACTShaveTask(mlir::Operation* op) {
     VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in createACTShaveTask");
 
@@ -125,21 +147,13 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createACTShaveTask(mlir
     const auto inputs = createVector(layer.getInputs() | transformed(getTensorCb));
     const auto outputs = createVector(layer.getOutputs() | transformed(getTensorCb));
 
-    ///TODO: how to access this kernel data using ANYMemref
+    ///TODO: correct data size
     //VPUIP::DeclareKernelDataOpAdaptor kernelDataAdaptor({}, actShaveTask.kernelData().getType());
-
-    MVCNN::MemoryLocation location;
-    auto str = _impl.CreateString("sigmoid");
-    MVCNN::KernelDataReferenceBuilder kernelDataBuilder(_impl);
-    //kernelDataBuilder.add_locale(::mlir::cast<MVCNN::MemoryLocation>(op->getAttr(kernelDataAdaptor.locale()));
-
-    kernelDataBuilder.add_name(str);
-
-    auto dataRef = kernelDataBuilder.Finish();
+    auto kernelText = createKernelDataRef("sigmoid", MemoryLocation::GFEmbeddedKernel, 0, 0, sizeof(act_kernel_args));
 
     MVCNN::ActKernelBuilder kernelbuilder(_impl);
     //kernelbuilder.add_globalArgs()
-    kernelbuilder.add_kernelText(dataRef);
+    kernelbuilder.add_kernelText(kernelText);
     kernelbuilder.add_type(MVCNN::ActKernelType_KERNEL);
     kernelbuilder.add_kernelEntry(0);
 
@@ -154,10 +168,15 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createACTShaveTask(mlir
 
     auto barrierReference = MVCNN::CreateBarrierReference(_impl, waitBarriers, updateBarriers);
 
+    auto invocationArgs = createKernelDataRef("invocation-arg1", MemoryLocation::GFEmbeddedKernel, 0, 0, sizeof(act_kernel_args));
+
+    // TODO: size of data section
+    auto dataSection = createKernelDataRef("sigmoid.data.section", MemoryLocation::GFEmbeddedKernel, 0, 0, sizeof(act_kernel_args));
+
     MVCNN::ActKernelInvocationBuilder invocationBuilder(_impl);
-    invocationBuilder.add_dataSection(dataRef);
+    invocationBuilder.add_dataSection(dataSection);
     invocationBuilder.add_associatedBarriers(barrierReference);
-    //invocationBuilder.add_invocationArgs();
+    invocationBuilder.add_invocationArgs(invocationArgs);
 
     std::vector<flatbuffers::Offset<MVCNN::ActKernelInvocation>> invocations_v1 = {invocationBuilder.Finish()};
 
@@ -481,6 +500,7 @@ MVCNN::MemoryLocation vpux::VPUIP::BlobWriter::createMemoryLocation(MemoryLocati
         CASE(VPU_CSRAM);
         CASE(AbsoluteAddr);
         CASE(MAC_Accumulators);
+        CASE(GFEmbeddedKernel);
     default:
         VPUX_THROW("Unsupported MemoryLocation {0}", location);
     }
