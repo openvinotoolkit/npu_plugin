@@ -11,12 +11,10 @@
 
 
 #include "layers/parser_custom_cpp.h"
-#include "ShaveElfMetadata/ShaveElfMetadataParser.h"
 #include "layers/param_custom_cpp.h"
 #include "layers/pre_custom_cpp.h"
 #include "tensor_gf_util.h"
 
-#define MODULE_NAME "[PARSER CUSTOM_CPP] "
 #include "custom_common.h"
 
 #include <mvMacros.h>
@@ -27,7 +25,6 @@
 #include <cstring>
 #include <stdio.h>
 
-#include <sw_nn_runtime_types_3600.h>
 
 
 
@@ -37,16 +34,18 @@
 
 using namespace mv::tensor;
 
+CustomCpp::~CustomCpp() = default;
+using namespace nn;
+using namespace nn::shave_lib;
+
+#ifdef CONFIG_TARGET_SOC_3720
+#include "ShaveElfMetadata/ShaveElfMetadataParser.h"
 #include <sw_nn_runtime_types_3600.h>
 
 extern void*  (shvNN0_preSingleSoftmax);
 extern void*  (shvNN0_preCustomLayerCpp);
 extern void*  (shvNN0_custom_cpp);
 extern void*  (shvNN0_singleSoftmaxKernel);
-
-CustomCpp::~CustomCpp() = default;
-using namespace nn;
-using namespace nn::shave_lib;
 
 namespace {
 static bool parseCustomElf(const uint8_t* ElfBuffer, KernelCppDescriptor& descriptor, uint32_t argsNum)
@@ -75,7 +74,7 @@ static bool parseCustomElf(const uint8_t* ElfBuffer, KernelCppDescriptor& descri
 static void layerCleanupCustomCppLayer(const LayerParams *params) {
     auto custom_params = static_cast<const CustomLayerCppParams *>(params);
 
-    nn::memory::shared_free(custom_params->argBuffer);
+//    nn::memory::shared_free(custom_params->argBuffer);
     auto kernelBuffer = reinterpret_cast<void *>(custom_params->kernelBuffer);
     if (kernelBuffer != nullptr) {
         nn::memory::shared_free(kernelBuffer);
@@ -87,10 +86,6 @@ static void layerCleanupCustomCppLayer(const LayerParams *params) {
 
 bool CustomCpp::parse(Layer * layer) {
     std::vector<uint64_t> kernelData((uint64_t*)ops.kernelData, (uint64_t*)ops.kernelData+(ops.kernelDataLen+7)/8);
-    std::unique_ptr<MVCNN::BinaryDataT> kbdt(new MVCNN::BinaryDataT);
-    kbdt->data = kernelData;
-    kbdt->underlying_type = MVCNN::DType_U8;
-    kbdt->length = ops.kernelDataLen;
 
     int byteDataLenght = sizeof(uint32_t)/*Common arg buffer size*/ +
                          sizeof(uint32_t)/*Op ID*/ +
@@ -122,35 +117,6 @@ bool CustomCpp::parse(Layer * layer) {
         inOutBuffer += sizeof(nn::TensorRefNDData);
     }
 
-//    std::unique_ptr<MVCNN::BinaryDataT> pbdt(new MVCNN::BinaryDataT);
-//    pbdt->data = paramData;
-//    pbdt->underlying_type = MVCNN::DType_U32;
-//    pbdt->length = ops.paramDataLen;
-
-    // ---- KMB infra
-//    MVCNN::CustomLayerCppParamsT* softLayerParamsValue = new MVCNN::CustomLayerCppParamsT;
-//    softLayerParamsValue->leonPreambleID = ops.leonPreambleID;
-//    softLayerParamsValue->kernelData = std::move(kbdt);
-//    softLayerParamsValue->paramData = std::move(pbdt);
-
-//    std::unique_ptr<MVCNN::UPALayerTaskT> upaTask (new MVCNN::UPALayerTaskT());
-//    upaTask->softLayerParams.type = MVCNN::SoftwareLayerParams_CustomLayerCppParams;
-//    upaTask->softLayerParams.value = softLayerParamsValue;
-//
-//    UPATaskRunner runner;
-//    mvTensorAssert(runner.enqueTask(std::move(upaTask), std::move(inputVec), std::move(outputVec), myriadRes.lastShave - myriadRes.firstShave + 1, &perfData), "custom OpenCL layer run failed");
-//    mvTensorAssert(runner.dequeResult(), "custom Cpp layer run failed");
-
-
-
-
-
-
-
-
-
-
-
 
 //    const MVCNN::CustomLayerCppParams *gfParams = task->softLayerParams_as_CustomLayerCppParams();
 
@@ -161,8 +127,8 @@ bool CustomCpp::parse(Layer * layer) {
         elf = nullptr;
     }
 
-    const uint32_t* argCountPtr = paramDataBuffer;//(uint32_t*)gfParams->paramData()->data()->Data();
-    const uint32_t *arguments = (uint32_t *)(argCountPtr + 1);
+    uint32_t* argCountPtr = paramDataBuffer;//(uint32_t*)gfParams->paramData()->data()->Data();
+    uint32_t *arguments = (uint32_t *)(argCountPtr + 1);
 
     // parse kernel binary
     KernelCppDescriptor descriptor = {};
@@ -182,12 +148,13 @@ bool CustomCpp::parse(Layer * layer) {
     }
 
     // ToDo: store argument info for future pointer relocation in preamble
-    uint32_t* copyArgs = (uint32_t*)nn::memory::shared_alloc(descriptor.argumentsSize);
-    memcpy_s(copyArgs, descriptor.argumentsSize, arguments, descriptor.argumentsSize);
+    uint32_t* copyArgs = arguments;//(uint32_t*)nn::memory::shared_alloc(descriptor.argumentsSize);
+//    memcpy_s(copyArgs, descriptor.argumentsSize, arguments, descriptor.argumentsSize);
     nn::cache::flush(copyArgs, descriptor.argumentsSize);
 
     // fill in programmed for execution config
-    CustomLayerCppParams *params = new CustomLayerCppParams();
+    CustomLayerCppParams *params = &p;//new CustomLayerCppParams();
+//    CustomLayerCppParams *params = new CustomLayerCppParams();
 
     params->kernelBuffer = (uint32_t)code;
     params->kernelOffset = descriptor.kernelEntry;
@@ -209,7 +176,7 @@ bool CustomCpp::parse(Layer * layer) {
     params->outputsSize = outRefs.size();
 
     cache::flush(params, sizeof(CustomLayerCppParams));
-    unsigned int id = MVCNN::SoftwareLayerParams::SoftwareLayerParams_CustomLayerCppParams;
+    unsigned int id = opType;//MVCNN::SoftwareLayerParams::SoftwareLayerParams_CustomLayerCppParams;
 //    layer->setParams(id, static_cast<LayerParams *>(postOpsParams.release()));
 
     cache::flush(params, sizeof(CustomLayerCppParams));
@@ -244,7 +211,7 @@ bool CustomCpp::parse(Layer * layer) {
 
 }
 
-
+#endif
 
 void CustomCpp::run(mv::tensor::Processor& ,
                   t_MvTensorMyriadResources& myriadRes,

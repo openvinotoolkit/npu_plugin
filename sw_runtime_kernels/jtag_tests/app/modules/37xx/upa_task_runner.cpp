@@ -150,7 +150,7 @@ bool UPATaskRunner::enqueTask(Op * operation,
 
     sl.counters_ = perfData->perfCounters;
 
-    operation->parse(&layer);
+//    operation->parse(&layer);
 
 //    LayerLoader::parseUPALayer(serializedUPATask, &layer);
 //    layer.setExecCleanup();
