@@ -61,6 +61,8 @@ IE.CNNNetwork
         IE.DataInfo "output" : memref<1x1000xf32>
     }
 ```
+
+[./IE/_ops_interfaces.md]
     }];
 
     let name = "IE";
