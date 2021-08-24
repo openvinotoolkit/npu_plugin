@@ -62,23 +62,6 @@ VPUIP::DPUTaskOp vpux::VPUIP::NCEClusterTaskOp::addDPUTask(mlir::OpBuilder& buil
 }
 
 //
-// NCEClusterTaskOp::addPPETask
-//
-
-VPUIP::PPETaskOp vpux::VPUIP::NCEClusterTaskOp::addPPETask(mlir::OpBuilder& builder,
-                                                           vpux::VPUIP::PPELayerType ppeLayerType,
-                                                           const int64_t clampLow, const int64_t clampHigh) {
-    if (ppe().empty()) {
-        ppe().emplaceBlock();
-    }
-
-    mlir::OpBuilder::InsertionGuard guard(builder);
-    builder.setInsertionPointToEnd(&ppe().front());
-
-    return builder.create<VPUIP::PPETaskOp>(getLoc(), ppeLayerType, clampLow, clampHigh);
-}
-
-//
 // NCEClusterTaskOp::isSupportedLayout
 //
 
@@ -580,17 +563,30 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
     SmallVector<uint8_t> ppeList;
     int32_t clampLow = std::numeric_limits<int32_t>::min();
     int32_t clampHigh = std::numeric_limits<int32_t>::max();
+    int32_t LreluMult = 1;
+    uint32_t LreluShift = 0;
 
     for (auto ppeOp : ppe().getOps<VPUIP::PPETaskOp>()) {
         ppeList.push_back(getPPELayerType(ppeOp.ppe_layer_type()));
-        clampLow = checked_cast<int32_t>(ppeOp.clamp_low());
-        clampHigh = checked_cast<int32_t>(ppeOp.clamp_high());
+        if (ppeOp.clamp_low().hasValue()) {
+            clampLow = checked_cast<int32_t>(ppeOp.clamp_low().getValue());
+        }
+        if (ppeOp.clamp_high().hasValue()) {
+            clampHigh = checked_cast<int32_t>(ppeOp.clamp_high().getValue());
+        }
+        if (ppeOp.lrelu_mult().hasValue()) {
+            LreluMult = checked_cast<int32_t>(ppeOp.lrelu_mult().getValue());
+        }
+        if (ppeOp.lrelu_shift().hasValue()) {
+            LreluShift = checked_cast<uint32_t>(ppeOp.lrelu_shift().getValue());
+        }
     }
     VPUX_THROW_UNLESS(ppeList.size() <= 1, "Cannot set more than one PPE task");
 
     auto ppeLayerTypes = writer.createVector(ppeList);
     // TODO: Lrelu_Mult, Lrelu_Shift
-    auto ppeFixedFunction = MVCNN::CreatePPEFixedFunction(writer, ppeLayerTypes, clampLow, clampHigh);
+    auto ppeFixedFunction =
+            MVCNN::CreatePPEFixedFunction(writer, ppeLayerTypes, clampLow, clampHigh, LreluMult, LreluShift);
     // TODO: scale_data, rounding, instruction_list_data
     auto ppeTask = MVCNN::CreatePPETask(writer, 0, ppeFixedFunction);
 
