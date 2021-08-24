@@ -21,12 +21,11 @@
 
 using namespace vpux;
 
-
 void vpux::VPUIP::MVNUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
-                                               mlir::Value output, mlir::BoolAttr across_channels,
-                                               mlir::BoolAttr normalize_variance,  mlir::FloatAttr eps) {
-    build(builder, state, input, output, mlir::ValueRange{}, mlir::ValueRange{}, across_channels, normalize_variance, eps,
-          nullptr, nullptr);
+                                  mlir::Value output, mlir::BoolAttr across_channels, mlir::BoolAttr normalize_variance,
+                                  mlir::FloatAttr eps) {
+    build(builder, state, input, output, mlir::ValueRange{}, mlir::ValueRange{}, across_channels, normalize_variance,
+          eps, nullptr, nullptr);
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::MVNUPAOp::serialize(VPUIP::BlobWriter& writer) {
@@ -41,11 +40,10 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::MVNUPAOp::serialize(VPUIP::BlobWrit
 
 mlir::LogicalResult vpux::VPUIP::verifyOp(MVNUPAOp op) {
     const auto inShape = getShape(op.input());
- 
+
     if (inShape.size() != 3 && inShape.size() != 4 && inShape.size() != 5) {
         return errorAt(op, "Input shape should have 3, 4 or 5 dimensions");
     }
-    
+
     return mlir::success();
- 
 }

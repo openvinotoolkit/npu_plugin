@@ -39,8 +39,8 @@
 
 #include <ngraph/function.hpp>
 #include <ngraph/node.hpp>
-#include <ngraph/opsets/opset7.hpp>
 #include <ngraph/opsets/opset4.hpp>
+#include <ngraph/opsets/opset7.hpp>
 #include <ngraph/pass/constant_folding.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/type/element_type.hpp>
@@ -1090,7 +1090,8 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
     const auto across_channelsAttr = mlir::BoolAttr::get(_ctx, origNode->get_across_channels());
     const auto epsAttr = getFPAttr(_ctx, origNode->get_eps());
 
-    auto op = builder.create<IE::MVNOp>(createLocation(origNode), inputs[0], across_channelsAttr, normalize_varianceAttr, epsAttr);
+    auto op = builder.create<IE::MVNOp>(createLocation(origNode), inputs[0], across_channelsAttr,
+                                        normalize_varianceAttr, epsAttr);
     addOutputs(origNode, op);
 }
 
