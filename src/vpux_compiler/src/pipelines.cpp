@@ -17,8 +17,11 @@
 #include "vpux/compiler/core/passes.hpp"
 #include "vpux/compiler/dialect/IE/passes.hpp"
 #include "vpux/compiler/dialect/IERT/passes.hpp"
+#include "vpux/compiler/dialect/VPUIP/attributes/arch.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
+
+#include "vpux/utils/core/optional.hpp"
 
 #include <mlir/Pass/PassManager.h>
 #include <mlir/Transforms/Passes.h>
@@ -30,6 +33,14 @@ using namespace vpux;
 //
 
 namespace {
+using IntOption = mlir::detail::PassOptions::Option<int>;
+using StrOption = mlir::detail::PassOptions::Option<std::string>;
+
+// This structure gets command line options for a pipeline.
+struct MyPipelineOptions : mlir::PassPipelineOptions<MyPipelineOptions> {
+    StrOption archOpt{*this, "vpu-arch", ::llvm::cl::desc("VPU architecture to compile for"), ::llvm::cl::init("KMB")};
+    IntOption numberOfDPUGroupsOpt{*this, "num-of-dpu-groups", ::llvm::cl::desc("Number of DPU groups")};
+};
 
 template <VPUIP::PhysicalMemory KIND>
 mlir::Attribute getMemSpace(mlir::MLIRContext* ctx, StringRef) {
@@ -57,6 +68,26 @@ void buildIERTAllocationPipelineForDDR(mlir::OpPassManager& pm, Logger log) {
     pm.addPass(IERT::createStaticAllocationPass(getMemSpace<VPUIP::PhysicalMemory::DDR>, log));
 }
 
+VPUIP::ArchKind getArchKind(const StrOption& archKind) {
+    VPUX_THROW_UNLESS(archKind.hasValue(), "Platform architecture is not provided. Please try 'vpu-arch=KMB'");
+    const std::string archKindStr = archKind.getValue();
+    ::llvm::Optional<VPUIP::ArchKind> parsed = VPUIP::symbolizeArchKind(archKindStr);
+    VPUX_THROW_UNLESS(parsed.hasValue(), "Unsupported platform architecture '{0}'", archKindStr);
+    return parsed.getValue();
+}
+
+llvm::Optional<int> getNumOfDPUGroups(const IntOption& numOfDPUGroups) {
+    if (numOfDPUGroups.hasValue())
+        return numOfDPUGroups.getValue();
+    return None;
+}
+
+void addConfigPass(mlir::OpPassManager& pm, const MyPipelineOptions& config, VPUIP::CompilationMode compilationMode) {
+    const VPUIP::ArchKind archKind = getArchKind(config.archOpt);
+    const llvm::Optional<int> numOfDPUGroups = getNumOfDPUGroups(config.numberOfDPUGroupsOpt);
+    Logger log = Logger::global();
+    pm.addPass(createSetCompileParamsPass(archKind, compilationMode, numOfDPUGroups, log.nest()));
+}
 }  // namespace
 
 //
@@ -94,7 +125,8 @@ void vpux::buildReferenceModePipeline(mlir::OpPassManager& pm, bool enableProfil
 //
 
 void vpux::buildHardwareModePipeline(mlir::OpPassManager& pm, bool enableProfiling, Logger log) {
-    pm.addPass(mlir::createCanonicalizerPass(getDefaultGreedyRewriteConfig()));
+    const mlir::GreedyRewriteConfig grc = getDefaultGreedyRewriteConfig();
+    pm.addPass(mlir::createCanonicalizerPass(grc));
 
     // IE Dialect level
     pm.addPass(IE::createConvertFCToConvPass(log));
@@ -113,9 +145,9 @@ void vpux::buildHardwareModePipeline(mlir::OpPassManager& pm, bool enableProfili
 
     // Partially lower IERT->VPUIP (NCE Operations only)
     pm.addPass(IERT::createCMXTilingPass(log));
-    pm.addPass(mlir::createCanonicalizerPass(getDefaultGreedyRewriteConfig()));
+    pm.addPass(mlir::createCanonicalizerPass(grc));
     pm.addPass(createConvertToNCEOpsPass(log));
-    pm.addPass(mlir::createCanonicalizerPass(getDefaultGreedyRewriteConfig()));
+    pm.addPass(mlir::createCanonicalizerPass(grc));
 
     // IERT Dialect level (cont.)
     pm.addPass(createComposeSubViewPass(log));
@@ -136,13 +168,17 @@ void vpux::buildHardwareModePipeline(mlir::OpPassManager& pm, bool enableProfili
 //
 
 void vpux::registerPipelines() {
-    mlir::PassPipelineRegistration<>("reference-mode", "Compile IE Network in Reference mode (SW only execution)",
-                                     [](mlir::OpPassManager& pm) {
-                                         buildReferenceModePipeline(pm);
-                                     });
+    mlir::PassPipelineRegistration<MyPipelineOptions>(
+            "reference-mode", "Compile IE Network in Reference mode (SW only execution)",
+            [](mlir::OpPassManager& pm, const MyPipelineOptions& config) {
+                addConfigPass(pm, config, VPUIP::CompilationMode::ReferenceSW);
+                buildReferenceModePipeline(pm);
+            });
 
-    mlir::PassPipelineRegistration<>("hardware-mode", "Compile IE Network in Hardware mode (HW and SW execution)",
-                                     [](mlir::OpPassManager& pm) {
-                                         buildHardwareModePipeline(pm);
-                                     });
+    mlir::PassPipelineRegistration<MyPipelineOptions>(
+            "hardware-mode", "Compile IE Network in Hardware mode (HW and SW execution)",
+            [](mlir::OpPassManager& pm, const MyPipelineOptions& config) {
+                addConfigPass(pm, config, VPUIP::CompilationMode::ReferenceHW);
+                buildHardwareModePipeline(pm);
+            });
 }
