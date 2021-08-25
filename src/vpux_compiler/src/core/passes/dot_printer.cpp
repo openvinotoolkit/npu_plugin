@@ -79,11 +79,16 @@ private:
 
 // Print all the ops in a module.
 void PrintDotPass::processModule(mlir::ModuleOp module) {
+    if (fileName.empty())
+        return;
+
     for (mlir::Operation& op : module) {
         if (mlir::isa<mlir::FuncOp>(op)) {
             for (mlir::Region& region : op.getRegions()) {
                 for (auto indexed_block : llvm::enumerate(region)) {
-                    vpux::WriteGraph(fileName, &indexed_block.value(), printConstOp, printDeclarationsOp);
+                    VPUX_THROW_UNLESS(
+                            vpux::WriteGraph(fileName, &indexed_block.value(), printConstOp, printDeclarationsOp) != "",
+                            "Could not create Dot File");
                 }
             }
         }
@@ -140,6 +145,5 @@ void vpux::addDotPrinterFromEnvVar(mlir::PassManager& pm, StringRef options) {
 }
 
 std::unique_ptr<mlir::Pass> vpux::createPrintDot(StringRef fileName, bool printConst, bool printDeclarations) {
-    VPUX_THROW_UNLESS(!fileName.size(), "Empty output file name");
     return std::make_unique<PrintDotPass>(fileName, printConst, printDeclarations, "");
 }
