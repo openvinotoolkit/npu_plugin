@@ -133,8 +133,11 @@ mlir::LogicalResult CreateWTableOpsConverter::matchAndRewrite(VPUIP::WeightsTabl
 
     auto getBiasFP = getBiasFunc(createWTableOp.bias());
 
-    const auto weightsTable = vpux::VPUIP::NCESparsity::getWeightsTable(OC, getBiasFP, weightPtrOffset, weightPtrStep,
-                                                                        sparsityPtrOffset, _arch);
+    const auto inputType = createWTableOp.op_input() ? createWTableOp.op_input().getType() : nullptr;
+    const auto filterType = createWTableOp.weights() ? createWTableOp.weights().getType() : nullptr;
+    const auto outputType = createWTableOp.op_output() ? createWTableOp.op_output().getType() : nullptr;
+    const auto weightsTable = vpux::VPUIP::NCESparsity::getWeightsTable(
+            OC, getBiasFP, weightPtrOffset, weightPtrStep, sparsityPtrOffset, _arch, inputType, filterType, outputType);
 
     const auto outType = createWTableOp.output().getType();
     const auto shapedType = outType.dyn_cast_or_null<mlir::ShapedType>();
