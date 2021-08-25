@@ -5,7 +5,7 @@
 #include <vector>
 #include <vpux/vpux_plugin_config.hpp>
 #include <vpux/vpux_compiler_config.hpp>
-#include "behavior/infer_request_config.hpp"
+#include "behavior/infer_request/config.hpp"
 #include "ie_plugin_config.hpp"
 
 using namespace BehaviorTestsDefinitions;
@@ -65,17 +65,10 @@ const std::vector<std::map<std::string, std::string>> Inconfigs = {
     {{"VPUX_PLATFORM", "SOME_PLATFORM"}},
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferConfigTests,
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestConfigTest,
                         ::testing::Combine(
-                            ::testing::ValuesIn(netPrecisions),
+                            ::testing::Values(2u),
                             ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY),
                             ::testing::ValuesIn(configs)),
-                        InferConfigTests::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferConfigInTests,
-                        ::testing::Combine(
-                            ::testing::ValuesIn(netPrecisions),
-                            ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY),
-                            ::testing::ValuesIn(Inconfigs)),
-                        InferConfigInTests::getTestCaseName);
+                        InferRequestConfigTest::getTestCaseName);
 }  // namespace
