@@ -17,17 +17,15 @@
 #include <memory>
 #include <string>
 // Inference-Engine
+#include "cpp_interfaces/interface/ie_iremote_context.hpp"
 #include "ie_blob.h"
-#include "ie_remote_context.hpp"
 // Plugin
 #include <vpux_config.hpp>
 // Subplugin
 #include "vpux.hpp"
 namespace vpux {
 
-class VPUXRemoteContext :
-        public InferenceEngine::RemoteContext,
-        public std::enable_shared_from_this<VPUXRemoteContext> {
+class VPUXRemoteContext : public InferenceEngine::IRemoteContext {
 public:
     using Ptr = std::shared_ptr<VPUXRemoteContext>;
     using CPtr = std::shared_ptr<const VPUXRemoteContext>;
