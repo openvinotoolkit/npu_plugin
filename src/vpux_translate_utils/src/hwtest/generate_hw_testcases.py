@@ -1012,6 +1012,19 @@ def generate_options(args):
                      [[4,0,0,0],[5,0,0,0]]        # pads
                      )),
 
+        # Z-Major Continued Convolution, fp16
+        (DPUPipeline(ZMajorConvolution.PARAMS, x) for x in itertools.product(
+                     [ZMajorConvolution],         # mpe operation
+                     [FP16(3)],                   # input type
+                     [[1, 16*1024, 1, 1]],        # input shape
+                     [FP16(-3)],                  # weight type
+                     [16],                        # kernel channels
+                     [[1, 1]],                    # kernel shape
+                     [FP16()],                    # output type
+                     [[1, 1]],                    # strides
+                     Pad.none                     # pads
+                     )),
+
         # Eltwise Add
         # NB bf16 can only be used as an input, per the MTL layer mapping spec
         #

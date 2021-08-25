@@ -199,5 +199,68 @@ void buildCNNOp(mlir::OpBuilder& builder, llvm::StringRef mainFuncName, llvm::Ar
     }
 }
 
+mlir::DenseElementsAttr splitWeightsOverC(mlir::DenseElementsAttr wt_vec, ArrayRef<int64_t> wt_shape, mlir::Type dtype, mlir::MLIRContext* ctx, size_t start_C, size_t end_C) {
+
+    auto qType = dtype.dyn_cast<mlir::quant::UniformQuantizedType>();
+    if (!((dtype.isF16() || (qType && qType.getStorageType().isUnsignedInteger(8)))))
+        throw std::domain_error{llvm::formatv("splitWeightsOverC only supports weight data type fp16 or uint8; got {0}", dtype).str()};
+
+    if (dtype.isF16()) {
+        float16 elementType = 0;
+        return splitWeightsOverCLoop(wt_vec, wt_shape, dtype, elementType, ctx, start_C, end_C);
+    } else {
+        uint8_t elementType = 0;
+        return splitWeightsOverCLoop(wt_vec, wt_shape, dtype, elementType, ctx, start_C, end_C);
+    }
+}
+
+template <typename T>
+mlir::DenseElementsAttr splitWeightsOverCLoop(mlir::DenseElementsAttr wt_vec, ArrayRef<int64_t> wt_shape, mlir::Type dtype, T, mlir::MLIRContext* ctx, size_t start_C, size_t end_C) {
+
+    SmallVector<int64_t> original_shape(wt_shape.begin(), wt_shape.end());
+
+    // Weights from NumericsBench in KCHW
+    // For stream-over-C, need to extract weights[startC:endC]
+    int64_t K = original_shape[0];
+    int64_t C = original_shape[1];
+    int64_t H = original_shape[2];
+    int64_t W = original_shape[3];
+    int64_t new_C = end_C - start_C;
+
+    auto wt_full_itr = wt_vec.getValues<T>();
+    std::vector<T> wt_full(wt_full_itr.begin(), wt_full_itr.end());
+    const llvm::SmallVector<std::int64_t>  wt_partial_shape({K, new_C, H, W});
+    size_t vecSize = static_cast<size_t>(
+            std::accumulate(wt_partial_shape.begin(), wt_partial_shape.end(), static_cast<int64_t>(1), std::multiplies<int64_t>()));
+    std::vector<T> wt_partial(vecSize);
+
+    //std::cout << "k, c, h, w, old_offset, new_offset\n";
+    for (int64_t k = 0; k < K; k++)
+        for (int64_t c = 0; c < new_C; c++)
+            for (int64_t h = 0; h < H; h++)
+                for (int64_t w = 0; w < W; w++)
+                {
+                    //auto old_c = c+start_C;
+                    auto old_offset = k*C*H*W + (c+start_C)*H*W + h*W + w;
+                    auto new_offset = k*new_C*H*W + c*H*W + h*W + w;
+                    wt_partial[new_offset] = wt_full[old_offset];
+                    //std::cout << k << ", " << c << ", " << h << ", " << w << ", " << old_offset << ", " << new_offset << "\n";
+                }
+
+    auto wtData_ddr_valueType = mlir::RankedTensorType::get(wt_partial_shape, dtype);
+    if (auto qtype = dtype.dyn_cast<mlir::quant::QuantizedType>()) {
+        dtype = mlir::quant::QuantizedType::castToStorageType(qtype);
+        if (qtype.getFlags() & mlir::quant::QuantizationFlags::Signed) {
+            wtData_ddr_valueType = mlir::RankedTensorType::get(wt_partial_shape, getSInt8Type(ctx));
+        } else {
+            wtData_ddr_valueType = mlir::RankedTensorType::get(wt_partial_shape, getUInt8Type(ctx));
+        }
+    }
+
+    auto wt_data_values = makeArrayRef<T>(wt_partial);
+    auto wt_data_vals = mlir::DenseElementsAttr::get(wtData_ddr_valueType, wt_data_values);
+    return wt_data_vals;
+}
+
 }  // namespace hwtest
 }  // namespace vpux

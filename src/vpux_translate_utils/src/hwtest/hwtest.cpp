@@ -58,8 +58,17 @@ mlir::OwningModuleRef importHWTEST(llvm::StringRef sourceJson, mlir::MLIRContext
         return hwtest::parseWeightsType(builder, weight);
     };
 
+    auto weightInChannels = [&]() {
+        nb::WeightLayer weight = jsonDesc.getWeightLayer();
+        return weight.shape[1];
+    };
+
     if (isConv) {
-        hwtest::buildSimpleZMajorConv(jsonDesc, module, builder, log, input_type, weightType(), output_type);
+        if (weightInChannels() > 8*1024){
+            hwtest::buildContinuedConv(jsonDesc, module, builder, log, input_type, weightType(), output_type);
+        } else {
+            hwtest::buildSimpleZMajorConv(jsonDesc, module, builder, log, input_type, weightType(), output_type);
+        }
     } else {
         VPUX_THROW("Unknown type: {0}", opType);
     }

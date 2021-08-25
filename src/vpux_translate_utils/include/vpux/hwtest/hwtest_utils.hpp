@@ -58,6 +58,14 @@ void buildCNNOp(mlir::OpBuilder& builder, llvm::StringRef mainFuncName, llvm::Ar
 
 void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module, mlir::OpBuilder builder,
                            Logger& log, mlir::Type inputType, mlir::Type weightsType, mlir::Type outputType);
+void buildContinuedConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module, mlir::OpBuilder builder,
+                           Logger& log, mlir::Type inputType, mlir::Type weightsType, mlir::Type outputType);
+
+mlir::DenseElementsAttr splitWeightsOverC(mlir::DenseElementsAttr wt_vec, ArrayRef<int64_t> wt_shape, mlir::Type dtype,
+                                          mlir::MLIRContext* ctx, size_t startC, size_t endC);
+template <typename T>
+mlir::DenseElementsAttr splitWeightsOverCLoop(mlir::DenseElementsAttr wt_vec, ArrayRef<int64_t> wt_shape, mlir::Type dtype,
+                                              T elementType, mlir::MLIRContext* ctx, size_t start_C, size_t end_C);
 
 }  // namespace hwtest
 }  // namespace vpux

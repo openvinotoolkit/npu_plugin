@@ -33,11 +33,12 @@ void vpux::VPUIP::NCEClusterTaskOp::build(mlir::OpBuilder& builder, mlir::Operat
                                           mlir::Value parent_input, mlir::Value parent_output, mlir::Value output_buff,
                                           vpux::VPUIP::NCETaskType task_type, mlir::ArrayAttr kernel_size,
                                           mlir::ArrayAttr kernel_strides, mlir::ArrayAttr kernel_padding,
-                                          mlir::IntegerAttr activation_window_channel_length) {
+                                          mlir::IntegerAttr activation_window_channel_length,
+                                          mlir::UnitAttr is_continued) {
     build(builder, state, output_buff.getType(), input, weights, weight_table, activation_window, parent_input,
           parent_output, output_buff, mlir::ValueRange{}, mlir::ValueRange{},
           vpux::VPUIP::NCETaskTypeAttr::get(builder.getContext(), task_type), kernel_size, kernel_strides,
-          kernel_padding, activation_window_channel_length);
+          kernel_padding, activation_window_channel_length, is_continued);
 
     for (auto& region : state.regions) {
         region->emplaceBlock();
@@ -398,9 +399,9 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(VPUIP::NCEClusterTaskOp op) {
         if (mlir::failed(mem)) {
             return errorAt(op, "Unsupported memory space '{0}'", type.getMemorySpace());
         }
-        if (mem.getValue() != PhysicalMemory::CMX_NN) {
-            return errorAt(op, "Can't operate with '{0}' PhysicalMemory. Only '{1}' PhysicalMemory is allowed",
-                           mem.getValue(), PhysicalMemory::CMX_NN);
+        if (!((mem.getValue() == PhysicalMemory::CMX_NN) || (mem.getValue() == PhysicalMemory::Register))) {
+            return errorAt(op, "Can't operate with '{0}' PhysicalMemory. Only '{1}' or '{2} PhysicalMemory is allowed",
+                           mem.getValue(), PhysicalMemory::CMX_NN, PhysicalMemory::Register);
         }
 
         const auto strideReqs = StrideReqs().add(DimStrideReq::compact(MemDim(type.getRank() - 1)));
@@ -593,6 +594,11 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
     int16_t kernelSizeH = 1, kernelSizeW = 1;
     int16_t kernelStridesH = 1, kernelStridesW = 1;
     int16_t kernelPadL = 0, kernelPadR = 0, kernelPadT = 0, kernelPadB = 0;
+    flatbuffers::Offset<flatbuffers::Vector<int8_t>> enabled_optimizations = 0;
+    int32_t odu_offset = 0;
+    int32_t out_channel_offset = 0;
+    bool is_segmented = false;
+    bool is_continued = false;
 
     if (kernel_sizeAttr() != nullptr) {
         const auto kernelSize = parseIntArrayAttr<int64_t>(kernel_sizeAttr());
@@ -612,6 +618,10 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
         kernelPadR = checked_cast<int16_t>(kernelPadding[1]);
         kernelPadT = checked_cast<int16_t>(kernelPadding[2]);
         kernelPadB = checked_cast<int16_t>(kernelPadding[3]);
+    }
+
+    if (is_continuedAttr() != nullptr) {
+        is_continued = true;
     }
 
     const auto inputData = writer.getTensor(input());
@@ -648,7 +658,12 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
                                             weightsData,                   // weights_data
                                             weightsTable,                  // weights_table
                                             activationWindow,              // activation_window
-                                            activationWindowChannelLength  // activation_window_channel_length
+                                            activationWindowChannelLength, // activation_window_channel_length
+                                            enabled_optimizations,         // enabled_optimizations
+                                            odu_offset,                    // odu_offset
+                                            out_channel_offset,            // out_channel_offset
+                                            is_segmented,                  // is_segmented
+                                            is_continued                   // is_continued
             );
 
     MVCNN::NCE2TaskBuilder builder(writer);
