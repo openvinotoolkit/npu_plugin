@@ -16,6 +16,7 @@
 #include "vpux/compiler/dialect/IERT/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
+#include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/logging.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 #include "vpux/utils/core/range.hpp"
@@ -29,7 +30,7 @@ using namespace vpux;
 namespace {
 
 //
-// AsyncRegionRewriter
+// Helpers
 //
 
 bool isOptimizableOp(mlir::async::ExecuteOp execOp) {
@@ -48,152 +49,202 @@ bool isSameExecutor(mlir::async::ExecuteOp execOp1, mlir::async::ExecuteOp execO
     uint32_t numUnits = 0;
     auto executor1 = vpux::IERT::IERTDialect::getExecutor(execOp1, numUnits);
     auto executor2 = vpux::IERT::IERTDialect::getExecutor(execOp2, numUnits);
-
     return executor1 == executor2;
 }
+
+//
+// mergeAsyncExecuteOps
+//
 
 mlir::async::ExecuteOp mergeAsyncExecuteOps(mlir::async::ExecuteOp prevExecOp, mlir::async::ExecuteOp execOp,
                                             mlir::PatternRewriter& rewriter) {
     auto* prevBodyBlock = &prevExecOp.body().front();
     auto* bodyBlock = &execOp.body().front();
 
-    rewriter.setInsertionPointAfter(prevExecOp);
-
-    const auto bodyBuilder = [prevBodyBlock, bodyBlock](mlir::OpBuilder& builder, mlir::Location loc,
-                                                        mlir::ValueRange blockArgs) {
-        SmallVector<mlir::Value> results;
+    const auto bodyBuilder = [&](mlir::OpBuilder& builder, mlir::Location loc, mlir::ValueRange blockArgs) {
         mlir::BlockAndValueMapping mapper;
-        auto prevBlockArgs = prevBodyBlock->getArguments();
-        auto curBlockArgs = bodyBlock->getArguments();
+
+        const auto prevBlockArgs = prevBodyBlock->getArguments();
+        const auto curBlockArgs = bodyBlock->getArguments();
 
         for (size_t i = 0; i < blockArgs.size(); ++i) {
             if (i < prevBlockArgs.size()) {
                 mapper.map(prevBlockArgs[i], blockArgs[i]);
-            }
-            if (i < curBlockArgs.size()) {
-                mapper.map(curBlockArgs[i], blockArgs[prevBlockArgs.size() + i]);
+            } else {
+                mapper.map(curBlockArgs[i - prevBlockArgs.size()], blockArgs[i]);
             }
         }
 
-        auto copyOps = [&results, &mapper, &builder](mlir::Block* bodyBlock) {
+        SmallVector<mlir::Value> newResults;
+
+        const auto copyOps = [&](mlir::Block* bodyBlock) {
             for (auto& op : bodyBlock->getOperations()) {
                 if (!mlir::isa<mlir::async::YieldOp>(op)) {
                     builder.clone(op, mapper);
                 } else {
                     for (auto operand : op.getOperands()) {
-                        results.push_back(mapper.lookupOrDefault(operand));
+                        newResults.push_back(mapper.lookupOrDefault(operand));
                     }
                 }
             }
         };
+
         copyOps(prevBodyBlock);
         copyOps(bodyBlock);
 
-        builder.create<mlir::async::YieldOp>(loc, results);
+        builder.create<mlir::async::YieldOp>(loc, newResults);
     };
 
-    // joined results
-    SmallVector<mlir::Type> results(prevBodyBlock->getTerminator()->getOperandTypes());
-    results.insert(results.end(), bodyBlock->getTerminator()->getOperandTypes().begin(),
-                   bodyBlock->getTerminator()->getOperandTypes().end());
+    const auto prevResultTypes = prevBodyBlock->getTerminator()->getOperandTypes();
+    const auto resultTypes = bodyBlock->getTerminator()->getOperandTypes();
 
-    // joined dependencies
-    SmallVector<mlir::Value> dependencies(prevExecOp.dependencies());
-    dependencies.insert(dependencies.end(), execOp.dependencies().begin(), execOp.dependencies().end());
+    SmallVector<mlir::Type> newResultTypes(prevResultTypes);
+    newResultTypes.insert(newResultTypes.end(), resultTypes.begin(), resultTypes.end());
 
-    // joined operands
-    SmallVector<mlir::Value> operands(prevExecOp->getOperands());
-    operands.insert(operands.end(), execOp->getOperands().begin(), execOp->getOperands().end());
+    SmallVector<mlir::Value> newDependencies(prevExecOp.dependencies());
+    newDependencies.insert(newDependencies.end(), execOp.dependencies().begin(), execOp.dependencies().end());
+
+    SmallVector<mlir::Value> newOperands(prevExecOp->getOperands());
+    newOperands.insert(newOperands.end(), execOp->getOperands().begin(), execOp->getOperands().end());
+
+    auto newExecOp = rewriter.create<mlir::async::ExecuteOp>(prevExecOp->getLoc(), newResultTypes, newDependencies,
+                                                             newOperands, bodyBuilder);
 
     uint32_t numUnits = 0;
     auto executor = vpux::IERT::IERTDialect::getExecutor(execOp, numUnits);
-
-    auto newExecOp =
-            rewriter.create<mlir::async::ExecuteOp>(prevExecOp->getLoc(), results, dependencies, operands, bodyBuilder);
-
     IERT::IERTDialect::setExecutor(newExecOp, executor, numUnits);
-
-    /* Each result of old operation must be replaced
-       with corresponding result from new operation. */
-    SmallVector<mlir::Value> matchedResultsPrev;
-    SmallVector<mlir::Value> matchedResultsCurr;
-    size_t prevResSize = prevExecOp->getResults().size();
-    for (auto newResult : newExecOp->getResults()) {
-        if (mlir::async::TokenType::classof(newResult.getType())) {
-            // newExecOp returns one token which replaces tokes from old ops
-            matchedResultsPrev.push_back(newResult);
-            matchedResultsCurr.push_back(newResult);
-            prevResSize--;
-        } else {
-            if (prevResSize > 0) {
-                matchedResultsPrev.push_back(newResult);
-                prevResSize--;
-            } else {
-                matchedResultsCurr.push_back(newResult);
-            }
-        }
-    }
-
-    prevExecOp.replaceAllUsesWith(matchedResultsPrev);
-    prevExecOp->remove();
-    execOp.replaceAllUsesWith(matchedResultsCurr);
-    execOp->remove();
 
     return newExecOp;
 }
 
-void cleanupAwaitOps(mlir::async::ExecuteOp newExecOp) {
-    auto awaitOp = mlir::dyn_cast_or_null<mlir::async::AwaitOp>(newExecOp->getNextNode());
-    if (awaitOp == nullptr) {
-        return;
+//
+// cleanup
+//
+
+void cleanup(mlir::async::ExecuteOp prevExecOp, mlir::async::AwaitOp prevWaitOp, mlir::async::ExecuteOp execOp,
+             mlir::async::AwaitOp waitOp, mlir::async::ExecuteOp newExecOp, mlir::PatternRewriter& rewriter,
+             Logger log) {
+    log.trace("Clean up configuration:");
+    log.nest().trace("prevExecOp.results.size = {0}", prevExecOp.results().size());
+    log.nest().trace("execOp.results.size = {0}", execOp.results().size());
+    log.nest().trace("newExecOp.results.size = {0}", newExecOp.results().size());
+    log.nest().trace("prevWaitOp.results = {0}", prevWaitOp.result() != nullptr);
+    log.nest().trace("waitOp.results = {0}", waitOp.result() != nullptr);
+
+    log.trace("Insert new 'async.await' operation and replace orignal ones");
+
+    mlir::async::AwaitOp newWaitOp0, newWaitOp1;
+    if (prevWaitOp.result() != nullptr) {
+        const auto prevExecRes = prevWaitOp.operand().dyn_cast<mlir::OpResult>();
+        VPUX_THROW_UNLESS(prevExecRes != nullptr, "Got NULL pointer for prevExecRes");
+        VPUX_THROW_UNLESS(prevExecRes.getOwner() == prevExecOp, "prevExecRes doesn't match prevExecOp");
+
+        const auto prevResInd = prevExecRes.getResultNumber() - 1;
+        log.nest().trace("Create new 'async.await' operation for prevExecRes.result #{0}", prevResInd);
+
+        const auto newExecRes0 = newExecOp.results()[prevResInd];
+        newWaitOp0 = rewriter.create<mlir::async::AwaitOp>(waitOp->getLoc(), newExecRes0);
     }
-    auto nextAwaitOp = mlir::dyn_cast_or_null<mlir::async::AwaitOp>(awaitOp->getNextNode());
-    if (nextAwaitOp == nullptr) {
-        return;
-    }
-    if (awaitOp.operand() != nextAwaitOp.operand()) {
-        return;
+    if (waitOp.result() != nullptr) {
+        const auto execRes = waitOp.operand().dyn_cast<mlir::OpResult>();
+        VPUX_THROW_UNLESS(execRes != nullptr, "Got NULL pointer for execRes");
+        VPUX_THROW_UNLESS(execRes.getOwner() == execOp, "execRes doesn't match execOp");
+
+        const auto resInd = execRes.getResultNumber() - 1;
+        log.nest().trace("Create new 'async.await' operation for execRes.result #{0}", resInd);
+
+        const auto newExecRes1 = newExecOp.results()[prevExecOp.results().size() + resInd];
+        newWaitOp1 = rewriter.create<mlir::async::AwaitOp>(waitOp->getLoc(), newExecRes1);
     }
 
-    awaitOp.replaceAllUsesWith(nextAwaitOp);
-    awaitOp->remove();
+    if (newWaitOp0 == nullptr && newWaitOp1 == nullptr) {
+        log.nest().trace("Create new token-based 'async.await' operation");
+        newWaitOp0 = newWaitOp1 = rewriter.create<mlir::async::AwaitOp>(waitOp->getLoc(), newExecOp.token());
+    }
+
+    log.nest().trace("Redirect original 'async.await' results");
+    if (newWaitOp0 != nullptr) {
+        rewriter.replaceOp(prevWaitOp, newWaitOp0->getResults());
+    } else {
+        rewriter.eraseOp(prevWaitOp);
+    }
+    if (newWaitOp1 != nullptr) {
+        rewriter.replaceOp(waitOp, newWaitOp1->getResults());
+    } else {
+        rewriter.eraseOp(waitOp);
+    }
+
+    log.trace("Redirect results of original 'async.execute' operations");
+
+    SmallVector<mlir::Value> matchedResultsPrev;
+    SmallVector<mlir::Value> matchedResultsCurr;
+
+    // newExecOp returns one token which replaces both tokens from original ops
+    matchedResultsPrev.push_back(newExecOp.token());
+    matchedResultsCurr.push_back(newExecOp.token());
+
+    for (auto p : newExecOp.results() | indexed) {
+        const auto ind = p.index();
+        const auto newRes = p.value();
+
+        if (ind < prevExecOp.results().size()) {
+            matchedResultsPrev.push_back(newRes);
+        } else {
+            matchedResultsCurr.push_back(newRes);
+        }
+    }
+
+    rewriter.replaceOp(prevExecOp, matchedResultsPrev);
+    rewriter.replaceOp(execOp, matchedResultsCurr);
 }
 
-class GroupAsyncExecuteOps final : public mlir::OpRewritePattern<mlir::async::ExecuteOp> {
+//
+// GroupAsyncExecuteOps
+//
+
+class GroupAsyncExecuteOps final : public mlir::OpRewritePattern<mlir::async::AwaitOp> {
 public:
     GroupAsyncExecuteOps(mlir::MLIRContext* ctx, Logger log)
-            : mlir::OpRewritePattern<mlir::async::ExecuteOp>(ctx), _log(log) {
+            : mlir::OpRewritePattern<mlir::async::AwaitOp>(ctx), _log(log) {
     }
 
 public:
-    mlir::LogicalResult matchAndRewrite(mlir::async::ExecuteOp execOp, mlir::PatternRewriter& rewriter) const final;
+    mlir::LogicalResult matchAndRewrite(mlir::async::AwaitOp waitOp, mlir::PatternRewriter& rewriter) const final;
 
 private:
     Logger _log;
 };
 
-mlir::LogicalResult GroupAsyncExecuteOps::matchAndRewrite(mlir::async::ExecuteOp execOp,
+mlir::LogicalResult GroupAsyncExecuteOps::matchAndRewrite(mlir::async::AwaitOp waitOp,
                                                           mlir::PatternRewriter& rewriter) const {
-    if (!isOptimizableOp(execOp)) {
+    auto execOp = mlir::dyn_cast_or_null<mlir::async::ExecuteOp>(waitOp->getPrevNode());
+    if (execOp == nullptr) {
         return mlir::failure();
+    }
+
+    _log.trace("Got 'async.execute' operation at '{0}'", execOp->getLoc());
+
+    if (!isOptimizableOp(execOp)) {
+        return matchFailed(_log.nest(), rewriter, execOp, "The operation is not optimizible");
     }
 
     auto prevWaitOp = mlir::dyn_cast_or_null<mlir::async::AwaitOp>(execOp->getPrevNode());
     if (prevWaitOp == nullptr) {
-        return mlir::failure();
+        return matchFailed(_log.nest(), rewriter, execOp, "Previous operation is not 'async.await'");
     }
 
     auto prevExecOp = mlir::dyn_cast_or_null<mlir::async::ExecuteOp>(prevWaitOp->getPrevNode());
     if (prevExecOp == nullptr) {
-        return mlir::failure();
+        return matchFailed(_log.nest(), rewriter, execOp, "Operation before 'async.await' is not 'async.execute'");
     }
 
     if (prevWaitOp.operand().getDefiningOp() != prevExecOp) {
-        return mlir::failure();
+        return matchFailed(_log.nest(), rewriter, execOp,
+                           "Previous 'async.await' does not correspond to previous 'async.execute'");
     }
 
-    if (!isOptimizableOp(prevExecOp) || !isSameExecutor(prevExecOp, execOp)) {
-        return mlir::failure();
+    if (!isSameExecutor(prevExecOp, execOp)) {
+        return matchFailed(_log.nest(), rewriter, execOp, "Previous 'async.execute' uses another executor");
     }
 
     /*  TODO: Remove check below when proper operands mapping is implemented.
@@ -201,14 +252,13 @@ mlir::LogicalResult GroupAsyncExecuteOps::matchAndRewrite(mlir::async::ExecuteOp
         Mapping path:
         1st execute op yield op operands -> 1st execute op result->
         -> 2nd execute op operand-> internal block argument-> operation operand */
-    if (std::find(prevExecOp->getUsers().begin(), prevExecOp->getUsers().end(), execOp) !=
-        prevExecOp->getUsers().end()) {
-        return mlir::failure();
+    if (llvm::is_contained(prevExecOp->getUsers(), execOp)) {
+        return matchFailed(_log.nest(), rewriter, execOp,
+                           "Current 'async.execute' depends on previous 'async.execute'");
     }
 
-    mlir::async::ExecuteOp newExecOp = mergeAsyncExecuteOps(prevExecOp, execOp, rewriter);
-
-    cleanupAwaitOps(newExecOp);
+    auto newExecOp = mergeAsyncExecuteOps(prevExecOp, execOp, rewriter);
+    cleanup(prevExecOp, prevWaitOp, execOp, waitOp, newExecOp, rewriter, _log.nest());
 
     return mlir::success();
 }
@@ -231,7 +281,8 @@ void GroupAsyncExecuteOpsPass::safeRunOnFunc() {
     auto& ctx = getContext();
 
     mlir::RewritePatternSet patterns(&ctx);
-    patterns.insert<GroupAsyncExecuteOps>(&ctx, _log);
+    patterns.add<GroupAsyncExecuteOps>(&ctx, _log);
+
     if (mlir::failed(mlir::applyPatternsAndFoldGreedily(getFunction(), std::move(patterns),
                                                         getDefaultGreedyRewriteConfig()))) {
         signalPassFailure();
