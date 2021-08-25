@@ -421,14 +421,54 @@ SmallVector<VPUIP::BlobWriter::KernelData> serializeKernelData(VPUIP::BlobWriter
     // only ACTShaveTasks are generating kernelData
     auto kernelGenOps = to_small_vector(netFunc.getOps<VPUIP::DeclareKernelDataOp>());
 
-    SmallVector<VPUIP::BlobWriter::KernelData> kernelData(kernelGenOps.size());
+    // lets create stack buffers
+    if (kernelGenOps.empty()) {
+        return {};
+    }
+    auto kernelTasks = to_small_vector(netFunc.getOps<VPUIP::ACTShaveTaskOp>());
+    uint32_t maxShaves = 0;
+
+    // TODO: this looks works only for 1 executors
+    //  otherwise need to hardcode all 4 stacks and then just use certain in runtime
+    for (auto invocationIndex : irange(kernelTasks.size())) {
+        auto invocation = kernelTasks[invocationIndex];
+        auto numShaves = invocation.maxShaves();
+        if (!numShaves.hasValue()) {
+            continue;
+        }
+        maxShaves = std::max(numShaves.getValue(), maxShaves);
+    }
+
+    SmallVector<VPUIP::BlobWriter::KernelData> kernelData(kernelGenOps.size() + maxShaves + 1);
+
+    //TODO: cap numshaves by maximum HW number of 4
+    const auto stack_size { 1U << 12 }; // 4KB stack
+
+    std::vector<uint8_t> shave_stack_data(stack_size);
+    auto shave_stack_serialized_data = writer.createVector(shave_stack_data);
+
+    for(uint32_t shv{}; shv < maxShaves; ++shv) {
+        MVCNN::KernelDataBuilder kdBuilder(writer);
+        kdBuilder.add_length(stack_size);
+        kdBuilder.add_data(shave_stack_serialized_data);
+        kernelData[shv] = kdBuilder.Finish();
+    }
+
+    const auto scratch_size { 1U << 16 }; // 4KB stack
+    std::vector<uint8_t> scratch_buffer(scratch_size); // 64KB scratch buffer
+    auto scratch_buffer_serialized = writer.createVector(scratch_buffer);
+
+    MVCNN::KernelDataBuilder kdBuilder(writer);
+    kdBuilder.add_length(scratch_size);
+    kdBuilder.add_data(scratch_buffer_serialized);
+    kernelData[maxShaves] = kdBuilder.Finish();
 
     for (auto KernelIndex : irange(kernelGenOps.size())) {
         auto kernel = kernelGenOps[KernelIndex];
 
         log.trace("Got act-shave kernel at '{0}' with type '{1}'", kernel->getLoc(), kernel->getName());
 
-        kernelData[KernelIndex] = writer.createKernelData(kernel.name());
+        kernelData[KernelIndex + maxShaves + 1] = writer.createKernelData(kernel.name());
     }
 
     return kernelData;
