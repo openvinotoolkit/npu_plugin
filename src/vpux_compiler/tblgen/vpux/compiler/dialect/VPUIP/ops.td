@@ -1889,9 +1889,21 @@ def VPUIP_PPETaskOp :
     let arguments = (ins
         VPUIP_PPELayerType:$ppe_layer_type,
 
-        IntAttr:$clamp_low,
-        IntAttr:$clamp_high
+        OptionalAttr<IntAttr>:$clamp_low,
+        OptionalAttr<IntAttr>:$clamp_high,
+        OptionalAttr<IntAttr>:$lrelu_mult,
+        OptionalAttr<IntAttr>:$lrelu_shift
     );
+
+    let builders = [
+        OpBuilder<(ins
+            CArg<"vpux::VPUIP::PPELayerType", "vpux::VPUIP::PPELayerType::NOOP">:$ppe_layer_type,
+            CArg<"int32_t", "std::numeric_limits<int32_t>::min()">:$clamp_low,
+            CArg<"int32_t", "std::numeric_limits<int32_t>::max()">:$clamp_high,
+            CArg<"int32_t", "1">:$lrelu_mult,
+            CArg<"uint32_t", "0">:$lrelu_shift
+        )>
+    ];
 
     let assemblyFormat = [{
         $ppe_layer_type attr-dict
@@ -1995,10 +2007,8 @@ def VPUIP_NCEClusterTaskOp :
                                           mlir::ArrayAttr start, mlir::ArrayAttr end,
                                           VPUIP::PaddingAttr pad, VPUIP::MPEMode mpeMode);
 
-        vpux::VPUIP::PPETaskOp addPPETask(mlir::OpBuilder& builder,
-                                          vpux::VPUIP::PPELayerType ppeLayerType,
-                                          const int64_t clampLow,
-                                          const int64_t clampHigh);
+        template <typename... Args>
+        vpux::VPUIP::PPETaskOp addPPETask(mlir::OpBuilder& builder, Args&&... args);
 
         static bool isSupportedLayout(mlir::Operation* op, vpux::IE::DataOrderInfo& info);
 

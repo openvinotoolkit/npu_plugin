@@ -100,6 +100,8 @@ struct PostOpParams {
     VPUIP::PPELayerType layerType;
     int64_t clampLow;
     int64_t clampHigh;
+    int64_t LreluMult;
+    int64_t LreluShift;
 };
 
 static mlir::Optional<PostOpParams> parsePostOp(VPUIP::NCEClusterTaskOp nceOp, IE::PostOp postOp) {
@@ -112,7 +114,9 @@ static mlir::Optional<PostOpParams> parsePostOp(VPUIP::NCEClusterTaskOp nceOp, I
 
         const int64_t clampLow = 0;
         const int64_t clampHigh = std::numeric_limits<int32_t>::max();
-        return PostOpParams{VPUIP::PPELayerType::LRELU, clampLow, clampHigh};
+        const int64_t LreluMult = 1;
+        const int64_t LreluShift = 0;
+        return PostOpParams{VPUIP::PPELayerType::LRELU, clampLow, clampHigh, LreluMult, LreluShift};
     } else if (postOp.name().getValue() == IE::ClampOp::getOperationName()) {
         IE::ClampOp::Adaptor clamp(None, postOp.attrs());
         VPUX_THROW_UNLESS(clamp.verify(nceOp->getLoc()).succeeded(), "Wrong attributes '{0}' for '{1}' PostOp",
@@ -120,9 +124,11 @@ static mlir::Optional<PostOpParams> parsePostOp(VPUIP::NCEClusterTaskOp nceOp, I
 
         const int64_t clampLow = vpux::toFixedPoint(clamp.min().getValueAsDouble());
         const int64_t clampHigh = vpux::toFixedPoint(clamp.max().getValueAsDouble());
+        const int64_t LreluMult = 1;
+        const int64_t LreluShift = 0;
         VPUX_THROW_UNLESS(clampLow == 0, "'{0}' PostOp with non-zero minimum is not supported", postOp.name());
 
-        return PostOpParams{VPUIP::PPELayerType::LRELUX, clampLow, clampHigh};
+        return PostOpParams{VPUIP::PPELayerType::LRELUX, clampLow, clampHigh, LreluMult, LreluShift};
     } else {
         VPUX_THROW("Unsupported PostOp '{0}'", postOp.name());
     }
@@ -206,7 +212,8 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
     addDPUTasks(nceOp, rewriter, _numDPU, padsBegin[1], padsEnd[1], padsBegin[0], padsEnd[0], mpeMap.at(_arch));
     const auto postOpParams = parsePostOp(nceOp, origOp.post_opAttr());
     if (postOpParams.hasValue()) {
-        nceOp.addPPETask(rewriter, postOpParams->layerType, postOpParams->clampLow, postOpParams->clampHigh);
+        nceOp.addPPETask(rewriter, postOpParams->layerType, postOpParams->clampLow, postOpParams->clampHigh,
+                         postOpParams->LreluMult, postOpParams->LreluShift);
     }
 
     //
@@ -328,7 +335,8 @@ mlir::LogicalResult MaxPoolRewrite::matchAndRewrite(IERT::MaxPoolOp origOp, mlir
     addDPUTasks(nceOp, rewriter, _numDPU, padsBegin[1], padsEnd[1], padsBegin[0], padsEnd[0], mpeMap.at(_arch));
     const auto postOpParams = parsePostOp(nceOp, origOp.post_opAttr());
     if (postOpParams.hasValue()) {
-        nceOp.addPPETask(rewriter, postOpParams->layerType, postOpParams->clampLow, postOpParams->clampHigh);
+        nceOp.addPPETask(rewriter, postOpParams->layerType, postOpParams->clampLow, postOpParams->clampHigh,
+                         postOpParams->LreluMult, postOpParams->LreluShift);
     }
 
     //
@@ -401,12 +409,16 @@ mlir::LogicalResult EltwiseAddRewrite::matchAndRewrite(IERT::AddOp origOp, mlir:
 
     int64_t clampLow = std::numeric_limits<int32_t>::min();
     int64_t clampHigh = std::numeric_limits<int32_t>::max();
+    int64_t LreluMult = 1;
+    int64_t LreluShift = 0;
     const auto postOpParams = parsePostOp(nceOp, origOp.post_opAttr());
     if (postOpParams.hasValue()) {
         clampLow = postOpParams->clampLow;
         clampHigh = postOpParams->clampHigh;
+        LreluMult = postOpParams->LreluMult;
+        LreluShift = postOpParams->LreluShift;
     }
-    nceOp.addPPETask(rewriter, VPUIP::PPELayerType::ADD, clampLow, clampHigh);
+    nceOp.addPPETask(rewriter, VPUIP::PPELayerType::ADD, clampLow, clampHigh, LreluMult, LreluShift);
 
     //
     // Create DPU sub-task
@@ -557,7 +569,8 @@ mlir::LogicalResult DepthwiseConvRewrite::matchAndRewrite(IERT::GroupConvolution
     addDPUTasks(nceOp, rewriter, _numDPU, padsBegin[1], padsEnd[1], padsBegin[0], padsEnd[0], mpeMap.at(_arch));
     const auto postOpParams = parsePostOp(nceOp, origOp.post_opAttr());
     if (postOpParams.hasValue()) {
-        nceOp.addPPETask(rewriter, postOpParams->layerType, postOpParams->clampLow, postOpParams->clampHigh);
+        nceOp.addPPETask(rewriter, postOpParams->layerType, postOpParams->clampLow, postOpParams->clampHigh,
+                         postOpParams->LreluMult, postOpParams->LreluShift);
     }
 
     //
