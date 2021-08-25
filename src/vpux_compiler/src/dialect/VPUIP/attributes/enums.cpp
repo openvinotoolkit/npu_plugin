@@ -44,6 +44,7 @@ VPUIP::PhysicalMemory vpux::VPUIP::getPhysicalMemory(MemoryLocation location) {
     case MemoryLocation::VPU_CMX_NN:
         return PhysicalMemory::CMX_NN;
     case MemoryLocation::AbsoluteAddr:
+    case MemoryLocation::MAC_Accumulators:
         return PhysicalMemory::Register;
     default:
         VPUX_THROW("Unsupported MemoryLocation : {0}", location);

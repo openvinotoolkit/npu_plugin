@@ -1947,7 +1947,8 @@ def VPUIP_NCEClusterTaskOp :
         OptionalAttr<I64ArrayAttr>:$kernel_size,
         OptionalAttr<I64ArrayAttr>:$kernel_strides,
         OptionalAttr<I64ArrayAttr>:$kernel_padding,
-        OptionalAttr<IntAttr>:$activation_window_channel_length
+        OptionalAttr<IntAttr>:$activation_window_channel_length,
+        OptionalAttr<UnitAttr>:$is_continued
     );
 
     let results = (outs
@@ -1966,7 +1967,8 @@ def VPUIP_NCEClusterTaskOp :
             "mlir::Value":$output_buff,
             "vpux::VPUIP::NCETaskType":$task_type,
             "mlir::ArrayAttr":$kernel_size, "mlir::ArrayAttr":$kernel_strides, "mlir::ArrayAttr":$kernel_padding,
-            "mlir::IntegerAttr":$activation_window_channel_length
+            "mlir::IntegerAttr":$activation_window_channel_length,
+            "mlir::UnitAttr":$is_continued
         )>
     ];
 

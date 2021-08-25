@@ -133,8 +133,8 @@ nb::QuantParams nb::TestCaseJsonDescriptor::loadQuantizationParams(llvm::json::O
         result.present = true;
         result.scale = qp->getNumber("scale").getValue();
         result.zeropoint = qp->getInteger("zeropoint").getValue();
-        result.low_range = qp->getInteger("low_range").getValue();
-        result.high_range = qp->getInteger("high_range").getValue();
+        result.low_range = static_cast<std::int64_t>(qp->getNumber("low_range").getValue());
+        result.high_range = static_cast<std::int64_t>(qp->getNumber("high_range").getValue());
     }
     return result;
 }
