@@ -1,44 +1,52 @@
 # OpenVINO VPUX Plugins family
 
 ## Components in this repository
-- MCM Compiler
-- [VPUX MLIR Compiler](src/vpux_compiler/docs/index.md)
-- VPUX Plugin
-    - VPUAL Backend
-    - Zero Backend
-    - HDDL2 Backend
-- [Sofrware kernels implementation](./sw_runtime_kernels)
+
+* [MCM Compiler](https://docs.intel.com/documents/MovidiusInternal/vpu2/Common/SW/MCM/internal/MCM_compiler_description.html)
+* [VPUX NN Compiler](https://docs.intel.com/documents/MovidiusInternal/vpu2/Common/SW/VPUX_NN_Compiler_SAS/VPUX_NN_Compiler_SAS.html)
+  * [Build and Test Instructions](src/vpux_compiler/docs/build_and_test.md)
+  * [Debugging Techniques](src/vpux_compiler/docs/debugging.md)
+* VPUX Plugin
+  * VPUAL Backend
+  * Zero Backend
+  * HDDL2 Backend
+* [Software Kernels Implementation](./sw_runtime_kernels/README.md)
 
 ## Documentation
 
 ### Prerequisites
 
 * Doxygen
-```
-sudo apt install doxygen
-```
+
+    ```bash
+    sudo apt install doxygen
+    ```
+
 * OpenJDK (for plantuml diagrams)
-```
-sudo apt install default-jdk
-```
+
+    ```bash
+    sudo apt install default-jdk
+    ```
 
 ### How to generate
-VPUX Plugin has automatically generated documentation describing the plugin design and API used for implementing it. Documentation can be built by the following commands
 
-```
+VPUX Plugin has automatically generated documentation describing the plugin design and API used for implementing it.
+Documentation can be built by the following commands
+
+```bash
 cmake -DENABLE_DOCS=ON ..
 make vpux_plugin_docs
 ```
 
 Execute the following to open documentation
 
-```
+```bash
 chromium-browser ./docs/VPUX_DG/generated/html/index.html # chromium users
 firefox ./docs/VPUX_DG/generated/html/index.html # firefox users
 ```
 
-
 ## = Environment =
+
 ### Git projects
 
 The following projects are used and must be cloned including git submodules update:
@@ -63,34 +71,43 @@ The following environment variables should be set:
 * The `KMB_WORK_DIR` environment variable to the working directory on the KMB board.
 
 ## = Setup =
+
 How to prepare device for work (flash FIP/BKC)
-- [Configuration to use](https://wiki.ith.intel.com/pages/viewpage.action?pageId=1503167654#KMBEVM-Configuration)
-- [Update FIP/BKC remotely (ssh)](https://wiki.ith.intel.com/display/VPUWIKI/How+to+update+KMB+EVM+remotely)
-- [Update FIP with fastboot](https://wiki.ith.intel.com/display/VPUWIKI/How+to+flash+FIP+via+fastboot)
-- [Update BKC with fastboot](https://wiki.ith.intel.com/display/VPUWIKI/How+to+flash+Yocto+Image+to+EMMC+via+fastboot)
+
+* [Configuration to use](https://wiki.ith.intel.com/pages/viewpage.action?pageId=1503167654#KMBEVM-Configuration)
+* [Update FIP/BKC remotely (ssh)](https://wiki.ith.intel.com/display/VPUWIKI/How+to+update+KMB+EVM+remotely)
+* [Update FIP with fastboot](https://wiki.ith.intel.com/display/VPUWIKI/How+to+flash+FIP+via+fastboot)
+* [Update BKC with fastboot](https://wiki.ith.intel.com/display/VPUWIKI/How+to+flash+Yocto+Image+to+EMMC+via+fastboot)
 
 ## = Build =
-- [How to build VPUX Plugin](guides/how-to-build.md)
-- [How to build and use custom vpualHost](guides/how-to-build-vpualHost.md)
-- You can build custom VPUIP2 firmware using this job: [Link to CI job](https://dsp-ci-icv.inn.intel.com/job/IE-Packages/job/BuildKmbArtifacts/)
+
+* [How to build VPUX Plugin](guides/how-to-build.md)
+* [How to build and use custom vpualHost](guides/how-to-build-vpualHost.md)
+* You can build custom VPUIP2 firmware using this job: [Link to CI job](https://dsp-ci-icv.inn.intel.com/job/IE-Packages/job/BuildKmbArtifacts/)
 
 ## = Run =
-- [How to deploy VPUX Plugin build to KMB board](guides/how-to-deploy.md)
-- [How to run tests on KMB board](guides/how-to-test.md)
-- [How to set devices and platforms](guides/how-to-set-devices-and-platforms.md)
+
+* [How to deploy VPUX Plugin build to KMB board](guides/how-to-deploy.md)
+* [How to run tests on KMB board](guides/how-to-test.md)
+* [How to set devices and platforms](guides/how-to-set-devices-and-platforms.md)
 
 ### Bypass mode (HDDL2)
+
 Bypass related preparations
-- [How to setup KMB bypass](guides/how-to-use-kmb-bypass.md)
-- [How to setup TBH bypass](guides/how-to-use-tbh-bypass.md)
+
+* [How to setup KMB bypass](guides/how-to-use-kmb-bypass.md)
+* [How to setup TBH bypass](guides/how-to-use-tbh-bypass.md)
 
 ### [MCM Emulator](https://gitlab-icv.inn.intel.com/kmb-emulator/mcm-emulator#mcm-emulator)
 
 ## = Development =
+
 ### ClangFormat
+
 `sudo apt-get install -y clang-format-9`
 
 ### Code style
+
 * Set CMake option `-D CLANG_FORMAT=/usr/bin/clang-format-9`
 * Build target `clang_format_fix_all` to fix code style issues.
 
@@ -98,7 +115,7 @@ Bypass related preparations
 
 The VPUX plugin has extra CMake option to enable Developer build, which is orthogonal mode for Release/Debug configuration.
 The mode is enabled with `-D ENABLE_DEVELOPER_BUILD=ON` CMake option, which should be added to kmb-plugin CMake command line.
-The mode enables extra debugging and logging functionality not avaialble in default build:
+The mode enables extra debugging and logging functionality not available in default build:
 
 * Pipeprint functionality on KMB board. It allows to get logs from VPU side on ARM.
   Can be enabled with `IE_VPUX_ENABLE_PIPEPRINT=1` environment variable.
@@ -115,38 +132,42 @@ The following environment variables should be set:
     * CONFIG_USE_SHAVE_PIPEPRINT='y'
 2. `rsync -avz $VPUIP_HOME/application/vpuFirmware/vpu_b0.bin root@$KMB_BOARD_HOST:/lib/firmware/vpu_custom.bin`
 3. Start server
+
     ```bash
     cd $TOOLS_DIR/linux64/bin
     ./moviDebugServer --arm-reset=none
     ```
+
 4. Start Movidius debug tool
+
     ```bash
     cd $VPUIP_HOME/application/vpuFirmware/FW_bootLoader
     make debugi
     ```
+
 5. Run the app on the device, the logs will be displayed via moviDebug2
 
 ### Profiling - enable performance measuring in compiler
 
-To enable incertion of additional timer DMAs in the network:
+To enable insertion of additional timer DMAs in the network:
 
 1. Compile and run inference using benchmark_app with additional flag "-pc" (For using existing blob see 2.)
-2. To compile blob (using compile_tool) with profiling enabled: 
-    a) Enable it in the compiler config file(*json): look for "PerformanceCounting" in "GlobalConfigParams"
-    b) Add "PERF_COUNT YES" to compiler config file (-c option in compile_tool)  
+2. To compile blob (using compile_tool) with profiling enabled:
+    a) Enable it in the compiler config file(`*.json`): look for "PerformanceCounting" in "GlobalConfigParams"
+    b) Add "PERF_COUNT YES" to compiler config file (-c option in compile_tool)
 3. To parse profiling data manually you can use prof_parser. Run prof_parser -h to get info about its usage.
 
-
 ## === Integration ===
-#### How to update graph schema in mcmCompiler
+
+### How to update graph schema in mcmCompiler
 
 To update generated C++ headers for graph schema add the following parameter to kmb-plugin CMake configure command: `-D MCM_GRAPH_SCHEMA_TAG=<tag or branch name>`, where `<tag or branch name>` should be an existing tag or branch in `graphFile-schema` repository.
 
 It will add graph schema update target to the common build. The C++ headers for graph schema will be updated during the build.
 
-**Note:** The generated headers are stored in the [KMB Plugin Project] repository and must be commited if there are changes. This is done to simplify cross-compilation build and build without access to `graphFile-schema` repository.
+**Note:** The generated headers are stored in the [KMB Plugin Project] repository and must be committed if there are changes. This is done to simplify cross-compilation build and build without access to `graphFile-schema` repository.
 
-#### How to port changes from mcmCompiler GitHub
+### How to port changes from mcmCompiler GitHub
 
 To port changes from `mcmCompiler` GitHub repository to kmb-plugin run the following commands:
 
@@ -158,13 +179,13 @@ cd $KMB_PLUGIN_HOME
 git apply --directory=src/mcmCompiler/ --reject $MCM_PATCH_FILE
 ```
 
-Where `[first commit]..[last commit]` – commit range to transfer. For example, `[first commit]` is previous merge commit, `[last commit]` - current merge commit for PR.
+Where `[first commit]..[last commit]` - commit range to transfer. For example, `[first commit]` is previous merge commit, `[last commit]` - current merge commit for PR.
 
 The above commands will transfer code difference to kmb-plugin repository. Separate commit still should be created.
 
 `git diff` / `git apply` can be replaced with `git format-patch` / `git am` to transfer separate commits with their messages and other properties. See git documentation for details.
 
-##### How to integrate vpualHost to kmb-plugin
+### How to integrate vpualHost to kmb-plugin
 
 ```bash
 export KMB_PLUGIN_HOME=<path to kmb-plugin>
@@ -177,6 +198,7 @@ git commit -m "integrate new version vpualHost"
 ```
 
 ## === Dependencies ===
+
 ### G-API Preprocessing
 
 The VPUX plugins uses G-API based preprocessing located in [G-API-VPU project].
