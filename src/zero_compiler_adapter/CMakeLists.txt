@@ -28,17 +28,16 @@ ie_faster_build(${OBJ_TARGET_NAME}
     PCH PRIVATE "src/precomp.hpp"
 )
 
-# FIXME How to do this right?
 if(AARCH64)
-    set(CONVERTER_FOLDER aarch64)
+    set(ARCH_SUBFOLDER aarch64)
 else()
-    set(CONVERTER_FOLDER intel64)
+    set(ARCH_SUBFOLDER intel64)
 endif()
 
 # Copy umd_converter lib from artifacts
  add_custom_target(umd_converter_lib_copy ALL
      COMMAND ${CMAKE_COMMAND} -E copy
-         "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/artifacts/umd_converter/${CONVERTER_FOLDER}/*.so"
+         "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/artifacts/umd_converter/${ARCH_SUBFOLDER}/*.so"
          "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR}/"
      COMMENT "[ZeroCompilerAdapter] Copy umb converter library."
  )
@@ -46,11 +45,11 @@ endif()
 
 if(AARCH64)
 # FIXME Finding library for ARM require different approach. Use direct link for now
-    set(UMD_CONVERTER_PATH "${CMAKE_SOURCE_DIR}/artifacts/umd_converter/${CONVERTER_FOLDER}/libumd_converter.so")
+    set(UMD_CONVERTER_PATH "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/artifacts/umd_converter/${ARCH_SUBFOLDER}/libumd_converter.so")
 else()
 find_library(UMD_CONVERTER_LIBRARY
     NAMES umd_converter
-    HINTS "${CMAKE_SOURCE_DIR}/artifacts/umd_converter/${CONVERTER_FOLDER}/"
+    HINTS "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/artifacts/umd_converter/${ARCH_SUBFOLDER}/"
     REQUIRED
     NO_DEFAULT_PATH)
     
