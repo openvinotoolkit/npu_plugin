@@ -182,7 +182,7 @@ TEST_F(KmbClassifyNetworkTest, precommit_squeezenet1_1_pytorch_caffe2_dense_int8
 }
 
 TEST_F(PersonAttrRecNetworkTest, precommit_person_attribute_recognitnion_crossroad_0238) {
-    SKIP_INFER_ON("EMULATOR", "Wrong results");
+    SKIP_INFER_ON("EMULATOR", "Gather layer with different dtypes on inputs is not supported yet");
     runTest(
             TestNetworkDesc("KMB_models/INT8/public/person-attributes-recognition-crossroad/person-attributes-recognition-crossroad-0238.xml")
                     .setUserInputPrecision("input", Precision::U8)
