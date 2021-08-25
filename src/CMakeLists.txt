@@ -34,7 +34,6 @@ endif()
 if(ENABLE_ZERO_COMPILER_ADAPTER)
 # FIXME temporary solution to allow test this adapter on ARM (autonomous mode)
 add_subdirectory(zero_compiler_adapter)
-message("Zero compiler adapter enabled.")
 endif()
 
 if(ENABLE_ZEROAPI_BACKEND)
