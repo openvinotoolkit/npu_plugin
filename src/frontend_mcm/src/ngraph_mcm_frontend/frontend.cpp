@@ -30,7 +30,7 @@
 #include "ngraph_mcm_frontend/passes/fuse_padding.hpp"
 #include "ngraph_mcm_frontend/passes/convert_extract_image_patches_to_reorg_vpu.hpp"
 #include "ngraph_mcm_frontend/passes/broadcast_eltwise_inputs.hpp"
-#include "ngraph_mcm_frontend/passes/replace_onnx_pattern_to_reorg.hpp"
+#include "vpux/passes/replace_onnx_pattern_to_reorg.hpp"
 #include "ngraph_mcm_frontend/passes/fuse_scale_in_previous_weights_fq.hpp"
 #include "ngraph_mcm_frontend/passes/insert_maxpool.hpp"
 #include "ngraph_mcm_frontend/passes/replace_shuffle.hpp"
@@ -533,7 +533,7 @@ void applyTransformations(
     anchor->add_matcher<ngraph::pass::CollapseConcats0238>();
     anchor->set_name("ngraph::pass::mcmAdaptation");
 
-    passManager.register_pass<OnnxReorgPatternToDarkNetReorg>();
+    passManager.register_pass<vpux::passes::OnnxReorgPatternToDarkNetReorg>();
     passManager.register_pass<ConvertExtractImagePatchesToReorgYoloVPU>();
     passManager.register_pass<ConvertReshapeTransposeChainToDepthToSpace>();
     passManager.register_pass<PropagateFQ>();

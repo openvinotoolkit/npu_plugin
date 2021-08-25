@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright 2021 Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -13,14 +13,16 @@
 
 #pragma once
 
-// clang-format off
-
-#include <ngraph/pass/pass.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
-#include <memory>
+#include <ngraph/pass/pass.hpp>
 
-class OnnxReorgPatternToDarkNetReorg: public ngraph::pass::MatcherPass {
+namespace vpux {
+namespace passes {
+
+class OnnxReorgPatternToDarkNetReorg : public ngraph::pass::MatcherPass {
 public:
     OnnxReorgPatternToDarkNetReorg();
 };
-// clang-format on
+
+}  // namespace passes
+}  // namespace vpux
