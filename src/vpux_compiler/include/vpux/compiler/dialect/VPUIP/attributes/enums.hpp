@@ -43,7 +43,7 @@ mlir::FailureOr<VPUIP::MemoryLocation> getMemoryLocation(mlir::MemRefType memref
 
 bool isMemoryCompatible(MemoryLocation location, mlir::MemRefType memref);
 
-CompilationMode getCompilationMode(mlir::ModuleOp module);
+CompilationMode getCompilationMode(mlir::Operation* op);
 void setCompilationMode(mlir::ModuleOp module, CompilationMode compilationMode);
 
 }  // namespace VPUIP

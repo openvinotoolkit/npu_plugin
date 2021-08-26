@@ -28,19 +28,12 @@ using namespace vpux;
 
 namespace {
 
-bool isReferenceSW(mlir::Operation* op) {
-    auto module = op->getParentOfType<mlir::ModuleOp>();
-    const auto compileMode = VPUIP::getCompilationMode(module);
-
-    return compileMode == VPUIP::CompilationMode::ReferenceSW;
-}
-
 //
 // LayerWithPostOpModel
 //
 
 bool isSupportedPostOp(mlir::Operation* postOp) {
-    if (isReferenceSW(postOp)) {
+    if (VPUIP::getCompilationMode(postOp) == VPUIP::CompilationMode::ReferenceSW) {
         // Reference SW mode supports fusing only for bias
         return mlir::isa<IE::ScaleShiftOp>(postOp);
     }
@@ -66,10 +59,6 @@ class LayerWithPostOpModel final :
         public IE::LayerWithPostOpInterface::ExternalModel<LayerWithPostOpModel<MainOpType>, MainOpType> {
 public:
     bool isSupportedPostOp(mlir::Operation* mainOp, mlir::Operation* postOp) const {
-        if (isReferenceSW(mainOp)) {
-            return false;
-        }
-
         if (!::isSupportedPostOp(postOp)) {
             return false;
         }
@@ -87,20 +76,37 @@ class AlignedChannelsOpModel final :
         public IE::AlignedChannelsOpInterface::ExternalModel<AlignedChannelsOpModel<MainOpType>, MainOpType> {
 public:
     mlir::LogicalResult verifyChannels(mlir::Operation* op) const {
+        if (!canBeExecutedOnNCE(op)) {
+            // SW version of the operation has no specific requirements
+            return mlir::success();
+        }
+
         return VPUIP::NCEInvariant::verifyChannels(mlir::cast<MainOpType>(op));
     }
 
     int64_t getChannelAlignment(mlir::Operation* op) const {
-        if (isReferenceSW(op)) {
-            return 1;
-        }
-
-        if (VPUIP::NCEInvariant::verifyKernel(mlir::cast<MainOpType>(op)).failed()) {
+        if (!canBeExecutedOnNCE(op)) {
+            // SW version of the operation has no specific requirements
             return 1;
         }
 
         const auto inputType = op->getOperand(0).getType().cast<mlir::ShapedType>();
         return VPUIP::NCEInvariant::getChannelAlignment(inputType.getElementType());
+    }
+
+private:
+    static bool canBeExecutedOnNCE(mlir::Operation* op) {
+        if (VPUIP::getCompilationMode(op) == VPUIP::CompilationMode::ReferenceSW) {
+            // We are in reference SW compilation mode
+            return false;
+        }
+
+        if (VPUIP::NCEInvariant::verifyKernel(mlir::cast<MainOpType>(op)).failed()) {
+            // Basic NCE invariants check failed, the operation will fallback to SW mode
+            return false;
+        }
+
+        return true;
     }
 };
 
@@ -127,18 +133,30 @@ class LayoutInfoOpModelForHW final :
                                                         OrigOpType> {
 public:
     bool isSupportedLayout(mlir::Operation* origOp, IE::DataOrderInfo& info) const {
-        if (isReferenceSW(origOp)) {
-            return FallbackImplOpType::isSupportedLayout(origOp, info);
-        }
-
-        if (VPUIP::NCEInvariant::verifyKernel(mlir::cast<OrigOpType>(origOp)).failed()) {
-            return FallbackImplOpType::isSupportedLayout(origOp, info);
-        }
-        if (VPUIP::NCEInvariant::verifyChannels(mlir::cast<OrigOpType>(origOp)).failed()) {
+        if (!canBeExecutedOnNCE(origOp)) {
             return FallbackImplOpType::isSupportedLayout(origOp, info);
         }
 
         return VPUIP::NCEClusterTaskOp::isSupportedLayout(origOp, info);
+    }
+
+private:
+    static bool canBeExecutedOnNCE(mlir::Operation* op) {
+        if (VPUIP::getCompilationMode(op) == VPUIP::CompilationMode::ReferenceSW) {
+            // We are in reference SW compilation mode
+            return false;
+        }
+
+        if (VPUIP::NCEInvariant::verifyKernel(mlir::cast<OrigOpType>(op)).failed()) {
+            // Basic NCE invariants check failed, the operation will fallback to SW mode
+            return false;
+        }
+        if (VPUIP::NCEInvariant::verifyChannels(mlir::cast<OrigOpType>(op)).failed()) {
+            // Basic NCE invariants check failed, the operation will fallback to SW mode
+            return false;
+        }
+
+        return true;
     }
 };
 
@@ -151,7 +169,7 @@ mlir::Attribute getExecutorForSW(mlir::Operation* origOp, uint32_t& numUnits) {
 }
 
 mlir::Attribute getExecutorForHW(mlir::Operation* origOp, uint32_t& numUnits) {
-    if (isReferenceSW(origOp)) {
+    if (VPUIP::getCompilationMode(origOp) == VPUIP::CompilationMode::ReferenceSW) {
         return getExecutorForSW(origOp, numUnits);
     }
 

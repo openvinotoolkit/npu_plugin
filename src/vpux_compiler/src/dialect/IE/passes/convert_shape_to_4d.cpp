@@ -92,29 +92,59 @@ private:
 // FakeQuantizeConverter
 //
 
-struct ExtendedShape {
-    SmallVector<int64_t> shape;
-    llvm::Optional<int64_t> quantizeAxis;
-};
-
-class FakeQuantizeConverter final : public mlir::OpRewritePattern<IE::FakeQuantizeOp> {
+class FakeQuantizeConverter final : public mlir::OpConversionPattern<IE::FakeQuantizeOp> {
 public:
-    FakeQuantizeConverter(mlir::MLIRContext* ctx, Logger log)
-            : mlir::OpRewritePattern<IE::FakeQuantizeOp>(ctx), _log(log) {
+    FakeQuantizeConverter(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
+            : mlir::OpConversionPattern<IE::FakeQuantizeOp>(typeConverter, ctx), _log(log) {
     }
 
 public:
-    mlir::LogicalResult matchAndRewrite(IE::FakeQuantizeOp origOp, mlir::PatternRewriter& rewriter) const final;
-    static ExtendedShape extendInputShapeTo4D(IE::FakeQuantizeOp origOp);
-    static mlir::Value reshapeConstInput(mlir::PatternRewriter& rewriter, mlir::Location loc, mlir::Value input,
-                                         llvm::Optional<int64_t> axis);
-    static llvm::Optional<int64_t> getAxisIndex(IE::FakeQuantizeOp fq);
+    mlir::LogicalResult matchAndRewrite(IE::FakeQuantizeOp origOp, ArrayRef<mlir::Value> operands,
+                                        mlir::ConversionPatternRewriter& rewriter) const final;
 
 private:
     Logger _log;
 };
 
-ExtendedShape FakeQuantizeConverter::extendInputShapeTo4D(IE::FakeQuantizeOp origOp) {
+struct ExtendedShape final {
+    SmallVector<int64_t> shape;
+    Optional<int64_t> quantizeAxis;
+};
+
+Optional<int64_t> getAxisIndex(IE::FakeQuantizeOp fq) {
+    const auto extractAxis = [](mlir::Value input) -> Optional<int64_t> {
+        const auto greaterThanOne = [](auto dim) {
+            return dim > 1;
+        };
+
+        const auto shape = getShape(input);
+
+        const auto axisCount = llvm::count_if(shape, greaterThanOne);
+        VPUX_THROW_UNLESS(axisCount <= 1, "FakeQuantize constant input has incorrect shape");
+
+        auto axis = llvm::find_if(shape, greaterThanOne);
+        if (axis != shape.end()) {
+            return std::distance(shape.begin(), axis);
+        }
+
+        return None;
+    };
+
+    const auto inputLowAxis = extractAxis(fq.input_low());
+    const auto outputLowAxis = extractAxis(fq.output_low());
+
+    if (!inputLowAxis && !outputLowAxis) {
+        return {};
+    }
+
+    if (inputLowAxis && outputLowAxis) {
+        VPUX_THROW_UNLESS(*inputLowAxis == *outputLowAxis, "FakeQuantize constant inputs use different axis");
+    }
+
+    return inputLowAxis ? *inputLowAxis : *outputLowAxis;
+}
+
+ExtendedShape extendInputShapeTo4D(IE::FakeQuantizeOp origOp) {
     const auto inShape = origOp.input().getType().cast<mlir::ShapedType>().getShape();
     VPUX_THROW_UNLESS(inShape.size() < 4, "Tensors with rank >= 4 could not be converted to 4D");
 
@@ -156,42 +186,8 @@ ExtendedShape FakeQuantizeConverter::extendInputShapeTo4D(IE::FakeQuantizeOp ori
     return {outputShape, axis};
 }
 
-llvm::Optional<int64_t> FakeQuantizeConverter::getAxisIndex(IE::FakeQuantizeOp fq) {
-    const auto extractAxis = [](mlir::Value input) -> llvm::Optional<int64_t> {
-        const auto greaterThanOne = [](auto dim) {
-            return dim > 1;
-        };
-        const auto shape = getShape(input);
-
-        const auto axisCount = llvm::count_if(shape, greaterThanOne);
-        VPUX_THROW_UNLESS(axisCount <= 1, "FakeQuantize constant input has incorrect shape");
-
-        auto axis = llvm::find_if(shape, greaterThanOne);
-        if (axis != shape.end()) {
-            return std::distance(shape.begin(), axis);
-        }
-
-        return llvm::Optional<int64_t>{};
-    };
-
-    const auto inputLowAxis = extractAxis(fq.input_low());
-    const auto outputLowAxis = extractAxis(fq.output_low());
-
-    if (!inputLowAxis && !outputLowAxis) {
-        return {};
-    }
-
-    if (inputLowAxis && outputLowAxis) {
-        VPUX_THROW_UNLESS(*inputLowAxis == *outputLowAxis, "FakeQuantize constant inputs use different axis");
-    }
-
-    return inputLowAxis ? *inputLowAxis : *outputLowAxis;
-}
-
-mlir::Value FakeQuantizeConverter::reshapeConstInput(mlir::PatternRewriter& rewriter, mlir::Location loc,
-                                                     mlir::Value input, llvm::Optional<int64_t> axis) {
-    VPUX_THROW_UNLESS(input, "FakeQuantize input is null");
-
+mlir::Value reshapeConstInput(mlir::PatternRewriter& rewriter, mlir::Location loc, mlir::Value input,
+                              llvm::Optional<int64_t> axis) {
     Shape constInputShape{1, 1, 1, 1};
     const auto inShape = getShape(input);
 
@@ -205,12 +201,19 @@ mlir::Value FakeQuantizeConverter::reshapeConstInput(mlir::PatternRewriter& rewr
     return rewriter.create<IE::ReshapeOp>(loc, input, nullptr, false, constInputShapeAttr);
 }
 
-mlir::LogicalResult FakeQuantizeConverter::matchAndRewrite(IE::FakeQuantizeOp origOp,
-                                                           mlir::PatternRewriter& rewriter) const {
+mlir::LogicalResult FakeQuantizeConverter::matchAndRewrite(IE::FakeQuantizeOp origOp, ArrayRef<mlir::Value> operands,
+                                                           mlir::ConversionPatternRewriter& rewriter) const {
     _log.trace("Found IE::FakeQuantize Operation '{0}'", origOp->getLoc());
 
-    if (getShape(origOp.input()).size() >= 4) {
-        return mlir::failure();
+    const auto inShape = origOp.input().getType().cast<mlir::ShapedType>().getShape();
+
+    if (inShape.size() == 4) {
+        // Handle the case with 4D input and scalar low/high values
+
+        auto* typeConverter = this->getTypeConverter();
+        VPUX_THROW_UNLESS(typeConverter != nullptr, "TypeConverter was not set");
+
+        return convertGeneric(origOp, operands, rewriter, *typeConverter, _log);
     }
 
     const auto input4D = extendInputShapeTo4D(origOp);
@@ -304,7 +307,7 @@ void ConvertShapeTo4DPass::safeRunOnModule() {
     patterns.insert<GenericConverter<IE::AddOp>>(typeConverter, &ctx, _log);
     patterns.insert<GenericConverter<IE::MultiplyOp>>(typeConverter, &ctx, _log);
     patterns.insert<GenericConverter<IE::ScaleShiftOp>>(typeConverter, &ctx, _log);
-    patterns.insert<FakeQuantizeConverter>(&ctx, _log);
+    patterns.insert<FakeQuantizeConverter>(typeConverter, &ctx, _log);
 
     auto module = getOperation();
     if (mlir::failed(mlir::applyPartialConversion(module, target, std::move(patterns)))) {
