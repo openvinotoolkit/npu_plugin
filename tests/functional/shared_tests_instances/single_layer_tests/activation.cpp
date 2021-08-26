@@ -39,6 +39,7 @@ std::set<ngraph::helpers::ActivationTypes> supportedTypesMLIR {
     ngraph::helpers::HSwish,
     ngraph::helpers::Floor,
     ngraph::helpers::Mish,
+    ngraph::helpers::Erf,
     ngraph::helpers::Tanh,
     ngraph::helpers::PReLu,
     ngraph::helpers::LeakyRelu,

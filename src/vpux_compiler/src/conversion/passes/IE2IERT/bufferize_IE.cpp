@@ -391,6 +391,11 @@ mlir::Operation* createRTLayer(IE::MishOp origOp, ArrayRef<mlir::Value> allBufs,
     return b.create<IERT::MishOp>(origOp.getLoc(), newOp.input(), newOp.output_buff());
 }
 
+mlir::Operation* createRTLayer(IE::ErfOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::ErfOp::Adaptor newOp(allBufs);
+    return b.create<IERT::ErfOp>(origOp.getLoc(), newOp.input(), newOp.output_buff());
+}
+
 mlir::Operation* createRTLayer(IE::TanhOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::TanhOp::Adaptor newOp(allBufs);
     return b.create<IERT::TanhOp>(origOp.getLoc(), newOp.input(), newOp.output_buff());
@@ -686,6 +691,7 @@ mlir::LogicalResult LayerRewrite::matchAndRewrite(mlir::Operation* origOp, Array
     CASE(IE::HSwishOp)
     CASE(IE::FloorOp)
     CASE(IE::MishOp)
+    CASE(IE::ErfOp)
     CASE(IE::TanhOp)
     CASE(IE::FakeQuantizeOp)
     CASE(IE::PReluOp)
