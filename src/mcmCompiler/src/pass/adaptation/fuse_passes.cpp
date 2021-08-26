@@ -406,8 +406,12 @@ void fusePPEBaseFcn(mv::Data::OpListIterator& opIt, mv::ComputationModel& model,
         }
     }
 
-    // Disable Prelu fusion if slopes are per-channel
-    if (opType == "Prelu" && (opIt->getInputTensor(mv::IO_TENSOR_WEIGHTS_SET)->getData().size() != 1)) {
+    // Disable Prelu / leakyRelu fusion if slopes are per-channel or negative
+    if (opType == "Prelu" && (opIt->getInputTensor(mv::IO_TENSOR_WEIGHTS_SET)->getData().size() != 1 ||
+                              opIt->getInputTensor(mv::IO_TENSOR_WEIGHTS_SET)->getDoubleData()[0] < 0)) {
+        return;
+    }
+    if (opType == "LeakyRelu" && opIt->get<double>("alpha") < 0) {
         return;
     }
 
