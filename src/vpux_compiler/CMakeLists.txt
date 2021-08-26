@@ -16,6 +16,7 @@ replace_noerror()
 set(TARGET_NAME "vpux_compiler")
 set(TBLGEN_TARGET_NAME "${TARGET_NAME}_tblgen")
 set(SCHEMA_TARGET_NAME "${TARGET_NAME}_schema")
+set(DOCS_TARGET_NAME "${TARGET_NAME}_docs")
 set(OBJ_TARGET_NAME "${TARGET_NAME}_obj")
 set(STATIC_TARGET_NAME "${TARGET_NAME}_static")
 
@@ -49,7 +50,7 @@ macro(add_op_interfaces subdir)
         SOURCE "${gen_base_src_dir}/${subdir}/ops_interfaces.td"
         OUTPUT "${gen_base_dst_docs_dir}/${subdir}/_ops_interfaces.md"
     )
-    list(APPEND generated_docs "${subdir}/ops_interfaces.md")
+    list(APPEND generated_docs "${subdir}/_ops_interfaces.md")
 endmacro()
 
 macro(add_attr_interfaces subdir)
@@ -72,7 +73,7 @@ macro(add_attr_interfaces subdir)
         SOURCE "${gen_base_src_dir}/${subdir}/attr_interfaces.td"
         OUTPUT "${gen_base_dst_docs_dir}/${subdir}/_attr_interfaces.md"
     )
-    list(APPEND generated_docs "${subdir}/attr_interfaces.md")
+    list(APPEND generated_docs "${subdir}/_attr_interfaces.md")
 endmacro()
 
 macro(add_type_interfaces subdir)
@@ -95,7 +96,7 @@ macro(add_type_interfaces subdir)
         SOURCE "${gen_base_src_dir}/${subdir}/type_interfaces.td"
         OUTPUT "${gen_base_dst_docs_dir}/${subdir}/_type_interfaces.md"
     )
-    list(APPEND generated_docs "${subdir}/type_interfaces.md")
+    list(APPEND generated_docs "${subdir}/_type_interfaces.md")
 endmacro()
 
 macro(add_enum_attrs dialect)
@@ -196,7 +197,7 @@ macro(add_dialect dialect)
         SOURCE "${gen_base_src_dir}/dialect/${dialect}/ops.td"
         OUTPUT "${gen_base_dst_docs_dir}/dialect/_${dialect}.md"
     )
-    list(APPEND generated_docs "dialect/${dialect}.md")
+    list(APPEND generated_docs "dialect/_${dialect}.md")
 endmacro()
 
 macro(add_passes subdir name)
@@ -214,7 +215,7 @@ macro(add_passes subdir name)
         SOURCE "${gen_base_src_dir}/${subdir}/passes.td"
         OUTPUT "${gen_base_dst_docs_dir}/${subdir}/_passes.md"
     )
-    list(APPEND generated_docs "${subdir}/passes.md")
+    list(APPEND generated_docs "${subdir}/_passes.md")
 endmacro()
 
 macro(add_rewriters subdir)
@@ -276,6 +277,32 @@ vpux_add_tblgen_target(${TBLGEN_TARGET_NAME} ${TBLGEN_SOURCES})
 set_target_properties(${TBLGEN_TARGET_NAME} PROPERTIES FOLDER "src")
 
 add_dependencies(${TBLGEN_TARGET_NAME} mlir-headers mlir-generic-headers)
+
+#
+# DOCS target
+#
+
+set(docs_cmd_list)
+foreach(doc_file IN LISTS generated_docs)
+    set(gen_doc_file "${CMAKE_CURRENT_BINARY_DIR}/${gen_base_dst_docs_dir}/${doc_file}")
+    set(out_doc_file "${CMAKE_CURRENT_SOURCE_DIR}/${gen_base_dst_docs_dir}/${doc_file}")
+
+    get_filename_component(out_doc_dir ${out_doc_file} DIRECTORY)
+
+    list(APPEND docs_cmd_list COMMAND ${CMAKE_COMMAND} -E make_directory ${out_doc_dir})
+    list(APPEND docs_cmd_list COMMAND ${CMAKE_COMMAND} -E copy ${gen_doc_file} ${out_doc_file})
+endforeach()
+
+add_custom_target(${DOCS_TARGET_NAME} ALL
+    COMMAND ${CMAKE_COMMAND} -E remove_directory "${CMAKE_CURRENT_SOURCE_DIR}/${gen_base_dst_docs_dir}"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_SOURCE_DIR}/${gen_base_dst_docs_dir}"
+    ${docs_cmd_list}
+    COMMENT "[DOCS] ${TARGET_NAME}"
+)
+
+add_dependencies(${DOCS_TARGET_NAME}
+    ${TBLGEN_TARGET_NAME}
+)
 
 #
 # SCHEMA target
