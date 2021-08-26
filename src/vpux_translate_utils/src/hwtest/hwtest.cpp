@@ -64,7 +64,7 @@ mlir::OwningModuleRef importHWTEST(llvm::StringRef sourceJson, mlir::MLIRContext
     };
 
     if (isConv) {
-        if (weightInChannels() > 8*1024){
+        if (weightInChannels() > 8 * 1024) {
             hwtest::buildContinuedConv(jsonDesc, module, builder, log, input_type, weightType(), output_type);
         } else {
             hwtest::buildSimpleZMajorConv(jsonDesc, module, builder, log, input_type, weightType(), output_type);

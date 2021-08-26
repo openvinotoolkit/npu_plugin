@@ -145,7 +145,7 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     auto nceTask = functionBuilder.create<vpux::VPUIP::NCEClusterTaskOp>(
             builder.getUnknownLoc(), inputCMX.memory(), weightsCMX.memory(), weightsTableCMX.memory(), nullptr,
             inputCMX.memory(), outputCMX.memory(), outputCMX.memory(), vpux::VPUIP::NCETaskType::CONV, kernelSize,
-            strides, kernelPaddings, nullptr, /*is_continued*/nullptr);
+            strides, kernelPaddings, nullptr, /*is_continued*/ nullptr);
 
     nceTask.waitBarriersMutable().append(barrier0.barrier());
     nceTask.updateBarriersMutable().append(barrier1.barrier());

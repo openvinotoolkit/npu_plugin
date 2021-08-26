@@ -639,31 +639,31 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
 
     const auto invariant =
             MVCNN::CreateNCEInvariantFields(writer,
-                                            getDPULayerType(task_type()),  // dpu_task_type
-                                            ppeTask,                       // ppe_task
-                                            getMPEMode(invariantMPEMode),  // mpe_frequent_mode
-                                            kernelSizeH,                   // kernelH
-                                            kernelSizeW,                   // kernelW
-                                            kernelStridesH,                // kernel_strideH
-                                            kernelStridesW,                // kernel_strideW
-                                            kernelPadL,                    // kernel_padLeft
-                                            kernelPadR,                    // kernel_padRight
-                                            kernelPadT,                    // kernel_padTop
-                                            kernelPadB,                    // kernel_padBottom
-                                            parentInputTensor,             // parent_input_tensor
-                                            parentOutputTensor,            // parent_output_tensor
-                                            0,                             // parent_weights_tensor
-                                            inputData,                     // input_data
-                                            outputData,                    // output_data
-                                            weightsData,                   // weights_data
-                                            weightsTable,                  // weights_table
-                                            activationWindow,              // activation_window
-                                            activationWindowChannelLength, // activation_window_channel_length
-                                            enabled_optimizations,         // enabled_optimizations
-                                            odu_offset,                    // odu_offset
-                                            out_channel_offset,            // out_channel_offset
-                                            is_segmented,                  // is_segmented
-                                            is_continued                   // is_continued
+                                            getDPULayerType(task_type()),   // dpu_task_type
+                                            ppeTask,                        // ppe_task
+                                            getMPEMode(invariantMPEMode),   // mpe_frequent_mode
+                                            kernelSizeH,                    // kernelH
+                                            kernelSizeW,                    // kernelW
+                                            kernelStridesH,                 // kernel_strideH
+                                            kernelStridesW,                 // kernel_strideW
+                                            kernelPadL,                     // kernel_padLeft
+                                            kernelPadR,                     // kernel_padRight
+                                            kernelPadT,                     // kernel_padTop
+                                            kernelPadB,                     // kernel_padBottom
+                                            parentInputTensor,              // parent_input_tensor
+                                            parentOutputTensor,             // parent_output_tensor
+                                            0,                              // parent_weights_tensor
+                                            inputData,                      // input_data
+                                            outputData,                     // output_data
+                                            weightsData,                    // weights_data
+                                            weightsTable,                   // weights_table
+                                            activationWindow,               // activation_window
+                                            activationWindowChannelLength,  // activation_window_channel_length
+                                            enabled_optimizations,          // enabled_optimizations
+                                            odu_offset,                     // odu_offset
+                                            out_channel_offset,             // out_channel_offset
+                                            is_segmented,                   // is_segmented
+                                            is_continued                    // is_continued
             );
 
     MVCNN::NCE2TaskBuilder builder(writer);
