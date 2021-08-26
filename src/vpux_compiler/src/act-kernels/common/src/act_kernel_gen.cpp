@@ -262,7 +262,9 @@ ActKernelDesc generateKernelForACTShave(mlir::StringRef funcName, const movitool
     ActKernelDesc result;
 
     result.text = buildKernelData(fbb, textBinary);
+    result.text_size = textBinary.size();
     result.data = buildKernelData(fbb, dataBinary);
+    result.data_size = dataBinary.size();
 
     return result;
 }

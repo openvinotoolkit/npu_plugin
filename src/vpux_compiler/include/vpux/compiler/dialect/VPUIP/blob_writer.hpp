@@ -19,6 +19,7 @@
 #include "vpux/compiler/dialect/VPUIP/attributes/enums.hpp"
 #include "vpux/compiler/dialect/VPUIP/schema.hpp"
 #include "vpux/compiler/dialect/const/attributes/content.hpp"
+#include <vpux/compiler/act_kernels/act_kernel_gen.h>
 
 #include "vpux/utils/core/array_ref.hpp"
 #include "vpux/utils/core/logger.hpp"
@@ -87,8 +88,7 @@ public:
 
 public:
     SpecificTask createACTShaveTask(mlir::Operation* op);
-    KernelData createKernelData(StringRef name);
-    //KernelDataRef createKernelStack(StringRef name);
+    ActKernelDesc& createKernelData(StringRef name);
 
     KernelDataRef createKernelDataRef(StringRef name, MemoryLocation locale,
                                       uint32_t localeIndex, uint64_t dataOffset, uint64_t dataSize,
@@ -174,6 +174,9 @@ private:
 
 private:
     using TaskMap = std::unordered_map<mlir::Operation*, Task>;
+    // TODO: refactor not using string name as act-kernels definition
+    using CompiledActShavesMap = mlir::DenseMap<mlir::StringRef, ActKernelDesc>;
+    //using CompiledActShavesMap
     using TensorReferenceMap = mlir::DenseMap<mlir::Value, TensorReference>;
     using BarrierMap = mlir::DenseMap<mlir::Value, uint32_t>;
 
@@ -181,6 +184,7 @@ private:
     Logger _log;
     flatbuffers::FlatBufferBuilder _impl;
     TaskMap _tasks;
+    CompiledActShavesMap _actKernels;
     TensorReferenceMap _tensors;
     BarrierMap _barriers;
 };
