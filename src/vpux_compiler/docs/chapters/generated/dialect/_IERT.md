@@ -530,6 +530,34 @@ operation ::= `IERT.Elu` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float or 32-bit float values
 
+### `IERT.Erf` (vpux::IERT::ErfOp)
+
+InferenceEngie run-time Erf layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.Erf` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float or 32-bit float values
+`output_buff` | memref of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float or 32-bit float values
+
 ### `IERT.ExecutorResource` (vpux::IERT::ExecutorResourceOp)
 
 Information about executor resource

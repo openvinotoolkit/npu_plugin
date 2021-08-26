@@ -157,7 +157,7 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::MishUPAOp::serialize(VPUIP::BlobWri
 //
 
 void vpux::VPUIP::ErfUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
-                                   mlir::Value output) {
+                                  mlir::Value output) {
     build(builder, state, input, output, mlir::ValueRange{}, mlir::ValueRange{}, nullptr, nullptr);
 }
 

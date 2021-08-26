@@ -520,6 +520,30 @@ operation ::= `IE.Elu` `(` operands `)` attr-dict `:` type(operands) `->` type(r
 | :----: | ----------- |
 `output` | ranked tensor of 16-bit float or 32-bit float values
 
+### `IE.Erf` (vpux::IE::ErfOp)
+
+InferenceEngine Erf layer
+
+
+Syntax:
+
+```
+operation ::= `IE.Erf` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
 ### `IE.Exp` (vpux::IE::ExpOp)
 
 InferenceEngine Exp layer
