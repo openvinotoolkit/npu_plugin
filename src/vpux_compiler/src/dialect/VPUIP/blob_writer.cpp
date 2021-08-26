@@ -83,8 +83,11 @@ VPUIP::BlobWriter::Task vpux::VPUIP::BlobWriter::createTask(mlir::Operation* op)
     return off;
 }
 
-VPUIP::BlobWriter::KernelData vpux::VPUIP::BlobWriter::createKernelData(StringRef name) {
-
+ActKernelDesc& vpux::VPUIP::BlobWriter::createKernelData(StringRef name) {
+    auto it = _actKernels.find(name);
+    if (it != _actKernels.end()) {
+        return it->second;
+    }
     movitools::MoviCompileParams params = {
             /*cpu=*/"3010xx",
             /*moviCompile=*/"linux64/bin/moviCompile",
@@ -103,9 +106,10 @@ VPUIP::BlobWriter::KernelData vpux::VPUIP::BlobWriter::createKernelData(StringRe
                 },
                 };
 
-    auto elfBinary = generateKernelForACTShave(name, params, _impl);
+    auto newDesc =  generateKernelForACTShave(name, params, _impl);
+    _actKernels[name] = newDesc;
 
-    return elfBinary.text;
+    return _actKernels[name];
 }
 
 vpux::VPUIP::BlobWriter::KernelDataRef vpux::VPUIP::BlobWriter::createKernelDataRef(StringRef name, MemoryLocation locale,
@@ -147,9 +151,17 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createACTShaveTask(mlir
     const auto inputs = createVector(layer.getInputs() | transformed(getTensorCb));
     const auto outputs = createVector(layer.getOutputs() | transformed(getTensorCb));
 
-    ///TODO: correct data size
-    //VPUIP::DeclareKernelDataOpAdaptor kernelDataAdaptor({}, actShaveTask.kernelData().getType());
-    auto kernelText = createKernelDataRef("sigmoid", MemoryLocation::GFEmbeddedKernel, 0, 0, sizeof(act_kernel_args));
+    auto kernelDesc = actShaveTask.kernelData().getDefiningOp<DeclareKernelDataOp>();
+    auto & actKernelDesc = createKernelData(kernelDesc.name());
+
+    // calc real locale index - subtract stacks and scracth buffers
+    const auto localeIndexOffset = 4 + 1;
+
+    // TODO: should be specific sigmoid args instead of act args
+    // TODO: compiled kernel size - where to get it
+    auto kernelText = createKernelDataRef(kernelDesc.name(),
+                                          kernelDesc.locale(),
+                                          kernelDesc.localeIndex() * 2 + localeIndexOffset, 0, actKernelDesc.text_size);
 
     MVCNN::ActKernelBuilder kernelbuilder(_impl);
     //kernelbuilder.add_globalArgs()
@@ -168,10 +180,16 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createACTShaveTask(mlir
 
     auto barrierReference = MVCNN::CreateBarrierReference(_impl, waitBarriers, updateBarriers);
 
-    auto invocationArgs = createKernelDataRef("invocation-arg1", MemoryLocation::GFEmbeddedKernel, 0, 0, sizeof(act_kernel_args));
 
-    // TODO: size of data section
-    auto dataSection = createKernelDataRef("sigmoid.data.section", MemoryLocation::GFEmbeddedKernel, 0, 0, sizeof(act_kernel_args));
+    auto invocationArgs = createKernelDataRef("invocation-arg1",
+                                              kernelDesc.locale(),
+                                              kernelDesc.localeIndex()  * 2 + 1 + localeIndexOffset,
+                                              actKernelDesc.data_size, sizeof(act_kernel_args));
+
+    auto dataSection = createKernelDataRef("sigmoid.data.section",
+                                           kernelDesc.locale(),
+                                           kernelDesc.localeIndex()  * 2 + 1 + localeIndexOffset,
+                                           0, actKernelDesc.data_size + sizeof(act_kernel_args));
 
     MVCNN::ActKernelInvocationBuilder invocationBuilder(_impl);
     invocationBuilder.add_dataSection(dataSection);

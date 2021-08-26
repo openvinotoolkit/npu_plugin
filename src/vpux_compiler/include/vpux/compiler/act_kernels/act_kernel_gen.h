@@ -26,7 +26,9 @@ namespace vpux {
 
 struct ActKernelDesc {
     flatbuffers::Offset<MVCNN::KernelData> text;
+    size_t text_size;
     flatbuffers::Offset<MVCNN::KernelData> data;
+    size_t data_size;
 };
 
 ActKernelDesc generateKernelForACTShave(mlir::StringRef funcName,
