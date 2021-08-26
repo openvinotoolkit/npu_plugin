@@ -91,6 +91,7 @@ def Const_ContentAttr : Const_Attr<"Content", [DeclareAttrInterfaceMethods<SubEl
         vpux::SmallVector<vpux::Const::TransformAttrInterface> getTransformations() const;
         mlir::ShapedType getType() const;
 
+        vpux::Const::ContentAttr broadcast(Dim axis, int64_t value) const;
         vpux::Const::ContentAttr convertElemType(mlir::Type newElemType) const;
         vpux::Const::ContentAttr quantCast(mlir::quant::QuantizedType newElemType) const;
         vpux::Const::ContentAttr dequantize() const;
@@ -288,6 +289,31 @@ def Const_SubViewAttr : Const_Attr<"SubView",
 
     let storageNamespace = "details";
     let genVerifyDecl = 1;
+    let skipDefaultBuilders = 1;
+}
+
+//
+// BroadcastAttr
+//
+
+def Const_BroadcastAttr : Const_Attr<"Broadcast",
+        [DeclareAttrInterfaceMethods<Const_TransformAttrInterface>, DeclareAttrInterfaceMethods<SubElementAttrInterface>]> {
+    let summary = "Broadcast axis by value of constant content";
+
+    let parameters = (ins
+        "mlir::IntegerAttr":$axis,
+        "mlir::IntegerAttr":$value
+    );
+
+    let builders = [
+        AttrBuilderWithInferredContext<
+            (ins "mlir::IntegerAttr":$axis, "mlir::IntegerAttr":$value), [{
+                return $_get(value.getContext(), axis, value);
+            }]
+        >
+    ];
+
+    let storageNamespace = "details";
     let skipDefaultBuilders = 1;
 }
 

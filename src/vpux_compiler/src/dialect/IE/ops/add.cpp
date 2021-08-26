@@ -38,6 +38,7 @@ public:
 
 mlir::LogicalResult ConvertAddToScale::matchAndRewrite(IE::AddOp biasOp, mlir::PatternRewriter& rewriter) const {
     static const auto N = Dim(0);
+    static const auto C = Dim(1);
     static const auto H = Dim(2);
     static const auto W = Dim(3);
 
@@ -51,7 +52,25 @@ mlir::LogicalResult ConvertAddToScale::matchAndRewrite(IE::AddOp biasOp, mlir::P
         return mlir::failure();
     }
 
-    rewriter.replaceOpWithNewOp<IE::ScaleShiftOp>(biasOp, biasOp.getType(), biasOp.input1(), nullptr, biasOp.input2());
+    // broadcast scaleshift for all channels
+    auto biasInput = biasOp.input2();
+    if (biasesShape[C] != mulOutShape[C] && biasesShape[C] == 1) {
+        auto input2Const = biasInput.getDefiningOp<Const::DeclareOp>();
+        if (input2Const == nullptr) {
+            return mlir::failure();
+        }
+        Const::ContentAttr dataAttr = input2Const.contentAttr().broadcast(C, mulOutShape[C]);
+
+        if (dataAttr == nullptr) {
+            return mlir::failure();
+        }
+
+        auto dataConstOp = rewriter.create<Const::DeclareOp>(biasOp.getLoc(), dataAttr.getType(), dataAttr);
+
+        biasInput = dataConstOp.output();
+    }
+
+    rewriter.replaceOpWithNewOp<IE::ScaleShiftOp>(biasOp, biasOp.getType(), biasOp.input1(), nullptr, biasInput);
 
     return mlir::success();
 }
