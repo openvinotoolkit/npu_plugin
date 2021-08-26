@@ -28,7 +28,7 @@ namespace mv
     mv::Data::OpListIterator linkNewMultipleOperationsReplacementRemoveFlows(mv::Data::OpListIterator parentOpIt, std::vector<mv::Data::TensorIterator> sourceTensors, mv::OpModel & om, mv::Data::OpListIterator opIt);
     mv::Data::TensorIterator insertDMAReplacementRemoveFlows(mv::OpModel& om, mv::Data::OpListIterator opIt, mv::Data::TensorIterator input, mv::DmaDirection const& direction, int8_t const &port, std::vector<mv::Data::FlowListIterator> flows, std::vector<std::size_t> inSlots, std::vector<mv::Data::OpListIterator> sinks, std::string const& dmaOpName);
     std::vector<mv::Data::OpListIterator> findSinkLayers(mv::DataModel &dataModel, const mv::Data::TensorIterator &tensor);
-    bool checkA0SOHSparsityBug(mv::Data::FlowListIterator flow, std::string referenceDevice, mv::Target target);
+    bool checkA0SOHSparsityBug(mv::Data::FlowListIterator flow, const mv::OpModel& model);
 
     mv::Data::TensorIterator dequantizeWeightsToFP16(
         mv::Data::TensorIterator weightsTensor,
@@ -41,6 +41,7 @@ namespace mv
     bool checkPPEAccuracy(mv::ComputationModel& model);
     bool checkA0Sparsity(const mv::OpModel& model);
     bool checkA0DWSOH(const mv::OpModel& model);
+    bool checkA0SOHSparsity(const mv::OpModel& model);
     std::vector<std::string>::const_iterator findIsDPUPwlPostOp(const std::vector<std::string>& postOps, const mv::TargetDescriptor& td);
     bool matchPattern(const std::vector<std::string>& pattern, mv::Data::OpListIterator it, mv::ComputationModel& model);
     bool matchPattern(const std::vector<std::string>& pattern, mv::Data::OpListIterator it, mv::Data::OpListIterator& lastIt, mv::ComputationModel& model);

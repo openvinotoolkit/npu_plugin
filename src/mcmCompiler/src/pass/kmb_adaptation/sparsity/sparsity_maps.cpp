@@ -474,14 +474,12 @@ bool checkA0FloatSparsityBug(mv::Data::FlowListIterator flow, const mv::OpModel&
 // 1) SplitOverH ZMajorConvolution with kernel > 1 (A0 HW bug)
 // 2) Float ZMajorConvolution and Eltwise DPU task (A0 HW bug)
 
-static void setSparsityAttrForUnpopulatedFnc(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor& td, mv::Element&, mv::Element&)
+static void setSparsityAttrForUnpopulatedFnc(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::DataModel dm(model);
     mv::OpModel om(model);
     auto globalParams = model.getGlobalConfigParams();
-    auto referenceDevice = globalParams->get<std::string>("referenceDevice");
-    auto target = td.getTarget();
 
     for(auto tensor = dm.tensorBegin(); tensor != dm.tensorEnd(); ++tensor)
     {
@@ -510,7 +508,7 @@ static void setSparsityAttrForUnpopulatedFnc(const mv::pass::PassEntry&, mv::Com
         {
             auto flow = dm.getDataFlow(flowStr);
             if (flow.sink()->isSparsityConsumer() &&
-                (checkA0SOHSparsityBug(flow, referenceDevice, target) ||
+                (checkA0SOHSparsityBug(flow, om) ||
                 checkA0FloatSparsityBug(flow, om)) &&
                 !compilerSolvesSparsity(flow))
             {

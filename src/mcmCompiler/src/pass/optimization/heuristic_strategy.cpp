@@ -2178,8 +2178,7 @@ bool HeuristicGraphOptimizer::requiresRealActivationSparsity(mv::Data::OpListIte
     if (opIt->getOpType() == "Conv" ) {
         if( clustering == "SplitOverH" &&
             (opIt->getInputTensor(1)->getShape()[KERNEL_HEIGHT] > 1) &&
-            !isCMConv && (target == mv::Target::ma3100 ||  // Apply the W/A also for TBH to overcome accuracy regression
-                        (target == mv::Target::ma2490 && referenceDevice_ == "A0")))
+            !isCMConv && checkA0SOHSparsity(model_))
 
             {
                 return true;

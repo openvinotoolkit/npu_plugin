@@ -484,9 +484,14 @@ bool mv::checkA0DWSOH(const mv::OpModel& model)
     return model.hasGlobalConfigParam("enableDWSOHA0") && model.getGlobalConfigParam("enableDWSOHA0").get<bool>();
 }
 
-bool mv::checkA0SOHSparsityBug(mv::Data::FlowListIterator flow, std::string referenceDevice, mv::Target target)
+bool mv::checkA0SOHSparsity(const mv::OpModel& model)
 {
-    if (target != mv::Target::ma2490 || referenceDevice != "A0")
+    return model.hasGlobalConfigParam("enableSOHSparsityA0") && model.getGlobalConfigParam("enableSOHSparsityA0").get<bool>();
+}
+
+bool mv::checkA0SOHSparsityBug(mv::Data::FlowListIterator flow, const mv::OpModel& model)
+{
+    if (!checkA0SOHSparsity(model))
         return false;
     auto sink = flow.sink();
     auto tensor = flow->getTensor();
