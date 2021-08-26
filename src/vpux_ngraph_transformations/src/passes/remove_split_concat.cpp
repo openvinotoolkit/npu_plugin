@@ -11,9 +11,7 @@
 // included with the Software Package for additional details.
 //
 
-// clang-format on
-
-#include "ngraph_mcm_frontend/passes/remove_splitConcat.hpp"
+#include "vpux/passes/remove_split_concat.hpp"
 
 #include <memory>
 #include <ngraph/op/reshape.hpp>
@@ -21,6 +19,9 @@
 #include <ngraph/op/transpose.hpp>
 #include <ngraph/op/variadic_split.hpp>
 #include "ngraph/op/concat.hpp"
+
+namespace vpux {
+namespace pass {
 
 // Modnet Workaround: remove [split -> concat] subgraph if it is directly after input node
 bool RemoveSplitConcat::run_on_node(std::shared_ptr<ngraph::Node> node) {
@@ -50,3 +51,6 @@ bool RemoveSplitConcat::run_on_node(std::shared_ptr<ngraph::Node> node) {
 
     return false;
 }
+
+}  // namespace pass
+}  // namespace vpux

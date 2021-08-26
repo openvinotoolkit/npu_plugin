@@ -1,5 +1,5 @@
 //
-// Copyright 2021 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -15,24 +15,13 @@
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
-//
-// Merge [Pad] -> [Conv] into [Conv].
-// Merge [Pad] -> [GroupConv] into [GroupConv].
-// Merge [Pad] -> [MaxPool] into [MaxPool].
-//
+namespace vpux {
+namespace passes {
 
-namespace ngraph {
-namespace pass {
-
-class FusePadding : public ngraph::pass::MatcherPass {
+class ConvertExtractImagePatchesToReorgYoloVPU : public ngraph::pass::MatcherPass {
 public:
-    FusePadding();
-
-protected:
-    template <class T>
-    bool setPadding(const size_t rank, const T& pads_begin, const T& pads_end,
-                    const std::function<void(const T&, const T&)>& setter);
+    ConvertExtractImagePatchesToReorgYoloVPU();
 };
 
-}  // namespace pass
-}  // namespace ngraph
+}  // namespace passes
+}  // namespace vpux

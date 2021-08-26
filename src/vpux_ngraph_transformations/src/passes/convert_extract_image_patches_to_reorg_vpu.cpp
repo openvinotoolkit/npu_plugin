@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -11,23 +11,23 @@
 // included with the Software Package for additional details.
 //
 
-// clang-format off
-
-#include "ngraph_mcm_frontend/passes/convert_extract_image_patches_to_reorg_vpu.hpp"
+#include "vpux/passes/convert_extract_image_patches_to_reorg_vpu.hpp"
 #include <memory>
-#include <vector>
 
 #include <ngraph/opsets/opset3.hpp>
-#include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/rt_info.hpp>
+
+namespace vpux {
+namespace passes {
 
 ConvertExtractImagePatchesToReorgYoloVPU::ConvertExtractImagePatchesToReorgYoloVPU() {
     auto image = std::make_shared<ngraph::pattern::op::Label>(ngraph::element::f32, ngraph::Shape{1, 1, 1, 1});
-    auto eip = std::make_shared<ngraph::opset3::ExtractImagePatches>(image, ngraph::Shape{1, 1}, ngraph::Strides{1, 1}, ngraph::Shape{1, 1},
-                                                                     ngraph::op::PadType::VALID);
+    auto eip = std::make_shared<ngraph::opset3::ExtractImagePatches>(image, ngraph::Shape{1, 1}, ngraph::Strides{1, 1},
+                                                                     ngraph::Shape{1, 1}, ngraph::op::PadType::VALID);
 
-    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
-        auto extract_image_patches =  std::dynamic_pointer_cast<ngraph::opset3::ExtractImagePatches>(m.get_match_root());
+    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+        auto extract_image_patches = std::dynamic_pointer_cast<ngraph::opset3::ExtractImagePatches>(m.get_match_root());
 
         /*
          * In this transformation we raplace ExtractImagePatches operation to ReorgYolo operation
@@ -43,7 +43,6 @@ ConvertExtractImagePatchesToReorgYoloVPU::ConvertExtractImagePatchesToReorgYoloV
         if (!extract_image_patches || transformation_callback(extract_image_patches)) {
             return false;
         }
-
 
         if (extract_image_patches->get_strides() != extract_image_patches->get_sizes()) {
             return false;
@@ -79,8 +78,9 @@ ConvertExtractImagePatchesToReorgYoloVPU::ConvertExtractImagePatchesToReorgYoloV
             return false;
         }
 
-        auto reorg_yolo = std::make_shared<ngraph::opset3::ReorgYolo>(extract_image_patches->input(0).get_source_output(),
-                                                                      ngraph::Strides{extract_image_patches->get_strides()});
+        auto reorg_yolo =
+                std::make_shared<ngraph::opset3::ReorgYolo>(extract_image_patches->input(0).get_source_output(),
+                                                            ngraph::Strides{extract_image_patches->get_strides()});
 
         reorg_yolo->set_friendly_name(extract_image_patches->get_friendly_name());
         ngraph::copy_runtime_info(extract_image_patches, reorg_yolo);
@@ -91,3 +91,6 @@ ConvertExtractImagePatchesToReorgYoloVPU::ConvertExtractImagePatchesToReorgYoloV
     auto m = std::make_shared<ngraph::pattern::Matcher>(eip, "ConvertExtractImagePatchesToReorgYolo");
     register_matcher(m, callback);
 }
+
+}  // namespace passes
+}  // namespace vpux

@@ -11,7 +11,7 @@
 // included with the Software Package for additional details.
 //
 
-#include "ngraph_mcm_frontend/passes/fuse_padding.hpp"
+#include "vpux/passes/fuse_padding.hpp"
 #include <memory>
 #include <vector>
 
@@ -21,25 +21,28 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 
-ngraph::pass::FusePadding::FusePadding() {
+namespace vpux {
+namespace pass {
+
+FusePadding::FusePadding() {
     auto input = ngraph::pattern::any_input();
     auto pad_value = ngraph::pattern::wrap_type<ngraph::op::Constant>();
-    auto pad_begin = std::make_shared<ngraph::pattern::op::Label>(element::i64, Shape{4});
-    auto pad_end = std::make_shared<ngraph::pattern::op::Label>(element::i64, Shape{4});
+    auto pad_begin = std::make_shared<ngraph::pattern::op::Label>(ngraph::element::i64, ngraph::Shape{4});
+    auto pad_end = std::make_shared<ngraph::pattern::op::Label>(ngraph::element::i64, ngraph::Shape{4});
 
-    ngraph::Strides strides = {1, 1, 1, 1};
-    ngraph::CoordinateDiff pad_diff = {0, 0, 0, 0};
-    ngraph::Shape pool_shape = {1, 1, 1, 1};
+    const ngraph::Strides strides = {1, 1, 1, 1};
+    const ngraph::CoordinateDiff pad_diff = {0, 0, 0, 0};
+    const ngraph::Shape pool_shape = {1, 1, 1, 1};
 
-    auto pad =
+    const auto pad =
             std::make_shared<ngraph::op::v1::Pad>(input, pad_begin, pad_end, pad_value, ngraph::op::PadMode::CONSTANT);
-    auto conv = std::make_shared<ngraph::op::v1::Convolution>(pad, ngraph::pattern::any_input(), strides, pad_diff,
-                                                              pad_diff, strides);
+    const auto conv = std::make_shared<ngraph::op::v1::Convolution>(pad, ngraph::pattern::any_input(), strides,
+                                                                    pad_diff, pad_diff, strides);
 
-    auto group_conv = std::make_shared<ngraph::op::v1::GroupConvolution>(pad, ngraph::pattern::any_input(), strides,
-                                                                         pad_diff, pad_diff, strides);
+    const auto group_conv = std::make_shared<ngraph::op::v1::GroupConvolution>(pad, ngraph::pattern::any_input(),
+                                                                               strides, pad_diff, pad_diff, strides);
 
-    auto maxpool = std::make_shared<ngraph::op::v1::MaxPool>(pad, strides, pool_shape, pool_shape, pool_shape);
+    const auto maxpool = std::make_shared<ngraph::op::v1::MaxPool>(pad, strides, pool_shape, pool_shape, pool_shape);
 
     const auto matcher_nodes =
             std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{conv, group_conv, maxpool});
@@ -108,13 +111,13 @@ ngraph::pass::FusePadding::FusePadding() {
         return ngraph::replace_output_update_name(pad_node->output(0), pad_node->input_value(0));
     };
 
-    auto matcher = std::make_shared<ngraph::pattern::Matcher>(matcher_nodes, "FusePadding");
+    const auto matcher = std::make_shared<ngraph::pattern::Matcher>(matcher_nodes, "FusePadding");
     register_matcher(matcher, callback);
 }
 
 template <class T>
-bool ngraph::pass::FusePadding::setPadding(const size_t rank, const T& pads_begin, const T& pads_end,
-                                           const std::function<void(const T&, const T&)>& setter) {
+bool FusePadding::setPadding(const size_t rank, const T& pads_begin, const T& pads_end,
+                             const std::function<void(const T&, const T&)>& setter) {
     if (rank < 1 || pads_begin.size() <= rank || pads_end.size() <= rank)
         return false;
 
@@ -122,3 +125,6 @@ bool ngraph::pass::FusePadding::setPadding(const size_t rank, const T& pads_begi
 
     return true;
 }
+
+}  // namespace pass
+}  // namespace vpux

@@ -27,8 +27,8 @@
 #include "ngraph_mcm_frontend/passes/align_eltwise_scales.hpp"
 #include "ngraph_mcm_frontend/passes/align_concat_scales.hpp"
 #include "ngraph_mcm_frontend/passes/fuse_scaleshift.hpp"
-#include "ngraph_mcm_frontend/passes/fuse_padding.hpp"
-#include "ngraph_mcm_frontend/passes/convert_extract_image_patches_to_reorg_vpu.hpp"
+#include "vpux/passes/fuse_padding.hpp"
+#include "vpux/passes/convert_extract_image_patches_to_reorg_vpu.hpp"
 #include "ngraph_mcm_frontend/passes/broadcast_eltwise_inputs.hpp"
 #include "vpux/passes/replace_onnx_pattern_to_reorg.hpp"
 #include "ngraph_mcm_frontend/passes/fuse_scale_in_previous_weights_fq.hpp"
@@ -38,7 +38,7 @@
 #include "vpux/passes/propagate_fq.hpp"
 #include <ngraph_mcm_frontend/passes/align_scales.hpp>
 #include <ngraph_mcm_frontend/passes/detect_input_fq.hpp>
-#include <ngraph_mcm_frontend/passes/remove_splitConcat.hpp>
+#include <vpux/passes/remove_split_concat.hpp>
 #include <ngraph_mcm_frontend/passes/convert_min_max_to_clamp.hpp>
 #include <ngraph_mcm_frontend/passes/convert_reshape_transpose_chain_to_depthtospace.hpp>
 
@@ -518,11 +518,11 @@ void applyTransformations(
 
     ngraph::pass::Manager passManager;
     passManager.register_pass<ngraph::pass::InitNodeInfo>();
-    passManager.register_pass<RemoveSplitConcat>();
+    passManager.register_pass<vpux::pass::RemoveSplitConcat>();
     passManager.register_pass<ngraph::pass::ConvertQuantizeDequantize>();
     passManager.register_pass<ngraph::pass::WeightsDequantizeToFakeQuantize>();
     passManager.register_pass<ngraph::pass::ConstantFolding>();
-    passManager.register_pass<ngraph::pass::FusePadding>();
+    passManager.register_pass<vpux::pass::FusePadding>();
 
     if (config.scaleShiftFusing()) {
         passManager.register_pass<FuseScaleShift>();
@@ -534,7 +534,7 @@ void applyTransformations(
     anchor->set_name("ngraph::pass::mcmAdaptation");
 
     passManager.register_pass<vpux::passes::OnnxReorgPatternToDarkNetReorg>();
-    passManager.register_pass<ConvertExtractImagePatchesToReorgYoloVPU>();
+    passManager.register_pass<vpux::passes::ConvertExtractImagePatchesToReorgYoloVPU>();
     passManager.register_pass<ConvertReshapeTransposeChainToDepthToSpace>();
     passManager.register_pass<PropagateFQ>();
     passManager.register_pass<AlignScales>();
