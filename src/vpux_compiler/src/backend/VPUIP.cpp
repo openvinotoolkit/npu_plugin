@@ -206,7 +206,7 @@ flatbuffers::Offset<MVCNN::ActKernelRuntime> createActKernelRuntime(VPUIP::BlobW
         return {};
     }
     auto kernelTasks = to_small_vector(netFunc.getOps<VPUIP::ACTShaveTaskOp>());
-    uint32_t maxShaves = 0;
+    uint32_t maxShaves = 4;
 
     // TODO: this looks works only for 1 executors
     //  otherwise need to hardcode all 4 stacks and then just use certain in runtime
@@ -428,7 +428,7 @@ SmallVector<VPUIP::BlobWriter::KernelData> serializeKernelData(VPUIP::BlobWriter
         return {};
     }
     auto kernelTasks = to_small_vector(netFunc.getOps<VPUIP::ACTShaveTaskOp>());
-    uint32_t maxShaves = 0;
+    uint32_t maxShaves = 4;
 
     // TODO: this looks works only for 1 executors
     //  otherwise need to hardcode all 4 stacks and then just use certain in runtime
@@ -441,7 +441,7 @@ SmallVector<VPUIP::BlobWriter::KernelData> serializeKernelData(VPUIP::BlobWriter
         maxShaves = std::max(numShaves.getValue(), maxShaves);
     }
 
-    SmallVector<VPUIP::BlobWriter::KernelData> kernelData(kernelGenOps.size() + maxShaves + 1);
+    SmallVector<VPUIP::BlobWriter::KernelData> kernelData(kernelGenOps.size() * 2 + maxShaves + 1);
 
     //TODO: cap numshaves by maximum HW number of 4
     const auto stack_size { 1U << 12 }; // 4KB stack
@@ -469,8 +469,9 @@ SmallVector<VPUIP::BlobWriter::KernelData> serializeKernelData(VPUIP::BlobWriter
         auto kernel = kernelGenOps[KernelIndex];
 
         log.trace("Got act-shave kernel at '{0}' with type '{1}'", kernel->getLoc(), kernel->getName());
-
-        kernelData[KernelIndex + maxShaves + 1] = writer.createKernelData(kernel.name());
+        auto compiledKernel = writer.createKernelData(kernel.name());
+        kernelData[KernelIndex * 2 + maxShaves + 1] = compiledKernel.text;
+        kernelData[KernelIndex * 2 + 1 + maxShaves + 1] = compiledKernel.data;
     }
 
     return kernelData;
