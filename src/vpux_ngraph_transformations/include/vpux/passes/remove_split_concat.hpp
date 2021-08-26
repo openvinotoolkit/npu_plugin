@@ -15,7 +15,13 @@
 
 #include <ngraph/pass/pass.hpp>
 
+namespace vpux {
+namespace pass {
+
 class RemoveSplitConcat final : public ngraph::pass::NodePass {
 public:
     bool run_on_node(std::shared_ptr<ngraph::Node> node) override;
 };
+
+}  // namespace pass
+}  // namespace vpux

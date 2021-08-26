@@ -21,6 +21,9 @@
 #include "vpux/compiler/utils/logging.hpp"
 #include "vpux/compiler/utils/types.hpp"
 
+#include "vpux/passes/convert_extract_image_patches_to_reorg_vpu.hpp"
+#include "vpux/passes/fuse_padding.hpp"
+#include "vpux/passes/remove_split_concat.hpp"
 #include "vpux/passes/replace_onnx_pattern_to_reorg.hpp"
 
 #include "vpux/utils/IE/format.hpp"
@@ -1592,12 +1595,15 @@ void runNGraphPasses(const std::shared_ptr<ngraph::Function>& netGraph, mlir::Ti
 
     ngraph::pass::Manager manager(passConfig);
     manager.register_pass<ngraph::pass::InitNodeInfo>();
+    manager.register_pass<vpux::pass::RemoveSplitConcat>();
     manager.register_pass<ngraph::pass::ConvertInterpolate1ToInterpolate4>();
     manager.register_pass<ngraph::pass::ConstantFolding>();
+    manager.register_pass<vpux::pass::FusePadding>();
     manager.register_pass<ngraph::pass::ConvertQuantizeDequantize>();
     manager.register_pass<ngraph::pass::WeightsDequantizeToFakeQuantize>();
     manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<vpux::passes::OnnxReorgPatternToDarkNetReorg>();
+    manager.register_pass<vpux::passes::ConvertExtractImagePatchesToReorgYoloVPU>();
     manager.register_pass<ngraph::pass::CommonOptimizations>();
 
     manager.run_passes(netGraph);
