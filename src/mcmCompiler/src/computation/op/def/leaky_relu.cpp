@@ -20,10 +20,12 @@ namespace mv
             }
 
             auto alpha = args.at("alpha").get<double>();
-
-            if (alpha < 0)
+            
+            // prelu may be implemented as leaky_relu, so alpha may be negative
+            // -1 is a experimental value, we don't expect too large slope even for prelu
+            if (alpha < -1)
             {
-                errMsg = "Invalid value (must be non-negative): alpha=" + std::to_string(alpha);
+                errMsg = "Invalid slope (must be larger than -1): alpha=" + std::to_string(alpha);
 
                 return {false, 0};
             }

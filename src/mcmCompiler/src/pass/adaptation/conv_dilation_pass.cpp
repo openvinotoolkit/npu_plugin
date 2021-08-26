@@ -40,24 +40,21 @@ namespace mv
     }
 }
 
-mv::Data::TensorIterator createDeconvSubConv(mv::OpModel & om, mv::Data::OpListIterator opIt, mv::Data::TensorIterator sourceWeights,
-                                                    std::array<unsigned short, 4> padding, std::string name, mv::Shape newShape, size_t subConvIdx, size_t i, size_t j)
-{
+mv::Data::TensorIterator createDeconvSubConv(
+        mv::OpModel& om, mv::Data::OpListIterator opIt, mv::Data::TensorIterator sourceWeights,
+        std::array<unsigned short, 4> sub_padding, std::array<unsigned short, 2> anchor, std::string name,
+        mv::Shape newShape, size_t subConvIdx, size_t i, size_t j,
+        const std::vector<std::vector<std::pair<size_t, size_t>>>& flip_kernel_table) {
     mv::Data::TensorIterator subConv;
     bool hasBias = opIt->hasAttr("bias");
     auto stride = opIt->get<std::array<unsigned short, 2>>("stride")[0];
-
     auto weightsValue = sourceWeights->getIntData();
     auto quantParams = sourceWeights->getQuantParams();
-
     std::vector<int64_t> sliceWeightVector(newShape.totalSize());
-
     mv::Shape srcShape = sourceWeights->getShape();
+    auto anchor_x= anchor[0];
+    auto anchor_y= anchor[1];
     
-    /// Base on bottom-right padding assumption
-    /// Only one case - SAME_UPPER, will pad extra zero value at top-left
-    /// See: https://docs.openvinotoolkit.org/latest/openvino_docs_ops_convolution_ConvolutionBackpropData_1.html
-    ///   -> The second code snippet
     for (unsigned k = 0; k < newShape[mv::KERNEL_OUTPUT_CHANNELS]; ++k)
     {
         for (unsigned c = 0; c < newShape[mv::KERNEL_INPUT_CHANNELS]; ++c)
@@ -70,12 +67,13 @@ mv::Data::TensorIterator createDeconvSubConv(mv::OpModel & om, mv::Data::OpListI
                                         (c * newShape[mv::KERNEL_WIDTH] * newShape[mv::KERNEL_HEIGHT]) +
                                         (h * newShape[mv::KERNEL_WIDTH]) +
                                         w;
-
+                    
+                    auto i_= (anchor_x - i)%stride + h * stride;
+                    auto j_= (anchor_y - j)%stride + w * stride;
                     const size_t srcIdx = (k * srcShape[mv::KERNEL_INPUT_CHANNELS] * srcShape[mv::KERNEL_WIDTH] * srcShape[mv::KERNEL_HEIGHT]) +
                                         (c * srcShape[mv::KERNEL_WIDTH] * srcShape[mv::KERNEL_HEIGHT]) +
-                                        (i * srcShape[mv::KERNEL_WIDTH]) +
-                                        j;
-
+                                        flip_kernel_table[i_][j_].first * srcShape[mv::KERNEL_WIDTH] +
+                                        flip_kernel_table[i_][j_].second;
                     sliceWeightVector[dstIdx] = weightsValue[srcIdx];
                 }
             }
@@ -90,33 +88,33 @@ mv::Data::TensorIterator createDeconvSubConv(mv::OpModel & om, mv::Data::OpListI
                         mv::Order("NCHW"));
     sliceWeight->setQuantParams(quantParams);
     auto sliceWeightOp = om.getSourceOp(sliceWeight);
+    mv::QuantizationParams params = opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT)->getQuantParams();
+    // Unet fix: make output dtype fp16 to assure Quantize layer (L497) is inserted after DMA-Concat
+    auto out_dtype = sourceWeights->isFloatingPointType() ? mv::DType("Float16")
+                                                          : opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT)->getDType();
 
     if (opIt->get<bool>("is_depthwise") == false)
     {
-        mv::QuantizationParams params = sourceWeights->isFloatingPointType()
-                ? mv::QuantizationParams::initial()
-                : opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT)->getQuantParams();
-
         subConv = om.conv(name,
-                opIt->getInputTensor(0),
+                opIt->getInputTensor(mv::IO_TENSOR_INPUT),
                 sliceWeight,
                 {1, 1},
-                padding,
+                sub_padding,
                 1,
                 opIt->get<unsigned>("group"));
-        subConv->setDType(sourceWeights->getDType());
+        subConv->setDType(out_dtype);
         subConv->setQuantParams(params);
     }
     else
     {
         subConv = om.depthwiseConv(name,
-                opIt->getInputTensor(0),
+                opIt->getInputTensor(mv::IO_TENSOR_INPUT),
                 sliceWeight,
                 {1, 1},
-                padding,
+                sub_padding,
                 1);
-        subConv->setDType(mv::DType("UInt8"));
-        subConv->setQuantParams(opIt->getOutputTensor(0)->getQuantParams());
+        subConv->setDType(out_dtype);
+        subConv->setQuantParams(params);
     }
 
     auto subConvOp = om.getSourceOp(subConv);
@@ -365,7 +363,7 @@ void convDilationUsingStorageElementFcn(const mv::pass::PassEntry& pass, mv::Com
         }
     }
 
-    // Current impelmentation only works for the case when stride is equal to kernel size, both X and Y.
+    // Current impelmentation only works for the case when kernel size is N time of stride, both on X and Y
     auto deconvOps = om.getOps("Deconv");
     for (auto & opIt : deconvOps)
     {
@@ -385,8 +383,10 @@ void convDilationUsingStorageElementFcn(const mv::pass::PassEntry& pass, mv::Com
         auto name = opIt->getName();
 
         std::vector<mv::Data::TensorIterator> subConvs;
-
-        auto strideFactor = opIt->get<std::array<unsigned short, 2>>("stride")[0];
+        
+        auto strides = opIt->get<std::array<unsigned short, 2>>("stride");
+        assert(strides[0] == strides[1]);
+        auto strideFactor = strides[0];
         auto quantParams = opIt->getOutputTensor(0)->getQuantParams();
 
         size_t width = deconvKernelShape[mv::IO_WIDTH_DIMENSION];
@@ -398,6 +398,28 @@ void convDilationUsingStorageElementFcn(const mv::pass::PassEntry& pass, mv::Com
         size_t subConvIdx = 0;
         uint64_t leadingOffset = 0;
         mv::Shape newShape({sliceWidth, sliceHeight, deconvKernelShape[mv::KERNEL_INPUT_CHANNELS], deconvKernelShape[mv::KERNEL_OUTPUT_CHANNELS]});
+        // flip kernel for x and y axis!
+        std::vector<std::vector<std::pair<size_t, size_t>>> FLIP_KERNEL_TABLE(height, std::vector<std::pair<size_t, size_t>>(width, {0,0}));
+        for (size_t i = 0; i< height; ++i){
+            for (size_t j = 0; j< width; ++j){
+                FLIP_KERNEL_TABLE[i][j]= {height-1- i, width-1- j};
+            }
+        }
+        // calculate the first sub-kerenl position
+        unsigned short width_in= inputTensor->getShape()[mv::IO_WIDTH_DIMENSION];
+        unsigned short height_in= inputTensor->getShape()[mv::IO_HEIGHT_DIMENSION];
+        unsigned short width_out= outputTensor->getShape()[mv::IO_WIDTH_DIMENSION];
+        unsigned short height_out= outputTensor->getShape()[mv::IO_HEIGHT_DIMENSION];
+        // INPUT PADDING FORMULA: [ W + (Stride-1) * (W-1) + 2 * W_PAD - K] / 1 + 1 = W_OUT
+        unsigned short pad_width= (width_out-1 + width- width_in - (strideFactor-1)*(width_in-1))/2;
+        unsigned short pad_height= (height_out-1 + height- height_in - (strideFactor-1)*(height_in-1))/2;
+        assert(pad_width == pad_height);
+        pad_width= pad_height; // just avoid make warning error
+        bool need_sub_padding= (pad_width- strideFactor >=0) ? true: false;
+        std::array<unsigned short, 2> anchor;
+        anchor[0]= anchor[1] = need_sub_padding ? pad_width - strideFactor :  pad_width;
+        std::array<unsigned short, 4> sub_padding = {0, 0, 0 ,0};
+        
         for (size_t i = 0; i < strideFactor; i++)
         {
             mv::Shape subConvShape = newShape;
@@ -411,13 +433,30 @@ void convDilationUsingStorageElementFcn(const mv::pass::PassEntry& pass, mv::Com
                 {
                     subConvShape[mv::IO_WIDTH_DIMENSION] = newShape[mv::IO_WIDTH_DIMENSION] - 1;
                 }
-                subConvs.push_back(createDeconvSubConv(om, opIt, deconvKernel, {0,0,0,0},
-                    name + "_DeconvSubConv" + std::to_string(i)+"_"+std::to_string(j),
-                    subConvShape, subConvIdx++, i, j));
+                
+                if (need_sub_padding) {
+                    // each sub-conv is a size-invariant convolution
+                    // so (N + P - K)/1 + 1 == N => P = K-1
+                    unsigned short sub_pad_width = subConvShape[mv::IO_WIDTH_DIMENSION] - 1;
+                    unsigned short sub_pad_height = subConvShape[mv::IO_HEIGHT_DIMENSION] - 1;
+                    if (i <= anchor[0] && j <= anchor[1]) {
+                        sub_padding= {sub_pad_width, 0, sub_pad_height, 0};
+                    } else if (i <= anchor[0] && j > anchor[1]) {
+                        sub_padding= {0, sub_pad_width, sub_pad_height, 0};
+                    } else if (i > anchor[0] && j <= anchor[1]) {
+                        sub_padding= {sub_pad_width, 0, 0, sub_pad_height};
+                    } else {
+                        sub_padding= {0, sub_pad_width, 0, sub_pad_height};
+                    }
+                }
+                
+                subConvs.push_back(
+                            createDeconvSubConv(om, opIt, deconvKernel, sub_padding, anchor,
+                                                name + "_DeconvSubConv" + std::to_string(i) + "_" + std::to_string(j),
+                                                subConvShape, subConvIdx++, i, j, FLIP_KERNEL_TABLE));
                 subConvs[subConvs.size()-1]->set<uint64_t>("leadingOffset", leadingOffset);
                 leadingOffset += subConvs[subConvs.size()-1]->getShape().totalSize();
             }
-
         }
 
         // reconnect children to subgraph
