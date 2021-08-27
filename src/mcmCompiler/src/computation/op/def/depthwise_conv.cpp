@@ -61,14 +61,29 @@ namespace mv
             std::vector<Tensor>&)> outputDefFcn =
             [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>& args, std::vector<Tensor>& outputs)
         {
-            auto opInput = inputs[0];
-            auto weights = inputs[1];
+            auto kernel = inputs[1];
+            auto kernelShape = (kernel->hasAttr("OriginalShape")) ?
+                               (kernel->get<mv::Shape>("OriginalShape")) :
+                               (kernel->getShape());
+
+            auto data = inputs[0];
+            auto dataShape = inputs[0]->getShape();
+
             auto padding = args.at("padding").get<std::array<unsigned short, 4>>();
             auto stride = args.at("stride").get<std::array<unsigned short, 2>>();
 
-            // Make sure that the result of subtract will not be negative
-            mv::Shape outputShape({(inputs[0]->getShape()[IO_WIDTH_DIMENSION] + padding[0] + padding[1] - weights->getShape()[IO_WIDTH_DIMENSION]) / stride[0] + 1, (
-                inputs[0]->getShape()[IO_HEIGHT_DIMENSION] + padding[2] + padding[3] - weights->getShape()[IO_HEIGHT_DIMENSION]) / stride[1] + 1, inputs[0]->getShape()[KERNEL_INPUT_CHANNELS],inputs[0]->getShape()[IO_BATCH_DIMENSION]});
+            // TODO: dilation factor must be per kernel dimension
+            auto dilationFactor = args.at("dilationFactor").get<unsigned>();
+
+            auto dilated_kernel_w = (dilationFactor == 1) ? kernelShape[KERNEL_WIDTH] : (kernelShape[KERNEL_WIDTH] - 1) * dilationFactor + 1;
+            auto dilated_kernel_h = (dilationFactor == 1) ? kernelShape[KERNEL_HEIGHT] : (kernelShape[KERNEL_HEIGHT] - 1) * dilationFactor + 1;
+
+            size_t W = Tiling::inferOutputSize(dataShape[IO_WIDTH_DIMENSION], padding[0], padding[1], dilated_kernel_w, stride[0]);
+            size_t H = Tiling::inferOutputSize(dataShape[IO_HEIGHT_DIMENSION], padding[2], padding[3], dilated_kernel_h, stride[1]);
+            size_t C = inputs[0]->getShape()[KERNEL_INPUT_CHANNELS];
+            size_t N = inputs[0]->getShape()[IO_BATCH_DIMENSION];
+
+            mv::Shape outputShape({W, H, C, N});
 
             outputs.emplace_back(":0", outputShape, inputs[0]->getDType(), inputs[0]->getOrder());
         };
