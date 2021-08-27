@@ -260,7 +260,16 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
                                 op->get("padding"),
                                 op->get<unsigned>("dilationFactor"),
                                 op->get<unsigned>("group"));
-            newTensor->setQuantParams(outputQuantParams);
+
+            std::size_t outputChannelsofSlice = childTiles[split].getSize()[mv::KERNEL_OUTPUT_CHANNELS];
+            std::size_t starting_point = childTiles[split].getStartCoord()[mv::KERNEL_OUTPUT_CHANNELS];
+            mv::QuantizationParams streamKOutputQuantParams = outputQuantParams;
+            if(outputQuantParams.getZeroPoint().size() > 1)
+            {
+                streamKOutputQuantParams = outputQuantParams.getSlice(starting_point, outputChannelsofSlice);
+            }
+
+            newTensor->setQuantParams(streamKOutputQuantParams);
             newTensor->setDType(outputTensor->getDType());
             newTensor->setOrder(mv::Order("NHWC"));
 
@@ -283,7 +292,12 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
                                 copyInput,
                                 sliceStart,
                                 sliceShape);
-            sliceInput->setQuantParams(inputQuantParams);
+            mv::QuantizationParams sliceInputQuantParams = inputQuantParams;
+            if(inputQuantParams.getZeroPoint().size() > 1)
+            {
+                sliceInputQuantParams = inputQuantParams.getSlice(sliceStart[mv::IO_CHANNEL_DIMENSION], sliceShape[mv::IO_CHANNEL_DIMENSION]);
+            }
+            sliceInput->setQuantParams(sliceInputQuantParams);
 
             newTensor = om.depthwiseConv(streamingOpName,
                                 sliceInput,
@@ -475,6 +489,7 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model,
     auto endPad = padding;
     auto middlePad = padding;
     auto currentPad = padding;
+    size_t startPadAxis = 0;
 
     if (axisToSplit == mv::Shape::getAxis("W"))
     {
@@ -482,6 +497,7 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model,
         endPad[0] = 0;
         middlePad[0] = 0;
         middlePad[1] = 0;
+        startPadAxis = 0;
     }
     if (axisToSplit == mv::Shape::getAxis("H"))
     {
@@ -489,6 +505,7 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model,
         endPad[2] = 0;
         middlePad[2] = 0;
         middlePad[3] = 0;
+        startPadAxis = 2;
     }
     std::size_t symmetrical_first_dimension = 0;
     std::size_t symmetrical_first_dimension_input = 0;
@@ -516,6 +533,14 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model,
 
             auto sliceShape = childTiles[split].getActivationShape();
             auto sliceStart = childTiles[split].getActivationStart();
+
+            // not start/end slicing but need start/end padding
+            // start and end padding to the same slice is NOT supported
+            auto axis = mv::Shape::getAxis(tiling.getAxis());
+            if (split != 0 && sliceStart[axis] == 0)
+                currentPad[startPadAxis] = childTiles[0].getActivationShape()[axis] + startPad[axis] - sliceShape[axis];
+            else if ((split != (number_of_splits -1)) && (sliceStart[axis] + sliceShape[axis] == inputTensor->getShape()[axis]))
+                currentPad[startPadAxis] = childTiles[0].getActivationShape()[axis] + startPad[axis] - sliceShape[axis];;
 
             bool fusedConcatReshape = outputTensor->hasAttr("fusedConcatReshape") && outputTensor->get<bool>("fusedConcatReshape");
 
