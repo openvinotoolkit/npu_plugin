@@ -70,7 +70,16 @@ def OrderNCHW(data: np.ndarray) -> np.ndarray:
 def OrderNHWC(data: np.ndarray) -> np.ndarray:
     return np.concatenate([a.transpose(1, 2, 0).flatten() for a in data])
 
-def PaddingsIsValidForThisKernel(kernel, paddings):
+
+class ValidationError(Exception):
+    pass
+
+
+class PaddingError(Exception):
+    pass
+
+
+def ValidatePaddings(kernel, paddings):
     # kernel size are width|height
     # The padding order is top|left|bottom|right
     # Regarding documentation (http://dub30.ir.intel.com/svn/TRUNK/keembay/docs/specification/pdf/Gen3_Intel_Movidius_VPU_3400VE-A0_Databook_v1.4.pdf KB databook (page 5558)) 
@@ -88,16 +97,28 @@ def PaddingsIsValidForThisKernel(kernel, paddings):
     bottom = paddings[2]
     right = paddings[3]
 
-    if kernel_x % 2 != 0 and (left > (kernel_x-1)/2 or right > (kernel_x-1)/2):
-        return False
-    if kernel_y % 2 != 0 and (top > (kernel_y-1)/2 or bottom > (kernel_y-1)/2):
-        return False
-    if kernel_x % 2 == 0 and (left > kernel_x/2 or right > kernel_x/2-1):
-        return False
-    if kernel_x % 2 == 0 and (top > kernel_y/2 or bottom > kernel_y/2-1):
-        return False
+    if kernel_x % 2 != 0:
+        if left > (kernel_x - 1) // 2:
+            raise PaddingError(f'kernel.x ({kernel_x}) is odd, and left padding ({left}) > (kernel.x - 1) // 2 ({(kernel_x - 1) // 2})')
+        if right > ((kernel_x - 1) // 2):
+            raise PaddingError(f'kernel.x ({kernel_x}) is odd, and right padding ({right}) > (kernel.x - 1) // 2 ({(kernel_x - 1) // 2})')
+    else:
+        if left > kernel_x // 2:
+            raise PaddingError(f'kernel.x ({kernel_x}) is even, and left padding ({left}) > kernel.x // 2 ({kernel_x // 2})')
+        if right > kernel_x // 2:
+            raise PaddingError(f'kernel.x ({kernel_x}) is even, and right padding ({right}) > kernel.x // 2 ({kernel_x // 2})')
 
-    return True
+    if kernel_y % 2 != 0:
+        if top > (kernel_y - 1) // 2:
+            raise PaddingError(f'kernel.y ({kernel_y}) is odd, and top padding ({top}) > (kernel.y - 1) // 2 ({(kernel_y - 1) // 2})')
+        if bottom > (kernel_y - 1) // 2:
+            raise PaddingError(f'kernel.y ({kernel_y}) is odd, and bottom padding ({bottom}) > (kernel.y - 1) // 2 ({(kernel_y - 1) // 2})')
+    else:
+        if top > kernel_y // 2:
+            raise PaddingError(f'kernel.y ({kernel_y}) is even, and top padding ({top}) > kernel.y // 2 ({kernel_y // 2})')
+        if bottom > kernel_y // 2:
+            raise PaddingError(f'kernel.y ({kernel_y}) is even, and bottom padding ({bottom}) > kernel.y // 2 ({kernel_y // 2})')
+
 
 @dataclass
 class Value:
@@ -371,8 +392,8 @@ class MPE(ABC):
     def json_info(self, inputs) -> dict:
         pass
 
-    @abstractproperty
-    def valid(self) -> bool:
+    @abstractmethod
+    def validate(self):
         pass
 
     @abstractproperty
@@ -427,9 +448,8 @@ class ZMajorConvolution(MPE):
             }
         }
 
-    @property
-    def valid(self) -> bool:
-        return PaddingsIsValidForThisKernel(self.settings.kernel_shape, self.settings.kernel_pads)
+    def validate(self):
+        ValidatePaddings(self.settings.kernel_shape, self.settings.kernel_pads)
 
     @property
     def ident(self) -> str:
@@ -493,9 +513,8 @@ class DepthWiseConv(MPE):
             }
         }
 
-    @property
-    def valid(self) -> bool:
-        return PaddingsIsValidForThisKernel(self.settings.kernel_shape, self.settings.kernel_pads)
+    def validate(self):
+        ValidatePaddings(self.settings.kernel_shape, self.settings.kernel_pads)
 
     @property
     def ident(self) -> str:
@@ -552,9 +571,8 @@ class EltwiseAdd(MPE):
             'weight': inputs[1].json_info
         }
 
-    @property
-    def valid(self) -> bool:
-        return True
+    def validate(self):
+        pass
 
     @property
     def ident(self) -> str:
@@ -595,6 +613,7 @@ class EltwiseAdd(MPE):
     def result_bitwidth(self, values: List[Value]) -> int:
         return values[0].bitwidth + 1
 
+
 class EltwiseMult(MPE):
 
     PARAMS = ['mpe_op_class', 'input_ttype', 'input_shape', 'output_ttype']
@@ -609,9 +628,8 @@ class EltwiseMult(MPE):
             'weight': inputs[1].json_info
         }
 
-    @property
-    def valid(self) -> bool:
-        return True
+    def validate(self):
+        pass
 
     @property
     def ident(self) -> str:
@@ -647,6 +665,7 @@ class EltwiseMult(MPE):
     def result_bitwidth(self, values: List[Value]) -> int:
         return values[0].bitwidth + 1
 
+
 class Maxpool(MPE):
 
     # kernel_strides are x|y directions
@@ -669,9 +688,8 @@ class Maxpool(MPE):
             }
         }
 
-    @property
-    def valid(self) -> bool:
-        return PaddingsIsValidForThisKernel(self.kernel_shape, self.settings.kernel_pads)
+    def validate(self):
+        ValidatePaddings(self.kernel_shape, self.settings.kernel_pads)
 
     @property
     def ident(self) -> str:
@@ -704,6 +722,7 @@ class Maxpool(MPE):
     def result_bitwidth(self, values: List[Value]) -> int:
         return values[0].bitwidth
 
+
 class AvgPool(MPE):
 
     # kernel_strides are x|y directions
@@ -726,9 +745,8 @@ class AvgPool(MPE):
             }
         }
 
-    @property
-    def valid(self) -> bool:
-        return PaddingsIsValidForThisKernel(self.kernel_shape, self.settings.kernel_pads)
+    def validate(self):
+        ValidatePaddings(self.kernel_shape, self.settings.kernel_pads)
 
     @property
     def ident(self) -> str:
@@ -760,6 +778,7 @@ class AvgPool(MPE):
 
     def result_bitwidth(self, values: List[Value]) -> int:
         return values[0].bitwidth
+
 
 def ppe(values: List[Value], output_ttype: TType, data: Union[np.ndarray, NBQuantized], bitshift: int) -> Value:
     """Models the hardware PPE"""
@@ -815,9 +834,11 @@ class DPUPipeline:
         ppe_value = ppe(self.inputs, self.settings.output_ttype, self.mpe_data, bitshift)
         self.o = odu(ppe_value)
 
-    @property
-    def valid(self) -> bool:
-        return self.mpe_op.valid
+    def validate(self):
+        try:
+            self.mpe_op.validate()
+        except Exception as ex:
+            raise ValidationError(f'validating {self.ident}') from ex
 
     @property
     def ident(self):
@@ -958,64 +979,64 @@ def generate_options(args):
 
         # Z-Major Convolution, padding, uint8
         genZMConvs(input_types=[UInt8(2)],
-                   input_shapes=[[1, 16, 2, 2]],
+                   input_shapes=[[1, 16, 32, 32]],
                    weight_types=[UInt4(1), UInt8(1)],
                    kernel_channels=[16],
-                   kernel_shapes=[[2, 2]],
+                   kernel_shapes=[[14, 14]],
                    output_types=[Int4(), UInt4(), UInt8()],
                    pads=Pad.none + Pad.all(7) + Pad.top(7) + Pad.left(7) + Pad.bottom(7) + Pad.right(7)),
 
         # Z-Major Convolution, padding, int8
         genZMConvs(input_types=[Int8(2)],
-                   input_shapes=[[1, 16, 2, 2]],
+                   input_shapes=[[1, 16, 32, 32]],
                    weight_types=[Int4(2), Int8(2)],
                    kernel_channels=[16],
-                   kernel_shapes=[[2, 2]],
+                   kernel_shapes=[[14, 14]],
                    output_types=[Int4(), UInt4(), Int8()],
                    pads=Pad.none + Pad.top(7) + Pad.left(7) + Pad.bottom(7) + Pad.right(7)),
 
         # Z-Major Convolution, padding, fp16
         genZMConvs(input_types=[FP16(2)],
-                   input_shapes=[[1, 16, 2, 2]],
+                   input_shapes=[[1, 16, 32, 32]],
                    weight_types=[FP16(2)],
                    kernel_channels=[16],
-                   kernel_shapes=[[2, 2]],
+                   kernel_shapes=[[14, 14]],
                    output_types=[FP16()],
                    pads=Pad.none + Pad.top(7) + Pad.left(7) + Pad.bottom(7) + Pad.right(7)),
 
         # Z-Major Convolution, padding, bf16
         genZMConvs(input_types=[BF16(2)],
-                   input_shapes=[[1, 16, 2, 2]],
+                   input_shapes=[[1, 16, 32, 32]],
                    weight_types=[BF16(2)],
                    kernel_channels=[16],
-                   kernel_shapes=[[2, 2]],
+                   kernel_shapes=[[14, 14]],
                    output_types=[BF16()],
                    pads=Pad.none + Pad.top(7) + Pad.left(7) + Pad.bottom(7) + Pad.right(7)),
 
-        # Z-Major Convolution, padding, 3x3 kernel, uint8
+        # Z-Major Convolution, padding, 4x6 kernel, uint8
         genZMConvs(input_types=[UInt8(2)],
-                   input_shapes=[[1, 16, 3, 3]],
+                   input_shapes=[[1, 16, 8, 8]],
                    weight_types=[UInt8(1)],
                    kernel_channels=[16],
-                   kernel_shapes=[[3, 3]],
+                   kernel_shapes=[[4, 6]],
                    output_types=[Int4(), UInt4(), UInt8()],
                    pads=[[2,0,0,0],[3,0,0,0]]),
 
         # Z-Major Convolution, padding, 4x4 kernel, uint8
         genZMConvs(input_types=[UInt8(2)],
-                   input_shapes=[[1, 16, 4, 4]],
+                   input_shapes=[[1, 16, 32, 32]],
                    weight_types=[UInt8(1)],
                    kernel_channels=[16],
-                   kernel_shapes=[[4, 4]],
+                   kernel_shapes=[[12, 14]],
                    output_types=[Int4(), UInt4(), UInt8()],
                    pads=[[6,0,0,0],[7,0,0,0]]),
 
         # Z-Major Convolution, padding, 5x5 kernel, uint8
         genZMConvs(input_types=[UInt8(2)],
-                   input_shapes=[[1, 16, 5, 5]],
+                   input_shapes=[[1, 16, 32, 32]],
                    weight_types=[UInt8(1)],
                    kernel_channels=[16],
-                   kernel_shapes=[[5, 5]],
+                   kernel_shapes=[[8, 10]],
                    output_types=[Int4(), UInt4(), UInt8()],
                    pads=[[4,0,0,0],[5,0,0,0]]),
 
@@ -1056,8 +1077,8 @@ def generate_options(args):
                      [Int4(3), UInt4(3), UInt8(6), Int8(6)],                        # input type
                      [[1, 64, 16, 16]],                                             # input shape
                      [Int4(), UInt4(), UInt8(), Int8(6)],                           # output type
-                     [[2,2]],                                                       # strides
-                     Pad.none + Pad.all(7) + Pad.top_bottom(7) + Pad.left_right(7)  # paddings
+                     [[2,2]],                                                       # kernel shape
+                     Pad.none + Pad.all(1) + Pad.top_bottom(1) + Pad.left_right(1)  # paddings
                      )),
 
         # MaxPool fp16
@@ -1067,7 +1088,7 @@ def generate_options(args):
                      [[1, 64, 16, 16]],                                             # input shape
                      [FP16()],                                                      # output type
                      [[2,2]],                                                       # strides
-                     Pad.none + Pad.all(7) + Pad.top_bottom(7) + Pad.left_right(7)  # paddings
+                     Pad.none + Pad.all(1) + Pad.top_bottom(1) + Pad.left_right(1)  # paddings
                      )),
 
         # NB BUG: EISW-15074 MaxPool produces zeros with bf16 inputs
@@ -1315,8 +1336,7 @@ def create_config_files(args):
     args.root.mkdir(parents=True, exist_ok=args.exist_ok)
     found = {}
     for option in generate_options(args):
-        if not option.valid :    # exclude all cases which has incorrect parameters
-            continue
+        option.validate()
         ident = option.ident
         if ident in found:
             raise Exception(f'Duplicate option ident: {ident}:\n  {option.settings}')
