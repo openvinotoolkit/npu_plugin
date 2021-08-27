@@ -538,7 +538,7 @@ void convDilationUsingWeightsFcn(const mv::pass::PassEntry&, mv::ComputationMode
 
     for (auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt)
     {
-        if (opIt->getOpType() != "Conv" && opIt->getOpType() != "DepthwiseConv") continue;
+        if (opIt->getOpType() != "DepthwiseConv") continue;
         auto dilationFactor = opIt->get<unsigned>("dilationFactor");
         const bool dilate = dilationFactor > 1;
         opIt->set<bool>("dilatedUsingWeights", dilate);
@@ -568,7 +568,7 @@ void convDilationUsingWeightsFcn(const mv::pass::PassEntry&, mv::ComputationMode
 
         //build the dilated kernel with zero points corresponding to each channel - KMB does not support different zp per channel
         std::vector<int64_t> defaultData(dilatedKernelShape.totalSize(), quantParams.getZeroPoint(0));
-        mv::Tensor dilatedKernel("dilatedKernel", dilatedKernelShape, nonDilatedKernel->getDType(), mv::Order(mv::Order::getRowMajorID(dilatedKernelShape.ndims())), defaultData);
+        mv::Tensor dilatedKernel("dilatedKernel", dilatedKernelShape, nonDilatedKernel->getDType(), mv::Order(mv::Order::getColMajorID(dilatedKernelShape.ndims())), defaultData);
 
         for (unsigned oc = 0; oc < nonDilatedKernelOutpuChannels; ++oc)
             for (unsigned ic = 0; ic < nonDilatedKernelInputChannels; ++ic)
