@@ -715,7 +715,7 @@ class Maxpool(MPE):
 
     def apply(self, values: List[Value]) -> np.ndarray:
         lhs, rhs = idu(values[0], values[0])
-        maxpool = MaxPool(kernel_shape=[2, 2], strides = self.settings.kernel_strides, pads = self.settings.kernel_pads)
+        maxpool = MaxPool(kernel_shape=self.kernel_shape, strides=self.settings.kernel_strides, pads=self.settings.kernel_pads)
         return maxpool.inference(lhs)
 
 
@@ -772,9 +772,8 @@ class AvgPool(MPE):
 
     def apply(self, values: List[Value]) -> np.ndarray:
         lhs, rhs = idu(values[0], values[0])
-        avgpool = AveragePool(kernel_shape=[2, 2], strides = self.settings.kernel_strides, pads = self.settings.kernel_pads)
+        avgpool = AveragePool(self.kernel_shape, strides = self.settings.kernel_strides, pads = self.settings.kernel_pads)
         return avgpool.inference(lhs)
-
 
     def result_bitwidth(self, values: List[Value]) -> int:
         return values[0].bitwidth
@@ -906,7 +905,7 @@ def genZMConvs(input_types=[UInt8(2)],
                kernel_shapes=[[1, 1]],
                output_types=[Int4(), UInt4(), UInt8()],
                strides=[[1, 1]],
-               pads=[[0, 0, 0, 0]]):
+               pads=Pad.none):
     return (DPUPipeline(ZMajorConvolution.PARAMS, x) for x in itertools.product(
             [ZMajorConvolution],
             input_types,
@@ -920,19 +919,80 @@ def genZMConvs(input_types=[UInt8(2)],
             ))
 
 
+def genEltwiseAdds(input_types=[Int8(6)],
+                   input_shapes=[[1, 256, 16, 16]],
+                   output_types=[[Int8()]]):
+    return (DPUPipeline(EltwiseAdd.PARAMS, x) for x in itertools.product(
+            [EltwiseAdd],
+            input_types,
+            input_shapes,
+            output_types
+            ))
+
+
+def genEltwiseMults(input_types=[Int8(6)],
+                    input_shapes=[[1, 256, 16, 16]],
+                    output_types=[[Int8()]]):
+    return (DPUPipeline(EltwiseMult.PARAMS, x) for x in itertools.product(
+            [EltwiseMult],
+            input_types,
+            input_shapes,
+            output_types
+            ))
+
+
+def genMaxPools(input_types=[FP16(6)],
+                input_shapes=[[1, 64, 16, 16]],
+                output_types=[FP16()],
+                strides=[[2, 2]],
+                pads=Pad.none):
+    return (DPUPipeline(Maxpool.PARAMS, x) for x in itertools.product(
+            [Maxpool],
+            input_types,
+            input_shapes,
+            output_types,
+            strides,
+            pads
+            ))
+
+
+def genAvgPools(input_types=[FP16(6)],
+                input_shapes=[[1, 64, 32, 32]],
+                output_types=[FP16()],
+                strides=[[2, 2]],
+                pads=Pad.none):
+    return (DPUPipeline(AvgPool.PARAMS, x) for x in itertools.product(
+            [AvgPool],
+            input_types,
+            input_shapes,
+            output_types,
+            strides,
+            pads
+            ))
+
+
+def genDepthWiseConvs(input_types=[FP16(2)],
+                      input_shapes=[[1, 16, 32, 32]],
+                      weight_types=[FP16(2)],
+                      kernel_channels=[16],
+                      kernel_shapes=[[4, 4]],
+                      output_types=[FP16()],
+                      strides=[[1, 1]],
+                      pads=Pad.none):
+    return (DPUPipeline(DepthWiseConv.PARAMS, x) for x in itertools.product(
+            [DepthWiseConv],
+            input_types,
+            input_shapes,
+            weight_types,
+            kernel_channels,
+            kernel_shapes,
+            output_types,
+            strides,
+            pads
+            ))
+
+
 def generate_options(args):
-    ppe_type_options = ['null']
-    input_size_options = [16, 32]
-    input_channel_options = [32, 64]
-    kernel_size_options = [1, 3]
-    input_channel_options = [16, 32, 64]
-    output_channel_options = [16, 32, 64]
-    strides_options = [1, 2]
-    padding_options = [0, 1]
-
-    dwconv_kernel_channels = [16]
-    dwconv_kernel_shapes = [[4, 4]]
-
     return itertools.chain(
         # Z-Major Convolution
         #
@@ -1048,219 +1108,118 @@ def generate_options(args):
         #
         # NB BUG: EISW-6666 Eltwise generates double the expected values for
         #    fp16 and bfloat16 inputs.
-        (DPUPipeline(EltwiseAdd.PARAMS, x) for x in itertools.product(
-                     [EltwiseAdd],                                    # mpe operation
-                     [Int8(6), UInt8(6), FP16(6), BF16(6)],           # input type
-                     [[1, 256, 16, 16]],                              # input shape
-                     [Int8(), UInt8(), FP16()]                        # output type
-                     )),
+        genEltwiseAdds(input_types=[Int8(6), UInt8(6), FP16(6), BF16(6)],
+                       input_shapes=[[1, 256, 16, 16]],
+                       output_types=[Int8(), UInt8(), FP16()]),
 
         # Eltwise Mult - int8/uint8/fp16
-        (DPUPipeline(EltwiseMult.PARAMS, x) for x in itertools.product(
-                     [EltwiseMult],                              # mpe operation
-                     [Int8(3), UInt8(4), FP16(6)],               # input type
-                     [[1, 1, 1, 32]],                            # input shape
-                     [Int8(), UInt8(), FP16()]                   # output type
-                     )),
+        genEltwiseMults(input_types=[Int8(3), UInt8(4), FP16(6)],
+                        input_shapes=[[1, 1, 1, 32]],
+                        output_types=[Int8(), UInt8(), FP16()]),
 
         # Eltwise Mult - bf16
-        (DPUPipeline(EltwiseMult.PARAMS, x) for x in itertools.product(
-                     [EltwiseMult],    # mpe operation
-                     [BF16(6)],        # input type
-                     [[1, 1, 1, 32]],  # input shape
-                     [BF16()]          # output type
-                     )),
+        genEltwiseMults(input_types=[BF16(6)],
+                        input_shapes=[[1, 1, 1, 32]],
+                        output_types=[BF16()]),
 
         # MaxPool int8 / uint8
-        (DPUPipeline(Maxpool.PARAMS, x) for x in itertools.product(
-                     [Maxpool],                                                     # mpe operation
-                     [Int4(3), UInt4(3), UInt8(6), Int8(6)],                        # input type
-                     [[1, 64, 16, 16]],                                             # input shape
-                     [Int4(), UInt4(), UInt8(), Int8(6)],                           # output type
-                     [[2,2]],                                                       # kernel shape
-                     Pad.none + Pad.all(1) + Pad.top_bottom(1) + Pad.left_right(1)  # paddings
-                     )),
+        genMaxPools(input_types=[Int4(3), UInt4(3), UInt8(6), Int8(6)],
+                    input_shapes=[[1, 64, 16, 16]],
+                    output_types=[Int4(), UInt4(), UInt8(), Int8()],
+                    pads=Pad.none + Pad.all(1) + Pad.top_bottom(1) + Pad.left_right(1)),
 
         # MaxPool fp16
-        (DPUPipeline(Maxpool.PARAMS, x) for x in itertools.product(
-                     [Maxpool],                                                     # mpe operation
-                     [FP16(6)],                                                     # input type
-                     [[1, 64, 16, 16]],                                             # input shape
-                     [FP16()],                                                      # output type
-                     [[2,2]],                                                       # strides
-                     Pad.none + Pad.all(1) + Pad.top_bottom(1) + Pad.left_right(1)  # paddings
-                     )),
+        genMaxPools(input_types=[FP16(6)],
+                    input_shapes=[[1, 64, 16, 16]],
+                    output_types=[FP16()],
+                    pads=Pad.none + Pad.all(1) + Pad.top_bottom(1) + Pad.left_right(1)),
 
-        # NB BUG: EISW-15074 MaxPool produces zeros with bf16 inputs
-        (DPUPipeline(Maxpool.PARAMS, x) for x in itertools.product(
-                     [Maxpool],          # mpe operation
-                     [BF16(6)],          # input type
-                     [[1, 64, 16, 16]],  # input shape
-                     [BF16()],           # output type
-                     [[2,2]],            # strides
-                     [[0,0,0,0]]         # paddings
-                     )),
+        # MaxPool bf16
+        genMaxPools(input_types=[BF16(6)],
+                    input_shapes=[[1, 64, 16, 16]],
+                    output_types=[BF16()]),
 
         # AvgPool, uint8/fp16 activations
-        (DPUPipeline(AvgPool.PARAMS, x) for x in itertools.product(
-                     [AvgPool],             # mpe operation
-                     [UInt8(6), FP16(6)],   # input type
-                     [[1, 64, 32, 32]],     # input shape
-                     [UInt8(), FP16()],     # output type
-                     [[2,2]],               # strides
-                     [[0,0,0,0]]            # paddings
-                     )),
+        genAvgPools(input_types=[UInt8(6), FP16(6)],
+                    input_shapes=[[1, 64, 32, 32]],
+                    output_types=[UInt8(), FP16()]),
 
         # AvgPool, bf16 activations
-        (DPUPipeline(AvgPool.PARAMS, x) for x in itertools.product(
-                     [AvgPool],             # mpe operation
-                     [BF16(6)],             # input type
-                     [[1, 64, 32, 32]],     # input shape
-                     [BF16()],              # output type
-                     [[2,2]],               # strides
-                     [[0,0,0,0]]            # paddings
-                     )),
+        genAvgPools(input_types=[BF16(6)],
+                    input_shapes=[[1, 64, 32, 32]],
+                    output_types=[BF16()]),
+
+        # DepthWiseConv, fp16 activations
+        genDepthWiseConvs(input_types=[FP16(2)],
+                          weight_types=[FP16(2)],
+                          output_types=[FP16()]),
 
         # DepthWiseConv, uint8 activations
-        (DPUPipeline(DepthWiseConv.PARAMS, x) for x in itertools.product(
-                     [DepthWiseConv],          # mpe operation
-                     [FP16(2)],                # input type
-                     [[1, 16, 32, 32]],        # input shape
-                     [FP16(2)],                # weight type
-                     dwconv_kernel_channels,   # kernel channels
-                     dwconv_kernel_shapes,     # kernel shape
-                     [FP16()],                 # output type
-                     [[1, 1]],                 # strides
-                     [[0, 0, 0, 0]]            # pads
-                     )),
-
-        # DepthWiseConv, uint8 activations
-        (DPUPipeline(DepthWiseConv.PARAMS, x) for x in itertools.product(
-                     [DepthWiseConv],      # mpe operation
-                     [UInt8(1)],               # input type
-                     [[1, 16, 32, 32]],        # input shape
-                     [UInt8(1)],               # weight type
-                     dwconv_kernel_channels,   # kernel channels
-                     dwconv_kernel_shapes,     # kernel shape
-                     [UInt8()],                # output type
-                     [[1, 1]],                 # strides
-                     [[0, 0, 0, 0]]            # pads
-                     )),
-
-        # DepthWiseConv, uint8 activations
-        (DPUPipeline(DepthWiseConv.PARAMS, x) for x in itertools.product(
-                     [DepthWiseConv],      # mpe operation
-                     [UInt8(2)],               # input type
-                     [[1, 16, 32, 32]],        # input shape
-                     [UInt8(2)],               # weight type
-                     dwconv_kernel_channels,   # kernel channels
-                     dwconv_kernel_shapes,     # kernel shape
-                     [FP16()],                 # output type
-                     [[1, 1]],                 # strides
-                     [[0, 0, 0, 0]]            # pads
-                     )),
+        genDepthWiseConvs(input_types=[UInt8(2)],
+                          weight_types=[UInt8(2)],
+                          output_types=[UInt8(), FP16()]),
 
         # MobileNet DepthWiseConv, uint8
-        (DPUPipeline(DepthWiseConv.PARAMS, x) for x in itertools.product(
-                     [DepthWiseConv],          # mpe operation
-                     [UInt8(2)],               # input type
-                     [[1, 32, 112, 112]],      # input shape
-                     [UInt8(2)],               # weight type
-                     [32],                     # kernel channels
-                     [[3, 3]],                 # kernel shape
-                     [UInt8()],                # output type
-                     [[1, 1]],                 # strides
-                     [[1, 1, 1, 1]]            # pads
-                     )),
+        genDepthWiseConvs(input_types=[UInt8(2)],
+                          input_shapes=[[1, 32, 112, 112]],
+                          weight_types=[UInt8(2)],
+                          kernel_channels=[32],
+                          kernel_shapes=[[3, 3]],
+                          output_types=[UInt8()],
+                          pads=[[1, 1, 1, 1]]),
 
         # MobileNet DepthWiseConv, uint8
-        (DPUPipeline(DepthWiseConv.PARAMS, x) for x in itertools.product(
-                     [DepthWiseConv],          # mpe operation
-                     [UInt8(2)],               # input type
-                     [[1, 96, 112, 112]],      # input shape
-                     [UInt8(2)],               # weight type
-                     [96],                     # kernel channels
-                     [[3, 3]],                 # kernel shape
-                     [UInt8()],                # output type
-                     [[1, 1]],                 # strides
-                     [[1, 1, 1, 1]]            # pads
-                     )),
+        genDepthWiseConvs(input_types=[UInt8(2)],
+                          input_shapes=[[1, 96, 112, 112]],
+                          weight_types=[UInt8(2)],
+                          kernel_channels=[96],
+                          kernel_shapes=[[3, 3]],
+                          output_types=[UInt8()],
+                          pads=[[1, 1, 1, 1]]),
 
         # MobileNet DepthWiseConv, uint8
-        (DPUPipeline(DepthWiseConv.PARAMS, x) for x in itertools.product(
-                     [DepthWiseConv],          # mpe operation
-                     [UInt8(2)],               # input type
-                     [[1, 144, 56, 56]],       # input shape
-                     [UInt8(2)],               # weight type
-                     [144],                    # kernel channels
-                     [[3, 3]],                 # kernel shape
-                     [UInt8()],                # output type
-                     [[1, 1]],                 # strides
-                     [[1, 1, 1, 1]]            # pads
-                     )),
+        genDepthWiseConvs(input_types=[UInt8(2)],
+                          input_shapes=[[1, 144, 56, 56]],
+                          weight_types=[UInt8(2)],
+                          kernel_channels=[144],
+                          kernel_shapes=[[3, 3]],
+                          output_types=[UInt8()],
+                          pads=[[1, 1, 1, 1]]),
 
         # MobileNet DepthWiseConv, uint8
-        (DPUPipeline(DepthWiseConv.PARAMS, x) for x in itertools.product(
-                     [DepthWiseConv],          # mpe operation
-                     [UInt8(2)],               # input type
-                     [[1, 192, 28, 28]],       # input shape
-                     [UInt8(2)],               # weight type
-                     [192],                    # kernel channels
-                     [[3, 3]],                 # kernel shape
-                     [UInt8()],                # output type
-                     [[1, 1]],                 # strides
-                     [[1, 1, 1, 1]]            # pads
-                     )),
+        genDepthWiseConvs(input_types=[UInt8(2)],
+                          input_shapes=[[1, 192, 28, 28]],
+                          weight_types=[UInt8(2)],
+                          kernel_channels=[192],
+                          kernel_shapes=[[3, 3]],
+                          output_types=[UInt8()],
+                          pads=[[1, 1, 1, 1]]),
 
         # MobileNet DepthWiseConv, uint8
-        (DPUPipeline(DepthWiseConv.PARAMS, x) for x in itertools.product(
-                     [DepthWiseConv],          # mpe operation
-                     [UInt8(2)],               # input type
-                     [[1, 192, 28, 28]],       # input shape
-                     [UInt8(2)],               # weight type
-                     [192],                    # kernel channels
-                     [[3, 3]],                 # kernel shape
-                     [UInt8()],                # output type
-                     [[2, 2]],                 # strides
-                     [[1, 0, 1, 0]]            # pads
-                     )),
+        genDepthWiseConvs(input_types=[UInt8(2)],
+                          input_shapes=[[1, 192, 28, 28]],
+                          weight_types=[UInt8(2)],
+                          kernel_channels=[192],
+                          kernel_shapes=[[3, 3]],
+                          output_types=[UInt8()],
+                          strides=[[2, 2]],
+                          pads=[[1, 0, 1, 0]]),
 
         # MobileNet DepthWiseConv, uint8
-        (DPUPipeline(DepthWiseConv.PARAMS, x) for x in itertools.product(
-                     [DepthWiseConv],          # mpe operation
-                     [UInt8(2)],               # input type
-                     [[1, 384, 14, 14]],       # input shape
-                     [UInt8(2)],               # weight type
-                     [384],                    # kernel channels
-                     [[3, 3]],                 # kernel shape
-                     [UInt8()],                # output type
-                     [[1, 1]],                 # strides
-                     [[1, 1, 1, 1]]            # pads
-                     )),
+        genDepthWiseConvs(input_types=[UInt8(2)],
+                          input_shapes=[[1, 384, 14, 14]],
+                          weight_types=[UInt8(2)],
+                          kernel_channels=[384],
+                          kernel_shapes=[[3, 3]],
+                          output_types=[UInt8()],
+                          pads=[[1, 1, 1, 1]]),
 
         # MobileNet ELTWISE, uint8
-        (DPUPipeline(EltwiseAdd.PARAMS, x) for x in itertools.product(
-                     [EltwiseAdd],             # mpe operation
-                     [UInt8(2)],               # input type
-                     [[1, 32, 56, 56]],        # input shape
-                     [UInt8()]                 # output type
-                     )),
-
-        # MobileNet ELTWISE, uint8
-        (DPUPipeline(EltwiseAdd.PARAMS, x) for x in itertools.product(
-                     [EltwiseAdd],             # mpe operation
-                     [UInt8(2)],               # input type
-                     [[1, 32, 28, 28]],        # input shape
-                     [UInt8()]                 # output type
-                     )),
-
-        # MobileNet ELTWISE, uint8
-        (DPUPipeline(EltwiseAdd.PARAMS, x) for x in itertools.product(
-                     [EltwiseAdd],             # mpe operation
-                     [UInt8(2)],               # input type
-                     [[1, 64, 14, 14]],        # input shape
-                     [UInt8()]                 # output type
-                     )),
+        genEltwiseAdds(input_types=[UInt8(2)],
+                       input_shapes=[[1, 32, 56, 56],
+                                     [1, 32, 28, 28],
+                                     [1, 64, 14, 14]],
+                       output_types=[UInt8()]),
 
         # MobileNet CONV (ZMajorConv)
         genZMConvs(input_types=[UInt8(2)],
