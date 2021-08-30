@@ -32,9 +32,13 @@ class Control_Model_Barrier_Scheduler {
         control_edge_iterator_t;
 
     // one of the source or sink is a barrier task //
+    // Not used.
     struct barrier_control_edge_t {
       barrier_control_edge_t(op_iterator_t src, op_iterator_t sink)
-        : source_(src), sink_(sink) {}
+        : source_(src), sink_(sink) 
+        {
+          std::cout << "instanitating barrier_control_edge_t " << std::endl;
+        }
 
       op_iterator_t source_;
       op_iterator_t sink_;
@@ -263,7 +267,10 @@ class Control_Model_Barrier_Scheduler {
 
     Control_Model_Barrier_Scheduler(mv::ControlModel& cmodel,
         size_t barrier_count, size_t slot_count) : control_model_(cmodel),
-      bcount_(barrier_count), scount_(slot_count) {}
+      bcount_(barrier_count), scount_(slot_count) {
+        std::cout << "Instaniating class Control_Model_Barrier_Scheduler with (1) mv::Control model, (2) barrier count (3) slot count " << std::endl;
+        std::cout << " " << std::endl;
+      }
 
     template<typename BackInsertControlEdgeIterator=noop_output_iterator_t>
     size_t schedule(BackInsertControlEdgeIterator output=noop_output_iterator_t()) {
@@ -533,6 +540,7 @@ class Control_Model_Barrier_Scheduler {
 
 
     bool has_zero_out_degree(control_op_iterator_t itr) const {
+      std::cout << "calling has_zero_out_degree()" << std::endl;
       return itr.leftmostChild() ==  control_model_.opEnd();
     }
 
@@ -547,6 +555,7 @@ class Control_Model_Barrier_Scheduler {
     }
 
     bool has_unit_in_degree(control_op_iterator_t itr) const {
+      std::cout << "calling has_unit_in_degree()" << std::endl;
       return has_in_degree_equal_to_k(itr, 1UL);
     }
 
@@ -564,6 +573,7 @@ class Control_Model_Barrier_Scheduler {
 
     template<typename T>
     bool is_upa_op(T itr) const {
+      std::cout << " calling is_upa_op()" << std::endl;
       return itr->getOpType() == "UPATask";
     }
 

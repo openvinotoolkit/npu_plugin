@@ -49,7 +49,7 @@ class Barrier_Resource_State {
       : barrier_reference_(), available_slots_() 
       {
 
-        std::cout << "Initializing Barrier_Resource_State1111 " << std::endl; 
+        std::cout << "Initializing Barrier_Resource_State" << std::endl; 
         init(barrier_count, slot_count);
     }
    

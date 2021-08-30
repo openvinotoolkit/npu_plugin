@@ -155,8 +155,6 @@
     "serialize": {
         "Singular": [
             "RemoveRedundantUpdateBarriers",
-            "CombineTaskInputBarriers",
-            "SplitBarrier",
             {
                 "name" : "AssignPhysicalBarrier",
                 "real_physical_barriers": 32
@@ -165,7 +163,7 @@
             {
                 "name": "GenerateDot",
                 "output": "output/dots/op_model-in.dot",
-                "scope": "OpModel",
+                "scope": "ControlModel",
                 "content": "full",
                 "html": true
             },
