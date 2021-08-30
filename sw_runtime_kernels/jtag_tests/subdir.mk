@@ -31,3 +31,14 @@ ifeq "y" "$(CONFIG_VALIDATION_APP_ENABLED)"
     $(info  . [INFO]   =====  This is a validation application  =====)
 endif
 endif
+
+
+
+
+
+
+
+
+
+
+

@@ -29,3 +29,117 @@ ccopt-lrt-y   += -falign-functions=64 -falign-loops=64
 #subdirs-shave-y += common shave_lib inference_runtime_common platform_abstraction inference_runtime_common
 #subdirs-shave_nn-y += common inference_runtime_common
 
+
+
+
+
+
+$(info !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! $(abspath ./))
+
+CURRENT_DIR := $(abspath ./)
+VPUIP_2_ABS_DIR := $(abspath ${VPUIP_2_Directory})
+
+EMPTY :=
+SPACE := $(EMPTY) $(EMPTY)
+REL_TO_ROOT := $(subst /, ,${CURRENT_DIR})
+REL_TO_ROOT := $(patsubst %,../,${REL_TO_ROOT})
+REL_TO_ROOT := $(subst $(SPACE),,$(REL_TO_ROOT))
+VPUIP_2_REL_THROUGH_ROOT := $(REL_TO_ROOT)$(VPUIP_2_ABS_DIR)
+VSYSTEM := $(VPUIP_2_REL_THROUGH_ROOT)/system
+
+$(info !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! $(VSYSTEM))
+
+
+include-dirs-lrt-y += $(VSYSTEM)/nn/shave_lib/inc $(VSYSTEM)/nn/shave_lib/inc/layers
+include-dirs-lnn-y += $(VSYSTEM)/nn/shave_lib/inc $(VSYSTEM)/nn/shave_lib/inc/layers
+include-dirs-shave-y += $(VSYSTEM)/nn/shave_lib/inc $(VSYSTEM)/nn/shave_lib/inc/layers
+
+
+$(info !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! $(include-dirs-shave-y))
+
+
+
+ccopt-lrt-y += -DCONFIG_USE_COMPONENT_NN
+ccopt-lnn-y += -DCONFIG_USE_COMPONENT_NN
+ccopt-shave-y += -DCONFIG_USE_COMPONENT_NN
+ccopt-shave_nn-y += -DCONFIG_USE_COMPONENT_NN
+
+
+
+
+
+# {% copyright %}
+#subdirs-lrt-$(CONFIG_NN_USE_APPCONFIG_LRT) += $(VSYSTEM)/nn/app_config
+#subdirs-lnn-$(CONFIG_NN_USE_APPCONFIG_LNN) += $(VSYSTEM)/nn/app_config
+
+#subdirs-lrt-y += ../../../shavel1
+subdirs-lrt-y += $(VSYSTEM)/nn/common $(VSYSTEM)/nn/platform_abstraction $(VSYSTEM)/nn/blob $(VSYSTEM)/nn/nce_lib $(VSYSTEM)/nn/shave_lib $(VSYSTEM)/nn/inference_runtime_common $(VSYSTEM)/nn/inference_manager
+subdirs-lnn-y += $(VSYSTEM)/nn/common $(VSYSTEM)/nn/platform_abstraction $(VSYSTEM)/nn/inference_runtime_common $(VSYSTEM)/nn/inference_runtime
+subdirs-shave-y += $(VSYSTEM)/nn/common
+subdirs-shave-y += $(VSYSTEM)/nn/shave_lib
+
+#subdirs-shave-$(CONFIG_USE_COMPONENT_NN) += ../../../shavel1
+#subdirs-shave-y += ../../../shavel1
+subdirs-shave_nn-y += $(VSYSTEM)/nn/common $(VSYSTEM)/nn/platform_abstraction $(VSYSTEM)/nn/dpu_runtime $(VSYSTEM)/nn/act_runtime $(VSYSTEM)/nn/inference_runtime_common
+
+subdirs-lrt-$(CONFIG_NN_PROFILING) += $(VSYSTEM)/nn/barectf
+subdirs-lnn-$(CONFIG_NN_PROFILING) += $(VSYSTEM)/nn/barectf
+subdirs-shave_nn-$(CONFIG_NN_PROFILING) += $(VSYSTEM)/nn/barectf
+ccopt-lrt-$(CONFIG_NN_PROFILING) += -DNN_PROFILING
+ccopt-lnn-$(CONFIG_NN_PROFILING) += -DNN_PROFILING
+ccopt-shave_nn-$(CONFIG_NN_PROFILING) += -DNN_PROFILING
+
+ccopt-lrt-$(CONFIG_NN_PROFILING_ALL) += -DNN_PROFILING_ALL
+ccopt-lnn-$(CONFIG_NN_PROFILING_ALL) += -DNN_PROFILING_ALL
+ccopt-shave_nn-$(CONFIG_NN_PROFILING_ALL) += -DNN_PROFILING_ALL
+
+ccopt-lrt-$(CONFIG_NN_FATHOM_WORKAROUND_OUT_CHANNEL_OFFSET) += -DNN_FATHOM_WORKAROUND_OUT_CHANNEL_OFFSET
+ccopt-lrt-$(CONFIG_NN_FATHOM_WORKAROUND_ODU_OFFSET) += -DNN_FATHOM_WORKAROUND_ODU_OFFSET
+
+ccopt-lrt-$(CONFIG_NN_SPECIFY_DPU_MASK) += -DNN_DPU_MASK=$(CONFIG_NN_DPU_MASK)
+
+ccopt-lrt-$(CONFIG_NN_USE_MEMORY_MANAGER) += -DNN_USE_MEMORY_MANAGER
+ccopt-lnn-$(CONFIG_NN_USE_MEMORY_MANAGER) += -DNN_USE_MEMORY_MANAGER
+ccopt-shave-$(CONFIG_NN_USE_MEMORY_MANAGER) += -DNN_USE_MEMORY_MANAGER
+ccopt-shave_nn-$(CONFIG_NN_USE_MEMORY_MANAGER) += -DNN_USE_MEMORY_MANAGER
+
+ccopt-shave_nn-$(CONFIG_NN_ENABLE_SHADOWING) += -DNN_ENABLE_SHADOWING
+ccopt-lrt-$(CONFIG_NN_ENABLE_SPARSE_IDU_SHADOWING) += -DNN_ENABLE_SPARSE_IDU_SHADOWING
+ccopt-lnn-$(CONFIG_NN_IR_VERBOSE_STALLS) += -DNN_IR_VERBOSE_STALLS
+ccopt-lnn-$(CONFIG_NN_ENABLE_STACK_CHECKER) += -DNN_ENABLE_STACK_CHECKER
+ccopt-lnn-$(CONFIG_NN_DUMP_INTERMEDIATE_BUFFERS) += -DNN_DUMP_INTERMEDIATE_BUFFERS
+ccopt-lnn-$(CONFIG_NN_DESPARSIFY_RESULTS) += -DNN_DESPARSIFY_RESULTS
+ccopt-lnn-$(CONFIG_NN_PRINT_DPU_REGISTERS) += -DNN_PRINT_DPU_REGISTERS
+ccopt-lrt-$(CONFIG_NN_DMA_DRY_RUN) += -DNN_DMA_DRY_RUN
+ccopt-lrt-$(CONFIG_NN_SAVE_DPU_REGISTERS) += -DNN_SAVE_DPU_REGISTERS
+ccopt-shave_nn-$(CONFIG_NN_DPU_DRY_RUN) += -DNN_DPU_DRY_RUN
+ccopt-shave_nn-$(CONFIG_NN_HW_STATS_PROF) += -DNN_HW_STATS_PROF
+ccopt-shave_nn-$(CONFIG_NN_HW_DEBUG) += -DNN_HW_DEBUG
+ccopt-shave_nn-y += -DNN_CM_CONV_MAX_CHANNELS=$(CONFIG_NN_CM_CONV_MAX_CHANNELS)
+
+ccopt-lnn-$(CONFIG_BUILD_RELEASE) += -DNDEBUG
+ccopt-shave_nn-$(CONFIG_BUILD_RELEASE) += -DNDEBUG
+
+global-symbols-y += lnn_text_start
+
+ccopt-lrt-$(CONFIG_NN_ENABLE_CONTEXT_DEBUGGING) += -DNN_ENABLE_CONTEXT_DEBUGGING
+ccopt-lnn-$(CONFIG_NN_ENABLE_CONTEXT_DEBUGGING) += -DNN_ENABLE_CONTEXT_DEBUGGING
+ccopt-shave_nn-$(CONFIG_NN_ENABLE_CONTEXT_DEBUGGING) += -DNN_ENABLE_CONTEXT_DEBUGGING
+
+ccopt-lrt-$(CONFIG_NN_ENABLE_CONTEXT_SUPPORT) += -DNN_ENABLE_CONTEXT_SUPPORT
+ccopt-lnn-$(CONFIG_NN_ENABLE_CONTEXT_SUPPORT) += -DNN_ENABLE_CONTEXT_SUPPORT
+ccopt-shave_nn-$(CONFIG_NN_ENABLE_CONTEXT_SUPPORT) += -DNN_ENABLE_CONTEXT_SUPPORT
+
+ccopt-lrt-y += -DNN_MAX_UPA_SHAVE_POOL_SIZE=$(CONFIG_NN_MAX_UPA_SHAVE_POOL_SIZE)
+ccopt-shave-y += -DNN_MAX_UPA_SHAVE_POOL_SIZE=$(CONFIG_NN_MAX_UPA_SHAVE_POOL_SIZE)
+
+ccopt-lrt-$(CONFIG_NN_ENABLE_SCALABILITY_REPORTING) += -DNN_ENABLE_SCALABILITY_REPORTING
+ccopt-lnn-$(CONFIG_NN_ENABLE_SCALABILITY_REPORTING) += -DNN_ENABLE_SCALABILITY_REPORTING
+
+ccopt-lrt-y += -DNN_SCALABILITY_REPORTING_PERIOD_MS=$(CONFIG_NN_SCALABILITY_REPORTING_PERIOD_MS)
+
+
+$(info !!!!! subdirs-shave-y = !!!!!!!!!!! $(subdirs-shave-y))
+
+
+
