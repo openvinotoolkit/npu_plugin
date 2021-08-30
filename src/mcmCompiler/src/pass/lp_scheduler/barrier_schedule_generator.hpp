@@ -46,7 +46,10 @@ class Barrier_Resource_State {
 
     Barrier_Resource_State() : barrier_reference_(), available_slots_() {}
     Barrier_Resource_State(size_t barrier_count, size_t slot_count)
-      : barrier_reference_(), available_slots_() {
+      : barrier_reference_(), available_slots_() 
+      {
+
+        std::cout << "Initializing Barrier_Resource_State1111 " << std::endl; 
         init(barrier_count, slot_count);
     }
    
@@ -178,7 +181,9 @@ class Barrier_Schedule_Generator {
     struct op_resource_state_t {
 
       op_resource_state_t(size_t n=0UL, size_t m=0UL)
-        : barrier_map_(), state_(), barrier_count_(n), slots_per_barrier_(m) {}
+        : barrier_map_(), state_(), barrier_count_(n), slots_per_barrier_(m) {
+          std::cout << "Initializing op_resource_state in Barrier_Schedule_Generator with barrier count " << barrier_count_ << " slots_per_barrier " << slots_per_barrier_ << std::endl; 
+        }
 
       void init(const op_resource_state_t& other) {
         barrier_map_.clear();
@@ -264,17 +269,20 @@ class Barrier_Schedule_Generator {
       size_t slot_count_;
     }; // struct schedule_info_t //
 
-    typedef Feasible_Schedule_Generator<dag_t, barrier_scheduler_traits>
-        scheduler_t;
+    typedef Feasible_Schedule_Generator<dag_t, barrier_scheduler_traits> scheduler_t;
     ////////////////////////////////////////////////////////////////////////////
 
     Barrier_Schedule_Generator(const dag_t& input_dag, size_t n, size_t m=1UL)
       : barrier_count_(n), slots_per_barrier_(m), start_state_(n,m),
-        scheduler_begin_(input_dag, start_state_), scheduler_end_(), sinfo_() {}
+        scheduler_begin_(input_dag, start_state_), scheduler_end_(), sinfo_() {
+       std::cout << "Initialising Barrier_Schedule_Generator but intialized two instances of the feasible schedule generator first " << std::endl;
+        }
 
     Barrier_Schedule_Generator() : barrier_count_(0UL), slots_per_barrier_(0UL),
       start_state_(), scheduler_begin_(),
-      scheduler_end_(), sinfo_() {}
+      scheduler_end_(), sinfo_() {
+        std::cout << "Initialising Barrier_Schedule_Generator " << std::endl;
+      }
 
     bool operator==(const Barrier_Schedule_Generator& o) const {
       return reached_end() && o.reached_end();
@@ -284,7 +292,9 @@ class Barrier_Schedule_Generator {
       return !(*this == o);
     }
 
-    void operator++() { ++scheduler_begin_; }
+    void operator++() { 
+      ++scheduler_begin_; 
+    }
 
     const schedule_info_t&  operator*(void) const {
       sinfo_.op_ = *scheduler_begin_;

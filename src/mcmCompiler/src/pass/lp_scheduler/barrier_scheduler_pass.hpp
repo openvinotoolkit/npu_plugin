@@ -85,6 +85,7 @@ class Control_Model_Barrier_Scheduler {
         op_iterator_t curr_barrier_task() const { return curr_barrier_task_; }
 
         void init(mv::OpModel& om) {
+          std::cout << "Resetting all variables in the barrier_association table " << std::endl;
           om_ptr_ = &om;
           time_ = std::numeric_limits<schedule_time_t>::max();
           prev_barrier_task_ = om.opEnd();
@@ -96,19 +97,24 @@ class Control_Model_Barrier_Scheduler {
         // returns true if this call has resulted in creating a new barrier
         // task (also means there is a temporal change) //
         template<typename BackInsertOutputIterator=noop_output_iterator_t>
-        bool process_next_scheduled_op(const schedule_info_t& sinfo,
-            BackInsertOutputIterator output=BackInsertOutputIterator()) {
+        bool process_next_scheduled_op(const schedule_info_t& sinfo, BackInsertOutputIterator output=BackInsertOutputIterator()) {
           (void) output;
           schedule_time_t curr_time = sinfo.schedule_time_;
           bool created_new_barrier_task = false;
-
+          std::cout << "The scheduled time is " << sinfo.schedule_time_ << " , the op is " << (*sinfo.op_).getName() << " the barrier index is " << sinfo.barrier_index_ << " , the slot cout is " << sinfo.slot_count_ << std::endl;
+          
+          std::cout << "The time is " << time_ << std::endl;
+          std::cout << " " << std::endl;
           if (time_ != curr_time) {
             // CASE-1: temporal transition happened //
             created_new_barrier_task = true;
+            std::cout << "created_new_barrier_task, maintain_invariant_temporal_change " << std::endl;
+            std::cout << " " << std::endl;
             maintain_invariant_temporal_change(sinfo);
             time_ = curr_time;
           } else {
             // CASE-2: trival case //
+            std::cout << "CASE-2: trival case " << std::endl;
             add_scheduled_op_to_producer_list(sinfo);
           }
           return created_new_barrier_task;
@@ -260,8 +266,7 @@ class Control_Model_Barrier_Scheduler {
       bcount_(barrier_count), scount_(slot_count) {}
 
     template<typename BackInsertControlEdgeIterator=noop_output_iterator_t>
-    size_t schedule(
-        BackInsertControlEdgeIterator output=noop_output_iterator_t()) {
+    size_t schedule(BackInsertControlEdgeIterator output=noop_output_iterator_t()) {
 
       size_t btask_count = 0UL;
       control_op_dag_t input_dag(control_model_);
@@ -269,36 +274,49 @@ class Control_Model_Barrier_Scheduler {
 
       // last associated barrier task associated with index //
       barrier_association_table_t barrier_association;
+      std::cout << "One transition structure for each physical barrier " << std::endl;
 
       //STEP-0: initialize the association table//
+      std::cout << "STEP-0: initialize the association table " << std::endl;
       for (size_t bid=1; bid<=bcount_; bid++) {
-        auto bitr = barrier_association.insert(std::make_pair(bid,
-              barrier_transition_structure_t()));
+        std::cout << "Initializing the barrier_association table for barrier " << bid << std::endl;
+        auto bitr = barrier_association.insert(std::make_pair(bid, barrier_transition_structure_t()));
         barrier_transition_structure_t& bstructure = (bitr.first)->second;
         bstructure.init(om);
       }
 
       {
         //STEP-1: run the scheduler //
+        std::cout << "STEP-1: run the scheduler " << std::endl;
         scheduler_t scheduler_begin(input_dag, bcount_, scount_), scheduler_end;
         size_t scheduling_number = 0UL;
+        std::cout << "Iterating over the schedule " << std::endl;
+        std::cout << " " << std::endl;
         for ( ;scheduler_begin != scheduler_end; ++scheduler_begin) {
           const schedule_info_t& sinfo = *scheduler_begin;
+          std::cout << "The time is " << sinfo.schedule_time_ << " , the op is " << (*sinfo.op_).getName() << " the barrier index is " << sinfo.barrier_index_ << " , the slot cout is " << sinfo.slot_count_ << std::endl;
+          std::cout << " " << std::endl;
           auto bitr = barrier_association.find(sinfo.barrier_index_);
           assert(bitr != barrier_association.end());
           barrier_transition_structure_t& bstructure = bitr->second;
           operation_t sop = sinfo.op_;
 
           if (is_output_or_input_op(sinfo)) {
+            std::cout << "Op is output or input moving to the next one " << std::endl;
+            std::cout << " " << std::endl;
             continue;
           }
 
+          std::cout << "Setting " << sop->getName() << " as schedulingNumber " <<  scheduling_number << std::endl;
+          std::cout << " " << std::endl;
           om.getOp(sop->getName())->set<unsigned>("schedulingNumber",
                 scheduling_number++);
-
+        
           // STEP-2: update barrier structure invariant //
-          bool new_barrier_task_created =
-              bstructure.process_next_scheduled_op(sinfo, output);
+          std::cout << "STEP-2: update barrier structure invariant-> process_next_scheduled_op "<< std::endl;
+          std::cout << " " << std::endl;
+          bool new_barrier_task_created = bstructure.process_next_scheduled_op(sinfo, output);
+          std::cout << "Created new barrier task True/False " << std::endl;
 
           if (new_barrier_task_created) { ++btask_count; }
         }
@@ -894,7 +912,9 @@ class Save_Restore_Control_Model {
     ////////////////////////////////////////////////////////////////////////////
 
     Save_Restore_Control_Model(mv::ControlModel& cmodel)
-      : cmodel_(cmodel), saved_control_edges_() {}
+      : cmodel_(cmodel), saved_control_edges_() {
+        std::cout << "Instaniating Save_Restore_Control_Model " << std::endl;
+      }
 
 
     void save() {
@@ -912,6 +932,7 @@ class Save_Restore_Control_Model {
         op_iterator_t src_oitr = om.getOp(src_itr->getName());
         op_iterator_t sink_oitr = om.getOp(sink_itr->getName());
 
+        std::cout << "Saving control flow " << src_itr->getName() << " " << sink_itr->getName() << std::endl;
         saved_control_edges_.push_back(control_edge_t(src_oitr, sink_oitr));
       }
     }

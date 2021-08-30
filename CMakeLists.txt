@@ -109,11 +109,11 @@ if(ENABLE_TESTS)
     add_subdirectory(tests_deprecated)
 endif()
 
-if(ENABLE_KMB_SAMPLES)
-    add_subdirectory(samples)
-endif()
+# if(ENABLE_KMB_SAMPLES)
+#     add_subdirectory(samples)
+# endif()
 
-add_subdirectory(tools)
+# add_subdirectory(tools)
 
 #
 # CPack

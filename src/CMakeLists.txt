@@ -22,10 +22,10 @@ if(AARCH64)
     add_subdirectory(vpual_backend)
 endif()
 
-if(ENABLE_MCM_COMPILER)
-    add_subdirectory(mcmCompiler)
-    add_subdirectory(frontend_mcm)
-endif()
+
+add_subdirectory(mcmCompiler)
+add_subdirectory(frontend_mcm)
+
 
 add_subdirectory(custom_extension_library)
 add_subdirectory(vpux_ngraph_transformations)
@@ -56,5 +56,5 @@ if(NOT BUILD_COMPILER_FOR_DRIVER)
 endif()
 
 add_subdirectory(vpux_utils)
-add_subdirectory(vpux_compiler)
-add_subdirectory(vpux_translate_utils)
+#add_subdirectory(vpux_compiler)
+#add_subdirectory(vpux_translate_utils)

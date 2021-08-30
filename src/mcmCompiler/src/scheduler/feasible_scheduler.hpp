@@ -750,13 +750,20 @@ class Feasible_Schedule_Generator {
   Feasible_Schedule_Generator(const dag_t& in, const resource_state_t& rstate)
     : heap_(), current_time_(0), candidates_(), resource_state_(),
     heap_ordering_(), schedulable_op_(), in_degree_(), processed_ops_(),
-    input_ptr_(&in), priority_() { init(rstate); }
+    input_ptr_(&in), priority_() { 
+      std::cout << "Instaniating Feasible_Schedule_Generator with DAG and resource state (upper bound)" <<std::endl;
+      init(rstate); 
+      }
 
   Feasible_Schedule_Generator() : heap_(), current_time_(0), candidates_(),
     resource_state_(), heap_ordering_(), schedulable_op_(), in_degree_(),
-    processed_ops_(), input_ptr_(), priority_() {}
+    processed_ops_(), input_ptr_(), priority_() {
+      std::cout << "Instaniating default Feasible_Schedule_Generator " << std::endl;
+    }
 
-  void operator++() { next_schedulable_operation(); }
+  void operator++() { 
+    next_schedulable_operation(); 
+  }
   // Precondition: reached_end() is false //
   const operation_t& operator*() const
   {
@@ -802,7 +809,12 @@ class Feasible_Schedule_Generator {
 
   template<typename T1>
   bool init(const T1& upper_bound) {
+
+    std::cout << "**Initializing the feasible scheduler **" << std::endl;
+    std::cout << " " << std::endl;
     processed_ops_.clear();
+
+    std::cout << "Initializing the resource upper state" << std::endl;
     init_resource_state(upper_bound);
 
     compute_op_indegree(in_degree_);
@@ -931,6 +943,7 @@ class Feasible_Schedule_Generator {
 
   // Precondition: reached_end() is false //
   bool next_schedulable_operation() {
+    std::cout << "Finding next_schedulable_operation in feasible schedule geenrator " << std::endl; 
     schedulable_op_ = NULL;
     do {
       schedulable_ops_iterator_t op_itr = find_schedulable_op();
@@ -970,18 +983,23 @@ class Feasible_Schedule_Generator {
   }
 
   schedulable_ops_iterator_t find_schedulable_op() {
+    std::cout << "Finding a scheduleable operation " << std::endl;
     schedulable_ops_iterator_t itr=candidates_.end();
 
     std::list<schedulable_ops_iterator_t> ready_list;
 
+    std::cout << "There are " << candidates_.size() << " candidates and for each candidate " << std::endl;
     for (itr=candidates_.begin(); itr != candidates_.end(); ++itr){
       resource_t demand = traits::resource_utility(*input_ptr_, *(*itr));
+      std::cout << "The demand for operation " << traits::operation_name(*(*itr)) << " is " << demand << std::endl;
       if (traits::is_resource_available(demand, resource_state_)) {
+        std::cout << "Resource is available pushing it to the list " << std::endl; 
         ready_list.push_back(itr);
       }
     }
 
     // find the one with lowest priority //
+    std::cout << "Find the operation in the ready list with the lowest priority " << std::endl;
     if (!ready_list.empty()) {
       size_t min_priority = std::numeric_limits<size_t>::max();
       for (auto ritr=ready_list.begin(); ritr!=ready_list.end(); ++ritr) {
@@ -1038,6 +1056,7 @@ class Feasible_Schedule_Generator {
 
   void add_to_candidate_set(const_op_ptr_t op_ptr) {
     if (processed_ops_.find(op_ptr) != processed_ops_.end()) { return; }
+    std::cout << "Adding operation " << traits::operation_name(*op_ptr) << " to candidates list " << std::endl;
     candidates_.push_back(op_ptr);
     processed_ops_.insert(op_ptr);
   }

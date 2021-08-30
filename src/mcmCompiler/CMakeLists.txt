@@ -237,7 +237,7 @@ set(pass
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/insert_barrier_tasks.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/dma_passes.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/deallocation_passes.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/profiling.cpp"
+    #"${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/profiling.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/assign_unique_task_id.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/splitting_across_clusters.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/store_graph_optimizer_decisions.cpp"
@@ -294,7 +294,7 @@ set(pass
 
     "${PROJECT_SOURCE_DIR}/src/pass/lp_scheduler/lp_scheduler_pass.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/lp_scheduler/remove_redundant_update_barriers.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/lp_scheduler/split_barrier_pass.cpp"
+    #"${PROJECT_SOURCE_DIR}/src/pass/lp_scheduler/split_barrier_pass.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/lp_scheduler/op_model_cutter.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/lp_scheduler/barrier_scheduler_pass.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/lp_scheduler/force_spill_activation.cpp"
@@ -323,7 +323,7 @@ set(syscalls
 )
 
 add_subdirectory(meta)
-add_subdirectory(tools)
+#add_subdirectory(tools)
 
 set_source_files_properties(
     "${META_DIR_PATH}/src/compositional_model.cpp"

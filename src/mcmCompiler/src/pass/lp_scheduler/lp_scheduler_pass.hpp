@@ -860,6 +860,7 @@ class Control_Edge_Set {
         const OpDag& dag, mv::ComputationModel& model) {
       typedef OpDag dag_t;
 
+      std::cout << "add_control_edges_between_compute_ops_and_writes " << std::endl;
       for (typename dag_t::const_operation_iterator_t itr=dag.begin_nodes();
           itr!=dag.end_nodes(); ++itr) {
         operation_t op = *itr;
@@ -883,7 +884,9 @@ class Control_Edge_Set {
         const OpDag& dag, mv::ComputationModel& model) {
       typedef OpDag dag_t;
 
-
+      std::cout << "Adding control edges from CMX to DDR " << std::endl;
+      std::cout << " Since the DMATasks which copy data from CMX2DDR does not use any resource the control edges will be missing. So we detect this case and add control edges" << std::endl;
+      std::cout << " " << std::endl;
       for (typename dag_t::const_operation_iterator_t itr=dag.begin_nodes();
           itr!=dag.end_nodes(); ++itr) {
 
@@ -893,10 +896,12 @@ class Control_Edge_Set {
         operation_t cop = dag.get_output_relocating_dma_op(op);
 
         // add a control edge between op and cop //
+        std::cout << "Add control edge between " << op->getName() << " " << cop->getName() << std::endl;
         add_control_edge(op, cop, model);
 
         assert(relocating_dma_map_.find(op) == relocating_dma_map_.end());
 
+        std::cout << "Adding" << op->getName() << " " << cop->getName() << " to relocating_dma_map_ " << std::endl;
         relocating_dma_map_.insert(std::make_pair(op, cop));
 
         // update iterator so that it redirects to cop //
