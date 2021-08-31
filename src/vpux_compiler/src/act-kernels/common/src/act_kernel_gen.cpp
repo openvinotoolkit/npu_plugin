@@ -33,16 +33,16 @@ using namespace llvm;  // NOLINT
 namespace vpux {
 
 flatbuffers::Offset<MVCNN::KernelData> buildKernelData(flatbuffers::FlatBufferBuilder& fbb,
-                                                       const std::vector<uint8_t>& data) {
-    auto packedData = fbb.CreateVector(data);
+                                                       llvm::ArrayRef<uint8_t> content) {
+    auto packedData = fbb.CreateVector(content.data(), content.size());
     MVCNN::KernelDataBuilder builder(fbb);
     builder.add_data(packedData);
-    builder.add_length(data.size());
+    builder.add_length(content.size());
     return builder.Finish();
 }
-
+/*
 flatbuffers::Offset<MVCNN::BinaryData> buildKernelArgsData(flatbuffers::FlatBufferBuilder& fbb,
-                                                           act_kernel_args &) {
+                                                           cfg_dpu_description &) {
 
     //serialize structure raw view
     const auto pack = [](const std::vector<uint8_t>& src) {
@@ -61,7 +61,7 @@ flatbuffers::Offset<MVCNN::BinaryData> buildKernelArgsData(flatbuffers::FlatBuff
     builder.add_underlying_type(MVCNN::DType::DType_U8);
     return builder.Finish();
 }
-
+*/
 //static void makeLinkerScript(StringRef searchDir, StringRef input, StringRef output, StringRef ldsPath,
 //                             const movitools::MoviCompileParams& params, StringRef name) {
 //    std::string str;
@@ -250,32 +250,34 @@ static void compileAndLinkSHAVE(const movitools::MoviCompileParams& params, Stri
     readBinary(dataPath, dataBinary, 0x10);
 }
 
-ActKernelDesc generateKernelForACTShave(mlir::StringRef funcName, const movitools::MoviCompileParams& params,
+ActKernelDesc compileKernelForACTShave(mlir::StringRef kernelName, const movitools::MoviCompileParams& params,
                                                               flatbuffers::FlatBufferBuilder& fbb) {
 
     // Use moviCompile to compile and link C source code into an ELF binary.
     // and then using objcopy teardown elf into text and data sections
     std::vector<uint8_t> textBinary;
     std::vector<uint8_t> dataBinary;
-    compileAndLinkSHAVE(params, funcName, textBinary, dataBinary);
+    compileAndLinkSHAVE(params, kernelName, textBinary, dataBinary);
 
     ActKernelDesc result;
 
-    result.text = buildKernelData(fbb, textBinary);
-    result.text_size = textBinary.size();
-    result.data = buildKernelData(fbb, dataBinary);
-    result.data_size = dataBinary.size();
+    result.text = {kernelName, buildKernelData(fbb, textBinary), textBinary.size()};
+
+    llvm::SmallString<128> OwnedFilename;
+    auto dataName = llvm::Twine(kernelName).concat(".data").toStringRef(OwnedFilename);
+
+    result.data = {dataName, buildKernelData(fbb, dataBinary), dataBinary.size()};
 
     return result;
 }
 
 
 // todo provide some arguments for kernel
-flatbuffers::Offset<flatbuffers::Vector<uint64_t>> packKernelArgs(flatbuffers::FlatBufferBuilder& fbb) {
+/*flatbuffers::Offset<flatbuffers::Vector<uint64_t>> packKernelArgs(flatbuffers::FlatBufferBuilder& fbb) {
     act_kernel_args dummyArgs;
     auto packedData = buildKernelArgsData(fbb, dummyArgs);
 
     throw std::runtime_error("dont know what next");
 }
-
+*/
 }  // namespace vpux
