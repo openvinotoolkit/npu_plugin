@@ -15,6 +15,7 @@
 #include "models/model_pooling.h"
 #include "simple_graph.hpp"
 #include "vpux_plugin.h"
+#include "hddl2_helpers/skip_conditions.h"
 
 using namespace InferenceEngine;
 
@@ -36,6 +37,8 @@ protected:
 };
 
 void Graph_Common_UnitTests::SetUp() {
+    if (isEmulatorDevice())
+        return;
     auto compiler = vpux::Compiler::create();
     utils::simpleGraph::getExeNetwork()->Export(_blobStream);
     if (GetParam() == fromImportedGraph) {
@@ -55,21 +58,29 @@ std::string Graph_Common_UnitTests::PrintToStringParamName::operator()(
 
 //------------------------------------------------------------------------------
 TEST_P(Graph_Common_UnitTests, getDeviceName_ReturnNotNull) {
+    if (isEmulatorDevice())
+        SKIP() << "Test not intended for emulator run.";
     const std::string name = networkPtr->getName();
     ASSERT_GT(name.size(), 0);
 }
 
 TEST_P(Graph_Common_UnitTests, getInputsInfo_ReturnNotEmpty) {
+    if (isEmulatorDevice())
+        SKIP() << "Test not intended for emulator run.";
     auto inputsInfo = networkPtr->getInputsInfo();
     ASSERT_GT(inputsInfo.size(), 0);
 }
 
 TEST_P(Graph_Common_UnitTests, getOutputsInfo_ReturnNotEmpty) {
+    if (isEmulatorDevice())
+        SKIP() << "Test not intended for emulator run.";
     auto inputsInfo = networkPtr->getOutputsInfo();
     ASSERT_GT(inputsInfo.size(), 0);
 }
 
 TEST_P(Graph_Common_UnitTests, getGraphBlob_ReturnNotEmpty) {
+    if (isEmulatorDevice())
+        SKIP() << "Test not intended for emulator run.";
     auto graphBlob = networkPtr->getCompiledNetwork();
     ASSERT_GT(graphBlob.size(), 0);
 }

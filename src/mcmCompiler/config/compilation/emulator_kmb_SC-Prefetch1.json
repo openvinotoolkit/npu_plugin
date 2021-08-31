@@ -74,11 +74,11 @@
             "TileOps",
             "HandleGroupConvolution",
             "StreamBinaryDataWeights",
+            "EltwiseToSWEltwise",
             "DecideOutputDataType",
             "PlaceNeutralMaxPoolBefore",
             "PlacementOfOps",
             "PostTrainingQuantize",
-            "EltwiseToSWEltwise",
             "HwConvertToEltwise",
             "MarkEltWiseUpaInputs",
             "MarkCMCompatibleConvs",
@@ -88,8 +88,7 @@
     "kmb_adapt": {
         "Singular": [
             "ConcatAsImplicit",
-            "PermuteAsImplicit",
-            "ReshapeAsImplicit",
+            "ConvertToImplicitOps",
             "LoadPWLQuantParams",
             "ConvertOpsToTasks",
             "GenerateAndPopulateInstructionListTables",
@@ -102,7 +101,8 @@
             "KMBQuantizeConversion",
             "AdaptFixedPointCompute",
             "ConfigureIOPrecision",
-            "EnsureDTypeCompatibility"
+            "EnsureDTypeCompatibility",
+            "DeQuantizeU8ConstToFP16Const"
         ]
     },
     "validate": {

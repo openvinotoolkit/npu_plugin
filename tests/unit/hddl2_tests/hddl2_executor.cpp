@@ -27,6 +27,9 @@ protected:
 };
 
 void Executor_UnitTests::SetUp() {
+    if (isEmulatorDevice())
+        return;
+
     vpux::NetworkDescription_Helper networkDescriptionHelper;
     networkDescPtr = networkDescriptionHelper.getNetworkDesc();
 }
@@ -35,6 +38,9 @@ void Executor_UnitTests::SetUp() {
 using Executor_NoDevice = Executor_UnitTests;
 TEST_F(Executor_NoDevice, createExecutor_NoDevice_ReturnNull) {
     SKIP_IF_DEVICE();
+    if (isEmulatorDevice())
+        SKIP() << "Test not intended for emulator run.";
+
     auto executor = HDDL2Executor::prepareExecutor(networkDescPtr, config, nullptr);
     ASSERT_EQ(executor, nullptr);
 }
@@ -43,6 +49,9 @@ TEST_F(Executor_NoDevice, createExecutor_NoDevice_ReturnNull) {
 using Executor_WithDevice = Executor_UnitTests;
 TEST_F(Executor_WithDevice, createExecutor_WithDevice_ReturnNotNull) {
     SKIP_IF_NO_DEVICE();
+    if (isEmulatorDevice())
+        SKIP() << "Test not intended for emulator run.";
+
     auto executor = HDDL2Executor::prepareExecutor(networkDescPtr, config, nullptr);
     ASSERT_NE(executor, nullptr);
 }
