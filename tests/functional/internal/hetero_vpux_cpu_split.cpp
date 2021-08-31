@@ -41,21 +41,22 @@ public:
 };
 
 
-void insert_noop_reshape_after(std::shared_ptr<ngraph::Node>& node, const std::string& opName) {
+static void insert_noop_reshape_after_node_for_device(std::shared_ptr<ngraph::Node>& node, const std::string &device) {
     // Get all consumers for node
     auto consumers = node->output(0).get_target_inputs();
 
     const auto shape = node->get_shape();
 
     // Create noop transpose node
-    auto constant = std::make_shared<ngraph::op::Constant>(
+    const std::string noopTransposeName = node->get_friendly_name() + "_then_noop_reshape_layer";
+    const auto transposeKind = std::make_shared<ngraph::op::Constant>(
                 ngraph::element::i64, ngraph::Shape{shape.size()}, std::vector<size_t>{0, 1, 2, 3});
-    constant->set_friendly_name(opName + "_const");
-    constant->get_rt_info()["affinity"] = std::make_shared<ngraph::VariantWrapper<std::string>>("VPUX");
+    transposeKind->set_friendly_name(noopTransposeName + "_const");
+    transposeKind->get_rt_info()["affinity"] = std::make_shared<ngraph::VariantWrapper<std::string>>(device);
 
-    auto transpose = std::make_shared<ngraph::opset1::Transpose>(node, constant);
-    transpose->set_friendly_name(opName);
-    transpose->get_rt_info()["affinity"] = std::make_shared<ngraph::VariantWrapper<std::string>>("VPUX");
+    auto transpose = std::make_shared<ngraph::opset1::Transpose>(node, transposeKind);
+    transpose->set_friendly_name(noopTransposeName);
+    transpose->get_rt_info()["affinity"] = std::make_shared<ngraph::VariantWrapper<std::string>>(device);
 
     // Reconnect all consumers to new_node
     for (auto input : consumers) {
@@ -63,7 +64,7 @@ void insert_noop_reshape_after(std::shared_ptr<ngraph::Node>& node, const std::s
     }
 }
 
-void assignAffinities(InferenceEngine::CNNNetwork& network, const Device& firstDevice, const Device& secondDevice,
+static void assignAffinities(InferenceEngine::CNNNetwork& network, const Device& firstDevice, const Device& secondDevice,
                       const SplitLayer& splitLayer) {
     auto splitName = std::string{splitLayer};
 
@@ -78,21 +79,28 @@ void assignAffinities(InferenceEngine::CNNNetwork& network, const Device& firstD
 
     auto deviceName = std::string{firstDevice};
 
-    // with VPUX plugin, also add temporary SW layer at the end of the subnetwork
-    if (deviceName == "VPUX") {
-        splitName = "last_reshape_layer";
-        insert_noop_reshape_after(*lastSubgraphLayer, splitName);
-    }
+    // with VPUX plugin as first device, add dummy SW layer at the end of the subnetwork
+//    if (deviceName == "VPUX") {
+    insert_noop_reshape_after_node_for_device(*lastSubgraphLayer, deviceName);
+    //}
 
     // get ordered ops with added noop reshape layer
     orderedOps = network.getFunction()->get_ordered_ops();
-
+    
+    std::cout << "Set device to " << deviceName << std::endl;
     for (auto&& node : orderedOps) {
         auto& nodeInfo = node->get_rt_info();
-        nodeInfo["affinity"] = std::make_shared<ngraph::VariantWrapper<std::string>>(deviceName);
+        if (nodeInfo["affinity"] != nullptr) {
+            auto dev = nodeInfo["affinity"];
+            std::cout << "Layer " << node->get_friendly_name() << " has affinity already: " << std::string{firstDevice} << std::endl;
+        } else {
+            nodeInfo["affinity"] = std::make_shared<ngraph::VariantWrapper<std::string>>(deviceName);
+            std::cout << "Layer " << node->get_friendly_name() << " set affinity to  " << deviceName << std::endl;
+        }
 
         if (splitName == node->get_friendly_name()) {
             deviceName = std::string{secondDevice};
+            std::cout << "Switch device to " << deviceName << std::endl;
         }
     }
 }
@@ -114,15 +122,18 @@ void HeteroPluginTest::checkFunction(const BlobMap& actualBlobs, const BlobMap& 
     ASSERT_GE(refOutput.size(), topK);
     refOutput.resize(topK);
 
-    std::cout << "Ref Top:" << std::endl;
+    std::cout << std::endl;
+    std::cout << "Ref Top (" << topK << " elems):" << std::endl;
     for (size_t i = 0; i < topK; ++i) {
-        std::cout << i << " : " << refOutput[i].first << " : " << refOutput[i].second << std::endl;
+        std::cout << i << " : {" << refOutput[i].first << ", " << refOutput[i].second << "}" << std::endl;
     }
 
-    std::cout << "Actual top:" << std::endl;
+    std::cout << "Actual top (" << topK << " elems):" << std::endl;
     for (size_t i = 0; i < topK; ++i) {
-        std::cout << i << " : " << actualOutput[i].first << " : " << actualOutput[i].second << std::endl;
+        std::cout << i << " : {" << actualOutput[i].first << ", " << actualOutput[i].second << "}" << std::endl;
     }
+
+    std::cout << "Comparing ref to actual..." << std::endl;
 
     for (const auto& refElem : refOutput) {
         const auto actualIt =
@@ -160,13 +171,13 @@ void HeteroPluginTest::runTest(const TestNetworkDesc& netDesc, const Device& fir
 
     std::cout << "Reading network " << std::endl;
     auto network = readNetwork(netDesc, true);
-
     assignAffinities(network, firstDevice, secondDevice, splitLayer);
 
     const auto heteroDevice = "HETERO:" + std::string{firstDevice} + "," + std::string{secondDevice};
     std::map<std::string, std::string> cfg = netDesc.compileConfig();
     cfg[CONFIG_KEY(LOG_LEVEL)] = CONFIG_VALUE(LOG_INFO);
 //    cfg[VPUX_CONFIG_KEY(COMPILER_TYPE)] = VPUX_CONFIG_VALUE(MLIR);
+//    auto exeNet = core->LoadNetwork(network, "CPU", cfg);
     auto exeNet = core->LoadNetwork(network, heteroDevice, cfg);
 
     const auto inputs = exeNet.GetInputsInfo();
