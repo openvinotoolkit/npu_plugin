@@ -24,17 +24,25 @@
 
 namespace vpux {
 
-struct ActKernelDesc {
-    flatbuffers::Offset<MVCNN::KernelData> text;
-    size_t text_size;
+struct KernelDataDesc {
+    mlir::StringRef name;
     flatbuffers::Offset<MVCNN::KernelData> data;
-    size_t data_size;
+    size_t size;
 };
 
-ActKernelDesc generateKernelForACTShave(mlir::StringRef funcName,
-                                        const movitools::MoviCompileParams& params,
-                                        flatbuffers::FlatBufferBuilder& fbb);
+struct ActKernelDesc {
+    KernelDataDesc text;
+    KernelDataDesc data;
+};
 
-flatbuffers::Offset<flatbuffers::Vector<uint64_t>> packKernelArgs(flatbuffers::FlatBufferBuilder& fbb);
+ActKernelDesc compileKernelForACTShave(mlir::StringRef funcName,
+                                       const movitools::MoviCompileParams& params,
+                                       flatbuffers::FlatBufferBuilder& fbb);
+
+flatbuffers::Offset<MVCNN::KernelData> buildKernelData(flatbuffers::FlatBufferBuilder& fbb,
+                                                       llvm::ArrayRef<uint8_t> content);
+
+
+//flatbuffers::Offset<flatbuffers::Vector<uint64_t>> packKernelArgs(flatbuffers::FlatBufferBuilder& fbb);
 
 }  // namespace vpux
