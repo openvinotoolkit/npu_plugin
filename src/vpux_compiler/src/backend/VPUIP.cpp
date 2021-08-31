@@ -221,31 +221,26 @@ flatbuffers::Offset<MVCNN::ActKernelRuntime> createActKernelRuntime(VPUIP::BlobW
     //TODO: cap numshaves by maximum HW number of 4
     const auto stack_size { 1U << 12 }; // 4KB stack
 
-    std::vector<uint8_t> shave_stack_data(stack_size);
+    llvm::SmallVector<uint8_t, stack_size> shave_stack_data;
     std::vector<flatbuffers::Offset<MVCNN::KernelDataReference>> stacks(maxShaves); // 4 Activation SHAVEs for MTL
 
     for(uint32_t shv{}; shv < maxShaves; ++shv) {
         log.trace("act-shave {0}_stack size is {1}", shv, stack_size);
 
-//        const auto stack_local_index {
-        //        kernel_data_manager_.add_kernel_data(ss.str(), shave_stack_data)
-//        };
-
         stacks[shv] = writer.createKernelDataRef(
                 "actSHAVE" + std::to_string(shv) + "_stack",
-                vpux::VPUIP::MemoryLocation::GFEmbeddedKernel, shv, 0, stack_size);
+                vpux::VPUIP::MemoryLocation::GFEmbeddedKernel, 0, stack_size, shave_stack_data);
     }
 
     const auto stackBuffers = writer.createVector(stacks);
 
-    std::vector<uint8_t> scratch_buffer(1U << 16); // 64KB scratch buffer
+    llvm::SmallVector<uint8_t, 1U << 16> scratch_buffer(1U << 16); // 64KB scratch buffer
     const std::string scratch_buffer_name{ "scratch_buffer" };
-    const auto scratch_buffer_index {maxShaves};
 
     const auto scratchBuffer = writer.createKernelDataRef(
             scratch_buffer_name,
             vpux::VPUIP::MemoryLocation::GFEmbeddedKernel,
-            scratch_buffer_index, 0, scratch_buffer.size());
+            0, scratch_buffer.size(), scratch_buffer);
 
     MVCNN::ActKernelRuntimeBuilder builder(writer);
     builder.add_shaveStacks(stackBuffers);
@@ -414,67 +409,14 @@ SmallVector<VPUIP::BlobWriter::BinaryData> serializeBinaryData(VPUIP::BlobWriter
     return binaryData;
 }
 
-SmallVector<VPUIP::BlobWriter::KernelData> serializeKernelData(VPUIP::BlobWriter& writer, mlir::FuncOp netFunc,
-                                                               mlir::TimingScope& rootTiming, Logger log) {
-    auto scopeTiming = rootTiming.nest("Serialize kernel data");
-
-    // only ACTShaveTasks are generating kernelData
-    auto kernelGenOps = to_small_vector(netFunc.getOps<VPUIP::DeclareKernelDataOp>());
-
-    // lets create stack buffers
-    if (kernelGenOps.empty()) {
-        return {};
+SmallVector<VPUIP::BlobWriter::KernelData> serializeKernelData(VPUIP::BlobWriter& writer, mlir::FuncOp ,
+                                                               mlir::TimingScope& , Logger ) {
+    SmallVector<VPUIP::BlobWriter::KernelData> vec;
+    for (auto && e : writer.getKernelData()) {
+        vec.push_back(e.data);
     }
-    auto kernelTasks = to_small_vector(netFunc.getOps<VPUIP::ACTShaveTaskOp>());
-    uint32_t maxShaves = 4;
-
-    // TODO: this looks works only for 1 executors
-    //  otherwise need to hardcode all 4 stacks and then just use certain in runtime
-    for (auto invocationIndex : irange(kernelTasks.size())) {
-        auto invocation = kernelTasks[invocationIndex];
-        auto numShaves = invocation.maxShaves();
-        if (!numShaves.hasValue()) {
-            continue;
-        }
-        maxShaves = std::max(numShaves.getValue(), maxShaves);
-    }
-
-    SmallVector<VPUIP::BlobWriter::KernelData> kernelData(kernelGenOps.size() * 2 + maxShaves + 1);
-
-    //TODO: cap numshaves by maximum HW number of 4
-    const auto stack_size { 1U << 12 }; // 4KB stack
-
-    std::vector<uint8_t> shave_stack_data(stack_size);
-    auto shave_stack_serialized_data = writer.createVector(shave_stack_data);
-
-    for(uint32_t shv{}; shv < maxShaves; ++shv) {
-        MVCNN::KernelDataBuilder kdBuilder(writer);
-        kdBuilder.add_length(stack_size);
-        kdBuilder.add_data(shave_stack_serialized_data);
-        kernelData[shv] = kdBuilder.Finish();
-    }
-
-    const auto scratch_size { 1U << 16 }; // 4KB stack
-    std::vector<uint8_t> scratch_buffer(scratch_size); // 64KB scratch buffer
-    auto scratch_buffer_serialized = writer.createVector(scratch_buffer);
-
-    MVCNN::KernelDataBuilder kdBuilder(writer);
-    kdBuilder.add_length(scratch_size);
-    kdBuilder.add_data(scratch_buffer_serialized);
-    kernelData[maxShaves] = kdBuilder.Finish();
-
-    for (auto KernelIndex : irange(kernelGenOps.size())) {
-        auto kernel = kernelGenOps[KernelIndex];
-
-        log.trace("Got act-shave kernel at '{0}' with type '{1}'", kernel->getLoc(), kernel->getName());
-        auto compiledKernel = writer.createKernelData(kernel.name());
-        kernelData[KernelIndex * 2 + maxShaves + 1] = compiledKernel.text;
-        kernelData[KernelIndex * 2 + 1 + maxShaves + 1] = compiledKernel.data;
-    }
-
-    return kernelData;
+    return vec;
 }
-
 
 SmallVector<VPUIP::BlobWriter::Barrier> serializeVirtBarriers(VPUIP::BlobWriter& writer, mlir::FuncOp netFunc,
                                                               VPUIP::GraphOp graphOp, mlir::TimingScope& rootTiming,
