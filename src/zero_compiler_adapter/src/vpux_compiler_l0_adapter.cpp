@@ -11,7 +11,7 @@
 // included with the Software Package for additional details.
 //
 
-#include "umd_converter_adapter.h"
+#include "vpux_compiler_l0_adapter.h"
 #include <iostream>
 
 #include <stdint.h>
@@ -34,22 +34,23 @@
 #endif
 
 #if defined(_WIN32)
-#define LIBNAME "umd_converter.dll"
+#define LIBNAME "VPUXCompilerL0.dll"
 #else
-#define LIBNAME "libumd_converter.so"
+#define LIBNAME "libVPUXCompilerL0.so"
 #endif
 
-#include "gc_api.h"
+// Extracted from vpux_compiler_l0.h. Otherwise, compilation error. (multiple definition of `getVPUXCompilerL0')
+/** The entrance of VPUXCompilerL0.dll */
+const char* GET_VPUX_COMPILER_L0 = "getCompiler";
+gc_result_t (*getVPUXCompilerL0)(vpux_compiler_l0_t* vcl);
+
 namespace vpux {
 namespace zeroCompilerAdapter {
-
-const char* GET_CONVERTER = "getConverterL";
-gc_result_t (*getConverter)(vpux_converter_t* converter);
 
 Blob::Blob(const std::vector<char>& data): data(data) {
 }
 
-UMD_Converter::UMD_Converter() {
+VPUXCompilerL0::VPUXCompilerL0() {
     handle = OPENLIB(LIBNAME);
     if (handle == NULL) {
         _logger->error("Failed to open %s", LIBNAME);
@@ -61,9 +62,9 @@ UMD_Converter::UMD_Converter() {
         exit(EXIT_FAILURE);
     }
 
-    getConverter = (gc_result_t(*)(vpux_converter_t*))LIBFUNC(handle, GET_CONVERTER);
-    if (!getConverter) {
-        _logger->error("can not find %s in %s\n", GET_CONVERTER, LIBNAME);
+    getVPUXCompilerL0 = (gc_result_t(*)(vpux_compiler_l0_t*))LIBFUNC(handle, GET_VPUX_COMPILER_L0);
+    if (!getVPUXCompilerL0) {
+        _logger->error("Can not find %s in %s\n", GET_VPUX_COMPILER_L0, LIBNAME);
 #if defined(_WIN32)
         _logger->error("Error: %d\n", GetLastError());
 #else
@@ -73,13 +74,14 @@ UMD_Converter::UMD_Converter() {
     }
 
     gc_result_t ret = GC_RESULT_SUCCESS;
-    ret = getConverter(&converter);
+
+    ret = getVPUXCompilerL0(&vcl);
     if (ret) {
         THROW_IE_EXCEPTION << "Failed to create compiler!";
     }
 }
 
-UMD_Converter::~UMD_Converter() {
+VPUXCompilerL0::~VPUXCompilerL0() {
     // FIXME Cause segfault on second run for some reason
     //    gc_result_t ret = GC_RESULT_SUCCESS;
     //    ret = converter.methods.deinitCompiler();
@@ -91,39 +93,40 @@ UMD_Converter::~UMD_Converter() {
 }
 
 // This function based on convertTest.c sample
-Blob::Ptr UMD_Converter::compileIR(std::vector<char>& xml, std::vector<char>& weights) {
-    _logger->debug("UMD_Converter::compileIR start");
+Blob::Ptr VPUXCompilerL0::compileIR(std::vector<char>& xml, std::vector<char>& weights) {
+    _logger->debug("VPUXCompilerL0::compileIR start");
     gc_result_t ret = GC_RESULT_SUCCESS;
 
     uint32_t blobSize = 0;
     std::vector<char> blob;
-    ret = converter.methods.getSerializableBlob(reinterpret_cast<uint8_t*>(xml.data()), xml.size(),
+    ret = vcl.methods.getSerializableBlob(reinterpret_cast<uint8_t*>(xml.data()), xml.size(),
                                                 reinterpret_cast<uint8_t*>(weights.data()), weights.size(),
                                                 reinterpret_cast<uint8_t*>(blob.data()), &blobSize);
     if (ret != GC_RESULT_SUCCESS || blobSize == 0) {
         THROW_IE_EXCEPTION << "Failed to get blob size!\n";
     } else {
         blob.resize(blobSize);
-        ret = converter.methods.getSerializableBlob(reinterpret_cast<uint8_t*>(xml.data()), xml.size(),
+        ret = vcl.methods.getSerializableBlob(reinterpret_cast<uint8_t*>(xml.data()), xml.size(),
                                                     reinterpret_cast<uint8_t*>(weights.data()), weights.size(),
                                                     reinterpret_cast<uint8_t*>(blob.data()), &blobSize);
     }
 
-    _logger->debug("UMD_Converter::compileIR end");
+    _logger->debug("VPUXCompilerL0::compileIR end");
     return std::make_shared<Blob>(blob);
 }
 
-std::tuple<const std::string, const DataMap, const DataMap, const DataMap, const DataMap> UMD_Converter::getNetworkMeta(
+std::tuple<const std::string, const DataMap, const DataMap, const DataMap, const DataMap>
+VPUXCompilerL0::getNetworkMeta(
         const Blob::Ptr compiledNetwork) {
-    _logger->debug("UMD_Converter::getNetworkMeta start");
+    _logger->debug("VPUXCompilerL0::getNetworkMeta start");
     vpux::Compiler::Ptr compiler = std::make_shared<Compiler>(getLibFilePath("vpux_compiler"));
     const auto networkDesc = compiler->parse(compiledNetwork->data);
-    _logger->debug("UMD_Converter::getNetworkMeta end");
+    _logger->debug("VPUXCompilerL0::getNetworkMeta end");
     return std::make_tuple(networkDesc->getName(), networkDesc->getInputsInfo(), networkDesc->getOutputsInfo(),
                            networkDesc->getDeviceInputsInfo(), networkDesc->getDeviceOutputsInfo());
 }
 
-std::tuple<const DataMap, const DataMap> UMD_Converter::getDeviceNetworkMeta(const Blob::Ptr compiledNetwork) {
+std::tuple<const DataMap, const DataMap> VPUXCompilerL0::getDeviceNetworkMeta(const Blob::Ptr compiledNetwork) {
     vpux::Compiler::Ptr compiler = std::make_shared<Compiler>(getLibFilePath("vpux_compiler"));
     const auto networkDesc = compiler->parse(compiledNetwork->data);
     return std::make_tuple(networkDesc->getDeviceInputsInfo(), networkDesc->getDeviceOutputsInfo());
@@ -134,10 +137,11 @@ std::string getEnvVarDefault(const std::string& varName, const std::string& defa
     return value ? value : defaultValue;
 }
 
-Opset UMD_Converter::getSupportedOpset() {
+Opset VPUXCompilerL0::getSupportedOpset() {
     gc_result_t ret = GC_RESULT_SUCCESS;
     gc_compiler_properties_t compilerInfo;
-    ret = converter.methods.getCompilerProperties(&compilerInfo);
+    ret = vcl.methods.getCompilerProperties(&compilerInfo);
+
     if (ret) {
         CLOSELIB(handle);
         THROW_IE_EXCEPTION << "Failed to query compiler props! result: " << ret;

@@ -14,13 +14,13 @@
 #include "zero_compiler_adapter.h"
 #include "network_description.h"
 #include "ngraph_transformations.h"
-#include "umd_converter_adapter.h"
+#include "vpux_compiler_l0_adapter.h"
 
 namespace vpux {
 namespace zeroCompilerAdapter {
 
 ZeroCompilerAdapter::ZeroCompilerAdapter() {
-    apiAdapter = std::make_shared<UMD_Converter>();
+    apiAdapter = std::make_shared<VPUXCompilerL0>();
 }
 
 // TODO How to use inputsInfo, outputsInfo ?

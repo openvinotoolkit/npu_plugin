@@ -13,9 +13,9 @@
 
 #pragma once
 #include <vector>
-#include "converter.h"
 #include "icompiler_adapter.h"
 #include "zero_compiler_adapter.h"
+#include "vpux_compiler_l0.h"
 
 #if defined(_WIN32)
 #define LIBTYPE HINSTANCE
@@ -26,12 +26,12 @@
 namespace vpux {
 namespace zeroCompilerAdapter {
 /**
- * Adapter for UMD Converter.
+ * Adapter for VPUXCompilerL0
  */
-class UMD_Converter final : public ICompiler_Adapter {
+class VPUXCompilerL0 final : public ICompiler_Adapter {
 public:
-    UMD_Converter();
-    virtual ~UMD_Converter();
+    VPUXCompilerL0();
+    virtual ~VPUXCompilerL0();
 
     Opset getSupportedOpset() override;
 
@@ -44,11 +44,11 @@ public:
 
 private:
     LIBTYPE handle;
-    vpux_converter_t converter;
+    vpux_compiler_l0_t vcl;
 
     // TODO Switch log level to Debug when it will be production solution
     const std::unique_ptr<vpu::Logger> _logger = std::unique_ptr<vpu::Logger>(
-            new vpu::Logger("UMD_Converter", vpu::LogLevel::Debug /*_config.logLevel()*/, vpu::consoleOutput()));
+            new vpu::Logger("VPUXCompilerL0", vpu::LogLevel::Debug /*_config.logLevel()*/, vpu::consoleOutput()));
 };
 }  // namespace zeroCompilerAdapter
 }  // namespace vpux
