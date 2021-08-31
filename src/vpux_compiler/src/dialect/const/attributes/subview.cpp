@@ -13,6 +13,7 @@
 
 #include "vpux/compiler/dialect/const/attributes/content.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
+#include "vpux/compiler/utils/quantization.hpp"
 #include "vpux/compiler/utils/subspaces.hpp"
 #include "vpux/compiler/utils/types.hpp"
 
@@ -121,11 +122,19 @@ mlir::Attribute vpux::Const::SubViewAttr::parse(mlir::MLIRContext*, mlir::Dialec
 
 mlir::ShapedType vpux::Const::SubViewAttr::inferOutputType(mlir::ShapedType input) const {
     const auto shape = parseIntArrayAttr<int64_t>(getShape());
+    const auto offset = parseIntArrayAttr<int64_t>(getOffset());
 
     VPUX_THROW_UNLESS(shape.size() == checked_cast<size_t>(input.getRank()),
                       "View shape and input shape are not consistent in 'SubViewAttr'");
 
-    return changeShape(input, ShapeRef(shape));
+    auto tileTypeOut = changeShape(input, ShapeRef(shape));
+    if (const auto perAxisQType =
+                tileTypeOut.getElementType().dyn_cast_or_null<mlir::quant::UniformQuantizedPerAxisType>()) {
+        const auto newQType = tileScalesAndZP(perAxisQType, ShapeRef(shape), ShapeRef(offset));
+        tileTypeOut = changeElemType(tileTypeOut, newQType);
+    }
+
+    return tileTypeOut;
 }
 
 //

@@ -119,9 +119,14 @@ mlir::LogicalResult ConvolutionTiling::matchAndRewrite(IERT::ConvolutionOp origO
         const auto tileName = llvm::formatv("output tile {0}", outputTile.offsets).str();
         const auto loc = appendLoc(origOp->getLoc(), tileName);
 
-        const auto tileTypeOut = changeShape(origOp.output().getType().cast<mlir::MemRefType>(), outputTile.shape);
-        auto allocOutOp = rewriter.create<mlir::memref::AllocOp>(loc, tileTypeOut);
+        auto tileTypeOut = changeShape(origOp.output().getType().cast<mlir::MemRefType>(), outputTile.shape);
+        if (const auto perAxisQType =
+                    tileTypeOut.getElementType().dyn_cast_or_null<mlir::quant::UniformQuantizedPerAxisType>()) {
+            const auto newQType = tileScalesAndZP(perAxisQType, outputTile.shape, outputTile.offsets);
+            tileTypeOut = changeElemType(tileTypeOut, newQType);
+        }
 
+        auto allocOutOp = rewriter.create<mlir::memref::AllocOp>(loc, tileTypeOut);
         auto tiledOp = rewriter.create<IERT::ConvolutionOp>(loc, actInput, filterInput, biasInput, allocOutOp.memref(),
                                                             origOp.strides(), getIntArrayAttr(getContext(), padsBegin),
                                                             getIntArrayAttr(getContext(), padsEnd), origOp.dilations(),
@@ -183,10 +188,14 @@ mlir::LogicalResult EltwiseAddTiling::matchAndRewrite(IERT::AddOp origOp, mlir::
         const std::string tileName = llvm::formatv("output tile {0}", outputTile.offsets).str();
         const mlir::Location loc = appendLoc(origOp->getLoc(), tileName);
 
-        const mlir::MemRefType tileTypeOut =
-                changeShape(origOp.output().getType().cast<mlir::MemRefType>(), outputTile.shape);
-        auto allocOutOp = rewriter.create<mlir::memref::AllocOp>(loc, tileTypeOut);
+        auto tileTypeOut = changeShape(origOp.output().getType().cast<mlir::MemRefType>(), outputTile.shape);
+        if (const auto perAxisQType =
+                    tileTypeOut.getElementType().dyn_cast_or_null<mlir::quant::UniformQuantizedPerAxisType>()) {
+            const auto newQType = tileScalesAndZP(perAxisQType, outputTile.shape, outputTile.offsets);
+            tileTypeOut = changeElemType(tileTypeOut, newQType);
+        }
 
+        auto allocOutOp = rewriter.create<mlir::memref::AllocOp>(loc, tileTypeOut);
         auto tiledOp =
                 rewriter.create<IERT::AddOp>(loc, actInput1, actInput2, allocOutOp.memref(), origOp.post_opAttr());
 
@@ -248,9 +257,14 @@ mlir::LogicalResult MaxPoolTiling::matchAndRewrite(IERT::MaxPoolOp origOp, mlir:
         const auto tileName = llvm::formatv("output tile {0}", outputTile.offsets).str();
         const auto loc = appendLoc(origOp->getLoc(), tileName);
 
-        const auto tileTypeOut = changeShape(origOp.output().getType().cast<mlir::MemRefType>(), outputTile.shape);
-        auto allocOutOp = rewriter.create<mlir::memref::AllocOp>(loc, tileTypeOut);
+        auto tileTypeOut = changeShape(origOp.output().getType().cast<mlir::MemRefType>(), outputTile.shape);
+        if (const auto perAxisQType =
+                    tileTypeOut.getElementType().dyn_cast_or_null<mlir::quant::UniformQuantizedPerAxisType>()) {
+            const auto newQType = tileScalesAndZP(perAxisQType, outputTile.shape, outputTile.offsets);
+            tileTypeOut = changeElemType(tileTypeOut, newQType);
+        }
 
+        auto allocOutOp = rewriter.create<mlir::memref::AllocOp>(loc, tileTypeOut);
         auto tiledOp = rewriter.create<IERT::MaxPoolOp>(loc, actInput, allocOutOp.memref(), origOp.kernel_size(),
                                                         origOp.strides(), getIntArrayAttr(getContext(), padsBegin),
                                                         getIntArrayAttr(getContext(), padsEnd), origOp.post_opAttr());
@@ -320,9 +334,14 @@ mlir::LogicalResult GroupConvolutionTiling::matchAndRewrite(IERT::GroupConvoluti
         const auto tileName = llvm::formatv("output tile {0}", outputTile.offsets).str();
         const auto loc = appendLoc(origOp->getLoc(), tileName);
 
-        const auto tileTypeOut = changeShape(origOp.output().getType().cast<mlir::MemRefType>(), outputTile.shape);
-        auto allocOutOp = rewriter.create<mlir::memref::AllocOp>(loc, tileTypeOut);
+        auto tileTypeOut = changeShape(origOp.output().getType().cast<mlir::MemRefType>(), outputTile.shape);
+        if (const auto perAxisQType =
+                    tileTypeOut.getElementType().dyn_cast_or_null<mlir::quant::UniformQuantizedPerAxisType>()) {
+            const auto newQType = tileScalesAndZP(perAxisQType, outputTile.shape, outputTile.offsets);
+            tileTypeOut = changeElemType(tileTypeOut, newQType);
+        }
 
+        auto allocOutOp = rewriter.create<mlir::memref::AllocOp>(loc, tileTypeOut);
         const auto groups = filterTile.shape[IE::Dims4D::Filter::OC];
         const auto groupsAttr = getIntAttr(getContext(), groups);
 
