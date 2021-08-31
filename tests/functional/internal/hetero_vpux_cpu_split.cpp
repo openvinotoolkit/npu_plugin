@@ -14,6 +14,7 @@
 #include "test_model/kmb_test_base.hpp"
 
 #include <hetero/hetero_plugin_config.hpp>
+#include "vpux_private_config.hpp"
 #include <ngraph/op/util/op_types.hpp>
 #include <ngraph/variant.hpp>
 #include <ngraph/opsets/opset1.hpp>
@@ -144,23 +145,29 @@ void HeteroPluginTest::runTest(const TestNetworkDesc& netDesc, const Device& fir
                                const Device& secondDevice, const SplitLayer& splitLayer,
                                const TestImageDesc& image, const size_t topK, const float probTolerance) {
 #if defined(_WIN32) || defined(_WIN64)
-    SKIP() << "Skip Windows validation";
+//    SKIP() << "Skip Windows validation";
+    std::cout << "Run Windows validation" << std::endl;
 #endif
 #if defined(__arm__) || defined(__aarch64__)
     // Skip RUN_INFER on ARM, only execute on host (hddl bypass)
     SKIP() << "Has to be compiled and run without network export/import";
 #endif
+    std::cout << "RUN_INFER = " << RUN_INFER << std::endl;
 
     if (!RUN_INFER) {
-        SKIP() << "Will be compiled and run at RUN_INFER stage";
+        // SKIP() << "Will be compiled and run at RUN_INFER stage";
     }
 
+    std::cout << "Reading network " << std::endl;
     auto network = readNetwork(netDesc, true);
 
     assignAffinities(network, firstDevice, secondDevice, splitLayer);
 
     const auto heteroDevice = "HETERO:" + std::string{firstDevice} + "," + std::string{secondDevice};
-    auto exeNet = core->LoadNetwork(network, heteroDevice, netDesc.compileConfig());
+    std::map<std::string, std::string> cfg = netDesc.compileConfig();
+    cfg[CONFIG_KEY(LOG_LEVEL)] = CONFIG_VALUE(LOG_INFO);
+//    cfg[VPUX_CONFIG_KEY(COMPILER_TYPE)] = VPUX_CONFIG_VALUE(MLIR);
+    auto exeNet = core->LoadNetwork(network, heteroDevice, cfg);
 
     const auto inputs = exeNet.GetInputsInfo();
     ASSERT_EQ(inputs.size(), 1);
