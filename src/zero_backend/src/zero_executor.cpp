@@ -361,8 +361,10 @@ void getOutputAfterInference(IE::Blob::Ptr& userOutput, const IE::TensorDesc& de
     if (memExpectedLock == nullptr || memUserLock == nullptr) {
         IE_THROW() << "Locking memory error";
     }
+    std::cout << "device: " << memExpected->byteSize() << "; user: " << memUser->byteSize();
     if (memExpected->byteSize() != memUser->byteSize()) {
-        IE_THROW() << "Different size of pull and auxiliary blobs";
+        IE_THROW() << "Different size of pull and auxiliary blobs: device(expected) = " << memExpected->byteSize()
+                   << "; user: " << memUser->byteSize();
     }
     if (0 != ie_memcpy(memUserLock, memExpected->byteSize(), memExpectedLock, memUser->byteSize())) {
         IE_THROW() << "memcpy error for pull blobs";
