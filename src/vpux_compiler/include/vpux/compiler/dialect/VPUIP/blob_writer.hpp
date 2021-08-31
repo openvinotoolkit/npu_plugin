@@ -88,11 +88,13 @@ public:
 
 public:
     SpecificTask createACTShaveTask(mlir::Operation* op);
-    ActKernelDesc& createKernelData(StringRef name);
+    ActKernelDesc createKernelData(StringRef name);
 
     KernelDataRef createKernelDataRef(StringRef name, MemoryLocation locale,
-                                      uint32_t localeIndex, uint64_t dataOffset, uint64_t dataSize,
-                                      ArrayRef<uint64_t> content= None);
+                                      uint64_t dataOffset, uint64_t dataSize,
+                                      ArrayRef<uint8_t> content = None);
+    KernelDataRef createKernelDataRef(const KernelDataDesc& desc, MemoryLocation locale);
+    ArrayRef<KernelDataDesc> getKernelData() const;
 
 public:
     TensorReference createTensor(StringRef name, mlir::ShapedType type, MemoryLocation locale,
@@ -175,7 +177,7 @@ private:
 private:
     using TaskMap = std::unordered_map<mlir::Operation*, Task>;
     // TODO: refactor not using string name as act-kernels definition
-    using CompiledActShavesMap = mlir::DenseMap<mlir::StringRef, ActKernelDesc>;
+    using ActShavesKernelDataMap = mlir::DenseMap<mlir::StringRef, uint32_t>;
     //using CompiledActShavesMap
     using TensorReferenceMap = mlir::DenseMap<mlir::Value, TensorReference>;
     using BarrierMap = mlir::DenseMap<mlir::Value, uint32_t>;
@@ -184,7 +186,10 @@ private:
     Logger _log;
     flatbuffers::FlatBufferBuilder _impl;
     TaskMap _tasks;
-    CompiledActShavesMap _actKernels;
+    // kernels data to be referenced using localed index - to avoid iterator order changes using an index in vector
+    SmallVector<KernelDataDesc> _actKernelsDataVector;
+    ActShavesKernelDataMap _actKernelsData;
+
     TensorReferenceMap _tensors;
     BarrierMap _barriers;
 };
