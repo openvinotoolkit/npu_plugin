@@ -61,6 +61,8 @@ void vpux::VPUXConfig::parseEnvironment() {
             _compilerType = IE::VPUXConfigParams::CompilerType::MCM;
         } else if (std::strcmp(env, VPUX_CONFIG_VALUE(MLIR)) == 0) {
             _compilerType = IE::VPUXConfigParams::CompilerType::MLIR;
+        } else if (std::strcmp(env, VPUX_CONFIG_VALUE(ZERO_ADAPTER)) == 0) {
+            _compilerType = IE::VPUXConfigParams::CompilerType::ZERO_ADAPTER;
         } else {
             IE_THROW() << "Invalid value "
                        << "\"" << env << "\""
