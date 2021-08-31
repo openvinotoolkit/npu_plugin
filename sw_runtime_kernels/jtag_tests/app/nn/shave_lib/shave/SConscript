@@ -1,0 +1,32 @@
+# Importing all previously exported global scons variables
+Import('*')
+
+# Sources
+default_env.addSystemSources(sourcesList = default_env.File(Glob('kernels/*.c*')),coresList='shave')
+
+default_env.addSystemSources(sourcesList = default_env.File(Glob('src/*.c*')),coresList='shave')
+
+# Compiler includes path
+default_env.addSystemIncludes(default_env.Dir('inc/'),['shave'])
+
+#TODO:! where should this be exported to?
+default_env.AppendUnique(shavelib_exported_symbols = [
+'svuNNEntry',
+'softmaxAxisH', 'softmaxAxisC',
+'nnPermute',
+'nnQuantizer',
+'Passthrough',
+'DetectionOutput',
+'Dummy',
+'proposal',
+'PriorboxKernel',
+'ROIPoolingKernel',
+'DetectionOutput',
+'normalize',
+'regionYoloKernel_HWC',
+'regionYoloKernel_CHW',
+'argMaxKernel_WithNoAxis',
+'argMaxKernel_WithAxis',
+'sData', 'sParam',
+'ReorgYoloHWC', 'ReorgYoloCHW',
+])

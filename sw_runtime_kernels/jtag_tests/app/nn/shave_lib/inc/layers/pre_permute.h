@@ -9,7 +9,8 @@ namespace nn {
 namespace shave_lib {
 
 extern "C" {
-preambleImpl preSingleSoftmax;
+preambleImpl prePermute;
+preambleImpl prePermute1D;
 }
 
 } // namespace shave_lib

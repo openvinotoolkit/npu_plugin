@@ -73,14 +73,15 @@ ccopt-shave_nn-y += -DCONFIG_USE_COMPONENT_NN
 #subdirs-lnn-$(CONFIG_NN_USE_APPCONFIG_LNN) += $(VSYSTEM)/nn/app_config
 
 #subdirs-lrt-y += ../../../shavel1
-subdirs-lrt-y += $(VSYSTEM)/nn/common $(VSYSTEM)/nn/platform_abstraction $(VSYSTEM)/nn/blob $(VSYSTEM)/nn/nce_lib $(VSYSTEM)/nn/shave_lib $(VSYSTEM)/nn/inference_runtime_common $(VSYSTEM)/nn/inference_manager
-subdirs-lnn-y += $(VSYSTEM)/nn/common $(VSYSTEM)/nn/platform_abstraction $(VSYSTEM)/nn/inference_runtime_common $(VSYSTEM)/nn/inference_runtime
-subdirs-shave-y += $(VSYSTEM)/nn/common
-subdirs-shave-y += $(VSYSTEM)/nn/shave_lib
+subdirs-lrt-y += nn/common $(VSYSTEM)/nn/platform_abstraction $(VSYSTEM)/nn/blob $(VSYSTEM)/nn/nce_lib nn/shave_lib nn/inference_runtime_common $(VSYSTEM)/nn/inference_manager
+subdirs-lnn-y += nn/common $(VSYSTEM)/nn/platform_abstraction nn/inference_runtime_common $(VSYSTEM)/nn/inference_runtime
+subdirs-shave-y += nn/common
+subdirs-shave-y += nn/shave_lib
+subdirs-shave-y += ../../kernels
 
 #subdirs-shave-$(CONFIG_USE_COMPONENT_NN) += ../../../shavel1
 #subdirs-shave-y += ../../../shavel1
-subdirs-shave_nn-y += $(VSYSTEM)/nn/common $(VSYSTEM)/nn/platform_abstraction $(VSYSTEM)/nn/dpu_runtime $(VSYSTEM)/nn/act_runtime $(VSYSTEM)/nn/inference_runtime_common
+subdirs-shave_nn-y += common $(VSYSTEM)/nn/platform_abstraction $(VSYSTEM)/nn/dpu_runtime $(VSYSTEM)/nn/act_runtime inference_runtime_common
 
 subdirs-lrt-$(CONFIG_NN_PROFILING) += $(VSYSTEM)/nn/barectf
 subdirs-lnn-$(CONFIG_NN_PROFILING) += $(VSYSTEM)/nn/barectf
