@@ -18,7 +18,7 @@ sys-nn-shave-lib-leon-srcs += $(wildcard src/2490/layers/parser_*.c*)
 
 # FIXME: fix link ordering
 sys-nn-shave-lib-leon-srcs += src/2490/tensor_util.cpp
-sys-nn-shave-lib-leon-srcs += src/2490/copy_util_leon.cpp
+3sys-nn-shave-lib-leon-srcs += src/2490/copy_util_leon.cpp
 
 sys-nn-shave-lib-leon-srcs += $(wildcard src/2490/ShaveElfMetadata/*.c*)
 
