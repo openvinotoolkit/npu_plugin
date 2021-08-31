@@ -1,0 +1,1 @@
+tag: ci_tag_vpu_release_21ww36.2.1
