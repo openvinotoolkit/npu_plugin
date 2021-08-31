@@ -1,7 +1,7 @@
 /*
  * {% copyright %}
  */
-#ifndef NN_ACT_ARGS_H_
+#if 0
 #define NN_ACT_ARGS_H_
 
 /**
