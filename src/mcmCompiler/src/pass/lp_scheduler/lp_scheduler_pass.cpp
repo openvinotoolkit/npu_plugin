@@ -282,7 +282,10 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
 
       cmx_address_alloc(scheduled_op);
 
-      if (!scheduled_op.is_original_op()) { has_any_dynamic_spill_ops = true; }
+      if (!scheduled_op.is_original_op()) {
+         has_any_dynamic_spill_ops = true; 
+         std::cout << "Needs spilling" << std::endl;
+         }
 
       //////////////////////////////////debug///////////////////////////////////
       if (fptr) {
