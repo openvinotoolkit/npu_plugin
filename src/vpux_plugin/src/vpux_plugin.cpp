@@ -67,7 +67,7 @@ static VPUXConfig mergePluginAndNetworkConfigs(const VPUXConfig& pluginConfig,
 // FIXME: Remove NDEBUG, once #-15235 is fixed
 //
 static const std::vector<std::string> backendRegistry = {
-#if defined(_WIN32) || defined(_WIN64) || (defined(__linux__) && defined(__x86_64__) && defined(NDEBUG))
+#if defined(_WIN32) || defined(_WIN64) || (defined(__linux__) && defined(__x86_64__))
         "zero_backend",
 #endif
 #if defined(__arm__) || defined(__aarch64__)
