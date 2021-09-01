@@ -31,9 +31,8 @@
                 "enableBarrierSafety": true,
                 "enableSplitBarriers" : false,
                 "enableTensorFusion": true,
-                "enable_operation_serialization" : false,
-                "real_physical_barriers": 32,
-                "barrier_bound": 16
+                "real_physical_barriers": 8,
+                "barrier_bound": 8
             }
         ]
     },
