@@ -71,6 +71,10 @@ def OrderNHWC(data: np.ndarray) -> np.ndarray:
     return np.concatenate([a.transpose(1, 2, 0).flatten() for a in data])
 
 
+class ComputationError(Exception):
+    pass
+
+
 class ValidationError(Exception):
     pass
 
@@ -82,7 +86,7 @@ class PaddingError(Exception):
 def ValidatePaddings(kernel, paddings):
     # kernel size are width|height
     # The padding order is top|left|bottom|right
-    # Regarding documentation (http://dub30.ir.intel.com/svn/TRUNK/keembay/docs/specification/pdf/Gen3_Intel_Movidius_VPU_3400VE-A0_Databook_v1.4.pdf KB databook (page 5558)) 
+    # Regarding documentation (http://dub30.ir.intel.com/svn/TRUNK/keembay/docs/specification/pdf/Gen3_Intel_Movidius_VPU_3400VE-A0_Databook_v1.4.pdf KB databook (page 5558))
     # we have next paddings constaints:
     # When the kernel x dimension is odd, the PAD amount is [KERNEL_X-1]/2 on left and right
     # When the kernel y dimension is odd, the PAD amount is [KERNEL_Y-1]/2 on top and bottom
@@ -210,7 +214,7 @@ def pack_int4(data: np.ndarray) -> np.ndarray:
 
 class UInt4(TType):
     def __init__(self, bitwidth=4):
-        super().__init__(np.uint8, 'uint4', 'uint8', bitwidth, False)
+        super().__init__(np.uint8, 'uint4', 'int8', bitwidth, False)
         self.low = np.uint8(0)
         self.high = np.uint8((2 ** bitwidth) - 1)
 
@@ -378,13 +382,14 @@ class BF16(TType):
 
 def idu(input: Value, weights: Value) -> "tuple[np.ndarray, np.ndarray]":
     """Models the hardware IDU"""
-    def to_nb(value: Value) -> Union[np.ndarray, NBQuantized]:
-        if value.is_float:
-            return value.data.astype(np.float32)
-        return NBQuantized(value=value.data, scale=value.scale, zero_point=value.zero,
+    if input.is_float or weights.is_float:
+        return input.data.astype(np.float32), weights.data.astype(np.float32)
+
+    def to_qint32(value: Value) -> Union[np.ndarray, NBQuantized]:
+        return NBQuantized(value=value.data.astype(np.int32), scale=value.scale, zero_point=value.zero,
                            platform=PlatformVPU26(), quantization_info=QuantizationInfo(value.ttype.qtype))
 
-    return to_nb(input), to_nb(weights)
+    return to_qint32(input), to_qint32(weights)
 
 
 class MPE(ABC):
@@ -482,19 +487,20 @@ class ZMajorConvolution(MPE):
         c2d = Conv2d(kernel_shape=self.settings.kernel_shape,
                      pads = self.settings.kernel_pads,
                      strides = self.settings.kernel_strides)
-        return c2d.inference(lhs, rhs)
+        result = c2d.inference(lhs, rhs)
+        return result
 
     def result_bitwidth(self, values: List[Value]) -> int:
         # NB zm_conv_int8_fp16_16_uint8 seems to have a cliff behavior at 14
         #    extra bits: at 13, we see 0 and FF as outputs; at 14, we see just 0.
-        return values[0].bitwidth + values[1].bitwidth + self.settings.input_shape[1].bit_length()
+        return values[0].bitwidth + values[1].bitwidth + self.settings.input_shape[2].bit_length()  + self.settings.input_shape[3].bit_length() - 1
 
 
 class DepthWiseConv(MPE):
 
     # kernel_strides are x|y directions
     # The padding order is top|left|bottom|right
-    PARAMS = ['mpe_op_class', 'input_ttype', 'input_shape', 'weight_ttype', 'kernel_channels', 'kernel_shape', 'output_ttype', 'kernel_strides', 'kernel_pads']
+    PARAMS = ['mpe_op_class', 'input_ttype', 'input_shape', 'kernel_channels', 'kernel_shape', 'output_ttype', 'kernel_strides', 'kernel_pads']
 
     def __init__(self, settings):
         self.settings = settings
@@ -518,7 +524,7 @@ class DepthWiseConv(MPE):
 
     @property
     def ident(self) -> str:
-        return f'dw_conv_{shape_to_str(self.settings.input_shape)}x{self.settings.input_ttype.stype}_{shape_to_str(self.settings.weight_shape)}x{self.settings.weight_ttype.stype}_pads_{shape_to_str(self.settings.kernel_pads)}_strides_{shape_to_str(self.settings.kernel_strides)}_kern_chan_{self.settings.kernel_channels}'
+        return f'dw_conv_{shape_to_str(self.settings.input_shape)}x{self.settings.input_ttype.stype}_{shape_to_str(self.settings.weight_shape)}_pads_{shape_to_str(self.settings.kernel_pads)}_strides_{shape_to_str(self.settings.kernel_strides)}_kern_chan_{self.settings.kernel_channels}'
 
     @property
     def orderer(self) -> Orderer:
@@ -530,7 +536,7 @@ class DepthWiseConv(MPE):
             'MPE Mode': 'DepthWiseConv',
             'Input Type': self.settings.input_ttype.stype,
             'Input Shape': ', '.join([str(s) for s in self.settings.input_shape]),
-            'Weights Type': self.settings.weight_ttype.stype,
+            'Weights Type': self.settings.input_ttype.stype,
             'Kernel Channels': str(self.settings.kernel_channels),
             'Kernel Shape': ', '.join([str(s) for s in self.settings.kernel_shape]),
             'Output Type': self.settings.output_ttype.stype
@@ -539,7 +545,7 @@ class DepthWiseConv(MPE):
     def generate_inputs(self, rng) -> List[Value]:
         return [
             self.settings.input_ttype.generate('input-0.bin', self.settings.input_shape, rng),
-            self.settings.weight_ttype.generate('weights.dat', self.settings.weight_shape, rng, orderer=OrderNCHW)
+            self.settings.input_ttype.generate('weights.dat', self.settings.weight_shape, rng, orderer=OrderNCHW)
         ]
 
     def apply(self, values: List[Value]) -> np.ndarray:
@@ -551,9 +557,7 @@ class DepthWiseConv(MPE):
         return c2d.inference(lhs, rhs)
 
     def result_bitwidth(self, values: List[Value]) -> int:
-        # NB zm_conv_int8_fp16_16_uint8 seems to have a cliff behavior at 14
-        #    extra bits: at 13, we see 0 and FF as outputs; at 14, we see just 0.
-        return values[0].bitwidth + values[1].bitwidth + self.settings.input_shape[1].bit_length()
+        return values[0].bitwidth + values[1].bitwidth + self.settings.input_shape[2].bit_length()  + self.settings.input_shape[3].bit_length() - 1
 
 
 
@@ -782,14 +786,14 @@ class AvgPool(MPE):
 def ppe(values: List[Value], output_ttype: TType, data: Union[np.ndarray, NBQuantized], bitshift: int) -> Value:
     """Models the hardware PPE"""
     if isinstance(data, NBQuantized):
-        ndarray = data.value
+        ndarray = data.value / (2 << bitshift)
     else:
         ndarray = data
     ndarray = output_ttype.clip(ndarray).astype(output_ttype.dtype)
     value = Value(output_ttype, 'output-0.bin', ndarray, output_ttype.bitwidth, output_ttype.signed, None)
 
     if isinstance(data, NBQuantized):
-        value.scale = float(data.scale)
+        value.scale = float(data.scale) / (2 << bitshift)
         value.zero = int(data.zero_point)
 
     return value
@@ -824,14 +828,19 @@ class DPUPipeline:
             self.issues.add('EISW-15074')  # MaxPool produces zeros with fp16 and bf16 inputs
 
     def compute_values(self):
-        self.inputs = self.mpe_op.generate_inputs(default_rng(1))
-        self.mpe_data = self.mpe_op.apply(self.inputs)
-        if isinstance(self.mpe_data, NBQuantized):
-            self.mpe_data = self.mpe_data.value
-        result_bitwidth = self.mpe_op.result_bitwidth(self.inputs)
-        bitshift = max(result_bitwidth - self.settings.output_ttype.bitwidth, 0)
-        ppe_value = ppe(self.inputs, self.settings.output_ttype, self.mpe_data, bitshift)
-        self.o = odu(ppe_value)
+        try:
+            self.inputs = self.mpe_op.generate_inputs(default_rng(1))
+            mpe_data = self.mpe_op.apply(self.inputs)
+            if isinstance(mpe_data, NBQuantized):
+                self.mpe_data = mpe_data.value
+            else:
+                self.mpe_data = mpe_data
+            result_bitwidth = self.mpe_op.result_bitwidth(self.inputs)
+            bitshift = max(result_bitwidth - self.settings.output_ttype.bitwidth, 0)
+            ppe_value = ppe(self.inputs, self.settings.output_ttype, mpe_data, bitshift)
+            self.o = odu(ppe_value)
+        except Exception as ex:
+            raise ComputationError(f'computing {self.ident}') from ex
 
     def validate(self):
         try:
@@ -895,101 +904,168 @@ class Pad:
 
 def filter_issues(args, p: DPUPipeline) -> bool:
     # TODO: Add arguments to selectively filter by issues.
-    return 'EISW-13321' not in p.issues
+    return True
+
+
+_ZMCONV_VALID_WEIGHT_TYPES = {
+    Int8: [Int8(3), Int4(3)],
+    Int4: [Int8(3), UInt4(3), Int4(3)],
+    UInt8: [UInt8(3)],
+    UInt4: [UInt4(3), Int4(3)],
+    FP16: [FP16(4), Int8(3), Int4(3)],
+    BF16: [BF16(4)]
+}
+
+
+_PPE_VALID_OUTPUT_TYPES = {
+    False: [FP16(), UInt8(), UInt4(), Int8(), Int4()],  # Integer MACs
+    True: [FP32(), FP16(), BF16(), UInt8(), Int8(), Int4()],    # FP MACs
+}
 
 
 def genZMConvs(input_types=[UInt8(2)],
-               input_shapes=[[1, 16, 16, 16]],
-               weight_types=[UInt8(1)],
+               input_shapes=[[1, 32, 16, 16]],
+               weight_types=None,
                kernel_channels=[64],
                kernel_shapes=[[1, 1]],
-               output_types=[Int4(), UInt4(), UInt8()],
+               output_types=None,
                strides=[[1, 1]],
                pads=Pad.none):
-    return (DPUPipeline(ZMajorConvolution.PARAMS, x) for x in itertools.product(
-            [ZMajorConvolution],
-            input_types,
-            input_shapes,
-            weight_types,
-            kernel_channels,
-            kernel_shapes,
-            output_types,
-            strides,
-            pads
-            ))
+
+    for (input_type, input_shape, kernel_channel, kernel_shape, stride, pad) in itertools.product(input_types, input_shapes, kernel_channels, kernel_shapes, strides, pads):
+
+        if weight_types is None:
+            current_weight_types = _ZMCONV_VALID_WEIGHT_TYPES[input_type.__class__]
+
+        else:
+            current_weight_types = weight_types
+
+        for weight_type in current_weight_types:
+
+            if output_types is None:
+                current_output_types = _PPE_VALID_OUTPUT_TYPES[input_type.is_float or weight_type.is_float]
+            else:
+                current_output_types = output_types
+
+            for output_type in current_output_types:
+                yield DPUPipeline(ZMajorConvolution.PARAMS, (ZMajorConvolution,
+                                                             input_type,
+                                                             input_shape,
+                                                             weight_type,
+                                                             kernel_channel,
+                                                             kernel_shape,
+                                                             output_type,
+                                                             stride,
+                                                             pad
+                                                             ))
 
 
 def genEltwiseAdds(input_types=[Int8(6)],
                    input_shapes=[[1, 256, 16, 16]],
-                   output_types=[[Int8()]]):
-    return (DPUPipeline(EltwiseAdd.PARAMS, x) for x in itertools.product(
-            [EltwiseAdd],
-            input_types,
-            input_shapes,
-            output_types
-            ))
+                   output_types=None):
+    for (input_type, input_shape) in itertools.product(input_types, input_shapes):
+        if output_types is None:
+            current_output_types = _PPE_VALID_OUTPUT_TYPES[input_type.is_float]
+        else:
+            current_output_types = output_types
+
+        for output_type in current_output_types:
+            yield DPUPipeline(EltwiseAdd.PARAMS, (EltwiseAdd,
+                                                  input_type,
+                                                  input_shape,
+                                                  output_type
+                                                  ))
 
 
 def genEltwiseMults(input_types=[Int8(6)],
                     input_shapes=[[1, 256, 16, 16]],
-                    output_types=[[Int8()]]):
-    return (DPUPipeline(EltwiseMult.PARAMS, x) for x in itertools.product(
-            [EltwiseMult],
-            input_types,
-            input_shapes,
-            output_types
-            ))
+                    output_types=None):
+    for (input_type, input_shape) in itertools.product(input_types, input_shapes):
+        if output_types is None:
+            current_output_types = _PPE_VALID_OUTPUT_TYPES[input_type.is_float]
+        else:
+            current_output_types = output_types
+
+        for output_type in current_output_types:
+            yield DPUPipeline(EltwiseMult.PARAMS, (EltwiseMult,
+                                                   input_type,
+                                                   input_shape,
+                                                   output_type
+                                                   ))
+
+
+_MAXPOOL_PPE_VALID_OUTPUT_TYPES = {
+    False: [FP16(), UInt8(), UInt4(), Int8(), Int4()],  # Integer
+    True: [FP16(), BF16()],  # FP
+}
 
 
 def genMaxPools(input_types=[FP16(6)],
                 input_shapes=[[1, 64, 16, 16]],
-                output_types=[FP16()],
+                output_types=None,
                 strides=[[2, 2]],
                 pads=Pad.none):
-    return (DPUPipeline(Maxpool.PARAMS, x) for x in itertools.product(
-            [Maxpool],
-            input_types,
-            input_shapes,
-            output_types,
-            strides,
-            pads
-            ))
+    for (input_type, input_shape, stride, pad) in itertools.product(input_types, input_shapes, strides, pads):
+        if output_types is None:
+            current_output_types = _MAXPOOL_PPE_VALID_OUTPUT_TYPES[input_type.is_float]
+        else:
+            current_output_types = output_types
+
+        for output_type in current_output_types:
+            yield DPUPipeline(Maxpool.PARAMS, (Maxpool,
+                                               input_type,
+                                               input_shape,
+                                               output_type,
+                                               stride,
+                                               pad
+                                               ))
 
 
 def genAvgPools(input_types=[FP16(6)],
                 input_shapes=[[1, 64, 32, 32]],
-                output_types=[FP16()],
+                output_types=None,
                 strides=[[2, 2]],
                 pads=Pad.none):
-    return (DPUPipeline(AvgPool.PARAMS, x) for x in itertools.product(
-            [AvgPool],
-            input_types,
-            input_shapes,
-            output_types,
-            strides,
-            pads
-            ))
+    for (input_type, input_shape, stride, pad) in itertools.product(input_types, input_shapes, strides, pads):
+        if output_types is None:
+            current_output_types = _PPE_VALID_OUTPUT_TYPES[input_type.is_float]
+        else:
+            current_output_types = output_types
+
+        for output_type in current_output_types:
+            yield DPUPipeline(AvgPool.PARAMS, (AvgPool,
+                                               input_type,
+                                               input_shape,
+                                               output_type,
+                                               stride,
+                                               pad
+                                               ))
 
 
 def genDepthWiseConvs(input_types=[FP16(2)],
                       input_shapes=[[1, 16, 32, 32]],
-                      weight_types=[FP16(2)],
                       kernel_channels=[16],
                       kernel_shapes=[[4, 4]],
-                      output_types=[FP16()],
+                      output_types=None,
                       strides=[[1, 1]],
                       pads=Pad.none):
-    return (DPUPipeline(DepthWiseConv.PARAMS, x) for x in itertools.product(
-            [DepthWiseConv],
-            input_types,
-            input_shapes,
-            weight_types,
-            kernel_channels,
-            kernel_shapes,
-            output_types,
-            strides,
-            pads
-            ))
+    for (input_type, input_shape, kernel_channel, kernel_shape, stride, pad) in itertools.product(input_types, input_shapes, kernel_channels, kernel_shapes, strides, pads):
+
+        if output_types is None:
+            current_output_types = _PPE_VALID_OUTPUT_TYPES[input_type.is_float]
+        else:
+            current_output_types = output_types
+
+        for output_type in current_output_types:
+            yield DPUPipeline(DepthWiseConv.PARAMS, (DepthWiseConv,
+                                                     input_type,
+                                                     input_shape,
+                                                     kernel_channel,
+                                                     kernel_shape,
+                                                     output_type,
+                                                     stride,
+                                                     pad
+                                                     ))
 
 
 def generate_options(args):
@@ -1004,15 +1080,8 @@ def generate_options(args):
         #    about mixing signed/unsigned values, or integer activations with
         #    fp16 weights.
 
-        # Z-Major Convolution, int4/int8 activations
-        genZMConvs(input_types=[Int4(2), Int8(2)],
-                   weight_types=[Int4(2), Int8(2)],
-                   output_types=[Int4(), UInt4(), Int8(), UInt8(), FP16()]),
-
-        # Z-Major Convolution, uint4/uint8 activations
-        genZMConvs(input_types=[UInt4(2), UInt8(2)],
-                   weight_types=[UInt4(2), UInt8(2)],
-                   output_types=[Int4(), UInt4(), Int8(), UInt8(), FP16()]),
+        # Z-Major Convolution
+        genZMConvs(input_types=[Int8(3), Int4(3), UInt8(3), UInt4(3), FP16(4), BF16(4)]),
 
         # Z-Major Convolution, uint8 activations with extended kernel shapes
         # NB The number of bits used is turned pretty far down, to avoid issues
@@ -1022,25 +1091,10 @@ def generate_options(args):
                    kernel_shapes=[[r, c] for r in range(1, 12) for c in range(1, 12) if (r, c) != (1, 1)],
                    output_types=[FP16()]),
 
-        # Z-Major Convolution, fp16 activations, non-fp16 weights
-        genZMConvs(input_types=[FP16(2)],
-                   weight_types=[Int4(2), UInt4(2), Int8(2), UInt8(2)],
-                   output_types=[Int4(), UInt4(), Int8(), UInt8(), FP16()]),
-
-        # Z-Major Convolution, fp16 activations, fp16 weights
-        genZMConvs(input_types=[FP16(2)],
-                   weight_types=[FP16(2)],
-                   output_types=[Int4(), UInt4(), Int8(), UInt8(), FP16(), FP32()]),
-
-        # Z-Major Convolution, bf16->[bf16, fp32]
-        genZMConvs(input_types=[BF16(2)],
-                   weight_types=[BF16(2)],
-                   output_types=[BF16(), FP32()]),
-
         # Z-Major Convolution, padding, uint8
         genZMConvs(input_types=[UInt8(2)],
                    input_shapes=[[1, 16, 32, 32]],
-                   weight_types=[UInt4(1), UInt8(1)],
+                   weight_types=[UInt8(1)],
                    kernel_channels=[16],
                    kernel_shapes=[[14, 14]],
                    output_types=[Int4(), UInt4(), UInt8()],
@@ -1079,7 +1133,7 @@ def generate_options(args):
                    weight_types=[UInt8(1)],
                    kernel_channels=[16],
                    kernel_shapes=[[4, 6]],
-                   output_types=[Int4(), UInt4(), UInt8()],
+                   output_types=[UInt8()],
                    pads=[[2,0,0,0],[3,0,0,0]]),
 
         # Z-Major Convolution, padding, 4x4 kernel, uint8
@@ -1088,7 +1142,7 @@ def generate_options(args):
                    weight_types=[UInt8(1)],
                    kernel_channels=[16],
                    kernel_shapes=[[12, 14]],
-                   output_types=[Int4(), UInt4(), UInt8()],
+                   output_types=[UInt8()],
                    pads=[[6,0,0,0],[7,0,0,0]]),
 
         # Z-Major Convolution, padding, 5x5 kernel, uint8
@@ -1097,72 +1151,32 @@ def generate_options(args):
                    weight_types=[UInt8(1)],
                    kernel_channels=[16],
                    kernel_shapes=[[8, 10]],
-                   output_types=[Int4(), UInt4(), UInt8()],
+                   output_types=[UInt8()],
                    pads=[[4,0,0,0],[5,0,0,0]]),
 
         # Eltwise Add
-        # NB bf16 can only be used as an input, per the MTL layer mapping spec
-        #
-        # NB BUG: EISW-13321 int4/uint4 not supported by the runtime+moviSim.
-        #    So we don't exercise int4/uint4 cases.
-        #
-        # NB BUG: EISW-6666 Eltwise generates double the expected values for
-        #    fp16 and bfloat16 inputs.
         genEltwiseAdds(input_types=[Int8(6), UInt8(6), FP16(6), BF16(6)],
-                       input_shapes=[[1, 256, 16, 16]],
-                       output_types=[Int8(), UInt8(), FP16()]),
+                       input_shapes=[[1, 256, 16, 16]]),
 
-        # Eltwise Mult - int8/uint8/fp16
-        genEltwiseMults(input_types=[Int8(3), UInt8(4), FP16(6)],
-                        input_shapes=[[1, 1, 1, 32]],
-                        output_types=[Int8(), UInt8(), FP16()]),
+        # Eltwise Mult
+        genEltwiseMults(input_types=[Int8(3), UInt8(4), FP16(6), BF16(6)],
+                        input_shapes=[[1, 16, 16, 32]]),
 
-        # Eltwise Mult - bf16
-        genEltwiseMults(input_types=[BF16(6)],
-                        input_shapes=[[1, 1, 1, 32]],
-                        output_types=[BF16()]),
-
-        # MaxPool int8 / uint8
-        genMaxPools(input_types=[Int4(3), UInt4(3), UInt8(6), Int8(6)],
+        # MaxPool
+        genMaxPools(input_types=[UInt8(6), Int8(6), FP16(6), BF16(6)],
                     input_shapes=[[1, 64, 16, 16]],
-                    output_types=[Int4(), UInt4(), UInt8(), Int8()],
                     pads=Pad.none + Pad.all(1) + Pad.top_bottom(1) + Pad.left_right(1)),
 
-        # MaxPool fp16
-        genMaxPools(input_types=[FP16(6)],
-                    input_shapes=[[1, 64, 16, 16]],
-                    output_types=[FP16()],
-                    pads=Pad.none + Pad.all(1) + Pad.top_bottom(1) + Pad.left_right(1)),
+        # AvgPool
+        genAvgPools(input_types=[Int8(6), UInt8(6), FP16(6), BF16(6)],
+                    input_shapes=[[1, 64, 32, 32]]),
 
-        # MaxPool bf16
-        genMaxPools(input_types=[BF16(6)],
-                    input_shapes=[[1, 64, 16, 16]],
-                    output_types=[BF16()]),
-
-        # AvgPool, uint8/fp16 activations
-        genAvgPools(input_types=[UInt8(6), FP16(6)],
-                    input_shapes=[[1, 64, 32, 32]],
-                    output_types=[UInt8(), FP16()]),
-
-        # AvgPool, bf16 activations
-        genAvgPools(input_types=[BF16(6)],
-                    input_shapes=[[1, 64, 32, 32]],
-                    output_types=[BF16()]),
-
-        # DepthWiseConv, fp16 activations
-        genDepthWiseConvs(input_types=[FP16(2)],
-                          weight_types=[FP16(2)],
-                          output_types=[FP16()]),
-
-        # DepthWiseConv, uint8 activations
-        genDepthWiseConvs(input_types=[UInt8(2)],
-                          weight_types=[UInt8(2)],
-                          output_types=[UInt8(), FP16()]),
+        # DepthWiseConv
+        genDepthWiseConvs(input_types=[Int8(6), UInt8(6), FP16(6), BF16(6)]),
 
         # MobileNet DepthWiseConv, uint8
         genDepthWiseConvs(input_types=[UInt8(2)],
                           input_shapes=[[1, 32, 112, 112]],
-                          weight_types=[UInt8(2)],
                           kernel_channels=[32],
                           kernel_shapes=[[3, 3]],
                           output_types=[UInt8()],
@@ -1171,7 +1185,6 @@ def generate_options(args):
         # MobileNet DepthWiseConv, uint8
         genDepthWiseConvs(input_types=[UInt8(2)],
                           input_shapes=[[1, 96, 112, 112]],
-                          weight_types=[UInt8(2)],
                           kernel_channels=[96],
                           kernel_shapes=[[3, 3]],
                           output_types=[UInt8()],
@@ -1180,7 +1193,6 @@ def generate_options(args):
         # MobileNet DepthWiseConv, uint8
         genDepthWiseConvs(input_types=[UInt8(2)],
                           input_shapes=[[1, 144, 56, 56]],
-                          weight_types=[UInt8(2)],
                           kernel_channels=[144],
                           kernel_shapes=[[3, 3]],
                           output_types=[UInt8()],
@@ -1189,7 +1201,6 @@ def generate_options(args):
         # MobileNet DepthWiseConv, uint8
         genDepthWiseConvs(input_types=[UInt8(2)],
                           input_shapes=[[1, 192, 28, 28]],
-                          weight_types=[UInt8(2)],
                           kernel_channels=[192],
                           kernel_shapes=[[3, 3]],
                           output_types=[UInt8()],
@@ -1198,7 +1209,6 @@ def generate_options(args):
         # MobileNet DepthWiseConv, uint8
         genDepthWiseConvs(input_types=[UInt8(2)],
                           input_shapes=[[1, 192, 28, 28]],
-                          weight_types=[UInt8(2)],
                           kernel_channels=[192],
                           kernel_shapes=[[3, 3]],
                           output_types=[UInt8()],
@@ -1208,7 +1218,6 @@ def generate_options(args):
         # MobileNet DepthWiseConv, uint8
         genDepthWiseConvs(input_types=[UInt8(2)],
                           input_shapes=[[1, 384, 14, 14]],
-                          weight_types=[UInt8(2)],
                           kernel_channels=[384],
                           kernel_shapes=[[3, 3]],
                           output_types=[UInt8()],
