@@ -19,6 +19,26 @@
 
 namespace vpux {
 
+//
+// DeclarationOp
+//
+
+template <typename ConcreteOp>
+class DeclarationOp : public mlir::OpTrait::TraitBase<ConcreteOp, DeclarationOp> {
+    static mlir::LogicalResult verifyTrait(mlir::Operation*) {
+        static_assert(ConcreteOp::template hasTrait<mlir::OpTrait::ZeroOperands>(),
+                      "Expected operation to take zero operands");
+        static_assert(ConcreteOp::template hasTrait<mlir::OpTrait::OneResult>(),
+                      "Expected operation to produce one result");
+
+        return mlir::success();
+    }
+};
+
+//
+// DotInterface
+//
+
 enum class DotNodeColor { NONE, RED, GREEN, ORANGE, BLUE, AQUA, AQUAMARINE };
 
 }  // namespace vpux

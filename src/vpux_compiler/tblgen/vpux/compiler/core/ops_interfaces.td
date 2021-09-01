@@ -36,6 +36,18 @@ def MultiViewOpInterface : OpInterface<"MultiViewOpInterface"> {
     ];
 }
 
+//
+// DeclarationOp
+//
+
+def DeclarationOp : NativeOpTrait<"DeclarationOp"> {
+    let cppNamespace = "vpux";
+}
+
+//
+// DotInterface
+//
+
 def DotInterface : OpInterface<"DotInterface"> {
     let description = "Base interface for Dot graph generation";
 
@@ -47,13 +59,6 @@ def DotInterface : OpInterface<"DotInterface"> {
             "vpux::DotNodeColor", "getNodeColor", (ins),
             [{}],
             [{return vpux::DotNodeColor::NONE;}]
-        >,
-
-        InterfaceMethod<
-            "Node type is a declaration",
-            "bool", "isDeclaration", (ins),
-            [{}],
-            [{return false;}]
         >,
 
         InterfaceMethod<

@@ -12,14 +12,6 @@ vpux::DotNodeColor getNodeColor();
 Get node color
 NOTE: This method *must* be implemented by the user.
 
-#### `isDeclaration`
-
-```c++
-bool isDeclaration();
-```
-Node type is a declaration
-NOTE: This method *must* be implemented by the user.
-
 #### `printAttributes`
 
 ```c++

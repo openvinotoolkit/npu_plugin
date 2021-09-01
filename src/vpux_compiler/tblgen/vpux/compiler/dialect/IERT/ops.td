@@ -208,6 +208,7 @@ def IERT_StaticAllocOp :
             "StaticAlloc",
             [
                 NoSideEffect,
+                DeclarationOp,
                 DotInterface
             ]
         > {
@@ -222,11 +223,8 @@ def IERT_StaticAllocOp :
     );
 
     let extraClassDeclaration = [{
-        bool isDeclaration() {
-            return true;
-        }
         vpux::DotNodeColor getNodeColor() {
-            return DotNodeColor::ORANGE;
+            return vpux::DotNodeColor::ORANGE;
         }
     }];
 
@@ -1992,7 +1990,7 @@ def IERT_MVNOp :
         BoolAttr:$across_channels,
         BoolAttr:$normalize_variance,
         F64Attr:$eps
-        
+
     );
 
     let results = (outs

@@ -13,6 +13,7 @@
 
 #include "vpux/compiler/conversion.hpp"
 
+#include "vpux/compiler/core/passes.hpp"
 #include "vpux/compiler/dialect/IERT/passes.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 
@@ -43,6 +44,7 @@ void vpux::buildLowerIERT2VPUIPPipeline(mlir::OpPassManager& pm, Logger log) {
     pm.addPass(createConvertViewOps2VPUIPPass(log));
     pm.addPass(createConvertAsyncOps2VPUIPPass(log));
     pm.addPass(mlir::createCanonicalizerPass(getDefaultGreedyRewriteConfig()));
+    pm.addPass(createMoveDeclarationsToTopPass(log));
 }
 
 //

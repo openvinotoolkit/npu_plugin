@@ -41,6 +41,7 @@ def Const_DeclareOp :
             [
                 ConstantLike,
                 NoSideEffect,
+                DeclarationOp,
                 DotInterface
             ]
         > {
@@ -64,10 +65,10 @@ def Const_DeclareOp :
     let verifier = [{
         return verifyOp(*this);
     }];
-    
+
     let extraClassDeclaration = [{
         vpux::DotNodeColor getNodeColor() {
-            return DotNodeColor::AQUAMARINE;
+            return vpux::DotNodeColor::AQUAMARINE;
         }
     }];
 
