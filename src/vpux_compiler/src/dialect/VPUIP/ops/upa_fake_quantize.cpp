@@ -170,3 +170,7 @@ mlir::Operation* vpux::VPUIP::BlobReader::parseFakeQuantize(mlir::OpBuilder& bui
             Const::ContentAttr::get(mlir::DenseElementsAttr::get(outputShapeType, makeArrayRef(outputLow))),
             Const::ContentAttr::get(mlir::DenseElementsAttr::get(outputShapeType, makeArrayRef(outputHigh))));
 }
+
+void vpux::VPUIP::FakeQuantizeUPAOp::inferLayoutInfo(mlir::Operation*, IE::LayerLayoutInfo& info) {
+    info.fill(info.getInput(0));
+}

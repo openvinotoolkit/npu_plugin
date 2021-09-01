@@ -47,30 +47,13 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::RegionYoloUPAOp::serialize(VPUIP::B
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_RegionYOLOParams});
 }
 
-bool vpux::VPUIP::RegionYoloUPAOp::isSupportedLayout(mlir::Operation* op, IE::DataOrderInfo& info) {
-    VPUX_THROW_UNLESS(mlir::isa<IE::RegionYoloOp>(op), "Operation {0} is not RegionYolo", op->getName());
+void vpux::VPUIP::RegionYoloUPAOp::inferLayoutInfo(mlir::Operation* origOp, IE::LayerLayoutInfo& info) {
+    auto regionYoloOp = mlir::dyn_cast<IE::RegionYoloOp>(origOp);
+    VPUX_THROW_UNLESS(regionYoloOp != nullptr, "Operation '{0}' is not a RegionYolo", origOp->getName());
 
-    auto regionYoloOp = mlir::dyn_cast<IE::RegionYoloOp>(op);
-    if (regionYoloOp.do_softmax() == false) {
-        return IERT::isSupportedLayoutSameInOutSpecificDimsOrder(op, info, IERT::CHW_HWC_NCHW_NHWC);
+    if (regionYoloOp.do_softmax()) {
+        IE::fillDefaultLayoutInfo(info);
     } else {
-        if (info.hasInput(0)) {
-            const auto order = info.getInput(0);
-            if (!std::count(IERT::CHW_HWC_NCHW_NHWC.cbegin(), IERT::CHW_HWC_NCHW_NHWC.cend(), order)) {
-                if (order.numDims() == 3)
-                    info.setInput(0, DimsOrder::CHW);
-                else
-                    info.setInput(0, DimsOrder::NCHW);
-                return false;
-            }
-        }
-        if (info.hasOutput(0)) {
-            if (info.getOutput(0) != DimsOrder::NC) {
-                info.setOutput(0, DimsOrder::NC);
-                return false;
-            }
-        }
+        IERT::inferLayoutInfoSameInOutSpecificDimsOrder(info, IERT::NCHW_NHWC);
     }
-
-    return true;
 }

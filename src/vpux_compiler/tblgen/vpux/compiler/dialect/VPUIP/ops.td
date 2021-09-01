@@ -614,7 +614,7 @@ def VPUIP_ConvolutionUPAOp :
     }];
 
     let extraClassDeclaration = [{
-        static bool isSupportedLayout(mlir::Operation* op, vpux::IE::DataOrderInfo& info);
+        static void inferLayoutInfo(mlir::Operation* origOp, vpux::IE::LayerLayoutInfo& info);
     }] # commonExtraClassDeclaration;
 
     let verifier = [{
@@ -1153,7 +1153,6 @@ def VPUIP_FakeQuantizeUPAOp :
                 ViewLikeOpInterface,
                 IERT_SameShape,
                 IERT_SameElementType,
-                IERT_SameInOutDimsOrder_CHW_HWC_NCHW_NHWC,
                 VPUIP_Legacy4D
             ]
         > {
@@ -1203,6 +1202,10 @@ def VPUIP_FakeQuantizeUPAOp :
         (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `->` type(results)
     }];
+
+    let extraClassDeclaration = [{
+        static void inferLayoutInfo(mlir::Operation* origOp, vpux::IE::LayerLayoutInfo& info);
+    }] # commonExtraClassDeclaration;
 }
 
 //
@@ -1252,7 +1255,7 @@ def VPUIP_QuantCastUPAOp :
     }];
 
     let extraClassDeclaration = [{
-        static bool isSupportedLayout(mlir::Operation* op, vpux::IE::DataOrderInfo& info);
+        static void inferLayoutInfo(mlir::Operation* origOp, vpux::IE::LayerLayoutInfo& info);
     }] # commonExtraClassDeclaration;
 }
 
@@ -1817,8 +1820,7 @@ def VPUIP_ROIPoolingUPAOp :
 def VPUIP_PermuteUPAOp :
         VPUIP_UPATaskOp<1, "PermuteUPA",
             [
-                ViewLikeOpInterface,
-                IERT_AnyDimsOrder
+                ViewLikeOpInterface
             ]
         > {
     let summary = "Permute UPA SHAVE kernel";
@@ -1861,6 +1863,10 @@ def VPUIP_PermuteUPAOp :
     let verifier = [{
         return vpux::VPUIP::verifyOp(*this);
     }];
+
+    let extraClassDeclaration = [{
+        static void inferLayoutInfo(mlir::Operation* origOp, vpux::IE::LayerLayoutInfo& info);
+    }] # commonExtraClassDeclaration;
 }
 
 //
@@ -2066,7 +2072,7 @@ def VPUIP_NCEClusterTaskOp :
         template <typename... Args>
         vpux::VPUIP::PPETaskOp addPPETask(mlir::OpBuilder& builder, Args&&... args);
 
-        static bool isSupportedLayout(mlir::Operation* op, vpux::IE::DataOrderInfo& info);
+        static void inferLayoutInfo(mlir::Operation* origOp, vpux::IE::LayerLayoutInfo& info);
 
         static vpux::VPUIP::TaskType getTaskType() {
             return vpux::VPUIP::TaskType::NCE2;
@@ -2128,7 +2134,7 @@ def VPUIP_CTCGreedyDecoderUPAOp :
     }];
 
     let extraClassDeclaration = [{
-        static bool isSupportedLayout(mlir::Operation* op, vpux::IE::DataOrderInfo& info);
+        static void inferLayoutInfo(mlir::Operation* origOp, vpux::IE::LayerLayoutInfo& info);
     }] # commonExtraClassDeclaration;
 }
 
@@ -2185,7 +2191,7 @@ def VPUIP_CTCGreedyDecoderSeqLenUPAOp :
     }];
 
     let extraClassDeclaration = [{
-        static bool isSupportedLayout(mlir::Operation* op, vpux::IE::DataOrderInfo& info);
+        static void inferLayoutInfo(mlir::Operation* origOp, vpux::IE::LayerLayoutInfo& info);
     }] # commonExtraClassDeclaration;
 }
 
@@ -2447,7 +2453,7 @@ def VPUIP_FullyConnectedUPAOp :
     ];
 
     let extraClassDeclaration = [{
-        static bool isSupportedLayout(mlir::Operation* op, vpux::IE::DataOrderInfo& info);
+        static void inferLayoutInfo(mlir::Operation* origOp, vpux::IE::LayerLayoutInfo& info);
     }] # commonExtraClassDeclaration;
 
     let assemblyFormat = [{
@@ -2516,7 +2522,7 @@ def VPUIP_RegionYoloUPAOp :
     }];
 
     let extraClassDeclaration = [{
-        static bool isSupportedLayout(mlir::Operation* op, vpux::IE::DataOrderInfo& info);
+        static void inferLayoutInfo(mlir::Operation* origOp, vpux::IE::LayerLayoutInfo& info);
     }] # commonExtraClassDeclaration;
 }
 

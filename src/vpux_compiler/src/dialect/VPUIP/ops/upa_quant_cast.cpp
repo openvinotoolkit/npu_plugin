@@ -106,38 +106,25 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(QuantCastUPAOp op) {
     return mlir::success();
 }
 
-bool vpux::VPUIP::QuantCastUPAOp::isSupportedLayout(mlir::Operation* op, IE::DataOrderInfo& info) {
-    const auto quantizeOp = mlir::dyn_cast<IE::QuantizeOp>(op);
-    const auto dequantizeOp = mlir::dyn_cast<IE::DequantizeOp>(op);
-
-    VPUX_THROW_UNLESS(quantizeOp != nullptr || dequantizeOp != nullptr, "Operation {0} is not quantizer",
-                      op->getName());
-
-    IE::LayerOpInterface layer = quantizeOp ? quantizeOp : dequantizeOp;
-    auto input = layer.getInputs()[0];
-    auto output = layer.getOutputs()[0];
-    const auto inType = input.getType().cast<mlir::RankedTensorType>().getElementType();
-    const auto outType = output.getType().cast<mlir::RankedTensorType>().getElementType();
+void vpux::VPUIP::QuantCastUPAOp::inferLayoutInfo(mlir::Operation* origOp, IE::LayerLayoutInfo& info) {
+    const auto inType = origOp->getOperand(0).getType().cast<mlir::ShapedType>().getElementType();
+    const auto outType = origOp->getResult(0).getType().cast<mlir::ShapedType>().getElementType();
 
     const auto qType = inType.isa<mlir::quant::QuantizedType>() ? inType.cast<mlir::quant::QuantizedType>()
                                                                 : outType.cast<mlir::quant::QuantizedType>();
 
     if (qType.isa<mlir::quant::UniformQuantizedPerAxisType>()) {
-        const auto numDims = layer.getInputs()[0].getType().cast<mlir::ShapedType>().getRank();
-        const auto supportedLayout = numDims == 3 ? DimsOrder::HWC : DimsOrder::NHWC;
-        if (!info.hasInput(0)) {
-            IE::fillDataInfo(info, 1, 1, supportedLayout);
-            return false;
+        const auto numDims = info.getInput(0).numDims();
+        if (numDims == 3) {
+            info.fill(DimsOrder::HWC);
+        } else if (numDims == 4) {
+            info.fill(DimsOrder::NHWC);
+        } else {
+            VPUX_THROW("Unsupported rank '{0}'", numDims);
         }
-
-        const auto mainOrder = info.getInput(0);
-        if (mainOrder != DimsOrder::HWC && mainOrder != DimsOrder::NHWC) {
-            IE::fillDataInfo(info, 1, 1, supportedLayout);
-            return false;
-        }
+    } else {
+        info.fill(info.getInput(0));
     }
-
-    return IERT::isSupportedLayoutSameDimsOrder(op, info);
 }
 
 void vpux::VPUIP::QuantCastUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,

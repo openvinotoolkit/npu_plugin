@@ -260,11 +260,6 @@ mlir::LogicalResult ReorderWithConcat::matchAndRewrite(IE::ConcatOp origConcatOp
     return mlir::success();
 }
 
-#if 0
-
-// FIXME: isSupportedLayout should use orderInfo to get layouts for inputs and outputs,
-//        not take them from the operands.
-
 //
 // ReorderWithLayer
 //
@@ -285,30 +280,33 @@ private:
 
 mlir::LogicalResult ReorderWithLayer::matchAndRewrite(IE::LayoutInfoOpInterface layerOp,
                                                       mlir::PatternRewriter& rewriter) const {
-    auto orderInfo = layerOp.getDataOrderInfo();
+    if (mlir::isa<IE::ReorderOp>(layerOp)) {
+        return mlir::failure();
+    }
 
-    bool hasChanges = false;
-    for (const auto p : layerOp->getOperands() | indexed) {
-        if (!orderInfo.hasInput(p.index())) {
-            continue;
-        }
+    _log.trace("Got layer operation '{0}' at '{1}'", layerOp->getName(), layerOp->getLoc());
 
-        const auto arg = p.value();
+    auto orderInfo = layerOp.getLayoutInfo();
+    _log.nest(1).trace("Base order info - '{0}'", orderInfo);
+
+    _log.nest(1).trace("Check operation inputs");
+    for (auto ind : irange(orderInfo.getNumInputs())) {
+        const auto arg = layerOp->getOperand(checked_cast<uint32_t>(ind));
 
         auto argReorderOp = arg.getDefiningOp<IE::ReorderOp>();
         if (argReorderOp == nullptr) {
             continue;
         }
 
-        orderInfo.setInput(p.index(), DimsOrder::fromValue(argReorderOp.input()));
-        hasChanges = true;
-    }
-    for (const auto p : layerOp->getResults() | indexed) {
-        if (!orderInfo.hasOutput(p.index())) {
-            continue;
-        }
+        const auto newOrder = DimsOrder::fromValue(argReorderOp.input());
 
-        const auto res = p.value();
+        _log.nest(2).trace("Try '{0}' order for input #{1}", newOrder, ind);
+        orderInfo.setInput(ind, newOrder);
+    }
+
+    _log.nest(1).trace("Check operation outputs");
+    for (auto ind : irange(orderInfo.getNumOutputs())) {
+        const auto res = layerOp->getResult(checked_cast<uint32_t>(ind));
 
         if (!res.hasOneUse()) {
             continue;
@@ -319,26 +317,29 @@ mlir::LogicalResult ReorderWithLayer::matchAndRewrite(IE::LayoutInfoOpInterface 
             continue;
         }
 
-        orderInfo.setOutput(p.index(), DimsOrder::fromValue(resReorderOp.output()));
-        hasChanges = true;
+        const auto newOrder = DimsOrder::fromValue(resReorderOp.output());
+
+        _log.nest(2).trace("Try '{0}' order for output #{1}", newOrder, ind);
+        orderInfo.setOutput(ind, newOrder);
     }
 
-    if (!hasChanges) {
-        return mlir::failure();
+    if (!orderInfo.hasChanges()) {
+        return matchFailed(_log.nest(), rewriter, layerOp, "There is no Reorders to fuse");
     }
 
-    if (!layerOp.isSupportedLayout(orderInfo)) {
-        return mlir::failure();
+    orderInfo.resetChanges();
+    layerOp.inferLayoutInfo(orderInfo);
+
+    if (orderInfo.hasChanges()) {
+        return matchFailed(_log.nest(), rewriter, layerOp, "The layer doesn't support fused Reorders");
     }
+
+    _log.nest(1).trace("Merge new order - '{0}'", orderInfo);
 
     rewriter.startRootUpdate(layerOp);
 
-    for (const auto p : layerOp->getOpOperands() | indexed) {
-        if (!orderInfo.hasInput(p.index())) {
-            continue;
-        }
-
-        auto& arg = p.value();
+    for (auto ind : irange(orderInfo.getNumInputs())) {
+        auto& arg = layerOp->getOpOperand(checked_cast<uint32_t>(ind));
 
         auto argReorderOp = arg.get().getDefiningOp<IE::ReorderOp>();
         if (argReorderOp == nullptr) {
@@ -347,12 +348,8 @@ mlir::LogicalResult ReorderWithLayer::matchAndRewrite(IE::LayoutInfoOpInterface 
 
         arg.set(argReorderOp.input());
     }
-    for (const auto p : layerOp->getOpResults() | indexed) {
-        if (!orderInfo.hasOutput(p.index())) {
-            continue;
-        }
-
-        auto res = p.value();
+    for (auto ind : irange(orderInfo.getNumOutputs())) {
+        auto res = layerOp->getResult(checked_cast<uint32_t>(ind));
 
         if (!res.hasOneUse()) {
             continue;
@@ -372,8 +369,6 @@ mlir::LogicalResult ReorderWithLayer::matchAndRewrite(IE::LayoutInfoOpInterface 
 
     return mlir::success();
 }
-
-#endif
 
 //
 // OptimizeReordersPass
@@ -397,7 +392,7 @@ void OptimizeReordersPass::safeRunOnFunc() {
     patterns.add<ReorderWithExpand>(&ctx, _log);
     patterns.add<ReorderWithSplit>(&ctx, _log);
     patterns.add<ReorderWithConcat>(&ctx, _log);
-    // patterns.add<ReorderWithLayer>(&ctx, _log);
+    patterns.add<ReorderWithLayer>(&ctx, _log);
     IE::ReorderOp::getCanonicalizationPatterns(patterns, &ctx);
 
     auto func = getFunction();
