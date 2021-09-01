@@ -84,6 +84,20 @@ private:
     Logger _log;
 };
 
+namespace {
+void swapExpandWithReorder(mlir::PatternRewriter& rewriter, IE::ExpandOp expandOp, IE::ReorderOp origReorderOp) {
+    mlir::OpBuilder::InsertionGuard guard(rewriter);
+    rewriter.setInsertionPoint(expandOp);
+    const auto newExpandType = changeDimsOrder(expandOp.output().getType().cast<mlir::ShapedType>(),
+                                               DimsOrder::fromValue(origReorderOp.input()));
+
+    auto newExpandOp = rewriter.create<IE::ExpandOp>(expandOp->getLoc(), newExpandType, origReorderOp.input(),
+                                                     expandOp.pads_begin(), expandOp.pads_end());
+
+    rewriter.replaceOpWithNewOp<IE::ReorderOp>(expandOp, newExpandOp.output(), origReorderOp.dstOrderAttr());
+}
+};  // namespace
+
 mlir::LogicalResult ReorderWithExpand::matchAndRewrite(IE::ExpandOp origExpandOp,
                                                        mlir::PatternRewriter& rewriter) const {
     auto origReorderOp = origExpandOp.input().getDefiningOp<IE::ReorderOp>();
@@ -92,21 +106,19 @@ mlir::LogicalResult ReorderWithExpand::matchAndRewrite(IE::ExpandOp origExpandOp
     }
 
     _log.trace("Got reorder at '{0}' -> Expand at '{1}' pair", origReorderOp->getLoc(), origExpandOp->getLoc());
+    const auto isExpand = [](const mlir::Operation* reorderUser) -> bool {
+        return mlir::isa<IE::ExpandOp>(reorderUser);
+    };
 
-    if (!origReorderOp.getResult().hasOneUse()) {
-        return matchFailed(_log.nest(), rewriter, origExpandOp, "Reorder has more then one users");
+    if (!std::all_of(origReorderOp.getResult().user_begin(), origReorderOp.getResult().user_end(), isExpand)) {
+        return matchFailed(_log.nest(), rewriter, origExpandOp,
+                           "Reorder has more than one user and they are heterogeneous");
     }
 
-    const auto expandShape = getShape(origExpandOp.output());
-    const auto expandElemType = origExpandOp.output().getType().cast<mlir::ShapedType>().getElementType();
-
-    auto newExpandType = changeShape(origReorderOp.input().getType().cast<mlir::ShapedType>(), expandShape);
-    newExpandType = changeElemType(newExpandType, expandElemType);
-
-    auto newExpandOp = rewriter.create<IE::ExpandOp>(origExpandOp->getLoc(), newExpandType, origReorderOp.input(),
-                                                     origExpandOp.pads_begin(), origExpandOp.pads_end());
-
-    rewriter.replaceOpWithNewOp<IE::ReorderOp>(origExpandOp, newExpandOp.output(), origReorderOp.dstOrderAttr());
+    for (const auto reorderUser : origReorderOp.getResult().getUsers()) {
+        auto expandOp = mlir::dyn_cast_or_null<IE::ExpandOp>(reorderUser);
+        swapExpandWithReorder(rewriter, expandOp, origReorderOp);
+    }
     return mlir::success();
 }
 

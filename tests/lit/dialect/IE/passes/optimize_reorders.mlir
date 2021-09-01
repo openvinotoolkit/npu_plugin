@@ -192,3 +192,57 @@ func @main(%arg0: tensor<1x1x30x30xf16, {order = #NHWC}>, %arg1: tensor<1x1x30x3
 }
 
 }
+
+// -----
+
+#NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
+#NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
+
+// CHECK-LABEL: @ReorderWithExpandTwoBranches
+module @ReorderWithExpandTwoBranches attributes {VPUIP.arch = "KMB", VPUIP.compilationMode = "ReferenceSW"} {
+
+// CHECK:       func @main([[ARG0:%arg[0-9]+]]: tensor<1x24x56x56xf16, {order = #NHWC}>)
+func @main(%arg0: tensor<1x24x56x56xf16, {order = #NHWC}>) -> tensor<1x32x56x56xf16, {order = #NHWC}> {
+    %0 = const.Declare tensor<32x32x1x1xf16, {order = #NHWC}> = #const.Content<dense<1.0> : tensor<32x32x1x1xf16>, [#const.Reorder<#NHWC>]>
+    %1 = IE.Reorder(%arg0) {dstOrder = #NCHW} : tensor<1x24x56x56xf16, {order = #NHWC}> -> tensor<1x24x56x56xf16>
+    %2 = IE.Expand(%1) {pads_begin = [0, 0, 0, 0], pads_end = [0, 8, 0, 0]} : tensor<1x24x56x56xf16> -> tensor<1x32x56x56xf16>
+    %3 = IE.Reorder(%2) {dstOrder = #NHWC} : tensor<1x32x56x56xf16> -> tensor<1x32x56x56xf16, {order = #NHWC}>
+    %4 = IE.Convolution(%3, %0) {dilations = [1, 1], pads_begin = [0, 0], pads_end = [0, 0], post_op = {attrs = {}, name = "IE.ReLU"}, strides = [1, 1]} : tensor<1x32x56x56xf16, {order = #NHWC}>, tensor<32x32x1x1xf16, {order = #NHWC}> -> tensor<1x32x56x56xf16, {order = #NHWC}>
+    %5 = IE.Expand(%1) {pads_begin = [0, 0, 0, 0], pads_end = [0, 8, 0, 0]} : tensor<1x24x56x56xf16> -> tensor<1x32x56x56xf16>
+    %6 = IE.Reorder(%5) {dstOrder = #NHWC} : tensor<1x32x56x56xf16> -> tensor<1x32x56x56xf16, {order = #NHWC}>
+    %7 = IE.Add(%6, %4) {auto_broadcast = "NUMPY"} : tensor<1x32x56x56xf16, {order = #NHWC}>, tensor<1x32x56x56xf16, {order = #NHWC}> -> tensor<1x32x56x56xf16, {order = #NHWC}>
+
+    return %7 : tensor<1x32x56x56xf16, {order = #NHWC}>
+    // CHECK:       [[VAR0:%.*]] = const.Declare
+    // CHECK-SAME:      tensor<32x32x1x1xf16, {order = #NHWC}>
+    // CHECK-SAME:      #const.Content<dense<1.000000e+00> : tensor<32x32x1x1xf16>, [#const.Reorder<#NHWC>]>
+
+    // CHECK:       [[VAR1:%.*]] = IE.Expand([[ARG0]])
+    // CHECK-SAME:      pads_begin = [0, 0, 0, 0]
+    // CHECK-SAME:      pads_end = [0, 8, 0, 0]
+    // CHECK-SAME:      : tensor<1x24x56x56xf16, {order = #NHWC}> -> tensor<1x32x56x56xf16, {order = #NHWC}>
+
+    // CHECK:       [[VAR2:%.*]] = IE.Convolution([[VAR1]], [[VAR0]])
+    // CHECK-SAME:      dilations = [1, 1]
+    // CHECK-SAME:      pads_begin = [0, 0]
+    // CHECK-SAME:      pads_end = [0, 0]
+    // CHECK-SAME:      post_op = {attrs = {}, name = "IE.ReLU"}
+    // CHECK-SAME:      strides = [1, 1]
+    // CHECK-SAME:      : tensor<1x32x56x56xf16, {order = #NHWC}>, tensor<32x32x1x1xf16, {order = #NHWC}>
+    // CHECK-SAME:      -> tensor<1x32x56x56xf16, {order = #NHWC}>
+
+    // CHECK:       [[VAR3:%.*]] = IE.Expand([[ARG0]])
+    // CHECK-SAME:      pads_begin = [0, 0, 0, 0]
+    // CHECK-SAME:      pads_end = [0, 8, 0, 0]
+    // CHECK-SAME:      : tensor<1x24x56x56xf16, {order = #NHWC}> -> tensor<1x32x56x56xf16, {order = #NHWC}>
+
+
+    // CHECK:       [[VAR4:%.*]] = IE.Add([[VAR3]], [[VAR2]])
+    // CHECK-SAME:      {auto_broadcast = "NUMPY"}
+    // CHECK-SAME:      : tensor<1x32x56x56xf16, {order = #NHWC}>, tensor<1x32x56x56xf16, {order = #NHWC}>
+    // CHECK-SAME:      -> tensor<1x32x56x56xf16, {order = #NHWC}>
+
+    // CHECK:       return [[VAR4]] : tensor<1x32x56x56xf16, {order = #NHWC}>
+}
+
+}
