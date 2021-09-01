@@ -129,7 +129,7 @@ void LayerLoader::registerParsers()
     parserMap_.emplace(SoftwareLayerParams::SoftwareLayerParams_PostOpsParams, &parse<PostOpsParser>);
 //    parserMap_.emplace(SoftwareLayerParams::SoftwareLayerParams_NegativeParams, &parse<NegativeParser>);
 //    parserMap_.emplace(SoftwareLayerParams::SoftwareLayerParams_ConvertParams, &parse<ConvertParser>);
-    parserMap_.emplace(SoftwareLayerParams::SoftwareLayerParams_CustomLayerCppParams, &parse<CustomLayerCppParser>);
+//    parserMap_.emplace(SoftwareLayerParams::SoftwareLayerParams_CustomLayerCppParams, &parse<CustomLayerCppParser>);
 //    parserMap_.emplace(SoftwareLayerParams::SoftwareLayerParams_PermuteNDParams, &parse<PermuteNDParser>);
 //    parserMap_.emplace(SoftwareLayerParams::SoftwareLayerParams_PadParams, &parse<PadParser>);
 //    parserMap_.emplace(SoftwareLayerParams::SoftwareLayerParams_InterpolateParams, &parse<InterpolateParser>);

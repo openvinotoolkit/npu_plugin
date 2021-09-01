@@ -78,10 +78,12 @@ subdirs-lnn-y += nn/common $(VSYSTEM)/nn/platform_abstraction nn/inference_runti
 subdirs-shave-y += nn/common
 subdirs-shave-y += nn/shave_lib
 subdirs-shave-y += ../../kernels
+subdirs-lrt-$(CONFIG_TARGET_SOC_3720) +=  act_shave_lib
+subdirs-lnn-$(CONFIG_TARGET_SOC_3720) +=  act_shave_lib
+subdirs-shave_nn-$(CONFIG_TARGET_SOC_3720) += act_shave_lib
+subdirs-shave_nn-$(CONFIG_TARGET_SOC_3720) +=  ../../kernels
 
-#subdirs-shave-$(CONFIG_USE_COMPONENT_NN) += ../../../shavel1
-#subdirs-shave-y += ../../../shavel1
-subdirs-shave_nn-y += common $(VSYSTEM)/nn/platform_abstraction $(VSYSTEM)/nn/dpu_runtime $(VSYSTEM)/nn/act_runtime inference_runtime_common
+subdirs-shave_nn-y += nn/common $(VSYSTEM)/nn/platform_abstraction $(VSYSTEM)/nn/dpu_runtime $(VSYSTEM)/nn/act_runtime nn/inference_runtime_common
 
 subdirs-lrt-$(CONFIG_NN_PROFILING) += $(VSYSTEM)/nn/barectf
 subdirs-lnn-$(CONFIG_NN_PROFILING) += $(VSYSTEM)/nn/barectf

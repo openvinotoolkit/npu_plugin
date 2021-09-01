@@ -18,6 +18,7 @@ include-dirs-lrt-$(CONFIG_HAS_LRT_SRCS) += $(sys-nn-common-components-inc)
 include-dirs-lnn-$(CONFIG_HAS_LNN_SRCS) += $(sys-nn-common-components-inc)
 include-dirs-shave-$(CONFIG_HAS_SHAVE_SRCS) += $(sys-nn-common-components-inc)
 include-dirs-shave_nn-$(CONFIG_HAS_SHAVE_NN_SRCS) += $(sys-nn-common-components-inc)
+#include-dirs-shave_nn-$(CONFIG_TARGET_SOC_3720) += $(sys-nn-common-components-inc)
 
 ccopt-lrt-$(CONFIG_NN_LOG_VERBOSITY_LRT_NONE)  += -DNN_LOG_VERBOSITY=0
 ccopt-lrt-$(CONFIG_NN_LOG_VERBOSITY_LRT_FATAL) += -DNN_LOG_VERBOSITY=1
