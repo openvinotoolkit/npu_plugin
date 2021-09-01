@@ -50,9 +50,9 @@ VSYSTEM := $(VPUIP_2_REL_THROUGH_ROOT)/system
 $(info !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! $(VSYSTEM))
 
 
-include-dirs-lrt-y += $(VSYSTEM)/nn/shave_lib/inc $(VSYSTEM)/nn/shave_lib/inc/layers
-include-dirs-lnn-y += $(VSYSTEM)/nn/shave_lib/inc $(VSYSTEM)/nn/shave_lib/inc/layers
-include-dirs-shave-y += $(VSYSTEM)/nn/shave_lib/inc $(VSYSTEM)/nn/shave_lib/inc/layers
+#include-dirs-lrt-y += $(VSYSTEM)/nn/shave_lib/inc $(VSYSTEM)/nn/shave_lib/inc/layers
+#include-dirs-lnn-y += $(VSYSTEM)/nn/shave_lib/inc $(VSYSTEM)/nn/shave_lib/inc/layers
+#include-dirs-shave-y += $(VSYSTEM)/nn/shave_lib/inc $(VSYSTEM)/nn/shave_lib/inc/layers
 
 
 $(info !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! $(include-dirs-shave-y))
@@ -75,7 +75,7 @@ ccopt-shave_nn-y += -DCONFIG_USE_COMPONENT_NN
 #subdirs-lrt-y += ../../../shavel1
 subdirs-lrt-y += nn/common $(VSYSTEM)/nn/platform_abstraction $(VSYSTEM)/nn/blob nn/nce_lib nn/shave_lib nn/inference_runtime_common
 # $(VSYSTEM)/nn/inference_manager
-subdirs-lnn-y += nn/common $(VSYSTEM)/nn/platform_abstraction nn/inference_runtime_common $(VSYSTEM)/nn/inference_runtime
+subdirs-lnn-y += nn/common nn/inference_runtime_common
 subdirs-shave-y += nn/common
 subdirs-shave-y += nn/shave_lib
 subdirs-shave-y += ../../kernels
@@ -84,11 +84,12 @@ subdirs-lnn-$(CONFIG_TARGET_SOC_3720) +=  act_shave_lib
 subdirs-shave_nn-$(CONFIG_TARGET_SOC_3720) += act_shave_lib
 subdirs-shave_nn-$(CONFIG_TARGET_SOC_3720) +=  ../../kernels
 
-subdirs-shave_nn-y += nn/common $(VSYSTEM)/nn/platform_abstraction $(VSYSTEM)/nn/dpu_runtime $(VSYSTEM)/nn/act_runtime nn/inference_runtime_common
+#subdirs-shave_nn-y += nn/common $(VSYSTEM)/nn/platform_abstraction $(VSYSTEM)/nn/dpu_runtime $(VSYSTEM)/nn/act_runtime nn/inference_runtime_common
+subdirs-shave_nn-y += nn/common nn/inference_runtime_common
 
-subdirs-lrt-$(CONFIG_NN_PROFILING) += $(VSYSTEM)/nn/barectf
-subdirs-lnn-$(CONFIG_NN_PROFILING) += $(VSYSTEM)/nn/barectf
-subdirs-shave_nn-$(CONFIG_NN_PROFILING) += $(VSYSTEM)/nn/barectf
+#subdirs-lrt-$(CONFIG_NN_PROFILING) += $(VSYSTEM)/nn/barectf
+#subdirs-lnn-$(CONFIG_NN_PROFILING) += $(VSYSTEM)/nn/barectf
+#subdirs-shave_nn-$(CONFIG_NN_PROFILING) += $(VSYSTEM)/nn/barectf
 ccopt-lrt-$(CONFIG_NN_PROFILING) += -DNN_PROFILING
 ccopt-lnn-$(CONFIG_NN_PROFILING) += -DNN_PROFILING
 ccopt-shave_nn-$(CONFIG_NN_PROFILING) += -DNN_PROFILING

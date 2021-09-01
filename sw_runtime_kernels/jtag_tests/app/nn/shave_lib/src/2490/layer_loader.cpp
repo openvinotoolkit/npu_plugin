@@ -8,7 +8,7 @@
 #include <dma_leon.h>
 
 #include "layers/parser_permute.h"
-#include "layers/parser_softmax.h"
+//#include "layers/parser_softmax.h"
 #include "layers/parser_postops.h"
 #include "layers/parser_custom_cpp.h"
 #include "layers/svuSLKernels_EP.h"
@@ -40,7 +40,7 @@ void LayerLoader::registerParsers()
     parserMap_.reserve(SoftwareLayerParams::SoftwareLayerParams_MAX);
 
     parserMap_.emplace(SoftwareLayerParams::SoftwareLayerParams_PermuteParams, &parse<PermuteParser>);
-    parserMap_.emplace(SoftwareLayerParams::SoftwareLayerParams_SoftmaxParams, &parse<SoftmaxParser>);
+//    parserMap_.emplace(SoftwareLayerParams::SoftwareLayerParams_SoftmaxParams, &parse<SoftmaxParser>);
     parserMap_.emplace(SoftwareLayerParams::SoftwareLayerParams_PostOpsParams, &parse<PostOpsParser>);
     parserMap_.emplace(SoftwareLayerParams::SoftwareLayerParams_CustomLayerCppParams, &parse<CustomLayerCppParser>);
     parserMap_.emplace(SoftwareLayerParams::SoftwareLayerParams_PermuteNDParams, &parse<PermuteNDParser>);

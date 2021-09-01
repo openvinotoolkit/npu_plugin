@@ -3,7 +3,7 @@ $(warning "entered subdir for act_shave_lib")
 include-dirs-lrt-y += inc inc/ShaveElfMetadata
 include-dirs-shave_nn-y += inc inc/ShaveElfMetadata
 
-srcs-shave_nn-y += avgpooling.cpp
+#srcs-shave_nn-y += avgpooling.cpp
 srcs-shave_nn-y += postops_3D_core.cpp
 #srcs-shave_nn-y += custom_cpp.cpp
 srcs-shave_nn-y += pre_postops.cpp
