@@ -310,6 +310,21 @@ def RewriteTanh :
         >;
 
 //
+// IERT.Sqrt -> VPUIP.SqrtUPA
+//
+
+def createSqrtUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::SqrtUPAOp>($_loc, $0, $1)
+        }]>;
+
+def RewriteSqrt :
+        Pat<
+            (IERT_SqrtOp $input, $output),
+            (createSqrtUPAOp $input, $output)
+        >;
+
+//
 // IERT.Exp -> VPUIP.ExpUPA
 //
 

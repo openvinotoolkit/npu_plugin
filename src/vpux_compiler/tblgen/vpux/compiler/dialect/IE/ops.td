@@ -1065,6 +1065,30 @@ def IE_TanhOp :
 }
 
 //
+// SqrtOp
+//
+
+def IE_SqrtOp :
+        IE_LayerOp<
+            "Sqrt",
+            [
+                ResultsAreFloatLike,
+                SameOperandsAndResultType,
+                IE_EltwiseOp
+            ]
+        > {
+    let summary = "InferenceEngine Sqrt layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+}
+
+//
 // ExpOp
 //
 

@@ -49,6 +49,7 @@ std::set<ngraph::helpers::ActivationTypes> supportedTypesMLIR {
     ngraph::helpers::Exp,
     ngraph::helpers::RoundHalfToEven,
     ngraph::helpers::RoundHalfAwayFromZero,
+    ngraph::helpers::Sqrt,
 };
 } // namespace
 
@@ -115,6 +116,7 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
     {SoftPlus, {{1.0f}}},
     {Mish,     {{1.0f}}},
     {Floor,    {{1.0f}}},
+    {Sqrt,     {{1.0f}}},
     {Ceiling,  {{1.0f}}},
     {Erf,      {{1.0f}}},
     {Gelu,     {{1.0f}}},
