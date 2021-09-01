@@ -1,2 +1,2 @@
-branch: icv/aershov1/act-svu-utest-rt_combined_02
-commit e08c90e2f17a7916e67b1b9240eb43e20a4ae986
+branch: develop
+commit: 2cb7813654a93eda8c2a6d09d69c41828dbb187e
