@@ -9,11 +9,5 @@ endif
 DirAppRoot=./
 MDK_ROOT_PATH = $(abspath ${VPUIP_2_Directory})
 
-#subdirs-los-y += ../../..
-#subdirs-lrt-y += ../../..
-#subdirs-shave-y += ../../..
-#subdirs-shave-nn-y += ../../..
-#include ../../../subdir.mk
-
 include $(MDK_ROOT_PATH)/mdkApplication.mk
 

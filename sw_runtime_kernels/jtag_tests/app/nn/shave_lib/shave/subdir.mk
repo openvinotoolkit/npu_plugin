@@ -16,11 +16,6 @@ srcs-shave-y += $(wildcard kernels/*.cpp)
 srcs-shave-y += $(wildcard src/*.c)
 srcs-shave-y += $(wildcard src/*.cpp)
 
-subdirs-shave-y += kernels/matmul_asm
-include-dirs-shave-y += kernels/matmul_asm
-
-#ccopt-shave-y += -Wall -Werror
-
 ifeq ($(CONFIG_SVU_STACK_USAGE_INSTRUMENTATION), y)
 ccopt-shave-y += -mstack-usage-instrumentation
 endif

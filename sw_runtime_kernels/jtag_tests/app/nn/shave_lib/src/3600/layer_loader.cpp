@@ -9,57 +9,9 @@
 #include <elf.h>
 #include <dma_leon.h>
 
-//#include "layers/parser_argmax.h"
-//#include "layers/parser_pooling.h"
-//#include "layers/parser_conv.h"
-//#include "layers/parser_correlation.h"
-//#include "layers/parser_ctcdecoder.h"
-//#include "layers/parser_custom_ocl.h"
-//#include "layers/parser_deconv.h"
-//#include "layers/parser_detout.h"
-//#include "layers/parser_dummy.h"
-//#include "layers/parser_edsl.h"
-//#include "layers/parser_eltwise.h"
-//#include "layers/parser_fakequantize.h"
-//#include "layers/parser_fully_connected.h"
-//#include "layers/parser_grn.h"
-//#include "layers/parser_interp.h"
-//#include "layers/parser_mvn.h"
-//#include "layers/parser_norm.h"
-//#include "layers/parser_normalize.h"
-//#include "layers/parser_passthrough.h"
-//#include "layers/parser_permute.h"
-//#include "layers/parser_priorbox.h"
-//#include "layers/parser_proposal.h"
-//#include "layers/parser_psroipooling.h"
-//#include "layers/parser_quantizer.h"
-//#include "layers/parser_regionyolo.h"
-//#include "layers/parser_reorgyolo.h"
-//#include "layers/parser_resample.h"
-//#include "layers/parser_reshape.h"
-//#include "layers/parser_gather.h"
-//#include "layers/parser_roipooling.h"
-//#include "layers/parser_softmax.h"
-//#include "layers/parser_negative.h"
-//#include "layers/parser_st.h"
-//#include "layers/parser_tile.h"
 #include "layers/parser_postops.h"
-//#include "layers/parser_convert.h"
-//#include "layers/parser_custom_cpp.h"
 #include "layers/svuSLKernels_EP.h"
-//#include "layers/parser_pad.h"
-//#include "layers/parser_gatherelements.h"
-//#include "layers/parser_interpolate.h"
-//#include "layers/parser_ctc_greedy_decoder_seq_len.h"
-//#include "layers/parser_spacetodepth.h"
-//#include "layers/parser_depthtospace.h"
-//#include "layers/parser_strided_slice.h"
-//#include "layers/parser_lstm_cell.h"
-//#include "layers/parser_scatter_elements_update.h"
 #include "layers/svuSLKernels_EP.h"
-//#include "layers/parser_reversesequence.h"
-//#include "layers/parser_sw_conv.h"
-//#include "layers/parser_gathernd.h"
 
 #include <assert.h>
 #include <mvLog.h>
@@ -91,59 +43,7 @@ void LayerLoader::registerParsers()
     parserMap_.reserve(64);
 
     using namespace MVCNN;
-//    parserMap_.emplace(SoftwareLayerParams::SoftwareLayerParams_DummyParams, &parse<DummyParser>);
-//    parserMap_.emplace(SoftwareLayerParams::SoftwareLayerParams_DetectionOutputParams, &parse<DetectionOutputParser>);
-//    // SoftwareLayerParams_FlattenParams
-//    parserMap_.emplace(SoftwareLayerParams::SoftwareLayerParams_InterpParams, &parse<InterpParser>);
-//    parserMap_.emplace(SoftwareLayerParams::SoftwareLayerParams_NormalizeParams, &parse<NormalizeParser>);
-//    parserMap_.emplace(SoftwareLayerParams::SoftwareLayerParams_PermuteParams, &parse<PermuteParser>);
-//    parserMap_.emplace(SoftwareLayerParams::SoftwareLayerParams_PriorboxParams, &parse<PriorboxParser>);
-//    parserMap_.emplace(SoftwareLayerParams::SoftwareLayerParams_ProposalParams, &parse<ProposalParser>);
-//    parserMap_.emplace(SoftwareLayerParams::SoftwareLayerParams_RegionYOLOParams, &parse<RegionYoloParser>);
-//    parserMap_.emplace(SoftwareLayerParams::SoftwareLayerParams_ReorgYOLOParams, &parse<ReorgYoloParser>);
-//    parserMap_.emplace(SoftwareLayerParams::SoftwareLayerParams_ReshapeParams, &parse<ReshapeParser>);
-//    parserMap_.emplace(SoftwareLayerParams::SoftwareLayerParams_SoftmaxParams, &parse<SoftmaxParser>);
-//    parserMap_.emplace(SoftwareLayerParams::SoftwareLayerParams_CustomLayerOclParams, &parse<CustomLayerOclParser>);
-//    parserMap_.emplace(SoftwareLayerParams::SoftwareLayerParams_PassthroughParams, &parse<PassthroughParser>);
-//    // SoftwareLayerParams_LayerRecordParams
-//    parserMap_.emplace(SoftwareLayerParams::SoftwareLayerParams_ROIPoolingParams, &parse<ROIPoolingParser>);
-//    parserMap_.emplace(SoftwareLayerParams::SoftwareLayerParams_QuantizeParams, &parse<QuantizerParser>);
-//    parserMap_.emplace(SoftwareLayerParams::SoftwareLayerParams_ArgMaxParams, &parse<ArgMaxParser>);
-//    parserMap_.emplace(SoftwareLayerParams::SoftwareLayerParams_NormParams, &parse<NormParser>);
-//    parserMap_.emplace(SoftwareLayerParams::SoftwareLayerParams_EltwiseParams, &parse<EltwiseParser>);
-//    parserMap_.emplace(SoftwareLayerParams::SoftwareLayerParams_ResampleParams, &parse<ResampleParser>);
-//    parserMap_.emplace(SoftwareLayerParams::SoftwareLayerParams_CorrelationParams, &parse<CorrelationParser>);
-//    parserMap_.emplace(SoftwareLayerParams::SoftwareLayerParams_MVNParams, &parse<MVNParser>);
-//    parserMap_.emplace(SoftwareLayerParams::SoftwareLayerParams_GRNParams, &parse<GRNParser>);
-//    parserMap_.emplace(SoftwareLayerParams::SoftwareLayerParams_CTCDecoderParams, &parse<CTCDecoderParser>);
-//    parserMap_.emplace(SoftwareLayerParams::SoftwareLayerParams_SpatialTransformParams, &parse<SpatialTransformParser>);
-//    parserMap_.emplace(SoftwareLayerParams::SoftwareLayerParams_FakeQuantizeParams, &parse<FakeQuantizeParser>);
-//    parserMap_.emplace(SoftwareLayerParams::SoftwareLayerParams_PoolingParams, &parse<PoolingParser>);
-//    parserMap_.emplace(SoftwareLayerParams::SoftwareLayerParams_EdslParams, &parse<EdslParser>);
-//    parserMap_.emplace(SoftwareLayerParams::SoftwareLayerParams_TileParams, &parse<TileParser>);
-//    parserMap_.emplace(SoftwareLayerParams::SoftwareLayerParams_PSROIPoolingParams, &parse<PSROIPoolingParser>);
-//    parserMap_.emplace(SoftwareLayerParams::SoftwareLayerParams_DeconvolutionParams, &parse<DeconvolutionParser>);
-//    // SoftwareLayerParams_UnaryOpParams
-//    parserMap_.emplace(SoftwareLayerParams::SoftwareLayerParams_ConvolutionParams, &parse<ConvolutionParser>);
-//    parserMap_.emplace(SoftwareLayerParams::SoftwareLayerParams_GatherParams, &parse<GatherParser>);
     parserMap_.emplace(SoftwareLayerParams::SoftwareLayerParams_PostOpsParams, &parse<PostOpsParser>);
-//    parserMap_.emplace(SoftwareLayerParams::SoftwareLayerParams_NegativeParams, &parse<NegativeParser>);
-//    parserMap_.emplace(SoftwareLayerParams::SoftwareLayerParams_ConvertParams, &parse<ConvertParser>);
-//    parserMap_.emplace(SoftwareLayerParams::SoftwareLayerParams_CustomLayerCppParams, &parse<CustomLayerCppParser>);
-//    parserMap_.emplace(SoftwareLayerParams::SoftwareLayerParams_PermuteNDParams, &parse<PermuteNDParser>);
-//    parserMap_.emplace(SoftwareLayerParams::SoftwareLayerParams_PadParams, &parse<PadParser>);
-//    parserMap_.emplace(SoftwareLayerParams::SoftwareLayerParams_InterpolateParams, &parse<InterpolateParser>);
-//    parserMap_.emplace(SoftwareLayerParams::SoftwareLayerParams_CTCGreedyDecoderSeqLenParams, &parse<CTCGreedyDecoderSeqLenParser>);
-//    parserMap_.emplace(SoftwareLayerParams::SoftwareLayerParams_SpaceToDepthParams, &parse<SpaceToDepthParser>);
-//    parserMap_.emplace(SoftwareLayerParams::SoftwareLayerParams_DepthToSpaceParams, &parse<DepthToSpaceParser>);
-//    parserMap_.emplace(SoftwareLayerParams::SoftwareLayerParams_GatherElementsParams, &parse<GatherElementsParser>);
-//    parserMap_.emplace(SoftwareLayerParams::SoftwareLayerParams_ReversesequenceParams, &parse<ReversesequenceParser>);
-//    parserMap_.emplace(SoftwareLayerParams::SoftwareLayerParams_LSTMCellParams, &parse<LSTMCellParser>);
-//    parserMap_.emplace(SoftwareLayerParams::SoftwareLayerParams_GatherNDParams, &parse<GatherNDParser>);
-//    parserMap_.emplace(SoftwareLayerParams::SoftwareLayerParams_StridedSliceParams, &parse<StridedSliceParser>);
-//    parserMap_.emplace(SoftwareLayerParams::SoftwareLayerParams_FullyConnectedParams, &parse<FullyConnectedParser>);
-//    parserMap_.emplace(SoftwareLayerParams::SoftwareLayerParams_SWConvolutionParams, &parse<SWConvolutionParser>);
-//    parserMap_.emplace(SoftwareLayerParams::SoftwareLayerParams_ScatterElementsUpdateParams, &parse<ScatterElementsUpdateParser>);
 }
 
 bool LayerLoader::parseUPALayer(const MVCNN::UPALayerTask *task, Layer *layer, LayerParser &lp) {

@@ -1,3 +1,5 @@
+# {% copyright %}
+
 mv-tensor-defines-y                                  += -DMVTENSOR_CMX_BUFFER=$(CONFIG_MVTENSOR_CMX_BUFFER)
 mv-tensor-defines-$(CONFIG_MVTENSOR_FAST_SVU)        += -DMV_TENSOR_FAST__OS_DRV_SVU
 mv-tensor-defines-$(CONFIG_USE_COMPONENT_MEMMANAGER) += -DMVTENSOR_USE_MEMORY_MANAGER
@@ -5,36 +7,12 @@ mv-tensor-defines-$(CONFIG_MVTENSOR_L2C_COPY_BACK)   += -DIS_LEON_L2C_MODE_COPY_
 
 subdirs-los-y   += shared modules leon
 subdirs-lrt-y   += shared modules leon
-#subdirs-los-y   += shared modules leon common shave_lib inference_runtime_common platform_abstraction inference_runtime_common
-#subdirs-lrt-y   += shared modules leon common shave_lib inference_runtime_commonplatform_abstraction inference_runtime_common
 
 ccopt-los-y   += $(mv-tensor-defines-y)
 ccopt-lrt-y   += $(mv-tensor-defines-y)
 
 ccopt-los-y   += -falign-functions=64 -falign-loops=64
 ccopt-lrt-y   += -falign-functions=64 -falign-loops=64
-#
-#subdirs-lrt-$(CONFIG_NN_USE_APPCONFIG_LRT) += app_config
-#subdirs-lnn-$(CONFIG_NN_USE_APPCONFIG_LNN) += app_config
-#
-#subdirs-lrt-$(CONFIG_USE_COMPONENT_NN) += common shave_lib 
-##inference_runtime_common inference_manager
-#subdirs-lnn-$(CONFIG_USE_COMPONENT_NN) += common
-##inference_runtime_common inference_runtime
-#subdirs-shave-$(CONFIG_USE_COMPONENT_NN) += common shave_lib
-#subdirs-shave_nn-$(CONFIG_USE_COMPONENT_NN) += common
-##act_runtime inference_runtime_common
-#
-#
-#subdirs-shave-y += common shave_lib inference_runtime_common platform_abstraction inference_runtime_common
-#subdirs-shave_nn-y += common inference_runtime_common
-
-
-
-
-
-
-$(info !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! $(abspath ./))
 
 CURRENT_DIR := $(abspath ./)
 VPUIP_2_ABS_DIR := $(abspath ${VPUIP_2_Directory})
@@ -47,34 +25,12 @@ REL_TO_ROOT := $(subst $(SPACE),,$(REL_TO_ROOT))
 VPUIP_2_REL_THROUGH_ROOT := $(REL_TO_ROOT)$(VPUIP_2_ABS_DIR)
 VSYSTEM := $(VPUIP_2_REL_THROUGH_ROOT)/system
 
-$(info !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! $(VSYSTEM))
-
-
-#include-dirs-lrt-y += $(VSYSTEM)/nn/shave_lib/inc $(VSYSTEM)/nn/shave_lib/inc/layers
-#include-dirs-lnn-y += $(VSYSTEM)/nn/shave_lib/inc $(VSYSTEM)/nn/shave_lib/inc/layers
-#include-dirs-shave-y += $(VSYSTEM)/nn/shave_lib/inc $(VSYSTEM)/nn/shave_lib/inc/layers
-
-
-$(info !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! $(include-dirs-shave-y))
-
-
-
 ccopt-lrt-y += -DCONFIG_USE_COMPONENT_NN
 ccopt-lnn-y += -DCONFIG_USE_COMPONENT_NN
 ccopt-shave-y += -DCONFIG_USE_COMPONENT_NN
 ccopt-shave_nn-y += -DCONFIG_USE_COMPONENT_NN
 
-
-
-
-
-# {% copyright %}
-#subdirs-lrt-$(CONFIG_NN_USE_APPCONFIG_LRT) += $(VSYSTEM)/nn/app_config
-#subdirs-lnn-$(CONFIG_NN_USE_APPCONFIG_LNN) += $(VSYSTEM)/nn/app_config
-
-#subdirs-lrt-y += ../../../shavel1
 subdirs-lrt-y += nn/common $(VSYSTEM)/nn/platform_abstraction $(VSYSTEM)/nn/blob nn/nce_lib nn/shave_lib nn/inference_runtime_common
-# $(VSYSTEM)/nn/inference_manager
 subdirs-lnn-y += nn/common nn/inference_runtime_common
 subdirs-shave-y += nn/common
 subdirs-shave-y += nn/shave_lib
@@ -84,12 +40,8 @@ subdirs-lnn-$(CONFIG_TARGET_SOC_3720) +=  act_shave_lib
 subdirs-shave_nn-$(CONFIG_TARGET_SOC_3720) += act_shave_lib
 subdirs-shave_nn-$(CONFIG_TARGET_SOC_3720) +=  ../../kernels
 
-#subdirs-shave_nn-y += nn/common $(VSYSTEM)/nn/platform_abstraction $(VSYSTEM)/nn/dpu_runtime $(VSYSTEM)/nn/act_runtime nn/inference_runtime_common
 subdirs-shave_nn-y += nn/common nn/inference_runtime_common
 
-#subdirs-lrt-$(CONFIG_NN_PROFILING) += $(VSYSTEM)/nn/barectf
-#subdirs-lnn-$(CONFIG_NN_PROFILING) += $(VSYSTEM)/nn/barectf
-#subdirs-shave_nn-$(CONFIG_NN_PROFILING) += $(VSYSTEM)/nn/barectf
 ccopt-lrt-$(CONFIG_NN_PROFILING) += -DNN_PROFILING
 ccopt-lnn-$(CONFIG_NN_PROFILING) += -DNN_PROFILING
 ccopt-shave_nn-$(CONFIG_NN_PROFILING) += -DNN_PROFILING
@@ -145,6 +97,4 @@ ccopt-lrt-y += -DNN_SCALABILITY_REPORTING_PERIOD_MS=$(CONFIG_NN_SCALABILITY_REPO
 
 
 $(info !!!!! subdirs-shave-y = !!!!!!!!!!! $(subdirs-shave-y))
-
-
 

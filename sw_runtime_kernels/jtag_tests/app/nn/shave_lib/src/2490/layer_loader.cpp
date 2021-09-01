@@ -8,7 +8,6 @@
 #include <dma_leon.h>
 
 #include "layers/parser_permute.h"
-//#include "layers/parser_softmax.h"
 #include "layers/parser_postops.h"
 #include "layers/parser_custom_cpp.h"
 #include "layers/svuSLKernels_EP.h"
