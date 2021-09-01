@@ -5,7 +5,7 @@
 #include "sw_layer.h"
 #include "sw_nn_runtime_types.h"
 #include "tensor_gf_util.h"
-#include <nn_nce_lib_conversion_fbs.h>
+//#include <nn_nce_lib_conversion_fbs.h>
 
 #include <nn_log.h>
 #include <nn_cache.h>

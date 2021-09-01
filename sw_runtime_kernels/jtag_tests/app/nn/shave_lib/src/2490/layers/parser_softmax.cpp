@@ -5,7 +5,7 @@
 #include "layers/pre_softmax.h"
 #include "layers/svuSLKernels_EP.h"
 #include "tensor_gf_util.h"
-#include <nn_nce_lib_conversion_fbs.h>
+//#include <nn_nce_lib_conversion_fbs.h>
 #include <nn_cache.h>
 #include <sw_layer.h>
 #include <sw_shave_lib_common.h>

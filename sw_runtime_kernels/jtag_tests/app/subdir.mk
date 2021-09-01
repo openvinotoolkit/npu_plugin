@@ -73,7 +73,8 @@ ccopt-shave_nn-y += -DCONFIG_USE_COMPONENT_NN
 #subdirs-lnn-$(CONFIG_NN_USE_APPCONFIG_LNN) += $(VSYSTEM)/nn/app_config
 
 #subdirs-lrt-y += ../../../shavel1
-subdirs-lrt-y += nn/common $(VSYSTEM)/nn/platform_abstraction $(VSYSTEM)/nn/blob $(VSYSTEM)/nn/nce_lib nn/shave_lib nn/inference_runtime_common $(VSYSTEM)/nn/inference_manager
+subdirs-lrt-y += nn/common $(VSYSTEM)/nn/platform_abstraction $(VSYSTEM)/nn/blob nn/nce_lib nn/shave_lib nn/inference_runtime_common
+# $(VSYSTEM)/nn/inference_manager
 subdirs-lnn-y += nn/common $(VSYSTEM)/nn/platform_abstraction nn/inference_runtime_common $(VSYSTEM)/nn/inference_runtime
 subdirs-shave-y += nn/common
 subdirs-shave-y += nn/shave_lib
