@@ -20,8 +20,5 @@ include-dirs-los-y += 2490
 include-dirs-lrt-y += 2490
 endif
 
-#subdirs-los-y   += ../qqq_shave_lib
-#subdirs-lrt-y   += ../qqq_shave_lib
-
 srcs-los-y += $(wildcard *.cpp)
 srcs-lrt-y += $(wildcard *.cpp)

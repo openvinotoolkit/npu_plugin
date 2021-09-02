@@ -1,11 +1,5 @@
 source ../../../kcnf
 
-
-
-
-
-
-
 config USE_COMPONENT_NN_ICV_TEST
   bool "Use mdk component NeuralNet"
   default n
@@ -356,10 +350,6 @@ menu "NeuralNetwork options"
       Check this if you intend to build an app using the default NN configuration for LNN
 
 endmenu
-
-
-
-
 
 config APP_SHAVE_SRCS_DIR
   string "APP_SHAVE_SRCS_DIR"

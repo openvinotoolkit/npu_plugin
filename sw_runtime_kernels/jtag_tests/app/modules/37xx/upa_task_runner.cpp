@@ -1,26 +1,12 @@
 // {% copyright %}
 
 #include <sw_nn_runtime_types.h>
-
 #include "upa_task_runner.hpp"
-
-//#include "layers/svuSLKernels_EP.h"
 #include <layer_loader.h>
-
-//#include <upa_layer_runner.h>
-//#include <nn_runtime_types.h>
 #include "act_shave_dispatcher.h"
-
-//#include "mvTensorUtil.h"
 #include <nn_cache.h>
 #include "commonBuilder.hpp"
-//#include <Fp16Convert.h>
-
 #include <nn_time.h>
-
-//using namespace nn::shave_lib;
-//using namespace nn::memory;
-
 
 //volatile u32 __attribute__((section(".nncmx.data0"))) shaveErrors;
 
@@ -43,7 +29,7 @@ bool UPATaskRunner::enqueTask(std::unique_ptr<MVCNN::UPALayerTaskT> && task,
     flatbuffers::FlatBufferBuilder _fbb;
     auto upa_task = MVCNN::UPALayerTask::Pack(_fbb, task.release());
     _fbb.Finish(upa_task);
-//
+
     static std::shared_ptr<nn::act_shave_lib::ACTShaveDispatcher> actDisp;
 
     memset(&sl, 0, sizeof(sl));
@@ -54,9 +40,6 @@ bool UPATaskRunner::enqueTask(std::unique_ptr<MVCNN::UPALayerTaskT> && task,
     auto serializedUPATask = flatbuffers::GetRoot<MVCNN::UPALayerTask>(_fbb.GetBufferPointer());
 
     nn::shave_lib::LayerLoader::parseUPALayer(serializedUPATask, &layer);
-
-//    LayerLoader::parseUPALayer(serializedUPATask, &layer);
-//    layer.setExecCleanup();
 
     auto totalByteSize = [](const Buffer & b) {
         return b.getFullDataSize();
@@ -78,13 +61,10 @@ bool UPATaskRunner::enqueTask(std::unique_ptr<MVCNN::UPALayerTaskT> && task,
     }
 
     sl.layer_ = &layer;
-//    layer.maxShaves = numSHAVEs;
 
     nnLog(MVLOG_DEBUG, "Enqueuing SL @ %p\n", &sl);
     nnLog(MVLOG_DEBUG, "           L @ %p\n", (void *)sl.layer_);
     nnLog(MVLOG_DEBUG, "         ABA @ %p\n", &sl.abs_addr_);
-//    nnLog(MVLOG_DEBUG, "    preamble @ %x\n", sl.layer_->pre);
-//    nnLog(MVLOG_DEBUG, "      kernel @ %x\n", sl.layer_->kernelEntry);
 
 #if DEBUG_KERNELS
     leonPipePrintFlushBuffer();
@@ -114,17 +94,10 @@ bool UPATaskRunner::enqueTask(std::unique_ptr<MVCNN::UPALayerTaskT> && task,
 
     perfData->elapsedTimeNs = timer.elapsedNs();
 
-//    if (layer.lyrClean)
-//        (layer.lyrClean)(&layer.params);
-
     _enqued = true;
 
     return true;
 }
-
-
-
-
 
 bool UPATaskRunner::enqueTask(Op * operation,
                               const std::vector<Buffer> &inputs,
@@ -150,11 +123,6 @@ bool UPATaskRunner::enqueTask(Op * operation,
 
     sl.counters_ = perfData->perfCounters;
 
-//    operation->parse(&layer);
-
-//    LayerLoader::parseUPALayer(serializedUPATask, &layer);
-//    layer.setExecCleanup();
-
     auto totalByteSize = [](const Buffer & b) {
         return b.getFullDataSize();
     };
@@ -177,13 +145,10 @@ bool UPATaskRunner::enqueTask(Op * operation,
     operation->parse(&layer);
 
     sl.layer_ = &layer;
-//    layer.maxShaves = numSHAVEs;
 
     nnLog(MVLOG_DEBUG, "Enqueuing SL @ %p\n", &sl);
     nnLog(MVLOG_DEBUG, "           L @ %p\n", (void *)sl.layer_);
     nnLog(MVLOG_DEBUG, "         ABA @ %p\n", &sl.abs_addr_);
-//    nnLog(MVLOG_DEBUG, "    preamble @ %x\n", sl.layer_->pre);
-//    nnLog(MVLOG_DEBUG, "      kernel @ %x\n", sl.layer_->kernelEntry);
 
 #if DEBUG_KERNELS
     leonPipePrintFlushBuffer();
@@ -213,16 +178,10 @@ bool UPATaskRunner::enqueTask(Op * operation,
 
     perfData->elapsedTimeNs = timer.elapsedNs();
 
-//    if (layer.lyrClean)
-//        (layer.lyrClean)(&layer.params);
-
     _enqued = true;
 
     return true;
 }
-
-
-
 
 bool UPATaskRunner::dequeResult() {
     return _enqued;

@@ -6,10 +6,6 @@
 
 #include "upa_task_runner.hpp"
 
-
-
-
-
 #include "layers/parser_custom_cpp.h"
 #include "layers/param_custom_cpp.h"
 #include "layers/pre_custom_cpp.h"
@@ -24,13 +20,6 @@
 
 #include <cstring>
 #include <stdio.h>
-
-
-
-
-
-
-
 
 using namespace mv::tensor;
 
@@ -82,8 +71,6 @@ static void layerCleanupCustomCppLayer(const LayerParams *params) {
 }
 }
 
-
-
 bool CustomCpp::parse(Layer * layer) {
     std::vector<uint64_t> kernelData((uint64_t*)ops.kernelData, (uint64_t*)ops.kernelData+(ops.kernelDataLen+7)/8);
 
@@ -95,7 +82,6 @@ bool CustomCpp::parse(Layer * layer) {
                          sizeof(uint32_t)/*Num outputs*/ +
                          inputVec.size() * sizeof(nn::TensorRefNDData) +
                          outputVec.size() * sizeof(nn::TensorRefNDData);
-//    std::vector<uint64_t> paramData((uint64_t*)ops.paramData, (uint64_t*)ops.paramData+(ops.paramDataLen+1)/2);
     std::vector<uint64_t> paramData((byteDataLenght + 7) / 8);
     nnLog(MVLOG_DEBUG, "byteDataLenght  = %d, paramData.size %d\n", byteDataLenght, paramData.size());
     uint32_t* paramDataBuffer = reinterpret_cast<uint32_t*>(paramData.data());
@@ -116,9 +102,6 @@ bool CustomCpp::parse(Layer * layer) {
         memcpy_s(inOutBuffer, sizeof(nn::TensorRefNDData), &(outputVec[i]), sizeof(nn::TensorRefNDData));
         inOutBuffer += sizeof(nn::TensorRefNDData);
     }
-
-
-//    const MVCNN::CustomLayerCppParams *gfParams = task->softLayerParams_as_CustomLayerCppParams();
 
     const uint8_t *elf = reinterpret_cast<const uint8_t *>(kernelData.data());//gfParams->kernelData()->data()->Data();
     uint32_t elfSize = ops.kernelDataLen;// gfParams->kernelData()->length();
@@ -149,7 +132,6 @@ bool CustomCpp::parse(Layer * layer) {
 
     // ToDo: store argument info for future pointer relocation in preamble
     uint32_t* copyArgs = arguments;//(uint32_t*)nn::memory::shared_alloc(descriptor.argumentsSize);
-//    memcpy_s(copyArgs, descriptor.argumentsSize, arguments, descriptor.argumentsSize);
     nn::cache::flush(copyArgs, descriptor.argumentsSize);
 
     // fill in programmed for execution config
@@ -203,12 +185,6 @@ bool CustomCpp::parse(Layer * layer) {
 //    layer->setLayerCleanup(&layerCleanupCustomCppLayer);
 
     return true;
-
-
-
-
-
-
 }
 
 #endif
