@@ -221,7 +221,7 @@ flatbuffers::Offset<MVCNN::ActKernelRuntime> createActKernelRuntime(VPUIP::BlobW
     //TODO: cap numshaves by maximum HW number of 4
     const auto stack_size { 1U << 12 }; // 4KB stack
 
-    llvm::SmallVector<uint8_t, stack_size> shave_stack_data;
+    llvm::SmallVector<uint8_t, stack_size> shave_stack_data(stack_size);
     std::vector<flatbuffers::Offset<MVCNN::KernelDataReference>> stacks(maxShaves); // 4 Activation SHAVEs for MTL
 
     for(uint32_t shv{}; shv < maxShaves; ++shv) {
@@ -235,10 +235,9 @@ flatbuffers::Offset<MVCNN::ActKernelRuntime> createActKernelRuntime(VPUIP::BlobW
     const auto stackBuffers = writer.createVector(stacks);
 
     llvm::SmallVector<uint8_t, 1U << 16> scratch_buffer(1U << 16); // 64KB scratch buffer
-    const std::string scratch_buffer_name{ "scratch_buffer" };
 
     const auto scratchBuffer = writer.createKernelDataRef(
-            scratch_buffer_name,
+            "scratch_buffer",
             vpux::VPUIP::MemoryLocation::GFEmbeddedKernel,
             0, scratch_buffer.size(), scratch_buffer);
 
@@ -513,10 +512,9 @@ flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, mli
 
     serializeTensorDecls(writer, netFunc, rootTiming);
     const auto binaryData = serializeBinaryData(writer, netFunc, rootTiming, log);
-    const auto kernelData = serializeKernelData(writer, netFunc, rootTiming, log);
     const auto virtBarriers = serializeVirtBarriers(writer, netFunc, graphOp, rootTiming, log);
     const auto taskLists = serializeTaskLists(writer, netFunc, rootTiming, log);
-
+    const auto kernelData = serializeKernelData(writer, netFunc, rootTiming, log);
     const auto graphFile = createGraphFile(writer, header, taskLists, binaryData, kernelData, virtBarriers, rootTiming);
 
     auto finalTiming = rootTiming.nest("Finalize serialized graph");
