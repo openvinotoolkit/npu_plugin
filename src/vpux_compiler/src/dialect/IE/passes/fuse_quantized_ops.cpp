@@ -194,6 +194,7 @@ void FuseQuantizedOpsPass::safeRunOnFunc() {
     mlir::OwningRewritePatternList patterns(&ctx);
     patterns.add<FuseWithConv>(&ctx, _log);
     patterns.add<FuseWithSlice>(&ctx, _log);
+    patterns.add<FuseWithMaxPool>(&ctx, _log);
 
     auto func = getFunction();
     if (mlir::failed(applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig()))) {
