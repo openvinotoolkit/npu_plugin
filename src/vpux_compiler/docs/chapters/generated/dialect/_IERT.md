@@ -770,6 +770,36 @@ operation ::= `IERT.GRN` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float or 32-bit float values
 
+### `IERT.Gather` (vpux::IERT::GatherOp)
+
+InferenceEngine run-time Gather layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.Gather` attr-dict
+              `inputs` `(` $input `:` type($input) `,` $indices `:` type($indices) `,` $axis `:` type($axis) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of any type values
+`indices` | memref of 32-bit signed integer values
+`axis` | memref of any type values
+`output_buff` | memref of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of any type values
+
 ### `IERT.GenericReshape` (vpux::IERT::GenericReshapeOp)
 
 InferenceEngine run-time generic Reshape layer

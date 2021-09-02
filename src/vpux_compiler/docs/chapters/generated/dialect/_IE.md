@@ -764,7 +764,7 @@ operation ::= `IE.Gather` `(` operands `)` attr-dict `:` type(operands) `->` typ
 | Operand | Description |
 | :-----: | ----------- |
 `input` | ranked tensor of any type values
-`indices` | ranked tensor of any type values
+`indices` | ranked tensor of 64-bit signed integer or 32-bit signed integer values
 `axis` | ranked tensor of any type values
 
 #### Results:
