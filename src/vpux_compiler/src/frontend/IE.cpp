@@ -143,7 +143,7 @@ private:
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Floor>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Mish>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Erf>& origNode);
-    // broadcast
+    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Broadcast>& origNode); //broadcast
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Transpose>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Interpolate>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::TopK>& origNode);
@@ -173,6 +173,7 @@ private:
     mlir::Type importElemType(const ngraph::element::Type& elemType);
     mlir::RankedTensorType importTensor(const ngraph::PartialShape& shape, const ngraph::element::Type& elemType);
     IE::AutoBroadcastTypeAttr importBroadcastType(ngraph::op::AutoBroadcastType bType);
+    IE::BroadcastTypeAttr importBroadcastMode(ngraph::op::BroadcastType bType);
     IE::RoundingTypeAttr importRoundingType(ngraph::op::RoundingType roundingType);
     IE::EpsModeAttr importEpsMode(ngraph::op::EpsMode val);
     IE::TopKModeAttr importTopKMode(ngraph::op::TopKMode val);
@@ -245,7 +246,7 @@ NGraphImporter::Callback NGraphImporter::getParser(const std::shared_ptr<ngraph:
             MAP_ENTRY(opset_latest::Floor),
             MAP_ENTRY(opset_latest::Mish),
             MAP_ENTRY(opset_latest::Erf),
-            // broadcast
+            MAP_ENTRY(opset_latest::Broadcast), // broadcast
             MAP_ENTRY(opset_latest::Transpose),
             MAP_ENTRY(opset_latest::Interpolate),
             MAP_ENTRY(opset_latest::TopK),
@@ -841,6 +842,22 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
     addOutputs(origNode, op);
 }
 
+//broadcast
+
+void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Broadcast>& origNode) {
+    static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v3::Broadcast>::value,
+                  "opset operation mismatch");
+
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS(inputs.size() == 2, "nGraph Broadcast node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
+
+    const auto mode = importBroadcastMode(origNode->get_broadcast_spec().m_type);
+
+    auto op = builder.create<IE::BroadcastOp>(createLocation(origNode), inputs[0], inputs[1], mode);
+    addOutputs(origNode, op);
+}
+
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Sigmoid>& origNode) {
     static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v0::Sigmoid>::value,
                   "opset operation mismatch");
@@ -952,8 +969,6 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
     auto op = builder.create<IE::ErfOp>(createLocation(origNode), inputs[0]);
     addOutputs(origNode, op);
 }
-
-//broadcast
 
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::FakeQuantize>& origNode) {
     static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v0::FakeQuantize>::value,
@@ -1396,6 +1411,19 @@ IE::AutoBroadcastTypeAttr NGraphImporter::importBroadcastType(ngraph::op::AutoBr
         return IE::AutoBroadcastTypeAttr::get(_ctx, IE::AutoBroadcastType::PDPD);
     default:
         VPUX_THROW("Unknown AutoBroadcastType");
+    }
+}
+
+IE::BroadcastTypeAttr NGraphImporter::importBroadcastMode(ngraph::op::BroadcastType bType) {
+    switch (bType) {
+    case ngraph::op::BroadcastType::NUMPY:
+        return IE::BroadcastTypeAttr::get(_ctx, IE::BroadcastType::NUMPY);
+    case ngraph::op::BroadcastType::EXPLICIT:
+        return IE::BroadcastTypeAttr::get(_ctx, IE::BroadcastType::EXPLICIT);
+    case ngraph::op::BroadcastType::BIDIRECTIONAL:
+        return IE::BroadcastTypeAttr::get(_ctx, IE::BroadcastType::BIDIRECTIONAL);
+    default:
+        VPUX_THROW("Unknown BroadcastMode");
     }
 }
 

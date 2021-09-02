@@ -826,7 +826,26 @@ def IERT_ErfOp :
 // BroadcastOp
 //
 
+// def IERT_BroadcastOp :
+//         IERT_LayerOp<1, "Broadcast",
+//             [
 
+//             ]
+//         > {
+//     let summary = "InferenceEngie run-time Broadcast layer";
+
+//     let arguments = (ins
+    
+//     );
+
+//     let results = (outs
+    
+//     );
+
+//     let assemblyFormat = [{
+
+//     }];
+// }
 
 //
 // TanhOp
