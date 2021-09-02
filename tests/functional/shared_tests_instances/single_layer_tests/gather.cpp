@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,20 +6,25 @@
 #include "single_layer_tests/gather.hpp"
 #include "common_test_utils/test_constants.hpp"
 #include "kmb_layer_test.hpp"
+#include <vpux/vpux_plugin_config.hpp>
 
 namespace LayerTestsDefinitions {
 
 class KmbGatherLayerTest: public GatherLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
-    void SkipBeforeLoad() override {
-        if (envConfig.IE_KMB_TESTS_RUN_INFER) {
-            throw LayerTestsUtils::KmbSkipTestException("layer test networks hang the board");
-        }
-    }
 };
 
 TEST_P(KmbGatherLayerTest, CompareWithRefs) {
+   // Enable NCHW layout
+    core->SetConfig({{VPU_COMPILER_CONFIG_KEY(ALLOW_NCHW_MCM_INPUT), CONFIG_VALUE(YES)}},
+                      LayerTestsUtils::testPlatformTargetDevice);
     Run();
 }
+
+TEST_P(KmbGatherLayerTest, CompareWithRefs_MLIR) {
+    useCompilerMLIR();
+    Run();
+}
+
 }  // namespace LayerTestsDefinitions
 
 using namespace LayerTestsDefinitions;
@@ -27,7 +32,7 @@ using namespace LayerTestsDefinitions;
 namespace {
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
-        InferenceEngine::Precision::FP32,
+        InferenceEngine::Precision::FP16,
 };
 
 const std::vector<std::vector<size_t>> inputShapes = {
@@ -50,15 +55,13 @@ const auto params = testing::Combine(
         testing::ValuesIn(axes),
         testing::ValuesIn(inputShapes),
         testing::ValuesIn(netPrecisions),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Layout::ANY),
-        testing::Values(InferenceEngine::Layout::ANY),
+        testing::Values(InferenceEngine::Precision::FP16),
+        testing::Values(InferenceEngine::Precision::FP16),
+        testing::Values(InferenceEngine::Layout::NCHW),
+        testing::Values(InferenceEngine::Layout::NCHW),
         testing::Values(LayerTestsUtils::testPlatformTargetDevice)
 );
 
-// nGraph parser doesn't contain specific gather parser
-// [Track number: S#40603]
 INSTANTIATE_TEST_CASE_P(
         smoke_Gather,
         KmbGatherLayerTest,
