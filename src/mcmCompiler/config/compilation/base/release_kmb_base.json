@@ -104,6 +104,7 @@
             "SetUPATasksMemoryLocation",
             "UpdateImplicitLayersLocation",
             "ResolveImplicitOperations",
+            "ConsecutiveDMATaskWorkaround",
             "AddDPUTasksWeightsDMATasks",
             "AddUPATasksExtraInputsDMATasks",
             "CleanRedundantDMAs",

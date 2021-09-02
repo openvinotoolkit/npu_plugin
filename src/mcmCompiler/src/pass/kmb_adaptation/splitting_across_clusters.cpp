@@ -37,6 +37,7 @@ static std::vector<mv::Workload> fixRectangularHeuristicBug(std::vector<mv::Work
 static std::vector<mv::Shape> calculateFusedSubTensorDimensions(const std::size_t nWorkloads, const mv::Data::OpListIterator &sink, mv::ComputationModel& model);
 static void ensureSplitStrategiesForSpilling(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void ensureSplitStrategiesForNonSpillingFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void ConsecutiveDMATaskWorkaroundFnc(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 namespace mv
 {
@@ -57,6 +58,11 @@ namespace mv
             .setFunc(ensureSplitStrategiesForNonSpillingFcn)
             .setDescription(
                "Ensures Split Strategies still even for non Spilling cases");
+
+        MV_REGISTER_PASS(ConsecutiveDMATaskWorkaround)
+            .setFunc(ConsecutiveDMATaskWorkaroundFnc)
+            .setDescription(
+               "Workaround for consecutive DMA tasks");
     }
 }
 
@@ -507,7 +513,7 @@ static std::vector<mv::Shape> calculateFusedSubTensorDimensions(const std::size_
             subs[idx][mv::IO_BATCH_DIMENSION] += sizeU8;
         }
     }
-    
+
     return subs;
 }
 
@@ -881,4 +887,64 @@ void ensureSplitStrategiesForNonSpillingFcn(const mv::pass::PassEntry& pass, mv:
         }
     }
     return;
+}
+
+void ConsecutiveDMATaskWorkaroundFnc(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+{
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+    mv::OpModel om(model);
+    mv::DataModel dm(model);
+
+    for(auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt)
+    {
+        if( opIt->getOpType() == "DMATask" &&
+            opIt->get<mv::DmaDirection>("direction") == mv::DmaDirection(mv::DmaDirectionEnum::DDR2NNCMX))
+        {
+            auto tensor = opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT);
+
+            auto flows = tensor->getFlowNames();
+            std::vector<mv::Data::OpListIterator> fakeConcatOps;
+            for(auto flow_name : flows)
+            {
+                auto flow = dm.getDataFlow(flow_name);
+                auto sinkOp = flow.sink();
+                if( sinkOp->getOpType() == "DMATask" &&
+                    sinkOp->get<mv::DmaDirection>("direction") == mv::DmaDirection(mv::DmaDirectionEnum::NNCMX2DDR))
+                {
+                    fakeConcatOps.push_back(sinkOp);
+
+                    /* Undefine flow between first DMATask output tensor and second DMATask */
+                    om.undefineFlow(flow);
+                }
+            }
+
+            if(!fakeConcatOps.empty())
+            {
+                /* Add fake concat op to avoid scheduling problem */
+                std::vector<mv::Data::TensorIterator> tensors;
+                tensors.push_back(tensor);
+                auto concat = om.implicitConcat("FakeConcat_" + opIt->getName(), tensors);
+
+                auto location = tensor->get<mv::Tensor::MemoryLocation>("Location");
+                auto quant_params = tensor->getQuantParams();
+                auto broadcasted = tensor->get<bool>("broadcasted");
+                auto split_strat = tensor->get<std::string>("splitStrategy");
+
+                concat->set<mv::Tensor::MemoryLocation>("Location", location);
+                concat->setQuantParams(quant_params);
+                concat->set<bool>("broadcasted", broadcasted);
+                concat->set<std::string>("splitStrategy", split_strat);
+
+                om.getSourceOp(concat)->set<std::string>("splitStrategy", split_strat);
+
+                for(auto op : fakeConcatOps)
+                {
+                    op->setInputTensor(concat, mv::IO_TENSOR_INPUT, false);
+
+                    /* Define flow from fake concat to second DMATask */
+                    om.defineFlow(concat, op, mv::IO_TENSOR_INPUT);
+                }
+            }
+        }
+    }
 }
