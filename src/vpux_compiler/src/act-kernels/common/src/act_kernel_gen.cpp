@@ -261,11 +261,9 @@ ActKernelDesc compileKernelForACTShave(mlir::StringRef kernelName, const movitoo
 
     ActKernelDesc result;
 
-    result.text = {kernelName, buildKernelData(fbb, textBinary), textBinary.size()};
+    result.text = {kernelName.data(), buildKernelData(fbb, textBinary), textBinary.size()};
 
-    llvm::SmallString<128> OwnedFilename;
-    auto dataName = llvm::Twine(kernelName).concat(".data").toStringRef(OwnedFilename);
-
+    auto dataName = std::string(kernelName) + ".data";
     result.data = {dataName, buildKernelData(fbb, dataBinary), dataBinary.size()};
 
     return result;
