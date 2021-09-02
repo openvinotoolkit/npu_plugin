@@ -1890,6 +1890,37 @@ def IERT_StridedSliceOp :
 }
 
 //
+// GatherOp
+//
+
+def IERT_GatherOp :
+        IERT_LayerOp<1, "Gather",
+            [
+                ViewLikeOpInterface,
+            ]
+        > {
+    let summary = "InferenceEngine run-time Gather layer";
+
+    let arguments = (ins
+        AnyMemRef:$input,
+        MemRefOf<[SI32]>:$indices,
+        AnyMemRef:$axis,
+        AnyMemRef:$output_buff
+    );
+
+    let results = (outs
+        AnyMemRef:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `,` $indices `:` type($indices) `,` $axis `:` type($axis) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
 // LSTMCellOp
 //
 

@@ -636,7 +636,7 @@ def IE_GatherOp :
 
     let arguments = (ins
         AnyRankedTensor:$input,
-        AnyRankedTensor:$indices,
+        RankedTensorOf<[SI64,SI32]>:$indices,
         AnyRankedTensor:$axis
     );
 
