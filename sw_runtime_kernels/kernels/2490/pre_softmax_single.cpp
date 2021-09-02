@@ -6,7 +6,7 @@
 #include <dma_shave_params.h>
 #include <nn_log.h>
 #include <mvSubspaces.h>
-#include <layers/param_softmax.h>
+#include <param_softmax.h>
 #include <layers/param_custom_cpp.h>
 
 
