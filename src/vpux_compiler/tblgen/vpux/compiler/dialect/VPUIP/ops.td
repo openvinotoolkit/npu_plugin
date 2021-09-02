@@ -2661,7 +2661,8 @@ def VPUIP_MVNUPAOp :
 def VPUIP_GatherUPAOp :
         VPUIP_UPATaskOp<1, "GatherUPA",
             [
-                ViewLikeOpInterface
+                ViewLikeOpInterface,
+                IERT_AnyDimsOrder
             ]
         > {
     let summary = "Gather UPA SHAVE kernel";
@@ -2707,10 +2708,6 @@ def VPUIP_GatherUPAOp :
         (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `->` type(results)
     }];
-
-    let extraClassDeclaration = [{
-        static bool isSupportedLayout(mlir::Operation* op, vpux::IE::DataOrderInfo& info);
-    }] # commonExtraClassDeclaration;
 }
 
 #endif

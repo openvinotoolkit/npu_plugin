@@ -51,11 +51,6 @@ void vpux::VPUIP::GatherUPAOp::build(mlir::OpBuilder& builder, mlir::OperationSt
     build(builder, state, input, indices, output, axis, mlir::ValueRange{}, mlir::ValueRange{}, nullptr, false);
 }
 
-bool vpux::VPUIP::GatherUPAOp::isSupportedLayout(mlir::Operation* op, IE::DataOrderInfo&) {
-    VPUX_THROW_UNLESS(mlir::isa<IE::GatherOp>(op), "Operation {0} is not Gather", op->getName());
-    return true; // any layout
-}
-
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::GatherUPAOp::serialize(VPUIP::BlobWriter& writer) {
     MVCNN::GatherParamsBuilder builder(writer);
     auto axisNo = axis().getSplatValue<int64_t>();
