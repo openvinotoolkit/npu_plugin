@@ -25,7 +25,7 @@
 namespace vpux {
 
 struct KernelDataDesc {
-    mlir::StringRef name;
+    std::string name;
     flatbuffers::Offset<MVCNN::KernelData> data;
     size_t size;
 };
