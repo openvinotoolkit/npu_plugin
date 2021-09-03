@@ -2175,6 +2175,36 @@ def IE_DeconvolutionOp:
 }
 
 //
+// GroupDeconvolutionOp (GroupConvolutionBackprop in ngraph)
+//
+
+def IE_GroupDeconvolutionOp:
+        IE_LayerOp<
+            "GroupDeconvolution"
+        > {
+    let summary = "InferenceEngine GroupDeconvolution layer";
+
+    let arguments = (ins
+        AnyRankedTensor:$feature,
+        AnyRankedTensor:$filter,
+        Optional<1DTensorOf<[AnyInteger]>>:$output_shape,
+
+        I64ArrayAttr:$strides,
+        I64ArrayAttr:$pads_begin,
+        I64ArrayAttr:$pads_end,
+        I64ArrayAttr:$dilations,
+        I64ArrayAttr:$output_padding,
+        OptionalAttr<IntAttr>:$groups
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+
+    let hasCanonicalizer = 1;
+}
+
+//
 // PReluOp
 //
 

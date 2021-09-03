@@ -210,6 +210,27 @@ def RewriteGroupConvolution :
         >;
 
 //
+// IERT.Deconvolution -> VPUIP.DeconvolutionUPA
+//
+
+def createGroupDeconvolutionUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::DeconvolutionUPAOp>(
+                $_loc, $0, $1,
+                $2.size() == 1 ? $2[0] : nullptr,
+                $3, $4, $5, $6, $7, $8, $9.getInt())
+        }]>;
+
+def RewriteGroupDeconvolution :
+        Pat<
+            (IERT_GroupDeconvolutionOp $feature, $filter, $output_shape, $output, $strides, $pads_begin, $pads_end, $dilations, $output_padding, $groups),
+            (createGroupDeconvolutionUPAOp $feature, $filter, $output_shape, $output, $strides, $pads_begin, $pads_end, $dilations, $output_padding, $groups),
+            [
+                (HasGroupsAttr $groups)
+            ]
+        >;
+
+//
 // IERT.ReLU -> VPUIP.ReLUUPA
 //
 

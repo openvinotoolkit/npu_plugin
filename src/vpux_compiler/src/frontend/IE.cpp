@@ -145,6 +145,8 @@ private:
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Convolution>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::GroupConvolution>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::ConvolutionBackpropData>& origNode);
+    void parseNode(mlir::OpBuilder& builder,
+                   const std::shared_ptr<opset_latest::GroupConvolutionBackpropData>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::AvgPool>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::MaxPool>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::ShuffleChannels>& origNode);
@@ -281,6 +283,7 @@ NGraphImporter::Callback NGraphImporter::getParser(const std::shared_ptr<ngraph:
             MAP_ENTRY(opset_latest::Convolution),
             MAP_ENTRY(opset_latest::GroupConvolution),
             MAP_ENTRY(opset_latest::ConvolutionBackpropData),
+            MAP_ENTRY(opset_latest::GroupConvolutionBackpropData),
             MAP_ENTRY(opset_latest::AvgPool),
             MAP_ENTRY(opset_latest::MaxPool),
             MAP_ENTRY(opset_latest::ShuffleChannels),
@@ -665,6 +668,38 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder,
         auto op = builder.create<IE::DeconvolutionOp>(createLocation(origNode), inputs[0], inputs[1], inputs[2],
                                                       attrStride, attrPadsBegin, attrPadsEnd, attrDilation,
                                                       attrOutputPadding);
+        addOutputs(origNode, op);
+    }
+}
+
+void NGraphImporter::parseNode(mlir::OpBuilder& builder,
+                               const std::shared_ptr<opset_latest::GroupConvolutionBackpropData>& origNode) {
+    static_assert(
+            std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v1::GroupConvolutionBackpropData>::value,
+            "opset operation mismatch");
+
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS((inputs.size() == 2) || (inputs.size() == 3),
+                      "nGraph node '{0}' has unsupported number of inputs '{1}'", origNode->get_friendly_name(),
+                      inputs.size());
+
+    const auto attrStride = getIntArrayAttr(_ctx, origNode->get_strides());
+    const auto attrPadsBegin = getIntArrayAttr(_ctx, origNode->get_pads_begin());
+    const auto attrPadsEnd = getIntArrayAttr(_ctx, origNode->get_pads_end());
+    const auto attrDilation = getIntArrayAttr(_ctx, origNode->get_dilations());
+    const auto attrOutputPadding = getIntArrayAttr(_ctx, origNode->get_output_padding());
+
+    if (inputs.size() == 2) {
+        auto op = builder.create<IE::GroupDeconvolutionOp>(createLocation(origNode), inputs[0], inputs[1], nullptr,
+                                                           attrStride, attrPadsBegin, attrPadsEnd, attrDilation,
+                                                           attrOutputPadding,
+                                                           /*groups=*/nullptr);
+        addOutputs(origNode, op);
+    } else if (inputs.size() == 3) {
+        auto op = builder.create<IE::GroupDeconvolutionOp>(createLocation(origNode), inputs[0], inputs[1], inputs[2],
+                                                           attrStride, attrPadsBegin, attrPadsEnd, attrDilation,
+                                                           attrOutputPadding,
+                                                           /*groups=*/nullptr);
         addOutputs(origNode, op);
     }
 }

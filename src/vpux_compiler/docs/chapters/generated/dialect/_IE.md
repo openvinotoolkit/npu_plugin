@@ -1188,6 +1188,43 @@ operation ::= `IE.GroupConvolution` `(` operands `)` attr-dict `:` type(operands
 | :----: | ----------- |
 `output` | ranked tensor of 16-bit float or 32-bit float or QuantizedType values
 
+### `IE.GroupDeconvolution` (vpux::IE::GroupDeconvolutionOp)
+
+InferenceEngine GroupDeconvolution layer
+
+
+Syntax:
+
+```
+operation ::= `IE.GroupDeconvolution` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`strides` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`pads_begin` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`pads_end` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`dilations` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`output_padding` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`groups` | mlir::IntegerAttr | Integer attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`feature` | ranked tensor of any type values
+`filter` | ranked tensor of any type values
+`output_shape` | 1D tensor of integer values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values
+
 ### `IE.HSwish` (vpux::IE::HSwishOp)
 
 InferenceEngine HSwish layer

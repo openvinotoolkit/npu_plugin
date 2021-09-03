@@ -402,6 +402,65 @@ def VPUIP_ConvolutionUPAOp :
     }];
 }
 
+def VPUIP_DeconvolutionUPAOp :
+        VPUIP_UPATaskOp<1, "DeconvolutionUPA",
+            [
+                ViewLikeOpInterface,
+                IERT_SameElementType,
+                IERT_SameInOutDimsOrder_CHW_HWC_NCHW_NHWC
+            ]
+        > {
+    let summary = "Deconvolution UPA SHAVE kernel (reference implementation)";
+
+    let arguments = (ins
+        F16MemRef:$feature,
+        F16MemRef:$filter,
+        Optional<I32MemRef>:$output_shape,
+        F16MemRef:$output_buff,
+
+        Variadic<VPUIP_Barrier>:$waitBarriers,
+        Variadic<VPUIP_Barrier>:$updateBarriers,
+
+        I64ArrayAttr:$strides,
+        I64ArrayAttr:$pads_begin,
+        I64ArrayAttr:$pads_end,
+        I64ArrayAttr:$dilations,
+        I64ArrayAttr:$output_padding,
+        IntAttr:$groups,
+
+        OptionalAttr<SI64Attr>:$maxShaves,
+        UnitAttr:$isTrailingSWLayer
+    );
+
+    let results = (outs
+        F16MemRef:$output
+    );
+
+    let builders = [
+        OpBuilder<
+            (ins
+                "mlir::Value":$feature, "mlir::Value":$filter, "mlir::Value":$output_shape, "mlir::Value":$output,
+                "mlir::ArrayAttr":$strides, "mlir::ArrayAttr":$pads_begin,
+                "mlir::ArrayAttr":$pads_end, "mlir::ArrayAttr":$dilations,
+                "mlir::ArrayAttr":$output_padding, "uint32_t":$groups
+            )
+        >
+    ];
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $feature `:` type($feature) `,` $filter `:` type($filter) (`,` $output_shape^ `:` type($output_shape))? `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+        `->` type(results)
+    }];
+
+    let verifier = [{
+        return vpux::VPUIP::verifyOp(*this);
+    }];
+}
+
 //
 // ReLUUPAOp
 //

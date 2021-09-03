@@ -532,6 +532,45 @@ def IERT_GroupConvolutionOp :
 }
 
 //
+// GroupDeconvolutionOp
+//
+
+def IERT_GroupDeconvolutionOp:
+        IERT_LayerOp<1, "GroupDeconvolution",
+        [
+            ViewLikeOpInterface,
+            SameOperandsElementType
+        ]
+        > {
+    let summary = "InferenceEngine  run-time GroupDeconvolution layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$feature,
+        MemRefOf<[F16, F32]>:$filter,
+        Optional<MemRefOf<[SI32]>>:$output_shape,
+        MemRefOf<[F16, F32]>:$output_buff,
+
+        I64ArrayAttr:$strides,
+        I64ArrayAttr:$pads_begin,
+        I64ArrayAttr:$pads_end,
+        I64ArrayAttr:$dilations,
+        I64ArrayAttr:$output_padding,
+        OptionalAttr<IntAttr>:$groups
+    );
+
+    let results = (outs
+        MemRefOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $feature `:` type($feature) `,` $filter `:` type($filter) (`,` $output_shape^ `:` type($output_shape))? `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
 // ReLUOp
 //
 

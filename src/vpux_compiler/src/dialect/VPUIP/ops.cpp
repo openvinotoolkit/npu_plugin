@@ -474,8 +474,12 @@ void redirectOpInterfacesForIE(mlir::DialectRegistry& registry) {
     registry.addOpInterface<IE::CeilingOp, OpModelForSW<VPUIP::CeilingUPAOp>>();
     registry.addOpInterface<IE::NormalizeIEOp, OpModelForSW<VPUIP::NormalizeIEUPAOp>>();
     registry.addOpInterface<IE::EqualOp, OpModelForSW<VPUIP::EltwiseUPAOp>>();
+<<<<<<< HEAD
     registry.addOpInterface<IE::DepthToSpaceOp, OpModelForSW<VPUIP::DepthToSpaceUPAOp>>();
     registry.addOpInterface<IE::ReverseSequenceOp, OpModelForSW<VPUIP::ReverseSequenceUPAOp>>();
+=======
+    registry.addOpInterface<IE::GroupDeconvolutionOp, OpModelForSW<VPUIP::DeconvolutionUPAOp>>();
+>>>>>>> [MLIR] Added GroupDeconvolution
     registry.addOpInterface<IE::LessOp, OpModelForSW<VPUIP::EltwiseUPAOp>>();
     registry.addOpInterface<IE::LessEqualOp, OpModelForSW<VPUIP::EltwiseUPAOp>>();
     registry.addOpInterface<IE::NotEqualOp, OpModelForSW<VPUIP::EltwiseUPAOp>>();
@@ -564,6 +568,7 @@ void redirectOpInterfacesForIERT(mlir::DialectRegistry& registry) {
     registry.addOpInterface<IERT::StridedSliceOp, OpModelForSW>();
     registry.addOpInterface<IERT::RegionYoloOp, OpModelForSW>();
     registry.addOpInterface<IERT::MVNOp, OpModelForSW>();
+    registry.addOpInterface<IERT::SubtractOp, OpModelForSW>();
     registry.addOpInterface<IERT::LSTMSequenceOp, OpModelForSW>();
     registry.addOpInterface<IERT::MemPermuteOp, OpModelForSW>();
     registry.addOpInterface<IERT::CeilingOp, OpModelForSW>();
@@ -571,6 +576,7 @@ void redirectOpInterfacesForIERT(mlir::DialectRegistry& registry) {
     registry.addOpInterface<IERT::EqualOp, OpModelForSW>();
     registry.addOpInterface<IERT::DepthToSpaceOp, OpModelForSW>();
     registry.addOpInterface<IERT::ReverseSequenceOp, OpModelForSW>();
+    registry.addOpInterface<IERT::GroupDeconvolutionOp, OpModelForSW>();
     registry.addOpInterface<IERT::LessOp, OpModelForSW>();
     registry.addOpInterface<IERT::LessEqualOp, OpModelForSW>();
     registry.addOpInterface<IERT::NotEqualOp, OpModelForSW>();

@@ -1242,6 +1242,47 @@ operation ::= `IERT.GroupConvolution` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float or 32-bit float or QuantizedType values
 
+### `IERT.GroupDeconvolution` (vpux::IERT::GroupDeconvolutionOp)
+
+InferenceEngine  run-time GroupDeconvolution layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.GroupDeconvolution` attr-dict
+              `inputs` `(` $feature `:` type($feature) `,` $filter `:` type($filter) (`,` $output_shape^ `:` type($output_shape))? `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`strides` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`pads_begin` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`pads_end` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`dilations` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`output_padding` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`groups` | mlir::IntegerAttr | Integer attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`feature` | memref of 16-bit float or 32-bit float values
+`filter` | memref of 16-bit float or 32-bit float values
+`output_shape` | memref of 32-bit signed integer values
+`output_buff` | memref of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float or 32-bit float values
+
 ### `IERT.HSwish` (vpux::IERT::HSwishOp)
 
 InferenceEngine run-time HSwish layer

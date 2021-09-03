@@ -1011,6 +1011,14 @@ mlir::Operation* createRTLayer(IE::EqualOp origOp, ArrayRef<mlir::Value> allBufs
     return b.create<IERT::EqualOp>(origOp.getLoc(), newOp.input1(), newOp.input2(), newOp.output_buff());
 }
 
+mlir::Operation* createRTLayer(IE::GroupDeconvolutionOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::GroupDeconvolutionOp::Adaptor newOp(allBufs);
+    return b.create<IERT::GroupDeconvolutionOp>(origOp.getLoc(), newOp.feature(), newOp.filter(), newOp.output_shape(),
+                                                newOp.output_buff(), origOp.stridesAttr(), origOp.pads_beginAttr(),
+                                                origOp.pads_endAttr(), origOp.dilationsAttr(),
+                                                origOp.output_paddingAttr(), origOp.groupsAttr());
+}
+
 mlir::Operation* createRTLayer(IE::LessOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::LessOp::Adaptor newOp(allBufs);
     return b.create<IERT::LessOp>(origOp.getLoc(), newOp.input1(), newOp.input2(), newOp.output_buff());
@@ -1164,6 +1172,7 @@ mlir::LogicalResult LayerRewrite::matchAndRewrite(mlir::Operation* origOp, Array
     CASE(IE::CeilingOp)
     CASE(IE::NormalizeIEOp)
     CASE(IE::EqualOp)
+    CASE(IE::GroupDeconvolutionOp)
     CASE(IE::LessOp)
     CASE(IE::LessEqualOp)
     CASE(IE::NotEqualOp)
