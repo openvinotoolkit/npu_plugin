@@ -45,27 +45,32 @@
             "MarkDMATasksToIgnore",
             {
                 "name": "GenerateDot",
-                "output": "output/dots/op_model-in2.dot",
+                "output": "output/dots/beforelpscheduler.dot",
                 "scope": "OpModel",
                 "content": "full",
                 "html": true
             },
             {
                 "name": "ConvertDot",
-                "input": "output/dots/op_model-in2.dot"
+                "input": "output/dots/beforelpscheduler.dot"
             },
-            {
-                "name" : "ChainPipeliningTransform",
-                "select_stages" : 2,
-                "activation_pipelining" : true,
-                "vertical_fusion_pipelining" : true
-           },
             { "name": "LpScheduler",
               "output" : "lp_scheduler_output.txt",
               "ddr_address_generation" : true,
               "no_temporal_edges" : true,
               "enable_cmx_concat" : false,
               "enable_inplace_eltwise" : false
+            },
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/afterlpscheduler.dot",
+                "scope": "OpModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/afterlpscheduler.dot"
             },
             "AssignSEBasePtr",
             {
