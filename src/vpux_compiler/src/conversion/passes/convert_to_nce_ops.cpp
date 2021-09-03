@@ -188,7 +188,7 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
 
     auto outAllocOpCMX = rewriter.create<mlir::memref::AllocOp>(origOp->getLoc(), outTypeCMX);
 
-    auto weightsTable = createWeightsTableTensor(rewriter, origOp->getLoc(), OC, origOp.input(), outAllocOpCMX.memref(),
+    auto weightsTable = createWeightsTableTensor(rewriter, origOp->getLoc(), OC, inputDPU, outAllocOpCMX.memref(),
                                                  filterDPU, origOp.bias(), nullptr);
 
     //
@@ -311,7 +311,7 @@ mlir::LogicalResult MaxPoolRewrite::matchAndRewrite(IERT::MaxPoolOp origOp, mlir
 
     auto outAllocOpCMX = rewriter.create<mlir::memref::AllocOp>(origOp->getLoc(), outTypeCMX);
 
-    auto weightsTable = createWeightsTableTensor(rewriter, origOp->getLoc(), IC, origOp.input(), outAllocOpCMX.memref(),
+    auto weightsTable = createWeightsTableTensor(rewriter, origOp->getLoc(), IC, inputDPU, outAllocOpCMX.memref(),
                                                  nullptr, nullptr, activationWindow);
 
     //
@@ -546,7 +546,7 @@ mlir::LogicalResult DepthwiseConvRewrite::matchAndRewrite(IERT::GroupConvolution
 
     auto outAllocOpCMX = rewriter.create<mlir::memref::AllocOp>(origOp->getLoc(), outTypeCMX);
 
-    auto weightsTable = createWeightsTableTensor(rewriter, origOp->getLoc(), OC, origOp.input(), outAllocOpCMX.memref(),
+    auto weightsTable = createWeightsTableTensor(rewriter, origOp->getLoc(), OC, inputDPU, outAllocOpCMX.memref(),
                                                  filterDPU, origOp.bias(), activationWindow);
 
     //

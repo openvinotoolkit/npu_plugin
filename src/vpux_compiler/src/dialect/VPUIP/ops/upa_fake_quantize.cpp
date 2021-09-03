@@ -172,5 +172,5 @@ mlir::Operation* vpux::VPUIP::BlobReader::parseFakeQuantize(mlir::OpBuilder& bui
 }
 
 void vpux::VPUIP::FakeQuantizeUPAOp::inferLayoutInfo(mlir::Operation*, IE::LayerLayoutInfo& info) {
-    info.fill(info.getInput(0));
+    info.setOutput(0, info.getInput(0));
 }
