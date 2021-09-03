@@ -90,16 +90,15 @@ mlir::LogicalResult vpux::IE::ReduceMeanOp::inferReturnTypeComponents(
 
     const auto keepDims = reduceMean.keep_dims().getValue();
 
-    int axesInd = 0;
     SmallVector<int64_t> outShape;
+    size_t axesInd = 0;
     for (auto inInd : irange(inType.getRank())) {
-        if (inInd == axes->begin()[axesInd]) {
+        if (axesInd < axes->size() && inInd == axes->begin()[axesInd]) {
             axesInd++;
             if (keepDims) {
                 outShape.push_back(1);
-            } else {
-                continue;
             }
+            continue;
         }
         outShape.push_back(inShape[inInd]);
     }

@@ -710,10 +710,7 @@ def IE_EluOp :
 
 def IE_ReduceMeanOp :
         IE_LayerOp<
-            "ReduceMean",
-            [
-                SameOperandsAndResultType
-            ]
+            "ReduceMean"
         > {
     let summary = "InferenceEngine ReduceMean Layer";
 

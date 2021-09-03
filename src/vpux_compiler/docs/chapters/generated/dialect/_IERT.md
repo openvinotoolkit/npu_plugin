@@ -1593,6 +1593,41 @@ operation ::= `IERT.ReLU` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float or 32-bit float values
 
+### `IERT.ReduceMean` (vpux::IERT::ReduceMeanOp)
+
+InferenceEngine run-time ReduceMean layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.ReduceMean` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`axes` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`keep_dims` | ::mlir::BoolAttr | bool attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float or 32-bit float values
+`output_buff` | memref of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float or 32-bit float values
+
 ### `IERT.RegionYolo` (vpux::IERT::RegionYoloOp)
 
 InferenceEngine run-time RegionYolo layer

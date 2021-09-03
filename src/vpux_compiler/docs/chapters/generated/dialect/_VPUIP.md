@@ -1643,6 +1643,48 @@ operation ::= `VPUIP.ReLUUPA` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float values
 
+### `VPUIP.ReduceUPA` (vpux::VPUIP::ReduceUPAOp)
+
+Reduce UPA SHAVE kernel
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.ReduceUPA` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+              (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`axes` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`keep_dims` | ::mlir::BoolAttr | bool attribute
+`type` | vpux::VPUIP::ReduceLayerTypeAttr | Type of Reduce layer
+`maxShaves` | mlir::IntegerAttr | Integer attribute
+`isTrailingSWLayer` | ::mlir::UnitAttr | unit attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float values
+`output_buff` | memref of 16-bit float values
+`waitBarriers` | VPUIP Barrier Type
+`updateBarriers` | VPUIP Barrier Type
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float values
+
 ### `VPUIP.RegionYoloUPA` (vpux::VPUIP::RegionYoloUPAOp)
 
 RegionYolo UPA SHAVE kernel

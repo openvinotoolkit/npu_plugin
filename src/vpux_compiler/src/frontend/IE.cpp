@@ -1343,7 +1343,9 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
     VPUX_THROW_UNLESS(inputs.size() == 2, "nGraph ReduceMean node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
 
-    auto op = builder.create<IE::ReduceMeanOp>(createLocation(origNode), inputs[0], inputs[1], nullptr, nullptr);
+    const auto keep_dims = origNode->get_keep_dims();
+    auto op = builder.create<IE::ReduceMeanOp>(createLocation(origNode), inputs[0], inputs[1], nullptr,
+                                               mlir::BoolAttr::get(_ctx, keep_dims));
     addOutputs(origNode, op);
 }
 
@@ -1865,6 +1867,6 @@ mlir::OwningModuleRef vpux::IE::importNetwork(mlir::MLIRContext* ctx, InferenceE
     auto finalTiming = rootTiming.nest("Validate MLIR module");
     VPUX_THROW_UNLESS(mlir::succeeded(mlir::verify(module)),
                       "Failed to create a valid MLIR module for InferenceEngine IR");
-
+    module.dump();
     return module;
 }

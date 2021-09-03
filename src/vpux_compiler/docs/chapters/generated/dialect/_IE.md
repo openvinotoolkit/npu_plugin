@@ -1556,6 +1556,38 @@ operation ::= `IE.ReLU` `(` operands `)` attr-dict `:` type(operands) `->` type(
 | :----: | ----------- |
 `output` | ranked tensor of 16-bit float or 32-bit float values
 
+### `IE.ReduceMean` (vpux::IE::ReduceMeanOp)
+
+InferenceEngine ReduceMean Layer
+
+
+Syntax:
+
+```
+operation ::= `IE.ReduceMean` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`axes_value` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`keep_dims` | ::mlir::BoolAttr | bool attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of any type values
+`axes` | 1D tensor of integer values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values
+
 ### `IE.RegionYolo` (vpux::IE::RegionYoloOp)
 
 InferenceEngine RegionYolo layer
