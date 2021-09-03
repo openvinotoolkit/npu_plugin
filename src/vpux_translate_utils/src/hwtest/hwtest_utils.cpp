@@ -80,15 +80,15 @@ mlir::DenseElementsAttr generateWeights(std::ifstream& stream, mlir::RankedTenso
     }
 
     VPUX_THROW_UNLESS((state & std::ifstream::eofbit) == 0,
-                      "Failed to read {0} bytes from weghts file, read {1} bytes before EOF has been reached",
+                      "Failed to read {0} bytes from weights file, read {1} bytes before EOF has been reached",
                       expectedBytesCountToRead, actualBytesCountRead);
     VPUX_THROW_UNLESS(
             (state & std::ifstream::failbit) == 0,
-            "Failed to read {0} bytes from weghts file, read {1} bytes before logical error on i/o operation occured",
+            "Failed to read {0} bytes from weights file, read {1} bytes before logical error on i/o operation occured",
             expectedBytesCountToRead, actualBytesCountRead);
     VPUX_THROW_UNLESS(
             (state & std::ifstream::badbit) == 0,
-            "Failed to read {0} bytes from weghts file, read {1} bytes before read error on i/o operation occured",
+            "Failed to read {0} bytes from weights file, read {1} bytes before read error on i/o operation occured",
             expectedBytesCountToRead, actualBytesCountRead);
     VPUX_THROW("Unexpected std::ifstream::rdstate value {}", state);
 }

@@ -474,7 +474,7 @@ def IERT_ConvolutionOp :
     let arguments = (ins
         MemRefOf<[F16, F32, quant_QuantizedType]>:$input,
         MemRefOf<[F16, F32, quant_QuantizedType]>:$filter,
-        Optional<MemRefOf<[F16, F32]>>:$bias,
+        Optional<MemRefOf<[F16, F32, quant_QuantizedType]>>:$bias,
         MemRefOf<[F16, F32, quant_QuantizedType]>:$output_buff,
 
         I64ArrayAttr:$strides,

@@ -27,23 +27,6 @@ using namespace vpux;
 
 namespace {
 
-llvm::unique_function<double(int64_t)> getBiasFunc(mlir::Value bias) {
-    if (bias == nullptr) {
-        return [](int64_t) -> double {
-            return 0.0f;
-        };
-    }
-
-    auto biasConst = bias.getDefiningOp<Const::DeclareOp>();
-    VPUX_THROW_UNLESS(biasConst != nullptr, "Only constant biases are supported, got '{0}'", bias);
-
-    auto biasContent = biasConst.content();
-
-    return [biasContent = std::move(biasContent)](int64_t oc) -> double {
-        return biasContent.getValues<double>()[oc];
-    };
-}
-
 int64_t getOC(VPUIP::WeightsTableOp createWTableOp) {
     if (createWTableOp.weights() != nullptr && createWTableOp.activation_window() != nullptr) {
         // Depthwise convolution case. Weights table contains both activation window and weights.
@@ -126,18 +109,18 @@ mlir::LogicalResult CreateWTableOpsConverter::matchAndRewrite(VPUIP::WeightsTabl
                                                               mlir::PatternRewriter& rewriter) const {
     const auto OC = getOC(createWTableOp);
 
-    int32_t weightPtrOffset = getTensorPtrOffset(createWTableOp.weights(), _aliasInfo);
+    const auto weightPtrOffset = getTensorPtrOffset(createWTableOp.weights(), _aliasInfo);
+    const auto sparsityPtrOffset = getTensorPtrOffset(createWTableOp.activation_window(), _aliasInfo);
     const auto weightPtrStep = getWeightPtrStep(createWTableOp);
 
-    int32_t sparsityPtrOffset = getTensorPtrOffset(createWTableOp.activation_window(), _aliasInfo);
-
-    auto getBiasFP = getBiasFunc(createWTableOp.bias());
-
-    const auto inputType = createWTableOp.op_input() ? createWTableOp.op_input().getType() : nullptr;
-    const auto filterType = createWTableOp.weights() ? createWTableOp.weights().getType() : nullptr;
-    const auto outputType = createWTableOp.op_output() ? createWTableOp.op_output().getType() : nullptr;
-    const auto weightsTable = vpux::VPUIP::NCESparsity::getWeightsTable(
-            OC, getBiasFP, weightPtrOffset, weightPtrStep, sparsityPtrOffset, _arch, inputType, filterType, outputType);
+    const auto op_inElemType = createWTableOp.op_input().getType().cast<mlir::ShapedType>().getElementType();
+    const auto op_outElemType = createWTableOp.op_output().getType().cast<mlir::ShapedType>().getElementType();
+    const auto op_weightsElemType =
+            createWTableOp.weights() ? createWTableOp.weights().getType().cast<mlir::ShapedType>().getElementType()
+                                     : nullptr;
+    const auto weightsTable = vpux::VPUIP::NCESparsity::getWeightsTable(op_inElemType, op_outElemType, weightPtrOffset,
+                                                                        weightPtrStep, sparsityPtrOffset, _arch, OC,
+                                                                        op_weightsElemType, createWTableOp.bias());
 
     const auto outType = createWTableOp.output().getType();
     const auto shapedType = outType.dyn_cast_or_null<mlir::ShapedType>();

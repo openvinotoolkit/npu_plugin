@@ -364,7 +364,7 @@ operation ::= `IERT.Convolution` attr-dict
 | :-----: | ----------- |
 `input` | memref of 16-bit float or 32-bit float or QuantizedType values
 `filter` | memref of 16-bit float or 32-bit float or QuantizedType values
-`bias` | memref of 16-bit float or 32-bit float values
+`bias` | memref of 16-bit float or 32-bit float or QuantizedType values
 `output_buff` | memref of 16-bit float or 32-bit float or QuantizedType values
 
 #### Results:
