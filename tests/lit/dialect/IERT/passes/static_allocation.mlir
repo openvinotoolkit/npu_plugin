@@ -14,15 +14,15 @@ module @LinearGraph {
 IE.CNNNetwork
     entryPoint : @main
     inputsInfo : {
-        IE.DataInfo "data" : tensor<1x1000xf16>
+        DataInfo "data" : tensor<1x1000xf16>
     }
     outputsInfo : {
-        IE.DataInfo "prob" : tensor<1x1000xf16>
+        DataInfo "prob" : tensor<1x1000xf16>
     }
 
 // CHECK:   IERT.RunTimeResources
 // CHECK:       usedMemory
-// CHECK:           IERT.MemoryResource 4096 bytes of "DDR"
+// CHECK:           MemoryResource 4096 bytes of "DDR"
 
 // CHECK: func @main([[ARG0:%arg[0-9]*]]: memref<1x1000xf16>, [[ARG1:%arg[0-9]*]]: memref<1x1000xf16>) -> memref<1x1000xf16> {
 func @main(%arg0: memref<1x1000xf16>, %arg1: memref<1x1000xf16>) -> memref<1x1000xf16> {

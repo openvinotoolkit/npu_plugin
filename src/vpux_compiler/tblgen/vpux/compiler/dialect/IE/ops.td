@@ -24,6 +24,7 @@ include "mlir/Interfaces/CastInterfaces.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 include "mlir/Interfaces/ViewLikeInterface.td"
+include "mlir/IR/OpAsmInterface.td"
 include "mlir/IR/RegionKindInterface.td"
 include "mlir/IR/SymbolInterfaces.td"
 include "mlir/Dialect/Quant/QuantOpsBase.td"
@@ -71,7 +72,8 @@ def IE_CNNNetworkOp :
                 IsolatedFromAbove,
                 HasParent<"mlir::ModuleOp">,
                 NoRegionArguments,
-                DeclareOpInterfaceMethods<SymbolUserOpInterface>
+                DeclareOpInterfaceMethods<SymbolUserOpInterface>,
+                OpAsmOpInterface
             ]
             # GraphRegionNoTerminator.traits
         > {
@@ -105,6 +107,10 @@ def IE_CNNNetworkOp :
                 mlir::ModuleOp module,
                 vpux::IE::CNNNetworkOp& netInfo,
                 mlir::FuncOp& netFunc);
+
+        static mlir::StringRef getDefaultDialect() {
+            return "IE";
+        }
     }];
 
     let assemblyFormat = [{

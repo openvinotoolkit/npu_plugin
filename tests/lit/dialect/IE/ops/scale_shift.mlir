@@ -84,7 +84,7 @@ func @ConvertAddToScale(%arg0: tensor<1x3x300x300xf32>) -> tensor<1x3x300x300xf3
     return %0 : tensor<1x3x300x300xf32>
 
     // CHECK:       %[[BIAS:.*]] = const.Declare tensor<1x3x1x1xf32> = #const.Content<dense<2.000000e+00> : tensor<1x3x1x1xf32>>
-    // CHECK:       %[[VAL0:.*]] = IE.ScaleShift(%arg0, %0) {operand_segment_sizes = dense<[1, 0, 1]> : vector<3xi32>} : tensor<1x3x300x300xf32>, tensor<1x3x1x1xf32> -> tensor<1x3x300x300xf32>
+    // CHECK:       %[[VAL0:.*]] = IE.ScaleShift(%arg0, %[[BIAS]]) {operand_segment_sizes = dense<[1, 0, 1]> : vector<3xi32>} : tensor<1x3x300x300xf32>, tensor<1x3x1x1xf32> -> tensor<1x3x300x300xf32>
     // CHECK:       return %[[VAL0]]
 }
 
@@ -100,6 +100,6 @@ func @ConvertMultiplyToScale(%arg0: tensor<1x3x300x300xf32>) -> tensor<1x3x300x3
     return %0 : tensor<1x3x300x300xf32>
 
     // CHECK:       %[[WEIGHTS:.*]] = const.Declare tensor<1x3x1x1xf32> = #const.Content<dense<3.000000e+00> : tensor<1x3x1x1xf32>>
-    // CHECK:       %[[VAL0:.*]] = IE.ScaleShift(%arg0, %0) {operand_segment_sizes = dense<[1, 1, 0]> : vector<3xi32>} : tensor<1x3x300x300xf32>, tensor<1x3x1x1xf32> -> tensor<1x3x300x300xf32>
+    // CHECK:       %[[VAL0:.*]] = IE.ScaleShift(%arg0, %[[WEIGHTS]]) {operand_segment_sizes = dense<[1, 1, 0]> : vector<3xi32>} : tensor<1x3x300x300xf32>, tensor<1x3x1x1xf32> -> tensor<1x3x300x300xf32>
     // CHECK:       return %[[VAL0]]
 }

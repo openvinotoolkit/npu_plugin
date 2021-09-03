@@ -8,10 +8,10 @@ module @InOutNHCW attributes {VPUIP.arch = "KMB", VPUIP.compilationMode = "Refer
 IE.CNNNetwork
     entryPoint : @main
     inputsInfo : {
-        IE.DataInfo "data" : tensor<1x8x4x2xf16, {order = #NHCW}>
+        DataInfo "data" : tensor<1x8x4x2xf16, {order = #NHCW}>
     }
     outputsInfo : {
-        IE.DataInfo "prob" : tensor<1x8x4x2xf16, {order = #NHCW}>
+        DataInfo "prob" : tensor<1x8x4x2xf16, {order = #NHCW}>
     }
 
 // CHECK: func @main([[ARG0:%arg[0-9]+]]: tensor<1x8x4x2xf16, {order = #NHCW}>) -> tensor<1x8x4x2xf16, {order = #NHCW}> {
@@ -46,10 +46,10 @@ module @DifferentOrders attributes {VPUIP.arch = "KMB", VPUIP.compilationMode = 
 IE.CNNNetwork
     entryPoint : @main
     inputsInfo : {
-        IE.DataInfo "data" : tensor<1x8x4x2xf16>
+        DataInfo "data" : tensor<1x8x4x2xf16>
     }
     outputsInfo : {
-        IE.DataInfo "prob" : tensor<1x8x4x2xf16, {order = #NHWC}>
+        DataInfo "prob" : tensor<1x8x4x2xf16, {order = #NHWC}>
     }
 
 // CHECK: func @main([[ARG0:%arg[0-9]+]]: tensor<1x8x4x2xf16>) -> tensor<1x8x4x2xf16, {order = #NHWC}> {
@@ -71,8 +71,8 @@ module @HwOp attributes {VPUIP.arch = "KMB", VPUIP.compilationMode = "ReferenceH
 
 IERT.RunTimeResources
     availableMemory :  {
-        IERT.MemoryResource 201326592 bytes of "DDR" {VPUIP.bandwidth = 8, VPUIP.derateFactor = 6.000000e-01}
-        IERT.MemoryResource 917504 bytes of "CMX_NN" {VPUIP.bandwidth = 32, VPUIP.derateFactor = 1.000000e+00}
+        MemoryResource 201326592 bytes of "DDR" {VPUIP.bandwidth = 8, VPUIP.derateFactor = 6.000000e-01}
+        MemoryResource 917504 bytes of "CMX_NN" {VPUIP.bandwidth = 32, VPUIP.derateFactor = 1.000000e+00}
     }
     usedMemory : {
     }
@@ -82,10 +82,10 @@ IERT.RunTimeResources
 IE.CNNNetwork
     entryPoint : @main
     inputsInfo : {
-        IE.DataInfo "data" : tensor<1x16x30x30xf16>
+        DataInfo "data" : tensor<1x16x30x30xf16>
     }
     outputsInfo : {
-        IE.DataInfo "prob" : tensor<1x16x15x13xf16>
+        DataInfo "prob" : tensor<1x16x15x13xf16>
     }
 
 // CHECK: func @main([[ARG0:%arg[0-9]+]]: tensor<1x16x30x30xf16>) -> tensor<1x16x15x13xf16> {

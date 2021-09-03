@@ -16,7 +16,7 @@ func @Conv2dWithReluTest(%arg0: tensor<1x16x4x4xf16>) -> tensor<1x16x3x3xf16> {
 
     return %1 : tensor<1x16x3x3xf16>
 
-    // CHECK:       %1 = IE.Convolution(%arg0, %0)
+    // CHECK:       IE.Convolution
     // CHECK-SAME:     dilations = [1, 1]
     // CHECK-SAME:     pads_begin = [0, 0]
     // CHECK-SAME:     pads_end = [0, 0]
@@ -43,7 +43,7 @@ func @MaxPoolWithReluTest(%arg0: tensor<1x16x4x4xf16>) -> tensor<1x16x3x3xf16> {
 
     return %1 : tensor<1x16x3x3xf16>
 
-    // CHECK:       %0 = IE.MaxPool(%arg0)
+    // CHECK:       IE.MaxPool
     // CHECK-SAME:     kernel_size = [2, 2]
     // CHECK-SAME:     pads_begin = [0, 0]
     // CHECK-SAME:     pads_end = [0, 0]
@@ -72,7 +72,7 @@ func @DepthWiseConv2dWithReluTest(%arg0: tensor<1x16x4x4xf16>) -> tensor<1x16x3x
 
     return %1 : tensor<1x16x3x3xf16>
 
-    // CHECK:       %1 = IE.GroupConvolution(%arg0, %0)
+    // CHECK:       IE.GroupConvolution
     // CHECK-SAME:     dilations = [1, 1]
     // CHECK-SAME:     groups = 16
     // CHECK-SAME:     pads_begin = [0, 0]
@@ -104,7 +104,7 @@ func @Conv2dWithClampTest(%arg0: tensor<1x16x4x4xf16>) -> tensor<1x16x3x3xf16> {
 
     return %1 : tensor<1x16x3x3xf16>
 
-    // CHECK:       %1 = IE.Convolution(%arg0, %0)
+    // CHECK:       IE.Convolution
     // CHECK-SAME:     dilations = [1, 1]
     // CHECK-SAME:     pads_begin = [0, 0]
     // CHECK-SAME:     pads_end = [0, 0]
@@ -130,4 +130,3 @@ func @AddWithReLUTest() -> tensor<1x16x4x4xf16> {
     // CHECK-SAME:     post_op = {attrs = {}, name = "IE.ReLU"}
     // CHECK-NOT:   IE.ReLU
 }
-

@@ -8,18 +8,18 @@ module @SingleLayer {
 
 // CHECK:   IERT.RunTimeResources
 // CHECK:       usedMemory
-// CHECK:           IERT.MemoryResource 2048 bytes of "DDR"
+// CHECK:           MemoryResource 2048 bytes of "DDR"
 
 // CHECK: IE.CNNNetwork
 IE.CNNNetwork
     entryPoint : @main
     inputsInfo : {
-        // CHECK: IE.DataInfo "input" : tensor<1x1000xf16>
-        IE.DataInfo "input" : tensor<1x1000xf16>
+        // CHECK: DataInfo "input" : tensor<1x1000xf16>
+        DataInfo "input" : tensor<1x1000xf16>
     }
     outputsInfo : {
-        // CHECK: IE.DataInfo "softmax" : tensor<1x1000xf16>
-        IE.DataInfo "softmax" : tensor<1x1000xf16>
+        // CHECK: DataInfo "softmax" : tensor<1x1000xf16>
+        DataInfo "softmax" : tensor<1x1000xf16>
     }
 
 // CHECK:       func @main(
@@ -59,17 +59,17 @@ module @ConstantLayer {
 
 // CHECK:   IERT.RunTimeResources
 // CHECK:       usedMemory
-// CHECK:           IERT.MemoryResource 128 bytes of "DDR"
+// CHECK:           MemoryResource 128 bytes of "DDR"
 
 // CHECK: IE.CNNNetwork
 IE.CNNNetwork
     entryPoint : @main
     inputsInfo : {
-        IE.DataInfo "input" : tensor<1x2x2x2xf16>
+        DataInfo "input" : tensor<1x2x2x2xf16>
     }
     outputsInfo : {
-        IE.DataInfo "output1" : tensor<1x2x2x2xf16>
-        IE.DataInfo "output2" : tensor<1x2x2x2xf16>
+        DataInfo "output1" : tensor<1x2x2x2xf16>
+        DataInfo "output2" : tensor<1x2x2x2xf16>
     }
 
 // CHECK:       func @main(
@@ -142,7 +142,7 @@ IE.CNNNetwork
     inputsInfo : {
     }
     outputsInfo : {
-        IE.DataInfo "prob" : tensor<1x2x4x2xf16>
+        DataInfo "prob" : tensor<1x2x4x2xf16>
     }
 
 // CHECK:       func @main(

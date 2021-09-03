@@ -425,14 +425,14 @@
 
 // CHECK:   module @Test attributes {VPUIP.arch = "KMB"} {
 
-// CHECK:   IERT.MemoryResource 524288000 bytes of "DDR" {VPUIP.bandwidth = 8 : i64, VPUIP.derateFactor = 6.000000e-01 : f64}
-// CHECK:   IERT.MemoryResource 917504 bytes of "CMX_NN" {VPUIP.bandwidth = 32 : i64, VPUIP.derateFactor = 1.000000e+00 : f64}
-// CHECK:   IERT.MemoryResource 2048 bytes of "DDR"
-// CHECK:   IERT.MemoryResource 917504 bytes of "CMX_NN"
-// CHECK:   IERT.ExecutorResource 1 of "DMA_NN"
-// CHECK:   IERT.ExecutorResource 16 of "SHAVE_UPA"
-// CHECK:   IERT.ExecutorResource {VPUIP.processorFrequency = 7.000000e+02 : f64} 4 of "NCE_Cluster" {
-// CHECK:   IERT.ExecutorResource 5 of "NCE_PerClusterDPU"
+// CHECK:   MemoryResource 524288000 bytes of "DDR" {VPUIP.bandwidth = 8 : i64, VPUIP.derateFactor = 6.000000e-01 : f64}
+// CHECK:   MemoryResource 917504 bytes of "CMX_NN" {VPUIP.bandwidth = 32 : i64, VPUIP.derateFactor = 1.000000e+00 : f64}
+// CHECK:   MemoryResource 2048 bytes of "DDR"
+// CHECK:   MemoryResource 917504 bytes of "CMX_NN"
+// CHECK:   ExecutorResource 1 of "DMA_NN"
+// CHECK:   ExecutorResource 16 of "SHAVE_UPA"
+// CHECK:   ExecutorResource {VPUIP.processorFrequency = 7.000000e+02 : f64} 4 of "NCE_Cluster" {
+// CHECK:   ExecutorResource 5 of "NCE_PerClusterDPU"
 
 // CHECK:   options : "NONE"
 // CHECK:   contextStr = "VPUX Compiler"
@@ -441,8 +441,8 @@
 // CHECK:   minorV = 11
 // CHECK:   patchV = 0
 
-// CHECK:   IE.DataInfo "input" : tensor<1x1000xf32>
-// CHECK:   IE.DataInfo "softmax" : tensor<1x1000xf32>
+// CHECK:   DataInfo "input" : tensor<1x1000xf32>
+// CHECK:   DataInfo "softmax" : tensor<1x1000xf32>
 
 // CHECK:   func @main(%arg0: memref<1x1x1x1000xf16, #map>, %arg1: memref<1x1x1x1000xf16, #map>) -> memref<1x1x1x1000xf16, #map> {
 // CHECK:   %0 = VPUIP.ConfigureBarrier<0> -> !VPUIP.Barrier

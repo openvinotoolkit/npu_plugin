@@ -73,40 +73,27 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(DeclareTensorOp op) {
 mlir::ParseResult vpux::VPUIP::DeclareTensorOp::parseLocaleIndex(mlir::OpAsmParser& parser,
                                                                  mlir::ArrayAttr& localeIndex) {
     SmallVector<int64_t> indicies;
-    if (!parser.parseOptionalLSquare() && parser.parseOptionalRSquare()) {
-        for (;;) {
-            int64_t idx = 0;
-            if (parser.parseInteger(idx)) {
-                return mlir::failure();
-            }
-            indicies.emplace_back(idx);
-            if (!parser.parseOptionalComma()) {
-                continue;
-            }
-            if (parser.parseRSquare()) {
-                return mlir::failure();
-            }
-            break;
+    const auto parseElemCb = [&]() -> mlir::ParseResult {
+        int64_t idx = 0;
+        if (mlir::failed(parser.parseInteger(idx))) {
+            return mlir::failure();
         }
+        indicies.emplace_back(idx);
+        return mlir::success();
+    };
+
+    if (mlir::failed(parser.parseCommaSeparatedList(mlir::OpAsmParser::Delimiter::OptionalSquare, parseElemCb))) {
+        return mlir::failure();
     }
+
     localeIndex = parser.getBuilder().getI64ArrayAttr(indicies);
     return mlir::success();
 }
 
 void vpux::VPUIP::DeclareTensorOp::printLocaleIndex(mlir::OpAsmPrinter& printer, VPUIP::DeclareTensorOp&,
                                                     mlir::ArrayAttr localeIndex) {
-    if (localeIndex.empty()) {
-        return;
+    if (!localeIndex.empty()) {
+        printer.printAttribute(localeIndex);
+        printer << ' ';
     }
-    printer << "[";
-    bool first = true;
-    for (auto idx : localeIndex) {
-        if (first) {
-            first = false;
-        } else {
-            printer << ", ";
-        }
-        printer.printAttributeWithoutType(idx);
-    }
-    printer << "] ";
 }

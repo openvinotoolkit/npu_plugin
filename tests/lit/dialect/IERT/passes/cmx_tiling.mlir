@@ -2,7 +2,7 @@
 
 IERT.RunTimeResources
     availableMemory : {
-        IERT.MemoryResource 3200000 bytes of "CMX_NN"
+        MemoryResource 3200000 bytes of "CMX_NN"
     }
     usedMemory : {
     }
@@ -111,7 +111,7 @@ func @SplitOverOC(
 
 IERT.RunTimeResources
     availableMemory : {
-        IERT.MemoryResource 400000 bytes of "CMX_NN"
+        MemoryResource 400000 bytes of "CMX_NN"
     }
     usedMemory : {
     }
@@ -198,7 +198,7 @@ func @SplitOverH(
 
 IERT.RunTimeResources
     availableMemory : {
-        IERT.MemoryResource 1000000 bytes of "CMX_NN"
+        MemoryResource 1000000 bytes of "CMX_NN"
     }
     usedMemory : {
     }
@@ -295,7 +295,7 @@ func @SplitOverC(
 
 IERT.RunTimeResources
     availableMemory : {
-        IERT.MemoryResource 240000 bytes of "CMX_NN"
+        MemoryResource 240000 bytes of "CMX_NN"
     }
     usedMemory : {
     }

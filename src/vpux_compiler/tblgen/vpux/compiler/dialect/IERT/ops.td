@@ -26,6 +26,7 @@ include "mlir/Dialect/Quant/QuantOpsBase.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 include "mlir/Interfaces/ViewLikeInterface.td"
+include "mlir/IR/OpAsmInterface.td"
 include "mlir/IR/RegionKindInterface.td"
 
 //
@@ -64,7 +65,8 @@ def IERT_RunTimeResourcesOp :
             [
                 IsolatedFromAbove,
                 HasParent<"mlir::ModuleOp">,
-                NoRegionArguments
+                NoRegionArguments,
+                OpAsmOpInterface
             ]
             # GraphRegionNoTerminator.traits
         > {
@@ -107,6 +109,10 @@ def IERT_RunTimeResourcesOp :
         vpux::IERT::ExecutorResourceOp addExecutor(mlir::Attribute kind, uint32_t count, bool withSubRegion = false);
         vpux::IERT::ExecutorResourceOp getExecutor(mlir::Attribute kind);
         auto getExecutors() { return executors().getOps<vpux::IERT::ExecutorResourceOp>(); }
+
+        static mlir::StringRef getDefaultDialect() {
+            return "IERT";
+        }
     }];
 
     let assemblyFormat = [{
@@ -161,7 +167,8 @@ def IERT_ExecutorResourceOp :
             "ExecutorResource",
             [
                 ParentOneOf<["vpux::IERT::ExecutorResourceOp","vpux::IERT::RunTimeResourcesOp"]>,
-                NoRegionArguments
+                NoRegionArguments,
+                OpAsmOpInterface
             ]
             # GraphRegionNoTerminator.traits
         > {
@@ -190,6 +197,10 @@ def IERT_ExecutorResourceOp :
     let extraClassDeclaration = [{
         vpux::IERT::ExecutorResourceOp addSubExecutor(mlir::Attribute kind, uint32_t count, bool withSubRegion = false);
         vpux::IERT::ExecutorResourceOp getSubExecutor(mlir::Attribute kind);
+
+        static mlir::StringRef getDefaultDialect() {
+            return "IERT";
+        }
     }];
 
     let assemblyFormat = [{

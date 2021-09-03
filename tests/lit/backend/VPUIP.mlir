@@ -4,25 +4,25 @@ module @Test attributes {VPUIP.arch = "KMB"} {
 
 IERT.RunTimeResources
     availableMemory : {
-        IERT.MemoryResource 1073741824 bytes
-        IERT.MemoryResource 31457280 bytes of "DDR" {VPUIP.bandwidth = 8, VPUIP.derateFactor = 6.000000e-01}
-        IERT.MemoryResource 4194304 bytes of "CMX_UPA" {VPUIP.bandwidth = 16, VPUIP.derateFactor = 8.500000e-01}
-        IERT.MemoryResource 1048576 bytes of "CMX_NN" {VPUIP.bandwidth = 32, VPUIP.derateFactor = 1.000000e+00}
+        MemoryResource 1073741824 bytes
+        MemoryResource 31457280 bytes of "DDR" {VPUIP.bandwidth = 8, VPUIP.derateFactor = 6.000000e-01}
+        MemoryResource 4194304 bytes of "CMX_UPA" {VPUIP.bandwidth = 16, VPUIP.derateFactor = 8.500000e-01}
+        MemoryResource 1048576 bytes of "CMX_NN" {VPUIP.bandwidth = 32, VPUIP.derateFactor = 1.000000e+00}
     }
     usedMemory : {
-        IERT.MemoryResource 2048 bytes of "DDR"
-        IERT.MemoryResource 1048576 bytes of "CMX_NN"
+        MemoryResource 2048 bytes of "DDR"
+        MemoryResource 1048576 bytes of "CMX_NN"
     }
     executors : {
-        IERT.ExecutorResource 1 of "Leon_RT"
-        IERT.ExecutorResource 1 of "Leon_NN"
-        IERT.ExecutorResource 16 of "SHAVE_UPA"
-        IERT.ExecutorResource 20 of "SHAVE_NN"
-        IERT.ExecutorResource 4 of "NCE_Cluster" {
-            IERT.ExecutorResource 5 of "NCE_PerClusterDPU"
+        ExecutorResource 1 of "Leon_RT"
+        ExecutorResource 1 of "Leon_NN"
+        ExecutorResource 16 of "SHAVE_UPA"
+        ExecutorResource 20 of "SHAVE_NN"
+        ExecutorResource 4 of "NCE_Cluster" {
+            ExecutorResource 5 of "NCE_PerClusterDPU"
         }
-        IERT.ExecutorResource 1 of "DMA_UPA"
-        IERT.ExecutorResource 1 of "DMA_NN"
+        ExecutorResource 1 of "DMA_UPA"
+        ExecutorResource 1 of "DMA_NN"
     }
 
 VPUIP.Graph
@@ -38,10 +38,10 @@ VPUIP.Graph
 IE.CNNNetwork
     entryPoint : @main
     inputsInfo : {
-        IE.DataInfo "input" : tensor<1x1000xf32>
+        DataInfo "input" : tensor<1x1000xf32>
     }
     outputsInfo : {
-        IE.DataInfo "softmax" : tensor<1x1000xf32>
+        DataInfo "softmax" : tensor<1x1000xf32>
     }
 
 func @main(%arg0: memref<1x1x1x1000xf16>, %arg1: memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16> {

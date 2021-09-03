@@ -30,6 +30,7 @@ include "mlir/Interfaces/CopyOpInterface.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/Interfaces/ViewLikeInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
+include "mlir/IR/OpAsmInterface.td"
 include "mlir/IR/RegionKindInterface.td"
 include "mlir/IR/SymbolInterfaces.td"
 
@@ -2044,7 +2045,8 @@ def VPUIP_NCEClusterTaskOp :
         VPUIP_TaskOp<1, "NCEClusterTask",
             [
                 ViewLikeOpInterface,
-                NoRegionArguments
+                NoRegionArguments,
+                OpAsmOpInterface
             ]
             # GraphRegionNoTerminator.traits
         > {
@@ -2144,6 +2146,10 @@ def VPUIP_NCEClusterTaskOp :
 
         static vpux::VPUIP::TaskType getTaskType() {
             return vpux::VPUIP::TaskType::NCE2;
+        }
+
+        static mlir::StringRef getDefaultDialect() {
+            return "VPUIP";
         }
     }] # IERT_InferLayerReturnTypes<1>.impl;
 }
