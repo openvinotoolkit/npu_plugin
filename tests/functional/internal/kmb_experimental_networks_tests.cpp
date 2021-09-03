@@ -218,6 +218,19 @@ TEST_F(ModelAdk, DISABLED_DeBlur_AA_BDK2) {
             0.0025f);
 }
 
+// TODO: this is temporary added test to verify #E16291.
+// The test should be replaced by a sub-graph test
+// to verify different patterns which can be applied
+// for detect_input_fq ngraph pass
+// [Track number: #E19643]
+TEST_F(KmbClassifyNetworkTest, googlenet_v3_BDK2) {
+    runTest(
+        TestNetworkDesc("googlenet_v3/FP16-INT8/googlenet-v3.xml", EXPERIMENTAL)
+            .setUserInputPrecision("input", Precision::FP32),
+        TestImageDesc("299x299/lassy_googlenet_big.bmp", ImageFormat::RGB),
+        1, 0.03f);
+}
+
 const static std::vector<InferenceEngine::Precision> inputPrecision = {
                 InferenceEngine::Precision::U8,
                 InferenceEngine::Precision::FP16,
