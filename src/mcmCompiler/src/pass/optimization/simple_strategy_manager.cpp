@@ -22,6 +22,9 @@ StrategyManagerSimple::StrategyManagerSimple(OpModel& model,mv::Element& passDes
     dpuPerCluster = globalParams->get<int>("Number_of_DPUs") / totalClusters;
     target = td.getTarget();
 
+    std::cout << "Total clusters: " << totalClusters << std::endl;
+    std::cout << "DPU per cluster: " << dpuPerCluster << std::endl;
+
     //Seems to work better for THB?
     if(target == mv::Target::ma3100)
         cmxPipeLineWeightsOverhead = 74241.0;
