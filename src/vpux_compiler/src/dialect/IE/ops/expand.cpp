@@ -53,23 +53,13 @@ mlir::LogicalResult vpux::IE::ExpandOp::inferReturnTypeComponents(
     const auto padBegin = parseIntArrayAttr<int64_t>(expand.pads_begin());
     const auto padEnd = parseIntArrayAttr<int64_t>(expand.pads_end());
 
-    const auto inType = expand.input().getType().cast<mlir::ShapedType>();
+    const auto inType = expand.input().getType().cast<mlir::RankedTensorType>();
     if (!inType) {
         return mlir::failure();
     }
 
-    const auto inputShape = inType.getShape();
-    SmallVector<int64_t> outShape(inputShape.size());
-    for (size_t i = 0; i < inputShape.size(); ++i) {
-        outShape[i] = padBegin[i] + inputShape[i] + padEnd[i];
-    }
-
-    auto elemType = inType.getElementType();
-    if (const auto perAxisQType = elemType.dyn_cast_or_null<mlir::quant::UniformQuantizedPerAxisType>()) {
-        elemType = expandScalesAndZP(perAxisQType, ShapeRef{padBegin}, ShapeRef{padEnd});
-    }
-
-    inferredReturnShapes.emplace_back(outShape, elemType);
+    const auto newType = getPaddedType(inType, ShapeRef(padBegin), ShapeRef(padEnd));
+    inferredReturnShapes.emplace_back(newType.getShape(), newType.getElementType(), newType.getEncoding());
 
     return mlir::success();
 }

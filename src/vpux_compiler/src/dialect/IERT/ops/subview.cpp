@@ -13,11 +13,21 @@
 
 #include "vpux/compiler/dialect/IERT/ops.hpp"
 
-#include "vpux/compiler/core/attributes/strides.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
 
+#include <mlir/IR/PatternMatch.h>
+
 using namespace vpux;
+
+//
+// build
+//
+
+void vpux::IERT::SubViewOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
+                                  ShapeRef static_offsets, ShapeRef static_sizes) {
+    build(builder, state, input, static_offsets.raw(), static_sizes.raw());
+}
 
 void vpux::IERT::SubViewOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
                                   ArrayRef<int64_t> static_offsets, ArrayRef<int64_t> static_sizes) {
@@ -25,40 +35,47 @@ void vpux::IERT::SubViewOp::build(mlir::OpBuilder& builder, mlir::OperationState
           getIntArrayAttr(builder.getContext(), static_sizes));
 }
 
+//
+// ViewLikeOpInterface
+//
+
 mlir::Value vpux::IERT::SubViewOp::getViewSource() {
     return source();
 }
 
-mlir::LogicalResult vpux::IERT::SubViewOp::inferReturnTypes(mlir::MLIRContext* ctx, mlir::Optional<mlir::Location> loc,
+//
+// InferTypeOpInterface
+//
+
+mlir::LogicalResult vpux::IERT::SubViewOp::inferReturnTypes(mlir::MLIRContext* ctx,
+                                                            mlir::Optional<mlir::Location> optLoc,
                                                             mlir::ValueRange operands, mlir::DictionaryAttr attrs,
                                                             mlir::RegionRange /*regions*/,
                                                             mlir::SmallVectorImpl<mlir::Type>& inferredTypes) {
-    const auto location = loc.hasValue() ? loc.getValue() : mlir::UnknownLoc::get(ctx);
+    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+
     IERT::SubViewOpAdaptor subViewOp(operands, attrs);
-    if (mlir::failed(subViewOp.verify(location))) {
-        return errorAt(location, "IERT::SubViewOp op verification failed");
+    if (mlir::failed(subViewOp.verify(loc))) {
+        return mlir::failure();
     }
 
     const auto origType = subViewOp.source().getType().dyn_cast<mlir::MemRefType>();
     if (origType == nullptr) {
-        return errorAt(location, "IERT::SubViewOp operand must have memref type");
+        return errorAt(loc, "IERT::SubViewOp operand must have MemRef type");
     }
 
-    const auto tileOffsetsAttr = subViewOp.static_offsets();
-    if (tileOffsetsAttr == nullptr) {
-        return errorAt(location, "IERT::SubViewOp needs static_offsets attribute");
+    const auto subViewShape = parseIntArrayAttr<int64_t>(subViewOp.static_sizes());
+    const auto subViewOffsets = parseIntArrayAttr<int64_t>(subViewOp.static_offsets());
+
+    if (subViewShape.size() != checked_cast<size_t>(origType.getRank())) {
+        return errorAt(loc, "Tile shape '{0}' doesn't match MemRef rank '{1}'", subViewShape, origType.getRank());
+    }
+    if (subViewOffsets.size() != checked_cast<size_t>(origType.getRank())) {
+        return errorAt(loc, "Tile offsets '{0}' doesn't match MemRef rank '{1}'", subViewOffsets, origType.getRank());
     }
 
-    const auto tileShapeAttr = subViewOp.static_sizes();
-    if (tileShapeAttr == nullptr) {
-        return errorAt(location, "IERT::SubViewOp needs static_sizes attribute");
-    }
-
-    const auto tileShape = parseIntArrayAttr<int64_t>(tileShapeAttr.cast<mlir::ArrayAttr>());
-    const auto tileOffsets = parseIntArrayAttr<int64_t>(tileOffsetsAttr.cast<mlir::ArrayAttr>());
-
-    const auto tileType = getTileType(origType, Shape(tileShape), Shape(tileOffsets));
-    inferredTypes.push_back(tileType);
+    const auto subViewType = getViewTileType(origType, ShapeRef(subViewOffsets), ShapeRef(subViewShape));
+    inferredTypes.push_back(subViewType);
 
     return mlir::success();
 }
@@ -79,4 +96,46 @@ mlir::OpFoldResult vpux::IERT::SubViewOp::fold(ArrayRef<mlir::Attribute> operand
     }
 
     return nullptr;
+}
+
+//
+// ComposeSubView
+//
+
+namespace {
+
+class ComposeSubView final : public mlir::OpRewritePattern<IERT::SubViewOp> {
+public:
+    using OpRewritePattern::OpRewritePattern;
+
+    mlir::LogicalResult matchAndRewrite(IERT::SubViewOp op, mlir::PatternRewriter& rewriter) const final;
+};
+
+mlir::LogicalResult ComposeSubView::matchAndRewrite(IERT::SubViewOp origOp, mlir::PatternRewriter& rewriter) const {
+    auto producerSubViewOp = origOp.source().getDefiningOp<IERT::SubViewOp>();
+    if (producerSubViewOp == nullptr) {
+        return mlir::failure();
+    }
+
+    auto finalOffsets = parseIntArrayAttr<int64_t>(producerSubViewOp.static_offsets());
+    const auto secondOffsets = parseIntArrayAttr<int64_t>(origOp.static_offsets());
+    for (auto i : irange(finalOffsets.size())) {
+        finalOffsets[i] += secondOffsets[i];
+    }
+
+    const auto finalOffsetsAttr = getIntArrayAttr(getContext(), finalOffsets);
+    const auto finalShapeAttr = origOp.static_sizes();
+    rewriter.replaceOpWithNewOp<IERT::SubViewOp>(origOp, producerSubViewOp.source(), finalOffsetsAttr, finalShapeAttr);
+
+    return mlir::success();
+}
+
+}  // namespace
+
+//
+// getCanonicalizationPatterns
+//
+
+void vpux::IERT::SubViewOp::getCanonicalizationPatterns(mlir::RewritePatternSet& results, mlir::MLIRContext* ctx) {
+    results.add<ComposeSubView>(ctx);
 }

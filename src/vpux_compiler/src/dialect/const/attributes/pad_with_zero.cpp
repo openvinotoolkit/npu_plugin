@@ -169,29 +169,9 @@ mlir::Attribute vpux::Const::PadWithZeroAttr::parse(mlir::MLIRContext*, mlir::Di
 //
 
 mlir::ShapedType vpux::Const::PadWithZeroAttr::inferOutputType(mlir::ShapedType input) const {
-    const auto inShape = getShape(input);
-    const auto padBefore = Shape(parseIntArrayAttr<int64_t>(getPadBefore()));
-    const auto padAfter = Shape(parseIntArrayAttr<int64_t>(getPadAfter()));
-
-    VPUX_THROW_UNLESS(padBefore.size() == padAfter.size(),
-                      "Got non consistent 'padBefore' and 'padAfter' values in 'PadWithZeroAttr'");
-    VPUX_THROW_UNLESS(inShape.size() == padBefore.size(),
-                      "Paddings and input shape are not consistent in 'PadWithZeroAttr'");
-
-    Shape outShape(inShape.size());
-    for (auto ind : irange(outShape.size())) {
-        const auto d = Dim(ind);
-        outShape[d] = inShape[d] + padBefore[d] + padAfter[d];
-    }
-
-    const auto newType = changeShape(input, outShape);
-    if (const auto perAxisQType =
-                newType.getElementType().dyn_cast_or_null<mlir::quant::UniformQuantizedPerAxisType>()) {
-        const auto newQType = expandScalesAndZP(perAxisQType, padBefore, padAfter);
-        return changeElemType(newType, newQType);
-    }
-
-    return newType;
+    const auto padBefore = parseIntArrayAttr<int64_t>(getPadBefore());
+    const auto padAfter = parseIntArrayAttr<int64_t>(getPadAfter());
+    return getPaddedType(input, ShapeRef(padBefore), ShapeRef(padAfter));
 }
 
 //

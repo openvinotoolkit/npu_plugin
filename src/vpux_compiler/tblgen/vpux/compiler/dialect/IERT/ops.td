@@ -1939,15 +1939,16 @@ def IERT_SubViewOp :
         IERT_Op<
             "SubView",
             [
+                NoSideEffect,
                 DeclareOpInterfaceMethods<ViewLikeOpInterface>,
-                DeclareOpInterfaceMethods<InferTypeOpInterface>,
-                NoSideEffect
+                DeclareOpInterfaceMethods<InferTypeOpInterface>
             ]
         > {
-    let summary = "Compile-time subview layer";
+    let summary = "Extract single subview from buffer";
 
     let arguments = (ins
         AnyMemRef:$source,
+
         I64ArrayAttr:$static_offsets,
         I64ArrayAttr:$static_sizes
     );
@@ -1963,11 +1964,15 @@ def IERT_SubViewOp :
 
     let builders = [
         OpBuilder<
-            (ins "mlir::Value":$source, "ArrayRef<int64_t>":$static_offsets, "ArrayRef<int64_t>":$static_sizes)
+            (ins "mlir::Value":$source, "vpux::ShapeRef":$static_offsets, "vpux::ShapeRef":$static_sizes)
+        >,
+        OpBuilder<
+            (ins "mlir::Value":$source, "vpux::ArrayRef<int64_t>":$static_offsets, "vpux::ArrayRef<int64_t>":$static_sizes)
         >
     ];
 
     let hasFolder = 1;
+    let hasCanonicalizer = 1;
 }
 
 //

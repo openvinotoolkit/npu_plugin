@@ -1781,7 +1781,7 @@ operation ::= `IERT.StridedSlice` attr-dict
 
 ### `IERT.SubView` (vpux::IERT::SubViewOp)
 
-Compile-time subview layer
+Extract single subview from buffer
 
 
 Syntax:

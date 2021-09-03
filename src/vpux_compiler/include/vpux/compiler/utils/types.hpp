@@ -62,8 +62,12 @@ mlir::MemRefType changeElemType(mlir::MemRefType origType, mlir::Type elemType, 
 mlir::MemRefType changeShape(mlir::MemRefType origType, ShapeRef shape, bool preserveStrides = false);
 mlir::MemRefType changeDimsOrder(mlir::MemRefType origType, DimsOrder order);
 mlir::MemRefType changeMemSpace(mlir::MemRefType origType, mlir::Attribute memSpace, bool preserveStrides = false);
-mlir::MemRefType getTileType(const mlir::MemRefType origType, const ShapeRef tileShape, const ShapeRef tileOffsets);
-mlir::MemRefType eraseTiledInfo(const mlir::MemRefType origType);
+
+mlir::MemRefType getDenseTileType(mlir::MemRefType origType, ShapeRef tileOffsets, ShapeRef tileShape);
+mlir::MemRefType getViewTileType(mlir::MemRefType origType, ShapeRef tileOffsets, ShapeRef tileShape);
+mlir::MemRefType getPaddedType(mlir::MemRefType origType, ShapeRef padBefore, ShapeRef padAfter);
+
+mlir::MemRefType eraseTiledInfo(mlir::MemRefType origType);
 
 //
 // RankedTensorType utilities
@@ -75,6 +79,9 @@ mlir::RankedTensorType changeElemType(mlir::RankedTensorType origType, mlir::Typ
 mlir::RankedTensorType changeShape(mlir::RankedTensorType origType, ShapeRef shape);
 mlir::RankedTensorType changeDimsOrder(mlir::RankedTensorType origType, DimsOrder order);
 
+mlir::RankedTensorType getDenseTileType(mlir::RankedTensorType origType, ShapeRef tileOffsets, ShapeRef tileShape);
+mlir::RankedTensorType getPaddedType(mlir::RankedTensorType origType, ShapeRef padBefore, ShapeRef padAfter);
+
 //
 // ShapedType utilities
 //
@@ -82,5 +89,8 @@ mlir::RankedTensorType changeDimsOrder(mlir::RankedTensorType origType, DimsOrde
 mlir::ShapedType changeElemType(mlir::ShapedType origType, mlir::Type elemType);
 mlir::ShapedType changeShape(mlir::ShapedType origType, ShapeRef shape);
 mlir::ShapedType changeDimsOrder(mlir::ShapedType origType, DimsOrder order);
+
+mlir::ShapedType getDenseTileType(mlir::ShapedType origType, ShapeRef tileOffsets, ShapeRef tileShape);
+mlir::ShapedType getPaddedType(mlir::ShapedType origType, ShapeRef padBefore, ShapeRef padAfter);
 
 }  // namespace vpux

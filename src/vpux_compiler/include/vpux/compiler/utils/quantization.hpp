@@ -25,15 +25,22 @@
 namespace vpux {
 
 //
-// FakeQuantize support
+// Utilities for quantized types
 //
 
-mlir::quant::QuantizedType expandScalesAndZP(mlir::quant::UniformQuantizedPerAxisType perAxisQType, ShapeRef padBefore,
-                                             ShapeRef padAfter);
-mlir::quant::QuantizedType tileScalesAndZP(mlir::quant::UniformQuantizedPerAxisType perAxisQType, ShapeRef shape,
-                                           ShapeRef offsets);
+mlir::LogicalResult validateQuantElemType(mlir::Location loc, mlir::ShapedType mainType);
 
-std::tuple<double, int64_t> calcScaleAndZeroPoint(int64_t qMin, int64_t qMax, double rMin, double rMax, bool isSigned);
+mlir::Type normalizeQuantStorageType(mlir::quant::QuantizedType qType);
+
+mlir::quant::UniformQuantizedPerAxisType expandScalesAndZP(mlir::quant::UniformQuantizedPerAxisType perAxisQType,
+                                                           ShapeRef padBefore, ShapeRef padAfter);
+
+mlir::quant::UniformQuantizedPerAxisType tileScalesAndZP(mlir::quant::UniformQuantizedPerAxisType perAxisQType,
+                                                         ShapeRef shape, ShapeRef offsets);
+
+//
+// FakeQuantize support
+//
 
 mlir::quant::QuantizedType getQuantizedType(Const::ContentAttr lowConst, Const::ContentAttr highConst, int64_t levels,
                                             mlir::FloatType realType, bool isSigned, mlir::Location loc);
@@ -42,7 +49,7 @@ mlir::LogicalResult getFakeQuantParams(mlir::ShapedType qType, int64_t& levels, 
                                        mlir::DenseElementsAttr& rMinAttr, mlir::DenseElementsAttr& rMaxAttr,
                                        mlir::Location loc);
 
-mlir::Type normalizeQuantStorageType(mlir::quant::QuantizedType qType);
+std::tuple<double, int64_t> calcScaleAndZeroPoint(int64_t qMin, int64_t qMax, double rMin, double rMax, bool isSigned);
 
 //
 // Dequantize support

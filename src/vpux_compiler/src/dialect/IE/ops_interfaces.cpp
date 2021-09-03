@@ -14,6 +14,7 @@
 #include "vpux/compiler/dialect/IE/ops_interfaces.hpp"
 
 #include "vpux/compiler/utils/error.hpp"
+#include "vpux/compiler/utils/quantization.hpp"
 
 #include "vpux/utils/core/format.hpp"
 #include "vpux/utils/core/range.hpp"
@@ -41,18 +42,35 @@ const Dim vpux::IE::Dims4D::Filter::KX(3);
 //
 
 mlir::LogicalResult vpux::IE::verifyLayer(mlir::Operation* op) {
-    for (auto& arg : op->getOpOperands()) {
-        const auto type = arg.get().getType();
+    if (op->getOperands().empty()) {
+        return errorAt(op, "Layer Operation has no operands");
+    }
+    if (op->getResults().empty()) {
+        return errorAt(op, "Layer Operation has no results");
+    }
 
+    const auto verifyType = [&](mlir::Type type, StringRef name, unsigned ind) {
         if (type.isa<mlir::MemRefType>()) {
-            return errorAt(op, "Layer Operation has MemRef operand #{0}", arg.getOperandNumber());
+            return errorAt(op, "Layer Operation has MemRef {0} #{1}", name, ind);
+        }
+
+        if (auto mainType = type.dyn_cast<mlir::ShapedType>()) {
+            if (validateQuantElemType(op->getLoc(), mainType).failed()) {
+                return mlir::failure();
+            }
+        }
+
+        return mlir::success();
+    };
+
+    for (auto& arg : op->getOpOperands()) {
+        if (verifyType(arg.get().getType(), "operand", arg.getOperandNumber()).failed()) {
+            return mlir::failure();
         }
     }
     for (auto res : op->getOpResults()) {
-        const auto type = res.getType();
-
-        if (type.isa<mlir::MemRefType>()) {
-            return errorAt(op, "Layer Operation has MemRef result #{0}", res.getResultNumber());
+        if (verifyType(res.getType(), "result", res.getResultNumber()).failed()) {
+            return mlir::failure();
         }
     }
 

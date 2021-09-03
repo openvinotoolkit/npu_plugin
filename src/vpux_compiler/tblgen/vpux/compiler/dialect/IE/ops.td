@@ -1804,7 +1804,7 @@ def IE_SliceOp :
         IE_LayerOp<
             "Slice"
         > {
-    let summary = "Extract slice operation";
+    let summary = "Extract single slice from tensor";
 
     let arguments = (ins
         AnyRankedTensor:$source,
@@ -1820,6 +1820,24 @@ def IE_SliceOp :
     let assemblyFormat = [{
         $source $static_offsets $static_sizes
         attr-dict `:` type($source) `to` type(results)
+    }];
+
+    let builders = [
+        OpBuilder<
+            (ins "mlir::Value":$source, "vpux::ShapeRef":$static_offsets, "vpux::ShapeRef":$static_sizes)
+        >,
+        OpBuilder<
+            (ins "mlir::Value":$source, "vpux::ArrayRef<int64_t>":$static_offsets, "vpux::ArrayRef<int64_t>":$static_sizes)
+        >
+    ];
+
+    let hasFolder = 1;
+    let hasCanonicalizer = 1;
+
+    let extraClassDeclaration = [{
+        static bool isCompatibleReturnTypes(mlir::TypeRange lhs, mlir::TypeRange rhs) {
+            return lhs == rhs;
+        }
     }];
 }
 

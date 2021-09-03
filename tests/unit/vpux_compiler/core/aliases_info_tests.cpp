@@ -96,10 +96,13 @@ TEST(MLIR_AliasesInfo, ValidCases) {
 
     const auto funcArg = func.getArgument(0);
 
+    const auto funcArgSource = info.getSource(funcArg);
+    EXPECT_TRUE(funcArgSource == nullptr);
+
     const auto funcArgRoot = info.getRoot(funcArg);
     EXPECT_TRUE(funcArgRoot == funcArg);
 
-    const auto& funcArgAliases = info.getAliases(funcArg);
+    const auto& funcArgAliases = info.getAllAliases(funcArg);
     EXPECT_EQ(funcArgAliases.size(), 3) << "%arg aliases: %arg, %1, %2#1";
 
     for (const auto alias : funcArgAliases) {
@@ -118,10 +121,13 @@ TEST(MLIR_AliasesInfo, ValidCases) {
         if (auto allocOp = mlir::dyn_cast<mlir::memref::AllocOp>(op)) {
             const auto allocRes = allocOp.getResult();
 
+            const auto allocSource = info.getSource(allocRes);
+            EXPECT_TRUE(allocSource == nullptr);
+
             const auto allocRoot = info.getRoot(allocRes);
             EXPECT_TRUE(allocRoot == allocRes);
 
-            const auto& allocAliases = info.getAliases(allocRes);
+            const auto& allocAliases = info.getAllAliases(allocRes);
             EXPECT_EQ(allocAliases.size(), 2) << "%0 aliases: %0, %2#0";
             for (const auto alias : allocAliases) {
                 auto* producerOp = alias.getDefiningOp();
@@ -139,14 +145,25 @@ TEST(MLIR_AliasesInfo, ValidCases) {
         } else if (auto viewOp = mlir::dyn_cast<mlir::memref::SubViewOp>(op)) {
             const auto viewRes = viewOp.getResult();
 
+            const auto viewSource = info.getSource(viewRes);
+            EXPECT_TRUE(viewSource == viewOp.getViewSource());
+
             const auto viewRoot = info.getRoot(viewRes);
             EXPECT_TRUE(viewRoot.isa<mlir::BlockArgument>());
         } else if (auto viewOp = mlir::dyn_cast<TestMultiViewOp>(op)) {
             const auto viewRes0 = viewOp->getResult(0);
+
+            const auto viewSource0 = info.getSource(viewRes0);
+            EXPECT_TRUE(viewSource0 == viewOp.getViewSource(0));
+
             const auto viewRoot0 = info.getRoot(viewRes0);
             EXPECT_TRUE(mlir::isa<mlir::memref::AllocOp>(viewRoot0.getDefiningOp()));
 
             const auto viewRes1 = viewOp->getResult(1);
+
+            const auto viewSource1 = info.getSource(viewRes1);
+            EXPECT_TRUE(viewSource1 == viewOp.getViewSource(1));
+
             const auto viewRoot1 = info.getRoot(viewRes1);
             EXPECT_TRUE(viewRoot1.isa<mlir::BlockArgument>());
         }
@@ -197,6 +214,6 @@ TEST(MLIR_AliasesInfo, AsyncRegions) {
 
     const auto funcArg = func.getArgument(0);
 
-    const auto& aliases = info.getAliases(funcArg);
+    const auto& aliases = info.getAllAliases(funcArg);
     EXPECT_EQ(aliases.size(), 8) << "%arg aliases: %arg, %0, %1+%f1, %1+%2+%f2, %2";
 }

@@ -25,9 +25,6 @@ func @MultipleAllocs(%arg0: memref<1x1000xf16>, %arg1: memref<1x1000xf16>) -> me
 
 // -----
 
-#map0 = affine_map<(d0, d1, d2, d3) -> (d0)>
-#map1 = affine_map<(d0, d1, d2, d3) -> (d1, d2, d3)>
-
 func @ReshapeInGraph(%arg0: memref<1x512x1x1xf32>, %arg1: memref<1x512x1x1xf32>) -> memref<1x512x1x1xf32> {
     %0 = IERT.GenericReshape inputs(%arg0 : memref<1x512x1x1xf32>) -> memref<1x512xf32>
     %1 = memref.alloc() : memref<1x512xf32>
