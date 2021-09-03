@@ -27,6 +27,17 @@ using namespace vpux;
 
 namespace {
 
+bool hasNegativeValues(const Const::Content& low) {
+    if (low.isSplat()) {
+        return low.getSplatValue<double>() < 0;
+    }
+
+    const auto vals = low.getValues<double>();
+    return std::any_of(vals.begin(), vals.end(), [](double val) {
+        return val < 0;
+    });
+}
+
 //
 // UseQuantDequant
 //
@@ -68,7 +79,7 @@ mlir::LogicalResult UseQuantDequant::matchAndRewrite(IE::FakeQuantizeOp origOp, 
     const auto realElemType = realType.getElementType().cast<mlir::FloatType>();
 
     const auto qElemType = getQuantizedType(outLowConst.contentAttr(), outHighConst.contentAttr(), origOp.levels(),
-                                            realElemType, origOp.getLoc());
+                                            realElemType, false, origOp.getLoc());
     if (qElemType == nullptr) {
         return mlir::failure();
     }
@@ -191,8 +202,9 @@ mlir::LogicalResult UseConstDequant::matchAndRewrite(IE::FakeQuantizeOp origOp, 
     const auto realType = inConstAttr.getType();
     const auto realElemType = realType.getElementType().cast<mlir::FloatType>();
 
+    const auto lowContent = inLowConst.contentAttr().fold();
     const auto qElemType = getQuantizedType(outLowConst.contentAttr(), outHighConst.contentAttr(), origOp.levels(),
-                                            realElemType, origOp.getLoc());
+                                            realElemType, hasNegativeValues(lowContent), origOp.getLoc());
     if (qElemType == nullptr) {
         return mlir::failure();
     }

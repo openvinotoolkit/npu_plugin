@@ -12,6 +12,7 @@
 //
 
 #include "vpux/compiler/utils/types.hpp"
+#include <vpux/compiler/utils/quantization.hpp>
 #include "vpux/compiler/core/attributes/strides.hpp"
 #include "vpux/compiler/dialect/IE/attributes/structs.hpp"
 
@@ -205,9 +206,12 @@ mlir::MemRefType vpux::getTileType(const mlir::MemRefType origType, const ShapeR
     const auto affineMaps = DimsOrder::fromType(origType).toAffineMapsList(origType.getContext(), getShape(origType),
                                                                            totalOffset.count() / elemSize.count());
 
-    const auto tileType =
-            mlir::MemRefType::get(tileShape.raw(), origType.getElementType(), affineMaps, origType.getMemorySpace());
-    return tileType;
+    auto elemType = origType.getElementType();
+    if (const auto perAxisQType = origType.getElementType().dyn_cast<mlir::quant::UniformQuantizedPerAxisType>()) {
+        elemType = tileScalesAndZP(perAxisQType, tileShape, tileOffsets);
+    }
+
+    return mlir::MemRefType::get(tileShape.raw(), elemType, affineMaps, origType.getMemorySpace());
 }
 
 mlir::MemRefType vpux::eraseTiledInfo(const mlir::MemRefType origType) {

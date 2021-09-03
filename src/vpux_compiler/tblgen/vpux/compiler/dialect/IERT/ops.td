@@ -1657,7 +1657,6 @@ def IERT_ConcatViewOp :
         IERT_Op<"ConcatView",
             [
                 ViewLikeOpInterface,
-                SameOperandsAndResultElementType,
                 InferTypeOpInterface,
                 NoSideEffect
             ]
@@ -1941,7 +1940,6 @@ def IERT_SubViewOp :
             "SubView",
             [
                 DeclareOpInterfaceMethods<ViewLikeOpInterface>,
-                SameOperandsAndResultElementType,
                 DeclareOpInterfaceMethods<InferTypeOpInterface>,
                 NoSideEffect
             ]
