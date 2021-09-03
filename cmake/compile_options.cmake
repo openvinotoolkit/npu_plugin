@@ -32,6 +32,10 @@ macro(replace_noerror)
 endmacro()
 
 function(enable_warnings_as_errors TARGET_NAME)
+    if(NOT TREAT_WARNING_AS_ERROR)
+        return()
+    endif()
+
     cmake_parse_arguments(WARNIGS "WIN_STRICT" "" "" ${ARGN})
 
     if(MSVC)
