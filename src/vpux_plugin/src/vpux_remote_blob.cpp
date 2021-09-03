@@ -72,9 +72,22 @@ VPUXRemoteBlob::VPUXRemoteBlob(const IE::TensorDesc& tensorDesc, const VPUXRemot
 }
 
 VPUXRemoteBlob::~VPUXRemoteBlob() {
+// FIXME: there is possibility that of the following scenario on AARCH64 platform:
+// 1. Remote blob created and virtual address is put into allocator
+// 2. Memory used by remote blob is freed but user can still hold the remote blob
+// 3. Local blob created with the same virtual address (this address is already free but remote blob is still alive)
+// 4. Local blob replaces information about remote blob memory with its info using virtual address as a handle
+// 5. Remote blob removed causing local blob to loose info about its memory
+// To fix it properly we would need to fix h#14013533321, but it is not feasible at this point,
+// so there was a decision to work around this by not calling free for remote blob on AARCH64,
+// since it is not removed any way. Please check implementation vpusmm allocator free method
+// TODO: think about local/remote and .isMemoryOwner contracts. It might help to avoid changing this place and
+// move fix into vpusmm allocator
+#ifndef __aarch64__
     if (_allocatorPtr != nullptr) {
         _allocatorPtr->free(_memoryHandle);
     }
+#endif
 }
 
 static std::shared_ptr<IE::ROI> makeROIOverROI(const std::shared_ptr<const IE::ROI>& origROIPtr,
