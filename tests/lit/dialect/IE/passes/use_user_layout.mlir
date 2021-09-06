@@ -102,3 +102,33 @@ func @main(%arg0: tensor<1x8x4x2xf16>) -> (tensor<1x8x4x2xf16>, tensor<1x20x8x4x
 }
 
 }
+
+// -----
+
+#HWC = affine_map<(d0, d1, d2) -> (d1, d2, d0)>
+#CHW = affine_map<(d0, d1, d2) -> (d0, d1, d2)>
+
+// CHECK-LABEL: @InOutHWC
+module @InOutHWC {
+
+IE.CNNNetwork
+    entryPoint : @main
+    inputsInfo : {
+        IE.DataInfo "data" : tensor<1x8x4xf16, {order = #HWC}>
+    }
+    outputsInfo : {
+        IE.DataInfo "prob" : tensor<1x8x4xf16, {order = #HWC}>
+    }
+
+// CHECK: func @main([[ARG0:%arg[0-9]+]]: tensor<1x8x4xf16, {order = #HWC}>) -> tensor<1x8x4xf16, {order = #HWC}>
+func @main(%arg0: tensor<1x8x4xf16>) -> tensor<1x8x4xf16> {
+    %0 = IE.SoftMax(%arg0) {axisInd = 1} : tensor<1x8x4xf16> -> tensor<1x8x4xf16>
+    return %0 : tensor<1x8x4xf16>
+
+    // CHECK: [[VAR0:%.+]] = IE.Reorder([[ARG0]]) {dstOrder = #CHW} : tensor<1x8x4xf16, {order = #HWC}> -> tensor<1x8x4xf16>
+    // CHECK: [[VAR1:%.+]] = IE.SoftMax([[VAR0]]) {axisInd = 1 : i64} : tensor<1x8x4xf16> -> tensor<1x8x4xf16>
+    // CHECK: [[VAR2:%.+]] = IE.Reorder([[VAR1]]) {dstOrder = #HWC} : tensor<1x8x4xf16> -> tensor<1x8x4xf16, {order = #HWC}>
+    // CHECK: return [[VAR2]] : tensor<1x8x4xf16, {order = #HWC}>
+}
+
+}

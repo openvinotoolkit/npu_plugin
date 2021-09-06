@@ -41,7 +41,7 @@ public:
     }
 
 private:
-    void safeRunOnModule() final;
+    void safeRunOnFunc() final;
 };
 
 //
@@ -243,7 +243,7 @@ mlir::LogicalResult FakeQuantizeConverter::matchAndRewrite(IE::FakeQuantizeOp or
 // safeRunOnFunc
 //
 
-void ConvertShapeTo4DPass::safeRunOnModule() {
+void ConvertShapeTo4DPass::safeRunOnFunc() {
     auto& ctx = getContext();
 
     const auto reshape = [](mlir::OpBuilder& builder, mlir::RankedTensorType dstType, mlir::ValueRange inputs,
@@ -278,10 +278,8 @@ void ConvertShapeTo4DPass::safeRunOnModule() {
     target.addLegalDialect<Const::ConstDialect>();
     target.addLegalDialect<IE::IEDialect>();
     target.addLegalOp<mlir::ModuleOp>();
-    target.addDynamicallyLegalOp<mlir::FuncOp>([&](mlir::FuncOp funcOp) {
-        return typeConverter.isSignatureLegal(funcOp.getType());
-    });
-    target.addDynamicallyLegalOp<mlir::ReturnOp>(isLegalOp);
+    target.addLegalOp<mlir::FuncOp>();
+    target.addLegalOp<mlir::ReturnOp>();
     target.addDynamicallyLegalOp<IE::FakeQuantizeOp>(isLegalOp);
     target.addDynamicallyLegalOp<IE::ClampOp>(isLegalOp);
     target.addDynamicallyLegalOp<IE::EluOp>(isLegalOp);
@@ -295,8 +293,6 @@ void ConvertShapeTo4DPass::safeRunOnModule() {
     target.addDynamicallyLegalOp<IE::ScaleShiftOp>(isLegalOp);
 
     mlir::RewritePatternSet patterns(&ctx);
-    mlir::populateFuncOpTypeConversionPattern(patterns, typeConverter);
-    patterns.insert<GenericConverter<mlir::ReturnOp>>(typeConverter, &ctx, _log);
     patterns.insert<GenericConverter<IE::ClampOp>>(typeConverter, &ctx, _log);
     patterns.insert<GenericConverter<IE::EluOp>>(typeConverter, &ctx, _log);
     patterns.insert<GenericConverter<IE::ReLUOp>>(typeConverter, &ctx, _log);
@@ -309,8 +305,8 @@ void ConvertShapeTo4DPass::safeRunOnModule() {
     patterns.insert<GenericConverter<IE::ScaleShiftOp>>(typeConverter, &ctx, _log);
     patterns.insert<FakeQuantizeConverter>(typeConverter, &ctx, _log);
 
-    auto module = getOperation();
-    if (mlir::failed(mlir::applyPartialConversion(module, target, std::move(patterns)))) {
+    auto func = getFunction();
+    if (mlir::failed(mlir::applyPartialConversion(func, target, std::move(patterns)))) {
         signalPassFailure();
     }
 }
