@@ -86,7 +86,8 @@ public:
 public:
     SpecificTask createUPALayerTask(mlir::Operation* op, const SoftwareLayerParams& params);
 
-public:
+    KernelDataRef createInvocationArgs(mlir::Operation* op, vpux::VPUIP::MemoryLocation locale);
+
     SpecificTask createACTShaveTask(mlir::Operation* op);
     ActKernelDesc createKernelData(StringRef name);
 
