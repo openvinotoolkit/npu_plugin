@@ -1723,6 +1723,52 @@ operation ::= `VPUIP.QuantCastUPA` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float or QuantizedType values
 
+### `VPUIP.ROIAlignUPA` (vpux::VPUIP::ROIAlignUPAOp)
+
+ROIAlign UPA SHAVE kernel
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.ROIAlignUPA` attr-dict
+              `inputs` `(` $input `:` type($input) `,` $coords `:` type($coords) `,` $roisIdx `:` type($roisIdx)`)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+              (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`pooled_h` | ::mlir::IntegerAttr | 64-bit signless integer attribute
+`pooled_w` | ::mlir::IntegerAttr | 64-bit signless integer attribute
+`sampling_ratio` | ::mlir::IntegerAttr | 64-bit signless integer attribute
+`spatial_scale` | ::mlir::FloatAttr | 64-bit float attribute
+`poolingMode` | vpux::IE::ROIAlignMethodAttr | ROIAlignMethod that the InferenceEngine supports
+`maxShaves` | mlir::IntegerAttr | Integer attribute
+`isTrailingSWLayer` | ::mlir::UnitAttr | unit attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float values
+`coords` | memref of 16-bit float values
+`roisIdx` | memref of any type values
+`output_buff` | memref of 16-bit float values
+`waitBarriers` | VPUIP Barrier Type
+`updateBarriers` | VPUIP Barrier Type
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float values
+
 ### `VPUIP.ROIPoolingUPA` (vpux::VPUIP::ROIPoolingUPAOp)
 
 ROIPooling UPA SHAVE kernel

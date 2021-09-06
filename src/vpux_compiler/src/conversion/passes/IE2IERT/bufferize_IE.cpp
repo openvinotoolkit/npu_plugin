@@ -755,6 +755,12 @@ mlir::Operation* createRTLayer(IE::ROIPoolingOp origOp, ArrayRef<mlir::Value> al
                                         origOp.output_sizeAttr(), origOp.spatial_scaleAttr(), origOp.methodAttr());
 }
 
+mlir::Operation* createRTLayer(IE::ROIAlignOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::ROIAlignOp::Adaptor newOp(allBufs);
+    return b.create<IERT::ROIAlignOp>(origOp.getLoc(), newOp.input(), newOp.coords(), newOp.roisIdx(), newOp.output_buff(),
+                                      origOp.pooled_hAttr(), origOp.pooled_wAttr(), origOp.sampling_ratioAttr(), origOp.spatial_scaleAttr(), origOp.poolingModeAttr());
+}
+
 mlir::Operation* createRTLayer(IE::ConvolutionOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::ConvolutionOp::Adaptor newOp(allBufs);
     return b.create<IERT::ConvolutionOp>(origOp.getLoc(), newOp.input(), newOp.filter(), newOp.bias(),
@@ -955,6 +961,7 @@ mlir::LogicalResult LayerRewrite::matchAndRewrite(mlir::Operation* origOp, Array
     CASE(IE::PerAxisTileOp)
     CASE(IE::NegativeOp)
     CASE(IE::ROIPoolingOp)
+    CASE(IE::ROIAlignOp)
     CASE(IE::FullyConnectedOp)
     CASE(IE::DetectionOutputOp)
     CASE(IE::ScaleShiftOp)

@@ -325,6 +325,7 @@ void redirectOpInterfacesForIERT(mlir::DialectRegistry& registry) {
     registry.addOpInterface<IERT::PerAxisTileOp, OpModelForSW>();
     registry.addOpInterface<IERT::NegativeOp, OpModelForSW>();
     registry.addOpInterface<IERT::ROIPoolingOp, OpModelForSW>();
+    registry.addOpInterface<IERT::ROIAlignOp, OpModelForSW>();
     registry.addOpInterface<IERT::ProposalOp, OpModelForSW>();
     registry.addOpInterface<IERT::FullyConnectedOp, OpModelForSW>();
     registry.addOpInterface<IERT::DetectionOutputOp, OpModelForSW>();

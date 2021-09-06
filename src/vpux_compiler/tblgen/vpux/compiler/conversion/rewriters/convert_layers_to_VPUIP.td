@@ -636,6 +636,20 @@ def RewriteROIPooling :
         >;
 
 //
+// IERT.ROIAlign -> VPUIP.ROIAlignUPA
+//
+def createROIAlignUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::ROIAlignUPAOp>(
+                $_loc, $0, $1, $2, $3, $4, $5, $6, $7, $8)
+        }]>;
+def RewriteROIAlign :
+        Pat<
+            (IERT_ROIAlignOp $input, $coords, $roisIdx, $output, $pooled_h, $pooled_w, $sampling_ratio, $spatial_scale, $poolingMode),
+            (createROIAlignUPAOp $input, $coords, $roisIdx, $output, $pooled_h, $pooled_w, $sampling_ratio, $spatial_scale, $poolingMode)
+        >;
+
+//
 // IERT.CTCGreedyDecoder -> VPUIP.CTCGreedyDecoderUPA
 //
 
