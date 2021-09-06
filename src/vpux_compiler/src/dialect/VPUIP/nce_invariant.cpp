@@ -48,6 +48,11 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyConvChannels(mlir::Location
         return mlir::failure();
     }
     // If it is the first layer and < 16 input channels then aligning input channel to 16 is n
+    if (IC == 3) {
+        log.trace("[{0}] Convolution Channel Major not required to have 16 input channels", loc);
+        return mlir::success();
+    }
+
     if (IC % getChannelAlignment(filterType.getElementType()) != 0) {
         log.trace("[{0}] Convolution input channels are not aligned", loc);
         return mlir::failure();
