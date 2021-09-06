@@ -28,19 +28,17 @@ using namespace vpux;
 
 void vpux::Const::QuantCastAttr::walkImmediateSubElements(llvm::function_ref<void(Attribute)>,
                                                           llvm::function_ref<void(mlir::Type)> walkTypesFn) const {
-    walkTypesFn(getElemType());
+    if (const auto elemTypeVal = getElemType()) {
+        walkTypesFn(elemTypeVal);
+    }
 }
 
 //
 // QuantCastAttr::verify
 //
 
-mlir::LogicalResult vpux::Const::QuantCastAttr::verify(FuncRef<mlir::InFlightDiagnostic()> emitError,
-                                                       mlir::quant::QuantizedType elemType) {
-    if (elemType == nullptr) {
-        return printTo(emitError(), "Got NULL 'elemType' in 'QuantCastAttr'");
-    }
-
+mlir::LogicalResult vpux::Const::QuantCastAttr::verify(FuncRef<mlir::InFlightDiagnostic()>,
+                                                       mlir::quant::QuantizedType) {
     return mlir::success();
 }
 
@@ -50,7 +48,9 @@ mlir::LogicalResult vpux::Const::QuantCastAttr::verify(FuncRef<mlir::InFlightDia
 
 void vpux::Const::QuantCastAttr::print(mlir::DialectAsmPrinter& printer) const {
     printer << getMnemonic() << "<";
-    printer.printType(getElemType());
+    if (const auto elemTypeVal = getElemType()) {
+        printer.printType(elemTypeVal);
+    }
     printer << ">";
 }
 
@@ -58,21 +58,19 @@ void vpux::Const::QuantCastAttr::print(mlir::DialectAsmPrinter& printer) const {
 // QuantCastAttr::parse
 //
 
-mlir::Attribute vpux::Const::QuantCastAttr::parse(mlir::MLIRContext*, mlir::DialectAsmParser& parser, mlir::Type) {
+mlir::Attribute vpux::Const::QuantCastAttr::parse(mlir::MLIRContext* ctx, mlir::DialectAsmParser& parser, mlir::Type) {
     if (mlir::failed(parser.parseLess())) {
         return nullptr;
     }
 
     mlir::quant::QuantizedType elemType;
-    if (mlir::failed(parser.parseType(elemType))) {
-        return nullptr;
-    }
+    parser.parseOptionalType(elemType);
 
     if (mlir::failed(parser.parseGreater())) {
         return nullptr;
     }
 
-    return parser.getChecked<Const::QuantCastAttr>(elemType);
+    return parser.getChecked<Const::QuantCastAttr>(ctx, elemType);
 }
 
 //
@@ -80,12 +78,19 @@ mlir::Attribute vpux::Const::QuantCastAttr::parse(mlir::MLIRContext*, mlir::Dial
 //
 
 mlir::ShapedType vpux::Const::QuantCastAttr::inferOutputType(mlir::ShapedType input) const {
-    const auto quantStorateType = normalizeQuantStorageType(getElemType());
+    if (const auto elemTypeVal = getElemType()) {
+        const auto quantStorateType = normalizeQuantStorageType(elemTypeVal);
 
-    VPUX_THROW_UNLESS(input.getElementType() == quantStorateType, "Can't cast '{0}' element type to '{1}'",
-                      input.getElementType(), getElemType());
+        VPUX_THROW_UNLESS(input.getElementType() == quantStorateType, "Can't cast '{0}' element type to '{1}'",
+                          input.getElementType(), getElemType());
 
-    return changeElemType(input, getElemType());
+        return changeElemType(input, elemTypeVal);
+    }
+
+    const auto quantType = input.getElementType().dyn_cast<mlir::quant::QuantizedType>();
+    VPUX_THROW_UNLESS(quantType != nullptr, "Unable to restore storage type from non-quantized type");
+
+    return changeElemType(input, normalizeQuantStorageType(quantType));
 }
 
 //
@@ -101,5 +106,5 @@ Const::Content vpux::Const::QuantCastAttr::transform(vpux::Const::Content& input
 //
 
 Const::ContentAttr vpux::Const::ContentAttr::quantCast(mlir::quant::QuantizedType newElemType) const {
-    return get(*this, Const::QuantCastAttr::get(newElemType).cast<Const::TransformAttrInterface>());
+    return get(*this, Const::QuantCastAttr::get(getContext(), newElemType).cast<Const::TransformAttrInterface>());
 }

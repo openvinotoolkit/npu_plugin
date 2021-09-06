@@ -93,9 +93,10 @@ def Const_ContentAttr : Const_Attr<"Content", [DeclareAttrInterfaceMethods<SubEl
 
         vpux::Const::ContentAttr broadcast(Dim axis, int64_t value) const;
         vpux::Const::ContentAttr convertElemType(mlir::Type newElemType) const;
-        vpux::Const::ContentAttr quantCast(mlir::quant::QuantizedType newElemType) const;
+        vpux::Const::ContentAttr quantCast(mlir::quant::QuantizedType newElemType = nullptr) const;
         vpux::Const::ContentAttr dequantize() const;
         vpux::Const::ContentAttr rescale(double scale) const;
+        vpux::Const::ContentAttr add(double bias) const;
         vpux::Const::ContentAttr reshape(vpux::ShapeRef newShape) const;
         vpux::Const::ContentAttr reorder(vpux::DimsOrder newOrder) const;
         vpux::Const::ContentAttr padWithZero(vpux::ShapeRef padBefore, vpux::ShapeRef padAfter) const;
@@ -145,9 +146,10 @@ def Const_QuantCastAttr : Const_Attr<"QuantCast",
     );
 
     let builders = [
-        AttrBuilderWithInferredContext<
+
+        AttrBuilder<
             (ins "mlir::quant::QuantizedType":$elemType), [{
-                return $_get(elemType.getContext(), elemType);
+                return $_get($_ctxt, elemType);
             }]
         >
     ];
@@ -182,6 +184,30 @@ def Const_RescaleAttr : Const_Attr<"Rescale",
         AttrBuilderWithInferredContext<
             (ins "mlir::FloatAttr":$scale), [{
                 return $_get(scale.getContext(), scale);
+            }]
+        >
+    ];
+
+    let storageNamespace = "details";
+    let skipDefaultBuilders = 1;
+}
+
+//
+// AddAttr
+//
+
+def Const_AddAttr : Const_Attr<"Add",
+        [DeclareAttrInterfaceMethods<Const_TransformAttrInterface>, DeclareAttrInterfaceMethods<SubElementAttrInterface>]> {
+    let summary = "Add constant content";
+
+    let parameters = (ins
+        "mlir::FloatAttr":$bias
+    );
+
+    let builders = [
+        AttrBuilderWithInferredContext<
+            (ins "mlir::FloatAttr":$bias), [{
+                return $_get(bias.getContext(), bias);
             }]
         >
     ];

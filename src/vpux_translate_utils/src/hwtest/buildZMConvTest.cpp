@@ -103,14 +103,10 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
 
     const auto weightsTableDDRType = mlir::RankedTensorType::get(weightsTableShape, int32);
     const auto weightsTable = vpux::VPUIP::NCESparsity::getWeightsTable(
-            output.shape[1],
-            [](std::int64_t) {
-                return 0.0;
-            },
-            static_cast<std::int32_t>(WEIGHTS_CMX_OFFSET),
+            inputType, outputType, static_cast<std::int32_t>(WEIGHTS_CMX_OFFSET),
             static_cast<std::int32_t>(weights.shape[1] * weights.shape[2] * weights.shape[3] *
                                       getElemTypeSize(weightsType).count() / 8),
-            static_cast<std::int32_t>(16777215), vpux::VPUIP::ArchKind::MTL, inputType, weightsType, outputType);
+            static_cast<std::int32_t>(16777215), vpux::VPUIP::ArchKind::MTL, output.shape[1], weightsType);
 
     const auto weightsTableDDRMemRef = getMemRef(weightsTableShape, int32, vpux::VPUIP::MemoryLocation::GraphFile);
     const auto weightsTableValues =

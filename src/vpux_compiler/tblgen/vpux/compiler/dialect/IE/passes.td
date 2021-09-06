@@ -394,6 +394,26 @@ def PropagateQuantizeDequantize : PassBase<"propagate-quantize-dequantize", "vpu
 }
 
 //
+// ConvertWeightsToU8
+//
+
+def ConvertWeightsToU8 : PassBase<"convert-weights-to-u8", "vpux::FunctionPass"> {
+    let summary = "Shift data from a signed range to an unsigned one";
+
+    let description = [{
+        The pass is a part of `LowPrecision` pipeline.
+
+        Pass detects quantized convolution and shifts weights data from a signed range to an unsigned one
+    }];
+
+    let constructor = "vpux::IE::createConvertWeightsToU8Pass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
+
+//
 // ConvertAvgPoolToDWConv
 //
 

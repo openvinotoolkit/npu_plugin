@@ -48,7 +48,6 @@ mlir::Attribute getMemSpace(mlir::MLIRContext* ctx, StringRef) {
 }
 
 void buildIECommonPipeline(mlir::OpPassManager& pm, Logger log) {
-    IE::buildAdjustForVPUPipeline(pm, log);
     pm.addPass(IE::createUseUserPrecisionPass(log));
     pm.addPass(IE::createUseUserLayout(log));
     pm.addPass(IE::createAdjustLayoutsPass(log));
@@ -60,6 +59,7 @@ void buildIEReferenceLowPrecisionPipeline(mlir::OpPassManager& pm, Logger log) {
     pm.addPass(IE::createSplitFakeQuantPass(log));
     pm.addPass(IE::createDequantizeConstPass(log));
     pm.addPass(IE::createMergeFakeQuantPass(log));
+    pm.addPass(mlir::createCanonicalizerPass(getDefaultGreedyRewriteConfig()));
 }
 
 void buildIERTAllocationPipelineForDDR(mlir::OpPassManager& pm, Logger log) {
@@ -98,8 +98,10 @@ void vpux::buildReferenceModePipeline(mlir::OpPassManager& pm, bool enableProfil
     pm.addPass(mlir::createCanonicalizerPass(getDefaultGreedyRewriteConfig()));
 
     // IE Dialect level
-    buildIECommonPipeline(pm, log);
+    IE::buildAdjustForVPUPipeline(pm, log);
+
     buildIEReferenceLowPrecisionPipeline(pm, log);
+    buildIECommonPipeline(pm, log);
 
     // Lower IE->IERT
     buildLowerIE2IERTPipeline(pm, log);
@@ -134,8 +136,13 @@ void vpux::buildHardwareModePipeline(mlir::OpPassManager& pm, bool enableProfili
     pm.addPass(IE::createConvertScaleShiftToDWPass(log));
     // Canonicalize group convolution if necessary.
     pm.addPass(mlir::createCanonicalizerPass(getDefaultGreedyRewriteConfig()));
-    buildIECommonPipeline(pm, log);
+    IE::buildAdjustForVPUPipeline(pm, log);
     IE::buildLowPrecisionPipeline(pm, log);
+
+    pm.addPass(IE::createExpandActivationChannelsPass(log));
+    pm.addPass(mlir::createCanonicalizerPass(getDefaultGreedyRewriteConfig()));
+
+    buildIECommonPipeline(pm, log);
 
     // Lower IE->IERT
     buildLowerIE2IERTPipeline(pm, log);

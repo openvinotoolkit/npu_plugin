@@ -120,13 +120,19 @@ mlir::quant::UniformQuantizedPerAxisType vpux::expandScalesAndZP(mlir::quant::Un
     const auto scales = perAxisQType.getScales();
     const auto zeroPoints = perAxisQType.getZeroPoints();
 
-    std::vector<double> newScales(padBeforeOC, 1);
+    const auto scale = 1;
+    std::vector<double> newScales(padBeforeOC, scale);
     newScales.insert(newScales.end(), scales.begin(), scales.end());
-    newScales.insert(newScales.end(), padAfterOC, 1);
+    newScales.insert(newScales.end(), padAfterOC, scale);
 
-    std::vector<int64_t> newZeroPoints(padBeforeOC, 0);
+    VPUX_THROW_UNLESS(!zeroPoints.empty(), "Can't get value for expand zero points.");
+    VPUX_THROW_UNLESS(std::equal(zeroPoints.begin() + 1, zeroPoints.end(), zeroPoints.begin()),
+                      "All zero points should be equal");
+
+    const auto zp = zeroPoints.front();
+    std::vector<int64_t> newZeroPoints(padBeforeOC, zp);
     newZeroPoints.insert(newZeroPoints.end(), zeroPoints.begin(), zeroPoints.end());
-    newZeroPoints.insert(newZeroPoints.end(), padAfterOC, 0);
+    newZeroPoints.insert(newZeroPoints.end(), padAfterOC, zp);
 
     return mlir::quant::UniformQuantizedPerAxisType::get(
             perAxisQType.getFlags(), perAxisQType.getStorageType(), perAxisQType.getExpressedType(), newScales,
@@ -292,10 +298,10 @@ mlir::LogicalResult vpux::getFakeQuantParams(mlir::ShapedType qType, int64_t& le
         rMaxAttr = mlir::DenseElementsAttr::get(attrType, rMax);
 
         return mlir::success();
-    } else if (const auto uniformType = qElemType.dyn_cast<mlir::quant::UniformQuantizedPerAxisType>()) {
-        const auto scales = uniformType.getScales();
-        const auto zeroPoints = uniformType.getZeroPoints();
-        const auto axis = Dim(uniformType.getQuantizedDimension());
+    } else if (const auto perAxisQType = qElemType.dyn_cast<mlir::quant::UniformQuantizedPerAxisType>()) {
+        const auto scales = perAxisQType.getScales();
+        const auto zeroPoints = perAxisQType.getZeroPoints();
+        const auto axis = Dim(perAxisQType.getQuantizedDimension());
 
         SmallVector<float> rMinVals(scales.size());
         SmallVector<float> rMaxVals(scales.size());

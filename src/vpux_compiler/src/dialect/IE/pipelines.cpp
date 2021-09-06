@@ -31,7 +31,6 @@ void vpux::IE::buildAdjustForVPUPipeline(mlir::OpPassManager& pm, Logger log) {
     pm.addPass(IE::createConvertPaddingsToFloorModePass(log));
     pm.addPass(IE::createResolveStridedSlicePass(log));
     pm.addPass(IE::createFusePostOpsPass(log));
-    pm.addPass(IE::createExpandActivationChannelsPass(log));
     pm.addPass(mlir::createCanonicalizerPass(getDefaultGreedyRewriteConfig()));
 }
 
@@ -41,9 +40,11 @@ void vpux::IE::buildAdjustForVPUPipeline(mlir::OpPassManager& pm, Logger log) {
 
 void vpux::IE::buildLowPrecisionPipeline(mlir::OpPassManager& pm, Logger log) {
     pm.addPass(IE::createSplitFakeQuantPass(log));
-    // TODO: insert advanced LPT pipeline here
+    pm.addPass(IE::createPropagateQuantizeDequantizePass(log));
+    pm.addPass(IE::createConvertWeightsToU8Pass(log));
     pm.addPass(IE::createDequantizeConstPass(log));
     pm.addPass(IE::createMergeFakeQuantPass(log));
+    pm.addPass(mlir::createCanonicalizerPass(getDefaultGreedyRewriteConfig()));
 }
 
 //

@@ -1871,8 +1871,8 @@ Syntax:
 
 ```
 operation ::= `VPUIP.WeightsTableOp` attr-dict
-              (`op_input` `(` $op_input^  `:` type($op_input) `)`)?
-              (`op_output` `(` $op_output^  `:` type($op_output) `)`)?
+              `op_input` `(` $op_input  `:` type($op_input) `)`
+              `op_output` `(` $op_output  `:` type($op_output) `)`
               (`weights` `(` $weights^  `:` type($weights) `)`)?
               (`bias` `(` $bias^  `:` type($bias) `)`)?
               (`activation_window` `(` $activation_window^  `:` type($activation_window) `)`)?

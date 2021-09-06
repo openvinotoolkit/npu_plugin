@@ -14,14 +14,11 @@
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
-#include "vpux/compiler/utils/attributes.hpp"
-#include "vpux/compiler/utils/quantization.hpp"
+#include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
-#include "vpux/compiler/utils/types.hpp"
 
 #include <mlir/Dialect/Quant/QuantTypes.h>
 #include <mlir/IR/PatternMatch.h>
-#include <mlir/Transforms/DialectConversion.h>
 #include <mlir/Transforms/GreedyPatternRewriteDriver.h>
 
 using namespace vpux;
@@ -60,6 +57,10 @@ private:
 mlir::LogicalResult FuseWithConv::matchAndRewrite(IE::QuantizeOp quantizeOp, mlir::PatternRewriter& rewriter) const {
     auto convOp = quantizeOp.input().getDefiningOp<IE::ConvolutionOp>();
     if (convOp == nullptr) {
+        return mlir::failure();
+    }
+
+    if (VPUIP::NCEInvariant::verifyKernel(convOp, _log).failed()) {
         return mlir::failure();
     }
 
@@ -147,7 +148,6 @@ void PropagateQuantizeDequantizePass::safeRunOnFunc() {
 
     mlir::OwningRewritePatternList patterns(&ctx);
     patterns.add<FuseWithConv>(&ctx, _log);
-    patterns.add<FuseWithMaxPool>(&ctx, _log);
 
     auto func = getFunction();
     if (mlir::failed(applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig()))) {
@@ -158,7 +158,7 @@ void PropagateQuantizeDequantizePass::safeRunOnFunc() {
 }  // namespace
 
 //
-// createSplitFakeQuantPass
+// createPropagateQuantizeDequantizePass
 //
 
 std::unique_ptr<mlir::Pass> vpux::IE::createPropagateQuantizeDequantizePass(Logger log) {
