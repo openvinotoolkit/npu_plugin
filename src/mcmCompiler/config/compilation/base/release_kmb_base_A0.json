@@ -34,7 +34,8 @@
             "SetSparsityAttrForUnpopulatedTensors",
             "FuseConstants",
             "SplittingTensorsAcrossClusters",
-            "DeQuantizeU8ConstToFP16Const"
+            "DeQuantizeU8ConstToFP16Const",
+            "FuseImplicits"
         ]
     },
     "finalize": {
