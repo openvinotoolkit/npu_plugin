@@ -42,7 +42,7 @@ class KmbChannelMajorConv2dWithBiasTest :
         const size_t KERNEL_H = kenelShape.at(2);
         const size_t FILT_IN = kenelShape.at(1);
         const size_t FILT_OUT = kenelShape.at(0);
-        const InferenceEngine::SizeVector inputShape = {1, FILT_IN, KERNEL_H * 10, KERNEL_W * 10};
+        const InferenceEngine::SizeVector inputShape = {1, 3, 32, 32};
 
         const auto params = ngraph::builder::makeParams(ngraph::element::f32, {inputShape});
         const auto paramOuts =
@@ -96,10 +96,8 @@ TEST_P(KmbChannelMajorConv2dWithBiasTest, CompareWithRefs_MLIR_HW) {
 }
 
 const std::vector<InferenceEngine::SizeVector> kernelShapes = {
-        {11, 3, 2, 2},
-        {16, 3, 2, 2},
-        {11, 16, 2, 2},
-        {16, 16, 2, 2},
+        {16, 3, 2, 2}
+       
 };
 
 const std::vector<ngraph::helpers::ActivationTypes> activations = {

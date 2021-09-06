@@ -202,25 +202,53 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
 
     const auto kernelSizeAttr = getIntArrayAttr(getContext(), makeArrayRef({KY, KX}));
 
-    auto nceOp = rewriter.create<VPUIP::NCEClusterTaskOp>(
-            origOp->getLoc(), inputDPU, filterDPU, weightsTable, /*activation_window=*/nullptr,
-            /*parent_input=*/inputDPU,
-            /*parent_output=*/outAllocOpCMX.memref(),
-            /*output_buff=*/outAllocOpCMX.memref(), VPUIP::NCETaskType::CONV, kernelSizeAttr, origOp.strides(),
-            kernelPaddingAttr, /*activation_window_channel_length=*/nullptr, /*is_continued*/ nullptr);
+    Logger::global().error("order: {0}", DimsOrder::fromValue(origOp.input()));
+    exit(1);
 
-    addDPUTasks(nceOp, rewriter, _numDPU, padsBegin[1], padsEnd[1], padsBegin[0], padsEnd[0], mpeMap.at(_arch));
-    const auto postOpParams = parsePostOp(nceOp, origOp.post_opAttr());
-    if (postOpParams.hasValue()) {
-        nceOp.addPPETask(rewriter, postOpParams->layerType, postOpParams->clampLow, postOpParams->clampHigh,
-                         postOpParams->LreluMult, postOpParams->LreluShift);
+    if (DimsOrder::NCHW == DimsOrder::fromValue(origOp.input())) {
+        std::cout << "Found CM input" << std::endl;
+        exit(1);
+        auto nceOp = rewriter.create<VPUIP::NCEClusterTaskOp>(
+                origOp->getLoc(), inputDPU, filterDPU, weightsTable, /*activation_window=*/nullptr,
+                /*parent_input=*/inputDPU,
+                /*parent_output=*/outAllocOpCMX.memref(),
+                /*output_buff=*/outAllocOpCMX.memref(), VPUIP::NCETaskType::CMCONV, kernelSizeAttr, origOp.strides(),
+                kernelPaddingAttr, /*activation_window_channel_length=*/nullptr, /*is_continued*/ nullptr);
+
+        addDPUTasks(nceOp, rewriter, _numDPU, padsBegin[1], padsEnd[1], padsBegin[0], padsEnd[0], mpeMap.at(_arch));
+
+        const auto postOpParams = parsePostOp(nceOp, origOp.post_opAttr());
+        if (postOpParams.hasValue()) {
+            nceOp.addPPETask(rewriter, postOpParams->layerType, postOpParams->clampLow, postOpParams->clampHigh,
+                             postOpParams->LreluMult, postOpParams->LreluShift);
+        }
+
+        //
+        // DMA output CMX -> DDR
+        //
+
+        rewriter.replaceOpWithNewOp<IERT::CopyOp>(origOp, nceOp.output(), origOp.output_buff());
+    } else if (DimsOrder::NHWC == DimsOrder::fromValue(origOp.input())) {
+        auto nceOp = rewriter.create<VPUIP::NCEClusterTaskOp>(
+                origOp->getLoc(), inputDPU, filterDPU, weightsTable, /*activation_window=*/nullptr,
+                /*parent_input=*/inputDPU,
+                /*parent_output=*/outAllocOpCMX.memref(),
+                /*output_buff=*/outAllocOpCMX.memref(), VPUIP::NCETaskType::CONV, kernelSizeAttr, origOp.strides(),
+                kernelPaddingAttr, /*activation_window_channel_length=*/nullptr, /*is_continued*/ nullptr);
+
+        addDPUTasks(nceOp, rewriter, _numDPU, padsBegin[1], padsEnd[1], padsBegin[0], padsEnd[0], mpeMap.at(_arch));
+        const auto postOpParams = parsePostOp(nceOp, origOp.post_opAttr());
+        if (postOpParams.hasValue()) {
+            nceOp.addPPETask(rewriter, postOpParams->layerType, postOpParams->clampLow, postOpParams->clampHigh,
+                             postOpParams->LreluMult, postOpParams->LreluShift);
+        }
+
+        //
+        // DMA output CMX -> DDR
+        //
+
+        rewriter.replaceOpWithNewOp<IERT::CopyOp>(origOp, nceOp.output(), origOp.output_buff());
     }
-
-    //
-    // DMA output CMX -> DDR
-    //
-
-    rewriter.replaceOpWithNewOp<IERT::CopyOp>(origOp, nceOp.output(), origOp.output_buff());
 
     return mlir::success();
 }
