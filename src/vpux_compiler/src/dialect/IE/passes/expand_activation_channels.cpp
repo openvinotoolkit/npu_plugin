@@ -76,11 +76,14 @@ mlir::LogicalResult generalRewrite(mlir::Operation* origOp, mlir::PatternRewrite
     const auto outputType = origOp->getResult(0).getType().cast<mlir::ShapedType>();
 
     // If it is the first layer and < 16 input channels then aligning input channel to 16 is not required.
-    const auto inPadsEnd = calcPadsEnd(inputType, channelAlignement);
+    auto inPadsEnd = calcPadsEnd(inputType, channelAlignement);
     const auto outPadsEnd = calcPadsEnd(outputType, channelAlignement);
 
     // Overwrite for now for cm
-    inPadsEnd[IE::Dims4D::Act::C] == 0;
+    inPadsEnd[IE::Dims4D::Act::C] = 0;
+    inPadsEnd[IE::Dims4D::Act::H] = 0;
+    inPadsEnd[IE::Dims4D::Act::W] = 0;
+    inPadsEnd[IE::Dims4D::Act::N] = 0;
 
     log.trace("Input padding : {0}", inPadsEnd);
     log.trace("Output padding : {0}", outPadsEnd);

@@ -200,11 +200,11 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
     const auto kernelSizeAttr = getIntArrayAttr(getContext(), makeArrayRef({KY, KX}));
 
     Logger::global().error("order: {0}", DimsOrder::fromValue(origOp.input()));
-    exit(1);
+    // exit(1);
 
     if (DimsOrder::NCHW == DimsOrder::fromValue(origOp.input())) {
         std::cout << "Found CM input" << std::endl;
-        exit(1);
+        // exit(1);
         auto nceOp = rewriter.create<VPUIP::NCEClusterTaskOp>(
                 origOp->getLoc(), inputDPU, filterDPU, weightsTable, /*activation_window=*/nullptr,
                 /*parent_input=*/inputDPU,
