@@ -155,6 +155,7 @@ TEST_P(KmbEltwiseLayerTest_MCM, DISABLED_CompareWithRefs) {
 // Initialization disabled partly
 TEST_P(KmbEltwiseLayerTest_MLIR, CompareWithRefs) {
     useCompilerMLIR();
+    setReferenceSoftwareModeMLIR();
     Run();
 }
 
@@ -301,6 +302,27 @@ const auto multiply_params_mlir = ::testing::Combine(
         ::testing::Values(additional_config));
 
 INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs_Specific, KmbEltwiseLayerTest_MLIR, multiply_params_mlir,
+                        KmbEltwiseLayerTest::getTestCaseName);
+
+// Specific subtract case
+
+std::vector<std::vector<std::vector<size_t>>> inSpecificSubtractShapes = {
+        {{1, 2, 4}},
+        {{1, 2, 2, 4}, {1, 2, 1, 1}},
+};
+
+const auto subtract_params_mlir = ::testing::Combine(
+        ::testing::ValuesIn(inSpecificSubtractShapes),
+        ::testing::Values(ngraph::helpers::EltwiseTypes::SUBTRACT),
+        ::testing::ValuesIn(secondaryInputTypes),
+        ::testing::ValuesIn(opTypes), ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+        ::testing::Values(additional_config));
+
+INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs_Specific_subtract, KmbEltwiseLayerTest_MLIR, subtract_params_mlir,
                         KmbEltwiseLayerTest::getTestCaseName);
 
 }  // namespace

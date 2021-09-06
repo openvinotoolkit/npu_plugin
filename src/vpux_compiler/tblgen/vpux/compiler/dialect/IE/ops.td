@@ -1841,4 +1841,33 @@ def IE_SliceOp :
     }];
 }
 
+//
+// SubtractOp
+//
+
+def IE_SubtractOp :
+        IE_LayerOp<
+            "Subtract",
+            [
+                ResultsAreFloatLike,
+                IE_EltwiseOp
+            ]
+        > {
+    let summary = "InferenceEngine Subtract layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input1,
+        RankedTensorOf<[F16, F32]>:$input2,
+
+        IE_AutoBroadcastType:$auto_broadcast
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+
+    let hasCanonicalizer = 1;
+    let hasFolder = 1;
+}
+
 #endif

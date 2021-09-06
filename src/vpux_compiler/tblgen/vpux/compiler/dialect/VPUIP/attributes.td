@@ -208,6 +208,7 @@ def VPUIP_EltwiseLayerType :
                 StrEnumAttrCase<"FLOOR_MOD">,
                 StrEnumAttrCase<"MIN">,
                 StrEnumAttrCase<"MAX">,
+                StrEnumAttrCase<"SUBTRACT">,
             ]
         > {
     let cppNamespace = "vpux::VPUIP";

@@ -2041,5 +2041,35 @@ def IERT_ImplicitReorderOp :
     }];
 }
 
+//
+// SubtractOp
+//
+
+def IERT_SubtractOp :
+        IERT_LayerOp<1, "Subtract",
+            [
+                ViewLikeOpInterface,
+                SameOperandsElementType
+            ]
+        > {
+    let summary = "InferenceEngine run-time Subtract layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input1,
+        MemRefOf<[F16, F32]>:$input2,
+        MemRefOf<[F16, F32]>:$output_buff
+    );
+
+    let results = (outs
+        MemRefOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input1 `:` type($input1) `,` $input2 `:` type($input2) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
 
 #endif
