@@ -14,7 +14,6 @@
 #include "vpux/compiler/dialect/IE/ops.hpp"
 
 #include "vpux/compiler/dialect/const/ops.hpp"
-#include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
@@ -31,15 +30,8 @@ using namespace vpux;
 namespace {
 
 mlir::FailureOr<SmallVector<int64_t>> getAxes(IE::ReduceMeanOpAdaptor reduceMean, mlir::Location loc) {
-    if (reduceMean.axes() != nullptr && reduceMean.axes_value() != nullptr) {
-        return errorAt(loc, "Ambiguous axes representation");
-    }
-    if (reduceMean.axes() == nullptr && reduceMean.axes_value() == nullptr) {
+    if (reduceMean.axes() == nullptr) {
         return errorAt(loc, "Missed axes representation");
-    }
-
-    if (reduceMean.axes_value() != nullptr) {
-        return parseIntArrayAttr<int64_t>(reduceMean.axes_value());
     }
 
     auto axesConst = reduceMean.axes().getDefiningOp<Const::DeclareOp>();
@@ -105,45 +97,4 @@ mlir::LogicalResult vpux::IE::ReduceMeanOp::inferReturnTypeComponents(
 
     inferredReturnShapes.emplace_back(makeArrayRef(outShape), inType.getElementType());
     return mlir::success();
-}
-
-//
-// ConvertConstToAttr
-//
-
-namespace {
-
-class ConvertConstToAttr final : public mlir::OpRewritePattern<IE::ReduceMeanOp> {
-public:
-    using mlir::OpRewritePattern<IE::ReduceMeanOp>::OpRewritePattern;
-
-public:
-    mlir::LogicalResult matchAndRewrite(IE::ReduceMeanOp origOp, mlir::PatternRewriter& rewriter) const final;
-};
-
-mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::ReduceMeanOp origOp,
-                                                        mlir::PatternRewriter& rewriter) const {
-    if (origOp.axes_value().hasValue()) {
-        return mlir::failure();
-    }
-
-    const auto axes = getAxes(origOp, origOp->getLoc());
-    if (mlir::failed(axes)) {
-        return mlir::failure();
-    }
-    const auto axesAttr = getIntArrayAttr(getContext(), axes.getValue());
-
-    rewriter.replaceOpWithNewOp<IE::ReduceMeanOp>(origOp, origOp.input(), nullptr, axesAttr, origOp.keep_dimsAttr());
-    return mlir::success();
-}
-
-}  // namespace
-
-//
-// getCanonicalizationPatterns
-//
-
-void vpux::IE::ReduceMeanOp::getCanonicalizationPatterns(mlir::OwningRewritePatternList& patterns,
-                                                         mlir::MLIRContext* context) {
-    patterns.insert<ConvertConstToAttr>(context);
 }

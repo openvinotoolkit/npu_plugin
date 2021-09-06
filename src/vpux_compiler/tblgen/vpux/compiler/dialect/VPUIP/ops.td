@@ -2741,12 +2741,12 @@ def VPUIP_ReduceUPAOp :
 
     let arguments = (ins
         F16MemRef:$input,
+        MemRefOf<[SI64]>:$axes,
         F16MemRef:$output_buff,
 
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers,
 
-        I64ArrayAttr:$axes,
         OptionalAttr<BoolAttr>:$keep_dims,
         VPUIP_ReduceLayerType:$type,
 
@@ -2762,8 +2762,8 @@ def VPUIP_ReduceUPAOp :
         OpBuilder<
             (ins
                 "mlir::Value":$input,
+                "mlir::Value":$axes,
                 "mlir::Value":$output,
-                "mlir::ArrayAttr":$axes,
                 "mlir::BoolAttr":$keep_dims,
                 "vpux::VPUIP::ReduceLayerTypeAttr":$type
             )
@@ -2773,6 +2773,7 @@ def VPUIP_ReduceUPAOp :
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
+        `inputs` `(` $axes `:` type($axes) `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
         (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
         (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?

@@ -757,8 +757,8 @@ mlir::Operation* createRTLayer(IE::SubtractOp origOp, ArrayRef<mlir::Value> allB
 
 mlir::Operation* createRTLayer(IE::ReduceMeanOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::ReduceMeanOp::Adaptor newOp(allBufs);
-    mlir::Operation* retOp = b.create<IERT::ReduceMeanOp>(origOp.getLoc(), newOp.input(), newOp.output_buff(),
-                                                          origOp.axes_valueAttr(), origOp.keep_dimsAttr());
+    mlir::Operation* retOp = b.create<IERT::ReduceMeanOp>(origOp.getLoc(), newOp.input(), newOp.axes(),
+                                                          newOp.output_buff(), origOp.keep_dimsAttr());
     return retOp;
 }
 

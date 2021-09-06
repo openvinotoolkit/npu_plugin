@@ -1572,7 +1572,6 @@ operation ::= `IE.ReduceMean` `(` operands `)` attr-dict `:` type(operands) `->`
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`axes_value` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `keep_dims` | ::mlir::BoolAttr | bool attribute
 
 #### Operands:
@@ -1580,7 +1579,7 @@ operation ::= `IE.ReduceMean` `(` operands `)` attr-dict `:` type(operands) `->`
 | Operand | Description |
 | :-----: | ----------- |
 `input` | ranked tensor of any type values
-`axes` | 1D tensor of integer values
+`axes` | 1D tensor of 32-bit signed integer or 64-bit signed integer values
 
 #### Results:
 

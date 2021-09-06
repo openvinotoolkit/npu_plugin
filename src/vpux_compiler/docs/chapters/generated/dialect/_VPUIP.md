@@ -1653,6 +1653,7 @@ Syntax:
 ```
 operation ::= `VPUIP.ReduceUPA` attr-dict
               `inputs` `(` $input `:` type($input) `)`
+              `inputs` `(` $axes `:` type($axes) `)`
               `outputs` `(` $output_buff `:` type($output_buff) `)`
               (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
               (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
@@ -1664,7 +1665,6 @@ operation ::= `VPUIP.ReduceUPA` attr-dict
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`axes` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `keep_dims` | ::mlir::BoolAttr | bool attribute
 `type` | vpux::VPUIP::ReduceLayerTypeAttr | Type of Reduce layer
 `maxShaves` | mlir::IntegerAttr | Integer attribute
@@ -1675,6 +1675,7 @@ operation ::= `VPUIP.ReduceUPA` attr-dict
 | Operand | Description |
 | :-----: | ----------- |
 `input` | memref of 16-bit float values
+`axes` | memref of 64-bit signed integer values
 `output_buff` | memref of 16-bit float values
 `waitBarriers` | VPUIP Barrier Type
 `updateBarriers` | VPUIP Barrier Type

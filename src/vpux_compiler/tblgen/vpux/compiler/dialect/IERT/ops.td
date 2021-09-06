@@ -2186,9 +2186,9 @@ def IERT_ReduceMeanOp :
 
     let arguments = (ins
         MemRefOf<[F16, F32]>:$input,
+        MemRefOf<[SI32, SI64]>:$axes,
         MemRefOf<[F16, F32]>:$output_buff,
 
-        I64ArrayAttr:$axes,
         OptionalAttr<BoolAttr>:$keep_dims
     );
 
@@ -2199,6 +2199,7 @@ def IERT_ReduceMeanOp :
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
+        `inputs` `(` $axes `:` type($axes) `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
         `->` type(results)
     }];

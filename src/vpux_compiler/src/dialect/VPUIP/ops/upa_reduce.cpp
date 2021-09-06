@@ -22,9 +22,9 @@
 using namespace vpux;
 
 void vpux::VPUIP::ReduceUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
-                                     mlir::Value output, mlir::ArrayAttr axes, mlir::BoolAttr keep_dims,
+                                     mlir::Value axes, mlir::Value output, mlir::BoolAttr keep_dims,
                                      VPUIP::ReduceLayerTypeAttr type) {
-    build(builder, state, input, output, mlir::ValueRange{}, mlir::ValueRange{}, axes, keep_dims, type, nullptr,
+    build(builder, state, input, axes, output, mlir::ValueRange{}, mlir::ValueRange{}, keep_dims, type, nullptr,
           nullptr);
 }
 

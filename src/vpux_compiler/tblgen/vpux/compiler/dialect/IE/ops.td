@@ -716,8 +716,7 @@ def IE_ReduceMeanOp :
 
     let arguments = (ins
         AnyRankedTensor:$input,
-        Optional<1DTensorOf<[AnyInteger]>>:$axes,
-        OptionalAttr<I64ArrayAttr>:$axes_value,
+        1DTensorOf<[SI32, SI64]>:$axes,
 
         OptionalAttr<BoolAttr>:$keep_dims
     );
@@ -725,8 +724,6 @@ def IE_ReduceMeanOp :
     let results = (outs
         AnyRankedTensor:$output
     );
-
-    let hasCanonicalizer = 1;
 }
 
 //

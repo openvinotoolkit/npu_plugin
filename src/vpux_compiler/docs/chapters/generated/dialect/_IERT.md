@@ -1603,6 +1603,7 @@ Syntax:
 ```
 operation ::= `IERT.ReduceMean` attr-dict
               `inputs` `(` $input `:` type($input) `)`
+              `inputs` `(` $axes `:` type($axes) `)`
               `outputs` `(` $output_buff `:` type($output_buff) `)`
               `->` type(results)
 ```
@@ -1612,7 +1613,6 @@ operation ::= `IERT.ReduceMean` attr-dict
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`axes` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `keep_dims` | ::mlir::BoolAttr | bool attribute
 
 #### Operands:
@@ -1620,6 +1620,7 @@ operation ::= `IERT.ReduceMean` attr-dict
 | Operand | Description |
 | :-----: | ----------- |
 `input` | memref of 16-bit float or 32-bit float values
+`axes` | memref of 32-bit signed integer or 64-bit signed integer values
 `output_buff` | memref of 16-bit float or 32-bit float values
 
 #### Results:

@@ -712,8 +712,8 @@ class createReduceUPAOp<string method> :
 
 def RewriteReduceMean :
         Pat<
-            (IERT_ReduceMeanOp $input, $output, $axes, $keep_dims),
-            (createReduceUPAOp<"MEAN"> $input, $output, $axes, $keep_dims)
+            (IERT_ReduceMeanOp $input, $axes, $output, $keep_dims),
+            (createReduceUPAOp<"MEAN"> $input, $axes, $output, $keep_dims)
         >;
 
 
