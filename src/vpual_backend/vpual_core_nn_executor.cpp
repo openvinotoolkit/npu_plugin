@@ -22,6 +22,7 @@
 #include <algorithm>
 #include <blob_factory.hpp>
 #include <dims_parser.hpp>
+#include <tensor_ref_helpers.hpp>
 #include <map>
 #include <utility>
 #include <vector>
@@ -369,8 +370,8 @@ VpualCoreNNExecutor::VpualCoreNNExecutor(const vpux::NetworkDescription::Ptr& ne
     size_t outputsSize = _nnCorePlg->GetNumberOfOutputs();
     size_t outputTotalSize = 0;
     for (size_t outputIdx = 0; outputIdx < outputsSize; outputIdx++) {
-        flicTensorDescriptor_t descOut = _nnCorePlg->GetOutputTensorDescriptor(outputIdx);
-        outputTotalSize += descOut.totalSize;
+        TensorRefNDData descOut = _nnCorePlg->GetOutputTensorRef(outputIdx);
+        outputTotalSize += vpu::utils::getTotalSize(descOut);
     }
 
     _outputBuffer.reset(reinterpret_cast<uint8_t*>(_allocator->alloc(outputTotalSize)));
@@ -378,11 +379,11 @@ VpualCoreNNExecutor::VpualCoreNNExecutor(const vpux::NetworkDescription::Ptr& ne
 
     off_t outputOffset = 0;
     for (size_t outputIdx = 0; outputIdx < outputsSize; outputIdx++) {
-        flicTensorDescriptor_t descOut = _nnCorePlg->GetOutputTensorDescriptor(outputIdx);
+        TensorRefNDData descOut = _nnCorePlg->GetOutputTensorRef(outputIdx);
 
         auto outPhysAddr = _allocator->getPhysicalAddress(_outputBuffer.get()) + outputOffset;
         _outputPhysAddrs.push_back(outPhysAddr);
-        outputOffset += descOut.totalSize;
+        outputOffset += vpu::utils::getTotalSize(descOut);
     }
     _wd = wd;
 }
@@ -569,29 +570,28 @@ void VpualCoreNNExecutor::allocateGraph(const std::vector<char>& graphFileConten
         _preFetchBuffer.reset(setPrefetchHelper(_nnCorePlg, preFetchSize, _csramAllocator, _logger));
     }
 
-    auto tensor_deserializer = [&](const flicTensorDescriptor_t& descriptor) -> void {
+    auto tensorDeserializer = [&](const TensorRefNDData& descriptor) -> void {
         _logger->info(
-            "{ n: %d, c: %d, h: %d, w: %d, totalSize: %d, widthStride: %d, heightStride: %d, channelsStride: %d}",
-            descriptor.n, descriptor.c, descriptor.h, descriptor.w, descriptor.totalSize, descriptor.widthStride,
-            descriptor.heightStride, descriptor.channelsStride);
+            "{ Shape: %s, Strides: %s, DType: %s, Order: %s }",
+            vpu::utils::serializeShape(descriptor), vpu::utils::serializeStrides(descriptor), vpu::utils::serializeDType(descriptor), vpu::utils::serializeOrder(descriptor));
     };
 
     _logger->info("Deserializing descriptors:");
     size_t inputsSize = _nnCorePlg->GetNumberOfInputs();
     for (size_t inputIdx = 0; inputIdx < inputsSize; inputIdx++) {
-        flicTensorDescriptor_t descIn = _nnCorePlg->GetInputTensorDescriptor(inputIdx);
+        TensorRefNDData descIn = _nnCorePlg->GetInputTensorRef(inputIdx);
         _logger->info("Input: %d", inputIdx);
-        tensor_deserializer(descIn);
+        tensorDeserializer(descIn);
     }
 
     size_t outputsSize = _nnCorePlg->GetNumberOfOutputs();
     size_t outputTotalSize = 0;
     for (size_t outputIdx = 0; outputIdx < outputsSize; outputIdx++) {
-        flicTensorDescriptor_t descOut = _nnCorePlg->GetOutputTensorDescriptor(outputIdx);
+        TensorRefNDData descOut = _nnCorePlg->GetOutputTensorRef(outputIdx);
         _logger->info("Output: %d", outputIdx);
-        tensor_deserializer(descOut);
+        tensorDeserializer(descOut);
 
-        outputTotalSize += descOut.totalSize;
+        outputTotalSize += vpu::utils::getTotalSize(descOut);
     }
 
     _outputBuffer.reset(reinterpret_cast<uint8_t*>(_allocator->alloc(outputTotalSize)));
@@ -599,11 +599,11 @@ void VpualCoreNNExecutor::allocateGraph(const std::vector<char>& graphFileConten
 
     off_t outputOffset = 0;
     for (size_t outputIdx = 0; outputIdx < outputsSize; outputIdx++) {
-        flicTensorDescriptor_t descOut = _nnCorePlg->GetOutputTensorDescriptor(outputIdx);
+        TensorRefNDData descOut = _nnCorePlg->GetOutputTensorRef(outputIdx);
 
         auto outPhysAddr = _allocator->getPhysicalAddress(_outputBuffer.get()) + outputOffset;
         _outputPhysAddrs.push_back(outPhysAddr);
-        outputOffset += descOut.totalSize;
+        outputOffset += vpu::utils::getTotalSize(descOut);
     }
 
     _nnCorePlg->PrepareNetwork();

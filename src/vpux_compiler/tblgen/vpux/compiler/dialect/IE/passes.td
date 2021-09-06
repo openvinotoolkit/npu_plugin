@@ -122,7 +122,7 @@ def ConvertPrecisionToFP16 : PassBase<"convert-precision-to-fp16", "vpux::Module
 // ConvertShapeTo4D
 //
 
-def ConvertShapeTo4D : PassBase<"convert-shape-to-4d", "vpux::ModulePass"> {
+def ConvertShapeTo4D : PassBase<"convert-shape-to-4d", "vpux::FunctionPass"> {
     let summary = "Convert tensors shapes to 4D";
 
     let description = [{
