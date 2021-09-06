@@ -50,6 +50,23 @@ TEST_F(KmbYoloV2NetworkTest, precommit_yolo_v2_ava_0001_tf_dense_int8_IRv10_from
 }
 #endif  // KMB_HAS_CUSTOM_OCL_KERNELS
 
+#ifdef KMB_HAS_CUSTOM_OCL_KERNELS
+TEST_F(KmbYoloV2NetworkTest, precommit_incorrect_yolo_v2_ava_0001_tf_dense_int8_IRv10_from_fp32_custom) {
+    SKIP_INFER("Compile only");
+    ASSERT_ANY_THROW(const auto customLayers = std::make_pair(VPU_COMPILER_CONFIG_KEY(CUSTOM_LAYERS),
+                                             getIELibraryPath() + "/kmb_custom_ocl_kernels/yolov2_incorrect.xml");
+        runTest(
+                TestNetworkDesc("KMB_models/INT8/icv/yolo-v2-ava-0001/yolo-v2_ava_0001_tf_dense_int8_IRv10_from_fp32.xml")
+                .setUserInputPrecision("input", Precision::U8)
+                .setUserInputLayout("input", Layout::NHWC)
+                .setUserOutputPrecision("output", Precision::FP32)
+                .setCompileConfig({customLayers}),
+                TestImageDesc("416x416/person.bmp", ImageFormat::RGB),
+                0.6, 0.4, 0.4, false);
+    );
+}
+#endif  // KMB_HAS_CUSTOM_OCL_KERNELS
+
 TEST_F(KmbYoloV1NetworkTest, precommit_INT8_Dense_TF_DarkNet_TinyYoloV1) {
     SKIP_INFER_ON("EMULATOR", "Wrong results");
     runTest(
