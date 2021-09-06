@@ -34,6 +34,7 @@
 
 #include <vpux/compiler/act_kernels/act_kernel_gen.h>
 #include <vpux/compiler/act_kernels/dpu2p7_descriptor.h>
+#include <vpux/compiler/act_kernels/Nce2p7.h>
 
 #include <algorithm>
 
@@ -160,89 +161,95 @@ vpux::VPUIP::BlobWriter::KernelDataRef vpux::VPUIP::BlobWriter::createKernelData
 
     return kernelData.Finish();
 }
-/*
-SmallVector<vpux::VPUIP::BlobWriter::KernelData> vpux::VPUIP::BlobWriter::serializeKernelData() const {
 
-    auto scopeTiming = rootTiming.nest("Serialize kernel data");
+vpux::VPUIP::BlobWriter::KernelDataRef vpux::VPUIP::BlobWriter::createInvocationArgs(mlir::Operation* op,
+                                                                                     vpux::VPUIP::MemoryLocation locale) {
 
-    // only ACTShaveTasks are generating kernelData
-    auto kernelGenOps = to_small_vector(netFunc.getOps<VPUIP::DeclareKernelDataOp>());
+    cfg_dpu_description desc_ptr {};
+#if 0
+    const uint32_t X = desc_ptr->idu.tensor_size0.x; // tensor_width
+    const uint32_t Y = desc_ptr->idu.tensor_size0.y;
+    const uint32_t Z = desc_ptr->idu.tensor_size1.z;
+    uint32_t input_addr = desc_ptr->idu.tensor_start << 4;
+    input_addr += desc_ptr->idu.act0_offset;
 
-    // lets create stack buffers
-    if (kernelGenOps.empty()) {
-        return {};
+    float* p_act_data = (float*)(input_addr); // 0x1F000000
+    half* p_act_out = (half*)(desc_ptr->odu_ac_base.ac_base << 4); // 0x1F004000
+#endif
+
+    if (auto layer = mlir::dyn_cast<VPUIP::ACTShaveTaskOp>(op)) {
+        const auto & input = layer->getOpOperand(0);
+        const auto result = layer.outputs()[0];
+
+
+        _log.trace("Create Invocation input= {0}", input.get());
+        _log.trace("Create Invocation output= {0}", result);
+
+        auto inputShape = input.get().getType().cast<mlir::ShapedType>();
+        auto outputShape = result.getType().cast<mlir::ShapedType>();
+
+        desc_ptr.idu.tensor_size0.x = inputShape.getShape()[3]; // tensor_width
+        desc_ptr.idu.tensor_size0.y = inputShape.getShape()[2];
+        desc_ptr.idu.tensor_size1.z = inputShape.getShape()[1];
+
+        auto inputTensor = input.get().getDefiningOp<VPUIP::DeclareTensorOp>();
+        auto outputTensor = result.getDefiningOp<VPUIP::DeclareTensorOp>();
+
+        std::vector<uint64_t> cmx_memory_offset_{
+                mvds::nce2p7::CMX_BASE_ADDRESS[0],
+                mvds::nce2p7::CMX_BASE_ADDRESS[1]
+        };
+
+        auto getAddress = [](VPUIP::DeclareTensorOp & tensor) {
+            return tensor.dataIndex() + tensor.leadingOffset().getValueOr(0);
+        };
+
+        auto getInstance = [](VPUIP::DeclareTensorOp & tensor) {
+            uint32_t index {};
+
+            if(tensor.localeIndex().size()) {
+                index = parseIntArrayAttr(tensor.localeIndex())[0];
+            }
+
+            return index;
+        };
+
+        //desc_ptr.idu.act0_offset     = cmx_memory_offset_[getInstance(inputTensor)] + getAddress(inputTensor);
+        //desc_ptr.idu.act0_offset   >>= 4;
+
+        desc_ptr.idu.act0_offset     = mvds::nce2p7::ACT_KERNEL_CMX_WINDOW + getAddress(inputTensor);
+
+        auto odu_tmp_ptr = mvds::nce2p7::ACT_KERNEL_CMX_WINDOW + 0x4000;
+        desc_ptr.odu_ac_base.ac_base = odu_tmp_ptr >> 4;
+
+
+        const auto source = layer.getViewSource();
+        VPUX_THROW_UNLESS(result.getType().isa<mlir::MemRefType>(), "Only MemRef type tensors are supported, got '{0}'",
+                          result.getType());
+        VPUX_THROW_UNLESS(source.getType().isa<mlir::MemRefType>(), "Only MemRef type tensors are supported, got '{0}'",
+                          source.getType());
+
+        ArrayRef<uint8_t> dummyArgsAsVector(reinterpret_cast<uint8_t*>(&desc_ptr), sizeof(desc_ptr));
+
+        // TODO: should be specific sigmoid args instead of cfg_dpu_descriptor
+        auto invocationArgs = createKernelDataRef(op->getName().getStringRef(), locale, 0, sizeof(cfg_dpu_description),
+                                                  dummyArgsAsVector);
+
+        return invocationArgs;
     }
-    auto kernelTasks = to_small_vector(netFunc.getOps<VPUIP::ACTShaveTaskOp>());
-    uint32_t maxShaves = 4;
 
-    // TODO: this looks works only for 1 executors
-    //  otherwise need to hardcode all 4 stacks and then just use certain in runtime
-    for (auto invocationIndex : irange(kernelTasks.size())) {
-        auto invocation = kernelTasks[invocationIndex];
-        auto numShaves = invocation.maxShaves();
-        if (!numShaves.hasValue()) {
-            continue;
-        }
-        maxShaves = std::max(numShaves.getValue(), maxShaves);
-    }
+    return {};
 
-    SmallVector<VPUIP::BlobWriter::KernelData> kernelData(kernelGenOps.size() * 2 + maxShaves + 1);
-
-    //TODO: cap numshaves by maximum HW number of 4
-    const auto stack_size { 1U << 12 }; // 4KB stack
-
-    std::vector<uint8_t> shave_stack_data(stack_size);
-    auto shave_stack_serialized_data = writer.createVector(shave_stack_data);
-
-    for(uint32_t shv{}; shv < maxShaves; ++shv) {
-        MVCNN::KernelDataBuilder kdBuilder(writer);
-        kdBuilder.add_length(stack_size);
-        kdBuilder.add_data(shave_stack_serialized_data);
-        kernelData[shv] = kdBuilder.Finish();
-    }
-
-    const auto scratch_size { 1U << 16 }; // 4KB stack
-    std::vector<uint8_t> scratch_buffer(scratch_size); // 64KB scratch buffer
-    auto scratch_buffer_serialized = writer.createVector(scratch_buffer);
-
-    MVCNN::KernelDataBuilder kdBuilder(writer);
-    kdBuilder.add_length(scratch_size);
-    kdBuilder.add_data(scratch_buffer_serialized);
-    kernelData[maxShaves] = kdBuilder.Finish();
-
-    for (auto KernelIndex : irange(kernelGenOps.size())) {
-        auto kernel = kernelGenOps[KernelIndex];
-
-        log.trace("Got act-shave kernel at '{0}' with type '{1}'", kernel->getLoc(), kernel->getName());
-        auto compiledKernel = writer.createKernelData(kernel.name());
-        kernelData[KernelIndex * 2 + maxShaves + 1] = compiledKernel.text;
-        kernelData[KernelIndex * 2 + 1 + maxShaves + 1] = compiledKernel.data;
-    }
-
-    return kernelData;
-}*/
+}
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createACTShaveTask(mlir::Operation* op) {
     VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in createACTShaveTask");
 
-    auto layer = mlir::dyn_cast<RTLayerInterface>(op);
-    VPUX_THROW_UNLESS(layer != nullptr, "Operation '{0}' is not a RT Layer", op->getName());
-
     auto actShaveTask = mlir::dyn_cast<VPUIP::ACTShaveTaskOp>(op);
     VPUX_THROW_UNLESS(actShaveTask != nullptr, "Operation '{0}' is not a ACTShave Task", op->getName());
 
-    // check that corresponding kernel - data entry created
-
-    const auto getTensorCb = [this](mlir::Value val) {
-      return getTensor(val);
-    };
-
-    const auto inputs = createVector(layer.getInputs() | transformed(getTensorCb));
-    const auto outputs = createVector(layer.getOutputs() | transformed(getTensorCb));
-
     auto kernelDesc = actShaveTask.kernelData().getDefiningOp<DeclareKernelDataOp>();
     auto actKernelDesc = createKernelData(kernelDesc.name());
-
 
     auto kernelText = createKernelDataRef(actKernelDesc.text, kernelDesc.locale());
 
@@ -263,15 +270,7 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createACTShaveTask(mlir
 
     auto barrierReference = MVCNN::CreateBarrierReference(_impl, waitBarriers, updateBarriers);
 
-    cfg_dpu_description dummyArgs;
-    llvm::SmallVector<uint8_t> dummyArgsAsVector(
-            reinterpret_cast<uint8_t*>(&dummyArgs),
-            reinterpret_cast<uint8_t*>(&dummyArgs) + sizeof(dummyArgs));
-
-    // TODO: should be specific sigmoid args instead of cfg_dpu_descriptor
-    auto invocationArgs = createKernelDataRef(op->getName().getStringRef(),
-                                              kernelDesc.locale(),
-                                              0, sizeof(cfg_dpu_description), dummyArgsAsVector);
+    auto invocationArgs = createInvocationArgs(op, kernelDesc.locale());
 
     auto dataSection = createKernelDataRef(actKernelDesc.data, kernelDesc.locale());
 

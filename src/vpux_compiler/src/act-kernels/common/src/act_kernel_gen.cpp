@@ -12,7 +12,7 @@
 //
 
 #include "vpux/compiler/act_kernels/act_kernel_gen.h"
-#include "vpux/compiler/act_kernels/nn_act_args.h"
+#include "vpux/compiler/act_kernels/mem_ref_data.h"
 
 #include <algorithm>
 #include <string>
