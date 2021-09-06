@@ -21,6 +21,7 @@
 #include "vpux/compiler/utils/logging.hpp"
 #include "vpux/compiler/utils/types.hpp"
 
+#include "vpux/passes/align_scales.hpp"
 #include "vpux/passes/convert_extract_image_patches_to_reorg_vpu.hpp"
 #include "vpux/passes/fuse_padding.hpp"
 #include "vpux/passes/remove_split_concat.hpp"
@@ -1619,6 +1620,7 @@ void runNGraphPasses(const std::shared_ptr<ngraph::Function>& netGraph, mlir::Ti
     manager.register_pass<vpux::passes::OnnxReorgPatternToDarkNetReorg>();
     manager.register_pass<vpux::passes::ConvertExtractImagePatchesToReorgYoloVPU>();
     manager.register_pass<ngraph::pass::CommonOptimizations>();
+    manager.register_pass<vpux::passes::AlignScales>();
 
     manager.run_passes(netGraph);
 }

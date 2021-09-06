@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -11,19 +11,19 @@
 // included with the Software Package for additional details.
 //
 
-// clang-format off
-
+#include "vpux/passes/align_scales.hpp"
 #include <ie_common.h>
-#include "ngraph_mcm_frontend/passes/align_scales.hpp"
 
 #include <memory>
-#include <ngraph/op/fake_quantize.hpp>
 #include <ngraph/op/constant.hpp>
-#include <ngraph/type/element_type.hpp>
-#include "ngraph_mcm_frontend/ops/mcm_eltwise.hpp"
+#include <ngraph/op/fake_quantize.hpp>
 #include <ngraph/ops.hpp>
+#include <ngraph/type/element_type.hpp>
 
 #include "vpux/quantization_helpers.hpp"
+
+namespace vpux {
+namespace passes {
 
 static bool node_is_add_or_concat(std::shared_ptr<ngraph::Node> node) {
     return (std::dynamic_pointer_cast<ngraph::op::v0::Concat>(node) != nullptr ||
@@ -45,7 +45,7 @@ static std::vector<std::shared_ptr<ngraph::Node>> gather_nodes_around(std::share
     return result;
 }
 
-static void gather_fqs(std::shared_ptr<ngraph::Node> node, std::set<std::shared_ptr<ngraph::Node>> &fqs_to_align) {
+static void gather_fqs(std::shared_ptr<ngraph::Node> node, std::set<std::shared_ptr<ngraph::Node>>& fqs_to_align) {
     for (const auto& input : node->input_values()) {
         auto input_node = input.get_node()->shared_from_this();
         if (std::dynamic_pointer_cast<ngraph::op::v0::FakeQuantize>(input_node) != nullptr) {
@@ -80,7 +80,7 @@ static void gather_fqs(std::shared_ptr<ngraph::Node> node, std::set<std::shared_
     }
 }
 
-static bool no_concat_consumers_around_fqs(std::set<std::shared_ptr<ngraph::Node>> &fqs) {
+static bool no_concat_consumers_around_fqs(std::set<std::shared_ptr<ngraph::Node>>& fqs) {
     for (auto fq : fqs) {
         auto nodes_around = gather_nodes_around(fq);
         for (auto node_around : nodes_around) {
@@ -93,12 +93,16 @@ static bool no_concat_consumers_around_fqs(std::set<std::shared_ptr<ngraph::Node
     return true;
 }
 
-static bool all_fqs_have_same_io_params(std::set<std::shared_ptr<ngraph::Node>> &fqs) {
+static bool all_fqs_have_same_io_params(std::set<std::shared_ptr<ngraph::Node>>& fqs) {
     for (auto fq_node : fqs) {
-        auto fq_node1 = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(fq_node->input_value(1).get_node_shared_ptr());
-        auto fq_node2 = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(fq_node->input_value(2).get_node_shared_ptr());
-        auto fq_node3 = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(fq_node->input_value(3).get_node_shared_ptr());
-        auto fq_node4 = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(fq_node->input_value(4).get_node_shared_ptr());
+        auto fq_node1 =
+                std::dynamic_pointer_cast<ngraph::op::v0::Constant>(fq_node->input_value(1).get_node_shared_ptr());
+        auto fq_node2 =
+                std::dynamic_pointer_cast<ngraph::op::v0::Constant>(fq_node->input_value(2).get_node_shared_ptr());
+        auto fq_node3 =
+                std::dynamic_pointer_cast<ngraph::op::v0::Constant>(fq_node->input_value(3).get_node_shared_ptr());
+        auto fq_node4 =
+                std::dynamic_pointer_cast<ngraph::op::v0::Constant>(fq_node->input_value(4).get_node_shared_ptr());
         if (fq_node1 == nullptr || fq_node2 == nullptr || fq_node3 == nullptr || fq_node4 == nullptr)
             return false;
 
@@ -128,13 +132,18 @@ static bool all_fqs_have_same_io_params(std::set<std::shared_ptr<ngraph::Node>> 
     return true;
 }
 
-static void find_min_max(std::set<std::shared_ptr<ngraph::Node>> &fqs, float &min, float &max, float &range, int &max_levels){
+static void find_min_max(std::set<std::shared_ptr<ngraph::Node>>& fqs, float& min, float& max, float& range,
+                         int& max_levels) {
     for (auto fq_node : fqs) {
         auto fq = std::dynamic_pointer_cast<ngraph::op::v0::FakeQuantize>(fq_node);
-        auto fq_node1 = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(fq_node->input_value(1).get_node_shared_ptr());
-        auto fq_node2 = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(fq_node->input_value(2).get_node_shared_ptr());
-        auto fq_node3 = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(fq_node->input_value(3).get_node_shared_ptr());
-        auto fq_node4 = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(fq_node->input_value(4).get_node_shared_ptr());
+        auto fq_node1 =
+                std::dynamic_pointer_cast<ngraph::op::v0::Constant>(fq_node->input_value(1).get_node_shared_ptr());
+        auto fq_node2 =
+                std::dynamic_pointer_cast<ngraph::op::v0::Constant>(fq_node->input_value(2).get_node_shared_ptr());
+        auto fq_node3 =
+                std::dynamic_pointer_cast<ngraph::op::v0::Constant>(fq_node->input_value(3).get_node_shared_ptr());
+        auto fq_node4 =
+                std::dynamic_pointer_cast<ngraph::op::v0::Constant>(fq_node->input_value(4).get_node_shared_ptr());
 
         auto fq_data1 = fq_node1->cast_vector<float>();
         auto fq_data2 = fq_node2->cast_vector<float>();
@@ -160,16 +169,21 @@ static void find_min_max(std::set<std::shared_ptr<ngraph::Node>> &fqs, float &mi
 
 static void broadcast_changes(const std::shared_ptr<ngraph::Node>& node);
 
-static void align_fq(std::set<std::shared_ptr<ngraph::Node>> &fqs, const float min, const float max, const float range, const int max_levels) {
+static void align_fq(std::set<std::shared_ptr<ngraph::Node>>& fqs, const float min, const float max, const float range,
+                     const int max_levels) {
     auto changed = std::vector<bool>(fqs.size());
     size_t i = 0;
 
     for (auto fq_node : fqs) {
         auto fq = std::dynamic_pointer_cast<ngraph::op::v0::FakeQuantize>(fq_node);
-        auto fq_node1 = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(fq_node->input_value(1).get_node_shared_ptr());
-        auto fq_node2 = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(fq_node->input_value(2).get_node_shared_ptr());
-        auto fq_node3 = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(fq_node->input_value(3).get_node_shared_ptr());
-        auto fq_node4 = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(fq_node->input_value(4).get_node_shared_ptr());
+        auto fq_node1 =
+                std::dynamic_pointer_cast<ngraph::op::v0::Constant>(fq_node->input_value(1).get_node_shared_ptr());
+        auto fq_node2 =
+                std::dynamic_pointer_cast<ngraph::op::v0::Constant>(fq_node->input_value(2).get_node_shared_ptr());
+        auto fq_node3 =
+                std::dynamic_pointer_cast<ngraph::op::v0::Constant>(fq_node->input_value(3).get_node_shared_ptr());
+        auto fq_node4 =
+                std::dynamic_pointer_cast<ngraph::op::v0::Constant>(fq_node->input_value(4).get_node_shared_ptr());
 
         auto fq_data1 = fq_node1->cast_vector<float>();
         auto fq_data2 = fq_node2->cast_vector<float>();
@@ -189,8 +203,7 @@ static void align_fq(std::set<std::shared_ptr<ngraph::Node>> &fqs, const float m
                 fq_data3[c] = fq_data1[c];
                 fq_data4[c] = fq_data2[c];
             }
-        }
-        else {
+        } else {
             // At least one Concat - should use Concat alignment
             for (size_t c = 0; c < fq_data1.size(); c++) {
                 fq_data1[c] = min;
@@ -221,15 +234,17 @@ static void align_fq(std::set<std::shared_ptr<ngraph::Node>> &fqs, const float m
     }
 }
 
-static void adjust_fqs_to_align(std::set<std::shared_ptr<ngraph::Node>> &fqs) {
+static void adjust_fqs_to_align(std::set<std::shared_ptr<ngraph::Node>>& fqs) {
     float min_range = std::numeric_limits<float>::max();
     std::set<std::shared_ptr<ngraph::Node>> filtered_fqs;
     unsigned child_node_num = 0;
     const float max_fq_range_ratio = 5.0;
 
     for (auto fq_node : fqs) {
-        auto fq_node1 = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(fq_node->input_value(1).get_node_shared_ptr());
-        auto fq_node2 = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(fq_node->input_value(2).get_node_shared_ptr());
+        auto fq_node1 =
+                std::dynamic_pointer_cast<ngraph::op::v0::Constant>(fq_node->input_value(1).get_node_shared_ptr());
+        auto fq_node2 =
+                std::dynamic_pointer_cast<ngraph::op::v0::Constant>(fq_node->input_value(2).get_node_shared_ptr());
 
         auto fq_data1 = fq_node1->cast_vector<float>();
         auto fq_data2 = fq_node2->cast_vector<float>();
@@ -245,24 +260,26 @@ static void adjust_fqs_to_align(std::set<std::shared_ptr<ngraph::Node>> &fqs) {
         }
     }
 
-    if(child_node_num == fqs.size())
+    if (child_node_num == fqs.size())
         return;
 
     for (auto fq_node : fqs) {
-        auto fq_node1 = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(fq_node->input_value(1).get_node_shared_ptr());
-        auto fq_node2 = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(fq_node->input_value(2).get_node_shared_ptr());
+        auto fq_node1 =
+                std::dynamic_pointer_cast<ngraph::op::v0::Constant>(fq_node->input_value(1).get_node_shared_ptr());
+        auto fq_node2 =
+                std::dynamic_pointer_cast<ngraph::op::v0::Constant>(fq_node->input_value(2).get_node_shared_ptr());
 
         auto fq_data1 = fq_node1->cast_vector<float>();
         auto fq_data2 = fq_node2->cast_vector<float>();
 
         for (size_t c = 0; c < fq_data1.size(); c++) {
-            if (fq_data2[c] - fq_data1[c] < max_fq_range_ratio * min_range){
+            if (fq_data2[c] - fq_data1[c] < max_fq_range_ratio * min_range) {
                 filtered_fqs.insert(fq_node);
                 break;
             }
         }
     }
-    
+
     fqs = filtered_fqs;
 }
 
@@ -293,7 +310,7 @@ static void broadcast_changes(const std::shared_ptr<ngraph::Node>& node) {
         if (!all_fqs_have_same_io_params(fqs_to_align)) {
             continue;
         }
-        if(fqs_to_align.size() > 2)
+        if (fqs_to_align.size() > 2)
             adjust_fqs_to_align(fqs_to_align);
 
         float min = 0;
@@ -308,8 +325,7 @@ static void broadcast_changes(const std::shared_ptr<ngraph::Node>& node) {
     }
 }
 
-bool AlignScales::run_on_node(std::shared_ptr<ngraph::Node> node)
-{
+bool AlignScales::run_on_node(std::shared_ptr<ngraph::Node> node) {
     if (!node_is_add_or_concat(node))
         return false;
 
@@ -321,7 +337,7 @@ bool AlignScales::run_on_node(std::shared_ptr<ngraph::Node> node)
     if (!all_fqs_have_same_io_params(fqs_to_align)) {
         return false;
     }
-    if(fqs_to_align.size() > 2)
+    if (fqs_to_align.size() > 2)
         adjust_fqs_to_align(fqs_to_align);
 
     float min = 0;
@@ -337,4 +353,5 @@ bool AlignScales::run_on_node(std::shared_ptr<ngraph::Node> node)
     return true;
 }
 
-// clang-format on
+}  // namespace passes
+}  // namespace vpux
