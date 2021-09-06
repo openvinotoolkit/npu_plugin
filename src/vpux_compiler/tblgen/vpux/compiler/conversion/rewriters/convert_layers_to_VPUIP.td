@@ -363,7 +363,7 @@ def RewriteTile :
         >;
 
 //
-// IERT.[Add|Multiply|Divide|SquaredDiff|Power|FloorMod|Min|Max]Pool -> VPUIP.EltwiseUPA
+// IERT.[Add|Multiply|Divide|SquaredDiff|Power|FloorMod|Min|Max|Subtract]Pool -> VPUIP.EltwiseUPA
 //
 
 class createEltwiseUPAOp<string method> :
@@ -425,6 +425,11 @@ def RewriteMaximum :
         Pat<
             (IERT_MaximumOp $input1, $input2, $output),
             (createEltwiseUPAOp<"MAX"> $input1, $input2, $output)
+        >;
+def RewriteSubtract :
+        Pat<
+            (IERT_SubtractOp $input1, $input2, $output),
+            (createEltwiseUPAOp<"SUBTRACT"> $input1, $input2, $output)
         >;
 //
 // IERT.GRN -> VPUIP.GRNUPA

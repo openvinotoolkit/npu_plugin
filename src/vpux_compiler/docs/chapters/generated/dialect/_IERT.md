@@ -1811,6 +1811,35 @@ operation ::= `IERT.SubView` $source $static_offsets $static_sizes
 | :----: | ----------- |
 `result` | memref of any type values
 
+### `IERT.Subtract` (vpux::IERT::SubtractOp)
+
+InferenceEngine run-time Subtract layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.Subtract` attr-dict
+              `inputs` `(` $input1 `:` type($input1) `,` $input2 `:` type($input2) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input1` | memref of 16-bit float or 32-bit float values
+`input2` | memref of 16-bit float or 32-bit float values
+`output_buff` | memref of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float or 32-bit float values
+
 ### `IERT.Swish` (vpux::IERT::SwishOp)
 
 InferenceEngine run-time Swish layer
