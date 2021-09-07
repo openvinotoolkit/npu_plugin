@@ -259,9 +259,15 @@ ActKernelDesc compileKernelForACTShave(mlir::StringRef kernelName, const movitoo
     std::vector<uint8_t> dataBinary;
     compileAndLinkSHAVE(params, kernelName, textBinary, dataBinary);
 
+    //lets pad textBinary by 1K array at the enf with FC CC FC CC
+    for (int i = 0; i != 512; i++) {
+        textBinary.push_back(0xFC);
+        textBinary.push_back(0xCC);
+    }
+
     ActKernelDesc result;
 
-    result.text = {kernelName.data(), buildKernelData(fbb, textBinary), textBinary.size()};
+    result.text = {kernelName.data(), buildKernelData(fbb, textBinary), textBinary.size() - 1024};
 
     auto dataName = std::string(kernelName) + ".data";
     result.data = {dataName, buildKernelData(fbb, dataBinary), dataBinary.size()};
