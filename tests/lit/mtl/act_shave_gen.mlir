@@ -46,8 +46,8 @@ IE.CNNNetwork
     }
 
 func @main(%arg0: memref<1x1x1x1000xf16>, %arg1: memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16> {
-    %0 = VPUIP.DeclareTensor "VPU_CMX_NN" [0,1,2,3] <0> -> memref<1x1x1x1000xf16, "VPU_CMX_NN">
-    %1 = VPUIP.DeclareTensor "VPU_CMX_NN" [0,1,2,3] <1> -> memref<1x1x1x1000xf16, "VPU_CMX_NN">
+    %0 = VPUIP.DeclareTensor "VPU_CMX_NN" [0] <0> -> memref<1x1x1x1000xf16, "VPU_CMX_NN">
+    %1 = VPUIP.DeclareTensor "VPU_CMX_NN" [0] <2000> -> memref<1x1x1x1000xf16, "VPU_CMX_NN">
 
     %sigmoid_krn = VPUIP.DeclareKernelData <"sigmoid"> "GFEmbeddedKernel" 0 -> memref<1000xui8, "VPU_CMX_NN">
 
