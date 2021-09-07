@@ -13,6 +13,14 @@ namespace {
 class KmbQuantizedConvSubGraphTest :
         public LayerTestsUtils::KmbLayerTestsCommon,
         public testing::WithParamInterface<LayerTestsUtils::TargetDevice> {
+
+        void ConfigureNetwork() override {
+            cnnNetwork.getInputsInfo().begin()->second->setLayout(InferenceEngine::Layout::NCHW);
+            cnnNetwork.getOutputsInfo().begin()->second->setLayout(InferenceEngine::Layout::NCHW);
+            cnnNetwork.getInputsInfo().begin()->second->setPrecision(InferenceEngine::Precision::FP16);
+            cnnNetwork.getOutputsInfo().begin()->second->setPrecision(InferenceEngine::Precision::FP16);
+        }
+
     void SetUp() override {
         const InferenceEngine::SizeVector inputShape{1, 3, 62, 62};
         const InferenceEngine::SizeVector weightsShape{48, 3, 3, 3};
@@ -71,15 +79,15 @@ class KmbQuantizedConvSubGraphTest :
     }
 };
 
-TEST_P(KmbQuantizedConvSubGraphTest, CompareWithRefs_MLIR_SW) {
-    useCompilerMLIR();
-    setReferenceSoftwareModeMLIR();
-    Run();
-}
+// TEST_P(KmbQuantizedConvSubGraphTest, CompareWithRefs_MLIR_SW) {
+//     useCompilerMLIR();
+//     setReferenceSoftwareModeMLIR();
+//     Run();
+// }
 
 TEST_P(KmbQuantizedConvSubGraphTest, CompareWithRefs_MLIR_HW) {
-    useCompilerMLIR();
-    setReferenceHardwareModeMLIR();
+    //useCompilerMLIR();
+    //setReferenceHardwareModeMLIR();
     Run();
 }
 
