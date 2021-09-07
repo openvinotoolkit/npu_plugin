@@ -524,7 +524,7 @@ class DepthWiseConv(MPE):
 
     @property
     def ident(self) -> str:
-        return f'dw_conv_{shape_to_str(self.settings.input_shape)}x{self.settings.input_ttype.stype}_{shape_to_str(self.settings.weight_shape)}_pads_{shape_to_str(self.settings.kernel_pads)}_strides_{shape_to_str(self.settings.kernel_strides)}_kern_chan_{self.settings.kernel_channels}'
+        return f'dw_conv_{shape_to_str(self.settings.input_shape)}x{self.settings.input_ttype.stype}_{shape_to_str(self.settings.weight_shape)}x{self.settings.input_ttype.stype}_pads_{shape_to_str(self.settings.kernel_pads)}_strides_{shape_to_str(self.settings.kernel_strides)}_kern_chan_{self.settings.kernel_channels}'
 
     @property
     def orderer(self) -> Orderer:
@@ -1096,36 +1096,36 @@ def generate_options(args):
                    input_shapes=[[1, 16, 32, 32]],
                    weight_types=[UInt8(1)],
                    kernel_channels=[16],
-                   kernel_shapes=[[14, 14]],
+                   kernel_shapes=[[10, 10], [11, 11]],
                    output_types=[Int4(), UInt4(), UInt8()],
-                   pads=Pad.none + Pad.all(7) + Pad.top(7) + Pad.left(7) + Pad.bottom(7) + Pad.right(7)),
+                   pads=Pad.none + Pad.all(5) + Pad.top(5) + Pad.left(5) + Pad.bottom(5) + Pad.right(5)),
 
         # Z-Major Convolution, padding, int8
         genZMConvs(input_types=[Int8(2)],
                    input_shapes=[[1, 16, 32, 32]],
                    weight_types=[Int4(2), Int8(2)],
                    kernel_channels=[16],
-                   kernel_shapes=[[14, 14]],
+                   kernel_shapes=[[10, 10]],
                    output_types=[Int4(), UInt4(), Int8()],
-                   pads=Pad.none + Pad.top(7) + Pad.left(7) + Pad.bottom(7) + Pad.right(7)),
+                   pads=Pad.none + Pad.top(5) + Pad.left(5) + Pad.bottom(5) + Pad.right(5)),
 
         # Z-Major Convolution, padding, fp16
         genZMConvs(input_types=[FP16(2)],
                    input_shapes=[[1, 16, 32, 32]],
                    weight_types=[FP16(2)],
                    kernel_channels=[16],
-                   kernel_shapes=[[14, 14]],
+                   kernel_shapes=[[10, 10]],
                    output_types=[FP16()],
-                   pads=Pad.none + Pad.top(7) + Pad.left(7) + Pad.bottom(7) + Pad.right(7)),
+                   pads=Pad.none + Pad.top(5) + Pad.left(5) + Pad.bottom(5) + Pad.right(5)),
 
         # Z-Major Convolution, padding, bf16
         genZMConvs(input_types=[BF16(2)],
                    input_shapes=[[1, 16, 32, 32]],
                    weight_types=[BF16(2)],
                    kernel_channels=[16],
-                   kernel_shapes=[[14, 14]],
+                   kernel_shapes=[[10, 10]],
                    output_types=[BF16()],
-                   pads=Pad.none + Pad.top(7) + Pad.left(7) + Pad.bottom(7) + Pad.right(7)),
+                   pads=Pad.none + Pad.top(5) + Pad.left(5) + Pad.bottom(5) + Pad.right(5)),
 
         # Z-Major Convolution, padding, 4x6 kernel, uint8
         genZMConvs(input_types=[UInt8(2)],
@@ -1135,15 +1135,6 @@ def generate_options(args):
                    kernel_shapes=[[4, 6]],
                    output_types=[UInt8()],
                    pads=[[2,0,0,0],[3,0,0,0]]),
-
-        # Z-Major Convolution, padding, 4x4 kernel, uint8
-        genZMConvs(input_types=[UInt8(2)],
-                   input_shapes=[[1, 16, 32, 32]],
-                   weight_types=[UInt8(1)],
-                   kernel_channels=[16],
-                   kernel_shapes=[[12, 14]],
-                   output_types=[UInt8()],
-                   pads=[[6,0,0,0],[7,0,0,0]]),
 
         # Z-Major Convolution, padding, 5x5 kernel, uint8
         genZMConvs(input_types=[UInt8(2)],
