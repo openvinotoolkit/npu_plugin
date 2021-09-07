@@ -1,4 +1,4 @@
-// RUN: vpux-opt --split-input-file --propagate-quantize-dequantize %s | FileCheck %s
+// RUN: vpux-opt --split-input-file --fuse-quantized-ops %s | FileCheck %s
 
 // CHECK-LABEL: @FuseQuantParamsIntoConv
 func @FuseQuantParamsIntoConv(%arg0: tensor<1x3x16x16xf16>) -> tensor<1x3x14x14xf16> {
