@@ -1312,7 +1312,7 @@ class Operation_Dag {
         if (is_dma_op_moving_data_from_cmx_to_ddr(op)) {continue;}
         if (op_has_unit_out_degree(op)) { continue; }
 
-        add_directed_edge_from_input(op);
+        // add_directed_edge_from_input(op);
       }
 
     }
