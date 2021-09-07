@@ -6,6 +6,7 @@
 #include <functional_test_utils/precision_utils.hpp>
 #include <ngraph_functions/utils/ngraph_helpers.hpp>
 #include <ngraph_functions/builders.hpp>
+#include "vpux_private_metrics.hpp"
 
 InferenceEngine::CNNNetwork buildSingleLayerSoftMaxNetwork() {
 	InferenceEngine::SizeVector inputShape = {1, 3, 4, 3};
@@ -36,3 +37,7 @@ const std::string PlatformEnvironment::PLATFORM = []() -> std::string {
 
         return std::string("3700");
 }();
+
+std::string getBackendName(const InferenceEngine::Core& core) {
+	return core.GetMetric("VPUX", VPUX_METRIC_KEY(BACKEND_NAME)).as<std::string>();
+}
