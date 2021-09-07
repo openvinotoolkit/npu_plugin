@@ -519,5 +519,39 @@ flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, mli
 
     auto finalTiming = rootTiming.nest("Finalize serialized graph");
     writer.impl().Finish(graphFile, "BLOB");
-    return writer.impl().Release();
+    auto detached = writer.impl().Release();
+
+    auto serializedGraphFile = MVCNN::GetGraphFile(detached.data());
+
+    // locating act-kernel
+    for (auto &&task_list : *serializedGraphFile->task_lists()) {
+        for (auto && task : *task_list->content()) {
+            if (auto act_kernel_taks = task->task_as_ActKernelTask()) {
+                auto kernel_text = act_kernel_taks->kernel()->kernelText();
+
+                // hardcode kernelText to be 5th element
+                auto text_to_move = serializedGraphFile->kernel_data()->Get(kernel_text->locale_index())->data();
+                auto offset = text_to_move->Data() - detached.data();
+                log.trace("offset to kernel in Finished FBB is = {0}", offset);
+                //align calculations
+                auto aligned_offset = llvm::alignTo(offset, 1024);
+                offset = aligned_offset - offset;
+                log.trace("move kernel by {0} bytes to be {1}", offset, aligned_offset);
+
+                memmove(const_cast<uint8_t*>(text_to_move->Data() + offset),
+                        text_to_move->Data(), text_to_move->Length() - 1024);
+
+                // clear beginning
+                memset(const_cast<uint8_t*>(text_to_move->Data()), 0, offset);
+
+                // correcting data offset for kernel section
+                auto table = (flatbuffers::Table*)kernel_text;
+
+                // updating offset pointer
+                table->SetField(MVCNN::KernelDataReference::VT_DATA_OFFSET, (uint32_t)offset, 0u) ;
+            }
+        }
+    }
+
+    return detached;
 }
