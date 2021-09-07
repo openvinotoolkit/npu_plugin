@@ -95,8 +95,11 @@ void vpux::VPUIP::NCEClusterTaskOp::inferLayoutInfo(mlir::Operation* origOp, IE:
                 Logger::global().error("KY: {0}", KY);
                 Logger::global().error("KX: {0}", KX);
 
-                info.setInput(0, DimsOrder::NHWC);
-                info.setInput(1, DimsOrder::OYXI);
+                // info.setInput(0, DimsOrder::NHWC);
+                // info.setInput(1, DimsOrder::OYXI);
+                info.setInput(1, DimsOrder::OIYX);
+                info.setOutput(0, DimsOrder::NHWC);
+
                 info.setOutput(0, DimsOrder::NHWC);
             })
             .Case<IE::GroupConvolutionOp>([&](IE::GroupConvolutionOp) {
@@ -195,9 +198,9 @@ mlir::LogicalResult verifyNCECMConv(VPUIP::NCEClusterTaskOp op) {
     if (op.weight_table() == nullptr) {
         return errorAt(op, "weight_table is required for NCETaskType : '{0}'", op.task_type());
     }
-    if (op.activation_window() == nullptr) {
-        return errorAt(op, "activation_window is required for NCETaskType : '{0}'", op.task_type());
-    }
+    // if (op.activation_window() == nullptr) {
+    //     return errorAt(op, "activation_window is required for NCETaskType : '{0}'", op.task_type());
+    // }
 
     if (op.kernel_sizeAttr() == nullptr) {
         return errorAt(op, "kernel_size is required for NCETaskType : '{0}'", op.task_type());
@@ -245,7 +248,7 @@ mlir::LogicalResult verifyNCECMConv(VPUIP::NCEClusterTaskOp op) {
     //}
 
     const auto weightsLayout = DimsOrder::fromValue(op.weights());
-    if (weightsLayout != DimsOrder::NHWC) {
+    if (weightsLayout != DimsOrder::NCHW) {
         return errorAt(op, "weights layout must be NHWC, got {0}", weightsLayout);
     }
 
@@ -412,6 +415,10 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(VPUIP::DPUTaskOp op) {
 mlir::LogicalResult vpux::VPUIP::verifyOp(VPUIP::NCEClusterTaskOp op) {
     if (op.task_type() == VPUIP::NCETaskType::CONV) {
         if (mlir::failed(verifyNCEConv(op))) {
+            return mlir::failure();
+        }
+    } else if (op.task_type() == VPUIP::NCETaskType::CMCONV) {
+        if (mlir::failed(verifyNCECMConv(op))) {
             return mlir::failure();
         }
     } else if (op.task_type() == VPUIP::NCETaskType::MAXPOOL || op.task_type() == VPUIP::NCETaskType::AVEPOOL) {
