@@ -20,10 +20,10 @@ namespace ie = InferenceEngine;
 
 namespace vpux {
 
-EmulatorExecutor::EmulatorExecutor(const vpux::NetworkDescription::Ptr& network)
+EmulatorExecutor::EmulatorExecutor(const vpux::NetworkDescription::Ptr& network, const VPUXConfig& config)
         : _logger("EmulatorBackend", vpu::LogLevel::Debug /*_config.logLevel()*/, vpu::consoleOutput()),
           _network(network),
-          _manager(ie::getIELibraryPath() + "/mcm_emulator") {
+          _manager(ie::getIELibraryPath() + "/mcm_emulator", config.logLevel()) {
 }
 
 void EmulatorExecutor::push(const ie::BlobMap& inputs, const PreprocMap&) {
