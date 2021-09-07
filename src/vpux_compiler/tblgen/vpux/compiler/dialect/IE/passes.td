@@ -373,19 +373,19 @@ def MergeFakeQuant : PassBase<"merge-fake-quant", "vpux::FunctionPass"> {
 }
 
 //
-// PropagateQuantizeDequantize
+// FuseQuantizedOps
 //
 
-def PropagateQuantizeDequantize : PassBase<"propagate-quantize-dequantize", "vpux::FunctionPass"> {
+def FuseQuantizedOps : PassBase<"fuse-quantized-ops", "vpux::FunctionPass"> {
     let summary = "Update quantize/dequantize ops";
 
     let description = [{
         The pass is a part of `LowPrecision` pipeline.
 
-        Pass detect pattern `quant.dcast -> op -> quant.qcast` into single quantized Op
+        Pass detects pattern quant.dcast -> op -> quant.qcast and converts it into single quantized Op
     }];
 
-    let constructor = "vpux::IE::createPropagateQuantizeDequantizePass()";
+    let constructor = "vpux::IE::createFuseQuantizedOpsPass()";
 
     let dependentDialects = [
         "vpux::IE::IEDialect",

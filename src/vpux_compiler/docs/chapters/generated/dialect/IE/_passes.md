@@ -62,6 +62,10 @@ The pass is a part of `AdjustForVPU` pipeline.
 
 Fuse activation functions (e.g. ReLU, leaky ReLU) with tasks that support post-processing
 depending on the compilation mode
+### `-fuse-quantized-ops`: Update quantize/dequantize ops
+The pass is a part of `LowPrecision` pipeline.
+
+Pass detects pattern quant.dcast -> op -> quant.qcast and converts it into single quantized Op
 ### `-merge-fake-quant`: Merge back to FakeQuantize
 The pass is a part of `LowPrecision` pipeline.
 
@@ -70,10 +74,6 @@ The pass is used as a fallback to FP16 computations for the cases, where quantiz
 ### `-optimize-reorders`: Optimize extra Reorder operations
 This pass tries to optimize out Reorder operations for common cases
 by propagating them from inputs to outputs and merging into layers.
-### `-propagate-quantize-dequantize`: Update quantize/dequantize ops
-The pass is a part of `LowPrecision` pipeline.
-
-Pass detect pattern `quant.dcast -> op -> quant.qcast` into single quantized Op
 ### `-resolve-strided-slice`: Decouple strided slice to slice + reshape
 The pass is a part of `AdjustForVPU` pipeline.
 

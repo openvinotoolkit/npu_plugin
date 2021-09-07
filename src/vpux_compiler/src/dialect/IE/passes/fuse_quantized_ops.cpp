@@ -129,13 +129,12 @@ mlir::LogicalResult FuseWithMaxPool::matchAndRewrite(IE::QuantizeOp quantizeOp, 
 }
 
 //
-// PropagateQuantizeDequantizePass
+// FuseQuantizedOpsPass
 //
 
-class PropagateQuantizeDequantizePass final :
-        public IE::PropagateQuantizeDequantizeBase<PropagateQuantizeDequantizePass> {
+class FuseQuantizedOpsPass final : public IE::FuseQuantizedOpsBase<FuseQuantizedOpsPass> {
 public:
-    explicit PropagateQuantizeDequantizePass(Logger log) {
+    explicit FuseQuantizedOpsPass(Logger log) {
         Base::initLogger(log, Base::getArgumentName());
     }
 
@@ -143,7 +142,7 @@ private:
     void safeRunOnFunc() final;
 };
 
-void PropagateQuantizeDequantizePass::safeRunOnFunc() {
+void FuseQuantizedOpsPass::safeRunOnFunc() {
     auto& ctx = getContext();
 
     mlir::OwningRewritePatternList patterns(&ctx);
@@ -158,9 +157,9 @@ void PropagateQuantizeDequantizePass::safeRunOnFunc() {
 }  // namespace
 
 //
-// createPropagateQuantizeDequantizePass
+// createFuseQuantizedOpsPass
 //
 
-std::unique_ptr<mlir::Pass> vpux::IE::createPropagateQuantizeDequantizePass(Logger log) {
-    return std::make_unique<PropagateQuantizeDequantizePass>(log);
+std::unique_ptr<mlir::Pass> vpux::IE::createFuseQuantizedOpsPass(Logger log) {
+    return std::make_unique<FuseQuantizedOpsPass>(log);
 }
