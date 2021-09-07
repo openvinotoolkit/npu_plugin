@@ -29,6 +29,13 @@ TEST_P(KmbMvn6LayerTest, basicTest) {
     Run();
 }
 
+class KmbMvn6LayerTestMLIR : public Mvn6LayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
+
+TEST_P(KmbMvn6LayerTestMLIR, CompareWithRefs_MLIR) {
+    useCompilerMLIR();
+    Run();
+}
+
 }  // namespace LayerTestsDefinitions
 
 using namespace LayerTestsDefinitions;
@@ -119,7 +126,7 @@ INSTANTIATE_TEST_CASE_P(
 //Test MVN MLIR
 
 INSTANTIATE_TEST_CASE_P(
-    smoke_TestsMVN, KmbMvnLayerTestMLIR, ::testing::Combine(
+    smoke_TestsMVN_MLIR, KmbMvnLayerTestMLIR, ::testing::Combine(
         ::testing::ValuesIn(MLIRinputShapes),
         ::testing::Values(InferenceEngine::Precision::FP32),
         ::testing::ValuesIn(acrossChannels),
@@ -150,3 +157,14 @@ INSTANTIATE_TEST_CASE_P(smoke_MVN6_4D, KmbMvn6LayerTest, ::testing::Combine(
                             ::testing::Values("outside_sqrt"),
                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
                         KmbMvn6LayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(smoke_MVN6_4D_MLIR, KmbMvn6LayerTestMLIR, ::testing::Combine(
+                            ::testing::ValuesIn(std::vector<std::vector<size_t>>{{1, 10, 5, 17}}),
+                            ::testing::Values(InferenceEngine::Precision::FP16),
+                            ::testing::Values(InferenceEngine::Precision::I32),
+                            ::testing::ValuesIn(std::vector<std::vector<int>>{{1, 2, 3}, {2, 3}, {-2, -1}, {-2, -1, -3}}),
+                            ::testing::ValuesIn(normalizeVariance),
+                            ::testing::ValuesIn(epsilonF),
+                            ::testing::Values("outside_sqrt"),
+                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                        KmbMvn6LayerTestMLIR::getTestCaseName);

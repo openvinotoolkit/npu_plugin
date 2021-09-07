@@ -50,6 +50,7 @@
 #include <ngraph/pass/constant_folding.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/type/element_type.hpp>
+#include "vpux/passes/convert_MVN6_to_MVN1.hpp"
 
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/common_optimizations/convert_quantize_dequantize.hpp>
@@ -62,6 +63,7 @@
 #include <transformations/op_conversions/hsigmoid_decomposition.hpp>
 #include <transformations/op_conversions/hswish_decomposition.hpp>
 #include <transformations/op_conversions/lstm_cell_decomposition.hpp>
+#include <transformations/op_conversions/mvn6_decomposition.hpp>
 #include <transformations/op_conversions/simplify_ctc_greedy_decoder_seq_len.hpp>
 #include "legacy/transformations/convert_opset1_to_legacy/convert_strided_slice_to_crop.hpp"
 
@@ -1624,6 +1626,10 @@ void runNGraphPasses(const std::shared_ptr<ngraph::Function>& netGraph, mlir::Ti
     passConfig->disable<ngraph::pass::LSTMCellDecomposition>();
     passConfig->disable<ngraph::pass::SimplifyCTCGreedyDecoderSeqLen>();
     passConfig->disable<ngraph::pass::ConvertStridedSliceToCropMatcher>();
+    // MVN6Decomposition is disabled because we do not support Subtract and ReduceMean.
+    // The ReduceMean layer can be solved with ngraph::pass::ConvertReduceToPooling pass, but still remain Subtract
+    // issue.
+    passConfig->disable<ngraph::pass::MVN6Decomposition>();
 
     ngraph::pass::Manager manager(passConfig);
     manager.register_pass<ngraph::pass::InitNodeInfo>();
@@ -1636,6 +1642,7 @@ void runNGraphPasses(const std::shared_ptr<ngraph::Function>& netGraph, mlir::Ti
     manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<vpux::passes::OnnxReorgPatternToDarkNetReorg>();
     manager.register_pass<vpux::passes::ConvertExtractImagePatchesToReorgYoloVPU>();
+    manager.register_pass<vpux::passes::ConvertMVN6toMVN1>();
     manager.register_pass<ngraph::pass::CommonOptimizations>();
     manager.register_pass<vpux::passes::AlignScales>();
 

@@ -13,7 +13,7 @@
 
 // clang-format off
 
-#include "ngraph_mcm_frontend/passes/convert_MVN6_to_MVN1.hpp"
+#include "vpux/passes/convert_MVN6_to_MVN1.hpp"
 
 #include <memory>
 #include <ngraph/op/mvn.hpp>
@@ -23,6 +23,10 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include "ngraph/node.hpp"
 
+namespace vpux {
+
+namespace passes {
+
 ConvertMVN6toMVN1::ConvertMVN6toMVN1()
 {
     auto mvn6 = ngraph::pattern::wrap_type<ngraph::op::v6::MVN>();
@@ -31,6 +35,12 @@ ConvertMVN6toMVN1::ConvertMVN6toMVN1()
     {
         auto mvn6 = std::dynamic_pointer_cast<ngraph::op::v6::MVN>(m.get_match_root());
         if (!mvn6) {
+            return false;
+        }
+        const auto eps_mode = mvn6->get_eps_mode();
+        
+        if(eps_mode != ngraph::op::MVNEpsMode::OUTSIDE_SQRT) {
+            //MVN-1 does not support inside_sqrt eps mode, in this case we should do MVN6Decomposition pass
             return false;
         }
 
@@ -61,13 +71,15 @@ ConvertMVN6toMVN1::ConvertMVN6toMVN1()
             across_channels = true;
         else if (axes.size() == 2 && axes[0] == 2 && axes[1] == 3)
             across_channels = false;
-        else
-            VPUX_THROW("MVN layer doesn't support axes '{0}', only normalization across channel or spatial dimension", ostr.str());
+        else {
+            //MVN-1 layer supports only normalization across channel or spatial dimension, in this case we should do MVN6Decomposition pass
+            return false;
+        }
       
-        const auto mcmMvn1 = std::make_shared<ngraph::op::v0::MVN>(input, across_channels, normalize_variance, (double)(eps));
-        mcmMvn1->set_friendly_name(mvn6->get_friendly_name());
+        const auto Mvn1 = std::make_shared<ngraph::op::v0::MVN>(input, across_channels, normalize_variance, (double)(eps));
+        Mvn1->set_friendly_name(mvn6->get_friendly_name());
 
-        ngraph::replace_node(mvn6, mcmMvn1);
+        ngraph::replace_node(mvn6, Mvn1);
         return true;
     };
 
@@ -75,4 +87,6 @@ ConvertMVN6toMVN1::ConvertMVN6toMVN1()
     register_matcher(m, callback);
 }
 
+}  // namespace passes
+}  // namespace vpux
 // clang-format on
