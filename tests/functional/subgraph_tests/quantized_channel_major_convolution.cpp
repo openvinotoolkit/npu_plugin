@@ -14,7 +14,7 @@ class KmbQuantizedChannelMajorConvSubGraphTest :
         public LayerTestsUtils::KmbLayerTestsCommon,
         public testing::WithParamInterface<LayerTestsUtils::TargetDevice> {
     void SetUp() override {
-        const InferenceEngine::SizeVector inputShape{1, 3, 62, 62};
+        const InferenceEngine::SizeVector inputShape{1, 3, 64, 64};
         const InferenceEngine::SizeVector weightsShape{48, 3, 3, 3};
 
         const auto params = ngraph::builder::makeParams(ngraph::element::f32, {inputShape});
