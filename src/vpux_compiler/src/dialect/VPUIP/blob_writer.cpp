@@ -135,7 +135,9 @@ const llvm::SmallVector<KernelDataDesc>& vpux::VPUIP::BlobWriter::getKernelData(
 }
 
 vpux::VPUIP::BlobWriter::KernelDataRef vpux::VPUIP::BlobWriter::createKernelDataRef(const KernelDataDesc& desc, MemoryLocation locale) {
-    return createKernelDataRef(desc.name, locale, 0, desc.size);
+    // offset is 1 to force field to be serialized by FB
+    uint32_t non_empty_offset = 1;
+    return createKernelDataRef(desc.name, locale, non_empty_offset, desc.size);
 }
 
 vpux::VPUIP::BlobWriter::KernelDataRef vpux::VPUIP::BlobWriter::createKernelDataRef(StringRef name, MemoryLocation locale,
@@ -165,22 +167,11 @@ vpux::VPUIP::BlobWriter::KernelDataRef vpux::VPUIP::BlobWriter::createKernelData
 vpux::VPUIP::BlobWriter::KernelDataRef vpux::VPUIP::BlobWriter::createInvocationArgs(mlir::Operation* op,
                                                                                      vpux::VPUIP::MemoryLocation locale) {
 
-    cfg_dpu_description desc_ptr {};
-#if 0
-    const uint32_t X = desc_ptr->idu.tensor_size0.x; // tensor_width
-    const uint32_t Y = desc_ptr->idu.tensor_size0.y;
-    const uint32_t Z = desc_ptr->idu.tensor_size1.z;
-    uint32_t input_addr = desc_ptr->idu.tensor_start << 4;
-    input_addr += desc_ptr->idu.act0_offset;
-
-    float* p_act_data = (float*)(input_addr); // 0x1F000000
-    half* p_act_out = (half*)(desc_ptr->odu_ac_base.ac_base << 4); // 0x1F004000
-#endif
+    cfg_dpu_description dpuDescriptor{};
 
     if (auto layer = mlir::dyn_cast<VPUIP::ACTShaveTaskOp>(op)) {
         const auto & input = layer->getOpOperand(0);
         const auto result = layer.outputs()[0];
-
 
         _log.trace("Create Invocation input= {0}", input.get());
         _log.trace("Create Invocation output= {0}", result);
@@ -188,39 +179,21 @@ vpux::VPUIP::BlobWriter::KernelDataRef vpux::VPUIP::BlobWriter::createInvocation
         auto inputShape = input.get().getType().cast<mlir::ShapedType>();
         auto outputShape = result.getType().cast<mlir::ShapedType>();
 
-        desc_ptr.idu.tensor_size0.x = inputShape.getShape()[3]; // tensor_width
-        desc_ptr.idu.tensor_size0.y = inputShape.getShape()[2];
-        desc_ptr.idu.tensor_size1.z = inputShape.getShape()[1];
+        dpuDescriptor.idu.tensor_size0.x = inputShape.getShape()[3]; // tensor_width
+        dpuDescriptor.idu.tensor_size0.y = inputShape.getShape()[2];
+        dpuDescriptor.idu.tensor_size1.z = inputShape.getShape()[1];
 
         auto inputTensor = input.get().getDefiningOp<VPUIP::DeclareTensorOp>();
         auto outputTensor = result.getDefiningOp<VPUIP::DeclareTensorOp>();
-
-        std::vector<uint64_t> cmx_memory_offset_{
-                mvds::nce2p7::CMX_BASE_ADDRESS[0],
-                mvds::nce2p7::CMX_BASE_ADDRESS[1]
-        };
 
         auto getAddress = [](VPUIP::DeclareTensorOp & tensor) {
             return tensor.dataIndex() + tensor.leadingOffset().getValueOr(0);
         };
 
-        auto getInstance = [](VPUIP::DeclareTensorOp & tensor) {
-            uint32_t index {};
+        dpuDescriptor.idu.act0_offset     = mvds::nce2p7::ACT_KERNEL_CMX_WINDOW + getAddress(inputTensor);
 
-            if(tensor.localeIndex().size()) {
-                index = parseIntArrayAttr(tensor.localeIndex())[0];
-            }
-
-            return index;
-        };
-
-        //desc_ptr.idu.act0_offset     = cmx_memory_offset_[getInstance(inputTensor)] + getAddress(inputTensor);
-        //desc_ptr.idu.act0_offset   >>= 4;
-
-        desc_ptr.idu.act0_offset     = mvds::nce2p7::ACT_KERNEL_CMX_WINDOW + getAddress(inputTensor);
-
-        auto odu_tmp_ptr = mvds::nce2p7::ACT_KERNEL_CMX_WINDOW + 0x4000;
-        desc_ptr.odu_ac_base.ac_base = odu_tmp_ptr >> 4;
+        auto odu_tmp_ptr = mvds::nce2p7::ACT_KERNEL_CMX_WINDOW + getAddress(outputTensor);
+        dpuDescriptor.odu_ac_base.ac_base = odu_tmp_ptr >> 4;
 
 
         const auto source = layer.getViewSource();
@@ -229,7 +202,7 @@ vpux::VPUIP::BlobWriter::KernelDataRef vpux::VPUIP::BlobWriter::createInvocation
         VPUX_THROW_UNLESS(source.getType().isa<mlir::MemRefType>(), "Only MemRef type tensors are supported, got '{0}'",
                           source.getType());
 
-        ArrayRef<uint8_t> dummyArgsAsVector(reinterpret_cast<uint8_t*>(&desc_ptr), sizeof(desc_ptr));
+        ArrayRef<uint8_t> dummyArgsAsVector(reinterpret_cast<uint8_t*>(&dpuDescriptor), sizeof(dpuDescriptor));
 
         // TODO: should be specific sigmoid args instead of cfg_dpu_descriptor
         auto invocationArgs = createKernelDataRef(op->getName().getStringRef(), locale, 0, sizeof(cfg_dpu_description),
@@ -278,6 +251,7 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createACTShaveTask(mlir
     invocationBuilder.add_dataSection(dataSection);
     invocationBuilder.add_associatedBarriers(barrierReference);
     invocationBuilder.add_invocationArgs(invocationArgs);
+
 
     std::vector<flatbuffers::Offset<MVCNN::ActKernelInvocation>> invocations_v1 = {invocationBuilder.Finish()};
 
