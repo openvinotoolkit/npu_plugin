@@ -36,7 +36,8 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 };
 
 const std::vector<std::vector<size_t>> inputShapes = {
-        std::vector<size_t>{10, 20, 30, 40},
+        //std::vector<size_t>{10, 20, 30, 40},
+          std::vector<size_t>{ 5,  6,  7,  8},
 };
 
 const std::vector<std::vector<int>> indices = {
