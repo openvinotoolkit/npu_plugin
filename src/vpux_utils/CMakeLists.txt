@@ -44,5 +44,11 @@ link_system_libraries(${TARGET_NAME}
     PUBLIC
         IE::inference_engine
         IE::ngraph
+        IE::vpu_common_lib
         LLVMSupport
+)
+
+target_link_libraries(${TARGET_NAME}
+    PUBLIC
+        vpux_al
 )

@@ -146,6 +146,10 @@ public:
         return _optimizeInputPrecision;
     }
 
+    bool forcePluginInputQuantization() const {
+        return _forcePluginInputQuantization;
+    }
+
 protected:
     void parse(const std::map<std::string, std::string>& config) override;
 
@@ -198,6 +202,7 @@ private:
     std::string _layerLocationStrategies = "";
 
     bool _optimizeInputPrecision = true;
+    bool _forcePluginInputQuantization = false;
 };
 
 }  //  namespace vpu
