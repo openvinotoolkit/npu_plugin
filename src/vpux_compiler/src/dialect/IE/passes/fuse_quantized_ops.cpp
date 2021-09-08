@@ -116,6 +116,10 @@ mlir::LogicalResult FuseWithMaxPool::matchAndRewrite(IE::QuantizeOp quantizeOp, 
         return mlir::failure();
     }
 
+    if (VPUIP::NCEInvariant::verifyKernel(maxPoolOp, _log).failed()) {
+        return mlir::failure();
+    }
+
     auto inputDequantizeOp = maxPoolOp.input().getDefiningOp<IE::DequantizeOp>();
     if (inputDequantizeOp == nullptr) {
         return mlir::failure();
