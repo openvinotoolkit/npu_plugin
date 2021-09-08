@@ -44,5 +44,12 @@ DECLARE_VPU_COMPILER_CONFIG_KEY(NUM_CLUSTER);
 
 DECLARE_VPU_COMPILER_CONFIG_KEY(OPTIMIZE_INPUT_PRECISION);
 
+/**
+ * @brief [Currently supported only for MCM Compiler + Level0 backend]
+ * Type: "YES", "NO", default is "NO"
+ * This option allows to perform FP32/FP16 to U8 input quantization on VPUX Plugin side via CPU
+ */
+DECLARE_VPU_COMPILER_CONFIG_KEY(FORCE_PLUGIN_INPUT_QUANTIZATION);
+
 }  // namespace VPUXConfigParams
 }  // namespace InferenceEngine

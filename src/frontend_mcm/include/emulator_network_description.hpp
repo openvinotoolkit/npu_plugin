@@ -36,6 +36,8 @@ public:
 
     const vpux::DataMap& getDeviceOutputsInfo() const final;
 
+    const vpux::QuantizationParamMap& getQuantParamsInfo() const final;
+
     const std::vector<char>& getCompiledNetwork() const final;
 
     const void* getNetworkModel() const final;
@@ -50,6 +52,7 @@ private:
     std::unique_ptr<vpu::Logger> _logger;
     vpux::DataMap _dataMapPlaceholder;
     std::vector<char> _compiledNetworkPlaceholder;
+    vpux::QuantizationParamMap _quantParams;
 };
 
 }  // namespace MCMAdapter
