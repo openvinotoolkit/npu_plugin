@@ -1758,7 +1758,8 @@ void HeuristicGraphOptimizer::verifySpillStrategies(bool lockClusteringStrategy 
     auto sortedOps = model_.topologicalSort();
     for(auto opIt : sortedOps)
     {
-        if(!opIt->hasAttr("StrategySet") || opIt->getOpType() == "Input" || opIt->getOpType() == "Concat") continue;
+        if(!opIt->hasAttr("StrategySet") || opIt->getOpType() == "Concat" ||
+                opIt->getOpType() == "Input" || opIt->getOpType() == "Output") continue;
 
         auto opStrategy = bestStrategies_.at(opIt->getName());
         if(!opStrategy["parentSpilling"].get<bool>()) continue; //If we work with CMX input, no need to check
