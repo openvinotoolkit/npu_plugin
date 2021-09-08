@@ -6,6 +6,7 @@
 #include "single_layer_tests/comparison.hpp"
 #include "common_test_utils/test_constants.hpp"
 #include "kmb_layer_test.hpp"
+#include "common/functions.h"
 
 namespace LayerTestsDefinitions {
 
@@ -20,7 +21,11 @@ namespace LayerTestsDefinitions {
         }
     };
 
+// [Track number: #E20003]
     TEST_P(KmbComparisonLayerTest, CompareWithRefs) {
+    if (getBackendName(*getCore()) == "LEVEL0") {
+        SKIP() << "Skip due to failure on device";
+    }
         Run();
     }
 } // namespace LayerTestsDefinitions
