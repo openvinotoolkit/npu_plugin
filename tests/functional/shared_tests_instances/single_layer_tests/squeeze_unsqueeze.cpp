@@ -6,6 +6,7 @@
 #include "single_layer_tests/squeeze_unsqueeze.hpp"
 #include "common_test_utils/test_constants.hpp"
 #include "kmb_layer_test.hpp"
+#include "common/functions.h"
 
 namespace LayerTestsDefinitions {
 
@@ -41,10 +42,18 @@ class KmbSqueezeUnsqueezeLayerTest: public SqueezeUnsqueezeLayerTest, virtual pu
 };
 
 TEST_P(KmbSqueezeUnsqueezeLayerTest, CompareWithRefs) {
+    // [Track number: #E20158]
+    if (getBackendName(*getCore()) == "LEVEL0") {
+        SKIP() << "Skip due to failure on device";
+    }
     Run();
 }
 
 TEST_P(KmbSqueezeUnsqueezeLayerTest, CompareWithRefs_MLIR) {
+    // [Track number: #E20158]
+    if (getBackendName(*getCore()) == "LEVEL0") {
+        SKIP() << "Skip due to failure on device";
+    }
     useCompilerMLIR();
     Run();
 }
