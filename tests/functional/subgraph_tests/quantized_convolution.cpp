@@ -17,12 +17,12 @@ class KmbQuantizedConvSubGraphTest :
         void ConfigureNetwork() override {
             cnnNetwork.getInputsInfo().begin()->second->setLayout(InferenceEngine::Layout::NCHW);
             cnnNetwork.getOutputsInfo().begin()->second->setLayout(InferenceEngine::Layout::NCHW);
-            cnnNetwork.getInputsInfo().begin()->second->setPrecision(InferenceEngine::Precision::FP16);
+            cnnNetwork.getInputsInfo().begin()->second->setPrecision(InferenceEngine::Precision::U8);
             cnnNetwork.getOutputsInfo().begin()->second->setPrecision(InferenceEngine::Precision::FP16);
         }
 
     void SetUp() override {
-        const InferenceEngine::SizeVector inputShape{1, 3, 62, 62};
+        const InferenceEngine::SizeVector inputShape{1, 3, 64, 64};
         const InferenceEngine::SizeVector weightsShape{48, 3, 3, 3};
 
         const auto params = ngraph::builder::makeParams(ngraph::element::f32, {inputShape});
