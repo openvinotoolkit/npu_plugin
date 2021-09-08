@@ -904,7 +904,7 @@ class Pad:
 
 def filter_issues(args, p: DPUPipeline) -> bool:
     # TODO: Add arguments to selectively filter by issues.
-    return True
+    return 'EISW-13321' not in p.issues  # Filter int4
 
 
 _ZMCONV_VALID_WEIGHT_TYPES = {
