@@ -2213,12 +2213,13 @@ void replaceLargeKernelsFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
         }
         double firstRescale = 1.0 / (newKernel[0] * newKernel[1]);
         double secondRescale = static_cast<double>((newKernel[0] * newKernel[1])) / (kSize[0] * kSize[1]);
+        mv::DType targetDType = opIt->getOutputTensor(0)->getDType();
         mv::Data::TensorIterator op0;
         // Execute the DepthwiseConvs in float precision to avoid wrong quantization.
         if (opIt->getOpType() == "AveragePool")
             op0 = createPartialDepthwise(om, opIt, sourceTensor,
                                          name + "_DepthwiseConv0",
-                                         firstRescale, newKernel, padding, mv::DType("Float16"));
+                                         firstRescale, newKernel, padding, targetDType);
         else if (opIt->getOpType()== "MaxPool")
         {
             std::array<unsigned short, 2> strides = newKernel;
@@ -2283,7 +2284,7 @@ void replaceLargeKernelsFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
         if (input_op0->getOpType() == "DepthwiseConv" || input_op0->getOpType() == "AveragePool" )
             op1 = createPartialDepthwise(om, input_op0, op0,
                                          name + "_DepthwiseConv1", secondRescale, newKernel_1,
-                                         {0,0,0,0}, mv::DType("Float16"));
+                                         {0,0,0,0}, targetDType);
         else if (input_op0->getOpType() == "MaxPool")
         {
             std::array<unsigned short, 2> strides = newKernel_1;
