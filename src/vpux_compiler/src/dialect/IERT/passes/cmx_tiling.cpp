@@ -407,14 +407,12 @@ OutputTiling SimpleTiler::genericTiler(mlir::Operation* op, mlir::MemRefType out
         return (tileChannels % minChannelSize) == 0;
     };
 
-
     const auto isDimLeftToTile = [&]() {
         if (dimToTile == IE::Dims4D::Act::C) {
                 return true;
         } else {  // Spatial dims
 
     while (!isSupportedTileSize(nTilesOnDim)) {
-        // First try tiling over output channels
 
         Optional<Dim> dimToTile;
 
@@ -428,17 +426,14 @@ OutputTiling SimpleTiler::genericTiler(mlir::Operation* op, mlir::MemRefType out
                 dimToTile = spatialDim;
                 break;
             }
+=======
+    const auto isDimLeftToTile = [&]() {
+        if(dimToTile == IE::Dims4D::Act::C) {
+            if(nTilesOnDim[IE::Dims4D::Act::C] < maxChannelTiles)
+                return true;
         }
-
-        VPUX_THROW_UNLESS(dimToTile.hasValue(), "Failed to tile {0} at '{1}'", op->getName(), op->getLoc());
-        nTilesOnDim[dimToTile.getValue()]++;
-    }
-
-    return fillDividedTiles(nTilesOnDim, outputShape);
-}
-
-OutputTiling SimpleTiler::groupConvTiler(mlir::Operation* op, mlir::MemRefType outputType,
-                                         FuncRef<bool(ShapeRef)> isSupportedTileSize) const {
+        else { // Spatial dims
+            const auto origSize = outputShape[dimToTile.getValue()];
     const auto outputShape = getShape(outputType);
 
     Shape nTilesOnDim(outputShape.size(), 1);
