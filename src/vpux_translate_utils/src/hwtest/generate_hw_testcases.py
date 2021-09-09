@@ -993,12 +993,6 @@ def genEltwiseMults(input_types=[Int8(6)],
                                                    ))
 
 
-_MAXPOOL_PPE_VALID_OUTPUT_TYPES = {
-    False: [FP16(), UInt8(), UInt4(), Int8(), Int4()],  # Integer
-    True: [FP16(), BF16()],  # FP
-}
-
-
 def genMaxPools(input_types=[FP16(6)],
                 input_shapes=[[1, 64, 16, 16]],
                 output_types=None,
@@ -1006,7 +1000,13 @@ def genMaxPools(input_types=[FP16(6)],
                 pads=Pad.none):
     for (input_type, input_shape, stride, pad) in itertools.product(input_types, input_shapes, strides, pads):
         if output_types is None:
-            current_output_types = _MAXPOOL_PPE_VALID_OUTPUT_TYPES[input_type.is_float]
+            if input_type.is_float:
+                if input_type.__class__ is BF16:
+                    current_output_types = [BF16()]
+                else:
+                    current_output_types = [FP16()]
+            else:
+                current_output_types = [FP16(), UInt8(), UInt4(), Int8(), Int4()]
         else:
             current_output_types = output_types
 
