@@ -51,6 +51,10 @@ There is a pass which will generate Dot graph during pipeline execution.
   Example: `--print-dot="output=dot1.dot"`
 3. Via compiler pipeline. Add printDot pass into compiler pipline in the code and rebuild the project.
   Example: `pm.addPass(createPrintDot(<FileName>, <Options>));` to generate file with <FileName> name.
+Note: 
+  1. By default declarations and constants are not printed. To enable add `declareOp=true and constOp=true` to the pass options
+  2. For big networks xdot appication may fail to show dot graph. In order to fix that you can add start and stop operations for printing.
+    Put exact name of operation(The name of operation should correspond to the name of the VPUX IR) like `startOp=pool2 stopOp=conv4/WithoutBiases` to the pass options.   
 
 ## IR dumping (Developer build)
 

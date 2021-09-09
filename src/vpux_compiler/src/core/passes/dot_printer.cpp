@@ -24,8 +24,10 @@ namespace {
 
 class PrintDotPass final : public PrintDotBase<PrintDotPass> {
 public:
-    PrintDotPass(StringRef fileName, bool printConst, bool printDeclarations, StringRef passName)
-            : fileName(fileName), printConstOp(printConst), printDeclarationsOp(printDeclarations), passName(passName) {
+    PrintDotPass(StringRef fileName, const GraphWriterParams& writerParams, StringRef passName)
+            : fileName(fileName), writerParams(writerParams), passName(passName) {
+    }
+    PrintDotPass() {
     }
 
     std::string getOpName(mlir::Operation& op) {
@@ -48,16 +50,12 @@ private:
 
     bool initialized = false;
     std::string fileName;
-    bool printConstOp = false;
-    bool printDeclarationsOp = false;
+    GraphWriterParams writerParams;
     std::string passName;
 };
 
 class PassDotGraph final : public mlir::PassInstrumentation {
 public:
-    explicit PassDotGraph() {
-    }
-
     void runAfterPass(mlir::Pass* pass, mlir::Operation* op) {
         for (auto& printDotPass : printDotPasses) {
             if (printDotPass->getPass() == pass->getName()) {
@@ -86,9 +84,8 @@ void PrintDotPass::processModule(mlir::ModuleOp module) {
         if (mlir::isa<mlir::FuncOp>(op)) {
             for (mlir::Region& region : op.getRegions()) {
                 for (auto indexed_block : llvm::enumerate(region)) {
-                    VPUX_THROW_UNLESS(
-                            vpux::WriteGraph(fileName, &indexed_block.value(), printConstOp, printDeclarationsOp) != "",
-                            "Could not create Dot File");
+                    VPUX_THROW_UNLESS(vpux::WriteGraph(fileName, indexed_block.value(), writerParams) != "",
+                                      "Could not create Dot File");
                 }
             }
         }
@@ -112,15 +109,19 @@ mlir::LogicalResult PrintDotPass::initializeOptions(StringRef options) {
         return mlir::failure();
     }
 
+    if (startOp.hasValue())
+        writerParams.startAfter = startOp.getValue();
+    if (stopOp.hasValue())
+        writerParams.stopBefore = stopOp.getValue();
     if (declareOp.hasValue())
-        printDeclarationsOp = declareOp.getValue();
+        writerParams.printDeclarations = declareOp.getValue();
     if (constOp.hasValue())
-        printConstOp = constOp.getValue();
+        writerParams.printConst = constOp.getValue();
     if (outputFile.hasValue())
         fileName = outputFile.getValue();
     if (afterPass.hasValue()) {
         PassDotGraph::printDotPasses.push_back(
-                std::make_unique<PrintDotPass>(fileName, printConstOp, printDeclarationsOp, afterPass.getValue()));
+                std::make_unique<PrintDotPass>(fileName, writerParams, afterPass.getValue()));
     }
 
     return mlir::success();
@@ -138,12 +139,18 @@ void vpux::addDotPrinterFromEnvVar(mlir::PassManager& pm, StringRef options) {
     std::stringstream ss(options.data());
     std::string split;
     while (getline(ss, split, ',')) {
-        std::unique_ptr<PrintDotPass> printDotPass = std::make_unique<PrintDotPass>("", "", "", "");
+        std::unique_ptr<PrintDotPass> printDotPass = std::make_unique<PrintDotPass>();
         VPUX_THROW_UNLESS(!mlir::failed(printDotPass->initializeOptions(split)), "Failed to initialize options");
         pm.addPass(std::move(printDotPass));
     }
 }
 
-std::unique_ptr<mlir::Pass> vpux::createPrintDot(StringRef fileName, bool printConst, bool printDeclarations) {
-    return std::make_unique<PrintDotPass>(fileName, printConst, printDeclarations, "");
+std::unique_ptr<mlir::Pass> vpux::createPrintDot(StringRef fileName, StringRef startAfter, StringRef stopBefore,
+                                                 bool printConst, bool printDeclarations) {
+    GraphWriterParams writerParams;
+    writerParams.printConst = printConst;
+    writerParams.printDeclarations = printDeclarations;
+    writerParams.startAfter = startAfter.str();
+    writerParams.stopBefore = stopBefore.str();
+    return std::make_unique<PrintDotPass>(fileName, writerParams, "");
 }

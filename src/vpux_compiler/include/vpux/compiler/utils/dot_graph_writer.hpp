@@ -41,6 +41,13 @@ constexpr int MAX_EDGE_NUM = 64;
 constexpr int MAX_ATTR_STR_SIZE = 80;
 enum class EdgeDir { EDGE_SKIP, EDGE_NORMAL, EDGE_REVERSE };
 
+struct GraphWriterParams {
+    std::string startAfter;
+    std::string stopBefore;
+    bool printConst;
+    bool printDeclarations;
+};
+
 // This is a optimized for VPUX copy of the LLVM GraphWriter: llvm/Support/GraphWriter.h
 // Before implementing new functionality please check if it already present in the original writer
 class GraphWriter {
@@ -54,15 +61,15 @@ class GraphWriter {
         return &op;
     }
     using nodes_iterator = llvm::mapped_iterator<mlir::Block::iterator, decltype(&AddressOf)>;
-    static nodes_iterator nodes_begin(mlir::Block* b) {
-        return nodes_iterator(b->begin(), &AddressOf);
+    static nodes_iterator nodes_begin(mlir::Block& b) {
+        return nodes_iterator(b.begin(), &AddressOf);
     }
-    static nodes_iterator nodes_end(mlir::Block* b) {
-        return nodes_iterator(b->end(), &AddressOf);
+    static nodes_iterator nodes_end(mlir::Block& b) {
+        return nodes_iterator(b.end(), &AddressOf);
     }
     llvm::raw_ostream& OStream;
-    mlir::Block*& Block;
-    bool PrintConst, PrintDeclarations;
+    mlir::Block& Block;
+    const GraphWriterParams WriterParams;
 
     auto getEdgeDirection(NodeRef Node, NodeRef TargetNode) {
         auto sideEffectsOp = mlir::dyn_cast<mlir::MemoryEffectOpInterface>(TargetNode);
@@ -85,10 +92,12 @@ class GraphWriter {
     }
 
     bool isNodeHidden(NodeRef Node) {
-        if (Node->hasTrait<mlir::OpTrait::ConstantLike>() && !PrintConst) {
+        if (Node->hasTrait<mlir::OpTrait::ConstantLike>() && !WriterParams.printConst) {
             return true;
         }
-        if (!Node->hasTrait<mlir::OpTrait::ConstantLike>() && Node->hasTrait<DeclarationOp>() && !PrintDeclarations) {
+        if (((!Node->hasTrait<mlir::OpTrait::ConstantLike>() && Node->hasTrait<DeclarationOp>()) ||
+             (mlir::isa<mlir::memref::AllocOp>(Node))) &&
+            !WriterParams.printDeclarations) {
             return true;
         }
         if (Node->hasTrait<mlir::OpTrait::IsTerminator>()) {
@@ -98,7 +107,19 @@ class GraphWriter {
         return false;
     }
 
-    std::string getNodeAttributes(NodeRef Node, const mlir::Block*) {
+    bool isTaskNode(NodeRef Node) {
+        if (mlir::isa<mlir::memref::AllocOp>(Node) || mlir::isa<mlir::memref::DeallocOp>(Node))
+            return false;
+
+        if (Node->hasTrait<DeclarationOp>() || Node->hasTrait<mlir::OpTrait::ConstantLike>() ||
+            Node->hasTrait<mlir::OpTrait::IsTerminator>()) {
+            return false;
+        }
+
+        return true;
+    }
+
+    std::string getNodeAttributes(NodeRef Node, mlir::Block&) {
         std::string ret;
         if (auto dotInterface = mlir::dyn_cast<DotInterface>(Node)) {
             auto color = dotInterface.getNodeColor();
@@ -129,7 +150,7 @@ class GraphWriter {
         return ret;
     }
 
-    std::string getNodeLabel(NodeRef Node, const mlir::Block* /*b*/) {
+    std::string getNodeLabel(NodeRef Node, mlir::Block& /*b*/) {
         // Reuse the print output for the node labels.
         std::string ostr;
         llvm::raw_string_ostream os(ostr);
@@ -155,7 +176,14 @@ class GraphWriter {
                             os << dim;
                         os << 'x';
                     }
-                    os << memref.getElementType();
+                    std::string temp_str;
+                    llvm::raw_string_ostream str_os(temp_str);
+                    memref.getElementType().print(str_os);
+                    if (temp_str.size() < MAX_ATTR_STR_SIZE)
+                        os << temp_str;
+                    else
+                        os << temp_str.substr(0, MAX_ATTR_STR_SIZE) << "[...]";
+
                     os << " #";
                     DimsOrder::fromType(memref).printFormat(os);
                     if (memref.getMemorySpace())
@@ -244,7 +272,7 @@ class GraphWriter {
         return false;
     }
 
-    std::string getEdgeAttributes(NodeRef, child_iterator, mlir::Block*) {
+    std::string getEdgeAttributes(NodeRef, child_iterator, mlir::Block&) {
         return "";
     }
 
@@ -276,8 +304,8 @@ class GraphWriter {
     }
 
 public:
-    GraphWriter(llvm::raw_ostream& ostream, mlir::Block*& block, bool printConst, bool printDeclarations)
-            : OStream(ostream), Block(block), PrintConst(printConst), PrintDeclarations(printDeclarations) {
+    GraphWriter(llvm::raw_ostream& ostream, mlir::Block& block, const GraphWriterParams& writerParams)
+            : OStream(ostream), Block(block), WriterParams(writerParams) {
     }
 
     void writeGraph() {
@@ -314,27 +342,55 @@ public:
     }
 
     void writeNodes() {
+        std::set<NodeRef> processedNodes;
+        bool generating = WriterParams.startAfter.empty();
         unsigned SubGraphId = 0;
+
+        auto writeNodesAndEdges = [&](NodeRef Node) {
+            if (!isNodeHidden(Node) && processedNodes.find(Node) == processedNodes.end()) {
+                writeNode(Node);
+                writeEdges(Node);
+                processedNodes.insert(Node);
+            }
+        };
+
         // Loop over the graph, printing it out...
         for (const auto Node : make_range(nodes_begin(Block), nodes_end(Block))) {
-            if (Node->getNumRegions() > 0) {
-                OStream << "subgraph cluster_" << SubGraphId++ << " {\n\tstyle=filled;color=beige;\n";
-                writeNode(Node);
-                for (auto& region : Node->getRegions()) {
-                    for (auto& block : region.getBlocks()) {
-                        for (auto& BodyNode : block) {
-                            if (!isNodeHidden(&BodyNode)) {
-                                writeNode(&BodyNode);
-                                writeEdges(&BodyNode);
+            auto opName = vpux::stringifyLocation(Node->getLoc());
+            if (generating) {
+                if (Node->getNumRegions() > 0) {
+                    if (processedNodes.find(Node) == processedNodes.end()) {
+                        OStream << "subgraph cluster_" << SubGraphId++ << " {\n\tstyle=filled;color=beige;\n";
+                        writeNode(Node);
+                        for (auto& region : Node->getRegions()) {
+                            for (auto& block : region.getBlocks()) {
+                                for (auto& BodyNode : block) {
+                                    writeNodesAndEdges(&BodyNode);
+                                }
                             }
                         }
+                        OStream << "}\n";
+                        writeEdges(Node);
+                        processedNodes.insert(Node);
+                    }
+                } else {
+                    writeNodesAndEdges(Node);
+                }
+
+                for (auto operand : Node->getOperands()) {
+                    auto op = operand.getDefiningOp();
+                    if (op != nullptr) {
+                        writeNodesAndEdges(op);
                     }
                 }
-                OStream << "}\n";
-                writeEdges(Node);
-            } else if (!isNodeHidden(Node)) {
-                writeNode(Node);
-                writeEdges(Node);
+            }
+
+            if (isTaskNode(Node)) {
+                if (opName == WriterParams.startAfter) {
+                    generating = true;
+                }
+                if (opName == WriterParams.stopBefore)
+                    break;
             }
         }
     }
@@ -391,10 +447,9 @@ public:
     }
 };
 
-llvm::raw_ostream& WriteGraph(llvm::raw_ostream& OStream, mlir::Block* Block, bool PrintConst = false,
-                              bool PrintDeclarations = false) {
+llvm::raw_ostream& WriteGraph(llvm::raw_ostream& OStream, mlir::Block& Block, const GraphWriterParams& WriterParams) {
     // Start the graph emission process...
-    GraphWriter W(OStream, Block, PrintConst, PrintDeclarations);
+    GraphWriter W(OStream, Block, WriterParams);
 
     // Emit the graph.
     W.writeGraph();
@@ -402,9 +457,8 @@ llvm::raw_ostream& WriteGraph(llvm::raw_ostream& OStream, mlir::Block* Block, bo
     return OStream;
 }
 
-std::string WriteGraph(std::string Filename, mlir::Block* Block, bool PrintConst = false,
-                       bool PrintDeclarations = false) {
-    int FD;
+std::string WriteGraph(std::string Filename, mlir::Block& Block, const GraphWriterParams& WriterParams) {
+    int FD = -1;
     std::error_code EC =
             llvm::sys::fs::openFileForWrite(Filename, FD, llvm::sys::fs::CD_CreateAlways, llvm::sys::fs::OF_Text);
     if (EC == std::errc::file_exists) {
@@ -423,7 +477,7 @@ std::string WriteGraph(std::string Filename, mlir::Block* Block, bool PrintConst
         return "";
     }
 
-    WriteGraph(OStream, Block, PrintConst, PrintDeclarations);
+    WriteGraph(OStream, Block, WriterParams);
     llvm::errs() << " dotfile written. \n";
 
     return Filename;
