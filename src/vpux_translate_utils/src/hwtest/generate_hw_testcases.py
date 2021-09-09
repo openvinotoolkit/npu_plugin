@@ -722,7 +722,6 @@ class Maxpool(MPE):
         maxpool = MaxPool(kernel_shape=self.kernel_shape, strides=self.settings.kernel_strides, pads=self.settings.kernel_pads)
         return maxpool.inference(lhs)
 
-
     def result_bitwidth(self, values: List[Value]) -> int:
         return values[0].bitwidth
 
@@ -786,14 +785,14 @@ class AvgPool(MPE):
 def ppe(values: List[Value], output_ttype: TType, data: Union[np.ndarray, NBQuantized], bitshift: int) -> Value:
     """Models the hardware PPE"""
     if isinstance(data, NBQuantized):
-        ndarray = data.value / (2 << bitshift)
+        ndarray = data.value / (1 << bitshift)
     else:
         ndarray = data
     ndarray = output_ttype.clip(ndarray).astype(output_ttype.dtype)
     value = Value(output_ttype, 'output-0.bin', ndarray, output_ttype.bitwidth, output_ttype.signed, None)
 
     if isinstance(data, NBQuantized):
-        value.scale = float(data.scale) / (2 << bitshift)
+        value.scale = float(data.scale) / (1 << bitshift)
         value.zero = int(data.zero_point)
 
     return value
