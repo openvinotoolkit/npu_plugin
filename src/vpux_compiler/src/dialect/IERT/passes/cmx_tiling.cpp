@@ -412,30 +412,6 @@ OutputTiling SimpleTiler::genericTiler(mlir::Operation* op, mlir::MemRefType out
             if (nTilesOnDim[IE::Dims4D::Act::C] < maxChannelTiles)
                 return true;
         } else {  // Spatial dims
-            const auto origSize = outputShape[dimToTile.getValue()];
-            const auto prevDivisor = nTilesOnDim[dimToTile.getValue()];
-
-            if (origSize / prevDivisor > 1)
-                return true;
-        }
-
-        return false;
-    };
-
-    while (!isSupportedTileSize(nTilesOnDim)) {
-        if (!isDimLeftToTile()) {
-            dimToTile = *(++tileDimIter);
-        }
-
-        if (dimToTile == IE::Dims4D::Act::C) {
-            do {
-                ++nTilesOnDim[IE::Dims4D::Act::C];
-            } while (!isSupportedChannelDivision());
-        } else if (dimToTile == IE::Dims4D::Act::H || dimToTile == IE::Dims4D::Act::W) {
-            nTilesOnDim[dimToTile.getValue()]++;
-        } else {
-            // Trying to tile in unsupported dimension, tiling in supported dimensions not sufficient
-            VPUX_THROW("Failed to tile {0} at '{1}'", op->getName(), op->getLoc());
         }
     }
 
