@@ -13,9 +13,9 @@
 
 #pragma once
 
+#include "ie_remote_context.hpp"
 #include <RemoteMemory.h>
 #include "vpux/vpux_plugin_params.hpp"
-#include "ie_remote_context.hpp"
 
 namespace RemoteBlob_Helper {
     static InferenceEngine::ParamMap wrapRemoteMemFDToMap(const VpuxRemoteMemoryFD remoteMemoryFD) {

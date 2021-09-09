@@ -13,10 +13,10 @@
 
 #pragma once
 
+#include "ie_remote_context.hpp"
 #include "hddl2_helpers/helper_workload_context.h"
 #include "helper_hddl2_backend.h"
 #include "vpux/vpux_plugin_params.hpp"
-#include "ie_remote_context.hpp"
 #include "vpux_remote_context.h"
 
 namespace vpux {
