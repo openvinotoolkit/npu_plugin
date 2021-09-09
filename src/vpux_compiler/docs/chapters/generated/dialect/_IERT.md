@@ -1619,15 +1619,15 @@ operation ::= `IERT.ReduceMean` attr-dict
 
 | Operand | Description |
 | :-----: | ----------- |
-`input` | memref of 16-bit float or 32-bit float values
+`input` | memref of 16-bit float or 32-bit float or 32-bit signed integer or 64-bit signed integer values
 `axes` | memref of 32-bit signed integer or 64-bit signed integer values
-`output_buff` | memref of 16-bit float or 32-bit float values
+`output_buff` | memref of 16-bit float or 32-bit float or 32-bit signed integer or 64-bit signed integer values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-`output` | memref of 16-bit float or 32-bit float values
+`output` | memref of 16-bit float or 32-bit float or 32-bit signed integer or 64-bit signed integer values
 
 ### `IERT.RegionYolo` (vpux::IERT::RegionYoloOp)
 

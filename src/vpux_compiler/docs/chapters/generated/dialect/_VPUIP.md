@@ -1652,8 +1652,7 @@ Syntax:
 
 ```
 operation ::= `VPUIP.ReduceUPA` attr-dict
-              `inputs` `(` $input `:` type($input) `)`
-              `inputs` `(` $axes `:` type($axes) `)`
+              `inputs` `(` $input `:` type($input) `,` $axes `:` type($axes) `)`
               `outputs` `(` $output_buff `:` type($output_buff) `)`
               (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
               (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
@@ -1674,9 +1673,9 @@ operation ::= `VPUIP.ReduceUPA` attr-dict
 
 | Operand | Description |
 | :-----: | ----------- |
-`input` | memref of 16-bit float values
+`input` | memref of 16-bit float or 32-bit signed integer values
 `axes` | memref of 64-bit signed integer values
-`output_buff` | memref of 16-bit float values
+`output_buff` | memref of 16-bit float or 32-bit signed integer values
 `waitBarriers` | VPUIP Barrier Type
 `updateBarriers` | VPUIP Barrier Type
 
@@ -1684,7 +1683,7 @@ operation ::= `VPUIP.ReduceUPA` attr-dict
 
 | Result | Description |
 | :----: | ----------- |
-`output` | memref of 16-bit float values
+`output` | memref of 16-bit float or 32-bit signed integer values
 
 ### `VPUIP.RegionYoloUPA` (vpux::VPUIP::RegionYoloUPAOp)
 

@@ -2185,15 +2185,15 @@ def IERT_ReduceMeanOp :
     let summary = "InferenceEngine run-time ReduceMean layer";
 
     let arguments = (ins
-        MemRefOf<[F16, F32]>:$input,
+        MemRefOf<[F16, F32, SI32, SI64]>:$input,
         MemRefOf<[SI32, SI64]>:$axes,
-        MemRefOf<[F16, F32]>:$output_buff,
+        MemRefOf<[F16, F32, SI32, SI64]>:$output_buff,
 
         OptionalAttr<BoolAttr>:$keep_dims
     );
 
     let results = (outs
-        MemRefOf<[F16, F32]>:$output
+        MemRefOf<[F16, F32, SI32, SI64]>:$output
     );
 
     let assemblyFormat = [{

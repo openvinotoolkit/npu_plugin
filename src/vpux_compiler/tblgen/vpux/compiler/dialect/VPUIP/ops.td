@@ -2740,9 +2740,9 @@ def VPUIP_ReduceUPAOp :
     let summary = "Reduce UPA SHAVE kernel";
 
     let arguments = (ins
-        F16MemRef:$input,
+        MemRefOf<[F16, SI32]>:$input,
         MemRefOf<[SI64]>:$axes,
-        F16MemRef:$output_buff,
+        MemRefOf<[F16, SI32]>:$output_buff,
 
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers,
@@ -2755,7 +2755,7 @@ def VPUIP_ReduceUPAOp :
     );
 
     let results = (outs
-        F16MemRef:$output
+        MemRefOf<[F16, SI32]>:$output
     );
 
     let builders = [
@@ -2772,8 +2772,7 @@ def VPUIP_ReduceUPAOp :
 
     let assemblyFormat = [{
         attr-dict
-        `inputs` `(` $input `:` type($input) `)`
-        `inputs` `(` $axes `:` type($axes) `)`
+        `inputs` `(` $input `:` type($input) `,` $axes `:` type($axes) `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
         (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
         (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?

@@ -399,11 +399,7 @@ def VPUIP_ReduceLayerType :
             "ReduceLayerType",
             "Type of Reduce layer",
             [
-                StrEnumAttrCase<"MAX">,
                 StrEnumAttrCase<"MEAN">,
-                StrEnumAttrCase<"MIN">,
-                StrEnumAttrCase<"PROD">,
-                StrEnumAttrCase<"SUM">,
             ]
         > {
     let cppNamespace = "vpux::VPUIP";
