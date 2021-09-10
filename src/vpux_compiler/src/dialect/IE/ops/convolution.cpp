@@ -14,10 +14,8 @@
 #include "vpux/compiler/dialect/IE/ops.hpp"
 
 #include "vpux/compiler/core/attributes/shape.hpp"
-#include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
-#include "vpux/compiler/utils/types.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
 #include "vpux/utils/core/error.hpp"
@@ -26,7 +24,6 @@
 
 #include <ngraph/coordinate.hpp>
 #include <ngraph/op/max_pool.hpp>
-#include <ngraph/util.hpp>
 #include <ngraph/validation_util.hpp>
 
 using namespace vpux;
