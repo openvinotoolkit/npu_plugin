@@ -26,6 +26,8 @@
 #include "vpux/passes/fuse_padding.hpp"
 #include "vpux/passes/remove_split_concat.hpp"
 #include "vpux/passes/replace_onnx_pattern_to_reorg.hpp"
+#include <vpux/passes/clean_up_fq.hpp>
+#include <vpux/passes/propagate_fq.hpp>
 
 #include "vpux/utils/IE/format.hpp"
 #include "vpux/utils/IE/hash.hpp"
@@ -56,6 +58,8 @@
 
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/common_optimizations/convert_quantize_dequantize.hpp>
+#include <transformations/common_optimizations/fq_mul_fusion.hpp>
+#include <transformations/common_optimizations/pull_transpose_through_fq.hpp>
 #include <transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp>
 #include <transformations/op_conversions/convert_divide.hpp>
 #include <transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp>
@@ -1670,6 +1674,9 @@ void runNGraphPasses(const std::shared_ptr<ngraph::Function>& netGraph, mlir::Ti
     // The ReduceMean layer can be solved with ngraph::pass::ConvertReduceToPooling pass, but still remain Subtract
     // issue.
     passConfig->disable<ngraph::pass::MVN6Decomposition>();
+    // FakeQuantizeMulFusion and PullTransposeThroughFQUp has conflicts with PropagateFQ
+    passConfig->disable<ngraph::pass::FakeQuantizeMulFusion>();
+    passConfig->disable<ngraph::pass::PullTransposeThroughFQUp>();
 
     ngraph::pass::Manager manager(passConfig);
     manager.register_pass<ngraph::pass::InitNodeInfo>();
@@ -1683,9 +1690,12 @@ void runNGraphPasses(const std::shared_ptr<ngraph::Function>& netGraph, mlir::Ti
     manager.register_pass<vpux::passes::OnnxReorgPatternToDarkNetReorg>();
     manager.register_pass<vpux::passes::ConvertExtractImagePatchesToReorgYoloVPU>();
     manager.register_pass<vpux::passes::ConvertMVN6toMVN1>();
-    manager.register_pass<ngraph::pass::CommonOptimizations>();
+
+    manager.register_pass<vpux::passes::PropagateFQ>();
     manager.register_pass<vpux::passes::AlignScales>();
-    manager.register_pass<ngraph::pass::ConvertLRNToLegacyMatcher>();
+    manager.register_pass<vpux::passes::CleanUpFQ>();
+
+    manager.register_pass<ngraph::pass::CommonOptimizations>();
 
     manager.run_passes(netGraph);
 }
