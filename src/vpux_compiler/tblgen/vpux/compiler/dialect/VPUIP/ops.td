@@ -1151,9 +1151,8 @@ def VPUIP_FakeQuantizeUPAOp :
         VPUIP_UPATaskOp<1, "FakeQuantizeUPA",
             [
                 ViewLikeOpInterface,
-                IERT_SameShape,
                 IERT_SameElementType,
-                VPUIP_Legacy4D
+                IERT_SameInOutDimsOrder_NCHW_NHWC
             ]
         > {
     let summary = "FakeQuantize UPA SHAVE kernel";
@@ -1202,10 +1201,6 @@ def VPUIP_FakeQuantizeUPAOp :
         (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `->` type(results)
     }];
-
-    let extraClassDeclaration = [{
-        static void inferLayoutInfo(mlir::Operation* origOp, vpux::IE::LayerLayoutInfo& info);
-    }] # commonExtraClassDeclaration;
 }
 
 //

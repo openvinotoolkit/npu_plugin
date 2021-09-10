@@ -92,15 +92,14 @@ private:
 // FakeQuantizeConverter
 //
 
-class FakeQuantizeConverter final : public mlir::OpConversionPattern<IE::FakeQuantizeOp> {
+class FakeQuantizeConverter final : public mlir::OpRewritePattern<IE::FakeQuantizeOp> {
 public:
-    FakeQuantizeConverter(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
-            : mlir::OpConversionPattern<IE::FakeQuantizeOp>(typeConverter, ctx), _log(log) {
+    FakeQuantizeConverter(mlir::MLIRContext* ctx, Logger log)
+            : mlir::OpRewritePattern<IE::FakeQuantizeOp>(ctx), _log(log) {
     }
 
 public:
-    mlir::LogicalResult matchAndRewrite(IE::FakeQuantizeOp origOp, ArrayRef<mlir::Value> operands,
-                                        mlir::ConversionPatternRewriter& rewriter) const final;
+    mlir::LogicalResult matchAndRewrite(IE::FakeQuantizeOp origOp, mlir::PatternRewriter& rewriter) const final;
 
 private:
     Logger _log;
@@ -145,11 +144,9 @@ Optional<int64_t> getAxisIndex(IE::FakeQuantizeOp fq) {
 }
 
 ExtendedShape extendInputShapeTo4D(IE::FakeQuantizeOp origOp) {
-    const auto inShape = origOp.input().getType().cast<mlir::ShapedType>().getShape();
-    VPUX_THROW_UNLESS(inShape.size() < 4, "Tensors with rank >= 4 could not be converted to 4D");
-
     // If present, axis will be pointing to the channel dimension
     const auto axis = getAxisIndex(origOp);
+    const auto inShape = origOp.input().getType().cast<mlir::ShapedType>().getShape();
 
     const auto perAxisCase = [](const auto& inShape, const auto& axis) -> SmallVector<int64_t> {
         // We are trying to place inShape[*axis] dimension to the outShape[1]
@@ -169,7 +166,7 @@ ExtendedShape extendInputShapeTo4D(IE::FakeQuantizeOp origOp) {
             } else if (*axis == 1) {
                 return {inShape[0], inShape[1], 1, inShape[2]};
             }
-            VPUX_THROW("FakeQuantize 3D case don't support axis = {0}", *axis);
+            VPUX_THROW("FakeQuantize 3D case doesn't support axis = {0}", *axis);
         }
         }
         VPUX_THROW("Failed to handle FakeQuantize");
@@ -188,10 +185,13 @@ ExtendedShape extendInputShapeTo4D(IE::FakeQuantizeOp origOp) {
 
 mlir::Value reshapeConstInput(mlir::PatternRewriter& rewriter, mlir::Location loc, mlir::Value input,
                               llvm::Optional<int64_t> axis) {
-    Shape constInputShape{1, 1, 1, 1};
     const auto inShape = getShape(input);
+    if (inShape.empty()) {
+        return input;
+    }
 
-    if (axis.hasValue() && !inShape.empty()) {
+    Shape constInputShape{1, 1, 1, 1};
+    if (axis.hasValue()) {
         const auto C = Dim(1);
         constInputShape[C] = inShape[Dim(*axis)];
     }
@@ -201,20 +201,9 @@ mlir::Value reshapeConstInput(mlir::PatternRewriter& rewriter, mlir::Location lo
     return rewriter.create<IE::ReshapeOp>(loc, input, nullptr, false, constInputShapeAttr);
 }
 
-mlir::LogicalResult FakeQuantizeConverter::matchAndRewrite(IE::FakeQuantizeOp origOp, ArrayRef<mlir::Value> operands,
-                                                           mlir::ConversionPatternRewriter& rewriter) const {
-    _log.trace("Found IE::FakeQuantize Operation '{0}'", origOp->getLoc());
-
-    const auto inShape = origOp.input().getType().cast<mlir::ShapedType>().getShape();
-
-    if (inShape.size() == 4) {
-        // Handle the case with 4D input and scalar low/high values
-
-        auto* typeConverter = this->getTypeConverter();
-        VPUX_THROW_UNLESS(typeConverter != nullptr, "TypeConverter was not set");
-
-        return convertGeneric(origOp, operands, rewriter, *typeConverter, _log);
-    }
+mlir::LogicalResult FakeQuantizeConverter::matchAndRewrite(IE::FakeQuantizeOp origOp,
+                                                           mlir::PatternRewriter& rewriter) const {
+    _log.trace("[{0}] Found IE::FakeQuantize Operation '{1}'", getDebugName(), origOp->getLoc());
 
     const auto input4D = extendInputShapeTo4D(origOp);
 
@@ -234,7 +223,7 @@ mlir::LogicalResult FakeQuantizeConverter::matchAndRewrite(IE::FakeQuantizeOp or
     const auto outputShapeAttr = getIntArrayAttr(getContext(), getShape(origOp.output()));
     rewriter.replaceOpWithNewOp<IE::ReshapeOp>(origOp, newFakeQuantizeOp.output(), nullptr, false, outputShapeAttr);
 
-    _log.trace("Replaced with 'IE::FakeQuantize'");
+    _log.trace("[{0}] Replaced with 'IE::FakeQuantize'", getDebugName());
 
     return mlir::success();
 }
@@ -274,13 +263,24 @@ void ConvertShapeTo4DPass::safeRunOnFunc() {
         return typeConverter.isLegal(op);
     };
 
+    const auto isLegalFqOp = [&](IE::FakeQuantizeOp op) {
+        const auto inShape = op.input().getType().cast<mlir::ShapedType>().getShape();
+        const auto outShape = op.output().getType().cast<mlir::ShapedType>().getShape();
+
+        VPUX_THROW_WHEN(inShape != outShape,
+                        "FakeQuantize must have the same shape for input and output. Got: {0} != {1}", inShape,
+                        outShape);
+        VPUX_THROW_WHEN(inShape.size() > TARGET_TENSOR_DIM, "Tensors with rank > 4 are not supported");
+
+        return inShape.size() == TARGET_TENSOR_DIM;
+    };
+
     mlir::ConversionTarget target(ctx);
     target.addLegalDialect<Const::ConstDialect>();
     target.addLegalDialect<IE::IEDialect>();
     target.addLegalOp<mlir::ModuleOp>();
     target.addLegalOp<mlir::FuncOp>();
     target.addLegalOp<mlir::ReturnOp>();
-    target.addDynamicallyLegalOp<IE::FakeQuantizeOp>(isLegalOp);
     target.addDynamicallyLegalOp<IE::ClampOp>(isLegalOp);
     target.addDynamicallyLegalOp<IE::EluOp>(isLegalOp);
     target.addDynamicallyLegalOp<IE::ReLUOp>(isLegalOp);
@@ -291,6 +291,7 @@ void ConvertShapeTo4DPass::safeRunOnFunc() {
     target.addDynamicallyLegalOp<IE::AddOp>(isLegalOp);
     target.addDynamicallyLegalOp<IE::MultiplyOp>(isLegalOp);
     target.addDynamicallyLegalOp<IE::ScaleShiftOp>(isLegalOp);
+    target.addDynamicallyLegalOp<IE::FakeQuantizeOp>(isLegalFqOp);
 
     mlir::RewritePatternSet patterns(&ctx);
     patterns.insert<GenericConverter<IE::ClampOp>>(typeConverter, &ctx, _log);
@@ -303,7 +304,7 @@ void ConvertShapeTo4DPass::safeRunOnFunc() {
     patterns.insert<GenericConverter<IE::AddOp>>(typeConverter, &ctx, _log);
     patterns.insert<GenericConverter<IE::MultiplyOp>>(typeConverter, &ctx, _log);
     patterns.insert<GenericConverter<IE::ScaleShiftOp>>(typeConverter, &ctx, _log);
-    patterns.insert<FakeQuantizeConverter>(typeConverter, &ctx, _log);
+    patterns.insert<FakeQuantizeConverter>(&ctx, _log);
 
     auto func = getFunction();
     if (mlir::failed(mlir::applyPartialConversion(func, target, std::move(patterns)))) {

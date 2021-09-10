@@ -94,8 +94,8 @@ func @FakeQuantizePerChannel2D(%arg0: tensor<512x64xf32>) -> (tensor<512x64xf32>
 
     // CHECK-DAG: %[[VAL_4:.*]] = const.Declare tensor<1x512x1x1xf32> = #const.Content<dense<2.050000e+02> : tensor<512x1xf32>, [#const.Reshape<[1, 512, 1, 1]>]>
     // CHECK-DAG: %[[VAL_3:.*]] = const.Declare tensor<1x512x1x1xf32> = #const.Content<dense<1.000000e+01> : tensor<512x1xf32>, [#const.Reshape<[1, 512, 1, 1]>]>
-    // CHECK-DAG: %[[VAL_2:.*]] = const.Declare tensor<1x1x1x1xf32> = #const.Content<dense<2.550000e+02> : tensor<f32>, [#const.Reshape<[1, 1, 1, 1]>]>
-    // CHECK-DAG: %[[VAL_1:.*]] = const.Declare tensor<1x1x1x1xf32> = #const.Content<dense<0.000000e+00> : tensor<f32>, [#const.Reshape<[1, 1, 1, 1]>]>
+    // CHECK-DAG: %[[VAL_2:.*]] = const.Declare tensor<f32> = #const.Content<dense<2.550000e+02> : tensor<f32>>
+    // CHECK-DAG: %[[VAL_1:.*]] = const.Declare tensor<f32> = #const.Content<dense<0.000000e+00> : tensor<f32>>
 
     // CHECK:   %[[RESHAPE_BEFORE:.*]] = IE.Reshape(%[[VAL_0]]) {shape_value = [1, 512, 64, 1]} : tensor<512x64xf32> -> tensor<1x512x64x1xf32>
     // CHECK:   %[[FQ:.*]] = IE.FakeQuantize(%[[RESHAPE_BEFORE]], %[[VAL_1]], %[[VAL_2]], %[[VAL_3]], %[[VAL_4]])
@@ -118,10 +118,10 @@ func @FakeQuantizePerTensor(%arg0: tensor<512x64xf32>) -> (tensor<512x64xf32>) {
 
     return %3 : tensor<512x64xf32>
 
-    // CHECK-DAG: %[[VAL_1:.*]] = const.Declare tensor<1x1x1x1xf32> = #const.Content<dense<0.000000e+00> : tensor<f32>, [#const.Reshape<[1, 1, 1, 1]>]>
-    // CHECK-DAG: %[[VAL_2:.*]] = const.Declare tensor<1x1x1x1xf32> = #const.Content<dense<2.550000e+02> : tensor<f32>, [#const.Reshape<[1, 1, 1, 1]>]>
-    // CHECK-DAG: %[[VAL_3:.*]] = const.Declare tensor<1x1x1x1xf32> = #const.Content<dense<1.000000e+01> : tensor<f32>, [#const.Reshape<[1, 1, 1, 1]>]>
-    // CHECK-DAG: %[[VAL_4:.*]] = const.Declare tensor<1x1x1x1xf32> = #const.Content<dense<2.050000e+02> : tensor<f32>, [#const.Reshape<[1, 1, 1, 1]>]>
+    // CHECK-DAG: %[[VAL_1:.*]] = const.Declare tensor<f32> = #const.Content<dense<0.000000e+00> : tensor<f32>>
+    // CHECK-DAG: %[[VAL_2:.*]] = const.Declare tensor<f32> = #const.Content<dense<2.550000e+02> : tensor<f32>>
+    // CHECK-DAG: %[[VAL_3:.*]] = const.Declare tensor<f32> = #const.Content<dense<1.000000e+01> : tensor<f32>>
+    // CHECK-DAG: %[[VAL_4:.*]] = const.Declare tensor<f32> = #const.Content<dense<2.050000e+02> : tensor<f32>>
 
     // CHECK:   %[[RESHAPE_BEFORE:.*]] = IE.Reshape(%[[VAL_0]]) {shape_value = [1, 1, 512, 64]} : tensor<512x64xf32> -> tensor<1x1x512x64xf32>
     // CHECK:   %[[FQ:.*]] = IE.FakeQuantize(%[[RESHAPE_BEFORE]], %[[VAL_1]], %[[VAL_2]], %[[VAL_3]], %[[VAL_4]])
@@ -143,8 +143,8 @@ func @FakeQuantizeDifferentInputAndOutput(%arg0: tensor<48x3x3x3xf32>) -> (tenso
         tensor<48x3x3x3xf32>, tensor<1xf32>, tensor<1xf32>, tensor<48x1x1x1xf32>, tensor<48x1x1x1xf32> -> tensor<48x3x3x3xf32>
     return %fq : tensor<48x3x3x3xf32>
 
-    // CHECK-DAG: %[[VAL_1:.*]] = const.Declare tensor<1x1x1x1xf32> = #const.Content<dense<0.000000e+00> : tensor<1xf32>, [#const.Reshape<[1, 1, 1, 1]>]>
-    // CHECK-DAG: %[[VAL_2:.*]] = const.Declare tensor<1x1x1x1xf32> = #const.Content<dense<2.540000e+02> : tensor<1xf32>, [#const.Reshape<[1, 1, 1, 1]>]>
+    // CHECK-DAG: %[[VAL_1:.*]] = const.Declare tensor<1xf32> = #const.Content<dense<0.000000e+00> : tensor<1xf32>>
+    // CHECK-DAG: %[[VAL_2:.*]] = const.Declare tensor<1xf32> = #const.Content<dense<2.540000e+02> : tensor<1xf32>>
     // CHECK-DAG: %[[VAL_3:.*]] = const.Declare tensor<48x1x1x1xf32> = #const.Content<dense<-1.000000e+00> : tensor<48x1x1x1xf32>>
     // CHECK-DAG: %[[VAL_4:.*]] = const.Declare tensor<48x1x1x1xf32> = #const.Content<dense<1.000000e+00> : tensor<48x1x1x1xf32>>
 
