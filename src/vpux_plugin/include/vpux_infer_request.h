@@ -19,6 +19,7 @@
 #include <cpp_interfaces/interface/ie_iinfer_request_internal.hpp>
 #include <vpux.hpp>
 #include <vpux_config.hpp>
+#include "vpux_memory_state.h"
 
 namespace vpux {
 
@@ -27,7 +28,9 @@ public:
     using Ptr = std::shared_ptr<InferRequest>;
 
     explicit InferRequest(const InferenceEngine::InputsDataMap& networkInputs,
-                          const InferenceEngine::OutputsDataMap& networkOutputs, const Executor::Ptr& executor,
+                          const InferenceEngine::OutputsDataMap& networkOutputs,
+                          const InferenceEngine::InputsDataMap& deviceInputs,
+                          const InferenceEngine::OutputsDataMap& deviceOutputs, const Executor::Ptr& executor,
                           const VPUXConfig& config, const std::string& netName,
                           const std::shared_ptr<InferenceEngine::IAllocator>& allocator = nullptr);
 
@@ -40,6 +43,8 @@ public:
 
     using InferenceEngine::IInferRequestInternal::SetBlob;
     void SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr& data) override;
+
+    std::vector<std::shared_ptr<InferenceEngine::IVariableStateInternal>> QueryState() override;
 
 protected:
     void checkBlobs() override;
@@ -64,6 +69,9 @@ protected:
 
     void updateRemoteBlobs(InferenceEngine::BlobMap& inputs, const PreprocMap& preProcMap);
     void updateRemoteBlobColorFormat(InferenceEngine::Blob::Ptr& blob, const InferenceEngine::ColorFormat colorFormat);
+
+    void PushStates();
+    void PullStates();
 
     // TODO Preprocessing should be moved into backend [Track number: S#43193]
 #ifdef __aarch64__
@@ -90,6 +98,8 @@ protected:
     // TODO Specific details for KMB-standalone preprocessing [Track number: S#43193]
     // the buffer is used when non-shareable memory passed for preprocessing
     std::unique_ptr<uint8_t, std::function<void(uint8_t*)>> _preprocBuffer;
+
+    std::vector<InferenceEngine::IVariableStateInternal::Ptr> memoryStates;
 };
 
 }  //  namespace vpux

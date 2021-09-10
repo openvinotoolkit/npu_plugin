@@ -33,9 +33,6 @@ public:
                                const VPUXConfig& config);
     explicit ExecutableNetwork(std::istream& networkModel, const Device::Ptr& device, const VPUXConfig& config);
 
-    InferenceEngine::IInferRequestInternal::Ptr CreateInferRequestImpl(
-            const InferenceEngine::InputsDataMap networkInputs,
-            const InferenceEngine::OutputsDataMap networkOutputs) override;
     InferenceEngine::IInferRequestInternal::Ptr CreateInferRequest() override;
 
     void Export(std::ostream& model) override;
@@ -48,9 +45,16 @@ private:
     Executor::Ptr createExecutor(const NetworkDescription::Ptr& network, const VPUXConfig& config,
                                  const Device::Ptr& device);
 
+    InferenceEngine::IInferRequestInternal::Ptr CreateInferRequestImpl(
+            const InferenceEngine::InputsDataMap networkInputs,
+            const InferenceEngine::OutputsDataMap networkOutputs) override;
+
 private:
     void ConfigureStreamsExecutor(const std::string& networkName);
     InferenceEngine::ITaskExecutor::Ptr getNextTaskExecutor();
+
+    InferenceEngine::InputsDataMap _deviceInputs;
+    InferenceEngine::OutputsDataMap _deviceOutputs;
 
     const VPUXConfig _config;
     const vpu::Logger::Ptr _logger;

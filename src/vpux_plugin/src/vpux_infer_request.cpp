@@ -68,7 +68,9 @@ static IE::Blob::Ptr allocateLocalBlob(const IE::TensorDesc& tensorDesc,
 
 //------------------------------------------------------------------------------
 InferRequest::InferRequest(const IE::InputsDataMap& networkInputs, const IE::OutputsDataMap& networkOutputs,
-                           const Executor::Ptr& executor, const VPUXConfig& config, const std::string& netName,
+                           const InferenceEngine::InputsDataMap& deviceInputs,
+                           const InferenceEngine::OutputsDataMap& deviceOutputs, const Executor::Ptr& executor,
+                           const VPUXConfig& config, const std::string& netName,
                            const std::shared_ptr<InferenceEngine::IAllocator>& allocator)
         : IInferRequestInternal(networkInputs, networkOutputs),
           _executorPtr(executor),
@@ -87,21 +89,44 @@ InferRequest::InferRequest(const IE::InputsDataMap& networkInputs, const IE::Out
     for (const auto& networkInput : _networkInputs) {
         const std::string inputName = networkInput.first;
         const IE::TensorDesc inputTensorDesc = networkInput.second->getTensorDesc();
-
         _inputs[inputName] = allocateLocalBlob(inputTensorDesc, _allocator);
     }
 
     for (auto& networkOutput : _networkOutputs) {
         const std::string outputName = networkOutput.first;
         const IE::TensorDesc outputTensorDesc = networkOutput.second->getTensorDesc();
-
         _outputs[outputName] = allocateLocalBlob(outputTensorDesc, _allocator);
+    }
+
+    for (const auto& deviceInput : deviceInputs) {
+        const std::string dInputName = deviceInput.first;
+        const auto& networkInputIt = _networkInputs.find(dInputName);
+        if (networkInputIt == _networkInputs.end()) {
+            const IE::TensorDesc inputTensorDesc = deviceInput.second->getTensorDesc();
+            _inputs[dInputName] = allocateLocalBlob(inputTensorDesc, _allocator);
+            memoryStates.emplace_back(new VPUXVariableState(dInputName, _inputs[dInputName]));
+        }
+    }
+
+    for (const auto& deviceOutput : deviceOutputs) {
+        const std::string dOutputName = deviceOutput.first;
+        const auto& networkOutputIt = _networkOutputs.find(dOutputName);
+        if (networkOutputIt == _networkOutputs.end()) {
+            const IE::TensorDesc outputTensorDesc = deviceOutput.second->getTensorDesc();
+            _outputs[dOutputName] = allocateLocalBlob(outputTensorDesc, _allocator);
+        }
     }
 }
 
 void InferRequest::Infer() {
+    if (!memoryStates.empty())
+        PushStates();
+
     checkBlobs();
     InferImpl();
+
+    if (!memoryStates.empty())
+        PullStates();
 }
 
 void InferRequest::InferImpl() {
@@ -405,6 +430,19 @@ void InferRequest::updateRemoteBlobColorFormat(InferenceEngine::Blob::Ptr& blob,
         }
         remoteBlob->updateColorFormat(colorFormat);
     }
+}
+
+void InferRequest::PullStates() {
+    for (auto& state : memoryStates) {
+        const auto& OutputIt = _outputs.find(state->GetName());
+        if (OutputIt != _outputs.end()) {
+            state->SetState(OutputIt->second);
+        }
+    }
+}
+
+std::vector<IE::IVariableStateInternal::Ptr> InferRequest::QueryState() {
+    return memoryStates;
 }
 
 }  // namespace vpux

@@ -110,6 +110,8 @@ ExecutableNetwork::ExecutableNetwork(std::istream& networkModel, const Device::P
         _executorPtr = createExecutor(_networkPtr, _config, device);
         _networkInputs = helpers::dataMapIntoInputsDataMap(_networkPtr->getInputsInfo());
         _networkOutputs = helpers::dataMapIntoOutputsDataMap(_networkPtr->getOutputsInfo());
+        _deviceInputs = helpers::dataMapIntoInputsDataMap(_networkPtr->getDeviceInputsInfo());
+        _deviceOutputs = helpers::dataMapIntoOutputsDataMap(_networkPtr->getDeviceOutputsInfo());
         ConfigureStreamsExecutor(networkName);
     } catch (const std::exception& ex) {
         IE_THROW() << ex.what();
@@ -157,15 +159,16 @@ IE::IInferRequestInternal::Ptr ExecutableNetwork::CreateInferRequestImpl(const I
                                                                          const IE::OutputsDataMap networkOutputs) {
     const auto inferExecutor = getExecutorForInference(_executorPtr, _logger);
     const auto allocator = _device->getAllocator();
-    return std::make_shared<InferRequest>(networkInputs, networkOutputs, inferExecutor, _config, _networkName,
-                                          allocator);
+    return std::make_shared<InferRequest>(networkInputs, networkOutputs, _deviceInputs, _deviceOutputs, inferExecutor,
+                                          _config, _networkName, allocator);
 }
 
 InferenceEngine::IInferRequestInternal::Ptr ExecutableNetwork::CreateInferRequest() {
     const auto inferExecutor = getExecutorForInference(_executorPtr, _logger);
     const auto allocator = _device->getAllocator();
-    auto syncRequestImpl = std::make_shared<InferRequest>(_networkInputs, _networkOutputs, inferExecutor, _config,
-                                                          _networkName, allocator);
+    auto syncRequestImpl =
+            std::make_shared<InferRequest>(_networkInputs, _networkOutputs, _deviceInputs, _deviceOutputs,
+                                           inferExecutor, _config, _networkName, allocator);
     syncRequestImpl->setPointerToExecutableNetworkInternal(shared_from_this());
     return std::make_shared<AsyncInferRequest>(syncRequestImpl, _taskExecutor, getNextTaskExecutor(),
                                                _callbackExecutor);
