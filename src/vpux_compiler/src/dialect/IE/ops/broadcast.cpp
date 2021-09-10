@@ -14,9 +14,26 @@
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 
+#include "vpux/compiler/dialect/const/ops.hpp"
+#include "vpux/compiler/utils/attributes.hpp"
+#include "vpux/compiler/utils/error.hpp"
+
 #include "vpux/utils/core/checked_cast.hpp"
 
 using namespace vpux;
+
+mlir::FailureOr<SmallVector<int64_t>> extractIntVector(mlir::Location loc, const mlir::Value& value) {
+    if (value != nullptr) {
+        auto valueConst = value.getDefiningOp<Const::DeclareOp>();
+        if (valueConst == nullptr) {
+            return errorAt(loc, "Only constant input is supported for interpolate attribute");
+        }
+
+        const auto valueContent = valueConst.content();
+        return to_small_vector(valueContent.getValues<int64_t>());
+    }
+    return errorAt(loc, "Parameter were not provided");
+}
 
 mlir::LogicalResult vpux::IE::BroadcastOp::inferReturnTypeComponents(
         mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
@@ -29,13 +46,10 @@ mlir::LogicalResult vpux::IE::BroadcastOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    // SmallVector<int64_t> outShape = {2, 3, 6};
-    const auto targetShape = broadcast.target_shape().cast<mlir::ShapedType>().getShape().;
-    // SmallVector<int64_t> outShape = targetShape.raw();
-    // std::cout << outShape[0] << outShape[1];
-
+    const auto outShape = extractIntVector(loc, broadcast.target_shape());
     const auto inType = broadcast.input().getType().cast<mlir::ShapedType>();
-    inferredReturnShapes.emplace_back(targetShape, inType.getElementType());
+
+    inferredReturnShapes.emplace_back(outShape.getValue(), inType.getElementType());
 
     return mlir::success();
 }

@@ -169,6 +169,41 @@ operation ::= `IERT.AvgPool` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float or 32-bit float values
 
+### `IERT.Broadcast` (vpux::IERT::BroadcastOp)
+
+Inferencengie run-time Broadcast layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.Broadcast` attr-dict
+              `inputs` `(` $input `:` type($input) `,` $target_shape `:` type($target_shape) `)`
+              `ouputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`mode` | vpux::IE::BroadcastTypeAttr | Specifies type of broadcast
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of any type values
+`target_shape` | memref of 64-bit signed integer values
+`output_buff` | memref of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of any type values
+
 ### `IERT.CTCGreedyDecoder` (vpux::IERT::CTCGreedyDecoderOp)
 
 InferenceEngine run-time CTCGreedyDecoder layer
