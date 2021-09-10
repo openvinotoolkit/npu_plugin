@@ -63,3 +63,15 @@ mlir::LogicalResult vpux::IE::ExpandOp::inferReturnTypeComponents(
 
     return mlir::success();
 }
+
+//
+// fold
+//
+
+mlir::OpFoldResult vpux::IE::ExpandOp::fold(ArrayRef<mlir::Attribute>) {
+    if (input().getType() == output().getType()) {
+        return input();
+    }
+
+    return nullptr;
+}

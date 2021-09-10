@@ -284,13 +284,52 @@ mlir::LogicalResult ExpandRewrite::matchAndRewrite(IE::ExpandOp origOp, ArrayRef
     auto expandedBuffer = allocateResults(origOp->getLoc(), rewriter, *typeConverter, origOp.output());
     const auto inputType = newOperands[0].getType().cast<mlir::ShapedType>();
 
-    const auto subOffsets = parseIntArrayAttr<int64_t>(origOp.pads_begin());
-    const auto subShape = inputType.getShape();
-    auto subView = rewriter.create<IERT::SubViewOp>(origOp.getLoc(), expandedBuffer[0], subOffsets, subShape);
-    auto subViewCopy = rewriter.create<IERT::CopyOp>(origOp->getLoc(), newOperands[0], subView);
+    auto subOffsetsBegin = parseIntArrayAttr<int64_t>(origOp.pads_begin());
+    auto subShape = to_small_vector(inputType.getShape());
+
+    const auto chunk = subShape[IE::Dims4D::Act::C.ind()];
+    const auto OC = getShape(origOp.output())[IE::Dims4D::Act::C];
 
     SmallVector<mlir::Value> concatInputs;
-    concatInputs.push_back(subViewCopy.output());
+    const auto fullCopyNum = OC / chunk;
+
+    // The first version copied the input once. Example:
+    // tensor<1x3xHxWxf16>(first channel:[0.1, 0.2, 0.3]) -> Expand ->
+    // tensor<1x8xHxWxf16>(first channel:[0.1, 0.2, 0.3, val1, val2, val3, val4, val5])
+    // It was assumed that zero weights would allow not to take into account "garbage" values
+    // (val1, val2, ...) falling into the tensor during expansion.
+
+    // It turned out that after some calculations, Inf/NaN can remain in memory.
+    // IEEE 754: Infinities propagate through calculations; NaN infects any calculation that involves it.
+    // Now assuming that the input contains only valid values.
+    // Fill in these values the space that appeared after the channels were expanded. Example:
+    // tensor<1x3xHxWxf16>(first channel:[0.1, 0.2, 0.3]) -> Expand ->
+    // tensor<1x8xHxWxf16>(first channel:[0.1, 0.2, 0.3, 0.1, 0.2, 0.3, 0.1, 0.2])
+
+    for (int copyIdx = 0; copyIdx < fullCopyNum; copyIdx++) {
+        auto subView = rewriter.create<IERT::SubViewOp>(origOp.getLoc(), expandedBuffer[0], subOffsetsBegin, subShape);
+        auto subViewCopy = rewriter.create<IERT::CopyOp>(origOp->getLoc(), newOperands[0], subView);
+
+        concatInputs.push_back(subViewCopy.output());
+
+        subOffsetsBegin[IE::Dims4D::Act::C.ind()] += chunk;
+    }
+
+    const auto filledSize = subOffsetsBegin[IE::Dims4D::Act::C.ind()];
+    if (filledSize < OC) {
+        SmallVector<int64_t> subInputOffsetsBegin{0, 0, 0, 0};
+        subShape[IE::Dims4D::Act::C.ind()] = OC - filledSize;
+
+        auto subViewInput =
+                rewriter.create<IERT::SubViewOp>(origOp.getLoc(), newOperands[0], subInputOffsetsBegin, subShape);
+        auto subViewTail =
+                rewriter.create<IERT::SubViewOp>(origOp.getLoc(), expandedBuffer[0], subOffsetsBegin, subShape);
+
+        auto subViewCopy = rewriter.create<IERT::CopyOp>(origOp->getLoc(), subViewInput, subViewTail);
+
+        concatInputs.push_back(subViewCopy.output());
+    }
+
     rewriter.replaceOpWithNewOp<IERT::ConcatViewOp>(origOp, concatInputs, expandedBuffer[0]);
 
     return mlir::success();

@@ -1759,6 +1759,8 @@ def IE_ExpandOp :
         AnyRankedTensor:$output
     );
 
+    let hasFolder = 1;
+
     let builders = [
         OpBuilder<
             (ins "mlir::Value":$input, "vpux::Optional<vpux::ShapeRef>":$pads_begin, "vpux::Optional<vpux::ShapeRef>":$pads_end)
