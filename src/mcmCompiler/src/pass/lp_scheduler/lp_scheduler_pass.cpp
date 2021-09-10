@@ -284,6 +284,8 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
 
       if (!scheduled_op.is_original_op()) {
          has_any_dynamic_spill_ops = true; 
+         std::cout << "NEEDS SPILLING" << std::endl;
+         exit(1);
          }
 
       //////////////////////////////////debug///////////////////////////////////
