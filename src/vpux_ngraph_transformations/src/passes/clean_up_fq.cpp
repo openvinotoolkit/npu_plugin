@@ -1,5 +1,9 @@
 //
+<<<<<<< HEAD
 // Copyright Intel Corporation.
+=======
+// Copyright 2021 Intel Corporation.
+>>>>>>> enable propagate FQ pass in MLIR frontend
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of

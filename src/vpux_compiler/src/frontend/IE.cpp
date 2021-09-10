@@ -29,6 +29,8 @@
 #include "vpux/passes/propagate_fq.hpp"
 #include "vpux/passes/remove_split_concat.hpp"
 #include "vpux/passes/replace_onnx_pattern_to_reorg.hpp"
+#include <vpux/passes/clean_up_fq.hpp>
+#include <vpux/passes/propagate_fq.hpp>
 
 #include "vpux/utils/IE/format.hpp"
 #include "vpux/utils/IE/hash.hpp"
@@ -1781,15 +1783,22 @@ void runNGraphPasses(const std::shared_ptr<ngraph::Function>& netGraph, mlir::Ti
     manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<vpux::passes::OnnxReorgPatternToDarkNetReorg>();
     manager.register_pass<vpux::passes::ConvertExtractImagePatchesToReorgYoloVPU>();
+<<<<<<< HEAD
+=======
+    manager.register_pass<vpux::passes::ConvertMVN6toMVN1>();
+>>>>>>> enable propagate FQ pass in MLIR frontend
 
     manager.register_pass<vpux::passes::PropagateFQ>();
     manager.register_pass<vpux::passes::AlignScales>();
     manager.register_pass<vpux::passes::CleanUpFQ>();
 
     manager.register_pass<ngraph::pass::CommonOptimizations>();
+<<<<<<< HEAD
     manager.register_pass<vpux::passes::ConvertMVN6toMVN1>();
     manager.register_pass<ngraph::pass::ConvertLRNToLegacyMatcher>();
     manager.register_pass<vpux::passes::ConvertVariadicSplitToStridedSliceOp>();
+=======
+>>>>>>> enable propagate FQ pass in MLIR frontend
 
     manager.run_passes(netGraph);
 }
