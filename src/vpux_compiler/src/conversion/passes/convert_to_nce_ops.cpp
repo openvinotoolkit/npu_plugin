@@ -140,119 +140,6 @@ static mlir::Optional<PostOpParams> parsePostOp(VPUIP::NCEClusterTaskOp nceOp, I
 // ConvRewrite
 //
 
-class ConvRewrite final : public mlir::OpRewritePattern<IERT::ConvolutionOp> {
-public:
-    ConvRewrite(mlir::MLIRContext* ctx, int64_t numDPU, vpux::VPUIP::ArchKind arch, Logger log)
-            : mlir::OpRewritePattern<IERT::ConvolutionOp>(ctx), _numDPU(numDPU), _arch(arch), _log(log) {
-    }
-
-public:
-    mlir::LogicalResult matchAndRewrite(IERT::ConvolutionOp origOp, mlir::PatternRewriter& rewriter) const final;
-
-private:
-    const int64_t _numDPU;
-    vpux::VPUIP::ArchKind _arch;
-    Logger _log;
-};
-
-mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mlir::PatternRewriter& rewriter) const {
-    if (VPUIP::NCEInvariant::verifyOp(origOp, _log).failed()) {
-        return matchFailed(rewriter, origOp, "Operation {0} does not satisfy the NCE invariant", origOp);
-    }
-
-    //
-    // Get dimensions
-    //
-
-    const auto filterShape = getShape(origOp.filter());
-
-    const auto OC = filterShape[IE::Dims4D::Filter::OC];
-    const auto KY = filterShape[IE::Dims4D::Filter::KY];
-    const auto KX = filterShape[IE::Dims4D::Filter::KX];
-
-    //
-    // Prepare input for DPU
-    //
-
-    auto inputDPU = prepareTensorForDPU(rewriter, origOp->getLoc(), origOp.input());
-    auto filterDPU = prepareTensorForDPU(rewriter, origOp->getLoc(), origOp.filter());
-
-    //
-    // Prepare output buffer for DPU
-    //
-
-    const auto origOutType = origOp.output().getType().cast<mlir::MemRefType>();
-    const auto outReorderType = changeDimsOrder(origOutType, DimsOrder::NHWC);
-    const auto outTypeCMX =
-            changeMemSpace(outReorderType, VPUIP::PhysicalMemoryAttr::get(getContext(), VPUIP::PhysicalMemory::CMX_NN));
-
-    auto outAllocOpCMX = rewriter.create<mlir::memref::AllocOp>(origOp->getLoc(), outTypeCMX);
-
-    auto weightsTable = createWeightsTableTensor(rewriter, origOp->getLoc(), OC, inputDPU, outAllocOpCMX.memref(),
-                                                 filterDPU, origOp.bias(), nullptr);
-
-    //
-    // Create NCE per-cluster Operation
-    //
-
-    const auto padsBegin = parseIntArrayAttr<int64_t>(origOp.pads_begin());
-    const auto padsEnd = parseIntArrayAttr<int64_t>(origOp.pads_end());
-    const auto kernelPaddingAttr =
-            getIntArrayAttr(getContext(), makeArrayRef({padsBegin[1], padsEnd[1], padsBegin[0], padsEnd[0]}));
-
-    const auto kernelSizeAttr = getIntArrayAttr(getContext(), makeArrayRef({KY, KX}));
-
-    Logger::global().error("order: {0}", DimsOrder::fromValue(origOp.input()));
-    // exit(1);
-
-    if (DimsOrder::NCHW == DimsOrder::fromValue(origOp.input())) {
-        std::cout << "Found CM input" << std::endl;
-        // exit(1);
-        auto nceOp = rewriter.create<VPUIP::NCEClusterTaskOp>(
-                origOp->getLoc(), inputDPU, filterDPU, weightsTable, /*activation_window=*/nullptr,
-                /*parent_input=*/inputDPU,
-                /*parent_output=*/outAllocOpCMX.memref(),
-                /*output_buff=*/outAllocOpCMX.memref(), VPUIP::NCETaskType::CMCONV, kernelSizeAttr, origOp.strides(),
-                kernelPaddingAttr, /*activation_window_channel_length=*/nullptr, /*is_continued*/ nullptr);
-
-        addDPUTasks(nceOp, rewriter, _numDPU, padsBegin[1], padsEnd[1], padsBegin[0], padsEnd[0], mpeMap.at(_arch));
-
-        const auto postOpParams = parsePostOp(nceOp, origOp.post_opAttr());
-        if (postOpParams.hasValue()) {
-            nceOp.addPPETask(rewriter, postOpParams->layerType, postOpParams->clampLow, postOpParams->clampHigh,
-                             postOpParams->LreluMult, postOpParams->LreluShift);
-        }
-
-        //
-        // DMA output CMX -> DDR
-        //
-
-        rewriter.replaceOpWithNewOp<IERT::CopyOp>(origOp, nceOp.output(), origOp.output_buff());
-    } else if (DimsOrder::NHWC == DimsOrder::fromValue(origOp.input())) {
-        auto nceOp = rewriter.create<VPUIP::NCEClusterTaskOp>(
-                origOp->getLoc(), inputDPU, filterDPU, weightsTable, /*activation_window=*/nullptr,
-                /*parent_input=*/inputDPU,
-                /*parent_output=*/outAllocOpCMX.memref(),
-                /*output_buff=*/outAllocOpCMX.memref(), VPUIP::NCETaskType::CONV, kernelSizeAttr, origOp.strides(),
-                kernelPaddingAttr, /*activation_window_channel_length=*/nullptr, /*is_continued*/ nullptr);
-
-        addDPUTasks(nceOp, rewriter, _numDPU, padsBegin[1], padsEnd[1], padsBegin[0], padsEnd[0], mpeMap.at(_arch));
-        const auto postOpParams = parsePostOp(nceOp, origOp.post_opAttr());
-        if (postOpParams.hasValue()) {
-            nceOp.addPPETask(rewriter, postOpParams->layerType, postOpParams->clampLow, postOpParams->clampHigh,
-                             postOpParams->LreluMult, postOpParams->LreluShift);
-        }
-
-        //
-        // DMA output CMX -> DDR
-        //
-
-        rewriter.replaceOpWithNewOp<IERT::CopyOp>(origOp, nceOp.output(), origOp.output_buff());
-    }
-
-    return mlir::success();
-}
-
 //
 // MaxPoolRewrite
 //
@@ -292,6 +179,138 @@ mlir::Value createActivationWindowTensor(mlir::OpBuilder& builder, mlir::Locatio
     auto copyOp = builder.create<IERT::CopyOp>(loc, dataConstOp.output(), dataAllocOp);
 
     return copyOp.output();
+}
+
+class ConvRewrite final : public mlir::OpRewritePattern<IERT::ConvolutionOp> {
+public:
+    ConvRewrite(mlir::MLIRContext* ctx, int64_t numDPU, vpux::VPUIP::ArchKind arch, Logger log)
+            : mlir::OpRewritePattern<IERT::ConvolutionOp>(ctx), _numDPU(numDPU), _arch(arch), _log(log) {
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(IERT::ConvolutionOp origOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    const int64_t _numDPU;
+    vpux::VPUIP::ArchKind _arch;
+    Logger _log;
+};
+
+mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mlir::PatternRewriter& rewriter) const {
+    if (VPUIP::NCEInvariant::verifyOp(origOp, _log).failed()) {
+        return matchFailed(rewriter, origOp, "Operation {0} does not satisfy the NCE invariant", origOp);
+    }
+
+    //
+    // Get dimensions
+    //
+
+    const auto filterShape = getShape(origOp.filter());
+
+    const auto OC = filterShape[IE::Dims4D::Filter::OC];
+    const auto KY = filterShape[IE::Dims4D::Filter::KY];
+    const auto KX = filterShape[IE::Dims4D::Filter::KX];
+
+    //
+    // Prepare input for DPU
+    //
+
+    auto inputDPU = prepareTensorForDPU(rewriter, origOp->getLoc(), origOp.input());
+    auto filterDPU = prepareTensorForDPU(rewriter, origOp->getLoc(), origOp.filter());
+
+    //
+    // Generate activation window
+    //
+
+    const auto origInputType = origOp.input().getType().cast<mlir::MemRefType>();
+    // FIXME why does fake sparsity expects this order of kernel dimensions?
+    const auto kernelSize = SmallVector<int64_t>{KX, KY};
+    const auto kernelStrides = parseIntArrayAttr<int64_t>(origOp.strides());
+    const auto bitPatternSize =
+            VPUIP::NCESparsity::getBitPatternSize(kernelSize, kernelStrides[0], origInputType.getElementType());
+
+    const auto actWindowChanLen = getIntAttr(getContext(), bitPatternSize);
+    std::cout << kernelStrides[0] << " " << bitPatternSize << std::endl;
+    Logger::global().error("order: {0}", actWindowChanLen);
+    exit(1);
+    const auto fakeSparsity =
+            VPUIP::NCESparsity::getFakeSparsity(kernelSize, kernelStrides[0], origInputType.getElementType(), OC);
+    const auto activationWindow = createActivationWindowTensor(rewriter, origOp->getLoc(), fakeSparsity, OC);
+
+    //
+    // Prepare output buffer for DPU
+    //
+
+    const auto origOutType = origOp.output().getType().cast<mlir::MemRefType>();
+    const auto outReorderType = changeDimsOrder(origOutType, DimsOrder::NHWC);
+    const auto outTypeCMX =
+            changeMemSpace(outReorderType, VPUIP::PhysicalMemoryAttr::get(getContext(), VPUIP::PhysicalMemory::CMX_NN));
+
+    auto outAllocOpCMX = rewriter.create<mlir::memref::AllocOp>(origOp->getLoc(), outTypeCMX);
+
+    auto weightsTable = createWeightsTableTensor(rewriter, origOp->getLoc(), OC, inputDPU, outAllocOpCMX.memref(),
+                                                 filterDPU, origOp.bias(), nullptr);
+
+    //
+    // Create NCE per-cluster Operation
+    //
+
+    const auto padsBegin = parseIntArrayAttr<int64_t>(origOp.pads_begin());
+    const auto padsEnd = parseIntArrayAttr<int64_t>(origOp.pads_end());
+    const auto kernelPaddingAttr =
+            getIntArrayAttr(getContext(), makeArrayRef({padsBegin[1], padsEnd[1], padsBegin[0], padsEnd[0]}));
+
+    const auto kernelSizeAttr = getIntArrayAttr(getContext(), makeArrayRef({KY, KX}));
+
+    Logger::global().error("order: {0}", DimsOrder::fromValue(origOp.input()));
+    // exit(1);
+
+    if (DimsOrder::NCHW == DimsOrder::fromValue(origOp.input())) {
+        std::cout << "Found CM input" << std::endl;
+        // exit(1);
+        auto nceOp = rewriter.create<VPUIP::NCEClusterTaskOp>(
+                origOp->getLoc(), inputDPU, filterDPU, weightsTable, /*activation_window=*/nullptr,
+                /*parent_input=*/inputDPU,
+                /*parent_output=*/outAllocOpCMX.memref(),
+                /*output_buff=*/outAllocOpCMX.memref(), VPUIP::NCETaskType::CMCONV, kernelSizeAttr, origOp.strides(),
+                kernelPaddingAttr, actWindowChanLen, /*is_continued*/ nullptr);
+
+        addDPUTasks(nceOp, rewriter, _numDPU, padsBegin[1], padsEnd[1], padsBegin[0], padsEnd[0], mpeMap.at(_arch));
+
+        const auto postOpParams = parsePostOp(nceOp, origOp.post_opAttr());
+        if (postOpParams.hasValue()) {
+            nceOp.addPPETask(rewriter, postOpParams->layerType, postOpParams->clampLow, postOpParams->clampHigh,
+                             postOpParams->LreluMult, postOpParams->LreluShift);
+        }
+
+        //
+        // DMA output CMX -> DDR
+        //
+
+        rewriter.replaceOpWithNewOp<IERT::CopyOp>(origOp, nceOp.output(), origOp.output_buff());
+    } else if (DimsOrder::NHWC == DimsOrder::fromValue(origOp.input())) {
+        auto nceOp = rewriter.create<VPUIP::NCEClusterTaskOp>(
+                origOp->getLoc(), inputDPU, filterDPU, weightsTable, /*activation_window=*/nullptr,
+                /*parent_input=*/inputDPU,
+                /*parent_output=*/outAllocOpCMX.memref(),
+                /*output_buff=*/outAllocOpCMX.memref(), VPUIP::NCETaskType::CONV, kernelSizeAttr, origOp.strides(),
+                kernelPaddingAttr, /*activation_window_channel_length=*/nullptr, /*is_continued*/ nullptr);
+
+        addDPUTasks(nceOp, rewriter, _numDPU, padsBegin[1], padsEnd[1], padsBegin[0], padsEnd[0], mpeMap.at(_arch));
+        const auto postOpParams = parsePostOp(nceOp, origOp.post_opAttr());
+        if (postOpParams.hasValue()) {
+            nceOp.addPPETask(rewriter, postOpParams->layerType, postOpParams->clampLow, postOpParams->clampHigh,
+                             postOpParams->LreluMult, postOpParams->LreluShift);
+        }
+
+        //
+        // DMA output CMX -> DDR
+        //
+
+        rewriter.replaceOpWithNewOp<IERT::CopyOp>(origOp, nceOp.output(), origOp.output_buff());
+    }
+
+    return mlir::success();
 }
 
 mlir::LogicalResult MaxPoolRewrite::matchAndRewrite(IERT::MaxPoolOp origOp, mlir::PatternRewriter& rewriter) const {
