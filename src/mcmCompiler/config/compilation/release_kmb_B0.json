@@ -13,6 +13,7 @@
                 "WorkloadCost": 300,
                 "DDRScratch": 31457280,
                 "cmx": 917504,
+                "nWorkloads" : 5,
                 "enable_channel_major_conv": true,
                 "HuffmanCompression": false,
                 "DPUTasksinFloat": false,
