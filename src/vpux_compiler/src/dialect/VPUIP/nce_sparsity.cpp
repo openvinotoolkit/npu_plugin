@@ -54,11 +54,11 @@ int64_t getWindowSize(int64_t kernelW, int64_t strideW, mlir::Type elemType) {
 
     // Window size is limited to 32 bytes by HW. Size of the data type
     // needs to be accounted to find the max (32 for U8, 16 for FP16)
-    const int64_t maxWindowSize = 32 / (typeSizeInBits.count() / 8);
-    int64_t maxMpeWindowSize = 64;
+    int64_t maxWindowSize = 32 / (typeSizeInBits.count() / 8);
 
     int64_t windowSize = 0;
     int mpeNum = 1;
+    int maxMpeWindowSize = 64;
 
     while (mpeNum <= mpeNumLimit) {
         if (strideW <= kernelW) {
@@ -72,7 +72,6 @@ int64_t getWindowSize(int64_t kernelW, int64_t strideW, mlir::Type elemType) {
 
         mpeNum *= 2;
     }
-
     return maxMpeWindowSize;
 }
 
@@ -264,6 +263,7 @@ int64_t vpux::VPUIP::NCESparsity::getBitPatternSize(mlir::ArrayRef<int64_t> kern
 
     auto actualType = tryGetQuantizedStorageType(elemType);
     const auto windowSize = getWindowSize(kernelSize[0], strideW, actualType);
+    Logger::global().error("window {0} - {1}", windowSize, kernelSize[1]);
     return kernelSize[1] * windowSize;
 }
 

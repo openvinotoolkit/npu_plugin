@@ -76,11 +76,6 @@
             },
             "StoreGraphOptimizerDecisions",
             {
-                "name" : "AddActivationStreaming",
-                "max_streams" : 1000,
-                "vertical_fusion" : true
-            },
-            {
                 "name" : "RecognizeVerticalFusionPatterns",
                 "min_subgraph_depth" : 2,
                 "vertical_fusion": true
