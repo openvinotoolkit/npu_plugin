@@ -308,6 +308,10 @@ std::vector<uint8_t> vpux::VPUIP::NCESparsity::getFakeSparsity(mlir::ArrayRef<in
     const auto windowSize = getWindowSize(kernelSize[0], strideW, actualType);
     const auto bitPattern = getBitPattern(kernelSize, windowSize);
 
+    // CM Conv
+    const auto windowSparsitySize = std::ceil(windowSize / 8.0);
+    const auto numberOfRowsSparsityBytes = std::ceil((kernelSize[0] * inputChannels * windowSparsitySize) / 16.0);
+
     // To align each activation map entry to 16 bytes to abide the hw restriction
     const auto perChannelSparsitySize = static_cast<std::size_t>(std::ceil(bitPattern.size() / 128.0) * 16);
 
@@ -317,6 +321,11 @@ std::vector<uint8_t> vpux::VPUIP::NCESparsity::getFakeSparsity(mlir::ArrayRef<in
     // which is regarded as "fake sparsity"
     SmallVector<uint8_t> perChannelSparsity;
     perChannelSparsity.resize(perChannelSparsitySize);
+
+    if (inputChannels < 16) {
+        perChannelSparsity.resize(numberOfRowsSparsityBytes * 16);
+    } else
+        perChannelSparsity.resize(perChannelSparsitySize);
 
     // Repackaging each byte from bitPattern to a bit from fakeSparsity
     // The rest of the bits remain zero

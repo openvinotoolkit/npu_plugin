@@ -207,6 +207,7 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
 
     const auto filterShape = getShape(origOp.filter());
 
+    const auto IC = filterShape[IE::Dims4D::Filter::IC];
     const auto OC = filterShape[IE::Dims4D::Filter::OC];
     const auto KY = filterShape[IE::Dims4D::Filter::KY];
     const auto KX = filterShape[IE::Dims4D::Filter::KX];
@@ -230,11 +231,8 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
             VPUIP::NCESparsity::getBitPatternSize(kernelSize, kernelStrides[0], origInputType.getElementType());
 
     const auto actWindowChanLen = getIntAttr(getContext(), bitPatternSize);
-    std::cout << kernelStrides[0] << " " << bitPatternSize << std::endl;
-    Logger::global().error("order: {0}", actWindowChanLen);
-    exit(1);
     const auto fakeSparsity =
-            VPUIP::NCESparsity::getFakeSparsity(kernelSize, kernelStrides[0], origInputType.getElementType(), OC);
+            VPUIP::NCESparsity::getFakeSparsity(kernelSize, kernelStrides[0], origInputType.getElementType(), IC);
     const auto activationWindow = createActivationWindowTensor(rewriter, origOp->getLoc(), fakeSparsity, OC);
 
     //
