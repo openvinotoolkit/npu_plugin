@@ -269,7 +269,7 @@ protected:
                  const std::array<std::shared_ptr<commandQueue>, stage::COUNT>& command_queue);
         pipeline(const pipeline&) = delete;
         pipeline& operator=(const pipeline&) = delete;
-        ~pipeline();
+        ~pipeline() = default;
 
         std::map<std::string, hostMem> _inputs_host_mem_map;
         std::map<std::string, deviceMem> _inputs_device_mem_map;

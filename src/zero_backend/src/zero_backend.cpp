@@ -33,7 +33,6 @@ class ZeroDevicesSingleton {
 
         ze_driver_handle_t driver_handle = nullptr;
         ze_device_handle_t device_handle = nullptr;
-        ze_context_handle_t context = nullptr;
 
         ze_graph_dditable_ext_t* _graph_ddi_table_ext = nullptr;
 
@@ -89,11 +88,21 @@ class ZeroDevicesSingleton {
         devices.emplace(std::make_pair(device->getName(), device));
     }
 
-    ~ZeroDevicesSingleton() = default;
+    ~ZeroDevicesSingleton() {
+        if (context) {
+            auto result = zeContextDestroy(context);
+            if (ZE_RESULT_SUCCESS != result) {
+                std::cerr << "ZeroDevicesSingleton zeContextDestroy failed 0x" << std::hex << uint64_t(result)
+                          << std::dec << std::endl;
+            }
+        }
+    }
     ZeroDevicesSingleton(const ZeroDevicesSingleton&) = delete;
     ZeroDevicesSingleton& operator=(const ZeroDevicesSingleton&) = delete;
 
     std::map<std::string, std::shared_ptr<IDevice>> devices;
+
+    ze_context_handle_t context = nullptr;
 
 public:
     static const std::map<std::string, std::shared_ptr<IDevice>>& getInstanceDevices() {
