@@ -325,19 +325,9 @@ class FP16(TType):
         return True
 
     def clip(self, data: np.ndarray) -> np.ndarray:
-        # Clip in this case is interesting: we want to take the data as fp32,
-        # and round it after the first ten bits of the fractional part (since
-        # that's what can be expressed in fp16).  The fun part is that if the
-        # eleventh bit is 1, we always round up, because we're using the
-        # ties-to-even rounding mode; if we naively cast to fp16, we would
-        # simply truncate the fractional component past ten bits, which is not
-        # how the DPU implements rounding.  So we have to do some tricky things.
-        (frac, exp) = np.frexp(data.astype(np.float32))
-        shift_factor = np.power(2, 11)
-        (rounded, preserved) = np.modf(frac * shift_factor)
-        carry = (rounded >= .5).astype(np.float32)
-        result = np.ldexp((carry + preserved) / shift_factor, exp)
-        return result
+        # NB This is "Round to nearest ties to even" mode by default;
+        #    we'll need to augment this if we want to test the other modes.
+        return data.astype(np.float16)
 
 
 class FP32(TType):
