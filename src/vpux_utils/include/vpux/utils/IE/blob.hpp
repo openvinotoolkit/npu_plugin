@@ -19,6 +19,7 @@
 #include <ie_blob.h>
 #include <ie_compound_blob.h>
 #include <ie_remote_context.hpp>
+#include <vpux_compiler.hpp>
 
 #include <memory>
 
@@ -60,10 +61,12 @@ InferenceEngine::MemoryBlob::Ptr copyBlob(const InferenceEngine::MemoryBlob::Ptr
 // cvtBlobPrecision
 //
 
-void cvtBlobPrecision(const InferenceEngine::MemoryBlob::Ptr& in, const InferenceEngine::MemoryBlob::Ptr& out);
+void cvtBlobPrecision(const InferenceEngine::MemoryBlob::Ptr& in, const InferenceEngine::MemoryBlob::Ptr& out,
+                      const QuantizationParam& quantParams);
 
 InferenceEngine::MemoryBlob::Ptr toPrecision(const InferenceEngine::MemoryBlob::Ptr& in,
                                              const InferenceEngine::Precision& precision,
+                                             const QuantizationParam& quantParams = QuantizationParam(),
                                              const std::shared_ptr<InferenceEngine::IAllocator>& allocator = nullptr,
                                              void* ptr = nullptr);
 InferenceEngine::MemoryBlob::Ptr toDefPrecision(const InferenceEngine::MemoryBlob::Ptr& in,
@@ -73,12 +76,12 @@ InferenceEngine::MemoryBlob::Ptr toDefPrecision(const InferenceEngine::MemoryBlo
 inline InferenceEngine::MemoryBlob::Ptr toFP32(const InferenceEngine::MemoryBlob::Ptr& in,
                                                const std::shared_ptr<InferenceEngine::IAllocator>& allocator = nullptr,
                                                void* ptr = nullptr) {
-    return toPrecision(in, InferenceEngine::Precision::FP32, allocator, ptr);
+    return toPrecision(in, InferenceEngine::Precision::FP32, QuantizationParam(), allocator, ptr);
 }
 inline InferenceEngine::MemoryBlob::Ptr toFP16(const InferenceEngine::MemoryBlob::Ptr& in,
                                                const std::shared_ptr<InferenceEngine::IAllocator>& allocator = nullptr,
                                                void* ptr = nullptr) {
-    return toPrecision(in, InferenceEngine::Precision::FP16, allocator, ptr);
+    return toPrecision(in, InferenceEngine::Precision::FP16, QuantizationParam(), allocator, ptr);
 }
 
 //
