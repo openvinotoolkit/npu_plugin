@@ -2672,10 +2672,10 @@ def VPUIP_GatherUPAOp :
         MemRefOf<[SI32]>:$indices,
         AnyMemRef:$output_buff,
 
-        Const_ContentAttr:$axis,
-
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers,
+
+        Const_ContentAttr:$axis,
 
         OptionalAttr<IntAttr>:$maxShaves,
         UnitAttr:$isTrailingSWLayer

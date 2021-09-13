@@ -48,7 +48,7 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(GatherUPAOp op) {
 
 void vpux::VPUIP::GatherUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
                                      mlir::Value indices, mlir::Value output, Const::ContentAttr axis) {
-    build(builder, state, input, indices, output, axis, mlir::ValueRange{}, mlir::ValueRange{}, nullptr, false);
+    build(builder, state, input, indices, output, mlir::ValueRange{}, mlir::ValueRange{}, axis, nullptr, false);
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::GatherUPAOp::serialize(VPUIP::BlobWriter& writer) {
