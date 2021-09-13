@@ -1375,7 +1375,7 @@ class Operation_Dag {
       // Transform OpModel for scheduling //
       shorting_implicit_ops();
 
-      connect_all_non_unit_outdegree_dmas_to_input(model);
+      //connect_all_non_unit_outdegree_dmas_to_input(model);
 
       update_resource_utility_for_aligned_dma_ops(model);
 
