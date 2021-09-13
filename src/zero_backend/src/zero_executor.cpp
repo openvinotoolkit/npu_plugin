@@ -564,10 +564,6 @@ ZeroExecutor::pipeline::pipeline(const ze_driver_handle_t& driver_handle, const 
     }
 }
 
-ZeroExecutor::pipeline::~pipeline() {
-    zeEventPoolDestroy(_event_pool._handle);
-}
-
 ZeroExecutor::fence::fence(const std::shared_ptr<commandQueue>& command_queue) {
     ze_fence_desc_t fence_desc = {ZE_STRUCTURE_TYPE_FENCE_DESC, nullptr, 0};
     throwOnFail("zeFenceCreate", zeFenceCreate(command_queue->_handle, &fence_desc, &_handle));
