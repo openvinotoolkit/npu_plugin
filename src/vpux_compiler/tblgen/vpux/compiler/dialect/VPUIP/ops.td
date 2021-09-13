@@ -1364,7 +1364,7 @@ def VPUIP_EltwiseUPAOp :
         VPUIP_UPATaskOp<1, "EltwiseUPA",
             [
                 ViewLikeOpInterface,
-                IERT_AnyDimsOrder
+                IERT_SameInOutDimsOrder
             ]
         > {
     let summary = "Eltwise UPA SHAVE kernel";

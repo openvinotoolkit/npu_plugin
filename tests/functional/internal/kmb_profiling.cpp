@@ -16,17 +16,21 @@
 
 class KmbProfilingTest : public KmbLayerTestBase {
 public:
-    void runTest(const std::string output_name, bool mlir=false);
+    void runTest(const std::string output_name, bool mlir=false, bool profiling=true);
 };
 
-void KmbProfilingTest::runTest(const std::string output_name, bool mlir) {
+void KmbProfilingTest::runTest(const std::string output_name, bool mlir, bool profiling) {
     SKIP_ON("HDDL2", "EMULATOR", "Not supported");
     const SizeVector inDims = {1, 3, 64, 64};
     const TensorDesc userInDesc = TensorDesc(Precision::U8, inDims, Layout::NHWC);
     const TensorDesc userOutDesc = TensorDesc(Precision::FP16, Layout::NHWC);
     const auto scaleDesc = TensorDesc(Precision::FP32, inDims, Layout::NHWC);
     const Precision netPresicion = Precision::FP32;
-    std::map<std::string, std::string> netConfig = {{CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES)}};
+    std::map<std::string, std::string> netConfig;
+
+    if (profiling) {
+        netConfig[CONFIG_KEY(PERF_COUNT)] = CONFIG_VALUE(YES);
+    }
     if (mlir) {
         netConfig[VPUX_CONFIG_KEY(COMPILER_TYPE)] = VPUX_CONFIG_VALUE(MLIR);
     }
@@ -94,12 +98,14 @@ TEST_F(KmbProfilingTest, precommit_profilingNonMatchedName) {
     runTest("conv");
 }
 
-// [Track number: E#13766]
-TEST_F(KmbProfilingTest, DISABLED_profilingMatchedName_MLIR) {
+TEST_F(KmbProfilingTest, profilingMatchedName_MLIR) {
     runTest("Result", true);
 }
 
-// [Track number: E#13766]
-TEST_F(KmbProfilingTest, DISABLED_profilingNonMatchedName_MLIR) {
+TEST_F(KmbProfilingTest, profilingNonMatchedName_MLIR) {
     runTest("conv", true);
+}
+
+TEST_F(KmbProfilingTest, profilingDisabled_MLIR) {
+    runTest("conv", true, false);
 }
