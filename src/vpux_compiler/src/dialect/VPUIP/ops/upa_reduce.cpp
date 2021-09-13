@@ -24,6 +24,18 @@ using namespace vpux;
 void vpux::VPUIP::ReduceUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
                                      mlir::Value axes, mlir::Value output, mlir::BoolAttr keep_dims,
                                      VPUIP::ReduceLayerTypeAttr type) {
+    auto axesOp = axes.getDefiningOp<Const::DeclareOp>();
+    auto axesType = axes.getType().dyn_cast<mlir::MemRefType>();
+    if (axesType == nullptr) {
+        VPUX_THROW("Axes type is not MemRefType");
+    }
+
+    if (axesType.getElementType().isSignedInteger(64)) {
+        auto newElementType = builder.getIntegerType(32, true);
+        auto newAxesType = changeElemType(axesType, newElementType);
+        auto newAxesContent = axesOp.contentAttr().convertElemType(newElementType);
+        axes = builder.create<Const::DeclareOp>(state.location, newAxesType, newAxesContent);
+    }
     build(builder, state, input, axes, output, mlir::ValueRange{}, mlir::ValueRange{}, keep_dims, type, nullptr,
           nullptr);
 }

@@ -2741,7 +2741,7 @@ def VPUIP_ReduceUPAOp :
 
     let arguments = (ins
         MemRefOf<[F16, SI32]>:$input,
-        MemRefOf<[SI64]>:$axes,
+        MemRefOf<[SI32]>:$axes,
         MemRefOf<[F16, SI32]>:$output_buff,
 
         Variadic<VPUIP_Barrier>:$waitBarriers,
