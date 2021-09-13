@@ -82,7 +82,7 @@ void addDPUTasks(VPUIP::NCEClusterTaskOp nceOp, mlir::PatternRewriter& rewriter,
     auto* ctx = nceOp.getContext();
 
     const auto outputShape = getShape(nceOp.output());
-    const auto dpuTiles = VPUIP::DpuTiler::tileOverH(numDPU, outputShape, opPadLeft, opPadRight, opPadTop, opPadBottom);
+    const auto dpuTiles = VPUIP::DpuTiler::tileOverH(1, outputShape, opPadLeft, opPadRight, opPadTop, opPadBottom);
 
     for (const auto& dpuTile : dpuTiles) {
         const auto startAttr = getIntArrayAttr(ctx, makeArrayRef(dpuTile.start));
@@ -92,7 +92,7 @@ void addDPUTasks(VPUIP::NCEClusterTaskOp nceOp, mlir::PatternRewriter& rewriter,
                 VPUIP::PaddingAttr::get(getIntAttr(ctx, dpuTile.padLeft), getIntAttr(ctx, dpuTile.padRight),
                                         getIntAttr(ctx, dpuTile.padTop), getIntAttr(ctx, dpuTile.padBottom), ctx);
 
-        nceOp.addDPUTask(rewriter, startAttr, endAttr, pad, mpeMode);
+        nceOp.addDPUTask(rewriter, startAttr, endAttr, pad, VPUIP::MPEMode::MATRIX);
     }
 }
 
