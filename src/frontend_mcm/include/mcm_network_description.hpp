@@ -33,6 +33,8 @@ public:
 
     const vpux::DataMap& getDeviceOutputsInfo() const override;
 
+    const vpux::QuantizationParamMap& getQuantParamsInfo() const override;
+
     const std::vector<char>& getCompiledNetwork() const override;
 
     const void* getNetworkModel() const override;
@@ -50,6 +52,8 @@ private:
 
     vpux::DataMap _networkInputs;
     vpux::DataMap _networkOutputs;
+
+    vpux::QuantizationParamMap _quantParams;
 
     std::shared_ptr<vpu::Logger> _logger;
 

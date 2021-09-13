@@ -46,6 +46,10 @@ public:
         return _networkOutputs;
     }
 
+    const QuantizationParamMap& getQuantParamsInfo() const final {
+        return _quantParams;
+    }
+
     const DataMap& getDeviceInputsInfo() const final {
         return _deviceInputs;
     }
@@ -63,6 +67,7 @@ private:
 
     DataMap _deviceInputs;
     DataMap _deviceOutputs;
+    QuantizationParamMap _quantParams;
 };
 
 }  // namespace VPUIP
