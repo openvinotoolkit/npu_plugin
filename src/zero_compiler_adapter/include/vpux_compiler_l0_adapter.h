@@ -49,6 +49,8 @@ private:
     // TODO Switch log level to Debug when it will be production solution
     const std::unique_ptr<vpu::Logger> _logger = std::unique_ptr<vpu::Logger>(
             new vpu::Logger("VPUXCompilerL0", vpu::LogLevel::Debug /*_config.logLevel()*/, vpu::consoleOutput()));
+
+    void initLib();
 };
 }  // namespace zeroCompilerAdapter
 }  // namespace vpux
