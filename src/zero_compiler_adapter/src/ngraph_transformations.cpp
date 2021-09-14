@@ -17,9 +17,31 @@
 #include <transformations/serialize.hpp>
 #include <chrono>
 
+#include "vpux/passes/convert_MVN6_to_MVN1.hpp"
+
 namespace vpux {
 namespace zeroCompilerAdapter {
 namespace ngraphTransformations {
+
+void applyLoweringPasses(const std::shared_ptr<ngraph::Function>& netGraph, Opset opsetVersion) {
+    if (opsetVersion.version < 6) {
+        lowerFromOpset6(netGraph);
+    }
+}
+
+bool isFunctionSupported(const std::shared_ptr<ngraph::Function>& netGraph, Opset opsetVersion) {
+    size_t highestVersion = 0;
+    for (const auto& op : netGraph->get_ops()) {
+        if (op->get_version() > highestVersion) {
+            highestVersion = op->get_version();
+        }
+    }
+
+    if (highestVersion > opsetVersion.version) {
+        return false;
+    }
+    return true;
+}
 
 IR serializeToIR(const std::shared_ptr<ngraph::Function>& netGraph) {
     const std::unique_ptr<vpu::Logger> _logger = std::unique_ptr<vpu::Logger>(
@@ -45,6 +67,15 @@ IR serializeToIR(const std::shared_ptr<ngraph::Function>& netGraph) {
     auto finish = std::chrono::high_resolution_clock::now();
     _logger->info("|| Timer ||;ngraphTransformations::serializeToIR (ms);\t{}", std::chrono::duration_cast<ms>(finish - start).count());
     return {xmlBlob, weightsBlob};
+}
+
+void lowerFromOpset6(const std::shared_ptr<ngraph::Function>& netGraph) {
+    const auto passConfig = std::make_shared<ngraph::pass::PassConfig>();
+    ngraph::pass::Manager manager(passConfig);
+
+    manager.register_pass<vpux::passes::ConvertMVN6toMVN1>();
+
+    manager.run_passes(netGraph);
 }
 
 }  // namespace ngraphTransformations
