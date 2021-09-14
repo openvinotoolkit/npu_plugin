@@ -16,9 +16,31 @@
 #include <ngraph/pass/manager.hpp>
 #include <transformations/serialize.hpp>
 
+#include "vpux/passes/convert_MVN6_to_MVN1.hpp"
+
 namespace vpux {
 namespace zeroCompilerAdapter {
 namespace ngraphTransformations {
+
+void applyLoweringPasses(const std::shared_ptr<ngraph::Function>& netGraph, Opset opsetVersion) {
+    if (opsetVersion.version < 6) {
+        lowerFromOpset6(netGraph);
+    }
+}
+
+bool isFunctionSupported(const std::shared_ptr<ngraph::Function>& netGraph, Opset opsetVersion) {
+    size_t highestVersion = 0;
+    for (const auto& op : netGraph->get_ops()) {
+        if (op->get_version() > highestVersion) {
+            highestVersion = op->get_version();
+        }
+    }
+
+    if (highestVersion > opsetVersion.version) {
+        return false;
+    }
+    return true;
+}
 
 IR serializeToIR(const std::shared_ptr<ngraph::Function>& netGraph) {
     const auto passConfig = std::make_shared<ngraph::pass::PassConfig>();
@@ -36,6 +58,15 @@ IR serializeToIR(const std::shared_ptr<ngraph::Function>& netGraph) {
     weightsStream.read(weightsBlob.data(), weightsSize);
 
     return {xmlBlob, weightsBlob};
+}
+
+void lowerFromOpset6(const std::shared_ptr<ngraph::Function>& netGraph) {
+    const auto passConfig = std::make_shared<ngraph::pass::PassConfig>();
+    ngraph::pass::Manager manager(passConfig);
+
+    manager.register_pass<vpux::passes::ConvertMVN6toMVN1>();
+
+    manager.run_passes(netGraph);
 }
 
 }  // namespace ngraphTransformations

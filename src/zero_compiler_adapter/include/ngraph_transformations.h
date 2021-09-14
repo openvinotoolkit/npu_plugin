@@ -40,6 +40,12 @@ bool isFunctionSupported(const std::shared_ptr<ngraph::Function>& netGraph, Opse
  */
 IR serializeToIR(const std::shared_ptr<ngraph::Function>& netGraph);
 
+// TODO Only MVN6 operation included right now
+/**
+ * @brief Apply ops lowering from opset6, where it's possible
+ */
+void lowerFromOpset6(const std::shared_ptr<ngraph::Function>& netGraph);
+
 }  // namespace ngraphTransformations
 }  // namespace zeroCompilerAdapter
 }  // namespace vpux
