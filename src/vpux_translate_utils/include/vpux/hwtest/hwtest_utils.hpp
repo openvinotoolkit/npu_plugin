@@ -62,6 +62,9 @@ void buildContinuedConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Module
                         Logger& log, mlir::Type inputType, mlir::Type weightsType, mlir::Type outputType);
 void buildEltwiseAdd(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module, mlir::OpBuilder builder,
                      Logger& log, mlir::Type inputType, mlir::Type weightsType, mlir::Type outputType);
+void buildEltwiseMultWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module,
+                                mlir::OpBuilder builder, Logger& log, mlir::Type inputType, mlir::Type weightsType,
+                                mlir::Type outputType);
 void buildMaxpool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module, mlir::OpBuilder builder,
                   Logger& log, mlir::Type input0Type, mlir::Type outputType);
 mlir::DenseElementsAttr splitWeightsOverC(mlir::DenseElementsAttr wt_vec, ArrayRef<int64_t> wt_shape, mlir::Type dtype,
@@ -70,6 +73,21 @@ template <typename T>
 mlir::DenseElementsAttr splitWeightsOverCLoop(mlir::DenseElementsAttr wt_vec, ArrayRef<int64_t> wt_shape,
                                               mlir::Type dtype, T elementType, mlir::MLIRContext* ctx, size_t start_C,
                                               size_t end_C);
+mlir::DenseElementsAttr generateZeroPadForEltwiseMultWeights(ArrayRef<int64_t> wt_shape_padded, mlir::Type dtype,
+                                                             mlir::MLIRContext* ctx);
+mlir::MemRefType getMemRefType(mlir::OpBuilder builder, VPUIP::MemoryLocation memlocation, SmallVector<int64_t> shape,
+                               mlir::Type type, SmallVector<mlir::AffineMap> affineMaps);
+
+vpux::VPUIP::DeclareTensorOp createDeclareTensorOp(mlir::OpBuilder builder, VPUIP::MemoryLocation memlocation,
+                                                   SmallVector<int64_t> shape, mlir::Type type,
+                                                   SmallVector<mlir::AffineMap> affineMaps, int locale, size_t offset);
+
+mlir::OpResult getTensorResult(VPUIP::DeclareTensorOp op);
+
+mlir::OpResult getConstResult(vpux::Const::DeclareOp op);
+
+vpux::VPUIP::DPUTaskOp createDPUTaskOp(mlir::OpBuilder builder, mlir::OpBuilder variantbuilder,
+                                       llvm::SmallVector<int64_t> output_shape, std::vector<int64_t> padding_vec);
 
 }  // namespace hwtest
 }  // namespace vpux
