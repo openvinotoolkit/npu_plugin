@@ -6,12 +6,13 @@
 * [VPUX NN Compiler](https://docs.intel.com/documents/MovidiusInternal/vpu2/Common/SW/VPUX_NN_Compiler_SAS/VPUX_NN_Compiler_SAS.html)
   * [Build and Test Instructions](src/vpux_compiler/docs/build_and_test.md)
   * [Debugging Techniques](src/vpux_compiler/docs/debugging.md)
+  * [Software layer enabling steps](/src/vpux_compiler/docs/sw_layer_enabling.md)
 * VPUX Plugin
   * VPUAL Backend
   * Zero Backend
   * HDDL2 Backend
 * [Software Kernels Implementation](./sw_runtime_kernels/README.md)
-
+  
 ## Documentation
 
 ### Prerequisites
