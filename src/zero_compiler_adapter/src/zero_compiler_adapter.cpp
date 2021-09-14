@@ -21,9 +21,12 @@
 namespace vpux {
 namespace zeroCompilerAdapter {
 
+
 ZeroCompilerAdapter::ZeroCompilerAdapter() {
     // apiAdapter = std::make_shared<VPUXCompilerL0>();
     apiAdapter = std::make_shared<ZeroAPICompilerInDriver>();
+}
+ZeroCompilerAdapter::ZeroCompilerAdapter(const ICompiler_Adapter::Ptr compilerAdapter) : apiAdapter(compilerAdapter) {
 }
 
 // TODO How to use inputsInfo, outputsInfo ?
@@ -38,11 +41,11 @@ std::shared_ptr<INetworkDescription> ZeroCompilerAdapter::compile(
     //------------------------------------------------------------------------------
     _logger->debug("Get information about opset versions from compiler");
     //------------------------------------------------------------------------------
-    // TODO Not implemented
+    const auto opset = apiAdapter->getSupportedOpset();
     //------------------------------------------------------------------------------
     _logger->debug("Modify network (ngraph) according to supported opset");
     //------------------------------------------------------------------------------
-    // TODO Not implemented
+    ngraphTransformations::applyLoweringPasses(ngraphFunc, opset);
     //------------------------------------------------------------------------------
     _logger->debug("Use compiler in driver for IR compilation");
     //------------------------------------------------------------------------------
