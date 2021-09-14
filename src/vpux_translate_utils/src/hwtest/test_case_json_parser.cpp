@@ -115,6 +115,8 @@ std::string nb::to_string(CaseType case_) {
     switch (case_) {
     case CaseType::ZMajorConvolution:
         return "ZMajorConvolution";
+    case CaseType::EltwiseAdd:
+        return "EltwiseAdd";
     default:
         return "unknown";
     }
@@ -123,6 +125,8 @@ std::string nb::to_string(CaseType case_) {
 nb::CaseType nb::to_case(llvm::StringRef str) {
     if (isEqual(str, "ZMajorConvolution"))
         return CaseType::ZMajorConvolution;
+    if (isEqual(str, "EltwiseAdd"))
+        return CaseType::EltwiseAdd;
     return CaseType::Unknown;
 };
 
@@ -388,6 +392,11 @@ void nb::TestCaseJsonDescriptor::parse(llvm::StringRef jsonString) {
     if (caseType_ == CaseType::ZMajorConvolution) {
         wtLayer_ = loadWeightLayer(json_obj);
         convLayer_ = loadConvLayer(json_obj);
+        return;
+    }
+
+    if (caseType_ == CaseType::EltwiseAdd /*|| caseType_ == CaseType::EltwiseMult*/) {
+        wtLayer_ = loadWeightLayer(json_obj);
         return;
     }
 
