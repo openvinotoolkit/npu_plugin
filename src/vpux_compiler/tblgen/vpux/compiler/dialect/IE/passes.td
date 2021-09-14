@@ -394,6 +394,24 @@ def FuseQuantizedOps : PassBase<"fuse-quantized-ops", "vpux::FunctionPass"> {
 }
 
 //
+// CleanUpFakeQuantize
+//
+
+def CleanUpFakeQuantize : PassBase<"clean-up-fq", "vpux::FunctionPass"> {
+    let summary = "TODO!!!!!!!!!!!!!!";
+
+    let description = [{
+        TODO!!!!!!!!!!!!!!
+    }];
+
+    let constructor = "vpux::IE::createCleanUpFakeQuantizePass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
+
+//
 // ConvertWeightsToU8
 //
 
