@@ -386,7 +386,7 @@ class Operation_Dag {
           const ControlEdgeContainer cedge_container) {
       init_from_model(omodel);
       apply_control_edges(cedge_container.begin(), cedge_container.end());
-      connect_all_non_unit_outdegree_dmas_to_input(omodel);
+      //connect_all_non_unit_outdegree_dmas_to_input(omodel);
       update_resource_utility_with_attribute_all_ops(
           pipeline_algo_t::pipeline_resource_attribute() );
     }
