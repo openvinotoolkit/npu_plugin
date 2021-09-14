@@ -10,6 +10,7 @@
 #include "kmb_test_tool.hpp"
 
 #include "vpux/utils/core/format.hpp"
+#include <common/functions.h>
 
 namespace LayerTestsUtils {
 
@@ -31,6 +32,12 @@ KmbLayerTestsCommon::KmbLayerTestsCommon(): kmbTestTool(envConfig) {
     if (!envConfig.IE_KMB_TESTS_LOG_LEVEL.empty()) {
         core->SetConfig({{CONFIG_KEY(LOG_LEVEL), envConfig.IE_KMB_TESTS_LOG_LEVEL}}, testPlatformTargetDevice);
     }
+
+    const auto noDevice = getBackendName(*core).empty();
+    if (envConfig.IE_KMB_TESTS_RUN_INFER && noDevice) {
+        envConfig.IE_KMB_TESTS_RUN_INFER = false;
+    }
+
 }
 
 void KmbLayerTestsCommon::BuildNetworkWithoutCompile() {
