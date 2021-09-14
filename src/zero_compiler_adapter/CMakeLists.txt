@@ -69,7 +69,7 @@ target_compile_definitions(${OBJ_TARGET_NAME}
         IMPLEMENT_INFERENCE_ENGINE_PLUGIN)
 
 target_include_directories(${OBJ_TARGET_NAME}
-    PRIVATE
+    PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/include
         ${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/include
         ${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/artifacts/VPUXCompilerL0)
@@ -78,13 +78,17 @@ link_system_libraries(${OBJ_TARGET_NAME}
     PRIVATE
         IE::inference_engine
         IE::inference_engine_plugin_api
-        IE::vpu_common_lib)
+        vpux_ngraph_transformations
+#        TODO Avoid this dependencies
+        IE::vpu_common_lib
+        )
 
 if(AARCH64)
 target_link_libraries(${OBJ_TARGET_NAME}
     PRIVATE
         ${VPUX_COMPILER_L0_PATH}
         vpux_al
+#        TODO Avoid this dependencies
         kmb_utils)
 else()
 target_link_libraries(${OBJ_TARGET_NAME}
