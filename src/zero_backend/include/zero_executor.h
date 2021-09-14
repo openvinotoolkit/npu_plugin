@@ -31,8 +31,8 @@ namespace vpux {
 
 class ZeroExecutor final : public Executor {
 protected:
-    struct graph;
-    struct commandQueue;
+    struct Graph;
+    struct CommandQueue;
     enum stage {
         UPLOAD,
         EXECUTE,
@@ -48,8 +48,8 @@ public:
 
     ZeroExecutor(ze_driver_handle_t driver_handle, ze_device_handle_t device_handle, ze_context_handle_t context,
                  ze_graph_dditable_ext_t* graph_ddi_table_ext, const vpux::NetworkDescription::Ptr& networkDescription,
-                 const std::array<std::shared_ptr<commandQueue>, stage::COUNT>& command_queue,
-                 const std::shared_ptr<graph>& graph, const VPUXConfig& config);
+                 const std::array<std::shared_ptr<CommandQueue>, stage::COUNT>& command_queue,
+                 const std::shared_ptr<Graph>& graph, const VPUXConfig& config);
 
     void push(const InferenceEngine::BlobMap& inputs, const PreprocMap& preProcMap) override;
     void push(const InferenceEngine::BlobMap& inputs) override;
@@ -67,11 +67,11 @@ public:
     ~ZeroExecutor() = default;
 
 protected:
-    struct hostMem {
-        hostMem() = default;
-        hostMem(const ze_driver_handle_t driver_handle, const ze_context_handle_t context, const size_t size);
-        hostMem(const hostMem&) = delete;
-        hostMem(hostMem&& other)
+    struct HostMem {
+        HostMem() = default;
+        HostMem(const ze_driver_handle_t driver_handle, const ze_context_handle_t context, const size_t size);
+        HostMem(const HostMem&) = delete;
+        HostMem(HostMem&& other)
                 : _size(other._size),
                   _data(other._data),
                   _driver_handle{other._driver_handle},
@@ -79,8 +79,8 @@ protected:
             other._size = 0;
             other._data = nullptr;
         }
-        hostMem& operator=(const hostMem&) = delete;
-        hostMem& operator=(hostMem&&) = delete;
+        HostMem& operator=(const HostMem&) = delete;
+        HostMem& operator=(HostMem&&) = delete;
 
         const void* data() const {
             return _data;
@@ -95,30 +95,30 @@ protected:
         void copyFrom(const std::vector<T>& vec) {
             const auto inSz = vec.size() * sizeof(T);
             if (inSz != _size)
-                IE_THROW() << "hostMem::copyFrom sizes mismatch";
+                IE_THROW() << "HostMem::copyFrom sizes mismatch";
             if (0 != ie_memcpy(_data, _size, vec.data(), inSz))
-                IE_THROW() << "hostMem::copyFrom::ie_memcpy return != 0";
+                IE_THROW() << "HostMem::copyFrom::ie_memcpy return != 0";
         }
         void copyFrom(const InferenceEngine::Blob::Ptr& blob) {
             const InferenceEngine::MemoryBlob::CPtr mblob = InferenceEngine::as<InferenceEngine::MemoryBlob>(blob);
             if (!mblob)
-                IE_THROW() << "deviceMem::copyFrom failing of casting blob to MemoryBlob";
+                IE_THROW() << "HostMem::copyFrom failing of casting blob to MemoryBlob";
             if (mblob->byteSize() != _size)
-                IE_THROW() << "hostMem::copyFrom sizes mismatch";
+                IE_THROW() << "HostMem::copyFrom sizes mismatch";
             if (0 != ie_memcpy(_data, _size, mblob->rmap().as<const uint8_t*>(), mblob->byteSize()))
-                IE_THROW() << "hostMem::copyFrom::ie_memcpy* return != 0";
+                IE_THROW() << "HostMem::copyFrom::ie_memcpy* return != 0";
         }
         void copyTo(InferenceEngine::Blob::Ptr& blob) const {
             InferenceEngine::MemoryBlob::Ptr mblob = InferenceEngine::as<InferenceEngine::MemoryBlob>(blob);
             if (!mblob)
-                IE_THROW() << "hostMem::copyTo failing of casting blob to MemoryBlob";
+                IE_THROW() << "HostMem::copyTo failing of casting blob to MemoryBlob";
 
             if (mblob->byteSize() != _size)
-                IE_THROW() << "hostMem::copyTo sizes mismatch";
+                IE_THROW() << "HostMem::copyTo sizes mismatch";
             if (0 != ie_memcpy(mblob->buffer().as<uint8_t*>(), mblob->byteSize(), _data, _size))
-                IE_THROW() << "hostMem::copyTo::ie_memcpy return != 0";
+                IE_THROW() << "HostMem::copyTo::ie_memcpy return != 0";
         }
-        ~hostMem();
+        ~HostMem();
 
     private:
         size_t _size = 0;
@@ -128,12 +128,12 @@ protected:
         const static size_t _alignment = 4096;
     };
 
-    struct deviceMem {
-        deviceMem() = default;
-        deviceMem(const ze_driver_handle_t driver_handle, const ze_device_handle_t device_handle,
+    struct DeviceMem {
+        DeviceMem() = default;
+        DeviceMem(const ze_driver_handle_t driver_handle, const ze_device_handle_t device_handle,
                   const ze_context_handle_t context, const size_t size);
-        deviceMem(const deviceMem&) = delete;
-        deviceMem(deviceMem&& other)
+        DeviceMem(const DeviceMem&) = delete;
+        DeviceMem(DeviceMem&& other)
                 : _size(other._size),
                   _data(other._data),
                   _driver_handle(other._driver_handle),
@@ -141,8 +141,8 @@ protected:
             other._size = 0;
             other._data = nullptr;
         }
-        deviceMem& operator=(const deviceMem&) = delete;
-        deviceMem& operator=(deviceMem&&) = delete;
+        DeviceMem& operator=(const DeviceMem&) = delete;
+        DeviceMem& operator=(DeviceMem&&) = delete;
 
         const void* data() const {
             return _data;
@@ -153,7 +153,7 @@ protected:
         size_t size() const {
             return _size;
         }
-        ~deviceMem();
+        ~DeviceMem();
 
     private:
         size_t _size = 0;
@@ -163,54 +163,54 @@ protected:
         const static size_t _alignment = 4096;
     };
 
-    struct commandList {
-        commandList() = default;
-        commandList(const ze_device_handle_t& device_handle, const ze_context_handle_t& context,
+    struct CommandList {
+        CommandList() = default;
+        CommandList(const ze_device_handle_t& device_handle, const ze_context_handle_t& context,
                     ze_graph_dditable_ext_t* graph_ddi_table_ext);
-        commandList(const commandList&) = delete;
-        commandList& operator=(const commandList&) = delete;
+        CommandList(const CommandList&) = delete;
+        CommandList& operator=(const CommandList&) = delete;
         void reset();
         void appendMemoryCopy(void* dst, const void* src, size_t size);
         void appendGraphInitialize(const ze_graph_handle_t& graph_handle);
         void appendGraphExecute(const ze_graph_handle_t& graph_handle);
         void appendBarrier();
         void close();
-        ~commandList();
+        ~CommandList();
         ze_command_list_handle_t _handle = nullptr;
         const ze_context_handle_t _context = nullptr;
         ze_graph_dditable_ext_t* _graph_ddi_table_ext = nullptr;
     };
 
-    struct fence {
-        fence() = default;
-        fence(const std::shared_ptr<commandQueue>& command_queue);
-        fence(const fence&) = delete;
-        fence& operator=(const fence&) = delete;
+    struct Fence {
+        Fence() = default;
+        Fence(const std::shared_ptr<CommandQueue>& command_queue);
+        Fence(const Fence&) = delete;
+        Fence& operator=(const Fence&) = delete;
         void reset();
         void hostSynchronize();
-        ~fence();
+        ~Fence();
         ze_fence_handle_t _handle = nullptr;
     };
 
-    struct commandQueue {
-        commandQueue() = default;
-        commandQueue(const ze_device_handle_t& device_handle, const ze_context_handle_t& context);
-        commandQueue(const commandQueue&) = delete;
-        commandQueue& operator=(const commandQueue&) = delete;
-        void executeCommandList(commandList& command_list);
-        void executeCommandList(commandList& command_list, fence& fence);
-        ~commandQueue();
+    struct CommandQueue {
+        CommandQueue() = default;
+        CommandQueue(const ze_device_handle_t& device_handle, const ze_context_handle_t& context);
+        CommandQueue(const CommandQueue&) = delete;
+        CommandQueue& operator=(const CommandQueue&) = delete;
+        void executeCommandList(CommandList& command_list);
+        void executeCommandList(CommandList& command_list, Fence& fence);
+        ~CommandQueue();
         ze_command_queue_handle_t _handle = nullptr;
         ze_context_handle_t _context = nullptr;
     };
 
-    struct eventPool_t {
-        eventPool_t() = default;
-        eventPool_t(ze_device_handle_t device_handle, const ze_context_handle_t& context, uint32_t event_count);
-        eventPool_t(const eventPool_t&) = delete;
-        eventPool_t& operator=(const eventPool_t&) = delete;
+    struct EventPool {
+        EventPool() = default;
+        EventPool(ze_device_handle_t device_handle, const ze_context_handle_t& context, uint32_t event_count);
+        EventPool(const EventPool&) = delete;
+        EventPool& operator=(const EventPool&) = delete;
 
-        ~eventPool_t() {
+        ~EventPool() {
             zeEventPoolDestroy(_handle);
         }
 
@@ -218,16 +218,16 @@ protected:
         ze_event_pool_handle_t _handle = nullptr;
     };
 
-    struct event_t {
-        event_t(ze_device_handle_t device_handle, const ze_context_handle_t& context,
-                const ze_event_pool_handle_t& event_pool, uint32_t event_index);
-        event_t(const event_t&) = delete;
-        event_t& operator=(const event_t&) = delete;
-        void AppendSignalEvent(commandList& command_list);
-        void AppendWaitOnEvent(commandList& command_list);
-        void AppendEventReset(commandList& command_list);
+    struct Event {
+        Event(ze_device_handle_t device_handle, const ze_context_handle_t& context,
+              const ze_event_pool_handle_t& event_pool, uint32_t event_index);
+        Event(const Event&) = delete;
+        Event& operator=(const Event&) = delete;
+        void AppendSignalEvent(CommandList& command_list);
+        void AppendWaitOnEvent(CommandList& command_list);
+        void AppendEventReset(CommandList& command_list);
 
-        ~event_t() {
+        ~Event() {
             zeEventDestroy(_handle);
         }
         ze_device_handle_t _device_t = nullptr;
@@ -236,51 +236,51 @@ protected:
         ze_event_handle_t _handle = nullptr;
     };
 
-    struct argumentDescriptor {
+    struct ArgumentDescriptor {
         ze_graph_argument_properties_t info;
         uint32_t idx;
     };
 
-    struct graph {
-        graph(const ze_device_handle_t& device_handle, const ze_context_handle_t& context,
+    struct Graph {
+        Graph(const ze_device_handle_t& device_handle, const ze_context_handle_t& context,
               const NetworkDescription::CPtr networkDesc, ze_graph_dditable_ext_t* graph_ddi_table_ext);
-        graph(const graph&) = delete;
-        graph& operator=(const graph&) = delete;
+        Graph(const Graph&) = delete;
+        Graph& operator=(const Graph&) = delete;
         void init();
         void setArgumentValue(uint32_t argi_, const void* argv_) const;
-        ~graph();
+        ~Graph();
         ze_graph_handle_t _handle = nullptr;
         ze_context_handle_t _context = nullptr;
         const std::vector<char>& _blob;
         ze_graph_properties_t _props{};
-        std::map<std::string, argumentDescriptor> _inputs_desc_map;
-        std::map<std::string, argumentDescriptor> _outputs_desc_map;
-        std::shared_ptr<commandQueue> _command_queue;
-        commandList _command_list;
-        std::shared_ptr<fence> _fence;
+        std::map<std::string, ArgumentDescriptor> _inputs_desc_map;
+        std::map<std::string, ArgumentDescriptor> _outputs_desc_map;
+        std::shared_ptr<CommandQueue> _command_queue;
+        CommandList _command_list;
+        std::shared_ptr<Fence> _fence;
 
         ze_graph_dditable_ext_t* _graph_ddi_table_ext = nullptr;
     };
 
-    struct pipeline {
-        pipeline(const ze_driver_handle_t& driver_handle, const ze_device_handle_t& device_handle,
+    struct Pipeline {
+        Pipeline(const ze_driver_handle_t& driver_handle, const ze_device_handle_t& device_handle,
                  const ze_context_handle_t context, ze_graph_dditable_ext_t* graph_ddi_table_ext,
-                 const std::shared_ptr<graph>& graph,
-                 const std::array<std::shared_ptr<commandQueue>, stage::COUNT>& command_queue);
-        pipeline(const pipeline&) = delete;
-        pipeline& operator=(const pipeline&) = delete;
-        ~pipeline() = default;
+                 const std::shared_ptr<Graph>& graph,
+                 const std::array<std::shared_ptr<CommandQueue>, stage::COUNT>& command_queue);
+        Pipeline(const Pipeline&) = delete;
+        Pipeline& operator=(const Pipeline&) = delete;
+        ~Pipeline() = default;
 
-        std::map<std::string, hostMem> _inputs_host_mem_map;
-        std::map<std::string, deviceMem> _inputs_device_mem_map;
-        std::map<std::string, hostMem> _outputs_host_mem_map;
-        std::map<std::string, deviceMem> _outputs_device_mem_map;
+        std::map<std::string, HostMem> _inputs_host_mem_map;
+        std::map<std::string, DeviceMem> _inputs_device_mem_map;
+        std::map<std::string, HostMem> _outputs_host_mem_map;
+        std::map<std::string, DeviceMem> _outputs_device_mem_map;
 
-        std::array<commandList, stage::COUNT> _command_list;
-        std::array<fence, stage::COUNT> _fence;
+        std::array<CommandList, stage::COUNT> _command_list;
+        std::array<Fence, stage::COUNT> _fence;
 
-        eventPool_t _event_pool;
-        std::array<event_t, stage::COUNT> _event;
+        EventPool _event_pool;
+        std::array<Event, stage::COUNT> _event;
     };
 
 private:
@@ -295,11 +295,11 @@ private:
 
     NetworkDescription::Ptr _networkDesc;
 
-    std::shared_ptr<graph> _graph;
+    std::shared_ptr<Graph> _graph;
 
-    std::array<std::shared_ptr<commandQueue>, stage::COUNT> _command_queue;
+    std::array<std::shared_ptr<CommandQueue>, stage::COUNT> _command_queue;
 
-    std::unique_ptr<pipeline> _pipeline;
+    std::unique_ptr<Pipeline> _pipeline;
 };
 
 }  // namespace vpux
