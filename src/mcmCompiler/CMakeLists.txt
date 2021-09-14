@@ -182,6 +182,7 @@ set(pass
     "${PROJECT_SOURCE_DIR}/src/pass/pass_registry.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/pass_utils.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/pass_quantization.cpp"
+    "${PROJECT_SOURCE_DIR}/src/utils/ops_conversion_utils.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/pass/quantization/cmconv_shapeBased_selection.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/quantization/propagate_fake_quantize.cpp"

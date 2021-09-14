@@ -243,6 +243,8 @@ std::unique_ptr<mv::CompilationUnit> createCompilationUnit(
         mcmCompDesc.setPassArg("GlobalConfigParams", "DeviceRevision",
                                std::string(MVCNN::EnumNameTargetDeviceRevision(getDeviceRevision(config.platform()))));
 
+        if (config.platform() == InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR)
+            mcmCompDesc.setPassArg("GlobalConfigParams", "target_emulator", true);
 
         if (config.referenceMode()) {
             mcmCompDesc.setPassArg("GlobalConfigParams", "ReferenceMode", true);

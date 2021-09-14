@@ -49,17 +49,17 @@ namespace mv
             MemoryLocation(const std::string& location, bool forced);
             MemoryLocation(const Location location, bool forced) : location_(location),forced_(forced) {}
 
-            bool operator==(const Location other) { return (location_ == other); }
-            bool operator==(std::string& other);
-            bool operator==(const MemoryLocation& other) { return (location_ == other.location_);}
+            bool operator==(const Location other) const { return (location_ == other); }
+            bool operator==(std::string& other) const;
+            bool operator==(const MemoryLocation& other) const { return (location_ == other.location_);}
 
-            bool operator!=(const Location other) {return  (location_ != other); }
-            bool operator!=(std::string& other);
-            bool operator!=(const MemoryLocation& other) { return (location_ != other.location_);}
+            bool operator!=(const Location other) const {return  (location_ != other); }
+            bool operator!=(std::string& other) const;
+            bool operator!=(const MemoryLocation& other) const { return (location_ != other.location_);}
 
             void force() { forced_ = true;}
-            bool isDefault() { return (location_ == DEFAULT); }
-            bool isForced() {return forced_;}
+            bool isDefault()const { return (location_ == DEFAULT); }
+            bool isForced()const {return forced_;}
 
             bool relocate(Location newPlace)
             {

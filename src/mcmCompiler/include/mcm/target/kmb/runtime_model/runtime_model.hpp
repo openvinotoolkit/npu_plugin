@@ -45,6 +45,8 @@ namespace mv
 
             static std::vector<unsigned> reduceQuantVector_(std::vector<unsigned> inVec);
 
+            static bool targetEmulator_(mv::Element& compilationDescriptor);
+
         public:
             static constexpr size_t default_weight_alignment = 256;
 
@@ -58,7 +60,7 @@ namespace mv
 
             // CONVERT METHODS (String to enums, enums to strings, enums mapping etc)
             static MVCNN::MemoryLocation convertAllocatorToMemoryLocale(const std::string& allocatorName,
-                                                                        mv::Tensor::MemoryLocation& tensorLocation);
+                                                                        const mv::Tensor::MemoryLocation& tensorLocation);
             static MVCNN::DType convertDtype(const DType& dtype);
             static DType convertDtype(const MVCNN::DType& dtype);
             static MVCNN::TargetDevice mapTargetDevice(const mv::Target& target);
@@ -87,16 +89,17 @@ namespace mv
             static std::vector<std::unique_ptr<MVCNN::TaskT>> buildTaskT(ComputationModel& cm, Element& compilationDescriptor, Control::OpListIterator opIt, uint8_t* port);
 
             // TASKS
-            static std::vector<std::unique_ptr<MVCNN::TaskT>> buildSpecificTaskUnion(ComputationModel& cm, Element& compilationDescriptor, Control::OpListIterator opIt, uint8_t* port);
+            static std::vector<std::unique_ptr<MVCNN::TaskT>> buildSpecificTaskUnion(ComputationModel& cm, Element& compilationDescriptor, Control::OpListIterator& opIt, uint8_t* port);
             static std::vector<std::unique_ptr<MVCNN::TaskT>> buildMvTensorTaskT(ComputationModel& cm, Element& compilationDescriptor, Control::OpListIterator opIt);
             static std::vector<std::unique_ptr<MVCNN::TaskT>> buildUPADMATaskT(ComputationModel& cm, Element& compilationDescriptor, Control::OpListIterator opIt);
             static std::vector<std::unique_ptr<MVCNN::TaskT>> buildNNDMATaskT(ComputationModel& cm, Element& compilationDescriptor, Control::OpListIterator opIt, std::string splitting, uint8_t* port);
             static std::vector<std::unique_ptr<MVCNN::TaskT>> buildHWDMATaskT(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt);
             static std::vector<std::unique_ptr<MVCNN::TaskT>> buildNCE1TaskT(ComputationModel& cm, Element& compilationDescriptor, Control::OpListIterator opIt);
-            static std::vector<std::unique_ptr<MVCNN::TaskT>> buildNCE2TaskT(ComputationModel& cm, Element& compilationDescriptor, Control::OpListIterator opIt, std::string splitting);
+            static std::vector<std::unique_ptr<MVCNN::TaskT>> buildNCE2TaskT(ComputationModel& cm, Element& compilationDescriptor, Control::OpListIterator opIt, const std::string& splitting);
             static std::vector<std::unique_ptr<MVCNN::TaskT>> buildUPATask(ComputationModel& cm, Element& compilationDescriptor, Control::OpListIterator opIt);
             static std::vector<std::unique_ptr<MVCNN::TaskT>> buildControllerTaskT(ComputationModel& cm, Element& compilationDescriptor, Control::OpListIterator opIt);
             static std::vector<std::unique_ptr<MVCNN::TaskT>> buildBarrierTaskT(ComputationModel& cm, Element& compilationDescriptor, Control::OpListIterator opIt);
+            static std::vector<std::unique_ptr<MVCNN::TaskT>> buildImplicitTask(ComputationModel& cm, Element& compilationDescriptor, Control::OpListIterator& opIt);
 
             // NCE2 TASK
             static std::unique_ptr<MVCNN::NCEInvariantFieldsT> buildNCEInvariantFieldsT(ComputationModel& cm, Element& compilationDescriptor, Control::OpListIterator opIt, int numClusters);
@@ -173,6 +176,13 @@ namespace mv
             static MVCNN::UPALayerTaskT * buildUPAReverseSequenceTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt);
             static MVCNN::UPALayerTaskT * buildUPAStridedSliceTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt);
 
+            // Implicit Layer Task
+            static MVCNN::UPALayerTaskT * buildUPAConcatTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt);
+            static MVCNN::UPALayerTaskT * buildUPACopyTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt);
+            static MVCNN::UPALayerTaskT * buildUPACropTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt);
+            static MVCNN::UPALayerTaskT * buildUPASliceTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt);
+            static MVCNN::UPALayerTaskT * buildUPAAlignTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt);
+            
             // UTILS
             static unsigned countProducerConsumerTasks(mv::ComputationModel& cm, mv::Control::OpListIterator opIt, bool trimEmptyTensors = false);
             static void specializeBasePtrs(const mv::Control::OpListIterator& opIt, std::unique_ptr<MVCNN::NCEInvariantFieldsT>& toBuild, const unsigned int clusterId, const unsigned int maxClusters = 4);

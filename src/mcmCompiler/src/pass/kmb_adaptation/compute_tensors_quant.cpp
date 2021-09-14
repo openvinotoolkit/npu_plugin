@@ -357,6 +357,7 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
     mv::DataModel dm(model);
 
     auto operations = om.topologicalSort();
+    std::shared_ptr<mv::Element> globalParams = model.getGlobalConfigParams();
     for(auto op = operations.begin(); op != operations.end(); ++op)
     {
         auto opIt = *op;
@@ -388,7 +389,11 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
                 floatScaleTable = inputDType == mv::DType("Float16") || inputDType == mv::DType("BFloat16");
             }
             const auto actualOutputChannels = output->getShape()[mv::IO_CHANNEL_DIMENSION];
-            auto outputChannels = mv::round_up(actualOutputChannels, 16);
+            unsigned int outputChannels;
+            if(globalParams->hasAttr("target_emulator") && globalParams->get<bool>("target_emulator"))
+                outputChannels = actualOutputChannels;
+            else
+                outputChannels = mv::round_up(actualOutputChannels, 16);
 
             if (output->isQuantized() && input->isQuantized())
             {

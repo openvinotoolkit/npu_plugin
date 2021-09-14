@@ -30,12 +30,12 @@ mv::Tensor::MemoryLocation::MemoryLocation(const std::string& location, bool for
     : location_(namingMap[location]), forced_(forced)
 {}
 
-bool mv::Tensor::MemoryLocation::operator==(std::string& other)
+bool mv::Tensor::MemoryLocation::operator==(std::string& other) const
 {
     return (location_ == namingMap[other]);
 }
 
-bool mv::Tensor::MemoryLocation::operator!=(std::string& other)
+bool mv::Tensor::MemoryLocation::operator!=(std::string& other) const
 {
     return (location_ != namingMap[other]);
 }
