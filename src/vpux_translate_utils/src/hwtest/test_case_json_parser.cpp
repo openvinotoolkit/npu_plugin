@@ -117,6 +117,8 @@ std::string nb::to_string(CaseType case_) {
         return "ZMajorConvolution";
     case CaseType::EltwiseAdd:
         return "EltwiseAdd";
+    case CaseType::MaxPool:
+        return "MaxPool";
     default:
         return "unknown";
     }
@@ -127,6 +129,8 @@ nb::CaseType nb::to_case(llvm::StringRef str) {
         return CaseType::ZMajorConvolution;
     if (isEqual(str, "EltwiseAdd"))
         return CaseType::EltwiseAdd;
+    if (isEqual(str, "MaxPool"))
+        return CaseType::MaxPool;
     return CaseType::Unknown;
 };
 
@@ -397,6 +401,11 @@ void nb::TestCaseJsonDescriptor::parse(llvm::StringRef jsonString) {
 
     if (caseType_ == CaseType::EltwiseAdd /*|| caseType_ == CaseType::EltwiseMult*/) {
         wtLayer_ = loadWeightLayer(json_obj);
+        return;
+    }
+
+    if (caseType_ == CaseType::MaxPool /*|| caseType_ == CaseType::AvgPool*/) {
+        poolLayer_ = loadPoolLayer(json_obj);
         return;
     }
 
