@@ -1823,6 +1823,8 @@ void replacePermuteReshapePermutePatternFcn(const mv::pass::PassEntry& , mv::Com
     const std::vector<std::string> pattern = {"Permute", "Reshape", "Permute"};
     auto ops = om.getOps(*pattern.begin());
 
+    mv::GenerateDotFromModel(om, "OpModel", "perm_reshape_perm_prev.dot");
+
     for (auto& opIt : ops)
     {
         if (!opIt) {
@@ -1830,6 +1832,8 @@ void replacePermuteReshapePermutePatternFcn(const mv::pass::PassEntry& , mv::Com
         }
 
         if (matchPattern(pattern, opIt, model)) {
+            std::cout << "\n !! matchPattern \n\n";
+
             auto permute2Op = opIt;
             auto reshapeOp = om.getSourceOp(permute2Op->getInputTensor(mv::IO_TENSOR_INPUT));
             auto permuteOp = om.getSourceOp(reshapeOp->getInputTensor(mv::IO_TENSOR_INPUT));
@@ -1841,25 +1845,34 @@ void replacePermuteReshapePermutePatternFcn(const mv::pass::PassEntry& , mv::Com
             auto outputShape = permute2Op->getOutputTensor(mv::IO_TENSOR_OUTPUT)->getShape();
 
 
+            const bool case1 = false;
+//            const bool case1 = (permuteOp->get<mv::Order>("order") == mv::Order("CWHN")) &&
+//                               (permute2Op->get<mv::Order>("order") == mv::Order("HCWN")) &&
+//                               (permuteShape[mv::IO_CHANNEL_DIMENSION] == reshapeShape[mv::IO_CHANNEL_DIMENSION]) &&
+//                               (permuteShape[mv::IO_HEIGHT_DIMENSION] == reshapeShape[mv::IO_HEIGHT_DIMENSION]/2) &&
+//                               (permuteShape[mv::IO_WIDTH_DIMENSION]/2 == reshapeShape[mv::IO_WIDTH_DIMENSION]);
 
-            const bool case1 = (permuteOp->get<mv::Order>("order") == mv::Order("CWHN")) &&
-                               (permute2Op->get<mv::Order>("order") == mv::Order("HCWN")) &&
-                               (permuteShape[mv::IO_CHANNEL_DIMENSION] == reshapeShape[mv::IO_CHANNEL_DIMENSION]) &&
-                               (permuteShape[mv::IO_HEIGHT_DIMENSION] == reshapeShape[mv::IO_HEIGHT_DIMENSION]/2) &&
-                               (permuteShape[mv::IO_WIDTH_DIMENSION]/2 == reshapeShape[mv::IO_WIDTH_DIMENSION]);
+            std::cout << "case1 = " << case1 << "\n";
 
-            const bool case2 = (permuteShape[mv::IO_CHANNEL_DIMENSION] == reshapeShape[mv::IO_CHANNEL_DIMENSION]/2) &&
-                               (permuteShape[mv::IO_HEIGHT_DIMENSION] == reshapeShape[mv::IO_HEIGHT_DIMENSION]) &&
-                               (permuteShape[mv::IO_WIDTH_DIMENSION]/2 == reshapeShape[mv::IO_WIDTH_DIMENSION]);
+            const bool case2 = false;
+//            const bool case2 = (permuteShape[mv::IO_CHANNEL_DIMENSION] == reshapeShape[mv::IO_CHANNEL_DIMENSION]/2) &&
+//                               (permuteShape[mv::IO_HEIGHT_DIMENSION] == reshapeShape[mv::IO_HEIGHT_DIMENSION]) &&
+//                               (permuteShape[mv::IO_WIDTH_DIMENSION]/2 == reshapeShape[mv::IO_WIDTH_DIMENSION]);
+
+            std::cout << "case2 = " << case2 << "\n";
+
             // Verify compatible orders/shapes pattern
-            if (!(case1 || case2))
+            if (!(case1 || case2)) {
+                std::cout << "\n !! not applied \n\n";
                 continue;
+            }
+            std::cout << "\n !! applied \n\n";
 
             auto name = reshapeOp->getName();
             auto dtype = permuteInputTensor->getDType();
             auto quantParams = permuteInputTensor->getQuantParams();
 
-            auto it = om.getSourceOp(opIt->getInputTensor(mv::IO_TENSOR_INPUT));
+            auto it = om.getSourceOp(permute2Op->getInputTensor(mv::IO_TENSOR_INPUT));
 
             for (size_t i = 0; i < pattern.size() - 1; ++i) {
                 auto parentOpIt = om.getSourceOp( it->getInputTensor(mv::IO_TENSOR_INPUT));
@@ -1883,6 +1896,8 @@ void replacePermuteReshapePermutePatternFcn(const mv::pass::PassEntry& , mv::Com
             linkNewOperationsReplacement(it, reshape, om, opIt);
         }
     }
+
+    mv::GenerateDotFromModel(om, "OpModel", "perm_reshape_perm.dot");
 }
 
 namespace {
