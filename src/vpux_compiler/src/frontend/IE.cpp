@@ -160,6 +160,7 @@ private:
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Pad>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::LSTMCell>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Subtract>& origNode);
+    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::LSTMSequence>& origNode);
 
     SmallVector<mlir::Value> getInputs(const OrigNodePtr& node);
     void addOutputs(const OrigNodePtr& node, mlir::Operation* op);
@@ -179,6 +180,7 @@ private:
     IE::ROIPoolingMethodAttr importROIPoolingMethod(const std::string& method);
     IE::PadModeAttr importPadMode(const ngraph::op::PadMode val);
     IE::LRN_IERegionAttr importLRN_IERegion(const std::string& region);
+    IE::RNNSequenceDirectionAttr importRNNSequenceDirection(const ngraph::op::RecurrentSequenceDirection val);
 
     mlir::MLIRContext* _ctx = nullptr;
     std::shared_ptr<const ngraph::Function> _netGraph;
@@ -260,6 +262,7 @@ NGraphImporter::Callback NGraphImporter::getParser(const std::shared_ptr<ngraph:
             MAP_ENTRY(opset_latest::Pad),
             MAP_ENTRY(opset_latest::LSTMCell),
             MAP_ENTRY(opset_latest::Subtract),
+            MAP_ENTRY(opset_latest::LSTMSequence),
     };
 
 #undef MAP_ENTRY
@@ -1263,8 +1266,54 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
                       "nGraph LSTMCell node '{0}' has unsupported activations '{1}'", origNode->get_friendly_name(),
                       origNode->get_activations());
 
+    const auto hiddenSizeAttr = getIntAttr(_ctx, origNode->get_hidden_size());
+
     auto op = builder.create<IE::LSTMCellOp>(createLocation(origNode), inputs[0], inputs[1], inputs[2], inputs[3],
-                                             inputs[4], inputs[5], origNode->get_hidden_size());
+                                             inputs[4], inputs[5], hiddenSizeAttr);
+    addOutputs(origNode, op);
+}
+
+void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::LSTMSequence>& origNode) {
+    static_assert(std::is_same<std::decay<decltype(*origNode)>::type, opset_latest::LSTMSequence>::value,
+                  "opset operation mismatch");
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS(inputs.size() == 7, "nGraph LSTMSequence node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
+
+    VPUX_THROW_UNLESS(origNode->get_clip() == 0.0f, "nGraph LSTMSequence node '{0}' has unsupported clip value '{1}'",
+                      origNode->get_friendly_name(), origNode->get_clip());
+
+    VPUX_THROW_UNLESS(origNode->get_activations() == std::vector<std::string>({"sigmoid", "tanh", "tanh"}),
+                      "nGraph LSTMSequence node '{0}' has unsupported activations '{1}'", origNode->get_friendly_name(),
+                      origNode->get_activations());
+
+    VPUX_THROW_UNLESS(origNode->get_direction() != opset_latest::LSTMSequence::direction::BIDIRECTIONAL,
+                      "nGraph LSTMSequence node '{0}' has unsupported direction 'BIDIRECTIONAL'",
+                      origNode->get_friendly_name());
+    const auto directionAttr = importRNNSequenceDirection(origNode->get_direction());
+
+    const auto seqLenConstant = dynamic_cast<opset_latest::Constant*>(origNode->input_value(3).get_node());
+    VPUX_THROW_UNLESS(
+            seqLenConstant != nullptr,
+            "nGraph LSTMSequence node '{0}' has unsupported sequenceLengths input. It must be a Constant node",
+            origNode->get_friendly_name());
+    const auto seqLenValues = seqLenConstant->cast_vector<uint32_t>();
+    VPUX_THROW_UNLESS(seqLenValues.size() > 0,
+                      "nGraph LSTMSequence node '{0}' has unsupported sequenceLengths input. It must contain more than "
+                      "0 elements",
+                      origNode->get_friendly_name());
+    const auto isAllLensSame =
+            std::all_of(seqLenValues.cbegin(), seqLenValues.cend(), [&seqLenValues](const auto item) {
+                return seqLenValues[0] == item;
+            });
+    VPUX_THROW_UNLESS(
+            isAllLensSame,
+            "nGraph LSTMSequence node '{0}' has unsupported sequenceLengths input. It must contain all the same values",
+            origNode->get_friendly_name());
+    const auto seqLenAttr = getIntAttr(_ctx, checked_cast<uint32_t>(seqLenValues[0]));
+
+    auto op = builder.create<IE::LSTMSequenceOp>(createLocation(origNode), inputs[0], inputs[1], inputs[2], inputs[4],
+                                                 inputs[5], inputs[6], seqLenAttr, directionAttr);
     addOutputs(origNode, op);
 }
 
@@ -1583,6 +1632,19 @@ IE::ROIPoolingMethodAttr NGraphImporter::importROIPoolingMethod(const std::strin
         attr = IE::ROIPoolingMethodAttr::get(_ctx, IE::ROIPoolingMethod::bilinear);
     } else {
         VPUX_THROW("Unknown ROIPoolingMethod");
+    }
+    return attr;
+}
+
+IE::RNNSequenceDirectionAttr NGraphImporter::importRNNSequenceDirection(
+        const ngraph::op::RecurrentSequenceDirection val) {
+    IE::RNNSequenceDirectionAttr attr;
+    if (val == ngraph::op::RecurrentSequenceDirection::FORWARD) {
+        attr = IE::RNNSequenceDirectionAttr::get(_ctx, IE::RNNSequenceDirection::FORWARD);
+    } else if (val == ngraph::op::RecurrentSequenceDirection::REVERSE) {
+        attr = IE::RNNSequenceDirectionAttr::get(_ctx, IE::RNNSequenceDirection::REVERSE);
+    } else {
+        VPUX_THROW("Unknown RNNSequence direction");
     }
     return attr;
 }

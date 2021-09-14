@@ -1013,6 +1013,52 @@ operation ::= `IERT.LSTMCell` attr-dict
 `outputHiddenState` | memref of 16-bit float or 32-bit float values
 `outputCellState` | memref of 16-bit float or 32-bit float values
 
+### `IERT.LSTMSequence` (vpux::IERT::LSTMSequenceOp)
+
+InferenceEngine run-time LSTMSequence layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.LSTMSequence` attr-dict
+              `inputs` `(` $inputData `:` type($inputData) `,` $initialHiddenState `:` type($initialHiddenState) `,` $initialCellState `:` type($initialCellState)
+              `,` $weights `:` type($weights) `,` $biases `:` type($biases) `)`
+              `outputs` `(` $outputHiddenValues_buff `:` type($outputHiddenValues_buff) `,`
+              $outputHiddenState_buff `:` type($outputHiddenState_buff) `,`
+              $outputCellState_buff `:` type($outputCellState_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`sequenceLength` | mlir::IntegerAttr | Integer attribute
+`direction` | vpux::IE::RNNSequenceDirectionAttr | RNNSequenceDirection that the InferenceEngine supports
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`inputData` | memref of 16-bit float or 32-bit float values
+`initialHiddenState` | memref of 16-bit float or 32-bit float values
+`initialCellState` | memref of 16-bit float or 32-bit float values
+`weights` | memref of 16-bit float or 32-bit float values
+`biases` | memref of 16-bit float or 32-bit float values
+`outputHiddenValues_buff` | memref of 16-bit float or 32-bit float values
+`outputHiddenState_buff` | memref of 16-bit float or 32-bit float values
+`outputCellState_buff` | memref of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`outputHiddenValues` | memref of 16-bit float or 32-bit float values
+`outputHiddenState` | memref of 16-bit float or 32-bit float values
+`outputCellState` | memref of 16-bit float or 32-bit float values
+
 ### `IERT.LeakyRelu` (vpux::IERT::LeakyReluOp)
 
 InferenceEngine run-time LeakyRelu layer

@@ -1911,4 +1911,35 @@ def IE_SubtractOp :
     let hasFolder = 1;
 }
 
+//
+// LSTMSequenceOp
+//
+
+def IE_LSTMSequenceOp :
+        IE_LayerOp<
+            "LSTMSequence",
+            [
+                ResultsAreFloatLike
+            ]
+        > {
+    let summary = "InferenceEngine LSTMSequence layer";
+
+    let arguments = (ins
+        3DTensorOf<[F16, F32]>:$inputData,
+        3DTensorOf<[F16, F32]>:$initialHiddenState,
+        3DTensorOf<[F16, F32]>:$initialCellState,
+        3DTensorOf<[F16, F32]>:$weights,
+        3DTensorOf<[F16, F32]>:$reccurenceWeights,
+        2DTensorOf<[F16, F32]>:$biases,
+
+        IntAttr:$sequenceLength,
+        IE_RNNSequenceDirection:$direction
+    );
+
+    let results = (outs
+        4DTensorOf<[F16, F32]>:$outputHiddenValues,
+        3DTensorOf<[F16, F32]>:$outputHiddenState,
+        3DTensorOf<[F16, F32]>:$outputCellState
+    );
+}
 #endif
