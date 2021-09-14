@@ -127,8 +127,8 @@ func @MergeDMAs(%arg0: memref<1x3x1x1xui8>, %arg1: memref<1x3x1x1xf16>, %arg2: m
 
 // -----
 
-// CHECK-LABEL: @ThreeDMAs
-func @ThreeDMAs(%arg0: memref<16xf16>, %arg1: memref<16xf16>, %arg2: memref<16xf16>)
+// CHECK-LABEL: @TaskWithExclusiveUsers
+func @TaskWithExclusiveUsers(%arg0: memref<16xf16>, %arg1: memref<16xf16>, %arg2: memref<16xf16>)
         -> (memref<16xf16>, memref<16xf16>) {
     %buf = IERT.StaticAlloc <0> -> memref<16xf16>
 
@@ -160,23 +160,72 @@ func @ThreeDMAs(%arg0: memref<16xf16>, %arg1: memref<16xf16>, %arg2: memref<16xf
 
     // CHECK:       [[BUF:%.*]] = IERT.StaticAlloc
 
-    // CHECK:       [[T0:%.+]], [[F0:%.+]]:2 = async.execute
+    // CHECK:       [[T0:%.+]], [[F0:%.+]] = async.execute
     // CHECK:           [[VAR0:%.*]] = IERT.ReLU
     // CHECK-SAME:          inputs(%arg0 : memref<16xf16>)
     // CHECK-SAME:          outputs([[BUF]] : memref<16xf16>)
+    // CHECK:           async.yield [[VAR0]]
+    // CHECK:       async.await [[T0]]
+
+    // CHECK:       [[T1:%.+]], [[F1:%.+]]:2 = async.execute
+    // CHECK-SAME:          ([[F0]] as [[VAR1:%.*]]: !async.value<memref<16xf16>>)
     // CHECK:           [[VAR2:%.*]] = IERT.ReLU
     // CHECK-SAME:          inputs(%arg0 : memref<16xf16>)
     // CHECK-SAME:          outputs(%arg1 : memref<16xf16>)
-    // CHECK:           async.yield [[VAR0]], [[VAR2]]
-    // CHECK:       [[VAR3:%.*]] = async.await [[F0]]#1
+    // CHECK:           [[VAR3:%.*]] = IERT.ReLU
+    // CHECK-SAME:          inputs([[VAR1]] : memref<16xf16>)
+    // CHECK-SAME:          outputs(%arg2 : memref<16xf16>)
+    // CHECK:           async.yield [[VAR2]], [[VAR3]]
+    // CHECK:       [[VAR4:%.*]] = async.await [[F1]]#0
+    // CHECK:       [[VAR5:%.*]] = async.await [[F1]]#1
+
+    // CHECK:       return [[VAR4]], [[VAR5]]
+}
+
+// -----
+
+// CHECK-LABEL: @MergeInputDMAs
+func @MergeInputDMAs(%arg0: memref<1x3x1x1xf16>, %arg1: memref<1x3x1x1xf16>, %arg2: memref<1x3x1x1xf16>, %arg3: memref<1x3x1x1xf16>)
+        -> (memref<1x3x1x1xf16>) {
+    %token_0, %results_0 = async.execute
+            -> !async.value<memref<1x3x1x1xf16>>
+            attributes {IERT.executor = "DMA_NN", IERT.num_units = 1 : i64} {
+        %0 = IERT.Copy inputs(%arg0 : memref<1x3x1x1xf16>) outputs(%arg1 : memref<1x3x1x1xf16>) -> memref<1x3x1x1xf16>
+        async.yield %0 : memref<1x3x1x1xf16>
+    }
+    async.await %token_0 : !async.token
+
+    %token_1, %results_1 = async.execute
+            -> !async.value<memref<1x3x1x1xf16>>
+            attributes {IERT.executor = "DMA_NN", IERT.num_units = 1 : i64} {
+        %1 = IERT.Copy inputs(%arg0 : memref<1x3x1x1xf16>) outputs(%arg2 : memref<1x3x1x1xf16>) -> memref<1x3x1x1xf16>
+        async.yield %1 : memref<1x3x1x1xf16>
+    }
+    async.await %token_1 : !async.token
+
+    %token_2, %results_2 = async.execute (%results_0 as %0: !async.value<memref<1x3x1x1xf16>>, %results_1 as %1: !async.value<memref<1x3x1x1xf16>>)
+            -> !async.value<memref<1x3x1x1xf16>>
+            attributes {IERT.executor = "SHAVE_UPA", IERT.num_units = 16} {
+        %2 = IERT.Add inputs(%0 : memref<1x3x1x1xf16>, %1 : memref<1x3x1x1xf16>) outputs(%arg3 : memref<1x3x1x1xf16>) -> memref<1x3x1x1xf16>
+        async.yield %2 : memref<1x3x1x1xf16>
+    }
+    %res = async.await %results_2 : !async.value<memref<1x3x1x1xf16>>
+
+    return %res : memref<1x3x1x1xf16>
+
+    // CHECK:       [[T0:%.+]], [[F0:%.+]]:2 = async.execute
+    // CHECK:           [[VAR0:%.*]] = IERT.Copy
+    // CHECK-SAME:          outputs(%arg1 : memref<1x3x1x1xf16>)
+    // CHECK:           [[VAR1:%.*]] = IERT.Copy
+    // CHECK-SAME:          outputs(%arg2 : memref<1x3x1x1xf16>)
+    // CHECK:           async.yield [[VAR0]], [[VAR1]]
+    // CHECK:       async.await [[T0]]
 
     // CHECK:       [[T1:%.+]], [[F1:%.+]] = async.execute
-    // CHECK-SAME:          ([[F0]]#0 as [[VAR0:%.*]]: !async.value<memref<16xf16>>)
-    // CHECK:           [[VAR4:%.*]] = IERT.ReLU
-    // CHECK-SAME:          inputs([[VAR0]] : memref<16xf16>)
-    // CHECK-SAME:          outputs(%arg2 : memref<16xf16>)
-    // CHECK:           async.yield [[VAR4]]
+    // CHECK:               ([[F0]]#0 as [[VAR2:%.*]]: !async.value<memref<1x3x1x1xf16>>, [[F0]]#1 as [[VAR3:%.*]]: !async.value<memref<1x3x1x1xf16>>)
+    // CHECK:           [[VAR4:%.*]] = IERT.Add
+    // CHECK:               inputs([[VAR2]] : memref<1x3x1x1xf16>, [[VAR3]] : memref<1x3x1x1xf16>)
     // CHECK:       [[VAR5:%.*]] = async.await [[F1]]
 
-    // CHECK:       return [[VAR3]], [[VAR5]]
+    // CHECK:       return [[VAR5]]
 }

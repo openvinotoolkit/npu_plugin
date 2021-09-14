@@ -52,6 +52,28 @@ bool isSameExecutor(mlir::async::ExecuteOp execOp1, mlir::async::ExecuteOp execO
     return executor1 == executor2;
 }
 
+bool prevHasUniqueUsers(mlir::async::ExecuteOp prevExecOp, mlir::async::ExecuteOp execOp) {
+    auto getUsers = [](mlir::async::ExecuteOp op) {
+        std::set<mlir::async::ExecuteOp> users;
+        for (auto res : op.getResults())
+            for (auto user : res.getUsers())
+                users.insert(mlir::dyn_cast<mlir::async::ExecuteOp>(user));
+        return users;
+    };
+
+    std::set<mlir::async::ExecuteOp> usersPrevOp = getUsers(prevExecOp);
+    std::set<mlir::async::ExecuteOp> usersOp = getUsers(execOp);
+    usersPrevOp.erase(execOp);
+
+    llvm::SmallVector<mlir::async::ExecuteOp> uniqueUsersPrevOp;
+    std::set_difference(usersPrevOp.begin(), usersPrevOp.end(), usersOp.begin(), usersOp.end(),
+                        std::back_inserter(uniqueUsersPrevOp));
+    if (!uniqueUsersPrevOp.empty())
+        return true;
+
+    return false;
+}
+
 //
 // mergeAsyncExecuteOps
 //
@@ -255,6 +277,10 @@ mlir::LogicalResult GroupAsyncExecuteOps::matchAndRewrite(mlir::async::AwaitOp w
     if (llvm::is_contained(prevExecOp->getUsers(), execOp)) {
         return matchFailed(_log.nest(), rewriter, execOp,
                            "Current 'async.execute' depends on previous 'async.execute'");
+    }
+
+    if (prevHasUniqueUsers(prevExecOp, execOp)) {
+        return matchFailed(_log.nest(), rewriter, execOp, "Previous 'async.execute' has exclusive users");
     }
 
     auto newExecOp = mergeAsyncExecuteOps(prevExecOp, execOp, rewriter);
