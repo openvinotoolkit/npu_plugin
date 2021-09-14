@@ -146,7 +146,7 @@ std::int32_t getMTLScale(double scale) {
     static constexpr std::uint32_t SCALE_MODE_SHIFT = 16;
 
     // harcoded
-    std::int32_t round32 = 1;
+    std::int32_t round32 = 0;
     std::int32_t reluMult = 0;
     std::uint32_t mult = 0;
     std::uint32_t shift = 0;
@@ -240,7 +240,7 @@ std::vector<std::int32_t> vpux::VPUIP::NCESparsity::getWeightsTable(
             const auto weightsScale = getScale(weightsType);
             const auto outputScale = getScale(outputType);
 
-            const auto scale = (inputScale * weightsScale) / outputScale;
+            const auto scale = outputScale / (inputScale * weightsScale);
             return inputType.isBF16() || inputType.isF16() ? toHex(scale) : ppeConverter(scale);
         } else {
             return ppeConverter(1.0);
