@@ -426,7 +426,7 @@ OutputTiling SimpleTiler::genericTiler(mlir::Operation* op, mlir::MemRefType out
                 dimToTile = spatialDim;
                 break;
             }
-=======
+
     const auto isDimLeftToTile = [&]() {
         if(dimToTile == IE::Dims4D::Act::C) {
             if(nTilesOnDim[IE::Dims4D::Act::C] < maxChannelTiles)
