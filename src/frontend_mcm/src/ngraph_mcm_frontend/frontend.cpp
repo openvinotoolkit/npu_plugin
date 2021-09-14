@@ -234,7 +234,7 @@ std::unique_ptr<mv::CompilationUnit> createCompilationUnit(
 
         mcmCompDesc.setPassArg("GlobalConfigParams", "verbose", cvtLogLevelToMCM(config.mcmLogLevel()));
         mcmCompDesc.setPassArg("GlobalConfigParams", "RemovePermuteNoOp", config.removePermuteNoOp());
-        mcmCompDesc.setPassArg("GlobalConfigParams", "enable_channel_major_conv", false);
+        mcmCompDesc.setPassArg("GlobalConfigParams", "enable_channel_major_conv", true);
                 //                        std::find_if(inputsInfo.begin(), inputsInfo.end(),
                 //                                         [](const std::pair<std::string, ie::InputInfo::Ptr>& input) {
                 //     return input.second->getLayout() != InferenceEngine::Layout::NCHW &&
