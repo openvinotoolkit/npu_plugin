@@ -34,7 +34,7 @@
 #endif
 
 namespace nb {
-enum class CaseType { ZMajorConvolution, EltwiseAdd, EltwiseMult, MaxPool, Unknown };
+enum class CaseType { ZMajorConvolution, EltwiseAdd, EltwiseMult, MaxPool, AvgPool, Unknown };
 
 std::string to_string(CaseType case_);
 CaseType to_case(llvm::StringRef str);
