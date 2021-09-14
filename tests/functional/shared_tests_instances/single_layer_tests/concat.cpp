@@ -10,16 +10,6 @@
 
 namespace LayerTestsDefinitions {
 class KmbConcatLayerTest : public ConcatLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
-    // SkipBeforeLoad() is added because all values for inShapes (except {{10,10,10,10}}) lead to error
-    // in mcm-compiler:
-    // [Debug  ][VPU][KMB nGraph Parser] Run MCM Compiler
-    // kmbFuncTests: kmb-plugin/src/mcmCompiler/src/scheduler/feasible_scheduler.hpp:2200:
-    // void mv::lp_scheduler::Feasible_Memory_Schedule_Generator<T, SchedulerTraits, Allocator>::
-    // unschedule_op(const mv::lp_scheduler::Feasible_Memory_Schedule_Generator<T, SchedulerTraits, Allocator>::
-    // heap_element_t&) [with T = mv::scheduler::Operation_Dag<>;
-    // SchedulerTraits = mv::lp_scheduler::scheduler_traits<mv::scheduler::Operation_Dag<> >;
-    // Allocator = std::allocator<mv::scheduler::Operation_Dag<> >]: Assertion `itr != op_output_table_.end()' failed.
-    // Aborted (core dumped)
     // [Track number: S#49997]
     virtual void SkipBeforeLoad() override {
         if (isCompilerMCM()) {
@@ -30,22 +20,15 @@ class KmbConcatLayerTest : public ConcatLayerTest, virtual public LayerTestsUtil
             InferenceEngine::Layout inLayout, outLayout;
             std::string targetName;
             std::tie(axis, inputShapes, netPrecision, inPrc, outPrc, inLayout, outLayout, targetName) = GetParam();
-            if (inputShapes.size() == 1)  // This is just for inShapes = {{10,10,10,10}}
-                return;
-
-            throw LayerTestsUtils::KmbSkipTestException("There is error on step: "
-                                                        "[Debug  ][VPU][KMB nGraph Parser] Run MCM Compiler");
+            if (inputShapes.size() != 1) {
+                throw LayerTestsUtils::KmbSkipTestException("ArgumentError: attribute identifer allocators - Undefined identifier");
+            }
         }
     }
-
-    // There is segmentation fault during infer on KMB-board for inShapes_pass_mcm = { {{10, 10, 10, 10}} }.
-    // The segfault arises inside function blob_copy_4d_t<Precision::FP32>() in file
-    // openvino/inference-engine/src/inference_engine/blob_transform.cpp
     // [Track number: S#49998]
     virtual void SkipBeforeInfer() override {
         if (isCompilerMCM()) {
-            throw LayerTestsUtils::KmbSkipTestException("There is \"Segmentation fault\" during infer "
-                                                        "on KMB-board revision A");
+            throw LayerTestsUtils::KmbSkipTestException("Comparison error with reference");
         }
     }
 };
