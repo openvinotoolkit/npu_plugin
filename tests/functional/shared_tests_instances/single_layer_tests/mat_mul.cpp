@@ -6,6 +6,7 @@
 
 #include "kmb_layer_test.hpp"
 #include "single_layer_tests/mat_mul.hpp"
+#include <common/functions.h>
 
 namespace LayerTestsDefinitions {
 
@@ -29,6 +30,12 @@ class KmbMatMulLayerTest : public MatMulTest, virtual public LayerTestsUtils::Km
             if (shapeRelatedParams.input1.first == InferenceEngine::SizeVector({1, 2048})) {
                 throw LayerTestsUtils::KmbSkipTestException("Unsupported MLIR case");
             }
+        }
+    }
+    void SkipBeforeInfer() override {
+        // [Track number: E#20337]
+        if (getBackendName(*getCore()) == "LEVEL0") {
+            throw LayerTestsUtils::KmbSkipTestException("AppendGraphInitialize result 0x70000001");
         }
     }
     void SkipBeforeValidate() override {
