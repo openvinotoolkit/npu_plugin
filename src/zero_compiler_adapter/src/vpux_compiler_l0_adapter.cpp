@@ -42,7 +42,7 @@
 // Extracted from vpux_compiler_l0.h. Otherwise, compilation error. (multiple definition of `getVPUXCompilerL0')
 /** The entrance of VPUXCompilerL0.dll */
 const char* GET_VPUX_COMPILER_L0 = "getCompiler";
-gc_result_t (*getVPUXCompilerL0)(vpux_compiler_l0_t* vcl);
+vpux_compiler_l0_result_t (*getVPUXCompilerL0)(vpux_compiler_l0_t* vcl);
 
 namespace vpux {
 namespace zeroCompilerAdapter {
@@ -50,7 +50,10 @@ namespace zeroCompilerAdapter {
 Blob::Blob(const std::vector<char>& data): data(data) {
 }
 
-VPUXCompilerL0::VPUXCompilerL0() {
+//------------------------------------------------------------------------------
+//      Helpers
+//------------------------------------------------------------------------------
+void VPUXCompilerL0::initLib() {
     handle = OPENLIB(LIBNAME);
     if (handle == NULL) {
         _logger->error("Failed to open %s", LIBNAME);
@@ -62,9 +65,9 @@ VPUXCompilerL0::VPUXCompilerL0() {
         exit(EXIT_FAILURE);
     }
 
-    getVPUXCompilerL0 = (gc_result_t(*)(vpux_compiler_l0_t*))LIBFUNC(handle, GET_VPUX_COMPILER_L0);
+    getVPUXCompilerL0 = (vpux_compiler_l0_result_t(*)(vpux_compiler_l0_t*))LIBFUNC(handle, GET_VPUX_COMPILER_L0);
     if (!getVPUXCompilerL0) {
-        _logger->error("Can not find %s in %s\n", GET_VPUX_COMPILER_L0, LIBNAME);
+        _logger->error("can not find %s in %s\n", GET_VPUX_COMPILER_L0, LIBNAME);
 #if defined(_WIN32)
         _logger->error("Error: %d\n", GetLastError());
 #else
@@ -72,8 +75,17 @@ VPUXCompilerL0::VPUXCompilerL0() {
 #endif
         exit(EXIT_FAILURE);
     }
+}
 
-    gc_result_t ret = GC_RESULT_SUCCESS;
+
+//------------------------------------------------------------------------------
+//      VPUXCompilerL0
+//------------------------------------------------------------------------------
+VPUXCompilerL0::VPUXCompilerL0() {
+    initLib();
+
+    vpux_compiler_l0_result_t ret = RESULT_SUCCESS;
+    vpux_compiler_l0_t vcl;
 
     ret = getVPUXCompilerL0(&vcl);
     if (ret) {
@@ -95,20 +107,19 @@ VPUXCompilerL0::~VPUXCompilerL0() {
 // This function based on convertTest.c sample
 Blob::Ptr VPUXCompilerL0::compileIR(std::vector<char>& xml, std::vector<char>& weights) {
     _logger->debug("VPUXCompilerL0::compileIR start");
-    gc_result_t ret = GC_RESULT_SUCCESS;
+    vpux_compiler_l0_result_t ret = RESULT_SUCCESS;
 
     uint32_t blobSize = 0;
     std::vector<char> blob;
-    ret = vcl.methods.getSerializableBlob(reinterpret_cast<uint8_t*>(xml.data()), xml.size(),
-                                                reinterpret_cast<uint8_t*>(weights.data()), weights.size(),
-                                                reinterpret_cast<uint8_t*>(blob.data()), &blobSize);
-    if (ret != GC_RESULT_SUCCESS || blobSize == 0) {
+
+    vpux_compiler_l0_model_ir modelIR = {static_cast<uint32_t>(xml.size()), static_cast<uint32_t>(weights.size()),
+         reinterpret_cast<uint8_t*>(xml.data()), reinterpret_cast<uint8_t*>(weights.data())};
+    ret = vcl.methods.generateSerializableBlob(&modelIR, &blobSize);
+    if (ret != RESULT_SUCCESS || blobSize == 0) {
         THROW_IE_EXCEPTION << "Failed to get blob size!\n";
     } else {
         blob.resize(blobSize);
-        ret = vcl.methods.getSerializableBlob(reinterpret_cast<uint8_t*>(xml.data()), xml.size(),
-                                                    reinterpret_cast<uint8_t*>(weights.data()), weights.size(),
-                                                    reinterpret_cast<uint8_t*>(blob.data()), &blobSize);
+        ret = vcl.methods.getSerializableBlob(reinterpret_cast<uint8_t*>(blob.data()), blobSize);
     }
 
     _logger->debug("VPUXCompilerL0::compileIR end");
@@ -138,8 +149,8 @@ std::string getEnvVarDefault(const std::string& varName, const std::string& defa
 }
 
 Opset VPUXCompilerL0::getSupportedOpset() {
-    gc_result_t ret = GC_RESULT_SUCCESS;
-    gc_compiler_properties_t compilerInfo;
+    vpux_compiler_l0_result_t ret = RESULT_SUCCESS;
+    vpux_compiler_l0_properties_t compilerInfo;
     ret = vcl.methods.getCompilerProperties(&compilerInfo);
 
     if (ret) {
@@ -150,13 +161,13 @@ Opset VPUXCompilerL0::getSupportedOpset() {
         _logger->info("\tSupported format:\n\
           \t\tNATIVE:%d\n\
         \t\tNGRAPH_LITE:%d\n",
-               compilerInfo.supported_formats & GC_EXECUTABLE_INPUT_TYPE_NATIVE && 1,
-               compilerInfo.supported_formats & GC_EXECUTABLE_INPUT_TYPE_NGRAPH_LITE && 1);
+               compilerInfo.supported_formats & EXECUTABLE_INPUT_TYPE_NATIVE && 1,
+               compilerInfo.supported_formats & EXECUTABLE_INPUT_TYPE_NGRAPH_LITE && 1);
         _logger->info("\tSupported opsets:\n\
               \t\tOV6:%d\n\
         \t\tOV7:%d\n",
-               compilerInfo.supported_opsets & GC_EXECUTABLE_OPSET_TYPE_OV6 && 1,
-               compilerInfo.supported_opsets & GC_EXECUTABLE_OPSET_TYPE_OV7 && 1);
+               compilerInfo.supported_opsets & EXECUTABLE_OPSET_TYPE_OV6 && 1,
+               compilerInfo.supported_opsets & EXECUTABLE_OPSET_TYPE_OV7 && 1);
     }
     // Set custom opset
     const size_t customOpset = std::atoi(getEnvVarDefault("CUSTOM_OPSET", "0").c_str());
@@ -165,9 +176,9 @@ Opset VPUXCompilerL0::getSupportedOpset() {
     }
 
     if (compilerInfo.supported_opsets) {
-        if (compilerInfo.supported_opsets == GC_EXECUTABLE_OPSET_TYPE_OV7) {
+        if (compilerInfo.supported_opsets == EXECUTABLE_OPSET_TYPE_OV7) {
             return {7};
-        } else if (compilerInfo.supported_opsets == GC_EXECUTABLE_OPSET_TYPE_OV6) {
+        } else if (compilerInfo.supported_opsets == EXECUTABLE_OPSET_TYPE_OV6) {
             return {6};
         } else {
             return {1};
