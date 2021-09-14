@@ -105,11 +105,12 @@ std::vector<PlatformInfo> getAvailableDevices() {
 }  // namespace
 
 VpualEngineBackend::VpualEngineBackend()
-    : _logger(std::unique_ptr<vpu::Logger>(
-          // [Track number: S#42840]
-          // TODO: config will come by another PR, for now let's use Error log level
-          new vpu::Logger("VpualBackend", vpu::LogLevel::Error /*_config.logLevel()*/, vpu::consoleOutput()))),
-      _devices(createDeviceMap()) {}
+        : _logger(std::unique_ptr<vpu::Logger>(
+                  // [Track number: S#42840]
+                  // TODO: config will come by another PR, for now let's use Error log level
+                  new vpu::Logger("VpualBackend", vpu::LogLevel::Error /*_config.logLevel()*/, vpu::consoleOutput()))),
+          _devices(createDeviceMap()) {
+}
 
 const std::map<std::string, std::shared_ptr<IDevice>> VpualEngineBackend::createDeviceMap() {
     auto deviceIds = getAvailableDevices();
@@ -144,7 +145,7 @@ const std::shared_ptr<IDevice> VpualEngineBackend::getDevice(const std::string& 
 
         // TODO Remove this after removing deprecated device names
         if (utils::isDeviceNameVpualDeprecated(deviceId)) {
-            for (const auto& device: _devices) {
+            for (const auto& device : _devices) {
                 const auto currentSliceId = utils::getSliceIdByDeviceName(device.first);
                 if (expectedSliceId == currentSliceId) {
                     return device.second;
