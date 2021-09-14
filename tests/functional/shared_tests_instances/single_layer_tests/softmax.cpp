@@ -37,22 +37,6 @@ class KmbSoftMaxLayerTest: public SoftMaxLayerTest, virtual public LayerTestsUti
             }
         }
     }
-
-    void SkipBeforeValidate() override {
-        InferenceEngine::Precision inPrecision;
-        std::tie(std::ignore,
-                 inPrecision, std::ignore,
-                 std::ignore, std::ignore,
-                 std::ignore,
-                 std::ignore,
-                 std::ignore,
-                 std::ignore) = GetParam();
-
-        // [Track number: S#44702]
-        if (inPrecision == InferenceEngine::Precision::U8) {
-            throw LayerTestsUtils::KmbSkipTestException("SoftMax with U8 input produces wrong results");
-        }
-    }
 };
 
 TEST_P(KmbSoftMaxLayerTest, CompareWithRefs) {
@@ -89,14 +73,16 @@ const std::vector<size_t> axis2D = {
     0, 1
 };
 
-const std::vector<InferenceEngine::Precision> inOutPrecision = {
+const std::vector<InferenceEngine::Precision> inputPrecisions = {
+    InferenceEngine::Precision::U8,
+    InferenceEngine::Precision::FP16,
     InferenceEngine::Precision::FP32,
 };
 
 const auto params2D = testing::Combine(
     testing::ValuesIn(netPrecisions),
-    testing::ValuesIn(inOutPrecision),
-    testing::ValuesIn(inOutPrecision),
+    testing::ValuesIn(inputPrecisions),
+    testing::Values(InferenceEngine::Precision::UNSPECIFIED),
     testing::ValuesIn(inLayouts2D),
     testing::Values(InferenceEngine::Layout::ANY),
     testing::ValuesIn(inShapes2D),
@@ -130,8 +116,8 @@ const std::vector<size_t> axis4D = {0, 1, 2, 3};
 
 const auto params4D = testing::Combine(
     testing::ValuesIn(netPrecisions),
-    testing::ValuesIn(inOutPrecision),
-    testing::ValuesIn(inOutPrecision),
+    testing::ValuesIn(inputPrecisions),
+    testing::Values(InferenceEngine::Precision::UNSPECIFIED),
     testing::ValuesIn(layouts4D),
     testing::Values(InferenceEngine::Layout::ANY),
     testing::ValuesIn(inShapes4D),
