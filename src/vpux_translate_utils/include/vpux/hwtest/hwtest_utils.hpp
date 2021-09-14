@@ -60,7 +60,8 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
                            Logger& log, mlir::Type inputType, mlir::Type weightsType, mlir::Type outputType);
 void buildContinuedConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module, mlir::OpBuilder builder,
                         Logger& log, mlir::Type inputType, mlir::Type weightsType, mlir::Type outputType);
-
+void buildEltwiseAdd(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module, mlir::OpBuilder builder,
+                     Logger& log, mlir::Type inputType, mlir::Type weightsType, mlir::Type outputType);
 mlir::DenseElementsAttr splitWeightsOverC(mlir::DenseElementsAttr wt_vec, ArrayRef<int64_t> wt_shape, mlir::Type dtype,
                                           mlir::MLIRContext* ctx, size_t startC, size_t endC);
 template <typename T>

@@ -52,6 +52,7 @@ mlir::OwningModuleRef importHWTEST(llvm::StringRef sourceJson, mlir::MLIRContext
     auto opType = jsonDesc.getCaseStr();
 
     bool isConv = jsonDesc.getCaseType() == nb::CaseType::ZMajorConvolution;
+    bool isEltwiseAdd = jsonDesc.getCaseType() == nb::CaseType::EltwiseAdd;
 
     auto weightType = [&]() {
         nb::WeightLayer weight = jsonDesc.getWeightLayer();
@@ -69,6 +70,8 @@ mlir::OwningModuleRef importHWTEST(llvm::StringRef sourceJson, mlir::MLIRContext
         } else {
             hwtest::buildSimpleZMajorConv(jsonDesc, module, builder, log, input_type, weightType(), output_type);
         }
+    } else if (isEltwiseAdd) {
+        hwtest::buildEltwiseAdd(jsonDesc, module, builder, log, input_type, weightType(), output_type);
     } else {
         VPUX_THROW("Unknown type: {0}", opType);
     }
