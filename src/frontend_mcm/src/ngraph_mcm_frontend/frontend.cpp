@@ -22,7 +22,7 @@
 #include "ngraph_mcm_frontend/passes/convert_to_mcm_fc.hpp"
 #include "ngraph_mcm_frontend/passes/merge_TopK_convert.hpp"
 #include "ngraph_mcm_frontend/passes/replace_add_with_eltwise.hpp"
-#include "vpux/passes/convert_MVN6_to_MVN1.hpp"
+#include "ngraph_mcm_frontend/passes/convert_MVN6_to_MVN1.hpp"
 #include "ngraph_mcm_frontend/passes/replace_scaleshift_with_mcm_scale.hpp"
 #include "ngraph_mcm_frontend/passes/align_eltwise_scales.hpp"
 #include "ngraph_mcm_frontend/passes/align_concat_scales.hpp"
@@ -36,7 +36,7 @@
 #include "ngraph_mcm_frontend/passes/replace_shuffle.hpp"
 #include "ngraph_mcm_frontend/passes/handle_3d_transpose.hpp"
 #include "vpux/passes/propagate_fq.hpp"
-#include "vpux/passes/align_scales.hpp"
+#include <ngraph_mcm_frontend/passes/align_scales.hpp>
 #include <ngraph_mcm_frontend/passes/detect_input_fq.hpp>
 #include <vpux/passes/remove_split_concat.hpp>
 #include <ngraph_mcm_frontend/passes/convert_min_max_to_clamp.hpp>
@@ -236,17 +236,15 @@ std::unique_ptr<mv::CompilationUnit> createCompilationUnit(
 
         mcmCompDesc.setPassArg("GlobalConfigParams", "verbose", cvtLogLevelToMCM(config.mcmLogLevel()));
         mcmCompDesc.setPassArg("GlobalConfigParams", "RemovePermuteNoOp", config.removePermuteNoOp());
-        mcmCompDesc.setPassArg("GlobalConfigParams", "enable_channel_major_conv",
-                                       std::find_if(inputsInfo.begin(), inputsInfo.end(),
-                                                        [](const std::pair<std::string, ie::InputInfo::Ptr>& input) {
-                    return input.second->getLayout() != InferenceEngine::Layout::NCHW &&
-                           input.second->getLayout() != InferenceEngine::Layout::CHW;
-                }) == inputsInfo.end());
+        mcmCompDesc.setPassArg("GlobalConfigParams", "enable_channel_major_conv", false);
+                //                        std::find_if(inputsInfo.begin(), inputsInfo.end(),
+                //                                         [](const std::pair<std::string, ie::InputInfo::Ptr>& input) {
+                //     return input.second->getLayout() != InferenceEngine::Layout::NCHW &&
+                //            input.second->getLayout() != InferenceEngine::Layout::CHW;
+                // }) == inputsInfo.end());
         mcmCompDesc.setPassArg("GlobalConfigParams", "DeviceRevision",
                                std::string(MVCNN::EnumNameTargetDeviceRevision(getDeviceRevision(config.platform()))));
 
-        if (config.platform() == InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR)
-            mcmCompDesc.setPassArg("GlobalConfigParams", "target_emulator", true);
 
         if (config.referenceMode()) {
             mcmCompDesc.setPassArg("GlobalConfigParams", "ReferenceMode", true);
@@ -570,7 +568,7 @@ void applyTransformations(
     passManager.register_pass<ConvertToMcmFC>();
     passManager.register_pass<ReplaceScaleShiftWithMcmScale>();
     passManager.register_pass<ReplaceAddWithMcmEltwise>();
-    passManager.register_pass<vpux::passes::ConvertMVN6toMVN1>();
+    passManager.register_pass<ConvertMVN6toMVN1>();
     passManager.register_pass<ngraph::pass::ConstantFolding>();
     passManager.register_pass<BroadcastEltwiseInputs>();
     passManager.register_pass<MergeTopKConvert>();
