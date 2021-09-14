@@ -632,6 +632,9 @@ void fuse_custom_pwl(mv::Data::OpListIterator& opIt, mv::Data::OpListIterator& p
         pwl_type.dtype = opIt->getInputTensor(0)->getDType();
         std::string table_source = "UNSET";
 
+        if (opIt->getOpType() == "LeakyRelu" && opIt->hasAttr("alpha"))
+            parentIt->set<double>("leakyAlpha", opIt->get<double>("alpha"));
+
         TableSource ts = static_cast<TableSource>(opIt->get<int>("PWLSource"));
 
         if (ts == TableSource::Generation) {
