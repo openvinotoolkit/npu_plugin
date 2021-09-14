@@ -38,6 +38,12 @@ KmbLayerTestsCommon::KmbLayerTestsCommon(): kmbTestTool(envConfig) {
         envConfig.IE_KMB_TESTS_RUN_INFER = false;
     }
 
+    // [Track number: E#20335]
+    // Disabling inference for layer tests on emulator device due to segfault
+    const auto emulatorDevice = getBackendName(*core) == "EMULATOR";
+    if (envConfig.IE_KMB_TESTS_RUN_INFER && emulatorDevice) {
+        envConfig.IE_KMB_TESTS_RUN_INFER = false;
+    }
 }
 
 void KmbLayerTestsCommon::BuildNetworkWithoutCompile() {
