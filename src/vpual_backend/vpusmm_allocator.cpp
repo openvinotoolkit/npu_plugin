@@ -49,11 +49,21 @@ class VPUSMMAllocatorParams {
 public:
     explicit VPUSMMAllocatorParams(const InferenceEngine::ParamMap& paramMap);
 
-    InferenceEngine::ParamMap getParamMap() const { return _paramMap; }
-    VpuxRemoteMemoryFD getRemoteMemoryFD() const { return _remoteMemoryFd; }
-    VpuxHandleParam getRemoteMemoryHandle() const { return _remoteMemoryHandle; }
-    VpuxOffsetParam getRemoteMemoryOffset() const { return _remoteMemoryOffset; }
-    size_t getSize() const { return _size; }
+    InferenceEngine::ParamMap getParamMap() const {
+        return _paramMap;
+    }
+    VpuxRemoteMemoryFD getRemoteMemoryFD() const {
+        return _remoteMemoryFd;
+    }
+    VpuxHandleParam getRemoteMemoryHandle() const {
+        return _remoteMemoryHandle;
+    }
+    VpuxOffsetParam getRemoteMemoryOffset() const {
+        return _remoteMemoryOffset;
+    }
+    size_t getSize() const {
+        return _size;
+    }
 
 protected:
     InferenceEngine::ParamMap _paramMap;
@@ -83,7 +93,7 @@ VPUSMMAllocatorParams::VPUSMMAllocatorParams(const InferenceEngine::ParamMap& pa
     auto deprRemoteMemoryFdIter = params.find(InferenceEngine::KMB_PARAM_KEY(REMOTE_MEMORY_FD));
     if (deprRemoteMemoryFdIter != params.end()) {
         try {
-        _remoteMemoryFd = deprRemoteMemoryFdIter->second.as<VpuxRemoteMemoryFD>();
+            _remoteMemoryFd = deprRemoteMemoryFdIter->second.as<VpuxRemoteMemoryFD>();
         } catch (...) {
             IE_THROW() << "VPUSMMAllocatorParams: Remote memory fd param has incorrect type";
         }
@@ -91,8 +101,8 @@ VPUSMMAllocatorParams::VPUSMMAllocatorParams(const InferenceEngine::ParamMap& pa
         auto remoteMemoryFdIter = params.find(InferenceEngine::VPUX_PARAM_KEY(REMOTE_MEMORY_FD));
         if (remoteMemoryFdIter == params.end()) {
             IE_THROW() << "VPUSMMAllocatorParams: "
-                            << "Param map does not contain remote memory file descriptor "
-                                "information";
+                       << "Param map does not contain remote memory file descriptor "
+                          "information";
         }
         try {
             _remoteMemoryFd = remoteMemoryFdIter->second.as<VpuxRemoteMemoryFD>();
@@ -142,24 +152,27 @@ VPUSMMAllocatorParams::VPUSMMAllocatorParams(const InferenceEngine::ParamMap& pa
             }
         } else {
             IE_THROW() << "VpuxBlobParams::VpuxBlobParams: "
-                            << "Param map should contain either remote memory handle "
-                            << "or remote memory offset.";
+                       << "Param map should contain either remote memory handle "
+                       << "or remote memory offset.";
         }
     }
 }
 
 //------------------------------------------------------------------------------
-VpusmmAllocator::VpusmmAllocator(const int deviceId): _deviceId(deviceId) {}
+VpusmmAllocator::VpusmmAllocator(const int deviceId): _deviceId(deviceId) {
+}
 
 void* VpusmmAllocator::lock(void* handle, InferenceEngine::LockOp) noexcept {
     std::lock_guard<std::mutex> lock(_allocatedMemoryMutex);
     // isValidPtr check required when handle is allocated by external app via vpurm
-    if (_allocatedMemory.find(handle) == _allocatedMemory.end() && !isValidPtr(handle)) return nullptr;
+    if (_allocatedMemory.find(handle) == _allocatedMemory.end() && !isValidPtr(handle))
+        return nullptr;
 
     return handle;
 }
 
-void VpusmmAllocator::unlock(void* handle) noexcept { VPUX_UNUSED(handle); }  // cpplint mark this line as false positive
+void VpusmmAllocator::unlock(void* /*handle*/) noexcept {
+}
 
 unsigned long VpusmmAllocator::getPhysicalAddress(void* handle) noexcept {
 #if defined(__arm__) || defined(__aarch64__)
@@ -179,8 +192,8 @@ bool VpusmmAllocator::isValidPtr(void* ptr) noexcept {
 #endif
 }
 
-void* VpusmmAllocator::wrapRemoteMemoryHandle(
-    const VpuxRemoteMemoryFD& remoteMemoryFd, const size_t size, void* memHandle) noexcept {
+void* VpusmmAllocator::wrapRemoteMemoryHandle(const VpuxRemoteMemoryFD& remoteMemoryFd, const size_t size,
+                                              void* memHandle) noexcept {
 #if defined(__arm__) || defined(__aarch64__)
     auto physAddr = vpurm_ptr_to_vpu(memHandle, _deviceId);
     if (physAddr == 0) {
@@ -188,10 +201,10 @@ void* VpusmmAllocator::wrapRemoteMemoryHandle(
     }
 
     MemoryDescriptor memDesc = {
-        size,            // size
-        remoteMemoryFd,  // file descriptor
-        physAddr,        // physical address
-        false            // memory wasn't allocated, it was imported
+            size,            // size
+            remoteMemoryFd,  // file descriptor
+            physAddr,        // physical address
+            false            // memory wasn't allocated, it was imported
     };
     std::lock_guard<std::mutex> lock(_allocatedMemoryMutex);
     _allocatedMemory[memHandle] = memDesc;
@@ -205,25 +218,26 @@ void* VpusmmAllocator::wrapRemoteMemoryHandle(
 #endif
 }
 
-void* VpusmmAllocator::wrapRemoteMemoryOffset(
-    const VpuxRemoteMemoryFD& remoteMemoryFd, const size_t size, const VpuxOffsetParam& memOffset) noexcept {
+void* VpusmmAllocator::wrapRemoteMemoryOffset(const VpuxRemoteMemoryFD& remoteMemoryFd, const size_t size,
+                                              const VpuxOffsetParam& memOffset) noexcept {
 #if defined(__arm__) || defined(__aarch64__)
     auto physAddr = vpurm_import_dmabuf(remoteMemoryFd, VPU_DEFAULT, _deviceId);
     size_t realSize = alignMemorySize(size + memOffset);
     // mmap always maps to the base physical address no matter which offset was provided
     // TODO find out whether that's expected
     void* virtAddr = mmap(nullptr, realSize, PROT_READ | PROT_WRITE, MAP_SHARED, remoteMemoryFd, 0);
-    if (virtAddr == MAP_FAILED) return nullptr;
+    if (virtAddr == MAP_FAILED)
+        return nullptr;
 
     // add offset and translate virtual address to physical
     virtAddr = reinterpret_cast<uint8_t*>(virtAddr) + memOffset;
     physAddr = vpurm_ptr_to_vpu(virtAddr, _deviceId);
 
     MemoryDescriptor memDesc = {
-        size,            // size
-        remoteMemoryFd,  // file descriptor
-        physAddr,        // physical address
-        false            // memory wasn't allocated, it was imported
+            size,            // size
+            remoteMemoryFd,  // file descriptor
+            physAddr,        // physical address
+            false            // memory wasn't allocated, it was imported
     };
     std::lock_guard<std::mutex> lock(_allocatedMemoryMutex);
     _allocatedMemory[virtAddr] = memDesc;
@@ -247,13 +261,14 @@ void* VpusmmAllocator::alloc(size_t size) noexcept {
 
     void* virtAddr = mmap(nullptr, realSize, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
 
-    if (virtAddr == MAP_FAILED) return nullptr;
+    if (virtAddr == MAP_FAILED)
+        return nullptr;
 
     MemoryDescriptor memDesc = {
-        realSize,  // size
-        fd,        // file descriptor
-        physAddr,  // physical address
-        true       // memory was allocated
+            realSize,  // size
+            fd,        // file descriptor
+            physAddr,  // physical address
+            true       // memory was allocated
     };
     std::lock_guard<std::mutex> lock(_allocatedMemoryMutex);
     _allocatedMemory[virtAddr] = memDesc;

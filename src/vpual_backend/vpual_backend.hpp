@@ -28,8 +28,12 @@ class VpualEngineBackend final : public vpux::IEngineBackend {
 
 public:
     VpualEngineBackend();
-    const std::string getName() const override { return "VPUAL"; }
-    std::unordered_set<std::string> getSupportedOptions() const override { return _config.getRunTimeOptions(); }
+    const std::string getName() const override {
+        return "VPUAL";
+    }
+    std::unordered_set<std::string> getSupportedOptions() const override {
+        return _config.getRunTimeOptions();
+    }
     // TODO Investigate which device should be returned by getDevice without parameters
     const std::shared_ptr<IDevice> getDevice() const override;
     const std::shared_ptr<IDevice> getDevice(const std::string& deviceId) const override;
