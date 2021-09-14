@@ -1,2 +1,2 @@
-tag: VPUXCompilerL0-1.1.2135
-7d37a0d4f703b9eea2f3efb3d98a4040dae5e672
+tag: VPUXCompilerL0-1.1.2137
+b18c96f11b98dd8d9f9eb48da7a7cf7a1017a77a
