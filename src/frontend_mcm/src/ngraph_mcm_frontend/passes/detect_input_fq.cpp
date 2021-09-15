@@ -18,16 +18,16 @@
 
 namespace {
 bool is_0_255_range(const std::vector<double>& input_low_values, const std::vector<double>& input_high_values) {
-    const auto goodLowValues =
+    const auto acceptableLowValues =
             std::none_of(input_low_values.cbegin(), input_low_values.cend(), [](const double value) -> bool {
                 return value > 5. || value < 0.;
             });
-    const auto goodHighValues =
+    const auto acceptableHighValues =
             std::none_of(input_high_values.cbegin(), input_high_values.cend(), [](const double value) -> bool {
                 return value < 250. || value > 255.;
             });
 
-    return goodLowValues && goodHighValues;
+    return acceptableLowValues && acceptableHighValues;
 }
 }  // namespace
 
