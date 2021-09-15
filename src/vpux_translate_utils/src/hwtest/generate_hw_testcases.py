@@ -1089,14 +1089,14 @@ def generate_options(args):
                      [[0,0,0,0]]         # paddings
                      )),
 
-        # AvgPool, uint8/fp16 activations
+        # AvgPool, int8/uint8/fp16 activations
         (DPUPipeline(AvgPool.PARAMS, x) for x in itertools.product(
-                     [AvgPool],             # mpe operation
-                     [UInt8(6), FP16(6)],   # input type
-                     [[1, 64, 32, 32]],     # input shape
-                     [UInt8(), FP16()],     # output type
-                     [[2,2]],               # strides
-                     [[0,0,0,0]]            # paddings
+                     [AvgPool],                      # mpe operation
+                     [Int8(6), UInt8(6), FP16(6)],   # input type
+                     [[1, 64, 32, 32]],              # input shape
+                     [Int8(), UInt8(), FP16()],      # output type
+                     [[2,2]],                        # strides
+                     [[0,0,0,0]]                     # paddings
                      )),
 
         # AvgPool, bf16 activations
