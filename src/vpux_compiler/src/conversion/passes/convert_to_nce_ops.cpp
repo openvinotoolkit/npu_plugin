@@ -82,7 +82,8 @@ void addDPUTasks(VPUIP::NCEClusterTaskOp nceOp, mlir::PatternRewriter& rewriter,
     auto* ctx = nceOp.getContext();
 
     const auto outputShape = getShape(nceOp.output());
-    const auto dpuTiles = VPUIP::DpuTiler::tileOverH(1, outputShape, opPadLeft, opPadRight, opPadTop, opPadBottom);
+    numDPU = 1;
+    const auto dpuTiles = VPUIP::DpuTiler::tileOverH(numDPU, outputShape, opPadLeft, opPadRight, opPadTop, opPadBottom);
 
     for (const auto& dpuTile : dpuTiles) {
         const auto startAttr = getIntArrayAttr(ctx, makeArrayRef(dpuTile.start));
@@ -92,7 +93,8 @@ void addDPUTasks(VPUIP::NCEClusterTaskOp nceOp, mlir::PatternRewriter& rewriter,
                 VPUIP::PaddingAttr::get(getIntAttr(ctx, dpuTile.padLeft), getIntAttr(ctx, dpuTile.padRight),
                                         getIntAttr(ctx, dpuTile.padTop), getIntAttr(ctx, dpuTile.padBottom), ctx);
 
-        nceOp.addDPUTask(rewriter, startAttr, endAttr, pad, VPUIP::MPEMode::MATRIX);
+        mpeMode = VPUIP::MPEMode::MATRIX;
+        nceOp.addDPUTask(rewriter, startAttr, endAttr, pad, mpeMode);
     }
 }
 
@@ -299,11 +301,8 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
     const auto kernelSizeAttr = getIntArrayAttr(getContext(), makeArrayRef({KY, KX}));
 
     Logger::global().error("order: {0}", DimsOrder::fromValue(origOp.input()));
-    // exit(1);
 
     if (DimsOrder::NCHW == DimsOrder::fromValue(origOp.input())) {
-        std::cout << "Found CM input" << std::endl;
-        // exit(1);
         auto nceOp = rewriter.create<VPUIP::NCEClusterTaskOp>(
                 origOp->getLoc(), inputDPU, filterDPU, weightsTable, /*activation_window=*/nullptr,
                 /*parent_input=*/inputDPU,
