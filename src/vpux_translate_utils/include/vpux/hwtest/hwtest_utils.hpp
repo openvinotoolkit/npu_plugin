@@ -45,9 +45,9 @@ static constexpr auto PAD_NCETASK_BOTTOM = 3;
 mlir::DenseElementsAttr generateWeights(llvm::ArrayRef<int64_t> wt_shape, mlir::Type dtype, mlir::MLIRContext* ctx,
                                         const char* weight_file_name);
 
-std::size_t totalTensorSize(llvm::ArrayRef<std::int64_t> shape, mlir::Type elementtype);
+std::size_t totalTensorSize(llvm::ArrayRef<int64_t> shape, mlir::Type elementtype);
 
-std::vector<std::int64_t> convertNBPadtoNCETaskPad(const std::array<std::int64_t, 4>& nb_pad);
+std::vector<int64_t> convertNBPadtoNCETaskPad(const std::array<int64_t, 4>& nb_pad);
 
 mlir::Type parseInputType(mlir::OpBuilder builder, const nb::InputLayer& input);
 mlir::Type parseOutputType(mlir::OpBuilder builder, const nb::OutputLayer& output);

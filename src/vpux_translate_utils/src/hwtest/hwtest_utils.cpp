@@ -95,12 +95,12 @@ mlir::DenseElementsAttr generateWeights(std::ifstream& stream, mlir::RankedTenso
 
 }  // namespace
 
-mlir::DenseElementsAttr generateWeights(llvm::ArrayRef<std::int64_t> shape, mlir::Type type, mlir::MLIRContext* context,
+mlir::DenseElementsAttr generateWeights(llvm::ArrayRef<int64_t> shape, mlir::Type type, mlir::MLIRContext* context,
                                         const char* weightsFileName) {
     mlir::DenseElementsAttr wt_data_vals;
     auto wtData_ddr_valueType = mlir::RankedTensorType::get(shape, type);
     const auto vecSize = static_cast<std::size_t>(
-            std::accumulate(shape.begin(), shape.end(), static_cast<std::int64_t>(1), std::multiplies<std::int64_t>()));
+            std::accumulate(shape.begin(), shape.end(), static_cast<int64_t>(1), std::multiplies<int64_t>()));
 
     if (auto qtype = type.dyn_cast_or_null<mlir::quant::QuantizedType>()) {
         type = mlir::quant::QuantizedType::castToStorageType(qtype);
@@ -131,19 +131,19 @@ mlir::DenseElementsAttr generateWeights(llvm::ArrayRef<std::int64_t> shape, mlir
     }
 }
 
-std::size_t totalTensorSize(llvm::ArrayRef<std::int64_t> shape, mlir::Type elementType) {
+std::size_t totalTensorSize(llvm::ArrayRef<int64_t> shape, mlir::Type elementType) {
     if (auto qType = elementType.dyn_cast<mlir::quant::UniformQuantizedType>()) {
         elementType = qType.getStorageType();
     }
     std::size_t numBytes = elementType.getIntOrFloatBitWidth() / 8;
 
     const auto totalSize =
-            std::accumulate(shape.begin(), shape.end(), static_cast<std::int64_t>(1), std::multiplies<std::int64_t>());
+            std::accumulate(shape.begin(), shape.end(), static_cast<int64_t>(1), std::multiplies<int64_t>());
     return static_cast<std::size_t>(totalSize) * numBytes;
 }
 
-std::vector<std::int64_t> convertNBPadtoNCETaskPad(const std::array<std::int64_t, 4>& nb_pad) {
-    std::vector<std::int64_t> ncetask_pad(nb_pad.size());
+std::vector<int64_t> convertNBPadtoNCETaskPad(const std::array<int64_t, 4>& nb_pad) {
+    std::vector<int64_t> ncetask_pad(nb_pad.size());
 
     ncetask_pad[PAD_NCETASK_LEFT] = nb_pad[PAD_NB_LEFT];
     ncetask_pad[PAD_NCETASK_RIGHT] = nb_pad[PAD_NB_RIGHT];
@@ -231,7 +231,7 @@ mlir::DenseElementsAttr splitWeightsOverCLoop(mlir::DenseElementsAttr wt_vec, Ar
 
     auto wt_full_itr = wt_vec.getValues<T>();
     std::vector<T> wt_full(wt_full_itr.begin(), wt_full_itr.end());
-    const llvm::SmallVector<std::int64_t> wt_partial_shape({K, new_C, H, W});
+    const llvm::SmallVector<int64_t> wt_partial_shape({K, new_C, H, W});
     size_t vecSize = static_cast<size_t>(std::accumulate(wt_partial_shape.begin(), wt_partial_shape.end(),
                                                          static_cast<int64_t>(1), std::multiplies<int64_t>()));
     std::vector<T> wt_partial(vecSize);
