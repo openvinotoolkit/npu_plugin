@@ -163,10 +163,10 @@ mlir::LogicalResult verifyNCEPool(VPUIP::NCEClusterTaskOp op) {
                       "Expected task type '{0}' or '{1}', but got '{2}'", VPUIP::NCETaskType::AVEPOOL,
                       VPUIP::NCETaskType::MAXPOOL, op.task_type());
 
-    if (op.weight_table() == nullptr) {
+    if (op.weight_table() == nullptr && op.task_type() != VPUIP::NCETaskType::AVEPOOL) {
         return errorAt(op, "weight_table is required for NCETaskType : '{0}'", op.task_type());
     }
-    if (op.activation_window() == nullptr) {
+    if (op.activation_window() == nullptr && op.task_type() != VPUIP::NCETaskType::AVEPOOL) {
         return errorAt(op, "activation_window is required for NCETaskType : '{0}'", op.task_type());
     }
 
@@ -180,7 +180,7 @@ mlir::LogicalResult verifyNCEPool(VPUIP::NCEClusterTaskOp op) {
         return errorAt(op, "kernel_padding is required for NCETaskType : '{0}'", op.task_type());
     }
 
-    if (op.activation_window_channel_lengthAttr() == nullptr) {
+    if (op.activation_window_channel_lengthAttr() == nullptr && op.task_type() != VPUIP::NCETaskType::AVEPOOL) {
         return errorAt(op, "activation_window_channel_length is required for NCETaskType : '{0}'", op.task_type());
     }
 
