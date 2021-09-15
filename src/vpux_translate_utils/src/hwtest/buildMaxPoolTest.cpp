@@ -46,12 +46,10 @@ void buildMaxPool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
     std::vector<int64_t> stride_vec(pool_op.stride.begin(), pool_op.stride.end());
     std::vector<int64_t> padding_vec = convertNBPadtoNCETaskPad(pool_op.pad);
 
-    auto input_totalsize = totalTensorSize(in_shape, inputType);
     auto output_totalsize = totalTensorSize(out_shape, outputType);
 
     const auto OUTPUT_CMX_OFFSET = 0;
     const auto INPUT0_CMX_OFFSET = OUTPUT_CMX_OFFSET + output_totalsize;
-    const auto ACTIVATIONWINDOW_CMX_OFFSET = INPUT0_CMX_OFFSET + input_totalsize;
 
     SmallVector<mlir::Type> inputTypes;
     inputTypes.push_back(
@@ -93,71 +91,6 @@ void buildMaxPool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
     funcbuilder.create<VPUIP::NNDMAOp>(builder.getUnknownLoc(), funcinput0, input0cmx.getOperation()->getResult(0),
                                        mlir::ValueRange(), mlir::ValueRange(barrier0.barrier()), false);
 
-    mlir::Type uderlyingInputType = inputType.isa<mlir::quant::QuantizedType>()
-                                            ? inputType.cast<mlir::quant::QuantizedType>().getStorageType()
-                                            : inputType;
-    // Generate activation window
-
-    const auto bitPatternSize =
-            VPUIP::NCESparsity::getBitPatternSize(makeArrayRef(filter_size), stride_vec[0], uderlyingInputType);
-    mlir::IntegerAttr actChannelLength = funcbuilder.getI32IntegerAttr(checked_cast<int32_t>(bitPatternSize));
-
-    const auto fakeSparsity = VPUIP::NCESparsity::getFakeSparsity(makeArrayRef(filter_size), stride_vec[0],
-                                                                  uderlyingInputType, in_shape[1]);
-
-    const auto elemType = getUInt8Type(ctx);
-    int64_t numChannels = in_shape[1];
-    SmallVector<int64_t> sparsity_shape{numChannels, 1, 1, static_cast<int64_t>(fakeSparsity.size()) / numChannels};
-
-    const auto dataStorageType = mlir::RankedTensorType::get(sparsity_shape, elemType);
-    const auto dataAttr = mlir::DenseElementsAttr::get(dataStorageType, makeArrayRef(fakeSparsity));
-
-    const auto dataType =
-            getMemRefType(builder, VPUIP::MemoryLocation::GraphFile, sparsity_shape, elemType, DimsOrder::NHWC);
-
-    auto dataConstOp = funcbuilder.create<Const::DeclareOp>(builder.getUnknownLoc(), dataType,
-                                                            Const::ContentAttr::get(dataAttr).reorder(DimsOrder::NHWC));
-
-    auto activationwindow_totalsize = totalTensorSize(sparsity_shape, elemType);
-    auto activationwindow_totalsize_bytes = activationwindow_totalsize * elemType.getIntOrFloatBitWidth() / CHAR_BIT;
-
-    // Activation Window cmx
-    auto actWindow_cmx_type =
-            getMemRefType(builder, VPUIP::MemoryLocation::VPU_CMX_NN, sparsity_shape, elemType, DimsOrder::NHWC);
-    auto actWindow_cmx = createDeclareTensorOp(funcbuilder, actWindow_cmx_type, 0, ACTIVATIONWINDOW_CMX_OFFSET);
-
-    funcbuilder.create<VPUIP::NNDMAOp>(builder.getUnknownLoc(), dataConstOp.getOperation()->getResult(0),
-                                       actWindow_cmx.getOperation()->getResult(0), mlir::ValueRange(),
-                                       mlir::ValueRange(barrier0.barrier()), false);
-    // weights table ddr tensor
-    SmallVector<int64_t> wtTbl_data_shape{sparsity_shape[0], 1, 1, 4};
-    auto weightTblData_ddr_type = getMemRefType(builder, VPUIP::MemoryLocation::GraphFile, wtTbl_data_shape,
-                                                builder.getIntegerType(32, true), DimsOrder::NHWC);
-    const auto wtTblData_ddr_valueType =
-            mlir::RankedTensorType::get(wtTbl_data_shape, builder.getIntegerType(32, /*isSigned=*/true));
-
-    const std::vector<int32_t> wtTbl_data_values_vec = vpux::VPUIP::NCESparsity::getWeightsTable(
-            inputType, outputType, static_cast<int32_t>(0), static_cast<int32_t>(0),
-            static_cast<int32_t>(ACTIVATIONWINDOW_CMX_OFFSET), vpux::VPUIP::ArchKind::MTL, output.shape[1]);
-
-    auto wtTbl_data_values = makeArrayRef<int32_t>(wtTbl_data_values_vec);
-    auto wtTbl_data_vals = mlir::DenseElementsAttr::get(wtTblData_ddr_valueType, wtTbl_data_values);
-    auto weightTbl_data_ddr =
-            funcbuilder.create<Const::DeclareOp>(builder.getUnknownLoc(), weightTblData_ddr_type,
-                                                 Const::ContentAttr::get(wtTbl_data_vals).reorder(DimsOrder::NHWC));
-
-    // weights table cmx tensor
-
-    const auto WEIGHTSTABLE_CMX_OFFSET = ACTIVATIONWINDOW_CMX_OFFSET + activationwindow_totalsize_bytes;
-    auto wtTbl_cmx_type = getMemRefType(builder, VPUIP::MemoryLocation::VPU_CMX_NN, wtTbl_data_shape,
-                                        builder.getIntegerType(32, true), DimsOrder::NHWC);
-    auto wtTbl_cmx = createDeclareTensorOp(funcbuilder, wtTbl_cmx_type, 0, WEIGHTSTABLE_CMX_OFFSET);
-
-    // weights table dma ddr->cmx
-    funcbuilder.create<VPUIP::NNDMAOp>(builder.getUnknownLoc(), weightTbl_data_ddr.getOperation()->getResult(0),
-                                       wtTbl_cmx.getOperation()->getResult(0), mlir::ValueRange(),
-                                       mlir::ValueRange(barrier0.barrier()), false);
-
     // NCE Task
     auto filtersize = getIntArrayAttr(builder, filter_size);
     auto strides = getIntArrayAttr(builder, stride_vec);
@@ -165,11 +98,11 @@ void buildMaxPool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
 
     auto nceTask = funcbuilder.create<VPUIP::NCEClusterTaskOp>(
             builder.getUnknownLoc(), outputcmx_type, input0cmx.getOperation()->getResult(0), mlir::Value(),
-            wtTbl_cmx.getOperation()->getResult(0), actWindow_cmx.getOperation()->getResult(0),
-            parent_input0cmx.getOperation()->getResult(0), parent_outputcmx.getOperation()->getResult(0),
-            outputcmx.getOperation()->getResult(0), mlir::ValueRange(barrier0.barrier()),
-            mlir::ValueRange(barrier1.barrier()), VPUIP::NCETaskType::MAXPOOL, filtersize, strides, kernel_padding,
-            actChannelLength, nullptr);
+            mlir::Value(), mlir::Value(), parent_input0cmx.getOperation()->getResult(0),
+            parent_outputcmx.getOperation()->getResult(0), outputcmx.getOperation()->getResult(0),
+            mlir::ValueRange(barrier0.barrier()), mlir::ValueRange(barrier1.barrier()), VPUIP::NCETaskType::MAXPOOL,
+            filtersize, strides, kernel_padding,
+            /*actChannelLength*/ nullptr, /*is_continued*/ nullptr);
 
     nceTask.addPPETask(funcbuilder);
 
