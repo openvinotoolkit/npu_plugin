@@ -80,7 +80,7 @@ mlir::OwningModuleRef importHWTEST(llvm::StringRef sourceJson, mlir::MLIRContext
     } else if (isMaxPool) {
         hwtest::buildMaxPool(jsonDesc, module, builder, log, input_type, output_type);
     } else if (isAvgPool) {
-        hwtest::buildAvgpoolWithDwConv(jsonDesc, module, builder, log, input_type, output_type);
+        hwtest::buildAvgpool(jsonDesc, module, builder, log, input_type, output_type);
     } else {
         VPUX_THROW("Unknown type: {0}", opType);
     }
