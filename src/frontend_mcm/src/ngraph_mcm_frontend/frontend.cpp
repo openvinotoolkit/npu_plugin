@@ -296,7 +296,8 @@ std::unique_ptr<mv::CompilationUnit> createCompilationUnit(
                 }
 
                 if (!foundOpModelTensor) {
-                    IE_THROW() << "metaInfoSerializer: Input OpModelTensor was not found" << std::endl;
+                    graphFileInstance.header->in_tensor_desc.push_back(
+                        buildTensorReference(inInfo.first, inInfo.second->getTensorDesc()));
                 }
             }
 
