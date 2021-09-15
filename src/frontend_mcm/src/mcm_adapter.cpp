@@ -160,9 +160,8 @@ vpu::MCMAdapter::MetaInfo vpu::MCMAdapter::deserializeMetaData(const MVCNN::Summ
         InferenceEngine::InputInfo inputInfo;
         inputInfo.setInputData(std::make_shared<InferenceEngine::Data>(inputData));
         resultNetworkInputs[inputInfo.name()] = std::make_shared<InferenceEngine::InputInfo>(inputInfo);
-        IE_ASSERT(tensorRef->quant_mult() != nullptr);
-        IE_ASSERT(tensorRef->quant_mult()->size() == 1);
-        const bool pluginQuantization = static_cast<bool>(*tensorRef->quant_mult()->cbegin());
+        const auto isQuantFlagDefined = tensorRef->quant_mult() != nullptr && tensorRef->quant_mult()->size() == 1;
+        const auto pluginQuantization = isQuantFlagDefined && static_cast<bool>(*tensorRef->quant_mult()->cbegin());
         vpux::QuantizationParam quantParam{pluginQuantization};
         if (pluginQuantization) {
             const auto floatPackedSize = sizeof(float) / sizeof(uint8_t);
