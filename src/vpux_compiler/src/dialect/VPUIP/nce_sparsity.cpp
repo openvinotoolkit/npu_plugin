@@ -278,7 +278,7 @@ llvm::unique_function<int32_t(size_t)> getMultShiftFunc(mlir::Type op_inElemType
 
         std::vector<double> rescale(OC, 1.0);
         for (size_t i = 0; i < rescale.size(); i++) {
-            rescale[i] = outQuant.first[i] / (weightsQuantScales[i] * inQuant.first[i]);
+            rescale[i] = (weightsQuantScales[i] * inQuant.first[i]) / outQuant.first[i];
         }
 
         const auto ppeConverter = vpux::VPUIP::NCESparsity::ppeConvertersMap.at(arch);
