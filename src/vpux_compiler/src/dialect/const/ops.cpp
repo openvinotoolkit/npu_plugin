@@ -104,10 +104,10 @@ mlir::LogicalResult verifyOp(Const::DeclareOp op) {
     const auto attrType = op.contentAttr().getType();
     const auto opType = op.getType().cast<mlir::ShapedType>();
 
-    if (opType.getShape() != attrType.getShape()) {
-        return errorAt(op, "'Const.Declare' has mismatch in value shape '{0}' and result shape '{1}'",
-                       attrType.getShape(), opType.getShape());
-    }
+    // if (opType.getShape() != attrType.getShape()) {
+    //     return errorAt(op, "'Const.Declare' has mismatch in value shape '{0}' and result shape '{1}'",
+    //                    attrType.getShape(), opType.getShape());
+    // }
     if (opType.getElementType() != attrType.getElementType()) {
         return errorAt(op, "'Const.Declare' has mismatch in value element type '{0}' and result element type '{1}'",
                        attrType.getElementType(), opType.getElementType());

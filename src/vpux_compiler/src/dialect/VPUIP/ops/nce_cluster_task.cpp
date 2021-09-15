@@ -248,7 +248,7 @@ mlir::LogicalResult verifyNCECMConv(VPUIP::NCEClusterTaskOp op) {
     //}
 
     const auto weightsLayout = DimsOrder::fromValue(op.weights());
-    if (weightsLayout != DimsOrder::NCHW) {
+    if (weightsLayout != DimsOrder::NHWC) {
         return errorAt(op, "weights layout must be NHWC, got {0}", weightsLayout);
     }
 
