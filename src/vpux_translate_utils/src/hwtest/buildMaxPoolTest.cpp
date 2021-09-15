@@ -56,11 +56,9 @@ void buildMaxpool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
     };
 
     auto output_totalsize = totaltensorsize(out_shape, outputType);
-    auto input_totalsize = totaltensorsize(in_shape, inputType);
 
     const auto OUTPUT_CMX_OFFSET = 0;
     const auto INPUT0_CMX_OFFSET = OUTPUT_CMX_OFFSET + output_totalsize;
-    const auto ACTIVATIONWINDOW_CMX_OFFSET = INPUT0_CMX_OFFSET + input_totalsize;
 
     SmallVector<mlir::Type> inputTypes;
     const auto inputAffineMaps = DimsOrder::NHWC.toAffineMapsList(builder.getContext(), Shape(in_shape));
@@ -114,83 +112,8 @@ void buildMaxpool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
     auto barrier1 = funcbuilder.create<VPUIP::ConfigureBarrierOp>(builder.getUnknownLoc(), 1);
 
     // DMA input-->cmx
-    /* auto in0_cmx_dma = */ funcbuilder.create<VPUIP::NNDMAOp>(
-            builder.getUnknownLoc(), funcinput0, input0cmx.getOperation()->getResult(0), mlir::ValueRange(),
-            mlir::ValueRange(barrier0.barrier()), false);
-
-    // Activation Window ddr
-    SmallVector<int64_t> sparsity_shape;
-    mlir::Type sparsity_type = getUInt8Type(builder.getContext());
-    bool isOutFloat = false;
-    if (outputType.isBF16() || outputType.isF16()) {
-        isOutFloat = true;
-    }
-    mlir::IntegerAttr actChannelLength;
-    auto sparsityAttr = getactivationWindow(builder, filter_size, stried_vec, out_shape[1], in_shape[1], sparsity_type,
-                                            sparsity_shape, actChannelLength, isOutFloat, true, false);
-
-    auto activationWindow_ddr_memSpaceAttr =
-            VPUIP::MemoryLocationAttr::get(builder.getContext(), VPUIP::MemoryLocation::GraphFile);
-    auto activationWindowAffineMaps = DimsOrder::NHWC.toAffineMapsList(builder.getContext(), Shape(sparsity_shape));
-    auto activationWindow_ddr_type = mlir::MemRefType::get(sparsity_shape, sparsity_type, activationWindowAffineMaps,
-                                                           activationWindow_ddr_memSpaceAttr);
-    auto activationWindow_ddr =
-            funcbuilder.create<Const::DeclareOp>(builder.getUnknownLoc(), activationWindow_ddr_type,
-                                                 Const::ContentAttr::get(sparsityAttr).reorder(DimsOrder::NHWC));
-    auto activationwindow_totalsize = totaltensorsize(sparsity_shape, sparsity_type);
-    auto activationwindow_totalsize_bytes = activationwindow_totalsize * sparsity_type.getIntOrFloatBitWidth() / 8;
-
-    // Activation Window cmx
-    auto actWindow_cmx_memSpaceAttr =
-            VPUIP::MemoryLocationAttr::get(builder.getContext(), VPUIP::MemoryLocation::VPU_CMX_NN);
-    auto actWindow_cmx_type = mlir::MemRefType::get(makeArrayRef(sparsity_shape), sparsity_type,
-                                                    activationWindowAffineMaps, actWindow_cmx_memSpaceAttr);
-    auto actWindow_cmx = funcbuilder.create<VPUIP::DeclareTensorOp>(
-            builder.getUnknownLoc(), actWindow_cmx_type, VPUIP::MemoryLocation::VPU_CMX_NN, /*locale index=*/0,
-            /*data idx=*/ACTIVATIONWINDOW_CMX_OFFSET);
-
-    // activation window dma ddr->cmx
-    funcbuilder.create<VPUIP::NNDMAOp>(builder.getUnknownLoc(), activationWindow_ddr.getOperation()->getResult(0),
-                                       actWindow_cmx.getOperation()->getResult(0), mlir::ValueRange(),
-                                       mlir::ValueRange(barrier0.barrier()), false);
-
-    // weights table ddr tensor
-    SmallVector<int64_t> wtTbl_data_shape{sparsity_shape[0], 1, 1, 4};
-    auto weightTbl_data_ddr_memSpaceAttr =
-            VPUIP::MemoryLocationAttr::get(builder.getContext(), VPUIP::MemoryLocation::GraphFile);
-    auto weightTblAffineMaps = DimsOrder::NHWC.toAffineMapsList(builder.getContext(), Shape(wtTbl_data_shape));
-    auto weightTblData_ddr_type =
-            mlir::MemRefType::get(makeArrayRef(wtTbl_data_shape), builder.getIntegerType(32, /*isSigned=*/true),
-                                  weightTblAffineMaps, weightTbl_data_ddr_memSpaceAttr);
-    const auto wtTblData_ddr_valueType =
-            mlir::RankedTensorType::get(wtTbl_data_shape, builder.getIntegerType(32, /*isSigned=*/true));
-
-    const std::vector<int32_t> wtTbl_data_values_vec =
-            generateWeightsTablesValuesForMaxPool(testDesc, input0cmx_type, outputcmx_type, actWindow_cmx_type,
-                                                  ACTIVATIONWINDOW_CMX_OFFSET, wtTbl_data_shape);
-
-    auto wtTbl_data_values = makeArrayRef<int32_t>(wtTbl_data_values_vec);
-    auto wtTbl_data_vals = mlir::DenseElementsAttr::get(wtTblData_ddr_valueType, wtTbl_data_values);
-    auto weightTbl_data_ddr =
-            funcbuilder.create<Const::DeclareOp>(builder.getUnknownLoc(), weightTblData_ddr_type,
-                                                 Const::ContentAttr::get(wtTbl_data_vals).reorder(DimsOrder::NHWC));
-
-    // weights table cmx tensor
-
-    const auto WEIGHTSTABLE_CMX_OFFSET = ACTIVATIONWINDOW_CMX_OFFSET + activationwindow_totalsize_bytes;
-    auto wtTbl_cmx_memSpaceAttr =
-            VPUIP::MemoryLocationAttr::get(builder.getContext(), VPUIP::MemoryLocation::VPU_CMX_NN);
-    auto wtTbl_cmx_type =
-            mlir::MemRefType::get(makeArrayRef(wtTbl_data_shape), builder.getIntegerType(32, /*isSigned=*/true),
-                                  weightTblAffineMaps, wtTbl_cmx_memSpaceAttr);
-    auto wtTbl_cmx = funcbuilder.create<VPUIP::DeclareTensorOp>(builder.getUnknownLoc(), wtTbl_cmx_type,
-                                                                VPUIP::MemoryLocation::VPU_CMX_NN, /*locale index=*/0,
-                                                                /*data idx=*/WEIGHTSTABLE_CMX_OFFSET);
-
-    // weights table dma ddr->cmx
-    /* auto wtTbl_cmx_dma = */ funcbuilder.create<VPUIP::NNDMAOp>(
-            builder.getUnknownLoc(), weightTbl_data_ddr.getOperation()->getResult(0),
-            wtTbl_cmx.getOperation()->getResult(0), mlir::ValueRange(), mlir::ValueRange(barrier0.barrier()), false);
+    funcbuilder.create<VPUIP::NNDMAOp>(builder.getUnknownLoc(), funcinput0, input0cmx.getOperation()->getResult(0),
+                                       mlir::ValueRange(), mlir::ValueRange(barrier0.barrier()), false);
 
     // NCE Task
     auto filtersize = getIntArrayAttr(builder, filter_size);
@@ -199,11 +122,11 @@ void buildMaxpool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
 
     auto nceTask = funcbuilder.create<VPUIP::NCEClusterTaskOp>(
             builder.getUnknownLoc(), outputcmx_type, input0cmx.getOperation()->getResult(0), mlir::Value(),
-            wtTbl_cmx.getOperation()->getResult(0), actWindow_cmx.getOperation()->getResult(0),
-            parent_input0cmx.getOperation()->getResult(0), parent_outputcmx.getOperation()->getResult(0),
-            outputcmx.getOperation()->getResult(0), mlir::ValueRange(barrier0.barrier()),
-            mlir::ValueRange(barrier1.barrier()), VPUIP::NCETaskType::MAXPOOL, filtersize, strides, kernel_padding,
-            actChannelLength, /*is_continued*/ nullptr, /*odu_permutation*/ nullptr);
+            mlir::Value(), mlir::Value(), parent_input0cmx.getOperation()->getResult(0),
+            parent_outputcmx.getOperation()->getResult(0), outputcmx.getOperation()->getResult(0),
+            mlir::ValueRange(barrier0.barrier()), mlir::ValueRange(barrier1.barrier()), VPUIP::NCETaskType::MAXPOOL,
+            filtersize, strides, kernel_padding, /*actChannelLength*/ nullptr, /*is_continued*/ nullptr,
+            /*odu_permutation*/ nullptr);
 
     nceTask.addPPETask(funcbuilder);
 
@@ -221,6 +144,8 @@ void buildMaxpool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
                                        getIntAttr(builder, padding_vec[PAD_NCETASK_TOP]),
                                        getIntAttr(builder, padding_vec[PAD_NCETASK_BOTTOM]), builder.getContext());
 
+    // NB For pooling operations, NTHW_NTK=(16, 4) is the only mode supported by
+    // the hardware; this corresponds to CUBOID_16x16.
     /* auto dpuTask = */ variantbuilder.create<VPUIP::DPUTaskOp>(builder.getUnknownLoc(), nullptr, start, end, pad,
                                                                  VPUIP::MPEMode::CUBOID_16x16);
     /* auto cmx_out_dma = */ funcbuilder.create<VPUIP::NNDMAOp>(

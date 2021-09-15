@@ -128,6 +128,8 @@ void buildRaceConditionDMATest(const nb::TestCaseJsonDescriptor&, mlir::ModuleOp
 void buildRaceConditionDPUTest(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module,
                                mlir::OpBuilder builder, Logger& log, mlir::Type inputType, mlir::Type weightsType,
                                mlir::Type outputType);
+void buildAvgpool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module, mlir::OpBuilder builder,
+                  Logger& log, mlir::Type inputType, mlir::Type outputType);
 void buildAvgpoolWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module, mlir::OpBuilder builder,
                             Logger& log, mlir::Type inputType, mlir::Type outputType);
 

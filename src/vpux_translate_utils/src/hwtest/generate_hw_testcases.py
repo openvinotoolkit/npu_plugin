@@ -606,11 +606,12 @@ class ZMajorConvolution(MPE):
         self.settings = settings
         settings.weight_shape = [settings.kernel_channels, settings.input_shape[1]] + settings.kernel_shape
 
-    def json_info(self, inputs):
+    def json_info(self, inputs, output):
         return {
             'case_type': 'ZMajorConvolution',
             'input': inputs[0].json_info,
             'weight': inputs[1].json_info,
+            'output': output.json_info,
             'conv_op': {
                 'stride': self.settings.kernel_strides,
                 'pad': self.settings.kernel_pads,
@@ -687,11 +688,12 @@ class DepthWiseConv(MPE):
         self.settings = settings
         settings.weight_shape = [settings.kernel_channels, 1] + settings.kernel_shape
 
-    def json_info(self, inputs):
+    def json_info(self, inputs, output):
         return {
             'case_type': 'DepthWiseConv',
             'input': inputs[0].json_info,
             'weight': inputs[1].json_info,
+            'output': output.json_info,
             'conv_op': {
                 'stride': self.settings.kernel_strides,
                 'pad': self.settings.kernel_pads,
@@ -749,11 +751,12 @@ class EltwiseAdd(MPE):
     def __init__(self, settings):
         self.settings = settings
 
-    def json_info(self, inputs):
+    def json_info(self, inputs, output):
         return {
             'case_type': 'EltwiseAdd',
             'input': inputs[0].json_info,
-            'weight': inputs[1].json_info
+            'weight': inputs[1].json_info,
+            'output': output.json_info
         }
 
     def validate(self):
@@ -807,11 +810,12 @@ class EltwiseMult(MPE):
     def __init__(self, settings):
         self.settings = settings
 
-    def json_info(self, inputs):
+    def json_info(self, inputs, output):
         return {
             'case_type': 'EltwiseMult',
             'input': inputs[0].json_info,
-            'weight': inputs[1].json_info
+            'weight': inputs[1].json_info,
+            'output': output.json_info
         }
 
     def validate(self):
@@ -862,10 +866,11 @@ class Maxpool(MPE):
     def __init__(self, settings):
         self.settings = settings
 
-    def json_info(self, inputs):
+    def json_info(self, inputs, output):
         return {
             'case_type': 'MaxPool',
             'input': inputs[0].json_info,
+            'output': output.json_info,
             'pool_op': {
                 'sub_type': 'max',
                 'kernel_shape': self.settings.kernel_shape,
@@ -913,29 +918,35 @@ class AvgPool(MPE):
 
     # kernel_strides are x|y directions
     # The padding order is top|left|bottom|right
-    PARAMS = ['mpe_op_class', 'input_ttype', 'input_shape', 'kernel_shape', 'output_ttype', 'kernel_strides', 'kernel_pads']
+    PARAMS = ['mpe_op_class', 'input_ttype', 'input_shape', 'kernel_shape', 'output_ttype', 'kernel_strides']
 
     def __init__(self, settings):
         self.settings = settings
 
-    def json_info(self, inputs):
+    def json_info(self, inputs, output):
+        # NB We need to rescale the output if it's quantized, since this is how the system implements the
+        # division for quantized pool outputs.
+        oinfo = output.json_info
+        if not output.is_float:
+            divisor = functools.reduce(operator.mul, self.settings.kernel_shape)
+            oinfo['quantization']['scale'] /= divisor
         return {
             'case_type': 'AvgPool',
             'input': inputs[0].json_info,
+            'output': oinfo,
             'pool_op': {
                 'sub_type': 'avg',
                 'kernel_shape': self.settings.kernel_shape,
-                'stride': self.settings.kernel_strides,
-                'pad': self.settings.kernel_pads
+                'stride': self.settings.kernel_strides
             }
         }
 
     def validate(self):
-        ValidatePaddings(self.settings.kernel_shape, self.settings.kernel_pads)
+        return True
 
     @property
     def ident(self) -> str:
-        return f'avg_pool_{self.settings.input_ttype.stype}_{shape_to_str(self.settings.kernel_shape)}_strides_{shape_to_str(self.settings.kernel_strides)}'
+        return f'avg_pool_{shape_to_str(self.settings.input_shape)}x{self.settings.input_ttype.stype}_kernel_{shape_to_str(self.settings.kernel_shape)}_strides_{shape_to_str(self.settings.kernel_strides)}'
 
     @property
     def orderer(self) -> Orderer:
@@ -961,7 +972,7 @@ class AvgPool(MPE):
 
     def apply(self, values: List[Value]) -> np.ndarray:
         lhs, rhs = idu(values[0], values[0])
-        avgpool = AveragePool(self.settings.kernel_shape, strides = self.settings.kernel_strides, pads = self.settings.kernel_pads)
+        avgpool = AveragePool(kernel_shape=self.settings.kernel_shape, strides=self.settings.kernel_strides, pads=[0, 0, 0, 0])
         return avgpool.inference(lhs)
 
 
@@ -1064,8 +1075,7 @@ class DPUPipeline:
 
     def value(self):
         return {
-            **self.mpe_op.json_info(self.inputs),
-            'output': self.o.json_info,
+            **self.mpe_op.json_info(self.inputs, self.o),
             'activation': {
                 'name': None
             }
@@ -1246,9 +1256,8 @@ def genAvgPools(input_types=[FP16(6)],
                 input_shapes=[[1, 64, 32, 32]],
                 kernel_shapes=[[2, 2]],
                 output_types=None,
-                strides=[[2, 2]],
-                pads=Pad.none):
-    for (input_type, input_shape, kernel_shape, stride, pad) in itertools.product(input_types, input_shapes, kernel_shapes, strides, pads):
+                strides=[[2, 2]]):
+    for (input_type, input_shape, kernel_shape, stride) in itertools.product(input_types, input_shapes, kernel_shapes, strides):
         if output_types is None:
             current_output_types = _PPE_VALID_OUTPUT_TYPES[input_type.is_float]
         else:
@@ -1260,8 +1269,7 @@ def genAvgPools(input_types=[FP16(6)],
                                                input_shape,
                                                kernel_shape,
                                                output_type,
-                                               stride,
-                                               pad
+                                               stride
                                                ))
 
 def getValidOutputTypes(input_type, kernel_channels) :
@@ -1459,14 +1467,6 @@ def generate_options(args):
         # AvgPool
         genAvgPools(input_types=[Int8(6), UInt8(6), FP16(6), BF16(6)],
                     input_shapes=[[1, 64, 32, 32]]),
-
-        genAvgPools(input_types=[Int8(6)],
-                    output_types=[Int8()],
-                    strides=[[r, c] for r in range(2, 8) for c in range(2, 8) if (r, c) != (2, 2)]),
-
-        genAvgPools(input_types=[FP16(6)],
-                    output_types=[FP16()],
-                    kernel_shapes=[[r, c] for r in range(2, 12) for c in range(2, 12) if (r, c) != (2, 2)]),
 
         # DepthWiseConv
         genDepthWiseConvs(input_types=[Int8(6), UInt8(6), FP16(6), BF16(6)],

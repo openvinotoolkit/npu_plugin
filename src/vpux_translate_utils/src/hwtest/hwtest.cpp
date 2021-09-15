@@ -119,8 +119,7 @@ mlir::OwningModuleRef importHWTEST(llvm::StringRef sourceJson, mlir::MLIRContext
         log.info("Building MaxPool");
         hwtest::buildMaxpool(jsonDesc, module, builder, log, input_type, output_type);
     } else if (isAvgPool) {
-        log.info("Building AvgPool with depth wise conv");
-        hwtest::buildAvgpoolWithDwConv(jsonDesc, module, builder, log, input_type, output_type);
+        hwtest::buildAvgpool(jsonDesc, module, builder, log, input_type, output_type);
     } else if (isPipeline) {
         hwtest::buildPipeline(jsonDesc, module, builder, log, input_type, weightType(), output_type, false);
     } else if (isRaceConditionDMA) {
