@@ -150,42 +150,25 @@ constexpr std::int32_t getKMBScale(unsigned shift, unsigned mult, double, mlir::
 }
 
 std::int32_t getMTLScale(unsigned shift, unsigned mult, double rescale, mlir::Type inputType) {
-    // FIXME: set value when PPE is LPRELU in quant mode
-    //    int32_t PRELU_SCALE_OFFSET = 0;
-    //    int32_t PRELU_SCALE_VALUE = 0;
-
-    //    int32_t PPE_SHIFT_OFFSET = 8;
-    //    int32_t PPE_SHIFT_VALUE = shift;
-
-    //    int32_t ROUND_MODE_OFFSET = 14;
-    //    int32_t ROUND_MODE_VALUE = 1;
-
-    //    int32_t PPE_MULT_OFFSET = 16;
-    //    // FIXME: PPE multiplier has sign, which may affect lower bits
-    //    int32_t PPE_MULT_VALUE = mult;
-
-    //    return (PRELU_SCALE_VALUE << PRELU_SCALE_OFFSET) | (PPE_SHIFT_VALUE << PPE_SHIFT_OFFSET) |
-    //           (ROUND_MODE_VALUE << ROUND_MODE_OFFSET) | (PPE_MULT_VALUE << PPE_MULT_OFFSET);
-
+    // MTL excpects scale in IEEE754 format in NCE_DPU_PPE_FP_SCALE register in case input has FP16/BF16 type
     if (inputType.isF16()) {
         return toHex(rescale);
     }
-    // 8bit mult mask
-    const uint32_t PRELU_MULT_MASK = 0x000000FF;
-    // 6bit shift mask
-    const uint32_t PRELU_SHIFT_MASK = 0x00003F00;
-    const uint32_t PRELU_SHIFT_SHIFT = 8;
-    // round mode mask
-    const uint32_t ROUND_MODE_MASK = 0x0000C000;
-    const uint32_t ROUND_MODE_SHIFT = 14;
-    // scale mask
-    const uint32_t SCALE_MODE_MASK = 0xFFFF0000;
-    const uint32_t SCALE_MODE_SHIFT = 16;
+    int32_t PRELU_SCALE_OFFSET = 0;
+    int32_t PRELU_SCALE_VALUE = 0;
 
-    int32_t round32 = 1;
-    int32_t reluMult = 0;
-    return ((mult << SCALE_MODE_SHIFT) & SCALE_MODE_MASK) | ((round32 << ROUND_MODE_SHIFT) & ROUND_MODE_MASK) |
-           ((shift << PRELU_SHIFT_SHIFT) & PRELU_SHIFT_MASK) | (reluMult & PRELU_MULT_MASK);
+    int32_t PPE_SHIFT_OFFSET = 8;
+    int32_t PPE_SHIFT_VALUE = shift;
+
+    int32_t ROUND_MODE_OFFSET = 14;
+    int32_t ROUND_MODE_VALUE = 1;
+
+    int32_t PPE_MULT_OFFSET = 16;
+    // FIXME: PPE multiplier has sign, which may affect lower bits
+    int32_t PPE_MULT_VALUE = mult;
+
+    return (PRELU_SCALE_VALUE << PRELU_SCALE_OFFSET) | (PPE_SHIFT_VALUE << PPE_SHIFT_OFFSET) |
+           (ROUND_MODE_VALUE << ROUND_MODE_OFFSET) | (PPE_MULT_VALUE << PPE_MULT_OFFSET);
 }
 
 llvm::unique_function<int32_t(size_t)> getBiasFunc(mlir::Type op_inElemType, mlir::Type op_outElemType,
