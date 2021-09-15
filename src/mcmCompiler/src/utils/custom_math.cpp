@@ -153,6 +153,5 @@ uint16_t mv::getWindowSize(uint16_t kx, uint16_t sx, mv::DType dataType)
         mpe *= 2;
     }
 
-    std::cout << "maxMpeWindowSize " << maxMpeWindowSize << std::endl;
     return maxMpeWindowSize;
 }

@@ -334,7 +334,7 @@ ie_faster_build(${OBJ_TARGET_NAME}
     PCH PUBLIC "src/precomp.hpp"
 )
 
-#enable_warnings_as_errors(${OBJ_TARGET_NAME} WIN_STRICT)
+enable_warnings_as_errors(${OBJ_TARGET_NAME} WIN_STRICT)
 vpux_enable_clang_format(${OBJ_TARGET_NAME})
 
 target_compile_definitions(${OBJ_TARGET_NAME}
