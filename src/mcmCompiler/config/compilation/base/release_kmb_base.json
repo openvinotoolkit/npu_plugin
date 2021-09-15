@@ -14,17 +14,6 @@
             "AssignOutputNode",
             "AssignUniqueOpId",
             {
-                "name": "GenerateDot",
-                "output": "output/dots/op_model-in0.dot",
-                "scope": "OpModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/op_model-in0.dot"
-            },
-            {
                 "name": "ApplyTargetVars",
                 "Vars": [
                     {
@@ -87,6 +76,11 @@
             },
             "StoreGraphOptimizerDecisions",
             {
+                "name" : "AddActivationStreaming",
+                "max_streams" : 1000,
+                "vertical_fusion" : true
+            },
+            {
                 "name" : "RecognizeVerticalFusionPatterns",
                 "min_subgraph_depth" : 2,
                 "vertical_fusion": true
@@ -148,17 +142,6 @@
     "serialize": {
         "Singular": [
             "RemoveRedundantUpdateBarriers",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/op_model-in1.dot",
-                "scope": "OpModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/op_model-in1.dot"
-            },
             "CombineTaskInputBarriers",
             "SplitBarrier",
             {
