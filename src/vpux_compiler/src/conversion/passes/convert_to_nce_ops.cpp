@@ -220,12 +220,12 @@ static mlir::Value alignchannelMajorWeightTensor(mlir::OpBuilder& builder, mlir:
     auto weightsContentAttr = weightsConst.contentAttr();
     auto nchwWeightsContentAttr = weightsContentAttr.reorder(DimsOrder::NCHW);
 
-    auto flatWeightShape = Shape{OC, filtersPerInChan * KY * KX, 1, 1};
+    auto flatWeightShape = Shape{OC, 1, 1, filtersPerInChan * KY * KX};
     auto flatWeightsContentAttr = nchwWeightsContentAttr.reshape(flatWeightShape);
     auto alignedWeightsContentAttr = flatWeightsContentAttr.padWithZero({0, 0, 0, 0}, {0, alignment, 0, 0});
     auto nhwcWeightsContentAttr = alignedWeightsContentAttr.reorder(DimsOrder::NHWC);
 
-    auto alignedWeightShape = SmallVector<int64_t>{OC, filtersPerInChan * KY * KX + alignment, 1, 1};
+    auto alignedWeightShape = SmallVector<int64_t>{OC, 1, 1, filtersPerInChan * KY * KX + alignment};
     const auto outAllocType = mlir::MemRefType::get(alignedWeightShape, origFilterType.getElementType());
     const auto outAllocTypeNHWC = changeDimsOrder(outAllocType, DimsOrder::NHWC);
     auto alignedWeightsOp = builder.create<Const::DeclareOp>(loc, outAllocTypeNHWC, nhwcWeightsContentAttr);
@@ -255,7 +255,7 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
 
     auto inputDPU = prepareTensorForDPU(rewriter, origOp->getLoc(), origOp.input());
     auto alignedFilter = alignchannelMajorWeightTensor(rewriter, origOp->getLoc(), origOp.filter());
-    auto filterDPU = prepareTensorForDPU(rewriter, origOp->getLoc(), origOp.filter());
+    auto filterDPU = prepareTensorForDPU(rewriter, origOp->getLoc(), alignedFilter);
 
     //
     // Generate activation window
