@@ -143,6 +143,11 @@ int main(int argc, char *argv[]) {
         if (inputInfo.size() > 1){
             multiInput = true;
             slog::info << "\t multiple inputs detected" << slog::endl;
+            slog::info << "\t inputs feeding order: ";
+            for (auto& inputInfoItem : inputInfo) {
+                slog::info << inputInfoItem.second->name() << ",";
+            }
+            slog::info << slog::endl;
         }
 
         // input precision

@@ -106,7 +106,11 @@ protected:
     int _numberOfSIPPShaves = 4;
     int _SIPPLpi = 8;
     int _numberOfPPPipes = 1;
+#if defined(__arm__) || defined(__aarch64__)
+    int _executorStreams = 2;
+#else
     int _executorStreams = 1;
+#endif
     // backend pull timeout - 5 seconds by default
     uint32_t _inferenceTimeoutMs = 5 * 1000;
     InferenceEngine::VPUXConfigParams::CompilerType _compilerType =

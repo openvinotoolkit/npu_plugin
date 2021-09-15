@@ -21,27 +21,57 @@
 
 #include "vpux/compiler/backend/VPUIP.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
+#include "vpux/compiler/init.hpp"
 #include "vpux/compiler/utils/types.hpp"
-
-#include "vpux/hwtest/test_case_json_parser.hpp"
+#include "vpux/hwtest/hwtest_utils.hpp"
 #include "vpux/utils/core/error.hpp"
 #include "vpux_config.hpp"
 
 namespace vpux {
 
 mlir::OwningModuleRef importHWTEST(llvm::StringRef sourceJson, mlir::MLIRContext* ctx) {
+    mlir::DialectRegistry registry;
+    registerDialects(registry);
+    ctx->appendDialectRegistry(registry);
     ctx->loadDialect<VPUIP::VPUIPDialect>();
 
     auto module = mlir::ModuleOp::create(mlir::UnknownLoc::get(ctx), StringRef("mainModule"));
     auto log = Logger{"vpux-hwtest", LogLevel::Trace};
+    auto builder = mlir::OpBuilder(module.getBodyRegion());
 
     nb::TestCaseJsonDescriptor jsonDesc(sourceJson);
+
+    nb::InputLayer input = jsonDesc.getInputLayer();
+    nb::OutputLayer output = jsonDesc.getOutputLayer();
+
+    mlir::Type input_type = hwtest::parseInputType(builder, input);
+    mlir::Type output_type = hwtest::parseOutputType(builder, output);
 
     // TODO:
     // This will be handled later based on op type in config json
     auto opType = jsonDesc.getCaseStr();
 
-    VPUX_THROW("Unknown type: {0}", opType);
+    bool isConv = jsonDesc.getCaseType() == nb::CaseType::ZMajorConvolution;
+
+    auto weightType = [&]() {
+        nb::WeightLayer weight = jsonDesc.getWeightLayer();
+        return hwtest::parseWeightsType(builder, weight);
+    };
+
+    auto weightInChannels = [&]() {
+        nb::WeightLayer weight = jsonDesc.getWeightLayer();
+        return weight.shape[1];
+    };
+
+    if (isConv) {
+        if (weightInChannels() > 8 * 1024) {
+            hwtest::buildContinuedConv(jsonDesc, module, builder, log, input_type, weightType(), output_type);
+        } else {
+            hwtest::buildSimpleZMajorConv(jsonDesc, module, builder, log, input_type, weightType(), output_type);
+        }
+    } else {
+        VPUX_THROW("Unknown type: {0}", opType);
+    }
 
     // llvm::dbgs() << "Current module: " << mlir::debugString(module);
 

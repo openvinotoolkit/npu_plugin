@@ -284,13 +284,52 @@ mlir::LogicalResult ExpandRewrite::matchAndRewrite(IE::ExpandOp origOp, ArrayRef
     auto expandedBuffer = allocateResults(origOp->getLoc(), rewriter, *typeConverter, origOp.output());
     const auto inputType = newOperands[0].getType().cast<mlir::ShapedType>();
 
-    const auto subOffsets = parseIntArrayAttr<int64_t>(origOp.pads_begin());
-    const auto subShape = inputType.getShape();
-    auto subView = rewriter.create<IERT::SubViewOp>(origOp.getLoc(), expandedBuffer[0], subOffsets, subShape);
-    auto subViewCopy = rewriter.create<IERT::CopyOp>(origOp->getLoc(), newOperands[0], subView);
+    auto subOffsetsBegin = parseIntArrayAttr<int64_t>(origOp.pads_begin());
+    auto subShape = to_small_vector(inputType.getShape());
+
+    const auto chunk = subShape[IE::Dims4D::Act::C.ind()];
+    const auto OC = getShape(origOp.output())[IE::Dims4D::Act::C];
 
     SmallVector<mlir::Value> concatInputs;
-    concatInputs.push_back(subViewCopy.output());
+    const auto fullCopyNum = OC / chunk;
+
+    // The first version copied the input once. Example:
+    // tensor<1x3xHxWxf16>(first channel:[0.1, 0.2, 0.3]) -> Expand ->
+    // tensor<1x8xHxWxf16>(first channel:[0.1, 0.2, 0.3, val1, val2, val3, val4, val5])
+    // It was assumed that zero weights would allow not to take into account "garbage" values
+    // (val1, val2, ...) falling into the tensor during expansion.
+
+    // It turned out that after some calculations, Inf/NaN can remain in memory.
+    // IEEE 754: Infinities propagate through calculations; NaN infects any calculation that involves it.
+    // Now assuming that the input contains only valid values.
+    // Fill in these values the space that appeared after the channels were expanded. Example:
+    // tensor<1x3xHxWxf16>(first channel:[0.1, 0.2, 0.3]) -> Expand ->
+    // tensor<1x8xHxWxf16>(first channel:[0.1, 0.2, 0.3, 0.1, 0.2, 0.3, 0.1, 0.2])
+
+    for (int copyIdx = 0; copyIdx < fullCopyNum; copyIdx++) {
+        auto subView = rewriter.create<IERT::SubViewOp>(origOp.getLoc(), expandedBuffer[0], subOffsetsBegin, subShape);
+        auto subViewCopy = rewriter.create<IERT::CopyOp>(origOp->getLoc(), newOperands[0], subView);
+
+        concatInputs.push_back(subViewCopy.output());
+
+        subOffsetsBegin[IE::Dims4D::Act::C.ind()] += chunk;
+    }
+
+    const auto filledSize = subOffsetsBegin[IE::Dims4D::Act::C.ind()];
+    if (filledSize < OC) {
+        SmallVector<int64_t> subInputOffsetsBegin{0, 0, 0, 0};
+        subShape[IE::Dims4D::Act::C.ind()] = OC - filledSize;
+
+        auto subViewInput =
+                rewriter.create<IERT::SubViewOp>(origOp.getLoc(), newOperands[0], subInputOffsetsBegin, subShape);
+        auto subViewTail =
+                rewriter.create<IERT::SubViewOp>(origOp.getLoc(), expandedBuffer[0], subOffsetsBegin, subShape);
+
+        auto subViewCopy = rewriter.create<IERT::CopyOp>(origOp->getLoc(), subViewInput, subViewTail);
+
+        concatInputs.push_back(subViewCopy.output());
+    }
+
     rewriter.replaceOpWithNewOp<IERT::ConcatViewOp>(origOp, concatInputs, expandedBuffer[0]);
 
     return mlir::success();
@@ -351,13 +390,12 @@ mlir::LogicalResult LSTMCellRewrite::matchAndRewrite(IE::LSTMCellOp origOp, Arra
 // LayerRewrite
 //
 
-mlir::Operation* createRTLayer(mlir::quant::QuantizeCastOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+mlir::Operation* createRTLayer(IE::QuantizeOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::QuantizeOp::Adaptor newOp(allBufs);
     return b.create<IERT::QuantizeOp>(origOp.getLoc(), newOp.input(), newOp.output_buff());
 }
 
-mlir::Operation* createRTLayer(mlir::quant::DequantizeCastOp origOp, ArrayRef<mlir::Value> allBufs,
-                               mlir::OpBuilder& b) {
+mlir::Operation* createRTLayer(IE::DequantizeOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::DequantizeOp::Adaptor newOp(allBufs);
     return b.create<IERT::DequantizeOp>(origOp.getLoc(), newOp.input(), newOp.output_buff());
 }
@@ -390,6 +428,11 @@ mlir::Operation* createRTLayer(IE::FloorOp origOp, ArrayRef<mlir::Value> allBufs
 mlir::Operation* createRTLayer(IE::MishOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::MishOp::Adaptor newOp(allBufs);
     return b.create<IERT::MishOp>(origOp.getLoc(), newOp.input(), newOp.output_buff());
+}
+
+mlir::Operation* createRTLayer(IE::ErfOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::ErfOp::Adaptor newOp(allBufs);
+    return b.create<IERT::ErfOp>(origOp.getLoc(), newOp.input(), newOp.output_buff());
 }
 
 mlir::Operation* createRTLayer(IE::TanhOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
@@ -631,6 +674,16 @@ mlir::Operation* createRTLayer(IE::RegionYoloOp origOp, ArrayRef<mlir::Value> al
                                         origOp.axis(), origOp.end_axis(), origOp.anchors());
 }
 
+mlir::Operation* createRTLayer(IE::MVNOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::MVNOp::Adaptor newOp(allBufs);
+    return b.create<IERT::MVNOp>(origOp.getLoc(), newOp.input(), newOp.output_buff(), origOp.across_channels(),
+                                 origOp.normalize_variance(), origOp.eps());
+}
+mlir::Operation* createRTLayer(IE::SubtractOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::SubtractOp::Adaptor newOp(allBufs);
+    return b.create<IERT::SubtractOp>(origOp.getLoc(), newOp.input1(), newOp.input2(), newOp.output_buff());
+}
+
 class LayerRewrite final : public mlir::ConversionPattern {
 public:
     LayerRewrite(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
@@ -666,8 +719,8 @@ mlir::LogicalResult LayerRewrite::matchAndRewrite(mlir::Operation* origOp, Array
     })
 
     const CreateFunc createFunc = llvm::TypeSwitch<mlir::Operation*, CreateFunc>(origOp)  //
-            CASE(mlir::quant::QuantizeCastOp)
-    CASE(mlir::quant::DequantizeCastOp)
+            CASE(IE::QuantizeOp)
+    CASE(IE::DequantizeOp)
     CASE(IE::ConvertOp)
     CASE(IE::SoftMaxOp)
     CASE(IE::AvgPoolOp)
@@ -681,6 +734,7 @@ mlir::LogicalResult LayerRewrite::matchAndRewrite(mlir::Operation* origOp, Array
     CASE(IE::HSwishOp)
     CASE(IE::FloorOp)
     CASE(IE::MishOp)
+    CASE(IE::ErfOp)
     CASE(IE::TanhOp)
     CASE(IE::FakeQuantizeOp)
     CASE(IE::PReluOp)
@@ -711,6 +765,8 @@ mlir::LogicalResult LayerRewrite::matchAndRewrite(mlir::Operation* origOp, Array
     CASE(IE::StridedSliceOp)
     CASE(IE::ReorderOp)
     CASE(IE::RegionYoloOp)
+    CASE(IE::MVNOp)
+    CASE(IE::SubtractOp)
     .Default([](mlir::Operation*) {
         return nullptr;
     });
@@ -769,7 +825,6 @@ void BufferizeIEPass::safeRunOnFunc() {
     target.addDynamicallyLegalDialect<Const::ConstDialect>(isLegalOp);
     target.addLegalDialect<IERT::IERTDialect>();
     target.addIllegalDialect<IE::IEDialect>();
-    target.addIllegalDialect<mlir::quant::QuantizationDialect>();
     target.addLegalOp<IE::CNNNetworkOp, IE::DataInfoOp>();
     target.addLegalOp<mlir::memref::AllocOp>();
     vpux::populateBufferizeMaterializationLegality(target);

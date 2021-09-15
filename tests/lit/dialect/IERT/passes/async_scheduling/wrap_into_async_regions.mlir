@@ -30,17 +30,15 @@ func @LinearGraph(%arg0: memref<100xf16>, %arg1: memref<100xf16>) -> memref<100x
 
 // -----
 
-#map = affine_map<(d0) -> (d0 + 50)>
-
 // CHECK-LABEL: @ConcatView
 func @ConcatView(%arg0: memref<50xf16>, %arg1: memref<100xf16>) -> memref<100xf16> {
     %0 = IERT.SubView %arg1 [0] [50] : memref<100xf16> to memref<50xf16>
     %1 = IERT.ReLU inputs(%arg0 : memref<50xf16>) outputs(%0 : memref<50xf16>) -> memref<50xf16>
 
-    %2 = IERT.SubView %arg1 [50] [50] : memref<100xf16> to memref<50xf16, #map>
-    %3 = IERT.Copy inputs(%arg0 : memref<50xf16>) outputs(%2 : memref<50xf16, #map>) -> memref<50xf16, #map>
+    %2 = IERT.SubView %arg1 [50] [50] : memref<100xf16> to memref<50xf16>
+    %3 = IERT.Copy inputs(%arg0 : memref<50xf16>) outputs(%2 : memref<50xf16>) -> memref<50xf16>
 
-    %4 = IERT.ConcatView inputs(%1, %3 : memref<50xf16>, memref<50xf16, #map>) outputs(%arg1 : memref<100xf16>) -> memref<100xf16>
+    %4 = IERT.ConcatView inputs(%1, %3 : memref<50xf16>, memref<50xf16>) outputs(%arg1 : memref<100xf16>) -> memref<100xf16>
     return %4 : memref<100xf16>
 
     // CHECK:       [[VAR0:%.+]] = IERT.SubView %arg1 [0] [50]
@@ -52,14 +50,14 @@ func @ConcatView(%arg0: memref<50xf16>, %arg1: memref<100xf16>) -> memref<100xf1
     // CHECK:       [[VAR1:%.+]] = async.await [[FUTURE1]]
 
     // CHECK:       [[VAR2:%.+]] = IERT.SubView %arg1 [50] [50]
-    // CHECK:       [[TOKEN3:%.+]], [[FUTURE3:%.+]] = async.execute -> !async.value<memref<50xf16, #map>>
+    // CHECK:       [[TOKEN3:%.+]], [[FUTURE3:%.+]] = async.execute -> !async.value<memref<50xf16>>
     // CHECK-SAME:          IERT.executor = "DMA_NN"
     // CHECK-SAME:          IERT.num_units = 1
-    // CHECK:           [[INNER_VAR3:%.+]] = IERT.Copy inputs(%arg0 : memref<50xf16>) outputs([[VAR2]] : memref<50xf16, #map>)
+    // CHECK:           [[INNER_VAR3:%.+]] = IERT.Copy inputs(%arg0 : memref<50xf16>) outputs([[VAR2]] : memref<50xf16>)
     // CHECK:           async.yield [[INNER_VAR3]]
     // CHECK:       [[VAR3:%.+]] = async.await [[FUTURE3]]
 
-    // CHECK:       [[VAR4:%.+]] = IERT.ConcatView inputs([[VAR1]], [[VAR3]] : memref<50xf16>, memref<50xf16, #map>) outputs(%arg1 : memref<100xf16>)
+    // CHECK:       [[VAR4:%.+]] = IERT.ConcatView inputs([[VAR1]], [[VAR3]] : memref<50xf16>, memref<50xf16>) outputs(%arg1 : memref<100xf16>)
 
     // CHECK:       return [[VAR4]] : memref<100xf16>
 }

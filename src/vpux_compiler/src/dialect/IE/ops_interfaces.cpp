@@ -14,6 +14,7 @@
 #include "vpux/compiler/dialect/IE/ops_interfaces.hpp"
 
 #include "vpux/compiler/utils/error.hpp"
+#include "vpux/compiler/utils/quantization.hpp"
 
 #include "vpux/utils/core/format.hpp"
 #include "vpux/utils/core/range.hpp"
@@ -37,60 +38,39 @@ const Dim vpux::IE::Dims4D::Filter::KY(2);
 const Dim vpux::IE::Dims4D::Filter::KX(3);
 
 //
-// DataOrderInfo
-//
-
-void vpux::IE::DataOrderInfo::printFormat(llvm::raw_ostream& stream) const {
-    stream << "Order info [";
-    for (size_t i = 0; i < _inputOrders.size(); ++i) {
-        stream << " inL[" << i << "]=";
-        if (_inputOrders[i].hasValue()) {
-            _inputOrders[i]->printFormat(stream);
-        } else {
-            stream << "ANY";
-        }
-    }
-
-    stream << ";";
-    for (size_t i = 0; i < _outputOrders.size(); ++i) {
-        stream << " outL[" << i << "]=";
-        if (_outputOrders[i].hasValue()) {
-            _outputOrders[i]->printFormat(stream);
-        } else {
-            stream << "ANY";
-        }
-    }
-
-    stream << " ]";
-}
-
-void vpux::IE::fillDataInfo(IE::DataOrderInfo& info, size_t inNum, size_t outNum, DimsOrder mainOrder) {
-    for (size_t i = 0; i < inNum; ++i) {
-        info.setInput(i, mainOrder);
-    }
-
-    for (size_t i = 0; i < outNum; ++i) {
-        info.setOutput(i, mainOrder);
-    }
-}
-
-//
 // LayerOpInterface
 //
 
 mlir::LogicalResult vpux::IE::verifyLayer(mlir::Operation* op) {
-    for (auto& arg : op->getOpOperands()) {
-        const auto type = arg.get().getType();
+    if (op->getOperands().empty()) {
+        return errorAt(op, "Layer Operation has no operands");
+    }
+    if (op->getResults().empty()) {
+        return errorAt(op, "Layer Operation has no results");
+    }
 
+    const auto verifyType = [&](mlir::Type type, StringRef name, unsigned ind) {
         if (type.isa<mlir::MemRefType>()) {
-            return errorAt(op, "Layer Operation has MemRef operand #{0}", arg.getOperandNumber());
+            return errorAt(op, "Layer Operation has MemRef {0} #{1}", name, ind);
+        }
+
+        if (auto mainType = type.dyn_cast<mlir::ShapedType>()) {
+            if (validateQuantElemType(op->getLoc(), mainType).failed()) {
+                return mlir::failure();
+            }
+        }
+
+        return mlir::success();
+    };
+
+    for (auto& arg : op->getOpOperands()) {
+        if (verifyType(arg.get().getType(), "operand", arg.getOperandNumber()).failed()) {
+            return mlir::failure();
         }
     }
     for (auto res : op->getOpResults()) {
-        const auto type = res.getType();
-
-        if (type.isa<mlir::MemRefType>()) {
-            return errorAt(op, "Layer Operation has MemRef result #{0}", res.getResultNumber());
+        if (verifyType(res.getType(), "result", res.getResultNumber()).failed()) {
+            return mlir::failure();
         }
     }
 
@@ -162,21 +142,57 @@ bool vpux::IE::isCompatibleShapeAndElemType(mlir::TypeRange lhs, mlir::TypeRange
 // LayoutInfoOpInterface
 //
 
-IE::DataOrderInfo vpux::IE::getDataOrderInfo(mlir::Operation* op) {
-    const auto inputs = op->getOperands();
-    const auto outputs = op->getOpResults();
+void vpux::IE::LayerLayoutInfo::setInput(size_t ind, const DimsOrder& info) {
+    const auto prevInfo = getInput(ind);
+    VPUX_THROW_UNLESS(info.numDims() == prevInfo.numDims(), "New order '{0}' doesn't match original rank '{1}'", info,
+                      prevInfo.numDims());
 
-    IE::DataOrderInfo orderInfo{inputs.size(), outputs.size()};
+    LayerDataInfo<DimsOrder>::setInput(ind, info);
+}
 
-    for (const auto& val : inputs | indexed) {
-        orderInfo.setInput(val.index(), DimsOrder::fromValue(val.value()));
+void vpux::IE::LayerLayoutInfo::setOutput(size_t ind, const DimsOrder& info) {
+    const auto prevInfo = getOutput(ind);
+    VPUX_THROW_UNLESS(info.numDims() == prevInfo.numDims(), "New order '{0}' doesn't match original rank '{1}'", info,
+                      prevInfo.numDims());
+
+    LayerDataInfo<DimsOrder>::setOutput(ind, info);
+}
+
+IE::LayerLayoutInfo vpux::IE::getLayoutInfo(mlir::Operation* op) {
+    SmallVector<DimsOrder> inputOrders;
+    inputOrders.reserve(op->getNumOperands());
+    for (const auto& val : op->getOperands()) {
+        inputOrders.push_back(DimsOrder::fromValue(val));
     }
 
-    for (const auto& val : outputs | indexed) {
-        orderInfo.setOutput(val.index(), DimsOrder::fromValue(val.value()));
+    SmallVector<DimsOrder> outputOrders;
+    outputOrders.reserve(op->getNumResults());
+    for (const auto& val : op->getResults()) {
+        outputOrders.push_back(DimsOrder::fromValue(val));
     }
 
-    return orderInfo;
+    return IE::LayerLayoutInfo(std::move(inputOrders), std::move(outputOrders));
+}
+
+void vpux::IE::fillDefaultLayoutInfo(IE::LayerLayoutInfo& info) {
+    for (auto i : irange(info.getNumInputs())) {
+        info.setInput(i, DimsOrder::fromNumDims(info.getInput(i).numDims()));
+    }
+
+    for (auto i : irange(info.getNumOutputs())) {
+        info.setOutput(i, DimsOrder::fromNumDims(info.getOutput(i).numDims()));
+    }
+}
+
+void vpux::IE::fillDefaultLayoutInfo(LayerLayoutInfo& info, FuncRef<bool(size_t)> inputFilter,
+                                     FuncRef<bool(size_t)> outputFilter) {
+    for (auto i : irange(info.getNumInputs()) | filtered(inputFilter)) {
+        info.setInput(i, DimsOrder::fromNumDims(info.getInput(i).numDims()));
+    }
+
+    for (auto i : irange(info.getNumOutputs()) | filtered(outputFilter)) {
+        info.setOutput(i, DimsOrder::fromNumDims(info.getOutput(i).numDims()));
+    }
 }
 
 //

@@ -20,100 +20,102 @@ def Const_Dialect : Dialect {
     let summary = "Const Dialect";
 
     let description = [{
-        The **VPUX NN Compiler** uses lazy constant folding approach to reduce memory footprint
-        for large constant values (like dense tensors).
+The **VPUX NN Compiler** uses lazy constant folding approach to reduce memory footprint
+for large constant values (like dense tensors).
 
-        The **Const Dialect** provides utilities for that lazy constant folding support.
+The **Const Dialect** provides utilities for that lazy constant folding support.
 
-        It defines a special attribute `Const::ContentAttr` to hold original constant data
-        and the transformations applied to it.
-        The `Const::ContentAttr` provides an API to apply the transformations on-the-fly,
-        when accessing the data.
+It defines a special attribute `Const::ContentAttr` to hold original constant data
+and the transformations applied to it.
+The `Const::ContentAttr` provides an API to apply the transformations on-the-fly,
+when accessing the data.
 
-        The **Const Dialect** supports the following transformations:
+The **Const Dialect** supports the following transformations:
 
-        * Precision conversion
-        * Quantization types casting from raw storage
-        * Dequantization
-        * Reshape
-        * Reorder
-        * Padding
-        * SubView
+* Precision conversion
+* Quantization types casting from raw storage
+* Dequantization
+* Reshape
+* Reorder
+* Padding
+* SubView
 
-        The transformations are stored as separate attributes, which implemented specific Attribute Interface.
-        The interface allows to extend the set of transformations outside of the **Const Dialect** implementation.
+The transformations are stored as separate attributes, which implemented specific Attribute Interface.
+The interface allows to extend the set of transformations outside of the **Const Dialect** implementation.
 
-        Initial non-transformed constant should be created via `Const::DeclareOp` and `Const::ContentAttr`:
+Initial non-transformed constant should be created via `Const::DeclareOp` and `Const::ContentAttr`:
 
-        ```C++
-        mlir::ElementsAttr baseValue = ...;
-        Const::ConstOp constOp = builder.create<Const::DeclareOp>(loc, resultType, Const::ContentAttr::get(baseValue));
-        ```
+```C++
+mlir::ElementsAttr baseValue = ...;
+Const::ConstOp constOp = builder.create<Const::DeclareOp>(loc, resultType, Const::ContentAttr::get(baseValue));
+```
 
-        In assembly code it will be represented as:
+In assembly code it will be represented as:
 
-        ```MLIR
-        %0 = const.Declare tensor<1x2x3x4xf32> = #const.Content<dense<...> : tensor<1x2x3x4xf32>>>
-        ```
+```MLIR
+%0 = const.Declare tensor<1x2x3x4xf32> = #const.Content<dense<...> : tensor<1x2x3x4xf32>>>
+```
 
-        The content is accessed from `Const::DeclareOp` via `content()` method.
-        The method returns special `Const::Content` object, which allows to access underlying values as range.
-        The `Const::Content` object must be stored in separate variable, since it might contain temporal buffer,
-        which will be freed at object destruction.
+The content is accessed from `Const::DeclareOp` via `content()` method.
+The method returns special `Const::Content` object, which allows to access underlying values as range.
+The `Const::Content` object must be stored in separate variable, since it might contain temporal buffer,
+which will be freed at object destruction.
 
-        ```C++
-        Const::DeclareOp constOp = ...;
-        Const::Content content = constOp.content(); // This call will apply all transformations
-        const auto valsRange = content.getValues<float>(); // Access the values via range-like class
-        for (auto val : valsRange) { ... }
-        ```
+```C++
+Const::DeclareOp constOp = ...;
+Const::Content content = constOp.content(); // This call will apply all transformations
+const auto valsRange = content.getValues<float>(); // Access the values via range-like class
+for (auto val : valsRange) { ... }
+```
 
-        Note: the `getValues` allows to specify desired type for elements and will perform conversion from underlying storage type on-the-fly.
+Note: the `getValues` allows to specify desired type for elements and will perform conversion from underlying storage type on-the-fly.
 
-        To perform tranformations on constant data, the new `Const::ContentAttr` must be created on top of existed with specified transformation:
+To perform tranformations on constant data, the new `Const::ContentAttr` must be created on top of existed with specified transformation:
 
-        ```C++
-        Const::DeclareOp origConstOp = ...;
-        Const::ConstContentAttr origConstAttr = origConstOp.contentAttr();
-        Const::ConstContentAttr newConstAttr = origConstAttr.convertElemType(mlir::Float16Type::get(ctx));
-        Const::ConstOp newConstOp = builder.create<Const::DeclareOp>(loc, newConstAttr.getType(), newConstAttr);
-        ```
+```C++
+Const::DeclareOp origConstOp = ...;
+Const::ConstContentAttr origConstAttr = origConstOp.contentAttr();
+Const::ConstContentAttr newConstAttr = origConstAttr.convertElemType(mlir::Float16Type::get(ctx));
+Const::ConstOp newConstOp = builder.create<Const::DeclareOp>(loc, newConstAttr.getType(), newConstAttr);
+```
 
-        In assembly code it will be represented as:
+In assembly code it will be represented as:
 
-        ```MLIR
-        %0 = const.Declare tensor<1x2x3x4xf16> = #const.Content<dense<...> : tensor<1x2x3x4xf32>, [#const.ConvertElemType<f16>]>
-        ```
+```MLIR
+%0 = const.Declare tensor<1x2x3x4xf16> = #const.Content<dense<...> : tensor<1x2x3x4xf32>, [#const.ConvertElemType<f16>]>
+```
 
-        The `Const::ConstContentAttr` might hold a list of transformations, they will be applied in the order:
+The `Const::ConstContentAttr` might hold a list of transformations, they will be applied in the order:
 
-        ```MLIR
-        %0 = const.Declare memref<1x2x3x4xf16, #NHWC, #strides> =
-            #const.Content<
-                dense<...> : tensor<2x3x4xf32>,
-                [
-                    #const.ConvertElemType<f16>,
-                    #const.Reshape<[1, 2, 3, 4]>,
-                    #const.Reorder<#NHWC>
-                ]
-            >
-        ```
+```MLIR
+%0 = const.Declare memref<1x2x3x4xf16, #NHWC, #strides> =
+    #const.Content<
+        dense<...> : tensor<2x3x4xf32>,
+        [
+            #const.ConvertElemType<f16>,
+            #const.Reshape<[1, 2, 3, 4]>,
+            #const.Reorder<#NHWC>
+        ]
+    >
+```
 
-        Note: the tensor-related type attributes (shape, layout, element type) for the `Const::DeclareOp` result value
-        and for `Const::ConstContentAttr` final infered type must match.
+Note: the tensor-related type attributes (shape, layout, element type) for the `Const::DeclareOp` result value
+and for `Const::ConstContentAttr` final infered type must match.
 
-        The quantized constant is represented via special `#const.QuantCast` transformation, which casts raw integer storage representation
-        to quantized type with quantization parameters:
+The quantized constant is represented via special `#const.QuantCast` transformation, which casts raw integer storage representation
+to quantized type with quantization parameters:
 
-        ```MLIR
-        %0 = const.Declare tensor<1x16x1x1x!quant.uniform<u8:f16, ...>> =
-            #const.Content<
-                dense<...> : tensor<1x16x1x1xui8>,
-                [
-                    #const.QuantCast<!quant.uniform<u8:f16, ...>>
-                ]
-            >
-        ```
+```MLIR
+%0 = const.Declare tensor<1x16x1x1x!quant.uniform<u8:f16, ...>> =
+    #const.Content<
+        dense<...> : tensor<1x16x1x1xui8>,
+        [
+            #const.QuantCast<!quant.uniform<u8:f16, ...>>
+        ]
+    >
+```
+
+[./const/_attr_interfaces.md]
     }];
 
     let name = "const";

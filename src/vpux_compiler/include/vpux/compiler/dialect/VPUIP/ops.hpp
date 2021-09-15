@@ -65,11 +65,34 @@ mlir::LogicalResult verifyOp(ROIPoolingUPAOp op);
 mlir::LogicalResult verifyOp(ProposalUPAOp op);
 mlir::LogicalResult verifyOp(PermuteUPAOp op);
 mlir::LogicalResult verifyOp(CTCGreedyDecoderUPAOp op);
+mlir::LogicalResult verifyOp(MVNUPAOp op);
 mlir::LogicalResult verifyOp(PadUPAOp op);
 mlir::LogicalResult verifyOp(ConvolutionUPAOp op);
 mlir::LogicalResult verifyOp(NCEClusterTaskOp op);
 mlir::LogicalResult verifyOp(DPUTaskOp op);
 mlir::LogicalResult verifyPostOp(mlir::Operation* op);
+
+}  // namespace VPUIP
+}  // namespace vpux
+
+//
+// Template methods
+//
+
+namespace vpux {
+namespace VPUIP {
+
+template <typename... Args>
+VPUIP::PPETaskOp NCEClusterTaskOp::addPPETask(mlir::OpBuilder& builder, Args&&... args) {
+    if (ppe().empty()) {
+        ppe().emplaceBlock();
+    }
+
+    mlir::OpBuilder::InsertionGuard guard(builder);
+    builder.setInsertionPointToEnd(&ppe().front());
+
+    return builder.create<VPUIP::PPETaskOp>(getLoc(), std::forward<Args>(args)...);
+}
 
 }  // namespace VPUIP
 }  // namespace vpux

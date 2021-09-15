@@ -51,6 +51,9 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::EltwiseUPAOp::serialize(VPUIP::Blob
     case VPUIP::EltwiseLayerType::MAX:
         type = writer.createString("max");
         break;
+    case VPUIP::EltwiseLayerType::SUBTRACT:
+        type = writer.createString("subtract");
+        break;
     default:
         VPUX_THROW("Unsupported EltwiseLayerType {0}", this->type());
     }
@@ -86,6 +89,8 @@ mlir::Operation* vpux::VPUIP::BlobReader::parseEltwise(mlir::OpBuilder& builder,
         type = EltwiseLayerType::MIN;
     } else if (strType == "max") {
         type = EltwiseLayerType::MAX;
+    } else if (strType == "subtract") {
+        type = EltwiseLayerType::SUBTRACT;
     } else {
         VPUX_THROW("Unsupported EltwiseLayerType {0}", strType);
     }

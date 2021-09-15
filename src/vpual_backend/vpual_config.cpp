@@ -24,8 +24,8 @@ namespace vpux {
 
 VpualConfig::VpualConfig() {
     _runTimeOptions = merge(vpux::VPUXConfig::getRunTimeOptions(), {
-                                                                       VPUX_VPUAL_CONFIG_KEY(REPACK_INPUT_LAYOUT),
-                                                                       VPUX_VPUAL_CONFIG_KEY(INFERENCE_SHAVES),
+                                                                           VPUX_VPUAL_CONFIG_KEY(REPACK_INPUT_LAYOUT),
+                                                                           VPUX_VPUAL_CONFIG_KEY(INFERENCE_SHAVES),
                                                                    });
 }
 
@@ -35,8 +35,8 @@ void VpualConfig::parse(const std::map<std::string, std::string>& config) {
     setOption(_repackInputLayout, switches, config, VPUX_VPUAL_CONFIG_KEY(REPACK_INPUT_LAYOUT));
     setOption(_numberOfNnCoreShaves, config, VPUX_VPUAL_CONFIG_KEY(INFERENCE_SHAVES), parseInt);
     IE_ASSERT(0 <= _numberOfNnCoreShaves && _numberOfNnCoreShaves <= 16)
-        << "VPUXConfig::parse attempt to set invalid number of shaves for NnCore: '" << _numberOfNnCoreShaves
-        << "', valid numbers are from 0 to 16";
+            << "VPUXConfig::parse attempt to set invalid number of shaves for NnCore: '" << _numberOfNnCoreShaves
+            << "', valid numbers are from 0 to 16";
 }
 
 }  // namespace vpux

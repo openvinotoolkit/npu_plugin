@@ -14,6 +14,7 @@
 #include "vpux/compiler/dialect/IERT/ops_interfaces.hpp"
 
 #include "vpux/compiler/utils/error.hpp"
+#include "vpux/compiler/utils/quantization.hpp"
 
 using namespace vpux;
 
@@ -45,18 +46,28 @@ mlir::LogicalResult vpux::IERT::verifyLayer(mlir::Operation* op) {
         return errorAt(op, "RunTime Layer Operation has no results");
     }
 
-    for (auto& arg : op->getOpOperands()) {
-        const auto type = arg.get().getType();
-
+    const auto verifyType = [&](mlir::Type type, StringRef name, unsigned ind) {
         if (type.isa<mlir::RankedTensorType>()) {
-            return errorAt(op, "RunTime Layer Operation has Tensor operand #{0}", arg.getOperandNumber());
+            return errorAt(op, "RunTime Layer Operation has Tensor {0} #{1}", name, ind);
+        }
+
+        if (auto mainType = type.dyn_cast<mlir::ShapedType>()) {
+            if (validateQuantElemType(op->getLoc(), mainType).failed()) {
+                return mlir::failure();
+            }
+        }
+
+        return mlir::success();
+    };
+
+    for (auto& arg : op->getOpOperands()) {
+        if (verifyType(arg.get().getType(), "operand", arg.getOperandNumber()).failed()) {
+            return mlir::failure();
         }
     }
     for (auto res : op->getOpResults()) {
-        const auto type = res.getType();
-
-        if (type.isa<mlir::RankedTensorType>()) {
-            return errorAt(op, "RunTime Layer Operation has Tensor result #{0}", res.getResultNumber());
+        if (verifyType(res.getType(), "result", res.getResultNumber()).failed()) {
+            return mlir::failure();
         }
     }
 
@@ -99,23 +110,6 @@ MutableArrayRef<mlir::OpOperand> vpux::IERT::getLayerOutOpOperands(mlir::Operati
     const auto outNum = getLastMemRefPosition(op->getResults());
 
     return op->getOpOperands().slice(inNum - outNum, outNum);
-}
-
-IE::DataOrderInfo vpux::IERT::getLayerDataOrderInfo(mlir::Operation* op) {
-    const auto inputs = getLayerInputs(op);
-    const auto outputs = getLayerOutputs(op);
-
-    IE::DataOrderInfo orderInfo{inputs.size(), outputs.size()};
-
-    for (const auto& val : inputs | indexed) {
-        orderInfo.setInput(val.index(), DimsOrder::fromValue(val.value()));
-    }
-
-    for (const auto& val : outputs | indexed) {
-        orderInfo.setOutput(val.index(), DimsOrder::fromValue(val.value()));
-    }
-
-    return orderInfo;
 }
 
 mlir::Value vpux::IERT::getLayerViewSource(mlir::Operation* op, ptrdiff_t resultInd) {
@@ -225,35 +219,6 @@ mlir::LogicalResult vpux::IERT::verifySameDimsOrder(mlir::Operation* op) {
     return mlir::success();
 }
 
-bool vpux::IERT::isSupportedLayoutSameDimsOrder(mlir::Operation* op, IE::DataOrderInfo& info) {
-    auto layer = mlir::dyn_cast<IE::LayerOpInterface>(op);
-    VPUX_THROW_UNLESS(layer != nullptr, "Operation '{0}' doesn't implement Layer interface", op->getName());
-
-    const auto inputs = layer.getInputs();
-    const auto outputs = layer.getOutputs();
-
-    const auto inNum = inputs.size();
-    const auto outNum = outputs.size();
-
-    const auto mainOrder = info.hasInput(0) ? info.getInput(0) : DimsOrder::fromValue(inputs[0]);
-
-    for (size_t i = 0; i < inNum; ++i) {
-        if (!info.hasInput(i) || info.getInput(i) != mainOrder) {
-            IE::fillDataInfo(info, inNum, outNum, mainOrder);
-            return false;
-        }
-    }
-
-    for (size_t i = 0; i < outNum; ++i) {
-        if (!info.hasOutput(i) || info.getOutput(i) != mainOrder) {
-            IE::fillDataInfo(info, inNum, outNum, mainOrder);
-            return false;
-        }
-    }
-
-    return true;
-}
-
 //
 // SameInOutDimsOrder
 //
@@ -276,26 +241,13 @@ mlir::LogicalResult vpux::IERT::verifySameInOutDimsOrder(mlir::Operation* op) {
     return mlir::success();
 }
 
-bool vpux::IERT::isSupportedLayoutSameInOutDimsOrder(mlir::Operation* op, IE::DataOrderInfo& info) {
-    auto layer = mlir::dyn_cast<IE::LayerOpInterface>(op);
-    VPUX_THROW_UNLESS(layer != nullptr, "Operation {0} is not layer", op->getName());
+void vpux::IERT::inferLayoutInfoSameInOutDimsOrder(IE::LayerLayoutInfo& info) {
+    const auto filter = [](size_t ind) {
+        return ind != 0;
+    };
+    IE::fillDefaultLayoutInfo(info, filter, filter);
 
-    if (!info.hasInput(0) || !info.hasOutput(0)) {
-        const auto intType = layer.getInputs()[0].getType();
-        const auto supportedOrder = info.hasInput(0)
-                                            ? info.getInput(0)
-                                            : DimsOrder::fromNumDims(intType.cast<mlir::ShapedType>().getRank());
-
-        IE::fillDataInfo(info, 1, 1, supportedOrder);
-        return false;
-    }
-
-    if (info.getInput(0) != info.getOutput(0)) {
-        info.setOutput(0, info.getInput(0));
-        return false;
-    }
-
-    return true;
+    info.setOutput(0, info.getInput(0));
 }
 
 //
@@ -325,35 +277,31 @@ mlir::LogicalResult vpux::IERT::verifySameInOutSpecificDimsOrder(mlir::Operation
     return mlir::success();
 }
 
-bool vpux::IERT::isSupportedLayoutSameInOutSpecificDimsOrder(mlir::Operation* op, IE::DataOrderInfo& info,
-                                                             ArrayRef<DimsOrder> supportedLayouts) {
-    auto layer = mlir::dyn_cast<IE::LayerOpInterface>(op);
-    VPUX_THROW_UNLESS(layer != nullptr, "Operation '{0}' doesn't implement Layer interface", op->getName());
-
-    const auto intType = layer.getInputs()[0].getType().cast<mlir::ShapedType>();
-    const auto defaultOrderIt =
-            std::find_if(supportedLayouts.begin(), supportedLayouts.end(), [intType](DimsOrder order) {
-                return static_cast<int64_t>(order.numDims()) == intType.getRank();
-            });
-
-    VPUX_THROW_UNLESS(defaultOrderIt != supportedLayouts.end(),
-                      "Layouts supported ({0}) by the operation '{1}' do not match the rank {2} of the input shape ",
-                      supportedLayouts, op->getName(), intType.getRank());
-
-    const auto defaultOrder = *defaultOrderIt;
-    if (!info.hasInput(0)) {
-        IE::fillDataInfo(info, 1, 1, defaultOrder);
-        return false;
-    }
+void vpux::IERT::inferLayoutInfoSameInOutSpecificDimsOrder(IE::LayerLayoutInfo& info,
+                                                           ArrayRef<DimsOrder> supportedLayouts) {
+    const auto filter = [](size_t ind) {
+        return ind != 0;
+    };
+    IE::fillDefaultLayoutInfo(info, filter, filter);
 
     const auto mainOrder = info.getInput(0);
-    const auto isSupportedLayout = std::count(supportedLayouts.begin(), supportedLayouts.end(), mainOrder);
-    if (isSupportedLayout) {
-        return isSupportedLayoutSameInOutDimsOrder(op, info);
+
+    if (llvm::is_contained(supportedLayouts, mainOrder)) {
+        info.setOutput(0, mainOrder);
+        return;
     }
 
-    IE::fillDataInfo(info, 1, 1, defaultOrder);
-    return false;
+    const auto supportedOrderIt = llvm::find_if(supportedLayouts, [mainOrder](DimsOrder order) {
+        return order.numDims() == mainOrder.numDims();
+    });
+
+    VPUX_THROW_UNLESS(supportedOrderIt != supportedLayouts.end(),
+                      "Layouts supported by the operation '{0}' do not match the rank '{1}' of the input shape",
+                      supportedLayouts, mainOrder.numDims());
+
+    const auto supportedOrder = *supportedOrderIt;
+    info.setInput(0, supportedOrder);
+    info.setOutput(0, supportedOrder);
 }
 
 //

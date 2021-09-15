@@ -249,6 +249,21 @@ def RewriteMish :
         >;
 
 //
+// IERT.Erf -> VPUIP.ErfUPA
+//
+
+def createErfUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::ErfUPAOp>($_loc, $0, $1)
+        }]>;
+
+def RewriteErf :
+        Pat<
+            (IERT_ErfOp $input, $output),
+            (createErfUPAOp $input, $output)
+        >;
+
+//
 // IERT.Tanh -> VPUIP.TanhUPA
 //
 
@@ -348,7 +363,7 @@ def RewriteTile :
         >;
 
 //
-// IERT.[Add|Multiply|Divide|SquaredDiff|Power|FloorMod|Min|Max]Pool -> VPUIP.EltwiseUPA
+// IERT.[Add|Multiply|Divide|SquaredDiff|Power|FloorMod|Min|Max|Subtract]Pool -> VPUIP.EltwiseUPA
 //
 
 class createEltwiseUPAOp<string method> :
@@ -410,6 +425,11 @@ def RewriteMaximum :
         Pat<
             (IERT_MaximumOp $input1, $input2, $output),
             (createEltwiseUPAOp<"MAX"> $input1, $input2, $output)
+        >;
+def RewriteSubtract :
+        Pat<
+            (IERT_SubtractOp $input1, $input2, $output),
+            (createEltwiseUPAOp<"SUBTRACT"> $input1, $input2, $output)
         >;
 //
 // IERT.GRN -> VPUIP.GRNUPA
@@ -642,6 +662,22 @@ def RewriteRegionYolo :
         Pat<
             (IERT_RegionYoloOp $input, $output, $coords, $classes, $regions, $do_softmax, $mask, $axis, $end_axis, $anchors),
             (createRegionYoloUPAOp $input, $output, $coords, $classes, $regions, $do_softmax, $mask)
+        >;
+
+//
+// IERT.MVN -> VPUIP.MVNUPA
+//
+
+def createMVNUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::MVNUPAOp>(
+                $_loc, $0, $1, $2, $3, $4)
+        }]>;
+
+def RewriteMVN :
+        Pat<
+            (IERT_MVNOp $input, $output, $across_channels, $normalize_variance, $eps),
+            (createMVNUPAOp $input, $output, $across_channels, $normalize_variance, $eps)
         >;
 
 #endif

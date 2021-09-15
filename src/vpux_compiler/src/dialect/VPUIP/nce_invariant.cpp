@@ -161,21 +161,23 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyGroupConvChannels(mlir::Loc
         return mlir::failure();
     }
 
-    const auto inputShape = getShape(inputType);
-    const auto inputChan = inputShape[IE::Dims4D::Act::C];
     const auto filterShape = getShape(filterType);
-    const auto OC = filterShape[IE::Dims4D::Filter::OC];
     const auto filtersPerInChan = filterShape[IE::Dims4D::Filter::IC];
     if (filtersPerInChan != 1) {
         log.trace("[{0}] Group Convolution with more than one filter per channel is not supported", loc);
         return mlir::failure();
     }
-    if (OC % getChannelAlignment(filterType.getElementType()) != 0) {
-        log.trace("[{0}] Group Convolution output channels are not aligned", loc);
-        return mlir::failure();
-    }
+
+    const auto inputShape = getShape(inputType);
+    const auto inputChan = inputShape[IE::Dims4D::Act::C];
+    const auto OC = filterShape[IE::Dims4D::Filter::OC];
     if (OC != inputChan) {
         log.trace("[{0}] Group Convolution has {1} groups, expected {2}", loc, OC, inputChan);
+        return mlir::failure();
+    }
+
+    if (OC % getChannelAlignment(filterType.getElementType()) != 0) {
+        log.trace("[{0}] Group Convolution output channels are not aligned", loc);
         return mlir::failure();
     }
 
@@ -596,6 +598,9 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IE::GroupConvolution
     if (origOp.input().getType().cast<mlir::ShapedType>().getRank() != 4) {
         return mlir::failure();
     }
+    if (origOp.filter().getType().cast<mlir::ShapedType>().getRank() != 4) {
+        return mlir::failure();
+    }
 
     const auto dilations = parseIntArrayAttr<int64_t>(origOp.dilations());
     if (dilations[0] != 1 || dilations[1] != 1) {
@@ -604,6 +609,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IE::GroupConvolution
     }
 
     const auto filterShape = getShape(origOp.filter());
+    const auto filtersPerInChan = filterShape[IE::Dims4D::Filter::IC];
     const auto OC = filterShape[IE::Dims4D::Filter::OC];
     const auto KY = filterShape[IE::Dims4D::Filter::KY];
     const auto KX = filterShape[IE::Dims4D::Filter::KX];
@@ -614,6 +620,17 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IE::GroupConvolution
     }
     if (origOp.groups().getValue() != OC) {
         log.trace("[{0}] Unsupported group size: '{1}' expected '{2}'", origOp->getLoc(), origOp.groups(), OC);
+        return mlir::failure();
+    }
+    if (filtersPerInChan != 1) {
+        log.trace("[{0}] Group Convolution with more than one filter per channel is not supported", origOp->getLoc());
+        return mlir::failure();
+    }
+
+    const auto inputShape = getShape(origOp.input());
+    const auto IC = inputShape[IE::Dims4D::Act::C];
+    if (OC != IC) {
+        log.trace("[{0}] Group Convolution has {1} groups, expected {2}", origOp->getLoc(), OC, IC);
         return mlir::failure();
     }
 

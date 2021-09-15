@@ -32,6 +32,8 @@ It handles such VPU-specifics as:
 * Memory/executors hierarchy.
 * HW barriers notion.
 * Supported operation set.
+
+[./VPUIP/_ops_interfaces.md]
     }];
 
     let name = "VPUIP";

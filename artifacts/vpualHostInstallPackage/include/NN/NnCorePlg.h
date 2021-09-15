@@ -173,5 +173,25 @@ public:
      *
      **************************************************************************/
     void SetNumUpaShaves(unsigned int num_upa_shaves);
+
+    /***************************************************************************
+     * @brief Get the input tensor n-dim reference at a given index.
+     *
+     * @param index Index of input tensor to return.
+     *
+     * @return Pointer to the tensor descriptor.
+     *
+     **************************************************************************/
+    TensorRefNDData GetInputTensorRef(const uint32_t index) const;
+
+    /***************************************************************************
+     * @brief Get the output tensor n-dim reference at a given index.
+     *
+     * @param index Index of output tensor to return.
+     *
+     * @return Pointer to the tensor descriptor.
+     *
+     **************************************************************************/
+    TensorRefNDData GetOutputTensorRef(const uint32_t index) const;
 };
 #endif // __NN_CORE_PLG_H__

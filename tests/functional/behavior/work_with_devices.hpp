@@ -23,6 +23,9 @@ namespace {
 TEST_P(LoadNetwork, samePlatformProduceTheSameBlob) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     {
+        if (PlatformEnvironment::PLATFORM.find("_EMU") != std::string::npos)
+            GTEST_SKIP() << "Export() not supported for emulator platform.";
+
         auto cnnNet = buildSingleLayerSoftMaxNetwork();
 
         auto configuration1 = configuration;
@@ -80,6 +83,12 @@ const std::map<std::string, std::string> wrongDevice =
     {"3700", "3400_A0"},
     {"3720", "3400"},
     {"3900", "3400"},
+    {"3400_A0_EMU", "3400"},
+    {"3400_EMU", "3400_A0"},
+    {"3700_EMU", "3400_A0"},
+    {"3720_EMU", "3400"},
+    {"3800_EMU", "3400"},
+    {"3900_EMU", "3400"},
     // For AUTO we can set 3400_A0 which is deprecated
     {"AUTO", "3400_A0"}
 };

@@ -28,19 +28,12 @@ using namespace vpux;
 
 namespace {
 
-bool isReferenceSW(mlir::Operation* op) {
-    auto module = op->getParentOfType<mlir::ModuleOp>();
-    const auto compileMode = VPUIP::getCompilationMode(module);
-
-    return compileMode == VPUIP::CompilationMode::ReferenceSW;
-}
-
 //
 // LayerWithPostOpModel
 //
 
 bool isSupportedPostOp(mlir::Operation* postOp) {
-    if (isReferenceSW(postOp)) {
+    if (VPUIP::getCompilationMode(postOp) == VPUIP::CompilationMode::ReferenceSW) {
         // Reference SW mode supports fusing only for bias
         return mlir::isa<IE::ScaleShiftOp>(postOp);
     }
@@ -66,10 +59,6 @@ class LayerWithPostOpModel final :
         public IE::LayerWithPostOpInterface::ExternalModel<LayerWithPostOpModel<MainOpType>, MainOpType> {
 public:
     bool isSupportedPostOp(mlir::Operation* mainOp, mlir::Operation* postOp) const {
-        if (isReferenceSW(mainOp)) {
-            return false;
-        }
-
         if (!::isSupportedPostOp(postOp)) {
             return false;
         }
@@ -87,20 +76,37 @@ class AlignedChannelsOpModel final :
         public IE::AlignedChannelsOpInterface::ExternalModel<AlignedChannelsOpModel<MainOpType>, MainOpType> {
 public:
     mlir::LogicalResult verifyChannels(mlir::Operation* op) const {
+        if (!canBeExecutedOnNCE(op)) {
+            // SW version of the operation has no specific requirements
+            return mlir::success();
+        }
+
         return VPUIP::NCEInvariant::verifyChannels(mlir::cast<MainOpType>(op));
     }
 
     int64_t getChannelAlignment(mlir::Operation* op) const {
-        if (isReferenceSW(op)) {
-            return 1;
-        }
-
-        if (VPUIP::NCEInvariant::verifyKernel(mlir::cast<MainOpType>(op)).failed()) {
+        if (!canBeExecutedOnNCE(op)) {
+            // SW version of the operation has no specific requirements
             return 1;
         }
 
         const auto inputType = op->getOperand(0).getType().cast<mlir::ShapedType>();
         return VPUIP::NCEInvariant::getChannelAlignment(inputType.getElementType());
+    }
+
+private:
+    static bool canBeExecutedOnNCE(mlir::Operation* op) {
+        if (VPUIP::getCompilationMode(op) == VPUIP::CompilationMode::ReferenceSW) {
+            // We are in reference SW compilation mode
+            return false;
+        }
+
+        if (VPUIP::NCEInvariant::verifyKernel(mlir::cast<MainOpType>(op)).failed()) {
+            // Basic NCE invariants check failed, the operation will fallback to SW mode
+            return false;
+        }
+
+        return true;
     }
 };
 
@@ -112,12 +118,12 @@ template <class ImplOpType>
 class LayoutInfoOpModelForSW final :
         public IE::LayoutInfoOpInterface::FallbackModel<LayoutInfoOpModelForSW<ImplOpType>> {
 public:
-    IE::DataOrderInfo getDataOrderInfo(mlir::Operation* origOp) const {
-        return IE::getDataOrderInfo(origOp);
+    void inferLayoutInfo(mlir::Operation* origOp, IE::LayerLayoutInfo& info) const {
+        ImplOpType::inferLayoutInfo(origOp, info);
     }
 
-    bool isSupportedLayout(mlir::Operation* origOp, IE::DataOrderInfo& info) const {
-        return ImplOpType::isSupportedLayout(origOp, info);
+    IE::LayerLayoutInfo getLayoutInfo(mlir::Operation* origOp) const {
+        return IE::getLayoutInfo(origOp);
     }
 };
 
@@ -126,19 +132,32 @@ class LayoutInfoOpModelForHW final :
         public IE::LayoutInfoOpInterface::ExternalModel<LayoutInfoOpModelForHW<OrigOpType, FallbackImplOpType>,
                                                         OrigOpType> {
 public:
-    bool isSupportedLayout(mlir::Operation* origOp, IE::DataOrderInfo& info) const {
-        if (isReferenceSW(origOp)) {
-            return FallbackImplOpType::isSupportedLayout(origOp, info);
+    void inferLayoutInfo(mlir::Operation* origOp, IE::LayerLayoutInfo& info) const {
+        if (!canBeExecutedOnNCE(origOp)) {
+            FallbackImplOpType::inferLayoutInfo(origOp, info);
+            return;
         }
 
-        if (VPUIP::NCEInvariant::verifyKernel(mlir::cast<OrigOpType>(origOp)).failed()) {
-            return FallbackImplOpType::isSupportedLayout(origOp, info);
-        }
-        if (VPUIP::NCEInvariant::verifyChannels(mlir::cast<OrigOpType>(origOp)).failed()) {
-            return FallbackImplOpType::isSupportedLayout(origOp, info);
+        VPUIP::NCEClusterTaskOp::inferLayoutInfo(origOp, info);
+    }
+
+private:
+    static bool canBeExecutedOnNCE(mlir::Operation* op) {
+        if (VPUIP::getCompilationMode(op) == VPUIP::CompilationMode::ReferenceSW) {
+            // We are in reference SW compilation mode
+            return false;
         }
 
-        return VPUIP::NCEClusterTaskOp::isSupportedLayout(origOp, info);
+        if (VPUIP::NCEInvariant::verifyKernel(mlir::cast<OrigOpType>(op)).failed()) {
+            // Basic NCE invariants check failed, the operation will fallback to SW mode
+            return false;
+        }
+        if (VPUIP::NCEInvariant::verifyChannels(mlir::cast<OrigOpType>(op)).failed()) {
+            // Basic NCE invariants check failed, the operation will fallback to SW mode
+            return false;
+        }
+
+        return true;
     }
 };
 
@@ -151,7 +170,7 @@ mlir::Attribute getExecutorForSW(mlir::Operation* origOp, uint32_t& numUnits) {
 }
 
 mlir::Attribute getExecutorForHW(mlir::Operation* origOp, uint32_t& numUnits) {
-    if (isReferenceSW(origOp)) {
+    if (VPUIP::getCompilationMode(origOp) == VPUIP::CompilationMode::ReferenceSW) {
         return getExecutorForSW(origOp, numUnits);
     }
 
@@ -203,9 +222,12 @@ void redirectOpInterfacesForIE(mlir::DialectRegistry& registry) {
     registry.addOpInterface<IE::EluOp, OpModelForSW<VPUIP::EluUPAOp>>();
     registry.addOpInterface<IE::HSwishOp, OpModelForSW<VPUIP::HSwishUPAOp>>();
     registry.addOpInterface<IE::MishOp, OpModelForSW<VPUIP::MishUPAOp>>();
+    registry.addOpInterface<IE::ErfOp, OpModelForSW<VPUIP::ErfUPAOp>>();
     registry.addOpInterface<IE::FloorOp, OpModelForSW<VPUIP::FloorUPAOp>>();
     registry.addOpInterface<IE::TanhOp, OpModelForSW<VPUIP::TanhUPAOp>>();
     registry.addOpInterface<IE::FakeQuantizeOp, OpModelForSW<VPUIP::FakeQuantizeUPAOp>>();
+    registry.addOpInterface<IE::QuantizeOp, OpModelForSW<VPUIP::QuantCastUPAOp>>();
+    registry.addOpInterface<IE::DequantizeOp, OpModelForSW<VPUIP::QuantCastUPAOp>>();
     registry.addOpInterface<IE::PReluOp, OpModelForSW<VPUIP::PReluUPAOp>>();
     registry.addOpInterface<IE::LeakyReluOp, OpModelForSW<VPUIP::LeakyReluUPAOp>>();
     registry.addOpInterface<IE::MultiplyOp, OpModelForSW<VPUIP::EltwiseUPAOp>>();
@@ -235,6 +257,8 @@ void redirectOpInterfacesForIE(mlir::DialectRegistry& registry) {
     registry.addOpInterface<IE::LSTMCellOp, OpModelForSW<VPUIP::LSTMCellUPAOp>>();
     registry.addOpInterface<IE::StridedSliceOp, OpModelForSW<VPUIP::StridedSliceUPAOp>>();
     registry.addOpInterface<IE::RegionYoloOp, OpModelForSW<VPUIP::RegionYoloUPAOp>>();
+    registry.addOpInterface<IE::MVNOp, OpModelForSW<VPUIP::MVNUPAOp>>();
+    registry.addOpInterface<IE::SubtractOp, OpModelForSW<VPUIP::EltwiseUPAOp>>();
 }
 
 //
@@ -259,8 +283,11 @@ void redirectOpInterfacesForIERT(mlir::DialectRegistry& registry) {
     registry.addOpInterface<IERT::EluOp, OpModelForSW>();
     registry.addOpInterface<IERT::HSwishOp, OpModelForSW>();
     registry.addOpInterface<IERT::MishOp, OpModelForSW>();
+    registry.addOpInterface<IERT::ErfOp, OpModelForSW>();
     registry.addOpInterface<IERT::FloorOp, OpModelForSW>();
     registry.addOpInterface<IERT::TanhOp, OpModelForSW>();
+    registry.addOpInterface<IERT::QuantizeOp, OpModelForSW>();
+    registry.addOpInterface<IERT::DequantizeOp, OpModelForSW>();
     registry.addOpInterface<IERT::FakeQuantizeOp, OpModelForSW>();
     registry.addOpInterface<IERT::PReluOp, OpModelForSW>();
     registry.addOpInterface<IERT::LeakyReluOp, OpModelForSW>();
@@ -291,6 +318,8 @@ void redirectOpInterfacesForIERT(mlir::DialectRegistry& registry) {
     registry.addOpInterface<IERT::LSTMCellOp, OpModelForSW>();
     registry.addOpInterface<IERT::StridedSliceOp, OpModelForSW>();
     registry.addOpInterface<IERT::RegionYoloOp, OpModelForSW>();
+    registry.addOpInterface<IERT::MVNOp, OpModelForSW>();
+    registry.addOpInterface<IERT::SubtractOp, OpModelForSW>();
 }
 
 }  // namespace

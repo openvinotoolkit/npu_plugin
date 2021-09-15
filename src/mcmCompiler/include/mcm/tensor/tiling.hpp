@@ -371,6 +371,8 @@ namespace mv
             auto newOutputSizes = tileSpatialOutputSize(outputSize, numberOfSplits);
 
             size_t startCoord = 0;
+            int curPadStart = padStart;
+            int curPadEnd = 0;
             for (std::size_t split = 0; split < numberOfSplits; split++)
             {
                 TileShape tileStart({0,0,0,0,0});
@@ -378,22 +380,41 @@ namespace mv
 
                 tileStart[axisToSplit] = startCoord;
 
-                if (split == 0)
-                    tileSize[axisToSplit] = inferInputSize(newOutputSizes[split],padStart,0,kernelSize,kernelStride);
-                else if (split == (numberOfSplits-1))
-                    tileSize[axisToSplit] = inferInputSize(newOutputSizes[split],0,padEnd,kernelSize,kernelStride);
-                else
-                    tileSize[axisToSplit] = inferInputSize(newOutputSizes[split],0,0,kernelSize,kernelStride);
+                tileSize[axisToSplit] = inferInputSize(newOutputSizes[split],curPadStart,curPadEnd,kernelSize,kernelStride);
+
+                // check end padding and re-infer
+                if (startCoord + tileSize[axisToSplit] > inputShape[axisToSplit])
+                {
+                    curPadEnd += startCoord + tileSize[axisToSplit] - inputShape[axisToSplit];
+                    tileSize[axisToSplit] = inferInputSize(newOutputSizes[split],curPadStart,curPadEnd,kernelSize,kernelStride);
+                }
 
                 mv::Tiling newTile(tileStart, tileSize);
                 setChildTile(newTile, split);
 
-                // Compute start coordinates for the next tile
-                // TODO: compute correct formula.
-                if (split == 0)
-                    startCoord += newOutputSizes[split] * kernelStride - (inferInputSize(newOutputSizes[split],0,0,kernelSize,kernelStride) - tileSize[axisToSplit]);
+                auto noPadStartCoord = newOutputSizes[split] * kernelStride;
+                auto padBias = inferInputSize(newOutputSizes[split], 0, 0, kernelSize, kernelStride) - tileSize[axisToSplit];
+                // check startCoord and start padding
+                if (startCoord == 0 || noPadStartCoord < padBias)
+                {
+                    // still need padding start
+                    if (noPadStartCoord < padBias)
+                    {
+                        curPadStart = padBias - noPadStartCoord;
+                        startCoord = 0;
+                    }
+                    // pad start finishes
+                    else
+                    {
+                        startCoord += noPadStartCoord - padBias;
+                        curPadStart = 0;
+                    }
+                }
                 else
-                    startCoord += newOutputSizes[split] * kernelStride;
+                {
+                    startCoord += noPadStartCoord;
+                    padStart = 0;
+                }
             }
         }
 

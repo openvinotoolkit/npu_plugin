@@ -54,10 +54,10 @@ namespace {
                 for (int64_t w = 0; w < IW + 2 * PW; ++w) {
                     const auto newIndex = w + h * (IW + 2 * PW) + c * (IW + 2 * PW) * (IH + 2 * PH) + actOffset;
                     if (c < PC || c >= IC + PC || h < PH || h >= IH + PH || w < PW || w >= IW + PW) {
-                        EXPECT_EQ(actVals[newIndex], zp) << c << " " << h << " " << w;
+                        EXPECT_EQ(zp, actVals[newIndex]) << c << " " << h << " " << w;
                     } else {
                         const auto origIndex = (w - PW) + (h - PH) * IW + (c - PC) * IW * IH + originOffset;
-                        EXPECT_EQ(actVals[newIndex], expVals[origIndex]) << c << " " << h << " " << w;
+                        EXPECT_EQ(expVals[origIndex], actVals[newIndex]) << c << " " << h << " " << w;
                     }
                 }
             }
@@ -219,6 +219,38 @@ TEST_F(MLIR_ConstContentAttrTest, ConvertElemTypeSplat) {
 
     for (size_t i = 0; i < contentVals.size(); ++i) {
         EXPECT_EQ(contentVals[i], static_cast<int32_t>(splatVal));
+    }
+}
+
+TEST_F(MLIR_ConstContentAttrTest, Add) {
+    const auto baseType = mlir::RankedTensorType::get({1, 2, 3, 4}, mlir::Float32Type::get(&ctx));
+
+    const auto bias = 10;
+    const auto vals = generateValues<float>(baseType.getNumElements());
+    std::vector<float> expectedVals(vals.size());
+    std::transform(vals.begin(), vals.end(), expectedVals.begin(), [bias](float item) {
+        return item + bias;
+    });
+
+    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, makeArrayRef(vals));
+
+    const auto baseContentAttr = Const::ContentAttr::get(baseAttr);
+    ASSERT_NE(baseContentAttr, nullptr);
+    EXPECT_EQ(baseContentAttr.getType(), baseType);
+
+    const auto contentAttr = baseContentAttr.add(bias);
+    ASSERT_NE(contentAttr, nullptr);
+    EXPECT_EQ(contentAttr.getType(), baseType);
+
+    const auto content = contentAttr.fold();
+    EXPECT_EQ(content.getType(), baseType);
+    EXPECT_FALSE(content.isSplat());
+
+    const auto contentVals = content.getValues<float>();
+    EXPECT_EQ(contentVals.size(), vals.size());
+
+    for (size_t i = 0; i < contentVals.size(); ++i) {
+        EXPECT_EQ(contentVals[i], expectedVals[i]);
     }
 }
 
@@ -518,8 +550,9 @@ TEST_F(MLIR_ConstContentAttrTest, PadPerAxisQuant) {
     ASSERT_NE(baseContentAttr, nullptr);
     EXPECT_EQ(baseContentAttr.getType(), baseType);
 
+    const auto zp = 127;
     std::vector<double> scales(2, 0.5);
-    std::vector<int64_t> zeroPoints {128, 127};
+    std::vector<int64_t> zeroPoints {zp, zp};
     const auto quantType = mlir::quant::UniformQuantizedPerAxisType::get(0, getUInt8Type(&ctx), mlir::Float32Type::get(&ctx),
                                                                          scales, zeroPoints, 0, 0, 255);
 
@@ -543,14 +576,14 @@ TEST_F(MLIR_ConstContentAttrTest, PadPerAxisQuant) {
     const auto contentVals = content.getValues<int32_t>();
     EXPECT_GT(contentVals.size(), vals.size());
 
-    std::vector<int64_t> expZP(POC, 0);
+    std::vector<int64_t> expZP(POC, zp);
     expZP.insert(expZP.end(), zeroPoints.begin(), zeroPoints.end());
-    expZP.insert(expZP.end(), POC, 0);
+    expZP.insert(expZP.end(), POC, zp);
 
     const auto channelSize = IC * IW * IH;
-    std::vector<float> expVals(channelSize * POC, 0);
+    std::vector<float> expVals(channelSize * POC, zp);
     expVals.insert(expVals.end(), vals.begin(), vals.end());
-    expVals.insert(expVals.end(), channelSize * POC, 0);
+    expVals.insert(expVals.end(), channelSize * POC, zp);
 
     for (int64_t oc = 0; oc < OC + 2 * POC; ++oc) {
         checkPaddedBuffer<float>(content, expVals, {IC, IH, IW}, {PIC, PH, PW}, expZP[oc],

@@ -26,6 +26,10 @@
 
 using namespace vpux;
 
+//
+// verifyOp
+//
+
 mlir::LogicalResult vpux::VPUIP::verifyOp(PermuteUPAOp op) {
     const auto inType = op.input().getType().dyn_cast<mlir::ShapedType>();
     const auto outType = op.output().getType().dyn_cast<mlir::ShapedType>();
@@ -60,10 +64,18 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(PermuteUPAOp op) {
     return mlir::success();
 }
 
+//
+// build
+//
+
 void vpux::VPUIP::PermuteUPAOp::build(::mlir::OpBuilder& odsBuilder, ::mlir::OperationState& odsState,
                                       mlir::Value input, mlir::Value output, mlir::AffineMapAttr order) {
     build(odsBuilder, odsState, input, output, mlir::ValueRange{}, mlir::ValueRange{}, order, nullptr, nullptr);
 }
+
+//
+// TaskOpInterface
+//
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::PermuteUPAOp::serialize(VPUIP::BlobWriter& writer) {
     DimsOrder order;
@@ -85,6 +97,20 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::PermuteUPAOp::serialize(VPUIP::Blob
 
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PermuteNDParams});
 }
+
+//
+// LayoutInfoOpInterface
+//
+
+void vpux::VPUIP::PermuteUPAOp::inferLayoutInfo(mlir::Operation* origOp, IE::LayerLayoutInfo& info) {
+    if (mlir::isa<IE::TransposeOp>(origOp)) {
+        info.setOutput(0, info.getInput(0));
+    }
+}
+
+//
+// parsePermute
+//
 
 mlir::Operation* vpux::VPUIP::BlobReader::parsePermute(mlir::OpBuilder& builder, ArrayRef<mlir::Value> inputs,
                                                        ArrayRef<mlir::Value> outputs, const MVCNN::UPALayerTask* task) {

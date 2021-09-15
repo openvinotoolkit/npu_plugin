@@ -22,6 +22,7 @@
 #include "vpux/compiler/frontend/IE.hpp"
 #include "vpux/compiler/init.hpp"
 #include "vpux/compiler/pipelines.hpp"
+#include "vpux/compiler/utils/dot_printer.hpp"
 #include "vpux/compiler/utils/logging.hpp"
 
 #include "vpux/utils/core/error.hpp"
@@ -120,6 +121,7 @@ private:
     std::string _irPrintingFile;
     bool _printFullIR = false;
     bool _printFullConstant = false;
+    std::string _printDotOptions;
 
     llvm::raw_ostream* _timingStream = nullptr;
 
@@ -153,6 +155,8 @@ DeveloperConfig::DeveloperConfig(Logger log): _log(log) {
     parseEnv("IE_VPUX_IR_PRINTING_FILE", _irPrintingFile);
     parseEnv("IE_VPUX_PRINT_FULL_IR", _printFullIR);
     parseEnv("IE_VPUX_PRINT_FULL_CONSTANT", _printFullConstant);
+
+    parseEnv("IE_VPUX_PRINT_DOT", _printDotOptions);
 #endif  // defined(VPUX_DEVELOPER_BUILD) || !defined(NDEBUG)
 
     if (_log.isActive(LogLevel::Info)) {
@@ -236,6 +240,11 @@ void DeveloperConfig::setup(mlir::PassManager& pm) const {
 
         pm.enableIRPrinting(shouldPrintBeforePass, shouldPrintAfterPass, _printFullIR, printAfterOnlyOnChange,
                             printAfterOnlyOnFailure, *_irDumpStream, flags);
+    }
+
+    // Dot printing
+    if (!_printDotOptions.empty()) {
+        addDotPrinterFromEnvVar(pm, _printDotOptions);
     }
 }
 
@@ -346,6 +355,7 @@ std::shared_ptr<INetworkDescription> vpux::CompilerImpl::compile(const std::shar
 
     mlir::PassManager pm(&ctx, mlir::OpPassManager::Nesting::Implicit);
     addLogging(pm, log);
+    addDotPrinter(pm);
     devConf.setup(pm);
 
     auto rootTiming = tm.getRootScope();

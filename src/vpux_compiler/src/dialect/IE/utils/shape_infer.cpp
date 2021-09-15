@@ -17,6 +17,14 @@
 
 using namespace vpux;
 
+namespace {
+
+bool isBroadcastable(int64_t d0, int64_t d1) {
+    return d0 == 1 || d1 == 1 || d0 == d1;
+}
+
+}  // namespace
+
 mlir::FailureOr<SmallVector<int64_t>> vpux::IE::broadcastEltwiseShape(ArrayRef<int64_t> shape1,
                                                                       ArrayRef<int64_t> shape2,
                                                                       AutoBroadcastType broadcastType,
@@ -34,6 +42,13 @@ mlir::FailureOr<SmallVector<int64_t>> vpux::IE::broadcastEltwiseShape(ArrayRef<i
         auto in2ShapeIter = shape2.rbegin();
 
         for (auto outShapeRIter = outShape.rbegin(); outShapeRIter != outShape.rend(); ++outShapeRIter) {
+            if (in1ShapeIter != shape1.rend() && in2ShapeIter != shape2.rend()) {
+                if (!isBroadcastable(*in1ShapeIter, *in2ShapeIter)) {
+                    return errorAt(loc, "Got non broadcastable dimensions pair : '{0}' and {1}'", *in1ShapeIter,
+                                   *in2ShapeIter);
+                }
+            }
+
             *outShapeRIter = std::max(in1ShapeIter != shape1.rend() ? *in1ShapeIter : 0,
                                       in2ShapeIter != shape2.rend() ? *in2ShapeIter : 0);
 
@@ -82,6 +97,13 @@ mlir::FailureOr<SmallVector<int64_t>> vpux::IE::broadcastEltwiseShape(ArrayRef<A
             auto in2ShapeIter = shapes[i].rbegin();
 
             for (auto outShapeRIter = outShape.rbegin(); outShapeRIter != outShape.rend(); ++outShapeRIter) {
+                if (in1ShapeIter != outShape.rend() && in2ShapeIter != shapes[i].rend()) {
+                    if (!isBroadcastable(*in1ShapeIter, *in2ShapeIter)) {
+                        return errorAt(loc, "Got non broadcastable dimensions pair : '{0}' and {1}'", *in1ShapeIter,
+                                       *in2ShapeIter);
+                    }
+                }
+
                 *outShapeRIter = std::max(in1ShapeIter != outShape.rend() ? *in1ShapeIter : 0,
                                           in2ShapeIter != shapes[i].rend() ? *in2ShapeIter : 0);
 

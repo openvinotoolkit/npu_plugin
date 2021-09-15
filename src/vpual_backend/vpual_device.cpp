@@ -21,14 +21,14 @@
 
 namespace vpux {
 
-VpualDevice::VpualDevice(const std::string& name,
-    const InferenceEngine::VPUXConfigParams::VPUXPlatform& platform): _name(name), _platform(platform) {
+VpualDevice::VpualDevice(const std::string& name, const InferenceEngine::VPUXConfigParams::VPUXPlatform& platform)
+        : _name(name), _platform(platform) {
     const auto id = utils::getSliceIdByDeviceName(_name);
     _allocator = std::make_shared<VpusmmAllocator>(id);
 }
 
-std::shared_ptr<Executor> VpualDevice::createExecutor(
-    const NetworkDescription::Ptr& networkDescription, const VPUXConfig& config) {
+std::shared_ptr<Executor> VpualDevice::createExecutor(const NetworkDescription::Ptr& networkDescription,
+                                                      const VPUXConfig& config) {
     const auto& vpusmmAllocator = std::dynamic_pointer_cast<VpusmmAllocator>(_allocator);
     if (vpusmmAllocator == nullptr) {
         IE_THROW() << "Incompatible allocator passed into vpual_backend";
@@ -36,16 +36,21 @@ std::shared_ptr<Executor> VpualDevice::createExecutor(
     _config.parseFrom(config);
 
     const auto id = utils::getSliceIdByDeviceName(_name);
-    const auto& executor = std::make_shared<VpualCoreNNExecutor>(networkDescription, vpusmmAllocator, id, _platform, _config);
+    const auto& executor =
+            std::make_shared<VpualCoreNNExecutor>(networkDescription, vpusmmAllocator, id, _platform, _config);
 
     return executor;
 }
 
-std::shared_ptr<Allocator> VpualDevice::getAllocator() const { return _allocator; }
+std::shared_ptr<Allocator> VpualDevice::getAllocator() const {
+    return _allocator;
+}
 std::shared_ptr<Allocator> VpualDevice::getAllocator(const InferenceEngine::ParamMap&) const {
     // TODO Add validation that input param map can be handled by allocator
     return getAllocator();
 }
 
-std::string VpualDevice::getName() const { return _name; }
+std::string VpualDevice::getName() const {
+    return _name;
+}
 }  // namespace vpux

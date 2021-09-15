@@ -32,6 +32,10 @@ macro(replace_noerror)
 endmacro()
 
 function(enable_warnings_as_errors TARGET_NAME)
+    if(NOT TREAT_WARNING_AS_ERROR)
+        return()
+    endif()
+
     cmake_parse_arguments(WARNIGS "WIN_STRICT" "" "" ${ARGN})
 
     if(MSVC)
@@ -92,7 +96,13 @@ function(vpux_enable_clang_format TARGET_NAME)
         ${ARGN}
     )
 
-    if(TARGET "${TARGET_NAME}_clang_format_fix")
-        add_dependencies(${TARGET_NAME} "${TARGET_NAME}_clang_format_fix")
+    if(ENABLE_DEVELOPER_BUILD)
+        if(TARGET "${TARGET_NAME}_clang_format_fix")
+            add_dependencies(${TARGET_NAME} "${TARGET_NAME}_clang_format_fix")
+        endif()
+    else()
+        if(TARGET "${TARGET_NAME}_clang_format")
+            add_dependencies(${TARGET_NAME} "${TARGET_NAME}_clang_format")
+        endif()
     endif()
 endfunction()

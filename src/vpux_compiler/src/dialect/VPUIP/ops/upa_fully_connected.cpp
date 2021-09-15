@@ -22,22 +22,8 @@ void vpux::VPUIP::FullyConnectedUPAOp::build(mlir::OpBuilder& builder, mlir::Ope
     build(builder, state, input, weights, bias, output, mlir::ValueRange{}, mlir::ValueRange{}, nullptr, false);
 }
 
-bool vpux::VPUIP::FullyConnectedUPAOp::isSupportedLayout(mlir::Operation* op, IE::DataOrderInfo& info) {
-    VPUX_THROW_UNLESS(mlir::isa<IE::FullyConnectedOp>(op), "Operation {0} is not FullyConnected", op->getName());
-
-    if (!IERT::isSupportedLayoutSameInOutSpecificDimsOrder(op, info, {DimsOrder::NC})) {
-        // weights layout
-        info.setInput(1, DimsOrder::NC);
-        return false;
-    }
-
-    // check weights layout
-    if (!info.hasInput(1) || info.getInput(1) != DimsOrder::NC) {
-        IE::fillDataInfo(info, 2, 1, DimsOrder::NC);
-        return false;
-    }
-
-    return true;
+void vpux::VPUIP::FullyConnectedUPAOp::inferLayoutInfo(mlir::Operation*, IE::LayerLayoutInfo& info) {
+    IE::fillDefaultLayoutInfo(info);
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::FullyConnectedUPAOp::serialize(VPUIP::BlobWriter& writer) {

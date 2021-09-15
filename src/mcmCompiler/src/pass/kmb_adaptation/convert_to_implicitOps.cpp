@@ -97,13 +97,14 @@ void convertToImplicitOpsFcn(const mv::pass::PassEntry& , mv::ComputationModel& 
         auto explicitStrides = opIt->hasAttr("explicitStrides") && opIt->get<bool>("explicitStrides");
         auto forceU8 = opIt->hasAttr("forceU8") && opIt->get<bool>("forceU8");
 
-        auto outputFlows = mv::getOutputDataFlow(om, opIt);
-
         mv::Data::TensorIterator implicitOp;
         if(opType == "Permute")
         {
             auto dtype = input->getDType();
+            auto order = opIt->get<mv::Order>("order");
             implicitOp = om.implicitPermute("", input, output_shape);
+            auto sourceOp = om.getSourceOp(implicitOp);
+            sourceOp->set<mv::Order>("order", order);
             implicitOp->setDType(dtype);
         }
         else if(opType == "Reshape")
@@ -134,6 +135,7 @@ void convertToImplicitOpsFcn(const mv::pass::PassEntry& , mv::ComputationModel& 
         if(!splitStrategy.empty())
             om.getSourceOp(implicitOp)->set<std::string>("splitStrategy", splitStrategy);
 
+        auto outputFlows = mv::getOutputDataFlow(om, opIt);
         mv::setOutputDataFlow(om, implicitOp, outputFlows);
 
         auto parentInputTensor = om.getSourceOp(implicitOp)->getInputTensor(mv::IO_TENSOR_INPUT);
