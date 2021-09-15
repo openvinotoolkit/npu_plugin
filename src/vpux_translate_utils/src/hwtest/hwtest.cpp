@@ -67,6 +67,11 @@ mlir::OwningModuleRef importHWTEST(llvm::StringRef sourceJson, mlir::MLIRContext
         return weight.shape[1];
     };
 
+    auto weightKernelSquare = [&]() {
+        nb::WeightLayer weight = jsonDesc.getWeightLayer();
+        return weight.shape[2] == weight.shape[3];
+    };
+
     if (isConv) {
         if (weightInChannels() > 8 * 1024) {
             hwtest::buildContinuedConv(jsonDesc, module, builder, log, input_type, weightType(), output_type);
@@ -80,7 +85,10 @@ mlir::OwningModuleRef importHWTEST(llvm::StringRef sourceJson, mlir::MLIRContext
     } else if (isMaxPool) {
         hwtest::buildMaxPool(jsonDesc, module, builder, log, input_type, output_type);
     } else if (isAvgPool) {
-        hwtest::buildAvgpoolWithDwConv(jsonDesc, module, builder, log, input_type, output_type);
+        if (weightKernelSquare())
+            hwtest::buildAvgpool(jsonDesc, module, builder, log, input_type, output_type);
+        else
+            hwtest::buildAvgpoolWithDwConv(jsonDesc, module, builder, log, input_type, output_type);
     } else {
         VPUX_THROW("Unknown type: {0}", opType);
     }
