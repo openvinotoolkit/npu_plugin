@@ -407,12 +407,31 @@ OutputTiling SimpleTiler::genericTiler(mlir::Operation* op, mlir::MemRefType out
         return (tileChannels % minChannelSize) == 0;
     };
 
+
     const auto isDimLeftToTile = [&]() {
         if (dimToTile == IE::Dims4D::Act::C) {
-            if (nTilesOnDim[IE::Dims4D::Act::C] < maxChannelTiles)
                 return true;
         } else {  // Spatial dims
+
+    while (!isSupportedTileSize(nTilesOnDim)) {
+        // First try tiling over output channels
+
+        Optional<Dim> dimToTile;
+
+        for (auto ind : irange(IE::Dims4D::Act::numSpatialDims)) {
+            const auto spatialDim = IE::Dims4D::Act::getSpatialDim(ind);
+
+            const auto origSize = outputShape[spatialDim];
+            const auto prevDivisor = nTilesOnDim[spatialDim];
+
+            if (origSize / prevDivisor > 1) {
+                dimToTile = spatialDim;
+                break;
+            }
         }
+
+        VPUX_THROW_UNLESS(dimToTile.hasValue(), "Failed to tile {0} at '{1}'", op->getName(), op->getLoc());
+        nTilesOnDim[dimToTile.getValue()]++;
     }
 
     return fillDividedTiles(nTilesOnDim, outputShape);
