@@ -85,7 +85,6 @@ VPUXCompilerL0::VPUXCompilerL0() {
     initLib();
 
     vpux_compiler_l0_result_t ret = RESULT_SUCCESS;
-    vpux_compiler_l0_t vcl;
 
     ret = getVPUXCompilerL0(&vcl);
     if (ret) {
