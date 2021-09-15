@@ -77,19 +77,7 @@ int64_t vpux::VPUIP::NCEClusterTaskOp::getNumVariants() {
 void vpux::VPUIP::NCEClusterTaskOp::inferLayoutInfo(mlir::Operation* origOp, IE::LayerLayoutInfo& info) {
     llvm::TypeSwitch<mlir::Operation*, void>(origOp)
             .Case<IE::ConvolutionOp>([&](IE::ConvolutionOp op) {
-                auto input_order = DimsOrder::fromValue(op.input());
-                auto weights_order = DimsOrder::fromValue(op.filter());
-                auto output_order = DimsOrder::fromValue(op.output());
-
-                // const auto filterShape = getShape(op.filter());
-                // const auto IC = filterShape[IE::Dims4D::Filter::IC];
-                // const auto OC = filterShape[IE::Dims4D::Filter::OC];
-                // const auto KY = filterShape[IE::Dims4D::Filter::KY];
-                // const auto KX = filterShape[IE::Dims4D::Filter::KX];
-
-                // info.setInput(0, DimsOrder::NHWC);
-                // info.setInput(1, DimsOrder::OYXI);
-                info.setInput(1, DimsOrder::OIYX);
+                info.setInput(1, DimsOrder::OYXI);  // change order of weights?
                 Logger::global().error("Setting output NHWC", op->getName());
                 info.setOutput(0, DimsOrder::NHWC);
             })
@@ -166,7 +154,6 @@ mlir::LogicalResult verifyNCEConv(VPUIP::NCEClusterTaskOp op) {
                        OC * VPUIP::NCEInvariant::WEIGHT_TABLE_NUM_ELEMENTS_PER_OC, weightTableNumElements);
     }
 
-    // Neds to
     if (verifySameInOutSpecificDimsOrder(op, {DimsOrder::NHWC}).failed()) {
         return mlir::failure();
     }
@@ -189,9 +176,6 @@ mlir::LogicalResult verifyNCECMConv(VPUIP::NCEClusterTaskOp op) {
     if (op.weight_table() == nullptr) {
         return errorAt(op, "weight_table is required for NCETaskType : '{0}'", op.task_type());
     }
-    // if (op.activation_window() == nullptr) {
-    //     return errorAt(op, "activation_window is required for NCETaskType : '{0}'", op.task_type());
-    // }
 
     if (op.kernel_sizeAttr() == nullptr) {
         return errorAt(op, "kernel_size is required for NCETaskType : '{0}'", op.task_type());
