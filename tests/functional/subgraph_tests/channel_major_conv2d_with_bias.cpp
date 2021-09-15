@@ -31,8 +31,8 @@ class KmbChannelMajorConv2dWithBiasTest :
         
         void ConfigureNetwork() override {
             cnnNetwork.getInputsInfo().begin()->second->setLayout(InferenceEngine::Layout::NCHW);
-            cnnNetwork.getOutputsInfo().begin()->second->setLayout(InferenceEngine::Layout::NCHW);
-            cnnNetwork.getInputsInfo().begin()->second->setPrecision(InferenceEngine::Precision::FP16);
+            cnnNetwork.getOutputsInfo().begin()->second->setLayout(InferenceEngine::Layout::NHWC);
+            cnnNetwork.getInputsInfo().begin()->second->setPrecision(InferenceEngine::Precision::U8);
             cnnNetwork.getOutputsInfo().begin()->second->setPrecision(InferenceEngine::Precision::FP16);
         }
     void SetUp() override {
@@ -90,7 +90,7 @@ class KmbChannelMajorConv2dWithBiasTest :
 // }
 
 TEST_P(KmbChannelMajorConv2dWithBiasTest, CompareWithRefs_MLIR_HW) {
-    useCompilerMLIR();
+    //useCompilerMLIR();
     setReferenceHardwareModeMLIR();
     Run();
 }

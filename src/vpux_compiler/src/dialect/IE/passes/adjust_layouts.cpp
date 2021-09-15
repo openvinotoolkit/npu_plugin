@@ -117,7 +117,9 @@ mlir::LogicalResult LayerRewriter::matchAndRewrite(IE::LayoutInfoOpInterface ori
         auto output = outputs[i];
 
         const auto curOrder = DimsOrder::fromValue(output);
+        _log.nest().trace("curOrder: {0}", curOrder);
         const auto supportedOrder = orderInfo.getOutput(i);
+        _log.nest().trace("supportedOrder: {0}", supportedOrder);
 
         _log.nest(1).trace("Process output #{0}", i);
         _log.nest(2).trace("curOrder = {0} supportedOrder = {1}", curOrder, supportedOrder);
