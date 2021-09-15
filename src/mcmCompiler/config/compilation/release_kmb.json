@@ -8,8 +8,8 @@
                 "referenceDevice": "A0",
                 "systemClockMhz" : 500,
                 "memoryBandwidth" : 16,
-                "Number_of_DPUs" : 20,
-                "Number_of_Clusters" : 4,
+                "Number_of_DPUs" : 5,
+                "Number_of_Clusters" : 1,
                 "WorkloadCost": 300,
                 "DDRScratch": 31457280,
                 "cmx": 917504,
@@ -33,8 +33,8 @@
                 "enableDWSOHA0" : true,
                 "enableWeightsSparsity": true,
                 "enableTensorFusion": true,
-                "real_physical_barriers": 32,
-                "barrier_bound": 16
+                "real_physical_barriers": 8,
+                "barrier_bound": 4
             }
         ]
     },
