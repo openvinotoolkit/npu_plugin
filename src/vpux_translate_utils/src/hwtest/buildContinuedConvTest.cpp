@@ -57,7 +57,7 @@ void buildContinuedConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Module
             {weightsShape[0], weightsShape[1] / streamsOverC, weightsShape[2], weightsShape[3]});
     const llvm::SmallVector<std::int64_t> weightsTableShape{weightsPartialShape[0], 1, 1, 4};
 
-    const char* weightsFileName = "weight.dat";
+    const char* weightsFileName = "weights.dat";
 
     const auto OUTPUT_CMX_OFFSET = 0;
     const auto OUTPUT_CONV_0_CMX_OFFSET = OUTPUT_CMX_OFFSET + totalTensorSize(outputShape, outputType);
