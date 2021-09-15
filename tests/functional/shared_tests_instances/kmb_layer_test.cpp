@@ -32,18 +32,6 @@ KmbLayerTestsCommon::KmbLayerTestsCommon(): kmbTestTool(envConfig) {
     if (!envConfig.IE_KMB_TESTS_LOG_LEVEL.empty()) {
         core->SetConfig({{CONFIG_KEY(LOG_LEVEL), envConfig.IE_KMB_TESTS_LOG_LEVEL}}, testPlatformTargetDevice);
     }
-
-    const auto noDevice = getBackendName(*core).empty();
-    if (envConfig.IE_KMB_TESTS_RUN_INFER && noDevice) {
-        envConfig.IE_KMB_TESTS_RUN_INFER = false;
-    }
-
-    // [Track number: E#20335]
-    // Disabling inference for layer tests on emulator device due to segfault
-    const auto emulatorDevice = getBackendName(*core) == "EMULATOR";
-    if (envConfig.IE_KMB_TESTS_RUN_INFER && emulatorDevice) {
-        envConfig.IE_KMB_TESTS_RUN_INFER = false;
-    }
 }
 
 void KmbLayerTestsCommon::BuildNetworkWithoutCompile() {
@@ -213,7 +201,19 @@ void KmbLayerTestsCommon::Run() {
             std::cout << "KmbLayerTestsCommon::ImportInput()" << std::endl;
             ImportInput();
         }
-        if (envConfig.IE_KMB_TESTS_RUN_INFER) {
+
+        bool runInfer = envConfig.IE_KMB_TESTS_RUN_INFER;
+
+        // turn off running infers forcefully for the cases:
+        const auto noDevice = getBackendName(*core).empty();
+        runInfer = runInfer && !noDevice;
+
+        // [Track number: E#20335]
+        // Disabling inference for layer tests on emulator device due to segfault
+        const auto emulatorDevice = getBackendName(*core) == "EMULATOR";
+        runInfer = runInfer && !emulatorDevice;
+
+        if (runInfer) {
             std::cout << "KmbLayerTestsCommon::Infer()" << std::endl;
             SkipBeforeInfer();
             Infer();
@@ -227,7 +227,7 @@ void KmbLayerTestsCommon::Run() {
             std::cout << "KmbLayerTestsCommon::ExportOutput()" << std::endl;
             ExportOutput();
         }
-        if (envConfig.IE_KMB_TESTS_RUN_INFER) {
+        if (runInfer) {
             std::cout << "KmbLayerTestsCommon::Validate()" << std::endl;
             SkipBeforeValidate();
             Validate();
