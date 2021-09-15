@@ -117,18 +117,18 @@ void buildAvgpoolWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mo
     }
     mlir::DenseElementsAttr wt_data_valss;
     if (weightsType.isF16()) {
-        std::vector<float16> wt_vec(weightDataSize, scaleValue);
+        std::vector<float16> wt_vec(weightDataSize, static_cast<float>(scaleValue));
         wt_data_valss = mlir::DenseElementsAttr::get(wtData_ddr_valueType, makeArrayRef<float16>(wt_vec));
     } else if (weightsType.isBF16()) {
-        std::vector<bfloat16> wt_vec(weightDataSize, scaleValue);
+        std::vector<bfloat16> wt_vec(weightDataSize, static_cast<float>(scaleValue));
         wt_data_valss = mlir::DenseElementsAttr::get(wtData_ddr_valueType, makeArrayRef<bfloat16>(wt_vec));
     } else {
         scaleValue = 1;
         if (weightsType.dyn_cast<mlir::quant::QuantizedType>().getFlags() & mlir::quant::QuantizationFlags::Signed) {
-            std::vector<int8_t> wt_vec(weightDataSize, scaleValue);
+            std::vector<int8_t> wt_vec(weightDataSize, static_cast<int8_t>(scaleValue));
             wt_data_valss = mlir::DenseElementsAttr::get(wtData_ddr_valueType, makeArrayRef<int8_t>(wt_vec));
         } else {
-            std::vector<uint8_t> wt_vec(weightDataSize, scaleValue);
+            std::vector<uint8_t> wt_vec(weightDataSize, static_cast<uint8_t>(scaleValue));
             wt_data_valss = mlir::DenseElementsAttr::get(wtData_ddr_valueType, makeArrayRef<uint8_t>(wt_vec));
         }
     }
