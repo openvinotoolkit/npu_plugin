@@ -75,8 +75,6 @@ template <typename T>
 mlir::DenseElementsAttr splitWeightsOverCLoop(mlir::DenseElementsAttr wt_vec, ArrayRef<int64_t> wt_shape,
                                               mlir::Type dtype, T elementType, mlir::MLIRContext* ctx, size_t start_C,
                                               size_t end_C);
-mlir::DenseElementsAttr generateZeroPadForEltwiseMultWeights(ArrayRef<int64_t> wt_shape_padded, mlir::Type dtype,
-                                                             mlir::MLIRContext* ctx);
 mlir::MemRefType getMemRefType(mlir::OpBuilder builder, VPUIP::MemoryLocation memlocation, SmallVector<int64_t> shape,
                                mlir::Type type, SmallVector<mlir::AffineMap> affineMaps);
 

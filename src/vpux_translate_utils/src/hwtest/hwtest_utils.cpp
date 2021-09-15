@@ -264,42 +264,6 @@ mlir::DenseElementsAttr splitWeightsOverCLoop(mlir::DenseElementsAttr wt_vec, Ar
     return wt_data_vals;
 }
 
-unsigned round_up(unsigned x, unsigned mult) {
-    return ((x + mult - 1) / mult) * mult;  // logic borrowed from MCM
-}
-
-mlir::DenseElementsAttr generateZeroPadForEltwiseMultWeights(ArrayRef<int64_t> wt_shape_padded, mlir::Type dtype,
-                                                             mlir::MLIRContext* ctx) {
-    auto wtData_ddr_valueType = mlir::RankedTensorType::get(wt_shape_padded, dtype);
-
-    if (auto qtype = dtype.dyn_cast<mlir::quant::QuantizedType>()) {
-        wtData_ddr_valueType = (qtype.getFlags() & mlir::quant::QuantizationFlags::Signed)
-                                       ? mlir::RankedTensorType::get(wt_shape_padded, getSInt8Type(ctx))
-                                       : mlir::RankedTensorType::get(wt_shape_padded, getUInt8Type(ctx));
-    }
-
-    // NOTE: This should be ZeroPoint, not 0
-    size_t vecSize = static_cast<size_t>(std::accumulate(wt_shape_padded.begin(), wt_shape_padded.end(),
-                                                         static_cast<int64_t>(1), std::multiplies<int64_t>()));
-
-    mlir::DenseElementsAttr wt_data_vals;
-    if (dtype.isF16()) {
-        std::vector<float16> wt_vec(vecSize, 0);
-        return mlir::DenseElementsAttr::get(wtData_ddr_valueType, makeArrayRef<float16>(wt_vec));
-    } else if (dtype.isBF16()) {
-        std::vector<bfloat16> wt_vec(vecSize, 0);
-        return mlir::DenseElementsAttr::get(wtData_ddr_valueType, makeArrayRef<bfloat16>(wt_vec));
-    } else {
-        if (dtype.dyn_cast<mlir::quant::QuantizedType>().getFlags() & mlir::quant::QuantizationFlags::Signed) {
-            std::vector<int8_t> wt_vec(vecSize, 0);
-            return mlir::DenseElementsAttr::get(wtData_ddr_valueType, makeArrayRef<int8_t>(wt_vec));
-        } else {
-            std::vector<uint8_t> wt_vec(vecSize, 0);
-            return mlir::DenseElementsAttr::get(wtData_ddr_valueType, makeArrayRef<uint8_t>(wt_vec));
-        }
-    }
-}
-
 mlir::MemRefType getMemRefType(mlir::OpBuilder builder, VPUIP::MemoryLocation memlocation, SmallVector<int64_t> shape,
                                mlir::Type type, SmallVector<mlir::AffineMap> affineMaps) {
     auto op_memSpaceAttr = VPUIP::MemoryLocationAttr::get(builder.getContext(), memlocation);
