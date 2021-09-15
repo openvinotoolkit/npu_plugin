@@ -81,25 +81,16 @@ void vpux::VPUIP::NCEClusterTaskOp::inferLayoutInfo(mlir::Operation* origOp, IE:
                 auto weights_order = DimsOrder::fromValue(op.filter());
                 auto output_order = DimsOrder::fromValue(op.output());
 
-                const auto filterShape = getShape(op.filter());
-                const auto IC = filterShape[IE::Dims4D::Filter::IC];
-                const auto OC = filterShape[IE::Dims4D::Filter::OC];
-                const auto KY = filterShape[IE::Dims4D::Filter::KY];
-                const auto KX = filterShape[IE::Dims4D::Filter::KX];
-
-                Logger::global().error("order: {0}", input_order);
-                Logger::global().error("order: {0}", weights_order);
-                Logger::global().error("output_order: {0}", output_order);
-                Logger::global().error("IC: {0}", IC);
-                Logger::global().error("OC: {0}", OC);
-                Logger::global().error("KY: {0}", KY);
-                Logger::global().error("KX: {0}", KX);
+                // const auto filterShape = getShape(op.filter());
+                // const auto IC = filterShape[IE::Dims4D::Filter::IC];
+                // const auto OC = filterShape[IE::Dims4D::Filter::OC];
+                // const auto KY = filterShape[IE::Dims4D::Filter::KY];
+                // const auto KX = filterShape[IE::Dims4D::Filter::KX];
 
                 // info.setInput(0, DimsOrder::NHWC);
                 // info.setInput(1, DimsOrder::OYXI);
                 info.setInput(1, DimsOrder::OIYX);
-                info.setOutput(0, DimsOrder::NHWC);
-
+                Logger::global().error("Setting output NHWC", op->getName());
                 info.setOutput(0, DimsOrder::NHWC);
             })
             .Case<IE::GroupConvolutionOp>([&](IE::GroupConvolutionOp) {

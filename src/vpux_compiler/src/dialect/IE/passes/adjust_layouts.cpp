@@ -69,6 +69,7 @@ void LayerRewriter::insertReorderForInput(mlir::Operation* op, mlir::OpOperand& 
 void LayerRewriter::insertReorderForOutput(mlir::Operation* op, mlir::Value output, DimsOrder dstOrder,
                                            mlir::PatternRewriter& rewriter) const {
     _log.nest(2).trace("Insert ReorderOp for output {0}", output.getType());
+    _log.nest().trace("The dstOrder is: {0}", dstOrder);
 
     mlir::OpBuilder::InsertionGuard guard(rewriter);
     rewriter.setInsertionPointAfter(op);
@@ -78,6 +79,7 @@ void LayerRewriter::insertReorderForOutput(mlir::Operation* op, mlir::Value outp
 }
 
 void LayerRewriter::setNewType(mlir::Value operand, DimsOrder newOrder) const {
+    _log.trace("Changing order to '{0}' at '{1}'", newOrder);
     const auto origType = operand.getType().cast<mlir::ShapedType>();
     const auto newType = changeDimsOrder(origType, newOrder);
     operand.setType(newType);
@@ -117,7 +119,9 @@ mlir::LogicalResult LayerRewriter::matchAndRewrite(IE::LayoutInfoOpInterface ori
         auto output = outputs[i];
 
         const auto curOrder = DimsOrder::fromValue(output);
+        _log.nest().trace("curOrder: {0}", curOrder);
         const auto supportedOrder = orderInfo.getOutput(i);
+        _log.nest().trace("supportedOrder: {0}", supportedOrder);
 
         if (curOrder != supportedOrder) {
             setNewType(output, supportedOrder);
