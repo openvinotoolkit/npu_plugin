@@ -14,6 +14,17 @@
             "AssignOutputNode",
             "AssignUniqueOpId",
             {
+                "name": "GenerateDot",
+                "output": "output/dots/op_model-in0.dot",
+                "scope": "OpModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/op_model-in0.dot"
+            },
+            {
                 "name": "ApplyTargetVars",
                 "Vars": [
                     {
@@ -139,14 +150,14 @@
             "RemoveRedundantUpdateBarriers",
             {
                 "name": "GenerateDot",
-                "output": "output/dots/op_model-in.dot",
+                "output": "output/dots/op_model-in1.dot",
                 "scope": "OpModel",
                 "content": "full",
                 "html": true
             },
             {
                 "name": "ConvertDot",
-                "input": "output/dots/op_model-in.dot"
+                "input": "output/dots/op_model-in1.dot"
             },
             "CombineTaskInputBarriers",
             "SplitBarrier",
