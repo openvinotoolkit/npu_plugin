@@ -334,7 +334,7 @@ std::vector<std::int32_t> vpux::VPUIP::NCESparsity::getWeightsTable(mlir::Type o
             getMultShiftFunc(op_inElemType, op_outElemType, weightsElemType, arch, checked_cast<size_t>(OC));
     auto getBiasFP = getBiasFunc(op_inElemType, op_outElemType, weightsElemType, bias, arch, checked_cast<size_t>(OC));
 
-    std::int32_t sparsityPtr =
+    auto sparsityPtr =
             (weightsElemType == nullptr && arch == vpux::VPUIP::ArchKind::MTL) ? MTL_SPARSITY : sparsityPtrOffset;
     std::vector<std::int32_t> weightsTableVals(OC * vpux::VPUIP::NCEInvariant::WEIGHT_TABLE_NUM_ELEMENTS_PER_OC, 0);
 
@@ -348,13 +348,13 @@ std::vector<std::int32_t> vpux::VPUIP::NCESparsity::getWeightsTable(mlir::Type o
 
         weightPtrOffset += weightPtrStep;
         if (arch == vpux::VPUIP::ArchKind::MTL && weightsElemType) {
-            std::int32_t elementsize_bytes = 0;
-            if (auto qType = weightsElemType.dyn_cast<mlir::quant::UniformQuantizedType>()) {
-                elementsize_bytes = qType.getStorageType().getIntOrFloatBitWidth() / 8;
+            int32_t elementSizeBytes = 0;
+            if (auto qType = weightsElemType.dyn_cast<mlir::quant::QuantizedType>()) {
+                elementSizeBytes = qType.getStorageType().getIntOrFloatBitWidth() / 8;
             } else {
-                elementsize_bytes = (weightsElemType.getIntOrFloatBitWidth()) / CHAR_BIT;
+                elementSizeBytes = (weightsElemType.getIntOrFloatBitWidth()) / CHAR_BIT;
             }
-            sparsityPtr += weightPtrStep / elementsize_bytes;
+            sparsityPtr += weightPtrStep / elementSizeBytes;
         }
     }
 

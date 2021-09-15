@@ -23,6 +23,8 @@
 #include "vpux/hwtest/test_case_json_parser.hpp"
 #include "vpux/utils/core/error.hpp"
 
+#define ALL_BITS_ARE_SET 0xFFFFFF
+
 namespace vpux {
 namespace hwtest {
 
@@ -155,7 +157,7 @@ void buildContinuedConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Module
             inputType, outputType, static_cast<std::int32_t>(WEIGHTS_PARTIAL_0_CMX_OFFSET),
             static_cast<std::int32_t>(weightsPartialShape[1] * weightsPartialShape[2] * weightsPartialShape[3] *
                                       getElemTypeSize(weightsType).count() / 8),
-            static_cast<std::int32_t>(16777215), vpux::VPUIP::ArchKind::MTL, outputShape[1], weightsType);
+            static_cast<std::int32_t>(ALL_BITS_ARE_SET), vpux::VPUIP::ArchKind::MTL, outputShape[1], weightsType);
 
     const auto weightsTableDDRMemRef = getMemRef(weightsTableShape, int32, vpux::VPUIP::MemoryLocation::GraphFile);
     const auto weightsTable0Values =
@@ -170,7 +172,7 @@ void buildContinuedConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Module
             inputType, outputType, static_cast<std::int32_t>(WEIGHTS_PARTIAL_1_CMX_OFFSET),
             static_cast<std::int32_t>(weightsPartialShape[1] * weightsPartialShape[2] * weightsPartialShape[3] *
                                       getElemTypeSize(weightsType).count() / 8),
-            static_cast<std::int32_t>(16777215), vpux::VPUIP::ArchKind::MTL, outputShape[1], weightsType);
+            static_cast<std::int32_t>(ALL_BITS_ARE_SET), vpux::VPUIP::ArchKind::MTL, outputShape[1], weightsType);
 
     const auto weightsTable1Values =
             mlir::DenseElementsAttr::get(weightsTableDDRType, llvm::makeArrayRef<std::int32_t>(weightsTable1));

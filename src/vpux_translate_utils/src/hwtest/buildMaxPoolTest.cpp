@@ -105,22 +105,20 @@ void buildMaxpool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
             builder.getUnknownLoc(), funcinput0, input0cmx.getOperation()->getResult(0), mlir::ValueRange(),
             mlir::ValueRange(barrier0.barrier()), false);
 
+    mlir::Type uderlyingInputType = inputType.isa<mlir::quant::QuantizedType>()
+                                            ? inputType.cast<mlir::quant::QuantizedType>().getStorageType()
+                                            : inputType;
     // Activation Window ddr
-    const auto bitPatternSize = VPUIP::NCESparsity::getBitPatternSize(
-            makeArrayRef(filter_size), stride_vec[0],
-            inputType.isa<mlir::quant::QuantizedType>() ? inputType.cast<mlir::quant::QuantizedType>().getStorageType()
-                                                        : inputType);
+    const auto bitPatternSize =
+            VPUIP::NCESparsity::getBitPatternSize(makeArrayRef(filter_size), stride_vec[0], uderlyingInputType);
     mlir::IntegerAttr actChannelLength = funcbuilder.getI32IntegerAttr(checked_cast<int32_t>(bitPatternSize));
 
     //
     // Generate activation window
     //
 
-    const auto fakeSparsity = VPUIP::NCESparsity::getFakeSparsity(
-            makeArrayRef(filter_size), stride_vec[0],
-            inputType.isa<mlir::quant::QuantizedType>() ? inputType.cast<mlir::quant::QuantizedType>().getStorageType()
-                                                        : inputType,
-            in_shape[1]);
+    const auto fakeSparsity = VPUIP::NCESparsity::getFakeSparsity(makeArrayRef(filter_size), stride_vec[0],
+                                                                  uderlyingInputType, in_shape[1]);
 
     const auto elemType = getUInt8Type(ctx);
     int64_t numChannels = in_shape[1];
