@@ -434,27 +434,6 @@ OutputTiling SimpleTiler::genericTiler(mlir::Operation* op, mlir::MemRefType out
         }
         else { // Spatial dims
             const auto origSize = outputShape[dimToTile.getValue()];
-    const auto outputShape = getShape(outputType);
-
-    Shape nTilesOnDim(outputShape.size(), 1);
-
-    // FIXME tiling over channels has to leave 16 channels in each tile.
-    // Otherwise, depthwise convolutions produce worse accuracy.
-    const auto depthwiseOutChanCount = VPUIP::NCEInvariant::getChannelAlignment(outputType.getElementType());
-    VPUX_THROW_UNLESS(outputShape[IE::Dims4D::Act::C] % depthwiseOutChanCount == 0,
-                      "Depthwise convolution output channels must be a multiple of {0}, got {1}", depthwiseOutChanCount,
-                      outputShape[IE::Dims4D::Act::C]);
-    nTilesOnDim[IE::Dims4D::Act::C] = outputShape[IE::Dims4D::Act::C] / depthwiseOutChanCount;
-
-    while (!isSupportedTileSize(nTilesOnDim)) {
-        Optional<Dim> dimToTile;
-
-        for (auto ind : irange(IE::Dims4D::Act::numSpatialDims)) {
-            const auto spatialDim = IE::Dims4D::Act::getSpatialDim(ind);
-
-            const auto origSize = outputShape[spatialDim];
-            const auto prevDivisor = nTilesOnDim[spatialDim];
-
             if (origSize / prevDivisor > 1) {
                 dimToTile = spatialDim;
                 break;
