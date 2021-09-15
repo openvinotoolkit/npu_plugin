@@ -84,7 +84,7 @@ class KmbQuantizedChannelMajorConvSubGraphTest :
 // }
 
 TEST_P(KmbQuantizedChannelMajorConvSubGraphTest, CompareWithRefs_MLIR_HW) {
-    //useCompilerMLIR();
+    useCompilerMLIR();
     setReferenceHardwareModeMLIR();
     Run();
 }
