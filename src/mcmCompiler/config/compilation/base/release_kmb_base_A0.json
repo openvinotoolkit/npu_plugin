@@ -15,10 +15,31 @@
             "KMBOrderConversion",
             "AlignUnpopulatedTensors",
             "AddAlignOpForInputTensors",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/2.dot",
+                "scope": "OpModel",
+                "content": "full",
+                "html": true
+            },
             "AlignPopulatedTensors",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/3.dot",
+                "scope": "OpModel",
+                "content": "full",
+                "html": true
+            },
             "RemoveCropAlignInCMX",
             "CropOrPadFinalOutput",
             "AlignTaskWeights",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/4.dot",
+                "scope": "OpModel",
+                "content": "full",
+                "html": true
+            },
             "ImplicitOutputDTypeUpdate",
             "KMBQuantizeConversion",
             "AdaptFixedPointCompute",
