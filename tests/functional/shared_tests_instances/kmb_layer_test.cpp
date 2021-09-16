@@ -205,23 +205,24 @@ void KmbLayerTestsCommon::Run() {
         bool runInfer = envConfig.IE_KMB_TESTS_RUN_INFER;
         std::string runInferSkipReason = runInfer ? "-" : "environment variable value";
 
+        const std::string backendName = getBackendName(*core);
         // turn off running infers forcefully for the cases:
-        const auto noDevice = getBackendName(*core).empty();
-        if (noDevice) {
+        const auto noDevice = backendName.empty();
+        if (runInfer && noDevice) {
             runInfer = false;
             runInferSkipReason = "backend is empty (no device)";
         }
 
         // [Track number: E#20335]
         // Disabling inference for layer tests on emulator device due to segfault
-        const auto emulatorDevice = getBackendName(*core) == "EMULATOR";
-        if (emulatorDevice) {
+        const auto emulatorDevice = backendName == "EMULATOR";
+        if (runInfer && emulatorDevice) {
             runInfer = false;
             runInferSkipReason = "backend is EMULATOR";
         }
 
         if (runInfer) {
-            std::cout << "KmbLayerTestsCommon::Infer()" << std::endl;
+            std::cout << "KmbLayerTestsCommon::Infer() with backend '" << backendName << "'" << std::endl;
             SkipBeforeInfer();
             Infer();
             report.inferred(testInfo);
