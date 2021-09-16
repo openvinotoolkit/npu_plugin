@@ -44,7 +44,14 @@
     "quantization" : {
         "Singular" : [
             "ResolveFQAfterBranchingSlices",
-            "FakeQuantize"
+            "FakeQuantize",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/1.dot",
+                "scope": "OpModel",
+                "content": "full",
+                "html": true
+            }
         ]
     },
     "adapt": {
