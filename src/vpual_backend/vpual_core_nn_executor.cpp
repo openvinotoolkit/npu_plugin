@@ -459,6 +459,7 @@ static uint8_t* setPrefetchHelper(const std::shared_ptr<NnCorePlg>& nnCorePtr, c
 }
 
 const static vpu::EnumSet<InferenceEngine::VPUXConfigParams::VPUXPlatform> platformsWithCSRAM = {
+        InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3800,
         InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3900,
 };
 }  // namespace
