@@ -490,7 +490,7 @@ class ZMajorConvolution(MPE):
     def result_bitwidth(self, values: List[Value]) -> int:
         # NB zm_conv_int8_fp16_16_uint8 seems to have a cliff behavior at 14
         #    extra bits: at 13, we see 0 and FF as outputs; at 14, we see just 0.
-        return values[0].bitwidth + values[1].bitwidth + self.settings.input_shape[2].bit_length()  + self.settings.input_shape[3].bit_length() - 1
+        return values[0].bitwidth + values[1].bitwidth + self.settings.input_shape[2].bit_length() + self.settings.input_shape[3].bit_length() - 1
 
 
 class DepthWiseConv(MPE):
@@ -554,7 +554,7 @@ class DepthWiseConv(MPE):
         return c2d.inference(lhs, rhs)
 
     def result_bitwidth(self, values: List[Value]) -> int:
-        return values[0].bitwidth + values[1].bitwidth + self.settings.input_shape[2].bit_length()  + self.settings.input_shape[3].bit_length() - 1
+        return values[0].bitwidth + values[1].bitwidth + self.settings.kernel_shape[0].bit_length() + self.settings.kernel_shape[1].bit_length() - 1
 
 
 
