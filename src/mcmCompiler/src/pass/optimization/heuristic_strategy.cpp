@@ -41,7 +41,7 @@ void heuristicStrategyFcn(const mv::pass::PassEntry&, mv::ComputationModel& mode
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
     mv::graphOptimizer::StrategyManagerSimple strategyManager(om,passDesc, td);
-    mv::graphOptimizer::HeuristicGraphOptimizer heuristicGO(om,passDesc);
+    mv::graphOptimizer::HeuristicGraphOptimizer heuristicGO(om,passDesc, td);
 
     bool loadStrategiesFromFile = false;
     std::string jsonInFileName = "./output/mcmCompiler_simple_strategy_output.json";
@@ -64,7 +64,6 @@ void heuristicStrategyFcn(const mv::pass::PassEntry&, mv::ComputationModel& mode
         strategyManager.initLayerStrategySets();
         // STEP 1 - GREEDY. Assign each op with the best strategy, in isolation
         // Setup the variables from the CD and TD as needed
-        heuristicGO.init(td);
         // Walk through the topological model, assign every strategy cost, and choose lowest cost
         // strategy as starting point for graph
         heuristicGO.assignMultiClusteringGreedy();
@@ -109,25 +108,10 @@ namespace mv
 namespace graphOptimizer
 {
 
-HeuristicGraphOptimizer::HeuristicGraphOptimizer(OpModel& model,mv::Element& passDesc) :
+HeuristicGraphOptimizer::HeuristicGraphOptimizer(OpModel& model,mv::Element& passDesc,  mv::TargetDescriptor& td) :
         model_(model),passDesc_(passDesc)
 {
-}
-
-StrategyMap& HeuristicGraphOptimizer::getChosenStrategies()
-{
-    return bestStrategies_;
-}
-
-std::string HeuristicGraphOptimizer::getLogID() const
-{
-    return "SimpleStrategyManager";
-}
-
-void HeuristicGraphOptimizer::init(mv::TargetDescriptor& td)
-{
     //TODO these values should be pulled from the target descriptor...
-    // these are the THB values...
     target = td.getTarget();
     totalClusters_ = model_.getGlobalConfigParam("Number_of_Clusters").get<int>();
     dpuPerCluster_ = model_.getGlobalConfigParam("Number_of_DPUs").get<int>() / totalClusters_;
@@ -156,6 +140,16 @@ void HeuristicGraphOptimizer::init(mv::TargetDescriptor& td)
     LATENCY_ = 5; // Cycles, attempt to capture cost accessing CMX
     // DDR latency also measured for kmb at ~100 cycles per dma
     LATENCY_DDR_ = 100; // Cycles, attempt to capture cost of setup DMA
+}
+
+StrategyMap& HeuristicGraphOptimizer::getChosenStrategies()
+{
+    return bestStrategies_;
+}
+
+std::string HeuristicGraphOptimizer::getLogID() const
+{
+    return "SimpleStrategyManager";
 }
 
 void HeuristicGraphOptimizer::assignMultiClusteringGreedy()
