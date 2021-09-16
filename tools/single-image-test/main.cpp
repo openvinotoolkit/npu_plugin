@@ -11,6 +11,7 @@
 // included with the Software Package for additional details.
 //
 
+
 #include "vpux/utils/IE/blob.hpp"
 #include "yolo_helpers.hpp"
 #include "utils.hpp"
@@ -400,14 +401,17 @@ void dumpBlob(const ie::MemoryBlob::Ptr& blob, const std::string& filePath) {
 ie::Core ieCore;
 
 void setupInferenceEngine() {
-    if(FLAGS_device == MOVISIM_DEVICE_NAME) return;
+    auto flagDevice = FLAGS_device;
+    if(FLAGS_device == MOVISIM_DEVICE_NAME) {
+        flagDevice = "VPUX";
+    }
 
     if (!FLAGS_log_level.empty()) {
-        ieCore.SetConfig({{CONFIG_KEY(LOG_LEVEL), FLAGS_log_level}}, FLAGS_device);
+        ieCore.SetConfig({{CONFIG_KEY(LOG_LEVEL), FLAGS_log_level}}, flagDevice);
     }
 
     if (FLAGS_device == "CPU") {
-        ieCore.SetConfig({{"LP_TRANSFORMS_MODE", CONFIG_VALUE(NO)}}, FLAGS_device);
+        ieCore.SetConfig({{"LP_TRANSFORMS_MODE", CONFIG_VALUE(NO)}}, flagDevice);
     }
 
     if (!FLAGS_config.empty()) {
@@ -420,7 +424,7 @@ void setupInferenceEngine() {
                 continue;
             }
 
-            ieCore.SetConfig({{key, value}}, FLAGS_device);
+            ieCore.SetConfig({{key, value}}, flagDevice);
         }
     }
 }
