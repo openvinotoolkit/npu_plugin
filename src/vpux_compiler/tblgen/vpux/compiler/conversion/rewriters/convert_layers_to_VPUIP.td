@@ -113,6 +113,22 @@ def RewriteLRN_IE :
         >;
 
 //
+// IERT.Broadcast -> VPUIP.BroadcastUPA
+//
+
+def createBroadcastUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::BroadcastUPAOp> (
+                $_loc, $0, $1, $2, $3)
+        }]>;
+
+def RewriteBroadcast :
+        Pat<
+            (IERT_BroadcastOp $input, $target_shape, $output, $mode),
+            (createBroadcastUPAOp $input, $target_shape, $output, $mode)
+        >;
+
+//
 // IERT.MaxPool -> VPUIP.PoolingUPA
 //
 
