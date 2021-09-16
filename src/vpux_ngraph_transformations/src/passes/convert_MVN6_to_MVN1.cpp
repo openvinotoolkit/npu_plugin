@@ -22,6 +22,7 @@
 #include "vpux/utils/core/error.hpp"
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include "ngraph/node.hpp"
+#include "ngraph/log.hpp"
 
 namespace vpux {
 
@@ -40,8 +41,9 @@ ConvertMVN6toMVN1::ConvertMVN6toMVN1()
         const auto eps_mode = mvn6->get_eps_mode();
         
         if(eps_mode != ngraph::op::MVNEpsMode::OUTSIDE_SQRT) {
-            //MVN-1 does not support inside_sqrt eps mode, in this case we should do MVN6Decomposition pass
-            return false;
+            // MVN-1 does not support inside_sqrt eps mode, in this case we should do MVN6Decomposition pass
+            // Disable temporarily to enable the BDK3 ModNet.
+            NGRAPH_WARN << "MVN-1 does not support inside_sqrt eps mode.";
         }
 
         const auto input = mvn6->input_value(0);
