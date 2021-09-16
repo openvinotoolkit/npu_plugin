@@ -613,7 +613,8 @@ void mv::propagateUpThroughOps(
         return;
 
     std::vector<mv::Data::TensorIterator> inputTensors = {opIt->getInputTensor(0)};
-    if (mv::op::OpRegistry::instance().find(opIt->getOpType())->hasVectorTypesAsInput())
+    if (mv::op::OpRegistry::instance().find(opIt->getOpType()) &&
+        mv::op::OpRegistry::instance().find(opIt->getOpType())->hasVectorTypesAsInput())
         inputTensors = opIt->getInputTensor();
 
     for (auto inputTensor : inputTensors) {

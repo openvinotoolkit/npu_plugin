@@ -48,10 +48,9 @@ class HeuristicGraphOptimizer : public LogSender
                                             {"Clustering", 10.0}
                                         };
 
-    HeuristicGraphOptimizer(OpModel&, mv::Element&);
+    HeuristicGraphOptimizer(OpModel&, mv::Element&, mv::TargetDescriptor&);
     StrategyMap& getChosenStrategies();
     std::string getLogID() const;
-    void init(mv::TargetDescriptor& td);
 
     void assignMultiClusteringGreedy();
     void forceConnectedSOH();
