@@ -1,1 +1,1 @@
-tag: ci_tag_vpu_release_21ww37.3.1
+tag: ci_tag_vpu_release_21ww38.2.1
