@@ -87,7 +87,7 @@ mlir::LogicalResult ConvertFCToConvPass::FullyConnectedOpConverter::matchAndRewr
     auto newPadsEnd = getIntArrayAttr(getContext(), ngraph::CoordinateDiff{0, 0});
     auto newDilations = getIntArrayAttr(getContext(), ngraph::Strides{1, 1});
     auto convOp = rewriter.create<IE::ConvolutionOp>(origOp->getLoc(), newInput, newFilter, newBias, newStrides,
-                                                     newPadsBegin, newPadsEnd, newDilations, nullptr);
+                                                     newPadsBegin, newPadsEnd, newDilations, nullptr, nullptr);
 
     const auto convShape = convOp.output().getType().cast<mlir::ShapedType>().getShape();
     const std::array<int64_t, 2> outputShape = {convShape[0], convShape[1]};

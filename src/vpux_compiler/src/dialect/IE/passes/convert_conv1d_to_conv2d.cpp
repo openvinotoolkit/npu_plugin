@@ -79,8 +79,9 @@ mlir::LogicalResult ConvolutionExpansion::matchAndRewrite(IE::ConvolutionOp orig
     const auto newPadsEnd = append(getContext(), origOp.pads_end(), 0);
     const auto newDilations = append(getContext(), origOp.dilations(), 1);
 
-    auto newConvOp = rewriter.create<IE::ConvolutionOp>(origOp->getLoc(), newInput, newFilter, newBias, newStrides,
-                                                        newPadsBegin, newPadsEnd, newDilations, origOp.post_opAttr());
+    auto newConvOp =
+            rewriter.create<IE::ConvolutionOp>(origOp->getLoc(), newInput, newFilter, newBias, newStrides, newPadsBegin,
+                                               newPadsEnd, newDilations, origOp.post_opAttr(), origOp.clip_opAttr());
 
     const auto outputShape = origOp.output().getType().cast<mlir::ShapedType>().getShape();
     const auto outputShapeAttr = getIntArrayAttr(getContext(), outputShape);
@@ -122,9 +123,9 @@ mlir::LogicalResult GroupConvolutionExpansion::matchAndRewrite(IE::GroupConvolut
     const auto newPadsEnd = append(getContext(), origOp.pads_end(), 0);
     const auto newDilations = append(getContext(), origOp.dilations(), 1);
 
-    auto newConvOp = rewriter.create<IE::GroupConvolutionOp>(origOp->getLoc(), newInput, newFilter, newBias, newStrides,
-                                                             newPadsBegin, newPadsEnd, newDilations,
-                                                             origOp.groupsAttr(), origOp.post_opAttr());
+    auto newConvOp = rewriter.create<IE::GroupConvolutionOp>(
+            origOp->getLoc(), newInput, newFilter, newBias, newStrides, newPadsBegin, newPadsEnd, newDilations,
+            origOp.groupsAttr(), origOp.post_opAttr(), origOp.clip_opAttr());
 
     const auto outputShape = origOp.output().getType().cast<mlir::ShapedType>().getShape();
     const auto outputShapeAttr = getIntArrayAttr(getContext(), outputShape);

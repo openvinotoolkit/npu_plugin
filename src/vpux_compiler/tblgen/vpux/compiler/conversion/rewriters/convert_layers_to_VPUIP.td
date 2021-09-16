@@ -129,10 +129,11 @@ def createMaxPoolingUPAOp :
 
 def RewriteMaxPool :
         Pat<
-            (IERT_MaxPoolOp $input, $output, $kernel_size, $strides, $pads_begin, $pads_end, $post_op),
+            (IERT_MaxPoolOp $input, $output, $kernel_size, $strides, $pads_begin, $pads_end, $post_op, $clip_op),
             (createMaxPoolingUPAOp $input, $output, $kernel_size, $strides, $pads_begin, $pads_end),
             [
-                (HasNoValue $post_op)
+                (HasNoValue $post_op),
+                (HasNoValue $clip_op)
             ]
         >;
 
@@ -152,10 +153,12 @@ def HasGroupsAttr : Constraint<CPred<"$0 != nullptr">>;
 
 def RewriteGroupConvolution :
         Pat<
-            (IERT_GroupConvolutionOp $input, $filter, $bias, $output, $strides, $pads_begin, $pads_end, $dilations, $groups, $post_op),
+            (IERT_GroupConvolutionOp $input, $filter, $bias, $output, $strides, $pads_begin, $pads_end, $dilations, $groups, $post_op, $clip_op),
             (createGroupConvolutionUPAOp $input, $filter, $bias, $output, $strides, $dilations, $pads_begin, $pads_end, $groups),
             [
-                (HasGroupsAttr $groups)
+                (HasGroupsAttr $groups),
+                (HasNoValue $post_op),
+                (HasNoValue $clip_op)
             ]
         >;
 
@@ -394,10 +397,11 @@ class createEltwiseUPAOp<string method> :
 
 def RewriteAdd :
         Pat<
-            (IERT_AddOp $input1, $input2, $output, $post_op),
+            (IERT_AddOp $input1, $input2, $output, $post_op, $clip_op),
             (createEltwiseUPAOp<"ADD"> $input1, $input2, $output),
             [
-                (HasNoValue $post_op)
+                (HasNoValue $post_op),
+                (HasNoValue $clip_op)
             ]
         >;
 

@@ -455,7 +455,8 @@ def IERT_MaxPoolOp :
         I64ArrayAttr:$pads_begin,
         I64ArrayAttr:$pads_end,
 
-        OptionalAttr<IE_PostOp>:$post_op
+        OptionalAttr<IE_PostOp>:$post_op,
+        OptionalAttr<IE_ClipOp>:$clip_op
     );
 
     let results = (outs
@@ -493,7 +494,8 @@ def IERT_ConvolutionOp :
         I64ArrayAttr:$pads_end,
         I64ArrayAttr:$dilations,
 
-        OptionalAttr<IE_PostOp>:$post_op
+        OptionalAttr<IE_PostOp>:$post_op,
+        OptionalAttr<IE_ClipOp>:$clip_op
     );
 
     let results = (outs
@@ -533,7 +535,8 @@ def IERT_GroupConvolutionOp :
         I64ArrayAttr:$dilations,
         OptionalAttr<IntAttr>:$groups,
 
-        OptionalAttr<IE_PostOp>:$post_op
+        OptionalAttr<IE_PostOp>:$post_op,
+        OptionalAttr<IE_ClipOp>:$clip_op
     );
 
     let results = (outs
@@ -1069,7 +1072,8 @@ def IERT_AddOp :
         MemRefOf<[F16, F32, quant_QuantizedType]>:$input2,
         MemRefOf<[F16, F32, quant_QuantizedType]>:$output_buff,
 
-        OptionalAttr<IE_PostOp>:$post_op
+        OptionalAttr<IE_PostOp>:$post_op,
+        OptionalAttr<IE_ClipOp>:$clip_op
     );
 
     let results = (outs

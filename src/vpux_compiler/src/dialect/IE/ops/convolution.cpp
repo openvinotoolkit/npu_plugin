@@ -240,10 +240,10 @@ mlir::LogicalResult GroupsToAttr::matchAndRewrite(IE::GroupConvolutionOp convOp,
     const auto filterShapeAttr = getIntArrayAttr(getContext(), filterShape);
     auto newFilter = rewriter.create<IE::ReshapeOp>(convOp->getLoc(), convOp.filter(), nullptr, false, filterShapeAttr);
 
-    rewriter.replaceOpWithNewOp<IE::GroupConvolutionOp>(convOp, convOp.input(), newFilter.output(), convOp.bias(),
-                                                        convOp.stridesAttr(), convOp.pads_beginAttr(),
-                                                        convOp.pads_endAttr(), convOp.dilationsAttr(),
-                                                        getIntAttr(convOp.getContext(), groups), convOp.post_opAttr());
+    rewriter.replaceOpWithNewOp<IE::GroupConvolutionOp>(
+            convOp, convOp.input(), newFilter.output(), convOp.bias(), convOp.stridesAttr(), convOp.pads_beginAttr(),
+            convOp.pads_endAttr(), convOp.dilationsAttr(), getIntAttr(convOp.getContext(), groups),
+            convOp.post_opAttr(), convOp.clip_opAttr());
 
     return mlir::success();
 }

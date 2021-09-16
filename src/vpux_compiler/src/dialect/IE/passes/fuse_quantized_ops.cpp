@@ -74,9 +74,10 @@ mlir::LogicalResult FuseWithConv::matchAndRewrite(IE::QuantizeOp quantizeOp, mli
         return mlir::failure();
     }
 
-    rewriter.replaceOpWithNewOp<IE::ConvolutionOp>(
-            quantizeOp, quantizeOp.getType(), inputDequantizeOp.input(), filterDequantizeOp.input(), convOp.bias(),
-            convOp.strides(), convOp.pads_begin(), convOp.pads_end(), convOp.dilations(), convOp.post_opAttr());
+    rewriter.replaceOpWithNewOp<IE::ConvolutionOp>(quantizeOp, quantizeOp.getType(), inputDequantizeOp.input(),
+                                                   filterDequantizeOp.input(), convOp.bias(), convOp.strides(),
+                                                   convOp.pads_begin(), convOp.pads_end(), convOp.dilations(),
+                                                   convOp.post_opAttr(), convOp.clip_opAttr());
 
     return mlir::success();
 }
@@ -121,9 +122,10 @@ mlir::LogicalResult FuseWithMaxPool::matchAndRewrite(IE::QuantizeOp quantizeOp, 
         return mlir::failure();
     }
 
-    rewriter.replaceOpWithNewOp<IE::MaxPoolOp>(
-            quantizeOp, quantizeOp.getType(), inputDequantizeOp.input(), maxPoolOp.kernel_size(), maxPoolOp.strides(),
-            maxPoolOp.pads_begin(), maxPoolOp.pads_end(), maxPoolOp.rounding_type(), maxPoolOp.post_opAttr());
+    rewriter.replaceOpWithNewOp<IE::MaxPoolOp>(quantizeOp, quantizeOp.getType(), inputDequantizeOp.input(),
+                                               maxPoolOp.kernel_size(), maxPoolOp.strides(), maxPoolOp.pads_begin(),
+                                               maxPoolOp.pads_end(), maxPoolOp.rounding_type(), maxPoolOp.post_opAttr(),
+                                               maxPoolOp.clip_opAttr());
 
     return mlir::success();
 }

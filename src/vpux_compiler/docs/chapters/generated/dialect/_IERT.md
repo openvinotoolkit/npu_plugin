@@ -116,6 +116,7 @@ operation ::= `IERT.Add` attr-dict
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
 `post_op` | vpux::IE::PostOp | DictionaryAttr with field(s): 'name', 'attrs' (each field having its own constraints)
+`clip_op` | vpux::IE::ClipOp | DictionaryAttr with field(s): 'low', 'high' (each field having its own constraints)
 
 #### Operands:
 
@@ -357,6 +358,7 @@ operation ::= `IERT.Convolution` attr-dict
 `pads_end` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `dilations` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `post_op` | vpux::IE::PostOp | DictionaryAttr with field(s): 'name', 'attrs' (each field having its own constraints)
+`clip_op` | vpux::IE::ClipOp | DictionaryAttr with field(s): 'low', 'high' (each field having its own constraints)
 
 #### Operands:
 
@@ -821,6 +823,7 @@ operation ::= `IERT.GroupConvolution` attr-dict
 `dilations` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `groups` | mlir::IntegerAttr | Integer attribute
 `post_op` | vpux::IE::PostOp | DictionaryAttr with field(s): 'name', 'attrs' (each field having its own constraints)
+`clip_op` | vpux::IE::ClipOp | DictionaryAttr with field(s): 'low', 'high' (each field having its own constraints)
 
 #### Operands:
 
@@ -1153,6 +1156,7 @@ operation ::= `IERT.MaxPool` attr-dict
 `pads_begin` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `pads_end` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `post_op` | vpux::IE::PostOp | DictionaryAttr with field(s): 'name', 'attrs' (each field having its own constraints)
+`clip_op` | vpux::IE::ClipOp | DictionaryAttr with field(s): 'low', 'high' (each field having its own constraints)
 
 #### Operands:
 

@@ -339,4 +339,23 @@ def IE_PostOp :
     let cppNamespace = "vpux::IE";
 }
 
+//
+// ClipOp
+//
+// This is a temporary solution until a VPU.NCE dialect,
+// where operations will contain information about post-ops in more detail.
+//
+
+def IE_ClipOp :
+        StructAttr<
+            "ClipOp",
+            IE_Dialect,
+            [
+                StructFieldAttr<"low",  F64Attr>,
+                StructFieldAttr<"high", F64Attr>,
+            ]
+        > {
+    let cppNamespace = "vpux::IE";
+}
+
 #endif

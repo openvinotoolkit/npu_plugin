@@ -43,7 +43,7 @@ mlir::LogicalResult ConvertSubtractToAddandNegative::matchAndRewrite(IE::Subtrac
     auto NegativeInput2 = negativeOp.output();
 
     rewriter.replaceOpWithNewOp<IE::AddOp>(subOp, input1, NegativeInput2, subOp.auto_broadcastAttr(),
-                                           /*post_op=*/nullptr);
+                                           /*post_op=*/nullptr, /*clip_op=*/nullptr);
     return mlir::success();
 }
 

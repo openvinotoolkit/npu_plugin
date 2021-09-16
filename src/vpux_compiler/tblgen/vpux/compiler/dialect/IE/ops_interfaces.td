@@ -96,6 +96,15 @@ def IE_LayerWithPostOpInterface : OpInterface<"LayerWithPostOpInterface"> {
         >,
 
         InterfaceMethod<
+            "Set Clip post-processing operation attribute",
+            "void", "setClipOp", (ins "mlir::FloatAttr":$lowAttr, "mlir::FloatAttr":$highAttr),
+            [{}],
+            [{
+                return vpux::IE::setLayerClipOp($_op, lowAttr, highAttr);
+            }]
+        >,
+
+        InterfaceMethod<
             "Set post-processing operation attribute",
             "bool", "isSupportedPostOp", (ins "mlir::Operation*":$postOp)
         >,

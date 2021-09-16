@@ -24,7 +24,6 @@
 #include "vpux/utils/core/format.hpp"
 #include "vpux/utils/core/range.hpp"
 
-#include <mlir/Transforms/Bufferize.h>
 #include <mlir/Transforms/DialectConversion.h>
 
 #include <llvm/ADT/TypeSwitch.h>
@@ -518,7 +517,7 @@ mlir::Operation* createRTLayer(IE::PReluOp origOp, ArrayRef<mlir::Value> allBufs
 mlir::Operation* createRTLayer(IE::AddOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::AddOp::Adaptor newOp(allBufs);
     return b.create<IERT::AddOp>(origOp.getLoc(), newOp.input1(), newOp.input2(), newOp.output_buff(),
-                                 origOp.post_opAttr());
+                                 origOp.post_opAttr(), origOp.clip_opAttr());
 }
 
 mlir::Operation* createRTLayer(IE::MultiplyOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
@@ -577,7 +576,7 @@ mlir::Operation* createRTLayer(IE::MaxPoolOp origOp, ArrayRef<mlir::Value> allBu
     IERT::MaxPoolOp::Adaptor newOp(allBufs);
     return b.create<IERT::MaxPoolOp>(origOp.getLoc(), newOp.input(), newOp.output_buff(), origOp.kernel_sizeAttr(),
                                      origOp.stridesAttr(), origOp.pads_beginAttr(), origOp.pads_endAttr(),
-                                     origOp.post_opAttr());
+                                     origOp.post_opAttr(), origOp.clip_opAttr());
 }
 
 mlir::Operation* createRTLayer(IE::ClampOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
@@ -631,7 +630,8 @@ mlir::Operation* createRTLayer(IE::ConvolutionOp origOp, ArrayRef<mlir::Value> a
     IERT::ConvolutionOp::Adaptor newOp(allBufs);
     return b.create<IERT::ConvolutionOp>(origOp.getLoc(), newOp.input(), newOp.filter(), newOp.bias(),
                                          newOp.output_buff(), origOp.stridesAttr(), origOp.pads_beginAttr(),
-                                         origOp.pads_endAttr(), origOp.dilationsAttr(), origOp.post_opAttr());
+                                         origOp.pads_endAttr(), origOp.dilationsAttr(), origOp.post_opAttr(),
+                                         origOp.clip_opAttr());
 }
 
 mlir::Operation* createRTLayer(IE::GroupConvolutionOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
@@ -639,7 +639,7 @@ mlir::Operation* createRTLayer(IE::GroupConvolutionOp origOp, ArrayRef<mlir::Val
     return b.create<IERT::GroupConvolutionOp>(origOp.getLoc(), newOp.input(), newOp.filter(), newOp.bias(),
                                               newOp.output_buff(), origOp.stridesAttr(), origOp.pads_beginAttr(),
                                               origOp.pads_endAttr(), origOp.dilationsAttr(), origOp.groupsAttr(),
-                                              origOp.post_opAttr());
+                                              origOp.post_opAttr(), origOp.clip_opAttr());
 }
 
 mlir::Operation* createRTLayer(IE::SwishOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {

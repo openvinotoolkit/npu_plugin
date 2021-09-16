@@ -145,7 +145,7 @@ mlir::LogicalResult MaxPoolRewriter::matchAndRewrite(IE::MaxPoolOp origOp, mlir:
 
         return rewriter.create<IE::MaxPoolOp>(origOp.getLoc(), newOutputType, expandedInput, origOp.kernel_size(),
                                               origOp.strides(), origOp.pads_begin(), origOp.pads_end(),
-                                              origOp.rounding_type(), origOp.post_opAttr());
+                                              origOp.rounding_type(), origOp.post_opAttr(), origOp.clip_opAttr());
     };
 
     return generalRewrite(origOp, rewriter, opCreator, _log.nest());
@@ -226,9 +226,9 @@ mlir::LogicalResult ConvolutionRewriter::matchAndRewrite(IE::ConvolutionOp origO
 
         const auto newOutputType = getPaddedType(origOp.getType(), outPadBefore, outPadAfter);
 
-        return rewriter.create<IE::ConvolutionOp>(origOp.getLoc(), newOutputType, expandedInput, paddedFilter,
-                                                  paddedBiases, origOp.strides(), origOp.pads_begin(),
-                                                  origOp.pads_end(), origOp.dilations(), origOp.post_opAttr());
+        return rewriter.create<IE::ConvolutionOp>(
+                origOp.getLoc(), newOutputType, expandedInput, paddedFilter, paddedBiases, origOp.strides(),
+                origOp.pads_begin(), origOp.pads_end(), origOp.dilations(), origOp.post_opAttr(), origOp.clip_opAttr());
     };
 
     return generalRewrite(origOp, rewriter, opCreator, _log.nest());
@@ -277,7 +277,7 @@ mlir::LogicalResult EltwiseAddRewriter::matchAndRewrite(IE::AddOp origOp, mlir::
         const auto newOutputType = getPaddedType(origOp.getType(), outPadBefore, outPadAfter);
 
         return rewriter.create<IE::AddOp>(origOp.getLoc(), newOutputType, expandedInput1, expandedInput2,
-                                          origOp.auto_broadcast(), origOp.post_opAttr());
+                                          origOp.auto_broadcast(), origOp.post_opAttr(), origOp.clip_opAttr());
     };
 
     return generalRewrite(origOp, rewriter, opCreator, _log.nest());
@@ -355,10 +355,11 @@ mlir::LogicalResult GroupConvolutionRewriter::matchAndRewrite(IE::GroupConvoluti
         const auto newOutputType = getPaddedType(origOp.getType(), outPadBefore, outPadAfter);
         const auto newConvOutShape = getShape(newOutputType);
 
-        return rewriter.create<IE::GroupConvolutionOp>(
-                origOp.getLoc(), newOutputType, expandedInput, paddedFilter, paddedBiases, origOp.strides(),
-                origOp.pads_begin(), origOp.pads_end(), origOp.dilations(),
-                getIntAttr(getContext(), newConvOutShape[IE::Dims4D::Act::C]), origOp.post_opAttr());
+        return rewriter.create<IE::GroupConvolutionOp>(origOp.getLoc(), newOutputType, expandedInput, paddedFilter,
+                                                       paddedBiases, origOp.strides(), origOp.pads_begin(),
+                                                       origOp.pads_end(), origOp.dilations(),
+                                                       getIntAttr(getContext(), newConvOutShape[IE::Dims4D::Act::C]),
+                                                       origOp.post_opAttr(), origOp.clip_opAttr());
     };
 
     return generalRewrite(origOp, rewriter, opCreator, _log.nest());

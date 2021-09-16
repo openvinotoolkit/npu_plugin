@@ -521,7 +521,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
     const auto attrDilation = getIntArrayAttr(_ctx, origNode->get_dilations());
 
     auto op = builder.create<IE::ConvolutionOp>(createLocation(origNode), inputs[0], inputs[1], nullptr, attrStride,
-                                                attrPadsBegin, attrPadsEnd, attrDilation, nullptr);
+                                                attrPadsBegin, attrPadsEnd, attrDilation, nullptr, nullptr);
     addOutputs(origNode, op);
 }
 
@@ -542,7 +542,8 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder,
     auto op = builder.create<IE::GroupConvolutionOp>(createLocation(origNode), inputs[0], inputs[1], nullptr,
                                                      attrStride, attrPadsBegin, attrPadsEnd, attrDilation,
                                                      /*groups=*/nullptr,
-                                                     /*post_op=*/nullptr);
+                                                     /*post_op=*/nullptr,
+                                                     /*clip_op=*/nullptr);
     addOutputs(origNode, op);
 }
 
@@ -612,7 +613,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
     const auto attrRoundingType = importRoundingType(origNode->get_rounding_type());
 
     auto op = builder.create<IE::MaxPoolOp>(createLocation(origNode), inputs[0], attrKernelSize, attrStride,
-                                            attrPadsBegin, attrPadsEnd, attrRoundingType, nullptr);
+                                            attrPadsBegin, attrPadsEnd, attrRoundingType, nullptr, nullptr);
     addOutputs(origNode, op);
 }
 
@@ -628,7 +629,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
 
     auto op =
             builder.create<IE::AddOp>(createLocation(origNode), inputs[0], inputs[1], importBroadcastType(autob.m_type),
-                                      /*post_op=*/nullptr);
+                                      /*post_op=*/nullptr, /*clip_op=*/nullptr);
     addOutputs(origNode, op);
 }
 

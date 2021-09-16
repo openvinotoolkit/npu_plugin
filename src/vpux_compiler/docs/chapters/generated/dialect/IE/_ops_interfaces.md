@@ -68,6 +68,14 @@ void setPostOp(mlir::Operation*postOp);
 Set post-processing operation attribute
 NOTE: This method *must* be implemented by the user.
 
+#### `setClipOp`
+
+```c++
+void setClipOp(mlir::FloatAttr lowAttr, mlir::FloatAttr highAttr);
+```
+Set Clip post-processing operation attribute
+NOTE: This method *must* be implemented by the user.
+
 #### `isSupportedPostOp`
 
 ```c++

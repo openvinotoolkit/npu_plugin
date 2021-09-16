@@ -120,7 +120,7 @@ mlir::LogicalResult ConvolutionTiling::matchAndRewrite(IERT::ConvolutionOp origO
         auto tiledOp = rewriter.create<IERT::ConvolutionOp>(loc, actInput, filterInput, biasInput, allocOutOp.memref(),
                                                             origOp.strides(), getIntArrayAttr(getContext(), padsBegin),
                                                             getIntArrayAttr(getContext(), padsEnd), origOp.dilations(),
-                                                            origOp.post_opAttr());
+                                                            origOp.post_opAttr(), origOp.clip_opAttr());
 
         const auto attrOffsets = getIntArrayAttr(rewriter.getContext(), outputTile.offsets.raw());
         const auto attrShape = getIntArrayAttr(rewriter.getContext(), outputTile.shape.raw());
@@ -182,8 +182,8 @@ mlir::LogicalResult EltwiseAddTiling::matchAndRewrite(IERT::AddOp origOp, mlir::
                                                   outputTile.offsets, outputTile.shape);
         auto allocOutOp = rewriter.create<mlir::memref::AllocOp>(loc, tileTypeOut);
 
-        auto tiledOp =
-                rewriter.create<IERT::AddOp>(loc, actInput1, actInput2, allocOutOp.memref(), origOp.post_opAttr());
+        auto tiledOp = rewriter.create<IERT::AddOp>(loc, actInput1, actInput2, allocOutOp.memref(),
+                                                    origOp.post_opAttr(), origOp.clip_opAttr());
 
         const auto attrOffsets = getIntArrayAttr(rewriter.getContext(), outputTile.offsets.raw());
         const auto attrShape = getIntArrayAttr(rewriter.getContext(), outputTile.shape.raw());
@@ -249,7 +249,8 @@ mlir::LogicalResult MaxPoolTiling::matchAndRewrite(IERT::MaxPoolOp origOp, mlir:
 
         auto tiledOp = rewriter.create<IERT::MaxPoolOp>(loc, actInput, allocOutOp.memref(), origOp.kernel_size(),
                                                         origOp.strides(), getIntArrayAttr(getContext(), padsBegin),
-                                                        getIntArrayAttr(getContext(), padsEnd), origOp.post_opAttr());
+                                                        getIntArrayAttr(getContext(), padsEnd), origOp.post_opAttr(),
+                                                        origOp.clip_opAttr());
 
         const auto attrOffsets = getIntArrayAttr(rewriter.getContext(), outputTile.offsets.raw());
         const auto attrShape = getIntArrayAttr(rewriter.getContext(), outputTile.shape.raw());
@@ -326,7 +327,7 @@ mlir::LogicalResult GroupConvolutionTiling::matchAndRewrite(IERT::GroupConvoluti
         auto tiledOp = rewriter.create<IERT::GroupConvolutionOp>(
                 loc, actInput, filterInput, biasInput, allocOutOp.memref(), origOp.strides(),
                 getIntArrayAttr(getContext(), padsBegin), getIntArrayAttr(getContext(), padsEnd), origOp.dilations(),
-                groupsAttr, origOp.post_opAttr());
+                groupsAttr, origOp.post_opAttr(), origOp.clip_opAttr());
 
         const auto attrOffsets = getIntArrayAttr(rewriter.getContext(), outputTile.offsets.raw());
         const auto attrShape = getIntArrayAttr(rewriter.getContext(), outputTile.shape.raw());

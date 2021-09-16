@@ -98,7 +98,7 @@ mlir::LogicalResult ConvertScaleShiftToDWPass::ScaleShiftOpConverter::matchAndRe
 
     rewriter.replaceOpWithNewOp<IE::GroupConvolutionOp>(origOp, origOp.input(), dwConvFilter.output(), origOp.biases(),
                                                         stridesAttr, padBeginAttr, padEndAttr, dilationsAttr, groupAttr,
-                                                        nullptr);
+                                                        nullptr, nullptr);
 
     return mlir::success();
 }

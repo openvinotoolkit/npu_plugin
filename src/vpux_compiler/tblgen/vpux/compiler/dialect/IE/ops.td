@@ -394,7 +394,8 @@ def IE_AddOp :
         RankedTensorOf<[F16, F32, quant_QuantizedType]>:$input2,
 
         IE_AutoBroadcastType:$auto_broadcast,
-        OptionalAttr<IE_PostOp>:$post_op
+        OptionalAttr<IE_PostOp>:$post_op,
+        OptionalAttr<IE_ClipOp>:$clip_op
     );
 
     let results = (outs
@@ -533,7 +534,8 @@ def IE_ConvolutionOp :
         I64ArrayAttr:$pads_end,
         I64ArrayAttr:$dilations,
 
-        OptionalAttr<IE_PostOp>:$post_op
+        OptionalAttr<IE_PostOp>:$post_op,
+        OptionalAttr<IE_ClipOp>:$clip_op
     );
 
     let results = (outs
@@ -564,7 +566,8 @@ def IE_GroupConvolutionOp :
         I64ArrayAttr:$dilations,
         OptionalAttr<IntAttr>:$groups,
 
-        OptionalAttr<IE_PostOp>:$post_op
+        OptionalAttr<IE_PostOp>:$post_op,
+        OptionalAttr<IE_ClipOp>:$clip_op
     );
 
     let results = (outs
@@ -622,7 +625,8 @@ def IE_MaxPoolOp :
         I64ArrayAttr:$pads_end,
         IE_RoundingType:$rounding_type,
 
-        OptionalAttr<IE_PostOp>:$post_op
+        OptionalAttr<IE_PostOp>:$post_op,
+        OptionalAttr<IE_ClipOp>:$clip_op
     );
 
     let results = (outs

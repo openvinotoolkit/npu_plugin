@@ -213,6 +213,14 @@ void setLayerPostOp(ConcreteOp mainOp, mlir::Operation* postOp) {
     mainOp.post_opAttr(postOpInfo);
 }
 
+template <typename ConcreteOp>
+void setLayerClipOp(ConcreteOp mainOp, mlir::FloatAttr lowAttr, mlir::FloatAttr highAttr) {
+    VPUX_THROW_UNLESS(lowAttr != nullptr, "Got empty attribute for low value");
+    VPUX_THROW_UNLESS(highAttr != nullptr, "Got empty attribute for high value");
+
+    mainOp.clip_opAttr(IE::ClipOp::get(lowAttr, highAttr, mainOp->getContext()));
+}
+
 //
 // LayoutInfoOpInterface
 //

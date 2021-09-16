@@ -67,6 +67,7 @@ operation ::= `IE.Add` `(` operands `)` attr-dict `:` type(operands) `->` type(r
 | :-------: | :-------: | ----------- |
 `auto_broadcast` | vpux::IE::AutoBroadcastTypeAttr | Specifies rules used for auto-broadcasting of input tensors
 `post_op` | vpux::IE::PostOp | DictionaryAttr with field(s): 'name', 'attrs' (each field having its own constraints)
+`clip_op` | vpux::IE::ClipOp | DictionaryAttr with field(s): 'low', 'high' (each field having its own constraints)
 
 #### Operands:
 
@@ -320,6 +321,7 @@ operation ::= `IE.Convolution` `(` operands `)` attr-dict `:` type(operands) `->
 `pads_end` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `dilations` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `post_op` | vpux::IE::PostOp | DictionaryAttr with field(s): 'name', 'attrs' (each field having its own constraints)
+`clip_op` | vpux::IE::ClipOp | DictionaryAttr with field(s): 'low', 'high' (each field having its own constraints)
 
 #### Operands:
 
@@ -795,6 +797,7 @@ operation ::= `IE.GroupConvolution` `(` operands `)` attr-dict `:` type(operands
 `dilations` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `groups` | mlir::IntegerAttr | Integer attribute
 `post_op` | vpux::IE::PostOp | DictionaryAttr with field(s): 'name', 'attrs' (each field having its own constraints)
+`clip_op` | vpux::IE::ClipOp | DictionaryAttr with field(s): 'low', 'high' (each field having its own constraints)
 
 #### Operands:
 
@@ -1128,6 +1131,7 @@ operation ::= `IE.MaxPool` `(` operands `)` attr-dict `:` type(operands) `->` ty
 `pads_end` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `rounding_type` | vpux::IE::RoundingTypeAttr | Rounding type that operations support
 `post_op` | vpux::IE::PostOp | DictionaryAttr with field(s): 'name', 'attrs' (each field having its own constraints)
+`clip_op` | vpux::IE::ClipOp | DictionaryAttr with field(s): 'low', 'high' (each field having its own constraints)
 
 #### Operands:
 

@@ -95,10 +95,10 @@ mlir::LogicalResult ConvertAvgPoolToDWConvPass::AvgPoolOpConverter::matchAndRewr
     const SmallVector<int32_t> dilations = {1, 1};
     auto dilationsAttr = getIntArrayAttr(origOp.getContext(), dilations);
 
-    rewriter.replaceOpWithNewOp<IE::GroupConvolutionOp>(origOp, origOp.input(), dwConvFilter.output(), /*bias=*/nullptr,
-                                                        origOp.stridesAttr(), origOp.pads_beginAttr(),
-                                                        origOp.pads_endAttr(), dilationsAttr,
-                                                        /*groups=*/nullptr, /*post_opAttr=*/nullptr);
+    rewriter.replaceOpWithNewOp<IE::GroupConvolutionOp>(
+            origOp, origOp.input(), dwConvFilter.output(), /*bias=*/nullptr, origOp.stridesAttr(),
+            origOp.pads_beginAttr(), origOp.pads_endAttr(), dilationsAttr,
+            /*groups=*/nullptr, /*post_opAttr=*/nullptr, /*clip_opAttr=*/nullptr);
 
     return mlir::success();
 }

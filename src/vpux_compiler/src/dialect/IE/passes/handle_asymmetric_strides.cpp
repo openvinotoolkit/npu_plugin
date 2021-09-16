@@ -180,7 +180,7 @@ mlir::LogicalResult ConvolutionRewriter::matchAndRewrite(IE::ConvolutionOp origO
             [&](mlir::Location loc, mlir::Value input, OperationPart part) -> mlir::Operation* {
                 return rewriter.create<IE::ConvolutionOp>(loc, input, origOp.filter(), origOp.bias(), part.strides,
                                                           part.padBegin, part.padEnd, origOp.dilations(),
-                                                          origOp.post_opAttr());
+                                                          origOp.post_opAttr(), origOp.clip_opAttr());
             },
             _log.nest());
 }
