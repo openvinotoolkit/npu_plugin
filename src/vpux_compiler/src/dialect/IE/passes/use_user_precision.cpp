@@ -15,6 +15,7 @@
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/utils/error.hpp"
+#include "vpux/compiler/utils/logging.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 
 using namespace vpux;
@@ -74,6 +75,8 @@ void UseUserPrecisionPass::safeRunOnModule() {
         const auto newType = changeElemType(origType, userType.getElementType());
         newResultTypes[ind] = newType;
     }
+
+    _log.trace("Hello from tracer!");
 
     const auto cvtOpBuilder = [](mlir::OpBuilder& builder, mlir::Location loc, mlir::Value val,
                                  mlir::Type newType) -> mlir::Operation* {

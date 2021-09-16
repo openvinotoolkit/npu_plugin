@@ -58,6 +58,23 @@ mlir::LogicalResult updateFunctionSignature(mlir::FuncOp funcOp, ArrayRef<mlir::
     return mlir::success();
 }
 
+Const::DeclareOp createConstBefore(OpBuilderLogger* builderLog, mlir::Operation* before, mlir::Location loc,
+                                   mlir::ShapedType tensorShape, float val) {
+    mlir::OpBuilder argBuilder(before, builderLog);
+
+    const mlir::Type cvtDstElType = tensorShape.getElementType();
+    mlir::DenseElementsAttr valueAttr;
+    if (cvtDstElType.isF16()) {
+        const ngraph::float16 halfValue = static_cast<ngraph::float16>(val);
+        valueAttr = mlir::DenseElementsAttr::get(tensorShape, halfValue);
+    } else if (cvtDstElType.isF32()) {
+        valueAttr = mlir::DenseElementsAttr::get(tensorShape, val);
+    }
+    Const::DeclareOp constScaleOp =
+            argBuilder.create<Const::DeclareOp>(loc, tensorShape, Const::ContentAttr::get(valueAttr));
+    return constScaleOp;
+}
+
 }  // namespace
 
 //
@@ -68,6 +85,13 @@ mlir::LogicalResult vpux::convertFunc(mlir::FuncOp funcOp, ArrayRef<mlir::Type> 
                                       ArrayRef<mlir::Type> newResultTypes, CvtOpBuilderCb cvtOpBuilder, Logger log) {
     log.trace("Convert Function '@{0}' prototype", funcOp.sym_name());
     log = log.nest();
+
+    /*{
+        std::string logBuffer1;
+        llvm::raw_string_ostream rso1(logBuffer1);
+        funcOp.print(rso1);
+        log.nest().trace("{0}", logBuffer1);
+    }*/
 
     if (funcOp.isExternal()) {
         log.trace("Can't convert external Function '@{0}'", funcOp.sym_name());
@@ -91,16 +115,16 @@ mlir::LogicalResult vpux::convertFunc(mlir::FuncOp funcOp, ArrayRef<mlir::Type> 
         log.nest().trace("Process argument #{0}", ind);
 
         const auto origType = val.getType().cast<mlir::ShapedType>();
-        const auto newType = newArgTypes[ind];
+        const auto newCvtInputType = newArgTypes[ind].cast<mlir::ShapedType>();
 
-        if (newType == origType) {
+        if (newCvtInputType == origType) {
             log.nest(2).trace("Nothing to change");
             continue;
         }
 
-        log.nest(2).trace("Convert the argument type : '{0}' -> '{1}'", origType, newType);
+        log.nest(2).trace("Convert the argument type : '{0}' -> '{1}'", origType, newCvtInputType);
 
-        val.setType(newType);
+        val.setType(newCvtInputType);
 
         auto* firstUser = getFirstUser(val);
         if (firstUser == nullptr) {
@@ -111,9 +135,48 @@ mlir::LogicalResult vpux::convertFunc(mlir::FuncOp funcOp, ArrayRef<mlir::Type> 
         OpBuilderLogger builderLog(log.nest(2));
         mlir::OpBuilder argBuilder(firstUser, &builderLog);
 
-        auto* cvtOp = cvtOpBuilder(argBuilder, firstUser->getLoc(), val, origType);
+        IE::ConvertOp cvtOp =
+                mlir::dyn_cast_or_null<IE::ConvertOp>(cvtOpBuilder(argBuilder, firstUser->getLoc(), val, origType));
 
         val.replaceAllUsesExcept(cvtOp->getResult(0), llvm::SmallPtrSet<mlir::Operation*, 1>{cvtOp});
+
+        for (mlir::Operation* child : cvtOp->getUsers()) {
+            if (llvm::isa<IE::FakeQuantizeOp>(child)) {
+                const mlir::Type cvtDstElType = cvtOp.dstElemType();
+                const mlir::Type cvtInputElType = newCvtInputType.getElementType();
+
+                if (cvtInputElType.isUnsignedInteger(8) && (cvtDstElType.isF16() || cvtDstElType.isF32())) {
+                    const auto a = child->getOperand(1).getDefiningOp<Const::DeclareOp>().content();
+                    const float in_min_val = a.getValues<float>()[0];
+                    const auto b = child->getOperand(2).getDefiningOp<Const::DeclareOp>().content();
+                    const float in_max_val = b.getValues<float>()[0];
+                    const float scale = (in_max_val - in_min_val) / 255.0f;
+                    log.nest(2).trace("Scale = {0}", scale);
+
+                    mlir::OpBuilder argBuilder2(child, &builderLog);
+                    Const::DeclareOp constScaleOp =
+                            createConstBefore(&builderLog, child, val.getLoc(), cvtOp.getType(), scale);
+
+                    IE::ScaleShiftOp scaleShiftOp;
+                    if (in_min_val == 0.0f) {
+                        scaleShiftOp = argBuilder2.create<IE::ScaleShiftOp>(child->getLoc(), cvtOp->getResult(0),
+                                                                            constScaleOp, nullptr);
+                    } else {
+                        Const::DeclareOp constBiasOp =
+                                createConstBefore(&builderLog, child, val.getLoc(), cvtOp.getType(), in_min_val);
+                        scaleShiftOp = argBuilder2.create<IE::ScaleShiftOp>(child->getLoc(), cvtOp->getResult(0),
+                                                                            constScaleOp, constBiasOp);
+                    }
+                    child->setOperand(0, scaleShiftOp);
+                }
+            }
+        }
+        {
+            std::string logBuffer1;
+            llvm::raw_string_ostream rso1(logBuffer1);
+            funcOp.print(rso1);
+            log.nest().trace("{0}", logBuffer1);
+        }
     }
 
     //
@@ -149,6 +212,13 @@ mlir::LogicalResult vpux::convertFunc(mlir::FuncOp funcOp, ArrayRef<mlir::Type> 
             retOp.setOperand(ind, cvtOp->getResult(0));
         }
     });
+
+    {
+        std::string logBuffer1;
+        llvm::raw_string_ostream rso1(logBuffer1);
+        funcOp.print(rso1);
+        log.nest().trace("{0}", logBuffer1);
+    }
 
     return mlir::success();
 }
