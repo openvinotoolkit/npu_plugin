@@ -203,21 +203,30 @@ void KmbLayerTestsCommon::Run() {
         }
 
         bool runInfer = envConfig.IE_KMB_TESTS_RUN_INFER;
+        std::string runInferSkipReason = runInfer ? "-" : "environment variable value";
 
         // turn off running infers forcefully for the cases:
         const auto noDevice = getBackendName(*core).empty();
-        runInfer = runInfer && !noDevice;
+        if (noDevice) {
+            runInfer = false;
+            runInferSkipReason = "backend is empty (no device)";
+        }
 
         // [Track number: E#20335]
         // Disabling inference for layer tests on emulator device due to segfault
         const auto emulatorDevice = getBackendName(*core) == "EMULATOR";
-        runInfer = runInfer && !emulatorDevice;
+        if (emulatorDevice) {
+            runInfer = false;
+            runInferSkipReason = "backend is EMULATOR";
+        }
 
         if (runInfer) {
             std::cout << "KmbLayerTestsCommon::Infer()" << std::endl;
             SkipBeforeInfer();
             Infer();
             report.inferred(testInfo);
+        } else {
+            std::cout << "Skip KmbLayerTestsCommon::Infer() due to: " << runInferSkipReason << std::endl;
         }
         if (envConfig.IE_KMB_TESTS_EXPORT_REF) {
             std::cout << "KmbLayerTestsCommon::ExportReference()" << std::endl;
@@ -233,7 +242,7 @@ void KmbLayerTestsCommon::Run() {
             Validate();
             report.validated(testInfo);
         } else {
-            std::cout << "Skip KmbLayerTestsCommon::Infer()" << std::endl;
+            std::cout << "Skip KmbLayerTestsCommon::Validate() due to: " << runInferSkipReason << std::endl;
         }
     } catch (const KmbSkipTestException& e) {
         std::cout << "Skipping the test due to: " << e.what() << std::endl;
