@@ -53,7 +53,10 @@ mlir::Value createWeightsTableTensor(mlir::OpBuilder& builder, mlir::Location lo
 
     auto* ctx = builder.getContext();
 
-    const auto dataType = mlir::MemRefType::get(weightTableShape, getSInt32Type(builder.getContext()));
+    const auto dataType = changeDimsOrder(mlir::MemRefType::get(weightTableShape, getSInt32Type(builder.getContext())),
+                                          DimsOrder::NHWC);
+
+    // const auto dataType = mlir::MemRefType::get(weightTableShape, getSInt32Type(builder.getContext()));
     auto createWeightsTableOp =
             builder.create<VPUIP::WeightsTableOp>(loc, dataType, op_input, op_output, weights, bias, activationWindow);
 
@@ -61,6 +64,7 @@ mlir::Value createWeightsTableTensor(mlir::OpBuilder& builder, mlir::Location lo
     const auto dataTypeCMX = changeMemSpace(dataType, cmxMemSpaceAttr);
 
     auto dataAllocOp = builder.create<mlir::memref::AllocOp>(loc, dataTypeCMX);
+
     auto copyOp = builder.create<IERT::CopyOp>(loc, createWeightsTableOp.output(), dataAllocOp);
 
     return copyOp.output();
@@ -221,12 +225,13 @@ static mlir::Value alignchannelMajorWeightTensor(mlir::OpBuilder& builder, mlir:
 
     auto flatWeightShape = Shape{OC, 1, 1, filtersPerInChan * KY * KX};
     auto flatWeightsContentAttr = nchwWeightsContentAttr.reshape(flatWeightShape);
-    auto alignedWeightsContentAttr = flatWeightsContentAttr.padWithZero({0, 0, 0, 0}, {0, alignment, 0, 0});
+    auto alignedWeightsContentAttr = flatWeightsContentAttr.padWithZero({0, 0, 0, 0}, {0, 0, 0, alignment});
     auto nhwcWeightsContentAttr = alignedWeightsContentAttr.reorder(DimsOrder::NHWC);
 
     auto alignedWeightShape = SmallVector<int64_t>{OC, 1, 1, filtersPerInChan * KY * KX + alignment};
     const auto outAllocType = mlir::MemRefType::get(alignedWeightShape, origFilterType.getElementType());
     const auto outAllocTypeNHWC = changeDimsOrder(outAllocType, DimsOrder::NHWC);
+
     auto alignedWeightsOp = builder.create<Const::DeclareOp>(loc, outAllocTypeNHWC, nhwcWeightsContentAttr);
 
     return alignedWeightsOp.output();

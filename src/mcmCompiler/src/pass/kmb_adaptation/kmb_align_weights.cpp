@@ -103,6 +103,7 @@ void alignTaskWeightsFcn(const mv::pass::PassEntry& , mv::ComputationModel& mode
             auto weightSetDimensionPadded = mv::round_up(weightSetDimension, 16);
             auto paddingDifference = weightSetDimensionPadded - weightSetDimension;
 
+
             mv::Shape newShape({weightSetDimensionPadded, 1, 1, outputChannels});
 
             auto oldData = kernel->getData();
