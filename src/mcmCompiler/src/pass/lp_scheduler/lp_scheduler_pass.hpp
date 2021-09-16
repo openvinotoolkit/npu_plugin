@@ -1305,7 +1305,8 @@ class Dynamic_Spill_Node_Inserter {
             if (!has_its_output_spilled(pop)) { continue; }
 
             typename spilled_op_map_t::iterator itr = spilled_op_map_.find(pop);
-            assert(itr != spilled_op_map_.end());
+            if(itr == spilled_op_map_.end())
+              throw RuntimeError("LpScheduler", "Spilled op not found");
 
             //now add this op to the spill tree structure //
             (itr->second).add_spill_read_consumer(op);
