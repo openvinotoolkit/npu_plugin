@@ -325,6 +325,9 @@ class FP16(TType):
         return True
 
     def clip(self, data: np.ndarray) -> np.ndarray:
+        # Translate negative zeros to positive zeros.
+        data = data + 0.0
+
         # NB This is "Round to nearest ties to even" mode by default;
         #    we'll need to augment this if we want to test the other modes.
         return data.astype(np.float16)
@@ -348,6 +351,10 @@ class FP32(TType):
     @property
     def is_float(self) -> bool:
         return True
+
+    def clip(self, data: np.ndarray) -> np.ndarray:
+        # Translate negative zeros to positive zeros.
+        return data + 0.0
 
 
 class BF16(TType):
