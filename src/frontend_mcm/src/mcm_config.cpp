@@ -53,6 +53,7 @@ const std::unordered_set<std::string>& MCMConfig::getCompileOptions() const {
                                                            VPU_COMPILER_CONFIG_KEY(LAYER_LOCATION_STRATEGIES),
                                                            VPU_COMPILER_CONFIG_KEY(OPTIMIZE_INPUT_PRECISION),
                                                            VPU_COMPILER_CONFIG_KEY(FORCE_PLUGIN_INPUT_QUANTIZATION),
+                                                           VPU_COMPILER_CONFIG_KEY(OUTPUT_FP16_TO_FP32_HOST_CONVERSION)
                                                    });
 
     return options;
@@ -117,4 +118,6 @@ void MCMConfig::parse(const std::map<std::string, std::string>& config) {
     setOption(_optimizeInputPrecision, switches, config, VPU_COMPILER_CONFIG_KEY(OPTIMIZE_INPUT_PRECISION));
     setOption(_forcePluginInputQuantization, switches, config,
               VPU_COMPILER_CONFIG_KEY(FORCE_PLUGIN_INPUT_QUANTIZATION));
+
+    setOption(_outputFp16ToFp32HostConversion, switches, config, VPU_COMPILER_CONFIG_KEY(OUTPUT_FP16_TO_FP32_HOST_CONVERSION));
 }

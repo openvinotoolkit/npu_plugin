@@ -148,6 +148,9 @@ public:
 
     bool forcePluginInputQuantization() const {
         return _forcePluginInputQuantization;
+
+    bool outputFp16ToFp32HostConversion() const {
+        return _outputFp16ToFp32HostConversion;
     }
 
 protected:
@@ -203,6 +206,12 @@ private:
 
     bool _optimizeInputPrecision = true;
     bool _forcePluginInputQuantization = false;
+
+#ifdef _WIN32
+    bool _outputFp16ToFp32HostConversion = true;
+#else
+    bool _outputFp16ToFp32HostConversion = false;
+#endif
 };
 
 }  //  namespace vpu
