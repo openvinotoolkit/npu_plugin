@@ -12,6 +12,13 @@
 namespace LayerTestsDefinitions {
 
 class KmbGatherLayerTest: public GatherLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+
+    void SkipBeforeLoad() override {
+        auto inputShape = std::get<3>(GetParam());
+        if (inputShape.size() != 4) {
+            throw LayerTestsUtils::KmbSkipTestException("Runtime only supports 4D input shape");
+        }
+    }
 };
 
 TEST_P(KmbGatherLayerTest, CompareWithRefs) {
