@@ -41,7 +41,7 @@ else()
             PUBLIC
                 ENABLE_MOVISIM
             PUBLIC
-                Python_EXECUTABLE="${Python3_EXECUTABLE}"
+                Python_EXECUTABLE="python3"
         )
         message(WARNING "Copy run_MoviSim python script to: " ${OpenVINO_MAIN_SOURCE_DIR}/${IE_MAIN_SAMPLES_DIR}/${BIN_FOLDER})
         add_custom_command(
