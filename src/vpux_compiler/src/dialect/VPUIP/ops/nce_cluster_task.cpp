@@ -77,8 +77,9 @@ int64_t vpux::VPUIP::NCEClusterTaskOp::getNumVariants() {
 void vpux::VPUIP::NCEClusterTaskOp::inferLayoutInfo(mlir::Operation* origOp, IE::LayerLayoutInfo& info) {
     llvm::TypeSwitch<mlir::Operation*, void>(origOp)
             .Case<IE::ConvolutionOp>([&](IE::ConvolutionOp op) {
-                info.setInput(1, DimsOrder::OYXI);  // change order of weights?
-                Logger::global().error("Setting output NHWC", op->getName());
+                //info.setInput(1, DimsOrder::OYXI);  // change order of weights?
+                info.setInput(1, DimsOrder::OIYX);
+                Logger::global().error("Setting output NHWC {0}", op->getName());
                 info.setOutput(0, DimsOrder::NHWC);
             })
             .Case<IE::GroupConvolutionOp>([&](IE::GroupConvolutionOp) {
