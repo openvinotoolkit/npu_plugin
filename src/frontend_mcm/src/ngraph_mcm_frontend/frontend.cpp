@@ -74,6 +74,7 @@
 #include <vector>
 #include <utility>
 #include <transformations/serialize.hpp>
+#include <mcm_config.hpp>
 
 std::unique_ptr<MVCNN::TensorReferenceT> buildTensorReference(
     const std::string& tensorName,
@@ -82,7 +83,8 @@ std::unique_ptr<MVCNN::TensorReferenceT> buildTensorReference(
 std::unique_ptr<MVCNN::TensorReferenceT> buildTensorReference(
     const std::string& tensorName,
     const InferenceEngine::TensorDesc& tensorInfo,
-    const mv::Data::TensorIterator& opModelTensor);
+    const mv::Data::TensorIterator& opModelTensor, const vpu::MCMConfig& config);
+
 
 namespace {
     std::map<std::string, std::string> MapInputOutputInfoToNgraphOps(const std::shared_ptr<ngraph::Function>& func,
@@ -257,7 +259,7 @@ std::unique_ptr<mv::CompilationUnit> createCompilationUnit(
         auto& mcmModel = mcmCompiler->model();
 
         std::function<void(MVCNN::GraphFileT&)> metaInfoSerializer =
-            [&inputsInfo, &outputsInfo, &netName, &mcmModel](MVCNN::GraphFileT& graphFileInstance) {
+            [&inputsInfo, &outputsInfo, &netName, &mcmModel, &config](MVCNN::GraphFileT& graphFileInstance) {
             if (graphFileInstance.header == nullptr) {
                 IE_THROW() << "metaInfoSerializer: graph file header points to null";
             }
@@ -288,14 +290,14 @@ std::unique_ptr<mv::CompilationUnit> createCompilationUnit(
                         // If a match was found use it to build input tensor information in the blob
                         foundOpModelTensor = true;
                         graphFileInstance.header->in_tensor_desc.push_back(
-                            buildTensorReference(inInfo.first, inInfo.second->getTensorDesc(), opModelOp->getOutputTensor(0)));
+                            buildTensorReference(inInfo.first, inInfo.second->getTensorDesc(), opModelOp->getOutputTensor(0), config));
                         break;
                     }
                 }
 
-                if (!foundOpModelTensor)
-                    graphFileInstance.header->in_tensor_desc.push_back(
-                        buildTensorReference(inInfo.first, inInfo.second->getTensorDesc()));
+                if (!foundOpModelTensor) {
+                    IE_THROW() << "metaInfoSerializer: Input OpModelTensor was not found" << std::endl;
+                }
             }
 
             for (const auto& outInfo : outputsInfo) {
@@ -315,14 +317,15 @@ std::unique_ptr<mv::CompilationUnit> createCompilationUnit(
                         // If a match was found use it to build output tensor information in the blob
                         foundOpModelTensor = true;
                         graphFileInstance.header->out_tensor_desc.push_back(
-                            buildTensorReference(outInfo.first, outInfo.second->getTensorDesc(), opModelOp->getInputTensor(0)));
+                            buildTensorReference(outInfo.first, outInfo.second->getTensorDesc(), opModelOp->getInputTensor(0), config));
                         break;
                     }
                 }
 
-                if (!foundOpModelTensor)
+                if (!foundOpModelTensor) {
                     graphFileInstance.header->out_tensor_desc.push_back(
                         buildTensorReference(outInfo.first, outInfo.second->getTensorDesc()));
+                }
             }
 
             graphFileInstance.header->identifier = netName;
@@ -573,7 +576,9 @@ void applyTransformations(
     passManager.register_pass<InsertMaxPool>();
     passManager.register_pass<ReplaceShuffle>();
     passManager.register_pass<Handle3DTranspose>();
-    if (config.optimizeInputPrecision()) {
+    if (config.forcePluginInputQuantization()) {
+        needConvertInputPrecision = true;
+    } else if (config.optimizeInputPrecision()) {
         passManager.register_pass<DetectInputFQ>(&needConvertInputPrecision);
     }
     // TODO: [Track number: E#13091]

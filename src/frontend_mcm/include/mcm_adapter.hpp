@@ -17,6 +17,7 @@
 #include <mcm_config.hpp>
 
 #include <schema/graphfile/graphfile_generated.h>
+#include <vpux_compiler.hpp>
 
 namespace vpu {
 namespace MCMAdapter {
@@ -25,6 +26,7 @@ struct MetaInfo {
     std::string _networkName;
     InferenceEngine::InputsDataMap _inputs;
     InferenceEngine::OutputsDataMap _outputs;
+    vpux::QuantizationParamMap _quantParams;
 };
 
 bool isMCMCompilerAvailable();
