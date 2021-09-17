@@ -75,31 +75,48 @@ int64_t getWindowSize(int64_t kernelW, int64_t strideW, mlir::Type elemType) {
     return maxMpeWindowSize;
 }
 
-std::vector<uint8_t> getBitPattern(mlir::ArrayRef<int64_t> kernelSize, int64_t windowSize) {
+// std::vector<uint8_t> getBitPattern(mlir::ArrayRef<int64_t> kernelSize, int64_t windowSize) {
+//     const auto kernelW = kernelSize[0];
+//     const auto kernelH = kernelSize[1];
+
+//     VPUX_THROW_UNLESS(windowSize >= kernelW,
+//                       "windowsSize must be greater than or equal to kernelW. windowsSize={0}, kernelW={1}", windowSize,
+//                       kernelW);
+
+//     const auto numBitsSet = kernelW;
+//     const auto numBitsClear = windowSize - kernelW;
+
+//     SmallVector<uint8_t> window;
+//     window.reserve(windowSize);
+//     window.insert(window.end(), numBitsSet, 1);
+//     window.insert(window.end(), numBitsClear, 0);
+
+//     const auto numOfRepeat = kernelH;
+
+//     std::vector<uint8_t> bitPattern;
+//     bitPattern.reserve(numOfRepeat * windowSize * 3);
+//     for (auto i = 0; i < numOfRepeat; i++) {
+//         bitPattern.insert(bitPattern.end(), window.begin(), window.end());
+//     }
+
+//     return bitPattern;
+// }
+
+std::vector<int8_t> getBitPattern(mlir::ArrayRef<int64_t> kernelSize, int64_t windowSize, int64_t inputChannels) 
+{
     const auto kernelW = kernelSize[0];
     const auto kernelH = kernelSize[1];
 
-    VPUX_THROW_UNLESS(windowSize >= kernelW,
-                      "windowsSize must be greater than or equal to kernelW. windowsSize={0}, kernelW={1}", windowSize,
-                      kernelW);
-
-    const auto numBitsSet = kernelW;
-    const auto numBitsClear = windowSize - kernelW;
-
-    SmallVector<uint8_t> window;
-    window.reserve(windowSize);
-    window.insert(window.end(), numBitsSet, 1);
-    window.insert(window.end(), numBitsClear, 0);
-
-    const auto numOfRepeat = kernelH;
-
-    std::vector<uint8_t> bitPattern;
-    bitPattern.reserve(numOfRepeat * windowSize);
-    for (auto i = 0; i < numOfRepeat; i++) {
-        bitPattern.insert(bitPattern.end(), window.begin(), window.end());
-    }
-
-    return bitPattern;
+    std::vector<int8_t> bitpattern;
+    bitpattern.reserve(windowSize*kernelH*inputChannels);
+    for(size_t c = 0; c < inputChannels; c++)
+        for(size_t y = 0; y < kernelH; y++)
+            for(size_t x = 0; x < windowSize; x++)
+                if (x < kernelW)
+                    bitpattern.emplace_back(1);
+                else
+                    bitpattern.emplace_back(0);
+    return bitpattern;
 }
 
 constexpr std::int32_t MTL_SPARSITY = 0xFFFFFF;
@@ -277,10 +294,11 @@ int64_t vpux::VPUIP::NCESparsity::getActivationWindowSize(mlir::ArrayRef<int64_t
 }
 
 std::vector<uint8_t> vpux::VPUIP::NCESparsity::getFakeSparsity(mlir::ArrayRef<int64_t> kernelSize, int64_t strideW,
-                                                               mlir::Type elemType, int64_t inputChannels) {
+                                                               mlir::Type elemType, int64_t inputChannels, int64_t outputChannels) {
     auto actualType = tryGetQuantizedStorageType(elemType);
     const auto windowSize = getWindowSize(kernelSize[0], strideW, actualType);
-    const auto bitPattern = getBitPattern(kernelSize, windowSize);
+    auto bitPattern = getBitPattern(kernelSize, windowSize, inputChannels);
+    
 
     // CM Conv
     const auto windowSparsitySize = std::ceil(windowSize / 8.0);
@@ -306,10 +324,11 @@ std::vector<uint8_t> vpux::VPUIP::NCESparsity::getFakeSparsity(mlir::ArrayRef<in
     for (size_t i = 0; i < bitPattern.size(); i++) {
         perChannelSparsity[(i / 128) * 16 + (i % 128) / 8] |= bitPattern[i] << (i % 8);
     }
-
+    
     std::vector<uint8_t> fakeSparsity;
-    fakeSparsity.reserve(inputChannels * perChannelSparsitySize);
-    for (auto i = 0; i < inputChannels; i++) {
+    //fakeSparsity.reserve(inputChannels * perChannelSparsitySize);
+    fakeSparsity.reserve(outputChannels * perChannelSparsitySize);
+    for (auto i = 0; i < outputChannels; i++) {
         fakeSparsity.insert(fakeSparsity.end(), perChannelSparsity.begin(), perChannelSparsity.end());
     }
 
