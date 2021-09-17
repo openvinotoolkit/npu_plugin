@@ -1509,6 +1509,34 @@ operation ::= `IERT.ReLU` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float or 32-bit float values
 
+### `IERT.ReadValue` (vpux::IERT::ReadValueOp)
+
+InferenceEngine run-time ReadValue layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.ReadValue` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of any type values
+`output_buff` | memref of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of any type values
+
 ### `IERT.RegionYolo` (vpux::IERT::RegionYoloOp)
 
 InferenceEngine run-time RegionYolo layer

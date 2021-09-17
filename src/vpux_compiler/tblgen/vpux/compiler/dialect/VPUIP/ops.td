@@ -385,6 +385,56 @@ def VPUIP_NNDMAOp :
     }];
 }
 
+
+//
+// ReadValueUPAOp
+//
+def VPUIP_ReadValueUPAOp :
+        VPUIP_UPATaskOp<1, "ReadValueUPA",
+            [
+                ViewLikeOpInterface
+            ]
+        > {
+    let summary = "ReadValue UPA SHAVE kernel";
+
+    let arguments = (ins
+        AnyMemRef:$input,
+        AnyMemRef:$output_buff,
+
+        Variadic<VPUIP_Barrier>:$waitBarriers,
+        Variadic<VPUIP_Barrier>:$updateBarriers,
+
+        OptionalAttr<IntAttr>:$maxShaves,
+        UnitAttr:$isTrailingSWLayer
+    );
+
+    let results = (outs
+        AnyMemRef:$output
+    );
+
+    let builders = [
+        OpBuilder<
+            (ins "mlir::Value":$input, "mlir::Value":$output)
+        >
+    ];
+
+//    let verifier = [{
+//        return vpux::VPUIP::verifyOp(*this);
+//    }];
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+        `->` type(results)
+    }];
+}
+
+// TODO: add probably additional interface options
+
+
 //
 // ConvertUPAOp
 //

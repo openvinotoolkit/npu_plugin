@@ -162,6 +162,27 @@ def IE_DataInfoOp :
 }
 
 //
+// ReadValueOp
+//
+
+def IE_ReadValueOp :
+        IE_LayerOp<
+            "ReadValue",
+            [
+            ]
+        > {
+    let summary = "InferenceEngine ReadValue layer";
+
+    let arguments = (ins
+        AnyRankedTensor:$input
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+}
+
+//
 // ConvertOp
 //
 

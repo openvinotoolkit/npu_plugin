@@ -1482,6 +1482,30 @@ operation ::= `IE.ReLU` `(` operands `)` attr-dict `:` type(operands) `->` type(
 | :----: | ----------- |
 `output` | ranked tensor of 16-bit float or 32-bit float values
 
+### `IE.ReadValue` (vpux::IE::ReadValueOp)
+
+InferenceEngine ReadValue layer
+
+
+Syntax:
+
+```
+operation ::= `IE.ReadValue` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values
+
 ### `IE.RegionYolo` (vpux::IE::RegionYoloOp)
 
 InferenceEngine RegionYolo layer
