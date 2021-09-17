@@ -49,7 +49,9 @@ else()
             POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy
                     ${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/scripts/run_MoviSim/run_MoviSim.py
-                    ${OpenVINO_MAIN_SOURCE_DIR}/{IE_MAIN_SAMPLES_DIR}/${BIN_FOLDER}/run_MoviSim.py)
+                    ${OpenVINO_MAIN_SOURCE_DIR}/${IE_MAIN_SAMPLES_DIR}/${BIN_FOLDER}/run_MoviSim.py
+            COMMENT "Copying ${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/scripts/run_MoviSim/run_MoviSim.py to
+            ${OpenVINO_MAIN_SOURCE_DIR}/${IE_MAIN_SAMPLES_DIR}/${BIN_FOLDER}/run_MoviSim.py build directory")
     else()
         message(WARNING "Run single-image-tests via MoviSim is aviable only for Linux platforms")
     endif()
