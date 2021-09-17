@@ -755,7 +755,7 @@ operation ::= `VPUIP.GatherUPA` attr-dict
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`axis` | vpux::Const::ContentAttr | Lazy folded constant content
+`axis` | mlir::IntegerAttr | Integer attribute
 `maxShaves` | mlir::IntegerAttr | Integer attribute
 `isTrailingSWLayer` | ::mlir::UnitAttr | unit attribute
 

@@ -779,11 +779,17 @@ Syntax:
 
 ```
 operation ::= `IERT.Gather` attr-dict
-              `inputs` `(` $input `:` type($input) `,` $indices `:` type($indices) `,` $axis `:` type($axis) `)`
+              `inputs` `(` $input `:` type($input) `,` $indices `:` type($indices) (`,` $axis^ `:` type($axis))? `)`
               `outputs` `(` $output_buff `:` type($output_buff) `)`
               `->` type(results)
 ```
 
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`axis_value` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
