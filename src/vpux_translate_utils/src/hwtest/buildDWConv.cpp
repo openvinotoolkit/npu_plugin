@@ -41,7 +41,7 @@ void buildDWConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp modu
 
     std::vector<int64_t> filter_size{weight.shape[2], weight.shape[3]};
     std::vector<int64_t> stried_vec(conv.stride.begin(), conv.stride.end());
-    std::vector<int64_t> padding_vec(conv.pad.begin(), conv.pad.end());
+    std::vector<int64_t> padding_vec = convertNBPadtoNCETaskPad(conv.pad);
 
     SmallVector<int64_t> wt_data_shape{weight.shape[0], weight.shape[1], weight.shape[2], weight.shape[3]};
 
