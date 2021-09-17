@@ -398,6 +398,8 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
     const auto dstType = importElemType(origNode->get_destination_type());
     const auto dstTypeAttr = mlir::TypeAttr::get(dstType);
 
+    std::cout << "Convert parseNode" << std::endl;
+
     auto op = builder.create<IE::ConvertOp>(createLocation(origNode), inputs[0], dstTypeAttr);
     addOutputs(origNode, op);
 }
@@ -405,6 +407,8 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::ReadValue>& origNode) {
     static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v6::ReadValue>::value,
                   "opset operation mismatch");
+
+    std::cout << "ReadValue parseNode" << std::endl;
 
     const auto inputs = getInputs(origNode);
     VPUX_THROW_UNLESS(inputs.size() == 1, "nGraph ReadValue node '{0}' has unsupported number of inputs '{1}'",
@@ -414,7 +418,13 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
     // const auto dstTypeAttr = mlir::TypeAttr::get(dstType);
 
     auto op = builder.create<IE::ReadValueOp>(createLocation(origNode), inputs[0]);
+
+    // auto op = builder.create<IE::ReLUOp>(createLocation(origNode), inputs[0]);
+
+
     addOutputs(origNode, op);
+    std::cout << "ReadValue parseNode End" << std::endl;
+
 }
 
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Softmax>& origNode) {

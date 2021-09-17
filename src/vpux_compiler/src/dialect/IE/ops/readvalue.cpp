@@ -15,20 +15,17 @@
 
 using namespace vpux;
 
-mlir::LogicalResult vpux::IE::ReadValueOp::inferReturnTypeComponents(::mlir::MLIRContext* /*context*/, ::mlir::Optional<::mlir::Location> /*location*/, ::mlir::ValueShapeRange /*operands*/, ::mlir::DictionaryAttr /*attributes*/, ::mlir::RegionRange /*regions*/, ::mlir::SmallVectorImpl<::mlir::ShapedTypeComponents>& /*inferredReturnShapes*/)
+mlir::LogicalResult vpux::IE::ReadValueOp::inferReturnTypeComponents(::mlir::MLIRContext* ctx, ::mlir::Optional<::mlir::Location> optLoc, ::mlir::ValueShapeRange operands, ::mlir::DictionaryAttr attrs, ::mlir::RegionRange /*regions*/, ::mlir::SmallVectorImpl<::mlir::ShapedTypeComponents>& inferredReturnShapes)
 {
-// inferReturnTypeComponents(
-//         mlir::MLIRContext* /*ctx*/, Optional<mlir::Location> /*optLoc*/, mlir::ValueRange /*operands*/, mlir::DictionaryAttr /*attrs*/,
-//         mlir::RegionRange, SmallVectorImpl<mlir::ShapedTypeComponents>& /*inferredReturnShapes*/) {
-    // const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
 
-    // IE::ReadValueOpAdaptor readValue(operands, attrs);
-    // if (mlir::failed(readValue.verify(loc))) {
-    //     return mlir::failure();
-    // }
+    IE::ReadValueOpAdaptor readValue(operands, attrs);
+    if (mlir::failed(readValue.verify(loc))) {
+        return mlir::failure();
+    }
 
-    // const auto inType = readValue.input().getType().cast<mlir::ShapedType>();
-    // inferredReturnShapes.emplace_back(inType.getShape(), inType.getElementType());
+    const auto inType = readValue.input().getType().cast<mlir::ShapedType>();
+    inferredReturnShapes.emplace_back(inType.getShape(), inType.getElementType());
 
     // TODO: add implementation here
 
