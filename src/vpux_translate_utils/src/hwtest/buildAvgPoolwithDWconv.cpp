@@ -41,7 +41,7 @@ void buildAvgpoolWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mo
 
     SmallVector<int64_t> wt_data_shape{in_shape[1], 1, avgpool.kernel_shape.at(0), avgpool.kernel_shape.at(1)};
     mlir::Type weightsType;
-    auto scaleValue = 1 / double(avgpool.kernel_shape.at(0) * avgpool.kernel_shape.at(1));
+    double scaleValue = avgpool.kernel_shape.at(0) * avgpool.kernel_shape.at(1);
 
     if (inputType.isF16() || inputType.isBF16()) {
         weightsType = inputType;
@@ -98,7 +98,8 @@ void buildAvgpoolWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mo
                                                      weightDataPaddedAffineMaps, weight_data_ddr_memSpaceAttr);
 
     // Generate weights for kh x kw DW conv
-    auto wt_data_vals = generateDWConvWeightsForAvgPool(wt_data_shape, weightsType, scaleValue, builder.getContext());
+    auto wt_data_vals =
+            generateDWConvWeightsForAvgPool(wt_data_shape, weightsType, 1. / scaleValue, builder.getContext());
     auto weightData_ddr_type2 =
             getMemRefType(funcbuilder, VPUIP::MemoryLocation::GraphFile, wt_data_shape, weightsType, DimsOrder::NHWC);
     if (auto qty = weightsType.dyn_cast<mlir::quant::QuantizedType>()) {
