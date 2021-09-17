@@ -197,6 +197,8 @@ mlir::LogicalResult ConcatRewrite::matchAndRewrite(IE::ConcatOp origOp, ArrayRef
     const auto outputRank = origOp.getType().getRank();
 
     SmallVector<int64_t> svOffsets(outputRank, 0);
+    SmallVector<int64_t> strides(outputRank, 1);
+    strides[axis.ind()] = origOp.stride();
     SmallVector<mlir::Value> results;
 
     for (auto i : irange(origOp->getNumOperands())) {
@@ -204,13 +206,14 @@ mlir::LogicalResult ConcatRewrite::matchAndRewrite(IE::ConcatOp origOp, ArrayRef
         const auto svSizes = newInputType.getShape();
 
         _log.trace("Create SubView for input #'{0}'", i);
-        auto subView = rewriter.create<IERT::SubViewOp>(origOp->getLoc(), allocatedBufs[0], svOffsets, svSizes);
+        auto subView =
+                rewriter.create<IERT::SubViewOp>(origOp->getLoc(), allocatedBufs[0], svOffsets, svSizes, strides);
 
         _log.trace("Copy new operand to SubView");
         auto copyOp = rewriter.create<IERT::CopyOp>(origOp->getLoc(), newOperands[i], subView);
         results.push_back(copyOp.output());
 
-        svOffsets[axis.ind()] += svSizes[axis.ind()];
+        svOffsets[axis.ind()] += (strides[axis.ind()] == 1 ? svSizes[axis.ind()] : origOp.offset());
     }
 
     rewriter.replaceOpWithNewOp<IERT::ConcatViewOp>(origOp, results, allocatedBufs[0]);

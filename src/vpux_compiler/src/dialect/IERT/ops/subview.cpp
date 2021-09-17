@@ -26,13 +26,33 @@ using namespace vpux;
 
 void vpux::IERT::SubViewOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
                                   ShapeRef static_offsets, ShapeRef static_sizes) {
-    build(builder, state, input, static_offsets.raw(), static_sizes.raw());
+    build(builder, state, input, static_offsets, static_sizes,
+          ShapeRef{input.getType().cast<mlir::MemRefType>().getRank(), 1});
 }
 
 void vpux::IERT::SubViewOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
                                   ArrayRef<int64_t> static_offsets, ArrayRef<int64_t> static_sizes) {
+    SmallVector<int64_t> strides(input.getType().cast<mlir::MemRefType>().getRank(), 1);
+    build(builder, state, input, static_offsets, static_sizes, makeArrayRef(strides));
+}
+
+void vpux::IERT::SubViewOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
+                                  ShapeRef static_offsets, ShapeRef static_sizes, ShapeRef static_strides) {
+    build(builder, state, input, static_offsets.raw(), static_sizes.raw(), static_strides.raw());
+}
+
+void vpux::IERT::SubViewOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
+                                  ArrayRef<int64_t> static_offsets, ArrayRef<int64_t> static_sizes,
+                                  ArrayRef<int64_t> static_strides) {
     build(builder, state, input, getIntArrayAttr(builder.getContext(), static_offsets),
-          getIntArrayAttr(builder.getContext(), static_sizes));
+          getIntArrayAttr(builder.getContext(), static_sizes), getIntArrayAttr(builder.getContext(), static_strides));
+}
+
+void vpux::IERT::SubViewOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
+                                  mlir::ArrayAttr static_offsets, mlir::ArrayAttr static_sizes) {
+    SmallVector<int64_t> strides(input.getType().cast<mlir::MemRefType>().getRank(), 1);
+    build(builder, state, input, static_offsets, static_sizes,
+          getIntArrayAttr(builder.getContext(), makeArrayRef(strides)));
 }
 
 //
@@ -66,6 +86,9 @@ mlir::LogicalResult vpux::IERT::SubViewOp::inferReturnTypes(mlir::MLIRContext* c
 
     const auto subViewShape = parseIntArrayAttr<int64_t>(subViewOp.static_sizes());
     const auto subViewOffsets = parseIntArrayAttr<int64_t>(subViewOp.static_offsets());
+    const auto subViewStrides = subViewOp.static_strides() != nullptr
+                                        ? parseIntArrayAttr<int64_t>(subViewOp.static_strides())
+                                        : SmallVector<int64_t>(origType.getRank(), 1);
 
     if (subViewShape.size() != checked_cast<size_t>(origType.getRank())) {
         return errorAt(loc, "Tile shape '{0}' doesn't match MemRef rank '{1}'", subViewShape, origType.getRank());
@@ -73,8 +96,12 @@ mlir::LogicalResult vpux::IERT::SubViewOp::inferReturnTypes(mlir::MLIRContext* c
     if (subViewOffsets.size() != checked_cast<size_t>(origType.getRank())) {
         return errorAt(loc, "Tile offsets '{0}' doesn't match MemRef rank '{1}'", subViewOffsets, origType.getRank());
     }
+    if (subViewStrides.size() != checked_cast<size_t>(origType.getRank())) {
+        return errorAt(loc, "Tile strides '{0}' doesn't match MemRef rank '{1}'", subViewStrides, origType.getRank());
+    }
 
-    const auto subViewType = getViewTileType(origType, ShapeRef(subViewOffsets), ShapeRef(subViewShape));
+    const auto subViewType =
+            getViewTileType(origType, ShapeRef(subViewOffsets), ShapeRef(subViewShape), ShapeRef(subViewStrides));
     inferredTypes.push_back(subViewType);
 
     return mlir::success();

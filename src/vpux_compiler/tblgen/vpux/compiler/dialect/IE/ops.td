@@ -1378,12 +1378,23 @@ def IE_ConcatOp :
     let arguments = (ins
         Variadic<AnyRankedTensor>:$inputs,
 
-        IntAttr:$axis
+        IntAttr:$axis,
+        DefaultValuedAttr<IntAttr, "0">:$offset,
+        DefaultValuedAttr<IntAttr, "1">:$stride
     );
 
     let results = (outs
         AnyRankedTensor:$output
     );
+
+    let builders = [
+        OpBuilder<
+            (ins "::mlir::ValueRange":$input, "mlir::IntegerAttr":$axis)
+        >,
+        OpBuilder<
+            (ins "mlir::Type":$type, "::mlir::ValueRange":$input, "mlir::IntegerAttr":$axis)
+        >
+    ];
 }
 
 //

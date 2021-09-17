@@ -184,7 +184,7 @@ func @main(%arg0: tensor<1x1x30x30xf16, {order = #NHWC}>, %arg1: tensor<1x1x30x3
     %3 = IE.Reorder(%2) {dstOrder = #NHWC} : tensor<1x2x30x30xf16> -> tensor<1x2x30x30xf16, {order = #NHWC}>
     return %3 : tensor<1x2x30x30xf16, {order = #NHWC}>
 
-    // CHECK:       [[VAR0:%.+]] = IE.Concat([[ARG0]], [[ARG1]]) {axis = 1 : i64}
+    // CHECK:       [[VAR0:%.+]] = IE.Concat([[ARG0]], [[ARG1]]) {axis = 1 : i64, offset = 0 : i64, stride = 1 : i64}
     // CHECK-SAME:      tensor<1x1x30x30xf16, {order = #NHWC}>,
     // CHECK-SAME:      tensor<1x1x30x30xf16, {order = #NHWC}>
     // CHECK-SAME:      -> tensor<1x2x30x30xf16, {order = #NHWC}>

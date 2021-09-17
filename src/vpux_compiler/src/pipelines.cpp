@@ -137,6 +137,7 @@ void vpux::buildHardwareModePipeline(mlir::OpPassManager& pm, bool enableProfili
     // Canonicalize group convolution if necessary.
     pm.addPass(mlir::createCanonicalizerPass(getDefaultGreedyRewriteConfig()));
     IE::buildAdjustForVPUPipeline(pm, log);
+    pm.addPass(IE::createHandleAsymmetricStridesPass(log));
     IE::buildLowPrecisionPipeline(pm, log);
 
     pm.addPass(IE::createExpandActivationChannelsPass(log));

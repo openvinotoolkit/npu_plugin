@@ -1950,7 +1950,8 @@ def IERT_SubViewOp :
         AnyMemRef:$source,
 
         I64ArrayAttr:$static_offsets,
-        I64ArrayAttr:$static_sizes
+        I64ArrayAttr:$static_sizes,
+        OptionalAttr<I64ArrayAttr>:$static_strides
     );
 
     let results = (outs
@@ -1958,7 +1959,7 @@ def IERT_SubViewOp :
     );
 
     let assemblyFormat = [{
-        $source $static_offsets $static_sizes
+        $source $static_offsets $static_sizes ($static_strides^)?
         attr-dict `:` type($source) `to` type(results)
     }];
 
@@ -1968,6 +1969,15 @@ def IERT_SubViewOp :
         >,
         OpBuilder<
             (ins "mlir::Value":$source, "vpux::ArrayRef<int64_t>":$static_offsets, "vpux::ArrayRef<int64_t>":$static_sizes)
+        >,
+        OpBuilder<
+            (ins "mlir::Value":$source, "vpux::ShapeRef":$static_offsets, "vpux::ShapeRef":$static_sizes, "vpux::ShapeRef":$static_strides)
+        >,
+        OpBuilder<
+            (ins "mlir::Value":$source, "vpux::ArrayRef<int64_t>":$static_offsets, "vpux::ArrayRef<int64_t>":$static_sizes, "vpux::ArrayRef<int64_t>":$static_strides)
+        >,
+        OpBuilder<
+            (ins "mlir::Value":$source, "mlir::ArrayAttr":$static_offsets, "mlir::ArrayAttr":$static_sizes)
         >
     ];
 

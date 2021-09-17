@@ -64,7 +64,8 @@ mlir::MemRefType changeDimsOrder(mlir::MemRefType origType, DimsOrder order);
 mlir::MemRefType changeMemSpace(mlir::MemRefType origType, mlir::Attribute memSpace, bool preserveStrides = false);
 
 mlir::MemRefType getDenseTileType(mlir::MemRefType origType, ShapeRef tileOffsets, ShapeRef tileShape);
-mlir::MemRefType getViewTileType(mlir::MemRefType origType, ShapeRef tileOffsets, ShapeRef tileShape);
+mlir::MemRefType getViewTileType(mlir::MemRefType origType, ShapeRef tileOffsets, ShapeRef tileShape,
+                                 ShapeRef strideShape = {});
 mlir::MemRefType getPaddedType(mlir::MemRefType origType, ShapeRef padBefore, ShapeRef padAfter);
 
 mlir::MemRefType eraseTiledInfo(mlir::MemRefType origType);
