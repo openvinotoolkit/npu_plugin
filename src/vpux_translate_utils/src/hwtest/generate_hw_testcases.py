@@ -1164,7 +1164,8 @@ def generate_options(args):
                     input_shapes=[[1, 64, 32, 32]]),
 
         # DepthWiseConv
-        genDepthWiseConvs(input_types=[Int8(6), UInt8(6), FP16(6), BF16(6)]),
+        genDepthWiseConvs(input_types=[Int8(6), UInt8(6), FP16(6), BF16(6)],
+                          pads=[[0, 0, 0, 0], [1, 0, 0, 0]]),
 
         # MobileNet DepthWiseConv, uint8
         genDepthWiseConvs(input_types=[UInt8(2)],
