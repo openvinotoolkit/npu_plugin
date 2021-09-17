@@ -708,8 +708,7 @@ class AvgPool(MPE):
 
     # kernel_strides are x|y directions
     # The padding order is top|left|bottom|right
-    PARAMS = ['mpe_op_class', 'input_ttype', 'input_shape', 'output_ttype', 'kernel_strides', 'kernel_pads']
-    kernel_shape = [2, 2]
+    PARAMS = ['mpe_op_class', 'input_ttype', 'input_shape', 'output_ttype', 'kernel_shape', 'kernel_strides', 'kernel_pads']
 
     def __init__(self, settings):
         self.settings = settings
@@ -720,7 +719,7 @@ class AvgPool(MPE):
             'input': inputs[0].json_info,
             'pool_op': {
                 'sub_type': 'avg',
-                'kernel_shape': self.kernel_shape,
+                'kernel_shape': self.settings.kernel_shape,
                 'stride': self.settings.kernel_strides,
                 'pad': self.settings.kernel_pads
             }
@@ -728,11 +727,11 @@ class AvgPool(MPE):
 
     @property
     def valid(self) -> bool:
-        return PaddingsIsValidForThisKernel(self.kernel_shape, self.settings.kernel_pads)
+        return PaddingsIsValidForThisKernel(self.settings.kernel_shape, self.settings.kernel_pads)
 
     @property
     def ident(self) -> str:
-        return f'avg_pool_{self.settings.input_ttype.stype}'
+        return f'avg_pool_{shape_to_str(self.settings.input_shape)}x{self.settings.input_ttype.stype}_pads_{shape_to_str(self.settings.kernel_pads)}_kernel_{shape_to_str(self.settings.kernel_shape)}_strides_{shape_to_str(self.settings.kernel_strides)}'
 
     @property
     def orderer(self) -> Orderer:
@@ -754,7 +753,7 @@ class AvgPool(MPE):
 
     def apply(self, values: List[Value]) -> np.ndarray:
         lhs, rhs = idu(values[0], values[0])
-        avgpool = AveragePool(kernel_shape=[2, 2], strides = self.settings.kernel_strides, pads = self.settings.kernel_pads)
+        avgpool = AveragePool(kernel_shape=self.settings.kernel_shape, strides = self.settings.kernel_strides, pads = self.settings.kernel_pads)
         return avgpool.inference(lhs)
 
 
@@ -1086,7 +1085,8 @@ def generate_options(args):
                      [Int8(6), UInt8(6), FP16(6)],   # input type
                      [[1, 64, 32, 32]],              # input shape
                      [Int8(), UInt8(), FP16()],      # output type
-                     [[2,2]],                        # strides
+                     [[2,2],[4,4],[4,2]],            # kernel shape
+                     [[2,2]],                        # kernel strides
                      [[0,0,0,0]]                     # paddings
                      )),
 
@@ -1096,7 +1096,8 @@ def generate_options(args):
                      [BF16(6)],             # input type
                      [[1, 64, 32, 32]],     # input shape
                      [BF16()],              # output type
-                     [[2,2]],               # strides
+                     [[2,2]],               # kernel shape
+                     [[2,2]],               # kernel strides
                      [[0,0,0,0]]            # paddings
                      )),
 
