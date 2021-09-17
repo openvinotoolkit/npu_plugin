@@ -1904,8 +1904,10 @@ def IERT_GatherOp :
     let arguments = (ins
         AnyMemRef:$input,
         MemRefOf<[SI32]>:$indices,
-        AnyMemRef:$axis,
-        AnyMemRef:$output_buff
+        Optional<AnyMemRef>:$axis,
+        AnyMemRef:$output_buff,
+
+        OptionalAttr<IntAttr>:$axis_value
     );
 
     let results = (outs
@@ -1914,7 +1916,7 @@ def IERT_GatherOp :
 
     let assemblyFormat = [{
         attr-dict
-        `inputs` `(` $input `:` type($input) `,` $indices `:` type($indices) `,` $axis `:` type($axis) `)`
+        `inputs` `(` $input `:` type($input) `,` $indices `:` type($indices) (`,` $axis^ `:` type($axis))? `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
         `->` type(results)
     }];

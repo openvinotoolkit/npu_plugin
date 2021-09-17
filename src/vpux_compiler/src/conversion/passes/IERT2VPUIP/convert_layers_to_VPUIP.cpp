@@ -117,39 +117,6 @@ mlir::LogicalResult FakeQuantizeRewrite::matchAndRewrite(IERT::FakeQuantizeOp or
 }
 
 //
-// GatherRewrite
-//
-
-class GatherRewrite final : public mlir::OpRewritePattern<IERT::GatherOp> {
-public:
-    GatherRewrite(mlir::MLIRContext* ctx, Logger log)
-            : mlir::OpRewritePattern<IERT::GatherOp>(ctx), _log(log) {
-    }
-
-public:
-    mlir::LogicalResult matchAndRewrite(IERT::GatherOp origOp, mlir::PatternRewriter& rewriter) const final;
-
-private:
-    Logger _log;
-};
-
-mlir::LogicalResult GatherRewrite::matchAndRewrite(IERT::GatherOp origOp,
-                                                   mlir::PatternRewriter& rewriter) const {
-    _log.trace("Found Gather Operation '{0}'", origOp->getLoc());
-
-    auto axisConst = origOp.axis().getDefiningOp<Const::DeclareOp>();
-
-    if (axisConst == nullptr) {
-        return matchFailed(rewriter, origOp, "Got non constant parameters");
-    }
-
-    rewriter.replaceOpWithNewOp<VPUIP::GatherUPAOp>(origOp, origOp.input(), origOp.indices(),
-                                                            origOp.output_buff(), axisConst.contentAttr());
-
-    return mlir::success();
-}
-
-//
 // FullyConnectedRewrite
 //
 
@@ -271,7 +238,6 @@ void ConvertLayers2VPUIPPass::safeRunOnFunc() {
     patterns.insert<CTCGreedyDecoderSeqLenRewrite>(&ctx, _log);
     patterns.insert<LSTMCellRewrite>(&ctx, _log);
     patterns.insert<FakeQuantizeRewrite>(&ctx, _log);
-    patterns.insert<GatherRewrite>(&ctx, _log);
     patterns.insert<FullyConnectedRewrite>(&ctx, _log);
     patterns.insert<RewriteConvolution>(&ctx, _log);
     populateWithGenerated(patterns);

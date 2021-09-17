@@ -2675,7 +2675,7 @@ def VPUIP_GatherUPAOp :
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers,
 
-        Const_ContentAttr:$axis,
+        IntAttr:$axis,
 
         OptionalAttr<IntAttr>:$maxShaves,
         UnitAttr:$isTrailingSWLayer
@@ -2691,7 +2691,7 @@ def VPUIP_GatherUPAOp :
                 "mlir::Value":$input,
                 "mlir::Value":$indices,
                 "mlir::Value":$output,
-                "vpux::Const::ContentAttr":$axis
+                "mlir::IntegerAttr":$axis
             )
         >
     ];

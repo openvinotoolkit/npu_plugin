@@ -637,12 +637,15 @@ def IE_GatherOp :
     let arguments = (ins
         AnyRankedTensor:$input,
         RankedTensorOf<[SI64,SI32]>:$indices,
-        AnyRankedTensor:$axis
+        Optional<AnyRankedTensor>:$axis,
+        OptionalAttr<IntAttr>:$axis_value
     );
 
     let results = (outs
         AnyRankedTensor:$output
     );
+
+    let hasCanonicalizer = 1;
 }
 
 //

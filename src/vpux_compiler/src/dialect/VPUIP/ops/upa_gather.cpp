@@ -22,14 +22,8 @@ using namespace vpux;
 
 mlir::LogicalResult vpux::VPUIP::verifyOp(GatherUPAOp op) {
 
-    // Axis should be 'scalar or 1D tensor', but VPUIP only supports scalar for now
-    const auto axisRank = op.axis().getType().dyn_cast<mlir::ShapedType>().getRank();
-    if (axisRank != 0) {
-        return errorAt(op, "Only support scalar axis {0} ", axisRank);
-    }
-
     // Axis should not exceed input rank
-    const auto axisNo = op.axis().getSplatValue<int64_t>();
+    const auto axisNo = op.axis();
     const auto inShape = getShape(op.input());
     if (checked_cast<size_t>(axisNo) >= inShape.size()) {
         return errorAt(op, "Gather axis '{0}' is out of range [0,{1}]", axisNo, inShape.size()-1);
@@ -47,16 +41,14 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(GatherUPAOp op) {
 }
 
 void vpux::VPUIP::GatherUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
-                                     mlir::Value indices, mlir::Value output, Const::ContentAttr axis) {
-    build(builder, state, input, indices, output, mlir::ValueRange{}, mlir::ValueRange{}, axis, nullptr, false);
+                                     mlir::Value indices, mlir::Value output, mlir::IntegerAttr axis) {
+    build(builder, state, input, indices, output, mlir::ValueRange{}, mlir::ValueRange{}, axis, nullptr, nullptr);
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::GatherUPAOp::serialize(VPUIP::BlobWriter& writer) {
     MVCNN::GatherParamsBuilder builder(writer);
-    auto axisNo = axis().getSplatValue<int64_t>();
-    builder.add_axis(checked_cast<uint32_t>(axisNo));
+    builder.add_axis(axis());
     const auto paramsOff = builder.Finish();
-
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_GatherParams});
 }
 
@@ -66,11 +58,6 @@ mlir::Operation* vpux::VPUIP::BlobReader::parseGather(mlir::OpBuilder& builder, 
     VPUX_THROW_UNLESS(outputs.size() == 1, "GatherUPA supports only 1 output", outputs.size());
 
     const auto params = task->softLayerParams_as_GatherParams();
-
-    const auto axisShapeType = mlir::RankedTensorType::get({}, getInt32Type(_ctx));
-    SmallVector<int32_t> axisVec;
-    axisVec.push_back(params->axis());
-    const auto axisContent = Const::ContentAttr::get(mlir::DenseElementsAttr::get(axisShapeType, makeArrayRef(axisVec)));
-
-    return builder.create<VPUIP::GatherUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], inputs[1], outputs[0], axisContent);
+    const auto axis = getIntAttr(_ctx, params->axis());
+    return builder.create<VPUIP::GatherUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], inputs[1], outputs[0], axis);
 }

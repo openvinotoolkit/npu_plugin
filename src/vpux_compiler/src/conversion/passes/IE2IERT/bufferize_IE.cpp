@@ -465,7 +465,8 @@ mlir::Operation* createRTLayer(IE::PReluOp origOp, ArrayRef<mlir::Value> allBufs
 
 mlir::Operation* createRTLayer(IE::GatherOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::GatherOp::Adaptor newOp(allBufs);
-    return b.create<IERT::GatherOp>(origOp.getLoc(), newOp.input(), newOp.indices(), newOp.axis(), newOp.output_buff());
+    return b.create<IERT::GatherOp>(origOp.getLoc(), newOp.input(), newOp.indices(), newOp.axis(), newOp.output_buff(),
+                                    origOp.axis_valueAttr());
 }
 
 mlir::Operation* createRTLayer(IE::AddOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
