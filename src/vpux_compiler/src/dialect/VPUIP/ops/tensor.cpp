@@ -18,10 +18,6 @@
 
 using namespace vpux;
 
-//
-// DeclareTensorOp
-//
-
 void vpux::VPUIP::DeclareTensorOp::build(mlir::OpBuilder& builder, ::mlir::OperationState& state, mlir::Type memory,
                                          VPUIP::MemoryLocation locale, uint64_t dataIndex) {
     build(builder, state, memory, locale, builder.getI64ArrayAttr(ArrayRef<int64_t>{0}),  // localeIndex

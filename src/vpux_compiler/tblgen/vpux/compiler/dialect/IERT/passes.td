@@ -166,4 +166,18 @@ def OptimizeAsyncDeps : PassBase<"optimize-async-deps", "vpux::FunctionPass"> {
     let constructor = "vpux::IERT::createOptimizeAsyncDepsPass()";
 }
 
+//
+// GroupAsyncExecuteOps
+//
+
+def GroupAsyncExecuteOps : PassBase<"group-async-execute-ops", "vpux::FunctionPass"> {
+    let summary = "Reduces number of async.execute operations";
+
+    let description = [{
+        Groups consecutive operations which utilizes the same executor and max resources into same async.execute region
+    }];
+
+    let constructor = "vpux::IERT::createGroupAsyncExecuteOpsPass()";
+}
+
 #endif

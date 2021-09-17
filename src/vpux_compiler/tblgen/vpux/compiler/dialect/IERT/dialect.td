@@ -107,6 +107,8 @@ IERT.RunTimeResources
 ```
 
 The `IERT.RunTimeResources` is filled by underlying low-level dialect to provide information about HW-specific resources.
+
+[./IERT/_ops_interfaces.md]
     }];
 
     let name = "IERT";

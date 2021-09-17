@@ -16,9 +16,11 @@
 #include "vpux/compiler/core/attributes/dim.hpp"
 #include "vpux/compiler/core/attributes/dim_values.hpp"
 #include "vpux/compiler/core/attributes/shape.hpp"
+#include "vpux/compiler/core/attributes/strides.hpp"
 
 #include "vpux/utils/core/error.hpp"
 #include "vpux/utils/core/format.hpp"
+#include "vpux/utils/core/mem_size.hpp"
 #include "vpux/utils/core/range.hpp"
 
 #include <mlir/IR/AffineMap.h>
@@ -120,8 +122,9 @@ public:
 
     static DimsOrder fromValue(mlir::Value val);
 
-    SmallVector<mlir::AffineMap> toAffineMapsList(mlir::MLIRContext* ctx, ShapeRef shape,
-                                                  const int64_t dataOffset = 0) const;
+    SmallVector<mlir::AffineMap> toAffineMapsList(mlir::MLIRContext* ctx, ShapeRef shape) const;
+    SmallVector<mlir::AffineMap> toAffineMapsList(mlir::MLIRContext* ctx, Bit elemSize, StridesRef strides) const;
+    SmallVector<mlir::AffineMap> toAffineMapsList(mlir::MLIRContext* ctx, Bit elemSize, MemStridesRef memStrides) const;
 
 public:
     bool isCompatibleLayout(mlir::MemRefType type) const;

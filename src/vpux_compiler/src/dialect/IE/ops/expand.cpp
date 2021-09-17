@@ -14,6 +14,7 @@
 #include "vpux/compiler/dialect/IE/ops.hpp"
 
 #include "vpux/compiler/utils/attributes.hpp"
+#include "vpux/compiler/utils/quantization.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
 
@@ -52,18 +53,25 @@ mlir::LogicalResult vpux::IE::ExpandOp::inferReturnTypeComponents(
     const auto padBegin = parseIntArrayAttr<int64_t>(expand.pads_begin());
     const auto padEnd = parseIntArrayAttr<int64_t>(expand.pads_end());
 
-    const auto inType = expand.input().getType().cast<mlir::ShapedType>();
+    const auto inType = expand.input().getType().cast<mlir::RankedTensorType>();
     if (!inType) {
         return mlir::failure();
     }
 
-    const auto inputShape = inType.getShape();
-    SmallVector<int64_t> outShape(inputShape.size());
-    for (size_t i = 0; i < inputShape.size(); ++i) {
-        outShape[i] = padBegin[i] + inputShape[i] + padEnd[i];
-    }
-
-    inferredReturnShapes.emplace_back(outShape, inType.getElementType());
+    const auto newType = getPaddedType(inType, ShapeRef(padBegin), ShapeRef(padEnd));
+    inferredReturnShapes.emplace_back(newType.getShape(), newType.getElementType(), newType.getEncoding());
 
     return mlir::success();
+}
+
+//
+// fold
+//
+
+mlir::OpFoldResult vpux::IE::ExpandOp::fold(ArrayRef<mlir::Attribute>) {
+    if (input().getType() == output().getType()) {
+        return input();
+    }
+
+    return nullptr;
 }

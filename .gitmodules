@@ -21,4 +21,4 @@
 	url = ssh://git@gitlab-icv.inn.intel.com/movidius/hddlunite.git
 [submodule "thirdparty/level-zero"]
 	path = thirdparty/level-zero
-	url = https://github.com/jbdallastx/level-zero.git
+	url = https://github.com/oneapi-src/level-zero.git

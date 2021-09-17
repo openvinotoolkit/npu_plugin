@@ -28,12 +28,15 @@ constexpr StringLiteral archAttrName = "VPUIP.arch";
 constexpr StringLiteral derateFactorAttrName = "VPUIP.derateFactor";
 constexpr StringLiteral bandwidthAttrName = "VPUIP.bandwidth";
 
-const int MAX_DPU_GROUPS_MTL = 2;
-const int MAX_DPU_GROUPS_KMB = 4;
+constexpr int MAX_DPU_GROUPS_MTL = 2;
+constexpr int MAX_DPU_GROUPS_KMB = 4;
 
 }  // namespace
 
 void vpux::VPUIP::setArch(mlir::ModuleOp module, ArchKind kind, Optional<int> numOfDPUGroups) {
+    VPUX_THROW_UNLESS(module->hasAttr(archAttrName) == false,
+                      "Architecture is already defined. Probably you don't need to run '--set-compile-params'.");
+
     module->setAttr(archAttrName, VPUIP::ArchKindAttr::get(module.getContext(), kind));
 
     auto builder = mlir::OpBuilder::atBlockBegin(module.getBody());

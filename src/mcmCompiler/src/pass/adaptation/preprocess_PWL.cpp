@@ -109,7 +109,8 @@ void checkPWLForRequantize(const mv::pass::PassEntry&, mv::ComputationModel& mod
                 {
                     mv::AttributeError(conv->getLogID(), " has attribute with key \"PWLIndex\" out of bounds.");
                 }
-                pwl_range = pwl_table_vec[pwl_table_index].float_range;
+                auto pwl_table_range = pwl_table_vec[pwl_table_index].range;
+                pwl_range = std::make_pair(pwl_table_range[0], pwl_table_range[pwl_table_range.size()-1]);
             }
 
             //NOTE: the idea is that the pwl needs constant quantized range (-4096, 4095) in order

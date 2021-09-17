@@ -799,7 +799,6 @@ bool testYoloV3(const ie::BlobMap& actBlobs,
     return result;
 };
 
-
 //
 // main
 //
@@ -816,7 +815,7 @@ int main(int argc, char* argv[]) {
                 throw std::logic_error("Parameter -ip " + FLAGS_ip + " is not supported");
         }
         if (!FLAGS_op.empty()) {
-            // input precision is U8, FP16 or FP32 only
+            // output precision is U8, FP16 or FP32 only
             std::transform(FLAGS_op.begin(),FLAGS_op.end(),FLAGS_op.begin(), ::toupper);
             if (allowedPrecision.count(FLAGS_op) == 0)
                 throw std::logic_error("Parameter -op " + FLAGS_op + " is not supported");
@@ -861,7 +860,12 @@ int main(int argc, char* argv[]) {
             // Input layout
             if (!FLAGS_il.empty()) {
                 const ie::Layout layout = FLAGS_il == "NCHW" ? ie::Layout::NCHW : ie::Layout::NHWC;
-                for (auto & info: inputInfo) info.second->setLayout(layout);
+                for (auto & info: inputInfo) {
+                    if (info.second->getLayout() == InferenceEngine::C)
+                        continue;
+                    else
+                        info.second->setLayout(layout);
+                }
             }
             // Output precision
             ie::OutputsDataMap outputInfo(cnnNet.getOutputsInfo());

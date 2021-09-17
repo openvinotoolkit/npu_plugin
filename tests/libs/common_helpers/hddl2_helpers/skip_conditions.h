@@ -11,6 +11,7 @@
 // included with the Software Package for additional details.
 //
 #include <gtest/gtest.h>
+#include <string>
 
 #include "hddl2_backend.h"
 
@@ -27,3 +28,10 @@
             GTEST_SKIP() << "This test require device disabled";                  \
         }                                                                   \
     } while (false)
+
+inline bool isEmulatorDevice() {
+    const std::string deviceId = std::getenv("IE_KMB_TESTS_DEVICE_NAME") != nullptr ?
+        std::getenv("IE_KMB_TESTS_DEVICE_NAME") :
+        "VPUX";
+    return deviceId.find("EMU") != std::string::npos;
+}

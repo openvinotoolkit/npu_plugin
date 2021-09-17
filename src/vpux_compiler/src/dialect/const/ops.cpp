@@ -95,46 +95,6 @@ mlir::OpFoldResult vpux::Const::DeclareOp::fold(ArrayRef<mlir::Attribute> operan
 }
 
 //
-// FoldSubTensor
-//
-
-namespace {
-
-class FoldSubTensor final : public mlir::OpRewritePattern<IE::SliceOp> {
-public:
-    using mlir::OpRewritePattern<IE::SliceOp>::OpRewritePattern;
-
-public:
-    mlir::LogicalResult matchAndRewrite(IE::SliceOp origOp, mlir::PatternRewriter& rewriter) const final;
-};
-
-mlir::LogicalResult FoldSubTensor::matchAndRewrite(IE::SliceOp origOp, mlir::PatternRewriter& rewriter) const {
-    auto constOp = origOp.source().getDefiningOp<Const::DeclareOp>();
-    if (constOp == nullptr) {
-        return matchFailed(rewriter, origOp, "SubTensor source is not a constant");
-    }
-
-    const auto offset = Shape(parseIntArrayAttr<int64_t>(origOp.static_offsets()));
-    const auto shape = Shape(parseIntArrayAttr<int64_t>(origOp.static_sizes()));
-
-    const auto origContent = constOp.contentAttr();
-    const auto newContent = origContent.subview(offset, shape);
-
-    rewriter.replaceOpWithNewOp<Const::DeclareOp>(origOp, newContent.getType(), newContent);
-    return mlir::success();
-}
-
-}  // namespace
-
-//
-// DeclareOp::getCanonicalizationPatterns
-//
-
-void vpux::Const::DeclareOp::getCanonicalizationPatterns(mlir::RewritePatternSet& patterns, mlir::MLIRContext* ctx) {
-    patterns.insert<FoldSubTensor>(ctx);
-}
-
-//
 // verifyOp
 //
 

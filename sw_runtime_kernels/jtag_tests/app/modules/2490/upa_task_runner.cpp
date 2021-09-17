@@ -3,7 +3,6 @@
 #include "upa_task_runner.hpp"
 #include "layers/svuSLKernels_EP.h"
 #include <layer_loader.h>
-#include <upa_layer_runner.h>
 #include <nn_runtime_types.h>
 #include "sw_shave_dispatcher.h"
 #include "mvTensorUtil.h"

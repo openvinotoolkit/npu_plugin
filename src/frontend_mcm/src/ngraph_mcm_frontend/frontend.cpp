@@ -22,23 +22,23 @@
 #include "ngraph_mcm_frontend/passes/convert_to_mcm_fc.hpp"
 #include "ngraph_mcm_frontend/passes/merge_TopK_convert.hpp"
 #include "ngraph_mcm_frontend/passes/replace_add_with_eltwise.hpp"
-#include "ngraph_mcm_frontend/passes/convert_MVN6_to_MVN1.hpp"
+#include "vpux/passes/convert_MVN6_to_MVN1.hpp"
 #include "ngraph_mcm_frontend/passes/replace_scaleshift_with_mcm_scale.hpp"
 #include "ngraph_mcm_frontend/passes/align_eltwise_scales.hpp"
 #include "ngraph_mcm_frontend/passes/align_concat_scales.hpp"
 #include "ngraph_mcm_frontend/passes/fuse_scaleshift.hpp"
-#include "ngraph_mcm_frontend/passes/fuse_padding.hpp"
-#include "ngraph_mcm_frontend/passes/convert_extract_image_patches_to_reorg_vpu.hpp"
+#include "vpux/passes/fuse_padding.hpp"
+#include "vpux/passes/convert_extract_image_patches_to_reorg_vpu.hpp"
 #include "ngraph_mcm_frontend/passes/broadcast_eltwise_inputs.hpp"
-#include "ngraph_mcm_frontend/passes/replace_onnx_pattern_to_reorg.hpp"
+#include "vpux/passes/replace_onnx_pattern_to_reorg.hpp"
 #include "ngraph_mcm_frontend/passes/fuse_scale_in_previous_weights_fq.hpp"
 #include "ngraph_mcm_frontend/passes/insert_maxpool.hpp"
 #include "ngraph_mcm_frontend/passes/replace_shuffle.hpp"
 #include "ngraph_mcm_frontend/passes/handle_3d_transpose.hpp"
 #include "vpux/passes/propagate_fq.hpp"
-#include <ngraph_mcm_frontend/passes/align_scales.hpp>
+#include "vpux/passes/align_scales.hpp"
 #include <ngraph_mcm_frontend/passes/detect_input_fq.hpp>
-#include <ngraph_mcm_frontend/passes/remove_splitConcat.hpp>
+#include <vpux/passes/remove_split_concat.hpp>
 #include <ngraph_mcm_frontend/passes/convert_min_max_to_clamp.hpp>
 #include <ngraph_mcm_frontend/passes/convert_reshape_transpose_chain_to_depthtospace.hpp>
 
@@ -243,6 +243,8 @@ std::unique_ptr<mv::CompilationUnit> createCompilationUnit(
         mcmCompDesc.setPassArg("GlobalConfigParams", "DeviceRevision",
                                std::string(MVCNN::EnumNameTargetDeviceRevision(getDeviceRevision(config.platform()))));
 
+        if (config.platform() == InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR)
+            mcmCompDesc.setPassArg("GlobalConfigParams", "target_emulator", true);
 
         if (config.referenceMode()) {
             mcmCompDesc.setPassArg("GlobalConfigParams", "ReferenceMode", true);
@@ -518,11 +520,11 @@ void applyTransformations(
 
     ngraph::pass::Manager passManager;
     passManager.register_pass<ngraph::pass::InitNodeInfo>();
-    passManager.register_pass<RemoveSplitConcat>();
+    passManager.register_pass<vpux::pass::RemoveSplitConcat>();
     passManager.register_pass<ngraph::pass::ConvertQuantizeDequantize>();
     passManager.register_pass<ngraph::pass::WeightsDequantizeToFakeQuantize>();
     passManager.register_pass<ngraph::pass::ConstantFolding>();
-    passManager.register_pass<ngraph::pass::FusePadding>();
+    passManager.register_pass<vpux::pass::FusePadding>();
 
     if (config.scaleShiftFusing()) {
         passManager.register_pass<FuseScaleShift>();
@@ -533,11 +535,11 @@ void applyTransformations(
     anchor->add_matcher<ngraph::pass::CollapseConcats0238>();
     anchor->set_name("ngraph::pass::mcmAdaptation");
 
-    passManager.register_pass<OnnxReorgPatternToDarkNetReorg>();
-    passManager.register_pass<ConvertExtractImagePatchesToReorgYoloVPU>();
+    passManager.register_pass<vpux::passes::OnnxReorgPatternToDarkNetReorg>();
+    passManager.register_pass<vpux::passes::ConvertExtractImagePatchesToReorgYoloVPU>();
     passManager.register_pass<ConvertReshapeTransposeChainToDepthToSpace>();
     passManager.register_pass<PropagateFQ>();
-    passManager.register_pass<AlignScales>();
+    passManager.register_pass<vpux::passes::AlignScales>();
     passManager.register_pass<ConvertMinMaxToClamp>();
 
     if (!config.serializeCNNBeforeCompileFile().empty()) {
@@ -564,7 +566,7 @@ void applyTransformations(
     passManager.register_pass<ConvertToMcmFC>();
     passManager.register_pass<ReplaceScaleShiftWithMcmScale>();
     passManager.register_pass<ReplaceAddWithMcmEltwise>();
-    passManager.register_pass<ConvertMVN6toMVN1>();
+    passManager.register_pass<vpux::passes::ConvertMVN6toMVN1>();
     passManager.register_pass<ngraph::pass::ConstantFolding>();
     passManager.register_pass<BroadcastEltwiseInputs>();
     passManager.register_pass<MergeTopKConvert>();

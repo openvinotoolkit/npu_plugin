@@ -90,4 +90,18 @@ def ConvertWeightsTableOp2Const : PassBase<"convert-wtable-op-to-constant", "vpu
     let constructor = "vpux::VPUIP::createConvertWeightsTableOp2ConstPass()";
 }
 
+//
+// DumpStatisticsOfTaskOps
+//
+
+def DumpStatisticsOfTaskOps : PassBase<"dump-statistics-of-task-ops", "vpux::FunctionPass"> {
+    let summary = "Dump the statistics of used Task operations";
+
+    let description = [{
+        This pass dumps the statistics of used Task operations and makes a report as warning for operations not converted to DPU.
+    }];
+
+    let constructor = "vpux::VPUIP::createDumpStatisticsOfTaskOpsPass()";
+}
+
 #endif

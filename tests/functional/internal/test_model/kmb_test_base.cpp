@@ -1698,7 +1698,7 @@ void PersonAttrRecNetworkTest::comparePersonsAttributes(const PersonAttrRecNetwo
 
     std::cout << "Max difference on " << std::prev(differences.end())->second << " - "
               << std::prev(differences.end())->first << std::endl;
-    IE_ASSERT(std::prev(differences.end())->first < tolerance);
+    EXPECT_LT(std::prev(differences.end())->first, tolerance);
 }
 
 std::ostream& operator<<(std::ostream& stream, const PersonAttrRecNetworkTest::PersonAttributes& p) {

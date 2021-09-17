@@ -178,7 +178,7 @@ def IE_ConvertOp :
     let arguments = (ins
         AnyRankedTensor:$input,
 
-        TypeAttr:$dstType
+        TypeAttr:$dstElemType
     );
 
     let results = (outs
@@ -521,7 +521,7 @@ def IE_ConvolutionOp :
     let arguments = (ins
         RankedTensorOf<[F16, F32, quant_QuantizedType]>:$input,
         RankedTensorOf<[F16, F32, quant_QuantizedType]>:$filter,
-        Optional<RankedTensorOf<[F16, F32]>>:$bias,
+        Optional<RankedTensorOf<[F16, F32, quant_QuantizedType]>>:$bias,
 
         I64ArrayAttr:$strides,
         I64ArrayAttr:$pads_begin,
@@ -915,6 +915,55 @@ def IE_FakeQuantizeOp :
 }
 
 //
+// QuantizeOp
+//
+
+def IE_QuantizeOp :
+        IE_LayerOp<"Quantize",
+            [
+                IE_EltwiseOp
+            ]
+        > {
+    let summary = "InferenceEngine Quantize layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input,
+
+        TypeAttr:$dstElemType
+    );
+
+    let results = (outs
+        RankedTensorOf<[quant_QuantizedType]>:$output
+    );
+
+    let hasCanonicalizer = 1;
+    let hasFolder = 1;
+}
+
+//
+// DequantizeOp
+//
+
+def IE_DequantizeOp :
+        IE_LayerOp<"Dequantize",
+            [
+                IE_EltwiseOp
+            ]
+        > {
+    let summary = "InferenceEngine Dequantize layer";
+
+    let arguments = (ins
+        RankedTensorOf<[quant_QuantizedType]>:$input,
+
+        TypeAttr:$dstElemType
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+}
+
+//
 // MatMul
 //
 
@@ -1052,6 +1101,30 @@ def IE_MishOp :
             ]
         > {
     let summary = "InferenceEngine Mish layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+}
+
+//
+// ErfOp
+//
+
+def IE_ErfOp :
+        IE_LayerOp<
+            "Erf",
+            [
+                ResultsAreFloatLike,
+                SameOperandsAndResultType,
+                IE_EltwiseOp
+            ]
+        > {
+    let summary = "InferenceEngine Erf layer";
 
     let arguments = (ins
         RankedTensorOf<[F16, F32]>:$input
@@ -1262,6 +1335,29 @@ def IE_NormalizeL2Op :
 
         F64Attr:$eps,
         IE_EpsMode:$eps_mod
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+}
+
+//
+// MVNOp
+//
+
+def IE_MVNOp :
+        IE_LayerOp<
+            "MVN"
+        > {
+    let summary = "InferenceEngine MVN layer";
+
+    let arguments = (ins
+        AnyRankedTensor:$input,
+
+        BoolAttr:$across_channels,
+        BoolAttr:$normalize_variance,
+        F64Attr:$eps
     );
 
     let results = (outs
@@ -1666,6 +1762,8 @@ def IE_ExpandOp :
         AnyRankedTensor:$output
     );
 
+    let hasFolder = 1;
+
     let builders = [
         OpBuilder<
             (ins "mlir::Value":$input, "vpux::Optional<vpux::ShapeRef>":$pads_begin, "vpux::Optional<vpux::ShapeRef>":$pads_end)
@@ -1711,7 +1809,7 @@ def IE_SliceOp :
         IE_LayerOp<
             "Slice"
         > {
-    let summary = "Extract slice operation";
+    let summary = "Extract single slice from tensor";
 
     let arguments = (ins
         AnyRankedTensor:$source,
@@ -1728,6 +1826,53 @@ def IE_SliceOp :
         $source $static_offsets $static_sizes
         attr-dict `:` type($source) `to` type(results)
     }];
+
+    let builders = [
+        OpBuilder<
+            (ins "mlir::Value":$source, "vpux::ShapeRef":$static_offsets, "vpux::ShapeRef":$static_sizes)
+        >,
+        OpBuilder<
+            (ins "mlir::Value":$source, "vpux::ArrayRef<int64_t>":$static_offsets, "vpux::ArrayRef<int64_t>":$static_sizes)
+        >
+    ];
+
+    let hasFolder = 1;
+    let hasCanonicalizer = 1;
+
+    let extraClassDeclaration = [{
+        static bool isCompatibleReturnTypes(mlir::TypeRange lhs, mlir::TypeRange rhs) {
+            return lhs == rhs;
+        }
+    }];
+}
+
+//
+// SubtractOp
+//
+
+def IE_SubtractOp :
+        IE_LayerOp<
+            "Subtract",
+            [
+                ResultsAreFloatLike,
+                IE_EltwiseOp
+            ]
+        > {
+    let summary = "InferenceEngine Subtract layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input1,
+        RankedTensorOf<[F16, F32]>:$input2,
+
+        IE_AutoBroadcastType:$auto_broadcast
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+
+    let hasCanonicalizer = 1;
+    let hasFolder = 1;
 }
 
 #endif

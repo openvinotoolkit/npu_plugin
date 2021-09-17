@@ -50,21 +50,17 @@ public:
 #endif
 
     virtual ~VpualCoreNNExecutor();
-    VpualCoreNNExecutor(const vpux::NetworkDescription::Ptr& networkDescription,
-        const VpusmmAllocator::Ptr& allocator,
-        const uint32_t deviceId,
-        const InferenceEngine::VPUXConfigParams::VPUXPlatform& platform,
-        const VpualConfig& config);
+    VpualCoreNNExecutor(const vpux::NetworkDescription::Ptr& networkDescription, const VpusmmAllocator::Ptr& allocator,
+                        const uint32_t deviceId, const InferenceEngine::VPUXConfigParams::VPUXPlatform& platform,
+                        const VpualConfig& config);
 
 #if defined(__arm__) || defined(__aarch64__)
-    VpualCoreNNExecutor(const vpux::NetworkDescription::Ptr& networkDescription,
-        const VpusmmAllocator::Ptr& allocator,
-        const std::shared_ptr<NnXlinkPlg>& other_nnXlinkPlg,
-        const std::shared_ptr<NnCorePlg>& other_nnCorePlg,
-        const std::shared_ptr<VpualCoreNNSynchronizer<VpualSyncXLinkImpl>>& other_nnSync,
-        const std::shared_ptr<Pipeline>& other_pipe,
-        const std::shared_ptr<WatchDog>& watchDog,
-        const VpualConfig& config);
+    VpualCoreNNExecutor(const vpux::NetworkDescription::Ptr& networkDescription, const VpusmmAllocator::Ptr& allocator,
+                        const std::shared_ptr<NnXlinkPlg>& other_nnXlinkPlg,
+                        const std::shared_ptr<NnCorePlg>& other_nnCorePlg,
+                        const std::shared_ptr<VpualCoreNNSynchronizer<VpualSyncXLinkImpl>>& other_nnSync,
+                        const std::shared_ptr<Pipeline>& other_pipe, const std::shared_ptr<WatchDog>& watchDog,
+                        const VpualConfig& config);
 #endif
 
     void push(const InferenceEngine::BlobMap& inputs) override;
@@ -103,13 +99,13 @@ private:
     VpualCoreNNExecutor();
     void allocateGraph(const std::vector<char>& compiledNetwork);
 
-    ie::Blob::Ptr prepareInputForInference(
-        const ie::Blob::Ptr& actualInput, const InferenceEngine::TensorDesc& deviceDesc);
+    ie::Blob::Ptr prepareInputForInference(const ie::Blob::Ptr& actualInput,
+                                           const InferenceEngine::TensorDesc& deviceDesc);
     uint32_t extractPhysAddrForInference(const ie::BlobMap& inputs);
 
     ie::BlobMap extractOutputsFromPhysAddr(uint32_t physAddr);
-    void repackDeviceOutputsToNetworkOutputs(
-        const InferenceEngine ::BlobMap& deviceOutputs, InferenceEngine::BlobMap& networkOutputs);
+    void repackDeviceOutputsToNetworkOutputs(const InferenceEngine ::BlobMap& deviceOutputs,
+                                             InferenceEngine::BlobMap& networkOutputs);
 
     std::vector<void*> _scratchBuffers;
     std::unique_ptr<uint8_t, std::function<void(uint8_t*)>> _preFetchBuffer;

@@ -20,6 +20,7 @@
 
 #ifdef KMB_HAS_CUSTOM_OCL_KERNELS
 TEST_F(KmbYoloV2NetworkTest, precommit_yolo_tiny_v2_ava_0001_tf_dense_int8_IRv10_from_fp32_custom) {
+    SKIP_INFER_ON("EMULATOR", "Wrong results");
     const auto customLayers = std::make_pair(VPU_COMPILER_CONFIG_KEY(CUSTOM_LAYERS),
                                              getIELibraryPath() + "/kmb_custom_ocl_kernels/yolov2.xml");
     runTest(
@@ -35,6 +36,7 @@ TEST_F(KmbYoloV2NetworkTest, precommit_yolo_tiny_v2_ava_0001_tf_dense_int8_IRv10
 
 #ifdef KMB_HAS_CUSTOM_OCL_KERNELS
 TEST_F(KmbYoloV2NetworkTest, precommit_yolo_v2_ava_0001_tf_dense_int8_IRv10_from_fp32_custom) {
+    SKIP_INFER_ON("EMULATOR", "Wrong results");
     const auto customLayers = std::make_pair(VPU_COMPILER_CONFIG_KEY(CUSTOM_LAYERS),
                                              getIELibraryPath() + "/kmb_custom_ocl_kernels/yolov2.xml");
     runTest(
@@ -48,7 +50,25 @@ TEST_F(KmbYoloV2NetworkTest, precommit_yolo_v2_ava_0001_tf_dense_int8_IRv10_from
 }
 #endif  // KMB_HAS_CUSTOM_OCL_KERNELS
 
+#ifdef KMB_HAS_CUSTOM_OCL_KERNELS
+TEST_F(KmbYoloV2NetworkTest, precommit_incorrect_yolo_v2_ava_0001_tf_dense_int8_IRv10_from_fp32_custom) {
+    SKIP_INFER("Compile only");
+    ASSERT_ANY_THROW(const auto customLayers = std::make_pair(VPU_COMPILER_CONFIG_KEY(CUSTOM_LAYERS),
+                                             getIELibraryPath() + "/kmb_custom_ocl_kernels/yolov2_incorrect.xml");
+        runTest(
+                TestNetworkDesc("KMB_models/INT8/icv/yolo-v2-ava-0001/yolo-v2_ava_0001_tf_dense_int8_IRv10_from_fp32.xml")
+                .setUserInputPrecision("input", Precision::U8)
+                .setUserInputLayout("input", Layout::NHWC)
+                .setUserOutputPrecision("output", Precision::FP32)
+                .setCompileConfig({customLayers}),
+                TestImageDesc("416x416/person.bmp", ImageFormat::RGB),
+                0.6, 0.4, 0.4, false);
+    );
+}
+#endif  // KMB_HAS_CUSTOM_OCL_KERNELS
+
 TEST_F(KmbYoloV1NetworkTest, precommit_INT8_Dense_TF_DarkNet_TinyYoloV1) {
+    SKIP_INFER_ON("EMULATOR", "Wrong results");
     runTest(
             TestNetworkDesc("KMB_models/INT8/public/tiny_yolo_v1/tiny_yolo_v1_tf_dense_int8_IRv10_from_fp32.xml")
                     .setUserInputPrecision("input", Precision::U8)
@@ -83,6 +103,7 @@ TEST_F(KmbClassifyNetworkTest, precommit_facenet_20180408_102900_tf_dense_int8_I
 // [Track number: H#18012385770]
 // [Track number: H#18013202155]
 TEST_F(KmbRetinaFaceNetworkTest, precommit_retinaface_mobilenetv2_0_25_modified) {
+    SKIP_INFER_ON("EMULATOR", "Wrong results");
     runTest(
             TestNetworkDesc("KMB_models/INT8/private/retinaface-mobilenetv2-0.25-modified/retinaface-mobilenetv2-0.25-modified.xml")
                     .setUserInputPrecision("input", Precision::U8),
@@ -100,6 +121,7 @@ TEST_F(AgeGenderNetworkTest, precommit_age_gender_retail_0013) {
 
 TEST_F(KmbVasFDStage1Test, precommit_vasfd_stage1) {
 // [Track number: #7733]
+    SKIP_INFER_ON("EMULATOR", "Wrong results");
     SKIP_INFER_ON("VPUAL", "Wrong results");
     const std::string inputName = "data";
     const std::vector<std::string> layerNames = {
@@ -160,6 +182,7 @@ TEST_F(KmbClassifyNetworkTest, precommit_squeezenet1_1_pytorch_caffe2_dense_int8
 }
 
 TEST_F(PersonAttrRecNetworkTest, precommit_person_attribute_recognitnion_crossroad_0238) {
+    SKIP_INFER_ON("EMULATOR", "Wrong results");
     runTest(
             TestNetworkDesc("KMB_models/INT8/public/person-attributes-recognition-crossroad/person-attributes-recognition-crossroad-0238.xml")
                     .setUserInputPrecision("input", Precision::U8)
@@ -190,6 +213,7 @@ TEST_F(KmbClassifyNetworkTest, precommit_shufflenet_v2_x1_0_pytorch) {
 }
 
 TEST_F(KmbDetectionNetworkTest, precommit_peleenet) {
+    SKIP_INFER_ON("EMULATOR", "Wrong results");
     runTest(
             TestNetworkDesc("KMB_models/FP16-INT8/public/peleenet/peleenet.xml")
                     .setUserInputPrecision("input", Precision::U8),
@@ -200,6 +224,7 @@ TEST_F(KmbDetectionNetworkTest, precommit_peleenet) {
 
 // TODO: [Track number: E#9578]
 TEST_F(KmbDetectionNetworkTest, precommit_vehicle_license_plate_detection_barrier_0106_tf_dense_int8_IRv10_from_fp32) {
+    SKIP_INFER_ON("EMULATOR", "Wrong results");
     SKIP_ON("HDDL2", "Bad accuracy");
     runTest(
             TestNetworkDesc("KMB_models/INT8/icv/vehicle-license-plate-detection-barrier-0106/vehicle_license_plate_detection_barrier_0106_tf_dense_int8_IRv10_from_fp32.xml")

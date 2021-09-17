@@ -7,6 +7,7 @@
 
 1. MR must be reviewed according to the [review process](#review-process).
     * Start the review process with people experienced in this particular area and/or involved into architectural debates.
+    * See [Reviewers List](#reviewer-list) for subject matter experts for the different modules
     * Explicitly ask for review (in MR header and through other communication channels).
     * Make sure to rebase the branch and restart validation after addressing all the comments.
     * MR's author is [responsible](#responsibilities) for the review to be passed in time.
@@ -81,6 +82,17 @@
 ### Reviewer
 * Making review in according to the review process.
 * Reviewer is responsible for what was actually merged.
+
+### Reviewer List
+* MLIR Compiler - Vinogradov, Vladislav / Kudriavtsev, Nikita 
+* Quantization / Mixed Datatypes - Shokin, Alexander / Rotuna, Harald Razvan / Zomborat, Zoran 
+* Strategy Generation - DeFlumere, Ashley
+* Binaries (RT, vpualHost), Backends - Skrebkov, Artemy / Znamenskiy, Mikhail 
+* Software Layers - Shumihim, Sergey
+* mcmCompiler - Yao, Shaojun / Mineeva, Marina
+* Memory/Barrier scheduling - Brady, John / Gwizdz, Michal
+* MTL - Gladilov, Gleb / Pedus, Mikhail / Losev, Sergey
+* Testing - Perepelkin, Alexander
 
 ### Maintainer
 * Resolving request dependencies and merging functionality in right order.

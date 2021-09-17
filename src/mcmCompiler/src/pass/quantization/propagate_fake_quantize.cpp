@@ -128,6 +128,21 @@ void propagateToChildOps(mv::DataModel& dm, const mv::Data::OpListIterator& opIt
     }
 }
 
+bool checkChildOps(mv::DataModel& dm, const mv::Data::OpListIterator& opIt)
+{
+    auto childOps = mv::findSinkLayers(dm, opIt->getOutputTensor(0));
+    bool allDepthwiseChild = true;
+    for (auto& childOp : childOps) {
+        if(isOpPassthrough(childOp))
+            allDepthwiseChild &= checkChildOps(dm, childOp);
+        else if (childOp->getOpType() != "DepthwiseConv") {
+            return false;
+        }
+    }
+
+    return allDepthwiseChild;
+}
+
 void propagateActivationParameters(mv::ComputationModel& model) {
     mv::OpModel om(model);
     mv::DataModel dm(model);
@@ -146,8 +161,18 @@ void propagateActivationParameters(mv::ComputationModel& model) {
             parentOp->getOpType() == "ConstantDataElement")
             continue;
 
-        const auto inputQuantParams  = extractQuantParamsI(fqOp, true);
-        const auto outputQuantParams = extractQuantParamsO(fqOp, true);
+        mv::QuantizationParams inputQuantParams = mv::QuantizationParams::initial();
+        mv::QuantizationParams outputQuantParams = mv::QuantizationParams::initial();
+        bool allDepthwiseChild = checkChildOps(dm, fqOp);
+
+        if (allDepthwiseChild) {
+            inputQuantParams = extractQuantParamsI(fqOp, false);
+            outputQuantParams = extractQuantParamsO(fqOp, false);
+        } else {
+            inputQuantParams = extractQuantParamsI(fqOp, true);
+            outputQuantParams = extractQuantParamsO(fqOp, true);
+        }
+
         if (isEqual(inputQuantParams, outputQuantParams)) {
             propagateToParentOps(om, dm, fqOp, getDType(mv::Precision::U8), inputQuantParams);
             propagateToChildOps(dm, fqOp, getDType(mv::Precision::U8), inputQuantParams);

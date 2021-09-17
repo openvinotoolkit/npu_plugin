@@ -13,6 +13,8 @@
 
 #include "vpux/compiler/dialect/IERT/passes.hpp"
 
+#include "vpux/compiler/core/passes.hpp"
+
 #include <mlir/Pass/PassManager.h>
 
 using namespace vpux;
@@ -22,9 +24,11 @@ using namespace vpux;
 //
 
 void vpux::IERT::buildAsyncSchedulingPipeline(mlir::OpPassManager& pm, Logger log) {
+    pm.addPass(createMoveDeclarationsToTopPass(log));
     pm.addPass(IERT::createWrapIntoAsyncRegionsPass(log));
     pm.addPass(IERT::createMoveViewOpsIntoAsyncRegionsPass(log));
     pm.addPass(IERT::createMoveWaitResultToAsyncBlockArgsPass(log));
+    pm.addPass(IERT::createGroupAsyncExecuteOpsPass(log));
     pm.addPass(IERT::createOptimizeAsyncDepsPass(log));
 }
 

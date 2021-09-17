@@ -56,6 +56,45 @@ mlir::LogicalResult ReorderToCopy::matchAndRewrite(IERT::ReorderOp reorderOp, ml
 
 namespace {
 
+//
+// ConvertTrivialReorder
+//
+
+class ConvertTrivialReorder final : public mlir::OpRewritePattern<IERT::ReorderOp> {
+public:
+    using mlir::OpRewritePattern<IERT::ReorderOp>::OpRewritePattern;
+
+public:
+    mlir::LogicalResult matchAndRewrite(IERT::ReorderOp origOp, mlir::PatternRewriter& rewriter) const final;
+};
+
+bool isTrivial(const ShapeRef shape) {
+    const auto nonTrivialPredicate = [](const int64_t dim) -> bool {
+        return dim > 1;
+    };
+    return std::count_if(shape.begin(), shape.end(), nonTrivialPredicate) == 1;
+}
+
+mlir::LogicalResult ConvertTrivialReorder::matchAndRewrite(IERT::ReorderOp origOp,
+                                                           mlir::PatternRewriter& rewriter) const {
+    if (origOp.output_buff().isa<mlir::BlockArgument>()) {
+        return mlir::failure();
+    }
+
+    const auto inputShape = getShape(origOp.input());
+    if (!isTrivial(inputShape)) {
+        return mlir::failure();
+    }
+    const auto dstOrder = DimsOrder::fromValue(origOp.output_buff());
+    const auto dstMaps = mlir::AffineMapAttr::get(dstOrder.toPermutationAffineMap(origOp.getContext()));
+    rewriter.replaceOpWithNewOp<IERT::ImplicitReorderOp>(origOp, origOp.input(), dstMaps);
+    return mlir::success();
+}
+
+}  // namespace
+
+namespace {
+
 #include <vpux/compiler/dialect/IERT/rewriters/generated/reorder.hpp.inc>
 
 }  // namespace
@@ -63,6 +102,7 @@ namespace {
 void vpux::IERT::ReorderOp::getCanonicalizationPatterns(mlir::RewritePatternSet& patterns, mlir::MLIRContext* context) {
     populateWithGenerated(patterns);
     patterns.insert<ReorderToCopy>(context);
+    patterns.insert<ConvertTrivialReorder>(context);
 }
 
 //

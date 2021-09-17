@@ -104,6 +104,8 @@ void createCaseGeneratorOutputJson(llvm::json::OStream& j) {
     std::string dtype = "uint8";
     double scale = 0.01;
     unsigned long int zeropoint = 0;
+    unsigned long int low_range = 1;
+    unsigned long int high_range = 1;
 
     j.attributeBegin("output");
     {
@@ -121,6 +123,8 @@ void createCaseGeneratorOutputJson(llvm::json::OStream& j) {
         j.attributeBegin("quantization");
         {
             j.objectBegin();
+            j.attribute("low_range", low_range);
+            j.attribute("high_range", high_range);
             j.attribute("scale", scale);
             j.attribute("zeropoint", zeropoint);
             j.objectEnd();
@@ -213,7 +217,6 @@ void createAndRunConvTest() {
     ASSERT_EQ(weight.qp.scale, 0.01);
 }
 
-// TODO: Enable once some case types are supported
-// TEST(MTL_JSON_Parser, conv_test) {
-//     createAndRunConvTest();
-// }
+TEST(MTL_JSON_Parser, conv_test) {
+    createAndRunConvTest();
+}

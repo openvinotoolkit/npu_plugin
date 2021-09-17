@@ -336,20 +336,28 @@ DimsOrder vpux::DimsOrder::fromValue(mlir::Value val) {
     return fromType(type);
 }
 
-SmallVector<mlir::AffineMap> vpux::DimsOrder::toAffineMapsList(mlir::MLIRContext* ctx, ShapeRef shape,
-                                                               const int64_t dataOffset) const {
-    VPUX_THROW_UNLESS(dataOffset >= 0, "Affine map offset cannot be negative");
+SmallVector<mlir::AffineMap> vpux::DimsOrder::toAffineMapsList(mlir::MLIRContext* ctx, ShapeRef shape) const {
     const auto memShape = toMemoryOrder(shape);
-    const auto reqs = StrideReqs::simple(shape.size());
-    const auto memStrides = reqs.calcStrides(1_Byte, memShape);
-    const auto elemStrides = to_small_vector(memStrides | transformed([](Byte val) {
-                                                 return val.count();
-                                             }));
+    const auto memStrides = StrideReqs::simple(shape.size()).calcStrides(1_Bit, memShape);
+    return toAffineMapsList(ctx, 1_Bit, memStrides);
+}
 
-    // strides in memory order
+SmallVector<mlir::AffineMap> vpux::DimsOrder::toAffineMapsList(mlir::MLIRContext* ctx, Bit elemSize,
+                                                               StridesRef strides) const {
+    const auto memStrides = toMemoryOrder(strides);
+    return toAffineMapsList(ctx, elemSize, memStrides);
+}
+
+SmallVector<mlir::AffineMap> vpux::DimsOrder::toAffineMapsList(mlir::MLIRContext* ctx, Bit elemSize,
+                                                               MemStridesRef memStrides) const {
+    // Element strides in memory order.
     // For NHWC U8 buffer with logical_shape = [1, 2, 3, 4] it will be
     // affine_map<(md0, md1, md2, md3) -> (24 * md0 + 8 * md1 + 2 * md2 + md3)>
-    auto stridesMap = mlir::makeStridedLinearLayoutMap(elemStrides, dataOffset, ctx);
+    const auto memElemStrides = to_small_vector(memStrides | transformed([&](Bit val) {
+                                                    return val.count() / elemSize.count();
+                                                }));
+
+    const auto stridesMap = mlir::makeStridedLinearLayoutMap(memElemStrides, 0, ctx);
 
     return {toPermutationAffineMap(ctx), stridesMap};
 }

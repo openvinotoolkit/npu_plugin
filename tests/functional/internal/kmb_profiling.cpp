@@ -46,7 +46,7 @@ void KmbProfilingTest::runTest(const std::string output_name, bool mlir) {
             .setUserInput("input", userInDesc.getPrecision(), userInDesc.getLayout())
             .addNetInput("input", userInDesc.getDims(), netPresicion)
                 .addLayer<PowerLayerDef>(output_name)
-                .input1("input") 
+                .input1("input")
                 .input2(getBlobByName("scale"))
                 .build()
             .addNetOutput(PortInfo(output_name))
@@ -94,10 +94,12 @@ TEST_F(KmbProfilingTest, precommit_profilingNonMatchedName) {
     runTest("conv");
 }
 
-TEST_F(KmbProfilingTest, profilingMatchedName_MLIR) {
+// [Track number: E#13766]
+TEST_F(KmbProfilingTest, DISABLED_profilingMatchedName_MLIR) {
     runTest("Result", true);
 }
 
-TEST_F(KmbProfilingTest, profilingNonMatchedName_MLIR) {
+// [Track number: E#13766]
+TEST_F(KmbProfilingTest, DISABLED_profilingNonMatchedName_MLIR) {
     runTest("conv", true);
 }

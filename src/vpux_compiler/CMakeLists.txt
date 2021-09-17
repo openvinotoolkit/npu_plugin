@@ -26,7 +26,7 @@ set(STATIC_TARGET_NAME "${TARGET_NAME}_static")
 
 set(gen_base_src_dir "tblgen/vpux/compiler")
 set(gen_base_dst_include_dir "include/vpux/compiler")
-set(gen_base_dst_docs_dir "docs/generated")
+set(gen_base_dst_docs_dir "docs/chapters/generated")
 
 set(generated_docs)
 
@@ -48,9 +48,9 @@ macro(add_op_interfaces subdir)
         TOOL "MLIR"
         MODE "-gen-op-interface-docs"
         SOURCE "${gen_base_src_dir}/${subdir}/ops_interfaces.td"
-        OUTPUT "${gen_base_dst_docs_dir}/${subdir}/ops_interfaces.md"
+        OUTPUT "${gen_base_dst_docs_dir}/${subdir}/_ops_interfaces.md"
     )
-    list(APPEND generated_docs "${subdir}/ops_interfaces.md")
+    list(APPEND generated_docs "${subdir}/_ops_interfaces.md")
 endmacro()
 
 macro(add_attr_interfaces subdir)
@@ -71,9 +71,9 @@ macro(add_attr_interfaces subdir)
         TOOL "MLIR"
         MODE "-gen-attr-interface-docs"
         SOURCE "${gen_base_src_dir}/${subdir}/attr_interfaces.td"
-        OUTPUT "${gen_base_dst_docs_dir}/${subdir}/attr_interfaces.md"
+        OUTPUT "${gen_base_dst_docs_dir}/${subdir}/_attr_interfaces.md"
     )
-    list(APPEND generated_docs "${subdir}/attr_interfaces.md")
+    list(APPEND generated_docs "${subdir}/_attr_interfaces.md")
 endmacro()
 
 macro(add_type_interfaces subdir)
@@ -94,9 +94,9 @@ macro(add_type_interfaces subdir)
         TOOL "MLIR"
         MODE "-gen-type-interface-docs"
         SOURCE "${gen_base_src_dir}/${subdir}/type_interfaces.td"
-        OUTPUT "${gen_base_dst_docs_dir}/${subdir}/type_interfaces.md"
+        OUTPUT "${gen_base_dst_docs_dir}/${subdir}/_type_interfaces.md"
     )
-    list(APPEND generated_docs "${subdir}/type_interfaces.md")
+    list(APPEND generated_docs "${subdir}/_type_interfaces.md")
 endmacro()
 
 macro(add_enum_attrs dialect)
@@ -195,9 +195,9 @@ macro(add_dialect dialect)
         MODE "-gen-dialect-doc"
         EXTRA_ARGS "-dialect=${dialect}"
         SOURCE "${gen_base_src_dir}/dialect/${dialect}/ops.td"
-        OUTPUT "${gen_base_dst_docs_dir}/dialect/${dialect}.md"
+        OUTPUT "${gen_base_dst_docs_dir}/dialect/_${dialect}.md"
     )
-    list(APPEND generated_docs "dialect/${dialect}.md")
+    list(APPEND generated_docs "dialect/_${dialect}.md")
 endmacro()
 
 macro(add_passes subdir name)
@@ -213,9 +213,9 @@ macro(add_passes subdir name)
         TOOL "MLIR"
         MODE "-gen-pass-doc"
         SOURCE "${gen_base_src_dir}/${subdir}/passes.td"
-        OUTPUT "${gen_base_dst_docs_dir}/${subdir}/passes.md"
+        OUTPUT "${gen_base_dst_docs_dir}/${subdir}/_passes.md"
     )
-    list(APPEND generated_docs "${subdir}/passes.md")
+    list(APPEND generated_docs "${subdir}/_passes.md")
 endmacro()
 
 macro(add_rewriters subdir)
@@ -288,12 +288,14 @@ foreach(doc_file IN LISTS generated_docs)
     set(out_doc_file "${CMAKE_CURRENT_SOURCE_DIR}/${gen_base_dst_docs_dir}/${doc_file}")
 
     get_filename_component(out_doc_dir ${out_doc_file} DIRECTORY)
-    file(MAKE_DIRECTORY ${out_doc_dir})
 
+    list(APPEND docs_cmd_list COMMAND ${CMAKE_COMMAND} -E make_directory ${out_doc_dir})
     list(APPEND docs_cmd_list COMMAND ${CMAKE_COMMAND} -E copy ${gen_doc_file} ${out_doc_file})
 endforeach()
 
 add_custom_target(${DOCS_TARGET_NAME} ALL
+    COMMAND ${CMAKE_COMMAND} -E remove_directory "${CMAKE_CURRENT_SOURCE_DIR}/${gen_base_dst_docs_dir}"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_SOURCE_DIR}/${gen_base_dst_docs_dir}"
     ${docs_cmd_list}
     COMMENT "[DOCS] ${TARGET_NAME}"
 )

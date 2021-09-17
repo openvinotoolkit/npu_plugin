@@ -70,16 +70,7 @@ def IERT_LayerOpInterface : OpInterface<"LayerOpInterface"> {
             [{
                 return vpux::IERT::getLayerOutOpOperands($_op);
             }]
-        >,
-
-        InterfaceMethod<
-            "Get information about current layout for Layer inputs and outputs",
-            "vpux::IE::DataOrderInfo", "getDataOrderInfo", (ins),
-            [{}],
-            [{
-                return vpux::IERT::getLayerDataOrderInfo($_op);
-            }]
-        >,
+        >
     ];
 
     let extraTraitClassDeclaration = [{

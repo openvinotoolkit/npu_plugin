@@ -41,10 +41,10 @@ public:
 
     void* wrapRemoteMemory(const InferenceEngine::ParamMap& map) noexcept override;
     // TODO Deprecated, remove when will be possible
-    void* wrapRemoteMemoryHandle(
-        const VpuxRemoteMemoryFD& remoteMemoryFd, const size_t size, void* memHandle) noexcept override;
-    void* wrapRemoteMemoryOffset(
-        const VpuxRemoteMemoryFD& remoteMemoryFd, const size_t size, const VpuxOffsetParam& memOffset) noexcept override;
+    void* wrapRemoteMemoryHandle(const VpuxRemoteMemoryFD& remoteMemoryFd, const size_t size,
+                                 void* memHandle) noexcept override;
+    void* wrapRemoteMemoryOffset(const VpuxRemoteMemoryFD& remoteMemoryFd, const size_t size,
+                                 const VpuxOffsetParam& memOffset) noexcept override;
     virtual ~VpusmmAllocator();
 
 protected:

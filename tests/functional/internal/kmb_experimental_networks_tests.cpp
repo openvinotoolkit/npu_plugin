@@ -14,7 +14,7 @@
 #include "test_model/kmb_test_base.hpp"
 
 TEST_F(KmbNetworkTestBase, split_conv_concat) {
-    SKIP_INFER("Wrong results - precision issues"); // TODO: create JIRA ticket
+    SKIP_INFER("Wrong results - precision issues");  // TODO: create JIRA ticket
     const auto init_input = [=](const ConstInputsDataMap& inputs) {
         IE_ASSERT(inputs.size() == 1);
         registerSingleImage("28x28/image_1_28x28.bmp", inputs.begin()->first, inputs.begin()->second->getTensorDesc());
@@ -25,14 +25,14 @@ TEST_F(KmbNetworkTestBase, split_conv_concat) {
     };
     runTest(
         TestNetworkDesc("KMB_models/INT8/customnets/split_conv_concat.xml")
-            .setUserInputPrecision("input", Precision::U8)
-            .setUserInputLayout("input", Layout::NHWC)
-            .setUserOutputPrecision("output", Precision::FP32),
+                .setUserInputPrecision("input", Precision::U8)
+                .setUserInputLayout("input", Layout::NHWC)
+                .setUserOutputPrecision("output", Precision::FP32),
         init_input, check);
 }
 
 TEST_F(KmbNetworkTestBase, precommit_customnet_conv_strided_slice) {
-    SKIP_INFER("Wrong results - precision issues"); // TODO: create JIRA ticket
+    SKIP_INFER("Wrong results - precision issues");  // TODO: create JIRA ticket
     const auto init_input = [=](const ConstInputsDataMap& inputs) {
         IE_ASSERT(inputs.size() == 1);
         registerSingleImage("28x28/image_1_28x28.bmp", inputs.begin()->first, inputs.begin()->second->getTensorDesc());
@@ -43,9 +43,9 @@ TEST_F(KmbNetworkTestBase, precommit_customnet_conv_strided_slice) {
     };
     runTest(
         TestNetworkDesc("KMB_models/INT8/customnets/conv_strided_slice.xml")
-            .setUserInputPrecision("input", Precision::U8)
-            .setUserInputLayout("input", Layout::NHWC)
-            .setUserOutputPrecision("output", Precision::FP32),
+                .setUserInputPrecision("input", Precision::U8)
+                .setUserInputLayout("input", Layout::NHWC)
+                .setUserOutputPrecision("output", Precision::FP32),
         init_input, check);
 }
 
@@ -53,9 +53,9 @@ TEST_F(KmbClassifyNetworkTest, precommit_customnet1_tf_int8_dense_grayscale_fash
     SKIP_INFER("hangs on infer");  // [Track number: S#43799]
     runTest(
         TestNetworkDesc("KMB_models/INT8/customnets/customnet1_tf_int8_dense_grayscale_fashionmnist.xml")
-            .setUserInputPrecision("input", Precision::U8)
-            .setUserInputLayout("input", Layout::NHWC)
-            .setUserOutputPrecision("output", Precision::FP32),
+                .setUserInputPrecision("input", Precision::U8)
+                .setUserInputLayout("input", Layout::NHWC)
+                .setUserOutputPrecision("output", Precision::FP32),
         "28x28/image_1_28x28.bmp",
         1, 0.5f);
 }
@@ -63,9 +63,9 @@ TEST_F(KmbClassifyNetworkTest, precommit_customnet1_tf_int8_dense_grayscale_fash
 TEST_F(KmbClassifyNetworkTest, precommit_customnet_sigmoid) {
     runTest(
         TestNetworkDesc("KMB_models/INT8/customnets/customnet_sigmoid.xml")
-            .setUserInputPrecision("input", Precision::U8)
-            .setUserInputLayout("input", Layout::NHWC)
-            .setUserOutputPrecision("output", Precision::FP32),
+                .setUserInputPrecision("input", Precision::U8)
+                .setUserInputLayout("input", Layout::NHWC)
+                .setUserOutputPrecision("output", Precision::FP32),
         "28x28/image_1_28x28.bmp",
         1, 0.5f);
 }
@@ -74,9 +74,9 @@ TEST_F(KmbClassifyNetworkTest, customnet2_pytorch_int8_dense_cifar10) {
     SKIP_INFER("hangs on infer");  // TODO: create JIRA ticket
     runTest(
         TestNetworkDesc("KMB_models/INT8/customnets/customnet2_pytorch_int8_dense_cifar10.xml")
-            .setUserInputPrecision("input", Precision::U8)
-            .setUserInputLayout("input", Layout::NHWC)
-            .setUserOutputPrecision("output", Precision::FP32),
+                .setUserInputPrecision("input", Precision::U8)
+                .setUserInputLayout("input", Layout::NHWC)
+                .setUserOutputPrecision("output", Precision::FP32),
         "32x32/0_cat.bmp",
         1, 0.5f);
 }
@@ -84,41 +84,42 @@ TEST_F(KmbClassifyNetworkTest, customnet2_pytorch_int8_dense_cifar10) {
 TEST_F(KmbClassifyNetworkTest, customnet3_mobilenet_v1_caffe_int8_dense) {
     runTest(
         TestNetworkDesc("KMB_models/INT8/customnets/customnet3_mobilenet_v1.xml")
-            .setUserInputPrecision("input", Precision::U8)
-            .setUserInputLayout("input", Layout::NHWC)
-            .setUserOutputPrecision("output", Precision::FP16)
-            .setUserOutputLayout("output", Layout::NHWC),
+                .setUserInputPrecision("input", Precision::U8)
+                .setUserInputLayout("input", Layout::NHWC)
+                .setUserOutputPrecision("output", Precision::FP16)
+                .setUserOutputLayout("output", Layout::NHWC),
         "224x224/cat3.bmp",
         1, 0.5f);
 }
 
 TEST_F(KmbClassifyNetworkTest, customnet_tanh) {
-    SKIP_INFER("Wrong results"); // TODO: create JIRA ticket
+    SKIP_INFER("Wrong results");  // TODO: create JIRA ticket
     runTest(
         TestNetworkDesc("KMB_models/INT8/customnets/customnet_tanh.xml")
-            .setUserInputPrecision("input", Precision::U8)
-            .setUserInputLayout("input", Layout::NHWC)
-            .setUserOutputPrecision("output", Precision::FP32),
+                .setUserInputPrecision("input", Precision::U8)
+                .setUserInputLayout("input", Layout::NHWC)
+                .setUserOutputPrecision("output", Precision::FP32),
         "28x28/image_1_28x28.bmp",
         1, 0.5f);
 }
 
 namespace {
 constexpr bool EXPERIMENTAL = true;
-} // namespace
+}  // namespace
 
 TEST_F(KmbClassifyNetworkTest, experimental_network_0000) {
     runTest(
         TestNetworkDesc("emotions-recognition-retail-0003/emotions-recognition-retail-0003_int8_from_fp16.xml", EXPERIMENTAL)
-            .setUserInputPrecision("input", Precision::U8)
-            .setUserInputLayout("input", Layout::NHWC)
-            .setUserOutputLayout("output", Layout::NHWC)
-            .setUserOutputPrecision("output", Precision::FP32),
+                .setUserInputPrecision("input", Precision::U8)
+                .setUserInputLayout("input", Layout::NHWC)
+                .setUserOutputLayout("output", Layout::NHWC)
+                .setUserOutputPrecision("output", Precision::FP32),
         "vpu/emotions-recognition-retail-0003.png",
         2, 0.1f);
 }
 
 TEST_F(KmbClassifyNetworkTest, efficient_b0_cars) {
+    SKIP_ON("EMULATOR", "Wrong results due to missing implementation for eltwise UPATask");
     runTest(
             TestNetworkDesc("efficientnet-b0-stanford-cars/caffe2/FP16-INT8/efficientnet-b0-stanford-cars.xml", EXPERIMENTAL)
                     .setUserInputPrecision("input", Precision::U8)
@@ -129,6 +130,7 @@ TEST_F(KmbClassifyNetworkTest, efficient_b0_cars) {
 }
 
 TEST_F(KmbClassifyNetworkTest, precommit_efficient_b0_dogs) {
+    SKIP_ON("EMULATOR", "Wrong results due to missing implementation for eltwise UPATask");
     runTest(
             TestNetworkDesc("efficientnet-b0-stanford-dogs/caffe2/FP16-INT8/efficientnet-b0-stanford-dogs.xml", EXPERIMENTAL)
                     .setUserInputPrecision("input", Precision::U8)
@@ -139,6 +141,7 @@ TEST_F(KmbClassifyNetworkTest, precommit_efficient_b0_dogs) {
 }
 
 TEST_F(KmbClassifyNetworkTest, efficient_b0_aircrafts) {
+    SKIP_ON("EMULATOR", "Wrong results due to missing implementation for eltwise UPATask");
     runTest(
             TestNetworkDesc("efficientnet-b0-aircrafts/caffe2/FP16-INT8/efficientnet-b0-aircrafts.xml", EXPERIMENTAL)
                     .setUserInputPrecision("input", Precision::U8)
@@ -149,6 +152,7 @@ TEST_F(KmbClassifyNetworkTest, efficient_b0_aircrafts) {
 }
 
 TEST_F(KmbClassifyNetworkTest, mobilenet_v3_cars) {
+    SKIP_ON("EMULATOR", "Wrong results due to missing implementation for eltwise UPATask");
     runTest(
             TestNetworkDesc("mobilenet-v3-small-stanford-cars/caffe2/FP16-INT8/mobilenet-v3-small-stanford-cars.xml", EXPERIMENTAL)
                     .setUserInputPrecision("input", Precision::U8)
@@ -160,6 +164,7 @@ TEST_F(KmbClassifyNetworkTest, mobilenet_v3_cars) {
 // TODO: [Track number: E#9578]
 TEST_F(KmbClassifyNetworkTest, precommit_mobilenet_v3_dogs) {
     SKIP_ON("HDDL2", "Bad accuracy");
+    SKIP_ON("EMULATOR", "Wrong results due to missing implementation for eltwise UPATask");
     runTest(
             TestNetworkDesc("mobilenet-v3-small-stanford-dogs/caffe2/FP16-INT8/mobilenet-v3-small-stanford-dogs.xml", EXPERIMENTAL)
                     .setUserInputPrecision("input", Precision::U8)
@@ -188,19 +193,6 @@ TEST_P(ModelAdk, precommit_ModelA_ADK3) {
             0.0035f);
 }
 
-// TODO: [Track number: E#9578]
-TEST_F(SmokeNetworkTest, SuperResolution_AA_ADK3) {
-    SKIP_ON("HDDL2", "Exception - dims and format are inconsistent");
-    runTest(
-            TestNetworkDesc("ADK3/SuperRes_INT8/SuperRes_INT8_AA.xml", EXPERIMENTAL)
-                    .setUserInputPrecision("netInput", Precision::U8)
-                    .setUserInputPrecision("t_param", Precision::U8)
-                    .setUserInputPrecision("t_param1", Precision::U8)
-                    .setUserOutputPrecision("tl_unet1x2x4x/out1x/add_2", Precision::FP16)
-                    .setUserOutputPrecision("tl_unet1x2x4x/out2x/add_2", Precision::FP16)
-                    .setUserOutputPrecision("tl_unet1x2x4x/out4x/add_1", Precision::FP16));
-}
-
 TEST_F(ModelAdk, ModelE_ADK3) {
     runTest(
             TestNetworkDesc("ADK3/ModelE_INT8/ModelE_INT8.xml", EXPERIMENTAL)
@@ -217,12 +209,26 @@ TEST_F(ModelAdk, ModelE_ADK3) {
 TEST_F(ModelAdk, DISABLED_DeBlur_AA_BDK2) {
     SKIP_INFER("bad results");
     runTest(
-            TestNetworkDesc("../clientmodels/BDK2/Deblur/AccuracyAware/2020.1_INT8_Deblur_AccuracyAwareQuantization.xml", EXPERIMENTAL)
+            TestNetworkDesc(
+                    "../clientmodels/BDK2/Deblur/AccuracyAware/2020.1_INT8_Deblur_AccuracyAwareQuantization.xml", EXPERIMENTAL)
                     .setUserInputPrecision("img_placeholder", Precision::U8)
                     .setUserOutputPrecision("output", Precision::FP16)
                     .setCompileConfig({{"VPUX_THROUGHPUT_STREAMS", "1"}}),
             TestImageDesc("224x224/cat3.bmp", ImageFormat::BGR),
             0.0025f);
+}
+
+// TODO: this is temporary added test to verify #E16291.
+// The test should be replaced by a sub-graph test
+// to verify different patterns which can be applied
+// for detect_input_fq ngraph pass
+// [Track number: #E19643]
+TEST_F(KmbClassifyNetworkTest, googlenet_v3_BDK2) {
+    runTest(
+        TestNetworkDesc("googlenet_v3/FP16-INT8/googlenet-v3.xml", EXPERIMENTAL)
+            .setUserInputPrecision("input", Precision::FP32),
+        TestImageDesc("299x299/lassy_googlenet_big.bmp", ImageFormat::RGB),
+        1, 0.03f);
 }
 
 const static std::vector<InferenceEngine::Precision> inputPrecision = {
@@ -249,81 +255,3 @@ TEST_F(KmbClassifyNetworkTest, precommit_MobilenetV2_ADK3) {
             TestImageDesc("224x224/watch.bmp", ImageFormat::RGB),
             1, 2.0f);
 }
-
-// [Track number: S#47647]
-TEST_F(KmbSuperResNetworkTest, precommit_SuperResolution_ADK3) {
-    SKIP_INFER("bad results");
-    const std::string imgName  = "netInput";
-    const std::string paramName1 = "t_param";
-    const std::string paramName2 = "t_param1";
-    runTest(
-            TestNetworkDesc("ADK3/SuperRes_INT8/SuperRes_INT8.xml", EXPERIMENTAL)
-            .setUserInputPrecision(imgName, Precision::U8)
-            .setUserInputLayout(imgName, Layout::NHWC)
-            .setUserInputPrecision(paramName1, Precision::U8)
-            .setUserInputLayout(paramName1, Layout::C)
-            .setUserInputPrecision(paramName2, Precision::U8)
-            .setUserInputLayout(paramName2, Layout::C)
-            .setUserOutputPrecision("tl_unet1x2x4x/out1x/add_2", Precision::FP16)
-            .setUserOutputPrecision("tl_unet1x2x4x/out2x/add_2", Precision::FP16)
-            .setUserOutputPrecision("tl_unet1x2x4x/out4x/add_1", Precision::FP16),
-            imgName,
-            TestBinFileDesc("vpu/super_resolution_input/input-0-U8.bin", {1, 3, 192, 192}, Precision::U8),
-            paramName1,
-            TestBinFileDesc("vpu/super_resolution_input/input-1-U8.bin", {1}, Precision::U8),
-            paramName2,
-            TestBinFileDesc("vpu/super_resolution_input/input-2-U8.bin", {1}, Precision::U8));
-}
-
-class KmbSuperResNetworkTestParameterized : public KmbSuperResNetworkTest,
-    public testing::WithParamInterface<std::tuple<InferenceEngine::Precision, InferenceEngine::Precision>> {};
-
-// [Track number: S#47647]
-TEST_P(KmbSuperResNetworkTestParameterized, PrecisionTest) {
-    SKIP_INFER("bad results");
-    auto inputPrecision = std::get<0>(GetParam());
-    auto outputPrecision = std::get<1>(GetParam());
-    const std::string imgName  = "netInput";
-    const std::string paramName1 = "t_param";
-    const std::string paramName2 = "t_param1";
-
-    std::map<InferenceEngine::Precision, std::string> precisionToStr = {
-        {InferenceEngine::Precision::U8, "U8"},
-        {InferenceEngine::Precision::FP16, "FP16"},
-        {InferenceEngine::Precision::FP32, "FP32"}
-    };
-    runTest(
-            TestNetworkDesc("ADK3/SuperRes_INT8/SuperRes_INT8.xml", EXPERIMENTAL)
-            .setUserInputPrecision(imgName, inputPrecision)
-            .setUserInputLayout(imgName, Layout::NHWC)
-            .setUserInputPrecision(paramName1, inputPrecision)
-            .setUserInputLayout(paramName1, Layout::C)
-            .setUserInputPrecision(paramName2, inputPrecision)
-            .setUserInputLayout(paramName2, Layout::C)
-            .setUserOutputPrecision("tl_unet1x2x4x/out1x/add_2", outputPrecision)
-            .setUserOutputPrecision("tl_unet1x2x4x/out2x/add_2", outputPrecision)
-            .setUserOutputPrecision("tl_unet1x2x4x/out4x/add_1", outputPrecision),
-            imgName,
-            TestBinFileDesc("vpu/super_resolution_input/input-0-"+precisionToStr[inputPrecision]+".bin", {1, 3, 192, 192}, inputPrecision),
-            paramName1,
-            TestBinFileDesc("vpu/super_resolution_input/input-1-"+precisionToStr[inputPrecision]+".bin", {1}, inputPrecision),
-            paramName2,
-            TestBinFileDesc("vpu/super_resolution_input/input-2-"+precisionToStr[inputPrecision]+".bin", {1}, inputPrecision));
-    }
-
-static const std::vector<InferenceEngine::Precision> SRInputPrecision = {
-            InferenceEngine::Precision::U8,
-            InferenceEngine::Precision::FP16,
-            InferenceEngine::Precision::FP32
-};
-
-static const std::vector<InferenceEngine::Precision> SROutputPrecision = {
-            InferenceEngine::Precision::FP16,
-            InferenceEngine::Precision::FP32
-};
-
-static const auto allPrecisionCombine = ::testing::Combine(
-        ::testing::ValuesIn(SRInputPrecision),
-        ::testing::ValuesIn(SROutputPrecision));
-
-INSTANTIATE_TEST_SUITE_P(PrecisionCombine, KmbSuperResNetworkTestParameterized, allPrecisionCombine);

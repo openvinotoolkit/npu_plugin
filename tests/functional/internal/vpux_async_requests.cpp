@@ -30,6 +30,7 @@ std::ostream& operator<<(std::ostream& os, const AsyncTestParams &p) {
 class VpuxAsyncTests: public KmbLayerTestBase, public testing::WithParamInterface<AsyncTestParams> {};
 
 TEST_P(VpuxAsyncTests, regression_ADK) {
+    SKIP_ON("EMULATOR", "Export network not enabled on emulator.");
     const auto &p = GetParam();
     const std::size_t nireq = p.nireq();
     const std::size_t niter = p.niter();
