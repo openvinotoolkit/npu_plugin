@@ -15,17 +15,17 @@ namespace LayerTestsDefinitions {
             if (envConfig.IE_KMB_TESTS_RUN_INFER) {
                 throw LayerTestsUtils::KmbSkipTestException("layer test networks hang the board");
             }
+            // [Track number: #E20003]
+            if (getBackendName(*getCore()) == "LEVEL0") {
+                throw LayerTestsUtils::KmbSkipTestException("Level0: failure on device");
+            }
         }
         void SkipBeforeValidate() override {
             throw LayerTestsUtils::KmbSkipTestException("comparison fails");
         }
     };
 
-// [Track number: #E20003]
     TEST_P(KmbComparisonLayerTest, CompareWithRefs) {
-    if (getBackendName(*getCore()) == "LEVEL0") {
-        SKIP() << "Skip due to failure on device";
-    }
         Run();
     }
 } // namespace LayerTestsDefinitions
