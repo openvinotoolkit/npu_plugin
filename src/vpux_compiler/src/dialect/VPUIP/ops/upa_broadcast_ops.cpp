@@ -19,7 +19,7 @@
 using namespace vpux;
 
 void vpux::VPUIP::BroadcastUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
-                                   mlir::Value target_shape, mlir::Value output, IE::BroadcastTypeAttr mode) {
+                                        mlir::Value target_shape, mlir::Value output, IE::BroadcastTypeAttr mode) {
     build(builder, state, input, target_shape, output, mlir::ValueRange{}, mlir::ValueRange{}, mode, nullptr, nullptr);
 }
 

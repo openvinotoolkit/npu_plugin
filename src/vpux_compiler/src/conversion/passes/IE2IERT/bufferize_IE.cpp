@@ -565,7 +565,7 @@ mlir::Operation* createRTLayer(IE::LRN_IEOp origOp, ArrayRef<mlir::Value> allBuf
 mlir::Operation* createRTLayer(IE::BroadcastOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::BroadcastOp::Adaptor newOp(allBufs);
     return b.create<IERT::BroadcastOp>(origOp.getLoc(), newOp.input(), newOp.target_shape(), newOp.output_buff(),
-                                    origOp.modeAttr());
+                                       origOp.modeAttr());
 }
 
 mlir::Operation* createRTLayer(IE::PerAxisTileOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {

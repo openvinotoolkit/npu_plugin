@@ -867,8 +867,11 @@ def IE_LRN_IEOp :
 
 def IE_BroadcastOp :
         IE_LayerOp<
-            "Broadcast"
-        > {
+            "Broadcast",
+            [
+                DeclareOpInterfaceMethods<ViewLikeOpInterface>
+            ]
+    > {
     let summary = "InferenceEngine Broadcast layer";
 
     let arguments = (ins

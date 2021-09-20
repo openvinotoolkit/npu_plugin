@@ -28,10 +28,9 @@ using namespace LayerTestsDefinitions;
 namespace {
 // Common params
 
-const std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32,
-                                                               InferenceEngine::Precision::FP16};
+const std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP16};
 
-const std::vector<std::vector<int64_t>> axes = {{1}, {2, 3}};
+const std::vector<std::vector<int64_t>> axes = {{1}};
 
 const double alpha = 9.9e-05;
 const double beta = 2;

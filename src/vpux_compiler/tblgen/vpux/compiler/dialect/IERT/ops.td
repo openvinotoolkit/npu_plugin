@@ -829,7 +829,7 @@ def IERT_ErfOp :
 def IERT_BroadcastOp :
         IERT_LayerOp<1, "Broadcast",
             [
-                ViewLikeOpInterface,
+                DeclareOpInterfaceMethods<ViewLikeOpInterface>
             ]
         > {
     let summary = "Inferencengie run-time Broadcast layer";
