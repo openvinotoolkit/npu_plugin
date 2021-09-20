@@ -26,11 +26,11 @@ class KmbQuantizedMaxPoolSubGraphTest :
         const auto dataFq = ngraph::builder::makeFakeQuantize(paramOuts[0], ngraph::element::f32, dataLevels, {},
                                                               dataLow, dataHigh, dataLow, dataHigh);
 
-        const ngraph::Strides strides        = {1, 1};
+        const ngraph::Strides strides        = {2, 2};
         const std::vector<size_t> pads_begin = {0, 0};
         const std::vector<size_t> pads_end   = {0, 0};
         const ngraph::Strides dilations      = {1, 1};
-        const std::vector<size_t> kernelSize = {1, 1};
+        const std::vector<size_t> kernelSize = {2, 2};
         const ngraph::op::PadType padType = ngraph::op::PadType::AUTO;
         const ngraph::op::RoundingType roundingType = ngraph::op::RoundingType::FLOOR;
 
