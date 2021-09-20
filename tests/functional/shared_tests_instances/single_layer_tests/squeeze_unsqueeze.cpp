@@ -38,22 +38,19 @@ class KmbSqueezeUnsqueezeLayerTest: public SqueezeUnsqueezeLayerTest, virtual pu
         if (inRank > 4 || outRank > 4) {
             throw LayerTestsUtils::KmbSkipTestException(">4D case is not supported by run-time");
         }
+
+        // [Track number: #E20158]
+        if (getBackendName(*getCore()) == "LEVEL0") {
+            throw LayerTestsUtils::KmbSkipTestException("Level0: failure on device");
+        }
     }
 };
 
 TEST_P(KmbSqueezeUnsqueezeLayerTest, CompareWithRefs) {
-    // [Track number: #E20158]
-    if (getBackendName(*getCore()) == "LEVEL0") {
-        SKIP() << "Skip due to failure on device";
-    }
     Run();
 }
 
 TEST_P(KmbSqueezeUnsqueezeLayerTest, CompareWithRefs_MLIR) {
-    // [Track number: #E20158]
-    if (getBackendName(*getCore()) == "LEVEL0") {
-        SKIP() << "Skip due to failure on device";
-    }
     useCompilerMLIR();
     Run();
 }
