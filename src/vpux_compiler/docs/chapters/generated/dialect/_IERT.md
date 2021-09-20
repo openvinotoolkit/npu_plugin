@@ -131,6 +131,34 @@ operation ::= `IERT.Add` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float or 32-bit float values
 
+### `IERT.Assign` (vpux::IERT::AssignOp)
+
+InferenceEngine run-time Assign layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.Assign` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of any type values
+`output_buff` | memref of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of any type values
+
 ### `IERT.AvgPool` (vpux::IERT::AvgPoolOp)
 
 InferenceEngine run-time AvgPool layer

@@ -405,6 +405,22 @@ mlir::Operation* createRTLayer(IE::ConvertOp origOp, ArrayRef<mlir::Value> allBu
     return b.create<IERT::ConvertOp>(origOp.getLoc(), newOp.input(), newOp.output_buff());
 }
 
+mlir::Operation* createRTLayer(IE::ReadValueOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::ReadValueOp::Adaptor newOp(allBufs);
+
+    std::cout << "ReadValue operation convertion to IERT" << std::endl;
+
+    return b.create<IERT::ReadValueOp>(origOp.getLoc(), newOp.input(), newOp.output_buff());
+}
+
+mlir::Operation* createRTLayer(IE::AssignOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::AssignOp::Adaptor newOp(allBufs);
+
+    std::cout << "Assign operation convertion to IERT" << std::endl;
+
+    return b.create<IERT::AssignOp>(origOp.getLoc(), newOp.input(), newOp.output_buff());
+}
+
 mlir::Operation* createRTLayer(IE::ReLUOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::ReLUOp::Adaptor newOp(allBufs);
     return b.create<IERT::ReLUOp>(origOp.getLoc(), newOp.input(), newOp.output_buff());
@@ -767,6 +783,8 @@ mlir::LogicalResult LayerRewrite::matchAndRewrite(mlir::Operation* origOp, Array
     CASE(IE::RegionYoloOp)
     CASE(IE::MVNOp)
     CASE(IE::SubtractOp)
+    CASE(IE::ReadValueOp)
+    CASE(IE::AssignOp)
     .Default([](mlir::Operation*) {
         return nullptr;
     });

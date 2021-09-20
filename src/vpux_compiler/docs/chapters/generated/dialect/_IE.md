@@ -81,6 +81,30 @@ operation ::= `IE.Add` `(` operands `)` attr-dict `:` type(operands) `->` type(r
 | :----: | ----------- |
 `output` | ranked tensor of 16-bit float or 32-bit float values
 
+### `IE.Assign` (vpux::IE::AssignOp)
+
+InferenceEngine Assign layer
+
+
+Syntax:
+
+```
+operation ::= `IE.Assign` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values
+
 ### `IE.AvgPool` (vpux::IE::AvgPoolOp)
 
 InferenceEngine AvgPool layer

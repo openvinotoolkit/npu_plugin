@@ -61,15 +61,15 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(ReadValueUPAOp op) {
 //           nullptr, nullptr, false);
 // }
 
-void vpux::VPUIP::ReadValueUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
-                                        mlir::Value output) {
+void vpux::VPUIP::AssignUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
+                                     mlir::Value output) {
 // mlir::ValueRange{}, mlir::ValueRange{}
-    std::cout << "vpux::VPUIP::ReadValueUPAOp::build start" << std::endl;
+    std::cout << "vpux::VPUIP::AssignUPAOp::build start" << std::endl;
     build(builder, state, input, output, mlir::ValueRange{}, mlir::ValueRange{}, nullptr, nullptr);
-    std::cout << "vpux::VPUIP::ReadValueUPAOp::build" << std::endl;
+    std::cout << "vpux::VPUIP::AssignUPAOp::build" << std::endl;
 }
 
-VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ReadValueUPAOp::serialize(VPUIP::BlobWriter& writer) {
+VPUIP::BlobWriter::SpecificTask vpux::VPUIP::AssignUPAOp::serialize(VPUIP::BlobWriter& writer) {
     const auto scale = 1.0;
     const auto bias = 0.0;
 

@@ -167,11 +167,31 @@ def IE_DataInfoOp :
 
 def IE_ReadValueOp :
         IE_LayerOp<
-            "ReadValue",
+            "ReadValue"
+        > {
+    let summary = "InferenceEngine ReadValue layer";
+
+    let arguments = (ins
+        AnyRankedTensor:$input
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+}
+
+
+//
+// AssignOp
+//
+
+def IE_AssignOp :
+        IE_LayerOp<
+            "Assign",
             [
             ]
         > {
-    let summary = "InferenceEngine ReadValue layer";
+    let summary = "InferenceEngine Assign layer";
 
     let arguments = (ins
         AnyRankedTensor:$input

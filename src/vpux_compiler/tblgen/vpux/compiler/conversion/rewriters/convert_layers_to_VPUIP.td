@@ -680,4 +680,37 @@ def RewriteMVN :
             (createMVNUPAOp $input, $output, $across_channels, $normalize_variance, $eps)
         >;
 
+//
+// IERT.ReadValue -> VPUIP.ReadValueUPA
+//
+
+def createReadValueUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::ReadValueUPAOp>(
+                $_loc, $0, $1)
+        }]>;
+
+def RewriteReadValue :
+        Pat<
+            (IERT_ReadValueOp $input, $output),
+            (createReadValueUPAOp $input, $output)
+        >;
+
+//
+// IERT.Assign -> VPUIP.AssignUPA
+//
+
+def createAssignUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::AssignUPAOp>(
+                $_loc, $0, $1)
+        }]>;
+
+def RewriteAssign :
+        Pat<
+            (IERT_AssignOp $input, $output),
+            (createAssignUPAOp $input, $output)
+        >;
+
+
 #endif

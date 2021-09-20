@@ -25,6 +25,45 @@ It handles such VPU-specifics as:
 This object represents closely a Barrier in the device
 ## Operation definition
 
+### `VPUIP.AssignUPA` (vpux::VPUIP::AssignUPAOp)
+
+Assign UPA SHAVE kernel
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.AssignUPA` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+              (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`maxShaves` | mlir::IntegerAttr | Integer attribute
+`isTrailingSWLayer` | ::mlir::UnitAttr | unit attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of any type values
+`output_buff` | memref of any type values
+`waitBarriers` | VPUIP Barrier Type
+`updateBarriers` | VPUIP Barrier Type
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of any type values
+
 ### `VPUIP.CTCGreedyDecoderSeqLenUPA` (vpux::VPUIP::CTCGreedyDecoderSeqLenUPAOp)
 
 CTCGreedyDecoderSeqLen UPA SHAVE kernel
