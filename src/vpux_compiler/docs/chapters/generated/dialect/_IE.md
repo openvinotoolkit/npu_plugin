@@ -1433,15 +1433,15 @@ operation ::= `IE.Negative` `(` operands `)` attr-dict `:` type(operands) `->` t
 | :----: | ----------- |
 `output` | ranked tensor of 16-bit float or 32-bit float values
 
-### `IE.NormalizeL2` (vpux::IE::NormalizeL2Op)
+### `IE.NormalizeIE` (vpux::IE::NormalizeIEOp)
 
-InferenceEngine NormalizeL2 layer
+InferenceEngine NormalizeIE layer
 
 
 Syntax:
 
 ```
-operation ::= `IE.NormalizeL2` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+operation ::= `IE.NormalizeIE` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
 ```
 
 
@@ -1450,14 +1450,15 @@ operation ::= `IE.NormalizeL2` `(` operands `)` attr-dict `:` type(operands) `->
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
 `eps` | ::mlir::FloatAttr | 64-bit float attribute
-`eps_mod` | vpux::IE::EpsModeAttr | EpsMode that the InferenceEngine supports
+`across_spatial` | ::mlir::BoolAttr | bool attribute
+`channel_shared` | ::mlir::BoolAttr | bool attribute
 
 #### Operands:
 
 | Operand | Description |
 | :-----: | ----------- |
 `data` | ranked tensor of any type values
-`axes` | ranked tensor of integer values
+`weights` | ranked tensor of any type values
 
 #### Results:
 

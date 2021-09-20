@@ -12,18 +12,27 @@
 //
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
+#include "vpux/compiler/dialect/const/ops.hpp"
+#include "vpux/compiler/utils/attributes.hpp"
+#include "vpux/compiler/utils/error.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
 
+#include <mlir/IR/PatternMatch.h>
+
 using namespace vpux;
 
-mlir::LogicalResult vpux::IE::NormalizeL2Op::inferReturnTypeComponents(
+//
+// inferReturnTypeComponents
+//
+
+mlir::LogicalResult vpux::IE::NormalizeIEOp::inferReturnTypeComponents(
         mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
         mlir::DictionaryAttr attrs, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
 
-    IE::NormalizeL2OpAdaptor normalize(operands, attrs);
+    IE::NormalizeIEOpAdaptor normalize(operands, attrs);
     if (mlir::failed(normalize.verify(loc))) {
         return mlir::failure();
     }

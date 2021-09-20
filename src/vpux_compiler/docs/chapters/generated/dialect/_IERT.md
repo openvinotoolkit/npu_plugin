@@ -1505,6 +1505,43 @@ operation ::= `IERT.Negative` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float or 32-bit float values
 
+### `IERT.NormalizeIE` (vpux::IERT::NormalizeIEOp)
+
+InferenceEngine run-time NormalizeIE layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.NormalizeIE` attr-dict
+              `inputs` `(` $data `:` type($data) `,` $weights `:` type($weights) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`eps` | ::mlir::FloatAttr | 64-bit float attribute
+`across_spatial` | ::mlir::BoolAttr | bool attribute
+`channel_shared` | ::mlir::BoolAttr | bool attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`data` | memref of 16-bit float or 32-bit float values
+`weights` | memref of 16-bit float or 32-bit float values
+`output_buff` | memref of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float or 32-bit float values
+
 ### `IERT.PRelu` (vpux::IERT::PReluOp)
 
 InferenceEngine run-time PRelu layer

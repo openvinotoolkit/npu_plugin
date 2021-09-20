@@ -2426,4 +2426,37 @@ def IERT_CeilingOp :
     }];
 }
 
+//
+// NormalizeIEOp
+//
+
+def IERT_NormalizeIEOp :
+        IERT_LayerOp<1, "NormalizeIE",
+            [
+                ViewLikeOpInterface
+            ]
+        > {
+    let summary = "InferenceEngine run-time NormalizeIE layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$data,
+        MemRefOf<[F16, F32]>:$weights,
+        MemRefOf<[F16, F32]>:$output_buff,
+
+        F64Attr:$eps,
+        BoolAttr:$across_spatial,
+        BoolAttr:$channel_shared
+    );
+
+    let results = (outs
+        MemRefOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $data `:` type($data) `,` $weights `:` type($weights) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
 #endif

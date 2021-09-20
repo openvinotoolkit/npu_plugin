@@ -55,6 +55,7 @@
 #include <ngraph/pass/constant_folding.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/type/element_type.hpp>
+#include "legacy/ngraph_ops/normalize_ie.hpp"
 #include "vpux/passes/convert_MVN6_to_MVN1.hpp"
 
 #include <transformations/common_optimizations/common_optimizations.hpp>
@@ -75,6 +76,7 @@
 #include <transformations/op_conversions/mvn6_decomposition.hpp>
 #include <transformations/op_conversions/simplify_ctc_greedy_decoder_seq_len.hpp>
 #include "legacy/transformations/convert_opset1_to_legacy/convert_lrn_to_lrn_ie.hpp"
+#include "legacy/transformations/convert_opset1_to_legacy/convert_normalizel2_to_normalize_ie.hpp"
 #include "legacy/transformations/convert_opset1_to_legacy/convert_strided_slice_to_crop.hpp"
 
 #include <transformations/init_node_info.hpp>
@@ -157,7 +159,7 @@ private:
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::RegionYolo>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::ReorgYolo>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::DetectionOutput>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::NormalizeL2>& origNode);
+    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::op::NormalizeIE>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset4::MVN>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Concat>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::ROIPooling>& origNode);
@@ -185,7 +187,6 @@ private:
     IE::AutoBroadcastTypeAttr importBroadcastType(ngraph::op::AutoBroadcastType bType);
     IE::BroadcastTypeAttr importBroadcastMode(ngraph::op::BroadcastType bType);
     IE::RoundingTypeAttr importRoundingType(ngraph::op::RoundingType roundingType);
-    IE::EpsModeAttr importEpsMode(ngraph::op::EpsMode val);
     IE::TopKModeAttr importTopKMode(ngraph::op::TopKMode val);
     IE::TopKSortTypeAttr importTopKSortType(ngraph::op::TopKSortType val);
     IE::ProposalAttr importProposalAttrs(const ngraph::op::ProposalAttrs& val);
@@ -267,7 +268,7 @@ NGraphImporter::Callback NGraphImporter::getParser(const std::shared_ptr<ngraph:
             MAP_ENTRY(opset_latest::RegionYolo),
             MAP_ENTRY(opset_latest::ReorgYolo),
             MAP_ENTRY(opset_latest::DetectionOutput),
-            MAP_ENTRY(opset_latest::NormalizeL2),
+            MAP_ENTRY(ngraph::op::NormalizeIE),
             MAP_ENTRY(ngraph::opset4::MVN),
             MAP_ENTRY(opset_latest::Concat),
             MAP_ENTRY(opset_latest::ROIPooling),
@@ -1196,8 +1197,8 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder,
     addOutputs(origNode, op);
 }
 
-void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::NormalizeL2>& origNode) {
-    static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v0::NormalizeL2>::value,
+void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::op::NormalizeIE>& origNode) {
+    static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::NormalizeIE>::value,
                   "opset operation mismatch");
 
     const auto inputs = getInputs(origNode);
@@ -1205,9 +1206,11 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
                       origNode->get_friendly_name(), inputs.size());
 
     const auto epsAttr = getFPAttr(_ctx, origNode->get_eps());
-    const auto epsModeAttr = importEpsMode(origNode->get_eps_mode());
+    const auto across_spatialAttr = mlir::BoolAttr::get(_ctx, origNode->get_across_spatial());
+    const auto channel_sharedAttr = mlir::BoolAttr::get(_ctx, origNode->get_channel_shared());
 
-    auto op = builder.create<IE::NormalizeL2Op>(createLocation(origNode), inputs[0], inputs[1], epsAttr, epsModeAttr);
+    auto op = builder.create<IE::NormalizeIEOp>(createLocation(origNode), inputs[0], inputs[1], epsAttr,
+                                                across_spatialAttr, channel_sharedAttr);
     addOutputs(origNode, op);
 }
 
@@ -1568,17 +1571,6 @@ IE::LRN_IERegionAttr NGraphImporter::importLRN_IERegion(const std::string& regio
     }
 }
 
-IE::EpsModeAttr NGraphImporter::importEpsMode(ngraph::op::EpsMode val) {
-    switch (val) {
-    case ngraph::op::EpsMode::ADD:
-        return IE::EpsModeAttr::get(_ctx, IE::EpsMode::ADD);
-    case ngraph::op::EpsMode::MAX:
-        return IE::EpsModeAttr::get(_ctx, IE::EpsMode::MAX);
-    default:
-        VPUX_THROW("Unknown EpsMode");
-    }
-}
-
 IE::TopKModeAttr NGraphImporter::importTopKMode(ngraph::op::TopKMode val) {
     switch (val) {
     case ngraph::op::TopKMode::MAX:
@@ -1892,6 +1884,7 @@ void runNGraphPasses(const std::shared_ptr<ngraph::Function>& netGraph, mlir::Ti
     manager.register_pass<vpux::passes::ConvertMVN6toMVN1>();
     manager.register_pass<ngraph::pass::ConvertLRNToLegacyMatcher>();
     manager.register_pass<vpux::passes::ConvertVariadicSplitToStridedSliceOp>();
+    manager.register_pass<ngraph::pass::ConvertNormalizeL2ToLegacyMatcher>();
 
     manager.run_passes(netGraph);
 }
