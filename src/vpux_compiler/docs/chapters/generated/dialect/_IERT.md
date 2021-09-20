@@ -1787,7 +1787,7 @@ Extract single subview from buffer
 Syntax:
 
 ```
-operation ::= `IERT.SubView` $source $static_offsets $static_sizes
+operation ::= `IERT.SubView` $source $static_offsets $static_sizes ($static_strides^)?
               attr-dict `:` type($source) `to` type(results)
 ```
 
@@ -1798,6 +1798,7 @@ operation ::= `IERT.SubView` $source $static_offsets $static_sizes
 | :-------: | :-------: | ----------- |
 `static_offsets` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `static_sizes` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`static_strides` | ::mlir::ArrayAttr | 64-bit integer array attribute
 
 #### Operands:
 

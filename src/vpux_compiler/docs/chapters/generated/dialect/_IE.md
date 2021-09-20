@@ -254,6 +254,8 @@ operation ::= `IE.Concat` `(` operands `)` attr-dict `:` type(operands) `->` typ
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
 `axis` | mlir::IntegerAttr | Integer attribute
+`offset` | mlir::IntegerAttr | Integer attribute
+`stride` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 

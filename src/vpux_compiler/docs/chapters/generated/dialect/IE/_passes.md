@@ -66,6 +66,11 @@ depending on the compilation mode
 The pass is a part of `LowPrecision` pipeline.
 
 Pass detects pattern quant.dcast -> op -> quant.qcast and converts it into single quantized Op
+### `-handle-asymmetric-strides`: Handle operations with asymmetric strides
+The pass is a part of `AdjustForVPU` pipeline.
+
+This pass splits operations so that they are able to be infered with symmetric strides
+    on dpu because of hardware limitation.
 ### `-merge-fake-quant`: Merge back to FakeQuantize
 The pass is a part of `LowPrecision` pipeline.
 
