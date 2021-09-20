@@ -77,7 +77,6 @@ void VPUXCompilerL0::initLib() {
     }
 }
 
-
 //------------------------------------------------------------------------------
 //      VPUXCompilerL0
 //------------------------------------------------------------------------------
@@ -112,7 +111,8 @@ Blob::Ptr VPUXCompilerL0::compileIR(std::vector<char>& xml, std::vector<char>& w
     std::vector<char> blob;
 
     vpux_compiler_l0_model_ir modelIR = {static_cast<uint32_t>(xml.size()), static_cast<uint32_t>(weights.size()),
-         reinterpret_cast<uint8_t*>(xml.data()), reinterpret_cast<uint8_t*>(weights.data())};
+                                         reinterpret_cast<uint8_t*>(xml.data()),
+                                         reinterpret_cast<uint8_t*>(weights.data())};
     ret = vcl.methods.generateSerializableBlob(&modelIR, &blobSize);
     if (ret != RESULT_SUCCESS || blobSize == 0) {
         THROW_IE_EXCEPTION << "Failed to get blob size!\n";
@@ -126,8 +126,7 @@ Blob::Ptr VPUXCompilerL0::compileIR(std::vector<char>& xml, std::vector<char>& w
 }
 
 std::tuple<const std::string, const DataMap, const DataMap, const DataMap, const DataMap>
-VPUXCompilerL0::getNetworkMeta(
-        const Blob::Ptr compiledNetwork) {
+VPUXCompilerL0::getNetworkMeta(const Blob::Ptr compiledNetwork) {
     _logger->debug("VPUXCompilerL0::getNetworkMeta start");
     vpux::Compiler::Ptr compiler = std::make_shared<Compiler>(getLibFilePath("vpux_compiler"));
     const auto networkDesc = compiler->parse(compiledNetwork->data);
@@ -156,17 +155,18 @@ Opset VPUXCompilerL0::getSupportedOpset() {
         CLOSELIB(handle);
         THROW_IE_EXCEPTION << "Failed to query compiler props! result: " << ret;
     } else {
-        _logger->info("Compiler version:%d.%d\n", compilerInfo.compiler_version.major, compilerInfo.compiler_version.minor);
+        _logger->info("Compiler version:%d.%d\n", compilerInfo.compiler_version.major,
+                      compilerInfo.compiler_version.minor);
         _logger->info("\tSupported format:\n\
           \t\tNATIVE:%d\n\
         \t\tNGRAPH_LITE:%d\n",
-               compilerInfo.supported_formats & EXECUTABLE_INPUT_TYPE_NATIVE && 1,
-               compilerInfo.supported_formats & EXECUTABLE_INPUT_TYPE_NGRAPH_LITE && 1);
+                      compilerInfo.supported_formats & EXECUTABLE_INPUT_TYPE_NATIVE && 1,
+                      compilerInfo.supported_formats & EXECUTABLE_INPUT_TYPE_NGRAPH_LITE && 1);
         _logger->info("\tSupported opsets:\n\
               \t\tOV6:%d\n\
         \t\tOV7:%d\n",
-               compilerInfo.supported_opsets & EXECUTABLE_OPSET_TYPE_OV6 && 1,
-               compilerInfo.supported_opsets & EXECUTABLE_OPSET_TYPE_OV7 && 1);
+                      compilerInfo.supported_opsets & EXECUTABLE_OPSET_TYPE_OV6 && 1,
+                      compilerInfo.supported_opsets & EXECUTABLE_OPSET_TYPE_OV7 && 1);
     }
     // Set custom opset
     const size_t customOpset = std::atoi(getEnvVarDefault("CUSTOM_OPSET", "0").c_str());
