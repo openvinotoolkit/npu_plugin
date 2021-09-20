@@ -81,7 +81,9 @@ TEST_F(KmbClassifyNetworkTest, customnet2_pytorch_int8_dense_cifar10) {
         1, 0.5f);
 }
 
+// [Track number: E#20726]
 TEST_F(KmbClassifyNetworkTest, customnet3_mobilenet_v1_caffe_int8_dense) {
+    SKIP_ON("LEVEL0", "Sporadic exeption - throwOnFail: zeCommandQueueCreate result: 0x70000001");
     runTest(
         TestNetworkDesc("KMB_models/INT8/customnets/customnet3_mobilenet_v1.xml")
                 .setUserInputPrecision("input", Precision::U8)
