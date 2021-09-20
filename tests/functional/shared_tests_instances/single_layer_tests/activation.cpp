@@ -8,6 +8,7 @@
 
 #include "common_test_utils/test_constants.hpp"
 #include "kmb_layer_test.hpp"
+#include <common/functions.h>
 
 namespace LayerTestsDefinitions {
 namespace {
@@ -69,6 +70,11 @@ class KmbActivationLayerTest : public ActivationLayerTest, virtual public LayerT
                                                             " yet");
             }
         }
+
+        // [Track number: #E20853]
+        if (getBackendName(*getCore()) == "LEVEL0") {
+                throw LayerTestsUtils::KmbSkipTestException("Level0: sporadic failures on device");
+            }
     }
 };
 
