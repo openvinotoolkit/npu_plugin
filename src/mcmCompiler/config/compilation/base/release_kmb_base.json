@@ -68,7 +68,10 @@
             "MarkEltWiseUpaInputs",
             "MarkCMCompatibleConvs",
             "MarkSOHnonCompatibleConcats",
-            "AddPermuteToNonCMConvPaths",
+            "AddPermuteToNonCMConvPaths",   
+            {
+                "name" : "ModelAnalysis"
+            },
             {
                 "name" : "SimpleStrategyManager",
                 "loadStrategiesFromFile" : false,
@@ -147,6 +150,10 @@
             {
                 "name" : "AssignPhysicalBarrier",
                 "real_physical_barriers": 32
+            },
+            {
+                "name" : "ModelAnalysis",
+                "dma" : true
             },
             "BuildGraphFileKmb",
             "UpdatePhysicalIDinGraphFile",
