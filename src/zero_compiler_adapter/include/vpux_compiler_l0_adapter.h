@@ -14,8 +14,8 @@
 #pragma once
 #include <vector>
 #include "icompiler_adapter.h"
-#include "zero_compiler_adapter.h"
 #include "vpux_compiler_l0.h"
+#include "zero_compiler_adapter.h"
 
 #if defined(_WIN32)
 #define LIBTYPE HINSTANCE
