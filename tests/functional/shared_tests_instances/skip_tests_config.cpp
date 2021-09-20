@@ -30,7 +30,12 @@ std::vector<std::string> disabledTestPatterns() {
         ".*InferConfigTests\\.canSetExclusiveAsyncRequests.*",
 
         // [Track number: S#27334]
-        ".*BehaviorTests.*",
+        ".*BehaviorTests.CorrectConfigTests.*",
+        ".*BehaviorTests.IncorrectConfigTests.*",
+        ".*BehaviorTests.IncorrectConfigAPITests.*",
+        ".*BehaviorTests.InferConfigTests.*",
+        ".*BehaviorTests.LayoutTest.*",
+        ".*BehaviorTests.VersionTest.*",
         ".*BehaviorTestInput.*",
         ".*BehaviorTestOutput.*",
 
