@@ -35,6 +35,9 @@ std::vector<std::string> disabledTestPatterns() {
         ".*BehaviorTestOutput.*",
 
         // TODO Add safe Softplus support
-        ".*ActivationLayerTest.*SoftPlus.*"
+        ".*ActivationLayerTest.*SoftPlus.*",
+
+        // TODO: Issue: 63469
+        ".*KmbConversionLayerTest.*ConvertLike.*"
     };
 }

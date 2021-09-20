@@ -3,22 +3,23 @@
 //
 
 #include <vector>
-#include "single_layer_tests/convert.hpp"
+#include "single_layer_tests/conversion.hpp"
 #include "common_test_utils/test_constants.hpp"
 #include "kmb_layer_test.hpp"
 
 namespace LayerTestsDefinitions {
 
-class KmbConvertLayerTest: public ConvertLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+class KmbConversionLayerTest: public ConversionLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
     void SetUp() override {
         std::tie(
+            std::ignore /*conversionOpType*/,
             std::ignore /*shape*/,
             inPrc, outPrc,
             std::ignore /*inLayout*/, std::ignore /*outLayout*/,
             std::ignore /*deviceName*/
         ) = GetParam();
 
-        ConvertLayerTest::SetUp();
+        ConversionLayerTest::SetUp();
     }
 
     void SkipBeforeLoad() override {
@@ -41,11 +42,11 @@ class KmbConvertLayerTest: public ConvertLayerTest, virtual public LayerTestsUti
     }
 };
 
-TEST_P(KmbConvertLayerTest, CompareWithRefs) {
+TEST_P(KmbConversionLayerTest, CompareWithRefs) {
     Run();
 }
 
-TEST_P(KmbConvertLayerTest, CompareWithRefs_MLIR) {
+TEST_P(KmbConversionLayerTest, CompareWithRefs_MLIR) {
     useCompilerMLIR();
     Run();
 }
@@ -55,6 +56,10 @@ TEST_P(KmbConvertLayerTest, CompareWithRefs_MLIR) {
 using namespace LayerTestsDefinitions;
 
 namespace {
+const std::vector<ngraph::helpers::ConversionTypes> conversionOpTypes = {
+    ngraph::helpers::ConversionTypes::CONVERT,
+    ngraph::helpers::ConversionTypes::CONVERT_LIKE,
+};
 
 const std::vector<std::vector<size_t>> inShape = {{1, 2, 3, 4}};
 
@@ -65,14 +70,15 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
     InferenceEngine::Precision::U8
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_NoReshape, KmbConvertLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_NoReshape, KmbConversionLayerTest,
                         ::testing::Combine(
+                            ::testing::ValuesIn(conversionOpTypes),
                             ::testing::Values(inShape),
                             ::testing::ValuesIn(netPrecisions),
                             ::testing::ValuesIn(netPrecisions),
                             ::testing::Values(InferenceEngine::Layout::ANY),
                             ::testing::Values(InferenceEngine::Layout::ANY),
                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
-                        ConvertLayerTest::getTestCaseName);
+                        ConversionLayerTest::getTestCaseName);
 
 }  // namespace
