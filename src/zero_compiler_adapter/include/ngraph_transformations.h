@@ -33,7 +33,7 @@ void applyLoweringPasses(const std::shared_ptr<ngraph::Function>& netGraph, Opse
  * @brief Check, can we compile and run ngraph function, if only specific opset version supported
  * @param opsetVersion Version of opset, which is supported
  */
-bool isFunctionSupported(const std::shared_ptr<ngraph::Function>& netGraph, Opset opsetVersion);
+bool isFunctionSupported(const std::shared_ptr<const ngraph::Function>& netGraph, Opset opsetVersion);
 
 /**
  * @brief Serialize ngraph function to IR

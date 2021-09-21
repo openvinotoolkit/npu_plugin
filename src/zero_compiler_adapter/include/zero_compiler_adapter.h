@@ -25,6 +25,8 @@ namespace zeroCompilerAdapter {
 class ZeroCompilerAdapter final : public ICompiler {
 public:
     ZeroCompilerAdapter();
+    explicit ZeroCompilerAdapter(const ICompiler_Adapter::Ptr& compilerAdapter);
+
     std::shared_ptr<INetworkDescription> compile(const std::shared_ptr<ngraph::Function>& func,
                                                  const std::string& netName,
                                                  const InferenceEngine::InputsDataMap& inputsInfo,

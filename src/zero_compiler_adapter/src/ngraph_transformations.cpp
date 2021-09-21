@@ -42,7 +42,7 @@ void applyLoweringPasses(const std::shared_ptr<ngraph::Function>& netGraph, Opse
     }
 }
 
-bool isFunctionSupported(const std::shared_ptr<ngraph::Function>& netGraph, Opset opsetVersion) {
+bool isFunctionSupported(const std::shared_ptr<const ngraph::Function>& netGraph, Opset opsetVersion) {
     size_t highestVersion = 0;
     for (const auto& op : netGraph->get_ops()) {
         if (op->get_version() > highestVersion) {

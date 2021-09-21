@@ -26,7 +26,8 @@ ZeroCompilerAdapter::ZeroCompilerAdapter() {
     // apiAdapter = std::make_shared<VPUXCompilerL0>();
     apiAdapter = std::make_shared<ZeroAPICompilerInDriver>();
 }
-ZeroCompilerAdapter::ZeroCompilerAdapter(const ICompiler_Adapter::Ptr compilerAdapter) : apiAdapter(compilerAdapter) {
+
+ZeroCompilerAdapter::ZeroCompilerAdapter(const ICompiler_Adapter::Ptr& compilerAdapter) : apiAdapter(compilerAdapter) {
 }
 
 // TODO How to use inputsInfo, outputsInfo ?
@@ -79,6 +80,7 @@ std::shared_ptr<vpux::INetworkDescription> ZeroCompilerAdapter::parse(const std:
     static const auto networkMeta = apiAdapter->getNetworkMeta(blob);
     return std::make_shared<NetworkDescription>(blob, networkMeta);
 }
+
 
 INFERENCE_PLUGIN_API(void)
 CreateVPUXCompiler(std::shared_ptr<ICompiler>& compiler) {
