@@ -56,6 +56,7 @@
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/type/element_type.hpp>
 #include "legacy/ngraph_ops/normalize_ie.hpp"
+#include <transformations/serialize.hpp>
 #include "vpux/passes/convert_MVN6_to_MVN1.hpp"
 
 #include <transformations/common_optimizations/common_optimizations.hpp>
@@ -1936,6 +1937,14 @@ void runNGraphPasses(const std::shared_ptr<ngraph::Function>& netGraph, mlir::Ti
     manager.register_pass<ngraph::pass::ConvertLRNToLegacyMatcher>();
     manager.register_pass<vpux::passes::ConvertVariadicSplitToStridedSliceOp>();
     manager.register_pass<ngraph::pass::ConvertNormalizeL2ToLegacyMatcher>();
+
+    if (const auto model_name = std::getenv("IE_VPUX_TESTING_MODEL_NAME")) {
+        if (const auto result_model_path = std::getenv("IE_VPUX_RESULT_MODEL_PATH")) {
+            auto model_path_str = std::string(result_model_path) + "/" + std::string(model_name);
+            manager.register_pass<ngraph::pass::Serialize>(std::string(model_path_str) + ".xml",
+                                                           std::string(model_path_str) + ".bin");
+        }
+    }
 
     manager.run_passes(netGraph);
 }
