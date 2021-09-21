@@ -77,7 +77,23 @@ int64_t vpux::VPUIP::NCEClusterTaskOp::getNumVariants() {
 void vpux::VPUIP::NCEClusterTaskOp::inferLayoutInfo(mlir::Operation* origOp, IE::LayerLayoutInfo& info) {
     llvm::TypeSwitch<mlir::Operation*, void>(origOp)
             .Case<IE::ConvolutionOp>([&](IE::ConvolutionOp op) {
-                info.setInput(1, DimsOrder::OIYX);
+
+                auto convOp = mlir::dyn_cast<IE::ConvolutionOp>(*origOp);
+                auto convLayoutOp = mlir::dyn_cast<IE::LayoutInfoOpInterface>(*origOp); // How to get user defined layout?
+    
+                const auto inputShape = getShape(convOp.filter().getType().cast<mlir::ShapedType>());
+                const auto IC = inputShape[IE::Dims4D::Filter::IC];
+
+                if(IC == 3)
+                {
+                    info.setInput(0, DimsOrder::NCHW);
+                    info.setInput(1, DimsOrder::OIYX);
+                }
+                else
+                {
+                    info.setInput(0, DimsOrder::NHWC);
+                    info.setInput(1, DimsOrder::OYXI);
+                }
                 info.setOutput(0, DimsOrder::NHWC);
             })
             .Case<IE::GroupConvolutionOp>([&](IE::GroupConvolutionOp) {
