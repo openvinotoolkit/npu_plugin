@@ -129,6 +129,52 @@ mlir::LogicalResult FuseWithMaxPool::matchAndRewrite(IE::QuantizeOp quantizeOp, 
 }
 
 //
+// FuseWithSlice
+//
+
+//
+//       [input]
+//          |
+//     (dequantize)
+//          |
+//       (slice)
+//          |
+//       [output]
+//          |
+//      (quantize)
+//
+
+class FuseWithSlice final : public mlir::OpRewritePattern<IE::QuantizeOp> {
+public:
+    FuseWithSlice(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<IE::QuantizeOp>(ctx), _log(log) {
+        setDebugName("FuseWithSlice");
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(IE::QuantizeOp origOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult FuseWithSlice::matchAndRewrite(IE::QuantizeOp quantizeOp, mlir::PatternRewriter& rewriter) const {
+    auto sliceOp = quantizeOp.input().getDefiningOp<IE::SliceOp>();
+    if (sliceOp == nullptr) {
+        return mlir::failure();
+    }
+
+    auto inputDequantizeOp = sliceOp.source().getDefiningOp<IE::DequantizeOp>();
+    if (inputDequantizeOp == nullptr) {
+        return mlir::failure();
+    }
+
+    rewriter.replaceOpWithNewOp<IE::SliceOp>(quantizeOp, quantizeOp.getType(), inputDequantizeOp.input(),
+                                             sliceOp.static_offsetsAttr(), sliceOp.static_sizesAttr());
+
+    return mlir::success();
+}
+
+//
 // FuseQuantizedOpsPass
 //
 
@@ -147,6 +193,7 @@ void FuseQuantizedOpsPass::safeRunOnFunc() {
 
     mlir::OwningRewritePatternList patterns(&ctx);
     patterns.add<FuseWithConv>(&ctx, _log);
+    patterns.add<FuseWithSlice>(&ctx, _log);
 
     auto func = getFunction();
     if (mlir::failed(applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig()))) {
