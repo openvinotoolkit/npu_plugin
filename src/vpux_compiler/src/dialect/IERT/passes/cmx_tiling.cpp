@@ -390,6 +390,14 @@ OutputTiling SimpleTiler::genericTiler(mlir::Operation* op, mlir::MemRefType out
 
     Shape nTilesOnDim(outputShape.size(), 1);
 
+    // Try to tile the largest dim (C or H) first, then proceed with other dims
+    SmallVector<Dim> tileDimOrder = {IE::Dims4D::Act::C, IE::Dims4D::Act::H, IE::Dims4D::Act::W};
+    if (outputShape[IE::Dims4D::Act::C] < outputShape[IE::Dims4D::Act::H])
+        tileDimOrder = {IE::Dims4D::Act::H, IE::Dims4D::Act::C, IE::Dims4D::Act::W};
+
+    auto tileDimIter = tileDimOrder.begin();
+    Optional<Dim> dimToTile = *tileDimIter;
+
     const auto isSupportedChannelDivision = [&]() {
         if ((outputShape[IE::Dims4D::Act::C] % nTilesOnDim[IE::Dims4D::Act::C]) != 0) {
             return false;
@@ -399,35 +407,36 @@ OutputTiling SimpleTiler::genericTiler(mlir::Operation* op, mlir::MemRefType out
         return (tileChannels % minChannelSize) == 0;
     };
 
-    while (!isSupportedTileSize(nTilesOnDim)) {
-        // First try tiling over output channels
+    const auto isDimLeftToTile = [&]() {
+        if (dimToTile == IE::Dims4D::Act::C) {
+            if (nTilesOnDim[IE::Dims4D::Act::C] < maxChannelTiles)
+                return true;
+        } else {  // Spatial dims
+            const auto origSize = outputShape[dimToTile.getValue()];
+            const auto prevDivisor = nTilesOnDim[dimToTile.getValue()];
 
-        if (nTilesOnDim[IE::Dims4D::Act::C] < maxChannelTiles) {
+            if (origSize / prevDivisor > 1)
+                return true;
+        }
+
+        return false;
+    };
+
+    while (!isSupportedTileSize(nTilesOnDim)) {
+        if (!isDimLeftToTile()) {
+            dimToTile = *(++tileDimIter);
+        }
+
+        if (dimToTile == IE::Dims4D::Act::C) {
             do {
                 ++nTilesOnDim[IE::Dims4D::Act::C];
             } while (!isSupportedChannelDivision());
-
-            continue;
+        } else if (dimToTile == IE::Dims4D::Act::H || dimToTile == IE::Dims4D::Act::W) {
+            nTilesOnDim[dimToTile.getValue()]++;
+        } else {
+            // Trying to tile in unsupported dimension, tiling in supported dimensions not sufficient
+            VPUX_THROW("Failed to tile {0} at '{1}'", op->getName(), op->getLoc());
         }
-
-        // Then try tiling over spatial dimensions (prefer height first)
-
-        Optional<Dim> dimToTile;
-
-        for (auto ind : irange(IE::Dims4D::Act::numSpatialDims)) {
-            const auto spatialDim = IE::Dims4D::Act::getSpatialDim(ind);
-
-            const auto origSize = outputShape[spatialDim];
-            const auto prevDivisor = nTilesOnDim[spatialDim];
-
-            if (origSize / prevDivisor > 1) {
-                dimToTile = spatialDim;
-                break;
-            }
-        }
-
-        VPUX_THROW_UNLESS(dimToTile.hasValue(), "Failed to tile {0} at '{1}'", op->getName(), op->getLoc());
-        nTilesOnDim[dimToTile.getValue()]++;
     }
 
     return fillDividedTiles(nTilesOnDim, outputShape);
@@ -582,7 +591,7 @@ OutputTiling SimpleTiler::groupConvolutionTiler(IERT::GroupConvolutionOp op) con
 // CMXTilingPass
 //
 
-class CMXTilingPass final : public IERT::CXMTilingBase<CMXTilingPass> {
+class CMXTilingPass final : public IERT::CMXTilingBase<CMXTilingPass> {
 public:
     explicit CMXTilingPass(Logger log) {
         Base::initLogger(log, Base::getArgumentName());
