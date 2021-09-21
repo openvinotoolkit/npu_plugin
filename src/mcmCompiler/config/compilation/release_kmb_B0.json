@@ -10,6 +10,7 @@
                 "memoryBandwidth" : 20,
                 "Number_of_DPUs" : 5,
                 "Number_of_Clusters" : 1,
+                "nWorkloads" : 5,
                 "WorkloadCost": 300,
                 "DDRScratch": 31457280,
                 "cmx": 917504,
