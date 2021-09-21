@@ -240,7 +240,9 @@ const static std::vector<InferenceEngine::Precision> inputPrecision = {
 
 INSTANTIATE_TEST_CASE_P(PrecisionCase, ModelAdk, ::testing::ValuesIn(inputPrecision));
 
+// [ Track number: E#20905]
 TEST_F(UnetNetworkTest, UnetCamvidAva0001_ADK3) {
+    SKIP_ON("LEVEL0", "SEH exception with code 0xc0000005");
     runTest(
             TestNetworkDesc("ADK3/unet-camvid-onnx-0001/caffe2/FP16-INT8/unet-camvid-onnx-0001.xml", EXPERIMENTAL)
                     .setUserInputPrecision("input", Precision::U8)
