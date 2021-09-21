@@ -86,7 +86,6 @@ void addDPUTasks(VPUIP::NCEClusterTaskOp nceOp, mlir::PatternRewriter& rewriter,
     auto* ctx = nceOp.getContext();
 
     const auto outputShape = getShape(nceOp.output());
-    numDPU = 1;  // TODO remove. Temp to enable comparison to MCM.
     const auto dpuTiles = VPUIP::DpuTiler::tileOverH(numDPU, outputShape, opPadLeft, opPadRight, opPadTop, opPadBottom);
 
     for (const auto& dpuTile : dpuTiles) {
@@ -97,7 +96,6 @@ void addDPUTasks(VPUIP::NCEClusterTaskOp nceOp, mlir::PatternRewriter& rewriter,
                 VPUIP::PaddingAttr::get(getIntAttr(ctx, dpuTile.padLeft), getIntAttr(ctx, dpuTile.padRight),
                                         getIntAttr(ctx, dpuTile.padTop), getIntAttr(ctx, dpuTile.padBottom), ctx);
 
-        mpeMode = VPUIP::MPEMode::MATRIX;  // TODO remove. Temp to enable comparison to MCM.
         nceOp.addDPUTask(rewriter, startAttr, endAttr, pad, mpeMode);
     }
 }
