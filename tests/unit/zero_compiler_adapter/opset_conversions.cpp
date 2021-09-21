@@ -83,11 +83,9 @@ TEST_F(NgraphTransformations_isFuncSupported, opset6Function_forOpset6Compiler_I
 
 TEST_F(NgraphTransformations_isFuncSupported, opset6ParameterAndConstant_SupportedWithoutLowering) {
     using parameterOpset = ngraph::opset6::Parameter;
-    using constOpset = ngraph::opset6::Constant;
     using mvnOpset = ngraph::opset4::MVN;
 
     const auto data = std::make_shared<parameterOpset>(ngraph::element::f32, ngraph::Shape{ 1, 2, 3, 4 });
-    const auto axesConst = constOpset::create(ngraph::element::i64, ngraph::Shape{ 2 }, { 2, 3 });
     const auto mvn = std::make_shared<mvnOpset>(data, true, false, 1e-5);
 
     std::shared_ptr<ngraph::Function> opset4mvn_opset6params =

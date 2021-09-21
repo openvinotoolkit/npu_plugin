@@ -23,7 +23,8 @@ namespace zeroCompilerAdapter {
 ZeroCompilerAdapter::ZeroCompilerAdapter() {
     apiAdapter = std::make_shared<VPUXCompilerL0>();
 }
-ZeroCompilerAdapter::ZeroCompilerAdapter(const ICompiler_Adapter::Ptr compilerAdapter) : apiAdapter(compilerAdapter) {
+
+ZeroCompilerAdapter::ZeroCompilerAdapter(const ICompiler_Adapter::Ptr& compilerAdapter) : apiAdapter(compilerAdapter) {
 }
 
 // TODO How to use inputsInfo, outputsInfo ?
@@ -67,6 +68,7 @@ std::shared_ptr<vpux::INetworkDescription> ZeroCompilerAdapter::parse(const std:
     THROW_IE_EXCEPTION << "vpux::ZeroCompilerAdapter::parse is not implemented.";
     return std::shared_ptr<vpux::INetworkDescription>();
 }
+
 
 INFERENCE_PLUGIN_API(void)
 CreateVPUXCompiler(std::shared_ptr<ICompiler>& compiler) {

@@ -41,6 +41,8 @@ struct Blob {
  */
 class ICompiler_Adapter {
 public:
+    virtual ~ICompiler_Adapter() = default;
+
     using Ptr = std::shared_ptr<ICompiler_Adapter>;
     /**
      * @brief Get opset supported by compiler
