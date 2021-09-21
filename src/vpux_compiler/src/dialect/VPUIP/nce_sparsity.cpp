@@ -24,10 +24,8 @@ namespace {
 using Scales = SmallVector<double>;
 using ZeroPoints = SmallVector<int64_t>;
 
-bool mixedPrecisionIsSupported(VPUIP::ArchKind arch) {
-    if (arch == ArchKind::MTL)
-        return true;
-    return false;
+bool isMixedPrecisionSupported(VPUIP::ArchKind arch) {
+    return arch == ArchKind::MTL;
 }
 std::pair<Scales, ZeroPoints> extractScalesAndZeroPoints(mlir::Type tensorElemType, size_t quantDimSize) {
     const auto qType = tensorElemType.dyn_cast<mlir::quant::QuantizedType>();
@@ -250,7 +248,7 @@ llvm::unique_function<int32_t(size_t)> getMultShiftFunc(mlir::Type op_inElemType
             return multShift;
         };
     } else if ((op_inElemType.isa<mlir::quant::QuantizedType>() && op_outElemType.isa<mlir::quant::QuantizedType>()) ||
-               mixedPrecisionIsSupported(arch)) {
+               isMixedPrecisionSupported(arch)) {
         const auto inQuant = op_inElemType.isa<mlir::quant::QuantizedType>()
                                      ? extractScalesAndZeroPoints(op_inElemType, OC)
                                      : std::make_pair(SmallVector<double>(OC, 1), SmallVector<int64_t>(OC, 0));
@@ -374,7 +372,7 @@ std::vector<std::int32_t> vpux::VPUIP::NCESparsity::getWeightsTable(mlir::Type o
         if (arch == vpux::VPUIP::ArchKind::MTL && weightsElemType) {
             int32_t elementSizeBytes = 0;
             if (auto qType = weightsElemType.dyn_cast<mlir::quant::QuantizedType>()) {
-                elementSizeBytes = qType.getStorageType().getIntOrFloatBitWidth() / 8;
+                elementSizeBytes = qType.getStorageType().getIntOrFloatBitWidth() / CHAR_BIT;
             } else {
                 elementSizeBytes = (weightsElemType.getIntOrFloatBitWidth()) / CHAR_BIT;
             }

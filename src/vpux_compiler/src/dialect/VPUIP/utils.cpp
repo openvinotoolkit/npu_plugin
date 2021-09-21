@@ -1,10 +1,11 @@
-#include "vpux/compiler/utils/utils.hpp"
+#include "vpux/compiler/dialect/VPUIP/utils.hpp"
 
 #include "vpux/compiler/core/attributes/shape.hpp"
 #include "vpux/compiler/dialect/IE/ops_interfaces.hpp"
 #include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
 
 namespace vpux {
+namespace VPUIP {
 namespace utils {
 
 mlir::Value alignDepthwiseWeightTensor(mlir::OpBuilder& builder, mlir::Location loc, const mlir::Value origFilter) {
@@ -44,4 +45,5 @@ mlir::Value alignDepthwiseWeightTensor(mlir::OpBuilder& builder, mlir::Location 
 }
 
 }  // namespace utils
+}  // namespace VPUIP
 }  // namespace vpux

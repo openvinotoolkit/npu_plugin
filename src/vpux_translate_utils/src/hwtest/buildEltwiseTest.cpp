@@ -48,15 +48,14 @@ void buildEltwiseAdd(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp 
 
     SmallVector<mlir::Type> inputTypes;
     const auto inputAffineMaps = DimsOrder::NHWC.toAffineMapsList(ctx, Shape(in_shape));
-    auto inputMemSpaceAttr = VPUIP::MemoryLocationAttr::get(ctx, VPUIP::MemoryLocation::ProgrammableInput);
-    inputTypes.push_back(mlir::MemRefType::get(makeArrayRef(in_shape), inputType, inputAffineMaps, inputMemSpaceAttr));
     inputTypes.push_back(
-            mlir::MemRefType::get(makeArrayRef(weights_shape), weightsType, inputAffineMaps, inputMemSpaceAttr));
+            getMemRefType(builder, VPUIP::MemoryLocation::ProgrammableInput, in_shape, inputType, inputAffineMaps));
+    inputTypes.push_back(getMemRefType(builder, VPUIP::MemoryLocation::ProgrammableInput, weights_shape, weightsType,
+                                       inputAffineMaps));
 
     const auto outputAffineMaps = DimsOrder::NHWC.toAffineMapsList(ctx, Shape(out_shape));
-    auto outputMemSpaceAttr = VPUIP::MemoryLocationAttr::get(ctx, VPUIP::MemoryLocation::ProgrammableOutput);
     auto outputParamType =
-            mlir::MemRefType::get(makeArrayRef(in_shape), outputType, outputAffineMaps, outputMemSpaceAttr);
+            getMemRefType(builder, VPUIP::MemoryLocation::ProgrammableOutput, out_shape, outputType, outputAffineMaps);
     inputTypes.push_back(outputParamType);
     SmallVector<ArrayRef<mlir::AffineMap>> argsAffineMaps{inputAffineMaps, inputAffineMaps, outputAffineMaps};
 
@@ -75,28 +74,20 @@ void buildEltwiseAdd(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp 
     auto funcoutput = func.getArgument(2);
 
     // input - output cmx tensors
-    auto inputcmx_memSpaceAttr = VPUIP::MemoryLocationAttr::get(ctx, VPUIP::MemoryLocation::VPU_CMX_NN);
     auto inputcmx_type =
-            mlir::MemRefType::get(makeArrayRef(in_shape), inputType, inputAffineMaps, inputcmx_memSpaceAttr);
-    auto inputcmx = funcbuilder.create<VPUIP::DeclareTensorOp>(builder.getUnknownLoc(), inputcmx_type,
-                                                               VPUIP::MemoryLocation::VPU_CMX_NN, 0, INPUT0_CMX_OFFSET);
+            getMemRefType(builder, VPUIP::MemoryLocation::VPU_CMX_NN, in_shape, inputType, inputAffineMaps);
+    auto inputcmx = createDeclareTensorOp(funcbuilder, inputcmx_type, 0, INPUT0_CMX_OFFSET);
 
-    auto weightscmx_memSpaceAttr = VPUIP::MemoryLocationAttr::get(ctx, VPUIP::MemoryLocation::VPU_CMX_NN);
     auto weightscmx_type =
-            mlir::MemRefType::get(makeArrayRef(weights_shape), weightsType, inputAffineMaps, weightscmx_memSpaceAttr);
-    auto weightscmx = funcbuilder.create<VPUIP::DeclareTensorOp>(
-            builder.getUnknownLoc(), weightscmx_type, VPUIP::MemoryLocation::VPU_CMX_NN, 0, INPUT1_CMX_OFFSET);
+            getMemRefType(builder, VPUIP::MemoryLocation::VPU_CMX_NN, weights_shape, weightsType, inputAffineMaps);
+    auto weightscmx = createDeclareTensorOp(funcbuilder, weightscmx_type, 0, INPUT1_CMX_OFFSET);
 
-    auto outputcmx_memSpaceAttr = VPUIP::MemoryLocationAttr::get(ctx, VPUIP::MemoryLocation::VPU_CMX_NN);
     auto outputcmx_type =
-            mlir::MemRefType::get(makeArrayRef(out_shape), outputType, outputAffineMaps, outputcmx_memSpaceAttr);
-    auto outputcmx = funcbuilder.create<VPUIP::DeclareTensorOp>(
-            builder.getUnknownLoc(), outputcmx_type, VPUIP::MemoryLocation::VPU_CMX_NN, 0, OUTPUT_CMX_OFFSET);
+            getMemRefType(builder, VPUIP::MemoryLocation::VPU_CMX_NN, out_shape, outputType, outputAffineMaps);
+    auto outputcmx = createDeclareTensorOp(funcbuilder, outputcmx_type, 0, OUTPUT_CMX_OFFSET);
 
-    auto parent_inputcmx = funcbuilder.create<VPUIP::DeclareTensorOp>(
-            builder.getUnknownLoc(), inputcmx_type, VPUIP::MemoryLocation::VPU_CMX_NN, 0, INPUT0_CMX_OFFSET);
-    auto parent_outputcmx = funcbuilder.create<VPUIP::DeclareTensorOp>(
-            builder.getUnknownLoc(), outputcmx_type, VPUIP::MemoryLocation::VPU_CMX_NN, 0, OUTPUT_CMX_OFFSET);
+    auto parent_inputcmx = createDeclareTensorOp(funcbuilder, inputcmx_type, 0, INPUT0_CMX_OFFSET);
+    auto parent_outputcmx = createDeclareTensorOp(funcbuilder, outputcmx_type, 0, OUTPUT_CMX_OFFSET);
 
     // barrier config
     auto barrier0 = funcbuilder.create<VPUIP::ConfigureBarrierOp>(builder.getUnknownLoc(), 0);

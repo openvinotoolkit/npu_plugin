@@ -82,6 +82,9 @@ vpux::VPUIP::DeclareTensorOp createDeclareTensorOp(mlir::OpBuilder builder, VPUI
                                                    SmallVector<int64_t> shape, mlir::Type type,
                                                    SmallVector<mlir::AffineMap> affineMaps, int locale, size_t offset);
 
+vpux::VPUIP::DeclareTensorOp createDeclareTensorOp(mlir::OpBuilder builder, mlir::MemRefType type, int locale,
+                                                   size_t offset);
+
 mlir::OpResult getTensorResult(VPUIP::DeclareTensorOp op);
 
 mlir::OpResult getConstResult(vpux::Const::DeclareOp op);

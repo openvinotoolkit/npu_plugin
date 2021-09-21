@@ -19,12 +19,12 @@
 #include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
 #include "vpux/compiler/dialect/VPUIP/nce_sparsity.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
+#include "vpux/compiler/dialect/VPUIP/utils.hpp"
 #include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/logging.hpp"
 #include "vpux/compiler/utils/quantization.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 #include "vpux/compiler/utils/types.hpp"
-#include "vpux/compiler/utils/utils.hpp"
 
 #include "vpux/utils/core/enums.hpp"
 #include "vpux/utils/core/numeric.hpp"
@@ -480,7 +480,7 @@ mlir::LogicalResult DepthwiseConvRewrite::matchAndRewrite(IERT::GroupConvolution
 
     auto inputDPU = prepareTensorForDPU(rewriter, origOp->getLoc(), origOp.input());
 
-    auto alignedFilter = utils::alignDepthwiseWeightTensor(rewriter, origOp->getLoc(), origOp.filter());
+    auto alignedFilter = VPUIP::utils::alignDepthwiseWeightTensor(rewriter, origOp->getLoc(), origOp.filter());
     auto filterDPU = prepareTensorForDPU(rewriter, origOp->getLoc(), alignedFilter);
 
     //
