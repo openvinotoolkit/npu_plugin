@@ -29,14 +29,6 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(GatherUPAOp op) {
         return errorAt(op, "Gather axis '{0}' is out of range [0,{1}]", axisNo, inShape.size()-1);
     }
 
-    // Indices tensor should be int32
-    const mlir::Type GF_INT32 = getSInt32Type(op.getContext());
-    const auto idxType = op.indices().getType().cast<mlir::ShapedType>().getElementType();
-
-    if (idxType != GF_INT32) {
-        return errorAt(op, "Unsupported indices type : '{0}', only int32 is valid", idxType);
-    }
-
     return mlir::success();
 }
 
