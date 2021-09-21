@@ -77,10 +77,7 @@ int64_t vpux::VPUIP::NCEClusterTaskOp::getNumVariants() {
 void vpux::VPUIP::NCEClusterTaskOp::inferLayoutInfo(mlir::Operation* origOp, IE::LayerLayoutInfo& info) {
     llvm::TypeSwitch<mlir::Operation*, void>(origOp)
             .Case<IE::ConvolutionOp>([&](IE::ConvolutionOp op) {
-                //info.setInput(1, DimsOrder::OYXI);  // change order of weights?
                 info.setInput(1, DimsOrder::OIYX);
-                //info.setInput(2, DimsOrder::OYXI); //sparsity map
-                Logger::global().error("Setting output NHWC {0}", op->getName());
                 info.setOutput(0, DimsOrder::NHWC);
             })
             .Case<IE::GroupConvolutionOp>([&](IE::GroupConvolutionOp) {
@@ -733,9 +730,6 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
     const auto weightsData = weights() != nullptr ? writer.getTensor(weights()) : 0;
     const auto weightsTable = weight_table() != nullptr ? writer.getTensor(weight_table()) : 0;
     const auto activationWindow = activation_window() != nullptr ? writer.getTensor(activation_window()) : 0;
-    if (activation_window() == nullptr)
-    {std::cout << "Null" << std::endl;
-    }
     const auto activationWindowChannelLength = checked_cast<int32_t>(activation_window_channel_length().getValueOr(0));
 
     auto outputData = writer.getTensor(output());
