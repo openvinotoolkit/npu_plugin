@@ -56,6 +56,7 @@ public:
     static mlir::LogicalResult verifyChannels(IERT::ConvolutionOp origOp, Logger log = Logger::global());
     static mlir::LogicalResult verifyConvChannels(mlir::Location loc, mlir::ShapedType filterType,
                                                   Logger log = Logger::global());
+    static mlir::LogicalResult verifyConvChannelstemp(mlir::Location loc, mlir::Operation* origOp, Logger log = Logger::global());
 
     static mlir::LogicalResult verifyChannels(IE::MaxPoolOp origOp, Logger log = Logger::global());
     static mlir::LogicalResult verifyChannels(IERT::MaxPoolOp origOp, Logger log = Logger::global());
@@ -73,6 +74,7 @@ public:
                                                        mlir::ShapedType filterType, Logger log = Logger::global());
 
     static int64_t getChannelAlignment(mlir::Type elemType);
+    static int64_t getInputChannelAlignment(mlir::Operation* origOp);
 
 public:
     static mlir::LogicalResult verifyKernel(IE::ConvolutionOp origOp, Logger log = Logger::global());
