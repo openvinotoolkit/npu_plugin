@@ -2,7 +2,7 @@
 
 IERT.RunTimeResources
     availableMemory : {
-        IERT.MemoryResource 1920000 bytes of "CMX_NN"
+        IERT.MemoryResource 3200000 bytes of "CMX_NN"
     }
     usedMemory : {
     }
@@ -11,101 +11,101 @@ IERT.RunTimeResources
 
 func @SplitOverOC(
         %input: memref<1x32x100x100xf16>,
-        %filter: memref<64x32x3x3xf16>,
-        %bias: memref<1x64x1x1xf16>,
-        %output_buff: memref<1x64x100x100xf16>)
-            -> memref<1x64x100x100xf16> {
+        %filter: memref<128x32x3x3xf16>,
+        %bias: memref<1x128x1x1xf16>,
+        %output_buff: memref<1x128x100x100xf16>)
+            -> memref<1x128x100x100xf16> {
     %1 = IERT.Convolution {
             dilations = [1, 1],
             pads_begin = [1, 1],
             pads_end = [1, 1],
             strides = [1, 1]
         }
-        inputs(%input: memref<1x32x100x100xf16>, %filter: memref<64x32x3x3xf16>, %bias : memref<1x64x1x1xf16>)
-        outputs(%output_buff : memref<1x64x100x100xf16>)
-        -> memref<1x64x100x100xf16>
-    return %1 : memref<1x64x100x100xf16>
+        inputs(%input: memref<1x32x100x100xf16>, %filter: memref<128x32x3x3xf16>, %bias : memref<1x128x1x1xf16>)
+        outputs(%output_buff : memref<1x128x100x100xf16>)
+        -> memref<1x128x100x100xf16>
+    return %1 : memref<1x128x100x100xf16>
 }
 
 // CHECK-LABEL: func @SplitOverOC
 // CHECK-SAME:        [[INPUT:%arg[0-9]]]: memref<1x32x100x100xf16>,
-// CHECK-SAME:        [[FILTER:%arg[0-9]]]: memref<64x32x3x3xf16>,
-// CHECK-SAME:        [[BIAS:%arg[0-9]]]: memref<1x64x1x1xf16>,
-// CHECK-SAME:        [[OUTPUT_BUFF:%arg[0-9]]]: memref<1x64x100x100xf16>
+// CHECK-SAME:        [[FILTER:%arg[0-9]]]: memref<128x32x3x3xf16>,
+// CHECK-SAME:        [[BIAS:%arg[0-9]]]: memref<1x128x1x1xf16>,
+// CHECK-SAME:        [[OUTPUT_BUFF:%arg[0-9]]]: memref<1x128x100x100xf16>
 
 // Tile 0
 
-// CHECK:       [[FILTER_TILE0_VIEW:%.+]] = IERT.SubView [[FILTER]] [0, 0, 0, 0] [32, 32, 3, 3] [1, 1, 1, 1] : memref<64x32x3x3xf16>
-// CHECK-SAME:      to memref<32x32x3x3xf16, {{#map[0-9]?}}>
-// CHECK:       [[FILTER_TILE0_BUFF:%.+]] = memref.alloc() : memref<32x32x3x3xf16>
+// CHECK:       [[FILTER_TILE0_VIEW:%.+]] = IERT.SubView [[FILTER]] [0, 0, 0, 0] [64, 32, 3, 3] [1, 1, 1, 1] : memref<128x32x3x3xf16>
+// CHECK-SAME:      to memref<64x32x3x3xf16, {{#map[0-9]?}}>
+// CHECK:       [[FILTER_TILE0_BUFF:%.+]] = memref.alloc() : memref<64x32x3x3xf16>
 // CHECK:       [[FILTER_TILE0:%.+]] = IERT.Copy
-// CHECK-SAME:      inputs([[FILTER_TILE0_VIEW]] : memref<32x32x3x3xf16, {{#map[0-9]?}}>)
-// CHECK-SAME:      outputs([[FILTER_TILE0_BUFF]] : memref<32x32x3x3xf16>)
+// CHECK-SAME:      inputs([[FILTER_TILE0_VIEW]] : memref<64x32x3x3xf16, {{#map[0-9]?}}>)
+// CHECK-SAME:      outputs([[FILTER_TILE0_BUFF]] : memref<64x32x3x3xf16>)
 
-// CHECK:       [[BIAS_TILE0_VIEW:%.+]] = IERT.SubView [[BIAS]] [0, 0, 0, 0] [1, 32, 1, 1] [1, 1, 1, 1] : memref<1x64x1x1xf16>
-// CHECK-SAME:      to memref<1x32x1x1xf16, {{#map[0-9]?}}>
-// CHECK:       [[BIAS_TILE0_BUFF:%.+]] = memref.alloc() : memref<1x32x1x1xf16>
+// CHECK:       [[BIAS_TILE0_VIEW:%.+]] = IERT.SubView [[BIAS]] [0, 0, 0, 0] [1, 64, 1, 1] [1, 1, 1, 1] : memref<1x128x1x1xf16>
+// CHECK-SAME:      to memref<1x64x1x1xf16, {{#map[0-9]?}}>
+// CHECK:       [[BIAS_TILE0_BUFF:%.+]] = memref.alloc() : memref<1x64x1x1xf16>
 // CHECK:       [[BIAS_TILE0:%.+]] = IERT.Copy
-// CHECK-SAME:      inputs([[BIAS_TILE0_VIEW]] : memref<1x32x1x1xf16, {{#map[0-9]?}}>)
-// CHECK-SAME:      outputs([[BIAS_TILE0_BUFF]] : memref<1x32x1x1xf16>)
+// CHECK-SAME:      inputs([[BIAS_TILE0_VIEW]] : memref<1x64x1x1xf16, {{#map[0-9]?}}>)
+// CHECK-SAME:      outputs([[BIAS_TILE0_BUFF]] : memref<1x64x1x1xf16>)
 
-// CHECK:       [[OUTPUT_TILE0_BUFF:%.+]] = memref.alloc() : memref<1x32x100x100xf16>
+// CHECK:       [[OUTPUT_TILE0_BUFF:%.+]] = memref.alloc() : memref<1x64x100x100xf16>
 // CHECK:       [[OUTPUT_TILE0:%.+]] = IERT.Convolution
 // CHECK-SAME:          dilations = [1, 1]
 // CHECK-SAME:          pads_begin = [1, 1]
 // CHECK-SAME:          pads_end = [1, 1]
 // CHECK-SAME:          strides = [1, 1]}
 // CHECK-SAME:      inputs([[INPUT]] : memref<1x32x100x100xf16>,
-// CHECK-SAME:             [[FILTER_TILE0]] : memref<32x32x3x3xf16>,
-// CHECK-SAME:             [[BIAS_TILE0]] : memref<1x32x1x1xf16>)
-// CHECK-SAME:      outputs([[OUTPUT_TILE0_BUFF]] : memref<1x32x100x100xf16>
+// CHECK-SAME:             [[FILTER_TILE0]] : memref<64x32x3x3xf16>,
+// CHECK-SAME:             [[BIAS_TILE0]] : memref<1x64x1x1xf16>)
+// CHECK-SAME:      outputs([[OUTPUT_TILE0_BUFF]] : memref<1x64x100x100xf16>
 
-// CHECK:       [[OUTPUT_BUFF_TILE0_VIEW:%.+]] = IERT.SubView [[OUTPUT_BUFF]] [0, 0, 0, 0] [1, 32, 100, 100] [1, 1, 1, 1] : memref<1x64x100x100xf16>
-// CHECK-SAME:      to memref<1x32x100x100xf16, {{#map[0-9]?}}>
+// CHECK:       [[OUTPUT_BUFF_TILE0_VIEW:%.+]] = IERT.SubView [[OUTPUT_BUFF]] [0, 0, 0, 0] [1, 64, 100, 100] [1, 1, 1, 1] : memref<1x128x100x100xf16>
+// CHECK-SAME:      to memref<1x64x100x100xf16, {{#map[0-9]?}}>
 // CHECK:       [[OUTPUT_BUFF_TILE0:%.+]] = IERT.Copy
-// CHECK-SAME:      inputs([[OUTPUT_TILE0]] : memref<1x32x100x100xf16>)
-// CHECK-SAME:      outputs([[OUTPUT_BUFF_TILE0_VIEW]] : memref<1x32x100x100xf16, {{#map[0-9]?}}>)
+// CHECK-SAME:      inputs([[OUTPUT_TILE0]] : memref<1x64x100x100xf16>)
+// CHECK-SAME:      outputs([[OUTPUT_BUFF_TILE0_VIEW]] : memref<1x64x100x100xf16, {{#map[0-9]?}}>)
 
 // Tile 1
 
-// CHECK:       [[FILTER_TILE1_VIEW:%.+]] = IERT.SubView [[FILTER]] [32, 0, 0, 0] [32, 32, 3, 3] [1, 1, 1, 1] : memref<64x32x3x3xf16>
-// CHECK-SAME:      to memref<32x32x3x3xf16, {{#map[0-9]?}}>
-// CHECK:       [[FILTER_TILE1_BUFF:%.+]] = memref.alloc() : memref<32x32x3x3xf16>
+// CHECK:       [[FILTER_TILE1_VIEW:%.+]] = IERT.SubView [[FILTER]] [64, 0, 0, 0] [64, 32, 3, 3] [1, 1, 1, 1] : memref<128x32x3x3xf16>
+// CHECK-SAME:      to memref<64x32x3x3xf16, {{#map[0-9]?}}>
+// CHECK:       [[FILTER_TILE1_BUFF:%.+]] = memref.alloc() : memref<64x32x3x3xf16>
 // CHECK:       [[FILTER_TILE1:%.+]] = IERT.Copy
-// CHECK-SAME:      inputs([[FILTER_TILE1_VIEW]] : memref<32x32x3x3xf16, {{#map[0-9]?}}>)
-// CHECK-SAME:      outputs([[FILTER_TILE1_BUFF]] : memref<32x32x3x3xf16>)
+// CHECK-SAME:      inputs([[FILTER_TILE1_VIEW]] : memref<64x32x3x3xf16, {{#map[0-9]?}}>)
+// CHECK-SAME:      outputs([[FILTER_TILE1_BUFF]] : memref<64x32x3x3xf16>)
 
-// CHECK:       [[BIAS_TILE1_VIEW:%.+]] = IERT.SubView [[BIAS]] [0, 32, 0, 0] [1, 32, 1, 1] [1, 1, 1, 1] : memref<1x64x1x1xf16>
-// CHECK-SAME:      to memref<1x32x1x1xf16, {{#map[0-9]?}}>
-// CHECK:       [[BIAS_TILE1_BUFF:%.+]] = memref.alloc() : memref<1x32x1x1xf16>
+// CHECK:       [[BIAS_TILE1_VIEW:%.+]] = IERT.SubView [[BIAS]] [0, 64, 0, 0] [1, 64, 1, 1] [1, 1, 1, 1] : memref<1x128x1x1xf16>
+// CHECK-SAME:      to memref<1x64x1x1xf16, {{#map[0-9]?}}>
+// CHECK:       [[BIAS_TILE1_BUFF:%.+]] = memref.alloc() : memref<1x64x1x1xf16>
 // CHECK:       [[BIAS_TILE1:%.+]] = IERT.Copy
-// CHECK-SAME:      inputs([[BIAS_TILE1_VIEW]] : memref<1x32x1x1xf16, {{#map[0-9]?}}>)
-// CHECK-SAME:      outputs([[BIAS_TILE1_BUFF]] : memref<1x32x1x1xf16>)
+// CHECK-SAME:      inputs([[BIAS_TILE1_VIEW]] : memref<1x64x1x1xf16, {{#map[0-9]?}}>)
+// CHECK-SAME:      outputs([[BIAS_TILE1_BUFF]] : memref<1x64x1x1xf16>)
 
-// CHECK:       [[OUTPUT_TILE1_BUFF:%.+]] = memref.alloc() : memref<1x32x100x100xf16>
+// CHECK:       [[OUTPUT_TILE1_BUFF:%.+]] = memref.alloc() : memref<1x64x100x100xf16>
 // CHECK:       [[OUTPUT_TILE1:%.+]] = IERT.Convolution
 // CHECK-SAME:          dilations = [1, 1]
 // CHECK-SAME:          pads_begin = [1, 1]
 // CHECK-SAME:          pads_end = [1, 1]
 // CHECK-SAME:          strides = [1, 1]}
 // CHECK-SAME:      inputs([[INPUT]] : memref<1x32x100x100xf16>,
-// CHECK-SAME:             [[FILTER_TILE1]] : memref<32x32x3x3xf16>,
-// CHECK-SAME:             [[BIAS_TILE1]] : memref<1x32x1x1xf16>)
-// CHECK-SAME:      outputs([[OUTPUT_TILE1_BUFF]] : memref<1x32x100x100xf16>
+// CHECK-SAME:             [[FILTER_TILE1]] : memref<64x32x3x3xf16>,
+// CHECK-SAME:             [[BIAS_TILE1]] : memref<1x64x1x1xf16>)
+// CHECK-SAME:      outputs([[OUTPUT_TILE1_BUFF]] : memref<1x64x100x100xf16>
 
-// CHECK:       [[OUTPUT_BUFF_TILE1_VIEW:%.+]] = IERT.SubView [[OUTPUT_BUFF]] [0, 32, 0, 0] [1, 32, 100, 100] [1, 1, 1, 1] : memref<1x64x100x100xf16>
-// CHECK-SAME:      to memref<1x32x100x100xf16, {{#map[0-9]?}}>
+// CHECK:       [[OUTPUT_BUFF_TILE1_VIEW:%.+]] = IERT.SubView [[OUTPUT_BUFF]] [0, 64, 0, 0] [1, 64, 100, 100] [1, 1, 1, 1] : memref<1x128x100x100xf16>
+// CHECK-SAME:      to memref<1x64x100x100xf16, {{#map[0-9]?}}>
 // CHECK:       [[OUTPUT_BUFF_TILE1:%.+]] = IERT.Copy
-// CHECK-SAME:      inputs([[OUTPUT_TILE1]] : memref<1x32x100x100xf16>)
-// CHECK-SAME:      outputs([[OUTPUT_BUFF_TILE1_VIEW]] : memref<1x32x100x100xf16, {{#map[0-9]?}}>)
+// CHECK-SAME:      inputs([[OUTPUT_TILE1]] : memref<1x64x100x100xf16>)
+// CHECK-SAME:      outputs([[OUTPUT_BUFF_TILE1_VIEW]] : memref<1x64x100x100xf16, {{#map[0-9]?}}>)
 
 // Concat
 
 // CHECK:       [[OUTPUT:%.+]] = IERT.ConcatView
 // CHECK-SAME:      inputs([[OUTPUT_BUFF_TILE0]], [[OUTPUT_BUFF_TILE1]]
-// CHECK-SAME:      outputs([[OUTPUT_BUFF]] : memref<1x64x100x100xf16>)
+// CHECK-SAME:      outputs([[OUTPUT_BUFF]] : memref<1x128x100x100xf16>)
 
-// CHECK:       return [[OUTPUT]] : memref<1x64x100x100xf16>
+// CHECK:       return [[OUTPUT]] : memref<1x128x100x100xf16>
 
 // -----
 
@@ -295,7 +295,7 @@ func @SplitOverC(
 
 IERT.RunTimeResources
     availableMemory : {
-        IERT.MemoryResource 900000 bytes of "CMX_NN"
+        IERT.MemoryResource 240000 bytes of "CMX_NN"
     }
     usedMemory : {
     }
@@ -303,26 +303,26 @@ IERT.RunTimeResources
     }
 
 func @SplitQuantOverOC(
-        %input: memref<1x32x100x100x!qElemType0>,
+        %input: memref<1x32x50x50x!qElemType0>,
         %filter: memref<64x32x3x3x!qElemType1>,
-        %output_buff: memref<1x64x100x100x!qElemType2>)
-            -> memref<1x64x100x100x!qElemType2> {
+        %output_buff: memref<1x64x50x50x!qElemType2>)
+            -> memref<1x64x50x50x!qElemType2> {
     %1 = IERT.Convolution {
             dilations = [1, 1],
             pads_begin = [1, 1],
             pads_end = [1, 1],
             strides = [1, 1]
         }
-        inputs(%input: memref<1x32x100x100x!qElemType0>, %filter: memref<64x32x3x3x!qElemType1>)
-        outputs(%output_buff : memref<1x64x100x100x!qElemType2>)
-        -> memref<1x64x100x100x!qElemType2>
-    return %1 : memref<1x64x100x100x!qElemType2>
+        inputs(%input: memref<1x32x50x50x!qElemType0>, %filter: memref<64x32x3x3x!qElemType1>)
+        outputs(%output_buff : memref<1x64x50x50x!qElemType2>)
+        -> memref<1x64x50x50x!qElemType2>
+    return %1 : memref<1x64x50x50x!qElemType2>
 }
 
 // CHECK-LABEL: func @SplitQuantOverOC
-// CHECK-SAME:        [[INPUT:%arg[0-9]]]: memref<1x32x100x100x!qElemType0>,
+// CHECK-SAME:        [[INPUT:%arg[0-9]]]: memref<1x32x50x50x!qElemType0>,
 // CHECK-SAME:        [[FILTER:%arg[0-9]]]: memref<64x32x3x3x!qElemType1>,
-// CHECK-SAME:        [[OUTPUT_BUFF:%arg[0-9]]]: memref<1x64x100x100x!qElemType2>
+// CHECK-SAME:        [[OUTPUT_BUFF:%arg[0-9]]]: memref<1x64x50x50x!qElemType2>
 
 // Tile 0
 
@@ -333,21 +333,21 @@ func @SplitQuantOverOC(
 // CHECK-SAME:      inputs([[FILTER_TILE0_VIEW]] : memref<32x32x3x3x!qElemType3, {{#map[0-9]?}}>)
 // CHECK-SAME:      outputs([[FILTER_TILE0_BUFF]] : memref<32x32x3x3x!qElemType3>)
 
-// CHECK:       [[OUTPUT_TILE0_BUFF:%.+]] = memref.alloc() : memref<1x32x100x100x!qElemType2>
+// CHECK:       [[OUTPUT_TILE0_BUFF:%.+]] = memref.alloc() : memref<1x32x50x50x!qElemType2>
 // CHECK:       [[OUTPUT_TILE0:%.+]] = IERT.Convolution
 // CHECK-SAME:          dilations = [1, 1]
 // CHECK-SAME:          pads_begin = [1, 1]
 // CHECK-SAME:          pads_end = [1, 1]
 // CHECK-SAME:          strides = [1, 1]}
-// CHECK-SAME:      inputs([[INPUT]] : memref<1x32x100x100x!qElemType0>,
+// CHECK-SAME:      inputs([[INPUT]] : memref<1x32x50x50x!qElemType0>,
 // CHECK-SAME:             [[FILTER_TILE0]] : memref<32x32x3x3x!qElemType3>)
-// CHECK-SAME:      outputs([[OUTPUT_TILE0_BUFF]] : memref<1x32x100x100x!qElemType2>
+// CHECK-SAME:      outputs([[OUTPUT_TILE0_BUFF]] : memref<1x32x50x50x!qElemType2>
 
-// CHECK:       [[OUTPUT_BUFF_TILE0_VIEW:%.+]] = IERT.SubView [[OUTPUT_BUFF]] [0, 0, 0, 0] [1, 32, 100, 100] [1, 1, 1, 1] : memref<1x64x100x100x!qElemType2>
-// CHECK-SAME:      to memref<1x32x100x100x!qElemType2, {{#map[0-9]?}}>
+// CHECK:       [[OUTPUT_BUFF_TILE0_VIEW:%.+]] = IERT.SubView [[OUTPUT_BUFF]] [0, 0, 0, 0] [1, 32, 50, 50] [1, 1, 1, 1] : memref<1x64x50x50x!qElemType2>
+// CHECK-SAME:      to memref<1x32x50x50x!qElemType2, {{#map[0-9]?}}>
 // CHECK:       [[OUTPUT_BUFF_TILE0:%.+]] = IERT.Copy
-// CHECK-SAME:      inputs([[OUTPUT_TILE0]] : memref<1x32x100x100x!qElemType2>)
-// CHECK-SAME:      outputs([[OUTPUT_BUFF_TILE0_VIEW]] : memref<1x32x100x100x!qElemType2, {{#map[0-9]?}}>)
+// CHECK-SAME:      inputs([[OUTPUT_TILE0]] : memref<1x32x50x50x!qElemType2>)
+// CHECK-SAME:      outputs([[OUTPUT_BUFF_TILE0_VIEW]] : memref<1x32x50x50x!qElemType2, {{#map[0-9]?}}>)
 
 // Tile 1
 
@@ -358,26 +358,26 @@ func @SplitQuantOverOC(
 // CHECK-SAME:      inputs([[FILTER_TILE1_VIEW]] : memref<32x32x3x3x!qElemType4, {{#map[0-9]?}}>)
 // CHECK-SAME:      outputs([[FILTER_TILE1_BUFF]] : memref<32x32x3x3x!qElemType4>)
 
-// CHECK:       [[OUTPUT_TILE1_BUFF:%.+]] = memref.alloc() : memref<1x32x100x100x!qElemType2>
+// CHECK:       [[OUTPUT_TILE1_BUFF:%.+]] = memref.alloc() : memref<1x32x50x50x!qElemType2>
 // CHECK:       [[OUTPUT_TILE1:%.+]] = IERT.Convolution
 // CHECK-SAME:          dilations = [1, 1]
 // CHECK-SAME:          pads_begin = [1, 1]
 // CHECK-SAME:          pads_end = [1, 1]
 // CHECK-SAME:          strides = [1, 1]}
-// CHECK-SAME:      inputs([[INPUT]] : memref<1x32x100x100x!qElemType0>,
+// CHECK-SAME:      inputs([[INPUT]] : memref<1x32x50x50x!qElemType0>,
 // CHECK-SAME:             [[FILTER_TILE1]] : memref<32x32x3x3x!qElemType4>)
-// CHECK-SAME:      outputs([[OUTPUT_TILE1_BUFF]] : memref<1x32x100x100x!qElemType2>
+// CHECK-SAME:      outputs([[OUTPUT_TILE1_BUFF]] : memref<1x32x50x50x!qElemType2>
 
-// CHECK:       [[OUTPUT_BUFF_TILE1_VIEW:%.+]] = IERT.SubView [[OUTPUT_BUFF]] [0, 32, 0, 0] [1, 32, 100, 100] [1, 1, 1, 1] : memref<1x64x100x100x!qElemType2>
-// CHECK-SAME:      to memref<1x32x100x100x!qElemType2, {{#map[0-9]?}}>
+// CHECK:       [[OUTPUT_BUFF_TILE1_VIEW:%.+]] = IERT.SubView [[OUTPUT_BUFF]] [0, 32, 0, 0] [1, 32, 50, 50] [1, 1, 1, 1] : memref<1x64x50x50x!qElemType2>
+// CHECK-SAME:      to memref<1x32x50x50x!qElemType2, {{#map[0-9]?}}>
 // CHECK:       [[OUTPUT_BUFF_TILE1:%.+]] = IERT.Copy
-// CHECK-SAME:      inputs([[OUTPUT_TILE1]] : memref<1x32x100x100x!qElemType2>)
-// CHECK-SAME:      outputs([[OUTPUT_BUFF_TILE1_VIEW]] : memref<1x32x100x100x!qElemType2, {{#map[0-9]?}}>)
+// CHECK-SAME:      inputs([[OUTPUT_TILE1]] : memref<1x32x50x50x!qElemType2>)
+// CHECK-SAME:      outputs([[OUTPUT_BUFF_TILE1_VIEW]] : memref<1x32x50x50x!qElemType2, {{#map[0-9]?}}>)
 
 // Concat
 
 // CHECK:       [[OUTPUT:%.+]] = IERT.ConcatView
 // CHECK-SAME:      inputs([[OUTPUT_BUFF_TILE0]], [[OUTPUT_BUFF_TILE1]]
-// CHECK-SAME:      outputs([[OUTPUT_BUFF]] : memref<1x64x100x100x!qElemType2>)
+// CHECK-SAME:      outputs([[OUTPUT_BUFF]] : memref<1x64x50x50x!qElemType2>)
 
-// CHECK:       return [[OUTPUT]] : memref<1x64x100x100x!qElemType2>
+// CHECK:       return [[OUTPUT]] : memref<1x64x50x50x!qElemType2>
