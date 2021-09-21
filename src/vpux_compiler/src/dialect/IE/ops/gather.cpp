@@ -23,8 +23,7 @@ using namespace vpux;
 namespace {
 
 mlir::FailureOr<int64_t> extractAxis(mlir::Location loc, IE::GatherOpAdaptor gather) {
-    if (gather.axis() != nullptr)
-    {
+    if (gather.axis() != nullptr) {
         auto axisConst = gather.axis().getDefiningOp<Const::DeclareOp>();
         if (axisConst == nullptr) {
             return errorAt(loc, "Only constant input is supported for axis");
@@ -37,11 +36,9 @@ mlir::FailureOr<int64_t> extractAxis(mlir::Location loc, IE::GatherOpAdaptor gat
 
         int64_t axisInd = axisContent.getSplatValue<int64_t>();
         return axisInd;
-    }
-    else if (gather.axis_value() != nullptr) {
+    } else if (gather.axis_value() != nullptr) {
         return gather.axis_value().getSInt();
-    }
-    else {
+    } else {
         return errorAt(loc, "Axis was not provided");
     }
 }
@@ -102,7 +99,6 @@ public:
 };
 
 mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::GatherOp gatherOp, mlir::PatternRewriter& rewriter) const {
-
     auto axis = gatherOp.axis();
     if (axis == nullptr) {
         return mlir::failure();
@@ -119,7 +115,8 @@ mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::GatherOp gatherOp, m
     }
 
     rewriter.replaceOpWithNewOp<IE::GatherOp>(gatherOp, gatherOp.getType(), gatherOp.input(), gatherOp.indices(),
-                                             nullptr, rewriter.getI64IntegerAttr(axisContent.getSplatValue<int64_t>()));
+                                              nullptr,
+                                              rewriter.getI64IntegerAttr(axisContent.getSplatValue<int64_t>()));
     return mlir::success();
 }
 

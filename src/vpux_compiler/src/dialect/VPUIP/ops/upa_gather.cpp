@@ -11,22 +11,21 @@
 // included with the Software Package for additional details.
 //
 
-#include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/blob_reader.hpp"
-#include "vpux/compiler/utils/subspaces.hpp"
+#include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/utils/error.hpp"
+#include "vpux/compiler/utils/subspaces.hpp"
 
 #include <mlir/IR/BuiltinTypes.h>
 
 using namespace vpux;
 
 mlir::LogicalResult vpux::VPUIP::verifyOp(GatherUPAOp op) {
-
     // Axis should not exceed input rank
     const auto axisNo = op.axis();
     const auto inShape = getShape(op.input());
     if (checked_cast<size_t>(axisNo) >= inShape.size()) {
-        return errorAt(op, "Gather axis '{0}' is out of range [0,{1}]", axisNo, inShape.size()-1);
+        return errorAt(op, "Gather axis '{0}' is out of range [0,{1}]", axisNo, inShape.size() - 1);
     }
 
     return mlir::success();
@@ -46,7 +45,7 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::GatherUPAOp::serialize(VPUIP::BlobW
 
 mlir::Operation* vpux::VPUIP::BlobReader::parseGather(mlir::OpBuilder& builder, ArrayRef<mlir::Value> inputs,
                                                       ArrayRef<mlir::Value> outputs, const MVCNN::UPALayerTask* task) {
-    VPUX_THROW_UNLESS(inputs.size()  == 2, "GatherUPA supports only 2 inputs", inputs.size());
+    VPUX_THROW_UNLESS(inputs.size() == 2, "GatherUPA supports only 2 inputs", inputs.size());
     VPUX_THROW_UNLESS(outputs.size() == 1, "GatherUPA supports only 1 output", outputs.size());
 
     const auto params = task->softLayerParams_as_GatherParams();

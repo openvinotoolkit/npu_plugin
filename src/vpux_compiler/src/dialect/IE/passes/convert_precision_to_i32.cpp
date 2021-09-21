@@ -11,8 +11,8 @@
 // included with the Software Package for additional details.
 //
 
-#include "vpux/compiler/dialect/IE/passes.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
+#include "vpux/compiler/dialect/IE/passes.hpp"
 #include "vpux/compiler/dialect/IE/utils/generic_op_converter.hpp"
 #include "vpux/compiler/utils/types.hpp"
 
