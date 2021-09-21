@@ -70,34 +70,34 @@ mlir::LogicalResult generalRewrite(mlir::Operation* origOp, mlir::PatternRewrite
     auto* ctx = origOp->getContext();
 
     auto iface = mlir::cast<IE::AlignedChannelsOpInterface>(origOp);
-
-    // TODO make input and output channel alignment - where is it specified?
+    
     auto channelAlignement = iface.getChannelAlignment();
+     auto inchannelAlignement = iface.getInputChannelAlignment();
 
     const auto inputType = origOp->getOperand(0).getType().cast<mlir::ShapedType>();
     const auto outputType = origOp->getResult(0).getType().cast<mlir::ShapedType>();
 
-    // TODO: Make better. If it is the first layer and < 16 input channels then aligning input channel to 16 is not
-    // required.
-    auto op = mlir::dyn_cast<IE::ConvolutionOp>(*origOp);
-    const auto inputShape = getShape(op);
-    const auto IC = inputShape[IE::Dims4D::Act::C];
-    if (IC < 16)
-        channelAlignement = 0;
+    auto convOp = mlir::dyn_cast<IE::ConvolutionOp>(*origOp);
+    const auto inputShape = getShape(convOp.filter().getType().cast<mlir::ShapedType>());
+    const auto IC = inputShape[IE::Dims4D::Filter::IC];
+       
+    auto inPadsEnd = calcPadsEnd(inputType, inchannelAlignement);
 
-    auto inPadsEnd = calcPadsEnd(inputType, channelAlignement);
+    if(IC == 3)
+    {
+        inPadsEnd[IE::Dims4D::Act::C] = 0;
+        inPadsEnd[IE::Dims4D::Act::H] = 0;
+        inPadsEnd[IE::Dims4D::Act::W] = 0;
+        inPadsEnd[IE::Dims4D::Act::N] = 0;
+
+    }
+
     const auto outPadsEnd = calcPadsEnd(outputType, channelAlignement);
-
-    // Overwrite for now for cm
-    // inPadsEnd[IE::Dims4D::Act::C] = 0;
-    // inPadsEnd[IE::Dims4D::Act::H] = 0;
-    // inPadsEnd[IE::Dims4D::Act::W] = 0;
-    // inPadsEnd[IE::Dims4D::Act::N] = 0;
 
     log.trace("Input padding : {0}", inPadsEnd);
     log.trace("Output padding : {0}", outPadsEnd);
 
-    if (inPadsEnd[IE::Dims4D::Act::C] == 0 && outPadsEnd[IE::Dims4D::Act::C] == 0) {
+    if (inPadsEnd[IE::Dims4D::Act::C] == 0 && outPadsEnd[IE::Dims4D::Act::C] == 0 && IC != 3) {
         return matchFailed(log, rewriter, origOp, "Both input and output channels are already aligned");
     }
 
@@ -388,6 +388,8 @@ private:
 };
 
 void ExpandActivationChannelsPass::safeRunOnFunc() {
+
+
     auto& ctx = getContext();
 
     const auto isLegal = [&](mlir::Operation* op) {

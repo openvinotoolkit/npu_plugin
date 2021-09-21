@@ -25,6 +25,20 @@ using namespace VPUIP;
 // verifyConvChannels
 //
 
+int64_t vpux::VPUIP::NCEInvariant::getInputChannelAlignment(mlir::Operation* origOp) {
+
+    auto convOp = mlir::dyn_cast<IE::ConvolutionOp>(*origOp);
+    auto convLayoutOp = mlir::dyn_cast<IE::LayoutInfoOpInterface>(*origOp); // How to get user defined layout?
+    
+    const auto inputShape = getShape(convOp.filter().getType().cast<mlir::ShapedType>());
+    const auto IC = inputShape[IE::Dims4D::Filter::IC];
+
+    if(IC < 16) //Need to check for user layout also
+        return IC;
+    else 
+        return 16;
+}
+
 int64_t vpux::VPUIP::NCEInvariant::getChannelAlignment(mlir::Type elemType) {
     const Bit typeSizeInBits = getElemTypeSize(elemType);
     return std::max<int64_t>(128 / typeSizeInBits.count(), 16);
@@ -47,16 +61,12 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyConvChannels(mlir::Location
         log.trace("[{0}] Convolution output channels are not aligned", loc);
         return mlir::failure();
     }
-    // If it is the first layer and < 16 input channels then aligning input channel to 16 is n
-    if (IC == 3) {
-        log.trace("[{0}] Convolution Channel Major not required to have 16 input channels", loc);
-        return mlir::success();
-    }
-
-    if (IC % getChannelAlignment(filterType.getElementType()) != 0) {
-        log.trace("[{0}] Convolution input channels are not aligned", loc);
-        return mlir::failure();
-    }
+  
+    //TODO - how to cast from mlir::operation*
+    // if (IC % getInputChannelAlignment(filterType.getElementType()) != 0) {
+    //     log.trace("[{0}] Convolution input channels are not aligned", loc);
+    //     return mlir::failure();
+    // }
 
     return mlir::success();
 }

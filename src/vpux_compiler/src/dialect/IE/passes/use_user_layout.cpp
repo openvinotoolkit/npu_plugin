@@ -59,6 +59,7 @@ void UseUserLayoutPass::safeRunOnModule() {
 
             const auto origType = originTypes[ind].cast<mlir::ShapedType>();
             const auto userDimsOrder = p.value().getDimsOrder();
+            Logger::global().error("order: {0}", userDimsOrder);
 
             newTypes[ind] = changeDimsOrder(origType, userDimsOrder);
         }
