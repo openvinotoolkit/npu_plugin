@@ -170,9 +170,7 @@ mlir::Value createActivationWindowTensor(mlir::OpBuilder& builder, mlir::Locatio
     auto* ctx = builder.getContext();
     const auto elemType = getUInt8Type(builder.getContext());
 
-    //Needs to be different
-    //SmallVector<int64_t> fakeSparsityShape{numChannels, 1, 1, static_cast<int64_t>(fakeSparsity.size()) / numChannels};
-    SmallVector<int64_t> fakeSparsityShape{64, 1, 4, 16};
+    SmallVector<int64_t> fakeSparsityShape{numChannels, 1, 1, static_cast<int64_t>(fakeSparsity.size()) / numChannels};
 
     const auto dataStorageType = mlir::RankedTensorType::get(fakeSparsityShape, elemType);
     const auto dataAttr = mlir::DenseElementsAttr::get(dataStorageType, fakeSparsity);
@@ -188,33 +186,6 @@ mlir::Value createActivationWindowTensor(mlir::OpBuilder& builder, mlir::Locatio
 
     return copyOp.output();
 }
-
-// mlir::Value createActivationWindowTensor(mlir::OpBuilder& builder, mlir::Location loc, ArrayRef<uint8_t> fakeSparsity,
-//                                          int64_t numChannels) {
-//     auto* ctx = builder.getContext();
-//     const auto elemType = getUInt8Type(builder.getContext());
-
-//     //Needs to be different
-//     //SmallVector<int64_t> fakeSparsityShape{numChannels, 1, 1, static_cast<int64_t>(fakeSparsity.size()) / numChannels};
-//     SmallVector<int64_t> fakeSparsityShape{64, 1, 4, 16};
-
-//     const auto dataStorageType = mlir::RankedTensorType::get(fakeSparsityShape, elemType);
-//     const auto dataAttr = mlir::DenseElementsAttr::get(dataStorageType, fakeSparsity);
-
-//     //const auto dataType = mlir::MemRefType::get(fakeSparsityShape, elemType);
-//     const auto dataType1 = changeDimsOrder(mlir::MemRefType::get(fakeSparsityShape, elemType), DimsOrder::NHWC);
-
-//     auto dataConstOp = builder.create<Const::DeclareOp>(loc, dataType1, Const::ContentAttr::get(dataAttr));
-
-//     const auto cmxMemSpaceAttr = VPUIP::PhysicalMemoryAttr::get(ctx, VPUIP::PhysicalMemory::CMX_NN);
-//     const auto dataTypeCMX = changeMemSpace(dataType1, cmxMemSpaceAttr);
-
-//     auto dataAllocOp = builder.create<mlir::memref::AllocOp>(loc, dataTypeCMX);
-//     auto copyOp = builder.create<IERT::CopyOp>(loc, dataConstOp.output(), dataAllocOp);
-
-//     return copyOp.output();
-// }
-
 class ConvRewrite final : public mlir::OpRewritePattern<IERT::ConvolutionOp> {
 public:
     ConvRewrite(mlir::MLIRContext* ctx, int64_t numDPU, vpux::VPUIP::ArchKind arch, Logger log)
