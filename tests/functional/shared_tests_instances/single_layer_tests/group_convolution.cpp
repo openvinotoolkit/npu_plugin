@@ -7,6 +7,7 @@
 #include "common_test_utils/test_constants.hpp"
 #include "kmb_layer_test.hpp"
 #include "single_layer_tests/group_convolution.hpp"
+#include <common/functions.h>
 
 namespace LayerTestsDefinitions {
 
@@ -44,6 +45,16 @@ class KmbGroupConvolutionLayerTest :
     void SkipBeforeInfer() override {
         if (envConfig.IE_KMB_TESTS_PLATFORM == "3900") {
             throw LayerTestsUtils::KmbSkipTestException("CallVpu error: -1");
+        }
+
+        // [Track number: E#20948]
+        const auto testName =
+            std::string{::testing::UnitTest::GetInstance()->current_test_info()->test_case_name()};
+        const auto isGroupConv2DExpPad = testName.find("smoke_GroupConvolution2D_ExplicitPadding") != std::string::npos;
+        const auto isGroupConv2DAutoPadVal = testName.find("smoke_GroupConvolution2D_AutoPadValid") != std::string::npos;
+        const auto isLevel0 = getBackendName(*getCore()) == "LEVEL0";
+        if ((isGroupConv2DExpPad || isGroupConv2DAutoPadVal) && isLevel0 && isCompilerMCM()) {
+            throw LayerTestsUtils::KmbSkipTestException("Level0: sporadic failure on device");
         }
     }
 };

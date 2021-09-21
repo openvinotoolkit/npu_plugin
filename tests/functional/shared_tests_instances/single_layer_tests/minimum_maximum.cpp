@@ -5,12 +5,24 @@
 #include <vector>
 #include "single_layer_tests/minimum_maximum.hpp"
 #include "kmb_layer_test.hpp"
+#include <common/functions.h>
 
 namespace LayerTestsDefinitions {
 
 class KmbMaxMinLayerTest: public MaxMinLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon { };
 
-class KmbMaxMinLayerTest_MCM: public KmbMaxMinLayerTest { };
+class KmbMaxMinLayerTest_MCM: public KmbMaxMinLayerTest {
+    void SkipBeforeInfer() override {
+        // [Track number: E#20948]
+        const auto testName =
+            std::string{::testing::UnitTest::GetInstance()->current_test_info()->test_case_name()};
+        const auto isSmokeMaxScalar = testName.find("smoke_maximum_scalar") != std::string::npos;
+        const auto isLevel0 = getBackendName(*getCore()) == "LEVEL0";
+        if (isSmokeMaxScalar && isLevel0 && isCompilerMCM()) {
+            throw LayerTestsUtils::KmbSkipTestException("Level0: sporadic failure on device");
+        }
+    }
+ };
 
 class KmbMaxMinLayerTest_MLIR: public KmbMaxMinLayerTest { };
 
