@@ -299,7 +299,6 @@ std::vector<uint8_t> vpux::VPUIP::NCESparsity::getFakeSparsity(mlir::ArrayRef<in
     }
     
     std::vector<uint8_t> fakeSparsity;
-    //fakeSparsity.reserve(inputChannels * perChannelSparsitySize);
     fakeSparsity.reserve(outputChannels * perChannelSparsitySize);
     for (auto i = 0; i < outputChannels; i++) {
         fakeSparsity.insert(fakeSparsity.end(), perChannelSparsity.begin(), perChannelSparsity.end());
