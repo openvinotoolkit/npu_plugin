@@ -1146,13 +1146,8 @@ def generate_options(args):
                        input_shapes=[[1, 256, 16, 16]]),
 
         # Eltwise Mult
-        #
-        # NB: When changing the input shape here, make sure to verify that
-        #     the corresponding C++ test builder code has been updated to
-        #     work with the new shape.  (I.e. [1, 16, 16, 32] failed to
-        #     produce a correct output.)
         genEltwiseMults(input_types=[Int8(3), UInt8(4), FP16(6), BF16(6)],
-                        input_shapes=[[1, 1, 1, 8192]]),
+                        input_shapes=[[1, 1, 1, 64]]),
 
         # MaxPool
         genMaxPools(input_types=[UInt8(6), Int8(6), FP16(6), BF16(6)],
