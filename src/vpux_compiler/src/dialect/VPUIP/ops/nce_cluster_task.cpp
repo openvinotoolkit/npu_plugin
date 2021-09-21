@@ -219,7 +219,7 @@ mlir::LogicalResult verifyNCECMConv(VPUIP::NCEClusterTaskOp op) {
     // TODO fix me
     // if (verifySameInOutSpecificDimsOrder(op, {DimsOrder::NHWC}).failed()) {
     //     return mlir::failure();
-    //}
+    // }
 
     const auto weightsLayout = DimsOrder::fromValue(op.weights());
     if (weightsLayout != DimsOrder::NHWC) {
