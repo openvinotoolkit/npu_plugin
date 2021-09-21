@@ -110,7 +110,7 @@ void ConvertPrecisionToI32Pass::safeRunOnModule() {
     typeConverter.addTargetMaterialization(cvtType);
 
     const auto isLegalGatherOp = [&](IE::GatherOp op) {
-        return typeConverter.isLegal(op) && (!op.indices().getType().isSignedInteger(32));
+        return typeConverter.isLegal(op);
     };
 
     mlir::ConversionTarget target(ctx);
