@@ -24,8 +24,6 @@
 #include <mlir/IR/BuiltinTypes.h>
 #include <mlir/Transforms/DialectConversion.h>
 
-using namespace vpux;
-
 namespace {
 
 //
@@ -34,19 +32,19 @@ namespace {
 
 class GenericOpConverter final : public mlir::ConversionPattern {
 public:
-    GenericOpConverter(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
-            : mlir::ConversionPattern(typeConverter, MatchAnyOpTypeTag{}, benefitHigh, ctx), _log(log) {
+    GenericOpConverter(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, vpux::Logger log)
+            : mlir::ConversionPattern(typeConverter, MatchAnyOpTypeTag{}, vpux::benefitHigh, ctx), _log(log) {
     }
 
 public:
-    mlir::LogicalResult matchAndRewrite(mlir::Operation* origOp, ArrayRef<mlir::Value> operands,
+    mlir::LogicalResult matchAndRewrite(mlir::Operation* origOp, vpux::ArrayRef<mlir::Value> operands,
                                         mlir::ConversionPatternRewriter& rewriter) const final;
 
 private:
-    Logger _log;
+    vpux::Logger _log;
 };
 
-mlir::LogicalResult GenericOpConverter::matchAndRewrite(mlir::Operation* origOp, ArrayRef<mlir::Value> operands,
+mlir::LogicalResult GenericOpConverter::matchAndRewrite(mlir::Operation* origOp, vpux::ArrayRef<mlir::Value> operands,
                                                         mlir::ConversionPatternRewriter& rewriter) const {
     _log.trace("Process Operation '{0}'", origOp->getLoc());
 
