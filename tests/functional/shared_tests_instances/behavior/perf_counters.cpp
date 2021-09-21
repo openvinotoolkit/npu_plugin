@@ -3,6 +3,7 @@
 //
 
 #include "behavior/perf_counters.hpp"
+#include "kmb_layer_test.hpp"
 
 using namespace BehaviorTestsDefinitions;
 namespace {
@@ -13,7 +14,7 @@ namespace {
     INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, PerfCountersTest,
                             ::testing::Combine(
                                     ::testing::Values(InferenceEngine::Precision::FP32),
-                                    ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY),
+                                    ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
                                     ::testing::ValuesIn(configs)),
                             PerfCountersTest::getTestCaseName);
 
