@@ -934,6 +934,44 @@ operation ::= `IERT.Interpolate` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float or 32-bit float values
 
+### `IERT.LRN_IE` (vpux::IERT::LRN_IEOp)
+
+InferenceEngine run-time LRN_IE layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.LRN_IE` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `ouputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`alpha` | ::mlir::FloatAttr | 64-bit float attribute
+`beta` | ::mlir::FloatAttr | 64-bit float attribute
+`bias` | ::mlir::FloatAttr | 64-bit float attribute
+`size` | mlir::IntegerAttr | Integer attribute
+`region` | vpux::IE::LRN_IERegionAttr | LRN_IE region that operations support
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float or 32-bit float values
+`output_buff` | memref of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float or 32-bit float values
+
 ### `IERT.LSTMCell` (vpux::IERT::LSTMCellOp)
 
 InferenceEngine run-time LSTMCell layer

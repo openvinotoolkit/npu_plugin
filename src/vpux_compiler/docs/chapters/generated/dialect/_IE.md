@@ -904,6 +904,40 @@ operation ::= `IE.LRN` `(` operands `)` attr-dict `:` type(operands) `->` type(r
 | :----: | ----------- |
 `output` | ranked tensor of 16-bit float or 32-bit float values
 
+### `IE.LRN_IE` (vpux::IE::LRN_IEOp)
+
+InferenceEngine LRN_IE layer
+
+
+Syntax:
+
+```
+operation ::= `IE.LRN_IE` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`alpha` | ::mlir::FloatAttr | 64-bit float attribute
+`beta` | ::mlir::FloatAttr | 64-bit float attribute
+`bias` | ::mlir::FloatAttr | 64-bit float attribute
+`size` | mlir::IntegerAttr | Integer attribute
+`region` | vpux::IE::LRN_IERegionAttr | LRN_IE region that operations support
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
 ### `IE.LSTMCell` (vpux::IE::LSTMCellOp)
 
 InferenceEngine LSTMCell layer

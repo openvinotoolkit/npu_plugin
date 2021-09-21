@@ -596,6 +596,42 @@ def IERT_SigmoidOp :
 }
 
 //
+// LRN_IEOp
+//
+
+def IERT_LRN_IEOp :
+        IERT_LayerOp<1, "LRN_IE",
+            [
+                ViewLikeOpInterface
+            ]
+        > {
+    let summary = "InferenceEngine run-time LRN_IE layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input,
+
+        MemRefOf<[F16, F32]>:$output_buff,
+
+        F64Attr:$alpha,
+        F64Attr:$beta,
+        F64Attr:$bias,
+        IntAttr:$size,
+        IE_LRN_IERegion:$region
+    );
+
+    let results = (outs
+        MemRefOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `ouputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
 // ClampOp
 //
 

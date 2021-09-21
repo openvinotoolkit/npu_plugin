@@ -540,6 +540,12 @@ mlir::Operation* createRTLayer(IE::GRNOp origOp, ArrayRef<mlir::Value> allBufs, 
     return b.create<IERT::GRNOp>(origOp.getLoc(), newOp.input(), newOp.output_buff(), origOp.biasAttr());
 }
 
+mlir::Operation* createRTLayer(IE::LRN_IEOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::LRN_IEOp::Adaptor newOp(allBufs);
+    return b.create<IERT::LRN_IEOp>(origOp.getLoc(), newOp.input(), newOp.output_buff(), origOp.alphaAttr(),
+                                    origOp.betaAttr(), origOp.biasAttr(), origOp.sizeAttr(), origOp.regionAttr());
+}
+
 mlir::Operation* createRTLayer(IE::PerAxisTileOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::PerAxisTileOp::Adaptor newOp(allBufs);
     return b.create<IERT::PerAxisTileOp>(origOp.getLoc(), newOp.input(), newOp.output_buff(), origOp.axisAttr(),
@@ -752,6 +758,7 @@ mlir::LogicalResult LayerRewrite::matchAndRewrite(mlir::Operation* origOp, Array
     CASE(IE::MaximumOp)
     CASE(IE::SwishOp)
     CASE(IE::GRNOp)
+    CASE(IE::LRN_IEOp)
     CASE(IE::TileOp)
     CASE(IE::PerAxisTileOp)
     CASE(IE::NegativeOp)

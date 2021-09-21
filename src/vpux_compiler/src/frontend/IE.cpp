@@ -43,10 +43,12 @@
 #include <ie_layouts.h>
 #include <ie_precision.hpp>
 
+#include <legacy/ngraph_ops/lrn_ie.hpp>
 #include <ngraph/function.hpp>
 #include <ngraph/node.hpp>
 #include <ngraph/opsets/opset4.hpp>
 #include <ngraph/opsets/opset7.hpp>
+
 #include <ngraph/pass/constant_folding.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/type/element_type.hpp>
@@ -65,6 +67,7 @@
 #include <transformations/op_conversions/lstm_cell_decomposition.hpp>
 #include <transformations/op_conversions/mvn6_decomposition.hpp>
 #include <transformations/op_conversions/simplify_ctc_greedy_decoder_seq_len.hpp>
+#include "legacy/transformations/convert_opset1_to_legacy/convert_lrn_to_lrn_ie.hpp"
 #include "legacy/transformations/convert_opset1_to_legacy/convert_strided_slice_to_crop.hpp"
 
 #include <transformations/init_node_info.hpp>
@@ -120,6 +123,7 @@ private:
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Squeeze>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Sigmoid>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::LRN>& origNode);
+    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::op::LRN_IE>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Unsqueeze>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Minimum>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Maximum>& origNode);
@@ -174,6 +178,7 @@ private:
     IE::DetectionOutputAttr importDetectionOutputAttrs(const ngraph::op::DetectionOutputAttrs& val);
     IE::ROIPoolingMethodAttr importROIPoolingMethod(const std::string& method);
     IE::PadModeAttr importPadMode(const ngraph::op::PadMode val);
+    IE::LRN_IERegionAttr importLRN_IERegion(const std::string& region);
 
     mlir::MLIRContext* _ctx = nullptr;
     std::shared_ptr<const ngraph::Function> _netGraph;
@@ -218,6 +223,7 @@ NGraphImporter::Callback NGraphImporter::getParser(const std::shared_ptr<ngraph:
             MAP_ENTRY(opset_latest::Squeeze),
             MAP_ENTRY(opset_latest::Sigmoid),
             MAP_ENTRY(opset_latest::LRN),
+            MAP_ENTRY(ngraph::op::LRN_IE),
             MAP_ENTRY(opset_latest::Unsqueeze),
             MAP_ENTRY(opset_latest::Minimum),
             MAP_ENTRY(opset_latest::Maximum),
@@ -794,6 +800,30 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
     addOutputs(origNode, op);
 }
 
+void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::op::LRN_IE>& origNode) {
+    static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::LRN_IE>::value,
+                  "opset operation mismatch");
+
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS(inputs.size() == 1, "nGraph LRN_IE node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
+
+    const auto alpha = origNode->get_alpha();
+    const auto beta = origNode->get_beta();
+    const auto bias = origNode->get_bias();
+    const auto size = origNode->get_nsize();
+
+    const auto alphaAttr = getFPAttr(_ctx, alpha);
+    const auto betaAttr = getFPAttr(_ctx, beta);
+    const auto biasAttr = getFPAttr(_ctx, bias);
+    const auto sizeAttr = getIntAttr(_ctx, size);
+    const auto regionAttr = importLRN_IERegion(origNode->get_region());
+
+    auto op = builder.create<IE::LRN_IEOp>(createLocation(origNode), inputs[0], alphaAttr, betaAttr, biasAttr, sizeAttr,
+                                           regionAttr);
+    addOutputs(origNode, op);
+}
+
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Sigmoid>& origNode) {
     static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v0::Sigmoid>::value,
                   "opset operation mismatch");
@@ -1361,6 +1391,16 @@ IE::RoundingTypeAttr NGraphImporter::importRoundingType(ngraph::op::RoundingType
     }
 }
 
+IE::LRN_IERegionAttr NGraphImporter::importLRN_IERegion(const std::string& region) {
+    if (region == "same") {
+        return IE::LRN_IERegionAttr::get(_ctx, IE::LRN_IERegion::same);
+    } else if (region == "across") {
+        return IE::LRN_IERegionAttr::get(_ctx, IE::LRN_IERegion::across);
+    } else {
+        VPUX_THROW("Unknown LRN_IERegion");
+    }
+}
+
 IE::EpsModeAttr NGraphImporter::importEpsMode(ngraph::op::EpsMode val) {
     switch (val) {
     case ngraph::op::EpsMode::ADD:
@@ -1645,6 +1685,7 @@ void runNGraphPasses(const std::shared_ptr<ngraph::Function>& netGraph, mlir::Ti
     manager.register_pass<vpux::passes::ConvertMVN6toMVN1>();
     manager.register_pass<ngraph::pass::CommonOptimizations>();
     manager.register_pass<vpux::passes::AlignScales>();
+    manager.register_pass<ngraph::pass::ConvertLRNToLegacyMatcher>();
 
     manager.run_passes(netGraph);
 }
