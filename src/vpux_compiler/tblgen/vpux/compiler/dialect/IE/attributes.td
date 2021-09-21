@@ -135,6 +135,23 @@ def IE_RoundingType :
 }
 
 //
+// LRN_IERegion
+//
+
+def IE_LRN_IERegion :
+        StrEnumAttr<
+            "LRN_IERegion",
+            "LRN_IE region that operations support",
+            [
+                StrEnumAttrCase<"same">,
+                StrEnumAttrCase<"across">
+            ]
+        > {
+    let cppNamespace = "vpux::IE";
+    let genSpecializedAttr = 1;
+}
+
+//
 // Proposal
 //
 

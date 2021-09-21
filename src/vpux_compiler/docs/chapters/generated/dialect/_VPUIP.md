@@ -1151,6 +1151,50 @@ operation ::= `VPUIP.NegativeUPA` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float values
 
+### `VPUIP.NormUPA` (vpux::VPUIP::NormUPAOp)
+
+Norm UPA SHAVE kernel
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.NormUPA` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+              (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`alpha` | ::mlir::FloatAttr | 64-bit float attribute
+`beta` | ::mlir::FloatAttr | 64-bit float attribute
+`bias` | ::mlir::FloatAttr | 64-bit float attribute
+`local_size` | mlir::IntegerAttr | Integer attribute
+`region` | vpux::IE::LRN_IERegionAttr | LRN_IE region that operations support
+`maxShaves` | mlir::IntegerAttr | Integer attribute
+`isTrailingSWLayer` | ::mlir::UnitAttr | unit attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float values
+`output_buff` | memref of 16-bit float values
+`waitBarriers` | VPUIP Barrier Type
+`updateBarriers` | VPUIP Barrier Type
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float values
+
 ### `VPUIP.PPETask` (vpux::VPUIP::PPETaskOp)
 
 PPE Type for NCE Task

@@ -835,6 +835,31 @@ def IE_LRNOp :
 }
 
 //
+// LRN_IEOp
+//
+
+def IE_LRN_IEOp :
+        IE_LayerOp<
+            "LRN_IE"
+        > {
+    let summary = "InferenceEngine LRN_IE layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input,
+
+        F64Attr:$alpha,
+        F64Attr:$beta,
+        F64Attr:$bias,
+        IntAttr:$size,
+        IE_LRN_IERegion:$region
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+}
+
+//
 // MinimumOp
 //
 

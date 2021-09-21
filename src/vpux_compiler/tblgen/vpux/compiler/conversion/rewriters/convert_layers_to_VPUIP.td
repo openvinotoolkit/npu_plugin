@@ -97,6 +97,22 @@ def RewriteAvgPool :
         >;
 
 //
+// IERT.LRN_IE -> VPUIP.NormUPA
+//
+
+def createNormUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::NormUPAOp> (
+                $_loc, $0, $1, $2, $3, $4, $5, $6)
+        }]>;
+
+def RewriteLRN_IE :
+        Pat<
+            (IERT_LRN_IEOp $input, $output, $alpha, $beta, $bias, $size, $region),
+            (createNormUPAOp $input, $output, $alpha, $beta, $bias, $size, $region)
+        >;
+
+//
 // IERT.MaxPool -> VPUIP.PoolingUPA
 //
 
