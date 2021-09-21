@@ -53,8 +53,7 @@ class KmbPoolingLayerTest : public PoolingLayerTest, virtual public LayerTestsUt
         const auto isSmokePoolAutoPadVal = testName.find("smoke_Pooling_AutoPadValid") != std::string::npos;
         const auto isLevel0 = getBackendName(*getCore()) == "LEVEL0";
         const auto failedStrides = strides.size() == 2 && strides[0] == 1 && strides[1] == 1;
-        const auto failedInShape = inShapes.size() == 4 && inShapes[1] == 16;
-        if (isSmokePoolAutoPadVal && isLevel0 && isCompilerMCM() && failedStrides && failedInShape) {
+        if (isSmokePoolAutoPadVal && isLevel0 && isCompilerMCM() && failedStrides) {
             throw LayerTestsUtils::KmbSkipTestException("Level0: sporadic failure on device");
         }
     }
