@@ -63,7 +63,7 @@
             {
                 "name": "GenerateWorkloads",
                 "costfunction": "greedy",
-                "TensorSplitAlgorithms": "Rectangle, Z-Tiling",
+                "TensorSplitAlgorithms": "Rectangle",
                 "_comment": "Supported CostFunctions are: balanced | criticalpath | minmax | greedy. Supported TensorSplitAlgorithms are Rectangle, Z-Tiling"
             },
             "EnsureSplitStrategiesForNonSpilling",
