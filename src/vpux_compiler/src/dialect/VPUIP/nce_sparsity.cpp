@@ -75,33 +75,6 @@ int64_t getWindowSize(int64_t kernelW, int64_t strideW, mlir::Type elemType) {
     return maxMpeWindowSize;
 }
 
-// std::vector<uint8_t> getBitPattern(mlir::ArrayRef<int64_t> kernelSize, int64_t windowSize) {
-//     const auto kernelW = kernelSize[0];
-//     const auto kernelH = kernelSize[1];
-
-//     VPUX_THROW_UNLESS(windowSize >= kernelW,
-//                       "windowsSize must be greater than or equal to kernelW. windowsSize={0}, kernelW={1}", windowSize,
-//                       kernelW);
-
-//     const auto numBitsSet = kernelW;
-//     const auto numBitsClear = windowSize - kernelW;
-
-//     SmallVector<uint8_t> window;
-//     window.reserve(windowSize);
-//     window.insert(window.end(), numBitsSet, 1);
-//     window.insert(window.end(), numBitsClear, 0);
-
-//     const auto numOfRepeat = kernelH;
-
-//     std::vector<uint8_t> bitPattern;
-//     bitPattern.reserve(numOfRepeat * windowSize * 3);
-//     for (auto i = 0; i < numOfRepeat; i++) {
-//         bitPattern.insert(bitPattern.end(), window.begin(), window.end());
-//     }
-
-//     return bitPattern;
-// }
-
 std::vector<int8_t> getBitPattern(mlir::ArrayRef<int64_t> kernelSize, int64_t windowSize, int64_t inputChannels) 
 {
     const auto kernelW = kernelSize[0];
