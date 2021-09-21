@@ -37,42 +37,59 @@ public:
     mlir::LogicalResult matchAndRewrite(mlir::ViewLikeOpInterface origOp, mlir::PatternRewriter& rewriter) const final;
 
 private:
+    Byte calculateOffset(mlir::Value val) const;
+
+private:
     const AliasesInfo* _aliasInfo = nullptr;
     Logger _log;
 };
 
-Byte calculateDataOffset(IERT::SubViewOp subViewOp) {
-    int64_t subviewOffset = 0;
-    SmallVector<int64_t> resultStrides;
-    VPUX_THROW_UNLESS(mlir::getStridesAndOffset(subViewOp.getType(), resultStrides, subviewOffset).succeeded(),
-                      "Can't extract offset from biases subview '{0}'", subViewOp);
+Byte ViewLikeRewrite::calculateOffset(mlir::Value val) const {
+    Byte offset(0);
 
-    // Add offset for subview memref in bytes
-    const Byte elemSize = getElemTypeSize(subViewOp.getType().getElementType());
-    return subviewOffset * elemSize;
+    if (auto source = _aliasInfo->getSource(val)) {
+        offset = calculateOffset(source);
+    }
+
+    if (auto declareOp = mlir::dyn_cast_or_null<VPUIP::DeclareTensorOp>(val.getDefiningOp())) {
+        offset += Byte(declareOp.dataIndex());
+    }
+
+    if (auto subViewOp = mlir::dyn_cast_or_null<IERT::SubViewOp>(val.getDefiningOp())) {
+        const auto strides = getStrides(subViewOp.source());
+        const auto offsets = parseIntArrayAttr<int64_t>(subViewOp.static_offsets());
+        VPUX_THROW_UNLESS(strides.size() == offsets.size(), "SubView offsets '{0}' doesn't match strides '{1}'",
+                          offsets, strides);
+
+        for (auto p : zip(strides, offsets)) {
+            offset += Byte(std::get<0>(p) * std::get<1>(p));
+        }
+    }
+
+    return offset;
 }
 
 mlir::LogicalResult ViewLikeRewrite::matchAndRewrite(mlir::ViewLikeOpInterface origOp,
                                                      mlir::PatternRewriter& rewriter) const {
-    if (!mlir::isa<IERT::GenericReshapeOp, IERT::SubViewOp>(origOp.getOperation())) {
+    if (!mlir::isa<IERT::GenericReshapeOp, IERT::SubViewOp, IERT::ImplicitReorderOp>(origOp.getOperation())) {
         return matchFailed(rewriter, origOp, "Unknown view-like operation '{0}'", origOp->getName());
     }
 
     _log.trace("Found view-like Operation '{0}'", origOp->getLoc());
 
-    const auto origInput = origOp.getViewSource();
-    const auto rootVal = _aliasInfo->getRoot(origInput);
+    const auto origVal = origOp->getResult(0);
+    const Byte dataOffset = calculateOffset(origVal);
+
+    const auto rootVal = _aliasInfo->getRoot(origVal);
 
     VPUIP::MemoryLocation locale = VPUIP::MemoryLocation::VPU_DDR_Heap;
     SmallVector<int64_t> localeIndex;
-    Byte dataOffset(0);
 
     if (auto declareOp = rootVal.getDefiningOp<VPUIP::DeclareTensorOp>()) {
         _log.nest().trace("It aliases internal buffer produced by '{0}'", declareOp->getLoc());
 
         locale = declareOp.locale();
         localeIndex = parseIntArrayAttr<int64_t>(declareOp.localeIndex());
-        dataOffset = Byte(declareOp.dataIndex());
     } else if (auto blockArg = rootVal.dyn_cast<mlir::BlockArgument>()) {
         _log.nest().trace("It aliases Block argument '{0}'", blockArg);
 
@@ -102,10 +119,6 @@ mlir::LogicalResult ViewLikeRewrite::matchAndRewrite(mlir::ViewLikeOpInterface o
         }
     } else {
         VPUX_THROW("Unknown source owner");
-    }
-
-    if (const auto subViewOp = mlir::dyn_cast<IERT::SubViewOp>(origOp.getOperation())) {
-        dataOffset += calculateDataOffset(subViewOp);
     }
 
     const auto outType = origOp->getResult(0).getType();

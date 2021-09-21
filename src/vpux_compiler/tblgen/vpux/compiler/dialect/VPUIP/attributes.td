@@ -149,6 +149,7 @@ def VPUIP_MemoryLocation :
                 StrEnumAttrCase<"VPU_DDR_BSS">,
                 StrEnumAttrCase<"VPU_CSRAM">,
                 StrEnumAttrCase<"AbsoluteAddr">,
+                StrEnumAttrCase<"MAC_Accumulators">,
             ]
         > {
     let cppNamespace = "vpux::VPUIP";
@@ -207,6 +208,7 @@ def VPUIP_EltwiseLayerType :
                 StrEnumAttrCase<"FLOOR_MOD">,
                 StrEnumAttrCase<"MIN">,
                 StrEnumAttrCase<"MAX">,
+                StrEnumAttrCase<"SUBTRACT">,
             ]
         > {
     let cppNamespace = "vpux::VPUIP";

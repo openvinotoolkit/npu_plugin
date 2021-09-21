@@ -29,23 +29,20 @@ namespace {
 // DequantizeConst
 //
 
-class DequantizeConst final : public mlir::OpRewritePattern<mlir::quant::DequantizeCastOp> {
+class DequantizeConst final : public mlir::OpRewritePattern<IE::DequantizeOp> {
 public:
-    DequantizeConst(mlir::MLIRContext* ctx, Logger log)
-            : mlir::OpRewritePattern<mlir::quant::DequantizeCastOp>(ctx), _log(log) {
+    DequantizeConst(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<IE::DequantizeOp>(ctx), _log(log) {
     }
 
 public:
-    mlir::LogicalResult matchAndRewrite(mlir::quant::DequantizeCastOp dCastOp,
-                                        mlir::PatternRewriter& rewriter) const final;
+    mlir::LogicalResult matchAndRewrite(IE::DequantizeOp dCastOp, mlir::PatternRewriter& rewriter) const final;
 
 private:
     Logger _log;
 };
 
-mlir::LogicalResult DequantizeConst::matchAndRewrite(mlir::quant::DequantizeCastOp dCastOp,
-                                                     mlir::PatternRewriter& rewriter) const {
-    auto inputConst = dCastOp.arg().getDefiningOp<Const::DeclareOp>();
+mlir::LogicalResult DequantizeConst::matchAndRewrite(IE::DequantizeOp dCastOp, mlir::PatternRewriter& rewriter) const {
+    auto inputConst = dCastOp.input().getDefiningOp<Const::DeclareOp>();
     if (inputConst == nullptr) {
         return mlir::failure();
     }

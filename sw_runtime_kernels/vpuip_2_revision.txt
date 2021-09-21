@@ -1,2 +1,3 @@
-branch: icv/aershov1/act-svu-utest-rt_combined_02
-commit 2b8da1d77a5181a08422da4a1cf4418616aba1fc
+vpuip_2 branch: kskvorts/mtl_patch
+commit:         32826798ff6767d4f7699eb59a20e1d9fbc6567c
+

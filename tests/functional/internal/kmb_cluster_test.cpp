@@ -90,6 +90,7 @@ TEST_P(KmbClusterTestWithParams, precommit_checkInferTime) {
     // FIXME [Track number: E#6518]
     GTEST_SKIP() << "Throws an exception on the second runTest call";
 #endif
+    SKIP_ON("EMULATOR", "Test not targeted to emulator");
     if (PlatformEnvironment::PLATFORM == "3400_A0") {
         // FIXME [Track number: E#10416]
         GTEST_SKIP() << "MCM Compiler error: Failed to pass runtime simulation";

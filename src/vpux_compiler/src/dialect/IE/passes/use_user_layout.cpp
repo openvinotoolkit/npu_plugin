@@ -60,18 +60,7 @@ void UseUserLayoutPass::safeRunOnModule() {
             const auto origType = originTypes[ind].cast<mlir::ShapedType>();
             const auto userDimsOrder = p.value().getDimsOrder();
 
-            // FIXME: remove when ND tensors are allowed at runtime [Track number: E#7613]
-            constexpr int64_t TARGET_TENSOR_DIM = 4;
-            auto dimsOrder = userDimsOrder;
-            if (userDimsOrder.numDims() < TARGET_TENSOR_DIM) {
-                VPUX_THROW_UNLESS(userDimsOrder == DimsOrder::fromNumDims(userDimsOrder.numDims()),
-                                  "Tensors with rank < 4 are supported only with default order, got: {0}",
-                                  userDimsOrder);
-
-                dimsOrder = DimsOrder::fromNumDims(TARGET_TENSOR_DIM);
-            }
-
-            newTypes[ind] = changeDimsOrder(origType, dimsOrder);
+            newTypes[ind] = changeDimsOrder(origType, userDimsOrder);
         }
     };
 

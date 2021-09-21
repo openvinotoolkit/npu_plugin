@@ -743,7 +743,6 @@ class DPUPipeline:
         if settings.mpe_op_class is Maxpool and settings.input_ttype.__class__ in [FP16, BF16]:
             self.issues.add('EISW-15074')  # MaxPool produces zeros with fp16 and bf16 inputs
 
-
     def compute_values(self):
         self.inputs = self.mpe_op.generate_inputs()
         self.mpe_data = self.mpe_op.apply(self.inputs)
@@ -1011,6 +1010,19 @@ def generate_options(args):
                      [Int4(), UInt4(), UInt8()],  # output type
                      [[1, 1]],                    # strides
                      [[4,0,0,0],[5,0,0,0]]        # pads
+                     )),
+
+        # Z-Major Continued Convolution, fp16
+        (DPUPipeline(ZMajorConvolution.PARAMS, x) for x in itertools.product(
+                     [ZMajorConvolution],         # mpe operation
+                     [FP16(3)],                   # input type
+                     [[1, 16*1024, 1, 1]],        # input shape
+                     [FP16(-3)],                  # weight type
+                     [16],                        # kernel channels
+                     [[1, 1]],                    # kernel shape
+                     [FP16()],                    # output type
+                     [[1, 1]],                    # strides
+                     Pad.none                     # pads
                      )),
 
         # Eltwise Add

@@ -39,6 +39,7 @@ target_include_directories(${TARGET_NAME}
 
 link_system_libraries(${TARGET_NAME}
     PRIVATE
+        ${VPUAL_NN_LIBRARY}
         ${VPUMGR_LIBRARY}
         IE::inference_engine_plugin_api
     PUBLIC

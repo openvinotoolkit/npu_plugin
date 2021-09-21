@@ -236,6 +236,10 @@ INSTANTIATE_TEST_SUITE_P(
 
 TEST_P(IEClassLoadNetworkTest, checkBlobCachingSingleDevice) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+    if (PlatformEnvironment::PLATFORM.find("_EMU") != std::string::npos)
+        GTEST_SKIP() << "Test disabled for emulator platform.";
+
     CommonTestUtils::removeFilesWithExt("cache", "blob");
     CommonTestUtils::removeDir("cache");
     Core ie;

@@ -14,6 +14,7 @@
 #ifndef VPUX_COMPILER_DIALECT_CONST_OPS
 #define VPUX_COMPILER_DIALECT_CONST_OPS
 
+include "vpux/compiler/core/ops_interfaces.td"
 include "vpux/compiler/dialect/const/dialect.td"
 include "vpux/compiler/dialect/const/attributes.td"
 
@@ -39,7 +40,9 @@ def Const_DeclareOp :
             "Declare",
             [
                 ConstantLike,
-                NoSideEffect
+                NoSideEffect,
+                DeclarationOp,
+                DotInterface
             ]
         > {
     let summary = "Constant tensor/buffer declaration";
@@ -56,11 +59,16 @@ def Const_DeclareOp :
         AnyTypeOf<[AnyStaticShapeTensor, AnyStaticShapeMemRef]>:$output
     );
 
-    let hasCanonicalizer = 1;
     let hasFolder = 1;
 
     let verifier = [{
         return verifyOp(*this);
+    }];
+
+    let extraClassDeclaration = [{
+        vpux::DotNodeColor getNodeColor() {
+            return vpux::DotNodeColor::AQUAMARINE;
+        }
     }];
 
     let assemblyFormat = [{

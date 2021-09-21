@@ -1,10 +1,12 @@
 #include "include/mcm/target/kmb/runtime_model/runtime_model.hpp"
+#include "include/mcm/utils/ops_conversion_utils.hpp"
 #include "include/mcm/op_model.hpp"
 #include "flatbuffers/util.h"
 #include "include/mcm/base/exception/argument_error.hpp"
 #include "include/mcm/utils/warning_manager.hpp"
 #include "include/mcm/utils/custom_math.hpp"
 #include "include/mcm/utils/custom_strings.hpp"
+#include <algorithm>
 #include <fstream>
 #include <iostream>
 #include <iomanip>
@@ -256,7 +258,7 @@ MVCNN::TargetDeviceRevision mv::RuntimeModel::mapTargetDeviceRevision(const std:
 }
 
 MVCNN::MemoryLocation mv::RuntimeModel::convertAllocatorToMemoryLocale(const std::string& allocatorName,
-                                                                       mv::Tensor::MemoryLocation& tensorLocation)
+                                                                       const mv::Tensor::MemoryLocation& tensorLocation)
 {
     if (tensorLocation == mv::Tensor::MemoryLocation::Location::CSRAM)
     {
@@ -328,17 +330,73 @@ std::vector<unsigned> mv::RuntimeModel::reduceQuantVector_(std::vector<unsigned>
     return inVec;
 }
 
+bool mv::RuntimeModel::targetEmulator_(mv::Element& compilationDescriptor)
+{
+    return compilationDescriptor.hasAttr("target_emulator") && compilationDescriptor.get<bool>("target_emulator");
+}
+
+static std::uint64_t schemaOrder(const mv::Order& order) {
+    const std::string str = order.toString();
+    return std::accumulate(str.cbegin(), str.cend(), static_cast<std::uint64_t>(0),
+                           [](const std::uint64_t result, const char d) {
+                               // start from 1 to avoid ambiguous leading zeros
+                               return result * 10 + mv::Shape::getAxis(std::string(1, d)) + 1;
+                           });
+}
+
 //build tensorReference for Tensors - 1 cluster case
-std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT(mv::ComputationModel& model, mv::Element&, mv::Data::TensorIterator t, const std::string &allocatorName)
+std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT(mv::ComputationModel& model, mv::Element& compilationDescriptor, mv::Data::TensorIterator t, const std::string &allocatorName)
 {
     mv::DataModel dm(model);
     mv::OpModel om(model);
 
     std::unique_ptr<MVCNN::TensorReferenceT> toBuild = std::unique_ptr<MVCNN::TensorReferenceT>(new MVCNN::TensorReferenceT());
 
+    if (targetEmulator_(compilationDescriptor))
+    {
+        toBuild->name = t->getName();
+        toBuild->dimensions = t->getShape();
+        toBuild->data_dtype = convertDtype(t->getDType().toString());
+        if (t->hasAttr("quantParams"))
+        {
+            const mv::QuantizationParams quantParams = t->getQuantParams();
+            if (quantParams.hasAttr("zeroPoint"))
+            {
+                const std::vector<int64_t> zeroPoint = quantParams.getZeroPoint();
+                toBuild->quant_zero.resize(zeroPoint.size());
+                std::copy(zeroPoint.cbegin(), zeroPoint.cend(), toBuild->quant_zero.begin());
+            }
+            if (quantParams.hasAttr("mult"))
+            {
+                const std::vector<uint32_t> mult = quantParams.getMult();
+                toBuild->quant_mult.resize(mult.size());
+                std::copy(mult.cbegin(), mult.cend(), toBuild->quant_mult.begin());
+            }
+            if (quantParams.hasAttr("shift"))
+            {
+                const std::vector<uint32_t> shift = quantParams.getShift();
+                toBuild->quant_shift.resize(shift.size());
+                std::copy(shift.cbegin(), shift.cend(), toBuild->quant_shift.begin());
+            }
+        }
+        toBuild->order = schemaOrder(t->getOrder());
+        toBuild->data = std::unique_ptr<MVCNN::IndirectDataReferenceT>(new MVCNN::IndirectDataReferenceT());
+
+        if (t->isPopulated())
+        {
+            toBuild->locale = MVCNN::MemoryLocation::MemoryLocation_GraphFile;
+            toBuild->data->data_index = 0;
+            // empty tensors will not have graphFileIndex because they will not be saved in the blob
+            unsigned graphfileIndex = t->hasAttr("graphFileIndex")? t->get<unsigned>("graphFileIndex"): 0;
+            toBuild->locale_index = std::vector<unsigned int>(1);
+            toBuild->locale_index[0] = graphfileIndex;
+        }
+        return toBuild;
+    }
+
     toBuild->name = t->getName();
 
-    auto tensorLocation = t->get<mv::Tensor::MemoryLocation>("Location");
+    const auto& tensorLocation = t->get<mv::Tensor::MemoryLocation>("Location");
 
     auto tensorAllocators = t->get<std::set<std::string>>("allocators");
 
@@ -889,7 +947,7 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
           //NOTE: the division is going to extinguish the data type offset!!!
           if(numericStrides[4] != tensorStrides[4])
               byte_index = index * (double(numericStrides[4])/double(tensorStrides[4])) * t->getDType().getSizeInBits() / 8;
-
+        
         // If SOH subtensors have one size but master buffer has different dims in C or W 
         // need to multiply to find correct index in DDR
         if( t->get<std::string>("splitStrategy") == "SplitOverH" &&
@@ -1120,7 +1178,7 @@ std::unique_ptr<MVCNN::SummaryHeaderT> mv::RuntimeModel::buildSummaryHeaderT(Com
     };
 
     toBuild->options = std::vector<MVCNN::ExecutionFlag>();
-    if(!(globalConfigurationParameters->get<bool>("enableStaticBarriers")))
+    if(!targetEmulator_(compilationDescriptor) && !globalConfigurationParameters->get<bool>("enableStaticBarriers"))
       toBuild->options.push_back(MVCNN::ExecutionFlag_DynamicBarriers);
 
     toBuild->layer_count = originalHeader->layer_count;
@@ -1355,7 +1413,25 @@ std::vector<std::unique_ptr<MVCNN::TaskListT>> mv::RuntimeModel::buildTaskListT(
 
     // DMA re-ordering has been disabled, reverting to original schedule
 
-    auto sortedOps = controlModel.schedulingSort();
+    std::vector<Control::OpListIterator> sortedOps;
+    if (targetEmulator_(compilationDescriptor))
+    {
+        const auto ops = om.topologicalSort();
+        for (const auto op : ops){
+            if (op->getOpType() != "ImplicitOutput" &&
+                op->getOpType() != "ImplicitInput" &&
+                op->getOpType() != "ImplicitInputSlice" &&
+                op->getOpType() != "ImplicitUnion" &&
+                op->getOpType() != "Input" &&
+                op->getOpType() != "Output")
+            {
+                sortedOps.push_back(controlModel.switchContext(op));
+            }
+        }
+    }
+    else
+        sortedOps = controlModel.schedulingSort();
+
     int initialId = 0;
     uint8_t port = 0;
 
@@ -1423,11 +1499,12 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildBarrierTaskT(C
     return toReturn;
 }
 
-std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildSpecificTaskUnion(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt, uint8_t* port)
+std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildSpecificTaskUnion(ComputationModel& cm, mv::Element& compilationDescriptor, Control::OpListIterator& opIt, uint8_t* port)
 {
     std::vector<std::unique_ptr<MVCNN::TaskT>> toBuild = std::vector<std::unique_ptr<MVCNN::TaskT>>();
     std::string taskType(opIt->getOpType());
-
+    if ((targetEmulator_(compilationDescriptor)) && (taskType != "UPATask") && (taskType != "DPUTask")  && !(opIt->isImplicit()) && (taskType != "Concat"))
+        return toBuild;
     if(taskType == "MvTensorTask")
         toBuild = buildMvTensorTaskT(cm, compilationDescriptor, opIt);
     else if(taskType == "DMATask")
@@ -1454,7 +1531,8 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildSpecificTaskUn
         toBuild = buildNCE1TaskT(cm, compilationDescriptor, opIt);
     else if(taskType == "DPUTask")
     {
-        std::string splitting = opIt->get<std::string>("splitStrategy");
+        const std::string splitting =
+            (!targetEmulator_(compilationDescriptor)) ? opIt->get<std::string>("splitStrategy") : std::string();
         toBuild = buildNCE2TaskT(cm, compilationDescriptor, opIt, splitting);
     }
     else if(taskType == "UPATask")
@@ -1463,6 +1541,8 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildSpecificTaskUn
         toBuild = buildControllerTaskT(cm, compilationDescriptor, opIt);
     else if(taskType == "BarrierTask")
         toBuild = buildBarrierTaskT(cm, compilationDescriptor, opIt);
+    else if((opIt->isImplicit() || (opIt->getOpType() == "Concat")) && targetEmulator_(compilationDescriptor))
+        toBuild = buildImplicitTask(cm, compilationDescriptor, opIt);
     return toBuild;
 }
 
@@ -2305,9 +2385,11 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
     if (opIt->hasAttr("padding"))
     {
         auto kernelPadding = opIt->get<std::array<unsigned short, 4>>("padding");
-        if(opIt->get<std::string>("splitStrategy") == "SplitOverH" && opIt->get<std::string>("taskOp") == "ChannelMajorConvolution")
+        if(opIt->hasAttr("splitStrategy") &&
+           opIt->get<std::string>("splitStrategy") == "SplitOverH" &&
+           opIt->get<std::string>("taskOp") == "ChannelMajorConvolution")
         {
-            unsigned numClusters = cm.getGlobalConfigParams()->get<int>("Number_of_Clusters");
+            const unsigned numClusters = cm.getGlobalConfigParams()->get<int>("Number_of_Clusters");
             kernelPadding = getNewPadding(kernelPadding, clusterId, numClusters);
         }
 
@@ -2316,23 +2398,28 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
         toBuild->kernel_padTop = kernelPadding[2];
         toBuild->kernel_padBottom = kernelPadding[3];
     }
+
     //input
-    auto parentInputTensor = opIt->getInputTensor(0);
-    if (opIt->get<std::string>("splitStrategy") == "SplitOverH" &&
-            opIt->getInputTensor(0)->get<std::string>("splitStrategy") == "ClusteringAndSOH")
+    auto parentInputTensor = opIt->getInputTensor(IO_TENSOR_INPUT);
+    if(opIt->get<std::string>("splitStrategy") == "SplitOverH" &&
+       opIt->getInputTensor(IO_TENSOR_INPUT)->get<std::string>("splitStrategy") == "ClusteringAndSOH")
+    {
         toBuild->input_data = buildTensorReferenceT(cm, compilationDescriptor, parentInputTensor, clusterId + numTask);
+    }
     else if (opIt->get<std::string>("splitStrategy") == "SplitOverK")
     {
         toBuild->input_data = buildTensorReferenceT(cm, compilationDescriptor, parentInputTensor);
-        std::vector<unsigned int> locale_index;
-        locale_index.push_back(clusterId);
+        const std::vector<unsigned int> locale_index = { static_cast<unsigned int>(clusterId) };
         toBuild->input_data->locale_index = locale_index;
         toBuild->out_channel_offset = 0;
         for (int i = 0; i < clusterId; i++)
-            toBuild->out_channel_offset += opIt->getOutputTensor(0)->getSubTensor(i).getShape()[IO_CHANNEL_DIMENSION];
+            toBuild->out_channel_offset +=
+                opIt->getOutputTensor(IO_TENSOR_OUTPUT)->getSubTensor(i).getShape()[IO_CHANNEL_DIMENSION];
     }
     else
+    {
         toBuild->input_data = buildTensorReferenceT(cm, compilationDescriptor, parentInputTensor, clusterId);
+    }
 
     toBuild->parent_input_tensor = buildTensorReferenceT(cm, compilationDescriptor, parentInputTensor);
     toBuild->parent_input_tensor->data->sparsity_index = 999999999999999999;
@@ -2343,7 +2430,7 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
     }
 
     //output
-    auto parentOutputTensor = opIt->getOutputTensor(0);
+    const auto parentOutputTensor = opIt->getOutputTensor(IO_TENSOR_OUTPUT);
     toBuild->output_data = buildTensorReferenceT(cm, compilationDescriptor, parentOutputTensor, clusterId, "", true);
 
     if (opIt->hasAttr("multiCast") && opIt->get<bool>("multiCast") )
@@ -2386,7 +2473,7 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
       toBuild->output_data->strides = toBuild->parent_output_tensor->strides;
     }
 
-    if (opIt->get<bool>("multiCast"))
+    if (opIt->hasAttr("multiCast") && opIt->get<bool>("multiCast"))
     {
         if (opIt->get<std::string>("splitStrategy") == "HKSwitch")
         {
@@ -2598,28 +2685,32 @@ std::unique_ptr<MVCNN::NCEVariantFieldsT> mv::RuntimeModel::buildNCEVariantField
 std::vector<std::unique_ptr<MVCNN::NCEVariantFieldsT>> mv::RuntimeModel::buildNCEVariantFieldsTVector(ComputationModel& cm, mv::Element &compilationDescriptor,
                                                                                                       Control::OpListIterator opIt, unsigned numTask, std::string strategy)
 {
+    std::vector<std::unique_ptr<MVCNN::NCEVariantFieldsT>> toBuild;
+    if (targetEmulator_(compilationDescriptor))
+        return toBuild;
+
     std::vector <mv::Workload> workloads;
     //NOTE: For Clustering SubTensors equal Workloads per Subtensor
     if (strategy == "Clustering" && numTask > 0)
         workloads = opIt->get<mv::Workloads>("Workloads" + std::to_string(0)).getWorkloads();
     else
         workloads = opIt->get<mv::Workloads>("Workloads" + std::to_string(numTask)).getWorkloads();
-    unsigned n = workloads.size();
-    std::vector<std::unique_ptr<MVCNN::NCEVariantFieldsT>> toBuild = std::vector<std::unique_ptr<MVCNN::NCEVariantFieldsT>>(n);
-    for(unsigned i = 0; i < n; ++i)
+
+    toBuild.reserve(workloads.size());
+    for(std::size_t i = 0; i < workloads.size(); ++i)
     {
-        toBuild[i] = buildNCEVariantFieldsT(cm, compilationDescriptor, opIt, workloads[i], numTask, strategy);
+        toBuild.push_back(buildNCEVariantFieldsT(cm, compilationDescriptor, opIt, workloads[i], numTask, strategy));
     }
     return toBuild;
 }
 
-std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNCE2TaskT(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt, std::string splitting)
+std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNCE2TaskT(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt, const std::string& splitting)
 {
     unsigned numTask = 0;
     numTask = cm.getGlobalConfigParams()->get<int>("Number_of_Clusters");
 
     std::vector<std::unique_ptr<MVCNN::TaskT>> toReturn = std::vector<std::unique_ptr<MVCNN::TaskT>>(numTask);
-    if (splitting != "Clustering")
+    if (splitting != "Clustering" && !targetEmulator_(compilationDescriptor))
         for(unsigned i = 0; i < numTask; ++i)
         {
             toReturn[i] = std::unique_ptr<MVCNN::TaskT>(new MVCNN::TaskT());
@@ -2652,6 +2743,13 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNCE2TaskT(Comp
             auto toBuild = new MVCNN::NCE2TaskT();
             toBuild->variant = buildNCEVariantFieldsTVector(cm, compilationDescriptor, opIt, i, splitting);
             toBuild->invariant = buildNCEInvariantFieldsT(cm, compilationDescriptor, opIt);
+
+            if(targetEmulator_(compilationDescriptor))
+            {
+                toReturn[i]->task.value = toBuild;
+                continue;
+            }
+
             specializeBasePtrs(opIt, toBuild->invariant, i);
 
             auto locale_index = std::vector<unsigned int>(1,i);
@@ -4456,6 +4554,179 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(Comput
     return toReturn;
 }
 
+MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAConcatTask(ComputationModel& cm, Element& compilationDescriptor, Control::OpListIterator opIt)
+{
+    auto toBuild = new MVCNN::UPALayerTaskT();
+    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_ConcatParams;
+
+    for (std::size_t i = 0; i < opIt->inputSlots(); ++i) {
+        auto input = opIt->getInputTensor(i);
+        toBuild->inputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, input));
+    }
+
+    for (std::size_t i = 0; i < opIt->outputSlots(); ++i) {
+        auto output = opIt->getOutputTensor(i);
+        toBuild->outputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, output));
+    }
+
+    auto params = new MVCNN::ConcatParamsT;
+    auto axisToConcat = opIt->get<std::string>("axis");
+    auto numericAxisToConcat = mv::Shape::getAxis(axisToConcat);
+    params->axis = numericAxisToConcat;
+
+    toBuild->softLayerParams.value = params;
+
+    return toBuild;
+}
+
+MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPACopyTask(ComputationModel& cm, Element& compilationDescriptor, Control::OpListIterator opIt)
+{
+    auto toBuild = new MVCNN::UPALayerTaskT();
+    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_CopyParams;
+
+    for (std::size_t i = 0; i < opIt->inputSlots(); ++i) {
+        auto input = opIt->getInputTensor(i);
+        toBuild->inputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, input));
+    }
+
+    for (std::size_t i = 0; i < opIt->outputSlots(); ++i) {
+        auto output = opIt->getOutputTensor(i);
+        toBuild->outputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, output));
+    }
+
+    auto params = new MVCNN::CopyParamsT();
+
+    toBuild->softLayerParams.value = params;
+
+    return toBuild;
+}
+
+MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPACropTask(ComputationModel& cm, Element& compilationDescriptor, Control::OpListIterator opIt)
+{
+    auto toBuild = new MVCNN::UPALayerTaskT();
+    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_CropParams;
+
+    for (std::size_t i = 0; i < opIt->inputSlots(); ++i) {
+        auto input = opIt->getInputTensor(i);
+        toBuild->inputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, input));
+    }
+
+    for (std::size_t i = 0; i < opIt->outputSlots(); ++i) {
+        auto output = opIt->getOutputTensor(i);
+        toBuild->outputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, output));
+    }
+
+    auto params = new MVCNN::CropParamsT();
+    params->cropVal = opIt->get<std::uint32_t>("cropVal");
+    params->dimension = opIt->get<std::uint32_t>("dimension");
+
+    toBuild->softLayerParams.value = params;
+
+    return toBuild;
+}
+
+MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPASliceTask(ComputationModel& cm, Element& compilationDescriptor, Control::OpListIterator opIt)
+{
+    auto toBuild = new MVCNN::UPALayerTaskT();
+    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_SliceParams;
+
+    for (std::size_t i = 0; i < opIt->inputSlots(); ++i) {
+        auto input = opIt->getInputTensor(i);
+        toBuild->inputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, input));
+    }
+
+    for (std::size_t i = 0; i < opIt->outputSlots(); ++i) {
+        auto output = opIt->getOutputTensor(i);
+        toBuild->outputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, output));
+    }
+
+    auto params = new MVCNN::SliceParamsT();
+    params->begin = opIt->get<mv::Shape>("begin");
+    params->size = opIt->get<mv::Shape>("size");
+
+    toBuild->softLayerParams.value = params;
+
+    return toBuild;
+}
+
+MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAAlignTask(ComputationModel& cm, Element& compilationDescriptor, Control::OpListIterator opIt)
+{
+    auto toBuild = new MVCNN::UPALayerTaskT();
+    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_AlignParams;
+
+    for (std::size_t i = 0; i < opIt->inputSlots(); ++i) {
+        auto input = opIt->getInputTensor(i);
+        toBuild->inputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, input));
+    }
+
+    for (std::size_t i = 0; i < opIt->outputSlots(); ++i) {
+        auto output = opIt->getOutputTensor(i);
+        toBuild->outputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, output));
+    }
+
+    auto params = new MVCNN::AlignParamsT();
+    params->dimension = opIt->get<std::size_t>("dimension");
+    params->pad = opIt->get<std::size_t>("pad");
+
+    toBuild->softLayerParams.value = params;
+
+    return toBuild;
+}
+
+std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildImplicitTask(ComputationModel& cm, mv::Element& compilationDescriptor, Control::OpListIterator& opIt)
+{
+    std::vector<std::unique_ptr<MVCNN::TaskT>> toReturn = std::vector<std::unique_ptr<MVCNN::TaskT>>(1);
+
+    toReturn[0] = std::unique_ptr<MVCNN::TaskT>(new MVCNN::TaskT());
+    toReturn[0]->task.type = MVCNN::SpecificTask_UPALayerTask;
+
+    std::string underlyingTask = opIt->getOpType();
+    if(underlyingTask == "Concat")
+        toReturn[0]->task.value = buildUPAConcatTask(cm, compilationDescriptor, opIt);
+    else if(underlyingTask == "Copy")
+        toReturn[0]->task.value = buildUPACopyTask(cm, compilationDescriptor, opIt);
+    else if(underlyingTask == "Crop")
+        toReturn[0]->task.value = buildUPACropTask(cm, compilationDescriptor, opIt);
+    else if(underlyingTask == "Slice")
+        toReturn[0]->task.value = buildUPASliceTask(cm, compilationDescriptor, opIt);
+    else if(underlyingTask == "Align")
+        toReturn[0]->task.value = buildUPAAlignTask(cm, compilationDescriptor, opIt);
+    else if(underlyingTask == "ImplicitConcat")
+        toReturn[0]->task.value = buildUPAConcatTask(cm, compilationDescriptor, opIt);
+    else if(underlyingTask == "ImplicitPermute")
+    {
+        mv::OpModel om(cm);
+        mv::DataModel dm(cm);
+        mv::ControlModel controlModel(cm);
+
+        const bool software =
+            opIt->hasAttr("softwareExecuted") && opIt->get<bool>("softwareExecuted");
+
+        const auto name = opIt->getName() + "_upa";
+        const auto& attrsToCopy = opIt->getAttrs();
+        const auto& inputs = opIt->getInputTensor();
+        const auto& outputTensor = opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT);
+        const auto quantParams = outputTensor->getQuantParams();
+        const auto dType = outputTensor->getDType();
+        const auto order = outputTensor->getOrder();
+
+        auto upaPermute = mv::convertPermuteToUPATask(om, inputs, attrsToCopy, name, software, quantParams, dType, order);
+
+        auto sourceTensor = opIt->getInputTensor(mv::IO_TENSOR_INPUT);
+        auto parentOpIt = om.getSourceOp(sourceTensor);
+
+        mv::linkNewOperationsReplacement(parentOpIt, upaPermute, om, dm.switchContext(opIt));
+        opIt = controlModel.switchContext(om.getOp(name));
+        toReturn[0]->task.value = buildUPAPermuteTask(cm, compilationDescriptor, opIt);
+    }
+    else if(underlyingTask == "ImplicitResample")
+        toReturn[0]->task.value = buildUPAResampleTask(cm, compilationDescriptor, opIt);
+    else if(underlyingTask == "ImplicitReshape")
+        toReturn[0]->task.value = buildUPAReshapeTask(cm, compilationDescriptor, opIt);
+
+    return toReturn;
+}
+
 std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildControllerTaskT(ComputationModel& /*cm*/, mv::Element& /*compilationDescriptor*/, Control::OpListIterator /*opIt*/)
 {
     std::vector<std::unique_ptr<MVCNN::TaskT>> toReturn = std::vector<std::unique_ptr<MVCNN::TaskT>>(1);
@@ -4482,7 +4753,6 @@ std::unique_ptr<MVCNN::BarrierReferenceT> mv::RuntimeModel::buildBarrierReferenc
 
 std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildTaskT(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt, uint8_t* port)
 {
-
     std::vector<std::unique_ptr<MVCNN::TaskT>> vecToBuild = buildSpecificTaskUnion(cm, compilationDescriptor, opIt, port);
 
     for(auto& toBuild: vecToBuild)
@@ -4774,7 +5044,7 @@ void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, const mv::TargetDesc
     graphFile_.task_lists = buildTaskListT(cm, compilationDescriptor);
 
     // Barrier Table must be build only on dynamic scheduling
-    if(!(globalConfigurationParameters->get<bool>("enableStaticBarriers")))
+    if(!targetEmulator_(compilationDescriptor) && !globalConfigurationParameters->get<bool>("enableStaticBarriers"))
         graphFile_.barrier_table = buildBarrierTable(cm, compilationDescriptor);
 }
 

@@ -31,7 +31,7 @@ public:
 
     std::shared_ptr<Device> getDevice(const std::string& specificName = "") const;
     std::shared_ptr<Device> getDevice(const InferenceEngine::ParamMap& paramMap) const;
-    std::shared_ptr<Device> getDevice(const std::shared_ptr<InferenceEngine::IRemoteContext>& context) const;
+    std::shared_ptr<Device> getDevice(const std::shared_ptr<InferenceEngine::RemoteContext>& context) const;
     std::vector<std::string> getAvailableDevicesNames() const;
     std::string getBackendName() const;
     std::unordered_set<std::string> getSupportedOptions() const;

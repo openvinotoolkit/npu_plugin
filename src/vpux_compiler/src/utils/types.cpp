@@ -12,8 +12,10 @@
 //
 
 #include "vpux/compiler/utils/types.hpp"
+
 #include "vpux/compiler/core/attributes/strides.hpp"
 #include "vpux/compiler/dialect/IE/attributes/structs.hpp"
+#include "vpux/compiler/utils/quantization.hpp"
 
 #include <mlir/Dialect/Quant/QuantTypes.h>
 
@@ -153,25 +155,37 @@ mlir::MemRefType vpux::changeElemType(mlir::MemRefType origType, mlir::Type elem
     mlir::MemRefType::Builder memRefBuilder(origType);
     memRefBuilder.setElementType(elemType);
 
+    mlir::MemRefType newType;
     if (preserveStrides) {
-        return memRefBuilder;
+        newType = memRefBuilder;
+    } else {
+        const auto origOrder = DimsOrder::fromType(origType);
+        const auto shape = getShape(origType);
+        newType = addAffineMaps(memRefBuilder, origType.getContext(), origOrder, shape);
     }
 
-    const auto origOrder = DimsOrder::fromType(origType);
-    const auto shape = getShape(origType);
-    return addAffineMaps(memRefBuilder, origType.getContext(), origOrder, shape);
+    const auto loc = mlir::UnknownLoc::get(origType.getContext());
+    VPUX_THROW_UNLESS(validateQuantElemType(loc, newType).succeeded(), "Got invalid ShapedType '{0}'", newType);
+
+    return newType;
 }
 
 mlir::MemRefType vpux::changeShape(mlir::MemRefType origType, ShapeRef shape, bool preserveStrides) {
     mlir::MemRefType::Builder memRefBuilder(origType);
     memRefBuilder.setShape(shape.raw());
 
+    mlir::MemRefType newType;
     if (preserveStrides) {
-        return memRefBuilder;
+        newType = memRefBuilder;
+    } else {
+        const auto origOrder = DimsOrder::fromType(origType);
+        newType = addAffineMaps(memRefBuilder, origType.getContext(), origOrder, shape);
     }
 
-    const auto origOrder = DimsOrder::fromType(origType);
-    return addAffineMaps(memRefBuilder, origType.getContext(), origOrder, shape);
+    const auto loc = mlir::UnknownLoc::get(origType.getContext());
+    VPUX_THROW_UNLESS(validateQuantElemType(loc, newType).succeeded(), "Got invalid ShapedType '{0}'", newType);
+
+    return newType;
 }
 
 mlir::MemRefType vpux::changeDimsOrder(mlir::MemRefType origType, DimsOrder order) {
@@ -194,26 +208,70 @@ mlir::MemRefType vpux::changeMemSpace(mlir::MemRefType origType, mlir::Attribute
     return addAffineMaps(memRefBuilder, origType.getContext(), origOrder, shape);
 }
 
-mlir::MemRefType vpux::getTileType(const mlir::MemRefType origType, const ShapeRef tileShape,
-                                   const ShapeRef tileOffsets) {
-    const auto strides = getStrides(origType);
-    Bit totalOffset(0);
-    for (size_t dimIdx = 0; dimIdx < strides.size(); dimIdx++) {
-        totalOffset += tileOffsets[Dim(dimIdx)] * strides[Dim(dimIdx)];
-    }
-    const Bit elemSize = getElemTypeSize(origType);
-    const auto affineMaps = DimsOrder::fromType(origType).toAffineMapsList(origType.getContext(), getShape(origType),
-                                                                           totalOffset.count() / elemSize.count());
-
-    const auto tileType =
-            mlir::MemRefType::get(tileShape.raw(), origType.getElementType(), affineMaps, origType.getMemorySpace());
-    return tileType;
+mlir::MemRefType vpux::getDenseTileType(mlir::MemRefType origType, ShapeRef tileOffsets, ShapeRef tileShape) {
+    return eraseTiledInfo(getViewTileType(origType, tileOffsets, tileShape));
 }
 
-mlir::MemRefType vpux::eraseTiledInfo(const mlir::MemRefType origType) {
+mlir::MemRefType vpux::getViewTileType(mlir::MemRefType origType, ShapeRef tileOffsets, ShapeRef tileShape) {
+    mlir::MemRefType::Builder memRefBuilder(origType);
+
+    memRefBuilder.setShape(tileShape.raw());
+
+    if (const auto perAxisQType = origType.getElementType().dyn_cast<mlir::quant::UniformQuantizedPerAxisType>()) {
+        memRefBuilder.setElementType(tileScalesAndZP(perAxisQType, tileShape, tileOffsets));
+    }
+
+    const auto order = DimsOrder::fromType(origType);
+    const auto elemSize = getElemTypeSize(origType);
+    const auto origStrides = getStrides(origType);
+
+    const auto affineMaps = order.toAffineMapsList(origType.getContext(), elemSize, origStrides);
+    memRefBuilder.setAffineMaps(affineMaps);
+
+    const mlir::MemRefType newType = memRefBuilder;
+
+    const auto loc = mlir::UnknownLoc::get(origType.getContext());
+    VPUX_THROW_UNLESS(validateQuantElemType(loc, newType).succeeded(), "Got invalid ShapedType '{0}'", newType);
+
+    return newType;
+}
+
+mlir::MemRefType vpux::getPaddedType(mlir::MemRefType origType, ShapeRef padBefore, ShapeRef padAfter) {
+    const auto origShape = getShape(origType);
+
+    VPUX_THROW_UNLESS(padBefore.size() == padAfter.size(),
+                      "Got non consistent 'padBefore' and 'padAfter' values in 'getPaddedType'");
+    VPUX_THROW_UNLESS(origShape.size() == padBefore.size(),
+                      "Paddings and input shape are not consistent in 'getPaddedType'");
+
+    Shape newShape(origShape.size());
+    for (auto ind : irange(newShape.size())) {
+        const auto d = Dim(ind);
+        newShape[d] = origShape[d] + padBefore[d] + padAfter[d];
+    }
+
+    mlir::MemRefType::Builder memRefBuilder(origType);
+
+    memRefBuilder.setShape(newShape.raw());
+
+    if (const auto perAxisQType = origType.getElementType().dyn_cast<mlir::quant::UniformQuantizedPerAxisType>()) {
+        memRefBuilder.setElementType(expandScalesAndZP(perAxisQType, padBefore, padAfter));
+    }
+
+    const auto origOrder = DimsOrder::fromType(origType);
+    const auto newType = addAffineMaps(memRefBuilder, origType.getContext(), origOrder, newShape);
+
+    const auto loc = mlir::UnknownLoc::get(origType.getContext());
+    VPUX_THROW_UNLESS(validateQuantElemType(loc, newType).succeeded(), "Got invalid ShapedType '{0}'", newType);
+
+    return newType;
+}
+
+mlir::MemRefType vpux::eraseTiledInfo(mlir::MemRefType origType) {
     // Erase strides and offsets information from memory reference.
     const auto origShape = getShape(origType);
     const auto origOrder = DimsOrder::fromType(origType);
+
     mlir::MemRefType::Builder memRefBuilder(origType);
     return addAffineMaps(memRefBuilder, origType.getContext(), origOrder, origShape);
 }
@@ -224,21 +282,81 @@ mlir::MemRefType vpux::eraseTiledInfo(const mlir::MemRefType origType) {
 
 mlir::RankedTensorType vpux::getTensorType(ArrayRef<int64_t> shape, mlir::Type elementType, DimsOrder order) {
     VPUX_THROW_UNLESS(order.numDims() == shape.size(), "DimsOrder '{0}' doesn't match to shape '{1}'", order, shape);
-    return mlir::RankedTensorType::get(shape, elementType, IE::getTensorAttr(elementType.getContext(), order));
+
+    const auto newType =
+            mlir::RankedTensorType::get(shape, elementType, IE::getTensorAttr(elementType.getContext(), order));
+
+    const auto loc = mlir::UnknownLoc::get(elementType.getContext());
+    VPUX_THROW_UNLESS(validateQuantElemType(loc, newType).succeeded(), "Got invalid ShapedType '{0}'", newType);
+
+    return newType;
 }
 
 mlir::RankedTensorType vpux::changeElemType(mlir::RankedTensorType origType, mlir::Type elemType) {
-    return getTensorType(origType.getShape(), elemType, DimsOrder::fromType(origType));
+    const auto newType = getTensorType(origType.getShape(), elemType, DimsOrder::fromType(origType));
+
+    const auto loc = mlir::UnknownLoc::get(origType.getContext());
+    VPUX_THROW_UNLESS(validateQuantElemType(loc, newType).succeeded(), "Got invalid ShapedType '{0}'", newType);
+
+    return newType;
 }
 
 mlir::RankedTensorType vpux::changeShape(mlir::RankedTensorType origType, ShapeRef shape) {
     const auto origOrder = DimsOrder::fromType(origType);
-    return getTensorType(shape.raw(), origType.getElementType(),
-                         origOrder.isIdentity() ? DimsOrder::fromNumDims(shape.size()) : origOrder);
+
+    const auto newType = getTensorType(shape.raw(), origType.getElementType(),
+                                       origOrder.isIdentity() ? DimsOrder::fromNumDims(shape.size()) : origOrder);
+
+    const auto loc = mlir::UnknownLoc::get(origType.getContext());
+    VPUX_THROW_UNLESS(validateQuantElemType(loc, newType).succeeded(), "Got invalid ShapedType '{0}'", newType);
+
+    return newType;
 }
 
 mlir::RankedTensorType vpux::changeDimsOrder(mlir::RankedTensorType origType, DimsOrder order) {
     return getTensorType(origType.getShape(), origType.getElementType(), order);
+}
+
+mlir::RankedTensorType vpux::getDenseTileType(mlir::RankedTensorType origType, ShapeRef tileOffsets,
+                                              ShapeRef tileShape) {
+    auto elemType = origType.getElementType();
+    if (const auto perAxisQType = elemType.dyn_cast<mlir::quant::UniformQuantizedPerAxisType>()) {
+        elemType = tileScalesAndZP(perAxisQType, tileShape, tileOffsets);
+    }
+
+    const auto newType = getTensorType(tileShape.raw(), elemType, DimsOrder::fromType(origType));
+
+    const auto loc = mlir::UnknownLoc::get(origType.getContext());
+    VPUX_THROW_UNLESS(validateQuantElemType(loc, newType).succeeded(), "Got invalid ShapedType '{0}'", newType);
+
+    return newType;
+}
+
+mlir::RankedTensorType vpux::getPaddedType(mlir::RankedTensorType origType, ShapeRef padBefore, ShapeRef padAfter) {
+    const auto origShape = getShape(origType);
+
+    VPUX_THROW_UNLESS(padBefore.size() == padAfter.size(),
+                      "Got non consistent 'padBefore' and 'padAfter' values in 'getPaddedType'");
+    VPUX_THROW_UNLESS(origShape.size() == padBefore.size(),
+                      "Paddings and input shape are not consistent in 'getPaddedType'");
+
+    Shape newShape(origShape.size());
+    for (auto ind : irange(newShape.size())) {
+        const auto d = Dim(ind);
+        newShape[d] = origShape[d] + padBefore[d] + padAfter[d];
+    }
+
+    auto elemType = origType.getElementType();
+    if (const auto perAxisQType = elemType.dyn_cast<mlir::quant::UniformQuantizedPerAxisType>()) {
+        elemType = expandScalesAndZP(perAxisQType, padBefore, padAfter);
+    }
+
+    const auto newType = getTensorType(newShape.raw(), elemType, DimsOrder::fromType(origType));
+
+    const auto loc = mlir::UnknownLoc::get(origType.getContext());
+    VPUX_THROW_UNLESS(validateQuantElemType(loc, newType).succeeded(), "Got invalid ShapedType '{0}'", newType);
+
+    return newType;
 }
 
 //
@@ -278,6 +396,32 @@ mlir::ShapedType vpux::changeDimsOrder(mlir::ShapedType origType, DimsOrder orde
             })
             .Case<mlir::RankedTensorType>([&](mlir::RankedTensorType tensor) {
                 return changeDimsOrder(tensor, order);
+            })
+            .Default([](mlir::ShapedType type) -> mlir::ShapedType {
+                VPUX_THROW("Unsupported ShapedType '{0}'", type);
+            });
+}
+
+mlir::ShapedType vpux::getDenseTileType(mlir::ShapedType origType, ShapeRef tileOffsets, ShapeRef tileShape) {
+    return llvm::TypeSwitch<mlir::ShapedType, mlir::ShapedType>(origType)
+            .Case<mlir::MemRefType>([&](mlir::MemRefType memref) {
+                return getDenseTileType(memref, tileOffsets, tileShape);
+            })
+            .Case<mlir::RankedTensorType>([&](mlir::RankedTensorType tensor) {
+                return getDenseTileType(tensor, tileOffsets, tileShape);
+            })
+            .Default([](mlir::ShapedType type) -> mlir::ShapedType {
+                VPUX_THROW("Unsupported ShapedType '{0}'", type);
+            });
+}
+
+mlir::ShapedType vpux::getPaddedType(mlir::ShapedType origType, ShapeRef padBefore, ShapeRef padAfter) {
+    return llvm::TypeSwitch<mlir::ShapedType, mlir::ShapedType>(origType)
+            .Case<mlir::MemRefType>([&](mlir::MemRefType memref) {
+                return getPaddedType(memref, padBefore, padAfter);
+            })
+            .Case<mlir::RankedTensorType>([&](mlir::RankedTensorType tensor) {
+                return getPaddedType(tensor, padBefore, padAfter);
             })
             .Default([](mlir::ShapedType type) -> mlir::ShapedType {
                 VPUX_THROW("Unsupported ShapedType '{0}'", type);

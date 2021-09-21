@@ -73,7 +73,7 @@ void SetInternalMemorySpacePass::safeRunOnFunc() {
             return;
         }
 
-        const auto& aliases = aliasInfo.getAliases(allocOp.memref());
+        const auto& aliases = aliasInfo.getAllAliases(allocOp.memref());
 
         for (auto var : aliases) {
             _log.nest().trace("Process alias buffer '{0}'", var);

@@ -203,7 +203,7 @@ std::tuple<std::size_t,std::size_t,std::size_t> mv::memorySize(mv::Op& op, int t
     {
         //NOTE: when streaming operations are not spilled, full output (not streamed size) must be counted
         // Similarly, with explicit concats. We don't call this function for ddr concats, only CMX
-        Shape temporaryStreamConfig = {streamConfig["W"],streamConfig["H"],1,streamConfig["K"],streamConfig["B"]};
+        Shape temporaryStreamConfig = {streamConfig["W"],streamConfig["H"],streamConfig["C"],streamConfig["K"],streamConfig["B"]};
         if (!spilling)
             temporaryStreamConfig = {1,1,1,1,1};
 

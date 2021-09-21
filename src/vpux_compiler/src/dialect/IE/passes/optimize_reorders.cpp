@@ -24,6 +24,33 @@ using namespace vpux;
 
 namespace {
 
+template <class ConcreteOp>
+SmallVector<mlir::Type> inferOutputTypes(ConcreteOp origOp, mlir::ValueRange newInputs, ArrayRef<DimsOrder> newOrders) {
+    SmallVector<mlir::Type> newTypes;
+    VPUX_THROW_UNLESS(ConcreteOp::inferReturnTypes(origOp->getContext(), origOp->getLoc(), newInputs,
+                                                   origOp->getAttrDictionary(), origOp->getRegions(), newTypes)
+                              .succeeded(),
+                      "Failed to infer new output type for operation '{0}' at '{1}'", origOp->getName(),
+                      origOp->getLoc());
+
+    VPUX_THROW_UNLESS(newOrders.size() == newTypes.size(),
+                      "New orders size '{0}' doesn't match new output types size '{1}'", newOrders.size(),
+                      newTypes.size());
+
+    for (auto i : irange(newTypes.size())) {
+        newTypes[i] = changeDimsOrder(newTypes[i].cast<mlir::ShapedType>(), newOrders[i]);
+    }
+
+    return newTypes;
+}
+
+template <class ConcreteOp>
+mlir::Type inferOutputType(ConcreteOp origOp, mlir::ValueRange newInputs, DimsOrder newOrder) {
+    const auto newTypes = inferOutputTypes(origOp, newInputs, {newOrder});
+    VPUX_THROW_UNLESS(newTypes.size() == 1, "Got wrong number of inferred types - '{0}'", newTypes.size());
+    return newTypes[0];
+}
+
 //
 // ReorderWithSubView
 //
@@ -54,8 +81,8 @@ mlir::LogicalResult ReorderWithSubView::matchAndRewrite(IE::SliceOp origSubViewO
         return matchFailed(_log.nest(), rewriter, origSubViewOp, "Reorder has more then one user");
     }
 
-    const auto subViewShape = getShape(origSubViewOp.result());
-    const auto newSubViewType = changeShape(origReorderOp.input().getType().cast<mlir::ShapedType>(), subViewShape);
+    const auto newSubViewType =
+            inferOutputType(origSubViewOp, origReorderOp.input(), DimsOrder::fromValue(origReorderOp.input()));
     auto newSubViewOp = rewriter.create<IE::SliceOp>(origSubViewOp->getLoc(), newSubViewType, origReorderOp.input(),
                                                      origSubViewOp.static_offsets(), origSubViewOp.static_sizes());
 
@@ -80,6 +107,18 @@ private:
     Logger _log;
 };
 
+void swapExpandWithReorder(mlir::PatternRewriter& rewriter, IE::ExpandOp expandOp, IE::ReorderOp origReorderOp) {
+    mlir::OpBuilder::InsertionGuard guard(rewriter);
+    rewriter.setInsertionPoint(expandOp);
+
+    const auto newExpandType =
+            inferOutputType(expandOp, origReorderOp.input(), DimsOrder::fromValue(origReorderOp.input()));
+    auto newExpandOp = rewriter.create<IE::ExpandOp>(expandOp->getLoc(), newExpandType, origReorderOp.input(),
+                                                     expandOp.pads_begin(), expandOp.pads_end());
+
+    rewriter.replaceOpWithNewOp<IE::ReorderOp>(expandOp, newExpandOp.output(), origReorderOp.dstOrderAttr());
+}
+
 mlir::LogicalResult ReorderWithExpand::matchAndRewrite(IE::ExpandOp origExpandOp,
                                                        mlir::PatternRewriter& rewriter) const {
     auto origReorderOp = origExpandOp.input().getDefiningOp<IE::ReorderOp>();
@@ -88,17 +127,20 @@ mlir::LogicalResult ReorderWithExpand::matchAndRewrite(IE::ExpandOp origExpandOp
     }
 
     _log.trace("Got reorder at '{0}' -> Expand at '{1}' pair", origReorderOp->getLoc(), origExpandOp->getLoc());
+    const auto isExpand = [](const mlir::Operation* reorderUser) -> bool {
+        return mlir::isa<IE::ExpandOp>(reorderUser);
+    };
 
-    if (!origReorderOp.getResult().hasOneUse()) {
-        return matchFailed(_log.nest(), rewriter, origExpandOp, "Reorder has more then one users");
+    if (!std::all_of(origReorderOp.getResult().user_begin(), origReorderOp.getResult().user_end(), isExpand)) {
+        return matchFailed(_log.nest(), rewriter, origExpandOp,
+                           "Reorder has more than one user and they are heterogeneous");
     }
 
-    const auto expandShape = getShape(origExpandOp.output());
-    const auto newExpandType = changeShape(origReorderOp.input().getType().cast<mlir::ShapedType>(), expandShape);
-    auto newExpandOp = rewriter.create<IE::ExpandOp>(origExpandOp->getLoc(), newExpandType, origReorderOp.input(),
-                                                     origExpandOp.pads_begin(), origExpandOp.pads_end());
+    for (const auto reorderUser : origReorderOp.getResult().getUsers()) {
+        auto expandOp = mlir::dyn_cast_or_null<IE::ExpandOp>(reorderUser);
+        swapExpandWithReorder(rewriter, expandOp, origReorderOp);
+    }
 
-    rewriter.replaceOpWithNewOp<IE::ReorderOp>(origExpandOp, newExpandOp.output(), origReorderOp.dstOrderAttr());
     return mlir::success();
 }
 
@@ -136,9 +178,6 @@ mlir::LogicalResult ReorderWithSplit::matchAndRewrite(IE::SplitOp origSplitOp, m
     SmallVector<IE::ReorderOp> outputReorders;
     outputReorders.reserve(origSplitOp.outputs().size());
 
-    SmallVector<mlir::Type> newOutputTypes;
-    newOutputTypes.reserve(origSplitOp.outputs().size());
-
     for (auto res : origSplitOp.outputs()) {
         if (!res.hasOneUse()) {
             return matchFailed(_log.nest(), rewriter, origSplitOp, "Split output #{0} has more then one user",
@@ -158,10 +197,10 @@ mlir::LogicalResult ReorderWithSplit::matchAndRewrite(IE::SplitOp origSplitOp, m
         }
 
         outputReorders.push_back(resReorderOp);
-
-        const auto newResType = changeDimsOrder(res.getType().cast<mlir::ShapedType>(), initialOrder);
-        newOutputTypes.push_back(newResType);
     }
+
+    SmallVector<DimsOrder> newOrders(origSplitOp->getNumResults(), DimsOrder::fromValue(origReorderOp.input()));
+    const auto newOutputTypes = inferOutputTypes(origSplitOp, origReorderOp.input(), newOrders);
 
     auto newSplitOp = rewriter.create<IE::SplitOp>(origSplitOp->getLoc(), newOutputTypes, origReorderOp.input(),
                                                    origSplitOp.axis(), origSplitOp.num_splitsAttr(),
@@ -234,16 +273,11 @@ mlir::LogicalResult ReorderWithConcat::matchAndRewrite(IE::ConcatOp origConcatOp
         return mlir::failure();
     }
 
-    const auto newType = changeDimsOrder(origConcatOp.getType(), initialOrder.getValue());
-    rewriter.replaceOpWithNewOp<IE::ConcatOp>(origConcatOp, newType, initialInputs, origConcatOp.axisAttr());
+    const auto newConcatType = inferOutputType(origConcatOp, initialInputs, initialOrder.getValue());
+    rewriter.replaceOpWithNewOp<IE::ConcatOp>(origConcatOp, newConcatType, initialInputs, origConcatOp.axisAttr());
 
     return mlir::success();
 }
-
-#if 0
-
-// FIXME: isSupportedLayout should use orderInfo to get layouts for inputs and outputs,
-//        not take them from the operands.
 
 //
 // ReorderWithLayer
@@ -265,30 +299,33 @@ private:
 
 mlir::LogicalResult ReorderWithLayer::matchAndRewrite(IE::LayoutInfoOpInterface layerOp,
                                                       mlir::PatternRewriter& rewriter) const {
-    auto orderInfo = layerOp.getDataOrderInfo();
+    if (mlir::isa<IE::ReorderOp>(layerOp)) {
+        return mlir::failure();
+    }
 
-    bool hasChanges = false;
-    for (const auto p : layerOp->getOperands() | indexed) {
-        if (!orderInfo.hasInput(p.index())) {
-            continue;
-        }
+    _log.trace("Got layer operation '{0}' at '{1}'", layerOp->getName(), layerOp->getLoc());
 
-        const auto arg = p.value();
+    auto orderInfo = layerOp.getLayoutInfo();
+    _log.nest(1).trace("Base order info - '{0}'", orderInfo);
+
+    _log.nest(1).trace("Check operation inputs");
+    for (auto ind : irange(orderInfo.getNumInputs())) {
+        const auto arg = layerOp->getOperand(checked_cast<uint32_t>(ind));
 
         auto argReorderOp = arg.getDefiningOp<IE::ReorderOp>();
         if (argReorderOp == nullptr) {
             continue;
         }
 
-        orderInfo.setInput(p.index(), DimsOrder::fromValue(argReorderOp.input()));
-        hasChanges = true;
-    }
-    for (const auto p : layerOp->getResults() | indexed) {
-        if (!orderInfo.hasOutput(p.index())) {
-            continue;
-        }
+        const auto newOrder = DimsOrder::fromValue(argReorderOp.input());
 
-        const auto res = p.value();
+        _log.nest(2).trace("Try '{0}' order for input #{1}", newOrder, ind);
+        orderInfo.setInput(ind, newOrder);
+    }
+
+    _log.nest(1).trace("Check operation outputs");
+    for (auto ind : irange(orderInfo.getNumOutputs())) {
+        const auto res = layerOp->getResult(checked_cast<uint32_t>(ind));
 
         if (!res.hasOneUse()) {
             continue;
@@ -299,26 +336,29 @@ mlir::LogicalResult ReorderWithLayer::matchAndRewrite(IE::LayoutInfoOpInterface 
             continue;
         }
 
-        orderInfo.setOutput(p.index(), DimsOrder::fromValue(resReorderOp.output()));
-        hasChanges = true;
+        const auto newOrder = DimsOrder::fromValue(resReorderOp.output());
+
+        _log.nest(2).trace("Try '{0}' order for output #{1}", newOrder, ind);
+        orderInfo.setOutput(ind, newOrder);
     }
 
-    if (!hasChanges) {
-        return mlir::failure();
+    if (!orderInfo.hasChanges()) {
+        return matchFailed(_log.nest(), rewriter, layerOp, "There is no Reorders to fuse");
     }
 
-    if (!layerOp.isSupportedLayout(orderInfo)) {
-        return mlir::failure();
+    orderInfo.resetChanges();
+    layerOp.inferLayoutInfo(orderInfo);
+
+    if (orderInfo.hasChanges()) {
+        return matchFailed(_log.nest(), rewriter, layerOp, "The layer doesn't support fused Reorders");
     }
+
+    _log.nest(1).trace("Merge new order - '{0}'", orderInfo);
 
     rewriter.startRootUpdate(layerOp);
 
-    for (const auto p : layerOp->getOpOperands() | indexed) {
-        if (!orderInfo.hasInput(p.index())) {
-            continue;
-        }
-
-        auto& arg = p.value();
+    for (auto ind : irange(orderInfo.getNumInputs())) {
+        auto& arg = layerOp->getOpOperand(checked_cast<uint32_t>(ind));
 
         auto argReorderOp = arg.get().getDefiningOp<IE::ReorderOp>();
         if (argReorderOp == nullptr) {
@@ -327,12 +367,8 @@ mlir::LogicalResult ReorderWithLayer::matchAndRewrite(IE::LayoutInfoOpInterface 
 
         arg.set(argReorderOp.input());
     }
-    for (const auto p : layerOp->getOpResults() | indexed) {
-        if (!orderInfo.hasOutput(p.index())) {
-            continue;
-        }
-
-        auto res = p.value();
+    for (auto ind : irange(orderInfo.getNumOutputs())) {
+        auto res = layerOp->getResult(checked_cast<uint32_t>(ind));
 
         if (!res.hasOneUse()) {
             continue;
@@ -352,8 +388,6 @@ mlir::LogicalResult ReorderWithLayer::matchAndRewrite(IE::LayoutInfoOpInterface 
 
     return mlir::success();
 }
-
-#endif
 
 //
 // OptimizeReordersPass
@@ -377,7 +411,7 @@ void OptimizeReordersPass::safeRunOnFunc() {
     patterns.add<ReorderWithExpand>(&ctx, _log);
     patterns.add<ReorderWithSplit>(&ctx, _log);
     patterns.add<ReorderWithConcat>(&ctx, _log);
-    // patterns.add<ReorderWithLayer>(&ctx, _log);
+    patterns.add<ReorderWithLayer>(&ctx, _log);
     IE::ReorderOp::getCanonicalizationPatterns(patterns, &ctx);
 
     auto func = getFunction();

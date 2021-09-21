@@ -1582,6 +1582,14 @@ void flattenAsReshapeFcn(const mv::pass::PassEntry&, mv::ComputationModel& model
     }
 }
 
+inline bool checkFactors(const std::pair<unsigned short, unsigned short>& factors, unsigned short kernelSize = 0)
+{
+    return !(factors.first*factors.second == 0 || factors.first*factors.second < kernelSize ||
+            factors.first > mv::MAX_KERNEL || factors.second > mv::MAX_KERNEL ||
+             (factors.first * factors.second > (kernelSize + factors.first / 2)) ||
+             (factors.first * factors.second > (kernelSize + factors.second / 2)));
+}
+
 std::vector<std::pair<unsigned short, unsigned short>> getFactorsList(unsigned short n)
 {
     std::vector<std::pair<unsigned short, unsigned short>> factors;
@@ -1596,34 +1604,41 @@ std::vector<std::pair<unsigned short, unsigned short>> getFactorsList(unsigned s
     return factors;
 }
 
+/*
+ * Search the smaller and larger kernelSize,
+ * when could not find proper factors for the current kernelSize.
+ * e.g., kernelSize = 65, factors = [13, 5]. But 13 > MAX_KERNEL.
+ * Check 66 and get [11, 6].
+ */
+std::pair<unsigned short, unsigned short> getFactorsAround(unsigned short kernelSize, unsigned short index)
+{
+    std::vector<std::pair<unsigned short, unsigned short>> CandidateFactors = getFactorsList(kernelSize + index);
+    std::pair<unsigned short, unsigned short> factors;
+    if (!CandidateFactors.empty())
+        factors = CandidateFactors.back();
+
+    if (checkFactors(factors, kernelSize))
+        return factors;
+    else
+        return {};
+}
+
 std::pair<unsigned short, unsigned short> getFactors(unsigned short kernelSize)
 {
     std::vector<std::pair<unsigned short, unsigned short>> allFactors = getFactorsList(kernelSize);
+    if (!allFactors.empty() && checkFactors(allFactors.back(), kernelSize))
+        return allFactors.back();
+
     std::pair<unsigned short, unsigned short> factors;
-    if (allFactors.empty()) // Original kernel size IS PRIME
+    unsigned short index = 1;
+    while (allFactors.empty() || !checkFactors(allFactors.back(), kernelSize))
     {
-        // Use the factors for kernel size - 1, this is guaranteed to have factors, as it will be an even number > 11
-        allFactors = getFactorsList(kernelSize - 1);
-        factors = allFactors.back(); // Get the most equal factors
-
-        // These factors are for ksize - 1, so increase smaller factor by 1
-        if( factors.first == factors.second)
-            factors.first++;
-        else
-            factors.second++;
-
-
-        if ( (factors.first * factors.second > (kernelSize + factors.first/2) ) ||
-             (factors.first * factors.second > (kernelSize + factors.second/2) ) )
-        {
-            // Use the factors for kernel size + 1,  an even number as we added 1 to a prime number, first number greater than the prime number
-            allFactors = getFactorsList(kernelSize + 1);
-            factors = allFactors.back(); // Get the most equal factors
-        }
-    }
-    else // Original kernel size NOT PRIME
-    {
-        factors = allFactors.back(); // Get the most equal factors
+        factors = getFactorsAround(kernelSize, index);
+        if (checkFactors(factors, kernelSize))
+            break;
+        index++;
+        if (index >= kernelSize)
+            break;
     }
     return factors;
 }
@@ -1638,7 +1653,7 @@ unsigned short getPad(std::pair<unsigned short, unsigned short> factors, size_t 
 
 mv::Data::TensorIterator createPartialDepthwise(mv::OpModel & om, mv::Data::OpListIterator opIt, mv::Data::TensorIterator sourceTensor,
                                                 std::string name, double scaleValue, std::array<unsigned short, 2> newKernel,
-                                                std::array<unsigned short, 4> padding)
+                                                std::array<unsigned short, 4> padding, mv::DType targetDType = mv::DType("UInt8"))
 {
     auto inputShape = sourceTensor->getShape();
 
@@ -1701,6 +1716,11 @@ mv::Data::TensorIterator createPartialDepthwise(mv::OpModel & om, mv::Data::OpLi
     }
     auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
     depthwise_conv->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
+    if (targetDType == mv::DType("Float16"))
+    {
+        depthwise_conv->setDType(targetDType);
+        depthwise_conv->setQuantParams(mv::QuantizationParams::initial());
+    }
 
     return depthwise_conv;
 }
@@ -2194,10 +2214,11 @@ void replaceLargeKernelsFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
         double firstRescale = 1.0 / (newKernel[0] * newKernel[1]);
         double secondRescale = static_cast<double>((newKernel[0] * newKernel[1])) / (kSize[0] * kSize[1]);
         mv::Data::TensorIterator op0;
+        // Execute the DepthwiseConvs in float precision to avoid wrong quantization.
         if (opIt->getOpType() == "AveragePool")
             op0 = createPartialDepthwise(om, opIt, sourceTensor,
                                          name + "_DepthwiseConv0",
-                                         firstRescale, newKernel, padding);
+                                         firstRescale, newKernel, padding, mv::DType("Float16"));
         else if (opIt->getOpType()== "MaxPool")
         {
             std::array<unsigned short, 2> strides = newKernel;
@@ -2261,7 +2282,8 @@ void replaceLargeKernelsFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
         mv::Data::TensorIterator op1;
         if (input_op0->getOpType() == "DepthwiseConv" || input_op0->getOpType() == "AveragePool" )
             op1 = createPartialDepthwise(om, input_op0, op0,
-                                         name + "_DepthwiseConv1", secondRescale, newKernel_1, {0,0,0,0});
+                                         name + "_DepthwiseConv1", secondRescale, newKernel_1,
+                                         {0,0,0,0}, mv::DType("Float16"));
         else if (input_op0->getOpType() == "MaxPool")
         {
             std::array<unsigned short, 2> strides = newKernel_1;
@@ -2420,7 +2442,7 @@ mv::Data::OpListIterator  splitOperationSlicingFixedWidthHeight ( mv::Computatio
                                   + initialPadding[mv::PADDING_BOT] - kSize[mv::KERNEL_HEIGHT]) / heightSlice) + 1 : 1;
 
     auto outputQuantParams = operation->getOutputTensor(0)->getQuantParams();
-    auto dType = operation->getInputTensor(mv::IO_TENSOR_INPUT)->getDType();
+    auto dType = operation->getOutputTensor(mv::IO_TENSOR_INPUT)->getDType();
 
     unsigned int i = 0; //counts the slices on the 0x axis
     unsigned int j = 0; //counts the slices on the 0y axis

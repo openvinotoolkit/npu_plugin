@@ -4,7 +4,7 @@
 
 #include "Softmax.h"
 #include "upa_task_runner.hpp"
-#include "layers/param_softmax.h"
+#include "param_softmax.h"
 
 #include <memory>
 

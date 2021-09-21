@@ -37,8 +37,6 @@ mlir::OperandRange getLayerOutputs(mlir::Operation* op);
 MutableArrayRef<mlir::OpOperand> getLayerInOpOperands(mlir::Operation* op);
 MutableArrayRef<mlir::OpOperand> getLayerOutOpOperands(mlir::Operation* op);
 
-IE::DataOrderInfo getLayerDataOrderInfo(mlir::Operation* op);
-
 mlir::Value getLayerViewSource(mlir::Operation* op, ptrdiff_t resultInd);
 
 mlir::LogicalResult inferLayerReturnTypes(mlir::ValueRange operands, size_t numResults,
@@ -77,7 +75,6 @@ public:
 //
 
 mlir::LogicalResult verifySameDimsOrder(mlir::Operation* op);
-bool isSupportedLayoutSameDimsOrder(mlir::Operation* op, IE::DataOrderInfo& info);
 
 template <typename ConcreteOp>
 class SameDimsOrder : public mlir::OpTrait::TraitBase<ConcreteOp, SameDimsOrder> {
@@ -86,8 +83,8 @@ public:
         return verifySameDimsOrder(op);
     }
 
-    static bool isSupportedLayout(mlir::Operation* op, IE::DataOrderInfo& info) {
-        return isSupportedLayoutSameDimsOrder(op, info);
+    static void inferLayoutInfo(mlir::Operation*, IE::LayerLayoutInfo& info) {
+        info.fill(info.getInput(0));
     }
 };
 
@@ -96,7 +93,7 @@ public:
 //
 
 mlir::LogicalResult verifySameInOutDimsOrder(mlir::Operation* op);
-bool isSupportedLayoutSameInOutDimsOrder(mlir::Operation* op, IE::DataOrderInfo& info);
+void inferLayoutInfoSameInOutDimsOrder(IE::LayerLayoutInfo& info);
 
 template <typename ConcreteOp>
 class SameInOutDimsOrder : public mlir::OpTrait::TraitBase<ConcreteOp, SameInOutDimsOrder> {
@@ -105,8 +102,8 @@ public:
         return verifySameInOutDimsOrder(op);
     }
 
-    static bool isSupportedLayout(mlir::Operation* op, IE::DataOrderInfo& info) {
-        return isSupportedLayoutSameInOutDimsOrder(op, info);
+    static void inferLayoutInfo(mlir::Operation*, IE::LayerLayoutInfo& info) {
+        inferLayoutInfoSameInOutDimsOrder(info);
     }
 };
 
@@ -117,8 +114,7 @@ public:
 extern const std::array<DimsOrder, 2> NCHW_NHWC;
 
 mlir::LogicalResult verifySameInOutSpecificDimsOrder(mlir::Operation* op, ArrayRef<DimsOrder> supportedLayouts);
-bool isSupportedLayoutSameInOutSpecificDimsOrder(mlir::Operation* op, IE::DataOrderInfo& info,
-                                                 ArrayRef<DimsOrder> supportedLayouts);
+void inferLayoutInfoSameInOutSpecificDimsOrder(IE::LayerLayoutInfo& info, ArrayRef<DimsOrder> supportedLayouts);
 
 template <typename ConcreteOp>
 class SameInOutDimsOrder_NCHW_NHWC : public mlir::OpTrait::TraitBase<ConcreteOp, SameInOutDimsOrder_NCHW_NHWC> {
@@ -127,8 +123,8 @@ public:
         return verifySameInOutSpecificDimsOrder(op, NCHW_NHWC);
     }
 
-    static bool isSupportedLayout(mlir::Operation* op, IE::DataOrderInfo& info) {
-        return isSupportedLayoutSameInOutSpecificDimsOrder(op, info, NCHW_NHWC);
+    static void inferLayoutInfo(mlir::Operation*, IE::LayerLayoutInfo& info) {
+        inferLayoutInfoSameInOutSpecificDimsOrder(info, NCHW_NHWC);
     }
 };
 
@@ -146,8 +142,8 @@ public:
         return verifySameInOutSpecificDimsOrder(op, CHW_HWC_NCHW_NHWC);
     }
 
-    static bool isSupportedLayout(mlir::Operation* op, IE::DataOrderInfo& info) {
-        return isSupportedLayoutSameInOutSpecificDimsOrder(op, info, CHW_HWC_NCHW_NHWC);
+    static void inferLayoutInfo(mlir::Operation*, IE::LayerLayoutInfo& info) {
+        inferLayoutInfoSameInOutSpecificDimsOrder(info, CHW_HWC_NCHW_NHWC);
     }
 };
 
@@ -158,8 +154,7 @@ public:
 template <typename ConcreteOp>
 class AnyDimsOrder : public mlir::OpTrait::TraitBase<ConcreteOp, AnyDimsOrder> {
 public:
-    static bool isSupportedLayout(mlir::Operation*, IE::DataOrderInfo&) {
-        return true;
+    static void inferLayoutInfo(mlir::Operation*, IE::LayerLayoutInfo&) {
     }
 };
 

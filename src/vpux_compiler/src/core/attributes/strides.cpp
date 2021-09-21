@@ -43,6 +43,7 @@ Strides vpux::getStrides(mlir::MemRefType type) {
                       "Only strided/simple MemRef Types are supported, got '{0}'", type);
     VPUX_THROW_UNLESS(elemStrides.size() == checked_cast<size_t>(type.getRank()),
                       "Only strided/simple MemRef Types are supported, got '{0}'", type);
+    VPUX_THROW_UNLESS(offset == 0, "MemRef with non-zero offset '{0}' is not supported", offset);
 
     const auto elemSize = getElemTypeSize(type);
     Strides strides(elemStrides.size());

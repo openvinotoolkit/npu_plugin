@@ -122,7 +122,7 @@ def ConvertPrecisionToFP16 : PassBase<"convert-precision-to-fp16", "vpux::Module
 // ConvertShapeTo4D
 //
 
-def ConvertShapeTo4D : PassBase<"convert-shape-to-4d", "vpux::ModulePass"> {
+def ConvertShapeTo4D : PassBase<"convert-shape-to-4d", "vpux::FunctionPass"> {
     let summary = "Convert tensors shapes to 4D";
 
     let description = [{
@@ -191,6 +191,26 @@ def ConvertFCToConv : PassBase<"convert-fc-to-conv", "vpux::FunctionPass"> {
     }];
 
     let constructor = "vpux::IE::createConvertFCToConvPass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
+
+//
+// ConvertScaleShiftToDW
+//
+
+def ConvertScaleShiftToDW : PassBase<"convert-scale-shift-depthwise", "vpux::FunctionPass"> {
+    let summary = "Convert Scale-Shift operation to Depthwise Convolution";
+
+    let description = [{
+        The pass is a part of `HardwareMode` pipeline.
+
+        Convert Scale-Shift operation to Depthwise convolution.
+    }];
+
+    let constructor = "vpux::IE::createConvertScaleShiftToDWPass()";
 
     let dependentDialects = [
         "vpux::IE::IEDialect"
@@ -353,23 +373,43 @@ def MergeFakeQuant : PassBase<"merge-fake-quant", "vpux::FunctionPass"> {
 }
 
 //
-// PropagateQuantizeDequantize
+// FuseQuantizedOps
 //
 
-def PropagateQuantizeDequantize : PassBase<"propagate-quantize-dequantize", "vpux::FunctionPass"> {
+def FuseQuantizedOps : PassBase<"fuse-quantized-ops", "vpux::FunctionPass"> {
     let summary = "Update quantize/dequantize ops";
 
     let description = [{
         The pass is a part of `LowPrecision` pipeline.
 
-        Pass detect pattern `quant.dcast -> op -> quant.qcast` into single quantized Op
+        Pass detects pattern quant.dcast -> op -> quant.qcast and converts it into single quantized Op
     }];
 
-    let constructor = "vpux::IE::createPropagateQuantizeDequantizePass()";
+    let constructor = "vpux::IE::createFuseQuantizedOpsPass()";
 
     let dependentDialects = [
         "vpux::IE::IEDialect",
         "mlir::quant::QuantizationDialect"
+    ];
+}
+
+//
+// ConvertWeightsToU8
+//
+
+def ConvertWeightsToU8 : PassBase<"convert-weights-to-u8", "vpux::FunctionPass"> {
+    let summary = "Shift data from a signed range to an unsigned one";
+
+    let description = [{
+        The pass is a part of `LowPrecision` pipeline.
+
+        Pass detects quantized convolution and shifts weights data from a signed range to an unsigned one
+    }];
+
+    let constructor = "vpux::IE::createConvertWeightsToU8Pass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
     ];
 }
 

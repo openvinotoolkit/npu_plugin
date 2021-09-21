@@ -17,20 +17,6 @@
 include "mlir/Pass/PassBase.td"
 
 //
-// ComposeSubView
-//
-
-def ComposeSubView : PassBase<"compose-subview", "vpux::FunctionPass"> {
-    let summary = "Combine composed subview ops";
-
-    let constructor = "vpux::createComposeSubViewPass()";
-
-    let dependentDialects = [
-        "mlir::memref::MemRefDialect"
-    ];
-}
-
-//
 // DeallocPlacement
 //
 
@@ -46,6 +32,53 @@ def DeallocPlacement : PassBase<"dealloc-placement", "vpux::FunctionPass"> {
     let dependentDialects = [
         "mlir::memref::MemRefDialect"
     ];
+}
+
+//
+// MoveDeclarationsToTop
+//
+
+def MoveDeclarationsToTop : PassBase<"move-declarations-to-top", "vpux::FunctionPass"> {
+    let summary = "Move all declaration ops to top of parent block";
+
+    let constructor = "vpux::createMoveDeclarationsToTopPass()";
+}
+
+//
+// PrintDot
+//
+
+def PrintDot : PassBase<"print-dot", "vpux::ModulePass"> {
+    let summary = "Convert current MLIR graph to Dot graph";
+
+    let description = [{
+        Convert current MLIR graph to Dot graph.
+    }];
+
+    let options = [
+        Option<
+            "declareOp", "declareOp",
+            "bool", "",
+            "Print declare memory operations"
+        >,
+        Option<
+            "constOp", "constOp",
+            "bool", "",
+            "Print const declare operations"
+        >,
+        Option<
+            "outputFile", "output",
+            "std::string", "",
+            "Path to the output file"
+        >,
+        Option<
+            "afterPass", "pass",
+            "std::string", "",
+            "Print Dot after the pass"
+        >
+    ];
+
+    let constructor = "vpux::createPrintDot(\"\")";
 }
 
 #endif

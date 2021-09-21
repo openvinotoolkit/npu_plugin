@@ -12,6 +12,7 @@
 //
 
 #include <stdint.h>
+#include <atomic>
 #include <condition_variable>
 #include <functional>
 #include <mutex>
@@ -22,7 +23,7 @@ namespace vpux {
 
 class WatchDog {
 protected:
-    volatile bool _stopWatchdog = false;
+    std::atomic<bool> _stopWatchdog{false};
 
     std::unordered_map<uintptr_t, std::chrono::steady_clock::time_point> _watchers;
     std::thread _abortThread;
@@ -33,12 +34,9 @@ protected:
     vpu::Logger::Ptr _logger;
 
 public:
-    WatchDog(const uint32_t watchdog_milliseconds,
-             vpu::Logger::Ptr logger,
-             std::function<void()> abort_callback,
-             std::chrono::milliseconds periodic_interval_ms = std::chrono::milliseconds (1000))
+    WatchDog(const uint32_t watchdog_milliseconds, vpu::Logger::Ptr logger, std::function<void()> abort_callback,
+             std::chrono::milliseconds periodic_interval_ms = std::chrono::milliseconds(1000))
             : _periodicInterval(periodic_interval_ms), _abortProgram(abort_callback), _logger(logger) {
-
         if (watchdog_milliseconds == 0) {
             _logger->warning("[WATCHDOG] disabled");
             return;
@@ -59,7 +57,9 @@ public:
             _cvPeriodic.notify_one();
             _abortThread.join();
         }
-        auto wd_stopped_in = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - wd_stop_begins).count();
+        auto wd_stopped_in =
+                std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - wd_stop_begins)
+                        .count();
         _logger->info("[WATCHDOG] stop completed in %f ms", wd_stopped_in);
     }
 
@@ -74,8 +74,7 @@ public:
         StartImpl(0);
     }
     template <class Id>
-    typename std::enable_if<std::is_pointer<Id>::value, void>::type
-    Start(Id id) {
+    typename std::enable_if<std::is_pointer<Id>::value, void>::type Start(Id id) {
         StartImpl(reinterpret_cast<uintptr_t>(id));
     }
 
@@ -84,8 +83,7 @@ public:
         PauseImpl(0);
     }
     template <class Id>
-    typename std::enable_if<std::is_pointer<Id>::value, void>::type
-    Pause(Id id) {
+    typename std::enable_if<std::is_pointer<Id>::value, void>::type Pause(Id id) {
         PauseImpl(reinterpret_cast<uintptr_t>(id));
     }
 
@@ -93,7 +91,7 @@ private:
     void StartImpl(uintptr_t id) {
         std::unique_lock<std::mutex> lk(watchersAccess);
 
-        auto & watcher = _watchers[id];
+        auto& watcher = _watchers[id];
         if (watcher.time_since_epoch() != std::chrono::steady_clock::duration::zero()) {
             throw std::runtime_error("Watchdog unexpected Start() for id=" + std::to_string(id));
         }
@@ -117,7 +115,7 @@ private:
         bool timeout = false;
         while (!_stopWatchdog && !timeout) {
             _cvPeriodic.wait_for(lck, _periodicInterval);
-            for (auto && watcher : _watchers) {
+            for (auto&& watcher : _watchers) {
                 auto startPoint = watcher.second;
                 if (startPoint.time_since_epoch() == steady_clock::duration::zero()) {
                     continue;
@@ -133,7 +131,7 @@ private:
             _logger->info("[WATCHDOG] thread exited");
             return;
         }
-        _logger->warning("[WATCHDOG] triggered timeout of %d ms" , timeout_ms);
+        _logger->warning("[WATCHDOG] triggered timeout of %d ms", timeout_ms);
 
         _abortProgram();
     }

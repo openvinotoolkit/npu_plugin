@@ -20,6 +20,7 @@
 
 #include <mlir/Dialect/Async/IR/Async.h>
 #include <mlir/IR/BuiltinTypes.h>
+#include <mlir/Interfaces/ControlFlowInterfaces.h>
 #include <mlir/Interfaces/ViewLikeInterface.h>
 
 #include <llvm/ADT/TypeSwitch.h>
@@ -60,11 +61,37 @@ vpux::AliasesInfo::AliasesInfo(mlir::FuncOp func): _log(Logger::global().nest("a
     traverse(func.getOps());
 }
 
-void vpux::AliasesInfo::addAlias(mlir::Value root, mlir::Value alias) {
-    _log.trace("Add alias '{0}' for '{1}'", getValueForLog(alias), getValueForLog(root));
+mlir::Value vpux::AliasesInfo::getSource(mlir::Value val) const {
+    const auto it = _sources.find(val);
+    VPUX_THROW_UNLESS(it != _sources.end(), "Value '{0}' is not covered by aliases analysis", getValueForLog(val));
+    return it->second;
+}
 
-    _aliases[root].insert(alias);
+mlir::Value vpux::AliasesInfo::getRoot(mlir::Value val) const {
+    const auto it = _roots.find(val);
+    VPUX_THROW_UNLESS(it != _roots.end(), "Value '{0}' is not covered by aliases analysis", getValueForLog(val));
+    return it->second;
+}
+
+const AliasesInfo::ValuesSet& vpux::AliasesInfo::getAllAliases(mlir::Value val) const {
+    const auto it = _allAliases.find(val);
+    VPUX_THROW_UNLESS(it != _allAliases.end(), "Value '{0}' is not covered by aliases analysis", getValueForLog(val));
+    return it->second;
+}
+
+void vpux::AliasesInfo::addAlias(mlir::Value source, mlir::Value alias) {
+    _log.trace("Add an alias '{0}' for '{1}'", getValueForLog(alias), getValueForLog(source));
+
+    const auto root = source == alias ? alias : getRoot(source);
+
+    if (alias == root) {
+        _sources.insert({alias, nullptr});
+    } else {
+        _sources.insert({alias, source});
+    }
+
     _roots.insert({alias, root});
+    _allAliases[root].insert(alias);
 }
 
 void vpux::AliasesInfo::traverse(OpRange ops) {
@@ -82,8 +109,7 @@ void vpux::AliasesInfo::traverse(OpRange ops) {
                     VPUX_THROW_UNLESS(source.getType().isa<mlir::MemRefType>(),
                                       "AliasesInfo analysis works only with MemRef types, got '{0}'", source.getType());
 
-                    const auto root = getRoot(source);
-                    addAlias(root, result);
+                    addAlias(source, result);
 
                     _log = _log.unnest();
                 })
@@ -108,75 +134,80 @@ void vpux::AliasesInfo::traverse(OpRange ops) {
                                           "AliasesInfo analysis works only with MemRef types, got '{0}'",
                                           source.getType());
 
-                        const auto root = getRoot(source);
-                        addAlias(root, result);
+                        addAlias(source, result);
                     }
 
                     _log = _log.unnest();
                 })
-                .Case<mlir::async::ExecuteOp>([&](mlir::async::ExecuteOp executeOp) {
-                    // It looks like `async::ExecuteOp` doesn't implement `RegionBranchOpInterface` correctly.
-                    // At least it doesn't report correspondance between its operands and the body region arguments.
-
-                    _log.trace("Got 'async.execute' Operation at '{0}'", executeOp->getLoc());
+                .Case<mlir::RegionBranchOpInterface>([&](mlir::RegionBranchOpInterface regionOp) {
+                    _log.trace("Got RegionBranch Operation '{0}' at '{1}'", regionOp->getName(), regionOp->getLoc());
                     _log = _log.nest();
 
-                    const auto outerArgs = executeOp.operands();
-                    const auto innerArgs = executeOp.body().getArguments();
-                    VPUX_THROW_UNLESS(
-                            outerArgs.size() == innerArgs.size(),
-                            "Mismatch between 'async.execute' operands and its body region arguments at '{0}'",
-                            executeOp->getLoc());
+                    SmallVector<mlir::RegionSuccessor> entries;
+                    regionOp.getSuccessorRegions(None, entries);
 
-                    for (auto i : irange(outerArgs.size())) {
-                        _log.trace("Check operand #{0} and corresponding region argument", i);
+                    for (const auto& entry : entries) {
+                        auto* entryRegion = entry.getSuccessor();
+                        VPUX_THROW_UNLESS(entryRegion != nullptr,
+                                          "Entry region without an attached successor region at '{0}'",
+                                          regionOp->getLoc());
 
-                        const auto futureType = outerArgs[i].getType().dyn_cast<mlir::async::ValueType>();
-                        VPUX_THROW_UNLESS(futureType != nullptr,
-                                          "AliasesInfo analysis works only with !async.value<MemRef> types, got '{0}'",
-                                          outerArgs[i].getType());
+                        const auto outerArgs = regionOp.getSuccessorEntryOperands(entryRegion->getRegionNumber());
+                        const auto innerArgs = entry.getSuccessorInputs();
 
-                        VPUX_THROW_UNLESS(futureType.getValueType().isa<mlir::MemRefType>(),
-                                          "AliasesInfo analysis works only with MemRef types, got '{0}'", futureType);
-                        VPUX_THROW_UNLESS(innerArgs[i].getType().isa<mlir::MemRefType>(),
-                                          "AliasesInfo analysis works only with MemRef types, got '{0}'",
-                                          innerArgs[i].getType());
+                        VPUX_THROW_UNLESS(
+                                outerArgs.size() == innerArgs.size(),
+                                "Mismatch between RegionBranch operands and its entry region arguments at '{0}'",
+                                regionOp->getLoc());
 
-                        const auto root = getRoot(outerArgs[i]);
-                        addAlias(root, innerArgs[i]);
+                        for (auto i : irange(outerArgs.size())) {
+                            _log.trace("Check operand #{0} and corresponding region argument", i);
+
+                            addAlias(outerArgs[i], innerArgs[i]);
+                        }
                     }
 
-                    _log.trace("Traverse the 'async.execute' body");
+                    _log.trace("Traverse the RegionBranch inner regions");
                     _log = _log.nest();
-                    traverse(executeOp.getOps());
-                    _log = _log.unnest();
-
-                    const auto outerResults = executeOp.results();
-                    const auto innerResults = executeOp.body().front().getTerminator()->getOperands();
-                    VPUX_THROW_UNLESS(
-                            innerResults.size() == outerResults.size(),
-                            "Mismatch between 'async.yield' operands and its parent 'async.execute' results at '{0}'",
-                            executeOp->getLoc());
-
-                    for (auto i : irange(innerResults.size())) {
-                        _log.trace("Check result #{0} and corresponding region result", i);
-
-                        const auto futureType = outerResults[i].getType().dyn_cast<mlir::async::ValueType>();
-                        VPUX_THROW_UNLESS(futureType != nullptr,
-                                          "AliasesInfo analysis works only with !async.value<MemRef> types, got '{0}'",
-                                          outerResults[i].getType());
-
-                        VPUX_THROW_UNLESS(innerResults[i].getType().isa<mlir::MemRefType>(),
-                                          "AliasesInfo analysis works only with MemRef types, got '{0}'",
-                                          innerResults[i].getType());
-                        VPUX_THROW_UNLESS(futureType.getValueType().isa<mlir::MemRefType>(),
-                                          "AliasesInfo analysis works only with MemRef types, got '{0}'", futureType);
-
-                        const auto root = getRoot(innerResults[i]);
-                        addAlias(root, outerResults[i]);
+                    for (auto& region : regionOp->getRegions()) {
+                        traverse(region.getOps());
                     }
-
                     _log = _log.unnest();
+
+                    for (auto& region : regionOp->getRegions()) {
+                        SmallVector<mlir::RegionSuccessor> successors;
+                        regionOp.getSuccessorRegions(region.getRegionNumber(), successors);
+
+                        for (auto& successor : successors) {
+                            Optional<unsigned> regionIndex;
+                            if (auto* regionSuccessor = successor.getSuccessor()) {
+                                regionIndex = regionSuccessor->getRegionNumber();
+                            }
+
+                            for (auto& block : region) {
+                                auto successorOperands =
+                                        mlir::getRegionBranchSuccessorOperands(block.getTerminator(), regionIndex);
+
+                                if (successorOperands.hasValue()) {
+                                    const auto innerResults = successorOperands.getValue();
+                                    const auto outerResults = successor.getSuccessorInputs();
+
+                                    VPUX_THROW_UNLESS(
+                                            innerResults.size() == outerResults.size(),
+                                            "Mismatch between successor operands and its parent results at '{0}'",
+                                            regionOp->getLoc());
+
+                                    for (auto i : irange(innerResults.size())) {
+                                        _log.trace("Check result #{0} and corresponding region result", i);
+
+                                        addAlias(innerResults[i], outerResults[i]);
+                                    }
+
+                                    _log = _log.unnest();
+                                }
+                            }
+                        }
+                    }
                 })
                 .Case<mlir::async::AwaitOp>([&](mlir::async::AwaitOp waitOp) {
                     _log.trace("Got 'async.await' Operation at '{0}'", waitOp->getLoc());
@@ -194,8 +225,7 @@ void vpux::AliasesInfo::traverse(OpRange ops) {
                                           "AliasesInfo analysis works only with MemRef types, got '{0}'",
                                           result.getType());
 
-                        const auto root = getRoot(waitOp.operand());
-                        addAlias(root, result);
+                        addAlias(waitOp.operand(), result);
                     }
 
                     _log = _log.unnest();
@@ -213,16 +243,4 @@ void vpux::AliasesInfo::traverse(OpRange ops) {
                     _log = _log.unnest();
                 });
     }
-}
-
-mlir::Value vpux::AliasesInfo::getRoot(mlir::Value val) const {
-    const auto it = _roots.find(val);
-    VPUX_THROW_UNLESS(it != _roots.end(), "Value '{0}' is not covered by aliases analysis", getValueForLog(val));
-    return it->second;
-}
-
-const AliasesInfo::ValuesSet& vpux::AliasesInfo::getAliases(mlir::Value val) const {
-    const auto it = _aliases.find(val);
-    VPUX_THROW_UNLESS(it != _aliases.end(), "Value '{0}' is not covered by aliases analysis", getValueForLog(val));
-    return it->second;
 }

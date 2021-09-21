@@ -41,7 +41,7 @@ class KmbQuantizedConvSubGraphTest :
         std::vector<float> perChannelHigh(weightsShape[0]);
 
         for (size_t i = 0; i < weightsShape[0]; ++i) {
-            perChannelLow[i] = -1.0f;
+            perChannelLow[i] = 0.0f;
             perChannelHigh[i] = 1.0f;
         }
 
@@ -59,8 +59,11 @@ class KmbQuantizedConvSubGraphTest :
         const ngraph::Strides dilations = {1, 1};
         const auto conv = std::make_shared<ngraph::opset2::Convolution>(dataFq, weightsFq, strides, pads_begin,
                                                                         pads_end, dilations);
+        const std::vector<float> outDataLow = {0.0f};
+        const std::vector<float> outDataHigh = {255.0f};
+        const auto outFq = ngraph::builder::makeFakeQuantize(conv, ngraph::element::f32, dataLevels, {}, outDataLow, outDataHigh, outDataLow, outDataHigh);
 
-        const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(conv)};
+        const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(outFq)};
         function = std::make_shared<ngraph::Function>(results, params, "KmbQuantizedConv");
 
         targetDevice = GetParam();

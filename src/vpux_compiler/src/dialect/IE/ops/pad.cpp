@@ -62,7 +62,7 @@ mlir::LogicalResult vpux::IE::PadOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto inType = pad.input().getType().cast<mlir::ShapedType>();
+    const auto inType = pad.input().getType().cast<mlir::RankedTensorType>();
     const auto inputShape = inType.getShape();
 
     auto padBegin = extractPads(loc, pad.pads_begin(), pad.pads_begin_attr(), inputShape);
@@ -78,20 +78,8 @@ mlir::LogicalResult vpux::IE::PadOp::inferReturnTypeComponents(
         return errorAt(loc, "pad_mode is CONSTANT but pad_value hasn't provided");
     }
 
-    SmallVector<int64_t> outShape(inputShape.size());
-    for (size_t i = 0; i < inputShape.size(); ++i) {
-        outShape[i] = (padBegin.getValue()[i] + inputShape[i] + padEnd.getValue()[i]);
-    }
-
-    auto elemType = inType.getElementType();
-    if (const auto perAxisQType = elemType.dyn_cast_or_null<mlir::quant::UniformQuantizedPerAxisType>()) {
-        const auto padBefore = Shape(padBegin.getValue());
-        const auto padAfter = Shape(padEnd.getValue());
-
-        elemType = expandScalesAndZP(perAxisQType, padBefore, padAfter);
-    }
-
-    inferredReturnShapes.emplace_back(outShape, elemType);
+    const auto newType = getPaddedType(inType, ShapeRef(padBegin.getValue()), ShapeRef(padEnd.getValue()));
+    inferredReturnShapes.emplace_back(newType.getShape(), newType.getElementType(), newType.getEncoding());
 
     return mlir::success();
 }

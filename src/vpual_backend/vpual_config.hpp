@@ -26,7 +26,9 @@ class VpualConfig final : public vpux::VPUXConfig {
 public:
     VpualConfig();
 
-    bool repackInputLayout() const { return _repackInputLayout; }
+    bool repackInputLayout() const {
+        return _repackInputLayout;
+    }
 
 protected:
     void parse(const std::map<std::string, std::string>& config) override;

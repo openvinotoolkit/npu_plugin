@@ -27,7 +27,7 @@ namespace vpux {
 
 class EmulatorExecutor final : public vpux::Executor {
 public:
-    EmulatorExecutor(const vpux::NetworkDescription::Ptr& network);
+    EmulatorExecutor(const vpux::NetworkDescription::Ptr& network, const VPUXConfig& config);
 
     void setup(const InferenceEngine::ParamMap&) final {
     }

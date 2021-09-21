@@ -87,36 +87,41 @@
     },
     "kmb_adapt": {
         "Singular": [
-            "ConcatAsImplicit",
-            "PermuteAsImplicit",
-            "ReshapeAsImplicit",
+            "ConvertToImplicitOps",
             "LoadPWLQuantParams",
             "ConvertOpsToTasks",
             "GenerateAndPopulateInstructionListTables",
             "SetUpPPETasks",
             "TaskMultiplePostOps",
             "ForceSerialize",
-            "ComputeTensorsQuantParams",
-            "UpdateImplicitLayersQuantizationParams",
             "ImplicitOutputDTypeUpdate",
             "KMBQuantizeConversion",
             "AdaptFixedPointCompute",
             "ConfigureIOPrecision",
-            "EnsureDTypeCompatibility"
+            "EnsureDTypeCompatibility",
+            "DeQuantizeU8ConstToFP16Const",
+            "GenerateWeightsTables",
+            "ComputeTensorsQuantParams",
+            "UpdateImplicitLayersQuantizationParams",
+            "PopulateWeightsTablesQuantization"
         ]
     },
-    "validate": {
+    "finalize": {
         "Singular": [
-            "CheckTensors"
+            "ArrangeKmbExecution",
+            "AllocateGraphfileTensorsKmb"
         ]
     },
-    "root": {
+    "serialize": {
         "Singular": [
-            "initialize",
-            "validate",
-            "quantization",
-            "adapt",
-            "kmb_adapt",
+            {
+                "name": "BuildGraphFileKmb",
+                "target_emulator": true
+            },
+            {
+                "name": "GenerateBlobKmb",
+                "output": "output/mcm.blob"
+            },
             {
                 "name": "GenerateDot",
                 "output": "output/opmodel.dot",
@@ -128,6 +133,16 @@
                 "name": "ConvertDot",
                 "input": "output/opmodel.dot"
             }
+        ]
+    },
+    "root": {
+        "Singular": [
+            "initialize",
+            "quantization",
+            "adapt",
+            "kmb_adapt",
+            "finalize",
+            "serialize"
         ]
     }
 }

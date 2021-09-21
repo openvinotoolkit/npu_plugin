@@ -14,8 +14,8 @@
 #include <vpux/compiler/core/aliases_info.hpp>
 #include <vpux/compiler/dialect/VPUIP/blob_reader.hpp>
 #include <vpux/compiler/dialect/VPUIP/nce_invariant.hpp>
+#include "vpux/compiler/dialect/VPUIP/nce_sparsity.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
-#include "vpux/compiler/utils/quantization.hpp"
 
 #include "vpux/utils/core/enums.hpp"
 
@@ -26,105 +26,6 @@
 using namespace vpux;
 
 namespace {
-
-constexpr int32_t MTL_SPARSITY = 0xffffffff;
-
-int32_t toHex(double realVal) {
-    union f32toint32 {
-        int32_t m_i32;
-        float m_f32;
-    };
-
-    f32toint32 biasVal;
-    biasVal.m_f32 = static_cast<float>(realVal);
-    return biasVal.m_i32;
-}
-
-using BiasConverterCb = int32_t (*)(double);
-const EnumMap<VPUIP::ArchKind, BiasConverterCb> biasConvertersMap = {
-        {VPUIP::ArchKind::KMB, vpux::toFixedPoint},  //
-        {VPUIP::ArchKind::TBH, vpux::toFixedPoint},  //
-        {VPUIP::ArchKind::MTL, toHex},               //
-};
-
-constexpr int32_t getKMBScale() {
-    constexpr int32_t PRELU_SCALE_OFFSET = 0;
-    constexpr int32_t PRELU_SCALE_VALUE = 1;
-
-    // FIXME: PPE shift is actually 6 bit long, 2 higher bits stand for rounding mode
-    constexpr int32_t PPE_SHIFT_OFFSET = 8;
-    constexpr int32_t PPE_SHIFT_VALUE = 0;
-
-    constexpr int32_t PPE_MULT_OFFSET = 16;
-    // FIXME: PPE multiplier has sign, which may affect lower bits
-    constexpr int32_t PPE_MULT_VALUE = 1;
-
-    constexpr int32_t KMB_SCALE = (PRELU_SCALE_VALUE << PRELU_SCALE_OFFSET) | (PPE_SHIFT_VALUE << PPE_SHIFT_OFFSET) |
-                                  (PPE_MULT_VALUE << PPE_MULT_OFFSET);
-
-    return KMB_SCALE;
-}
-
-int32_t getMTLScale() {
-    constexpr double MTL_SCALE = 1.0f;
-
-    return toHex(MTL_SCALE);
-}
-
-using PPEConverterCb = int32_t (*)();
-const EnumMap<VPUIP::ArchKind, PPEConverterCb> ppeConvertersMap = {
-        {VPUIP::ArchKind::KMB, getKMBScale},  //
-        {VPUIP::ArchKind::TBH, getKMBScale},  //
-        {VPUIP::ArchKind::MTL, getMTLScale},  //
-};
-
-using GetBiasCb = FuncRef<double(int64_t)>;
-
-std::vector<int32_t> getWeightsTable(int64_t OC, GetBiasCb getBiasFP, int32_t weightPtrOffset, int32_t weightPtrStep,
-                                     int32_t sparsityPtrOffset, vpux::VPUIP::ArchKind arch) {
-    const auto ppeConverter = ppeConvertersMap.at(arch);
-    const int32_t multShift = ppeConverter();
-
-    const int32_t sparsityPtr = arch == VPUIP::ArchKind::MTL ? MTL_SPARSITY : sparsityPtrOffset;
-
-    const auto convertBias = [&](int64_t oc) -> int32_t {
-        const auto biasVal = getBiasFP(oc);
-        const auto biasConverter = biasConvertersMap.at(arch);
-        return biasConverter(biasVal);
-    };
-
-    std::vector<int32_t> weightsTableVals(OC * VPUIP::NCEInvariant::WEIGHT_TABLE_NUM_ELEMENTS_PER_OC, 0);
-
-    for (auto oc : irange(checked_cast<size_t>(OC))) {
-        const auto wtInd = oc * static_cast<size_t>(VPUIP::NCEInvariant::WEIGHT_TABLE_NUM_ELEMENTS_PER_OC);
-
-        weightsTableVals[wtInd + 0] = weightPtrOffset;
-        weightsTableVals[wtInd + 1] = sparsityPtr;
-        weightsTableVals[wtInd + 2] = multShift;
-        weightsTableVals[wtInd + 3] = convertBias(oc);
-
-        weightPtrOffset += weightPtrStep;
-    }
-
-    return weightsTableVals;
-}
-
-llvm::unique_function<double(int64_t)> getBiasFunc(mlir::Value bias) {
-    if (bias == nullptr) {
-        return [](int64_t) -> double {
-            return 0.0f;
-        };
-    }
-
-    auto biasConst = bias.getDefiningOp<Const::DeclareOp>();
-    VPUX_THROW_UNLESS(biasConst != nullptr, "Only constant biases are supported, got '{0}'", bias);
-
-    auto biasContent = biasConst.content();
-
-    return [biasContent = std::move(biasContent)](int64_t oc) -> double {
-        return biasContent.getValues<double>()[oc];
-    };
-}
 
 int64_t getOC(VPUIP::WeightsTableOp createWTableOp) {
     if (createWTableOp.weights() != nullptr && createWTableOp.activation_window() != nullptr) {
@@ -208,14 +109,18 @@ mlir::LogicalResult CreateWTableOpsConverter::matchAndRewrite(VPUIP::WeightsTabl
                                                               mlir::PatternRewriter& rewriter) const {
     const auto OC = getOC(createWTableOp);
 
-    int32_t weightPtrOffset = getTensorPtrOffset(createWTableOp.weights(), _aliasInfo);
+    const auto weightPtrOffset = getTensorPtrOffset(createWTableOp.weights(), _aliasInfo);
+    const auto sparsityPtrOffset = getTensorPtrOffset(createWTableOp.activation_window(), _aliasInfo);
     const auto weightPtrStep = getWeightPtrStep(createWTableOp);
 
-    int32_t sparsityPtrOffset = getTensorPtrOffset(createWTableOp.activation_window(), _aliasInfo);
-
-    auto getBiasFP = getBiasFunc(createWTableOp.bias());
-
-    const auto weightsTable = getWeightsTable(OC, getBiasFP, weightPtrOffset, weightPtrStep, sparsityPtrOffset, _arch);
+    const auto op_inElemType = createWTableOp.op_input().getType().cast<mlir::ShapedType>().getElementType();
+    const auto op_outElemType = createWTableOp.op_output().getType().cast<mlir::ShapedType>().getElementType();
+    const auto op_weightsElemType =
+            createWTableOp.weights() ? createWTableOp.weights().getType().cast<mlir::ShapedType>().getElementType()
+                                     : nullptr;
+    const auto weightsTable = vpux::VPUIP::NCESparsity::getWeightsTable(op_inElemType, op_outElemType, weightPtrOffset,
+                                                                        weightPtrStep, sparsityPtrOffset, _arch, OC,
+                                                                        op_weightsElemType, createWTableOp.bias());
 
     const auto outType = createWTableOp.output().getType();
     const auto shapedType = outType.dyn_cast_or_null<mlir::ShapedType>();
@@ -257,10 +162,12 @@ void ConvertWeightsTableOp2Const::safeRunOnFunc() {
 
     const auto arch = VPUIP::getArch(module);
 
-    VPUX_THROW_UNLESS(biasConvertersMap.find(arch) != biasConvertersMap.end(),
-                      "Failed to map bias converter to target arch");
-    VPUX_THROW_UNLESS(ppeConvertersMap.find(arch) != ppeConvertersMap.end(),
-                      "Failed to map PPE converter to target arch");
+    VPUX_THROW_UNLESS(
+            vpux::VPUIP::NCESparsity::biasConvertersMap.find(arch) != vpux::VPUIP::NCESparsity::biasConvertersMap.end(),
+            "Failed to map bias converter to target arch");
+    VPUX_THROW_UNLESS(
+            vpux::VPUIP::NCESparsity::ppeConvertersMap.find(arch) != vpux::VPUIP::NCESparsity::ppeConvertersMap.end(),
+            "Failed to map PPE converter to target arch");
 
     mlir::ConversionTarget target(ctx);
     target.addIllegalOp<VPUIP::WeightsTableOp>();

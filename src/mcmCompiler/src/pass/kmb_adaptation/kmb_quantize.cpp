@@ -590,6 +590,17 @@ static void configureIOPrecisionFcn(const mv::pass::PassEntry&, mv::ComputationM
         om.undefineFlow(outputOp.leftmostInput());
         outputOp->setInputTensor(tensor, 0, false);
         om.defineFlow(tensor, outputOp, 0);
+
+        // WA: Conversion layer added before output will have its name
+        // overwritten in runtime model by the name of the network output. This results in
+        // Conversion layer having the same name for input and output tensors.
+        const std::string outName =
+            outputOp->hasAttr("networkOutputName") ?
+            outputOp->get<std::string>("networkOutputName"):
+            outputOp->getName();
+
+        inputTensor->setName(tensor->getName());
+        tensor->setName(outName);
     };
 
     auto inputOps = om.getOps("ImplicitInput");

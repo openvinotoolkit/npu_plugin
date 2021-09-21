@@ -9,8 +9,8 @@ func @PerAxis() -> tensor<4x1x1x1xf32> {
             #const.Content<dense<129> : tensor<4x1x1x1xui8>,
                 [#const.QuantCast<!quant.uniform<u8:f32:0, {0.1:128, 0.2:128, 0.3:128, 0.4:128}>>]>
 
-    %1 = "quant.dcast"(%0) :
-        (tensor<4x1x1x1x!quant.uniform<u8:f32:0, {0.1:128, 0.2:128, 0.3:128, 0.4:128}>>)
+    %1 = IE.Dequantize(%0) {dstElemType = f32} :
+        tensor<4x1x1x1x!quant.uniform<u8:f32:0, {0.1:128, 0.2:128, 0.3:128, 0.4:128}>>
             -> tensor<4x1x1x1xf32>
 
     return %1 : tensor<4x1x1x1xf32>

@@ -10,7 +10,8 @@
 
 
 namespace {
-const auto expectedDeviceName = std::string{"VPUX"};
+const std::string expectedDeviceName =
+    std::getenv("IE_KMB_TESTS_DEVICE_NAME") != nullptr ? std::getenv("IE_KMB_TESTS_DEVICE_NAME") : "VPUX";
 }
 
 TEST(smoke_InterfaceTests, TestEngineClassGetMetric) {

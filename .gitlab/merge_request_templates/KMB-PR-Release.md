@@ -24,6 +24,7 @@
 
 (Please replace the links below with your own.)
 
-* [ ] [IE-MDK](https://vpux-ci-vpuip.inn.intel.com/job/IE-MDK/job/manual/job/RunTests-KMB/build)
-* [ ] [Nets-Validation Yocto](https://vpux-ci-vpuip.inn.intel.com/job/Nets-Validation/job/manual/job/Yocto/build)
-* [ ] [Nets-Validation Windows](https://vpux-ci-vpuip.inn.intel.com/job/Nets-Validation/job/manual/job/Windows/build)
+* [ ] [IE-MDK Ubuntu](https://dsp-ci-icv.inn.intel.com/job/IE-MDK/job/manual/job/Ubuntu-Yocto/build)
+* [ ] [IE-MDK Windows](https://dsp-ci-icv.inn.intel.com/job/IE-MDK/job/manual/job/Windows-Yocto/build)
+* [ ] [Nets-Validation Yocto](https://dsp-ci-icv.inn.intel.com/job/Nets-Validation/job/manual/job/Yocto/build)
+* [ ] [Nets-Validation Windows](https://dsp-ci-icv.inn.intel.com/job/Nets-Validation/job/manual/job/Windows/build)

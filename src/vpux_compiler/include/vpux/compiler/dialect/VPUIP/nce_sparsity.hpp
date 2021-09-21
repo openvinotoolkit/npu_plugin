@@ -16,16 +16,32 @@
 #include <llvm/ADT/ArrayRef.h>
 #include <mlir/IR/Value.h>
 
+#include "vpux/compiler/dialect/VPUIP/attributes/enums.hpp"
+#include "vpux/utils/core/enums.hpp"
+#include "vpux/utils/core/func_ref.hpp"
+
 namespace vpux {
 namespace VPUIP {
 
 class NCESparsity final {
 public:
+    using BiasConverterCb = std::int32_t (*)(double);
+    using PPEConverterCb = std::int32_t (*)(unsigned, unsigned);
+
+    static const vpux::EnumMap<vpux::VPUIP::ArchKind, PPEConverterCb> ppeConvertersMap;
+    static const vpux::EnumMap<vpux::VPUIP::ArchKind, BiasConverterCb> biasConvertersMap;
+
     static int64_t getBitPatternSize(mlir::ArrayRef<int64_t> kernelSize, int64_t strideW, mlir::Type elemType);
     static int64_t getActivationWindowSize(mlir::ArrayRef<int64_t> kernelSize, int64_t strideW, mlir::Type elemType,
                                            int64_t inputChannels);
     static std::vector<uint8_t> getFakeSparsity(mlir::ArrayRef<int64_t> kernelSize, int64_t strideW,
                                                 mlir::Type elemType, int64_t inputChannels);
+
+    static std::vector<std::int32_t> getWeightsTable(mlir::Type op_inElemType, mlir::Type op_outElemType,
+                                                     std::int32_t weightPtrOffset, std::int32_t weightPtrStep,
+                                                     std::int32_t sparsityPtrOffset, vpux::VPUIP::ArchKind arch,
+                                                     std::int64_t OC, mlir::Type weightsElemType = nullptr,
+                                                     mlir::Value bias = nullptr);
 };
 
 }  // namespace VPUIP

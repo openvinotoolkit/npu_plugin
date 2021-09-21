@@ -406,8 +406,12 @@ void fusePPEBaseFcn(mv::Data::OpListIterator& opIt, mv::ComputationModel& model,
         }
     }
 
-    // Disable Prelu fusion if slopes are per-channel
-    if (opType == "Prelu" && (opIt->getInputTensor(mv::IO_TENSOR_WEIGHTS_SET)->getData().size() != 1)) {
+    // Disable Prelu / leakyRelu fusion if slopes are per-channel or negative
+    if (opType == "Prelu" && (opIt->getInputTensor(mv::IO_TENSOR_WEIGHTS_SET)->getData().size() != 1 ||
+                              opIt->getInputTensor(mv::IO_TENSOR_WEIGHTS_SET)->getDoubleData()[0] < 0)) {
+        return;
+    }
+    if (opType == "LeakyRelu" && opIt->get<double>("alpha") < 0) {
         return;
     }
 
@@ -627,6 +631,9 @@ void fuse_custom_pwl(mv::Data::OpListIterator& opIt, mv::Data::OpListIterator& p
         pwl_type.activation = opIt->getOpType();
         pwl_type.dtype = opIt->getInputTensor(0)->getDType();
         std::string table_source = "UNSET";
+
+        if (opIt->getOpType() == "LeakyRelu" && opIt->hasAttr("alpha"))
+            parentIt->set<double>("leakyAlpha", opIt->get<double>("alpha"));
 
         TableSource ts = static_cast<TableSource>(opIt->get<int>("PWLSource"));
 

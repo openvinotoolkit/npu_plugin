@@ -207,7 +207,9 @@ def IERT_StaticAllocOp :
         IERT_Op<
             "StaticAlloc",
             [
-                NoSideEffect
+                NoSideEffect,
+                DeclarationOp,
+                DotInterface
             ]
         > {
     let summary = "InferenceEngine run-time static buffer allocation";
@@ -219,6 +221,12 @@ def IERT_StaticAllocOp :
     let results = (outs
         AnyMemRef:$memory
     );
+
+    let extraClassDeclaration = [{
+        vpux::DotNodeColor getNodeColor() {
+            return vpux::DotNodeColor::ORANGE;
+        }
+    }];
 
     let assemblyFormat = [{
         `<` $offset `>` attr-dict `->` type(results)
@@ -288,7 +296,8 @@ def IERT_ConvertOp :
 def IERT_CopyOp :
         IERT_LayerOp<1, "Copy",
             [
-                ViewLikeOpInterface
+                ViewLikeOpInterface,
+                DotInterface
             ]
         > {
     let summary = "InferenceEngine run-time Copy layer";
@@ -465,7 +474,7 @@ def IERT_ConvolutionOp :
     let arguments = (ins
         MemRefOf<[F16, F32, quant_QuantizedType]>:$input,
         MemRefOf<[F16, F32, quant_QuantizedType]>:$filter,
-        Optional<MemRefOf<[F16, F32]>>:$bias,
+        Optional<MemRefOf<[F16, F32, quant_QuantizedType]>>:$bias,
         MemRefOf<[F16, F32, quant_QuantizedType]>:$output_buff,
 
         I64ArrayAttr:$strides,
@@ -728,6 +737,37 @@ def IERT_MishOp :
             ]
         > {
     let summary = "InferenceEngine run-time Mish layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input,
+        MemRefOf<[F16, F32]>:$output_buff
+    );
+
+    let results = (outs
+        MemRefOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
+// ErfOp
+//
+
+def IERT_ErfOp :
+        IERT_LayerOp<1, "Erf",
+            [
+                ViewLikeOpInterface,
+                SameOperandsShape,
+                SameOperandsElementType
+            ]
+        > {
+    let summary = "InferenceEngie run-time Erf layer";
 
     let arguments = (ins
         MemRefOf<[F16, F32]>:$input,
@@ -1617,7 +1657,6 @@ def IERT_ConcatViewOp :
         IERT_Op<"ConcatView",
             [
                 ViewLikeOpInterface,
-                SameOperandsAndResultElementType,
                 InferTypeOpInterface,
                 NoSideEffect
             ]
@@ -1900,16 +1939,16 @@ def IERT_SubViewOp :
         IERT_Op<
             "SubView",
             [
+                NoSideEffect,
                 DeclareOpInterfaceMethods<ViewLikeOpInterface>,
-                SameOperandsAndResultElementType,
-                DeclareOpInterfaceMethods<InferTypeOpInterface>,
-                NoSideEffect
+                DeclareOpInterfaceMethods<InferTypeOpInterface>
             ]
         > {
-    let summary = "Compile-time subview layer";
+    let summary = "Extract single subview from buffer";
 
     let arguments = (ins
         AnyMemRef:$source,
+
         I64ArrayAttr:$static_offsets,
         I64ArrayAttr:$static_sizes
     );
@@ -1925,11 +1964,112 @@ def IERT_SubViewOp :
 
     let builders = [
         OpBuilder<
-            (ins "mlir::Value":$source, "ArrayRef<int64_t>":$static_offsets, "ArrayRef<int64_t>":$static_sizes)
+            (ins "mlir::Value":$source, "vpux::ShapeRef":$static_offsets, "vpux::ShapeRef":$static_sizes)
+        >,
+        OpBuilder<
+            (ins "mlir::Value":$source, "vpux::ArrayRef<int64_t>":$static_offsets, "vpux::ArrayRef<int64_t>":$static_sizes)
         >
     ];
 
     let hasFolder = 1;
+    let hasCanonicalizer = 1;
+}
+
+//
+// MVNOp
+//
+
+def IERT_MVNOp :
+        IERT_LayerOp<1, "MVN",
+            [
+                ViewLikeOpInterface
+            ]
+        > {
+    let summary = "InferenceEngine Run-Time MVN layer";
+
+    let arguments = (ins
+        AnyMemRef:$input,
+        AnyMemRef:$output_buff,
+        BoolAttr:$across_channels,
+        BoolAttr:$normalize_variance,
+        F64Attr:$eps
+
+    );
+
+    let results = (outs
+        AnyMemRef:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
+// ImplicitReorderOp
+//
+
+def IERT_ImplicitReorderOp :
+        IERT_Op<
+            "ImplicitReorder",
+            [
+                SameOperandsAndResultElementType,
+                DeclareOpInterfaceMethods<ViewLikeOpInterface>,
+                DeclareOpInterfaceMethods<InferTypeOpInterface>,
+                NoSideEffect
+            ]
+        > {
+    let summary = "Compile-time reorder layer";
+
+    let arguments = (ins
+        AnyMemRef:$source,
+
+        AffineMapAttr:$dstOrder
+    );
+
+    let results = (outs
+        AnyMemRef:$result
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $source `:` type($source) `)`
+        `->` type(results)
+    }];
+}
+
+//
+// SubtractOp
+//
+
+def IERT_SubtractOp :
+        IERT_LayerOp<1, "Subtract",
+            [
+                ViewLikeOpInterface,
+                SameOperandsElementType
+            ]
+        > {
+    let summary = "InferenceEngine run-time Subtract layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input1,
+        MemRefOf<[F16, F32]>:$input2,
+        MemRefOf<[F16, F32]>:$output_buff
+    );
+
+    let results = (outs
+        MemRefOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input1 `:` type($input1) `,` $input2 `:` type($input2) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
 }
 
 #endif

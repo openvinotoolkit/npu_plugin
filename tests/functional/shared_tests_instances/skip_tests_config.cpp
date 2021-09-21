@@ -34,10 +34,10 @@ std::vector<std::string> disabledTestPatterns() {
         ".*BehaviorTestInput.*",
         ".*BehaviorTestOutput.*",
 
-        // [Track number: s#47412]
-        ".*IEClassGetConfigTest_ThrowUnsupported\\.GetConfigThrow.*",
-
         // TODO Add safe Softplus support
-        ".*ActivationLayerTest.*SoftPlus.*"
+        ".*ActivationLayerTest.*SoftPlus.*",
+
+        // TODO: Issue: 63469
+        ".*KmbConversionLayerTest.*ConvertLike.*"
     };
 }

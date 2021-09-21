@@ -66,7 +66,7 @@ public:
     }
 
 private:
-    std::shared_ptr<InferenceEngine::IRemoteContext> _contextPtr;
+    std::shared_ptr<InferenceEngine::RemoteContext> _contextPtr;
     ParsedContextParams _contextParams;
 
     HDDL2RemoteAllocator::Ptr _allocatorPtr = nullptr;

@@ -13,10 +13,10 @@
 
 #pragma once
 
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <fcntl.h>
 #include <sys/mman.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <unistd.h>
 
 enum class MappingMode {
@@ -26,25 +26,23 @@ enum class MappingMode {
 
 // physical pointer in another process, points to certain data size
 template <class T>
-class  MMappedPtr final {
+class MMappedPtr final {
 protected:
-    uint8_t  * mapped_ptr = nullptr;
+    uint8_t* mapped_ptr = nullptr;
     size_t mapsize = 0;
     size_t page_offset = 0;
     int fd;
-    size_t  page_size = 4096;
+    size_t page_size = 4096;
+
 public:
     /**
      * @ptr to physically stable address - in any process you need to map
      * @sz - size in bytes of the object
      * @page_size - default page is 4096 bytes
      */
-    MMappedPtr(uint64_t phy_addr
-               , size_t sz = sizeof(T)
-               , size_t page_size = 4096
-               , MappingMode acces_type = MappingMode::readonly)
-        : page_size(page_size) {
-
+    MMappedPtr(uint64_t phy_addr, size_t sz = sizeof(T), size_t page_size = 4096,
+               MappingMode acces_type = MappingMode::readonly)
+            : page_size(page_size) {
         auto openMode = (acces_type == MappingMode::readonly) ? O_RDONLY : O_RDWR;
         fd = open("/dev/mem", openMode | O_SYNC);
         if (fd < 0) {
@@ -58,21 +56,21 @@ public:
         mapsize = pageAlignUp(page_offset + sz);
         mapped_ptr = reinterpret_cast<uint8_t*>(mmap(NULL, mapsize, mapMode, MAP_SHARED, fd, phy_addr_page_aligned));
 
-        if(mapped_ptr == MAP_FAILED) {
+        if (mapped_ptr == MAP_FAILED) {
             close(fd);
             std::stringstream err;
             err << "failed to map header at : mmap(offset=0x" << std::hex << phy_addr_page_aligned << " failed";
             throw std::runtime_error(err.str());
         }
     }
-    T* operator *() const noexcept {
-        return  reinterpret_cast<T*>(mapped_ptr + page_offset);
+    T* operator*() const noexcept {
+        return reinterpret_cast<T*>(mapped_ptr + page_offset);
     }
-    T* operator ->() const noexcept {
-        return  reinterpret_cast<T*>(mapped_ptr + page_offset);
+    T* operator->() const noexcept {
+        return reinterpret_cast<T*>(mapped_ptr + page_offset);
     }
     T* get() const noexcept {
-        return  reinterpret_cast<T*>(mapped_ptr + page_offset);
+        return reinterpret_cast<T*>(mapped_ptr + page_offset);
     }
     virtual ~MMappedPtr() {
         if (mapped_ptr != nullptr) {
@@ -82,14 +80,15 @@ public:
             close(fd);
         }
     }
+
 private:
-    MMappedPtr(const MMappedPtr &) = delete;
-    MMappedPtr(MMappedPtr &&) = delete;
-    MMappedPtr & operator =(const MMappedPtr &) = delete;
-    MMappedPtr & operator =(MMappedPtr &&) = delete;
+    MMappedPtr(const MMappedPtr&) = delete;
+    MMappedPtr(MMappedPtr&&) = delete;
+    MMappedPtr& operator=(const MMappedPtr&) = delete;
+    MMappedPtr& operator=(MMappedPtr&&) = delete;
 
     constexpr size_t pageAlignDown(size_t val) noexcept {
-        return val & (~(page_size-1));
+        return val & (~(page_size - 1));
     }
     constexpr size_t pageAlignUp(size_t val) noexcept {
         return (((val + page_size - 1) / page_size) * page_size);

@@ -12,6 +12,7 @@ REL_TO_ROOT := $(subst $(SPACE),,$(REL_TO_ROOT))
 VPUIP_2_REL_THROUGH_ROOT := $(REL_TO_ROOT)$(VPUIP_2_ABS_DIR)
 
 include-dirs-shave_nn-y += leon/inc
+include-dirs-lrt-$(CONFIG_HAS_LRT_SRCS) += $(VPUIP_2_REL_THROUGH_ROOT)/system/nn/blob/2490/inc
 
 subdirs-shave_nn-$(CONFIG_TARGET_SOC_3720) +=  shave_nn
 subdirs-lrt-$(CONFIG_TARGET_SOC_3720) +=  leon

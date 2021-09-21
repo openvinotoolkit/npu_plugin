@@ -26,20 +26,8 @@ void vpux::VPUIP::CTCGreedyDecoderSeqLenUPAOp::build(mlir::OpBuilder& builder, m
           mlir::ValueRange{}, mergeRepeated, nullptr, nullptr);
 }
 
-bool vpux::VPUIP::CTCGreedyDecoderSeqLenUPAOp::isSupportedLayout(mlir::Operation* op, IE::DataOrderInfo& info) {
-    const auto ctcGreedyDecoderSeqLenOp = mlir::dyn_cast<IE::CTCGreedyDecoderSeqLenOp>(op);
-    VPUX_THROW_UNLESS(ctcGreedyDecoderSeqLenOp != nullptr, "Operation {0} is not CTCGreedyDecoderSeqLenOp",
-                      op->getName());
-
-    if (info.hasInput(0)) {
-        const auto order = info.getInput(0);
-        if (order == DimsOrder::CHW) {
-            return true;
-        }
-    }
-
-    info.setInput(0, DimsOrder::CHW);
-    return false;
+void vpux::VPUIP::CTCGreedyDecoderSeqLenUPAOp::inferLayoutInfo(mlir::Operation*, IE::LayerLayoutInfo& info) {
+    IE::fillDefaultLayoutInfo(info);
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::CTCGreedyDecoderSeqLenUPAOp::serialize(VPUIP::BlobWriter& writer) {
