@@ -62,6 +62,16 @@ def PrintDot : PassBase<"print-dot", "vpux::ModulePass"> {
             "Print declare memory operations"
         >,
         Option<
+            "startOp", "startOp",
+            "std::string", "",
+            "Start graph generation after this operation"
+        >,
+        Option<
+            "stopOp", "stopOp",
+            "std::string", "",
+            "Stop graph generation after this operation"
+        >,
+        Option<
             "constOp", "constOp",
             "bool", "",
             "Print const declare operations"
