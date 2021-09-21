@@ -390,6 +390,14 @@ OutputTiling SimpleTiler::genericTiler(mlir::Operation* op, mlir::MemRefType out
 
     Shape nTilesOnDim(outputShape.size(), 1);
 
+    // Try to tile the largest dim (C or H) first, then proceed with other dims
+    SmallVector<Dim> tileDimOrder = {IE::Dims4D::Act::C, IE::Dims4D::Act::H, IE::Dims4D::Act::W};
+    if (outputShape[IE::Dims4D::Act::C] < outputShape[IE::Dims4D::Act::H])
+        tileDimOrder = {IE::Dims4D::Act::H, IE::Dims4D::Act::C, IE::Dims4D::Act::W};
+
+    auto tileDimIter = tileDimOrder.begin();
+    Optional<Dim> dimToTile = *tileDimIter;
+
     const auto isSupportedChannelDivision = [&]() {
         if ((outputShape[IE::Dims4D::Act::C] % nTilesOnDim[IE::Dims4D::Act::C]) != 0) {
             return false;
@@ -552,7 +560,7 @@ OutputTiling SimpleTiler::groupConvolutionTiler(IERT::GroupConvolutionOp op) con
 // CMXTilingPass
 //
 
-class CMXTilingPass final : public IERT::CXMTilingBase<CMXTilingPass> {
+class CMXTilingPass final : public IERT::CMXTilingBase<CMXTilingPass> {
 public:
     explicit CMXTilingPass(Logger log) {
         Base::initLogger(log, Base::getArgumentName());
