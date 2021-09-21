@@ -56,7 +56,6 @@ public:
     static mlir::LogicalResult verifyChannels(IERT::ConvolutionOp origOp, Logger log = Logger::global());
     static mlir::LogicalResult verifyConvChannels(mlir::Location loc, mlir::ShapedType filterType,
                                                   Logger log = Logger::global());
-    static mlir::LogicalResult verifyConvChannelstemp(mlir::Location loc, mlir::Operation* origOp, Logger log = Logger::global());
 
     static mlir::LogicalResult verifyChannels(IE::MaxPoolOp origOp, Logger log = Logger::global());
     static mlir::LogicalResult verifyChannels(IERT::MaxPoolOp origOp, Logger log = Logger::global());
