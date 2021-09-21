@@ -95,12 +95,12 @@ static void assignAffinities(InferenceEngine::CNNNetwork& network, const Device&
             std::cout << "Layer " << node->get_friendly_name() << " has affinity already: " << std::string{firstDevice} << std::endl;
         } else {
             nodeInfo["affinity"] = std::make_shared<ngraph::VariantWrapper<std::string>>(deviceName);
-            std::cout << "Layer " << node->get_friendly_name() << " set affinity to  " << deviceName << std::endl;
+            // std::cout << "Layer " << node->get_friendly_name() << " set affinity to  " << deviceName << std::endl;
         }
 
         if (splitName == node->get_friendly_name()) {
             deviceName = std::string{secondDevice};
-            std::cout << "Switch device to " << deviceName << std::endl;
+            std::cout << "Split after " << splitName << "; Switch device to " << deviceName << std::endl;
         }
     }
 }
@@ -169,7 +169,7 @@ void HeteroPluginTest::runTest(const TestNetworkDesc& netDesc, const Device& fir
         // SKIP() << "Will be compiled and run at RUN_INFER stage";
     }
 
-    std::cout << "Reading network " << std::endl;
+    std::cout << "Reading network " << netDesc.irFileName() <<  std::endl;
     auto network = readNetwork(netDesc, true);
     assignAffinities(network, firstDevice, secondDevice, splitLayer);
 
