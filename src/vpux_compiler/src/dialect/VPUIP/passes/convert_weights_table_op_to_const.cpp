@@ -125,15 +125,11 @@ mlir::LogicalResult CreateWTableOpsConverter::matchAndRewrite(VPUIP::WeightsTabl
     const auto outType = createWTableOp.output().getType();
     const auto shapedType = outType.dyn_cast_or_null<mlir::ShapedType>();
 
-    // const auto dataStorageType =
-    //        mlir::RankedTensorType::get(shapedType.getShape(), getSInt32Type(rewriter.getContext()));
-
     const auto dataStorageType = changeDimsOrder(
             mlir::RankedTensorType::get(shapedType.getShape(), getSInt32Type(rewriter.getContext())), DimsOrder::NHWC);
 
     const auto dataAttr = mlir::DenseElementsAttr::get(dataStorageType, makeArrayRef(weightsTable));
 
-    // rewriter.replaceOpWithNewOp<Const::DeclareOp>(createWTableOp, outType, Const::ContentAttr::get(dataAttr));
     rewriter.replaceOpWithNewOp<Const::DeclareOp>(createWTableOp,
                                                   changeDimsOrder(outType.cast<mlir::MemRefType>(), DimsOrder::NHWC),
                                                   Const::ContentAttr::get(dataAttr));
