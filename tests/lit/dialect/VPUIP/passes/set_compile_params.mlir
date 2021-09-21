@@ -23,7 +23,7 @@ module @test {
 // CHECK-SAME:      executors :  {
 // CHECK:               IERT.ExecutorResource 1 of "DMA_NN"
 // CHECK:               IERT.ExecutorResource 16 of "SHAVE_UPA"
-// CHECK:               IERT.ExecutorResource 4 of "NCE_Cluster" {
+// CHECK:               IERT.ExecutorResource {VPUIP.processorFrequency = 7.000000e+02 : f64} 4 of "NCE_Cluster" {
 // CHECK:                   IERT.ExecutorResource 5 of "NCE_PerClusterDPU"
 // CHECK:               }
 // CHECK:           }

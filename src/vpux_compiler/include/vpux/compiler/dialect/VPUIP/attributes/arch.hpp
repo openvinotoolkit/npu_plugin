@@ -28,6 +28,10 @@ ArchKind getArch(mlir::ModuleOp module);
 
 double getMemoryDerateFactor(IERT::MemoryResourceOp mem);
 uint32_t getMemoryBandwidth(IERT::MemoryResourceOp mem);
+double getProcessorFrequency(IERT::ExecutorResourceOp res);
+
+StringLiteral getProcessorFrequencyAttrName();
+StringLiteral getBandwidthAttrName();
 
 }  // namespace VPUIP
 }  // namespace vpux
