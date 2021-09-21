@@ -21,6 +21,7 @@
 #include <windows.h>
 #else
 #include <dlfcn.h>
+#include <vpux/utils/core/error.hpp>
 #endif
 
 #if defined(_WIN32)
@@ -50,6 +51,8 @@ namespace zeroCompilerAdapter {
 Blob::Blob(const std::vector<char>& data): data(data) {
 }
 
+using CompressedIR = std::vector<uint8_t>;
+
 //------------------------------------------------------------------------------
 //      Helpers
 //------------------------------------------------------------------------------
@@ -75,6 +78,78 @@ void VPUXCompilerL0::initLib() {
 #endif
         exit(EXIT_FAILURE);
     }
+}
+
+/**
+ * @brief Place xml + weights in sequential memory
+ * @details Format of the memory:
+ *  1. Number of data element (now only xml + weights = 2)
+ *  2. Size of data 1 (xml)
+ *  3. Data 1
+ *  4. Size of data 2 (weights)
+ *  5. Data 2
+ */
+CompressedIR createCompressedIR(std::vector<char>& xml, std::vector<char>& weights) {
+    const uint32_t numberOfInputData = 2;
+    const uint32_t xmlSize = static_cast<uint32_t>(xml.size());
+    const uint32_t weightsSize = static_cast<uint32_t>(weights.size());
+
+    const size_t sizeOfCompressedIR =
+            sizeof(numberOfInputData) + sizeof(xmlSize) + xml.size() + sizeof(weightsSize) + weights.size();
+
+    std::vector<uint8_t> compressedIR;
+    compressedIR.resize(sizeOfCompressedIR);
+
+    uint32_t offset = 0;
+    ie_memcpy(compressedIR.data() + offset, sizeOfCompressedIR - offset, &numberOfInputData, sizeof(numberOfInputData));
+    offset += sizeof(numberOfInputData);
+    ie_memcpy(compressedIR.data() + offset, sizeOfCompressedIR - offset, &xmlSize, sizeof(xmlSize));
+    offset += sizeof(xmlSize);
+    ie_memcpy(compressedIR.data() + offset, sizeOfCompressedIR - offset, xml.data(), xmlSize);
+    offset += xmlSize;
+    ie_memcpy(compressedIR.data() + offset, sizeOfCompressedIR - offset, &weightsSize, sizeof(weightsSize));
+    offset += sizeof(weightsSize);
+    ie_memcpy(compressedIR.data() + offset, sizeOfCompressedIR - offset, weights.data(), weightsSize);
+    offset += weightsSize;
+
+    IE_ASSERT(offset == sizeOfCompressedIR);
+
+    return compressedIR;
+}
+
+/**
+ * @brief Pair function for IR compression
+ */
+void decompressIR(const CompressedIR& compressedIR, std::vector<uint8_t>& xml, std::vector<uint8_t>& weights) {
+    /* Few validation values to make sure we are working with valid data */
+    const uint32_t maxNumberOfElements = 10;
+    const uint32_t maxSizeOfXML = (uint32_t)1 * 1024 * 1024 * 1024;      // 1GB
+    const uint32_t maxSizeOfWeights = (uint32_t)2 * 1024 * 1024 * 1024;  // 2GB
+
+    size_t offset = 0;
+
+    const uint32_t numberOfElements = *(uint32_t*)compressedIR.data();
+    offset += sizeof(numberOfElements);
+    VPUX_THROW_WHEN(numberOfElements >= maxNumberOfElements, "IR was corrupted");
+
+    const uint32_t sizeOfXML = *(uint32_t*)(compressedIR.data() + offset);
+    offset += sizeof(sizeOfXML);
+    VPUX_THROW_WHEN(sizeOfXML == 0 || sizeOfXML >= maxSizeOfXML, "IR was corrupted");
+
+    xml.resize(sizeOfXML);
+    ie_memcpy(xml.data(), sizeOfXML, compressedIR.data() + offset, sizeOfXML);
+    offset += sizeOfXML;
+    VPUX_THROW_WHEN(xml.empty(), "IR was corrupted");
+
+    const uint32_t sizeOfWeights = *(uint32_t*)(compressedIR.data() + offset);
+    offset += sizeof(sizeOfWeights);
+    VPUX_THROW_WHEN(sizeOfWeights >= maxSizeOfWeights, "IR was corrupted");  // Graph can have weights of size 0
+
+    weights.resize(sizeOfWeights);
+    ie_memcpy(weights.data(), sizeOfWeights, compressedIR.data() + offset, sizeOfWeights);
+    offset += sizeOfWeights;
+
+    VPUX_THROW_WHEN(offset != compressedIR.size(), "IR was corrupted");
 }
 
 //------------------------------------------------------------------------------
@@ -103,8 +178,21 @@ VPUXCompilerL0::~VPUXCompilerL0() {
 }
 
 // This function based on convertTest.c sample
-Blob::Ptr VPUXCompilerL0::compileIR(std::vector<char>& xml, std::vector<char>& weights) {
+Blob::Ptr VPUXCompilerL0::compileIR(std::vector<char>& xmlBeforeCompression,
+                                    std::vector<char>& weightsBeforeCompression) {
     _logger->debug("VPUXCompilerL0::compileIR start");
+
+    /**
+     * Compress and decompress back, since VPUXCompilerL0 doesn't support compressed IR for now
+     */
+    const auto compressedIR = createCompressedIR(xmlBeforeCompression, weightsBeforeCompression);
+    std::vector<uint8_t> xml;
+    std::vector<uint8_t> weights;
+    decompressIR(compressedIR, xml, weights);
+
+    IE_ASSERT(xml.size() == xmlBeforeCompression.size());
+    IE_ASSERT(weights.size() == weightsBeforeCompression.size());
+
     vpux_compiler_l0_result_t ret = RESULT_SUCCESS;
 
     uint32_t blobSize = 0;
