@@ -65,7 +65,7 @@ void buildEltwiseAdd(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp 
 void buildEltwiseMultWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module,
                                 mlir::OpBuilder builder, Logger& log, mlir::Type inputType, mlir::Type weightsType,
                                 mlir::Type outputType);
-void buildMaxpool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module, mlir::OpBuilder builder,
+void buildMaxPool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module, mlir::OpBuilder builder,
                   Logger& log, mlir::Type input0Type, mlir::Type outputType);
 void buildAvgpoolWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module, mlir::OpBuilder builder,
                             Logger& log, mlir::Type inputType, mlir::Type outputType);
@@ -81,6 +81,9 @@ mlir::MemRefType getMemRefType(mlir::OpBuilder builder, VPUIP::MemoryLocation me
 vpux::VPUIP::DeclareTensorOp createDeclareTensorOp(mlir::OpBuilder builder, VPUIP::MemoryLocation memlocation,
                                                    SmallVector<int64_t> shape, mlir::Type type,
                                                    SmallVector<mlir::AffineMap> affineMaps, int locale, size_t offset);
+
+vpux::VPUIP::DeclareTensorOp createDeclareTensorOp(mlir::OpBuilder builder, mlir::MemRefType type, int locale,
+                                                   size_t offset);
 
 mlir::OpResult getTensorResult(VPUIP::DeclareTensorOp op);
 

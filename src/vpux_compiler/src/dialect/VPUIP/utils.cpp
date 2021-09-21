@@ -1,13 +1,26 @@
-#include "vpux/compiler/utils/utils.hpp"
+//
+// Copyright 2021 Intel Corporation.
+//
+// LEGAL NOTICE: Your use of this software and any required dependent software
+// (the "Software Package") is subject to the terms and conditions of
+// the Intel(R) OpenVINO(TM) Distribution License for the Software Package,
+// which may also include notices, disclaimers, or license terms for
+// third party or open source software included in or with the Software Package,
+// and your use indicates your acceptance of all such terms. Please refer
+// to the "third-party-programs.txt" or other similarly-named text file
+// included with the Software Package for additional details.
+//
+
+#include "vpux/compiler/dialect/VPUIP/utils.hpp"
 
 #include "vpux/compiler/core/attributes/shape.hpp"
 #include "vpux/compiler/dialect/IE/ops_interfaces.hpp"
 #include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
 
 namespace vpux {
-namespace utils {
+namespace VPUIP {
 
-mlir::Value alignDepthwiseWeightTensor(mlir::OpBuilder& builder, mlir::Location loc, const mlir::Value origFilter) {
+mlir::Value alignDepthWiseWeightsTensor(mlir::OpBuilder& builder, mlir::Location loc, const mlir::Value origFilter) {
     const auto filterShape = getShape(origFilter);
     const auto OC = filterShape[IE::Dims4D::Filter::OC];
     const auto filtersPerInChan = filterShape[IE::Dims4D::Filter::IC];
@@ -43,5 +56,5 @@ mlir::Value alignDepthwiseWeightTensor(mlir::OpBuilder& builder, mlir::Location 
     return alignedWeightsOp.output();
 }
 
-}  // namespace utils
+}  // namespace VPUIP
 }  // namespace vpux

@@ -17,9 +17,9 @@
 #include <mlir/IR/Location.h>
 
 namespace vpux {
-namespace utils {
+namespace VPUIP {
 
-mlir::Value alignDepthwiseWeightTensor(mlir::OpBuilder& builder, mlir::Location loc, const mlir::Value origFilter);
+mlir::Value alignDepthWiseWeightsTensor(mlir::OpBuilder& builder, mlir::Location loc, const mlir::Value origFilter);
 
-}  // namespace utils
+}  // namespace VPUIP
 }  // namespace vpux

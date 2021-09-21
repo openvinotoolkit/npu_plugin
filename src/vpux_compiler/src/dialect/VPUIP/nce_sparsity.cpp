@@ -21,10 +21,8 @@ using namespace VPUIP;
 
 namespace {
 
-bool mixedPrecisionIsSupported(VPUIP::ArchKind arch) {
-    if (arch == ArchKind::MTL)
-        return true;
-    return false;
+bool isMixedPrecisionSupported(VPUIP::ArchKind arch) {
+    return arch == ArchKind::MTL;
 }
 Scales exractWeightsScales(mlir::Type weightsElemType, size_t quantDimSize) {
     if (weightsElemType == nullptr || !weightsElemType.isa<mlir::quant::QuantizedType>()) {
@@ -150,7 +148,7 @@ constexpr std::int32_t getKMBScale(unsigned shift, unsigned mult, double, mlir::
 }
 
 std::int32_t getMTLScale(unsigned shift, unsigned mult, double rescale, mlir::Type inputType) {
-    // MTL excpects scale in IEEE754 format in NCE_DPU_PPE_FP_SCALE register in case input has FP16/BF16 type
+    // MTL expects scale in IEEE754 format in NCE_DPU_PPE_FP_SCALE register in case input has FP16/BF16 type
     if (inputType.isF16()) {
         return toHex(rescale);
     }
@@ -226,7 +224,7 @@ llvm::unique_function<int32_t(size_t)> getMultShiftFunc(mlir::Type op_inElemType
             return multShift;
         };
     } else if ((op_inElemType.isa<mlir::quant::QuantizedType>() && op_outElemType.isa<mlir::quant::QuantizedType>()) ||
-               mixedPrecisionIsSupported(arch)) {
+               isMixedPrecisionSupported(arch)) {
         const auto inQuant = op_inElemType.isa<mlir::quant::QuantizedType>()
                                      ? extractScalesAndZeroPoints(op_inElemType, OC)
                                      : std::make_pair(SmallVector<double>(OC, 1), SmallVector<int64_t>(OC, 0));
@@ -348,13 +346,8 @@ std::vector<std::int32_t> vpux::VPUIP::NCESparsity::getWeightsTable(mlir::Type o
 
         weightPtrOffset += weightPtrStep;
         if (arch == vpux::VPUIP::ArchKind::MTL && weightsElemType) {
-            int32_t elementSizeBytes = 0;
-            if (auto qType = weightsElemType.dyn_cast<mlir::quant::QuantizedType>()) {
-                elementSizeBytes = qType.getStorageType().getIntOrFloatBitWidth() / 8;
-            } else {
-                elementSizeBytes = (weightsElemType.getIntOrFloatBitWidth()) / CHAR_BIT;
-            }
-            sparsityPtr += weightPtrStep / elementSizeBytes;
+            auto elementSize = static_cast<Byte>(getElemTypeSize(weightsElemType));
+            sparsityPtr += weightPtrStep / static_cast<int>(elementSize.count());
         }
     }
 

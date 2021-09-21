@@ -279,6 +279,14 @@ vpux::VPUIP::DeclareTensorOp createDeclareTensorOp(mlir::OpBuilder builder, VPUI
     return op;
 }
 
+vpux::VPUIP::DeclareTensorOp createDeclareTensorOp(mlir::OpBuilder builder, mlir::MemRefType type, int locale,
+                                                   size_t offset) {
+    auto op = builder.create<VPUIP::DeclareTensorOp>(
+            builder.getUnknownLoc(), type, type.getMemorySpace().dyn_cast<VPUIP::MemoryLocationAttr>().getValue(),
+            locale, offset);
+    return op;
+}
+
 mlir::OpResult getTensorResult(VPUIP::DeclareTensorOp op) {
     return op.getOperation()->getResult(0);
 }

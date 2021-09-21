@@ -38,9 +38,8 @@ mlir::DenseElementsAttr generateZeroPadForEltwiseMultWeights(ArrayRef<int64_t> w
                                        : mlir::RankedTensorType::get(wt_shape_padded, getUInt8Type(ctx));
     }
 
-    // NOTE: This should be ZeroPoint, not 0
-    size_t vecSize = static_cast<size_t>(std::accumulate(wt_shape_padded.begin(), wt_shape_padded.end(),
-                                                         static_cast<int64_t>(1), std::multiplies<int64_t>()));
+    auto vecSize = static_cast<size_t>(std::accumulate(wt_shape_padded.begin(), wt_shape_padded.end(),
+                                                       static_cast<int64_t>(1), std::multiplies<int64_t>()));
 
     mlir::DenseElementsAttr wt_data_vals;
     if (dtype.isF16()) {
@@ -165,23 +164,19 @@ void buildEltwiseMultWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir
     const auto input_nce_maps = DimsOrder::NHWC.toAffineMapsList(ctx, Shape(input_nce_shape));
     const auto output_nce_maps = DimsOrder::NHWC.toAffineMapsList(ctx, Shape(output_nce_shape));
 
-    auto memSpaceAttr_in = MemoryLocationAttr::get(ctx, MemoryLocation::ProgrammableInput);
-    auto memSpaceAttr_zeros = MemoryLocationAttr::get(ctx, MemoryLocation::GraphFile);
-    auto memSpaceAttr_out = MemoryLocationAttr::get(ctx, MemoryLocation::ProgrammableOutput);
-
     SmallVector<mlir::Type> inputTypes;
     inputTypes.reserve(num_func_args);
-    auto inputParamType = mlir::MemRefType::get(makeArrayRef(in_shape), inputType, input_maps, memSpaceAttr_in);
+    auto inputParamType = getMemRefType(builder, MemoryLocation::ProgrammableInput, in_shape, inputType, input_maps);
     auto weightsParamType =
-            mlir::MemRefType::get(makeArrayRef(weights_shape), weightsType, weights_maps, memSpaceAttr_in);
-    auto outputParamType = mlir::MemRefType::get(makeArrayRef(out_shape), outputType, output_maps, memSpaceAttr_out);
+            getMemRefType(builder, MemoryLocation::ProgrammableInput, weights_shape, weightsType, weights_maps);
+    auto outputParamType =
+            getMemRefType(builder, MemoryLocation::ProgrammableOutput, out_shape, outputType, output_maps);
     inputTypes.push_back(inputParamType);
     inputTypes.push_back(weightsParamType);
     inputTypes.push_back(outputParamType);
 
     const auto funcType = builder.getFunctionType(makeArrayRef(inputTypes), outputParamType);
 
-    // TODO: Func should not return
     auto func = builder.create<mlir::FuncOp>(
             builder.getUnknownLoc(),
             llvm::formatv("eltwise_mult_{0}_{1}_{2}", inputType, weightsType, outputType).str(), funcType,
@@ -195,8 +190,8 @@ void buildEltwiseMultWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir
     auto funcoutput = func.getArgument(2);
 
     // Tensors - constant zero padding
-    /*auto zero_pad_ddr = */ createDeclareTensorOp(funcbuilder, MemoryLocation::GraphFile, zero_pad_shape, weightsType,
-                                                   zero_pad_maps, 0, ZERO_PAD_DDR_OFFSET);
+    createDeclareTensorOp(funcbuilder, MemoryLocation::GraphFile, zero_pad_shape, weightsType, zero_pad_maps, 0,
+                          ZERO_PAD_DDR_OFFSET);
 
     // Tensor - input cmx
     auto input_cmx = createDeclareTensorOp(funcbuilder, MemoryLocation::VPU_CMX_NN, in_shape, inputType, input_maps, 0,
@@ -207,8 +202,8 @@ void buildEltwiseMultWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir
                                              weights_pad_maps, 0, WEIGHTS_PAD_CMX_OFFSET);
     auto zero_pad_cmx = createDeclareTensorOp(funcbuilder, MemoryLocation::VPU_CMX_NN, zero_pad_shape, weightsType,
                                               weights_pad_maps, 0, ZERO_PAD_CMX_OFFSET);
-    /*auto weights_pad_cmx = */ createDeclareTensorOp(funcbuilder, MemoryLocation::VPU_CMX_NN, weights_pad_shape,
-                                                      weightsType, weights_pad_maps, 0, WEIGHTS_PAD_CMX_OFFSET);
+    createDeclareTensorOp(funcbuilder, MemoryLocation::VPU_CMX_NN, weights_pad_shape, weightsType, weights_pad_maps, 0,
+                          WEIGHTS_PAD_CMX_OFFSET);
 
     // Tensors - NCE input/output
     auto input_nce_cmx = createDeclareTensorOp(funcbuilder, MemoryLocation::VPU_CMX_NN, input_nce_shape, inputType,
@@ -237,8 +232,7 @@ void buildEltwiseMultWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir
     if (auto qty = weightsType.dyn_cast<mlir::quant::QuantizedType>()) {
         wt_data_attr = wt_data_attr.quantCast(qty);
     }
-    auto zero_pad_type =
-            mlir::MemRefType::get(makeArrayRef(zero_pad_shape), weightsType, zero_pad_maps, memSpaceAttr_zeros);
+    auto zero_pad_type = getMemRefType(builder, MemoryLocation::GraphFile, zero_pad_shape, weightsType, zero_pad_maps);
     auto zero_pad_data = funcbuilder.create<Const::DeclareOp>(builder.getUnknownLoc(), zero_pad_type,
                                                               wt_data_attr.reorder(DimsOrder::NHWC));
 
@@ -356,7 +350,7 @@ void buildEltwiseMultWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir
     funcbuilder.create<NNDMAOp>(builder.getUnknownLoc(), getTensorResult(output_cmx), funcoutput, BARRIER_1,
                                 mlir::ValueRange(), false);
 
-    // TODO : return empty as func does not return anything
+    // Return op
     funcbuilder.create<mlir::ReturnOp>(builder.getUnknownLoc(), funcoutput);
 
     // Runtime resources
