@@ -227,18 +227,16 @@ mlir::LogicalResult vpux::IERT::verifySameInOutDimsOrder(mlir::Operation* op) {
     auto layer = mlir::dyn_cast<IERT::LayerOpInterface>(op);
     VPUX_THROW_UNLESS(layer != nullptr, "Operation {0} is not layer", op->getName());
 
-    Logger::global().error("name: {0}", op->getName());
-    // const auto input = layer.getInputs()[0];
-    // const auto output = layer.getOutputs()[0];
+    const auto input = layer.getInputs()[0];
+    const auto output = layer.getOutputs()[0];
 
-    // const auto inOrder = DimsOrder::fromValue(input);
-    // const auto outOrder = DimsOrder::fromValue(output);
+    const auto inOrder = DimsOrder::fromValue(input);
+    const auto outOrder = DimsOrder::fromValue(output);
 
-    // if (inOrder != outOrder) {
-    //     return errorAt(op->getLoc(), "Operation must have the same input and output order. inL={0}, outL={1}",
-    //     inOrder,
-    //                    outOrder);
-    // }
+    if (inOrder != outOrder) {
+        return errorAt(op->getLoc(), "Operation must have the same input and output order. inL={0}, outL={1}", inOrder,
+                       outOrder);
+    }
 
     return mlir::success();
 }
