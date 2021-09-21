@@ -39,8 +39,6 @@
 #include "run_movisim_emulator.hpp"
 #endif
 
-#define MOVISIM_DEVICE_NAME "moviSim"
-
 namespace ie = InferenceEngine;
 
 ie::details::CaselessEq<std::string> strEq;
@@ -59,6 +57,7 @@ DEFINE_string(il, "", "Input layout (default NCHW)");
 DEFINE_string(ol, "", "Input layout (default NCHW)");
 
 DEFINE_bool(run_test, false, "Run the test (compare current results with previously dumped)");
+DEFINE_bool(moviSim, false, "Use MoviSim emulator for inference");
 DEFINE_string(mode, "", "Comparison mode to use");
 
 DEFINE_uint32(top_k, 1, "Top K parameter for 'classification' mode");
@@ -402,9 +401,6 @@ ie::Core ieCore;
 
 void setupInferenceEngine() {
     auto flagDevice = FLAGS_device;
-    if(FLAGS_device == MOVISIM_DEVICE_NAME) {
-        flagDevice = "VPUX";
-    }
 
     if (!FLAGS_log_level.empty()) {
         ieCore.SetConfig({{CONFIG_KEY(LOG_LEVEL), FLAGS_log_level}}, flagDevice);
@@ -433,13 +429,13 @@ ie::ExecutableNetwork importNetwork(const std::string& filePath) {
     std::ifstream file(filePath, std::ios_base::in | std::ios_base::binary);
     IE_ASSERT(file.is_open()) << "Can't open file " << filePath << " for read";
 
-    return ieCore.ImportNetwork(file, FLAGS_device == MOVISIM_DEVICE_NAME ? "VPUX" : FLAGS_device);
+    return ieCore.ImportNetwork(file, FLAGS_device);
 }
 
 ie::BlobMap runInfer(ie::ExecutableNetwork& exeNet, const ie::BlobMap& inputs, const std::vector<std::string>& dumpedInputsPaths) {
     ie::BlobMap out;
 
-    if(FLAGS_device == MOVISIM_DEVICE_NAME) {
+    if(FLAGS_moviSim) {
 #ifdef ENABLE_MOVISIM
         out = ms::runMoviSimEmulator(exeNet, FLAGS_network, dumpedInputsPaths);
 #else
