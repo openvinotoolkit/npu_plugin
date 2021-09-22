@@ -49,15 +49,15 @@ public:
         readFrom(std::move(elf));
     }
 
-    void readFrom(std::vector<char> blob) {
+    void readFrom(std::vector<char>) {
         // TODO: not implemented
     }
 
-    void writeTo(const std::string& fileName) {
+    void writeTo(const std::string&) {
         // TODO: not implemented
     }
 
-    void writeTo(std::ostream& stream) {
+    void writeTo(std::ostream&) {
         // TODO: not implemented
     }
 
