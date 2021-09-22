@@ -339,4 +339,21 @@ def IE_PostOp :
     let cppNamespace = "vpux::IE";
 }
 
+//
+// PSROIPoolingMode
+//
+
+def IE_PSROIPoolingMode :
+        StrEnumAttr<
+            "PSROIPoolingMode",
+            "PSROIPoolingMode that the InferenceEngine supports",
+            [
+                StrEnumAttrCase<"average">,
+                StrEnumAttrCase<"bilinear">,
+            ]
+        > {
+    let cppNamespace = "vpux::IE";
+    let genSpecializedAttr = 1;
+}
+
 #endif

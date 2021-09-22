@@ -1311,6 +1311,52 @@ operation ::= `VPUIP.PReluUPA` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float values
 
+### `VPUIP.PSROIPoolingUPA` (vpux::VPUIP::PSROIPoolingUPAOp)
+
+PSROIPooling UPA SHAVE kernel
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.PSROIPoolingUPA` attr-dict
+              `inputs` `(` $input `:` type($input) `,` $coords `:` type($coords) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+              (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`output_dim` | mlir::IntegerAttr | Integer attribute
+`group_size` | mlir::IntegerAttr | Integer attribute
+`spatial_scale` | ::mlir::FloatAttr | 64-bit float attribute
+`spatial_bins_x` | mlir::IntegerAttr | Integer attribute
+`spatial_bins_y` | mlir::IntegerAttr | Integer attribute
+`mode` | vpux::IE::PSROIPoolingModeAttr | PSROIPoolingMode that the InferenceEngine supports
+`maxShaves` | mlir::IntegerAttr | Integer attribute
+`isTrailingSWLayer` | ::mlir::UnitAttr | unit attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float values
+`coords` | memref of 16-bit float values
+`output_buff` | memref of 16-bit float values
+`waitBarriers` | VPUIP Barrier Type
+`updateBarriers` | VPUIP Barrier Type
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float values
+
 ### `VPUIP.Pad` (vpux::VPUIP::PadUPAOp)
 
 Pad UPA SHAVE kernel

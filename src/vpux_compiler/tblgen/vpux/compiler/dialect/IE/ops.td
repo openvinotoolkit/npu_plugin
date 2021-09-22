@@ -1946,4 +1946,34 @@ def IE_LSTMSequenceOp :
         3DTensorOf<[F16, F32]>:$outputCellState
     );
 }
+
+// PSROIPoolingOp
+//
+
+def IE_PSROIPoolingOp :
+        IE_LayerOp<
+            "PSROIPooling",
+            [
+                ResultsAreFloatLike
+            ]
+        > {
+    let summary = "InferenceEngine PSROIPooling layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input,
+        RankedTensorOf<[F16, F32]>:$coords,
+
+        IntAttr:$output_dim,
+        IntAttr:$group_size,
+        F64Attr:$spatial_scale,
+        IntAttr:$spatial_bins_x,
+        IntAttr:$spatial_bins_y,
+        IE_PSROIPoolingMode:$mode
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+}
+
 #endif

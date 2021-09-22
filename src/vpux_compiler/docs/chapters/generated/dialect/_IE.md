@@ -1339,6 +1339,42 @@ operation ::= `IE.PRelu` `(` operands `)` attr-dict `:` type(operands) `->` type
 | :----: | ----------- |
 `output` | ranked tensor of 16-bit float or 32-bit float values
 
+### `IE.PSROIPooling` (vpux::IE::PSROIPoolingOp)
+
+InferenceEngine PSROIPooling layer
+
+
+Syntax:
+
+```
+operation ::= `IE.PSROIPooling` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`output_dim` | mlir::IntegerAttr | Integer attribute
+`group_size` | mlir::IntegerAttr | Integer attribute
+`spatial_scale` | ::mlir::FloatAttr | 64-bit float attribute
+`spatial_bins_x` | mlir::IntegerAttr | Integer attribute
+`spatial_bins_y` | mlir::IntegerAttr | Integer attribute
+`mode` | vpux::IE::PSROIPoolingModeAttr | PSROIPoolingMode that the InferenceEngine supports
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+`coords` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
 ### `IE.Pad` (vpux::IE::PadOp)
 
 InferenceEngine Pad layer

@@ -162,6 +162,7 @@ private:
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::LSTMCell>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Subtract>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::LSTMSequence>& origNode);
+    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::PSROIPooling>& origNode);
 
     SmallVector<mlir::Value> getInputs(const OrigNodePtr& node);
     void addOutputs(const OrigNodePtr& node, mlir::Operation* op);
@@ -182,6 +183,7 @@ private:
     IE::PadModeAttr importPadMode(const ngraph::op::PadMode val);
     IE::LRN_IERegionAttr importLRN_IERegion(const std::string& region);
     IE::RNNSequenceDirectionAttr importRNNSequenceDirection(const ngraph::op::RecurrentSequenceDirection val);
+    IE::PSROIPoolingModeAttr importPSROIPoolingMode(const std::string& mode);
 
     mlir::MLIRContext* _ctx = nullptr;
     std::shared_ptr<const ngraph::Function> _netGraph;
@@ -264,6 +266,7 @@ NGraphImporter::Callback NGraphImporter::getParser(const std::shared_ptr<ngraph:
             MAP_ENTRY(opset_latest::LSTMCell),
             MAP_ENTRY(opset_latest::Subtract),
             MAP_ENTRY(opset_latest::LSTMSequence),
+            MAP_ENTRY(opset_latest::PSROIPooling),
     };
 
 #undef MAP_ENTRY
@@ -1006,6 +1009,26 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
     addOutputs(origNode, op);
 }
 
+void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::PSROIPooling>& origNode) {
+    static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v0::PSROIPooling>::value,
+                  "opset operation mismatch");
+
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS(inputs.size() == 2, "nGraph PSROIPooling node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
+
+    const auto output_dim     = getIntAttr(_ctx, origNode->get_output_dim());
+    const auto group_size     = getIntAttr(_ctx, origNode->get_group_size());
+    const auto spatial_scale  = getFPAttr (_ctx, origNode->get_spatial_scale());
+    const auto spatial_bins_x = getIntAttr(_ctx, origNode->get_spatial_bins_x());
+    const auto spatial_bins_y = getIntAttr(_ctx, origNode->get_spatial_bins_y());
+    const auto mode           = importPSROIPoolingMode(origNode->get_mode());
+
+    auto op = builder.create<IE::PSROIPoolingOp>(createLocation(origNode), inputs[0], inputs[1], output_dim,
+                                               group_size, spatial_scale, spatial_bins_x, spatial_bins_y, mode);
+    addOutputs(origNode, op);
+}
+
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Concat>& origNode) {
     static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v0::Concat>::value,
                   "opset operation mismatch");
@@ -1646,6 +1669,18 @@ IE::RNNSequenceDirectionAttr NGraphImporter::importRNNSequenceDirection(
         attr = IE::RNNSequenceDirectionAttr::get(_ctx, IE::RNNSequenceDirection::REVERSE);
     } else {
         VPUX_THROW("Unknown RNNSequence direction");
+    }
+    return attr;
+}
+
+IE::PSROIPoolingModeAttr NGraphImporter::importPSROIPoolingMode(const std::string& mode) {
+    IE::PSROIPoolingModeAttr attr;
+    if (mode == "average") {
+        attr = IE::PSROIPoolingModeAttr::get(_ctx, IE::PSROIPoolingMode::average);
+    } else if (mode == "bilinear") {
+        attr = IE::PSROIPoolingModeAttr::get(_ctx, IE::PSROIPoolingMode::bilinear);
+    } else {
+        VPUX_THROW("Unknown PSROIPoolingMode");
     }
     return attr;
 }

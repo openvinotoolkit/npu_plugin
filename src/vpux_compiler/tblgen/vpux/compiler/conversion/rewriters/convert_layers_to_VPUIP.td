@@ -696,4 +696,18 @@ def RewriteMVN :
             (createMVNUPAOp $input, $output, $across_channels, $normalize_variance, $eps)
         >;
 
+//
+// IERT.PSROIPooling -> VPUIP.PSROIPoolingUPA
+//
+def createPSROIPoolingUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::PSROIPoolingUPAOp>(
+                $_loc, $0, $1, $2, $3, $4, $5, $6, $7, $8)
+        }]>;
+def RewritePSROIPooling :
+        Pat<
+            (IERT_PSROIPoolingOp $input, $coords, $output, $output_dim, $group_size, $spatial_scale, $spatial_bins_x, $spatial_bins_y, $mode),
+            (createPSROIPoolingUPAOp $input, $coords, $output, $output_dim, $group_size, $spatial_scale, $spatial_bins_x, $spatial_bins_y, $mode)
+        >;
+
 #endif
