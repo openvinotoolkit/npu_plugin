@@ -65,7 +65,7 @@ mlir::MemRefType changeMemSpace(mlir::MemRefType origType, mlir::Attribute memSp
 
 mlir::MemRefType getDenseTileType(mlir::MemRefType origType, ShapeRef tileOffsets, ShapeRef tileShape);
 mlir::MemRefType getViewTileType(mlir::MemRefType origType, ShapeRef tileOffsets, ShapeRef tileShape,
-                                 ShapeRef strideShape = {});
+                                 ShapeRef tileElemStrides = {});
 mlir::MemRefType getPaddedType(mlir::MemRefType origType, ShapeRef padBefore, ShapeRef padAfter);
 
 mlir::MemRefType eraseTiledInfo(mlir::MemRefType origType);

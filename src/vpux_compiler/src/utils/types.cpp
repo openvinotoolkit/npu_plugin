@@ -214,7 +214,7 @@ mlir::MemRefType vpux::getDenseTileType(mlir::MemRefType origType, ShapeRef tile
 }
 
 mlir::MemRefType vpux::getViewTileType(mlir::MemRefType origType, ShapeRef tileOffsets, ShapeRef tileShape,
-                                       ShapeRef strides) {
+                                       ShapeRef tileElemStrides) {
     mlir::MemRefType::Builder memRefBuilder(origType);
 
     memRefBuilder.setShape(tileShape.raw());
@@ -229,16 +229,15 @@ mlir::MemRefType vpux::getViewTileType(mlir::MemRefType origType, ShapeRef tileO
 
     auto memStrides = order.toMemoryOrder(origStrides);
 
-    if (!strides.raw().empty()) {
-        auto memExternalStrides = order.toMemoryOrder(strides);
+    if (!tileElemStrides.empty()) {
+        const auto memStridesMult = order.toMemoryOrder(tileElemStrides);
 
-        VPUX_THROW_UNLESS(memExternalStrides.raw().size() == checked_cast<size_t>(origType.getRank()),
-                          "Strides' size {0}  is not aligned with rank {1}", memExternalStrides.raw().size(),
-                          origType.getRank());
+        VPUX_THROW_UNLESS(memStridesMult.size() == memStrides.size(),
+                          "Tile elem strides '{0}' is not aligned with rank '{1}'", tileElemStrides, memStrides.size());
 
-        loop_1d(LoopExecPolicy::Parallel, origType.getRank(), [&](int64_t memInd1D) {
-            memStrides[MemDim(memInd1D)] *= memExternalStrides[MemDim(memInd1D)];
-        });
+        for (auto memInd1D : irange(memStrides.size())) {
+            memStrides[MemDim(memInd1D)] *= memStridesMult[MemDim(memInd1D)];
+        }
     }
 
     const auto affineMaps = order.toAffineMapsList(origType.getContext(), elemSize, memStrides);

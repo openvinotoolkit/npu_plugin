@@ -56,7 +56,7 @@ func @ComposeSubView(%arg0: memref<1x3x8x4xf32>) -> memref<1x3x8x4xf32> {
 
     // CHECK:       [[VAR0:%.+]] = memref.alloc() : memref<1x3x16x16xf32>
 
-    // CHECK:       [[VAR1:%.*]] = IERT.SubView [[VAR0]] [0, 0, 8, 12] [1, 3, 8, 4] [1, 1, 1, 1] :
+    // CHECK:       [[VAR1:%.*]] = IERT.SubView [[VAR0]] [0, 0, 8, 12] [1, 3, 8, 4] :
     // CHECK-SAME:      memref<1x3x16x16xf32> to memref<1x3x8x4xf32, #map>
 
     // CHECK:       [[VAR2:%.*]] = IERT.ReLU
