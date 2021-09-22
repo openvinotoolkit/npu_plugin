@@ -172,22 +172,21 @@ void placeInputHwDequantize(mv::OpModel& om, mv::DataModel& dm, mv::Data::OpList
         om.defineFlow(placeHwConvert, opIt, i);
 
         // If the parentOp has other UPA child nodes, reuse this HwConvert to dequntize
-        for(auto childOp = parentOp.leftmostChild(); childOp != om.opEnd(); ++childOp)
-        {
-            if(childOp->isUPA() || (childOp->hasAttr("softwareExecuted") && childOp->get<bool>("softwareExecuted")))
-            {
+        for (auto childOp = parentOp.leftmostChild(); childOp != om.opEnd(); ++childOp) {
+            if (childOp->isUPA() || (childOp->hasAttr("softwareExecuted") && childOp->get<bool>("softwareExecuted"))) {
                 auto childInputFlow = childOp.leftmostInput();
-                auto childInputTensor = childOp->getInputTensor(0);
-                while (childInputFlow != om.flowEnd())
-                {
+                auto childInputTensor = parentOp->getOutputTensor(0);
+                size_t idx = 0;
+                if (childOp->getOpType() == "Eltwise" && (childOp->getInputTensor(1) == childInputTensor))
+                    idx = 1;
+                while (childInputFlow != om.flowEnd()) {
                     if (childInputFlow->getTensor()->getName() == childInputTensor->getName())
                         break;
                     ++childInputFlow;
                 }
-
                 om.undefineFlow(childInputFlow);
-                childOp->setInputTensor(placeHwConvert, i, false);
-                om.defineFlow(placeHwConvert, childOp, 0);
+                childOp->setInputTensor(placeHwConvert, idx, false);
+                om.defineFlow(placeHwConvert, childOp, idx);
             }
         }
     }
