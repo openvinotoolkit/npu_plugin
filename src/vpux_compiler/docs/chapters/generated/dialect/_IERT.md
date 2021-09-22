@@ -1552,6 +1552,12 @@ operation ::= `IERT.ReadValue` attr-dict
 ```
 
 
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`variable_id` | ::mlir::StringAttr | string attribute
+
 #### Operands:
 
 | Operand | Description |

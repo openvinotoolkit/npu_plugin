@@ -70,6 +70,8 @@
 #include <transformations/init_node_info.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
 
+#include <transformations/serialize.hpp>
+
 using namespace vpux;
 
 namespace {
@@ -291,6 +293,7 @@ std::unordered_set<std::string> NGraphImporter::getSupportedOps(std::shared_ptr<
 
 mlir::FuncOp NGraphImporter::buildMainFunc(mlir::OpBuilder& moduleBuilder, StringRef funcName,
                                            mlir::TimingScope& rootTiming) {
+    std::cout << "NGraphImporter::buildMainFunc" << std::endl;
     auto scopeTiming = rootTiming.nest("Import nGraph function");
 
     SmallVector<mlir::Type> inputTypes;
@@ -430,6 +433,8 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
 }
 
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::ReadValue>& origNode) {
+    std::cout << "ReadValue parseNode" << std::endl;
+
     static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v6::ReadValue>::value,
                   "opset operation mismatch");
 
@@ -439,13 +444,9 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
     VPUX_THROW_UNLESS(inputs.size() == 1, "nGraph ReadValue node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
 
-    // const auto dstType = importElemType(origNode->get_destination_type());
-    // const auto dstTypeAttr = mlir::TypeAttr::get(dstType);
+    const auto variable_idAttr = mlir::StringAttr::get(_ctx, origNode->get_variable_id());
 
-    auto op = builder.create<IE::ReadValueOp>(createLocation(origNode), inputs[0]);
-
-    // auto op = builder.create<IE::ReLUOp>(createLocation(origNode), inputs[0]);
-
+    auto op = builder.create<IE::ReadValueOp>(createLocation(origNode), inputs[0], variable_idAttr);
 
     addOutputs(origNode, op);
     std::cout << "ReadValue parseNode End" << std::endl;
@@ -1697,6 +1698,15 @@ void runNGraphPasses(const std::shared_ptr<ngraph::Function>& netGraph, mlir::Ti
     manager.register_pass<ngraph::pass::CommonOptimizations>();
     manager.register_pass<vpux::passes::AlignScales>();
 
+    std::string xmlOutputFolder = std::getenv("XML_OUTPUT_FOLDER");
+    std::string origFileName = std::getenv("MODEL_NAME");
+    auto baseFileName = (origFileName.substr(origFileName.length() - 4, 4) == ".xml")
+                                ? origFileName.substr(0, origFileName.length() - 4)
+                                : origFileName;
+
+    manager.register_pass<ngraph::pass::Serialize>(xmlOutputFolder + "/" + baseFileName + ".xml",
+                                                   xmlOutputFolder + "/" + baseFileName + ".bin");
+
     manager.run_passes(netGraph);
 }
 
@@ -1752,6 +1762,10 @@ std::unordered_set<std::string> vpux::IE::queryNetwork(const InferenceEngine::CN
                                                        mlir::TimingScope& rootTiming, Logger log) {
     log.setName("IE::FrontEnd");
     log.trace("Run queryNetwork");
+
+    std::cout << "IE::FrontEnd";
+    std::cout << "Run queryNetwork";
+
 
     const auto netGraph = ngraph::clone_function(*(cnnNet.getFunction()));
     VPUX_THROW_UNLESS(netGraph != nullptr, "Old IR versions (prior v10) are not supported : {0}", cnnNet.getName());

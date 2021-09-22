@@ -687,13 +687,13 @@ def RewriteMVN :
 def createReadValueUPAOp :
         NativeCodeCall<[{
             $_builder.create<vpux::VPUIP::ReadValueUPAOp>(
-                $_loc, $0, $1)
+                $_loc, $0, $1, $2)
         }]>;
 
 def RewriteReadValue :
         Pat<
-            (IERT_ReadValueOp $input, $output),
-            (createReadValueUPAOp $input, $output)
+            (IERT_ReadValueOp $input, $output, $variable_id),
+            (createReadValueUPAOp $input, $output, $variable_id)
         >;
 
 //

@@ -1605,6 +1605,7 @@ operation ::= `VPUIP.ReadValueUPA` attr-dict
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
+`variable_id` | ::mlir::StringAttr | string attribute
 `maxShaves` | mlir::IntegerAttr | Integer attribute
 `isTrailingSWLayer` | ::mlir::UnitAttr | unit attribute
 

@@ -450,6 +450,8 @@ def VPUIP_ReadValueUPAOp :
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers,
 
+        StrAttr:$variable_id,
+
         OptionalAttr<IntAttr>:$maxShaves,
         UnitAttr:$isTrailingSWLayer
     );
@@ -458,9 +460,14 @@ def VPUIP_ReadValueUPAOp :
         AnyMemRef:$output
     );
 
+// , "mlir::StringAttr":$variable_id
+
     let builders = [
         OpBuilder<
-            (ins "mlir::Value":$input, "mlir::Value":$output)
+            (ins "mlir::Value":$input,
+                 "mlir::Value":$output,
+                 "mlir::StringAttr":$variable_id
+                 )
         >
     ];
 

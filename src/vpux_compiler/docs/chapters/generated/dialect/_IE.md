@@ -1518,6 +1518,12 @@ operation ::= `IE.ReadValue` `(` operands `)` attr-dict `:` type(operands) `->` 
 ```
 
 
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`variable_id` | ::mlir::StringAttr | string attribute
+
 #### Operands:
 
 | Operand | Description |

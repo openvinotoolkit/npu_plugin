@@ -303,7 +303,9 @@ def IERT_ReadValueOp :
 
     let arguments = (ins
         AnyMemRef:$input,
-        AnyMemRef:$output_buff
+        AnyMemRef:$output_buff,
+
+        StrAttr:$variable_id
     );
 
     let results = (outs

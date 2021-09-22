@@ -17,6 +17,7 @@ using namespace vpux;
 
 mlir::LogicalResult vpux::IE::ReadValueOp::inferReturnTypeComponents(::mlir::MLIRContext* ctx, ::mlir::Optional<::mlir::Location> optLoc, ::mlir::ValueShapeRange operands, ::mlir::DictionaryAttr attrs, ::mlir::RegionRange /*regions*/, ::mlir::SmallVectorImpl<::mlir::ShapedTypeComponents>& inferredReturnShapes)
 {
+    std::cout << "vpux::IE::ReadValueOp::inferReturnTypeComponents" << std::endl;
     const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
 
     IE::ReadValueOpAdaptor readValue(operands, attrs);

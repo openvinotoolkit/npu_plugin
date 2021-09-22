@@ -62,10 +62,10 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(ReadValueUPAOp op) {
 // }
 
 void vpux::VPUIP::ReadValueUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
-                                        mlir::Value output) {
+                                        mlir::Value output, mlir::StringAttr variable_id) {
 // mlir::ValueRange{}, mlir::ValueRange{}
     std::cout << "vpux::VPUIP::ReadValueUPAOp::build start" << std::endl;
-    build(builder, state, input, output, mlir::ValueRange{}, mlir::ValueRange{}, nullptr, nullptr);
+    build(builder, state, input, output, mlir::ValueRange{}, mlir::ValueRange{}, variable_id, nullptr, nullptr);
     std::cout << "vpux::VPUIP::ReadValueUPAOp::build" << std::endl;
 }
 
