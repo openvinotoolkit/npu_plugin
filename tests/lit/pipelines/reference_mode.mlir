@@ -31,7 +31,7 @@ func @main(%arg0: tensor<1x1000xf16>) -> tensor<1x1000xf16> {
 
     // CHECK-DAG:   [[VAR1:%.+]] = VPUIP.DeclareTensor "VPU_DDR_Heap" [0] <0> -> memref<1x1000xf16, "DDR">
 
-    // CHECK-DAG:   [[VAR2:%.+]] = VPUIP.ConfigureBarrier<0> -> !VPUIP.Barrier
+    // CHECK-DAG:   [[VAR2:%.+]] = VPUIP.ConfigureBarrier {virtualId = 0 : i64}<0> -> !VPUIP.Barrier
 
     // CHECK-NEXT:  [[VAR3:%.+]] = VPUIP.SoftMaxUPA
     // CHECK-SAME:              axisInd = 1
@@ -100,7 +100,7 @@ func @main(%arg0: tensor<1x2x2x2xf16>) -> (tensor<1x2x2x2xf16>, tensor<1x2x2x2xf
     // CHECK-DAG:   [[BUF0:%.+]] = VPUIP.DeclareTensor "VPU_DDR_Heap" [0] <0> -> memref<1x2x2x2xf16, "DDR">
     // CHECK-DAG:   [[BUF1:%.+]] = VPUIP.DeclareTensor "VPU_DDR_Heap" [0] <64> -> memref<1x2x2x2xf16, "DDR">
 
-    // CHECK-DAG:   [[BAR0:%.+]] = VPUIP.ConfigureBarrier<0> -> !VPUIP.Barrier
+    // CHECK-DAG:   [[BAR0:%.+]] = VPUIP.ConfigureBarrier {virtualId = 0 : i64}<0> -> !VPUIP.Barrier
 
     // CHECK-NEXT:  [[VAR0:%.+]] = VPUIP.SoftMaxUPA
     // CHECK-SAME:              axisInd = 1

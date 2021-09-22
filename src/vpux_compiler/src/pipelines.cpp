@@ -119,6 +119,7 @@ void vpux::buildReferenceModePipeline(mlir::OpPassManager& pm, bool enableProfil
 
     // VPUIP Dialect level
     pm.addPass(VPUIP::createAssignPhysicalBarriersPass(log));
+    pm.addPass(VPUIP::createBarrierSimulationPass(log));
     pm.addPass(VPUIP::createDumpStatisticsOfTaskOpsPass(log));
 }
 
@@ -169,6 +170,7 @@ void vpux::buildHardwareModePipeline(mlir::OpPassManager& pm, bool enableProfili
 
     // VPUIP Dialect level
     pm.addPass(VPUIP::createAssignPhysicalBarriersPass(log));
+    pm.addPass(VPUIP::createBarrierSimulationPass(log));
     pm.addPass(VPUIP::createDumpStatisticsOfTaskOpsPass(log));
 }
 
