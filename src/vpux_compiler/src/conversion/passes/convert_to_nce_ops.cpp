@@ -480,7 +480,7 @@ mlir::LogicalResult DepthwiseConvRewrite::matchAndRewrite(IERT::GroupConvolution
 
     auto inputDPU = prepareTensorForDPU(rewriter, origOp->getLoc(), origOp.input());
 
-    auto alignedFilter = VPUIP::alignDepthwiseWeightTensor(rewriter, origOp->getLoc(), origOp.filter());
+    auto alignedFilter = VPUIP::alignDepthWiseWeightsTensor(rewriter, origOp->getLoc(), origOp.filter());
     auto filterDPU = prepareTensorForDPU(rewriter, origOp->getLoc(), alignedFilter);
 
     //

@@ -20,7 +20,7 @@
 namespace vpux {
 namespace VPUIP {
 
-mlir::Value alignDepthwiseWeightTensor(mlir::OpBuilder& builder, mlir::Location loc, const mlir::Value origFilter) {
+mlir::Value alignDepthWiseWeightsTensor(mlir::OpBuilder& builder, mlir::Location loc, const mlir::Value origFilter) {
     const auto filterShape = getShape(origFilter);
     const auto OC = filterShape[IE::Dims4D::Filter::OC];
     const auto filtersPerInChan = filterShape[IE::Dims4D::Filter::IC];

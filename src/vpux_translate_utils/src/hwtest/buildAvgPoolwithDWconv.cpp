@@ -59,12 +59,12 @@ void buildAvgpoolWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mo
     if (auto qtype = inputType.dyn_cast<mlir::quant::QuantizedType>()) {
         weightsType = mlir::quant::QuantizedType::castToStorageType(qtype);
         int64_t zeroPoint = 0;
+
+        weightsType = mlir::quant::UniformQuantizedType::get(0, getUInt8Type(ctx), builder.getF32Type(), scaleValue,
+                                                             zeroPoint, 0, 1);
         if (weightsType.isSignedInteger(8)) {
             weightsType = mlir::quant::UniformQuantizedType::get(mlir::quant::QuantizationFlags::FlagValue::Signed,
                                                                  getSInt8Type(ctx), builder.getF32Type(), scaleValue,
-                                                                 zeroPoint, 0, 1);
-        } else {
-            weightsType = mlir::quant::UniformQuantizedType::get(0, getUInt8Type(ctx), builder.getF32Type(), scaleValue,
                                                                  zeroPoint, 0, 1);
         }
     }
@@ -85,7 +85,6 @@ void buildAvgpoolWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mo
 
     const auto funcType = builder.getFunctionType(makeArrayRef(inputTypes), outputParamType);
 
-    // TODO: Func should not return
     auto func = builder.create<mlir::FuncOp>(loc, llvm::formatv("avgPool_{0}_{1}", inputType, outputType).str(),
                                              funcType, builder.getStringAttr("private"));
 
@@ -137,7 +136,7 @@ void buildAvgpoolWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mo
     auto weight =
             funcbuilder.create<Const::DeclareOp>(loc, weightData_ddr_type2, wt_data_attr.reorder(DimsOrder::NHWC));
 
-    auto weight_data_ddr = VPUIP::alignDepthwiseWeightTensor(funcbuilder, loc, weight.getResult());
+    auto weight_data_ddr = VPUIP::alignDepthWiseWeightsTensor(funcbuilder, loc, weight.getResult());
 
     auto wt_data_shape_padded = weight_data_ddr.getType().cast<mlir::ShapedType>().getShape();
     const auto weightDataPaddedAffineMaps = DimsOrder::NHWC.toAffineMapsList(ctx, Shape(wt_data_shape_padded));

@@ -31,7 +31,7 @@
 namespace vpux {
 namespace hwtest {
 
-void buildMaxpool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module, mlir::OpBuilder builder,
+void buildMaxPool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module, mlir::OpBuilder builder,
                   Logger& log, mlir::Type inputType, mlir::Type outputType) {
     auto* ctx = builder.getContext();
 
@@ -94,21 +94,17 @@ void buildMaxpool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
     auto barrier1 = funcbuilder.create<VPUIP::ConfigureBarrierOp>(builder.getUnknownLoc(), 1);
 
     // DMA input-->cmx
-    /* auto in0_cmx_dma = */ funcbuilder.create<VPUIP::NNDMAOp>(
-            builder.getUnknownLoc(), funcinput0, input0cmx.getOperation()->getResult(0), mlir::ValueRange(),
-            mlir::ValueRange(barrier0.barrier()), false);
+    funcbuilder.create<VPUIP::NNDMAOp>(builder.getUnknownLoc(), funcinput0, input0cmx.getOperation()->getResult(0),
+                                       mlir::ValueRange(), mlir::ValueRange(barrier0.barrier()), false);
 
     mlir::Type uderlyingInputType = inputType.isa<mlir::quant::QuantizedType>()
                                             ? inputType.cast<mlir::quant::QuantizedType>().getStorageType()
                                             : inputType;
-    // Activation Window ddr
+    // Generate activation window
+
     const auto bitPatternSize =
             VPUIP::NCESparsity::getBitPatternSize(makeArrayRef(filter_size), stride_vec[0], uderlyingInputType);
     mlir::IntegerAttr actChannelLength = funcbuilder.getI32IntegerAttr(checked_cast<int32_t>(bitPatternSize));
-
-    //
-    // Generate activation window
-    //
 
     const auto fakeSparsity = VPUIP::NCESparsity::getFakeSparsity(makeArrayRef(filter_size), stride_vec[0],
                                                                   uderlyingInputType, in_shape[1]);
@@ -201,7 +197,6 @@ void buildMaxpool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
     funcbuilder.create<VPUIP::NNDMAOp>(builder.getUnknownLoc(), outputcmx.getOperation()->getResult(0), funcoutput,
                                        mlir::ValueRange(barrier1.barrier()), mlir::ValueRange(), false);
 
-    // TODO : return empty as func does not return anything
     funcbuilder.create<mlir::ReturnOp>(builder.getUnknownLoc(), funcoutput);
     // set runtime resources
     mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);

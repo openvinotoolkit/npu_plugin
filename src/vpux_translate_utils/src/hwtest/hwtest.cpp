@@ -78,7 +78,7 @@ mlir::OwningModuleRef importHWTEST(llvm::StringRef sourceJson, mlir::MLIRContext
     } else if (isEltwiseMult) {
         hwtest::buildEltwiseMultWithDwConv(jsonDesc, module, builder, log, input_type, weightType(), output_type);
     } else if (isMaxPool) {
-        hwtest::buildMaxpool(jsonDesc, module, builder, log, input_type, output_type);
+        hwtest::buildMaxPool(jsonDesc, module, builder, log, input_type, output_type);
     } else if (isAvgPool) {
         hwtest::buildAvgpoolWithDwConv(jsonDesc, module, builder, log, input_type, output_type);
     } else {

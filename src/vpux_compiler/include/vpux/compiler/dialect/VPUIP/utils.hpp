@@ -19,7 +19,7 @@
 namespace vpux {
 namespace VPUIP {
 
-mlir::Value alignDepthwiseWeightTensor(mlir::OpBuilder& builder, mlir::Location loc, const mlir::Value origFilter);
+mlir::Value alignDepthWiseWeightsTensor(mlir::OpBuilder& builder, mlir::Location loc, const mlir::Value origFilter);
 
 }  // namespace VPUIP
 }  // namespace vpux
