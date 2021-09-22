@@ -25,7 +25,7 @@ using namespace LayerTestsDefinitions;
 namespace {
 // Common params
 
-const std::vector<InferenceEngine::Precision> inputPrecision = {InferenceEngine::Precision::FP32};
+const std::vector<InferenceEngine::Precision> inputPrecision = {InferenceEngine::Precision::FP16};
 
 std::vector<std::vector<size_t>> inShapesNumpy = {{3, 1}};
 std::vector<std::vector<size_t>> targetShapesNumpy = {{2, 3, 6}};

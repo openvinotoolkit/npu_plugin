@@ -26,20 +26,15 @@ void vpux::VPUIP::BroadcastUPAOp::build(mlir::OpBuilder& builder, mlir::Operatio
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BroadcastUPAOp::serialize(VPUIP::BlobWriter& writer) {
     MVCNN::BroadcastParamsBuilder builder(writer);
 
-    // VPUIP::BlobWriter::String mode = writer.createString("NUMPY");
+    MVCNN::BroadcastMode mode;
 
-    // switch (this->region()) {
-    // case IE::BroadcastType::NUMPY:
-    //     region = writer.createString("across");
-    //     break;
-    // case IE::BroadcastType::same:
-    //     region = writer.createString("same");
-    //     break;
-    // default:
-    //     VPUX_THROW("Unsupported LRN_IERegion {0}", this->region());
-    // }
+    if (this->mode() == IE::BroadcastType::NUMPY) {
+        mode = MVCNN::BroadcastMode::BroadcastMode_NUMPY;
+    } else {
+        VPUX_THROW("Unsupported {0}", this->mode());
+    }
 
-    // builder.add_mode(mode);
+    builder.add_mode(mode);
     const auto paramsOff = builder.Finish();
 
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_BroadcastParams});

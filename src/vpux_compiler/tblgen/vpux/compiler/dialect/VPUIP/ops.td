@@ -1618,7 +1618,7 @@ def VPUIP_NormUPAOp :
 def VPUIP_BroadcastUPAOp :
         VPUIP_UPATaskOp<1, "BroadcastUPA",
             [
-                DeclareOpInterfaceMethods<ViewLikeOpInterface>
+                ViewLikeOpInterface
             ]
         > {
     let summary = "Broadcast UPA SHAVE kernel";

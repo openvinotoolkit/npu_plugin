@@ -118,7 +118,7 @@ def IE_AutoBroadcastType :
 }
 
 //
-// BroadcastMode
+// BroadcastType
 //
 
 def IE_BroadcastType :
