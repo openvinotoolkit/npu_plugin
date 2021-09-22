@@ -63,6 +63,14 @@ VPUIP::DPUTaskOp vpux::VPUIP::NCEClusterTaskOp::addDPUTask(mlir::OpBuilder& buil
 }
 
 //
+// NCEClusterTaskOp::getNumVariants
+//
+
+int64_t vpux::VPUIP::NCEClusterTaskOp::getNumVariants() {
+    return variants().getBlocks().front().getOperations().size();
+}
+
+//
 // NCEClusterTaskOp::inferLayoutInfo
 //
 

@@ -2132,6 +2132,8 @@ def VPUIP_NCEClusterTaskOp :
         template <typename... Args>
         vpux::VPUIP::PPETaskOp addPPETask(mlir::OpBuilder& builder, Args&&... args);
 
+        int64_t getNumVariants();
+
         static void inferLayoutInfo(mlir::Operation* origOp, vpux::IE::LayerLayoutInfo& info);
 
         static vpux::VPUIP::TaskType getTaskType() {

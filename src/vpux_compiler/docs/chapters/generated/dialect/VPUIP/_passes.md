@@ -6,6 +6,8 @@ This pass replaces virtual barriers with physical barriers and assign IDs to the
 ```
 -num-barriers : Number of physical barriers, available for usage
 ```
+### `-barrier-simulation`: Simulate barriers
+Simulates the physical barrier execution and stops compilation on fail.
 ### `-convert-wtable-op-to-constant`: Convert WeightsTable Operations to IERT.ConstantOp
 This pass fills weights table considering the information about the offset in the memory of the weights or activation window.
 ### `-dump-statistics-of-task-ops`: Dump the statistics of used Task operations

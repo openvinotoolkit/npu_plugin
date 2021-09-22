@@ -77,6 +77,20 @@ def AssignPhysicalBarriers : PassBase<"assign-physical-barriers", "vpux::Functio
 }
 
 //
+// BarrierSimulation
+//
+
+def BarrierSimulation : PassBase<"barrier-simulation", "vpux::FunctionPass"> {
+    let summary = "Simulate barriers";
+
+    let description = [{
+        Simulates the physical barrier execution and stops compilation on fail.
+    }];
+
+    let constructor = "vpux::VPUIP::createBarrierSimulationPass()";
+}
+
+//
 // ConvertWeightsTableOp2Const
 //
 
