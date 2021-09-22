@@ -173,7 +173,7 @@ void placeInputHwDequantize(mv::OpModel& om, mv::DataModel& dm, mv::Data::OpList
 
         // If the parentOp has other UPA child nodes, reuse this HwConvert to dequntize
         for (auto childOp = parentOp.leftmostChild(); childOp != om.opEnd(); ++childOp) {
-            if (childOp->isUPA() || (childOp->hasAttr("softwareExecuted") && childOp->get<bool>("softwareExecuted"))) {
+            if (isOpSoftware(childOp)) {
                 auto childInputFlow = childOp.leftmostInput();
                 auto childInputTensor = parentOp->getOutputTensor(0);
                 size_t idx = 0;
