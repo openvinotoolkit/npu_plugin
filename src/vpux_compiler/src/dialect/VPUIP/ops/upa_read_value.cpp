@@ -66,22 +66,23 @@ void vpux::VPUIP::ReadValueUPAOp::build(mlir::OpBuilder& builder, mlir::Operatio
 // mlir::ValueRange{}, mlir::ValueRange{}
     std::cout << "vpux::VPUIP::ReadValueUPAOp::build start" << std::endl;
     build(builder, state, input, output, mlir::ValueRange{}, mlir::ValueRange{}, variable_id, nullptr, nullptr);
-    std::cout << "vpux::VPUIP::ReadValueUPAOp::build" << std::endl;
+
+    std::cout << "variable_id = " << variable_id.getValue().data() << "," << variable_id.getValue().size() << std::endl;
+
+    std::cout << "vpux::VPUIP::ReadValueUPAOp::build end" << std::endl;
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ReadValueUPAOp::serialize(VPUIP::BlobWriter& writer) {
-    const auto scale = 1.0;
-    const auto bias = 0.0;
+    VPUIP::BlobWriter::String variable_id_str = writer.createString(variable_id().str());
 
-    MVCNN::ConvertParamsBuilder builder(writer);
-    builder.add_scale(checked_cast<float>(scale));
-    builder.add_bias(checked_cast<float>(bias));
-    // builder.add_from_detection_output(fromDetectionOutput());
-    // builder.add_have_batch(haveBatch());
-    // builder.add_batch_id(batchID);
+    std::cout << "serialize: variable_id().str() = " << variable_id().str() << std::endl;
+
+    MVCNN::ReadValueParamsBuilder builder(writer);
+    builder.add_variable_id(variable_id_str);
+
     const auto paramsOff = builder.Finish();
 
-    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_ConvertParams});
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_ReadValueParams});
 }
 
 // mlir::Operation* vpux::VPUIP::BlobReader::parseConvert(mlir::OpBuilder& builder, ArrayRef<mlir::Value> inputs,

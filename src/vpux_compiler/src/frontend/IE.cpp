@@ -446,6 +446,8 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
 
     const auto variable_idAttr = mlir::StringAttr::get(_ctx, origNode->get_variable_id());
 
+    std::cout << "origNode->get_variable_id() =" << origNode->get_variable_id() << std::endl;
+
     auto op = builder.create<IE::ReadValueOp>(createLocation(origNode), inputs[0], variable_idAttr);
 
     addOutputs(origNode, op);
@@ -1668,6 +1670,8 @@ std::string getValidOutputName(const std::shared_ptr<ngraph::op::Result>& result
 void runNGraphPasses(const std::shared_ptr<ngraph::Function>& netGraph, mlir::TimingScope& rootTiming) {
     auto scopeTiming = rootTiming.nest("Common nGraph passes");
 
+    std::cout << "runNGraphPasses" << std::endl;
+
     const auto passConfig = std::make_shared<ngraph::pass::PassConfig>();
     passConfig->disable<ngraph::pass::HSwishDecomposition>();
     passConfig->disable<ngraph::pass::HSigmoidDecomposition>();
@@ -1698,14 +1702,14 @@ void runNGraphPasses(const std::shared_ptr<ngraph::Function>& netGraph, mlir::Ti
     manager.register_pass<ngraph::pass::CommonOptimizations>();
     manager.register_pass<vpux::passes::AlignScales>();
 
-    std::string xmlOutputFolder = std::getenv("XML_OUTPUT_FOLDER");
-    std::string origFileName = std::getenv("MODEL_NAME");
-    auto baseFileName = (origFileName.substr(origFileName.length() - 4, 4) == ".xml")
-                                ? origFileName.substr(0, origFileName.length() - 4)
-                                : origFileName;
+    // std::string xmlOutputFolder = std::getenv("XML_OUTPUT_FOLDER");
+    // std::string origFileName = std::getenv("MODEL_NAME");
+    // auto baseFileName = (origFileName.substr(origFileName.length() - 4, 4) == ".xml")
+    //                             ? origFileName.substr(0, origFileName.length() - 4)
+    //                             : origFileName;
 
-    manager.register_pass<ngraph::pass::Serialize>(xmlOutputFolder + "/" + baseFileName + ".xml",
-                                                   xmlOutputFolder + "/" + baseFileName + ".bin");
+    // manager.register_pass<ngraph::pass::Serialize>(xmlOutputFolder + "/" + baseFileName + ".xml",
+    //                                                xmlOutputFolder + "/" + baseFileName + ".bin");
 
     manager.run_passes(netGraph);
 }
