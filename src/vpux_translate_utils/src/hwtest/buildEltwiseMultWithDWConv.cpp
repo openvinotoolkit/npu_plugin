@@ -38,7 +38,6 @@ mlir::DenseElementsAttr generateZeroPadForEltwiseMultWeights(ArrayRef<int64_t> w
                                        : mlir::RankedTensorType::get(wt_shape_padded, getUInt8Type(ctx));
     }
 
-    // NOTE: This should be ZeroPoint, not 0
     auto vecSize = static_cast<size_t>(std::accumulate(wt_shape_padded.begin(), wt_shape_padded.end(),
                                                        static_cast<int64_t>(1), std::multiplies<int64_t>()));
 
@@ -178,7 +177,6 @@ void buildEltwiseMultWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir
 
     const auto funcType = builder.getFunctionType(makeArrayRef(inputTypes), outputParamType);
 
-    // TODO: Func should not return
     auto func = builder.create<mlir::FuncOp>(
             builder.getUnknownLoc(),
             llvm::formatv("eltwise_mult_{0}_{1}_{2}", inputType, weightsType, outputType).str(), funcType,
@@ -352,7 +350,7 @@ void buildEltwiseMultWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir
     funcbuilder.create<NNDMAOp>(builder.getUnknownLoc(), getTensorResult(output_cmx), funcoutput, BARRIER_1,
                                 mlir::ValueRange(), false);
 
-    // TODO : return empty as func does not return anything
+    // Return op
     funcbuilder.create<mlir::ReturnOp>(builder.getUnknownLoc(), funcoutput);
 
     // Runtime resources

@@ -42,8 +42,6 @@ void buildEltwiseAdd(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp 
     const auto INPUT0_CMX_OFFSET = OUTPUT_CMX_OFFSET + output_totalsize;
     const auto INPUT1_CMX_OFFSET = INPUT0_CMX_OFFSET + input_totalsize;
 
-    // TODO:
-    // Eltwise should have same dtype and shape(?)
     VPUX_THROW_UNLESS((inputType == weightsType), "Eltwise expects inputs of same type");
 
     SmallVector<mlir::Type> inputTypes;
@@ -61,7 +59,6 @@ void buildEltwiseAdd(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp 
 
     const auto funcType = builder.getFunctionType(makeArrayRef(inputTypes), outputParamType);
 
-    // TODO: Func should not return
     auto func = builder.create<mlir::FuncOp>(
             builder.getUnknownLoc(), llvm::formatv("eltwise_{0}_{1}_{2}", inputType, weightsType, outputType).str(),
             funcType, builder.getStringAttr("private"));
