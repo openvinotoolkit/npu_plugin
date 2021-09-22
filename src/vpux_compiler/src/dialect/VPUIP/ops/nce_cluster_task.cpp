@@ -88,9 +88,11 @@ void vpux::VPUIP::NCEClusterTaskOp::inferLayoutInfo(mlir::Operation* origOp, IE:
                 {
                     info.setInput(0, DimsOrder::NCHW);
                     info.setInput(1, DimsOrder::OIYX);
+                    Logger::global().error("order: {0}", DimsOrder::OIYX);
                 }
                 else
                 {
+                    Logger::global().error("order: {0}", DimsOrder::OYXI);
                     info.setInput(0, DimsOrder::NHWC);
                     info.setInput(1, DimsOrder::OYXI);
                 }

@@ -46,6 +46,30 @@ const EnumMap<VPUIP::ArchKind, VPUIP::MPEMode> mpeMap = {
         {VPUIP::ArchKind::MTL, VPUIP::MPEMode::CUBOID_16x16},  //
 };
 
+// mlir::Value createWeightsTableTensor(mlir::OpBuilder& builder, mlir::Location loc, int64_t OC, mlir::Value op_input,
+//                                      mlir::Value op_output, mlir::Value weights, mlir::Value bias,
+//                                      mlir::Value activationWindow) {
+//     SmallVector<int64_t> weightTableShape{OC, 1, 1, VPUIP::NCEInvariant::WEIGHT_TABLE_NUM_ELEMENTS_PER_OC};
+
+//     auto* ctx = builder.getContext();
+
+//     const auto dataType = changeDimsOrder(mlir::MemRefType::get(weightTableShape, getSInt32Type(builder.getContext())),
+//                                           DimsOrder::NHWC);
+
+//     // const auto dataType = mlir::MemRefType::get(weightTableShape, getSInt32Type(builder.getContext()));
+//     auto createWeightsTableOp =
+//             builder.create<VPUIP::WeightsTableOp>(loc, dataType, op_input, op_output, weights, bias, activationWindow);
+
+//     const auto cmxMemSpaceAttr = VPUIP::PhysicalMemoryAttr::get(ctx, VPUIP::PhysicalMemory::CMX_NN);
+//     const auto dataTypeCMX = changeMemSpace(dataType, cmxMemSpaceAttr);
+
+//     auto dataAllocOp = builder.create<mlir::memref::AllocOp>(loc, dataTypeCMX);
+
+//     auto copyOp = builder.create<IERT::CopyOp>(loc, createWeightsTableOp.output(), dataAllocOp);
+
+//     return copyOp.output();
+// }
+
 mlir::Value createWeightsTableTensor(mlir::OpBuilder& builder, mlir::Location loc, int64_t OC, mlir::Value op_input,
                                      mlir::Value op_output, mlir::Value weights, mlir::Value bias,
                                      mlir::Value activationWindow) {
@@ -53,10 +77,7 @@ mlir::Value createWeightsTableTensor(mlir::OpBuilder& builder, mlir::Location lo
 
     auto* ctx = builder.getContext();
 
-    const auto dataType = changeDimsOrder(mlir::MemRefType::get(weightTableShape, getSInt32Type(builder.getContext())),
-                                          DimsOrder::NHWC);
-
-    // const auto dataType = mlir::MemRefType::get(weightTableShape, getSInt32Type(builder.getContext()));
+    const auto dataType = mlir::MemRefType::get(weightTableShape, getSInt32Type(builder.getContext()));
     auto createWeightsTableOp =
             builder.create<VPUIP::WeightsTableOp>(loc, dataType, op_input, op_output, weights, bias, activationWindow);
 
@@ -64,11 +85,11 @@ mlir::Value createWeightsTableTensor(mlir::OpBuilder& builder, mlir::Location lo
     const auto dataTypeCMX = changeMemSpace(dataType, cmxMemSpaceAttr);
 
     auto dataAllocOp = builder.create<mlir::memref::AllocOp>(loc, dataTypeCMX);
-
     auto copyOp = builder.create<IERT::CopyOp>(loc, createWeightsTableOp.output(), dataAllocOp);
 
     return copyOp.output();
 }
+
 
 mlir::Value prepareTensorForDPU(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value input) {
     // DMA DDR -> CMX
@@ -250,29 +271,43 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
     const auto KY = filterShape[IE::Dims4D::Filter::KY];
     const auto KX = filterShape[IE::Dims4D::Filter::KX];
 
+    mlir::Value alignedFilter;
+    mlir::Value filterDPU;
+    mlir::Value activationWindow;
+    mlir::Value weightsTable;
+    mlir::IntegerAttr actWindowChanLen;
+    std::vector<uint8_t> fakeSparsity;
+
     //
     // Prepare input for DPU
     //
 
     auto inputDPU = prepareTensorForDPU(rewriter, origOp->getLoc(), origOp.input());
-    auto alignedFilter = alignchannelMajorWeightTensor(rewriter, origOp->getLoc(), origOp.filter());
-    auto filterDPU = prepareTensorForDPU(rewriter, origOp->getLoc(), alignedFilter);
 
-    //
-    // Generate activation window
-    //
+    if(IC < 16)
+    {
+        alignedFilter = alignchannelMajorWeightTensor(rewriter, origOp->getLoc(), origOp.filter());
+        filterDPU = prepareTensorForDPU(rewriter, origOp->getLoc(), alignedFilter);
 
-    const auto origInputType = origOp.input().getType().cast<mlir::MemRefType>();
-    // FIXME why does fake sparsity expects this order of kernel dimensions?
-    const auto kernelSize = SmallVector<int64_t>{KX, KY};
-    const auto kernelStrides = parseIntArrayAttr<int64_t>(origOp.strides());
-    const auto bitPatternSize =
-            VPUIP::NCESparsity::getBitPatternSize(kernelSize, kernelStrides[0], origInputType.getElementType(), IC);
+        //
+        // Generate activation window
+        //
 
-    const auto actWindowChanLen = getIntAttr(getContext(), bitPatternSize);
-    const auto fakeSparsity =
-            VPUIP::NCESparsity::getFakeSparsity(VPUIP::NCETaskType::CONV, kernelSize, kernelStrides[0], origInputType.getElementType(), IC, OC);
-    const auto activationWindow = createActivationWindowTensor(rewriter, origOp->getLoc(), fakeSparsity, OC);
+        const auto origInputType = origOp.input().getType().cast<mlir::MemRefType>();
+        // FIXME why does fake sparsity expects this order of kernel dimensions?
+        const auto kernelSize = SmallVector<int64_t>{KX, KY};
+        const auto kernelStrides = parseIntArrayAttr<int64_t>(origOp.strides());
+        const auto bitPatternSize =
+                VPUIP::NCESparsity::getBitPatternSize(kernelSize, kernelStrides[0], origInputType.getElementType(), IC);
+
+        actWindowChanLen = getIntAttr(getContext(), bitPatternSize);
+        fakeSparsity = VPUIP::NCESparsity::getFakeSparsity(
+                VPUIP::NCETaskType::CONV, kernelSize, kernelStrides[0], origInputType.getElementType(), IC, OC);
+        activationWindow = createActivationWindowTensor(rewriter, origOp->getLoc(), fakeSparsity, OC);
+    } 
+    else {
+        filterDPU = prepareTensorForDPU(rewriter, origOp->getLoc(),  origOp.filter());
+    }
 
     //
     // Prepare output buffer for DPU
@@ -285,8 +320,16 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
 
     auto outAllocOpCMX = rewriter.create<mlir::memref::AllocOp>(origOp->getLoc(), outTypeCMX);
 
-    auto weightsTable = createWeightsTableTensor(rewriter, origOp->getLoc(), OC, inputDPU, outAllocOpCMX.memref(),
+    if(IC < 16)
+    {
+    weightsTable = createWeightsTableTensor(rewriter, origOp->getLoc(), OC, inputDPU, outAllocOpCMX.memref(),
                                                  filterDPU, origOp.bias(), activationWindow);
+    }
+    else
+    {
+    weightsTable = createWeightsTableTensor(rewriter, origOp->getLoc(), OC, inputDPU, outAllocOpCMX.memref(),
+                                                 filterDPU, origOp.bias(), nullptr);
+    }
 
     //
     // Create NCE per-cluster Operation
