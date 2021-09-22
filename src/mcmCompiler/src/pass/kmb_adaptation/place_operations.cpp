@@ -192,8 +192,11 @@ void placeInputHwDequantize(mv::OpModel& om, mv::DataModel& dm, mv::Data::OpList
                 std::cout << childInputFlow->getTensor()->getName() << std::endl;
                 std::cout << idx << std::endl;
                 om.undefineFlow(childInputFlow);
+                std::cout << "undefineFlow" << std::endl;
                 childOp->setInputTensor(placeHwConvert, idx, false);
+                std::cout << "setInputTensor" << std::endl;
                 om.defineFlow(placeHwConvert, childOp, idx);
+                std::cout << "defineFlow" << std::endl;
             }
         }
     }
