@@ -346,8 +346,6 @@ if(ENABLE_HDDL2 AND UNIX)
             HINTS "${HDDL_UNITE}/lib"
             NO_DEFAULT_PATH)
 
-        log_rpath(HDDL_UNITE "${HDDL_UNITE_LIBRARY}")
-
         add_library(HddlUnite SHARED IMPORTED GLOBAL)
 
         set_target_properties(HddlUnite PROPERTIES
