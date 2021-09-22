@@ -160,6 +160,8 @@ void placeInputHwDequantize(mv::OpModel& om, mv::DataModel& dm, mv::Data::OpList
             }
         }
 
+        std::cout << "add HwConvert" << opIt->getName() << std::endl;
+
         // Insert HwConvert operation to perform U8->FP16 conversion on DPU
         auto placeHwConvert = om.hwConvert(opIt->getName() + "_dequantize" + std::to_string(i), inputTensor, mv::DType("Float16"));
 
@@ -269,7 +271,11 @@ void placementOfOps(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
                 targetDType = mv::DType("BFloat16");
 
             placeInputHwDequantize(om, dm, opIt);
+
+            std::cout << "placeInputHwDequantize" << opIt->getName() << std::endl;
             placeOutputQuantize(om, dm, opIt);
+
+            std::cout << "placeOutputQuantize" << opIt->getName() << std::endl;
 
             opIt->set<bool>("floatPrecision", true);
             for (size_t i = 0; i < (opIt->getOpType() == "Eltwise" ? 2 : 1); ++i) {
@@ -304,6 +310,7 @@ void placementOfOps(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
 
             if (opIt->hasWeights())
             {
+                std::cout << "hasWeights" << std::endl;
                 const auto weightsTensor = opIt->getInputTensor(1);
                 if (weightsTensor->isFloatingPointType())
                     continue;
@@ -311,6 +318,7 @@ void placementOfOps(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
 
                 if (opIt->hasAttr("bias"))
                 {
+                    std::cout << "bias" << std::endl;
                     const auto outputShape = opIt->getOutputTensor(0)->getShape();
                     auto bias = dm.getTensor(opIt->get<std::string>("bias"));
                     // hack
@@ -319,16 +327,21 @@ void placementOfOps(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
 
                     auto biasScale = bias->getQuantParams().getScale();
                     std::vector<int64_t> biasData;
+                    std::cout << "biasData" << std::endl;
                     for (size_t k = 0; k < outputShape[mv::IO_CHANNEL_DIMENSION]; k++)
                     {
+                        std::cout << "getScale " << biasScale.size() << " " << outputScale.size() << std::endl;
                         double scale = biasScale[k];
                         if (opIt->hasAttr("biasOverflow") && opIt->get<bool>("biasOverflow")) {
                             scale *= outputScale[k];
                         }
+                        std::cout << "realBias" << std::endl;
                         const double realBias = ((int64_t) bias->at(k)) * scale;
+                        std::cout << "realBiasFp16" << std::endl;
                         const int64_t realBiasFp16 = mv::fp32_to_fp16(realBias);
                         biasData.push_back(realBiasFp16);
                     }
+                    std::cout << "biasData done" << std::endl;
                     const auto floatBiasName = mv::createBiasName(opIt->getName() + "FP16_bias");
                     const auto floatBias = dm.defineTensor(mv::Tensor(floatBiasName, bias->getShape(),
                                                            mv::DType("Float16"), bias->getOrder(), biasData, {{0},{1},{},{}}));
