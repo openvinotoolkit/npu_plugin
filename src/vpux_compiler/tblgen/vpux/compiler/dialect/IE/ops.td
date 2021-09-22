@@ -961,7 +961,6 @@ def IE_QuantizeOp :
         RankedTensorOf<[quant_QuantizedType]>:$output
     );
 
-    let hasCanonicalizer = 1;
     let hasFolder = 1;
 }
 
