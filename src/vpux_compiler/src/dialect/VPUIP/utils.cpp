@@ -6,7 +6,6 @@
 
 namespace vpux {
 namespace VPUIP {
-namespace utils {
 
 mlir::Value alignDepthwiseWeightTensor(mlir::OpBuilder& builder, mlir::Location loc, const mlir::Value origFilter) {
     const auto filterShape = getShape(origFilter);
@@ -44,6 +43,5 @@ mlir::Value alignDepthwiseWeightTensor(mlir::OpBuilder& builder, mlir::Location 
     return alignedWeightsOp.output();
 }
 
-}  // namespace utils
 }  // namespace VPUIP
 }  // namespace vpux

@@ -137,7 +137,7 @@ void buildAvgpoolWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mo
     auto weight =
             funcbuilder.create<Const::DeclareOp>(loc, weightData_ddr_type2, wt_data_attr.reorder(DimsOrder::NHWC));
 
-    auto weight_data_ddr = VPUIP::utils::alignDepthwiseWeightTensor(funcbuilder, loc, weight.getResult());
+    auto weight_data_ddr = VPUIP::alignDepthwiseWeightTensor(funcbuilder, loc, weight.getResult());
 
     auto wt_data_shape_padded = weight_data_ddr.getType().cast<mlir::ShapedType>().getShape();
     const auto weightDataPaddedAffineMaps = DimsOrder::NHWC.toAffineMapsList(ctx, Shape(wt_data_shape_padded));
