@@ -173,10 +173,13 @@ void placeInputHwDequantize(mv::OpModel& om, mv::DataModel& dm, mv::Data::OpList
 
         // If the parentOp has other UPA child nodes, reuse this HwConvert to dequntize
         for (auto childOp = parentOp.leftmostChild(); childOp != om.opEnd(); ++childOp) {
+            std::cout << childOp->getName() << std::endl;
             if (childOp->isUPA() || (childOp->hasAttr("softwareExecuted") && childOp->get<bool>("softwareExecuted"))) {
                 auto childInputFlow = childOp.leftmostInput();
                 auto childInputTensor = parentOp->getOutputTensor(0);
+                std::cout << childInputTensor->getName() << std::endl;
                 size_t idx = 0;
+                std::cout << childOp->getOpType() << std::endl;
                 if (childOp->getOpType() == "Eltwise" && (childOp->getInputTensor(1) == childInputTensor))
                     idx = 1;
                 while (childInputFlow != om.flowEnd()) {
@@ -184,6 +187,8 @@ void placeInputHwDequantize(mv::OpModel& om, mv::DataModel& dm, mv::Data::OpList
                         break;
                     ++childInputFlow;
                 }
+                std::cout << childInputFlow->getTensor()->getName() << std::endl;
+                std::cout << idx << std::endl;
                 om.undefineFlow(childInputFlow);
                 childOp->setInputTensor(placeHwConvert, idx, false);
                 om.defineFlow(placeHwConvert, childOp, idx);
