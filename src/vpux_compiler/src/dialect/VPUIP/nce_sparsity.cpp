@@ -371,7 +371,7 @@ std::vector<std::int32_t> vpux::VPUIP::NCESparsity::getWeightsTable(mlir::Type o
         weightPtrOffset += weightPtrStep;
         if (arch == vpux::VPUIP::ArchKind::MTL && weightsElemType) {
             Byte elementSize = getElemTypeSize(weightsElemType);
-            sparsityPtr += weightPtrStep / elementSize.count();
+            sparsityPtr += weightPtrStep / static_cast<int>(elementSize.count());
         }
     }
 
