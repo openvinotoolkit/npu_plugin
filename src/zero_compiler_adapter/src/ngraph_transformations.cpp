@@ -26,17 +26,7 @@ namespace ngraphTransformations {
 void applyLoweringPasses(const std::shared_ptr<ngraph::Function>& netGraph, Opset opsetVersion) {
     const std::unique_ptr<vpu::Logger> _logger = std::unique_ptr<vpu::Logger>(
             new vpu::Logger("applyLoweringPasses", vpu::LogLevel::Debug /*_config.logLevel()*/, vpu::consoleOutput()));
-
-    bool forceLowering = false;
-#if defined(VPUX_DEVELOPER_BUILD) || !defined(NDEBUG)
-    if (const auto env = std::getenv("IE_VPUX_ZERO_ADAPTER_FORCE_LOWERING")) {
-        if (std::strcmp(env, "True") == 0) {
-            forceLowering = true;
-            _logger->warning("Force lowering will be done");
-        }
-    }
-#endif
-    if ((opsetVersion.version < 6 ) || forceLowering) {
+    if ( opsetVersion.version < 6 ) {
         lowerFromOpset6(netGraph);
         _logger->debug("lowerFromOpset6 called");
     }

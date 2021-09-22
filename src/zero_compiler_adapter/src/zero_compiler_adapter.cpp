@@ -47,6 +47,10 @@ std::shared_ptr<INetworkDescription> ZeroCompilerAdapter::compile(
     _logger->debug("Modify network (ngraph) according to supported opset");
     //------------------------------------------------------------------------------
     ngraphTransformations::applyLoweringPasses(ngraphFunc, opset);
+
+    if (!ngraphTransformations::isFunctionSupported(ngraphFunc, opset)) {
+        THROW_IE_EXCEPTION << "Specified version of opset is not supported by the driver. Please update the driver.";
+    }
     //------------------------------------------------------------------------------
     _logger->debug("Use compiler in driver for IR compilation");
     //------------------------------------------------------------------------------
