@@ -1650,6 +1650,7 @@ std::string getValidOutputName(const std::shared_ptr<ngraph::op::Result>& result
     if (resultInput->get_output_size() != 1) {
         portSuffix = "." + std::to_string(result->get_input_source_output(0).get_index());
     }
+    std::cout << resultInput->get_friendly_name() << std::endl;
     return resultInput->get_friendly_name() + portSuffix;
 }
 

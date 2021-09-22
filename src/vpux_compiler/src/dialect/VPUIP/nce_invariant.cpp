@@ -68,6 +68,14 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyConvChannels(mlir::Location
     //     return mlir::failure();
     // }
 
+    if (IC !=3) // Need to get user layout here
+    {
+        if(IC % getChannelAlignment(filterType.getElementType()) != 0) {
+        log.trace("[{0}] Convolution input channels are not aligned", loc);
+        return mlir::failure();
+        }
+    }
+
     return mlir::success();
 }
 
