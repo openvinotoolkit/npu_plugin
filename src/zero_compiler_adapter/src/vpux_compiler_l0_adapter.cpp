@@ -89,7 +89,7 @@ void VPUXCompilerL0::initLib() {
  *  4. Size of data 2 (weights)
  *  5. Data 2
  */
-CompressedIR createCompressedIR(std::vector<char>& xml, std::vector<char>& weights) {
+CompressedIR serializeIR(std::vector<char>& xml, std::vector<char>& weights) {
     const uint32_t numberOfInputData = 2;
     const uint32_t xmlSize = static_cast<uint32_t>(xml.size());
     const uint32_t weightsSize = static_cast<uint32_t>(weights.size());
@@ -120,7 +120,7 @@ CompressedIR createCompressedIR(std::vector<char>& xml, std::vector<char>& weigh
 /**
  * @brief Pair function for IR compression
  */
-void decompressIR(const CompressedIR& compressedIR, std::vector<uint8_t>& xml, std::vector<uint8_t>& weights) {
+void deserializeIR(const CompressedIR& compressedIR, std::vector<uint8_t>& xml, std::vector<uint8_t>& weights) {
     /* Few validation values to make sure we are working with valid data */
     const uint32_t maxNumberOfElements = 10;
     const uint32_t maxSizeOfXML = (uint32_t)1 * 1024 * 1024 * 1024;      // 1GB
@@ -128,11 +128,11 @@ void decompressIR(const CompressedIR& compressedIR, std::vector<uint8_t>& xml, s
 
     size_t offset = 0;
 
-    const uint32_t numberOfElements = *(uint32_t*)compressedIR.data();
+    const uint32_t numberOfElements = *(reinterpret_cast<const uint32_t *>(compressedIR.data()));
     offset += sizeof(numberOfElements);
     VPUX_THROW_WHEN(numberOfElements >= maxNumberOfElements, "IR was corrupted");
 
-    const uint32_t sizeOfXML = *(uint32_t*)(compressedIR.data() + offset);
+    const uint32_t sizeOfXML = *(reinterpret_cast<const uint32_t *>((compressedIR.data() + offset)));
     offset += sizeof(sizeOfXML);
     VPUX_THROW_WHEN(sizeOfXML == 0 || sizeOfXML >= maxSizeOfXML, "IR was corrupted");
 
@@ -141,7 +141,7 @@ void decompressIR(const CompressedIR& compressedIR, std::vector<uint8_t>& xml, s
     offset += sizeOfXML;
     VPUX_THROW_WHEN(xml.empty(), "IR was corrupted");
 
-    const uint32_t sizeOfWeights = *(uint32_t*)(compressedIR.data() + offset);
+    const uint32_t sizeOfWeights = *(reinterpret_cast<const uint32_t *>(compressedIR.data() + offset));
     offset += sizeof(sizeOfWeights);
     VPUX_THROW_WHEN(sizeOfWeights >= maxSizeOfWeights, "IR was corrupted");  // Graph can have weights of size 0
 
@@ -185,10 +185,10 @@ Blob::Ptr VPUXCompilerL0::compileIR(std::vector<char>& xmlBeforeCompression,
     /**
      * Compress and decompress back, since VPUXCompilerL0 doesn't support compressed IR for now
      */
-    const auto compressedIR = createCompressedIR(xmlBeforeCompression, weightsBeforeCompression);
+    const auto compressedIR = serializeIR(xmlBeforeCompression, weightsBeforeCompression);
     std::vector<uint8_t> xml;
     std::vector<uint8_t> weights;
-    decompressIR(compressedIR, xml, weights);
+    deserializeIR(compressedIR, xml, weights);
 
     IE_ASSERT(xml.size() == xmlBeforeCompression.size());
     IE_ASSERT(weights.size() == weightsBeforeCompression.size());
