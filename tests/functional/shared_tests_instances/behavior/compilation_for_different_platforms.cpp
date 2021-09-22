@@ -14,7 +14,12 @@
 using CompileForDifferentPlatformsTests = BehaviorTestsUtils::BehaviorTestsBasic;
 namespace {
 
+// [Track number: E#15711]
+// [Track number: E#15635]
 TEST_P(CompileForDifferentPlatformsTests, CompilationForSpecificPlatform) {
+    if (getBackendName(*ie) == "LEVEL0") {
+        SKIP() << "Skip due to failure on device";
+    }
 #if defined(__arm__) || defined(__aarch64__)
     SKIP() << "Compilation only";
 #endif

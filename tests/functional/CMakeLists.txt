@@ -41,3 +41,11 @@ addIeTargetTest(
     LABELS
         KMB
 )
+
+if(MSVC)
+    # Enforce standards conformance on MSVC
+    target_compile_options(${TARGET_NAME}
+        PRIVATE
+            /Zc:preprocessor
+    )
+endif()

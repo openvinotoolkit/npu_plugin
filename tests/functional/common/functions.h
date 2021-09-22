@@ -5,11 +5,14 @@
 #pragma once
 
 #include <cpp/ie_cnn_network.h>
+#include <ie_core.hpp>
 
 // create dummy network for tests
 InferenceEngine::CNNNetwork buildSingleLayerSoftMaxNetwork();
 
-// class encupsulated VPUXPlatform getting from environmental varriable
+std::string getBackendName(const InferenceEngine::Core& core);
+
+// class encupsulated VPUXPlatform getting from environmental variable
 class PlatformEnvironment {
 
 public:
