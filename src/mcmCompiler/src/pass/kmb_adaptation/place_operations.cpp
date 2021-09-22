@@ -177,7 +177,8 @@ void placeInputHwDequantize(mv::OpModel& om, mv::DataModel& dm, mv::Data::OpList
                 auto childInputFlow = childOp.leftmostInput();
                 auto childInputTensor = parentOp->getOutputTensor(0);
                 size_t idx = 0;
-                if (childOp->getOpType() == "Eltwise" && (childOp->getInputTensor(1) == childInputTensor))
+                if (childOp->getOpType() == "Eltwise" &&
+                    (childOp->getInputTensor(1)->getName() == childInputTensor->getName()))
                     idx = 1;
                 while (childInputFlow != om.flowEnd()) {
                     if (childInputFlow->getTensor()->getName() == childInputTensor->getName())
