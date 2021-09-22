@@ -107,7 +107,7 @@ protected:
     int _SIPPLpi = 8;
     int _numberOfPPPipes = 1;
 #if defined(__arm__) || defined(__aarch64__)
-    int _executorStreams = 2;
+    int _executorStreams = 4;
 #else
     int _executorStreams = 1;
 #endif
