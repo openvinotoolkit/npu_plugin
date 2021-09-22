@@ -51,12 +51,12 @@ void buildAvgpoolWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mo
     auto output_totalsize = totalTensorSize(out_shape, outputType);
 
     SmallVector<int64_t> wt_data_shape{in_shape[1], 1, pool_op.kernel_shape.at(0), pool_op.kernel_shape.at(1)};
-    mlir::Type weightsType;
+
     auto scaleValue = 1 / double(pool_op.kernel_shape.at(0) * pool_op.kernel_shape.at(1));
 
-    if (inputType.isF16() || inputType.isBF16()) {
-        weightsType = inputType;
-    } else if (auto qtype = inputType.dyn_cast<mlir::quant::QuantizedType>()) {
+    mlir::Type weightsType = inputType;
+
+    if (auto qtype = inputType.dyn_cast<mlir::quant::QuantizedType>()) {
         weightsType = mlir::quant::QuantizedType::castToStorageType(qtype);
         int64_t zeroPoint = 0;
         if (weightsType.isSignedInteger(8)) {

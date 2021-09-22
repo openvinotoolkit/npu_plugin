@@ -370,13 +370,8 @@ std::vector<std::int32_t> vpux::VPUIP::NCESparsity::getWeightsTable(mlir::Type o
 
         weightPtrOffset += weightPtrStep;
         if (arch == vpux::VPUIP::ArchKind::MTL && weightsElemType) {
-            int32_t elementSizeBytes = 0;
-            if (auto qType = weightsElemType.dyn_cast<mlir::quant::QuantizedType>()) {
-                elementSizeBytes = qType.getStorageType().getIntOrFloatBitWidth() / CHAR_BIT;
-            } else {
-                elementSizeBytes = (weightsElemType.getIntOrFloatBitWidth()) / CHAR_BIT;
-            }
-            sparsityPtr += weightPtrStep / elementSizeBytes;
+            Byte elementSize = getElemTypeSize(weightsElemType);
+            sparsityPtr += weightPtrStep / elementSize.count();
         }
     }
 
