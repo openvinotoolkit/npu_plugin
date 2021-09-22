@@ -6,15 +6,17 @@
 #include "kmb_layer_test.hpp"
 
 using namespace BehaviorTestsDefinitions;
+const LayerTestsUtils::KmbTestEnvConfig envConfig;
+
 namespace {
     const std::vector<std::map<std::string, std::string>> configs = {
-            {}
+            {{"VPUX_PLATFORM", envConfig.IE_KMB_TESTS_PLATFORM}},
     };
 
     INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, PerfCountersTest,
                             ::testing::Combine(
                                     ::testing::Values(InferenceEngine::Precision::FP32),
-                                    ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+                                    ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY),
                                     ::testing::ValuesIn(configs)),
                             PerfCountersTest::getTestCaseName);
 
