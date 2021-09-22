@@ -273,25 +273,28 @@ const vpux::EnumMap<vpux::VPUIP::ArchKind, vpux::VPUIP::NCESparsity::BiasConvert
 };
 
 int64_t vpux::VPUIP::NCESparsity::getBitPatternSize(mlir::ArrayRef<int64_t> kernelSize, int64_t strideW,
-                                                    mlir::Type elemType) {
+                                                    mlir::Type elemType, int64_t inputChannels) {
     VPUX_THROW_UNLESS(kernelSize.size() == 2, "Unsupported kernel size: %d", kernelSize.size());
 
     auto actualType = tryGetQuantizedStorageType(elemType);
     const auto windowSize = getWindowSize(kernelSize[0], strideW, actualType);
-    return kernelSize[1] * windowSize * 3;  // For CM needs to be * input channels
+    Logger::global().error("windowSize: {0}", windowSize);
+    Logger::global().error("kernelSize[1]: {0}", kernelSize[1]);
+
+    return kernelSize[1] * windowSize * inputChannels;  
 }
 
 int64_t vpux::VPUIP::NCESparsity::getActivationWindowSize(mlir::ArrayRef<int64_t> kernelSize, int64_t strideW,
                                                           mlir::Type elemType, int64_t inputChannels) {
     auto actualType = tryGetQuantizedStorageType(elemType);
-    const auto bitPatternSize = getBitPatternSize(kernelSize, strideW, actualType);
+    const auto bitPatternSize = getBitPatternSize(kernelSize, strideW, actualType, inputChannels);
     const auto perChannelSparsitySize = static_cast<std::size_t>(std::ceil(bitPatternSize / 128.0) * 16);
     const auto activationWindowSize = inputChannels * perChannelSparsitySize;
 
     return activationWindowSize;
 }
 
-std::vector<uint8_t> vpux::VPUIP::NCESparsity::getFakeSparsity(mlir::ArrayRef<int64_t> kernelSize, int64_t strideW,
+std::vector<uint8_t> vpux::VPUIP::NCESparsity::getFakeSparsity(NCETaskType nceTask, mlir::ArrayRef<int64_t> kernelSize, int64_t strideW,
                                                                mlir::Type elemType, int64_t inputChannels, int64_t outputChannels) {
     auto actualType = tryGetQuantizedStorageType(elemType);
     const auto windowSize = getWindowSize(kernelSize[0], strideW, actualType);
@@ -312,9 +315,9 @@ std::vector<uint8_t> vpux::VPUIP::NCESparsity::getFakeSparsity(mlir::ArrayRef<in
     SmallVector<uint8_t> perChannelSparsity;
     perChannelSparsity.resize(perChannelSparsitySize);
 
-    if (inputChannels < 16) {
+    if (nceTask == NCETaskType::CONV && inputChannels < 16) { // and user layout
         perChannelSparsity.resize(numberOfRowsSparsityBytes * 16);
-    } else
+    } else if (nceTask == NCETaskType::DWCONV || nceTask == NCETaskType::AVEPOOL || nceTask == NCETaskType::MAXPOOL)
         perChannelSparsity.resize(perChannelSparsitySize);
 
     // Repackaging each byte from bitPattern to a bit from fakeSparsity

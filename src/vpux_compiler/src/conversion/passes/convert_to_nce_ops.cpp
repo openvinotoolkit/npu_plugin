@@ -270,11 +270,11 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
     const auto kernelSize = SmallVector<int64_t>{KX, KY};
     const auto kernelStrides = parseIntArrayAttr<int64_t>(origOp.strides());
     const auto bitPatternSize =
-            VPUIP::NCESparsity::getBitPatternSize(kernelSize, kernelStrides[0], origInputType.getElementType());
+            VPUIP::NCESparsity::getBitPatternSize(kernelSize, kernelStrides[0], origInputType.getElementType(), IC);
 
     const auto actWindowChanLen = getIntAttr(getContext(), bitPatternSize);
     const auto fakeSparsity =
-            VPUIP::NCESparsity::getFakeSparsity(kernelSize, kernelStrides[0], origInputType.getElementType(), IC, OC);
+            VPUIP::NCESparsity::getFakeSparsity(VPUIP::NCETaskType::CONV, kernelSize, kernelStrides[0], origInputType.getElementType(), IC, OC);
     const auto activationWindow = createActivationWindowTensor(rewriter, origOp->getLoc(), fakeSparsity, OC);
 
     //
@@ -361,6 +361,7 @@ mlir::LogicalResult MaxPoolRewrite::matchAndRewrite(IERT::MaxPoolOp origOp, mlir
 
     const auto origInputType = origOp.input().getType().cast<mlir::MemRefType>();
     const auto inputShape = getShape(origInputType);
+    Logger::global().error("inputShape: {0}", inputShape);
 
     const auto IC = inputShape[IE::Dims4D::Act::C];
 
@@ -368,7 +369,7 @@ mlir::LogicalResult MaxPoolRewrite::matchAndRewrite(IERT::MaxPoolOp origOp, mlir
     const auto kernelStrides = parseIntArrayAttr<int64_t>(origOp.strides());
 
     const auto bitPatternSize =
-            VPUIP::NCESparsity::getBitPatternSize(kernelSize, kernelStrides[0], origInputType.getElementType());
+            VPUIP::NCESparsity::getBitPatternSize(kernelSize, kernelStrides[0], origInputType.getElementType(), 1);
 
     //
     // Prepare input for DPU
@@ -381,7 +382,7 @@ mlir::LogicalResult MaxPoolRewrite::matchAndRewrite(IERT::MaxPoolOp origOp, mlir
     //
 
     const auto fakeSparsity =
-            VPUIP::NCESparsity::getFakeSparsity(kernelSize, kernelStrides[0], origInputType.getElementType(), IC, IC);
+            VPUIP::NCESparsity::getFakeSparsity(VPUIP::NCETaskType::MAXPOOL, kernelSize, kernelStrides[0], origInputType.getElementType(), 1, IC);
     const auto activationWindow = createActivationWindowTensor(rewriter, origOp->getLoc(), fakeSparsity, IC);
 
     //
@@ -613,11 +614,11 @@ mlir::LogicalResult DepthwiseConvRewrite::matchAndRewrite(IERT::GroupConvolution
     const auto kernelSize = SmallVector<int64_t>{KX, KY};
     const auto kernelStrides = parseIntArrayAttr<int64_t>(origOp.strides());
     const auto bitPatternSize =
-            VPUIP::NCESparsity::getBitPatternSize(kernelSize, kernelStrides[0], origInputType.getElementType());
+            VPUIP::NCESparsity::getBitPatternSize(kernelSize, kernelStrides[0], origInputType.getElementType(), 1);
     const auto actWindowChanLen = getIntAttr(getContext(), bitPatternSize);
 
     const auto fakeSparsity =
-            VPUIP::NCESparsity::getFakeSparsity(kernelSize, kernelStrides[0], origInputType.getElementType(), IC, OC);
+            VPUIP::NCESparsity::getFakeSparsity(VPUIP::NCETaskType::DWCONV, kernelSize, kernelStrides[0], origInputType.getElementType(), IC, OC);
     const auto activationWindow = createActivationWindowTensor(rewriter, origOp->getLoc(), fakeSparsity, OC);
 
     //
