@@ -43,6 +43,7 @@ if (const auto loc = op->getLoc().dyn_cast<mlir::NameLoc>()) {
 ## Generating of Dot graph
 
 There is a pass which will generate Dot graph during pipeline execution.
+
 1. Generation using enviroment variable in the DEVELOPER_BUILD:
   Provide standard print-dot pass options to the `IE_VPUX_PRINT_DOT`, if you want couple of entries separate them using comma.
   Example: `export IE_VPUX_PRINT_DOT="output=temp.dot pass=OptimizeAsyncDeps,output=temp2.dot pass=AddBuffersForNetResults"`
@@ -50,11 +51,13 @@ There is a pass which will generate Dot graph during pipeline execution.
   With this option user can specify the output file and additional generation options(see `vpu-opt -h`). Note: option `pass` is not available in this mode.
   Example: `--print-dot="output=dot1.dot"`
 3. Via compiler pipeline. Add printDot pass into compiler pipline in the code and rebuild the project.
-  Example: `pm.addPass(createPrintDot(<FileName>, <Options>));` to generate file with <FileName> name.
-Note: 
-  1. By default declarations and constants are not printed. To enable add `declareOp=true and constOp=true` to the pass options
+  Example: `pm.addPass(createPrintDot(<FileName>, <Options>));` to generate file with `<FileName>` name.
+
+**Note:**
+
+  1. By default declarations and constants are not printed. To enable add `print-declarations=true and print-const=true` to the pass options
   2. For big networks xdot appication may fail to show dot graph. In order to fix that you can add start and stop operations for printing.
-    Put exact name of operation(The name of operation should correspond to the name of the VPUX IR) like `startOp=pool2 stopOp=conv4/WithoutBiases` to the pass options.   
+    Put exact name of operation(The name of operation should correspond to the name of the VPUX IR) like `start-after=pool2 stop-before=conv4/WithoutBiases` to the pass options.
 
 ## IR dumping (Developer build)
 

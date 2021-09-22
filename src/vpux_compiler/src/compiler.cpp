@@ -244,7 +244,7 @@ void DeveloperConfig::setup(mlir::PassManager& pm) const {
 
     // Dot printing
     if (!_printDotOptions.empty()) {
-        addDotPrinterFromEnvVar(pm, _printDotOptions);
+        addDotPrinter(pm, _printDotOptions);
     }
 }
 
@@ -355,7 +355,6 @@ std::shared_ptr<INetworkDescription> vpux::CompilerImpl::compile(const std::shar
 
     mlir::PassManager pm(&ctx, mlir::OpPassManager::Nesting::Implicit);
     addLogging(pm, log);
-    addDotPrinter(pm);
     devConf.setup(pm);
 
     auto rootTiming = tm.getRootScope();
