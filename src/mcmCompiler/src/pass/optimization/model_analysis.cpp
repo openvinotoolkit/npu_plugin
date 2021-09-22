@@ -156,29 +156,6 @@ void modelAnalysisFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, m
                 else
                     DPUactsBtwnCMX++;
             }
-            if(opIt->isUPA() || (opIt->hasAttr("softwareExecuted") && opIt->get<bool>("softwareExecuted")))
-            {
-                numSWlayers++;
-                auto totalActSize = getActivationSizes(opIt);
-                if(totalActSize < 917504)
-                    UPAactsLessCMX++;
-                else if(totalActSize >= (917504*4))
-                    UPAactsMoreCMX++;
-                else
-                    UPAactsBtwnCMX++;
-
-                // Check if this guy is intermediate, which we will define as having a following DPU task between it and output
-                auto nextOp = mv::findSinkLayers(dm, opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT))[0];
-                while(!(nextOp->getOpType() == "ImplicitOutput" || nextOp->getOpType() == "Output"))
-                {
-                    if(nextOp->isHardwarizable())
-                    {
-                        numIntermSWlayers++;
-                    }
-                    nextOp = mv::findSinkLayers(dm, nextOp->getOutputTensor(mv::IO_TENSOR_OUTPUT))[0];
-                }
-            }
-            
 
         }
         if(dma){
@@ -198,6 +175,30 @@ void modelAnalysisFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, m
             }
             if(opType == "DPUTask")
                 numTiledDPUtasks++;
+            
+            if(opType == "UPATask" || opIt->isUPA() || (opIt->hasAttr("softwareExecuted") && opIt->get<bool>("softwareExecuted")))
+            {
+                numSWlayers++;
+                auto totalActSize = getActivationSizes(opIt);
+                if(totalActSize < 917504)
+                    UPAactsLessCMX++;
+                else if(totalActSize >= (917504*4))
+                    UPAactsMoreCMX++;
+                else
+                    UPAactsBtwnCMX++;
+
+                // Check if this guy is intermediate, which we will define as having a following DPU task between it and output
+                auto nextOp = mv::findSinkLayers(dm, opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT))[0];
+                while(!(nextOp->getOpType() == "ImplicitOutput" || nextOp->getOpType() == "Output"))
+                {
+                    if(nextOp->isHardwarizable())
+                    {
+                        numIntermSWlayers++;
+                        break;
+                    }
+                    nextOp = mv::findSinkLayers(dm, nextOp->getOutputTensor(mv::IO_TENSOR_OUTPUT))[0];
+                }
+            }
         }
     }
 
@@ -214,14 +215,14 @@ void modelAnalysisFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, m
         std::cout << "DPU < CMX: " << DPUactsLessCMX << std::endl;
         std::cout << "DPU > CMX: " << DPUactsMoreCMX << std::endl;
         std::cout << "DPU ~ CMX: " << DPUactsBtwnCMX << std::endl;
+    }
+    else
+    {
         std::cout << "Total UPA Tasks: " << numSWlayers << std::endl;
         std::cout << "Intermediate UPA Tasks: " << numIntermSWlayers << std::endl;
         std::cout << "UPA < CMX: " << UPAactsLessCMX << std::endl;
         std::cout << "UPA > CMX: " << UPAactsMoreCMX << std::endl;
         std::cout << "UPA ~ CMX: " << UPAactsBtwnCMX << std::endl;
-    }
-    else
-    {
         std::cout << "DPU tasks tiled: " << numTiledDPUtasks << std::endl;
         std::cout << "DMAs to CMX: " << dmaToCMX << std::endl;
         std::cout << "Bytes moved to CMX: " << sizeToCMX << std::endl; 
