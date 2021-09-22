@@ -20,23 +20,6 @@
 #include <ngraph_functions/utils/ngraph_helpers.hpp>
 #include "ie_ngraph_utils.hpp"
 
-
-// FIXME removeme
-#include <transformations/serialize.hpp>
-/**
- * For debug
- */
-//    ngraph::pass::Manager manager;
-//
-//    // FIXME do we need it?
-////    manager.register_pass<ngraph::pass::InitNodeInfo>();
-//
-//    const std::string filename = "checkGraph";
-//    manager.register_pass<ngraph::pass::Serialize>(filename + ".xml",filename  + ".bin");
-//    //    manager.register_pass<ngraph::pass::MVN6Decomposition>();
-//    manager.run_passes(func);
-//
-
 using namespace vpux::zeroCompilerAdapter;
 
 class NgraphTransformations_UnitTests: public ::testing::Test {
@@ -49,7 +32,6 @@ protected:
 void NgraphTransformations_UnitTests::SetUp() {
     const auto data = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 2, 3, 4 });
     const auto axesConst = ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{ 2 }, { 2, 3 });
-    // FIXME INSIDE_SQRT will be not supported
     const auto mvn = std::make_shared<ngraph::opset6::MVN>(
             data, axesConst, false, 1e-5, ngraph::op::MVNEpsMode::OUTSIDE_SQRT);
 

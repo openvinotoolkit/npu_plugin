@@ -85,6 +85,7 @@ class ZeroCompilerAdapter_UnitTests : public ::testing::Test {};
 TEST_F(ZeroCompilerAdapter_UnitTests, CompilerOpset4_OperationOpset6_LoweringWillBeApplied) {
     // Prepare compiler stub, which will pretend, that only opset 4 supported and will throw otherwise
     const Opset compilerOpsetVersion = {4};
+    // Already have such check after lowering call, but duplicate in case it will be removed
     static NgraphChecker opsetCheck = [&](const std::shared_ptr<const ngraph::Function>& netGraph) -> void
     {
         bool isSupported = ngraphTransformations::isFunctionSupported(netGraph, compilerOpsetVersion);
