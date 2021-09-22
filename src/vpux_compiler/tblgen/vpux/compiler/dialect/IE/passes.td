@@ -414,6 +414,30 @@ def ConvertWeightsToU8 : PassBase<"convert-weights-to-u8", "vpux::FunctionPass">
 }
 
 //
+// ConvertFakeQuantizeToPPEOp
+//
+
+def ConvertFakeQuantizeToPPEOp : PassBase<"convert-fq-to-ppe", "vpux::FunctionPass"> {
+    let summary = "Converts per-tensor FakeQuantize operations to processing on DPU";
+
+    let description = [{
+        The pass is a part of `LowPrecision` pipeline.
+
+        - Detects pattern LayerWithPostOpInterface -> FakeQuantize and convert FakeQuantize to PPE operation
+        - Converts other suitable FakeQuantize operations to the MaxPool with the PPE operation
+
+        New PPE operation contains clamp low and clamp high that is output low and output high from FakeQuantize.
+        This is mathematically inaccurate optimization since quantization/dequantization is omitted.
+    }];
+
+    let constructor = "vpux::IE::createConvertFakeQuantizeToPPEOpPass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
+
+//
 // ConvertAvgPoolToDWConv
 //
 

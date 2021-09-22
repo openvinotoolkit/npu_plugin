@@ -20,6 +20,14 @@ The pass is a part of `AdjustForVPU` pipeline.
 
 This pass replaces all `FullyConnected` operations with `Convolution` operation.
 It inserts extra `Reshape` operations to satisfy `Convolution` specification.
+### `-convert-fq-to-ppe`: Converts per-tensor FakeQuantize operations to processing on DPU
+The pass is a part of `LowPrecision` pipeline.
+
+- Detects pattern LayerWithPostOpInterface -> FakeQuantize and convert FakeQuantize to PPE operation
+- Converts other suitable FakeQuantize operations to the MaxPool with the PPE operation
+
+New PPE operation contains clamp low and clamp high that is output low and output high from FakeQuantize.
+This is mathematically inaccurate optimization since quantization/dequantization is omitted.
 ### `-convert-paddings-to-floor-mode`: Convert Convolution and Pooling layers paddings to FLOOR rouding mode
 The pass is a part of `AdjustForVPU` pipeline.
 

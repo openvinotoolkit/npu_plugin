@@ -74,7 +74,7 @@ mlir::LogicalResult GenericConverter::matchAndRewrite(mlir::Operation* postOp, m
 
 class FusePostOpsPass final : public IE::FusePostOpsBase<FusePostOpsPass> {
 public:
-    FusePostOpsPass(Logger log): _log(log) {
+    explicit FusePostOpsPass(Logger log): _log(log) {
         _log.setName(Base::getArgumentName());
     }
 
