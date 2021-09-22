@@ -120,6 +120,11 @@ def IE_AlignedChannelsOpInterface : OpInterface<"AlignedChannelsOpInterface"> {
         InterfaceMethod<
             "Get channel alignement factor in elements",
             "int64_t", "getChannelAlignment", (ins)
+        >,
+
+        InterfaceMethod<
+            "Get input channel alignement factor in elements",
+            "int64_t", "getInputChannelAlignment", (ins)
         >
     ];
 }
