@@ -409,11 +409,54 @@ OutputTiling SimpleTiler::genericTiler(mlir::Operation* op, mlir::MemRefType out
 
     const auto isDimLeftToTile = [&]() {
         if (dimToTile == IE::Dims4D::Act::C) {
+            if (nTilesOnDim[IE::Dims4D::Act::C] < maxChannelTiles)
                 return true;
         } else {  // Spatial dims
+            const auto origSize = outputShape[dimToTile.getValue()];
+            const auto prevDivisor = nTilesOnDim[dimToTile.getValue()];
+
+            if (origSize / prevDivisor > 1)
+                return true;
+        }
+
+        return false;
+    };
 
     while (!isSupportedTileSize(nTilesOnDim)) {
+        if (!isDimLeftToTile()) {
+            dimToTile = *(++tileDimIter);
+        }
 
+        if (dimToTile == IE::Dims4D::Act::C) {
+            do {
+                ++nTilesOnDim[IE::Dims4D::Act::C];
+            } while (!isSupportedChannelDivision());
+        } else if (dimToTile == IE::Dims4D::Act::H || dimToTile == IE::Dims4D::Act::W) {
+            nTilesOnDim[dimToTile.getValue()]++;
+        } else {
+            // Trying to tile in unsupported dimension, tiling in supported dimensions not sufficient
+            VPUX_THROW("Failed to tile {0} at '{1}'", op->getName(), op->getLoc());
+        }
+    }
+
+    return fillDividedTiles(nTilesOnDim, outputShape);
+}
+
+OutputTiling SimpleTiler::groupConvTiler(mlir::Operation* op, mlir::MemRefType outputType,
+                                         FuncRef<bool(ShapeRef)> isSupportedTileSize) const {
+    const auto outputShape = getShape(outputType);
+
+    Shape nTilesOnDim(outputShape.size(), 1);
+
+    // FIXME tiling over channels has to leave 16 channels in each tile.
+    // Otherwise, depthwise convolutions produce worse accuracy.
+    const auto depthwiseOutChanCount = VPUIP::NCEInvariant::getChannelAlignment(outputType.getElementType());
+    VPUX_THROW_UNLESS(outputShape[IE::Dims4D::Act::C] % depthwiseOutChanCount == 0,
+                      "Depthwise convolution output channels must be a multiple of {0}, got {1}", depthwiseOutChanCount,
+                      outputShape[IE::Dims4D::Act::C]);
+    nTilesOnDim[IE::Dims4D::Act::C] = outputShape[IE::Dims4D::Act::C] / depthwiseOutChanCount;
+
+    while (!isSupportedTileSize(nTilesOnDim)) {
         Optional<Dim> dimToTile;
 
         for (auto ind : irange(IE::Dims4D::Act::numSpatialDims)) {
@@ -422,18 +465,6 @@ OutputTiling SimpleTiler::genericTiler(mlir::Operation* op, mlir::MemRefType out
             const auto origSize = outputShape[spatialDim];
             const auto prevDivisor = nTilesOnDim[spatialDim];
 
-            if (origSize / prevDivisor > 1) {
-                dimToTile = spatialDim;
-                break;
-            }
-
-    const auto isDimLeftToTile = [&]() {
-        if(dimToTile == IE::Dims4D::Act::C) {
-            if(nTilesOnDim[IE::Dims4D::Act::C] < maxChannelTiles)
-                return true;
-        }
-        else { // Spatial dims
-            const auto origSize = outputShape[dimToTile.getValue()];
             if (origSize / prevDivisor > 1) {
                 dimToTile = spatialDim;
                 break;
