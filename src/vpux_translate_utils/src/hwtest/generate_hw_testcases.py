@@ -38,6 +38,7 @@ import pandas as pd
 from pathlib import Path
 import re
 import sys
+import traceback
 from typing import Callable, List, Optional, Sequence, Union
 
 # TODO: Fix this awful hack, whose purpose in life is to point to where you've
@@ -71,15 +72,23 @@ def OrderNHWC(data: np.ndarray) -> np.ndarray:
     return np.concatenate([a.transpose(1, 2, 0).flatten() for a in data])
 
 
-class ComputationError(Exception):
+class Error(Exception):
     pass
 
 
-class ValidationError(Exception):
+class ComputationError(Error):
     pass
 
 
-class PaddingError(Exception):
+class ValidationError(Error):
+    pass
+
+
+class PaddingError(Error):
+    pass
+
+
+class EntropyError(Error):
     pass
 
 
@@ -156,6 +165,9 @@ class Value:
         data = orderer(self.data)
         self.ttype.pack(self, data).tofile(dir / self.filename)
 
+    def check_entropy(self):
+        self.ttype.check_entropy(self.data)
+
     @property
     def json_info(self):
         info = {
@@ -183,6 +195,10 @@ class TType(ABC):
     def generate(self, filename, shape, rng) -> Value:
         pass
 
+    @abstractmethod
+    def check_entropy(self, data: np.ndarray):
+        pass
+
     @abstractproperty
     def is_float(self) -> bool:
         pass
@@ -199,6 +215,12 @@ class TType(ABC):
 
     def clip(self, data: np.ndarray) -> np.ndarray:
         return data
+
+    @staticmethod
+    def _check_entropy_eq(data: np.ndarray, value):
+        count = np.sum(np.equal(data, value))
+        if (data.size * .9) < count:
+            raise EntropyError(f'got {count} elements == {value} in {data.size} elements')
 
 
 def pack_int4(data: np.ndarray) -> np.ndarray:
@@ -226,6 +248,10 @@ class UInt4(TType):
                       False,
                       orderer)
 
+    def check_entropy(self, data: np.ndarray):
+        self._check_entropy_eq(data, 0)
+        self._check_entropy_eq(data, 15)
+
     @property
     def is_float(self) -> bool:
         return False
@@ -250,6 +276,11 @@ class Int4(TType):
                       self.bitwidth,
                       True,
                       orderer)
+
+    def check_entropy(self, data: np.ndarray):
+        self._check_entropy_eq(data, -8)
+        self._check_entropy_eq(data, 0)
+        self._check_entropy_eq(data, 7)
 
     @property
     def is_float(self) -> bool:
@@ -276,6 +307,10 @@ class UInt8(TType):
                       False,
                       orderer)
 
+    def check_entropy(self, data: np.ndarray):
+        self._check_entropy_eq(data, 0)
+        self._check_entropy_eq(data, 255)
+
     @property
     def is_float(self) -> bool:
         return False
@@ -296,6 +331,11 @@ class Int8(TType):
                       self.bitwidth,
                       True,
                       orderer)
+
+    def check_entropy(self, data: np.ndarray):
+        self._check_entropy_eq(data, -128)
+        self._check_entropy_eq(data, 0)
+        self._check_entropy_eq(data, 127)
 
     @property
     def is_float(self) -> bool:
@@ -319,6 +359,9 @@ class FP16(TType):
                       self.bitwidth,
                       True,
                       orderer)
+
+    def check_entropy(self, data: np.ndarray):
+        pass
 
     @property
     def is_float(self) -> bool:
@@ -348,6 +391,9 @@ class FP32(TType):
                       True,
                       orderer)
 
+    def check_entropy(self, data: np.ndarray):
+        pass
+
     @property
     def is_float(self) -> bool:
         return True
@@ -371,6 +417,9 @@ class BF16(TType):
                       self.bitwidth,
                       True,
                       orderer)
+
+    def check_entropy(self, data: np.ndarray):
+        pass
 
     @property
     def is_float(self) -> bool:
@@ -835,6 +884,7 @@ class DPUPipeline:
             bitshift = max(result_bitwidth - self.settings.output_ttype.bitwidth, 0)
             ppe_value = ppe(self.inputs, self.settings.output_ttype, mpe_data, bitshift)
             self.o = odu(ppe_value)
+            self.o.check_entropy()
         except Exception as ex:
             raise ComputationError(f'computing {self.ident}') from ex
 
@@ -1301,7 +1351,13 @@ def create_config_files(args):
             continue
         if not filt.match(ident):
             continue
-        option.compute_values()
+        try:
+            option.compute_values()
+        except ComputationError as ce:
+            if isinstance(ce.__cause__, EntropyError) and args.low_entropy_ok:
+               traceback.print_exc(file=sys.stderr)
+            else:
+                raise
         path = args.root / option.ident
         path.mkdir(parents=True, exist_ok=True)
         with (path / 'config.json').open('w') as outfile:
@@ -1327,6 +1383,7 @@ def main():
     parser_write_configs = subparsers.add_parser('write-configs', help='Write test case configurations and sample data')
     parser_write_configs.add_argument('root', type=Path, help='The directory where the test cases should be written')
     parser_write_configs.add_argument('--exist-ok', help='Reuse the contents of the root', action='store_true')
+    parser_write_configs.add_argument('--low-entropy-ok', help='Ignore entropy errors', action='store_true')
     parser_write_configs.add_argument('--filter', help='Regex filter for the generated tests', default='.*')
     parser_write_configs.set_defaults(func=create_config_files)
 
