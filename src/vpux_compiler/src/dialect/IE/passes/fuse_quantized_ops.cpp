@@ -116,10 +116,6 @@ mlir::LogicalResult FuseWithMaxPool::matchAndRewrite(IE::QuantizeOp quantizeOp, 
         return mlir::failure();
     }
 
-    if (VPUIP::NCEInvariant::verifyKernel(maxPoolOp, _log).failed()) {
-        return mlir::failure();
-    }
-
     auto inputDequantizeOp = maxPoolOp.input().getDefiningOp<IE::DequantizeOp>();
     if (inputDequantizeOp == nullptr) {
         return mlir::failure();
@@ -198,7 +194,6 @@ void FuseQuantizedOpsPass::safeRunOnFunc() {
     mlir::OwningRewritePatternList patterns(&ctx);
     patterns.add<FuseWithConv>(&ctx, _log);
     patterns.add<FuseWithSlice>(&ctx, _log);
-    patterns.add<FuseWithMaxPool>(&ctx, _log);
 
     auto func = getFunction();
     if (mlir::failed(applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig()))) {

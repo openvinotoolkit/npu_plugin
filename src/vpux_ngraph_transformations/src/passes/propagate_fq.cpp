@@ -20,9 +20,6 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/ops.hpp>
 
-namespace vpux {
-namespace passes {
-
 static void propogate_fq(std::shared_ptr<ngraph::Node> fq_node, int &copy_num);
 
 std::shared_ptr<ngraph::Node> clone_fq_node(std::shared_ptr<ngraph::Node> fq_node, const ngraph::Output<ngraph::Node> &input, int &copy_num) {
@@ -123,6 +120,3 @@ bool PropagateFQ::run_on_node(std::shared_ptr<ngraph::Node> node) {
 
     return fq_copies_num != 0;
 }
-
-}  // namespace passes
-}  // namespace vpux
