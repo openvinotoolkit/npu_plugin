@@ -148,7 +148,7 @@ def VPUIP_ACTShaveTaskOpInterface : OpInterface<"ACTShaveTaskOpInterface"> {
     let methods = [
         InterfaceMethod<
                 "Get maximal number of ACT SHAVEs to use",
-                "vpux::Optional<uint32_t>", "maxShaves", (ins),
+                "vpux::Optional<int64_t>", "maxShaves", (ins),
             [{
                 return $_op.maxShaves();
             }]
@@ -158,7 +158,7 @@ def VPUIP_ACTShaveTaskOpInterface : OpInterface<"ACTShaveTaskOpInterface"> {
             "void", "setMaxShaves", (ins "uint32_t":$maxShaves),
             [{}],
             [{
-                $_op.maxShavesAttr(vpux::getInt32Attr($_op.getContext(), maxShaves));
+                $_op.maxShavesAttr(vpux::getIntAttr($_op.getContext(), maxShaves));
             }]
         >
     ];
