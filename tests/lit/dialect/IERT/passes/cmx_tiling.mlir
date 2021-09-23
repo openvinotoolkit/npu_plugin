@@ -35,14 +35,14 @@ func @SplitOverOC(
 
 // Tile 0
 
-// CHECK:       [[FILTER_TILE0_VIEW:%.+]] = IERT.SubView [[FILTER]] [0, 0, 0, 0] [64, 32, 3, 3] [1, 1, 1, 1] : memref<128x32x3x3xf16>
+// CHECK:       [[FILTER_TILE0_VIEW:%.+]] = IERT.SubView [[FILTER]] [0, 0, 0, 0] [64, 32, 3, 3] : memref<128x32x3x3xf16>
 // CHECK-SAME:      to memref<64x32x3x3xf16, {{#map[0-9]?}}>
 // CHECK:       [[FILTER_TILE0_BUFF:%.+]] = memref.alloc() : memref<64x32x3x3xf16>
 // CHECK:       [[FILTER_TILE0:%.+]] = IERT.Copy
 // CHECK-SAME:      inputs([[FILTER_TILE0_VIEW]] : memref<64x32x3x3xf16, {{#map[0-9]?}}>)
 // CHECK-SAME:      outputs([[FILTER_TILE0_BUFF]] : memref<64x32x3x3xf16>)
 
-// CHECK:       [[BIAS_TILE0_VIEW:%.+]] = IERT.SubView [[BIAS]] [0, 0, 0, 0] [1, 64, 1, 1] [1, 1, 1, 1] : memref<1x128x1x1xf16>
+// CHECK:       [[BIAS_TILE0_VIEW:%.+]] = IERT.SubView [[BIAS]] [0, 0, 0, 0] [1, 64, 1, 1] : memref<1x128x1x1xf16>
 // CHECK-SAME:      to memref<1x64x1x1xf16, {{#map[0-9]?}}>
 // CHECK:       [[BIAS_TILE0_BUFF:%.+]] = memref.alloc() : memref<1x64x1x1xf16>
 // CHECK:       [[BIAS_TILE0:%.+]] = IERT.Copy
@@ -60,7 +60,7 @@ func @SplitOverOC(
 // CHECK-SAME:             [[BIAS_TILE0]] : memref<1x64x1x1xf16>)
 // CHECK-SAME:      outputs([[OUTPUT_TILE0_BUFF]] : memref<1x64x100x100xf16>
 
-// CHECK:       [[OUTPUT_BUFF_TILE0_VIEW:%.+]] = IERT.SubView [[OUTPUT_BUFF]] [0, 0, 0, 0] [1, 64, 100, 100] [1, 1, 1, 1] : memref<1x128x100x100xf16>
+// CHECK:       [[OUTPUT_BUFF_TILE0_VIEW:%.+]] = IERT.SubView [[OUTPUT_BUFF]] [0, 0, 0, 0] [1, 64, 100, 100] : memref<1x128x100x100xf16>
 // CHECK-SAME:      to memref<1x64x100x100xf16, {{#map[0-9]?}}>
 // CHECK:       [[OUTPUT_BUFF_TILE0:%.+]] = IERT.Copy
 // CHECK-SAME:      inputs([[OUTPUT_TILE0]] : memref<1x64x100x100xf16>)
@@ -68,14 +68,14 @@ func @SplitOverOC(
 
 // Tile 1
 
-// CHECK:       [[FILTER_TILE1_VIEW:%.+]] = IERT.SubView [[FILTER]] [64, 0, 0, 0] [64, 32, 3, 3] [1, 1, 1, 1] : memref<128x32x3x3xf16>
+// CHECK:       [[FILTER_TILE1_VIEW:%.+]] = IERT.SubView [[FILTER]] [64, 0, 0, 0] [64, 32, 3, 3] : memref<128x32x3x3xf16>
 // CHECK-SAME:      to memref<64x32x3x3xf16, {{#map[0-9]?}}>
 // CHECK:       [[FILTER_TILE1_BUFF:%.+]] = memref.alloc() : memref<64x32x3x3xf16>
 // CHECK:       [[FILTER_TILE1:%.+]] = IERT.Copy
 // CHECK-SAME:      inputs([[FILTER_TILE1_VIEW]] : memref<64x32x3x3xf16, {{#map[0-9]?}}>)
 // CHECK-SAME:      outputs([[FILTER_TILE1_BUFF]] : memref<64x32x3x3xf16>)
 
-// CHECK:       [[BIAS_TILE1_VIEW:%.+]] = IERT.SubView [[BIAS]] [0, 64, 0, 0] [1, 64, 1, 1] [1, 1, 1, 1] : memref<1x128x1x1xf16>
+// CHECK:       [[BIAS_TILE1_VIEW:%.+]] = IERT.SubView [[BIAS]] [0, 64, 0, 0] [1, 64, 1, 1] : memref<1x128x1x1xf16>
 // CHECK-SAME:      to memref<1x64x1x1xf16, {{#map[0-9]?}}>
 // CHECK:       [[BIAS_TILE1_BUFF:%.+]] = memref.alloc() : memref<1x64x1x1xf16>
 // CHECK:       [[BIAS_TILE1:%.+]] = IERT.Copy
@@ -93,7 +93,7 @@ func @SplitOverOC(
 // CHECK-SAME:             [[BIAS_TILE1]] : memref<1x64x1x1xf16>)
 // CHECK-SAME:      outputs([[OUTPUT_TILE1_BUFF]] : memref<1x64x100x100xf16>
 
-// CHECK:       [[OUTPUT_BUFF_TILE1_VIEW:%.+]] = IERT.SubView [[OUTPUT_BUFF]] [0, 64, 0, 0] [1, 64, 100, 100] [1, 1, 1, 1] : memref<1x128x100x100xf16>
+// CHECK:       [[OUTPUT_BUFF_TILE1_VIEW:%.+]] = IERT.SubView [[OUTPUT_BUFF]] [0, 64, 0, 0] [1, 64, 100, 100] : memref<1x128x100x100xf16>
 // CHECK-SAME:      to memref<1x64x100x100xf16, {{#map[0-9]?}}>
 // CHECK:       [[OUTPUT_BUFF_TILE1:%.+]] = IERT.Copy
 // CHECK-SAME:      inputs([[OUTPUT_TILE1]] : memref<1x64x100x100xf16>)
@@ -140,7 +140,7 @@ func @SplitOverH(
 
 // Tile 0
 
-// CHECK:       [[INPUT_TILE0_VIEW:%.+]] = IERT.SubView [[INPUT]] [0, 0, 0, 0] [1, 16, 51, 100] [1, 1, 1, 1] : memref<1x16x100x100xf16>
+// CHECK:       [[INPUT_TILE0_VIEW:%.+]] = IERT.SubView [[INPUT]] [0, 0, 0, 0] [1, 16, 51, 100] : memref<1x16x100x100xf16>
 // CHECK-SAME:      to memref<1x16x51x100xf16, {{#map[0-9]?}}>
 // CHECK:       [[INPUT_TILE0_BUFF:%.+]] = memref.alloc() : memref<1x16x51x100xf16>
 // CHECK:       [[INPUT_TILE0:%.+]] = IERT.Copy
@@ -156,7 +156,7 @@ func @SplitOverH(
 // CHECK-SAME:      inputs([[INPUT_TILE0]] : memref<1x16x51x100xf16>)
 // CHECK-SAME:      outputs([[OUTPUT_TILE0_BUFF]] : memref<1x16x50x100xf16>
 
-// CHECK:       [[OUTPUT_BUFF_TILE0_VIEW:%.+]] = IERT.SubView [[OUTPUT_BUFF]] [0, 0, 0, 0] [1, 16, 50, 100] [1, 1, 1, 1] : memref<1x16x100x100xf16>
+// CHECK:       [[OUTPUT_BUFF_TILE0_VIEW:%.+]] = IERT.SubView [[OUTPUT_BUFF]] [0, 0, 0, 0] [1, 16, 50, 100] : memref<1x16x100x100xf16>
 // CHECK-SAME:      to memref<1x16x50x100xf16, {{#map[0-9]?}}>
 // CHECK:       [[OUTPUT_BUFF_TILE0:%.+]] = IERT.Copy
 // CHECK-SAME:      inputs([[OUTPUT_TILE0]] : memref<1x16x50x100xf16>)
@@ -164,7 +164,7 @@ func @SplitOverH(
 
 // Tile 1
 
-// CHECK:       [[INPUT_TILE1_VIEW:%.+]] = IERT.SubView [[INPUT]] [0, 0, 49, 0] [1, 16, 51, 100] [1, 1, 1, 1] : memref<1x16x100x100xf16>
+// CHECK:       [[INPUT_TILE1_VIEW:%.+]] = IERT.SubView [[INPUT]] [0, 0, 49, 0] [1, 16, 51, 100] : memref<1x16x100x100xf16>
 // CHECK-SAME:      to memref<1x16x51x100xf16, {{#map[0-9]?}}>
 // CHECK:       [[INPUT_TILE1_BUFF:%.+]] = memref.alloc() : memref<1x16x51x100xf16>
 // CHECK:       [[INPUT_TILE1:%.+]] = IERT.Copy
@@ -180,7 +180,7 @@ func @SplitOverH(
 // CHECK-SAME:      inputs([[INPUT_TILE1]] : memref<1x16x51x100xf16>)
 // CHECK-SAME:      outputs([[OUTPUT_TILE1_BUFF]] : memref<1x16x50x100xf16>
 
-// CHECK:       [[OUTPUT_BUFF_TILE1_VIEW:%.+]] = IERT.SubView [[OUTPUT_BUFF]] [0, 0, 50, 0] [1, 16, 50, 100] [1, 1, 1, 1] : memref<1x16x100x100xf16>
+// CHECK:       [[OUTPUT_BUFF_TILE1_VIEW:%.+]] = IERT.SubView [[OUTPUT_BUFF]] [0, 0, 50, 0] [1, 16, 50, 100] : memref<1x16x100x100xf16>
 // CHECK-SAME:      to memref<1x16x50x100xf16, {{#map[0-9]?}}>
 // CHECK:       [[OUTPUT_BUFF_TILE1:%.+]] = IERT.Copy
 // CHECK-SAME:      inputs([[OUTPUT_TILE1]] : memref<1x16x50x100xf16>)
@@ -225,14 +225,14 @@ func @SplitOverC(
 
 // Tile 0
 
-// CHECK:       [[INPUT0_TILE0_VIEW:%.+]] = IERT.SubView [[INPUT1]] [0, 0, 0, 0] [1, 512, 14, 14] [1, 1, 1, 1] : memref<1x1024x14x14xf16>
+// CHECK:       [[INPUT0_TILE0_VIEW:%.+]] = IERT.SubView [[INPUT1]] [0, 0, 0, 0] [1, 512, 14, 14] : memref<1x1024x14x14xf16>
 // CHECK-SAME:      to memref<1x512x14x14xf16, {{#map[0-9]?}}>
 // CHECK:       [[INPUT0_TILE0_BUFF:%.+]] = memref.alloc() : memref<1x512x14x14xf16>
 // CHECK:       [[INPUT0_TILE0:%.+]] = IERT.Copy
 // CHECK-SAME:      inputs([[INPUT0_TILE0_VIEW]] : memref<1x512x14x14xf16, {{#map[0-9]?}}>)
 // CHECK-SAME:      outputs([[INPUT0_TILE0_BUFF]] : memref<1x512x14x14xf16>)
 
-// CHECK:       [[INPUT1_TILE0_VIEW:%.+]] = IERT.SubView [[INPUT2]] [0, 0, 0, 0] [1, 512, 14, 14] [1, 1, 1, 1] : memref<1x1024x14x14xf16>
+// CHECK:       [[INPUT1_TILE0_VIEW:%.+]] = IERT.SubView [[INPUT2]] [0, 0, 0, 0] [1, 512, 14, 14] : memref<1x1024x14x14xf16>
 // CHECK-SAME:      to memref<1x512x14x14xf16, {{#map[0-9]?}}>
 // CHECK:       [[INPUT1_TILE0_BUFF:%.+]] = memref.alloc() : memref<1x512x14x14xf16>
 // CHECK:       [[INPUT1_TILE0:%.+]] = IERT.Copy
@@ -244,7 +244,7 @@ func @SplitOverC(
 // CHECK-SAME:      inputs([[INPUT0_TILE0]] : memref<1x512x14x14xf16>, [[INPUT1_TILE0]] : memref<1x512x14x14xf16>)
 // CHECK-SAME:      outputs([[OUTPUT_TILE0_BUFF]] : memref<1x512x14x14xf16>)
 
-// CHECK:       [[OUTPUT_BUFF_TILE0_VIEW:%.+]] = IERT.SubView [[OUTPUT_BUFF]] [0, 0, 0, 0] [1, 512, 14, 14] [1, 1, 1, 1] : memref<1x1024x14x14xf16>
+// CHECK:       [[OUTPUT_BUFF_TILE0_VIEW:%.+]] = IERT.SubView [[OUTPUT_BUFF]] [0, 0, 0, 0] [1, 512, 14, 14] : memref<1x1024x14x14xf16>
 // CHECK-SAME:      to memref<1x512x14x14xf16, {{#map[0-9]?}}>
 // CHECK:       [[OUTPUT_BUFF_TILE0:%.+]] = IERT.Copy
 // CHECK-SAME:      inputs([[OUTPUT_TILE0]] : memref<1x512x14x14xf16>)
@@ -252,14 +252,14 @@ func @SplitOverC(
 
 // Tile 1
 
-// CHECK:       [[INPUT0_TILE1_VIEW:%.+]] = IERT.SubView [[INPUT1]] [0, 512, 0, 0] [1, 512, 14, 14] [1, 1, 1, 1] : memref<1x1024x14x14xf16>
+// CHECK:       [[INPUT0_TILE1_VIEW:%.+]] = IERT.SubView [[INPUT1]] [0, 512, 0, 0] [1, 512, 14, 14] : memref<1x1024x14x14xf16>
 // CHECK-SAME:      to memref<1x512x14x14xf16, {{#map[0-9]?}}>
 // CHECK:       [[INPUT0_TILE1_BUFF:%.+]] = memref.alloc() : memref<1x512x14x14xf16>
 // CHECK:       [[INPUT0_TILE1:%.+]] = IERT.Copy
 // CHECK-SAME:      inputs([[INPUT0_TILE1_VIEW]] : memref<1x512x14x14xf16, {{#map[0-9]?}}>)
 // CHECK-SAME:      outputs([[INPUT0_TILE1_BUFF]] : memref<1x512x14x14xf16>)
 
-// CHECK:       [[INPUT1_TILE1_VIEW:%.+]] = IERT.SubView [[INPUT2]] [0, 512, 0, 0] [1, 512, 14, 14] [1, 1, 1, 1] : memref<1x1024x14x14xf16>
+// CHECK:       [[INPUT1_TILE1_VIEW:%.+]] = IERT.SubView [[INPUT2]] [0, 512, 0, 0] [1, 512, 14, 14] : memref<1x1024x14x14xf16>
 // CHECK-SAME:      to memref<1x512x14x14xf16, {{#map[0-9]?}}>
 // CHECK:       [[INPUT1_TILE1_BUFF:%.+]] = memref.alloc() : memref<1x512x14x14xf16>
 // CHECK:       [[INPUT1_TILE1:%.+]] = IERT.Copy
@@ -271,7 +271,7 @@ func @SplitOverC(
 // CHECK-SAME:      inputs([[INPUT0_TILE1]] : memref<1x512x14x14xf16>, [[INPUT1_TILE1]] : memref<1x512x14x14xf16>)
 // CHECK-SAME:      outputs([[OUTPUT_TILE1_BUFF]] : memref<1x512x14x14xf16>)
 
-// CHECK:       [[OUTPUT_BUFF_TILE1_VIEW:%.+]] = IERT.SubView [[OUTPUT_BUFF]] [0, 512, 0, 0] [1, 512, 14, 14] [1, 1, 1, 1] : memref<1x1024x14x14xf16>
+// CHECK:       [[OUTPUT_BUFF_TILE1_VIEW:%.+]] = IERT.SubView [[OUTPUT_BUFF]] [0, 512, 0, 0] [1, 512, 14, 14] : memref<1x1024x14x14xf16>
 // CHECK-SAME:      to memref<1x512x14x14xf16, {{#map[0-9]?}}>
 // CHECK:       [[OUTPUT_BUFF_TILE1:%.+]] = IERT.Copy
 // CHECK-SAME:      inputs([[OUTPUT_TILE1]] : memref<1x512x14x14xf16>)
@@ -326,7 +326,7 @@ func @SplitQuantOverOC(
 
 // Tile 0
 
-// CHECK:       [[FILTER_TILE0_VIEW:%.+]] = IERT.SubView [[FILTER]] [0, 0, 0, 0] [32, 32, 3, 3] [1, 1, 1, 1] : memref<64x32x3x3x!qElemType1>
+// CHECK:       [[FILTER_TILE0_VIEW:%.+]] = IERT.SubView [[FILTER]] [0, 0, 0, 0] [32, 32, 3, 3] : memref<64x32x3x3x!qElemType1>
 // CHECK-SAME:      to memref<32x32x3x3x!qElemType3, {{#map[0-9]?}}>
 // CHECK:       [[FILTER_TILE0_BUFF:%.+]] = memref.alloc() : memref<32x32x3x3x!qElemType3>
 // CHECK:       [[FILTER_TILE0:%.+]] = IERT.Copy
@@ -343,7 +343,7 @@ func @SplitQuantOverOC(
 // CHECK-SAME:             [[FILTER_TILE0]] : memref<32x32x3x3x!qElemType3>)
 // CHECK-SAME:      outputs([[OUTPUT_TILE0_BUFF]] : memref<1x32x50x50x!qElemType2>
 
-// CHECK:       [[OUTPUT_BUFF_TILE0_VIEW:%.+]] = IERT.SubView [[OUTPUT_BUFF]] [0, 0, 0, 0] [1, 32, 50, 50] [1, 1, 1, 1] : memref<1x64x50x50x!qElemType2>
+// CHECK:       [[OUTPUT_BUFF_TILE0_VIEW:%.+]] = IERT.SubView [[OUTPUT_BUFF]] [0, 0, 0, 0] [1, 32, 50, 50] : memref<1x64x50x50x!qElemType2>
 // CHECK-SAME:      to memref<1x32x50x50x!qElemType2, {{#map[0-9]?}}>
 // CHECK:       [[OUTPUT_BUFF_TILE0:%.+]] = IERT.Copy
 // CHECK-SAME:      inputs([[OUTPUT_TILE0]] : memref<1x32x50x50x!qElemType2>)
@@ -351,7 +351,7 @@ func @SplitQuantOverOC(
 
 // Tile 1
 
-// CHECK:       [[FILTER_TILE1_VIEW:%.+]] = IERT.SubView [[FILTER]] [32, 0, 0, 0] [32, 32, 3, 3] [1, 1, 1, 1] : memref<64x32x3x3x!qElemType1>
+// CHECK:       [[FILTER_TILE1_VIEW:%.+]] = IERT.SubView [[FILTER]] [32, 0, 0, 0] [32, 32, 3, 3] : memref<64x32x3x3x!qElemType1>
 // CHECK-SAME:      to memref<32x32x3x3x!qElemType4, {{#map[0-9]?}}>
 // CHECK:       [[FILTER_TILE1_BUFF:%.+]] = memref.alloc() : memref<32x32x3x3x!qElemType4>
 // CHECK:       [[FILTER_TILE1:%.+]] = IERT.Copy
@@ -368,7 +368,7 @@ func @SplitQuantOverOC(
 // CHECK-SAME:             [[FILTER_TILE1]] : memref<32x32x3x3x!qElemType4>)
 // CHECK-SAME:      outputs([[OUTPUT_TILE1_BUFF]] : memref<1x32x50x50x!qElemType2>
 
-// CHECK:       [[OUTPUT_BUFF_TILE1_VIEW:%.+]] = IERT.SubView [[OUTPUT_BUFF]] [0, 32, 0, 0] [1, 32, 50, 50] [1, 1, 1, 1] : memref<1x64x50x50x!qElemType2>
+// CHECK:       [[OUTPUT_BUFF_TILE1_VIEW:%.+]] = IERT.SubView [[OUTPUT_BUFF]] [0, 32, 0, 0] [1, 32, 50, 50] : memref<1x64x50x50x!qElemType2>
 // CHECK-SAME:      to memref<1x32x50x50x!qElemType2, {{#map[0-9]?}}>
 // CHECK:       [[OUTPUT_BUFF_TILE1:%.+]] = IERT.Copy
 // CHECK-SAME:      inputs([[OUTPUT_TILE1]] : memref<1x32x50x50x!qElemType2>)

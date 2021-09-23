@@ -26,14 +26,18 @@ using namespace vpux;
 
 void vpux::IERT::SubViewOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
                                   ShapeRef static_offsets, ShapeRef static_sizes) {
-    build(builder, state, input, static_offsets, static_sizes,
-          ShapeRef{input.getType().cast<mlir::MemRefType>().getRank(), 1});
+    build(builder, state, input, static_offsets.raw(), static_sizes.raw());
 }
 
 void vpux::IERT::SubViewOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
                                   ArrayRef<int64_t> static_offsets, ArrayRef<int64_t> static_sizes) {
-    SmallVector<int64_t> strides(input.getType().cast<mlir::MemRefType>().getRank(), 1);
-    build(builder, state, input, static_offsets, static_sizes, makeArrayRef(strides));
+    build(builder, state, input, getIntArrayAttr(builder.getContext(), static_offsets),
+          getIntArrayAttr(builder.getContext(), static_sizes));
+}
+
+void vpux::IERT::SubViewOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
+                                  mlir::ArrayAttr static_offsets, mlir::ArrayAttr static_sizes) {
+    build(builder, state, input, static_offsets, static_sizes, nullptr);
 }
 
 void vpux::IERT::SubViewOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
@@ -46,13 +50,6 @@ void vpux::IERT::SubViewOp::build(mlir::OpBuilder& builder, mlir::OperationState
                                   ArrayRef<int64_t> static_strides) {
     build(builder, state, input, getIntArrayAttr(builder.getContext(), static_offsets),
           getIntArrayAttr(builder.getContext(), static_sizes), getIntArrayAttr(builder.getContext(), static_strides));
-}
-
-void vpux::IERT::SubViewOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
-                                  mlir::ArrayAttr static_offsets, mlir::ArrayAttr static_sizes) {
-    SmallVector<int64_t> strides(input.getType().cast<mlir::MemRefType>().getRank(), 1);
-    build(builder, state, input, static_offsets, static_sizes,
-          getIntArrayAttr(builder.getContext(), makeArrayRef(strides)));
 }
 
 //
@@ -141,6 +138,10 @@ public:
 mlir::LogicalResult ComposeSubView::matchAndRewrite(IERT::SubViewOp origOp, mlir::PatternRewriter& rewriter) const {
     auto producerSubViewOp = origOp.source().getDefiningOp<IERT::SubViewOp>();
     if (producerSubViewOp == nullptr) {
+        return mlir::failure();
+    }
+
+    if (origOp.static_strides().hasValue() || producerSubViewOp.static_strides().hasValue()) {
         return mlir::failure();
     }
 
