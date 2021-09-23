@@ -19,6 +19,15 @@ else()
     set(EXCLUDED_HDDL2_UNIT_TESTS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/hddl2_tests")
 endif()
 
+if(ENABLE_ELF_PARSING)
+    set(EXCLUDED_ELF_PARSING_UNIT_TESTS_DIR "")
+    set(ELF_PARSING_LIB
+            elf
+        )
+else()
+    set(EXCLUDED_ELF_PARSING_UNIT_TESTS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/elf_parsing")
+endif()
+
 set(MCM_SCHEDULER_INCLUDES_DIR
     "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/src/mcmCompiler/src/")
 
@@ -35,7 +44,10 @@ endif()
 addIeTargetTest(
     NAME ${TARGET_NAME}
     ROOT ${CMAKE_CURRENT_SOURCE_DIR}
-    EXCLUDED_SOURCE_PATHS ${EXCLUDED_HDDL2_UNIT_TESTS_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/kmb/test_utils
+    EXCLUDED_SOURCE_PATHS
+        ${EXCLUDED_HDDL2_UNIT_TESTS_DIR}
+        ${EXCLUDED_ELF_PARSING_UNIT_TESTS_DIR}
+        ${CMAKE_CURRENT_SOURCE_DIR}/kmb/test_utils
     INCLUDES
         ${HDDL2_INCLUDES}
         "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/include"
@@ -43,6 +55,7 @@ addIeTargetTest(
         ${MCM_SCHEDULER_INCLUDES_DIR}
     LINK_LIBRARIES
         ${HDDL2_LIBS}
+        ${ELF_PARSING_LIB}
         IE::commonTestUtils
         IE::ngraph
         IE::gmock
