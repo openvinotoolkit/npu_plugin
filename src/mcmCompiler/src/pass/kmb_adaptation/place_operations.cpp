@@ -125,6 +125,7 @@ void placeInputHwDequantize(mv::OpModel& om, mv::DataModel& dm, mv::Data::OpList
 
     for (size_t i = 0; i < (opIt->getOpType() == "Eltwise" ? 2 : 1); ++i)
     {
+        std::cout << "loop start " << i << std::endl;
         const auto inputTensor = opIt->getInputTensor(i);
         if (inputTensor->isFloatingPointType())
             continue;
@@ -174,7 +175,7 @@ void placeInputHwDequantize(mv::OpModel& om, mv::DataModel& dm, mv::Data::OpList
         om.defineFlow(placeHwConvert, opIt, i);
 
         // If the parentOp has other UPA child nodes, reuse this HwConvert to dequntize
-        for (auto childOp = parentOp.leftmostChild(); childOp != om.opEnd(); ++childOp) {
+        for (auto childOp = parentOp.leftmostChild(); childOp != om.opEnd();) {
             std::cout << childOp->getName() << std::endl;
             if (childOp->isUPA() || (childOp->hasAttr("softwareExecuted") && childOp->get<bool>("softwareExecuted"))) {
                 auto childInputFlow = childOp.leftmostInput();
@@ -182,7 +183,7 @@ void placeInputHwDequantize(mv::OpModel& om, mv::DataModel& dm, mv::Data::OpList
                 std::cout << childInputTensor->getName() << std::endl;
                 size_t idx = 0;
                 std::cout << childOp->getOpType() << std::endl;
-                if (childOp->getOpType() == "Eltwise" && (childOp->getInputTensor(1) == childInputTensor))
+                if (childOp->getOpType() == "Eltwise" && (childOp->getInputTensor(1)->getName() == childInputTensor->getName()))
                     idx = 1;
                 while (childInputFlow != om.flowEnd()) {
                     if (childInputFlow->getTensor()->getName() == childInputTensor->getName())
@@ -197,8 +198,12 @@ void placeInputHwDequantize(mv::OpModel& om, mv::DataModel& dm, mv::Data::OpList
                 std::cout << "setInputTensor" << std::endl;
                 om.defineFlow(placeHwConvert, childOp, idx);
                 std::cout << "defineFlow" << std::endl;
+                ++childOp;
+                std::cout << "++childOp" << std::endl;
             }
         }
+
+        std::cout << "loop over " << i << std::endl;
     }
 }
 
