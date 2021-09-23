@@ -83,8 +83,11 @@ void vpux::VPUIP::NCEClusterTaskOp::inferLayoutInfo(mlir::Operation* origOp, IE:
     
                 const auto inputShape = getShape(convOp.filter().getType().cast<mlir::ShapedType>());
                 const auto IC = inputShape[IE::Dims4D::Filter::IC];
+                
+                auto inputTensorShape = getShape(convOp.input());
+                auto width = inputTensorShape[IE::Dims4D::Act::W];
 
-                if(IC == 3)
+                if(IC == 3 && (width % 16 == 0))
                 {
                     info.setInput(0, DimsOrder::NCHW);
                     info.setInput(1, DimsOrder::OIYX);
