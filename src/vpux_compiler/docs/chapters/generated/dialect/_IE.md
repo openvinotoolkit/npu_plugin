@@ -974,6 +974,44 @@ operation ::= `IE.LSTMCell` `(` operands `)` attr-dict `:` type(operands) `->` t
 `outputHiddenState` | 2D tensor of 16-bit float or 32-bit float values
 `outputCellState` | 2D tensor of 16-bit float or 32-bit float values
 
+### `IE.LSTMSequence` (vpux::IE::LSTMSequenceOp)
+
+InferenceEngine LSTMSequence layer
+
+
+Syntax:
+
+```
+operation ::= `IE.LSTMSequence` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`sequenceLength` | mlir::IntegerAttr | Integer attribute
+`direction` | vpux::IE::RNNSequenceDirectionAttr | RNNSequenceDirection that the InferenceEngine supports
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`inputData` | 3D tensor of 16-bit float or 32-bit float values
+`initialHiddenState` | 3D tensor of 16-bit float or 32-bit float values
+`initialCellState` | 3D tensor of 16-bit float or 32-bit float values
+`weights` | 3D tensor of 16-bit float or 32-bit float values
+`reccurenceWeights` | 3D tensor of 16-bit float or 32-bit float values
+`biases` | 2D tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`outputHiddenValues` | 4D tensor of 16-bit float or 32-bit float values
+`outputHiddenState` | 3D tensor of 16-bit float or 32-bit float values
+`outputCellState` | 3D tensor of 16-bit float or 32-bit float values
+
 ### `IE.LeakyRelu` (vpux::IE::LeakyReluOp)
 
 InferenceEngine LeakyRelu layer

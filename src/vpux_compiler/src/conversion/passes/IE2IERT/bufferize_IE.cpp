@@ -400,6 +400,58 @@ mlir::LogicalResult LSTMCellRewrite::matchAndRewrite(IE::LSTMCellOp origOp, Arra
 }
 
 //
+// LSTMSequenceRewrite
+//
+
+class LSTMSequenceRewrite final : public mlir::OpConversionPattern<IE::LSTMSequenceOp> {
+public:
+    LSTMSequenceRewrite(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
+            : mlir::OpConversionPattern<IE::LSTMSequenceOp>(typeConverter, ctx), _log(log) {
+        setDebugName("LSTMSequenceRewrite");
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(IE::LSTMSequenceOp origOp, ArrayRef<mlir::Value> newOperands,
+                                        mlir::ConversionPatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult LSTMSequenceRewrite::matchAndRewrite(IE::LSTMSequenceOp origOp, ArrayRef<mlir::Value> newOperands,
+                                                         mlir::ConversionPatternRewriter& rewriter) const {
+    _log.trace("Found LSTMSequence Operation '{0}'", origOp->getLoc());
+
+    auto* typeConverter = getTypeConverter();
+    VPUX_THROW_UNLESS(typeConverter != nullptr, "TypeConverter is not set");
+
+    IE::LSTMSequenceOp::Adaptor args(newOperands, origOp->getAttrDictionary());
+
+    // Concatenate 'weights' and 'recurrenceWeights' into single buffer
+
+    const auto srcWeights = typeConverter->materializeSourceConversion(rewriter, origOp->getLoc(),
+                                                                       origOp.weights().getType(), args.weights());
+    const auto srcRecurrenceWeights = typeConverter->materializeSourceConversion(
+            rewriter, origOp->getLoc(), origOp.reccurenceWeights().getType(), args.reccurenceWeights());
+
+    auto srcConcatenatedWeights =
+            rewriter.create<IE::ConcatOp>(origOp->getLoc(), mlir::ValueRange{srcWeights, srcRecurrenceWeights}, 2);
+
+    const auto targetConcatenatedWeights = typeConverter->materializeTargetConversion(
+            rewriter, origOp->getLoc(), typeConverter->convertType(srcConcatenatedWeights.getType()),
+            srcConcatenatedWeights.output());
+
+    auto resultBufs = allocateResults(origOp->getLoc(), rewriter, *typeConverter, origOp->getOpResults());
+
+    rewriter.replaceOpWithNewOp<IERT::LSTMSequenceOp>(origOp, args.inputData(), args.initialHiddenState(),
+                                                      args.initialCellState(), targetConcatenatedWeights, args.biases(),
+                                                      resultBufs[0], resultBufs[1], resultBufs[2],
+                                                      origOp.sequenceLengthAttr(), origOp.directionAttr());
+
+    return mlir::success();
+}
+
+//
 // LayerRewrite
 //
 
@@ -857,6 +909,7 @@ void BufferizeIEPass::safeRunOnFunc() {
     patterns.insert<SubTensorRewrite>(typeConverter, &ctx, _log);
     patterns.insert<ExpandRewrite>(typeConverter, &ctx, _log);
     patterns.insert<LSTMCellRewrite>(typeConverter, &ctx, _log);
+    patterns.insert<LSTMSequenceRewrite>(typeConverter, &ctx, _log);
     Const::ConstDialect::populateBufferizePatterns(patterns, typeConverter, _log);
 
     auto func = getFunction();

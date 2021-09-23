@@ -307,6 +307,23 @@ def IE_PadMode :
 }
 
 //
+// RNNSequenceDirection
+//
+
+def IE_RNNSequenceDirection :
+        StrEnumAttr<
+            "RNNSequenceDirection",
+            "RNNSequenceDirection that the InferenceEngine supports",
+            [
+                StrEnumAttrCase<"FORWARD">,
+                StrEnumAttrCase<"REVERSE">,
+            ]
+        > {
+    let cppNamespace = "vpux::IE";
+    let genSpecializedAttr = 1;
+}
+
+//
 // PostOp
 //
 

@@ -1967,6 +1967,50 @@ def IERT_RegionYoloOp :
 }
 
 //
+// LSTMSequenceOp
+//
+
+def IERT_LSTMSequenceOp :
+        IERT_LayerOp<3,"LSTMSequence",
+            [
+                MultiViewOpInterface
+            ]
+        > {
+    let summary = "InferenceEngine run-time LSTMSequence layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$inputData,
+        MemRefOf<[F16, F32]>:$initialHiddenState,
+        MemRefOf<[F16, F32]>:$initialCellState,
+        MemRefOf<[F16, F32]>:$weights,
+        MemRefOf<[F16, F32]>:$biases,
+
+        MemRefOf<[F16, F32]>:$outputHiddenValues_buff,
+        MemRefOf<[F16, F32]>:$outputHiddenState_buff,
+        MemRefOf<[F16, F32]>:$outputCellState_buff,
+
+        IntAttr:$sequenceLength,
+        IE_RNNSequenceDirection:$direction
+    );
+
+    let results = (outs
+        MemRefOf<[F16, F32]>:$outputHiddenValues,
+        MemRefOf<[F16, F32]>:$outputHiddenState,
+        MemRefOf<[F16, F32]>:$outputCellState
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $inputData `:` type($inputData) `,` $initialHiddenState `:` type($initialHiddenState) `,` $initialCellState `:` type($initialCellState)
+                    `,` $weights `:` type($weights) `,` $biases `:` type($biases) `)`
+        `outputs` `(` $outputHiddenValues_buff `:` type($outputHiddenValues_buff) `,`
+                    $outputHiddenState_buff `:` type($outputHiddenState_buff) `,`
+                    $outputCellState_buff `:` type($outputCellState_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
 // SubViewOp
 //
 
