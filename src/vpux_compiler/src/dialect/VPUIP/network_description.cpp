@@ -147,7 +147,8 @@ DataMap deserializeDataMap(const TensorReferenceVector* tensors,
 
 }  // namespace
 
-vpux::VPUIP::NetworkDescription::NetworkDescription(std::vector<char> blob): _compiledNetwork(std::move(blob)) {
+vpux::VPUIP::NetworkDescription::NetworkDescription(std::vector<char> blob)
+        : _compiledNetwork(std::move(blob)), _quantParams{} {
     VPUX_THROW_UNLESS(!_compiledNetwork.empty(), "Got NULL pointer");
 
     flatbuffers::Verifier verifier(reinterpret_cast<const uint8_t*>(_compiledNetwork.data()), _compiledNetwork.size());

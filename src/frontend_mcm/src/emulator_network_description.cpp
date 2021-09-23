@@ -12,7 +12,8 @@ EmulatorNetworkDescription::EmulatorNetworkDescription(std::unique_ptr<mv::Compi
           _logger{std::unique_ptr<vpu::Logger>(
                   new vpu::Logger("EmulatorNetworkDescription", config.logLevel(), consoleOutput()))},
           _dataMapPlaceholder{},
-          _compiledNetworkPlaceholder{} {
+          _compiledNetworkPlaceholder{},
+          _quantParams{} {
 }
 
 const vpux::DataMap& EmulatorNetworkDescription::getInputsInfo() const {
@@ -33,6 +34,11 @@ const vpux::DataMap& EmulatorNetworkDescription::getDeviceInputsInfo() const {
 const vpux::DataMap& EmulatorNetworkDescription::getDeviceOutputsInfo() const {
     _logger->warning("EmulatorNetworkDescription::getDeviceOutputsInfo()\n");
     return _dataMapPlaceholder;
+}
+
+const vpux::QuantizationParamMap& EmulatorNetworkDescription::getQuantParamsInfo() const {
+    _logger->warning("EmulatorNetworkDescription::getQuantParamsInfo()\n");
+    return _quantParams;
 }
 
 const std::vector<char>& EmulatorNetworkDescription::getCompiledNetwork() const {
