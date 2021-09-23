@@ -314,7 +314,7 @@
 #pragma comment(linker, "/include:__MCM_REGISTER__PassEntry_AddAlignOpForInputTensors")
 #pragma comment(linker, "/include:__MCM_REGISTER__PassEntry_AddDPUTasksWeightsDMATasks")
 #pragma comment(linker, "/include:__MCM_REGISTER__PassEntry_AddDeallocationTasks")
-#pragma comment(linker, "/include:__MCM_REGISTER__PassEntry_AddPermuteToNonCMConvPaths")
+#pragma comment(linker, "/include:__MCM_REGISTER__PassEntry_AddPermuteToIOOps")
 #pragma comment(linker, "/include:__MCM_REGISTER__PassEntry_AddPseudoDependency")
 #pragma comment(linker, "/include:__MCM_REGISTER__PassEntry_AddUPATasksExtraInputsDMATasks")
 #pragma comment(linker, "/include:__MCM_REGISTER__PassEntry_AddressHelper")

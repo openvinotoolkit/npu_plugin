@@ -68,7 +68,7 @@
             "MarkEltWiseUpaInputs",
             "MarkCMCompatibleConvs",
             "MarkSOHnonCompatibleConcats",
-            "AddPermuteToNonCMConvPaths",
+            "AddPermuteToIOOps",
             {
                 "name" : "SimpleStrategyManager",
                 "loadStrategiesFromFile" : false,

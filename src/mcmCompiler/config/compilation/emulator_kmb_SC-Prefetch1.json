@@ -82,7 +82,7 @@
             "HwConvertToEltwise",
             "MarkEltWiseUpaInputs",
             "MarkCMCompatibleConvs",
-            "AddPermuteToNonCMConvPaths"
+            "AddPermuteToIOOps"
         ]
     },
     "kmb_adapt": {
