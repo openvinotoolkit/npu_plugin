@@ -59,15 +59,18 @@ func @main(%arg0: memref<1x1x1x1000xf16>, %arg1: memref<1x1x1x1000xf16>) -> memr
     %in_tile0_cmx  = VPUIP.DeclareTensor "VPU_CMX_NN" [0] <0> -> memref<1x1x1x1000xf16, "VPU_CMX_NN">
     %out_tile0_cmx = VPUIP.DeclareTensor "VPU_CMX_NN" [0] <2000> -> memref<1x1x1x1000xf16, "VPU_CMX_NN">
 
+    %b0 = VPUIP.ConfigureBarrier<0> -> !VPUIP.Barrier
+    %b1 = VPUIP.ConfigureBarrier<1> -> !VPUIP.Barrier
+
     // Genetic Kernel information for the scheduler.
     %sigmoid_krn =
-    VPURT.Task waits(%b0) updates(%b1) {
         VPUIP.SW.Kernel
                     @VPU.SW.builtin_softmax             // The reference to the Kernel function.
-                    "GFEmbeddedKernel"                  // locale to pack kernel into
+//                    "GFEmbeddedKernel"                  // locale to pack kernel into
                     on tile 0                           // The tile index to execute on.
                     inputs(%in_tile_cmx_0 as %arg0)     // Inputs/outputs buffers for generic operation interface
                     outputs(%out_tile_cmx_0 as %arg1)   // and their mapping to inner region.
+                    waits(%b0) updates(%b1)
         {
             // Inner region, isolated from above, which holds the information about arguments mapping.
             // We can use constant scalars/arrays definitions here.
@@ -76,11 +79,9 @@ func @main(%arg0: memref<1x1x1x1000xf16>, %arg1: memref<1x1x1x1000xf16>) -> memr
             // The arguments mapping, the order must match the kernel parameter structure.
             VPUIP.SW.Kernel.run(%arg0, %arg1, %axis)
         }
-    }
 
 
-    %b0 = VPUIP.ConfigureBarrier<0> -> !VPUIP.Barrier
-    %b1 = VPUIP.ConfigureBarrier<1> -> !VPUIP.Barrier
+
 
     %4 = VPUIP.NNDMA inputs(%arg0 : memref<1x1x1x1000xf16>) outputs(%0 : memref<1x1x1x1000xf16, "VPU_CMX_NN">) updates(%2 : !VPUIP.Barrier) -> memref<1x1x1x1000xf16, "VPU_CMX_NN">
 

@@ -7,7 +7,7 @@ Interface for VPUIP Activation Shave Task
 #### `maxShaves`
 
 ```c++
-vpux::Optional<uint32_t> maxShaves();
+vpux::Optional<int64_t> maxShaves();
 ```
 Get maximal number of ACT SHAVEs to use#### `setMaxShaves`
 
