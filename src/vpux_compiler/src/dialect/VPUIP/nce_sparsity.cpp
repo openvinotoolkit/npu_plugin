@@ -21,31 +21,6 @@ using namespace VPUIP;
 
 namespace {
 
-using Scales = SmallVector<double>;
-using ZeroPoints = SmallVector<int64_t>;
-
-std::pair<Scales, ZeroPoints> extractScalesAndZeroPoints(mlir::Type tensorElemType, size_t quantDimSize) {
-    const auto qType = tensorElemType.dyn_cast<mlir::quant::QuantizedType>();
-    if (const auto uniformParams = qType.dyn_cast_or_null<mlir::quant::UniformQuantizedType>()) {
-        SmallVector<double> scales(quantDimSize, uniformParams.getScale());
-        SmallVector<int64_t> zeroPoints(quantDimSize, uniformParams.getZeroPoint());
-
-        return {scales, zeroPoints};
-    } else if (const auto perAxisParams = qType.dyn_cast_or_null<mlir::quant::UniformQuantizedPerAxisType>()) {
-        VPUX_THROW_UNLESS(
-                perAxisParams.getScales().size() == quantDimSize,
-                "Number of scales and zero points {0} does not match the size of the quantized dimension size {1}",
-                perAxisParams.getScales().size(), quantDimSize);
-
-        SmallVector<double> scales{perAxisParams.getScales().begin(), perAxisParams.getScales().end()};
-        SmallVector<int64_t> zeroPoints{perAxisParams.getZeroPoints().begin(), perAxisParams.getZeroPoints().end()};
-
-        return {scales, zeroPoints};
-    }
-
-    VPUX_THROW("Unsupported Quantized Type {0}", qType);
-}
-
 Scales exractWeightsScales(mlir::Type weightsElemType, size_t quantDimSize) {
     if (weightsElemType == nullptr) {
         return SmallVector<double>(quantDimSize, 1.0);

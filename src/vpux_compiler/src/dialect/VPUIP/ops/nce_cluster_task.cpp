@@ -504,6 +504,54 @@ VPUIP::MPEMode getMPEFrequentModeFromDPUTasks(mlir::Region& dpuTaskOps) {
 
 }  // namespace
 
+// This is a helper routine to build new TensorReference out of NCE task output with provided
+// quantization scale parameters
+vpux::VPUIP::BlobWriter::TensorReference getTensorReferenceWithUpdatedQuantParams(
+        vpux::VPUIP::NCEClusterTaskOp* nceTask, VPUIP::BlobWriter& writer, SmallVector<uint16_t>& ppeQuantMult,
+        SmallVector<uint8_t>& ppeQuantShift) {
+    // Get also ZP from output
+    SmallVector<uint8_t> quantZeroPoints;
+
+    auto outputElementType = nceTask->output().getType().cast<mlir::ShapedType>().getElementType();
+    if (const auto uniformQuantType = outputElementType.dyn_cast<mlir::quant::UniformQuantizedType>()) {
+        quantZeroPoints.push_back(checked_cast<uint8_t>(uniformQuantType.getZeroPoint()));
+    } else if (const auto uniformQuantPerAxisType =
+                       outputElementType.dyn_cast<mlir::quant::UniformQuantizedPerAxisType>()) {
+        auto zp_output = uniformQuantPerAxisType.getZeroPoints();
+        quantZeroPoints.resize(zp_output.size());
+        std::transform(zp_output.begin(), zp_output.end(), quantZeroPoints.begin(), [](int64_t a) {
+            return checked_cast<uint8_t>(a);
+        });
+    } else {
+        quantZeroPoints.push_back(0);
+    }
+
+    VPUX_THROW_UNLESS(ppeQuantShift.size() == quantZeroPoints.size(),
+                      "Mismatch of size between quant shift/mult vector and quant ZP:  {0} != {1}",
+                      ppeQuantShift.size(), quantZeroPoints.size());
+
+    // Find corresponding DeclaretensorOp to get all the data needed to build
+    // new TensorReference
+    VPUIP::DeclareTensorOp tensorOp;
+    if (mlir::isa<VPUIP::DeclareTensorOp>(nceTask->output_buff().getDefiningOp())) {
+        tensorOp = nceTask->output_buff().getDefiningOp<VPUIP::DeclareTensorOp>();
+    } else if (mlir::isa<VPUIP::DeclareTensorOp>(nceTask->parent_output().getDefiningOp())) {
+        tensorOp = nceTask->parent_output().getDefiningOp<VPUIP::DeclareTensorOp>();
+    }
+
+    VPUX_THROW_UNLESS(tensorOp != nullptr, "Unable to find parent DeclareTensorOp to build new TensorReference");
+
+    ArrayRef<uint16_t> multArrRef = makeArrayRef(ppeQuantMult);
+    ArrayRef<uint8_t> shiftArrRef = makeArrayRef(ppeQuantShift);
+    ArrayRef<uint8_t> zeroPointsArrRef = makeArrayRef(quantZeroPoints);
+
+    return writer.createTensor(llvm::formatv("output_tensor_scale_updated").str(),
+                               nceTask->output().getType().cast<mlir::ShapedType>(), tensorOp.locale(),
+                               parseIntArrayAttr<uint32_t>(tensorOp.localeIndex()), tensorOp.dataIndex(), multArrRef,
+                               shiftArrRef, zeroPointsArrRef, tensorOp.sparsityIndex(), tensorOp.storageElementIndex(),
+                               tensorOp.storageElementSize(), tensorOp.leadingOffset(), tensorOp.trailingOffset());
+}
+
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::BlobWriter& writer) {
     SmallVector<flatbuffers::Offset<MVCNN::NCEVariantFields>> variantList;
     for (auto dpuTaskOp : variants().getOps<VPUIP::DPUTaskOp>()) {
@@ -534,6 +582,8 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
     int32_t clampHigh = std::numeric_limits<int32_t>::max();
     int32_t LreluMult = 1;
     uint32_t LreluShift = 0;
+    ::llvm::Optional<SmallVector<uint16_t>> ppeQuantMult;
+    ::llvm::Optional<SmallVector<uint8_t>> ppeQuantShift;
 
     for (auto ppeOp : ppe().getOps<VPUIP::PPETaskOp>()) {
         ppeList.push_back(getPPELayerType(ppeOp.ppe_layer_type()));
@@ -548,6 +598,12 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
         }
         if (ppeOp.lrelu_shift().hasValue()) {
             LreluShift = checked_cast<uint32_t>(ppeOp.lrelu_shift().getValue());
+        }
+        if (ppeOp.quant_mult().hasValue()) {
+            ppeQuantMult = parseIntArrayAttr<uint16_t>(ppeOp.quant_mult().getValue());
+        }
+        if (ppeOp.quant_shift().hasValue()) {
+            ppeQuantShift = parseIntArrayAttr<uint8_t>(ppeOp.quant_shift().getValue());
         }
     }
     VPUX_THROW_UNLESS(ppeList.size() <= 1, "Cannot set more than one PPE task");
@@ -598,7 +654,15 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
     const auto activationWindow = activation_window() != nullptr ? writer.getTensor(activation_window()) : 0;
     const auto activationWindowChannelLength = checked_cast<int32_t>(activation_window_channel_length().getValueOr(0));
 
-    const auto outputData = writer.getTensor(output());
+    auto outputData = writer.getTensor(output());
+
+    // If quant scale (mult, shift) settings were provided as part of PPE block then use it to build new
+    // output TensorReference. This is required for Eltwise operation which doesn't have weights table
+    // and PPE quantization settings (Mult, Shift) need to be provided for NN runtime in output tensor descriptor
+    if (ppeQuantMult.hasValue() && ppeQuantShift.hasValue()) {
+        outputData = getTensorReferenceWithUpdatedQuantParams(this, writer, ppeQuantMult.getValue(),
+                                                              ppeQuantShift.getValue());
+    }
 
     const auto parentInputTensor = writer.getTensor(parent_input());
     const auto parentOutputTensor = writer.getTensor(parent_output());

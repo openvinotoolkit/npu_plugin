@@ -2012,7 +2012,9 @@ def VPUIP_PPETaskOp :
         OptionalAttr<IntAttr>:$clamp_low,
         OptionalAttr<IntAttr>:$clamp_high,
         OptionalAttr<IntAttr>:$lrelu_mult,
-        OptionalAttr<IntAttr>:$lrelu_shift
+        OptionalAttr<IntAttr>:$lrelu_shift,
+        OptionalAttr<I32ArrayAttr>:$quant_mult,
+        OptionalAttr<I32ArrayAttr>:$quant_shift
     );
 
     let builders = [
@@ -2022,6 +2024,15 @@ def VPUIP_PPETaskOp :
             CArg<"int32_t", "std::numeric_limits<int32_t>::max()">:$clamp_high,
             CArg<"int32_t", "1">:$lrelu_mult,
             CArg<"uint32_t", "0">:$lrelu_shift
+        )>,
+        OpBuilder<(ins
+            "vpux::VPUIP::PPELayerType":$ppe_layer_type,
+            "int32_t":$clamp_low,
+            "int32_t":$clamp_high,
+            "int32_t":$lrelu_mult,
+            "uint32_t":$lrelu_shift,
+            "ArrayRef<int32_t>":$quant_mult,
+            "ArrayRef<int32_t>":$quant_shift
         )>
     ];
 

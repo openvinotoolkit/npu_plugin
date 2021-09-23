@@ -38,6 +38,13 @@ mlir::quant::UniformQuantizedPerAxisType expandScalesAndZP(mlir::quant::UniformQ
 mlir::quant::UniformQuantizedPerAxisType tileScalesAndZP(mlir::quant::UniformQuantizedPerAxisType perAxisQType,
                                                          ShapeRef shape, ShapeRef offsets);
 
+using Scales = SmallVector<double>;
+using ZeroPoints = SmallVector<int64_t>;
+
+std::pair<Scales, ZeroPoints> extractScalesAndZeroPoints(mlir::Type tensorElemType, size_t quantDimSize);
+
+uint16_t getQuantMultFromScale(double quantScale);
+uint8_t getQuantShiftFromScale(double quantScale);
 //
 // FakeQuantize support
 //

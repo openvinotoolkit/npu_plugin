@@ -129,6 +129,64 @@ mlir::LogicalResult FuseWithMaxPool::matchAndRewrite(IE::QuantizeOp quantizeOp, 
 }
 
 //
+// FuseWithEltwiseAdd
+//
+
+//
+//      [input 1]    [input 2]
+//          |            |
+//     (dequantize) (dequantize)
+//          |            |
+//           (EltwiseAdd)
+//                |
+//            [output]
+//                |
+//           (quantize)
+//
+
+class FuseWithEltwiseAdd final : public mlir::OpRewritePattern<IE::QuantizeOp> {
+public:
+    FuseWithEltwiseAdd(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<IE::QuantizeOp>(ctx), _log(log) {
+        setDebugName("FuseWithEltwiseAdd");
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(IE::QuantizeOp origOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult FuseWithEltwiseAdd::matchAndRewrite(IE::QuantizeOp quantizeOp,
+                                                        mlir::PatternRewriter& rewriter) const {
+    auto addOp = quantizeOp.input().getDefiningOp<IE::AddOp>();
+    if (addOp == nullptr) {
+        return mlir::failure();
+    }
+
+    auto input1DequantizeOp = addOp.input1().getDefiningOp<IE::DequantizeOp>();
+    if (input1DequantizeOp == nullptr) {
+        return mlir::failure();
+    }
+
+    auto input2DequantizeOp = addOp.input2().getDefiningOp<IE::DequantizeOp>();
+    if (input2DequantizeOp == nullptr) {
+        return mlir::failure();
+    }
+
+    // Perform check for input types. In case they are quantized such check
+    // will also cover if quant parameters are aligned
+    if (input1DequantizeOp.input().getType() != input2DequantizeOp.input().getType()) {
+        return mlir::failure();
+    }
+
+    rewriter.replaceOpWithNewOp<IE::AddOp>(quantizeOp, quantizeOp.getType(), input1DequantizeOp.input(),
+                                           input2DequantizeOp.input(), addOp.auto_broadcastAttr(), addOp.post_opAttr());
+
+    return mlir::success();
+}
+
+//
 // FuseWithSlice
 //
 
@@ -193,6 +251,7 @@ void FuseQuantizedOpsPass::safeRunOnFunc() {
 
     mlir::OwningRewritePatternList patterns(&ctx);
     patterns.add<FuseWithConv>(&ctx, _log);
+    patterns.add<FuseWithEltwiseAdd>(&ctx, _log);
     patterns.add<FuseWithSlice>(&ctx, _log);
 
     auto func = getFunction();

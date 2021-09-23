@@ -367,6 +367,64 @@ private:
     Logger _log;
 };
 
+// This operation based on input and output of Eltwise op will prepare final quantization scale value
+::llvm::Optional<std::vector<double>> calculateQuantScaleVectorForEltwise(IERT::LayerOpInterface layerOp) {
+    if (layerOp == nullptr || layerOp.getInputs().size() < 2) {
+        return ::llvm::None;
+    }
+
+    const auto input1 = layerOp.getInputs()[0];
+    const auto input2 = layerOp.getInputs()[1];
+    const auto output = layerOp.getOutputs()[0];
+
+    const auto input1ElementType = input1.getType().cast<mlir::ShapedType>().getElementType();
+    const auto input2ElementType = input2.getType().cast<mlir::ShapedType>().getElementType();
+    const auto outputElementType = output.getType().cast<mlir::ShapedType>().getElementType();
+    const auto outputChannels = getShape(output.getType().cast<mlir::ShapedType>())[IE::Dims4D::Act::C];
+
+    // In case of fully not quantized operation return
+    if (!input1ElementType.isa<mlir::quant::QuantizedType>() && !input2ElementType.isa<mlir::quant::QuantizedType>() &&
+        !outputElementType.isa<mlir::quant::QuantizedType>()) {
+        return ::llvm::None;
+    }
+
+    VPUX_THROW_WHEN(!input1ElementType.isa<mlir::quant::QuantizedType>() ||
+                            !input2ElementType.isa<mlir::quant::QuantizedType>() ||
+                            !outputElementType.isa<mlir::quant::QuantizedType>(),
+                    "For now support only fully quantized Eltwise operations");
+
+    auto scaleInput1 = extractScalesAndZeroPoints(input1ElementType, outputChannels).first;
+    auto scaleInput2 = extractScalesAndZeroPoints(input2ElementType, outputChannels).first;
+    auto scaleOutput = extractScalesAndZeroPoints(outputElementType, outputChannels).first;
+
+    std::vector<double> ppeScale(scaleInput1.begin(), scaleInput1.end());
+    // For Eltwise Multiply ppeScale = scaleInput1*scaleInput2/scaleOutput
+    // For Eltwise Add/Subtract/And ppeScale = scaleInput1/scaleOutput
+    if (mlir::isa<IERT::MultiplyOp>(layerOp)) {
+        std::transform(ppeScale.begin(), ppeScale.end(), scaleInput2.begin(), ppeScale.begin(),
+                       std::multiplies<double>());
+    }
+    std::transform(ppeScale.begin(), ppeScale.end(), scaleOutput.begin(), ppeScale.begin(), std::divides<double>());
+
+    // Check if all elements are equal. If yes maintain one (per tensor) value
+    if (ppeScale.size() > 1 && std::equal(ppeScale.begin() + 1, ppeScale.end(), ppeScale.begin())) {
+        ppeScale.resize(1);
+    }
+    return ::llvm::Optional<std::vector<double>>(ppeScale);
+}
+
+// Prepare Mult and Shift vector pair based on provided quant scale vector.
+std::pair<std::vector<int32_t>, std::vector<int32_t>> getQuantMultAndShiftVectorFromScale(
+        const std::vector<double>& scale) {
+    std::vector<int32_t> shift(scale.size());
+    std::vector<int32_t> mult(scale.size());
+
+    std::transform(scale.begin(), scale.end(), mult.begin(), getQuantMultFromScale);
+    std::transform(scale.begin(), scale.end(), shift.begin(), getQuantShiftFromScale);
+
+    return {mult, shift};
+}
+
 mlir::LogicalResult EltwiseAddRewrite::matchAndRewrite(IERT::AddOp origOp, mlir::PatternRewriter& rewriter) const {
     if (VPUIP::NCEInvariant::verifyOp(origOp, _log).failed()) {
         return matchFailed(rewriter, origOp, "Operation {0} does not satisfy the NCE invariant", origOp);
@@ -419,7 +477,19 @@ mlir::LogicalResult EltwiseAddRewrite::matchAndRewrite(IERT::AddOp origOp, mlir:
         LreluMult = postOpParams->LreluMult;
         LreluShift = postOpParams->LreluShift;
     }
-    nceOp.addPPETask(rewriter, VPUIP::PPELayerType::ADD, clampLow, clampHigh, LreluMult, LreluShift);
+
+    // Since Eltwise operation doesn't have weights table it requires final quantization scaling
+    // to be part of output tensor description. Scale vector will be placed in PPE block and
+    // later used during NCE task serialization
+    auto quantScale = calculateQuantScaleVectorForEltwise(origOp);
+    if (quantScale.hasValue()) {
+        auto quantMultShift = getQuantMultAndShiftVectorFromScale(quantScale.getValue());
+
+        nceOp.addPPETask(rewriter, VPUIP::PPELayerType::ADD, clampLow, clampHigh, LreluMult, LreluShift,
+                         makeArrayRef<int32_t>(quantMultShift.first), makeArrayRef<int32_t>(quantMultShift.second));
+    } else {
+        nceOp.addPPETask(rewriter, VPUIP::PPELayerType::ADD, clampLow, clampHigh, LreluMult, LreluShift);
+    }
 
     //
     // Create DPU sub-task

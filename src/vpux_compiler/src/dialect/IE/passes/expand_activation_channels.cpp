@@ -269,8 +269,15 @@ mlir::LogicalResult EltwiseAddRewriter::matchAndRewrite(IE::AddOp origOp, mlir::
             expandedInput2 = rewriter.create<IE::ExpandOp>(origOp->getLoc(), origOp.input2(), None, ShapeRef(padsEnd));
         }
 
-        return rewriter.create<IE::AddOp>(origOp.getLoc(), expandedInput1, expandedInput2, origOp.auto_broadcast(),
-                                          origOp.post_opAttr());
+        const Shape outPadBefore(checked_cast<size_t>(origOp.getType().getRank()), 0);
+
+        Shape outPadAfter(checked_cast<size_t>(origOp.getType().getRank()), 0);
+        outPadAfter[IE::Dims4D::Act::C] = outChanPadEnd;
+
+        const auto newOutputType = getPaddedType(origOp.getType(), outPadBefore, outPadAfter);
+
+        return rewriter.create<IE::AddOp>(origOp.getLoc(), newOutputType, expandedInput1, expandedInput2,
+                                          origOp.auto_broadcast(), origOp.post_opAttr());
     };
 
     return generalRewrite(origOp, rewriter, opCreator, _log.nest());

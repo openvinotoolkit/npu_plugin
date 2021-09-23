@@ -1049,21 +1049,20 @@ def IERT_AddOp :
         IERT_LayerOp<1, "Add",
             [
                 ViewLikeOpInterface,
-                SameOperandsElementType
             ]
         > {
     let summary = "InferenceEngine run-time Add layer";
 
     let arguments = (ins
-        MemRefOf<[F16, F32]>:$input1,
-        MemRefOf<[F16, F32]>:$input2,
-        MemRefOf<[F16, F32]>:$output_buff,
+        MemRefOf<[F16, F32, quant_QuantizedType]>:$input1,
+        MemRefOf<[F16, F32, quant_QuantizedType]>:$input2,
+        MemRefOf<[F16, F32, quant_QuantizedType]>:$output_buff,
 
         OptionalAttr<IE_PostOp>:$post_op
     );
 
     let results = (outs
-        MemRefOf<[F16, F32]>:$output
+        MemRefOf<[F16, F32, quant_QuantizedType]>:$output
     );
 
     let assemblyFormat = [{

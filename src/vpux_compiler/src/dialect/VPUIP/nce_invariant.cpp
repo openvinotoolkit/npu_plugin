@@ -571,8 +571,10 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IE::AddOp origOp, Lo
         origOp.output().getType().cast<mlir::ShapedType>().getRank() != 4) {
         return mlir::failure();
     }
-    if (origOp.input1().getType() != origOp.input2().getType() ||
-        origOp.input1().getType() != origOp.output().getType()) {
+
+    // Output type can differ from input type. In case of quantization
+    // this can be different quant scale value
+    if (origOp.input1().getType() != origOp.input2().getType()) {
         return mlir::failure();
     }
     return mlir::success();
@@ -585,8 +587,9 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IERT::AddOp origOp, 
         origOp.output().getType().cast<mlir::ShapedType>().getRank() != 4) {
         return mlir::failure();
     }
-    if (origOp.input1().getType() != origOp.input2().getType() ||
-        origOp.input1().getType() != origOp.output().getType()) {
+    // Output type can differ from input type. In case of quantization
+    // this can be different quant scale value
+    if (origOp.input1().getType() != origOp.input2().getType()) {
         return mlir::failure();
     }
     return mlir::success();
