@@ -587,6 +587,8 @@ class CMX_Concatenation {
       //NOTE: Pseudo edges will be added in the representative tasks with lower depth
       //so I need to keep their new depth as the compute_depth_function does not update the depth
       std::unordered_map<operation_t, size_t> temporary_dpu_depth_map;
+      size_t numConcats = 0;
+      size_t cmxedConcats = 0;
       for (auto sitr=concat_subgraphs.begin(); sitr!=concat_subgraphs.end();
             ++sitr) {
         concat_subgraph_t& subgraph = *sitr;
@@ -647,7 +649,9 @@ class CMX_Concatenation {
               output = edge;
           }
         }
-
+        numConcats++;
+        if(can_transform)
+          cmxedConcats++;
         if (fptr.get()) {
           fprintf(fptr.get(), "=====================================\n");
           fprintf(fptr.get(), "concat = %s transformed_to_cmx = %s rep=%s \n",
@@ -676,6 +680,9 @@ class CMX_Concatenation {
           fprintf(fptr.get(), "=====================================\n");
         }
       }
+
+      std::cout << "Total concats: " << numConcats << std::endl;
+      std::cout << "CMXed concats: " << cmxedConcats << std::endl;
 
       validate_dpu_ins_level(concat_subgraphs);
     }
