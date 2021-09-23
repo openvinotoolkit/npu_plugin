@@ -55,9 +55,10 @@ int64_t getWindowSize(int64_t kernelW, int64_t strideW, mlir::Type elemType) {
     // Window size is limited to 32 bytes by HW. Size of the data type
     // needs to be accounted to find the max (32 for U8, 16 for FP16)
     const int64_t maxWindowSize = 32 / (typeSizeInBits.count() / 8);
+    int64_t maxMpeWindowSize = 64;
 
     int64_t windowSize = 0;
-    int mpeNum = 2;
+    int mpeNum = 1;
 
     while (mpeNum <= mpeNumLimit) {
         if (strideW <= kernelW) {
@@ -66,13 +67,13 @@ int64_t getWindowSize(int64_t kernelW, int64_t strideW, mlir::Type elemType) {
             windowSize = kernelW * mpeNum;
         }
 
-        if (windowSize > maxWindowSize)
-            return windowSize;
+        if (windowSize <= maxWindowSize)
+            maxMpeWindowSize = windowSize;
 
         mpeNum *= 2;
     }
 
-    return windowSize;
+    return maxMpeWindowSize;
 }
 
 std::vector<uint8_t> getBitPattern(mlir::ArrayRef<int64_t> kernelSize, int64_t windowSize) {
