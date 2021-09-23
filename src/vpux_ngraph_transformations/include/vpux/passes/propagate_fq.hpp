@@ -15,13 +15,7 @@
 
 #include <ngraph/pass/pass.hpp>
 
-namespace vpux {
-namespace passes {
-
 class PropagateFQ final : public ngraph::pass::NodePass {
 public:
     bool run_on_node(std::shared_ptr<ngraph::Node> node) override;
 };
-
-}  // namespace passes
-}  // namespace vpux

@@ -538,7 +538,7 @@ void applyTransformations(
     passManager.register_pass<vpux::passes::OnnxReorgPatternToDarkNetReorg>();
     passManager.register_pass<vpux::passes::ConvertExtractImagePatchesToReorgYoloVPU>();
     passManager.register_pass<ConvertReshapeTransposeChainToDepthToSpace>();
-    passManager.register_pass<vpux::passes::PropagateFQ>();
+    passManager.register_pass<PropagateFQ>();
     passManager.register_pass<vpux::passes::AlignScales>();
     passManager.register_pass<ConvertMinMaxToClamp>();
 

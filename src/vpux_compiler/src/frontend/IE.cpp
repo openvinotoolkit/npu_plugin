@@ -29,8 +29,6 @@
 #include "vpux/passes/propagate_fq.hpp"
 #include "vpux/passes/remove_split_concat.hpp"
 #include "vpux/passes/replace_onnx_pattern_to_reorg.hpp"
-#include <vpux/passes/clean_up_fq.hpp>
-#include <vpux/passes/propagate_fq.hpp>
 
 #include "vpux/utils/IE/format.hpp"
 #include "vpux/utils/IE/hash.hpp"
@@ -61,8 +59,6 @@
 
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/common_optimizations/convert_quantize_dequantize.hpp>
-#include <transformations/common_optimizations/fq_mul_fusion.hpp>
-#include <transformations/common_optimizations/pull_transpose_through_fq.hpp>
 #include <transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp>
 #include <transformations/op_conversions/convert_divide.hpp>
 #include <transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp>
@@ -1744,7 +1740,6 @@ std::string getValidOutputName(const std::shared_ptr<ngraph::op::Result>& result
     if (resultInput->get_output_size() != 1) {
         portSuffix = "." + std::to_string(result->get_input_source_output(0).get_index());
     }
-    std::cout << resultInput->get_friendly_name() << std::endl;
     return resultInput->get_friendly_name() + portSuffix;
 }
 
@@ -1769,9 +1764,6 @@ void runNGraphPasses(const std::shared_ptr<ngraph::Function>& netGraph, mlir::Ti
     // The ReduceMean layer can be solved with ngraph::pass::ConvertReduceToPooling pass, but still remain Subtract
     // issue.
     passConfig->disable<ngraph::pass::MVN6Decomposition>();
-    // FakeQuantizeMulFusion and PullTransposeThroughFQUp has conflicts with PropagateFQ
-    passConfig->disable<ngraph::pass::FakeQuantizeMulFusion>();
-    passConfig->disable<ngraph::pass::PullTransposeThroughFQUp>();
 
     ngraph::pass::Manager manager(passConfig);
     manager.register_pass<ngraph::pass::InitNodeInfo>();
