@@ -222,6 +222,17 @@ class TType(ABC):
         if (data.size * .9) < count:
             raise EntropyError(f'got {count} elements == {value} in {data.size} elements')
 
+    @staticmethod
+    def _check_entropy_inf(data: np.ndarray):
+        count = np.sum(np.isinf(data))
+        if (data.size * .9) < count:
+            raise EntropyError(f'got {count} infinite elements in {data.size} elements')
+
+    @staticmethod
+    def _check_entropy_nan(data: np.ndarray):
+        if np.any(np.isnan(data)):
+            raise EntropyError(f'got NaN elements')
+
 
 def pack_int4(data: np.ndarray) -> np.ndarray:
     flat = data.flatten()
@@ -361,7 +372,8 @@ class FP16(TType):
                       orderer)
 
     def check_entropy(self, data: np.ndarray):
-        pass
+        self._check_entropy_inf(data)
+        self._check_entropy_nan(data)
 
     @property
     def is_float(self) -> bool:
@@ -392,7 +404,8 @@ class FP32(TType):
                       orderer)
 
     def check_entropy(self, data: np.ndarray):
-        pass
+        self._check_entropy_inf(data)
+        self._check_entropy_nan(data)
 
     @property
     def is_float(self) -> bool:
@@ -419,7 +432,8 @@ class BF16(TType):
                       orderer)
 
     def check_entropy(self, data: np.ndarray):
-        pass
+        self._check_entropy_inf(data)
+        self._check_entropy_nan(data)
 
     @property
     def is_float(self) -> bool:
@@ -537,9 +551,7 @@ class ZMajorConvolution(MPE):
         return result
 
     def result_bitwidth(self, values: List[Value]) -> int:
-        # NB zm_conv_int8_fp16_16_uint8 seems to have a cliff behavior at 14
-        #    extra bits: at 13, we see 0 and FF as outputs; at 14, we see just 0.
-        return values[0].bitwidth + values[1].bitwidth + self.settings.input_shape[2].bit_length() + self.settings.input_shape[3].bit_length() - 1
+        return values[0].bitwidth + values[1].bitwidth + self.settings.kernel_shape[0].bit_length() + self.settings.kernel_shape[1].bit_length() + self.settings.kernel_channels.bit_length()
 
 
 class DepthWiseConv(MPE):
@@ -833,7 +845,7 @@ def ppe(values: List[Value], output_ttype: TType, data: Union[np.ndarray, NBQuan
     if isinstance(data, NBQuantized):
         ndarray = data.value / (1 << bitshift)
     else:
-        ndarray = data
+        ndarray = data / (1 << bitshift)
     ndarray = output_ttype.clip(ndarray).astype(output_ttype.dtype)
     value = Value(output_ttype, 'output-0.bin', ndarray, output_ttype.bitwidth, output_ttype.signed, None)
 
