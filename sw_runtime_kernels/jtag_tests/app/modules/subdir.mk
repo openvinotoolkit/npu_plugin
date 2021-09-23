@@ -1,6 +1,3 @@
-#firstly build schema files
-schema_files := $(shell make -C $(GET_CURRENT_DIR) BUILDDIR=$(BUILDDIR) schema)
-
 RELPATH := $(NEXTGEN_INSTALL_DIR)/make/relpath.sh
 OBJDIR := $(shell $(RELPATH) $(GET_CURRENT_DIR) $(BUILDDIR))
 
@@ -22,3 +19,5 @@ endif
 
 srcs-los-y += $(wildcard *.cpp)
 srcs-lrt-y += $(wildcard *.cpp)
+srcs-lrt-y += ShaveElfMetadata/ShaveElfMetadataParser.cpp
+

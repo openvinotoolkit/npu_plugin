@@ -7,7 +7,6 @@
 #include <mvTensorConfig.h>
 #include <sw_tensor_ref.h>
 #include <mvSubspaces.h>
-#include "include/software_generated.h"
 #include <map>
 #include <mvSubspaces8d.h>
 
@@ -16,6 +15,514 @@
 #define MVTENSOR_VERSION_MINOR  0
 
 using namespace subspace;
+
+// the following 'flatbuffers' and 'MVCNN' definitions are copied 
+// just to use codes of (sub)operations in testing system as previously
+
+namespace flatbuffers {
+
+// Check 'v' is out of closed range [low; high].
+// Workaround for GCC warning [-Werror=type-limits]:
+// comparison is always true due to limited range of data type.
+template<typename T>
+inline bool IsOutRange(const T &v, const T &low, const T &high) {
+  return (v < low) || (high < v);
+}
+
+}  // namespace flatbuffers
+
+namespace MVCNN {
+
+enum DataType {
+  DataType_UNKNOWN = 0,
+  DataType_INT1 = 1,
+  DataType_INT8 = 2,
+  DataType_INT16 = 3,
+  DataType_INT32 = 4,
+  DataType_INT64 = 5,
+  DataType_UINT8 = 6,
+  DataType_UINT16 = 7,
+  DataType_UINT32 = 8,
+  DataType_UINT64 = 9,
+  DataType_FLOAT16 = 10,
+  DataType_FLOAT32 = 11,
+  DataType_FLOAT64 = 12,
+  DataType_MIN = DataType_UNKNOWN,
+  DataType_MAX = DataType_FLOAT64
+};
+
+inline const DataType (&EnumValuesDataType())[13] {
+  static const DataType values[] = {
+    DataType_UNKNOWN,
+    DataType_INT1,
+    DataType_INT8,
+    DataType_INT16,
+    DataType_INT32,
+    DataType_INT64,
+    DataType_UINT8,
+    DataType_UINT16,
+    DataType_UINT32,
+    DataType_UINT64,
+    DataType_FLOAT16,
+    DataType_FLOAT32,
+    DataType_FLOAT64
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesDataType() {
+  static const char * const names[14] = {
+    "UNKNOWN",
+    "INT1",
+    "INT8",
+    "INT16",
+    "INT32",
+    "INT64",
+    "UINT8",
+    "UINT16",
+    "UINT32",
+    "UINT64",
+    "FLOAT16",
+    "FLOAT32",
+    "FLOAT64",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameDataType(DataType e) {
+  if (flatbuffers::IsOutRange(e, DataType_UNKNOWN, DataType_FLOAT64)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesDataType()[index];
+}
+
+enum EltwiseParam {
+  EltwiseParam_NONE = 0,
+  EltwiseParam_i32 = 1,
+  EltwiseParam_fp = 2,
+  EltwiseParam_MIN = EltwiseParam_NONE,
+  EltwiseParam_MAX = EltwiseParam_fp
+};
+
+inline const EltwiseParam (&EnumValuesEltwiseParam())[3] {
+  static const EltwiseParam values[] = {
+    EltwiseParam_NONE,
+    EltwiseParam_i32,
+    EltwiseParam_fp
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesEltwiseParam() {
+  static const char * const names[4] = {
+    "NONE",
+    "i32",
+    "fp",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameEltwiseParam(EltwiseParam e) {
+  if (flatbuffers::IsOutRange(e, EltwiseParam_NONE, EltwiseParam_fp)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesEltwiseParam()[index];
+}
+
+enum EltwisePostOpsNestedParams {
+  EltwisePostOpsNestedParams_NONE = 0,
+  EltwisePostOpsNestedParams_EltwisePostOpEmpty = 1,
+  EltwisePostOpsNestedParams_EltwisePostOpPReLU = 2,
+  EltwisePostOpsNestedParams_MIN = EltwisePostOpsNestedParams_NONE,
+  EltwisePostOpsNestedParams_MAX = EltwisePostOpsNestedParams_EltwisePostOpPReLU
+};
+
+inline const EltwisePostOpsNestedParams (&EnumValuesEltwisePostOpsNestedParams())[3] {
+  static const EltwisePostOpsNestedParams values[] = {
+    EltwisePostOpsNestedParams_NONE,
+    EltwisePostOpsNestedParams_EltwisePostOpEmpty,
+    EltwisePostOpsNestedParams_EltwisePostOpPReLU
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesEltwisePostOpsNestedParams() {
+  static const char * const names[4] = {
+    "NONE",
+    "EltwisePostOpEmpty",
+    "EltwisePostOpPReLU",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameEltwisePostOpsNestedParams(EltwisePostOpsNestedParams e) {
+  if (flatbuffers::IsOutRange(e, EltwisePostOpsNestedParams_NONE, EltwisePostOpsNestedParams_EltwisePostOpPReLU)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesEltwisePostOpsNestedParams()[index];
+}
+
+enum PostOpsNestedParams {
+  PostOpsNestedParams_NONE = 0,
+  PostOpsNestedParams_BiasParams = 1,
+  PostOpsNestedParams_ScaleParams = 2,
+  PostOpsNestedParams_ScaleShiftParams = 3,
+  PostOpsNestedParams_ClampParams = 4,
+  PostOpsNestedParams_EluParams = 5,
+  PostOpsNestedParams_PowerParams = 6,
+  PostOpsNestedParams_BiasLeakyReluParams = 7,
+  PostOpsNestedParams_BiasReluParams = 8,
+  PostOpsNestedParams_LeakyReluParams = 9,
+  PostOpsNestedParams_ReluParams = 10,
+  PostOpsNestedParams_PReluParams = 11,
+  PostOpsNestedParams_SigmoidParams = 12,
+  PostOpsNestedParams_TanhParams = 13,
+  PostOpsNestedParams_HSwishParams = 14,
+  PostOpsNestedParams_SwishParams = 15,
+  PostOpsNestedParams_MishParams = 16,
+  PostOpsNestedParams_SoftPlusParams = 17,
+  PostOpsNestedParams_FloorParams = 18,
+  PostOpsNestedParams_ErfParams = 19,
+  PostOpsNestedParams_RoundParams = 20,
+  PostOpsNestedParams_CeilingParams = 21,
+  PostOpsNestedParams_GeluParams = 22,
+  PostOpsNestedParams_LogParams = 23,
+  PostOpsNestedParams_ExpParams = 24,
+  PostOpsNestedParams_SinhParams = 25,
+  PostOpsNestedParams_CoshParams = 26,
+  PostOpsNestedParams_SqrtParams = 27,
+  PostOpsNestedParams_MIN = PostOpsNestedParams_NONE,
+  PostOpsNestedParams_MAX = PostOpsNestedParams_SqrtParams
+};
+
+inline const PostOpsNestedParams (&EnumValuesPostOpsNestedParams())[28] {
+  static const PostOpsNestedParams values[] = {
+    PostOpsNestedParams_NONE,
+    PostOpsNestedParams_BiasParams,
+    PostOpsNestedParams_ScaleParams,
+    PostOpsNestedParams_ScaleShiftParams,
+    PostOpsNestedParams_ClampParams,
+    PostOpsNestedParams_EluParams,
+    PostOpsNestedParams_PowerParams,
+    PostOpsNestedParams_BiasLeakyReluParams,
+    PostOpsNestedParams_BiasReluParams,
+    PostOpsNestedParams_LeakyReluParams,
+    PostOpsNestedParams_ReluParams,
+    PostOpsNestedParams_PReluParams,
+    PostOpsNestedParams_SigmoidParams,
+    PostOpsNestedParams_TanhParams,
+    PostOpsNestedParams_HSwishParams,
+    PostOpsNestedParams_SwishParams,
+    PostOpsNestedParams_MishParams,
+    PostOpsNestedParams_SoftPlusParams,
+    PostOpsNestedParams_FloorParams,
+    PostOpsNestedParams_ErfParams,
+    PostOpsNestedParams_RoundParams,
+    PostOpsNestedParams_CeilingParams,
+    PostOpsNestedParams_GeluParams,
+    PostOpsNestedParams_LogParams,
+    PostOpsNestedParams_ExpParams,
+    PostOpsNestedParams_SinhParams,
+    PostOpsNestedParams_CoshParams,
+    PostOpsNestedParams_SqrtParams
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesPostOpsNestedParams() {
+  static const char * const names[29] = {
+    "NONE",
+    "BiasParams",
+    "ScaleParams",
+    "ScaleShiftParams",
+    "ClampParams",
+    "EluParams",
+    "PowerParams",
+    "BiasLeakyReluParams",
+    "BiasReluParams",
+    "LeakyReluParams",
+    "ReluParams",
+    "PReluParams",
+    "SigmoidParams",
+    "TanhParams",
+    "HSwishParams",
+    "SwishParams",
+    "MishParams",
+    "SoftPlusParams",
+    "FloorParams",
+    "ErfParams",
+    "RoundParams",
+    "CeilingParams",
+    "GeluParams",
+    "LogParams",
+    "ExpParams",
+    "SinhParams",
+    "CoshParams",
+    "SqrtParams",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNamePostOpsNestedParams(PostOpsNestedParams e) {
+  if (flatbuffers::IsOutRange(e, PostOpsNestedParams_NONE, PostOpsNestedParams_SqrtParams)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesPostOpsNestedParams()[index];
+}
+
+enum SoftwareLayerParams {
+  SoftwareLayerParams_NONE = 0,
+  SoftwareLayerParams_DummyParams = 1,
+  SoftwareLayerParams_DetectionOutputParams = 2,
+  SoftwareLayerParams_FlattenParams = 3,
+  SoftwareLayerParams_InterpParams = 4,
+  SoftwareLayerParams_NormalizeParams = 5,
+  SoftwareLayerParams_PermuteParams = 6,
+  SoftwareLayerParams_PriorboxParams = 7,
+  SoftwareLayerParams_ProposalParams = 8,
+  SoftwareLayerParams_RegionYOLOParams = 9,
+  SoftwareLayerParams_ReorgYOLOParams = 10,
+  SoftwareLayerParams_ReshapeParams = 11,
+  SoftwareLayerParams_SoftmaxParams = 12,
+  SoftwareLayerParams_CustomLayerOclParams = 13,
+  SoftwareLayerParams_PassthroughParams = 14,
+  SoftwareLayerParams_LayerRecordParams = 15,
+  SoftwareLayerParams_ROIPoolingParams = 16,
+  SoftwareLayerParams_QuantizeParams = 17,
+  SoftwareLayerParams_ArgMaxParams = 18,
+  SoftwareLayerParams_NormParams = 19,
+  SoftwareLayerParams_EltwiseParams = 20,
+  SoftwareLayerParams_ResampleParams = 21,
+  SoftwareLayerParams_CorrelationParams = 22,
+  SoftwareLayerParams_MVNParams = 23,
+  SoftwareLayerParams_GRNParams = 24,
+  SoftwareLayerParams_CTCDecoderParams = 25,
+  SoftwareLayerParams_SpatialTransformParams = 26,
+  SoftwareLayerParams_FakeQuantizeParams = 27,
+  SoftwareLayerParams_PoolingParams = 28,
+  SoftwareLayerParams_EdslParams = 29,
+  SoftwareLayerParams_TileParams = 30,
+  SoftwareLayerParams_PSROIPoolingParams = 31,
+  SoftwareLayerParams_DeconvolutionParams = 32,
+  SoftwareLayerParams_UnaryOpParams = 33,
+  SoftwareLayerParams_ConvolutionParams = 34,
+  SoftwareLayerParams_GatherParams = 35,
+  SoftwareLayerParams_PostOpsParams = 36,
+  SoftwareLayerParams_NegativeParams = 37,
+  SoftwareLayerParams_ConvertParams = 38,
+  SoftwareLayerParams_CustomLayerCppParams = 39,
+  SoftwareLayerParams_PermuteNDParams = 40,
+  SoftwareLayerParams_PadParams = 41,
+  SoftwareLayerParams_InterpolateParams = 42,
+  SoftwareLayerParams_CTCGreedyDecoderSeqLenParams = 43,
+  SoftwareLayerParams_SpaceToDepthParams = 44,
+  SoftwareLayerParams_DepthToSpaceParams = 45,
+  SoftwareLayerParams_GatherElementsParams = 46,
+  SoftwareLayerParams_ReversesequenceParams = 47,
+  SoftwareLayerParams_LSTMCellParams = 48,
+  SoftwareLayerParams_StridedSliceParams = 49,
+  SoftwareLayerParams_FullyConnectedParams = 50,
+  SoftwareLayerParams_SWConvolutionParams = 51,
+  SoftwareLayerParams_TopKParams = 52,
+  SoftwareLayerParams_ScatterElementsUpdateParams = 53,
+  SoftwareLayerParams_ScatterUpdateParams = 54,
+  SoftwareLayerParams_GatherNDParams = 55,
+  SoftwareLayerParams_DesparsifyParams = 56,
+  SoftwareLayerParams_OutShapeOfReshapeParams = 57,
+  SoftwareLayerParams_UpsamplingParams = 58,
+  SoftwareLayerParams_BroadcastParams = 59,
+  SoftwareLayerParams_NonZeroParams = 60,
+  SoftwareLayerParams_InnerLRNParams = 61,
+  SoftwareLayerParams_ExpDetectionOutputParams = 62,
+  SoftwareLayerParams_NMSParams = 63,
+  SoftwareLayerParams_ExpGenerateProposalsParams = 64,
+  SoftwareLayerParams_ExpPriorGridGeneratorParams = 65,
+  SoftwareLayerParams_ExpTopKROIsParams = 66,
+  SoftwareLayerParams_ROIAlignParams = 67,
+  SoftwareLayerParams_ROIFeatureExtractorParams = 68,
+  SoftwareLayerParams_ConcatParams = 69,
+  SoftwareLayerParams_CopyParams = 70,
+  SoftwareLayerParams_CropParams = 71,
+  SoftwareLayerParams_SliceParams = 72,
+  SoftwareLayerParams_AlignParams = 73,
+  SoftwareLayerParams_ReduceParams = 74,
+  SoftwareLayerParams_SCReluParams = 75,
+  SoftwareLayerParams_MIN = SoftwareLayerParams_NONE,
+  SoftwareLayerParams_MAX = SoftwareLayerParams_SCReluParams
+};
+
+inline const SoftwareLayerParams (&EnumValuesSoftwareLayerParams())[76] {
+  static const SoftwareLayerParams values[] = {
+    SoftwareLayerParams_NONE,
+    SoftwareLayerParams_DummyParams,
+    SoftwareLayerParams_DetectionOutputParams,
+    SoftwareLayerParams_FlattenParams,
+    SoftwareLayerParams_InterpParams,
+    SoftwareLayerParams_NormalizeParams,
+    SoftwareLayerParams_PermuteParams,
+    SoftwareLayerParams_PriorboxParams,
+    SoftwareLayerParams_ProposalParams,
+    SoftwareLayerParams_RegionYOLOParams,
+    SoftwareLayerParams_ReorgYOLOParams,
+    SoftwareLayerParams_ReshapeParams,
+    SoftwareLayerParams_SoftmaxParams,
+    SoftwareLayerParams_CustomLayerOclParams,
+    SoftwareLayerParams_PassthroughParams,
+    SoftwareLayerParams_LayerRecordParams,
+    SoftwareLayerParams_ROIPoolingParams,
+    SoftwareLayerParams_QuantizeParams,
+    SoftwareLayerParams_ArgMaxParams,
+    SoftwareLayerParams_NormParams,
+    SoftwareLayerParams_EltwiseParams,
+    SoftwareLayerParams_ResampleParams,
+    SoftwareLayerParams_CorrelationParams,
+    SoftwareLayerParams_MVNParams,
+    SoftwareLayerParams_GRNParams,
+    SoftwareLayerParams_CTCDecoderParams,
+    SoftwareLayerParams_SpatialTransformParams,
+    SoftwareLayerParams_FakeQuantizeParams,
+    SoftwareLayerParams_PoolingParams,
+    SoftwareLayerParams_EdslParams,
+    SoftwareLayerParams_TileParams,
+    SoftwareLayerParams_PSROIPoolingParams,
+    SoftwareLayerParams_DeconvolutionParams,
+    SoftwareLayerParams_UnaryOpParams,
+    SoftwareLayerParams_ConvolutionParams,
+    SoftwareLayerParams_GatherParams,
+    SoftwareLayerParams_PostOpsParams,
+    SoftwareLayerParams_NegativeParams,
+    SoftwareLayerParams_ConvertParams,
+    SoftwareLayerParams_CustomLayerCppParams,
+    SoftwareLayerParams_PermuteNDParams,
+    SoftwareLayerParams_PadParams,
+    SoftwareLayerParams_InterpolateParams,
+    SoftwareLayerParams_CTCGreedyDecoderSeqLenParams,
+    SoftwareLayerParams_SpaceToDepthParams,
+    SoftwareLayerParams_DepthToSpaceParams,
+    SoftwareLayerParams_GatherElementsParams,
+    SoftwareLayerParams_ReversesequenceParams,
+    SoftwareLayerParams_LSTMCellParams,
+    SoftwareLayerParams_StridedSliceParams,
+    SoftwareLayerParams_FullyConnectedParams,
+    SoftwareLayerParams_SWConvolutionParams,
+    SoftwareLayerParams_TopKParams,
+    SoftwareLayerParams_ScatterElementsUpdateParams,
+    SoftwareLayerParams_ScatterUpdateParams,
+    SoftwareLayerParams_GatherNDParams,
+    SoftwareLayerParams_DesparsifyParams,
+    SoftwareLayerParams_OutShapeOfReshapeParams,
+    SoftwareLayerParams_UpsamplingParams,
+    SoftwareLayerParams_BroadcastParams,
+    SoftwareLayerParams_NonZeroParams,
+    SoftwareLayerParams_InnerLRNParams,
+    SoftwareLayerParams_ExpDetectionOutputParams,
+    SoftwareLayerParams_NMSParams,
+    SoftwareLayerParams_ExpGenerateProposalsParams,
+    SoftwareLayerParams_ExpPriorGridGeneratorParams,
+    SoftwareLayerParams_ExpTopKROIsParams,
+    SoftwareLayerParams_ROIAlignParams,
+    SoftwareLayerParams_ROIFeatureExtractorParams,
+    SoftwareLayerParams_ConcatParams,
+    SoftwareLayerParams_CopyParams,
+    SoftwareLayerParams_CropParams,
+    SoftwareLayerParams_SliceParams,
+    SoftwareLayerParams_AlignParams,
+    SoftwareLayerParams_ReduceParams,
+    SoftwareLayerParams_SCReluParams
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesSoftwareLayerParams() {
+  static const char * const names[77] = {
+    "NONE",
+    "DummyParams",
+    "DetectionOutputParams",
+    "FlattenParams",
+    "InterpParams",
+    "NormalizeParams",
+    "PermuteParams",
+    "PriorboxParams",
+    "ProposalParams",
+    "RegionYOLOParams",
+    "ReorgYOLOParams",
+    "ReshapeParams",
+    "SoftmaxParams",
+    "CustomLayerOclParams",
+    "PassthroughParams",
+    "LayerRecordParams",
+    "ROIPoolingParams",
+    "QuantizeParams",
+    "ArgMaxParams",
+    "NormParams",
+    "EltwiseParams",
+    "ResampleParams",
+    "CorrelationParams",
+    "MVNParams",
+    "GRNParams",
+    "CTCDecoderParams",
+    "SpatialTransformParams",
+    "FakeQuantizeParams",
+    "PoolingParams",
+    "EdslParams",
+    "TileParams",
+    "PSROIPoolingParams",
+    "DeconvolutionParams",
+    "UnaryOpParams",
+    "ConvolutionParams",
+    "GatherParams",
+    "PostOpsParams",
+    "NegativeParams",
+    "ConvertParams",
+    "CustomLayerCppParams",
+    "PermuteNDParams",
+    "PadParams",
+    "InterpolateParams",
+    "CTCGreedyDecoderSeqLenParams",
+    "SpaceToDepthParams",
+    "DepthToSpaceParams",
+    "GatherElementsParams",
+    "ReversesequenceParams",
+    "LSTMCellParams",
+    "StridedSliceParams",
+    "FullyConnectedParams",
+    "SWConvolutionParams",
+    "TopKParams",
+    "ScatterElementsUpdateParams",
+    "ScatterUpdateParams",
+    "GatherNDParams",
+    "DesparsifyParams",
+    "OutShapeOfReshapeParams",
+    "UpsamplingParams",
+    "BroadcastParams",
+    "NonZeroParams",
+    "InnerLRNParams",
+    "ExpDetectionOutputParams",
+    "NMSParams",
+    "ExpGenerateProposalsParams",
+    "ExpPriorGridGeneratorParams",
+    "ExpTopKROIsParams",
+    "ROIAlignParams",
+    "ROIFeatureExtractorParams",
+    "ConcatParams",
+    "CopyParams",
+    "CropParams",
+    "SliceParams",
+    "AlignParams",
+    "ReduceParams",
+    "SCReluParams",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameSoftwareLayerParams(SoftwareLayerParams e) {
+  if (flatbuffers::IsOutRange(e, SoftwareLayerParams_NONE, SoftwareLayerParams_SCReluParams)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesSoftwareLayerParams()[index];
+}
+
+}  // namespace MVCNN
 
 typedef enum {
     t_fp16 = NN_FP16, ///< Half precision floating point

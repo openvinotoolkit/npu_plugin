@@ -3,18 +3,16 @@
 #include <sw_layer.h>
 
 #include <sw_shave_res_manager.h>
-#include <dma_shave_params.h>
 #include <nn_log.h>
 #include <mvSubspaces.h>
 #include <param_softmax.h>
-#include <layers/param_custom_cpp.h>
+#include <param_custom_cpp.h>
 
 
 #include <mv_types.h>
 #include <math.h>
 #include <moviVectorTypes.h>
 #include <moviVectorConvert.h>
-#include <dma_shave.h>
 
 #include <svu_nn_runtime.h>
 #include <svuCommonShave.h>
@@ -387,6 +385,10 @@ namespace nn {
 namespace shave_lib {
 
 extern "C" {
+
+void singleSoftmaxKernel(nn::shave_lib::CustomLayerCppParams* param) {
+}
+
 void preSingleSoftmax(const LayerParams *layerParams, ShaveResourceManager *resMgr) {
     // Special DMA to copy layer params from physical DDR
     CustomLayerCppParams local_params;

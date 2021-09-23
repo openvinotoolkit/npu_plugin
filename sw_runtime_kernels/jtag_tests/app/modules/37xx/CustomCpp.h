@@ -39,7 +39,6 @@ public:
 #endif
 
     CustomCppLayerParams ops;
-    nn::shave_lib::CustomLayerCppParams p;
 
 private:
     std::vector<Buffer> inputVec;

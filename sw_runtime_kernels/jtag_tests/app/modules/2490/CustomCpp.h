@@ -4,6 +4,8 @@
 
 #include "Op.h"
 
+#include <layers/param_custom_cpp.h>
+
 struct CustomCppLayerParams {
     uint32_t leonPreambleID;
 
@@ -31,6 +33,8 @@ public:
     void addOutputBuffer(const Buffer& output) {
         outputVec.push_back(output);
     }
+
+    virtual bool parse(Layer *layer) override;
 
     CustomCppLayerParams ops;
 
