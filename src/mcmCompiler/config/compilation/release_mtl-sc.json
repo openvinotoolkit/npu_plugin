@@ -131,7 +131,7 @@
             "EltwiseToSWEltwise",
             "MarkEltWiseUpaInputs",
             "MarkCMCompatibleConvs",
-            "AddPermuteToNonCMConvPaths",
+            "AddPermuteToIOOps",
             {
                 "name" : "GraphParameterOptimization",
                 "graphOptimizerConfig" : {

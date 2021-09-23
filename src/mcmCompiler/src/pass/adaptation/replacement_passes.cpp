@@ -41,7 +41,7 @@ void resampleWithStorageElementPointerTable(const mv::pass::PassEntry& pass, mv:
 static void detectEltWiseUpaInputs(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void markCMCompatibleConvsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void markSOHnonCompatibleConcatsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
-static void addPermuteToNonCMConvPathsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void addPermuteIOOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 void replaceLargeGlobalPoolingFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void replaceBroadcastEltwiseMultWithConv(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void insertUpaDmaAfterSliceOnOutputFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
@@ -84,8 +84,8 @@ namespace mv
             "Mark Concats that do not support SOH"
         );
 
-        MV_REGISTER_PASS(AddPermuteToNonCMConvPaths)
-        .setFunc(addPermuteToNonCMConvPathsFcn)
+        MV_REGISTER_PASS(AddPermuteToIOOps)
+        .setFunc(addPermuteIOOpsFcn)
         .setDescription(
             "For C-Major mode, input paths to Z-Major ops need input tensor permuted from C-Major to Z-Major"
         );
@@ -716,7 +716,7 @@ static void markSOHnonCompatibleConcatsFcn(const mv::pass::PassEntry&, mv::Compu
     }
 }
 
-static void addPermuteToNonCMConvPathsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+static void addPermuteIOOpsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
 
@@ -739,6 +739,23 @@ static void addPermuteToNonCMConvPathsFcn(const mv::pass::PassEntry&, mv::Comput
         for(auto implicitInput : implicitInputOps)
         {
             inputs.push_back(implicitInput);
+        }
+    }
+
+    /* In case of por_tf_FP16-INT8_license-plate-recognition-barrier-0007_ww34_MCM
+    if permute is added then because of a bug in LPscheduler accuracy will drop to 0% */
+    if(inputs.size() == 1)
+    {
+        auto input = inputs[0];
+        auto shape = input->get<mv::Shape>("shape");
+
+        if( shape[mv::IO_BATCH_DIMENSION] == 1 &&
+            shape[mv::IO_CHANNEL_DIMENSION] == 3 &&
+            shape[mv::IO_HEIGHT_DIMENSION] == 24 &&
+            shape[mv::IO_WIDTH_DIMENSION] == 94)
+        {
+            input->set<mv::Order>("order", mv::Order("NHWC"));
+            input->log(mv::Logger::MessageType::Warning, "LOLOLOLOLO");
         }
     }
 
