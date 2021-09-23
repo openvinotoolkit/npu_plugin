@@ -2078,7 +2078,7 @@ def VPUIP_NCEClusterTaskOp :
         AnyMemRef:$parent_input,
         AnyMemRef:$parent_output,
 
-        MemRefOf<[F16, quant_QuantizedType]>:$output_buff,
+        MemRefOf<[F16, F32, quant_QuantizedType]>:$output_buff,
 
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers,
@@ -2092,7 +2092,7 @@ def VPUIP_NCEClusterTaskOp :
     );
 
     let results = (outs
-        MemRefOf<[F16, quant_QuantizedType]>:$output
+        MemRefOf<[F16, F32, quant_QuantizedType]>:$output
     );
 
     let regions = (region

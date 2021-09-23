@@ -57,15 +57,18 @@ void buildAvgpoolWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mo
     mlir::Type weightsType = inputType;
 
     if (auto qtype = inputType.dyn_cast<mlir::quant::QuantizedType>()) {
-        weightsType = mlir::quant::QuantizedType::castToStorageType(qtype);
+        auto inputStorageType = mlir::quant::QuantizedType::castToStorageType(qtype);
         int64_t zeroPoint = 0;
 
-        weightsType = mlir::quant::UniformQuantizedType::get(0, getUInt8Type(ctx), builder.getF32Type(), scaleValue,
-                                                             zeroPoint, 0, 1);
-        if (weightsType.isSignedInteger(8)) {
+        if (inputStorageType.isUnsignedInteger(8)) {
+            weightsType = mlir::quant::UniformQuantizedType::get(0, getUInt8Type(ctx), builder.getF32Type(), scaleValue,
+                                                                 zeroPoint, 0, 1);
+        } else if (inputStorageType.isSignedInteger(8)) {
             weightsType = mlir::quant::UniformQuantizedType::get(mlir::quant::QuantizationFlags::FlagValue::Signed,
                                                                  getSInt8Type(ctx), builder.getF32Type(), scaleValue,
                                                                  zeroPoint, 0, 1);
+        } else {
+            VPUX_THROW("Unsupported storage type for input quantized type. I8 or U8 is supported only");
         }
     }
 
