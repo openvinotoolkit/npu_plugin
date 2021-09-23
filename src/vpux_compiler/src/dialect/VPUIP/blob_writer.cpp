@@ -177,7 +177,7 @@ vpux::VPUIP::BlobWriter::KernelDataRef vpux::VPUIP::BlobWriter::createInvocation
         _log.trace("Create Invocation output= {0}", result);
 
         auto inputShape = input.get().getType().cast<mlir::ShapedType>();
-        auto outputShape = result.getType().cast<mlir::ShapedType>();
+       // auto outputShape = result.getType().cast<mlir::ShapedType>();
 
         dpuDescriptor.idu.tensor_size0.x = inputShape.getShape()[3]; // tensor_width
         dpuDescriptor.idu.tensor_size0.y = inputShape.getShape()[2];

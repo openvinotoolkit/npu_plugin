@@ -206,7 +206,7 @@ flatbuffers::Offset<MVCNN::ActKernelRuntime> createActKernelRuntime(VPUIP::BlobW
         return {};
     }
     auto kernelTasks = to_small_vector(netFunc.getOps<VPUIP::ACTShaveTaskOp>());
-    uint32_t maxShaves = 4;
+    long int maxShaves = 4;
 
     // TODO: this looks works only for 1 executors
     //  otherwise need to hardcode all 4 stacks and then just use certain in runtime

@@ -47,7 +47,7 @@ operation ::= `VPUIP.ACTShaveTaskOp` attr-dict
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`maxShaves` | ::mlir::IntegerAttr | 32-bit signless integer attribute
+`maxShaves` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
