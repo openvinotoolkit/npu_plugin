@@ -2749,9 +2749,9 @@ def VPUIP_PSROIPoolingUPAOp :
         IntAttr:$output_dim,
         IntAttr:$group_size,
         F64Attr:$spatial_scale,
-        IntAttr:$spatial_bins_x,
-        IntAttr:$spatial_bins_y,
-        IE_PSROIPoolingMode:$mode,
+        OptionalAttr<IntAttr>:$spatial_bins_x,
+        OptionalAttr<IntAttr>:$spatial_bins_y,
+        OptionalAttr<IE_PSROIPoolingMode>:$mode,
 
         OptionalAttr<IntAttr>:$maxShaves,
         UnitAttr:$isTrailingSWLayer

@@ -79,6 +79,10 @@ void PSROIPoolingUPAOp::build(::mlir::OpBuilder& odsBuilder, ::mlir::OperationSt
 }
 
 VPUIP::BlobWriter::SpecificTask PSROIPoolingUPAOp::serialize(VPUIP::BlobWriter& writer) {
+    const auto _spatial_bins_x = spatial_bins_x().hasValue() ? spatial_bins_x().getValue() : 1;
+    const auto _spatial_bins_y = spatial_bins_y().hasValue() ? spatial_bins_y().getValue() : 1;
+    const auto _mode = mode().hasValue() ? mode().getValue() : IE::PSROIPoolingMode::average;
+
     MVCNN::PSROIPoolingParamsBuilder builder(writer);
 
     builder.add_output_dim   (checked_cast<int32_t> (output_dim()));
@@ -86,9 +90,9 @@ VPUIP::BlobWriter::SpecificTask PSROIPoolingUPAOp::serialize(VPUIP::BlobWriter& 
     builder.add_spatial_scale(checked_cast<float>   (spatial_scaleAttr().getValueAsDouble()));
     builder.add_pooled_w     (checked_cast<int32_t> (group_size()));
     builder.add_pooled_h     (checked_cast<int32_t> (group_size()));
-    builder.add_spatial_bin_x(checked_cast<int32_t> (spatial_bins_x()));
-    builder.add_spatial_bin_y(checked_cast<int32_t> (spatial_bins_y()));
-    builder.add_mode         (PSROIPoolingMode2Int32(mode()));
+    builder.add_spatial_bin_x(checked_cast<int32_t> (_spatial_bins_x));
+    builder.add_spatial_bin_y(checked_cast<int32_t> (_spatial_bins_y));
+    builder.add_mode         (PSROIPoolingMode2Int32(_mode));
 
     const auto paramsOff = builder.Finish();
 
