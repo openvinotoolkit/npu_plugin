@@ -172,14 +172,16 @@ void placeInputHwDequantize(mv::OpModel& om, mv::DataModel& dm, mv::Data::OpList
         om.defineFlow(placeHwConvert, opIt, i);
 
         // If the parentOp has other UPA child nodes, reuse this HwConvert to dequntize
-        for (auto childOp = parentOp.leftmostChild(); childOp != om.opEnd(); ++childOp) {
-            if (isOpSoftware(childOp)) {
+        auto childInputTensor = parentOp->getOutputTensor(0);
+        auto childOps = mv::findSinkLayers(dm, childInputTensor);
+        for (auto& childOp : childOps) {
+            if (childOp->isUPA() || (childOp->hasAttr("softwareExecuted") && childOp->get<bool>("softwareExecuted"))) {
                 auto childInputFlow = childOp.leftmostInput();
-                auto childInputTensor = parentOp->getOutputTensor(0);
                 size_t idx = 0;
-                if (childOp->getOpType() == "Eltwise" &&
-                    (childOp->getInputTensor(1)->getName() == childInputTensor->getName()))
-                    idx = 1;
+                for (; idx < childOp->getInputTensor().size(); idx++) {
+                    if (childOp->getInputTensor(idx)->getName() == childInputTensor->getName())
+                        break;
+                }
                 while (childInputFlow != om.flowEnd()) {
                     if (childInputFlow->getTensor()->getName() == childInputTensor->getName())
                         break;
