@@ -167,6 +167,43 @@ mlir::quant::UniformQuantizedPerAxisType vpux::tileScalesAndZP(mlir::quant::Unif
             perAxisQType.getStorageTypeMax());
 }
 
+std::pair<Scales, ZeroPoints> vpux::extractScalesAndZeroPoints(mlir::Type tensorElemType, size_t quantDimSize) {
+    const auto qType = tensorElemType.dyn_cast<mlir::quant::QuantizedType>();
+    if (const auto uniformParams = qType.dyn_cast_or_null<mlir::quant::UniformQuantizedType>()) {
+        SmallVector<double> scales(quantDimSize, uniformParams.getScale());
+        SmallVector<int64_t> zeroPoints(quantDimSize, uniformParams.getZeroPoint());
+
+        return {scales, zeroPoints};
+    } else if (const auto perAxisParams = qType.dyn_cast_or_null<mlir::quant::UniformQuantizedPerAxisType>()) {
+        VPUX_THROW_UNLESS(
+                perAxisParams.getScales().size() == quantDimSize,
+                "Number of scales and zero points {0} does not match the size of the quantized dimension size {1}",
+                perAxisParams.getScales().size(), quantDimSize);
+
+        SmallVector<double> scales{perAxisParams.getScales().begin(), perAxisParams.getScales().end()};
+        SmallVector<int64_t> zeroPoints{perAxisParams.getZeroPoints().begin(), perAxisParams.getZeroPoints().end()};
+
+        return {scales, zeroPoints};
+    }
+
+    VPUX_THROW("Unsupported Quantized Type {0}", qType);
+}
+
+uint16_t vpux::getQuantMultFromScale(double quantScale) {
+    const static int BITS = 15;
+    int exp;
+    double mantissa = std::frexp(quantScale, &exp);
+    return static_cast<uint16_t>(mantissa * std::pow(2, BITS));
+}
+
+uint8_t vpux::getQuantShiftFromScale(double quantScale) {
+    const static int BITS = 15;
+    int exp;
+    std::frexp(quantScale, &exp);
+    VPUX_THROW_UNLESS(BITS >= exp, "Quant shift cannot be negative number - {0}", (BITS - exp));
+    return static_cast<uint8_t>(BITS - exp);
+}
+
 //
 // FakeQuantize support
 //

@@ -19,6 +19,7 @@
 #include "vpux/compiler/dialect/VPUIP/effects.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops_interfaces.hpp"
+#include "vpux/compiler/utils/quantization.hpp"
 #include "vpux/compiler/utils/strings.hpp"
 
 #include "vpux/utils/IE/float16.hpp"
@@ -122,9 +123,9 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createUPALayerTask(mlir
 
 VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensor(
         StringRef name, mlir::ShapedType type, MemoryLocation locale, ArrayRef<uint32_t> localeIndex, int64_t dataIndex,
-        Optional<int64_t> sparsityIndex, Optional<int64_t> storageElementIndex, Optional<int64_t> storageElementSize,
-        Optional<int64_t> leadingOffset, Optional<int64_t> trailingOffset, Optional<double> density_rate,
-        Optional<int64_t> swizzling_key) {
+        ArrayRef<uint16_t> mult, ArrayRef<uint8_t> shift, ArrayRef<uint8_t> zeroPoints, Optional<int64_t> sparsityIndex,
+        Optional<int64_t> storageElementIndex, Optional<int64_t> storageElementSize, Optional<int64_t> leadingOffset,
+        Optional<int64_t> trailingOffset, Optional<double> density_rate, Optional<int64_t> swizzling_key) {
     const auto serializedName = createString(name);
 
     const auto serializedDataType = createDType(type.getElementType());
@@ -138,46 +139,9 @@ VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensor(
     const auto serializedLocale = createMemoryLocation(locale);
     const auto serializedLocaleIndex = createVector(localeIndex);
 
-    Vector<uint8_t> quantZero;
-    Vector<uint16_t> quantMult;
-    Vector<uint8_t> quantShift;
-
-    const auto fixedPointFP16Mult = [](float val) {
-        const static int BITS = 15;
-        int exp;
-        double mantissa = std::frexp(val, &exp);
-        return static_cast<uint16_t>(mantissa * std::pow(2, BITS));
-    };
-
-    const auto fixedPointFP16Shift = [](float val) {
-        const static int BITS = 15;
-        int exp;
-        std::frexp(val, &exp);
-        return static_cast<uint8_t>(BITS - exp);
-    };
-
-    if (const auto qType = type.getElementType().dyn_cast<mlir::quant::UniformQuantizedType>()) {
-        const auto zero = checked_cast<uint8_t>(qType.getZeroPoint());
-        const auto mult = fixedPointFP16Mult(static_cast<float>(qType.getScale()));
-        const auto shift = fixedPointFP16Shift(static_cast<float>(qType.getScale()));
-        quantZero = createVector(makeArrayRef(zero));
-        quantMult = createVector(makeArrayRef(mult));
-        quantShift = createVector(makeArrayRef<uint8_t>({shift}));
-    } else if (const auto qType = type.getElementType().dyn_cast<mlir::quant::UniformQuantizedPerAxisType>()) {
-        quantZero = createVector(qType.getZeroPoints() | transformed([](int64_t val) {
-                                     return checked_cast<uint8_t>(val);
-                                 }));
-        quantMult = createVector(qType.getScales() | transformed([&](double val) {
-                                     return fixedPointFP16Mult(static_cast<float>(val));
-                                 }));
-        quantShift = createVector(qType.getScales() | transformed([&](double val) {
-                                      return fixedPointFP16Shift(static_cast<float>(val));
-                                  }));
-    } else {
-        quantZero = createVector(makeArrayRef<uint8_t>(0));
-        quantMult = createVector(makeArrayRef<uint16_t>(1));
-        quantShift = createVector(makeArrayRef<uint8_t>({0}));
-    }
+    Vector<uint8_t> serializedQuantZero = createVector(zeroPoints);
+    Vector<uint16_t> serializedQuantMult = createVector(mult);
+    Vector<uint8_t> serializedQuantShift = createVector(shift);
 
     const auto basePtrs = createVector(std::vector<uint16_t>{});
 
@@ -189,9 +153,9 @@ VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensor(
     builder.add_locale(serializedLocale);
     builder.add_locale_index(serializedLocaleIndex);
     builder.add_data_dtype(serializedDataType);
-    builder.add_quant_zero(quantZero);
-    builder.add_quant_mult(quantMult);
-    builder.add_quant_shift(quantShift);
+    builder.add_quant_zero(serializedQuantZero);
+    builder.add_quant_mult(serializedQuantMult);
+    builder.add_quant_shift(serializedQuantShift);
     builder.add_order(dimsOrder.code());
     builder.add_base_ptrs(basePtrs);
     if (leadingOffset.hasValue()) {
@@ -207,6 +171,42 @@ VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensor(
         builder.add_swizzling_key(checked_cast<uint8_t>(swizzling_key.getValue()));
     }
     return builder.Finish();
+}
+
+VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensor(
+        StringRef name, mlir::ShapedType type, MemoryLocation locale, ArrayRef<uint32_t> localeIndex, int64_t dataIndex,
+        Optional<int64_t> sparsityIndex, Optional<int64_t> storageElementIndex, Optional<int64_t> storageElementSize,
+        Optional<int64_t> leadingOffset, Optional<int64_t> trailingOffset, Optional<double> density_rate,
+        Optional<int64_t> swizzling_key) {
+    std::vector<uint8_t> zeroPoints;
+    std::vector<uint16_t> mult;
+    std::vector<uint8_t> shift;
+
+    if (const auto qType = type.getElementType().dyn_cast<mlir::quant::UniformQuantizedType>()) {
+        zeroPoints.push_back(checked_cast<uint8_t>(qType.getZeroPoint()));
+        mult.push_back(getQuantMultFromScale(qType.getScale()));
+        shift.push_back(getQuantShiftFromScale(qType.getScale()));
+    } else if (const auto qType = type.getElementType().dyn_cast<mlir::quant::UniformQuantizedPerAxisType>()) {
+        auto qtype_quant_zp = qType.getZeroPoints();
+        auto qtype_quant_scale = qType.getScales();
+        zeroPoints.resize(qtype_quant_zp.size());
+        mult.resize(qtype_quant_scale.size());
+        shift.resize(qtype_quant_scale.size());
+
+        std::transform(qtype_quant_zp.begin(), qtype_quant_zp.end(), zeroPoints.begin(), [](int64_t val) {
+            return checked_cast<uint8_t>(val);
+        });
+        std::transform(qtype_quant_scale.begin(), qtype_quant_scale.end(), mult.begin(), getQuantMultFromScale);
+        std::transform(qtype_quant_scale.begin(), qtype_quant_scale.end(), shift.begin(), getQuantShiftFromScale);
+    } else {
+        zeroPoints.push_back(0);
+        mult.push_back(1);
+        shift.push_back(0);
+    }
+
+    return createTensor(name, type, locale, localeIndex, dataIndex, mult, shift, zeroPoints, sparsityIndex,
+                        storageElementIndex, storageElementSize, leadingOffset, trailingOffset, density_rate,
+                        swizzling_key);
 }
 
 VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensor(

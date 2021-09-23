@@ -72,14 +72,14 @@ operation ::= `IE.Add` `(` operands `)` attr-dict `:` type(operands) `->` type(r
 
 | Operand | Description |
 | :-----: | ----------- |
-`input1` | ranked tensor of 16-bit float or 32-bit float values
-`input2` | ranked tensor of 16-bit float or 32-bit float values
+`input1` | ranked tensor of 16-bit float or 32-bit float or QuantizedType values
+`input2` | ranked tensor of 16-bit float or 32-bit float or QuantizedType values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-`output` | ranked tensor of 16-bit float or 32-bit float values
+`output` | ranked tensor of 16-bit float or 32-bit float or QuantizedType values
 
 ### `IE.AvgPool` (vpux::IE::AvgPoolOp)
 
