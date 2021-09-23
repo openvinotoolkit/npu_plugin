@@ -355,8 +355,14 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     if (targetEmulator_(compilationDescriptor))
     {
         toBuild->name = t->getName();
+
         toBuild->dimensions = t->getShape();
+        std::reverse(toBuild->dimensions.begin(), toBuild->dimensions.end());
+
         toBuild->data_dtype = convertDtype(t->getDType().toString());
+        toBuild->strides = t->computeNumericStrides();
+        toBuild->strides.push_back(t->getDType().getSizeInBits() / 8);
+
         if (t->hasAttr("quantParams"))
         {
             const mv::QuantizationParams quantParams = t->getQuantParams();

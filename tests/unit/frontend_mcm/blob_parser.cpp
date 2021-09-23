@@ -22,10 +22,6 @@
 
 using namespace vpu;
 
-static bool isEmulatorDevice(const std::string& deviceId) {
-    return deviceId.find("EMU") != std::string::npos;
-}
-
 class BlobParser_Tests : public ::testing::Test {
 public:
     InferenceEngine::InputsDataMap networkInputs;
@@ -53,9 +49,6 @@ void BlobParser_Tests::SetUp() {
     _outputName = "output_0";
     _outputDevName = "output_dev0";
 
-    if (isEmulatorDevice(_deviceId))
-        return;
-
     utils::simpleGraph::getExeNetwork(_deviceId, _dims, _inputName, _outputName, _outputDevName)->Export(_blobStream);
 
     const auto graphFilePtr = MVCNN::GetGraphFile(_blobStream.str().data());
@@ -69,17 +62,11 @@ void BlobParser_Tests::SetUp() {
 }
 
 TEST_F(BlobParser_Tests, CanParseBlob) {
-    if (isEmulatorDevice(_deviceId))
-        GTEST_SKIP() << "Blobs are not supported for emulator yet.";
-
     ASSERT_NO_THROW(networkInputs = MCMAdapter::getNetworkInputs(*graphInputs));
     ASSERT_NO_THROW(networkOutputs = MCMAdapter::getNetworkOutputs(*graphOutputs));
 }
 
 TEST_F(BlobParser_Tests, CanGetInputsOutputsDimensions) {
-    if (isEmulatorDevice(_deviceId))
-        GTEST_SKIP() << "Blobs are not supported for emulator yet.";
-
     const auto expectedInput = _dims;
     const auto expectedOutput = _dims;
 
@@ -97,9 +84,6 @@ TEST_F(BlobParser_Tests, CanGetInputsOutputsDimensions) {
 }
 
 TEST_F(BlobParser_Tests, CanGetInputsOutputsNames) {
-    if (isEmulatorDevice(_deviceId))
-        GTEST_SKIP() << "Blobs are not supported for emulator yet.";
-
     const auto expectedInputName = _inputName;
     const auto expectedOutputName = _outputDevName;
 
