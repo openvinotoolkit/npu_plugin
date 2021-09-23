@@ -6,10 +6,8 @@
 
 #include "upa_task_runner.hpp"
 
-#include "layers/parser_custom_cpp.h"
 #include "layers/param_custom_cpp.h"
 #include "layers/pre_custom_cpp.h"
-#include "tensor_gf_util.h"
 
 #include "custom_common.h"
 
@@ -103,14 +101,14 @@ bool CustomCpp::parse(Layer * layer) {
         inOutBuffer += sizeof(nn::TensorRefNDData);
     }
 
-    const uint8_t *elf = reinterpret_cast<const uint8_t *>(kernelData.data());//gfParams->kernelData()->data()->Data();
-    uint32_t elfSize = ops.kernelDataLen;// gfParams->kernelData()->length();
+    const uint8_t *elf = reinterpret_cast<const uint8_t *>(kernelData.data());
+    uint32_t elfSize = ops.kernelDataLen;
     nnLog(MVLOG_DEBUG, "elf %p, elfSize %u\n", elf, elfSize);
     if (elfSize == 0) {
         elf = nullptr;
     }
 
-    uint32_t* argCountPtr = paramDataBuffer;//(uint32_t*)gfParams->paramData()->data()->Data();
+    uint32_t* argCountPtr = paramDataBuffer;
     uint32_t *arguments = (uint32_t *)(argCountPtr + 1);
 
     // parse kernel binary
@@ -135,8 +133,7 @@ bool CustomCpp::parse(Layer * layer) {
     nn::cache::flush(copyArgs, descriptor.argumentsSize);
 
     // fill in programmed for execution config
-    CustomLayerCppParams *params = &p;//new CustomLayerCppParams();
-//    CustomLayerCppParams *params = new CustomLayerCppParams();
+    CustomLayerCppParams *params = new CustomLayerCppParams();
 
     params->kernelBuffer = (uint32_t)code;
     params->kernelOffset = descriptor.kernelEntry;
@@ -148,8 +145,8 @@ bool CustomCpp::parse(Layer * layer) {
 
     params->layerRequiresCacheFlushOnCompletion = true;
 
-    auto inRefs = layer->getInputs();//  parseInputs(task->inputs(), layer);
-    auto outRefs = layer->getOutputs();//parseOutputs(task->outputs(), layer);
+    auto inRefs = layer->getInputs();
+    auto outRefs = layer->getOutputs();
 
     logI("inputs %lu outputs %lu kernel selected %x",
          inRefs.size(), outRefs.size(), params->kernelOffset);
@@ -158,11 +155,10 @@ bool CustomCpp::parse(Layer * layer) {
     params->outputsSize = outRefs.size();
 
     cache::flush(params, sizeof(CustomLayerCppParams));
-    unsigned int id = opType;//MVCNN::SoftwareLayerParams::SoftwareLayerParams_CustomLayerCppParams;
-//    layer->setParams(id, static_cast<LayerParams *>(postOpsParams.release()));
+    unsigned int id = opType;
 
     cache::flush(params, sizeof(CustomLayerCppParams));
-    layer->setParams(id/*getParamID(MVCNN::SoftwareLayerParams::SoftwareLayerParams_CustomLayerCppParams)*/,
+    layer->setParams(id,
                      static_cast<LayerParams *>(params));
     switch (copyArgs[1]) {
     case SOFTMAX:

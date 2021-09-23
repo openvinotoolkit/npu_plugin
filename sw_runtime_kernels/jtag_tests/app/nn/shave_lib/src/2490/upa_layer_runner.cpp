@@ -37,8 +37,6 @@ extern "C" {
 #    define saveMemoryToFile(...)
 #endif
 
-#include <layer_parser.h>
-
 #define NN_ALLOCATION_TIMEOUT_MS 1000
 
 #define PACK_MSG(sh, tag) ((sh << 8) | tag)

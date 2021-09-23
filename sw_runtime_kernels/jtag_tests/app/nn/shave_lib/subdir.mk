@@ -16,15 +16,11 @@ include-dirs-lrt-$(CONFIG_HAS_LRT_SRCS) += inc/layers
 sys-nn-shave-lib-leon-srcs += $(wildcard src/2490/*.c*)
 sys-nn-shave-lib-leon-srcs += $(wildcard src/2490/layers/parser_*.c*)
 
-# FIXME: fix link ordering
-sys-nn-shave-lib-leon-srcs += src/2490/tensor_util.cpp
-
 sys-nn-shave-lib-leon-srcs += $(wildcard src/2490/ShaveElfMetadata/*.c*)
 
 srcs-lrt-$(CONFIG_HAS_LRT_SRCS) += $(sys-nn-shave-lib-leon-srcs)
 
 srcs-shave-y += $(wildcard src/2490/layers/pre_*.c*)
-srcs-shave-y += src/2490/tensor_util.cpp
 
 shavelib-preserved-symbols-$(CONFIG_TARGET_SOC_MA2490)  += preSingleSoftmax 
 

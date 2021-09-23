@@ -25,5 +25,5 @@ public:
     Buffer input;
     Buffer output;
 
-    bool executeInTestingSystem = false;
+    bool executeInTestingSystem = true;
 };

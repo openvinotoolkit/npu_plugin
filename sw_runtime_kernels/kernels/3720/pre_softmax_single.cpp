@@ -1,9 +1,8 @@
 // {% copyright %}
 
-#include "sw_layer.h"
+#include <sw_layer.h>
 
-#include "sw_shave_res_manager.h"
-//#include <dma_shave_params_nn.h>
+#include <sw_shave_res_manager.h>
 #include <nn_log.h>
 #include <mvSubspaces.h>
 #include <param_softmax.h>
@@ -14,9 +13,6 @@
 #include <math.h>
 #include <moviVectorTypes.h>
 #include <moviVectorConvert.h>
-//#include <dma_shave_nn.h>
-#include <sw_shave_lib_common.h>
-//#include <dma_shave.h>
 
 //#include "svu_nn_runtime.h"
 #include <svuCommonShave.h>

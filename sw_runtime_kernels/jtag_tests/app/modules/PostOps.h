@@ -56,9 +56,7 @@ public:
     bool hasBiases = false;
     int axis = -1;
 
-#ifdef CONFIG_TARGET_SOC_3720
-    bool executeInTestingSystem = false;
-#endif // CONFIG_TARGET_SOC_3720
+    bool executeInTestingSystem = true;
 
     // support for 3D/ND kernels differentiation (for separate kernel testing only)
 #if defined(ICV_TESTS_SUPPORT)
@@ -66,7 +64,7 @@ public:
     ForceKernel forceKernel = ForceNone;
 #endif // ICV_TESTS_SUPPORT
 private:
-    void weightsBiasesSpecific(MVCNN::PostOpsParamsT *softLayerParamsValue, std::vector<Buffer>& inputs);
+//    void weightsBiasesSpecific(MVCNN::PostOpsParamsT *softLayerParamsValue, std::vector<Buffer>& inputs);
 };
 
 #endif /* SHARED_MODULES_POSTOPS_H_ */
