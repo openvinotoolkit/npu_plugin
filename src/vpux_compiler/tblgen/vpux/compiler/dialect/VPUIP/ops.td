@@ -1626,7 +1626,7 @@ def VPUIP_BroadcastUPAOp :
 
     let arguments = (ins
         F16MemRef:$input,
-        MemRefOf<[SI64]>:$target_shape,
+        MemRefOf<[SI32]>:$target_shape,
 
         F16MemRef:$output_buff,
 

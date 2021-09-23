@@ -836,7 +836,7 @@ def IERT_BroadcastOp :
 
     let arguments = (ins
         AnyMemRef:$input,
-        MemRefOf<[SI64]>:$target_shape,
+        MemRefOf<[SI32]>:$target_shape,
 
         AnyMemRef:$output_buff,
 

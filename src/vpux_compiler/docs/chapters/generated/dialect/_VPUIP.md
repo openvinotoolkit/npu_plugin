@@ -55,7 +55,7 @@ operation ::= `VPUIP.BroadcastUPA` attr-dict
 | Operand | Description |
 | :-----: | ----------- |
 `input` | memref of 16-bit float values
-`target_shape` | memref of 64-bit signed integer values
+`target_shape` | memref of 32-bit signed integer values
 `output_buff` | memref of 16-bit float values
 `waitBarriers` | VPUIP Barrier Type
 `updateBarriers` | VPUIP Barrier Type
