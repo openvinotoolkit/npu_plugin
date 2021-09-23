@@ -17,20 +17,20 @@
 
 namespace elf {
 
-constexpr int EI_MAG0       = 0;
-constexpr int EI_MAG1       = 1;
-constexpr int EI_MAG2       = 2;
-constexpr int EI_MAG3       = 3;
-constexpr int EI_CLASS      = 4;
-constexpr int EI_DATA       = 5;
-constexpr int EI_VERSION    = 6;
-constexpr int EI_OSABI      = 7;
-constexpr int EI_ABIVERSION = 8;
-constexpr int EI_PAD        = 9;
-constexpr int EI_NIDENT     = 16;
+constexpr uint8_t EI_MAG0       = 0;
+constexpr uint8_t EI_MAG1       = 1;
+constexpr uint8_t EI_MAG2       = 2;
+constexpr uint8_t EI_MAG3       = 3;
+constexpr uint8_t EI_CLASS      = 4;
+constexpr uint8_t EI_DATA       = 5;
+constexpr uint8_t EI_VERSION    = 6;
+constexpr uint8_t EI_OSABI      = 7;
+constexpr uint8_t EI_ABIVERSION = 8;
+constexpr uint8_t EI_PAD        = 9;
+constexpr uint8_t EI_NIDENT     = 16;
 
-constexpr int ELFCLASS32 = 1;
-constexpr int ELFCLASS64 = 2;
+constexpr uint8_t ELFCLASS32 = 1;
+constexpr uint8_t ELFCLASS64 = 2;
 
 struct Elf32_Ehdr {
     unsigned char e_ident[EI_NIDENT];

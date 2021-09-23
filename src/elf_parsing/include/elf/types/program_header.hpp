@@ -18,8 +18,8 @@
 namespace elf {
 
 //! Segment types
-constexpr int PT_NULL = 0;
-constexpr int PT_LOAD = 1;
+constexpr Elf_Word PT_NULL = 0;
+constexpr Elf_Word PT_LOAD = 1;
 
 struct Elf32_Phdr {
     Elf_Word   p_type;

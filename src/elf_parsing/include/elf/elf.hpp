@@ -79,6 +79,6 @@ private:
 };
 
 //! 64-bit ELF with standard allocator
-using ELF = GenericELF<ELFCLASS64, std::allocator>;
+using ELF = GenericELF<ELF64, std::allocator>;
 
 } // namespace elf

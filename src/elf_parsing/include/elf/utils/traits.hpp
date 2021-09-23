@@ -19,18 +19,21 @@
 
 namespace elf {
 
+constexpr auto ELF32 = ELFCLASS32;
+constexpr auto ELF64 = ELFCLASS64;
+
 template <Elf_Half type>
 struct HeaderTypes {};
 
 template <>
-struct HeaderTypes<ELFCLASS32> {
+struct HeaderTypes<ELF32> {
     using Elf_EHdr = Elf32_Ehdr;
     using Elf_PHdr = Elf32_Phdr;
     using Elf_SHdr = Elf32_Shdr;
 };
 
 template <>
-struct HeaderTypes<ELFCLASS64> {
+struct HeaderTypes<ELF64> {
     using Elf_EHdr = Elf64_Ehdr;
     using Elf_PHdr = Elf64_Phdr;
     using Elf_SHdr = Elf64_Shdr;

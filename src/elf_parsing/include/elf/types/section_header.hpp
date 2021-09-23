@@ -18,8 +18,8 @@
 namespace elf {
 
 //! Section types
-constexpr int SHT_NULL =     0;
-constexpr int SHT_PROGBITS = 1;
+constexpr Elf_Word SHT_NULL =     0;
+constexpr Elf_Word SHT_PROGBITS = 1;
 
 struct Elf32_Shdr {
     Elf_Word   sh_name;
