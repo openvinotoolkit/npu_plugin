@@ -46,7 +46,7 @@ mlir::quant::QuantizedType extractQuantizedType(mlir::Value operand) {
     VPUX_THROW_UNLESS(quantType != nullptr, "Type must be quantized, but provided {0}", elemType);
 
     return quantType;
-};
+}
 
 class FuseDequantQuant final : public mlir::OpRewritePattern<IE::QuantizeOp> {
 public:
