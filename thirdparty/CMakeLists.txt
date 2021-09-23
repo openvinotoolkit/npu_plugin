@@ -241,3 +241,5 @@ endif()
 if(ENABLE_ZEROAPI_BACKEND)
     add_subdirectory(level-zero EXCLUDE_FROM_ALL)
 endif()
+
+add_subdirectory(elf)
