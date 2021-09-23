@@ -183,7 +183,8 @@ mlir::LogicalResult FuseWithEltwiseAdd::matchAndRewrite(IE::QuantizeOp quantizeO
     }
 
     rewriter.replaceOpWithNewOp<IE::AddOp>(quantizeOp, quantizeOp.getType(), input1DequantizeOp.input(),
-                                           input2DequantizeOp.input(), addOp.auto_broadcastAttr(), addOp.post_opAttr());
+                                           input2DequantizeOp.input(), addOp.auto_broadcastAttr(), addOp.post_opAttr(),
+                                           addOp.clip_opAttr());
 
     return mlir::success();
 }
