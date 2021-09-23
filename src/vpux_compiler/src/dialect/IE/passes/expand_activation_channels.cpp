@@ -80,17 +80,26 @@ mlir::LogicalResult generalRewrite(mlir::Operation* origOp, mlir::PatternRewrite
     auto convOp = mlir::dyn_cast<IE::ConvolutionOp>(*origOp);
     const auto inputShape = getShape(convOp.filter().getType().cast<mlir::ShapedType>());
     const auto IC = inputShape[IE::Dims4D::Filter::IC];
-       
-    auto inPadsEnd = calcPadsEnd(inputType, inchannelAlignement);
 
-    if(IC == 3)
+    auto inputTensorShape = getShape(convOp.input());
+    auto width = inputTensorShape[IE::Dims4D::Act::W];
+
+
+    vpux::Shape inPadsEnd;
+       
+    inPadsEnd = calcPadsEnd(inputType, channelAlignement);
+
+    if(IC == 3 && (width % 16 == 0))
     {
+        inPadsEnd = calcPadsEnd(inputType, inchannelAlignement);
         inPadsEnd[IE::Dims4D::Act::C] = 0;
         inPadsEnd[IE::Dims4D::Act::H] = 0;
         inPadsEnd[IE::Dims4D::Act::W] = 0;
         inPadsEnd[IE::Dims4D::Act::N] = 0;
 
     }
+    else 
+        inPadsEnd = calcPadsEnd(inputType, channelAlignement);
 
     const auto outPadsEnd = calcPadsEnd(outputType, channelAlignement);
 
@@ -389,9 +398,40 @@ private:
 
 void ExpandActivationChannelsPass::safeRunOnFunc() {
 
+      auto& ctx = getContext();
+    //auto module = getOperation();
+    auto func = getFunction();
+    auto module = func->getParentOfType<mlir::ModuleOp>();
 
-    auto& ctx = getContext();
+    IE::CNNNetworkOp netInfo;
+    mlir::FuncOp netFunc;
+    IE::CNNNetworkOp::getFromModule(module, netInfo, netFunc);
 
+    const auto funcType = netFunc.getType();
+
+    auto userInputs = netInfo.getInputsInfo();
+    auto userOutputs = netInfo.getOutputsInfo();
+    vpux::DimsOrder userDimsOrder;
+
+    const auto getTypesWithUserLayout = [](SmallVector<IE::DataInfoOp, 1>& userDataInfo,
+                                           ArrayRef<mlir::Type> originTypes, SmallVector<mlir::Type>& newTypes,vpux::DimsOrder& userDimsOrder) {
+        for (const auto& p : userDataInfo | indexed) {
+            const auto ind = checked_cast<uint32_t>(p.index());
+
+            const auto origType = originTypes[ind].cast<mlir::ShapedType>();
+            userDimsOrder = p.value().getDimsOrder();
+            Logger::global().error("order: {0}", userDimsOrder);
+
+            //newTypes[ind] = changeDimsOrder(origType, userDimsOrder);
+        }
+    };
+
+    SmallVector<mlir::Type> newArgTypes(userInputs.size());
+    getTypesWithUserLayout(userInputs, funcType.getInputs(), newArgTypes, userDimsOrder);
+
+
+  
+    Logger::global().error("order: {0}", userDimsOrder);
     const auto isLegal = [&](mlir::Operation* op) {
         if (auto iface = mlir::dyn_cast<IE::AlignedChannelsOpInterface>(op)) {
             return iface.verifyChannels().succeeded();
@@ -411,7 +451,7 @@ void ExpandActivationChannelsPass::safeRunOnFunc() {
     patterns.insert<EltwiseAddRewriter>(&ctx, _log);
     patterns.insert<GroupConvolutionRewriter>(&ctx, _log);
 
-    auto func = getFunction();
+    //auto func = getFunction();
     if (mlir::failed(mlir::applyFullConversion(func, target, std::move(patterns)))) {
         signalPassFailure();
     }
