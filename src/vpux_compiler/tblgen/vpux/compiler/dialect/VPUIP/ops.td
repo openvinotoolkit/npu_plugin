@@ -2712,7 +2712,7 @@ def VPUIP_ACTShaveTaskOp :
                 AttrSizedOperandSegments,
                 MemoryEffectsOpInterface,
                 ViewLikeOpInterface,
-                DeclareOpInterfaceMethods<RTLayerInterface>,
+                DeclareOpInterfaceMethods<IERT_LayerOpInterface>,
                 DeclareOpInterfaceMethods<VPUIP_TaskOpInterface>,
                 DeclareOpInterfaceMethods<VPUIP_ACTShaveTaskOpInterface>,
             ]
@@ -2734,7 +2734,7 @@ def VPUIP_ACTShaveTaskOp :
 //        ArrayAttr:$inits,
 //        VPUIP_EdslDMADescArrayAttr:$transfers,
 
-        OptionalAttr<I32Attr>:$maxShaves
+        OptionalAttr<IntAttr>:$maxShaves
     );
 
     let results = (outs Variadic<AnyMemRef>:$results);
