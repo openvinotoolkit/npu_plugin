@@ -91,7 +91,7 @@ protected:
     // Public options
     bool _performanceCounting = false;
     std::string _deviceId = "";
-    int _throughputStreams = 6;
+    int _throughputStreams = 8;
     int _numberOfNnCoreShaves = 0;
     InferenceEngine::VPUXConfigParams::VPUXPlatform _platform = InferenceEngine::VPUXConfigParams::VPUXPlatform::AUTO;
     int32_t _csramSize = 0;
@@ -107,7 +107,7 @@ protected:
     int _SIPPLpi = 8;
     int _numberOfPPPipes = 1;
 #if defined(__arm__) || defined(__aarch64__)
-    int _executorStreams = 4;
+    int _executorStreams = 2;
 #else
     int _executorStreams = 1;
 #endif
