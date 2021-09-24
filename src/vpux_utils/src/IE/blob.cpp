@@ -229,37 +229,27 @@ void cvtBlobPrecisionImpl(const MemoryBlob::Ptr& in, const MemoryBlob::Ptr& out,
     }
 
     if (!quantParams._pluginQuantization) {
-        blocked_loop_1d(LoopExecPolicy::Parallel, in->size(), [inPtr, outPtr](size_t startIndex, size_t endIndex) {
-            for (auto index = startIndex; index <= endIndex; ++index) {
-                outPtr[index] = checked_cast<OutT>(inPtr[index]);
-            }
+        loop_1d(LoopExecPolicy::Parallel, in->size(), [inPtr, outPtr](int64_t index) {
+            outPtr[index] = checked_cast<OutT>(inPtr[index]);
         });
     } else {
         const float minU8 = static_cast<float>(std::numeric_limits<uint8_t>().lowest());
         const float maxU8 = static_cast<float>(std::numeric_limits<uint8_t>().max());
         if (inPrecision == Precision::FP32) {
-            blocked_loop_1d(
-                    LoopExecPolicy::Parallel, in->size(),
-                    [inPtr, outPtr, quantParams, minU8, maxU8](size_t startIndex, size_t endIndex) {
-                        for (auto index = startIndex; index <= endIndex; ++index) {
-                            const float inValueQuant =
-                                    static_cast<float>(quantParams._scale * (inPtr[index] - quantParams._min) + 0.5f);
-                            outPtr[index] = static_cast<OutT>(
-                                    inValueQuant < minU8 ? minU8 : (inValueQuant > maxU8 ? maxU8 : inValueQuant));
-                        }
-                    });
+            loop_1d(LoopExecPolicy::Parallel, in->size(), [inPtr, outPtr, quantParams, minU8, maxU8](int64_t index) {
+                const float inValueQuant =
+                        static_cast<float>(quantParams._scale * (inPtr[index] - quantParams._min) + 0.5f);
+                outPtr[index] =
+                        static_cast<OutT>(inValueQuant < minU8 ? minU8 : (inValueQuant > maxU8 ? maxU8 : inValueQuant));
+            });
         } else {
-            blocked_loop_1d(
-                    LoopExecPolicy::Parallel, in->size(),
-                    [inPtr, outPtr, quantParams, minU8, maxU8](size_t startIndex, size_t endIndex) {
-                        for (auto index = startIndex; index <= endIndex; ++index) {
-                            const float fp32InValue = PrecisionUtils::f16tof32(static_cast<ie_fp16>(inPtr[index]));
-                            const float inValueQuant =
-                                    static_cast<float>(quantParams._scale * (fp32InValue - quantParams._min) + 0.5f);
-                            outPtr[index] = static_cast<OutT>(
-                                    inValueQuant < minU8 ? minU8 : (inValueQuant > maxU8 ? maxU8 : inValueQuant));
-                        }
-                    });
+            loop_1d(LoopExecPolicy::Parallel, in->size(), [inPtr, outPtr, quantParams, minU8, maxU8](int64_t index) {
+                const float fp32InValue = PrecisionUtils::f16tof32(static_cast<ie_fp16>(inPtr[index]));
+                const float inValueQuant =
+                        static_cast<float>(quantParams._scale * (fp32InValue - quantParams._min) + 0.5f);
+                outPtr[index] =
+                        static_cast<OutT>(inValueQuant < minU8 ? minU8 : (inValueQuant > maxU8 ? maxU8 : inValueQuant));
+            });
         }
     }
 }
