@@ -48,18 +48,22 @@ mlir::Attribute getMemSpace(mlir::MLIRContext* ctx, StringRef) {
 }
 
 void buildIECommonPipeline(mlir::OpPassManager& pm, Logger log) {
+    const auto grc = getDefaultGreedyRewriteConfig();
+
     pm.addPass(IE::createUseUserPrecisionPass(log));
     pm.addPass(IE::createUseUserLayout(log));
     pm.addPass(IE::createAdjustLayoutsPass(log));
     pm.addPass(IE::createOptimizeReordersPass(log));
-    pm.addPass(mlir::createCanonicalizerPass(getDefaultGreedyRewriteConfig()));
+    pm.addPass(mlir::createCanonicalizerPass(grc));
 }
 
 void buildIEReferenceLowPrecisionPipeline(mlir::OpPassManager& pm, Logger log) {
+    const auto grc = getDefaultGreedyRewriteConfig();
+
     pm.addPass(IE::createSplitFakeQuantPass(log));
     pm.addPass(IE::createDequantizeConstPass(log));
     pm.addPass(IE::createMergeFakeQuantPass(log));
-    pm.addPass(mlir::createCanonicalizerPass(getDefaultGreedyRewriteConfig()));
+    pm.addPass(mlir::createCanonicalizerPass(grc));
 }
 
 void buildIERTAllocationPipelineForDDR(mlir::OpPassManager& pm, Logger log) {
@@ -95,7 +99,9 @@ void addConfigPass(mlir::OpPassManager& pm, const MyPipelineOptions& config, VPU
 //
 
 void vpux::buildReferenceModePipeline(mlir::OpPassManager& pm, bool enableProfiling, Logger log) {
-    pm.addPass(mlir::createCanonicalizerPass(getDefaultGreedyRewriteConfig()));
+    const auto grc = getDefaultGreedyRewriteConfig();
+
+    pm.addPass(mlir::createCanonicalizerPass(grc));
 
     // IE Dialect level
     IE::buildAdjustForVPUPipeline(pm, log);
@@ -128,7 +134,8 @@ void vpux::buildReferenceModePipeline(mlir::OpPassManager& pm, bool enableProfil
 //
 
 void vpux::buildHardwareModePipeline(mlir::OpPassManager& pm, bool enableProfiling, Logger log) {
-    const mlir::GreedyRewriteConfig grc = getDefaultGreedyRewriteConfig();
+    const auto grc = getDefaultGreedyRewriteConfig();
+
     pm.addPass(mlir::createCanonicalizerPass(grc));
 
     // IE Dialect level
@@ -136,13 +143,13 @@ void vpux::buildHardwareModePipeline(mlir::OpPassManager& pm, bool enableProfili
     pm.addPass(IE::createConvertAvgPoolToDWConvPass(log));
     pm.addPass(IE::createConvertScaleShiftToDWPass(log));
     // Canonicalize group convolution if necessary.
-    pm.addPass(mlir::createCanonicalizerPass(getDefaultGreedyRewriteConfig()));
+    pm.addPass(mlir::createCanonicalizerPass(grc));
     IE::buildAdjustForVPUPipeline(pm, log);
     pm.addPass(IE::createHandleAsymmetricStridesPass(log));
     IE::buildLowPrecisionPipeline(pm, log);
 
     pm.addPass(IE::createExpandActivationChannelsPass(log));
-    pm.addPass(mlir::createCanonicalizerPass(getDefaultGreedyRewriteConfig()));
+    pm.addPass(mlir::createCanonicalizerPass(grc));
 
     buildIECommonPipeline(pm, log);
 
