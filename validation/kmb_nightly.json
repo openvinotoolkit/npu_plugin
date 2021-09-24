@@ -4681,6 +4681,44 @@
                 "blob_name" : "bdk3_modnet_custom",
                 "special" : true
             }
+        },
+
+        {
+            "name" : "BDK_edsr3",
+            "ir" : "models/clientmodels/BDK3/edsr3/FP16-INT8/edsr.xml",
+            "3900" : {
+                "disabled" : true
+            },
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2",
+                "VPUX_INFERENCE_TIMEOUT": "100000"
+            },
+            "Compile" : {
+                "input_precision" : "FP32"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "224x224"
+            },
+            "NetTest-CalcRef" : {
+                "disabled" : true
+            },
+            "NetTest-Validate": {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "config": "edsr3.yml",
+                "subsample_size": 50
+            },
+            "category" : "MLIR/dKMB",
+            "CI-options" : {
+                "blob_name" : "bdk_edsr3",
+                "special" : true
+            }
         }
     ]
 }
