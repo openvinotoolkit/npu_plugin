@@ -23,25 +23,9 @@
 #include <ie_remote_context.hpp>
 #include <vpux_config.hpp>
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
+#include "vpux/utils/core/quant_params.hpp"
 
 namespace vpux {
-
-/**
- * @brief Quantization parameters
- */
-struct QuantizationParam {
-    QuantizationParam(const bool pluginQuantization = false, const float scale = 1.f, const float min = 0.f)
-            : _pluginQuantization(pluginQuantization), _scale(scale), _min(min) {
-    }
-    bool _pluginQuantization;
-    float _scale;
-    float _min;
-};
-
-/**
- * @brief Quantization parameters map
- */
-using QuantizationParamMap = std::unordered_map<std::string, QuantizationParam>;
 
 /**
  * @brief A helper map to represent descriptions for inputs and outputs

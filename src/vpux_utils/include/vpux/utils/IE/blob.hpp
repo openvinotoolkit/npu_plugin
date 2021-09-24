@@ -14,12 +14,12 @@
 #pragma once
 
 #include "vpux/utils/core/mem_size.hpp"
+#include "vpux/utils/core/quant_params.hpp"
 #include "vpux/utils/core/string_ref.hpp"
 
 #include <ie_blob.h>
 #include <ie_compound_blob.h>
 #include <ie_remote_context.hpp>
-#include <vpux_compiler.hpp>
 
 #include <memory>
 
