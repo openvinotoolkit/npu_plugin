@@ -30,6 +30,8 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BroadcastUPAOp::serialize(VPUIP::Bl
 
     if (this->mode() == IE::BroadcastType::NUMPY) {
         mode = MVCNN::BroadcastMode::BroadcastMode_NUMPY;
+    } else if (this->mode() == IE::BroadcastType::BIDIRECTIONAL) {
+        mode = MVCNN::BroadcastMode::BroadcastMode_BIDIRECTIONAL;
     } else {
         VPUX_THROW("Unsupported {0}", this->mode());
     }
