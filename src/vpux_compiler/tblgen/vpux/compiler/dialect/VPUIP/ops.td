@@ -2727,7 +2727,7 @@ def VPUIP_MVNUPAOp :
 }
 
 //
-// ReduceMeanOp
+// ReduceOp
 //
 
 def VPUIP_ReduceUPAOp :
