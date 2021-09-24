@@ -2173,4 +2173,37 @@ def IERT_SubtractOp :
     }];
 }
 
+//
+// ReduceMinOp
+//
+
+def IERT_ReduceMinOp :
+    IERT_LayerOp<1, "ReduceMin",
+        [
+            ViewLikeOpInterface
+        ]
+    > {
+    let summary = "InferenceEngine run-time ReduceMin layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32, SI32, SI64]>:$input,
+        MemRefOf<[SI32, SI64]>:$axes,
+        MemRefOf<[F16, F32, SI32, SI64]>:$output_buff,
+
+        OptionalAttr<BoolAttr>:$keep_dims
+    );
+
+    let results = (outs
+        MemRefOf<[F16, F32, SI32, SI64]>:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `inputs` `(` $axes `:` type($axes) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
 #endif

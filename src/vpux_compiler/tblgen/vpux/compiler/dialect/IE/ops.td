@@ -1946,4 +1946,27 @@ def IE_LSTMSequenceOp :
         3DTensorOf<[F16, F32]>:$outputCellState
     );
 }
+
+//
+// ReduceMinOp
+//
+
+def IE_ReduceMinOp :
+        IE_LayerOp<
+            "ReduceMin"
+        > {
+    let summary = "InferenceEngine ReduceMin Layer";
+
+    let arguments = (ins
+        AnyRankedTensor:$input,
+        1DTensorOf<[SI32, SI64]>:$axes,
+
+        OptionalAttr<BoolAttr>:$keep_dims
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+}
+
 #endif

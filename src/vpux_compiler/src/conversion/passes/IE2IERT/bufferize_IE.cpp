@@ -755,6 +755,13 @@ mlir::Operation* createRTLayer(IE::SubtractOp origOp, ArrayRef<mlir::Value> allB
     return b.create<IERT::SubtractOp>(origOp.getLoc(), newOp.input1(), newOp.input2(), newOp.output_buff());
 }
 
+mlir::Operation* createRTLayer(IE::ReduceMinOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::ReduceMinOp::Adaptor newOp(allBufs);
+    mlir::Operation* retOp = b.create<IERT::ReduceMinOp>(origOp.getLoc(), newOp.input(), newOp.axes(),
+                                                         newOp.output_buff(), origOp.keep_dimsAttr());
+    return retOp;
+}
+
 class LayerRewrite final : public mlir::ConversionPattern {
 public:
     LayerRewrite(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
@@ -839,6 +846,7 @@ mlir::LogicalResult LayerRewrite::matchAndRewrite(mlir::Operation* origOp, Array
     CASE(IE::RegionYoloOp)
     CASE(IE::MVNOp)
     CASE(IE::SubtractOp)
+    CASE(IE::ReduceMinOp)
     .Default([](mlir::Operation*) {
         return nullptr;
     });

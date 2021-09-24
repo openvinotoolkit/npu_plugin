@@ -390,4 +390,20 @@ def VPUIP_EdslDMADesc :
 def VPUIP_EdslDMADescArrayAttr : TypedArrayAttrBase<VPUIP_EdslDMADesc,
                                       "eDSL DMA descriptor array attribute">;
 
+//
+// ReduceLayerType
+//
+
+def VPUIP_ReduceLayerType :
+        StrEnumAttr<
+            "ReduceLayerType",
+            "Type of Reduce layer",
+            [
+                StrEnumAttrCase<"MIN">,
+            ]
+        > {
+    let cppNamespace = "vpux::VPUIP";
+    let genSpecializedAttr = 1;
+}
+
 #endif

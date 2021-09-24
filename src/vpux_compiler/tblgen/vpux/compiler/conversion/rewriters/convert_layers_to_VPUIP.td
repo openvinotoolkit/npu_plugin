@@ -696,4 +696,24 @@ def RewriteMVN :
             (createMVNUPAOp $input, $output, $across_channels, $normalize_variance, $eps)
         >;
 
+//
+// IERT.Reduce[Max|Mean|Min|Prod|Sum]Op -> VPUIP.ReduceUPA
+//
+
+class createReduceUPAOp<string method> :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::ReduceUPAOp>(
+                $_loc, $0, $1, $2, $3,
+                vpux::VPUIP::ReduceLayerTypeAttr::get(
+                    $_builder.getContext(),
+                    vpux::VPUIP::ReduceLayerType::}] # method # [{
+                ))
+        }]>;
+
+def RewriteReduceMin :
+        Pat<
+            (IERT_ReduceMinOp $input, $axes, $output, $keep_dims),
+            (createReduceUPAOp<"MIN"> $input, $axes, $output, $keep_dims)
+        >;
+
 #endif

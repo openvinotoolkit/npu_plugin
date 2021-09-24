@@ -1593,6 +1593,42 @@ operation ::= `IERT.ReLU` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float or 32-bit float values
 
+### `IERT.ReduceMin` (vpux::IERT::ReduceMinOp)
+
+InferenceEngine run-time ReduceMin layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.ReduceMin` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `inputs` `(` $axes `:` type($axes) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`keep_dims` | ::mlir::BoolAttr | bool attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float or 32-bit float or 32-bit signed integer or 64-bit signed integer values
+`axes` | memref of 32-bit signed integer or 64-bit signed integer values
+`output_buff` | memref of 16-bit float or 32-bit float or 32-bit signed integer or 64-bit signed integer values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float or 32-bit float or 32-bit signed integer or 64-bit signed integer values
+
 ### `IERT.RegionYolo` (vpux::IERT::RegionYoloOp)
 
 InferenceEngine run-time RegionYolo layer

@@ -107,7 +107,7 @@ namespace {
             {0, 1, 3},
             {0, 2, 3},
             {1, 2, 3},
-            {0, 1, 2, 3},
+            //{0, 1, 2, 3},
             {1, -1}
     };
 
@@ -272,5 +272,81 @@ namespace {
                     testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
             KmbReduceOpsLayerTest::getTestCaseName
     );
+    INSTANTIATE_TEST_CASE_P(
+            smoke_ReduceMin,
+            KmbReduceOpsLayerTest,
+            testing::Combine(
+                    testing::ValuesIn(axes),
+                    testing::Values(opTypes[1]),
+                    testing::Values(false,true),
+                    testing::Values(ngraph::helpers::ReductionType::Min),
+                    testing::Values(InferenceEngine::Precision::FP32),
+                    testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                    testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                    testing::Values(InferenceEngine::Layout::ANY),
+                    testing::ValuesIn(inputShapes),
+                    testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+            KmbReduceOpsLayerTest::getTestCaseName
+    );
 
+    INSTANTIATE_TEST_CASE_P(
+            smoke_ReduceMin_allaxes,
+            KmbReduceOpsLayerTest,
+            testing::Combine(
+                    testing::Values(std::vector<int>{0, 1, 2, 3}),
+                    testing::Values(opTypes[1]),
+                    testing::Values(true),
+                    testing::Values(ngraph::helpers::ReductionType::Min),
+                    testing::Values(InferenceEngine::Precision::FP32),
+                    testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                    testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                    testing::Values(InferenceEngine::Layout::ANY),
+                    testing::ValuesIn(inputShapes),
+                    testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+            KmbReduceOpsLayerTest::getTestCaseName
+    );
+
+    INSTANTIATE_TEST_CASE_P(
+            smoke_ReduceMin_from_networks,
+            KmbReduceOpsLayerTest,
+            testing::Combine(
+                    testing::ValuesIn(axes),
+                    testing::Values(opTypes[1]),
+                    testing::Values(false, true),
+                    testing::Values(ngraph::helpers::ReductionType::Min),
+                    testing::Values(InferenceEngine::Precision::FP32),
+                    testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                    testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                    testing::Values(InferenceEngine::Layout::ANY),
+                    testing::Values(
+                            std::vector<size_t> {1, 512, 7, 7},     // resnet_18
+                            std::vector<size_t> {1, 2048, 7, 7},    // resnet_50
+                            std::vector<size_t> {1, 1280, 7, 7},    // mobilenet_v2
+                            std::vector<size_t> {1, 1664, 7, 7}     // densenet
+                            ),
+                    testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+            KmbReduceOpsLayerTest::getTestCaseName
+    );
+
+    INSTANTIATE_TEST_CASE_P(
+            smoke_ReduceMin_allaxes_from_networks,
+            KmbReduceOpsLayerTest,
+            testing::Combine(
+                    testing::Values(std::vector<int>{0, 1, 2, 3}),
+                    testing::Values(opTypes[1]),
+                    testing::Values(true),
+                    testing::Values(ngraph::helpers::ReductionType::Min),
+                    testing::Values(InferenceEngine::Precision::FP32),
+                    testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                    testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                    testing::Values(InferenceEngine::Layout::ANY),
+                    testing::Values(
+                            std::vector<size_t> {1, 512, 7, 7},     // resnet_18
+                            std::vector<size_t> {1, 2048, 7, 7},    // resnet_50
+                            std::vector<size_t> {1, 1280, 7, 7},    // mobilenet_v2
+                            std::vector<size_t> {1, 1664, 7, 7}     // densenet
+                            ),
+                    testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+            KmbReduceOpsLayerTest::getTestCaseName
+    );
 }  // namespace
