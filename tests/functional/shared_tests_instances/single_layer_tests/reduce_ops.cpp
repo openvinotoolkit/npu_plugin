@@ -12,15 +12,6 @@
 
 namespace LayerTestsDefinitions {
     class KmbReduceOpsLayerTest : public ReduceOpsLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
-        void SkipBeforeLoad() override {
-            const auto testName =
-                    std::string{::testing::UnitTest::GetInstance()->current_test_info()->test_case_name()};
-
-            const auto skipMCM = testName.find("smoke_Reduce_Mean_Axes_SKIP_MCM") != std::string::npos;
-            if (isCompilerMCM() && skipMCM) {
-                throw LayerTestsUtils::KmbSkipTestException("Skip Load for MCM");
-            }
-        }
         void SkipBeforeValidate() override {
             const auto testName =
                     std::string{::testing::UnitTest::GetInstance()->current_test_info()->test_case_name()};
@@ -210,27 +201,6 @@ namespace {
                 testing::Values(InferenceEngine::Layout::ANY),
                 testing::ValuesIn(inputShapes),
                 testing::Values(LayerTestsUtils::testPlatformTargetDevice)
-            ),
-            KmbReduceOpsLayerTest::getTestCaseName
-    );
-
-    INSTANTIATE_TEST_CASE_P(
-            smoke_Reduce_Mean_Axes_SKIP_MCM,
-            KmbReduceOpsLayerTest,
-            testing::Combine(
-                    testing::ValuesIn(axes),
-                    testing::Values(opTypes[1]),
-                    testing::Values(true),
-                    testing::Values(ngraph::helpers::ReductionType::Mean),
-                    testing::Values(InferenceEngine::Precision::FP32),
-                    testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                    testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                    testing::Values(InferenceEngine::Layout::ANY),
-                    testing::ValuesIn({
-                            std::vector<size_t>{1, 2, 3, 4},
-                            std::vector<size_t>{10, 3, 2, 1},
-                    }),
-                    testing::Values(LayerTestsUtils::testPlatformTargetDevice)
             ),
             KmbReduceOpsLayerTest::getTestCaseName
     );
