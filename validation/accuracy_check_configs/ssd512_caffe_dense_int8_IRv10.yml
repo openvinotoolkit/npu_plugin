@@ -1,0 +1,31 @@
+models:
+  - name: ssd512
+
+    launchers:
+      - framework: dlsdk
+        model: @MODEL_PATH@
+        adapter: ssd
+
+    datasets:
+      - name: VOC2012
+
+        data_source: VOCdevkit/VOC2012/JPEGImages
+
+        annotation_conversion:
+            converter: voc_detection
+            annotations_dir: VOCdevkit/VOC2012/Annotations
+            images_dir: VOCdevkit/VOC2012/JPEGImages
+            imageset_file: VOCdevkit/VOC2012/ImageSets/Main/val.txt
+
+        metrics:
+          - type: map
+            integral: 11point
+            ignore_difficult: True
+            presenter: print_scalar
+
+        preprocessing:
+          - type: resize
+            size: 512
+
+        postprocessing:
+          - type: resize_prediction_boxes
