@@ -11,12 +11,11 @@
 // included with the Software Package for additional details.
 //
 
-#include <elf/elf.hpp>
+#include <elf/elf_writer.hpp>
 
 int main() {
-    elf::ELF elf{};
-    auto section = elf.addSection();
-    section->setType(elf::SHT_PROGBITS);
+    elf::ELFWriter elf;
+    elf.setType(elf::ET_NONE);
     elf.writeTo("blob.elf");
 
     return 0;

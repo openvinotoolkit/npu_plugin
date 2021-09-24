@@ -22,12 +22,28 @@ class Section {
 public:
     Section() = default;
 
-    Elf_Half getType() { return _sectionHeader.sh_type; }
+    Elf_Half getType() const { return _sectionHeader.sh_type; }
     void setType(Elf_Half type) { _sectionHeader.sh_type = type; }
 
 private:
     T _sectionHeader;
     std::vector<char, Alloc<char>> _data;
+};
+
+template<typename T>
+class SectionRef {
+public:
+    SectionRef() = delete;
+    SectionRef(const char* sectionHeader, const char* data) {
+        _sectionHeader = reinterpret_cast<const T*>(sectionHeader);
+        _data = data;
+    }
+
+    Elf_Half getType() { return _sectionHeader->sh_type; }
+
+private:
+    const T* _sectionHeader;
+    const char* _data;
 };
 
 } // namespace elf

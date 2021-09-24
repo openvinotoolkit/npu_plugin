@@ -22,12 +22,28 @@ class Segment {
 public:
     Segment() = default;
 
-    Elf_Half getType() { return _programHeader.p_type; }
-    void setType(Elf_Half type) { _programHeader.p_type = type; }
+    Elf_Half getType() const { return _programHeader.sh_type; }
+    void setType(Elf_Half type) { _programHeader.sh_type = type; }
 
 private:
     T _programHeader;
     std::vector<char, Alloc<char>> _data;
+};
+
+template<typename T>
+class SegmentRef {
+public:
+    SegmentRef() = delete;
+    SegmentRef(const char* programHeader, const char* data) {
+        _programHeader = reinterpret_cast<const T*>(programHeader);
+        _data = data;
+    }
+
+    Elf_Half getType() const { return _programHeader->sh_type; }
+
+private:
+    const T* _programHeader;
+    const char* _data;
 };
 
 } // namespace elf

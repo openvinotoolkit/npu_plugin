@@ -11,11 +11,10 @@
 // included with the Software Package for additional details.
 //
 
-#include <elf/elf.hpp>
+#include <elf/elf_reader.hpp>
 
 int main() {
-    elf::ELF elf{};
-    elf.readFrom("elf.blob");
+    elf::ELFReader elf("elf.blob");
 
     return 0;
 }

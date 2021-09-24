@@ -32,6 +32,9 @@ constexpr uint8_t EI_NIDENT     = 16;
 constexpr uint8_t ELFCLASS32 = 1;
 constexpr uint8_t ELFCLASS64 = 2;
 
+constexpr Elf_Half ET_NONE = 0;
+constexpr Elf_Half ET_REL = 1;
+
 struct Elf32_Ehdr {
     unsigned char e_ident[EI_NIDENT];
     Elf_Half      e_type;
