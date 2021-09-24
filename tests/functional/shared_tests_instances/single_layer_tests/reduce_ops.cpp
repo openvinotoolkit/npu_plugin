@@ -278,13 +278,16 @@ namespace {
             testing::Combine(
                     testing::ValuesIn(axes),
                     testing::Values(opTypes[1]),
-                    testing::Values(false,true),
+                    testing::Values(true),
                     testing::Values(ngraph::helpers::ReductionType::Min),
                     testing::Values(InferenceEngine::Precision::FP32),
                     testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                     testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                     testing::Values(InferenceEngine::Layout::ANY),
-                    testing::ValuesIn(inputShapes),
+                    testing::Values(
+                            std::vector<size_t>{10, 20, 30, 40},
+                            std::vector<size_t>{3, 5, 7, 9}
+                            ),
                     testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
             KmbReduceOpsLayerTest::getTestCaseName
     );
@@ -301,13 +304,16 @@ namespace {
                     testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                     testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                     testing::Values(InferenceEngine::Layout::ANY),
-                    testing::ValuesIn(inputShapes),
+                    testing::Values(
+                            std::vector<size_t>{10, 20, 30, 40},
+                            std::vector<size_t>{3, 5, 7, 9}
+                            ),
                     testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
             KmbReduceOpsLayerTest::getTestCaseName
     );
 
     INSTANTIATE_TEST_CASE_P(
-            smoke_ReduceMin_from_networks,
+            DISABLED_smoke_ReduceMin_from_networks,
             KmbReduceOpsLayerTest,
             testing::Combine(
                     testing::ValuesIn(axes),
@@ -329,7 +335,7 @@ namespace {
     );
 
     INSTANTIATE_TEST_CASE_P(
-            smoke_ReduceMin_allaxes_from_networks,
+            DISABLED_smoke_ReduceMin_allaxes_from_networks,
             KmbReduceOpsLayerTest,
             testing::Combine(
                     testing::Values(std::vector<int>{0, 1, 2, 3}),
