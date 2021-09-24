@@ -1,0 +1,22 @@
+models:
+- name: license-plate-recognition-barrier-0007
+  launchers:
+  - framework: dlsdk
+    model: @MODEL_PATH@
+    adapter: lpr
+  datasets:
+  - name: synthetic_chinese_license_plates
+    data_source: Synthetic_Chinese_License_Plates
+    annotation_conversion:
+      converter: lpr_txt
+      annotation_file: Synthetic_Chinese_License_Plates/annotation
+      decoding_dictionary_file: dict
+    dataset_meta: lpr.json
+
+    preprocessing:
+      - type: resize
+        dst_width: 94
+        dst_height: 24
+
+    metrics:
+      - type: character_recognition_accuracy

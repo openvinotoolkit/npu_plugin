@@ -1,0 +1,28 @@
+models:
+  - name: ModelE_V3
+    launchers:
+      - framework: dlsdk
+        model:   @MODEL_PATH@
+        adapter:
+          type: multi_output_regression
+          outputs:
+            - PostProcess/stage0/x1/Sigmoid
+            - PostProcess/stage0/x4/Sigmoid
+            - PostProcess/stage1/x1/Sigmoid
+            - PostProcess/stage1/x4/Sigmoid
+
+    datasets:
+      - name: model_e_dataset
+        annotation_conversion:
+            converter: multi_feature_regression
+            data_dir: model_e_ref
+            input_suffix: .JPEG
+            reference_suffix: .npy
+        data_source: model_e_ref
+        preprocessing:
+          - type: resize
+            dst_height: 192
+            dst_width: 320
+        metrics:
+          - type: mae
+            presenter: print_vector
