@@ -31,6 +31,7 @@ void vpux::IE::buildAdjustForVPUPipeline(mlir::OpPassManager& pm, Logger log) {
     pm.addPass(IE::createConvertPaddingsToFloorModePass(log));
     pm.addPass(IE::createResolveStridedSlicePass(log));
     pm.addPass(IE::createFusePostOpsPass(log));
+    pm.addPass(IE::createCleanUpPermutePass(log));
     pm.addPass(mlir::createCanonicalizerPass(getDefaultGreedyRewriteConfig()));
 }
 

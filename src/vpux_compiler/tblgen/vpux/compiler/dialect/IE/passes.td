@@ -454,4 +454,22 @@ def HandleAsymmetricStrides : PassBase<"handle-asymmetric-strides", "vpux::Funct
     ];
 }
 
+//
+// CleanUpPermute
+//
+
+def CleanUpPermute : PassBase<"cleanup-perm", "vpux::FunctionPass"> {
+    let summary = "TODO";
+
+    let description = [{
+        TODO
+    }];
+
+    let constructor = "vpux::IE::createCleanUpPermutePass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
+
 #endif

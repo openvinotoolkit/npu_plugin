@@ -2,6 +2,8 @@
 ### `-adjust-layouts`: Adjust required layouts for all layers
 This pass adds the required layouts instead of the default one
 depending on the layer specification from underlying Dialect.
+### `-cleanup-perm`: TODO
+TODO
 ### `-convert-avg-pool-to-dw-conv`: Convert AvgPool op to GroupConvolution op
 The pass is a part of `AdjustForVPU` pipeline.
 
