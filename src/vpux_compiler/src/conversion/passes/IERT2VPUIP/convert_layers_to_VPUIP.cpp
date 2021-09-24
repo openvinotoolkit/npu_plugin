@@ -299,7 +299,7 @@ void ConvertLayers2VPUIPPass::safeRunOnFunc() {
     target.addLegalDialect<VPUIP::VPUIPDialect>();
     target.addLegalOp<mlir::FuncOp, mlir::ReturnOp>();
     target.addLegalOp<Const::DeclareOp, IERT::StaticAllocOp>();
-    target.addLegalOp<IERT::SubViewOp, IERT::ConcatViewOp>();
+    target.addLegalOp<IERT::SubViewOp, IERT::ViewOp, IERT::ConcatViewOp>();
     target.addLegalOp<IERT::GenericReshapeOp, IERT::PermuteCastOp>();
     target.addLegalOp<IERT::QuantizeCastOp>();
 

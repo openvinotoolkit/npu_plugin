@@ -44,6 +44,7 @@ std::unique_ptr<mlir::Pass> createFeasibleAllocationPass(AttrCreateFunc memSpace
                                                          AttrCreateFunc secondLvlMemSpaceCb = nullptr,
                                                          Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createTimestampProfilingPass(AttrCreateFunc memSpaceCb, Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createFuseConstantsPass(Logger log = Logger::global());
 
 //
 // Asynchronous Scheduling pipeline

@@ -121,6 +121,16 @@ mlir::LogicalResult CreateWTableOpsConverter::matchAndRewrite(VPUIP::WeightsTabl
                                                                         weightPtrStep, sparsityPtrOffset, _arch, OC,
                                                                         op_weightsElemType, createWTableOp.bias());
 
+    {  // pack weights table to fused constant
+       // 1 find placeholder
+
+        // 2 write data into constant by offset = weights size
+
+        // 3 replace weights table op by subview + view ops
+
+        // return
+    }
+
     const auto outType = createWTableOp.output().getType();
     const auto shapedType = outType.dyn_cast_or_null<mlir::ShapedType>();
 

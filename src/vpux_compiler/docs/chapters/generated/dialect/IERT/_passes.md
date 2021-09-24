@@ -10,6 +10,8 @@ Schedule async.execute opeations based on their dependecies and CMX memory avail
 -memory-space              : Memory space to perform allocation
 -second-level-memory-space : Second level memory space to perform spilling
 ```
+### `-fuse-constants`: Fuse contant inputs of NCEClusterOp
+Cncatenate all input cnstants into one.
 ### `-group-async-execute-ops`: Reduces number of async.execute operations
 Groups consecutive operations which utilizes the same executor and max resources into same async.execute region
 ### `-move-view-ops-into-async-regions`: Moves view-like Operations inside the asynchronous regions which depends on them

@@ -66,13 +66,13 @@ mlir::Value createWeightsTableTensor(mlir::OpBuilder& builder, mlir::Location lo
 
     // link weight table to memrefs rather than the operation of weights,
     // activation, and input for easy address pointer retrieval
-    mlir::Value wMemref = retrieveMemrefOfCopyOp(weights);
+    // mlir::Value wMemref = retrieveMemrefOfCopyOp(weights);
     mlir::Value aMemref = retrieveMemrefOfCopyOp(activationWindow);
     mlir::Value iMemref = retrieveMemrefOfCopyOp(op_input);
 
     const auto dataType = mlir::MemRefType::get(weightTableShape, getSInt32Type(builder.getContext()));
     auto createWeightsTableOp =
-            builder.create<VPUIP::WeightsTableOp>(loc, dataType, iMemref, op_output, wMemref, bias, aMemref);
+            builder.create<VPUIP::WeightsTableOp>(loc, dataType, iMemref, op_output, weights, bias, aMemref);
 
     const auto cmxMemSpaceAttr = VPUIP::PhysicalMemoryAttr::get(ctx, VPUIP::PhysicalMemory::CMX_NN);
     const auto dataTypeCMX = changeMemSpace(dataType, cmxMemSpaceAttr);

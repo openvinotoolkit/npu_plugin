@@ -2420,3 +2420,34 @@ Get timer timestamp operation
 | :----: | ----------- |
 `output` | memref of 32-bit unsigned integer or 64-bit unsigned integer values
 
+### `IERT.View` (vpux::IERT::ViewOp)
+
+Extract single subview from buffer and change type
+
+
+Syntax:
+
+```
+operation ::= `IERT.View` $source $new_type
+              attr-dict `:` type($source) `to` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`new_type` | ::mlir::TypeAttr | any type attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`source` | memref of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`result` | memref of any type values
+
