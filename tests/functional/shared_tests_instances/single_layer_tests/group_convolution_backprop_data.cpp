@@ -50,8 +50,8 @@ const auto groupConv2DParams_ExplicitPadding = ::testing::Combine(
         ::testing::ValuesIn(padEnds), ::testing::ValuesIn(dilations), ::testing::ValuesIn(numOutChannels),
         ::testing::ValuesIn(numGroups), ::testing::Values(ngraph::op::PadType::EXPLICIT));
 const auto groupConv2DParams_AutoPadValid = ::testing::Combine(
-        ::testing::ValuesIn(kernels), ::testing::ValuesIn(strides), ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
-        ::testing::Values(std::vector<ptrdiff_t>({0, 0})), ::testing::ValuesIn(dilations),
+        ::testing::ValuesIn(kernels), ::testing::ValuesIn(strides), ::testing::ValuesIn(padBegins),
+        ::testing::ValuesIn(padEnds), ::testing::ValuesIn(dilations),
         ::testing::ValuesIn(numOutChannels), ::testing::ValuesIn(numGroups),
         ::testing::Values(ngraph::op::PadType::VALID));
 
@@ -71,7 +71,7 @@ INSTANTIATE_TEST_CASE_P(smoke_GroupDeconv2D_AutoPadValid, KmbGroupConvBackpropDa
                                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                            ::testing::Values(InferenceEngine::Layout::ANY),
                                            ::testing::Values(InferenceEngine::Layout::ANY),
-                                           ::testing::Values(std::vector<size_t>({1, 12, 7, 7})),
+                                           ::testing::Values(inputShapes),
                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
                         KmbGroupConvBackpropDataLayerTest::getTestCaseName);
 }  // namespace

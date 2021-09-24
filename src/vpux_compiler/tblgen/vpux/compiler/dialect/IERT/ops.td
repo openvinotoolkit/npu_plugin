@@ -542,7 +542,7 @@ def IERT_GroupDeconvolutionOp:
             SameOperandsElementType
         ]
         > {
-    let summary = "InferenceEngine  run-time GroupDeconvolution layer";
+    let summary = "InferenceEngine run-time GroupDeconvolution layer";
 
     let arguments = (ins
         MemRefOf<[F16, F32]>:$feature,

@@ -33,15 +33,12 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(DeconvolutionUPAOp op) {
                        featureShape[Dim(0)], featureShape[Dim(1)], featureShape[Dim(2)], featureShape[Dim(3)]);
 
     if (featureShape[Dim(1)] != outputShape[Dim(1)] || featureShape[Dim(1)] != op.groups())
-        return errorAt(op, "Only depth-wise deconvolution are supported");
+        return errorAt(op, "Only depthwise deconvolution is supported");
 
     auto vec = parseIntArrayAttr<int64_t>(op.dilations());
-    if (vec.size() != 2)
+    if (vec.size() != 2 || vec[0] != 1 || vec[1] != 1) {
         return errorAt(op, "Supported dilations only [1, 1], got {0}", op.dilationsAttr());
-
-    if (vec[0] != 1 || vec[1] != 1)
-        return errorAt(op, "Supported dilations only [1, 1], got {0}", op.dilationsAttr());
-
+    }
     return mlir::success();
 }
 
