@@ -424,10 +424,10 @@ OutputTiling SimpleTiler::genericTiler(mlir::Operation* op, mlir::MemRefType out
             if (nTilesOnDim[IE::Dims4D::Act::C] < maxChannelTiles)
                 return true;
         } else {  // Spatial dims
-            const auto origSize = outputShape[dimToTile.getValue()];
-            const auto prevDivisor = nTilesOnDim[dimToTile.getValue()];
+            const double origSize = static_cast<double>(outputShape[dimToTile.getValue()]);
+            const double prevDivisor = static_cast<double>(nTilesOnDim[dimToTile.getValue()]);
 
-            if (origSize / prevDivisor > 1)
+            if ((origSize / prevDivisor) > 1.0)
                 return true;
         }
 
