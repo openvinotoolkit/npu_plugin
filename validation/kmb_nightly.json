@@ -2592,6 +2592,43 @@
         },
 
         {
+            "name" : "BDK_Deblur_AA_VPUX",
+            "ir" : "models/clientmodels/BDK3/Deblur/AccuracyAware/2020.1_INT8_Deblur_AccuracyAwareQuantization.xml",
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_THROUGHPUT_STREAMS": "1",
+                "VPUX_INFERENCE_TIMEOUT": "60000",
+                "VPUX_COMPILATION_MODE": "ReferenceHW",
+                "VPUX_EXECUTOR_STREAMS":"1",
+                "VPUX_COMPILER_TYPE": "MLIR"
+            },
+            "3720": {
+                "disabled" : true
+            },
+            "3900": {
+                "disabled" : true
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "224x224"
+            },
+            "NetTest-CalcRef" : {
+                "disabled" : true
+            },
+            "NetTest-Validate" : {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "config": "kmb/deblur_aa.yml",
+                "subsample_size": 10
+            },
+            "category" : "MLIR/weekly_private",
+            "CI-options" : {
+                "blob_name" : "bdk_deblur_aa",
+                "special" : true
+            }
+        },
+
+        {
             "name" : "BDK_caffe2_FP16-INT8_mobilenet-v2",
             "ir" : "models/clientmodels/BDK3/mobilenet-v2/caffe2/FP16-INT8/mobilenet-v2.xml",
             "3720": {
