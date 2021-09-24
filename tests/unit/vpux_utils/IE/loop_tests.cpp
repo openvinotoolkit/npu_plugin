@@ -14,6 +14,16 @@
 #include "vpux/utils/IE/loop.hpp"
 #include <chrono>
 
+#include "tbb/blocked_range.h"
+#include "tbb/blocked_range2d.h"
+#include "tbb/blocked_range3d.h"
+#include "tbb/parallel_for.h"
+#include "tbb/parallel_reduce.h"
+#include "tbb/parallel_sort.h"
+#include "tbb/task_arena.h"
+#include "tbb/task_scheduler_observer.h"
+
+#include <ie_parallel.hpp>
 #include <gtest/gtest.h>
 
 using namespace vpux;
@@ -24,7 +34,7 @@ public:
     void SetUp() override;
 
 protected:
-    const size_t sizeBuffer = 100000000;
+    const size_t sizeBuffer = 8000*1000*4;
     std::vector<uint8_t> inData;
     std::vector<float> outData1;
     std::vector<float> outData2;
@@ -59,12 +69,25 @@ TEST_F(LoopTests, LoopAndBlockedLoopProvideTheSameResult) {
 TEST_F(LoopTests, BlockedLoopIsFasterThenLoop) {
     const auto inPtr = inData.data();
     auto out1Ptr = outData1.data();
+
+    //warm up
+    loop_1d(LoopExecPolicy::Parallel, sizeBuffer, [inPtr, out1Ptr](int64_t index) {
+        out1Ptr[index] = static_cast<float>(inPtr[index]);
+    });
+
     auto tBegin = high_resolution_clock::now();
     loop_1d(LoopExecPolicy::Parallel, sizeBuffer, [inPtr, out1Ptr](int64_t index) {
         out1Ptr[index] = static_cast<float>(inPtr[index]);
     });
     auto tEnd = high_resolution_clock::now();
     const auto loopTime = duration_cast<microseconds>(tEnd-tBegin).count();
+
+    tBegin = high_resolution_clock::now();
+    InferenceEngine::parallel_for_v2(sizeBuffer, [inPtr, out1Ptr](int64_t index) {
+        out1Ptr[index] = static_cast<float>(inPtr[index]);
+    });
+    tEnd = high_resolution_clock::now();
+    const auto loopV2Time = duration_cast<microseconds>(tEnd-tBegin).count();
 
     auto out2Ptr = outData2.data();
     tBegin = high_resolution_clock::now();
@@ -74,8 +97,21 @@ TEST_F(LoopTests, BlockedLoopIsFasterThenLoop) {
         }
     });
     tEnd = high_resolution_clock::now();
-    const auto blockedLoopTime = duration_cast<microseconds>(tEnd-tBegin).count();    
+    const auto blockedLoopTime = duration_cast<microseconds>(tEnd-tBegin).count();
+
+    tBegin = high_resolution_clock::now();
+    tbb::parallel_for(tbb::blocked_range<size_t>(0, sizeBuffer), [&](tbb::blocked_range<size_t> r) {
+        for (size_t index=r.begin(); index<r.end(); ++index) {
+            out2Ptr[index] = static_cast<float>(inPtr[index]);
+        }
+    });
+    tEnd = high_resolution_clock::now();
+    const auto maximTime = duration_cast<microseconds>(tEnd-tBegin).count();
+
     std::cout << "Loop took " << loopTime << " us" << std::endl;
+    std::cout << "LoopV2 took " << loopV2Time << " us" << std::endl;
     std::cout << "Blocked loop took " << blockedLoopTime << " us" << std::endl;
+    std::cout << "Maxim time loop took " << maximTime << " us" << std::endl;
+    ASSERT_LT(blockedLoopTime, loopTime);
     ASSERT_EQ(outData1, outData2);
 }
