@@ -28,8 +28,6 @@ StringLiteral stringifyEnum(LoopExecPolicy val);
 
 void loop_1d(LoopExecPolicy policy, int64_t dim0, FuncRef<void(int64_t)> proc);
 
-void blocked_loop_1d(LoopExecPolicy policy, size_t dim0, FuncRef<void(size_t, size_t)> proc, size_t blockSize = 0);
-
 void loop_2d(LoopExecPolicy policy, int64_t dim0, int64_t dim1, FuncRef<void(int64_t, int64_t)> proc);
 
 void loop_3d(LoopExecPolicy policy, int64_t dim0, int64_t dim1, int64_t dim2,
