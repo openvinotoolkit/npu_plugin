@@ -457,7 +457,7 @@ func @Conv2dClampTest(%arg0: memref<1x16x16x16xf16, #NHWC, #map0>, %arg1: memref
 // CHECK:               DPUTask {end = [15, 8, 15], mpe_mode = "VECTOR_FP16", pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, start = [0, 6, 0]}
 // CHECK:               DPUTask {end = [15, 11, 15], mpe_mode = "VECTOR_FP16", pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, start = [0, 9, 0]}
 // CHECK:               DPUTask {end = [15, 15, 15], mpe_mode = "VECTOR_FP16", pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, start = [0, 12, 0]}
-// CHECK:               PPETask "LRELUX" {clamp_high = 393216 : i32, clamp_low = 0 : i32, lrelu_mult = 1 : i32, lrelu_shift = 0 : ui32}
+// CHECK:               PPETask "NOOP" {clamp_high = 393216 : i32, clamp_low = 0 : i32, lrelu_mult = 1 : i32, lrelu_shift = 0 : ui32}
 
 
 // CHECK:       [[OUTPUT:%.+]] = IERT.Copy
