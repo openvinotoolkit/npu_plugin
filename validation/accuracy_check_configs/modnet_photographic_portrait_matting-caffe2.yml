@@ -1,0 +1,20 @@
+models:
+    - name: modnet_photographic_portrait_matting
+      launchers:
+          - framework: dlsdk
+            model: @MODEL_PATH@
+            adapter: background_matting
+      datasets:
+          - name: HumanMattingDataset
+            preprocessing:
+                - type: resize
+                  size: 512
+            postprocessing:
+                - type: resize
+                  apply_to: annotation
+                  size: 512
+            metrics:
+                - type: mae
+                  name: MAD
+                - type: mse
+                  name: MSE
