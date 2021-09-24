@@ -16,6 +16,11 @@
 #include "icompiler_adapter.h"
 #include "vpux_compiler_l0.h"
 #include "zero_compiler_adapter.h"
+#if defined(_WIN32)
+#include <windows.h>
+#else
+#include <dlfcn.h>
+#endif
 
 #if defined(_WIN32)
 #define LIBTYPE HINSTANCE
