@@ -46,8 +46,3 @@ link_system_libraries(${TARGET_NAME}
         IE::ngraph
         LLVMSupport
 )
-
-target_link_libraries(${TARGET_NAME}
-    PUBLIC
-        vpux_al
-)
