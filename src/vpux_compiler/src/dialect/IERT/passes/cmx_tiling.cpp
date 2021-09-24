@@ -392,8 +392,6 @@ OutputTiling SimpleTiler::genericTiler(mlir::Operation* op, mlir::MemRefType out
 
     // Try to tile the largest dim (C or H) first, then proceed with other dims
     SmallVector<Dim> tileDimOrder = {IE::Dims4D::Act::C, IE::Dims4D::Act::H, IE::Dims4D::Act::W};
-    if (outputShape[IE::Dims4D::Act::C] < outputShape[IE::Dims4D::Act::H])
-        tileDimOrder = {IE::Dims4D::Act::H, IE::Dims4D::Act::C, IE::Dims4D::Act::W};
 
     auto tileDimIter = tileDimOrder.begin();
     Optional<Dim> dimToTile = *tileDimIter;
