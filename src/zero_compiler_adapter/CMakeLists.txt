@@ -34,33 +34,34 @@ else()
     set(ARCH_SUBFOLDER intel64)
 endif()
 
-# Copy umd_converter lib from artifacts
- add_custom_target(umd_converter_lib_copy ALL
-     COMMAND ${CMAKE_COMMAND} -E copy
-         "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/artifacts/umd_converter/${ARCH_SUBFOLDER}/*.so"
-         "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR}/"
-     COMMENT "[ZeroCompilerAdapter] Copy umb converter library."
- )
- add_dependencies(${OBJ_TARGET_NAME} umd_converter_lib_copy)
+# Copy VPUXCompilerL0 lib from artifacts
+#  add_custom_target(VPUXCompilerL0_lib_copy ALL
+#      COMMAND ${CMAKE_COMMAND} -E copy
+#          "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/artifacts/VPUXCompilerL0/${ARCH_SUBFOLDER}/*.dll"
+#          "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR}/"
+#      COMMENT "[ZeroCompilerAdapter] Copy VPUXCompilerL0 library."
+#  )
+#  add_dependencies(${OBJ_TARGET_NAME} VPUXCompilerL0_lib_copy)
 
-if(AARCH64)
+# if(AARCH64)
 # FIXME Finding library for ARM require different approach. Use direct link for now
-    set(UMD_CONVERTER_PATH "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/artifacts/umd_converter/${ARCH_SUBFOLDER}/libumd_converter.so")
-else()
-find_library(UMD_CONVERTER_LIBRARY
-    NAMES umd_converter
-    HINTS "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/artifacts/umd_converter/${ARCH_SUBFOLDER}/"
-    REQUIRED
-    NO_DEFAULT_PATH)
+    # set(VPUX_COMPILER_L0_PATH "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/artifacts/VPUXCompilerL0/${ARCH_SUBFOLDER}/libVPUXCompilerL0.so")
+    set(VPUX_COMPILER_L0_PATH "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/artifacts/VPUXCompilerL0/${ARCH_SUBFOLDER}/VPUXCompilerL0.dll")
+# else()
+# find_library(VPUX_COMPILER_L0_LIBRARY
+#     NAMES VPUXCompilerL0
+#     HINTS "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/artifacts/VPUXCompilerL0/${ARCH_SUBFOLDER}/"
+#     REQUIRED
+#     NO_DEFAULT_PATH)
     
-    log_rpath(UMD_CONVERTER "${UMD_CONVERTER_LIBRARY}")
+#     log_rpath(VPUX_COMPILER_L0 "${VPUX_COMPILER_L0_LIBRARY}")
 
-    add_library(umd_converter SHARED IMPORTED GLOBAL)
-    add_dependencies(${OBJ_TARGET_NAME} umd_converter)
-    set_target_properties(umd_converter PROPERTIES
-        IMPORTED_LOCATION ${UMD_CONVERTER_LIBRARY}
-    )
-endif()
+#     add_library(VPUXCompilerL0 SHARED IMPORTED GLOBAL)
+#     add_dependencies(${OBJ_TARGET_NAME} VPUXCompilerL0)
+#     set_target_properties(VPUXCompilerL0 PROPERTIES
+#         IMPORTED_LOCATION ${VPUX_COMPILER_L0_LIBRARY}
+#     )
+# endif()
 
 enable_warnings_as_errors(${OBJ_TARGET_NAME})
 
@@ -80,19 +81,19 @@ link_system_libraries(${OBJ_TARGET_NAME}
         IE::inference_engine_plugin_api
         IE::vpu_common_lib)
 
-if(AARCH64)
+# if(AARCH64)
 target_link_libraries(${OBJ_TARGET_NAME}
     PRIVATE
         ${UMD_CONVERTER_PATH}
         vpux_al
         kmb_utils)
-else()
-target_link_libraries(${OBJ_TARGET_NAME}
-    PRIVATE
-        umd_converter
-        vpux_al
-        kmb_utils)
-endif()
+# else()
+# target_link_libraries(${OBJ_TARGET_NAME}
+#     PRIVATE
+#         VPUXCompilerL0
+#         vpux_al
+#         kmb_utils)
+# endif()
 
 if(ENABLE_CLANG_FORMAT)
     add_clang_format_target(clang_format_${OBJ_TARGET_NAME} FOR_TARGETS ${OBJ_TARGET_NAME} ALL)
