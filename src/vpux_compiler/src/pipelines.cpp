@@ -110,6 +110,8 @@ void vpux::buildReferenceModePipeline(mlir::OpPassManager& pm, bool enableProfil
         pm.addPass(IERT::createTimestampProfilingPass(getMemSpace<VPUIP::PhysicalMemory::DDR>, log));
     }
 
+    pm.addPass(IERT::createReadValueTransPass(getMemSpace<VPUIP::PhysicalMemory::DDR>, log));
+
     // IERT Dialect level
     buildIERTAllocationPipelineForDDR(pm, log);
     IERT::buildAsyncSchedulingPipeline(pm, log);
