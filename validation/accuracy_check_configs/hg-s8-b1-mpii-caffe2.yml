@@ -1,0 +1,25 @@
+models:
+  - name: hg-s8-b1-mpii
+    launchers:
+      - framework: dlsdk
+        model: @MODEL_PATH@
+        adapter:
+          type: stacked_hourglass
+          score_map_out: '4702'
+
+    datasets:
+      - name: MPII
+        data_source: mpii/images
+        annotation_conversion:
+          converter: mpii
+          annotation_file: mpii/mpii_annotations.json
+          headboxes_file: mpii/mpii_headboxes.npy
+          joints_visibility_file: mpii/jnt_visible.npy
+          gt_pos_file: mpii/mpii_pos_gt.npy
+
+        preprocessing:
+          - type: object_crop_with_scale
+            size: 256
+        metrics:
+          - type: pckh
+            presenter: print_vector
