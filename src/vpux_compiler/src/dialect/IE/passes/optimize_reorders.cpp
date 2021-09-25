@@ -127,17 +127,18 @@ mlir::LogicalResult ReorderWithExpand::matchAndRewrite(IE::ExpandOp origExpandOp
     }
 
     _log.trace("Got reorder at '{0}' -> Expand at '{1}' pair", origReorderOp->getLoc(), origExpandOp->getLoc());
-    const auto isExpand = [](const mlir::Operation* reorderUser) -> bool {
+
+    const auto isExpand = [](mlir::Operation* reorderUser) -> bool {
         return mlir::isa<IE::ExpandOp>(reorderUser);
     };
 
-    if (!std::all_of(origReorderOp.getResult().user_begin(), origReorderOp.getResult().user_end(), isExpand)) {
+    if (!llvm::all_of(origReorderOp->getUsers(), isExpand)) {
         return matchFailed(_log.nest(), rewriter, origExpandOp,
                            "Reorder has more than one user and they are heterogeneous");
     }
 
-    for (const auto reorderUser : origReorderOp.getResult().getUsers()) {
-        auto expandOp = mlir::dyn_cast_or_null<IE::ExpandOp>(reorderUser);
+    for (auto* reorderUser : llvm::make_early_inc_range(origReorderOp->getUsers())) {
+        auto expandOp = mlir::cast<IE::ExpandOp>(reorderUser);
         swapExpandWithReorder(rewriter, expandOp, origReorderOp);
     }
 

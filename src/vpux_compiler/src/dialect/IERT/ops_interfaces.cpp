@@ -254,10 +254,6 @@ void vpux::IERT::inferLayoutInfoSameInOutDimsOrder(IE::LayerLayoutInfo& info) {
 // SameInOutSpecificDimsOrder
 //
 
-const std::array<DimsOrder, 2> vpux::IERT::NCHW_NHWC = {DimsOrder::NCHW, DimsOrder::NHWC};
-const std::array<DimsOrder, 4> vpux::IERT::CHW_HWC_NCHW_NHWC = {DimsOrder::CHW, DimsOrder::HWC, DimsOrder::NCHW,
-                                                                DimsOrder::NHWC};
-
 mlir::LogicalResult vpux::IERT::verifySameInOutSpecificDimsOrder(mlir::Operation* op,
                                                                  ArrayRef<DimsOrder> supportedLayouts) {
     if (verifySameInOutDimsOrder(op).failed()) {

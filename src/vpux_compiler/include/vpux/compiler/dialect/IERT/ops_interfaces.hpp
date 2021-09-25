@@ -111,8 +111,6 @@ public:
 // SameInOutDimsOrder_NCHW_NHWC
 //
 
-extern const std::array<DimsOrder, 2> NCHW_NHWC;
-
 mlir::LogicalResult verifySameInOutSpecificDimsOrder(mlir::Operation* op, ArrayRef<DimsOrder> supportedLayouts);
 void inferLayoutInfoSameInOutSpecificDimsOrder(IE::LayerLayoutInfo& info, ArrayRef<DimsOrder> supportedLayouts);
 
@@ -120,11 +118,11 @@ template <typename ConcreteOp>
 class SameInOutDimsOrder_NCHW_NHWC : public mlir::OpTrait::TraitBase<ConcreteOp, SameInOutDimsOrder_NCHW_NHWC> {
 public:
     static mlir::LogicalResult verifyTrait(mlir::Operation* op) {
-        return verifySameInOutSpecificDimsOrder(op, NCHW_NHWC);
+        return verifySameInOutSpecificDimsOrder(op, {DimsOrder::NCHW, DimsOrder::NHWC});
     }
 
     static void inferLayoutInfo(mlir::Operation*, IE::LayerLayoutInfo& info) {
-        inferLayoutInfoSameInOutSpecificDimsOrder(info, NCHW_NHWC);
+        inferLayoutInfoSameInOutSpecificDimsOrder(info, {DimsOrder::NCHW, DimsOrder::NHWC});
     }
 };
 
@@ -132,18 +130,17 @@ public:
 // SameInOutDimsOrder_CHW_HWC_NCHW_NHWC
 //
 
-extern const std::array<DimsOrder, 4> CHW_HWC_NCHW_NHWC;
-
 template <typename ConcreteOp>
 class SameInOutDimsOrder_CHW_HWC_NCHW_NHWC :
         public mlir::OpTrait::TraitBase<ConcreteOp, SameInOutDimsOrder_CHW_HWC_NCHW_NHWC> {
 public:
     static mlir::LogicalResult verifyTrait(mlir::Operation* op) {
-        return verifySameInOutSpecificDimsOrder(op, CHW_HWC_NCHW_NHWC);
+        return verifySameInOutSpecificDimsOrder(op, {DimsOrder::CHW, DimsOrder::HWC, DimsOrder::NCHW, DimsOrder::NHWC});
     }
 
     static void inferLayoutInfo(mlir::Operation*, IE::LayerLayoutInfo& info) {
-        inferLayoutInfoSameInOutSpecificDimsOrder(info, CHW_HWC_NCHW_NHWC);
+        inferLayoutInfoSameInOutSpecificDimsOrder(info,
+                                                  {DimsOrder::CHW, DimsOrder::HWC, DimsOrder::NCHW, DimsOrder::NHWC});
     }
 };
 
