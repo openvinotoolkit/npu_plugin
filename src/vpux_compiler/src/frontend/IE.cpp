@@ -62,11 +62,11 @@
 #include <transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp>
 #include <transformations/op_conversions/convert_minimum_to_power_and_max.hpp>
 #include <transformations/op_conversions/convert_negative.hpp>
+#include <transformations/op_conversions/convert_reduce_to_pooling.hpp>
 #include <transformations/op_conversions/convert_subtract.hpp>
 #include <transformations/op_conversions/hsigmoid_decomposition.hpp>
 #include <transformations/op_conversions/hswish_decomposition.hpp>
 #include <transformations/op_conversions/lstm_cell_decomposition.hpp>
-#include <transformations/op_conversions/mvn6_decomposition.hpp>
 #include <transformations/op_conversions/simplify_ctc_greedy_decoder_seq_len.hpp>
 #include "legacy/transformations/convert_opset1_to_legacy/convert_lrn_to_lrn_ie.hpp"
 #include "legacy/transformations/convert_opset1_to_legacy/convert_strided_slice_to_crop.hpp"
@@ -1745,10 +1745,7 @@ void runNGraphPasses(const std::shared_ptr<ngraph::Function>& netGraph, mlir::Ti
     passConfig->disable<ngraph::pass::LSTMCellDecomposition>();
     passConfig->disable<ngraph::pass::SimplifyCTCGreedyDecoderSeqLen>();
     passConfig->disable<ngraph::pass::ConvertStridedSliceToCropMatcher>();
-    // MVN6Decomposition is disabled because we do not support Subtract and ReduceMean.
-    // The ReduceMean layer can be solved with ngraph::pass::ConvertReduceToPooling pass, but still remain Subtract
-    // issue.
-    passConfig->disable<ngraph::pass::MVN6Decomposition>();
+    passConfig->disable<ngraph::pass::ConvertReduceMeanToPooling>();
 
     ngraph::pass::Manager manager(passConfig);
     manager.register_pass<ngraph::pass::InitNodeInfo>();
@@ -1766,7 +1763,6 @@ void runNGraphPasses(const std::shared_ptr<ngraph::Function>& netGraph, mlir::Ti
     manager.register_pass<vpux::passes::AlignScales>();
     manager.register_pass<ngraph::pass::ConvertLRNToLegacyMatcher>();
     manager.register_pass<vpux::passes::ConvertVariadicSplitToStridedSliceOp>();
-
     manager.run_passes(netGraph);
 }
 

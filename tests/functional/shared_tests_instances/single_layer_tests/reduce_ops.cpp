@@ -12,10 +12,17 @@
 
 namespace LayerTestsDefinitions {
     class KmbReduceOpsLayerTest : public ReduceOpsLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+        void SkipBeforeLoad() override {
+            const auto testName =
+                    std::string{::testing::UnitTest::GetInstance()->current_test_info()->test_case_name()};
+            const auto skipMCM = testName.find("SKIP_MCM") != std::string::npos;
+            if (isCompilerMCM() && skipMCM) {
+                throw LayerTestsUtils::KmbSkipTestException("Skip load for MCM");
+            }
+        }
         void SkipBeforeValidate() override {
             const auto testName =
                     std::string{::testing::UnitTest::GetInstance()->current_test_info()->test_case_name()};
-
             const auto skipMCM = testName.find("SKIP_MCM") != std::string::npos;
             if (isCompilerMCM() && skipMCM) {
                 throw LayerTestsUtils::KmbSkipTestException("Skip validate for MCM");
@@ -167,9 +174,9 @@ namespace {
     );
 
     INSTANTIATE_TEST_CASE_P(
-        smoke_ReduceSum,
-        KmbReduceOpsLayerWithSpecificInputTest,
-        testing::Combine(
+            smoke_ReduceSum,
+            KmbReduceOpsLayerWithSpecificInputTest,
+            testing::Combine(
                 testing::ValuesIn(decltype(axes) {{0}}),
                 testing::Values(opTypes[1]),
                 testing::Values(true),
@@ -180,7 +187,7 @@ namespace {
                 testing::Values(InferenceEngine::Layout::ANY),
                 testing::Values(std::vector<size_t> {1, 512, 7, 7}),
                 testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
-        KmbReduceOpsLayerWithSpecificInputTest::getTestCaseName
+            KmbReduceOpsLayerWithSpecificInputTest::getTestCaseName
     );
 
     // Test hangs on x86 when executes test-case
@@ -188,7 +195,7 @@ namespace {
     // type=Mean_KeepDims_netPRC=FP32_inPRC=UNSPECIFIED_outPRC=UNSPECIFIED_inL=ANY_trgDev=KMB
     // [Track number: S#43428]
     INSTANTIATE_TEST_CASE_P(
-            DISABLED_smoke_Reduce_Axes,
+            smoke_Reduce_Axes_SKIP_MCM,
             KmbReduceOpsLayerTest,
             testing::Combine(
                 testing::ValuesIn(axes),
@@ -250,7 +257,7 @@ namespace {
     );
 
     INSTANTIATE_TEST_CASE_P(
-            DISABLED_smoke_Reduce_from_networks,
+            smoke_Reduce_from_networks_SKIP_MCM,
             KmbReduceOpsLayerTest,
             testing::Combine(
                     testing::ValuesIn(decltype(axes) { {2, 3} }),
