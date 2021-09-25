@@ -34,6 +34,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 import json
 import itertools
+import math
 import pandas as pd
 from pathlib import Path
 import re
@@ -481,10 +482,6 @@ class MPE(ABC):
     def apply(self, lhs: np.ndarray, rhs: np.ndarray) -> np.ndarray:
         pass
 
-    @abstractmethod
-    def result_bitwidth(self, lhs: Value, rhs: Value) -> int:
-        pass
-
 
 def shape_to_str(shape: Sequence[int]) -> str:
     return 'x'.join([str(d) for d in shape])
@@ -550,9 +547,6 @@ class ZMajorConvolution(MPE):
         result = c2d.inference(lhs, rhs)
         return result
 
-    def result_bitwidth(self, values: List[Value]) -> int:
-        return values[0].bitwidth + values[1].bitwidth + self.settings.kernel_shape[0].bit_length() + self.settings.kernel_shape[1].bit_length() + self.settings.kernel_channels.bit_length()
-
 
 class DepthWiseConv(MPE):
 
@@ -614,10 +608,6 @@ class DepthWiseConv(MPE):
                      group = self.settings.weight_shape[0])
         return c2d.inference(lhs, rhs)
 
-    def result_bitwidth(self, values: List[Value]) -> int:
-        return values[0].bitwidth + values[1].bitwidth + self.settings.kernel_shape[0].bit_length() + self.settings.kernel_shape[1].bit_length() - 1
-
-
 
 class EltwiseAdd(MPE):
 
@@ -672,9 +662,6 @@ class EltwiseAdd(MPE):
             return adder.add.inference(lhs, rhs)
         return adder.inference(lhs, rhs)
 
-    def result_bitwidth(self, values: List[Value]) -> int:
-        return values[0].bitwidth + 1
-
 
 class EltwiseMult(MPE):
 
@@ -723,9 +710,6 @@ class EltwiseMult(MPE):
             # Workaround for NumericsBench's Mult operation: see EltwiseMult.apply()
             return multer.inference(lhs, rhs)
         return multer.functor(lhs, rhs)
-
-    def result_bitwidth(self, values: List[Value]) -> int:
-        return values[0].bitwidth + 1
 
 
 class Maxpool(MPE):
@@ -780,9 +764,6 @@ class Maxpool(MPE):
         maxpool = MaxPool(kernel_shape=self.kernel_shape, strides=self.settings.kernel_strides, pads=self.settings.kernel_pads)
         return maxpool.inference(lhs)
 
-    def result_bitwidth(self, values: List[Value]) -> int:
-        return values[0].bitwidth
-
 
 class AvgPool(MPE):
 
@@ -836,22 +817,30 @@ class AvgPool(MPE):
         avgpool = AveragePool(self.kernel_shape, strides = self.settings.kernel_strides, pads = self.settings.kernel_pads)
         return avgpool.inference(lhs)
 
-    def result_bitwidth(self, values: List[Value]) -> int:
-        return values[0].bitwidth
-
 
 def ppe(values: List[Value], output_ttype: TType, data: Union[np.ndarray, NBQuantized], bitshift: int) -> Value:
     """Models the hardware PPE"""
-    if isinstance(data, NBQuantized):
-        ndarray = data.value / (1 << bitshift)
-    else:
-        ndarray = data / (1 << bitshift)
+    ndarray = data.value if isinstance(data, NBQuantized) else data
+
+    rescale = not output_ttype.is_float
+    if rescale:
+        if np.issubdtype(ndarray.dtype, np.integer):
+            ndarray = ndarray.astype(np.float64)
+        ndarray /= (1. * (1 << bitshift))
+        # if np.issubdtype(ndarray.dtype, np.integer):
+        #     ndarray = np.right_shift(ndarray, bitshift)
+        # else:
+        #     ndarray /= (1. * (1 << bitshift))
+
     ndarray = output_ttype.clip(ndarray).astype(output_ttype.dtype)
     value = Value(output_ttype, 'output-0.bin', ndarray, output_ttype.bitwidth, output_ttype.signed, None)
 
-    if isinstance(data, NBQuantized):
-        value.scale = float(data.scale) / (1 << bitshift)
-        value.zero = int(data.zero_point)
+    if rescale:
+        if isinstance(data, NBQuantized):
+            value.zero = int(data.zero_point)
+            value.scale = float(data.scale) / (1 << bitshift)
+        else:
+            value.scale = 1. / (1 << bitshift)
 
     return value
 
@@ -892,7 +881,7 @@ class DPUPipeline:
                 self.mpe_data = mpe_data.value
             else:
                 self.mpe_data = mpe_data
-            result_bitwidth = self.mpe_op.result_bitwidth(self.inputs)
+            result_bitwidth = math.ceil(np.log2(np.amax(abs(self.mpe_data))))
             bitshift = max(result_bitwidth - self.settings.output_ttype.bitwidth, 0)
             ppe_value = ppe(self.inputs, self.settings.output_ttype, mpe_data, bitshift)
             self.o = odu(ppe_value)
