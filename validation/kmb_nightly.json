@@ -2931,27 +2931,24 @@
 
         {
             "name" : "BDK_caffe2_FP16-INT8_modnet_photographic_portrait_matting",
-            "ir" : "models/clientmodels/BDK3/modnet_photographic_portrait_matting/caffe2/FP16-INT8/modnet_photographic_portrait_matting.xml",
-            "disabled" :  true,
+            "ir" : "models/clientmodels/BDK2/modnet_photographic_portrait_matting/caffe2/FP16-INT8/modnet_photographic_portrait_matting.xml",
             "3720": {
                 "disabled" : true
             },
             "BenchmarkApp" : {
-                "input_folder" : "224x224"
+                "input_folder" : "512x512"
             },
-            "NetTest": {
-                "inputs" : [["224x224/watch.bmp"]],
-                "params" : [
-                    "--mode", "classification",
-                    "--top_k", "1",
-                    "--prob_tolerance", "1.0"
-                ]
+            "NetTest-CalcRef" : {
+                "disabled" : true
+            },
+            "NetTest-Validate": {
+                "disabled" : true
             },
             "AccuracyCheck" : {
                 "config": "modnet_photographic_portrait_matting-caffe2.yml",
                 "subsample_size": 100
             },
-            "category" : "MCM/dKMB/weekly_private",
+            "category" : "MCM",
             "CI-options" : {
                 "blob_name" : "bdk_modnet_photographic_portrait_matting",
                 "special" : true
@@ -2960,27 +2957,24 @@
 
         {
             "name" : "BDK_caffe2_FP16-INT8_modnet_webcam_portrait_matting",
-            "ir" : "models/clientmodels/BDK3/modnet_webcam_portrait_matting/caffe2/FP16-INT8/modnet_webcam_portrait_matting.xml",
-            "disabled" :  true,
+            "ir" : "models/clientmodels/BDK2/modnet_webcam_portrait_matting/caffe2/FP16-INT8/modnet_webcam_portrait_matting.xml",
             "3720": {
                 "disabled" : true
             },
             "BenchmarkApp" : {
-                "input_folder" : "224x224"
+                "input_folder" : "512x512"
             },
-            "NetTest": {
-                "inputs" : [["224x224/watch.bmp"]],
-                "params" : [
-                    "--mode", "classification",
-                    "--top_k", "1",
-                    "--prob_tolerance", "1.0"
-                ]
+            "NetTest-CalcRef" : {
+                "disabled" : true
+            },
+            "NetTest-Validate": {
+                "disabled" : true
             },
             "AccuracyCheck" : {
                 "config": "modnet_webcam_portrait_matting-caffe2.yml",
                 "subsample_size": 100
             },
-            "category" : "MCM/dKMB/weekly_private",
+            "category" : "MCM",
             "CI-options" : {
                 "blob_name" : "bdk_modnet_webcam_portrait_matting",
                 "special" : true
