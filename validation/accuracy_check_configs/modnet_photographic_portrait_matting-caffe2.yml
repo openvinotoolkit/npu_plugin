@@ -1,33 +1,33 @@
 models:
-    - name: modnet_photographic_portrait_matting
-      launchers:
-          - framework: dlsdk
-            adapter: background_matting
-            model: @MODEL_PATH@
-      datasets:
-          - name: HumanMattingDataset
-            data_source: human_matting_dataset/clip_img/1803151818/clip_00000000
-            additional_data_source: human_matting_dataset/matting/1803151818/matting_00000000
-            annotation_conversion:
-                converter: background_matting
-                images_dir: human_matting_dataset/clip_img/1803151818/clip_00000000
-                masks_dir: human_matting_dataset/matting/1803151818/matting_00000000
-                image_postfix: '.jpg'
-            annotation: human_matting.pickle
-            dataset_meta: human_matting.json
+  - name: modnet_photographic_portrait_matting
+    launchers:
+      - framework: dlsdk
+        adapter: background_matting
+        model: @MODEL_PATH@
+    datasets:
+      - name: HumanMattingDataset
+        data_source: human_matting_dataset/clip_img/1803151818/clip_00000000
+        additional_data_source: human_matting_dataset/matting/1803151818/matting_00000000
+        annotation_conversion:
+            converter: background_matting
+            images_dir: human_matting_dataset/clip_img/1803151818/clip_00000000
+            masks_dir: human_matting_dataset/matting/1803151818/matting_00000000
+            image_postfix: '.jpg'
+        annotation: human_matting.pickle
+        dataset_meta: human_matting.json
 
-            preprocessing:
-                - type: resize
-                  size: 512
-                - type: rgb_to_bgr
-            postprocessing:
-                - type: resize
-                  apply_to: annotation
-                  size: 512
-            metrics:
-                - type: mae
-                  name: MAD
-                  presenter: print_vector
-                - type: mse
-                  name: MSE
-                  presenter: print_vector
+        preprocessing:
+          - type: resize
+            size: 512
+          - type: rgb_to_bgr
+        postprocessing:
+          - type: resize
+            apply_to: annotation
+            size: 512
+        metrics:
+          - type: mae
+            name: MAD
+            presenter: print_vector
+          - type: mse
+            name: MSE
+            presenter: print_vector
