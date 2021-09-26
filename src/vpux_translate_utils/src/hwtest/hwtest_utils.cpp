@@ -686,6 +686,8 @@ mlir::Type convertToMLIRType(mlir::OpBuilder builder, nb::DType dtype) {
         return getSInt4Type(ctx);
     case nb::DType::I8:
         return getSInt8Type(ctx);
+    case nb::DType::I32:
+        return getSInt32Type(ctx);
     case nb::DType::FP8:
         return builder.getF16Type();
     case nb::DType::FP16:

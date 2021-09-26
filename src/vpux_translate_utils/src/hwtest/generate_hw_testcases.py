@@ -356,6 +356,34 @@ class Int8(TType):
     def clip(self, data: np.ndarray) -> np.ndarray:
         return data.round().clip(-128, 127)
 
+
+class Int32(TType):
+    def __init__(self, bitwidth=31):
+        super().__init__(np.int32, 'int32', 'int32', bitwidth, True)
+        self.low = np.int32(-(2 ** bitwidth))
+        self.high = np.int32((2 ** bitwidth) - 1)
+
+    def generate(self, filename: str, shape, rng, orderer=None) -> np.ndarray:
+        return Value(self,
+                      filename,
+                      rng.integers(self.low, self.high, endpoint=True, size=shape, dtype=np.int32),
+                      self.bitwidth,
+                      True,
+                      orderer)
+
+    def check_entropy(self, data: np.ndarray):
+        self._check_entropy_eq(data, self.low)
+        self._check_entropy_eq(data, 0)
+        self._check_entropy_eq(data, self.high)
+
+    @property
+    def is_float(self) -> bool:
+        return False
+
+    def clip(self, data: np.ndarray) -> np.ndarray:
+        return data.round().clip(self.low, self.high)
+
+
 class FP16(TType):
     def __init__(self, bitwidth=16):
         super().__init__(np.float16, 'fp16', None, bitwidth, True)
@@ -864,6 +892,8 @@ class DPUPipeline:
             setattr(settings, name, value)
             if value.__class__ in [Int4, UInt4]:
                 self.issues.add('EISW-13321')  # Int4 / UInt4 not supported
+        if isinstance(settings.output_ttype, Int32):
+            self.issues.add('EISW-21225')  # Int32 not supported
 
         self.mpe_op = settings.mpe_op_class(settings)
 
@@ -951,7 +981,13 @@ class Pad:
 
 def filter_issues(args, p: DPUPipeline) -> bool:
     # TODO: Add arguments to selectively filter by issues.
-    return 'EISW-13321' not in p.issues  # Filter int4
+    if 'EISW-13321' in p.issues:
+        # Filter int4
+        return False
+    if 'EISW-21225' in p.issues:
+        # Filter int32
+        return False
+    return True
 
 
 _ZMCONV_VALID_WEIGHT_TYPES = {
@@ -965,7 +1001,7 @@ _ZMCONV_VALID_WEIGHT_TYPES = {
 
 
 _PPE_VALID_OUTPUT_TYPES = {
-    False: [FP16(), UInt8(), UInt4(), Int8(), Int4()],  # Integer MACs
+    False: [Int32(), FP16(), UInt8(), UInt4(), Int8(), Int4()],  # Integer MACs
     True: [FP32(), FP16(), BF16(), UInt8(), Int8(), Int4()],    # FP MACs
 }
 
@@ -1054,7 +1090,7 @@ def genMaxPools(input_types=[FP16(6)],
                 else:
                     current_output_types = [FP16()]
             else:
-                current_output_types = [FP16(), UInt8(), UInt4(), Int8(), Int4()]
+                current_output_types = [Int32(), FP16(), UInt8(), UInt4(), Int8(), Int4()]
         else:
             current_output_types = output_types
 
