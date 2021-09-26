@@ -1,0 +1,35 @@
+models:
+  - name: vas-face-recognition
+
+    launchers:
+    - framework: dlsdk
+      model: @MODEL_PATH@
+      adapter: reid
+
+    datasets:
+      - name: lfw-deepfunneled
+        reader: opencv_imread
+        data_source: LFW/lfw-deepfunneled
+
+        annotation_conversion:
+          converter: lfw
+          pairs_file: LFW/annotation/pairs.txt
+
+        preprocessing:
+        - type: warp_affine
+          src_landmarks: [[104, 113], [146, 113]]
+          dst_landmarks: [[92, 111], [164, 111]]
+          dst_height: 256
+          dst_width: 256
+        - type: resize
+          interpolation: Linear
+          dst_height: 120
+          dst_width: 120
+        - type: crop
+          dst_height: 112
+          dst_width: 112
+
+        metrics:
+        - type: face_recognition_tafa_pair_metric
+          threshold: 0.60
+          presenter: print_scalar

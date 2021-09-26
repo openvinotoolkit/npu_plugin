@@ -1,0 +1,33 @@
+models:
+  - name: squeezenet1.1
+
+    launchers:
+      - framework: dlsdk
+        model: @MODEL_PATH@
+        adapter: classification
+
+    datasets:
+      - name: ImageNet
+
+        data_source: ImageNet
+
+        annotation_conversion:
+            converter: imagenet
+            annotation_file: ImageNet/val.txt
+
+        metrics:
+          - name: accuracy@top1
+            type: accuracy
+            top_k: 1
+
+          - name: accuracy@top5
+            type: accuracy
+            top_k: 5
+
+        preprocessing:
+          - type: resize
+            size: 256
+            aspect_ratio_scale: greater
+
+          - type: crop
+            size: 227
