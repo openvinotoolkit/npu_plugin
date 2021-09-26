@@ -697,7 +697,7 @@ def RewriteMVN :
         >;
 
 //
-// IERT.Reduce[Max|Mean|Min|Prod|Sum]Op -> VPUIP.ReduceUPA
+// IERT.Reduce[Min]Op -> VPUIP.ReduceUPA
 //
 
 class createReduceUPAOp<string method> :

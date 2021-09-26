@@ -313,7 +313,7 @@ namespace {
     );
 
     INSTANTIATE_TEST_CASE_P(
-            DISABLED_smoke_ReduceMin_from_networks,
+            smoke_ReduceMin_from_networks,
             KmbReduceOpsLayerTest,
             testing::Combine(
                     testing::ValuesIn(axes),
@@ -325,17 +325,16 @@ namespace {
                     testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                     testing::Values(InferenceEngine::Layout::ANY),
                     testing::Values(
-                            std::vector<size_t> {1, 512, 7, 7},     // resnet_18
-                            std::vector<size_t> {1, 2048, 7, 7},    // resnet_50
-                            std::vector<size_t> {1, 1280, 7, 7},    // mobilenet_v2
-                            std::vector<size_t> {1, 1664, 7, 7}     // densenet
+                            std::vector<size_t> {100, 91, 6, 6},    // rfcn_resnet101
+                            std::vector<size_t> {100, 360, 6, 6},   // rfcn_resnet101
+                            std::vector<size_t> {100, 2048, 7, 7}
                             ),
                     testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
             KmbReduceOpsLayerTest::getTestCaseName
     );
 
     INSTANTIATE_TEST_CASE_P(
-            DISABLED_smoke_ReduceMin_allaxes_from_networks,
+            smoke_ReduceMin_allaxes_from_networks,
             KmbReduceOpsLayerTest,
             testing::Combine(
                     testing::Values(std::vector<int>{0, 1, 2, 3}),
@@ -347,10 +346,9 @@ namespace {
                     testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                     testing::Values(InferenceEngine::Layout::ANY),
                     testing::Values(
-                            std::vector<size_t> {1, 512, 7, 7},     // resnet_18
-                            std::vector<size_t> {1, 2048, 7, 7},    // resnet_50
-                            std::vector<size_t> {1, 1280, 7, 7},    // mobilenet_v2
-                            std::vector<size_t> {1, 1664, 7, 7}     // densenet
+                            std::vector<size_t> {100, 91, 6, 6},    // rfcn_resnet101
+                            std::vector<size_t> {100, 360, 6, 6},   // rfcn_resnet101
+                            std::vector<size_t> {100, 2048, 7, 7}
                             ),
                     testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
             KmbReduceOpsLayerTest::getTestCaseName

@@ -73,16 +73,16 @@ mlir::LogicalResult vpux::IE::ReduceMinOp::inferReturnTypeComponents(
     const auto keepDims = reduceMin.keep_dims().getValue();
 
     SmallVector<int64_t> outShape;
-    size_t axesInd = 0;
-    for (auto inInd : irange(inType.getRank())) {
-        if (axesInd < axes->size() && inInd == axes->begin()[axesInd]) {
-            axesInd++;
+    size_t axesIdx = 0;
+    for (auto inIdx : irange(inType.getRank())) {
+        if (axesIdx < axes->size() && inIdx == axes->begin()[axesIdx]) {
+            axesIdx++;
             if (keepDims) {
                 outShape.push_back(1);
             }
             continue;
         }
-        outShape.push_back(inShape[inInd]);
+        outShape.push_back(inShape[inIdx]);
     }
 
     inferredReturnShapes.emplace_back(makeArrayRef(outShape), inType.getElementType());
