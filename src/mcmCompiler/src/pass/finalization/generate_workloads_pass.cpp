@@ -249,10 +249,20 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                     //auto subTensorShape = subTensor.getShape();
 
                     auto subTensorHeight = subTensorShape[mv::IO_HEIGHT_DIMENSION];
-                    if(subTensorHeight < 14)
-                        nWorkloadsCompilationDescriptor = 5;
+                    nWorkloadsCompilationDescriptor = 5;
+                    if(subTensorHeight <= 14)
+                    {
+                        nWorkloadsCompilationDescriptor = 3;
+                    }
+                    if(subTensorHeight <= 7)
+                    {
+                        std::cout << "2 wks" << std::endl;
+                        nWorkloadsCompilationDescriptor = 2;
+                    }
                     if(subTensorHeight <= 2)
                         nWorkloadsCompilationDescriptor = 1;
+                    
+                    std::cout << nWorkloadsCompilationDescriptor << std::endl;
                     nWorkloadsSplitPool.push_back(nWorkloadsCompilationDescriptor);
                 }
                 else
