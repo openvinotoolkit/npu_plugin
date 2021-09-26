@@ -32,7 +32,7 @@ namespace mv
             bool globalEnablePipelining = false;
             bool globalEnablePrefetching = false;
             bool globalEnableWeightsSparsity=false;
-            bool globalForceSpilling=true;
+            bool globalForceSpilling=false;
             mv::Target target = mv::Target::ma2490;
             double clusterMemory=917504;
             double cmxPipeLineWeightsOverhead=34816.0;
