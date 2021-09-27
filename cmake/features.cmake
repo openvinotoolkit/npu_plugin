@@ -31,7 +31,7 @@ if(NOT ENABLE_CLANG_FORMAT)
 endif()
 ie_option(ENABLE_CLANG_FORMAT "Enable clang-format checks during the build" ${ENABLE_CLANG_FORMAT})
 
-ie_dependent_option(ENABLE_KMB_SAMPLES "Enable KMB samples" ON "AARCH64" OFF)
+ie_option(ENABLE_KMB_SAMPLES "Enable KMB samples" OFF)
 
 set(HAVE_HDDL_UNITE_PACKAGE FALSE)
 if(X86_64)
