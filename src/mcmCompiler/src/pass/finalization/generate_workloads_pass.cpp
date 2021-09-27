@@ -43,7 +43,7 @@ float workloadPixelCost(mv::Data::OpListIterator opIt)
 std::vector<std::string> getTensorSplitAlgorithms(mv::Element& passDesc, const mv::pass::PassEntry& pass)
 {
     /*parse TensorSplitAlgorithms from Compilation Descriptor*/
-    std::vector<std::string> algorithms = {"Rectangle"}; //default
+    std::vector<std::string> algorithms = {"Rectangle", "Z-Tiling"}; //default
     if (passDesc.hasAttr("TensorSplitAlgorithms"))
     {
         algorithms.clear();
@@ -64,7 +64,7 @@ std::vector<std::string> getTensorSplitAlgorithms(mv::Element& passDesc, const m
 
     //if parsing problem, return all 3
     if (algorithms.size() == 0)
-        algorithms = {"Rectangle"};
+        algorithms = {"Rectangle", "Z-Tiling"};
     return algorithms;
 }
 
@@ -219,7 +219,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                 {
                     if (configs.empty())
                     {
-                        algorithms = {"Rectangle"};
+                        algorithms = {"Rectangle", "Z-Tiling"};
                     }
                     else
                     {
@@ -241,30 +241,11 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                 }
 
 
-                pass.log(mv::Logger::MessageType::Info, "The shape of subtensor for cluster " + std::to_string(clusterNumber) + "is: " + subTensor.getShape().toString());
+                pass.log(mv::Logger::MessageType::Debug, "The shape of subtensor for cluster " + std::to_string(clusterNumber) + "is: " + subTensor.getShape().toString());
 
                 /*Generate the number of workloads split pool*/
                 if(nWorkloadsCompilationDescriptor)
-                {
-                    //auto subTensorShape = subTensor.getShape();
-
-                    auto subTensorHeight = subTensorShape[mv::IO_HEIGHT_DIMENSION];
-                    nWorkloadsCompilationDescriptor = 5;
-                    if(subTensorHeight <= 14)
-                    {
-                        nWorkloadsCompilationDescriptor = 3;
-                    }
-                    if(subTensorHeight <= 7)
-                    {
-                        std::cout << "2 wks" << std::endl;
-                        nWorkloadsCompilationDescriptor = 2;
-                    }
-                    if(subTensorHeight <= 2)
-                        nWorkloadsCompilationDescriptor = 1;
-                    
-                    std::cout << nWorkloadsCompilationDescriptor << std::endl;
                     nWorkloadsSplitPool.push_back(nWorkloadsCompilationDescriptor);
-                }
                 else
                     nWorkloadsSplitPool = mv::Workloads::getWorkloadSplitPool(subTensor, nDPUxCluster, dpuModes, 50, valid_ztiling);
 
@@ -324,7 +305,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                             /*Partition tensor into workloads with Rectangle*/
                             rectangleFail = false;
                             bool split_over_h = true;
-                            bool split_over_w = false;
+                            bool split_over_w = true;
                             int rectangleResult = 0;
                             bool split_symmetric = false;
 
