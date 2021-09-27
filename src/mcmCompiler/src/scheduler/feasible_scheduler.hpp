@@ -1823,7 +1823,6 @@ class Feasible_Memory_Schedule_Generator {
           assert(scheduled);
           scheduled_ops_count++;
           output = op;
-          return scheduled_ops_count;
         }
       }
       return scheduled_ops_count;
@@ -2315,7 +2314,6 @@ class Feasible_Memory_Schedule_Generator {
 
         bool pop_from_start_heap = start_top_ptr && ( !completion_top_ptr ||
             (start_top_ptr->time_ < completion_top_ptr->time_) );
-        pop_from_start_heap = start_top_ptr;
 
         heap_element_t helement;
         if (pop_from_start_heap) {
