@@ -124,7 +124,7 @@ def IE_AutoBroadcastType :
 def IE_BroadcastType :
         StrEnumAttr<
             "BroadcastType",
-            "Specifies type of broadcast",
+            "Broadcast type that operations support",
             [
                 StrEnumAttrCase<"NUMPY">,
                 StrEnumAttrCase<"EXPLICIT">,

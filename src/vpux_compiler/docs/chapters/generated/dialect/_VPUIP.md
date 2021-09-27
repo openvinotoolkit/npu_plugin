@@ -46,7 +46,7 @@ operation ::= `VPUIP.BroadcastUPA` attr-dict
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`mode` | vpux::IE::BroadcastTypeAttr | Specifies type of broadcast
+`mode` | vpux::IE::BroadcastTypeAttr | Broadcast type that operations support
 `maxShaves` | mlir::IntegerAttr | Integer attribute
 `isTrailingSWLayer` | ::mlir::UnitAttr | unit attribute
 

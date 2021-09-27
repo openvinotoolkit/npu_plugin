@@ -171,7 +171,7 @@ operation ::= `IERT.AvgPool` attr-dict
 
 ### `IERT.Broadcast` (vpux::IERT::BroadcastOp)
 
-Inferencengie run-time Broadcast layer
+InferencEngine run-time Broadcast layer
 
 
 Syntax:
@@ -188,7 +188,7 @@ operation ::= `IERT.Broadcast` attr-dict
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`mode` | vpux::IE::BroadcastTypeAttr | Specifies type of broadcast
+`mode` | vpux::IE::BroadcastTypeAttr | Broadcast type that operations support
 
 #### Operands:
 

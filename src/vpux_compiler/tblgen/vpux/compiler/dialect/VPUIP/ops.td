@@ -1648,8 +1648,8 @@ def VPUIP_BroadcastUPAOp :
         OpBuilder<
             (ins
                 "mlir::Value":$input, "mlir::Value":$target_shape,
-                "mlir::Value":$axes_mapping,
-                "mlir::Value":$output, "IE::BroadcastTypeAttr":$mode
+                "mlir::Value":$axes_mapping, "mlir::Value":$output,
+                "IE::BroadcastTypeAttr":$mode
             )
         >
     ];

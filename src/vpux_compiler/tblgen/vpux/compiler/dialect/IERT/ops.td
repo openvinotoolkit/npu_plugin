@@ -832,7 +832,7 @@ def IERT_BroadcastOp :
                 ViewLikeOpInterface
             ]
         > {
-    let summary = "Inferencengie run-time Broadcast layer";
+    let summary = "InferenceEngine run-time Broadcast layer";
 
     let arguments = (ins
         AnyMemRef:$input,

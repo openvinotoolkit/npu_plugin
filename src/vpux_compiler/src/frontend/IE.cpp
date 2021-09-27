@@ -861,6 +861,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
     } else {
         op = builder.create<IE::BroadcastOp>(createLocation(origNode), inputs[0], inputs[1], inputs[2], mode);
     }
+
     addOutputs(origNode, op);
 }
 
