@@ -93,6 +93,9 @@ mlir::LogicalResult vpux::IE::ReduceMeanOp::inferReturnTypeComponents(
         }
         outShape.push_back(inShape[inIdx]);
     }
+    if (outShape.size() == 0) {
+        outShape.push_back(1);
+    }
     inferredReturnShapes.emplace_back(makeArrayRef(outShape), inType.getElementType());
     return mlir::success();
 }

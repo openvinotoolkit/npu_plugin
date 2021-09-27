@@ -186,12 +186,7 @@ vpux::BufferizeTypeConverter::BufferizeTypeConverter() {
 
     addConversion([](mlir::RankedTensorType type) {
         const auto order = DimsOrder::fromType(type);
-        mlir::MemRefType memref;
-        if (type.getShape().size() == 0) {
-            memref = mlir::MemRefType::get({1}, type.getElementType());
-        } else {
-            memref = mlir::MemRefType::get(type.getShape(), type.getElementType());
-        }
+        const auto memref = mlir::MemRefType::get(type.getShape(), type.getElementType());
         return changeDimsOrder(memref, order);
     });
 

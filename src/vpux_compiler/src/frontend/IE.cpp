@@ -310,7 +310,13 @@ mlir::FuncOp NGraphImporter::buildMainFunc(mlir::OpBuilder& moduleBuilder, Strin
     SmallVector<mlir::Type> outputTypes;
     outputTypes.reserve(_netGraph->get_results().size());
     for (const auto& result : _netGraph->get_results()) {
-        outputTypes.push_back(importTensor(result->get_input_partial_shape(0), result->get_input_element_type(0)));
+        mlir::RankedTensorType outType =
+                importTensor(result->get_input_partial_shape(0), result->get_input_element_type(0));
+        if (outType.getShape().size() == 0) {
+            outputTypes.push_back(mlir::RankedTensorType::get({1}, outType.getElementType()));
+        } else {
+            outputTypes.push_back(outType);
+        }
     }
 
     const auto funcType = mlir::FunctionType::get(_ctx, makeArrayRef(inputTypes), makeArrayRef(outputTypes));
@@ -1394,7 +1400,6 @@ SmallVector<int64_t> NGraphImporter::importShape(const ngraph::PartialShape& sha
         const auto& dim = shape[ind];
         out[ind] = dim.is_static() ? dim.get_length() : mlir::ShapedType::kDynamicSize;
     }
-
     return out;
 }
 
@@ -1716,6 +1721,9 @@ mlir::Type importPrecision(mlir::MLIRContext* ctx, const InferenceEngine::Precis
 mlir::RankedTensorType importUserTensor(mlir::MLIRContext* ctx, const InferenceEngine::TensorDesc& desc) {
     const Shape shape(desc.getDims().begin(), desc.getDims().end());
     const auto precision = importPrecision(ctx, desc.getPrecision());
+    if (shape.size() == 0) {
+        return getTensorType({1}, precision, DimsOrder::C);
+    }
     return getTensorType(shape.raw(), precision, DimsOrder::fromIE(desc.getLayout()));
 }
 
