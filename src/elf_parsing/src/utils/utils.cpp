@@ -11,32 +11,16 @@
 // included with the Software Package for additional details.
 //
 
-#pragma once
+#include <elf/utils/utils.hpp>
 
-#include <elf/types/elf_header.hpp>
-#include <elf/types/section_header.hpp>
-#include <elf/types/program_header.hpp>
+using namespace elf;
 
-namespace elf {
+size_t utils::getStreamSize(std::istream& strm) {
+    const auto streamStart = strm.tellg();
+    strm.seekg(0, std::ios_base::end);
+    const auto streamEnd = strm.tellg();
+    const auto bytesAvailable = streamEnd - streamStart;
+    strm.seekg(streamStart, std::ios_base::beg);
 
-constexpr auto ELF32 = ELFCLASS32;
-constexpr auto ELF64 = ELFCLASS64;
-
-template <Elf_Half type>
-struct HeaderTypes {};
-
-template <>
-struct HeaderTypes<ELF32> {
-    using Elf_EHdr = Elf32_Ehdr;
-    using Elf_PHdr = Elf32_Phdr;
-    using Elf_SHdr = Elf32_Shdr;
-};
-
-template <>
-struct HeaderTypes<ELF64> {
-    using Elf_EHdr = Elf64_Ehdr;
-    using Elf_PHdr = Elf64_Phdr;
-    using Elf_SHdr = Elf64_Shdr;
-};
-
-} // namespace elf
+    return bytesAvailable;
+}

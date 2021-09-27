@@ -82,7 +82,6 @@
                 "ENABLE_CPPLINT": false,
                 "ENABLE_CLANG_FORMAT": false,
                 "ENABLE_ZEROAPI_BACKEND": false,
-                "ENABLE_ELF_PARSING": false,
                 "ENABLE_EMULATOR": false,
                 "ENABLE_VPUX_DOCS": false,
                 "TREAT_WARNING_AS_ERROR": false

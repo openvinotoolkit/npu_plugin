@@ -61,8 +61,6 @@ ie_dependent_option(ENABLE_ZEROAPI_BACKEND "Enable zero-api as a plugin backend"
 
 ie_option(ENABLE_DEVELOPER_BUILD "Enable developer build with extra validation/logging functionality" OFF)
 
-ie_option(ENABLE_ELF_PARSING "Enable build for the ELF parsing library" OFF)
-
 if(NOT DEFINED MV_TOOLS_PATH AND DEFINED ENV{MV_TOOLS_DIR} AND DEFINED ENV{MV_TOOLS_VERSION})
     set(MV_TOOLS_PATH $ENV{MV_TOOLS_DIR}/$ENV{MV_TOOLS_VERSION})
 endif()

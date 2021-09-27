@@ -14,13 +14,9 @@
 set (EXAMPLES simplereader simplewriter)
 
 foreach(TARGET_NAME ${EXAMPLES})
-    add_executable(${TARGET_NAME} ${CMAKE_CURRENT_SOURCE_DIR}/${TARGET_NAME}/main.cpp)
+    source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${TARGET_NAME}.cpp)
+    add_executable(${TARGET_NAME} ${CMAKE_CURRENT_SOURCE_DIR}/${TARGET_NAME}/${TARGET_NAME}.cpp)
 
-    if(MSVC)
-        target_compile_options(${TARGET_NAME} PRIVATE /W4 /WX)
-    else()
-        target_compile_options(${TARGET_NAME} PRIVATE -Wall -Wextra -Wpedantic -Werror)
-    endif()
-
-    target_link_libraries(${TARGET_NAME} elf)
+    enable_warnings_as_errors(${TARGET_NAME})
+    target_link_libraries(${TARGET_NAME} vpux_elf)
 endforeach()

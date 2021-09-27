@@ -13,20 +13,13 @@
 
 #pragma once
 
-#include <fstream>
+#include <cstddef>
+#include <istream>
 
 namespace elf {
 namespace utils {
 
-inline size_t getDataSize(std::istream& strm) {
-    const size_t streamStart = strm.tellg();
-    strm.seekg(0, std::ios_base::end);
-    const size_t streamEnd = strm.tellg();
-    const size_t bytesAvailable = streamEnd - streamStart;
-    strm.seekg(streamStart, std::ios_base::beg);
-
-    return bytesAvailable;
-}
+size_t getStreamSize(std::istream& strm);
 
 } // namespace utils
 } // namespace elf

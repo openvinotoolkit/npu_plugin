@@ -11,10 +11,10 @@
 // included with the Software Package for additional details.
 //
 
-#include <elf/elf_reader.hpp>
+#include <elf/writer.hpp>
 
-int main() {
-    elf::ELFReader elf("elf.blob");
+#include <gtest/gtest.h>
 
-    return 0;
+TEST(ELFWriter, ELFWriterConstructorDoesntThrow) {
+    ASSERT_NO_THROW(elf::Writer());
 }

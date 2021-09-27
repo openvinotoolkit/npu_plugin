@@ -13,9 +13,22 @@
 
 cmake_minimum_required(VERSION 3.13 FATAL_ERROR)
 
-set(TARGET_NAME elf)
+set(TARGET_NAME vpux_elf)
 
-add_library(${TARGET_NAME} INTERFACE)
-target_include_directories(${TARGET_NAME} INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+include(TestBigEndian)
+TEST_BIG_ENDIAN(IS_BIG_ENDIAN)
+if(IS_BIG_ENDIAN)
+    message(FATAL "ELF Parsing Library supports only little-endian architectures")
+endif()
+
+file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS "*.hpp" "*.cpp")
+list(FILTER SOURCES EXCLUDE REGEX "${CMAKE_CURRENT_SOURCE_DIR}/example/.*")
+
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${HEADERS} ${SOURCES})
+
+add_library(${TARGET_NAME} STATIC ${SOURCES})
+target_include_directories(${TARGET_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+
+enable_warnings_as_errors(${TARGET_NAME})
 
 add_subdirectory(example)
