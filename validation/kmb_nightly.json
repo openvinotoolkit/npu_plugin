@@ -15,7 +15,7 @@
                 "input_folder" : "416x416"
             },
             "AccuracyCheck" : {
-                "config": "kmb/tiny_yolo_v2_v10.yml",
+                "config": "tiny_yolo_v2_v10.yml",
                 "subsample_size": 100
             },
             "NetTest": {
@@ -47,7 +47,7 @@
                 "input_folder" : "416x416"
             },
             "AccuracyCheck" : {
-                "config": "kmb/tiny_yolo_v2_v10.yml"
+                "config": "tiny_yolo_v2_v10.yml"
             },
             "NetTest": {
                 "inputs" : [["416x416/person.bmp"]],
@@ -82,7 +82,7 @@
                 "input_folder" : "416x416"
             },
             "AccuracyCheck" : {
-                "config": "kmb/tiny_yolo_v2_v10.yml"
+                "config": "tiny_yolo_v2_v10.yml"
             },
             "NetTest": {
                 "inputs" : [["416x416/person.bmp"]],
@@ -122,7 +122,7 @@
                 ]
             },
             "AccuracyCheck" : {
-                "config": "kmb/yolo_v2_v10.yml",
+                "config": "yolo_v2_v10.yml",
                 "subsample_size": 100
             },
             "category" : "MCM/release/weekly_public",
@@ -145,7 +145,7 @@
                 "input_folder" : "416x416"
             },
             "AccuracyCheck" : {
-                "config": "kmb/yolo_v3_caffe_v10.yml",
+                "config": "yolo_v3_caffe_v10.yml",
                 "subsample_size": 100
             },
             "NetTest": {
@@ -181,7 +181,7 @@
                 "disabled" : true
             },
             "AccuracyCheck" : {
-                "config": "kmb/yolo_v3_tensorflow_v10.yml",
+                "config": "yolo_v3_tensorflow_v10.yml",
                 "subsample_size": 100
             },
             "category" : "MCM/release/precommit",
@@ -215,7 +215,7 @@
                 ]
             },
             "AccuracyCheck" : {
-                "config": "kmb/yolo_v4_tensorflow_v10.yml",
+                "config": "yolo_v4_tensorflow_v10.yml",
                 "subsample_size": 10
             },
             "category" : "MCM/release/precommit/weekly_public",
@@ -246,7 +246,7 @@
                 "disabled" : true
             },
             "AccuracyCheck" : {
-                "config": "kmb/yolo_v4_tensorflow_v10.yml",
+                "config": "yolo_v4_tensorflow_v10.yml",
                 "subsample_size": 100
             },
             "category" : "MLIR/precommit",
@@ -278,7 +278,7 @@
                 "disabled" : true
             },
             "AccuracyCheck" : {
-                "config": "kmb/yolo_v4_tensorflow_v10.yml",
+                "config": "yolo_v4_tensorflow_v10.yml",
                 "subsample_size": 100
             },
             "category" : "MLIR",
@@ -313,7 +313,7 @@
                 ]
             },
             "AccuracyCheck" : {
-                "config": "kmb/yolo_v4_tiny_tf.yml",
+                "config": "yolo_v4_tiny_tf.yml",
                 "subsample_size": 10
             },
             "category" : "MCM/release/precommit/dKMB/weekly_private",
@@ -338,7 +338,7 @@
                 "input_folder" : "224x224"
             },
             "AccuracyCheck" : {
-                "config": "kmb/fsrcnn-x4_tf.yml"
+                "config": "fsrcnn-x4_tf.yml"
             },
             "NetTest-CalcRef" : {
                 "disabled" : true
@@ -371,7 +371,7 @@
                 "input_folder" : "224x224"
             },
             "AccuracyCheck" : {
-                "config": "kmb/fsrcnn-x4_tf.yml"
+                "config": "fsrcnn-x4_tf.yml"
             },
             "NetTest-CalcRef" : {
                 "disabled" : true
@@ -408,7 +408,7 @@
                 ]
             },
             "AccuracyCheck" : {
-                "config": "kmb/resnet-50_v10.yml"
+                "config": "resnet-50_v10.yml"
             },
             "category" : "MCM/release/weekly_public",
             "CI-options" : {
@@ -431,7 +431,7 @@
                 "input_folder" : "224x224"
             },
             "AccuracyCheck" : {
-                "config": "kmb/resnet-50_v10.yml"
+                "config": "resnet-50_v10.yml"
             },
             "NetTest": {
                 "inputs" : [["224x224/husky.bmp"]],
@@ -461,7 +461,7 @@
                 "input_folder" : "224x224"
             },
             "AccuracyCheck" : {
-                "config": "kmb/resnet-50_v10.yml"
+                "config": "resnet-50_v10.yml"
             },
             "NetTest": {
                 "inputs" : [["224x224/husky.bmp"]],
@@ -500,7 +500,7 @@
                 ]
             },
             "AccuracyCheck" : {
-                "config": "kmb/mobilenet-v2-caffe_v10.yml"
+                "config": "mobilenet-v2-caffe_v10.yml"
             },
             "category" : "MCM/release/precommit/weekly_public",
             "CI-options" : {
@@ -522,7 +522,7 @@
                 "input_folder" : "224x224"
             },
             "AccuracyCheck" : {
-                "config": "kmb/inception_v1_v10.yml"
+                "config": "inception_v1_v10.yml"
             },
             "NetTest": {
                 "inputs" : [["224x224/watch.bmp"]],
@@ -554,7 +554,7 @@
                 "input_folder" : "224x224"
             },
             "AccuracyCheck" : {
-                "config": "kmb/inception_v1_v10.yml"
+                "config": "inception_v1_v10.yml"
             },
             "NetTest": {
                 "inputs" : [["224x224/watch.bmp"]],
@@ -586,7 +586,7 @@
                 "input_folder" : "224x224"
             },
             "AccuracyCheck" : {
-                "config": "kmb/inception_v1_v10.yml"
+                "config": "inception_v1_v10.yml"
             },
             "NetTest": {
                 "inputs" : [["224x224/watch.bmp"]],
@@ -616,7 +616,7 @@
                 "input_folder" : "299x299"
             },
             "AccuracyCheck" : {
-                "config": "kmb/inception_v3_v10.yml"
+                "config": "inception_v3_v10.yml"
             },
             "NetTest": {
                 "inputs" : [["299x299/n01537544_28.bmp"]],
@@ -648,7 +648,7 @@
                 "input_folder" : "100x100"
             },
             "AccuracyCheck" : {
-                "config": "kmb/inception_v3_v10.yml"
+                "config": "inception_v3_v10.yml"
             },
             "NetTest": {
                 "inputs" : [["100x100/gorilla.bmp"]],
@@ -680,7 +680,7 @@
                 "input_folder" : "100x100"
             },
             "AccuracyCheck" : {
-                "config": "kmb/inception_v3_v10.yml"
+                "config": "inception_v3_v10.yml"
             },
             "NetTest": {
                 "inputs" : [["100x100/gorilla.bmp"]],
@@ -710,7 +710,7 @@
                 "input_folder" : "227x227"
             },
             "AccuracyCheck" : {
-                "config": "kmb/squeezenet1.1-caffe2_v10.yml"
+                "config": "squeezenet1.1-caffe2_v10.yml"
             },
             "NetTest": {
                 "inputs" : [["227x227/watch.bmp"]],
@@ -743,7 +743,7 @@
                 "input_folder" : "227x227"
             },
             "AccuracyCheck" : {
-                "config": "kmb/squeezenet1.1-caffe2_v10.yml"
+                "config": "squeezenet1.1-caffe2_v10.yml"
             },
             "NetTest": {
                 "inputs" : [["227x227/watch.bmp"]],
@@ -780,7 +780,7 @@
                 "input_folder" : "227x227"
             },
             "AccuracyCheck" : {
-                "config": "kmb/squeezenet1.1-caffe2_v10.yml"
+                "config": "squeezenet1.1-caffe2_v10.yml"
             },
             "NetTest": {
                 "inputs" : [["227x227/cat3.bmp"]],
@@ -815,7 +815,7 @@
                 "input_folder" : "227x227"
             },
             "AccuracyCheck" : {
-                "config": "kmb/squeezenet1.1-caffe2_v10.yml"
+                "config": "squeezenet1.1-caffe2_v10.yml"
             },
             "NetTest": {
                 "inputs" : [["227x227/watch.bmp"]],
@@ -855,7 +855,7 @@
                 ]
             },
             "AccuracyCheck" : {
-                "config": "kmb/ssd512_caffe_dense_int8_IRv10.yml",
+                "config": "ssd512_caffe_dense_int8_IRv10.yml",
                 "subsample_size": 100
             },
             "category" : "MCM/release/precommit/weekly_public",
@@ -908,7 +908,7 @@
             },
             "AccuracyCheck" : {
                 "disabled" : true,
-                "config": "kmb/inception_v4_v10.yml"
+                "config": "inception_v4_v10.yml"
             },
             "NetTest": {
                 "inputs" : [["299x299/n01537544_28.bmp"]],
@@ -949,7 +949,7 @@
                 ]
             },
             "AccuracyCheck" : {
-                "config": "kmb/ssd_mobilenet_v1_coco.yml"
+                "config": "ssd_mobilenet_v1_coco.yml"
             },
             "category" : "MCM/release",
             "CI-options" : {
@@ -1038,7 +1038,7 @@
                 "disabled" : true
             },
             "AccuracyCheck" : {
-                "config": "kmb/vehicle-license-plate-detection-barrier-0106.yml",
+                "config": "vehicle-license-plate-detection-barrier-0106.yml",
                 "subsample_size": 300
             },
             "category" : "MCM/release",
@@ -1090,7 +1090,7 @@
                 "input_folder" : "224x224"
             },
             "AccuracyCheck" : {
-                "config": "kmb/resnet-101-cf_v10.yml"
+                "config": "resnet-101-cf_v10.yml"
             },
             "NetTest": {
                 "inputs" : [["224x224/watch.bmp"]],
@@ -1121,7 +1121,7 @@
             },
             "AccuracyCheck" : {
                 "disabled" : true,
-                "config": "kmb/resnet-152-cf_v10.yml"
+                "config": "resnet-152-cf_v10.yml"
             },
             "NetTest": {
                 "inputs" : [["224x224/watch.bmp"]],
@@ -1213,7 +1213,7 @@
                 "input_folder" : "224x224"
             },
             "AccuracyCheck" : {
-                "config": "kmb/resnet-18-pytorch_v10.yml"
+                "config": "resnet-18-pytorch_v10.yml"
             },
             "NetTest": {
                 "inputs" : [["224x224/watch.bmp"]],
@@ -1243,7 +1243,7 @@
                 "input_folder" : "224x224"
             },
             "AccuracyCheck" : {
-                "config": "kmb/mobilenet-v1-1.0-224_v10.yml"
+                "config": "mobilenet-v1-1.0-224_v10.yml"
             },
             "NetTest": {
                 "inputs" : [["224x224/watch.bmp"]],
@@ -1274,7 +1274,7 @@
                 "input_folder" : "224x224"
             },
             "AccuracyCheck" : {
-                "config": "kmb/mobilenet-v1-1.0-224_v10.yml"
+                "config": "mobilenet-v1-1.0-224_v10.yml"
             },
             "NetTest": {
                 "inputs" : [["224x224/watch.bmp"]],
@@ -1305,7 +1305,7 @@
                 "input_folder" : "224x224"
             },
             "AccuracyCheck" : {
-                "config": "kmb/mobilenet-v1-1.0-224_v10.yml"
+                "config": "mobilenet-v1-1.0-224_v10.yml"
             },
             "NetTest": {
                 "inputs" : [["224x224/watch.bmp"]],
@@ -1342,7 +1342,7 @@
                 ]
             },
             "AccuracyCheck" : {
-                "config": "kmb/resnet-50-caffe_v10.yml",
+                "config": "resnet-50-caffe_v10.yml",
                 "disabled" : true
             },
             "category" : "MCM/release/precommit",
@@ -1365,7 +1365,7 @@
                 "input_folder" : "320x320"
             },
             "AccuracyCheck" : {
-                "config" : "kmb/vehicle-attributes-recognition-barrier-0042.yml",
+                "config" : "vehicle-attributes-recognition-barrier-0042.yml",
                 "subsample_size": 100
             },
             "NetTest": {
@@ -1401,7 +1401,7 @@
                 "disabled" : true
             },
             "AccuracyCheck" : {
-                "config" : "kmb/yolo-v2-tiny-vehicle-detection-0001.yml",
+                "config" : "yolo-v2-tiny-vehicle-detection-0001.yml",
                 "subsample_size": 100
             },
             "category" : "MCM/release/precommit",
@@ -1432,7 +1432,7 @@
                 ]
             },
             "AccuracyCheck" : {
-                "config": "kmb/resnet-34-pytorch.yml",
+                "config": "resnet-34-pytorch.yml",
                 "disabled" : true
             },
             "category" : "MCM/release/precommit",
@@ -1461,7 +1461,7 @@
                 "disabled" : true
             },
             "AccuracyCheck" : {
-                "config": "kmb/person-vehicle-bike-detection-crossroad-yolov3-1020.yml",
+                "config": "person-vehicle-bike-detection-crossroad-yolov3-1020.yml",
                 "subsample_size": 10
             },
             "category" : "MCM/release",
@@ -1484,7 +1484,7 @@
                 "input_folder" : "1024x1024"
             },
             "AccuracyCheck" : {
-                "config" : "kmb/icnet-camvid-ava-0001.yml"
+                "config" : "icnet-camvid-ava-0001.yml"
             },
             "NetTest": {
                 "inputs" : [["1024x1024/frankfurt_001016.png"]],
@@ -1519,7 +1519,7 @@
                 "disabled" : true
             },
             "AccuracyCheck" : {
-                "config": "kmb/tiny_yolo_v2-cntk.yml",
+                "config": "tiny_yolo_v2-cntk.yml",
                 "subsample_size": 100
             },
             "category" : "MCM/release",
@@ -1542,7 +1542,7 @@
                 "input_folder" : "416x416"
             },
             "AccuracyCheck" : {
-                "config": "kmb/yolo_v2-caffe2.yml",
+                "config": "yolo_v2-caffe2.yml",
                 "subsample_size": 100
             },
             "NetTest": {
@@ -1581,7 +1581,7 @@
                 ]
             },
             "AccuracyCheck" : {
-                "config" : "kmb/ssd_mobilenet_v2_coco.yml",
+                "config" : "ssd_mobilenet_v2_coco.yml",
                 "subsample_size": 100
             },
             "category" : "MCM/release/precommit",
@@ -1679,7 +1679,7 @@
                 ]
             },
             "AccuracyCheck" : {
-                "config" : "kmb/ssd_mobilenet_v2.yml",
+                "config" : "ssd_mobilenet_v2.yml",
                 "subsample_size": 100
             },
             "category" : "MCM/release/weekly_public",
@@ -1713,7 +1713,7 @@
                 ]
             },
             "AccuracyCheck" : {
-                "config": "kmb/mobilenet-v2-pytorch_v10.yml",
+                "config": "mobilenet-v2-pytorch_v10.yml",
                 "disabled" : true
             },
             "category" : "MLIR",
@@ -1745,7 +1745,7 @@
             },
             "AccuracyCheck" : {
                 "disabled" : true,
-                "config" : "kmb/mobilenet-v1-0.25-128.yml",
+                "config" : "mobilenet-v1-0.25-128.yml",
                 "subsample_size": 100
             },
             "category" : "MCM/release/precommit",
@@ -1775,7 +1775,7 @@
                 "disabled" : true
             },
             "AccuracyCheck" : {
-                "config": "kmb/emotions-recognition-retail-0003.yml"
+                "config": "emotions-recognition-retail-0003.yml"
             },
             "category" : "MCM/release/precommit",
             "CI-options" : {
@@ -1803,7 +1803,7 @@
                 "disabled" : true
             },
             "AccuracyCheck" : {
-                "config" : "kmb/retinaface-mobilenetv2-0.25-modified.yml",
+                "config" : "retinaface-mobilenetv2-0.25-modified.yml",
                 "subsample_size": 10
             },
             "category" : "MCM/release",
@@ -1833,7 +1833,7 @@
                 "disabled" : true
             },
             "AccuracyCheck" : {
-                "config": "kmb/vas_fd_stage1.yml",
+                "config": "vas_fd_stage1.yml",
                 "subsample_size": 100,
                 "disabled" : true
             },
@@ -1864,7 +1864,7 @@
             },
             "AccuracyCheck" : {
                 "disabled" : true,
-                "config": "kmb/vas_fd_stage2.yml",
+                "config": "vas_fd_stage2.yml",
                 "subsample_size": 100
             },
             "category" : "MCM/release",
@@ -1926,7 +1926,7 @@
             },
             "AccuracyCheck" : {
                 "disabled" : true,
-                "config": "kmb/vas_fd_stage2.yml",
+                "config": "vas_fd_stage2.yml",
                 "subsample_size": 100
             },
             "category" : "MCM/release",
@@ -1988,7 +1988,7 @@
                 "disabled" : true
             },
             "AccuracyCheck" : {
-                "config": "kmb/vas-face-recognition.yml",
+                "config": "vas-face-recognition.yml",
                 "subsample_size": 100
             },
             "category" : "MCM/release",
@@ -2019,7 +2019,7 @@
                 ]
             },
             "AccuracyCheck" : {
-                "config": "kmb/resnet-50-v2.yml"
+                "config": "resnet-50-v2.yml"
             },
             "category" : "MCM/release",
             "CI-options" : {
@@ -2049,7 +2049,7 @@
                 ]
             },
             "AccuracyCheck" : {
-                "config": "kmb/densenet-121-caffe.yml"
+                "config": "densenet-121-caffe.yml"
             },
             "category" : "MCM/release",
             "CI-options" : {
@@ -2079,7 +2079,7 @@
                 ]
             },
             "AccuracyCheck" : {
-                "config": "kmb/densenet-121-tf.yml"
+                "config": "densenet-121-tf.yml"
             },
             "category" : "MCM/release/weekly_public",
             "CI-options" : {
@@ -2109,7 +2109,7 @@
                 ]
             },
             "AccuracyCheck" : {
-                "config": "kmb/densenet-169-caffe.yml"
+                "config": "densenet-169-caffe.yml"
             },
             "category" : "MCM/release/weekly_public",
             "CI-options" : {
@@ -2138,7 +2138,7 @@
                 "disabled" : true
             },
             "AccuracyCheck" : {
-                "config": "kmb/person-attributes-recognition-crossroad-0234.yml"
+                "config": "person-attributes-recognition-crossroad-0234.yml"
             },
             "category" : "MCM/release",
             "CI-options" : {
@@ -2167,7 +2167,7 @@
                 "disabled" : true
             },
             "AccuracyCheck" : {
-                "config": "kmb/person-attributes-recognition-crossroad-0238.yml"
+                "config": "person-attributes-recognition-crossroad-0238.yml"
             },
             "category" : "MCM/release",
             "CI-options" : {
@@ -2195,7 +2195,7 @@
                 "disabled" : true
             },
             "AccuracyCheck" : {
-                "config": "kmb/text-detection-0003.yml",
+                "config": "text-detection-0003.yml",
                 "subsample_size": 250
             },
             "category" : "MCM/release/precommit",
@@ -2224,7 +2224,7 @@
                 "disabled" : true
             },
             "AccuracyCheck" : {
-                "config": "kmb/text-detection-0004.yml",
+                "config": "text-detection-0004.yml",
                 "subsample_size": 250
             },
             "category" : "MCM/release",
@@ -2259,7 +2259,7 @@
                 ]
             },
             "AccuracyCheck" : {
-                "config": "kmb/age-gender-recognition-retail-0013.yml"
+                "config": "age-gender-recognition-retail-0013.yml"
             },
             "category" : "MLIR",
             "CI-options" : {
@@ -2292,7 +2292,7 @@
                 ]
             },
             "AccuracyCheck" : {
-                "config": "kmb/age-gender-recognition-retail-0013.yml"
+                "config": "age-gender-recognition-retail-0013.yml"
             },
             "category" : "MLIR",
             "CI-options" : {
@@ -2325,7 +2325,7 @@
                 ]
             },
             "AccuracyCheck" : {
-                "config": "kmb/resnet-18-pytorch_v10.yml"
+                "config": "resnet-18-pytorch_v10.yml"
             },
             "category" : "MLIR",
             "CI-options" : {
@@ -2358,7 +2358,7 @@
                 ]
             },
             "AccuracyCheck" : {
-                "config": "kmb/resnet-18-pytorch_v10.yml"
+                "config": "resnet-18-pytorch_v10.yml"
             },
             "category" : "MLIR",
             "CI-options" : {
@@ -2390,7 +2390,7 @@
                 ]
             },
             "AccuracyCheck" : {
-                "config": "kmb/mobilenet-v2-caffe_v10.yml"
+                "config": "mobilenet-v2-caffe_v10.yml"
             },
             "category" : "MLIR",
             "CI-options" : {
@@ -2422,7 +2422,7 @@
                 ]
             },
             "AccuracyCheck" : {
-                "config": "kmb/mobilenet-v2-caffe_v10.yml"
+                "config": "mobilenet-v2-caffe_v10.yml"
             },
             "category" : "MLIR",
             "CI-options" : {
@@ -2450,7 +2450,7 @@
                 "disabled" : true
             },
             "AccuracyCheck" : {
-                "config": "kmb/shufflenet-v2-x1.0-pytorch.yml"
+                "config": "shufflenet-v2-x1.0-pytorch.yml"
             },
             "category" : "MCM/release",
             "CI-options" : {
@@ -2478,7 +2478,7 @@
                 "disabled" : true
             },
             "AccuracyCheck" : {
-                "config": "kmb/license-plate-recognition-barrier-0007.yml"
+                "config": "license-plate-recognition-barrier-0007.yml"
             },
             "category" : "MCM/release/precommit",
             "CI-options" : {
@@ -2580,7 +2580,7 @@
             },
             "AccuracyCheck" : {
                 "disabled" : true,
-                "config": "kmb/deblur_aa.yml",
+                "config": "deblur_aa.yml",
                 "subsample_size": 10
             },
             "category" : "MCM/dKMB/weekly_private",
@@ -2610,7 +2610,7 @@
                 ]
             },
             "AccuracyCheck" : {
-                "config": "kmb/mobilenet-v2-caffe_v10.yml"
+                "config": "mobilenet-v2-caffe_v10.yml"
             },
             "category" : "MCM/dKMB/weekly_private",
             "CI-options" : {
@@ -2641,7 +2641,7 @@
             },
             "AccuracyCheck" : {
                 "disabled" :  true,
-                "config": "kmb/model_e_v2_int8.yml",
+                "config": "model_e_v2_int8.yml",
                 "subsample_size": 50
             },
             "category" : "MCM/dKMB/weekly_private",
@@ -2672,7 +2672,7 @@
                 ]
             },
             "AccuracyCheck" : {
-                "config": "kmb/model_e_v3_int8.yml",
+                "config": "model_e_v3_int8.yml",
                 "subsample_size": 50
             },
             "category" : "MCM/dKMB/weekly_private",
@@ -2766,7 +2766,7 @@
             },
             "AccuracyCheck" : {
                 "disabled" :  true,
-                "config": "kmb/mobilenet-v3-large-1.0-224-tf.yml",
+                "config": "mobilenet-v3-large-1.0-224-tf.yml",
                 "subsample_size": 100
             },
             "category" : "MCM/dKMB/weekly_private",
@@ -2793,7 +2793,7 @@
                 ]
             },
             "AccuracyCheck" : {
-                "config": "kmb/mobilenet-v3-small-1.0-224-tf.yml",
+                "config": "mobilenet-v3-small-1.0-224-tf.yml",
                 "subsample_size": 100
             },
             "category" : "MCM/dKMB/weekly_private",
@@ -2827,7 +2827,7 @@
                 ]
             },
             "AccuracyCheck" : {
-                "config": "kmb/mobilenet-v3-large-1.0-224-tf.yml"
+                "config": "mobilenet-v3-large-1.0-224-tf.yml"
             },
             "category" : "MLIR",
             "CI-options" : {
@@ -2859,7 +2859,7 @@
                 ]
             },
             "AccuracyCheck" : {
-                "config": "kmb/mobilenet-v3-large-1.0-224-tf.yml"
+                "config": "mobilenet-v3-large-1.0-224-tf.yml"
             },
             "category" : "MLIR",
             "CI-options" : {
@@ -2890,7 +2890,7 @@
                 ]
             },
             "AccuracyCheck" : {
-                "config": "kmb/mobilenet-v3-small-1.0-224-tf.yml"
+                "config": "mobilenet-v3-small-1.0-224-tf.yml"
             },
             "category" : "MLIR",
             "CI-options" : {
@@ -2921,7 +2921,7 @@
                 ]
             },
             "AccuracyCheck" : {
-                "config": "kmb/mobilenet-v3-small-1.0-224-tf.yml"
+                "config": "mobilenet-v3-small-1.0-224-tf.yml"
             },
             "category" : "MLIR/precommit",
             "CI-options" : {
@@ -2948,7 +2948,7 @@
                 ]
             },
             "AccuracyCheck" : {
-                "config": "kmb/modnet_photographic_portrait_matting-caffe2.yml",
+                "config": "modnet_photographic_portrait_matting-caffe2.yml",
                 "subsample_size": 100
             },
             "category" : "MCM/dKMB/weekly_private",
@@ -2977,7 +2977,7 @@
                 ]
             },
             "AccuracyCheck" : {
-                "config": "kmb/modnet_webcam_portrait_matting-caffe2.yml",
+                "config": "modnet_webcam_portrait_matting-caffe2.yml",
                 "subsample_size": 100
             },
             "category" : "MCM/dKMB/weekly_private",
@@ -3009,7 +3009,7 @@
                 ]
             },
             "AccuracyCheck" : {
-                "config": "kmb/resnet-50_v10.yml"
+                "config": "resnet-50_v10.yml"
             },
             "category" : "MCM/dKMB/weekly_private",
             "CI-options" : {
@@ -3035,7 +3035,7 @@
                 ]
             },
             "AccuracyCheck" : {
-                "config": "kmb/hg-s8-b1-mpii-caffe2.yml",
+                "config": "hg-s8-b1-mpii-caffe2.yml",
                 "subsample_size": 50
             },
             "category" : "MCM/dKMB/precommit/weekly_private",
@@ -3087,7 +3087,7 @@
                 "disabled" : true
             },
             "AccuracyCheck" : {
-                "config": "kmb/superres_int8_aa.yml",
+                "config": "superres_int8_aa.yml",
                 "subsample_size": 10
             },
             "category" : "MCM/dKMB/weekly_private",
@@ -3114,7 +3114,7 @@
                 ]
             },
             "AccuracyCheck" : {
-                "config": "kmb/unet-camvid-onnx-0001.yml"
+                "config": "unet-camvid-onnx-0001.yml"
             },
             "category" : "MCM/dKMB/weekly_private",
             "CI-options" : {
@@ -3144,7 +3144,7 @@
                 ]
             },
             "AccuracyCheck" : {
-                "config": "kmb/yolo_v4_tensorflow_v10.yml",
+                "config": "yolo_v4_tensorflow_v10.yml",
                 "subsample_size": 10
             },
             "category" : "MCM/dKMB/weekly_private",
@@ -3176,7 +3176,7 @@
                 ]
             },
             "AccuracyCheck" : {
-                "config": "kmb/yolo_v5m-caffe2.yml",
+                "config": "yolo_v5m-caffe2.yml",
                 "subsample_size": 10
             },
             "category" : "MCM/dKMB/weekly_private",
@@ -3210,7 +3210,7 @@
                 "disabled" : true
             },
             "AccuracyCheck" : {
-                "config": "kmb/superres_int8_aa.yml",
+                "config": "superres_int8_aa.yml",
                 "subsample_size": 100
             },
             "category": "MLIR",
@@ -3239,7 +3239,7 @@
                 "disabled" : true
             },
             "AccuracyCheck" : {
-                "config": "kmb/deeplabv3-tf.yml",
+                "config": "deeplabv3-tf.yml",
                 "subsample_size": 50
             },
             "category" : "MCM/dKMB",
@@ -3305,7 +3305,7 @@
                 ]
             },
             "AccuracyCheck" : {
-                "config": "kmb/openpose-pose-caffe.yml",
+                "config": "openpose-pose-caffe.yml",
                 "subsample_size": 50
             },
             "category" : "MCM/release/precommit/weekly_public",
@@ -3539,7 +3539,7 @@
                 ]
             },
             "AccuracyCheck" : {
-                "config": "kmb/yolo_v3_tf_608.yml",
+                "config": "yolo_v3_tf_608.yml",
                 "subsample_size": 50
             },
             "category" : "MCM/precommit/weekly_public",
@@ -3924,7 +3924,7 @@
                 ]
             },
             "AccuracyCheck" : {
-                "config": "kmb/mobilenet-v3-large-1.0-224-tf.yml",
+                "config": "mobilenet-v3-large-1.0-224-tf.yml",
                 "subsample_size": 100
             },
             "category" : "MCM/release/weekly_public",
@@ -4366,7 +4366,7 @@
                 "disabled" : true
             },
             "AccuracyCheck" : {
-                "config": "kmb/edsr3.yml",
+                "config": "edsr3.yml",
                 "subsample_size": 50
             },
             "category" : "MCM/dKMB/weekly_private",
