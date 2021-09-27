@@ -58,8 +58,11 @@ static void propagate_down(std::shared_ptr<ngraph::Node> fq_node, std::shared_pt
 
             auto new_fq_node = clone_fq_node(fq_node, node_output, copy_num);
             for (auto consumer : node_output.get_target_inputs()) {
+                // if FQ already exist - we don't need to generate a copy
+                // also we can't insert FQ before Result node to keep output layer search logic
                 const auto consumer_as_fq = std::dynamic_pointer_cast<ngraph::op::v0::FakeQuantize>(consumer.get_node()->shared_from_this());
-                if (consumer_as_fq == nullptr) {
+                const auto consumer_as_result = std::dynamic_pointer_cast<ngraph::op::v0::Result>(consumer.get_node()->shared_from_this());
+                if (consumer_as_fq == nullptr && consumer_as_result == nullptr) {
                     propagate_down(fq_node, consumer.get_node()->shared_from_this(), copy_num);
                     consumer.replace_source_output(new_fq_node);
                 }
@@ -84,8 +87,11 @@ static void propagate_up(std::shared_ptr<ngraph::Node> fq_node, std::shared_ptr<
             auto new_fq_node = clone_fq_node(fq_node, input, copy_num);
             propagate_up(fq_node, input.get_node_shared_ptr(), copy_num);
             for (auto consumer : input.get_target_inputs()) {
+                // if FQ already exist - we don't need to generate a copy
+                // also we can't insert FQ before Result node to keep output layer search logic
                 const auto consumer_as_fq = std::dynamic_pointer_cast<ngraph::op::v0::FakeQuantize>(consumer.get_node()->shared_from_this());
-                if (consumer_as_fq == nullptr) {
+                const auto consumer_as_result = std::dynamic_pointer_cast<ngraph::op::v0::Result>(consumer.get_node()->shared_from_this());
+                if (consumer_as_fq == nullptr && consumer_as_result == nullptr) {
                     propagate_down(fq_node, consumer.get_node()->shared_from_this(), copy_num);
                     consumer.replace_source_output(new_fq_node);
                 }
