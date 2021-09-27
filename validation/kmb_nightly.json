@@ -4200,6 +4200,53 @@
         },
 
         {
+            "name" : "MTL_por_caffe2_FP16-INT8_resnet-18-pytorch",
+            "ir" : "models/mtl/resnet-18-with-reshape/resnet-18-with-reshape-conv2d.xml",
+            "3720": {
+                "disabled" : false
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "VPUX_COMPILATION_MODE": "ReferenceHW",
+                "VPUX_INFERENCE_TIMEOUT": "100000"
+            },
+            "Compile" : {
+                "input_layout" : "NHWC",
+                "output_layout" : "NHWC",
+                "input_precision" : "FP16",
+                "output_precision" : "FP16"
+            },
+            "BenchmarkApp" : {
+                "disabled" : true
+            },
+            "NetTest": {
+                "inputs" : [["224x224/cat3.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.3"
+                ]
+            },
+            "NetTest-Validate": {
+                "inputs" : [["224x224/cat3.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.3"
+                ],
+                "input_precision" : "FP16",
+                "output_precision" : "FP16"
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "category" : "MLIR",
+            "CI-options" : {
+                "blob_name" : "MTL_por_caffe2_FP16_resnet-18-pytorch"
+            }
+        },
+
+        {
             "name" : "SINGLE_IMAGE_TEST_kpi_tf_FP16-INT8_yolo-v2-ava-0001",
             "ir" : "kpi/yolo-v2-ava-0001/tf/FP16-INT8/yolo-v2-ava-0001.xml",
             "extra_config" : {
