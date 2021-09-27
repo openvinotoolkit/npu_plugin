@@ -231,10 +231,9 @@ def VPUIP_ConfigureBarrierOp :
             return vpux::DotNodeColor::AQUA;
         }
 
-        std::string printAttributes() {
-            std::ostringstream os;
-            os << "id: " << idAttr().getInt() << std::endl;
-            return os.str();
+        bool printAttributes(llvm::raw_ostream& os) {
+            os << "id: " << idAttr().getInt();
+            return true;
         }
     }];
 

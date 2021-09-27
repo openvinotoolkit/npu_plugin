@@ -57,38 +57,38 @@ def PrintDot : PassBase<"print-dot", "vpux::ModulePass"> {
 
     let options = [
         Option<
-            "declareOp", "declareOp",
+            "printDeclarationsOpt", "print-declarations",
             "bool", "",
             "Print declare memory operations"
         >,
         Option<
-            "startOp", "startOp",
-            "std::string", "",
-            "Start graph generation after this operation"
-        >,
-        Option<
-            "stopOp", "stopOp",
-            "std::string", "",
-            "Stop graph generation after this operation"
-        >,
-        Option<
-            "constOp", "constOp",
+            "printConstOpt", "print-const",
             "bool", "",
             "Print const declare operations"
         >,
         Option<
-            "outputFile", "output",
+            "startAfterOpt", "start-after",
+            "std::string", "",
+            "Start graph generation after this operation"
+        >,
+        Option<
+            "stopBeforeOpt", "stop-before",
+            "std::string", "",
+            "Stop graph generation after this operation"
+        >,
+        Option<
+            "outputFileOpt", "output",
             "std::string", "",
             "Path to the output file"
         >,
         Option<
-            "afterPass", "pass",
+            "afterPassOpt", "pass",
             "std::string", "",
             "Print Dot after the pass"
         >
     ];
 
-    let constructor = "vpux::createPrintDot(\"\")";
+    let constructor = "vpux::createPrintDotPass()";
 }
 
 #endif
