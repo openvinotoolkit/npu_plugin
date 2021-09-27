@@ -194,6 +194,7 @@ void KmbTestBase::SetUp() {
     if (!LOG_LEVEL.empty()) {
         core->SetConfig({{CONFIG_KEY(LOG_LEVEL), LOG_LEVEL}}, configDevice);
     }
+    core->SetConfig({{CONFIG_KEY(LOG_LEVEL), "LOG_INFO"}}, configDevice);
     if (PRINT_PERF_COUNTERS) {
         core->SetConfig({{CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES)}}, configDevice);
     }

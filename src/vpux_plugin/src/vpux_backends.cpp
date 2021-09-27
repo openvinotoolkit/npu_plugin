@@ -27,16 +27,17 @@ namespace IE = InferenceEngine;
 
 // TODO Config will be useless here, since only default values will be used
 VPUXBackends::VPUXBackends(const std::vector<std::string>& backendRegistry)
-        : _logger(vpu::Logger("VPUXBackends", vpu::LogLevel::Error, vpu::consoleOutput())) {
+        : _logger(vpu::Logger("VPUXBackends", vpu::LogLevel::Info, vpu::consoleOutput())) {
     std::vector<std::shared_ptr<EngineBackend>> registeredBackends;
     for (const auto& name : backendRegistry) {
+        _logger.info("Backend %s", name);
         const auto path = getLibFilePath(name);
         const auto exists = std::ifstream(path.c_str()).good();
         if (exists) {
             try {
                 const auto backend = std::make_shared<EngineBackend>(path);
                 if (backend->getDeviceNames().size() != 0) {
-                    _logger.debug("Register %s", name);
+                    _logger.info("Register %s", name);
                     registeredBackends.emplace_back(backend);
                 }
             } catch (const IE::Exception& e) {

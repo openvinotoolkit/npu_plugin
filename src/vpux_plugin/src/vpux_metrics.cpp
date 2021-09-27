@@ -22,7 +22,7 @@ namespace vpux {
 namespace IE = InferenceEngine;
 
 Metrics::Metrics(const VPUXBackends::CPtr& backends)
-        : _backends(backends), _logger(vpu::Logger("VPUXMetrics", vpu::LogLevel::Error, vpu::consoleOutput())) {
+        : _backends(backends), _logger(vpu::Logger("VPUXMetrics", vpu::LogLevel::Info, vpu::consoleOutput())) {
     _supportedMetrics = {
             METRIC_KEY(SUPPORTED_METRICS),         METRIC_KEY(AVAILABLE_DEVICES),
             METRIC_KEY(FULL_DEVICE_NAME),          METRIC_KEY(SUPPORTED_CONFIG_KEYS),
@@ -94,7 +94,7 @@ std::string Metrics::GetBackendName() const {
     if (_backends == nullptr) {
         return {};
     }
-
+    _logger.info("Backend metric %s", _backends->getBackendName());
     return _backends->getBackendName();
 }
 
