@@ -34,7 +34,7 @@ Syntax:
 
 ```
 operation ::= `VPUIP.BroadcastUPA` attr-dict
-              `inputs` `(` $input `:` type($input) `,` $target_shape `:` type($target_shape) `)`
+              `inputs` `(` $input `:` type($input) `,` $target_shape `:` type($target_shape) (`,` $axes_mapping^ `:` type($axes_mapping))? `)`
               `outputs` `(` $output_buff `:` type($output_buff) `)`
               (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
               (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
@@ -56,6 +56,7 @@ operation ::= `VPUIP.BroadcastUPA` attr-dict
 | :-----: | ----------- |
 `input` | memref of 16-bit float values
 `target_shape` | memref of 32-bit signed integer values
+`axes_mapping` | memref of 32-bit signed integer values
 `output_buff` | memref of 16-bit float values
 `waitBarriers` | VPUIP Barrier Type
 `updateBarriers` | VPUIP Barrier Type

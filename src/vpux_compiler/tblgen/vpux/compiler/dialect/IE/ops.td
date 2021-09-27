@@ -874,7 +874,7 @@ def IE_BroadcastOp :
     let arguments = (ins
         AnyRankedTensor:$input,
         1DTensorOf<[SI64, SI32]>:$target_shape,
-        // axes_mapping
+        Optional<1DTensorOf<[SI64, SI32]>>:$axes_mapping,
 
         OptionalAttr<IE_BroadcastType>:$mode
     );

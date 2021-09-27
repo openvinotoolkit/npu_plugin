@@ -849,12 +849,18 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
                   "opset operation mismatch");
 
     const auto inputs = getInputs(origNode);
-    VPUX_THROW_UNLESS(inputs.size() == 2, "nGraph Broadcast node '{0}' has unsupported number of inputs '{1}'",
+    VPUX_THROW_UNLESS(inputs.size() == 2 || inputs.size() == 3,
+                      "nGraph Broadcast node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
 
     const auto mode = importBroadcastMode(origNode->get_broadcast_spec().m_type);
 
-    auto op = builder.create<IE::BroadcastOp>(createLocation(origNode), inputs[0], inputs[1], mode);
+    IE::BroadcastOp op;
+    if (inputs.size() == 2) {
+        op = builder.create<IE::BroadcastOp>(createLocation(origNode), inputs[0], inputs[1], nullptr, mode);
+    } else {
+        op = builder.create<IE::BroadcastOp>(createLocation(origNode), inputs[0], inputs[1], inputs[2], mode);
+    }
     addOutputs(origNode, op);
 }
 

@@ -837,6 +837,7 @@ def IERT_BroadcastOp :
     let arguments = (ins
         AnyMemRef:$input,
         MemRefOf<[SI32]>:$target_shape,
+        Optional<MemRefOf<[SI32]>>:$axes_mapping,
 
         AnyMemRef:$output_buff,
 
@@ -849,7 +850,7 @@ def IERT_BroadcastOp :
 
     let assemblyFormat = [{
         attr-dict
-        `inputs` `(` $input `:` type($input) `,` $target_shape `:` type($target_shape) `)`
+        `inputs` `(` $input `:` type($input) `,` $target_shape `:` type($target_shape) (`,` $axes_mapping^ `:` type($axes_mapping))? `)`
         `ouputs` `(` $output_buff `:` type($output_buff) `)`
         `->` type(results)
     }];

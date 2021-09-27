@@ -25,7 +25,10 @@ using namespace LayerTestsDefinitions;
 namespace {
 // Common params
 
-const std::vector<InferenceEngine::Precision> inputPrecision = {InferenceEngine::Precision::FP16};
+// Numpy
+
+const std::vector<InferenceEngine::Precision> inputPrecision = {InferenceEngine::Precision::FP16,
+                                                                InferenceEngine::Precision::FP32};
 
 std::vector<std::vector<size_t>> inShapesNumpy = {{3, 1}};
 std::vector<std::vector<size_t>> targetShapesNumpy = {{2, 3, 6}};
@@ -43,6 +46,9 @@ INSTANTIATE_TEST_CASE_P(smoke_NumpyBroadcastCheck,
                         KmbBroadcastLayerTest,
                         numpyBroadcastParams,
                         KmbBroadcastLayerTest::getTestCaseName);
+
+
+// Bidirectional
 
 std::vector<std::vector<size_t>> inShapesBidi = {
         {4, 1},
@@ -96,6 +102,37 @@ const auto bidirectionalBroadcastParams2 = ::testing::Combine(
 INSTANTIATE_TEST_CASE_P(smoke_BidirectionalBroadcastCheck2,
                         KmbBroadcastLayerTest,
                         bidirectionalBroadcastParams2,
+                        KmbBroadcastLayerTest::getTestCaseName);
+
+// Explicit
+
+std::vector<std::vector<size_t>> inShapesExplicit = {
+        {3, 1},
+        {2, 4}
+};
+
+std::vector<std::vector<size_t>> targetShapesExplicit = {
+        {2, 3, 1},
+        {2, 3, 4}
+};
+
+std::vector<ngraph::AxisSet> axes = {
+        {1, 2},
+        {0, 2}
+};
+
+const auto explicitBroadcastParams = ::testing::Combine(
+        ::testing::Values(targetShapesExplicit[0]),
+        ::testing::Values(axes[0]),
+        ::testing::Values(ngraph::op::BroadcastType::EXPLICIT),
+        ::testing::Values(inShapesExplicit[0]),
+        ::testing::ValuesIn(inputPrecision),
+        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)
+);
+
+INSTANTIATE_TEST_CASE_P(smoke_ExplicitBroadcastCheck,
+                        KmbBroadcastLayerTest,
+                        explicitBroadcastParams,
                         KmbBroadcastLayerTest::getTestCaseName);
 
 }  // namespace

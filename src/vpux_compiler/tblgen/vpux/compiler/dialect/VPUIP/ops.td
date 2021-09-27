@@ -1627,6 +1627,7 @@ def VPUIP_BroadcastUPAOp :
     let arguments = (ins
         F16MemRef:$input,
         MemRefOf<[SI32]>:$target_shape,
+        Optional<MemRefOf<[SI32]>>:$axes_mapping,
 
         F16MemRef:$output_buff,
 
@@ -1647,6 +1648,7 @@ def VPUIP_BroadcastUPAOp :
         OpBuilder<
             (ins
                 "mlir::Value":$input, "mlir::Value":$target_shape,
+                "mlir::Value":$axes_mapping,
                 "mlir::Value":$output, "IE::BroadcastTypeAttr":$mode
             )
         >
@@ -1654,7 +1656,7 @@ def VPUIP_BroadcastUPAOp :
 
     let assemblyFormat = [{
         attr-dict
-        `inputs` `(` $input `:` type($input) `,` $target_shape `:` type($target_shape) `)`
+        `inputs` `(` $input `:` type($input) `,` $target_shape `:` type($target_shape) (`,` $axes_mapping^ `:` type($axes_mapping))? `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
         (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
         (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?

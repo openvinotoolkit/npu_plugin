@@ -19,8 +19,10 @@
 using namespace vpux;
 
 void vpux::VPUIP::BroadcastUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
-                                        mlir::Value target_shape, mlir::Value output, IE::BroadcastTypeAttr mode) {
-    build(builder, state, input, target_shape, output, mlir::ValueRange{}, mlir::ValueRange{}, mode, nullptr, nullptr);
+                                        mlir::Value target_shape, mlir::Value axes_mapping, mlir::Value output,
+                                        IE::BroadcastTypeAttr mode) {
+    build(builder, state, input, target_shape, axes_mapping, output, mlir::ValueRange{}, mlir::ValueRange{}, mode,
+          nullptr, nullptr);
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BroadcastUPAOp::serialize(VPUIP::BlobWriter& writer) {
@@ -32,6 +34,8 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BroadcastUPAOp::serialize(VPUIP::Bl
         mode = MVCNN::BroadcastMode::BroadcastMode_NUMPY;
     } else if (this->mode() == IE::BroadcastType::BIDIRECTIONAL) {
         mode = MVCNN::BroadcastMode::BroadcastMode_BIDIRECTIONAL;
+    } else if (this->mode() == IE::BroadcastType::EXPLICIT) {
+        mode = MVCNN::BroadcastMode::BroadcastMode_EXPLICIT;
     } else {
         VPUX_THROW("Unsupported {0}", this->mode());
     }

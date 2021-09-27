@@ -178,7 +178,7 @@ Syntax:
 
 ```
 operation ::= `IERT.Broadcast` attr-dict
-              `inputs` `(` $input `:` type($input) `,` $target_shape `:` type($target_shape) `)`
+              `inputs` `(` $input `:` type($input) `,` $target_shape `:` type($target_shape) (`,` $axes_mapping^ `:` type($axes_mapping))? `)`
               `ouputs` `(` $output_buff `:` type($output_buff) `)`
               `->` type(results)
 ```
@@ -196,6 +196,7 @@ operation ::= `IERT.Broadcast` attr-dict
 | :-----: | ----------- |
 `input` | memref of any type values
 `target_shape` | memref of 32-bit signed integer values
+`axes_mapping` | memref of 32-bit signed integer values
 `output_buff` | memref of any type values
 
 #### Results:

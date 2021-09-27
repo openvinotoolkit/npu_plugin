@@ -140,6 +140,7 @@ operation ::= `IE.Broadcast` `(` operands `)` attr-dict `:` type(operands) `->` 
 | :-----: | ----------- |
 `input` | ranked tensor of any type values
 `target_shape` | 1D tensor of 64-bit signed integer or 32-bit signed integer values
+`axes_mapping` | 1D tensor of 64-bit signed integer or 32-bit signed integer values
 
 #### Results:
 

@@ -77,7 +77,7 @@ mlir::LogicalResult vpux::IE::BroadcastOp::inferReturnTypeComponents(
     const auto broadcastMode = broadcast.mode().getValue();
     SmallVector<int64_t> outShape;
 
-    if (broadcastMode == IE::BroadcastType::NUMPY) {
+    if (broadcastMode == IE::BroadcastType::NUMPY || broadcastMode == IE::BroadcastType::EXPLICIT) {
         outShape = targetShape;
     } else if (broadcastMode == IE::BroadcastType::BIDIRECTIONAL) {
         outShape = get_result_shape_bidirectional(inType.getShape(), targetShape);
