@@ -48,7 +48,7 @@
                  "name" : "ChainPipeliningTransform",
                  "select_stages" : 2,
                  "activation_pipelining" : true,
-                 "vertical_fusion_pipelining" : false
+                 "vertical_fusion_pipelining" : true
             },
             "PipeLineAcrossParallelBranches",
             { "name": "LpScheduler",
