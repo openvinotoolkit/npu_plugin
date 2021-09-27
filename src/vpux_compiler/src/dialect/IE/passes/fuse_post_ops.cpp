@@ -61,6 +61,11 @@ mlir::LogicalResult GenericConverter::matchAndRewrite(mlir::Operation* postOp, m
         return matchFailed(_log, rewriter, postOp, "PostOp producer already has post-processing '{0}'",
                            producerOp.getPostOp());
     }
+    if (postOp->getNumOperands() != 1) {
+        return matchFailed(_log, rewriter, postOp,
+                           "Only single input operation can be attached as PostOp via attributes. Got '{0}' inputs",
+                           postOp->getNumOperands());
+    }
 
     producerOp.setPostOp(postOp);
     rewriter.replaceOp(postOp, producerOp->getResult(0));
