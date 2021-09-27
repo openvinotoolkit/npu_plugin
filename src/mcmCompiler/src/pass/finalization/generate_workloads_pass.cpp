@@ -254,12 +254,12 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                     {
                         nWorkloadsCompilationDescriptor = 3;
                     }
-                    if(subTensorHeight <= 8)
+                    if(subTensorHeight <= 7)
                     {
                         std::cout << "2 wks" << std::endl;
                         nWorkloadsCompilationDescriptor = 2;
                     }
-                    if(subTensorHeight <= 2)
+                    if(subTensorHeight <= 4)
                         nWorkloadsCompilationDescriptor = 1;
                     
                     std::cout << nWorkloadsCompilationDescriptor << std::endl;
