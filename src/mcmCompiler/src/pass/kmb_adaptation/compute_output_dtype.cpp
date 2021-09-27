@@ -434,6 +434,7 @@ void tensorsToU8Fcn(const mv::pass::PassEntry&  , mv::ComputationModel& model, m
 void decideOutputDataType(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& td, mv::Element&, mv::Element&)
 {
     mv::OpModel om(model);
+    mv::DataModel dm(model);
     auto returnedParams = model.getGlobalConfigParams();
 
     auto perTensorScale = [](const mv::Data::TensorIterator& tensor) {
@@ -464,6 +465,35 @@ void decideOutputDataType(const mv::pass::PassEntry& pass, mv::ComputationModel&
                 }
                 bool outputQuantized = !op->getOutputTensor(0)->isFloatingPointType() &&
                                        !op->getOutputTensor(0)->getQuantParams().isEmpty();
+
+                bool nextLayersNeedFP16 = true;
+                bool is_explicit = true;
+                auto childOps = mv::findSinkLayers(dm, op->getOutputTensor(0));
+                for (auto& childOp : childOps) {
+                    if (!(childOp->isUPA() ||
+                          (childOp->hasAttr("softwareExecuted") && childOp->get("softwareExecuted")))) {
+                        nextLayersNeedFP16 = false;
+                        break;
+                    }
+
+                    if (childOp->hasAttr("isImplicit") && childOp->get<bool>("isImplicit")) {
+                        is_explicit = false;
+                        break;
+                    }
+
+                    auto childInput = childOp->getInputTensor(mv::IO_TENSOR_INPUT);
+                    auto childOutput = childOp->getOutputTensor(mv::IO_TENSOR_OUTPUT);
+                    auto childInputShape = childInput->getShape();
+                    auto childOutputShape = childOutput->getShape();
+                    auto childOpType = childOp->getOpType();
+                    if ((childOpType == "Permute" || childOpType == "Reshape")) {
+                        // If input & output are both 1D, permute/Reshape can be implicit
+                        if (childInputShape.isFlat() && childOutputShape.isFlat()) {
+                            is_explicit = false;
+                            break;
+                        }
+                    }
+                }
 
                 if (!inputQuantized && !outputQuantized) {
                     if (returnedParams->hasAttr("FloatOutput") && returnedParams->get<bool>("FloatOutput")) {
@@ -496,6 +526,24 @@ void decideOutputDataType(const mv::pass::PassEntry& pass, mv::ComputationModel&
                     if (returnedParams->hasAttr("FloatOutput") && returnedParams->get<bool>("FloatOutput")) {
                         if (perTensorScale(op->getInputTensor(0))) {
                             op->set<bool>("placeConversionToFloat", true);
+                        }
+                    }
+                } else if (nextLayersNeedFP16 && is_explicit) {
+                    // consider the case of U8 dpu followed by only UPA layers, it will be efficient to convert the dpu
+                    // layer to mixedToFloat mode if the dpu meets requirement
+                    if (returnedParams->hasAttr("FloatOutput") && returnedParams->get<bool>("FloatOutput")) {
+                        if (op->getOutputTensor(0)->getShape()[mv::IO_WIDTH_DIMENSION] == 1 &&
+                            op->getOutputTensor(0)->getShape()[mv::IO_HEIGHT_DIMENSION] == 1 &&
+                            !(op->hasAttr("placeConversionToFloat") && op->get<bool>("placeConversionToFloat"))) {
+                            if (td.getTarget() != mv::Target::ma3720) {
+                                op->set<bool>("mixedToFloat", true);
+                            }
+                            // mixedToFloat mode can't be used with sigmoid fusion becasue of accuracy issue
+                            if (op->hasAttr("postOpTypes") &&
+                                (op->get<std::vector<std::string>>("postOpTypes")[0] == "Sigmoid"))
+                                op->set<bool>("placeConversionToFloat", true);
+                            op->getOutputTensor(0)->setDType(mv::DType("Float16"));
+                            op->getOutputTensor(0)->setQuantParams(mv::QuantizationParams::initial());
                         }
                     }
                 }
