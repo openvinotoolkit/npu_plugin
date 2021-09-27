@@ -1931,7 +1931,9 @@ def VPUIP_PermuteUPAOp :
 def VPUIP_WeightsTableOp :
         VPUIP_Op<"WeightsTableOp",
             [
+                NoSideEffect,
                 AttrSizedOperandSegments,
+                ViewLikeOpInterface
             ]
         > {
     let summary = "Intermediate task for creating weights table based on the addresses of CMX buffers";
@@ -1947,6 +1949,12 @@ def VPUIP_WeightsTableOp :
     let results = (outs
         MemRefOf<[SI32]>:$output
     );
+
+    let extraClassDeclaration = [{
+        mlir::Value getViewSource() {
+            return weights() != nullptr ? weights() : activation_window();
+        }
+    }];
 
     let assemblyFormat = [{
         attr-dict

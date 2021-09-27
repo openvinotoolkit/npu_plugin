@@ -159,8 +159,8 @@ def OptimizeAsyncDeps : PassBase<"optimize-async-deps", "vpux::FunctionPass"> {
     let summary = "Optimizes dependencies between 'async.execute' operations";
 
     let description = [{
-        The pass removes 'async.await' Operations between two consecutive 'async.execute' regions and
-        establish token-based dependencies between 'async.execute' operations.
+        The pass tries to remove extra explicit `!async.token` based dependencies,
+        if they are represented implicitly (as a result of transitive dependencies).
     }];
 
     let constructor = "vpux::IERT::createOptimizeAsyncDepsPass()";
