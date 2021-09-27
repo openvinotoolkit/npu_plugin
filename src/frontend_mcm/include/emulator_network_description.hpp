@@ -25,9 +25,6 @@ namespace MCMAdapter {
 
 class EmulatorNetworkDescription final : public vpux::INetworkDescription {
 public:
-    // TODO: Remove mv::CompilationUnit dependency once all mv::OpModel & Mv::Tensor dependencies are
-    // removed
-
     EmulatorNetworkDescription(const std::vector<char>& compiledNetwork, const vpu::MCMConfig& config,
                                const std::string& name);
 
@@ -49,7 +46,6 @@ public:
 
 private:
     std::string _name;
-    std::unique_ptr<mv::CompilationUnit> _compiler;
     std::unique_ptr<vpu::Logger> _logger;
     vpux::DataMap _dataMapPlaceholder;
     std::vector<char> _compiledNetwork;
