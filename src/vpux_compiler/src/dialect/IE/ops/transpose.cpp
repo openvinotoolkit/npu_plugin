@@ -103,7 +103,7 @@ mlir::LogicalResult vpux::IE::TransposeOp::inferReturnTypeComponents(
         outShapeVec[i] = inDataShape[order[i]];
     }
 
-    const auto outDesc = IE::getTensorAttr(IE::getOrder(inDataType));
+    const auto outDesc = IE::getTensorAttr(IE::getOrder(inDataType), nullptr);
 
     inferredReturnShapes.emplace_back(makeArrayRef(outShapeVec), inDataType.getElementType(), outDesc);
     return mlir::success();

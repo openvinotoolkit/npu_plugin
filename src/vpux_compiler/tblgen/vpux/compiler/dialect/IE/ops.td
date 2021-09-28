@@ -52,11 +52,14 @@ class IE_LayerOp<string mnemonic, list<OpTrait> traits = []> :
         > {
     bit checkInferredExactElemType = 1;
     bit checkInferredDimsOrder = 0;
+    bit checkInferredMemSpace = 0;
+
     let extraClassDeclaration = [{
         static bool isCompatibleReturnTypes(mlir::TypeRange lhs, mlir::TypeRange rhs) {
             return vpux::IE::isCompatibleTensorTypes(lhs, rhs,
                 static_cast<bool>(}] # checkInferredExactElemType # [{),
-                static_cast<bool>(}] # checkInferredDimsOrder # [{)
+                static_cast<bool>(}] # checkInferredDimsOrder # [{),
+                static_cast<bool>(}] # checkInferredMemSpace # [{)
             );
         }
     }];
@@ -225,6 +228,7 @@ def IE_ReorderOp :
 
     let checkInferredExactElemType = 1;
     let checkInferredDimsOrder = 1;
+    let checkInferredMemSpace = 0;
 }
 
 //
@@ -343,6 +347,7 @@ def IE_SplitOp :
 
     let checkInferredExactElemType = 1;
     let checkInferredDimsOrder = 1;
+    let checkInferredMemSpace = 1;
 }
 
 //
@@ -723,6 +728,7 @@ def IE_ReshapeOp :
 
     let checkInferredExactElemType = 1;
     let checkInferredDimsOrder = 1;
+    let checkInferredMemSpace = 1;
 }
 
 //
@@ -751,6 +757,7 @@ def IE_SqueezeOp :
 
     let checkInferredExactElemType = 1;
     let checkInferredDimsOrder = 1;
+    let checkInferredMemSpace = 1;
 }
 
 //
@@ -780,6 +787,7 @@ def IE_UnsqueezeOp :
 
     let checkInferredExactElemType = 1;
     let checkInferredDimsOrder = 1;
+    let checkInferredMemSpace = 1;
 }
 
 //
@@ -1188,6 +1196,7 @@ def IE_TransposeOp :
 
     let checkInferredExactElemType = 1;
     let checkInferredDimsOrder = 1;
+    let checkInferredMemSpace = 0;
 }
 
 //
@@ -1428,6 +1437,7 @@ def IE_ConcatOp :
 
     let checkInferredExactElemType = 1;
     let checkInferredDimsOrder = 1;
+    let checkInferredMemSpace = 1;
 }
 
 //
@@ -1802,6 +1812,7 @@ def IE_ExpandOp :
 
     let checkInferredExactElemType = 1;
     let checkInferredDimsOrder = 1;
+    let checkInferredMemSpace = 1;
 }
 
 //
@@ -1871,6 +1882,7 @@ def IE_SliceOp :
 
     let checkInferredExactElemType = 1;
     let checkInferredDimsOrder = 1;
+    let checkInferredMemSpace = 1;
 }
 
 //

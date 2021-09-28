@@ -120,7 +120,7 @@ mlir::LogicalResult vpux::IE::UnsqueezeOp::inferReturnTypeComponents(
         return errorAt(loc, "Inconsistent parameters");
     }
 
-    const auto outDesc = IE::getTensorAttr(ctx, DimsOrder::fromNumDims(outShape.size()));
+    const auto outDesc = IE::getTensorAttr(ctx, DimsOrder::fromNumDims(outShape.size()), IE::getMemorySpace(inType));
 
     inferredReturnShapes.emplace_back(makeArrayRef(outShape), inType.getElementType(), outDesc);
     return mlir::success();

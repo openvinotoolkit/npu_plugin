@@ -156,3 +156,25 @@ func @ExpandToSubviewOnlyWithTail(%arg0: tensor<1x5x4x4xf16>) -> tensor<1x8x4x4x
   // CHECK: %8 = builtin.unrealized_conversion_cast [[OUT]] : memref<1x8x4x4xf16> to tensor<1x8x4x4xf16>
   // CHECK: return %8 : tensor<1x8x4x4xf16>
 }
+
+// -----
+
+#NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
+
+func @WithMemSpace(%arg0: tensor<1x2x3x4xf16>) -> tensor<1x2x3x4xf16> {
+    %0 = IE.ReLU(%arg0) : tensor<1x2x3x4xf16> -> tensor<1x2x3x4xf16, {order = #NHWC, mem_space = "CMX"}>
+    %1 = IE.Tanh(%0) : tensor<1x2x3x4xf16, {order = #NHWC, mem_space = "CMX"}> -> tensor<1x2x3x4xf16>
+    return %1 : tensor<1x2x3x4xf16>
+
+    // CHECK:       [[VAR0:%.*]] = builtin.unrealized_conversion_cast %arg0 : tensor<1x2x3x4xf16> to memref<1x2x3x4xf16>
+    // CHECK:       [[VAR1:%.*]] = memref.alloc() : memref<1x2x3x4xf16, #NHWC, #map, "CMX">
+    // CHECK:       [[VAR2:%.*]] = IERT.ReLU
+    // CHECK-SAME:      inputs([[VAR0]] : memref<1x2x3x4xf16>)
+    // CHECK-SAME:      outputs([[VAR1]] : memref<1x2x3x4xf16, #NHWC, #map, "CMX">)
+    // CHECK:       [[VAR3:%.*]] = memref.alloc() : memref<1x2x3x4xf16>
+    // CHECK:       [[VAR4:%.*]] = IERT.Tanh
+    // CHECK-SAME:      inputs([[VAR2]] : memref<1x2x3x4xf16, #NHWC, #map, "CMX">)
+    // CHECK-SAME:      outputs([[VAR3]] : memref<1x2x3x4xf16>)
+    // CHECK:       [[VAR5:%.*]] = builtin.unrealized_conversion_cast [[VAR4]] : memref<1x2x3x4xf16> to tensor<1x2x3x4xf16>
+    // CHECK: return [[VAR5]] : tensor<1x2x3x4xf16>
+}

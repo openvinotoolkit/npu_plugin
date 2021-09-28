@@ -1733,7 +1733,7 @@ mlir::Type importPrecision(mlir::MLIRContext* ctx, const InferenceEngine::Precis
 mlir::RankedTensorType importUserTensor(mlir::MLIRContext* ctx, const InferenceEngine::TensorDesc& desc) {
     const Shape shape(desc.getDims().begin(), desc.getDims().end());
     const auto precision = importPrecision(ctx, desc.getPrecision());
-    return getTensorType(shape.raw(), precision, DimsOrder::fromIE(desc.getLayout()));
+    return getTensorType(shape.raw(), precision, DimsOrder::fromIE(desc.getLayout()), nullptr);
 }
 
 std::string getValidOutputName(const std::shared_ptr<ngraph::op::Result>& result) {

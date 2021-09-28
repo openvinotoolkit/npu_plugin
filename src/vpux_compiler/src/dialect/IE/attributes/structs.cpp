@@ -26,23 +26,25 @@ using namespace vpux;
 // TensorAttr
 //
 
-IE::TensorAttr vpux::IE::getTensorAttr(mlir::AffineMapAttr order) {
+IE::TensorAttr vpux::IE::getTensorAttr(mlir::AffineMapAttr order, mlir::Attribute memSpace) {
     // Initially, tensors do not have an encoding attribute, which is equivalent to an empty TensorAttr.
     // But in fact, such tensors have a different type: `tensor<1x8x4x2xf16> != tensor<1x8x4x2xf16, {}>`.
     // So let's not use empty attributes to avoid ambiguous representation of the same type.
-    if (order == nullptr || order.getValue().isIdentity()) {
+    if ((order == nullptr || order.getValue().isIdentity()) && memSpace == nullptr) {
         return nullptr;
     }
 
-    return IE::TensorAttr::get(order, order.getContext());
+    auto* ctx = order != nullptr ? order.getContext() : memSpace.getContext();
+
+    return IE::TensorAttr::get(order, memSpace, ctx);
 }
 
-IE::TensorAttr vpux::IE::getTensorAttr(mlir::AffineMap order) {
-    return IE::getTensorAttr(mlir::AffineMapAttr::get(order));
+IE::TensorAttr vpux::IE::getTensorAttr(mlir::AffineMap order, mlir::Attribute memSpace) {
+    return IE::getTensorAttr(mlir::AffineMapAttr::get(order), memSpace);
 }
 
-IE::TensorAttr vpux::IE::getTensorAttr(mlir::MLIRContext* ctx, DimsOrder order) {
-    return IE::getTensorAttr(order.toPermutationAffineMap(ctx));
+IE::TensorAttr vpux::IE::getTensorAttr(mlir::MLIRContext* ctx, DimsOrder order, mlir::Attribute memSpace) {
+    return IE::getTensorAttr(order.toPermutationAffineMap(ctx), memSpace);
 }
 
 IE::TensorAttr vpux::IE::getTensorAttr(mlir::RankedTensorType type) {
@@ -65,6 +67,14 @@ mlir::AffineMap vpux::IE::getOrder(mlir::RankedTensorType type) {
 
     const auto numDims = checked_cast<uint32_t>(type.getRank());
     return mlir::AffineMap::getMinorIdentityMap(numDims, numDims, type.getContext());
+}
+
+mlir::Attribute vpux::IE::getMemorySpace(mlir::RankedTensorType type) {
+    if (const auto desc = IE::getTensorAttr(type)) {
+        return desc.mem_space();
+    }
+
+    return nullptr;
 }
 
 //

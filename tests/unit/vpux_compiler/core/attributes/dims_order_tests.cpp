@@ -459,7 +459,7 @@ TEST(MLIR_DimsOrderTest, fromTensorTypeTest_WithMaps) {
 
         std::tie(expOrder, shape) = testCase;
 
-        const auto tensorType = getTensorType(shape, mlir::Float16Type::get(&ctx), expOrder);
+        const auto tensorType = getTensorType(shape, mlir::Float16Type::get(&ctx), expOrder, nullptr);
 
         const auto actualOrder = DimsOrder::fromType(tensorType);
         EXPECT_EQ(expOrder, actualOrder);

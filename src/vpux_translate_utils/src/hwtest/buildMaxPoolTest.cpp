@@ -203,8 +203,8 @@ void buildMaxPool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
 
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module)), "Compilation failed");
     // IE.CNNNetwork
-    buildCNNOp(builder, func.getName(), {getTensorType(in_shape, inputType, DimsOrder::NHWC)},
-               {getTensorType(out_shape, outputType, DimsOrder::NHWC)});
+    buildCNNOp(builder, func.getName(), {getTensorType(in_shape, inputType, DimsOrder::NHWC, nullptr)},
+               {getTensorType(out_shape, outputType, DimsOrder::NHWC, nullptr)});
 }
 
 }  // namespace hwtest

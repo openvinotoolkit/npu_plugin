@@ -136,9 +136,9 @@ void buildEltwiseAdd(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp 
 
     // IE.CNNNetwork
     buildCNNOp(builder, func.getName(),
-               {getTensorType(in_shape, inputType, DimsOrder::NHWC),
-                getTensorType(weights_shape, weightsType, DimsOrder::NHWC)},
-               {getTensorType(in_shape, outputType, DimsOrder::NHWC)});
+               {getTensorType(in_shape, inputType, DimsOrder::NHWC, nullptr),
+                getTensorType(weights_shape, weightsType, DimsOrder::NHWC, nullptr)},
+               {getTensorType(in_shape, outputType, DimsOrder::NHWC, nullptr)});
 }
 }  // namespace hwtest
 }  // namespace vpux
