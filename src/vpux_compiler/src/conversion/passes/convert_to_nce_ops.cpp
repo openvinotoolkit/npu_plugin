@@ -126,14 +126,11 @@ static mlir::Optional<PostOpParams> parsePostOp(VPUIP::NCEClusterTaskOp nceOp, I
         const int64_t clampHigh = vpux::toFixedPoint(clamp.max().getValueAsDouble());
         const int64_t LreluMult = 1;
         const int64_t LreluShift = 0;
-        VPUX_THROW_UNLESS(clampLow == 0, "'{0}' PostOp with non-zero minimum is not supported", postOp.name());
 
-        return PostOpParams{VPUIP::PPELayerType::LRELUX, clampLow, clampHigh, LreluMult, LreluShift};
-    } else {
-        VPUX_THROW("Unsupported PostOp '{0}'", postOp.name());
+        return PostOpParams{VPUIP::PPELayerType::NOOP, clampLow, clampHigh, LreluMult, LreluShift};
     }
 
-    return mlir::None;
+    VPUX_THROW("Unsupported PostOp '{0}'", postOp.name());
 }
 
 //
