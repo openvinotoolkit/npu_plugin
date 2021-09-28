@@ -1117,6 +1117,32 @@ def IE_FloorOp :
 }
 
 //
+// RoundOp
+//
+
+def IE_RoundOp :
+        IE_LayerOp<
+            "Round",
+            [
+                ResultsAreFloatLike,
+                SameOperandsAndResultType,
+                IE_EltwiseOp
+            ]
+        > {
+    let summary = "InferenceEngine Round layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input,
+
+        IE_RoundMode:$mode
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+}
+
+//
 // MishOp
 //
 

@@ -1662,6 +1662,40 @@ operation ::= `IERT.Reorder` attr-dict
 | :----: | ----------- |
 `output` | memref of any type values
 
+### `IERT.Round` (vpux::IERT::RoundOp)
+
+InferenceEngine run-time Round layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.Round` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`mode` | vpux::IE::RoundModeAttr | RoundMode that the InferenceEngine supports
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float or 32-bit float values
+`output_buff` | memref of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float or 32-bit float values
+
 ### `IERT.RunTimeResources` (vpux::IERT::RunTimeResourcesOp)
 
 Definition of run-time resources

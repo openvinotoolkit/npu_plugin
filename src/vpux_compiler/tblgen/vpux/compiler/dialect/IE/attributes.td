@@ -307,6 +307,23 @@ def IE_PadMode :
 }
 
 //
+// RoundMode
+//
+
+def IE_RoundMode :
+        StrEnumAttr<
+            "RoundMode",
+            "RoundMode that the InferenceEngine supports",
+            [
+                StrEnumAttrCase<"HALF_TO_EVEN">,
+                StrEnumAttrCase<"HALF_AWAY_FROM_ZERO">,
+            ]
+        > {
+    let cppNamespace = "vpux::IE";
+    let genSpecializedAttr = 1;
+}
+
+//
 // RNNSequenceDirection
 //
 

@@ -143,6 +143,7 @@ private:
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Exp>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::HSwish>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Floor>& origNode);
+    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Round>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Mish>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Erf>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Transpose>& origNode);
@@ -184,6 +185,7 @@ private:
     IE::DetectionOutputAttr importDetectionOutputAttrs(const ngraph::op::DetectionOutputAttrs& val);
     IE::ROIPoolingMethodAttr importROIPoolingMethod(const std::string& method);
     IE::PadModeAttr importPadMode(const ngraph::op::PadMode val);
+    IE::RoundModeAttr importRoundMode(const ngraph::op::v5::Round::RoundMode val);
     IE::LRN_IERegionAttr importLRN_IERegion(const std::string& region);
     IE::RNNSequenceDirectionAttr importRNNSequenceDirection(const ngraph::op::RecurrentSequenceDirection val);
 
@@ -245,6 +247,7 @@ NGraphImporter::Callback NGraphImporter::getParser(const std::shared_ptr<ngraph:
             MAP_ENTRY(opset_latest::Exp),
             MAP_ENTRY(opset_latest::HSwish),
             MAP_ENTRY(opset_latest::Floor),
+            MAP_ENTRY(opset_latest::Round),
             MAP_ENTRY(opset_latest::Mish),
             MAP_ENTRY(opset_latest::Erf),
             MAP_ENTRY(opset_latest::Transpose),
@@ -917,6 +920,17 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
                       origNode->get_friendly_name(), inputs.size());
 
     auto op = builder.create<IE::FloorOp>(createLocation(origNode), inputs[0]);
+    addOutputs(origNode, op);
+}
+
+void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Round>& origNode) {
+    static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v5::Round>::value,
+                  "opset operation mismatch");
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS(inputs.size() == 1, "nGraph Round node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
+
+    auto op = builder.create<IE::RoundOp>(createLocation(origNode), inputs[0], importRoundMode(origNode->get_mode()));
     addOutputs(origNode, op);
 }
 
@@ -1671,6 +1685,21 @@ IE::PadModeAttr NGraphImporter::importPadMode(const ngraph::op::PadMode val) {
         break;
     default:
         VPUX_THROW("Unknown PadMode");
+    }
+    return attr;
+}
+
+IE::RoundModeAttr NGraphImporter::importRoundMode(const ngraph::op::v5::Round::RoundMode val) {
+    IE::RoundModeAttr attr;
+    switch (val) {
+    case ngraph::op::v5::Round::RoundMode::HALF_TO_EVEN:
+        attr = IE::RoundModeAttr::get(_ctx, IE::RoundMode::HALF_TO_EVEN);
+        break;
+    case ngraph::op::v5::Round::RoundMode::HALF_AWAY_FROM_ZERO:
+        attr = IE::RoundModeAttr::get(_ctx, IE::RoundMode::HALF_AWAY_FROM_ZERO);
+        break;
+    default:
+        VPUX_THROW("Unknown RoundMode");
     }
     return attr;
 }
