@@ -65,7 +65,11 @@ if(NOT DEFINED MV_TOOLS_PATH AND DEFINED ENV{MV_TOOLS_DIR} AND DEFINED ENV{MV_TO
     set(MV_TOOLS_PATH $ENV{MV_TOOLS_DIR}/$ENV{MV_TOOLS_VERSION})
 endif()
 
+message(STATUS "enable emulator before= : ${ENABLE_EMULATOR}")
+message(STATUS "tools path before: ${MV_TOOLS_PATH}")
 ie_dependent_option(ENABLE_EMULATOR "Enable emulator as a plugin backend" OFF "MV_TOOLS_PATH" OFF)
+message(STATUS "enable emulator after = : ${ENABLE_EMULATOR}")
+message(STATUS "tools path after: ${MV_TOOLS_PATH}")
 if(ENABLE_EMULATOR)
     add_definitions(-DENABLE_EMULATOR)
 endif()
