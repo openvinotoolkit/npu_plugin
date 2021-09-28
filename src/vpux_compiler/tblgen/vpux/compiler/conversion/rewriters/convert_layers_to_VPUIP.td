@@ -250,6 +250,21 @@ def RewriteFloor :
         >;
 
 //
+// IERT.Round -> VPUIP.RoundUPA
+//
+
+def createRoundUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::RoundUPAOp>($_loc, $0, $1, $2)
+        }]>;
+
+def RewriteRound :
+        Pat<
+            (IERT_RoundOp $input, $output, $mode),
+            (createRoundUPAOp $input, $output, $mode)
+        >;
+
+//
 // IERT.Mish -> VPUIP.MishUPA
 //
 

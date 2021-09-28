@@ -1685,6 +1685,36 @@ operation ::= `IE.Reshape` `(` operands `)` attr-dict `:` type(operands) `->` ty
 | :----: | ----------- |
 `output` | ranked tensor of any type values
 
+### `IE.Round` (vpux::IE::RoundOp)
+
+InferenceEngine Round layer
+
+
+Syntax:
+
+```
+operation ::= `IE.Round` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`mode` | vpux::IE::RoundModeAttr | RoundMode that the InferenceEngine supports
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
 ### `IE.ScaleShift` (vpux::IE::ScaleShiftOp)
 
 InferenceEngine ScaleShift layer
