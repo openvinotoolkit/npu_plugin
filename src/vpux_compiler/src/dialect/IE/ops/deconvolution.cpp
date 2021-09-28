@@ -173,7 +173,7 @@ mlir::LogicalResult vpux::IE::GroupDeconvolutionOp::inferReturnTypeComponents(
         const std::vector<ngraph::Dimension> nFilterShape(std::next(filterShape.begin(), 2), filterShape.end());
 
         ngraph::op::v1::ConvolutionBackpropData ngraph_op;
-        std::vector<ngraph::Dimension> __resultShape;
+        std::vector<ngraph::Dimension> outputShape;
         ngraph_op.infer_conv_backprop_output_spatial_shape(
                 nDataShape,                                                                // data_shape
                 nFilterShape,                                                              // filter_sahpe
@@ -182,8 +182,8 @@ mlir::LogicalResult vpux::IE::GroupDeconvolutionOp::inferReturnTypeComponents(
                 ngraph::CoordinateDiff(dataPaddingBelow.begin(), dataPaddingBelow.end()),  // pads_begin
                 ngraph::CoordinateDiff(dataPaddingAbove.begin(), dataPaddingAbove.end()),  // pads_end
                 ngraph::CoordinateDiff(outputPadding.begin(), outputPadding.end()),        // output_padding
-                __resultShape);
-        const auto resultShape = ngraph::PartialShape{__resultShape}.get_shape();
+                outputShape);
+        const auto resultShape = ngraph::PartialShape{outputShape}.get_shape();
 
         SmallVector<int64_t> mlirOutputShape;
         mlirOutputShape.push_back(featureShape[0]);
@@ -222,21 +222,20 @@ mlir::LogicalResult GroupsToAttr::matchAndRewrite(IE::GroupDeconvolutionOp decon
     const auto dwConvFilterContent = deconvOp.filter().getDefiningOp<Const::DeclareOp>().content();
 
     // Weights reverse according to ngraph implementation
-    auto dwConvFilterVals = dwConvFilterContent.getValues<float16>();
-    SmallVector<float16> vals(dwConvFilterVals.size());
+    SmallVector<float16> vals(dwConvFilterContent.getValues<float16>());
     size_t spatialDims = filterShape[4] * filterShape[3];
-    for (size_t i = 0; i < dwConvFilterVals.size() / spatialDims; i++)
-        for (size_t j = 0; j < spatialDims; j++)
-            vals[i * spatialDims + j] = dwConvFilterVals[i * spatialDims + spatialDims - j - 1];
+    for (auto it = vals.begin(); it < vals.end(); it += spatialDims) {
+        std::reverse(it, it + spatialDims);
+    }
 
     const auto dataAttr = mlir::DenseElementsAttr::get(dataStorageType, makeArrayRef(vals));
     auto dwConvFilter =
             rewriter.create<Const::DeclareOp>(deconvOp.getLoc(), dataStorageType, Const::ContentAttr::get(dataAttr));
 
     rewriter.replaceOpWithNewOp<IE::GroupDeconvolutionOp>(
-            deconvOp, deconvOp.feature(), dwConvFilter.output() /* deconvOp.filter() */ /*newFilter.output()*/,
-            deconvOp.output_shape(), deconvOp.stridesAttr(), deconvOp.pads_beginAttr(), deconvOp.pads_endAttr(),
-            deconvOp.dilationsAttr(), deconvOp.output_paddingAttr(), getIntAttr(deconvOp.getContext(), groups));
+            deconvOp, deconvOp.feature(), dwConvFilter.output(), deconvOp.output_shape(), deconvOp.stridesAttr(),
+            deconvOp.pads_beginAttr(), deconvOp.pads_endAttr(), deconvOp.dilationsAttr(), deconvOp.output_paddingAttr(),
+            getIntAttr(deconvOp.getContext(), groups));
 
     return mlir::success();
 }

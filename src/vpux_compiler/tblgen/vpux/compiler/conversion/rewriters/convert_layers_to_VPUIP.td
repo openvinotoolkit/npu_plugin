@@ -210,7 +210,7 @@ def RewriteGroupConvolution :
         >;
 
 //
-// IERT.Deconvolution -> VPUIP.DeconvolutionUPA
+// IERT.GroupDeconvolution -> VPUIP.GroupDeconvolutionUPA
 //
 
 def createGroupDeconvolutionUPAOp :

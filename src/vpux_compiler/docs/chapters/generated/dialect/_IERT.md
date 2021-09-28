@@ -1244,7 +1244,7 @@ operation ::= `IERT.GroupConvolution` attr-dict
 
 ### `IERT.GroupDeconvolution` (vpux::IERT::GroupDeconvolutionOp)
 
-InferenceEngine  run-time GroupDeconvolution layer
+InferenceEngine run-time GroupDeconvolution layer
 
 
 Syntax:

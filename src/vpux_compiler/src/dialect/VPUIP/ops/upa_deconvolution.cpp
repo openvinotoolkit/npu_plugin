@@ -25,20 +25,30 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(DeconvolutionUPAOp op) {
     const auto featureShape = getShape(op.feature());
     const auto outputShape = getShape(op.output());
 
-    if (featureShape.size() != 4)
+    if (featureShape.size() != 4) {
         return errorAt(op, "Input shape should have 4 dimensions");
+    }
 
-    if (featureShape[Dim(0)] != 1)
+    if (featureShape[Dim(0)] != 1) {
         return errorAt(op, "Input tensor [N C H W] = [{0} {1} {2} {3}] has unsupported dimension N != 1",
                        featureShape[Dim(0)], featureShape[Dim(1)], featureShape[Dim(2)], featureShape[Dim(3)]);
+    }
 
-    if (featureShape[Dim(1)] != outputShape[Dim(1)] || featureShape[Dim(1)] != op.groups())
+    if (featureShape[Dim(1)] != outputShape[Dim(1)] || featureShape[Dim(1)] != op.groups()) {
         return errorAt(op, "Only depthwise deconvolution is supported");
+    }
 
-    auto vec = parseIntArrayAttr<int64_t>(op.dilations());
-    if (vec.size() != 2 || vec[0] != 1 || vec[1] != 1) {
+    auto dilations = parseIntArrayAttr<int64_t>(op.dilations());
+    if (dilations.size() != 2 || dilations[0] != 1 || dilations[1] != 1) {
         return errorAt(op, "Supported dilations only [1, 1], got {0}", op.dilationsAttr());
     }
+
+    auto pads_begin = parseIntArrayAttr<int64_t>(op.pads_begin());
+    auto pads_end = parseIntArrayAttr<int64_t>(op.pads_end());
+    if (pads_begin != pads_end) {
+        return errorAt(op, "Supported only symmetrical paddings");
+    }
+
     return mlir::success();
 }
 
