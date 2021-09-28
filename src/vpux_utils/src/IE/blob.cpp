@@ -238,7 +238,7 @@ void cvtBlobPrecisionImpl(const MemoryBlob::Ptr& in, const MemoryBlob::Ptr& out,
         if (inPrecision == Precision::FP32) {
             loop_1d(LoopExecPolicy::Parallel, in->size(), [inPtr, outPtr, quantParams, minU8, maxU8](int64_t index) {
                 const float inValueQuant =
-                        static_cast<float>(quantParams._scale * (inPtr[index] - quantParams._min) + 0.5f);
+                        static_cast<float>(quantParams._zeroPoint + quantParams._scale * inPtr[index] + 0.5f);
                 outPtr[index] =
                         static_cast<OutT>(inValueQuant < minU8 ? minU8 : (inValueQuant > maxU8 ? maxU8 : inValueQuant));
             });
@@ -246,7 +246,7 @@ void cvtBlobPrecisionImpl(const MemoryBlob::Ptr& in, const MemoryBlob::Ptr& out,
             loop_1d(LoopExecPolicy::Parallel, in->size(), [inPtr, outPtr, quantParams, minU8, maxU8](int64_t index) {
                 const float fp32InValue = PrecisionUtils::f16tof32(static_cast<ie_fp16>(inPtr[index]));
                 const float inValueQuant =
-                        static_cast<float>(quantParams._scale * (fp32InValue - quantParams._min) + 0.5f);
+                        static_cast<float>(quantParams._zeroPoint + quantParams._scale * fp32InValue + 0.5f);
                 outPtr[index] =
                         static_cast<OutT>(inValueQuant < minU8 ? minU8 : (inValueQuant > maxU8 ? maxU8 : inValueQuant));
             });
