@@ -755,7 +755,6 @@ static void addPermuteIOOpsFcn(const mv::pass::PassEntry&, mv::ComputationModel&
             shape[mv::IO_WIDTH_DIMENSION] == 94)
         {
             input->set<mv::Order>("order", mv::Order("NHWC"));
-            input->log(mv::Logger::MessageType::Warning, "LOLOLOLOLO");
         }
     }
 
@@ -881,8 +880,6 @@ static void addPermuteIOOpsFcn(const mv::pass::PassEntry&, mv::ComputationModel&
                 }
             }
         }
-
-        //permuteOp->set<bool>("ZMoutput", true);
     }
 
     /* Set CMinput ops to NCHW */
