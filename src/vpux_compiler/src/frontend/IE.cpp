@@ -143,7 +143,7 @@ private:
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Floor>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Mish>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Erf>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Broadcast>& origNode);  // broadcast
+    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Broadcast>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Transpose>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Interpolate>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::TopK>& origNode);
@@ -246,7 +246,7 @@ NGraphImporter::Callback NGraphImporter::getParser(const std::shared_ptr<ngraph:
             MAP_ENTRY(opset_latest::Floor),
             MAP_ENTRY(opset_latest::Mish),
             MAP_ENTRY(opset_latest::Erf),
-            MAP_ENTRY(opset_latest::Broadcast),  // broadcast
+            MAP_ENTRY(opset_latest::Broadcast),
             MAP_ENTRY(opset_latest::Transpose),
             MAP_ENTRY(opset_latest::Interpolate),
             MAP_ENTRY(opset_latest::TopK),
@@ -841,8 +841,6 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
                                            regionAttr);
     addOutputs(origNode, op);
 }
-
-// broadcast
 
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Broadcast>& origNode) {
     static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v3::Broadcast>::value,

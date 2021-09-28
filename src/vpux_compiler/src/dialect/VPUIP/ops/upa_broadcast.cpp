@@ -28,19 +28,19 @@ void vpux::VPUIP::BroadcastUPAOp::build(mlir::OpBuilder& builder, mlir::Operatio
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BroadcastUPAOp::serialize(VPUIP::BlobWriter& writer) {
     MVCNN::BroadcastParamsBuilder builder(writer);
 
-    MVCNN::BroadcastMode mode;
+    MVCNN::BroadcastMode mvcnn_mode;
 
     if (this->mode() == IE::BroadcastType::NUMPY) {
-        mode = MVCNN::BroadcastMode::BroadcastMode_NUMPY;
+        mvcnn_mode = MVCNN::BroadcastMode::BroadcastMode_NUMPY;
     } else if (this->mode() == IE::BroadcastType::BIDIRECTIONAL) {
-        mode = MVCNN::BroadcastMode::BroadcastMode_BIDIRECTIONAL;
+        mvcnn_mode = MVCNN::BroadcastMode::BroadcastMode_BIDIRECTIONAL;
     } else if (this->mode() == IE::BroadcastType::EXPLICIT) {
-        mode = MVCNN::BroadcastMode::BroadcastMode_EXPLICIT;
+        mvcnn_mode = MVCNN::BroadcastMode::BroadcastMode_EXPLICIT;
     } else {
-        VPUX_THROW("Unsupported {0}", this->mode());
+        VPUX_THROW("Unsupported broadcast mode {0}", this->mode());
     }
 
-    builder.add_mode(mode);
+    builder.add_mode(mvcnn_mode);
     const auto paramsOff = builder.Finish();
 
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_BroadcastParams});

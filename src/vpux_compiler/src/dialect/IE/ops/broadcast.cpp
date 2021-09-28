@@ -1,6 +1,6 @@
 
 //
-// Copyright 2020 Intel Corporation.
+// Copyright 2021 Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -26,13 +26,13 @@ mlir::FailureOr<SmallVector<int64_t>> extractIntVector(mlir::Location loc, const
     if (value != nullptr) {
         auto valueConst = value.getDefiningOp<Const::DeclareOp>();
         if (valueConst == nullptr) {
-            return errorAt(loc, "Only constant input is supported for interpolate attribute");
+            return errorAt(loc, "Only constant input is supported for target shape");
         }
 
         const auto valueContent = valueConst.content();
         return to_small_vector(valueContent.getValues<int64_t>());
     }
-    return errorAt(loc, "Parameter were not provided");
+    return errorAt(loc, "Target shape was not provided");
 }
 
 SmallVector<int64_t> getResultShapeBidirectional(SmallVector<int64_t>& inShape, SmallVector<int64_t>& targetShape) {
