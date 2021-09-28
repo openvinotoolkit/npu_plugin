@@ -11,15 +11,18 @@
 // included with the Software Package for additional details.
 //
 
-#pragma once
+#include <elf/utils/utils.hpp>
 
-#include <cstddef>
 #include <istream>
 
-namespace elf {
-namespace utils {
+using namespace elf;
 
-size_t getStreamSize(std::istream& strm);
+size_t utils::getStreamSize(std::istream& strm) {
+    const auto streamStart = strm.tellg();
+    strm.seekg(0, std::ios_base::end);
+    const auto streamEnd = strm.tellg();
+    const auto bytesAvailable = streamEnd - streamStart;
+    strm.seekg(streamStart, std::ios_base::beg);
 
-} // namespace utils
-} // namespace elf
+    return bytesAvailable;
+}

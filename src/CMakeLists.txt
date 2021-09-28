@@ -33,7 +33,7 @@ endif()
 if(ENABLE_ZEROAPI_BACKEND)
     add_subdirectory(zero_backend)
 endif()
-add_subdirectory(elf_parsing)
+add_subdirectory(vpux_elf)
 add_subdirectory(vpux_plugin)
 
 add_subdirectory(vpux_utils)

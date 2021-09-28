@@ -19,15 +19,7 @@ using namespace elf;
 // Reader
 //
 
-Reader::Reader(const std::string&) {
-    // TODO: implement
-}
-
-Reader::Reader(std::istream&) {
-    // TODO: implement
-}
-
-Reader::Reader(std::vector<char>) {
+Reader::Reader(const char*) {
     // TODO: implement
 }
 

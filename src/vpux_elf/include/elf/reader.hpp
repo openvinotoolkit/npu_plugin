@@ -25,9 +25,7 @@ namespace elf {
 
 class Reader {
 public:
-    explicit Reader(const std::string&);
-    explicit Reader(std::istream&);
-    explicit Reader(std::vector<char>);
+    explicit Reader(const char* blob);
 
     Elf_Half getType() const;
 
@@ -57,8 +55,6 @@ public:
     };
 
 private:
-    const std::vector<char> m_blob;
-
     Elf64_Ehdr* m_elfHeader;
     std::vector<Segment> m_segments;
     std::vector<Section> m_sections;
