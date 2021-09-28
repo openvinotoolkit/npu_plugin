@@ -80,11 +80,11 @@ mlir::LogicalResult vpux::IE::TransposeOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto inDataType = transpose.input().getType().cast<mlir::ShapedType>();
+    const auto inDataType = transpose.input().getType().cast<mlir::RankedTensorType>();
     const auto inDataShape = inDataType.getShape();
 
     SmallVector<int64_t> order{};
-    if (getOrder(transpose, order, loc).failed()) {
+    if (::getOrder(transpose, order, loc).failed()) {
         return mlir::failure();
     }
 
@@ -103,8 +103,9 @@ mlir::LogicalResult vpux::IE::TransposeOp::inferReturnTypeComponents(
         outShapeVec[i] = inDataShape[order[i]];
     }
 
-    inferredReturnShapes.emplace_back(makeArrayRef(outShapeVec), inDataType.getElementType());
+    const auto outDesc = IE::getTensorAttr(IE::getOrder(inDataType));
 
+    inferredReturnShapes.emplace_back(makeArrayRef(outShapeVec), inDataType.getElementType(), outDesc);
     return mlir::success();
 }
 

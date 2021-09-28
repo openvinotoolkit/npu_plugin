@@ -86,30 +86,25 @@ mlir::LogicalResult vpux::IE::inferTensorTypes(InferTypeComponentsCb componentsC
         return mlir::failure();
     }
 
-    for (const auto& shapeAndType : components) {
-        mlir::Type resType;
+    for (const auto& desc : components) {
+        VPUX_THROW_UNLESS(desc.hasRank(), "Unranked TensorType is not supported");
 
-        if (shapeAndType.hasRank()) {
-            resType = mlir::RankedTensorType::get(shapeAndType.getDims(), shapeAndType.getElementType(),
-                                                  shapeAndType.getAttribute());
-        } else {
-            resType = mlir::UnrankedTensorType::get(shapeAndType.getElementType());
-        }
-
-        inferredTypes.push_back(resType);
+        const auto type = mlir::RankedTensorType::get(desc.getDims(), desc.getElementType(), desc.getAttribute());
+        inferredTypes.push_back(type);
     }
 
     return mlir::success();
 }
 
-bool vpux::IE::isCompatibleShapeAndElemType(mlir::TypeRange lhs, mlir::TypeRange rhs) {
+bool vpux::IE::isCompatibleTensorTypes(mlir::TypeRange lhs, mlir::TypeRange rhs, bool checkExactElemType,
+                                       bool checkDimsOrder) {
     if (lhs.size() != rhs.size()) {
         return false;
     }
 
     for (const auto p : zip(lhs, rhs)) {
-        const auto type1 = std::get<0>(p).dyn_cast<mlir::ShapedType>();
-        const auto type2 = std::get<1>(p).dyn_cast<mlir::ShapedType>();
+        const auto type1 = std::get<0>(p).dyn_cast<mlir::RankedTensorType>();
+        const auto type2 = std::get<1>(p).dyn_cast<mlir::RankedTensorType>();
 
         if (type1 == nullptr || type2 == nullptr) {
             return false;
@@ -120,6 +115,10 @@ bool vpux::IE::isCompatibleShapeAndElemType(mlir::TypeRange lhs, mlir::TypeRange
         }
 
         if (type1.getElementType() != type2.getElementType()) {
+            if (checkExactElemType) {
+                return false;
+            }
+
             const auto qType1 = type1.getElementType().dyn_cast<mlir::quant::QuantizedType>();
             const auto qType2 = type2.getElementType().dyn_cast<mlir::quant::QuantizedType>();
 
@@ -130,6 +129,15 @@ bool vpux::IE::isCompatibleShapeAndElemType(mlir::TypeRange lhs, mlir::TypeRange
                 return false;
             }
             if (qType1.getStorageType() != qType2.getStorageType()) {
+                return false;
+            }
+        }
+
+        if (checkDimsOrder) {
+            const auto order1 = IE::getOrder(type1);
+            const auto order2 = IE::getOrder(type2);
+
+            if (order1 != order2) {
                 return false;
             }
         }

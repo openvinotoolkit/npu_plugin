@@ -126,18 +126,12 @@ mlir::LogicalResult vpux::IE::ReshapeOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto inType = reshape.input().getType().cast<mlir::ShapedType>();
+    const auto inType = reshape.input().getType().cast<mlir::RankedTensorType>();
 
-    inferredReturnShapes.emplace_back(outShape.getValue(), inType.getElementType());
+    const auto outDesc = IE::getTensorAttr(ctx, DimsOrder::fromNumDims(outShape->size()));
+
+    inferredReturnShapes.emplace_back(outShape.getValue(), inType.getElementType(), outDesc);
     return mlir::success();
-}
-
-//
-// ViewLikeInterface
-//
-
-mlir::Value vpux::IE::ReshapeOp::getViewSource() {
-    return input();
 }
 
 //

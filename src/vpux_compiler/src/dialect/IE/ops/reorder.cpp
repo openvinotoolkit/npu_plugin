@@ -32,10 +32,11 @@ mlir::LogicalResult vpux::IE::ReorderOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto inType = reorder.input().getType().cast<mlir::ShapedType>();
-    inferredReturnShapes.emplace_back(inType.getShape(), inType.getElementType(),
-                                      IE::getTensorAttr(reorder.dstOrder()));
+    const auto inType = reorder.input().getType().cast<mlir::RankedTensorType>();
 
+    const auto outDesc = IE::getTensorAttr(reorder.dstOrder());
+
+    inferredReturnShapes.emplace_back(inType.getShape(), inType.getElementType(), outDesc);
     return mlir::success();
 }
 

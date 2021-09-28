@@ -24,44 +24,6 @@
 
 using namespace vpux;
 
-namespace {
-
-std::tuple<int64_t, int64_t, mlir::Type> getStorageParams(mlir::MLIRContext* ctx, int64_t levels, bool isSigned) {
-    switch (levels) {
-    case 256:
-        if (isSigned) {
-            return {-128, 127, getSInt8Type(ctx)};
-        }
-
-        return {0, levels - 1, getUInt8Type(ctx)};
-    case 255:
-        if (isSigned) {
-            return {-127, 127, getSInt8Type(ctx)};
-        }
-
-        return {0, levels - 1, getUInt8Type(ctx)};
-
-    case 16:
-        if (isSigned) {
-            return {-8, 7, getSInt4Type(ctx)};
-        }
-
-        return {0, levels - 1, getUInt4Type(ctx)};
-
-    case 15:
-        if (isSigned) {
-            return {-7, 7, getSInt4Type(ctx)};
-        }
-
-        return {0, levels - 1, getUInt4Type(ctx)};
-
-    default:
-        VPUX_THROW("Got unsupported levels '{0}'", levels);
-    }
-}
-
-}  // namespace
-
 //
 // Utilities for quantized types
 //
@@ -167,6 +129,62 @@ mlir::quant::UniformQuantizedPerAxisType vpux::tileScalesAndZP(mlir::quant::Unif
             perAxisQType.getStorageTypeMax());
 }
 
+bool vpux::canBeMerged(mlir::quant::UniformQuantizedPerAxisType type1, mlir::quant::UniformQuantizedPerAxisType type2) {
+    const auto flags1 = type1.getFlags();
+    const auto storageType1 = type1.getStorageType();
+    const auto realType1 = type1.getExpressedType();
+    const auto qDim1 = type1.getQuantizedDimension();
+    const auto qMin1 = type1.getStorageTypeMin();
+    const auto qMax1 = type1.getStorageTypeMax();
+
+    const auto flags2 = type2.getFlags();
+    const auto storageType2 = type2.getStorageType();
+    const auto realType2 = type2.getExpressedType();
+    const auto qDim2 = type2.getQuantizedDimension();
+    const auto qMin2 = type2.getStorageTypeMin();
+    const auto qMax2 = type2.getStorageTypeMax();
+
+    return flags1 == flags2 && storageType1 == storageType2 && realType1 == realType2 && qDim1 == qDim2 &&
+           qMin1 == qMin2 && qMax1 == qMax2;
+}
+
+mlir::quant::UniformQuantizedPerAxisType vpux::concatScalesAndZP(
+        ArrayRef<mlir::quant::UniformQuantizedPerAxisType> types) {
+    VPUX_THROW_WHEN(types.empty(), "Got empty types list in concatScalesAndZP");
+
+    const auto flags = types.front().getFlags();
+    const auto storageType = types.front().getStorageType();
+    const auto realType = types.front().getExpressedType();
+    const auto qDim = types.front().getQuantizedDimension();
+    const auto qMin = types.front().getStorageTypeMin();
+    const auto qMax = types.front().getStorageTypeMax();
+
+    size_t newAxisSize = 0;
+    for (const auto type : types) {
+        VPUX_THROW_UNLESS(canBeMerged(type, types.front()), "Types '{0}' and '{1}' can't be merged", type,
+                          types.front());
+
+        newAxisSize += type.getScales().size();
+    }
+
+    SmallVector<double> newScales;
+    SmallVector<int64_t> newZeroPoints;
+
+    newScales.reserve(newAxisSize);
+    newZeroPoints.reserve(newAxisSize);
+
+    for (const auto type : types) {
+        const auto scales = type.getScales();
+        const auto zeroPoints = type.getZeroPoints();
+
+        newScales.append(scales.begin(), scales.end());
+        newZeroPoints.append(zeroPoints.begin(), zeroPoints.end());
+    }
+
+    return mlir::quant::UniformQuantizedPerAxisType::get(flags, storageType, realType, newScales, newZeroPoints, qDim,
+                                                         qMin, qMax);
+}
+
 std::pair<Scales, ZeroPoints> vpux::extractScalesAndZeroPoints(mlir::Type tensorElemType, size_t quantDimSize) {
     const auto qType = tensorElemType.dyn_cast<mlir::quant::QuantizedType>();
     if (const auto uniformParams = qType.dyn_cast_or_null<mlir::quant::UniformQuantizedType>()) {
@@ -239,6 +257,44 @@ std::tuple<double, int64_t> vpux::calcScaleAndZeroPoint(int64_t qMin, int64_t qM
 
     return std::make_tuple(scale, zp);
 }
+
+namespace {
+
+std::tuple<int64_t, int64_t, mlir::Type> getStorageParams(mlir::MLIRContext* ctx, int64_t levels, bool isSigned) {
+    switch (levels) {
+    case 256:
+        if (isSigned) {
+            return {-128, 127, getSInt8Type(ctx)};
+        }
+
+        return {0, levels - 1, getUInt8Type(ctx)};
+    case 255:
+        if (isSigned) {
+            return {-127, 127, getSInt8Type(ctx)};
+        }
+
+        return {0, levels - 1, getUInt8Type(ctx)};
+
+    case 16:
+        if (isSigned) {
+            return {-8, 7, getSInt4Type(ctx)};
+        }
+
+        return {0, levels - 1, getUInt4Type(ctx)};
+
+    case 15:
+        if (isSigned) {
+            return {-7, 7, getSInt4Type(ctx)};
+        }
+
+        return {0, levels - 1, getUInt4Type(ctx)};
+
+    default:
+        VPUX_THROW("Got unsupported levels '{0}'", levels);
+    }
+}
+
+}  // namespace
 
 mlir::quant::QuantizedType vpux::getQuantizedType(Const::ContentAttr lowConst, Const::ContentAttr highConst,
                                                   int64_t levels, mlir::FloatType realType, bool isSigned,

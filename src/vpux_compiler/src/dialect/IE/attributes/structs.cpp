@@ -45,8 +45,8 @@ IE::TensorAttr vpux::IE::getTensorAttr(mlir::MLIRContext* ctx, DimsOrder order) 
     return IE::getTensorAttr(order.toPermutationAffineMap(ctx));
 }
 
-IE::TensorAttr vpux::IE::getTensorAttr(mlir::RankedTensorType origType) {
-    if (const auto encoding = origType.getEncoding()) {
+IE::TensorAttr vpux::IE::getTensorAttr(mlir::RankedTensorType type) {
+    if (const auto encoding = type.getEncoding()) {
         const auto tensorAttr = encoding.dyn_cast<IE::TensorAttr>();
         VPUX_THROW_UNLESS(tensorAttr != nullptr, "Unsupported tensor encoding attribute '{0}'", encoding);
 
@@ -54,6 +54,17 @@ IE::TensorAttr vpux::IE::getTensorAttr(mlir::RankedTensorType origType) {
     }
 
     return nullptr;
+}
+
+mlir::AffineMap vpux::IE::getOrder(mlir::RankedTensorType type) {
+    if (const auto desc = IE::getTensorAttr(type)) {
+        if (const auto orderAttr = desc.order()) {
+            return orderAttr.getValue();
+        }
+    }
+
+    const auto numDims = checked_cast<uint32_t>(type.getRank());
+    return mlir::AffineMap::getMinorIdentityMap(numDims, numDims, type.getContext());
 }
 
 //

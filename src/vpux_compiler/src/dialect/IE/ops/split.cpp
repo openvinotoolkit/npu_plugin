@@ -92,6 +92,8 @@ mlir::LogicalResult vpux::IE::SplitOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
+    const auto inType = split.input().getType().cast<mlir::RankedTensorType>();
+
     const auto axis = extractAxis(loc, split);
     if (mlir::failed(axis)) {
         return mlir::failure();
@@ -99,15 +101,17 @@ mlir::LogicalResult vpux::IE::SplitOp::inferReturnTypeComponents(
 
     const auto num_splits = split.num_splits().getInt();
 
-    auto outShape = getShape(split.input()).toValues();
+    auto outShape = getShape(inType).toValues();
     if ((outShape[*axis] < num_splits) || (outShape[*axis] % num_splits != 0)) {
         return errorAt(loc, "Unsupported num_splits parameter");
     }
     outShape[*axis] /= num_splits;
 
-    const auto elemType = split.input().getType().cast<mlir::ShapedType>().getElementType();
+    const auto elemType = inType.getElementType();
+    const auto outDesc = IE::getTensorAttr(inType);
+
     for (int i = 0; i < num_splits; ++i) {
-        inferredReturnShapes.emplace_back(outShape.raw(), elemType);
+        inferredReturnShapes.emplace_back(outShape.raw(), elemType, outDesc);
     }
 
     return mlir::success();

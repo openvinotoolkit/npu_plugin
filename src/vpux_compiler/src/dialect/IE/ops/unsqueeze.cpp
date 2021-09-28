@@ -88,7 +88,7 @@ mlir::LogicalResult vpux::IE::UnsqueezeOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto inType = unsqueeze.input().getType().cast<mlir::ShapedType>();
+    const auto inType = unsqueeze.input().getType().cast<mlir::RankedTensorType>();
     const auto inShape = inType.getShape();
 
     SmallVector<int64_t> outShape(inShape.size() + axes->size());
@@ -120,16 +120,10 @@ mlir::LogicalResult vpux::IE::UnsqueezeOp::inferReturnTypeComponents(
         return errorAt(loc, "Inconsistent parameters");
     }
 
-    inferredReturnShapes.emplace_back(makeArrayRef(outShape), inType.getElementType());
+    const auto outDesc = IE::getTensorAttr(ctx, DimsOrder::fromNumDims(outShape.size()));
+
+    inferredReturnShapes.emplace_back(makeArrayRef(outShape), inType.getElementType(), outDesc);
     return mlir::success();
-}
-
-//
-// ViewLikeInterface
-//
-
-mlir::Value vpux::IE::UnsqueezeOp::getViewSource() {
-    return input();
 }
 
 //
