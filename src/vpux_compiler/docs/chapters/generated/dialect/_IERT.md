@@ -171,7 +171,7 @@ operation ::= `IERT.AvgPool` attr-dict
 
 ### `IERT.Broadcast` (vpux::IERT::BroadcastOp)
 
-InferencEngine run-time Broadcast layer
+InferenceEngine run-time Broadcast layer
 
 
 Syntax:
