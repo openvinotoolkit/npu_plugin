@@ -64,20 +64,21 @@ std::unique_ptr<MVCNN::TensorReferenceT> buildTensorReference(const std::string&
                         (quantParams.getZeroPoint()[0] != defaultZeroPoint)) ||
                        (quantParams.getScale().size() >= 1 && fabs(quantParams.getScale()[0] - defaultScale) > epsilon))
                     : false;
-    // Consider to use quant_mult parameter as a flag for plugin input quantization
+    // Plugin input quantization flag
+    // Consider to use quant_mult parameter as a flag
     toBuild->quant_mult.push_back(static_cast<uint16_t>(isPluginInputQuantization));
     if (isPluginInputQuantization) {
-        // Consider to use quant_zero parameter as a min input range value (fp32)
+        // Zero point
+        const float minU8 = static_cast<float>(std::numeric_limits<uint8_t>().lowest());
+        const float maxU8 = static_cast<float>(std::numeric_limits<uint8_t>().max());
+        const int64_t zpValue = quantParams.getZeroPoint().size() >= 1 ? quantParams.getZeroPoint()[0] : 0L;
+        const uint8_t zeroPoint = static_cast<uint8_t>(zpValue < minU8 ? minU8 : (zpValue > maxU8 ? maxU8 : zpValue));
+        toBuild->quant_zero = {zeroPoint};
+        // Scale value
+        // Consider to use quant_shift parameter as a scale value (fp32)
         std::vector<uint8_t> floatStorage(sizeof(float) / sizeof(uint8_t));
         float* floatValue = reinterpret_cast<float*>(floatStorage.data());
-        const float minValue = quantParams.getMin().size() >= 1 ? static_cast<float>(quantParams.getMin()[0]) : 0.f;
-        *floatValue = minValue;
-        toBuild->quant_zero = floatStorage;
-        const float maxValue = quantParams.getMax().size() >= 1 ? static_cast<float>(quantParams.getMax()[0]) : 255.f;
-        const float uint8tRange = 255.f;
-        // Consider to use quant_shift parameter as a scale value (fp32)
-        const float floatRange = maxValue - minValue;
-        const float scale = fabs(floatRange) > epsilon ? uint8tRange / floatRange : 1.f;
+        const float scale = quantParams.getScale().size() >= 1 ? static_cast<float>(quantParams.getScale()[0]) : 1.f;
         *floatValue = scale;
         toBuild->quant_shift = floatStorage;
     }
@@ -168,9 +169,11 @@ vpu::MCMAdapter::MetaInfo vpu::MCMAdapter::deserializeMetaData(const MVCNN::Summ
             IE_ASSERT(tensorRef->quant_shift() != nullptr);
             IE_ASSERT(tensorRef->quant_shift()->size() == floatPackedSize);
             IE_ASSERT(tensorRef->quant_zero() != nullptr);
-            IE_ASSERT(tensorRef->quant_zero()->size() == floatPackedSize);
-            quantParam._scale = *(reinterpret_cast<const float*>(tensorRef->quant_shift()->data()));
-            quantParam._min = *(reinterpret_cast<const float*>(tensorRef->quant_zero()->data()));
+            IE_ASSERT(tensorRef->quant_zero()->size() == 1);
+            const auto scale = *(reinterpret_cast<const float*>(tensorRef->quant_shift()->data()));
+            IE_ASSERT(scale != 0.f);
+            quantParam._scale = 1.f / scale;
+            quantParam._zeroPoint = *tensorRef->quant_zero()->begin();
         }
         resultQuantParamMap.insert({inputInfo.name(), quantParam});
     }
