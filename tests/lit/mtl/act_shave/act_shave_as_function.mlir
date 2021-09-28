@@ -50,7 +50,7 @@ IE.CNNNetwork
 module @VPU.SW {
     // The declaration should match C++ params structure in decomposed form.
     // `memref` will be translated to `MemRefData`, while raw scalars will be translated as is.
-    func private @builtin_softmax(%input : memref<*xf16,>, %output : memref<*xf16>, %axis : i32)
+    func private @builtin_softmax(%input : memref<*xf16>, %output : memref<*xf16>, %axis : i64)
         attributes { VPU.kernel_code = "softmax_fp16.c" }
 }
 
@@ -66,15 +66,18 @@ func @main(%arg0: memref<1x1x1x1000xf16>, %arg1: memref<1x1x1x1000xf16>) -> memr
     %sigmoid_krn =
         VPUIP.SW.Kernel
                     @VPU.SW.builtin_softmax             // The reference to the Kernel function.
-//                    "GFEmbeddedKernel"                  // locale to pack kernel into
+
+//                    inputs(%in_tile_cmx_0 as %arg0)     // Inputs/outputs buffers for generic operation interface
+//                    outputs(%out_tile_cmx_0 as %arg1)   // and their mapping to inner region.
+                    inputs(%in_tile_cmx_0 : memref<1x1x1x1000xf16, "VPU_CMX_NN">)
+                    outputs(%out_tile_cmx_0 : memref<1x1x1x1000xf16, "VPU_CMX_NN">)
                     on tile 0                           // The tile index to execute on.
-                    inputs(%in_tile_cmx_0 as %arg0)     // Inputs/outputs buffers for generic operation interface
-                    outputs(%out_tile_cmx_0 as %arg1)   // and their mapping to inner region.
-                    waits(%b0) updates(%b1)
-        {
+                    waits(%b0  : !VPUIP.Barrier)
+                    updates(%b1  : !VPUIP.Barrier)
+        -> memref<1x1x1x1000xf16, "VPU_CMX_NN"> {
             // Inner region, isolated from above, which holds the information about arguments mapping.
             // We can use constant scalars/arrays definitions here.
-            %axis   = constant 0 : i32
+            %axis   = constant 0 : i64
 
             // The arguments mapping, the order must match the kernel parameter structure.
             VPUIP.SW.Kernel.run(%arg0, %arg1, %axis)
@@ -83,7 +86,7 @@ func @main(%arg0: memref<1x1x1x1000xf16>, %arg1: memref<1x1x1x1000xf16>) -> memr
 
 
 
-    %4 = VPUIP.NNDMA inputs(%arg0 : memref<1x1x1x1000xf16>) outputs(%0 : memref<1x1x1x1000xf16, "VPU_CMX_NN">) updates(%2 : !VPUIP.Barrier) -> memref<1x1x1x1000xf16, "VPU_CMX_NN">
+    %4 = VPUIP.NNDMA inputs(%arg0 : memref<1x1x1x1000xf16>) outputs(%in_tile0_cmx : memref<1x1x1x1000xf16, "VPU_CMX_NN">) updates(%2 : !VPUIP.Barrier) -> memref<1x1x1x1000xf16, "VPU_CMX_NN">
 
 #    %mk = VPUIP.ACTShaveTaskOp kernel(%sigmoid_krn : memref<1000xui8, "VPU_CMX_NN">)
 #    inputs(%0 : memref<1x1x1x1000xf16, "VPU_CMX_NN">)
@@ -92,7 +95,7 @@ func @main(%arg0: memref<1x1x1x1000xf16>, %arg1: memref<1x1x1x1000xf16>) -> memr
 #    updates(%3 : !VPUIP.Barrier) -> memref<1x1x1x1000xf16, "VPU_CMX_NN">
 #    %5 = VPUIP.ACTShaveTaskOp kernel(%sigmoid_krn : memref<1000xui8, "VPU_CMX_NN">)  inputs(%0 : memref<1x1x1x1000xf16, "VPU_CMX_NN">) outputs(%1 : memref<1x1x1x1000xf16, "VPU_CMX_NN">) waits(%2 : !VPUIP.Barrier) updates(%3 : !VPUIP.Barrier) -> memref<1x1x1x1000xf16, "VPU_CMX_NN">
 
-    %6 = VPUIP.NNDMA inputs(%1 : memref<1x1x1x1000xf16, "VPU_CMX_NN">) outputs(%arg1 : memref<1x1x1x1000xf16>) waits(%3 : !VPUIP.Barrier) -> memref<1x1x1x1000xf16>
+    %6 = VPUIP.NNDMA inputs(%out_tile0_cmx : memref<1x1x1x1000xf16, "VPU_CMX_NN">) outputs(%arg1 : memref<1x1x1x1000xf16>) waits(%3 : !VPUIP.Barrier) -> memref<1x1x1x1000xf16>
     return %6: memref<1x1x1x1000xf16>
 
 }
