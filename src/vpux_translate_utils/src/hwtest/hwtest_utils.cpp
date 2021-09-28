@@ -425,6 +425,12 @@ std::vector<int32_t> generateWeightsTablesValuesWithSparsity(const nb::TestCaseJ
         }
         auto weights_set_nbytes = weights_set_size * elementsize_bytes;
 
+        // Pad out to a multiple of 16
+        if (weights_set_nbytes & 0xF) {
+            weights_set_nbytes &= ~0xF;
+            weights_set_nbytes += 0x10;
+        }
+
         // generate data pointers
         for (int64_t i = 0; i < weights_outChannel; ++i) {
             weightsTableVals[i * 4 + DATA_POINTER_IDX] = static_cast<int32_t>(first_channel_offset);
