@@ -2,6 +2,9 @@
 ### `-cmx-tiling`: Tile Operations to the condition that all their I/O fit into CMX
 This pass will replace a set of operations with the pattern OP ==> Subview->Copy->Op->Copy->SubView.
 The condition for the replacment is that for each op the SUM of their I/O tensors to fit into CMX memory
+### `-copy-op-hoisting`: Update location of CopyOps in the block
+This pass checks all CopyOps and updates their position in the parent block to be close to source op
+that generates the copy op source buffer
 ### `-group-async-execute-ops`: Reduces number of async.execute operations
 Groups consecutive operations which utilizes the same executor and max resources into same async.execute region
 ### `-move-view-ops-into-async-regions`: Moves view-like Operations inside the asynchronous regions which depends on them
@@ -9,6 +12,8 @@ Groups consecutive operations which utilizes the same executor and max resources
 ### `-optimize-async-deps`: Optimizes dependencies between 'async.execute' operations
 The pass tries to remove extra explicit `!async.token` based dependencies,
 if they are represented implicitly (as a result of transitive dependencies).
+### `-optimize-copies`: Removes Copy Ops which are unnecessary
+This pass checks if Copy Op can be optimized out to reduce the amount of unnecessary DMAs and intermediate buffers.
 ### `-profiling-timestamp`: DMA-Timestamp based network profiling
 This pass add dma-timestamp based network profiling.
 ### `-set-internal-memory-space`: Set specific memory space for all internal memory buffers

@@ -167,6 +167,8 @@ void vpux::buildHardwareModePipeline(mlir::OpPassManager& pm, bool enableProfili
     pm.addPass(mlir::createCanonicalizerPass(grc));
 
     // IERT Dialect level (cont.)
+    pm.addPass(IERT::createOptimizeCopiesPass(log));
+    pm.addPass(IERT::createCopyOpHoistingPass(log));
     IERT::buildAsyncSchedulingPipeline(pm, log);
     buildIERTAllocationPipelineForDDR(pm, log);
     pm.addPass(IERT::createStaticAllocationPass(getMemSpace<VPUIP::PhysicalMemory::CMX_NN>, log));
