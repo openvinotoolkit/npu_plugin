@@ -33,8 +33,10 @@ import argparse
 from dataclasses import dataclass, field
 from enum import Enum
 import json
+import functools
 import itertools
 import math
+import operator
 import pandas as pd
 from pathlib import Path
 import re
@@ -71,6 +73,14 @@ def OrderNCHW(data: np.ndarray) -> np.ndarray:
 
 def OrderNHWC(data: np.ndarray) -> np.ndarray:
     return np.concatenate([a.transpose(1, 2, 0).flatten() for a in data])
+
+
+def PadNCHWChannels(data: np.ndarray) -> np.ndarray:
+    data = data.reshape(data.shape[0], functools.reduce(operator.mul, data.shape[1:]))
+    if data.shape[1] & 0xF:
+        zeros = np.zeros((data.shape[0], 0x10 - (data.shape[1] & 0xF)), dtype=data.dtype)
+        data = np.append(data, zeros, axis=1)
+    return data
 
 
 class Error(Exception):
@@ -625,7 +635,7 @@ class DepthWiseConv(MPE):
     def generate_inputs(self, rng) -> List[Value]:
         return [
             self.settings.input_ttype.generate('input-0.bin', self.settings.input_shape, rng),
-            self.settings.input_ttype.generate('weights.dat', self.settings.weight_shape, rng, orderer=OrderNCHW)
+            self.settings.input_ttype.generate('weights.dat', self.settings.weight_shape, rng, orderer=PadNCHWChannels)
         ]
 
     def apply(self, values: List[Value]) -> np.ndarray:
@@ -1249,18 +1259,14 @@ def generate_options(args):
         genDepthWiseConvs(input_types=[Int8(6), UInt8(6), FP16(6), BF16(6)],
                           pads=[[0, 0, 0, 0], [1, 0, 0, 0]]),
 
+        genDepthWiseConvs(input_types=[UInt8(6)],
+                          output_types=[UInt8()],
+                          kernel_shapes=[[r, c] for r in range(1, 12) for c in range(1, 12) if (r, c) != (4, 4)]),
+
         # MobileNet DepthWiseConv, uint8
         genDepthWiseConvs(input_types=[UInt8(2)],
                           input_shapes=[[1, 32, 112, 112]],
                           kernel_channels=[32],
-                          kernel_shapes=[[3, 3]],
-                          output_types=[UInt8()],
-                          pads=[[1, 1, 1, 1]]),
-
-        # MobileNet DepthWiseConv, uint8
-        genDepthWiseConvs(input_types=[UInt8(2)],
-                          input_shapes=[[1, 96, 112, 112]],
-                          kernel_channels=[96],
                           kernel_shapes=[[3, 3]],
                           output_types=[UInt8()],
                           pads=[[1, 1, 1, 1]]),

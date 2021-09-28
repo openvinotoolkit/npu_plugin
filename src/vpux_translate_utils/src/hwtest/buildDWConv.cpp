@@ -49,12 +49,10 @@ void buildDWConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp modu
 
     auto output_totalsize = totalTensorSize(out_shape, outputType);
     auto input_totalsize = totalTensorSize(in_shape, inputType);
-    auto weight_totalsize = totalTensorSize(wt_data_shape, weightsType);
 
     const auto OUTPUT_CMX_OFFSET = 0;
     const auto INPUT_CMX_OFFSET = OUTPUT_CMX_OFFSET + output_totalsize;
     const auto WEIGHTS_CMX_OFFSET = INPUT_CMX_OFFSET + input_totalsize;
-    const auto ACTIVATIONWINDOW_CMX_OFFSET = WEIGHTS_CMX_OFFSET + weight_totalsize;
 
     SmallVector<mlir::Type> inputTypes;
     const auto inputAffineMaps = DimsOrder::NHWC.toAffineMapsList(builder.getContext(), Shape(in_shape));
@@ -84,11 +82,13 @@ void buildDWConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp modu
     // weights data
     auto weight_data_ddr_memSpaceAttr =
             VPUIP::MemoryLocationAttr::get(builder.getContext(), VPUIP::MemoryLocation::GraphFile);
-    const auto weightDataAffineMaps = DimsOrder::NHWC.toAffineMapsList(builder.getContext(), Shape(wt_data_shape));
-    auto weightData_ddr_type = mlir::MemRefType::get(makeArrayRef(wt_data_shape), weightsType, weightDataAffineMaps,
-                                                     weight_data_ddr_memSpaceAttr);
+    auto wt_data_shape_padded = getWeightsPaddedShape(wt_data_shape, /*isDepthwiseConv=*/true);
+    const auto weightDataPaddedAffineMaps =
+            DimsOrder::NHWC.toAffineMapsList(builder.getContext(), Shape(wt_data_shape_padded));
+    auto weightData_ddr_type = mlir::MemRefType::get(makeArrayRef(wt_data_shape_padded), weightsType,
+                                                     weightDataPaddedAffineMaps, weight_data_ddr_memSpaceAttr);
 
-    auto wt_data_vals = generateWeights(wt_data_shape, weightsType, builder.getContext(), weight_file_name);
+    auto wt_data_vals = generateWeights(wt_data_shape_padded, weightsType, builder.getContext(), weight_file_name);
     auto wt_data_attr = Const::ContentAttr::get(wt_data_vals);
     if (auto qty = weightsType.dyn_cast<mlir::quant::QuantizedType>()) {
         wt_data_attr = wt_data_attr.quantCast(qty);
@@ -100,11 +100,14 @@ void buildDWConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp modu
     // weights cmx tensor
     auto wtData_cmx_memSpaceAttr =
             VPUIP::MemoryLocationAttr::get(builder.getContext(), VPUIP::MemoryLocation::VPU_CMX_NN);
-    auto wtData_cmx_type = mlir::MemRefType::get(makeArrayRef(wt_data_shape), weightsType, weightDataAffineMaps,
-                                                 wtData_cmx_memSpaceAttr);
+    auto wtData_cmx_type = mlir::MemRefType::get(makeArrayRef(wt_data_shape_padded), weightsType,
+                                                 weightDataPaddedAffineMaps, wtData_cmx_memSpaceAttr);
     auto wtData_cmx = funcbuilder.create<VPUIP::DeclareTensorOp>(builder.getUnknownLoc(), wtData_cmx_type,
                                                                  VPUIP::MemoryLocation::VPU_CMX_NN, /*locale index=*/0,
                                                                  /*data idx=*/WEIGHTS_CMX_OFFSET);
+
+    auto weight_padded_totalsize = totalTensorSize(wt_data_shape_padded, weightsType);
+    const auto ACTIVATIONWINDOW_CMX_OFFSET = WEIGHTS_CMX_OFFSET + weight_padded_totalsize;
 
     // input - output cmx tensors
     auto inputcmx_memSpaceAttr =
@@ -197,7 +200,6 @@ void buildDWConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp modu
                                                  Const::ContentAttr::get(wtTbl_data_vals).reorder(DimsOrder::NHWC));
 
     // weights table cmx tensor
-
     const auto WEIGHTSTABLE_CMX_OFFSET = ACTIVATIONWINDOW_CMX_OFFSET + activationwindow_totalsize_bytes;
     auto wtTbl_cmx_memSpaceAttr =
             VPUIP::MemoryLocationAttr::get(builder.getContext(), VPUIP::MemoryLocation::VPU_CMX_NN);
@@ -243,7 +245,7 @@ void buildDWConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp modu
                                        getIntAttr(builder, padding_vec[PAD_NCETASK_BOTTOM]), builder.getContext());
 
     /* auto dpuTask = */ variantbuilder.create<VPUIP::DPUTaskOp>(builder.getUnknownLoc(), nullptr, start, end, pad,
-                                                                 VPUIP::MPEMode::CUBOID_16x16);
+                                                                 VPUIP::MPEMode::CUBOID_8x16);
 
     /* auto cmx_out_dma = */ funcbuilder.create<VPUIP::NNDMAOp>(
             builder.getUnknownLoc(), outputcmx.getOperation()->getResult(0), funcoutput,
