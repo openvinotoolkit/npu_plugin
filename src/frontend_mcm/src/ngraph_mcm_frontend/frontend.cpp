@@ -90,8 +90,8 @@ namespace {
     std::map<std::string, std::string> MapInputOutputInfoToNgraphOps(const std::shared_ptr<ngraph::Function>& func,
         const ie::InputsDataMap& inputsInfo,
         const ie::OutputsDataMap& outputsInfo) {
-        // Due to historical reasons, CNNNetwork::getOutputsInfo() does not match excatly
-        // to ngraph::op::v0::Result::get_friendly_name(), actual get_friendly_name() may be have arbitary different.
+        // Due to historical reasons, CNNNetwork::getOutputsInfo() does not match exactly
+        // to ngraph::op::v0::Result::get_friendly_name(), actual get_friendly_name() may be have arbitrary different.
         // Instead getOutputsInfo() returns names of nodes, who produces input to ngraph::op::v0::Result,
         // This expected to be fixed in 2021.2
         // Below ngraph function is changed and Result producers are replaced, making impossible to match.
@@ -155,9 +155,9 @@ std::unique_ptr<mv::CompilationUnit> createCompilationUnit(
         std::string compDescName;
         std::string targetDescName;
 
-        if (config.mcmTargetDesciptor() != "release_kmb") {
-            targetDescName = !config.mcmTargetDesciptor().empty() ?
-                              config.mcmTargetDesciptor() : "release_kmb";
+        if (config.mcmTargetDescriptor() != "release_kmb") {
+            targetDescName = !config.mcmTargetDescriptor().empty() ?
+                              config.mcmTargetDescriptor() : "release_kmb";
         }
         else {
             auto platform = config.platform();
@@ -194,9 +194,9 @@ std::unique_ptr<mv::CompilationUnit> createCompilationUnit(
             }
         }
 
-        if (config.mcmCompilationDesciptor() != "release_kmb") {
-            compDescName = !config.mcmCompilationDesciptor().empty() ?
-                            config.mcmCompilationDesciptor() : "release_kmb";
+        if (config.mcmCompilationDescriptor() != "release_kmb") {
+            compDescName = !config.mcmCompilationDescriptor().empty() ?
+                            config.mcmCompilationDescriptor() : "release_kmb";
         }
         else {
             switch (config.platform()) {
@@ -226,8 +226,8 @@ std::unique_ptr<mv::CompilationUnit> createCompilationUnit(
             }
         }
 
-        const auto targetPath = ie::getIELibraryPath() + "/" + config.mcmTargetDesciptorPath() + "/" + targetDescName + ".json";
-        const auto compDescPath = ie::getIELibraryPath() + "/" + config.mcmCompilationDesciptorPath() + "/" + compDescName + ".json";
+        const auto targetPath = ie::getIELibraryPath() + "/" + config.mcmTargetDescriptorPath() + "/" + targetDescName + ".json";
+        const auto compDescPath = ie::getIELibraryPath() + "/" + config.mcmCompilationDescriptorPath() + "/" + compDescName + ".json";
 
         IE_ASSERT(mcmCompiler->loadTargetDescriptor(targetPath));
         IE_ASSERT(mcmCompiler->loadCompilationDescriptor(compDescPath));
