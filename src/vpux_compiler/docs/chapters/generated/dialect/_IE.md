@@ -81,6 +81,38 @@ operation ::= `IE.Add` `(` operands `)` attr-dict `:` type(operands) `->` type(r
 | :----: | ----------- |
 `output` | ranked tensor of 16-bit float or 32-bit float or QuantizedType values
 
+### `IE.And` (vpux::IE::AndOp)
+
+InferenceEngine And layer
+
+
+Syntax:
+
+```
+operation ::= `IE.And` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`auto_broadcast` | vpux::IE::AutoBroadcastTypeAttr | Specifies rules used for auto-broadcasting of input tensors
+`post_op` | vpux::IE::PostOp | DictionaryAttr with field(s): 'name', 'attrs' (each field having its own constraints)
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input1` | ranked tensor of 8-bit signless integer or 16-bit float values
+`input2` | ranked tensor of 8-bit signless integer or 16-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 8-bit signless integer or 16-bit float values
+
 ### `IE.AvgPool` (vpux::IE::AvgPoolOp)
 
 InferenceEngine AvgPool layer

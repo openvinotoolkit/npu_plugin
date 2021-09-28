@@ -166,6 +166,7 @@ private:
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Pad>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::LSTMCell>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Subtract>& origNode);
+    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::LogicalAnd>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::LSTMSequence>& origNode);
 
     SmallVector<mlir::Value> getInputs(const OrigNodePtr& node);
@@ -270,6 +271,7 @@ NGraphImporter::Callback NGraphImporter::getParser(const std::shared_ptr<ngraph:
             MAP_ENTRY(opset_latest::Pad),
             MAP_ENTRY(opset_latest::LSTMCell),
             MAP_ENTRY(opset_latest::Subtract),
+            MAP_ENTRY(opset_latest::LogicalAnd),
             MAP_ENTRY(opset_latest::LSTMSequence),
     };
 
@@ -1351,6 +1353,21 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
     addOutputs(origNode, op);
 }
 
+void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::LogicalAnd>& origNode) {
+    static_assert(std::is_same<std::decay<decltype(*origNode)>::type, opset_latest::LogicalAnd>::value,
+                  "opset operation mismatch");
+
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS(inputs.size() == 2, "nGraph node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
+
+    const auto& autob = origNode->get_autob();
+
+    auto op = builder.create<IE::AndOp>(createLocation(origNode), inputs[0], inputs[1],
+                                        importBroadcastType(autob.m_type), nullptr);
+    addOutputs(origNode, op);
+}
+
 //
 // IR builder helpers
 //
@@ -1425,6 +1442,8 @@ mlir::Type NGraphImporter::importElemType(const ngraph::element::Type& elemType)
         return getSInt8Type(_ctx);
     } else if (elemType == ngraph::element::u8) {
         return getUInt8Type(_ctx);
+    } else if (elemType == ngraph::element::boolean) {
+        return getBoolType(_ctx);
     } else {
         VPUX_THROW("Unsupported element type : {0}", elemType);
     }

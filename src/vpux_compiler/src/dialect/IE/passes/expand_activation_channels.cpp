@@ -403,6 +403,7 @@ void ExpandActivationChannelsPass::safeRunOnFunc() {
     patterns.insert<EltwiseRewriter<IE::AddOp>>(&ctx, _log);
     patterns.insert<EltwiseRewriter<IE::MultiplyOp>>(&ctx, _log);
     patterns.insert<EltwiseRewriter<IE::SubtractOp>>(&ctx, _log);
+    patterns.insert<EltwiseRewriter<IE::AndOp>>(&ctx, _log);
     patterns.insert<GroupConvolutionRewriter>(&ctx, _log);
 
     auto func = getFunction();

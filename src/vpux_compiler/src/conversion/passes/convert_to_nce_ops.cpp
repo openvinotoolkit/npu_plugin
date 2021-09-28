@@ -699,6 +699,7 @@ void ConvertToNCEOpsPass::safeRunOnFunc() {
                                                                _log);
     patterns.insert<GenericEltwiseConverter<IERT::SubtractOp>>(&ctx, dpuExec.count(), arch, VPUIP::PPELayerType::SUB,
                                                                _log);
+    patterns.insert<GenericEltwiseConverter<IERT::AndOp>>(&ctx, dpuExec.count(), arch, VPUIP::PPELayerType::AND, _log);
     patterns.insert<DepthwiseConvRewrite>(&ctx, dpuExec.count(), arch, _log);
 
     if (mlir::failed(applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig()))) {

@@ -517,6 +517,12 @@ mlir::Operation* createRTLayer(IE::MultiplyOp origOp, ArrayRef<mlir::Value> allB
                                       origOp.post_opAttr());
 }
 
+mlir::Operation* createRTLayer(IE::AndOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::AndOp::Adaptor newOp(allBufs);
+    return b.create<IERT::AndOp>(origOp.getLoc(), newOp.input1(), newOp.input2(), newOp.output_buff(),
+                                 origOp.post_opAttr());
+}
+
 mlir::Operation* createRTLayer(IE::DivideOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::DivideOp::Adaptor newOp(allBufs);
     return b.create<IERT::DivideOp>(origOp.getLoc(), newOp.input1(), newOp.input2(), newOp.output_buff());
@@ -741,6 +747,7 @@ mlir::Operation* createRTLayer(IE::MVNOp origOp, ArrayRef<mlir::Value> allBufs, 
     return b.create<IERT::MVNOp>(origOp.getLoc(), newOp.input(), newOp.output_buff(), origOp.across_channels(),
                                  origOp.normalize_variance(), origOp.eps());
 }
+
 mlir::Operation* createRTLayer(IE::SubtractOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::SubtractOp::Adaptor newOp(allBufs);
     return b.create<IERT::SubtractOp>(origOp.getLoc(), newOp.input1(), newOp.input2(), newOp.output_buff(),
@@ -805,6 +812,7 @@ mlir::LogicalResult LayerRewrite::matchAndRewrite(mlir::Operation* origOp, Array
     CASE(IE::LeakyReluOp)
     CASE(IE::AddOp)
     CASE(IE::MultiplyOp)
+    CASE(IE::AndOp)
     CASE(IE::DivideOp)
     CASE(IE::SquaredDifferenceOp)
     CASE(IE::PowerOp)

@@ -88,6 +88,10 @@ mlir::IntegerType vpux::getUInt64Type(mlir::MLIRContext* ctx) {
     return mlir::IntegerType::get(ctx, 64, mlir::IntegerType::Unsigned);
 }
 
+mlir::IntegerType vpux::getBoolType(mlir::MLIRContext* ctx) {
+    return mlir::IntegerType::get(ctx, 8, mlir::IntegerType::Signless);
+}
+
 //
 // TypeSize
 //

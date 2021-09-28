@@ -59,3 +59,35 @@ func @main() -> tensor<1x2x2x2xf32> {
 }
 
 }
+
+// -----
+
+// CHECK-LABEL: @I8ToFp16
+module @I8ToFp16 {
+
+IE.CNNNetwork
+    entryPoint : @main
+    inputsInfo : {
+        // CHECK: DataInfo "in1" : tensor<1xf16>
+        // CHECK: DataInfo "in2" : tensor<1xf16>
+        DataInfo "in1" : tensor<1xf16>
+        DataInfo "in2" : tensor<1xf16>
+    }
+    outputsInfo : {
+        // CHECK: DataInfo "out" : tensor<1xf16>
+        DataInfo "out" : tensor<1xf16>
+    }
+
+// CHECK: func @main(%arg0: tensor<1xf16>, %arg1: tensor<1xf16>) -> tensor<1xf16>
+func @main(%arg0: tensor<1xf16>, %arg1: tensor<1xf16>) -> tensor<1xf16> {
+    %0 = IE.Convert(%arg0) {dstElemType = i8} : tensor<1xf16> -> tensor<1xi8>
+    %1 = IE.Convert(%arg1) {dstElemType = i8} : tensor<1xf16> -> tensor<1xi8>
+    %2 = IE.And(%0, %1) {auto_broadcast = "NUMPY"} : tensor<1xi8>, tensor<1xi8> -> tensor<1xi8>
+    %3 = IE.Convert(%2) {dstElemType = f16} : tensor<1xi8> -> tensor<1xf16>
+    return %3 : tensor<1xf16>
+
+    // CHECK:  %0 = IE.And(%arg0, %arg1) {auto_broadcast = "NUMPY"} : tensor<1xf16>, tensor<1xf16> -> tensor<1xf16>
+    // CHECK:  return %0 : tensor<1xf16>
+}
+
+}

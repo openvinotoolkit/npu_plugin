@@ -44,6 +44,7 @@ public:
     static mlir::LogicalResult verifyCMX(IERT::AddOp origOp, Logger log = Logger::global());
     static mlir::LogicalResult verifyCMX(IERT::MultiplyOp origOp, Logger log = Logger::global());
     static mlir::LogicalResult verifyCMX(IERT::SubtractOp origOp, Logger log = Logger::global());
+    static mlir::LogicalResult verifyCMX(IERT::AndOp origOp, Logger log = Logger::global());
     static mlir::LogicalResult verifyEltwiseCMX(mlir::Location loc, mlir::ModuleOp module,
                                                 mlir::MemRefType firstInputType, mlir::MemRefType secondInputType,
                                                 mlir::MemRefType outputType, Logger log = Logger::global());
@@ -73,6 +74,9 @@ public:
     static mlir::LogicalResult verifyChannels(IE::SubtractOp origOp, Logger log = Logger::global());
     static mlir::LogicalResult verifyChannels(IERT::SubtractOp origOp, Logger log = Logger::global());
 
+    static mlir::LogicalResult verifyChannels(IE::AndOp origOp, Logger log = Logger::global());
+    static mlir::LogicalResult verifyChannels(IERT::AndOp origOp, Logger log = Logger::global());
+
     static mlir::LogicalResult verifyEltwiseChannels(mlir::Location loc, mlir::ShapedType firstInputType,
                                                      mlir::ShapedType secondInputType, Logger log = Logger::global());
 
@@ -98,6 +102,9 @@ public:
 
     static mlir::LogicalResult verifyKernel(IE::SubtractOp origOp, Logger log = Logger::global());
     static mlir::LogicalResult verifyKernel(IERT::SubtractOp origOp, Logger log = Logger::global());
+
+    static mlir::LogicalResult verifyKernel(IE::AndOp origOp, Logger log = Logger::global());
+    static mlir::LogicalResult verifyKernel(IERT::AndOp origOp, Logger log = Logger::global());
 
     static mlir::LogicalResult verifyKernel(IE::GroupConvolutionOp origOp, Logger log = Logger::global());
     static mlir::LogicalResult verifyKernel(IERT::GroupConvolutionOp origOp, Logger log = Logger::global());
