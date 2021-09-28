@@ -1546,7 +1546,7 @@ Syntax:
 
 ```
 operation ::= `IERT.ReadValue` attr-dict
-              `inputs` `(` $input `:` type($input) `)`
+              `inputs` `(` $input `:` type($input) `,` $second_input `:` type($second_input) `)`
               `outputs` `(` $output_buff `:` type($output_buff) `)`
               `->` type(results)
 ```
@@ -1563,6 +1563,7 @@ operation ::= `IERT.ReadValue` attr-dict
 | Operand | Description |
 | :-----: | ----------- |
 `input` | memref of any type values
+`second_input` | memref of any type values
 `output_buff` | memref of any type values
 
 #### Results:

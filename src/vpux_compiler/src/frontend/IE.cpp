@@ -433,6 +433,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
 }
 
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::ReadValue>& origNode) {
+#if 1
     std::cout << "ReadValue parseNode" << std::endl;
 
     static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v6::ReadValue>::value,
@@ -448,10 +449,12 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
 
     std::cout << "origNode->get_variable_id() =" << origNode->get_variable_id() << std::endl;
 
-    auto op = builder.create<IE::ReadValueOp>(createLocation(origNode), inputs[0], variable_idAttr);
+    // TODO: replace it!!!
+    auto op = builder.create<IE::ReadValueOp>(createLocation(origNode), inputs[0], inputs[1], variable_idAttr);
 
     addOutputs(origNode, op);
     std::cout << "ReadValue parseNode End" << std::endl;
+#endif
 }
 
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Softmax>& origNode) {

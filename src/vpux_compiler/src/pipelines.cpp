@@ -105,12 +105,13 @@ void vpux::buildReferenceModePipeline(mlir::OpPassManager& pm, bool enableProfil
 
     // Lower IE->IERT
     buildLowerIE2IERTPipeline(pm, log);
+    pm.addPass(IE::createReadValueTransPass(log));
 
     if (enableProfiling) {
         pm.addPass(IERT::createTimestampProfilingPass(getMemSpace<VPUIP::PhysicalMemory::DDR>, log));
     }
 
-    pm.addPass(IERT::createReadValueTransPass(getMemSpace<VPUIP::PhysicalMemory::DDR>, log));
+    // pm.addPass(IERT::createReadValueTransPass(log));
 
     // IERT Dialect level
     buildIERTAllocationPipelineForDDR(pm, log);
@@ -136,6 +137,7 @@ void vpux::buildHardwareModePipeline(mlir::OpPassManager& pm, bool enableProfili
     pm.addPass(IE::createConvertFCToConvPass(log));
     pm.addPass(IE::createConvertAvgPoolToDWConvPass(log));
     pm.addPass(IE::createConvertScaleShiftToDWPass(log));
+
     // Canonicalize group convolution if necessary.
     pm.addPass(mlir::createCanonicalizerPass(getDefaultGreedyRewriteConfig()));
     IE::buildAdjustForVPUPipeline(pm, log);

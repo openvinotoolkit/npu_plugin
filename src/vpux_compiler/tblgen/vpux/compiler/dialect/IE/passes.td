@@ -305,6 +305,24 @@ def ConvertConv1DToConv2D : PassBase<"convert-conv1d-to-conv2d", "vpux::Function
     ];
 }
 
+//
+// ReadValue transformation
+//
+
+def ReadValueTrans : PassBase<"readValue-transformation", "vpux::ModulePass"> {
+    let summary = "Read Value input transformation";
+
+    let description = [{
+    }];
+
+    let constructor = "vpux::IE::createReadValueTransPass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
+
+
 //=================================================================================
 // LowPrecision
 //=================================================================================

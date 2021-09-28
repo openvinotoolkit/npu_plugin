@@ -173,6 +173,8 @@ def IE_ReadValueOp :
 
     let arguments = (ins
         AnyRankedTensor:$input,
+//        Optional<AnyRankedTensor>:$second_input,
+        AnyRankedTensor:$second_input,
 
         StrAttr:$variable_id
     );

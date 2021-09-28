@@ -1529,6 +1529,7 @@ operation ::= `IE.ReadValue` `(` operands `)` attr-dict `:` type(operands) `->` 
 | Operand | Description |
 | :-----: | ----------- |
 `input` | ranked tensor of any type values
+`second_input` | ranked tensor of any type values
 
 #### Results:
 

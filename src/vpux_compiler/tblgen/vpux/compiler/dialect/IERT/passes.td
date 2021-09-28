@@ -109,24 +109,6 @@ def TimestampProfiling : PassBase<"profiling-timestamp", "vpux::ModulePass"> {
     }];
 }
 
-//
-// ReadValue transformation
-//
-
-def ReadValueTrans : PassBase<"readValue-transformation", "vpux::ModulePass"> {
-    let summary = "Read Value input transformation";
-
-    let description = [{
-    }];
-
-    let constructor = [{
-        vpux::IERT::createReadValueTransPass([](mlir::MLIRContext* ctx, vpux::StringRef memSpaceName) -> mlir::Attribute {
-            VPUX_THROW_UNLESS(!memSpaceName.empty(), "Missing memory space option");
-            return mlir::StringAttr::get(ctx, memSpaceName);
-        })
-    }];
-}
-
 
 //=================================================================================
 // Asynchronous Scheduling

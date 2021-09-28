@@ -11,7 +11,6 @@ The pass removes 'async.await' Operations between two consecutive 'async.execute
 establish token-based dependencies between 'async.execute' operations.
 ### `-profiling-timestamp`: DMA-Timestamp based network profiling
 This pass add dma-timestamp based network profiling.
-### `-readValue-transformation`: Read Value input transformation
 ### `-set-internal-memory-space`: Set specific memory space for all internal memory buffers
 This pass updates all Types for internal memory buffers and sets the specified memory space for them.
 

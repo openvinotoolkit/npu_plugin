@@ -410,8 +410,7 @@ mlir::Operation* createRTLayer(IE::ReadValueOp origOp, ArrayRef<mlir::Value> all
 
     IERT::ReadValueOp::Adaptor newOp(allBufs);
 
-
-    return b.create<IERT::ReadValueOp>(origOp.getLoc(), newOp.input(), newOp.output_buff(), origOp.variable_id());
+    return b.create<IERT::ReadValueOp>(origOp.getLoc(), newOp.input(), newOp.second_input(), newOp.output_buff(), origOp.variable_id());
 }
 
 mlir::Operation* createRTLayer(IE::AssignOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {

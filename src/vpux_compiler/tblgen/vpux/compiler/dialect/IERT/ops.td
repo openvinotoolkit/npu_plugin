@@ -303,6 +303,7 @@ def IERT_ReadValueOp :
 
     let arguments = (ins
         AnyMemRef:$input,
+        AnyMemRef:$second_input,
         AnyMemRef:$output_buff,
 
         StrAttr:$variable_id
@@ -314,7 +315,7 @@ def IERT_ReadValueOp :
 
     let assemblyFormat = [{
         attr-dict
-        `inputs` `(` $input `:` type($input) `)`
+        `inputs` `(` $input `:` type($input) `,` $second_input `:` type($second_input) `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
         `->` type(results)
     }];

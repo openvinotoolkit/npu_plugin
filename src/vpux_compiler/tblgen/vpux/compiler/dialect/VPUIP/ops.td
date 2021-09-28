@@ -445,6 +445,7 @@ def VPUIP_ReadValueUPAOp :
 
     let arguments = (ins
         AnyMemRef:$input,
+        AnyMemRef:$second_input,
         AnyMemRef:$output_buff,
 
         Variadic<VPUIP_Barrier>:$waitBarriers,
@@ -460,11 +461,10 @@ def VPUIP_ReadValueUPAOp :
         AnyMemRef:$output
     );
 
-// , "mlir::StringAttr":$variable_id
-
     let builders = [
         OpBuilder<
             (ins "mlir::Value":$input,
+                 "mlir::Value":$second_input,
                  "mlir::Value":$output,
                  "mlir::StringAttr":$variable_id
                  )
@@ -477,7 +477,7 @@ def VPUIP_ReadValueUPAOp :
 
     let assemblyFormat = [{
         attr-dict
-        `inputs` `(` $input `:` type($input) `)`
+        `inputs` `(` $input `:` type($input) `,` $second_input `:` type($second_input) `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
         (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
         (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?

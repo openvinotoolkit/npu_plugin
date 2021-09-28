@@ -1593,7 +1593,7 @@ Syntax:
 
 ```
 operation ::= `VPUIP.ReadValueUPA` attr-dict
-              `inputs` `(` $input `:` type($input) `)`
+              `inputs` `(` $input `:` type($input) `,` $second_input `:` type($second_input) `)`
               `outputs` `(` $output_buff `:` type($output_buff) `)`
               (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
               (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
@@ -1614,6 +1614,7 @@ operation ::= `VPUIP.ReadValueUPA` attr-dict
 | Operand | Description |
 | :-----: | ----------- |
 `input` | memref of any type values
+`second_input` | memref of any type values
 `output_buff` | memref of any type values
 `waitBarriers` | VPUIP Barrier Type
 `updateBarriers` | VPUIP Barrier Type
