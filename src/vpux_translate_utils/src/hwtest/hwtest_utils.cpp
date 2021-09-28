@@ -675,5 +675,26 @@ std::vector<int32_t> generateWeightsTablesValuesWithSparsity(const nb::TestCaseJ
     return weightsTableVals;
 }
 
+SmallVector<int64_t> getWeightsPaddedShape(SmallVector<int64_t> wt_shape, bool isDepthwiseConv) {
+    unsigned short kernelWidth = wt_shape[3];
+    unsigned short kernelHeight = wt_shape[2];
+
+    // Initializions are done assuming regular convolution and then eventually modified for depthwise
+    auto inputChannels = wt_shape[1];
+    auto outputChannels = wt_shape[0];
+    if (isDepthwiseConv)
+        // outputChannels = inputChannels;
+        inputChannels = outputChannels;  // Backward definition NB vs MCM
+
+    auto weightSetDimension = kernelWidth * kernelHeight * inputChannels;
+    if (isDepthwiseConv)
+        weightSetDimension = kernelWidth * kernelHeight;
+
+    auto weightSetDimensionPadded = round_up(weightSetDimension, 16);
+
+    SmallVector<int64_t> wt_shape_padded({outputChannels, 1, 1, weightSetDimensionPadded});
+    return wt_shape_padded;
+}
+
 }  // namespace hwtest
 }  // namespace vpux

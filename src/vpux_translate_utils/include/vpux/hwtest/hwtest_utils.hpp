@@ -128,5 +128,8 @@ std::vector<int32_t> generateWeightsTablesValuesWithSparsity(const nb::TestCaseJ
                                                              mlir::MemRefType weights,
                                                              mlir::MemRefType actWindow_cmx_type, std::size_t offset,
                                                              ArrayRef<int64_t> wtTbl_data_shape, size_t weights_offset);
+
+SmallVector<int64_t> getWeightsPaddedShape(SmallVector<int64_t> wt_shape, bool isDepthwiseConv);
+
 }  // namespace hwtest
 }  // namespace vpux
