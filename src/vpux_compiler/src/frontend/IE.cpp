@@ -1854,6 +1854,20 @@ mlir::OwningModuleRef vpux::IE::importNetwork(mlir::MLIRContext* ctx, InferenceE
     log.trace("Run common nGraph passes");
     runNGraphPasses(netGraph, rootTiming);
 
+    auto inputsInfo = cnnNet.getInputsInfo();
+    auto outputsInfo = cnnNet.getOutputsInfo();
+    for (auto& inputInfo : inputsInfo) {
+        if (inputInfo.second->getLayout() == InferenceEngine::Layout::SCALAR) {
+            inputInfo.second->setLayout(InferenceEngine::Layout::C);
+        }
+    }
+
+    for (auto& outputInfo : outputsInfo) {
+        if (outputInfo.second->getLayout() == InferenceEngine::Layout::SCALAR) {
+            outputInfo.second->reshape({1}, InferenceEngine::Layout::C);
+        }
+    }
+
     auto module = mlir::ModuleOp::create(mlir::UnknownLoc::get(ctx), StringRef(cnnNet.getName()));
     const auto mainFuncName = mlir::FlatSymbolRefAttr::get(ctx, "main");
 
