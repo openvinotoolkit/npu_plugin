@@ -96,19 +96,19 @@ TEST_P(VpuxInferRequestOutputTests, canGetOutputBlob_deprecatedAPI) {
         const auto& blobName       = outputsInfo.begin()->first;
         const auto& blobTensorDesc = outputsInfo.begin()->second->getTensorDesc();
 
-        std::shared_ptr<InferenceEngine::Blob> actualBlob;
+        InferenceEngine::Blob::Ptr actualBlob;
 
         ASSERT_NO_THROW(actualBlob = KmbLayerTestsCommon::inferRequest.GetBlob(blobName));
         ASSERT_TRUE(actualBlob) << "Plugin didn't allocate Output blobs";
         ASSERT_FALSE(actualBlob->buffer() == nullptr) << "Plugin didn't allocate Output blobs";
 
-        const auto tensorDescription = actualBlob->getTensorDesc();
-        auto dims = tensorDescription.getDims();
+        const auto& tensorDescription = actualBlob->getTensorDesc();
+        const auto& dims = tensorDescription.getDims();
         ASSERT_TRUE(blobTensorDesc.getDims() == dims)
                     << "Output blob dimensions don't match network Output";
 
         ASSERT_EQ(outputsInfo.begin()->second->getPrecision(), tensorDescription.getPrecision())
-                    << "Output blob precision don't match network Output";
+                    << "Output blob precision doesn't match network Output";
 
     }
 }
@@ -119,15 +119,15 @@ TEST_P(VpuxInferRequestOutputTests, getOutputAfterSetOutputDoNotChangeOutput) {
     KmbLayerTestsCommon::Run();
     if (KmbLayerTestsCommon::inferRequest) {
         const auto outputsInfo = KmbLayerTestsCommon::cnnNetwork.getOutputsInfo();
-        const std::string& blobName = outputsInfo.begin()->first;
+        const auto& blobName = outputsInfo.begin()->first;
         const auto& blobTensorDesc = outputsInfo.begin()->second->getTensorDesc();
 
         // Set output blob 
-        std::shared_ptr<InferenceEngine::Blob> OutputBlob = FuncTestUtils::createAndFillBlob(blobTensorDesc);
+        InferenceEngine::Blob::Ptr OutputBlob = FuncTestUtils::createAndFillBlob(blobTensorDesc);
         ASSERT_NO_THROW(KmbLayerTestsCommon::inferRequest.SetBlob(blobName, OutputBlob));
         
         // Get output blob
-        std::shared_ptr<InferenceEngine::Blob> actualBlob;
+        InferenceEngine::Blob::Ptr actualBlob;
         ASSERT_NO_THROW(actualBlob = KmbLayerTestsCommon::inferRequest.GetBlob(blobName));
 
         // Compare blobs' output
@@ -142,12 +142,12 @@ TEST_P(VpuxInferRequestOutputTests, canInferWithGetInOut) {
     if (KmbLayerTestsCommon::inferRequest) {
         // Get input blob
         const auto inputsInfo  = KmbLayerTestsCommon::cnnNetwork.getInputsInfo();
-        const std::string& inputBlobName = inputsInfo.begin()->first;
+        const auto& inputBlobName = inputsInfo.begin()->first;
         InferenceEngine::Blob::Ptr inputBlob = KmbLayerTestsCommon::inferRequest.GetBlob(inputBlobName);
 
         // Get output blob
         const auto outputsInfo = KmbLayerTestsCommon::cnnNetwork.getOutputsInfo();
-        const std::string& outputBlobName = outputsInfo.begin()->first;
+        const auto& outputBlobName = outputsInfo.begin()->first;
         InferenceEngine::Blob::Ptr outputBlob = KmbLayerTestsCommon::inferRequest.GetBlob(outputBlobName);
 
         // Infer
@@ -160,11 +160,11 @@ TEST_P(VpuxInferRequestOutputTests, canStartAsyncInferWithGetInOut) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     KmbLayerTestsCommon::Run();
     if (KmbLayerTestsCommon::inferRequest) {
-        const auto inputsInfo  = KmbLayerTestsCommon::cnnNetwork.getInputsInfo();
-        const std::string& inputBlobName = inputsInfo.begin()->first;
+        const auto inputsInfo = KmbLayerTestsCommon::cnnNetwork.getInputsInfo();
+        const auto& inputBlobName = inputsInfo.begin()->first;
 
         const auto outputsInfo = KmbLayerTestsCommon::cnnNetwork.getOutputsInfo();
-        const std::string& outputBlobName = outputsInfo.begin()->first;
+        const auto& outputBlobName = outputsInfo.begin()->first;
 
         InferenceEngine::Blob::Ptr inputBlob = KmbLayerTestsCommon::inferRequest.GetBlob(inputBlobName);
 
