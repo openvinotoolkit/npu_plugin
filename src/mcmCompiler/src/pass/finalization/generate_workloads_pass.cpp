@@ -260,7 +260,10 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                         nWorkloadsCompilationDescriptor = 2;
                     }
                     if(subTensorHeight <= 4)
+                    {
+                        std::cout << "1 wks" << std::endl;
                         nWorkloadsCompilationDescriptor = 1;
+                    }
                     
                     std::cout << nWorkloadsCompilationDescriptor << std::endl;
                     nWorkloadsSplitPool.push_back(nWorkloadsCompilationDescriptor);
