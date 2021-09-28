@@ -237,8 +237,20 @@ private:
 void SplitFakeQuantPass::safeRunOnFunc() {
     auto& ctx = getContext();
 
+    const auto isLegal = [&](IE::FakeQuantizeOp origOp) {
+        auto inLowConst = origOp.input_low().getDefiningOp<Const::DeclareOp>();
+        auto inHighConst = origOp.input_high().getDefiningOp<Const::DeclareOp>();
+        auto outLowConst = origOp.output_low().getDefiningOp<Const::DeclareOp>();
+        auto outHighConst = origOp.output_high().getDefiningOp<Const::DeclareOp>();
+
+        auto inConst = origOp.input().getDefiningOp<Const::DeclareOp>();
+
+        return ((inConst == nullptr) && (inLowConst.contentAttr() != outLowConst.contentAttr() ||
+                                         inHighConst.contentAttr() != outHighConst.contentAttr()));
+    };
+
     mlir::ConversionTarget target(ctx);
-    target.addIllegalOp<IE::FakeQuantizeOp>();
+    target.addDynamicallyLegalOp<IE::FakeQuantizeOp>(isLegal);
     target.addLegalOp<Const::DeclareOp>();
     target.addLegalOp<IE::QuantizeOp>();
     target.addLegalOp<IE::DequantizeOp>();
