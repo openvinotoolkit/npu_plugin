@@ -1292,6 +1292,12 @@ operation ::= `IERT.Multiply` attr-dict
 ```
 
 
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`post_op` | vpux::IE::PostOp | DictionaryAttr with field(s): 'name', 'attrs' (each field having its own constraints)
+
 #### Operands:
 
 | Operand | Description |
@@ -1944,6 +1950,12 @@ operation ::= `IERT.Subtract` attr-dict
               `->` type(results)
 ```
 
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`post_op` | vpux::IE::PostOp | DictionaryAttr with field(s): 'name', 'attrs' (each field having its own constraints)
 
 #### Operands:
 

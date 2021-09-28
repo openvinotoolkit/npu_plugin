@@ -502,7 +502,8 @@ def IE_MultiplyOp :
         RankedTensorOf<[F16, F32]>:$input1,
         RankedTensorOf<[F16, F32]>:$input2,
 
-        IE_AutoBroadcastType:$auto_broadcast
+        IE_AutoBroadcastType:$auto_broadcast,
+        OptionalAttr<IE_PostOp>:$post_op
     );
 
     let results = (outs
@@ -1930,7 +1931,8 @@ def IE_SubtractOp :
         RankedTensorOf<[F16, F32]>:$input1,
         RankedTensorOf<[F16, F32]>:$input2,
 
-        IE_AutoBroadcastType:$auto_broadcast
+        IE_AutoBroadcastType:$auto_broadcast,
+        OptionalAttr<IE_PostOp>:$post_op
     );
 
     let results = (outs

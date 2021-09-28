@@ -92,6 +92,12 @@ void vpux::VPUIP::NCEClusterTaskOp::inferLayoutInfo(mlir::Operation* origOp, IE:
             .Case<IE::AddOp>([&](IE::AddOp) {
                 info.fill(DimsOrder::NHWC);
             })
+            .Case<IE::MultiplyOp>([&](IE::MultiplyOp) {
+                info.fill(DimsOrder::NHWC);
+            })
+            .Case<IE::SubtractOp>([&](IE::SubtractOp) {
+                info.fill(DimsOrder::NHWC);
+            })
             .Default([](mlir::Operation* unknownOp) -> bool {
                 VPUX_THROW("Operation '{0}' the operation is not supported by the DPU", unknownOp->getName());
             });

@@ -418,8 +418,11 @@ def RewriteAdd :
 
 def RewriteMultiply :
         Pat<
-            (IERT_MultiplyOp $input1, $input2, $output),
-            (createEltwiseUPAOp<"MULTIPLY"> $input1, $input2, $output)
+            (IERT_MultiplyOp $input1, $input2, $output, $post_op),
+            (createEltwiseUPAOp<"MULTIPLY"> $input1, $input2, $output),
+            [
+                (HasNoValue $post_op)
+            ]
         >;
 
 def RewriteDivide :
@@ -459,8 +462,11 @@ def RewriteMaximum :
         >;
 def RewriteSubtract :
         Pat<
-            (IERT_SubtractOp $input1, $input2, $output),
-            (createEltwiseUPAOp<"SUBTRACT"> $input1, $input2, $output)
+            (IERT_SubtractOp $input1, $input2, $output, $post_op),
+            (createEltwiseUPAOp<"SUBTRACT"> $input1, $input2, $output),
+            [
+                (HasNoValue $post_op)
+            ]
         >;
 //
 // IERT.GRN -> VPUIP.GRNUPA
