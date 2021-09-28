@@ -2546,6 +2546,120 @@ def VPUIP_LSTMCellUPAOp :
 }
 
 
+
+def VPUIP_SW_Kernel_run
+    : VPUIP_Op<"SW.Kernel.run"> {
+
+let arguments  = (ins
+        FlatSymbolRefAttr:$kernelFunction,
+        Variadic<AnyMemRef>:$args
+    );
+
+  let printer = [{ return print(p, *this); }];
+  let parser = [{ return parse$cppClass(parser, result); }];
+
+    let extraClassDeclaration = [{
+        static mlir::ParseResult parseSW_Kernel_run(mlir::OpAsmParser& parser, ::mlir::OperationState &result);
+        static void print(mlir::OpAsmPrinter& printer, SW_Kernel_run &runner);
+       }];
+
+
+
+   /* let assemblyFormat = [{
+        attr-dict
+        `(` $inputs `,` $outputs
+        (',' $callArg3^)?
+        (',' $callArg4^)?
+        `)`
+    }];*/
+
+    let results = (outs Variadic<AnyMemRef>:$results);
+}
+
+//
+// NCEClusterTaskOp
+// VPUIP_SW_Kernel
+//
+
+def VPUIP_SW_Kernel :
+        VPUIP_TaskOp<1, "SW.Kernel",
+            [
+                ViewLikeOpInterface,
+                NoRegionArguments
+            ]
+            # GraphRegionNoTerminator.traits
+        > {
+
+    let summary = "Software Layer Task";
+
+    let description = [{
+        This operation defines Activation shave task
+    }];
+
+    let arguments = (ins
+        FlatSymbolRefAttr:$kernelFunction,
+        Variadic<AnyMemRef>:$inputs,
+        Variadic<AnyMemRef>:$outputs,
+        OptionalAttr<IntAttr>:$tileIndex,
+        Variadic<VPUIP_Barrier>:$waitBarriers,
+        Variadic<VPUIP_Barrier>:$updateBarriers
+    );
+
+//    let results = (outs
+//        MemRefOf<[F16, quant_QuantizedType]>:$output
+//    );
+     let results = (outs Variadic<AnyMemRef>:$results);
+
+    let regions = (region
+        SizedRegion<1>:$body
+    );
+
+    let builders = [
+        OpBuilder<(ins
+            "mlir::ValueRange":$inputs,
+            "mlir::ValueRange":$outputs
+        )>
+    ];
+
+    let assemblyFormat = [{
+        attr-dict
+
+        $kernelFunction
+
+        `inputs` custom<IOForward>($inputs, type($inputs))
+        `outputs` custom<IOForward>($outputs, type($outputs))
+
+        (`on` `tile` $tileIndex^)?
+        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+        `->` type(results)
+
+        $body
+
+    }];
+
+//    let verifier = [{
+//        return vpux::VPUIP::verifyOp(*this);
+//    }];
+
+    let extraClassDeclaration = [{
+
+        static mlir::ParseResult parseIOForward(mlir::OpAsmParser& parser,
+                                                mlir::ArrayRef<mlir::OpAsmParser::OperandType> args,
+                                                mlir::ArrayRef<mlir::Type> argsTypes);
+        static void printIOForward(mlir::OpAsmPrinter& printer,
+                                   vpux::VPUIP::SW_Kernel&,
+                                   mlir::OperandRange args,
+                                   mlir::OperandRange::type_range argsTypes);
+
+        static vpux::VPUIP::TaskType getTaskType() {
+            return vpux::VPUIP::TaskType::ACTShave;
+        }
+    }] # IERT_InferLayerReturnTypes<1>.impl;
+}
+
+
+
 //
 // ACTShaveTaskOp
 //

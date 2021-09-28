@@ -30,5 +30,9 @@ VPUIP::BlobWriter::SpecificTask ACTShaveTaskOp::serialize(VPUIP::BlobWriter& wri
     return writer.createACTShaveTask(*this);
 }
 
+VPUIP::BlobWriter::SpecificTask  SW_Kernel::serialize(vpux::VPUIP::BlobWriter&) {
+    return {};
+}
+
 }  // namespace VPUIP
 }  // namespace vpux
