@@ -865,9 +865,10 @@ void convert(std::shared_ptr<ngraph::op::PowerIE> power, mv::OpModel& mcmModel, 
         auto reciprocal_result = mcmModel.reciprocal(opName, mcmData);
         reciprocal_result->setQuantParams(initialQuantParams());
         registerOutputs(power, {reciprocal_result}, mcmOutputsMap);
-    } else
+    } else {
         IE_THROW() << "Operation " << power->get_type_name() << " " + opName + " has unsupported power "
                    << power->power;
+    }
 }
 
 void convert(std::shared_ptr<McmScale> scale, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {

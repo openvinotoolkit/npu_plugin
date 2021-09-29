@@ -438,7 +438,7 @@ std::unique_ptr<mv::CompilationUnit> createCompilationUnit(
                 }
                 mcmCompDesc.setPassArg("GlobalConfigParams", "streaming_strategy", overrideStrategies);
             }
-            catch (std::exception& ex) {
+            catch (std::exception&) {
                 throw std::logic_error("layerStreamStrategies parsing error: format should be semi-colon separated string "
                                  "layername:W:H:C:K:N, eg, conv1:1:2:3:4:5");
             }
@@ -468,7 +468,7 @@ std::unique_ptr<mv::CompilationUnit> createCompilationUnit(
                 }
                 mcmCompDesc.setPassArg("GlobalConfigParams", "sparsity_strategy", overrideStrategies);
             }
-            catch (std::exception& ex) {
+            catch (std::exception&) {
                 throw std::logic_error("layerSparsityStrategies parsing error: format should be semi-colon separated string "
                                  "layername:input_sparsity:output_sparsity:weights_sparsity, e.g. conv1:true:false:true");
             }
