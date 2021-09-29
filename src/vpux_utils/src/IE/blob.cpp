@@ -235,6 +235,8 @@ void cvtBlobPrecisionImpl(const MemoryBlob::Ptr& in, const MemoryBlob::Ptr& out,
     } else {
         const float minU8 = static_cast<float>(std::numeric_limits<uint8_t>().lowest());
         const float maxU8 = static_cast<float>(std::numeric_limits<uint8_t>().max());
+        std::cout << "CvtBlobPrecisionImpl: zp = " << static_cast<uint16_t>(quantParams._zeroPoint) << std::endl;
+        std::cout << "scale = " << quantParams._scale << std::endl;
         if (inPrecision == Precision::FP32) {
             loop_1d(LoopExecPolicy::Parallel, in->size(), [inPtr, outPtr, &quantParams, minU8, maxU8](int64_t index) {
                 const float inValueQuant =
