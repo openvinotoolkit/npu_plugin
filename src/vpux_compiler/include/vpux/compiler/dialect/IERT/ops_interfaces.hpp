@@ -155,6 +155,12 @@ public:
     }
 };
 
+//
+// isPureViewOp
+//
+
+bool isPureViewOp(mlir::Operation* op);
+
 }  // namespace IERT
 }  // namespace vpux
 

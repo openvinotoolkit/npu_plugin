@@ -16,6 +16,8 @@
 #include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/quantization.hpp"
 
+#include <mlir/Interfaces/ViewLikeInterface.h>
+
 using namespace vpux;
 
 //
@@ -298,6 +300,14 @@ void vpux::IERT::inferLayoutInfoSameInOutSpecificDimsOrder(IE::LayerLayoutInfo& 
     const auto supportedOrder = *supportedOrderIt;
     info.setInput(0, supportedOrder);
     info.setOutput(0, supportedOrder);
+}
+
+//
+// isPureViewLike
+//
+
+bool vpux::IERT::isPureViewOp(mlir::Operation* op) {
+    return mlir::isa<mlir::ViewLikeOpInterface>(op) && !mlir::isa<IERT::LayerOpInterface>(op);
 }
 
 //
