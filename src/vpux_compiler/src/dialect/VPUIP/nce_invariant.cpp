@@ -44,9 +44,11 @@ int64_t vpux::VPUIP::NCEInvariant::getChannelAlignment(mlir::Type elemType) {
     return std::max<int64_t>(128 / typeSizeInBits.count(), 16);
 }
 
-mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyConvChannels(mlir::Location loc, mlir::ShapedType filterType,
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyConvChannels(vpux::DimsOrder inDimsOrder, mlir::Location loc, mlir::ShapedType filterType,
                                                                   Logger log) {
     log.setName("NCEInvariant");
+
+    Logger::global().error("order: {0}", inDimsOrder);
 
     if (filterType.getRank() != 4) {
         log.trace("[{0}] Filter has unsupported rank: {1}", loc, filterType.getRank());
@@ -80,11 +82,15 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyConvChannels(mlir::Location
 }
 
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyChannels(IE::ConvolutionOp origOp, Logger log) {
-    return verifyConvChannels(origOp->getLoc(), origOp.filter().getType().cast<mlir::ShapedType>(), log);
+    const auto inDimsOrder = DimsOrder::fromValue(origOp->getOperand(0));
+    Logger::global().error("order: {0}", inDimsOrder);
+    return verifyConvChannels(inDimsOrder, origOp->getLoc(), origOp.filter().getType().cast<mlir::ShapedType>(), log);
 }
 
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyChannels(IERT::ConvolutionOp origOp, Logger log) {
-    return verifyConvChannels(origOp->getLoc(), origOp.filter().getType().cast<mlir::ShapedType>(), log);
+    const auto inDimsOrder = DimsOrder::fromValue(origOp->getOperand(0));
+    Logger::global().error("order: {0}", inDimsOrder);
+    return verifyConvChannels(inDimsOrder, origOp->getLoc(), origOp.filter().getType().cast<mlir::ShapedType>(), log);
 }
 
 //
@@ -239,6 +245,7 @@ Byte getRequiredCMX(ArrayRef<mlir::MemRefType> operands, int64_t numChannels) {
     Byte requiredCMX(0);
 
     for (const auto& operand : operands) {
+        Logger::global().error("requiredCMX: {0}",getTypeTotalSize(operand));
         requiredCMX += getTypeTotalSize(operand);
     }
 

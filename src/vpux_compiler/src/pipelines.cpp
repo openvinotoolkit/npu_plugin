@@ -154,6 +154,7 @@ void vpux::buildHardwareModePipeline(mlir::OpPassManager& pm, bool enableProfili
     }
 
     // Partially lower IERT->VPUIP (NCE Operations only)
+    pm.addPass(IERT::createChannelMajorConvolutionCompatibleOpsPass(log));
     pm.addPass(IERT::createCMXTilingPass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
     pm.addPass(createConvertToNCEOpsPass(log));

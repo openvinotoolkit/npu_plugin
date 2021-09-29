@@ -54,7 +54,7 @@ public:
 public:
     static mlir::LogicalResult verifyChannels(IE::ConvolutionOp origOp, Logger log = Logger::global());
     static mlir::LogicalResult verifyChannels(IERT::ConvolutionOp origOp, Logger log = Logger::global());
-    static mlir::LogicalResult verifyConvChannels(mlir::Location loc, mlir::ShapedType filterType,
+    static mlir::LogicalResult verifyConvChannels(vpux::DimsOrder inDimsOrder, mlir::Location loc, mlir::ShapedType filterType,
                                                   Logger log = Logger::global());
 
     static mlir::LogicalResult verifyChannels(IE::MaxPoolOp origOp, Logger log = Logger::global());

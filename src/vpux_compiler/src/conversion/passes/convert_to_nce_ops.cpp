@@ -267,6 +267,9 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
     // Get dimensions
     //
 
+    const auto inDimsOrder = DimsOrder::fromValue(origOp->getOperand(0));
+    Logger::global().error("Conv input order: {0}", inDimsOrder);
+
     const auto filterShape = getShape(origOp.filter());
 
     const auto IC = filterShape[IE::Dims4D::Filter::IC];
@@ -290,6 +293,8 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
 
     auto inputDPU = prepareTensorForDPU(rewriter, origOp->getLoc(), origOp.input());
 
+    origOp->getAttr("ChannelMajorCompitable").cast<mlir::IntegerAttr>().getInt();
+    Logger::global().error("ChannelMajorCompitable: {0}", origOp->getAttr("ChannelMajorCompitable").cast<mlir::IntegerAttr>().getInt());
     if(IC == 3 && (width % 16 == 0))
     {
         alignedFilter = alignchannelMajorWeightTensor(rewriter, origOp->getLoc(), origOp.filter());
