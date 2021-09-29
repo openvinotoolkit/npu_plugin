@@ -681,8 +681,8 @@ class CMX_Concatenation {
         }
       }
 
-      std::cout << "Total concats: " << numConcats << std::endl;
-      std::cout << "CMXed concats: " << cmxedConcats << std::endl;
+      std::cout << numConcats << std::endl;
+      std::cout << cmxedConcats << std::endl;
 
       validate_dpu_ins_level(concat_subgraphs);
     }

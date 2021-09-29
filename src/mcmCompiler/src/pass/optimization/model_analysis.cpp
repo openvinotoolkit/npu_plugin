@@ -7,6 +7,7 @@
 #include "include/mcm/tensor/quantization_params.hpp"
 #include "include/mcm/utils/custom_strings.hpp"
 #include "include/mcm/pass/pass_utils.hpp"
+#include "include/mcm/utils/custom_math.hpp"
 
 static void modelAnalysisFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
@@ -65,6 +66,90 @@ int countInputLayers( mv::ComputationModel& model, mv::Data::OpListIterator op){
     return inputs;
 }
 
+double tileEfficiency(mv::Data::OpListIterator opIt, bool SOH, bool mcm = true)
+{
+    auto output = opIt->getOutputTensor(0)->getShape();
+    size_t K = output[mv::IO_CHANNEL_DIMENSION];
+    size_t H = output[mv::IO_HEIGHT_DIMENSION];
+    size_t W = output[mv::IO_WIDTH_DIMENSION];
+    auto KHW = K * H * W;
+
+    auto denom1 = mv::round_up(H, 4) * mv::round_up(W, 4) * mv::round_up(K, 320);
+    double opt1 = (double) KHW / (double) denom1;
+
+    auto denom2 = mv::round_up(H, 80) * mv::round_up(W, 1) * mv::round_up(K, 64);
+    double opt2 = (double) KHW / (double) denom2;
+
+    auto denom3 = mv::round_up(H, 20) * mv::round_up(W, 4) * mv::round_up(K, 64);
+    double opt3 = (double) KHW / (double) denom3;
+
+    auto denom4 = mv::round_up(H, 16) * mv::round_up(W, 1) * mv::round_up(K, 320);
+    double opt4 = (double) KHW / (double) denom4;
+
+    auto denom5 = mv::round_up(H, 16) * mv::round_up(W, 20) * mv::round_up(K, 16);
+    double opt5 = (double) KHW / (double) denom5;
+
+    auto denom6 = mv::round_up(H, 64) * mv::round_up(W, 5) * mv::round_up(K, 16);
+    double opt6 = (double) KHW / (double) denom6;
+
+    double max1 = std::max(opt1, opt2);
+    double max2 = std::max(opt3, opt4);
+    double max3 = std::max(max1, max2);
+    double max4 = std::max(opt5, opt6);
+
+    if(mcm && SOH)
+    {
+        return max4;
+    }
+    if(mcm && !SOH)
+    {
+        return max3;
+    }
+    if(!mcm) //pick whichever is best, regardless of strategy chosen
+    {
+        return std::max(max3, max4);
+    }
+
+    return 1.0;
+}
+
+bool calcComputeOrDataBound(mv::Data::OpListIterator opIt, double macs, double bytes, bool mcm)
+{
+    if(!opIt->hasAttr("splitStrategy")) return false;
+
+    auto clusteringStrategy = opIt->get<std::string>("splitStrategy");
+    double tiles = 20;
+    if(clusteringStrategy == "Clustering")
+        tiles = 5;
+
+    double fp16Mult = 1.0;
+    if(opIt->getInputTensor(0)->get<mv::DType>("dType") == mv::DType("Float16"))
+        fp16Mult = 0.25;
+
+    double tileEff = 1.0;
+    if(clusteringStrategy == "SplitOverH")
+        tileEff = tileEfficiency(opIt, true);
+    else
+        tileEff = tileEfficiency(opIt, false);
+
+    if(!mcm)
+        tileEff = tileEfficiency(opIt, true, false);
+
+
+    //MACs / (256 * fp16Mult * tiles * tileEff)   / 700
+    auto computeTime = (macs / ((256*fp16Mult * tiles) * tileEff)) / 700;
+    // bytes / BW / 700
+    auto dmaTime = bytes / 28.5714 / 700;
+
+    // std::cout << opIt->getName() << ": " << computeTime << " ? " << dmaTime << std::endl;
+    // std::cout << "     " << macs << " / (" << (256*fp16Mult*tiles) << " * " << tileEff << ")  /  " << 700 << std::endl; 
+
+    if(computeTime > dmaTime)
+        return true;
+
+    return false;
+}
+
 
 void modelAnalysisFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&)
 {
@@ -94,6 +179,13 @@ void modelAnalysisFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, m
     long long int sizeToDDR = 0;
     size_t totalBranches = 1;
     size_t maxBranches = 1;
+    long long int totalMacs = 0;
+    long long int computeBoundMacs = 0;
+    size_t computeBoundLayers = 0;
+    size_t dataBoundLayers = 0;
+    long long int dataBoundBytes = 0;
+    size_t networkComputeBoundLayers = 0;
+    size_t networkDataBoundLayers = 0;
 
     if(base){
         std::vector<mv::Data::OpListIterator> ops = om.topologicalSort();
@@ -107,7 +199,6 @@ void modelAnalysisFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, m
                 (opType == "ConstantDataElement") ||
                 (opType == "WeightsTable") ||
                 (opType == "SparsityMap") ||
-                (opType == "Input") ||
                 (opType == "Output") )
                 continue;
 
@@ -147,14 +238,65 @@ void modelAnalysisFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, m
                     numFP16tasks++;
                 else
                     numDPUtasks++;
-                
+
+                size_t baseKernelCost = 1;
+                long long int bytes = 0;
+                if (opType == "MaxPool")
+                {
+                    auto kernel = opIt->get<std::array<unsigned short,2>>("kSize");
+                    baseKernelCost = kernel[0] * kernel[1];
+                }
+                else if ((opType == "DepthwiseConv") || (opType == "Conv"))
+                {
+                    auto weights = opIt->getInputTensor(1);
+                    auto weightsShape = weights->getShape();
+                    baseKernelCost = weightsShape[mv::KERNEL_WIDTH] * weightsShape[mv::KERNEL_HEIGHT];
+
+                    if(opType == "Conv")
+                        baseKernelCost *= weightsShape[mv::KERNEL_INPUT_CHANNELS];
+
+                    bytes += weights->computeTotalSize();
+                }
+
+                long long int macs = (baseKernelCost * opIt->getOutputTensor(0)->computeTotalSize());
+                totalMacs += macs;
+
                 auto totalActSize = getActivationSizes(opIt);
                 if(totalActSize < 917504)
                     DPUactsLessCMX++;
                 else if(totalActSize >= (917504*4))
+                {
                     DPUactsMoreCMX++;
+                    bytes += totalActSize;
+                }
                 else
+                {
+                    if(opIt->hasAttr("splitStrategy") && opIt->get<std::string>("splitStrategy") == "Clustering")
+                        bytes += totalActSize;
                     DPUactsBtwnCMX++;
+                }
+
+
+                bool isComputeBound = calcComputeOrDataBound(opIt, macs, bytes, true);
+                if(isComputeBound)
+                {
+                    computeBoundMacs += macs;
+                    computeBoundLayers++;
+                }
+                else
+                {
+                    dataBoundBytes += bytes;
+                    dataBoundLayers++;
+                }
+
+                bool isNetComputeBound  = calcComputeOrDataBound(opIt, macs, bytes, false);
+                if(isNetComputeBound)
+                {
+                    networkComputeBoundLayers++;
+                }
+                else{
+                    networkDataBoundLayers++;
+                }
             }
 
         }
@@ -202,32 +344,77 @@ void modelAnalysisFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, m
         }
     }
 
+    if(numOutputs > 1)  numOutputs--; // If we have mutliple outputs, just count the implicits, not the final output
+
+    // if(base)
+    // {
+    //     std::cout << "Is Classification: " << std::boolalpha << isClassificationNet << std::endl;
+    //     std::cout << "Total Parallel branches: " << totalBranches << std::endl;
+    //     std::cout << "Max Parallel branches: " << maxBranches << std::endl;
+    //     std::cout << "Input size: " << sizeInput << std::endl;
+    //     std::cout << "Input shape: " << inputShape.toString() << std::endl;
+    //     std::cout << "Outputs: " << numOutputs << std::endl;
+    //     std::cout << "U8 DPU Tasks: " << numDPUtasks << std::endl;
+    //     std::cout << "FP16 DPU Tasks: " << numFP16tasks << std::endl;
+    //     std::cout << "Total MACs: " << totalMacs << std::endl;
+    //     std::cout << "DPU < CMX: " << DPUactsLessCMX << std::endl;
+    //     std::cout << "DPU > CMX: " << DPUactsMoreCMX << std::endl;
+    //     std::cout << "DPU ~ CMX: " << DPUactsBtwnCMX << std::endl;
+    //     std::cout << "MCM Compute-Bound MACs:" << computeBoundMacs << std::endl;
+    //     std::cout << "MCM Data-Bound Bytes:" << dataBoundBytes << std::endl;
+    //     std::cout << "MCM Compute-Bound Layers:" << computeBoundLayers << std::endl;
+    //     std::cout << "MCM Data-Bound Layers:" << dataBoundLayers << std::endl;
+    //     std::cout << "Topo Compute-Bound Layers:" << networkComputeBoundLayers << std::endl;
+    //     std::cout << "Topo Data-Bound Layers:" << networkDataBoundLayers << std::endl;
+    // }
+    // else
+    // {
+    //     std::cout << "Total UPA Tasks: " << numSWlayers << std::endl;
+    //     std::cout << "Intermediate UPA Tasks: " << numIntermSWlayers << std::endl;
+    //     std::cout << "UPA < CMX: " << UPAactsLessCMX << std::endl;
+    //     std::cout << "UPA > CMX: " << UPAactsMoreCMX << std::endl;
+    //     std::cout << "UPA ~ CMX: " << UPAactsBtwnCMX << std::endl;
+    //     std::cout << "DPU tasks tiled: " << numTiledDPUtasks << std::endl;
+    //     std::cout << "DMAs to CMX: " << dmaToCMX << std::endl;
+    //     std::cout << "Bytes moved to CMX: " << sizeToCMX << std::endl; 
+    //     std::cout << "DMAs to DDR: " << dmaToDDR << std::endl;
+    //     std::cout << "Bytes moved to DDR: " << sizeToDDR << std::endl; 
+
+    // }
+
     if(base)
     {
-        std::cout << "Is Classification: " << std::boolalpha << isClassificationNet << std::endl;
-        std::cout << "Total Parallel branches: " << totalBranches << std::endl;
-        std::cout << "Max Parallel branches: " << maxBranches << std::endl;
-        std::cout << "Input size: " << sizeInput << std::endl;
-        std::cout << "Input shape: " << inputShape.toString() << std::endl;
-        std::cout << "Outputs: " << numOutputs << std::endl;
-        std::cout << "U8 DPU Tasks: " << numDPUtasks << std::endl;
-        std::cout << "FP16 DPU Tasks: " << numFP16tasks << std::endl;
-        std::cout << "DPU < CMX: " << DPUactsLessCMX << std::endl;
-        std::cout << "DPU > CMX: " << DPUactsMoreCMX << std::endl;
-        std::cout << "DPU ~ CMX: " << DPUactsBtwnCMX << std::endl;
+        std::cout << isClassificationNet << std::endl;
+        std::cout << totalBranches << std::endl;
+        std::cout << maxBranches << std::endl;
+        std::cout << sizeInput << std::endl;
+        std::cout << inputShape.toString() << std::endl;
+        std::cout << numOutputs << std::endl;
+        std::cout << numDPUtasks << std::endl;
+        std::cout << numFP16tasks << std::endl;
+        std::cout << totalMacs << std::endl;
+        std::cout << DPUactsLessCMX << std::endl;
+        std::cout << DPUactsMoreCMX << std::endl;
+        std::cout << DPUactsBtwnCMX << std::endl;
+            std::cout << computeBoundMacs << std::endl;
+            std::cout << dataBoundBytes << std::endl;
+            std::cout <<  computeBoundLayers << std::endl;
+            std::cout <<  dataBoundLayers << std::endl;
+            std::cout << networkComputeBoundLayers << std::endl;
+            std::cout <<  networkDataBoundLayers << std::endl;
     }
     else
     {
-        std::cout << "Total UPA Tasks: " << numSWlayers << std::endl;
-        std::cout << "Intermediate UPA Tasks: " << numIntermSWlayers << std::endl;
-        std::cout << "UPA < CMX: " << UPAactsLessCMX << std::endl;
-        std::cout << "UPA > CMX: " << UPAactsMoreCMX << std::endl;
-        std::cout << "UPA ~ CMX: " << UPAactsBtwnCMX << std::endl;
-        std::cout << "DPU tasks tiled: " << numTiledDPUtasks << std::endl;
-        std::cout << "DMAs to CMX: " << dmaToCMX << std::endl;
-        std::cout << "Bytes moved to CMX: " << sizeToCMX << std::endl; 
-        std::cout << "DMAs to DDR: " << dmaToDDR << std::endl;
-        std::cout << "Bytes moved to DDR: " << sizeToDDR << std::endl; 
+        std::cout << numSWlayers << std::endl;
+        std::cout << numIntermSWlayers << std::endl;
+        std::cout << UPAactsLessCMX << std::endl;
+        std::cout << UPAactsMoreCMX << std::endl;
+        std::cout << UPAactsBtwnCMX << std::endl;
+        std::cout << numTiledDPUtasks << std::endl;
+        std::cout << dmaToCMX << std::endl;
+        std::cout << sizeToCMX << std::endl; 
+        std::cout << dmaToDDR << std::endl;
+        std::cout << sizeToDDR << std::endl; 
 
     }
 }
