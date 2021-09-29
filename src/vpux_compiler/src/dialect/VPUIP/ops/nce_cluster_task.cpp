@@ -87,6 +87,10 @@ void vpux::VPUIP::NCEClusterTaskOp::inferLayoutInfo(mlir::Operation* origOp, IE:
                 auto inputTensorShape = getShape(convOp.input());
                 auto width = inputTensorShape[IE::Dims4D::Act::W];
 
+                const auto inDimsOrder = DimsOrder::fromValue(convOp->getOperand(0));
+                Logger::global().error("order: {0}", inDimsOrder);
+                 Logger::global().error("operand 0: {0}", convOp->getOperand(0));
+
                 if(IC == 3 && (width % 16 == 0))
                 {
                     info.setInput(0, DimsOrder::NCHW);

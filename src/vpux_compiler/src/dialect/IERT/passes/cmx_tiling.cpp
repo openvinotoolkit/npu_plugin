@@ -654,9 +654,9 @@ void CMXTilingPass::safeRunOnFunc() {
     SimpleTiler simpleTiler(_log);
     simpleTiler.buildTilingPatterns(patterns);
 
-    if (mlir::failed(mlir::applyPartialConversion(getFunction(), target, std::move(patterns)))) {
-        signalPassFailure();
-    }
+    // if (mlir::failed(mlir::applyPartialConversion(getFunction(), target, std::move(patterns)))) {
+    //     signalPassFailure();
+    // }
 }
 
 }  // namespace
