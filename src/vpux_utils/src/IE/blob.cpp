@@ -243,6 +243,8 @@ void cvtBlobPrecisionImpl(const MemoryBlob::Ptr& in, const MemoryBlob::Ptr& out,
                         static_cast<float>(quantParams._zeroPoint + quantParams._scale * inPtr[index] + 0.5f);
                 outPtr[index] =
                         static_cast<OutT>(inValueQuant < minU8 ? minU8 : (inValueQuant > maxU8 ? maxU8 : inValueQuant));
+                std::cout << "in = " << inPtr[index] << std::endl;
+                std::cout << "out = " << static_cast<uint16_t>(outPtr[index]) << std::endl;
             });
         } else {
             loop_1d(LoopExecPolicy::Parallel, in->size(), [inPtr, outPtr, &quantParams, minU8, maxU8](int64_t index) {
