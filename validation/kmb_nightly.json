@@ -4378,7 +4378,7 @@
 
         {
             "name" : "BDK3_caffe2_FP16-INT8_modnet_custom",
-            "ir" : "models/clientmodels/BDK3/modnet_custom/caffe2/FP16-INT8/modnet_custom.xml",
+            "ir" : "models/clientmodels/BDK3/modnet_custom/onnx/FP16-INT8/modnet_custom.xml",
             "3720": {
                 "disabled" : true
             },
@@ -4392,7 +4392,7 @@
                 "disabled" : true
             },
             "AccuracyCheck" : {
-                "config": "modnet_custom-caffe2.yml",
+                "config": "modnet_custom-onnx.yml",
                 "subsample_size": 50
             },
             "category" : "MCM",

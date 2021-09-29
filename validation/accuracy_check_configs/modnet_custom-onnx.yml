@@ -16,12 +16,14 @@ models:
 
             preprocessing:
                 - type: resize
-                  size: 512
+                  dst_height: 192
+                  dst_width: 320
                 - type: rgb_to_bgr
             postprocessing:
                 - type: resize
                   apply_to: annotation
-                  size: 512
+                  dst_height: 192
+                  dst_width: 320
                 - type: rescale_mask
                   min: 0
                   max: 255
