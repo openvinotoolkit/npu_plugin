@@ -314,7 +314,7 @@
             },
             "AccuracyCheck" : {
                 "config": "yolo_v4_tiny_tf.yml",
-                "subsample_size": 10
+                "subsample_size": 5000
             },
             "category" : "MCM/release/precommit/dKMB/weekly_private",
             "CI-options" : {
@@ -3240,7 +3240,7 @@
             },
             "AccuracyCheck" : {
                 "config": "deeplabv3-tf.yml",
-                "subsample_size": 50
+                "subsample_size": 1449
             },
             "category" : "MCM/dKMB",
             "CI-options" : {
@@ -4367,7 +4367,7 @@
             },
             "AccuracyCheck" : {
                 "config": "edsr3.yml",
-                "subsample_size": 50
+                "subsample_size": 100
             },
             "category" : "MCM/dKMB/weekly_private",
             "CI-options" : {
