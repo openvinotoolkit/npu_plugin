@@ -62,15 +62,16 @@ func @main(%arg0: memref<1x1x1x1000xf16>, %arg1: memref<1x1x1x1000xf16>) -> memr
     %b0 = VPUIP.ConfigureBarrier<0> -> !VPUIP.Barrier
     %b1 = VPUIP.ConfigureBarrier<1> -> !VPUIP.Barrier
 
+
+    %4 = VPUIP.NNDMA inputs(%arg0 : memref<1x1x1x1000xf16>) outputs(%in_tile0_cmx : memref<1x1x1x1000xf16, "VPU_CMX_NN">) updates(%b0 : !VPUIP.Barrier) -> memref<1x1x1x1000xf16, "VPU_CMX_NN">
+
     // Genetic Kernel information for the scheduler.
     %sigmoid_krn =
         VPUIP.SW.Kernel
                     @VPU.SW.builtin_softmax             // The reference to the Kernel function.
 
-//                    inputs(%in_tile_cmx_0 as %arg0)     // Inputs/outputs buffers for generic operation interface
-//                    outputs(%out_tile_cmx_0 as %arg1)   // and their mapping to inner region.
-                    inputs(%in_tile_cmx_0 : memref<1x1x1x1000xf16, "VPU_CMX_NN">)
-                    outputs(%out_tile_cmx_0 : memref<1x1x1x1000xf16, "VPU_CMX_NN">)
+                    inputs(%in_tile_cmx_0 as %arg0)     // Inputs/outputs buffers for generic operation interface
+                    outputs(%out_tile_cmx_0 as %arg1)   // and their mapping to inner region.
                     on tile 0                           // The tile index to execute on.
                     waits(%b0  : !VPUIP.Barrier)
                     updates(%b1  : !VPUIP.Barrier)
@@ -84,18 +85,7 @@ func @main(%arg0: memref<1x1x1x1000xf16>, %arg1: memref<1x1x1x1000xf16>) -> memr
         }
 
 
-
-
-    %4 = VPUIP.NNDMA inputs(%arg0 : memref<1x1x1x1000xf16>) outputs(%in_tile0_cmx : memref<1x1x1x1000xf16, "VPU_CMX_NN">) updates(%2 : !VPUIP.Barrier) -> memref<1x1x1x1000xf16, "VPU_CMX_NN">
-
-#    %mk = VPUIP.ACTShaveTaskOp kernel(%sigmoid_krn : memref<1000xui8, "VPU_CMX_NN">)
-#    inputs(%0 : memref<1x1x1x1000xf16, "VPU_CMX_NN">)
-#    outputs(%1 : memref<1x1x1x1000xf16, "VPU_CMX_NN">)
-#    waits(%2 : !VPUIP.Barrier)
-#    updates(%3 : !VPUIP.Barrier) -> memref<1x1x1x1000xf16, "VPU_CMX_NN">
-#    %5 = VPUIP.ACTShaveTaskOp kernel(%sigmoid_krn : memref<1000xui8, "VPU_CMX_NN">)  inputs(%0 : memref<1x1x1x1000xf16, "VPU_CMX_NN">) outputs(%1 : memref<1x1x1x1000xf16, "VPU_CMX_NN">) waits(%2 : !VPUIP.Barrier) updates(%3 : !VPUIP.Barrier) -> memref<1x1x1x1000xf16, "VPU_CMX_NN">
-
-    %6 = VPUIP.NNDMA inputs(%out_tile0_cmx : memref<1x1x1x1000xf16, "VPU_CMX_NN">) outputs(%arg1 : memref<1x1x1x1000xf16>) waits(%3 : !VPUIP.Barrier) -> memref<1x1x1x1000xf16>
+    %6 = VPUIP.NNDMA inputs(%out_tile0_cmx : memref<1x1x1x1000xf16, "VPU_CMX_NN">) outputs(%arg1 : memref<1x1x1x1000xf16>) waits(%b1 : !VPUIP.Barrier) -> memref<1x1x1x1000xf16>
     return %6: memref<1x1x1x1000xf16>
 
 }
