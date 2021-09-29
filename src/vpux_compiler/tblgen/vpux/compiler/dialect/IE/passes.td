@@ -93,6 +93,20 @@ def OptimizeReorders : PassBase<"optimize-reorders", "vpux::FunctionPass"> {
     ];
 }
 
+//
+// CMConvCompatibleOps
+//
+
+def ChannelMajorConvolutionCompatibleOps : PassBase<"cm", "vpux::ModulePass"> {
+    let summary = "ChannelMajorConvolutionCompatibleOpsPass";
+
+    let description = [{
+        TODO.
+    }];
+
+    let constructor = "vpux::IE::createChannelMajorConvolutionCompatibleOpsPass()";
+}
+
 //=================================================================================
 // AdjustForVPU
 //=================================================================================

@@ -87,11 +87,11 @@ void vpux::VPUIP::NCEClusterTaskOp::inferLayoutInfo(mlir::Operation* origOp, IE:
                 auto inputTensorShape = getShape(convOp.input());
                 auto width = inputTensorShape[IE::Dims4D::Act::W];
 
-                const auto inDimsOrder = DimsOrder::fromValue(convOp->getOperand(0));
-                Logger::global().error("order: {0}", inDimsOrder);
-                 Logger::global().error("operand 0: {0}", convOp->getOperand(0));
+                uint64_t cmconv = 0;
+                if(convOp->hasAttr("ChannelMajorCompitable"))
+                    cmconv = convOp->getAttr("ChannelMajorCompitable").cast<mlir::IntegerAttr>().getInt();
 
-                if(IC == 3 && (width % 16 == 0))
+                if(cmconv)
                 {
                     info.setInput(0, DimsOrder::NCHW);
                     info.setInput(1, DimsOrder::OIYX);
