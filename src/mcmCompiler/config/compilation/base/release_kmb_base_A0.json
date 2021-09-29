@@ -51,7 +51,7 @@
                  "name" : "ChainPipeliningTransform",
                  "select_stages" : 2,
                  "activation_pipelining" : true,
-                 "vertical_fusion_pipelining" : true
+                 "vertical_fusion_pipelining" : false
             },
             "PipeLineAcrossParallelBranches",
             {
