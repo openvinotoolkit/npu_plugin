@@ -65,16 +65,11 @@ Shape calcPadsEnd(mlir::ShapedType origType, int64_t channelAlignment) {
 // opCreator - function, which should place back operation, which being proceed, with new expanded input
 //
 
-constexpr StringLiteral AttrName = "CMConv";
-
 mlir::LogicalResult generalRewrite(mlir::Operation* origOp, mlir::PatternRewriter& rewriter,
                                    FuncRef<mlir::Operation*(mlir::Value, int64_t)> opCreator, Logger log) {
     auto* ctx = origOp->getContext();
 
     auto iface = mlir::cast<IE::AlignedChannelsOpInterface>(origOp);
-    //auto iertconv = mlir::dyn_cast<IE::ConvolutionOp>(origOp);
-    //const auto padValue = getFPAttr(getContext(), 0.0f);
-    //iertconv->setAttr(AttrName, 1);
     
     auto channelAlignement = iface.getChannelAlignment();
      auto inchannelAlignement = iface.getInputChannelAlignment();
@@ -89,12 +84,15 @@ mlir::LogicalResult generalRewrite(mlir::Operation* origOp, mlir::PatternRewrite
     auto inputTensorShape = getShape(convOp.input());
     auto width = inputTensorShape[IE::Dims4D::Act::W];
 
+    auto cmConv = convOp->getAttr("ChannelMajorCompitable").cast<mlir::IntegerAttr>().getInt();
+    Logger::global().error("ChannelMajorCompitable: {0}", convOp->getAttr("ChannelMajorCompitable").cast<mlir::IntegerAttr>().getInt());
+
 
     vpux::Shape inPadsEnd;
        
-    inPadsEnd = calcPadsEnd(inputType, channelAlignement);
+    //inPadsEnd = calcPadsEnd(inputType, channelAlignement);
 
-    if(IC == 3 && (width % 16 == 0))
+    if(cmConv)
     {
         inPadsEnd = calcPadsEnd(inputType, inchannelAlignement);
         inPadsEnd[IE::Dims4D::Act::C] = 0;
@@ -402,9 +400,11 @@ private:
 };
 
 void ExpandActivationChannelsPass::safeRunOnFunc() {
-    
-    auto& ctx = getContext();
 
+    auto& ctx = getContext();
+    auto func = getFunction();
+
+  
     const auto isLegal = [&](mlir::Operation* op) {
         if (auto iface = mlir::dyn_cast<IE::AlignedChannelsOpInterface>(op)) {
             return iface.verifyChannels().succeeded();
@@ -424,7 +424,7 @@ void ExpandActivationChannelsPass::safeRunOnFunc() {
     patterns.insert<EltwiseAddRewriter>(&ctx, _log);
     patterns.insert<GroupConvolutionRewriter>(&ctx, _log);
 
-    auto func = getFunction();
+    //auto func = getFunction();
     if (mlir::failed(mlir::applyFullConversion(func, target, std::move(patterns)))) {
         signalPassFailure();
     }

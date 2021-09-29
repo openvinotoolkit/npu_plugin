@@ -267,9 +267,6 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
     // Get dimensions
     //
 
-    const auto inDimsOrder = DimsOrder::fromValue(origOp->getOperand(0));
-    Logger::global().error("Conv input order: {0}", inDimsOrder);
-
     const auto filterShape = getShape(origOp.filter());
 
     const auto IC = filterShape[IE::Dims4D::Filter::IC];
@@ -293,9 +290,10 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
 
     auto inputDPU = prepareTensorForDPU(rewriter, origOp->getLoc(), origOp.input());
 
-    origOp->getAttr("ChannelMajorCompitable").cast<mlir::IntegerAttr>().getInt();
+    auto cmConv = origOp->getAttr("ChannelMajorCompitable").cast<mlir::IntegerAttr>().getInt();
     Logger::global().error("ChannelMajorCompitable: {0}", origOp->getAttr("ChannelMajorCompitable").cast<mlir::IntegerAttr>().getInt());
-    if(IC == 3 && (width % 16 == 0))
+    
+    if(cmConv)
     {
         alignedFilter = alignchannelMajorWeightTensor(rewriter, origOp->getLoc(), origOp.filter());
         filterDPU = prepareTensorForDPU(rewriter, origOp->getLoc(), alignedFilter);
@@ -331,7 +329,7 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
 
     auto outAllocOpCMX = rewriter.create<mlir::memref::AllocOp>(origOp->getLoc(), outTypeCMX);
 
-    if(IC == 3 && (width % 16 == 0))
+    if(cmConv)
     {
     weightsTable = createWeightsTableTensor(rewriter, origOp->getLoc(), OC, inputDPU, outAllocOpCMX.memref(),
                                                  filterDPU, origOp.bias(), activationWindow);
@@ -355,7 +353,7 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
 
     Logger::global().error("order: {0}", DimsOrder::fromValue(origOp.input()));
 
-    if (DimsOrder::NCHW == DimsOrder::fromValue(origOp.input())) {
+    if (cmConv) {
         auto nceOp = rewriter.create<VPUIP::NCEClusterTaskOp>(
                 origOp->getLoc(), inputDPU, filterDPU, weightsTable, activationWindow,
                 /*parent_input=*/inputDPU,
@@ -376,7 +374,8 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
         //
 
         rewriter.replaceOpWithNewOp<IERT::CopyOp>(origOp, nceOp.output(), origOp.output_buff());
-    } else if (DimsOrder::NHWC == DimsOrder::fromValue(origOp.input())) {
+    } else
+     {
         auto nceOp = rewriter.create<VPUIP::NCEClusterTaskOp>(
                 origOp->getLoc(), inputDPU, filterDPU, weightsTable, /*activation_window=*/nullptr,
                 /*parent_input=*/inputDPU,

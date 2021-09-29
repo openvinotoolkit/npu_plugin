@@ -44,11 +44,9 @@ int64_t vpux::VPUIP::NCEInvariant::getChannelAlignment(mlir::Type elemType) {
     return std::max<int64_t>(128 / typeSizeInBits.count(), 16);
 }
 
-mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyConvChannels(vpux::DimsOrder inDimsOrder, mlir::Location loc, mlir::ShapedType filterType,
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyConvChannels(int64_t cmconv, mlir::Location loc, mlir::ShapedType filterType,
                                                                   Logger log) {
     log.setName("NCEInvariant");
-
-    Logger::global().error("order: {0}", inDimsOrder);
 
     if (filterType.getRank() != 4) {
         log.trace("[{0}] Filter has unsupported rank: {1}", loc, filterType.getRank());
@@ -64,33 +62,36 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyConvChannels(vpux::DimsOrde
         return mlir::failure();
     }
   
-    //TODO - how to cast from mlir::operation*
-    // if (IC % getInputChannelAlignment(filterType.getElementType()) != 0) {
-    //     log.trace("[{0}] Convolution input channels are not aligned", loc);
-    //     return mlir::failure();
-    // }
-
-    if (IC !=3) // Need to get user layout here
-    {
-        if(IC % getChannelAlignment(filterType.getElementType()) != 0) {
+    if (!cmconv && (IC % getChannelAlignment(filterType.getElementType()) != 0)) {
         log.trace("[{0}] Convolution input channels are not aligned", loc);
         return mlir::failure();
-        }
     }
+
+    // if (IC !=3) // Need to get user layout here
+    // {
+    //     if(IC % getChannelAlignment(filterType.getElementType()) != 0) {
+    //     log.trace("[{0}] Convolution input channels are not aligned", loc);
+    //     return mlir::failure();
+    //     }
+    // }
 
     return mlir::success();
 }
 
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyChannels(IE::ConvolutionOp origOp, Logger log) {
-    const auto inDimsOrder = DimsOrder::fromValue(origOp->getOperand(0));
-    Logger::global().error("order: {0}", inDimsOrder);
-    return verifyConvChannels(inDimsOrder, origOp->getLoc(), origOp.filter().getType().cast<mlir::ShapedType>(), log);
+    uint64_t cmconv = 0;
+    if(origOp->hasAttr("ChannelMajorCompitable"))
+        cmconv = checked_cast<int64_t>(origOp->getAttr("ChannelMajorCompitable").cast<mlir::IntegerAttr>().getInt());
+    return verifyConvChannels(cmconv, origOp->getLoc(), origOp.filter().getType().cast<mlir::ShapedType>(), log);
 }
 
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyChannels(IERT::ConvolutionOp origOp, Logger log) {
-    const auto inDimsOrder = DimsOrder::fromValue(origOp->getOperand(0));
-    Logger::global().error("order: {0}", inDimsOrder);
-    return verifyConvChannels(inDimsOrder, origOp->getLoc(), origOp.filter().getType().cast<mlir::ShapedType>(), log);
+    
+    uint64_t cmconv = 0;
+     if(origOp->hasAttr("ChannelMajorCompitable"))
+        cmconv = checked_cast<int64_t>(origOp->getAttr("ChannelMajorCompitable").cast<mlir::IntegerAttr>().getInt());
+
+    return verifyConvChannels(cmconv, origOp->getLoc(), origOp.filter().getType().cast<mlir::ShapedType>(), log);
 }
 
 //
