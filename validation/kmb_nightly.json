@@ -4392,7 +4392,7 @@
                 "disabled" : true
             },
             "AccuracyCheck" : {
-                "config": "kmb/modnet_custom-caffe2.yml",
+                "config": "modnet_custom-caffe2.yml",
                 "subsample_size": 50
             },
             "category" : "MCM",
