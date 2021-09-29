@@ -3925,7 +3925,7 @@
             },
             "AccuracyCheck" : {
                 "config": "mobilenet-v3-large-1.0-224-tf.yml",
-                "subsample_size": 100
+                "subsample_size": 50000
             },
             "category" : "MCM/release/weekly_public",
             "CI-options" : {
