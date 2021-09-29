@@ -71,11 +71,6 @@ void LayerRewriter::insertReorderForInput(mlir::Operation* op, mlir::OpOperand& 
 
 void LayerRewriter::insertReorderForOutput(mlir::Operation* op, mlir::Value output, DimsOrder dstOrder,
                                            mlir::PatternRewriter& rewriter) const {
-<<<<<<< HEAD
-=======
-    _log.nest(2).trace("Insert ReorderOp for output {0}", output.getType());
-
->>>>>>> remove logging
     mlir::OpBuilder::InsertionGuard guard(rewriter);
     rewriter.setInsertionPointAfter(op);
 
