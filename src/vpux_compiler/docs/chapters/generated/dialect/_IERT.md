@@ -195,8 +195,8 @@ operation ::= `IERT.Broadcast` attr-dict
 | Operand | Description |
 | :-----: | ----------- |
 `input` | memref of any type values
-`target_shape` | memref of 32-bit signed integer values
-`axes_mapping` | memref of 32-bit signed integer values
+`target_shape` | memref of 64-bit signed integer or 32-bit signed integer values
+`axes_mapping` | memref of 64-bit signed integer or 32-bit signed integer values
 `output_buff` | memref of any type values
 
 #### Results:
