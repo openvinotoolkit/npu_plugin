@@ -12,21 +12,19 @@
 //
 
 #include "vpux/compiler/dialect/IERT/passes.hpp"
+
+#include "vpux/compiler/dialect/IERT/ops_interfaces.hpp"
+#include "vpux/compiler/dialect/VPUIP/attributes/enums.hpp"
+#include "vpux/compiler/dialect/VPUIP/ops.hpp"
+#include "vpux/compiler/dialect/VPUIP/ops_interfaces.hpp"
+#include "vpux/compiler/utils/logging.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 #include "vpux/compiler/utils/types.hpp"
 
+#include "vpux/utils/core/range.hpp"
+
 #include <mlir/IR/PatternMatch.h>
 #include <mlir/Transforms/GreedyPatternRewriteDriver.h>
-
-#include "vpux/compiler/dialect/IERT/ops_interfaces.hpp"
-#include "vpux/compiler/dialect/VPUIP/ops.hpp"
-#include "vpux/compiler/dialect/VPUIP/ops_interfaces.hpp"
-
-#include "vpux/compiler/dialect/VPUIP/attributes/enums.hpp"
-
-#include "vpux/compiler/utils/logging.hpp"
-
-#include "vpux/utils/core/range.hpp"
 
 using namespace vpux;
 
@@ -41,11 +39,10 @@ namespace {
 // buffer of copy op result
 void NnCmxCopyOpHoisting(mlir::FuncOp func) {
     func.walk([&](IERT::CopyOp copyOp) {
-        auto sourceMemory = VPUIP::getPhysicalMemory(copyOp.input().getType().cast<mlir::MemRefType>());
+        const auto sourceMemory = VPUIP::getPhysicalMemory(copyOp.input().getType().cast<mlir::MemRefType>());
         if (mlir::failed(sourceMemory)) {
             return;
         }
-
         if (sourceMemory.getValue() != VPUIP::PhysicalMemory::CMX_NN) {
             return;
         }
@@ -56,11 +53,12 @@ void NnCmxCopyOpHoisting(mlir::FuncOp func) {
         //  - AllocOp -> SubView -> CopyOp.output_buff
         // If not then skip
         auto outputBufOp = copyOp.output_buff().getDefiningOp();
-        if (!mlir::isa<mlir::memref::AllocOp, IERT::SubViewOp>(outputBufOp)) {
+        if (!mlir::isa_and_nonnull<mlir::memref::AllocOp, IERT::SubViewOp>(outputBufOp)) {
             return;
         }
-        auto subViewOp = mlir::dyn_cast_or_null<IERT::SubViewOp>(outputBufOp);
-        if (subViewOp && !mlir::isa<mlir::memref::AllocOp>(subViewOp.source().getDefiningOp())) {
+
+        auto subViewOp = mlir::dyn_cast<IERT::SubViewOp>(outputBufOp);
+        if (subViewOp != nullptr && !mlir::isa_and_nonnull<mlir::memref::AllocOp>(subViewOp.source().getDefiningOp())) {
             return;
         }
 
@@ -68,19 +66,16 @@ void NnCmxCopyOpHoisting(mlir::FuncOp func) {
 
         // If op defining output buffer (AllocOp/SubViewOp) are already before then
         // no need to change its location in the Block
-        if (outputBufOp->isBeforeInBlock(copyOp)) {
-            return;
+        if (!outputBufOp->isBeforeInBlock(copyOp)) {
+            outputBufOp->moveBefore(copyOp);
         }
-        outputBufOp->moveBefore(copyOp);
 
         // In case of SubViewOp check top buffer and relocate if needed
-        if (subViewOp) {
-            auto subViewSourceOp = subViewOp.source().getDefiningOp();
-            if (subViewSourceOp->isBeforeInBlock(subViewOp)) {
-                return;
+        if (subViewOp != nullptr) {
+            auto* subViewSourceOp = subViewOp.source().getDefiningOp();
+            if (!subViewSourceOp->isBeforeInBlock(subViewOp)) {
+                subViewSourceOp->moveBefore(outputBufOp);
             }
-
-            subViewSourceOp->moveBefore(outputBufOp);
         }
     });
 }
@@ -96,16 +91,10 @@ public:
     }
 
 private:
-    void safeRunOnFunc() final;
+    void safeRunOnFunc() final {
+        NnCmxCopyOpHoisting(getFunction());
+    }
 };
-
-//
-// safeRunOnFunc
-//
-
-void CopyOpHoistingPass::safeRunOnFunc() {
-    NnCmxCopyOpHoisting(getFunction());
-}
 
 }  // namespace
 
