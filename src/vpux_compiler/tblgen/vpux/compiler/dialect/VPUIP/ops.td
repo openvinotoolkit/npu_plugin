@@ -2801,8 +2801,8 @@ def VPUIP_SW_Kernel :
     let extraClassDeclaration = [{
 
         static mlir::ParseResult parseIOForward(mlir::OpAsmParser& parser,
-                                                mlir::ArrayRef<mlir::OpAsmParser::OperandType> args,
-                                                mlir::ArrayRef<mlir::Type> argsTypes);
+                                                SmallVectorImpl<mlir::OpAsmParser::OperandType> &args,
+                                                SmallVectorImpl<mlir::Type>& argsTypes);
         static void printIOForward(mlir::OpAsmPrinter& printer,
                                    vpux::VPUIP::SW_Kernel&,
                                    mlir::OperandRange args,
