@@ -176,6 +176,8 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
   typedef std::list<scheduled_op_t> scheduled_op_list_t;
   typedef typename scheduled_op_list_t::iterator scheduled_op_list_iterator_t;
   scheduled_op_list_t scheduled_ops;
+  uint64_t numberOfSpilledWrite = 0;
+  uint64_t numberOfSpilledRead = 0;
 
   std::string scheduled_op_type;
   while (scheduler != scheduler_end) { // collect original schedule //
@@ -198,8 +200,10 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
       if (scheduled_op_type == "ORIGINAL") {
         scheduled_op_enum = mv::lp_scheduler::op_type_e::ORIGINAL_OP;
       } else if (scheduled_op_type == "SPILLED_READ") {
+        numberOfSpilledRead++;
         scheduled_op_enum = mv::lp_scheduler::op_type_e::SPILLED_READ_OP;
       } else {
+        numberOfSpilledWrite++;
         scheduled_op_enum = mv::lp_scheduler::op_type_e::SPILLED_WRITE_OP;
       }
       scheduled_ops.push_back(scheduled_op_t(op, scheduled_op.time_,
@@ -207,6 +211,10 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
     }
     ++scheduler;
   } // while (scheduler != scheduler_end) //
+
+  std::cout << "Number of Spilled Read Operations " << numberOfSpilledRead << std::endl;
+  std::cout << "Number of Spilled Write Operations " << numberOfSpilledWrite << std::endl;
+  
 
   { // remove any pseudo ops //
     std::list<mv::Data::OpListIterator> ops_to_remove;
