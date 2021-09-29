@@ -4393,7 +4393,7 @@
             },
             "AccuracyCheck" : {
                 "config": "modnet_custom-onnx.yml",
-                "subsample_size": 50
+                "subsample_size": 2362
             },
             "category" : "MCM",
             "CI-options" : {
