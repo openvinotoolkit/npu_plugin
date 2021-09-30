@@ -45,6 +45,24 @@ uint32_t vpux::AsyncDepsInfo::getIndex(mlir::async::ExecuteOp execOp) const {
     return checked_cast<uint32_t>(attr.getValue().getZExtValue());
 }
 
+mlir::async::ExecuteOp vpux::AsyncDepsInfo::getExecuteOpAtIndex(uint32_t index) const {
+    for (auto execOp : _allExecOps) {
+        uint32_t currIndex = getIndex(execOp);
+        if (index == currIndex) {
+            return execOp;
+        }
+    }
+    return nullptr;
+}
+
+SmallVector<size_t> vpux::AsyncDepsInfo::getOpDeps(size_t index) const {
+    SmallVector<size_t> opDeps = {};
+    for (auto dep : _depsMap[index].set_bits()) {
+        opDeps.push_back(dep);
+    }
+    return opDeps;
+}
+
 //
 // buildDepsMap
 //
@@ -165,4 +183,56 @@ void vpux::AsyncDepsInfo::updateTokenDependencies() {
     }
 
     _log = _log.unnest();
+}
+
+void vpux::AsyncDepsInfo::printTokenDependencies() const {
+    for (size_t i = 0; i < _depsMap.size(); ++i) {
+        auto execOp = getExecuteOpAtIndex(i);
+        Logger::global().error("op: id:{0} {1} {2}", i, execOp->getLoc(), execOp->getName());
+        for (auto dep : _depsMap[i].set_bits()) {
+            auto execDepOp = getExecuteOpAtIndex(dep);
+            // execDepOp->dump();
+            Logger::global().error("\tdep: id:{0} {1} {2}", dep, execDepOp->getLoc(), execDepOp->getName());
+        }
+    }
+}
+
+SmallVector<size_t> vpux::AsyncDepsInfo::getConsumerOps(size_t readyOp) const {
+    SmallVector<size_t> consumerOps;
+    for (size_t i = 0; i < _depsMap.size(); ++i) {
+        for (auto consumer : _depsMap[i].set_bits()) {
+            size_t castConsumer = checked_cast<size_t>(consumer);
+            if (castConsumer == readyOp) {
+                consumerOps.push_back(i);
+            }
+        }
+    }
+    return consumerOps;
+}
+
+std::unordered_map<size_t, size_t> vpux::AsyncDepsInfo::calculateOpInDegreeTable() const {
+    std::unordered_map<size_t, size_t> opInDegree;
+    for (size_t i = 0; i < _depsMap.size(); ++i) {
+        opInDegree[i] = _depsMap[i].count();
+    }
+    return opInDegree;
+}
+
+std::unordered_map<size_t, size_t> vpux::AsyncDepsInfo::calculateOpOutDegreeTable() const {
+    std::unordered_map<size_t, size_t> opOutDegree;
+    for (size_t i = 0; i < _depsMap.size(); ++i) {
+        for (auto consumer : _depsMap[i].set_bits()) {
+            size_t castConsumer = checked_cast<size_t>(consumer);
+            if (opOutDegree.find(castConsumer) != opOutDegree.end()) {
+                opOutDegree[castConsumer]++;
+            } else {
+                opOutDegree[castConsumer] = 1;
+            }
+        }
+    }
+    return opOutDegree;
+}
+
+size_t vpux::AsyncDepsInfo::getOutputOp() const {
+    return _depsMap.size() - 2;
 }

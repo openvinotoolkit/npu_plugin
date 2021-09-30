@@ -32,6 +32,7 @@
 
 #include "vpux/compiler/utils/partitioner.hpp"
 
+#include "vpux/utils/core/error.hpp"
 #include "vpux/utils/core/optional.hpp"
 #include "vpux/utils/core/small_vector.hpp"
 
@@ -135,8 +136,39 @@ public:
         return true;
     }
 
+    template <class LiveRanges>
+    bool canAlloc(const LiveRanges& newLiveRanges, Direction dir = Direction::Up) {
+        auto gapCountBefore = _par.gaps().size();
+        bool canAllocAll = true;
+        SmallVector<std::pair<vpux::AddressType, vpux::AddressType>> tempAlloc;
+        for (auto curIt = newLiveRanges.begin(); curIt != newLiveRanges.end(); ++curIt) {
+            const auto& newRange = *curIt;
+            const auto newRangeSize = _handler.getSize(newRange);
+            const auto newRangeAlignment = _handler.getAlignment(newRange);
+            auto allocAddr = _par.alloc(newRangeSize, newRangeAlignment, dir);
+            if (allocAddr == InvalidAddress) {
+                canAllocAll = false;
+                break;
+            }
+            auto allocPair = std::make_pair(allocAddr, newRangeSize);
+            tempAlloc.push_back(allocPair);
+        }
+        // deallocation
+        for (auto curIt = tempAlloc.begin(); curIt != tempAlloc.end(); ++curIt) {
+            vpux::AddressType address = curIt->first;
+            vpux::AddressType size = curIt->second;
+            _par.free(address, size);
+        }
+        VPUX_THROW_UNLESS(gapCountBefore == _par.gaps().size(), "Error new gaps created");
+        return canAllocAll;
+    }
+
     bool alloc(std::initializer_list<LiveRange> newLiveRanges, bool allowSpills = true, Direction dir = Direction::Up) {
         return this->alloc<std::initializer_list<LiveRange>>(newLiveRanges, allowSpills, dir);
+    }
+
+    bool canAlloc(std::initializer_list<LiveRange> newLiveRanges, Direction dir = Direction::Up) {
+        return this->canAlloc<std::initializer_list<LiveRange>>(newLiveRanges, dir);
     }
 
 public:

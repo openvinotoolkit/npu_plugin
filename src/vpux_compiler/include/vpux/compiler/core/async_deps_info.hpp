@@ -33,6 +33,13 @@ public:
     void addDependency(mlir::async::ExecuteOp from, mlir::async::ExecuteOp to);
     void optimizeDepsMap();
     void updateTokenDependencies();
+    void printTokenDependencies() const;
+    SmallVector<size_t> getConsumerOps(size_t readyOp) const;
+    mlir::async::ExecuteOp getExecuteOpAtIndex(uint32_t index) const;
+    SmallVector<size_t> getOpDeps(size_t index) const;
+    std::unordered_map<size_t, size_t> calculateOpInDegreeTable() const;
+    std::unordered_map<size_t, size_t> calculateOpOutDegreeTable() const;
+    size_t getOutputOp() const;
 
 private:
     void setIndex(mlir::async::ExecuteOp execOp, uint64_t index);

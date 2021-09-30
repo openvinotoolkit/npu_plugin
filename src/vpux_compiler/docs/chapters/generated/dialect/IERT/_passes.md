@@ -7,6 +7,13 @@ This pass checks all CopyOps and updates their position in the parent block to b
 that generates the copy op source buffer
 ### `-group-async-execute-ops`: Reduces number of async.execute operations
 Groups consecutive operations which utilizes the same executor and max resources into same async.execute region
+### `-list-scheduling`: Scheduling Pass
+TODO
+
+#### Options
+```
+-memory-space : Memory space to perform allocation
+```
 ### `-move-view-ops-into-async-regions`: Moves view-like Operations inside the asynchronous regions which depends on them
 ### `-move-wait-result-to-async-block-args`: Moves 'async.await' result usage from 'async.execute' body to it's operands
 ### `-optimize-async-deps`: Optimizes dependencies between 'async.execute' operations

@@ -209,4 +209,35 @@ def GroupAsyncExecuteOps : PassBase<"group-async-execute-ops", "vpux::FunctionPa
     let constructor = "vpux::IERT::createGroupAsyncExecuteOpsPass()";
 }
 
+//
+// ListScheduling
+//
+
+def ListScheduling : PassBase<"list-scheduling", "vpux::ModulePass"> {
+    let summary = "Scheduling Pass";
+
+    let description = [{
+        TODO
+    }];
+
+    let constructor = [{
+        vpux::IERT::createListSchedulingPass([](mlir::MLIRContext* ctx, vpux::StringRef memSpaceName) -> mlir::Attribute {
+            VPUX_THROW_UNLESS(!memSpaceName.empty(), "Missing memory space option");
+            return mlir::StringAttr::get(ctx, memSpaceName);
+        })
+    }];
+
+    let options = [
+        Option<
+            "memSpaceName", "memory-space",
+            "std::string", [{""}],
+            "Memory space to perform allocation"
+        >
+    ];
+
+    let dependentDialects = [
+        "vpux::IERT::IERTDialect"
+    ];
+}
+
 #endif

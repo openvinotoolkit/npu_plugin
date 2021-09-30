@@ -53,7 +53,7 @@ public:
     // Called when client is certain about ability to allocate at the specified
     // addr
     void allocFixed(AddressType addr, AddressType size);
-
+    bool canFit(AddressType size, AddressType alignment, Direction dir);
     void free(AddressType addr, AddressType size);
 
 public:

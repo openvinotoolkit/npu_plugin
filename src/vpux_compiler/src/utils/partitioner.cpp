@@ -277,6 +277,26 @@ AddressType vpux::Partitioner::useGap(size_t pos, AddressType alignedBegin, Addr
     return alignedBegin;
 }
 
+bool vpux::Partitioner::canFit(AddressType size, AddressType alignment, Direction dir) {
+    if (_gaps.empty()) {
+        return InvalidAddress;
+    }
+
+    const auto numGaps = _gaps.size();
+    auto minGapSize = std::numeric_limits<AddressType>::max();
+
+    for (size_t i = 0; i < numGaps; ++i) {
+        const auto alignedBegin = getAddrFromGap(i, size, alignment, dir);
+        if (alignedBegin != InvalidAddress) {
+            if (_gaps[i].size() < minGapSize) {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
 AddressType vpux::Partitioner::chooseMinimalGap(AddressType size, AddressType alignment, Direction dir) {
     if (_gaps.empty()) {
         return InvalidAddress;
