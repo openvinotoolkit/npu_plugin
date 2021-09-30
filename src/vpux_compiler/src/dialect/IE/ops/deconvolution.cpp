@@ -56,36 +56,29 @@
 
 using namespace vpux;
 
-mlir::LogicalResult vpux::IE::DeconvolutionOp::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
-        mlir::DictionaryAttr attrs, mlir::RegionRange,
+template <typename DeconvAdaptor>
+mlir::LogicalResult commonDeconvolutionInferReturnType(
+        mlir::Location loc, DeconvAdaptor deconv, bool isGroupDeconvolution,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
-    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto featureShape = deconv.feature().getType().template cast<mlir::ShapedType>().getShape();
+    const auto featureType = deconv.feature().getType().template cast<mlir::ShapedType>().getElementType();
+    const auto outputShape = deconv.output_shape();
+    auto filterShape = to_small_vector(deconv.filter().getType().template cast<mlir::ShapedType>().getShape());
 
-    IE::DeconvolutionOpAdaptor convBackpropData(operands, attrs);
-    if (mlir::failed(convBackpropData.verify(loc))) {
-        return mlir::failure();
-    }
-
-    const auto featureShape = convBackpropData.feature().getType().cast<mlir::ShapedType>().getShape();
-    const auto featureType = convBackpropData.feature().getType().cast<mlir::ShapedType>().getElementType();
-    const auto outputShape = convBackpropData.output_shape();
-    const auto filterShape = convBackpropData.filter().getType().cast<mlir::ShapedType>().getShape();
-
-    const auto dataPaddingBelow = parseIntArrayAttr<int64_t>(convBackpropData.pads_end());
-    const auto dataPaddingAbove = parseIntArrayAttr<int64_t>(convBackpropData.pads_begin());
-    const auto windowStrides = parseIntArrayAttr<int64_t>(convBackpropData.strides());
-    const auto windowDilations = parseIntArrayAttr<int64_t>(convBackpropData.dilations());
-    const auto outputPadding = parseIntArrayAttr<int64_t>(convBackpropData.output_padding());
+    const auto dataPaddingBelow = parseIntArrayAttr<int64_t>(deconv.pads_end());
+    const auto dataPaddingAbove = parseIntArrayAttr<int64_t>(deconv.pads_begin());
+    const auto windowStrides = parseIntArrayAttr<int64_t>(deconv.strides());
+    const auto windowDilations = parseIntArrayAttr<int64_t>(deconv.dilations());
+    const auto outputPadding = parseIntArrayAttr<int64_t>(deconv.output_padding());
 
     if (outputShape != nullptr) {
-        auto outputShapeConst = outputShape.getDefiningOp<Const::DeclareOp>();
+        auto outputShapeConst = outputShape.template getDefiningOp<Const::DeclareOp>();
         if (outputShapeConst == nullptr) {
             return errorAt(loc, "Only constant input is supported for output_shape");
         }
 
         const auto outputShapeContent = outputShapeConst.content();
-        const auto outputShapeVals = outputShapeContent.getValues<int64_t>();
+        const auto outputShapeVals = outputShapeContent.template getValues<int64_t>();
 
         SmallVector<int64_t> mlirOutputShape;
         mlirOutputShape.push_back(featureShape[0]);
@@ -94,80 +87,12 @@ mlir::LogicalResult vpux::IE::DeconvolutionOp::inferReturnTypeComponents(
 
         inferredReturnShapes.emplace_back(mlirOutputShape, featureType);
     } else {
-        const std::vector<ngraph::Dimension> nDataShape(std::next(featureShape.begin(), 2), featureShape.end());
-        const std::vector<ngraph::Dimension> nFilterShape(std::next(filterShape.begin(), 2), filterShape.end());
-
-        ngraph::op::v1::ConvolutionBackpropData ngraph_op;
-        std::vector<ngraph::Dimension> __resultShape;
-        ngraph_op.infer_conv_backprop_output_spatial_shape(
-                nDataShape,                                                                // data_shape
-                nFilterShape,                                                              // filter_sahpe
-                ngraph::Strides(windowStrides.begin(), windowStrides.end()),               // strides
-                ngraph::Strides(windowDilations.begin(), windowDilations.end()),           // dilations
-                ngraph::CoordinateDiff(dataPaddingBelow.begin(), dataPaddingBelow.end()),  // pads_begin
-                ngraph::CoordinateDiff(dataPaddingAbove.begin(), dataPaddingAbove.end()),  // pads_end
-                ngraph::CoordinateDiff(outputPadding.begin(), outputPadding.end()),        // output_padding
-                __resultShape);
-        const auto resultShape = ngraph::PartialShape{__resultShape}.get_shape();
-
-        SmallVector<int64_t> mlirOutputShape;
-        mlirOutputShape.push_back(featureShape[0]);
-        mlirOutputShape.push_back(filterShape[1]);
-        std::copy(resultShape.begin(), resultShape.end(), std::back_inserter(mlirOutputShape));
-
-        inferredReturnShapes.emplace_back(mlirOutputShape, featureType);
-    }
-
-    return mlir::success();
-}
-
-//
-// GroupDeconvolution
-//
-
-mlir::LogicalResult vpux::IE::GroupDeconvolutionOp::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
-        mlir::DictionaryAttr attrs, mlir::RegionRange,
-        SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
-    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
-
-    IE::GroupDeconvolutionOpAdaptor groupDeconv(operands, attrs);
-    if (mlir::failed(groupDeconv.verify(loc))) {
-        return mlir::failure();
-    }
-
-    const auto featureShape = groupDeconv.feature().getType().cast<mlir::ShapedType>().getShape();
-    const auto featureType = groupDeconv.feature().getType().cast<mlir::ShapedType>().getElementType();
-    const auto outputShape = groupDeconv.output_shape();
-    auto filterShape = to_small_vector(groupDeconv.filter().getType().cast<mlir::ShapedType>().getShape());
-
-    const auto dataPaddingBelow = parseIntArrayAttr<int64_t>(groupDeconv.pads_end());
-    const auto dataPaddingAbove = parseIntArrayAttr<int64_t>(groupDeconv.pads_begin());
-    const auto windowStrides = parseIntArrayAttr<int64_t>(groupDeconv.strides());
-    const auto windowDilations = parseIntArrayAttr<int64_t>(groupDeconv.dilations());
-    const auto outputPadding = parseIntArrayAttr<int64_t>(groupDeconv.output_padding());
-
-    if (outputShape != nullptr) {
-        auto outputShapeConst = outputShape.getDefiningOp<Const::DeclareOp>();
-        if (outputShapeConst == nullptr) {
-            return errorAt(loc, "Only constant input is supported for output_shape");
+        if (isGroupDeconvolution) {
+            int64_t groups = filterShape[0];
+            // we need to adjust filters_shape to reuse helpers for normal deconvolution
+            filterShape[2] *= groups;
+            filterShape.erase(filterShape.begin());
         }
-
-        const auto outputShapeContent = outputShapeConst.content();
-        const auto outputShapeVals = outputShapeContent.getValues<int64_t>();
-
-        SmallVector<int64_t> mlirOutputShape;
-        mlirOutputShape.push_back(featureShape[0]);
-        mlirOutputShape.push_back(filterShape[1]);
-        std::copy(outputShapeVals.begin(), outputShapeVals.end(), std::back_inserter(mlirOutputShape));
-
-        inferredReturnShapes.emplace_back(mlirOutputShape, featureType);
-    } else {
-        int64_t groups = filterShape[0];
-
-        // we need to adjust filters_shape to reuse helpers for normal deconvolution
-        filterShape[2] *= groups;
-        filterShape.erase(filterShape.begin());
 
         const std::vector<ngraph::Dimension> nDataShape(std::next(featureShape.begin(), 2), featureShape.end());
         const std::vector<ngraph::Dimension> nFilterShape(std::next(filterShape.begin(), 2), filterShape.end());
@@ -196,6 +121,42 @@ mlir::LogicalResult vpux::IE::GroupDeconvolutionOp::inferReturnTypeComponents(
     return mlir::success();
 }
 
+mlir::LogicalResult vpux::IE::DeconvolutionOp::inferReturnTypeComponents(
+        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
+        mlir::DictionaryAttr attrs, mlir::RegionRange,
+        SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
+    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+
+    IE::DeconvolutionOpAdaptor deconv(operands, attrs);
+    if (mlir::failed(deconv.verify(loc))) {
+        return mlir::failure();
+    }
+
+    const auto isGroupDeconvolution = false;
+    return commonDeconvolutionInferReturnType<IE::DeconvolutionOpAdaptor>(loc, deconv, isGroupDeconvolution,
+                                                                          inferredReturnShapes);
+}
+
+//
+// GroupDeconvolution
+//
+
+mlir::LogicalResult vpux::IE::GroupDeconvolutionOp::inferReturnTypeComponents(
+        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
+        mlir::DictionaryAttr attrs, mlir::RegionRange,
+        SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
+    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+
+    IE::GroupDeconvolutionOpAdaptor groupDeconv(operands, attrs);
+    if (mlir::failed(groupDeconv.verify(loc))) {
+        return mlir::failure();
+    }
+
+    const auto isGroupDeconvolution = true;
+    return commonDeconvolutionInferReturnType<IE::GroupDeconvolutionOpAdaptor>(loc, groupDeconv, isGroupDeconvolution,
+                                                                               inferredReturnShapes);
+}
+
 namespace {
 
 class GroupsToAttr final : public mlir::OpRewritePattern<IE::GroupDeconvolutionOp> {
@@ -213,12 +174,11 @@ mlir::LogicalResult GroupsToAttr::matchAndRewrite(IE::GroupDeconvolutionOp decon
     }
 
     auto filterShape = to_small_vector(deconvOp.filter().getType().cast<mlir::ShapedType>().getShape());
-    const auto groups = filterShape[0];
+    VPUX_THROW_UNLESS(filterShape.size() == 5, "Only 2D deconvolution is supported");
 
+    const auto groups = filterShape[0];
     const auto elemType = deconvOp.feature().getType().cast<mlir::ShapedType>().getElementType();
-    const SmallVector<int64_t> weightShape = {filterShape[0], filterShape[1], filterShape[2], filterShape[3],
-                                              filterShape[4]};
-    const auto dataStorageType = mlir::RankedTensorType::get(weightShape, elemType);
+    const auto dataStorageType = mlir::RankedTensorType::get(filterShape, elemType);
     const auto dwConvFilterContent = deconvOp.filter().getDefiningOp<Const::DeclareOp>().content();
 
     // Weights reverse according to ngraph implementation

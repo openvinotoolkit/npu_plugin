@@ -57,8 +57,8 @@ void vpux::VPUIP::DeconvolutionUPAOp::build(mlir::OpBuilder& builder, mlir::Oper
                                             mlir::ArrayAttr strides, mlir::ArrayAttr pads_begin,
                                             mlir::ArrayAttr pads_end, mlir::ArrayAttr dilations,
                                             mlir::ArrayAttr output_padding, uint32_t groups) {
-    build(builder, state, feature, filter, output_shape, output, mlir::ValueRange{}, mlir::ValueRange{}, strides,
-          pads_begin, pads_end, dilations, output_padding, groups, nullptr, false);
+    build(builder, state, feature, filter, output_shape, output, strides, pads_begin, pads_end, dilations,
+          output_padding, groups, nullptr, false);
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::DeconvolutionUPAOp::serialize(VPUIP::BlobWriter& writer) {
@@ -70,8 +70,8 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::DeconvolutionUPAOp::serialize(VPUIP
     const auto dilations = VPUIP::BlobWriter::createOrder3(this->dilations());
     const auto outputPadding = VPUIP::BlobWriter::createOrder3(this->output_padding());
 
-    static const auto dY = Dim(3);
-    static const auto dX = Dim(4);
+    const auto dY = Dim(3);
+    const auto dX = Dim(4);
     const auto filterShape = getShape(filter());
     const auto kernel =
             MVCNN::order3(checked_cast<uint8_t>(filterShape[dX]), checked_cast<uint8_t>(filterShape[dY]), 0);

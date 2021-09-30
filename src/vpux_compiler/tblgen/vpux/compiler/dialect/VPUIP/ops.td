@@ -407,7 +407,7 @@ def VPUIP_DeconvolutionUPAOp :
             [
                 ViewLikeOpInterface,
                 IERT_SameElementType,
-                IERT_SameInOutDimsOrder_CHW_HWC_NCHW_NHWC
+                IERT_SameInOutDimsOrder_NCHW_NHWC
             ]
         > {
     let summary = "Deconvolution UPA SHAVE kernel (reference implementation)";
@@ -417,9 +417,6 @@ def VPUIP_DeconvolutionUPAOp :
         F16MemRef:$filter,
         Optional<I32MemRef>:$output_shape,
         F16MemRef:$output_buff,
-
-        Variadic<VPUIP_Barrier>:$waitBarriers,
-        Variadic<VPUIP_Barrier>:$updateBarriers,
 
         I64ArrayAttr:$strides,
         I64ArrayAttr:$pads_begin,
@@ -451,8 +448,6 @@ def VPUIP_DeconvolutionUPAOp :
         attr-dict
         `inputs` `(` $feature `:` type($feature) `,` $filter `:` type($filter) (`,` $output_shape^ `:` type($output_shape))? `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
-        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
-        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `->` type(results)
     }];
 

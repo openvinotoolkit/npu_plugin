@@ -441,66 +441,6 @@ operation ::= `VPUIP.DPUTask` attr-dict
 `pad` | vpux::VPUIP::PaddingAttr | DictionaryAttr with field(s): 'left', 'right', 'top', 'bottom' (each field having its own constraints)
 `mpe_mode` | vpux::VPUIP::MPEModeAttr | MPE Mode
 
-<<<<<<< HEAD
-### `VPUIP.DepthToSpaceUPA` (vpux::VPUIP::DepthToSpaceUPAOp)
-
-DepthToSpace UPA SHAVE kernel
-=======
-### `VPUIP.DeclareTensor` (vpux::VPUIP::DeclareTensorOp)
-
-TensorReference value declaration
->>>>>>> [MLIR] Added GroupDeconvolution
-
-
-Syntax:
-
-```
-<<<<<<< HEAD
-operation ::= `VPUIP.DepthToSpaceUPA` attr-dict
-              `inputs` `(` $input `:` type($input) `)`
-              `outputs` `(` $output_buff `:` type($output_buff) `)`
-=======
-operation ::= `VPUIP.DeclareTensor` $locale custom<LocaleIndex>($localeIndex) `<` $dataIndex `>` attr-dict `->` type(results)
-```
-
-
-#### Attributes:
-
-| Attribute | MLIR Type | Description |
-| :-------: | :-------: | ----------- |
-`locale` | vpux::VPUIP::MemoryLocationAttr | Values indicating which type of memory a tensor resides in
-`localeIndex` | ::mlir::ArrayAttr | 64-bit integer array attribute
-`dataIndex` | mlir::IntegerAttr | Integer attribute
-`sparsityIndex` | mlir::IntegerAttr | Integer attribute
-`storageElementIndex` | mlir::IntegerAttr | Integer attribute
-`storageElementSize` | mlir::IntegerAttr | Integer attribute
-`leadingOffset` | mlir::IntegerAttr | Integer attribute
-`trailingOffset` | mlir::IntegerAttr | Integer attribute
-
-#### Results:
-
-| Result | Description |
-| :----: | ----------- |
-`memory` | memref of any type values
-
-### `VPUIP.DeclareVirtualBarrier` (vpux::VPUIP::DeclareVirtualBarrierOp)
-
-VPUIP virtual Barrier declaration
-
-
-Syntax:
-
-```
-operation ::= `VPUIP.DeclareVirtualBarrier` attr-dict `->` type(results)
-```
-
-
-#### Results:
-
-| Result | Description |
-| :----: | ----------- |
-`barrier` | VPUIP Barrier Type
-
 ### `VPUIP.DeconvolutionUPA` (vpux::VPUIP::DeconvolutionUPAOp)
 
 Deconvolution UPA SHAVE kernel (reference implementation)
@@ -512,9 +452,6 @@ Syntax:
 operation ::= `VPUIP.DeconvolutionUPA` attr-dict
               `inputs` `(` $feature `:` type($feature) `,` $filter `:` type($filter) (`,` $output_shape^ `:` type($output_shape))? `)`
               `outputs` `(` $output_buff `:` type($output_buff) `)`
-              (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
-              (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
->>>>>>> [MLIR] Added GroupDeconvolution
               `->` type(results)
 ```
 
@@ -523,11 +460,6 @@ operation ::= `VPUIP.DeconvolutionUPA` attr-dict
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-<<<<<<< HEAD
-`block_size` | mlir::IntegerAttr | Integer attribute
-`mode` | vpux::IE::DepthToSpaceModeAttr | DepthToSpaceMode that the InferenceEngine supports
-`maxShaves` | mlir::IntegerAttr | Integer attribute
-=======
 `strides` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `pads_begin` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `pads_end` | ::mlir::ArrayAttr | 64-bit integer array attribute
@@ -536,23 +468,51 @@ operation ::= `VPUIP.DeconvolutionUPA` attr-dict
 `groups` | mlir::IntegerAttr | Integer attribute
 `maxShaves` | ::mlir::IntegerAttr | 64-bit signed integer attribute
 `isTrailingSWLayer` | ::mlir::UnitAttr | unit attribute
->>>>>>> [MLIR] Added GroupDeconvolution
 
 #### Operands:
 
 | Operand | Description |
 | :-----: | ----------- |
-<<<<<<< HEAD
-`input` | memref of 16-bit float values
-`output_buff` | memref of 16-bit float values
-=======
 `feature` | memref of 16-bit float values
 `filter` | memref of 16-bit float values
 `output_shape` | memref of 32-bit signless integer values
 `output_buff` | memref of 16-bit float values
-`waitBarriers` | VPUIP Barrier Type
-`updateBarriers` | VPUIP Barrier Type
->>>>>>> [MLIR] Added GroupDeconvolution
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float values
+
+### `VPUIP.DepthToSpaceUPA` (vpux::VPUIP::DepthToSpaceUPAOp)
+
+DepthToSpace UPA SHAVE kernel
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.DepthToSpaceUPA` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`block_size` | mlir::IntegerAttr | Integer attribute
+`mode` | vpux::IE::DepthToSpaceModeAttr | DepthToSpaceMode that the InferenceEngine supports
+`maxShaves` | mlir::IntegerAttr | Integer attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float values
+`output_buff` | memref of 16-bit float values
 
 #### Results:
 
@@ -916,7 +876,7 @@ operation ::= `VPUIP.GatherElementsUPA` attr-dict
 
 | Result | Description |
 | :----: | ----------- |
-`output` | memref of any type values
+`output` | memref of 16-bit float values
 
 ### `VPUIP.GatherUPA` (vpux::VPUIP::GatherUPAOp)
 
@@ -1254,7 +1214,7 @@ operation ::= `VPUIP.MVNUPA` attr-dict
 
 | Result | Description |
 | :----: | ----------- |
-`output` | memref of 16-bit float values
+`output` | memref of any type values
 
 ### `VPUIP.MishUPA` (vpux::VPUIP::MishUPAOp)
 
@@ -2115,7 +2075,7 @@ operation ::= `VPUIP.ScatterNDUpdateUPA` attr-dict
 
 | Result | Description |
 | :----: | ----------- |
-`output` | memref of any type values
+`output` | memref of 16-bit float values
 
 ### `VPUIP.SigmoidUPA` (vpux::VPUIP::SigmoidUPAOp)
 

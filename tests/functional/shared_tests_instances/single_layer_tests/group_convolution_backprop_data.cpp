@@ -57,7 +57,7 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP16,
 };
 
-/* ============= 2D GroupDeconv ============= */
+/* ============= 2D GroupConvBackpropData ============= */
 const std::vector<std::vector<size_t>> kernels = {{3, 3}, {1, 1}};
 const std::vector<std::vector<size_t>> strides = {{1, 1}, {2, 2}};
 const std::vector<std::vector<ptrdiff_t>> padBegins = {{0, 0}, {1, 1}};
@@ -77,7 +77,7 @@ const auto groupConv2DParams_AutoPadValid = ::testing::Combine(
         ::testing::ValuesIn(numOutChannels), ::testing::ValuesIn(numGroups),
         ::testing::Values(ngraph::op::PadType::VALID));
 
-INSTANTIATE_TEST_CASE_P(smoke_GroupDeconv2D_ExplicitPadding_NCHW, KmbGroupConvBackpropDataLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_GroupConvBackpropData2D_ExplicitPadding_NCHW, KmbGroupConvBackpropDataLayerTest,
                         ::testing::Combine(groupConv2DParams_ExplicitPadding, ::testing::ValuesIn(netPrecisions),
                                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -87,7 +87,7 @@ INSTANTIATE_TEST_CASE_P(smoke_GroupDeconv2D_ExplicitPadding_NCHW, KmbGroupConvBa
                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
                         KmbGroupConvBackpropDataLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_GroupDeconv2D_AutoPadValid_NCHW, KmbGroupConvBackpropDataLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_GroupConvBackpropData2D_AutoPadValid_NCHW, KmbGroupConvBackpropDataLayerTest,
                         ::testing::Combine(groupConv2DParams_AutoPadValid, ::testing::ValuesIn(netPrecisions),
                                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -97,7 +97,7 @@ INSTANTIATE_TEST_CASE_P(smoke_GroupDeconv2D_AutoPadValid_NCHW, KmbGroupConvBackp
                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
                         KmbGroupConvBackpropDataLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_GroupDeconv2D_ExplicitPadding_NHWC, KmbGroupConvBackpropDataLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_GroupConvBackpropData2D_ExplicitPadding_NHWC, KmbGroupConvBackpropDataLayerTest,
 ::testing::Combine(groupConv2DParams_ExplicitPadding, ::testing::ValuesIn(netPrecisions),
                     ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                     ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -107,7 +107,7 @@ INSTANTIATE_TEST_CASE_P(smoke_GroupDeconv2D_ExplicitPadding_NHWC, KmbGroupConvBa
                     ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
 KmbGroupConvBackpropDataLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_GroupDeconv2D_AutoPadValid_NHWC, KmbGroupConvBackpropDataLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_GroupConvBackpropData2D_AutoPadValid_NHWC, KmbGroupConvBackpropDataLayerTest,
                         ::testing::Combine(groupConv2DParams_AutoPadValid, ::testing::ValuesIn(netPrecisions),
                                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
