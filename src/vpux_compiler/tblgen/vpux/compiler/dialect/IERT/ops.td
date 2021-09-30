@@ -1133,7 +1133,42 @@ def IERT_MultiplyOp :
     let arguments = (ins
         MemRefOf<[F16, F32]>:$input1,
         MemRefOf<[F16, F32]>:$input2,
-        MemRefOf<[F16, F32]>:$output_buff
+        MemRefOf<[F16, F32]>:$output_buff,
+
+        OptionalAttr<IE_PostOp>:$post_op
+    );
+
+    let results = (outs
+        MemRefOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input1 `:` type($input1) `,` $input2 `:` type($input2) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
+// AndOp
+//
+
+def IERT_AndOp :
+        IERT_LayerOp<1, "And",
+            [
+                ViewLikeOpInterface,
+                SameOperandsElementType
+            ]
+        > {
+    let summary = "InferenceEngine run-time And layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input1,
+        MemRefOf<[F16, F32]>:$input2,
+        MemRefOf<[F16, F32]>:$output_buff,
+
+        OptionalAttr<IE_PostOp>:$post_op
     );
 
     let results = (outs
@@ -2191,7 +2226,9 @@ def IERT_SubtractOp :
     let arguments = (ins
         MemRefOf<[F16, F32]>:$input1,
         MemRefOf<[F16, F32]>:$input2,
-        MemRefOf<[F16, F32]>:$output_buff
+        MemRefOf<[F16, F32]>:$output_buff,
+
+        OptionalAttr<IE_PostOp>:$post_op
     );
 
     let results = (outs

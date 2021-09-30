@@ -212,6 +212,9 @@ void redirectOpInterfacesForIE(mlir::DialectRegistry& registry) {
     registry.addOpInterface<IE::GroupConvolutionOp, OpModelForHW<IE::GroupConvolutionOp, VPUIP::ConvolutionUPAOp>>();
     registry.addOpInterface<IE::MaxPoolOp, OpModelForHW<IE::MaxPoolOp, VPUIP::PoolingUPAOp>>();
     registry.addOpInterface<IE::AddOp, OpModelForHW<IE::AddOp, VPUIP::EltwiseUPAOp>>();
+    registry.addOpInterface<IE::MultiplyOp, OpModelForHW<IE::MultiplyOp, VPUIP::EltwiseUPAOp>>();
+    registry.addOpInterface<IE::SubtractOp, OpModelForHW<IE::SubtractOp, VPUIP::EltwiseUPAOp>>();
+    registry.addOpInterface<IE::AndOp, OpModelForHW<IE::AndOp, VPUIP::EltwiseUPAOp>>();
 
     registry.addOpInterface<IE::ConvertOp, OpModelForSW<VPUIP::ConvertUPAOp>>();
     registry.addOpInterface<IE::SoftMaxOp, OpModelForSW<VPUIP::SoftMaxUPAOp>>();
@@ -231,7 +234,6 @@ void redirectOpInterfacesForIE(mlir::DialectRegistry& registry) {
     registry.addOpInterface<IE::DequantizeOp, OpModelForSW<VPUIP::QuantCastUPAOp>>();
     registry.addOpInterface<IE::PReluOp, OpModelForSW<VPUIP::PReluUPAOp>>();
     registry.addOpInterface<IE::LeakyReluOp, OpModelForSW<VPUIP::LeakyReluUPAOp>>();
-    registry.addOpInterface<IE::MultiplyOp, OpModelForSW<VPUIP::EltwiseUPAOp>>();
     registry.addOpInterface<IE::DivideOp, OpModelForSW<VPUIP::EltwiseUPAOp>>();
     registry.addOpInterface<IE::SquaredDifferenceOp, OpModelForSW<VPUIP::EltwiseUPAOp>>();
     registry.addOpInterface<IE::PowerOp, OpModelForSW<VPUIP::EltwiseUPAOp>>();
@@ -260,7 +262,6 @@ void redirectOpInterfacesForIE(mlir::DialectRegistry& registry) {
     registry.addOpInterface<IE::StridedSliceOp, OpModelForSW<VPUIP::StridedSliceUPAOp>>();
     registry.addOpInterface<IE::RegionYoloOp, OpModelForSW<VPUIP::RegionYoloUPAOp>>();
     registry.addOpInterface<IE::MVNOp, OpModelForSW<VPUIP::MVNUPAOp>>();
-    registry.addOpInterface<IE::SubtractOp, OpModelForSW<VPUIP::EltwiseUPAOp>>();
     registry.addOpInterface<IE::LSTMSequenceOp, OpModelForSW<VPUIP::LSTMSequenceUPAOp>>();
 }
 
@@ -276,6 +277,9 @@ void redirectOpInterfacesForIERT(mlir::DialectRegistry& registry) {
     registry.addOpInterface<IERT::GroupConvolutionOp, OpModelForHW>();
     registry.addOpInterface<IERT::MaxPoolOp, OpModelForHW>();
     registry.addOpInterface<IERT::AddOp, OpModelForHW>();
+    registry.addOpInterface<IERT::MultiplyOp, OpModelForHW>();
+    registry.addOpInterface<IERT::SubtractOp, OpModelForHW>();
+    registry.addOpInterface<IERT::AndOp, OpModelForHW>();
 
     registry.addOpInterface<IERT::ConvertOp, OpModelForSW>();
     registry.addOpInterface<IERT::SoftMaxOp, OpModelForSW>();
@@ -295,7 +299,6 @@ void redirectOpInterfacesForIERT(mlir::DialectRegistry& registry) {
     registry.addOpInterface<IERT::FakeQuantizeOp, OpModelForSW>();
     registry.addOpInterface<IERT::PReluOp, OpModelForSW>();
     registry.addOpInterface<IERT::LeakyReluOp, OpModelForSW>();
-    registry.addOpInterface<IERT::MultiplyOp, OpModelForSW>();
     registry.addOpInterface<IERT::DivideOp, OpModelForSW>();
     registry.addOpInterface<IERT::SquaredDifferenceOp, OpModelForSW>();
     registry.addOpInterface<IERT::PowerOp, OpModelForSW>();
@@ -324,7 +327,6 @@ void redirectOpInterfacesForIERT(mlir::DialectRegistry& registry) {
     registry.addOpInterface<IERT::StridedSliceOp, OpModelForSW>();
     registry.addOpInterface<IERT::RegionYoloOp, OpModelForSW>();
     registry.addOpInterface<IERT::MVNOp, OpModelForSW>();
-    registry.addOpInterface<IERT::SubtractOp, OpModelForSW>();
     registry.addOpInterface<IERT::LSTMSequenceOp, OpModelForSW>();
 }
 
@@ -355,11 +357,17 @@ void vpux::VPUIP::VPUIPDialect::setupExtraInterfaces(mlir::DialectRegistry& regi
     registry.addOpInterface<IE::GroupConvolutionOp, LayerWithPostOpModel<IE::GroupConvolutionOp>>();
     registry.addOpInterface<IE::MaxPoolOp, LayerWithPostOpModel<IE::MaxPoolOp>>();
     registry.addOpInterface<IE::AddOp, LayerWithPostOpModel<IE::AddOp>>();
+    registry.addOpInterface<IE::MultiplyOp, LayerWithPostOpModel<IE::MultiplyOp>>();
+    registry.addOpInterface<IE::SubtractOp, LayerWithPostOpModel<IE::SubtractOp>>();
+    registry.addOpInterface<IE::AndOp, LayerWithPostOpModel<IE::AndOp>>();
 
     registry.addOpInterface<IE::ConvolutionOp, AlignedChannelsOpModel<IE::ConvolutionOp>>();
     registry.addOpInterface<IE::GroupConvolutionOp, AlignedChannelsOpModel<IE::GroupConvolutionOp>>();
     registry.addOpInterface<IE::MaxPoolOp, AlignedChannelsOpModel<IE::MaxPoolOp>>();
     registry.addOpInterface<IE::AddOp, AlignedChannelsOpModel<IE::AddOp>>();
+    registry.addOpInterface<IE::MultiplyOp, AlignedChannelsOpModel<IE::MultiplyOp>>();
+    registry.addOpInterface<IE::SubtractOp, AlignedChannelsOpModel<IE::SubtractOp>>();
+    registry.addOpInterface<IE::AndOp, AlignedChannelsOpModel<IE::AndOp>>();
 
     redirectOpInterfacesForIE<LayoutInfoOpModelForHW, LayoutInfoOpModelForSW>(registry);
     redirectOpInterfacesForIERT<AsyncLayerOpModelForHW, AsyncLayerOpModelForDMA, AsyncLayerOpModelForSW>(registry);

@@ -502,7 +502,8 @@ def IE_MultiplyOp :
         RankedTensorOf<[F16, F32]>:$input1,
         RankedTensorOf<[F16, F32]>:$input2,
 
-        IE_AutoBroadcastType:$auto_broadcast
+        IE_AutoBroadcastType:$auto_broadcast,
+        OptionalAttr<IE_PostOp>:$post_op
     );
 
     let results = (outs
@@ -511,6 +512,33 @@ def IE_MultiplyOp :
 
     let hasCanonicalizer = 1;
     let hasFolder = 1;
+}
+
+//
+// AndOp
+//
+
+def IE_AndOp :
+        IE_LayerOp<
+            "And",
+            [
+                Commutative,
+                IE_EltwiseOp
+            ]
+        > {
+    let summary = "InferenceEngine And layer";
+
+    let arguments = (ins
+        RankedTensorOf<[I8, F16]>:$input1,
+        RankedTensorOf<[I8, F16]>:$input2,
+
+        IE_AutoBroadcastType:$auto_broadcast,
+        OptionalAttr<IE_PostOp>:$post_op
+    );
+
+    let results = (outs
+        RankedTensorOf<[I8, F16]>:$output
+    );
 }
 
 //
@@ -1930,7 +1958,8 @@ def IE_SubtractOp :
         RankedTensorOf<[F16, F32]>:$input1,
         RankedTensorOf<[F16, F32]>:$input2,
 
-        IE_AutoBroadcastType:$auto_broadcast
+        IE_AutoBroadcastType:$auto_broadcast,
+        OptionalAttr<IE_PostOp>:$post_op
     );
 
     let results = (outs

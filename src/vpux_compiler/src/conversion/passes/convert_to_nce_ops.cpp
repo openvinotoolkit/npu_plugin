@@ -347,21 +347,24 @@ mlir::LogicalResult MaxPoolRewrite::matchAndRewrite(IERT::MaxPoolOp origOp, mlir
 }
 
 //
-// EltwiseAddRewrite
+// GenericEltwiseConverter
 //
 
-class EltwiseAddRewrite final : public mlir::OpRewritePattern<IERT::AddOp> {
+template <class ConcreteOp>
+class GenericEltwiseConverter final : public mlir::OpRewritePattern<ConcreteOp> {
 public:
-    EltwiseAddRewrite(mlir::MLIRContext* ctx, int64_t numDPU, vpux::VPUIP::ArchKind arch, Logger log)
-            : mlir::OpRewritePattern<IERT::AddOp>(ctx), _numDPU(numDPU), _arch(arch), _log(log) {
+    GenericEltwiseConverter<ConcreteOp>(mlir::MLIRContext* ctx, int64_t numDPU, vpux::VPUIP::ArchKind arch,
+                                        VPUIP::PPELayerType ppeType, Logger log)
+            : mlir::OpRewritePattern<ConcreteOp>(ctx), _numDPU(numDPU), _arch(arch), _ppeType(ppeType), _log(log) {
     }
 
 public:
-    mlir::LogicalResult matchAndRewrite(IERT::AddOp origOp, mlir::PatternRewriter& rewriter) const final;
+    mlir::LogicalResult matchAndRewrite(ConcreteOp origOp, mlir::PatternRewriter& rewriter) const final;
 
 private:
     const int64_t _numDPU;
     vpux::VPUIP::ArchKind _arch;
+    VPUIP::PPELayerType _ppeType;
     Logger _log;
 };
 
@@ -423,7 +426,9 @@ std::pair<std::vector<int32_t>, std::vector<int32_t>> getQuantMultAndShiftVector
     return {mult, shift};
 }
 
-mlir::LogicalResult EltwiseAddRewrite::matchAndRewrite(IERT::AddOp origOp, mlir::PatternRewriter& rewriter) const {
+template <class ConcreteOp>
+mlir::LogicalResult GenericEltwiseConverter<ConcreteOp>::matchAndRewrite(ConcreteOp origOp,
+                                                                         mlir::PatternRewriter& rewriter) const {
     if (VPUIP::NCEInvariant::verifyOp(origOp, _log).failed()) {
         return matchFailed(rewriter, origOp, "Operation {0} does not satisfy the NCE invariant", origOp);
     }
@@ -439,10 +444,10 @@ mlir::LogicalResult EltwiseAddRewrite::matchAndRewrite(IERT::AddOp origOp, mlir:
     // Prepare output buffer for DPU
     //
 
-    const auto origOutType = origOp.output().getType().cast<mlir::MemRefType>();
+    const auto origOutType = origOp.output().getType().template cast<mlir::MemRefType>();
     const auto outReorderType = changeDimsOrder(origOutType, DimsOrder::NHWC);
-    const auto outTypeCMX =
-            changeMemSpace(outReorderType, VPUIP::PhysicalMemoryAttr::get(getContext(), VPUIP::PhysicalMemory::CMX_NN));
+    const auto outTypeCMX = changeMemSpace(
+            outReorderType, VPUIP::PhysicalMemoryAttr::get(this->getContext(), VPUIP::PhysicalMemory::CMX_NN));
 
     auto outAllocOpCMX = rewriter.create<mlir::memref::AllocOp>(origOp->getLoc(), outTypeCMX);
 
@@ -450,7 +455,7 @@ mlir::LogicalResult EltwiseAddRewrite::matchAndRewrite(IERT::AddOp origOp, mlir:
     // Create NCE per-cluster Operation
     //
 
-    const auto activation_window_channel_length = getIntAttr(getContext(), static_cast<int32_t>(0));
+    const auto activation_window_channel_length = getIntAttr(this->getContext(), static_cast<int32_t>(0));
 
     auto nceOp = rewriter.create<VPUIP::NCEClusterTaskOp>(origOp->getLoc(), firstInputDPU, secondInputDPU,
                                                           /*weightsTable=*/nullptr,
@@ -483,10 +488,10 @@ mlir::LogicalResult EltwiseAddRewrite::matchAndRewrite(IERT::AddOp origOp, mlir:
     if (quantScale.hasValue()) {
         auto quantMultShift = getQuantMultAndShiftVectorFromScale(quantScale.getValue());
 
-        nceOp.addPPETask(rewriter, VPUIP::PPELayerType::ADD, clampLow, clampHigh, LreluMult, LreluShift,
+        nceOp.addPPETask(rewriter, _ppeType, clampLow, clampHigh, LreluMult, LreluShift,
                          makeArrayRef<int32_t>(quantMultShift.first), makeArrayRef<int32_t>(quantMultShift.second));
     } else {
-        nceOp.addPPETask(rewriter, VPUIP::PPELayerType::ADD, clampLow, clampHigh, LreluMult, LreluShift);
+        nceOp.addPPETask(rewriter, _ppeType, clampLow, clampHigh, LreluMult, LreluShift);
     }
 
     //
@@ -620,7 +625,7 @@ mlir::LogicalResult DepthwiseConvRewrite::matchAndRewrite(IERT::GroupConvolution
 
 class ConvertToNCEOpsPass final : public ConvertToNCEOpsBase<ConvertToNCEOpsPass> {
 public:
-    ConvertToNCEOpsPass(Logger log): _log(log) {
+    explicit ConvertToNCEOpsPass(Logger log): _log(log) {
         _log.setName(Base::getArgumentName());
     }
 
@@ -653,7 +658,12 @@ void ConvertToNCEOpsPass::safeRunOnFunc() {
     mlir::OwningRewritePatternList patterns(&ctx);
     patterns.insert<ConvRewrite>(&ctx, dpuExec.count(), arch, _log);
     patterns.insert<MaxPoolRewrite>(&ctx, dpuExec.count(), arch, _log);
-    patterns.insert<EltwiseAddRewrite>(&ctx, dpuExec.count(), arch, _log);
+    patterns.insert<GenericEltwiseConverter<IERT::AddOp>>(&ctx, dpuExec.count(), arch, VPUIP::PPELayerType::ADD, _log);
+    patterns.insert<GenericEltwiseConverter<IERT::MultiplyOp>>(&ctx, dpuExec.count(), arch, VPUIP::PPELayerType::MULT,
+                                                               _log);
+    patterns.insert<GenericEltwiseConverter<IERT::SubtractOp>>(&ctx, dpuExec.count(), arch, VPUIP::PPELayerType::SUB,
+                                                               _log);
+    patterns.insert<GenericEltwiseConverter<IERT::AndOp>>(&ctx, dpuExec.count(), arch, VPUIP::PPELayerType::AND, _log);
     patterns.insert<DepthwiseConvRewrite>(&ctx, dpuExec.count(), arch, _log);
 
     if (mlir::failed(applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig()))) {

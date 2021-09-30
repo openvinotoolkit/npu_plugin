@@ -45,6 +45,7 @@ mlir::IntegerType getUInt8Type(mlir::MLIRContext* ctx);
 mlir::IntegerType getUInt16Type(mlir::MLIRContext* ctx);
 mlir::IntegerType getUInt32Type(mlir::MLIRContext* ctx);
 mlir::IntegerType getUInt64Type(mlir::MLIRContext* ctx);
+mlir::IntegerType getBoolType(mlir::MLIRContext* ctx);
 
 //
 // TypeSize

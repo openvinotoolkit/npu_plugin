@@ -131,6 +131,41 @@ operation ::= `IERT.Add` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float or 32-bit float or QuantizedType values
 
+### `IERT.And` (vpux::IERT::AndOp)
+
+InferenceEngine run-time And layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.And` attr-dict
+              `inputs` `(` $input1 `:` type($input1) `,` $input2 `:` type($input2) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`post_op` | vpux::IE::PostOp | DictionaryAttr with field(s): 'name', 'attrs' (each field having its own constraints)
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input1` | memref of 16-bit float or 32-bit float values
+`input2` | memref of 16-bit float or 32-bit float values
+`output_buff` | memref of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float or 32-bit float values
+
 ### `IERT.AvgPool` (vpux::IERT::AvgPoolOp)
 
 InferenceEngine run-time AvgPool layer
@@ -1292,6 +1327,12 @@ operation ::= `IERT.Multiply` attr-dict
 ```
 
 
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`post_op` | vpux::IE::PostOp | DictionaryAttr with field(s): 'name', 'attrs' (each field having its own constraints)
+
 #### Operands:
 
 | Operand | Description |
@@ -1944,6 +1985,12 @@ operation ::= `IERT.Subtract` attr-dict
               `->` type(results)
 ```
 
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`post_op` | vpux::IE::PostOp | DictionaryAttr with field(s): 'name', 'attrs' (each field having its own constraints)
 
 #### Operands:
 

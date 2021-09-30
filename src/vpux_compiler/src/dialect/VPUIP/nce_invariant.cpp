@@ -143,6 +143,42 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyChannels(IERT::AddOp origOp
     return verifyEltwiseChannels(origOp->getLoc(), input1Type, input2Type, log);
 }
 
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyChannels(IE::MultiplyOp origOp, Logger log) {
+    auto input1Type = origOp.input1().getType().cast<mlir::ShapedType>();
+    auto input2Type = origOp.input2().getType().cast<mlir::ShapedType>();
+    return verifyEltwiseChannels(origOp->getLoc(), input1Type, input2Type, log);
+}
+
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyChannels(IERT::MultiplyOp origOp, Logger log) {
+    auto input1Type = origOp.input1().getType().cast<mlir::ShapedType>();
+    auto input2Type = origOp.input2().getType().cast<mlir::ShapedType>();
+    return verifyEltwiseChannels(origOp->getLoc(), input1Type, input2Type, log);
+}
+
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyChannels(IE::SubtractOp origOp, Logger log) {
+    auto input1Type = origOp.input1().getType().cast<mlir::ShapedType>();
+    auto input2Type = origOp.input2().getType().cast<mlir::ShapedType>();
+    return verifyEltwiseChannels(origOp->getLoc(), input1Type, input2Type, log);
+}
+
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyChannels(IERT::SubtractOp origOp, Logger log) {
+    auto input1Type = origOp.input1().getType().cast<mlir::ShapedType>();
+    auto input2Type = origOp.input2().getType().cast<mlir::ShapedType>();
+    return verifyEltwiseChannels(origOp->getLoc(), input1Type, input2Type, log);
+}
+
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyChannels(IE::AndOp origOp, Logger log) {
+    auto input1Type = origOp.input1().getType().cast<mlir::ShapedType>();
+    auto input2Type = origOp.input2().getType().cast<mlir::ShapedType>();
+    return verifyEltwiseChannels(origOp->getLoc(), input1Type, input2Type, log);
+}
+
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyChannels(IERT::AndOp origOp, Logger log) {
+    auto input1Type = origOp.input1().getType().cast<mlir::ShapedType>();
+    auto input2Type = origOp.input2().getType().cast<mlir::ShapedType>();
+    return verifyEltwiseChannels(origOp->getLoc(), input1Type, input2Type, log);
+}
+
 //
 // verifyGroupConvChannels
 //
@@ -316,6 +352,27 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyEltwiseCMX(mlir::Location l
 }
 
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyCMX(IERT::AddOp origOp, Logger log) {
+    return verifyEltwiseCMX(origOp->getLoc(), origOp->getParentOfType<mlir::ModuleOp>(),
+                            origOp.input1().getType().cast<mlir::MemRefType>(),
+                            origOp.input2().getType().cast<mlir::MemRefType>(),
+                            origOp.output().getType().cast<mlir::MemRefType>(), log);
+}
+
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyCMX(IERT::MultiplyOp origOp, Logger log) {
+    return verifyEltwiseCMX(origOp->getLoc(), origOp->getParentOfType<mlir::ModuleOp>(),
+                            origOp.input1().getType().cast<mlir::MemRefType>(),
+                            origOp.input2().getType().cast<mlir::MemRefType>(),
+                            origOp.output().getType().cast<mlir::MemRefType>(), log);
+}
+
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyCMX(IERT::SubtractOp origOp, Logger log) {
+    return verifyEltwiseCMX(origOp->getLoc(), origOp->getParentOfType<mlir::ModuleOp>(),
+                            origOp.input1().getType().cast<mlir::MemRefType>(),
+                            origOp.input2().getType().cast<mlir::MemRefType>(),
+                            origOp.output().getType().cast<mlir::MemRefType>(), log);
+}
+
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyCMX(IERT::AndOp origOp, Logger log) {
     return verifyEltwiseCMX(origOp->getLoc(), origOp->getParentOfType<mlir::ModuleOp>(),
                             origOp.input1().getType().cast<mlir::MemRefType>(),
                             origOp.input2().getType().cast<mlir::MemRefType>(),
@@ -564,35 +621,79 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IERT::MaxPoolOp orig
     return verifyKernel(origOp->getLoc(), KY, KX, SY, SX, padTop, padBottom, padLeft, padRight, log);
 }
 
-mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IE::AddOp origOp, Logger) {
+//
+// verifyEltwiseKernel
+//
+
+static mlir::LogicalResult verifyEltwiseKernel(mlir::ShapedType input1, mlir::ShapedType input2,
+                                               mlir::ShapedType output) {
     // Eltwise add is expected to have the same shapes for all operands
-    if (origOp.input1().getType().cast<mlir::ShapedType>().getRank() != 4 ||
-        origOp.input2().getType().cast<mlir::ShapedType>().getRank() != 4 ||
-        origOp.output().getType().cast<mlir::ShapedType>().getRank() != 4) {
+    if (input1.getRank() != 4 || input2.getRank() != 4 || output.getRank() != 4) {
         return mlir::failure();
     }
 
     // Output type can differ from input type. In case of quantization
     // this can be different quant scale value
-    if (origOp.input1().getType() != origOp.input2().getType()) {
+    if (input1 != input2) {
         return mlir::failure();
     }
     return mlir::success();
 }
 
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IE::AddOp origOp, Logger) {
+    auto input1Type = origOp.input1().getType().cast<mlir::ShapedType>();
+    auto input2Type = origOp.input2().getType().cast<mlir::ShapedType>();
+    auto outputType = origOp.output().getType().cast<mlir::ShapedType>();
+    return verifyEltwiseKernel(input1Type, input2Type, outputType);
+}
+
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IERT::AddOp origOp, Logger) {
-    // Eltwise add is expected to have the same shapes for all operands
-    if (origOp.input1().getType().cast<mlir::ShapedType>().getRank() != 4 ||
-        origOp.input2().getType().cast<mlir::ShapedType>().getRank() != 4 ||
-        origOp.output().getType().cast<mlir::ShapedType>().getRank() != 4) {
-        return mlir::failure();
-    }
-    // Output type can differ from input type. In case of quantization
-    // this can be different quant scale value
-    if (origOp.input1().getType() != origOp.input2().getType()) {
-        return mlir::failure();
-    }
-    return mlir::success();
+    auto input1Type = origOp.input1().getType().cast<mlir::ShapedType>();
+    auto input2Type = origOp.input2().getType().cast<mlir::ShapedType>();
+    auto outputType = origOp.output().getType().cast<mlir::ShapedType>();
+    return verifyEltwiseKernel(input1Type, input2Type, outputType);
+}
+
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IE::MultiplyOp origOp, Logger) {
+    auto input1Type = origOp.input1().getType().cast<mlir::ShapedType>();
+    auto input2Type = origOp.input2().getType().cast<mlir::ShapedType>();
+    auto outputType = origOp.output().getType().cast<mlir::ShapedType>();
+    return verifyEltwiseKernel(input1Type, input2Type, outputType);
+}
+
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IERT::MultiplyOp origOp, Logger) {
+    auto input1Type = origOp.input1().getType().cast<mlir::ShapedType>();
+    auto input2Type = origOp.input2().getType().cast<mlir::ShapedType>();
+    auto outputType = origOp.output().getType().cast<mlir::ShapedType>();
+    return verifyEltwiseKernel(input1Type, input2Type, outputType);
+}
+
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IE::SubtractOp origOp, Logger) {
+    auto input1Type = origOp.input1().getType().cast<mlir::ShapedType>();
+    auto input2Type = origOp.input2().getType().cast<mlir::ShapedType>();
+    auto outputType = origOp.output().getType().cast<mlir::ShapedType>();
+    return verifyEltwiseKernel(input1Type, input2Type, outputType);
+}
+
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IERT::SubtractOp origOp, Logger) {
+    auto input1Type = origOp.input1().getType().cast<mlir::ShapedType>();
+    auto input2Type = origOp.input2().getType().cast<mlir::ShapedType>();
+    auto outputType = origOp.output().getType().cast<mlir::ShapedType>();
+    return verifyEltwiseKernel(input1Type, input2Type, outputType);
+}
+
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IE::AndOp origOp, Logger) {
+    auto input1Type = origOp.input1().getType().cast<mlir::ShapedType>();
+    auto input2Type = origOp.input2().getType().cast<mlir::ShapedType>();
+    auto outputType = origOp.output().getType().cast<mlir::ShapedType>();
+    return verifyEltwiseKernel(input1Type, input2Type, outputType);
+}
+
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IERT::AndOp origOp, Logger) {
+    auto input1Type = origOp.input1().getType().cast<mlir::ShapedType>();
+    auto input2Type = origOp.input2().getType().cast<mlir::ShapedType>();
+    auto outputType = origOp.output().getType().cast<mlir::ShapedType>();
+    return verifyEltwiseKernel(input1Type, input2Type, outputType);
 }
 
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IE::GroupConvolutionOp origOp, Logger log) {
@@ -726,6 +827,15 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyOp(mlir::Operation* op, Log
                 return verifyConcreteOp(origOp, log);
             })
             .Case<IERT::AddOp>([&](IERT::AddOp origOp) {
+                return verifyConcreteOp(origOp, log);
+            })
+            .Case<IERT::MultiplyOp>([&](IERT::MultiplyOp origOp) {
+                return verifyConcreteOp(origOp, log);
+            })
+            .Case<IERT::SubtractOp>([&](IERT::SubtractOp origOp) {
+                return verifyConcreteOp(origOp, log);
+            })
+            .Case<IERT::AndOp>([&](IERT::AndOp origOp) {
                 return verifyConcreteOp(origOp, log);
             })
             .Case<IERT::GroupConvolutionOp>([&](IERT::GroupConvolutionOp origOp) {
