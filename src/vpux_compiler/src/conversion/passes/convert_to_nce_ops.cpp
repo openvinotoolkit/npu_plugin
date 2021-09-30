@@ -46,30 +46,6 @@ const EnumMap<VPUIP::ArchKind, VPUIP::MPEMode> mpeMap = {
         {VPUIP::ArchKind::MTL, VPUIP::MPEMode::CUBOID_16x16},  //
 };
 
-// mlir::Value createWeightsTableTensor(mlir::OpBuilder& builder, mlir::Location loc, int64_t OC, mlir::Value op_input,
-//                                      mlir::Value op_output, mlir::Value weights, mlir::Value bias,
-//                                      mlir::Value activationWindow) {
-//     SmallVector<int64_t> weightTableShape{OC, 1, 1, VPUIP::NCEInvariant::WEIGHT_TABLE_NUM_ELEMENTS_PER_OC};
-
-//     auto* ctx = builder.getContext();
-
-//     const auto dataType = changeDimsOrder(mlir::MemRefType::get(weightTableShape, getSInt32Type(builder.getContext())),
-//                                           DimsOrder::NHWC);
-
-//     // const auto dataType = mlir::MemRefType::get(weightTableShape, getSInt32Type(builder.getContext()));
-//     auto createWeightsTableOp =
-//             builder.create<VPUIP::WeightsTableOp>(loc, dataType, op_input, op_output, weights, bias, activationWindow);
-
-//     const auto cmxMemSpaceAttr = VPUIP::PhysicalMemoryAttr::get(ctx, VPUIP::PhysicalMemory::CMX_NN);
-//     const auto dataTypeCMX = changeMemSpace(dataType, cmxMemSpaceAttr);
-
-//     auto dataAllocOp = builder.create<mlir::memref::AllocOp>(loc, dataTypeCMX);
-
-//     auto copyOp = builder.create<IERT::CopyOp>(loc, createWeightsTableOp.output(), dataAllocOp);
-
-//     return copyOp.output();
-// }
-
 mlir::Value createWeightsTableTensor(mlir::OpBuilder& builder, mlir::Location loc, int64_t OC, mlir::Value op_input,
                                      mlir::Value op_output, mlir::Value weights, mlir::Value bias,
                                      mlir::Value activationWindow) {
@@ -89,7 +65,6 @@ mlir::Value createWeightsTableTensor(mlir::OpBuilder& builder, mlir::Location lo
 
     return copyOp.output();
 }
-
 
 mlir::Value prepareTensorForDPU(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value input) {
     // DMA DDR -> CMX
@@ -278,8 +253,6 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
     mlir::IntegerAttr actWindowChanLen;
     std::vector<uint8_t> fakeSparsity;
 
-    //auto inputShape = getShape(origOp.input());
-
     //
     // Prepare input for DPU
     //
@@ -407,10 +380,7 @@ mlir::LogicalResult MaxPoolRewrite::matchAndRewrite(IERT::MaxPoolOp origOp, mlir
 
     const auto origInputType = origOp.input().getType().cast<mlir::MemRefType>();
     const auto inputShape = getShape(origInputType);
-    //Logger::global().error("inputShape: {0}", inputShape);
-
     const auto IC = inputShape[IE::Dims4D::Act::C];
-
     const auto kernelSize = parseIntArrayAttr<int64_t>(origOp.kernel_size());
     const auto kernelStrides = parseIntArrayAttr<int64_t>(origOp.strides());
 

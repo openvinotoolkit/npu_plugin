@@ -78,14 +78,6 @@ void vpux::VPUIP::NCEClusterTaskOp::inferLayoutInfo(mlir::Operation* origOp, IE:
     llvm::TypeSwitch<mlir::Operation*, void>(origOp)
             .Case<IE::ConvolutionOp>([&](IE::ConvolutionOp op) {
 
-                //auto convLayoutOp = mlir::dyn_cast<IE::LayoutInfoOpInterface>(*origOp); // How to get user defined layout?
-    
-                //const auto inputShape = getShape(convOp.filter().getType().cast<mlir::ShapedType>());
-                //const auto IC = inputShape[IE::Dims4D::Filter::IC];
-                
-                //auto inputTensorShape = getShape(convOp.input());
-                //auto width = inputTensorShape[IE::Dims4D::Act::W];
-
                 uint64_t cmconv = 0;
                 if(op->hasAttr("ChannelMajorCompitable"))
                     cmconv = op->getAttr("ChannelMajorCompitable").cast<mlir::IntegerAttr>().getInt();

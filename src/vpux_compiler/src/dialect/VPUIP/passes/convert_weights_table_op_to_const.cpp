@@ -105,37 +105,6 @@ private:
     const AliasesInfo* _aliasInfo = nullptr;
 };
 
-// mlir::LogicalResult CreateWTableOpsConverter::matchAndRewrite(VPUIP::WeightsTableOp createWTableOp,
-//                                                               mlir::PatternRewriter& rewriter) const {
-//     const auto OC = getOC(createWTableOp);
-
-//     const auto weightPtrOffset = getTensorPtrOffset(createWTableOp.weights(), _aliasInfo);
-//     const auto sparsityPtrOffset = getTensorPtrOffset(createWTableOp.activation_window(), _aliasInfo);
-//     const auto weightPtrStep = getWeightPtrStep(createWTableOp);
-
-//     const auto op_inElemType = createWTableOp.op_input().getType().cast<mlir::ShapedType>().getElementType();
-//     const auto op_outElemType = createWTableOp.op_output().getType().cast<mlir::ShapedType>().getElementType();
-//     const auto op_weightsElemType =
-//             createWTableOp.weights() ? createWTableOp.weights().getType().cast<mlir::ShapedType>().getElementType()
-//                                      : nullptr;
-//     const auto weightsTable = vpux::VPUIP::NCESparsity::getWeightsTable(op_inElemType, op_outElemType, weightPtrOffset,
-//                                                                         weightPtrStep, sparsityPtrOffset, _arch, OC,
-//                                                                         op_weightsElemType, createWTableOp.bias());
-
-//     const auto outType = createWTableOp.output().getType();
-//     const auto shapedType = outType.dyn_cast_or_null<mlir::ShapedType>();
-
-//     const auto dataStorageType = changeDimsOrder(
-//             mlir::RankedTensorType::get(shapedType.getShape(), getSInt32Type(rewriter.getContext())), DimsOrder::NHWC);
-
-//     const auto dataAttr = mlir::DenseElementsAttr::get(dataStorageType, makeArrayRef(weightsTable));
-
-//     rewriter.replaceOpWithNewOp<Const::DeclareOp>(createWTableOp,
-//                                                   changeDimsOrder(outType.cast<mlir::MemRefType>(), DimsOrder::NHWC),
-//                                                   Const::ContentAttr::get(dataAttr));
-
-//     return mlir::success();
-// }
 mlir::LogicalResult CreateWTableOpsConverter::matchAndRewrite(VPUIP::WeightsTableOp createWTableOp,
                                                               mlir::PatternRewriter& rewriter) const {
     const auto OC = getOC(createWTableOp);

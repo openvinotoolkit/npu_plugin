@@ -81,17 +81,11 @@ mlir::LogicalResult generalRewrite(mlir::Operation* origOp, mlir::PatternRewrite
     const auto inputShape = getShape(convOp.filter().getType().cast<mlir::ShapedType>());
     const auto IC = inputShape[IE::Dims4D::Filter::IC];
 
-    //auto inputTensorShape = getShape(convOp.input());
-    //auto width = inputTensorShape[IE::Dims4D::Act::W];
-
     auto cmConv = convOp->getAttr("ChannelMajorCompitable").cast<mlir::IntegerAttr>().getInt();
     Logger::global().error("ChannelMajorCompitable: {0}", convOp->getAttr("ChannelMajorCompitable").cast<mlir::IntegerAttr>().getInt());
 
 
     vpux::Shape inPadsEnd;
-       
-    //inPadsEnd = calcPadsEnd(inputType, channelAlignement);
-
     if(cmConv)
     {
         inPadsEnd = calcPadsEnd(inputType, inchannelAlignement);
@@ -431,7 +425,6 @@ void ExpandActivationChannelsPass::safeRunOnFunc() {
     patterns.insert<EltwiseAddRewriter>(&ctx, _log);
     patterns.insert<GroupConvolutionRewriter>(&ctx, _log);
 
-    //auto func = getFunction();
     if (mlir::failed(mlir::applyFullConversion(func, target, std::move(patterns)))) {
         signalPassFailure();
     }

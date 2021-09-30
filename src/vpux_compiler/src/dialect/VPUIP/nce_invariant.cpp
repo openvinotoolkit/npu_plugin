@@ -66,14 +66,6 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyConvChannels(int64_t cmconv
         return mlir::failure();
     }
 
-    // if (IC !=3) // Need to get user layout here
-    // {
-    //     if(IC % getChannelAlignment(filterType.getElementType()) != 0) {
-    //     log.trace("[{0}] Convolution input channels are not aligned", loc);
-    //     return mlir::failure();
-    //     }
-    // }
-
     return mlir::success();
 }
 
@@ -245,7 +237,6 @@ Byte getRequiredCMX(ArrayRef<mlir::MemRefType> operands, int64_t numChannels) {
     Byte requiredCMX(0);
 
     for (const auto& operand : operands) {
-        Logger::global().error("requiredCMX: {0}",getTypeTotalSize(operand));
         requiredCMX += getTypeTotalSize(operand);
     }
 
