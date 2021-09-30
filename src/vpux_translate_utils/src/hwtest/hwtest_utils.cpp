@@ -899,11 +899,13 @@ std::size_t totalTensorSize(llvm::ArrayRef<std::int64_t> shape, mlir::Type eleme
     if (auto qType = elementType.dyn_cast<mlir::quant::UniformQuantizedType>()) {
         elementType = qType.getStorageType();
     }
-    std::size_t numBytes = elementType.getIntOrFloatBitWidth() / 8;
+    size_t numBits = elementType.getIntOrFloatBitWidth();
 
     const auto totalSize =
             std::accumulate(shape.begin(), shape.end(), static_cast<std::int64_t>(1), std::multiplies<std::int64_t>());
-    return static_cast<std::size_t>(totalSize) * numBytes;
+    const auto totalBits = totalSize * numBits;
+    VPUX_THROW_UNLESS(totalBits % CHAR_BIT == 0, "Tensors size is not allligned to Byte");
+    return static_cast<std::size_t>(totalBits / CHAR_BIT);
 }
 
 std::vector<int32_t> getInstructionListVals(nb::ActivationType pwlType,
