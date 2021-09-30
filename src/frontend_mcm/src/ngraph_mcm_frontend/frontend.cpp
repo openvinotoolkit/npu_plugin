@@ -26,7 +26,7 @@
 #include "ngraph_mcm_frontend/passes/replace_scaleshift_with_mcm_scale.hpp"
 #include "ngraph_mcm_frontend/passes/align_eltwise_scales.hpp"
 #include "ngraph_mcm_frontend/passes/align_concat_scales.hpp"
-#include "ngraph_mcm_frontend/passes/fuse_scaleshift.hpp"
+#include "vpux/passes/fuse_scaleshift.hpp"
 #include "vpux/passes/fuse_padding.hpp"
 #include "vpux/passes/convert_extract_image_patches_to_reorg_vpu.hpp"
 #include "ngraph_mcm_frontend/passes/broadcast_eltwise_inputs.hpp"
@@ -372,7 +372,7 @@ std::unique_ptr<mv::CompilationUnit> createCompilationUnit(
         if (!config.layerSplitStrategies().empty()) {
             std::stringstream splitList{config.layerSplitStrategies()};
             std::string layerStrategyPair;
-            
+
             std::vector<mv::Element> overrideStrategies;
             while (std::getline(splitList, layerStrategyPair, ',')) {
                 // parse layer:strategy
@@ -383,7 +383,7 @@ std::unique_ptr<mv::CompilationUnit> createCompilationUnit(
                                  layerStrategyPair);
                 const auto layerName = layerStrategyPair.substr(0, delim);
                 const auto splitStrategy = layerStrategyPair.substr(delim + 1, std::string::npos);
-                
+
                 // save to vector
                 mv::Element strategyElem("item");
                 strategyElem.set<std::string>("name_filter", layerName);
@@ -411,7 +411,7 @@ std::unique_ptr<mv::CompilationUnit> createCompilationUnit(
                     mv::Element strategyElem("item");
                     strategyElem.set<std::string>("name_filter", allVals[0]);
                     std::vector<mv::Element> streams;
-                    
+
                     mv::Element itemW("W");
                     itemW.set<int>("W", std::stoi(allVals[1]));
                     streams.emplace_back(itemW);
@@ -419,7 +419,7 @@ std::unique_ptr<mv::CompilationUnit> createCompilationUnit(
                     mv::Element itemH("H");
                     itemH.set<int>("H", std::stoi(allVals[2]));
                     streams.emplace_back(itemH);
-                    
+
                     mv::Element itemC("C");
                     itemC.set<int>("C", std::stoi(allVals[3]));
                     streams.emplace_back(itemC);
@@ -427,7 +427,7 @@ std::unique_ptr<mv::CompilationUnit> createCompilationUnit(
                     mv::Element itemK("K");
                     itemK.set<int>("K", std::stoi(allVals[4]));
                     streams.emplace_back(itemK);
-                    
+
                     mv::Element itemN("N");
                     itemN.set<int>("N", std::stoi(allVals[5]));
                     streams.emplace_back(itemN);
@@ -530,7 +530,7 @@ void applyTransformations(
     passManager.register_pass<vpux::pass::FusePadding>();
 
     if (config.scaleShiftFusing()) {
-        passManager.register_pass<FuseScaleShift>();
+        passManager.register_pass<vpux::passes::FuseScaleShift>();
     }
 
     // TODO: Add passes for rewriting parts of graph

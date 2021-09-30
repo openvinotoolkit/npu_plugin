@@ -14,7 +14,7 @@
 // clang-format off
 
 #include <ie_common.h>
-#include "ngraph_mcm_frontend/passes/fuse_scaleshift.hpp"
+#include "vpux/passes/fuse_scaleshift.hpp"
 #include <ngraph/op/constant.hpp>
 
 #include "vpux/quantization_helpers.hpp"
@@ -24,6 +24,9 @@
 #include <memory>
 #include <ngraph/ops.hpp>
 #include <numeric>
+
+namespace vpux {
+namespace passes {
 
 bool FuseScaleShift::run_on_node(std::shared_ptr<ngraph::Node> node) {
     auto convolution_add_node = std::dynamic_pointer_cast<ngraph::op::v1::Add>(node);
@@ -282,3 +285,6 @@ bool FuseScaleShift::run_on_node(std::shared_ptr<ngraph::Node> node) {
 
     return true;
 }
+
+}  // namespace passes
+}  // namespace vpux

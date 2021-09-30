@@ -26,6 +26,7 @@
 #include "vpux/passes/convert_extract_image_patches_to_reorg_vpu.hpp"
 #include "vpux/passes/convert_variadic_split_to_strided_slice.hpp"
 #include "vpux/passes/fuse_padding.hpp"
+#include "vpux/passes/fuse_scaleshift.hpp"
 #include "vpux/passes/propagate_fq.hpp"
 #include "vpux/passes/remove_split_concat.hpp"
 #include "vpux/passes/replace_onnx_pattern_to_reorg.hpp"
@@ -1862,6 +1863,7 @@ void runNGraphPasses(const std::shared_ptr<ngraph::Function>& netGraph, mlir::Ti
     manager.register_pass<ngraph::pass::InitNodeInfo>();
     manager.register_pass<vpux::pass::RemoveSplitConcat>();
     manager.register_pass<vpux::pass::FusePadding>();
+    manager.register_pass<vpux::passes::FuseScaleShift>();
     manager.register_pass<ngraph::pass::ConvertQuantizeDequantize>();
     manager.register_pass<ngraph::pass::WeightsDequantizeToFakeQuantize>();
     manager.register_pass<ngraph::pass::ConstantFolding>();
