@@ -50,9 +50,17 @@ class IE_LayerOp<string mnemonic, list<OpTrait> traits = []> :
                 DeclareOpInterfaceMethods<IE_LayerOpInterface>
             ] # traits
         > {
+    bit checkInferredExactElemType = 1;
+    bit checkInferredDimsOrder = 0;
+    bit checkInferredMemSpace = 0;
+
     let extraClassDeclaration = [{
         static bool isCompatibleReturnTypes(mlir::TypeRange lhs, mlir::TypeRange rhs) {
-            return vpux::IE::isCompatibleShapeAndElemType(lhs, rhs);
+            return vpux::IE::isCompatibleTensorTypes(lhs, rhs,
+                static_cast<bool>(}] # checkInferredExactElemType # [{),
+                static_cast<bool>(}] # checkInferredDimsOrder # [{),
+                static_cast<bool>(}] # checkInferredMemSpace # [{)
+            );
         }
     }];
 
@@ -201,10 +209,7 @@ def IE_ConvertOp :
 
 def IE_ReorderOp :
         IE_LayerOp<
-            "Reorder",
-            [
-                SameOperandsShape
-            ]
+            "Reorder"
         > {
     let summary = "InferenceEngine Reorder layer";
 
@@ -221,11 +226,9 @@ def IE_ReorderOp :
     let hasCanonicalizer = 1;
     let hasFolder = 1;
 
-    let extraClassDeclaration = [{
-        static bool isCompatibleReturnTypes(mlir::TypeRange lhs, mlir::TypeRange rhs) {
-            return lhs == rhs;
-        }
-    }];
+    let checkInferredExactElemType = 1;
+    let checkInferredDimsOrder = 1;
+    let checkInferredMemSpace = 0;
 }
 
 //
@@ -234,11 +237,7 @@ def IE_ReorderOp :
 
 def IE_SoftMaxOp :
         IE_LayerOp<
-            "SoftMax",
-            [
-                ResultsAreFloatLike,
-                SameOperandsAndResultType
-            ]
+            "SoftMax"
         > {
     let summary = "InferenceEngine SoftMax layer";
 
@@ -308,8 +307,6 @@ def IE_ReLUOp :
         IE_LayerOp<
             "ReLU",
             [
-                ResultsAreFloatLike,
-                SameOperandsAndResultType,
                 IE_EltwiseOp
             ]
         > {
@@ -347,6 +344,10 @@ def IE_SplitOp :
     );
 
     let hasCanonicalizer = 1;
+
+    let checkInferredExactElemType = 1;
+    let checkInferredDimsOrder = 1;
+    let checkInferredMemSpace = 1;
 }
 
 //
@@ -357,7 +358,6 @@ def IE_PowerOp :
         IE_LayerOp<
             "Power",
             [
-                ResultsAreFloatLike,
                 IE_EltwiseOp
             ]
         > {
@@ -403,6 +403,8 @@ def IE_AddOp :
 
     let hasCanonicalizer = 1;
     let hasFolder = 1;
+
+    let checkInferredExactElemType = 0;
 }
 
 //
@@ -413,7 +415,6 @@ def IE_DivideOp :
         IE_LayerOp<
             "Divide",
             [
-                ResultsAreFloatLike,
                 IE_EltwiseOp
             ]
         > {
@@ -439,7 +440,6 @@ def IE_SquaredDifferenceOp :
         IE_LayerOp<
             "SquaredDiff",
             [
-                ResultsAreFloatLike,
                 IE_EltwiseOp
             ]
         > {
@@ -465,7 +465,6 @@ def IE_FloorModOp :
         IE_LayerOp<
             "FloorMod",
             [
-                ResultsAreFloatLike,
                 IE_EltwiseOp
             ]
         > {
@@ -492,7 +491,6 @@ def IE_MultiplyOp :
             "Multiply",
             [
                 Commutative,
-                ResultsAreFloatLike,
                 IE_EltwiseOp
             ]
         > {
@@ -569,6 +567,8 @@ def IE_ConvolutionOp :
     );
 
     let hasCanonicalizer = 1;
+
+    let checkInferredExactElemType = 0;
 }
 
 //
@@ -600,6 +600,8 @@ def IE_GroupConvolutionOp :
     );
 
     let hasCanonicalizer = 1;
+
+    let checkInferredExactElemType = 0;
 }
 
 //
@@ -608,10 +610,7 @@ def IE_GroupConvolutionOp :
 
 def IE_AvgPoolOp :
         IE_LayerOp<
-            "AvgPool",
-            [
-                ResultsAreFloatLike
-            ]
+            "AvgPool"
         > {
     let summary = "InferenceEngine AvgPool layer";
 
@@ -656,6 +655,8 @@ def IE_MaxPoolOp :
     let results = (outs
         RankedTensorOf<[F16, F32, quant_QuantizedType]>:$output
     );
+
+    let checkInferredExactElemType = 0;
 }
 
 //
@@ -687,8 +688,6 @@ def IE_ClampOp :
         IE_LayerOp<
             "Clamp",
             [
-                ResultsAreFloatLike,
-                SameOperandsAndResultType,
                 IE_EltwiseOp
             ]
         > {
@@ -714,8 +713,6 @@ def IE_EluOp :
         IE_LayerOp<
             "Elu",
             [
-                ResultsAreFloatLike,
-                SameOperandsAndResultType,
                 IE_EltwiseOp
             ]
         > {
@@ -738,10 +735,7 @@ def IE_EluOp :
 
 def IE_ReshapeOp :
         IE_LayerOp<
-            "Reshape",
-            [
-                DeclareOpInterfaceMethods<ViewLikeOpInterface>
-            ]
+            "Reshape"
         > {
     let summary = "InferenceEngine Reshape layer";
 
@@ -759,6 +753,10 @@ def IE_ReshapeOp :
 
     let hasCanonicalizer = 1;
     let hasFolder = 1;
+
+    let checkInferredExactElemType = 1;
+    let checkInferredDimsOrder = 1;
+    let checkInferredMemSpace = 1;
 }
 
 //
@@ -767,10 +765,7 @@ def IE_ReshapeOp :
 
 def IE_SqueezeOp :
         IE_LayerOp<
-            "Squeeze",
-            [
-                DeclareOpInterfaceMethods<ViewLikeOpInterface>
-            ]
+            "Squeeze"
         > {
     let summary = "InferenceEngine Squeeze layer";
 
@@ -787,6 +782,10 @@ def IE_SqueezeOp :
 
     let hasCanonicalizer = 1;
     let hasFolder = 1;
+
+    let checkInferredExactElemType = 1;
+    let checkInferredDimsOrder = 1;
+    let checkInferredMemSpace = 1;
 }
 
 //
@@ -795,10 +794,7 @@ def IE_SqueezeOp :
 
 def IE_UnsqueezeOp :
         IE_LayerOp<
-            "Unsqueeze",
-            [
-                DeclareOpInterfaceMethods<ViewLikeOpInterface>
-            ]
+            "Unsqueeze"
         > {
 
     let summary = "InferenceEngine Unsqueeze layer";
@@ -816,6 +812,10 @@ def IE_UnsqueezeOp :
 
     let hasCanonicalizer = 1;
     let hasFolder = 1;
+
+    let checkInferredExactElemType = 1;
+    let checkInferredDimsOrder = 1;
+    let checkInferredMemSpace = 1;
 }
 
 //
@@ -826,8 +826,6 @@ def IE_SigmoidOp :
         IE_LayerOp<
             "Sigmoid",
             [
-                ResultsAreFloatLike,
-                SameOperandsAndResultType,
                 IE_EltwiseOp
             ]
         > {
@@ -950,7 +948,6 @@ def IE_FakeQuantizeOp :
         IE_LayerOp<
             "FakeQuantize",
             [
-                ResultsAreFloatLike,
                 IE_EltwiseOp
             ]
         > {
@@ -1026,10 +1023,7 @@ def IE_DequantizeOp :
 
 def IE_MatMulOp:
         IE_LayerOp<
-            "MatMul",
-            [
-                ResultsAreFloatLike
-            ]
+            "MatMul"
         > {
     let summary = "InferenceEngine MatMul layer";
 
@@ -1056,8 +1050,6 @@ def IE_TanhOp :
         IE_LayerOp<
             "Tanh",
             [
-                ResultsAreFloatLike,
-                SameOperandsAndResultType,
                 IE_EltwiseOp
             ]
         > {
@@ -1080,8 +1072,6 @@ def IE_ExpOp :
         IE_LayerOp<
             "Exp",
             [
-                ResultsAreFloatLike,
-                SameOperandsAndResultType,
                 IE_EltwiseOp
             ]
         > {
@@ -1104,8 +1094,6 @@ def IE_HSwishOp :
         IE_LayerOp<
             "HSwish",
             [
-                ResultsAreFloatLike,
-                SameOperandsAndResultType,
                 IE_EltwiseOp
             ]
         > {
@@ -1128,8 +1116,6 @@ def IE_FloorOp :
         IE_LayerOp<
             "Floor",
             [
-                ResultsAreFloatLike,
-                SameOperandsAndResultType,
                 IE_EltwiseOp
             ]
         > {
@@ -1152,8 +1138,6 @@ def IE_RoundOp :
         IE_LayerOp<
             "Round",
             [
-                ResultsAreFloatLike,
-                SameOperandsAndResultType,
                 IE_EltwiseOp
             ]
         > {
@@ -1178,8 +1162,6 @@ def IE_MishOp :
         IE_LayerOp<
             "Mish",
             [
-                ResultsAreFloatLike,
-                SameOperandsAndResultType,
                 IE_EltwiseOp
             ]
         > {
@@ -1202,8 +1184,6 @@ def IE_ErfOp :
         IE_LayerOp<
             "Erf",
             [
-                ResultsAreFloatLike,
-                SameOperandsAndResultType,
                 IE_EltwiseOp
             ]
         > {
@@ -1241,6 +1221,10 @@ def IE_TransposeOp :
 
     let hasCanonicalizer = 1;
     let hasFolder = 1;
+
+    let checkInferredExactElemType = 1;
+    let checkInferredDimsOrder = 1;
+    let checkInferredMemSpace = 0;
 }
 
 //
@@ -1478,6 +1462,10 @@ def IE_ConcatOp :
             (ins "mlir::Type":$type, "::mlir::ValueRange":$input, "mlir::IntegerAttr":$axis)
         >
     ];
+
+    let checkInferredExactElemType = 1;
+    let checkInferredDimsOrder = 1;
+    let checkInferredMemSpace = 1;
 }
 
 //
@@ -1486,10 +1474,7 @@ def IE_ConcatOp :
 
 def IE_ROIPoolingOp :
         IE_LayerOp<
-            "ROIPooling",
-            [
-                ResultsAreFloatLike
-            ]
+            "ROIPooling"
         > {
     let summary = "InferenceEngine ROIPooling layer";
 
@@ -1604,7 +1589,6 @@ def IE_LeakyReluOp :
         IE_LayerOp<
             "LeakyRelu",
             [
-                SameOperandsAndResultType,
                 IE_EltwiseOp
             ]
         > {
@@ -1681,10 +1665,7 @@ def IE_ScaleShiftOp :
 
 def IE_GRNOp :
         IE_LayerOp<
-            "GRN",
-            [
-                SameOperandsAndResultType
-            ]
+            "GRN"
         > {
     let summary = "InferenceEngine GRN layer";
 
@@ -1707,7 +1688,6 @@ def IE_NegativeOp :
         IE_LayerOp<
             "Negative",
             [
-                SameOperandsAndResultType,
                 IE_EltwiseOp
             ]
         > {
@@ -1728,10 +1708,7 @@ def IE_NegativeOp :
 
 def IE_FullyConnectedOp:
         IE_LayerOp<
-            "FullyConnected",
-            [
-                ResultsAreFloatLike
-            ]
+            "FullyConnected"
         > {
     let summary = "InferenceEngine FullyConnected layer";
 
@@ -1754,10 +1731,7 @@ def IE_FullyConnectedOp:
 
 def IE_CTCGreedyDecoderOp :
         IE_LayerOp<
-            "CTCGreedyDecoder",
-            [
-                ResultsAreFloatLike
-            ]
+            "CTCGreedyDecoder"
         > {
     let summary = "InferenceEngine CTCGreedyDecoder layer";
 
@@ -1863,6 +1837,10 @@ def IE_ExpandOp :
             (ins "mlir::Value":$input, "vpux::Optional<vpux::ShapeRef>":$pads_begin, "vpux::Optional<vpux::ShapeRef>":$pads_end)
         >
     ];
+
+    let checkInferredExactElemType = 1;
+    let checkInferredDimsOrder = 1;
+    let checkInferredMemSpace = 1;
 }
 
 //
@@ -1871,10 +1849,7 @@ def IE_ExpandOp :
 
 def IE_LSTMCellOp :
         IE_LayerOp<
-            "LSTMCell",
-            [
-                ResultsAreFloatLike
-            ]
+            "LSTMCell"
         > {
     let summary = "InferenceEngine LSTMCell layer";
 
@@ -1933,11 +1908,9 @@ def IE_SliceOp :
     let hasFolder = 1;
     let hasCanonicalizer = 1;
 
-    let extraClassDeclaration = [{
-        static bool isCompatibleReturnTypes(mlir::TypeRange lhs, mlir::TypeRange rhs) {
-            return lhs == rhs;
-        }
-    }];
+    let checkInferredExactElemType = 1;
+    let checkInferredDimsOrder = 1;
+    let checkInferredMemSpace = 1;
 }
 
 //
@@ -1948,7 +1921,6 @@ def IE_SubtractOp :
         IE_LayerOp<
             "Subtract",
             [
-                ResultsAreFloatLike,
                 IE_EltwiseOp
             ]
         > {
@@ -1976,10 +1948,7 @@ def IE_SubtractOp :
 
 def IE_LSTMSequenceOp :
         IE_LayerOp<
-            "LSTMSequence",
-            [
-                ResultsAreFloatLike
-            ]
+            "LSTMSequence"
         > {
     let summary = "InferenceEngine LSTMSequence layer";
 
@@ -2001,4 +1970,5 @@ def IE_LSTMSequenceOp :
         3DTensorOf<[F16, F32]>:$outputCellState
     );
 }
+
 #endif

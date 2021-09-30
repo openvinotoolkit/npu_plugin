@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -12,7 +12,10 @@
 //
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
+
 #include "vpux/compiler/utils/attributes.hpp"
+#include "vpux/compiler/utils/error.hpp"
+#include "vpux/compiler/utils/quantization.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
 
@@ -36,6 +39,8 @@ void vpux::IE::ConcatOp::build(mlir::OpBuilder& builder, mlir::OperationState& s
 // inferReturnTypeComponents
 //
 
+namespace {
+
 Dim normalizeAxis(IE::ConcatOpAdaptor concat) {
     const auto inType = concat.inputs().front().getType().cast<mlir::ShapedType>();
     const auto inRank = inType.getRank();
@@ -53,6 +58,8 @@ Dim normalizeAxis(IE::ConcatOpAdaptor concat) {
     return Dim(axisInd);
 }
 
+}  // namespace
+
 mlir::LogicalResult vpux::IE::ConcatOp::inferReturnTypeComponents(
         mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
         mlir::DictionaryAttr attrs, mlir::RegionRange,
@@ -64,24 +71,79 @@ mlir::LogicalResult vpux::IE::ConcatOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
+    if (concat.inputs().empty()) {
+        return errorAt(loc, "Missing inputs for '{0}'", IE::ConcatOp::getOperationName());
+    }
+
+    const auto inType = concat.inputs().front().getType().cast<mlir::RankedTensorType>();
+
+    // Check consistent tensor attributes
+
+    const auto inDesc = IE::getTensorAttr(inType);
+
+    for (const auto val : concat.inputs().drop_front()) {
+        const auto curType = val.getType().cast<mlir::RankedTensorType>();
+        const auto curDesc = IE::getTensorAttr(curType);
+
+        if (curDesc != inDesc) {
+            return errorAt(loc, "Misaligned TensorType attributes for '{0}' inputs", IE::ConcatOp::getOperationName());
+        }
+    }
+
+    // Infer output shape
+
     const auto axis = normalizeAxis(concat);
 
-    // Init with first input
-    auto outShape = getShape(concat.inputs().front()).toValues();
+    auto outShape = getShape(inType).toValues();
 
-    // Concat with rest inputs
-    for (auto i : irange<size_t>(1, concat.inputs().size())) {
-        const auto curShape = getShape(concat.inputs()[i]);
+    for (const auto val : concat.inputs().drop_front()) {
+        const auto curShape = getShape(val);
         outShape[axis] += curShape[axis];
     }
 
-    VPUX_THROW_WHEN(concat.offset().getInt() > outShape[axis] ||
-                            concat.offset().getInt() + concat.stride().getInt() > outShape[axis],
-                    "Concat offset {0} and stride {1} are larger than output dimention {2}", concat.offset(),
-                    concat.stride(), outShape[axis]);
+    if (concat.offset().getInt() > outShape[axis] ||
+        concat.offset().getInt() + concat.stride().getInt() > outShape[axis]) {
+        return errorAt(loc, "Concat offset '{0}' and stride '{1}' are larger than output dimension '{2}'",
+                       concat.offset(), concat.stride(), outShape[axis]);
+    }
 
-    const auto elemType = concat.inputs().front().getType().cast<mlir::ShapedType>().getElementType();
-    inferredReturnShapes.emplace_back(outShape.raw(), elemType);
+    // Infer output element type
 
+    const auto inElemType = inType.getElementType();
+
+    SmallVector<mlir::quant::UniformQuantizedPerAxisType> inPerAxisQTypes;
+
+    const auto perAxisQType = inElemType.dyn_cast<mlir::quant::UniformQuantizedPerAxisType>();
+    if (perAxisQType != nullptr) {
+        inPerAxisQTypes.push_back(perAxisQType);
+    }
+
+    for (const auto val : concat.inputs().drop_front()) {
+        const auto curType = val.getType().cast<mlir::RankedTensorType>();
+        const auto curElemType = curType.getElementType();
+
+        if (perAxisQType != nullptr) {
+            const auto curPerAxisQType = curType.dyn_cast<mlir::quant::UniformQuantizedPerAxisType>();
+
+            if (curPerAxisQType == nullptr) {
+                return errorAt(loc, "Misaligned element types for '{0}' inputs", IE::ConcatOp::getOperationName());
+            }
+            if (!canBeMerged(curPerAxisQType, perAxisQType)) {
+                return errorAt(loc, "Misaligned element types for '{0}' inputs", IE::ConcatOp::getOperationName());
+            }
+
+            inPerAxisQTypes.push_back(curPerAxisQType);
+        } else {
+            if (curElemType != inElemType) {
+                return errorAt(loc, "Misaligned element types for '{0}' inputs", IE::ConcatOp::getOperationName());
+            }
+        }
+    }
+
+    const auto outElemType = inPerAxisQTypes.empty() ? inElemType : concatScalesAndZP(inPerAxisQTypes);
+
+    // Return inferred components
+
+    inferredReturnShapes.emplace_back(outShape.raw(), outElemType, inDesc);
     return mlir::success();
 }

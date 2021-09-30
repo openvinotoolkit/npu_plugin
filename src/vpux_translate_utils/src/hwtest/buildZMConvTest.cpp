@@ -165,8 +165,8 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
 
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module)), "Compilation failed");
 
-    buildCNNOp(builder, function.getName(), {getTensorType(inputShape, inputType, vpux::DimsOrder::NHWC)},
-               {getTensorType(outputShape, outputType, vpux::DimsOrder::NHWC)});
+    buildCNNOp(builder, function.getName(), {getTensorType(inputShape, inputType, vpux::DimsOrder::NHWC, nullptr)},
+               {getTensorType(outputShape, outputType, vpux::DimsOrder::NHWC, nullptr)});
 }
 
 }  // namespace hwtest

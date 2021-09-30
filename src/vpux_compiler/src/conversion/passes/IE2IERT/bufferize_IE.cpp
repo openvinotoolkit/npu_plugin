@@ -52,43 +52,42 @@ SmallVector<mlir::Value> allocateResults(mlir::Location loc, mlir::OpBuilder& bu
 // ReshapeRewrite
 //
 
-class ReshapeRewrite final : public mlir::OpInterfaceConversionPattern<mlir::ViewLikeOpInterface> {
+template <class ConcreteOp>
+class ReshapeRewrite final : public mlir::OpConversionPattern<ConcreteOp> {
+    using OpAdaptor = typename mlir::OpConversionPattern<ConcreteOp>::OpAdaptor;
+
 public:
     ReshapeRewrite(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
-            : mlir::OpInterfaceConversionPattern<mlir::ViewLikeOpInterface>(typeConverter, ctx), _log(log) {
-        setDebugName("ReshapeRewrite");
+            : mlir::OpConversionPattern<ConcreteOp>(typeConverter, ctx), _log(log) {
+        this->setDebugName("ReshapeRewrite");
     }
 
 public:
-    mlir::LogicalResult matchAndRewrite(mlir::ViewLikeOpInterface origOp, ArrayRef<mlir::Value> newOperands,
+    mlir::LogicalResult matchAndRewrite(ConcreteOp origOp, OpAdaptor newArgs,
                                         mlir::ConversionPatternRewriter& rewriter) const final;
 
 private:
     Logger _log;
 };
 
-mlir::LogicalResult ReshapeRewrite::matchAndRewrite(mlir::ViewLikeOpInterface origOp, ArrayRef<mlir::Value> newOperands,
-                                                    mlir::ConversionPatternRewriter& rewriter) const {
-    if (!mlir::isa<IE::ReshapeOp, IE::SqueezeOp, IE::UnsqueezeOp>(origOp)) {
-        return mlir::failure();
-    }
-
+template <class ConcreteOp>
+mlir::LogicalResult ReshapeRewrite<ConcreteOp>::matchAndRewrite(ConcreteOp origOp, OpAdaptor newArgs,
+                                                                mlir::ConversionPatternRewriter& rewriter) const {
     _log.trace("Found Reshape Operation '{0}' at '{1}'", origOp->getName(), origOp->getLoc());
 
-    const auto outType = origOp->getResult(0).getType().cast<mlir::ShapedType>();
+    const auto outType = origOp.getType();
 
     if (!outType.hasStaticShape()) {
-        return matchFailed(rewriter, origOp, "GenericReshape with dynamic shape is not supported yet");
+        return matchFailed(rewriter, origOp, "'{0}' with dynamic shape is not supported yet",
+                           IERT::GenericReshapeOp::getOperationName());
     }
 
-    VPUX_THROW_UNLESS(!newOperands.empty(), "Got wrong newOperands size : '{0}'", newOperands.size());
-
-    auto* typeConverter = getTypeConverter();
+    auto* typeConverter = this->getTypeConverter();
     VPUX_THROW_UNLESS(typeConverter != nullptr, "TypeConverter is not set");
 
     const auto newOutType = typeConverter->convertType(outType);
 
-    rewriter.replaceOpWithNewOp<IERT::GenericReshapeOp>(origOp, newOutType, newOperands[0]);
+    rewriter.replaceOpWithNewOp<IERT::GenericReshapeOp>(origOp, newOutType, newArgs.input());
     return mlir::success();
 }
 
@@ -903,14 +902,16 @@ void BufferizeIEPass::safeRunOnFunc() {
     vpux::populateBufferizeMaterializationLegality(target);
 
     mlir::RewritePatternSet patterns(&ctx);
-    patterns.insert<ReshapeRewrite>(typeConverter, &ctx, _log);
-    patterns.insert<SplitRewrite>(typeConverter, &ctx, _log);
-    patterns.insert<ConcatRewrite>(typeConverter, &ctx, _log);
-    patterns.insert<LayerRewrite>(typeConverter, &ctx, _log);
-    patterns.insert<SubTensorRewrite>(typeConverter, &ctx, _log);
-    patterns.insert<ExpandRewrite>(typeConverter, &ctx, _log);
-    patterns.insert<LSTMCellRewrite>(typeConverter, &ctx, _log);
-    patterns.insert<LSTMSequenceRewrite>(typeConverter, &ctx, _log);
+    patterns.add<ReshapeRewrite<IE::ReshapeOp>>(typeConverter, &ctx, _log);
+    patterns.add<ReshapeRewrite<IE::SqueezeOp>>(typeConverter, &ctx, _log);
+    patterns.add<ReshapeRewrite<IE::UnsqueezeOp>>(typeConverter, &ctx, _log);
+    patterns.add<SplitRewrite>(typeConverter, &ctx, _log);
+    patterns.add<ConcatRewrite>(typeConverter, &ctx, _log);
+    patterns.add<LayerRewrite>(typeConverter, &ctx, _log);
+    patterns.add<SubTensorRewrite>(typeConverter, &ctx, _log);
+    patterns.add<ExpandRewrite>(typeConverter, &ctx, _log);
+    patterns.add<LSTMCellRewrite>(typeConverter, &ctx, _log);
+    patterns.add<LSTMSequenceRewrite>(typeConverter, &ctx, _log);
     Const::ConstDialect::populateBufferizePatterns(patterns, typeConverter, _log);
 
     auto func = getFunction();
