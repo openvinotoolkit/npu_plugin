@@ -95,12 +95,12 @@ mlir::DenseElementsAttr generateWeights(std::ifstream& stream, mlir::RankedTenso
 
 }  // namespace
 
-mlir::DenseElementsAttr generateWeights(llvm::ArrayRef<std::int64_t> shape, mlir::Type type, mlir::MLIRContext* context,
+mlir::DenseElementsAttr generateWeights(llvm::ArrayRef<int64_t> shape, mlir::Type type, mlir::MLIRContext* context,
                                         const char* weightsFileName) {
     mlir::DenseElementsAttr wt_data_vals;
     auto wtData_ddr_valueType = mlir::RankedTensorType::get(shape, type);
     const auto vecSize = static_cast<std::size_t>(
-            std::accumulate(shape.begin(), shape.end(), static_cast<std::int64_t>(1), std::multiplies<std::int64_t>()));
+            std::accumulate(shape.begin(), shape.end(), static_cast<int64_t>(1), std::multiplies<int64_t>()));
 
     if (auto qtype = type.dyn_cast_or_null<mlir::quant::QuantizedType>()) {
         type = mlir::quant::QuantizedType::castToStorageType(qtype);
@@ -131,19 +131,19 @@ mlir::DenseElementsAttr generateWeights(llvm::ArrayRef<std::int64_t> shape, mlir
     }
 }
 
-std::size_t totalTensorSize(llvm::ArrayRef<std::int64_t> shape, mlir::Type elementType) {
+std::size_t totalTensorSize(llvm::ArrayRef<int64_t> shape, mlir::Type elementType) {
     if (auto qType = elementType.dyn_cast<mlir::quant::UniformQuantizedType>()) {
         elementType = qType.getStorageType();
     }
     std::size_t numBytes = elementType.getIntOrFloatBitWidth() / 8;
 
     const auto totalSize =
-            std::accumulate(shape.begin(), shape.end(), static_cast<std::int64_t>(1), std::multiplies<std::int64_t>());
+            std::accumulate(shape.begin(), shape.end(), static_cast<int64_t>(1), std::multiplies<int64_t>());
     return static_cast<std::size_t>(totalSize) * numBytes;
 }
 
-std::vector<std::int64_t> convertNBPadtoNCETaskPad(const std::array<std::int64_t, 4>& nb_pad) {
-    std::vector<std::int64_t> ncetask_pad(nb_pad.size());
+std::vector<int64_t> convertNBPadtoNCETaskPad(const std::array<int64_t, 4>& nb_pad) {
+    std::vector<int64_t> ncetask_pad(nb_pad.size());
 
     ncetask_pad[PAD_NCETASK_LEFT] = nb_pad[PAD_NB_LEFT];
     ncetask_pad[PAD_NCETASK_RIGHT] = nb_pad[PAD_NB_RIGHT];
@@ -231,7 +231,7 @@ mlir::DenseElementsAttr splitWeightsOverCLoop(mlir::DenseElementsAttr wt_vec, Ar
 
     auto wt_full_itr = wt_vec.getValues<T>();
     std::vector<T> wt_full(wt_full_itr.begin(), wt_full_itr.end());
-    const llvm::SmallVector<std::int64_t> wt_partial_shape({K, new_C, H, W});
+    const llvm::SmallVector<int64_t> wt_partial_shape({K, new_C, H, W});
     size_t vecSize = static_cast<size_t>(std::accumulate(wt_partial_shape.begin(), wt_partial_shape.end(),
                                                          static_cast<int64_t>(1), std::multiplies<int64_t>()));
     std::vector<T> wt_partial(vecSize);
@@ -262,6 +262,55 @@ mlir::DenseElementsAttr splitWeightsOverCLoop(mlir::DenseElementsAttr wt_vec, Ar
     auto wt_data_values = makeArrayRef<T>(wt_partial);
     auto wt_data_vals = mlir::DenseElementsAttr::get(wtData_ddr_valueType, wt_data_values);
     return wt_data_vals;
+}
+
+mlir::MemRefType getMemRefType(mlir::OpBuilder builder, VPUIP::MemoryLocation memlocation, SmallVector<int64_t> shape,
+                               mlir::Type type, SmallVector<mlir::AffineMap> affineMaps) {
+    auto op_memSpaceAttr = VPUIP::MemoryLocationAttr::get(builder.getContext(), memlocation);
+    return mlir::MemRefType::get(makeArrayRef(shape), type, affineMaps, op_memSpaceAttr);
+}
+
+vpux::VPUIP::DeclareTensorOp createDeclareTensorOp(mlir::OpBuilder builder, VPUIP::MemoryLocation memlocation,
+                                                   SmallVector<int64_t> shape, mlir::Type type,
+                                                   SmallVector<mlir::AffineMap> affineMaps, int locale, size_t offset) {
+    auto op_memSpaceAttr = VPUIP::MemoryLocationAttr::get(builder.getContext(), memlocation);
+    auto op_type = mlir::MemRefType::get(makeArrayRef(shape), type, affineMaps, op_memSpaceAttr);
+    auto op = builder.create<VPUIP::DeclareTensorOp>(builder.getUnknownLoc(), op_type, memlocation, locale, offset);
+    return op;
+}
+
+vpux::VPUIP::DeclareTensorOp createDeclareTensorOp(mlir::OpBuilder builder, mlir::MemRefType type, int locale,
+                                                   size_t offset) {
+    auto op = builder.create<VPUIP::DeclareTensorOp>(
+            builder.getUnknownLoc(), type, type.getMemorySpace().dyn_cast<VPUIP::MemoryLocationAttr>().getValue(),
+            locale, offset);
+    return op;
+}
+
+mlir::OpResult getTensorResult(VPUIP::DeclareTensorOp op) {
+    return op.getOperation()->getResult(0);
+}
+
+mlir::OpResult getConstResult(vpux::Const::DeclareOp op) {
+    return op.getOperation()->getResult(0);
+}
+
+vpux::VPUIP::DPUTaskOp createDPUTaskOp(mlir::OpBuilder builder, mlir::OpBuilder variantbuilder,
+                                       llvm::SmallVector<int64_t> output_shape, std::vector<int64_t> padding_vec) {
+    std::vector<int64_t> start_vec{0, 0, 0};
+    auto start = getIntArrayAttr(builder, start_vec);
+    std::vector<int64_t> end_vec{static_cast<int64_t>(output_shape[2] - 1), static_cast<int64_t>(output_shape[3] - 1),
+                                 static_cast<int64_t>(output_shape[1] - 1)};
+    auto end = getIntArrayAttr(builder, end_vec);
+    auto pad = VPUIP::PaddingAttr::get(getIntAttr(builder, padding_vec[PAD_NCETASK_LEFT]),
+                                       getIntAttr(builder, padding_vec[PAD_NCETASK_RIGHT]),
+                                       getIntAttr(builder, padding_vec[PAD_NCETASK_TOP]),
+                                       getIntAttr(builder, padding_vec[PAD_NCETASK_BOTTOM]), builder.getContext());
+
+    auto dpuTask = variantbuilder.create<VPUIP::DPUTaskOp>(builder.getUnknownLoc(), start, end, pad,
+                                                           VPUIP::MPEMode::CUBOID_16x16);
+
+    return dpuTask;
 }
 
 }  // namespace hwtest

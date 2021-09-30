@@ -52,6 +52,10 @@ mlir::OwningModuleRef importHWTEST(llvm::StringRef sourceJson, mlir::MLIRContext
     auto opType = jsonDesc.getCaseStr();
 
     bool isConv = jsonDesc.getCaseType() == nb::CaseType::ZMajorConvolution;
+    bool isEltwiseAdd = jsonDesc.getCaseType() == nb::CaseType::EltwiseAdd;
+    bool isMaxPool = jsonDesc.getCaseType() == nb::CaseType::MaxPool;
+    bool isEltwiseMult = jsonDesc.getCaseType() == nb::CaseType::EltwiseMult;
+    bool isAvgPool = jsonDesc.getCaseType() == nb::CaseType::AvgPool;
 
     auto weightType = [&]() {
         nb::WeightLayer weight = jsonDesc.getWeightLayer();
@@ -69,6 +73,14 @@ mlir::OwningModuleRef importHWTEST(llvm::StringRef sourceJson, mlir::MLIRContext
         } else {
             hwtest::buildSimpleZMajorConv(jsonDesc, module, builder, log, input_type, weightType(), output_type);
         }
+    } else if (isEltwiseAdd) {
+        hwtest::buildEltwiseAdd(jsonDesc, module, builder, log, input_type, weightType(), output_type);
+    } else if (isEltwiseMult) {
+        hwtest::buildEltwiseMultWithDwConv(jsonDesc, module, builder, log, input_type, weightType(), output_type);
+    } else if (isMaxPool) {
+        hwtest::buildMaxPool(jsonDesc, module, builder, log, input_type, output_type);
+    } else if (isAvgPool) {
+        hwtest::buildAvgpoolWithDwConv(jsonDesc, module, builder, log, input_type, output_type);
     } else {
         VPUX_THROW("Unknown type: {0}", opType);
     }

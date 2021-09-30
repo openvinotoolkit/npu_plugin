@@ -26,7 +26,7 @@ namespace VPUIP {
 class NCESparsity final {
 public:
     using BiasConverterCb = std::int32_t (*)(double);
-    using PPEConverterCb = std::int32_t (*)(unsigned, unsigned);
+    using PPEConverterCb = std::int32_t (*)(unsigned, unsigned, double, mlir::Type);
 
     static const vpux::EnumMap<vpux::VPUIP::ArchKind, PPEConverterCb> ppeConvertersMap;
     static const vpux::EnumMap<vpux::VPUIP::ArchKind, BiasConverterCb> biasConvertersMap;
