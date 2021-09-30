@@ -4143,11 +4143,23 @@
             "BenchmarkApp" : {
                 "disabled" : true
             },
-            "NetTest-CalcRef" : {
-                "disabled" : true
+            "NetTest": {
+                "inputs" : [["224x224/cat3.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.3"
+                ]
             },
-            "NetTest-Validate" : {
-                "disabled" : true
+            "NetTest-Validate": {
+                "inputs" : [["224x224/cat3.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.3"
+                ],
+                "input_precision" : "FP16",
+                "output_precision" : "FP16"
             },
             "AccuracyCheck" : {
                 "disabled" : true
@@ -4183,11 +4195,23 @@
             "BenchmarkApp" : {
                 "disabled" : true
             },
-            "NetTest-CalcRef" : {
-                "disabled" : true
+            "NetTest": {
+                "inputs" : [["224x224/cat3.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.3"
+                ]
             },
-            "NetTest-Validate" : {
-                "disabled" : true
+            "NetTest-Validate": {
+                "inputs" : [["224x224/cat3.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.3"
+                ],
+                "input_precision" : "FP16",
+                "output_precision" : "FP16"
             },
             "AccuracyCheck" : {
                 "disabled" : true
