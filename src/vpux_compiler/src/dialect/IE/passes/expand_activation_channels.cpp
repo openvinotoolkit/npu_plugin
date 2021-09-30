@@ -81,8 +81,8 @@ mlir::LogicalResult generalRewrite(mlir::Operation* origOp, mlir::PatternRewrite
     const auto inputShape = getShape(convOp.filter().getType().cast<mlir::ShapedType>());
     const auto IC = inputShape[IE::Dims4D::Filter::IC];
 
-    auto inputTensorShape = getShape(convOp.input());
-    auto width = inputTensorShape[IE::Dims4D::Act::W];
+    //auto inputTensorShape = getShape(convOp.input());
+    //auto width = inputTensorShape[IE::Dims4D::Act::W];
 
     auto cmConv = convOp->getAttr("ChannelMajorCompitable").cast<mlir::IntegerAttr>().getInt();
     Logger::global().error("ChannelMajorCompitable: {0}", convOp->getAttr("ChannelMajorCompitable").cast<mlir::IntegerAttr>().getInt());

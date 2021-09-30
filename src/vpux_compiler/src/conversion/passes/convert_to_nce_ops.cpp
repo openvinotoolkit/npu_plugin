@@ -278,8 +278,7 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
     mlir::IntegerAttr actWindowChanLen;
     std::vector<uint8_t> fakeSparsity;
 
-    auto inputShape = getShape(origOp.input());
-    auto width = inputShape[IE::Dims4D::Act::W];
+    //auto inputShape = getShape(origOp.input());
 
     //
     // Prepare input for DPU
@@ -408,7 +407,7 @@ mlir::LogicalResult MaxPoolRewrite::matchAndRewrite(IERT::MaxPoolOp origOp, mlir
 
     const auto origInputType = origOp.input().getType().cast<mlir::MemRefType>();
     const auto inputShape = getShape(origInputType);
-    Logger::global().error("inputShape: {0}", inputShape);
+    //Logger::global().error("inputShape: {0}", inputShape);
 
     const auto IC = inputShape[IE::Dims4D::Act::C];
 
