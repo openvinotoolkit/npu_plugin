@@ -37,7 +37,7 @@ const vpux::DataMap& EmulatorNetworkDescription::getDeviceOutputsInfo() const {
 }
 
 const vpux::QuantizationParamMap& EmulatorNetworkDescription::getQuantParamsInfo() const {
-    _logger->debug("EmulatorNetworkDescription::getQuantParamsInfo()\n");
+    _logger->info("EmulatorNetworkDescription::getQuantParamsInfo()\n");
     return _quantParams;
 }
 
