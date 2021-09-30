@@ -5,47 +5,46 @@
 namespace vpu {
 namespace MCMAdapter {
 
-EmulatorNetworkDescription::EmulatorNetworkDescription(std::unique_ptr<mv::CompilationUnit>&& compiler,
+EmulatorNetworkDescription::EmulatorNetworkDescription(const std::vector<char>& compiledNetwork,
                                                        const vpu::MCMConfig& config, const std::string& name)
         : _name{name},
-          _compiler{std::move(compiler)},
           _logger{std::unique_ptr<vpu::Logger>(
                   new vpu::Logger("EmulatorNetworkDescription", config.logLevel(), consoleOutput()))},
           _dataMapPlaceholder{},
-          _compiledNetworkPlaceholder{} {
+          _compiledNetwork{compiledNetwork} {
+    IE_ASSERT(!_compiledNetwork.empty());
 }
 
 const vpux::DataMap& EmulatorNetworkDescription::getInputsInfo() const {
-    _logger->warning("EmulatorNetworkDescription::getInputsInfo()\n");
+    _logger->info("EmulatorNetworkDescription::getInputsInfo()\n");
     return _dataMapPlaceholder;
 }
 
 const vpux::DataMap& EmulatorNetworkDescription::getOutputsInfo() const {
-    _logger->warning("EmulatorNetworkDescription::getOutputsInfo()\n");
+    _logger->info("EmulatorNetworkDescription::getOutputsInfo()\n");
     return _dataMapPlaceholder;
 }
 
 const vpux::DataMap& EmulatorNetworkDescription::getDeviceInputsInfo() const {
-    _logger->warning("EmulatorNetworkDescription::getDeviceInputsInfo()\n");
+    _logger->info("EmulatorNetworkDescription::getDeviceInputsInfo()\n");
     return _dataMapPlaceholder;
 }
 
 const vpux::DataMap& EmulatorNetworkDescription::getDeviceOutputsInfo() const {
-    _logger->warning("EmulatorNetworkDescription::getDeviceOutputsInfo()\n");
+    _logger->info("EmulatorNetworkDescription::getDeviceOutputsInfo()\n");
     return _dataMapPlaceholder;
 }
 
 const std::vector<char>& EmulatorNetworkDescription::getCompiledNetwork() const {
-    _logger->warning("EmulatorNetworkDescription::getCompiledNetwork()\n");
-    return _compiledNetworkPlaceholder;
+    return _compiledNetwork;
 }
 
 const void* EmulatorNetworkDescription::getNetworkModel() const {
-    return &_compiler->model();
+    return _compiledNetwork.data();
 }
 
 std::size_t EmulatorNetworkDescription::getNetworkModelSize() const {
-    return sizeof _compiler->model();
+    return _compiledNetwork.size();
 }
 
 const std::string& EmulatorNetworkDescription::getName() const {
