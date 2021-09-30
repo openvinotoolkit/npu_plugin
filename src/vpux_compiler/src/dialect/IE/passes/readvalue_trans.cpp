@@ -16,6 +16,7 @@
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/types.hpp"
+#include "vpux/compiler/utils/logging.hpp"
 
 #include "vpux/utils/IE/loop.hpp"
 #include "vpux/utils/core/checked_cast.hpp"
@@ -49,7 +50,9 @@ private:
 };
 
 void ReadValueTransPass::safeRunOnModule() {
-#if 0
+    std::cout << "ReadValueTransPass" << std::endl;
+
+#if 1
     auto module = getOperation();
     auto* ctx = module->getContext();
 
@@ -59,43 +62,57 @@ void ReadValueTransPass::safeRunOnModule() {
 
     OpBuilderLogger builderLog(_log.nest());
 
-    std::cout << "ReadValueTransPass" << std::endl;
-    // for (auto func : module.getOps<mlir::FuncOp>()) {
-    {
-        std::cout << "func.sym_name()" << netFunc.sym_name().str() << std::endl;
+    std::cout << "func.sym_name()" << netFunc.sym_name().str() << std::endl;
 
-        // if (func.isExternal()) {
-        //     _log.trace("Can't convert external Function '@{0}'", func.sym_name());
-        //     signalPassFailure();
-        // }
+    auto readValueInput = mlir::MemRefType::get({1, 143}, mlir::Float16Type::get(ctx));
 
-        auto readValueInput = mlir::MemRefType::get({1, 143, 1, 1}, mlir::Float16Type::get(ctx));
+    // change main function interface
+    auto funcType = netFunc.getType();
 
-        // change main function interface
-        auto funcType = netFunc.getType();
-        auto newInputsTypes =
-                to_small_vector(llvm::concat<const mlir::Type>(funcType.getInputs(), makeArrayRef(readValueInput)));
-        auto newFunctionType = mlir::FunctionType::get(ctx, newInputsTypes, funcType.getResults());
-        netFunc.setType(newFunctionType);
-        auto netFuncResult = netFunc.getBody().front().addArgument(readValueInput);
+    auto netFuncResult = netFunc.getBody().front().addArgument(readValueInput);
 
-        // Adding output to the user info
-        auto inputUserResult =
-                getTensorType(readValueInput.getShape(), readValueInput.getElementType(), DimsOrder::fromType(readValueInput));
-        auto userInfoBuilder = mlir::OpBuilder::atBlockEnd(&netOp.inputsInfo().front(), &builderLog);
-        userInfoBuilder.create<IE::DataInfoOp>(mlir::UnknownLoc::get(ctx), mlir::StringAttr::get(ctx, "readValueInput"),
-                                               mlir::TypeAttr::get(inputUserResult));
+    // correct ReadValue
+    netFunc.walk([&](IE::ReadValueOp op) {
+        std::cout << "netFunc.walk->ReadValueOp" << std::endl;
+        op.second_inputMutable().assign(netFuncResult);
+    });
+    std::cout << "ReadValueTransPass End" << std::endl;
 
-        // And to the returnOp
-        netFunc.walk([&](IERT::ReadValueOp op) {
-            std::cout << "ReadValueOp" << std::endl;
-            op.operandsMutable().append(netFuncResult);
-        });
+    // correct Assign
+    IE::AssignOp assign_op;
+    netFunc.walk([&](IE::AssignOp op) {
+        std::cout << "netFunc.walk->AssignOp" << std::endl;
+        assign_op = op;
+    });
+    auto assignOutput = assign_op.output();
 
-        // SmallVector<mlir::BlockArgument> appendedEntryArgs;
-        // updateFuncOp(func, appendedEntryArgs);
-        // updateReturnOps(func, appendedEntryArgs);
-    }
+    // change main function interface
+    auto newInputsTypes =
+            to_small_vector(llvm::concat<const mlir::Type>(funcType.getInputs(), makeArrayRef(readValueInput)));
+    auto newOutputsTypes =
+                           to_small_vector(llvm::concat<const mlir::Type>(funcType.getResults(), makeArrayRef(assignOutput.getType())));
+    auto newFunctionType = mlir::FunctionType::get(ctx, newInputsTypes, newOutputsTypes);
+    netFunc.setType(newFunctionType);
+
+    // User result
+    auto inputUserResult =
+            getTensorType(readValueInput.getShape(), readValueInput.getElementType(), DimsOrder::fromType(readValueInput));
+    auto userInfoBuilder = mlir::OpBuilder::atBlockEnd(&netOp.inputsInfo().front(), &builderLog);
+    userInfoBuilder.create<IE::DataInfoOp>(mlir::UnknownLoc::get(ctx), mlir::StringAttr::get(ctx, "readValueInput"),
+                                           mlir::TypeAttr::get(inputUserResult));
+
+    const auto assignOutputShape = assignOutput.getType().cast<mlir::ShapedType>();
+
+    // Adding output to the user info
+    auto outputUserResult =
+                            getTensorType(assignOutputShape.getShape(), assignOutputShape.getElementType(), DimsOrder::fromType(assignOutputShape));
+
+    auto userInfoBuilderOutput = mlir::OpBuilder::atBlockEnd(&netOp.outputsInfo().front(), &builderLog);
+    userInfoBuilderOutput.create<IE::DataInfoOp>(mlir::UnknownLoc::get(ctx), mlir::StringAttr::get(ctx, "assignOutput"),
+                                                 mlir::TypeAttr::get(outputUserResult));
+
+    std::cout << "ReadValueTransPass End" << std::endl;
+
 #endif
 
 }

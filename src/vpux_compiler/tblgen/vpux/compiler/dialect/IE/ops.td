@@ -173,8 +173,8 @@ def IE_ReadValueOp :
 
     let arguments = (ins
         AnyRankedTensor:$input,
-//        Optional<AnyRankedTensor>:$second_input,
-        AnyRankedTensor:$second_input,
+        Optional<AnyRankedTensor>:$second_input,
+//        AnyRankedTensor:$second_input,
 
         StrAttr:$variable_id
     );
@@ -196,7 +196,8 @@ def IE_AssignOp :
     let summary = "InferenceEngine Assign layer";
 
     let arguments = (ins
-        AnyRankedTensor:$input
+        AnyRankedTensor:$input,
+        StrAttr:$variable_id
     );
 
     let results = (outs

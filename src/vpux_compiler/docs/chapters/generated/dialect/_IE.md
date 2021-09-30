@@ -93,6 +93,12 @@ operation ::= `IE.Assign` `(` operands `)` attr-dict `:` type(operands) `->` typ
 ```
 
 
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`variable_id` | ::mlir::StringAttr | string attribute
+
 #### Operands:
 
 | Operand | Description |

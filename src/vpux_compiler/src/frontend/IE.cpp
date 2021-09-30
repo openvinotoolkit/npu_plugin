@@ -419,17 +419,14 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
     VPUX_THROW_UNLESS(inputs.size() == 1, "nGraph Assign node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
 
-    // const auto dstType = importElemType(origNode->get_destination_type());
-    // const auto dstTypeAttr = mlir::TypeAttr::get(dstType);
+    const auto variable_idAttr = mlir::StringAttr::get(_ctx, origNode->get_variable_id());
+    std::cout << "origNode->get_variable_id() =" << origNode->get_variable_id() << std::endl;
+    // auto op = builder.create<IE::ReadValueOp>(createLocation(origNode), inputs[0], nullptr, variable_idAttr);
 
-    auto op = builder.create<IE::AssignOp>(createLocation(origNode), inputs[0]);
-
-    // auto op = builder.create<IE::ReLUOp>(createLocation(origNode), inputs[0]);
-
+    auto op = builder.create<IE::AssignOp>(createLocation(origNode), inputs[0], variable_idAttr);
 
     addOutputs(origNode, op);
     std::cout << "Assign parseNode End" << std::endl;
-
 }
 
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::ReadValue>& origNode) {
@@ -450,7 +447,8 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
     std::cout << "origNode->get_variable_id() =" << origNode->get_variable_id() << std::endl;
 
     // TODO: replace it!!!
-    auto op = builder.create<IE::ReadValueOp>(createLocation(origNode), inputs[0], inputs[1], variable_idAttr);
+    // auto op = builder.create<IE::ReadValueOp>(createLocation(origNode), inputs[0], inputs[1], variable_idAttr);
+    auto op = builder.create<IE::ReadValueOp>(createLocation(origNode), inputs[0], nullptr, variable_idAttr);
 
     addOutputs(origNode, op);
     std::cout << "ReadValue parseNode End" << std::endl;

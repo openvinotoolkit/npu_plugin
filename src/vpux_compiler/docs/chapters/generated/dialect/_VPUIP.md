@@ -48,6 +48,7 @@ operation ::= `VPUIP.AssignUPA` attr-dict
 | :-------: | :-------: | ----------- |
 `maxShaves` | mlir::IntegerAttr | Integer attribute
 `isTrailingSWLayer` | ::mlir::UnitAttr | unit attribute
+`variable_id` | ::mlir::StringAttr | string attribute
 
 #### Operands:
 

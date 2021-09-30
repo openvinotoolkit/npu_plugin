@@ -405,12 +405,17 @@ mlir::Operation* createRTLayer(IE::ConvertOp origOp, ArrayRef<mlir::Value> allBu
     return b.create<IERT::ConvertOp>(origOp.getLoc(), newOp.input(), newOp.output_buff());
 }
 
+// static int tt = 0;
+
 mlir::Operation* createRTLayer(IE::ReadValueOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     std::cout << "ReadValue operation convertion to IERT" << std::endl;
 
     IERT::ReadValueOp::Adaptor newOp(allBufs);
 
-    return b.create<IERT::ReadValueOp>(origOp.getLoc(), newOp.input(), newOp.second_input(), newOp.output_buff(), origOp.variable_id());
+    // return b.create<IERT::ReadValueOp>(origOp.getLoc(), newOp.input(), newOp.second_input(), newOp.output_buff(), origOp.variable_id());
+    auto p = b.create<IERT::ReadValueOp>(origOp.getLoc(), newOp.input(), nullptr, newOp.output_buff(), origOp.variable_id());
+    std::cout << "ReadValue operation convertion to IERT END" << std::endl;
+    return p;
 }
 
 mlir::Operation* createRTLayer(IE::AssignOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
@@ -418,7 +423,7 @@ mlir::Operation* createRTLayer(IE::AssignOp origOp, ArrayRef<mlir::Value> allBuf
 
     std::cout << "Assign operation convertion to IERT" << std::endl;
 
-    return b.create<IERT::AssignOp>(origOp.getLoc(), newOp.input(), newOp.output_buff());
+    return b.create<IERT::AssignOp>(origOp.getLoc(), newOp.input(), newOp.output_buff(), origOp.variable_id());
 }
 
 mlir::Operation* createRTLayer(IE::ReLUOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {

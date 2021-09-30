@@ -404,7 +404,9 @@ def VPUIP_AssignUPAOp :
         Variadic<VPUIP_Barrier>:$updateBarriers,
 
         OptionalAttr<IntAttr>:$maxShaves,
-        UnitAttr:$isTrailingSWLayer
+        UnitAttr:$isTrailingSWLayer,
+
+        StrAttr:$variable_id
     );
 
     let results = (outs
@@ -413,7 +415,9 @@ def VPUIP_AssignUPAOp :
 
     let builders = [
         OpBuilder<
-            (ins "mlir::Value":$input, "mlir::Value":$output)
+            (ins "mlir::Value" : $input,
+                 "mlir::Value" : $output,
+                 "mlir::StringAttr" : $variable_id)
         >
     ];
 

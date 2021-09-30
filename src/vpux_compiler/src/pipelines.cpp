@@ -48,11 +48,15 @@ mlir::Attribute getMemSpace(mlir::MLIRContext* ctx, StringRef) {
 }
 
 void buildIECommonPipeline(mlir::OpPassManager& pm, Logger log) {
+    std::cout <<  "buildIECommonPipeline " << std::endl;
+
     pm.addPass(IE::createUseUserPrecisionPass(log));
     pm.addPass(IE::createUseUserLayout(log));
     pm.addPass(IE::createAdjustLayoutsPass(log));
     pm.addPass(IE::createOptimizeReordersPass(log));
     pm.addPass(mlir::createCanonicalizerPass(getDefaultGreedyRewriteConfig()));
+    pm.addPass(IE::createReadValueTransPass(log));
+
 }
 
 void buildIEReferenceLowPrecisionPipeline(mlir::OpPassManager& pm, Logger log) {
@@ -95,6 +99,10 @@ void addConfigPass(mlir::OpPassManager& pm, const MyPipelineOptions& config, VPU
 //
 
 void vpux::buildReferenceModePipeline(mlir::OpPassManager& pm, bool enableProfiling, Logger log) {
+
+    std::cout <<  "buildReferenceModePipeline " << std::endl;
+
+
     pm.addPass(mlir::createCanonicalizerPass(getDefaultGreedyRewriteConfig()));
 
     // IE Dialect level
@@ -103,15 +111,14 @@ void vpux::buildReferenceModePipeline(mlir::OpPassManager& pm, bool enableProfil
     buildIEReferenceLowPrecisionPipeline(pm, log);
     buildIECommonPipeline(pm, log);
 
+
     // Lower IE->IERT
     buildLowerIE2IERTPipeline(pm, log);
-    pm.addPass(IE::createReadValueTransPass(log));
+    //pm.addPass(IE::createReadValueTransPass(log));
 
     if (enableProfiling) {
         pm.addPass(IERT::createTimestampProfilingPass(getMemSpace<VPUIP::PhysicalMemory::DDR>, log));
     }
-
-    // pm.addPass(IERT::createReadValueTransPass(log));
 
     // IERT Dialect level
     buildIERTAllocationPipelineForDDR(pm, log);
@@ -130,6 +137,8 @@ void vpux::buildReferenceModePipeline(mlir::OpPassManager& pm, bool enableProfil
 //
 
 void vpux::buildHardwareModePipeline(mlir::OpPassManager& pm, bool enableProfiling, Logger log) {
+    std::cout <<  "buildHardwareModePipeline " << std::endl;
+
     const mlir::GreedyRewriteConfig grc = getDefaultGreedyRewriteConfig();
     pm.addPass(mlir::createCanonicalizerPass(grc));
 
