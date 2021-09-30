@@ -62,11 +62,12 @@
 #include <transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp>
 #include <transformations/op_conversions/convert_minimum_to_power_and_max.hpp>
 #include <transformations/op_conversions/convert_negative.hpp>
+#include <transformations/op_conversions/convert_reduce_to_pooling.hpp>
 #include <transformations/op_conversions/convert_subtract.hpp>
 #include <transformations/op_conversions/hsigmoid_decomposition.hpp>
 #include <transformations/op_conversions/hswish_decomposition.hpp>
 #include <transformations/op_conversions/lstm_cell_decomposition.hpp>
-#include <transformations/op_conversions/mvn6_decomposition.hpp>
+//#include <transformations/op_conversions/mvn6_decomposition.hpp>
 #include <transformations/op_conversions/simplify_ctc_greedy_decoder_seq_len.hpp>
 #include "legacy/transformations/convert_opset1_to_legacy/convert_lrn_to_lrn_ie.hpp"
 #include "legacy/transformations/convert_opset1_to_legacy/convert_strided_slice_to_crop.hpp"
@@ -310,7 +311,13 @@ mlir::FuncOp NGraphImporter::buildMainFunc(mlir::OpBuilder& moduleBuilder, Strin
     SmallVector<mlir::Type> outputTypes;
     outputTypes.reserve(_netGraph->get_results().size());
     for (const auto& result : _netGraph->get_results()) {
-        outputTypes.push_back(importTensor(result->get_input_partial_shape(0), result->get_input_element_type(0)));
+        mlir::RankedTensorType outType =
+                importTensor(result->get_input_partial_shape(0), result->get_input_element_type(0));
+        if (outType.getShape().size() == 0) {
+            outputTypes.push_back(mlir::RankedTensorType::get({1}, outType.getElementType()));
+        } else {
+            outputTypes.push_back(outType);
+        }
     }
 
     const auto funcType = mlir::FunctionType::get(_ctx, makeArrayRef(inputTypes), makeArrayRef(outputTypes));
@@ -1716,6 +1723,9 @@ mlir::Type importPrecision(mlir::MLIRContext* ctx, const InferenceEngine::Precis
 mlir::RankedTensorType importUserTensor(mlir::MLIRContext* ctx, const InferenceEngine::TensorDesc& desc) {
     const Shape shape(desc.getDims().begin(), desc.getDims().end());
     const auto precision = importPrecision(ctx, desc.getPrecision());
+    if (shape.size() == 0) {
+        return getTensorType({1}, precision, DimsOrder::C);
+    }
     return getTensorType(shape.raw(), precision, DimsOrder::fromIE(desc.getLayout()));
 }
 
@@ -1748,7 +1758,7 @@ void runNGraphPasses(const std::shared_ptr<ngraph::Function>& netGraph, mlir::Ti
     // MVN6Decomposition is disabled because we do not support Subtract and ReduceMean.
     // The ReduceMean layer can be solved with ngraph::pass::ConvertReduceToPooling pass, but still remain Subtract
     // issue.
-    passConfig->disable<ngraph::pass::MVN6Decomposition>();
+    passConfig->disable<ngraph::pass::ConvertReduceMeanToPooling>();
 
     ngraph::pass::Manager manager(passConfig);
     manager.register_pass<ngraph::pass::InitNodeInfo>();

@@ -12,6 +12,14 @@
 
 namespace LayerTestsDefinitions {
     class KmbReduceOpsLayerTest : public ReduceOpsLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+        void SkipBeforeLoad() override {
+            const auto testName =
+                    std::string{::testing::UnitTest::GetInstance()->current_test_info()->test_case_name()};
+            const auto skipMCM = testName.find("SKIP_MCM") != std::string::npos;
+            if (isCompilerMCM() && skipMCM) {
+                throw LayerTestsUtils::KmbSkipTestException("Skip load for MCM");
+            }
+        }
         void SkipBeforeValidate() override {
             const auto testName =
                     std::string{::testing::UnitTest::GetInstance()->current_test_info()->test_case_name()};
@@ -273,12 +281,12 @@ namespace {
             KmbReduceOpsLayerTest::getTestCaseName
     );
     INSTANTIATE_TEST_CASE_P(
-            smoke_ReduceMin,
+            smoke_ReduceMin_SKIP_MCM,
             KmbReduceOpsLayerTest,
             testing::Combine(
                     testing::ValuesIn(axes),
                     testing::Values(opTypes[1]),
-                    testing::Values(true),
+                    testing::Values(true,false),
                     testing::Values(ngraph::helpers::ReductionType::Min),
                     testing::Values(InferenceEngine::Precision::FP32),
                     testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -293,7 +301,7 @@ namespace {
     );
 
     INSTANTIATE_TEST_CASE_P(
-            smoke_ReduceMin_allaxes,
+            smoke_ReduceMin_allaxes_SKIP_MCM,
             KmbReduceOpsLayerTest,
             testing::Combine(
                     testing::Values(std::vector<int>{0, 1, 2, 3}),
@@ -313,7 +321,7 @@ namespace {
     );
 
     INSTANTIATE_TEST_CASE_P(
-            smoke_ReduceMin_from_networks,
+            smoke_ReduceMin_from_networks_SKIP_MCM,
             KmbReduceOpsLayerTest,
             testing::Combine(
                     testing::ValuesIn(axes),
@@ -334,7 +342,7 @@ namespace {
     );
 
     INSTANTIATE_TEST_CASE_P(
-            smoke_ReduceMin_allaxes_from_networks,
+            smoke_ReduceMin_allaxes_from_networks_SKIP_MCM,
             KmbReduceOpsLayerTest,
             testing::Combine(
                     testing::Values(std::vector<int>{0, 1, 2, 3}),
