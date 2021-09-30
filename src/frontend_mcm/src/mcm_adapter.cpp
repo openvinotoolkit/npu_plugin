@@ -71,7 +71,7 @@ std::unique_ptr<MVCNN::TensorReferenceT> buildTensorReference(const std::string&
         // Zero point
         const float minU8 = static_cast<float>(std::numeric_limits<uint8_t>().lowest());
         const float maxU8 = static_cast<float>(std::numeric_limits<uint8_t>().max());
-        const int64_t zpValue = quantParams.getZeroPoint().size() >= 1 ? quantParams.getZeroPoint()[0] : 0L;
+        const int64_t zpValue = quantParams.getZeroPoint()[0];
         const uint8_t zeroPoint = static_cast<uint8_t>(zpValue < minU8 ? minU8 : (zpValue > maxU8 ? maxU8 : zpValue));
         toBuild->quant_zero = {zeroPoint};
         // Scale value
@@ -173,7 +173,7 @@ vpu::MCMAdapter::MetaInfo vpu::MCMAdapter::deserializeMetaData(const MVCNN::Summ
             const auto scale = *(reinterpret_cast<const float*>(tensorRef->quant_shift()->data()));
             IE_ASSERT(scale != 0.f);
             quantParam._scale = 1.f / scale;
-            quantParam._zeroPoint = *tensorRef->quant_zero()->begin();
+            quantParam._zeroPoint = *tensorRef->quant_zero()->cbegin();
         }
         resultQuantParamMap.insert({inputInfo.name(), quantParam});
     }
