@@ -72,7 +72,7 @@ func @HandleConvolutionWithAsymmetricStridesWithFQ(%arg0: tensor<1x16x64x1024xf1
 
   // CHECK:       %[[SLICED_FQ0:.*]] = IE.FakeQuantize(%[[SLICED_CONV0]], %[[CST3]], %[[CST2]], %[[CST3]], %[[CST2]])
 
-  // CHECK:       %[[SLICED_INPUT1:.*]] = IE.Slice %[[VAR5]] [0, 0, 1, 0] [1, 16, 63, 1024]
+  // CHECK:       %[[SLICED_INPUT1:.*]] = IE.Slice %arg0 [0, 0, 1, 0] [1, 16, 63, 1024]
 
   // CHECK:       %[[SLICED_FQ:.*]] = IE.FakeQuantize(%[[SLICED_INPUT1]], %[[CST3]], %[[CST2]], %[[CST3]], %[[CST2]])
 

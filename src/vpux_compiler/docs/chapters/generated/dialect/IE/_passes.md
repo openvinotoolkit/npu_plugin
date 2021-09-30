@@ -113,6 +113,12 @@ by propagating them from inputs to outputs and merging into layers.
 The pass is a part of `AdjustForVPU` pipeline.
 It replaces IE::StridedSlice with non zero masks to a simpler IE::StridedSlice with zero masks + IE::Reshape
 It replaces IE::StridedSlice with dense<1> strides strides with a simple IE::Slice operation
+### `-split-conv-with-multiple-fq`: Splits Convolution for multiple FakeQuantize
+The pass is a part of `HardwareMode` pipeline.
+
+It splits `Convolution` operation with multiple consumers with `FakeQuantize` operations,
+into multiple `Convolution` operations, one for each consumer. This transformation is needed to be
+able to quantize convolution and fuse bias and post-processing operations.
 ### `-split-fake-quant`: Splits FakeQuantize
 The pass is a part of `LowPrecision` pipeline.
 
