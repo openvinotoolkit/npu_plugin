@@ -52,14 +52,14 @@ std::unique_ptr<MVCNN::TensorReferenceT> buildTensorReference(const std::string&
 std::unique_ptr<MVCNN::TensorReferenceT> buildTensorReference(const std::string& tensorName,
                                                               const InferenceEngine::TensorDesc& tensorInfo,
                                                               const mv::QuantizationParams& quantParams,
-                                                              const MCMConfig& config) {
+                                                              const bool forcePluginInputQuantization) {
     auto mainData = buildTensorReference(tensorName, tensorInfo);
     std::unique_ptr<MVCNN::TensorReferenceT> toBuild = buildTensorReference(tensorName, tensorInfo);
     const auto epsilon = std::numeric_limits<double>::epsilon();
     const int64_t defaultZeroPoint = 0L;
     const double defaultScale = 1.;
     const auto isPluginInputQuantization =
-            config.forcePluginInputQuantization()
+            forcePluginInputQuantization
                     ? ((quantParams.getZeroPoint().size() >= 1 &&
                         (quantParams.getZeroPoint()[0] != defaultZeroPoint)) ||
                        (quantParams.getScale().size() >= 1 && fabs(quantParams.getScale()[0] - defaultScale) > epsilon))
@@ -111,7 +111,7 @@ std::unique_ptr<MVCNN::TensorReferenceT> buildTensorReference(const std::string&
             newTensorInfo.reshape(newDimVec, Layout::NHWC);
     }
 
-    return buildTensorReference(tensorName, newTensorInfo, quantParams, config);
+    return buildTensorReference(tensorName, newTensorInfo, quantParams, config.forcePluginInputQuantization());
 }
 
 bool vpu::MCMAdapter::isMCMCompilerAvailable() {
