@@ -82,9 +82,9 @@ std::vector<int8_t> getBitPattern(mlir::ArrayRef<int64_t> kernelSize, int64_t wi
 
     std::vector<int8_t> bitpattern;
     bitpattern.reserve(windowSize*kernelH*inputChannels);
-    for(size_t c = 0; c < inputChannels; c++)
-        for(size_t y = 0; y < kernelH; y++)
-            for(size_t x = 0; x < windowSize; x++)
+    for(int64_t c = 0; c < inputChannels; c++)
+        for(int64_t y = 0; y < kernelH; y++)
+            for(int64_t x = 0; x < windowSize; x++)
                 if (x < kernelW)
                     bitpattern.emplace_back(1);
                 else

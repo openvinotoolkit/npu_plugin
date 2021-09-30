@@ -28,7 +28,6 @@ using namespace VPUIP;
 int64_t vpux::VPUIP::NCEInvariant::getInputChannelAlignment(mlir::Operation* origOp) {
 
     auto convOp = mlir::dyn_cast<IE::ConvolutionOp>(*origOp);
-    auto convLayoutOp = mlir::dyn_cast<IE::LayoutInfoOpInterface>(*origOp); // How to get user defined layout?
     
     const auto inputShape = getShape(convOp.filter().getType().cast<mlir::ShapedType>());
     const auto IC = inputShape[IE::Dims4D::Filter::IC];

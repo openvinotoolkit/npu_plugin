@@ -41,18 +41,20 @@ public:
 
     }
 
-    void identifyCompatibleChannelMajorOps(mlir::ModuleOp module, Logger log);
+    void identifyCompatibleChannelMajorOps(mlir::ModuleOp module);
 
 private:
     
+    mlir::MLIRContext* _ctx;
+    Logger _log;
     vpux::DimsOrder _userDimsOrder;
     SmallVector<mlir::Operation*> _allConvOps;
-    Logger _log;
-    mlir::MLIRContext* _ctx;
+    
+    
  
 };
 
-void ChannelMajorConvolutionCompatibleOps::identifyCompatibleChannelMajorOps(mlir::ModuleOp module, Logger log) {
+void ChannelMajorConvolutionCompatibleOps::identifyCompatibleChannelMajorOps(mlir::ModuleOp module) {
 
     for (mlir::Operation& op : module) {
         if (mlir::isa<mlir::FuncOp>(op)) {
@@ -101,18 +103,18 @@ void ChannelMajorConvolutionCompatibleOpsPass::safeRunOnModule() {
     mlir::FuncOp netFunc;
     IE::CNNNetworkOp::getFromModule(module, netInfo, netFunc);
 
-    const auto funcType = netFunc.getType();
+    //const auto funcType = netFunc.getType();
 
     auto userInputs = netInfo.getInputsInfo();
     auto userOutputs = netInfo.getOutputsInfo();
     vpux::DimsOrder userDimsOrder; 
 
     const auto getTypesWithUserLayout = [](SmallVector<IE::DataInfoOp, 1>& userDataInfo,
-                                           ArrayRef<mlir::Type> originTypes, SmallVector<mlir::Type>& newTypes, vpux::DimsOrder& userDimsOrder) {
+                                           vpux::DimsOrder& userDimsOrder) {
         for (const auto& p : userDataInfo | indexed) {
-            const auto ind = checked_cast<uint32_t>(p.index());
+            //const auto ind = checked_cast<uint32_t>(p.index());
 
-            const auto origType = originTypes[ind].cast<mlir::ShapedType>();
+            //const auto origType = originTypes[ind].cast<mlir::ShapedType>();
             userDimsOrder = p.value().getDimsOrder();
             Logger::global().error("order: {0}", userDimsOrder);
 
@@ -120,11 +122,11 @@ void ChannelMajorConvolutionCompatibleOpsPass::safeRunOnModule() {
     };
 
     SmallVector<mlir::Type> newArgTypes(userInputs.size());
-    getTypesWithUserLayout(userInputs, funcType.getInputs(), newArgTypes, userDimsOrder);
+    getTypesWithUserLayout(userInputs, userDimsOrder);
 
     Logger::global().error("order: {0}", userDimsOrder);
     ChannelMajorConvolutionCompatibleOps cmconv(ctx, _log, userDimsOrder);
-    cmconv.identifyCompatibleChannelMajorOps(module, _log);
+    cmconv.identifyCompatibleChannelMajorOps(module);
 
 
     // if (mlir::failed(mlir::applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig()))) {
