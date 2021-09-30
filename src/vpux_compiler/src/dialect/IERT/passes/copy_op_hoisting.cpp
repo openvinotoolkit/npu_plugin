@@ -13,71 +13,46 @@
 
 #include "vpux/compiler/dialect/IERT/passes.hpp"
 
-#include "vpux/compiler/dialect/IERT/ops_interfaces.hpp"
 #include "vpux/compiler/dialect/VPUIP/attributes/enums.hpp"
-#include "vpux/compiler/dialect/VPUIP/ops.hpp"
-#include "vpux/compiler/dialect/VPUIP/ops_interfaces.hpp"
-#include "vpux/compiler/utils/logging.hpp"
-#include "vpux/compiler/utils/rewriter.hpp"
-#include "vpux/compiler/utils/types.hpp"
-
-#include "vpux/utils/core/range.hpp"
-
-#include <mlir/IR/PatternMatch.h>
-#include <mlir/Transforms/GreedyPatternRewriteDriver.h>
+#include "vpux/compiler/utils/analysis.hpp"
+#include "vpux/compiler/utils/error.hpp"
 
 using namespace vpux;
 
 namespace {
 
-// If there is a CopyOp with source in NNCMX, then in IR move it just after NCE task
-// to allow memory allocator logic to free this space as soon as possible.
-// Otherwise NCE result might occupy its location in NNCMX unnecessarily long
-// causing potential problems with allocating other buffers due to how dealloc
-// logic and memory allocation pass works.
-// Below function will also update allocator or pureView op defininig the output
-// buffer of copy op result
-void NnCmxCopyOpHoisting(mlir::FuncOp func) {
-    func.walk([&](IERT::CopyOp copyOp) {
-        const auto sourceMemory = VPUIP::getPhysicalMemory(copyOp.input().getType().cast<mlir::MemRefType>());
-        if (mlir::failed(sourceMemory)) {
-            return;
-        }
-        if (sourceMemory.getValue() != VPUIP::PhysicalMemory::CMX_NN) {
-            return;
+//
+// moveCopyOpToProducer
+//
+
+void moveCopyOpToProducer(IERT::CopyOp copyOp, Logger log) {
+    auto* inputProducer = copyOp.input().getDefiningOp();
+
+    log.trace("Move the copy operation after its input producer '{0}' at '{1}'", inputProducer->getName(),
+              inputProducer->getLoc());
+    copyOp->moveAfter(inputProducer);
+
+    auto* outputBufProducer = copyOp.output_buff().getDefiningOp();
+    mlir::Operation* newProducerPos = copyOp;
+
+    while (outputBufProducer != nullptr && !outputBufProducer->isBeforeInBlock(copyOp)) {
+        log.trace("Move the output buffer producer '{0}' at '{1}'", outputBufProducer->getName(),
+                  outputBufProducer->getLoc());
+
+        if (!isBufAllocOp(outputBufProducer) && !IERT::isPureViewOp(outputBufProducer)) {
+            VPUX_THROW("Got unsupported output_buf producer '{0}' at '{1}'", outputBufProducer->getName(),
+                       outputBufProducer->getLoc());
         }
 
-        // Check if outbuf buffer is defined by AllocOp or SubView as following patterns
-        // are supported only
-        //  - AllocOp -> CopyOp.output_buff
-        //  - AllocOp -> SubView -> CopyOp.output_buff
-        // If not then skip
-        auto outputBufOp = copyOp.output_buff().getDefiningOp();
-        if (!mlir::isa_and_nonnull<mlir::memref::AllocOp, IERT::SubViewOp>(outputBufOp)) {
-            return;
-        }
+        outputBufProducer->moveBefore(newProducerPos);
+        newProducerPos = outputBufProducer;
 
-        auto subViewOp = mlir::dyn_cast<IERT::SubViewOp>(outputBufOp);
-        if (subViewOp != nullptr && !mlir::isa_and_nonnull<mlir::memref::AllocOp>(subViewOp.source().getDefiningOp())) {
-            return;
+        if (auto viewOp = mlir::dyn_cast<mlir::ViewLikeOpInterface>(outputBufProducer)) {
+            outputBufProducer = viewOp.getViewSource().getDefiningOp();
+        } else {
+            outputBufProducer = nullptr;
         }
-
-        copyOp->moveAfter(copyOp.input().getDefiningOp());
-
-        // If op defining output buffer (AllocOp/SubViewOp) are already before then
-        // no need to change its location in the Block
-        if (!outputBufOp->isBeforeInBlock(copyOp)) {
-            outputBufOp->moveBefore(copyOp);
-        }
-
-        // In case of SubViewOp check top buffer and relocate if needed
-        if (subViewOp != nullptr) {
-            auto* subViewSourceOp = subViewOp.source().getDefiningOp();
-            if (!subViewSourceOp->isBeforeInBlock(subViewOp)) {
-                subViewSourceOp->moveBefore(outputBufOp);
-            }
-        }
-    });
+    }
 }
 
 //
@@ -91,10 +66,45 @@ public:
     }
 
 private:
-    void safeRunOnFunc() final {
-        NnCmxCopyOpHoisting(getFunction());
-    }
+    void safeRunOnFunc() final;
 };
+
+void CopyOpHoistingPass::safeRunOnFunc() {
+    //
+    // If there is a CopyOp with source in NNCMX, then we need to move it just after the producing task
+    // to allow memory allocator logic free this space as soon as possible.
+    //
+    // Otherwise NNCMX buffer might occupy its location in unnecessarily long
+    // causing potential problems with allocating other buffers due to how dealloc
+    // logic and memory allocation pass works.
+    //
+
+    const auto needToHoist = [this](IERT::CopyOp copyOp) {
+        _log.trace("Check '{0}' operation at '{1}'", copyOp->getName(), copyOp->getLoc());
+
+        const auto sourceMemory = VPUIP::getPhysicalMemory(copyOp.input().getType().cast<mlir::MemRefType>());
+
+        if (mlir::failed(sourceMemory) || sourceMemory.getValue() != VPUIP::PhysicalMemory::CMX_NN) {
+            _log.nest().trace("It doesn't work with CMX_NN input");
+            return false;
+        }
+
+        if (copyOp.input().getDefiningOp() == nullptr) {
+            _log.nest().trace("Its input has no producer operation");
+            return false;
+        }
+
+        return true;
+    };
+
+    getFunction().walk([&](IERT::CopyOp copyOp) {
+        _log.trace("Check '{0}' operation at '{1}'", copyOp->getName(), copyOp->getLoc());
+
+        if (needToHoist(copyOp)) {
+            moveCopyOpToProducer(copyOp, _log.nest());
+        }
+    });
+}
 
 }  // namespace
 

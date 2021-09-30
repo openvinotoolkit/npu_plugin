@@ -13,20 +13,13 @@
 
 #include "vpux/compiler/core/mem_live_range_info.hpp"
 
+#include "vpux/compiler/utils/analysis.hpp"
+
 #include "vpux/utils/core/error.hpp"
 
 #include <algorithm>
 
 using namespace vpux;
-
-namespace {
-
-bool isBufAllocOp(mlir::Value res, mlir::MemoryEffectOpInterface iface) {
-    return res.getType().isa<mlir::MemRefType>() &&
-           iface.getEffectOnValue<mlir::MemoryEffects::Allocate>(res).hasValue();
-}
-
-}  // namespace
 
 vpux::MemLiveRangeInfo::MemLiveRangeInfo(mlir::FuncOp funcOp, mlir::AnalysisManager& am)
         : _log(Logger::global().nest("mem-live-range-info", 0)),
@@ -34,17 +27,19 @@ vpux::MemLiveRangeInfo::MemLiveRangeInfo(mlir::FuncOp funcOp, mlir::AnalysisMana
     _log.trace("Collect all buffer allocations");
     _log = _log.nest();
 
-    funcOp->walk([&](mlir::MemoryEffectOpInterface op) {
-        for (auto res : op->getResults()) {
-            if (isBufAllocOp(res, op)) {
-                _log.trace("Got buffer value allocated by '{0}' at '{1}'", op->getName(), op->getLoc());
-                _log = _log.nest();
-
-                addNewBuffer(res);
-
-                _log = _log.unnest();
-            }
+    funcOp->walk([&](mlir::Operation* op) {
+        if (!isBufAllocOp(op)) {
+            return;
         }
+
+        _log.trace("Got buffer value allocated by '{0}' at '{1}'", op->getName(), op->getLoc());
+        _log = _log.nest();
+
+        for (auto res : op->getResults()) {
+            addNewBuffer(res);
+        }
+
+        _log = _log.unnest();
     });
 
     _log = _log.unnest();
