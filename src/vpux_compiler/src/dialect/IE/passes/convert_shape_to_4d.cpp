@@ -48,7 +48,7 @@ private:
 // GenericConverter
 //
 
-mlir::LogicalResult convertGeneric(mlir::Operation* origOp, ArrayRef<mlir::Value> operands,
+mlir::LogicalResult convertGeneric(mlir::Operation* origOp, mlir::ValueRange operands,
                                    mlir::ConversionPatternRewriter& rewriter, mlir::TypeConverter& typeConverter,
                                    Logger log) {
     log.trace("Process Operation '{0}'", origOp->getLoc());
@@ -70,18 +70,20 @@ mlir::LogicalResult convertGeneric(mlir::Operation* origOp, ArrayRef<mlir::Value
 
 template <class ConcreteOp>
 class GenericConverter final : public mlir::OpConversionPattern<ConcreteOp> {
+    using OpAdaptor = typename mlir::OpConversionPattern<ConcreteOp>::OpAdaptor;
+
 public:
     GenericConverter(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
             : mlir::OpConversionPattern<ConcreteOp>(typeConverter, ctx), _log(log) {
     }
 
 public:
-    mlir::LogicalResult matchAndRewrite(ConcreteOp origOp, ArrayRef<mlir::Value> operands,
+    mlir::LogicalResult matchAndRewrite(ConcreteOp origOp, OpAdaptor newArgs,
                                         mlir::ConversionPatternRewriter& rewriter) const final {
         auto* typeConverter = this->getTypeConverter();
         VPUX_THROW_UNLESS(typeConverter != nullptr, "TypeConverter was not set");
 
-        return convertGeneric(origOp, operands, rewriter, *typeConverter, _log);
+        return convertGeneric(origOp, newArgs.getOperands(), rewriter, *typeConverter, _log);
     }
 
 private:

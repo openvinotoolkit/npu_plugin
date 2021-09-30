@@ -130,3 +130,27 @@ func @AddWithReLUTest() -> tensor<1x16x4x4xf16> {
     // CHECK-SAME:     post_op = {attrs = {}, name = "IE.ReLU"}
     // CHECK-NOT:   IE.ReLU
 }
+
+// -----
+
+func @ShouldNotFuseScaleShiftTest(%arg0: tensor<1x16x4x4xf16>) -> tensor<1x16x3x3xf16> {
+    %filters = const.Declare tensor<16x16x2x2xf16> = #const.Content<dense<1.0> : tensor<16x16x2x2xf16>>
+    %0 = IE.Convolution(%arg0, %filters)
+        {
+            strides = [1, 1],
+            pads_begin = [0, 0],
+            pads_end = [0, 0],
+            dilations = [1, 1]
+        } :
+        tensor<1x16x4x4xf16>, tensor<16x16x2x2xf16> -> tensor<1x16x3x3xf16>
+
+    %bias = const.Declare tensor<1x16x1x1xf32> = #const.Content<dense<3.0> : tensor<1x16x1x1xf32>>
+    %1 = IE.ScaleShift(%0, %bias)
+        {operand_segment_sizes = dense<[1, 0, 1]> : vector<3xi32>} :
+        tensor<1x16x3x3xf16>, tensor<1x16x1x1xf32> -> tensor<1x16x3x3xf16>
+
+    return %1 : tensor<1x16x3x3xf16>
+
+    // CHECK:   IE.Convolution
+    // CHECK:   IE.ScaleShift
+}

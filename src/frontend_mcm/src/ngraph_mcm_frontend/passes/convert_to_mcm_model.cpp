@@ -959,8 +959,14 @@ void convert(std::shared_ptr<ngraph::op::v1::Transpose> permute, mv::OpModel& mc
     // Remove part of permutation vector to align with dim reduction
     permNDOrder.erase(permNDOrder.begin(), permNDOrder.begin() + numbOfReducedDims);
 
+    // Expand the shape and order to 4-dim
+    while (ieShape.size() < 4) {
+        ieShape.push_back(1);
+        permNDOrder.push_back(ieShape.size()-1);
+    }
+
     IE_ASSERT(ieShape.size() == permNDOrder.size());
-    // Update permutation indicies based on information what was removed
+    // Update permutation indices based on information what was removed
     // as part of dimension reduction so that they do not refer to dimension
     // which is no longer present
     for (int64_t dim: reducedDims) {

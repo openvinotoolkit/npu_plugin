@@ -63,9 +63,11 @@ def DotInterface : OpInterface<"DotInterface"> {
 
         InterfaceMethod<
             "If non empty overrides the default attributes in the dot graph",
-            "std::string", "printAttributes", (ins),
+            "bool", "printAttributes", (ins "llvm::raw_ostream&":$os),
             [{}],
-            [{return "";}]
+            [{
+                return false;
+            }]
         >
     ];
 }

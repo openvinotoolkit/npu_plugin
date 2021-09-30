@@ -594,7 +594,10 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
     ::llvm::Optional<SmallVector<uint8_t>> ppeQuantShift;
 
     for (auto ppeOp : ppe().getOps<VPUIP::PPETaskOp>()) {
-        ppeList.push_back(getPPELayerType(ppeOp.ppe_layer_type()));
+        const auto type = getPPELayerType(ppeOp.ppe_layer_type());
+        if (type != MVCNN::PPELayerType_NOOP) {
+            ppeList.push_back(type);
+        }
         if (ppeOp.clamp_low().hasValue()) {
             clampLow = checked_cast<int32_t>(ppeOp.clamp_low().getValue());
         }

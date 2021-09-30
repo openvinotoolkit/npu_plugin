@@ -73,5 +73,13 @@ mlir::OpFoldResult vpux::IE::ExpandOp::fold(ArrayRef<mlir::Attribute>) {
         return input();
     }
 
+    // Check for Slice->Expand pair which can be optimized if ExpandOp
+    // output is same as SliceOp input
+    if (auto sliceOp = input().getDefiningOp<IE::SliceOp>()) {
+        if (sliceOp.source().getType() == output().getType()) {
+            return sliceOp.source();
+        }
+    }
+
     return nullptr;
 }

@@ -54,49 +54,46 @@ private:
 
 IE::ReorderOp LayerRewriter::createReorder(mlir::Operation* op, mlir::Value input, DimsOrder dstOrder,
                                            mlir::PatternRewriter& rewriter) const {
-    _log.nest(2).trace("Create Reorder: '{0}' -> '{1}'", DimsOrder::fromValue(input), dstOrder);
-    return rewriter.create<IE::ReorderOp>(op->getLoc(), input, dstOrder.toPermutationAffineMap(rewriter.getContext()));
+    _log.nest(2).trace("Insert Reorder: '{0}' -> '{1}'", DimsOrder::fromValue(input), dstOrder);
+    return rewriter.create<IE::ReorderOp>(op->getLoc(), input, dstOrder.toPermutationAffineMap(getContext()));
 }
 
 void LayerRewriter::insertReorderForInput(mlir::Operation* op, mlir::OpOperand& input, DimsOrder dstOrder,
                                           mlir::PatternRewriter& rewriter) const {
-    _log.nest(2).trace("Insert ReorderOp for input[{0}]", input.getOperandNumber());
+    mlir::OpBuilder::InsertionGuard guard(rewriter);
+    rewriter.setInsertionPoint(op);
 
     auto reorderOp = createReorder(op, input.get(), dstOrder, rewriter);
+
+    _log.nest(2).trace("Redirect input to the new Value");
     input.set(reorderOp.output());
 }
 
 void LayerRewriter::insertReorderForOutput(mlir::Operation* op, mlir::Value output, DimsOrder dstOrder,
                                            mlir::PatternRewriter& rewriter) const {
-    _log.nest(2).trace("Insert ReorderOp for output {0}", output.getType());
-
     mlir::OpBuilder::InsertionGuard guard(rewriter);
     rewriter.setInsertionPointAfter(op);
 
     auto reorderOp = createReorder(op, output, dstOrder, rewriter);
+
+    _log.nest(2).trace("Redirect output users to the new Value");
     output.replaceAllUsesExcept(reorderOp.output(), llvm::SmallPtrSet<mlir::Operation*, 1>{reorderOp});
 }
 
-void LayerRewriter::setNewType(mlir::Value operand, DimsOrder newOrder) const {
-    const auto origType = operand.getType().cast<mlir::ShapedType>();
+void LayerRewriter::setNewType(mlir::Value val, DimsOrder newOrder) const {
+    const auto origType = val.getType().cast<mlir::ShapedType>();
     const auto newType = changeDimsOrder(origType, newOrder);
-    operand.setType(newType);
+
+    _log.nest(2).trace("Change Value type to '{0}'", newType);
+    val.setType(newType);
 }
 
 mlir::LogicalResult LayerRewriter::matchAndRewrite(IE::LayoutInfoOpInterface origOp,
                                                    mlir::PatternRewriter& rewriter) const {
-    _log.trace("Got layer operation '{0}' at '{1}'", origOp->getName(), origOp->getLoc());
+    _log.trace("Rewrite layer operation '{0}' at '{1}'", origOp->getName(), origOp->getLoc());
 
     auto orderInfo = origOp.getLayoutInfo();
-    _log.nest().trace("Current layouts: {0}", orderInfo);
-
     origOp.inferLayoutInfo(orderInfo);
-
-    if (!orderInfo.hasChanges()) {
-        return matchFailed(_log.nest(), rewriter, origOp, "Current layouts are supported");
-    }
-
-    _log.nest().trace("Required layouts: {0}", orderInfo);
 
     rewriter.startRootUpdate(origOp);
 
@@ -106,6 +103,9 @@ mlir::LogicalResult LayerRewriter::matchAndRewrite(IE::LayoutInfoOpInterface ori
 
         const auto curOrder = DimsOrder::fromValue(input.get());
         const auto supportedOrder = orderInfo.getInput(i);
+
+        _log.nest(1).trace("Process input #{0}", i);
+        _log.nest(2).trace("curOrder = {0} supportedOrder = {1}", curOrder, supportedOrder);
 
         if (curOrder != supportedOrder) {
             insertReorderForInput(origOp, input, supportedOrder, rewriter);
@@ -118,6 +118,9 @@ mlir::LogicalResult LayerRewriter::matchAndRewrite(IE::LayoutInfoOpInterface ori
 
         const auto curOrder = DimsOrder::fromValue(output);
         const auto supportedOrder = orderInfo.getOutput(i);
+
+        _log.nest(1).trace("Process output #{0}", i);
+        _log.nest(2).trace("curOrder = {0} supportedOrder = {1}", curOrder, supportedOrder);
 
         if (curOrder != supportedOrder) {
             setNewType(output, supportedOrder);
@@ -148,20 +151,25 @@ void AdjustLayoutsPass::safeRunOnFunc() {
     auto& ctx = getContext();
 
     mlir::ConversionTarget target(ctx);
-    target.addDynamicallyLegalDialect<IE::IEDialect>([&](mlir::Operation* op) {
+    target.markUnknownOpDynamicallyLegal([&](mlir::Operation* op) {
         if (auto iface = mlir::dyn_cast<IE::LayoutInfoOpInterface>(op)) {
+            _log.trace("Check layer operation '{0}' at '{1}'", op->getName(), op->getLoc());
+
             auto orderInfo = iface.getLayoutInfo();
+            _log.nest().trace("Current layouts: {0}", orderInfo);
+
             iface.inferLayoutInfo(orderInfo);
+            _log.nest().trace("Required layouts: {0}", orderInfo);
+
             return !orderInfo.hasChanges();
         }
 
         return true;
     });
-    target.addLegalOp<IE::SplitOp, IE::ConcatOp, IE::ExpandOp, IE::SliceOp>();
     target.addLegalOp<IE::ReorderOp>();
 
     mlir::RewritePatternSet patterns(&ctx);
-    patterns.insert<LayerRewriter>(&ctx, _log);
+    patterns.insert<LayerRewriter>(&ctx, _log.nest());
 
     auto func = getFunction();
     if (mlir::failed(mlir::applyPartialConversion(func, target, std::move(patterns)))) {

@@ -47,6 +47,8 @@ std::set<ngraph::helpers::ActivationTypes> supportedTypesMLIR {
     ngraph::helpers::Swish,
     ngraph::helpers::Negative,
     ngraph::helpers::Exp,
+    ngraph::helpers::RoundHalfToEven,
+    ngraph::helpers::RoundHalfAwayFromZero,
 };
 } // namespace
 

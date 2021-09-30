@@ -1,0 +1,35 @@
+models:
+  - name: googlenet-v4
+
+    launchers:
+      - framework: dlsdk
+        model: @MODEL_PATH@
+        adapter: classification
+
+    datasets:
+      - name: ImageNet
+
+        data_source: ImageNet
+
+        annotation_conversion:
+            converter: imagenet
+            labels_file: ImageNet/synset_words.txt
+            annotation_file: ImageNet/val.txt
+            has_background: True
+
+        metrics:
+          - name: accuracy@top1
+            type: accuracy
+            top_k: 1
+
+          - name: accuracy@top5
+            type: accuracy
+            top_k: 5
+
+        preprocessing:
+          - type: resize
+            size: 320
+            aspect_ratio_scale: greater
+
+          - type: crop
+            size: 299

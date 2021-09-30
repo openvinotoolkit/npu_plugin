@@ -15,7 +15,7 @@ NOTE: This method *must* be implemented by the user.
 #### `printAttributes`
 
 ```c++
-std::string printAttributes();
+bool printAttributes(llvm::raw_ostream&os);
 ```
 If non empty overrides the default attributes in the dot graph
 NOTE: This method *must* be implemented by the user.

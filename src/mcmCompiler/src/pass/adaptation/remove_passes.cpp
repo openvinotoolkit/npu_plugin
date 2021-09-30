@@ -85,7 +85,7 @@ void removeShapeRelevant(mv::Data::OpListIterator& opIt, mv::ComputationModel& m
          ((inputShape == opIt->get<mv::Shape>("size")) && (opIt->get<mv::Shape>("begin").totalSize() == 0)))) {
         auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
         auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
-        auto sourceTensor = parentOpIt->getOutputTensor(0);
+        auto sourceTensor = opIt->getInputTensor(0);
         opIt = linkNewOperationsRemove(parentOpIt, sourceTensor, om, opIt);
         if (outputMemoryLocation.isForced())
             opIt->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);

@@ -17,6 +17,8 @@
 
 #include "vpux/utils/core/range.hpp"
 
+#include <mlir/Dialect/MemRef/IR/MemRef.h>
+
 using namespace vpux;
 
 namespace {
@@ -40,7 +42,7 @@ void MoveDeclarationsToTopPass::safeRunOnFunc() {
 
     SmallVector<mlir::Operation*> allDeclOps;
     for (auto& op : block) {
-        if (op.hasTrait<DeclarationOp>()) {
+        if (op.hasTrait<DeclarationOp>() || mlir::isa<mlir::memref::AllocOp>(&op)) {
             allDeclOps.push_back(&op);
         }
     }
