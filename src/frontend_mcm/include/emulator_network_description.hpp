@@ -25,7 +25,7 @@ namespace MCMAdapter {
 
 class EmulatorNetworkDescription final : public vpux::INetworkDescription {
 public:
-    EmulatorNetworkDescription(std::unique_ptr<mv::CompilationUnit>&& compiler, const vpu::MCMConfig& config,
+    EmulatorNetworkDescription(const std::vector<char>& compiledNetwork, const vpu::MCMConfig& config,
                                const std::string& name);
 
     const vpux::DataMap& getInputsInfo() const final;
@@ -46,10 +46,9 @@ public:
 
 private:
     std::string _name;
-    std::unique_ptr<mv::CompilationUnit> _compiler;
     std::unique_ptr<vpu::Logger> _logger;
     vpux::DataMap _dataMapPlaceholder;
-    std::vector<char> _compiledNetworkPlaceholder;
+    std::vector<char> _compiledNetwork;
 };
 
 }  // namespace MCMAdapter
