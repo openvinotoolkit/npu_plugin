@@ -1360,6 +1360,20 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
     addOutputs(origNode, op);
 }
 
+void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::ReduceMin>& origNode) {
+    static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v1::ReduceMin>::value,
+                  "opset operation mismatch");
+
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS(inputs.size() == 2, "nGraph ReduceMin node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
+
+    const auto keep_dims = origNode->get_keep_dims();
+    auto op = builder.create<IE::ReduceMinOp>(createLocation(origNode), inputs[0], inputs[1],
+                                              mlir::BoolAttr::get(_ctx, keep_dims));
+    addOutputs(origNode, op);
+}
+
 //
 // IR builder helpers
 //
