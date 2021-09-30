@@ -1115,7 +1115,7 @@ mutually exclusive.
 `activation_window` | memref of 8-bit unsigned integer values
 `parent_input` | memref of any type values
 `parent_output` | memref of any type values
-`output_buff` | memref of 16-bit float or QuantizedType values
+`output_buff` | memref of 16-bit float or 32-bit float or QuantizedType values
 `waitBarriers` | VPUIP Barrier Type
 `updateBarriers` | VPUIP Barrier Type
 
@@ -1123,7 +1123,7 @@ mutually exclusive.
 
 | Result | Description |
 | :----: | ----------- |
-`output` | memref of 16-bit float or QuantizedType values
+`output` | memref of 16-bit float or 32-bit float or QuantizedType values
 
 ### `VPUIP.NNDMA` (vpux::VPUIP::NNDMAOp)
 
