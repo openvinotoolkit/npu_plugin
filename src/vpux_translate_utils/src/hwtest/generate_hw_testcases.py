@@ -1259,50 +1259,20 @@ def generate_options(args):
         genDepthWiseConvs(input_types=[Int8(6), UInt8(6), FP16(6), BF16(6)],
                           pads=[[0, 0, 0, 0], [1, 0, 0, 0]]),
 
+        genDepthWiseConvs(input_types=[Int8(6), UInt8(6), FP16(6), BF16(6)],
+                          input_shapes=[[1, 32, 32, 32]],
+                          kernel_channels=[32]),
+
+        genDepthWiseConvs(input_types=[Int8(6), UInt8(6), FP16(6), BF16(6)],
+                          input_shapes=[[1, 64, 32, 32]],
+                          kernel_channels=[64]),
+
+        genDepthWiseConvs(input_types=[UInt8(6)],
+                          strides=[[2, 2], [3, 3]]),
+
         genDepthWiseConvs(input_types=[UInt8(6)],
                           output_types=[UInt8()],
                           kernel_shapes=[[r, c] for r in range(1, 12) for c in range(1, 12) if (r, c) != (4, 4)]),
-
-        # MobileNet DepthWiseConv, uint8
-        genDepthWiseConvs(input_types=[UInt8(2)],
-                          input_shapes=[[1, 32, 112, 112]],
-                          kernel_channels=[32],
-                          kernel_shapes=[[3, 3]],
-                          output_types=[UInt8()],
-                          pads=[[1, 1, 1, 1]]),
-
-        # MobileNet DepthWiseConv, uint8
-        genDepthWiseConvs(input_types=[UInt8(2)],
-                          input_shapes=[[1, 144, 56, 56]],
-                          kernel_channels=[144],
-                          kernel_shapes=[[3, 3]],
-                          output_types=[UInt8()],
-                          pads=[[1, 1, 1, 1]]),
-
-        # MobileNet DepthWiseConv, uint8
-        genDepthWiseConvs(input_types=[UInt8(2)],
-                          input_shapes=[[1, 192, 28, 28]],
-                          kernel_channels=[192],
-                          kernel_shapes=[[3, 3]],
-                          output_types=[UInt8()],
-                          pads=[[1, 1, 1, 1]]),
-
-        # MobileNet DepthWiseConv, uint8
-        genDepthWiseConvs(input_types=[UInt8(2)],
-                          input_shapes=[[1, 192, 28, 28]],
-                          kernel_channels=[192],
-                          kernel_shapes=[[3, 3]],
-                          output_types=[UInt8()],
-                          strides=[[2, 2]],
-                          pads=[[1, 0, 1, 0]]),
-
-        # MobileNet DepthWiseConv, uint8
-        genDepthWiseConvs(input_types=[UInt8(2)],
-                          input_shapes=[[1, 384, 14, 14]],
-                          kernel_channels=[384],
-                          kernel_shapes=[[3, 3]],
-                          output_types=[UInt8()],
-                          pads=[[1, 1, 1, 1]]),
 
         # MobileNet ELTWISE, uint8
         genEltwiseAdds(input_types=[UInt8(2)],
