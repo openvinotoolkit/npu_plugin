@@ -21,5 +21,13 @@ namespace VPUIP {
 
 mlir::Value alignDepthWiseWeightsTensor(mlir::OpBuilder& builder, mlir::Location loc, const mlir::Value origFilter);
 
+unsigned int swizzle_addr(unsigned int addr, unsigned char key);
+
+template <class T>
+void swizzled_img(T* input_array, T* output_array, const unsigned char key, const unsigned int size);
+
+template <class T>
+int swizzled_size(T*, const unsigned char key, const unsigned int size);
+
 }  // namespace VPUIP
 }  // namespace vpux
