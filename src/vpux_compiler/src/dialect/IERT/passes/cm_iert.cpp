@@ -218,19 +218,13 @@ mlir::BoolAttr ChannelMajorConvolutionCompatibleOps::isOpChannelMajorCompatible(
     auto inputTensorShape = getShape(convOp.input());
     auto width = inputTensorShape[IE::Dims4D::Act::W];
 
-    Logger::global().error("order: {0}", IC);
-    Logger::global().error("order: {0}", width);
 
     if ((IC == 3) && (width % 16 == 0) && _userDimsOrder == DimsOrder::NCHW) {
         Logger::global().error("CM");
-        // convOp->setAttr("ChannelMajorCompitable", getIntAttr(_ctx, 1));
-        // convOp->getAttr("ChannelMajorCompitable").cast<mlir::IntegerAttr>().getInt();
-        // Logger::global().error("ChannelMajorCompitable: {0}",
-        //                        convOp->getAttr("ChannelMajorCompitable").cast<mlir::IntegerAttr>().getInt());
+     
         return mlir::BoolAttr::get(_ctx, "1");
     } else {
         return mlir::BoolAttr::get(_ctx, "0");
-        // convOp->setAttr("ChannelMajorCompitable", getIntAttr(_ctx, 0));
     }
 }
 
@@ -320,19 +314,13 @@ void ChannelMajorConvolutionCompatibleOpsPass::safeRunOnFunc() {
         Logger::global().error("order: {0}", IC);
         Logger::global().error("order: {0}", width);
 
-        bool channelMajorCompatible = ((IC == 3) && (width % 16 == 0) && userDimsOrder == DimsOrder::NCHW);
 
         Logger::global().error("order: {0}", userDimsOrder);
-        if (userDimsOrder != DimsOrder::NCHW) {
-            return true;  // user did not set dims order to be NCHW, all convolutions remain z-major -> legal
+        if ((userDimsOrder != DimsOrder::NCHW) || (IC!=3) || (width % 16 != 0)) {
+            return true;  
         }
-        if (IC != 3) {
-            return true;  // must remain z-major -> legal
-        }
-        if (width % 16 != 0) {
-            return true;  // must remain z-major -> legal
-        }
-        return false;  // must be converted to c-major -> illegal
+       
+        return false; 
     });
 
     mlir::RewritePatternSet patterns(&ctx);

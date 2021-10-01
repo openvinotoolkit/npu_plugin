@@ -259,9 +259,6 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
 
     auto inputDPU = prepareTensorForDPU(rewriter, origOp->getLoc(), origOp.input());
 
-    // auto cmConv = origOp->getAttr("ChannelMajorCompitable").cast<mlir::IntegerAttr>().getInt();
-    // Logger::global().error("ChannelMajorCompitable: {0}", origOp->getAttr("ChannelMajorCompitable").cast<mlir::IntegerAttr>().getInt());
-    
     if(origOp.channel_major_op())
     {
         alignedFilter = alignchannelMajorWeightTensor(rewriter, origOp->getLoc(), origOp.filter());

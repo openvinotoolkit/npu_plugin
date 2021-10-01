@@ -81,12 +81,8 @@ mlir::LogicalResult generalRewrite(mlir::Operation* origOp, mlir::PatternRewrite
     const auto inputShape = getShape(convOp.filter().getType().cast<mlir::ShapedType>());
     const auto IC = inputShape[IE::Dims4D::Filter::IC];
 
-    auto cmConv = convOp->getAttr("ChannelMajorCompitable").cast<mlir::IntegerAttr>().getInt();
-    Logger::global().error("ChannelMajorCompitable: {0}", convOp->getAttr("ChannelMajorCompitable").cast<mlir::IntegerAttr>().getInt());
-
-
     vpux::Shape inPadsEnd;
-    if(cmConv)
+    if(convOp.channel_major_op())
     {
         inPadsEnd = calcPadsEnd(inputType, inchannelAlignement);
         inPadsEnd[IE::Dims4D::Act::C] = 0;
