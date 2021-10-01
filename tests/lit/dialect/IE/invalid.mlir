@@ -60,6 +60,7 @@ func @main(%arg0: tensor<1x3x16x16xf32>) {
 }
 
 }
+
 // -----
 
 // CHECK-LABEL: @wrong_entry_point_sig
@@ -78,5 +79,74 @@ IE.CNNNetwork
 func @main(%arg0: memref<1x3x16x16xf32>) -> memref<1x3x16x16xf32> {
     return %arg0 : memref<1x3x16x16xf32>
 }
+
+}
+
+// -----
+
+// CHECK-LABEL: @wrong_tensor_attr
+module @wrong_tensor_attr {
+
+IE.CNNNetwork
+    entryPoint: @main
+    inputsInfo : {
+        DataInfo "input" : tensor<16xf32>
+    }
+    outputsInfo : {
+        DataInfo "output" : tensor<16xf32>
+    }
+
+func @main(%arg0: tensor<16xf32>) -> tensor<16xf32> {
+    return %arg0 : tensor<16xf32>
+}
+
+// expected-error@+1 {{Unsupported TensorType encoding '{qqq = "foo"}'}}
+func private @extra(%arg0: tensor<16xf32, {qqq = "foo"}>)
+
+}
+
+// -----
+
+// CHECK-LABEL: @wrong_tensor_attr_order1
+module @wrong_tensor_attr_order1 {
+
+IE.CNNNetwork
+    entryPoint: @main
+    inputsInfo : {
+        DataInfo "input" : tensor<16xf32>
+    }
+    outputsInfo : {
+        DataInfo "output" : tensor<16xf32>
+    }
+
+func @main(%arg0: tensor<16xf32>) -> tensor<16xf32> {
+    return %arg0 : tensor<16xf32>
+}
+
+// expected-error@+1 {{TensorType order '(d0, d1) -> (d0 * 10 + d1)' is not a permutation}}
+func private @extra(%arg0: tensor<16xf32, {order = affine_map<(d0, d1) -> (d0 * 10 + d1)>}>)
+
+}
+
+// -----
+
+// CHECK-LABEL: @wrong_tensor_attr_order2
+module @wrong_tensor_attr_order2 {
+
+IE.CNNNetwork
+    entryPoint: @main
+    inputsInfo : {
+        DataInfo "input" : tensor<16xf32>
+    }
+    outputsInfo : {
+        DataInfo "output" : tensor<16xf32>
+    }
+
+func @main(%arg0: tensor<16xf32>) -> tensor<16xf32> {
+    return %arg0 : tensor<16xf32>
+}
+
+// expected-error@+1 {{TensorType order '(d0, d1) -> (d1, d0)' doesn't match to shape '[16]'}}
+func private @extra(%arg0: tensor<16xf32, {order = affine_map<(d0, d1) -> (d1, d0)>}>)
 
 }
