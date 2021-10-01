@@ -136,13 +136,20 @@ void ListSchedulingPass::safeRunOnModule() {
     const auto maxSize = available.size();
     const uint64_t alignment = 64;
 
+    std::cout << maxSize.count() << std::endl;
+
+    const int64_t newSize = 827504;
+    std::cout << newSize << std::endl;
+
+    const auto timeAttrName = mlir::Identifier::get("schedule-time", netFunc->getContext());
     LinearScan<mlir::Value, LinearScanHandler> scan(maxSize.count(), alignment);
     auto& liveRangeInfo = getChildAnalysis<MemLiveRangeInfo>(netFunc);
     auto& depsInfo = getChildAnalysis<AsyncDepsInfo>(netFunc);
 
     // list scheduler
-    ListScheduler scheduler(_memSpace, liveRangeInfo, depsInfo, scan);
+    ListScheduler scheduler(_memSpace, liveRangeInfo, depsInfo, scan, timeAttrName);
     scheduler.generateSchedule();
+    // scheduler.addDependencies();
 
     mlir::ConversionTarget target(ctx);
     target.addLegalDialect<IERT::IERTDialect>();

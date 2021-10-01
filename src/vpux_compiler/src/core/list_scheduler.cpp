@@ -24,17 +24,12 @@ using namespace vpux;
 //
 
 ListScheduler::ListScheduler(mlir::Attribute& memSpace, MemLiveRangeInfo& liveRangeInfo, AsyncDepsInfo& depsInfo,
-                             LinearScan<mlir::Value, LinearScanHandler>& scan)
-        : _memSpace(memSpace), _liveRangeInfo(liveRangeInfo), _depsInfo(depsInfo), _scan(scan) {
-    // _startTimeHeap;
-    // _completionTimeHeap;
-    // _activeComputeOps;
-    // _readyComputeOps;
-    // _readyDataOps;
-    // _inDegreeTable;
-    // _outDegreeTable;
-    // _timeBuckets;
-    // _currentTime;
+                             LinearScan<mlir::Value, LinearScanHandler>& scan, mlir::Identifier timeAttrName)
+        : _memSpace(memSpace),
+          _liveRangeInfo(liveRangeInfo),
+          _depsInfo(depsInfo),
+          _scan(scan),
+          _timeAttrName(timeAttrName) {
 }
 
 void ListScheduler::push_to_st_heap(const heap_element_t& elem) {
@@ -330,12 +325,6 @@ void ListScheduler::schedule_all_possible_ready_ops_and_update(std::unordered_se
     }
 }
 
-size_t ListScheduler::choose_active_operation_for_eviction() {
-    // TODO: choose smallest alive buffer
-
-    return 0;
-}
-
 void ListScheduler::evict_active_op(size_t opIdx) {
     auto opOutput = _opOutputTable.find(opIdx);
     assert(opOutput != _opOutputTable.end() && (opOutput->second).active());
@@ -350,13 +339,26 @@ void ListScheduler::evict_active_op(size_t opIdx) {
 }
 
 void ListScheduler::force_schedule_active_op_eviction() {
+    std::cout << "choose_active_operation_for_eviction" << std::endl;
+    auto sortedAlive = _scan.handler().getSortedAlive();
+
+    VPUX_THROW_UNLESS(!sortedAlive.empty(), "Failed, nothing to spill");
+
+    // auto smallestAlive = sortedAlive.begin()->first;
+    // auto operation = _liveRangeInfo.getBufferOwner(smallestAlive);
+    // size_t candidateIdx = _depsInfo.getOperationIndex(operation);
+    size_t candidateIdx = 0;
     return;
-    size_t candidateIdx = choose_active_operation_for_eviction();
     evict_active_op(candidateIdx);
 
     // TODO: update _activeComputeOps some may no longer be active
 
     push_to_st_heap(heap_element_t(candidateIdx, _currentTime, op_type_e::IMPLICIT_OP_WRITE));
+}
+
+void ListScheduler::setTime(mlir::async::ExecuteOp execOp, size_t time) {
+    uint64_t castTime = checked_cast<uint64_t>(time);
+    execOp->setAttr(_timeAttrName, getIntAttr(execOp.getContext(), castTime));
 }
 
 void ListScheduler::clear_lists() {
@@ -443,7 +445,6 @@ void ListScheduler::next_schedulable_op() {
                 // std::cout << "number of live ranges: " << _scan.liveRanges().size() << std::endl;
                 // std::cout << "number of gaps: " << _scan.gaps().size() << std::endl;
                 force_schedule_active_op_eviction();
-                return;
             }
         }
     }
@@ -457,8 +458,10 @@ void ListScheduler::next_schedulable_op() {
 
     for (auto entry : _timeBuckets) {
         std::cout << "\t" << entry.first << ":\t";
-        for (auto ops : _timeBuckets[entry.first]) {
-            std::cout << ops << ", ";
+        for (auto opIdx : _timeBuckets[entry.first]) {
+            auto op = _depsInfo.getExecuteOpAtIndex(opIdx);
+            setTime(op, entry.first);
+            std::cout << opIdx << ", ";
         }
         std::cout << std::endl;
     }
@@ -472,4 +475,31 @@ void ListScheduler::generateSchedule() {
     std::cout << "\n #### END OF SCHEDULING ####\n" << std::endl;
 
     // return _scheduledOps;
+}
+
+void ListScheduler::addDependencies() {
+    auto curr = _timeBuckets.begin();
+    auto next = curr;
+    ++next;
+
+    _depsInfo.resetDepsMap(_timeBuckets.size());
+
+    while (next != _timeBuckets.end()) {
+        for (auto currIdx : curr->second) {
+            for (auto nextIdx : next->second) {
+                auto currOp = _depsInfo.getExecuteOpAtIndex(currIdx);
+                auto nextOp = _depsInfo.getExecuteOpAtIndex(nextIdx);
+                // currOp.dependenciesMutable().clear();
+                // nextOp.dependenciesMutable().clear();
+                _depsInfo.addDependency(currOp, nextOp);
+            }
+        }
+        curr = next;
+        ++next;
+    }
+
+    _depsInfo.optimizeDepsMap();
+    _depsInfo.updateTokenDependencies();
+
+    _depsInfo.printTokenDependencies();
 }

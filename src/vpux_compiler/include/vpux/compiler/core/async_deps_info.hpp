@@ -40,6 +40,7 @@ public:
     std::unordered_map<size_t, size_t> calculateOpInDegreeTable() const;
     std::unordered_map<size_t, size_t> calculateOpOutDegreeTable() const;
     size_t getOutputOp() const;
+    void resetDepsMap(size_t newSize);
 
 private:
     void setIndex(mlir::async::ExecuteOp execOp, uint64_t index);

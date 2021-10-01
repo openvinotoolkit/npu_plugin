@@ -186,6 +186,7 @@ void vpux::AsyncDepsInfo::updateTokenDependencies() {
 }
 
 void vpux::AsyncDepsInfo::printTokenDependencies() const {
+    std::cout << "deps size: " << _depsMap.size() << std::endl;
     for (size_t i = 0; i < _depsMap.size(); ++i) {
         auto execOp = getExecuteOpAtIndex(i);
         Logger::global().error("op: id:{0} {1} {2}", i, execOp->getLoc(), execOp->getName());
@@ -235,4 +236,12 @@ std::unordered_map<size_t, size_t> vpux::AsyncDepsInfo::calculateOpOutDegreeTabl
 
 size_t vpux::AsyncDepsInfo::getOutputOp() const {
     return _depsMap.size() - 2;
+}
+
+void vpux::AsyncDepsInfo::resetDepsMap(size_t newSize) {
+    _depsMap.clear();
+    _depsMap.resize(newSize);
+    for (auto& deps : _depsMap) {
+        deps.resize(checked_cast<uint32_t>(newSize));
+    }
 }

@@ -280,10 +280,10 @@ LinearScanHandler StaticAllocationPass::runLinearScan(mlir::FuncOp netFunc, IERT
         _log.trace("Process next task at '{0}'", curExecOp->getLoc());
         _log = _log.nest();
 
-        if (prevExecOp != nullptr) {
-            _log.trace("Add explicit dependency from '{0}' to '{1}'", prevExecOp->getLoc(), curExecOp->getLoc());
-            depsInfo.addDependency(prevExecOp, curExecOp);
-        }
+        // if (prevExecOp != nullptr) {
+        //     _log.trace("Add explicit dependency from '{0}' to '{1}'", prevExecOp->getLoc(), curExecOp->getLoc());
+        //     depsInfo.addDependency(prevExecOp, curExecOp);
+        // }
 
         const auto usedBufs = liveRangeInfo.getUsedBuffers(curExecOp);
 

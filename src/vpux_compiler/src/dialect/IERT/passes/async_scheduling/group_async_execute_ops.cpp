@@ -57,6 +57,19 @@ bool isSameExecutor(mlir::async::ExecuteOp execOp1, mlir::async::ExecuteOp execO
     return executor1 == executor2;
 }
 
+bool isSameTimeExecution(mlir::async::ExecuteOp execOp1, mlir::async::ExecuteOp execOp2) {
+    const auto attr1 = execOp1->getAttrOfType<mlir::IntegerAttr>("schedule-time");
+    VPUX_THROW_UNLESS(attr1 != nullptr, "Attribute schedule-time was not set for '{0}' operation at '{1}'",
+                      execOp1->getName(), execOp1->getLoc());
+    const auto attr2 = execOp2->getAttrOfType<mlir::IntegerAttr>("schedule-time");
+    VPUX_THROW_UNLESS(attr2 != nullptr, "Attribute schedule-time was not set for '{0}' operation at '{1}'",
+                      execOp2->getName(), execOp2->getLoc());
+
+    auto time1 = checked_cast<uint32_t>(attr1.getValue().getZExtValue());
+    auto time2 = checked_cast<uint32_t>(attr2.getValue().getZExtValue());
+    return time1 == time2;
+}
+
 bool prevHasUniqueUsers(mlir::async::ExecuteOp prevExecOp, mlir::async::ExecuteOp execOp) {
     auto getUsers = [](mlir::async::ExecuteOp op) {
         std::set<mlir::async::ExecuteOp> users;
@@ -124,6 +137,7 @@ mlir::async::ExecuteOp mergeAsyncExecuteOps(mlir::async::ExecuteOp prevExecOp, m
 
     const auto prevResultTypes = prevBodyBlock->getTerminator()->getOperandTypes();
     const auto resultTypes = bodyBlock->getTerminator()->getOperandTypes();
+    const auto prevScheduleTime = prevExecOp->getAttr("schedule-time");
 
     SmallVector<mlir::Type> newResultTypes(prevResultTypes);
     newResultTypes.insert(newResultTypes.end(), resultTypes.begin(), resultTypes.end());
@@ -136,6 +150,8 @@ mlir::async::ExecuteOp mergeAsyncExecuteOps(mlir::async::ExecuteOp prevExecOp, m
 
     auto newExecOp = rewriter.create<mlir::async::ExecuteOp>(prevExecOp->getLoc(), newResultTypes, newDependencies,
                                                              newOperands, bodyBuilder);
+
+    newExecOp->setAttr("schedule-time", prevScheduleTime);
 
     uint32_t numUnits = 0;
     auto executor = vpux::IERT::IERTDialect::getExecutor(execOp, numUnits);
@@ -206,6 +222,10 @@ mlir::LogicalResult GroupAsyncExecuteOps::matchAndRewrite(mlir::async::ExecuteOp
 
     if (!isSameExecutor(prevExecOp, execOp)) {
         return matchFailed(_log.nest(), rewriter, execOp, "Previous 'async.execute' uses another executor");
+    }
+
+    if (!isSameTimeExecution(prevExecOp, execOp)) {
+        return matchFailed(_log.nest(), rewriter, execOp, "Previous 'async.execute' scheduled at different time");
     }
 
     /*  TODO: Remove check below when proper operands mapping is implemented.

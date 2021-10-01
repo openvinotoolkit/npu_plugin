@@ -116,6 +116,23 @@ ValueOrderedSet vpux::MemLiveRangeInfo::getUsedBuffers(mlir::Operation* op) cons
     return {};
 }
 
+mlir::Operation* vpux::MemLiveRangeInfo::getBufferOwner(mlir::Value buffer) const {
+    std::cout << "getBufferOwner" << std::endl;
+    const auto valIt = _allUsersInBlock.find(buffer);
+    VPUX_THROW_UNLESS(valIt != _allUsersInBlock.end(), "Value '{0}' is not a buffer", buffer);
+    auto& allUsers = valIt->second;
+
+    std::cout << "user count = " << allUsers.size() << std::endl;
+
+    // for (auto user : allUsers) {
+    //     std::cout << user
+    // }
+
+    auto first = *allUsers.begin();
+
+    return first;
+}
+
 size_t vpux::MemLiveRangeInfo::eraseUser(mlir::Value val, mlir::Operation* op) {
     const auto valIt = _allUsersInBlock.find(val);
     VPUX_THROW_UNLESS(valIt != _allUsersInBlock.end(), "Value '{0}' is not a buffer", val);

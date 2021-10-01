@@ -115,6 +115,21 @@ public:
         _maxAllocatedSize = Byte(std::max(_maxAllocatedSize.count(), endAddr));
     }
 
+    std::list<std::pair<mlir::Value, AddressType>> getSortedAlive() {
+        std::list<std::pair<mlir::Value, AddressType>> aliveWithSize;
+        for (auto alive : _aliveValues) {
+            AddressType size = getSize(alive);
+            aliveWithSize.push_back(std::make_pair(alive, size));
+            alive.dump();
+        }
+        // std::sort(aliveWithSize.begin(), aliveWithSize.end(),
+        //           [](const std::pair<mlir::Value, AddressType>& val1, const std::pair<mlir::Value, AddressType>&
+        //           val2) {
+        //               return val1.second < val2.second;
+        //           });
+        return aliveWithSize;
+    }
+
     void freed(mlir::Value val) {
         markAsDead(val);
     }
@@ -269,10 +284,11 @@ class ListScheduler final {
 
 public:
     explicit ListScheduler(mlir::Attribute& memSpace, MemLiveRangeInfo& liveRangeInfo, AsyncDepsInfo& depsInfo,
-                           LinearScan<mlir::Value, LinearScanHandler>& scan);
+                           LinearScan<mlir::Value, LinearScanHandler>& scan, mlir::Identifier timeAttrName);
 
 public:
     void generateSchedule();
+    void addDependencies();
 
 private:
     bool init();
@@ -299,9 +315,9 @@ private:
     void distribute_ready_ops(std::list<size_t> readyOps);
     std::vector<heap_element_t> pop_all_elements_at_this_time(size_t time_step);
     void unschedule_all_completing_ops_at_next_earliest_time();
-    size_t choose_active_operation_for_eviction();
     void evict_active_op(size_t opIdx);
     void force_schedule_active_op_eviction();
+    void setTime(mlir::async::ExecuteOp execOp, size_t time);
 
 private:
     mlir::Attribute& _memSpace;
@@ -319,6 +335,7 @@ private:
     std::list<scheduled_op_info_t> _scheduledOps;
     std::unordered_map<size_t, op_output_info_t> _opOutputTable;
     size_t _currentTime;
+    mlir::Identifier _timeAttrName;
 };
 
 }  // namespace vpux
