@@ -63,7 +63,7 @@ private:
     bool isNodeHidden(mlir::Operation* op) const;
     static bool isTaskNode(mlir::Operation* op);
     static bool printNodeAttributes(mlir::Operation* op, llvm::raw_ostream& os);
-    static std::string getNodeLabel(mlir::Operation* op);
+    std::string getNodeLabel(mlir::Operation* op);
     void writeNode(mlir::Operation* op);
     void writeEdges(mlir::Operation* op);
     void writeEdge(mlir::Operation* source, mlir::Operation* target);
@@ -133,15 +133,15 @@ void GraphWriter::writeNodes() {
         }
 
         if (isTaskNode(&op)) {
-            if (opName == _params.startAfter) {
+            if (!_params.startAfter.empty() && (opName == _params.startAfter)) {
                 generating = true;
             }
-            if (opName == _params.stopBefore) {
+            if (!_params.stopBefore.empty() && (opName == _params.stopBefore)) {
                 break;
             }
         }
     }
-}
+}  // namespace
 
 EdgeDir GraphWriter::getEdgeDirection(mlir::Operation* source, mlir::Operation* target) {
     auto sideEffectsOp = mlir::dyn_cast<mlir::MemoryEffectOpInterface>(target);
@@ -229,23 +229,70 @@ bool GraphWriter::printNodeAttributes(mlir::Operation* op, llvm::raw_ostream& os
     return false;
 }
 
+std::string htmlEncode(StringRef data) {
+    std::string buffer;
+    buffer.reserve(data.size());
+    for (size_t pos = 0; pos != data.size(); ++pos) {
+        switch (data[pos]) {
+        case '&':
+            buffer.append("&amp;");
+            break;
+        case '\"':
+            buffer.append("&quot;");
+            break;
+        case '\'':
+            buffer.append("&apos;");
+            break;
+        case '<':
+            buffer.append("&lt;");
+            break;
+        case '>':
+            buffer.append("&gt;");
+            break;
+        default:
+            buffer.append(data[pos], 1);
+            break;
+        }
+    }
+    return buffer;
+}
+
 std::string GraphWriter::getNodeLabel(mlir::Operation* op) {
     std::string ostr;
     llvm::raw_string_ostream os(ostr);
 
-    // Reuse the print output for the node labels.
-    os << op->getName() << "\n";
+    auto htmlBegin = "<TR><TD ALIGN=\"LEFT\"><FONT POINT-SIZE=\"11.0\">";
+    auto htmlMiddle = " </FONT></TD>\n<TD ALIGN=\"RIGHT\"><FONT POINT-SIZE=\"11.0\">";
+    auto htmlEnd = " </FONT></TD></TR>\n";
+
+    if (_params.htmlLike) {
+        os << "<TR><TD ALIGN=\"CENTER\" COLSPAN=\"2\"><FONT POINT-SIZE=\"14.0\"><B>" << op->getName() << "</B>"
+           << htmlEnd;
+    } else {
+        os << op->getName() << "\n";
+    }
 
     if (auto dotInterface = mlir::dyn_cast<DotInterface>(op)) {
+        std::string temp_str;
+        llvm::raw_string_ostream temp_os(temp_str);
         // In case Operation implements custom attribute printer skip default attributes printing
-        if (dotInterface.printAttributes(os)) {
-            os << "\n";
+        if (dotInterface.printAttributes(temp_os)) {
+            if (_params.htmlLike) {
+                os << htmlBegin << temp_str << htmlEnd;
+            } else {
+                os << temp_str << "\n";
+            }
             return os.str();
         }
     }
 
     if (!mlir::isa<mlir::async::ExecuteOp>(op)) {
-        os << stringifyLocation(op->getLoc()) << "\n";
+        if (_params.htmlLike) {
+            os << htmlBegin << "Name:" << htmlMiddle << htmlEncode(stringifyLocation(op->getLoc())) << htmlEnd;
+            os << htmlBegin << "Type:" << htmlMiddle;
+        } else {
+            os << stringifyLocation(op->getLoc()) << "\n";
+        }
 
         // Print resultant types
         for (const auto type : op->getResultTypes()) {
@@ -262,6 +309,9 @@ std::string GraphWriter::getNodeLabel(mlir::Operation* op) {
                 std::string temp_str;
                 llvm::raw_string_ostream temp_os(temp_str);
                 memref.getElementType().print(temp_os);
+                if (_params.htmlLike) {
+                    temp_str = htmlEncode(temp_str);
+                }
 
                 if (temp_str.size() < MAX_ATTR_STR_SIZE) {
                     os << temp_str;
@@ -282,20 +332,37 @@ std::string GraphWriter::getNodeLabel(mlir::Operation* op) {
             os << ", ";
         }
 
-        os << "\n";
+        os << ((_params.htmlLike) ? htmlEnd : "\n");
     }
 
-    for (const auto attr : op->getAttrs()) {
-        os << '\n' << attr.first << ": ";
-
-        std::string temp_str;
-        llvm::raw_string_ostream temp_os(temp_str);
-        attr.second.print(temp_os);
-
-        if (temp_str.size() < MAX_ATTR_STR_SIZE) {
-            os << temp_str;
+    for (auto& attr : op->getAttrs()) {
+        if (_params.htmlLike) {
+            os << htmlBegin << attr.first << ": ";
+            os << htmlMiddle;
         } else {
-            os << "[...]";
+            os << '\n' << attr.first << ": ";
+        }
+
+        if (!attr.second.isa<mlir::AffineMapAttr>()) {
+            std::string temp_str;
+            llvm::raw_string_ostream temp_os(temp_str);
+            attr.second.print(temp_os);
+            if (_params.htmlLike) {
+                temp_str = htmlEncode(temp_str);
+            }
+
+            if (temp_str.size() < MAX_ATTR_STR_SIZE) {
+                os << temp_str;
+            } else {
+                os << "[...]";
+            }
+        } else {
+            auto map = attr.second.dyn_cast<mlir::AffineMapAttr>().getValue();
+            DimsOrder::fromPermutationAffineMap(map).printFormat(os);
+        }
+
+        if (_params.htmlLike) {
+            os << htmlEnd;
         }
     }
 
@@ -303,15 +370,21 @@ std::string GraphWriter::getNodeLabel(mlir::Operation* op) {
 }
 
 void GraphWriter::writeNode(mlir::Operation* op) {
-    _os << "\tNode" << static_cast<const void*>(op) << " [shape=record,";
+    _os << "\tNode" << static_cast<const void*>(op) << " [shape=box,";
 
     if (printNodeAttributes(op, _os)) {
         _os << ",";
     }
 
-    _os << "label=\"{";
-    _os << llvm::DOT::EscapeString(getNodeLabel(op));
-    _os << "}\"];\n";
+    if (_params.htmlLike) {
+        _os << " label=<<TABLE BORDER=\"0\" CELLPADDING=\"0\" CELLSPACING=\"0\">";
+        _os << getNodeLabel(op);
+        _os << "</TABLE>>];\n";
+    } else {
+        _os << "label=\"{";
+        _os << llvm::DOT::EscapeString(getNodeLabel(op));
+        _os << "}\"];\n";
+    }
 }
 
 void GraphWriter::writeEdges(mlir::Operation* op) {
