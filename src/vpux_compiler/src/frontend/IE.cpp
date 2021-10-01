@@ -61,6 +61,7 @@
 #include <transformations/common_optimizations/convert_quantize_dequantize.hpp>
 #include <transformations/common_optimizations/fq_mul_fusion.hpp>
 #include <transformations/common_optimizations/pull_transpose_through_fq.hpp>
+#include <transformations/common_optimizations/relu_fake_quantize_fusion.hpp>
 #include <transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp>
 #include <transformations/op_conversions/convert_divide.hpp>
 #include <transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp>
@@ -1800,6 +1801,7 @@ void runNGraphPasses(const std::shared_ptr<ngraph::Function>& netGraph, mlir::Ti
     manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<vpux::passes::OnnxReorgPatternToDarkNetReorg>();
     manager.register_pass<vpux::passes::ConvertExtractImagePatchesToReorgYoloVPU>();
+    manager.register_pass<ngraph::pass::ReluFakeQuantizeFusion>();
 
     manager.register_pass<vpux::passes::PropagateFQ>();
     manager.register_pass<vpux::passes::AlignScales>();
