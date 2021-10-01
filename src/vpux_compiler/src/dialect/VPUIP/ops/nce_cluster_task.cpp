@@ -78,11 +78,11 @@ void vpux::VPUIP::NCEClusterTaskOp::inferLayoutInfo(mlir::Operation* origOp, IE:
     llvm::TypeSwitch<mlir::Operation*, void>(origOp)
             .Case<IE::ConvolutionOp>([&](IE::ConvolutionOp op) {
 
-                uint64_t cmconv = 0;
-                if(op->hasAttr("ChannelMajorCompitable"))
-                    cmconv = op->getAttr("ChannelMajorCompitable").cast<mlir::IntegerAttr>().getInt();
+                // uint64_t cmconv = 0;
+                // if(op->hasAttr("ChannelMajorCompitable"))
+                //     cmconv = op->getAttr("ChannelMajorCompitable").cast<mlir::IntegerAttr>().getInt();
 
-                if(cmconv)
+                if(op.channel_major_op())
                 {
                     info.setInput(0, DimsOrder::NCHW);
                     info.setInput(1, DimsOrder::OIYX);

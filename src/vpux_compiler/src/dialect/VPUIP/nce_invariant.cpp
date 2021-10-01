@@ -43,7 +43,7 @@ int64_t vpux::VPUIP::NCEInvariant::getChannelAlignment(mlir::Type elemType) {
     return std::max<int64_t>(128 / typeSizeInBits.count(), 16);
 }
 
-mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyConvChannels(int64_t cmconv, mlir::Location loc, mlir::ShapedType filterType,
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyConvChannels(bool cmconv, mlir::Location loc, mlir::ShapedType filterType,
                                                                   Logger log) {
     log.setName("NCEInvariant");
 
@@ -70,19 +70,21 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyConvChannels(int64_t cmconv
 }
 
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyChannels(IE::ConvolutionOp origOp, Logger log) {
-    uint64_t cmconv = 0;
-    if(origOp->hasAttr("ChannelMajorCompitable"))
-        cmconv = checked_cast<int64_t>(origOp->getAttr("ChannelMajorCompitable").cast<mlir::IntegerAttr>().getInt());
-    return verifyConvChannels(cmconv, origOp->getLoc(), origOp.filter().getType().cast<mlir::ShapedType>(), log);
+    // uint64_t cmconv = 0;
+    // if(origOp->hasAttr("ChannelMajorCompitable"))
+    //     cmconv = checked_cast<int64_t>(origOp->getAttr("ChannelMajorCompitable").cast<mlir::IntegerAttr>().getInt());
+
+
+    return verifyConvChannels(origOp.channel_major_op(), origOp->getLoc(), origOp.filter().getType().cast<mlir::ShapedType>(), log);
 }
 
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyChannels(IERT::ConvolutionOp origOp, Logger log) {
     
-    uint64_t cmconv = 0;
-     if(origOp->hasAttr("ChannelMajorCompitable"))
-        cmconv = checked_cast<int64_t>(origOp->getAttr("ChannelMajorCompitable").cast<mlir::IntegerAttr>().getInt());
+    // uint64_t cmconv = 0;
+    // if(origOp->hasAttr("ChannelMajorCompitable"))
+    //     cmconv = checked_cast<int64_t>(origOp->getAttr("ChannelMajorCompitable").cast<mlir::IntegerAttr>().getInt());
 
-    return verifyConvChannels(cmconv, origOp->getLoc(), origOp.filter().getType().cast<mlir::ShapedType>(), log);
+    return verifyConvChannels(origOp.channel_major_op(), origOp->getLoc(), origOp.filter().getType().cast<mlir::ShapedType>(), log);
 }
 
 //

@@ -117,16 +117,16 @@ mlir::LogicalResult ConvolutionTiling::matchAndRewrite(IERT::ConvolutionOp origO
                                                   outputTile.offsets, outputTile.shape);
         auto allocOutOp = rewriter.create<mlir::memref::AllocOp>(loc, tileTypeOut);
 
-        uint64_t cmconv = 0;
-        if(origOp->hasAttr("ChannelMajorCompitable"))
-            cmconv = origOp->getAttr("ChannelMajorCompitable").cast<mlir::IntegerAttr>().getInt();
+        // uint64_t cmconv = 0;
+        // if(origOp->hasAttr("ChannelMajorCompitable"))
+        //     cmconv = origOp->getAttr("ChannelMajorCompitable").cast<mlir::IntegerAttr>().getInt();
 
         auto tiledOp = rewriter.create<IERT::ConvolutionOp>(loc, actInput, filterInput, biasInput, allocOutOp.memref(),
                                                             origOp.strides(), getIntArrayAttr(getContext(), padsBegin),
                                                             getIntArrayAttr(getContext(), padsEnd), origOp.dilations(),
-                                                            origOp.post_opAttr());
+                                                            origOp.post_opAttr(), origOp.channel_major_op());
 
-        tiledOp->setAttr("ChannelMajorCompitable", getIntAttr(origOp->getContext(),cmconv));
+        //tiledOp->setAttr("ChannelMajorCompitable", getIntAttr(origOp->getContext(),cmconv));
 
         const auto attrOffsets = getIntArrayAttr(rewriter.getContext(), outputTile.offsets.raw());
         const auto attrShape = getIntArrayAttr(rewriter.getContext(), outputTile.shape.raw());

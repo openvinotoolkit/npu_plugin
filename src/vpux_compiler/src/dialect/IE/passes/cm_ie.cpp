@@ -72,6 +72,7 @@ mlir::BoolAttr ChannelMajorConvolutionCompatibleOps::isOpChannelMajorCompatible(
         //                        convOp->getAttr("ChannelMajorCompitable").cast<mlir::IntegerAttr>().getInt());
         return mlir::BoolAttr::get(_ctx, "1");
     } else {
+        
         return mlir::BoolAttr::get(_ctx, "0");
         // convOp->setAttr("ChannelMajorCompitable", getIntAttr(_ctx, 0));
     }
@@ -104,7 +105,7 @@ mlir::LogicalResult ChannelMajorConvolutionRewrite::matchAndRewrite(
 
              const auto channelMajorCompitable = _userInputInfo.isOpChannelMajorCompatible(origOp);
 
-            rewriter.create<IE::ConvolutionOp>(origOp->getLoc(), origOp.input(), origOp.filter(), origOp.bias(), origOp.strides(),
+            rewriter.replaceOpWithNewOp<IE::ConvolutionOp>(origOp, origOp.input(), origOp.filter(), origOp.bias(), origOp.strides(),
                                 origOp.pads_begin(), origOp.pads_end(), origOp.dilations(), origOp.post_opAttr(), channelMajorCompitable);
 
 
@@ -153,9 +154,34 @@ void ChannelMajorConvolutionCompatibleOpsPass::safeRunOnFunc() {
     Logger::global().error("order: {0}", userDimsOrder);
     ChannelMajorConvolutionCompatibleOps userInputInfo(&ctx, _log, userDimsOrder);
 
-
     mlir::ConversionTarget target(ctx);
-    target.addLegalOp<IE::ConvolutionOp>();
+
+    target.addDynamicallyLegalOp<IE::ConvolutionOp>([&](IE::ConvolutionOp convOp) -> bool {
+        
+        if(convOp.channel_major_op())
+            return true;
+        
+        const auto inputShape = getShape(convOp.filter().getType().cast<mlir::ShapedType>());
+        const auto IC = inputShape[IE::Dims4D::Filter::IC];
+        auto inputTensorShape = getShape(convOp.input());
+        auto width = inputTensorShape[IE::Dims4D::Act::W];
+        Logger::global().error("order: {0}", IC);
+        Logger::global().error("order: {0}", width);
+
+        bool channelMajorCompatible = ((IC == 3) && (width % 16 == 0) && userDimsOrder == DimsOrder::NCHW);
+
+        Logger::global().error("order: {0}", userDimsOrder);
+        if (userDimsOrder != DimsOrder::NCHW) {
+            return true;  // user did not set dims order to be NCHW, all convolutions remain z-major -> legal
+        }
+        if (IC != 3) {
+            return true;  // must remain z-major -> legal
+        }
+        if (width % 16 != 0) {
+            return true;  // must remain z-major -> legal
+        }
+        return false;  // must be converted to c-major -> illegal
+    });
 
     mlir::RewritePatternSet patterns(&ctx);
     patterns.insert<ChannelMajorConvolutionRewrite>(&ctx, userInputInfo, _log);
@@ -174,3 +200,5 @@ void ChannelMajorConvolutionCompatibleOpsPass::safeRunOnFunc() {
 std::unique_ptr<mlir::Pass> vpux::IE::createChannelMajorConvolutionCompatibleOpsPass(Logger log) {
     return std::make_unique<ChannelMajorConvolutionCompatibleOpsPass>(log);
 }
+
+

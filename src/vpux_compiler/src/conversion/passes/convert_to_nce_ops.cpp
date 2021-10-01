@@ -259,10 +259,10 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
 
     auto inputDPU = prepareTensorForDPU(rewriter, origOp->getLoc(), origOp.input());
 
-    auto cmConv = origOp->getAttr("ChannelMajorCompitable").cast<mlir::IntegerAttr>().getInt();
-    Logger::global().error("ChannelMajorCompitable: {0}", origOp->getAttr("ChannelMajorCompitable").cast<mlir::IntegerAttr>().getInt());
+    // auto cmConv = origOp->getAttr("ChannelMajorCompitable").cast<mlir::IntegerAttr>().getInt();
+    // Logger::global().error("ChannelMajorCompitable: {0}", origOp->getAttr("ChannelMajorCompitable").cast<mlir::IntegerAttr>().getInt());
     
-    if(cmConv)
+    if(origOp.channel_major_op())
     {
         alignedFilter = alignchannelMajorWeightTensor(rewriter, origOp->getLoc(), origOp.filter());
         filterDPU = prepareTensorForDPU(rewriter, origOp->getLoc(), alignedFilter);
@@ -298,7 +298,7 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
 
     auto outAllocOpCMX = rewriter.create<mlir::memref::AllocOp>(origOp->getLoc(), outTypeCMX);
 
-    if(cmConv)
+    if(origOp.channel_major_op())
     {
     weightsTable = createWeightsTableTensor(rewriter, origOp->getLoc(), OC, inputDPU, outAllocOpCMX.memref(),
                                                  filterDPU, origOp.bias(), activationWindow);
@@ -322,7 +322,7 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
 
     Logger::global().error("order: {0}", DimsOrder::fromValue(origOp.input()));
 
-    if (cmConv) {
+    if (origOp.channel_major_op()) {
         auto nceOp = rewriter.create<VPUIP::NCEClusterTaskOp>(
                 origOp->getLoc(), inputDPU, filterDPU, weightsTable, activationWindow,
                 /*parent_input=*/inputDPU,
