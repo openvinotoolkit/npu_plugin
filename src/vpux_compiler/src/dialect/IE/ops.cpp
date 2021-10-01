@@ -21,6 +21,7 @@
 #include <mlir/IR/BuiltinAttributes.h>
 #include <mlir/IR/BuiltinTypes.h>
 #include <mlir/IR/OpImplementation.h>
+#include <mlir/IR/TensorEncoding.h>
 #include <mlir/Interfaces/DecodeAttributesInterfaces.h>
 
 using namespace vpux;
@@ -104,6 +105,37 @@ mlir::LogicalResult IEDecodeAttributesHooks::decode(mlir::OpaqueElementsAttr inp
     return mlir::success();
 }
 
+//
+// TensorEncodingVerifier
+//
+
+class TensorEncodingVerifier final :
+        public mlir::VerifiableTensorEncoding::ExternalModel<TensorEncodingVerifier, IE::TensorAttr> {
+public:
+    mlir::LogicalResult verifyEncoding(mlir::Attribute attr, ArrayRef<int64_t> shape, mlir::Type,
+                                       FuncRef<mlir::InFlightDiagnostic()> emitError) const {
+        const auto desc = attr.dyn_cast<IE::TensorAttr>();
+
+        if (desc == nullptr) {
+            return printTo(emitError(), "Unsupported TensorType encoding '{0}'", attr);
+        }
+
+        if (const auto orderAttr = desc.order()) {
+            const auto map = orderAttr.getValue();
+
+            if (!map.isPermutation()) {
+                return printTo(emitError(), "TensorType order '{0}' is not a permutation", map);
+            }
+
+            if (checked_cast<size_t>(map.getNumResults()) != shape.size()) {
+                return printTo(emitError(), "TensorType order '{0}' doesn't match to shape '{1}'", map, shape);
+            }
+        }
+
+        return mlir::success();
+    }
+};
+
 }  // namespace
 
 //
@@ -117,6 +149,8 @@ void vpux::IE::IEDialect::initialize() {
             >();
 
     addInterfaces<IEAsmHooks, IEDecodeAttributesHooks>();
+
+    IE::TensorAttr::attachInterface<TensorEncodingVerifier>(*getContext());
 }
 
 //
