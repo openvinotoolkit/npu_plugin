@@ -123,7 +123,7 @@ def CMXTiling : PassBase<"cmx-tiling", "vpux::FunctionPass"> {
 // CMConvCompatibleOps
 //
 
-def ChannelMajorConvolutionCompatibleOps : PassBase<"cm", "vpux::ModulePass"> {
+def ChannelMajorConvolutionCompatibleOps : PassBase<"cm", "vpux::FunctionPass"> {
     let summary = "ChannelMajorConvolutionCompatibleOpsPass";
 
     let description = [{

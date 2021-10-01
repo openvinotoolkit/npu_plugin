@@ -152,7 +152,7 @@ void ChannelMajorConvolutionCompatibleOpsPass::safeRunOnFunc() {
 
     Logger::global().error("order: {0}", userDimsOrder);
     ChannelMajorConvolutionCompatibleOps userInputInfo(&ctx, _log, userDimsOrder);
-    
+
 
     mlir::ConversionTarget target(ctx);
     target.addLegalOp<IE::ConvolutionOp>();
