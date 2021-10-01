@@ -994,9 +994,6 @@ def filter_issues(args, p: DPUPipeline) -> bool:
     if 'EISW-13321' in p.issues:
         # Filter int4
         return False
-    if 'EISW-21225' in p.issues:
-        # Filter int32
-        return False
     return True
 
 
