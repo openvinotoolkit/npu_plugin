@@ -84,7 +84,7 @@ link_system_libraries(${OBJ_TARGET_NAME}
 # if(AARCH64)
 target_link_libraries(${OBJ_TARGET_NAME}
     PRIVATE
-        ${UMD_CONVERTER_PATH}
+        # ${VPUX_COMPILER_L0_PATH}
         vpux_al
         kmb_utils)
 # else()
