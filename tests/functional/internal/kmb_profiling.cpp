@@ -102,14 +102,14 @@ TEST_F(KmbProfilingTest, precommit_profilingNonMatchedName) {
     runTest("conv");
 }
 
-TEST_F(KmbProfilingTest, profilingMatchedName_MLIR) {
+TEST_F(KmbProfilingTest, precommit_profilingMatchedName_MLIR) {
     runTest("Result", true);
 }
 
-TEST_F(KmbProfilingTest, profilingNonMatchedName_MLIR) {
+TEST_F(KmbProfilingTest, precommit_profilingNonMatchedName_MLIR) {
     runTest("conv", true);
 }
 
-TEST_F(KmbProfilingTest, profilingDisabled_MLIR) {
+TEST_F(KmbProfilingTest, precommit_profilingDisabled_MLIR) {
     runTest("conv", true, false);
 }
