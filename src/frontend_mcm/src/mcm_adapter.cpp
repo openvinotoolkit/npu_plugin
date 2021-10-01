@@ -58,12 +58,12 @@ std::unique_ptr<MVCNN::TensorReferenceT> buildTensorReference(const std::string&
     const auto epsilon = std::numeric_limits<double>::epsilon();
     const int64_t defaultZeroPoint = 0L;
     const double defaultScale = 1.;
-    const auto isPluginInputQuantization =
-            forcePluginInputQuantization
-                    ? ((quantParams.getZeroPoint().size() >= 1 &&
-                        (quantParams.getZeroPoint()[0] != defaultZeroPoint)) ||
-                       (quantParams.getScale().size() >= 1 && fabs(quantParams.getScale()[0] - defaultScale) > epsilon))
-                    : false;
+    const auto nonTrivialZeroPoint =
+            quantParams.getZeroPoint().size() >= 1 && quantParams.getZeroPoint()[0] != defaultZeroPoint;
+    const auto nonTrivialScale =
+            quantParams.getScale().size() >= 1 && fabs(quantParams.getScale()[0] - defaultScale) > epsilon;
+    const auto nonTrivialQuantParam = nonTrivialZeroPoint || nonTrivialScale;
+    const auto isPluginInputQuantization = forcePluginInputQuantization ? nonTrivialQuantParam : false;
     // Plugin input quantization flag
     // Consider to use quant_mult parameter as a flag
     toBuild->quant_mult.push_back(static_cast<uint16_t>(isPluginInputQuantization));
