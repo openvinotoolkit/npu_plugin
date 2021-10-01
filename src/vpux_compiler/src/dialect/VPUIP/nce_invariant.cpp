@@ -70,20 +70,10 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyConvChannels(bool cmconv, m
 }
 
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyChannels(IE::ConvolutionOp origOp, Logger log) {
-    // uint64_t cmconv = 0;
-    // if(origOp->hasAttr("ChannelMajorCompitable"))
-    //     cmconv = checked_cast<int64_t>(origOp->getAttr("ChannelMajorCompitable").cast<mlir::IntegerAttr>().getInt());
-
-
     return verifyConvChannels(origOp.channel_major_op(), origOp->getLoc(), origOp.filter().getType().cast<mlir::ShapedType>(), log);
 }
 
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyChannels(IERT::ConvolutionOp origOp, Logger log) {
-    
-    // uint64_t cmconv = 0;
-    // if(origOp->hasAttr("ChannelMajorCompitable"))
-    //     cmconv = checked_cast<int64_t>(origOp->getAttr("ChannelMajorCompitable").cast<mlir::IntegerAttr>().getInt());
-
     return verifyConvChannels(origOp.channel_major_op(), origOp->getLoc(), origOp.filter().getType().cast<mlir::ShapedType>(), log);
 }
 
