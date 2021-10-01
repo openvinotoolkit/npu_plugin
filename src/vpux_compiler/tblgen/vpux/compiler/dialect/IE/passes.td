@@ -97,7 +97,7 @@ def OptimizeReorders : PassBase<"optimize-reorders", "vpux::FunctionPass"> {
 // CMConvCompatibleOps
 //
 
-def ChannelMajorConvolutionCompatibleOps : PassBase<"cm", "vpux::ModulePass"> {
+def ChannelMajorConvolutionCompatibleOps : PassBase<"cm", "vpux::FunctionPass"> {
     let summary = "ChannelMajorConvolutionCompatibleOpsPass";
 
     let description = [{
