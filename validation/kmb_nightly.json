@@ -4122,17 +4122,13 @@
         {
             "name" : "MTL_kpi_caffe2_FP16_resnet-50-pytorch",
             "ir" : "kpi/resnet-50-pytorch/caffe2/FP16/resnet-50-pytorch.xml",
-            "disabled" : true,
             "3720": {
                 "disabled" : false
             },
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
                 "VPUX_COMPILATION_MODE": "ReferenceHW",
-                "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS":"2",
-                "VPUX_DPU_GROUPS": "1",
-                "VPUX_THROUGHPUT_STREAMS": "6"
+                "VPUX_INFERENCE_TIMEOUT": "100000"
             },
             "Compile" : {
                 "input_layout" : "NHWC",
@@ -4174,17 +4170,13 @@
         {
             "name" : "MTL_kpi_caffe2_FP16_mobilenet-v2",
             "ir" : "kpi/mobilenet-v2/caffe2/FP16/mobilenet-v2.xml",
-            "disabled" : true,
             "3720": {
                 "disabled" : false
             },
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
                 "VPUX_COMPILATION_MODE": "ReferenceHW",
-                "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS":"2",
-                "VPUX_DPU_GROUPS": "1",
-                "VPUX_THROUGHPUT_STREAMS": "6"
+                "VPUX_INFERENCE_TIMEOUT": "100000"
             },
             "Compile" : {
                 "input_layout" : "NHWC",
