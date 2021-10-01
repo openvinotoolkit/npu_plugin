@@ -55,7 +55,9 @@ INSTANTIATE_TEST_CASE_P(smoke_Convolution1D, KmbConvolutionLayerTest,
                                            ::testing::Values(Precision::UNSPECIFIED),       // outPrc
                                            ::testing::Values(Layout::ANY),                  // inLayout
                                            ::testing::Values(Layout::ANY),                  // outLayout
-                                           ::testing::ValuesIn<SizeVector>({{1, 16, 64}}),  // inputShapes
+                                           ::testing::Values(std::vector<ngraph::PartialShape>{NULL_RANGE}),
+                                           ::testing::ValuesIn<std::vector<std::vector<SizeVector>>>({{{
+                                                   {1, 16, 64}}}}),                         // inputShapes
                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
                         ConvolutionLayerTest::getTestCaseName);
 
@@ -78,10 +80,12 @@ INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_AutoPadValid, KmbConvolutionLayerTes
                                            ::testing::Values(Precision::UNSPECIFIED),  // outPrc
                                            ::testing::Values(Layout::ANY),             // inLayout
                                            ::testing::Values(Layout::ANY),             // outLayout
-                                           ::testing::ValuesIn<SizeVector>({{1, 8, 32, 32},
-                                                                            {1, 16, 24, 24},
-                                                                            {1, 24, 16, 16},
-                                                                            {1, 32, 8, 8}}),  // inputShapes
+                                           ::testing::Values(std::vector<ngraph::PartialShape>{NULL_RANGE}),
+                                           ::testing::ValuesIn<std::vector<std::vector<SizeVector>>>({{{
+                                                   {1, 8, 32, 32},
+                                                   {1, 16, 24, 24},
+                                                   {1, 24, 16, 16},
+                                                   {1, 32, 8, 8}}}}),                  // inputShapes
                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),  //
                         ConvolutionLayerTest::getTestCaseName);
 
@@ -104,7 +108,9 @@ INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_ExplicitPadding, KmbConvolutionLayer
                                            ::testing::Values(Precision::UNSPECIFIED),          // outPrc
                                            ::testing::Values(Layout::ANY),                     // inLayout
                                            ::testing::Values(Layout::ANY),                     // outLayout
-                                           ::testing::ValuesIn<SizeVector>({{1, 3, 16, 16}}),  // inputShapes
+                                           ::testing::Values(std::vector<ngraph::PartialShape>{NULL_RANGE}),
+                                           ::testing::ValuesIn<std::vector<std::vector<SizeVector>>>({{{
+                                                   {1, 3, 16, 16}}}}),                         // inputShapes
                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
                         ConvolutionLayerTest::getTestCaseName);
 
@@ -127,7 +133,9 @@ INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_AsymmetricPadding, KmbConvolutionLay
                                            ::testing::Values(Precision::UNSPECIFIED),          // outPrc
                                            ::testing::Values(Layout::ANY),                     // inLayout
                                            ::testing::Values(Layout::ANY),                     // outLayout
-                                           ::testing::ValuesIn<SizeVector>({{1, 3, 64, 64}}),  // inputShapes
+                                           ::testing::Values(std::vector<ngraph::PartialShape>{NULL_RANGE}),
+                                           ::testing::ValuesIn<std::vector<std::vector<SizeVector>>>({{{
+                                                   {1, 3, 64, 64}}}}),                         // inputShapes
                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
                         ConvolutionLayerTest::getTestCaseName);
 
@@ -150,7 +158,9 @@ INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_AsymmetricKernel, KmbConvolutionLaye
                                            ::testing::Values(Precision::UNSPECIFIED),          // outPrc
                                            ::testing::Values(Layout::ANY),                     // inLayout
                                            ::testing::Values(Layout::ANY),                     // outLayout
-                                           ::testing::ValuesIn<SizeVector>({{1, 3, 16, 16}}),  // inputShapes
+                                           ::testing::Values(std::vector<ngraph::PartialShape>{NULL_RANGE}),
+                                           ::testing::ValuesIn<std::vector<std::vector<SizeVector>>>({{{
+                                                   {1, 3, 16, 16}}}}),                         // inputShapes
                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
                         ConvolutionLayerTest::getTestCaseName);
 
@@ -173,7 +183,9 @@ INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_AsymmetricStrides, KmbConvolutionLay
                                            ::testing::Values(Precision::UNSPECIFIED),          // outPrc
                                            ::testing::Values(Layout::ANY),                     // inLayout
                                            ::testing::Values(Layout::ANY),                     // outLayout
-                                           ::testing::ValuesIn<SizeVector>({{1, 3, 16, 16}}),  // inputShapes
+                                           ::testing::Values(std::vector<ngraph::PartialShape>{NULL_RANGE}),
+                                           ::testing::ValuesIn<std::vector<std::vector<SizeVector>>>({{{
+                                                   {1, 3, 16, 16}}}}),                         // inputShapes
                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
                         ConvolutionLayerTest::getTestCaseName);
 
@@ -196,7 +208,9 @@ INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_Dilated, KmbConvolutionLayerTest,
                                            ::testing::Values(Precision::UNSPECIFIED),          // outPrc
                                            ::testing::Values(Layout::ANY),                     // inLayout
                                            ::testing::Values(Layout::ANY),                     // outLayout
-                                           ::testing::ValuesIn<SizeVector>({{1, 3, 16, 16}}),  // inputShapes
+                                           ::testing::Values(std::vector<ngraph::PartialShape>{NULL_RANGE}),
+                                           ::testing::ValuesIn<std::vector<std::vector<SizeVector>>>({{{
+                                                   {1, 3, 16, 16}}}}),                         // inputShapes
                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
                         ConvolutionLayerTest::getTestCaseName);
 
@@ -219,7 +233,9 @@ INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_LargeSize1, KmbConvolutionLayerTest,
                                            ::testing::Values(Precision::UNSPECIFIED),             // outPrc
                                            ::testing::Values(Layout::ANY),                        // inLayout
                                            ::testing::Values(Layout::ANY),                        // outLayout
-                                           ::testing::ValuesIn<SizeVector>({{1, 16, 128, 128}}),  // inputShapes
+                                           ::testing::Values(std::vector<ngraph::PartialShape>{NULL_RANGE}),
+                                           ::testing::ValuesIn<std::vector<std::vector<SizeVector>>>({{{
+                                                   {1, 16, 128, 128}}}}),                         // inputShapes
                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),  //
                         ConvolutionLayerTest::getTestCaseName);
 
@@ -240,7 +256,9 @@ INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_LargeSize2, KmbConvolutionLayerTest,
                                            ::testing::Values(Precision::UNSPECIFIED),             // outPrc
                                            ::testing::Values(Layout::ANY),                        // inLayout
                                            ::testing::Values(Layout::ANY),                        // outLayout
-                                           ::testing::ValuesIn<SizeVector>({{1, 16, 256, 256}}),  // inputShapes
+                                           ::testing::Values(std::vector<ngraph::PartialShape>{NULL_RANGE}),
+                                           ::testing::ValuesIn<std::vector<std::vector<SizeVector>>>({{{
+                                                   {1, 16, 256, 256}}}}),                         // inputShapes
                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),  //
                         ConvolutionLayerTest::getTestCaseName);
 
