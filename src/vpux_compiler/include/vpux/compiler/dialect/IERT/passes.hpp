@@ -56,6 +56,7 @@ std::unique_ptr<mlir::Pass> createGroupAsyncExecuteOpsPass(Logger log = Logger::
 std::unique_ptr<mlir::Pass> createMoveViewOpsIntoAsyncRegionsPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createOptimizeAsyncDepsPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createSortAsyncExecuteOpsPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createInsertControlDepsPass(AttrCreateFunc memSpaceCb, Logger log = Logger::global());
 
 //
 // Registration

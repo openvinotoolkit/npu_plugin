@@ -108,6 +108,17 @@ void vpux::AsyncDepsInfo::addExecOp(mlir::async::ExecuteOp execOp) {
     const auto execInd = getIndex(execOp);
 
     for (auto arg : execOp->getOperands()) {
+        // mateusz
+        // std::cout << " ExecOp [" << execInd << "]: ";
+        // // if (mlir::isa_and_nonnull<mlir::async::TokenType>(arg.getType())) {
+        // if (arg.getType().dyn_cast_or_null<mlir::async::TokenType>()) {
+        //     std::cout << " Token";
+        //     //} else if (mlir::isa_and_nonnull<mlir::MemRefType>(arg.getType())) {
+        // } else if (arg.getType().dyn_cast_or_null<mlir::async::ValueType>()) {
+        //     std::cout << " Value";
+        // }
+        // std::cout << "\n";
+
         auto argExecOp = mlir::dyn_cast<mlir::async::ExecuteOp>(arg.getDefiningOp());
         VPUX_THROW_UNLESS(argExecOp != nullptr,
                           "'async.execute' at '{0}' has operand '{1}' produced by unsupported Operation",

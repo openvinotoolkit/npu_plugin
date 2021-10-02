@@ -253,4 +253,35 @@ def SortAsyncExecuteOps : PassBase<"sort-async-execute-ops", "vpux::FunctionPass
     let constructor = "vpux::IERT::createSortAsyncExecuteOpsPass()";
 }
 
+//
+// InsertControlDeps
+//
+
+def InsertControlDeps : PassBase<"insert-control-deps", "vpux::FunctionPass"> {
+    let summary = "Insert required control dependencies";
+
+    let description = [{
+        This pass will insert required dependecies based on overlapping memory ranges
+    }];
+
+    let constructor = [{
+        vpux::IERT::createInsertControlDepsPass([](mlir::MLIRContext* ctx, vpux::StringRef memSpaceName) -> mlir::Attribute {
+            VPUX_THROW_UNLESS(!memSpaceName.empty(), "Missing memory space option");
+            return mlir::StringAttr::get(ctx, memSpaceName);
+        })
+    }];
+
+    let options = [
+        Option<
+            "memSpaceName", "memory-space",
+            "std::string", [{""}],
+            "Memory space to perform allocation"
+        >
+    ];
+
+    let dependentDialects = [
+        "vpux::IERT::IERTDialect"
+    ];
+}
+
 #endif

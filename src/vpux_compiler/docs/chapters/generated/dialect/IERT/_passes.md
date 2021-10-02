@@ -7,6 +7,13 @@ This pass checks all CopyOps and updates their position in the parent block to b
 that generates the copy op source buffer
 ### `-group-async-execute-ops`: Reduces number of async.execute operations
 Groups consecutive operations which utilizes the same executor and max resources into same async.execute region
+### `-insert-control-deps`: Insert required control dependencies
+This pass will insert required dependecies based on overlapping memory ranges
+
+#### Options
+```
+-memory-space : Memory space to perform allocation
+```
 ### `-list-scheduling`: Scheduling Pass
 TODO
 
