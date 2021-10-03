@@ -99,7 +99,7 @@ mlir::LogicalResult generalRewrite(mlir::Operation* origOp, mlir::PatternRewrite
     log.trace("Input padding : {0}", inPadsEnd);
     log.trace("Output padding : {0}", outPadsEnd);
 
-    if (inPadsEnd[IE::Dims4D::Act::C] == 0 && outPadsEnd[IE::Dims4D::Act::C] == 0 && IC != 3) {
+    if (inPadsEnd[IE::Dims4D::Act::C] == 0 && outPadsEnd[IE::Dims4D::Act::C] == 0 && && !convOp.channel_major_op()) {
         return matchFailed(log, rewriter, origOp, "Both input and output channels are already aligned");
     }
 
