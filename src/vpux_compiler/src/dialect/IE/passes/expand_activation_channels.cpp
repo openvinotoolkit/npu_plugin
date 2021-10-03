@@ -78,7 +78,6 @@ mlir::LogicalResult generalRewrite(mlir::Operation* origOp, mlir::PatternRewrite
     const auto outputType = origOp->getResult(0).getType().cast<mlir::ShapedType>();
 
     auto convOp = mlir::dyn_cast<IE::ConvolutionOp>(*origOp);
-    const auto inputShape = getShape(convOp.filter().getType().cast<mlir::ShapedType>());
 
     vpux::Shape inPadsEnd;
     if(convOp.channel_major_op())
