@@ -2566,7 +2566,8 @@
                 "disabled" : true
             },
             "extra_config" : {
-                "VPUX_THROUGHPUT_STREAMS": "1"
+                "VPUX_THROUGHPUT_STREAMS": "1",
+                "VPUX_EXECUTOR_STREAMS":"1"
             },
             "BenchmarkApp" : {
                 "disabled" : true,
