@@ -5,7 +5,7 @@
 #include <ngraph/ngraph.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
-#include "ngraph_stereo.h"
+#include "VPU_Stereo_NN_IR_Generator.h"
 #include "nlohmann_json.hpp"
 
 using namespace InferenceEngine;
