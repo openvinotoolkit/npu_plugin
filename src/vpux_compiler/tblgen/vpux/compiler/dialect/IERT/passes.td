@@ -240,4 +240,17 @@ def FeasibleAllocation : PassBase<"feasible-allocation", "vpux::ModulePass"> {
     ];
 }
 
+//
+// SortAsyncExecuteOps
+//
+def SortAsyncExecuteOps : PassBase<"sort-async-execute-ops", "vpux::FunctionPass"> {
+    let summary = "This pass sorts async execute ops according to schedule-time";
+
+    let description = [{
+        Place all AsyncExecute ops in IR in non-descending order of schedule-time"
+    }];
+
+    let constructor = "vpux::IERT::createSortAsyncExecuteOpsPass()";
+}
+
 #endif

@@ -55,6 +55,7 @@ std::unique_ptr<mlir::Pass> createMoveWaitResultToAsyncBlockArgsPass(Logger log 
 std::unique_ptr<mlir::Pass> createGroupAsyncExecuteOpsPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createMoveViewOpsIntoAsyncRegionsPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createOptimizeAsyncDepsPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createSortAsyncExecuteOpsPass(Logger log = Logger::global());
 
 //
 // Registration
