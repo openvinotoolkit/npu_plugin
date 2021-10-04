@@ -79,7 +79,7 @@ mlir::LogicalResult generalRewrite(mlir::Operation* origOp, mlir::PatternRewrite
 
     auto convOp = mlir::dyn_cast<IE::ConvolutionOp>(*origOp);
 
-    vpux::Shape inPadsEnd;
+    vpux::Shape inPadsEnd = getShape(inputType).toValues();
     if (convOp.channel_major_op()) {
         inPadsEnd = calcPadsEnd(inputType, inchannelAlignement);
         inPadsEnd[IE::Dims4D::Act::C] = 0;
