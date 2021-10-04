@@ -51,11 +51,49 @@ std::unique_ptr<MVCNN::TensorReferenceT> buildTensorReference(const std::string&
 
 std::unique_ptr<MVCNN::TensorReferenceT> buildTensorReference(const std::string& tensorName,
                                                               const InferenceEngine::TensorDesc& tensorInfo,
-                                                              const mv::Data::TensorIterator& opModelTensor) {
+                                                              const mv::QuantizationParams& quantParams,
+                                                              const MCMConfig& config) {
+    auto mainData = buildTensorReference(tensorName, tensorInfo);
+    std::unique_ptr<MVCNN::TensorReferenceT> toBuild = buildTensorReference(tensorName, tensorInfo);
+    const auto epsilon = std::numeric_limits<double>::epsilon();
+    const int64_t defaultZeroPoint = 0L;
+    const double defaultScale = 1.;
+    const auto isPluginInputQuantization =
+            config.forcePluginInputQuantization()
+                    ? ((quantParams.getZeroPoint().size() >= 1 &&
+                        (quantParams.getZeroPoint()[0] != defaultZeroPoint)) ||
+                       (quantParams.getScale().size() >= 1 && fabs(quantParams.getScale()[0] - defaultScale) > epsilon))
+                    : false;
+    // Consider to use quant_mult parameter as a flag for plugin input quantization
+    toBuild->quant_mult.push_back(static_cast<uint16_t>(isPluginInputQuantization));
+    if (isPluginInputQuantization) {
+        // Consider to use quant_zero parameter as a min input range value (fp32)
+        std::vector<uint8_t> floatStorage(sizeof(float) / sizeof(uint8_t));
+        float* floatValue = reinterpret_cast<float*>(floatStorage.data());
+        const float minValue = quantParams.getMin().size() >= 1 ? static_cast<float>(quantParams.getMin()[0]) : 0.f;
+        *floatValue = minValue;
+        toBuild->quant_zero = floatStorage;
+        const float maxValue = quantParams.getMax().size() >= 1 ? static_cast<float>(quantParams.getMax()[0]) : 255.f;
+        const float uint8tRange = 255.f;
+        // Consider to use quant_shift parameter as a scale value (fp32)
+        const float floatRange = maxValue - minValue;
+        const float scale = fabs(floatRange) > epsilon ? uint8tRange / floatRange : 1.f;
+        *floatValue = scale;
+        toBuild->quant_shift = floatStorage;
+    }
+
+    return toBuild;
+}
+
+std::unique_ptr<MVCNN::TensorReferenceT> buildTensorReference(const std::string& tensorName,
+                                                              const InferenceEngine::TensorDesc& tensorInfo,
+                                                              const mv::Data::TensorIterator& opModelTensor,
+                                                              const MCMConfig& config) {
     InferenceEngine::TensorDesc newTensorInfo(tensorInfo);
 
     const InferenceEngine::SizeVector& tensorInfoDimVec = tensorInfo.getDims();
-    auto shape = opModelTensor->getShape();
+    const auto shape = opModelTensor->getShape();
+    const auto quantParams = opModelTensor->getQuantParams();
 
     // For now support case in which dim reduction from 5D to 4D has happened (yolo-v5 cases)
     if (tensorInfoDimVec.size() == 5 && shape.ndims() == 4) {
@@ -72,7 +110,7 @@ std::unique_ptr<MVCNN::TensorReferenceT> buildTensorReference(const std::string&
             newTensorInfo.reshape(newDimVec, Layout::NHWC);
     }
 
-    return buildTensorReference(tensorName, newTensorInfo);
+    return buildTensorReference(tensorName, newTensorInfo, quantParams, config);
 }
 
 bool vpu::MCMAdapter::isMCMCompilerAvailable() {
@@ -92,6 +130,7 @@ vpu::MCMAdapter::MetaInfo vpu::MCMAdapter::deserializeMetaData(const MVCNN::Summ
     const std::string& resultNetworkName = header.identifier()->str();
     logger->debug("networkName: %s", resultNetworkName);
 
+    vpux::QuantizationParamMap resultQuantParamMap;
     InferenceEngine::InputsDataMap resultNetworkInputs;
     const auto& inputTensorDesc = *header.in_tensor_desc();
     size_t inputTensorsCount = inputTensorDesc.size();
@@ -121,6 +160,19 @@ vpu::MCMAdapter::MetaInfo vpu::MCMAdapter::deserializeMetaData(const MVCNN::Summ
         InferenceEngine::InputInfo inputInfo;
         inputInfo.setInputData(std::make_shared<InferenceEngine::Data>(inputData));
         resultNetworkInputs[inputInfo.name()] = std::make_shared<InferenceEngine::InputInfo>(inputInfo);
+        const auto isQuantFlagDefined = tensorRef->quant_mult() != nullptr && tensorRef->quant_mult()->size() == 1;
+        const auto pluginQuantization = isQuantFlagDefined && static_cast<bool>(*tensorRef->quant_mult()->cbegin());
+        vpux::QuantizationParam quantParam{pluginQuantization};
+        if (pluginQuantization) {
+            const auto floatPackedSize = sizeof(float) / sizeof(uint8_t);
+            IE_ASSERT(tensorRef->quant_shift() != nullptr);
+            IE_ASSERT(tensorRef->quant_shift()->size() == floatPackedSize);
+            IE_ASSERT(tensorRef->quant_zero() != nullptr);
+            IE_ASSERT(tensorRef->quant_zero()->size() == floatPackedSize);
+            quantParam._scale = *(reinterpret_cast<const float*>(tensorRef->quant_shift()->data()));
+            quantParam._min = *(reinterpret_cast<const float*>(tensorRef->quant_zero()->data()));
+        }
+        resultQuantParamMap.insert({inputInfo.name(), quantParam});
     }
 
     InferenceEngine::OutputsDataMap resultNetworkOutputs;
@@ -151,5 +203,5 @@ vpu::MCMAdapter::MetaInfo vpu::MCMAdapter::deserializeMetaData(const MVCNN::Summ
         resultNetworkOutputs[outputData.getName()] = std::make_shared<InferenceEngine::Data>(outputData);
     }
 
-    return {resultNetworkName, resultNetworkInputs, resultNetworkOutputs};
+    return {resultNetworkName, resultNetworkInputs, resultNetworkOutputs, resultQuantParamMap};
 }

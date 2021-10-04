@@ -27,11 +27,29 @@
 namespace vpux {
 
 /**
+ * @brief Quantization parameters
+ */
+struct QuantizationParam {
+    QuantizationParam(const bool pluginQuantization = false, const float scale = 1.f, const float min = 0.f)
+            : _pluginQuantization(pluginQuantization), _scale(scale), _min(min) {
+    }
+    bool _pluginQuantization;
+    float _scale;
+    float _min;
+};
+
+/**
+ * @brief Quantization parameters map
+ */
+using QuantizationParamMap = std::unordered_map<std::string, QuantizationParam>;
+
+/**
  * @brief A helper map to represent descriptions for inputs and outputs
  * of a network
  */
 using DataMap = std::map<std::string, InferenceEngine::DataPtr>;
 
+///////////////////////////////////// INetworkDescription /////////////////////////////////////////
 /**
  * @interface INetworkDescription
  * @brief The interface to be implemented by a concrete compiler
@@ -85,6 +103,12 @@ public:
      */
     virtual const DataMap& getDeviceOutputsInfo() const = 0;
 
+    /**
+     * @brief Returns a map with information about quantization parameters
+     * @return Constant reference to an internally held QuantizationParamMap object
+     */
+    virtual const vpux::QuantizationParamMap& getQuantParamsInfo() const = 0;
+
     // TODO Remove interface returning std::vector<char>.
     /**
      * @deprecated Return type should follow the function below.
@@ -134,6 +158,9 @@ public:
     }
     const DataMap& getDeviceOutputsInfo() const {
         return _actual->getDeviceOutputsInfo();
+    }
+    const vpux::QuantizationParamMap& getQuantParamsInfo() const {
+        return _actual->getQuantParamsInfo();
     }
     const std::vector<char>& getCompiledNetwork() const {
         return _actual->getCompiledNetwork();
