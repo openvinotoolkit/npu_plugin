@@ -16,6 +16,7 @@
 #include <file_utils.h>
 #include <sys/stat.h>
 
+#include <precision_utils.h>
 #include <ie_icnn_network.hpp>
 
 #if defined(_WIN32)
@@ -65,22 +66,21 @@ std::unique_ptr<MVCNN::TensorReferenceT> buildTensorReference(const std::string&
     const auto nonTrivialQuantParam = nonTrivialZeroPoint || nonTrivialScale;
     const auto isPluginInputQuantization = forcePluginInputQuantization ? nonTrivialQuantParam : false;
     // Plugin input quantization flag
-    // Consider to use quant_mult parameter as a flag
-    toBuild->quant_mult.push_back(static_cast<uint16_t>(isPluginInputQuantization));
+    // Consider to use existence of quant_mult and quant_zero parameters as a flag of plugin quantization mode
+    toBuild->quant_zero.clear();
+    toBuild->quant_mult.clear();
     if (isPluginInputQuantization) {
         // Zero point
         const float minU8 = static_cast<float>(std::numeric_limits<uint8_t>().lowest());
         const float maxU8 = static_cast<float>(std::numeric_limits<uint8_t>().max());
-        const int64_t zpValue = quantParams.getZeroPoint()[0];
+        const int64_t zpValue = nonTrivialZeroPoint ? quantParams.getZeroPoint()[0] : defaultZeroPoint;
         const uint8_t zeroPoint = static_cast<uint8_t>(zpValue < minU8 ? minU8 : (zpValue > maxU8 ? maxU8 : zpValue));
         toBuild->quant_zero = {zeroPoint};
         // Scale value
-        // Consider to use quant_shift parameter as a scale value (fp32)
-        std::vector<uint8_t> floatStorage(sizeof(float) / sizeof(uint8_t));
-        float* floatValue = reinterpret_cast<float*>(floatStorage.data());
-        const float scale = quantParams.getScale().size() >= 1 ? static_cast<float>(quantParams.getScale()[0]) : 1.f;
-        *floatValue = scale;
-        toBuild->quant_shift = floatStorage;
+        // Consider to use quant_mult parameter as a scale value (fp16)
+        const float scaleFP32 = static_cast<float>(nonTrivialScale ? quantParams.getScale()[0] : defaultScale);
+        const auto scaleFP16 = PrecisionUtils::f32tof16(scaleFP32);
+        toBuild->quant_mult = {static_cast<uint16_t>(scaleFP16)};
     }
 
     return toBuild;
@@ -161,19 +161,16 @@ vpu::MCMAdapter::MetaInfo vpu::MCMAdapter::deserializeMetaData(const MVCNN::Summ
         InferenceEngine::InputInfo inputInfo;
         inputInfo.setInputData(std::make_shared<InferenceEngine::Data>(inputData));
         resultNetworkInputs[inputInfo.name()] = std::make_shared<InferenceEngine::InputInfo>(inputInfo);
-        const auto isQuantFlagDefined = tensorRef->quant_mult() != nullptr && tensorRef->quant_mult()->size() == 1;
-        const auto pluginQuantization = isQuantFlagDefined && static_cast<bool>(*tensorRef->quant_mult()->cbegin());
+        const auto isQuantZeroDefined = tensorRef->quant_zero() && tensorRef->quant_zero()->size() == 1;
+        const auto isQuantScaleDefined = tensorRef->quant_mult() && tensorRef->quant_mult()->size() == 1;
+        const auto pluginQuantization = isQuantZeroDefined && isQuantScaleDefined;
         vpux::Optional<vpux::QuantizationParam> quantParam;
         if (pluginQuantization) {
             quantParam = vpux::QuantizationParam{};
-            const auto floatPackedSize = sizeof(float) / sizeof(uint8_t);
-            IE_ASSERT(tensorRef->quant_shift() != nullptr);
-            IE_ASSERT(tensorRef->quant_shift()->size() == floatPackedSize);
-            IE_ASSERT(tensorRef->quant_zero() != nullptr);
-            IE_ASSERT(tensorRef->quant_zero()->size() == 1);
-            const auto scale = *(reinterpret_cast<const float*>(tensorRef->quant_shift()->data()));
-            IE_ASSERT(scale != 0.f);
-            quantParam.getValue()._scale = 1.f / scale;
+            const ie_fp16 scaleFP16 = static_cast<ie_fp16>(*tensorRef->quant_mult()->cbegin());
+            const float scaleFP32 = PrecisionUtils::f16tof32(scaleFP16);
+            IE_ASSERT(scaleFP32 != 0.f);
+            quantParam.getValue()._scale = 1.f / scaleFP32;
             quantParam.getValue()._zeroPoint = *tensorRef->quant_zero()->cbegin();
         }
         resultQuantParamMap.insert({inputInfo.name(), quantParam});
