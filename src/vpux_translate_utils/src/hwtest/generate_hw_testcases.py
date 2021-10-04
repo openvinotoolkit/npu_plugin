@@ -1353,6 +1353,15 @@ def generate_options(args):
                    kernel_shapes=[[1, 1]],
                    output_types=[FP16()],
                    pads=Pad.none),
+
+        # Z-Major Continued Convolution, fp16
+        genZMConvs(input_types=[FP16(3)],
+                   input_shapes=[[1, 16*1024, 1, 1]],
+                   weight_types=[FP16(-3)],
+                   kernel_channels=[16],
+                   kernel_shapes=[[1, 1]],
+                   output_types=[FP16()],
+                   pads=Pad.none),
     )
 
 
