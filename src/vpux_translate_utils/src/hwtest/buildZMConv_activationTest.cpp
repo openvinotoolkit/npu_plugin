@@ -307,7 +307,7 @@ void buildSimpleZMajorConvActivation(const nb::TestCaseJsonDescriptor& testDesc,
     SmallVector<int64_t> wt_data_shape{weight.shape[0], weight.shape[1], weight.shape[2], weight.shape[3]};
 
     SmallVector<int64_t> wtTbl_data_shape{wt_data_shape[0], 1, 1, 4};
-    const char* weight_file_name = "weight.dat";
+    const char* weight_file_name = "weights.dat";
 
     auto output_totalsize = totalTensorSize(out_shape, outputType);
     auto input_totalsize = totalTensorSize(in_shape, inputType);
