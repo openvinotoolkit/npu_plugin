@@ -120,21 +120,6 @@ def CMXTiling : PassBase<"cmx-tiling", "vpux::FunctionPass"> {
 }
 
 //
-// CMConvCompatibleOps
-//
-
-def ChannelMajorConvolutionCompatibleOps : PassBase<"cm", "vpux::FunctionPass"> {
-    let summary = "ChannelMajorConvolutionCompatibleOpsPass";
-
-    let description = [{
-        TODO.
-    }];
-
-    let constructor = "vpux::IERT::createChannelMajorConvolutionCompatibleOpsPass()";
-}
-
-
-//
 // TimestampProfiling
 //
 

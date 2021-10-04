@@ -621,7 +621,7 @@ mlir::Operation* createRTLayer(IE::ConvolutionOp origOp, ArrayRef<mlir::Value> a
     IERT::ConvolutionOp::Adaptor newOp(allBufs);
     return b.create<IERT::ConvolutionOp>(origOp.getLoc(), newOp.input(), newOp.filter(), newOp.bias(),
                                          newOp.output_buff(), origOp.stridesAttr(), origOp.pads_beginAttr(),
-                                         origOp.pads_endAttr(), origOp.dilationsAttr(), origOp.post_opAttr());
+                                         origOp.pads_endAttr(), origOp.dilationsAttr(), origOp.post_opAttr(), origOp.channel_major_opAttr());
 }
 
 mlir::Operation* createRTLayer(IE::GroupConvolutionOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
