@@ -205,7 +205,7 @@ void ListScheduler::compute_ready_data_list() {
 void ListScheduler::compute_ready_compute_list() {
     // populate ready compute ops
     for (auto entry : _inDegreeTable) {
-        if (_inDegreeTable[entry.second] == 0 && !is_data_op(entry.first)) {
+        if (entry.second == 0 && !is_data_op(entry.first)) {
             _readyComputeOps.insert(entry.first);
         }
     }
