@@ -12,10 +12,10 @@ mlir::LogicalResult verifyChannels();
 Verify channel alignement
 NOTE: This method *must* be implemented by the user.
 
-#### `getChannelAlignment`
+#### `getOutputChannelAlignment`
 
 ```c++
-int64_t getChannelAlignment();
+int64_t getOutputChannelAlignment();
 ```
 Get channel alignement factor in elements
 NOTE: This method *must* be implemented by the user.

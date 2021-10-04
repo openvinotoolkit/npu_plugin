@@ -201,7 +201,8 @@ static mlir::Value alignchannelMajorWeightTensor(mlir::OpBuilder& builder, mlir:
     const auto KX = filterShape[IE::Dims4D::Filter::KX];
 
     const auto origFilterType = origFilter.getType().cast<mlir::ShapedType>();
-    const auto channelMajorConvAlignment = VPUIP::NCEInvariant::getChannelAlignment(origFilterType.getElementType());
+    const auto channelMajorConvAlignment =
+            VPUIP::NCEInvariant::getOutputChannelAlignment(origFilterType.getElementType());
     const int64_t remainder = (filtersPerInChan * KY * KX) % channelMajorConvAlignment;
     VPUX_THROW_UNLESS(remainder >= 0, "Channel alignment cannot be negative: {0}", remainder);
     if (remainder == 0) {
@@ -628,7 +629,7 @@ static mlir::Value alignDepthwiseWeightTensor(mlir::OpBuilder& builder, mlir::Lo
     const auto KX = filterShape[IE::Dims4D::Filter::KX];
 
     const auto origFilterType = origFilter.getType().cast<mlir::ShapedType>();
-    const auto depthwiseConvAlignment = VPUIP::NCEInvariant::getChannelAlignment(origFilterType.getElementType());
+    const auto depthwiseConvAlignment = VPUIP::NCEInvariant::getOutputChannelAlignment(origFilterType.getElementType());
     const int64_t remainder = (filtersPerInChan * KY * KX) % depthwiseConvAlignment;
     VPUX_THROW_UNLESS(remainder >= 0, "Channel alignment cannot be negative: {0}", remainder);
     if (remainder == 0) {

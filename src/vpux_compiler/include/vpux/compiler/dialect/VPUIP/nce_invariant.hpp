@@ -72,7 +72,7 @@ public:
     static mlir::LogicalResult verifyGroupConvChannels(mlir::Location loc, mlir::ShapedType inputType,
                                                        mlir::ShapedType filterType, Logger log = Logger::global());
 
-    static int64_t getChannelAlignment(mlir::Type elemType);
+    static int64_t getOutputChannelAlignment(mlir::Type elemType);
     static int64_t getInputChannelAlignment(mlir::Operation* origOp);
 
 public:

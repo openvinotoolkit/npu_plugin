@@ -71,7 +71,7 @@ mlir::LogicalResult generalRewrite(mlir::Operation* origOp, mlir::PatternRewrite
 
     auto iface = mlir::cast<IE::AlignedChannelsOpInterface>(origOp);
 
-    auto channelAlignement = iface.getChannelAlignment();
+    auto channelAlignement = iface.getOutputChannelAlignment();
     auto inchannelAlignement = iface.getInputChannelAlignment();
 
     const auto inputType = origOp->getOperand(0).getType().cast<mlir::ShapedType>();
