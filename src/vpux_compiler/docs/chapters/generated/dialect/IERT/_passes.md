@@ -30,6 +30,8 @@ This pass updates all Types for internal memory buffers and sets the specified m
 ```
 -memory-space : Memory space to perform allocation
 ```
+### `-sort-async-execute-ops`: This pass sorts async execute ops according to schedule-time
+Place all AsyncExecute ops in IR in non-descending order of schedule-time"
 ### `-static-allocation`: Replace dynamic allocations with static
 This pass replaces all dynamic `alloc`/`dealloc` Operations with `IERT.StaticAlloc`.
 It uses simple LinearScan algorithm.

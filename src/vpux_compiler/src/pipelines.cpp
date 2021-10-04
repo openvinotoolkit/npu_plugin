@@ -171,6 +171,7 @@ void vpux::buildHardwareModePipeline(mlir::OpPassManager& pm, bool enableProfili
     IERT::buildAsyncSchedulingPipeline(pm, log);
     buildIERTAllocationPipelineForDDR(pm, log);
     pm.addPass(IERT::createListSchedulingPass(getMemSpace<VPUIP::PhysicalMemory::CMX_NN>, log));
+    pm.addPass(IERT::createSortAsyncExecuteOpsPass(log));
     pm.addPass(IERT::createGroupAsyncExecuteOpsPass(log));
     pm.addPass(IERT::createStaticAllocationPass(getMemSpace<VPUIP::PhysicalMemory::DDR>, log));
 
