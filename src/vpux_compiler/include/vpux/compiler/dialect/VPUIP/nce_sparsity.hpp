@@ -35,8 +35,9 @@ public:
                                      int64_t inputChannels);
     static int64_t getActivationWindowSize(mlir::ArrayRef<int64_t> kernelSize, int64_t strideW, mlir::Type elemType,
                                            int64_t inputChannels);
-    static std::vector<uint8_t> getFakeSparsity(NCETaskType, mlir::ArrayRef<int64_t> kernelSize, int64_t strideW,
-                                                mlir::Type elemType, int64_t inputChannels, int64_t outputChannels);
+    static std::vector<uint8_t> getFakeSparsity(vpux::VPUIP::NCETaskType taskType, mlir::ArrayRef<int64_t> kernelSize,
+                                                int64_t strideW, mlir::Type elemType, int64_t inputChannels,
+                                                int64_t outputChannels);
 
     static std::vector<std::int32_t> getWeightsTable(mlir::Type op_inElemType, mlir::Type op_outElemType,
                                                      std::int32_t weightPtrOffset, std::int32_t weightPtrStep,

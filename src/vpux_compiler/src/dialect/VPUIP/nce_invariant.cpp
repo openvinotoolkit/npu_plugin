@@ -43,7 +43,7 @@ int64_t vpux::VPUIP::NCEInvariant::getOutputChannelAlignment(mlir::Type elemType
     return std::max<int64_t>(128 / typeSizeInBits.count(), 16);
 }
 
-mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyConvChannels(bool cmconv, mlir::Location loc,
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyConvChannels(bool channelMajorConvolution, mlir::Location loc,
                                                                   mlir::ShapedType filterType, int64_t width,
                                                                   Logger log) {
     log.setName("NCEInvariant");
@@ -62,12 +62,12 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyConvChannels(bool cmconv, m
         return mlir::failure();
     }
 
-    if (!cmconv && (IC % getOutputChannelAlignment(filterType.getElementType()) != 0)) {
+    if (!channelMajorConvolution && (IC % getOutputChannelAlignment(filterType.getElementType()) != 0)) {
         log.trace("[{0}] Convolution input channels are not aligned", loc);
         return mlir::failure();
     }
 
-    if (cmconv && (width % 16 != 0)) {
+    if (channelMajorConvolution && (width % 16 != 0)) {
         log.trace("[{0}] Channel Major Convolution width not aligned", loc);
         return mlir::failure();
     }

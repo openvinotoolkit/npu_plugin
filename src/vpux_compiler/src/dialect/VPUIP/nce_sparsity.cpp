@@ -268,9 +268,10 @@ int64_t vpux::VPUIP::NCESparsity::getActivationWindowSize(mlir::ArrayRef<int64_t
     return activationWindowSize;
 }
 
-std::vector<uint8_t> vpux::VPUIP::NCESparsity::getFakeSparsity(NCETaskType nceTask, mlir::ArrayRef<int64_t> kernelSize,
-                                                               int64_t strideW, mlir::Type elemType,
-                                                               int64_t inputChannels, int64_t outputChannels) {
+std::vector<uint8_t> vpux::VPUIP::NCESparsity::getFakeSparsity(vpux::VPUIP::NCETaskType taskType,
+                                                               mlir::ArrayRef<int64_t> kernelSize, int64_t strideW,
+                                                               mlir::Type elemType, int64_t inputChannels,
+                                                               int64_t outputChannels) {
     auto actualType = tryGetQuantizedStorageType(elemType);
     const auto windowSize = getWindowSize(kernelSize[0], strideW, actualType);
     auto bitPattern = getBitPattern(kernelSize, windowSize, inputChannels);
@@ -289,9 +290,9 @@ std::vector<uint8_t> vpux::VPUIP::NCESparsity::getFakeSparsity(NCETaskType nceTa
     SmallVector<uint8_t> perChannelSparsity;
     perChannelSparsity.resize(perChannelSparsitySize);
 
-    if (nceTask == NCETaskType::CONV && inputChannels < 16) {  // and user layout
+    if (taskType == NCETaskType::CONV && inputChannels < 16) {  // and user layout
         perChannelSparsity.resize(numberOfRowsSparsityBytes * 16);
-    } else if (nceTask == NCETaskType::DWCONV || nceTask == NCETaskType::AVEPOOL || nceTask == NCETaskType::MAXPOOL)
+    } else if (taskType == NCETaskType::DWCONV || taskType == NCETaskType::AVEPOOL || taskType == NCETaskType::MAXPOOL)
         perChannelSparsity.resize(perChannelSparsitySize);
 
     // Repackaging each byte from bitPattern to a bit from fakeSparsity
