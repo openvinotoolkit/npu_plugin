@@ -164,13 +164,13 @@ vpu::MCMAdapter::MetaInfo vpu::MCMAdapter::deserializeMetaData(const MVCNN::Summ
         const auto isQuantZeroDefined = tensorRef->quant_zero() && tensorRef->quant_zero()->size() == 1;
         const auto isQuantScaleDefined = tensorRef->quant_mult() && tensorRef->quant_mult()->size() == 1;
         const auto pluginQuantization = isQuantZeroDefined && isQuantScaleDefined;
-        vpux::Optional<vpux::QuantizationParam> quantParam;
+        vpux::Optional<vpux::QuantizationParam> quantParam{vpux::None};
         if (pluginQuantization) {
             quantParam = vpux::QuantizationParam{};
             const ie_fp16 scaleFP16 = static_cast<ie_fp16>(*tensorRef->quant_mult()->cbegin());
             const float scaleFP32 = PrecisionUtils::f16tof32(scaleFP16);
             IE_ASSERT(scaleFP32 != 0.f);
-            quantParam.getValue()._scale = 1.f / scaleFP32;
+            quantParam.getValue()._reverseScale = 1.f / scaleFP32;
             quantParam.getValue()._zeroPoint = *tensorRef->quant_zero()->cbegin();
         }
         resultQuantParamMap.insert({inputInfo.name(), quantParam});

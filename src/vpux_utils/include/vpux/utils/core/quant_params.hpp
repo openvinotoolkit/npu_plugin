@@ -27,10 +27,10 @@ namespace vpux {
  * @brief Quantization parameters
  */
 struct QuantizationParam {
-    explicit QuantizationParam(const float scale = 1.f, const uint8_t zeroPoint = 0)
-            : _scale(scale), _zeroPoint(zeroPoint) {
+    explicit QuantizationParam(const float reverseScale = 1.f, const uint8_t zeroPoint = 0)
+            : _reverseScale(reverseScale), _zeroPoint(zeroPoint) {
     }
-    float _scale;
+    float _reverseScale;
     uint8_t _zeroPoint;
 };
 

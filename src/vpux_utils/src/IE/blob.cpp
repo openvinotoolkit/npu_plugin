@@ -207,7 +207,7 @@ namespace {
 
 template <typename InT, typename OutT>
 void cvtBlobPrecisionImpl(const MemoryBlob::Ptr& in, const MemoryBlob::Ptr& out,
-                          const vpux::Optional<vpux::QuantizationParam>& quantParams) {
+                          const vpux::Optional<vpux::QuantizationParam>& outQuantParams) {
     const auto& inPrecision = in->getTensorDesc().getPrecision();
     const auto& outPrecision = out->getTensorDesc().getPrecision();
 
@@ -223,7 +223,7 @@ void cvtBlobPrecisionImpl(const MemoryBlob::Ptr& in, const MemoryBlob::Ptr& out,
     const auto outPtr = outMem.as<OutT*>();
     VPUX_THROW_UNLESS(outPtr != nullptr, "Blob was not allocated");
 
-    const auto pluginQuantization = quantParams.hasValue();
+    const auto pluginQuantization = outQuantParams.hasValue();
     if (pluginQuantization && outPrecision != Precision::U8 &&
         !(inPrecision == Precision::FP32 || inPrecision == Precision::FP16)) {
         VPUX_THROW("VPUX Plugin quantization is supported only for FP32/FP16 to U8 cases");
@@ -234,19 +234,21 @@ void cvtBlobPrecisionImpl(const MemoryBlob::Ptr& in, const MemoryBlob::Ptr& out,
             outPtr[index] = checked_cast<OutT>(inPtr[index]);
         });
     } else {
-        const auto& quantP = quantParams.getValue();
+        const auto& quantP = outQuantParams.getValue();
         const float minU8 = static_cast<float>(std::numeric_limits<uint8_t>().lowest());
         const float maxU8 = static_cast<float>(std::numeric_limits<uint8_t>().max());
         if (inPrecision == Precision::FP32) {
             loop_1d(LoopExecPolicy::Parallel, in->size(), [inPtr, outPtr, &quantP, minU8, maxU8](int64_t index) {
-                const float inValueQuant = static_cast<float>(quantP._zeroPoint + quantP._scale * inPtr[index] + 0.5f);
+                const float inValueQuant =
+                        static_cast<float>(quantP._zeroPoint + quantP._reverseScale * inPtr[index] + 0.5f);
                 outPtr[index] =
                         static_cast<OutT>(inValueQuant < minU8 ? minU8 : (inValueQuant > maxU8 ? maxU8 : inValueQuant));
             });
         } else {
             loop_1d(LoopExecPolicy::Parallel, in->size(), [inPtr, outPtr, &quantP, minU8, maxU8](int64_t index) {
                 const float fp32InValue = PrecisionUtils::f16tof32(static_cast<ie_fp16>(inPtr[index]));
-                const float inValueQuant = static_cast<float>(quantP._zeroPoint + quantP._scale * fp32InValue + 0.5f);
+                const float inValueQuant =
+                        static_cast<float>(quantP._zeroPoint + quantP._reverseScale * fp32InValue + 0.5f);
                 outPtr[index] =
                         static_cast<OutT>(inValueQuant < minU8 ? minU8 : (inValueQuant > maxU8 ? maxU8 : inValueQuant));
             });
@@ -257,7 +259,7 @@ void cvtBlobPrecisionImpl(const MemoryBlob::Ptr& in, const MemoryBlob::Ptr& out,
 }  // namespace
 
 void vpux::cvtBlobPrecision(const MemoryBlob::Ptr& in, const MemoryBlob::Ptr& out,
-                            const vpux::Optional<vpux::QuantizationParam>& quantParams) {
+                            const vpux::Optional<vpux::QuantizationParam>& outQuantParams) {
     VPUX_THROW_UNLESS(in != nullptr && out != nullptr, "Got NULL pointer");
     VPUX_THROW_UNLESS(isCompact(in) && isCompact(out), "Got non-compact blobs");
 
@@ -274,8 +276,8 @@ void vpux::cvtBlobPrecision(const MemoryBlob::Ptr& in, const MemoryBlob::Ptr& ou
         return;
     }
 
-#define CASE(InT, OutT)                                    \
-    cvtBlobPrecisionImpl<InT, OutT>(in, out, quantParams); \
+#define CASE(InT, OutT)                                       \
+    cvtBlobPrecisionImpl<InT, OutT>(in, out, outQuantParams); \
     break
 
     switch (inPrecision) {
@@ -635,7 +637,7 @@ void vpux::cvtBlobPrecision(const MemoryBlob::Ptr& in, const MemoryBlob::Ptr& ou
 }
 
 MemoryBlob::Ptr vpux::toPrecision(const MemoryBlob::Ptr& in, const Precision& precision,
-                                  const vpux::Optional<vpux::QuantizationParam>& quantParams,
+                                  const vpux::Optional<vpux::QuantizationParam>& outQuantParams,
                                   const std::shared_ptr<IAllocator>& allocator, void* ptr) {
     VPUX_THROW_UNLESS(in != nullptr, "Got NULL pointer");
 
@@ -648,7 +650,7 @@ MemoryBlob::Ptr vpux::toPrecision(const MemoryBlob::Ptr& in, const Precision& pr
     const auto outDesc = TensorDesc(precision, inDesc.getDims(), inDesc.getLayout());
     const auto out = makeBlob(outDesc, allocator, ptr);
 
-    cvtBlobPrecision(in, out, quantParams);
+    cvtBlobPrecision(in, out, outQuantParams);
 
     return out;
 }
