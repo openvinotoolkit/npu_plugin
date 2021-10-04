@@ -3,8 +3,13 @@
 */
 #pragma once
 
+//#include <sw_shave_performance.h>
 #include <sw_layer_params.h>
-#include <sw_shave_performance.h>
+#ifdef CONFIG_TARGET_SOC_3720
+#include <sw_nn_runtime_types_3600.h>
+#else
+#include <sw_nn_runtime_types_2490.h>
+#endif
 
 #include <mv_types.h>
 
@@ -16,11 +21,6 @@
 
 namespace nn {
 namespace shave_lib {
-
-enum CustomCppOpIDs {
-    SOFTMAX = 101,
-    PAD,
-};
 
 typedef struct {
     uint32_t kernelEntry;
@@ -34,6 +34,8 @@ struct ScheduleInfo {
     uint32_t nShaves;
 };
 
+typedef void (*Kernel)(uint32_t lParams, uint8_t * cmxData, int32_t availableCmxBytes);
+
 struct alignas(64) CustomLayerCppParams : LayerParams {
     // Buffers etc for kernel, argument, sched info data
     // kernel code window pointer
@@ -44,17 +46,16 @@ struct alignas(64) CustomLayerCppParams : LayerParams {
 
     // kernel arguments
     void *argBuffer { nullptr };
+    sw_params::BaseKernelParams baseParamData;
 
     // size of the arguments array
     uint32_t argBufferSize;
     uint32_t localSecMemTotal;
 
-    // number of inputs/outputs
-    uint32_t inputsSize{0};
-    uint32_t outputsSize{0};
-
     ScheduleInfo scheduleInfo{};
-    MvPerfStruct *perf{};
+    uint64_t kernel = 0;
+//    MvPerfStruct *perf{};
+    bool moveToCmxIfNecessary = false;
 };
 #pragma pack(pop)
 

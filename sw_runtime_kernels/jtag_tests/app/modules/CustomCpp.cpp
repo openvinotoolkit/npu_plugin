@@ -9,7 +9,6 @@
 #include "layers/param_custom_cpp.h"
 #include "layers/pre_custom_cpp.h"
 
-#include "svuSLKernels_EP.h"
 #include "custom_common.h"
 
 #include <mvMacros.h>
@@ -29,20 +28,19 @@ using namespace nn::shave_lib;
 #include "ShaveElfMetadata/ShaveElfMetadataParser.h"
 #ifdef CONFIG_TARGET_SOC_3720
 #include <sw_nn_runtime_types_3600.h>
-extern void*  (shvNN0_preSingleSoftmax);
+extern void*  (shvNN0_singleShaveSoftmax);
 extern void*  (shvNN0_preCustomLayerCpp);
 extern void*  (shvNN0_custom_cpp);
-extern void*  (shvNN0_singleSoftmaxKernel);
 #else
 #include <sw_nn_runtime_types_2490.h>
+#include "svuSLKernels_EP.h"
 #endif
 
-
 namespace {
-static bool parseCustomElf(const uint8_t* ElfBuffer, KernelCppDescriptor& descriptor, uint32_t argsNum)
+static bool parseCustomElf(const uint8_t* ElfBuffer, KernelCppDescriptor& descriptor/*, uint32_t argsNum*/)
 {
     descriptor.kernelEntry = 0x1e000000; // default entry point
-    descriptor.argumentsSize = argsNum * sizeof(u32);
+//    descriptor.argumentsSize = argsNum * sizeof(u32);
 
     if (ElfBuffer != nullptr) {
         // Retrieve the .data section to get the size of local mem to reserve
@@ -76,33 +74,18 @@ static void layerCleanupCustomCppLayer(const LayerParams *params) {
 bool CustomCpp::parse(Layer * layer) {
     std::vector<uint64_t> kernelData((uint64_t*)ops.kernelData, (uint64_t*)ops.kernelData+(ops.kernelDataLen+7)/8);
 
-    int byteDataLenght = sizeof(uint32_t)/*Common arg buffer size*/ +
-                         sizeof(uint32_t)/*Op ID*/ +
-                         sizeof(uint32_t)/*offset to InOuts*/ +
-                         ops.paramDataLen * sizeof(uint32_t) +
-                         sizeof(uint32_t)/*Num inputs*/ +
-                         sizeof(uint32_t)/*Num outputs*/ +
-                         inputVec.size() * sizeof(nn::TensorRefNDData) +
-                         outputVec.size() * sizeof(nn::TensorRefNDData);
-    std::vector<uint64_t> paramData((byteDataLenght + 7) / 8);
-    nnLog(MVLOG_DEBUG, "byteDataLenght  = %d, paramData.size %d\n", byteDataLenght, paramData.size());
-    uint32_t* paramDataBuffer = reinterpret_cast<uint32_t*>(paramData.data());
-    paramDataBuffer[0] = paramData.size() * 2; // size in uin32_t elements
-    nnLog(MVLOG_DEBUG, "paramDataBuffer serialization1 ops.opID %d\n", ops.opID);
-    paramDataBuffer[1] = (2 + ops.paramDataLen) * sizeof(uint32_t); // Size of all parameters in bytes
-    paramDataBuffer[2] = ops.opID;
-    memcpy_s(paramDataBuffer + 3, ops.paramDataLen * sizeof(uint32_t), ops.paramData, ops.paramDataLen * sizeof(uint32_t));
-    uint32_t* paramInOutBuffer = paramDataBuffer + 3 + ops.paramDataLen;
-    paramInOutBuffer[0] = inputVec.size();
-    paramInOutBuffer[1] = outputVec.size();
-    uint8_t* inOutBuffer = (uint8_t*)(paramInOutBuffer + 2);
+    sw_params::BaseKernelParams * kernelParams = &(ops.baseParamData);
+    sw_params::MemRefData* inTensors =
+            reinterpret_cast<sw_params::MemRefData*>(reinterpret_cast<uint8_t*>(ops.paramData) + kernelParams->inputsOffset);
     for (unsigned i = 0; i < inputVec.size(); i++) {
-        memcpy_s(inOutBuffer, sizeof(nn::TensorRefNDData), &(inputVec[i]), sizeof(nn::TensorRefNDData));
-        inOutBuffer += sizeof(nn::TensorRefNDData);
+        inTensors[i] = inputVec[i].toMemRefData(inputLocations[i]);
+        inTensors[i].location = inputLocations[i];
     }
+    sw_params::MemRefData* outTensors =
+            reinterpret_cast<sw_params::MemRefData*>(reinterpret_cast<uint8_t*>(ops.paramData) + kernelParams->outputsOffset);
     for (unsigned i = 0; i < outputVec.size(); i++) {
-        memcpy_s(inOutBuffer, sizeof(nn::TensorRefNDData), &(outputVec[i]), sizeof(nn::TensorRefNDData));
-        inOutBuffer += sizeof(nn::TensorRefNDData);
+        outTensors[i] = outputVec[i].toMemRefData(outputLocations[i]);
+        outTensors[i].location = outputLocations[i];
     }
 
     const uint8_t *elf = reinterpret_cast<const uint8_t *>(kernelData.data());
@@ -112,12 +95,9 @@ bool CustomCpp::parse(Layer * layer) {
         elf = nullptr;
     }
 
-    uint32_t* argCountPtr = paramDataBuffer;
-    uint32_t *arguments = (uint32_t *)(argCountPtr + 1);
-
     // parse kernel binary
     KernelCppDescriptor descriptor = {};
-    RETURN_FALSE_UNLESS(parseCustomElf(elf, descriptor, *argCountPtr),
+    RETURN_FALSE_UNLESS(parseCustomElf(elf, descriptor/*, *argCountPtr*/),
                         "Failed to parse kernel elf");
 
     logI("KernelDescriptor: descriptor.entry=%p descriptor.sec_mem_total=%u\n",
@@ -133,17 +113,18 @@ bool CustomCpp::parse(Layer * layer) {
     }
 
     // ToDo: store argument info for future pointer relocation in preamble
-    uint32_t* copyArgs = arguments;//(uint32_t*)nn::memory::shared_alloc(descriptor.argumentsSize);
-    nn::cache::flush(copyArgs, descriptor.argumentsSize);
+    nn::cache::flush(ops.paramData, ops.paramDataLen);
+    nn::cache::flush(kernelParams, sizeof(sw_params::BaseKernelParams));
 
     // fill in programmed for execution config
     CustomLayerCppParams *params = new CustomLayerCppParams();
 
     params->kernelBuffer = (uint32_t)code;
     params->kernelOffset = descriptor.kernelEntry;
-
-    params->argBufferSize = descriptor.argumentsSize;
-    params->argBuffer = copyArgs;
+    params->moveToCmxIfNecessary = true;
+    params->argBufferSize = ops.paramDataLen;
+    params->argBuffer = ops.paramData;
+    params->baseParamData = *kernelParams;
 
     params->localSecMemTotal = descriptor.sec_mem_total;
 
@@ -155,37 +136,25 @@ bool CustomCpp::parse(Layer * layer) {
     logI("inputs %lu outputs %lu kernel selected %x",
          inRefs.size(), outRefs.size(), params->kernelOffset);
 
-    params->inputsSize = inRefs.size();
-    params->outputsSize = outRefs.size();
+    params->kernel = ops.kernel;
 
     cache::flush(params, sizeof(CustomLayerCppParams));
     unsigned int id = opType;
 
-    cache::flush(params, sizeof(CustomLayerCppParams));
     layer->setParams(id,
                      static_cast<LayerParams *>(params));
-    switch (copyArgs[1]) {
-    case SOFTMAX:
-        // in the future should be set to point to the code from blob
-        // or to special preamble wrapper which will call the code from blob
+
 #ifdef CONFIG_TARGET_SOC_3720
-        layer->setPreamble(reinterpret_cast<preamble>(&shvNN0_preSingleSoftmax));
-        layer->setKernelEntry(reinterpret_cast<void (*)(void*)>(&shvNN0_singleSoftmaxKernel));
+    layer->setPreamble(reinterpret_cast<preamble>(&shvNN0_preCustomLayerCpp));
+//    layer->setKernelEntry(reinterpret_cast<void (*)(void*)>(&shvNN0_custom_cpp));
 #else
-        layer->setPreamble(PREAMBLE_FUNC(preSingleSoftmax));
-        layer->setKernelEntry(KERNEL_FUNC(singleSoftmaxKernel));
+    layer->setPreamble(PREAMBLE_FUNC(preCustomLayerCpp));
+//    layer->setKernelEntry(KERNEL_FUNC(custom_cpp));
 #endif
-        break;
-    default:
-#ifdef CONFIG_TARGET_SOC_3720
-        layer->setPreamble(reinterpret_cast<preamble>(&shvNN0_preCustomLayerCpp));
-        layer->setKernelEntry(reinterpret_cast<void (*)(void*)>(&shvNN0_custom_cpp));
-#else
-        layer->setPreamble(PREAMBLE_FUNC(preCustomLayerCpp));
-        layer->setKernelEntry(KERNEL_FUNC(custom_cpp));
-#endif
-        break;
-    }
+//        convParams->layerRequiresCacheFlushOnCompletion = true;
+//        layer->requireCacheFlushOnCompletion();
+//    layer->setExecCleanup(PREAMBLE_FUNC(execCleanupCustomLayerCpp));
+//    layer->setLayerCleanup(&layerCleanupCustomCppLayer);
 
     return true;
 }
