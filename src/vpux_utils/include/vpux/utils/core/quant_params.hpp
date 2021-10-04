@@ -19,6 +19,7 @@
 
 #include <string>
 #include <unordered_map>
+#include "vpux/utils/core/optional.hpp"
 
 namespace vpux {
 
@@ -26,10 +27,9 @@ namespace vpux {
  * @brief Quantization parameters
  */
 struct QuantizationParam {
-    QuantizationParam(const bool pluginQuantization = false, const float scale = 1.f, const uint8_t zeroPoint = 0)
-            : _pluginQuantization(pluginQuantization), _scale(scale), _zeroPoint(zeroPoint) {
+    explicit QuantizationParam(const float scale = 1.f, const uint8_t zeroPoint = 0)
+            : _scale(scale), _zeroPoint(zeroPoint) {
     }
-    bool _pluginQuantization;
     float _scale;
     uint8_t _zeroPoint;
 };
@@ -37,6 +37,6 @@ struct QuantizationParam {
 /**
  * @brief Quantization parameters map
  */
-using QuantizationParamMap = std::unordered_map<std::string, QuantizationParam>;
+using QuantizationParamMap = std::unordered_map<std::string, Optional<QuantizationParam>>;
 
 }  // namespace vpux

@@ -207,7 +207,7 @@ namespace {
 
 template <typename InT, typename OutT>
 void cvtBlobPrecisionImpl(const MemoryBlob::Ptr& in, const MemoryBlob::Ptr& out,
-                          const vpux::QuantizationParam& quantParams) {
+                          const vpux::Optional<vpux::QuantizationParam>& quantParams) {
     const auto& inPrecision = in->getTensorDesc().getPrecision();
     const auto& outPrecision = out->getTensorDesc().getPrecision();
 
@@ -223,30 +223,30 @@ void cvtBlobPrecisionImpl(const MemoryBlob::Ptr& in, const MemoryBlob::Ptr& out,
     const auto outPtr = outMem.as<OutT*>();
     VPUX_THROW_UNLESS(outPtr != nullptr, "Blob was not allocated");
 
-    if (quantParams._pluginQuantization && outPrecision != Precision::U8 &&
+    const auto pluginQuantization = quantParams.hasValue();
+    if (pluginQuantization && outPrecision != Precision::U8 &&
         !(inPrecision == Precision::FP32 || inPrecision == Precision::FP16)) {
         VPUX_THROW("VPUX Plugin quantization is supported only for FP32/FP16 to U8 cases");
     }
 
-    if (!quantParams._pluginQuantization) {
+    if (!pluginQuantization) {
         loop_1d(LoopExecPolicy::Parallel, in->size(), [inPtr, outPtr](int64_t index) {
             outPtr[index] = checked_cast<OutT>(inPtr[index]);
         });
     } else {
+        const auto& quantP = quantParams.getValue();
         const float minU8 = static_cast<float>(std::numeric_limits<uint8_t>().lowest());
         const float maxU8 = static_cast<float>(std::numeric_limits<uint8_t>().max());
         if (inPrecision == Precision::FP32) {
-            loop_1d(LoopExecPolicy::Parallel, in->size(), [inPtr, outPtr, &quantParams, minU8, maxU8](int64_t index) {
-                const float inValueQuant =
-                        static_cast<float>(quantParams._zeroPoint + quantParams._scale * inPtr[index] + 0.5f);
+            loop_1d(LoopExecPolicy::Parallel, in->size(), [inPtr, outPtr, &quantP, minU8, maxU8](int64_t index) {
+                const float inValueQuant = static_cast<float>(quantP._zeroPoint + quantP._scale * inPtr[index] + 0.5f);
                 outPtr[index] =
                         static_cast<OutT>(inValueQuant < minU8 ? minU8 : (inValueQuant > maxU8 ? maxU8 : inValueQuant));
             });
         } else {
-            loop_1d(LoopExecPolicy::Parallel, in->size(), [inPtr, outPtr, &quantParams, minU8, maxU8](int64_t index) {
+            loop_1d(LoopExecPolicy::Parallel, in->size(), [inPtr, outPtr, &quantP, minU8, maxU8](int64_t index) {
                 const float fp32InValue = PrecisionUtils::f16tof32(static_cast<ie_fp16>(inPtr[index]));
-                const float inValueQuant =
-                        static_cast<float>(quantParams._zeroPoint + quantParams._scale * fp32InValue + 0.5f);
+                const float inValueQuant = static_cast<float>(quantP._zeroPoint + quantP._scale * fp32InValue + 0.5f);
                 outPtr[index] =
                         static_cast<OutT>(inValueQuant < minU8 ? minU8 : (inValueQuant > maxU8 ? maxU8 : inValueQuant));
             });
@@ -257,7 +257,7 @@ void cvtBlobPrecisionImpl(const MemoryBlob::Ptr& in, const MemoryBlob::Ptr& out,
 }  // namespace
 
 void vpux::cvtBlobPrecision(const MemoryBlob::Ptr& in, const MemoryBlob::Ptr& out,
-                            const vpux::QuantizationParam& quantParams) {
+                            const vpux::Optional<vpux::QuantizationParam>& quantParams) {
     VPUX_THROW_UNLESS(in != nullptr && out != nullptr, "Got NULL pointer");
     VPUX_THROW_UNLESS(isCompact(in) && isCompact(out), "Got non-compact blobs");
 
@@ -635,7 +635,7 @@ void vpux::cvtBlobPrecision(const MemoryBlob::Ptr& in, const MemoryBlob::Ptr& ou
 }
 
 MemoryBlob::Ptr vpux::toPrecision(const MemoryBlob::Ptr& in, const Precision& precision,
-                                  const vpux::QuantizationParam& quantParams,
+                                  const vpux::Optional<vpux::QuantizationParam>& quantParams,
                                   const std::shared_ptr<IAllocator>& allocator, void* ptr) {
     VPUX_THROW_UNLESS(in != nullptr, "Got NULL pointer");
 

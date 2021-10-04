@@ -62,13 +62,12 @@ InferenceEngine::MemoryBlob::Ptr copyBlob(const InferenceEngine::MemoryBlob::Ptr
 //
 
 void cvtBlobPrecision(const InferenceEngine::MemoryBlob::Ptr& in, const InferenceEngine::MemoryBlob::Ptr& out,
-                      const QuantizationParam& quantParams);
+                      const Optional<QuantizationParam>& quantParams);
 
-InferenceEngine::MemoryBlob::Ptr toPrecision(const InferenceEngine::MemoryBlob::Ptr& in,
-                                             const InferenceEngine::Precision& precision,
-                                             const QuantizationParam& quantParams = QuantizationParam(),
-                                             const std::shared_ptr<InferenceEngine::IAllocator>& allocator = nullptr,
-                                             void* ptr = nullptr);
+InferenceEngine::MemoryBlob::Ptr toPrecision(
+        const InferenceEngine::MemoryBlob::Ptr& in, const InferenceEngine::Precision& precision,
+        const Optional<QuantizationParam>& quantParams = Optional<QuantizationParam>{},
+        const std::shared_ptr<InferenceEngine::IAllocator>& allocator = nullptr, void* ptr = nullptr);
 InferenceEngine::MemoryBlob::Ptr toDefPrecision(const InferenceEngine::MemoryBlob::Ptr& in,
                                                 const std::shared_ptr<InferenceEngine::IAllocator>& allocator = nullptr,
                                                 void* ptr = nullptr);
@@ -76,12 +75,12 @@ InferenceEngine::MemoryBlob::Ptr toDefPrecision(const InferenceEngine::MemoryBlo
 inline InferenceEngine::MemoryBlob::Ptr toFP32(const InferenceEngine::MemoryBlob::Ptr& in,
                                                const std::shared_ptr<InferenceEngine::IAllocator>& allocator = nullptr,
                                                void* ptr = nullptr) {
-    return toPrecision(in, InferenceEngine::Precision::FP32, QuantizationParam(), allocator, ptr);
+    return toPrecision(in, InferenceEngine::Precision::FP32, {}, allocator, ptr);
 }
 inline InferenceEngine::MemoryBlob::Ptr toFP16(const InferenceEngine::MemoryBlob::Ptr& in,
                                                const std::shared_ptr<InferenceEngine::IAllocator>& allocator = nullptr,
                                                void* ptr = nullptr) {
-    return toPrecision(in, InferenceEngine::Precision::FP16, QuantizationParam(), allocator, ptr);
+    return toPrecision(in, InferenceEngine::Precision::FP16, {}, allocator, ptr);
 }
 
 //

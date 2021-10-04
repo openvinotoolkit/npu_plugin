@@ -163,8 +163,9 @@ vpu::MCMAdapter::MetaInfo vpu::MCMAdapter::deserializeMetaData(const MVCNN::Summ
         resultNetworkInputs[inputInfo.name()] = std::make_shared<InferenceEngine::InputInfo>(inputInfo);
         const auto isQuantFlagDefined = tensorRef->quant_mult() != nullptr && tensorRef->quant_mult()->size() == 1;
         const auto pluginQuantization = isQuantFlagDefined && static_cast<bool>(*tensorRef->quant_mult()->cbegin());
-        vpux::QuantizationParam quantParam{pluginQuantization};
+        vpux::Optional<vpux::QuantizationParam> quantParam;
         if (pluginQuantization) {
+            quantParam = vpux::QuantizationParam{};
             const auto floatPackedSize = sizeof(float) / sizeof(uint8_t);
             IE_ASSERT(tensorRef->quant_shift() != nullptr);
             IE_ASSERT(tensorRef->quant_shift()->size() == floatPackedSize);
@@ -172,8 +173,8 @@ vpu::MCMAdapter::MetaInfo vpu::MCMAdapter::deserializeMetaData(const MVCNN::Summ
             IE_ASSERT(tensorRef->quant_zero()->size() == 1);
             const auto scale = *(reinterpret_cast<const float*>(tensorRef->quant_shift()->data()));
             IE_ASSERT(scale != 0.f);
-            quantParam._scale = 1.f / scale;
-            quantParam._zeroPoint = *tensorRef->quant_zero()->cbegin();
+            quantParam.getValue()._scale = 1.f / scale;
+            quantParam.getValue()._zeroPoint = *tensorRef->quant_zero()->cbegin();
         }
         resultQuantParamMap.insert({inputInfo.name(), quantParam});
     }
