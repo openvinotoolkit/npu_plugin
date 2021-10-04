@@ -120,7 +120,7 @@ mlir::LogicalResult ConvolutionTiling::matchAndRewrite(IERT::ConvolutionOp origO
         auto tiledOp = rewriter.create<IERT::ConvolutionOp>(loc, actInput, filterInput, biasInput, allocOutOp.memref(),
                                                             origOp.strides(), getIntArrayAttr(getContext(), padsBegin),
                                                             getIntArrayAttr(getContext(), padsEnd), origOp.dilations(),
-                                                            origOp.post_opAttr(), origOp.channel_major_op());
+                                                            origOp.post_opAttr(), origOp.channel_major_opAttr());
 
         const auto attrOffsets = getIntArrayAttr(rewriter.getContext(), outputTile.offsets.raw());
         const auto attrShape = getIntArrayAttr(rewriter.getContext(), outputTile.shape.raw());
@@ -395,8 +395,7 @@ OutputTiling SimpleTiler::genericTiler(mlir::Operation* op, mlir::MemRefType out
     if (outputShape[IE::Dims4D::Act::C] < outputShape[IE::Dims4D::Act::H])
         tileDimOrder = {IE::Dims4D::Act::H, IE::Dims4D::Act::C, IE::Dims4D::Act::W};
 
-    tileDimOrder = {IE::Dims4D::Act::H, IE::Dims4D::Act::C, IE::Dims4D::Act::W};
-    auto tileDimIter = tileDimOrder.begin();    
+    auto tileDimIter = tileDimOrder.begin();
     Optional<Dim> dimToTile = *tileDimIter;
 
     const auto isSupportedChannelDivision = [&]() {
