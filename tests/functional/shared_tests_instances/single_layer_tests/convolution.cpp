@@ -71,7 +71,7 @@ const auto conv2DParams_AutoPadValid =
                            ::testing::Values(ngraph::op::PadType::VALID)           // padType
         );
 
-INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_AutoPadValid, KmbConvolutionLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_AutoPadValid, KmbConvolutionLayerTest,
                         ::testing::Combine(conv2DParams_AutoPadValid,                  //
                                            ::testing::Values(Precision::FP16),         // netPrc
                                            ::testing::Values(Precision::UNSPECIFIED),  // inPrc
@@ -97,7 +97,7 @@ const auto conv2DParams_ExplicitPadding =
                            ::testing::Values(ngraph::op::PadType::EXPLICIT)  // padType
         );
 
-INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_ExplicitPadding, KmbConvolutionLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_ExplicitPadding, KmbConvolutionLayerTest,
                         ::testing::Combine(conv2DParams_ExplicitPadding,                       //
                                            ::testing::Values(Precision::FP16),                 // netPrc
                                            ::testing::Values(Precision::UNSPECIFIED),          // inPrc
@@ -143,7 +143,7 @@ const auto conv2DParams_AsymmetricKernel =
                            ::testing::Values(ngraph::op::PadType::VALID)           // padType
         );
 
-INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_AsymmetricKernel, KmbConvolutionLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_AsymmetricKernel, KmbConvolutionLayerTest,
                         ::testing::Combine(conv2DParams_AsymmetricKernel,                      //
                                            ::testing::Values(Precision::FP16),                 // netPrc
                                            ::testing::Values(Precision::UNSPECIFIED),          // inPrc
@@ -163,10 +163,10 @@ const auto conv2DParams_AsymmetricStrides =
                            ::testing::ValuesIn<std::vector<ptrdiff_t>>({{0, 0}}),  // padEnds
                            ::testing::ValuesIn<SizeVector>({{1, 1}}),              // dilations
                            ::testing::Values(1),                                   // numOutChannels
-                           ::testing::Values(ngraph::op::PadType::VALID)           // padType
+                           ::testing::Values(ngraph::op::PadType::EXPLICIT)        // padType
         );
 
-INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_AsymmetricStrides, KmbConvolutionLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_AsymmetricStrides, KmbConvolutionLayerTest,
                         ::testing::Combine(conv2DParams_AsymmetricStrides,                     //
                                            ::testing::Values(Precision::FP16),                 // netPrc
                                            ::testing::Values(Precision::UNSPECIFIED),          // inPrc
@@ -189,7 +189,7 @@ const auto conv2DParams_Dilated =
                            ::testing::Values(ngraph::op::PadType::VALID)           // padType
         );
 
-INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_Dilated, KmbConvolutionLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_Dilated, KmbConvolutionLayerTest,
                         ::testing::Combine(conv2DParams_Dilated,                               //
                                            ::testing::Values(Precision::FP16),                 // netPrc
                                            ::testing::Values(Precision::UNSPECIFIED),          // inPrc

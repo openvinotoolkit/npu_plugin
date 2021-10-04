@@ -15,7 +15,7 @@ class KmbEltwiseLayerTest:
 
 class KmbEltwiseLayerTest_MCM : public KmbEltwiseLayerTest {
     void SkipBeforeValidate() override {
-        std::vector<std::vector<size_t>> inShapes;
+        std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>> inShapes;
         std::tie(inShapes,
                  std::ignore, std::ignore, std::ignore, std::ignore,
                  std::ignore, std::ignore, std::ignore, std::ignore, std::ignore) = GetParam();
@@ -32,7 +32,7 @@ class KmbEltwiseLayerTest_MCM : public KmbEltwiseLayerTest {
         // threshold 0.0099999997764825821 failed
         // [Track number: S#51346]
 
-        std::set<std::vector<std::vector<size_t>>> badShapes = {
+        std::set<std::vector<ngraph::Shape>> badShapes = {
                 {{2, 200}},
                 {{10, 200}},
                 {{1, 4, 4, 1}},
@@ -40,15 +40,17 @@ class KmbEltwiseLayerTest_MCM : public KmbEltwiseLayerTest {
                 {{2, 17, 5, 1}, {1, 17, 1, 4}}
         };
 
-        if (badShapes.count(inShapes)) {
-            throw LayerTestsUtils::KmbSkipTestException("Mismatch in comparison");
+        for (const auto& inShape : inShapes.second) {
+            if (badShapes.count(inShape)) {
+                throw LayerTestsUtils::KmbSkipTestException("Mismatch in comparison");
+            }
         }
     }
 };
 class KmbEltwiseLayerTest_MLIR : public KmbEltwiseLayerTest {
     void SkipBeforeLoad() override {
         ngraph::helpers::EltwiseTypes eltwiseOp;
-        std::vector<std::vector<size_t>> inShapes;
+        std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>> inShapes;
         ngraph::helpers::InputLayerType secondInputType;
         CommonTestUtils::OpType opType;
 
@@ -69,25 +71,28 @@ class KmbEltwiseLayerTest_MLIR : public KmbEltwiseLayerTest {
             throw LayerTestsUtils::KmbSkipTestException("Skipping the operation due to incorrect conversion to ScaleShift");
         }
 
-        std::set<std::vector<std::vector<size_t>>> shapesWithBatch = {
+        std::set<std::vector<ngraph::Shape>> shapesWithBatch = {
                 {{2, 17, 5, 1}, {1, 17, 1, 4}},
         };
-        std::set<std::vector<std::vector<size_t>>> fusedToScaleShiftShapes = {
+        std::set<std::vector<ngraph::Shape>> fusedToScaleShiftShapes = {
                 {{2, 17, 5, 4}, {1, 17, 1, 1}},
         };
 
         // A special workaround([Track number: E#13127]) extends all network inputs/outputs to 4D,
         // which causes error: "Batch size != 1 is not supported"
         // [Track number: E#7613]
-        if ((fusedToScaleShiftShapes.count(inShapes) && fusedToScaleShiftOpMLIR.count(eltwiseOp))
-            || shapesWithBatch.count(inShapes) )  {
-            throw LayerTestsUtils::KmbSkipTestException("Skipping the operation due to incorrect conversion to ScaleShift");
+        for (const auto& inShape : inShapes.second) {
+            if ((fusedToScaleShiftShapes.count(inShape) && fusedToScaleShiftOpMLIR.count(eltwiseOp)) ||
+                shapesWithBatch.count(inShape)) {
+                throw LayerTestsUtils::KmbSkipTestException(
+                        "Skipping the operation due to incorrect conversion to ScaleShift");
+            }
         }
     }
 
     void SkipBeforeValidate() override {
         ngraph::helpers::EltwiseTypes eltwiseOp;
-        std::vector<std::vector<size_t>> inShapes;
+        std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>> inShapes;
         CommonTestUtils::OpType opType;
         std::tie(inShapes,
                  eltwiseOp, std::ignore, opType, std::ignore,
@@ -97,7 +102,7 @@ class KmbEltwiseLayerTest_MLIR : public KmbEltwiseLayerTest {
                 ngraph::helpers::EltwiseTypes::ADD,
         };
 
-        std::set<std::vector<std::vector<size_t>>> fusedToScaleShiftOpShapes = {
+        std::set<std::vector<ngraph::Shape>> fusedToScaleShiftOpShapes = {
                 {{1, 4, 1, 1}},
                 {{1, 4, 4, 1}},
         };
@@ -107,19 +112,25 @@ class KmbEltwiseLayerTest_MLIR : public KmbEltwiseLayerTest {
         // At the same time, per-channel broadcast doesn't work correctly in ScaleShift layer
         // which leads to accuracy errors
         // [Track number: E#13311]
-        if (fusedToScaleShiftOpMLIR.count(eltwiseOp) && fusedToScaleShiftOpShapes.count(inShapes))  {
-            throw LayerTestsUtils::KmbSkipTestException("Skipping the operation due to incorrect conversion to ScaleShift");
+        for (const auto& inShape : inShapes.second) {
+            if (fusedToScaleShiftOpMLIR.count(eltwiseOp) && fusedToScaleShiftOpShapes.count(inShape)) {
+                throw LayerTestsUtils::KmbSkipTestException(
+                        "Skipping the operation due to incorrect conversion to ScaleShift");
+            }
         }
 
-        std::set<std::vector<std::vector<size_t>>> vectorOnlyShapesMLIR = {
+        std::set<std::vector<ngraph::Shape>> vectorOnlyShapesMLIR = {
                 {{4, 4, 16}},
         };
 
         // There are errors at validation step on KMB-board for some input shapes:
         // [Track number: S#51346]
-        if (vectorOnlyShapesMLIR.count(inShapes) && opType == CommonTestUtils::OpType::SCALAR) {
-            throw LayerTestsUtils::KmbSkipTestException("Mismatch in comparison");
+        for (const auto& inShape : inShapes.second) {
+            if (vectorOnlyShapesMLIR.count(inShape) && opType == CommonTestUtils::OpType::SCALAR) {
+                throw LayerTestsUtils::KmbSkipTestException("Mismatch in comparison");
+            }
         }
+
 
         std::set<ngraph::helpers::EltwiseTypes> badOpMLIR = {
                 ngraph::helpers::EltwiseTypes::DIVIDE,
@@ -128,7 +139,7 @@ class KmbEltwiseLayerTest_MLIR : public KmbEltwiseLayerTest {
                 ngraph::helpers::EltwiseTypes::FLOOR_MOD
         };
 
-        std::set<std::vector<std::vector<size_t>>> badShapesMLIR = {
+        std::set<std::vector<ngraph::Shape>> badShapesMLIR = {
                 {{2}},
                 {{2, 200}},
                 {{10, 200}},
@@ -137,8 +148,10 @@ class KmbEltwiseLayerTest_MLIR : public KmbEltwiseLayerTest {
 
         // There are errors at validation step on KMB-board for some input shapes:
         // [Track number: S#51346]
-        if (badOpMLIR.count(eltwiseOp) && badShapesMLIR.count(inShapes)) {
-            throw LayerTestsUtils::KmbSkipTestException("Mismatch in comparison");
+        for (const auto& inShape : inShapes.second) {
+            if (badOpMLIR.count(eltwiseOp) && badShapesMLIR.count(inShape)) {
+                throw LayerTestsUtils::KmbSkipTestException("Mismatch in comparison");
+            }
         }
     }
 };
@@ -165,19 +178,19 @@ using namespace LayerTestsDefinitions;
 
 namespace {
 
-std::vector<std::vector<std::vector<size_t>>> inShapes = {
-        {{2}},
-        {{2, 200}},
-        {{10, 200}},
-        {{1, 2, 4}},
-        {{1, 4, 4}},
-        {{4, 4, 16}},
-        {{1, 10, 100}},
-        {{1, 4, 1, 1}},
-        {{1, 1, 1, 3}},
-        {{1, 4, 4, 1}},
-        {{2, 17, 5, 4}, {1, 17, 1, 1}},
-        {{2, 17, 5, 1}, {1, 17, 1, 4}},
+std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>> inShapes = {
+        {{}, {{{2}}}},
+        {{}, {{{2, 200}}}},
+        {{}, {{{10, 200}}}},
+        {{}, {{{1, 2, 4}}}},
+        {{}, {{{1, 4, 4}}}},
+        {{}, {{{4, 4, 16}}}},
+        {{}, {{{1, 10, 100}}}},
+        {{}, {{{1, 4, 1, 1}}}},
+        {{}, {{{1, 1, 1, 3}}}},
+        {{}, {{{1, 4, 4, 1}}}},
+        {{}, {{{2, 17, 5, 4}, {1, 17, 1, 1}}}},
+        {{}, {{{2, 17, 5, 1}, {1, 17, 1, 4}}}},
 };
 
 std::vector<InferenceEngine::Precision> netPrecisions = {
@@ -285,8 +298,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs, KmbEltwiseLayerTest_MLIR, eltwis
 
 // Specific multiply case
 
-std::vector<std::vector<std::vector<size_t>>> inSpecificMultiplyShapes = {
-        {{1, 3, 224, 224}, {1, 1, 1, 1}},  
+std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>> inSpecificMultiplyShapes = {
+        {{}, {{{1, 3, 224, 224}, {1, 1, 1, 1}}}},
 };
 
 const auto multiply_params_mlir = ::testing::Combine(
@@ -306,9 +319,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Specific, KmbEltwiseLayerTest_MLI
 
 // Specific subtract case
 
-std::vector<std::vector<std::vector<size_t>>> inSpecificSubtractShapes = {
-        {{1, 2, 4}},
-        {{1, 2, 2, 4}, {1, 2, 1, 1}},
+std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>> inSpecificSubtractShapes = {
+        {{}, {{{1, 2, 4}}}},
+        {{}, {{{1, 2, 2, 4}, {1, 2, 1, 1}}}},
 };
 
 const auto subtract_params_mlir = ::testing::Combine(

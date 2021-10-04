@@ -6,7 +6,6 @@
 
 #include <vector>
 
-#include "common_test_utils/test_constants.hpp"
 #include "kmb_layer_test.hpp"
 
 namespace LayerTestsDefinitions {
@@ -15,12 +14,12 @@ class KmbSoftMaxLayerTest: public SoftMaxLayerTest, virtual public LayerTestsUti
     void SkipBeforeLoad() override {
         InferenceEngine::Precision inPrecision;
         InferenceEngine::Precision outPrecision;
-        InferenceEngine::SizeVector inShape;
+        std::pair<ngraph::PartialShape, std::vector<ngraph::Shape>> inShapes;
         size_t axisInd;
         std::tie(std::ignore,
                  inPrecision, outPrecision,
                  std::ignore, std::ignore,
-                 inShape,
+                 inShapes,
                  axisInd,
                  std::ignore,
                  std::ignore) = GetParam();
@@ -32,8 +31,10 @@ class KmbSoftMaxLayerTest: public SoftMaxLayerTest, virtual public LayerTestsUti
             }
 
             // [Track number: S#40296]
-            if (inShape.at(axisInd) == 1) {
-                throw LayerTestsUtils::KmbSkipTestException("SoftMax over dim==1 fails during blob parsing");
+            for (const auto& shape : inShapes.second) {
+                if (shape.at(axisInd) == 1) {
+                    throw LayerTestsUtils::KmbSkipTestException("SoftMax over dim==1 fails during blob parsing");
+                }
             }
         }
     }
@@ -48,7 +49,7 @@ class KmbSoftMaxLayerTest: public SoftMaxLayerTest, virtual public LayerTestsUti
                  std::ignore,
                  std::ignore) = GetParam();
 
-        // [Track number: S#44702]
+//         [Track number: S#44702]
         if (inPrecision == InferenceEngine::Precision::U8) {
             throw LayerTestsUtils::KmbSkipTestException("SoftMax with U8 input produces wrong results");
         }
@@ -72,130 +73,81 @@ using namespace LayerTestsDefinitions;
 namespace {
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
-    InferenceEngine::Precision::FP32,
+        InferenceEngine::Precision::FP32,
 };
 
 const std::vector<InferenceEngine::Layout> inLayouts2D = {
-    InferenceEngine::Layout::NC,
+        InferenceEngine::Layout::NC,
 };
 
-const std::vector<InferenceEngine::SizeVector> inShapes2D = {
-    InferenceEngine::SizeVector {1, 100},
-    InferenceEngine::SizeVector {100, 1},
-    InferenceEngine::SizeVector {10, 10},
+const std::vector<std::pair<ngraph::PartialShape, std::vector<ngraph::Shape>>> inShapes2D = {
+        {{}, {{1, 100}}},
+        {{}, {{100, 1}}},
+        {{}, {{10, 10}}},
 };
 
 const std::vector<size_t> axis2D = {
-    0, 1
+        0, 1
+};
+
+const std::vector<InferenceEngine::Precision> inputPrecisions = {
+        InferenceEngine::Precision::U8,
+        InferenceEngine::Precision::FP16,
+        InferenceEngine::Precision::FP32,
 };
 
 const auto params2D = testing::Combine(
-    testing::ValuesIn(netPrecisions),
-    testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-    testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-    testing::ValuesIn(inLayouts2D),
-    testing::Values(InferenceEngine::Layout::ANY),
-    testing::ValuesIn(inShapes2D),
-    testing::ValuesIn(axis2D),
-    testing::Values(LayerTestsUtils::testPlatformTargetDevice),
-    testing::Values(std::map<std::string, std::string>())
+        testing::ValuesIn(netPrecisions),
+        testing::ValuesIn(inputPrecisions),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::ValuesIn(inLayouts2D),
+        testing::Values(InferenceEngine::Layout::ANY),
+        testing::ValuesIn(inShapes2D),
+        testing::ValuesIn(axis2D),
+        testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+        testing::Values(std::map<std::string, std::string>())
 );
 
-INSTANTIATE_TEST_SUITE_P(
-    smoke_SoftMax2D,
-    KmbSoftMaxLayerTest,
-    params2D,
-    SoftMaxLayerTest::getTestCaseName
+INSTANTIATE_TEST_CASE_P(
+        smoke_SoftMax2D,
+        KmbSoftMaxLayerTest,
+        params2D,
+        SoftMaxLayerTest::getTestCaseName
 );
 
-const std::vector<InferenceEngine::SizeVector> inShapes4D = {
-    InferenceEngine::SizeVector {1, 100, 1, 1},
-    InferenceEngine::SizeVector {1, 3, 4, 3},
-    InferenceEngine::SizeVector {2, 3, 4, 5},
+const std::vector<std::pair<ngraph::PartialShape, std::vector<ngraph::Shape>>> inShapes4D = {
+        {{}, {{1, 2, 204, 62}}},
+        {{}, {{1, 12, 2, 1444}}},
+        {{}, {{1, 2, 72, 10}}},
+        {{}, {{1, 4, 1, 1}}},
+        {{}, {{1, 1000, 1, 1}}},
+        {{}, {{300, 21, 1, 1}}}
+};
+
+const std::vector<InferenceEngine::Layout> layouts4D = {
+        InferenceEngine::Layout::NCHW,
+        InferenceEngine::Layout::NHWC,
 };
 
 const std::vector<size_t> axis4D = {0, 1, 2, 3};
 
 const auto params4D = testing::Combine(
-    testing::ValuesIn(netPrecisions),
-    testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-    testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-    testing::Values(InferenceEngine::Layout::NCHW),
-    testing::Values(InferenceEngine::Layout::ANY),
-    testing::ValuesIn(inShapes4D),
-    testing::ValuesIn(axis4D),
-    testing::Values(LayerTestsUtils::testPlatformTargetDevice),
-    testing::Values(std::map<std::string, std::string>())
+        testing::ValuesIn(netPrecisions),
+        testing::ValuesIn(inputPrecisions),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::ValuesIn(layouts4D),
+        testing::Values(InferenceEngine::Layout::ANY),
+        testing::ValuesIn(inShapes4D),
+        testing::ValuesIn(axis4D),
+        testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+        testing::Values(std::map<std::string, std::string>())
 );
 
-INSTANTIATE_TEST_SUITE_P(
-    smoke_SoftMax4D,
-    KmbSoftMaxLayerTest,
-    params4D,
-    SoftMaxLayerTest::getTestCaseName
-);
-
-// internal tests
-
-const std::vector<InferenceEngine::Precision> inPrecisionsInt = {
-    InferenceEngine::Precision::U8,
-    // TODO: nGraph testing framework doesn't support FP16
-//    InferenceEngine::Precision::FP16,
-    InferenceEngine::Precision::FP32,
-};
-
-const std::vector<InferenceEngine::Precision> outPrecisionsInt = {
-    // TODO: nGraph testing framework doesn't support FP16
-//    InferenceEngine::Precision::FP16,
-    InferenceEngine::Precision::FP32,
-};
-
-const auto params2DInt = testing::Combine(
-    testing::ValuesIn(netPrecisions),
-    testing::ValuesIn(inPrecisionsInt),
-    testing::ValuesIn(outPrecisionsInt),
-    testing::ValuesIn(inLayouts2D),
-    testing::Values(InferenceEngine::Layout::ANY),
-    testing::ValuesIn(inShapes2D),
-    testing::ValuesIn(axis2D),
-    testing::Values(LayerTestsUtils::testPlatformTargetDevice),
-    testing::Values(std::map<std::string, std::string>())
-);
-
-INSTANTIATE_TEST_SUITE_P(
-    internal_SoftMax2D,
-    KmbSoftMaxLayerTest,
-    params2DInt,
-    SoftMaxLayerTest::getTestCaseName
-);
-
-const std::vector<InferenceEngine::SizeVector> inShapes4DInt = {
-    InferenceEngine::SizeVector {1, 3, 32, 32},
-    InferenceEngine::SizeVector {1, 3, 16, 16},
-};
-
-const std::vector<InferenceEngine::Layout> layouts4DInt = {
-    InferenceEngine::Layout::NCHW,
-    InferenceEngine::Layout::NHWC,
-};
-
-const auto params4DInt = testing::Combine(
-    testing::ValuesIn(netPrecisions),
-    testing::ValuesIn(inPrecisionsInt),
-    testing::ValuesIn(outPrecisionsInt),
-    testing::ValuesIn(layouts4DInt),
-    testing::ValuesIn(layouts4DInt),
-    testing::ValuesIn(inShapes4DInt),
-    testing::ValuesIn(axis4D),
-    testing::Values(LayerTestsUtils::testPlatformTargetDevice),
-    testing::Values(std::map<std::string, std::string>())
-);
-
-INSTANTIATE_TEST_SUITE_P(
-    internal_SoftMax4D,
-    KmbSoftMaxLayerTest,
-    params4DInt,
-    SoftMaxLayerTest::getTestCaseName
+INSTANTIATE_TEST_CASE_P(
+        smoke_SoftMax4D,
+        KmbSoftMaxLayerTest,
+        params4D,
+        SoftMaxLayerTest::getTestCaseName
 );
 
 }  // namespace
