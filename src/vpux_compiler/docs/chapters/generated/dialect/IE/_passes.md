@@ -2,8 +2,14 @@
 ### `-adjust-layouts`: Adjust required layouts for all layers
 This pass adds the required layouts instead of the default one
 depending on the layer specification from underlying Dialect.
-### `-cm`: ChannelMajorConvolutionCompatibleOpsPass
-TODO.
+### `-cm`: IdentifyChannelMajorConvolutionCompatibleOpsPass
+This pass identifies convolutions that are suitable to be executed as channel major type convolutions.
+A convolution should be executed as channel major convolution if the number of input channels is less 
+than 16 and the input layout format specified by the user is NCHW. Channel major type convolutions are
+more performant than Z-major convolutions in such cases. This passes marks the suitbale convolutions 
+with an optional boolean attribute channel_major_opAttr(). Further, the input tensor width to a channel major 
+convolution must be aligned to a multiple of 16. The alignment of input is achieved by DMA-ing the 
+unaligned dimension using aligned strides (the expanded width is used to calculated the strides). 
 ### `-convert-avg-pool-to-dw-conv`: Convert AvgPool op to GroupConvolution op
 The pass is a part of `AdjustForVPU` pipeline.
 

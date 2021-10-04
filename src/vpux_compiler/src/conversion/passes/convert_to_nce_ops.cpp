@@ -259,8 +259,7 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
 
     auto inputDPU = prepareTensorForDPU(rewriter, origOp->getLoc(), origOp.input());
 
-    if(origOp.channel_major_op())
-    {
+    if (origOp.channel_major_op()) {
         alignedFilter = alignchannelMajorWeightTensor(rewriter, origOp->getLoc(), origOp.filter());
         filterDPU = prepareTensorForDPU(rewriter, origOp->getLoc(), alignedFilter);
 
@@ -276,12 +275,11 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
                 VPUIP::NCESparsity::getBitPatternSize(kernelSize, kernelStrides[0], origInputType.getElementType(), IC);
 
         actWindowChanLen = getIntAttr(getContext(), bitPatternSize);
-        fakeSparsity = VPUIP::NCESparsity::getFakeSparsity(
-                VPUIP::NCETaskType::CONV, kernelSize, kernelStrides[0], origInputType.getElementType(), IC, OC);
+        fakeSparsity = VPUIP::NCESparsity::getFakeSparsity(VPUIP::NCETaskType::CONV, kernelSize, kernelStrides[0],
+                                                           origInputType.getElementType(), IC, OC);
         activationWindow = createActivationWindowTensor(rewriter, origOp->getLoc(), fakeSparsity, OC);
-    } 
-    else {
-        filterDPU = prepareTensorForDPU(rewriter, origOp->getLoc(),  origOp.filter());
+    } else {
+        filterDPU = prepareTensorForDPU(rewriter, origOp->getLoc(), origOp.filter());
     }
 
     //
@@ -295,15 +293,12 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
 
     auto outAllocOpCMX = rewriter.create<mlir::memref::AllocOp>(origOp->getLoc(), outTypeCMX);
 
-    if(origOp.channel_major_op())
-    {
-    weightsTable = createWeightsTableTensor(rewriter, origOp->getLoc(), OC, inputDPU, outAllocOpCMX.memref(),
-                                                 filterDPU, origOp.bias(), activationWindow);
-    }
-    else
-    {
-    weightsTable = createWeightsTableTensor(rewriter, origOp->getLoc(), OC, inputDPU, outAllocOpCMX.memref(),
-                                                 filterDPU, origOp.bias(), nullptr);
+    if (origOp.channel_major_op()) {
+        weightsTable = createWeightsTableTensor(rewriter, origOp->getLoc(), OC, inputDPU, outAllocOpCMX.memref(),
+                                                filterDPU, origOp.bias(), activationWindow);
+    } else {
+        weightsTable = createWeightsTableTensor(rewriter, origOp->getLoc(), OC, inputDPU, outAllocOpCMX.memref(),
+                                                filterDPU, origOp.bias(), nullptr);
     }
 
     //
@@ -340,8 +335,7 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
         //
 
         rewriter.replaceOpWithNewOp<IERT::CopyOp>(origOp, nceOp.output(), origOp.output_buff());
-    } else
-     {
+    } else {
         auto nceOp = rewriter.create<VPUIP::NCEClusterTaskOp>(
                 origOp->getLoc(), inputDPU, filterDPU, weightsTable, /*activation_window=*/nullptr,
                 /*parent_input=*/inputDPU,
@@ -394,8 +388,8 @@ mlir::LogicalResult MaxPoolRewrite::matchAndRewrite(IERT::MaxPoolOp origOp, mlir
     // Generate activation window
     //
 
-    const auto fakeSparsity =
-            VPUIP::NCESparsity::getFakeSparsity(VPUIP::NCETaskType::MAXPOOL, kernelSize, kernelStrides[0], origInputType.getElementType(), 1, IC);
+    const auto fakeSparsity = VPUIP::NCESparsity::getFakeSparsity(
+            VPUIP::NCETaskType::MAXPOOL, kernelSize, kernelStrides[0], origInputType.getElementType(), 1, IC);
     const auto activationWindow = createActivationWindowTensor(rewriter, origOp->getLoc(), fakeSparsity, IC);
 
     //
@@ -700,8 +694,8 @@ mlir::LogicalResult DepthwiseConvRewrite::matchAndRewrite(IERT::GroupConvolution
             VPUIP::NCESparsity::getBitPatternSize(kernelSize, kernelStrides[0], origInputType.getElementType(), 1);
     const auto actWindowChanLen = getIntAttr(getContext(), bitPatternSize);
 
-    const auto fakeSparsity =
-            VPUIP::NCESparsity::getFakeSparsity(VPUIP::NCETaskType::DWCONV, kernelSize, kernelStrides[0], origInputType.getElementType(), IC, OC);
+    const auto fakeSparsity = VPUIP::NCESparsity::getFakeSparsity(
+            VPUIP::NCETaskType::DWCONV, kernelSize, kernelStrides[0], origInputType.getElementType(), IC, OC);
     const auto activationWindow = createActivationWindowTensor(rewriter, origOp->getLoc(), fakeSparsity, OC);
 
     //

@@ -31,7 +31,8 @@ public:
     static const vpux::EnumMap<vpux::VPUIP::ArchKind, PPEConverterCb> ppeConvertersMap;
     static const vpux::EnumMap<vpux::VPUIP::ArchKind, BiasConverterCb> biasConvertersMap;
 
-    static int64_t getBitPatternSize(mlir::ArrayRef<int64_t> kernelSize, int64_t strideW, mlir::Type elemType, int64_t inputChannels);
+    static int64_t getBitPatternSize(mlir::ArrayRef<int64_t> kernelSize, int64_t strideW, mlir::Type elemType,
+                                     int64_t inputChannels);
     static int64_t getActivationWindowSize(mlir::ArrayRef<int64_t> kernelSize, int64_t strideW, mlir::Type elemType,
                                            int64_t inputChannels);
     static std::vector<uint8_t> getFakeSparsity(NCETaskType, mlir::ArrayRef<int64_t> kernelSize, int64_t strideW,

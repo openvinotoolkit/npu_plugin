@@ -75,16 +75,15 @@ int64_t getWindowSize(int64_t kernelW, int64_t strideW, mlir::Type elemType) {
     return maxMpeWindowSize;
 }
 
-std::vector<int8_t> getBitPattern(mlir::ArrayRef<int64_t> kernelSize, int64_t windowSize, int64_t inputChannels) 
-{
+std::vector<int8_t> getBitPattern(mlir::ArrayRef<int64_t> kernelSize, int64_t windowSize, int64_t inputChannels) {
     const auto kernelW = kernelSize[0];
     const auto kernelH = kernelSize[1];
 
     std::vector<int8_t> bitpattern;
-    bitpattern.reserve(windowSize*kernelH*inputChannels);
-    for(int64_t c = 0; c < inputChannels; c++)
-        for(int64_t y = 0; y < kernelH; y++)
-            for(int64_t x = 0; x < windowSize; x++)
+    bitpattern.reserve(windowSize * kernelH * inputChannels);
+    for (int64_t c = 0; c < inputChannels; c++)
+        for (int64_t y = 0; y < kernelH; y++)
+            for (int64_t x = 0; x < windowSize; x++)
                 if (x < kernelW)
                     bitpattern.emplace_back(1);
                 else
@@ -256,7 +255,7 @@ int64_t vpux::VPUIP::NCESparsity::getBitPatternSize(mlir::ArrayRef<int64_t> kern
     Logger::global().error("windowSize: {0}", windowSize);
     Logger::global().error("kernelSize[1]: {0}", kernelSize[1]);
 
-    return kernelSize[1] * windowSize * inputChannels;  
+    return kernelSize[1] * windowSize * inputChannels;
 }
 
 int64_t vpux::VPUIP::NCESparsity::getActivationWindowSize(mlir::ArrayRef<int64_t> kernelSize, int64_t strideW,
@@ -269,12 +268,12 @@ int64_t vpux::VPUIP::NCESparsity::getActivationWindowSize(mlir::ArrayRef<int64_t
     return activationWindowSize;
 }
 
-std::vector<uint8_t> vpux::VPUIP::NCESparsity::getFakeSparsity(NCETaskType nceTask, mlir::ArrayRef<int64_t> kernelSize, int64_t strideW,
-                                                               mlir::Type elemType, int64_t inputChannels, int64_t outputChannels) {
+std::vector<uint8_t> vpux::VPUIP::NCESparsity::getFakeSparsity(NCETaskType nceTask, mlir::ArrayRef<int64_t> kernelSize,
+                                                               int64_t strideW, mlir::Type elemType,
+                                                               int64_t inputChannels, int64_t outputChannels) {
     auto actualType = tryGetQuantizedStorageType(elemType);
     const auto windowSize = getWindowSize(kernelSize[0], strideW, actualType);
     auto bitPattern = getBitPattern(kernelSize, windowSize, inputChannels);
-    
 
     // CM Conv
     const auto windowSparsitySize = std::ceil(windowSize / 8.0);
@@ -290,7 +289,7 @@ std::vector<uint8_t> vpux::VPUIP::NCESparsity::getFakeSparsity(NCETaskType nceTa
     SmallVector<uint8_t> perChannelSparsity;
     perChannelSparsity.resize(perChannelSparsitySize);
 
-    if (nceTask == NCETaskType::CONV && inputChannels < 16) { // and user layout
+    if (nceTask == NCETaskType::CONV && inputChannels < 16) {  // and user layout
         perChannelSparsity.resize(numberOfRowsSparsityBytes * 16);
     } else if (nceTask == NCETaskType::DWCONV || nceTask == NCETaskType::AVEPOOL || nceTask == NCETaskType::MAXPOOL)
         perChannelSparsity.resize(perChannelSparsitySize);
@@ -300,7 +299,7 @@ std::vector<uint8_t> vpux::VPUIP::NCESparsity::getFakeSparsity(NCETaskType nceTa
     for (size_t i = 0; i < bitPattern.size(); i++) {
         perChannelSparsity[(i / 128) * 16 + (i % 128) / 8] |= bitPattern[i] << (i % 8);
     }
-    
+
     std::vector<uint8_t> fakeSparsity;
     fakeSparsity.reserve(outputChannels * perChannelSparsitySize);
     for (auto i = 0; i < outputChannels; i++) {

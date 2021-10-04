@@ -70,9 +70,9 @@ mlir::LogicalResult generalRewrite(mlir::Operation* origOp, mlir::PatternRewrite
     auto* ctx = origOp->getContext();
 
     auto iface = mlir::cast<IE::AlignedChannelsOpInterface>(origOp);
-    
+
     auto channelAlignement = iface.getChannelAlignment();
-     auto inchannelAlignement = iface.getInputChannelAlignment();
+    auto inchannelAlignement = iface.getInputChannelAlignment();
 
     const auto inputType = origOp->getOperand(0).getType().cast<mlir::ShapedType>();
     const auto outputType = origOp->getResult(0).getType().cast<mlir::ShapedType>();
@@ -80,16 +80,14 @@ mlir::LogicalResult generalRewrite(mlir::Operation* origOp, mlir::PatternRewrite
     auto convOp = mlir::dyn_cast<IE::ConvolutionOp>(*origOp);
 
     vpux::Shape inPadsEnd;
-    if(convOp.channel_major_op())
-    {
+    if (convOp.channel_major_op()) {
         inPadsEnd = calcPadsEnd(inputType, inchannelAlignement);
         inPadsEnd[IE::Dims4D::Act::C] = 0;
         inPadsEnd[IE::Dims4D::Act::H] = 0;
         inPadsEnd[IE::Dims4D::Act::W] = 0;
         inPadsEnd[IE::Dims4D::Act::N] = 0;
 
-    }
-    else 
+    } else
         inPadsEnd = calcPadsEnd(inputType, channelAlignement);
 
     const auto outPadsEnd = calcPadsEnd(outputType, channelAlignement);
@@ -395,11 +393,9 @@ private:
 };
 
 void ExpandActivationChannelsPass::safeRunOnFunc() {
-
     auto& ctx = getContext();
     auto func = getFunction();
 
-  
     const auto isLegal = [&](mlir::Operation* op) {
         if (auto iface = mlir::dyn_cast<IE::AlignedChannelsOpInterface>(op)) {
             return iface.verifyChannels().succeeded();
