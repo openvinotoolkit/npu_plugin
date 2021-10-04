@@ -237,22 +237,13 @@ void cvtBlobPrecisionImpl(const MemoryBlob::Ptr& in, const MemoryBlob::Ptr& out,
         const auto& quantP = outQuantParams.getValue();
         const float minU8 = static_cast<float>(std::numeric_limits<uint8_t>().lowest());
         const float maxU8 = static_cast<float>(std::numeric_limits<uint8_t>().max());
-        if (inPrecision == Precision::FP32) {
-            loop_1d(LoopExecPolicy::Parallel, in->size(), [inPtr, outPtr, &quantP, minU8, maxU8](int64_t index) {
-                const float inValueQuant =
-                        static_cast<float>(quantP._zeroPoint + quantP._reverseScale * inPtr[index] + 0.5f);
-                outPtr[index] =
-                        static_cast<OutT>(inValueQuant < minU8 ? minU8 : (inValueQuant > maxU8 ? maxU8 : inValueQuant));
-            });
-        } else {
-            loop_1d(LoopExecPolicy::Parallel, in->size(), [inPtr, outPtr, &quantP, minU8, maxU8](int64_t index) {
-                const float fp32InValue = PrecisionUtils::f16tof32(static_cast<ie_fp16>(inPtr[index]));
-                const float inValueQuant =
-                        static_cast<float>(quantP._zeroPoint + quantP._reverseScale * fp32InValue + 0.5f);
-                outPtr[index] =
-                        static_cast<OutT>(inValueQuant < minU8 ? minU8 : (inValueQuant > maxU8 ? maxU8 : inValueQuant));
-            });
-        }
+        loop_1d(LoopExecPolicy::Parallel, in->size(), [inPtr, outPtr, &quantP, minU8, maxU8](int64_t index) {
+            const float fp32InValue = static_cast<float>(inPtr[index]);
+            const float inValueQuant =
+                    static_cast<float>(quantP._zeroPoint + quantP._reverseScale * fp32InValue + 0.5f);
+            outPtr[index] =
+                    static_cast<OutT>(inValueQuant < minU8 ? minU8 : (inValueQuant > maxU8 ? maxU8 : inValueQuant));
+        });
     }
 }
 
