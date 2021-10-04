@@ -1,3 +1,3 @@
 vpuip_2 branch: kskvorts/mtl_patch
-commit:         4366cba7d23986616ef450349eb8927baf4f9bd0
+commit:         b454489543ea88d067dfaac2c40d9d98cc96c55f
 

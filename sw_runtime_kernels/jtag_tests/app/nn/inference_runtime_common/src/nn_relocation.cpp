@@ -378,29 +378,29 @@ namespace nn
         {
             switch (location_)
             {
-                case Location::Blob:
-                    return rd.upa_rd_.blob_buffers_[index_].add(offset(c), overflow);
-
-                case Location::Input:
-                    return rd.upa_rd_.inputs_[index_].add(offset(c), overflow);
-
-                case Location::Output:
-                    return rd.upa_rd_.outputs_[index_].add(offset(c), overflow);
-
-                case Location::Heap:
-                    return rd.upa_rd_.ddr_heap_.add(offset(c), overflow);
-
-                case Location::Bss:
+//                case Location::Blob:
+//                    return rd.upa_rd_.blob_buffers_[index_].add(offset(c), overflow);
+//
+//                case Location::Input:
+//                    return rd.upa_rd_.inputs_[index_].add(offset(c), overflow);
+//
+//                case Location::Output:
+//                    return rd.upa_rd_.outputs_[index_].add(offset(c), overflow);
+//
+//                case Location::Heap:
+//                    return rd.upa_rd_.ddr_heap_.add(offset(c), overflow);
+//
+                case Location::DDR:
                     return rd.upa_rd_.ddr_bss_.add(offset(c), overflow);
 
-                case Location::UpaCmx:
+                case Location::UPA_CMX:
                     return rd.upa_rd_.upa_cmx_.add(offset(c), overflow);
 
-                case Location::NnCmx:
+                case Location::NN_CMX:
                     return rd.nn_solver_.solve(static_cast<unsigned char>(index_)).add(offset(c), overflow);
 
-                case Location::Absolute:
-                    return Buffer(offset(c), std::numeric_limits<unsigned int>::max() - offset(c) + 1);
+//                case Location::Absolute:
+//                    return Buffer(offset(c), std::numeric_limits<unsigned int>::max() - offset(c) + 1);
 
                 default:
                     nnLog(MVLOG_WARN, "Unexpected relative location: %d\n", location_);

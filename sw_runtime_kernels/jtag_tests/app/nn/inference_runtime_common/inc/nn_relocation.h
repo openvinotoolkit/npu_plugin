@@ -9,11 +9,14 @@
 #include <array>
 #include <limits>
 #include <algorithm>
+#include "common_types.h"
 
 namespace nn
 {
     namespace inference_runtime
     {
+    using namespace sw_params;
+
         struct ConstBuffer
         {
             // 64 bit address capable buffer representation
@@ -196,19 +199,6 @@ namespace nn
 
         struct RelativeAddress
         {
-            enum class Location : unsigned char
-            {
-                None,
-                Blob,
-                Input,
-                Output,
-                Heap,
-                Bss,
-                UpaCmx,
-                NnCmx,
-                Absolute // Used when data_offset is an absolute address
-            };
-
             enum class Class : unsigned char
             {
                 Base,
@@ -218,7 +208,7 @@ namespace nn
             };
 
             RelativeAddress() :
-                location_(Location::None),
+                location_(Location::NONE),
                 index_(0),
                 data_offset_(0),
                 sparsity_map_offset_(0),
@@ -247,7 +237,7 @@ namespace nn
             Location location() const { return location_; }
             unsigned short index() const { return index_; }
 
-            bool isValid() const { return location_ != Location::None; }
+            bool isValid() const { return location_ != Location::NONE; }
             void print() const;
             void set_index(unsigned short index) { index_ = index; }
 

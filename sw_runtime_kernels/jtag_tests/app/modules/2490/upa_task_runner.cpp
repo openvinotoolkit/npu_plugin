@@ -18,7 +18,7 @@ static Layer __attribute__((section(".cmx_direct.data"))) layer;
 bool UPATaskRunner::enqueTask(Op * operation,
                               const std::vector<Buffer> &inputs,
                               const std::vector<Buffer> &outputs,
-                              int /*numSHAVEs*/,
+                              int numSHAVEs,
                               PerformanceData *perfData) {
 
     static std::shared_ptr<nn::shave_lib::SWShaveDispatcher> upaDisp;
@@ -59,6 +59,7 @@ bool UPATaskRunner::enqueTask(Op * operation,
     }
 
     operation->parse(&layer);
+    layer.maxShaves = numSHAVEs;
 
     sl.layer_ = &layer;
 

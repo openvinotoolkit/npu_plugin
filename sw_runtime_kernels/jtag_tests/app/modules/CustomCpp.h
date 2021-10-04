@@ -5,6 +5,7 @@
 #include "Op.h"
 
 #include <layers/param_custom_cpp.h>
+#include <common_types.h>
 
 struct CustomCppLayerParams {
     uint32_t leonPreambleID;
@@ -12,9 +13,10 @@ struct CustomCppLayerParams {
     const uint8_t* kernelData;
     size_t kernelDataLen;
 
-    const uint32_t* paramData;
+    uint32_t* paramData;
+    sw_params::BaseKernelParams baseParamData;
     size_t paramDataLen;
-    uint32_t opID = 0;
+    uint64_t kernel = 0;
 };
 
 class CustomCpp : public Op
@@ -27,11 +29,13 @@ public:
     virtual void run(mv::tensor::Processor& mvtp,
             t_MvTensorMyriadResources& myriadRes,
             t_MvTensorDebugInfo& debugInfo) override;
-    void addInputBuffer(const Buffer& input) {
+    void addInputBuffer(const Buffer& input, sw_params::Location loc = sw_params::Location::DDR) {
         inputVec.push_back(input);
+        inputLocations.push_back(loc);
     }
-    void addOutputBuffer(const Buffer& output) {
+    void addOutputBuffer(const Buffer& output, sw_params::Location loc = sw_params::Location::DDR) {
         outputVec.push_back(output);
+        outputLocations.push_back(loc);
     }
 
     virtual bool parse(Layer *layer) override;
@@ -40,5 +44,7 @@ public:
 
 private:
     std::vector<Buffer> inputVec;
+    std::vector<sw_params::Location> inputLocations;
     std::vector<Buffer> outputVec;
+    std::vector<sw_params::Location> outputLocations;
 };

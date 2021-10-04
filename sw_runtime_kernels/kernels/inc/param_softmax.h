@@ -12,31 +12,23 @@
 typedef fp16 half;
 #endif
 
-namespace nn {
-namespace shave_lib {
+#include <common_types.h>
 
-struct t_MvSoftMaxParamNClasses : public LayerParams
-{
-    const half* input;
-    half* output;
-    u8* cmxslice;
-    u8* auxcmxslice;
-    u32 grpLeaderShave;
-    u32 grpShavesNo;
+namespace sw_params {
 
-    s32 ndims;
-    s32 in_dims[MAX_ND_DIMS];
-    s32 in_strides[MAX_ND_DIMS];
-    s32 out_strides[MAX_ND_DIMS];
-
-     s32 axis;
-    s32 axisDim;
-    s32 axisIStride;
-    s32 axisOStride;
-    s32 start;
-    s32 toProcess;
-    s32 this_shave;
+struct __attribute__((packed)) SoftmaxParams {
+    MemRefData input;
+    MemRefData output;
+    int32_t axis;
 };
 
-} // namespace shave_lib
-} // namespace nn
+inline BaseKernelParams softmaxParamsToBaseKernelParams(SoftmaxParams * softmaxParams) {
+    BaseKernelParams rezult;
+    rezult.numInputs = 1;
+    rezult.numOutputs = 1;
+    rezult.inputsOffset = reinterpret_cast<uint8_t*>(&(softmaxParams->input)) - reinterpret_cast<uint8_t*>(softmaxParams);
+    rezult.outputsOffset = reinterpret_cast<uint8_t*>(&(softmaxParams->output)) - reinterpret_cast<uint8_t*>(softmaxParams);
+    return rezult;
+}
+
+} // sw_params

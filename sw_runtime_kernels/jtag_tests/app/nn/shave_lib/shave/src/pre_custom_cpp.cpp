@@ -6,7 +6,11 @@
 #include <sw_layer.h>
 #include <sw_shave_res_manager.h>
 
+#ifdef CONFIG_TARGET_SOC_3720
+#include "dma_shave_params_nn.h"
+#else
 #include "dma_shave_params.h"
+#endif
 
 # include <nn_log.h>
 
@@ -36,23 +40,24 @@ void execCleanupCustomLayerCpp(const LayerParams *params, ShaveResourceManager *
 #endif // ENABLE_CUSTOM_KERNEL_PERF_COUNTERS
 }
 
+namespace {
+    unsigned int getTotalBytes(sw_params::MemRefData &tensor) {
+        const uint32_t * dims = reinterpret_cast<uint32_t*>(tensor.dimsAddr);
+        const uint32_t * strides = reinterpret_cast<uint32_t*>(tensor.stridesAddr);
+        return dims[tensor.numDims - 1] * strides[tensor.numDims - 1];
+    }
+}  // namespace
+
+extern "C" {
+
 void preCustomLayerCpp(const LayerParams *params, ShaveResourceManager *resMgr) {
     // DMA to copy layer params from DDR
+    DmaAlShave dmaTask;
+    sw_params::Location inputLocations[MAX_INPUT_TENSORS];
+    sw_params::Location outputLocations[MAX_OUTPUT_TENSORS];
     CustomLayerCppParams local_params;
     dmaShaveParams(local_params, params);
     const CustomLayerCppParams *cfg = & local_params;
-
-    {
-        // Would be better to move this buffer to UPA, allocated with getRawExecContext
-        uint32_t *data = (uint32_t *)cfg->argBuffer;
-        uint32_t i = 0;
-        for (; i < cfg->inputsSize; ++i) {
-            data[i] = (uint32_t)resMgr->getAbsoluteInputAddr(data[i]);
-        }
-        for (; i < cfg->inputsSize + cfg->outputsSize; ++i) {
-            data[i] = (uint32_t)resMgr->getAbsoluteOutputAddr(data[i] - cfg->inputsSize);
-        }
-    }
 
 // Setup arguments' buffers
 #if defined(__leon_rt__) || defined(__leon__)
@@ -64,11 +69,9 @@ void preCustomLayerCpp(const LayerParams *params, ShaveResourceManager *resMgr) 
     auto res = resMgr->requestShaves(numShaves);
 
     // Need to flush instruction cache for any custom kernel.
-    resMgr->invalidateL1L2InstCacheForAssignedShaves();
 
     // Flush L1/L2 data cache. This is needed after we patch the global arguments above, so that the
     // worker Shaves can have the same copy of the written data.
-    resMgr->flushL1L2DataCacheForAssignedShaves();
 
     for (decltype(numShaves) shave = 0; shave < numShaves; shave++) {
         auto &sh = res[shave];
@@ -79,13 +82,48 @@ void preCustomLayerCpp(const LayerParams *params, ShaveResourceManager *resMgr) 
 
         // Copy DDR Params into CMX Params
         *cmxParams = *cfg;
-        cmxParams->scheduleInfo.shaveId = shave;
-        cmxParams->scheduleInfo.nShaves = numShaves;
 
         // ToDO: patch arg buffer with locals from cmx if any on leon side
 
         // The following will properly set the CMX Data address and size
         resMgr->updateLayerParams(sh, cmxParams);
+        BaseKernelParams * kernelArgs = &(cmxParams->baseParamData);
+        MemRefData * ins =
+                reinterpret_cast<sw_params::MemRefData*>(reinterpret_cast<uint8_t*>(cmxParams->argBuffer) + kernelArgs->inputsOffset);
+        MemRefData * outs =
+                reinterpret_cast<sw_params::MemRefData*>(reinterpret_cast<uint8_t*>(cmxParams->argBuffer) + kernelArgs->outputsOffset);
+        for (unsigned int i = 0; i < kernelArgs->numInputs; i++) {
+            ins[i].dataAddr = reinterpret_cast<uint32_t>(resMgr->getAbsoluteInputAddr(i));
+            inputLocations[i] = ins[i].location;
+            if (cfg->moveToCmxIfNecessary &&
+                    (ins[i].location == sw_params::Location::NN_CMX || ins[i].location == sw_params::Location::UPA_CMX)) {
+                unsigned int usedBytes = getTotalBytes(ins[i]);
+                if (usedBytes <= cmxParams->availableCmxBytes) {
+                    dmaTask.start(reinterpret_cast<uint8_t*>(ins[i].dataAddr), cmxParams->cmxData, usedBytes);
+                    dmaTask.wait();
+                    ins[i].dataAddr = reinterpret_cast<uint32_t>(cmxParams->cmxData);
+                    cmxParams->cmxData += usedBytes;
+                    cmxParams->availableCmxBytes -= usedBytes;
+                } else {
+                    ins[i].location = sw_params::Location::DDR;
+                }
+            }
+        }
+        for (unsigned int i = 0; i < kernelArgs->numOutputs; i++) {
+            outs[i].dataAddr = reinterpret_cast<uint32_t>(resMgr->getAbsoluteOutputAddr(i));
+            outputLocations[i] = outs[i].location;
+            if (cfg->moveToCmxIfNecessary &&
+                    (outs[i].location == sw_params::Location::NN_CMX || outs[i].location == sw_params::Location::UPA_CMX)) {
+                unsigned int usedBytes = getTotalBytes(outs[i]);
+                if (usedBytes <= cmxParams->availableCmxBytes) {
+                    outs[i].dataAddr = reinterpret_cast<uint32_t>(cmxParams->cmxData);
+                    cmxParams->cmxData += usedBytes;
+                    cmxParams->availableCmxBytes -= usedBytes;
+                } else {
+                    outs[i].location = sw_params::Location::DDR;
+                }
+            }
+        }
 
 #ifdef ENABLE_CUSTOM_KERNEL_PERF_COUNTERS
         cmxParams->perf = (MvPerfStruct *)resMgr->getRawExecContext(sizeof(*cmxParams->perf));
@@ -104,7 +142,32 @@ void preCustomLayerCpp(const LayerParams *params, ShaveResourceManager *resMgr) 
 #if defined(__leon_rt__) || defined(__leon__)
         nn::cache::flush(cmxParams, sizeof(CustomLayerCppParams));
 #endif
+        if (cfg->kernel) {
+            Kernel k = reinterpret_cast<Kernel>(cfg->kernel);
+            (*k)(reinterpret_cast<uint32_t>(cmxParams->argBuffer), cmxParams->cmxData, cmxParams->availableCmxBytes);
+        }
+        if (cfg->moveToCmxIfNecessary) {
+            for (unsigned int i = 0; i < kernelArgs->numInputs; i++) {
+                if (ins[i].dataAddr != reinterpret_cast<uint32_t>(resMgr->getAbsoluteInputAddr(i)) &&
+                        (ins[i].location == sw_params::Location::NN_CMX || ins[i].location == sw_params::Location::UPA_CMX)) {
+                    ins[i].dataAddr = reinterpret_cast<uint32_t>(resMgr->getAbsoluteInputAddr(i));
+                }
+                if (inputLocations[i] != ins[i].location)
+                    ins[i].location = inputLocations[i];
+            }
+            for (unsigned int i = 0; i < kernelArgs->numOutputs; i++) {
+                if (outs[i].dataAddr != reinterpret_cast<uint32_t>(resMgr->getAbsoluteOutputAddr(i)) &&
+                        (outs[i].location == sw_params::Location::NN_CMX || outs[i].location == sw_params::Location::UPA_CMX)) {
+                    dmaTask.start(reinterpret_cast<uint8_t*>(outs[i].dataAddr), resMgr->getAbsoluteOutputAddr(i), getTotalBytes(outs[i]));
+                    dmaTask.wait();
+                    outs[i].dataAddr = reinterpret_cast<uint32_t>(resMgr->getAbsoluteOutputAddr(i));
+                }
+                if (outputLocations[i] != outs[i].location)
+                    outs[i].location = outputLocations[i];
+            }
+        }
     }
+}
 }
 } // namespace shave_lib
 } // namespace nn

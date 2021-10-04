@@ -76,8 +76,8 @@ protected:
         m_inputTensor.exportToBuffer(inBuff);
         m_outputTensor.exportToBuffer(outBuff);
 
-        customCppOp->addInputBuffer(inBuff);
-        customCppOp->addOutputBuffer(outBuff);
+        customCppOp->addInputBuffer(inBuff, m_requiredTensorLocation);
+        customCppOp->addOutputBuffer(outBuff, m_requiredTensorLocation);
         customCppOp->ops = *getParams();
     }
 
@@ -116,6 +116,7 @@ protected:
     Tensor<InType> m_inputTensor;
     Tensor<fp16> m_outputTensor;
     Tensor<fp16> m_referenceOutputTensor;
+    sw_params::Location m_requiredTensorLocation = sw_params::Location::DDR;
 
     float m_test_threshold = 0.0f;
 
