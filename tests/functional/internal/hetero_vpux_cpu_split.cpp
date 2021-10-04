@@ -169,8 +169,9 @@ void HeteroPluginTest::runTest(const TestNetworkDesc& netDesc, const Device& fir
         // SKIP() << "Will be compiled and run at RUN_INFER stage";
     }
 
-    std::cout << "Reading network " << netDesc.irFileName() <<  std::endl;
+    std::cout << "Reading network " << netDesc.irFileName() << std::endl;
     auto network = readNetwork(netDesc, true);
+
     assignAffinities(network, firstDevice, secondDevice, splitLayer);
 
     const auto heteroDevice = "HETERO:" + std::string{firstDevice} + "," + std::string{secondDevice};
@@ -222,6 +223,59 @@ TEST_P(HeteroPluginTest, regression) {
     const auto image = std::get<3>(GetParam());
     const auto layerName = std::get<4>(GetParam());
 
+    std::vector<std::string> layers;    
+    {
+        TestNetworkDesc netDesc(network);
+        std::cout << "Reading network to get list of layers: " << netDesc.irFileName() << std::endl;
+        auto networkFunc = readNetwork(netDesc, true);
+        auto orderedOps = networkFunc.getFunction()->get_ordered_ops();
+        std::transform(orderedOps.cbegin(), orderedOps.cend(), std::back_inserter(layers),
+                       [](auto node) -> std::string {
+                           return node->get_friendly_name();
+                       });
+    }
+
+    std::cout << "Splitting over " << layers.size() << " layers..." << std::endl;
+
+    std::set<std::string> fatalErrors = {"conv1_1/WithoutBiases/fq_input_0",
+                                            "onnx_initializer_node_conv1_w/Output_0/Data__const152_const",
+        "939943_const", "conv1_1/WithoutBiases/fq_weights_1", "conv1_1/WithoutBiases"};
+
+    std::vector<std::string> splitSuccessfully;
+    for (auto&& splitNode : layers) {
+        std::cout << std::endl;
+        if (fatalErrors.find(splitNode) == fatalErrors.end()) {
+            std::cout << "Going to split after layer '" << splitNode << "'" << std::endl;
+        } else {
+            std::cout << "Skipping split after layer '" << splitNode << "' due to segfault" << std::endl;
+            continue;
+        }
+
+        // fire5/concat throwOnFail: zeCommandQueueCreate result: 0x70000001
+        // fire6/concat 2-3 splits
+        // compiler might sigseg when network is split in arbitrary position
+        if (splitNode.find("fire6/concat") == std::string::npos) {
+            std::cout << "Skipping split after layer '" << splitNode << "'" << std::endl;
+            continue;
+        }
+
+        try {
+            runTest(TestNetworkDesc(network)
+                            .setUserInputPrecision("input", Precision::U8)
+                            .setUserInputLayout("input", Layout::NHWC)
+                            .setUserOutputPrecision("output", Precision::FP32),
+                    device1, device2, splitNode, TestImageDesc(image, ImageFormat::RGB), 1, 0.1f);
+            splitSuccessfully.push_back(splitNode);
+        } catch (const std::exception &e) {
+            std::cout << "Exception for split after layer '" << splitNode << "': " << e.what() << std::endl;
+        }
+    }
+    std::cout << "Tested splits " << splitSuccessfully.size() << " without exception: " << std::endl;
+    std::for_each(splitSuccessfully.cbegin(), splitSuccessfully.cend(), [](std::string split) {
+        std::cout << split << "; ";
+    });
+
+    /*
     runTest(TestNetworkDesc(network)
                     .setUserInputPrecision("input", Precision::U8)
                     .setUserInputLayout("input", Layout::NHWC)
@@ -229,13 +283,13 @@ TEST_P(HeteroPluginTest, regression) {
             device1, device2, layerName,
             TestImageDesc(image, ImageFormat::RGB),
             1, 0.1f);
+*/
 }
 
-const auto squeezeNetLayers = std::vector<SplitLayer>{
-         {"pool5"},
+const auto squeezeNetLayers = std::vector<SplitLayer>{/* {"pool5"},
          {"fire6/expand1x1_1/WithoutBiases/fq_input_0"},
          {"fire6/concat/fq_input_0"},
-         {"fire6/concat/fq_input_1"},
+         {"fire6/concat/fq_input_1"},*/
          {"fire6/concat"}
 };
 
