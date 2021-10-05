@@ -18,6 +18,26 @@ include "vpux/compiler/core/attributes.td"
 include "vpux/compiler/dialect/IE/dialect.td"
 
 //
+// TypeComparisonMode
+//
+
+def IE_TypeComparisonMode_STRICT_EQUAL : StrEnumAttrCase<"STRICT_EQUAL">;
+def IE_TypeComparisonMode_ALLOW_QUANT_MIXED_PRECISION : StrEnumAttrCase<"ALLOW_QUANT_MIXED_PRECISION">;
+
+def IE_TypeComparisonMode :
+        StrEnumAttr<
+            "TypeComparisonMode",
+            "Tensor element type comparison modes",
+            [
+                IE_TypeComparisonMode_STRICT_EQUAL,
+                IE_TypeComparisonMode_ALLOW_QUANT_MIXED_PRECISION,
+            ]
+        > {
+    let cppNamespace = "vpux::IE";
+    let genSpecializedAttr = 1;
+}
+
+//
 // TensorAttr
 //
 

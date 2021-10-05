@@ -96,46 +96,50 @@ mlir::LogicalResult vpux::IE::inferTensorTypes(InferTypeComponentsCb componentsC
     return mlir::success();
 }
 
-bool vpux::IE::isCompatibleTensorTypes(mlir::TypeRange lhs, mlir::TypeRange rhs, bool checkExactElemType,
-                                       bool checkDimsOrder, bool checkMemSpace) {
+bool vpux::IE::isCompatibleTensorTypes(mlir::TypeRange lhs, mlir::TypeRange rhs,
+                                       IE::TypeComparisonMode elemComparisonMode, bool checkDimsOrder,
+                                       bool checkMemSpace) {
     if (lhs.size() != rhs.size()) {
         return false;
     }
 
     for (const auto p : zip(lhs, rhs)) {
-        const auto type1 = std::get<0>(p).dyn_cast<mlir::RankedTensorType>();
-        const auto type2 = std::get<1>(p).dyn_cast<mlir::RankedTensorType>();
+        const auto lhsType = std::get<0>(p).dyn_cast<mlir::RankedTensorType>();
+        const auto rhsType = std::get<1>(p).dyn_cast<mlir::RankedTensorType>();
 
-        if (type1 == nullptr || type2 == nullptr) {
+        if (lhsType == nullptr || rhsType == nullptr) {
             return false;
         }
 
-        if (type1.getShape() != type2.getShape()) {
+        if (lhsType.getShape() != rhsType.getShape()) {
             return false;
         }
 
-        if (type1.getElementType() != type2.getElementType()) {
-            if (checkExactElemType) {
+        if (lhsType.getElementType() != rhsType.getElementType()) {
+            if (elemComparisonMode == IE::TypeComparisonMode::STRICT_EQUAL) {
                 return false;
             }
 
-            const auto qType1 = type1.getElementType().dyn_cast<mlir::quant::QuantizedType>();
-            const auto qType2 = type2.getElementType().dyn_cast<mlir::quant::QuantizedType>();
+            const auto lhsQuantizedType = lhsType.getElementType().dyn_cast<mlir::quant::QuantizedType>();
+            const auto rhsQuantizedType = rhsType.getElementType().dyn_cast<mlir::quant::QuantizedType>();
 
-            if (qType1 == nullptr || qType2 == nullptr) {
+            if (!lhsQuantizedType && !rhsQuantizedType) {
                 return false;
-            }
-            if (qType1.getExpressedType() != qType2.getExpressedType()) {
-                return false;
-            }
-            if (qType1.getStorageType() != qType2.getStorageType()) {
-                return false;
+            } else if (lhsQuantizedType && rhsQuantizedType) {
+                if ((lhsQuantizedType.getExpressedType() != rhsQuantizedType.getExpressedType()) ||
+                    (lhsQuantizedType.getStorageType() != rhsQuantizedType.getStorageType())) {
+                    return false;
+                }
+            } else {
+                if (elemComparisonMode != IE::TypeComparisonMode::ALLOW_QUANT_MIXED_PRECISION) {
+                    return false;
+                }
             }
         }
 
         if (checkDimsOrder) {
-            const auto order1 = IE::getOrder(type1);
-            const auto order2 = IE::getOrder(type2);
+            const auto order1 = IE::getOrder(lhsType);
+            const auto order2 = IE::getOrder(rhsType);
 
             if (order1 != order2) {
                 return false;
@@ -143,8 +147,8 @@ bool vpux::IE::isCompatibleTensorTypes(mlir::TypeRange lhs, mlir::TypeRange rhs,
         }
 
         if (checkMemSpace) {
-            const auto memSpace1 = IE::getMemorySpace(type1);
-            const auto memSpace2 = IE::getMemorySpace(type2);
+            const auto memSpace1 = IE::getMemorySpace(lhsType);
+            const auto memSpace2 = IE::getMemorySpace(rhsType);
 
             if (memSpace1 != memSpace2) {
                 return false;
