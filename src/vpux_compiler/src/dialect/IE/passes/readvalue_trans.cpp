@@ -52,7 +52,7 @@ private:
 void ReadValueTransPass::safeRunOnModule() {
     std::cout << "ReadValueTransPass" << std::endl;
 
-#if 1
+#if 0
     auto module = getOperation();
     auto* ctx = module->getContext();
 

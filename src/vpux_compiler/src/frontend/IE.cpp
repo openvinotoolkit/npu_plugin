@@ -448,7 +448,10 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
 
     // TODO: replace it!!!
     // auto op = builder.create<IE::ReadValueOp>(createLocation(origNode), inputs[0], inputs[1], variable_idAttr);
-    auto op = builder.create<IE::ReadValueOp>(createLocation(origNode), inputs[0], nullptr, variable_idAttr);
+    auto op = builder.create<IE::ReadValueOp>(createLocation(origNode), inputs[0], inputs[0], variable_idAttr);
+    // auto op = builder.create<IE::ReadValueOp>(createLocation(origNode), inputs[0], variable_idAttr);
+
+    // auto op = builder.create<IE::ReadValueOp>(createLocation(origNode), inputs[0], inputs[1], variable_idAttr);
 
     addOutputs(origNode, op);
     std::cout << "ReadValue parseNode End" << std::endl;

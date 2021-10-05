@@ -479,6 +479,8 @@ def VPUIP_ReadValueUPAOp :
 //        return vpux::VPUIP::verifyOp(*this);
 //    }];
 
+// `,` $second_input `:` type($second_input)
+
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $input `:` type($input) `,` $second_input `:` type($second_input) `)`

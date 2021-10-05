@@ -29,8 +29,20 @@ namespace {
 // %6 = VPUIP.SomeTaskUPA inputs(%1 : memref, %2 : memref) outputs(%3 : memref) waits(%4 : !VPUIP.Barrier) updates(%5 :
 // !VPUIP.Barrier)) numOperands() == 5 <==> %1, %2, %3, %4, %5 getLastMemRefPosition() == 3  <==> %1, %2 and %3
 ptrdiff_t getLastMemRefPosition(mlir::ValueRange vals) {
+    // vals.begin();
+    // std::cout << vals.end();
+    std::cout << "getLastMemRefPosition 1" << std::endl;
     return std::find_if(vals.begin(), vals.end(),
                         [](mlir::Value val) {
+                            std::cout << "getLastMemRefPosition 2.1" << std::endl;
+
+                            // val.print();
+                            // val.dump();
+
+                            std::cout << val.getType().isa<mlir::MemRefType>() << std::endl;
+
+
+                            std::cout << "getLastMemRefPosition 2.2" << std::endl;
                             return !val.getType().isa<mlir::MemRefType>();
                         }) -
            vals.begin();
@@ -122,10 +134,14 @@ mlir::Value vpux::IERT::getLayerViewSource(mlir::Operation* op, ptrdiff_t result
 
 mlir::LogicalResult vpux::IERT::inferLayerReturnTypes(mlir::ValueRange operands, size_t numResults,
                                                       SmallVectorImpl<mlir::Type>& inferredReturnTypes) {
+    std::cout << "vpux::IERT::inferLayerReturnTypes 1" << std::endl;
+
     const auto inNum = getLastMemRefPosition(operands);
 
     VPUX_THROW_UNLESS(numResults < checked_cast<size_t>(inNum),
                       "Call inferLayerReturnTypes for non RT Layer Operation");
+
+    std::cout << "vpux::IERT::inferLayerReturnTypes 2" << std::endl;
 
     inferredReturnTypes.reserve(numResults);
     for (const auto val : operands.slice(inNum - numResults, numResults)) {

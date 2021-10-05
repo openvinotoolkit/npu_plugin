@@ -313,6 +313,7 @@ def IERT_ReadValueOp :
         AnyMemRef:$output
     );
 
+// `,` $second_input `:` type($second_input)
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $input `:` type($input) `,` $second_input `:` type($second_input) `)`
