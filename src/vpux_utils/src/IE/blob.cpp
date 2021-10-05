@@ -653,7 +653,7 @@ MemoryBlob::Ptr vpux::toDefPrecision(const MemoryBlob::Ptr& in, const std::share
     const auto inPrec = in->getTensorDesc().getPrecision();
 
     if (inPrec == Precision::U8 || inPrec == Precision::FP16) {
-        return toPrecision(in, Precision::FP32, vpux::QuantizationParam(), allocator, ptr);
+        return toPrecision(in, Precision::FP32, vpux::None, allocator, ptr);
     } else {
         if (allocator == nullptr && ptr == nullptr) {
             return in;
