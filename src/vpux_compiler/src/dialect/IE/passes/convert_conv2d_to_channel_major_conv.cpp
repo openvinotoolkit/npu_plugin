@@ -36,7 +36,6 @@ class ChannelMajorConvolutionCompatibleOps final {
 public:
     explicit ChannelMajorConvolutionCompatibleOps(mlir::MLIRContext* ctx, Logger log, vpux::DimsOrder userDimsOrder)
             : _ctx(ctx), _log(log), _userDimsOrder(userDimsOrder) {
-        Logger::global().error("order: {0}", _userDimsOrder);
     }
 
     mlir::BoolAttr isOpChannelMajorCompatible(IE::ConvolutionOp convOp) const;
@@ -45,7 +44,6 @@ private:
     mlir::MLIRContext* _ctx;
     Logger _log;
     vpux::DimsOrder _userDimsOrder;
-    SmallVector<mlir::Operation*> _allConvOps;
 };
 
 mlir::BoolAttr ChannelMajorConvolutionCompatibleOps::isOpChannelMajorCompatible(IE::ConvolutionOp convOp) const {
@@ -55,11 +53,10 @@ mlir::BoolAttr ChannelMajorConvolutionCompatibleOps::isOpChannelMajorCompatible(
     auto inputTensorShape = getShape(convOp.input());
     auto width = inputTensorShape[IE::Dims4D::Act::W];
 
-    if ((IC == 3) && (width % 16 == 0) && _userDimsOrder == DimsOrder::NCHW) {
-        return mlir::BoolAttr::get(_ctx, "1");
-    } else {
-        return mlir::BoolAttr::get(_ctx, "0");
-    }
+    if ((IC == 3) && (width % 16 == 0) && _userDimsOrder == DimsOrder::NCHW) 
+        return mlir::BoolAttr::get(_ctx, true);
+    else 
+        return mlir::BoolAttr::get(_ctx, false);
 }
 
 //
@@ -70,14 +67,14 @@ class ChannelMajorConvolutionRewrite final : public mlir::OpRewritePattern<IE::C
 public:
     ChannelMajorConvolutionRewrite(mlir::MLIRContext* ctx, const ChannelMajorConvolutionCompatibleOps& userInputInfo,
                                    Logger log)
-            : mlir::OpRewritePattern<IE::ConvolutionOp>(ctx), _userInputInfo(userInputInfo), _log(log) {
+            : mlir::OpRewritePattern<IE::ConvolutionOp>(ctx), _channelMajorConvolutionChecker(userInputInfo), _log(log) {
     }
 
 public:
     mlir::LogicalResult matchAndRewrite(IE::ConvolutionOp origOp, mlir::PatternRewriter& rewriter) const final;
 
 private:
-    const ChannelMajorConvolutionCompatibleOps& _userInputInfo;
+    const ChannelMajorConvolutionCompatibleOps& _channelMajorConvolutionChecker;
     Logger _log;
 };
 
@@ -85,11 +82,11 @@ mlir::LogicalResult ChannelMajorConvolutionRewrite::matchAndRewrite(IE::Convolut
                                                                     mlir::PatternRewriter& rewriter) const {
     _log.trace("Found ConvolutionOp Operation '{0}'", origOp->getLoc());
 
-    const auto channelMajorCompitable = _userInputInfo.isOpChannelMajorCompatible(origOp);
+    const auto OpIsCchannelMajorCompitable = _channelMajorConvolutionChecker.isOpChannelMajorCompatible(origOp);
 
     rewriter.replaceOpWithNewOp<IE::ConvolutionOp>(origOp, origOp.input(), origOp.filter(), origOp.bias(),
                                                    origOp.strides(), origOp.pads_begin(), origOp.pads_end(),
-                                                   origOp.dilations(), origOp.post_opAttr(), channelMajorCompitable);
+                                                   origOp.dilations(), origOp.post_opAttr(), OpIsCchannelMajorCompitable);
 
     return mlir::success();
 }
@@ -109,7 +106,12 @@ private:
     void safeRunOnFunc() final;
 };
 
+//
+// safeRunOnFunc
+//
+
 void IdentifyChannelMajorConvolutionCompatibleOpsPass::safeRunOnFunc() {
+    
     auto& ctx = getContext();
     auto func = getFunction();
     auto module = func->getParentOfType<mlir::ModuleOp>();
@@ -118,22 +120,18 @@ void IdentifyChannelMajorConvolutionCompatibleOpsPass::safeRunOnFunc() {
     mlir::FuncOp netFunc;
     IE::CNNNetworkOp::getFromModule(module, netInfo, netFunc);
     auto userInputs = netInfo.getInputsInfo();
-    auto userOutputs = netInfo.getOutputsInfo();
     vpux::DimsOrder userDimsOrder;
 
-    const auto getTypesWithUserLayout = [](SmallVector<IE::DataInfoOp, 1>& userDataInfo,
-                                           vpux::DimsOrder& userDimsOrder) {
+    const auto getTypesWithUserLayout = [](SmallVector<IE::DataInfoOp, 1>& userDataInfo, vpux::DimsOrder& userDimsOrder) {
         for (const auto& p : userDataInfo | indexed) {
             userDimsOrder = p.value().getDimsOrder();
-            Logger::global().error("order: {0}", userDimsOrder);
         }
     };
 
     SmallVector<mlir::Type> newArgTypes(userInputs.size());
     getTypesWithUserLayout(userInputs, userDimsOrder);
 
-    Logger::global().error("order: {0}", userDimsOrder);
-    ChannelMajorConvolutionCompatibleOps userInputInfo(&ctx, _log, userDimsOrder);
+    ChannelMajorConvolutionCompatibleOps channelMajorConvolutionChecker(&ctx, _log, userDimsOrder);
 
     mlir::ConversionTarget target(ctx);
 
@@ -145,10 +143,7 @@ void IdentifyChannelMajorConvolutionCompatibleOpsPass::safeRunOnFunc() {
         const auto IC = inputShape[IE::Dims4D::Filter::IC];
         auto inputTensorShape = getShape(convOp.input());
         auto width = inputTensorShape[IE::Dims4D::Act::W];
-        Logger::global().error("order: {0}", IC);
-        Logger::global().error("order: {0}", width);
-
-        Logger::global().error("order: {0}", userDimsOrder);
+    
         if ((userDimsOrder != DimsOrder::NCHW) || (IC != 3) || (width % 16 != 0)) {
             return true;
         }
@@ -157,7 +152,7 @@ void IdentifyChannelMajorConvolutionCompatibleOpsPass::safeRunOnFunc() {
     });
 
     mlir::RewritePatternSet patterns(&ctx);
-    patterns.insert<ChannelMajorConvolutionRewrite>(&ctx, userInputInfo, _log);
+    patterns.insert<ChannelMajorConvolutionRewrite>(&ctx, channelMajorConvolutionChecker, _log);
 
     if (mlir::failed(mlir::applyPartialConversion(func, target, std::move(patterns)))) {
         signalPassFailure();
@@ -167,7 +162,7 @@ void IdentifyChannelMajorConvolutionCompatibleOpsPass::safeRunOnFunc() {
 }  // namespace
 
 //
-// createOptimizeAsyncDepsPass
+// createIdentifyChannelMajorConvolutionCompatibleOpsPass
 //
 
 std::unique_ptr<mlir::Pass> vpux::IE::createIdentifyChannelMajorConvolutionCompatibleOpsPass(Logger log) {
