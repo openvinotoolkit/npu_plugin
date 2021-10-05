@@ -369,7 +369,7 @@ private:
 };
 
 // This operation based on input and output of Eltwise op will prepare final quantization scale value
-::llvm::Optional<std::vector<double>> calculateQuantScaleVectorForEltwise(IERT::LayerOpInterface layerOp) {
+llvm::Optional<double> calculateQuantScaleForEltwise(IERT::LayerOpInterface layerOp) {
     if (layerOp == nullptr || layerOp.getInputs().size() < 2) {
         return ::llvm::None;
     }
@@ -381,7 +381,6 @@ private:
     const auto input1ElementType = input1.getType().cast<mlir::ShapedType>().getElementType();
     const auto input2ElementType = input2.getType().cast<mlir::ShapedType>().getElementType();
     const auto outputElementType = output.getType().cast<mlir::ShapedType>().getElementType();
-    const auto outputChannels = getShape(output.getType().cast<mlir::ShapedType>())[IE::Dims4D::Act::C];
 
     // In case of fully not quantized operation return
     if (!input1ElementType.isa<mlir::quant::QuantizedType>() && !input2ElementType.isa<mlir::quant::QuantizedType>() &&
@@ -394,24 +393,19 @@ private:
                             !outputElementType.isa<mlir::quant::QuantizedType>(),
                     "For now support only fully quantized Eltwise operations");
 
-    auto scaleInput1 = extractScalesAndZeroPoints(input1ElementType, outputChannels).first;
-    auto scaleInput2 = extractScalesAndZeroPoints(input2ElementType, outputChannels).first;
-    auto scaleOutput = extractScalesAndZeroPoints(outputElementType, outputChannels).first;
+    auto scaleInput1 = extractScalesAndZeroPoints(input1ElementType).first.front();
+    auto scaleInput2 = extractScalesAndZeroPoints(input2ElementType).first.front();
+    auto scaleOutput = extractScalesAndZeroPoints(outputElementType).first.front();
 
-    std::vector<double> ppeScale(scaleInput1.begin(), scaleInput1.end());
+    auto ppeScale = scaleInput1;
     // For Eltwise Multiply ppeScale = scaleInput1*scaleInput2/scaleOutput
     // For Eltwise Add/Subtract/And ppeScale = scaleInput1/scaleOutput
     if (mlir::isa<IERT::MultiplyOp>(layerOp)) {
-        std::transform(ppeScale.begin(), ppeScale.end(), scaleInput2.begin(), ppeScale.begin(),
-                       std::multiplies<double>());
+        ppeScale *= scaleInput2;
     }
-    std::transform(ppeScale.begin(), ppeScale.end(), scaleOutput.begin(), ppeScale.begin(), std::divides<double>());
+    ppeScale /= scaleOutput;
 
-    // Check if all elements are equal. If yes maintain one (per tensor) value
-    if (ppeScale.size() > 1 && std::equal(ppeScale.begin() + 1, ppeScale.end(), ppeScale.begin())) {
-        ppeScale.resize(1);
-    }
-    return ::llvm::Optional<std::vector<double>>(ppeScale);
+    return llvm::Optional<double>(ppeScale);
 }
 
 // Prepare Mult and Shift vector pair based on provided quant scale vector.
@@ -473,6 +467,16 @@ mlir::LogicalResult GenericEltwiseConverter<ConcreteOp>::matchAndRewrite(Concret
     int64_t clampHigh = std::numeric_limits<int32_t>::max();
     int64_t LreluMult = 1;
     int64_t LreluShift = 0;
+
+    auto outElemType = origOutType.getElementType();
+    auto quantizedType = outElemType.template dyn_cast<mlir::quant::QuantizedType>();
+    if (quantizedType) {
+        const auto zps = extractScalesAndZeroPoints(outElemType).second;
+
+        clampLow = -zps.front();
+        clampHigh = quantizedType.getStorageTypeMax() - zps.front();
+    }
+
     const auto postOpParams = parsePostOp(nceOp, origOp.post_opAttr());
     if (postOpParams.hasValue()) {
         clampLow = postOpParams->clampLow;
@@ -484,12 +488,18 @@ mlir::LogicalResult GenericEltwiseConverter<ConcreteOp>::matchAndRewrite(Concret
     // Since Eltwise operation doesn't have weights table it requires final quantization scaling
     // to be part of output tensor description. Scale vector will be placed in PPE block and
     // later used during NCE task serialization
-    auto quantScale = calculateQuantScaleVectorForEltwise(origOp);
+    auto quantScale = calculateQuantScaleForEltwise(origOp);
     if (quantScale.hasValue()) {
-        auto quantMultShift = getQuantMultAndShiftVectorFromScale(quantScale.getValue());
+        const auto scale = quantScale.getValue();
 
-        nceOp.addPPETask(rewriter, _ppeType, clampLow, clampHigh, LreluMult, LreluShift,
-                         makeArrayRef<int32_t>(quantMultShift.first), makeArrayRef<int32_t>(quantMultShift.second));
+        const auto mult = getQuantMultFromScale(scale);
+        const auto shiftAndPostShift = getQuantShiftAndPostShiftFromScale(scale);
+
+        const auto shift = shiftAndPostShift.first;
+        const auto postShift = shiftAndPostShift.second;
+
+        nceOp.addPPETask(rewriter, _ppeType, clampLow, clampHigh, LreluMult, LreluShift, SmallVector<int32_t>{mult},
+                         SmallVector<int32_t>{shift}, postShift);
     } else {
         nceOp.addPPETask(rewriter, _ppeType, clampLow, clampHigh, LreluMult, LreluShift);
     }
