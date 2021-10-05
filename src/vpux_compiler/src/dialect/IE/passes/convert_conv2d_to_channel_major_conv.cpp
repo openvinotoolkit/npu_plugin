@@ -53,9 +53,9 @@ mlir::BoolAttr ChannelMajorConvolutionCompatibleOps::isOpChannelMajorCompatible(
     auto inputTensorShape = getShape(convOp.input());
     auto width = inputTensorShape[IE::Dims4D::Act::W];
 
-    if ((IC == 3) && (width % 16 == 0) && _userDimsOrder == DimsOrder::NCHW) 
+    if ((IC == 3) && (width % 16 == 0) && _userDimsOrder == DimsOrder::NCHW)
         return mlir::BoolAttr::get(_ctx, true);
-    else 
+    else
         return mlir::BoolAttr::get(_ctx, false);
 }
 
@@ -67,7 +67,9 @@ class ChannelMajorConvolutionRewrite final : public mlir::OpRewritePattern<IE::C
 public:
     ChannelMajorConvolutionRewrite(mlir::MLIRContext* ctx, const ChannelMajorConvolutionCompatibleOps& userInputInfo,
                                    Logger log)
-            : mlir::OpRewritePattern<IE::ConvolutionOp>(ctx), _channelMajorConvolutionChecker(userInputInfo), _log(log) {
+            : mlir::OpRewritePattern<IE::ConvolutionOp>(ctx),
+              _channelMajorConvolutionChecker(userInputInfo),
+              _log(log) {
     }
 
 public:
@@ -84,9 +86,9 @@ mlir::LogicalResult ChannelMajorConvolutionRewrite::matchAndRewrite(IE::Convolut
 
     const auto OpIsCchannelMajorCompitable = _channelMajorConvolutionChecker.isOpChannelMajorCompatible(origOp);
 
-    rewriter.replaceOpWithNewOp<IE::ConvolutionOp>(origOp, origOp.input(), origOp.filter(), origOp.bias(),
-                                                   origOp.strides(), origOp.pads_begin(), origOp.pads_end(),
-                                                   origOp.dilations(), origOp.post_opAttr(), OpIsCchannelMajorCompitable);
+    rewriter.replaceOpWithNewOp<IE::ConvolutionOp>(
+            origOp, origOp.input(), origOp.filter(), origOp.bias(), origOp.strides(), origOp.pads_begin(),
+            origOp.pads_end(), origOp.dilations(), origOp.post_opAttr(), OpIsCchannelMajorCompitable);
 
     return mlir::success();
 }
@@ -111,7 +113,6 @@ private:
 //
 
 void IdentifyChannelMajorConvolutionCompatibleOpsPass::safeRunOnFunc() {
-    
     auto& ctx = getContext();
     auto func = getFunction();
     auto module = func->getParentOfType<mlir::ModuleOp>();
@@ -122,7 +123,8 @@ void IdentifyChannelMajorConvolutionCompatibleOpsPass::safeRunOnFunc() {
     auto userInputs = netInfo.getInputsInfo();
     vpux::DimsOrder userDimsOrder;
 
-    const auto getTypesWithUserLayout = [](SmallVector<IE::DataInfoOp, 1>& userDataInfo, vpux::DimsOrder& userDimsOrder) {
+    const auto getTypesWithUserLayout = [](SmallVector<IE::DataInfoOp, 1>& userDataInfo,
+                                           vpux::DimsOrder& userDimsOrder) {
         for (const auto& p : userDataInfo | indexed) {
             userDimsOrder = p.value().getDimsOrder();
         }
@@ -143,7 +145,7 @@ void IdentifyChannelMajorConvolutionCompatibleOpsPass::safeRunOnFunc() {
         const auto IC = inputShape[IE::Dims4D::Filter::IC];
         auto inputTensorShape = getShape(convOp.input());
         auto width = inputTensorShape[IE::Dims4D::Act::W];
-    
+
         if ((userDimsOrder != DimsOrder::NCHW) || (IC != 3) || (width % 16 != 0)) {
             return true;
         }

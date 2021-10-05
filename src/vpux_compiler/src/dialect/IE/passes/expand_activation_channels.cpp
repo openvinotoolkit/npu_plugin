@@ -141,7 +141,7 @@ mlir::LogicalResult generalRewrite(mlir::Operation* origOp, mlir::PatternRewrite
     }
 
     return mlir::success();
-}  
+}
 
 //
 // MaxPoolRewriter
