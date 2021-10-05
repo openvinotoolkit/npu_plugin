@@ -891,7 +891,6 @@ static void addPermuteIOOpsFcn(const mv::pass::PassEntry&, mv::ComputationModel&
 
     /* Output layout compatibility */
 
-    return;
     /* Get out op */
     auto outputOps = om.getOps("Output");
 
@@ -913,7 +912,7 @@ static void addPermuteIOOpsFcn(const mv::pass::PassEntry&, mv::ComputationModel&
 
     for(auto outputOp : outputs)
     {
-        /* If output doesn't have it's order explicitly stated, then check are not necessary */
+        /* If output doesn't have it's order explicitly stated, then permute is not necesarry */
         if(outputOp->hasAttr("Order"))
         {
             auto outputOpOrder = outputOp->get<mv::Order>("Order");
@@ -925,13 +924,19 @@ static void addPermuteIOOpsFcn(const mv::pass::PassEntry&, mv::ComputationModel&
 
                 /* Undefine old flow */
                 auto flows = outputInTensor->getFlowNames();
-                for(auto flow : flows)
-                    om.undefineFlow(om.getDataFlow(flow));
+                for(auto flow_name : flows)
+                {
+                    auto flow = om.getDataFlow(flow_name);
+                    if(flow.sink() == outputOp)
+                    {
+                        om.undefineFlow(flow);
+                    }
+                }
 
                 /* Insert transpose op */
                 auto transposedData = om.permute(outputOp->getName() + "_permute", outputInTensor, mv::Order("NCHW"));
 
-                /* Set desired order after transpose (ToDo: Change transpose output_def function to avoid hackish implementation) */
+                /* Set desired output order */
                 transposedData->setOrder(outputOpOrder);
 
                 /* Link tensor from permute to op */
