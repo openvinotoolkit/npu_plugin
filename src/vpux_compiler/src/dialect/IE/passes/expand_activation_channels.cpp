@@ -70,47 +70,111 @@ mlir::LogicalResult generalRewrite(mlir::Operation* origOp, mlir::PatternRewrite
     auto* ctx = origOp->getContext();
 
     auto iface = mlir::cast<IE::AlignedChannelsOpInterface>(origOp);
-    const auto channelAlignement = iface.getChannelAlignment();
+
+    auto channelAlignement = iface.getOutputChannelAlignment();
+    auto inchannelAlignement = iface.getInputChannelAlignment();
 
     const auto inputType = origOp->getOperand(0).getType().cast<mlir::ShapedType>();
     const auto outputType = origOp->getResult(0).getType().cast<mlir::ShapedType>();
+    vpux::Shape inPadsEnd = getShape(inputType).toValues();
+    vpux::Shape outPadsEnd = getShape(outputType).toValues();
 
-    const auto inPadsEnd = calcPadsEnd(inputType, channelAlignement);
-    const auto outPadsEnd = calcPadsEnd(outputType, channelAlignement);
+    if (mlir::isa<IE::ConvolutionOp>(origOp)) {
+        auto convOp = mlir::dyn_cast<IE::ConvolutionOp>(*origOp);
 
-    log.trace("Input padding : {0}", inPadsEnd);
-    log.trace("Output padding : {0}", outPadsEnd);
+        if (convOp.channel_major_op()) {
+            inPadsEnd = calcPadsEnd(inputType, inchannelAlignement);
+            inPadsEnd[IE::Dims4D::Act::C] = 0;
+            inPadsEnd[IE::Dims4D::Act::H] = 0;
+            inPadsEnd[IE::Dims4D::Act::W] = 0;
+            inPadsEnd[IE::Dims4D::Act::N] = 0;
 
-    if (inPadsEnd[IE::Dims4D::Act::C] == 0 && outPadsEnd[IE::Dims4D::Act::C] == 0) {
-        return matchFailed(log, rewriter, origOp, "Both input and output channels are already aligned");
-    }
+        } else
+            inPadsEnd = calcPadsEnd(inputType, channelAlignement);
 
-    mlir::Value paddedInput;
-    if (inPadsEnd[IE::Dims4D::Act::C] == 0) {
-        log.trace("Input channels are already aligned");
-        paddedInput = origOp->getOperand(0);
+        const auto outPadsEnd = calcPadsEnd(outputType, channelAlignement);
+
+        log.trace("Input padding : {0}", inPadsEnd);
+        log.trace("Output padding : {0}", outPadsEnd);
+
+        if (inPadsEnd[IE::Dims4D::Act::C] == 0 && outPadsEnd[IE::Dims4D::Act::C] == 0 && !convOp.channel_major_op()) {
+            return matchFailed(log, rewriter, origOp, "Both input and output channels are already aligned");
+        }
+
+        mlir::Value paddedInput;
+        if (inPadsEnd[IE::Dims4D::Act::C] == 0) {
+            log.trace("Input channels are already aligned");
+            paddedInput = origOp->getOperand(0);
+        } else {
+            log.trace("Expand input tensor");
+            paddedInput =
+                    rewriter.create<IE::ExpandOp>(origOp->getLoc(), origOp->getOperand(0), None, ShapeRef(inPadsEnd));
+        }
+
+        log.trace("Create new operation with extended input and output");
+
+        auto* newOp = opCreator(paddedInput, outPadsEnd[IE::Dims4D::Act::C]);
+
+        if (outPadsEnd[IE::Dims4D::Act::C] == 0) {
+            log.trace("Output channels are already aligned");
+            rewriter.replaceOp(origOp, newOp->getResult(0));
+
+        } else {
+            log.trace("Extract meaningful part from extended output");
+
+            const auto outShape = outputType.getShape();
+            const SmallVector<int64_t> offsets(outShape.size(), 0);
+
+            auto subTensorOp =
+                    rewriter.create<IE::SliceOp>(origOp->getLoc(), origOp->getResult(0).getType(), newOp->getResult(0),
+                                                 getIntArrayAttr(ctx, offsets), getIntArrayAttr(ctx, outShape));
+
+            log.trace("new Op {0}", subTensorOp);
+            rewriter.replaceOp(origOp, subTensorOp.result());
+        }
+
     } else {
-        log.trace("Expand input tensor");
-        paddedInput = rewriter.create<IE::ExpandOp>(origOp->getLoc(), origOp->getOperand(0), None, ShapeRef(inPadsEnd));
-    }
+        inPadsEnd = calcPadsEnd(inputType, channelAlignement);
+        outPadsEnd = calcPadsEnd(outputType, channelAlignement);
 
-    log.trace("Create new operation with extended input and output");
-    auto* newOp = opCreator(paddedInput, outPadsEnd[IE::Dims4D::Act::C]);
+        log.trace("Input padding : {0}", inPadsEnd);
+        log.trace("Output padding : {0}", outPadsEnd);
 
-    if (outPadsEnd[IE::Dims4D::Act::C] == 0) {
-        log.trace("Output channels are already aligned");
-        rewriter.replaceOp(origOp, newOp->getResult(0));
-    } else {
-        log.trace("Extract meaningful part from extended output");
+        if (inPadsEnd[IE::Dims4D::Act::C] == 0 && outPadsEnd[IE::Dims4D::Act::C] == 0) {
+            return matchFailed(log, rewriter, origOp, "Both input and output channels are already aligned");
+        }
 
-        const auto outShape = outputType.getShape();
-        const SmallVector<int64_t> offsets(outShape.size(), 0);
+        mlir::Value paddedInput;
+        if (inPadsEnd[IE::Dims4D::Act::C] == 0) {
+            log.trace("Input channels are already aligned");
+            paddedInput = origOp->getOperand(0);
+        } else {
+            log.trace("Expand input tensor");
+            paddedInput =
+                    rewriter.create<IE::ExpandOp>(origOp->getLoc(), origOp->getOperand(0), None, ShapeRef(inPadsEnd));
+        }
 
-        auto subTensorOp =
-                rewriter.create<IE::SliceOp>(origOp->getLoc(), origOp->getResult(0).getType(), newOp->getResult(0),
-                                             getIntArrayAttr(ctx, offsets), getIntArrayAttr(ctx, outShape));
+        log.trace("Create new operation with extended input and output");
+        auto* newOp = opCreator(paddedInput, outPadsEnd[IE::Dims4D::Act::C]);
 
-        rewriter.replaceOp(origOp, subTensorOp.result());
+        auto testop = mlir::dyn_cast<IE::ConvolutionOp>(*newOp);
+        log.trace("new Op {0}", testop);
+
+        if (outPadsEnd[IE::Dims4D::Act::C] == 0) {
+            log.trace("Output channels are already aligned");
+            rewriter.replaceOp(origOp, newOp->getResult(0));
+        } else {
+            log.trace("Extract meaningful part from extended output");
+
+            const auto outShape = outputType.getShape();
+            const SmallVector<int64_t> offsets(outShape.size(), 0);
+
+            auto subTensorOp =
+                    rewriter.create<IE::SliceOp>(origOp->getLoc(), origOp->getResult(0).getType(), newOp->getResult(0),
+                                                 getIntArrayAttr(ctx, offsets), getIntArrayAttr(ctx, outShape));
+
+            rewriter.replaceOp(origOp, subTensorOp.result());
+        }
     }
 
     return mlir::success();
@@ -235,26 +299,23 @@ mlir::LogicalResult ConvolutionRewriter::matchAndRewrite(IE::ConvolutionOp origO
 }
 
 //
-// EltwiseRewriter
+// EltwiseAddRewriter
 //
 
-template <class ConcreteOp>
-class EltwiseRewriter final : public mlir::OpRewritePattern<ConcreteOp> {
+class EltwiseAddRewriter final : public mlir::OpRewritePattern<IE::AddOp> {
 public:
-    EltwiseRewriter(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<ConcreteOp>(ctx), _log(log) {
-        this->setDebugName("EltwiseRewriter");
+    EltwiseAddRewriter(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<IE::AddOp>(ctx), _log(log) {
+        setDebugName("EltwiseAddRewriter");
     }
 
-    mlir::LogicalResult matchAndRewrite(ConcreteOp origOp, mlir::PatternRewriter& rewriter) const final;
+    mlir::LogicalResult matchAndRewrite(IE::AddOp origOp, mlir::PatternRewriter& rewriter) const final;
 
 private:
     Logger _log;
 };
 
-template <class ConcreteOp>
-mlir::LogicalResult EltwiseRewriter<ConcreteOp>::matchAndRewrite(ConcreteOp origOp,
-                                                                 mlir::PatternRewriter& rewriter) const {
-    _log.trace("[{0}] Got eltwise layer at '{1}'", this->getDebugName(), origOp->getLoc());
+mlir::LogicalResult EltwiseAddRewriter::matchAndRewrite(IE::AddOp origOp, mlir::PatternRewriter& rewriter) const {
+    _log.trace("[{0}] Got AddOp layer at '{1}'", getDebugName(), origOp->getLoc());
 
     const auto opCreator = [&](mlir::Value expandedInput1, int64_t outChanPadEnd) -> mlir::Operation* {
         mlir::Value expandedInput2;
@@ -267,7 +328,7 @@ mlir::LogicalResult EltwiseRewriter<ConcreteOp>::matchAndRewrite(ConcreteOp orig
 
             const auto origShape = getShape(origOp.input2());
             const auto extendedShape = getShape(expandedInput1);
-            VPUX_THROW_UNLESS(origShape.size() == extendedShape.size(), "Got non equal shapes in EltwiseRewriter");
+            VPUX_THROW_UNLESS(origShape.size() == extendedShape.size(), "Got non equal shapes in EltwiseAddRewriter");
 
             const auto padsEnd = calcPadsEnd(origShape, extendedShape);
 
@@ -281,8 +342,8 @@ mlir::LogicalResult EltwiseRewriter<ConcreteOp>::matchAndRewrite(ConcreteOp orig
 
         const auto newOutputType = getPaddedType(origOp.getType(), outPadBefore, outPadAfter);
 
-        return rewriter.create<ConcreteOp>(origOp.getLoc(), newOutputType, expandedInput1, expandedInput2,
-                                           origOp.auto_broadcast(), origOp.post_opAttr());
+        return rewriter.create<IE::AddOp>(origOp.getLoc(), newOutputType, expandedInput1, expandedInput2,
+                                          origOp.auto_broadcast(), origOp.post_opAttr());
     };
 
     return generalRewrite(origOp, rewriter, opCreator, _log.nest());
@@ -385,6 +446,7 @@ private:
 
 void ExpandActivationChannelsPass::safeRunOnFunc() {
     auto& ctx = getContext();
+    auto func = getFunction();
 
     const auto isLegal = [&](mlir::Operation* op) {
         if (auto iface = mlir::dyn_cast<IE::AlignedChannelsOpInterface>(op)) {
@@ -402,13 +464,9 @@ void ExpandActivationChannelsPass::safeRunOnFunc() {
     mlir::RewritePatternSet patterns(&ctx);
     patterns.insert<MaxPoolRewriter>(&ctx, _log);
     patterns.insert<ConvolutionRewriter>(&ctx, _log);
-    patterns.insert<EltwiseRewriter<IE::AddOp>>(&ctx, _log);
-    patterns.insert<EltwiseRewriter<IE::MultiplyOp>>(&ctx, _log);
-    patterns.insert<EltwiseRewriter<IE::SubtractOp>>(&ctx, _log);
-    patterns.insert<EltwiseRewriter<IE::AndOp>>(&ctx, _log);
+    patterns.insert<EltwiseAddRewriter>(&ctx, _log);
     patterns.insert<GroupConvolutionRewriter>(&ctx, _log);
 
-    auto func = getFunction();
     if (mlir::failed(mlir::applyFullConversion(func, target, std::move(patterns)))) {
         signalPassFailure();
     }

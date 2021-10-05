@@ -76,9 +76,16 @@ int64_t vpux::VPUIP::NCEClusterTaskOp::getNumVariants() {
 
 void vpux::VPUIP::NCEClusterTaskOp::inferLayoutInfo(mlir::Operation* origOp, IE::LayerLayoutInfo& info) {
     llvm::TypeSwitch<mlir::Operation*, void>(origOp)
-            .Case<IE::ConvolutionOp>([&](IE::ConvolutionOp) {
-                info.setInput(0, DimsOrder::NHWC);
-                info.setInput(1, DimsOrder::OYXI);
+            .Case<IE::ConvolutionOp>([&](IE::ConvolutionOp op) {
+                if (op.channel_major_op()) {
+                    info.setInput(0, DimsOrder::NCHW);
+                    info.setInput(1, DimsOrder::OIYX);
+                    Logger::global().error("order: {0}", DimsOrder::OIYX);
+                } else {
+                    Logger::global().error("order: {0}", DimsOrder::OYXI);
+                    info.setInput(0, DimsOrder::NHWC);
+                    info.setInput(1, DimsOrder::OYXI);
+                }
                 info.setOutput(0, DimsOrder::NHWC);
             })
             .Case<IE::GroupConvolutionOp>([&](IE::GroupConvolutionOp) {
@@ -92,15 +99,6 @@ void vpux::VPUIP::NCEClusterTaskOp::inferLayoutInfo(mlir::Operation* origOp, IE:
             .Case<IE::AddOp>([&](IE::AddOp) {
                 info.fill(DimsOrder::NHWC);
             })
-            .Case<IE::MultiplyOp>([&](IE::MultiplyOp) {
-                info.fill(DimsOrder::NHWC);
-            })
-            .Case<IE::SubtractOp>([&](IE::SubtractOp) {
-                info.fill(DimsOrder::NHWC);
-            })
-            .Case<IE::AndOp>([&](IE::AndOp) {
-                info.fill(DimsOrder::NHWC);
-            })
             .Default([](mlir::Operation* unknownOp) -> bool {
                 VPUX_THROW("Operation '{0}' the operation is not supported by the DPU", unknownOp->getName());
             });
@@ -111,6 +109,65 @@ void vpux::VPUIP::NCEClusterTaskOp::inferLayoutInfo(mlir::Operation* origOp, IE:
 //
 
 namespace {
+
+mlir::LogicalResult verifyNCECMConv(VPUIP::NCEClusterTaskOp op) {
+    VPUX_THROW_UNLESS(op.task_type() == VPUIP::NCETaskType::CMCONV, "Expected task type '{0}', but got '{1}'",
+                      VPUIP::NCETaskType::CMCONV, op.task_type());
+
+    if (op.weights() == nullptr) {
+        return errorAt(op, "weights is required for NCETaskType : '{0}'", op.task_type());
+    }
+    if (op.weight_table() == nullptr) {
+        return errorAt(op, "weight_table is required for NCETaskType : '{0}'", op.task_type());
+    }
+
+    if (op.kernel_sizeAttr() == nullptr) {
+        return errorAt(op, "kernel_size is required for NCETaskType : '{0}'", op.task_type());
+    }
+    if (op.kernel_stridesAttr() == nullptr) {
+        return errorAt(op, "kernel_strides is required for NCETaskType : '{0}'", op.task_type());
+    }
+    if (op.kernel_paddingAttr() == nullptr) {
+        return errorAt(op, "kernel_padding is required for NCETaskType : '{0}'", op.task_type());
+    }
+
+    const auto kernelSize = parseIntArrayAttr<int64_t>(op.kernel_sizeAttr());
+    const auto KY = kernelSize[0];
+    const auto KX = kernelSize[1];
+
+    const auto kernelStrides = parseIntArrayAttr<int64_t>(op.kernel_stridesAttr());
+    const auto SY = kernelStrides[0];
+    const auto SX = kernelStrides[1];
+
+    const auto kernelPadding = parseIntArrayAttr<int64_t>(op.kernel_paddingAttr());
+    const auto padLeft = kernelPadding[0];
+    const auto padRight = kernelPadding[1];
+    const auto padTop = kernelPadding[2];
+    const auto padBottom = kernelPadding[3];
+
+    if (mlir::failed(VPUIP::NCEInvariant::verifyKernel(op->getLoc(), KY, KX, SY, SX, padTop, padBottom, padLeft,
+                                                       padRight))) {
+        return mlir::failure();
+    }
+
+    const auto weightsShape = getShape(op.weights());
+    const auto OC = weightsShape[IE::Dims4D::Filter::OC];
+
+    const auto weightTableShape = getShape(op.weight_table());
+    const auto weightTableNumElements = weightTableShape.totalSize();
+
+    if (OC * VPUIP::NCEInvariant::WEIGHT_TABLE_NUM_ELEMENTS_PER_OC != weightTableNumElements) {
+        return errorAt(op, "Weight table must have '{0}' elements, got '{1}'",
+                       OC * VPUIP::NCEInvariant::WEIGHT_TABLE_NUM_ELEMENTS_PER_OC, weightTableNumElements);
+    }
+
+    const auto weightsLayout = DimsOrder::fromValue(op.weights());
+    if (weightsLayout != DimsOrder::NHWC) {
+        return errorAt(op, "weights layout must be NHWC, got {0}", weightsLayout);
+    }
+
+    return mlir::success();
+}  
 
 mlir::LogicalResult verifyNCEConv(VPUIP::NCEClusterTaskOp op) {
     VPUX_THROW_UNLESS(op.task_type() == VPUIP::NCETaskType::CONV, "Expected task type '{0}', but got '{1}'",
@@ -335,6 +392,10 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(VPUIP::DPUTaskOp op) {
 mlir::LogicalResult vpux::VPUIP::verifyOp(VPUIP::NCEClusterTaskOp op) {
     if (op.task_type() == VPUIP::NCETaskType::CONV) {
         if (mlir::failed(verifyNCEConv(op))) {
+            return mlir::failure();
+        }
+    } else if (op.task_type() == VPUIP::NCETaskType::CMCONV) {
+        if (mlir::failed(verifyNCECMConv(op))) {
             return mlir::failure();
         }
     } else if (op.task_type() == VPUIP::NCETaskType::MAXPOOL || op.task_type() == VPUIP::NCETaskType::AVEPOOL) {

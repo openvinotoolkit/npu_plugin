@@ -12,12 +12,20 @@ mlir::LogicalResult verifyChannels();
 Verify channel alignement
 NOTE: This method *must* be implemented by the user.
 
-#### `getChannelAlignment`
+#### `getOutputChannelAlignment`
 
 ```c++
-int64_t getChannelAlignment();
+int64_t getOutputChannelAlignment();
 ```
 Get channel alignement factor in elements
+NOTE: This method *must* be implemented by the user.
+
+#### `getInputChannelAlignment`
+
+```c++
+int64_t getInputChannelAlignment();
+```
+Get input channel alignement factor in elements
 NOTE: This method *must* be implemented by the user.
 
 ## LayerOpInterface (`IE_LayerOpInterface`)
