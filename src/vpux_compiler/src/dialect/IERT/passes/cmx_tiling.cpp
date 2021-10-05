@@ -120,7 +120,7 @@ mlir::LogicalResult ConvolutionTiling::matchAndRewrite(IERT::ConvolutionOp origO
         auto tiledOp = rewriter.create<IERT::ConvolutionOp>(loc, actInput, filterInput, biasInput, allocOutOp.memref(),
                                                             origOp.strides(), getIntArrayAttr(getContext(), padsBegin),
                                                             getIntArrayAttr(getContext(), padsEnd), origOp.dilations(),
-                                                            origOp.post_opAttr());
+                                                            origOp.post_opAttr(), origOp.channel_major_opAttr());
 
         const auto attrOffsets = getIntArrayAttr(rewriter.getContext(), outputTile.offsets.raw());
         const auto attrShape = getIntArrayAttr(rewriter.getContext(), outputTile.shape.raw());
@@ -397,7 +397,7 @@ OutputTiling SimpleTiler::genericTiler(mlir::Operation* op, mlir::MemRefType out
                                        FuncRef<bool(ShapeRef)> isSupportedTileSize) const {
     const auto outputShape = getShape(outputType);
 
-    const auto minChannelSize = VPUIP::NCEInvariant::getChannelAlignment(outputType.getElementType());
+    const auto minChannelSize = VPUIP::NCEInvariant::getOutputChannelAlignment(outputType.getElementType());
     const auto maxChannelTiles = outputShape[IE::Dims4D::Act::C] / minChannelSize;
 
     Shape nTilesOnDim(outputShape.size(), 1);
@@ -462,7 +462,7 @@ OutputTiling SimpleTiler::groupConvTiler(mlir::Operation* op, mlir::MemRefType o
 
     // FIXME tiling over channels has to leave 16 channels in each tile.
     // Otherwise, depthwise convolutions produce worse accuracy.
-    const auto depthwiseOutChanCount = VPUIP::NCEInvariant::getChannelAlignment(outputType.getElementType());
+    const auto depthwiseOutChanCount = VPUIP::NCEInvariant::getOutputChannelAlignment(outputType.getElementType());
     VPUX_THROW_UNLESS(outputShape[IE::Dims4D::Act::C] % depthwiseOutChanCount == 0,
                       "Depthwise convolution output channels must be a multiple of {0}, got {1}", depthwiseOutChanCount,
                       outputShape[IE::Dims4D::Act::C]);

@@ -84,14 +84,23 @@ public:
         return VPUIP::NCEInvariant::verifyChannels(mlir::cast<MainOpType>(op));
     }
 
-    int64_t getChannelAlignment(mlir::Operation* op) const {
+    int64_t getOutputChannelAlignment(mlir::Operation* op) const {
         if (!canBeExecutedOnNCE(op)) {
             // SW version of the operation has no specific requirements
             return 1;
         }
 
         const auto inputType = op->getOperand(0).getType().cast<mlir::ShapedType>();
-        return VPUIP::NCEInvariant::getChannelAlignment(inputType.getElementType());
+        return VPUIP::NCEInvariant::getOutputChannelAlignment(inputType.getElementType());
+    }
+
+    int64_t getInputChannelAlignment(mlir::Operation* op) const {
+        if (!canBeExecutedOnNCE(op)) {
+            // SW version of the operation has no specific requirements
+            return 1;
+        }
+
+        return VPUIP::NCEInvariant::getInputChannelAlignment(op);
     }
 
 private:
