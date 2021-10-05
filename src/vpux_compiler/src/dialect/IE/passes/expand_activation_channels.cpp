@@ -100,6 +100,39 @@ mlir::LogicalResult generalRewrite(mlir::Operation* origOp, mlir::PatternRewrite
         if (inPadsEnd[IE::Dims4D::Act::C] == 0 && outPadsEnd[IE::Dims4D::Act::C] == 0 && !convOp.channel_major_op()) {
             return matchFailed(log, rewriter, origOp, "Both input and output channels are already aligned");
         }
+
+        mlir::Value paddedInput;
+        if (inPadsEnd[IE::Dims4D::Act::C] == 0) {
+            log.trace("Input channels are already aligned");
+            paddedInput = origOp->getOperand(0);
+        } else {
+            log.trace("Expand input tensor");
+            paddedInput =
+                    rewriter.create<IE::ExpandOp>(origOp->getLoc(), origOp->getOperand(0), None, ShapeRef(inPadsEnd));
+        }
+
+        log.trace("Create new operation with extended input and output");
+
+        auto* newOp = opCreator(paddedInput, outPadsEnd[IE::Dims4D::Act::C]);
+
+        if (outPadsEnd[IE::Dims4D::Act::C] == 0) {
+            log.trace("Output channels are already aligned");
+            rewriter.replaceOp(origOp, newOp->getResult(0));
+
+        } else {
+            log.trace("Extract meaningful part from extended output");
+
+            const auto outShape = outputType.getShape();
+            const SmallVector<int64_t> offsets(outShape.size(), 0);
+
+            auto subTensorOp =
+                    rewriter.create<IE::SliceOp>(origOp->getLoc(), origOp->getResult(0).getType(), newOp->getResult(0),
+                                                 getIntArrayAttr(ctx, offsets), getIntArrayAttr(ctx, outShape));
+
+            log.trace("new Op {0}", subTensorOp);
+            rewriter.replaceOp(origOp, subTensorOp.result());
+        }
+
     } else {
         inPadsEnd = calcPadsEnd(inputType, channelAlignement);
         outPadsEnd = calcPadsEnd(outputType, channelAlignement);
@@ -110,34 +143,38 @@ mlir::LogicalResult generalRewrite(mlir::Operation* origOp, mlir::PatternRewrite
         if (inPadsEnd[IE::Dims4D::Act::C] == 0 && outPadsEnd[IE::Dims4D::Act::C] == 0) {
             return matchFailed(log, rewriter, origOp, "Both input and output channels are already aligned");
         }
-    }
 
-    mlir::Value paddedInput;
-    if (inPadsEnd[IE::Dims4D::Act::C] == 0) {
-        log.trace("Input channels are already aligned");
-        paddedInput = origOp->getOperand(0);
-    } else {
-        log.trace("Expand input tensor");
-        paddedInput = rewriter.create<IE::ExpandOp>(origOp->getLoc(), origOp->getOperand(0), None, ShapeRef(inPadsEnd));
-    }
+        mlir::Value paddedInput;
+        if (inPadsEnd[IE::Dims4D::Act::C] == 0) {
+            log.trace("Input channels are already aligned");
+            paddedInput = origOp->getOperand(0);
+        } else {
+            log.trace("Expand input tensor");
+            paddedInput =
+                    rewriter.create<IE::ExpandOp>(origOp->getLoc(), origOp->getOperand(0), None, ShapeRef(inPadsEnd));
+        }
 
-    log.trace("Create new operation with extended input and output");
-    auto* newOp = opCreator(paddedInput, outPadsEnd[IE::Dims4D::Act::C]);
+        log.trace("Create new operation with extended input and output");
+        auto* newOp = opCreator(paddedInput, outPadsEnd[IE::Dims4D::Act::C]);
 
-    if (outPadsEnd[IE::Dims4D::Act::C] == 0) {
-        log.trace("Output channels are already aligned");
-        rewriter.replaceOp(origOp, newOp->getResult(0));
-    } else {
-        log.trace("Extract meaningful part from extended output");
+        auto testop = mlir::dyn_cast<IE::ConvolutionOp>(*newOp);
+        log.trace("new Op {0}", testop);
 
-        const auto outShape = outputType.getShape();
-        const SmallVector<int64_t> offsets(outShape.size(), 0);
+        if (outPadsEnd[IE::Dims4D::Act::C] == 0) {
+            log.trace("Output channels are already aligned");
+            rewriter.replaceOp(origOp, newOp->getResult(0));
+        } else {
+            log.trace("Extract meaningful part from extended output");
 
-        auto subTensorOp =
-                rewriter.create<IE::SliceOp>(origOp->getLoc(), origOp->getResult(0).getType(), newOp->getResult(0),
-                                             getIntArrayAttr(ctx, offsets), getIntArrayAttr(ctx, outShape));
+            const auto outShape = outputType.getShape();
+            const SmallVector<int64_t> offsets(outShape.size(), 0);
 
-        rewriter.replaceOp(origOp, subTensorOp.result());
+            auto subTensorOp =
+                    rewriter.create<IE::SliceOp>(origOp->getLoc(), origOp->getResult(0).getType(), newOp->getResult(0),
+                                                 getIntArrayAttr(ctx, offsets), getIntArrayAttr(ctx, outShape));
+
+            rewriter.replaceOp(origOp, subTensorOp.result());
+        }
     }
 
     return mlir::success();
