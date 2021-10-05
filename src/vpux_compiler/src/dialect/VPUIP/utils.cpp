@@ -29,7 +29,7 @@ mlir::Value alignDepthWiseWeightsTensor(mlir::OpBuilder& builder, mlir::Location
     const auto KX = filterShape[Dims4D::Filter::KX];
 
     const auto origFilterType = origFilter.getType().cast<mlir::ShapedType>();
-    const auto depthwiseConvAlignment = VPUIP::NCEInvariant::getChannelAlignment(origFilterType.getElementType());
+    const auto depthwiseConvAlignment = VPUIP::NCEInvariant::getOutputChannelAlignment(origFilterType.getElementType());
     const int64_t remainder = (filtersPerInChan * KY * KX) % depthwiseConvAlignment;
     VPUX_THROW_UNLESS(remainder >= 0, "Channel alignment cannot be negative: {0}", remainder);
     if (remainder == 0) {

@@ -31,11 +31,12 @@ public:
     static const vpux::EnumMap<vpux::VPUIP::ArchKind, PPEConverterCb> ppeConvertersMap;
     static const vpux::EnumMap<vpux::VPUIP::ArchKind, BiasConverterCb> biasConvertersMap;
 
-    static int64_t getBitPatternSize(mlir::ArrayRef<int64_t> kernelSize, int64_t strideW, mlir::Type elemType);
+    static int64_t getBitPatternSize(mlir::ArrayRef<int64_t> kernelSize, int64_t strideW,
+                                                    mlir::Type elemType, int64_t inputChannels);
     static int64_t getActivationWindowSize(mlir::ArrayRef<int64_t> kernelSize, int64_t strideW, mlir::Type elemType,
                                            int64_t inputChannels);
-    static std::vector<uint8_t> getFakeSparsity(mlir::ArrayRef<int64_t> kernelSize, int64_t strideW,
-                                                mlir::Type elemType, int64_t inputChannels);
+    static std::vector<uint8_t> getFakeSparsity(vpux::VPUIP::NCETaskType taskType, mlir::ArrayRef<int64_t> kernelSize, int64_t strideW,
+                                                mlir::Type elemType, int64_t inputChannels, int64_t outputChannels);
 
     static std::vector<int32_t> getWeightsTable(mlir::Type op_inElemType, mlir::Type op_outElemType,
                                                 Optional<int32_t> weightPtrOffset, int32_t weightPtrStep,

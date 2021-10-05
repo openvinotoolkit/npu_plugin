@@ -562,7 +562,8 @@ def IE_ConvolutionOp :
         I64ArrayAttr:$pads_end,
         I64ArrayAttr:$dilations,
 
-        OptionalAttr<IE_PostOp>:$post_op
+        OptionalAttr<IE_PostOp>:$post_op,
+        DefaultValuedAttr<BoolAttr, "0">:$channel_major_op
     );
 
     let results = (outs
