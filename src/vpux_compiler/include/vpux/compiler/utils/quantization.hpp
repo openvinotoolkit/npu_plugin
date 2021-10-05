@@ -44,10 +44,11 @@ mlir::quant::UniformQuantizedPerAxisType concatScalesAndZP(ArrayRef<mlir::quant:
 using Scales = SmallVector<double>;
 using ZeroPoints = SmallVector<int64_t>;
 
-std::pair<Scales, ZeroPoints> extractScalesAndZeroPoints(mlir::Type tensorElemType, size_t quantDimSize);
+std::pair<Scales, ZeroPoints> extractScalesAndZeroPoints(mlir::Type tensorElemType);
 
 uint16_t getQuantMultFromScale(double quantScale);
 uint8_t getQuantShiftFromScale(double quantScale);
+std::pair<uint8_t, int8_t> getQuantShiftAndPostShiftFromScale(double quantScale);
 
 //
 // FakeQuantize support

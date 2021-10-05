@@ -123,9 +123,10 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createUPALayerTask(mlir
 
 VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensor(
         StringRef name, mlir::ShapedType type, MemoryLocation locale, ArrayRef<uint32_t> localeIndex, int64_t dataIndex,
-        ArrayRef<uint16_t> mult, ArrayRef<uint8_t> shift, ArrayRef<uint8_t> zeroPoints, Optional<int64_t> sparsityIndex,
-        Optional<int64_t> storageElementIndex, Optional<int64_t> storageElementSize, Optional<int64_t> leadingOffset,
-        Optional<int64_t> trailingOffset, Optional<double> density_rate, Optional<int64_t> swizzling_key) {
+        ArrayRef<uint16_t> mult, ArrayRef<uint8_t> shift, int8_t postShift, ArrayRef<uint8_t> zeroPoints,
+        Optional<int64_t> sparsityIndex, Optional<int64_t> storageElementIndex, Optional<int64_t> storageElementSize,
+        Optional<int64_t> leadingOffset, Optional<int64_t> trailingOffset, Optional<double> density_rate,
+        Optional<int64_t> swizzling_key) {
     const auto serializedName = createString(name);
 
     const auto serializedDataType = createDType(type.getElementType());
@@ -156,6 +157,7 @@ VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensor(
     builder.add_quant_zero(serializedQuantZero);
     builder.add_quant_mult(serializedQuantMult);
     builder.add_quant_shift(serializedQuantShift);
+    builder.add_quant_post_shift_right(postShift);
     builder.add_order(dimsOrder.code());
     builder.add_base_ptrs(basePtrs);
     if (leadingOffset.hasValue()) {
@@ -204,7 +206,7 @@ VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensor(
         shift.push_back(0);
     }
 
-    return createTensor(name, type, locale, localeIndex, dataIndex, mult, shift, zeroPoints, sparsityIndex,
+    return createTensor(name, type, locale, localeIndex, dataIndex, mult, shift, 0, zeroPoints, sparsityIndex,
                         storageElementIndex, storageElementSize, leadingOffset, trailingOffset, density_rate,
                         swizzling_key);
 }
