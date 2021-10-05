@@ -76,27 +76,40 @@ mlir::LogicalResult generalRewrite(mlir::Operation* origOp, mlir::PatternRewrite
 
     const auto inputType = origOp->getOperand(0).getType().cast<mlir::ShapedType>();
     const auto outputType = origOp->getResult(0).getType().cast<mlir::ShapedType>();
-
-    auto convOp = mlir::dyn_cast<IE::ConvolutionOp>(*origOp);
-
     vpux::Shape inPadsEnd = getShape(inputType).toValues();
-    if (convOp.channel_major_op()) {
-        inPadsEnd = calcPadsEnd(inputType, inchannelAlignement);
-        inPadsEnd[IE::Dims4D::Act::C] = 0;
-        inPadsEnd[IE::Dims4D::Act::H] = 0;
-        inPadsEnd[IE::Dims4D::Act::W] = 0;
-        inPadsEnd[IE::Dims4D::Act::N] = 0;
+    vpux::Shape outPadsEnd = getShape(outputType).toValues();
 
-    } else
+    if (mlir::isa<IE::ConvolutionOp>(origOp)) {
+        auto convOp = mlir::dyn_cast<IE::ConvolutionOp>(*origOp);
+
+        if (convOp.channel_major_op()) {
+            inPadsEnd = calcPadsEnd(inputType, inchannelAlignement);
+            inPadsEnd[IE::Dims4D::Act::C] = 0;
+            inPadsEnd[IE::Dims4D::Act::H] = 0;
+            inPadsEnd[IE::Dims4D::Act::W] = 0;
+            inPadsEnd[IE::Dims4D::Act::N] = 0;
+
+        } else
+            inPadsEnd = calcPadsEnd(inputType, channelAlignement);
+
+        const auto outPadsEnd = calcPadsEnd(outputType, channelAlignement);
+
+        log.trace("Input padding : {0}", inPadsEnd);
+        log.trace("Output padding : {0}", outPadsEnd);
+
+        if (inPadsEnd[IE::Dims4D::Act::C] == 0 && outPadsEnd[IE::Dims4D::Act::C] == 0 && !convOp.channel_major_op()) {
+            return matchFailed(log, rewriter, origOp, "Both input and output channels are already aligned");
+        }
+    } else {
         inPadsEnd = calcPadsEnd(inputType, channelAlignement);
+        outPadsEnd = calcPadsEnd(outputType, channelAlignement);
 
-    const auto outPadsEnd = calcPadsEnd(outputType, channelAlignement);
+        log.trace("Input padding : {0}", inPadsEnd);
+        log.trace("Output padding : {0}", outPadsEnd);
 
-    log.trace("Input padding : {0}", inPadsEnd);
-    log.trace("Output padding : {0}", outPadsEnd);
-
-    if (inPadsEnd[IE::Dims4D::Act::C] == 0 && outPadsEnd[IE::Dims4D::Act::C] == 0 && !convOp.channel_major_op()) {
-        return matchFailed(log, rewriter, origOp, "Both input and output channels are already aligned");
+        if (inPadsEnd[IE::Dims4D::Act::C] == 0 && outPadsEnd[IE::Dims4D::Act::C] == 0) {
+            return matchFailed(log, rewriter, origOp, "Both input and output channels are already aligned");
+        }
     }
 
     mlir::Value paddedInput;
@@ -128,7 +141,7 @@ mlir::LogicalResult generalRewrite(mlir::Operation* origOp, mlir::PatternRewrite
     }
 
     return mlir::success();
-}
+}  
 
 //
 // MaxPoolRewriter
