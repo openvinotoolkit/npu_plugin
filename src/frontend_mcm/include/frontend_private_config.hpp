@@ -51,6 +51,8 @@ DECLARE_VPU_COMPILER_CONFIG_KEY(OPTIMIZE_INPUT_PRECISION);
  */
 DECLARE_VPU_COMPILER_CONFIG_KEY(FORCE_PLUGIN_INPUT_QUANTIZATION);
 
+// Perform fp16 to fp32 output conversion on host side, not on device
+// Default: enabled for Windows platform
 DECLARE_VPU_COMPILER_CONFIG_KEY(OUTPUT_FP16_TO_FP32_HOST_CONVERSION);
 
 }  // namespace VPUXConfigParams
