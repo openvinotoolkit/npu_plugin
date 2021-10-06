@@ -2706,11 +2706,11 @@ def VPUIP_LSTMCellUPAOp :
 def VPUIP_SW_Kernel_run
     : VPUIP_Op<"SW.Kernel.run"> {
 
-let arguments  = (ins
-        FlatSymbolRefAttr:$kernelFunction,
-        Variadic<AnyMemRef>:$args
+    let arguments  = (ins
+        Variadic<AnyType>:$args
     );
 
+/*
   let printer = [{ return print(p, *this); }];
   let parser = [{ return parse$cppClass(parser, result); }];
 
@@ -2718,18 +2718,16 @@ let arguments  = (ins
         static mlir::ParseResult parseSW_Kernel_run(mlir::OpAsmParser& parser, ::mlir::OperationState &result);
         static void print(mlir::OpAsmPrinter& printer, SW_Kernel_run &runner);
        }];
+*/
 
 
-
-   /* let assemblyFormat = [{
+    let assemblyFormat = [{
         attr-dict
-        `(` $inputs `,` $outputs
-        (',' $callArg3^)?
-        (',' $callArg4^)?
-        `)`
-    }];*/
+        `(` operands
+        `)` `:` type(operands)
+    }];
 
-    let results = (outs Variadic<AnyMemRef>:$results);
+//    let results = (outs Variadic<AnyMemRef>:$results);
 }
 
 //
@@ -2740,8 +2738,8 @@ let arguments  = (ins
 def VPUIP_SW_Kernel :
         VPUIP_TaskOp<1, "SW.Kernel",
             [
-                ViewLikeOpInterface,
-                NoRegionArguments
+                ViewLikeOpInterface
+//                NoRegionArguments
             ]
             # GraphRegionNoTerminator.traits
         > {
@@ -2753,7 +2751,7 @@ def VPUIP_SW_Kernel :
     }];
 
     let arguments = (ins
-        FlatSymbolRefAttr:$kernelFunction,
+        SymbolRefAttr:$kernelFunction,
         Variadic<AnyMemRef>:$inputs,
         Variadic<AnyMemRef>:$outputs,
         OptionalAttr<IntAttr>:$tileIndex,

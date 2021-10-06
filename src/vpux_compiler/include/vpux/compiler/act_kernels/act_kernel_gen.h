@@ -35,7 +35,13 @@ struct ActKernelDesc {
     KernelDataDesc data;
 };
 
-ActKernelDesc compileKernelForACTShave(mlir::StringRef funcName,
+struct CompilationUnitDesc {
+    mlir::StringRef name;
+    mlir::StringRef entry;
+    mlir::StringRef codePath;
+};
+
+ActKernelDesc compileKernelForACTShave(const CompilationUnitDesc& unitDesc,
                                        const movitools::MoviCompileParams& params,
                                        flatbuffers::FlatBufferBuilder& fbb);
 
