@@ -329,7 +329,9 @@ void getOutputAfterInference(IE::Blob::Ptr& userOutput, const IE::TensorDesc& de
             IE_THROW() << "Blob data null pointer";
         }
     }
-    if (userLayout != deviceLayout) {
+    // Conversion to 2D/1D doesn't require any layout transformations, only plain memory copying is enough
+    const auto isPlainCopy = userOutput->getTensorDesc().getDims().size() <= 2;
+    if (userLayout != deviceLayout && !isPlainCopy) {
         logger->info("Different layouts of pull blobs. Conversion required");
         expectedOutput = toLayout(IE::as<IE::MemoryBlob>(expectedOutput), userLayout);
         if (expectedOutput == nullptr) {
