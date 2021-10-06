@@ -73,6 +73,22 @@ mlir::LogicalResult CopyOpSequence::matchAndRewrite(IERT::CopyOp copyOp, mlir::P
         if (!parentCopyOpSource.hasOneUse() || !copyOp.input().hasOneUse() || !copyOp.output().hasOneUse()) {
             return mlir::failure();
         }
+
+        auto childCopyOpOutput = copyOp.output();
+        auto destinationMemory = VPUIP::getPhysicalMemory(childCopyOpOutput.getType().cast<mlir::MemRefType>());
+        if (mlir::succeeded(destinationMemory) && destinationMemory.getValue() == VPUIP::PhysicalMemory::CMX_NN) {
+            // Check if copyOp result in CMX is used by operation which has multiple activation inputs
+            // like DPU Eltwise to prevent from CMX allocation problem when data in one of branches occupies CMX
+            // and prevents reserving memory for execution of other branch.
+            // This temporary check should be deleted after support for dynamic spilling gets integrated
+            for (auto* copyUser : childCopyOpOutput.getUsers()) {
+                if (auto nceTask = mlir::dyn_cast_or_null<VPUIP::NCEClusterTaskOp>(copyUser)) {
+                    if (nceTask.task_type() == VPUIP::NCETaskType::ELTWISE) {
+                        return mlir::failure();
+                    }
+                }
+            }
+        }
     }
 
     rewriter.replaceOpWithNewOp<IERT::CopyOp>(copyOp, parentCopyOp.input(), copyOp.output_buff());
