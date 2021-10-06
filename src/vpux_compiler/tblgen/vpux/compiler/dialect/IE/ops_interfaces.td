@@ -114,7 +114,7 @@ def IE_AlignedChannelsOpInterface : OpInterface<"AlignedChannelsOpInterface"> {
     let methods = [
         InterfaceMethod<
             "Verify channel alignement",
-            "mlir::LogicalResult", "verifyChannels", (ins)
+            "mlir::LogicalResult", "verifyDims", (ins)
         >,
 
         InterfaceMethod<

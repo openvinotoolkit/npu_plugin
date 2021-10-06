@@ -75,14 +75,14 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyConvChannels(bool channelMa
     return mlir::success();
 }
 
-mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyChannels(IE::ConvolutionOp origOp, Logger log) {
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyDims(IE::ConvolutionOp origOp, Logger log) {
     auto inputTensorShape = getShape(origOp.input());
     auto width = inputTensorShape[IE::Dims4D::Act::W];
     return verifyConvChannels(origOp.channel_major_op(), origOp->getLoc(), origOp.filter().getType().cast<mlir::ShapedType>(), width, log);
 
 }
 
-mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyChannels(IERT::ConvolutionOp origOp, Logger log) {
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyDims(IERT::ConvolutionOp origOp, Logger log) {
     auto inputTensorShape = getShape(origOp.input());
     auto width = inputTensorShape[IE::Dims4D::Act::W];
     return verifyConvChannels(origOp.channel_major_op(), origOp->getLoc(), origOp.filter().getType().cast<mlir::ShapedType>(), width, log);
@@ -114,11 +114,11 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPoolChannels(mlir::Location
     return mlir::success();
 }
 
-mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyChannels(IE::MaxPoolOp origOp, Logger log) {
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyDims(IE::MaxPoolOp origOp, Logger log) {
     return verifyPoolChannels(origOp->getLoc(), origOp.input().getType().cast<mlir::ShapedType>(), log);
 }
 
-mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyChannels(IERT::MaxPoolOp origOp, Logger log) {
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyDims(IERT::MaxPoolOp origOp, Logger log) {
     return verifyPoolChannels(origOp->getLoc(), origOp.input().getType().cast<mlir::ShapedType>(), log);
 }
 
@@ -158,49 +158,49 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyEltwiseChannels(mlir::Locat
     return mlir::success();
 }
 
-mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyChannels(IE::AddOp origOp, Logger log) {
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyDims(IE::AddOp origOp, Logger log) {
     auto input1Type = origOp.input1().getType().cast<mlir::ShapedType>();
     auto input2Type = origOp.input2().getType().cast<mlir::ShapedType>();
     return verifyEltwiseChannels(origOp->getLoc(), input1Type, input2Type, log);
 }
 
-mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyChannels(IERT::AddOp origOp, Logger log) {
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyDims(IERT::AddOp origOp, Logger log) {
     auto input1Type = origOp.input1().getType().cast<mlir::ShapedType>();
     auto input2Type = origOp.input2().getType().cast<mlir::ShapedType>();
     return verifyEltwiseChannels(origOp->getLoc(), input1Type, input2Type, log);
 }
 
-mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyChannels(IE::MultiplyOp origOp, Logger log) {
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyDims(IE::MultiplyOp origOp, Logger log) {
     auto input1Type = origOp.input1().getType().cast<mlir::ShapedType>();
     auto input2Type = origOp.input2().getType().cast<mlir::ShapedType>();
     return verifyEltwiseChannels(origOp->getLoc(), input1Type, input2Type, log);
 }
 
-mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyChannels(IERT::MultiplyOp origOp, Logger log) {
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyDims(IERT::MultiplyOp origOp, Logger log) {
     auto input1Type = origOp.input1().getType().cast<mlir::ShapedType>();
     auto input2Type = origOp.input2().getType().cast<mlir::ShapedType>();
     return verifyEltwiseChannels(origOp->getLoc(), input1Type, input2Type, log);
 }
 
-mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyChannels(IE::SubtractOp origOp, Logger log) {
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyDims(IE::SubtractOp origOp, Logger log) {
     auto input1Type = origOp.input1().getType().cast<mlir::ShapedType>();
     auto input2Type = origOp.input2().getType().cast<mlir::ShapedType>();
     return verifyEltwiseChannels(origOp->getLoc(), input1Type, input2Type, log);
 }
 
-mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyChannels(IERT::SubtractOp origOp, Logger log) {
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyDims(IERT::SubtractOp origOp, Logger log) {
     auto input1Type = origOp.input1().getType().cast<mlir::ShapedType>();
     auto input2Type = origOp.input2().getType().cast<mlir::ShapedType>();
     return verifyEltwiseChannels(origOp->getLoc(), input1Type, input2Type, log);
 }
 
-mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyChannels(IE::AndOp origOp, Logger log) {
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyDims(IE::AndOp origOp, Logger log) {
     auto input1Type = origOp.input1().getType().cast<mlir::ShapedType>();
     auto input2Type = origOp.input2().getType().cast<mlir::ShapedType>();
     return verifyEltwiseChannels(origOp->getLoc(), input1Type, input2Type, log);
 }
 
-mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyChannels(IERT::AndOp origOp, Logger log) {
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyDims(IERT::AndOp origOp, Logger log) {
     auto input1Type = origOp.input1().getType().cast<mlir::ShapedType>();
     auto input2Type = origOp.input2().getType().cast<mlir::ShapedType>();
     return verifyEltwiseChannels(origOp->getLoc(), input1Type, input2Type, log);
@@ -247,12 +247,12 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyGroupConvChannels(mlir::Loc
     return mlir::success();
 }
 
-mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyChannels(IE::GroupConvolutionOp origOp, Logger log) {
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyDims(IE::GroupConvolutionOp origOp, Logger log) {
     return verifyGroupConvChannels(origOp->getLoc(), origOp.input().getType().cast<mlir::ShapedType>(),
                                    origOp.filter().getType().cast<mlir::ShapedType>(), log);
 }
 
-mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyChannels(IERT::GroupConvolutionOp origOp, Logger log) {
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyDims(IERT::GroupConvolutionOp origOp, Logger log) {
     return verifyGroupConvChannels(origOp->getLoc(), origOp.input().getType().cast<mlir::ShapedType>(),
                                    origOp.filter().getType().cast<mlir::ShapedType>(), log);
 }
@@ -832,7 +832,7 @@ mlir::LogicalResult verifyConcreteOp(ConcreteOp origOp, Logger log) {
         return mlir::failure();
     }
 
-    if (mlir::failed(VPUIP::NCEInvariant::verifyChannels(origOp, log))) {
+    if (mlir::failed(VPUIP::NCEInvariant::verifyDims(origOp, log))) {
         return mlir::failure();
     }
 
