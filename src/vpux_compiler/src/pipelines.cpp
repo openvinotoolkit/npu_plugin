@@ -151,7 +151,7 @@ void vpux::buildHardwareModePipeline(mlir::OpPassManager& pm, bool enableProfili
     // IE Dialect level
     pm.addPass(IE::createConvertFCToConvPass(log));
     pm.addPass(IE::createConvertAvgPoolToDWConvPass(log));
-    //pm.addPass(IE::createConvertScaleShiftToDWPass(log));
+    pm.addPass(IE::createConvertScaleShiftToDWPass(log));
     // Canonicalize group convolution if necessary.
     pm.addPass(mlir::createCanonicalizerPass(grc));
     IE::buildAdjustForVPUPipeline(pm, log);
