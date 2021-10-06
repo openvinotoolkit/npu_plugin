@@ -29,7 +29,6 @@ for arguments in argumentList :
 try:
     arguments, values = getopt.getopt(argumentList, unixOptions, gnuOptions)
 except getopt.error as err:
-    # output error, and return with an error code
     print (str(err))
     sys.exit(2)
 
@@ -52,8 +51,6 @@ for currentArgument, currentValue in arguments:
     elif currentArgument in ("-o", "--path_to_output_blob"):
         print ("path_to_output_blobs (%s)" % currentValue)
         path_to_output_blobs.append(currentValue)
-
-# check that all args has been provided
 
 # copy network blob
 command = "cp " + path_to_network_blob + " " + path_to_IEDemo_dir + "/test.blob"
@@ -79,19 +76,17 @@ for i in path_to_input_blobs :
     os.system(command)
     inputs_counter += 1
 
-## prepare IEDemo
-
-## prepare config
+# prepare config
 command = "cd " + path_to_IEDemo_dir + " && make -f Makefile prepare-kconfig"
 print(command)
 os.system(command)
 
-## make elf
+# make elf
 command = "cd " + path_to_IEDemo_dir + " && make -j8 CONFIG_FILE=.config_sim_3720xx CONFIG_NN_LOG_VERBOSITY_LRT_WARN=y CONFIG_NN_LOG_VERBOSITY_LRT_INFO=n CONFIG_NN_LOG_VERBOSITY_LNN_WARN=y CONFIG_NN_LOG_VERBOSITY_LNN_INFO=n CONFIG_NN_LOG_VERBOSITY_SNN_WARN=y CONFIG_NN_LOG_VERBOSITY_SNN_INFO=n CONFIG_PROFILING_MASK=\"0b00000000\""
 print(command)
 os.system(command)
 
-## run inference
+# run inference
 command = "cd " + path_to_IEDemo_dir + " && " + path_to_moviSim_dir + "/moviSim -cv:3700xx -nodasm -q -l:LRT:./mvbuild/3720/InferenceManagerDemo.elf"
 print(command)
 os.system(command)
