@@ -55,33 +55,33 @@ public:
                                                   mlir::ArrayAttr kernelStrides, Logger log = Logger::global());
 
 public:
-    static mlir::LogicalResult verifyChannels(IE::ConvolutionOp origOp, Logger log = Logger::global());
-    static mlir::LogicalResult verifyChannels(IERT::ConvolutionOp origOp, Logger log = Logger::global());
+    static mlir::LogicalResult verifyDims(IE::ConvolutionOp origOp, Logger log = Logger::global());
+    static mlir::LogicalResult verifyDims(IERT::ConvolutionOp origOp, Logger log = Logger::global());
     static mlir::LogicalResult verifyConvChannels(bool channelMajorConvolution, mlir::Location loc, mlir::ShapedType filterType,
                                                   int64_t width, Logger log = Logger::global());
 
-    static mlir::LogicalResult verifyChannels(IE::MaxPoolOp origOp, Logger log = Logger::global());
-    static mlir::LogicalResult verifyChannels(IERT::MaxPoolOp origOp, Logger log = Logger::global());
+    static mlir::LogicalResult verifyDims(IE::MaxPoolOp origOp, Logger log = Logger::global());
+    static mlir::LogicalResult verifyDims(IERT::MaxPoolOp origOp, Logger log = Logger::global());
     static mlir::LogicalResult verifyPoolChannels(mlir::Location loc, mlir::ShapedType inputType,
                                                   Logger log = Logger::global());
 
-    static mlir::LogicalResult verifyChannels(IE::AddOp origOp, Logger log = Logger::global());
-    static mlir::LogicalResult verifyChannels(IERT::AddOp origOp, Logger log = Logger::global());
+    static mlir::LogicalResult verifyDims(IE::AddOp origOp, Logger log = Logger::global());
+    static mlir::LogicalResult verifyDims(IERT::AddOp origOp, Logger log = Logger::global());
 
-    static mlir::LogicalResult verifyChannels(IE::MultiplyOp origOp, Logger log = Logger::global());
-    static mlir::LogicalResult verifyChannels(IERT::MultiplyOp origOp, Logger log = Logger::global());
+    static mlir::LogicalResult verifyDims(IE::MultiplyOp origOp, Logger log = Logger::global());
+    static mlir::LogicalResult verifyDims(IERT::MultiplyOp origOp, Logger log = Logger::global());
 
-    static mlir::LogicalResult verifyChannels(IE::SubtractOp origOp, Logger log = Logger::global());
-    static mlir::LogicalResult verifyChannels(IERT::SubtractOp origOp, Logger log = Logger::global());
+    static mlir::LogicalResult verifyDims(IE::SubtractOp origOp, Logger log = Logger::global());
+    static mlir::LogicalResult verifyDims(IERT::SubtractOp origOp, Logger log = Logger::global());
 
-    static mlir::LogicalResult verifyChannels(IE::AndOp origOp, Logger log = Logger::global());
-    static mlir::LogicalResult verifyChannels(IERT::AndOp origOp, Logger log = Logger::global());
+    static mlir::LogicalResult verifyDims(IE::AndOp origOp, Logger log = Logger::global());
+    static mlir::LogicalResult verifyDims(IERT::AndOp origOp, Logger log = Logger::global());
 
     static mlir::LogicalResult verifyEltwiseChannels(mlir::Location loc, mlir::ShapedType firstInputType,
                                                      mlir::ShapedType secondInputType, Logger log = Logger::global());
 
-    static mlir::LogicalResult verifyChannels(IE::GroupConvolutionOp origOp, Logger log = Logger::global());
-    static mlir::LogicalResult verifyChannels(IERT::GroupConvolutionOp origOp, Logger log = Logger::global());
+    static mlir::LogicalResult verifyDims(IE::GroupConvolutionOp origOp, Logger log = Logger::global());
+    static mlir::LogicalResult verifyDims(IERT::GroupConvolutionOp origOp, Logger log = Logger::global());
     static mlir::LogicalResult verifyGroupConvChannels(mlir::Location loc, mlir::ShapedType inputType,
                                                        mlir::ShapedType filterType, Logger log = Logger::global());
 
