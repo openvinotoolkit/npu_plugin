@@ -84,10 +84,10 @@ VPUIP::BlobWriter::Task vpux::VPUIP::BlobWriter::createTask(mlir::Operation* op)
     return off;
 }
 
-ActKernelDesc vpux::VPUIP::BlobWriter::createKernelData(StringRef kernelName) {
+ActKernelDesc vpux::VPUIP::BlobWriter::createKernelData(const CompilationUnitDesc &unitDesc) {
 
-    auto dataName = std::string(kernelName.data()) + ".data";
-    auto itext  = _actKernelsData.find(kernelName);
+    auto dataName = std::string(unitDesc.name) + ".data";
+    auto itext  = _actKernelsData.find(unitDesc.name);
     auto idata = _actKernelsData.find(dataName);
 
     if (idata != _actKernelsData.end() && itext != _actKernelsData.end()) {
@@ -116,18 +116,18 @@ ActKernelDesc vpux::VPUIP::BlobWriter::createKernelData(StringRef kernelName) {
                 },
                 };
 
-    auto newDesc =  compileKernelForACTShave(kernelName, params, _impl);
-    std::cout << "store following kernels names: \"" << kernelName.data() << "\"\n";
-    _actKernelsData[kernelName] = newDesc.text;
+    auto newDesc =  compileKernelForACTShave(unitDesc, params, _impl);
+    _log.trace("store following kernels names: {0}\n", unitDesc.name);
+    _actKernelsData[unitDesc.name] = newDesc.text;
 
     if (newDesc.data.size != 0) {
         std::cout << "store following kernels names: \"" << dataName << "\"\n";
         _actKernelsData[StringRef(dataName)] = newDesc.data;
 
-        return {_actKernelsData[kernelName], _actKernelsData[StringRef(dataName)]};
+        return {_actKernelsData[unitDesc.name], _actKernelsData[StringRef(dataName)]};
     }
 
-    return {_actKernelsData[kernelName], {}};
+    return {_actKernelsData[unitDesc.name], {}};
 }
 
 const llvm::SmallVector<KernelDataDesc>& vpux::VPUIP::BlobWriter::getKernelData() const {
@@ -212,9 +212,102 @@ vpux::VPUIP::BlobWriter::KernelDataRef vpux::VPUIP::BlobWriter::createInvocation
     }
 
     return {};
-
 }
 
+VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createSW_KernelTask(mlir::Operation* op) {
+    VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in createSW_KernelTask");
+
+    auto swKernelTask = mlir::dyn_cast<VPUIP::SW_Kernel>(op);
+    VPUX_THROW_UNLESS(swKernelTask != nullptr, "Operation '{0}' is not a SW_Kernel Task", op->getName());
+
+    llvm::SmallVector<mlir::Value> concateIOOperands;
+
+    for (auto && kernelRun : swKernelTask.body().getOps<VPUIP::SW_Kernel_run>()) {
+
+        auto insSize = swKernelTask.inputs().size();
+
+        for ( auto && operands : kernelRun.args()) {
+
+            auto blockArg = operands.dyn_cast_or_null<mlir::BlockArgument>();
+            if (blockArg) {
+                auto id = blockArg.getArgNumber();
+                if (id < insSize) {
+                    // TODO: check type and shape
+                    concateIOOperands.push_back(swKernelTask.inputs()[id]);
+                } else {
+                    // TODO: check type and shape
+                    concateIOOperands.push_back(swKernelTask.outputs()[id - insSize]);
+                }
+            } else {
+                concateIOOperands.push_back(operands);
+            }
+            _log.trace("Operation '{0}' has SW.Kernel.Run call with arg: {1} of type {2} ", op->getName(), operands, operands.getType());
+        }
+    }
+
+    // extracting kernel source code or compiled code
+
+    auto module = op->getParentOfType<mlir::ModuleOp>();
+    auto kernelFunc = module.lookupSymbol<mlir::FuncOp>(swKernelTask.kernelFunctionAttr());
+    const auto kernelCode = kernelFunc->getAttrOfType<mlir::StringAttr>("VPU.kernel_code");
+    const auto kernelEntryPoint = kernelFunc->getAttrOfType<mlir::StringAttr>("VPU.kernel_entry");
+
+    VPUX_THROW_UNLESS(kernelCode , "Operation '{0}' doesn't have VPU.kernel_code attribute", swKernelTask.kernelFunctionAttr());
+
+    VPUX_THROW_UNLESS(kernelCode , "Operation '{0}' doesn't have VPU.kernel_entry attribute", swKernelTask.kernelFunctionAttr());
+
+    //TODO : check that arguments in given function
+    CompilationUnitDesc compilationDesc = {
+          kernelFunc.getName(),
+          kernelEntryPoint.getValue(),
+          kernelCode.getValue()
+    };
+    auto actKernelDesc = createKernelData(compilationDesc);
+
+    // this is the only supported storage so far
+    const auto kernelStorageLocale = vpux::VPUIP::MemoryLocation::GFEmbeddedKernel;
+
+    auto kernelText = createKernelDataRef(actKernelDesc.text, kernelStorageLocale);
+
+    MVCNN::ActKernelBuilder kernelbuilder(_impl);
+    //kernelbuilder.add_globalArgs()
+    kernelbuilder.add_kernelText(kernelText);
+    kernelbuilder.add_type(MVCNN::ActKernelType_KERNEL);
+    kernelbuilder.add_kernelEntry(0);
+
+    auto kernel = kernelbuilder.Finish();
+
+    const auto getBarrierIdCb = [this](mlir::Value val) {
+        return getBarrierVirtualID(val);
+    };
+
+    const auto waitBarriers = createVector(swKernelTask.waitBarriers() | transformed(getBarrierIdCb));
+    const auto updateBarriers = createVector(swKernelTask.updateBarriers() | transformed(getBarrierIdCb));
+
+    auto barrierReference = MVCNN::CreateBarrierReference(_impl, waitBarriers, updateBarriers);
+
+    auto invocationArgs = createInvocationArgs(op, kernelStorageLocale);
+
+    auto dataSection = createKernelDataRef(actKernelDesc.data, kernelStorageLocale);
+
+    MVCNN::ActKernelInvocationBuilder invocationBuilder(_impl);
+    invocationBuilder.add_dataSection(dataSection);
+    invocationBuilder.add_associatedBarriers(barrierReference);
+    invocationBuilder.add_invocationArgs(invocationArgs);
+
+
+    std::vector<flatbuffers::Offset<MVCNN::ActKernelInvocation>> invocations_v1 = {invocationBuilder.Finish()};
+
+    auto invocations_v2 = _impl.CreateVector(invocations_v1);
+
+    MVCNN::ActKernelTaskBuilder taskbuilder(_impl);
+    taskbuilder.add_kernel(kernel);
+    taskbuilder.add_invocations(invocations_v2);
+
+    return {taskbuilder.Finish().Union(), MVCNN::SpecificTask_ActKernelTask};
+}
+
+#if 0
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createACTShaveTask(mlir::Operation* op) {
     VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in createACTShaveTask");
 
@@ -263,7 +356,7 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createACTShaveTask(mlir
 
     return {taskbuilder.Finish().Union(), MVCNN::SpecificTask_ActKernelTask};
 }
-
+#endif
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createUPALayerTask(mlir::Operation* op,
                                                                             const SoftwareLayerParams& params) {
     VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in createUPALayerTask");

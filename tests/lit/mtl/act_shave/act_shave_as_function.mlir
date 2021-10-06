@@ -5,7 +5,7 @@
 // check for regressions in the VPUIP dialect.
 //
 
-module @Test attributes {VPUIP.arch = "VPU3720", VPUIP.compilationMode = "ReferenceHW"} {
+module @Test attributes {VPUIP.arch = "MTL", VPUIP.compilationMode = "ReferenceHW"} {
 
 IERT.RunTimeResources
     availableMemory : {
@@ -51,10 +51,13 @@ module @VPU.SW {
     // The declaration should match C++ params structure in decomposed form.
     // `memref` will be translated to `MemRefData`, while raw scalars will be translated as is.
     func private @builtin_softmax(%input : memref<*xf16>, %output : memref<*xf16>, %axis : i64)
-        attributes { VPU.kernel_code = "softmax_fp16.c" }
+        attributes {
+            VPU.kernel_code = "sigmoid/src/sigmoid_fp16.c",
+            VPU.kernel_entry = "sigmoid_fp16"
+        }
 }
 
-func @main(%arg0: memref<1x1x1x1000xf16>, %arg1: memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16> {
+func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16> {
 
     %in_tile0_cmx  = VPUIP.DeclareTensor "VPU_CMX_NN" [0] <0> -> memref<1x1x1x1000xf16, "VPU_CMX_NN">
     %out_tile0_cmx = VPUIP.DeclareTensor "VPU_CMX_NN" [0] <2000> -> memref<1x1x1x1000xf16, "VPU_CMX_NN">
@@ -63,29 +66,33 @@ func @main(%arg0: memref<1x1x1x1000xf16>, %arg1: memref<1x1x1x1000xf16>) -> memr
     %b1 = VPUIP.ConfigureBarrier<1> -> !VPUIP.Barrier
 
 
-    %4 = VPUIP.NNDMA inputs(%arg0 : memref<1x1x1x1000xf16>) outputs(%in_tile0_cmx : memref<1x1x1x1000xf16, "VPU_CMX_NN">) updates(%b0 : !VPUIP.Barrier) -> memref<1x1x1x1000xf16, "VPU_CMX_NN">
+    %4 = VPUIP.NNDMA inputs(%1 : memref<1x1x1x1000xf16>) outputs(%in_tile0_cmx : memref<1x1x1x1000xf16, "VPU_CMX_NN">) updates(%b0 : !VPUIP.Barrier) -> memref<1x1x1x1000xf16, "VPU_CMX_NN">
 
     // Genetic Kernel information for the scheduler.
     %sigmoid_krn =
         VPUIP.SW.Kernel
-                    @VPU.SW.builtin_softmax             // The reference to the Kernel function.
-
-                    inputs(%in_tile_cmx_0 as %arg0)     // Inputs/outputs buffers for generic operation interface
-                    outputs(%out_tile_cmx_0 as %arg1)   // and their mapping to inner region.
+                    @VPU.SW::@builtin_softmax             // The reference to the Kernel function.
+                    inputs(%in_tile0_cmx : memref<1x1x1x1000xf16, "VPU_CMX_NN"> as %arg0)     // Inputs/outputs buffers for generic operation interface
+                    outputs(%out_tile0_cmx : memref<1x1x1x1000xf16, "VPU_CMX_NN"> as %arg1)   // and their mapping to inner region.
                     on tile 0                           // The tile index to execute on.
                     waits(%b0  : !VPUIP.Barrier)
                     updates(%b1  : !VPUIP.Barrier)
         -> memref<1x1x1x1000xf16, "VPU_CMX_NN"> {
-            // Inner region, isolated from above, which holds the information about arguments mapping.
-            // We can use constant scalars/arrays definitions here.
-            %axis   = constant 0 : i64
 
-            // The arguments mapping, the order must match the kernel parameter structure.
-            VPUIP.SW.Kernel.run(%arg0, %arg1, %axis)
+            ^bb0(%arg0 : memref<1x1x1x1000xf16, "VPU_CMX_NN">, %arg1 : memref<1x1x1x1000xf16, "VPU_CMX_NN">):
+                // Inner region, isolated from above, which holds the information about arguments mapping.
+                // We can use constant scalars/arrays definitions here.
+                %axis   = constant 0 : i64
+
+                // The arguments mapping, the order must match the kernel parameter structure.
+                VPUIP.SW.Kernel.run(%arg0, %arg1, %axis)
+                    : memref<1x1x1x1000xf16, "VPU_CMX_NN">
+                    , memref<1x1x1x1000xf16, "VPU_CMX_NN">
+                    , i64
         }
 
 
-    %6 = VPUIP.NNDMA inputs(%out_tile0_cmx : memref<1x1x1x1000xf16, "VPU_CMX_NN">) outputs(%arg1 : memref<1x1x1x1000xf16>) waits(%b1 : !VPUIP.Barrier) -> memref<1x1x1x1000xf16>
+    %6 = VPUIP.NNDMA inputs(%out_tile0_cmx : memref<1x1x1x1000xf16, "VPU_CMX_NN">) outputs(%2 : memref<1x1x1x1000xf16>) waits(%b1 : !VPUIP.Barrier) -> memref<1x1x1x1000xf16>
     return %6: memref<1x1x1x1000xf16>
 
 }
