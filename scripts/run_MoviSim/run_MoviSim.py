@@ -11,7 +11,7 @@ path_to_network_blob = ''
 path_to_input_blobs = []
 path_to_output_blobs = []
 
-print("wrun_MoviSim.py srcipt has been called")
+print("Run_MoviSim.py srcipt has been called")
 print("Path to vpuip_2 home dir:", path_to_vpuip_2_home_dir)
 print("Path to moviTools dir", path_to_moviSim_dir)
 
@@ -87,7 +87,7 @@ print(command)
 os.system(command)
 
 ## make elf
-command = "cd " + path_to_IEDemo_dir + " && make -j8 CONFIG_FILE=.config_sim_3720xx"
+command = "cd " + path_to_IEDemo_dir + " && make -j8 CONFIG_FILE=.config_sim_3720xx CONFIG_NN_LOG_VERBOSITY_LRT_WARN=y CONFIG_NN_LOG_VERBOSITY_LRT_INFO=n CONFIG_NN_LOG_VERBOSITY_LNN_WARN=y CONFIG_NN_LOG_VERBOSITY_LNN_INFO=n CONFIG_NN_LOG_VERBOSITY_SNN_WARN=y CONFIG_NN_LOG_VERBOSITY_SNN_INFO=n CONFIG_PROFILING_MASK=\"0b00000000\""
 print(command)
 os.system(command)
 
