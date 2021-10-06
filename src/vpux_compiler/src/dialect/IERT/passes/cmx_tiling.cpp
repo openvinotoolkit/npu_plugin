@@ -613,7 +613,7 @@ private:
 template <class ConcreteOp>
 bool isSupportedByNCE(ConcreteOp op, Logger log) {
     return VPUIP::NCEInvariant::verifyKernel(op, log).succeeded() &&
-           VPUIP::NCEInvariant::verifyChannels(op, log).succeeded();
+           VPUIP::NCEInvariant::verifyDims(op, log).succeeded();
 }
 
 template <class ConcreteOp>

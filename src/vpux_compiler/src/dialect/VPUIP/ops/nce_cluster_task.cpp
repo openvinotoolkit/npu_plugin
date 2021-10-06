@@ -77,6 +77,8 @@ int64_t vpux::VPUIP::NCEClusterTaskOp::getNumVariants() {
 void vpux::VPUIP::NCEClusterTaskOp::inferLayoutInfo(mlir::Operation* origOp, IE::LayerLayoutInfo& info) {
     llvm::TypeSwitch<mlir::Operation*, void>(origOp)
             .Case<IE::ConvolutionOp>([&](IE::ConvolutionOp op) {
+
+                Logger::global().error("Input user layout from compiler tool [-il] is {0} : ",info.getInput(0));
                 if (op.channel_major_op()) {
                     info.setInput(0, DimsOrder::NCHW);
                     info.setInput(1, DimsOrder::OIYX);
