@@ -119,6 +119,26 @@ def ConvertPrecisionToFP16 : PassBase<"convert-precision-to-fp16", "vpux::Module
 }
 
 //
+// ConvertPrecisionToI32
+//
+
+def ConvertPrecisionToI32 : PassBase<"convert-precision-to-i32", "vpux::ModulePass"> {
+    let summary = "Convert tensors precision from I64 to I32";
+
+    let description = [{
+        The pass is a part of `AdjustForVPU` pipeline.
+        This pass replaces all I64 tensors with I32.
+        It updates both function bodies as well as Function signatures.
+    }];
+
+    let constructor = "vpux::IE::createConvertPrecisionToI32Pass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
+
+//
 // ConvertShapeTo4D
 //
 

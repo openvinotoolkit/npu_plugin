@@ -30,6 +30,10 @@ The pass is a part of `AdjustForVPU` pipeline.
 
 This pass replaces all FP32 tensors with FP16.
 It updates both function bodies as well as Function signatures.
+### `-convert-precision-to-i32`: Convert tensors precision from I64 to I32
+The pass is a part of `AdjustForVPU` pipeline.
+This pass replaces all I64 tensors with I32.
+It updates both function bodies as well as Function signatures.
 ### `-convert-scale-shift-depthwise`: Convert Scale-Shift operation to Depthwise Convolution
 The pass is a part of `HardwareMode` pipeline.
 
