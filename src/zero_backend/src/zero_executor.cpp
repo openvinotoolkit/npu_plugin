@@ -484,12 +484,6 @@ ZeroExecutor::Graph::Graph(const ze_device_handle_t& device_handle, const ze_con
         ze_graph_argument_properties_t arg;
         throwOnFail("pfnGetArgumentProperties", _graph_ddi_table_ext->pfnGetArgumentProperties(_handle, index, &arg));
         if (ZE_GRAPH_ARGUMENT_TYPE_INPUT == arg.type) {
-            auto deviceInputs = networkDesc->getDeviceInputsInfo();
-
-            // [Track number: S#49808]
-            // hack for correct memory allocation on device
-            arg.precision = getZePrecision(deviceInputs.at(arg.name)->getPrecision());
-
             _inputs_desc_map.emplace(std::make_pair(std::string(arg.name), ArgumentDescriptor{arg, index}));
         } else {
             _outputs_desc_map.emplace(std::make_pair(std::string(arg.name), ArgumentDescriptor{arg, index}));
