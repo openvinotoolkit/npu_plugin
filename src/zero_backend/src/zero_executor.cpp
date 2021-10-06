@@ -269,6 +269,7 @@ bool isRepackingPossible(const IE::TensorDesc& userTensorDesc, const IE::TensorD
 }
 
 void prepareInputForInference(const IE::Blob::Ptr& userInput, const IE::TensorDesc& deviceTensorDesc, void* destData,
+                              const vpux::Optional<QuantizationParam>& quantParam,
                               std::shared_ptr<vpu::Logger>& logger) {
     if (userInput == nullptr) {
         IE_THROW() << "User input blob null pointer";
@@ -292,12 +293,12 @@ void prepareInputForInference(const IE::Blob::Ptr& userInput, const IE::TensorDe
         logger->info("Different precisions of user and device input blobs. Conversion required from %s to %s",
                      userPrecision, devicePrecision);
         if (!isLayoutMatched) {
-            expectedInput = toPrecision(IE::as<IE::MemoryBlob>(expectedInput), devicePrecision);
+            expectedInput = toPrecision(IE::as<IE::MemoryBlob>(expectedInput), devicePrecision, quantParam);
             logger->info("Different layouts of user and device input blobs. Conversion required from %s to %s",
                          userLayout, deviceLayout);
             toLayout(IE::as<IE::MemoryBlob>(expectedInput), deviceLayout, nullptr, destData);
         } else {
-            toPrecision(IE::as<IE::MemoryBlob>(expectedInput), devicePrecision, nullptr, destData);
+            toPrecision(IE::as<IE::MemoryBlob>(expectedInput), devicePrecision, quantParam, nullptr, destData);
         }
     } else if (!isLayoutMatched) {
         logger->info("Different layouts of user and device input blobs. Conversion required from %s to %s", userLayout,
@@ -604,6 +605,7 @@ void ZeroExecutor::Event::AppendEventReset(CommandList& command_list) {
 void ZeroExecutor::push(const IE::BlobMap& inputs) {
     _logger->info("ZeroExecutor::push started");
     const auto& deviceInputs = _networkDesc->getDeviceInputsInfo();
+    const auto quantParamsInfo = _networkDesc->getQuantParamsInfo();
 
     // Copy input data to staging buffer on Cpu (input always first argument)
     for (const auto& inferInput : inputs) {
@@ -612,6 +614,8 @@ void ZeroExecutor::push(const IE::BlobMap& inputs) {
 
         const auto& desc = mapArguments(_graph->_inputs_desc_map, name);
         const auto& deviceInput = deviceInputs.at(name);
+        const auto noQuantParams = quantParamsInfo.find(name) == quantParamsInfo.end();
+        const auto quantParams = noQuantParams ? vpux::None : quantParamsInfo.at(name);
         // TODO Currently L0 and Plugin might return different layouts which have dims like [1,1...]
         // They might be reinterpreted in different ways, so this check has been added to prevent that behavior
         if (std::max(getNumDims(desc.info.dims), getNumDims(deviceInput->getTensorDesc().getDims())) > 2) {
@@ -630,7 +634,7 @@ void ZeroExecutor::push(const IE::BlobMap& inputs) {
             if (!isRepackingPossible(input->getTensorDesc(), deviceInput->getTensorDesc())) {
                 IE_THROW() << "Push blobs: repacking is not possible";
             }
-            prepareInputForInference(input, deviceInput->getTensorDesc(), hostMem.data(), _logger);
+            prepareInputForInference(input, deviceInput->getTensorDesc(), hostMem.data(), quantParams, _logger);
         }
     }
 

@@ -673,7 +673,7 @@ ie::Blob::Ptr VpualCoreNNExecutor::prepareInputForInference(const ie::Blob::Ptr&
         _logger->warning("Input blob is inconsistent with network input. "
                          "Need to do convert precision from %d to %d.",
                          actualInputPrecision, devicePrecision);
-        inputForInference = toPrecision(inputForInference, devicePrecision, _allocator);
+        inputForInference = toPrecision(inputForInference, devicePrecision, vpux::None, _allocator);
     }
 
     // HACK: to overcome inability python API to pass a blob of NHWC layout
