@@ -88,8 +88,9 @@ public:
 
     KernelDataRef createInvocationArgs(mlir::Operation* op, vpux::VPUIP::MemoryLocation locale);
 
+    SpecificTask createSW_KernelTask(mlir::Operation* op);
     SpecificTask createACTShaveTask(mlir::Operation* op);
-    ActKernelDesc createKernelData(StringRef name);
+    ActKernelDesc createKernelData(const CompilationUnitDesc &unitDesc);
 
     KernelDataRef createKernelDataRef(StringRef name, MemoryLocation locale,
                                       uint64_t dataOffset, uint64_t dataSize,

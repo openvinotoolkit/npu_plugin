@@ -102,8 +102,10 @@ flatbuffers::Offset<MVCNN::BinaryData> buildKernelArgsData(flatbuffers::FlatBuff
 //}
 //
 
-static void compileAndLinkSHAVE(const movitools::MoviCompileParams& params, StringRef name,
-                                std::vector<uint8_t>& textBinary, std::vector<uint8_t>& dataBinary) {
+static void compileAndLinkSHAVE(
+        const movitools::MoviCompileParams& params,
+        const CompilationUnitDesc & unitDesc,
+        std::vector<uint8_t>& textBinary, std::vector<uint8_t>& dataBinary) {
     // IVLOG(1, "Kernel C source code:\n" << cSourceCode.str());
 
     std::string mvToolsDir = movitools::getMoviToolsDir();
@@ -115,21 +117,29 @@ static void compileAndLinkSHAVE(const movitools::MoviCompileParams& params, Stri
         genDir = *KERNEL_GENDIR;
     }
 
-    std::string srcName = name.str();
+    SmallString<128> srcNamePath = unitDesc.codePath;
 
-    // Generate linker script name
+    SmallString<128> srcNameNoExt = sys::path::filename(srcNamePath);
+    sys::path::replace_extension(srcNameNoExt, "");
+
+    std::string entryPoint  = unitDesc.entry.str();
+
+    SmallString<128> buildDirPath;
+    {
+        SmallString<128> tmpPath(genDir);
+        sys::path::append(tmpPath, "build");
+        sys::path::append(tmpPath, srcNamePath);
+        buildDirPath = sys::path::parent_path(tmpPath);
+        sys::fs::create_directories(buildDirPath);
+    }
+
+    // Generate linker script name - and copy it from
     SmallString<128> linkerScriptPath(genDir);
     sys::path::append(linkerScriptPath, "build");
     sys::path::append(linkerScriptPath, "shave_kernel.ld");
 
     SmallString<128> srcPath(genDir);
-    sys::path::append(srcPath, srcName);
-    sys::path::append(srcPath, "src");
-    sys::path::append(srcPath, srcName + "_fp16.c");
-
-    SmallString<128> incPath(genDir);
-    sys::path::append(incPath, "common");
-    sys::path::append(incPath, "inc");
+    sys::path::append(srcPath, srcNamePath);
 
     SmallString<128> incPath2(genDir);
     sys::path::append(incPath2, "asds");
@@ -138,27 +148,20 @@ static void compileAndLinkSHAVE(const movitools::MoviCompileParams& params, Stri
     sys::path::append(singleLib, params.mdkLibDir);
     sys::path::append(singleLib, params.mdkLibs[0]);
 
-    SmallString<128> objPath(genDir);
-    sys::path::append(objPath, "build");
-    sys::path::append(objPath, srcName + ".o");
+    SmallString<128> objPath(buildDirPath);
+    sys::path::append(objPath, srcNameNoExt + ".o");
 
-    SmallString<128> objDir(genDir);
-    sys::path::append(objDir, "build");
+    SmallString<128> objDir(buildDirPath);
 
-    SmallString<128> elfPath(genDir);
-    sys::path::append(elfPath, "build");
-    sys::path::append(elfPath, srcName + ".elf");
-
-//    SmallString<128> ldsPath(genDir);
-//    sys::path::append(ldsPath, srcName + ".lds");
-//   // makeLinkerScript(searchDir, objPath, elfPath, ldsPath, params, name);
+    SmallString<128> elfPath(buildDirPath);
+    sys::path::append(elfPath, srcNameNoExt + ".elf");
 
     SmallString<128> moviCompile(mvToolsDir);
     sys::path::append(moviCompile, params.moviCompile);
 
     {
-        auto compileCmd = formatv("cd {6}; {1} -mcpu={2} -c {3} -o {4} -I {5} -I {6} -I{7} ", genDir, moviCompile, params.cpu,
-                                  srcPath, objPath, mvToolsDir, incPath, incPath2).str();
+        auto compileCmd = formatv("{1} -mcpu={2} -c {3} -o {4} -I {5} -I {6} -I{6} ", genDir, moviCompile, params.cpu,
+                                  srcPath, objPath, mvToolsDir, incPath2).str();
         // IVLOG(1, compileCmd);
         if (std::system(compileCmd.c_str())) {
             VPUX_THROW((std::string("moviCompile failed: ") + compileCmd).c_str());
@@ -185,9 +188,9 @@ static void compileAndLinkSHAVE(const movitools::MoviCompileParams& params, Stri
     SmallString<128> linker(mvToolsDir);
     sys::path::append(linker, params.mdkLinker);
     auto linkCmd = formatv("{0} -zmax-page-size=16 --script {1}"
-                           " -entry {2}_fp16 --gc-sections --strip-debug --discard-all  {3}"
+                           " -entry {2} --gc-sections --strip-debug --discard-all  {3}"
                             " -EL {4} --output {5}",
-                            linker, linkerScriptPath, srcName.c_str(), objPath, singleLib, elfPath).str();
+                            linker, linkerScriptPath, entryPoint.c_str(), objPath, singleLib, elfPath).str();
     // IVLOG(1, linkCmd);
     if (std::system(linkCmd.c_str())) {
         VPUX_THROW((std::string("linker failed: ") + linkCmd).c_str());
@@ -199,9 +202,8 @@ static void compileAndLinkSHAVE(const movitools::MoviCompileParams& params, Stri
     SmallString<128> objcopy(mvToolsDir);
     sys::path::append(objcopy, params.mdkObjCopy);
 
-    SmallString<128> textPath(genDir);
-    sys::path::append(textPath, "build");
-    sys::path::append(textPath, "sk." + srcName + "_fp16_" + params.cpu + ".text");
+    SmallString<128> textPath(buildDirPath);
+    sys::path::append(textPath, "sk." + srcNameNoExt + "." + params.cpu + ".text");
 
     {
         auto objCopyCmd = formatv("{0} -O binary --only-section=.text {1} {2}",
@@ -212,9 +214,8 @@ static void compileAndLinkSHAVE(const movitools::MoviCompileParams& params, Stri
         }
     }
 
-    SmallString<128> dataPath(genDir);
-    sys::path::append(dataPath, "build");
-    sys::path::append(dataPath, "sk." + srcName + "_fp16_" + params.cpu + ".data");
+    SmallString<128> dataPath(buildDirPath);
+    sys::path::append(dataPath, "sk." + srcNameNoExt + "." + params.cpu + ".data");
 
     {
         auto objCopyCmd = formatv("{0} -O binary --only-section=.arg.data {1} {2}",
@@ -250,14 +251,15 @@ static void compileAndLinkSHAVE(const movitools::MoviCompileParams& params, Stri
     readBinary(dataPath, dataBinary, 0x10);
 }
 
-ActKernelDesc compileKernelForACTShave(mlir::StringRef kernelName, const movitools::MoviCompileParams& params,
-                                                              flatbuffers::FlatBufferBuilder& fbb) {
+ActKernelDesc compileKernelForACTShave(const CompilationUnitDesc & unitDesc,
+                                       const movitools::MoviCompileParams& params,
+                                       flatbuffers::FlatBufferBuilder& fbb) {
 
     // Use moviCompile to compile and link C source code into an ELF binary.
     // and then using objcopy teardown elf into text and data sections
     std::vector<uint8_t> textBinary;
     std::vector<uint8_t> dataBinary;
-    compileAndLinkSHAVE(params, kernelName, textBinary, dataBinary);
+    compileAndLinkSHAVE(params, unitDesc, textBinary, dataBinary);
 
     //lets pad textBinary by 1K array at the enf with FC CC FC CC
     for (int i = 0; i != 512; i++) {
@@ -267,9 +269,9 @@ ActKernelDesc compileKernelForACTShave(mlir::StringRef kernelName, const movitoo
 
     ActKernelDesc result;
 
-    result.text = {kernelName.data(), buildKernelData(fbb, textBinary), textBinary.size() - 1024};
+    result.text = {unitDesc.name.data(), buildKernelData(fbb, textBinary), textBinary.size() - 1024};
 
-    auto dataName = std::string(kernelName) + ".data";
+    auto dataName = std::string(unitDesc.name) + ".data";
     result.data = {dataName, buildKernelData(fbb, dataBinary), dataBinary.size()};
 
     return result;
