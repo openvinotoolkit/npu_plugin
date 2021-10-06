@@ -296,23 +296,26 @@ mlir::LogicalResult ConvolutionRewriter::matchAndRewrite(IE::ConvolutionOp origO
 }
 
 //
-// EltwiseAddRewriter
+// EltwiseRewriter
 //
 
-class EltwiseAddRewriter final : public mlir::OpRewritePattern<IE::AddOp> {
+template <class ConcreteOp>
+class EltwiseRewriter final : public mlir::OpRewritePattern<ConcreteOp> {
 public:
-    EltwiseAddRewriter(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<IE::AddOp>(ctx), _log(log) {
-        setDebugName("EltwiseAddRewriter");
+    EltwiseRewriter(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<ConcreteOp>(ctx), _log(log) {
+        this->setDebugName("EltwiseRewriter");
     }
 
-    mlir::LogicalResult matchAndRewrite(IE::AddOp origOp, mlir::PatternRewriter& rewriter) const final;
+    mlir::LogicalResult matchAndRewrite(ConcreteOp origOp, mlir::PatternRewriter& rewriter) const final;
 
 private:
     Logger _log;
 };
 
-mlir::LogicalResult EltwiseAddRewriter::matchAndRewrite(IE::AddOp origOp, mlir::PatternRewriter& rewriter) const {
-    _log.trace("[{0}] Got AddOp layer at '{1}'", getDebugName(), origOp->getLoc());
+template <class ConcreteOp>
+mlir::LogicalResult EltwiseRewriter<ConcreteOp>::matchAndRewrite(ConcreteOp origOp,
+                                                                 mlir::PatternRewriter& rewriter) const {
+    _log.trace("[{0}] Got eltwise layer at '{1}'", this->getDebugName(), origOp->getLoc());
 
     const auto opCreator = [&](mlir::Value expandedInput1, int64_t outChanPadEnd) -> mlir::Operation* {
         mlir::Value expandedInput2;
@@ -325,7 +328,7 @@ mlir::LogicalResult EltwiseAddRewriter::matchAndRewrite(IE::AddOp origOp, mlir::
 
             const auto origShape = getShape(origOp.input2());
             const auto extendedShape = getShape(expandedInput1);
-            VPUX_THROW_UNLESS(origShape.size() == extendedShape.size(), "Got non equal shapes in EltwiseAddRewriter");
+            VPUX_THROW_UNLESS(origShape.size() == extendedShape.size(), "Got non equal shapes in EltwiseRewriter");
 
             const auto padsEnd = calcPadsEnd(origShape, extendedShape);
 
@@ -339,8 +342,8 @@ mlir::LogicalResult EltwiseAddRewriter::matchAndRewrite(IE::AddOp origOp, mlir::
 
         const auto newOutputType = getPaddedType(origOp.getType(), outPadBefore, outPadAfter);
 
-        return rewriter.create<IE::AddOp>(origOp.getLoc(), newOutputType, expandedInput1, expandedInput2,
-                                          origOp.auto_broadcast(), origOp.post_opAttr());
+        return rewriter.create<ConcreteOp>(origOp.getLoc(), newOutputType, expandedInput1, expandedInput2,
+                                           origOp.auto_broadcast(), origOp.post_opAttr());
     };
 
     return generalRewrite(origOp, rewriter, opCreator, _log.nest());
