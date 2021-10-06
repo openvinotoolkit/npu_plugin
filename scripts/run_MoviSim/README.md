@@ -2,7 +2,7 @@
 
 1. Pre-requirements:
     Python3 should be installed
-    Your envronment should provide following variables:
+    Your environment should provide following variables:
     - WORKSPACE (path to dir, that contains vpuip_2)
     - MV_TOOLS_DIR (path to dir, that contains MV_TOOLS)
     - MV_TOOLS_VERSION
@@ -12,7 +12,7 @@
     
     - Examples:
       ```
-      python3 run_MoviSim.py -n/home/jenkins/agent/workspace/Experiments/asukhobo/Nets-Validation/manual/details/builder_MoviSim/MTL-NetTest-Validate/./MTL_por_caffe2_FP16-INT8_resnet-18-pytorch_MLIR.blob -i_MTL_por_caffe2_FP16_INT8_resnet_18_pytorch_MLIR_input_0_case_0.blob -o_MTL_por_caffe2_FP16_INT8_resnet_18_pytorch_MLIR_movisim_output_0_case_0.blob
+      python3 run_MoviSim.py -n/home/Nets-Validation/MTL-NetTest-Validate/./MTL_por_caffe2_FP16-INT8_resnet-18-pytorch_MLIR.blob -i_MTL_por_caffe2_FP16_INT8_resnet_18_pytorch_MLIR_input_0_case_0.blob -o_MTL_por_caffe2_FP16_INT8_resnet_18_pytorch_MLIR_movisim_output_0_case_0.blob
       
       ```
     - Result:

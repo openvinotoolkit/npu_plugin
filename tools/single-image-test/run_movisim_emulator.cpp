@@ -42,10 +42,12 @@ InferenceEngine::BlobMap runMoviSimEmulator(InferenceEngine::ExecutableNetwork& 
         throw std::logic_error(
                 "MOVISIM_SCRIPT_LOCATION evnironment variable hasn't been provided. Please check your environment");
     }
-    if (std::string(Python_EXECUTABLE).empty()) {
-        throw std::logic_error("Python_EXECUTABLE location can't be defined. Please check your environment");
+    std::string Python_EXECUTABLE =
+            std::getenv("PYTHONPATH") != nullptr ? std::getenv("PYTHONPATH") : "python3";
+    if (Python_EXECUTABLE.empty()) {
+        throw std::logic_error("PYTHONPATH location can't be defined. Please check your environment");
     }
-    std::string runScriptCommand = std::string(Python_EXECUTABLE) + " " + runMovisimScriptLocation + "/run_MoviSim.py" +
+    std::string runScriptCommand = Python_EXECUTABLE + " " + runMovisimScriptLocation + "/run_MoviSim.py" +
                                    " -n" + pathToNetworkBlob;
     // provide inputs
     for (const auto& i : dumpedInputsPaths) {

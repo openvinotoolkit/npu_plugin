@@ -33,15 +33,13 @@ target_link_libraries(${TARGET_NAME} PRIVATE
 )
 
 if(NOT Python3_FOUND)
-    message(WARNING "Python3 is not found, run single-image-tests via MoviSim will not aviable")
+    message(WARNING "Python3 is not found, run single-image-tests via MoviSim will not available")
 else()
     if(UNIX)
-        message(WARNING "Python3 is found, run single-image-tests via MoviSim is aviable")
+        message(WARNING "Python3 is found, run single-image-tests via MoviSim is available")
         target_compile_definitions(${TARGET_NAME}
             PUBLIC
                 ENABLE_MOVISIM
-            PUBLIC
-                Python_EXECUTABLE="python3"
         )
         message(WARNING "Copy run_MoviSim python script to: " ${OpenVINO_MAIN_SOURCE_DIR}/${IE_MAIN_SAMPLES_DIR}/${BIN_FOLDER})
         add_custom_command(
@@ -53,7 +51,7 @@ else()
             COMMENT "Copying ${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/scripts/run_MoviSim/run_MoviSim.py to
             ${OpenVINO_MAIN_SOURCE_DIR}/${IE_MAIN_SAMPLES_DIR}/${BIN_FOLDER}/run_MoviSim.py build directory")
     else()
-        message(WARNING "Run single-image-tests via MoviSim is aviable only for Linux platforms")
+        message(WARNING "Run single-image-tests via MoviSim is available only for Linux platforms")
     endif()
 endif()
 
