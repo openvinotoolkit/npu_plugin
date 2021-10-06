@@ -27,13 +27,17 @@ namespace IE = InferenceEngine;
 
 // TODO Config will be useless here, since only default values will be used
 VPUXBackends::VPUXBackends(const std::vector<std::string>& backendRegistry)
-        : _logger(vpu::Logger("VPUXBackends", vpu::LogLevel::Error, vpu::consoleOutput())) {
+        : _logger(vpu::Logger("VPUXBackends", vpu::LogLevel::Debug, vpu::consoleOutput())) {
+    // std::cout << "VPUXBackends" << std::endl;
     std::vector<std::shared_ptr<EngineBackend>> registeredBackends;
     for (const auto& name : backendRegistry) {
+        _logger.debug("Looking for %s backend", name);
         const auto path = getLibFilePath(name);
         const auto exists = std::ifstream(path.c_str()).good();
         if (exists) {
             try {
+                // new EngineBackend(path);
+                // const std::string hardcodedPath = "C:\\Users\\sshumihi\\Documents\\prog\\openvino\\bin\\intel64\\RelWithDebInfo\\zero_backend.dll";
                 const auto backend = std::make_shared<EngineBackend>(path);
                 if (backend->getDeviceNames().size() != 0) {
                     _logger.debug("Register %s", name);
@@ -101,6 +105,7 @@ std::shared_ptr<Device> VPUXBackends::getDevice(const IE::RemoteContext::Ptr& co
 }
 
 std::vector<std::string> VPUXBackends::getAvailableDevicesNames() const {
+    // std::cout << "_backend == nullptr " << std::to_string(_backend == nullptr)  << std::endl;
     return _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames();
 }
 

@@ -32,7 +32,8 @@ bool isBlobAllocatedByAllocator(const InferenceEngine::Blob::Ptr& blob,
 enum class EngineBackendType : uint8_t { VPUAL = 1, HDDL2 = 2, ZeroApi = 3, Emulator = 4 };
 
 //------------------------------------------------------------------------------
-EngineBackend::EngineBackend(std::string pathToLib): _impl(pathToLib) {
+EngineBackend::EngineBackend(const std::string& pathToLib): _impl(pathToLib) {
+    std::cout << "EngineBackend" <<std::endl;
 }
 
 inline const std::shared_ptr<Device> wrapDeviceWithImpl(const std::shared_ptr<IDevice>& device,

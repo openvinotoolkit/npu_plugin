@@ -42,6 +42,8 @@ Metrics::Metrics(const VPUXBackends::CPtr& backends)
 }
 
 std::vector<std::string> Metrics::GetAvailableDevicesNames() const {
+    // std::cout << "Metrics::GetAvailableDevicesNames()" << std::endl;
+    // std::cout << "_backends == nullptr " << std::to_string(_backends == nullptr)  << std::endl;
     return _backends == nullptr ? std::vector<std::string>() : _backends->getAvailableDevicesNames();
 }
 

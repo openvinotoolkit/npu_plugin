@@ -48,14 +48,15 @@ public:
     std::tuple<const DataMap, const DataMap> getDeviceNetworkMeta(const Blob::Ptr compiledNetwork) override;
 
 private:
-    LIBTYPE handle;
-    vpux_compiler_l0_t vcl;
+    LIBTYPE _handle;
+    vcl_t vcl;
+    vcl_compiler_handle_t compiler;
 
     // TODO Switch log level to Debug when it will be production solution
     const std::unique_ptr<vpu::Logger> _logger = std::unique_ptr<vpu::Logger>(
             new vpu::Logger("VPUXCompilerL0", vpu::LogLevel::Debug /*_config.logLevel()*/, vpu::consoleOutput()));
 
-    void initLib();
+    LIBTYPE initLib();
 };
 }  // namespace zeroCompilerAdapter
 }  // namespace vpux

@@ -76,7 +76,7 @@ public:
         return _impl->getSupportedOptions();
     }
 
-    EngineBackend(std::string pathToLib);
+    EngineBackend(const std::string& pathToLib);
     EngineBackend() = default;
 
 private:

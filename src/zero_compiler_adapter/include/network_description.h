@@ -23,6 +23,7 @@ namespace zeroCompilerAdapter {
  */
 class NetworkDescription final : public INetworkDescription {
 public:
+
     explicit NetworkDescription(const std::vector<char>& compiledNetwork, const std::string& name,
                                 const DataMap& networkInputs, const DataMap& networkOutputs,
                                 const DataMap& deviceInputs, const DataMap& deviceOutputs)
@@ -42,6 +43,10 @@ public:
     }
 
 public:
+    const vpux::QuantizationParamMap& getQuantParamsInfo() const {
+        return _quantParams;
+    }
+
     const std::vector<char>& getCompiledNetwork() const final {
         return _compiledNetwork;
     }
@@ -82,6 +87,8 @@ private:
 
     DataMap _deviceInputs;
     DataMap _deviceOutputs;
+
+    vpux::QuantizationParamMap _quantParams{};
 };
 
 }  // namespace zeroCompilerAdapter
