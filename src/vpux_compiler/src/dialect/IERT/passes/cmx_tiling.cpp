@@ -135,27 +135,30 @@ mlir::LogicalResult ConvolutionTiling::matchAndRewrite(IERT::ConvolutionOp origO
 }
 
 //
-// EltwiseAddTiling
+// EltwiseTiling
 //
 
-class EltwiseAddTiling final : public mlir::OpRewritePattern<IERT::AddOp> {
-    using TilerFunc = std::function<OutputTiling(IERT::AddOp)>;
+template <class ConcreteOp>
+class EltwiseTiling final : public mlir::OpRewritePattern<ConcreteOp> {
+    using TilerFunc = std::function<OutputTiling(ConcreteOp)>;
 
 public:
-    EltwiseAddTiling(mlir::MLIRContext* ctx, TilerFunc tiler, Logger log)
-            : mlir::OpRewritePattern<IERT::AddOp>(ctx), _tiler(std::move(tiler)), _log(log) {
-        setDebugName("EltwiseAddTiling");
+    EltwiseTiling(mlir::MLIRContext* ctx, TilerFunc tiler, Logger log)
+            : mlir::OpRewritePattern<ConcreteOp>(ctx), _tiler(std::move(tiler)), _log(log) {
+        this->setDebugName("EltwiseTiling");
     }
 
-    mlir::LogicalResult matchAndRewrite(IERT::AddOp origOp, mlir::PatternRewriter& rewriter) const final;
+    mlir::LogicalResult matchAndRewrite(ConcreteOp origOp, mlir::PatternRewriter& rewriter) const final;
 
 private:
     TilerFunc _tiler;
     Logger _log;
 };
 
-mlir::LogicalResult EltwiseAddTiling::matchAndRewrite(IERT::AddOp origOp, mlir::PatternRewriter& rewriter) const {
-    _log.trace("[{0}] Got Eltwise Add at '{1}'", getDebugName(), origOp->getLoc());
+template <class ConcreteOp>
+mlir::LogicalResult EltwiseTiling<ConcreteOp>::matchAndRewrite(ConcreteOp origOp,
+                                                               mlir::PatternRewriter& rewriter) const {
+    _log.trace("[{0}] Got '{1}' Eltwise operation at '{2}'", this->getDebugName(), origOp->getName(), origOp->getLoc());
 
     const OutputTiling tilings = _tiler(origOp);
 
@@ -167,26 +170,22 @@ mlir::LogicalResult EltwiseAddTiling::matchAndRewrite(IERT::AddOp origOp, mlir::
     SmallVector<mlir::Value> finalResults;
     finalResults.reserve(tilings.size());
 
-    for (const Tile& outputTile : tilings) {
-        const EltwiseTileConfig tileConf = backInferEltwiseAddTile(outputTile);
+    for (const Tile& tile : tilings) {
+        const mlir::Value actInput1 = makeTile(rewriter, origOp->getLoc(), origOp.input1(), tile, "input1");
+        const mlir::Value actInput2 = makeTile(rewriter, origOp->getLoc(), origOp.input2(), tile, "input2");
 
-        const Tile& inputTile = tileConf.inputTile;
-
-        const mlir::Value actInput1 = makeTile(rewriter, origOp->getLoc(), origOp.input1(), inputTile, "input1");
-        const mlir::Value actInput2 = makeTile(rewriter, origOp->getLoc(), origOp.input2(), inputTile, "input2");
-
-        const std::string tileName = llvm::formatv("output tile {0}", outputTile.offsets).str();
+        const std::string tileName = llvm::formatv("output tile {0}", tile.offsets).str();
         const mlir::Location loc = appendLoc(origOp->getLoc(), tileName);
 
-        const auto tileTypeOut = getDenseTileType(origOp.output().getType().cast<mlir::MemRefType>(),
-                                                  outputTile.offsets, outputTile.shape);
+        const auto tileTypeOut =
+                getDenseTileType(origOp.output().getType().template cast<mlir::MemRefType>(), tile.offsets, tile.shape);
         auto allocOutOp = rewriter.create<mlir::memref::AllocOp>(loc, tileTypeOut);
 
         auto tiledOp =
                 rewriter.create<IERT::AddOp>(loc, actInput1, actInput2, allocOutOp.memref(), origOp.post_opAttr());
 
-        const auto attrOffsets = getIntArrayAttr(rewriter.getContext(), outputTile.offsets.raw());
-        const auto attrShape = getIntArrayAttr(rewriter.getContext(), outputTile.shape.raw());
+        const auto attrOffsets = getIntArrayAttr(rewriter.getContext(), tile.offsets.raw());
+        const auto attrShape = getIntArrayAttr(rewriter.getContext(), tile.shape.raw());
         auto subViewOut = rewriter.create<IERT::SubViewOp>(loc, origOp.output_buff(), attrOffsets, attrShape);
 
         auto copyOut = rewriter.create<IERT::CopyOp>(loc, tiledOp.output(), subViewOut.result());
@@ -353,7 +352,6 @@ public:
 
 private:
     OutputTiling convolutionTiler(IERT::ConvolutionOp op) const;
-    OutputTiling eltwiseAddTiler(IERT::AddOp op) const;
     OutputTiling maxPoolTiler(IERT::MaxPoolOp op) const;
     OutputTiling groupConvolutionTiler(IERT::GroupConvolutionOp op) const;
 
@@ -361,6 +359,9 @@ private:
                               FuncRef<bool(ShapeRef)> isSupportedTileSize) const;
     OutputTiling groupConvTiler(mlir::Operation* op, mlir::MemRefType outputType,
                                 FuncRef<bool(ShapeRef)> isSupportedTileSize) const;
+
+    template <class ConcreteOp>
+    OutputTiling eltwiseTiler(ConcreteOp op) const;
 
 private:
     Logger _log;
@@ -370,8 +371,19 @@ void SimpleTiler::buildTilingPatterns(mlir::RewritePatternSet& patterns) {
     const auto convTilerFunc = std::bind(&SimpleTiler::convolutionTiler, this, std::placeholders::_1);
     patterns.add<ConvolutionTiling>(patterns.getContext(), convTilerFunc, _log);
 
-    const auto eltwiseTilerFunc = std::bind(&SimpleTiler::eltwiseAddTiler, this, std::placeholders::_1);
-    patterns.add<EltwiseAddTiling>(patterns.getContext(), eltwiseTilerFunc, _log);
+    const auto eltwiseAddTilerFunc = std::bind(&SimpleTiler::eltwiseTiler<IERT::AddOp>, this, std::placeholders::_1);
+    patterns.add<EltwiseTiling<IERT::AddOp>>(patterns.getContext(), eltwiseAddTilerFunc, _log);
+
+    const auto eltwiseMultTilerFunc =
+            std::bind(&SimpleTiler::eltwiseTiler<IERT::MultiplyOp>, this, std::placeholders::_1);
+    patterns.add<EltwiseTiling<IERT::MultiplyOp>>(patterns.getContext(), eltwiseMultTilerFunc, _log);
+
+    const auto eltwiseSubTilerFunc =
+            std::bind(&SimpleTiler::eltwiseTiler<IERT::SubtractOp>, this, std::placeholders::_1);
+    patterns.add<EltwiseTiling<IERT::SubtractOp>>(patterns.getContext(), eltwiseSubTilerFunc, _log);
+
+    const auto eltwiseAndTilerFunc = std::bind(&SimpleTiler::eltwiseTiler<IERT::AndOp>, this, std::placeholders::_1);
+    patterns.add<EltwiseTiling<IERT::AndOp>>(patterns.getContext(), eltwiseAndTilerFunc, _log);
 
     const auto maxPoolTilerFunc = std::bind(&SimpleTiler::maxPoolTiler, this, std::placeholders::_1);
     patterns.add<MaxPoolTiling>(patterns.getContext(), maxPoolTilerFunc, _log);
@@ -506,27 +518,24 @@ OutputTiling SimpleTiler::convolutionTiler(IERT::ConvolutionOp op) const {
     return genericTiler(op, outputType, isSupportedTileSize);
 }
 
-OutputTiling SimpleTiler::eltwiseAddTiler(IERT::AddOp op) const {
-    const auto input1Type = op.input1().getType().cast<mlir::MemRefType>();
-    const auto input2Type = op.input2().getType().cast<mlir::MemRefType>();
-    const auto outputType = op.output().getType().cast<mlir::MemRefType>();
+template <class ConcreteOp>
+OutputTiling SimpleTiler::eltwiseTiler(ConcreteOp op) const {
+    const auto input1Type = op.input1().getType().template cast<mlir::MemRefType>();
+    const auto input2Type = op.input2().getType().template cast<mlir::MemRefType>();
+    const auto outputType = op.output().getType().template cast<mlir::MemRefType>();
 
     const ShapeRef outputShape = getShape(outputType);
 
     const auto isSupportedTileSize = [&](ShapeRef nTilesOnDim) -> bool {
         const auto outputTiles = fillDividedTiles(nTilesOnDim, outputShape);
 
-        return llvm::all_of(outputTiles, [&](const auto& outputTile) {
-            const EltwiseTileConfig tileConf = backInferEltwiseAddTile(outputTile);
-
-            const auto input1TileType =
-                    getDenseTileType(input1Type, tileConf.inputTile.offsets, tileConf.inputTile.shape);
-            const auto input2TileType =
-                    getDenseTileType(input2Type, tileConf.inputTile.offsets, tileConf.inputTile.shape);
-            const auto outputTileType = getDenseTileType(outputType, outputTile.offsets, outputTile.shape);
+        return llvm::all_of(outputTiles, [&](const auto& tile) {
+            const auto input1TileType = getDenseTileType(input1Type, tile.offsets, tile.shape);
+            const auto input2TileType = getDenseTileType(input2Type, tile.offsets, tile.shape);
+            const auto outputTileType = getDenseTileType(outputType, tile.offsets, tile.shape);
 
             return mlir::succeeded(
-                    VPUIP::NCEInvariant::verifyEltwiseCMX(op->getLoc(), op->getParentOfType<mlir::ModuleOp>(),
+                    VPUIP::NCEInvariant::verifyEltwiseCMX(op->getLoc(), op->template getParentOfType<mlir::ModuleOp>(),
                                                           input1TileType, input2TileType, outputTileType, _log));
         });
     };
@@ -607,6 +616,16 @@ bool isSupportedByNCE(ConcreteOp op, Logger log) {
            VPUIP::NCEInvariant::verifyChannels(op, log).succeeded();
 }
 
+template <class ConcreteOp>
+bool isLegal(ConcreteOp origOp, Logger log) {
+    if (!isSupportedByNCE(origOp, log.nest())) {
+        // It will be computed on SHAVEs
+        return true;
+    }
+
+    return VPUIP::NCEInvariant::verifyCMX(origOp, log.nest()).succeeded();
+}
+
 void CMXTilingPass::safeRunOnFunc() {
     auto& ctx = getContext();
 
@@ -616,36 +635,25 @@ void CMXTilingPass::safeRunOnFunc() {
     target.addLegalDialect<mlir::memref::MemRefDialect>();
     target.addLegalOp<mlir::FuncOp, mlir::ReturnOp>();
     target.addDynamicallyLegalOp<IERT::ConvolutionOp>([&](IERT::ConvolutionOp op) {
-        if (!isSupportedByNCE(op, _log.nest())) {
-            // It will be computed on SHAVEs
-            return true;
-        }
-
-        return VPUIP::NCEInvariant::verifyCMX(op, _log.nest()).succeeded();
+        return isLegal(op, _log);
     });
     target.addDynamicallyLegalOp<IERT::AddOp>([&](IERT::AddOp op) {
-        if (!isSupportedByNCE(op, _log.nest())) {
-            // It will be computed on SHAVEs
-            return true;
-        }
-
-        return VPUIP::NCEInvariant::verifyCMX(op, _log.nest()).succeeded();
+        return isLegal(op, _log);
+    });
+    target.addDynamicallyLegalOp<IERT::MultiplyOp>([&](IERT::MultiplyOp op) {
+        return isLegal(op, _log);
+    });
+    target.addDynamicallyLegalOp<IERT::SubtractOp>([&](IERT::SubtractOp op) {
+        return isLegal(op, _log);
+    });
+    target.addDynamicallyLegalOp<IERT::AndOp>([&](IERT::AndOp op) {
+        return isLegal(op, _log);
     });
     target.addDynamicallyLegalOp<IERT::MaxPoolOp>([&](IERT::MaxPoolOp op) {
-        if (!isSupportedByNCE(op, _log.nest())) {
-            // It will be computed on SHAVEs
-            return true;
-        }
-
-        return VPUIP::NCEInvariant::verifyCMX(op, _log.nest()).succeeded();
+        return isLegal(op, _log);
     });
     target.addDynamicallyLegalOp<IERT::GroupConvolutionOp>([&](IERT::GroupConvolutionOp op) {
-        if (!isSupportedByNCE(op, _log.nest())) {
-            // Falls back to Conv2dUPA
-            return true;
-        }
-
-        return VPUIP::NCEInvariant::verifyCMX(op, _log.nest()).succeeded();
+        return isLegal(op, _log);
     });
 
     mlir::RewritePatternSet patterns(&ctx);
