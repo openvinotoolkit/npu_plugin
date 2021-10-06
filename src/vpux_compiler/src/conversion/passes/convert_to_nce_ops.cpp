@@ -276,7 +276,7 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
                 VPUIP::NCESparsity::getBitPatternSize(kernelSize, kernelStrides[0], origInputType.getElementType(), IC);
 
         actWindowChanLen = getIntAttr(getContext(), bitPatternSize);
-        fakeSparsity = VPUIP::NCESparsity::getFakeSparsity(VPUIP::NCETaskType::CONV, kernelSize, kernelStrides[0],
+        fakeSparsity = VPUIP::NCESparsity::getFakeSparsity(VPUIP::NCETaskType::CMCONV, kernelSize, kernelStrides[0],
                                                            origInputType.getElementType(), IC, OC);
         activationWindow = createActivationWindowTensor(rewriter, origOp->getLoc(), fakeSparsity, OC);
     } else {

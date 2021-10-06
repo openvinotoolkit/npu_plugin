@@ -299,7 +299,7 @@ std::vector<uint8_t> vpux::VPUIP::NCESparsity::getFakeSparsity(vpux::VPUIP::NCET
     SmallVector<uint8_t> perChannelSparsity;
     perChannelSparsity.resize(perChannelSparsitySize);
 
-    if (taskType == NCETaskType::CONV && inputChannels < 16) {  // and user layout
+    if (taskType == NCETaskType::CMCONV) { 
         perChannelSparsity.resize(numberOfRowsSparsityBytes * 16);
     } else if (taskType == NCETaskType::DWCONV || taskType == NCETaskType::AVEPOOL || taskType == NCETaskType::MAXPOOL)
         perChannelSparsity.resize(perChannelSparsitySize);
