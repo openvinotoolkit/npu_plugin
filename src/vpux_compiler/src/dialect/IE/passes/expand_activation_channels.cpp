@@ -467,7 +467,10 @@ void ExpandActivationChannelsPass::safeRunOnFunc() {
     mlir::RewritePatternSet patterns(&ctx);
     patterns.insert<MaxPoolRewriter>(&ctx, _log);
     patterns.insert<ConvolutionRewriter>(&ctx, _log);
-    patterns.insert<EltwiseAddRewriter>(&ctx, _log);
+    patterns.insert<EltwiseRewriter<IE::AddOp>>(&ctx, _log);
+    patterns.insert<EltwiseRewriter<IE::MultiplyOp>>(&ctx, _log);
+    patterns.insert<EltwiseRewriter<IE::SubtractOp>>(&ctx, _log);
+    patterns.insert<EltwiseRewriter<IE::AndOp>>(&ctx, _log);
     patterns.insert<GroupConvolutionRewriter>(&ctx, _log);
 
     if (mlir::failed(mlir::applyFullConversion(func, target, std::move(patterns)))) {
