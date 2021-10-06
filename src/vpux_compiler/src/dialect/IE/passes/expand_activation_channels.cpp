@@ -453,7 +453,7 @@ void ExpandActivationChannelsPass::safeRunOnFunc() {
 
     const auto isLegal = [&](mlir::Operation* op) {
         if (auto iface = mlir::dyn_cast<IE::AlignedChannelsOpInterface>(op)) {
-            return iface.verifyChannels().succeeded();
+            return iface.verifyDims().succeeded();
         }
 
         return true;
