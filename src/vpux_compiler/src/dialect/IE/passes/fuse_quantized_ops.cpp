@@ -15,6 +15,8 @@
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
+#include "vpux/compiler/utils/error.hpp"
+#include "vpux/compiler/utils/quantization.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 
 #include <mlir/Dialect/Quant/QuantTypes.h>
@@ -237,6 +239,75 @@ mlir::LogicalResult FuseWithSlice::matchAndRewrite(IE::QuantizeOp quantizeOp, ml
 }
 
 //
+// FuseWithConcat
+//
+
+//
+//       [input]
+//          |
+//     (dequantize)
+//          |
+//       (concat)
+//          |
+//       [output]
+//          |
+//      (quantize)
+//
+
+class FuseWithConcat final : public mlir::OpRewritePattern<IE::QuantizeOp> {
+public:
+    FuseWithConcat(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<IE::QuantizeOp>(ctx), _log(log) {
+        setDebugName("FuseWithConcat");
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(IE::QuantizeOp origOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult FuseWithConcat::matchAndRewrite(IE::QuantizeOp quantizeOp, mlir::PatternRewriter& rewriter) const {
+    auto concatOp = quantizeOp.input().getDefiningOp<IE::ConcatOp>();
+    if (concatOp == nullptr) {
+        return mlir::failure();
+    }
+
+    SmallVector<mlir::Value> newConcatInputs;
+    newConcatInputs.reserve(concatOp.inputs().size());
+
+    const auto inType = concatOp.inputs().front().getType().cast<mlir::RankedTensorType>();
+    const auto perAxisQType = inType.getElementType().dyn_cast<mlir::quant::UniformQuantizedPerAxisType>();
+
+    for (auto in : concatOp.inputs()) {
+        auto inputDequantizeOp = in.getDefiningOp<IE::DequantizeOp>();
+        if (inputDequantizeOp == nullptr) {
+            return mlir::failure();
+        }
+
+        auto inputDequantizeOpType = inputDequantizeOp.input().getType().cast<mlir::RankedTensorType>();
+        const auto curPerAxisQType =
+                inputDequantizeOpType.getElementType().dyn_cast<mlir::quant::UniformQuantizedPerAxisType>();
+
+        if ((perAxisQType == nullptr && curPerAxisQType != nullptr) ||
+            (perAxisQType != nullptr && curPerAxisQType == nullptr)) {
+            return mlir::failure();
+        }
+        if (perAxisQType != nullptr && curPerAxisQType != nullptr) {
+            if (!canBeMerged(curPerAxisQType, perAxisQType)) {
+                return mlir::failure();
+            }
+        }
+
+        newConcatInputs.push_back(inputDequantizeOp.input());
+    }
+
+    rewriter.replaceOpWithNewOp<IE::ConcatOp>(quantizeOp, quantizeOp.getType(), newConcatInputs, concatOp.axisAttr());
+
+    return mlir::success();
+}
+
+//
 // FuseQuantizedOpsPass
 //
 
@@ -258,6 +329,7 @@ void FuseQuantizedOpsPass::safeRunOnFunc() {
     patterns.add<FuseWithEltwiseAdd>(&ctx, _log);
     patterns.add<FuseWithSlice>(&ctx, _log);
     patterns.add<FuseWithMaxPool>(&ctx, _log);
+    patterns.add<FuseWithConcat>(&ctx, _log);
 
     auto func = getFunction();
     if (mlir::failed(applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig()))) {

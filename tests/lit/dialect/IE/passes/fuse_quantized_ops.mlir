@@ -77,3 +77,27 @@ func @FuseQuantParamsIntoPool(%arg0: tensor<1x3x16x16xf16>) -> tensor<1x3x16x16x
   //CHECK: [[VAL2:%.*]] = IE.Dequantize([[VAL1]]) {dstElemType = f16} : tensor<1x3x16x16x!quant.uniform<u8:f16, 0.57450980392156858>> -> tensor<1x3x16x16xf16>
   //CHECK: return [[VAL2]]
 }
+
+// -----
+
+// CHECK-LABEL: @FuseQuantParamsIntoConcat
+func @FuseQuantParamsIntoConcat(%arg0: tensor<1x2x3x4xf16>, %arg1: tensor<1x2x3x4xf16>) -> tensor<1x4x3x4xf16> {
+    %0 = IE.Quantize(%arg0) {dstElemType = !quant.uniform<u8:f16, 1.1534313725490195:128>} : tensor<1x2x3x4xf16> -> tensor<1x2x3x4x!quant.uniform<u8:f16, 1.1534313725490195:128>>
+    %1 = IE.Dequantize(%0) {dstElemType = f16} : tensor<1x2x3x4x!quant.uniform<u8:f16, 1.1534313725490195:128>> -> tensor<1x2x3x4xf16>
+
+    %2 = IE.Quantize(%arg1) {dstElemType = !quant.uniform<u8:f16, 1.1534313725490195:128>} : tensor<1x2x3x4xf16> -> tensor<1x2x3x4x!quant.uniform<u8:f16, 1.1534313725490195:128>>
+    %3 = IE.Dequantize(%2) {dstElemType = f16} : tensor<1x2x3x4x!quant.uniform<u8:f16, 1.1534313725490195:128>> -> tensor<1x2x3x4xf16>
+
+    %4 = IE.Concat (%1, %3) {axis = 1} : tensor<1x2x3x4xf16>, tensor<1x2x3x4xf16> -> tensor<1x4x3x4xf16>
+
+    %5 = IE.Quantize(%4) {dstElemType = !quant.uniform<u8:f16, 1.1534313725490195:128>}: tensor<1x4x3x4xf16> -> tensor<1x4x3x4x!quant.uniform<u8:f16, 1.1534313725490195:128>>
+    %6 = IE.Dequantize(%5) {dstElemType = f16} : tensor<1x4x3x4x!quant.uniform<u8:f16, 1.1534313725490195:128>> -> tensor<1x4x3x4xf16>
+
+    return %6 : tensor<1x4x3x4xf16>
+
+    //CHECK: [[VAL0:%.*]] = IE.Quantize(%arg0) {dstElemType = !qElemType} : tensor<1x2x3x4xf16> -> tensor<1x2x3x4x!quant.uniform<u8:f16, 1.1534313725490195:128>>
+    //CHECK: [[VAL1:%.*]] = IE.Quantize(%arg1) {dstElemType = !qElemType} : tensor<1x2x3x4xf16> -> tensor<1x2x3x4x!quant.uniform<u8:f16, 1.1534313725490195:128>>
+    //CHECK: [[VAL2:%.*]] = IE.Concat([[VAL0]], [[VAL1]]) {axis = 1 : i64, offset = 0 : i64, stride = 1 : i64} : tensor<1x2x3x4x!quant.uniform<u8:f16, 1.1534313725490195:128>>, tensor<1x2x3x4x!quant.uniform<u8:f16, 1.1534313725490195:128>> -> tensor<1x4x3x4x!quant.uniform<u8:f16, 1.1534313725490195:128>>
+    //CHECK: [[VAL3:%.*]] = IE.Dequantize([[VAL2]]) {dstElemType = f16} : tensor<1x4x3x4x!quant.uniform<u8:f16, 1.1534313725490195:128>> -> tensor<1x4x3x4xf16>
+    //CHECK: return [[VAL3]] : tensor<1x4x3x4xf16>
+}
