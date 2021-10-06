@@ -280,8 +280,6 @@ int64_t vpux::VPUIP::NCESparsity::getBitPatternSize(mlir::ArrayRef<int64_t> kern
 
     auto actualType = tryGetQuantizedStorageType(elemType);
     const auto windowSize = getWindowSize(kernelSize[0], strideW, actualType);
-    Logger::global().error("windowSize: {0}", windowSize);
-    Logger::global().error("kernelSize[1]: {0}", kernelSize[1]);
 
     return kernelSize[1] * windowSize * inputChannels;
 }
