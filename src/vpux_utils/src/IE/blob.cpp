@@ -224,9 +224,10 @@ void cvtBlobPrecisionImpl(const MemoryBlob::Ptr& in, const MemoryBlob::Ptr& out,
     VPUX_THROW_UNLESS(outPtr != nullptr, "Blob was not allocated");
 
     const auto pluginQuantization = outQuantParams.hasValue();
-    if (pluginQuantization && outPrecision != Precision::U8 &&
-        !(inPrecision == Precision::FP32 || inPrecision == Precision::FP16)) {
-        VPUX_THROW("VPUX Plugin quantization is supported only for FP32/FP16 to U8 cases");
+    if (pluginQuantization) {
+        const auto isSupportedTypes =
+                (inPrecision == Precision::FP32 || inPrecision == Precision::FP16) && outPrecision == Precision::U8;
+        VPUX_THROW_UNLESS(isSupportedTypes, "VPUX Plugin quantization is supported only for FP32/FP16 to U8 cases");
     }
 
     if (!pluginQuantization) {
