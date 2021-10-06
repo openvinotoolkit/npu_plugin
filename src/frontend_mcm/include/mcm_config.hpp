@@ -148,6 +148,7 @@ public:
 
     bool forcePluginInputQuantization() const {
         return _forcePluginInputQuantization;
+    }
 
     bool outputFp16ToFp32HostConversion() const {
         return _outputFp16ToFp32HostConversion;
