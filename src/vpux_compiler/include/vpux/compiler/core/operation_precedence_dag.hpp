@@ -158,13 +158,13 @@ struct Scheduled_Op {
         return has_valid_address();
     }
 
-    operator size_t() const {
-        return schedule_time_;
-    }
+    // operator size_t() const {
+    //     return schedule_time_;
+    // }
 
-    operator operation_t() const {
-        return op_;
-    }
+    // operator operation_t() const {
+    //     return op_;
+    // }
 
     void set_start_address(size_t start_address) {
         cmx_address_start_ = start_address;
