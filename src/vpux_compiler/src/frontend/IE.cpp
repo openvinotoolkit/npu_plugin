@@ -63,6 +63,8 @@
 #include <transformations/common_optimizations/pull_transpose_through_fq.hpp>
 #include <transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp>
 #include <transformations/op_conversions/convert_divide.hpp>
+#include <transformations/op_conversions/convert_gather_v1_to_gather_v7.hpp>
+#include <transformations/op_conversions/convert_gather_v7_to_gather_v1.hpp>
 #include <transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp>
 #include <transformations/op_conversions/convert_minimum_to_power_and_max.hpp>
 #include <transformations/op_conversions/convert_negative.hpp>
@@ -692,13 +694,14 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
                   "opset operation mismatch");
 
     const auto inputs = getInputs(origNode);
-    VPUX_THROW_UNLESS(inputs.size() == 4, "nGraph Gather node '{0}' has unsupported number of inputs '{1}'",
-                      origNode->get_friendly_name(), inputs.size());
+    VPUX_THROW_UNLESS(inputs.size() == 3 || inputs.size() == 4,
+                      "nGraph Gather node '{0}' has unsupported number of inputs '{1}'", origNode->get_friendly_name(),
+                      inputs.size());
 
     VPUX_THROW_UNLESS(origNode->get_batch_dims() == 0, "Batch dim for gather '{0}' is not supported",
                       origNode->get_friendly_name());
 
-    auto op = builder.create<IE::GatherOp>(createLocation(origNode), inputs[0], inputs[1], inputs[2]);
+    auto op = builder.create<IE::GatherOp>(createLocation(origNode), inputs[0], inputs[1], inputs[2], nullptr);
     addOutputs(origNode, op);
 }
 
@@ -1788,6 +1791,9 @@ void runNGraphPasses(const std::shared_ptr<ngraph::Function>& netGraph, mlir::Ti
     // FakeQuantizeMulFusion and PullTransposeThroughFQUp has conflicts with PropagateFQ
     passConfig->disable<ngraph::pass::FakeQuantizeMulFusion>();
     passConfig->disable<ngraph::pass::PullTransposeThroughFQUp>();
+
+    passConfig->enable<ngraph::pass::ConvertGather1ToGather7>();
+    passConfig->disable<ngraph::pass::ConvertGather7ToGather1>();
 
     ngraph::pass::Manager manager(passConfig);
     manager.register_pass<ngraph::pass::InitNodeInfo>();
