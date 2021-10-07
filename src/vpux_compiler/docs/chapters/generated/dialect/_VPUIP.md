@@ -477,6 +477,7 @@ operation ::= `VPUIP.DeclareTensor` $locale custom<LocaleIndex>($localeIndex) `<
 `storageElementSize` | mlir::IntegerAttr | Integer attribute
 `leadingOffset` | mlir::IntegerAttr | Integer attribute
 `trailingOffset` | mlir::IntegerAttr | Integer attribute
+`swizzlingKey` | mlir::IntegerAttr | Integer attribute
 
 #### Results:
 
