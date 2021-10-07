@@ -101,6 +101,10 @@ void vpux::buildReferenceSWModePipeline(mlir::OpPassManager& pm, const Reference
 
     IERT::buildAsyncSchedulingPipeline(pm, log);
 
+    if (options.enableProfiling) {
+        pm.addPass(IERT::createDMATaskProfilingPass(getMemSpace<VPU::MemoryKind::CMX_NN>, log));
+    }
+
     pm.addPass(IERT::createStaticAllocationPass(getMemSpace<VPU::MemoryKind::DDR>, log));
     pm.addPass(IERT::createOptimizeAsyncDepsPass(log));
 
@@ -188,6 +192,10 @@ void vpux::buildReferenceHWModePipeline(mlir::OpPassManager& pm, const Reference
     pm.addPass(IERT::createSetInternalMemorySpacePass(getMemSpace<VPU::MemoryKind::DDR>, log));
 
     IERT::buildAsyncSchedulingPipeline(pm, log);
+
+    if (options.enableProfiling) {
+        pm.addPass(IERT::createDMATaskProfilingPass(getMemSpace<VPU::MemoryKind::CMX_NN>, log));
+    }
 
     pm.addPass(IERT::createStaticAllocationPass(getMemSpace<VPU::MemoryKind::CMX_NN>, log));
     pm.addPass(IERT::createStaticAllocationPass(getMemSpace<VPU::MemoryKind::DDR>, log));
@@ -286,6 +294,10 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
     }
 
     IERT::buildAsyncSchedulingPipeline(pm, log);
+
+    if (options.enableProfiling) {
+        pm.addPass(IERT::createDMATaskProfilingPass(getMemSpace<VPU::MemoryKind::CMX_NN>, log));
+    }
 
     pm.addPass(IERT::createFeasibleAllocationPass(getMemSpace<VPU::MemoryKind::CMX_NN>,
                                                   getMemSpace<VPU::MemoryKind::DDR>, log));
