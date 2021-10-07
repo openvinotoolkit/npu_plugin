@@ -208,11 +208,16 @@ private:
     bool _optimizeInputPrecision = true;
     bool _forcePluginInputQuantization = false;
 
-// TODO This hardcoded "true" might be a bottleneck in the scenario of Windows-Yocto performance validation
-// (Windows - compilation, Yocto - inference in autonomous mode)
+// TODO
+// Windows-Yocto scenario (autonomous mode)
+// Hardcoded "true" might decrease a performance
 // Need to be investigated if we use it (currently it's unused)
+// Windows dKMB scenario (discrete mode)
+// Hardcoded "true" brings some performance boost for some networks
+// Besides of that, there is CPU usage grow as well
+// Consider to keep "false" until further investigation is completed
 #ifdef _WIN32
-    bool _outputFp16ToFp32HostConversion = true;
+    bool _outputFp16ToFp32HostConversion = false;
 #else
     bool _outputFp16ToFp32HostConversion = false;
 #endif
