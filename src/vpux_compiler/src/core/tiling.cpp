@@ -13,12 +13,14 @@
 
 #include "vpux/compiler/core/tiling.hpp"
 
-#include "vpux/compiler/core/layers.hpp"
-
 using namespace vpux;
 
-SmallVector<Tile> vpux::fillDividedTiles(ShapeRef divisors, ShapeRef orig) {
-    SmallVector<Tile> dividedTiles(divisors.totalSize(), Tile(divisors.size()));
+//
+// TileInfo
+//
+
+SmallVector<TileInfo> vpux::fillDividedTiles(ShapeRef divisors, ShapeRef orig) {
+    SmallVector<TileInfo> dividedTiles(divisors.totalSize(), TileInfo(divisors.size()));
 
     int64_t repeatCtr = 1;
 
@@ -70,12 +72,16 @@ SmallVector<Tile> vpux::fillDividedTiles(ShapeRef divisors, ShapeRef orig) {
     return dividedTiles;
 }
 
-PadsTileConfig vpux::backInferPadsTile(const Tile& outputTile, ShapeRef outShape, int64_t padLeft, int64_t padRight,
-                                       int64_t padTop, int64_t padBottom) {
-    SmallVector<int64_t> padsBegin(Dims4D::Act::numSpatialDims);
-    SmallVector<int64_t> padsEnd(Dims4D::Act::numSpatialDims);
-    SmallVector<int64_t> opPadsBegin = {padTop, padLeft};
-    SmallVector<int64_t> opPadsEnd = {padBottom, padRight};
+//
+// PadInfo
+//
+
+PadInfo vpux::backInferPadsTile(const TileInfo& outputTile, ShapeRef outShape, const PadInfo& origPads) {
+    const std::array<int64_t, 2> origPadsBegin = {origPads.top, origPads.left};
+    const std::array<int64_t, 2> origPadsEnd = {origPads.bottom, origPads.right};
+
+    SmallVector<int64_t> tilePadsBegin(Dims4D::Act::numSpatialDims);
+    SmallVector<int64_t> tilePadsEnd(Dims4D::Act::numSpatialDims);
 
     for (auto ind : irange(Dims4D::Act::numSpatialDims)) {
         const auto spatialDim = Dims4D::Act::getSpatialDim(ind);
@@ -83,18 +89,15 @@ PadsTileConfig vpux::backInferPadsTile(const Tile& outputTile, ShapeRef outShape
         const auto outSize = outputTile.shape[spatialDim];
         const auto outOffset = outputTile.offsets[spatialDim];
 
-        const int64_t tilePadStart = outOffset == 0 ? opPadsBegin[ind] : 0;
-        const int64_t tilePadEnd = (outOffset + outSize) == outShape[spatialDim] ? opPadsEnd[ind] : 0;
-
-        padsBegin[ind] = tilePadStart;
-        padsEnd[ind] = tilePadEnd;
+        tilePadsBegin[ind] = outOffset == 0 ? origPadsBegin[ind] : 0;
+        tilePadsEnd[ind] = (outOffset + outSize) == outShape[spatialDim] ? origPadsEnd[ind] : 0;
     }
 
-    return {padsBegin[1], padsEnd[1], padsBegin[0], padsEnd[0]};
+    return PadInfo(tilePadsBegin[1], tilePadsEnd[1], tilePadsBegin[0], tilePadsEnd[0]);
 }
 
 //
-// Tiling utilities
+// Common tiling utilities
 //
 
 namespace {
@@ -165,33 +168,6 @@ struct PlaneTile final {
 
     void printFormat(llvm::raw_ostream& stream) const {
         printTo(stream, "PlaneTile [width tile = {0}, height tile = {1}]", width, height);
-    }
-};
-
-struct PadInfo final {
-    int64_t left = 0;
-    int64_t right = 0;
-    int64_t top = 0;
-    int64_t bottom = 0;
-
-    PadInfo() = default;
-    PadInfo(int64_t left, int64_t right, int64_t top, int64_t bottom)
-            : left(left), right(right), top(top), bottom(bottom) {
-    }
-
-    bool enabled() const {
-        return left != 0 || right != 0 || top != 0 || bottom != 0;
-    }
-
-    bool operator==(const PadInfo& other) const {
-        return left == other.left && right == other.right && top == other.top && bottom == other.bottom;
-    }
-    bool operator!=(const PadInfo& other) const {
-        return !(*this == other);
-    }
-
-    void printFormat(llvm::raw_ostream& stream) const {
-        printTo(stream, "PadInfo [left = {0}, right = {1}, top = {1}, bottom = {1}]", left, right, top, bottom);
     }
 };
 
@@ -286,31 +262,31 @@ PlaneTileSolution solutionForOutputTile(const PlaneTile& output, int64_t kernelX
 
 }  // namespace
 
-ConvTileConfig vpux::backInferConvTile(IERT::ConvolutionOp origOp, const Tile& outputTile) {
-    const auto origInputShape = getShape(origOp.input());
-    const auto origFilterShape = getShape(origOp.filter());
-    const auto origBiasShape = origOp.bias() != nullptr ? getShape(origOp.bias()) : ShapeRef();
+//
+// Convolution tiling
+//
 
+ConvTileConfig vpux::backInferConvTile(const TileInfo& outputTile, ShapeRef origInputShape, ShapeRef origFilterShape,
+                                       ShapeRef origBiasShape, mlir::ArrayAttr strides, mlir::ArrayAttr pads_begin,
+                                       mlir::ArrayAttr pads_end) {
     PlaneTile output;
     output.height.begin = outputTile.offsets[Dims4D::Act::H];
     output.height.end = outputTile.offsets[Dims4D::Act::H] + outputTile.shape[Dims4D::Act::H];
     output.width.begin = outputTile.offsets[Dims4D::Act::W];
     output.width.end = outputTile.offsets[Dims4D::Act::W] + outputTile.shape[Dims4D::Act::W];
 
-    PadInfo initialPad;
-    initialPad.top = origOp.pads_begin()[0].cast<mlir::IntegerAttr>().getInt();
-    initialPad.bottom = origOp.pads_end()[0].cast<mlir::IntegerAttr>().getInt();
-    initialPad.left = origOp.pads_begin()[1].cast<mlir::IntegerAttr>().getInt();
-    initialPad.right = origOp.pads_end()[1].cast<mlir::IntegerAttr>().getInt();
+    const auto strideY = strides[Dims4D::Strides::Y.ind()].cast<mlir::IntegerAttr>().getValue().getSExtValue();
+    const auto strideX = strides[Dims4D::Strides::X.ind()].cast<mlir::IntegerAttr>().getValue().getSExtValue();
+
+    const PadInfo origPads(pads_begin, pads_end);
 
     const auto solution =
             solutionForOutputTile(output, origFilterShape[Dims4D::Filter::KX], origFilterShape[Dims4D::Filter::KY],
-                                  origOp.strides()[1].cast<mlir::IntegerAttr>().getInt(),
-                                  origOp.strides()[0].cast<mlir::IntegerAttr>().getInt(), origInputShape, initialPad);
+                                  strideX, strideY, origInputShape, origPads);
 
-    Tile inputTile(origInputShape);
-    Tile filterTile(origFilterShape);
-    Tile biasTile(origBiasShape);
+    TileInfo inputTile(origInputShape);
+    TileInfo filterTile(origFilterShape);
+    TileInfo biasTile(origBiasShape);
 
     inputTile.shape[Dims4D::Act::N] = outputTile.shape[Dims4D::Act::N];
     inputTile.offsets[Dims4D::Act::N] = outputTile.offsets[Dims4D::Act::N];
@@ -329,34 +305,44 @@ ConvTileConfig vpux::backInferConvTile(IERT::ConvolutionOp origOp, const Tile& o
         biasTile.offsets[Dims4D::Act::C] = outputTile.offsets[Dims4D::Act::C];
     }
 
-    return {inputTile,
-            filterTile,
-            biasTile,
-            {solution.inputPad.left, solution.inputPad.right, solution.inputPad.top, solution.inputPad.bottom}};
+    return {inputTile, filterTile, biasTile, solution.inputPad};
 }
 
-PoolTileConfig vpux::backInferPoolTile(IERT::MaxPoolOp origOp, const Tile& outputTile) {
-    const auto origInputShape = getShape(origOp.input());
+ConvTileConfig vpux::backInferGroupConvTile(const TileInfo& outputTile, ShapeRef origInputShape,
+                                            ShapeRef origFilterShape, ShapeRef origBiasShape, mlir::ArrayAttr strides,
+                                            mlir::ArrayAttr pads_begin, mlir::ArrayAttr pads_end) {
+    auto res = backInferConvTile(outputTile, origInputShape, origFilterShape, origBiasShape, strides, pads_begin,
+                                 pads_end);
 
+    res.inputTile.shape[Dims4D::Act::C] = outputTile.shape[Dims4D::Act::C];
+    res.inputTile.offsets[Dims4D::Act::C] = outputTile.offsets[Dims4D::Act::C];
+
+    return res;
+}
+
+//
+// Pooling tiling
+//
+
+PoolTileConfig vpux::backInferPoolTile(const TileInfo& outputTile, ShapeRef origInputShape, mlir::ArrayAttr kernel_size,
+                                       mlir::ArrayAttr strides, mlir::ArrayAttr pads_begin, mlir::ArrayAttr pads_end) {
     PlaneTile output;
     output.height.begin = outputTile.offsets[Dims4D::Act::H];
     output.height.end = outputTile.offsets[Dims4D::Act::H] + outputTile.shape[Dims4D::Act::H];
     output.width.begin = outputTile.offsets[Dims4D::Act::W];
     output.width.end = outputTile.offsets[Dims4D::Act::W] + outputTile.shape[Dims4D::Act::W];
 
-    PadInfo initialPad;
-    initialPad.top = origOp.pads_begin()[0].cast<mlir::IntegerAttr>().getInt();
-    initialPad.bottom = origOp.pads_end()[0].cast<mlir::IntegerAttr>().getInt();
-    initialPad.left = origOp.pads_begin()[1].cast<mlir::IntegerAttr>().getInt();
-    initialPad.right = origOp.pads_end()[1].cast<mlir::IntegerAttr>().getInt();
+    const auto kernelY = kernel_size[Dims4D::Kernel::Y.ind()].cast<mlir::IntegerAttr>().getValue().getSExtValue();
+    const auto kernelX = kernel_size[Dims4D::Kernel::X.ind()].cast<mlir::IntegerAttr>().getValue().getSExtValue();
 
-    const auto solution =
-            solutionForOutputTile(output, origOp.kernel_size()[1].cast<mlir::IntegerAttr>().getInt(),
-                                  origOp.kernel_size()[0].cast<mlir::IntegerAttr>().getInt(),
-                                  origOp.strides()[1].cast<mlir::IntegerAttr>().getInt(),
-                                  origOp.strides()[0].cast<mlir::IntegerAttr>().getInt(), origInputShape, initialPad);
+    const auto strideY = strides[Dims4D::Strides::Y.ind()].cast<mlir::IntegerAttr>().getValue().getSExtValue();
+    const auto strideX = strides[Dims4D::Strides::X.ind()].cast<mlir::IntegerAttr>().getValue().getSExtValue();
 
-    Tile inputTile(origInputShape);
+    const PadInfo origPads(pads_begin, pads_end);
+
+    const auto solution = solutionForOutputTile(output, kernelX, kernelY, strideX, strideY, origInputShape, origPads);
+
+    TileInfo inputTile(origInputShape);
 
     inputTile.shape[Dims4D::Act::N] = outputTile.shape[Dims4D::Act::N];
     inputTile.offsets[Dims4D::Act::N] = outputTile.offsets[Dims4D::Act::N];
@@ -370,55 +356,5 @@ PoolTileConfig vpux::backInferPoolTile(IERT::MaxPoolOp origOp, const Tile& outpu
     inputTile.offsets[Dims4D::Act::W] = solution.inputTile.width.begin;
     inputTile.shape[Dims4D::Act::W] = solution.inputTile.width.length();
 
-    return {inputTile,
-            {solution.inputPad.left, solution.inputPad.right, solution.inputPad.top, solution.inputPad.bottom}};
-}
-
-ConvTileConfig vpux::backInferGroupConvTile(IERT::GroupConvolutionOp origOp, const Tile& outputTile) {
-    const auto origInputShape = getShape(origOp.input());
-    const auto origFilterShape = getShape(origOp.filter());
-    const auto origBiasShape = origOp.bias() != nullptr ? getShape(origOp.bias()) : ShapeRef();
-
-    PlaneTile output;
-    output.height.begin = outputTile.offsets[Dims4D::Act::H];
-    output.height.end = outputTile.offsets[Dims4D::Act::H] + outputTile.shape[Dims4D::Act::H];
-    output.width.begin = outputTile.offsets[Dims4D::Act::W];
-    output.width.end = outputTile.offsets[Dims4D::Act::W] + outputTile.shape[Dims4D::Act::W];
-
-    PadInfo initialPad;
-    initialPad.top = origOp.pads_begin()[0].cast<mlir::IntegerAttr>().getInt();
-    initialPad.bottom = origOp.pads_end()[0].cast<mlir::IntegerAttr>().getInt();
-    initialPad.left = origOp.pads_begin()[1].cast<mlir::IntegerAttr>().getInt();
-    initialPad.right = origOp.pads_end()[1].cast<mlir::IntegerAttr>().getInt();
-
-    const auto solution =
-            solutionForOutputTile(output, origFilterShape[Dims4D::Filter::KX], origFilterShape[Dims4D::Filter::KY],
-                                  origOp.strides()[1].cast<mlir::IntegerAttr>().getInt(),
-                                  origOp.strides()[0].cast<mlir::IntegerAttr>().getInt(), origInputShape, initialPad);
-
-    Tile inputTile(origInputShape);
-    Tile filterTile(origFilterShape);
-    Tile biasTile(origBiasShape);
-
-    inputTile.shape[Dims4D::Act::C] = outputTile.shape[Dims4D::Act::C];
-    inputTile.offsets[Dims4D::Act::C] = outputTile.offsets[Dims4D::Act::C];
-
-    inputTile.offsets[Dims4D::Act::H] = solution.inputTile.height.begin;
-    inputTile.shape[Dims4D::Act::H] = solution.inputTile.height.length();
-
-    inputTile.offsets[Dims4D::Act::W] = solution.inputTile.width.begin;
-    inputTile.shape[Dims4D::Act::W] = solution.inputTile.width.length();
-
-    filterTile.shape[Dims4D::Filter::OC] = outputTile.shape[Dims4D::Act::C];
-    filterTile.offsets[Dims4D::Filter::OC] = outputTile.offsets[Dims4D::Act::C];
-
-    if (!biasTile.shape.empty()) {
-        biasTile.shape[Dims4D::Act::C] = outputTile.shape[Dims4D::Act::C];
-        biasTile.offsets[Dims4D::Act::C] = outputTile.offsets[Dims4D::Act::C];
-    }
-
-    return {inputTile,
-            filterTile,
-            biasTile,
-            {solution.inputPad.left, solution.inputPad.right, solution.inputPad.top, solution.inputPad.bottom}};
+    return {inputTile, solution.inputPad};
 }
