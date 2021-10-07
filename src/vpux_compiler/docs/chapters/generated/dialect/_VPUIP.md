@@ -2058,6 +2058,69 @@ operation ::= `VPUIP.RoundUPA` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float values
 
+### `VPUIP.SW.Kernel` (vpux::VPUIP::SW_Kernel)
+
+Software Layer Task
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.SW.Kernel` attr-dict
+              $kernelFunction
+              `inputs` custom<IOForward>($inputs, type($inputs))
+              `outputs` custom<IOForward>($outputs, type($outputs))
+              (`on` `tile` $tileIndex^)?
+              (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+              (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+              `->` type(results)
+              $body
+```
+
+This operation defines Activation shave task
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`kernelFunction` | ::mlir::SymbolRefAttr | symbol reference attribute
+`tileIndex` | mlir::IntegerAttr | Integer attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`inputs` | memref of any type values
+`outputs` | memref of any type values
+`waitBarriers` | VPUIP Barrier Type
+`updateBarriers` | VPUIP Barrier Type
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`results` | memref of any type values
+
+### `VPUIP.SW.Kernel.run` (vpux::VPUIP::SW_Kernel_run)
+
+
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.SW.Kernel.run` attr-dict
+              `(` operands
+              `)` `:` type(operands)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`args` | any type
+
 ### `VPUIP.ScaleShiftUPA` (vpux::VPUIP::ScaleShiftUPAOp)
 
 ScaleShift UPA SHAVE kernel

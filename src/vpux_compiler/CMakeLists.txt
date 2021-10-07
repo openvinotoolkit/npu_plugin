@@ -343,12 +343,15 @@ target_compile_definitions(${OBJ_TARGET_NAME}
     PRIVATE
         IMPLEMENT_INFERENCE_ENGINE_PLUGIN
         "DEVICE_NAME=\"${VPUX_DEVICE_NAME}\""
+        "LIBRARY_OUTPUT_DIRECTORY=\"${CMAKE_LIBRARY_OUTPUT_DIRECTORY}\""
+        "KERNEL_DIRECTORY=\"${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/sw_runtime_kernels/kernels\""
 )
 
 target_include_directories(${OBJ_TARGET_NAME}
     SYSTEM PUBLIC
         "${CMAKE_CURRENT_BINARY_DIR}/include"
         "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/include"
+        "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/sw_runtime_kernels"
         ${MLIR_INCLUDE_DIRS}
 )
 target_include_directories(${OBJ_TARGET_NAME}
