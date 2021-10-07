@@ -335,9 +335,9 @@ void buildEltwiseMultWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir
     auto nceTask = funcbuilder.create<NCEClusterTaskOp>(
             builder.getUnknownLoc(), output_cmx_memreftype, getTensorResult(input_nce_cmx),
             getTensorResult(weights_nce_cmx), getTensorResult(weightstable_cmx), getTensorResult(act_window_cmx),
-            getTensorResult(parent_input_nce_cmx), getTensorResult(parent_output_nce_cmx),
-            getTensorResult(output_nce_cmx), BARRIER_0, BARRIER_1, NCETaskType::DWCONV, filtersize, strides,
-            kernel_padding, actChannelLength, /*is_continued*/ nullptr);
+            getTensorResult(parent_input_nce_cmx), getTensorResult(parent_output_nce_cmx), BARRIER_0, BARRIER_1,
+            getTensorResult(output_nce_cmx), NCETaskType::DWCONV, filtersize, strides, kernel_padding, actChannelLength,
+            nullptr, /*odu_permutation=*/nullptr);
 
     nceTask.addPPETask(funcbuilder);
 

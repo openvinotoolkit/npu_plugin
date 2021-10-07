@@ -35,11 +35,12 @@ void vpux::VPUIP::NCEClusterTaskOp::build(mlir::OpBuilder& builder, mlir::Operat
                                           vpux::VPUIP::NCETaskType task_type, mlir::ArrayAttr kernel_size,
                                           mlir::ArrayAttr kernel_strides, mlir::ArrayAttr kernel_padding,
                                           mlir::IntegerAttr activation_window_channel_length,
-                                          mlir::UnitAttr is_continued) {
+                                          mlir::UnitAttr is_continued,
+                                          vpux::VPUIP::ODUPermutationAttr odu_permutation) {
     build(builder, state, output_buff.getType(), input, weights, weight_table, activation_window, parent_input,
           parent_output, output_buff, mlir::ValueRange{}, mlir::ValueRange{},
           vpux::VPUIP::NCETaskTypeAttr::get(builder.getContext(), task_type), kernel_size, kernel_strides,
-          kernel_padding, activation_window_channel_length, is_continued);
+          kernel_padding, activation_window_channel_length, is_continued, odu_permutation);
 
     for (auto& region : state.regions) {
         region->emplaceBlock();
@@ -448,6 +449,25 @@ MVCNN::DPULayerType getDPULayerType(VPUIP::NCETaskType taskType) {
     }
 }
 
+MVCNN::Permutation getODUPermutationType(VPUIP::ODUPermutation permutationType) {
+    switch (permutationType) {
+    case vpux::VPUIP::ODUPermutation::ZXY:
+        return MVCNN::Permutation_ZXY;
+    case vpux::VPUIP::ODUPermutation::ZYX:
+        return MVCNN::Permutation_ZYX;
+    case vpux::VPUIP::ODUPermutation::YZX:
+        return MVCNN::Permutation_YZX;
+    case vpux::VPUIP::ODUPermutation::YXZ:
+        return MVCNN::Permutation_YXZ;
+    case vpux::VPUIP::ODUPermutation::XZY:
+        return MVCNN::Permutation_XZY;
+    case vpux::VPUIP::ODUPermutation::XYZ:
+        return MVCNN::Permutation_XYZ;
+    default:
+        VPUX_THROW("Unsupported ODU permutationType: '{0}'", permutationType);
+    }
+}
+
 MVCNN::PPELayerType getPPELayerType(VPUIP::PPELayerType ppeType) {
     switch (ppeType) {
     case VPUIP::PPELayerType::STORE:
@@ -686,6 +706,11 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
         is_continued = true;
     }
 
+    MVCNN::Permutation oduPermutation = MVCNN::Permutation_ZXY;
+    if (odu_permutationAttr() != nullptr) {
+        oduPermutation = getODUPermutationType(odu_permutationAttr().getValue());
+    }
+
     const auto inputData = writer.getTensor(input());
     const auto weightsData = weights() != nullptr ? writer.getTensor(weights()) : 0;
     const auto weightsTable = weight_table() != nullptr ? writer.getTensor(weight_table()) : 0;
@@ -739,7 +764,10 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
                                             odu_offset,                     // odu_offset
                                             out_channel_offset,             // out_channel_offset
                                             is_segmented,                   // is_segmented
-                                            is_continued                    // is_continued
+                                            is_continued,                   // is_continued
+                                            false,                          // is_superdense
+                                            0,                              // segment_height
+                                            oduPermutation                  // odu_permutation
             );
 
     MVCNN::NCE2TaskBuilder builder(writer);
