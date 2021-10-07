@@ -12,58 +12,113 @@
 //
 
 #include "vpux/compiler/core/attributes/shape.hpp"
-#include "vpux/compiler/dialect/IERT/ops.hpp"
+#include "vpux/compiler/core/layers.hpp"
+
+#include "vpux/utils/core/format.hpp"
+
+#include <mlir/IR/BuiltinAttributes.h>
+
+#include <llvm/Support/raw_ostream.h>
 
 #pragma once
 
 namespace vpux {
 
-struct Tile final {
-    Tile() = delete;
+//
+// TileInfo
+//
 
-    explicit Tile(size_t rank): shape(rank), offsets(rank) {
-    }
-
-    explicit Tile(ShapeRef shape): shape(shape.raw()), offsets(shape.size(), 0) {
-    }
-
+struct TileInfo final {
     Shape shape;
     Shape offsets;
-};
 
-struct PadsTileConfig final {
-    int64_t padLeft;
-    int64_t padRight;
-    int64_t padTop;
-    int64_t padBottom;
-};
+    TileInfo() = delete;
 
-struct ConvTileConfig final {
-    Tile inputTile;
-    Tile filterTile;
-    Tile biasTile;
-    PadsTileConfig pads;
-};
+    explicit TileInfo(size_t rank): shape(rank), offsets(rank) {
+    }
 
-struct PoolTileConfig final {
-    Tile inputTile;
-    PadsTileConfig pads;
+    explicit TileInfo(ShapeRef shape): shape(shape.raw()), offsets(shape.size(), 0) {
+    }
+
+    void printFormat(llvm::raw_ostream& stream) const {
+        printTo(stream, "Tile [shape = {0}, offsets = {1}]", shape, offsets);
+    }
 };
 
 // helper function to generate a set of tiles from dividing a shape. A shape divided across multiple dimensions will
 // generate a set of tiles, each having its own size and offsets
-SmallVector<Tile> fillDividedTiles(ShapeRef divisors, ShapeRef orig);
+SmallVector<TileInfo> fillDividedTiles(ShapeRef divisors, ShapeRef orig);
 
-PadsTileConfig backInferPadsTile(const Tile& outputTile, ShapeRef outShape, int64_t padLeft, int64_t padRight,
-                                 int64_t padTop, int64_t padBottom);
+//
+// PadInfo
+//
 
-// TODO: Replace IERT::ConvolutionOp with Operation Interface
-ConvTileConfig backInferConvTile(IERT::ConvolutionOp origOp, const Tile& outputTile);
+struct PadInfo final {
+    int64_t left = 0;
+    int64_t right = 0;
+    int64_t top = 0;
+    int64_t bottom = 0;
 
-// TODO: Replace IERT::MaxPoolOp with Operation Interface
-PoolTileConfig backInferPoolTile(IERT::MaxPoolOp origOp, const Tile& outputTile);
+    PadInfo() = default;
 
-// TODO: Replace IERT::GroupConvolutionOp with Operation Interface
-ConvTileConfig backInferGroupConvTile(IERT::GroupConvolutionOp origOp, const Tile& outputTile);
+    PadInfo(int64_t left, int64_t right, int64_t top, int64_t bottom)
+            : left(left), right(right), top(top), bottom(bottom) {
+    }
+
+    PadInfo(mlir::ArrayAttr pads_begin, mlir::ArrayAttr pads_end) {
+        top = pads_begin[Dims4D::PadsBegin::Top.ind()].cast<mlir::IntegerAttr>().getValue().getSExtValue();
+        bottom = pads_end[Dims4D::PadsEnd::Bottom.ind()].cast<mlir::IntegerAttr>().getValue().getSExtValue();
+        left = pads_begin[Dims4D::PadsBegin::Left.ind()].cast<mlir::IntegerAttr>().getValue().getSExtValue();
+        right = pads_end[Dims4D::PadsEnd::Right.ind()].cast<mlir::IntegerAttr>().getValue().getSExtValue();
+    }
+
+    bool enabled() const {
+        return left != 0 || right != 0 || top != 0 || bottom != 0;
+    }
+
+    bool operator==(const PadInfo& other) const {
+        return left == other.left && right == other.right && top == other.top && bottom == other.bottom;
+    }
+    bool operator!=(const PadInfo& other) const {
+        return !(*this == other);
+    }
+
+    void printFormat(llvm::raw_ostream& stream) const {
+        printTo(stream, "PadInfo [left = {0}, right = {1}, top = {2}, bottom = {3}]", left, right, top, bottom);
+    }
+};
+
+PadInfo backInferPadsTile(const TileInfo& outputTile, ShapeRef outShape, const PadInfo& origPads);
+
+//
+// Convolution tiling
+//
+
+struct ConvTileConfig final {
+    TileInfo inputTile;
+    TileInfo filterTile;
+    TileInfo biasTile;
+    PadInfo pads;
+};
+
+ConvTileConfig backInferConvTile(const TileInfo& outputTile, ShapeRef origInputShape, ShapeRef origFilterShape,
+                                 ShapeRef origBiasShape, mlir::ArrayAttr strides, mlir::ArrayAttr pads_begin,
+                                 mlir::ArrayAttr pads_end);
+
+ConvTileConfig backInferGroupConvTile(const TileInfo& outputTile, ShapeRef origInputShape, ShapeRef origFilterShape,
+                                      ShapeRef origBiasShape, mlir::ArrayAttr strides, mlir::ArrayAttr pads_begin,
+                                      mlir::ArrayAttr pads_end);
+
+//
+// Pooling tiling
+//
+
+struct PoolTileConfig final {
+    TileInfo inputTile;
+    PadInfo pads;
+};
+
+PoolTileConfig backInferPoolTile(const TileInfo& outputTile, ShapeRef origInputShape, mlir::ArrayAttr kernel_size,
+                                 mlir::ArrayAttr strides, mlir::ArrayAttr pads_begin, mlir::ArrayAttr pads_end);
 
 }  // namespace vpux
