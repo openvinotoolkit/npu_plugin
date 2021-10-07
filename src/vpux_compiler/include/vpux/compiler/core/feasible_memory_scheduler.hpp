@@ -48,6 +48,7 @@
 namespace vpux {
 
 class FeasibleMemoryScheduler final {
+public:
     // The spill op is considered an implicit op //
     enum class EOpType { ORIGINAL_OP = 0, IMPLICIT_OP_READ = 1, IMPLICIT_OP_WRITE = 2 };
 
