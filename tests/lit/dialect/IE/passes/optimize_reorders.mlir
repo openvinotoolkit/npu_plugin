@@ -180,11 +180,11 @@ func @main(%arg0: tensor<1x1x30x30xf16, {order = #NHWC}>, %arg1: tensor<1x1x30x3
         -> tensor<1x2x30x30xf16, {order = #NHWC}> {
     %0 = IE.Reorder(%arg0) {dstOrder = #NCHW} : tensor<1x1x30x30xf16, {order = #NHWC}> -> tensor<1x1x30x30xf16>
     %1 = IE.Reorder(%arg1) {dstOrder = #NCHW} : tensor<1x1x30x30xf16, {order = #NHWC}> -> tensor<1x1x30x30xf16>
-    %2 = IE.Concat(%0, %1) {axis = 1} : tensor<1x1x30x30xf16>, tensor<1x1x30x30xf16> -> tensor<1x2x30x30xf16>
+    %2 = IE.Concat(%0, %1) {per_axis = {axis = 1}} : tensor<1x1x30x30xf16>, tensor<1x1x30x30xf16> -> tensor<1x2x30x30xf16>
     %3 = IE.Reorder(%2) {dstOrder = #NHWC} : tensor<1x2x30x30xf16> -> tensor<1x2x30x30xf16, {order = #NHWC}>
     return %3 : tensor<1x2x30x30xf16, {order = #NHWC}>
 
-    // CHECK:       [[VAR0:%.+]] = IE.Concat([[ARG0]], [[ARG1]]) {axis = 1 : i64, offset = 0 : i64, stride = 1 : i64}
+    // CHECK:       [[VAR0:%.+]] = IE.Concat([[ARG0]], [[ARG1]]) {per_axis = {axis = 1 : i64}}
     // CHECK-SAME:      tensor<1x1x30x30xf16, {order = #NHWC}>,
     // CHECK-SAME:      tensor<1x1x30x30xf16, {order = #NHWC}>
     // CHECK-SAME:      -> tensor<1x2x30x30xf16, {order = #NHWC}>
@@ -208,12 +208,12 @@ func @main(%arg0: tensor<1x1x30x30xf16, {order = #NHWC}>, %arg1: tensor<1x1x30x3
         -> tensor<1x2x29x30xf16, {order = #NHWC}> {
     %0 = IE.Reorder(%arg0) {dstOrder = #NCHW} : tensor<1x1x30x30xf16, {order = #NHWC}> -> tensor<1x1x30x30xf16>
     %1 = IE.Reorder(%arg1) {dstOrder = #NCHW} : tensor<1x1x30x30xf16, {order = #NHWC}> -> tensor<1x1x30x30xf16>
-    %2 = IE.Concat(%0, %1) {axis = 1} : tensor<1x1x30x30xf16>, tensor<1x1x30x30xf16> -> tensor<1x2x30x30xf16>
+    %2 = IE.Concat(%0, %1) {per_axis = {axis = 1}} : tensor<1x1x30x30xf16>, tensor<1x1x30x30xf16> -> tensor<1x2x30x30xf16>
     %3 = IE.Slice %2 [0, 0, 1, 0] [1, 2, 29, 30] : tensor<1x2x30x30xf16> to tensor<1x2x29x30xf16>
     %4 = IE.Reorder(%3) {dstOrder = #NHWC} : tensor<1x2x29x30xf16> -> tensor<1x2x29x30xf16, {order = #NHWC}>
     return %4 : tensor<1x2x29x30xf16, {order = #NHWC}>
 
-    // CHECK:       [[VAR0:%.+]] = IE.Concat([[ARG0]], [[ARG1]]) {axis = 1 : i64, offset = 0 : i64, stride = 1 : i64}
+    // CHECK:       [[VAR0:%.+]] = IE.Concat([[ARG0]], [[ARG1]]) {per_axis = {axis = 1 : i64}}
     // CHECK-SAME:      tensor<1x1x30x30xf16, {order = #NHWC}>,
     // CHECK-SAME:      tensor<1x1x30x30xf16, {order = #NHWC}>
     // CHECK-SAME:      -> tensor<1x2x30x30xf16, {order = #NHWC}>

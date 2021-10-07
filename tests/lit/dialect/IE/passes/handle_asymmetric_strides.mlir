@@ -18,7 +18,7 @@ func @HandleConvolutionWithAsymmetricStrides(%arg0: tensor<1x16x64x1024xf16>) ->
   // CHECK:       %[[SLICED_CONV1:.*]] = IE.Convolution(%[[SLICED_INPUT1]], %[[CST]])
   // CHECK-SAME:    {dilations = [1, 1], pads_begin = [0, 0], pads_end = [1, 1], strides = [2, 2]}
   // CHECK:       %[[CONCAT:.*]] = IE.Concat(%[[SLICED_CONV0]], %[[SLICED_CONV1]])
-  // CHECK-SAME:    {axis = 2 : i64, offset = 1 : i64, stride = 2 : i64}
+  // CHECK-SAME:    {per_axis = {axis = 2 : i64, offset = 1 : i64, stride = 2 : i64}}
 
   // CHECK        return %[[CONCAT]]
 }
@@ -82,7 +82,7 @@ func @HandleConvolutionWithAsymmetricStridesWithFQ(%arg0: tensor<1x16x64x1024xf1
   // CHECK:       %[[SLICED_FQ1:.*]] = IE.FakeQuantize(%[[SLICED_CONV1]], %[[CST3]], %[[CST2]], %[[CST3]], %[[CST2]])
 
   // CHECK:       %[[CONCAT:.*]] = IE.Concat(%[[SLICED_FQ0]], %[[SLICED_FQ1]])
-  // CHECK-SAME:    {axis = 2 : i64, offset = 1 : i64, stride = 2 : i64}
+  // CHECK-SAME:    {per_axis = {axis = 2 : i64, offset = 1 : i64, stride = 2 : i64}}
 
   // CHECK:       %[[OUT_FQ:.*]] = IE.FakeQuantize(%[[CONCAT]], %[[CST3]], %[[CST2]], %[[CST3]], %[[CST2]])
 
