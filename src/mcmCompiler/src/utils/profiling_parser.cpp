@@ -97,25 +97,31 @@ void mv::utils::getProfilingInfo(const void* data, const void* output, std::vect
     for (auto& task : *dma_taskList) {
         if ((task->task.AsNNDMATask()->src->name == "profilingInput:0") 
         || (task->task.AsNNDMATask()->src->locale == MVCNN::MemoryLocation_AbsoluteAddr)) {
-            auto str = task->name;
-            auto pos = str.rfind('_');
-            unsigned layerNumber = stoi(str.substr(pos + 1));
-            layerNumbers.push_back(layerNumber);
-
-            str = str.substr(0, pos);
-            pos = str.rfind('_');
-            unsigned lastDMAid = stoi(str.substr(pos + 1));
-
+            unsigned layerNumber = 0;
             if (task->name.find("_PROFBEGIN") != std::string::npos) {
-                lastTime = output_bin[currentPos];
-                beginTime = lastTime;
-            } else {
+                beginTime = output_bin[currentPos];
+            } else if (task->name.find("_PROFTASKBEGIN") == std::string::npos) {
                 ProfInfo profInfoItem;
+
+                auto str = task->name;
+                auto pos = str.rfind('_');
+                if (pos == std::string::npos) {
+                    continue;
+                }
+                layerNumber = stoi(str.substr(pos + 1));
+
+                str = str.substr(0, pos);
+                pos = str.rfind('_');
+                if (pos == std::string::npos) {
+                    continue;
+                }
+                unsigned lastDMAid = stoi(str.substr(pos + 1));
+
                 /* Use unsigned 32-bit arithmetic to automatically avoid overflow */
                 uint32_t diff = output_bin[currentPos] - output_bin[lastDMAid];
                 auto taskName = task->name;
                 taskName = taskName.substr(0, task->name.find("_PROF"));
-
+                
                 if (taskName[0] == '[') {
                     auto cpos = task->name.find('_');
                     auto epos = task->name.find(']');
@@ -144,16 +150,17 @@ void mv::utils::getProfilingInfo(const void* data, const void* output, std::vect
                     taskName += layerNames[taskName];
                 } else layerNames[taskName] = 0;
 
-                lastTime = output_bin[currentPos];
                 profInfoItem.name = taskName;
                 // Convert to us //
                 profInfoItem.time = diff / frc_speed_mhz;
-                profInfoItem.start_layer_id = layerNumbers[lastDMAid];
+                profInfoItem.start_layer_id = layerNumbers[lastDMAid] ? layerNumbers[lastDMAid] : layerNumber;
                 profInfoItem.end_layer_id = layerNumber;
 
                 profInfo.push_back(profInfoItem);
             }
 
+            lastTime = output_bin[currentPos];
+            layerNumbers.push_back(layerNumber);
             currentPos++;
         }
     }

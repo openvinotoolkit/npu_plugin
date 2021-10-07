@@ -138,6 +138,28 @@ def BreakDataFlow : PassBase<"break-data-flow", "vpux::FunctionPass"> {
     let constructor = "vpux::IERT::createBreakDataFlowPass()";
 }
 
+//
+// DMATaskProfiling
+//
+
+def DMATaskProfiling : PassBase<"dma-task-profiling", "vpux::ModulePass"> {
+    let summary = "DMA task profiling using DMA-Timestamps";
+
+    let description = [{
+        This pass add DMA task profiling.
+    }];
+
+    let constructor = [{
+        vpux::IERT::createDMATaskProfilingPass([](mlir::MLIRContext* ctx, vpux::StringRef memSpaceName) -> mlir::Attribute {
+            if (memSpaceName.empty()) {
+                return mlir::StringAttr::get(ctx, "CMX_NN");
+            }
+            VPUX_THROW_UNLESS(!memSpaceName.empty(), "Missing memory space option");
+            return mlir::StringAttr::get(ctx, memSpaceName);
+        })
+    }];
+}
+
 //=================================================================================
 // Asynchronous Scheduling
 //=================================================================================

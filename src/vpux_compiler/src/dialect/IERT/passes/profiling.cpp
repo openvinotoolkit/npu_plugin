@@ -11,15 +11,20 @@
 // included with the Software Package for additional details.
 //
 
-#include "vpux/compiler/dialect/IERT/passes.hpp"
-
-#include "vpux/compiler/dialect/IERT/ops.hpp"
-#include "vpux/compiler/dialect/VPUIP/attributes/enums.hpp"
+#include "vpux/compiler/core/async_deps_info.hpp"
 #include "vpux/compiler/utils/logging.hpp"
 #include "vpux/compiler/utils/strings.hpp"
 #include "vpux/compiler/utils/types.hpp"
 
-#include <mlir/IR/Attributes.h>
+#include "vpux/compiler/dialect/IERT/ops.hpp"
+#include "vpux/compiler/dialect/IERT/passes.hpp"
+#include "vpux/compiler/dialect/VPUIP/attributes/arch.hpp"
+#include "vpux/compiler/dialect/VPUIP/attributes/enums.hpp"
+#include "vpux/compiler/dialect/VPUIP/ops.hpp"
+
+#include <mlir/IR/BlockAndValueMapping.h>
+#include <mlir/Transforms/DialectConversion.h>
+#include "mlir/IR/Attributes.h"
 
 using namespace vpux;
 
@@ -32,6 +37,25 @@ namespace {
 class TimestampProfilingPass final : public IERT::TimestampProfilingBase<TimestampProfilingPass> {
 public:
     explicit TimestampProfilingPass(IERT::AttrCreateFunc memSpaceCb, Logger log): _memSpaceCb(std::move(memSpaceCb)) {
+        VPUX_THROW_UNLESS(_memSpaceCb != nullptr, "Missing memSpaceCb");
+        Base::initLogger(log, Base::getArgumentName());
+    }
+
+private:
+    void safeRunOnModule() final;
+
+private:
+    IERT::AttrCreateFunc _memSpaceCb;
+    mlir::Attribute _memSpace;
+};
+
+//
+// DMATaskProfilingPass
+//
+
+class DMATaskProfilingPass final : public IERT::DMATaskProfilingBase<DMATaskProfilingPass> {
+public:
+    explicit DMATaskProfilingPass(IERT::AttrCreateFunc memSpaceCb, Logger log): _memSpaceCb(std::move(memSpaceCb)) {
         VPUX_THROW_UNLESS(_memSpaceCb != nullptr, "Missing memSpaceCb");
         Base::initLogger(log, Base::getArgumentName());
     }
@@ -116,7 +140,7 @@ void TimestampProfilingPass::safeRunOnModule() {
                         "_" + std::to_string(layerNumber),
                 ctx));
         auto sub = builder.create<IERT::SubViewOp>(mlir::NameLoc::get(mlir::Identifier::get("subview", ctx)), memOp,
-                                                   SmallVector<int64_t>({static_cast<int>(timestamps.size())}),
+                                                   SmallVector<int64_t>({static_cast<int64_t>(timestamps.size())}),
                                                    timestampType.getShape());
 
         timestamps.push_back(builder.create<IERT::TimestampOp>(name, timestampType, sub).output());
@@ -154,6 +178,184 @@ void TimestampProfilingPass::safeRunOnModule() {
     });
 }
 
+void DMATaskProfilingPass::safeRunOnModule() {
+    auto module = getOperation();
+    auto* ctx = module->getContext();
+
+    _memSpace = _memSpaceCb(ctx, "");
+    if (_memSpace == nullptr) {
+        _log.trace("Memory Space is not defined");
+        return;
+    }
+
+    IE::CNNNetworkOp netOp;
+    mlir::FuncOp netFunc;
+    IE::CNNNetworkOp::getFromModule(module, netOp, netFunc);
+    OpBuilderLogger builderLog(_log.nest());
+    mlir::OpBuilder builder(&netFunc.getBody().front().front(), &builderLog);
+
+    SmallVector<mlir::async::ExecuteOp> executeOps;
+    auto timestampType = getMemRefType(ShapeRef({1}), getUInt32Type(ctx), DimsOrder::C, _memSpace);
+
+    netFunc.walk([&](mlir::async::ExecuteOp execOp) {
+        _log.trace("Process Operation '{0}'", execOp->getLoc());
+
+        bool found = false;
+        auto& bodyBlock = execOp.body().front();
+        bodyBlock.walk([&](IERT::CopyOp curTask) {
+            auto curTaskName = stringifyLocation(curTask->getLoc());
+            if (curTaskName.find("ProfilingCMX2DDR") == std::string::npos) {
+                found = true;
+            }
+        });
+        if (found) {
+            executeOps.push_back(execOp);
+        }
+    });
+
+    VPUX_THROW_UNLESS(executeOps.size(), "No TimestampOp was added");
+
+    int output_size = executeOps.size() * 2;
+    auto cmxMemType = getMemRefType(ShapeRef({output_size}), getUInt32Type(ctx), DimsOrder::C, _memSpace);
+    auto outputResult = mlir::MemRefType::get({output_size}, getUInt32Type(ctx));
+
+    builder.setInsertionPointAfter(&netFunc.getBody().front().front());
+    auto memOp = builder.create<mlir::memref::AllocOp>(mlir::UnknownLoc::get(ctx), cmxMemType);
+
+    SmallVector<mlir::Value> timestampsOps;
+    unsigned dma_id = 0;
+    for (auto& execOp : executeOps) {
+        mlir::Operation* firstCopy = nullptr;
+        mlir::Operation* lastCopy = nullptr;
+        auto& bodyBlock = execOp.body().front();
+        bodyBlock.walk([&](IERT::CopyOp curTask) {
+            lastCopy = curTask.getOperation();
+            if (firstCopy == nullptr)
+                firstCopy = lastCopy;
+        });
+
+        auto insertDma = [&](mlir::Operation* op, bool after) {
+            if (after) {
+                builder.setInsertionPointAfter(op);
+            } else {
+                builder.setInsertionPoint(op);
+            }
+            auto sub = builder.create<IERT::SubViewOp>(mlir::NameLoc::get(mlir::Identifier::get("subview", ctx)), memOp,
+                                                       SmallVector<int64_t>({static_cast<int64_t>(dma_id)}),
+                                                       timestampType.getShape());
+            std::string curTaskName;
+            curTaskName = "[DMA_DMA]";
+            curTaskName += stringifyLocation(op->getLoc());
+            auto name = mlir::NameLoc::get(mlir::Identifier::get(
+                    curTaskName + ((!after) ? (timestampsOps.size() == 0 ? "_PROFBEGIN" : "_PROFTASKBEGIN")
+                                            : ("_PROFTASKEND_" + std::to_string(dma_id - 1) + "_" +
+                                               std::to_string(dma_id / 2 + 1))),
+                    ctx));
+            dma_id++;
+            return builder.create<IERT::TimestampOp>(name, timestampType, sub).output();
+        };
+        SmallVector<mlir::Value> localTimestampsOps;
+        localTimestampsOps.push_back(insertDma(firstCopy, false));
+        localTimestampsOps.push_back(insertDma(lastCopy, true));
+        auto yieldOp = mlir::dyn_cast<mlir::async::YieldOp>(execOp.body().front().getTerminator());
+        unsigned firstTimestampOperandId = yieldOp.operands().size();
+        yieldOp.operandsMutable().append(localTimestampsOps);
+
+        auto* bodyBlockPtr = &execOp.body().front();
+        const auto bodyBuilder = [&](mlir::OpBuilder& builder, mlir::Location loc, mlir::ValueRange blockArgs) {
+            mlir::BlockAndValueMapping mapper;
+
+            const auto curBlockArgs = bodyBlockPtr->getArguments();
+            for (size_t i = 0; i < blockArgs.size(); ++i) {
+                mapper.map(curBlockArgs[i], blockArgs[i]);
+            }
+
+            SmallVector<mlir::Value> newResults;
+            for (auto& op : bodyBlock.getOperations()) {
+                if (!mlir::isa<mlir::async::YieldOp>(op)) {
+                    builder.clone(op, mapper);
+                } else {
+                    for (auto operand : op.getOperands()) {
+                        newResults.push_back(mapper.lookupOrDefault(operand));
+                    }
+                }
+            }
+            builder.create<mlir::async::YieldOp>(loc, newResults);
+        };
+        builder.setInsertionPointAfter(execOp);
+        auto newExecOp = builder.create<mlir::async::ExecuteOp>(execOp->getLoc(), yieldOp->getOperandTypes(),
+                                                                execOp.dependencies(), execOp.operands(), bodyBuilder);
+        uint32_t numExecutorUnits = 0;
+        auto executor = vpux::IERT::IERTDialect::getExecutor(execOp, numExecutorUnits);
+        IERT::IERTDialect::setExecutor(newExecOp, executor, numExecutorUnits);
+
+        for (size_t id = 0; id < localTimestampsOps.size(); id++) {
+            timestampsOps.push_back(newExecOp.results()[firstTimestampOperandId + id]);
+        }
+
+        execOp->replaceAllUsesWith(newExecOp);
+        execOp->erase();
+    }
+
+    //
+    // Declare and create additional output from network
+    //
+    auto funcType = netFunc.getType();
+    auto newResultTypes =
+            to_small_vector(llvm::concat<const mlir::Type>(funcType.getResults(), makeArrayRef(outputResult)));
+    auto newInputsTypes =
+            to_small_vector(llvm::concat<const mlir::Type>(funcType.getInputs(), makeArrayRef(outputResult)));
+
+    auto newFunctionType = mlir::FunctionType::get(ctx, newInputsTypes, newResultTypes);
+    netFunc.setType(newFunctionType);
+    auto profilngResult = netFunc.getBody().front().addArgument(outputResult);
+
+    // Adding output to the user info
+    outputUserResult = getTensorType(getShape(outputResult), outputResult.getElementType(),
+                                          DimsOrder::fromType(outputResult), nullptr);
+    auto userInfoBuilder = mlir::OpBuilder::atBlockEnd(&netOp.profilingOutputsInfo().front().front(), &builderLog);
+    userInfoBuilder.create<IE::DataInfoOp>(mlir::UnknownLoc::get(ctx), mlir::StringAttr::get(ctx, "dma"),
+                                           mlir::TypeAttr::get(outputUserResult));
+
+    // Add ExecuteOp with Copy from CMX to DDR
+    auto copyLoc = mlir::NameLoc::get(mlir::Identifier::get("profilingCMX2DDR", ctx));
+    builder.setInsertionPoint(netFunc.getBody().front().getTerminator());
+    auto execOp = builder.create<mlir::async::ExecuteOp>(copyLoc, outputResult, None, None);
+
+    SmallVector<mlir::Value> values;
+    for (auto value : timestampsOps) {
+        execOp.operandsMutable().append(value);
+        auto asyncType = value.getType().dyn_cast<mlir::async::ValueType>();
+        values.push_back(execOp.getBody()->addArgument(asyncType.getValueType()));
+    }
+    auto bodyBlock = &execOp.body().front();
+    builder.setInsertionPointToStart(bodyBlock);
+    auto concatview = builder.create<IERT::ConcatViewOp>(mlir::NameLoc::get(mlir::Identifier::get("concatview", ctx)),
+                                                         values, memOp.memref());
+    auto outputOp = builder.create<IERT::CopyOp>(copyLoc, concatview.output(), profilngResult);
+    builder.create<mlir::async::YieldOp>(copyLoc, outputOp->getResults());
+
+    // Add execution attributes to async exec op
+    uint32_t numExecutorUnits = 0;
+    auto newOpExecutor = mlir::dyn_cast_or_null<IERT::AsyncLayerOpInterface>(outputOp.getOperation());
+    auto executor = newOpExecutor.getExecutor(numExecutorUnits);
+    if (executor != nullptr) {
+        IERT::IERTDialect::setExecutor(execOp, executor, numExecutorUnits);
+    }
+
+    builder.setInsertionPointAfter(execOp);
+    auto waitOp = builder.create<mlir::async::AwaitOp>(execOp->getLoc(), execOp.results()[0]);
+    waitOp.dump();
+
+    // And new result(outputBuffer) to the returnOp
+    netFunc.walk([&](mlir::ReturnOp op) {
+        op.operandsMutable().append(waitOp.result());
+    });
+
+    auto& depsInfo = getChildAnalysis<AsyncDepsInfo>(netFunc);
+    depsInfo.updateTokenDependencies();
+}
+
 }  // namespace
 
 //
@@ -162,4 +364,12 @@ void TimestampProfilingPass::safeRunOnModule() {
 
 std::unique_ptr<mlir::Pass> vpux::IERT::createTimestampProfilingPass(AttrCreateFunc memSpaceCb, Logger log) {
     return std::make_unique<TimestampProfilingPass>(std::move(memSpaceCb), log);
+}
+
+//
+// createDMATaskProfilingPass
+//
+
+std::unique_ptr<mlir::Pass> vpux::IERT::createDMATaskProfilingPass(AttrCreateFunc memSpaceCb, Logger log) {
+    return std::make_unique<DMATaskProfilingPass>(std::move(memSpaceCb), log);
 }

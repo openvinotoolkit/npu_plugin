@@ -5,6 +5,8 @@ because all VPUIP dialect tasks will be inside body of the TaskOp and it is impo
 ### `-copy-op-hoisting`: Update location of CopyOps in the block
 This pass checks all CopyOps and updates their position in the parent block to be close to source op
 that generates the copy op source buffer
+### `-dma-task-profiling`: DMA task profiling using DMA-Timestamps
+This pass add DMA task profiling.
 ### `-feasible-allocation`: Feasible Memory Scheduling Pass
 Schedule async.execute opeations based on their dependecies and CMX memory availability
 
