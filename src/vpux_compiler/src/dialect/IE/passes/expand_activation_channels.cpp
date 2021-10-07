@@ -157,9 +157,6 @@ mlir::LogicalResult generalRewrite(mlir::Operation* origOp, mlir::PatternRewrite
         log.trace("Create new operation with extended input and output");
         auto* newOp = opCreator(paddedInput, outPadsEnd[IE::Dims4D::Act::C]);
 
-        auto testop = mlir::dyn_cast<IE::ConvolutionOp>(*newOp);
-        log.trace("new Op {0}", testop);
-
         if (outPadsEnd[IE::Dims4D::Act::C] == 0) {
             log.trace("Output channels are already aligned");
             rewriter.replaceOp(origOp, newOp->getResult(0));
@@ -292,7 +289,7 @@ mlir::LogicalResult ConvolutionRewriter::matchAndRewrite(IE::ConvolutionOp origO
 
         return rewriter.create<IE::ConvolutionOp>(origOp.getLoc(), newOutputType, expandedInput, paddedFilter,
                                                   paddedBiases, origOp.strides(), origOp.pads_begin(),
-                                                  origOp.pads_end(), origOp.dilations(), origOp.post_opAttr());
+                                                  origOp.pads_end(), origOp.dilations(), origOp.post_opAttr(), origOp.channel_major_opAttr());
     };
 
     return generalRewrite(origOp, rewriter, opCreator, _log.nest());
