@@ -22,6 +22,7 @@
 #include "vpux/compiler/utils/quantization.hpp"
 #include "vpux/compiler/utils/strings.hpp"
 
+#include "vpux/compiler/act_kernels/act_kenel_invocation_builder.h"
 #include "vpux/utils/IE/float16.hpp"
 #include "vpux/utils/core/checked_cast.hpp"
 #include "vpux/utils/core/error.hpp"
@@ -33,8 +34,8 @@
 #include <mlir/Dialect/Quant/QuantTypes.h>
 
 #include <vpux/compiler/act_kernels/act_kernel_gen.h>
-#include <vpux/compiler/act_kernels/dpu2p7_descriptor.h>
 #include <vpux/compiler/act_kernels/Nce2p7.h>
+#include <kernels/inc/common_types.h>
 
 #include <algorithm>
 
@@ -157,7 +158,7 @@ vpux::VPUIP::BlobWriter::KernelDataRef vpux::VPUIP::BlobWriter::createKernelData
 
     kernelData.add_referenced_data_size(dataSize);
     kernelData.add_locale(serializedLocale);
-    kernelData.add_locale_index(_actKernelsData.localeIndex(name));
+    kernelData.add_locale_offset(_actKernelsData.localeIndex(name));
     kernelData.add_data_offset(dataOffset);
     kernelData.add_name(strName);
 
@@ -172,46 +173,86 @@ vpux::VPUIP::BlobWriter::KernelDataRef vpux::VPUIP::BlobWriter::createInvocation
     auto swKernelTask = mlir::dyn_cast<VPUIP::SW_Kernel>(op);
     VPUX_THROW_UNLESS(swKernelTask != nullptr, "Operation '{0}' is not a SW_Kernel Task", op->getName());
 
-    cfg_dpu_description dpuDescriptor{};
+    //sw_params::MemRefData memrefData{};
 
-    if (auto layer = mlir::dyn_cast<VPUIP::ACTShaveTaskOp>(op)) {
-        const auto & input = layer->getOpOperand(0);
-        const auto result = layer.outputs()[0];
+    //llvm::SmallVector<mlir::Value> concateIOOperands;
+    vpux::InvocationBuilder invocationBuilder;
 
-        _log.trace("Create Invocation input= {0}", input.get());
-        _log.trace("Create Invocation output= {0}", result);
+    for (auto && kernelRun : swKernelTask.body().getOps<VPUIP::SW_Kernel_run>()) {
 
-        auto inputShape = input.get().getType().cast<mlir::ShapedType>();
-       // auto outputShape = result.getType().cast<mlir::ShapedType>();
+        auto insSize = swKernelTask.inputs().size();
 
-        dpuDescriptor.idu.tensor_size0.x = inputShape.getShape()[3]; // tensor_width
-        dpuDescriptor.idu.tensor_size0.y = inputShape.getShape()[2];
-        dpuDescriptor.idu.tensor_size1.z = inputShape.getShape()[1];
+        for ( auto && operands : kernelRun.args()) {
 
-        auto inputTensor = input.get().getDefiningOp<VPUIP::DeclareTensorOp>();
-        auto outputTensor = result.getDefiningOp<VPUIP::DeclareTensorOp>();
+            auto blockArg = operands.dyn_cast_or_null<mlir::BlockArgument>();
+            if (blockArg) {
+                auto id = blockArg.getArgNumber();
+                if (id < insSize) {
+                    // TODO: check type and shape
+                    invocationBuilder.addArg(swKernelTask.inputs()[id]);
+                    //concateIOOperands.push_back(swKernelTask.inputs()[id]);
+                } else {
+                    // TODO: check type and shape
+                    invocationBuilder.addArg(swKernelTask.outputs()[id - insSize]);
+                    //concateIOOperands.push_back(swKernelTask.outputs()[id - insSize]);
+                }
+            } else {
+                invocationBuilder.addArg(operands);
+                //concateIOOperands.push_back(operands);
+            }
+            _log.trace("Operation '{0}' has SW.Kernel.Run call with arg: {1} of type {2} ", op->getName(), operands, operands.getType());
+        }
+    }
 
-        auto getAddress = [](VPUIP::DeclareTensorOp & tensor) {
-            return tensor.dataIndex() + tensor.leadingOffset().getValueOr(0);
-        };
+    //if (auto layer = mlir::dyn_cast<VPUIP::ACTShaveTaskOp>(op))
+    {
 
-        dpuDescriptor.idu.act0_offset     = mvds::nce2p7::ACT_KERNEL_CMX_WINDOW + getAddress(inputTensor);
+//        const auto & input = swKernelTask->getOpOperand(0);
+        const auto result = swKernelTask.outputs()[0];
 
-        auto odu_tmp_ptr = mvds::nce2p7::ACT_KERNEL_CMX_WINDOW + getAddress(outputTensor);
-        dpuDescriptor.odu_ac_base.ac_base = odu_tmp_ptr >> 4;
+//
+//        _log.trace("Create Invocation input  = {0}", input.get());
+//        _log.trace("Create Invocation output = {0}", result);
 
 
-        const auto source = layer.getViewSource();
+      //  auto inputMemRef = createMemRefData(input);
+//        auto outputMemRef = createMemRefData(result);
+
+//        auto inputShape = input.get().getType().cast<mlir::ShapedType>();
+//       // auto outputShape = result.getType().cast<mlir::ShapedType>();
+//
+//        //memrefData.numDims = inputShape.getShape().size();
+//
+////        dpuDescriptor.idu.tensor_size0.x = inputShape.getShape()[3]; // tensor_width
+////        dpuDescriptor.idu.tensor_size0.y = inputShape.getShape()[2];
+////        dpuDescriptor.idu.tensor_size1.z = inputShape.getShape()[1];
+//
+//        auto inputTensor = input.get().getDefiningOp<VPUIP::DeclareTensorOp>();
+//        auto getAddress = [](VPUIP::DeclareTensorOp & tensor) {
+//            return tensor.dataIndex() + tensor.leadingOffset().getValueOr(0);
+//        };
+//
+//        memrefData.dataAddr = mvds::nce2p7::ACT_KERNEL_CMX_WINDOW + getAddress(inputTensor);
+//
+//        auto outputTensor = result.getDefiningOp<VPUIP::DeclareTensorOp>();
+//
+//
+////        dpuDescriptor.idu.act0_offset     = mvds::nce2p7::ACT_KERNEL_CMX_WINDOW + getAddress(inputTensor);
+//
+//        auto odu_tmp_ptr = mvds::nce2p7::ACT_KERNEL_CMX_WINDOW + getAddress(outputTensor);
+////        dpuDescriptor.odu_ac_base.ac_base = odu_tmp_ptr >> 4;
+//
+
+        const auto source = swKernelTask.getViewSource();
         VPUX_THROW_UNLESS(result.getType().isa<mlir::MemRefType>(), "Only MemRef type tensors are supported, got '{0}'",
                           result.getType());
         VPUX_THROW_UNLESS(source.getType().isa<mlir::MemRefType>(), "Only MemRef type tensors are supported, got '{0}'",
                           source.getType());
 
-        ArrayRef<uint8_t> dummyArgsAsVector(reinterpret_cast<uint8_t*>(&dpuDescriptor), sizeof(dpuDescriptor));
+        ArrayRef<uint8_t> invocationData = invocationBuilder.store();
 
         // TODO: should be specific sigmoid args instead of cfg_dpu_descriptor
-        auto invocationArgs = createKernelDataRef(op->getName().getStringRef(), locale, 0, sizeof(cfg_dpu_description),
-                                                  dummyArgsAsVector);
+        auto invocationArgs = createKernelDataRef(op->getName().getStringRef(), locale, 0, invocationData.size(), invocationData);
 
         return invocationArgs;
     }
@@ -225,30 +266,6 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createSW_KernelTask(mli
     auto swKernelTask = mlir::dyn_cast<VPUIP::SW_Kernel>(op);
     VPUX_THROW_UNLESS(swKernelTask != nullptr, "Operation '{0}' is not a SW_Kernel Task", op->getName());
 
-    llvm::SmallVector<mlir::Value> concateIOOperands;
-
-    for (auto && kernelRun : swKernelTask.body().getOps<VPUIP::SW_Kernel_run>()) {
-
-        auto insSize = swKernelTask.inputs().size();
-
-        for ( auto && operands : kernelRun.args()) {
-
-            auto blockArg = operands.dyn_cast_or_null<mlir::BlockArgument>();
-            if (blockArg) {
-                auto id = blockArg.getArgNumber();
-                if (id < insSize) {
-                    // TODO: check type and shape
-                    concateIOOperands.push_back(swKernelTask.inputs()[id]);
-                } else {
-                    // TODO: check type and shape
-                    concateIOOperands.push_back(swKernelTask.outputs()[id - insSize]);
-                }
-            } else {
-                concateIOOperands.push_back(operands);
-            }
-            _log.trace("Operation '{0}' has SW.Kernel.Run call with arg: {1} of type {2} ", op->getName(), operands, operands.getType());
-        }
-    }
 
     // extracting kernel source code or compiled code
 

@@ -12,7 +12,7 @@
 //
 
 #include "vpux/compiler/act_kernels/act_kernel_gen.h"
-#include "vpux/compiler/act_kernels/mem_ref_data.h"
+//#include "vpux/compiler/act_kernels/mem_ref_data.h"
 
 #include <algorithm>
 #include <string>
@@ -111,11 +111,7 @@ static void compileAndLinkSHAVE(
     std::string mvToolsDir = movitools::getMoviToolsDir();
     //IVLOG(1, "MV_TOOLS_DIR = " << mvToolsDir);
 
-    std::string genDir = ".";
-    auto KERNEL_GENDIR = llvm::sys::Process::GetEnv("KERNEL_DIR");
-    if (KERNEL_GENDIR) {
-        genDir = *KERNEL_GENDIR;
-    }
+    const StringRef genDir = KERNEL_DIRECTORY;
 
     SmallString<128> srcNamePath = unitDesc.codePath;
 
@@ -126,8 +122,8 @@ static void compileAndLinkSHAVE(
 
     SmallString<128> buildDirPath;
     {
-        SmallString<128> tmpPath(genDir);
-        sys::path::append(tmpPath, "build");
+        SmallString<128> tmpPath(LIBRARY_OUTPUT_DIRECTORY);
+        sys::path::append(tmpPath, "act-kernels-build");
         sys::path::append(tmpPath, srcNamePath);
         buildDirPath = sys::path::parent_path(tmpPath);
         sys::fs::create_directories(buildDirPath);
@@ -141,8 +137,8 @@ static void compileAndLinkSHAVE(
     SmallString<128> srcPath(genDir);
     sys::path::append(srcPath, srcNamePath);
 
-    SmallString<128> incPath2(genDir);
-    sys::path::append(incPath2, "asds");
+    SmallString<128> incPath(genDir);
+    sys::path::append(incPath, "inc");
 
     SmallString<128> singleLib(mvToolsDir);
     sys::path::append(singleLib, params.mdkLibDir);
@@ -160,8 +156,8 @@ static void compileAndLinkSHAVE(
     sys::path::append(moviCompile, params.moviCompile);
 
     {
-        auto compileCmd = formatv("{1} -mcpu={2} -c {3} -o {4} -I {5} -I {6} -I{6} ", genDir, moviCompile, params.cpu,
-                                  srcPath, objPath, mvToolsDir, incPath2).str();
+        auto compileCmd = formatv("{1} -mcpu={2} -c {3} -o {4} -I {5} -I{6} ", genDir, moviCompile, params.cpu,
+                                  srcPath, objPath, mvToolsDir, incPath).str();
         // IVLOG(1, compileCmd);
         if (std::system(compileCmd.c_str())) {
             VPUX_THROW((std::string("moviCompile failed: ") + compileCmd).c_str());

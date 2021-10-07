@@ -20,7 +20,7 @@ TEST_P(KmbInterpolateLayerTest, CompareWithRefs_MLIR) {
     useCompilerMLIR();
     Run();
 }
-
+/*
 class KmbInterpolate1Test: public Interpolate1LayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
 
 public:
@@ -35,7 +35,7 @@ public:
 TEST_P(KmbInterpolate1Test, CompareWithRefs_MLIR) {
     useCompilerMLIR();
     Run();
-}
+}*/
 
 }  // namespace LayerTestsDefinitions
 
