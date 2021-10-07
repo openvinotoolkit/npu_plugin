@@ -317,8 +317,10 @@ void getOutputAfterInference(IE::Blob::Ptr& userOutput, const IE::TensorDesc& de
     }
     const auto userPrecision = userOutput->getTensorDesc().getPrecision();
     const auto userLayout = userOutput->getTensorDesc().getLayout();
+    const auto userNumDims = userOutput->getTensorDesc().getDims().size();
     const auto devicePrecision = deviceTensorDesc.getPrecision();
     const auto deviceLayout = deviceTensorDesc.getLayout();
+    const auto deviceNumDims = deviceTensorDesc.getDims().size();
 
     // [OV design flaw] OV API make_blob_with_precision doesn't have any version with const source data
     IE::Blob::Ptr expectedOutput = makeBlob(deviceTensorDesc, nullptr, const_cast<void*>(srcData));
@@ -329,9 +331,21 @@ void getOutputAfterInference(IE::Blob::Ptr& userOutput, const IE::TensorDesc& de
             IE_THROW() << "Blob data null pointer";
         }
     }
-    if (userLayout != deviceLayout) {
+    // Default state - only memory copying is required
+    auto destLayout = IE::Layout::ANY;
+    if (userLayout != deviceLayout && userNumDims == deviceNumDims) {
+        // Equal number of dimensions - standard layout conversion and memory copying
+        destLayout = userLayout;
+    } else if (deviceLayout == IE::Layout::NHWC && userLayout == IE::Layout::CHW) {
+        // Special case - NHWC to NCHW layout conversion and memory copying
+        destLayout = IE::Layout::NCHW;
+    } else if (deviceLayout == IE::Layout::NCHW && userLayout == IE::Layout::HWC) {
+        // Special case - NCHW to NHWC layout conversion and memory copying
+        destLayout = IE::Layout::NHWC;
+    }
+    if (destLayout != IE::Layout::ANY) {
         logger->info("Different layouts of pull blobs. Conversion required");
-        expectedOutput = toLayout(IE::as<IE::MemoryBlob>(expectedOutput), userLayout);
+        expectedOutput = toLayout(IE::as<IE::MemoryBlob>(expectedOutput), destLayout);
         if (expectedOutput == nullptr) {
             IE_THROW() << "Blob data null pointer";
         }
@@ -470,12 +484,6 @@ ZeroExecutor::Graph::Graph(const ze_device_handle_t& device_handle, const ze_con
         ze_graph_argument_properties_t arg;
         throwOnFail("pfnGetArgumentProperties", _graph_ddi_table_ext->pfnGetArgumentProperties(_handle, index, &arg));
         if (ZE_GRAPH_ARGUMENT_TYPE_INPUT == arg.type) {
-            auto deviceInputs = networkDesc->getDeviceInputsInfo();
-
-            // [Track number: S#49808]
-            // hack for correct memory allocation on device
-            arg.precision = getZePrecision(deviceInputs.at(arg.name)->getPrecision());
-
             _inputs_desc_map.emplace(std::make_pair(std::string(arg.name), ArgumentDescriptor{arg, index}));
         } else {
             _outputs_desc_map.emplace(std::make_pair(std::string(arg.name), ArgumentDescriptor{arg, index}));
