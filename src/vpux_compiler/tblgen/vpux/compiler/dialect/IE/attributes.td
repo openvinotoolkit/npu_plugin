@@ -297,7 +297,6 @@ def IE_InterpolateAttr :
             ]
         >;
 
-
 //
 // DetectionOutputAttrs
 //
@@ -394,5 +393,20 @@ def IE_PostOp :
         > {
     let cppNamespace = "vpux::IE";
 }
+
+//
+// ConcatAttrs
+//
+
+def IE_ConcatAttrs :
+        StructAttr<
+            "ConcatAttrs",
+            IE_Dialect,
+            [
+                StructFieldAttr<"axis",     IntAttr>,
+                StructFieldAttr<"offset",   OptionalAttr<IntAttr>>,
+                StructFieldAttr<"stride",   OptionalAttr<IntAttr>>
+            ]
+        >;
 
 #endif

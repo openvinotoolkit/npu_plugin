@@ -1498,9 +1498,8 @@ def IE_ConcatOp :
     let arguments = (ins
         Variadic<AnyRankedTensor>:$inputs,
 
-        IntAttr:$axis,
-        DefaultValuedAttr<IntAttr, "0">:$offset,
-        DefaultValuedAttr<IntAttr, "1">:$stride
+        OptionalAttr<IE_ConcatAttrs>:$per_axis,
+        OptionalAttr<I64ArrayOfArraysAttr>:$static_offsets
     );
 
     let results = (outs
@@ -1509,11 +1508,28 @@ def IE_ConcatOp :
 
     let builders = [
         OpBuilder<
-            (ins "::mlir::ValueRange":$input, "mlir::IntegerAttr":$axis)
+            (ins "::mlir::ValueRange":$inputs, "vpux::IE::ConcatAttrs":$per_axis)
         >,
         OpBuilder<
-            (ins "mlir::Type":$type, "::mlir::ValueRange":$input, "mlir::IntegerAttr":$axis)
-        >
+            (ins "::mlir::ValueRange":$inputs, "mlir::IntegerAttr":$axis,
+                 CArg<"mlir::IntegerAttr", "{}">:$offset, CArg<"mlir::IntegerAttr", "{}">:$stride)
+        >,
+        OpBuilder<
+            (ins "::mlir::ValueRange":$inputs, "int64_t":$axis, CArg<"int64_t", "0">:$offset, CArg<"int64_t", "1">:$stride)
+        >,
+        OpBuilder<
+            (ins "::mlir::ValueRange":$inputs, "vpux::Dim":$axis, CArg<"int64_t", "0">:$offset, CArg<"int64_t", "1">:$stride)
+        >,
+
+        OpBuilder<
+            (ins "::mlir::ValueRange":$inputs, "mlir::ArrayAttr":$static_offsets)
+        >,
+        OpBuilder<
+            (ins "::mlir::ValueRange":$inputs, "vpux::ArrayRef<vpux::Shape>":$static_offsets)
+        >,
+        OpBuilder<
+            (ins "::mlir::ValueRange":$inputs, "vpux::ArrayRef<vpux::ShapeRef>":$static_offsets)
+        >,
     ];
 
     let elemComparisonMode = IE_TypeComparisonMode_STRICT_EQUAL.symbol;

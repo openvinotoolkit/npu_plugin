@@ -317,9 +317,8 @@ operation ::= `IE.Concat` `(` operands `)` attr-dict `:` type(operands) `->` typ
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`axis` | mlir::IntegerAttr | Integer attribute
-`offset` | mlir::IntegerAttr | Integer attribute
-`stride` | mlir::IntegerAttr | Integer attribute
+`per_axis` | vpux::IE::ConcatAttrs | DictionaryAttr with field(s): 'axis', 'offset', 'stride' (each field having its own constraints)
+`static_offsets` | ::mlir::ArrayAttr | array of 64-bit integer arrays
 
 #### Operands:
 

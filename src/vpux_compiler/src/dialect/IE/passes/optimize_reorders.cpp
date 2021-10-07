@@ -24,33 +24,6 @@ using namespace vpux;
 
 namespace {
 
-template <class ConcreteOp>
-SmallVector<mlir::Type> inferOutputTypes(ConcreteOp origOp, mlir::ValueRange newInputs, ArrayRef<DimsOrder> newOrders) {
-    SmallVector<mlir::Type> newTypes;
-    VPUX_THROW_UNLESS(ConcreteOp::inferReturnTypes(origOp->getContext(), origOp->getLoc(), newInputs,
-                                                   origOp->getAttrDictionary(), origOp->getRegions(), newTypes)
-                              .succeeded(),
-                      "Failed to infer new output type for operation '{0}' at '{1}'", origOp->getName(),
-                      origOp->getLoc());
-
-    VPUX_THROW_UNLESS(newOrders.size() == newTypes.size(),
-                      "New orders size '{0}' doesn't match new output types size '{1}'", newOrders.size(),
-                      newTypes.size());
-
-    for (auto i : irange(newTypes.size())) {
-        newTypes[i] = changeDimsOrder(newTypes[i].cast<mlir::ShapedType>(), newOrders[i]);
-    }
-
-    return newTypes;
-}
-
-template <class ConcreteOp>
-mlir::Type inferOutputType(ConcreteOp origOp, mlir::ValueRange newInputs, DimsOrder newOrder) {
-    const auto newTypes = inferOutputTypes(origOp, newInputs, {newOrder});
-    VPUX_THROW_UNLESS(newTypes.size() == 1, "Got wrong number of inferred types - '{0}'", newTypes.size());
-    return newTypes[0];
-}
-
 //
 // ReorderWithSubView
 //
@@ -81,10 +54,9 @@ mlir::LogicalResult ReorderWithSubView::matchAndRewrite(IE::SliceOp origSubViewO
         return matchFailed(_log.nest(), rewriter, origSubViewOp, "Reorder has more then one user");
     }
 
-    const auto newSubViewType =
-            inferOutputType(origSubViewOp, origReorderOp.input(), DimsOrder::fromValue(origReorderOp.input()));
-    auto newSubViewOp = rewriter.create<IE::SliceOp>(origSubViewOp->getLoc(), newSubViewType, origReorderOp.input(),
-                                                     origSubViewOp.static_offsets(), origSubViewOp.static_sizes());
+    auto newSubViewOp =
+            rewriter.create<IE::SliceOp>(origSubViewOp->getLoc(), origReorderOp.input(),
+                                         origSubViewOp.static_offsetsAttr(), origSubViewOp.static_sizesAttr());
 
     rewriter.replaceOpWithNewOp<IE::ReorderOp>(origSubViewOp, newSubViewOp.result(), origReorderOp.dstOrderAttr());
     return mlir::success();
@@ -111,10 +83,8 @@ void swapExpandWithReorder(mlir::PatternRewriter& rewriter, IE::ExpandOp expandO
     mlir::OpBuilder::InsertionGuard guard(rewriter);
     rewriter.setInsertionPoint(expandOp);
 
-    const auto newExpandType =
-            inferOutputType(expandOp, origReorderOp.input(), DimsOrder::fromValue(origReorderOp.input()));
-    auto newExpandOp = rewriter.create<IE::ExpandOp>(expandOp->getLoc(), newExpandType, origReorderOp.input(),
-                                                     expandOp.pads_begin(), expandOp.pads_end());
+    auto newExpandOp = rewriter.create<IE::ExpandOp>(expandOp->getLoc(), origReorderOp.input(),
+                                                     expandOp.pads_beginAttr(), expandOp.pads_endAttr());
 
     rewriter.replaceOpWithNewOp<IE::ReorderOp>(expandOp, newExpandOp.output(), origReorderOp.dstOrderAttr());
 }
@@ -200,12 +170,8 @@ mlir::LogicalResult ReorderWithSplit::matchAndRewrite(IE::SplitOp origSplitOp, m
         outputReorders.push_back(resReorderOp);
     }
 
-    SmallVector<DimsOrder> newOrders(origSplitOp->getNumResults(), DimsOrder::fromValue(origReorderOp.input()));
-    const auto newOutputTypes = inferOutputTypes(origSplitOp, origReorderOp.input(), newOrders);
-
-    auto newSplitOp = rewriter.create<IE::SplitOp>(origSplitOp->getLoc(), newOutputTypes, origReorderOp.input(),
-                                                   origSplitOp.axis(), origSplitOp.num_splitsAttr(),
-                                                   origSplitOp.axis_valueAttr());
+    auto newSplitOp = rewriter.create<IE::SplitOp>(origSplitOp->getLoc(), origReorderOp.input(), origSplitOp.axis(),
+                                                   origSplitOp.num_splitsAttr(), origSplitOp.axis_valueAttr());
 
     for (auto ind : irange(outputReorders.size())) {
         auto oldResReorderOp = outputReorders[ind];
@@ -262,12 +228,10 @@ mlir::LogicalResult ReorderWithConcat::matchAndRewrite(IE::ConcatOp origConcatOp
 
     const auto concatOrder = DimsOrder::fromValue(origConcatOp.inputs().front());
 
-    const auto newConcatType = inferOutputType(origConcatOp, initialInputs, initialOrder.getValue());
+    auto newConcat = rewriter.create<IE::ConcatOp>(origConcatOp->getLoc(), initialInputs, origConcatOp.per_axisAttr(),
+                                                   origConcatOp.static_offsetsAttr());
 
-    auto newConcat = rewriter.create<IE::ConcatOp>(origConcatOp->getLoc(), newConcatType, initialInputs,
-                                                   origConcatOp.axis(), origConcatOp.offset(), origConcatOp.stride());
-
-    rewriter.replaceOpWithNewOp<IE::ReorderOp>(origConcatOp, newConcat.output(),
+    rewriter.replaceOpWithNewOp<IE::ReorderOp>(origConcatOp, origConcatOp.getType(), newConcat.output(),
                                                concatOrder.toPermutationAffineMap(origConcatOp.getContext()));
 
     return mlir::success();
