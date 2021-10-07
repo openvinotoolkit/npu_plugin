@@ -25,39 +25,59 @@ namespace elf {
 
 class Reader {
 public:
-    explicit Reader(const char* blob);
-
-    Elf_Half getType() const;
-
-public:
     class Section {
     public:
         Section() = delete;
-        Section(const char* sectionHeader, const char* data);
+        Section(const SectionHeader* sectionHeader, char* data, const char* name);
 
-        Elf_Half getType() const;
+        const SectionHeader* getHeader() const;
+        size_t getEntriesNum() const;
+        const char* getName() const;
+
+        template<typename T>
+        T* getData() {
+            return reinterpret_cast<T*>(m_data);
+        }
 
     private:
-        const Elf64_Shdr* m_sectionHeader;
-        const char* m_data;
+        const SectionHeader* m_sectionHeader;
+        char* m_data;
+        const char* m_name;
     };
 
     class Segment {
     public:
         Segment() = delete;
-        Segment(const char* programHeader, const char* data);
+        Segment(const ProgramHeader* programHeader, char* data);
 
-        Elf_Half getType() const;
+        const ProgramHeader* getHeader() const;
+        char* getData();
 
     private:
-        const Elf64_Phdr* m_programHeader;
-        const char* m_data;
+        Reader* m_reader;
+        const ProgramHeader* m_programHeader;
+        char* m_data;
     };
 
+public:
+    explicit Reader(char* blob, size_t size);
+
+    char* getBlob();
+    const ELFHeader* getHeader() const;
+
+    size_t getSectionsNum() const;
+    size_t getSegmentsNum() const;
+
+    Section getSection(size_t index);
+    Segment getSegment(size_t index);
+
 private:
-    Elf64_Ehdr* m_elfHeader;
-    std::vector<Segment> m_segments;
-    std::vector<Section> m_sections;
+    char* m_blob = nullptr;
+
+    const ELFHeader* m_elfHeader = nullptr;
+    const SectionHeader* m_sectionHeadersStart = nullptr;
+    const ProgramHeader* m_programHeadersStart = nullptr;
+    const char* m_sectionHeadersNames = nullptr;
 };
 
 } // namespace elf
