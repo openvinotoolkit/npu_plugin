@@ -93,6 +93,7 @@ def Const_ContentAttr : Const_Attr<"Content"> {
         vpux::Const::ContentAttr quantCast(mlir::quant::QuantizedType newElemType) const;
         vpux::Const::ContentAttr dequantize() const;
         vpux::Const::ContentAttr rescale(double scale) const;
+        vpux::Const::ContentAttr swizzle(int64_t key) const;
         vpux::Const::ContentAttr reshape(vpux::ShapeRef newShape) const;
         vpux::Const::ContentAttr reorder(vpux::DimsOrder newOrder) const;
         vpux::Const::ContentAttr padWithZero(vpux::ShapeRef padBefore, vpux::ShapeRef padAfter) const;
@@ -175,6 +176,29 @@ def Const_RescaleAttr : Const_Attr<"Rescale", [DeclareAttrInterfaceMethods<Const
         AttrBuilderWithInferredContext<
             (ins "mlir::FloatAttr":$scale), [{
                 return $_get(scale.getContext(), scale);
+            }]
+        >
+    ];
+
+    let storageNamespace = "details";
+    let skipDefaultBuilders = 1;
+}
+
+//
+// SwizzleAttr
+//
+
+def Const_SwizzleAttr : Const_Attr<"Swizzle", [DeclareAttrInterfaceMethods<Const_TransformAttrInterface>]> {
+    let summary = "Swizzle constant content";
+
+    let parameters = (ins
+        "mlir::IntegerAttr":$key
+    );
+
+    let builders = [
+        AttrBuilderWithInferredContext<
+            (ins "mlir::IntegerAttr":$key), [{
+                return $_get(key.getContext(), key);
             }]
         >
     ];
