@@ -240,7 +240,7 @@ void buildAvgpoolWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mo
             actWindow_cmx.getOperation()->getResult(0), parent_inputcmx.getOperation()->getResult(0),
             parent_outputcmx.getOperation()->getResult(0), outputcmx.getOperation()->getResult(0),
             mlir::ValueRange(barrier0.barrier()), mlir::ValueRange(barrier1.barrier()), VPUIP::NCETaskType::DWCONV,
-            filtersize, strides, kernel_padding, actChannelLength, nullptr);
+            filtersize, strides, kernel_padding, actChannelLength, nullptr, nullptr);
 
     nceTask.addPPETask(funcbuilder);
 

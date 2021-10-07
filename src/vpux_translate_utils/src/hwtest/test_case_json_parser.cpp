@@ -53,6 +53,24 @@ nb::DType nb::to_dtype(llvm::StringRef str) {
     return nb::DType::UNK;
 }
 
+vpux::VPUIP::ODUPermutation nb::to_odu_permutation(llvm::StringRef str) {
+    if (isEqual(str, "NHWC"))
+        return vpux::VPUIP::ODUPermutation::ZXY;
+    if (isEqual(str, "NWHC"))
+        return vpux::VPUIP::ODUPermutation::ZYX;
+    if (isEqual(str, "NWCH"))
+        return vpux::VPUIP::ODUPermutation::YZX;
+    if (isEqual(str, "NCWH"))
+        return vpux::VPUIP::ODUPermutation::YXZ;
+    if (isEqual(str, "NHCW"))
+        return vpux::VPUIP::ODUPermutation::XZY;
+    if (isEqual(str, "NCHW"))
+        return vpux::VPUIP::ODUPermutation::XYZ;
+    throw std::runtime_error("ODUPermutation value not supported: " + str.str());
+
+    return vpux::VPUIP::ODUPermutation();
+}
+
 std::string nb::to_string(nb::DType dtype) {
     switch (dtype) {
     case nb::DType::U8:
@@ -443,6 +461,11 @@ void nb::TestCaseJsonDescriptor::parse(llvm::StringRef jsonString) {
         } else {
             hasActivationLayer_ = false;
         }
+
+        if (caseType_ == CaseType::ZMajorConvolution) {
+            odu_permutation_ = to_odu_permutation(json_obj->getString("output_order").getValue());
+        }
+
         return;
     }
 

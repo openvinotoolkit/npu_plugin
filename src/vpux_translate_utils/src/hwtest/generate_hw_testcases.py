@@ -67,13 +67,47 @@ from numpy.random import default_rng
 Orderer = Callable[[np.ndarray], np.ndarray]
 
 
-def OrderNCHW(data: np.ndarray) -> np.ndarray:
-    return data
-
-
 def OrderNHWC(data: np.ndarray) -> np.ndarray:
     return np.concatenate([a.transpose(1, 2, 0).flatten() for a in data])
 
+def OrderNWHC(data: np.ndarray) -> np.ndarray:
+    return np.concatenate([a.transpose(2, 1, 0).flatten() for a in data])
+
+def OrderNWCH(data: np.ndarray) -> np.ndarray:
+    return np.concatenate([a.transpose(2, 0, 1).flatten() for a in data])
+
+def OrderNCWH(data: np.ndarray) -> np.ndarray:
+    return np.concatenate([a.transpose(0, 2, 1).flatten() for a in data])
+
+def OrderNHCW(data: np.ndarray) -> np.ndarray:
+    return np.concatenate([a.transpose(1, 0, 2).flatten() for a in data])
+
+def OrderNCHW(data: np.ndarray) -> np.ndarray:
+    return data
+
+class Order(Enum):
+    NHWC = 0    # ZXY
+    NWHC = 1    # ZYX
+    NWCH = 2    # YZX
+    NCWH = 3    # YXZ
+    NHCW = 4    # XZY
+    NCHW = 5    # XYZ
+
+def orderToOrderer(order: Order) -> np.ndarray:
+    if order == Order.NHWC:
+        return OrderNHWC
+    elif order == Order.NWHC:
+        return OrderNWHC
+    elif order == Order.NWCH:
+        return OrderNWCH
+    elif order == Order.NCWH:
+        return OrderNCWH
+    elif order == Order.NHCW:
+        return OrderNHCW
+    elif order == Order.NCHW:
+        return OrderNCHW
+    else:
+        raise ValueError('output order is not supported: %s', order.name.lower())
 
 def PadNCHWChannels(data: np.ndarray) -> np.ndarray:
     data = data.reshape(data.shape[0], functools.reduce(operator.mul, data.shape[1:]))
@@ -529,7 +563,7 @@ class ZMajorConvolution(MPE):
 
     # kernel_strides are x|y directions
     # The padding order is top|left|bottom|right
-    PARAMS = ['mpe_op_class', 'input_ttype', 'input_shape', 'weight_ttype', 'kernel_channels', 'kernel_shape', 'output_ttype', 'kernel_strides', 'kernel_pads']
+    PARAMS = ['mpe_op_class', 'input_ttype', 'input_shape', 'weight_ttype', 'kernel_channels', 'kernel_shape', 'output_ttype', 'output_order', 'kernel_strides', 'kernel_pads']
 
     def __init__(self, settings):
         self.settings = settings
@@ -545,7 +579,8 @@ class ZMajorConvolution(MPE):
                 'pad': self.settings.kernel_pads,
                 'group': 1,
                 'dilation': 1
-            }
+            },
+            'output_order': self.settings.output_order.name.lower()
         }
 
     def validate(self):
@@ -553,11 +588,18 @@ class ZMajorConvolution(MPE):
 
     @property
     def ident(self) -> str:
-        return f'zm_conv_{shape_to_str(self.settings.input_shape)}x{self.settings.input_ttype.stype}_{shape_to_str(self.settings.weight_shape)}x{self.settings.weight_ttype.stype}_pads_{shape_to_str(self.settings.kernel_pads)}_strides_{shape_to_str(self.settings.kernel_strides)}_kern_chan_{self.settings.kernel_channels}'
+        name = f'zm_conv_{shape_to_str(self.settings.input_shape)}x{self.settings.input_ttype.stype}_{shape_to_str(self.settings.weight_shape)}x{self.settings.weight_ttype.stype}_pads_{shape_to_str(self.settings.kernel_pads)}_strides_{shape_to_str(self.settings.kernel_strides)}_kern_chan_{self.settings.kernel_channels}'
+        if self.settings.output_order != Order.NHWC:
+            name += '_' + self.settings.output_order.name.lower()
+        return name
 
     @property
     def orderer(self) -> Orderer:
         return OrderNHWC
+
+    @property
+    def output_orderer(self) -> Orderer:
+        return orderToOrderer(self.settings.output_order)
 
     @property
     def data(self) -> dict:
@@ -621,6 +663,10 @@ class DepthWiseConv(MPE):
         return OrderNHWC
 
     @property
+    def output_orderer(self) -> Orderer:
+        return OrderNHWC
+
+    @property
     def data(self) -> dict:
         return {
             'MPE Mode': 'DepthWiseConv',
@@ -670,6 +716,10 @@ class EltwiseAdd(MPE):
 
     @property
     def orderer(self) -> Orderer:
+        return OrderNCHW
+
+    @property
+    def output_orderer(self) -> Orderer:
         return OrderNCHW
 
     @property
@@ -724,6 +774,10 @@ class EltwiseMult(MPE):
 
     @property
     def orderer(self) -> Orderer:
+        return OrderNCHW
+
+    @property
+    def output_orderer(self) -> Orderer:
         return OrderNCHW
 
     @property
@@ -784,6 +838,10 @@ class Maxpool(MPE):
         return OrderNHWC
 
     @property
+    def output_orderer(self) -> Orderer:
+        return OrderNHWC
+
+    @property
     def data(self) -> dict:
         return {
             'MPE Mode': 'MaxPool',
@@ -834,6 +892,10 @@ class AvgPool(MPE):
 
     @property
     def orderer(self) -> Orderer:
+        return OrderNHWC
+
+    @property
+    def output_orderer(self) -> Orderer:
         return OrderNHWC
 
     @property
@@ -950,7 +1012,7 @@ class DPUPipeline:
         orderer = self.mpe_op.orderer
         for input in self.inputs:
             input.write_data(dir, orderer)
-        self.o.write_data(dir, orderer)
+        self.o.write_data(dir, self.mpe_op.output_orderer)
         orderer(self.mpe_data).tofile(dir / 'mpe_raw.bin')
 
     def value(self):
@@ -1019,10 +1081,11 @@ def genZMConvs(input_types=[UInt8(2)],
                kernel_channels=[64],
                kernel_shapes=[[1, 1]],
                output_types=None,
+               output_orders=[Order.NHWC],
                strides=[[1, 1]],
                pads=Pad.none):
 
-    for (input_type, input_shape, kernel_channel, kernel_shape, stride, pad) in itertools.product(input_types, input_shapes, kernel_channels, kernel_shapes, strides, pads):
+    for (input_type, input_shape, kernel_channel, kernel_shape, output_order, stride, pad) in itertools.product(input_types, input_shapes, kernel_channels, kernel_shapes, output_orders, strides, pads):
 
         if weight_types is None:
             current_weight_types = _ZMCONV_VALID_WEIGHT_TYPES[input_type.__class__]
@@ -1045,6 +1108,7 @@ def genZMConvs(input_types=[UInt8(2)],
                                                              kernel_channel,
                                                              kernel_shape,
                                                              output_type,
+                                                             output_order,
                                                              stride,
                                                              pad
                                                              ))
@@ -1234,6 +1298,10 @@ def generate_options(args):
                    kernel_shapes=[[8, 10]],
                    output_types=[UInt8()],
                    pads=[[4,0,0,0],[5,0,0,0]]),
+
+        # Z-Major Convolution, output order
+        genZMConvs(input_types=[Int8(3), FP16(4)],
+                   output_orders=[Order.NWHC, Order.NWCH, Order.NCWH, Order.NHCW, Order.NCHW]),
 
         # Eltwise Add
         genEltwiseAdds(input_types=[Int8(6), UInt8(6), FP16(6), BF16(6)],

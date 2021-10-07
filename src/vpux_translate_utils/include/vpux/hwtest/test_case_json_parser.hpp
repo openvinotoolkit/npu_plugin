@@ -55,6 +55,7 @@ enum class DType { U4, I4, U8, I8, I32, FP8, FP16, FP32, BF16, UNK };
 
 DType to_dtype(llvm::StringRef str);
 std::string to_string(DType dtype);
+vpux::VPUIP::ODUPermutation to_odu_permutation(llvm::StringRef str);
 
 struct QuantParams {
     bool present = false;
@@ -150,6 +151,10 @@ public:
         return ppeLayerType_;
     }
 
+    vpux::VPUIP::ODUPermutation getODUPermutation() const {
+        return odu_permutation_;
+    }
+
 private:
     InputLayer loadInputLayer(llvm::json::Object* jsonObj);
     WeightLayer loadWeightLayer(llvm::json::Object* jsonObj);
@@ -171,6 +176,7 @@ private:
     std::string kernelFilename_;
     std::string caseTypeStr_;
     vpux::VPUIP::PPELayerType ppeLayerType_ = vpux::VPUIP::PPELayerType::ADD;
+    vpux::VPUIP::ODUPermutation odu_permutation_ = vpux::VPUIP::ODUPermutation::ZXY;
 };
 
 }  // namespace nb
