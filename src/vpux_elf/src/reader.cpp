@@ -19,36 +19,72 @@ using namespace elf;
 // Reader
 //
 
-Reader::Reader(const char*) {
-    // TODO: implement
+Reader::Reader(char* blob, size_t) : m_blob(blob), m_elfHeader(reinterpret_cast<decltype(m_elfHeader)>(blob)) {
+    m_sectionHeadersStart = reinterpret_cast<const SectionHeader*>(m_blob + m_elfHeader->e_shoff);
+    m_programHeadersStart = reinterpret_cast<const ProgramHeader*>(m_blob + m_elfHeader->e_phoff);
+    m_sectionHeadersNames = m_blob + (m_sectionHeadersStart + m_elfHeader->e_shstrndx)->sh_offset;
 }
 
-Elf_Half Reader::getType() const {
-    return m_elfHeader->e_type;
+char* Reader::getBlob() {
+    return m_blob;
+}
+
+const ELFHeader* Reader::getHeader() const {
+    return m_elfHeader;
+}
+
+size_t Reader::getSectionsNum() const {
+    return m_elfHeader->e_shnum;
+}
+
+size_t Reader::getSegmentsNum() const {
+    return m_elfHeader->e_phnum;
+}
+
+Reader::Section Reader::getSection(size_t index) {
+    const auto sectionHeader = m_sectionHeadersStart + index;
+    auto data = m_blob + sectionHeader->sh_offset;
+    const auto name = m_sectionHeadersNames + sectionHeader->sh_name;
+
+    return {sectionHeader, data, name};
+}
+
+Reader::Segment Reader::getSegment(size_t index) {
+    const auto programHeader = m_programHeadersStart + index;
+    auto data = m_blob + programHeader->p_offset;
+
+    return {programHeader, data};
 }
 
 //
 // Reader::Section
 //
 
-Reader::Section::Section(const char* sectionHeader, const char* data) {
-    m_sectionHeader = reinterpret_cast<const Elf64_Shdr*>(sectionHeader);
-    m_data = data;
+Reader::Section::Section(const SectionHeader* sectionHeader, char* data, const char* name) :
+      m_sectionHeader(sectionHeader), m_data(data), m_name(name) {}
+
+const SectionHeader* Reader::Section::getHeader() const {
+    return m_sectionHeader;
 }
 
-Elf_Half Reader::Section::getType() const {
-    return m_sectionHeader->sh_type;
+size_t Reader::Section::getEntriesNum() const {
+    return static_cast<size_t>(m_sectionHeader->sh_size / m_sectionHeader->sh_entsize);
+}
+
+const char* Reader::Section::getName() const {
+    return m_name;
 }
 
 //
 // Reader::Segment
 //
 
-Reader::Segment::Segment(const char* programHeader, const char* data) {
-    m_programHeader = reinterpret_cast<const Elf64_Phdr*>(programHeader);
-    m_data = data;
+Reader::Segment::Segment(const ProgramHeader* programHeader, char* data) : m_programHeader(programHeader), m_data(data) {}
+
+const ProgramHeader* Reader::Segment::getHeader() const {
+    return m_programHeader;
 }
 
-Elf_Half Reader::Segment::getType() const {
-    return m_programHeader->p_type;
+char* Reader::Segment::getData() {
+    return m_data;
 }

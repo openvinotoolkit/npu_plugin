@@ -17,6 +17,12 @@
 
 namespace elf {
 
+///
+/// Refer to https://docs.oracle.com/cd/E26502_01/html/E26507/chapter6-35342.html#scrolltoc
+/// for the detailed description of the values below
+///
+
+//! File identification
 constexpr uint8_t EI_MAG0       = 0;
 constexpr uint8_t EI_MAG1       = 1;
 constexpr uint8_t EI_MAG2       = 2;
@@ -29,28 +35,47 @@ constexpr uint8_t EI_ABIVERSION = 8;
 constexpr uint8_t EI_PAD        = 9;
 constexpr uint8_t EI_NIDENT     = 16;
 
-constexpr uint8_t ELFCLASS32 = 1;
-constexpr uint8_t ELFCLASS64 = 2;
+//! ELF magic values
+constexpr uint8_t ELFMAG0 = 0x7f;
+constexpr uint8_t ELFMAG1 = 'E';
+constexpr uint8_t ELFMAG2 = 'L';
+constexpr uint8_t ELFMAG3 = 'F';
 
-constexpr Elf_Half ET_NONE = 0;
-constexpr Elf_Half ET_REL = 1;
+//! File class
+constexpr uint8_t ELFCLASSNONE = 0;
+constexpr uint8_t ELFCLASS32   = 1;
+constexpr uint8_t ELFCLASS64   = 2;
 
-struct Elf32_Ehdr {
-    unsigned char e_ident[EI_NIDENT];
-    Elf_Half      e_type;
-    Elf_Half      e_machine;
-    Elf_Word      e_version;
-    Elf32_Addr    e_entry;
-    Elf32_Off     e_phoff;
-    Elf32_Off     e_shoff;
-    Elf_Word      e_flags;
-    Elf_Half      e_ehsize;
-    Elf_Half      e_phentsize;
-    Elf_Half      e_phnum;
-    Elf_Half      e_shentsize;
-    Elf_Half      e_shnum;
-    Elf_Half      e_shstrndx;
-};
+//! Data encoding
+constexpr uint8_t ELFDATANONE = 0;
+constexpr uint8_t ELFDATA2LSB = 1;
+constexpr uint8_t ELFDATA2MSB = 2;
+
+///
+/// Refer to https://docs.oracle.com/cd/E26502_01/html/E26507/chapter6-43405.html
+/// for the detailed description of the values and structures below
+///
+
+//! File types
+constexpr Elf_Half ET_NONE           = 0;
+constexpr Elf_Half ET_REL            = 1;
+constexpr Elf_Half ET_EXEC           = 2;
+constexpr Elf_Half ET_DYN            = 3;
+constexpr Elf_Half ET_CORE           = 4;
+constexpr Elf_Half ET_LOSUNW         = 0xfefe;
+constexpr Elf_Half ET_SUNW_ANCILLARY = 0xfefe;
+constexpr Elf_Half ET_HISUNW         = 0xfefd;
+constexpr Elf_Half ET_LOPROC         = 0xff00;
+constexpr Elf_Half ET_HIPROC         = 0xffff;
+
+constexpr Elf_Half EM_NONE        = 0;
+constexpr Elf_Half EM_SPARC       = 2;
+constexpr Elf_Half EM_386         = 3;
+constexpr Elf_Half EM_SPARC32PLUS = 18;
+constexpr Elf_Half EM_SPARCV9     = 43;
+constexpr Elf_Half EM_AMD64       = 62;
+
+constexpr Elf_Word EV_NONE = 0;
 
 struct Elf64_Ehdr {
     unsigned char e_ident[EI_NIDENT];
@@ -68,5 +93,7 @@ struct Elf64_Ehdr {
     Elf_Half      e_shnum;
     Elf_Half      e_shstrndx;
 };
+
+using ELFHeader = Elf64_Ehdr;
 
 } // namespace elf

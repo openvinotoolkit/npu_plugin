@@ -17,22 +17,34 @@
 
 namespace elf {
 
-//! Section types
-constexpr Elf_Word SHT_NULL =     0;
-constexpr Elf_Word SHT_PROGBITS = 1;
+///
+/// Refer to https://docs.oracle.com/cd/E19455-01/806-3773/elf-2/index.html
+/// for the detailed description of the values and structures below
+///
 
-struct Elf32_Shdr {
-    Elf_Word   sh_name;
-    Elf_Word   sh_type;
-    Elf_Word   sh_flags;
-    Elf32_Addr sh_addr;
-    Elf32_Off  sh_offset;
-    Elf_Word   sh_size;
-    Elf_Word   sh_link;
-    Elf_Word   sh_info;
-    Elf_Word   sh_addralign;
-    Elf_Word   sh_entsize;
-};
+//! Section types
+constexpr Elf_Word SHT_NULL     = 0;
+constexpr Elf_Word SHT_PROGBITS = 1;
+constexpr Elf_Word SHT_SYMTAB   = 2;
+constexpr Elf_Word SHT_STRTAB   = 3;
+constexpr Elf_Word SHT_RELA     = 4;
+constexpr Elf_Word SHT_HASH     = 5;
+constexpr Elf_Word SHT_DYNAMIC  = 6;
+constexpr Elf_Word SHT_NOTE     = 7;
+constexpr Elf_Word SHT_NOBITS   = 8;
+constexpr Elf_Word SHT_REL      = 9;
+constexpr Elf_Word SHT_SHLIB    = 10;
+constexpr Elf_Word SHT_DYNSYM   = 11;
+constexpr Elf_Word SHT_LOPROC   = 0x70000000;
+constexpr Elf_Word SHT_HIPROC   = 0x7fffffff;
+constexpr Elf_Word SHT_LOUSER   = 0x80000000;
+constexpr Elf_Word SHT_HIUSER   = 0xffffffff;
+
+//! Section flags
+constexpr Elf_Word SHF_WRITE     = 0x1;
+constexpr Elf_Word SHF_ALLOC     = 0x2;
+constexpr Elf_Word SHF_EXECINSTR = 0x4;
+constexpr Elf_Word SHF_MASKPROC  = 0xf0000000;
 
 struct Elf64_Shdr {
     Elf_Word   sh_name;
@@ -46,5 +58,7 @@ struct Elf64_Shdr {
     Elf_Xword  sh_addralign;
     Elf_Xword  sh_entsize;
 };
+
+using SectionHeader = Elf64_Shdr;
 
 } // namespace elf

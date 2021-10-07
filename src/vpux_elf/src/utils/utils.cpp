@@ -13,16 +13,17 @@
 
 #include <elf/utils/utils.hpp>
 
-#include <istream>
+#include <elf/types/elf_header.hpp>
+
+#include <vpux/utils/core/error.hpp>
 
 using namespace elf;
 
-size_t utils::getStreamSize(std::istream& strm) {
-    const auto streamStart = strm.tellg();
-    strm.seekg(0, std::ios_base::end);
-    const auto streamEnd = strm.tellg();
-    const auto bytesAvailable = streamEnd - streamStart;
-    strm.seekg(streamStart, std::ios_base::beg);
-
-    return bytesAvailable;
+void utils::checkELFMagic(const unsigned char* elfIdent) {
+    if (elfIdent[elf::EI_MAG0] != elf::ELFMAG0 ||
+        elfIdent[elf::EI_MAG1] != elf::ELFMAG1 ||
+        elfIdent[elf::EI_MAG2] != elf::ELFMAG2 ||
+        elfIdent[elf::EI_MAG3] != elf::ELFMAG3) {
+        VPUX_THROW("Incorrect ELF magic");
+    }
 }

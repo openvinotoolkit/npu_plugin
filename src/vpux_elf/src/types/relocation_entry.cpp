@@ -11,12 +11,21 @@
 // included with the Software Package for additional details.
 //
 
-#pragma once
+#include <elf/types/relocation_entry.hpp>
 
-namespace elf {
-namespace utils {
+using namespace elf;
 
-void checkELFMagic(const unsigned char* elfIdent);
+//! Extract symbol index from info
+Elf_Word elf64RSym(Elf_Xword info) {
+    return info >> 32;
+}
 
-} // namespace utils
-} // namespace elf
+//! Extract relocation type from info
+Elf_Word elf64RType(Elf_Xword info) {
+    return static_cast<Elf_Word>(info);
+}
+
+//! Pack relocation type and symbol index into info
+Elf_Xword elf64RInfo(Elf_Word sym, Elf_Word type) {
+    return (static_cast<Elf_Xword>(sym) << 32) + (static_cast<Elf_Xword>(type));
+}

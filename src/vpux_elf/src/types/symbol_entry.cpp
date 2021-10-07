@@ -11,12 +11,21 @@
 // included with the Software Package for additional details.
 //
 
-#pragma once
+#include <elf/types/symbol_entry.hpp>
 
-namespace elf {
-namespace utils {
+using namespace elf;
 
-void checkELFMagic(const unsigned char* elfIdent);
+//! Extract symbol binding attributes from info
+Elf_Xword elf64STBind(Elf_Xword info) {
+    return info >> 4;
+}
 
-} // namespace utils
-} // namespace elf
+//! Extract symbol type from info
+Elf_Xword elf64STType(Elf_Xword info) {
+    return info & 0xf;
+}
+
+//! Pack symbol binding attributes and symbol type into info
+Elf_Xword elf64STInfo(Elf_Word bind, Elf_Word type) {
+    return (bind << 4) + (type & 0xf);
+}
