@@ -132,9 +132,8 @@ mlir::LogicalResult generalSplitter(mlir::Operation* origOp, mlir::PatternRewrit
         }
 
         if (!wSliced.empty()) {
-            hSliced.push_back(wSliced.size() != 1 ? rewriter.create<IE::ConcatOp>(
-                                                            origOp->getLoc(), origOp->getResult(0).getType(), wSliced,
-                                                            Dims4D::Act::H.ind(), minStride, maxStride)
+            hSliced.push_back(wSliced.size() != 1 ? rewriter.create<IE::ConcatOp>(origOp->getLoc(), wSliced,
+                                                                                  Dims4D::Act::H, minStride, maxStride)
                                                   : wSliced.front());
         }
     }
@@ -143,10 +142,9 @@ mlir::LogicalResult generalSplitter(mlir::Operation* origOp, mlir::PatternRewrit
         return mlir::failure();
     }
 
-    const auto concatOp = hSliced.size() != 1
-                                  ? rewriter.create<IE::ConcatOp>(origOp->getLoc(), origOp->getResult(0).getType(),
-                                                                  hSliced, Dims4D::Act::W.ind(), minStride, maxStride)
-                                  : hSliced.front();
+    const auto concatOp = hSliced.size() != 1 ? rewriter.create<IE::ConcatOp>(origOp->getLoc(), hSliced, Dims4D::Act::W,
+                                                                              minStride, maxStride)
+                                              : hSliced.front();
 
     rewriter.replaceOp(origOp, concatOp);
 

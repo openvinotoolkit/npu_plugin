@@ -204,32 +204,35 @@ public:
                                         mlir::ConversionPatternRewriter& rewriter) const final;
 
 private:
+    SmallVector<mlir::Value> rewriteWithAxis(IE::ConcatOp origOp, OpAdaptor newArgs,
+                                             ArrayRef<mlir::Value> allocatedBufs,
+                                             mlir::ConversionPatternRewriter& rewriter) const;
+    SmallVector<mlir::Value> rewriteWithOffsets(IE::ConcatOp origOp, OpAdaptor newArgs,
+                                                ArrayRef<mlir::Value> allocatedBufs,
+                                                mlir::ConversionPatternRewriter& rewriter) const;
+
+private:
     Logger _log;
 };
 
-mlir::LogicalResult ConcatRewrite::matchAndRewrite(IE::ConcatOp origOp, OpAdaptor newArgs,
-                                                   mlir::ConversionPatternRewriter& rewriter) const {
-    _log.trace("Found Concat Operation '{0}'", origOp->getLoc());
+SmallVector<mlir::Value> ConcatRewrite::rewriteWithAxis(IE::ConcatOp origOp, OpAdaptor newArgs,
+                                                        ArrayRef<mlir::Value> allocatedBufs,
+                                                        mlir::ConversionPatternRewriter& rewriter) const {
+    SmallVector<mlir::Value> results;
 
-    const auto axis = Dim(origOp.axis());
-
-    auto* typeConverter = getTypeConverter();
-    VPUX_THROW_UNLESS(typeConverter != nullptr, "TypeConverter is not set");
-
-    _log.trace("Add Alloc Operations for results");
-    auto allocatedBufs = allocateResults(origOp->getLoc(), rewriter, *typeConverter, {origOp.getResult()});
+    const auto axis = origOp.per_axisAttr().axis().getValue().getSExtValue();
+    const auto offset = origOp.per_axisAttr().offset() ? origOp.per_axisAttr().offset().getValue().getSExtValue() : 0;
+    const auto stride = origOp.per_axisAttr().stride() ? origOp.per_axisAttr().stride().getValue().getSExtValue() : 1;
 
     const auto outputRank = origOp.getType().getRank();
 
     SmallVector<int64_t> svOffsets(outputRank, 0);
 
-    Optional<SmallVector<int64_t>> svElemStrides;
-    if (origOp.stride() != 1) {
-        svElemStrides = SmallVector<int64_t>(outputRank, 1);
-        svElemStrides.getValue()[axis.ind()] = origOp.stride();
+    SmallVector<int64_t> svElemStrides;
+    if (stride != 1) {
+        svElemStrides.resize(outputRank, 1);
+        svElemStrides[axis] = stride;
     }
-
-    SmallVector<mlir::Value> results;
 
     for (auto i : irange(origOp->getNumOperands())) {
         const auto newInput = newArgs.inputs()[i];
@@ -238,19 +241,57 @@ mlir::LogicalResult ConcatRewrite::matchAndRewrite(IE::ConcatOp origOp, OpAdapto
 
         _log.trace("Create SubView for input #'{0}'", i);
         mlir::Value subViewVal;
-        if (svElemStrides.hasValue()) {
-            subViewVal = rewriter.create<IERT::SubViewOp>(origOp->getLoc(), allocatedBufs[0], svOffsets, svSizes,
-                                                          svElemStrides.getValue());
-        } else {
+        if (svElemStrides.empty()) {
             subViewVal = rewriter.create<IERT::SubViewOp>(origOp->getLoc(), allocatedBufs[0], svOffsets, svSizes);
+            svOffsets[axis] += svSizes[axis];
+        } else {
+            subViewVal = rewriter.create<IERT::SubViewOp>(origOp->getLoc(), allocatedBufs[0], svOffsets, svSizes,
+                                                          svElemStrides);
+            svOffsets[axis] += offset;
         }
 
         _log.trace("Copy new operand to SubView");
         auto copyOp = rewriter.create<IERT::CopyOp>(origOp->getLoc(), newInput, subViewVal);
         results.push_back(copyOp.output());
-
-        svOffsets[axis.ind()] += (origOp.stride() == 1 ? svSizes[axis.ind()] : origOp.offset());
     }
+
+    return results;
+}
+
+SmallVector<mlir::Value> ConcatRewrite::rewriteWithOffsets(IE::ConcatOp origOp, OpAdaptor newArgs,
+                                                           ArrayRef<mlir::Value> allocatedBufs,
+                                                           mlir::ConversionPatternRewriter& rewriter) const {
+    SmallVector<mlir::Value> results;
+
+    const auto allOffsets = origOp.static_offsetsAttr().getAsRange<mlir::ArrayAttr>();
+
+    for (const auto p : zip(newArgs.inputs(), allOffsets)) {
+        const auto newInput = std::get<0>(p);
+
+        const auto curShape = newInput.getType().cast<mlir::ShapedType>().getShape();
+        const auto curOffsets = parseIntArrayAttr<int64_t>(std::get<1>(p));
+
+        auto subViewOp = rewriter.create<IERT::SubViewOp>(origOp->getLoc(), allocatedBufs[0], curOffsets, curShape);
+
+        auto copyOp = rewriter.create<IERT::CopyOp>(origOp->getLoc(), newInput, subViewOp.result());
+        results.push_back(copyOp.output());
+    }
+
+    return results;
+}
+
+mlir::LogicalResult ConcatRewrite::matchAndRewrite(IE::ConcatOp origOp, OpAdaptor newArgs,
+                                                   mlir::ConversionPatternRewriter& rewriter) const {
+    _log.trace("Found Concat Operation '{0}'", origOp->getLoc());
+
+    auto* typeConverter = getTypeConverter();
+    VPUX_THROW_UNLESS(typeConverter != nullptr, "TypeConverter is not set");
+
+    _log.trace("Add Alloc Operations for results");
+    auto allocatedBufs = allocateResults(origOp->getLoc(), rewriter, *typeConverter, {origOp.getResult()});
+
+    const auto results = origOp.per_axisAttr() ? rewriteWithAxis(origOp, newArgs, allocatedBufs, rewriter)
+                                               : rewriteWithOffsets(origOp, newArgs, allocatedBufs, rewriter);
 
     rewriter.replaceOpWithNewOp<IERT::ConcatViewOp>(origOp, results, allocatedBufs[0]);
     return mlir::success();
