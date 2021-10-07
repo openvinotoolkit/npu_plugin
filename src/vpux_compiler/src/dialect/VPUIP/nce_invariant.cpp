@@ -12,6 +12,7 @@
 //
 
 #include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
+#include "vpux/compiler/core/layers.hpp"
 #include "vpux/compiler/dialect/VPUIP/nce_sparsity.hpp"
 #include "vpux/compiler/utils/types.hpp"
 
@@ -40,8 +41,8 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyConvChannels(mlir::Location
     }
 
     const auto filterShape = getShape(filterType);
-    const auto OC = filterShape[IE::Dims4D::Filter::OC];
-    const auto IC = filterShape[IE::Dims4D::Filter::IC];
+    const auto OC = filterShape[Dims4D::Filter::OC];
+    const auto IC = filterShape[Dims4D::Filter::IC];
 
     if (OC % getChannelAlignment(filterType.getElementType()) != 0) {
         log.trace("[{0}] Convolution output channels are not aligned", loc);
@@ -77,7 +78,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPoolChannels(mlir::Location
     }
 
     const auto inputShape = getShape(inputType);
-    const auto IC = inputShape[IE::Dims4D::Act::C];
+    const auto IC = inputShape[Dims4D::Act::C];
 
     if (IC % getChannelAlignment(inputType.getElementType()) != 0) {
         log.trace("[{0}] Pooling channels are not aligned", loc);
@@ -115,8 +116,8 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyEltwiseChannels(mlir::Locat
 
     const auto firstInputShape = getShape(firstInputType);
     const auto secondInputShape = getShape(secondInputType);
-    const auto firstIC = firstInputShape[IE::Dims4D::Act::C];
-    const auto secondIC = secondInputShape[IE::Dims4D::Act::C];
+    const auto firstIC = firstInputShape[Dims4D::Act::C];
+    const auto secondIC = secondInputShape[Dims4D::Act::C];
 
     if (firstIC % getChannelAlignment(firstInputType.getElementType()) != 0) {
         log.trace("[{0}] Eltwise input1 channels are not aligned", loc);
@@ -198,15 +199,15 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyGroupConvChannels(mlir::Loc
     }
 
     const auto filterShape = getShape(filterType);
-    const auto filtersPerInChan = filterShape[IE::Dims4D::Filter::IC];
+    const auto filtersPerInChan = filterShape[Dims4D::Filter::IC];
     if (filtersPerInChan != 1) {
         log.trace("[{0}] Group Convolution with more than one filter per channel is not supported", loc);
         return mlir::failure();
     }
 
     const auto inputShape = getShape(inputType);
-    const auto inputChan = inputShape[IE::Dims4D::Act::C];
-    const auto OC = filterShape[IE::Dims4D::Filter::OC];
+    const auto inputChan = inputShape[Dims4D::Act::C];
+    const auto OC = filterShape[Dims4D::Filter::OC];
     if (OC != inputChan) {
         log.trace("[{0}] Group Convolution has {1} groups, expected {2}", loc, OC, inputChan);
         return mlir::failure();
@@ -268,7 +269,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyConvCMX(mlir::Location loc,
 
     const auto filterShape = getShape(filterType);
     // consider alignment when calculating required CMX
-    const auto OC = filterShape[IE::Dims4D::Filter::OC];
+    const auto OC = filterShape[Dims4D::Filter::OC];
     const auto requiredCMX = getRequiredCMX({inputType, filterType, outputType}, OC);
 
     const auto cmxSize = getCMXSize(module);
@@ -302,7 +303,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPoolCMX(mlir::Location loc,
     VPUX_THROW_UNLESS(kernelStrides.size() == 2, "Unsupported strides size: {0}", kernelSize.size());
 
     const auto inputShape = getShape(inputType);
-    const auto IC = inputShape[IE::Dims4D::Act::C];
+    const auto IC = inputShape[Dims4D::Act::C];
 
     const auto kernelSizeVals = parseIntArrayAttr<int64_t>(kernelSize);
     const auto kernelStridesVals = parseIntArrayAttr<int64_t>(kernelStrides);
@@ -393,10 +394,10 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyGroupConvCMX(mlir::Location
     VPUX_THROW_UNLESS(kernelStrides.size() == 2, "Unsupported strides size: {0}", kernelStrides.size());
 
     const auto filterShape = getShape(filterType);
-    const auto OC = filterShape[IE::Dims4D::Filter::OC];
-    const auto filtersPerInChan = filterShape[IE::Dims4D::Filter::IC];
-    const auto KY = filterShape[IE::Dims4D::Filter::KY];
-    const auto KX = filterShape[IE::Dims4D::Filter::KX];
+    const auto OC = filterShape[Dims4D::Filter::OC];
+    const auto filtersPerInChan = filterShape[Dims4D::Filter::IC];
+    const auto KY = filterShape[Dims4D::Filter::KY];
+    const auto KX = filterShape[Dims4D::Filter::KX];
 
     // Setting more than 16 groups results in worse accuracy.
     // FIXME verify CMX is not a proper place for this. But it is required to fail CMX check during tiling.
@@ -515,8 +516,8 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IE::ConvolutionOp or
     }
 
     const auto filterShape = getShape(origOp.filter());
-    const auto KY = filterShape[IE::Dims4D::Filter::KY];
-    const auto KX = filterShape[IE::Dims4D::Filter::KX];
+    const auto KY = filterShape[Dims4D::Filter::KY];
+    const auto KX = filterShape[Dims4D::Filter::KX];
 
     const auto kernelStrides = parseIntArrayAttr<int64_t>(origOp.strides());
     const auto SY = kernelStrides[0];
@@ -546,8 +547,8 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IERT::ConvolutionOp 
     }
 
     const auto filterShape = getShape(origOp.filter());
-    const auto KY = filterShape[IE::Dims4D::Filter::KY];
-    const auto KX = filterShape[IE::Dims4D::Filter::KX];
+    const auto KY = filterShape[Dims4D::Filter::KY];
+    const auto KX = filterShape[Dims4D::Filter::KX];
 
     const auto kernelStrides = parseIntArrayAttr<int64_t>(origOp.strides());
     const auto SY = kernelStrides[0];
@@ -713,10 +714,10 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IE::GroupConvolution
     }
 
     const auto filterShape = getShape(origOp.filter());
-    const auto filtersPerInChan = filterShape[IE::Dims4D::Filter::IC];
-    const auto OC = filterShape[IE::Dims4D::Filter::OC];
-    const auto KY = filterShape[IE::Dims4D::Filter::KY];
-    const auto KX = filterShape[IE::Dims4D::Filter::KX];
+    const auto filtersPerInChan = filterShape[Dims4D::Filter::IC];
+    const auto OC = filterShape[Dims4D::Filter::OC];
+    const auto KY = filterShape[Dims4D::Filter::KY];
+    const auto KX = filterShape[Dims4D::Filter::KX];
 
     if (!origOp.groups().hasValue()) {
         log.trace("[{0}] Grouped convolution does not have groups", origOp->getLoc());
@@ -732,7 +733,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IE::GroupConvolution
     }
 
     const auto inputShape = getShape(origOp.input());
-    const auto IC = inputShape[IE::Dims4D::Act::C];
+    const auto IC = inputShape[Dims4D::Act::C];
     if (OC != IC) {
         log.trace("[{0}] Group Convolution has {1} groups, expected {2}", origOp->getLoc(), OC, IC);
         return mlir::failure();
@@ -766,9 +767,9 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IERT::GroupConvoluti
     }
 
     const auto filterShape = getShape(origOp.filter());
-    const auto OC = filterShape[IE::Dims4D::Filter::OC];
-    const auto KY = filterShape[IE::Dims4D::Filter::KY];
-    const auto KX = filterShape[IE::Dims4D::Filter::KX];
+    const auto OC = filterShape[Dims4D::Filter::OC];
+    const auto KY = filterShape[Dims4D::Filter::KY];
+    const auto KX = filterShape[Dims4D::Filter::KX];
 
     if (!origOp.groups().hasValue()) {
         log.trace("[{0}] Grouped convolution does not have groups", origOp->getLoc());

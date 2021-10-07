@@ -13,6 +13,7 @@
 
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
+#include "vpux/compiler/core/layers.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
@@ -77,7 +78,7 @@ static mlir::DenseElementsAttr buildWeightData(const mlir::RankedTensorType data
 mlir::LogicalResult ConvertAvgPoolToDWConvPass::AvgPoolOpConverter::matchAndRewrite(
         IE::AvgPoolOp origOp, mlir::PatternRewriter& rewriter) const {
     const auto outputShape = getShape(origOp.output());
-    const auto OC = outputShape[IE::Dims4D::Act::C];
+    const auto OC = outputShape[Dims4D::Act::C];
     const auto kernel = parseIntArrayAttr<int64_t>(origOp.kernel_size());
     const auto kernelY = kernel[0];
     const auto kernelX = kernel[1];

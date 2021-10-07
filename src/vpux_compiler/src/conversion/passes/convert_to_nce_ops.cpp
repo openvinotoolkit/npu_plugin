@@ -13,6 +13,7 @@
 
 #include "vpux/compiler/conversion.hpp"
 
+#include "vpux/compiler/core/layers.hpp"
 #include "vpux/compiler/dialect/IERT/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/attributes/arch.hpp"
 #include "vpux/compiler/dialect/VPUIP/dpu_tiler.hpp"
@@ -164,9 +165,9 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
 
     const auto filterShape = getShape(origOp.filter());
 
-    const auto OC = filterShape[IE::Dims4D::Filter::OC];
-    const auto KY = filterShape[IE::Dims4D::Filter::KY];
-    const auto KX = filterShape[IE::Dims4D::Filter::KX];
+    const auto OC = filterShape[Dims4D::Filter::OC];
+    const auto KY = filterShape[Dims4D::Filter::KY];
+    const auto KX = filterShape[Dims4D::Filter::KX];
 
     //
     // Prepare input for DPU
@@ -276,7 +277,7 @@ mlir::LogicalResult MaxPoolRewrite::matchAndRewrite(IERT::MaxPoolOp origOp, mlir
     const auto origInputType = origOp.input().getType().cast<mlir::MemRefType>();
     const auto inputShape = getShape(origInputType);
 
-    const auto IC = inputShape[IE::Dims4D::Act::C];
+    const auto IC = inputShape[Dims4D::Act::C];
 
     const auto kernelSize = parseIntArrayAttr<int64_t>(origOp.kernel_size());
     const auto kernelStrides = parseIntArrayAttr<int64_t>(origOp.strides());
@@ -558,9 +559,9 @@ mlir::LogicalResult DepthwiseConvRewrite::matchAndRewrite(IERT::GroupConvolution
 
     const auto filterShape = getShape(origOp.filter());
 
-    const auto OC = filterShape[IE::Dims4D::Filter::OC];
-    const auto KY = filterShape[IE::Dims4D::Filter::KY];
-    const auto KX = filterShape[IE::Dims4D::Filter::KX];
+    const auto OC = filterShape[Dims4D::Filter::OC];
+    const auto KY = filterShape[Dims4D::Filter::KY];
+    const auto KX = filterShape[Dims4D::Filter::KX];
 
     //
     // Prepare input for DPU

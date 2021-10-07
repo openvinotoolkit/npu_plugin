@@ -13,6 +13,8 @@
 
 #include "vpux/compiler/core/tiling.hpp"
 
+#include "vpux/compiler/core/layers.hpp"
+
 using namespace vpux;
 
 SmallVector<Tile> vpux::fillDividedTiles(ShapeRef divisors, ShapeRef orig) {
@@ -70,13 +72,13 @@ SmallVector<Tile> vpux::fillDividedTiles(ShapeRef divisors, ShapeRef orig) {
 
 PadsTileConfig vpux::backInferPadsTile(const Tile& outputTile, ShapeRef outShape, int64_t padLeft, int64_t padRight,
                                        int64_t padTop, int64_t padBottom) {
-    SmallVector<int64_t> padsBegin(IE::Dims4D::Act::numSpatialDims);
-    SmallVector<int64_t> padsEnd(IE::Dims4D::Act::numSpatialDims);
+    SmallVector<int64_t> padsBegin(Dims4D::Act::numSpatialDims);
+    SmallVector<int64_t> padsEnd(Dims4D::Act::numSpatialDims);
     SmallVector<int64_t> opPadsBegin = {padTop, padLeft};
     SmallVector<int64_t> opPadsEnd = {padBottom, padRight};
 
-    for (auto ind : irange(IE::Dims4D::Act::numSpatialDims)) {
-        const auto spatialDim = IE::Dims4D::Act::getSpatialDim(ind);
+    for (auto ind : irange(Dims4D::Act::numSpatialDims)) {
+        const auto spatialDim = Dims4D::Act::getSpatialDim(ind);
 
         const auto outSize = outputTile.shape[spatialDim];
         const auto outOffset = outputTile.offsets[spatialDim];
@@ -264,13 +266,11 @@ std::tuple<PlaneTile, PadInfo> inputForOutputTile(const PlaneTile& output, int64
     PlaneTile inputTile = {{0, 0}, {0, 0}};
     PadInfo pad = {0, 0, 0, 0};
 
-    std::tie(inputTile.height, pad.top, pad.bottom) =
-            inputForOutputDim(output.height, kernelY, strideY, {0, initialInputDims[IE::Dims4D::Act::H]},
-                              initialPad.top, initialPad.bottom);
+    std::tie(inputTile.height, pad.top, pad.bottom) = inputForOutputDim(
+            output.height, kernelY, strideY, {0, initialInputDims[Dims4D::Act::H]}, initialPad.top, initialPad.bottom);
 
-    std::tie(inputTile.width, pad.left, pad.right) =
-            inputForOutputDim(output.width, kernelX, strideX, {0, initialInputDims[IE::Dims4D::Act::W]},
-                              initialPad.left, initialPad.right);
+    std::tie(inputTile.width, pad.left, pad.right) = inputForOutputDim(
+            output.width, kernelX, strideX, {0, initialInputDims[Dims4D::Act::W]}, initialPad.left, initialPad.right);
 
     return std::make_tuple(inputTile, pad);
 }
@@ -292,10 +292,10 @@ ConvTileConfig vpux::backInferConvTile(IERT::ConvolutionOp origOp, const Tile& o
     const auto origBiasShape = origOp.bias() != nullptr ? getShape(origOp.bias()) : ShapeRef();
 
     PlaneTile output;
-    output.height.begin = outputTile.offsets[IE::Dims4D::Act::H];
-    output.height.end = outputTile.offsets[IE::Dims4D::Act::H] + outputTile.shape[IE::Dims4D::Act::H];
-    output.width.begin = outputTile.offsets[IE::Dims4D::Act::W];
-    output.width.end = outputTile.offsets[IE::Dims4D::Act::W] + outputTile.shape[IE::Dims4D::Act::W];
+    output.height.begin = outputTile.offsets[Dims4D::Act::H];
+    output.height.end = outputTile.offsets[Dims4D::Act::H] + outputTile.shape[Dims4D::Act::H];
+    output.width.begin = outputTile.offsets[Dims4D::Act::W];
+    output.width.end = outputTile.offsets[Dims4D::Act::W] + outputTile.shape[Dims4D::Act::W];
 
     PadInfo initialPad;
     initialPad.top = origOp.pads_begin()[0].cast<mlir::IntegerAttr>().getInt();
@@ -303,30 +303,30 @@ ConvTileConfig vpux::backInferConvTile(IERT::ConvolutionOp origOp, const Tile& o
     initialPad.left = origOp.pads_begin()[1].cast<mlir::IntegerAttr>().getInt();
     initialPad.right = origOp.pads_end()[1].cast<mlir::IntegerAttr>().getInt();
 
-    const auto solution = solutionForOutputTile(
-            output, origFilterShape[IE::Dims4D::Filter::KX], origFilterShape[IE::Dims4D::Filter::KY],
-            origOp.strides()[1].cast<mlir::IntegerAttr>().getInt(),
-            origOp.strides()[0].cast<mlir::IntegerAttr>().getInt(), origInputShape, initialPad);
+    const auto solution =
+            solutionForOutputTile(output, origFilterShape[Dims4D::Filter::KX], origFilterShape[Dims4D::Filter::KY],
+                                  origOp.strides()[1].cast<mlir::IntegerAttr>().getInt(),
+                                  origOp.strides()[0].cast<mlir::IntegerAttr>().getInt(), origInputShape, initialPad);
 
     Tile inputTile(origInputShape);
     Tile filterTile(origFilterShape);
     Tile biasTile(origBiasShape);
 
-    inputTile.shape[IE::Dims4D::Act::N] = outputTile.shape[IE::Dims4D::Act::N];
-    inputTile.offsets[IE::Dims4D::Act::N] = outputTile.offsets[IE::Dims4D::Act::N];
+    inputTile.shape[Dims4D::Act::N] = outputTile.shape[Dims4D::Act::N];
+    inputTile.offsets[Dims4D::Act::N] = outputTile.offsets[Dims4D::Act::N];
 
-    inputTile.offsets[IE::Dims4D::Act::H] = solution.inputTile.height.begin;
-    inputTile.shape[IE::Dims4D::Act::H] = solution.inputTile.height.length();
+    inputTile.offsets[Dims4D::Act::H] = solution.inputTile.height.begin;
+    inputTile.shape[Dims4D::Act::H] = solution.inputTile.height.length();
 
-    inputTile.offsets[IE::Dims4D::Act::W] = solution.inputTile.width.begin;
-    inputTile.shape[IE::Dims4D::Act::W] = solution.inputTile.width.length();
+    inputTile.offsets[Dims4D::Act::W] = solution.inputTile.width.begin;
+    inputTile.shape[Dims4D::Act::W] = solution.inputTile.width.length();
 
-    filterTile.shape[IE::Dims4D::Filter::OC] = outputTile.shape[IE::Dims4D::Act::C];
-    filterTile.offsets[IE::Dims4D::Filter::OC] = outputTile.offsets[IE::Dims4D::Act::C];
+    filterTile.shape[Dims4D::Filter::OC] = outputTile.shape[Dims4D::Act::C];
+    filterTile.offsets[Dims4D::Filter::OC] = outputTile.offsets[Dims4D::Act::C];
 
     if (!biasTile.shape.empty()) {
-        biasTile.shape[IE::Dims4D::Act::C] = outputTile.shape[IE::Dims4D::Act::C];
-        biasTile.offsets[IE::Dims4D::Act::C] = outputTile.offsets[IE::Dims4D::Act::C];
+        biasTile.shape[Dims4D::Act::C] = outputTile.shape[Dims4D::Act::C];
+        biasTile.offsets[Dims4D::Act::C] = outputTile.offsets[Dims4D::Act::C];
     }
 
     return {inputTile,
@@ -339,10 +339,10 @@ PoolTileConfig vpux::backInferPoolTile(IERT::MaxPoolOp origOp, const Tile& outpu
     const auto origInputShape = getShape(origOp.input());
 
     PlaneTile output;
-    output.height.begin = outputTile.offsets[IE::Dims4D::Act::H];
-    output.height.end = outputTile.offsets[IE::Dims4D::Act::H] + outputTile.shape[IE::Dims4D::Act::H];
-    output.width.begin = outputTile.offsets[IE::Dims4D::Act::W];
-    output.width.end = outputTile.offsets[IE::Dims4D::Act::W] + outputTile.shape[IE::Dims4D::Act::W];
+    output.height.begin = outputTile.offsets[Dims4D::Act::H];
+    output.height.end = outputTile.offsets[Dims4D::Act::H] + outputTile.shape[Dims4D::Act::H];
+    output.width.begin = outputTile.offsets[Dims4D::Act::W];
+    output.width.end = outputTile.offsets[Dims4D::Act::W] + outputTile.shape[Dims4D::Act::W];
 
     PadInfo initialPad;
     initialPad.top = origOp.pads_begin()[0].cast<mlir::IntegerAttr>().getInt();
@@ -358,17 +358,17 @@ PoolTileConfig vpux::backInferPoolTile(IERT::MaxPoolOp origOp, const Tile& outpu
 
     Tile inputTile(origInputShape);
 
-    inputTile.shape[IE::Dims4D::Act::N] = outputTile.shape[IE::Dims4D::Act::N];
-    inputTile.offsets[IE::Dims4D::Act::N] = outputTile.offsets[IE::Dims4D::Act::N];
+    inputTile.shape[Dims4D::Act::N] = outputTile.shape[Dims4D::Act::N];
+    inputTile.offsets[Dims4D::Act::N] = outputTile.offsets[Dims4D::Act::N];
 
-    inputTile.shape[IE::Dims4D::Act::C] = outputTile.shape[IE::Dims4D::Act::C];
-    inputTile.offsets[IE::Dims4D::Act::C] = outputTile.offsets[IE::Dims4D::Act::C];
+    inputTile.shape[Dims4D::Act::C] = outputTile.shape[Dims4D::Act::C];
+    inputTile.offsets[Dims4D::Act::C] = outputTile.offsets[Dims4D::Act::C];
 
-    inputTile.offsets[IE::Dims4D::Act::H] = solution.inputTile.height.begin;
-    inputTile.shape[IE::Dims4D::Act::H] = solution.inputTile.height.length();
+    inputTile.offsets[Dims4D::Act::H] = solution.inputTile.height.begin;
+    inputTile.shape[Dims4D::Act::H] = solution.inputTile.height.length();
 
-    inputTile.offsets[IE::Dims4D::Act::W] = solution.inputTile.width.begin;
-    inputTile.shape[IE::Dims4D::Act::W] = solution.inputTile.width.length();
+    inputTile.offsets[Dims4D::Act::W] = solution.inputTile.width.begin;
+    inputTile.shape[Dims4D::Act::W] = solution.inputTile.width.length();
 
     return {inputTile,
             {solution.inputPad.left, solution.inputPad.right, solution.inputPad.top, solution.inputPad.bottom}};
@@ -380,10 +380,10 @@ ConvTileConfig vpux::backInferGroupConvTile(IERT::GroupConvolutionOp origOp, con
     const auto origBiasShape = origOp.bias() != nullptr ? getShape(origOp.bias()) : ShapeRef();
 
     PlaneTile output;
-    output.height.begin = outputTile.offsets[IE::Dims4D::Act::H];
-    output.height.end = outputTile.offsets[IE::Dims4D::Act::H] + outputTile.shape[IE::Dims4D::Act::H];
-    output.width.begin = outputTile.offsets[IE::Dims4D::Act::W];
-    output.width.end = outputTile.offsets[IE::Dims4D::Act::W] + outputTile.shape[IE::Dims4D::Act::W];
+    output.height.begin = outputTile.offsets[Dims4D::Act::H];
+    output.height.end = outputTile.offsets[Dims4D::Act::H] + outputTile.shape[Dims4D::Act::H];
+    output.width.begin = outputTile.offsets[Dims4D::Act::W];
+    output.width.end = outputTile.offsets[Dims4D::Act::W] + outputTile.shape[Dims4D::Act::W];
 
     PadInfo initialPad;
     initialPad.top = origOp.pads_begin()[0].cast<mlir::IntegerAttr>().getInt();
@@ -391,30 +391,30 @@ ConvTileConfig vpux::backInferGroupConvTile(IERT::GroupConvolutionOp origOp, con
     initialPad.left = origOp.pads_begin()[1].cast<mlir::IntegerAttr>().getInt();
     initialPad.right = origOp.pads_end()[1].cast<mlir::IntegerAttr>().getInt();
 
-    const auto solution = solutionForOutputTile(
-            output, origFilterShape[IE::Dims4D::Filter::KX], origFilterShape[IE::Dims4D::Filter::KY],
-            origOp.strides()[1].cast<mlir::IntegerAttr>().getInt(),
-            origOp.strides()[0].cast<mlir::IntegerAttr>().getInt(), origInputShape, initialPad);
+    const auto solution =
+            solutionForOutputTile(output, origFilterShape[Dims4D::Filter::KX], origFilterShape[Dims4D::Filter::KY],
+                                  origOp.strides()[1].cast<mlir::IntegerAttr>().getInt(),
+                                  origOp.strides()[0].cast<mlir::IntegerAttr>().getInt(), origInputShape, initialPad);
 
     Tile inputTile(origInputShape);
     Tile filterTile(origFilterShape);
     Tile biasTile(origBiasShape);
 
-    inputTile.shape[IE::Dims4D::Act::C] = outputTile.shape[IE::Dims4D::Act::C];
-    inputTile.offsets[IE::Dims4D::Act::C] = outputTile.offsets[IE::Dims4D::Act::C];
+    inputTile.shape[Dims4D::Act::C] = outputTile.shape[Dims4D::Act::C];
+    inputTile.offsets[Dims4D::Act::C] = outputTile.offsets[Dims4D::Act::C];
 
-    inputTile.offsets[IE::Dims4D::Act::H] = solution.inputTile.height.begin;
-    inputTile.shape[IE::Dims4D::Act::H] = solution.inputTile.height.length();
+    inputTile.offsets[Dims4D::Act::H] = solution.inputTile.height.begin;
+    inputTile.shape[Dims4D::Act::H] = solution.inputTile.height.length();
 
-    inputTile.offsets[IE::Dims4D::Act::W] = solution.inputTile.width.begin;
-    inputTile.shape[IE::Dims4D::Act::W] = solution.inputTile.width.length();
+    inputTile.offsets[Dims4D::Act::W] = solution.inputTile.width.begin;
+    inputTile.shape[Dims4D::Act::W] = solution.inputTile.width.length();
 
-    filterTile.shape[IE::Dims4D::Filter::OC] = outputTile.shape[IE::Dims4D::Act::C];
-    filterTile.offsets[IE::Dims4D::Filter::OC] = outputTile.offsets[IE::Dims4D::Act::C];
+    filterTile.shape[Dims4D::Filter::OC] = outputTile.shape[Dims4D::Act::C];
+    filterTile.offsets[Dims4D::Filter::OC] = outputTile.offsets[Dims4D::Act::C];
 
     if (!biasTile.shape.empty()) {
-        biasTile.shape[IE::Dims4D::Act::C] = outputTile.shape[IE::Dims4D::Act::C];
-        biasTile.offsets[IE::Dims4D::Act::C] = outputTile.offsets[IE::Dims4D::Act::C];
+        biasTile.shape[Dims4D::Act::C] = outputTile.shape[Dims4D::Act::C];
+        biasTile.offsets[Dims4D::Act::C] = outputTile.offsets[Dims4D::Act::C];
     }
 
     return {inputTile,

@@ -13,6 +13,7 @@
 
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
+#include "vpux/compiler/core/layers.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
@@ -69,8 +70,8 @@ mlir::LogicalResult generalSplitter(mlir::Operation* origOp, mlir::PatternRewrit
     const auto KX = kernelSize[0];
 
     const auto inputShape = getShape(origOp->getOperand(0));
-    const auto H = inputShape[IE::Dims4D::Act::H];
-    const auto W = inputShape[IE::Dims4D::Act::W];
+    const auto H = inputShape[Dims4D::Act::H];
+    const auto W = inputShape[Dims4D::Act::W];
 
     const SmallVector<int64_t> newStrides = {1, 1};
 
@@ -91,14 +92,14 @@ mlir::LogicalResult generalSplitter(mlir::Operation* origOp, mlir::PatternRewrit
         const auto padTop = (i == 0) ? padBegin[0] : 0;
         const auto padBottom = (i + 1 == sliceH) ? padEnd[0] : 0;
 
-        offsets[IE::Dims4D::Act::W] = 0;
+        offsets[Dims4D::Act::W] = 0;
 
         SmallVector<mlir::Value> wSliced;
         for (auto j : irange(sliceW)) {
             const auto padLeft = (j == 0) ? padBegin[1] : 0;
             const auto padRight = (j + 1 == sliceW) ? padEnd[1] : 0;
 
-            const SmallVector<int64_t> sliceShape{inputShape[IE::Dims4D::Act::N], inputShape[IE::Dims4D::Act::C],
+            const SmallVector<int64_t> sliceShape{inputShape[Dims4D::Act::N], inputShape[Dims4D::Act::C],
                                                   KY - padTop - padBottom, KX - padLeft - padRight};
 
             const auto sliceName = llvm::formatv("slice {0}, {1}", i, j).str();
@@ -125,15 +126,15 @@ mlir::LogicalResult generalSplitter(mlir::Operation* origOp, mlir::PatternRewrit
                 newOp = createFQ(rewriter, newOp, outputFQ);
             }
 
-            offsets[IE::Dims4D::Act::W] += strides[1] - padLeft;
+            offsets[Dims4D::Act::W] += strides[1] - padLeft;
         }
 
-        offsets[IE::Dims4D::Act::H] += strides[0] - padTop;
+        offsets[Dims4D::Act::H] += strides[0] - padTop;
 
         if (!wSliced.empty()) {
-            hSliced.push_back(wSliced.size() != 1 ? rewriter.create<IE::ConcatOp>(origOp->getLoc(), wSliced,
-                                                                                  IE::Dims4D::Act::W.ind())
-                                                  : wSliced.front());
+            hSliced.push_back(wSliced.size() != 1
+                                      ? rewriter.create<IE::ConcatOp>(origOp->getLoc(), wSliced, Dims4D::Act::W.ind())
+                                      : wSliced.front());
         }
     }
 
@@ -141,7 +142,7 @@ mlir::LogicalResult generalSplitter(mlir::Operation* origOp, mlir::PatternRewrit
         if (hSliced.size() == 1) {
             rewriter.replaceOp(origOp, hSliced.front());
         } else {
-            rewriter.replaceOpWithNewOp<IE::ConcatOp>(origOp, hSliced, IE::Dims4D::Act::H.ind());
+            rewriter.replaceOpWithNewOp<IE::ConcatOp>(origOp, hSliced, Dims4D::Act::H.ind());
         }
     } else {
         return mlir::failure();
@@ -175,8 +176,8 @@ mlir::LogicalResult ConvGeneralRewriter::matchAndRewrite(IE::ConvolutionOp origO
 
     return generalSplitter(
             origOp, rewriter, origOp.strides(),
-            makeArrayRef({filterShape[IE::Dims4D::Filter::KX], filterShape[IE::Dims4D::Filter::KY]}),
-            origOp.pads_begin(), origOp.pads_end(),
+            makeArrayRef({filterShape[Dims4D::Filter::KX], filterShape[Dims4D::Filter::KY]}), origOp.pads_begin(),
+            origOp.pads_end(),
             [&](mlir::Location loc, mlir::Value input, OperationPart part) -> mlir::Operation* {
                 return rewriter.create<IE::ConvolutionOp>(loc, input, origOp.filter(), origOp.bias(), part.strides,
                                                           part.padBegin, part.padEnd, origOp.dilations(),
@@ -210,8 +211,8 @@ mlir::LogicalResult GroupConvGeneralRewriter::matchAndRewrite(IE::GroupConvoluti
 
     return generalSplitter(
             origOp, rewriter, origOp.strides(),
-            makeArrayRef({filterShape[IE::Dims4D::Filter::KX], filterShape[IE::Dims4D::Filter::KY]}),
-            origOp.pads_begin(), origOp.pads_end(),
+            makeArrayRef({filterShape[Dims4D::Filter::KX], filterShape[Dims4D::Filter::KY]}), origOp.pads_begin(),
+            origOp.pads_end(),
             [&](mlir::Location loc, mlir::Value input, OperationPart part) -> mlir::Operation* {
                 return rewriter.create<IE::GroupConvolutionOp>(loc, input, origOp.filter(), origOp.bias(), part.strides,
                                                                part.padBegin, part.padEnd, origOp.dilations(),

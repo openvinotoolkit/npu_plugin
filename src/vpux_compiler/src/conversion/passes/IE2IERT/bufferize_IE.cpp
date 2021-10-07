@@ -14,6 +14,7 @@
 #include "vpux/compiler/conversion.hpp"
 
 #include "vpux/compiler/core/attributes/stride_reqs.hpp"
+#include "vpux/compiler/core/layers.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IERT/ops.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
@@ -321,8 +322,8 @@ mlir::LogicalResult ExpandRewrite::matchAndRewrite(IE::ExpandOp origOp, OpAdapto
     auto subOffsetsBegin = parseIntArrayAttr<int64_t>(origOp.pads_begin());
     auto subShape = to_small_vector(inputType.getShape());
 
-    const auto chunk = subShape[IE::Dims4D::Act::C.ind()];
-    const auto OC = getShape(origOp.output())[IE::Dims4D::Act::C];
+    const auto chunk = subShape[Dims4D::Act::C.ind()];
+    const auto OC = getShape(origOp.output())[Dims4D::Act::C];
 
     SmallVector<mlir::Value> concatInputs;
     const auto fullCopyNum = OC / chunk;
@@ -346,13 +347,13 @@ mlir::LogicalResult ExpandRewrite::matchAndRewrite(IE::ExpandOp origOp, OpAdapto
 
         concatInputs.push_back(subViewCopy.output());
 
-        subOffsetsBegin[IE::Dims4D::Act::C.ind()] += chunk;
+        subOffsetsBegin[Dims4D::Act::C.ind()] += chunk;
     }
 
-    const auto filledSize = subOffsetsBegin[IE::Dims4D::Act::C.ind()];
+    const auto filledSize = subOffsetsBegin[Dims4D::Act::C.ind()];
     if (filledSize < OC) {
         SmallVector<int64_t> subInputOffsetsBegin{0, 0, 0, 0};
-        subShape[IE::Dims4D::Act::C.ind()] = OC - filledSize;
+        subShape[Dims4D::Act::C.ind()] = OC - filledSize;
 
         auto subViewInput =
                 rewriter.create<IERT::SubViewOp>(origOp.getLoc(), newArgs.input(), subInputOffsetsBegin, subShape);

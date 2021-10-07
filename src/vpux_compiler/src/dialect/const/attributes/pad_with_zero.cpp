@@ -12,6 +12,7 @@
 //
 
 #include "vpux/compiler/conversion.hpp"
+#include "vpux/compiler/core/layers.hpp"
 #include "vpux/compiler/dialect/const/attributes/content.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/quantization.hpp"
@@ -38,10 +39,10 @@ void fillWithZero(Const::Content& output) {
         VPUX_THROW_UNLESS(outShape.size() == 4, "Unsupported shape size {0}", outShape.size());
         VPUX_THROW_UNLESS(perAxisQType.getQuantizedDimension() == 0, "Only per-channel quantization is supported");
 
-        const auto OC = outShape[IE::Dims4D::Filter::OC];
-        const auto IC = outShape[IE::Dims4D::Filter::IC];
-        const auto H = outShape[IE::Dims4D::Filter::KY];
-        const auto W = outShape[IE::Dims4D::Filter::KX];
+        const auto OC = outShape[Dims4D::Filter::OC];
+        const auto IC = outShape[Dims4D::Filter::IC];
+        const auto H = outShape[Dims4D::Filter::KY];
+        const auto W = outShape[Dims4D::Filter::KX];
 
         const auto zeroPoints = perAxisQType.getZeroPoints();
         for (int i = 0; i < OC; ++i) {
