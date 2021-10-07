@@ -141,11 +141,13 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     const auto kernelPaddings = getIntArrayAttr(builder.getContext(), paddings);
     llvm::SmallVector<std::int64_t> kernel = {weightsShape[2], weightsShape[3]};
     const auto kernelSize = getIntArrayAttr(builder.getContext(), kernel);
+    const auto odu_permutation =
+            vpux::VPUIP::ODUPermutationAttr::get(builder.getContext(), testDesc.getODUPermutation());
 
     auto nceTask = functionBuilder.create<vpux::VPUIP::NCEClusterTaskOp>(
             builder.getUnknownLoc(), inputCMX.memory(), weightsCMX.memory(), weightsTableCMX.memory(), nullptr,
             inputCMX.memory(), outputCMX.memory(), outputCMX.memory(), vpux::VPUIP::NCETaskType::CONV, kernelSize,
-            strides, kernelPaddings, nullptr);
+            strides, kernelPaddings, nullptr, odu_permutation);
 
     nceTask.waitBarriersMutable().append(barrier0.barrier());
     nceTask.updateBarriersMutable().append(barrier1.barrier());

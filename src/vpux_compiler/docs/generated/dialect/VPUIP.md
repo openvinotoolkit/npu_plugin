@@ -966,6 +966,7 @@ mutually exclusive.
 `kernel_strides` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `kernel_padding` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `activation_window_channel_length` | mlir::IntegerAttr | Integer attribute
+`odu_permutation` | vpux::VPUIP::ODUPermutationAttr | ODU Permutation
 
 #### Operands:
 
