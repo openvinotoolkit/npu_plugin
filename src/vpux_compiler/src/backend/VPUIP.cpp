@@ -528,7 +528,7 @@ flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, mli
                 auto kernel_text = act_kernel_taks->kernel()->kernelText();
 
                 // hardcode kernelText to be 5th element
-                auto text_to_move = serializedGraphFile->kernel_data()->Get(kernel_text->locale_index())->data();
+                auto text_to_move = serializedGraphFile->kernel_data()->Get(kernel_text->locale_offset())->data();
                 auto offset = text_to_move->Data() - detached.data();
                 log.trace("offset to kernel in Finished FBB is = {0}", offset);
                 //align calculations

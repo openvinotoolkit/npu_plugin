@@ -52,7 +52,7 @@ module @VPU.SW {
     // `memref` will be translated to `MemRefData`, while raw scalars will be translated as is.
     func private @builtin_softmax(%input : memref<*xf16>, %output : memref<*xf16>, %axis : i64)
         attributes {
-            VPU.kernel_code = "sigmoid/src/sigmoid_fp16.c",
+            VPU.kernel_code = "sigmoid_fp16.c",
             VPU.kernel_entry = "sigmoid_fp16"
         }
 }
