@@ -1898,6 +1898,30 @@ operation ::= `IE.Split` `(` operands `)` attr-dict `:` type(operands) `->` type
 | :----: | ----------- |
 `outputs` | ranked tensor of any type values
 
+### `IE.Sqrt` (vpux::IE::SqrtOp)
+
+InferenceEngine Sqrt layer
+
+
+Syntax:
+
+```
+operation ::= `IE.Sqrt` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
 ### `IE.SquaredDiff` (vpux::IE::SquaredDifferenceOp)
 
 InferenceEngine SquaredDiff layer
