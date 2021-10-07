@@ -1862,6 +1862,9 @@ void runNGraphPasses(const std::shared_ptr<ngraph::Function>& netGraph, mlir::Ti
     ngraph::pass::Manager manager(passConfig);
     manager.register_pass<ngraph::pass::InitNodeInfo>();
     manager.register_pass<vpux::pass::RemoveSplitConcat>();
+    manager.register_pass<ngraph::pass::ConvertQuantizeDequantize>();
+    manager.register_pass<ngraph::pass::WeightsDequantizeToFakeQuantize>();
+    manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<vpux::pass::FusePadding>();
     manager.register_pass<vpux::passes::FuseScaleShift>();
     manager.register_pass<ngraph::pass::ConvertQuantizeDequantize>();
