@@ -183,8 +183,6 @@ static void compileAndLinkSHAVE(
     }
 #endif  // GEN_SYM_FILE
 
-    //$sparc/sparc-myriad-rtems-ld  -zmax-page-size=16 --script ../../build/$LINKER_SCRIPT -entry sigmoid_fp16 --gc-sections --strip-debug --discard-all $KERNEL_SRC.o -EL ../../lib/$MCPU_LIB/mlibm.a --output $KERNEL_SRC.elf
-
     SmallString<128> linker(mvToolsDir);
     sys::path::append(linker, params.mdkLinker);
     auto linkCmd = formatv("{0} -zmax-page-size=16 --script {1}"
@@ -195,9 +193,6 @@ static void compileAndLinkSHAVE(
     if (std::system(linkCmd.c_str())) {
         VPUX_THROW((std::string("linker failed: ") + linkCmd).c_str());
     }
-
-    //$sparc/sparc-myriad-rtems-objcopy -O binary --only-section=.text $KERNEL_SRC.elf sk.sigmoid_fp16_"$MCPU".text
-    //$sparc/sparc-myriad-rtems-objcopy -O binary --only-section=.arg.data $KERNEL_SRC.elf sk.sigmoid_fp16_"$MCPU".data
 
     SmallString<128> objcopy(mvToolsDir);
     sys::path::append(objcopy, params.mdkObjCopy);
