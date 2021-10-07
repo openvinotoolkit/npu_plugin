@@ -132,7 +132,8 @@ def VPUIP_DeclareTensorOp :
         OptionalAttr<IntAttr>:$storageElementSize,
 
         OptionalAttr<IntAttr>:$leadingOffset,
-        OptionalAttr<IntAttr>:$trailingOffset
+        OptionalAttr<IntAttr>:$trailingOffset,
+        OptionalAttr<IntAttr>:$swizzlingKey
     );
 
     let results = (outs
