@@ -167,6 +167,11 @@ vpux::VPUIP::BlobWriter::KernelDataRef vpux::VPUIP::BlobWriter::createKernelData
 vpux::VPUIP::BlobWriter::KernelDataRef vpux::VPUIP::BlobWriter::createInvocationArgs(mlir::Operation* op,
                                                                                      vpux::VPUIP::MemoryLocation locale) {
 
+    VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in createSW_KernelTask");
+
+    auto swKernelTask = mlir::dyn_cast<VPUIP::SW_Kernel>(op);
+    VPUX_THROW_UNLESS(swKernelTask != nullptr, "Operation '{0}' is not a SW_Kernel Task", op->getName());
+
     cfg_dpu_description dpuDescriptor{};
 
     if (auto layer = mlir::dyn_cast<VPUIP::ACTShaveTaskOp>(op)) {
