@@ -28,3 +28,15 @@ const Dim vpux::Dims4D::Filter::OC(0);
 const Dim vpux::Dims4D::Filter::IC(1);
 const Dim vpux::Dims4D::Filter::KY(2);
 const Dim vpux::Dims4D::Filter::KX(3);
+
+const Dim vpux::Dims4D::Kernel::Y(0);
+const Dim vpux::Dims4D::Kernel::X(1);
+
+const Dim vpux::Dims4D::Strides::Y(0);
+const Dim vpux::Dims4D::Strides::X(1);
+
+const Dim vpux::Dims4D::PadsBegin::Top(0);
+const Dim vpux::Dims4D::PadsBegin::Left(1);
+
+const Dim vpux::Dims4D::PadsEnd::Bottom(0);
+const Dim vpux::Dims4D::PadsEnd::Right(1);

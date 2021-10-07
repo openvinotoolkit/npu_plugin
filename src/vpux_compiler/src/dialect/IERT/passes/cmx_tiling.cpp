@@ -30,13 +30,13 @@ using namespace vpux;
 
 namespace {
 
-using OutputTiling = SmallVector<Tile>;
+using OutputTiling = SmallVector<TileInfo>;
 
 //
 // makeTile
 //
 
-mlir::Value makeTile(mlir::OpBuilder& builder, mlir::Location baseLoc, mlir::Value origVal, const Tile& tile,
+mlir::Value makeTile(mlir::OpBuilder& builder, mlir::Location baseLoc, mlir::Value origVal, const TileInfo& tile,
                      StringRef valName) {
     const auto origType = origVal.getType().cast<mlir::MemRefType>();
 
@@ -81,6 +81,15 @@ private:
     Logger _log;
 };
 
+ConvTileConfig backInferOpTile(IERT::ConvolutionOp origOp, const TileInfo& outputTile) {
+    const auto origInputShape = getShape(origOp.input());
+    const auto origFilterShape = getShape(origOp.filter());
+    const auto origBiasShape = origOp.bias() != nullptr ? getShape(origOp.bias()) : ShapeRef();
+
+    return backInferConvTile(outputTile, origInputShape, origFilterShape, origBiasShape, origOp.strides(),
+                             origOp.pads_begin(), origOp.pads_end());
+}
+
 mlir::LogicalResult ConvolutionTiling::matchAndRewrite(IERT::ConvolutionOp origOp,
                                                        mlir::PatternRewriter& rewriter) const {
     _log.trace("[{0}] Got Convolution at '{1}'", getDebugName(), origOp->getLoc());
@@ -89,21 +98,21 @@ mlir::LogicalResult ConvolutionTiling::matchAndRewrite(IERT::ConvolutionOp origO
 
     _log.nest(1).trace("Create {0} tiles:", tilings.size());
     for (const auto& outputTile : tilings) {
-        _log.nest(2).trace("Output tile shape '{0}' offsets '{1}'", outputTile.shape, outputTile.offsets);
+        _log.nest(2).trace("{0}", outputTile);
     }
 
     SmallVector<mlir::Value> finalResults;
     finalResults.reserve(tilings.size());
 
     for (const auto& outputTile : tilings) {
-        const auto tileConf = backInferConvTile(origOp, outputTile);
+        const auto tileConf = backInferOpTile(origOp, outputTile);
 
         const auto& inputTile = tileConf.inputTile;
         const auto& filterTile = tileConf.filterTile;
         const auto& biasTile = tileConf.biasTile;
 
-        SmallVector<int64_t> padsBegin = {tileConf.pads.padTop, tileConf.pads.padLeft};
-        SmallVector<int64_t> padsEnd = {tileConf.pads.padBottom, tileConf.pads.padRight};
+        SmallVector<int64_t> padsBegin = {tileConf.pads.top, tileConf.pads.left};
+        SmallVector<int64_t> padsEnd = {tileConf.pads.bottom, tileConf.pads.right};
 
         const auto actInput = makeTile(rewriter, origOp->getLoc(), origOp.input(), inputTile, "input");
         const auto filterInput = makeTile(rewriter, origOp->getLoc(), origOp.filter(), filterTile, "filter");
@@ -165,13 +174,13 @@ mlir::LogicalResult EltwiseTiling<ConcreteOp>::matchAndRewrite(ConcreteOp origOp
 
     _log.nest(1).trace("Create {0} tiles:", tilings.size());
     for (const auto& outputTile : tilings) {
-        _log.nest(2).trace("Output tile shape '{0}' offsets '{1}'", outputTile.shape, outputTile.offsets);
+        _log.nest(2).trace("{0}", outputTile);
     }
 
     SmallVector<mlir::Value> finalResults;
     finalResults.reserve(tilings.size());
 
-    for (const Tile& tile : tilings) {
+    for (const auto& tile : tilings) {
         const mlir::Value actInput1 = makeTile(rewriter, origOp->getLoc(), origOp.input1(), tile, "input1");
         const mlir::Value actInput2 = origOp.input1() == origOp.input2()
                                               ? actInput1
@@ -219,6 +228,13 @@ private:
     Logger _log;
 };
 
+PoolTileConfig backInferOpTile(IERT::MaxPoolOp origOp, const TileInfo& outputTile) {
+    const auto origInputShape = getShape(origOp.input());
+
+    return backInferPoolTile(outputTile, origInputShape, origOp.kernel_size(), origOp.strides(), origOp.pads_begin(),
+                             origOp.pads_end());
+}
+
 mlir::LogicalResult MaxPoolTiling::matchAndRewrite(IERT::MaxPoolOp origOp, mlir::PatternRewriter& rewriter) const {
     _log.trace("[{0}] Got MaxPool at '{1}'", getDebugName(), origOp->getLoc());
 
@@ -226,19 +242,19 @@ mlir::LogicalResult MaxPoolTiling::matchAndRewrite(IERT::MaxPoolOp origOp, mlir:
 
     _log.nest(1).trace("Create {0} tiles:", tilings.size());
     for (const auto& outputTile : tilings) {
-        _log.nest(2).trace("Output tile shape '{0}' offsets '{1}'", outputTile.shape, outputTile.offsets);
+        _log.nest(2).trace("{0}", outputTile);
     }
 
     SmallVector<mlir::Value> finalResults;
     finalResults.reserve(tilings.size());
 
     for (const auto& outputTile : tilings) {
-        const auto tileConf = backInferPoolTile(origOp, outputTile);
+        const auto tileConf = backInferOpTile(origOp, outputTile);
 
         const auto& inputTile = tileConf.inputTile;
 
-        SmallVector<int64_t> padsBegin = {tileConf.pads.padTop, tileConf.pads.padLeft};
-        SmallVector<int64_t> padsEnd = {tileConf.pads.padBottom, tileConf.pads.padRight};
+        SmallVector<int64_t> padsBegin = {tileConf.pads.top, tileConf.pads.left};
+        SmallVector<int64_t> padsEnd = {tileConf.pads.bottom, tileConf.pads.right};
 
         const auto actInput = makeTile(rewriter, origOp->getLoc(), origOp.input(), inputTile, "input");
 
@@ -285,6 +301,15 @@ private:
     Logger _log;
 };
 
+ConvTileConfig backInferOpTile(IERT::GroupConvolutionOp origOp, const TileInfo& outputTile) {
+    const auto origInputShape = getShape(origOp.input());
+    const auto origFilterShape = getShape(origOp.filter());
+    const auto origBiasShape = origOp.bias() != nullptr ? getShape(origOp.bias()) : ShapeRef();
+
+    return backInferGroupConvTile(outputTile, origInputShape, origFilterShape, origBiasShape, origOp.strides(),
+                                  origOp.pads_begin(), origOp.pads_end());
+}
+
 mlir::LogicalResult GroupConvolutionTiling::matchAndRewrite(IERT::GroupConvolutionOp origOp,
                                                             mlir::PatternRewriter& rewriter) const {
     _log.trace("[{0}] Got GroupConvolution at '{1}'", getDebugName(), origOp->getLoc());
@@ -293,21 +318,21 @@ mlir::LogicalResult GroupConvolutionTiling::matchAndRewrite(IERT::GroupConvoluti
 
     _log.nest(1).trace("Create {0} tiles:", tilings.size());
     for (const auto& outputTile : tilings) {
-        _log.nest(2).trace("Output tile shape '{0}' offsets '{1}'", outputTile.shape, outputTile.offsets);
+        _log.nest(2).trace("{0}", outputTile);
     }
 
     SmallVector<mlir::Value> finalResults;
     finalResults.reserve(tilings.size());
 
     for (const auto& outputTile : tilings) {
-        const auto tileConf = backInferGroupConvTile(origOp, outputTile);
+        const auto tileConf = backInferOpTile(origOp, outputTile);
 
         const auto& inputTile = tileConf.inputTile;
         const auto& filterTile = tileConf.filterTile;
         const auto& biasTile = tileConf.biasTile;
 
-        SmallVector<int64_t> padsBegin = {tileConf.pads.padTop, tileConf.pads.padLeft};
-        SmallVector<int64_t> padsEnd = {tileConf.pads.padBottom, tileConf.pads.padRight};
+        SmallVector<int64_t> padsBegin = {tileConf.pads.top, tileConf.pads.left};
+        SmallVector<int64_t> padsEnd = {tileConf.pads.bottom, tileConf.pads.right};
 
         const auto actInput = makeTile(rewriter, origOp->getLoc(), origOp.input(), inputTile, "input");
         const auto filterInput = makeTile(rewriter, origOp->getLoc(), origOp.filter(), filterTile, "filter");
@@ -504,7 +529,7 @@ OutputTiling SimpleTiler::convolutionTiler(IERT::ConvolutionOp op) const {
         const auto outputTiles = fillDividedTiles(nTilesOnDim, outputShape);
 
         return llvm::all_of(outputTiles, [&](const auto& outputTile) {
-            const auto tileConf = backInferConvTile(op, outputTile);
+            const auto tileConf = backInferOpTile(op, outputTile);
 
             const auto inputTileType =
                     getDenseTileType(inputType, tileConf.inputTile.offsets, tileConf.inputTile.shape);
@@ -556,7 +581,7 @@ OutputTiling SimpleTiler::maxPoolTiler(IERT::MaxPoolOp op) const {
         const auto outputTiles = fillDividedTiles(nTilesOnDim, outputShape);
 
         return llvm::all_of(outputTiles, [&](const auto& outputTile) {
-            const auto tileConf = backInferPoolTile(op, outputTile);
+            const auto tileConf = backInferOpTile(op, outputTile);
 
             const auto inputTileType =
                     getDenseTileType(inputType, tileConf.inputTile.offsets, tileConf.inputTile.shape);
@@ -582,7 +607,7 @@ OutputTiling SimpleTiler::groupConvolutionTiler(IERT::GroupConvolutionOp op) con
         const auto outputTiles = fillDividedTiles(nTilesOnDim, outputShape);
 
         return llvm::all_of(outputTiles, [&](const auto& outputTile) {
-            const auto tileConf = backInferGroupConvTile(op, outputTile);
+            const auto tileConf = backInferOpTile(op, outputTile);
 
             const auto inputTileType =
                     getDenseTileType(inputType, tileConf.inputTile.offsets, tileConf.inputTile.shape);
