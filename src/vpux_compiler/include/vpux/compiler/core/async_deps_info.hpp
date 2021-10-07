@@ -38,10 +38,12 @@ public:
     SmallVector<size_t> getConsumerOps(size_t opIdx) const;
     std::unordered_map<size_t, size_t> calculateOpInDegreeTable() const;
     std::unordered_map<size_t, size_t> calculateOpOutDegreeTable() const;
-    uint32_t getIndex(mlir::async::ExecuteOp execOp) const;
+    size_t getOutputOp() const;
+    void resetDepsMap(size_t newSize);
 
 private:
     void setIndex(mlir::async::ExecuteOp execOp, uint64_t index);
+    uint32_t getIndex(mlir::async::ExecuteOp execOp) const;
 
 private:
     void buildDepsMap(mlir::FuncOp func);
