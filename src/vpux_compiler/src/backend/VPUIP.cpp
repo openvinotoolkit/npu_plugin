@@ -318,7 +318,8 @@ void serializeTensorDecls(VPUIP::BlobWriter& writer, mlir::FuncOp netFunc, mlir:
         writer.createTensor(tensorOp.memory(), llvm::formatv("temp-{0}", tempTensorInd).str(), tensorOp.locale(),
                             parseIntArrayAttr<uint32_t>(tensorOp.localeIndex()), tensorOp.dataIndex(),
                             tensorOp.sparsityIndex(), tensorOp.storageElementIndex(), tensorOp.storageElementSize(),
-                            tensorOp.leadingOffset(), tensorOp.trailingOffset());
+                            tensorOp.leadingOffset(), tensorOp.trailingOffset(), /*density_rate*/ llvm::None,
+                            tensorOp.swizzlingKey());
 
         ++tempTensorInd;
     });
@@ -361,8 +362,25 @@ SmallVector<VPUIP::BlobWriter::BinaryData> serializeBinaryData(VPUIP::BlobWriter
 
         binaryData[constTensorInd] = writer.createBinaryData(content, constOp.getType().cast<mlir::ShapedType>());
 
+        Optional<int64_t> sparsityIndex;
+        Optional<int64_t> storageElementIndex;
+        Optional<int64_t> storageElementSize;
+        Optional<int64_t> leadingOffset;
+        Optional<int64_t> trailingOffset;
+        Optional<double> density_rate;
+        Optional<int64_t> swizzlingKey;
+
+        // Parse swizzlingKey from Const::DeclareOp transformation
+        for (const auto transformation : constOp.contentAttr().getTransformations()) {
+            if (const auto swizzleAttr = transformation.dyn_cast_or_null<Const::SwizzleAttr>()) {
+                swizzlingKey = swizzleAttr.getKey().getInt();
+            }
+        }
+
         writer.createTensor(constOp.output(), llvm::formatv("constant-{0}", constTensorInd).str(),
-                            VPUIP::MemoryLocation::GraphFile, checked_cast<uint32_t>(constTensorInd), 0);
+                            VPUIP::MemoryLocation::GraphFile, checked_cast<uint32_t>(constTensorInd), 0, sparsityIndex,
+                            storageElementIndex, storageElementSize, leadingOffset, trailingOffset, density_rate,
+                            swizzlingKey);
     }
 
     return binaryData;
