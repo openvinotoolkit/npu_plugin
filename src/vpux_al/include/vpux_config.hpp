@@ -41,6 +41,9 @@ public:
     InferenceEngine::VPUXConfigParams::VPUXPlatform platform() const {
         return _platform;
     }
+    const std::string& pipelineOptions() const {
+        return _pipelineOptions;
+    }
 
     // Private options
     InferenceEngine::ColorFormat graphColorFormat() const {
@@ -95,6 +98,7 @@ protected:
     int _numberOfNnCoreShaves = 0;
     InferenceEngine::VPUXConfigParams::VPUXPlatform _platform = InferenceEngine::VPUXConfigParams::VPUXPlatform::AUTO;
     int32_t _csramSize = 0;
+    std::string _pipelineOptions;
 
     // Private options
     InferenceEngine::ColorFormat _graphColorFormat = InferenceEngine::ColorFormat::BGR;

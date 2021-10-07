@@ -293,7 +293,7 @@ void buildPipeline(mlir::PassManager& pm, const VPUXConfig& config, mlir::Timing
     if (compilationMode == VPUIP::CompilationMode::ReferenceSW) {
         buildReferenceModePipeline(pm, enableProfiling, log.nest());
     } else if (compilationMode == VPUIP::CompilationMode::ReferenceHW) {
-        buildHardwareModePipeline(pm, enableProfiling, log.nest());
+        buildHardwareModePipeline(pm, enableProfiling, log.nest(), config.pipelineOptions());
     } else {
         VPUX_THROW("Unsupported compilation mode '{0}'", compilationMode);
     }

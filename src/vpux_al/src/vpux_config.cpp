@@ -47,6 +47,7 @@ vpux::VPUXConfig::VPUXConfig() {
                                                                                VPU_KMB_CONFIG_KEY(EXECUTOR_STREAMS),
                                                                                VPUX_CONFIG_KEY(INFERENCE_TIMEOUT),
                                                                                VPUX_CONFIG_KEY(DPU_GROUPS),
+                                                                               VPUX_CONFIG_KEY(COMPILATION_MODE_PARAMS),
                                                                        });
 }
 
@@ -145,6 +146,7 @@ void vpux::VPUXConfig::parse(const std::map<std::string, std::string>& config) {
     setOption(_compilerType, vpuxCompilerType, config, VPUX_CONFIG_KEY(COMPILER_TYPE));
     setOption(_compilationMode, config, VPUX_CONFIG_KEY(COMPILATION_MODE));
     setOption(_numberOfDPUGroups, config, VPUX_CONFIG_KEY(DPU_GROUPS), parseInt);
+    setOption(_pipelineOptions, config, VPUX_CONFIG_KEY(COMPILATION_MODE_PARAMS));
 
     parseEnvironment();
 }
