@@ -53,7 +53,7 @@ DECLARE_VPU_COMPILER_CONFIG_KEY(FORCE_PLUGIN_INPUT_QUANTIZATION);
 
 /**
  * @brief [Currently supported only for MCM Compiler]
- * Type: "YES", "NO", default is "YES" for Windows platform, "NO" for others
+ * Type: "YES", "NO", default is "NO"
  * This option allows to perform FP16 to FP32 output conversion on VPUX Plugin side via CPU
  */
 DECLARE_VPU_COMPILER_CONFIG_KEY(OUTPUT_FP16_TO_FP32_HOST_CONVERSION);

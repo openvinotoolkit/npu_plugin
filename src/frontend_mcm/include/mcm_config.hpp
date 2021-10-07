@@ -212,6 +212,7 @@ private:
 // Windows-Yocto scenario (autonomous mode)
 // Hardcoded "true" might decrease a performance
 // Need to be investigated if we use it (currently it's unused)
+// [Track number: E#22196]
 // Windows dKMB scenario (discrete mode)
 // Hardcoded "true" brings some performance boost for some networks
 // Besides of that, there is CPU usage grow as well
