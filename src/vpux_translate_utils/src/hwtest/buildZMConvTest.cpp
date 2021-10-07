@@ -22,6 +22,7 @@
 #include "vpux/hwtest/hwtest_utils.hpp"
 #include "vpux/hwtest/test_case_json_parser.hpp"
 #include "vpux/utils/core/error.hpp"
+#include "vpux/utils/core/numeric.hpp"
 
 namespace vpux {
 namespace hwtest {
@@ -51,10 +52,13 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
 
     const char* weightsFileName = "weights.dat";
 
+    const auto weights_alignment = 16 * 1024;
     const auto OUTPUT_CMX_OFFSET = 0;
     const auto INPUT_CMX_OFFSET = OUTPUT_CMX_OFFSET + totalTensorSize(outputShape, outputType);
-    const auto WEIGHTSTABLE_CMX_OFFSET = INPUT_CMX_OFFSET + totalTensorSize(inputShape, inputType);
-    const auto WEIGHTS_CMX_OFFSET = WEIGHTSTABLE_CMX_OFFSET + 4 * weightsTableShape[0] * weightsTableShape[3];
+    const auto WEIGHTSTABLE_CMX_OFFSET =
+            vpux::alignVal<int64_t>(INPUT_CMX_OFFSET + totalTensorSize(inputShape, inputType), weights_alignment);
+    const auto WEIGHTS_CMX_OFFSET = vpux::alignVal<int64_t>(
+            WEIGHTSTABLE_CMX_OFFSET + 4 * weightsTableShape[0] * weightsTableShape[3], weights_alignment);
 
     const auto getMemRef = [&builder](const llvm::SmallVector<std::int64_t>& shape, mlir::Type type,
                                       vpux::VPUIP::MemoryLocation location) {
@@ -87,6 +91,31 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     auto functionInput = function.getArgument(0);
     auto functionOutput = function.getArgument(1);
 
+    auto max_swizzling_key = [&](size_t totalByteSize, size_t cmx_address) {
+        std::map<int, int> swizzling_offsets = {{0, 16}, {1, 1024}, {2, 2048}, {3, 4096}, {4, 8192}, {5, 16384}};
+        auto swizzling_key = 0;
+        for (auto it = swizzling_offsets.rbegin(); it != swizzling_offsets.rend(); it++) {
+            swizzling_key = it->first;
+            auto swizzling_offset = it->second;
+            if ((totalByteSize % swizzling_offset == 0) && (cmx_address % swizzling_offset == 0))
+                break;
+        }
+
+        return swizzling_key;
+    };
+
+    // Find the max swizzling key that satisfies the size and address constraint
+    auto weights_swizzling_key = max_swizzling_key(totalTensorSize(weightsShape, weightsType), WEIGHTS_CMX_OFFSET);
+    auto weights_table_swizzling_key =
+            max_swizzling_key(totalTensorSize(weightsTableShape, int32), WEIGHTSTABLE_CMX_OFFSET);
+    auto swizzling_key = std::min(weights_swizzling_key, weights_table_swizzling_key);
+
+    log.info("weights: size={0}, addr={1}, max swizzling_key={2}", totalTensorSize(weightsShape, weightsType),
+             WEIGHTS_CMX_OFFSET, weights_swizzling_key);
+    log.info("weights_table: size={0}, addr={1}, max swizzling_key={2}", totalTensorSize(weightsTableShape, int32),
+             WEIGHTSTABLE_CMX_OFFSET, weights_table_swizzling_key);
+    log.info("using swizzling_key {0} for weights & weights_table", swizzling_key);
+
     const auto weightsValues = generateWeights(weightsShape, weightsType, builder.getContext(), weightsFileName);
     auto weightsAttribute = vpux::Const::ContentAttr::get(weightsValues);
     if (auto qty = weightsType.dyn_cast<mlir::quant::QuantizedType>()) {
@@ -94,9 +123,12 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     }
 
     const auto weightsDDRType = getMemRef(weightsShape, weightsType, vpux::VPUIP::MemoryLocation::GraphFile);
-    auto weightsDDR = functionBuilder.create<vpux::Const::DeclareOp>(builder.getUnknownLoc(), weightsDDRType,
-                                                                     weightsAttribute.reorder(vpux::DimsOrder::NHWC));
+
+    auto weightsDDR = functionBuilder.create<vpux::Const::DeclareOp>(
+            builder.getUnknownLoc(), weightsDDRType,
+            weightsAttribute.reorder(vpux::DimsOrder::NHWC).swizzle(swizzling_key));
     auto weightsCMX = getCMXTensor(weightsShape, weightsType, WEIGHTS_CMX_OFFSET);
+    weightsCMX.swizzlingKeyAttr(vpux::getIntAttr(builder.getContext(), swizzling_key));
 
     auto inputCMX = getCMXTensor(inputShape, inputType, INPUT_CMX_OFFSET);
     auto outputCMX = getCMXTensor(outputShape, outputType, OUTPUT_CMX_OFFSET);
@@ -117,7 +149,7 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
             mlir::DenseElementsAttr::get(weightsTableDDRType, llvm::makeArrayRef<std::int32_t>(weightsTable));
     auto weightsTableDDR = functionBuilder.create<vpux::Const::DeclareOp>(
             builder.getUnknownLoc(), weightsTableDDRMemRef,
-            vpux::Const::ContentAttr::get(weightsTableValues).reorder(vpux::DimsOrder::NHWC));
+            vpux::Const::ContentAttr::get(weightsTableValues).reorder(vpux::DimsOrder::NHWC).swizzle(swizzling_key));
     auto weightsTableCMX = getCMXTensor(weightsTableShape, int32, WEIGHTSTABLE_CMX_OFFSET);
 
     auto barrier0 = functionBuilder.create<vpux::VPUIP::ConfigureBarrierOp>(builder.getUnknownLoc(), 0);

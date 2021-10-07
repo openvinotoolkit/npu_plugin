@@ -1412,6 +1412,15 @@ def generate_options(args):
                    weight_types=[UInt8(2)],
                    kernel_channels=[64],
                    output_types=[UInt8()]),
+
+        # Z-Major Convolution, weights swizzling_key = 1-to-5
+        genZMConvs(input_types=[FP16(3)],
+                   input_shapes=[[1, 16, 1, 1]],
+                   weight_types=[FP16(-3)],
+                   kernel_channels=[64,128,256,512,1024],
+                   kernel_shapes=[[1, 1]],
+                   output_types=[FP16()],
+                   pads=Pad.none),
     )
 
 
