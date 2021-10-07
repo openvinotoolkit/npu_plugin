@@ -35,11 +35,18 @@ using namespace vpux;
 namespace {
 using IntOption = mlir::detail::PassOptions::Option<int>;
 using StrOption = mlir::detail::PassOptions::Option<std::string>;
+using BoolOption = mlir::detail::PassOptions::Option<bool>;
 
 // This structure gets command line options for a pipeline.
 struct MyPipelineOptions : mlir::PassPipelineOptions<MyPipelineOptions> {
     StrOption archOpt{*this, "vpu-arch", ::llvm::cl::desc("VPU architecture to compile for"), ::llvm::cl::init("KMB")};
     IntOption numberOfDPUGroupsOpt{*this, "num-of-dpu-groups", ::llvm::cl::desc("Number of DPU groups")};
+    BoolOption enableLowPrecisionBuilding{*this, "low-precision",
+                                          ::llvm::cl::desc("Enable low-precision pipeline building")};
+
+    bool isEnableLowPrecisionBuilding() {
+        return enableLowPrecisionBuilding.hasValue() ? enableLowPrecisionBuilding.getValue() : true;
+    }
 };
 
 template <VPUIP::PhysicalMemory KIND>
@@ -133,9 +140,10 @@ void vpux::buildReferenceModePipeline(mlir::OpPassManager& pm, bool enableProfil
 // HardwareMode
 //
 
-void vpux::buildHardwareModePipeline(mlir::OpPassManager& pm, bool enableProfiling, Logger log) {
+void vpux::buildHardwareModePipeline(mlir::OpPassManager& pm, bool enableProfiling, Logger log,
+                                     StringRef pipelineConfig) {
+    auto pipelineOptions = MyPipelineOptions::createFromString(pipelineConfig);
     const auto grc = getDefaultGreedyRewriteConfig();
-
     pm.addPass(mlir::createCanonicalizerPass(grc));
 
     // IE Dialect level
@@ -146,7 +154,8 @@ void vpux::buildHardwareModePipeline(mlir::OpPassManager& pm, bool enableProfili
     pm.addPass(mlir::createCanonicalizerPass(grc));
     IE::buildAdjustForVPUPipeline(pm, log);
     pm.addPass(IE::createHandleAsymmetricStridesPass(log));
-    IE::buildLowPrecisionPipeline(pm, log);
+    if (pipelineOptions->isEnableLowPrecisionBuilding())
+        IE::buildLowPrecisionPipeline(pm, log);
 
     pm.addPass(IE::createExpandActivationChannelsPass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
