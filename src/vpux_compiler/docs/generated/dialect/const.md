@@ -200,6 +200,17 @@ Extract subview from constant content
 | offset | `mlir::ArrayAttr` |  |
 | shape | `mlir::ArrayAttr` |  |
 
+### SwizzleAttr
+
+Swizzle constant content
+
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| key | `mlir::IntegerAttr` |  |
+
 ## Operation definition
 
 ### `const.Declare` (vpux::Const::DeclareOp)

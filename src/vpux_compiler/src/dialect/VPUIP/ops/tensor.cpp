@@ -30,7 +30,8 @@ void vpux::VPUIP::DeclareTensorOp::build(mlir::OpBuilder& builder, ::mlir::Opera
           nullptr,  // storageElementIndex
           nullptr,  // storageElementSize
           nullptr,  // leadingOffset
-          nullptr   // trailingOffset
+          nullptr,  // trailingOffset
+          nullptr   // swizzlingKey
     );
 }
 
@@ -42,7 +43,8 @@ void vpux::VPUIP::DeclareTensorOp::build(mlir::OpBuilder& builder, ::mlir::Opera
           nullptr,  // storageElementIndex
           nullptr,  // storageElementSize
           nullptr,  // leadingOffset
-          nullptr   // trailingOffset
+          nullptr,  // trailingOffset
+          nullptr   // swizzlingKey
     );
 }
 
@@ -54,7 +56,8 @@ void vpux::VPUIP::DeclareTensorOp::build(mlir::OpBuilder& builder, ::mlir::Opera
           nullptr,  // storageElementIndex
           nullptr,  // storageElementSize
           nullptr,  // leadingOffset
-          nullptr   // trailingOffset
+          nullptr,  // trailingOffset
+          nullptr   // swizzlingKey
     );
 }
 
