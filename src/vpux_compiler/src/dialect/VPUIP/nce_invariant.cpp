@@ -27,10 +27,12 @@ using namespace VPUIP;
 int64_t vpux::VPUIP::NCEInvariant::getInputChannelAlignment(mlir::Operation* origOp) {
     if (mlir::isa<IE::ConvolutionOp>(*origOp)) {
         auto convOp = mlir::dyn_cast<IE::ConvolutionOp>(*origOp);
-        if (convOp.channel_major_op()) {
-            const auto inputShape = getShape(convOp.filter().getType().cast<mlir::ShapedType>());
-            const auto IC = inputShape[IE::Dims4D::Filter::IC];
-            return IC;
+        const auto inputTensorWidth = getShape(convOp.input())[IE::Dims4D::Act::W];
+        const auto inputChannels = getShape(convOp.filter().getType().cast<mlir::ShapedType>())[IE::Dims4D::Filter::IC];
+        const auto inDimsOrder = DimsOrder::fromValue(convOp->getOperand(0));
+        bool channelMajorConvolution = ((inDimsOrder == DimsOrder::NCHW) && (inputChannels == 3) && (inputTensorWidth % 16 == 0));
+        if (channelMajorConvolution) {
+            return 1;
         } else
             return 16;
     } else
@@ -61,7 +63,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyConvChannels(bool channelMa
         return mlir::failure();
     }
 
-    if (!channelMajorConvolution && (IC % getOutputChannelAlignment(filterType.getElementType()) != 0)) {
+     if (!channelMajorConvolution && IC % getOutputChannelAlignment(filterType.getElementType()) != 0) {
         log.trace("[{0}] Convolution input channels are not aligned", loc);
         return mlir::failure();
     }
@@ -75,16 +77,24 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyConvChannels(bool channelMa
 }
 
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyDims(IE::ConvolutionOp origOp, Logger log) {
-    auto inputTensorShape = getShape(origOp.input());
-    auto width = inputTensorShape[IE::Dims4D::Act::W];
-    return verifyConvChannels(origOp.channel_major_op(), origOp->getLoc(), origOp.filter().getType().cast<mlir::ShapedType>(), width, log);
+
+    const auto inputTensorWidth = getShape(origOp.input())[IE::Dims4D::Act::W];
+    const auto inputChannels = getShape(origOp.filter().getType().cast<mlir::ShapedType>())[IE::Dims4D::Filter::IC];
+    const auto inDimsOrder = DimsOrder::fromValue(origOp->getOperand(0));
+    bool channelMajorConvolution = ((inDimsOrder == DimsOrder::NCHW) && (inputChannels == 3) && (inputTensorWidth % 16 == 0));
+    
+    return verifyConvChannels(channelMajorConvolution, origOp->getLoc(), origOp.filter().getType().cast<mlir::ShapedType>(), inputTensorWidth, log);
 
 }
 
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyDims(IERT::ConvolutionOp origOp, Logger log) {
-    auto inputTensorShape = getShape(origOp.input());
-    auto width = inputTensorShape[IE::Dims4D::Act::W];
-    return verifyConvChannels(origOp.channel_major_op(), origOp->getLoc(), origOp.filter().getType().cast<mlir::ShapedType>(), width, log);
+
+    const auto inputTensorWidth = getShape(origOp.input())[IE::Dims4D::Act::W];
+    const auto inputChannels = getShape(origOp.filter().getType().cast<mlir::ShapedType>())[IE::Dims4D::Filter::IC];
+    const auto inDimsOrder = DimsOrder::fromValue(origOp->getOperand(0));
+    bool channelMajorConvolution = ((inDimsOrder == DimsOrder::NCHW) && (inputChannels == 3) && (inputTensorWidth % 16 == 0));
+
+    return verifyConvChannels(channelMajorConvolution, origOp->getLoc(), origOp.filter().getType().cast<mlir::ShapedType>(), inputTensorWidth, log);
 }
 
 

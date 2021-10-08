@@ -254,13 +254,18 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
     mlir::IntegerAttr actWindowChanLen;
     std::vector<uint8_t> fakeSparsity;
 
+    const auto inputTensorWidth = getShape(origOp.input())[IE::Dims4D::Act::W];
+    const auto inputChannels = getShape(origOp.filter().getType().cast<mlir::ShapedType>())[IE::Dims4D::Filter::IC];
+    const auto inDimsOrder = DimsOrder::fromValue(origOp->getOperand(0));
+    bool channelMajorConvolution = ((inDimsOrder == DimsOrder::NCHW) && (inputChannels == 3) && (inputTensorWidth % 16 == 0));
+
     //
     // Prepare input for DPU
     //
 
     auto inputDPU = prepareTensorForDPU(rewriter, origOp->getLoc(), origOp.input());
 
-    if (origOp.channel_major_op()) {
+    if (channelMajorConvolution) {
         alignedFilter = alignchannelMajorWeightTensor(rewriter, origOp->getLoc(), origOp.filter());
         filterDPU = prepareTensorForDPU(rewriter, origOp->getLoc(), alignedFilter);
 
@@ -294,7 +299,7 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
 
     auto outAllocOpCMX = rewriter.create<mlir::memref::AllocOp>(origOp->getLoc(), outTypeCMX);
 
-    if (origOp.channel_major_op()) {
+    if (channelMajorConvolution) {
         weightsTable = createWeightsTableTensor(rewriter, origOp->getLoc(), OC, inputDPU, outAllocOpCMX.memref(),
                                                 filterDPU, origOp.bias(), activationWindow);
     } else {
@@ -315,7 +320,7 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
 
     Logger::global().error("order: {0}", DimsOrder::fromValue(origOp.input()));
 
-    if (origOp.channel_major_op()) {
+    if (channelMajorConvolution) {
         auto nceOp = rewriter.create<VPUIP::NCEClusterTaskOp>(
                 origOp->getLoc(), inputDPU, filterDPU, weightsTable, activationWindow,
                 /*parent_input=*/inputDPU,
