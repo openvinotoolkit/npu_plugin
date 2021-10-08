@@ -37,7 +37,7 @@ mlir::FailureOr<int64_t> extractAxis(mlir::Location loc, IE::GatherOpAdaptor gat
         int64_t axisInd = axisContent.getSplatValue<int64_t>();
         return axisInd;
     } else if (gather.axis_value() != nullptr) {
-        return gather.axis_value().getSInt();
+        return gather.axis_value().getInt();
     } else {
         return errorAt(loc, "Axis was not provided");
     }
