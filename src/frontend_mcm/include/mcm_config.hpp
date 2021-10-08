@@ -28,20 +28,20 @@ public:
         return _mcmLogLevel;
     }
 
-    const std::string& mcmTargetDesciptorPath() const {
-        return _mcmTargetDesciptorPath;
+    const std::string& mcmTargetDescriptorPath() const {
+        return _mcmTargetDescriptorPath;
     }
 
-    const std::string& mcmTargetDesciptor() const {
-        return _mcmTargetDesciptor;
+    const std::string& mcmTargetDescriptor() const {
+        return _mcmTargetDescriptor;
     }
 
-    const std::string& mcmCompilationDesciptorPath() const {
-        return _mcmCompilationDesciptorPath;
+    const std::string& mcmCompilationDescriptorPath() const {
+        return _mcmCompilationDescriptorPath;
     }
 
-    const std::string& mcmCompilationDesciptor() const {
-        return _mcmCompilationDesciptor;
+    const std::string& mcmCompilationDescriptor() const {
+        return _mcmCompilationDescriptor;
     }
 
     bool mcmGenerateBlob() const {
@@ -146,17 +146,25 @@ public:
         return _optimizeInputPrecision;
     }
 
+    bool forcePluginInputQuantization() const {
+        return _forcePluginInputQuantization;
+    }
+
+    bool outputFp16ToFp32HostConversion() const {
+        return _outputFp16ToFp32HostConversion;
+    }
+
 protected:
     void parse(const std::map<std::string, std::string>& config) override;
 
 private:
     LogLevel _mcmLogLevel = LogLevel::None;
 
-    std::string _mcmTargetDesciptorPath = "mcm_config/target";
-    std::string _mcmTargetDesciptor = "release_kmb";
+    std::string _mcmTargetDescriptorPath = "mcm_config/target";
+    std::string _mcmTargetDescriptor = "release_kmb";
 
-    std::string _mcmCompilationDesciptorPath = "mcm_config/compilation";
-    std::string _mcmCompilationDesciptor = "release_kmb";
+    std::string _mcmCompilationDescriptorPath = "mcm_config/compilation";
+    std::string _mcmCompilationDescriptor = "release_kmb";
 
     bool _mcmGenerateBlob = true;
     bool _mcmGenerateJSON = true;
@@ -198,6 +206,22 @@ private:
     std::string _layerLocationStrategies = "";
 
     bool _optimizeInputPrecision = true;
+    bool _forcePluginInputQuantization = false;
+
+// TODO
+// Windows-Yocto scenario (autonomous mode)
+// Hardcoded "true" might decrease a performance
+// Need to be investigated if we use it (currently it's unused)
+// [Track number: E#22196]
+// Windows dKMB scenario (discrete mode)
+// Hardcoded "true" brings some performance boost for some networks
+// Besides of that, there is CPU usage grow as well
+// Consider to keep "false" until further investigation is completed
+#ifdef _WIN32
+    bool _outputFp16ToFp32HostConversion = false;
+#else
+    bool _outputFp16ToFp32HostConversion = false;
+#endif
 };
 
 }  //  namespace vpu

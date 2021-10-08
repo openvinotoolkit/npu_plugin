@@ -734,6 +734,47 @@ operation ::= `VPUIP.GRNUPA` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float values
 
+### `VPUIP.GatherUPA` (vpux::VPUIP::GatherUPAOp)
+
+Gather UPA SHAVE kernel
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.GatherUPA` attr-dict
+              `inputs` `(` $input `:` type($input) `,` $indices `:` type($indices) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+              (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`axis` | mlir::IntegerAttr | Integer attribute
+`maxShaves` | mlir::IntegerAttr | Integer attribute
+`isTrailingSWLayer` | ::mlir::UnitAttr | unit attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of any type values
+`indices` | memref of 32-bit signed integer values
+`output_buff` | memref of any type values
+`waitBarriers` | VPUIP Barrier Type
+`updateBarriers` | VPUIP Barrier Type
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of any type values
+
 ### `VPUIP.Graph` (vpux::VPUIP::GraphOp)
 
 The root object for the VPUIP Execution Graph
@@ -883,6 +924,58 @@ operation ::= `VPUIP.LSTMCellUPA` attr-dict
 | :----: | ----------- |
 `outputHiddenState` | memref of 16-bit float values
 `outputCellState` | memref of 16-bit float values
+
+### `VPUIP.LSTMSequenceUPA` (vpux::VPUIP::LSTMSequenceUPAOp)
+
+LSTMSequence UPA SHAVE kernel
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.LSTMSequenceUPA` attr-dict
+              `inputs` `(` $inputData `:` type($inputData) `,` $initialHiddenState `:` type($initialHiddenState)
+              `,` $initialCellState `:` type($initialCellState) `,` $weights `:` type($weights) `,` $biases `:` type($biases) `)`
+              `outputs` `(` $outputHiddenValues_buff `:` type($outputHiddenValues_buff)
+              `,` $outputCellState_buff `:` type($outputCellState_buff)
+              `,` $outputHiddenState_buff `:` type($outputHiddenState_buff) `)`
+              (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+              (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`sequenceLength` | mlir::IntegerAttr | Integer attribute
+`direction` | vpux::IE::RNNSequenceDirectionAttr | RNNSequenceDirection that the InferenceEngine supports
+`maxShaves` | mlir::IntegerAttr | Integer attribute
+`isTrailingSWLayer` | ::mlir::UnitAttr | unit attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`inputData` | memref of 16-bit float values
+`initialHiddenState` | memref of 16-bit float values
+`initialCellState` | memref of 16-bit float values
+`weights` | memref of 16-bit float values
+`biases` | memref of 16-bit float values
+`outputHiddenValues_buff` | memref of 16-bit float values
+`outputCellState_buff` | memref of 16-bit float values
+`outputHiddenState_buff` | memref of 16-bit float values
+`waitBarriers` | VPUIP Barrier Type
+`updateBarriers` | VPUIP Barrier Type
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`outputHiddenValues` | memref of 16-bit float values
+`outputCellState` | memref of 16-bit float values
+`outputHiddenState` | memref of 16-bit float values
 
 ### `VPUIP.LeakyReluUPA` (vpux::VPUIP::LeakyReluUPAOp)
 
@@ -1063,7 +1156,7 @@ mutually exclusive.
 `activation_window` | memref of 8-bit unsigned integer values
 `parent_input` | memref of any type values
 `parent_output` | memref of any type values
-`output_buff` | memref of 16-bit float or QuantizedType values
+`output_buff` | memref of 16-bit float or 32-bit float or QuantizedType values
 `waitBarriers` | VPUIP Barrier Type
 `updateBarriers` | VPUIP Barrier Type
 
@@ -1071,7 +1164,7 @@ mutually exclusive.
 
 | Result | Description |
 | :----: | ----------- |
-`output` | memref of 16-bit float or QuantizedType values
+`output` | memref of 16-bit float or 32-bit float or QuantizedType values
 
 ### `VPUIP.NNDMA` (vpux::VPUIP::NNDMAOp)
 
@@ -1151,6 +1244,50 @@ operation ::= `VPUIP.NegativeUPA` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float values
 
+### `VPUIP.NormUPA` (vpux::VPUIP::NormUPAOp)
+
+Norm UPA SHAVE kernel
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.NormUPA` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+              (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`alpha` | ::mlir::FloatAttr | 64-bit float attribute
+`beta` | ::mlir::FloatAttr | 64-bit float attribute
+`bias` | ::mlir::FloatAttr | 64-bit float attribute
+`local_size` | mlir::IntegerAttr | Integer attribute
+`region` | vpux::IE::LRN_IERegionAttr | LRN_IE region that operations support
+`maxShaves` | mlir::IntegerAttr | Integer attribute
+`isTrailingSWLayer` | ::mlir::UnitAttr | unit attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float values
+`output_buff` | memref of 16-bit float values
+`waitBarriers` | VPUIP Barrier Type
+`updateBarriers` | VPUIP Barrier Type
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float values
+
 ### `VPUIP.PPETask` (vpux::VPUIP::PPETaskOp)
 
 PPE Type for NCE Task
@@ -1172,6 +1309,8 @@ operation ::= `VPUIP.PPETask` $ppe_layer_type attr-dict
 `clamp_high` | mlir::IntegerAttr | Integer attribute
 `lrelu_mult` | mlir::IntegerAttr | Integer attribute
 `lrelu_shift` | mlir::IntegerAttr | Integer attribute
+`quant_mult` | ::mlir::ArrayAttr | 32-bit integer array attribute
+`quant_shift` | ::mlir::ArrayAttr | 32-bit integer array attribute
 
 ### `VPUIP.PReluUPA` (vpux::VPUIP::PReluUPAOp)
 
@@ -1589,6 +1728,46 @@ operation ::= `VPUIP.RegionYoloUPA` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float values
 
+### `VPUIP.RoundUPA` (vpux::VPUIP::RoundUPAOp)
+
+Round UPA SHAVE kernel
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.RoundUPA` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+              (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`mode` | vpux::IE::RoundModeAttr | RoundMode that the InferenceEngine supports
+`maxShaves` | mlir::IntegerAttr | Integer attribute
+`isTrailingSWLayer` | ::mlir::UnitAttr | unit attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float values
+`output_buff` | memref of 16-bit float values
+`waitBarriers` | VPUIP Barrier Type
+`updateBarriers` | VPUIP Barrier Type
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float values
+
 ### `VPUIP.ScaleShiftUPA` (vpux::VPUIP::ScaleShiftUPAOp)
 
 ScaleShift UPA SHAVE kernel
@@ -1691,6 +1870,45 @@ operation ::= `VPUIP.SoftMaxUPA` attr-dict
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
 `axisInd` | mlir::IntegerAttr | Integer attribute
+`maxShaves` | mlir::IntegerAttr | Integer attribute
+`isTrailingSWLayer` | ::mlir::UnitAttr | unit attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float values
+`output_buff` | memref of 16-bit float values
+`waitBarriers` | VPUIP Barrier Type
+`updateBarriers` | VPUIP Barrier Type
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float values
+
+### `VPUIP.SqrtUPA` (vpux::VPUIP::SqrtUPAOp)
+
+Sqrt UPA SHAVE kernel
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.SqrtUPA` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+              (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
 `maxShaves` | mlir::IntegerAttr | Integer attribute
 `isTrailingSWLayer` | ::mlir::UnitAttr | unit attribute
 

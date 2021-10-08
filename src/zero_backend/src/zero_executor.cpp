@@ -269,6 +269,7 @@ bool isRepackingPossible(const IE::TensorDesc& userTensorDesc, const IE::TensorD
 }
 
 void prepareInputForInference(const IE::Blob::Ptr& userInput, const IE::TensorDesc& deviceTensorDesc, void* destData,
+                              const vpux::Optional<QuantizationParam>& quantParam,
                               std::shared_ptr<vpu::Logger>& logger) {
     if (userInput == nullptr) {
         IE_THROW() << "User input blob null pointer";
@@ -292,12 +293,12 @@ void prepareInputForInference(const IE::Blob::Ptr& userInput, const IE::TensorDe
         logger->info("Different precisions of user and device input blobs. Conversion required from %s to %s",
                      userPrecision, devicePrecision);
         if (!isLayoutMatched) {
-            expectedInput = toPrecision(IE::as<IE::MemoryBlob>(expectedInput), devicePrecision);
+            expectedInput = toPrecision(IE::as<IE::MemoryBlob>(expectedInput), devicePrecision, quantParam);
             logger->info("Different layouts of user and device input blobs. Conversion required from %s to %s",
                          userLayout, deviceLayout);
             toLayout(IE::as<IE::MemoryBlob>(expectedInput), deviceLayout, nullptr, destData);
         } else {
-            toPrecision(IE::as<IE::MemoryBlob>(expectedInput), devicePrecision, nullptr, destData);
+            toPrecision(IE::as<IE::MemoryBlob>(expectedInput), devicePrecision, quantParam, nullptr, destData);
         }
     } else if (!isLayoutMatched) {
         logger->info("Different layouts of user and device input blobs. Conversion required from %s to %s", userLayout,
@@ -316,8 +317,10 @@ void getOutputAfterInference(IE::Blob::Ptr& userOutput, const IE::TensorDesc& de
     }
     const auto userPrecision = userOutput->getTensorDesc().getPrecision();
     const auto userLayout = userOutput->getTensorDesc().getLayout();
+    const auto userNumDims = userOutput->getTensorDesc().getDims().size();
     const auto devicePrecision = deviceTensorDesc.getPrecision();
     const auto deviceLayout = deviceTensorDesc.getLayout();
+    const auto deviceNumDims = deviceTensorDesc.getDims().size();
 
     // [OV design flaw] OV API make_blob_with_precision doesn't have any version with const source data
     IE::Blob::Ptr expectedOutput = makeBlob(deviceTensorDesc, nullptr, const_cast<void*>(srcData));
@@ -328,9 +331,21 @@ void getOutputAfterInference(IE::Blob::Ptr& userOutput, const IE::TensorDesc& de
             IE_THROW() << "Blob data null pointer";
         }
     }
-    if (userLayout != deviceLayout) {
+    // Default state - only memory copying is required
+    auto destLayout = IE::Layout::ANY;
+    if (userLayout != deviceLayout && userNumDims == deviceNumDims) {
+        // Equal number of dimensions - standard layout conversion and memory copying
+        destLayout = userLayout;
+    } else if (deviceLayout == IE::Layout::NHWC && userLayout == IE::Layout::CHW) {
+        // Special case - NHWC to NCHW layout conversion and memory copying
+        destLayout = IE::Layout::NCHW;
+    } else if (deviceLayout == IE::Layout::NCHW && userLayout == IE::Layout::HWC) {
+        // Special case - NCHW to NHWC layout conversion and memory copying
+        destLayout = IE::Layout::NHWC;
+    }
+    if (destLayout != IE::Layout::ANY) {
         logger->info("Different layouts of pull blobs. Conversion required");
-        expectedOutput = toLayout(IE::as<IE::MemoryBlob>(expectedOutput), userLayout);
+        expectedOutput = toLayout(IE::as<IE::MemoryBlob>(expectedOutput), destLayout);
         if (expectedOutput == nullptr) {
             IE_THROW() << "Blob data null pointer";
         }
@@ -366,11 +381,11 @@ ZeroExecutor::ZeroExecutor(ze_driver_handle_t driver_handle, ze_device_handle_t 
           _context(context),
           _graph_ddi_table_ext(graph_ddi_table_ext),
           _networkDesc(networkDescription),
-          _graph(std::make_shared<graph>(_device_handle, _context, _networkDesc, _graph_ddi_table_ext)),
-          _command_queue{{std::make_shared<commandQueue>(device_handle, context),
-                          std::make_shared<commandQueue>(device_handle, context),
-                          std::make_shared<commandQueue>(device_handle, context)}},
-          _pipeline(std::make_unique<pipeline>(driver_handle, device_handle, context, graph_ddi_table_ext, _graph,
+          _graph(std::make_shared<Graph>(_device_handle, _context, _networkDesc, _graph_ddi_table_ext)),
+          _command_queue{{std::make_shared<CommandQueue>(device_handle, context),
+                          std::make_shared<CommandQueue>(device_handle, context),
+                          std::make_shared<CommandQueue>(device_handle, context)}},
+          _pipeline(std::make_unique<Pipeline>(driver_handle, device_handle, context, graph_ddi_table_ext, _graph,
                                                _command_queue)) {
     _graph->init();
 }
@@ -378,8 +393,8 @@ ZeroExecutor::ZeroExecutor(ze_driver_handle_t driver_handle, ze_device_handle_t 
 ZeroExecutor::ZeroExecutor(ze_driver_handle_t driver_handle, ze_device_handle_t device_handle,
                            ze_context_handle_t context, ze_graph_dditable_ext_t* graph_ddi_table_ext,
                            const vpux::NetworkDescription::Ptr& networkDescription,
-                           const std::array<std::shared_ptr<commandQueue>, stage::COUNT>& command_queue,
-                           const std::shared_ptr<graph>& graph, const VPUXConfig& config)
+                           const std::array<std::shared_ptr<CommandQueue>, stage::COUNT>& command_queue,
+                           const std::shared_ptr<Graph>& graph, const VPUXConfig& config)
         : _config(config),
           _logger(std::make_shared<vpu::Logger>("ZeroExecutor", _config.logLevel(), vpu::consoleOutput())),
           _driver_handle(driver_handle),
@@ -389,53 +404,53 @@ ZeroExecutor::ZeroExecutor(ze_driver_handle_t driver_handle, ze_device_handle_t 
           _networkDesc(networkDescription),
           _graph(graph),
           _command_queue(command_queue),
-          _pipeline(std::make_unique<pipeline>(driver_handle, device_handle, context, graph_ddi_table_ext, graph,
+          _pipeline(std::make_unique<Pipeline>(driver_handle, device_handle, context, graph_ddi_table_ext, graph,
                                                _command_queue)) {
 }
 
-ZeroExecutor::hostMem::hostMem(const ze_driver_handle_t driver_handle, const ze_context_handle_t context,
+ZeroExecutor::HostMem::HostMem(const ze_driver_handle_t driver_handle, const ze_context_handle_t context,
                                const size_t size)
         : _size(size), _driver_handle(driver_handle), _context(context) {
     ze_host_mem_alloc_desc_t desc = {ZE_STRUCTURE_TYPE_HOST_MEM_ALLOC_DESC, nullptr, 0};
     throwOnFail("zeMemAllocHost", zeMemAllocHost(_context, &desc, _size, _alignment, &_data));
 }
-ZeroExecutor::hostMem::~hostMem() {
+ZeroExecutor::HostMem::~HostMem() {
     if (_data) {
-        throwOnFail("zeMemFree hostMem", zeMemFree(_context, _data));
+        throwOnFail("zeMemFree HostMem", zeMemFree(_context, _data));
     }
 }
 
-ZeroExecutor::deviceMem::deviceMem(const ze_driver_handle_t driver_handle, const ze_device_handle_t deh_,
+ZeroExecutor::DeviceMem::DeviceMem(const ze_driver_handle_t driver_handle, const ze_device_handle_t deh_,
                                    ze_context_handle_t context, const size_t size)
         : _size(size), _driver_handle(driver_handle), _context(context) {
     ze_device_mem_alloc_desc_t desc = {ZE_STRUCTURE_TYPE_DEVICE_MEM_ALLOC_DESC, nullptr, 0, 0};
 
     throwOnFail("zeMemAllocDevice", zeMemAllocDevice(_context, &desc, _size, _alignment, deh_, &_data));
 }
-ZeroExecutor::deviceMem::~deviceMem() {
+ZeroExecutor::DeviceMem::~DeviceMem() {
     if (_data) {
-        throwOnFail("zeMemFree deviceMem", zeMemFree(_context, _data));
+        throwOnFail("zeMemFree DeviceMem", zeMemFree(_context, _data));
     }
 }
 
-ZeroExecutor::commandList::commandList(const ze_device_handle_t& device_handle, const ze_context_handle_t& context,
+ZeroExecutor::CommandList::CommandList(const ze_device_handle_t& device_handle, const ze_context_handle_t& context,
                                        ze_graph_dditable_ext_t* graph_ddi_table_ext)
         : _context(context), _graph_ddi_table_ext(graph_ddi_table_ext) {
     ze_command_list_desc_t desc = {ZE_STRUCTURE_TYPE_COMMAND_LIST_DESC, nullptr, 0, 0};
     throwOnFail("zeCommandListCreate", zeCommandListCreate(_context, device_handle, &desc, &_handle));
     reset();
 }
-void ZeroExecutor::commandList::reset() {
+void ZeroExecutor::CommandList::reset() {
     throwOnFail("zeCommandListReset", zeCommandListReset(_handle));
 }
-void ZeroExecutor::commandList::appendMemoryCopy(void* dst, const void* src, size_t size) {
+void ZeroExecutor::CommandList::appendMemoryCopy(void* dst, const void* src, size_t size) {
     throwOnFail("zeCommandListAppendMemoryCopy",
                 zeCommandListAppendMemoryCopy(_handle, dst, src, size, nullptr, 0, nullptr));
 }
-void ZeroExecutor::commandList::appendGraphInitialize(const ze_graph_handle_t& graph_handle) {
+void ZeroExecutor::CommandList::appendGraphInitialize(const ze_graph_handle_t& graph_handle) {
     throwOnFail("pfnAppendGraphInitialize", _graph_ddi_table_ext->pfnAppendGraphInitialize(_handle, graph_handle));
 }
-void ZeroExecutor::commandList::appendGraphExecute(const ze_graph_handle_t& graph_handle) {
+void ZeroExecutor::CommandList::appendGraphExecute(const ze_graph_handle_t& graph_handle) {
     throwOnFail("pfnAppendGraphExecute", _graph_ddi_table_ext->pfnAppendGraphExecute(_handle, graph_handle));
 }
 // TODO This is a work-around due to bug on ARM side
@@ -443,23 +458,23 @@ void ZeroExecutor::commandList::appendGraphExecute(const ze_graph_handle_t& grap
 // Should be removed when the bug is resolved
 // [Track number: E#13355]
 // [Track number: E#16690]
-void ZeroExecutor::commandList::appendBarrier() {
+void ZeroExecutor::CommandList::appendBarrier() {
     throwOnFail("zeCommandListAppendBarrier", zeCommandListAppendBarrier(_handle, nullptr, 0, nullptr));
 }
-void ZeroExecutor::commandList::close() {
+void ZeroExecutor::CommandList::close() {
     throwOnFail("zeCommandListClose", zeCommandListClose(_handle));
 }
-ZeroExecutor::commandList::~commandList() {
+ZeroExecutor::CommandList::~CommandList() {
     throwOnFail("zeCommandListDestroy", zeCommandListDestroy(_handle));
 }
 
-ZeroExecutor::graph::graph(const ze_device_handle_t& device_handle, const ze_context_handle_t& context,
+ZeroExecutor::Graph::Graph(const ze_device_handle_t& device_handle, const ze_context_handle_t& context,
                            const NetworkDescription::CPtr networkDesc, ze_graph_dditable_ext_t* graph_ddi_table_ext)
         : _context(context),
           _blob(networkDesc->getCompiledNetwork()),
-          _command_queue(std::make_shared<commandQueue>(device_handle, _context)),
+          _command_queue(std::make_shared<CommandQueue>(device_handle, _context)),
           _command_list(device_handle, _context, graph_ddi_table_ext),
-          _fence(std::make_shared<fence>(_command_queue)),
+          _fence(std::make_shared<Fence>(_command_queue)),
           _graph_ddi_table_ext(graph_ddi_table_ext) {
     ze_graph_desc_t desc = {ZE_GRAPH_FORMAT_NATIVE, _blob.size(), reinterpret_cast<const uint8_t*>(_blob.data())};
     throwOnFail("pfnCreate", _graph_ddi_table_ext->pfnCreate(device_handle, &desc, &_handle));
@@ -469,55 +484,49 @@ ZeroExecutor::graph::graph(const ze_device_handle_t& device_handle, const ze_con
         ze_graph_argument_properties_t arg;
         throwOnFail("pfnGetArgumentProperties", _graph_ddi_table_ext->pfnGetArgumentProperties(_handle, index, &arg));
         if (ZE_GRAPH_ARGUMENT_TYPE_INPUT == arg.type) {
-            auto deviceInputs = networkDesc->getDeviceInputsInfo();
-
-            // [Track number: S#49808]
-            // hack for correct memory allocation on device
-            arg.precision = getZePrecision(deviceInputs.at(arg.name)->getPrecision());
-
-            _inputs_desc_map.emplace(std::make_pair(std::string(arg.name), argumentDescriptor{arg, index}));
+            _inputs_desc_map.emplace(std::make_pair(std::string(arg.name), ArgumentDescriptor{arg, index}));
         } else {
-            _outputs_desc_map.emplace(std::make_pair(std::string(arg.name), argumentDescriptor{arg, index}));
+            _outputs_desc_map.emplace(std::make_pair(std::string(arg.name), ArgumentDescriptor{arg, index}));
         }
     }
 
     _command_list.appendGraphInitialize(_handle);
     _command_list.close();
 }
-void ZeroExecutor::graph::init() {
+void ZeroExecutor::Graph::init() {
     _command_queue->executeCommandList(_command_list, *_fence);
     _fence->hostSynchronize();
 }
-void ZeroExecutor::graph::setArgumentValue(uint32_t argi_, const void* argv_) const {
+void ZeroExecutor::Graph::setArgumentValue(uint32_t argi_, const void* argv_) const {
     throwOnFail("zeGraphSetArgumentValue", _graph_ddi_table_ext->pfnSetArgumentValue(_handle, argi_, argv_));
 }
-ZeroExecutor::graph::~graph() {
+ZeroExecutor::Graph::~Graph() {
     throwOnFail("pfnDestroy", _graph_ddi_table_ext->pfnDestroy(_handle));
 }
 
-ZeroExecutor::commandQueue::commandQueue(const ze_device_handle_t& device_handle, const ze_context_handle_t& context)
+ZeroExecutor::CommandQueue::CommandQueue(const ze_device_handle_t& device_handle, const ze_context_handle_t& context)
         : _context(context) {
     ze_command_queue_desc_t queue_desc = {
             ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC, nullptr, 0, 0, 0, ZE_COMMAND_QUEUE_MODE_DEFAULT,
             ZE_COMMAND_QUEUE_PRIORITY_NORMAL};
     throwOnFail("zeCommandQueueCreate", zeCommandQueueCreate(_context, device_handle, &queue_desc, &_handle));
 }
-void ZeroExecutor::commandQueue::executeCommandList(commandList& command_list) {
+void ZeroExecutor::CommandQueue::executeCommandList(CommandList& command_list) {
     throwOnFail("zeCommandQueueExecuteCommandLists",
                 zeCommandQueueExecuteCommandLists(_handle, 1, &command_list._handle, nullptr));
 }
-void ZeroExecutor::commandQueue::executeCommandList(commandList& command_list, fence& fence) {
+void ZeroExecutor::CommandQueue::executeCommandList(CommandList& command_list, Fence& fence) {
     throwOnFail("zeCommandQueueExecuteCommandLists",
                 zeCommandQueueExecuteCommandLists(_handle, 1, &command_list._handle, fence._handle));
 }
-ZeroExecutor::commandQueue::~commandQueue() {
+ZeroExecutor::CommandQueue::~CommandQueue() {
     throwOnFail("zeCommandQueueDestroy", zeCommandQueueDestroy(_handle));
 }
 
-ZeroExecutor::pipeline::pipeline(const ze_driver_handle_t& driver_handle, const ze_device_handle_t& device_handle,
+ZeroExecutor::Pipeline::Pipeline(const ze_driver_handle_t& driver_handle, const ze_device_handle_t& device_handle,
                                  const ze_context_handle_t context, ze_graph_dditable_ext_t* graph_ddi_table_ext,
-                                 const std::shared_ptr<graph>& graph,
-                                 const std::array<std::shared_ptr<commandQueue>, stage::COUNT>& command_queue)
+                                 const std::shared_ptr<Graph>& graph,
+                                 const std::array<std::shared_ptr<CommandQueue>, stage::COUNT>& command_queue)
         : _command_list{{{device_handle, context, graph_ddi_table_ext},
                          {device_handle, context, graph_ddi_table_ext},
                          {device_handle, context, graph_ddi_table_ext}}},
@@ -528,9 +537,9 @@ ZeroExecutor::pipeline::pipeline(const ze_driver_handle_t& driver_handle, const 
                   {device_handle, context, _event_pool._handle, stage::READBACK}}} {
     for (const auto& desc : graph->_inputs_desc_map) {
         auto size = getSizeIOBytes(desc.second.info);
-        _inputs_host_mem_map.emplace(std::make_pair(desc.first, hostMem{driver_handle, context, size}));
+        _inputs_host_mem_map.emplace(std::make_pair(desc.first, HostMem{driver_handle, context, size}));
         _inputs_device_mem_map.emplace(
-                std::make_pair(desc.first, deviceMem{driver_handle, device_handle, context, size}));
+                std::make_pair(desc.first, DeviceMem{driver_handle, device_handle, context, size}));
 
         const auto& hostMem = mapArguments(_inputs_host_mem_map, desc.first);
         auto& deviceMem = mapArguments(_inputs_device_mem_map, desc.first);
@@ -543,9 +552,9 @@ ZeroExecutor::pipeline::pipeline(const ze_driver_handle_t& driver_handle, const 
 
     for (const auto& desc : graph->_outputs_desc_map) {
         const auto size = getSizeIOBytes(desc.second.info);
-        _outputs_host_mem_map.emplace(std::make_pair(desc.first, hostMem{driver_handle, context, size}));
+        _outputs_host_mem_map.emplace(std::make_pair(desc.first, HostMem{driver_handle, context, size}));
         _outputs_device_mem_map.emplace(
-                std::make_pair(desc.first, deviceMem{driver_handle, device_handle, context, size}));
+                std::make_pair(desc.first, DeviceMem{driver_handle, device_handle, context, size}));
 
         auto& hostMem = mapArguments(_outputs_host_mem_map, desc.first);
         const auto& deviceMem = mapArguments(_outputs_device_mem_map, desc.first);
@@ -564,46 +573,47 @@ ZeroExecutor::pipeline::pipeline(const ze_driver_handle_t& driver_handle, const 
     }
 }
 
-ZeroExecutor::fence::fence(const std::shared_ptr<commandQueue>& command_queue) {
+ZeroExecutor::Fence::Fence(const std::shared_ptr<CommandQueue>& command_queue) {
     ze_fence_desc_t fence_desc = {ZE_STRUCTURE_TYPE_FENCE_DESC, nullptr, 0};
     throwOnFail("zeFenceCreate", zeFenceCreate(command_queue->_handle, &fence_desc, &_handle));
 }
-void ZeroExecutor::fence::reset() {
+void ZeroExecutor::Fence::reset() {
     throwOnFail("zeFenceReset", zeFenceReset(_handle));
 }
-void ZeroExecutor::fence::hostSynchronize() {
+void ZeroExecutor::Fence::hostSynchronize() {
     throwOnFail("zeFenceHostSynchronize", zeFenceHostSynchronize(_handle, UINT64_MAX));
 }
-ZeroExecutor::fence::~fence() {
+ZeroExecutor::Fence::~Fence() {
     throwOnFail("zeFenceDestroy", zeFenceDestroy(_handle));
 }
 
-ZeroExecutor::eventPool_t::eventPool_t(ze_device_handle_t device_handle, const ze_context_handle_t& context,
-                                       uint32_t event_count)
+ZeroExecutor::EventPool::EventPool(ze_device_handle_t device_handle, const ze_context_handle_t& context,
+                                   uint32_t event_count)
         : _event_count(event_count) {
     ze_event_pool_desc_t event_pool_desc = {ZE_STRUCTURE_TYPE_EVENT_POOL_DESC, nullptr, ZE_EVENT_POOL_FLAG_HOST_VISIBLE,
                                             event_count};
     throwOnFail("zeEventPoolCreate", zeEventPoolCreate(context, &event_pool_desc, 1, &device_handle, &_handle));
 }
-ZeroExecutor::event_t::event_t(ze_device_handle_t device_handle, const ze_context_handle_t& context,
-                               const ze_event_pool_handle_t& event_pool, uint32_t event_index)
+ZeroExecutor::Event::Event(ze_device_handle_t device_handle, const ze_context_handle_t& context,
+                           const ze_event_pool_handle_t& event_pool, uint32_t event_index)
         : _device_t(device_handle), _context(context) {
     ze_event_desc_t event_desc = {ZE_STRUCTURE_TYPE_EVENT_DESC, nullptr, event_index, 0, 0};
     throwOnFail("zeEventCreate", zeEventCreate(event_pool, &event_desc, &_handle));
 }
-void ZeroExecutor::event_t::AppendSignalEvent(commandList& command_list) {
+void ZeroExecutor::Event::AppendSignalEvent(CommandList& command_list) {
     throwOnFail("zeCommandListAppendSignalEvent", zeCommandListAppendSignalEvent(command_list._handle, _handle));
 }
-void ZeroExecutor::event_t::AppendWaitOnEvent(commandList& command_list) {
+void ZeroExecutor::Event::AppendWaitOnEvent(CommandList& command_list) {
     throwOnFail("zeCommandListAppendWaitOnEvents", zeCommandListAppendWaitOnEvents(command_list._handle, 1, &_handle));
 }
-void ZeroExecutor::event_t::AppendEventReset(commandList& command_list) {
+void ZeroExecutor::Event::AppendEventReset(CommandList& command_list) {
     throwOnFail("zeCommandListAppendEventReset", zeCommandListAppendEventReset(command_list._handle, _handle));
 }
 
 void ZeroExecutor::push(const IE::BlobMap& inputs) {
     _logger->info("ZeroExecutor::push started");
     const auto& deviceInputs = _networkDesc->getDeviceInputsInfo();
+    const auto quantParamsInfo = _networkDesc->getQuantParamsInfo();
 
     // Copy input data to staging buffer on Cpu (input always first argument)
     for (const auto& inferInput : inputs) {
@@ -612,6 +622,8 @@ void ZeroExecutor::push(const IE::BlobMap& inputs) {
 
         const auto& desc = mapArguments(_graph->_inputs_desc_map, name);
         const auto& deviceInput = deviceInputs.at(name);
+        const auto noQuantParams = quantParamsInfo.find(name) == quantParamsInfo.end();
+        const auto quantParams = noQuantParams ? vpux::None : quantParamsInfo.at(name);
         // TODO Currently L0 and Plugin might return different layouts which have dims like [1,1...]
         // They might be reinterpreted in different ways, so this check has been added to prevent that behavior
         if (std::max(getNumDims(desc.info.dims), getNumDims(deviceInput->getTensorDesc().getDims())) > 2) {
@@ -630,7 +642,7 @@ void ZeroExecutor::push(const IE::BlobMap& inputs) {
             if (!isRepackingPossible(input->getTensorDesc(), deviceInput->getTensorDesc())) {
                 IE_THROW() << "Push blobs: repacking is not possible";
             }
-            prepareInputForInference(input, deviceInput->getTensorDesc(), hostMem.data(), _logger);
+            prepareInputForInference(input, deviceInput->getTensorDesc(), hostMem.data(), quantParams, _logger);
         }
     }
 

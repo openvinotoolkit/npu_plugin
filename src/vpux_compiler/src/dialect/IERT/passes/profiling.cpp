@@ -141,8 +141,8 @@ void TimestampProfilingPass::safeRunOnModule() {
     auto outputOp = builder.create<IERT::CopyOp>(copyLoc2, concatview.output(), profilngResult);
 
     // Adding output to the user info
-    auto outputUserResult =
-            getTensorType(outputResult.getShape(), outputResult.getElementType(), DimsOrder::fromType(outputResult));
+    auto outputUserResult = getTensorType(outputResult.getShape(), outputResult.getElementType(),
+                                          DimsOrder::fromType(outputResult), nullptr);
     auto userInfoBuilder = mlir::OpBuilder::atBlockEnd(&netOp.outputsInfo().front(), &builderLog);
     userInfoBuilder.create<IE::DataInfoOp>(mlir::UnknownLoc::get(ctx), mlir::StringAttr::get(ctx, "profilingOutput"),
                                            mlir::TypeAttr::get(outputUserResult));

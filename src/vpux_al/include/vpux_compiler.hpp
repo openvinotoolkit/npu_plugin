@@ -23,6 +23,7 @@
 #include <ie_remote_context.hpp>
 #include <vpux_config.hpp>
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
+#include "vpux/utils/core/quant_params.hpp"
 
 namespace vpux {
 
@@ -32,6 +33,7 @@ namespace vpux {
  */
 using DataMap = std::map<std::string, InferenceEngine::DataPtr>;
 
+///////////////////////////////////// INetworkDescription /////////////////////////////////////////
 /**
  * @interface INetworkDescription
  * @brief The interface to be implemented by a concrete compiler
@@ -85,6 +87,12 @@ public:
      */
     virtual const DataMap& getDeviceOutputsInfo() const = 0;
 
+    /**
+     * @brief Returns a map with information about quantization parameters
+     * @return Constant reference to an internally held QuantizationParamMap object
+     */
+    virtual const vpux::QuantizationParamMap& getQuantParamsInfo() const = 0;
+
     // TODO Remove interface returning std::vector<char>.
     /**
      * @deprecated Return type should follow the function below.
@@ -134,6 +142,9 @@ public:
     }
     const DataMap& getDeviceOutputsInfo() const {
         return _actual->getDeviceOutputsInfo();
+    }
+    const vpux::QuantizationParamMap& getQuantParamsInfo() const {
+        return _actual->getQuantParamsInfo();
     }
     const std::vector<char>& getCompiledNetwork() const {
         return _actual->getCompiledNetwork();

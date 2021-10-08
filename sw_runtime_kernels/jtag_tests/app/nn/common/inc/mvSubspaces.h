@@ -4,7 +4,9 @@
 #include <mv_types.h>
 #include <array>
 #include <algorithm>
-#include "nn_tensor_nd_types.h"
+#include "common_types.h"
+
+using namespace sw_params;
 
 namespace subspace
 {

@@ -2,12 +2,12 @@
 
 // CHECK-LABEL: @LinearGraph
 func @LinearGraph(%arg0: memref<100xf16>, %arg1: memref<100xf16>) -> memref<100xf16> {
-    %0 = IERT.StaticAlloc<0> -> memref<100xf16>
+    %0 = memref.alloc() :  memref<100xf16>
     %1 = IERT.ReLU inputs(%arg0 : memref<100xf16>) outputs(%0 : memref<100xf16>) -> memref<100xf16>
     %2 = IERT.Copy inputs(%1 : memref<100xf16>) outputs(%arg1 : memref<100xf16>) -> memref<100xf16>
     return %2 : memref<100xf16>
 
-    // CHECK:       [[VAR0:%.+]] = IERT.StaticAlloc<0>
+    // CHECK:       [[VAR0:%.+]] = memref.alloc()
 
     // CHECK:       [[TOKEN1:%.+]], [[FUTURE1:%.+]] = async.execute -> !async.value<memref<100xf16>>
     // CHECK-SAME:          IERT.executor = "SHAVE_UPA"

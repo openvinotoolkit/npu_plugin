@@ -80,6 +80,35 @@ mlir::LogicalResult LSTMCellRewrite::matchAndRewrite(IERT::LSTMCellOp origOp, ml
 }
 
 //
+// LSTMSequenceRewrite
+//
+
+class LSTMSequenceRewrite final : public mlir::OpRewritePattern<IERT::LSTMSequenceOp> {
+public:
+    LSTMSequenceRewrite(mlir::MLIRContext* ctx, Logger log)
+            : mlir::OpRewritePattern<IERT::LSTMSequenceOp>(ctx), _log(log) {
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(IERT::LSTMSequenceOp origOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult LSTMSequenceRewrite::matchAndRewrite(IERT::LSTMSequenceOp origOp,
+                                                         mlir::PatternRewriter& rewriter) const {
+    _log.trace("Found LSTMSequence Operation '{0}'", origOp->getLoc());
+    rewriter.replaceOpWithNewOp<VPUIP::LSTMSequenceUPAOp>(
+            origOp, origOp.inputData(), origOp.initialHiddenState(), origOp.initialCellState(), origOp.weights(),
+            origOp.biases(), origOp.outputHiddenValues_buff(), origOp.outputCellState_buff(),
+            origOp.outputHiddenState_buff(), origOp.sequenceLengthAttr(), origOp.directionAttr());
+    _log.trace("Replaced with 'VPUIP.LSTMSequenceOp'");
+
+    return mlir::success();
+}
+
+//
 // FakeQuantizeRewrite
 //
 
@@ -237,6 +266,7 @@ void ConvertLayers2VPUIPPass::safeRunOnFunc() {
     mlir::RewritePatternSet patterns(&ctx);
     patterns.insert<CTCGreedyDecoderSeqLenRewrite>(&ctx, _log);
     patterns.insert<LSTMCellRewrite>(&ctx, _log);
+    patterns.insert<LSTMSequenceRewrite>(&ctx, _log);
     patterns.insert<FakeQuantizeRewrite>(&ctx, _log);
     patterns.insert<FullyConnectedRewrite>(&ctx, _log);
     patterns.insert<RewriteConvolution>(&ctx, _log);

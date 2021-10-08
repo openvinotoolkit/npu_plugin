@@ -37,26 +37,26 @@ module @dual_tile attributes {VPUIP.arch = "MTL", VPUIP.compilationMode = "Refer
   IE.CNNNetwork
     entryPoint : @main
     inputsInfo : {
-      IE.DataInfo "input_0" : tensor<1x16x16x16xui8, {order = #NHWC}>
+      DataInfo "input_0" : tensor<1x16x16x16xui8, {order = #NHWC}>
     } outputsInfo : {
-      IE.DataInfo "output_0" : tensor<2x16x16x16xf16, {order = #NHWC}>
+      DataInfo "output_0" : tensor<2x16x16x16xf16, {order = #NHWC}>
     }
 
   IERT.RunTimeResources
     availableMemory :  {
-      IERT.MemoryResource 1073741824 bytes
-      IERT.MemoryResource 31457280 bytes of "DDR" {VPUIP.bandwidth = 8, VPUIP.derateFactor = 6.000000e-01}
-      IERT.MemoryResource 2097152 bytes of "CMX_NN" {VPUIP.bandwidth = 32, VPUIP.derateFactor = 1.000000e+00}
+      MemoryResource 1073741824 bytes
+      MemoryResource 31457280 bytes of "DDR" {VPUIP.bandwidth = 8, VPUIP.derateFactor = 6.000000e-01}
+      MemoryResource 2097152 bytes of "CMX_NN" {VPUIP.bandwidth = 32, VPUIP.derateFactor = 1.000000e+00}
     } usedMemory :  {
     } executors :  {
-      IERT.ExecutorResource 1 of "Leon_RT"
-      IERT.ExecutorResource 1 of "Leon_NN"
-      IERT.ExecutorResource 1 of "DMA_UPA"
-      IERT.ExecutorResource 1 of "SHAVE_NN"
-      IERT.ExecutorResource 1 of "NCE_Cluster"  {
-        IERT.ExecutorResource 1 of "NCE_PerClusterDPU"
+      ExecutorResource 1 of "Leon_RT"
+      ExecutorResource 1 of "Leon_NN"
+      ExecutorResource 1 of "DMA_UPA"
+      ExecutorResource 1 of "SHAVE_NN"
+      ExecutorResource 1 of "NCE_Cluster"  {
+        ExecutorResource 1 of "NCE_PerClusterDPU"
       }
-      IERT.ExecutorResource 2 of "DMA_NN"
+      ExecutorResource 2 of "DMA_NN"
     }
 
   func @main(
@@ -140,7 +140,7 @@ module @dual_tile attributes {VPUIP.arch = "MTL", VPUIP.compilationMode = "Refer
       updates(%conv_complete : !VPUIP.Barrier)
       -> memref<1x16x16x16xf16, #NHWC, #act_mem_strides, "VPU_CMX_NN">
       variants : {
-        VPUIP.DPUTask {
+        DPUTask {
           end = [15, 15, 15],
           mpe_mode = "CUBOID_16x16",
           pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
@@ -166,7 +166,7 @@ module @dual_tile attributes {VPUIP.arch = "MTL", VPUIP.compilationMode = "Refer
       updates(%conv_complete : !VPUIP.Barrier)
       -> memref<1x16x16x16xf16, #NHWC, #act_mem_strides, "VPU_CMX_NN">
       variants : {
-        VPUIP.DPUTask {
+        DPUTask {
           end = [15, 15, 15],
           mpe_mode = "CUBOID_16x16",
           pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},

@@ -8,6 +8,7 @@
 
 #include "common_test_utils/test_constants.hpp"
 #include "kmb_layer_test.hpp"
+#include <common/functions.h>
 
 namespace LayerTestsDefinitions {
     class KmbReduceOpsLayerTest : public ReduceOpsLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
@@ -18,6 +19,15 @@ namespace LayerTestsDefinitions {
             const auto skipMCM = testName.find("SKIP_MCM") != std::string::npos;
             if (isCompilerMCM() && skipMCM) {
                 throw LayerTestsUtils::KmbSkipTestException("Skip validate for MCM");
+            }
+        }
+        void SkipBeforeInfer() override {
+            const auto testName =
+                    std::string{::testing::UnitTest::GetInstance()->current_test_info()->test_case_name()};
+            const auto skipMCM = testName.find("smoke_ReduceOneAxis_SKIP_MCM") != std::string::npos;
+            // [Track number: E#20269]
+            if (getBackendName(*getCore()) == "LEVEL0" && skipMCM) {
+                throw LayerTestsUtils::KmbSkipTestException("Level0 exception: dims and format are inconsistent.");
             }
         }
     };

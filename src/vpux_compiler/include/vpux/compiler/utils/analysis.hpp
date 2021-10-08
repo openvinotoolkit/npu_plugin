@@ -13,6 +13,7 @@
 
 #pragma once
 
+#include <mlir/IR/Operation.h>
 #include <mlir/IR/Value.h>
 
 namespace vpux {
@@ -22,5 +23,11 @@ namespace vpux {
 //
 
 mlir::Operation* getFirstUser(mlir::Value output);
+
+//
+// isBufAllocOp
+//
+
+bool isBufAllocOp(mlir::Operation* op);
 
 }  // namespace vpux

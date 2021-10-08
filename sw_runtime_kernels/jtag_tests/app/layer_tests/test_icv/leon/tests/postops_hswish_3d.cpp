@@ -236,6 +236,6 @@ protected:
     Tensor<fp16> m_referenceOutput;
 };
 
-ICV_TESTS_REGISTER_SUITE(HSwishTests)
+//ICV_TESTS_REGISTER_SUITE(HSwishTests)
 
 } // namespace ICV_TESTS_NAMESPACE(ICV_TEST_SUITE_NAME)

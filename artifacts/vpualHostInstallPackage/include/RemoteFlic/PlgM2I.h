@@ -28,9 +28,10 @@ class PlgM2I : public PluginStub
     ~PlgM2I();
 
     /** Create method. */
-    /** @param[in]  enableHWResizeFilter - parameter for enabling the resize polyfir HW filter(=1), or disabling it and use the resize SW filter working on SHAVE(=0) */
-    /** @param[in] enableBltCSConly - parameter for enabling the Blitter HW block for color space conversion. Scaler will not be used if this flag is set */
-    int Create(bool enableHWResizeFilter = true, bool enableBltCSConly = false);
+    /** @param[in] enableHWResizeFilter - parameter for enabling the resize polyfir HW filter(=1), or disabling it and use the resize SW filter working on SHAVE(=0) */
+    /** @param[in] inSpec - input frame specification */
+    /** @param[in] outSpec - output frame specification */
+    int Create(bool enableHWResizeFilter = true, vpum2i::FrameSpec inSpec = {0, 0, 0, 0, 0}, vpum2i::FrameSpec outSpec = {0, 0, 0, 0, 0});
 
     vpum2i::M2IDesc* GetSharedDesc();
     int ReleaseDesc(vpum2i::M2IDesc* desc);

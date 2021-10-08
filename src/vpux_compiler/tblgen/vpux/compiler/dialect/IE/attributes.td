@@ -18,6 +18,26 @@ include "vpux/compiler/core/attributes.td"
 include "vpux/compiler/dialect/IE/dialect.td"
 
 //
+// TypeComparisonMode
+//
+
+def IE_TypeComparisonMode_STRICT_EQUAL : StrEnumAttrCase<"STRICT_EQUAL">;
+def IE_TypeComparisonMode_ALLOW_QUANT_MIXED_PRECISION : StrEnumAttrCase<"ALLOW_QUANT_MIXED_PRECISION">;
+
+def IE_TypeComparisonMode :
+        StrEnumAttr<
+            "TypeComparisonMode",
+            "Tensor element type comparison modes",
+            [
+                IE_TypeComparisonMode_STRICT_EQUAL,
+                IE_TypeComparisonMode_ALLOW_QUANT_MIXED_PRECISION,
+            ]
+        > {
+    let cppNamespace = "vpux::IE";
+    let genSpecializedAttr = 1;
+}
+
+//
 // TensorAttr
 //
 
@@ -27,6 +47,7 @@ def IE_TensorAttr :
             IE_Dialect,
             [
                 StructFieldAttr<"order", OptionalAttr<AffineMapAttr>>,
+                StructFieldAttr<"mem_space", OptionalAttr<AnyAttr>>,
             ]
         >;
 
@@ -128,6 +149,23 @@ def IE_RoundingType :
             [
                 StrEnumAttrCase<"FLOOR">,
                 StrEnumAttrCase<"CEIL">,
+            ]
+        > {
+    let cppNamespace = "vpux::IE";
+    let genSpecializedAttr = 1;
+}
+
+//
+// LRN_IERegion
+//
+
+def IE_LRN_IERegion :
+        StrEnumAttr<
+            "LRN_IERegion",
+            "LRN_IE region that operations support",
+            [
+                StrEnumAttrCase<"same">,
+                StrEnumAttrCase<"across">
             ]
         > {
     let cppNamespace = "vpux::IE";
@@ -283,6 +321,40 @@ def IE_PadMode :
                 StrEnumAttrCase<"EDGE">,
                 StrEnumAttrCase<"REFLECT">,
                 StrEnumAttrCase<"SYMMETRIC">,
+            ]
+        > {
+    let cppNamespace = "vpux::IE";
+    let genSpecializedAttr = 1;
+}
+
+//
+// RoundMode
+//
+
+def IE_RoundMode :
+        StrEnumAttr<
+            "RoundMode",
+            "RoundMode that the InferenceEngine supports",
+            [
+                StrEnumAttrCase<"HALF_TO_EVEN">,
+                StrEnumAttrCase<"HALF_AWAY_FROM_ZERO">,
+            ]
+        > {
+    let cppNamespace = "vpux::IE";
+    let genSpecializedAttr = 1;
+}
+
+//
+// RNNSequenceDirection
+//
+
+def IE_RNNSequenceDirection :
+        StrEnumAttr<
+            "RNNSequenceDirection",
+            "RNNSequenceDirection that the InferenceEngine supports",
+            [
+                StrEnumAttrCase<"FORWARD">,
+                StrEnumAttrCase<"REVERSE">,
             ]
         > {
     let cppNamespace = "vpux::IE";

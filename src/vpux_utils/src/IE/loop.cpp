@@ -13,6 +13,7 @@
 
 #include "vpux/utils/IE/loop.hpp"
 
+#include <ie_common.h>
 #include <ie_parallel.hpp>
 
 using namespace vpux;

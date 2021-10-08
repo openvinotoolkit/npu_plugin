@@ -6,7 +6,7 @@
 //#include "Pooling.h"
 //#include "PoolND.h"
 //#include "FCL.h"
-#include "Softmax.h"
+//#include "Softmax.h"
 //#include "Deconvolution.h"
 #include "NoOp.h"
 //#include "lrn.h"
@@ -90,10 +90,10 @@ Op * opManager::createOp(t_MvTensorOpType which_one, int OpPosition, int /*numbe
     if (OpPosition == primaryOperation) {
         switch(which_one) {
 /*        case kPool:
-            return new Pooling(which_one);*/
+            return new Pooling(which_one);
         case kSoftMax:
             return new Softmax(which_one);
-/*        case kROIPooling:
+        case kROIPooling:
             return new ROIPooling(which_one);
         case kPSROIPooling:
             return new PSROIPooling(which_one);

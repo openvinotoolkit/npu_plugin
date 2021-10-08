@@ -16,17 +16,23 @@
 
 class KmbProfilingTest : public KmbLayerTestBase {
 public:
-    void runTest(const std::string output_name, bool mlir=false);
+    void runTest(const std::string output_name, bool mlir=false, bool profiling=true);
 };
 
-void KmbProfilingTest::runTest(const std::string output_name, bool mlir) {
+void KmbProfilingTest::runTest(const std::string output_name, bool mlir, bool profiling) {
+    // [Track number: E#20716]
+    SKIP_ON("LEVEL0", "Not supported");
     SKIP_ON("HDDL2", "EMULATOR", "Not supported");
     const SizeVector inDims = {1, 3, 64, 64};
     const TensorDesc userInDesc = TensorDesc(Precision::U8, inDims, Layout::NHWC);
     const TensorDesc userOutDesc = TensorDesc(Precision::FP16, Layout::NHWC);
     const auto scaleDesc = TensorDesc(Precision::FP32, inDims, Layout::NHWC);
     const Precision netPresicion = Precision::FP32;
-    std::map<std::string, std::string> netConfig = {{CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES)}};
+    std::map<std::string, std::string> netConfig;
+
+    if (profiling) {
+        netConfig[CONFIG_KEY(PERF_COUNT)] = CONFIG_VALUE(YES);
+    }
     if (mlir) {
         netConfig[VPUX_CONFIG_KEY(COMPILER_TYPE)] = VPUX_CONFIG_VALUE(MLIR);
     }
@@ -66,8 +72,10 @@ void KmbProfilingTest::runTest(const std::string output_name, bool mlir) {
 
         inferRequest.Infer();
 
-        std::map<std::string, InferenceEngineProfileInfo> perfMap = inferRequest.GetPerformanceCounts();
-        ASSERT_NE(perfMap.size(), 0);
+        if (profiling) {
+            std::map<std::string, InferenceEngineProfileInfo> perfMap = inferRequest.GetPerformanceCounts();
+            ASSERT_NE(perfMap.size(), 0);
+        }
 
     /* This is the example of extracting per layer info (reference for the future tests expansion)
         std::vector<std::pair<std::string, InferenceEngineProfileInfo>> perfVec(perfMap.begin(), perfMap.end());
@@ -94,12 +102,14 @@ TEST_F(KmbProfilingTest, precommit_profilingNonMatchedName) {
     runTest("conv");
 }
 
-// [Track number: E#13766]
-TEST_F(KmbProfilingTest, DISABLED_profilingMatchedName_MLIR) {
+TEST_F(KmbProfilingTest, precommit_profilingMatchedName_MLIR) {
     runTest("Result", true);
 }
 
-// [Track number: E#13766]
-TEST_F(KmbProfilingTest, DISABLED_profilingNonMatchedName_MLIR) {
+TEST_F(KmbProfilingTest, precommit_profilingNonMatchedName_MLIR) {
     runTest("conv", true);
+}
+
+TEST_F(KmbProfilingTest, precommit_profilingDisabled_MLIR) {
+    runTest("conv", true, false);
 }

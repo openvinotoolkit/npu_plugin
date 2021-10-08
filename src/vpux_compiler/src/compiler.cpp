@@ -244,7 +244,7 @@ void DeveloperConfig::setup(mlir::PassManager& pm) const {
 
     // Dot printing
     if (!_printDotOptions.empty()) {
-        addDotPrinterFromEnvVar(pm, _printDotOptions);
+        addDotPrinter(pm, _printDotOptions);
     }
 }
 
@@ -293,7 +293,7 @@ void buildPipeline(mlir::PassManager& pm, const VPUXConfig& config, mlir::Timing
     if (compilationMode == VPUIP::CompilationMode::ReferenceSW) {
         buildReferenceModePipeline(pm, enableProfiling, log.nest());
     } else if (compilationMode == VPUIP::CompilationMode::ReferenceHW) {
-        buildHardwareModePipeline(pm, enableProfiling, log.nest());
+        buildHardwareModePipeline(pm, enableProfiling, log.nest(), config.pipelineOptions());
     } else {
         VPUX_THROW("Unsupported compilation mode '{0}'", compilationMode);
     }
@@ -355,7 +355,6 @@ std::shared_ptr<INetworkDescription> vpux::CompilerImpl::compile(const std::shar
 
     mlir::PassManager pm(&ctx, mlir::OpPassManager::Nesting::Implicit);
     addLogging(pm, log);
-    addDotPrinter(pm);
     devConf.setup(pm);
 
     auto rootTiming = tm.getRootScope();

@@ -8,6 +8,7 @@
 #include "include/mcm/target/kmb/rectangle.hpp"
 #include "include/mcm/target/kmb/workload_struct.hpp"
 #include "include/mcm/graph/graph.hpp"
+#include "include/mcm/pass/pass_utils.hpp"
 #include <algorithm>
 #include <climits>
 #include <math.h>
@@ -169,11 +170,14 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                 else
                     dpuModes = configs["General"].dpuModes;
             }
+            auto segmentable =
+                std::find(activationSegmentableStrategies.cbegin(), activationSegmentableStrategies.cend(),
+                opIt->get<std::string>("splitStrategy")) != activationSegmentableStrategies.cend();
             /*Depthwise cov SOH A0 workaround*/
             if(((taskOp == "DepthwiseConv") ||
                     (taskOp == "MaxPool")) &&
-                    (opIt->get<std::string>("splitStrategy") == "SplitOverH") &&
-                    (target == mv::Target::ma2490 && referenceDevice == "A0")) {
+                    segmentable &&
+                    mv::checkA0DWSOH(om)) {
                 depthWiseSOHA0Workaround = true;
                 opIt->set<std::string>("Depthwise_SOH_A0_bug", "True");
             }

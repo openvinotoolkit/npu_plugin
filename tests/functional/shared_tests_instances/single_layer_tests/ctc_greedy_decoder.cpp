@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "kmb_layer_test.hpp"
+#include <common/functions.h>
 
 namespace LayerTestsDefinitions {
 
@@ -53,7 +54,14 @@ class KmbCTCGreedyDecoderLayerTest_MLIR : public KmbCTCGreedyDecoderLayerTest {
     }
 };
 
-class KmbCTCGreedyDecoderLayerTest_MCM : public KmbCTCGreedyDecoderLayerTest {};
+class KmbCTCGreedyDecoderLayerTest_MCM : public KmbCTCGreedyDecoderLayerTest {
+    void SkipBeforeInfer() override {
+        // [Track number: E#20270]
+        if (getBackendName(*getCore()) == "LEVEL0") {
+            throw LayerTestsUtils::KmbSkipTestException("Bad results on Level0");
+        }
+    }
+};
 
 TEST_P(KmbCTCGreedyDecoderLayerTest_MCM, CompareWithRefs) {
     Run();

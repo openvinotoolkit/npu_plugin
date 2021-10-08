@@ -8,18 +8,18 @@ module @SingleLayer {
 
 // CHECK:   IERT.RunTimeResources
 // CHECK:       usedMemory
-// CHECK:           IERT.MemoryResource 2048 bytes of "DDR"
+// CHECK:           MemoryResource 2048 bytes of "DDR"
 
 // CHECK: IE.CNNNetwork
 IE.CNNNetwork
     entryPoint : @main
     inputsInfo : {
-        // CHECK: IE.DataInfo "input" : tensor<1x1000xf16>
-        IE.DataInfo "input" : tensor<1x1000xf16>
+        // CHECK: DataInfo "input" : tensor<1x1000xf16>
+        DataInfo "input" : tensor<1x1000xf16>
     }
     outputsInfo : {
-        // CHECK: IE.DataInfo "softmax" : tensor<1x1000xf16>
-        IE.DataInfo "softmax" : tensor<1x1000xf16>
+        // CHECK: DataInfo "softmax" : tensor<1x1000xf16>
+        DataInfo "softmax" : tensor<1x1000xf16>
     }
 
 // CHECK:       func @main(
@@ -31,7 +31,7 @@ func @main(%arg0: tensor<1x1000xf16>) -> tensor<1x1000xf16> {
 
     // CHECK-DAG:   [[VAR1:%.+]] = VPUIP.DeclareTensor "VPU_DDR_Heap" [0] <0> -> memref<1x1000xf16, "DDR">
 
-    // CHECK-DAG:   [[VAR2:%.+]] = VPUIP.ConfigureBarrier<0> -> !VPUIP.Barrier
+    // CHECK-DAG:   [[VAR2:%.+]] = VPUIP.ConfigureBarrier {virtualId = 0 : i64}<0> -> !VPUIP.Barrier
 
     // CHECK-NEXT:  [[VAR3:%.+]] = VPUIP.SoftMaxUPA
     // CHECK-SAME:              axisInd = 1
@@ -59,17 +59,17 @@ module @ConstantLayer {
 
 // CHECK:   IERT.RunTimeResources
 // CHECK:       usedMemory
-// CHECK:           IERT.MemoryResource 128 bytes of "DDR"
+// CHECK:           MemoryResource 128 bytes of "DDR"
 
 // CHECK: IE.CNNNetwork
 IE.CNNNetwork
     entryPoint : @main
     inputsInfo : {
-        IE.DataInfo "input" : tensor<1x2x2x2xf16>
+        DataInfo "input" : tensor<1x2x2x2xf16>
     }
     outputsInfo : {
-        IE.DataInfo "output1" : tensor<1x2x2x2xf16>
-        IE.DataInfo "output2" : tensor<1x2x2x2xf16>
+        DataInfo "output1" : tensor<1x2x2x2xf16>
+        DataInfo "output2" : tensor<1x2x2x2xf16>
     }
 
 // CHECK:       func @main(
@@ -100,7 +100,7 @@ func @main(%arg0: tensor<1x2x2x2xf16>) -> (tensor<1x2x2x2xf16>, tensor<1x2x2x2xf
     // CHECK-DAG:   [[BUF0:%.+]] = VPUIP.DeclareTensor "VPU_DDR_Heap" [0] <0> -> memref<1x2x2x2xf16, "DDR">
     // CHECK-DAG:   [[BUF1:%.+]] = VPUIP.DeclareTensor "VPU_DDR_Heap" [0] <64> -> memref<1x2x2x2xf16, "DDR">
 
-    // CHECK-DAG:   [[BAR0:%.+]] = VPUIP.ConfigureBarrier<0> -> !VPUIP.Barrier
+    // CHECK-DAG:   [[BAR0:%.+]] = VPUIP.ConfigureBarrier {virtualId = 0 : i64}<0> -> !VPUIP.Barrier
 
     // CHECK-NEXT:  [[VAR0:%.+]] = VPUIP.SoftMaxUPA
     // CHECK-SAME:              axisInd = 1
@@ -142,7 +142,7 @@ IE.CNNNetwork
     inputsInfo : {
     }
     outputsInfo : {
-        IE.DataInfo "prob" : tensor<1x2x4x2xf16>
+        DataInfo "prob" : tensor<1x2x4x2xf16>
     }
 
 // CHECK:       func @main(

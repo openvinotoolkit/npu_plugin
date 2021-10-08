@@ -17,6 +17,35 @@
 include "mlir/Pass/PassBase.td"
 
 //
+// OptimizeCopies
+//
+
+def OptimizeCopies : PassBase<"optimize-copies", "vpux::FunctionPass"> {
+    let summary = "Removes Copy Ops which are unnecessary";
+
+    let description = [{
+        This pass checks if Copy Op can be optimized out to reduce the amount of unnecessary DMAs and intermediate buffers.
+    }];
+
+    let constructor = "vpux::IERT::createOptimizeCopiesPass()";
+}
+
+//
+// CopyOpHoisting
+//
+
+def CopyOpHoisting : PassBase<"copy-op-hoisting", "vpux::FunctionPass"> {
+    let summary = "Update location of CopyOps in the block";
+
+    let description = [{
+        This pass checks all CopyOps and updates their position in the parent block to be close to source op
+        that generates the copy op source buffer
+    }];
+
+    let constructor = "vpux::IERT::createCopyOpHoistingPass()";
+}
+
+//
 // SetInternalMemorySpace
 //
 
@@ -79,7 +108,7 @@ def StaticAllocation : PassBase<"static-allocation", "vpux::ModulePass"> {
 // CMX Tiling
 //
 
-def CXMTiling : PassBase<"cmx-tiling", "vpux::FunctionPass"> {
+def CMXTiling : PassBase<"cmx-tiling", "vpux::FunctionPass"> {
     let summary = "Tile Operations to the condition that all their I/O fit into CMX";
 
     let description = [{
@@ -159,8 +188,8 @@ def OptimizeAsyncDeps : PassBase<"optimize-async-deps", "vpux::FunctionPass"> {
     let summary = "Optimizes dependencies between 'async.execute' operations";
 
     let description = [{
-        The pass removes 'async.await' Operations between two consecutive 'async.execute' regions and
-        establish token-based dependencies between 'async.execute' operations.
+        The pass tries to remove extra explicit `!async.token` based dependencies,
+        if they are represented implicitly (as a result of transitive dependencies).
     }];
 
     let constructor = "vpux::IERT::createOptimizeAsyncDepsPass()";

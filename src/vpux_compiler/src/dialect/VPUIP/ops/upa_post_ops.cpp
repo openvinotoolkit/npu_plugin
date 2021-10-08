@@ -21,6 +21,24 @@
 
 using namespace vpux;
 
+namespace {
+
+MVCNN::RoundMode converVPUXRoundModeToMVCNN(vpux::IE::RoundMode vpux_mode) {
+    MVCNN::RoundMode mvcnn_mode;
+    switch (vpux_mode) {
+    case IE::RoundMode::HALF_TO_EVEN:
+        mvcnn_mode = MVCNN::RoundMode::RoundMode_HALF_TO_EVEN;
+        break;
+    case IE::RoundMode::HALF_AWAY_FROM_ZERO:
+        mvcnn_mode = MVCNN::RoundMode::RoundMode_HALF_AWAY_FROM_ZERO;
+        break;
+    default:
+        VPUX_THROW("Unsupported RoundMode {0}", vpux_mode);
+    }
+    return mvcnn_mode;
+}
+
+}  // namespace
 //
 // verifyPostOp
 //
@@ -133,6 +151,27 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::FloorUPAOp::serialize(VPUIP::BlobWr
 }
 
 //
+// RoundUPAOp
+//
+
+void vpux::VPUIP::RoundUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
+                                    mlir::Value output, vpux::IE::RoundModeAttr mode) {
+    build(builder, state, input, output, mlir::ValueRange{}, mlir::ValueRange{}, mode, nullptr, nullptr);
+}
+
+VPUIP::BlobWriter::SpecificTask vpux::VPUIP::RoundUPAOp::serialize(VPUIP::BlobWriter& writer) {
+    const auto roundMode = converVPUXRoundModeToMVCNN(mode());
+    const auto round = MVCNN::CreateRoundParams(writer, roundMode);
+
+    MVCNN::PostOpsParamsBuilder builder(writer);
+    builder.add_nested_params_type(MVCNN::PostOpsNestedParams_RoundParams);
+    builder.add_nested_params(round.Union());
+    const auto paramsOff = builder.Finish();
+
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
+}
+
+//
 // MishUPAOp
 //
 
@@ -187,6 +226,26 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::TanhUPAOp::serialize(VPUIP::BlobWri
     MVCNN::PostOpsParamsBuilder builder(writer);
     builder.add_nested_params_type(MVCNN::PostOpsNestedParams_TanhParams);
     builder.add_nested_params(tanh.Union());
+    const auto paramsOff = builder.Finish();
+
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
+}
+
+//
+// Sqrt
+//
+
+void vpux::VPUIP::SqrtUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
+                                   mlir::Value output) {
+    build(builder, state, input, output, mlir::ValueRange{}, mlir::ValueRange{}, nullptr, nullptr);
+}
+
+VPUIP::BlobWriter::SpecificTask vpux::VPUIP::SqrtUPAOp::serialize(VPUIP::BlobWriter& writer) {
+    const auto sqrt = MVCNN::CreateSqrtParams(writer);
+
+    MVCNN::PostOpsParamsBuilder builder(writer);
+    builder.add_nested_params_type(MVCNN::PostOpsNestedParams_SqrtParams);
+    builder.add_nested_params(sqrt.Union());
     const auto paramsOff = builder.Finish();
 
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
@@ -375,6 +434,23 @@ mlir::Operation* vpux::VPUIP::BlobReader::parsePostOps(mlir::OpBuilder& builder,
     case MVCNN::PostOpsNestedParams_FloorParams:
         op = builder.create<VPUIP::FloorUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], outputs[0]);
         break;
+    case MVCNN::PostOpsNestedParams_RoundParams: {
+        const auto roundParams = params->nested_params_as_RoundParams();
+        IE::RoundMode roundMode;
+        switch (roundParams->mode()) {
+        case MVCNN::RoundMode::RoundMode_HALF_TO_EVEN:
+            roundMode = IE::RoundMode::HALF_TO_EVEN;
+            break;
+        case MVCNN::RoundMode::RoundMode_HALF_AWAY_FROM_ZERO:
+            roundMode = IE::RoundMode::HALF_AWAY_FROM_ZERO;
+            break;
+        default:
+            VPUX_THROW("Unsupported RoundMode {0}", roundParams->mode());
+        }
+        op = builder.create<VPUIP::RoundUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], outputs[0],
+                                               IE::RoundModeAttr::get(_ctx, roundMode));
+        break;
+    }
     case MVCNN::PostOpsNestedParams_MishParams:
         op = builder.create<VPUIP::MishUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], outputs[0]);
         break;
@@ -383,6 +459,9 @@ mlir::Operation* vpux::VPUIP::BlobReader::parsePostOps(mlir::OpBuilder& builder,
         break;
     case MVCNN::PostOpsNestedParams_TanhParams:
         op = builder.create<VPUIP::TanhUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], outputs[0]);
+        break;
+    case MVCNN::PostOpsNestedParams_SqrtParams:
+        op = builder.create<VPUIP::SqrtUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], outputs[0]);
         break;
     case MVCNN::PostOpsNestedParams_ReluParams:
         op = builder.create<VPUIP::ReLUUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], outputs[0]);

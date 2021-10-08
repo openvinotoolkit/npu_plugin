@@ -24,6 +24,19 @@
 
 (Please replace the links below with your own.)
 
-* [ ] [IE-MDK](https://vpux-ci-vpuip.inn.intel.com/job/IE-MDK/job/manual/job/RunTests-KMB/build)
-* [ ] [Nets-Validation Yocto](https://vpux-ci-vpuip.inn.intel.com/job/Nets-Validation/job/manual/job/Yocto/build)
-* [ ] [Nets-Validation Windows](https://vpux-ci-vpuip.inn.intel.com/job/Nets-Validation/job/manual/job/Windows/build)
+(Mandatory validation.)
+
+(Empty functional_tests filter for any major changes.)
+
+* [ ] https://dsp-ci-icv.inn.intel.com/job/IE-MDK/job/manual/job/Ubuntu-Yocto/build
+* [ ] https://dsp-ci-icv.inn.intel.com/job/IE-MDK/job/manual/job/Windows_dKMB/build
+
+(Validation for compiler changes / performance affected.)
+
+(\*MLIR\* nets_included filter for VPUX compiler, \*precommit\* for MCM compiler.)
+
+* [ ] https://dsp-ci-icv.inn.intel.com/job/Nets-Validation/job/manual/job/Yocto/build
+
+(Validation for dKMB focused changes in compiler or major changes.)
+
+* [ ] https://dsp-ci-icv.inn.intel.com/job/Nets-Validation/job/manual/job/Windows/build

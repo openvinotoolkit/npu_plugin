@@ -16,10 +16,10 @@ module @InOutNHWC {
 IE.CNNNetwork
     entryPoint : @main
     inputsInfo : {
-        IE.DataInfo "data" : tensor<1x8x4x2xf16, {order = #NHWC}>
+        DataInfo "data" : tensor<1x8x4x2xf16, {order = #NHWC}>
     }
     outputsInfo : {
-        IE.DataInfo "prob" : tensor<1x8x4x2xf16, {order = #NHWC}>
+        DataInfo "prob" : tensor<1x8x4x2xf16, {order = #NHWC}>
     }
 
 // CHECK: func @main([[ARG0:%arg[0-9]+]]: tensor<1x8x4x2xf16, {order = #NHWC}>) -> tensor<1x8x4x2xf16, {order = #NHWC}> {
@@ -46,10 +46,10 @@ module @InNHWC {
 IE.CNNNetwork
     entryPoint : @main
     inputsInfo : {
-        IE.DataInfo "data" : tensor<1x8x4x2xf16, {order = #NHWC}>
+        DataInfo "data" : tensor<1x8x4x2xf16, {order = #NHWC}>
     }
     outputsInfo : {
-        IE.DataInfo "prob" : tensor<1x8x4x2xf16>
+        DataInfo "prob" : tensor<1x8x4x2xf16>
     }
 
 // CHECK:       func @main([[ARG0:%arg[0-9]+]]: tensor<1x8x4x2xf16, {order = #NHWC}>)
@@ -77,11 +77,11 @@ module @TwoOutputsNHWC {
 IE.CNNNetwork
     entryPoint : @main
     inputsInfo : {
-        IE.DataInfo "data1" : tensor<1x8x4x2xf16>
+        DataInfo "data1" : tensor<1x8x4x2xf16>
     }
     outputsInfo : {
-        IE.DataInfo "output1" : tensor<1x8x4x2xf16, {order = #NHWC}>
-        IE.DataInfo "output2" : tensor<1x20x8x4xf16, {order = #NHWC}>
+        DataInfo "output1" : tensor<1x8x4x2xf16, {order = #NHWC}>
+        DataInfo "output2" : tensor<1x20x8x4xf16, {order = #NHWC}>
     }
 
 // CHECK: func @main([[ARG0:%arg[0-9]+]]: tensor<1x8x4x2xf16>) -> (tensor<1x8x4x2xf16, {order = #NHWC}>, tensor<1x20x8x4xf16, {order = #NHWC}>) {
@@ -114,10 +114,10 @@ module @InOutHWC {
 IE.CNNNetwork
     entryPoint : @main
     inputsInfo : {
-        IE.DataInfo "data" : tensor<1x8x4xf16, {order = #HWC}>
+        DataInfo "data" : tensor<1x8x4xf16, {order = #HWC}>
     }
     outputsInfo : {
-        IE.DataInfo "prob" : tensor<1x8x4xf16, {order = #HWC}>
+        DataInfo "prob" : tensor<1x8x4xf16, {order = #HWC}>
     }
 
 // CHECK: func @main([[ARG0:%arg[0-9]+]]: tensor<1x8x4xf16, {order = #HWC}>) -> tensor<1x8x4xf16, {order = #HWC}>

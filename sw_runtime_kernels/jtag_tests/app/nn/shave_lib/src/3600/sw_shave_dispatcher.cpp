@@ -1,7 +1,6 @@
 /*
 * {% copyright %}
 */
-#include <graphfile_generated.h>
 #include <sw_shave_dispatcher.h>
 
 namespace nn {

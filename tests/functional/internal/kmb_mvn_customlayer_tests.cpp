@@ -16,7 +16,9 @@
 
 class KmbMVNCustomlayerTests : public KmbLayerTestBase, public testing::WithParamInterface<MVNTestParams> {};
 
+// [Track number: E#20729]
 TEST_P(KmbMVNCustomlayerTests, accuracy) {
+    SKIP_ON("LEVEL0", "Sporadic failures on device");
     const auto &p = GetParam();
 
     const auto& dims = p.dims();

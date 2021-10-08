@@ -58,14 +58,14 @@ public:
     }
 
 public:
-    mlir::LogicalResult matchAndRewrite(Const::DeclareOp origOp, ArrayRef<mlir::Value> newOperands,
+    mlir::LogicalResult matchAndRewrite(Const::DeclareOp origOp, OpAdaptor newArgs,
                                         mlir::ConversionPatternRewriter& rewriter) const final;
 
 private:
     Logger _log;
 };
 
-mlir::LogicalResult BufferizeConst::matchAndRewrite(Const::DeclareOp origOp, ArrayRef<mlir::Value>,
+mlir::LogicalResult BufferizeConst::matchAndRewrite(Const::DeclareOp origOp, OpAdaptor,
                                                     mlir::ConversionPatternRewriter& rewriter) const {
     _log.trace("Found Constant Operation '{0}'", origOp->getLoc());
 

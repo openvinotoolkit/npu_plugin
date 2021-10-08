@@ -46,3 +46,11 @@ install(DIRECTORY "${InferenceEngineVPUXPlugin_SOURCE_DIR}/src/mcmCompiler/confi
         DESTINATION ${IE_CPACK_RUNTIME_PATH}/mcm_config
         COMPONENT tests
         EXCLUDE_FROM_ALL)
+
+if(MSVC)
+    # Enforce standards conformance on MSVC
+    target_compile_options(${TARGET_NAME}
+        PRIVATE
+            /Zc:preprocessor
+    )
+endif()

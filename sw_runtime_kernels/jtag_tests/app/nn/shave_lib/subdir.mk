@@ -16,17 +16,11 @@ include-dirs-lrt-$(CONFIG_HAS_LRT_SRCS) += inc/layers
 sys-nn-shave-lib-leon-srcs += $(wildcard src/2490/*.c*)
 sys-nn-shave-lib-leon-srcs += $(wildcard src/2490/layers/parser_*.c*)
 
-# FIXME: fix link ordering
-sys-nn-shave-lib-leon-srcs += src/2490/tensor_util.cpp
-
 sys-nn-shave-lib-leon-srcs += $(wildcard src/2490/ShaveElfMetadata/*.c*)
 
 srcs-lrt-$(CONFIG_HAS_LRT_SRCS) += $(sys-nn-shave-lib-leon-srcs)
 
 srcs-shave-y += $(wildcard src/2490/layers/pre_*.c*)
-srcs-shave-y += src/2490/tensor_util.cpp
-
-shavelib-preserved-symbols-$(CONFIG_TARGET_SOC_MA2490)  += preSingleSoftmax 
 
 ccopt-lrt-$(CONFIG_ENABLE_CUSTOM_KERNEL_PERF_COUNTERS) += -DENABLE_CUSTOM_KERNEL_PERF_COUNTERS
 ccopt-lnn-$(CONFIG_ENABLE_CUSTOM_KERNEL_PERF_COUNTERS) += -DENABLE_CUSTOM_KERNEL_PERF_COUNTERS
@@ -50,7 +44,7 @@ endif
 
 # CONFIG_TARGET_SOC_* options are mutually exclusive. Only one can be enabled at a time
 ifeq ($(CONFIG_TARGET_SOC_3600)$(CONFIG_TARGET_SOC_3710)$(CONFIG_TARGET_SOC_3720), y)
-$(warning Using Shavelib Stub for 3600)
+$(info Using Shavelib Stub for 3600)
 include-dirs-lrt-$(CONFIG_HAS_LRT_SRCS) += inc
 include-dirs-lnn-$(CONFIG_HAS_LNN_SRCS) += inc
 srcs-lrt-$(CONFIG_HAS_LRT_SRCS) += $(wildcard src/3600/*.c*)

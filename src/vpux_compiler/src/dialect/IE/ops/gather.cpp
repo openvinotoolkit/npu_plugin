@@ -20,6 +20,31 @@
 
 using namespace vpux;
 
+namespace {
+
+mlir::FailureOr<int64_t> extractAxis(mlir::Location loc, IE::GatherOpAdaptor gather) {
+    if (gather.axis() != nullptr) {
+        auto axisConst = gather.axis().getDefiningOp<Const::DeclareOp>();
+        if (axisConst == nullptr) {
+            return errorAt(loc, "Only constant input is supported for axis");
+        }
+
+        const auto axisContent = axisConst.content();
+        if (!axisContent.isSplat()) {
+            return errorAt(loc, "Axis value must be a scalar");
+        }
+
+        int64_t axisInd = axisContent.getSplatValue<int64_t>();
+        return axisInd;
+    } else if (gather.axis_value() != nullptr) {
+        return gather.axis_value().getSInt();
+    } else {
+        return errorAt(loc, "Axis was not provided");
+    }
+}
+
+}  // namespace
+
 mlir::LogicalResult vpux::IE::GatherOp::inferReturnTypeComponents(
         mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
         mlir::DictionaryAttr attrs, mlir::RegionRange,
@@ -35,24 +60,17 @@ mlir::LogicalResult vpux::IE::GatherOp::inferReturnTypeComponents(
     const auto inputShape = inType.getShape();
     const auto indicesShape = gather.indices().getType().cast<mlir::ShapedType>().getShape();
 
-    auto axisConst = gather.axis().getDefiningOp<Const::DeclareOp>();
-    if (axisConst == nullptr) {
-        return errorAt(loc, "Only constant input is supported for 'axis'");
+    const auto axis = extractAxis(loc, gather);
+    if (mlir::failed(axis)) {
+        return mlir::failure();
     }
-
-    const auto axisContent = axisConst.content();
-    if (!axisContent.isSplat()) {
-        return errorAt(loc, "Only splat input is supported for 'axis'");
-    }
-
-    const auto axis = axisContent.getSplatValue<int64_t>();
 
     SmallVector<int64_t> outShape;
     outShape.reserve(inputShape.size() + indicesShape.size() - 1);
 
     // calculate output shapes
     for (size_t i = 0; i < inputShape.size(); ++i) {
-        if (i == checked_cast<size_t>(axis)) {
+        if (i == checked_cast<size_t>(*axis)) {
             for (size_t j = 0; j < indicesShape.size(); ++j) {
                 outShape.push_back(indicesShape[j]);
             }
@@ -64,4 +82,46 @@ mlir::LogicalResult vpux::IE::GatherOp::inferReturnTypeComponents(
     inferredReturnShapes.emplace_back(outShape, inType.getElementType());
 
     return mlir::success();
+}
+
+//
+// ConvertConstToAttr
+//
+
+namespace {
+
+class ConvertConstToAttr final : public mlir::OpRewritePattern<IE::GatherOp> {
+public:
+    using mlir::OpRewritePattern<IE::GatherOp>::OpRewritePattern;
+
+public:
+    mlir::LogicalResult matchAndRewrite(IE::GatherOp gatherOp, mlir::PatternRewriter& rewriter) const final;
+};
+
+mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::GatherOp gatherOp, mlir::PatternRewriter& rewriter) const {
+    auto axis = gatherOp.axis();
+    if (axis == nullptr) {
+        return mlir::failure();
+    }
+
+    auto axisConst = gatherOp.axis().getDefiningOp<Const::DeclareOp>();
+    if (axisConst == nullptr) {
+        return mlir::failure();
+    }
+
+    const auto axisContent = axisConst.content();
+    if (!axisContent.isSplat()) {
+        return mlir::failure();
+    }
+
+    rewriter.replaceOpWithNewOp<IE::GatherOp>(gatherOp, gatherOp.getType(), gatherOp.input(), gatherOp.indices(),
+                                              nullptr,
+                                              rewriter.getI64IntegerAttr(axisContent.getSplatValue<int64_t>()));
+    return mlir::success();
+}
+
+}  // namespace
+
+void vpux::IE::GatherOp::getCanonicalizationPatterns(mlir::RewritePatternSet& patterns, mlir::MLIRContext* context) {
+    patterns.insert<ConvertConstToAttr>(context);
 }

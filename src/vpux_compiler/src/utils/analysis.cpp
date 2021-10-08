@@ -15,7 +15,8 @@
 
 #include "vpux/utils/core/error.hpp"
 
-#include <mlir/IR/Operation.h>
+#include <mlir/IR/BuiltinTypes.h>
+#include <mlir/Interfaces/SideEffectInterfaces.h>
 
 #include <algorithm>
 
@@ -34,4 +35,24 @@ mlir::Operation* vpux::getFirstUser(mlir::Value output) {
     });
 
     return firstUser == users.end() ? nullptr : *firstUser;
+}
+
+//
+// isBufAllocOp
+//
+
+bool vpux::isBufAllocOp(mlir::Operation* op) {
+    if (op->getNumOperands() != 0 || op->getNumResults() != 1) {
+        return false;
+    }
+
+    if (!op->getResult(0).getType().isa<mlir::MemRefType>()) {
+        return false;
+    }
+
+    if (auto iface = mlir::dyn_cast<mlir::MemoryEffectOpInterface>(op)) {
+        return iface.onlyHasEffect<mlir::MemoryEffects::Allocate>();
+    }
+
+    return false;
 }

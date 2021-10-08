@@ -81,7 +81,9 @@ TEST_F(KmbClassifyNetworkTest, customnet2_pytorch_int8_dense_cifar10) {
         1, 0.5f);
 }
 
+// [Track number: E#20726]
 TEST_F(KmbClassifyNetworkTest, customnet3_mobilenet_v1_caffe_int8_dense) {
+    SKIP_ON("LEVEL0", "Sporadic exception - throwOnFail: zeCommandQueueCreate result: 0x70000001");
     runTest(
         TestNetworkDesc("KMB_models/INT8/customnets/customnet3_mobilenet_v1.xml")
                 .setUserInputPrecision("input", Precision::U8)
@@ -238,7 +240,9 @@ const static std::vector<InferenceEngine::Precision> inputPrecision = {
 
 INSTANTIATE_TEST_SUITE_P(PrecisionCase, ModelAdk, ::testing::ValuesIn(inputPrecision));
 
+// [ Track number: E#20905]
 TEST_F(UnetNetworkTest, UnetCamvidAva0001_ADK3) {
+    SKIP_ON("LEVEL0", "SEH exception with code 0xc0000005");
     runTest(
             TestNetworkDesc("ADK3/unet-camvid-onnx-0001/caffe2/FP16-INT8/unet-camvid-onnx-0001.xml", EXPERIMENTAL)
                     .setUserInputPrecision("input", Precision::U8)

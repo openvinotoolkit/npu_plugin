@@ -243,6 +243,12 @@ TEST_P(IEClassLoadNetworkTest, checkBlobCachingSingleDevice) {
     CommonTestUtils::removeFilesWithExt("cache", "blob");
     CommonTestUtils::removeDir("cache");
     Core ie;
+
+    // [Track number: E#20961]
+    if (getBackendName(ie) == "LEVEL0") {
+        GTEST_SKIP() << "Sporadic failures on Level0 - bad results.";
+    }
+
     ie.SetConfig({{CONFIG_KEY(CACHE_DIR), "cache/"}});
 
     if (supportsDeviceID(ie, deviceName)) {

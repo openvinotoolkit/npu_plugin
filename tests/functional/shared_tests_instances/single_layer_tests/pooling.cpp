@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "kmb_layer_test.hpp"
+#include <common/functions.h>
 
 namespace LayerTestsDefinitions {
 
@@ -36,6 +37,24 @@ class KmbPoolingLayerTest : public PoolingLayerTest, virtual public LayerTestsUt
             if (poolType == ngraph::helpers::PoolingTypes::AVG && roundingMode == ngraph::op::RoundingType::CEIL) {
                 throw LayerTestsUtils::KmbSkipTestException("MCM compiler issues with AVG pool & CEIL rounding mode");
             }
+        }
+    }
+
+    void SkipBeforeInfer() override {
+        const auto& poolParams = std::get<0>(GetParam());
+
+        std::vector<size_t> strides;
+        std::tie(std::ignore, std::ignore, strides, std::ignore, std::ignore, std::ignore, std::ignore, std::ignore) =
+                poolParams;
+        const auto& inShapes = std::get<6>(GetParam());
+        // [Track number: E#20948]
+        const auto testName =
+            std::string{::testing::UnitTest::GetInstance()->current_test_info()->test_case_name()};
+        const auto isSmokePoolAutoPadVal = testName.find("smoke_Pooling_AutoPadValid") != std::string::npos;
+        const auto isLevel0 = getBackendName(*getCore()) == "LEVEL0";
+        const auto failedStrides = strides.size() == 2 && strides[0] == 1 && strides[1] == 1;
+        if (isSmokePoolAutoPadVal && isLevel0 && isCompilerMCM() && failedStrides) {
+            throw LayerTestsUtils::KmbSkipTestException("Level0: sporadic failure on device");
         }
     }
 };

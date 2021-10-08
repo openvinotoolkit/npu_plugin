@@ -29,6 +29,7 @@ void registerPipelines();
 //
 
 void buildReferenceModePipeline(mlir::OpPassManager& pm, bool enableProfiling = false, Logger log = Logger::global());
-void buildHardwareModePipeline(mlir::OpPassManager& pm, bool enableProfiling = false, Logger log = Logger::global());
+void buildHardwareModePipeline(mlir::OpPassManager& pm, bool enableProfiling = false, Logger log = Logger::global(),
+                               StringRef pipelineConfig = {});
 
 }  // namespace vpux

@@ -24,14 +24,17 @@ using namespace vpux;
 //
 
 void vpux::IE::buildAdjustForVPUPipeline(mlir::OpPassManager& pm, Logger log) {
+    const auto grc = getDefaultGreedyRewriteConfig();
+
     pm.addPass(IE::createConvertTile2PerAxisTilePass(log));
     pm.addPass(IE::createConvertPrecisionToFP16Pass(log));
+    pm.addPass(IE::createConvertPrecisionToI32Pass(log));
     pm.addPass(IE::createConvertShapeTo4DPass(log));
     pm.addPass(IE::createConvertConv1DToConv2DPass(log));
     pm.addPass(IE::createConvertPaddingsToFloorModePass(log));
     pm.addPass(IE::createResolveStridedSlicePass(log));
     pm.addPass(IE::createFusePostOpsPass(log));
-    pm.addPass(mlir::createCanonicalizerPass(getDefaultGreedyRewriteConfig()));
+    pm.addPass(mlir::createCanonicalizerPass(grc));
 }
 
 //
@@ -39,12 +42,14 @@ void vpux::IE::buildAdjustForVPUPipeline(mlir::OpPassManager& pm, Logger log) {
 //
 
 void vpux::IE::buildLowPrecisionPipeline(mlir::OpPassManager& pm, Logger log) {
+    const auto grc = getDefaultGreedyRewriteConfig();
+
     pm.addPass(IE::createSplitFakeQuantPass(log));
     pm.addPass(IE::createFuseQuantizedOpsPass(log));
     pm.addPass(IE::createConvertWeightsToU8Pass(log));
     pm.addPass(IE::createDequantizeConstPass(log));
     pm.addPass(IE::createMergeFakeQuantPass(log));
-    pm.addPass(mlir::createCanonicalizerPass(getDefaultGreedyRewriteConfig()));
+    pm.addPass(mlir::createCanonicalizerPass(grc));
 }
 
 //

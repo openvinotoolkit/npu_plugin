@@ -30,6 +30,7 @@ include "mlir/Interfaces/CopyOpInterface.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/Interfaces/ViewLikeInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
+include "mlir/IR/OpAsmInterface.td"
 include "mlir/IR/RegionKindInterface.td"
 include "mlir/IR/SymbolInterfaces.td"
 
@@ -230,10 +231,9 @@ def VPUIP_ConfigureBarrierOp :
             return vpux::DotNodeColor::AQUA;
         }
 
-        std::string printAttributes() {
-            std::ostringstream os;
-            os << "id: " << idAttr().getInt() << std::endl;
-            return os.str();
+        bool printAttributes(llvm::raw_ostream& os) {
+            os << "id: " << idAttr().getInt();
+            return true;
         }
     }];
 
@@ -929,6 +929,62 @@ def VPUIP_FloorUPAOp :
 }
 
 //
+// RoundUPAOp
+//
+
+def VPUIP_RoundUPAOp :
+        VPUIP_UPATaskOp<1, "RoundUPA",
+            [
+                ViewLikeOpInterface,
+                IERT_SameShape,
+                IERT_SameElementType,
+                IERT_SameInOutDimsOrder,
+                VPUIP_Legacy4D
+            ]
+        > {
+    let summary = "Round UPA SHAVE kernel";
+
+    let arguments = (ins
+        F16MemRef:$input,
+        F16MemRef:$output_buff,
+
+        Variadic<VPUIP_Barrier>:$waitBarriers,
+        Variadic<VPUIP_Barrier>:$updateBarriers,
+
+        IE_RoundMode:$mode,
+
+        OptionalAttr<IntAttr>:$maxShaves,
+        UnitAttr:$isTrailingSWLayer
+    );
+
+    let results = (outs
+        F16MemRef:$output
+    );
+
+    let builders = [
+        OpBuilder<
+            (ins
+                "mlir::Value":$input, "mlir::Value":$output,
+                "IE::RoundModeAttr":$mode
+            )
+        >
+    ];
+
+    let verifier = [{
+        return vpux::VPUIP::verifyPostOp(*this);
+    }];
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+        `->` type(results)
+       }];
+} 
+
+//
 // ClampUPAOp
 //
 
@@ -1093,6 +1149,57 @@ def VPUIP_TanhUPAOp :
 }
 
 //
+// SqrtUPAOp
+//
+
+def VPUIP_SqrtUPAOp :
+        VPUIP_UPATaskOp<1, "SqrtUPA",
+            [
+                ViewLikeOpInterface,
+                IERT_SameShape,
+                IERT_SameElementType,
+                IERT_SameInOutDimsOrder,
+                VPUIP_Legacy4D
+            ]
+        > {
+    let summary = "Sqrt UPA SHAVE kernel";
+
+    let arguments = (ins
+        F16MemRef:$input,
+        F16MemRef:$output_buff,
+
+        Variadic<VPUIP_Barrier>:$waitBarriers,
+        Variadic<VPUIP_Barrier>:$updateBarriers,
+
+        OptionalAttr<IntAttr>:$maxShaves,
+        UnitAttr:$isTrailingSWLayer
+    );
+
+    let results = (outs
+        F16MemRef:$output
+    );
+
+    let builders = [
+        OpBuilder<
+            (ins "mlir::Value":$input, "mlir::Value":$output)
+        >
+    ];
+
+    let verifier = [{
+        return vpux::VPUIP::verifyPostOp(*this);
+    }];
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+        `->` type(results)
+    }];
+}
+
+//
 // ExpUPAOp
 //
 
@@ -1151,9 +1258,8 @@ def VPUIP_FakeQuantizeUPAOp :
         VPUIP_UPATaskOp<1, "FakeQuantizeUPA",
             [
                 ViewLikeOpInterface,
-                IERT_SameShape,
                 IERT_SameElementType,
-                VPUIP_Legacy4D
+                IERT_SameInOutDimsOrder_NCHW_NHWC
             ]
         > {
     let summary = "FakeQuantize UPA SHAVE kernel";
@@ -1202,10 +1308,6 @@ def VPUIP_FakeQuantizeUPAOp :
         (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `->` type(results)
     }];
-
-    let extraClassDeclaration = [{
-        static void inferLayoutInfo(mlir::Operation* origOp, vpux::IE::LayerLayoutInfo& info);
-    }] # commonExtraClassDeclaration;
 }
 
 //
@@ -1364,7 +1466,7 @@ def VPUIP_EltwiseUPAOp :
         VPUIP_UPATaskOp<1, "EltwiseUPA",
             [
                 ViewLikeOpInterface,
-                IERT_AnyDimsOrder
+                IERT_SameInOutDimsOrder
             ]
         > {
     let summary = "Eltwise UPA SHAVE kernel";
@@ -1557,6 +1659,66 @@ def VPUIP_GRNUPAOp :
         (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
         (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `->` type(results)
+    }];
+}
+
+//
+// NormUPAOp
+//
+
+def VPUIP_NormUPAOp :
+        VPUIP_UPATaskOp<1, "NormUPA",
+            [
+                ViewLikeOpInterface,
+                IERT_SameInOutDimsOrder_CHW_HWC_NCHW_NHWC
+            ]
+        > {
+    let summary = "Norm UPA SHAVE kernel";
+
+    let arguments = (ins
+        F16MemRef:$input,
+
+        F16MemRef:$output_buff,
+
+        Variadic<VPUIP_Barrier>:$waitBarriers,
+        Variadic<VPUIP_Barrier>:$updateBarriers,
+
+        F64Attr:$alpha,
+        F64Attr:$beta,
+        F64Attr:$bias,
+        IntAttr:$local_size,
+        IE_LRN_IERegion:$region,
+
+        OptionalAttr<IntAttr>:$maxShaves,
+        UnitAttr:$isTrailingSWLayer
+    );
+
+    let results = (outs
+        F16MemRef:$output
+    );
+
+    let builders = [
+        OpBuilder<
+            (ins
+                "mlir::Value":$input, "mlir::Value":$output,
+                "mlir::FloatAttr":$alpha, "mlir::FloatAttr":$beta,
+                "mlir::FloatAttr":$bias, "mlir::IntegerAttr":$local_size,
+                "IE::LRN_IERegionAttr":$region
+            )
+        >
+    ];
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+        `->` type(results)
+    }];
+
+    let verifier = [{
+        return vpux::VPUIP::verifyOp(*this);
     }];
 }
 
@@ -1876,7 +2038,9 @@ def VPUIP_PermuteUPAOp :
 def VPUIP_WeightsTableOp :
         VPUIP_Op<"WeightsTableOp",
             [
+                NoSideEffect,
                 AttrSizedOperandSegments,
+                ViewLikeOpInterface
             ]
         > {
     let summary = "Intermediate task for creating weights table based on the addresses of CMX buffers";
@@ -1892,6 +2056,12 @@ def VPUIP_WeightsTableOp :
     let results = (outs
         MemRefOf<[SI32]>:$output
     );
+
+    let extraClassDeclaration = [{
+        mlir::Value getViewSource() {
+            return weights() != nullptr ? weights() : activation_window();
+        }
+    }];
 
     let assemblyFormat = [{
         attr-dict
@@ -1952,7 +2122,9 @@ def VPUIP_PPETaskOp :
         OptionalAttr<IntAttr>:$clamp_low,
         OptionalAttr<IntAttr>:$clamp_high,
         OptionalAttr<IntAttr>:$lrelu_mult,
-        OptionalAttr<IntAttr>:$lrelu_shift
+        OptionalAttr<IntAttr>:$lrelu_shift,
+        OptionalAttr<I32ArrayAttr>:$quant_mult,
+        OptionalAttr<I32ArrayAttr>:$quant_shift
     );
 
     let builders = [
@@ -1962,6 +2134,15 @@ def VPUIP_PPETaskOp :
             CArg<"int32_t", "std::numeric_limits<int32_t>::max()">:$clamp_high,
             CArg<"int32_t", "1">:$lrelu_mult,
             CArg<"uint32_t", "0">:$lrelu_shift
+        )>,
+        OpBuilder<(ins
+            "vpux::VPUIP::PPELayerType":$ppe_layer_type,
+            "int32_t":$clamp_low,
+            "int32_t":$clamp_high,
+            "int32_t":$lrelu_mult,
+            "uint32_t":$lrelu_shift,
+            "ArrayRef<int32_t>":$quant_mult,
+            "ArrayRef<int32_t>":$quant_shift
         )>
     ];
 
@@ -1978,7 +2159,8 @@ def VPUIP_NCEClusterTaskOp :
         VPUIP_TaskOp<1, "NCEClusterTask",
             [
                 ViewLikeOpInterface,
-                NoRegionArguments
+                NoRegionArguments,
+                OpAsmOpInterface
             ]
             # GraphRegionNoTerminator.traits
         > {
@@ -2010,7 +2192,7 @@ def VPUIP_NCEClusterTaskOp :
         AnyMemRef:$parent_input,
         AnyMemRef:$parent_output,
 
-        MemRefOf<[F16, quant_QuantizedType]>:$output_buff,
+        MemRefOf<[F16, F32, quant_QuantizedType]>:$output_buff,
 
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers,
@@ -2024,7 +2206,7 @@ def VPUIP_NCEClusterTaskOp :
     );
 
     let results = (outs
-        MemRefOf<[F16, quant_QuantizedType]>:$output
+        MemRefOf<[F16, F32, quant_QuantizedType]>:$output
     );
 
     let regions = (region
@@ -2072,10 +2254,16 @@ def VPUIP_NCEClusterTaskOp :
         template <typename... Args>
         vpux::VPUIP::PPETaskOp addPPETask(mlir::OpBuilder& builder, Args&&... args);
 
+        int64_t getNumVariants();
+
         static void inferLayoutInfo(mlir::Operation* origOp, vpux::IE::LayerLayoutInfo& info);
 
         static vpux::VPUIP::TaskType getTaskType() {
             return vpux::VPUIP::TaskType::NCE2;
+        }
+
+        static mlir::StringRef getDefaultDialect() {
+            return "VPUIP";
         }
     }] # IERT_InferLayerReturnTypes<1>.impl;
 }
@@ -2303,6 +2491,72 @@ def VPUIP_LSTMCellUPAOp :
         (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `->` type(results)
     }];
+}
+
+//
+// LSTMSequenceUPAOp
+//
+
+def VPUIP_LSTMSequenceUPAOp :
+        VPUIP_UPATaskOp<3, "LSTMSequenceUPA",
+            [
+                MultiViewOpInterface
+            ]
+        > {
+    let summary = "LSTMSequence UPA SHAVE kernel";
+
+    let arguments = (ins
+        F16MemRef:$inputData,
+        F16MemRef:$initialHiddenState,
+        F16MemRef:$initialCellState,
+        F16MemRef:$weights,
+        F16MemRef:$biases,
+        F16MemRef:$outputHiddenValues_buff,
+        F16MemRef:$outputCellState_buff,
+        F16MemRef:$outputHiddenState_buff,
+
+        Variadic<VPUIP_Barrier>:$waitBarriers,
+        Variadic<VPUIP_Barrier>:$updateBarriers,
+
+        IntAttr:$sequenceLength,
+        IE_RNNSequenceDirection:$direction,
+
+        OptionalAttr<IntAttr>:$maxShaves,
+        UnitAttr:$isTrailingSWLayer
+    );
+
+    let results = (outs
+        F16MemRef:$outputHiddenValues,
+        F16MemRef:$outputCellState,
+        F16MemRef:$outputHiddenState
+    );
+
+    let builders = [
+        OpBuilder<
+            (ins
+                "mlir::Value":$inputData, "mlir::Value":$initialHiddenState,
+                "mlir::Value":$initialCellState, "mlir::Value":$weights, "mlir::Value":$biases,
+                "mlir::Value":$outputHiddenValues, "mlir::Value":$outputCellState, "mlir::Value":$outputHiddenState,
+                "mlir::IntegerAttr":$sequenceLength, "IE::RNNSequenceDirectionAttr":$direction
+            )
+        >
+    ];
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $inputData `:` type($inputData) `,` $initialHiddenState `:` type($initialHiddenState)
+        `,` $initialCellState `:` type($initialCellState) `,` $weights `:` type($weights) `,` $biases `:` type($biases) `)`
+        `outputs` `(` $outputHiddenValues_buff `:` type($outputHiddenValues_buff)
+        `,` $outputCellState_buff `:` type($outputCellState_buff)
+        `,` $outputHiddenState_buff `:` type($outputHiddenState_buff) `)`
+        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+        `->` type(results)
+    }];
+
+    let extraClassDeclaration = [{
+        static void inferLayoutInfo(mlir::Operation* origOp, vpux::IE::LayerLayoutInfo& info);
+    }] # commonExtraClassDeclaration;
 }
 
 //
@@ -2579,6 +2833,62 @@ def VPUIP_MVNUPAOp :
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+        `->` type(results)
+    }];
+}
+
+//
+// GatherUPAOp
+//
+
+def VPUIP_GatherUPAOp :
+        VPUIP_UPATaskOp<1, "GatherUPA",
+            [
+                ViewLikeOpInterface,
+                IERT_AnyDimsOrder
+            ]
+        > {
+    let summary = "Gather UPA SHAVE kernel";
+
+    let arguments = (ins
+        AnyMemRef:$input,
+        MemRefOf<[SI32]>:$indices,
+        AnyMemRef:$output_buff,
+
+        Variadic<VPUIP_Barrier>:$waitBarriers,
+        Variadic<VPUIP_Barrier>:$updateBarriers,
+
+        IntAttr:$axis,
+
+        OptionalAttr<IntAttr>:$maxShaves,
+        UnitAttr:$isTrailingSWLayer
+    );
+
+    let results = (outs
+        AnyMemRef:$output
+    );
+
+    let builders = [
+        OpBuilder<
+            (ins
+                "mlir::Value":$input,
+                "mlir::Value":$indices,
+                "mlir::Value":$output,
+                "mlir::IntegerAttr":$axis
+            )
+        >
+    ];
+
+    let verifier = [{
+        return vpux::VPUIP::verifyOp(*this);
+    }];
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `,` $indices `:` type($indices) `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
         (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
         (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?

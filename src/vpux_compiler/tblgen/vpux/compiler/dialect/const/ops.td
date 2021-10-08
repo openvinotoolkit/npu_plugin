@@ -19,6 +19,7 @@ include "vpux/compiler/dialect/const/dialect.td"
 include "vpux/compiler/dialect/const/attributes.td"
 
 include "mlir/Interfaces/SideEffectInterfaces.td"
+include "mlir/IR/OpAsmInterface.td"
 
 //
 // Base classes
@@ -42,7 +43,8 @@ def Const_DeclareOp :
                 ConstantLike,
                 NoSideEffect,
                 DeclarationOp,
-                DotInterface
+                DotInterface,
+                OpAsmOpInterface
             ]
         > {
     let summary = "Constant tensor/buffer declaration";
@@ -68,6 +70,10 @@ def Const_DeclareOp :
     let extraClassDeclaration = [{
         vpux::DotNodeColor getNodeColor() {
             return vpux::DotNodeColor::AQUAMARINE;
+        }
+
+        void getAsmResultNames(mlir::OpAsmSetValueNameFn setNameFn) {
+            setNameFn(getResult(), "cst");
         }
     }];
 

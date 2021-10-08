@@ -1,5 +1,5 @@
 include-dirs-shave_nn-y += $(OBJDIR)
-$(warning "objdir=$(OBJDIR)")
+$(info "objdir=$(OBJDIR)")
 
 CURRENT_DIR := $(abspath ./)
 VPUIP_2_ABS_DIR := $(abspath ${VPUIP_2_Directory})
