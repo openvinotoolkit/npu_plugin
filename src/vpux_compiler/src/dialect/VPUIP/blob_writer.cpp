@@ -189,15 +189,14 @@ vpux::VPUIP::BlobWriter::KernelDataRef vpux::VPUIP::BlobWriter::createInvocation
                 auto id = blockArg.getArgNumber();
                 if (id < insSize) {
                     // TODO: check type and shape
-                    invocationBuilder.addArg(swKernelTask.inputs()[id]);
-                    //concateIOOperands.push_back(swKernelTask.inputs()[id]);
+                    invocationBuilder.addArg(swKernelTask->getOpOperand(id));
                 } else {
                     // TODO: check type and shape
-                    invocationBuilder.addArg(swKernelTask.outputs()[id - insSize]);
-                    //concateIOOperands.push_back(swKernelTask.outputs()[id - insSize]);
+                    invocationBuilder.addArg(swKernelTask->getOpResult(id - insSize));
                 }
             } else {
-                invocationBuilder.addArg(operands);
+                //TODO: findout how to get constant args
+                //invocationBuilder.addArg(operands.getAsOpaquePointer());
                 //concateIOOperands.push_back(operands);
             }
             _log.trace("Operation '{0}' has SW.Kernel.Run call with arg: {1} of type {2} ", op->getName(), operands, operands.getType());
