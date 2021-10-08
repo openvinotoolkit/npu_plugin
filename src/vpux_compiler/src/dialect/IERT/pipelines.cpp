@@ -28,7 +28,6 @@ void vpux::IERT::buildAsyncSchedulingPipeline(mlir::OpPassManager& pm, Logger lo
     pm.addPass(IERT::createWrapIntoAsyncRegionsPass(log));
     pm.addPass(IERT::createMoveViewOpsIntoAsyncRegionsPass(log));
     pm.addPass(IERT::createMoveWaitResultToAsyncBlockArgsPass(log));
-    pm.addPass(IERT::createGroupAsyncExecuteOpsPass(log));
 }
 
 //

@@ -91,6 +91,13 @@ mlir::LogicalResult CopyOpSequence::matchAndRewrite(IERT::CopyOp copyOp, mlir::P
         }
     }
 
+    // Update all users
+    for (auto use : copyOp.output_buff().getUsers()) {
+        if (!mlir::isa<IERT::CopyOp>(*use)) {
+            use->setOperand(0, parentCopyOp.output_buff());
+        }
+    }
+
     rewriter.replaceOpWithNewOp<IERT::CopyOp>(copyOp, parentCopyOp.input(), copyOp.output_buff());
 
     return mlir::success();

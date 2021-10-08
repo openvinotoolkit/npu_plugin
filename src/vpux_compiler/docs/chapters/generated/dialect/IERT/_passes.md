@@ -5,6 +5,13 @@ The condition for the replacment is that for each op the SUM of their I/O tensor
 ### `-copy-op-hoisting`: Update location of CopyOps in the block
 This pass checks all CopyOps and updates their position in the parent block to be close to source op
 that generates the copy op source buffer
+### `-feasible-allocation`: Feasible Memory Scheduling Pass
+Schedule async.execute opeations based on their dependecies and CMX memory availability
+
+#### Options
+```
+-memory-space : Memory space to perform allocation
+```
 ### `-group-async-execute-ops`: Reduces number of async.execute operations
 Groups consecutive operations which utilizes the same executor and max resources into same async.execute region
 ### `-move-view-ops-into-async-regions`: Moves view-like Operations inside the asynchronous regions which depends on them

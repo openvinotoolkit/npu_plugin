@@ -45,6 +45,10 @@ uint32_t vpux::AsyncDepsInfo::getIndex(mlir::async::ExecuteOp execOp) const {
     return checked_cast<uint32_t>(attr.getValue().getZExtValue());
 }
 
+mlir::async::ExecuteOp vpux::AsyncDepsInfo::getExecuteOpAtIndex(size_t opIdx) const {
+    return _allExecOps[opIdx];
+}
+
 //
 // buildDepsMap
 //
@@ -59,8 +63,12 @@ void vpux::AsyncDepsInfo::buildDepsMap(mlir::FuncOp func) {
     }
 
     _depsMap.resize(_allExecOps.size());
+    _consumerMap.resize(_allExecOps.size());
     for (auto& deps : _depsMap) {
         deps.resize(checked_cast<uint32_t>(_allExecOps.size()));
+    }
+    for (auto& cons : _consumerMap) {
+        cons.resize(checked_cast<uint32_t>(_allExecOps.size()));
     }
 
     for (auto& op : func.getOps()) {
@@ -99,6 +107,7 @@ void vpux::AsyncDepsInfo::addExecOp(mlir::async::ExecuteOp execOp) {
 
         const auto argExecInd = getIndex(argExecOp);
         _depsMap[execInd].set(argExecInd);
+        _consumerMap[argExecInd].set(execInd);
     }
 
     _log = _log.unnest();
@@ -112,6 +121,7 @@ void vpux::AsyncDepsInfo::addDependency(mlir::async::ExecuteOp from, mlir::async
     const auto fromInd = getIndex(from);
     const auto toInd = getIndex(to);
     _depsMap[toInd].set(fromInd);
+    _consumerMap[fromInd].set(toInd);
 }
 
 //
@@ -137,6 +147,20 @@ void vpux::AsyncDepsInfo::optimizeDepsMap() {
         for (auto curDepInd : curDeps.set_bits()) {
             const auto& depOfDeps = _depsMap[curDepInd];
             curDeps.reset(depOfDeps);
+        }
+    }
+
+    for (auto& curCons : _consumerMap) {
+        for (auto curConInd : curCons.set_bits()) {
+            const auto& depOfCons = _consumerMap[curConInd];
+            curCons |= depOfCons;
+        }
+    }
+
+    for (auto& curCons : _consumerMap | reversed) {
+        for (auto curConInd : curCons.set_bits()) {
+            const auto& depOfCons = _consumerMap[curConInd];
+            curCons.reset(depOfCons);
         }
     }
 }
@@ -165,4 +189,36 @@ void vpux::AsyncDepsInfo::updateTokenDependencies() {
     }
 
     _log = _log.unnest();
+}
+
+SmallVector<size_t> vpux::AsyncDepsInfo::getOpDeps(size_t opIdx) const {
+    SmallVector<size_t> opDeps = {};
+    for (auto dep : _depsMap[opIdx].set_bits()) {
+        opDeps.push_back(dep);
+    }
+    return opDeps;
+}
+
+SmallVector<size_t> vpux::AsyncDepsInfo::getConsumerOps(size_t opIdx) const {
+    SmallVector<size_t> consumerOps = {};
+    for (auto con : _consumerMap[opIdx].set_bits()) {
+        consumerOps.push_back(con);
+    }
+    return consumerOps;
+}
+
+std::unordered_map<size_t, size_t> vpux::AsyncDepsInfo::calculateOpInDegreeTable() const {
+    std::unordered_map<size_t, size_t> opInDegree;
+    for (size_t i = 0; i < _depsMap.size(); ++i) {
+        opInDegree[i] = _depsMap[i].count();
+    }
+    return opInDegree;
+}
+
+std::unordered_map<size_t, size_t> vpux::AsyncDepsInfo::calculateOpOutDegreeTable() const {
+    std::unordered_map<size_t, size_t> opOutDegree;
+    for (size_t i = 0; i < _consumerMap.size(); ++i) {
+        opOutDegree[i] = _consumerMap[i].count();
+    }
+    return opOutDegree;
 }
