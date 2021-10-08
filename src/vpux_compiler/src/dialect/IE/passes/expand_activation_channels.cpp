@@ -71,33 +71,34 @@ mlir::LogicalResult generalRewrite(mlir::Operation* origOp, mlir::PatternRewrite
 
     auto iface = mlir::cast<IE::AlignedChannelsOpInterface>(origOp);
 
-    auto channelAlignement = iface.getOutputChannelAlignment();
-    auto inchannelAlignement = iface.getInputChannelAlignment();
+    auto outChannelAlignement = iface.getOutputChannelAlignment();
+    auto inChannelAlignement = iface.getInputChannelAlignment();
 
     const auto inputType = origOp->getOperand(0).getType().cast<mlir::ShapedType>();
     const auto outputType = origOp->getResult(0).getType().cast<mlir::ShapedType>();
     vpux::Shape inPadsEnd = getShape(inputType).toValues();
     vpux::Shape outPadsEnd = getShape(outputType).toValues();
 
+
     if (mlir::isa<IE::ConvolutionOp>(origOp)) {
+
         auto convOp = mlir::dyn_cast<IE::ConvolutionOp>(*origOp);
+        const auto inputTensorWidth = getShape(convOp.input())[IE::Dims4D::Act::W];
+        const auto inputChannels = getShape(convOp.filter().getType().cast<mlir::ShapedType>())[IE::Dims4D::Filter::IC];
+        const auto inDimsOrder = DimsOrder::fromValue(convOp->getOperand(0));
+        bool channelMajorConvolution = ((inDimsOrder == DimsOrder::NCHW) && (inputChannels == 3) && (inputTensorWidth % 16 == 0));
 
-        if (convOp.channel_major_op()) {
-            inPadsEnd = calcPadsEnd(inputType, inchannelAlignement);
-            inPadsEnd[IE::Dims4D::Act::C] = 0;
-            inPadsEnd[IE::Dims4D::Act::H] = 0;
-            inPadsEnd[IE::Dims4D::Act::W] = 0;
-            inPadsEnd[IE::Dims4D::Act::N] = 0;
+        if (channelMajorConvolution) 
+            inPadsEnd = calcPadsEnd(inputType, inChannelAlignement);
+        else
+            inPadsEnd = calcPadsEnd(inputType, inChannelAlignement);
 
-        } else
-            inPadsEnd = calcPadsEnd(inputType, channelAlignement);
-
-        const auto outPadsEnd = calcPadsEnd(outputType, channelAlignement);
+        const auto outPadsEnd = calcPadsEnd(outputType, outChannelAlignement);
 
         log.trace("Input padding : {0}", inPadsEnd);
         log.trace("Output padding : {0}", outPadsEnd);
 
-        if (inPadsEnd[IE::Dims4D::Act::C] == 0 && outPadsEnd[IE::Dims4D::Act::C] == 0 && !convOp.channel_major_op()) {
+        if (inPadsEnd[IE::Dims4D::Act::C] == 0 && outPadsEnd[IE::Dims4D::Act::C] == 0 && !channelMajorConvolution) {
             return matchFailed(log, rewriter, origOp, "Both input and output channels are already aligned");
         }
 
@@ -134,8 +135,8 @@ mlir::LogicalResult generalRewrite(mlir::Operation* origOp, mlir::PatternRewrite
         }
 
     } else {
-        inPadsEnd = calcPadsEnd(inputType, channelAlignement);
-        outPadsEnd = calcPadsEnd(outputType, channelAlignement);
+        inPadsEnd = calcPadsEnd(inputType, inChannelAlignement);
+        outPadsEnd = calcPadsEnd(outputType, outChannelAlignement);
 
         log.trace("Input padding : {0}", inPadsEnd);
         log.trace("Output padding : {0}", outPadsEnd);
@@ -289,7 +290,7 @@ mlir::LogicalResult ConvolutionRewriter::matchAndRewrite(IE::ConvolutionOp origO
 
         return rewriter.create<IE::ConvolutionOp>(origOp.getLoc(), newOutputType, expandedInput, paddedFilter,
                                                   paddedBiases, origOp.strides(), origOp.pads_begin(),
-                                                  origOp.pads_end(), origOp.dilations(), origOp.post_opAttr(), origOp.channel_major_opAttr());
+                                                  origOp.pads_end(), origOp.dilations(), origOp.post_opAttr());
     };
 
     return generalRewrite(origOp, rewriter, opCreator, _log.nest());
