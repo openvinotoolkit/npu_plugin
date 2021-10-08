@@ -4346,6 +4346,7 @@
         {
             "name" : "MTL_caffe2_FP16-INT8_intel_dns",
             "ir" : "models/clientmodels/MTL/IntelDNS/FP16-INT8/intel_dns.xml",
+            "disabled" :  true,
             "3720": {
                 "disabled" : true
             },
@@ -4385,6 +4386,7 @@
         {
             "name" : "MTL_caffe2_FP16_intel_dns",
             "ir" : "models/clientmodels/MTL/IntelDNS/FP16/intel_dns.xml",
+            "disabled" :  true,
             "3720": {
                 "disabled" : true
             },
