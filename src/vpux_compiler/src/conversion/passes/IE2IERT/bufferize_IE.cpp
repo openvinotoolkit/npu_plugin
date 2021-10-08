@@ -844,6 +844,8 @@ private:
 };
 
 void BufferizeIEPass::safeRunOnFunc() {
+    std::cout << "BufferizeIEPass::safeRunOnFunc()" << std::endl;
+
     auto& ctx = getContext();
 
     vpux::BufferizeTypeConverter typeConverter;

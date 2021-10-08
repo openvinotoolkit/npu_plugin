@@ -425,6 +425,8 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
 
     auto op = builder.create<IE::AssignOp>(createLocation(origNode), inputs[0], variable_idAttr);
 
+    // auto op = builder.create<IE::ReLUOp>(createLocation(origNode), inputs[0]);
+
     addOutputs(origNode, op);
     std::cout << "Assign parseNode End" << std::endl;
 }

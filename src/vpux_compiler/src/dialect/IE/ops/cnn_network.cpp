@@ -45,9 +45,10 @@ static mlir::LogicalResult checkFunctionPrototype(vpux::IE::CNNNetworkOp cnnOp, 
         return mlir::success();
     }
 
-    const auto isArgsBufferized = std::all_of(args.begin(), args.end(), [](mlir::Type type) {
+    auto isArgsBufferized = std::all_of(args.begin(), args.end(), [](mlir::Type type) {
         return type.isa<mlir::BaseMemRefType>();
     });
+    // isArgsBufferized = true;
     const auto isSemiBufferized = (netFuncType.getNumInputs() == inputsInfo.size()) && isArgsBufferized;
     if (isSemiBufferized) {
         return mlir::success();
@@ -77,6 +78,12 @@ static mlir::LogicalResult checkFunctionPrototype(vpux::IE::CNNNetworkOp cnnOp, 
 
         return res.failed() ? res : mlir::success();
     }
+
+    std::cout << "isArgsBufferized = " << isArgsBufferized << std::endl;
+
+    std::cout << "netFuncType.getNumInputs() = " << netFuncType.getNumInputs() << std::endl;
+    std::cout << "inputsInfo.size() = " << inputsInfo.size() << std::endl;
+    std::cout << "outputsInfo.size() = " << outputsInfo.size() << std::endl;
 
     return errorAt(cnnOp,
                    "entryPoint '@{0}' has invalid state. inputs count '{1}', results count '{2}', user inputs "

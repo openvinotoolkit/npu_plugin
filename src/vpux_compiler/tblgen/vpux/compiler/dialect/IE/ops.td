@@ -60,6 +60,27 @@ class IE_LayerOp<string mnemonic, list<OpTrait> traits = []> :
     }];
 }
 
+class IE_LayerOp2<string mnemonic, list<OpTrait> traits = []> :
+        IE_Op<
+            mnemonic,
+            [
+                InferTypeOpInterface,
+                DeclareOpInterfaceMethods<InferShapedTypeOpInterface, ["inferReturnTypeComponents"]>,
+                DeclareOpInterfaceMethods<IE_LayerOpInterface>
+            ] # traits
+        > {
+    let extraClassDeclaration = [{
+        static bool isCompatibleReturnTypes(mlir::TypeRange lhs, mlir::TypeRange rhs) {
+            return vpux::IE::isCompatibleShapeAndElemType(lhs, rhs);
+        }
+    }];
+
+    let assemblyFormat = [{
+        `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+    }];
+}
+
+
 //
 // CNNNetworkOp
 //
@@ -190,8 +211,10 @@ def IE_ReadValueOp :
 //
 
 def IE_AssignOp :
-        IE_LayerOp<
-            "Assign"
+        IE_LayerOp2<
+            "Assign",
+            [
+            ]
         > {
     let summary = "InferenceEngine Assign layer";
 

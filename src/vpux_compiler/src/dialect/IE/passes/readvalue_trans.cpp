@@ -52,7 +52,7 @@ private:
 void ReadValueTransPass::safeRunOnModule() {
     std::cout << "ReadValueTransPass" << std::endl;
 
-#if 0
+#if 1
     auto module = getOperation();
     auto* ctx = module->getContext();
 
@@ -64,27 +64,47 @@ void ReadValueTransPass::safeRunOnModule() {
 
     std::cout << "func.sym_name()" << netFunc.sym_name().str() << std::endl;
 
-    auto readValueInput = mlir::MemRefType::get({1, 143}, mlir::Float16Type::get(ctx));
-
-    // change main function interface
-    auto funcType = netFunc.getType();
-
-    auto netFuncResult = netFunc.getBody().front().addArgument(readValueInput);
-
-    // correct ReadValue
-    netFunc.walk([&](IE::ReadValueOp op) {
-        std::cout << "netFunc.walk->ReadValueOp" << std::endl;
-        op.second_inputMutable().assign(netFuncResult);
-    });
-    std::cout << "ReadValueTransPass End" << std::endl;
-
+#if 1
     // correct Assign
     IE::AssignOp assign_op;
     netFunc.walk([&](IE::AssignOp op) {
         std::cout << "netFunc.walk->AssignOp" << std::endl;
         assign_op = op;
+        std::cout << "netFunc.walk->AssignOp END" << std::endl;
     });
+    // netFunc.walk([&](IE::ReadValueOp op) {
+    //     std::cout << "netFunc.walk->ReadValueOp" << std::endl;
+    //     assign_op = op;
+    // });
+
+    std::cout << "auto assignOutput = assign_op.output();" << std::endl;
     auto assignOutput = assign_op.output();
+    std::cout << "auto assignOutput = assign_op.output() 2;" << std::endl;
+
+    const auto assignOutputShape = assignOutput.getType().cast<mlir::ShapedType>();
+
+    // netFunc.getBody().front().addArgument(assignOutputShape);
+
+#endif
+
+
+    auto readValueInput = mlir::RankedTensorType::get({1, 143}, mlir::Float16Type::get(ctx));
+
+    // change main function interface
+    auto funcType = netFunc.getType();
+
+    auto netFuncResult = netFunc.getBody().front().addArgument(readValueInput);
+    // netFunc.getBody().front().addArgument(readValueInput);
+
+
+#if 1
+    // correct ReadValue
+    netFunc.walk([&](IE::ReadValueOp op) {
+        std::cout << "netFunc.walk->ReadValueOp" << std::endl;
+        op.second_inputMutable().assign(netFuncResult);
+    });
+#endif
+    std::cout << "ReadValueTransPass End" << std::endl;
 
     // change main function interface
     auto newInputsTypes =
@@ -101,8 +121,6 @@ void ReadValueTransPass::safeRunOnModule() {
     userInfoBuilder.create<IE::DataInfoOp>(mlir::UnknownLoc::get(ctx), mlir::StringAttr::get(ctx, "readValueInput"),
                                            mlir::TypeAttr::get(inputUserResult));
 
-    const auto assignOutputShape = assignOutput.getType().cast<mlir::ShapedType>();
-
     // Adding output to the user info
     auto outputUserResult =
                             getTensorType(assignOutputShape.getShape(), assignOutputShape.getElementType(), DimsOrder::fromType(assignOutputShape));
@@ -112,6 +130,11 @@ void ReadValueTransPass::safeRunOnModule() {
                                                  mlir::TypeAttr::get(outputUserResult));
 
     std::cout << "ReadValueTransPass End" << std::endl;
+
+    // And to the returnOp
+    // netFunc.walk([&](mlir::ReturnOp op) {
+    //     op.operandsMutable().append(assignOutput);
+    // });
 
 #endif
 

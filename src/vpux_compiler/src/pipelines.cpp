@@ -55,7 +55,7 @@ void buildIECommonPipeline(mlir::OpPassManager& pm, Logger log) {
     pm.addPass(IE::createAdjustLayoutsPass(log));
     pm.addPass(IE::createOptimizeReordersPass(log));
     pm.addPass(mlir::createCanonicalizerPass(getDefaultGreedyRewriteConfig()));
-    pm.addPass(IE::createReadValueTransPass(log));
+    std::cout <<  "buildIECommonPipeline END!!!! " << std::endl;
 
 }
 
@@ -102,7 +102,6 @@ void vpux::buildReferenceModePipeline(mlir::OpPassManager& pm, bool enableProfil
 
     std::cout <<  "buildReferenceModePipeline " << std::endl;
 
-
     pm.addPass(mlir::createCanonicalizerPass(getDefaultGreedyRewriteConfig()));
 
     // IE Dialect level
@@ -110,6 +109,8 @@ void vpux::buildReferenceModePipeline(mlir::OpPassManager& pm, bool enableProfil
 
     buildIEReferenceLowPrecisionPipeline(pm, log);
     buildIECommonPipeline(pm, log);
+
+    std::cout <<  "buildReferenceModePipeline Medium!!!" << std::endl;
 
 
     // Lower IE->IERT
@@ -130,6 +131,8 @@ void vpux::buildReferenceModePipeline(mlir::OpPassManager& pm, bool enableProfil
     // VPUIP Dialect level
     pm.addPass(VPUIP::createAssignPhysicalBarriersPass(log));
     pm.addPass(VPUIP::createDumpStatisticsOfTaskOpsPass(log));
+
+    std::cout <<  "buildReferenceModePipeline END!!!" << std::endl;
 }
 
 //
@@ -139,13 +142,16 @@ void vpux::buildReferenceModePipeline(mlir::OpPassManager& pm, bool enableProfil
 void vpux::buildHardwareModePipeline(mlir::OpPassManager& pm, bool enableProfiling, Logger log) {
     std::cout <<  "buildHardwareModePipeline " << std::endl;
 
+
     const mlir::GreedyRewriteConfig grc = getDefaultGreedyRewriteConfig();
     pm.addPass(mlir::createCanonicalizerPass(grc));
-
     // IE Dialect level
     pm.addPass(IE::createConvertFCToConvPass(log));
     pm.addPass(IE::createConvertAvgPoolToDWConvPass(log));
     pm.addPass(IE::createConvertScaleShiftToDWPass(log));
+
+    pm.addPass(IE::createReadValueTransPass(log));
+
 
     // Canonicalize group convolution if necessary.
     pm.addPass(mlir::createCanonicalizerPass(getDefaultGreedyRewriteConfig()));
