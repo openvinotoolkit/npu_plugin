@@ -25,13 +25,8 @@ using namespace vpux;
 
 FeasibleMemoryScheduler::FeasibleMemoryScheduler(mlir::Attribute& memSpace, MemLiveRangeInfo& liveRangeInfo,
                                                  AsyncDepsInfo& depsInfo,
-                                                 LinearScan<mlir::Value, LinearScanHandler>& scan,
-                                                 mlir::Identifier timeAttrName)
-        : _memSpace(memSpace),
-          _liveRangeInfo(liveRangeInfo),
-          _depsInfo(depsInfo),
-          _scan(scan),
-          _timeAttrName(timeAttrName) {
+                                                 LinearScan<mlir::Value, LinearScanHandler>& scan)
+        : _memSpace(memSpace), _liveRangeInfo(liveRangeInfo), _depsInfo(depsInfo), _scan(scan) {
 }
 
 void FeasibleMemoryScheduler::pushToStartTimeHeap(const HeapElement& elem) {
@@ -328,11 +323,6 @@ void FeasibleMemoryScheduler::scheduleAllPossibleReadyOpsAndUpdate(
     }
 }
 
-void FeasibleMemoryScheduler::setTime(mlir::async::ExecuteOp execOp, size_t time) {
-    uint64_t castTime = checked_cast<uint64_t>(time);
-    execOp->setAttr(_timeAttrName, getIntAttr(execOp.getContext(), castTime));
-}
-
 void FeasibleMemoryScheduler::populateScheduledOps(HeapElement& scheduledOp) {
     IntervalInfo interval;
     auto* bodyBlock = &_depsInfo.getExecuteOpAtIndex(scheduledOp.op_).body().front();
@@ -422,14 +412,6 @@ void FeasibleMemoryScheduler::nextSchedulableOp() {
                 // unable to schedule an operation, perform spill
                 VPUX_THROW("Spill required, dynamic spilling not yet implemented");
             }
-        }
-    }
-
-    // add time attribute to all async.execute ops
-    for (auto entry : _timeBuckets) {
-        for (auto opIdx : _timeBuckets[entry.first]) {
-            auto op = _depsInfo.getExecuteOpAtIndex(opIdx);
-            setTime(op, entry.first);
         }
     }
 }

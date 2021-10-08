@@ -91,7 +91,7 @@ public:
 private:
     void safeRunOnModule() final;
     void updateAsyncExecuteOpDeps(mlir::FuncOp& netFunc, AsyncDepsInfo& depsInfo,
-                                      llvm::SmallVector<FeasibleMemoryScheduler::ScheduledOpInfo> scheduledOps);
+                                  llvm::SmallVector<FeasibleMemoryScheduler::ScheduledOpInfo> scheduledOps);
 
 private:
     IERT::AttrCreateFunc _memSpaceCb;
@@ -172,13 +172,12 @@ void FeasibleAllocationPass::safeRunOnModule() {
     const auto maxSize = available.size();
     const uint64_t alignment = 64;
 
-    const auto timeAttrName = mlir::Identifier::get("schedule-time", netFunc->getContext());
     LinearScan<mlir::Value, LinearScanHandler> scan(maxSize.count(), alignment);
     auto& liveRangeInfo = getChildAnalysis<MemLiveRangeInfo>(netFunc);
     auto& depsInfo = getChildAnalysis<AsyncDepsInfo>(netFunc);
 
     // feasible memory scheduler - list scheduler
-    FeasibleMemoryScheduler scheduler(_memSpace, liveRangeInfo, depsInfo, scan, timeAttrName);
+    FeasibleMemoryScheduler scheduler(_memSpace, liveRangeInfo, depsInfo, scan);
     // 1. initial schedule
     auto scheduledOps = scheduler.generateSchedule();
 

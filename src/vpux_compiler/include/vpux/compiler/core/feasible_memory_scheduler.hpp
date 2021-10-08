@@ -194,8 +194,7 @@ public:
 
 public:
     explicit FeasibleMemoryScheduler(mlir::Attribute& memSpace, MemLiveRangeInfo& liveRangeInfo,
-                                     AsyncDepsInfo& depsInfo, LinearScan<mlir::Value, LinearScanHandler>& scan,
-                                     mlir::Identifier timeAttrName);
+                                     AsyncDepsInfo& depsInfo, LinearScan<mlir::Value, LinearScanHandler>& scan);
 
 public:
     llvm::SmallVector<ScheduledOpInfo> generateSchedule();
@@ -226,7 +225,6 @@ private:
     llvm::SmallVector<HeapElement> popAllElementsAtThisTime(size_t time_step);
     void unscheduleAllCompletingOpsAtNextEarliestTime();
     void populateScheduledOps(HeapElement& scheduledOp);
-    void setTime(mlir::async::ExecuteOp execOp, size_t time);
     vpux::AddressType calculateOpSize(size_t opIdx);
 
 private:
@@ -246,7 +244,6 @@ private:
     llvm::SmallVector<ScheduledOpInfo> _scheduledOps;
     llvm::DenseSet<size_t> _outputOps;
     size_t _currentTime;
-    mlir::Identifier _timeAttrName;
 };
 
 }  // namespace vpux

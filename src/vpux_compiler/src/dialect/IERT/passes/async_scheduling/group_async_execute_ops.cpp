@@ -131,7 +131,6 @@ mlir::async::ExecuteOp mergeAsyncExecuteOps(mlir::async::ExecuteOp prevExecOp, m
 
     const auto prevResultTypes = prevBodyBlock->getTerminator()->getOperandTypes();
     const auto resultTypes = bodyBlock->getTerminator()->getOperandTypes();
-    const auto prevScheduleTime = prevExecOp->getAttr("schedule-time");
 
     SmallVector<mlir::Type> newResultTypes(prevResultTypes);
     newResultTypes.insert(newResultTypes.end(), resultTypes.begin(), resultTypes.end());
@@ -144,8 +143,6 @@ mlir::async::ExecuteOp mergeAsyncExecuteOps(mlir::async::ExecuteOp prevExecOp, m
 
     auto newExecOp = rewriter.create<mlir::async::ExecuteOp>(prevExecOp->getLoc(), newResultTypes, newDependencies,
                                                              newOperands, bodyBuilder);
-
-    newExecOp->setAttr("schedule-time", prevScheduleTime);
 
     uint32_t numUnits = 0;
     auto executor = vpux::IERT::IERTDialect::getExecutor(execOp, numUnits);
