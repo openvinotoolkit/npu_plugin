@@ -48,6 +48,15 @@ const EnumMap<VPUIP::ArchKind, VPUIP::MPEMode> mpeMap = {
         {VPUIP::ArchKind::MTL, VPUIP::MPEMode::CUBOID_16x16},  //
 };
 
+mlir::Value retrieveMemrefOfCopyOp(mlir::Value val) {
+    if (val != nullptr) {
+        if (auto copyOp = val.getDefiningOp<IERT::CopyOp>()) {
+            return copyOp.output_buff();
+        }
+    }
+    return val;
+}
+
 mlir::Value createWeightsTableTensor(mlir::OpBuilder& builder, mlir::Location loc, int64_t OC, mlir::Value op_input,
                                      mlir::Value op_output, mlir::Value weights, mlir::Value bias,
                                      mlir::Value activationWindow) {
@@ -55,9 +64,13 @@ mlir::Value createWeightsTableTensor(mlir::OpBuilder& builder, mlir::Location lo
 
     auto* ctx = builder.getContext();
 
+    mlir::Value wMemref = retrieveMemrefOfCopyOp(weights);
+    mlir::Value aMemref = retrieveMemrefOfCopyOp(activationWindow);
+    mlir::Value iMemref = retrieveMemrefOfCopyOp(op_input);
+
     const auto dataType = mlir::MemRefType::get(weightTableShape, getSInt32Type(builder.getContext()));
     auto createWeightsTableOp =
-            builder.create<VPUIP::WeightsTableOp>(loc, dataType, op_input, op_output, weights, bias, activationWindow);
+            builder.create<VPUIP::WeightsTableOp>(loc, dataType, iMemref, op_output, wMemref, bias, aMemref);
 
     const auto cmxMemSpaceAttr = VPUIP::PhysicalMemoryAttr::get(ctx, VPUIP::PhysicalMemory::CMX_NN);
     const auto dataTypeCMX = changeMemSpace(dataType, cmxMemSpaceAttr);

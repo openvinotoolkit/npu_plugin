@@ -274,12 +274,12 @@ LinearScanHandler StaticAllocationPass::runLinearScan(mlir::FuncOp netFunc, IERT
         _log = _log.unnest();
     };
 
-    // TODO: avoid explicit linearization and allow parallel execution
     mlir::async::ExecuteOp prevExecOp;
     for (auto curExecOp : netFunc.getOps<mlir::async::ExecuteOp>()) {
         _log.trace("Process next task at '{0}'", curExecOp->getLoc());
         _log = _log.nest();
 
+        // TODO: remove temporary linearization
         if (prevExecOp != nullptr) {
             _log.trace("Add explicit dependency from '{0}' to '{1}'", prevExecOp->getLoc(), curExecOp->getLoc());
             depsInfo.addDependency(prevExecOp, curExecOp);

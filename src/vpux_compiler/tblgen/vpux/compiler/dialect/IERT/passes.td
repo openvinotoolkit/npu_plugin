@@ -209,4 +209,35 @@ def GroupAsyncExecuteOps : PassBase<"group-async-execute-ops", "vpux::FunctionPa
     let constructor = "vpux::IERT::createGroupAsyncExecuteOpsPass()";
 }
 
+//
+// FeasibleAllocation
+//
+
+def FeasibleAllocation : PassBase<"feasible-allocation", "vpux::ModulePass"> {
+    let summary = "Feasible Memory Scheduling Pass";
+
+    let description = [{
+        Schedule async.execute opeations based on their dependecies and CMX memory availability
+    }];
+
+    let constructor = [{
+        vpux::IERT::createFeasibleAllocationPass([](mlir::MLIRContext* ctx, vpux::StringRef memSpaceName) -> mlir::Attribute {
+            VPUX_THROW_UNLESS(!memSpaceName.empty(), "Missing memory space option");
+            return mlir::StringAttr::get(ctx, memSpaceName);
+        })
+    }];
+
+    let options = [
+        Option<
+            "memSpaceName", "memory-space",
+            "std::string", [{""}],
+            "Memory space to perform allocation"
+        >
+    ];
+
+    let dependentDialects = [
+        "vpux::IERT::IERTDialect"
+    ];
+}
+
 #endif
