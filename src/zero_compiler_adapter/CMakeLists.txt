@@ -46,7 +46,7 @@ endif()
 # if(AARCH64)
 # FIXME Finding library for ARM require different approach. Use direct link for now
     # set(VPUX_COMPILER_L0_PATH "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/artifacts/VPUXCompilerL0/${ARCH_SUBFOLDER}/libVPUXCompilerL0.so")
-    set(VPUX_COMPILER_L0_PATH "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/artifacts/VPUXCompilerL0/${ARCH_SUBFOLDER}/VPUXCompilerL0.dll")
+    # set(VPUX_COMPILER_L0_PATH "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/artifacts/VPUXCompilerL0/${ARCH_SUBFOLDER}/VPUXCompilerL0.dll")
 # else()
 # find_library(VPUX_COMPILER_L0_LIBRARY
 #     NAMES VPUXCompilerL0
@@ -84,7 +84,7 @@ link_system_libraries(${OBJ_TARGET_NAME}
 # if(AARCH64)
 target_link_libraries(${OBJ_TARGET_NAME}
     PRIVATE
-        ${VPUX_COMPILER_L0_PATH}
+        # ${VPUX_COMPILER_L0_PATH}
         vpux_al
         kmb_utils)
 # else()

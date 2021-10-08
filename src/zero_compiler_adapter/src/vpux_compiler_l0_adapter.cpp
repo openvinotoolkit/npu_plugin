@@ -200,7 +200,6 @@ VPUXCompilerL0::VPUXCompilerL0() {
 }
 
 VPUXCompilerL0::~VPUXCompilerL0() {
-    std::cout << "~VPUXCompilerL0" << std::endl;
     safelyCloseLib(_handle);
 }
 
@@ -250,7 +249,7 @@ std::tuple<const std::string, const DataMap, const DataMap, const DataMap, const
 VPUXCompilerL0::getNetworkMeta(const Blob::Ptr compiledNetwork) {
     _logger->debug("VPUXCompilerL0::getNetworkMeta start");
     vpux::Compiler::Ptr compiler = std::make_shared<Compiler>(getLibFilePath("vpux_compiler"));
-    const auto networkDesc = compiler->parse(compiledNetwork->data);
+    static const auto networkDesc = compiler->parse(compiledNetwork->data);
     _logger->debug("VPUXCompilerL0::getNetworkMeta end");
     return std::make_tuple(networkDesc->getName(), networkDesc->getInputsInfo(), networkDesc->getOutputsInfo(),
                            networkDesc->getDeviceInputsInfo(), networkDesc->getDeviceOutputsInfo());

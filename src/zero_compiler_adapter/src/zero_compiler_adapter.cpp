@@ -46,7 +46,7 @@ std::shared_ptr<INetworkDescription> ZeroCompilerAdapter::compile(
 
     // Get networkDesc (input/output information) from Graph compiler API
     // Emulate getting information from Graph compiler by calling VPUX/MCM Compiler instead and using data from it
-    const auto networkMeta = apiAdapter->getNetworkMeta(blob);
+    static const auto networkMeta = apiAdapter->getNetworkMeta(blob);
 
     return std::make_shared<NetworkDescription>(blob->data, networkMeta);
 }
