@@ -121,7 +121,7 @@ mlir::LogicalResult ConvolutionTiling::matchAndRewrite(IERT::ConvolutionOp origO
         auto tiledOp = rewriter.create<IERT::ConvolutionOp>(loc, actInput, filterInput, biasInput, allocOutOp.memref(),
                                                             origOp.strides(), getIntArrayAttr(getContext(), padsBegin),
                                                             getIntArrayAttr(getContext(), padsEnd), origOp.dilations(),
-                                                            origOp.post_opAttr(), origOp.channel_major_opAttr());
+                                                            origOp.post_opAttr());
 
         const auto attrOffsets = getIntArrayAttr(rewriter.getContext(), outputTile.offsets.raw());
         const auto attrShape = getIntArrayAttr(rewriter.getContext(), outputTile.shape.raw());

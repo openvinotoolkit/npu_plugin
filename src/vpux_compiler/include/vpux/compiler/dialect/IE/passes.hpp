@@ -33,7 +33,6 @@ namespace IE {
 
 std::unique_ptr<mlir::Pass> createUseUserPrecisionPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createUseUserLayout(Logger log = Logger::global());
-std::unique_ptr<mlir::Pass> createIdentifyChannelMajorConvolutionCompatibleOpsPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createAdjustLayoutsPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createOptimizeReordersPass(Logger log = Logger::global());
 

@@ -229,7 +229,7 @@ mlir::LogicalResult ConvolutionRewriter::matchAndRewrite(IE::ConvolutionOp origO
 
         return rewriter.create<IE::ConvolutionOp>(origOp.getLoc(), newOutputType, expandedInput, paddedFilter,
                                                   paddedBiases, origOp.strides(), origOp.pads_begin(),
-                                                  origOp.pads_end(), origOp.dilations(), origOp.post_opAttr(), origOp.channel_major_opAttr());
+                                                  origOp.pads_end(), origOp.dilations(), origOp.post_opAttr());
     };
 
     return generalRewrite(origOp, rewriter, opCreator, _log.nest());
