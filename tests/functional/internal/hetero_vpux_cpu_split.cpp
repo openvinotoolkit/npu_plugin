@@ -25,6 +25,7 @@ PRETTY_PARAM(SplitLayer, std::string)
 PRETTY_PARAM(ImagePath, std::string)
 
 using HeteroParams = std::tuple<Device, Device, NetworkPath, ImagePath, SplitLayer>;
+using HeteroPluginSplitNetworkParams = std::tuple<NetworkPath, ImagePath>;
 
 class HeteroPluginTest :
         public testing::WithParamInterface<HeteroParams>,
@@ -40,6 +41,13 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<HeteroParams> &obj);
 };
 
+
+class HeteroPluginSplitNetworkTest :
+        public testing::WithParamInterface<HeteroPluginSplitNetworkParams>,
+        public KmbClassifyNetworkTest {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<HeteroPluginSplitNetworkParams>& obj);
+};
 
 static void insert_noop_reshape_after_node_for_device(std::shared_ptr<ngraph::Node>& node, const std::string &device) {
     // Get all consumers for node
@@ -103,6 +111,64 @@ static void assignAffinities(InferenceEngine::CNNNetwork& network, const Device&
             std::cout << "Split after " << splitName << "; Switch device to " << deviceName << std::endl;
         }
     }
+}
+
+
+std::string HeteroPluginSplitNetworkTest::getTestCaseName(
+        const testing::TestParamInfo<HeteroPluginSplitNetworkParams>& obj) {
+    const std::string network = std::get<0>(obj.param);
+
+    std::stringstream testName;
+    testName << network << "_testcase";
+    return testName.str();
+}
+
+TEST_P(HeteroPluginSplitNetworkTest, splitOverAllLayers) {
+    SKIP_ON("HDDL2", "Stability problems");
+
+    const auto network = std::get<0>(GetParam());
+
+    std::vector<std::string> layers;
+    {
+        TestNetworkDesc netDesc(network);
+        std::cout << "Reading network to get list of layers: " << netDesc.irFileName() << std::endl;
+        auto networkFunc = readNetwork(netDesc, true);
+        auto orderedOps = networkFunc.getFunction()->get_ordered_ops();
+        std::transform(orderedOps.cbegin(), orderedOps.cend(), std::back_inserter(layers),
+                       [](auto node) -> std::string {
+                           return node->get_friendly_name();
+                       });
+    }
+
+    std::cout << "Splitting over " << layers.size() << " layers..." << std::endl;
+
+    std::set<std::string> fatalErrors = {"conv1_1/WithoutBiases/fq_input_0",
+                                         "onnx_initializer_node_conv1_w/Output_0/Data__const152_const", "939943_const",
+                                         "conv1_1/WithoutBiases/fq_weights_1", "conv1_1/WithoutBiases"};
+
+    std::vector<std::string> splitSuccessfully;
+    for (auto&& splitNode : layers) {
+        std::cout << std::endl;
+        if (fatalErrors.find(splitNode) == fatalErrors.end()) {
+            std::cout << "Going to split after layer '" << splitNode << "'" << std::endl;
+        } else {
+            std::cout << "Skipping split after layer '" << splitNode << "' due to segfault" << std::endl;
+            continue;
+        }
+
+        try {
+            const auto cmdline = "echo Running single layer " + splitNode;
+            system(cmdline.c_str());
+
+            splitSuccessfully.push_back(splitNode);
+        } catch (const std::exception& e) {
+            std::cout << "Exception for split after layer '" << splitNode << "': " << e.what() << std::endl;
+        }
+    }
+    std::cout << "Tested splits " << splitSuccessfully.size() << " without exception: " << std::endl;
+    std::for_each(splitSuccessfully.cbegin(), splitSuccessfully.cend(), [](std::string split) {
+        std::cout << split << "; ";
+    });
 }
 
 void HeteroPluginTest::checkFunction(const BlobMap& actualBlobs, const BlobMap& refBlobs, const size_t topK,
@@ -222,7 +288,13 @@ TEST_P(HeteroPluginTest, regression) {
     const auto network = std::get<2>(GetParam());
     const auto image = std::get<3>(GetParam());
     const auto layerName = std::get<4>(GetParam());
-
+    /*
+    const auto envVarSplitLayerName = std::getenv("IE_KMB_HETERO_TESTS_SPLIT_LAYER");
+    if (envVarSplitLayerName == nullptr) {
+        std::cout << "IE_KMB_HETERO_TESTS_SPLIT_LAYER is not set. Skippping" << std::endl;
+        SKIP() << "IE_KMB_HETERO_TESTS_SPLIT_LAYER is not set. Skippping";
+    }
+    */
     std::vector<std::string> layers;    
     {
         TestNetworkDesc netDesc(network);
@@ -241,21 +313,22 @@ TEST_P(HeteroPluginTest, regression) {
                                             "onnx_initializer_node_conv1_w/Output_0/Data__const152_const",
         "939943_const", "conv1_1/WithoutBiases/fq_weights_1", "conv1_1/WithoutBiases"};
 
+    std::cout << std::endl;
     std::vector<std::string> splitSuccessfully;
     for (auto&& splitNode : layers) {
-        std::cout << std::endl;
-        if (fatalErrors.find(splitNode) == fatalErrors.end()) {
-            std::cout << "Going to split after layer '" << splitNode << "'" << std::endl;
-        } else {
-            std::cout << "Skipping split after layer '" << splitNode << "' due to segfault" << std::endl;
-            continue;
-        }
 
         // fire5/concat throwOnFail: zeCommandQueueCreate result: 0x70000001
         // fire6/concat 2-3 splits
         // compiler might sigseg when network is split in arbitrary position
         if (splitNode.find("fire6/concat") == std::string::npos) {
-            std::cout << "Skipping split after layer '" << splitNode << "'" << std::endl;
+            //std::cout << "Skipping split after layer '" << splitNode << "'" << std::endl;
+            continue;
+        }
+
+        if (fatalErrors.find(splitNode) == fatalErrors.end()) {
+            std::cout << "Going to split after layer '" << splitNode << "'" << std::endl;
+        } else {
+            std::cout << "Skipping split after layer '" << splitNode << "' due to segfault" << std::endl;
             continue;
         }
 
@@ -338,3 +411,9 @@ INSTANTIATE_TEST_CASE_P(
                 ::testing::ValuesIn(googleNetv4Layers)),
         HeteroPluginTest::getTestCaseName);
 
+INSTANTIATE_TEST_CASE_P(squeezenet1_1, HeteroPluginSplitNetworkTest,
+                        ::testing::Combine(::testing::Values(
+                                NetworkPath("KMB_models/INT8/public/squeezenet1_1/"
+                                            "squeezenet1_1_pytorch_caffe2_dense_int8_IRv10_from_fp32.xml")), 
+                                            ::testing::Values(ImagePath("300x300/dog.bmp"))),
+                        HeteroPluginSplitNetworkTest::getTestCaseName);
