@@ -57,8 +57,9 @@ public:
 public:
     static mlir::LogicalResult verifyDims(IE::ConvolutionOp origOp, Logger log = Logger::global());
     static mlir::LogicalResult verifyDims(IERT::ConvolutionOp origOp, Logger log = Logger::global());
-    static mlir::LogicalResult verifyConvChannels(bool channelMajorConvolution, mlir::Location loc, mlir::ShapedType filterType,
-                                                  int64_t width, Logger log = Logger::global());
+    static mlir::LogicalResult verifyConvChannels(bool channelMajorConvolution, mlir::Location loc,
+                                                  mlir::ShapedType filterType, int64_t width,
+                                                  Logger log = Logger::global());
 
     static mlir::LogicalResult verifyDims(IE::MaxPoolOp origOp, Logger log = Logger::global());
     static mlir::LogicalResult verifyDims(IERT::MaxPoolOp origOp, Logger log = Logger::global());

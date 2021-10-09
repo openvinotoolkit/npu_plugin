@@ -248,11 +248,12 @@ void buildEltwiseMultWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir
     const auto bitPatternSize = VPUIP::NCESparsity::getBitPatternSize(
             makeArrayRef(filter_size), stride_vec[0],
             inputType.isa<mlir::quant::QuantizedType>() ? inputType.cast<mlir::quant::QuantizedType>().getStorageType()
-                                                        : inputType, input_nce_shape[1]);
+                                                        : inputType,
+            input_nce_shape[1]);
     mlir::IntegerAttr actChannelLength = funcbuilder.getI32IntegerAttr(checked_cast<int32_t>(bitPatternSize));
 
-    const auto fakeSparsity = VPUIP::NCESparsity::getFakeSparsity(NCETaskType::DWCONV,
-            makeArrayRef(filter_size), stride_vec[0],
+    const auto fakeSparsity = VPUIP::NCESparsity::getFakeSparsity(
+            NCETaskType::DWCONV, makeArrayRef(filter_size), stride_vec[0],
             inputType.isa<mlir::quant::QuantizedType>() ? inputType.cast<mlir::quant::QuantizedType>().getStorageType()
                                                         : inputType,
             input_nce_shape[1], input_nce_shape[1]);

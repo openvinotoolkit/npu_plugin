@@ -79,16 +79,15 @@ mlir::LogicalResult generalRewrite(mlir::Operation* origOp, mlir::PatternRewrite
     vpux::Shape inPadsEnd = getShape(inputType).toValues();
     vpux::Shape outPadsEnd = getShape(outputType).toValues();
 
-
     if (mlir::isa<IE::ConvolutionOp>(origOp)) {
-
         auto convOp = mlir::dyn_cast<IE::ConvolutionOp>(*origOp);
         const auto inputTensorWidth = getShape(convOp.input())[IE::Dims4D::Act::W];
         const auto inputChannels = getShape(convOp.filter().getType().cast<mlir::ShapedType>())[IE::Dims4D::Filter::IC];
         const auto inDimsOrder = DimsOrder::fromValue(convOp->getOperand(0));
-        bool channelMajorConvolution = ((inDimsOrder == DimsOrder::NCHW) && (inputChannels == 3) && (inputTensorWidth % 16 == 0));
+        bool channelMajorConvolution =
+                ((inDimsOrder == DimsOrder::NCHW) && (inputChannels == 3) && (inputTensorWidth % 16 == 0));
 
-        if (channelMajorConvolution) 
+        if (channelMajorConvolution)
             inPadsEnd = calcPadsEnd(inputType, inChannelAlignement);
         else
             inPadsEnd = calcPadsEnd(inputType, inChannelAlignement);
