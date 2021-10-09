@@ -20,10 +20,10 @@
 namespace vpux {
 namespace VPUIP {
 
-unsigned int swizzle_addr(unsigned int addr, unsigned char key){
+unsigned int swizzle_addr(unsigned int addr, unsigned char key) {
     // Some constant get automatically optimized by the compiler
-    const unsigned int LOG2_RAM_CUT_BYTES = 9; // address size of 32 KB RAM cut with 128 bits words
-    const unsigned int CUT_ADDRESS_MASK_10b = (1 << 11) - 1; // RAM cut address mask
+    const unsigned int LOG2_RAM_CUT_BYTES = 9;                // address size of 32 KB RAM cut with 128 bits words
+    const unsigned int CUT_ADDRESS_MASK_10b = (1 << 11) - 1;  // RAM cut address mask
     const unsigned int MAX_SWIZZLE_KEY = 5;
     const unsigned int RAM_CUT_ADDRESS_MASK = (1 << LOG2_RAM_CUT_BYTES) - 1;
 
@@ -31,10 +31,10 @@ unsigned int swizzle_addr(unsigned int addr, unsigned char key){
     int shift = LOG2_RAM_CUT_BYTES - key;
     unsigned int addr_stagger, phy_addr;
 
-    addr_stagger = (addr >> 4) & CUT_ADDRESS_MASK_10b; // get the address in the ramcut
-    addr_stagger = addr_stagger >> MAX_SWIZZLE_KEY; // right shift 5 bits
-    addr_stagger = addr_stagger & stagger_address_mask; // get only the relevant bits of the address
-    addr_stagger = addr_stagger << shift; // Shift them back the their original locaiton
+    addr_stagger = (addr >> 4) & CUT_ADDRESS_MASK_10b;   // get the address in the ramcut
+    addr_stagger = addr_stagger >> MAX_SWIZZLE_KEY;      // right shift 5 bits
+    addr_stagger = addr_stagger & stagger_address_mask;  // get only the relevant bits of the address
+    addr_stagger = addr_stagger << shift;                // Shift them back the their original locaiton
 
     phy_addr = addr + addr_stagger;
     phy_addr = phy_addr & RAM_CUT_ADDRESS_MASK;
@@ -44,16 +44,16 @@ unsigned int swizzle_addr(unsigned int addr, unsigned char key){
 }
 
 template <class T>
-void swizzled_img(T* input_array, T* output_array, const unsigned char key, const unsigned int size){
-    for (unsigned int addr = 0; addr < size; addr++ ){
+void swizzled_img(T* input_array, T* output_array, const unsigned char key, const unsigned int size) {
+    for (unsigned int addr = 0; addr < size; addr++) {
         output_array[swizzle_addr(addr, key)] = input_array[addr];
     }
 }
 
 template <class T>
-int swizzled_size(T*, const unsigned char key, const unsigned int size){
+int swizzled_size(T*, const unsigned char key, const unsigned int size) {
     unsigned int max_size = 0;
-    for (unsigned int addr = 0; addr < size; addr++ ){
+    for (unsigned int addr = 0; addr < size; addr++) {
         max_size = std::max(max_size, swizzle_addr(addr, key));
     }
     // Align to 64 bytes

@@ -11,8 +11,8 @@
 // included with the Software Package for additional details.
 //
 
-#include "vpux/compiler/dialect/const/attributes/content.hpp"
 #include "vpux/compiler/dialect/VPUIP/utils.hpp"
+#include "vpux/compiler/dialect/const/attributes/content.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/quantization.hpp"
 #include "vpux/compiler/utils/subspaces.hpp"
@@ -72,8 +72,8 @@ mlir::ShapedType vpux::Const::SwizzleAttr::inferOutputType(mlir::ShapedType inpu
 
 Const::Content vpux::Const::SwizzleAttr::transform(vpux::Const::Content& input) const {
     const auto swizzling_key = static_cast<uint32_t>(getKey().getInt());
-    auto output = Const::Content::allocTempBuffer(inferOutputType(input.getType()),
-                                                input.getStorageElemType(), input.isSplat());
+    auto output = Const::Content::allocTempBuffer(inferOutputType(input.getType()), input.getStorageElemType(),
+                                                  input.isSplat());
     // No swizzling
     if (!(swizzling_key)) {
         const auto inBuf = input.getRawStorageBuf();
@@ -81,34 +81,31 @@ Const::Content vpux::Const::SwizzleAttr::transform(vpux::Const::Content& input) 
         std::copy_n(inBuf.data(), inBuf.size(), outBuf.data());
     }
     // U8
-    else if (input.getStorageElemType().isInteger(8))
-    {
-        const auto values = input.getValues<uint8_t>();
+    else if (input.getStorageElemType().isInteger(8)) {
+        const auto values = input.getValues<int8_t>();
         auto swizzledVals = output.getTempBuf<uint8_t>();
         auto num_elements = swizzledVals.size();
         auto total_bytes = num_elements * sizeof(uint8_t);
 
         // swizzle in u8
-        for (unsigned int i = 0; i < total_bytes; i++ ){
-            swizzledVals.data()[vpux::VPUIP::swizzle_addr(i, swizzling_key)] = values[i];
+        for (unsigned int i = 0; i < total_bytes; i++) {
+            swizzledVals.data()[vpux::VPUIP::swizzle_addr(i, swizzling_key)] = static_cast<uint8_t>(values[i]);
         }
     }
     // I8
-    else if (input.getStorageElemType().isSignedInteger(8))
-    {
+    else if (input.getStorageElemType().isSignedInteger(8)) {
         const auto values = input.getValues<int8_t>();
         auto swizzledVals = output.getTempBuf<int8_t>();
         auto num_elements = swizzledVals.size();
         auto total_bytes = num_elements * sizeof(int8_t);
 
         // swizzle in i8
-        for (unsigned int i = 0; i < total_bytes; i++ ){
+        for (unsigned int i = 0; i < total_bytes; i++) {
             swizzledVals.data()[vpux::VPUIP::swizzle_addr(i, swizzling_key)] = values[i];
         }
     }
     // FP16
-    else if (input.getStorageElemType().isF16())
-    {
+    else if (input.getStorageElemType().isF16()) {
         const auto values = input.getValues<ngraph::float16>();
         auto swizzledVals = output.getTempBuf<ngraph::float16>();
 
@@ -123,8 +120,9 @@ Const::Content vpux::Const::SwizzleAttr::transform(vpux::Const::Content& input) 
         });
 
         // swizzle in u8
-        for (unsigned int i = 0; i < total_bytes; i++ ){
-            reinterpret_cast<uint8_t*>(swizzledVals_fp16.data())[vpux::VPUIP::swizzle_addr(i, swizzling_key)] = values_u8[i];
+        for (unsigned int i = 0; i < total_bytes; i++) {
+            reinterpret_cast<uint8_t*>(swizzledVals_fp16.data())[vpux::VPUIP::swizzle_addr(i, swizzling_key)] =
+                    values_u8[i];
         }
 
         // temp buffer to fp16 output
@@ -133,8 +131,7 @@ Const::Content vpux::Const::SwizzleAttr::transform(vpux::Const::Content& input) 
         });
     }
     // BF16
-    else if (input.getStorageElemType().isBF16())
-    {
+    else if (input.getStorageElemType().isBF16()) {
         const auto values = input.getValues<ngraph::bfloat16>();
         auto swizzledVals = output.getTempBuf<ngraph::bfloat16>();
 
@@ -149,8 +146,9 @@ Const::Content vpux::Const::SwizzleAttr::transform(vpux::Const::Content& input) 
         });
 
         // swizzle in u8
-        for (unsigned int i = 0; i < total_bytes; i++ ){
-            reinterpret_cast<uint8_t*>(swizzledVals_bf16.data())[vpux::VPUIP::swizzle_addr(i, swizzling_key)] = values_u8[i];
+        for (unsigned int i = 0; i < total_bytes; i++) {
+            reinterpret_cast<uint8_t*>(swizzledVals_bf16.data())[vpux::VPUIP::swizzle_addr(i, swizzling_key)] =
+                    values_u8[i];
         }
 
         // temp buffer to bf16 output
@@ -159,8 +157,7 @@ Const::Content vpux::Const::SwizzleAttr::transform(vpux::Const::Content& input) 
         });
     }
     // I32 (weights table)
-    else
-    {
+    else {
         const auto values = input.getValues<int32_t>();
         auto swizzledVals = output.getTempBuf<int32_t>();
         const auto swizzling_key = static_cast<uint32_t>(getKey().getInt());
@@ -176,8 +173,9 @@ Const::Content vpux::Const::SwizzleAttr::transform(vpux::Const::Content& input) 
         });
 
         // swizzle in u8
-        for (unsigned int i = 0; i < total_bytes; i++ ){
-            reinterpret_cast<uint8_t*>(swizzledVals_i32.data())[vpux::VPUIP::swizzle_addr(i, swizzling_key)] = values_u8[i];
+        for (unsigned int i = 0; i < total_bytes; i++) {
+            reinterpret_cast<uint8_t*>(swizzledVals_i32.data())[vpux::VPUIP::swizzle_addr(i, swizzling_key)] =
+                    values_u8[i];
         }
 
         // temp buffer to i32 output
