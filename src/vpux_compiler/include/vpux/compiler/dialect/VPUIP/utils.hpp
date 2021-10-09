@@ -15,12 +15,13 @@
 
 #include <mlir/IR/Builders.h>
 #include <mlir/IR/Location.h>
-
+#include "vpux/compiler/core/attributes/dims_order.hpp"
 namespace vpux {
 namespace VPUIP {
 
 mlir::Value alignDepthWiseWeightsTensor(mlir::OpBuilder& builder, mlir::Location loc, const mlir::Value origFilter);
 mlir::Value alignChannelMajorWeightsTensor(mlir::OpBuilder& builder, mlir::Location loc, const mlir::Value origFilter);
+bool isChannelMajorCompatibaleOperation(vpux::DimsOrder inDimsOrder, int64_t inputChannels, int64_t inputTensorWidth);
 
 }  // namespace VPUIP
 }  // namespace vpux

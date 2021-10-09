@@ -14,6 +14,7 @@
 #include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
 #include "vpux/compiler/core/layers.hpp"
 #include "vpux/compiler/dialect/VPUIP/nce_sparsity.hpp"
+#include "vpux/compiler/dialect/VPUIP/utils.hpp"
 #include "vpux/compiler/utils/types.hpp"
 
 #include <llvm/ADT/TypeSwitch.h>
@@ -31,11 +32,10 @@ int64_t vpux::VPUIP::NCEInvariant::getInputChannelAlignment(mlir::Operation* ori
         const auto inputTensorWidth = getShape(convOp.input())[IE::Dims4D::Act::W];
         const auto inputChannels = getShape(convOp.filter().getType().cast<mlir::ShapedType>())[IE::Dims4D::Filter::IC];
         const auto inDimsOrder = DimsOrder::fromValue(convOp->getOperand(0));
-        bool channelMajorConvolution =
-                ((inDimsOrder == DimsOrder::NCHW) && (inputChannels == 3) && (inputTensorWidth % 16 == 0));
-        if (channelMajorConvolution) {
+
+        if (isChannelMajorCompatibaleOperation(inDimsOrder, inputChannels, inputTensorWidth))
             return 1;
-        } else
+        else
             return 16;
     } else
         return 16;
@@ -83,10 +83,9 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyDims(IE::ConvolutionOp orig
     const auto inputTensorWidth = getShape(origOp.input())[IE::Dims4D::Act::W];
     const auto inputChannels = getShape(origOp.filter().getType().cast<mlir::ShapedType>())[IE::Dims4D::Filter::IC];
     const auto inDimsOrder = DimsOrder::fromValue(origOp->getOperand(0));
-    bool channelMajorConvolution =
-            ((inDimsOrder == DimsOrder::NCHW) && (inputChannels == 3) && (inputTensorWidth % 16 == 0));
+    bool isChannelMajorConvolution = isChannelMajorCompatibaleOperation(inDimsOrder, inputChannels, inputTensorWidth);
 
-    return verifyConvChannels(channelMajorConvolution, origOp->getLoc(),
+    return verifyConvChannels(isChannelMajorConvolution, origOp->getLoc(),
                               origOp.filter().getType().cast<mlir::ShapedType>(), inputTensorWidth, log);
 }
 
@@ -95,10 +94,9 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyDims(IERT::ConvolutionOp or
     const auto inputTensorWidth = getShape(origOp.input())[IE::Dims4D::Act::W];
     const auto inputChannels = getShape(origOp.filter().getType().cast<mlir::ShapedType>())[IE::Dims4D::Filter::IC];
     const auto inDimsOrder = DimsOrder::fromValue(origOp->getOperand(0));
-    bool channelMajorConvolution =
-            ((inDimsOrder == DimsOrder::NCHW) && (inputChannels == 3) && (inputTensorWidth % 16 == 0));
+    bool isChannelMajorConvolution = isChannelMajorCompatibaleOperation(inDimsOrder, inputChannels, inputTensorWidth);
 
-    return verifyConvChannels(channelMajorConvolution, origOp->getLoc(),
+    return verifyConvChannels(isChannelMajorConvolution, origOp->getLoc(),
                               origOp.filter().getType().cast<mlir::ShapedType>(), inputTensorWidth, log);
 }
 
