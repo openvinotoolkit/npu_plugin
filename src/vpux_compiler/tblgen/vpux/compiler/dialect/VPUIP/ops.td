@@ -2729,9 +2729,8 @@ def VPUIP_SW_Kernel :
 
         $kernelFunction
 
-        `inputs` custom<IOForward>($inputs, type($inputs))
-        `outputs` custom<IOForward>($outputs, type($outputs))
-
+        `inputs` `(`$inputs `:` type($inputs)`)`
+        `outputs` `(`$outputs `:` type($outputs)`)`
         (`on` `tile` $tileIndex^)?
         (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
         (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
