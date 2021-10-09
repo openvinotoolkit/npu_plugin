@@ -17,6 +17,7 @@
 #include "vpux/compiler/core/attributes/shape.hpp"
 #include "vpux/compiler/core/attributes/stride_reqs.hpp"
 #include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
+#include "vpux/compiler/dialect/VPUIP/utils.hpp"
 #include "vpux/compiler/utils/analysis.hpp"
 #include "vpux/compiler/utils/error.hpp"
 
@@ -77,14 +78,12 @@ int64_t vpux::VPUIP::NCEClusterTaskOp::getNumVariants() {
 void vpux::VPUIP::NCEClusterTaskOp::inferLayoutInfo(mlir::Operation* origOp, IE::LayerLayoutInfo& info) {
     llvm::TypeSwitch<mlir::Operation*, void>(origOp)
             .Case<IE::ConvolutionOp>([&](IE::ConvolutionOp op) {
-
-                const auto inputTensorWidth = getShape(op.input())[IE::Dims4D::Act::W];
+                const auto inputWidth = getShape(op.input())[IE::Dims4D::Act::W];
                 const auto inputChannels =
                         getShape(op.filter().getType().cast<mlir::ShapedType>())[IE::Dims4D::Filter::IC];
                 const auto inDimsOrder = DimsOrder::fromValue(op->getOperand(0));
-                bool channelMajorConvolution =
-                        ((inDimsOrder == DimsOrder::NCHW) && (inputChannels == 3) && (inputTensorWidth % 16 == 0));
-                if (channelMajorConvolution) {
+
+                if (isChannelMajorCompatibaleOperation(inDimsOrder, inputChannels, inputWidth)) {
                     info.setInput(0, DimsOrder::NCHW);
                     info.setInput(1, DimsOrder::OIYX);
                 } else {
