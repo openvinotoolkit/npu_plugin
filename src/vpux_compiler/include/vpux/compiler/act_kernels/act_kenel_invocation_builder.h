@@ -14,36 +14,29 @@
 #pragma once
 
 #include <kernels/inc/common_types.h>
+#include "Nce2p7.h"
 
 namespace vpux {
 
 class InvocationBuilder {
 
-    llvm::SmallVector<uint8_t,   128> _storage;         // keeps basic elements
-    llvm::SmallVector<uint8_t , 128> _arrayStorage;    // keeps actual static arrays elements
+    llvm::SmallVector<char,   128> _storage;         // keeps basic elements
+    llvm::SmallVector<char , 128> _arrayStorage;    // keeps actual static arrays elements
 
     // keeps offsets within _storage structure that need to be
-    // updated after _arrayStorage gets concatinated
+    // updated after _arrayStorage gets concatenated
     // and keeps offsets to array_storage
-    llvm::SmallVector<std::pair<uint32_t, uint32_t> , 128> _offsetsToUpdate;
+    llvm::SmallVector<std::pair<std::function<void(uint32_t)>, uint32_t> , 128> _offsetsToUpdate;
 
 
     mutable llvm::SmallVector<uint8_t,   128> _finalstorage;
 
 
 private:
-    template <class U, class T>
-    static uint32_t fieldOffset(const U & base, const T & field) {
-        auto A = reinterpret_cast<const uint8_t*>(&base);
-        auto B = reinterpret_cast<const uint8_t*>(&field);
-        VPUX_THROW_UNLESS(B >= A && B < A + sizeof(U), "field not part of given object");
-
-        return B - A;
-    }
 
     template <class T>
-    static void storeSimple(llvm::SmallVectorImpl<uint8_t> & storage, const T& anyValue) {
-        ArrayRef<uint8_t> valueAsArray(reinterpret_cast<const uint8_t*>(&anyValue), sizeof(anyValue));
+    static void storeSimple(llvm::SmallVectorImpl<char> & storage, const T& anyValue) {
+        ArrayRef<char> valueAsArray(reinterpret_cast<const char*>(&anyValue), sizeof(anyValue));
         storage.insert(storage.end(), valueAsArray.begin(), valueAsArray.end());
     }
 
@@ -56,9 +49,13 @@ private:
      * @param anyarr and initializer of array
      */
     template <class U, class T, class V>
-    void registerArrayFor(const U & object, const T& objectField,  const V & anyarr ) {
-        auto offset = fieldOffset(object, objectField);
-        _offsetsToUpdate.push_back({_storage.size() + offset, _arrayStorage.size()});
+    void registerArrayFor(const T& patcher,  const V & anyarr ) {
+        //auto offset = fieldOffset(object, patcher);
+        auto fieldPatcher = [offset = _storage.size(), this, patcher] (uint32_t updateTo) {
+            auto& base = reinterpret_cast<U&>(*(_finalstorage.begin() + offset));
+            patcher(base, updateTo);
+        };
+        _offsetsToUpdate.push_back({fieldPatcher, _arrayStorage.size()});
         for (auto &&y : anyarr) {
             storeSimple(_arrayStorage, y);
         }
@@ -66,53 +63,80 @@ private:
 
 public:
     template<class T>
-    void addArg(const T &) {
+    void addArg(const T & ) {
+    }
+    void addArg(mlir::Value & operands) {
+        // TODO: add checks for type
+        // TODO: add support for non int constants
+        auto intValue = operands.getDefiningOp()->getAttrs().begin()->second.dyn_cast_or_null<mlir::IntegerAttr>().getInt();
+
+        storeSimple(_storage, intValue);
     }
 
     void addArg(const mlir::OpOperand &arg) {
-        auto createMemRefData = [this](const mlir::OpOperand & tensor){
-            sw_params::MemRefData memrefData{};
-
-            auto shape = tensor.get().getType().cast<mlir::ShapedType>();
-            memrefData.numDims = shape.getShape().size();
-
-            std::vector<int > i = {1,2,3};
-            registerArrayFor(memrefData, memrefData.dimsAddr, i);
-            registerArrayFor(memrefData, memrefData.dimsOrder, i);
-
-            return memrefData;
-        };
-        storeSimple(_storage, createMemRefData(arg));
+        storeAsMemref(arg.get());
     }
 
     void addArg(const mlir::OpResult &result) {
-        auto createMemRefData = [this](const mlir::OpResult & tensor){
-            sw_params::MemRefData memrefData{};
-
-            auto shape = tensor.getType().cast<mlir::ShapedType>();
-            memrefData.numDims = shape.getShape().size();
-            std::vector<int > i = {1,2,3};
-            registerArrayFor(memrefData, memrefData.dimsAddr, i);
-            registerArrayFor(memrefData, memrefData.dimsOrder, i);
-
-
-            return memrefData;
-        };
-
-        storeSimple(_storage, createMemRefData(result));
+        storeAsMemref(result);
     }
-
 
     ArrayRef<uint8_t> store() const {
         _finalstorage.resize(0);
         _finalstorage.insert(_finalstorage.end(), _storage.begin(), _storage.end());
+        auto offsetToArrays = _finalstorage.size();
         _finalstorage.insert(_finalstorage.end(), _arrayStorage.begin(), _arrayStorage.end());
-        auto arraysOffset = _storage.size();
         for (auto && offset : _offsetsToUpdate) {
-            *(_finalstorage.begin() + offset.first) = offset.second + arraysOffset;
+            offset.first(offsetToArrays + offset.second);
         }
-        return _storage;
+
+        return _finalstorage;
     }
 
+protected:
+
+    // memref storage - works for OpOperand and OpResult
+    void storeAsMemref(const mlir::Value & value) {
+        auto dimsPatcher = [] (sw_params::MemRefData &memrefData, uint32_t updateTo) {
+            memrefData.dimsAddr = updateTo;
+        };
+        auto stridesParcher = [] (sw_params::MemRefData &memrefData, uint32_t updateTo) {
+            memrefData.stridesAddr = updateTo;
+        };
+        auto getAddress = [](VPUIP::DeclareTensorOp & tensor) {
+            return tensor.dataIndex() + tensor.leadingOffset().getValueOr(0);
+        };
+
+        sw_params::MemRefData memrefData{};
+
+        auto shape = value.getType().cast<mlir::ShapedType>();
+
+        memrefData.numDims = shape.getShape().size();
+
+        // dims
+        registerArrayFor<sw_params::MemRefData>(dimsPatcher, shape.getShape());
+
+        // order
+        const auto inOrder = DimsOrder::fromValue(value);
+        memrefData.dimsOrder = inOrder.code();
+
+        // strides
+        const auto stridesReqs = StrideReqs::simple(checked_cast<size_t>(shape.getRank()));
+        const auto memStrides = stridesReqs.calcStrides(inOrder, shape);
+        const auto strides = inOrder.toLogicalOrder(memStrides);
+
+        registerArrayFor<sw_params::MemRefData>(stridesParcher, strides);
+
+        auto tensor = value.getDefiningOp<VPUIP::DeclareTensorOp>();
+
+        // data addr
+        memrefData.dataAddr = mvds::nce2p7::ACT_KERNEL_CMX_WINDOW + getAddress(tensor);
+
+        memrefData.dataType = 0; // TODO: to be defined
+
+        memrefData.location = sw_params::UPA_CMX;
+
+        storeSimple(_storage, memrefData);
+    }
 };
 }  // namespace vpux
