@@ -82,14 +82,14 @@ Const::Content vpux::Const::SwizzleAttr::transform(vpux::Const::Content& input) 
     }
     // U8
     else if (input.getStorageElemType().isInteger(8)) {
-        const auto values = input.getValues<uint8_t>();
+        const auto values = input.getValues<int8_t>();
         auto swizzledVals = output.getTempBuf<uint8_t>();
         auto num_elements = swizzledVals.size();
         auto total_bytes = num_elements * sizeof(uint8_t);
 
         // swizzle in u8
         for (unsigned int i = 0; i < total_bytes; i++) {
-            swizzledVals.data()[vpux::VPUIP::swizzle_addr(i, swizzling_key)] = values[i];
+            swizzledVals.data()[vpux::VPUIP::swizzle_addr(i, swizzling_key)] = static_cast<uint8_t>(values[i]);
         }
     }
     // I8
