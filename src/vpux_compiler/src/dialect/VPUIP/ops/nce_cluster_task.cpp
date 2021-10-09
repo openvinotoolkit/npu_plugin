@@ -80,14 +80,15 @@ void vpux::VPUIP::NCEClusterTaskOp::inferLayoutInfo(mlir::Operation* origOp, IE:
             .Case<IE::ConvolutionOp>([&](IE::ConvolutionOp op) {
 
                 const auto inputTensorWidth = getShape(op.input())[IE::Dims4D::Act::W];
-                const auto inputChannels = getShape(op.filter().getType().cast<mlir::ShapedType>())[IE::Dims4D::Filter::IC];
+                const auto inputChannels =
+                        getShape(op.filter().getType().cast<mlir::ShapedType>())[IE::Dims4D::Filter::IC];
                 const auto inDimsOrder = DimsOrder::fromValue(op->getOperand(0));
-                bool channelMajorConvolution = ((inDimsOrder == DimsOrder::NCHW) && (inputChannels == 3) && (inputTensorWidth % 16 == 0));
+                bool channelMajorConvolution =
+                        ((inDimsOrder == DimsOrder::NCHW) && (inputChannels == 3) && (inputTensorWidth % 16 == 0));
                 if (channelMajorConvolution) {
                     info.setInput(0, DimsOrder::NCHW);
                     info.setInput(1, DimsOrder::OIYX);
                 } else {
-                 
                     info.setInput(0, DimsOrder::NHWC);
                     info.setInput(1, DimsOrder::OYXI);
                 }
