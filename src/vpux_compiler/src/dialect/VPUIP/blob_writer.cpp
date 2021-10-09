@@ -195,11 +195,8 @@ vpux::VPUIP::BlobWriter::KernelDataRef vpux::VPUIP::BlobWriter::createInvocation
                     invocationBuilder.addArg(swKernelTask->getOpResult(id - insSize));
                 }
             } else {
-                //TODO: findout how to get constant args
-                //invocationBuilder.addArg(operands.getAsOpaquePointer());
-                //concateIOOperands.push_back(operands);
+                invocationBuilder.addArg(operands);
             }
-            _log.trace("Operation '{0}' has SW.Kernel.Run call with arg: {1} of type {2} ", op->getName(), operands, operands.getType());
         }
     }
 
