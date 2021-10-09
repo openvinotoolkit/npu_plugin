@@ -516,10 +516,13 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(mlir::Location loc, 
         return mlir::failure();
     }
 
-    if (SX != SY) {
-        log.trace("[{0}] Asymmetric strides are not supported", loc);
-        return mlir::failure();
-    }
+    // TODO: Re-enable this check on KMB (NB MTL supports assymetric strides)
+    //
+    // if (SX != SY) {
+    //     log.trace("[{0}] Assymetric strides are not supported", loc);
+    //     return mlir::failure();
+    // }
+
     if (SY > NCE_MAX_STRIDE_SIZE || SY <= 0) {
         log.trace("[{0}] Unsupported stride height dimension '{1}', must be in range [1, {2}]", loc, SY,
                   NCE_MAX_STRIDE_SIZE);
