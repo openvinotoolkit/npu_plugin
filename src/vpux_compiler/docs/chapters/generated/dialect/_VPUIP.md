@@ -1932,8 +1932,8 @@ Syntax:
 ```
 operation ::= `VPUIP.SW.Kernel` attr-dict
               $kernelFunction
-              `inputs` custom<IOForward>($inputs, type($inputs))
-              `outputs` custom<IOForward>($outputs, type($outputs))
+              `inputs` `(`$inputs `:` type($inputs)`)`
+              `outputs` `(`$outputs `:` type($outputs)`)`
               (`on` `tile` $tileIndex^)?
               (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
               (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?

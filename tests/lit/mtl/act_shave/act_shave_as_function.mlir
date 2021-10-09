@@ -72,8 +72,8 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1
     %sigmoid_krn =
         VPUIP.SW.Kernel
                     @VPU.SW::@builtin_softmax             // The reference to the Kernel function.
-                    inputs(%in_tile0_cmx : memref<1x1x1x1000xf16, "VPU_CMX_NN"> as %arg0)     // Inputs/outputs buffers for generic operation interface
-                    outputs(%out_tile0_cmx : memref<1x1x1x1000xf16, "VPU_CMX_NN"> as %arg1)   // and their mapping to inner region.
+                    inputs(%in_tile0_cmx : memref<1x1x1x1000xf16, "VPU_CMX_NN">)     // Inputs/outputs buffers for generic operation interface
+                    outputs(%out_tile0_cmx : memref<1x1x1x1000xf16, "VPU_CMX_NN">)   // and their mapping to inner region.
                     on tile 0                           // The tile index to execute on.
                     waits(%b0  : !VPUIP.Barrier)
                     updates(%b1  : !VPUIP.Barrier)
@@ -82,10 +82,11 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1
             ^bb0(%arg0 : memref<1x1x1x1000xf16, "VPU_CMX_NN">, %arg1 : memref<1x1x1x1000xf16, "VPU_CMX_NN">):
                 // Inner region, isolated from above, which holds the information about arguments mapping.
                 // We can use constant scalars/arrays definitions here.
-                %axis   = constant 0 : i64
+                %axis   = constant 110 : i64
+                %axis2   = constant 220 : i64
 
                 // The arguments mapping, the order must match the kernel parameter structure.
-                VPUIP.SW.Kernel.run(%arg0, %arg1, %axis)
+                VPUIP.SW.Kernel.run(%arg0, %arg1, %axis2)
                     : memref<1x1x1x1000xf16, "VPU_CMX_NN">
                     , memref<1x1x1x1000xf16, "VPU_CMX_NN">
                     , i64
