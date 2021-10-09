@@ -808,8 +808,7 @@ class Maxpool(MPE):
 
     # kernel_strides are x|y directions
     # The padding order is top|left|bottom|right
-    PARAMS = ['mpe_op_class', 'input_ttype', 'input_shape', 'output_ttype', 'kernel_strides', 'kernel_pads']
-    kernel_shape = [2, 2]
+    PARAMS = ['mpe_op_class', 'input_ttype', 'input_shape', 'kernel_shape', 'output_ttype', 'kernel_strides', 'kernel_pads']
 
     def __init__(self, settings):
         self.settings = settings
@@ -820,18 +819,18 @@ class Maxpool(MPE):
             'input': inputs[0].json_info,
             'pool_op': {
                 'sub_type': 'max',
-                'kernel_shape': self.kernel_shape,
+                'kernel_shape': self.settings.kernel_shape,
                 'stride': self.settings.kernel_strides,
                 'pad': self.settings.kernel_pads
             }
         }
 
     def validate(self):
-        ValidatePaddings(self.kernel_shape, self.settings.kernel_pads)
+        ValidatePaddings(self.settings.kernel_shape, self.settings.kernel_pads)
 
     @property
     def ident(self) -> str:
-        return f'max_pool_{shape_to_str(self.settings.input_shape)}x{self.settings.input_ttype.stype}_pads_{shape_to_str(self.settings.kernel_pads)}_strides_{shape_to_str(self.settings.kernel_strides)}'
+        return f'max_pool_{shape_to_str(self.settings.input_shape)}x{self.settings.input_ttype.stype}_{shape_to_str(self.settings.kernel_shape)}_pads_{shape_to_str(self.settings.kernel_pads)}_strides_{shape_to_str(self.settings.kernel_strides)}'
 
     @property
     def orderer(self) -> Orderer:
@@ -857,7 +856,7 @@ class Maxpool(MPE):
 
     def apply(self, values: List[Value]) -> np.ndarray:
         lhs, rhs = idu(values[0], values[0])
-        maxpool = MaxPool(kernel_shape=self.kernel_shape, strides=self.settings.kernel_strides, pads=self.settings.kernel_pads)
+        maxpool = MaxPool(kernel_shape=self.settings.kernel_shape, strides=self.settings.kernel_strides, pads=self.settings.kernel_pads)
         return maxpool.inference(lhs)
 
 
@@ -865,8 +864,7 @@ class AvgPool(MPE):
 
     # kernel_strides are x|y directions
     # The padding order is top|left|bottom|right
-    PARAMS = ['mpe_op_class', 'input_ttype', 'input_shape', 'output_ttype', 'kernel_strides', 'kernel_pads']
-    kernel_shape = [2, 2]
+    PARAMS = ['mpe_op_class', 'input_ttype', 'input_shape', 'kernel_shape', 'output_ttype', 'kernel_strides', 'kernel_pads']
 
     def __init__(self, settings):
         self.settings = settings
@@ -877,18 +875,18 @@ class AvgPool(MPE):
             'input': inputs[0].json_info,
             'pool_op': {
                 'sub_type': 'avg',
-                'kernel_shape': self.kernel_shape,
+                'kernel_shape': self.settings.kernel_shape,
                 'stride': self.settings.kernel_strides,
                 'pad': self.settings.kernel_pads
             }
         }
 
     def validate(self):
-        ValidatePaddings(self.kernel_shape, self.settings.kernel_pads)
+        ValidatePaddings(self.settings.kernel_shape, self.settings.kernel_pads)
 
     @property
     def ident(self) -> str:
-        return f'avg_pool_{self.settings.input_ttype.stype}'
+        return f'avg_pool_{self.settings.input_ttype.stype}_{shape_to_str(self.settings.kernel_shape)}_strides_{shape_to_str(self.settings.kernel_strides)}'
 
     @property
     def orderer(self) -> Orderer:
@@ -914,7 +912,7 @@ class AvgPool(MPE):
 
     def apply(self, values: List[Value]) -> np.ndarray:
         lhs, rhs = idu(values[0], values[0])
-        avgpool = AveragePool(self.kernel_shape, strides = self.settings.kernel_strides, pads = self.settings.kernel_pads)
+        avgpool = AveragePool(self.settings.kernel_shape, strides = self.settings.kernel_strides, pads = self.settings.kernel_pads)
         return avgpool.inference(lhs)
 
 
@@ -1150,10 +1148,11 @@ def genEltwiseMults(input_types=[Int8(6)],
 
 def genMaxPools(input_types=[FP16(6)],
                 input_shapes=[[1, 64, 16, 16]],
+                kernel_shapes=[[2, 2]],
                 output_types=None,
                 strides=[[2, 2]],
                 pads=Pad.none):
-    for (input_type, input_shape, stride, pad) in itertools.product(input_types, input_shapes, strides, pads):
+    for (input_type, input_shape, kernel_shape, stride, pad) in itertools.product(input_types, input_shapes, kernel_shapes, strides, pads):
         if output_types is None:
             if input_type.is_float:
                 if input_type.__class__ is BF16:
@@ -1169,6 +1168,7 @@ def genMaxPools(input_types=[FP16(6)],
             yield DPUPipeline(Maxpool.PARAMS, (Maxpool,
                                                input_type,
                                                input_shape,
+                                               kernel_shape,
                                                output_type,
                                                stride,
                                                pad
@@ -1177,10 +1177,11 @@ def genMaxPools(input_types=[FP16(6)],
 
 def genAvgPools(input_types=[FP16(6)],
                 input_shapes=[[1, 64, 32, 32]],
+                kernel_shapes=[[2, 2]],
                 output_types=None,
                 strides=[[2, 2]],
                 pads=Pad.none):
-    for (input_type, input_shape, stride, pad) in itertools.product(input_types, input_shapes, strides, pads):
+    for (input_type, input_shape, kernel_shape, stride, pad) in itertools.product(input_types, input_shapes, kernel_shapes, strides, pads):
         if output_types is None:
             current_output_types = _PPE_VALID_OUTPUT_TYPES[input_type.is_float]
         else:
@@ -1190,6 +1191,7 @@ def genAvgPools(input_types=[FP16(6)],
             yield DPUPipeline(AvgPool.PARAMS, (AvgPool,
                                                input_type,
                                                input_shape,
+                                               kernel_shape,
                                                output_type,
                                                stride,
                                                pad
@@ -1244,6 +1246,13 @@ def generate_options(args):
                    weight_types=[UInt8(1)],
                    kernel_shapes=[[r, c] for r in range(1, 12) for c in range(1, 12) if (r, c) != (1, 1)],
                    output_types=[FP16()]),
+
+        # Z-Major Convolution with strides
+        genZMConvs(input_types=[FP16(3)],
+                   weight_types=[Int8(3), FP16(3)],
+                   output_types=[FP16()],
+                   kernel_shapes=[[2, 2]],
+                   strides=[[r, c] for r in range(1, 8) for c in range(1, 8)]),
 
         # Z-Major Convolution, padding, uint8
         genZMConvs(input_types=[UInt8(2)],
@@ -1316,9 +1325,25 @@ def generate_options(args):
                     input_shapes=[[1, 64, 16, 16]],
                     pads=Pad.none + Pad.all(1) + Pad.top_bottom(1) + Pad.left_right(1)),
 
+        genMaxPools(input_types=[UInt8(6)],
+                    output_types=[UInt8()],
+                    strides=[[r, c] for r in range(2, 8) for c in range(2, 8) if (r, c) != (2, 2)]),
+
+        genMaxPools(input_types=[UInt8(6)],
+                    output_types=[UInt8()],
+                    kernel_shapes=[[r, c] for r in range(2, 12) for c in range(2, 12) if (r, c) != (2, 2)]),
+
         # AvgPool
         genAvgPools(input_types=[Int8(6), UInt8(6), FP16(6), BF16(6)],
                     input_shapes=[[1, 64, 32, 32]]),
+
+        genAvgPools(input_types=[Int8(6)],
+                    output_types=[Int8()],
+                    strides=[[r, c] for r in range(2, 8) for c in range(2, 8) if (r, c) != (2, 2)]),
+
+        genAvgPools(input_types=[FP16(6)],
+                    output_types=[FP16()],
+                    kernel_shapes=[[r, c] for r in range(2, 12) for c in range(2, 12) if (r, c) != (2, 2)]),
 
         # DepthWiseConv
         genDepthWiseConvs(input_types=[Int8(6), UInt8(6), FP16(6), BF16(6)],
@@ -1333,7 +1358,8 @@ def generate_options(args):
                           kernel_channels=[64]),
 
         genDepthWiseConvs(input_types=[UInt8(6)],
-                          strides=[[2, 2], [3, 3]]),
+                          output_types=[UInt8()],
+                          strides=[[r, c] for r in range(1, 8) for c in range(1, 8) if (r, c) != (1, 1)]),
 
         genDepthWiseConvs(input_types=[UInt8(6)],
                           output_types=[UInt8()],
