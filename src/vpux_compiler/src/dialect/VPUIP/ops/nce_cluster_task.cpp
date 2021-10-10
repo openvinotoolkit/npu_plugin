@@ -84,13 +84,12 @@ void vpux::VPUIP::NCEClusterTaskOp::inferLayoutInfo(mlir::Operation* origOp, IE:
                         getShape(op.filter().getType().cast<mlir::ShapedType>())[IE::Dims4D::Filter::IC];
                 const auto inDimsOrder = DimsOrder::fromValue(op->getOperand(0));
 
-                if (isChannelMajorCompatibaleOperation(inDimsOrder, inputChannels, inputWidth)) {
+                if (isChannelMajorCompatibaleOperation(inDimsOrder, inputChannels, inputWidth))
                     info.setInput(0, DimsOrder::NCHW);
-                    info.setInput(1, DimsOrder::OIYX);
-                } else {
+                else
                     info.setInput(0, DimsOrder::NHWC);
-                    info.setInput(1, DimsOrder::OYXI);
-                }
+
+                info.setInput(1, DimsOrder::OYXI);
                 info.setOutput(0, DimsOrder::NHWC);
             })
             .Case<IE::GroupConvolutionOp>([&](IE::GroupConvolutionOp) {
@@ -180,15 +179,8 @@ mlir::LogicalResult verifyNCEConv(VPUIP::NCEClusterTaskOp op) {
     }
 
     const auto weightsLayout = DimsOrder::fromValue(op.weights());
-    Logger::global().error("order: {0}", weightsLayout);
-    if (op.task_type() == VPUIP::NCETaskType::CONV) {
-        if (weightsLayout != DimsOrder::NHWC) {
-            return errorAt(op, "weights layout must be NHWC, got {0}", weightsLayout);
-        }
-    } else if (op.task_type() == VPUIP::NCETaskType::CMCONV) {
-        if (weightsLayout != DimsOrder::NCHW) {
-            return errorAt(op, "weights layout must be NCHW, got {0}", weightsLayout);
-        }
+    if (weightsLayout != DimsOrder::NHWC) {
+        return errorAt(op, "weights layout must be NHWC, got {0}", weightsLayout);
     }
 
     return mlir::success();
