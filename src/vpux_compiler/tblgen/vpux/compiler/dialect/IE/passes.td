@@ -434,6 +434,26 @@ def ConvertWeightsToU8 : PassBase<"convert-weights-to-u8", "vpux::FunctionPass">
 }
 
 //
+// ConvertQuantizeOpsToEltwise
+//
+
+def ConvertQuantizeOpsToEltwise : PassBase<"convert-quantize-ops-to-eltwise", "vpux::FunctionPass"> {
+    let summary = "Converts per-tensor Quantize/Dequantize to eltwise And mixed-precision operation";
+
+    let description = [{
+        The pass is a part of `LowPrecision` pipeline.
+
+        Converts per-tensor Quantize/Dequantize to eltwise And mixed-precision operation where input2 is input1.
+    }];
+
+    let constructor = "vpux::IE::createConvertQuantizeOpsToEltwisePass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
+
+//
 // ConvertAvgPoolToDWConv
 //
 

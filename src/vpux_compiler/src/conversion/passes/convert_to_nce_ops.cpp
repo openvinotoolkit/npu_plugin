@@ -388,36 +388,38 @@ llvm::Optional<double> calculateQuantScaleForEltwise(IERT::LayerOpInterface laye
         return ::llvm::None;
     }
 
-    VPUX_THROW_WHEN(!input1ElementType.isa<mlir::quant::QuantizedType>() ||
-                            !input2ElementType.isa<mlir::quant::QuantizedType>() ||
-                            !outputElementType.isa<mlir::quant::QuantizedType>(),
-                    "For now support only fully quantized Eltwise operations");
+    VPUX_THROW_WHEN(input1ElementType.isa<mlir::quant::UniformQuantizedPerAxisType>() ||
+                            input2ElementType.isa<mlir::quant::UniformQuantizedPerAxisType>() ||
+                            outputElementType.isa<mlir::quant::UniformQuantizedPerAxisType>(),
+                    "Only per-tensor quantization is supported");
 
-    auto scaleInput1 = extractScalesAndZeroPoints(input1ElementType).first.front();
-    auto scaleInput2 = extractScalesAndZeroPoints(input2ElementType).first.front();
-    auto scaleOutput = extractScalesAndZeroPoints(outputElementType).first.front();
+    double scaleInput1;
+    double scaleOutput;
+
+    // floats in the compute pipeline are represented as S16.16 values
+    // In order to convert from I32 to S16.16 and back, we need to multiply/divide by 1<<16
+    const double fp16_scale = 1.0 / 65536.0;
+    if (!input1ElementType.isa<mlir::quant::QuantizedType>() && !input2ElementType.isa<mlir::quant::QuantizedType>()) {
+        scaleOutput = extractScalesAndZeroPoints(outputElementType).first.front();
+        scaleInput1 = fp16_scale;
+    } else if (!outputElementType.isa<mlir::quant::QuantizedType>()) {
+        scaleInput1 = extractScalesAndZeroPoints(input1ElementType).first.front();
+        scaleOutput = fp16_scale;
+    } else {
+        scaleInput1 = extractScalesAndZeroPoints(input1ElementType).first.front();
+        scaleOutput = extractScalesAndZeroPoints(outputElementType).first.front();
+    }
 
     auto ppeScale = scaleInput1;
     // For Eltwise Multiply ppeScale = scaleInput1*scaleInput2/scaleOutput
     // For Eltwise Add/Subtract/And ppeScale = scaleInput1/scaleOutput
     if (mlir::isa<IERT::MultiplyOp>(layerOp)) {
+        const auto scaleInput2 = extractScalesAndZeroPoints(input2ElementType).first.front();
         ppeScale *= scaleInput2;
     }
+
     ppeScale /= scaleOutput;
-
-    return llvm::Optional<double>(ppeScale);
-}
-
-// Prepare Mult and Shift vector pair based on provided quant scale vector.
-std::pair<std::vector<int32_t>, std::vector<int32_t>> getQuantMultAndShiftVectorFromScale(
-        const std::vector<double>& scale) {
-    std::vector<int32_t> shift(scale.size());
-    std::vector<int32_t> mult(scale.size());
-
-    std::transform(scale.begin(), scale.end(), mult.begin(), getQuantMultFromScale);
-    std::transform(scale.begin(), scale.end(), shift.begin(), getQuantShiftFromScale);
-
-    return {mult, shift};
+    return {ppeScale};
 }
 
 template <class ConcreteOp>
@@ -473,7 +475,7 @@ mlir::LogicalResult GenericEltwiseConverter<ConcreteOp>::matchAndRewrite(Concret
     if (quantizedType) {
         const auto zps = extractScalesAndZeroPoints(outElemType).second;
 
-        clampLow = -zps.front();
+        clampLow = quantizedType.getStorageTypeMin() - zps.front();
         clampHigh = quantizedType.getStorageTypeMax() - zps.front();
     }
 
