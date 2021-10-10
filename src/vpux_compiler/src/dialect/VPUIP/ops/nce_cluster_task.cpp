@@ -125,7 +125,11 @@ mlir::LogicalResult verifyNCEConv(VPUIP::NCEClusterTaskOp op) {
     if (op.weight_table() == nullptr) {
         return errorAt(op, "weight_table is required for NCETaskType : '{0}'", op.task_type());
     }
-
+    if (op.task_type() == VPUIP::NCETaskType::CMCONV) {
+        if (op.activation_window() == nullptr) {
+            return errorAt(op, "activation_window is required for NCETaskType : '{0}'", op.task_type());
+        }
+    }
     if (op.kernel_sizeAttr() == nullptr) {
         return errorAt(op, "kernel_size is required for NCETaskType : '{0}'", op.task_type());
     }
@@ -175,8 +179,15 @@ mlir::LogicalResult verifyNCEConv(VPUIP::NCEClusterTaskOp op) {
     }
 
     const auto weightsLayout = DimsOrder::fromValue(op.weights());
-    if (weightsLayout != DimsOrder::NHWC) {
-        return errorAt(op, "weights layout must be NHWC, got {0}", weightsLayout);
+    Logger::global().error("order: {0}", weightsLayout);
+    if (op.task_type() == VPUIP::NCETaskType::CONV) {
+        if (weightsLayout != DimsOrder::NHWC) {
+            return errorAt(op, "weights layout must be NHWC, got {0}", weightsLayout);
+        }
+    } else if (op.task_type() == VPUIP::NCETaskType::CMCONV) {
+        if (weightsLayout != DimsOrder::NCHW) {
+            return errorAt(op, "weights layout must be NCHW, got {0}", weightsLayout);
+        }
     }
 
     return mlir::success();
