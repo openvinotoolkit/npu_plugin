@@ -221,8 +221,8 @@ class Value:
             'quantization': {
                 'scale': self.scale,
                 'zeropoint': self.zero,
-                'low_range': self.low,
-                'high_range': self.high
+                'low_range': 0 if self.is_float else self.low,
+                'high_range': 1 if self.is_float else self.high
             }
         }
         return info
