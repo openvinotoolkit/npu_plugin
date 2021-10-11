@@ -18,7 +18,46 @@ namespace zeroCompilerAdapter {
 
 ZeroAPICompilerInDriver::ZeroAPICompilerInDriver() {
     _logger->debug("ZeroAPICompilerInDriver::ZeroAPICompilerInDriver");
-    _logger->error("ZeroAPICompilerInDriver::ZeroAPICompilerInDriver not implemented");
+    auto result = zeInit(0);
+    if (ZE_RESULT_SUCCESS != result) {
+        std::cerr << "ZeroDevicesSingleton zeInit failed 0x" << std::hex << uint64_t(result) << std::dec
+                    << std::endl;
+        return;
+    }
+
+    uint32_t drivers = 0;
+    result = zeDriverGet(&drivers, nullptr);
+    if (ZE_RESULT_SUCCESS != result) {
+        std::cerr << "ZeroDevicesSingleton zeDriverGet count failed 0x" << std::hex << uint64_t(result) << std::dec
+                    << std::endl;
+        return;
+    }
+    std::vector<ze_driver_handle_t> all_drivers(drivers);
+    result = zeDriverGet(&drivers, all_drivers.data());
+    if (ZE_RESULT_SUCCESS != result) {
+        std::cerr << "ZeroDevicesSingleton zeDriverGet get failed 0x" << std::hex << uint64_t(result) << std::dec
+                    << std::endl;
+        return;
+    }
+    // Get our target driver
+    for (uint32_t i = 0; i < drivers; ++i) {
+        // arbitrary test at this point
+        if (i == drivers - 1) {
+            _driver_handle = all_drivers[i];
+        }
+    }
+
+    // Load our graph extension
+    result = zeDriverGetExtensionFunctionAddress(_driver_handle, "ZE_extension_graph",
+                                                    reinterpret_cast<void**>(&_graph_ddi_table_ext));
+    if (ZE_RESULT_SUCCESS != result) {
+        std::cerr << "ZeroDevicesSingleton zeDriverGetExtensionFunctionAddress failed 0x" << std::hex
+                    << uint64_t(result) << std::dec << std::endl;
+        return;
+    }
+
+    // Device part removed
+    _logger->debug("ZeroAPICompilerInDriver::ZeroAPICompilerInDriver done");
 }
 
 ZeroAPICompilerInDriver::~ZeroAPICompilerInDriver() {

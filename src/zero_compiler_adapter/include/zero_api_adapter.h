@@ -12,6 +12,8 @@
 //
 
 #include "icompiler_adapter.h"
+#include "ze_api.h"
+#include "ze_graph_ext.h"
 
 namespace vpux {
 namespace zeroCompilerAdapter {
@@ -33,6 +35,11 @@ public:
     std::tuple<const DataMap, const DataMap> getDeviceNetworkMeta(const Blob::Ptr compiledNetwork) override;
 
 private:
+    ze_driver_handle_t _driver_handle = nullptr;
+    // ze_device_handle_t _device_handle = nullptr;
+
+    ze_graph_dditable_ext_t* _graph_ddi_table_ext = nullptr;
+
     // TODO Switch log level to Debug when it will be production solution
     const std::unique_ptr<vpu::Logger> _logger = std::unique_ptr<vpu::Logger>(
             new vpu::Logger("VPUXCompilerL0", vpu::LogLevel::Debug /*_config.logLevel()*/, vpu::consoleOutput()));
