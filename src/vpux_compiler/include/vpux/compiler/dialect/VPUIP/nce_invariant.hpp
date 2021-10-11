@@ -32,13 +32,13 @@ public:
 
 public:
     static mlir::LogicalResult verifyCMX(IERT::ConvolutionOp origOp, Logger log = Logger::global());
-    static mlir::LogicalResult verifyConvCMX(mlir::Location loc, mlir::ModuleOp module, mlir::MemRefType inputType,
-                                             mlir::MemRefType filterType, mlir::MemRefType outputType,
+    static mlir::LogicalResult verifyConvCMX(mlir::Location loc, mlir::ModuleOp module, mlir::ShapedType inputType,
+                                             mlir::ShapedType filterType, mlir::ShapedType outputType,
                                              Logger log = Logger::global());
 
     static mlir::LogicalResult verifyCMX(IERT::MaxPoolOp origOp, Logger log = Logger::global());
-    static mlir::LogicalResult verifyPoolCMX(mlir::Location loc, mlir::ModuleOp module, mlir::MemRefType inputType,
-                                             mlir::MemRefType outputType, mlir::ArrayAttr kernelSize,
+    static mlir::LogicalResult verifyPoolCMX(mlir::Location loc, mlir::ModuleOp module, mlir::ShapedType inputType,
+                                             mlir::ShapedType outputType, mlir::ArrayAttr kernelSize,
                                              mlir::ArrayAttr kernelStrides, Logger log = Logger::global());
 
     static mlir::LogicalResult verifyCMX(IERT::AddOp origOp, Logger log = Logger::global());
@@ -46,12 +46,12 @@ public:
     static mlir::LogicalResult verifyCMX(IERT::SubtractOp origOp, Logger log = Logger::global());
     static mlir::LogicalResult verifyCMX(IERT::AndOp origOp, Logger log = Logger::global());
     static mlir::LogicalResult verifyEltwiseCMX(mlir::Location loc, mlir::ModuleOp module,
-                                                mlir::MemRefType firstInputType, mlir::MemRefType secondInputType,
-                                                mlir::MemRefType outputType, Logger log = Logger::global());
+                                                mlir::ShapedType firstInputType, mlir::ShapedType secondInputType,
+                                                mlir::ShapedType outputType, Logger log = Logger::global());
 
     static mlir::LogicalResult verifyCMX(IERT::GroupConvolutionOp origOp, Logger log = Logger::global());
-    static mlir::LogicalResult verifyGroupConvCMX(mlir::Location loc, mlir::ModuleOp module, mlir::MemRefType inputType,
-                                                  mlir::MemRefType filterType, mlir::MemRefType outputType,
+    static mlir::LogicalResult verifyGroupConvCMX(mlir::Location loc, mlir::ModuleOp module, mlir::ShapedType inputType,
+                                                  mlir::ShapedType filterType, mlir::ShapedType outputType,
                                                   mlir::ArrayAttr kernelStrides, Logger log = Logger::global());
 
 public:

@@ -52,7 +52,8 @@ mlir::IntegerType getBoolType(mlir::MLIRContext* ctx);
 //
 
 Bit getElemTypeSize(mlir::Type type);
-Byte getTypeTotalSize(mlir::MemRefType type);
+
+Byte getTotalSize(mlir::ShapedType type);
 Byte getTotalSize(mlir::Value val);
 
 //

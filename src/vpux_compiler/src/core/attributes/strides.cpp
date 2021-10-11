@@ -13,10 +13,13 @@
 
 #include "vpux/compiler/core/attributes/strides.hpp"
 #include "vpux/compiler/core/attributes/shape.hpp"
+#include "vpux/compiler/core/attributes/stride_reqs.hpp"
 
 #include "vpux/compiler/utils/types.hpp"
 
 #include <mlir/Dialect/Quant/QuantTypes.h>
+
+#include <llvm/ADT/TypeSwitch.h>
 
 #include <algorithm>
 
@@ -35,6 +38,12 @@ bool vpux::details::isDynamicDimValues(ArrayRef<Bit> strides) {
 //
 // Strides
 //
+
+Strides vpux::getStrides(mlir::RankedTensorType type) {
+    const auto memStrides = getMemStrides(type);
+    const auto order = DimsOrder::fromType(type);
+    return order.toLogicalOrder(memStrides);
+}
 
 Strides vpux::getStrides(mlir::MemRefType type) {
     const auto maps = type.getAffineMaps();
@@ -70,8 +79,58 @@ Strides vpux::getStrides(mlir::MemRefType type) {
     return strides;
 }
 
+Strides vpux::getStrides(mlir::ShapedType type) {
+    return llvm::TypeSwitch<mlir::ShapedType, Strides>(type)
+            .Case<mlir::MemRefType>([&](mlir::MemRefType memref) {
+                return getStrides(memref);
+            })
+            .Case<mlir::RankedTensorType>([&](mlir::RankedTensorType tensor) {
+                return getStrides(tensor);
+            })
+            .Default([](mlir::ShapedType type) -> Strides {
+                VPUX_THROW("Unsupported ShapedType '{0}'", type);
+            });
+}
+
 Strides vpux::getStrides(mlir::Value val) {
-    const auto type = val.getType().dyn_cast_or_null<mlir::MemRefType>();
-    VPUX_THROW_UNLESS(type != nullptr, "Value '{0}' has non MemRefType '{1}'", val, val.getType());
+    const auto type = val.getType().dyn_cast<mlir::ShapedType>();
+    VPUX_THROW_UNLESS(type != nullptr, "Value '{0}' has non ShapedType '{1}'", val, val.getType());
     return getStrides(type);
+}
+
+//
+// MemStrides
+//
+
+MemStrides vpux::getMemStrides(mlir::RankedTensorType type) {
+    const auto order = DimsOrder::fromType(type);
+
+    // Tensors are always compact
+    const auto reqs = StrideReqs::compact(checked_cast<size_t>(type.getRank()));
+    return reqs.calcStrides(order, type);
+}
+
+MemStrides vpux::getMemStrides(mlir::MemRefType type) {
+    const auto order = DimsOrder::fromType(type);
+    const auto strides = getStrides(type);
+    return order.toMemoryOrder(strides);
+}
+
+MemStrides vpux::getMemStrides(mlir::ShapedType type) {
+    return llvm::TypeSwitch<mlir::ShapedType, MemStrides>(type)
+            .Case<mlir::MemRefType>([&](mlir::MemRefType memref) {
+                return getMemStrides(memref);
+            })
+            .Case<mlir::RankedTensorType>([&](mlir::RankedTensorType tensor) {
+                return getMemStrides(tensor);
+            })
+            .Default([](mlir::ShapedType type) -> MemStrides {
+                VPUX_THROW("Unsupported ShapedType '{0}'", type);
+            });
+}
+
+MemStrides vpux::getMemStrides(mlir::Value val) {
+    const auto type = val.getType().dyn_cast<mlir::ShapedType>();
+    VPUX_THROW_UNLESS(type != nullptr, "Value '{0}' has non ShapedType '{1}'", val, val.getType());
+    return getMemStrides(type);
 }
