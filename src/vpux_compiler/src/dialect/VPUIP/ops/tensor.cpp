@@ -70,7 +70,6 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(DeclareTensorOp op) {
     return mlir::success();
 }
 
-
 mlir::ParseResult vpux::VPUIP::DeclareTensorOp::parseLocaleIndex(mlir::OpAsmParser& parser,
                                                                  mlir::ArrayAttr& localeIndex) {
     SmallVector<int64_t> indicies;
