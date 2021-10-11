@@ -174,7 +174,7 @@ public:
         return vpux::getElemTypeSize(getType());
     }
 
-    Bit getTypeTotalSize() const {
+    Bit getTotalSize() const {
         return Bit(getType().getSizeInBits());
     }
 
