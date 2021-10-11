@@ -27,16 +27,7 @@
 using namespace vpux;
 
 //
-// verifyACTShaveTask
-//
-
-mlir::LogicalResult vpux::VPUIP::verifyACTShaveTask(mlir::Operation* /*op*/) {
-    return mlir::success();
-}
-
-
-//
-// verifyUPATask
+// TaskOpInterface
 //
 
 void vpux::VPUIP::getTaskEffects(mlir::Operation* op, SmallVectorImpl<MemoryEffect>& effects) {

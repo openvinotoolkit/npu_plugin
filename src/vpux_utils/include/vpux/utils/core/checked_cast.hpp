@@ -96,9 +96,6 @@ enable_t<OutT, std::is_integral<InT>, std::is_unsigned<InT>, std::is_integral<Ou
 template <typename OutT, typename InT>
 enable_t<OutT, std::is_integral<InT>, std::is_signed<InT>, std::is_integral<OutT>, std::is_unsigned<OutT>> checked_cast(
         InT value) {
-    if (value <0) {
-        printf("<0\n");
-    }
     VPUX_THROW_UNLESS(value >= 0, "Can not safely cast {0} from {1} to {2}", static_cast<int64_t>(value),
                       llvm::getTypeName<InT>(), llvm::getTypeName<OutT>());
 
