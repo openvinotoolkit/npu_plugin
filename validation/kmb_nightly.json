@@ -1,4 +1,4 @@
-    {
+{
     "networks" :
     [
         {
@@ -4340,84 +4340,6 @@
             "category" : "MCM/dKMB/precommit",
             "CI-options" : {
                 "blob_name" : "SuperRes_INT8_AA_ip_U8_op_FP32_temp"
-            }
-        },
-
-        {
-            "name" : "MTL_caffe2_FP16-INT8_intel_dns",
-            "ir" : "models/clientmodels/MTL/IntelDNS/FP16-INT8/intel_dns.xml",
-            "3720": {
-                "disabled" : true
-            },
-            "extra_config" : {
-                "VPUX_COMPILER_TYPE": "MLIR",
-                "VPUX_COMPILATION_MODE": "ReferenceHW",
-                "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS":"2",
-                "VPUX_DPU_GROUPS": "1",
-                "VPUX_THROUGHPUT_STREAMS": "6"
-            },
-            "Compile" : {
-                "input_layout" : "NC",
-                "output_layout" : "NC",
-                "input_precision" : "FP32",
-                "output_precision" : "FP32"
-            },
-            "AccuracyCheck" : {
-                "config": "intel_dns-caffe2.yml",
-                "subsample_size": 100,
-                "ie_preprocessing": false
-            },
-            "BenchmarkApp" : {
-            },
-            "NetTest-CalcRef" : {
-                "disabled" : true
-            },
-            "NetTest-Validate" : {
-                "disabled" : true
-            },
-            "category" : "MLIR",
-            "CI-options" : {
-                "blob_name" : "intel_dns_int8"
-            }
-        },
-
-        {
-            "name" : "MTL_caffe2_FP16_intel_dns",
-            "ir" : "models/clientmodels/MTL/IntelDNS/FP16/intel_dns.xml",
-            "3720": {
-                "disabled" : true
-            },
-            "extra_config" : {
-                "VPUX_COMPILER_TYPE": "MLIR",
-                "VPUX_COMPILATION_MODE": "ReferenceHW",
-                "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS":"2",
-                "VPUX_DPU_GROUPS": "1",
-                "VPUX_THROUGHPUT_STREAMS": "6"
-            },
-            "Compile" : {
-                "input_layout" : "NC",
-                "output_layout" : "NC",
-                "input_precision" : "FP32",
-                "output_precision" : "FP32"
-            },
-            "AccuracyCheck" : {
-                "config": "intel_dns-caffe2.yml",
-                "subsample_size": 100,
-                "ie_preprocessing": false
-            },
-            "BenchmarkApp" : {
-            },
-            "NetTest-CalcRef" : {
-                "disabled" : true
-            },
-            "NetTest-Validate" : {
-                "disabled" : true
-            },
-            "category" : "MLIR",
-            "CI-options" : {
-                "blob_name" : "intel_dns_fp16"
             }
         },
 
