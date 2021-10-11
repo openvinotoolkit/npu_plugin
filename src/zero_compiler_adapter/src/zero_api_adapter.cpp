@@ -159,8 +159,29 @@ std::tuple<const std::string, const DataMap, const DataMap, const DataMap, const
 ZeroAPICompilerInDriver::getNetworkMeta(const Blob::Ptr compiledNetwork) {
     _logger->debug("ZeroAPICompilerInDriver::getNetworkMeta");
 
+    ze_graph_properties_t graph_properties{};
+    auto result = _graph_ddi_table_ext->pfnGetProperties(_graph_handle, &graph_properties);
+    if (ZE_RESULT_SUCCESS != result) {
+        IE_THROW() << "Failed to get pfnGetProperties";
+    }
+    for (uint32_t index = 0; index < graph_properties.numGraphArgs; ++index) {
+        ze_graph_argument_properties_t arg;
+        result = _graph_ddi_table_ext->pfnGetArgumentProperties(_graph_handle, index, &arg);
+        if (ZE_RESULT_SUCCESS != result) {
+            IE_THROW() << "Failed to get pfnGetArgumentProperties";
+        }
+        if (ZE_GRAPH_ARGUMENT_TYPE_INPUT == arg.type) {
+            _logger->debug("Found input {}", arg.name);
+            // TensorDesc dataDesc(dataPrecision, dataDims, dataLayout);
+        }
+        if (ZE_GRAPH_ARGUMENT_TYPE_OUTPUT == arg.type) {
+            _logger->debug("Found output ");
+        }
+    }
+
+    const std::string graphName = "graph";
     
-    _logger->error("ZeroAPICompilerInDriver::getNetworkMeta not implemnented");
+    _logger->debug("ZeroAPICompilerInDriver::getDeviceNetworkMeta done");
     return std::make_tuple(std::string(), DataMap(), DataMap(), DataMap(), DataMap());
 }
 
