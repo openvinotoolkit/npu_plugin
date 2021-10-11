@@ -66,22 +66,22 @@ void ReadValueTransPass::safeRunOnModule() {
 
 #if 1
     // correct Assign
-    IE::AssignOp assign_op;
-    netFunc.walk([&](IE::AssignOp op) {
-        std::cout << "netFunc.walk->AssignOp" << std::endl;
-        assign_op = op;
-        std::cout << "netFunc.walk->AssignOp END" << std::endl;
-    });
+    // IE::AssignOp assign_op;
+    // netFunc.walk([&](IE::AssignOp op) {
+    //     std::cout << "netFunc.walk->AssignOp" << std::endl;
+    //     assign_op = op;
+    //     std::cout << "netFunc.walk->AssignOp END" << std::endl;
+    // });
     // netFunc.walk([&](IE::ReadValueOp op) {
     //     std::cout << "netFunc.walk->ReadValueOp" << std::endl;
     //     assign_op = op;
     // });
 
     std::cout << "auto assignOutput = assign_op.output();" << std::endl;
-    auto assignOutput = assign_op.output();
+    // auto assignOutput = assign_op.output();
     std::cout << "auto assignOutput = assign_op.output() 2;" << std::endl;
 
-    const auto assignOutputShape = assignOutput.getType().cast<mlir::ShapedType>();
+    // const auto assignOutputShape = assignOutput.getType().cast<mlir::ShapedType>();
 
     // netFunc.getBody().front().addArgument(assignOutputShape);
 
@@ -109,9 +109,9 @@ void ReadValueTransPass::safeRunOnModule() {
     // change main function interface
     auto newInputsTypes =
             to_small_vector(llvm::concat<const mlir::Type>(funcType.getInputs(), makeArrayRef(readValueInput)));
-    auto newOutputsTypes =
-                           to_small_vector(llvm::concat<const mlir::Type>(funcType.getResults(), makeArrayRef(assignOutput.getType())));
-    auto newFunctionType = mlir::FunctionType::get(ctx, newInputsTypes, newOutputsTypes);
+    // auto newOutputsTypes =
+    //                        to_small_vector(llvm::concat<const mlir::Type>(funcType.getResults(), makeArrayRef(assignOutput.getType())));
+    auto newFunctionType = mlir::FunctionType::get(ctx, newInputsTypes, funcType.getResults());
     netFunc.setType(newFunctionType);
 
     // User result
@@ -122,12 +122,12 @@ void ReadValueTransPass::safeRunOnModule() {
                                            mlir::TypeAttr::get(inputUserResult));
 
     // Adding output to the user info
-    auto outputUserResult =
-                            getTensorType(assignOutputShape.getShape(), assignOutputShape.getElementType(), DimsOrder::fromType(assignOutputShape));
+    // auto outputUserResult =
+    //                         getTensorType(assignOutputShape.getShape(), assignOutputShape.getElementType(), DimsOrder::fromType(assignOutputShape));
 
-    auto userInfoBuilderOutput = mlir::OpBuilder::atBlockEnd(&netOp.outputsInfo().front(), &builderLog);
-    userInfoBuilderOutput.create<IE::DataInfoOp>(mlir::UnknownLoc::get(ctx), mlir::StringAttr::get(ctx, "assignOutput"),
-                                                 mlir::TypeAttr::get(outputUserResult));
+    // auto userInfoBuilderOutput = mlir::OpBuilder::atBlockEnd(&netOp.outputsInfo().front(), &builderLog);
+    // userInfoBuilderOutput.create<IE::DataInfoOp>(mlir::UnknownLoc::get(ctx), mlir::StringAttr::get(ctx, "assignOutput"),
+    //                                              mlir::TypeAttr::get(outputUserResult));
 
     std::cout << "ReadValueTransPass End" << std::endl;
 
