@@ -36,7 +36,8 @@ public:
 
 private:
     ze_driver_handle_t _driver_handle = nullptr;
-    // ze_device_handle_t _device_handle = nullptr;
+    ze_device_handle_t _device_handle = nullptr;
+    ze_graph_handle_t _graph_handle = nullptr;
 
     ze_graph_dditable_ext_t* _graph_ddi_table_ext = nullptr;
 

@@ -16,6 +16,51 @@
 namespace vpux {
 namespace zeroCompilerAdapter {
 
+
+//------------------------------------------------------------------------------
+//      Helpers
+//------------------------------------------------------------------------------
+namespace {
+    using SerializedIR = std::vector<uint8_t>;
+    /**
+     * @brief Place xml + weights in sequential memory
+     * @details Format of the memory:
+     *  1. Number of data element (now only xml + weights = 2)
+     *  2. Size of data 1 (xml)
+     *  3. Data 1
+     *  4. Size of data 2 (weights)
+     *  5. Data 2
+     */
+    SerializedIR serializeIR(std::vector<char>& xml, std::vector<char>& weights) {
+        const uint32_t numberOfInputData = 2;
+        const uint32_t xmlSize = static_cast<uint32_t>(xml.size());
+        const uint32_t weightsSize = static_cast<uint32_t>(weights.size());
+
+        const size_t sizeOfSerializedIR =
+                sizeof(numberOfInputData) + sizeof(xmlSize) + xml.size() + sizeof(weightsSize) + weights.size();
+
+        std::vector<uint8_t> serializedIR;
+        serializedIR.resize(sizeOfSerializedIR);
+
+        uint32_t offset = 0;
+        ie_memcpy(serializedIR.data() + offset, sizeOfSerializedIR - offset, &numberOfInputData, sizeof(numberOfInputData));
+        offset += sizeof(numberOfInputData);
+        ie_memcpy(serializedIR.data() + offset, sizeOfSerializedIR - offset, &xmlSize, sizeof(xmlSize));
+        offset += sizeof(xmlSize);
+        ie_memcpy(serializedIR.data() + offset, sizeOfSerializedIR - offset, xml.data(), xmlSize);
+        offset += xmlSize;
+        ie_memcpy(serializedIR.data() + offset, sizeOfSerializedIR - offset, &weightsSize, sizeof(weightsSize));
+        offset += sizeof(weightsSize);
+        ie_memcpy(serializedIR.data() + offset, sizeOfSerializedIR - offset, weights.data(), weightsSize);
+        offset += weightsSize;
+
+        IE_ASSERT(offset == sizeOfSerializedIR);
+
+        return serializedIR;
+    }
+} // namespace 
+
+//------------------------------------------------------------------------------
 ZeroAPICompilerInDriver::ZeroAPICompilerInDriver() {
     _logger->debug("ZeroAPICompilerInDriver::ZeroAPICompilerInDriver");
     auto result = zeInit(0);
@@ -56,7 +101,17 @@ ZeroAPICompilerInDriver::ZeroAPICompilerInDriver() {
         return;
     }
 
-    // Device part removed
+     uint32_t device_count = 1;
+    // Get our target device
+    result = zeDeviceGet(_driver_handle, &device_count, &_device_handle);
+    if (ZE_RESULT_SUCCESS != result) {
+        std::cerr << "ZeroDevicesSingleton zeDeviceGet failed 0x" << std::hex << uint64_t(result) << std::dec
+                    << std::endl;
+        return;
+    }
+
+    // Context part removed
+
     _logger->debug("ZeroAPICompilerInDriver::ZeroAPICompilerInDriver done");
 }
 
@@ -65,10 +120,18 @@ ZeroAPICompilerInDriver::~ZeroAPICompilerInDriver() {
     _logger->error("ZeroAPICompilerInDriver::~ZeroAPICompilerInDriver not implemented");
 }
 
+
 Blob::Ptr ZeroAPICompilerInDriver::compileIR(std::vector<char>& xml, std::vector<char>& weights) {
     _logger->debug("ZeroAPICompilerInDriver::compileIR");
-    _logger->error("ZeroAPICompilerInDriver::compileIR not implemented");
+    auto serializedIR = serializeIR(xml, weights);
+
+    ze_graph_format_t format = ZE_GRAPH_FORMAT_NGRAPH_LITE;
+    ze_graph_desc_t desc = { format, serializedIR.size(), serializedIR.data() };
+
+    _graph_ddi_table_ext->pfnCreate( _device_handle, &desc, &_graph_handle);
+
     std::vector<char> blob;
+    _logger->debug("ZeroAPICompilerInDriver::compileIR end");
     return std::make_shared<Blob>(blob);
 }
 
