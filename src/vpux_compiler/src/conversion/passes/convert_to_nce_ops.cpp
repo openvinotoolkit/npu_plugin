@@ -347,7 +347,7 @@ mlir::LogicalResult MaxPoolRewrite::matchAndRewrite(IERT::MaxPoolOp origOp, mlir
     const auto kernelStrides = parseIntArrayAttr<int64_t>(origOp.strides());
 
     const auto bitPatternSize =
-            VPUIP::NCESparsity::getBitPatternSize(kernelSize, kernelStrides[0], origInputType.getElementType(), IC);
+            VPUIP::NCESparsity::getBitPatternSize(kernelSize, kernelStrides[0], origInputType.getElementType(), 1);
 
     //
     // Prepare input for DPU
