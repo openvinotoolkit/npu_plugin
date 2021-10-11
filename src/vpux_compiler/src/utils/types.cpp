@@ -112,27 +112,24 @@ Bit vpux::getElemTypeSize(mlir::Type type) {
     VPUX_THROW("Can't get type size for '{0}'", type);
 }
 
-Byte vpux::getTypeTotalSize(mlir::MemRefType type) {
+Byte vpux::getTotalSize(mlir::ShapedType type) {
     if (type.getRank() == 0) {
         return getElemTypeSize(type);
     }
 
-    const auto dimsOrder = DimsOrder::fromType(type);
-    const auto shape = getShape(type);
-    const auto strides = getStrides(type);
-    const auto memShape = dimsOrder.toMemoryOrder(shape);
-    const auto memStrides = dimsOrder.toMemoryOrder(strides);
+    const auto memShape = getMemShape(type);
+    const auto memStrides = getMemStrides(type);
 
-    VPUX_THROW_UNLESS(memShape.size() == memStrides.size(), "Size and strides mismatch : {0} vs {1}", memShape,
+    VPUX_THROW_UNLESS(memShape.size() == memStrides.size(), "Shape and strides mismatch : {0} vs {1}", memShape,
                       memStrides);
 
     return Byte(memStrides.front() * memShape.front());
 }
 
 Byte vpux::getTotalSize(mlir::Value val) {
-    const auto type = val.getType().dyn_cast_or_null<mlir::MemRefType>();
-    VPUX_THROW_UNLESS(type != nullptr, "Value '{0}' has non MemRefType '{1}'", val, val.getType());
-    return getTypeTotalSize(type);
+    const auto type = val.getType().dyn_cast<mlir::ShapedType>();
+    VPUX_THROW_UNLESS(type != nullptr, "Value '{0}' has non ShapedType '{1}'", val, val.getType());
+    return getTotalSize(type);
 }
 
 //

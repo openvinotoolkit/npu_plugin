@@ -13,6 +13,8 @@
 
 #include "vpux/compiler/core/attributes/shape.hpp"
 
+#include "vpux/compiler/core/attributes/dims_order.hpp"
+
 #include "vpux/utils/core/error.hpp"
 
 #include <algorithm>
@@ -49,7 +51,7 @@ ShapeRef vpux::getShape(mlir::ShapedType type) {
 }
 
 ShapeRef vpux::getShape(mlir::Value val) {
-    auto type = val.getType().dyn_cast_or_null<mlir::ShapedType>();
+    auto type = val.getType().dyn_cast<mlir::ShapedType>();
     VPUX_THROW_UNLESS(type != nullptr, "Value '{0}' has non ShapedType '{1}'", val, val.getType());
     return getShape(type);
 }
@@ -57,6 +59,18 @@ ShapeRef vpux::getShape(mlir::Value val) {
 //
 // MemShape
 //
+
+MemShape vpux::getMemShape(mlir::ShapedType type) {
+    const auto dimsOrder = DimsOrder::fromType(type);
+    const auto shape = getShape(type);
+    return dimsOrder.toMemoryOrder(shape);
+}
+
+MemShape vpux::getMemShape(mlir::Value val) {
+    auto type = val.getType().dyn_cast<mlir::ShapedType>();
+    VPUX_THROW_UNLESS(type != nullptr, "Value '{0}' has non ShapedType '{1}'", val, val.getType());
+    return getMemShape(type);
+}
 
 MemShape vpux::getMemIndexND(int64_t memIndex1D, MemShapeRef memShape) {
     MemShape memIndexND(memShape.size());
