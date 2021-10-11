@@ -62,7 +62,7 @@ Logger& vpux::Logger::global() {
     return log;
 }
 
-vpux::Logger::Logger(StringLiteral name, LogLevel ): _name(name), _logLevel(LogLevel::Trace) {
+vpux::Logger::Logger(StringLiteral name, LogLevel lvl): _name(name), _logLevel(lvl) {
 }
 
 Logger vpux::Logger::nest(size_t inc) const {
