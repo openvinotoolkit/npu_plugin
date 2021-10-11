@@ -297,38 +297,6 @@ operation ::= `VPUIP.DPUTask` attr-dict
 `pad` | vpux::VPUIP::PaddingAttr | DictionaryAttr with field(s): 'left', 'right', 'top', 'bottom' (each field having its own constraints)
 `mpe_mode` | vpux::VPUIP::MPEModeAttr | MPE Mode
 
-### `VPUIP.DeclareKernelData` (vpux::VPUIP::DeclareKernelDataOp)
-
-KernelData Reference declaration
-
-
-Syntax:
-
-```
-operation ::= `VPUIP.DeclareKernelData` `<` $name `>`
-              $locale
-              $localeIndex
-              attr-dict
-              `->` type(results)
-```
-
-
-#### Attributes:
-
-| Attribute | MLIR Type | Description |
-| :-------: | :-------: | ----------- |
-`name` | ::mlir::StringAttr | string attribute
-`locale` | vpux::VPUIP::MemoryLocationAttr | Values indicating which type of memory a tensor resides in
-`localeIndex` | ::mlir::IntegerAttr | 32-bit unsigned integer attribute
-`dataOffset` | ::mlir::IntegerAttr | 32-bit unsigned integer attribute
-`dataSize` | ::mlir::IntegerAttr | 32-bit unsigned integer attribute
-
-#### Results:
-
-| Result | Description |
-| :----: | ----------- |
-`memory` | memref of any type values
-
 ### `VPUIP.DeclareTensor` (vpux::VPUIP::DeclareTensorOp)
 
 TensorReference value declaration

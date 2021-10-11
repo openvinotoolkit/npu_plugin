@@ -7,6 +7,7 @@
 #include "single_layer_tests/interpolate.hpp"
 #include "common_test_utils/test_constants.hpp"
 #include "kmb_layer_test.hpp"
+#include "kmb_test_report.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -20,7 +21,7 @@ TEST_P(KmbInterpolateLayerTest, CompareWithRefs_MLIR) {
     useCompilerMLIR();
     Run();
 }
-/*
+
 class KmbInterpolate1Test: public Interpolate1LayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
 
 public:
@@ -35,7 +36,7 @@ public:
 TEST_P(KmbInterpolate1Test, CompareWithRefs_MLIR) {
     useCompilerMLIR();
     Run();
-}*/
+}
 
 }  // namespace LayerTestsDefinitions
 
@@ -180,5 +181,21 @@ INSTANTIATE_TEST_CASE_P(smoke_Interpolate_without_nearest, KmbInterpolateLayerTe
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
         ::testing::Values(additional_config)),
                             KmbInterpolateLayerTest::getTestCaseName);
+
+const std::vector<std::string> mode = {"nearest", "linear"};
+const std::vector<ngraph::AxisSet> axes ={{2, 3}};
+
+INSTANTIATE_TEST_CASE_P(smoke_Interpolate_1, KmbInterpolate1Test, ::testing::Combine(
+        ::testing::Values(InferenceEngine::Precision::FP16),
+        ::testing::Values(InferenceEngine::Precision::FP16),
+        ::testing::Values(InferenceEngine::Layout::NCHW),
+        ::testing::ValuesIn(inShapes),
+        ::testing::ValuesIn(targetShapes),
+        ::testing::ValuesIn(mode),
+        ::testing::ValuesIn(axes),
+        ::testing::ValuesIn(antialias),
+        ::testing::ValuesIn(pads),
+        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                            KmbInterpolate1Test::getTestCaseName);
 
 } // namespace

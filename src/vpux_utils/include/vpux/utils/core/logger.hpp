@@ -137,7 +137,7 @@ private:
 
 private:
     StringLiteral _name;
-    LogLevel _logLevel = LogLevel::Trace;
+    LogLevel _logLevel = LogLevel::None;
     size_t _indentLevel = 0;
 };
 

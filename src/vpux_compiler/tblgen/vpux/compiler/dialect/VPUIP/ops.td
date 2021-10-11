@@ -170,45 +170,6 @@ def VPUIP_DeclareTensorOp :
 }
 
 //
-// DeclareKernelDataOp
-//
-
-def VPUIP_DeclareKernelDataOp :
-        VPUIP_Op<
-            "DeclareKernelData",
-            [
-                NoSideEffect
-            ]
-        > {
-    let summary = "KernelData Reference declaration";
-
-    let arguments = (ins
-        StrAttr:$name,
-        VPUIP_MemoryLocation:$locale,
-        UI32Attr:$localeIndex,
-
-        OptionalAttr<UI32Attr>:$dataOffset,
-        OptionalAttr<UI32Attr>:$dataSize
-    );
-
-    let results = (outs
-        AnyMemRef:$memory
-    );
-
-
-    let assemblyFormat = [{
-        `<` $name `>`
-        $locale
-        $localeIndex
-        attr-dict
-        `->` type(results)
-    }];
-
-
-}
-
-
-//
 // DeclareVirtualBarrierOp
 //
 
