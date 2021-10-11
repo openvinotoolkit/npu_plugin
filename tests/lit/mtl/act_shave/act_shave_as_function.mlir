@@ -50,7 +50,7 @@ IE.CNNNetwork
 module @VPU.SW {
     // The declaration should match C++ params structure in decomposed form.
     // `memref` will be translated to `MemRefData`, while raw scalars will be translated as is.
-    func private @builtin_softmax(%input : memref<*xf16>, %output : memref<*xf16>, %axis : i64)
+    func private @builtin_sigmoid(%input : memref<*xf16>, %output : memref<*xf16>, %axis : i64)
         attributes {
             VPU.kernel_code = "sigmoid_fp16.c",
             VPU.kernel_entry = "sigmoid_fp16"
@@ -71,7 +71,7 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1
     // Genetic Kernel information for the scheduler.
     %sigmoid_krn =
         VPUIP.SW.Kernel
-                    @VPU.SW::@builtin_softmax             // The reference to the Kernel function.
+                    @VPU.SW::@builtin_sigmoid            // The reference to the Kernel function.
                     inputs(%in_tile0_cmx : memref<1x1x1x1000xf16, "VPU_CMX_NN">)     // Inputs/outputs buffers for generic operation interface
                     outputs(%out_tile0_cmx : memref<1x1x1x1000xf16, "VPU_CMX_NN">)   // and their mapping to inner region.
                     on tile 0                           // The tile index to execute on.
@@ -83,10 +83,9 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1
                 // Inner region, isolated from above, which holds the information about arguments mapping.
                 // We can use constant scalars/arrays definitions here.
                 %axis   = constant 110 : i64
-                %axis2   = constant 220 : i64
 
                 // The arguments mapping, the order must match the kernel parameter structure.
-                VPUIP.SW.Kernel.run(%arg0, %arg1, %axis2)
+                VPUIP.SW.Kernel.run(%arg0, %arg1, %axis)
                     : memref<1x1x1x1000xf16, "VPU_CMX_NN">
                     , memref<1x1x1x1000xf16, "VPU_CMX_NN">
                     , i64

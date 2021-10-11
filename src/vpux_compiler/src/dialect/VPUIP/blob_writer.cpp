@@ -181,18 +181,21 @@ vpux::VPUIP::BlobWriter::KernelDataRef vpux::VPUIP::BlobWriter::createInvocation
     for (auto && kernelRun : swKernelTask.body().getOps<VPUIP::SW_Kernel_run>()) {
 
         auto insSize = swKernelTask.inputs().size();
+        auto outsSize = swKernelTask.outputs().size();
 
         for ( auto && operands : kernelRun.args()) {
-
             auto blockArg = operands.dyn_cast_or_null<mlir::BlockArgument>();
             if (blockArg) {
                 auto id = blockArg.getArgNumber();
                 if (id < insSize) {
-                    // TODO: check type and shape
+                    // TODO: check type and shape - should correspond to ins (id)
+                    invocationBuilder.addArg(swKernelTask->getOpOperand(id));
+                } else if (id < (insSize + outsSize)) {
+                    // TODO: check type and shape - should correspond to outputs(id - insSize)
                     invocationBuilder.addArg(swKernelTask->getOpOperand(id));
                 } else {
-                    // TODO: check type and shape
-                    invocationBuilder.addArg(swKernelTask->getOpResult(id - insSize));
+                    // looks unknown block args
+                    VPUX_THROW("Unknown blocking argument for {1} of index: {0}", id, swKernelTask);
                 }
             } else {
                 invocationBuilder.addArg(operands);
@@ -267,6 +270,8 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createSW_KernelTask(mli
 
     auto module = op->getParentOfType<mlir::ModuleOp>();
     auto kernelFunc = module.lookupSymbol<mlir::FuncOp>(swKernelTask.kernelFunctionAttr());
+    VPUX_THROW_UNLESS(kernelFunc , "Invalid function call : '{0}', undefined kernel name", swKernelTask.kernelFunctionAttr());
+
     const auto kernelCode = kernelFunc->getAttrOfType<mlir::StringAttr>("VPU.kernel_code");
     const auto kernelEntryPoint = kernelFunc->getAttrOfType<mlir::StringAttr>("VPU.kernel_entry");
 
