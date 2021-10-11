@@ -745,7 +745,10 @@ class Feasible_Schedule_Generator {
   Feasible_Schedule_Generator(const dag_t& in, const resource_t& resource_bound)
     : heap_(), current_time_(0), candidates_(), resource_state_(),
     heap_ordering_(), schedulable_op_(), in_degree_(), processed_ops_(),
-    input_ptr_(&in), priority_() { init(resource_bound); }
+    input_ptr_(&in), priority_() { 
+       std::cout << "Instaniating Feasible_Schedule_Generator with DAG and resource bound" <<std::endl;
+      init(resource_bound); 
+      }
 
   Feasible_Schedule_Generator(const dag_t& in, const resource_state_t& rstate)
     : heap_(), current_time_(0), candidates_(), resource_state_(),
