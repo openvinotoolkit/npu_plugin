@@ -62,7 +62,7 @@ typedef enum : uint64_t
     FULL_ND_NHWC = 0x123456789ABCEFD
 } NDFrequentlyUsedOrders;
 
-enum Location : unsigned char
+enum Location : uint32_t
 {
     NONE,
     DDR,
