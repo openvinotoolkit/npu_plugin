@@ -125,12 +125,32 @@ Blob::Ptr ZeroAPICompilerInDriver::compileIR(std::vector<char>& xml, std::vector
     _logger->debug("ZeroAPICompilerInDriver::compileIR");
     auto serializedIR = serializeIR(xml, weights);
 
+    _logger->debug("serializedIR.size() {}", serializedIR.size());
+    _logger->debug("serializedIR.data() {}", serializedIR.data());
     ze_graph_format_t format = ZE_GRAPH_FORMAT_NGRAPH_LITE;
     ze_graph_desc_t desc = { format, serializedIR.size(), serializedIR.data() };
 
-    _graph_ddi_table_ext->pfnCreate( _device_handle, &desc, &_graph_handle);
+    auto result = _graph_ddi_table_ext->pfnCreate( _device_handle, &desc, &_graph_handle);
+    if (ZE_RESULT_SUCCESS != result) {
+        IE_THROW() << "Failed to compile graph with zero API";
+    }
+
+    size_t blobSize = -1;
+    uint8_t* blobMemotyPtr = nullptr;
+    result = _graph_ddi_table_ext->pfnGetNativeBinary( _graph_handle, &blobSize, blobMemotyPtr);
+    if (ZE_RESULT_SUCCESS != result) {
+        IE_THROW() << "Failed to get native binary";
+    }
+
+    _logger->debug("Blob size = {}", blobSize);
+    _logger->debug("blobMemotyPtr == nullptr? {}", blobMemotyPtr == nullptr);
 
     std::vector<char> blob;
+    blob.resize(blobSize);
+    
+    // FIXME additional memory copy operation which we can get rid of?
+    ie_memcpy(blob.data(), blob.size(), blobMemotyPtr, blobSize);
+
     _logger->debug("ZeroAPICompilerInDriver::compileIR end");
     return std::make_shared<Blob>(blob);
 }
@@ -138,6 +158,8 @@ Blob::Ptr ZeroAPICompilerInDriver::compileIR(std::vector<char>& xml, std::vector
 std::tuple<const std::string, const DataMap, const DataMap, const DataMap, const DataMap>
 ZeroAPICompilerInDriver::getNetworkMeta(const Blob::Ptr compiledNetwork) {
     _logger->debug("ZeroAPICompilerInDriver::getNetworkMeta");
+
+    
     _logger->error("ZeroAPICompilerInDriver::getNetworkMeta not implemnented");
     return std::make_tuple(std::string(), DataMap(), DataMap(), DataMap(), DataMap());
 }
