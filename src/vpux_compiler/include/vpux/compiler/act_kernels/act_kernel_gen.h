@@ -49,6 +49,4 @@ flatbuffers::Offset<MVCNN::KernelData> buildKernelData(flatbuffers::FlatBufferBu
                                                        llvm::ArrayRef<uint8_t> content);
 
 
-//flatbuffers::Offset<flatbuffers::Vector<uint64_t>> packKernelArgs(flatbuffers::FlatBufferBuilder& fbb);
-
 }  // namespace vpux

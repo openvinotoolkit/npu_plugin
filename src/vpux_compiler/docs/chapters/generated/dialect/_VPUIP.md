@@ -1464,7 +1464,6 @@ operation ::= `VPUIP.PPETask` $ppe_layer_type attr-dict
 `lrelu_shift` | mlir::IntegerAttr | Integer attribute
 `quant_mult` | ::mlir::ArrayAttr | 32-bit integer array attribute
 `quant_shift` | ::mlir::ArrayAttr | 32-bit integer array attribute
-`quant_post_shift` | mlir::IntegerAttr | Integer attribute
 
 ### `VPUIP.PReluUPA` (vpux::VPUIP::PReluUPAOp)
 

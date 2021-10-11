@@ -197,25 +197,14 @@ flatbuffers::Offset<MVCNN::ActKernelRuntime> createActKernelRuntime(VPUIP::BlobW
                                                                     mlir::ModuleOp /*module*/,
                                                                     mlir::FuncOp netFunc,
                                                                     Logger log) {
-
     // only SW_kernel operations can generate kernelData, from either built-in functions or from custom
     auto kernelGenOps = to_small_vector(netFunc.getOps<VPUIP::SW_Kernel>());
     if (kernelGenOps.empty()) {
         return {};
     }
 
-    long int maxShaves = 4;
+    const long int maxShaves = 4;
 
-    // TODO: this looks works only for 1 executors
-    //  otherwise need to hardcode all 4 stacks and then just use certain in runtime
-    /*for (auto invocationIndex : irange(kernelTasks.size())) {
-        auto invocation = kernelTasks[invocationIndex];
-        auto numShaves = invocation.maxShaves();
-        if (!numShaves.hasValue()) {
-            continue;
-        }
-        maxShaves = std::max(numShaves.getValue(), maxShaves);
-    }*/
     //TODO: cap numshaves by maximum HW number of 4
     const auto stack_size { 1U << 12 }; // 4KB stack
 

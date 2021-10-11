@@ -12,7 +12,6 @@
 //
 
 #include "vpux/compiler/act_kernels/act_kernel_gen.h"
-//#include "vpux/compiler/act_kernels/mem_ref_data.h"
 
 #include <algorithm>
 #include <string>
@@ -40,76 +39,13 @@ flatbuffers::Offset<MVCNN::KernelData> buildKernelData(flatbuffers::FlatBufferBu
     builder.add_length(content.size());
     return builder.Finish();
 }
-/*
-flatbuffers::Offset<MVCNN::BinaryData> buildKernelArgsData(flatbuffers::FlatBufferBuilder& fbb,
-                                                           cfg_dpu_description &) {
-
-    //serialize structure raw view
-    const auto pack = [](const std::vector<uint8_t>& src) {
-      std::vector<uint64_t> packed(llvm::divideCeil(src.size(), sizeof(uint64_t)));
-      auto ptr = reinterpret_cast<uint8_t*>(packed.data());
-      for (size_t i = 0; i < src.size(); i++) {
-          ptr[i] = src[i];
-      }
-      return packed;
-    };
-    //auto packedData = fbb.CreateVector(pack(data));
-    MVCNN::BinaryDataBuilder builder(fbb);
-    //builder.add_data(packedData);
-    builder.add_csram_cacheable(true);
-    //builder.add_length(data.size());
-    builder.add_underlying_type(MVCNN::DType::DType_U8);
-    return builder.Finish();
-}
-*/
-//static void makeLinkerScript(StringRef searchDir, StringRef input, StringRef output, StringRef ldsPath,
-//                             const movitools::MoviCompileParams& params, StringRef name) {
-//    std::string str;
-//    llvm::raw_string_ostream os(str);
-//    os << "SEARCH_DIR (" << searchDir << ")\n";
-//    os << "INPUT (" << input << ")\n";
-//    os << "GROUP (";
-//    for (const auto& lib : params.mdkLibs) {
-//        os << lib << " ";
-//    }
-//    os << ")\n";
-//    os << "OUTPUT (" << output << ")\n";
-//    os << "ENTRY (" << name << ")\n";
-//    const std::string section =
-//            R"(SECTIONS {
-//  . = 0x1E000000;
-//  .dyn.text : {
-//        *(.text*)
-//  }
-//  . = 0x1F000000;
-//  .dyn.data : {
-//        *(.data*)
-//        *(.rodata*)
-//  }
-//}
-//    )";
-//    os << section << "\n";
-//    //IVLOG(1, "linker script:\n" << os.str());
-//
-//    std::string err;
-//    auto ldsFile = mlir::openOutputFile(ldsPath, &err);
-//    if (!err.empty()) {
-//        VPUX_THROW("Failed to create linker script: {0}", err);
-//    }
-//
-//    ldsFile->os() << os.str();
-//    ldsFile->keep();
-//}
-//
 
 static void compileAndLinkSHAVE(
         const movitools::MoviCompileParams& params,
         const CompilationUnitDesc & unitDesc,
         std::vector<uint8_t>& textBinary, std::vector<uint8_t>& dataBinary) {
-    // IVLOG(1, "Kernel C source code:\n" << cSourceCode.str());
 
     std::string mvToolsDir = movitools::getMoviToolsDir();
-    //IVLOG(1, "MV_TOOLS_DIR = " << mvToolsDir);
 
     const StringRef genDir = KERNEL_DIRECTORY;
 
@@ -158,7 +94,6 @@ static void compileAndLinkSHAVE(
     {
         auto compileCmd = formatv("{1} -mcpu={2} -c {3} -o {4} -I {5} -I{6} ", genDir, moviCompile, params.cpu,
                                   srcPath, objPath, mvToolsDir, incPath).str();
-        // IVLOG(1, compileCmd);
         if (std::system(compileCmd.c_str())) {
             VPUX_THROW((std::string("moviCompile failed: ") + compileCmd).c_str());
         }
@@ -185,7 +120,6 @@ static void compileAndLinkSHAVE(
                            " -entry {2} --gc-sections --strip-debug --discard-all  {3}"
                             " -EL {4} --output {5}",
                             linker, linkerScriptPath, entryPoint.c_str(), objPath, singleLib, elfPath).str();
-    // IVLOG(1, linkCmd);
     if (std::system(linkCmd.c_str())) {
         VPUX_THROW((std::string("linker failed: ") + linkCmd).c_str());
     }
@@ -199,7 +133,6 @@ static void compileAndLinkSHAVE(
     {
         auto objCopyCmd = formatv("{0} -O binary --only-section=.text {1} {2}",
                                   objcopy, elfPath, textPath).str();
-        // IVLOG(1, compileCmd);
         if (std::system(objCopyCmd.c_str())) {
             VPUX_THROW((std::string("objcopy failed: ") + objCopyCmd).c_str());
         }
@@ -268,13 +201,4 @@ ActKernelDesc compileKernelForACTShave(const CompilationUnitDesc & unitDesc,
     return result;
 }
 
-
-// todo provide some arguments for kernel
-/*flatbuffers::Offset<flatbuffers::Vector<uint64_t>> packKernelArgs(flatbuffers::FlatBufferBuilder& fbb) {
-    act_kernel_args dummyArgs;
-    auto packedData = buildKernelArgsData(fbb, dummyArgs);
-
-    throw std::runtime_error("dont know what next");
-}
-*/
 }  // namespace vpux
