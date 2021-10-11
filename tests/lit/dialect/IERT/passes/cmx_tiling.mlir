@@ -373,6 +373,186 @@ func @EltwiseSameInput(
 
 // CHECK:       return [[OUTPUT]] : memref<1x1024x14x14xf16>
 
+
+// -----
+
+IERT.RunTimeResources
+    availableMemory : {
+        MemoryResource 1000000 bytes of "CMX_NN"
+    }
+    usedMemory : {
+    }
+    executors : {
+    }
+
+func @SplitOverC(
+        %input1: memref<1x1024x14x14xf16>,
+        %input2: memref<1x1024x14x14xf16>,
+        %output_buff: memref<1x1024x14x14xf16>)
+            -> memref<1x1024x14x14xf16> {
+    %1 = IERT.And
+        inputs(%input1: memref<1x1024x14x14xf16>,
+               %input2: memref<1x1024x14x14xf16>)
+        outputs(%output_buff : memref<1x1024x14x14xf16>)
+        -> memref<1x1024x14x14xf16>
+    return %1 : memref<1x1024x14x14xf16>
+}
+
+// CHECK-LABEL: func @SplitOverC
+// CHECK-SAME:        [[INPUT1:%arg[0-9]]]: memref<1x1024x14x14xf16>,
+// CHECK-SAME:        [[INPUT2:%arg[0-9]]]: memref<1x1024x14x14xf16>,
+// CHECK-SAME:        [[OUTPUT_BUFF:%arg[0-9]]]: memref<1x1024x14x14xf16>
+
+// Tile 0
+
+// CHECK:       [[INPUT0_TILE0_VIEW:%.+]] = IERT.SubView [[INPUT1]] [0, 0, 0, 0] [1, 512, 14, 14] : memref<1x1024x14x14xf16>
+// CHECK-SAME:      to memref<1x512x14x14xf16, {{#map[0-9]?}}>
+// CHECK:       [[INPUT0_TILE0_BUFF:%.+]] = memref.alloc() : memref<1x512x14x14xf16>
+// CHECK:       [[INPUT0_TILE0:%.+]] = IERT.Copy
+// CHECK-SAME:      inputs([[INPUT0_TILE0_VIEW]] : memref<1x512x14x14xf16, {{#map[0-9]?}}>)
+// CHECK-SAME:      outputs([[INPUT0_TILE0_BUFF]] : memref<1x512x14x14xf16>)
+
+// CHECK:       [[INPUT1_TILE0_VIEW:%.+]] = IERT.SubView [[INPUT2]] [0, 0, 0, 0] [1, 512, 14, 14] : memref<1x1024x14x14xf16>
+// CHECK-SAME:      to memref<1x512x14x14xf16, {{#map[0-9]?}}>
+// CHECK:       [[INPUT1_TILE0_BUFF:%.+]] = memref.alloc() : memref<1x512x14x14xf16>
+// CHECK:       [[INPUT1_TILE0:%.+]] = IERT.Copy
+// CHECK-SAME:      inputs([[INPUT1_TILE0_VIEW]] : memref<1x512x14x14xf16, {{#map[0-9]?}}>)
+// CHECK-SAME:      outputs([[INPUT1_TILE0_BUFF]] : memref<1x512x14x14xf16>)
+
+// CHECK:       [[OUTPUT_TILE0_BUFF:%.+]] = memref.alloc() : memref<1x512x14x14xf16>
+// CHECK:       [[OUTPUT_TILE0:%.+]] = IERT.And
+// CHECK-SAME:      inputs([[INPUT0_TILE0]] : memref<1x512x14x14xf16>, [[INPUT1_TILE0]] : memref<1x512x14x14xf16>)
+// CHECK-SAME:      outputs([[OUTPUT_TILE0_BUFF]] : memref<1x512x14x14xf16>)
+
+// CHECK:       [[OUTPUT_BUFF_TILE0_VIEW:%.+]] = IERT.SubView [[OUTPUT_BUFF]] [0, 0, 0, 0] [1, 512, 14, 14] : memref<1x1024x14x14xf16>
+// CHECK-SAME:      to memref<1x512x14x14xf16, {{#map[0-9]?}}>
+// CHECK:       [[OUTPUT_BUFF_TILE0:%.+]] = IERT.Copy
+// CHECK-SAME:      inputs([[OUTPUT_TILE0]] : memref<1x512x14x14xf16>)
+// CHECK-SAME:      outputs([[OUTPUT_BUFF_TILE0_VIEW]] : memref<1x512x14x14xf16, {{#map[0-9]?}}>)
+
+// Tile 1
+
+// CHECK:       [[INPUT0_TILE1_VIEW:%.+]] = IERT.SubView [[INPUT1]] [0, 512, 0, 0] [1, 512, 14, 14] : memref<1x1024x14x14xf16>
+// CHECK-SAME:      to memref<1x512x14x14xf16, {{#map[0-9]?}}>
+// CHECK:       [[INPUT0_TILE1_BUFF:%.+]] = memref.alloc() : memref<1x512x14x14xf16>
+// CHECK:       [[INPUT0_TILE1:%.+]] = IERT.Copy
+// CHECK-SAME:      inputs([[INPUT0_TILE1_VIEW]] : memref<1x512x14x14xf16, {{#map[0-9]?}}>)
+// CHECK-SAME:      outputs([[INPUT0_TILE1_BUFF]] : memref<1x512x14x14xf16>)
+
+// CHECK:       [[INPUT1_TILE1_VIEW:%.+]] = IERT.SubView [[INPUT2]] [0, 512, 0, 0] [1, 512, 14, 14] : memref<1x1024x14x14xf16>
+// CHECK-SAME:      to memref<1x512x14x14xf16, {{#map[0-9]?}}>
+// CHECK:       [[INPUT1_TILE1_BUFF:%.+]] = memref.alloc() : memref<1x512x14x14xf16>
+// CHECK:       [[INPUT1_TILE1:%.+]] = IERT.Copy
+// CHECK-SAME:      inputs([[INPUT1_TILE1_VIEW]] : memref<1x512x14x14xf16, {{#map[0-9]?}}>)
+// CHECK-SAME:      outputs([[INPUT1_TILE1_BUFF]] : memref<1x512x14x14xf16>)
+
+// CHECK:       [[OUTPUT_TILE1_BUFF:%.+]] = memref.alloc() : memref<1x512x14x14xf16>
+// CHECK:       [[OUTPUT_TILE1:%.+]] = IERT.And
+// CHECK-SAME:      inputs([[INPUT0_TILE1]] : memref<1x512x14x14xf16>, [[INPUT1_TILE1]] : memref<1x512x14x14xf16>)
+// CHECK-SAME:      outputs([[OUTPUT_TILE1_BUFF]] : memref<1x512x14x14xf16>)
+
+// CHECK:       [[OUTPUT_BUFF_TILE1_VIEW:%.+]] = IERT.SubView [[OUTPUT_BUFF]] [0, 512, 0, 0] [1, 512, 14, 14] : memref<1x1024x14x14xf16>
+// CHECK-SAME:      to memref<1x512x14x14xf16, {{#map[0-9]?}}>
+// CHECK:       [[OUTPUT_BUFF_TILE1:%.+]] = IERT.Copy
+// CHECK-SAME:      inputs([[OUTPUT_TILE1]] : memref<1x512x14x14xf16>)
+// CHECK-SAME:      outputs([[OUTPUT_BUFF_TILE1_VIEW]] : memref<1x512x14x14xf16, {{#map[0-9]?}}>)
+
+// Concat
+
+// CHECK:       [[OUTPUT:%.+]] = IERT.ConcatView
+// CHECK-SAME:      inputs([[OUTPUT_BUFF_TILE0]], [[OUTPUT_BUFF_TILE1]]
+// CHECK-SAME:      outputs([[OUTPUT_BUFF]] : memref<1x1024x14x14xf16>)
+
+// CHECK:       return [[OUTPUT]] : memref<1x1024x14x14xf16>
+
+// -----
+
+IERT.RunTimeResources
+    availableMemory : {
+        MemoryResource 1000000 bytes of "CMX_NN"
+    }
+    usedMemory : {
+    }
+    executors : {
+    }
+
+func @EltwiseSameInput(
+        %input: memref<1x1024x14x14xf16>,
+        %output_buff: memref<1x1024x14x14xf16>)
+            -> memref<1x1024x14x14xf16> {
+    %1 = IERT.And
+        inputs(%input : memref<1x1024x14x14xf16>, %input : memref<1x1024x14x14xf16>)
+        outputs(%output_buff : memref<1x1024x14x14xf16>)
+        -> memref<1x1024x14x14xf16>
+    return %1 : memref<1x1024x14x14xf16>
+}
+
+// CHECK-LABEL: func @EltwiseSameInput
+// CHECK-SAME:        [[INPUT:%arg[0-9]]]: memref<1x1024x14x14xf16>,
+// CHECK-SAME:        [[OUTPUT_BUFF:%arg[0-9]]]: memref<1x1024x14x14xf16>
+
+// Tile 0
+
+// CHECK:       [[INPUT0_TILE0_VIEW:%.+]] = IERT.SubView [[INPUT]] [0, 0, 0, 0] [1, 512, 14, 14] : memref<1x1024x14x14xf16>
+// CHECK-SAME:      to memref<1x512x14x14xf16, {{#map[0-9]?}}>
+// CHECK:       [[INPUT0_TILE0_BUFF:%.+]] = memref.alloc() : memref<1x512x14x14xf16>
+// CHECK:       [[INPUT0_TILE0:%.+]] = IERT.Copy
+// CHECK-SAME:      inputs([[INPUT0_TILE0_VIEW]] : memref<1x512x14x14xf16, {{#map[0-9]?}}>)
+// CHECK-SAME:      outputs([[INPUT0_TILE0_BUFF]] : memref<1x512x14x14xf16>)
+
+// CHECK:       [[INPUT1_TILE0_VIEW:%.+]] = IERT.SubView [[INPUT]] [0, 0, 0, 0] [1, 512, 14, 14] : memref<1x1024x14x14xf16>
+// CHECK-SAME:      to memref<1x512x14x14xf16, {{#map[0-9]?}}>
+// CHECK:       [[INPUT1_TILE0_BUFF:%.+]] = memref.alloc() : memref<1x512x14x14xf16>
+// CHECK:       [[INPUT1_TILE0:%.+]] = IERT.Copy
+// CHECK-SAME:      inputs([[INPUT1_TILE0_VIEW]] : memref<1x512x14x14xf16, {{#map[0-9]?}}>)
+// CHECK-SAME:      outputs([[INPUT1_TILE0_BUFF]] : memref<1x512x14x14xf16>)
+
+// CHECK:       [[OUTPUT_TILE0_BUFF:%.+]] = memref.alloc() : memref<1x512x14x14xf16>
+// CHECK:       [[OUTPUT_TILE0:%.+]] = IERT.And
+// CHECK-SAME:      inputs([[INPUT0_TILE0]] : memref<1x512x14x14xf16>, [[INPUT1_TILE0]] : memref<1x512x14x14xf16>)
+// CHECK-SAME:      outputs([[OUTPUT_TILE0_BUFF]] : memref<1x512x14x14xf16>)
+
+// CHECK:       [[OUTPUT_BUFF_TILE0_VIEW:%.+]] = IERT.SubView [[OUTPUT_BUFF]] [0, 0, 0, 0] [1, 512, 14, 14] : memref<1x1024x14x14xf16>
+// CHECK-SAME:      to memref<1x512x14x14xf16, {{#map[0-9]?}}>
+// CHECK:       [[OUTPUT_BUFF_TILE0:%.+]] = IERT.Copy
+// CHECK-SAME:      inputs([[OUTPUT_TILE0]] : memref<1x512x14x14xf16>)
+// CHECK-SAME:      outputs([[OUTPUT_BUFF_TILE0_VIEW]] : memref<1x512x14x14xf16, {{#map[0-9]?}}>)
+
+// Tile 1
+
+// CHECK:       [[INPUT0_TILE1_VIEW:%.+]] = IERT.SubView [[INPUT]] [0, 512, 0, 0] [1, 512, 14, 14] : memref<1x1024x14x14xf16>
+// CHECK-SAME:      to memref<1x512x14x14xf16, {{#map[0-9]?}}>
+// CHECK:       [[INPUT0_TILE1_BUFF:%.+]] = memref.alloc() : memref<1x512x14x14xf16>
+// CHECK:       [[INPUT0_TILE1:%.+]] = IERT.Copy
+// CHECK-SAME:      inputs([[INPUT0_TILE1_VIEW]] : memref<1x512x14x14xf16, {{#map[0-9]?}}>)
+// CHECK-SAME:      outputs([[INPUT0_TILE1_BUFF]] : memref<1x512x14x14xf16>)
+
+// CHECK:       [[INPUT1_TILE1_VIEW:%.+]] = IERT.SubView [[INPUT]] [0, 512, 0, 0] [1, 512, 14, 14] : memref<1x1024x14x14xf16>
+// CHECK-SAME:      to memref<1x512x14x14xf16, {{#map[0-9]?}}>
+// CHECK:       [[INPUT1_TILE1_BUFF:%.+]] = memref.alloc() : memref<1x512x14x14xf16>
+// CHECK:       [[INPUT1_TILE1:%.+]] = IERT.Copy
+// CHECK-SAME:      inputs([[INPUT1_TILE1_VIEW]] : memref<1x512x14x14xf16, {{#map[0-9]?}}>)
+// CHECK-SAME:      outputs([[INPUT1_TILE1_BUFF]] : memref<1x512x14x14xf16>)
+
+// CHECK:       [[OUTPUT_TILE1_BUFF:%.+]] = memref.alloc() : memref<1x512x14x14xf16>
+// CHECK:       [[OUTPUT_TILE1:%.+]] = IERT.And
+// CHECK-SAME:      inputs([[INPUT0_TILE1]] : memref<1x512x14x14xf16>, [[INPUT1_TILE1]] : memref<1x512x14x14xf16>)
+// CHECK-SAME:      outputs([[OUTPUT_TILE1_BUFF]] : memref<1x512x14x14xf16>)
+
+// CHECK:       [[OUTPUT_BUFF_TILE1_VIEW:%.+]] = IERT.SubView [[OUTPUT_BUFF]] [0, 512, 0, 0] [1, 512, 14, 14] : memref<1x1024x14x14xf16>
+// CHECK-SAME:      to memref<1x512x14x14xf16, {{#map[0-9]?}}>
+// CHECK:       [[OUTPUT_BUFF_TILE1:%.+]] = IERT.Copy
+// CHECK-SAME:      inputs([[OUTPUT_TILE1]] : memref<1x512x14x14xf16>)
+// CHECK-SAME:      outputs([[OUTPUT_BUFF_TILE1_VIEW]] : memref<1x512x14x14xf16, {{#map[0-9]?}}>)
+
+// Concat
+
+// CHECK:       [[OUTPUT:%.+]] = IERT.ConcatView
+// CHECK-SAME:      inputs([[OUTPUT_BUFF_TILE0]], [[OUTPUT_BUFF_TILE1]]
+// CHECK-SAME:      outputs([[OUTPUT_BUFF]] : memref<1x1024x14x14xf16>)
+
+// CHECK:       return [[OUTPUT]] : memref<1x1024x14x14xf16>
+
 // -----
 
 !qElemType0 = type !quant.uniform<u8:f16, 0.96372549019607844>
