@@ -137,46 +137,6 @@ def VPUIP_UPATaskOpInterface : OpInterface<"UPATaskOpInterface"> {
 }
 
 //
-// ACTShaveTaskOpInterface
-//
-
-def VPUIP_ACTShaveTaskOpInterface : OpInterface<"ACTShaveTaskOpInterface"> {
-    let description = "Interface for VPUIP Activation Shave Task";
-
-    let cppNamespace = "vpux::VPUIP";
-
-    let methods = [
-        InterfaceMethod<
-                "Get maximal number of ACT SHAVEs to use",
-                "vpux::Optional<int64_t>", "maxShaves", (ins),
-            [{
-                return $_op.maxShaves();
-            }]
-        >,
-        InterfaceMethod<
-            "Update maximal number of Activation SHAVEs to use",
-            "void", "setMaxShaves", (ins "uint32_t":$maxShaves),
-            [{}],
-            [{
-                $_op.maxShavesAttr(vpux::getIntAttr($_op.getContext(), maxShaves));
-            }]
-        >
-    ];
-
-    let verify = [{
-        return vpux::VPUIP::verifyACTShaveTask($_op);
-    }];
-
-    let extraTraitClassDeclaration = [{
-        static vpux::VPUIP::TaskType getTaskType() {
-            return vpux::VPUIP::TaskType::ACTShave;
-        }
-    }];
-}
-
-
-
-//
 // Legacy4D
 //
 
