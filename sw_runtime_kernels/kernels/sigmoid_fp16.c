@@ -16,24 +16,26 @@
 // (kr->kernelEntry_)(ki->kernelArgs_.args_, ki->kernelArgs_.numArgs_);
 void sigmoid_fp16(const struct SigmoidParams *lParams) {
 
-    //cfg_dpu_description* desc_ptr = (cfg_dpu_description*)args;
-//
-//    const uint32_t X = desc_ptr->idu.tensor_size0.x; // tensor_width
-//    const uint32_t Y = desc_ptr->idu.tensor_size0.y;
-//    const uint32_t Z = desc_ptr->idu.tensor_size1.z;
-//    uint32_t input_addr = desc_ptr->idu.tensor_start << 4;
-//    input_addr += desc_ptr->idu.act0_offset;
-//
-//    half* p_act_data = (half*)(input_addr); // 0x1F000000
-//    half* p_act_out = (half*)(desc_ptr->odu_ac_base.ac_base << 4); // 0x1F004000
-//
-//    const uint32_t elements = X * Y * Z;
-//    half act = 0;
-//
-//    for (uint32_t e = 0; e < elements; ++e) {
-//        act = *p_act_data++ * -1.0f;
-//        act = 1.0f + expf(act);
-//        act = 1.0f / act;
-//        *p_act_out++ = (half)act;
-//    }
+    half* p_act_data = (half*)(lParams->input.dataAddr); // 0x1F000000
+    half* p_act_out = (half*)(lParams->output.dataAddr); // 0x1F004000
+
+    int32_t *pDims     = (int32_t *)((uint8_t*)(lParams) + lParams->input.dimsAddr); // 0x1F000000 + dimsAddr
+    int64_t *pStrdides = (int64_t *)((uint8_t*)(lParams) + lParams->input.stridesAddr); // 0x1F000000 + stridesAddr
+
+    int32_t nElements = 1;
+    int32_t i = 0;
+    half act = 0;
+
+    for (i = 0; i!= lParams->input.numDims; i++ ) {
+        // TODO: where pointers patch should be???
+        // TODO: check overflow
+        nElements *=  pDims[i];
+    }
+
+    for (uint32_t e = 0; e < nElements; ++e) {
+        act = *p_act_data++ * -1.0f;
+        act = 1.0f + expf(act);
+        act = 1.0f / act;
+        *p_act_out++ = (half)act;
+    }
 }
