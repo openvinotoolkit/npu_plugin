@@ -198,6 +198,37 @@ func @main(%arg0: tensor<1x1x30x30xf16, {order = #NHWC}>, %arg1: tensor<1x1x30x3
 #NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
+// CHECK-LABEL: @ReorderPropagationWithConcat
+module @ReorderPropagationWithConcat attributes {VPUIP.arch = "KMB", VPUIP.compilationMode = "ReferenceSW"} {
+
+// CHECK:       func @main(
+// CHECK-SAME:      [[ARG0:%arg[0-9]+]]: tensor<1x1x30x30xf16, {order = #NHWC}>,
+// CHECK-SAME:      [[ARG1:%arg[0-9]+]]: tensor<1x1x30x30xf16, {order = #NHWC}>)
+func @main(%arg0: tensor<1x1x30x30xf16, {order = #NHWC}>, %arg1: tensor<1x1x30x30xf16, {order = #NHWC}>)
+        -> tensor<1x2x29x30xf16, {order = #NHWC}> {
+    %0 = IE.Reorder(%arg0) {dstOrder = #NCHW} : tensor<1x1x30x30xf16, {order = #NHWC}> -> tensor<1x1x30x30xf16>
+    %1 = IE.Reorder(%arg1) {dstOrder = #NCHW} : tensor<1x1x30x30xf16, {order = #NHWC}> -> tensor<1x1x30x30xf16>
+    %2 = IE.Concat(%0, %1) {axis = 1} : tensor<1x1x30x30xf16>, tensor<1x1x30x30xf16> -> tensor<1x2x30x30xf16>
+    %3 = IE.Slice %2 [0, 0, 1, 0] [1, 2, 29, 30] : tensor<1x2x30x30xf16> to tensor<1x2x29x30xf16>
+    %4 = IE.Reorder(%3) {dstOrder = #NHWC} : tensor<1x2x29x30xf16> -> tensor<1x2x29x30xf16, {order = #NHWC}>
+    return %4 : tensor<1x2x29x30xf16, {order = #NHWC}>
+
+    // CHECK:       [[VAR0:%.+]] = IE.Concat([[ARG0]], [[ARG1]]) {axis = 1 : i64, offset = 0 : i64, stride = 1 : i64}
+    // CHECK-SAME:      tensor<1x1x30x30xf16, {order = #NHWC}>,
+    // CHECK-SAME:      tensor<1x1x30x30xf16, {order = #NHWC}>
+    // CHECK-SAME:      -> tensor<1x2x30x30xf16, {order = #NHWC}>
+    // CHECK:       [[VAR1:%.+]] = IE.Slice [[VAR0]]
+    // CHECK-SAME:      to tensor<1x2x29x30xf16, {order = #NHWC}>
+    // CHECK:       return [[VAR1]] : tensor<1x2x29x30xf16, {order = #NHWC}>
+}
+
+}
+
+// -----
+
+#NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
+#NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
+
 // CHECK-LABEL: @ReorderWithExpandTwoBranches
 module @ReorderWithExpandTwoBranches attributes {VPUIP.arch = "KMB", VPUIP.compilationMode = "ReferenceSW"} {
 

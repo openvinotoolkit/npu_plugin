@@ -302,7 +302,8 @@ mlir::LogicalResult FuseWithConcat::matchAndRewrite(IE::QuantizeOp quantizeOp, m
         newConcatInputs.push_back(inputDequantizeOp.input());
     }
 
-    rewriter.replaceOpWithNewOp<IE::ConcatOp>(quantizeOp, quantizeOp.getType(), newConcatInputs, concatOp.axisAttr());
+    rewriter.replaceOpWithNewOp<IE::ConcatOp>(quantizeOp, quantizeOp.getType(), newConcatInputs, concatOp.axis(),
+                                              concatOp.offset(), concatOp.stride());
 
     return mlir::success();
 }
