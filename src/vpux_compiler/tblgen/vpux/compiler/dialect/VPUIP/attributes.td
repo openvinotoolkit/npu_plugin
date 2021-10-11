@@ -165,9 +165,11 @@ def VPUIP_ArchKind :
             "ArchKind",
             "Represents VPU architecture generation",
             [
+                StrEnumAttrCase<"UNKNOWN">,
                 StrEnumAttrCase<"KMB">,
                 StrEnumAttrCase<"TBH">,
                 StrEnumAttrCase<"MTL">,
+                StrEnumAttrCase<"LNL">,
             ]
         > {
     let cppNamespace = "vpux::VPUIP";
