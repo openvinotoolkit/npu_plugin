@@ -282,6 +282,13 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyConvCMX(mlir::Location loc,
     return mlir::success();
 }
 
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyCMX(IE::ConvolutionOp origOp, Logger log) {
+    return verifyConvCMX(origOp->getLoc(), origOp->getParentOfType<mlir::ModuleOp>(),
+                         origOp.input().getType().cast<mlir::ShapedType>(),
+                         origOp.filter().getType().cast<mlir::ShapedType>(),
+                         origOp.output().getType().cast<mlir::ShapedType>(), log);
+}
+
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyCMX(IERT::ConvolutionOp origOp, Logger log) {
     return verifyConvCMX(origOp->getLoc(), origOp->getParentOfType<mlir::ModuleOp>(),
                          origOp.input().getType().cast<mlir::ShapedType>(),
@@ -323,6 +330,13 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPoolCMX(mlir::Location loc,
     return mlir::success();
 }
 
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyCMX(IE::MaxPoolOp origOp, Logger log) {
+    return verifyPoolCMX(origOp->getLoc(), origOp->getParentOfType<mlir::ModuleOp>(),
+                         origOp.input().getType().cast<mlir::ShapedType>(),
+                         origOp.output().getType().cast<mlir::ShapedType>(), origOp.kernel_size(), origOp.strides(),
+                         log);
+}
+
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyCMX(IERT::MaxPoolOp origOp, Logger log) {
     return verifyPoolCMX(origOp->getLoc(), origOp->getParentOfType<mlir::ModuleOp>(),
                          origOp.input().getType().cast<mlir::ShapedType>(),
@@ -350,6 +364,34 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyEltwiseCMX(mlir::Location l
     }
 
     return mlir::success();
+}
+
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyCMX(IE::AddOp origOp, Logger log) {
+    return verifyEltwiseCMX(origOp->getLoc(), origOp->getParentOfType<mlir::ModuleOp>(),
+                            origOp.input1().getType().cast<mlir::ShapedType>(),
+                            origOp.input2().getType().cast<mlir::ShapedType>(),
+                            origOp.output().getType().cast<mlir::ShapedType>(), log);
+}
+
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyCMX(IE::MultiplyOp origOp, Logger log) {
+    return verifyEltwiseCMX(origOp->getLoc(), origOp->getParentOfType<mlir::ModuleOp>(),
+                            origOp.input1().getType().cast<mlir::ShapedType>(),
+                            origOp.input2().getType().cast<mlir::ShapedType>(),
+                            origOp.output().getType().cast<mlir::ShapedType>(), log);
+}
+
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyCMX(IE::SubtractOp origOp, Logger log) {
+    return verifyEltwiseCMX(origOp->getLoc(), origOp->getParentOfType<mlir::ModuleOp>(),
+                            origOp.input1().getType().cast<mlir::ShapedType>(),
+                            origOp.input2().getType().cast<mlir::ShapedType>(),
+                            origOp.output().getType().cast<mlir::ShapedType>(), log);
+}
+
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyCMX(IE::AndOp origOp, Logger log) {
+    return verifyEltwiseCMX(origOp->getLoc(), origOp->getParentOfType<mlir::ModuleOp>(),
+                            origOp.input1().getType().cast<mlir::ShapedType>(),
+                            origOp.input2().getType().cast<mlir::ShapedType>(),
+                            origOp.output().getType().cast<mlir::ShapedType>(), log);
 }
 
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyCMX(IERT::AddOp origOp, Logger log) {
@@ -435,6 +477,13 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyGroupConvCMX(mlir::Location
     }
 
     return mlir::success();
+}
+
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyCMX(IE::GroupConvolutionOp origOp, Logger log) {
+    return verifyGroupConvCMX(origOp->getLoc(), origOp->getParentOfType<mlir::ModuleOp>(),
+                              origOp.input().getType().cast<mlir::ShapedType>(),
+                              origOp.filter().getType().cast<mlir::ShapedType>(),
+                              origOp.output().getType().cast<mlir::ShapedType>(), origOp.strides(), log);
 }
 
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyCMX(IERT::GroupConvolutionOp origOp, Logger log) {

@@ -534,4 +534,28 @@ def HandleAsymmetricStrides : PassBase<"handle-asymmetric-strides", "vpux::Funct
     ];
 }
 
+//=================================================================================
+// Tiling
+//=================================================================================
+
+//
+// Isolated Tiling
+//
+
+def IsolatedTiling : PassBase<"isolated-tiling", "vpux::FunctionPass"> {
+    let summary = "Tile layers in isolation so that all their I/O fit into requirements";
+
+    let description = [{
+        The pass performs simple tiling of the layers, which doesn't fit into memory requirements.
+
+        The pass tries to fit single layer in isolation, without any heuristics to run something
+        in parallel or continue computation in tiles.
+
+        The pass doesn't use any cost model and just choose the first largest tile size,
+        which fits into the memory requirements.
+    }];
+
+    let constructor = "vpux::IE::createIsolatedTilingPass()";
+}
+
 #endif

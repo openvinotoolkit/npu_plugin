@@ -15,10 +15,13 @@
 #include "vpux/compiler/core/layers.hpp"
 
 #include "vpux/utils/core/format.hpp"
+#include "vpux/utils/core/logger.hpp"
 
 #include <mlir/IR/BuiltinAttributes.h>
 
 #include <llvm/Support/raw_ostream.h>
+
+#include <functional>
 
 #pragma once
 
@@ -45,9 +48,14 @@ struct TileInfo final {
     }
 };
 
+using OutputTiling = SmallVector<TileInfo>;
+
+template <class ConcreteOp>
+using TilingGenerator = std::function<OutputTiling(ConcreteOp, Logger)>;
+
 // helper function to generate a set of tiles from dividing a shape. A shape divided across multiple dimensions will
 // generate a set of tiles, each having its own size and offsets
-SmallVector<TileInfo> fillDividedTiles(ShapeRef divisors, ShapeRef orig);
+OutputTiling fillDividedTiles(ShapeRef divisors, ShapeRef orig);
 
 //
 // PadInfo

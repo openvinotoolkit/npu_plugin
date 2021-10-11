@@ -86,6 +86,14 @@ This pass splits operations so that they are able to be infered with symmetric s
     on dpu because of hardware limitation.
 ### `-handle-large-strides`: Handle operations with large strides
 This pass splits operations with strides larger than supported on hardware.
+### `-isolated-tiling`: Tile layers in isolation so that all their I/O fit into requirements
+The pass performs simple tiling of the layers, which doesn't fit into memory requirements.
+
+The pass tries to fit single layer in isolation, without any heuristics to run something
+in parallel or continue computation in tiles.
+
+The pass doesn't use any cost model and just choose the first largest tile size,
+which fits into the memory requirements.
 ### `-merge-fake-quant`: Merge back to FakeQuantize
 The pass is a part of `LowPrecision` pipeline.
 

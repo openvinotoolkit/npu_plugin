@@ -1553,27 +1553,27 @@ def IE_ConcatOp :
 
     let builders = [
         OpBuilder<
-            (ins "::mlir::ValueRange":$inputs, "vpux::IE::ConcatAttrs":$per_axis)
+            (ins "mlir::ValueRange":$inputs, "vpux::IE::ConcatAttrs":$per_axis)
         >,
         OpBuilder<
-            (ins "::mlir::ValueRange":$inputs, "mlir::IntegerAttr":$axis,
+            (ins "mlir::ValueRange":$inputs, "mlir::IntegerAttr":$axis,
                  CArg<"mlir::IntegerAttr", "{}">:$offset, CArg<"mlir::IntegerAttr", "{}">:$stride)
         >,
         OpBuilder<
-            (ins "::mlir::ValueRange":$inputs, "int64_t":$axis, CArg<"int64_t", "0">:$offset, CArg<"int64_t", "1">:$stride)
+            (ins "mlir::ValueRange":$inputs, "int64_t":$axis, CArg<"int64_t", "0">:$offset, CArg<"int64_t", "1">:$stride)
         >,
         OpBuilder<
-            (ins "::mlir::ValueRange":$inputs, "vpux::Dim":$axis, CArg<"int64_t", "0">:$offset, CArg<"int64_t", "1">:$stride)
+            (ins "mlir::ValueRange":$inputs, "vpux::Dim":$axis, CArg<"int64_t", "0">:$offset, CArg<"int64_t", "1">:$stride)
         >,
 
         OpBuilder<
-            (ins "::mlir::ValueRange":$inputs, "mlir::ArrayAttr":$static_offsets)
+            (ins "mlir::Type":$outType, "mlir::ValueRange":$inputs, "mlir::ArrayAttr":$static_offsets)
         >,
         OpBuilder<
-            (ins "::mlir::ValueRange":$inputs, "vpux::ArrayRef<vpux::Shape>":$static_offsets)
+            (ins "mlir::Type":$outType, "mlir::ValueRange":$inputs, "vpux::ArrayRef<vpux::Shape>":$static_offsets)
         >,
         OpBuilder<
-            (ins "::mlir::ValueRange":$inputs, "vpux::ArrayRef<vpux::ShapeRef>":$static_offsets)
+            (ins "mlir::Type":$outType, "mlir::ValueRange":$inputs, "vpux::ArrayRef<vpux::ShapeRef>":$static_offsets)
         >,
     ];
 

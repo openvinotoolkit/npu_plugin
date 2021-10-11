@@ -164,6 +164,9 @@ void vpux::buildHardwareModePipeline(mlir::OpPassManager& pm, bool enableProfili
 
     buildIECommonPipeline(pm, log);
 
+    pm.addPass(IE::createIsolatedTilingPass(log));
+    pm.addPass(mlir::createCanonicalizerPass(grc));
+
     // Lower IE->IERT
     buildLowerIE2IERTPipeline(pm, log);
 
@@ -172,8 +175,6 @@ void vpux::buildHardwareModePipeline(mlir::OpPassManager& pm, bool enableProfili
     }
 
     // Partially lower IERT->VPUIP (NCE Operations only)
-    pm.addPass(IERT::createCMXTilingPass(log));
-    pm.addPass(mlir::createCanonicalizerPass(grc));
     pm.addPass(createConvertToNCEOpsPass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
 
