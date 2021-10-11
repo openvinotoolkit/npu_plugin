@@ -24,6 +24,7 @@
 
 #include "vpux/utils/core/func_ref.hpp"
 #include "vpux/utils/core/numeric.hpp"
+#include "vpux/compiler/dialect/VPUIP/utils.hpp"
 
 #include <mlir/Pass/PassManager.h>
 #include <mlir/Transforms/DialectConversion.h>
