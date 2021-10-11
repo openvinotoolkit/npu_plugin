@@ -386,7 +386,6 @@ private:
 
 void ExpandActivationChannelsPass::safeRunOnFunc() {
     auto& ctx = getContext();
-    auto func = getFunction();
 
     const auto isLegal = [&](mlir::Operation* op) {
         if (auto iface = mlir::dyn_cast<IE::AlignedChannelsOpInterface>(op)) {
@@ -410,6 +409,7 @@ void ExpandActivationChannelsPass::safeRunOnFunc() {
     patterns.insert<EltwiseRewriter<IE::AndOp>>(&ctx, _log);
     patterns.insert<GroupConvolutionRewriter>(&ctx, _log);
 
+    auto func = getFunction();
     if (mlir::failed(mlir::applyFullConversion(func, target, std::move(patterns)))) {
         signalPassFailure();
     }
