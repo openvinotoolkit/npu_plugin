@@ -56,6 +56,8 @@ void KmbConfigTest::runTest(
 }
 
 TEST_P(KmbConfigTest, setConfig) {
+    // [Track number: #E20189]
+    SKIP_ON("LEVEL0", "Sporadic failures on device");
     const auto& param = GetParam();
     const auto& compileConfig = std::get<0>(param);
     const auto& baseInferConfig = std::get<1>(param);

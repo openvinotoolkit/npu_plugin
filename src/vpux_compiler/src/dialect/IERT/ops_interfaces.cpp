@@ -16,6 +16,8 @@
 #include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/quantization.hpp"
 
+#include <mlir/Interfaces/ViewLikeInterface.h>
+
 using namespace vpux;
 
 //
@@ -254,10 +256,6 @@ void vpux::IERT::inferLayoutInfoSameInOutDimsOrder(IE::LayerLayoutInfo& info) {
 // SameInOutSpecificDimsOrder
 //
 
-const std::array<DimsOrder, 2> vpux::IERT::NCHW_NHWC = {DimsOrder::NCHW, DimsOrder::NHWC};
-const std::array<DimsOrder, 4> vpux::IERT::CHW_HWC_NCHW_NHWC = {DimsOrder::CHW, DimsOrder::HWC, DimsOrder::NCHW,
-                                                                DimsOrder::NHWC};
-
 mlir::LogicalResult vpux::IERT::verifySameInOutSpecificDimsOrder(mlir::Operation* op,
                                                                  ArrayRef<DimsOrder> supportedLayouts) {
     if (verifySameInOutDimsOrder(op).failed()) {
@@ -302,6 +300,14 @@ void vpux::IERT::inferLayoutInfoSameInOutSpecificDimsOrder(IE::LayerLayoutInfo& 
     const auto supportedOrder = *supportedOrderIt;
     info.setInput(0, supportedOrder);
     info.setOutput(0, supportedOrder);
+}
+
+//
+// isPureViewLike
+//
+
+bool vpux::IERT::isPureViewOp(mlir::Operation* op) {
+    return mlir::isa<mlir::ViewLikeOpInterface>(op) && !mlir::isa<IERT::LayerOpInterface>(op);
 }
 
 //

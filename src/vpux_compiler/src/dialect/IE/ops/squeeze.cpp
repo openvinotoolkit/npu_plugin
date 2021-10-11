@@ -87,7 +87,7 @@ mlir::LogicalResult vpux::IE::SqueezeOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto inType = squeeze.input().getType().cast<mlir::ShapedType>();
+    const auto inType = squeeze.input().getType().cast<mlir::RankedTensorType>();
     const auto inShape = inType.getShape();
 
     SmallVector<int64_t> outShape;
@@ -123,16 +123,10 @@ mlir::LogicalResult vpux::IE::SqueezeOp::inferReturnTypeComponents(
         }
     }
 
-    inferredReturnShapes.emplace_back(makeArrayRef(outShape), inType.getElementType());
+    const auto outDesc = IE::getTensorAttr(ctx, DimsOrder::fromNumDims(outShape.size()), IE::getMemorySpace(inType));
+
+    inferredReturnShapes.emplace_back(makeArrayRef(outShape), inType.getElementType(), outDesc);
     return mlir::success();
-}
-
-//
-// ViewLikeInterface
-//
-
-mlir::Value vpux::IE::SqueezeOp::getViewSource() {
-    return input();
 }
 
 //

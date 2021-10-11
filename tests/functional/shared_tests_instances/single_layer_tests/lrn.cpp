@@ -10,20 +10,17 @@
 
 namespace LayerTestsDefinitions {
 
-class KmbLrnLayerTest : public LrnLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
-    void SkipBeforeLoad() override {
-        if (envConfig.IE_KMB_TESTS_RUN_INFER) {
-            throw LayerTestsUtils::KmbSkipTestException("layer test networks hang the board");
-        }
-    }
-    void SkipBeforeValidate() override {
-        throw LayerTestsUtils::KmbSkipTestException("comparison fails");
-    }
-};
+class KmbLrnLayerTest : public LrnLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
 
 TEST_P(KmbLrnLayerTest, LrnCheck) {
     Run();
 }
+
+TEST_P(KmbLrnLayerTest, LrnCheck_MLIR) {
+    useCompilerMLIR();
+    Run();
+}
+
 } // namespace LayerTestsDefinitions
 
 using namespace LayerTestsDefinitions;
@@ -50,7 +47,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LrnCheck, KmbLrnLayerTest,
                                            ::testing::ValuesIn(netPrecisions),
                                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                           ::testing::Values(std::vector<size_t>({10, 10, 3, 2})),
+                                           ::testing::Values(std::vector<size_t>({1, 10, 3, 2})),
                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
                         KmbLrnLayerTest::getTestCaseName);
 

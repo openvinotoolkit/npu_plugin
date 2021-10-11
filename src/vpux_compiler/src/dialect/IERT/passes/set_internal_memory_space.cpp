@@ -58,10 +58,6 @@ mlir::LogicalResult SetInternalMemorySpacePass::initialize(mlir::MLIRContext* ct
     return mlir::success();
 }
 
-//
-// safeRunOnFunc
-//
-
 void SetInternalMemorySpacePass::safeRunOnFunc() {
     auto& aliasInfo = getAnalysis<AliasesInfo>();
 
@@ -78,11 +74,21 @@ void SetInternalMemorySpacePass::safeRunOnFunc() {
         for (auto var : aliases) {
             _log.nest().trace("Process alias buffer '{0}'", var);
 
-            const auto origType = var.getType().dyn_cast<mlir::MemRefType>();
-            VPUX_THROW_UNLESS(origType != nullptr, "Got non MemRef Type '{0}'", var.getType());
+            if (const auto futureType = var.getType().dyn_cast<mlir::async::ValueType>()) {
+                const auto origType = futureType.getValueType().dyn_cast<mlir::MemRefType>();
+                VPUX_THROW_UNLESS(origType != nullptr, "Got non MemRef Type '{0}'", var.getType());
 
-            const auto newType = changeMemSpace(origType, _memSpace, true);
-            var.setType(newType);
+                const auto newType = changeMemSpace(origType, _memSpace, true);
+                const auto newFutureType = mlir::async::ValueType::get(newType);
+
+                var.setType(newFutureType);
+            } else {
+                const auto origType = var.getType().dyn_cast<mlir::MemRefType>();
+                VPUX_THROW_UNLESS(origType != nullptr, "Got non MemRef Type '{0}'", var.getType());
+
+                const auto newType = changeMemSpace(origType, _memSpace, true);
+                var.setType(newType);
+            }
         }
     };
 

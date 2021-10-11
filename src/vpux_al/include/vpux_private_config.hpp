@@ -157,6 +157,14 @@ DECLARE_VPUX_CONFIG_VALUE(MLIR);
 DECLARE_VPUX_CONFIG_KEY(COMPILATION_MODE);
 
 /**
+ * @brief [Only for VPUX compiler]
+ * Type: std::string, default is empty.
+ * Config for HW-mode's pipeline
+ * Available values: low-precision=true/low-precision=false
+ */
+DECLARE_VPUX_CONFIG_KEY(COMPILATION_MODE_PARAMS);
+
+/**
  * @brief [Only for VPUX Plugin]
  * Type: integer, default is None
  * Number of DPU groups

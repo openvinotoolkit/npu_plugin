@@ -7,7 +7,8 @@
 #include <nn_relocation.h>
 #include <mvSubspaces.h>
 #include <limits.h>
-#include "nn_tensor_nd_types.h"
+#include "common_types.h"
+#include <string.h>
 
 namespace nn {
 
@@ -105,6 +106,19 @@ public:
     TensorRef() = default;
     TensorRef(TensorRefNDData data) : TensorRefNDData(data) {
     };
+    TensorRef(const sw_params::MemRefData& data) {
+        dType = static_cast<sw_params::DataType>(data.dataType);
+        ndOrder = data.dimsOrder;
+        addr = reinterpret_cast<uint8_t *>(data.dataAddr);
+        ndims = (data.numDims > (uint32_t)MAX_ND_DIMS) ? (uint32_t)MAX_ND_DIMS : data.numDims;
+        memcpy_s(dims, ndims * sizeof(int32_t), reinterpret_cast<uint8_t *>(data.dimsAddr), ndims * sizeof(int32_t));
+        memcpy_s(strides, ndims * sizeof(int32_t), reinterpret_cast<uint8_t *>(data.stridesAddr), ndims * sizeof(int32_t));
+        for (int i = 0; i < ndims; i++) {
+            stridesBits[i] = strides[i] << 3;
+        }
+        bitsPerPixel = nn::getBpp(dType) * CHAR_BIT;
+    };
+
     unsigned int getDataSize() const;
     unsigned int getFullDataSize() const;
     unsigned int getNumElements() const;
@@ -145,6 +159,7 @@ public:
     int64_t strideBitsH(int64_t defaultValue = -1) const;
     int64_t strideBitsW(int64_t defaultValue = -1) const;
     subspace::LogDimIndex getLogicalC() const;
+    sw_params::MemRefData toMemRefData(sw_params::Location loc = sw_params::Location::DDR) const;
 };
 
 } // namespace nn

@@ -108,28 +108,28 @@ void Permute::run(mv::tensor::Processor& ,
             fpCopy(nn::element(input, inDims), nn::element(output, outDims));
             subspace::increment1Coord(inDims, input.dims, input.ndims);
         }
-    } else {
+    } //else {
         // ---- KMB infra
-        std::unique_ptr<MVCNN::UPALayerTaskT> upaTask (new MVCNN::UPALayerTaskT());
-        if (ops.allow_permute_nd) {
-            upaTask->softLayerParams.type = MVCNN::SoftwareLayerParams_PermuteNDParams;
-            std::unique_ptr<MVCNN::PermuteNDParamsT> softLayerParamsValue(new MVCNN::PermuteNDParamsT);
-            for(int order_pos = 0; order_pos < input.ndims; order_pos++) {
-                auto reversedOrderIndex = input.ndims - order_pos - 1;
-                auto reversedOrderValue = input.ndims - ops.order[reversedOrderIndex] - 1;
-                softLayerParamsValue->permute_nd_order.push_back(reversedOrderValue);
-            }
-            upaTask->softLayerParams.value = softLayerParamsValue.release();
-        } else {
-            upaTask->softLayerParams.type = MVCNN::SoftwareLayerParams_PermuteParams;
-            std::unique_ptr<MVCNN::PermuteParamsT> softLayerParamsValue(new MVCNN::PermuteParamsT);
-
-            softLayerParamsValue->permute_order.reset(new MVCNN::order3(2 - ops.order[2], 2 - ops.order[1], 2 - ops.order[0]));
-            upaTask->softLayerParams.value = softLayerParamsValue.release();
-        }
-
-        UPATaskRunner runner;
-        mvTensorAssert(runner.enqueTask(std::move(upaTask), {input}, {output}, myriadRes.lastShave - myriadRes.firstShave + 1, &perfData), "permute layer run failed");
-        mvTensorAssert(runner.dequeResult(), "permute layer run failed");
-    }
+//        std::unique_ptr<MVCNN::UPALayerTaskT> upaTask (new MVCNN::UPALayerTaskT());
+//        if (ops.allow_permute_nd) {
+//            upaTask->softLayerParams.type = MVCNN::SoftwareLayerParams_PermuteNDParams;
+//            std::unique_ptr<MVCNN::PermuteNDParamsT> softLayerParamsValue(new MVCNN::PermuteNDParamsT);
+//            for(int order_pos = 0; order_pos < input.ndims; order_pos++) {
+//                auto reversedOrderIndex = input.ndims - order_pos - 1;
+//                auto reversedOrderValue = input.ndims - ops.order[reversedOrderIndex] - 1;
+//                softLayerParamsValue->permute_nd_order.push_back(reversedOrderValue);
+//            }
+//            upaTask->softLayerParams.value = softLayerParamsValue.release();
+//        } else {
+//            upaTask->softLayerParams.type = MVCNN::SoftwareLayerParams_PermuteParams;
+//            std::unique_ptr<MVCNN::PermuteParamsT> softLayerParamsValue(new MVCNN::PermuteParamsT);
+//
+//            softLayerParamsValue->permute_order.reset(new MVCNN::order3(2 - ops.order[2], 2 - ops.order[1], 2 - ops.order[0]));
+//            upaTask->softLayerParams.value = softLayerParamsValue.release();
+//        }
+//
+//        UPATaskRunner runner;
+//        mvTensorAssert(runner.enqueTask(std::move(upaTask), {input}, {output}, myriadRes.lastShave - myriadRes.firstShave + 1, &perfData), "permute layer run failed");
+//        mvTensorAssert(runner.dequeResult(), "permute layer run failed");
+//    }
 }

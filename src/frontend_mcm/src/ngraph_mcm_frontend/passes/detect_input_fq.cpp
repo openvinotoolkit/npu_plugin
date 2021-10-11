@@ -16,6 +16,21 @@
 #include <ngraph/op/fake_quantize.hpp>
 #include <vector>
 
+namespace {
+bool is_0_255_range(const std::vector<double>& input_low_values, const std::vector<double>& input_high_values) {
+    const auto acceptableLowValues =
+            std::none_of(input_low_values.cbegin(), input_low_values.cend(), [](const double value) -> bool {
+                return value > 5. || value < 0.;
+            });
+    const auto acceptableHighValues =
+            std::none_of(input_high_values.cbegin(), input_high_values.cend(), [](const double value) -> bool {
+                return value < 250. || value > 255.;
+            });
+
+    return acceptableLowValues && acceptableHighValues;
+}
+}  // namespace
+
 bool DetectInputFQ::run_on_function(std::shared_ptr<ngraph::Function> f) {
     const auto ops = f->get_ordered_ops();
 
@@ -40,16 +55,12 @@ bool DetectInputFQ::run_on_function(std::shared_ptr<ngraph::Function> f) {
             const auto& input_low_values = input_fq_node1->cast_vector<double>();
             const auto& input_high_values = input_fq_node2->cast_vector<double>();
 
-            for (const auto& in_min : input_low_values) {
-                if (in_min > 5.f || in_min < 0.f)
-                    return false;
-            }
-            for (const auto& in_max : input_high_values) {
-                if (in_max < 250.f || in_max > 255.f)
-                    return false;
+            if (!is_0_255_range(input_low_values, input_high_values)) {
+                return false;
             }
 
             *_needConvertInputPrecision = true;
+            break;
         }
     }
     return true;

@@ -89,6 +89,18 @@ flatbuffers::Offset<MVCNN::ProcessorMapping> createProcessorMapping(VPUIP::BlobW
     return builder.Finish();
 }
 
+flatbuffers::Offset<MVCNN::ProcessorMapping> createProcessorFreqMapping(VPUIP::BlobWriter& writer,
+                                                                        IERT::ExecutorResourceOp res) {
+    const auto kind = res.kind().dyn_cast_or_null<VPUIP::PhysicalProcessorAttr>();
+    VPUX_THROW_UNLESS(kind != nullptr, "Got unknown executor kind '{0}'", res.kind());
+
+    MVCNN::ProcessorMappingBuilder builder(writer);
+    builder.add_item(createPhysicalProcessor(kind.getValue()));
+    builder.add_number(VPUIP::getProcessorFrequency(res));
+    builder.add_is_bitmask(false);
+    return builder.Finish();
+}
+
 MVCNN::PhysicalMem createPhysicalMem(VPUIP::PhysicalMemory mem) {
     switch (mem) {
     case VPUIP::PhysicalMemory::DDR:
@@ -114,6 +126,21 @@ flatbuffers::Offset<MVCNN::MemoryMapping> createMemoryMapping(VPUIP::BlobWriter&
     return builder.Finish();
 }
 
+flatbuffers::Offset<MVCNN::MemoryRelationshipMapping> createBandwidthMapping(VPUIP::BlobWriter& writer,
+                                                                             IERT::MemoryResourceOp src,
+                                                                             IERT::MemoryResourceOp dst,
+                                                                             double bandwidth) {
+    MVCNN::MemoryRelationshipMappingBuilder builder(writer);
+    const auto srcKind = src.kindAttr().dyn_cast_or_null<VPUIP::PhysicalMemoryAttr>();
+    VPUX_THROW_UNLESS(srcKind != nullptr, "Got unknown memory space kind '{0}'", src.kindAttr());
+    const auto dstKind = dst.kindAttr().dyn_cast_or_null<VPUIP::PhysicalMemoryAttr>();
+    VPUX_THROW_UNLESS(dstKind != nullptr, "Got unknown memory space kind '{0}'", dst.kindAttr());
+    builder.add_from_item(createPhysicalMem(srcKind.getValue()));
+    builder.add_to_item(createPhysicalMem(dstKind.getValue()));
+    builder.add_number(bandwidth);
+    return builder.Finish();
+}
+
 flatbuffers::Offset<MVCNN::Resources> createResources(VPUIP::BlobWriter& writer, mlir::ModuleOp module) {
     auto resources = IERT::RunTimeResourcesOp::getFromModule(module);
     VPUX_THROW_UNLESS(resources != nullptr, "Missing IERT run-time resources information");
@@ -124,16 +151,45 @@ flatbuffers::Offset<MVCNN::Resources> createResources(VPUIP::BlobWriter& writer,
                                 }));
 
     SmallVector<flatbuffers::Offset<MVCNN::ProcessorMapping>> executorsOffsets;
+    SmallVector<flatbuffers::Offset<MVCNN::ProcessorMapping>> processorVec;
     resources.walk([&](IERT::ExecutorResourceOp res) {
         if (res.kind().isa<VPUIP::PhysicalProcessorAttr>()) {
             executorsOffsets.push_back(createProcessorMapping(writer, res));
+            if (res->hasAttr(VPUIP::getProcessorFrequencyAttrName())) {
+                processorVec.push_back(createProcessorFreqMapping(writer, res));
+            }
         }
     });
     const auto executors = writer.createVector(executorsOffsets);
+    const auto processorFrequency = writer.createVector(processorVec);
+
+    SmallVector<flatbuffers::Offset<MVCNN::MemoryRelationshipMapping>> memoryVec;
+    SmallVector<IERT::MemoryResourceOp> memoryTypes;
+    resources.walk([&](IERT::MemoryResourceOp src) {
+        if (src->hasAttr(VPUIP::getBandwidthAttrName())) {
+            memoryTypes.push_back(src);
+        }
+    });
+
+    double DMA_BANDWIDTH = 20.0;
+    for (auto src : memoryTypes) {
+        for (auto dst : memoryTypes) {
+            // TODO EISW-20897: update calculations with the below factors:
+            // auto memoryBandwidth = VPUIP::getMemoryBandwidth(src);
+            // auto memoryDerateFactor = VPUIP::getMemoryDerateFactor(src);
+            if (src != dst) {
+                memoryVec.push_back(createBandwidthMapping(writer, src, dst, DMA_BANDWIDTH));
+            }
+        }
+    }
+
+    const auto memoryBandwidthVec = writer.createVector(memoryVec);
 
     MVCNN::ResourcesBuilder builder(writer);
     builder.add_processor_allocation(executors);
     builder.add_memory_sizes(usedMemory);
+    builder.add_processor_frequencies(processorFrequency);
+    builder.add_memory_bandwidth(memoryBandwidthVec);
     return builder.Finish();
 }
 

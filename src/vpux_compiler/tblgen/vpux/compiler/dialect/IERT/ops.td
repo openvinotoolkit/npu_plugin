@@ -26,6 +26,7 @@ include "mlir/Dialect/Quant/QuantOpsBase.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 include "mlir/Interfaces/ViewLikeInterface.td"
+include "mlir/IR/OpAsmInterface.td"
 include "mlir/IR/RegionKindInterface.td"
 
 //
@@ -64,7 +65,8 @@ def IERT_RunTimeResourcesOp :
             [
                 IsolatedFromAbove,
                 HasParent<"mlir::ModuleOp">,
-                NoRegionArguments
+                NoRegionArguments,
+                OpAsmOpInterface
             ]
             # GraphRegionNoTerminator.traits
         > {
@@ -107,6 +109,10 @@ def IERT_RunTimeResourcesOp :
         vpux::IERT::ExecutorResourceOp addExecutor(mlir::Attribute kind, uint32_t count, bool withSubRegion = false);
         vpux::IERT::ExecutorResourceOp getExecutor(mlir::Attribute kind);
         auto getExecutors() { return executors().getOps<vpux::IERT::ExecutorResourceOp>(); }
+
+        static mlir::StringRef getDefaultDialect() {
+            return "IERT";
+        }
     }];
 
     let assemblyFormat = [{
@@ -161,7 +167,8 @@ def IERT_ExecutorResourceOp :
             "ExecutorResource",
             [
                 ParentOneOf<["vpux::IERT::ExecutorResourceOp","vpux::IERT::RunTimeResourcesOp"]>,
-                NoRegionArguments
+                NoRegionArguments,
+                OpAsmOpInterface
             ]
             # GraphRegionNoTerminator.traits
         > {
@@ -190,6 +197,10 @@ def IERT_ExecutorResourceOp :
     let extraClassDeclaration = [{
         vpux::IERT::ExecutorResourceOp addSubExecutor(mlir::Attribute kind, uint32_t count, bool withSubRegion = false);
         vpux::IERT::ExecutorResourceOp getSubExecutor(mlir::Attribute kind);
+
+        static mlir::StringRef getDefaultDialect() {
+            return "IERT";
+        }
     }];
 
     let assemblyFormat = [{
@@ -596,6 +607,42 @@ def IERT_SigmoidOp :
 }
 
 //
+// LRN_IEOp
+//
+
+def IERT_LRN_IEOp :
+        IERT_LayerOp<1, "LRN_IE",
+            [
+                ViewLikeOpInterface
+            ]
+        > {
+    let summary = "InferenceEngine run-time LRN_IE layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input,
+
+        MemRefOf<[F16, F32]>:$output_buff,
+
+        F64Attr:$alpha,
+        F64Attr:$beta,
+        F64Attr:$bias,
+        IntAttr:$size,
+        IE_LRN_IERegion:$region
+    );
+
+    let results = (outs
+        MemRefOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `ouputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
 // ClampOp
 //
 
@@ -725,6 +772,39 @@ def IERT_FloorOp :
 }
 
 //
+// RoundOp
+//
+
+def IERT_RoundOp :
+        IERT_LayerOp<1, "Round",
+            [
+                ViewLikeOpInterface,
+                SameOperandsShape,
+                SameOperandsElementType
+            ]
+        > {
+    let summary = "InferenceEngine run-time Round layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input,
+        MemRefOf<[F16, F32]>:$output_buff,
+        
+        IE_RoundMode:$mode
+    );
+
+    let results = (outs
+        MemRefOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
 // MishOp
 //
 
@@ -799,6 +879,37 @@ def IERT_TanhOp :
             ]
         > {
     let summary = "InferenceEngine run-time Tanh layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input,
+        MemRefOf<[F16, F32]>:$output_buff
+    );
+
+    let results = (outs
+        MemRefOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
+// SqrtOp
+//
+
+def IERT_SqrtOp :
+        IERT_LayerOp<1, "Sqrt",
+            [
+                ViewLikeOpInterface,
+                SameOperandsShape,
+                SameOperandsElementType
+            ]
+        > {
+    let summary = "InferenceEngine run-time Sqrt layer";
 
     let arguments = (ins
         MemRefOf<[F16, F32]>:$input,
@@ -1013,21 +1124,20 @@ def IERT_AddOp :
         IERT_LayerOp<1, "Add",
             [
                 ViewLikeOpInterface,
-                SameOperandsElementType
             ]
         > {
     let summary = "InferenceEngine run-time Add layer";
 
     let arguments = (ins
-        MemRefOf<[F16, F32]>:$input1,
-        MemRefOf<[F16, F32]>:$input2,
-        MemRefOf<[F16, F32]>:$output_buff,
+        MemRefOf<[F16, F32, quant_QuantizedType]>:$input1,
+        MemRefOf<[F16, F32, quant_QuantizedType]>:$input2,
+        MemRefOf<[F16, F32, quant_QuantizedType]>:$output_buff,
 
         OptionalAttr<IE_PostOp>:$post_op
     );
 
     let results = (outs
-        MemRefOf<[F16, F32]>:$output
+        MemRefOf<[F16, F32, quant_QuantizedType]>:$output
     );
 
     let assemblyFormat = [{
@@ -1054,11 +1164,45 @@ def IERT_MultiplyOp :
     let arguments = (ins
         MemRefOf<[F16, F32]>:$input1,
         MemRefOf<[F16, F32]>:$input2,
-        MemRefOf<[F16, F32]>:$output_buff
+        MemRefOf<[F16, F32]>:$output_buff,
+
+        OptionalAttr<IE_PostOp>:$post_op
     );
 
     let results = (outs
         MemRefOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input1 `:` type($input1) `,` $input2 `:` type($input2) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
+// AndOp
+//
+
+def IERT_AndOp :
+        IERT_LayerOp<1, "And",
+            [
+                ViewLikeOpInterface
+            ]
+        > {
+    let summary = "InferenceEngine run-time And layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32, quant_QuantizedType]>:$input1,
+        MemRefOf<[F16, F32, quant_QuantizedType]>:$input2,
+        MemRefOf<[F16, F32, quant_QuantizedType]>:$output_buff,
+
+        OptionalAttr<IE_PostOp>:$post_op
+    );
+
+    let results = (outs
+        MemRefOf<[F16, F32, quant_QuantizedType]>:$output
     );
 
     let assemblyFormat = [{
@@ -1855,6 +1999,39 @@ def IERT_StridedSliceOp :
 }
 
 //
+// GatherOp
+//
+
+def IERT_GatherOp :
+        IERT_LayerOp<1, "Gather",
+            [
+                ViewLikeOpInterface,
+            ]
+        > {
+    let summary = "InferenceEngine run-time Gather layer";
+
+    let arguments = (ins
+        AnyMemRef:$input,
+        MemRefOf<[SI64, SI32]>:$indices,
+        Optional<AnyMemRef>:$axis,
+        AnyMemRef:$output_buff,
+
+        OptionalAttr<IntAttr>:$axis_value
+    );
+
+    let results = (outs
+        AnyMemRef:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `,` $indices `:` type($indices) (`,` $axis^ `:` type($axis))? `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
 // LSTMCellOp
 //
 
@@ -1932,6 +2109,50 @@ def IERT_RegionYoloOp :
 }
 
 //
+// LSTMSequenceOp
+//
+
+def IERT_LSTMSequenceOp :
+        IERT_LayerOp<3,"LSTMSequence",
+            [
+                MultiViewOpInterface
+            ]
+        > {
+    let summary = "InferenceEngine run-time LSTMSequence layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$inputData,
+        MemRefOf<[F16, F32]>:$initialHiddenState,
+        MemRefOf<[F16, F32]>:$initialCellState,
+        MemRefOf<[F16, F32]>:$weights,
+        MemRefOf<[F16, F32]>:$biases,
+
+        MemRefOf<[F16, F32]>:$outputHiddenValues_buff,
+        MemRefOf<[F16, F32]>:$outputHiddenState_buff,
+        MemRefOf<[F16, F32]>:$outputCellState_buff,
+
+        IntAttr:$sequenceLength,
+        IE_RNNSequenceDirection:$direction
+    );
+
+    let results = (outs
+        MemRefOf<[F16, F32]>:$outputHiddenValues,
+        MemRefOf<[F16, F32]>:$outputHiddenState,
+        MemRefOf<[F16, F32]>:$outputCellState
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $inputData `:` type($inputData) `,` $initialHiddenState `:` type($initialHiddenState) `,` $initialCellState `:` type($initialCellState)
+                    `,` $weights `:` type($weights) `,` $biases `:` type($biases) `)`
+        `outputs` `(` $outputHiddenValues_buff `:` type($outputHiddenValues_buff) `,`
+                    $outputHiddenState_buff `:` type($outputHiddenState_buff) `,`
+                    $outputCellState_buff `:` type($outputCellState_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
 // SubViewOp
 //
 
@@ -1950,7 +2171,8 @@ def IERT_SubViewOp :
         AnyMemRef:$source,
 
         I64ArrayAttr:$static_offsets,
-        I64ArrayAttr:$static_sizes
+        I64ArrayAttr:$static_sizes,
+        OptionalAttr<I64ArrayAttr>:$static_strides
     );
 
     let results = (outs
@@ -1958,7 +2180,7 @@ def IERT_SubViewOp :
     );
 
     let assemblyFormat = [{
-        $source $static_offsets $static_sizes
+        $source $static_offsets $static_sizes ($static_strides^)?
         attr-dict `:` type($source) `to` type(results)
     }];
 
@@ -1968,6 +2190,16 @@ def IERT_SubViewOp :
         >,
         OpBuilder<
             (ins "mlir::Value":$source, "vpux::ArrayRef<int64_t>":$static_offsets, "vpux::ArrayRef<int64_t>":$static_sizes)
+        >,
+        OpBuilder<
+            (ins "mlir::Value":$source, "mlir::ArrayAttr":$static_offsets, "mlir::ArrayAttr":$static_sizes)
+        >,
+
+        OpBuilder<
+            (ins "mlir::Value":$source, "vpux::ShapeRef":$static_offsets, "vpux::ShapeRef":$static_sizes, "vpux::ShapeRef":$static_strides)
+        >,
+        OpBuilder<
+            (ins "mlir::Value":$source, "vpux::ArrayRef<int64_t>":$static_offsets, "vpux::ArrayRef<int64_t>":$static_sizes, "vpux::ArrayRef<int64_t>":$static_strides)
         >
     ];
 
@@ -2057,7 +2289,9 @@ def IERT_SubtractOp :
     let arguments = (ins
         MemRefOf<[F16, F32]>:$input1,
         MemRefOf<[F16, F32]>:$input2,
-        MemRefOf<[F16, F32]>:$output_buff
+        MemRefOf<[F16, F32]>:$output_buff,
+
+        OptionalAttr<IE_PostOp>:$post_op
     );
 
     let results = (outs

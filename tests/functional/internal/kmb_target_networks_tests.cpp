@@ -182,7 +182,7 @@ TEST_F(KmbClassifyNetworkTest, precommit_squeezenet1_1_pytorch_caffe2_dense_int8
 }
 
 TEST_F(PersonAttrRecNetworkTest, precommit_person_attribute_recognitnion_crossroad_0238) {
-    SKIP_INFER_ON("EMULATOR", "Wrong results");
+    SKIP_INFER_ON("EMULATOR", "Gather layer with different dtypes on inputs is not supported yet");
     runTest(
             TestNetworkDesc("KMB_models/INT8/public/person-attributes-recognition-crossroad/person-attributes-recognition-crossroad-0238.xml")
                     .setUserInputPrecision("input", Precision::U8)
@@ -286,6 +286,8 @@ INSTANTIATE_TEST_SUITE_P(precommit, KmbDetectionNetworkTestWithSpecificLayout, :
 
 // TODO 4 similar tests face_detection_retail_caffe_IRV10_fp16_int8_*
 TEST_F(KmbDetectionNetworkTest, face_detection_retail_caffe_IRV10_fp16_int8_nchw_fuse_scale_input_accuracy_drop) {
+    // [Track number: #E20190]
+    SKIP_ON("LEVEL0", "Sporadic bad results");
     runTest(
             TestNetworkDesc("KMB_models/INT8/icv/face-detection-retail-0004/caffe/FP16-INT8/face-detection-retail-0004-ww22.xml")
             .setUserInputPrecision("input", Precision::U8)
@@ -297,6 +299,8 @@ TEST_F(KmbDetectionNetworkTest, face_detection_retail_caffe_IRV10_fp16_int8_nchw
 
 // [Track number: S#41097]
 TEST_F(KmbDetectionNetworkTest, face_detection_retail_caffe_IRV10_fp16_int8_nhwc_fuse_scale_input_accuracy_drop) {
+    // [Track number: #E20190]
+    SKIP_ON("LEVEL0", "Sporadic bad results");
     runTest(
             TestNetworkDesc("KMB_models/INT8/icv/face-detection-retail-0004/caffe/FP16-INT8/face-detection-retail-0004-ww22.xml")
             .setUserInputPrecision("input", Precision::U8)

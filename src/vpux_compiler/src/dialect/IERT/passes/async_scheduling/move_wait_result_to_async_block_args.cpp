@@ -13,7 +13,10 @@
 
 #include "vpux/compiler/dialect/IERT/passes.hpp"
 
+#include "vpux/compiler/core/async_deps_info.hpp"
+#include "vpux/compiler/utils/analysis.hpp"
 #include "vpux/compiler/utils/logging.hpp"
+
 #include "vpux/utils/core/small_vector.hpp"
 
 #include <llvm/ADT/DenseMap.h>
@@ -58,18 +61,6 @@ void moveWaitResults(mlir::async::AwaitOp waitOp, Logger log) {
             use->set(innerArg);
         }
     }
-
-    if (!waitOp.result().use_empty()) {
-        return;
-    }
-
-    log.trace("The operation result has no use left, replace it with no-result 'async.await'");
-
-    OpBuilderLogger builderLog(log.nest());
-    mlir::OpBuilder builder(waitOp, &builderLog);
-
-    builder.create<mlir::async::AwaitOp>(waitOp->getLoc(), producerExecOp.token(), waitOp->getAttrs());
-    waitOp->erase();
 }
 
 class MoveWaitResultToAsyncBlockArgsPass final :
@@ -86,14 +77,29 @@ private:
 void MoveWaitResultToAsyncBlockArgsPass::safeRunOnFunc() {
     auto func = getFunction();
 
-    func.walk([this](mlir::async::AwaitOp waitOp) {
+    const auto allWaitOps = to_small_vector(func.getOps<mlir::async::AwaitOp>());
+
+    for (auto waitOp : allWaitOps) {
         if (waitOp.result() == nullptr) {
             return;
         }
 
         _log.trace("Process 'async.await' Operation at '{0}'", waitOp->getLoc());
         moveWaitResults(waitOp, _log.nest());
-    });
+
+        if (waitOp.result().use_empty()) {
+            _log.nest().trace("The operation result has no use left, remove it");
+            waitOp->erase();
+        } else {
+            if (auto* firstUser = getFirstUser(waitOp.result())) {
+                _log.nest().trace("Move the operation close to its first user at '{0}'", firstUser->getLoc());
+                waitOp->moveBefore(firstUser);
+            }
+        }
+    }
+
+    auto& depsInfo = getAnalysis<AsyncDepsInfo>();
+    depsInfo.updateTokenDependencies();
 }
 
 }  // namespace

@@ -48,48 +48,6 @@ class KmbEltwiseLayerTest_MCM : public KmbEltwiseLayerTest {
     }
 };
 class KmbEltwiseLayerTest_MLIR : public KmbEltwiseLayerTest {
-    void SkipBeforeLoad() override {
-        ngraph::helpers::EltwiseTypes eltwiseOp;
-        std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>> inShapes;
-        ngraph::helpers::InputLayerType secondInputType;
-        CommonTestUtils::OpType opType;
-
-        std::tie(inShapes,
-                 eltwiseOp, secondInputType, opType, std::ignore,
-                 std::ignore, std::ignore, std::ignore, std::ignore, std::ignore) = GetParam();
-
-
-        std::set<ngraph::helpers::EltwiseTypes> fusedToScaleShiftOpMLIR = {
-                ngraph::helpers::EltwiseTypes::ADD,
-                ngraph::helpers::EltwiseTypes::MULTIPLY
-        };
-
-        // A special workaround([Track number: E#13127]) extends all network inputs/outputs to 4D,
-        // which causes an incorrect conversion of the eltwise operation to a ScaleShift.
-        // [Track number: E#13311]
-        if (fusedToScaleShiftOpMLIR.count(eltwiseOp) && secondInputType == ngraph::helpers::InputLayerType::PARAMETER)  {
-            throw LayerTestsUtils::KmbSkipTestException("Skipping the operation due to incorrect conversion to ScaleShift");
-        }
-
-        std::set<std::vector<ngraph::Shape>> shapesWithBatch = {
-                {{2, 17, 5, 1}, {1, 17, 1, 4}},
-        };
-        std::set<std::vector<ngraph::Shape>> fusedToScaleShiftShapes = {
-                {{2, 17, 5, 4}, {1, 17, 1, 1}},
-        };
-
-        // A special workaround([Track number: E#13127]) extends all network inputs/outputs to 4D,
-        // which causes error: "Batch size != 1 is not supported"
-        // [Track number: E#7613]
-        for (const auto& inShape : inShapes.second) {
-            if ((fusedToScaleShiftShapes.count(inShape) && fusedToScaleShiftOpMLIR.count(eltwiseOp)) ||
-                shapesWithBatch.count(inShape)) {
-                throw LayerTestsUtils::KmbSkipTestException(
-                        "Skipping the operation due to incorrect conversion to ScaleShift");
-            }
-        }
-    }
-
     void SkipBeforeValidate() override {
         ngraph::helpers::EltwiseTypes eltwiseOp;
         std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>> inShapes;
@@ -164,11 +122,15 @@ TEST_P(KmbEltwiseLayerTest_MCM, DISABLED_CompareWithRefs) {
     Run();
 }
 
-// [Track number: E#15146]
-// Initialization disabled partly
-TEST_P(KmbEltwiseLayerTest_MLIR, CompareWithRefs) {
+TEST_P(KmbEltwiseLayerTest_MLIR, CompareWithRefs_SW) {
     useCompilerMLIR();
     setReferenceSoftwareModeMLIR();
+    Run();
+}
+
+TEST_P(KmbEltwiseLayerTest_MLIR, CompareWithRefs_HW) {
+    useCompilerMLIR();
+    setReferenceHardwareModeMLIR();
     Run();
 }
 
@@ -269,8 +231,6 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_CompareWithRefs, KmbEltwiseLayerTest_MCM
 //
 
 std::set<ngraph::helpers::EltwiseTypes> supportedTypesMLIR {
-        ngraph::helpers::EltwiseTypes::ADD,
-        ngraph::helpers::EltwiseTypes::MULTIPLY,
         ngraph::helpers::EltwiseTypes::DIVIDE,
         ngraph::helpers::EltwiseTypes::SQUARED_DIFF,
         ngraph::helpers::EltwiseTypes::POWER,
@@ -296,26 +256,49 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs, KmbEltwiseLayerTest_MLIR, eltwis
                         KmbEltwiseLayerTest::getTestCaseName);
 */
 
-// Specific multiply case
+// Specific add and multiply case
 
-std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>> inSpecificMultiplyShapes = {
-        {{}, {{{1, 3, 224, 224}, {1, 1, 1, 1}}}},
+std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>> inSpecificShapes = {
+        {{}, {{{1, 9}}}},                            // NC
+        {{}, {{{1, 128, 32}}}},                      // CHW
+        {{}, {{{1, 128, 32}, {1, 128, 1}}}},     // CHW, input1 != input2, broadcast over W
+        {{}, {{{1, 128, 32}, {1, 1, 32}}}},      // CHW, input1 != input2, broadcast over H
+        {{}, {{{1, 9}, {1, 1}}}},                    // NC + scalar
+        {{}, {{{1, 128, 32}, {1, 1, 1}}}},           // CHW + scalar
+        {{}, {{{1, 3, 224, 224}, {1, 1, 1, 1}}}},    // NCHW, broadcast over HW + channels
+        {{}, {{{1, 3, 224, 224}, {1, 3, 1, 1}}}}
 };
 
 const auto multiply_params_mlir = ::testing::Combine(
-        ::testing::ValuesIn(inSpecificMultiplyShapes),
+        ::testing::ValuesIn(inSpecificShapes),
         ::testing::Values(ngraph::helpers::EltwiseTypes::MULTIPLY),
         ::testing::ValuesIn(secondaryInputTypes),
         ::testing::ValuesIn(opTypes),
-        ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(InferenceEngine::Precision::FP16),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
         ::testing::Values(additional_config));
 
-INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Specific, KmbEltwiseLayerTest_MLIR, multiply_params_mlir,
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Multiply, KmbEltwiseLayerTest_MLIR, multiply_params_mlir,
                         KmbEltwiseLayerTest::getTestCaseName);
+
+const auto eltwise_add_params_mlir = ::testing::Combine(
+        ::testing::ValuesIn(inSpecificShapes),
+        ::testing::Values(ngraph::helpers::EltwiseTypes::ADD),
+        ::testing::ValuesIn(secondaryInputTypes),
+        ::testing::ValuesIn(opTypes),
+        ::testing::Values(InferenceEngine::Precision::FP16),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+        ::testing::Values(additional_config));
+
+INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs_Add, KmbEltwiseLayerTest_MLIR, eltwise_add_params_mlir,
+                        KmbEltwiseLayerTest::getTestCaseName);
+
 
 // Specific subtract case
 

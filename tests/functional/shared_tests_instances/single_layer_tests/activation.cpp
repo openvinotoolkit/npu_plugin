@@ -8,6 +8,7 @@
 
 #include "common_test_utils/test_constants.hpp"
 #include "kmb_layer_test.hpp"
+#include <common/functions.h>
 
 namespace LayerTestsDefinitions {
 namespace {
@@ -46,6 +47,9 @@ std::set<ngraph::helpers::ActivationTypes> supportedTypesMLIR {
     ngraph::helpers::Swish,
     ngraph::helpers::Negative,
     ngraph::helpers::Exp,
+    ngraph::helpers::RoundHalfToEven,
+    ngraph::helpers::RoundHalfAwayFromZero,
+    ngraph::helpers::Sqrt,
 };
 } // namespace
 
@@ -69,6 +73,11 @@ class KmbActivationLayerTest : public ActivationLayerTest, virtual public LayerT
                                                             " yet");
             }
         }
+
+        // [Track number: #E20853]
+        if (getBackendName(*getCore()) == "LEVEL0") {
+                throw LayerTestsUtils::KmbSkipTestException("Level0: sporadic failures on device");
+            }
     }
 };
 
@@ -107,6 +116,7 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
     {SoftPlus, {{1.0f}}},
     {Mish,     {{1.0f}}},
     {Floor,    {{1.0f}}},
+    {Sqrt,     {{1.0f}}},
     {Ceiling,  {{1.0f}}},
     {Erf,      {{1.0f}}},
     {Gelu,     {{1.0f}}},

@@ -33,10 +33,10 @@ module @FuseReorders {
 IE.CNNNetwork
     entryPoint : @main
     inputsInfo : {
-        IE.DataInfo "data" : tensor<1x8x4x2xf16>
+        DataInfo "data" : tensor<1x8x4x2xf16>
     }
     outputsInfo : {
-        IE.DataInfo "prob" : tensor<1x8x4x2xf16, {order = #map0}>
+        DataInfo "prob" : tensor<1x8x4x2xf16, {order = #map0}>
     }
 
 func @main(%arg0: memref<1x8x4x2xf16>, %arg1: memref<1x8x4x2xf16, #map0>) -> memref<1x8x4x2xf16, #map0> {

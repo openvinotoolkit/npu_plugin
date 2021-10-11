@@ -66,6 +66,11 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(FakeQuantizeUPAOp op) {
     static const auto C = Dim(1);
 
     const auto inShape = getShape(op.input());
+    const auto outShape = getShape(op.output());
+    if (inShape != outShape) {
+        return errorAt(op, "Input and output shapes must be equal. Got: {0} != {1}", inShape, outShape);
+    }
+
     const auto inOrder = DimsOrder::fromValue(op.input());
     const auto inStrides = getStrides(op.input());
     const auto memShape = inOrder.toMemoryOrder(inShape);
@@ -169,8 +174,4 @@ mlir::Operation* vpux::VPUIP::BlobReader::parseFakeQuantize(mlir::OpBuilder& bui
             Const::ContentAttr::get(mlir::DenseElementsAttr::get(inputShapeType, makeArrayRef(inputHigh))),
             Const::ContentAttr::get(mlir::DenseElementsAttr::get(outputShapeType, makeArrayRef(outputLow))),
             Const::ContentAttr::get(mlir::DenseElementsAttr::get(outputShapeType, makeArrayRef(outputHigh))));
-}
-
-void vpux::VPUIP::FakeQuantizeUPAOp::inferLayoutInfo(mlir::Operation*, IE::LayerLayoutInfo& info) {
-    info.setOutput(0, info.getInput(0));
 }

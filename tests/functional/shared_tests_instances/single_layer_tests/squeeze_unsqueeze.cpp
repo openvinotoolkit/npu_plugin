@@ -6,6 +6,7 @@
 #include "single_layer_tests/squeeze_unsqueeze.hpp"
 #include "common_test_utils/test_constants.hpp"
 #include "kmb_layer_test.hpp"
+#include "common/functions.h"
 
 namespace LayerTestsDefinitions {
 
@@ -36,6 +37,11 @@ class KmbSqueezeUnsqueezeLayerTest: public SqueezeUnsqueezeLayerTest, virtual pu
         }
         if (inRank > 4 || outRank > 4) {
             throw LayerTestsUtils::KmbSkipTestException(">4D case is not supported by run-time");
+        }
+
+        // [Track number: #E20158]
+        if (getBackendName(*getCore()) == "LEVEL0") {
+            throw LayerTestsUtils::KmbSkipTestException("Level0: failure on device");
         }
     }
 };

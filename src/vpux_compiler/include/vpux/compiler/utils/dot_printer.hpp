@@ -17,7 +17,6 @@
 
 namespace vpux {
 
-void addDotPrinter(mlir::PassManager& pm);
-void addDotPrinterFromEnvVar(mlir::PassManager& pm, mlir::StringRef options);
+void addDotPrinter(mlir::PassManager& pm, mlir::StringRef options);
 
 }  // namespace vpux

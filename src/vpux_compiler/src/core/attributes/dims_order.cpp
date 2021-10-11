@@ -301,13 +301,7 @@ DimsOrder vpux::DimsOrder::fromType(mlir::ShapedType type) {
 }
 
 DimsOrder vpux::DimsOrder::fromType(mlir::RankedTensorType type) {
-    if (const auto tensorAttr = IE::getTensorAttr(type)) {
-        if (const auto orderAttr = tensorAttr.order()) {
-            return DimsOrder::fromPermutationAffineMap(orderAttr.getValue());
-        }
-    }
-
-    return DimsOrder::fromNumDims(type.getRank());
+    return DimsOrder::fromPermutationAffineMap(IE::getOrder(type));
 }
 
 DimsOrder vpux::DimsOrder::fromType(mlir::MemRefType type) {

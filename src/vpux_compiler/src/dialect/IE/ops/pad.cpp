@@ -79,7 +79,7 @@ mlir::LogicalResult vpux::IE::PadOp::inferReturnTypeComponents(
     }
 
     const auto newType = getPaddedType(inType, ShapeRef(padBegin.getValue()), ShapeRef(padEnd.getValue()));
-    inferredReturnShapes.emplace_back(newType.getShape(), newType.getElementType(), newType.getEncoding());
+    inferredReturnShapes.emplace_back(newType.getShape(), newType.getElementType());
 
     return mlir::success();
 }

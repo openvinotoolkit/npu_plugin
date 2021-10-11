@@ -72,14 +72,46 @@ operation ::= `IE.Add` `(` operands `)` attr-dict `:` type(operands) `->` type(r
 
 | Operand | Description |
 | :-----: | ----------- |
-`input1` | ranked tensor of 16-bit float or 32-bit float values
-`input2` | ranked tensor of 16-bit float or 32-bit float values
+`input1` | ranked tensor of 16-bit float or 32-bit float or QuantizedType values
+`input2` | ranked tensor of 16-bit float or 32-bit float or QuantizedType values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-`output` | ranked tensor of 16-bit float or 32-bit float values
+`output` | ranked tensor of 16-bit float or 32-bit float or QuantizedType values
+
+### `IE.And` (vpux::IE::AndOp)
+
+InferenceEngine And layer
+
+
+Syntax:
+
+```
+operation ::= `IE.And` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`auto_broadcast` | vpux::IE::AutoBroadcastTypeAttr | Specifies rules used for auto-broadcasting of input tensors
+`post_op` | vpux::IE::PostOp | DictionaryAttr with field(s): 'name', 'attrs' (each field having its own constraints)
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input1` | ranked tensor of 8-bit signless integer or 16-bit float or 32-bit float or QuantizedType values
+`input2` | ranked tensor of 8-bit signless integer or 16-bit float or 32-bit float or QuantizedType values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 8-bit signless integer or 16-bit float or 32-bit float or QuantizedType values
 
 ### `IE.AvgPool` (vpux::IE::AvgPoolOp)
 
@@ -254,6 +286,8 @@ operation ::= `IE.Concat` `(` operands `)` attr-dict `:` type(operands) `->` typ
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
 `axis` | mlir::IntegerAttr | Integer attribute
+`offset` | mlir::IntegerAttr | Integer attribute
+`stride` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
@@ -757,12 +791,18 @@ operation ::= `IE.Gather` `(` operands `)` attr-dict `:` type(operands) `->` typ
 ```
 
 
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`axis_value` | mlir::IntegerAttr | Integer attribute
+
 #### Operands:
 
 | Operand | Description |
 | :-----: | ----------- |
 `input` | ranked tensor of any type values
-`indices` | ranked tensor of any type values
+`indices` | ranked tensor of 64-bit signed integer or 32-bit signed integer values
 `axis` | ranked tensor of any type values
 
 #### Results:
@@ -902,6 +942,40 @@ operation ::= `IE.LRN` `(` operands `)` attr-dict `:` type(operands) `->` type(r
 | :----: | ----------- |
 `output` | ranked tensor of 16-bit float or 32-bit float values
 
+### `IE.LRN_IE` (vpux::IE::LRN_IEOp)
+
+InferenceEngine LRN_IE layer
+
+
+Syntax:
+
+```
+operation ::= `IE.LRN_IE` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`alpha` | ::mlir::FloatAttr | 64-bit float attribute
+`beta` | ::mlir::FloatAttr | 64-bit float attribute
+`bias` | ::mlir::FloatAttr | 64-bit float attribute
+`size` | mlir::IntegerAttr | Integer attribute
+`region` | vpux::IE::LRN_IERegionAttr | LRN_IE region that operations support
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
 ### `IE.LSTMCell` (vpux::IE::LSTMCellOp)
 
 InferenceEngine LSTMCell layer
@@ -937,6 +1011,44 @@ operation ::= `IE.LSTMCell` `(` operands `)` attr-dict `:` type(operands) `->` t
 | :----: | ----------- |
 `outputHiddenState` | 2D tensor of 16-bit float or 32-bit float values
 `outputCellState` | 2D tensor of 16-bit float or 32-bit float values
+
+### `IE.LSTMSequence` (vpux::IE::LSTMSequenceOp)
+
+InferenceEngine LSTMSequence layer
+
+
+Syntax:
+
+```
+operation ::= `IE.LSTMSequence` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`sequenceLength` | mlir::IntegerAttr | Integer attribute
+`direction` | vpux::IE::RNNSequenceDirectionAttr | RNNSequenceDirection that the InferenceEngine supports
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`inputData` | 3D tensor of 16-bit float or 32-bit float values
+`initialHiddenState` | 3D tensor of 16-bit float or 32-bit float values
+`initialCellState` | 3D tensor of 16-bit float or 32-bit float values
+`weights` | 3D tensor of 16-bit float or 32-bit float values
+`reccurenceWeights` | 3D tensor of 16-bit float or 32-bit float values
+`biases` | 2D tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`outputHiddenValues` | 4D tensor of 16-bit float or 32-bit float values
+`outputHiddenState` | 3D tensor of 16-bit float or 32-bit float values
+`outputCellState` | 3D tensor of 16-bit float or 32-bit float values
 
 ### `IE.LeakyRelu` (vpux::IE::LeakyReluOp)
 
@@ -1170,6 +1282,7 @@ operation ::= `IE.Multiply` `(` operands `)` attr-dict `:` type(operands) `->` t
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
 `auto_broadcast` | vpux::IE::AutoBroadcastTypeAttr | Specifies rules used for auto-broadcasting of input tensors
+`post_op` | vpux::IE::PostOp | DictionaryAttr with field(s): 'name', 'attrs' (each field having its own constraints)
 
 #### Operands:
 
@@ -1611,6 +1724,36 @@ operation ::= `IE.Reshape` `(` operands `)` attr-dict `:` type(operands) `->` ty
 | :----: | ----------- |
 `output` | ranked tensor of any type values
 
+### `IE.Round` (vpux::IE::RoundOp)
+
+InferenceEngine Round layer
+
+
+Syntax:
+
+```
+operation ::= `IE.Round` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`mode` | vpux::IE::RoundModeAttr | RoundMode that the InferenceEngine supports
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
 ### `IE.ScaleShift` (vpux::IE::ScaleShiftOp)
 
 InferenceEngine ScaleShift layer
@@ -1755,6 +1898,30 @@ operation ::= `IE.Split` `(` operands `)` attr-dict `:` type(operands) `->` type
 | :----: | ----------- |
 `outputs` | ranked tensor of any type values
 
+### `IE.Sqrt` (vpux::IE::SqrtOp)
+
+InferenceEngine Sqrt layer
+
+
+Syntax:
+
+```
+operation ::= `IE.Sqrt` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
 ### `IE.SquaredDiff` (vpux::IE::SquaredDifferenceOp)
 
 InferenceEngine SquaredDiff layer
@@ -1874,6 +2041,7 @@ operation ::= `IE.Subtract` `(` operands `)` attr-dict `:` type(operands) `->` t
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
 `auto_broadcast` | vpux::IE::AutoBroadcastTypeAttr | Specifies rules used for auto-broadcasting of input tensors
+`post_op` | vpux::IE::PostOp | DictionaryAttr with field(s): 'name', 'attrs' (each field having its own constraints)
 
 #### Operands:
 

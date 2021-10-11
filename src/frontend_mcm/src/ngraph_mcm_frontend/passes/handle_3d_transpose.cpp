@@ -52,8 +52,7 @@ bool Handle3DTranspose::run_on_function(std::shared_ptr<ngraph::Function> f) {
         auto new_transpose_order = std::make_shared<ngraph::op::v0::Constant>(
                 ngraph::element::i64, ngraph::Shape{new_order.size()}, new_order.data());
 
-        auto new_transpose = std::make_shared<ngraph::op::v1::Transpose>(
-                squeeze->input_value(0).get_node_shared_ptr()->output(0), new_transpose_order);
+        auto new_transpose = std::make_shared<ngraph::op::v1::Transpose>(squeeze->input_value(0), new_transpose_order);
 
         status = ngraph::replace_output_update_name(squeeze->output(0), squeeze->input_value(0));
 

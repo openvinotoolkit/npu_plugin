@@ -374,10 +374,6 @@ PoolTileConfig vpux::backInferPoolTile(IERT::MaxPoolOp origOp, const Tile& outpu
             {solution.inputPad.left, solution.inputPad.right, solution.inputPad.top, solution.inputPad.bottom}};
 }
 
-EltwiseTileConfig vpux::backInferEltwiseAddTile(const Tile& outputTile) {
-    return EltwiseTileConfig{outputTile};
-}
-
 ConvTileConfig vpux::backInferGroupConvTile(IERT::GroupConvolutionOp origOp, const Tile& outputTile) {
     const auto origInputShape = getShape(origOp.input());
     const auto origFilterShape = getShape(origOp.filter());

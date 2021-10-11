@@ -10,6 +10,7 @@
 #include "kmb_test_tool.hpp"
 
 #include "vpux/utils/core/format.hpp"
+#include <common/functions.h>
 
 namespace LayerTestsUtils {
 
@@ -200,11 +201,33 @@ void KmbLayerTestsCommon::Run() {
             std::cout << "KmbLayerTestsCommon::ImportInput()" << std::endl;
             ImportInput();
         }
-        if (envConfig.IE_KMB_TESTS_RUN_INFER) {
-            std::cout << "KmbLayerTestsCommon::Infer()" << std::endl;
+
+        bool runInfer = envConfig.IE_KMB_TESTS_RUN_INFER;
+        std::string runInferSkipReason = runInfer ? "-" : "environment variable value";
+
+        const std::string backendName = getBackendName(*core);
+        // turn off running infers forcefully for the cases:
+        const auto noDevice = backendName.empty();
+        if (runInfer && noDevice) {
+            runInfer = false;
+            runInferSkipReason = "backend is empty (no device)";
+        }
+
+        // [Track number: E#20335]
+        // Disabling inference for layer tests on emulator device due to segfault
+        const auto emulatorDevice = backendName == "EMULATOR";
+        if (runInfer && emulatorDevice) {
+            runInfer = false;
+            runInferSkipReason = "backend is EMULATOR";
+        }
+
+        if (runInfer) {
+            std::cout << "KmbLayerTestsCommon::Infer() with backend '" << backendName << "'" << std::endl;
             SkipBeforeInfer();
             Infer();
             report.inferred(testInfo);
+        } else {
+            std::cout << "Skip KmbLayerTestsCommon::Infer() due to: " << runInferSkipReason << std::endl;
         }
         if (envConfig.IE_KMB_TESTS_EXPORT_REF) {
             std::cout << "KmbLayerTestsCommon::ExportReference()" << std::endl;
@@ -214,13 +237,13 @@ void KmbLayerTestsCommon::Run() {
             std::cout << "KmbLayerTestsCommon::ExportOutput()" << std::endl;
             ExportOutput();
         }
-        if (envConfig.IE_KMB_TESTS_RUN_INFER) {
+        if (runInfer) {
             std::cout << "KmbLayerTestsCommon::Validate()" << std::endl;
             SkipBeforeValidate();
             Validate();
             report.validated(testInfo);
         } else {
-            std::cout << "Skip KmbLayerTestsCommon::Infer()" << std::endl;
+            std::cout << "Skip KmbLayerTestsCommon::Validate() due to: " << runInferSkipReason << std::endl;
         }
     } catch (const KmbSkipTestException& e) {
         std::cout << "Skipping the test due to: " << e.what() << std::endl;

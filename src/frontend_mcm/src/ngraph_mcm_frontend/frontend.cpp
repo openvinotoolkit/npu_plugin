@@ -74,6 +74,7 @@
 #include <vector>
 #include <utility>
 #include <transformations/serialize.hpp>
+#include <mcm_config.hpp>
 
 std::unique_ptr<MVCNN::TensorReferenceT> buildTensorReference(
     const std::string& tensorName,
@@ -82,14 +83,15 @@ std::unique_ptr<MVCNN::TensorReferenceT> buildTensorReference(
 std::unique_ptr<MVCNN::TensorReferenceT> buildTensorReference(
     const std::string& tensorName,
     const InferenceEngine::TensorDesc& tensorInfo,
-    const mv::Data::TensorIterator& opModelTensor);
+    const mv::Data::TensorIterator& opModelTensor, const vpu::MCMConfig& config);
+
 
 namespace {
     std::map<std::string, std::string> MapInputOutputInfoToNgraphOps(const std::shared_ptr<ngraph::Function>& func,
         const ie::InputsDataMap& inputsInfo,
         const ie::OutputsDataMap& outputsInfo) {
-        // Due to historical reasons, CNNNetwork::getOutputsInfo() does not match excatly
-        // to ngraph::op::v0::Result::get_friendly_name(), actual get_friendly_name() may be have arbitary different.
+        // Due to historical reasons, CNNNetwork::getOutputsInfo() does not match exactly
+        // to ngraph::op::v0::Result::get_friendly_name(), actual get_friendly_name() may be have arbitrary different.
         // Instead getOutputsInfo() returns names of nodes, who produces input to ngraph::op::v0::Result,
         // This expected to be fixed in 2021.2
         // Below ngraph function is changed and Result producers are replaced, making impossible to match.
@@ -153,9 +155,9 @@ std::unique_ptr<mv::CompilationUnit> createCompilationUnit(
         std::string compDescName;
         std::string targetDescName;
 
-        if (config.mcmTargetDesciptor() != "release_kmb") {
-            targetDescName = !config.mcmTargetDesciptor().empty() ?
-                              config.mcmTargetDesciptor() : "release_kmb";
+        if (config.mcmTargetDescriptor() != "release_kmb") {
+            targetDescName = !config.mcmTargetDescriptor().empty() ?
+                              config.mcmTargetDescriptor() : "release_kmb";
         }
         else {
             auto platform = config.platform();
@@ -192,9 +194,9 @@ std::unique_ptr<mv::CompilationUnit> createCompilationUnit(
             }
         }
 
-        if (config.mcmCompilationDesciptor() != "release_kmb") {
-            compDescName = !config.mcmCompilationDesciptor().empty() ?
-                            config.mcmCompilationDesciptor() : "release_kmb";
+        if (config.mcmCompilationDescriptor() != "release_kmb") {
+            compDescName = !config.mcmCompilationDescriptor().empty() ?
+                            config.mcmCompilationDescriptor() : "release_kmb";
         }
         else {
             switch (config.platform()) {
@@ -224,8 +226,8 @@ std::unique_ptr<mv::CompilationUnit> createCompilationUnit(
             }
         }
 
-        const auto targetPath = ie::getIELibraryPath() + "/" + config.mcmTargetDesciptorPath() + "/" + targetDescName + ".json";
-        const auto compDescPath = ie::getIELibraryPath() + "/" + config.mcmCompilationDesciptorPath() + "/" + compDescName + ".json";
+        const auto targetPath = ie::getIELibraryPath() + "/" + config.mcmTargetDescriptorPath() + "/" + targetDescName + ".json";
+        const auto compDescPath = ie::getIELibraryPath() + "/" + config.mcmCompilationDescriptorPath() + "/" + compDescName + ".json";
 
         IE_ASSERT(mcmCompiler->loadTargetDescriptor(targetPath));
         IE_ASSERT(mcmCompiler->loadCompilationDescriptor(compDescPath));
@@ -257,7 +259,7 @@ std::unique_ptr<mv::CompilationUnit> createCompilationUnit(
         auto& mcmModel = mcmCompiler->model();
 
         std::function<void(MVCNN::GraphFileT&)> metaInfoSerializer =
-            [&inputsInfo, &outputsInfo, &netName, &mcmModel](MVCNN::GraphFileT& graphFileInstance) {
+            [&inputsInfo, &outputsInfo, &netName, &mcmModel, &config](MVCNN::GraphFileT& graphFileInstance) {
             if (graphFileInstance.header == nullptr) {
                 IE_THROW() << "metaInfoSerializer: graph file header points to null";
             }
@@ -288,14 +290,15 @@ std::unique_ptr<mv::CompilationUnit> createCompilationUnit(
                         // If a match was found use it to build input tensor information in the blob
                         foundOpModelTensor = true;
                         graphFileInstance.header->in_tensor_desc.push_back(
-                            buildTensorReference(inInfo.first, inInfo.second->getTensorDesc(), opModelOp->getOutputTensor(0)));
+                            buildTensorReference(inInfo.first, inInfo.second->getTensorDesc(), opModelOp->getOutputTensor(0), config));
                         break;
                     }
                 }
 
-                if (!foundOpModelTensor)
+                if (!foundOpModelTensor) {
                     graphFileInstance.header->in_tensor_desc.push_back(
                         buildTensorReference(inInfo.first, inInfo.second->getTensorDesc()));
+                }
             }
 
             for (const auto& outInfo : outputsInfo) {
@@ -315,14 +318,15 @@ std::unique_ptr<mv::CompilationUnit> createCompilationUnit(
                         // If a match was found use it to build output tensor information in the blob
                         foundOpModelTensor = true;
                         graphFileInstance.header->out_tensor_desc.push_back(
-                            buildTensorReference(outInfo.first, outInfo.second->getTensorDesc(), opModelOp->getInputTensor(0)));
+                            buildTensorReference(outInfo.first, outInfo.second->getTensorDesc(), opModelOp->getInputTensor(0), config));
                         break;
                     }
                 }
 
-                if (!foundOpModelTensor)
+                if (!foundOpModelTensor) {
                     graphFileInstance.header->out_tensor_desc.push_back(
                         buildTensorReference(outInfo.first, outInfo.second->getTensorDesc()));
+                }
             }
 
             graphFileInstance.header->identifier = netName;
@@ -434,7 +438,7 @@ std::unique_ptr<mv::CompilationUnit> createCompilationUnit(
                 }
                 mcmCompDesc.setPassArg("GlobalConfigParams", "streaming_strategy", overrideStrategies);
             }
-            catch (std::exception& ex) {
+            catch (std::exception&) {
                 throw std::logic_error("layerStreamStrategies parsing error: format should be semi-colon separated string "
                                  "layername:W:H:C:K:N, eg, conv1:1:2:3:4:5");
             }
@@ -464,7 +468,7 @@ std::unique_ptr<mv::CompilationUnit> createCompilationUnit(
                 }
                 mcmCompDesc.setPassArg("GlobalConfigParams", "sparsity_strategy", overrideStrategies);
             }
-            catch (std::exception& ex) {
+            catch (std::exception&) {
                 throw std::logic_error("layerSparsityStrategies parsing error: format should be semi-colon separated string "
                                  "layername:input_sparsity:output_sparsity:weights_sparsity, e.g. conv1:true:false:true");
             }
@@ -538,7 +542,7 @@ void applyTransformations(
     passManager.register_pass<vpux::passes::OnnxReorgPatternToDarkNetReorg>();
     passManager.register_pass<vpux::passes::ConvertExtractImagePatchesToReorgYoloVPU>();
     passManager.register_pass<ConvertReshapeTransposeChainToDepthToSpace>();
-    passManager.register_pass<PropagateFQ>();
+    passManager.register_pass<vpux::passes::PropagateFQ>();
     passManager.register_pass<vpux::passes::AlignScales>();
     passManager.register_pass<ConvertMinMaxToClamp>();
 
@@ -573,7 +577,9 @@ void applyTransformations(
     passManager.register_pass<InsertMaxPool>();
     passManager.register_pass<ReplaceShuffle>();
     passManager.register_pass<Handle3DTranspose>();
-    if (config.optimizeInputPrecision()) {
+    if (config.forcePluginInputQuantization()) {
+        needConvertInputPrecision = true;
+    } else if (config.optimizeInputPrecision()) {
         passManager.register_pass<DetectInputFQ>(&needConvertInputPrecision);
     }
     // TODO: [Track number: E#13091]

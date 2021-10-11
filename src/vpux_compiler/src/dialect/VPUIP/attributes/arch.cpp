@@ -27,6 +27,7 @@ namespace {
 constexpr StringLiteral archAttrName = "VPUIP.arch";
 constexpr StringLiteral derateFactorAttrName = "VPUIP.derateFactor";
 constexpr StringLiteral bandwidthAttrName = "VPUIP.bandwidth";
+constexpr StringLiteral processorFrequencyAttrName = "VPUIP.processorFrequency";
 
 constexpr int MAX_DPU_GROUPS_MTL = 2;
 constexpr int MAX_DPU_GROUPS_KMB = 4;
@@ -105,6 +106,8 @@ void vpux::VPUIP::setArch(mlir::ModuleOp module, ArchKind kind, Optional<int> nu
                                            getNumOfDPUGroupsVal(MAX_DPU_GROUPS_KMB), true);
         nceCluster.addSubExecutor(getProcKind(PhysicalProcessor::NCE_PerClusterDPU), 5);
     }
+
+    nceCluster->setAttr(processorFrequencyAttrName, getFPAttr(module.getContext(), 700.0));
 }
 
 VPUIP::ArchKind vpux::VPUIP::getArch(mlir::ModuleOp module) {
@@ -140,4 +143,24 @@ uint32_t vpux::VPUIP::getMemoryBandwidth(IERT::MemoryResourceOp mem) {
                       mem.kind(), bandwidthAttrName, attr);
 
     return checked_cast<uint32_t>(attr.cast<mlir::IntegerAttr>().getInt());
+}
+
+double vpux::VPUIP::getProcessorFrequency(IERT::ExecutorResourceOp res) {
+    VPUX_THROW_UNLESS(res.kindAttr() != nullptr, "Unsupported executor resource kind '{0}'", res.kind());
+
+    auto attr = res->getAttr(processorFrequencyAttrName);
+    VPUX_THROW_UNLESS(attr != nullptr, "Executor resource '{0}' has no '{1}' attribute", res.kind(),
+                      processorFrequencyAttrName);
+    VPUX_THROW_UNLESS(attr.isa<mlir::FloatAttr>(), "Executor resource '{0}' has wrong '{1}' attribute : '{2}'",
+                      res.kind(), processorFrequencyAttrName, attr);
+
+    return attr.cast<mlir::FloatAttr>().getValueAsDouble();
+}
+
+StringLiteral vpux::VPUIP::getProcessorFrequencyAttrName() {
+    return processorFrequencyAttrName;
+}
+
+StringLiteral vpux::VPUIP::getBandwidthAttrName() {
+    return bandwidthAttrName;
 }

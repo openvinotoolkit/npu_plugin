@@ -35,7 +35,7 @@ mlir::LogicalResult vpux::IE::QuantizeOp::inferReturnTypeComponents(
 }
 
 //
-// Canonicalization
+// fold
 //
 
 namespace {
@@ -44,56 +44,22 @@ mlir::quant::QuantizedType extractQuantizedType(mlir::Value operand) {
     const auto elemType = operand.getType().cast<mlir::ShapedType>().getElementType();
     const auto quantType = elemType.dyn_cast<mlir::quant::QuantizedType>();
     VPUX_THROW_UNLESS(quantType != nullptr, "Type must be quantized, but provided {0}", elemType);
-
     return quantType;
-};
-
-class FuseDequantQuant final : public mlir::OpRewritePattern<IE::QuantizeOp> {
-public:
-    using mlir::OpRewritePattern<IE::QuantizeOp>::OpRewritePattern;
-
-    void initialize() {
-        setDebugName("FuseDequantQuant");
-    }
-
-public:
-    mlir::LogicalResult matchAndRewrite(IE::QuantizeOp quantize, mlir::PatternRewriter& rewriter) const final;
-};
-
-mlir::LogicalResult FuseDequantQuant::matchAndRewrite(IE::QuantizeOp quantize, mlir::PatternRewriter& rewriter) const {
-    auto dequantize = quantize.input().getDefiningOp<IE::DequantizeOp>();
-    if (dequantize == nullptr) {
-        return mlir::failure();
-    }
-
-    const auto inQuantType = extractQuantizedType(dequantize.input());
-    const auto outQuantType = extractQuantizedType(quantize.output());
-
-    if (inQuantType != outQuantType) {
-        return mlir::failure();
-    }
-
-    rewriter.replaceOp(quantize, dequantize.input());
-
-    return mlir::success();
 }
 
 }  // namespace
-
-void vpux::IE::QuantizeOp::getCanonicalizationPatterns(mlir::RewritePatternSet& patterns, mlir::MLIRContext* context) {
-    patterns.insert<FuseDequantQuant>(context);
-}
-
-//
-// fold
-//
 
 mlir::OpFoldResult vpux::IE::QuantizeOp::fold(ArrayRef<mlir::Attribute> operands) {
     if (const auto cst = operands[0].dyn_cast_or_null<Const::ContentAttr>()) {
         const auto quantType = extractQuantizedType(output());
         const auto quantStorageType = normalizeQuantStorageType(quantType);
-
         return cst.convertElemType(quantStorageType).quantCast(quantType);
+    }
+
+    if (auto dequantize = input().getDefiningOp<IE::DequantizeOp>()) {
+        if (dequantize.input().getType() == output().getType()) {
+            return dequantize.input();
+        }
     }
 
     return nullptr;

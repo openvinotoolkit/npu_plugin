@@ -27,10 +27,12 @@ using namespace vpux;
 //
 
 void vpux::buildLowerIE2IERTPipeline(mlir::OpPassManager& pm, Logger log) {
+    const auto grc = getDefaultGreedyRewriteConfig();
+
     pm.addPass(createBufferizeIEPass(log));
     pm.addPass(createBufferizeFuncAndReturnPass(log));
     pm.addPass(createAddBuffersForNetResults(log));
-    pm.addPass(mlir::createCanonicalizerPass(getDefaultGreedyRewriteConfig()));
+    pm.addPass(mlir::createCanonicalizerPass(grc));
 }
 
 //
@@ -38,12 +40,14 @@ void vpux::buildLowerIE2IERTPipeline(mlir::OpPassManager& pm, Logger log) {
 //
 
 void vpux::buildLowerIERT2VPUIPPipeline(mlir::OpPassManager& pm, Logger log) {
+    const auto grc = getDefaultGreedyRewriteConfig();
+
     pm.addPass(createConvertLayers2VPUIPPass(log));
-    pm.addPass(mlir::createCanonicalizerPass(getDefaultGreedyRewriteConfig()));
+    pm.addPass(mlir::createCanonicalizerPass(grc));
     pm.addPass(createConvertDeclarations2VPUIPPass(log));
     pm.addPass(createConvertViewOps2VPUIPPass(log));
     pm.addPass(createConvertAsyncOps2VPUIPPass(log));
-    pm.addPass(mlir::createCanonicalizerPass(getDefaultGreedyRewriteConfig()));
+    pm.addPass(mlir::createCanonicalizerPass(grc));
     pm.addPass(createMoveDeclarationsToTopPass(log));
 }
 

@@ -7,6 +7,7 @@
 #include "common_test_utils/test_constants.hpp"
 #include "kmb_layer_test.hpp"
 #include "single_layer_tests/roi_pooling.hpp"
+#include <common/functions.h>
 
 namespace LayerTestsDefinitions {
 
@@ -50,6 +51,12 @@ class KmbROIPoolingLayerTest : public ROIPoolingLayerTest, virtual public LayerT
                 // Test hangs on the the board
                 throw LayerTestsUtils::KmbSkipTestException("Issues with MCM compiler");
             }
+        }
+    }
+    void SkipBeforeInfer() override {
+        // [Track number: E#20262]
+        if (getBackendName(*getCore()) == "LEVEL0") {
+            throw LayerTestsUtils::KmbSkipTestException("Bad results on Level0");
         }
     }
 };

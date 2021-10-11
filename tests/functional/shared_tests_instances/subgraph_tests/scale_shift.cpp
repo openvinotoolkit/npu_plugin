@@ -8,6 +8,7 @@
 
 #include "common_test_utils/test_constants.hpp"
 #include "kmb_layer_test.hpp"
+#include <common/functions.h>
 
 namespace SubgraphTestsDefinitions {
 
@@ -34,6 +35,11 @@ class KmbScaleShiftLayerTestMCM: public KmbScaleShiftLayerTest {
         if (badShapesForMcm.find(inShape) != badShapesForMcm.end() ) {
             throw LayerTestsUtils::KmbSkipTestException("Bad shape: - ArgumentError: index subscript 1 - "
                                                         "Exceeds the dimensionality 1");
+        }
+
+        // [Track number: E#20880]
+        if (getBackendName(*getCore()) == "LEVEL0") {
+            throw LayerTestsUtils::KmbSkipTestException("Level0: sporadic failure on device");
         }
     }
 

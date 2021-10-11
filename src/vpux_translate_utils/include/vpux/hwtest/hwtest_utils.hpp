@@ -45,9 +45,9 @@ static constexpr auto PAD_NCETASK_BOTTOM = 3;
 mlir::DenseElementsAttr generateWeights(llvm::ArrayRef<int64_t> wt_shape, mlir::Type dtype, mlir::MLIRContext* ctx,
                                         const char* weight_file_name);
 
-std::size_t totalTensorSize(llvm::ArrayRef<std::int64_t> shape, mlir::Type elementtype);
+std::size_t totalTensorSize(llvm::ArrayRef<int64_t> shape, mlir::Type elementtype);
 
-std::vector<std::int64_t> convertNBPadtoNCETaskPad(const std::array<std::int64_t, 4>& nb_pad);
+std::vector<int64_t> convertNBPadtoNCETaskPad(const std::array<int64_t, 4>& nb_pad);
 
 mlir::Type parseInputType(mlir::OpBuilder builder, const nb::InputLayer& input);
 mlir::Type parseOutputType(mlir::OpBuilder builder, const nb::OutputLayer& output);
@@ -60,13 +60,37 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
                            Logger& log, mlir::Type inputType, mlir::Type weightsType, mlir::Type outputType);
 void buildContinuedConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module, mlir::OpBuilder builder,
                         Logger& log, mlir::Type inputType, mlir::Type weightsType, mlir::Type outputType);
-
+void buildEltwiseAdd(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module, mlir::OpBuilder builder,
+                     Logger& log, mlir::Type inputType, mlir::Type weightsType, mlir::Type outputType);
+void buildEltwiseMultWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module,
+                                mlir::OpBuilder builder, Logger& log, mlir::Type inputType, mlir::Type weightsType,
+                                mlir::Type outputType);
+void buildMaxPool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module, mlir::OpBuilder builder,
+                  Logger& log, mlir::Type input0Type, mlir::Type outputType);
+void buildAvgpoolWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module, mlir::OpBuilder builder,
+                            Logger& log, mlir::Type inputType, mlir::Type outputType);
 mlir::DenseElementsAttr splitWeightsOverC(mlir::DenseElementsAttr wt_vec, ArrayRef<int64_t> wt_shape, mlir::Type dtype,
                                           mlir::MLIRContext* ctx, size_t startC, size_t endC);
 template <typename T>
 mlir::DenseElementsAttr splitWeightsOverCLoop(mlir::DenseElementsAttr wt_vec, ArrayRef<int64_t> wt_shape,
                                               mlir::Type dtype, T elementType, mlir::MLIRContext* ctx, size_t start_C,
                                               size_t end_C);
+mlir::MemRefType getMemRefType(mlir::OpBuilder builder, VPUIP::MemoryLocation memlocation, SmallVector<int64_t> shape,
+                               mlir::Type type, SmallVector<mlir::AffineMap> affineMaps);
+
+vpux::VPUIP::DeclareTensorOp createDeclareTensorOp(mlir::OpBuilder builder, VPUIP::MemoryLocation memlocation,
+                                                   SmallVector<int64_t> shape, mlir::Type type,
+                                                   SmallVector<mlir::AffineMap> affineMaps, int locale, size_t offset);
+
+vpux::VPUIP::DeclareTensorOp createDeclareTensorOp(mlir::OpBuilder builder, mlir::MemRefType type, int locale,
+                                                   size_t offset);
+
+mlir::OpResult getTensorResult(VPUIP::DeclareTensorOp op);
+
+mlir::OpResult getConstResult(vpux::Const::DeclareOp op);
+
+vpux::VPUIP::DPUTaskOp createDPUTaskOp(mlir::OpBuilder builder, mlir::OpBuilder variantbuilder,
+                                       llvm::SmallVector<int64_t> output_shape, std::vector<int64_t> padding_vec);
 
 }  // namespace hwtest
 }  // namespace vpux

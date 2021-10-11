@@ -45,14 +45,14 @@ public:
     }
 
 public:
-    mlir::LogicalResult matchAndRewrite(mlir::async::ExecuteOp execOp, ArrayRef<mlir::Value> operands,
+    mlir::LogicalResult matchAndRewrite(mlir::async::ExecuteOp execOp, OpAdaptor newArgs,
                                         mlir::ConversionPatternRewriter& rewriter) const final;
 
 private:
     Logger _log;
 };
 
-mlir::LogicalResult InlineAsyncRegion::matchAndRewrite(mlir::async::ExecuteOp execOp, ArrayRef<mlir::Value> operands,
+mlir::LogicalResult InlineAsyncRegion::matchAndRewrite(mlir::async::ExecuteOp execOp, OpAdaptor newArgs,
                                                        mlir::ConversionPatternRewriter& rewriter) const {
     _log.trace("Found 'async.execute' operation at '{0}'", execOp->getLoc());
 
@@ -60,8 +60,6 @@ mlir::LogicalResult InlineAsyncRegion::matchAndRewrite(mlir::async::ExecuteOp ex
     VPUX_THROW_UNLESS(yieldOp != nullptr, "'async.execute' body doesn't have corresponding terminator");
 
     auto barrierOp = rewriter.create<VPUIP::DeclareVirtualBarrierOp>(execOp.getLoc());
-
-    mlir::async::ExecuteOp::Adaptor newArgs(operands, execOp->getAttrDictionary());
 
     _log.nest(1).trace("Traverse 'async.execute' body");
     for (auto& op : execOp.getBody()->without_terminator()) {
@@ -103,21 +101,24 @@ public:
     }
 
 public:
-    mlir::LogicalResult matchAndRewrite(mlir::async::AwaitOp waitOp, ArrayRef<mlir::Value> operands,
+    mlir::LogicalResult matchAndRewrite(mlir::async::AwaitOp waitOp, OpAdaptor newArgs,
                                         mlir::ConversionPatternRewriter& rewriter) const final;
 
 private:
     Logger _log;
 };
 
-mlir::LogicalResult RemoveWait::matchAndRewrite(mlir::async::AwaitOp waitOp, ArrayRef<mlir::Value> operands,
+mlir::LogicalResult RemoveWait::matchAndRewrite(mlir::async::AwaitOp waitOp, OpAdaptor newArgs,
                                                 mlir::ConversionPatternRewriter& rewriter) const {
     VPUX_THROW_UNLESS(waitOp.result() != nullptr, "'async.await' Operation without result is not supported");
+    // If you faced with "'async.await' has more than one consumer" make sure you add your layer
+    // into src/vpux_compiler/src/dialect/VPUIP/ops.cpp `redirectOpInterfacesForIE(...)`
+    // and `redirectOpInterfacesForIERT(...)`
     VPUX_THROW_UNLESS(waitOp.result().hasOneUse(), "'async.await' has more than one consumer");
     VPUX_THROW_UNLESS(mlir::isa<mlir::ReturnOp>(*waitOp.result().user_begin()),
                       "'async.await' has non 'return' consumer");
 
-    rewriter.replaceOp(waitOp, operands[0]);
+    rewriter.replaceOp(waitOp, newArgs.operand());
     return mlir::success();
 }
 

@@ -121,15 +121,50 @@ operation ::= `IERT.Add` attr-dict
 
 | Operand | Description |
 | :-----: | ----------- |
-`input1` | memref of 16-bit float or 32-bit float values
-`input2` | memref of 16-bit float or 32-bit float values
-`output_buff` | memref of 16-bit float or 32-bit float values
+`input1` | memref of 16-bit float or 32-bit float or QuantizedType values
+`input2` | memref of 16-bit float or 32-bit float or QuantizedType values
+`output_buff` | memref of 16-bit float or 32-bit float or QuantizedType values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-`output` | memref of 16-bit float or 32-bit float values
+`output` | memref of 16-bit float or 32-bit float or QuantizedType values
+
+### `IERT.And` (vpux::IERT::AndOp)
+
+InferenceEngine run-time And layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.And` attr-dict
+              `inputs` `(` $input1 `:` type($input1) `,` $input2 `:` type($input2) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`post_op` | vpux::IE::PostOp | DictionaryAttr with field(s): 'name', 'attrs' (each field having its own constraints)
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input1` | memref of 16-bit float or 32-bit float or QuantizedType values
+`input2` | memref of 16-bit float or 32-bit float or QuantizedType values
+`output_buff` | memref of 16-bit float or 32-bit float or QuantizedType values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float or 32-bit float or QuantizedType values
 
 ### `IERT.AvgPool` (vpux::IERT::AvgPoolOp)
 
@@ -770,6 +805,42 @@ operation ::= `IERT.GRN` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float or 32-bit float values
 
+### `IERT.Gather` (vpux::IERT::GatherOp)
+
+InferenceEngine run-time Gather layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.Gather` attr-dict
+              `inputs` `(` $input `:` type($input) `,` $indices `:` type($indices) (`,` $axis^ `:` type($axis))? `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`axis_value` | mlir::IntegerAttr | Integer attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of any type values
+`indices` | memref of 64-bit signed integer or 32-bit signed integer values
+`axis` | memref of any type values
+`output_buff` | memref of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of any type values
+
 ### `IERT.GenericReshape` (vpux::IERT::GenericReshapeOp)
 
 InferenceEngine run-time generic Reshape layer
@@ -934,6 +1005,44 @@ operation ::= `IERT.Interpolate` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float or 32-bit float values
 
+### `IERT.LRN_IE` (vpux::IERT::LRN_IEOp)
+
+InferenceEngine run-time LRN_IE layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.LRN_IE` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `ouputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`alpha` | ::mlir::FloatAttr | 64-bit float attribute
+`beta` | ::mlir::FloatAttr | 64-bit float attribute
+`bias` | ::mlir::FloatAttr | 64-bit float attribute
+`size` | mlir::IntegerAttr | Integer attribute
+`region` | vpux::IE::LRN_IERegionAttr | LRN_IE region that operations support
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float or 32-bit float values
+`output_buff` | memref of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float or 32-bit float values
+
 ### `IERT.LSTMCell` (vpux::IERT::LSTMCellOp)
 
 InferenceEngine run-time LSTMCell layer
@@ -972,6 +1081,52 @@ operation ::= `IERT.LSTMCell` attr-dict
 
 | Result | Description |
 | :----: | ----------- |
+`outputHiddenState` | memref of 16-bit float or 32-bit float values
+`outputCellState` | memref of 16-bit float or 32-bit float values
+
+### `IERT.LSTMSequence` (vpux::IERT::LSTMSequenceOp)
+
+InferenceEngine run-time LSTMSequence layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.LSTMSequence` attr-dict
+              `inputs` `(` $inputData `:` type($inputData) `,` $initialHiddenState `:` type($initialHiddenState) `,` $initialCellState `:` type($initialCellState)
+              `,` $weights `:` type($weights) `,` $biases `:` type($biases) `)`
+              `outputs` `(` $outputHiddenValues_buff `:` type($outputHiddenValues_buff) `,`
+              $outputHiddenState_buff `:` type($outputHiddenState_buff) `,`
+              $outputCellState_buff `:` type($outputCellState_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`sequenceLength` | mlir::IntegerAttr | Integer attribute
+`direction` | vpux::IE::RNNSequenceDirectionAttr | RNNSequenceDirection that the InferenceEngine supports
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`inputData` | memref of 16-bit float or 32-bit float values
+`initialHiddenState` | memref of 16-bit float or 32-bit float values
+`initialCellState` | memref of 16-bit float or 32-bit float values
+`weights` | memref of 16-bit float or 32-bit float values
+`biases` | memref of 16-bit float or 32-bit float values
+`outputHiddenValues_buff` | memref of 16-bit float or 32-bit float values
+`outputHiddenState_buff` | memref of 16-bit float or 32-bit float values
+`outputCellState_buff` | memref of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`outputHiddenValues` | memref of 16-bit float or 32-bit float values
 `outputHiddenState` | memref of 16-bit float or 32-bit float values
 `outputCellState` | memref of 16-bit float or 32-bit float values
 
@@ -1207,6 +1362,12 @@ operation ::= `IERT.Multiply` attr-dict
               `->` type(results)
 ```
 
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`post_op` | vpux::IE::PostOp | DictionaryAttr with field(s): 'name', 'attrs' (each field having its own constraints)
 
 #### Operands:
 
@@ -1578,6 +1739,40 @@ operation ::= `IERT.Reorder` attr-dict
 | :----: | ----------- |
 `output` | memref of any type values
 
+### `IERT.Round` (vpux::IERT::RoundOp)
+
+InferenceEngine run-time Round layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.Round` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`mode` | vpux::IE::RoundModeAttr | RoundMode that the InferenceEngine supports
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float or 32-bit float values
+`output_buff` | memref of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float or 32-bit float values
+
 ### `IERT.RunTimeResources` (vpux::IERT::RunTimeResourcesOp)
 
 Definition of run-time resources
@@ -1690,6 +1885,34 @@ operation ::= `IERT.SoftMax` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float or 32-bit float values
 
+### `IERT.Sqrt` (vpux::IERT::SqrtOp)
+
+InferenceEngine run-time Sqrt layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.Sqrt` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float or 32-bit float values
+`output_buff` | memref of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float or 32-bit float values
+
 ### `IERT.SquaredDifference` (vpux::IERT::SquaredDifferenceOp)
 
 InferenceEngine run-time SquaredDifference layer
@@ -1787,7 +2010,7 @@ Extract single subview from buffer
 Syntax:
 
 ```
-operation ::= `IERT.SubView` $source $static_offsets $static_sizes
+operation ::= `IERT.SubView` $source $static_offsets $static_sizes ($static_strides^)?
               attr-dict `:` type($source) `to` type(results)
 ```
 
@@ -1798,6 +2021,7 @@ operation ::= `IERT.SubView` $source $static_offsets $static_sizes
 | :-------: | :-------: | ----------- |
 `static_offsets` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `static_sizes` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`static_strides` | ::mlir::ArrayAttr | 64-bit integer array attribute
 
 #### Operands:
 
@@ -1825,6 +2049,12 @@ operation ::= `IERT.Subtract` attr-dict
               `->` type(results)
 ```
 
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`post_op` | vpux::IE::PostOp | DictionaryAttr with field(s): 'name', 'attrs' (each field having its own constraints)
 
 #### Operands:
 
