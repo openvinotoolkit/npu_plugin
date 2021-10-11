@@ -217,6 +217,8 @@ mlir::ArrayAttr BlobReader::parseOrder3(const MVCNN::order3* order, int32_t ndim
 VPUIP::ArchKind BlobReader::parseDeviceRevision() {
     const auto* header = _graphFile->header();
     switch (header->device()) {
+    case MVCNN::TargetDevice_NONE:
+        return VPUIP::ArchKind::UNKNOWN;
     case MVCNN::TargetDevice_KMB:
         switch (header->device_revision()) {
         case MVCNN::TargetDeviceRevision::TargetDeviceRevision_B0:
@@ -228,6 +230,8 @@ VPUIP::ArchKind BlobReader::parseDeviceRevision() {
         return VPUIP::ArchKind::TBH;
     case MVCNN::TargetDevice::TargetDevice_MTL:
         return VPUIP::ArchKind::MTL;
+    case MVCNN::TargetDevice::TargetDevice_LNL:
+        return VPUIP::ArchKind::LNL;
     default:
         VPUX_THROW("Unsupported TargetDevice '{0}'", header->device());
     }
