@@ -201,8 +201,10 @@ MVCNN::TargetDevice mapTargetDevice(const VPUIP::ArchKind kind) {
         return MVCNN::TargetDevice::TargetDevice_TBH;
     case VPUIP::ArchKind::MTL:
         return MVCNN::TargetDevice::TargetDevice_MTL;
+    case VPUIP::ArchKind::LNL:
+        return MVCNN::TargetDevice::TargetDevice_LNL;
     default:
-        VPUX_THROW("Unsupported TargetDevice '{0}'", kind);
+        VPUX_THROW("Unsupported architecture '{0}'", kind);
     }
 }
 
