@@ -173,9 +173,6 @@ vpux::VPUIP::BlobWriter::KernelDataRef vpux::VPUIP::BlobWriter::createInvocation
     auto swKernelTask = mlir::dyn_cast<VPUIP::SW_Kernel>(op);
     VPUX_THROW_UNLESS(swKernelTask != nullptr, "Operation '{0}' is not a SW_Kernel Task", op->getName());
 
-    //sw_params::MemRefData memrefData{};
-
-    //llvm::SmallVector<mlir::Value> concateIOOperands;
     vpux::InvocationBuilder invocationBuilder;
 
     for (auto && kernelRun : swKernelTask.body().getOps<VPUIP::SW_Kernel_run>()) {
@@ -203,46 +200,12 @@ vpux::VPUIP::BlobWriter::KernelDataRef vpux::VPUIP::BlobWriter::createInvocation
         }
     }
 
-    //if (auto layer = mlir::dyn_cast<VPUIP::ACTShaveTaskOp>(op))
+
     {
 
-//        const auto & input = swKernelTask->getOpOperand(0);
         const auto result = swKernelTask.outputs()[0];
-
-//
-//        _log.trace("Create Invocation input  = {0}", input.get());
-//        _log.trace("Create Invocation output = {0}", result);
-
-
-      //  auto inputMemRef = createMemRefData(input);
-//        auto outputMemRef = createMemRefData(result);
-
-//        auto inputShape = input.get().getType().cast<mlir::ShapedType>();
-//       // auto outputShape = result.getType().cast<mlir::ShapedType>();
-//
-//        //memrefData.numDims = inputShape.getShape().size();
-//
-////        dpuDescriptor.idu.tensor_size0.x = inputShape.getShape()[3]; // tensor_width
-////        dpuDescriptor.idu.tensor_size0.y = inputShape.getShape()[2];
-////        dpuDescriptor.idu.tensor_size1.z = inputShape.getShape()[1];
-//
-//        auto inputTensor = input.get().getDefiningOp<VPUIP::DeclareTensorOp>();
-//        auto getAddress = [](VPUIP::DeclareTensorOp & tensor) {
-//            return tensor.dataIndex() + tensor.leadingOffset().getValueOr(0);
-//        };
-//
-//        memrefData.dataAddr = mvds::nce2p7::ACT_KERNEL_CMX_WINDOW + getAddress(inputTensor);
-//
-//        auto outputTensor = result.getDefiningOp<VPUIP::DeclareTensorOp>();
-//
-//
-////        dpuDescriptor.idu.act0_offset     = mvds::nce2p7::ACT_KERNEL_CMX_WINDOW + getAddress(inputTensor);
-//
-//        auto odu_tmp_ptr = mvds::nce2p7::ACT_KERNEL_CMX_WINDOW + getAddress(outputTensor);
-////        dpuDescriptor.odu_ac_base.ac_base = odu_tmp_ptr >> 4;
-//
-
         const auto source = swKernelTask.getViewSource();
+
         VPUX_THROW_UNLESS(result.getType().isa<mlir::MemRefType>(), "Only MemRef type tensors are supported, got '{0}'",
                           result.getType());
         VPUX_THROW_UNLESS(source.getType().isa<mlir::MemRefType>(), "Only MemRef type tensors are supported, got '{0}'",
