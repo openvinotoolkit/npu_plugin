@@ -15,12 +15,14 @@
 #include "network_description.h"
 #include "ngraph_transformations.h"
 #include "vpux_compiler_l0_adapter.h"
+#include "zero_api_adapter.h"
 
 namespace vpux {
 namespace zeroCompilerAdapter {
 
 ZeroCompilerAdapter::ZeroCompilerAdapter() {
-    apiAdapter = std::make_shared<VPUXCompilerL0>();
+    // apiAdapter = std::make_shared<VPUXCompilerL0>();
+    apiAdapter = std::make_shared<ZeroAPICompilerInDriver>();
 }
 
 // TODO How to use inputsInfo, outputsInfo ?
