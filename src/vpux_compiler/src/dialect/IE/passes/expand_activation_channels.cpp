@@ -84,8 +84,7 @@ mlir::LogicalResult generalRewrite(mlir::Operation* origOp, mlir::PatternRewrite
         const auto inputTensorWidth = getShape(convOp.input())[IE::Dims4D::Act::W];
         const auto inputChannels = getShape(convOp.filter().getType().cast<mlir::ShapedType>())[IE::Dims4D::Filter::IC];
         const auto inDimsOrder = DimsOrder::fromValue(convOp->getOperand(0));
-        bool channelMajorConvolution =
-                ((inDimsOrder == DimsOrder::NCHW) && (inputChannels == 3) && (inputTensorWidth % 16 == 0));
+        bool channelMajorConvolution = isChannelMajorCompatibaleOperation(inDimsOrder, inputChannels, inputTensorWidth);
 
         if (channelMajorConvolution)
             inPadsEnd = calcPadsEnd(inputType, inChannelAlignement);
