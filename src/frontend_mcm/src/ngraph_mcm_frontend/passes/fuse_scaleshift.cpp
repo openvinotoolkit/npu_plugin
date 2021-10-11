@@ -69,14 +69,19 @@ bool FuseScaleShift::run_on_node(std::shared_ptr<ngraph::Node> node) {
 
     int scaleshift_scale_to_input_node_id = 0;
     std::shared_ptr<ngraph::op::Constant> scaleshift_scales = nullptr;
+    std::shared_ptr<ngraph::op::v0::Parameter> input_node = nullptr;
     if (scaleshift_scale_node != nullptr) {
         scaleshift_scales = std::dynamic_pointer_cast<ngraph::op::Constant>(scaleshift_scale_node->input_value(1).get_node_shared_ptr());
+        input_node = std::dynamic_pointer_cast<ngraph::op::v0::Parameter>(scaleshift_scale_node->input_value(0).get_node_shared_ptr());
         if (!scaleshift_scales) {
             scaleshift_scale_to_input_node_id = 1;
             scaleshift_scales = std::dynamic_pointer_cast<ngraph::op::Constant>(scaleshift_scale_node->input_value(0).get_node_shared_ptr());
-            if (!scaleshift_scales)
+            input_node = std::dynamic_pointer_cast<ngraph::op::v0::Parameter>(scaleshift_scale_node->input_value(1).get_node_shared_ptr());
+            if (!scaleshift_scales || !input_node)
                 return false;
         }
+        else if(!input_node)
+            return false;
         scaleshift_scale_data = scaleshift_scales->cast_vector<double>();
     }
     else {
