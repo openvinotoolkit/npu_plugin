@@ -33,8 +33,9 @@ namespace MCMAdapter {
 static InferenceEngine::Layout extractLayoutFromStrides(const std::vector<float>& strides) {
     const size_t NCHW_DIM_COUNT = 5;
     const size_t NCDHW_DIM_COUNT = 6;
-    IE_ASSERT(strides.size() == NCHW_DIM_COUNT || strides.size() == NCDHW_DIM_COUNT)
-            << " extractLayoutFromStrides works only with 5 or 6 elements in strides parameter";
+    const size_t TWO_DIM_COUNT = 3;
+    IE_ASSERT(strides.size() == NCHW_DIM_COUNT || strides.size() == NCDHW_DIM_COUNT || strides.size() == TWO_DIM_COUNT)
+            << " extractLayoutFromStrides works only with 3, 5 or 6 elements in strides parameter";
 
     InferenceEngine::Layout tensorLayout = InferenceEngine::Layout::NCHW;
     if (strides.size() == NCHW_DIM_COUNT) {
@@ -56,7 +57,7 @@ static InferenceEngine::Layout extractLayoutFromStrides(const std::vector<float>
             // width-major
             IE_THROW() << "getIOLayout: W-major layout is not supported";
         }
-    } else {
+    } else if (strides.size() == NCDHW_DIM_COUNT) {
         /// size_t DIM_BYTE_SIZE = 0;
         /// size_t DIM_N = 1;
         size_t DIM_C = 2;
@@ -72,6 +73,11 @@ static InferenceEngine::Layout extractLayoutFromStrides(const std::vector<float>
             // width-major
             IE_THROW() << "getIOLayout: only NCDHW and NDHWC layouts are supported";
         }
+    } else if (strides.size() == TWO_DIM_COUNT) {
+        // for now only NC layout is supported from 2D layouts
+        tensorLayout = InferenceEngine::Layout::NC;
+    } else {
+        IE_THROW() << "getIOLayout: upsupported tensor layout";
     }
 
     return tensorLayout;
