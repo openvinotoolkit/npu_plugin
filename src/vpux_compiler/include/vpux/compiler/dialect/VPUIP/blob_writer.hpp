@@ -77,7 +77,7 @@ public:
 public:
     TensorReference createTensor(StringRef name, mlir::ShapedType type, MemoryLocation locale,
                                  ArrayRef<uint32_t> localeIndex, int64_t dataIndex, ArrayRef<uint16_t> mult,
-                                 ArrayRef<uint8_t> shift, ArrayRef<uint8_t> zeroPoints,
+                                 ArrayRef<uint8_t> shift, int8_t postShift, ArrayRef<uint8_t> zeroPoints,
                                  Optional<int64_t> sparsityIndex = None, Optional<int64_t> storageElementIndex = None,
                                  Optional<int64_t> storageElementSize = None, Optional<int64_t> leadingOffset = None,
                                  Optional<int64_t> trailingOffset = None, Optional<double> density_rate = None,
