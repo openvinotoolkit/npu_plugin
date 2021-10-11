@@ -26,85 +26,9 @@ using namespace mlir;
 namespace vpux {
 namespace VPUIP {
 
-VPUIP::BlobWriter::SpecificTask ACTShaveTaskOp::serialize(VPUIP::BlobWriter& ) {
-    //return writer.createACTShaveTask(*this);
-    return {};
-}
-
 VPUIP::BlobWriter::SpecificTask  SW_Kernel::serialize(vpux::VPUIP::BlobWriter& writer) {
     return writer.createSW_KernelTask(*this);
 }
-
- mlir::ParseResult SW_Kernel::parseIOForward(mlir::OpAsmParser& parser,
-                                        mlir::SmallVectorImpl<mlir::OpAsmParser::OperandType> &args,
-                                        /*mlir::SmallVectorImpl<mlir::OpAsmParser::OperandType> &innerArgs,*/
-                                        mlir::SmallVectorImpl<mlir::Type> &argsTypes) {
-     if (parser.parseLParen())
-         return ::mlir::failure();
-
-
-     OpAsmParser::OperandType outerArg;
-     if (parser.parseOperand(outerArg))
-         return ::mlir::failure();
-
-     args.push_back(outerArg);
-
-     if (parser.parseColon())
-         return ::mlir::failure();
-
-     Type outerArgType;
-     if (parser.parseType(outerArgType))
-         return ::mlir::failure();
-
-     argsTypes.push_back(outerArgType);
-
-     if (parser.parseKeyword("as"))
-         return ::mlir::failure();
-
-     OpAsmParser::OperandType innerArg;
-     if (parser.parseOperand(innerArg))
-         return ::mlir::failure();
-
-     //innerArgs.push_back(innerArg);
-
-     if (parser.parseRParen())
-         return ::mlir::failure();
-
-     return {};
-}
-
- void SW_Kernel::printIOForward(mlir::OpAsmPrinter& /*printer*/,
-                           vpux::VPUIP::SW_Kernel&,
-                           mlir::OperandRange /*args*/,
-                           mlir::OperandRange::type_range /*argsTypes*/) {
-
- }
-/*
-
-mlir::ParseResult SW_Kernel_run::parseSW_Kernel_run(mlir::OpAsmParser& parser,
-                                                    mlir::OperationState &*/
-/*result*//*
-) {
-    //if (parser.parseLParen())
-      //  return ::mlir::failure();
-
-    llvm::SmallVector<OpAsmParser::OperandType> innerArg;
-
-    if (parser.parseOperandList(innerArg, OpAsmParser::Delimiter::Paren))
-        return ::mlir::failure();
-
-     return {};
- }
-
- void SW_Kernel_run::print(mlir::OpAsmPrinter& */
-/*printer*//*
-, SW_Kernel_run &*/
-/*runner*//*
-){
-
- }
-*/
-
 
 }  // namespace VPUIP
 }  // namespace vpux
