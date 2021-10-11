@@ -26,7 +26,15 @@ class InvocationBuilder {
     // keeps offsets within _storage structure that need to be
     // updated after _arrayStorage gets concatenated
     // and keeps offsets to array_storage
-    llvm::SmallVector<std::pair<std::function<void(uint32_t)>, uint32_t> , 128> _offsetsToUpdate;
+    struct PatchPoint {
+        std::function<void(size_t)> patchCallback;
+        size_t offset;
+
+        void patch(size_t patchBase) const {
+            patchCallback(patchBase + offset);
+        }
+    };
+    llvm::SmallVector<PatchPoint , 128> _patchData;
 
 
     mutable llvm::SmallVector<uint8_t,   128> _finalstorage;
@@ -41,24 +49,18 @@ private:
     }
 
     /**
-     * registers an array wich is designated by given pointer
+     * create a patch entry , that can be fuether updated
      * @tparam U structure type
      * @tparam T field type
-     * @param object given object of structure U
-     * @param objectField given field in given object
-     * @param anyarr and initializer of array
      */
-    template <class U, class T, class V>
-    void registerArrayFor(const T& patcher,  const V & anyarr ) {
+    template <class U, class T>
+    void createPatchPoint(const T& patcher) {
         //auto offset = fieldOffset(object, patcher);
         auto fieldPatcher = [offset = _storage.size(), this, patcher] (uint32_t updateTo) {
             auto& base = reinterpret_cast<U&>(*(_finalstorage.begin() + offset));
             patcher(base, updateTo);
         };
-        _offsetsToUpdate.push_back({fieldPatcher, _arrayStorage.size()});
-        for (auto &&y : anyarr) {
-            storeSimple(_arrayStorage, y);
-        }
+        _patchData.push_back({fieldPatcher, _arrayStorage.size()});
     }
 
 public:
@@ -84,10 +86,10 @@ public:
     ArrayRef<uint8_t> store() const {
         _finalstorage.resize(0);
         _finalstorage.insert(_finalstorage.end(), _storage.begin(), _storage.end());
-        auto offsetToArrays = _finalstorage.size();
+        auto patchBase = _finalstorage.size();
         _finalstorage.insert(_finalstorage.end(), _arrayStorage.begin(), _arrayStorage.end());
-        for (auto && offset : _offsetsToUpdate) {
-            offset.first(offsetToArrays + offset.second);
+        for (auto && field : _patchData) {
+            field.patch(patchBase);
         }
 
         return _finalstorage;
@@ -114,7 +116,10 @@ protected:
         memrefData.numDims = shape.getShape().size();
 
         // dims
-        registerArrayFor<sw_params::MemRefData>(dimsPatcher, shape.getShape());
+        createPatchPoint<sw_params::MemRefData>(dimsPatcher);
+        for (auto &&dim : shape.getShape()) {
+            storeSimple(_arrayStorage, checked_cast<int32_t>(dim));
+        }
 
         // order
         const auto inOrder = DimsOrder::fromValue(value);
@@ -125,7 +130,10 @@ protected:
         const auto memStrides = stridesReqs.calcStrides(inOrder, shape);
         const auto strides = inOrder.toLogicalOrder(memStrides);
 
-        registerArrayFor<sw_params::MemRefData>(stridesParcher, strides);
+        createPatchPoint<sw_params::MemRefData>(stridesParcher);
+        for (auto &&stride : strides) {
+            storeSimple(_arrayStorage, stride);
+        }
 
         auto tensor = value.getDefiningOp<VPUIP::DeclareTensorOp>();
 
@@ -134,7 +142,7 @@ protected:
 
         memrefData.dataType = 0; // TODO: to be defined
 
-        memrefData.location = sw_params::UPA_CMX;
+        memrefData.location = sw_params::NN_CMX;
 
         storeSimple(_storage, memrefData);
     }
