@@ -11,6 +11,7 @@ namespace sw_params {
 struct __attribute__((packed)) SigmoidParams {
     struct MemRefData input;
     struct MemRefData output;
+    int64_t axis;
 };
 
 inline struct BaseKernelParams ToBaseKernelParams(struct SigmoidParams * params) {
