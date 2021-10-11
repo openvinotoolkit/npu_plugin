@@ -78,18 +78,6 @@ class VPUIP_UPATaskOp<int numResult, string mnemonic, list<OpTrait> traits = []>
             )
         >;
 
-class VPUIP_ACTShaveTaskOp<int numResult, string mnemonic, list<OpTrait> traits = []> :
-        VPUIP_TaskOp<
-            numResult,
-            mnemonic,
-            !listconcat(
-                traits,
-            [
-                DeclareOpInterfaceMethods<VPUIP_ACTShaveTaskOpInterface>
-            ]
-        )
->;
-
 //
 // GraphOp
 //
@@ -2650,7 +2638,9 @@ def VPUIP_LSTMCellUPAOp :
     }];
 }
 
-
+//
+// VPUIP_SW_Kernel_run
+//
 
 def VPUIP_SW_Kernel_run
     : VPUIP_Op<"SW.Kernel.run"> {
@@ -2658,16 +2648,6 @@ def VPUIP_SW_Kernel_run
     let arguments  = (ins
         Variadic<AnyType>:$args
     );
-
-/*
-  let printer = [{ return print(p, *this); }];
-  let parser = [{ return parse$cppClass(parser, result); }];
-
-    let extraClassDeclaration = [{
-        static mlir::ParseResult parseSW_Kernel_run(mlir::OpAsmParser& parser, ::mlir::OperationState &result);
-        static void print(mlir::OpAsmPrinter& printer, SW_Kernel_run &runner);
-       }];
-*/
 
 
     let assemblyFormat = [{
@@ -2680,7 +2660,6 @@ def VPUIP_SW_Kernel_run
 }
 
 //
-// NCEClusterTaskOp
 // VPUIP_SW_Kernel
 //
 
@@ -2688,7 +2667,6 @@ def VPUIP_SW_Kernel :
         VPUIP_TaskOp<1, "SW.Kernel",
             [
                 ViewLikeOpInterface
-//                NoRegionArguments
             ]
             # GraphRegionNoTerminator.traits
         > {
@@ -2745,86 +2723,12 @@ def VPUIP_SW_Kernel :
 //    }];
 
     let extraClassDeclaration = [{
-
-        static mlir::ParseResult parseIOForward(mlir::OpAsmParser& parser,
-                                                SmallVectorImpl<mlir::OpAsmParser::OperandType> &args,
-                                                SmallVectorImpl<mlir::Type>& argsTypes);
-        static void printIOForward(mlir::OpAsmPrinter& printer,
-                                   vpux::VPUIP::SW_Kernel&,
-                                   mlir::OperandRange args,
-                                   mlir::OperandRange::type_range argsTypes);
-
         static vpux::VPUIP::TaskType getTaskType() {
             return vpux::VPUIP::TaskType::ACTShave;
         }
     }] # IERT_InferLayerReturnTypes<1>.impl;
 }
 
-
-
-//
-// ACTShaveTaskOp
-//
-
-def VPUIP_ACTShaveTaskOp :
-        VPUIP_Op<"ACTShaveTaskOp",
-            [
-                AttrSizedOperandSegments,
-                MemoryEffectsOpInterface,
-                ViewLikeOpInterface,
-                DeclareOpInterfaceMethods<IERT_LayerOpInterface>,
-                DeclareOpInterfaceMethods<VPUIP_TaskOpInterface>,
-                DeclareOpInterfaceMethods<VPUIP_ACTShaveTaskOpInterface>,
-            ]
-        > {
-    let summary = "Activation Shave kernel";
-
-    let arguments = (ins
-        Variadic<AnyMemRef>:$inputs,
-        Variadic<AnyMemRef>:$outputs,
-
-        Variadic<VPUIP_Barrier>:$waitBarriers,
-        Variadic<VPUIP_Barrier>:$updateBarriers,
-
-        AnyMemRef:$kernelData,
-
-//        StrAttr:$kernel,
-//        I64ArrayAttr:$outers,
-//        I64ArrayAttr:$middles,
-//        ArrayAttr:$inits,
-//        VPUIP_EdslDMADescArrayAttr:$transfers,
-
-        OptionalAttr<IntAttr>:$maxShaves
-    );
-
-    let results = (outs Variadic<AnyMemRef>:$results);
-
-    let builders = [
-        OpBuilder<
-            (ins
-                "mlir::ValueRange":$inputs,
-                "mlir::ValueRange":$outputs,
-                "mlir::Value":$kernelData
-//                "mlir::StringAttr":$kernel
-//                "::mlir::ArrayAttr":$outers,
-//                "::mlir::ArrayAttr":$middles,
-//                "::mlir::ArrayAttr":$inits
-                //"::mlir::ArrayAttr":$transfers
-            )
-        >
-    ];
-
-
-    let assemblyFormat = [{
-        attr-dict
-        `kernel` `(` $kernelData `:` type($kernelData) `)`
-        (`inputs` `(` $inputs^ `:` type($inputs) `)`)?
-        (`outputs` `(` $outputs^ `:` type($outputs) `)`)?
-        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
-        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
-        `->` type(results)
-    }];
-}
 
 
 //
