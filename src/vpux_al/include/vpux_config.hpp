@@ -114,7 +114,7 @@ protected:
     // backend pull timeout - 5 seconds by default
     uint32_t _inferenceTimeoutMs = 5 * 1000;
     InferenceEngine::VPUXConfigParams::CompilerType _compilerType =
-            InferenceEngine::VPUXConfigParams::CompilerType::MCM;
+            InferenceEngine::VPUXConfigParams::CompilerType::ZERO_ADAPTER;
 
     std::string _compilationMode = "ReferenceHW";
     Optional<int> _numberOfDPUGroups = 1;
