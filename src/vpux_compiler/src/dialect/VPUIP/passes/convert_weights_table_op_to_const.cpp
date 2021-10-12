@@ -61,8 +61,7 @@ int32_t getWeightPtrStep(VPUIP::WeightsTableOp createWTableOp) {
         // Check that weights have expected alignment.
         // Other than that, weight step is the same for both z-major (OYXI) and depthwise convolutions.
         const auto origFilterType = createWTableOp.weights().getType().cast<mlir::ShapedType>();
-        const auto depthwiseConvAlignment =
-                VPUIP::NCEInvariant::getOutputChannelAlignment(origFilterType.getElementType());
+        const auto depthwiseConvAlignment = VPUIP::NCEInvariant::getChannelAlignment(origFilterType.getElementType());
         const auto weightsElementCount = IC * KY * KX;
         VPUX_THROW_UNLESS(weightsElementCount % depthwiseConvAlignment == 0,
                           "Depthwise convolution weights size must be a multiple of {0}, got {1}",

@@ -25,22 +25,7 @@ using namespace VPUIP;
 //
 // verifyConvChannels
 //
-int64_t vpux::VPUIP::NCEInvariant::getInputChannelAlignment(mlir::Operation* origOp) {
-    if (mlir::isa<IE::ConvolutionOp>(*origOp)) {
-        auto convOp = mlir::dyn_cast<IE::ConvolutionOp>(*origOp);
-        const auto inputTensorWidth = getShape(convOp.input())[IE::Dims4D::Act::W];
-        const auto inputChannels = getShape(convOp.filter().getType().cast<mlir::ShapedType>())[IE::Dims4D::Filter::IC];
-        const auto inDimsOrder = DimsOrder::fromValue(convOp->getOperand(0));
-
-        if (isChannelMajorCompatibaleOperation(inDimsOrder, inputChannels, inputTensorWidth))
-            return 1;
-        else
-            return 16;
-    } else
-        return 16;
-}
-
-int64_t vpux::VPUIP::NCEInvariant::getOutputChannelAlignment(mlir::Type elemType) {
+int64_t vpux::VPUIP::NCEInvariant::getChannelAlignment(mlir::Type elemType) {
     const Bit typeSizeInBits = getElemTypeSize(elemType);
     return std::max<int64_t>(128 / typeSizeInBits.count(), 16);
 }
@@ -59,12 +44,12 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyConvChannels(bool channelMa
     const auto OC = filterShape[IE::Dims4D::Filter::OC];
     const auto IC = filterShape[IE::Dims4D::Filter::IC];
 
-    if (OC % getOutputChannelAlignment(filterType.getElementType()) != 0) {
+    if (OC % getChannelAlignment(filterType.getElementType()) != 0) {
         log.trace("[{0}] Convolution output channels are not aligned", loc);
         return mlir::failure();
     }
 
-    if (!channelMajorConvolution && IC % getOutputChannelAlignment(filterType.getElementType()) != 0) {
+    if (!channelMajorConvolution && IC % getChannelAlignment(filterType.getElementType()) != 0) {
         log.trace("[{0}] Convolution input channels are not aligned", loc);
         return mlir::failure();
     }
@@ -78,7 +63,6 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyConvChannels(bool channelMa
 }
 
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyDims(IE::ConvolutionOp origOp, Logger log) {
-
     const auto inputTensorWidth = getShape(origOp.input())[IE::Dims4D::Act::W];
     const auto inputChannels = getShape(origOp.filter().getType().cast<mlir::ShapedType>())[IE::Dims4D::Filter::IC];
     const auto inDimsOrder = DimsOrder::fromValue(origOp->getOperand(0));
@@ -89,7 +73,6 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyDims(IE::ConvolutionOp orig
 }
 
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyDims(IERT::ConvolutionOp origOp, Logger log) {
-
     const auto inputTensorWidth = getShape(origOp.input())[IE::Dims4D::Act::W];
     const auto inputChannels = getShape(origOp.filter().getType().cast<mlir::ShapedType>())[IE::Dims4D::Filter::IC];
     const auto inDimsOrder = DimsOrder::fromValue(origOp->getOperand(0));
@@ -115,7 +98,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPoolChannels(mlir::Location
     const auto inputShape = getShape(inputType);
     const auto IC = inputShape[IE::Dims4D::Act::C];
 
-    if (IC % getOutputChannelAlignment(inputType.getElementType()) != 0) {
+    if (IC % getChannelAlignment(inputType.getElementType()) != 0) {
         log.trace("[{0}] Pooling channels are not aligned", loc);
         return mlir::failure();
     }
@@ -154,12 +137,12 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyEltwiseChannels(mlir::Locat
     const auto firstIC = firstInputShape[IE::Dims4D::Act::C];
     const auto secondIC = secondInputShape[IE::Dims4D::Act::C];
 
-    if (firstIC % getOutputChannelAlignment(firstInputType.getElementType()) != 0) {
+    if (firstIC % getChannelAlignment(firstInputType.getElementType()) != 0) {
         log.trace("[{0}] Eltwise input1 channels are not aligned", loc);
         return mlir::failure();
     }
 
-    if (secondIC % getOutputChannelAlignment(secondInputType.getElementType()) != 0) {
+    if (secondIC % getChannelAlignment(secondInputType.getElementType()) != 0) {
         log.trace("[{0}] Eltwise input2 channels are not aligned", loc);
         return mlir::failure();
     }
@@ -248,7 +231,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyGroupConvChannels(mlir::Loc
         return mlir::failure();
     }
 
-    if (OC % getOutputChannelAlignment(filterType.getElementType()) != 0) {
+    if (OC % getChannelAlignment(filterType.getElementType()) != 0) {
         log.trace("[{0}] Group Convolution output channels are not aligned", loc);
         return mlir::failure();
     }
@@ -436,7 +419,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyGroupConvCMX(mlir::Location
 
     // Setting more than 16 groups results in worse accuracy.
     // FIXME verify CMX is not a proper place for this. But it is required to fail CMX check during tiling.
-    const auto depthwiseOutChanCount = VPUIP::NCEInvariant::getOutputChannelAlignment(outputType.getElementType());
+    const auto depthwiseOutChanCount = VPUIP::NCEInvariant::getChannelAlignment(outputType.getElementType());
     if (OC != depthwiseOutChanCount) {
         log.trace("[{0}] Depthwise convolution must have exactly {1} output channels, got {2}", loc,
                   depthwiseOutChanCount, OC);
@@ -451,7 +434,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyGroupConvCMX(mlir::Location
                                                                                   inputType.getElementType(), OC);
 
     // consider alignment when calculating required CMX
-    const auto depthwiseConvAlignment = VPUIP::NCEInvariant::getOutputChannelAlignment(outputType.getElementType());
+    const auto depthwiseConvAlignment = VPUIP::NCEInvariant::getChannelAlignment(outputType.getElementType());
     const int64_t remainder = (filtersPerInChan * KY * KX) % depthwiseConvAlignment;
     VPUX_THROW_UNLESS(remainder >= 0, "Channel alignment cannot be negative: {0}", remainder);
 

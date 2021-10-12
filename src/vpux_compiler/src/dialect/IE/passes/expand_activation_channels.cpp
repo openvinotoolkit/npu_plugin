@@ -21,9 +21,9 @@
 #include "vpux/compiler/utils/rewriter.hpp"
 #include "vpux/compiler/utils/types.hpp"
 
+#include "vpux/compiler/dialect/VPUIP/utils.hpp"
 #include "vpux/utils/core/func_ref.hpp"
 #include "vpux/utils/core/numeric.hpp"
-#include "vpux/compiler/dialect/VPUIP/utils.hpp"
 
 #include <mlir/Pass/PassManager.h>
 #include <mlir/Transforms/DialectConversion.h>
@@ -72,8 +72,7 @@ mlir::LogicalResult generalRewrite(mlir::Operation* origOp, mlir::PatternRewrite
 
     auto iface = mlir::cast<IE::AlignedChannelsOpInterface>(origOp);
 
-    auto outChannelAlignement = iface.getOutputChannelAlignment();
-    auto inChannelAlignement = iface.getInputChannelAlignment();
+    const auto channelAlignement = iface.getChannelAlignment();
 
     const auto inputType = origOp->getOperand(0).getType().cast<mlir::ShapedType>();
     const auto outputType = origOp->getResult(0).getType().cast<mlir::ShapedType>();
@@ -85,14 +84,15 @@ mlir::LogicalResult generalRewrite(mlir::Operation* origOp, mlir::PatternRewrite
         const auto inputTensorWidth = getShape(convOp.input())[IE::Dims4D::Act::W];
         const auto inputChannels = getShape(convOp.filter().getType().cast<mlir::ShapedType>())[IE::Dims4D::Filter::IC];
         const auto inDimsOrder = DimsOrder::fromValue(convOp->getOperand(0));
-        bool channelMajorConvolution = vpux::VPUIP::isChannelMajorCompatibaleOperation(inDimsOrder, inputChannels, inputTensorWidth);
+        bool channelMajorConvolution =
+                vpux::VPUIP::isChannelMajorCompatibaleOperation(inDimsOrder, inputChannels, inputTensorWidth);
 
         if (channelMajorConvolution)
-            inPadsEnd = calcPadsEnd(inputType, inChannelAlignement);
+            inPadsEnd = calcPadsEnd(inputType, 1);
         else
-            inPadsEnd = calcPadsEnd(inputType, inChannelAlignement);
+            inPadsEnd = calcPadsEnd(inputType, channelAlignement);
 
-        const auto outPadsEnd = calcPadsEnd(outputType, outChannelAlignement);
+        const auto outPadsEnd = calcPadsEnd(outputType, channelAlignement);
 
         log.trace("Input padding : {0}", inPadsEnd);
         log.trace("Output padding : {0}", outPadsEnd);
@@ -134,8 +134,8 @@ mlir::LogicalResult generalRewrite(mlir::Operation* origOp, mlir::PatternRewrite
         }
 
     } else {
-        inPadsEnd = calcPadsEnd(inputType, inChannelAlignement);
-        outPadsEnd = calcPadsEnd(outputType, outChannelAlignement);
+        inPadsEnd = calcPadsEnd(inputType, channelAlignement);
+        outPadsEnd = calcPadsEnd(outputType, channelAlignement);
 
         log.trace("Input padding : {0}", inPadsEnd);
         log.trace("Output padding : {0}", outPadsEnd);
