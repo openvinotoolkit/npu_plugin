@@ -180,8 +180,8 @@ vpux::VPUIP::BlobWriter::KernelDataRef vpux::VPUIP::BlobWriter::createInvocation
         auto insSize = swKernelTask.inputs().size();
         auto outsSize = swKernelTask.outputs().size();
 
-        for ( auto && operands : kernelRun.args()) {
-            auto blockArg = operands.dyn_cast_or_null<mlir::BlockArgument>();
+        for ( auto && operand : kernelRun.args()) {
+            auto blockArg = operand.dyn_cast_or_null<mlir::BlockArgument>();
             if (blockArg) {
                 auto id = blockArg.getArgNumber();
                 if (id < insSize) {
@@ -195,7 +195,7 @@ vpux::VPUIP::BlobWriter::KernelDataRef vpux::VPUIP::BlobWriter::createInvocation
                     VPUX_THROW("Unknown blocking argument for {1} of index: {0}", id, swKernelTask);
                 }
             } else {
-                invocationBuilder.addArg(operands);
+                invocationBuilder.addArg(operand);
             }
         }
     }
@@ -211,7 +211,7 @@ vpux::VPUIP::BlobWriter::KernelDataRef vpux::VPUIP::BlobWriter::createInvocation
         VPUX_THROW_UNLESS(source.getType().isa<mlir::MemRefType>(), "Only MemRef type tensors are supported, got '{0}'",
                           source.getType());
 
-        ArrayRef<uint8_t> invocationData = invocationBuilder.store();
+        auto invocationData = invocationBuilder.store();
 
         // TODO: should be specific sigmoid args instead of cfg_dpu_descriptor
         auto invocationArgs = createKernelDataRef(op->getName().getStringRef(), locale, 0, invocationData.size(), invocationData);
