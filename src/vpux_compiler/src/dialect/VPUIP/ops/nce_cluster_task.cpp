@@ -184,7 +184,15 @@ mlir::LogicalResult verifyNCEConv(VPUIP::NCEClusterTaskOp op) {
             return mlir::failure();
         }
     } else if (op.task_type() == VPUIP::NCETaskType::CMCONV) {
-        // TODO catch failure
+        const auto inOrder = DimsOrder::fromValue(op.getInputs()[0]);
+        const auto outputOrder = DimsOrder::fromValue(op.getOutputs()[0]);
+
+        if (inOrder != DimsOrder::NCHW && outputOrder != DimsOrder::NHWC) {
+            return errorAt(op,
+                           "For channel major convolution layout must be NCHW for input and NHWC for output, got input "
+                           "{0} and output {1]",
+                           inOrder, outputOrder);
+        }
     }
 
     const auto weightsLayout = DimsOrder::fromValue(op.weights());
