@@ -44,6 +44,7 @@ public:
     void freed(mlir::Value val);
     static int getSpillWeight(mlir::Value);
     static bool spilled(mlir::Value);
+    void setAddress(mlir::Value val, AddressType address);
 
 private:
     mlir::DenseMap<mlir::Value, AddressType> _valOffsets;

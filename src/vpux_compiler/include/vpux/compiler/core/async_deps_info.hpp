@@ -34,6 +34,7 @@ public:
     void buildConsMap();
     void optimizeDepsMap();
     void updateTokenDependencies();
+    size_t insertNewExecOpToDepsMap(mlir::async::ExecuteOp execOp);
     mlir::async::ExecuteOp getExecuteOpAtIndex(size_t opIdx) const;
     SmallVector<size_t> getOpDeps(size_t opIdx) const;
     SmallVector<size_t> getConsumerOps(size_t opIdx) const;

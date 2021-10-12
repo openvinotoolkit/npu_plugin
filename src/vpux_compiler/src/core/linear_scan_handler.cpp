@@ -75,6 +75,15 @@ AddressType LinearScanHandler::getAddress(mlir::Value val) const {
     return it->second;
 }
 
+void LinearScanHandler::setAddress(mlir::Value val, AddressType address) {
+    const auto it = _valOffsets.find(val);
+    if (it == _valOffsets.end()) {
+        _valOffsets.insert({val, address});
+    } else {
+        it->second = address;
+    }
+}
+
 void LinearScanHandler::allocated(mlir::Value val, AddressType addr) {
     VPUX_THROW_UNLESS(addr != InvalidAddress, "Trying to assign invalid address");
     VPUX_THROW_UNLESS(_valOffsets.count(val) == 0, "Value '{0}' was already allocated", val);
