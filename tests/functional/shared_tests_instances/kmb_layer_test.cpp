@@ -160,6 +160,7 @@ void KmbLayerTestsCommon::Validate() {
 
 void KmbLayerTestsCommon::Run() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    functionRefs = ngraph::clone_function(*function);
 
     std::cout << "KmbLayerTestsCommon::BuildNetworkWithoutCompile" << std::endl;
     BuildNetworkWithoutCompile();
