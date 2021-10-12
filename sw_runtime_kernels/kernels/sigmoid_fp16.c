@@ -1,5 +1,6 @@
 // {% copyright %}
 
+#include <moviVectorTypes.h>
 #include <math.h>
 #include <param_sigmoid.h>
 
