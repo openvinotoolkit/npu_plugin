@@ -323,7 +323,8 @@ void FeasibleMemoryScheduler::scheduleInputOpForComputeOp(operationIdxType input
     auto _opOutput = _opOutputTable.find(inputIdx);
     EOpType opType;
     if (_opOutput != _opOutputTable.end()) {
-        VPUX_THROW("Spill occured, spilling not yet implemented");
+        (_opOutput->second).changeStateToActive();
+        opType = EOpType::IMPLICIT_OP_READ;
     } else {
         opType = EOpType::ORIGINAL_OP;
         _opOutputTable.insert(std::make_pair(inputIdx, OpOutputInfo(EOpState::ACTIVE, _outDegreeTable[inputIdx])));
@@ -391,6 +392,43 @@ void FeasibleMemoryScheduler::scheduleAllPossibleReadyOpsAndUpdate(
     }
 }
 
+void FeasibleMemoryScheduler::evictActiveOp(operationIdxType opIdx, mlir::Value* buffer) {
+    auto opOutput = _opOutputTable.find(opIdx);
+    assert(opOutput != _opOutputTable.end() && opOutput->second.active());
+    opOutput->second.changeStateToSpilled();
+    auto buf = *buffer;
+
+    _scan.handler().markAsDead(buf);
+    _scan.freeNonAlive();
+}
+
+void FeasibleMemoryScheduler::forceScheduleActiveOpEviction() {
+    std::cout << "choose_active_operation_for_eviction" << std::endl;
+    auto smallestAlive = _scan.handler().getSmallestBufferAlive();
+    VPUX_THROW_UNLESS(smallestAlive != nullptr, "Failed, nothing to spill");
+
+    std::cout << "smallest buffer alive size " << _scan.handler().getSize(*smallestAlive) << std::endl;
+    (*smallestAlive).dump();
+
+    // TODO: assert only 1 user, or always choose last user ?
+    mlir::Operation* parentOp = nullptr;
+    for (auto user : (*smallestAlive).getDefiningOp()->getUsers()) {
+        user->dump();
+        parentOp = user->getParentOp();
+    }
+    auto execOp = mlir::cast<mlir::async::ExecuteOp>(*parentOp);
+
+    // return;
+
+    size_t candidateIdx = _depsInfo.getIndex(execOp);
+    std::cout << "Candidate for spill: " << candidateIdx << std::endl;
+    evictActiveOp(candidateIdx, smallestAlive);
+    _opOutputTable[candidateIdx].changeStateToSpilled();
+
+    // TODO: update _activeComputeOps some may no longer be active
+    pushToStartTimeHeap(HeapElement(candidateIdx, _currentTime, EOpType::IMPLICIT_OP_WRITE));
+}
+
 void FeasibleMemoryScheduler::populateScheduledOps(HeapElement& scheduledOp) {
     IntervalInfo interval;
     // retrieve interval information
@@ -405,6 +443,9 @@ void FeasibleMemoryScheduler::populateScheduledOps(HeapElement& scheduledOp) {
                 }
                 interval.begin_ = checked_cast<size_t>(_scan.handler().getAddress(output));
                 interval.end_ = interval.begin_ + checked_cast<size_t>(_scan.handler().getSize(output));
+                if (scheduledOp.isImplicitWriteOp()) {
+                    _scan.handler().deallocate(output);
+                }
             }
         }
     }
@@ -486,7 +527,12 @@ void FeasibleMemoryScheduler::nextSchedulableOp() {
 
             if (_startTimeHeap.empty()) {
                 // unable to schedule an operation, perform spill
-                VPUX_THROW("Spill required, dynamic spilling not yet implemented");
+                std::cout << "unable to schedule an operation, perform spill" << std::endl;
+                std::cout << "total CMX free size: " << _scan.totalFreeSize() << std::endl;
+                std::cout << "max CMX free size: " << _scan.maxFreeSize() << std::endl;
+                std::cout << "number of live ranges: " << _scan.liveRanges().size() << std::endl;
+                std::cout << "number of gaps: " << _scan.gaps().size() << std::endl;
+                forceScheduleActiveOpEviction();
             }
         }
     }

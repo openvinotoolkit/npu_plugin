@@ -84,6 +84,25 @@ void LinearScanHandler::allocated(mlir::Value val, AddressType addr) {
     _maxAllocatedSize = Byte(std::max(_maxAllocatedSize.count(), endAddr));
 }
 
+void LinearScanHandler::deallocate(mlir::Value val) {
+    VPUX_THROW_UNLESS(_valOffsets.count(val) > 0, "Value '{0}' was not allocated", val);
+
+    _valOffsets.erase(val);
+}
+
+mlir::Value* LinearScanHandler::getSmallestBufferAlive() {
+    mlir::Value* smallestAlive = nullptr;
+    AddressType smallestSize = std::numeric_limits<AddressType>::max();
+    for (auto& alive : _aliveValues) {
+        AddressType size = getSize(alive);
+        if (smallestSize > size) {
+            smallestAlive = &alive;
+            smallestSize = size;
+        }
+    }
+    return smallestAlive;
+}
+
 void LinearScanHandler::freed(mlir::Value val) {
     markAsDead(val);
 }

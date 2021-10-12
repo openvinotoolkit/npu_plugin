@@ -224,6 +224,8 @@ private:
     void unscheduleAllCompletingOpsAtNextEarliestTime();
     void populateScheduledOps(HeapElement& scheduledOp);
     vpux::AddressType calculateOpSize(operationIdxType opIdx);
+    void evictActiveOp(operationIdxType opIdx, mlir::Value* buffer);
+    void forceScheduleActiveOpEviction();
 
 private:
     Logger& _log;
