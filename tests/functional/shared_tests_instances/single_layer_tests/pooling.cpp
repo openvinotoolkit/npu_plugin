@@ -50,7 +50,6 @@ class KmbPoolingLayerTest : public PoolingLayerTest, virtual public LayerTestsUt
         std::vector<size_t> strides;
         std::tie(std::ignore, std::ignore, strides, std::ignore, std::ignore, std::ignore, std::ignore, std::ignore) =
                 poolParams;
-        const auto& inShapes = std::get<6>(GetParam());
         // [Track number: E#20948]
         const auto testName =
             std::string{::testing::UnitTest::GetInstance()->current_test_info()->test_case_name()};
