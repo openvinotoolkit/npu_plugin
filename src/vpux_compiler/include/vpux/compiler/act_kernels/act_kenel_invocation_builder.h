@@ -18,29 +18,52 @@
 
 namespace vpux {
 
+/**
+ * Helper builder for creation activation-shaves invocation in memory arguments
+ */
 class InvocationBuilder {
 
-    llvm::SmallVector<char,   128> _storage;         // keeps basic elements
-    llvm::SmallVector<char , 128> _arrayStorage;    // keeps actual static arrays elements
+    llvm::SmallVector<char,  128> _storage;         // keeps basic elements
+    llvm::SmallVector<char , 128> _arrayStorage;    // keeps arrays elements
 
-    // keeps offsets within _storage structure that need to be
-    // updated after _arrayStorage gets concatenated
-    // and keeps offsets to array_storage
+    // keeps offset to patchable field within _storage structure that need to be
+    // updated after _storage and _arrayStorage gets concatenated
     struct PatchPoint {
-        std::function<void(size_t)> patchCallback;
+        std::function<void(MutableArrayRef<uint8_t>, size_t)> patchCallback;
         size_t offset;
 
-        void patch(size_t patchBase) const {
-            patchCallback(patchBase + offset);
+        void patch(MutableArrayRef<uint8_t> resialStorage, size_t patchBase) const {
+            patchCallback(resialStorage, patchBase + offset);
         }
     };
-    llvm::SmallVector<PatchPoint , 128> _patchData;
+    llvm::SmallVector<PatchPoint , 128> _deferredPointers;
 
+public:
 
-    mutable llvm::SmallVector<uint8_t,   128> _finalstorage;
+    void addArg(mlir::Value & operands) {
+        // TODO: add checks for type
+        // TODO: add support for non int constants
+        auto intValue = operands.getDefiningOp()->getAttrs().begin()->second.dyn_cast_or_null<mlir::IntegerAttr>().getInt();
 
+        storeSimple(_storage, intValue);
+    }
 
-private:
+    void addArg(const mlir::OpOperand &arg) {
+        storeAsMemref(arg.get());
+    }
+
+    llvm::SmallVector<uint8_t> store() const {
+        llvm::SmallVector<uint8_t, 128> serialStorage(_storage.begin(), _storage.end());
+
+        auto patchBase = serialStorage.size();
+        serialStorage.insert(serialStorage.end(), _arrayStorage.begin(), _arrayStorage.end());
+        for (auto && field : _deferredPointers) {
+            field.patch(serialStorage, patchBase);
+        }
+        return serialStorage;
+    }
+
+protected:
 
     template <class T>
     static void storeSimple(llvm::SmallVectorImpl<char> & storage, const T& anyValue) {
@@ -55,47 +78,12 @@ private:
      */
     template <class U, class T>
     void createPatchPoint(const T& patcher) {
-        //auto offset = fieldOffset(object, patcher);
-        auto fieldPatcher = [offset = _storage.size(), this, patcher] (uint32_t updateTo) {
-            auto& base = reinterpret_cast<U&>(*(_finalstorage.begin() + offset));
+        auto fieldPatcher = [offset = _storage.size(), this, patcher] (MutableArrayRef<uint8_t> serialStorage, size_t updateTo) {
+            auto& base = reinterpret_cast<U&>(*(serialStorage.begin() + offset));
             patcher(base, updateTo);
         };
-        _patchData.push_back({fieldPatcher, _arrayStorage.size()});
+        _deferredPointers.push_back({fieldPatcher, _arrayStorage.size()});
     }
-
-public:
-    template<class T>
-    void addArg(const T & ) {
-    }
-    void addArg(mlir::Value & operands) {
-        // TODO: add checks for type
-        // TODO: add support for non int constants
-        auto intValue = operands.getDefiningOp()->getAttrs().begin()->second.dyn_cast_or_null<mlir::IntegerAttr>().getInt();
-
-        storeSimple(_storage, intValue);
-    }
-
-    void addArg(const mlir::OpOperand &arg) {
-        storeAsMemref(arg.get());
-    }
-
-    void addArg(const mlir::OpResult &result) {
-        storeAsMemref(result);
-    }
-
-    ArrayRef<uint8_t> store() const {
-        _finalstorage.resize(0);
-        _finalstorage.insert(_finalstorage.end(), _storage.begin(), _storage.end());
-        auto patchBase = _finalstorage.size();
-        _finalstorage.insert(_finalstorage.end(), _arrayStorage.begin(), _arrayStorage.end());
-        for (auto && field : _patchData) {
-            field.patch(patchBase);
-        }
-
-        return _finalstorage;
-    }
-
-protected:
 
     // memref storage - works for OpOperand and OpResult
     void storeAsMemref(const mlir::Value & value) {
