@@ -4,7 +4,7 @@
 
 #include "shared_test_classes/subgraph/multiple_outputs.hpp"
 #include "common_test_utils/test_constants.hpp"
-// #include "vpux_private_config.hpp"
+#include "common/functions.h"
 
 #include <vector>
 
@@ -25,6 +25,12 @@ class KmbMultipleoutputTest: public MultioutputTest, virtual public LayerTestsUt
       |
     output
 */
+    void SkipBeforeInfer() override {
+        // [Track number: E#22537]
+        if (getBackendName(*getCore()) == "LEVEL0") {
+            throw LayerTestsUtils::KmbSkipTestException("Level0: sporadic failures on device");
+        }
+    }
 };
 
 TEST_P(KmbMultipleoutputTest, CompareWithRefImpl) {
