@@ -122,7 +122,7 @@ ActKernelDesc vpux::VPUIP::BlobWriter::createKernelData(const CompilationUnitDes
     _actKernelsData[unitDesc.name] = newDesc.text;
 
     if (newDesc.data.size != 0) {
-        std::cout << "store following kernels names: \"" << dataName << "\"\n";
+        _log.trace("store following kernels names: {0}\n", dataName);
         _actKernelsData[StringRef(dataName)] = newDesc.data;
 
         return {_actKernelsData[unitDesc.name], _actKernelsData[StringRef(dataName)]};
@@ -148,7 +148,7 @@ vpux::VPUIP::BlobWriter::KernelDataRef vpux::VPUIP::BlobWriter::createKernelData
     auto kernelMapEntry = _actKernelsData.find(name);
     if (kernelMapEntry == _actKernelsData.end()) {
         // there is no kernelData for this name available - for now this will generate new kernelData entry using given pData
-        std::cout << "store following kernels names: \"" << name.data() << "\"\n";
+        _log.trace("store following kernels names: {0}\n", name.data());
         _actKernelsData[name] = {name.data(), buildKernelData(_impl, content), content.size()};
     }
     auto strName = _impl.CreateString(name.data());
