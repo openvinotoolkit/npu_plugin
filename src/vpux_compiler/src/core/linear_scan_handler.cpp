@@ -69,9 +69,26 @@ AddressType LinearScanHandler::getAddress(mlir::Value val) const {
     }
 
     const auto it = _valOffsets.find(val);
+    // mateusz
+    // if (it == _valOffsets.end()) {
+    //     std::cout << "Mateusz: LinearScanHandler::getAddress : Buffer was not allocated\n";
+    //     std::cout << " --------------------- \n";
+    //     val.getType().dump();
+    //     std::cout << " --------------------- \n";
+    //     return 123456;
+    // }
     VPUX_THROW_UNLESS(it != _valOffsets.end(), "Value '{0}' was not allocated", val);
 
     return it->second;
+}
+
+void LinearScanHandler::setAddress(mlir::Value val, AddressType address) {
+    const auto it = _valOffsets.find(val);
+    if (it == _valOffsets.end()) {
+        _valOffsets.insert({val, address});
+    } else {
+        it->second = address;
+    }
 }
 
 void LinearScanHandler::allocated(mlir::Value val, AddressType addr) {

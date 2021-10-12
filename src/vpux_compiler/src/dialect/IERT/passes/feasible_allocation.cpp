@@ -16,12 +16,16 @@
 #include "vpux/compiler/core/async_deps_info.hpp"
 #include "vpux/compiler/core/attributes/strides.hpp"
 #include "vpux/compiler/core/feasible_memory_scheduler.hpp"
+#include "vpux/compiler/core/feasible_memory_scheduler_spilling.hpp"
 #include "vpux/compiler/core/mem_live_range_info.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IERT/ops.hpp"
+#include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/linear_scan.hpp"
+#include "vpux/compiler/utils/rewriter.hpp"
+#include "vpux/compiler/utils/strings.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
 #include "vpux/utils/core/error.hpp"
@@ -83,7 +87,7 @@ mlir::LogicalResult AllocRewrite::matchAndRewrite(mlir::memref::AllocOp origOp, 
 
 class FeasibleAllocationPass final : public IERT::FeasibleAllocationBase<FeasibleAllocationPass> {
 public:
-    FeasibleAllocationPass(IERT::AttrCreateFunc memSpaceCb, Logger log);
+    FeasibleAllocationPass(IERT::AttrCreateFunc memSpaceCb, IERT::AttrCreateFunc secondLevelMemSpaceCb, Logger log);
 
 public:
     mlir::LogicalResult initialize(mlir::MLIRContext* ctx) final;
@@ -97,11 +101,14 @@ private:
 
 private:
     IERT::AttrCreateFunc _memSpaceCb;
+    IERT::AttrCreateFunc _secondLvlMemSpaceCb;
     mlir::Attribute _memSpace;
+    mlir::Attribute _secondLvlMemSpace;
 };
 
-FeasibleAllocationPass::FeasibleAllocationPass(IERT::AttrCreateFunc memSpaceCb, Logger log)
-        : _memSpaceCb(std::move(memSpaceCb)) {
+FeasibleAllocationPass::FeasibleAllocationPass(IERT::AttrCreateFunc memSpaceCb,
+                                               IERT::AttrCreateFunc secondLvlMemSpaceCb, Logger log)
+        : _memSpaceCb(std::move(memSpaceCb)), _secondLvlMemSpaceCb(std::move(secondLvlMemSpaceCb)) {
     Base::initLogger(log, Base::getArgumentName());
 }
 
@@ -115,6 +122,8 @@ mlir::LogicalResult FeasibleAllocationPass::initialize(mlir::MLIRContext* ctx) {
     if (_memSpace == nullptr) {
         return mlir::failure();
     }
+
+    _secondLvlMemSpace = _secondLvlMemSpaceCb(ctx, memSpaceName.getValue());
 
     return mlir::success();
 }
@@ -131,6 +140,9 @@ void FeasibleAllocationPass::updateAsyncExecuteOpPosition(
     // Update placement of AsyncExecuteOps
     mlir::Operation* prevAsyncOp = nullptr;
     for (auto& schedOp : scheduledOps) {
+        if (schedOp.opType_ != FeasibleMemoryScheduler::EOpType::ORIGINAL_OP) {
+            continue;
+        }
         mlir::Operation* asyncOp = depsInfo.getExecuteOpAtIndex(schedOp.op_);
         VPUX_THROW_UNLESS(asyncOp != nullptr, "AsyncOp not located based on index");
         if (prevAsyncOp != nullptr) {
@@ -150,11 +162,19 @@ void FeasibleAllocationPass::updateAsyncExecuteOpDependencies(
         AsyncDepsInfo& depsInfo, llvm::SmallVector<FeasibleMemoryScheduler::ScheduledOpInfo> scheduledOps) {
     // Go through all the tasks and add token dependencies between
     // all tasks with start time t to all tasks with time t+1
+    std::cout << "Mateusz: updateAsyncExecuteOpDep start\n";
     for (auto opIt = scheduledOps.begin(); opIt != scheduledOps.end(); opIt++) {
+        if (opIt->opType_ != FeasibleMemoryScheduler::EOpType::ORIGINAL_OP) {
+            continue;
+        }
+        // std::cout << " " << opIt->op_ << " to";
         for (auto nextTimeOpIt = opIt; nextTimeOpIt != scheduledOps.end(); nextTimeOpIt++) {
-            if (nextTimeOpIt->time_ == opIt->time_ + 1) {
+            if (nextTimeOpIt->opType_ != FeasibleMemoryScheduler::EOpType::ORIGINAL_OP) {
+                continue;
+            } else if (nextTimeOpIt->time_ == opIt->time_ + 1) {
                 // Insert dependency between op at time t to op at
                 // time t+1
+                // std::cout << " " << nextTimeOpIt->op_;
                 auto srcAsyncOp = depsInfo.getExecuteOpAtIndex(opIt->op_);
                 auto dstAsyncOp = depsInfo.getExecuteOpAtIndex(nextTimeOpIt->op_);
                 VPUX_THROW_UNLESS((srcAsyncOp != nullptr) && (dstAsyncOp != nullptr),
@@ -164,8 +184,10 @@ void FeasibleAllocationPass::updateAsyncExecuteOpDependencies(
                 break;
             }
         }
+        // std::cout << "\n";
     }
     depsInfo.updateTokenDependencies();
+    std::cout << "Mateusz: updateAsyncExecuteOpDep end\n";
 }
 
 void FeasibleAllocationPass::safeRunOnModule() {
@@ -189,6 +211,7 @@ void FeasibleAllocationPass::safeRunOnModule() {
     // feasible memory scheduler - list scheduler
     FeasibleMemoryScheduler scheduler(_memSpace, liveRangeInfo, depsInfo, _log, scan);
     // 1. initial schedule
+    std::cout << "Mateusz: scheduler.generateSchedule()\n";
     auto scheduledOps = scheduler.generateSchedule();
 
     // 2. optimize spills
@@ -196,7 +219,33 @@ void FeasibleAllocationPass::safeRunOnModule() {
     // 3. re-order the IR
     updateAsyncExecuteOpPosition(netFunc, depsInfo, scheduledOps);
 
+    std::cout << "\n #### schedule ops ####\n" << std::endl;
+    for (auto op : scheduledOps) {
+        std::string resourceInfo = "<none>";
+        if (op.hasActiveResource()) {
+            resourceInfo = "resource = [" + std::to_string(op.beginResource()) + " " +
+                           std::to_string(op.endResource()) +
+                           "] size = " + std::to_string((op.endResource() - op.beginResource()));
+        }
+        std::cout << "op = " << op.op_ << "\ttype = " << op.opTypeName().data() << "\ttime = " << op.time_ << "\t"
+                  << resourceInfo << std::endl;
+    }
+
     // 4. insert spill dmas
+    FeasibleMemorySchedulerSpilling spilling(netFunc, _memSpace, _secondLvlMemSpace, depsInfo, scan, _log);
+    spilling.insertSpillCopyOps(scheduledOps);
+
+    // std::cout << "\n #### schedule ops after spilling applied ####\n" << std::endl;
+    // for (auto op : scheduledOps) {
+    //     std::string resourceInfo = "<none>";
+    //     if (op.hasActiveResource()) {
+    //         resourceInfo = "resource = [" + std::to_string(op.beginResource()) + " " +
+    //                        std::to_string(op.endResource()) +
+    //                        "] size = " + std::to_string((op.endResource() - op.beginResource()));
+    //     }
+    //     std::cout << "op = " << op.op_ << "\ttype = " << op.opTypeName() << "\ttime = " << op.time_ << "\t"
+    //               << resourceInfo << std::endl;
+    // }
 
     // 5. update dependencies
     updateAsyncExecuteOpDependencies(depsInfo, scheduledOps);
@@ -227,6 +276,7 @@ void FeasibleAllocationPass::safeRunOnModule() {
 // createFeasibleAllocationPass
 //
 
-std::unique_ptr<mlir::Pass> vpux::IERT::createFeasibleAllocationPass(AttrCreateFunc memSpaceCb, Logger log) {
-    return std::make_unique<FeasibleAllocationPass>(std::move(memSpaceCb), log);
+std::unique_ptr<mlir::Pass> vpux::IERT::createFeasibleAllocationPass(AttrCreateFunc memSpaceCb,
+                                                                     AttrCreateFunc secondLvlMemSpaceCb, Logger log) {
+    return std::make_unique<FeasibleAllocationPass>(std::move(memSpaceCb), std::move(secondLvlMemSpaceCb), log);
 }

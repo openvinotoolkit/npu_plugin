@@ -232,6 +232,11 @@ def FeasibleAllocation : PassBase<"feasible-allocation", "vpux::ModulePass"> {
             "memSpaceName", "memory-space",
             "std::string", [{""}],
             "Memory space to perform allocation"
+        >,
+        Option<
+            "secondLvlMemSpaceName", "second-level-memory-space",
+            "std::string", [{""}],
+            "Second level memory space to perform spilling"
         >
     ];
 

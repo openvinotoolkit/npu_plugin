@@ -33,6 +33,7 @@ public:
     void addDependency(mlir::async::ExecuteOp from, mlir::async::ExecuteOp to);
     void optimizeDepsMap();
     void updateTokenDependencies();
+    uint32_t insertNewExecOpToDepsMap(mlir::async::ExecuteOp execOp);
     mlir::async::ExecuteOp getExecuteOpAtIndex(size_t opIdx) const;
     SmallVector<size_t> getOpDeps(size_t opIdx) const;
     SmallVector<size_t> getConsumerOps(size_t opIdx) const;

@@ -192,6 +192,24 @@ void vpux::AsyncDepsInfo::updateTokenDependencies() {
     _log = _log.unnest();
 }
 
+uint32_t vpux::AsyncDepsInfo::insertNewExecOpToDepsMap(mlir::async::ExecuteOp execOp) {
+    uint32_t newIndex = _allExecOps.size();
+    _allExecOps.push_back(execOp);
+    setIndex(execOp, newIndex);
+
+    _depsMap.resize(_allExecOps.size());
+    _consumerMap.resize(_allExecOps.size());
+    for (auto& deps : _depsMap) {
+        deps.resize(checked_cast<uint32_t>(_allExecOps.size()));
+    }
+    for (auto& cons : _consumerMap) {
+        cons.resize(checked_cast<uint32_t>(_allExecOps.size()));
+    }
+
+    addExecOp(execOp);
+    return newIndex;
+}
+
 SmallVector<size_t> vpux::AsyncDepsInfo::getOpDeps(size_t opIdx) const {
     VPUX_THROW_UNLESS(_depsMap.size() > opIdx, "Invalid index '{0}' for _depsMap", opIdx);
     SmallVector<size_t> opDeps = {};

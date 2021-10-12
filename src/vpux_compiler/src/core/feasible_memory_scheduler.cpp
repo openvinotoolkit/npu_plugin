@@ -589,6 +589,8 @@ llvm::SmallVector<FeasibleMemoryScheduler::ScheduledOpInfo> FeasibleMemorySchedu
                            "] size = " + std::to_string((op.endResource() - op.beginResource()));
         }
         _log.trace("op = '{0}'\t type = '{1}'\t time = '{2}'\t '{3}'", op.op_, op.opTypeName(), op.time_, resourceInfo);
+        std::cout << "op = " << op.op_ << "\t type = " << op.opTypeName().str() << "\t time = " << op.time_ << "\t "
+                  << resourceInfo << std::endl;
     }
     _log = _log.unnest();
     return _scheduledOps;
