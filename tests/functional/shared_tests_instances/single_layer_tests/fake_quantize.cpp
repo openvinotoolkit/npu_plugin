@@ -18,12 +18,21 @@ class KmbFakeQuantizeLayerTest : public FakeQuantizeLayerTest, virtual public La
     }
 };
 
+class KmbFakeQuantizeLayerTest_HW : public KmbFakeQuantizeLayerTest {};
+
 TEST_P(KmbFakeQuantizeLayerTest, CompareWithRefs) {
     Run();
 }
 
-TEST_P(KmbFakeQuantizeLayerTest, CompareWithRefs_MLIR) {
+TEST_P(KmbFakeQuantizeLayerTest, CompareWithRefs_MLIR_SW) {
     useCompilerMLIR();
+    setReferenceSoftwareModeMLIR();
+    Run();
+}
+
+TEST_P(KmbFakeQuantizeLayerTest_HW, CompareWithRefs_MLIR) {
+    useCompilerMLIR();
+    setReferenceHardwareModeMLIR();
     Run();
 }
 
@@ -46,9 +55,8 @@ const std::vector<std::vector<size_t>> inputShapesND = {{1, 512}};
 const std::vector<std::vector<size_t>> constShapesND = {{1}};
 
 const std::pair<std::string, std::map<std::string, std::string>> config = {};
-const std::vector<float> fqArgs = {};
-const std::vector<float> inputParams = {};
-
+const std::vector<float> fqArgs = {0, 255, 0, 255};
+const std::vector<float> inputParams = {0, 255, 1};
 
 const auto fqParams = ::testing::Combine(
     ::testing::ValuesIn(levels),
@@ -89,4 +97,48 @@ INSTANTIATE_TEST_CASE_P(smoke_FakeQuantize_ND, KmbFakeQuantizeLayerTest,
                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
                             ::testing::Values(config)),
                     KmbFakeQuantizeLayerTest::getTestCaseName);
+
+// TODO: support levels=16
+// "Can't convert 12 Bit to Byte" while working u4 precision (!quant.uniform<u4:f16, 0.5:128>)
+const std::vector<size_t> hw_levels = {255, 256};
+const auto hw_fqParams = ::testing::Combine(
+        ::testing::ValuesIn(hw_levels),
+        ::testing::ValuesIn(constShapes),
+        ::testing::Values(fqArgs),
+        ::testing::Values(inputParams)
+);
+
+const auto hw_fqParamsND = ::testing::Combine(
+        ::testing::ValuesIn(hw_levels),
+        ::testing::ValuesIn(constShapesND),
+        ::testing::Values(fqArgs),
+        ::testing::Values(inputParams)
+);
+
+INSTANTIATE_TEST_CASE_P(smoke_FakeQuantize, KmbFakeQuantizeLayerTest_HW,
+                        ::testing::Combine(
+                                hw_fqParams,
+                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::ValuesIn(inputShapes),
+                                ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+                                ::testing::Values(config)),
+                        KmbFakeQuantizeLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(smoke_FakeQuantize_ND, KmbFakeQuantizeLayerTest_HW,
+                        ::testing::Combine(
+                                hw_fqParamsND,
+                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::ValuesIn(inputShapesND),
+                                ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+                                ::testing::Values(config)),
+                        KmbFakeQuantizeLayerTest::getTestCaseName);
+
 }  // namespace
