@@ -63,8 +63,8 @@
 #include <transformations/common_optimizations/pull_transpose_through_fq.hpp>
 #include <transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp>
 #include <transformations/op_conversions/convert_divide.hpp>
-//#include <transformations/op_conversions/convert_gather_v1_to_gather_v7.hpp>
-//#include <transformations/op_conversions/convert_gather_v7_to_gather_v1.hpp>
+#include <transformations/op_conversions/convert_gather_downgrade.hpp>
+#include <transformations/op_conversions/convert_gather_upgrade.hpp>
 #include <transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp>
 #include <transformations/op_conversions/convert_minimum_to_power_and_max.hpp>
 #include <transformations/op_conversions/convert_negative.hpp>
@@ -1805,8 +1805,8 @@ void runNGraphPasses(const std::shared_ptr<ngraph::Function>& netGraph, mlir::Ti
     passConfig->disable<ngraph::pass::FakeQuantizeMulFusion>();
     passConfig->disable<ngraph::pass::PullTransposeThroughFQUp>();
 
-    // passConfig->enable<ngraph::pass::ConvertGather1ToGather7>();
-    // passConfig->disable<ngraph::pass::ConvertGather7ToGather1>();
+    passConfig->enable<ngraph::pass::ConvertGather1ToGather7>();
+    passConfig->disable<ngraph::pass::ConvertGather7ToGather1>();
 
     ngraph::pass::Manager manager(passConfig);
     manager.register_pass<ngraph::pass::InitNodeInfo>();

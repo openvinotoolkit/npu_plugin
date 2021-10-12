@@ -14,9 +14,6 @@ namespace LayerTestsDefinitions {
 class KmbGatherLayerTest: public GatherLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
 
     void SkipBeforeLoad() override {
-        if (isCompilerMLIR()) {
-            throw LayerTestsUtils::KmbSkipTestException("Not supported");
-        }
         auto inputShape = std::get<3>(GetParam());
         if (inputShape.size() != 4) {
             throw LayerTestsUtils::KmbSkipTestException("Runtime only supports 4D input shape");
