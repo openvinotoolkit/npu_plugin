@@ -477,7 +477,7 @@
 
 	{
             "name" : "resnet-50-onnx-sparse",
-            "ir" : "models/clientmodels/BDK3/_sparse/resnet-50-pytorch-sparse50/onnx/resnet50-int8-sparse-50-onnx.xml",
+            "ir" : "models/clientmodels/BDK3/_sparse/resnet-50-pytorch-sparse50/onnx/FP16-INT8/resnet-50-pytorch.xml",
             "3720": {
                 "disabled": true
             },
