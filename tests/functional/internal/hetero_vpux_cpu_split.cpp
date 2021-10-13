@@ -235,17 +235,21 @@ void HeteroPluginTest::runTest(const TestNetworkDesc& netDesc, const Device& fir
         // SKIP() << "Will be compiled and run at RUN_INFER stage";
     }
 
-    std::cout << "Reading network " << netDesc.irFileName() << std::endl;
+    std::cout << "Reading network " << netDesc.irFileName() << ", compile params: ";
+    std::map<std::string, std::string> ccfg = netDesc.compileConfig();
+    for (auto cit = ccfg.cbegin(); cit != ccfg.cend(); ++cit) {
+        std::cout << cit->first << " = " << cit->second << "; ";
+    }
+    std::cout << std::endl;
     auto network = readNetwork(netDesc, true);
 
     assignAffinities(network, firstDevice, secondDevice, splitLayer);
 
     const auto heteroDevice = "HETERO:" + std::string{firstDevice} + "," + std::string{secondDevice};
-    std::map<std::string, std::string> cfg = netDesc.compileConfig();
-    cfg[CONFIG_KEY(LOG_LEVEL)] = CONFIG_VALUE(LOG_INFO);
-//    cfg[VPUX_CONFIG_KEY(COMPILER_TYPE)] = VPUX_CONFIG_VALUE(MLIR);
-//    auto exeNet = core->LoadNetwork(network, "CPU", cfg);
-    auto exeNet = core->LoadNetwork(network, heteroDevice, cfg);
+    ccfg[CONFIG_KEY(LOG_LEVEL)] = CONFIG_VALUE(LOG_INFO);
+    ccfg[VPUX_CONFIG_KEY(COMPILER_TYPE)] = VPUX_CONFIG_VALUE(MLIR);
+//    auto exeNet = core->LoadNetwork(network, "VPUX", ccfg);
+    auto exeNet = core->LoadNetwork(network, heteroDevice, ccfg);
 
     const auto inputs = exeNet.GetInputsInfo();
     ASSERT_EQ(inputs.size(), 1);
@@ -316,12 +320,11 @@ TEST_P(HeteroPluginTest, regression) {
     std::cout << std::endl;
     std::vector<std::string> splitSuccessfully;
     for (auto&& splitNode : layers) {
-
         // fire5/concat throwOnFail: zeCommandQueueCreate result: 0x70000001
         // fire6/concat 2-3 splits
         // compiler might sigseg when network is split in arbitrary position
         if (splitNode.find("fire6/concat") == std::string::npos) {
-            //std::cout << "Skipping split after layer '" << splitNode << "'" << std::endl;
+            // std::cout << "Skipping split after layer '" << splitNode << "'" << std::endl;
             continue;
         }
 
@@ -336,7 +339,8 @@ TEST_P(HeteroPluginTest, regression) {
             runTest(TestNetworkDesc(network)
                             .setUserInputPrecision("input", Precision::U8)
                             .setUserInputLayout("input", Layout::NHWC)
-                            .setUserOutputPrecision("output", Precision::FP32),
+                            .setUserOutputPrecision("output", Precision::FP32)
+                            .setCompileConfig({{VPUX_CONFIG_KEY(COMPILER_TYPE), VPUX_CONFIG_VALUE(MLIR)}}),
                     device1, device2, splitNode, TestImageDesc(image, ImageFormat::RGB), 1, 0.1f);
             splitSuccessfully.push_back(splitNode);
         } catch (const std::exception &e) {
