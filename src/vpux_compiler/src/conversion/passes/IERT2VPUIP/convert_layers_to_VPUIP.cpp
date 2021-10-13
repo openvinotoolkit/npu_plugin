@@ -328,3 +328,4 @@ void ConvertLayers2VPUIPPass::safeRunOnFunc() {
 std::unique_ptr<mlir::Pass> vpux::createConvertLayers2VPUIPPass(Logger log) {
     return std::make_unique<ConvertLayers2VPUIPPass>(log);
 }
+
