@@ -57,9 +57,12 @@
 #include <ngraph/type/element_type.hpp>
 #include "vpux/passes/convert_MVN6_to_MVN1.hpp"
 
+#include <transformations/common_optimizations/add_fake_quantize_fusion.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/common_optimizations/convert_quantize_dequantize.hpp>
 #include <transformations/common_optimizations/fq_mul_fusion.hpp>
+#include <transformations/common_optimizations/fq_reshape_fusion.hpp>
+#include <transformations/common_optimizations/mul_fake_quantize_fusion.hpp>
 #include <transformations/common_optimizations/pull_transpose_through_fq.hpp>
 #include <transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp>
 #include <transformations/op_conversions/convert_divide.hpp>
@@ -1851,9 +1854,12 @@ void runNGraphPasses(const std::shared_ptr<ngraph::Function>& netGraph, mlir::Ti
     // The ReduceMean layer can be solved with ngraph::pass::ConvertReduceToPooling pass, but still remain Subtract
     // issue.
     passConfig->disable<ngraph::pass::MVN6Decomposition>();
-    // FakeQuantizeMulFusion and PullTransposeThroughFQUp has conflicts with PropagateFQ
+    // passes below has conflicts with PropagateFQ
     passConfig->disable<ngraph::pass::FakeQuantizeMulFusion>();
+    passConfig->disable<ngraph::pass::FakeQuantizeReshapeFusion>();
     passConfig->disable<ngraph::pass::PullTransposeThroughFQUp>();
+    passConfig->disable<ngraph::pass::AddFakeQuantizeFusion>();
+    passConfig->disable<ngraph::pass::MulFakeQuantizeFusion>();
 
     passConfig->enable<ngraph::pass::ConvertGather1ToGather7>();
     passConfig->disable<ngraph::pass::ConvertGather7ToGather1>();
