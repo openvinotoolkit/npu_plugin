@@ -20,3 +20,5 @@ add_library("no_devices_test_backend" MODULE "${CMAKE_CURRENT_SOURCE_DIR}/no_dev
 target_link_libraries("no_devices_test_backend" PRIVATE vpux_al IE::inference_engine IE::vpu_common_lib)
 target_compile_definitions("no_devices_test_backend" PRIVATE IMPLEMENT_INFERENCE_ENGINE_PLUGIN)
 enable_warnings_as_errors("no_devices_test_backend")
+
+vpux_enable_clang_format("throw_test_backend" "vpu3700_test_backend" "no_devices_test_backend")

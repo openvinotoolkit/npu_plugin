@@ -17,7 +17,7 @@
 #include <vpux_private_config.hpp>
 #include "executable_network_factory.h"
 
-#include <helper_calc_cpu_ref.h>
+#include <hddl2_helpers/helper_calc_cpu_ref.h>
 #include "comparators.h"
 #include "creators/creator_blob_nv12.h"
 #include "file_reader.h"
@@ -217,7 +217,7 @@ TEST_F(ImageWorkload_WithPreprocessing, precommit_SyncInference) {
     auto outputBlob = inferRequest.GetBlob(outputBlobName);
 
     // --- Reference Blob
-    IE::Blob::Ptr refBlob = ReferenceHelper::CalcCpuReferenceSingleOutput(modelToUse.pathToModel, nv12InputBlob, &preprocInfo);
+    IE::Blob::Ptr refBlob = ReferenceHelper::CalcCpuReferenceSingleOutput(modelToUse.pathToModel, nv12InputBlob, true, &preprocInfo);
 
     ASSERT_NO_THROW(
         Comparators::compareTopClassesUnordered(
@@ -395,7 +395,7 @@ TEST_F(ImageWorkload_SpecificCases, precommit_WithoutPreprocessingAndPreprocessi
     // ---- With preprocessing - Infer and compare result
     ASSERT_NO_THROW(inferRequest.Infer());
     outputBlob = inferRequest.GetBlob(outputBlobName);
-    refBlob = ReferenceHelper::CalcCpuReferenceSingleOutput(modelToUse.pathToModel, nv12InputBlob, &preprocInfo);
+    refBlob = ReferenceHelper::CalcCpuReferenceSingleOutput(modelToUse.pathToModel, nv12InputBlob, true, &preprocInfo);
     ASSERT_NO_THROW(
         Comparators::compareTopClassesUnordered(
                     vpux::toFP32(IE::as<IE::MemoryBlob>(outputBlob)),
@@ -426,7 +426,7 @@ TEST_F(ImageWorkload_SpecificCases, precommit_PreprocessingAndWithoutPreprocessi
     ASSERT_NO_THROW(inferRequest.Infer());
     auto outputBlobName = executableNetwork.GetOutputsInfo().begin()->first;
     auto outputBlob = inferRequest.GetBlob(outputBlobName);
-    auto refBlob = ReferenceHelper::CalcCpuReferenceSingleOutput(modelToUse.pathToModel, nv12InputBlob, &preprocInfo);
+    auto refBlob = ReferenceHelper::CalcCpuReferenceSingleOutput(modelToUse.pathToModel, nv12InputBlob, true, &preprocInfo);
     ASSERT_NO_THROW(
         Comparators::compareTopClassesUnordered(
                     vpux::toFP32(IE::as<IE::MemoryBlob>(outputBlob)),

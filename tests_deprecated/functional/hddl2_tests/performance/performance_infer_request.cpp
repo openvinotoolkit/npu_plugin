@@ -14,17 +14,16 @@
 #include <creators/creator_blob_nv12.h>
 #include <gtest/gtest.h>
 #include <hddl2_load_network.h>
-#include <helper_remote_context.h>
 #include <ie_compound_blob.h>
 #include <chrono>
 #include <fstream>
 #include <ie_core.hpp>
 #include <tests_common.hpp>
 #include "executable_network_factory.h"
-#include <helper_remote_context.h>
 #include "hddl2_helpers/helper_remote_memory.h"
 #include "hddl2_helpers/helper_tensor_description.h"
 #include "hddl2_helpers/helper_device_name.h"
+#include "hddl2_helpers/helper_remote_context.h"
 
 namespace IE = InferenceEngine;
 

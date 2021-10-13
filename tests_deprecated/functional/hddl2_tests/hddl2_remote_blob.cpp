@@ -16,8 +16,8 @@
 #include "hddl2_helpers/helper_remote_blob.h"
 #include "hddl2_helpers/helper_remote_memory.h"
 #include "hddl2_helpers/helper_tensor_description.h"
+#include "hddl2_helpers/helper_remote_context.h"
 #include "vpux/vpux_plugin_params.hpp"
-#include "helper_remote_context.h"
 
 namespace IE = InferenceEngine;
 

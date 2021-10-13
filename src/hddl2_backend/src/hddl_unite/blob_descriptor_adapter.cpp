@@ -131,17 +131,6 @@ static HddlUnite::Inference::FourCC convertColorFormat(const IE::ColorFormat col
     return format->second;
 }
 
-static size_t getSizeFromTensor(const IE::TensorDesc& tensorDesc) {
-    if (tensorDesc.getLayout() == IE::Layout::SCALAR) {
-        return 1;
-    }
-    const auto& dims = tensorDesc.getDims();
-    const auto elementSize = tensorDesc.getPrecision().size();
-    const size_t size =
-            elementSize * std::accumulate(std::begin(dims), std::end(dims), (size_t)1, std::multiplies<size_t>());
-    return size;
-}
-
 static const IE::TensorDesc& getSuitableTensorDesc(const IE::Blob::CPtr& blob) {
     checkBlobIsValid(blob);
     if (!isNV12AnyBlob(blob)) {
@@ -164,7 +153,7 @@ static size_t getSizeFromBlob(const IE::Blob::CPtr& blob) {
         auto&& remoteMemoryDesc = getRemoteMemoryFromParams(remoteBlob->getParams())->getMemoryDesc();
         dataSize = remoteMemoryDesc.getDataSize();
     } else {
-        dataSize = getSizeFromTensor(getSuitableTensorDesc(blob));
+        dataSize = getMemorySize(getSuitableTensorDesc(blob)).count();
         if (isLocalNV12Blob(blob)) {
             dataSize = dataSize * 3 / 2;
         }
@@ -177,7 +166,7 @@ static size_t getSizeFromBlob(const IE::Blob::CPtr& blob) {
 AllocationInfo::AllocationInfo(const BlobDescType typeOfBlob, const IE::DataPtr& blobDesc,
                                const IE::ColorFormat& graphColorFormat, const bool isInput)
         : precision(Unite::convertFromIEPrecision(blobDesc->getPrecision())),
-          dataSize(getSizeFromTensor(blobDesc->getTensorDesc())),
+          dataSize(getMemorySize(blobDesc->getTensorDesc()).count()),
           isRemoteMemory(typeOfBlob == BlobDescType::VideoWorkload),
           // It should be not possible to set local blob in VideoWorkload case
           isNeedAllocation(!(typeOfBlob == BlobDescType::VideoWorkload && isInput)),
@@ -213,7 +202,7 @@ static void validateAllocatorInfoFields(const AllocationInfo& allocationInfo) {
 //------------------------------------------------------------------------------
 NNInputInfo::NNInputInfo(const BlobDescType typeOfBlob, const IE::DataPtr& blobDesc)
         : precision(Unite::convertFromIEPrecision(blobDesc->getPrecision())),
-          dataSize(getSizeFromTensor(blobDesc->getTensorDesc())),
+          dataSize(getMemorySize(blobDesc->getTensorDesc()).count()),
           isRemoteMemory(typeOfBlob == BlobDescType::VideoWorkload),
           // Not possible create intermediate buffer from plugin side
           isNeedAllocation(true),

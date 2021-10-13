@@ -91,6 +91,8 @@ public:
 
     /** @brief Wrap remote memory. Backend should get all required data from paramMap */
     virtual void* wrapRemoteMemory(const InferenceEngine::ParamMap& paramMap) noexcept;
+    // TODO remove these methods
+    // [Track number: E#23679]
     // TODO: need update methods to remove Kmb from parameters
     /** @deprecated These functions below should not be used */
     virtual void* wrapRemoteMemoryHandle(const int& remoteMemoryFd, const size_t size, void* memHandle) noexcept = 0;
