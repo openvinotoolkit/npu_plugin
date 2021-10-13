@@ -311,28 +311,30 @@ void placementOfOps(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
                 {
                     const auto outputShape = opIt->getOutputTensor(0)->getShape();
                     auto bias = dm.getTensor(opIt->get<std::string>("bias"));
-                    // hack
-                    std::vector<double> outputScale = opIt->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams").getScale();
-                    outputScale = extendToK(outputShape[mv::IO_CHANNEL_DIMENSION], outputScale, opIt->getOutputTensor(0)->getName());
+                    if(bias->getDType() != mv::DType("Float16")){
+                        // hack
+                        std::vector<double> outputScale = opIt->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams").getScale();
+                        outputScale = extendToK(outputShape[mv::IO_CHANNEL_DIMENSION], outputScale, opIt->getOutputTensor(0)->getName());
 
-                    auto biasScale = bias->getQuantParams().getScale();
-                    std::vector<int64_t> biasData;
-                    for (size_t k = 0; k < outputShape[mv::IO_CHANNEL_DIMENSION]; k++)
-                    {
-                        double scale = biasScale[k];
-                        if (opIt->hasAttr("biasOverflow") && opIt->get<bool>("biasOverflow")) {
-                            scale *= outputScale[k];
+                        auto biasScale = bias->getQuantParams().getScale();
+                        std::vector<int64_t> biasData;
+                        for (size_t k = 0; k < outputShape[mv::IO_CHANNEL_DIMENSION]; k++)
+                        {
+                            double scale = biasScale[k];
+                            if (opIt->hasAttr("biasOverflow") && opIt->get<bool>("biasOverflow")) {
+                                scale *= outputScale[k];
+                            }
+                            const double realBias = ((int64_t) bias->at(k)) * scale;
+                            const int64_t realBiasFp16 = mv::fp32_to_fp16(realBias);
+                            biasData.push_back(realBiasFp16);
                         }
-                        const double realBias = ((int64_t) bias->at(k)) * scale;
-                        const int64_t realBiasFp16 = mv::fp32_to_fp16(realBias);
-                        biasData.push_back(realBiasFp16);
+                        const auto floatBiasName = mv::createBiasName(opIt->getName() + "FP16_bias");
+                        const auto floatBias = dm.defineTensor(mv::Tensor(floatBiasName, bias->getShape(),
+                                                            mv::DType("Float16"), bias->getOrder(), biasData, {{0},{1},{},{}}));
+                        om.eraseAttr(opIt, "bias");
+                        om.addAttr(opIt, "bias", floatBiasName);
+                        bias->setDType(mv::DType("Float16"));
                     }
-                    const auto floatBiasName = mv::createBiasName(opIt->getName() + "FP16_bias");
-                    const auto floatBias = dm.defineTensor(mv::Tensor(floatBiasName, bias->getShape(),
-                                                           mv::DType("Float16"), bias->getOrder(), biasData, {{0},{1},{},{}}));
-                    om.eraseAttr(opIt, "bias");
-                    om.addAttr(opIt, "bias", floatBiasName);
-                    bias->setDType(mv::DType("Float16"));
                 }
                 om.removeOp(om.getSourceOp(weightsTensor));
                 opIt->setInputTensor(dequantFP16Weights, 1, false);
