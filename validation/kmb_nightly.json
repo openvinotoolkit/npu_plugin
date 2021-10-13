@@ -475,6 +475,37 @@
             }
         },
 
+	{
+            "name" : "resnet-50-onnx-sparse",
+            "ir" : "models/clientmodels/BDK3/_sparse/resnet-50-pytorch-sparse50/onnx/resnet50-int8-sparse-50-onnx.xml",
+            "3720": {
+                "disabled": true
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "224x224"
+            },
+            "AccuracyCheck" : {
+                "config": "resnet-50_v10.yml"
+            },
+            "NetTest": {
+                "inputs" : [["224x224/husky.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.7"
+                ]
+            },
+            "category" : "MLIR",
+            "CI-options" : {
+                "blob_name" : "resnet-50-onnx-sparse"
+            }
+        },
+
         {
             "name" : "por_onnx_FP16-INT8_resnet-50-pytorch",
             "ir" : "por/resnet-50-pytorch/onnx/FP16-INT8/resnet-50-pytorch.xml",
