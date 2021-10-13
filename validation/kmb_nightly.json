@@ -2602,6 +2602,9 @@
                 "VPUX_EXECUTOR_STREAMS":"1",
                 "VPUX_COMPILER_TYPE": "MLIR"
             },
+            "Compile" : {
+                "input_precision" : "FP32"
+            },
             "3720": {
                 "disabled" : true
             },
@@ -2618,7 +2621,6 @@
                 "disabled" : true
             },
             "AccuracyCheck" : {
-                "disabled" : true,
                 "config": "deblur_aa.yml",
                 "subsample_size": 10
             },
