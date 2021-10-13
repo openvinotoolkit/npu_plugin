@@ -19,6 +19,7 @@ This pass inlines 'async.execute' body to parent Block and replaces '!async.toke
 VPUIP virtual barriers.
 ### `-convert-declarations-to-VPUIP`: Convert declarations (constants and memory buffers) to VPUIP Dialect
 ### `-convert-layers-to-VPUIP`: Convert Layers Operations to VPUIP Dialect (UPA and DMA tasks)
+### `-convert-sw-layers-to-VPUIP`: Convert Software Layers Operations to VPUIP SW_kernel
 ### `-convert-to-nce-ops`: Convert to NCE2 ops
 Convert ops which can be executed on NCE to explicit NCE ops.
 ### `-convert-view-ops-to-VPUIP`: Convert view-like Operations to VPUIP Dialect
