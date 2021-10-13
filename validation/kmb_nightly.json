@@ -4490,6 +4490,32 @@
                 "blob_name" : "bdk_edsr3",
                 "special" : true
             }
+        },
+
+        {
+            "name" : "BDK3_caffe2_FP16-INT8_modnet_custom",
+            "ir" : "models/clientmodels/BDK3/modnet_custom/onnx/FP16-INT8/modnet_custom.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "512x512"
+            },
+            "NetTest-CalcRef" : {
+                "disabled" : true
+            },
+            "NetTest-Validate": {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "config": "modnet_custom-onnx.yml",
+                "subsample_size": 50
+            },
+            "category" : "MCM/dKMB/weekly_private",
+            "CI-options" : {
+                "blob_name" : "bdk3_modnet_custom",
+                "special" : true
+            }
         }
     ]
 }
