@@ -1,5 +1,5 @@
 //
-// Copyright 2019 Intel Corporation.
+// Copyright 2019-2021 Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -22,12 +22,12 @@
 // TODO Remove this header after removing HDDL2 deprecated parameters in future releases
 #include "hddl2/hddl2_params.hpp"
 #include "vpux/vpux_plugin_params.hpp"
-#include "helper_ie_core.h"
+#include <ie_core.hpp>
 
 //------------------------------------------------------------------------------
 //      class Remote_Context_Helper
 //------------------------------------------------------------------------------
-class Remote_Context_Helper: public IE_Core_Helper {
+class Remote_Context_Helper {
 public:
     Remote_Context_Helper();
 
@@ -38,12 +38,15 @@ public:
 
 protected:
     WorkloadContext_Helper _workloadContext;
+    InferenceEngine::Core ie;
+    std::string pluginName;
 };
 
 //------------------------------------------------------------------------------
 //      class Remote_Context_Helper Implementation
 //------------------------------------------------------------------------------
 inline Remote_Context_Helper::Remote_Context_Helper() {
+    pluginName = std::getenv("IE_KMB_TESTS_DEVICE_NAME") != nullptr ? std::getenv("IE_KMB_TESTS_DEVICE_NAME") : "VPUX";
     auto params = wrapWorkloadIdToMap(_workloadContext.getWorkloadId());
     remoteContextPtr = ie.CreateContext(pluginName, params);
 }

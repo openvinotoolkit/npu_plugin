@@ -15,8 +15,8 @@
 #include <hddl2_helpers/helper_remote_blob.h>
 #include <hddl2_helpers/helper_remote_memory.h>
 #include <hddl2_helpers/helper_workload_context.h>
-#include <helper_calc_cpu_ref.h>
-#include <helper_remote_context.h>
+#include <hddl2_helpers/helper_calc_cpu_ref.h>
+#include <hddl2_helpers/helper_remote_context.h>
 #include <yolo_helpers.hpp>
 
 #include <fstream>

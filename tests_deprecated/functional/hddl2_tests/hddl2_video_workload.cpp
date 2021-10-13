@@ -17,7 +17,7 @@
 #include <fstream>
 
 #include <creators/creator_blob_nv12.h>
-#include <helper_calc_cpu_ref.h>
+#include <hddl2_helpers/helper_calc_cpu_ref.h>
 #include <helper_ie_core.h>
 #include <ie_compound_blob.h>
 #include <ie_core.hpp>
@@ -27,7 +27,7 @@
 #include "gtest/gtest.h"
 #include "hddl2_helpers/helper_tensor_description.h"
 #include "hddl2_helpers/helper_remote_memory.h"
-#include <helper_remote_context.h>
+#include "hddl2_helpers/helper_remote_context.h"
 // [Track number: E#12122]
 // TODO Remove this header after removing HDDL2 deprecated parameters in future releases
 #include "hddl2/hddl2_params.hpp"
@@ -305,7 +305,7 @@ TEST_F(VideoWorkload_WithPreprocessing, precommit_onOneRemoteFrame) {
     auto outputBlob = inferRequest.GetBlob(outputBlobName);
 
     // --- Reference Blob
-    IE::Blob::Ptr refBlob = ReferenceHelper::CalcCpuReferenceSingleOutput(modelToUse.pathToModel, inputNV12Blob, &preprocInfo);
+    IE::Blob::Ptr refBlob = ReferenceHelper::CalcCpuReferenceSingleOutput(modelToUse.pathToModel, inputNV12Blob, true, &preprocInfo);
 
     ASSERT_NO_THROW(Comparators::compareTopClassesUnordered(
                         vpux::toFP32(IE::as<IE::MemoryBlob>(outputBlob)),
@@ -389,7 +389,7 @@ TEST_F(VideoWorkload_WithPreprocessing, precommit_onOneRemoteFrameROI) {
     auto outputBlob = inferRequest.GetBlob(outputBlobName);
 
     // --- Reference Blob
-    IE::Blob::Ptr refBlob = ReferenceHelper::CalcCpuReferenceSingleOutput(modelToUse.pathToModel, inputRefBlob, &preprocInfo);
+    IE::Blob::Ptr refBlob = ReferenceHelper::CalcCpuReferenceSingleOutput(modelToUse.pathToModel, inputRefBlob, true, &preprocInfo);
 
     ASSERT_NO_THROW(Comparators::compareTopClassesUnordered(
                         vpux::toFP32(IE::as<IE::MemoryBlob>(outputBlob)),
@@ -515,7 +515,7 @@ TEST_F(VideoWorkload_WithPreprocessing, precommit_onOneRemoteFrameWithStrides) {
     auto outputBlob = inferRequest.GetBlob(outputBlobName);
 
     // --- Reference blob
-    IE::Blob::Ptr refBlob = ReferenceHelper::CalcCpuReferenceSingleOutput(modelToUse.pathToModel, inputRefBlob,  &preprocInfo);
+    IE::Blob::Ptr refBlob = ReferenceHelper::CalcCpuReferenceSingleOutput(modelToUse.pathToModel, inputRefBlob, true, &preprocInfo);
 
     // --- Compare with reference
     ASSERT_TRUE(outputBlob->byteSize() == refBlob->byteSize());

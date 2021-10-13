@@ -5,6 +5,12 @@
 
 set(TARGET_NAME vpuxFuncTests)
 
+if(ENABLE_HDDL2_TESTS)
+    set(EXCLUDED_HDDL2_DIR "")
+else()
+    set(EXCLUDED_HDDL2_DIR "${CMAKE_CURRENT_SOURCE_DIR}/plugin_tests/remote_blobs")
+endif()
+
 addIeTargetTest(
     NAME ${TARGET_NAME}
     ROOT ${CMAKE_CURRENT_SOURCE_DIR}
@@ -20,6 +26,8 @@ addIeTargetTest(
         "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/src/vpual_backend"
         "${CMAKE_CURRENT_SOURCE_DIR}/internal"
         "${CMAKE_CURRENT_SOURCE_DIR}/shared_test_classes/include"
+    EXCLUDED_SOURCE_PATHS
+        "${EXCLUDED_HDDL2_DIR}"
     DEPENDENCIES
         VPUXPlugin
     LINK_LIBRARIES
