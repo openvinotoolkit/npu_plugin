@@ -829,7 +829,9 @@ class Feasible_Schedule_Generator {
 
     while (itr != itr_end) {
       const_op_ptr_t op_ptr = &(*itr);
+      std::cout << "Operation is " << traits::operation_name(*op_ptr) << std::endl;
       if (in_degree_.find(op_ptr) == in_degree_.end()) {
+        std::cout << "Operation is " << traits::operation_name(*op_ptr) << " is NOT in the indegree table - adding to candiate set" << std::endl;
         add_to_candidate_set(op_ptr);
       }
       ++itr;
@@ -922,6 +924,9 @@ class Feasible_Schedule_Generator {
     const_operation_iterator_t itr = traits::operations_begin(*input_ptr_);
     const_operation_iterator_t itr_end = traits::operations_end(*input_ptr_);
 
+    std::cout << "The input is " << traits::operation_name(*itr) <<  std::endl;
+    std::cout << "The output is " << traits::operation_name(*itr_end) <<  std::endl;
+
     // compute the in-degree of every node //
     while (itr != itr_end) {
       const_operation_iterator_t jtr = traits::outgoing_operations_begin(
@@ -934,12 +939,17 @@ class Feasible_Schedule_Generator {
         typename operation_in_degree_t::iterator deg_itr =
             in_degree.find(op_ptr);
         if (deg_itr == in_degree.end()) {
+          std::cout << "Adding " << traits::operation_name(*op_ptr) << " to indegree " << std::endl;
           deg_itr = (in_degree.insert(std::make_pair(op_ptr, 0))).first;
         }
         deg_itr->second++;
         ++jtr;
       }
       ++itr;
+    }
+     std::cout << "Printing in-degree table " << std::endl;
+     for (auto const &pair: in_degree) {
+        std::cout << "{" << traits::operation_name(*(pair.first)) << ": " << pair.second << "}\n";
     }
 
   }
