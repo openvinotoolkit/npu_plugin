@@ -1,4 +1,4 @@
-// RUN: vpux-opt --split-input-file --adjust-layouts %s | FileCheck %s
+// RUN: vpux-opt --split-input-file --adjust-layouts --canonicalize %s | FileCheck %s
 
 #NHCW = affine_map<(d0, d1, d2, d3) -> (d0, d2, d1, d3)>
 
@@ -104,6 +104,97 @@ func @main(%arg0: tensor<1x16x30x30xf16>) -> tensor<1x16x15x13xf16> {
     // CHECK-SAME:      tensor<1x16x30x30xf16, {order = #NHWC}> -> tensor<1x16x15x13xf16, {order = #NHWC}>
     // CHECK:       [[VAR2:%.+]] = IE.Reorder([[VAR1]]) {dstOrder = #NCHW} : tensor<1x16x15x13xf16, {order = #NHWC}> -> tensor<1x16x15x13xf16>
     // CHECK:       return [[VAR2]] : tensor<1x16x15x13xf16>
+}
+
+}
+
+// -----
+
+// CHECK-LABEL: @HwOpSameInputs
+module @HwOpSameInputs attributes {VPUIP.arch = "KMB", VPUIP.compilationMode = "ReferenceHW"} {
+
+IERT.RunTimeResources
+    availableMemory :  {
+        MemoryResource 201326592 bytes of "DDR" {VPUIP.bandwidth = 8, VPUIP.derateFactor = 6.000000e-01}
+        MemoryResource 917504 bytes of "CMX_NN" {VPUIP.bandwidth = 32, VPUIP.derateFactor = 1.000000e+00}
+    }
+    usedMemory : {
+    }
+    executors : {
+    }
+
+IE.CNNNetwork
+    entryPoint : @main
+    inputsInfo : {
+        DataInfo "data" : tensor<1x16x30x25xf16>
+    }
+    outputsInfo : {
+        DataInfo "prob" : tensor<1x16x30x25xf16>
+    }
+
+// CHECK-LABEL: @main
+func @main(%arg0: tensor<1x16x30x25xf16>) -> tensor<1x16x30x25xf16> {
+    %0 = IE.And(%arg0, %arg0) {auto_broadcast = "NUMPY"} : tensor<1x16x30x25xf16>, tensor<1x16x30x25xf16> -> tensor<1x16x30x25xf16>
+    %1 = IE.And(%0, %arg0) {auto_broadcast = "NUMPY"} : tensor<1x16x30x25xf16>, tensor<1x16x30x25xf16> -> tensor<1x16x30x25xf16>
+    return %1 : tensor<1x16x30x25xf16>
+
+    // CHECK:    [[VAR0:%.+]] = IE.Reorder(%arg0) {dstOrder = #NHWC} : tensor<1x16x30x25xf16> -> tensor<1x16x30x25xf16, {order = #NHWC}>
+
+    // CHECK:    [[VAR1:%.+]] = IE.And([[VAR0]], [[VAR0]]) {auto_broadcast = "NUMPY"} :
+    // CHECK-SAME:     tensor<1x16x30x25xf16, {order = #NHWC}>, tensor<1x16x30x25xf16, {order = #NHWC}> -> tensor<1x16x30x25xf16, {order = #NHWC}>
+
+    // CHECK:    [[VAR2:%.+]] = IE.And([[VAR1]], [[VAR0]]) {auto_broadcast = "NUMPY"} :
+    // CHECK-SAME:     tensor<1x16x30x25xf16, {order = #NHWC}>, tensor<1x16x30x25xf16, {order = #NHWC}> -> tensor<1x16x30x25xf16, {order = #NHWC}>
+
+    // CHECK:    [[VAR3:%.+]] = IE.Reorder([[VAR2]]) {dstOrder = #NCHW} : tensor<1x16x30x25xf16, {order = #NHWC}> -> tensor<1x16x30x25xf16>
+    // CHECK:    return [[VAR3]] : tensor<1x16x30x25xf16>
+}
+
+}
+
+// -----
+
+#NHCW = affine_map<(d0, d1, d2, d3) -> (d0, d2, d1, d3)>
+
+// CHECK-LABEL: @HwOpDifferentDstOrder
+module @HwOpDifferentDstOrder attributes {VPUIP.arch = "KMB", VPUIP.compilationMode = "ReferenceHW"} {
+
+IERT.RunTimeResources
+    availableMemory :  {
+        MemoryResource 201326592 bytes of "DDR" {VPUIP.bandwidth = 8, VPUIP.derateFactor = 6.000000e-01}
+        MemoryResource 917504 bytes of "CMX_NN" {VPUIP.bandwidth = 32, VPUIP.derateFactor = 1.000000e+00}
+    }
+    usedMemory : {
+    }
+    executors : {
+    }
+
+IE.CNNNetwork
+    entryPoint : @main
+    inputsInfo : {
+        DataInfo "data" : tensor<1x16x30x25xf16, {order = #NHCW}>
+    }
+    outputsInfo : {
+        DataInfo "prob1" : tensor<1x16x30x25xf16, {order = #NHCW}>
+        DataInfo "prob2" : tensor<1x16x30x25xf16, {order = #NHCW}>
+    }
+
+// CHECK-LABEL: @main
+func @main(%arg0: tensor<1x16x30x25xf16, {order = #NHCW}>) -> (tensor<1x16x30x25xf16, {order = #NHCW}>, tensor<1x16x30x25xf16, {order = #NHCW}>) {
+    %0 = IE.And(%arg0, %arg0) {auto_broadcast = "NUMPY"} : tensor<1x16x30x25xf16, {order = #NHCW}>, tensor<1x16x30x25xf16, {order = #NHCW}> -> tensor<1x16x30x25xf16, {order = #NHCW}>
+    %1 = IE.GRN(%arg0) {bias = 1.0} : tensor<1x16x30x25xf16, {order = #NHCW}> -> tensor<1x16x30x25xf16, {order = #NHCW}>
+    return %0, %1 : tensor<1x16x30x25xf16, {order = #NHCW}>, tensor<1x16x30x25xf16, {order = #NHCW}>
+
+    // CHECK:    [[VAR0:%.+]] = IE.Reorder(%arg0) {dstOrder = #NHWC} : tensor<1x16x30x25xf16, {order = #NHCW}> -> tensor<1x16x30x25xf16, {order = #NHWC}>
+    // CHECK:    [[VAR1:%.+]] = IE.And([[VAR0]], [[VAR0]]) {auto_broadcast = "NUMPY"} :
+    // CHECK-SAME:     tensor<1x16x30x25xf16, {order = #NHWC}>, tensor<1x16x30x25xf16, {order = #NHWC}> -> tensor<1x16x30x25xf16, {order = #NHWC}>
+    // CHECK:    [[VAR2:%.+]] = IE.Reorder([[VAR1]]) {dstOrder = #NHCW} : tensor<1x16x30x25xf16, {order = #NHWC}> -> tensor<1x16x30x25xf16, {order = #NHCW}>
+
+    // CHECK:    [[VAR3:%.+]] = IE.Reorder(%arg0) {dstOrder = #NCHW} : tensor<1x16x30x25xf16, {order = #NHCW}> -> tensor<1x16x30x25xf16>
+    // CHECK:    [[VAR4:%.+]] = IE.GRN([[VAR3]]) {bias = 1.000000e+00 : f64} : tensor<1x16x30x25xf16> -> tensor<1x16x30x25xf16>
+    // CHECK:    [[VAR5:%.+]] = IE.Reorder([[VAR4]]) {dstOrder = #NHCW} : tensor<1x16x30x25xf16> -> tensor<1x16x30x25xf16, {order = #NHCW}>
+
+    // CHECK:    return [[VAR2]], [[VAR5]] : tensor<1x16x30x25xf16, {order = #NHCW}>, tensor<1x16x30x25xf16, {order = #NHCW}>
 }
 
 }
