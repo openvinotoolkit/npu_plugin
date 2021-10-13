@@ -47,7 +47,7 @@ public:
     }
 };
 
-} // namespace vpux
+}  // namespace vpux
 
 INFERENCE_PLUGIN_API(void)
 CreateVPUXEngineBackend(std::shared_ptr<vpux::IEngineBackend>& backend) {

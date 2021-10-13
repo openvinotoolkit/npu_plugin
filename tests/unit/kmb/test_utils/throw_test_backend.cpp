@@ -18,7 +18,8 @@
 namespace vpux {
 
 /**
- * @brief This is a class which emulates behavior of a backend which throws exceptions. Provided only for unit tests purposes.
+ * @brief This is a class which emulates behavior of a backend which throws exceptions. Provided only for unit tests
+ * purposes.
  */
 class ThrowTestBackend final : public vpux::IEngineBackend {
 public:
@@ -55,7 +56,7 @@ public:
     }
 };
 
-} // namespace vpux
+}  // namespace vpux
 
 INFERENCE_PLUGIN_API(void)
 CreateVPUXEngineBackend(std::shared_ptr<vpux::IEngineBackend>& backend) {

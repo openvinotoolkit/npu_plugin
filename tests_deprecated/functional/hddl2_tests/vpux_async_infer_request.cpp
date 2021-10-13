@@ -22,7 +22,7 @@
 #include "cases/core_api.h"
 #include "comparators.h"
 #include "file_reader.h"
-#include <helper_calc_cpu_ref.h>
+#include <hddl2_helpers/helper_calc_cpu_ref.h>
 #include <tests_common.hpp>
 #include "executable_network_factory.h"
 #include "models/models_constant.h"
@@ -247,7 +247,7 @@ TEST_F(AsyncInferRequest_DifferentInput, precommit_correctResultShuffled_NoPrepr
             requests.at(i).SetBlob(inputBlobName, nv12InputBlob, preprocInfo);
 
             if (refNV12Blob == nullptr) {
-                refNV12Blob = ReferenceHelper::CalcCpuReferenceSingleOutput(modelToUse.pathToModel, nv12InputBlob, &preprocInfo);
+                refNV12Blob = ReferenceHelper::CalcCpuReferenceSingleOutput(modelToUse.pathToModel, nv12InputBlob, true, &preprocInfo);
             }
         } else {
             auto inputBlob = loadCatImage();

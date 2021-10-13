@@ -173,7 +173,7 @@ TEST_F(HDDL2_RemoteBlob_UnitTests, ROIBlobOutOfBoundsThrow) {
 // These blobs use common data from parent blob
 // Every ROI blob has its own InferenceEngine::ROI data which keep information about ROI frame geometry (offset from parent and sizes)
 // When we are using cascade ROI, ROI offsets are calculated according to the superposition principle
-TEST_F(HDDL2_RemoteBlob_UnitTests, DISABLED_CascadeROIBlobCorrect) {
+TEST_F(HDDL2_RemoteBlob_UnitTests, CascadeROIBlobCorrect) {
     SKIP_IF_NO_DEVICE();
     IE::TensorDesc expectedTensorDesc = {tensorDesc.getPrecision(), tensorDesc.getDims(), IE::Layout::NHWC};
     IE::RemoteBlob::Ptr remoteBlobPtr = remoteContextPtr->CreateBlob(expectedTensorDesc, blobParamMap);
@@ -195,7 +195,7 @@ TEST_F(HDDL2_RemoteBlob_UnitTests, DISABLED_CascadeROIBlobCorrect) {
     const auto origH = tensorDesc.getDims()[2];
     {
         // ROI2 geometry should be {0 + 0, 1 + 1, origW, origH - 2}
-        // We are using NWHC layout for simply checking ROI-in-ROI blob - it has common part of data
+        // We are using NHWC layout for simply checking ROI-in-ROI blob - it has common part of data
         // with parent (fullFrame) blob from the begin with some offset to the end
         IE::ROI roi{0, 0, 1, origW, origH - 1};
         IE::ROI roi2{0, 0, 1, origW, origH - 2};
@@ -237,7 +237,6 @@ TEST_F(HDDL2_RemoteBlob_UnitTests, DISABLED_CascadeROIBlobCorrect) {
     }
 
     ASSERT_TRUE(checkFullFrameData == fullFrameData);
-    ASSERT_TRUE(remoteBlobPtr->deallocate());
 }
 
 //------------------------------------------------------------------------------
