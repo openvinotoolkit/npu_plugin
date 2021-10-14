@@ -75,7 +75,7 @@ mlir::Value alignChannelMajorWeightsTensor(mlir::OpBuilder& builder, mlir::Locat
     }
 
     auto weightsConst = origFilter.getDefiningOp<Const::DeclareOp>();
-    VPUX_THROW_UNLESS(weightsConst != nullptr, "Grouped convolution does not provide constant weights");
+    VPUX_THROW_UNLESS(weightsConst != nullptr, "Channel Major convolution does not provide constant weights");
 
     const int64_t alignment = channelMajorConvAlignment - remainder;
     auto weightsContentAttr = weightsConst.contentAttr();
@@ -95,8 +95,9 @@ mlir::Value alignChannelMajorWeightsTensor(mlir::OpBuilder& builder, mlir::Locat
     return alignedWeightsOp.output();
 }
 
-bool isChannelMajorCompatibaleOperation(DimsOrder inDimsOrder, int64_t inputChannels, int64_t inputTensorWidth) {
-    return ((inDimsOrder == DimsOrder::NCHW) && (inputChannels == 3) && (inputTensorWidth % 16 == 0));
+bool isChannelMajorCompatibleOperation(DimsOrder inDimsOrder, int64_t inputChannels, int64_t inputTensorWidth) {
+    const int64_t nceChannelMajorConvRequiredWidthAlignment = 16;
+    return ((inDimsOrder == DimsOrder::NCHW) && (inputChannels == 3) && (inputTensorWidth % nceChannelMajorConvRequiredWidthAlignment == 0));
 }
 
 }  // namespace VPUIP
