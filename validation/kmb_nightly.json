@@ -3517,6 +3517,43 @@
 
 
         {
+            "name" : "ea_caffe_FP16-INT8_openpose-pose",
+            "ir" : "ea/openpose-pose/caffe/FP16-INT8/openpose-pose.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2",
+                "VPUX_INFERENCE_TIMEOUT": "100000"
+            },
+            "Compile" : {
+                "input_precision" : "U8",
+                "output_precision" : "FP32"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "368x368"
+            },
+            "NetTest": {
+                "inputs" : [["368x368/test.jpg"]],
+                "params" : [
+                    "--mode", "raw",
+                    "--raw_tolerance", "1000"
+                ]
+            },
+            "AccuracyCheck" : {
+                "config": "openpose-pose-caffe.yml",
+                "subsample_size": 50
+            },
+            "category" : "MLIR/dKMB",
+            "CI-options" : {
+                "blob_name" : "openpose-pose_cf"
+            }
+        },
+
+
+        {
             "name" : "stereo_U8_640x360",
             "ir" : "Stereo/Stereo_640x360.xml",
             "category" : "MCM",
