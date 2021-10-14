@@ -258,7 +258,9 @@ mlir::LogicalResult EltwiseRewriter<ConcreteOp>::matchAndRewrite(ConcreteOp orig
 
     const auto opCreator = [&](mlir::Value expandedInput1, int64_t outChanPadEnd) -> mlir::Operation* {
         mlir::Value expandedInput2;
-        if (outChanPadEnd == 0) {
+        if (origOp.input1() == origOp.input2()) {
+            expandedInput2 = expandedInput1;
+        } else if (outChanPadEnd == 0) {
             expandedInput2 = origOp.input2();
         } else {
             _log.trace("Expand second input tensor");

@@ -438,7 +438,9 @@ mlir::LogicalResult GenericEltwiseConverter<ConcreteOp>::matchAndRewrite(Concret
     //
 
     auto firstInputDPU = prepareTensorForDPU(rewriter, origOp->getLoc(), origOp.input1());
-    auto secondInputDPU = prepareTensorForDPU(rewriter, origOp->getLoc(), origOp.input2());
+    auto secondInputDPU = origOp.input1() == origOp.input2()
+                                  ? firstInputDPU
+                                  : prepareTensorForDPU(rewriter, origOp->getLoc(), origOp.input2());
 
     //
     // Prepare output buffer for DPU
