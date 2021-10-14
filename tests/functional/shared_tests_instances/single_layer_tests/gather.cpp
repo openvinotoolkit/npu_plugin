@@ -83,7 +83,7 @@ const auto params = testing::Combine(
 // nGraph parser doesn't contain specific gather parser
 // [Track number: S#40603]
 INSTANTIATE_TEST_SUITE_P(
-        smoke_Gather,
+        smoke_Gather1,
         KmbGatherLayerTest,
         params,
         KmbGatherLayerTest::getTestCaseName
@@ -162,7 +162,7 @@ namespace { // opset7::Gather tests
 
 #define GEN7_TEST(no,inputShape,indicesShape,axis,batch_dims) \
 INSTANTIATE_TEST_CASE_P( \
-        smoke_G7ather_ ## no, \
+        smoke_Gather7_ ## no, \
         KmbGather7LayerTest, \
         testing::Combine( \
           testing::Values(std::vector<size_t>inputShape), \
