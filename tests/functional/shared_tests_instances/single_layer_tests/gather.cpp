@@ -153,28 +153,31 @@ GEN_TEST(15,(std::vector<size_t>{960,  1,  3,  3}), 0, 959); //=> {959,1,3,3}
 GEN_TEST(16,(std::vector<size_t>{  2,  64,  1, 1}), 0, 128); //=> {128,64,1,1}
 GEN_TEST(17,(std::vector<size_t>{  2,  64,  1, 1}), 1, 128); //=> {2,128,1,1}
 
-//==============================================================================
-// Gather 7
-//==============================================================================
+}  // namespace
 
-//::testing::ValuesIn<SizeVector>({{1, 16, 64}}),  // inputShapes
-const auto paramsG7 = testing::Combine(
-        testing::ValuesIn(inputShapes),
-        testing::ValuesIn(indicesShapes),
-        testing::Values(std::tuple<int,int>{0,0}), //axis, batch
-        testing::Values(InferenceEngine::Precision::FP16),
-        testing::Values(InferenceEngine::Precision::FP16),
-        testing::Values(InferenceEngine::Precision::FP16),
-        testing::Values(InferenceEngine::Layout::ANY),
-        testing::Values(InferenceEngine::Layout::ANY),
-        testing::Values(LayerTestsUtils::testPlatformTargetDevice)
-);
 
-INSTANTIATE_TEST_SUITE_P(
-        smoke_Gather7,
-        KmbGather7LayerTest,
-        paramsG7,
-        KmbGather7LayerTest::getTestCaseName
-);
+namespace { // opset7::Gather tests
+
+// TBD: 'Layout::ANY' generates some err
+
+#define GEN7_TEST(no,inputShape,indicesShape,axis,batch_dims) \
+INSTANTIATE_TEST_CASE_P( \
+        smoke_G7ather_ ## no, \
+        KmbGather7LayerTest, \
+        testing::Combine( \
+          testing::Values(std::vector<size_t>inputShape), \
+          testing::Values(std::vector<size_t>indicesShape), \
+          testing::Values(std::tuple<int,int>{axis,batch_dims}), \
+          testing::Values(InferenceEngine::Precision::FP16), \
+          testing::Values(InferenceEngine::Precision::FP16), \
+          testing::Values(InferenceEngine::Precision::FP16), \
+          testing::Values(InferenceEngine::Layout::NCHW), \
+          testing::Values(InferenceEngine::Layout::NCHW), \
+          testing::Values(LayerTestsUtils::testPlatformTargetDevice)), \
+        KmbGather7LayerTest::getTestCaseName )
+
+GEN7_TEST(0, ({5,6,7,8}),       ({4}), 0, 0); // maps on GatherV1
+GEN7_TEST(1, ({2,3,4,5}),       ({2}), 1, 0); // maps on GatherV1
+//GEN7_TEST(2, ({3,5,1,1}), ({3,2}), 1, 1);
 
 }  // namespace
