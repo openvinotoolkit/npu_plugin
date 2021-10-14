@@ -57,27 +57,36 @@ bool FeasibleMemoryScheduler::isDataOp(size_t opIdx) {
     StringRef dataType("DMA_NN");
 
     mlir::async::ExecuteOp op = _depsInfo.getExecuteOpAtIndex(opIdx);
-    if (op->getAttr("IERT.executor").cast<mlir::StringAttr>().getValue().compare(dataType) != 0) {
-        return false;
-    }
-
-    if (op.getOperands().size() == 0) {
-        return true;
-    }
-
-    if (_outputOps.find(opIdx) != _outputOps.end()) {
-        return false;
-    }
-
-    auto inOp = op.body().front().back().getOperand(0);
-    bool isCMXMemSpace = true;
-    if (auto memref = inOp.getType().dyn_cast<mlir::MemRefType>()) {
-        if (memref.getMemorySpace()) {
-            isCMXMemSpace = _memSpace == memref.getMemorySpace();
+    if (op->hasAttr("IERT.executor")) {
+        if (op->getAttr("IERT.executor").dyn_cast<mlir::StringAttr>().getValue().compare(dataType) != 0) {
+            return false;
+        }
+        if (_outputOps.find(opIdx) != _outputOps.end()) {
+            return false;
+        }
+        auto* bodyBlock = &op.body().front();
+        if (op.getOperands().size() == 0) {
+            for (auto& op : bodyBlock->getOperations()) {
+                for (const auto& operand : op.getOperands()) {
+                    if (operand.getDefiningOp() == nullptr && operand.isa<mlir::BlockArgument>()) {
+                        // input operation
+                        return false;
+                    }
+                }
+            }
+        }
+        for (auto& op : bodyBlock->getOperations()) {
+            if (mlir::isa<IERT::CopyOp>(op)) {
+                if (auto copyOp = mlir::dyn_cast<IERT::CopyOp>(op)) {
+                    if (auto memref = copyOp.output().getType().dyn_cast<mlir::MemRefType>()) {
+                        // DMA to CMX
+                        return _memSpace == memref.getMemorySpace();
+                    }
+                }
+            }
         }
     }
-
-    return isCMXMemSpace;
+    return false;
 }
 
 FeasibleMemoryScheduler::HeapElement const* FeasibleMemoryScheduler::topElementGen(

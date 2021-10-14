@@ -124,7 +124,9 @@ void vpux::buildReferenceModePipeline(mlir::OpPassManager& pm, bool enableProfil
 
     // IERT Dialect level
     IERT::buildAsyncSchedulingPipeline(pm, log);
+    pm.addPass(IERT::createGroupAsyncExecuteOpsPass(log));
     buildIERTAllocationPipelineForDDR(pm, log);
+    pm.addPass(IERT::createStaticAllocationPass(getMemSpace<VPUIP::PhysicalMemory::DDR>, log));
     pm.addPass(IERT::createOptimizeAsyncDepsPass(log));
 
     // Lower IERT->VPUIP (SW mode)

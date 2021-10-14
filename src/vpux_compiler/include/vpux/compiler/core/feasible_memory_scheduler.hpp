@@ -134,7 +134,7 @@ public:
         }
         size_t length() const {
             VPUX_THROW_UNLESS(begin_ <= end_, "Invalid resource interval");
-            return (end_ - begin_ + 1);
+            return end_ - begin_ + 1;
         }
         IntervalInfo(): begin_(), end_() {
             invalidate();
