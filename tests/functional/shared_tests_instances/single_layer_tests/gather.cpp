@@ -158,8 +158,6 @@ GEN_TEST(17,(std::vector<size_t>{  2,  64,  1, 1}), 1, 128); //=> {2,128,1,1}
 
 namespace { // opset7::Gather tests
 
-// TBD: 'Layout::ANY' generates some err
-
 #define GEN7_TEST(no,inputShape,indicesShape,axis,batch_dims) \
 INSTANTIATE_TEST_CASE_P( \
         smoke_Gather7_ ## no, \
@@ -171,13 +169,14 @@ INSTANTIATE_TEST_CASE_P( \
           testing::Values(InferenceEngine::Precision::FP16), \
           testing::Values(InferenceEngine::Precision::FP16), \
           testing::Values(InferenceEngine::Precision::FP16), \
-          testing::Values(InferenceEngine::Layout::NCHW), \
-          testing::Values(InferenceEngine::Layout::NCHW), \
+          testing::Values(InferenceEngine::Layout::ANY), \
+          testing::Values(InferenceEngine::Layout::ANY), \
           testing::Values(LayerTestsUtils::testPlatformTargetDevice)), \
         KmbGather7LayerTest::getTestCaseName )
 
-GEN7_TEST(0, ({5,6,7,8}),       ({4}), 0, 0); // maps on GatherV1
-GEN7_TEST(1, ({2,3,4,5}),       ({2}), 1, 0); // maps on GatherV1
+//GEN7_TEST(0, ({5,6,7,8}),       ({4}), 0, 0); // maps on GatherV1
+//GEN7_TEST(1, ({2,3,4,5}),       ({2}), 1, 0); // maps on GatherV1
+GEN7_TEST(2, ({2,5,2,1}),   ({2,2,3}), 1, 1);
 //GEN7_TEST(2, ({3,5,1,1}), ({3,2}), 1, 1);
 
 }  // namespace
