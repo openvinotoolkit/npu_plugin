@@ -700,11 +700,12 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
                       "nGraph Gather node '{0}' has unsupported number of inputs '{1}'", origNode->get_friendly_name(),
                       inputs.size());
 
-    // VPUX_THROW_UNLESS(origNode->get_batch_dims() == 0, "Batch dim for gather '{0}' is not supported",
-    //                   origNode->get_friendly_name());
+    // TBD: confirm if always 3 inputs !!!
+    int64_t batch_dims = origNode->get_batch_dims();  // '0' for Gather-v1
 
+    /*DBG*/ printf("__parseNode: inputs.size() = %ld, batch_dims = %ld \n", inputs.size(), batch_dims);
     auto op = builder.create<IE::GatherOp>(createLocation(origNode), inputs[0], inputs[1], inputs[2], nullptr,
-                                           0 /*batch_dims*/);
+                                           batch_dims);
     addOutputs(origNode, op);
 }
 
