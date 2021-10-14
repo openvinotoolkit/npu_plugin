@@ -925,7 +925,7 @@ class Feasible_Schedule_Generator {
     const_operation_iterator_t itr_end = traits::operations_end(*input_ptr_);
 
     std::cout << "The input is " << traits::operation_name(*itr) <<  std::endl;
-    std::cout << "The output is " << traits::operation_name(*itr_end) <<  std::endl;
+    //std::cout << "The output is " << traits::operation_name(*itr_end) <<  std::endl;
 
     // compute the in-degree of every node //
     while (itr != itr_end) {
