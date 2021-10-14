@@ -796,6 +796,7 @@ operation ::= `IE.Gather` `(` operands `)` attr-dict `:` type(operands) `->` typ
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
 `axis_value` | mlir::IntegerAttr | Integer attribute
+`batch_dims` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 

@@ -740,13 +740,13 @@ def RewriteMVN :
 def createGatherUPAOp :
         NativeCodeCall<[{
             $_builder.create<vpux::VPUIP::GatherUPAOp>(
-                $_loc, $0, $1, $2, $3)
+                $_loc, $0, $1, $2, $3, $4)
         }]>;
 
 def RewriteGather :
         Pat<
-            (IERT_GatherOp $input, $indices, $axis, $output, $axis_value),
-            (createGatherUPAOp $input, $indices, $output, $axis_value)
+            (IERT_GatherOp $input, $indices, $axis, $output, $axis_value, $batch_dims),
+            (createGatherUPAOp $input, $indices, $output, $axis_value, $batch_dims)
         >;
 
 #endif

@@ -115,8 +115,8 @@ mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::GatherOp gatherOp, m
     }
 
     rewriter.replaceOpWithNewOp<IE::GatherOp>(gatherOp, gatherOp.getType(), gatherOp.input(), gatherOp.indices(),
-                                              nullptr,
-                                              rewriter.getI64IntegerAttr(axisContent.getSplatValue<int64_t>()));
+                                              nullptr, rewriter.getI64IntegerAttr(axisContent.getSplatValue<int64_t>()),
+                                              gatherOp.batch_dims());
     return mlir::success();
 }
 

@@ -2862,6 +2862,7 @@ def VPUIP_GatherUPAOp :
         Variadic<VPUIP_Barrier>:$updateBarriers,
 
         IntAttr:$axis,
+        IntAttr:$batch_dims,
 
         OptionalAttr<IntAttr>:$maxShaves,
         UnitAttr:$isTrailingSWLayer
@@ -2877,7 +2878,8 @@ def VPUIP_GatherUPAOp :
                 "mlir::Value":$input,
                 "mlir::Value":$indices,
                 "mlir::Value":$output,
-                "mlir::IntegerAttr":$axis
+                "mlir::IntegerAttr":$axis,
+                "mlir::IntegerAttr":$batch_dims
             )
         >
     ];

@@ -676,7 +676,8 @@ def IE_GatherOp :
         AnyRankedTensor:$input,
         RankedTensorOf<[SI64,SI32]>:$indices,
         Optional<AnyRankedTensor>:$axis,
-        OptionalAttr<IntAttr>:$axis_value
+        OptionalAttr<IntAttr>:$axis_value,
+        IntAttr:$batch_dims
     );
 
     let results = (outs

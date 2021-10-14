@@ -825,6 +825,7 @@ operation ::= `IERT.Gather` attr-dict
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
 `axis_value` | mlir::IntegerAttr | Integer attribute
+`batch_dims` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 

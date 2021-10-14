@@ -2016,7 +2016,8 @@ def IERT_GatherOp :
         Optional<AnyMemRef>:$axis,
         AnyMemRef:$output_buff,
 
-        OptionalAttr<IntAttr>:$axis_value
+        OptionalAttr<IntAttr>:$axis_value,
+        IntAttr:$batch_dims
     );
 
     let results = (outs
