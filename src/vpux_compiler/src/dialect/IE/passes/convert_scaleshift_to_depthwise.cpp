@@ -110,14 +110,6 @@ mlir::LogicalResult ConvertScaleShiftToDWPass::ScaleShiftOpConverter::matchAndRe
 void ConvertScaleShiftToDWPass::safeRunOnFunc() {
     auto func = getFunction();
 
-    auto module = func->getParentOfType<mlir::ModuleOp>();
-    const auto arch = VPUIP::getArch(module);
-
-    if (arch != VPUIP::ArchKind::MTL) {
-        _log.trace("ScaleShift to Depthwise conversion is supported only for MTL");
-        return;
-    }
-
     auto& ctx = getContext();
 
     mlir::RewritePatternSet patterns(&ctx);
