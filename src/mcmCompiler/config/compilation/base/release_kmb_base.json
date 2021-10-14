@@ -110,8 +110,8 @@
               "real_physical_barriers": 8,
               "barrier_bound": 4,
               "producer_bound" : 256,
-              "remove_barriers_in_upa_tail" : false,
-              "remove_redundant_wait_barriers" : false
+              "remove_barriers_in_upa_tail" : true,
+              "remove_redundant_wait_barriers" : true
             },
             {
                 "name" : "AddDPUTasksProfilingDMA",
