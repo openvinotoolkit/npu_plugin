@@ -1060,6 +1060,7 @@ operation ::= `VPUIP.NCEClusterTask` attr-dict
               `parent_input` `(` $parent_input `:` type($parent_input) `)`
               `parent_output` `(` $parent_output `:` type($parent_output) `)`
               `outputs` `(` $output_buff `:` type($output_buff) `)`
+              (`profiling_data` `(` $profiling_data^  `:` type($profiling_data) `)`)?
               `->` type(results)
               `variants` `:` $variants
               `PPE` `:` $ppe
@@ -1101,12 +1102,14 @@ mutually exclusive.
 `parent_input` | memref of any type values
 `parent_output` | memref of any type values
 `output_buff` | memref of 16-bit float or 32-bit float or bfloat16 type or QuantizedType values
+`profiling_data` | memref of 64-bit unsigned integer values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
 `output` | memref of 16-bit float or 32-bit float or bfloat16 type or QuantizedType values
+`profiling_output` | memref of 64-bit unsigned integer values
 
 ### `VPUIP.NNDMA` (vpux::VPUIP::NNDMAOp)
 

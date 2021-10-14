@@ -191,6 +191,10 @@ void vpux::buildReferenceHWModePipeline(mlir::OpPassManager& pm, const Reference
 
     pm.addPass(IERT::createSetInternalMemorySpacePass(getMemSpace<VPU::MemoryKind::DDR>, log));
 
+    if (options.enableProfiling) {
+        pm.addPass(IERT::createDPUProfilingPass(getMemSpace<VPU::MemoryKind::CMX_NN>, log));
+    }
+
     IERT::buildAsyncSchedulingPipeline(pm, log);
 
     if (options.enableProfiling) {
@@ -294,6 +298,10 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
     if (options.enableOptimizeCopies) {
         pm.addPass(IERT::createOptimizeCopiesPass(log));
         pm.addPass(IERT::createCopyOpHoistingPass(log));
+    }
+
+    if (options.enableProfiling) {
+        pm.addPass(IERT::createDPUProfilingPass(getMemSpace<VPU::MemoryKind::CMX_NN>, log));
     }
 
     IERT::buildAsyncSchedulingPipeline(pm, log);

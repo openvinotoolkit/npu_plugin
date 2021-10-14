@@ -38,7 +38,24 @@ void vpux::VPUIP::NCEClusterTaskOp::build(mlir::OpBuilder& builder, mlir::Operat
                                           mlir::IntegerAttr activation_window_channel_length,
                                           mlir::UnitAttr is_continued) {
     build(builder, state, output_buff.getType(), input, weights, weight_table, activation_window, parent_input,
-          parent_output, output_buff, vpux::VPUIP::NCETaskTypeAttr::get(builder.getContext(), task_type), kernel_size,
+          parent_output, output_buff, nullptr, vpux::VPUIP::NCETaskTypeAttr::get(builder.getContext(), task_type),
+          kernel_size, kernel_strides, kernel_padding, activation_window_channel_length, is_continued);
+
+    for (auto& region : state.regions) {
+        region->emplaceBlock();
+    }
+}
+
+void vpux::VPUIP::NCEClusterTaskOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type output,
+                                          mlir::Value input, mlir::Value weights, mlir::Value weight_table,
+                                          mlir::Value activation_window, mlir::Value parent_input,
+                                          mlir::Value parent_output, mlir::Value output_buff,
+                                          vpux::VPUIP::NCETaskType task_type, mlir::ArrayAttr kernel_size,
+                                          mlir::ArrayAttr kernel_strides, mlir::ArrayAttr kernel_padding,
+                                          mlir::IntegerAttr activation_window_channel_length,
+                                          mlir::UnitAttr is_continued) {
+    build(builder, state, output, input, weights, weight_table, activation_window, parent_input, parent_output,
+          output_buff, nullptr, vpux::VPUIP::NCETaskTypeAttr::get(builder.getContext(), task_type), kernel_size,
           kernel_strides, kernel_padding, activation_window_channel_length, is_continued);
 
     for (auto& region : state.regions) {
@@ -105,6 +122,19 @@ void vpux::VPUIP::NCEClusterTaskOp::inferLayoutInfo(mlir::Operation* origOp, IE:
             .Default([](mlir::Operation* unknownOp) {
                 VPUX_THROW("Operation '{0}' is not supported by the DPU", unknownOp->getName());
             });
+}
+
+//
+
+mlir::LogicalResult vpux::VPUIP::NCEClusterTaskOp::inferReturnTypes(
+        mlir::MLIRContext*, llvm::Optional<mlir::Location>, mlir::ValueRange operands, mlir::DictionaryAttr attrs,
+        mlir::RegionRange ranges, llvm::SmallVectorImpl<mlir::Type>& inferredReturnTypes) {
+    VPUIP::NCEClusterTaskOpAdaptor adaptor(operands, attrs, ranges);
+    inferredReturnTypes.push_back(adaptor.output_buff().getType());
+    if (adaptor.profiling_data() != nullptr) {
+        inferredReturnTypes.push_back(adaptor.profiling_data().getType());
+    }
+    return mlir::success();
 }
 
 //
@@ -585,6 +615,8 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
         const auto start = parseIntArrayAttr<int64_t>(dpuTaskOp.start());
         const auto end = parseIntArrayAttr<int64_t>(dpuTaskOp.end());
         const auto pad = dpuTaskOp.pad();
+        const auto profilingData =
+                (profiling_data() != nullptr && !variantList.size()) ? writer.getTensor(profiling_data()) : 0;
 
         const auto variant = MVCNN::CreateNCEVariantFields(writer,
                                                            0,                                            // Barriers
@@ -598,7 +630,13 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
                                                            static_cast<int16_t>(start[2]),  // workload_start_Z
                                                            static_cast<int16_t>(end[0]),    // workload_end_X
                                                            static_cast<int16_t>(end[1]),    // workload_end_Y
-                                                           static_cast<int16_t>(end[2])     // workload_end_Z
+                                                           static_cast<int16_t>(end[2]),    // workload_end_Z
+                                                           0,                               // flex_map_column
+                                                           0,                               // flex_map_array
+                                                           0,                               // flex_inner
+                                                           0,                               // flex_outer
+                                                           0,                               // flex_outer_order
+                                                           profilingData                    // profiling_data
         );
         variantList.push_back(variant);
     }

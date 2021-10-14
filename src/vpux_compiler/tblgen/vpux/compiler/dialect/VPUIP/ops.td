@@ -2022,7 +2022,7 @@ def VPUIP_NCEClusterTaskOp :
         VPUIP_TaskOp<1, "NCEClusterTask",
             [
                 AttrSizedOperandSegments,
-                ViewLikeOpInterface,
+                MultiViewOpInterface,
                 NoRegionArguments,
                 OpAsmOpInterface
             ]
@@ -2057,6 +2057,7 @@ def VPUIP_NCEClusterTaskOp :
         AnyMemRef:$parent_output,
 
         MemRefOf<[F16, F32, BF16, quant_QuantizedType]>:$output_buff,
+        Optional<MemRefOf<[UI64]>>:$profiling_data,
 
         VPUIP_NCETaskType:$task_type,
         OptionalAttr<I64ArrayAttr>:$kernel_size,
@@ -2068,6 +2069,7 @@ def VPUIP_NCEClusterTaskOp :
 
     let results = (outs
         MemRefOf<[F16, F32, BF16, quant_QuantizedType]>:$output
+        Optional<MemRefOf<[UI64]>>:$profiling_output
     );
 
     let regions = (region
@@ -2077,6 +2079,16 @@ def VPUIP_NCEClusterTaskOp :
 
     let builders = [
         OpBuilder<(ins
+            "mlir::Value":$input, "mlir::Value":$weights, "mlir::Value":$weight_table, "mlir::Value":$activation_window,
+            "mlir::Value":$parent_input, "mlir::Value":$parent_output,
+            "mlir::Value":$output_buff,
+            "vpux::VPUIP::NCETaskType":$task_type,
+            "mlir::ArrayAttr":$kernel_size, "mlir::ArrayAttr":$kernel_strides, "mlir::ArrayAttr":$kernel_padding,
+            "mlir::IntegerAttr":$activation_window_channel_length,
+            "mlir::UnitAttr":$is_continued
+        )>,
+        OpBuilder<(ins
+            "mlir::Type":$output,
             "mlir::Value":$input, "mlir::Value":$weights, "mlir::Value":$weight_table, "mlir::Value":$activation_window,
             "mlir::Value":$parent_input, "mlir::Value":$parent_output,
             "mlir::Value":$output_buff,
@@ -2096,6 +2108,7 @@ def VPUIP_NCEClusterTaskOp :
         `parent_input` `(` $parent_input `:` type($parent_input) `)`
         `parent_output` `(` $parent_output `:` type($parent_output) `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
+        (`profiling_data` `(` $profiling_data^  `:` type($profiling_data) `)`)?
         `->` type(results)
         `variants` `:` $variants
         `PPE` `:` $ppe
@@ -2124,7 +2137,15 @@ def VPUIP_NCEClusterTaskOp :
         static mlir::StringRef getDefaultDialect() {
             return "VPUIP";
         }
-    }] # IERT_InferLayerReturnTypes<1>.impl;
+
+        static mlir::LogicalResult inferReturnTypes(
+                mlir::MLIRContext*,
+                llvm::Optional<mlir::Location>,
+                mlir::ValueRange operands,
+                mlir::DictionaryAttr,
+                mlir::RegionRange,
+                llvm::SmallVectorImpl<mlir::Type>& inferredReturnTypes);
+    }];
 }
 
 //
