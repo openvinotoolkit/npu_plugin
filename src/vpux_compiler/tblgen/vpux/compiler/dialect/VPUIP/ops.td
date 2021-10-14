@@ -2177,7 +2177,8 @@ def VPUIP_PPETaskOp :
         OptionalAttr<IntAttr>:$lrelu_mult,
         OptionalAttr<IntAttr>:$lrelu_shift,
         OptionalAttr<I32ArrayAttr>:$quant_mult,
-        OptionalAttr<I32ArrayAttr>:$quant_shift
+        OptionalAttr<I32ArrayAttr>:$quant_shift,
+        OptionalAttr<IntAttr>:$quant_post_shift
     );
 
     let builders = [
@@ -2195,7 +2196,8 @@ def VPUIP_PPETaskOp :
             "int32_t":$lrelu_mult,
             "uint32_t":$lrelu_shift,
             "ArrayRef<int32_t>":$quant_mult,
-            "ArrayRef<int32_t>":$quant_shift
+            "ArrayRef<int32_t>":$quant_shift,
+            "int32_t":$quant_post_shift
         )>
     ];
 

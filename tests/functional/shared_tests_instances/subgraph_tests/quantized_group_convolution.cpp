@@ -12,7 +12,75 @@
 
 namespace SubgraphTestsDefinitions {
 
+// MLIR detects pattern quant.dcast -> op -> quant.qcast and converts it into single quantized Op
+//
+//       [input]
+//          |
+//     (dequantize)
+//          |
+//        (conv) --- (dequantize) -- [filter]
+//          |
+//       [output]
+//          |
+//      (quantize)
+//
+
 class KmbQuantGroupConvLayerTest : public QuantGroupConvLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+    void SetUp() override {
+        threshold = 0.5f;
+
+        quantGroupConvSpecificParams groupConvParams;
+        std::vector<size_t> inputShape;
+        auto netPrecision = InferenceEngine::Precision::UNSPECIFIED;
+        std::tie(groupConvParams, netPrecision, inputShape, targetDevice) = this->GetParam();
+        ngraph::op::PadType padType = ngraph::op::PadType::AUTO;
+        InferenceEngine::SizeVector kernel, stride, dilation;
+        std::vector<ptrdiff_t> padBegin, padEnd;
+        size_t convOutChannels, numGroups;
+        size_t quantLevels;
+        size_t quantGranularity;
+        bool quantizeWeights;
+        std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, numGroups, quantLevels, quantGranularity, quantizeWeights) = groupConvParams;
+        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+        auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+        auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+
+        std::vector<size_t> dataFqConstShapes(inputShape.size(), 1);
+        if (quantGranularity == ngraph::helpers::Perchannel)
+            dataFqConstShapes[1] = inputShape[1];
+        auto dataFq = ngraph::builder::makeFakeQuantize(paramOuts[0], ngPrc, quantLevels, dataFqConstShapes, {0}, {255}, {0}, {255});
+
+        std::vector<size_t> weightsShapes = {convOutChannels, inputShape[1]};
+        if (weightsShapes[0] % numGroups || weightsShapes[1] % numGroups)
+            throw std::runtime_error("incorrect shape for QuantGroupConvolution");
+        weightsShapes[0] /= numGroups;
+        weightsShapes[1] /= numGroups;
+        weightsShapes.insert(weightsShapes.begin(), numGroups);
+        weightsShapes.insert(weightsShapes.end(), kernel.begin(), kernel.end());
+
+        std::vector<float> weightsData;
+        auto weightsNode = ngraph::builder::makeConstant(ngPrc, weightsShapes, weightsData, weightsData.empty());
+
+        std::vector<size_t> weightsFqConstShapes(weightsShapes.size(), 1);
+        if (quantGranularity == ngraph::helpers::Perchannel)
+            weightsFqConstShapes[0] = weightsShapes[0];
+
+        std::shared_ptr<ngraph::Node> weights;
+        if (quantizeWeights) {
+            weights = ngraph::builder::makeFakeQuantize(weightsNode, ngPrc, quantLevels, weightsFqConstShapes, {0}, {255}, {0}, {255});
+        } else {
+            weights = weightsNode;
+        }
+
+        auto groupConv = std::dynamic_pointer_cast<ngraph::opset1::GroupConvolution>(
+                ngraph::builder::makeGroupConvolution(dataFq, weights, ngPrc, stride, padBegin, padEnd, dilation, padType));
+
+        const auto outFq = ngraph::builder::makeFakeQuantize(groupConv, ngPrc, quantLevels, {}, {0}, {255}, {0}, {255});
+
+        ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(outFq)};
+        function = std::make_shared<ngraph::Function>(results, params, "QuantGroupConvolution");
+    }
+
     void SkipBeforeLoad() override {
         // [Track number: S#46761]
         if (isCompilerMCM()) {

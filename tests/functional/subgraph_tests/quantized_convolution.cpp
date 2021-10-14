@@ -10,6 +10,19 @@
 
 namespace {
 
+// MLIR detects pattern quant.dcast -> op -> quant.qcast and converts it into single quantized Op
+//
+//       [input]
+//          |
+//     (dequantize)
+//          |
+//        (conv) --- (dequantize) -- [filter]
+//          |
+//       [output]
+//          |
+//      (quantize)
+//
+
 class KmbQuantizedConvSubGraphTest :
         public LayerTestsUtils::KmbLayerTestsCommon,
         public testing::WithParamInterface<LayerTestsUtils::TargetDevice> {
