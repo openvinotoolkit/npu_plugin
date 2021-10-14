@@ -25,6 +25,48 @@ It handles such VPU-specifics as:
 This object represents closely a Barrier in the device
 ## Operation definition
 
+### `VPUIP.BroadcastUPA` (vpux::VPUIP::BroadcastUPAOp)
+
+Broadcast UPA SHAVE kernel
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.BroadcastUPA` attr-dict
+              `inputs` `(` $input `:` type($input) `,` $target_shape `:` type($target_shape) (`,` $axes_mapping^ `:` type($axes_mapping))? `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+              (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`mode` | vpux::IE::BroadcastTypeAttr | Broadcast type that operations support
+`maxShaves` | mlir::IntegerAttr | Integer attribute
+`isTrailingSWLayer` | ::mlir::UnitAttr | unit attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float values
+`target_shape` | memref of 32-bit signed integer values
+`axes_mapping` | memref of 32-bit signed integer values
+`output_buff` | memref of 16-bit float values
+`waitBarriers` | VPUIP Barrier Type
+`updateBarriers` | VPUIP Barrier Type
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float values
+
 ### `VPUIP.CTCGreedyDecoderSeqLenUPA` (vpux::VPUIP::CTCGreedyDecoderSeqLenUPAOp)
 
 CTCGreedyDecoderSeqLen UPA SHAVE kernel
