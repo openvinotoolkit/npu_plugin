@@ -1310,6 +1310,7 @@ operation ::= `VPUIP.NCEClusterTask` attr-dict
               (`weights` `(` $weights^  `:` type($weights) `)`)?
               (`weight_table` `(` $weight_table^  `:` type($weight_table) `)`)?
               (`activation_window` `(` $activation_window^  `:` type($activation_window) `)`)?
+              (`profiling_data` `(` $profiling_data^  `:` type($profiling_data) `)`)?
               `parent_input` `(` $parent_input `:` type($parent_input) `)`
               `parent_output` `(` $parent_output `:` type($parent_output) `)`
               `outputs` `(` $output_buff `:` type($output_buff) `)`
@@ -1353,6 +1354,7 @@ mutually exclusive.
 `weights` | memref of 16-bit float or QuantizedType values
 `weight_table` | memref of 32-bit signed integer values
 `activation_window` | memref of 8-bit unsigned integer values
+`profiling_data` | memref of 64-bit unsigned integer values
 `parent_input` | memref of any type values
 `parent_output` | memref of any type values
 `output_buff` | memref of 16-bit float or 32-bit float or QuantizedType values
@@ -1364,6 +1366,7 @@ mutually exclusive.
 | Result | Description |
 | :----: | ----------- |
 `output` | memref of 16-bit float or 32-bit float or QuantizedType values
+`profiling_output` | memref of 64-bit unsigned integer values
 
 ### `VPUIP.NNDMA` (vpux::VPUIP::NNDMAOp)
 

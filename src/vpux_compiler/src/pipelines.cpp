@@ -202,6 +202,8 @@ void vpux::buildReferenceHWModePipeline(mlir::OpPassManager& pm, bool enableProf
     pm.addPass(createConvertToNCEOpsPass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
 
+    pm.addPass(IERT::createDPUProfilingPass(getMemSpace<VPUIP::PhysicalMemory::CMX_NN>, log));
+
     // IERT Dialect level (cont.)
     pm.addPass(IERT::createSetInternalMemorySpacePass(getMemSpace<VPUIP::PhysicalMemory::DDR>, log));
     pm.addPass(IERT::createOptimizeCopiesPass(log));

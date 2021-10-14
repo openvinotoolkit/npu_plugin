@@ -123,6 +123,28 @@ def TimestampProfiling : PassBase<"profiling-timestamp", "vpux::ModulePass"> {
     }];
 }
 
+//
+// DPUProfiling
+//
+
+def DPUProfiling : PassBase<"DPU-profiling", "vpux::ModulePass"> {
+    let summary = "DPU task profiling";
+
+    let description = [{
+        This pass allocate required memory for DPU profiling and perform buffer spilling
+    }];
+
+    let constructor = [{
+        vpux::IERT::createDPUProfilingPass([](mlir::MLIRContext* ctx, vpux::StringRef memSpaceName) -> mlir::Attribute {
+            if (memSpaceName.empty()) {
+                return mlir::StringAttr::get(ctx, "CMX_NN");
+            }
+            VPUX_THROW_UNLESS(!memSpaceName.empty(), "Missing memory space option");
+            return mlir::StringAttr::get(ctx, memSpaceName);
+        })
+    }];
+}
+
 //=================================================================================
 // Asynchronous Scheduling
 //=================================================================================
