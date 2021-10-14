@@ -136,9 +136,7 @@ const llvm::SmallVector<KernelDataDesc>& vpux::VPUIP::BlobWriter::getKernelData(
 }
 
 vpux::VPUIP::BlobWriter::KernelDataRef vpux::VPUIP::BlobWriter::createKernelDataRef(const KernelDataDesc& desc, MemoryLocation locale) {
-    // offset is 1 to force field to be serialized by FB
-    uint32_t non_empty_offset = 1;
-    return createKernelDataRef(desc.name, locale, non_empty_offset, desc.size);
+    return createKernelDataRef(desc.name, locale, 0, desc.size);
 }
 
 vpux::VPUIP::BlobWriter::KernelDataRef vpux::VPUIP::BlobWriter::createKernelDataRef(StringRef name, MemoryLocation locale,
