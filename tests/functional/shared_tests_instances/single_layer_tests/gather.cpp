@@ -21,6 +21,9 @@ class KmbGatherLayerTest: public GatherLayerTest, virtual public LayerTestsUtils
     }
 };
 
+class KmbGather7LayerTest: public Gather7LayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+};
+
 TEST_P(KmbGatherLayerTest, CompareWithRefs) {
    // Enable NCHW layout
     core->SetConfig({{VPU_COMPILER_CONFIG_KEY(ALLOW_NCHW_MCM_INPUT), CONFIG_VALUE(YES)}},
@@ -29,6 +32,12 @@ TEST_P(KmbGatherLayerTest, CompareWithRefs) {
 }
 
 TEST_P(KmbGatherLayerTest, CompareWithRefs_MLIR) {
+    useCompilerMLIR();
+    Run();
+}
+
+TEST_P(KmbGather7LayerTest, CompareWithRefs_MLIR) {
+    printf("__Gather_7__\n"); // DBG
     useCompilerMLIR();
     Run();
 }
@@ -143,5 +152,29 @@ GEN_TEST(14,(std::vector<size_t>{960,  1,  3,  3}), 0, 954); //=> {954,1,3,3}
 GEN_TEST(15,(std::vector<size_t>{960,  1,  3,  3}), 0, 959); //=> {959,1,3,3}
 GEN_TEST(16,(std::vector<size_t>{  2,  64,  1, 1}), 0, 128); //=> {128,64,1,1}
 GEN_TEST(17,(std::vector<size_t>{  2,  64,  1, 1}), 1, 128); //=> {2,128,1,1}
+
+//==============================================================================
+// Gather 7
+//==============================================================================
+
+//::testing::ValuesIn<SizeVector>({{1, 16, 64}}),  // inputShapes
+const auto paramsG7 = testing::Combine(
+        testing::ValuesIn(inputShapes),
+        testing::ValuesIn(indicesShapes),
+        testing::Values(std::tuple<int,int>{0,0}), //axis, batch
+        testing::Values(InferenceEngine::Precision::FP16),
+        testing::Values(InferenceEngine::Precision::FP16),
+        testing::Values(InferenceEngine::Precision::FP16),
+        testing::Values(InferenceEngine::Layout::ANY),
+        testing::Values(InferenceEngine::Layout::ANY),
+        testing::Values(LayerTestsUtils::testPlatformTargetDevice)
+);
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_Gather7,
+        KmbGather7LayerTest,
+        paramsG7,
+        KmbGather7LayerTest::getTestCaseName
+);
 
 }  // namespace
