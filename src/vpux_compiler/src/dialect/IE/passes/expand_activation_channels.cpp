@@ -85,7 +85,7 @@ mlir::LogicalResult generalRewrite(mlir::Operation* origOp, mlir::PatternRewrite
         const auto inputChannels = getShape(convOp.filter().getType().cast<mlir::ShapedType>())[IE::Dims4D::Filter::IC];
         const auto inDimsOrder = DimsOrder::fromValue(convOp->getOperand(0));
         bool channelMajorConvolution =
-                vpux::VPUIP::isChannelMajorCompatibaleOperation(inDimsOrder, inputChannels, inputTensorWidth);
+                vpux::VPUIP::isChannelMajorCompatibleOperation(inDimsOrder, inputChannels, inputTensorWidth);
 
         if (channelMajorConvolution)
             inPadsEnd = calcPadsEnd(inputType, 1);
@@ -120,7 +120,7 @@ mlir::LogicalResult generalRewrite(mlir::Operation* origOp, mlir::PatternRewrite
             rewriter.replaceOp(origOp, newOp->getResult(0));
 
         } else {
-            log.trace("Extract meaningful part from extended output");
+            log.trace("Extract significant part from extended output");
 
             const auto outShape = outputType.getShape();
             const SmallVector<int64_t> offsets(outShape.size(), 0);

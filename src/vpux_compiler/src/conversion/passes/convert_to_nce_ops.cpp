@@ -202,7 +202,7 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
     const auto inputChannels = getShape(origOp.filter().getType().cast<mlir::ShapedType>())[IE::Dims4D::Filter::IC];
     const auto inDimsOrder = DimsOrder::fromValue(origOp->getOperand(0));
     bool isChannelMajorConvolution =
-            vpux::VPUIP::isChannelMajorCompatibaleOperation(inDimsOrder, inputChannels, inputTensorWidth);
+            vpux::VPUIP::isChannelMajorCompatibleOperation(inDimsOrder, inputChannels, inputTensorWidth);
 
     //
     // Prepare input for DPU
@@ -219,7 +219,6 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
         //
 
         const auto origInputType = origOp.input().getType().cast<mlir::MemRefType>();
-        // FIXME why does fake sparsity expects this order of kernel dimensions?
         const auto kernelSize = SmallVector<int64_t>{KX, KY};
         const auto kernelStrides = parseIntArrayAttr<int64_t>(origOp.strides());
         const auto bitPatternSize =
@@ -641,11 +640,10 @@ mlir::LogicalResult DepthwiseConvRewrite::matchAndRewrite(IERT::GroupConvolution
     //
 
     const auto origInputType = origOp.input().getType().cast<mlir::MemRefType>();
-    // FIXME why does fake sparsity expects this order of kernel dimensions?
     const auto kernelSize = SmallVector<int64_t>{KX, KY};
     const auto kernelStrides = parseIntArrayAttr<int64_t>(origOp.strides());
     const auto bitPatternSize =
-            VPUIP::NCESparsity::getBitPatternSize(kernelSize, kernelStrides[0], origInputType.getElementType(), IC);
+            VPUIP::NCESparsity::getBitPatternSize(kernelSize, kernelStrides[0], origInputType.getElementType(), 1);
     const auto actWindowChanLen = getIntAttr(getContext(), bitPatternSize);
 
     const auto fakeSparsity = VPUIP::NCESparsity::getFakeSparsity(

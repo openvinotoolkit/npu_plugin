@@ -54,7 +54,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyConvChannels(bool channelMa
         return mlir::failure();
     }
 
-    if (channelMajorConvolution && (width % 16 != 0)) {
+    if (channelMajorConvolution && (width % NCE_CHANNEL_MAJOR_CONV_REQUIRED_WIDTH_ALIGNMENT != 0)) {
         log.trace("[{0}] Channel Major Convolution width not aligned", loc);
         return mlir::failure();
     }
@@ -66,7 +66,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyDims(IE::ConvolutionOp orig
     const auto inputTensorWidth = getShape(origOp.input())[IE::Dims4D::Act::W];
     const auto inputChannels = getShape(origOp.filter().getType().cast<mlir::ShapedType>())[IE::Dims4D::Filter::IC];
     const auto inDimsOrder = DimsOrder::fromValue(origOp->getOperand(0));
-    bool isChannelMajorConvolution = isChannelMajorCompatibaleOperation(inDimsOrder, inputChannels, inputTensorWidth);
+    bool isChannelMajorConvolution = isChannelMajorCompatibleOperation(inDimsOrder, inputChannels, inputTensorWidth);
 
     return verifyConvChannels(isChannelMajorConvolution, origOp->getLoc(),
                               origOp.filter().getType().cast<mlir::ShapedType>(), inputTensorWidth, log);
@@ -76,7 +76,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyDims(IERT::ConvolutionOp or
     const auto inputTensorWidth = getShape(origOp.input())[IE::Dims4D::Act::W];
     const auto inputChannels = getShape(origOp.filter().getType().cast<mlir::ShapedType>())[IE::Dims4D::Filter::IC];
     const auto inDimsOrder = DimsOrder::fromValue(origOp->getOperand(0));
-    bool isChannelMajorConvolution = isChannelMajorCompatibaleOperation(inDimsOrder, inputChannels, inputTensorWidth);
+    bool isChannelMajorConvolution = isChannelMajorCompatibleOperation(inDimsOrder, inputChannels, inputTensorWidth);
 
     return verifyConvChannels(isChannelMajorConvolution, origOp->getLoc(),
                               origOp.filter().getType().cast<mlir::ShapedType>(), inputTensorWidth, log);
@@ -426,7 +426,6 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyGroupConvCMX(mlir::Location
         return mlir::failure();
     }
 
-    // FIXME why does fake sparsity expects this order of kernel dimensions?
     const auto kernelSizeVals = SmallVector<int64_t>{KX, KY};
     const auto kernelStridesVals = parseIntArrayAttr<int64_t>(kernelStrides);
 
