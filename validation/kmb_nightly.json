@@ -384,6 +384,40 @@
         },
 
         {
+            "name" : "BDK_tf_FP16-INT8_yolo_v4_tiny",
+            "ir" : "models/clientmodels/BDK3/yolo-v4-tiny/tf/FP16-INT8/yolo-v4-tiny.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "Compile" : {
+                "input_precision" : "U8",
+                "output_precision" : "FP32"
+            },
+            "NetTest-CalcRef" : {
+                "disabled" : true
+            },
+            "NetTest-Validate" : {
+                "disabled" : true
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "416x416"
+            },
+            "AccuracyCheck" : {
+                "config": "yolo_v4_tiny_tf.yml",
+                "subsample_size": 10
+            },
+            "category" : "MLIR/precommit",
+            "CI-options" : {
+                "blob_name" : "yolo_v4_tiny_MLIR"
+            }
+        },
+
+        {
             "name" : "ea_tf_FP16_fsrcnn-x4",
             "ir" : "ea/fsrcnn-x4/tf/FP16/fsrcnn-x4.xml",
             "3720": {
