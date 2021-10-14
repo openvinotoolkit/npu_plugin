@@ -7,6 +7,8 @@ This pass checks all CopyOps and updates their position in the parent block to b
 that generates the copy op source buffer
 ### `-dma-task-profiling`: DMA task profiling using DMA-Timestamps
 This pass add DMA task profiling.
+### `-dpu-profiling`: DPU task profiling
+This pass allocate required memory for DPU profiling and perform buffer spilling
 ### `-feasible-allocation`: Feasible Memory Scheduling Pass
 Schedule async.execute opeations based on their dependecies and CMX memory availability
 

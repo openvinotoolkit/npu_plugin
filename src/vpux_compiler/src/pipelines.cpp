@@ -212,6 +212,10 @@ void vpux::buildReferenceHWModePipeline(mlir::OpPassManager& pm, bool enableProf
     // Partially lower IERT->VPUIP (Act shave tasks only)
     pm.addPass(createConvertSWLayers2VPUIPPass(log));
 
+    if (enableProfiling) {
+        pm.addPass(IERT::createDPUProfilingPass(getMemSpace<VPUIP::PhysicalMemory::CMX_NN>, log));
+    }
+
     // IERT Dialect level (cont.)
     pm.addPass(IERT::createSetInternalMemorySpacePass(getMemSpace<VPUIP::PhysicalMemory::DDR>, log));
     pm.addPass(IERT::createOptimizeCopiesPass(log));
