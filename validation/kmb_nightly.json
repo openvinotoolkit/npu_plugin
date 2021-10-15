@@ -3528,10 +3528,6 @@
                 "VPUX_EXECUTOR_STREAMS":"2",
                 "VPUX_INFERENCE_TIMEOUT": "100000"
             },
-            "Compile" : {
-                "input_precision" : "U8",
-                "output_precision" : "FP32"
-            },
             "BenchmarkApp" : {
                 "input_folder" : "368x368"
             },
