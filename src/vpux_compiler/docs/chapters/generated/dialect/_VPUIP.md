@@ -193,6 +193,44 @@ operation ::= `VPUIP.ClampUPA` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float values
 
+### `VPUIP.CompressedDMAOp` (vpux::VPUIP::CompressedDMAOp)
+
+NN DMA task with enabled compression. Omits IERT_SameShape trait.
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.CompressedDMAOp` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+              (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`port` | mlir::IntegerAttr | Integer attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of any type values
+`output_buff` | memref of any type values
+`waitBarriers` | VPUIP Barrier Type
+`updateBarriers` | VPUIP Barrier Type
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of any type values
+
 ### `VPUIP.ConfigureBarrier` (vpux::VPUIP::ConfigureBarrierOp)
 
 A task to configure the setup for a barrier
@@ -1229,7 +1267,6 @@ operation ::= `VPUIP.NNDMA` attr-dict
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`compression` | ::mlir::UnitAttr | unit attribute
 `port` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:

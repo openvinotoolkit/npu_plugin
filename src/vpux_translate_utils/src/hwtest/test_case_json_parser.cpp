@@ -275,6 +275,12 @@ nb::ConvLayer nb::TestCaseJsonDescriptor::loadConvLayer(llvm::json::Object* json
 
     result.group = op->getInteger("group").getValue();
     result.dilation = op->getInteger("dilation").getValue();
+    auto compress = op->getInteger("compress");
+    if (compress.hasValue()) {
+        result.compress = (compress.getValue() > 0);
+    } else {
+        result.compress = false;
+    }
 
     return result;
 }
