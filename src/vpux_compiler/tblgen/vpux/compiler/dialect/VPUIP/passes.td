@@ -118,4 +118,23 @@ def DumpStatisticsOfTaskOps : PassBase<"dump-statistics-of-task-ops", "vpux::Fun
     let constructor = "vpux::VPUIP::createDumpStatisticsOfTaskOpsPass()";
 }
 
+//
+// CompressWeights
+//
+
+def CompressWeights : PassBase<"compress-weights", "vpux::FunctionPass"> {
+    let summary = "Compress binary data when possible";
+
+    let description = [{
+        This pass applies bitcompactor to tensor binary data. The logic is the following:
+        1. Find VPUIP::NNDMAOp with Const::DeclareOp source and VPUIP::DeclareTensorOp target.
+        2. Check that weights size matches minimal compression size.
+        3. Compress weights.
+        4. Wrap compressed weights to flat tensor shapes with UInt8 data type.
+        5. Replace original VPUIP::NNDMAOp with VPUIP::CompressedDMAOp
+    }];
+
+    let constructor = "vpux::VPUIP::createCompressWeightsPass()";
+}
+
 #endif

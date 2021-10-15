@@ -34,6 +34,11 @@ It updates both function bodies as well as Function signatures.
 The pass is a part of `AdjustForVPU` pipeline.
 This pass replaces all I64 tensors with I32.
 It updates both function bodies as well as Function signatures.
+### `-convert-quantize-ops-to-eltwise`: Converts per-tensor Quantize/Dequantize to eltwise And mixed-precision operation
+The pass is a part of `LowPrecision` pipeline.
+
+Converts per-tensor Quantize/Dequantize to eltwise And mixed-precision operation
+where input2 is input1 to perform type conversion on DPU instead of UPA.
 ### `-convert-scale-shift-depthwise`: Convert Scale-Shift operation to Depthwise Convolution
 The pass is a part of `HardwareMode` pipeline.
 

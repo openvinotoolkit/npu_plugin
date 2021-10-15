@@ -172,7 +172,9 @@ mlir::LogicalResult EltwiseTiling<ConcreteOp>::matchAndRewrite(ConcreteOp origOp
 
     for (const Tile& tile : tilings) {
         const mlir::Value actInput1 = makeTile(rewriter, origOp->getLoc(), origOp.input1(), tile, "input1");
-        const mlir::Value actInput2 = makeTile(rewriter, origOp->getLoc(), origOp.input2(), tile, "input2");
+        const mlir::Value actInput2 = origOp.input1() == origOp.input2()
+                                              ? actInput1
+                                              : makeTile(rewriter, origOp->getLoc(), origOp.input2(), tile, "input2");
 
         const std::string tileName = llvm::formatv("output tile {0}", tile.offsets).str();
         const mlir::Location loc = appendLoc(origOp->getLoc(), tileName);
@@ -182,7 +184,7 @@ mlir::LogicalResult EltwiseTiling<ConcreteOp>::matchAndRewrite(ConcreteOp origOp
         auto allocOutOp = rewriter.create<mlir::memref::AllocOp>(loc, tileTypeOut);
 
         auto tiledOp =
-                rewriter.create<IERT::AddOp>(loc, actInput1, actInput2, allocOutOp.memref(), origOp.post_opAttr());
+                rewriter.create<ConcreteOp>(loc, actInput1, actInput2, allocOutOp.memref(), origOp.post_opAttr());
 
         const auto attrOffsets = getIntArrayAttr(rewriter.getContext(), tile.offsets.raw());
         const auto attrShape = getIntArrayAttr(rewriter.getContext(), tile.shape.raw());
@@ -424,10 +426,10 @@ OutputTiling SimpleTiler::genericTiler(mlir::Operation* op, mlir::MemRefType out
             if (nTilesOnDim[IE::Dims4D::Act::C] < maxChannelTiles)
                 return true;
         } else {  // Spatial dims
-            const auto origSize = outputShape[dimToTile.getValue()];
-            const auto prevDivisor = nTilesOnDim[dimToTile.getValue()];
+            const double origSize = static_cast<double>(outputShape[dimToTile.getValue()]);
+            const double prevDivisor = static_cast<double>(nTilesOnDim[dimToTile.getValue()]);
 
-            if (origSize / prevDivisor > 1)
+            if ((origSize / prevDivisor) > 1.0)
                 return true;
         }
 

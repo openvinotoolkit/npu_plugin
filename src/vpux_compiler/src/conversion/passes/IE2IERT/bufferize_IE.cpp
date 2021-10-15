@@ -614,6 +614,12 @@ mlir::Operation* createRTLayer(IE::LRN_IEOp origOp, ArrayRef<mlir::Value> allBuf
                                     origOp.betaAttr(), origOp.biasAttr(), origOp.sizeAttr(), origOp.regionAttr());
 }
 
+mlir::Operation* createRTLayer(IE::BroadcastOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::BroadcastOp::Adaptor newOp(allBufs);
+    return b.create<IERT::BroadcastOp>(origOp.getLoc(), newOp.input(), newOp.target_shape(), newOp.axes_mapping(),
+                                       newOp.output_buff(), origOp.modeAttr());
+}
+
 mlir::Operation* createRTLayer(IE::PerAxisTileOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::PerAxisTileOp::Adaptor newOp(allBufs);
     return b.create<IERT::PerAxisTileOp>(origOp.getLoc(), newOp.input(), newOp.output_buff(), origOp.axisAttr(),
@@ -815,6 +821,7 @@ mlir::LogicalResult LayerRewrite::matchAndRewrite(mlir::Operation* origOp, Array
     CASE(IE::RoundOp)
     CASE(IE::MishOp)
     CASE(IE::ErfOp)
+    CASE(IE::BroadcastOp)
     CASE(IE::TanhOp)
     CASE(IE::SqrtOp)
     CASE(IE::FakeQuantizeOp)

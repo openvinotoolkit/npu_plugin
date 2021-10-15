@@ -16,6 +16,7 @@
 #include "vpux/compiler/dialect/const/ops.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
+#include "vpux/utils/core/numeric.hpp"
 
 #include <mlir/IR/PatternMatch.h>
 
@@ -118,7 +119,7 @@ mlir::OpFoldResult vpux::IE::MultiplyOp::fold(ArrayRef<mlir::Attribute> operands
 
     if (const auto attr = operands[1].dyn_cast_or_null<Const::ContentAttr>()) {
         const auto content = attr.fold();
-        if (content.isSplat() && content.getSplatValue<float>() == 1.0f) {
+        if (content.isSplat() && isDoubleEqual(content.getSplatValue<double>(), 1.0)) {
             return input1();
         }
     }

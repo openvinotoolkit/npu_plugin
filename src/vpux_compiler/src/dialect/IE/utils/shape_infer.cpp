@@ -29,13 +29,13 @@ mlir::FailureOr<SmallVector<int64_t>> vpux::IE::broadcastEltwiseShape(ArrayRef<i
                                                                       ArrayRef<int64_t> shape2,
                                                                       AutoBroadcastType broadcastType,
                                                                       mlir::Location loc) {
-    if (broadcastType == AutoBroadcastType::NONE_OR_EXPLICIT) {
+    if (broadcastType == IE::AutoBroadcastType::NONE_OR_EXPLICIT) {
         if (shape1 != shape2) {
             return errorAt(loc, "Input shapes must be equal in case BroadcastType is NONE");
         }
 
         return to_small_vector(shape1);
-    } else if (broadcastType == vpux::IE::AutoBroadcastType::NUMPY) {
+    } else if (broadcastType == IE::AutoBroadcastType::NUMPY) {
         SmallVector<int64_t> outShape(std::max(shape1.size(), shape2.size()), 0);
 
         auto in1ShapeIter = shape1.rbegin();

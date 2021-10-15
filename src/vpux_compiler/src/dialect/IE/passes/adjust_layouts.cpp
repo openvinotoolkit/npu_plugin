@@ -15,7 +15,6 @@
 
 #include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/logging.hpp"
-#include "vpux/compiler/utils/rewriter.hpp"
 #include "vpux/compiler/utils/types.hpp"
 
 #include <mlir/Transforms/DialectConversion.h>
@@ -24,21 +23,24 @@ using namespace vpux;
 
 namespace {
 
+using InputToReordersMap = mlir::DenseMap<mlir::Value, std::unordered_map<DimsOrder, IE::ReorderOp>>;
+
 //
 // LayerRewriter
 //
 
 class LayerRewriter final : public mlir::OpInterfaceRewritePattern<IE::LayoutInfoOpInterface> {
 public:
-    LayerRewriter(mlir::MLIRContext* ctx, Logger log)
-            : mlir::OpInterfaceRewritePattern<IE::LayoutInfoOpInterface>(ctx), _log(log) {
+    LayerRewriter(mlir::MLIRContext* ctx, InputToReordersMap* const reorders, Logger log)
+            : mlir::OpInterfaceRewritePattern<IE::LayoutInfoOpInterface>(ctx), _reorders(reorders), _log(log) {
+        VPUX_THROW_UNLESS(reorders != nullptr, "Got NULL reorders map");
     }
 
 public:
     mlir::LogicalResult matchAndRewrite(IE::LayoutInfoOpInterface origOp, mlir::PatternRewriter& rewriter) const final;
 
 private:
-    IE::ReorderOp createReorder(mlir::Operation* op, mlir::Value output, DimsOrder dstOrder,
+    IE::ReorderOp createReorder(mlir::Operation* op, mlir::Value input, DimsOrder dstOrder,
                                 mlir::PatternRewriter& rewriter) const;
 
     void insertReorderForInput(mlir::Operation* op, mlir::OpOperand& input, DimsOrder dstOrder,
@@ -46,16 +48,35 @@ private:
     void insertReorderForOutput(mlir::Operation* op, mlir::Value output, DimsOrder dstOrder,
                                 mlir::PatternRewriter& rewriter) const;
 
-    void setNewType(mlir::Value operand, DimsOrder newOrder) const;
+    void setNewType(mlir::Value value, DimsOrder newOrder) const;
 
 private:
+    InputToReordersMap* const _reorders;
     Logger _log;
 };
 
 IE::ReorderOp LayerRewriter::createReorder(mlir::Operation* op, mlir::Value input, DimsOrder dstOrder,
                                            mlir::PatternRewriter& rewriter) const {
     _log.nest(2).trace("Insert Reorder: '{0}' -> '{1}'", DimsOrder::fromValue(input), dstOrder);
-    return rewriter.create<IE::ReorderOp>(op->getLoc(), input, dstOrder.toPermutationAffineMap(getContext()));
+
+    const auto inputWithReordersIt = _reorders->find(input);
+    if (inputWithReordersIt == _reorders->end()) {
+        auto reorder =
+                rewriter.create<IE::ReorderOp>(op->getLoc(), input, dstOrder.toPermutationAffineMap(getContext()));
+        _reorders->insert({input, std::unordered_map<DimsOrder, IE::ReorderOp>{{dstOrder, reorder}}});
+        return reorder;
+    }
+
+    auto currentReorders = inputWithReordersIt->getSecond();
+    const auto reorderIt = currentReorders.find(dstOrder);
+    if (reorderIt == currentReorders.end()) {
+        auto reorder =
+                rewriter.create<IE::ReorderOp>(op->getLoc(), input, dstOrder.toPermutationAffineMap(getContext()));
+        currentReorders.insert({dstOrder, reorder});
+        return reorder;
+    }
+
+    return reorderIt->second;
 }
 
 void LayerRewriter::insertReorderForInput(mlir::Operation* op, mlir::OpOperand& input, DimsOrder dstOrder,
@@ -168,8 +189,9 @@ void AdjustLayoutsPass::safeRunOnFunc() {
     });
     target.addLegalOp<IE::ReorderOp>();
 
+    InputToReordersMap reorders{};
     mlir::RewritePatternSet patterns(&ctx);
-    patterns.insert<LayerRewriter>(&ctx, _log.nest());
+    patterns.insert<LayerRewriter>(&ctx, &reorders, _log.nest());
 
     auto func = getFunction();
     if (mlir::failed(mlir::applyPartialConversion(func, target, std::move(patterns)))) {

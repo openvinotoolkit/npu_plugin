@@ -8,6 +8,13 @@ This pass replaces virtual barriers with physical barriers and assign IDs to the
 ```
 ### `-barrier-simulation`: Simulate barriers
 Simulates the physical barrier execution and stops compilation on fail.
+### `-compress-weights`: Compress binary data when possible
+This pass applies bitcompactor to tensor binary data. The logic is the following:
+1. Find VPUIP::NNDMAOp with Const::DeclareOp source and VPUIP::DeclareTensorOp target.
+2. Check that weights size matches minimal compression size.
+3. Compress weights.
+4. Wrap compressed weights to flat tensor shapes with UInt8 data type.
+5. Replace original VPUIP::NNDMAOp with VPUIP::CompressedDMAOp
 ### `-convert-wtable-op-to-constant`: Convert WeightsTable Operations to IERT.ConstantOp
 This pass fills weights table considering the information about the offset in the memory of the weights or activation window.
 ### `-dump-statistics-of-task-ops`: Dump the statistics of used Task operations

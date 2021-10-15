@@ -45,6 +45,26 @@ func @FuseQuantParamsIntoEltwise(%arg0: tensor<1x3x16x16xf16>, %arg1: tensor<1x3
 
 // -----
 
+!qElemType = type !quant.uniform<u8:f16:1, {1.000000e-01:128,2.000000e-01:128,3.000000e-01:128,4.000000e-01:128}>
+
+// CHECK-LABEL: @FusePerChannelEltwiseNoChanges
+func @FusePerChannelEltwiseNoChanges(%arg0: tensor<1x4x16x16x!qElemType>, %arg1: tensor<1x4x16x16x!qElemType>) -> tensor<1x4x16x16x!qElemType> {
+    %0 = IE.Dequantize(%arg0) {dstElemType = f16} : tensor<1x4x16x16x!qElemType> -> tensor<1x4x16x16xf16>
+    %1 = IE.Dequantize(%arg1) {dstElemType = f16} : tensor<1x4x16x16x!qElemType> -> tensor<1x4x16x16xf16>
+    %2 = IE.Add(%0, %1) { auto_broadcast = "NUMPY" } : tensor<1x4x16x16xf16>, tensor<1x4x16x16xf16> -> tensor<1x4x16x16xf16>
+    %3 = IE.Quantize(%2) {dstElemType = !qElemType}: tensor<1x4x16x16xf16> -> tensor<1x4x16x16x!qElemType>
+
+    return %3 : tensor<1x4x16x16x!qElemType>
+
+    //CHECK:  %0 = IE.Dequantize(%arg0)
+    //CHECK:  %1 = IE.Dequantize(%arg1)
+    //CHECK:  %2 = IE.Add(%0, %1) {auto_broadcast = "NUMPY"} : tensor<1x4x16x16xf16>, tensor<1x4x16x16xf16> -> tensor<1x4x16x16xf16>
+    //CHECK:  %3 = IE.Quantize(%2)
+    //CHECK:  return %3
+}
+
+// -----
+
 // CHECK-LABEL: @FuseQuantParamsIntoSlice
 func @FuseQuantParamsIntoSlice(%arg0: tensor<1x3x16x16xf16>) -> tensor<1x3x16x8xf16> {
     %0 = IE.Quantize(%arg0) {dstElemType = !quant.uniform<u8:f16, 1.1534313725490195:128>} : tensor<1x3x16x16xf16> -> tensor<1x3x16x16x!quant.uniform<u8:f16, 1.1534313725490195:128>>

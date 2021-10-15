@@ -408,7 +408,7 @@ class ZMajorConvolution(MPE):
 
     # kernel_strides are x|y directions
     # The padding order is top|left|bottom|right
-    PARAMS = ['mpe_op_class', 'input_ttype', 'input_shape', 'weight_ttype', 'kernel_channels', 'kernel_shape', 'output_ttype', 'kernel_strides', 'kernel_pads']
+    PARAMS = ['mpe_op_class', 'input_ttype', 'input_shape', 'weight_ttype', 'kernel_channels', 'kernel_shape', 'output_ttype', 'kernel_strides', 'kernel_pads', 'compress']
 
     def __init__(self, settings):
         self.settings = settings
@@ -423,7 +423,8 @@ class ZMajorConvolution(MPE):
                 'stride': self.settings.kernel_strides,
                 'pad': self.settings.kernel_pads,
                 'group': 1,
-                'dilation': 1
+                'dilation': 1,
+                'compress': self.settings.compress
             }
         }
 
@@ -433,7 +434,13 @@ class ZMajorConvolution(MPE):
 
     @property
     def ident(self) -> str:
-        return f'zm_conv_{shape_to_str(self.settings.input_shape)}x{self.settings.input_ttype.stype}_{shape_to_str(self.settings.weight_shape)}x{self.settings.weight_ttype.stype}_pads_{shape_to_str(self.settings.kernel_pads)}_strides_{shape_to_str(self.settings.kernel_strides)}_kern_chan_{self.settings.kernel_channels}'
+        compression_str = ''
+        if self.settings.compress > 0:
+            compression_str = '_compressed'
+        else:
+            compression_str = ''
+
+        return f'zm_conv_{shape_to_str(self.settings.input_shape)}x{self.settings.input_ttype.stype}_{shape_to_str(self.settings.weight_shape)}x{self.settings.weight_ttype.stype}_pads_{shape_to_str(self.settings.kernel_pads)}_strides_{shape_to_str(self.settings.kernel_strides)}_kern_chan_{self.settings.kernel_channels}' + compression_str
 
     @property
     def orderer(self) -> Orderer:
@@ -885,7 +892,8 @@ def genZMConvs(input_types=[UInt8(2)],
                kernel_shapes=[[1, 1]],
                output_types=[Int4(), UInt4(), UInt8()],
                strides=[[1, 1]],
-               pads=[[0, 0, 0, 0]]):
+               pads=[[0, 0, 0, 0]],
+               compress=[0]):
     return (DPUPipeline(ZMajorConvolution.PARAMS, x) for x in itertools.product(
             [ZMajorConvolution],
             input_types,
@@ -895,7 +903,8 @@ def genZMConvs(input_types=[UInt8(2)],
             kernel_shapes,
             output_types,
             strides,
-            pads
+            pads,
+            compress
             ))
 
 
@@ -1307,6 +1316,16 @@ def generate_options(args):
                    weight_types=[UInt8(2)],
                    kernel_channels=[64],
                    output_types=[UInt8()]),
+
+        genZMConvs(input_types=[Int8(2)],
+                   input_shapes=[[1, 16, 64, 64]],
+                   weight_types=[Int8(2)],
+                   kernel_channels=[16],
+                   kernel_shapes=[[5, 5]],
+                   output_types=[Int8()],
+                   strides=[[1, 1]],
+                   pads=[[0, 0, 0, 0]],
+                   compress=[1])
     )
 
 
