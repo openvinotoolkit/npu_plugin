@@ -139,7 +139,7 @@ void vpux::Const::PadWithZeroAttr::print(mlir::DialectAsmPrinter& printer) const
 // PadWithZeroAttr::parse
 //
 
-mlir::Attribute vpux::Const::PadWithZeroAttr::parse(mlir::MLIRContext*, mlir::DialectAsmParser& parser, mlir::Type) {
+mlir::Attribute vpux::Const::PadWithZeroAttr::parse(mlir::DialectAsmParser& parser, mlir::Type) {
     if (mlir::failed(parser.parseLess())) {
         return nullptr;
     }

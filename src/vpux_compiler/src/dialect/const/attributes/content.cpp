@@ -61,7 +61,7 @@ mlir::Attribute vpux::Const::ConstDialect::parseAttribute(mlir::DialectAsmParser
     VPUX_THROW_UNLESS(mlir::succeeded(parser.parseKeyword(&mnemonic)), "Can't get attribute mnemonic");
 
     mlir::Attribute attr;
-    const auto res = generatedAttributeParser(parser.getBuilder().getContext(), parser, mnemonic, type, attr);
+    const auto res = generatedAttributeParser(parser, mnemonic, type, attr);
     VPUX_THROW_UNLESS(res.hasValue() && mlir::succeeded(res.getValue()), "Can't parse attribute");
 
     return attr;
@@ -229,7 +229,7 @@ void vpux::Const::ContentAttr::print(mlir::DialectAsmPrinter& printer) const {
 // ContentAttr::parse
 //
 
-mlir::Attribute vpux::Const::ContentAttr::parse(mlir::MLIRContext*, mlir::DialectAsmParser& parser, mlir::Type) {
+mlir::Attribute vpux::Const::ContentAttr::parse(mlir::DialectAsmParser& parser, mlir::Type) {
     if (mlir::failed(parser.parseLess())) {
         return nullptr;
     }
