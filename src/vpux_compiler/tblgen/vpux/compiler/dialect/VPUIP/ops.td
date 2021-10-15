@@ -2554,7 +2554,10 @@ def VPUIP_SW_Kernel :
     let builders = [
         OpBuilder<(ins
             "mlir::ValueRange":$inputs,
-            "mlir::ValueRange":$outputs
+            "mlir::ValueRange":$outputs,
+            "mlir::SymbolRefAttr":$kernelFunction,
+            "mlir::IntegerAttr":$tileIndex,
+            "mlir::ValueRange":$args
         )>
     ];
 
