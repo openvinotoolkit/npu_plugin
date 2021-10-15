@@ -105,9 +105,11 @@ std::vector<uint8_t> getBitPattern(mlir::ArrayRef<int64_t> kernelSize, int64_t w
     window.insert(window.end(), numBitsSet, 1);
     window.insert(window.end(), numBitsClear, 0);
 
+    const auto numOfRepeat = kernelH * inputChannels;
+
     std::vector<uint8_t> bitPattern;
-    bitPattern.reserve(kernelH * windowSize * inputChannels);
-    for (auto i = 0; i < window.size(); i++) {
+    bitPattern.reserve(numOfRepeat * windowSize);
+    for (auto i = 0; i < numOfRepeat; i++) {
         bitPattern.insert(bitPattern.end(), window.begin(), window.end());
     }
 
