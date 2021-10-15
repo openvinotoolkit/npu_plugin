@@ -41,6 +41,7 @@ void vpux::VPUIP::GatherUPAOp::build(mlir::OpBuilder& builder, mlir::OperationSt
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::GatherUPAOp::serialize(VPUIP::BlobWriter& writer) {
     MVCNN::GatherParamsBuilder builder(writer);
     builder.add_axis(checked_cast<uint32_t>(axis()));
+    builder.add_batch_dims(checked_cast<uint32_t>(batch_dims()));
     const auto paramsOff = builder.Finish();
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_GatherParams});
 }
@@ -52,8 +53,7 @@ mlir::Operation* vpux::VPUIP::BlobReader::parseGather(mlir::OpBuilder& builder, 
 
     const auto params = task->softLayerParams_as_GatherParams();
     const auto axis = getIntAttr(_ctx, params->axis());
-    const auto batch =
-            getIntAttr(_ctx, params->axis());  // getIntAttr(_ctx, params->batch_dims()); TBD after schema update
+    const auto batch_dims = getIntAttr(_ctx, params->batch_dims());
     return builder.create<VPUIP::GatherUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], inputs[1], outputs[0], axis,
-                                              batch);
+                                              batch_dims);
 }
