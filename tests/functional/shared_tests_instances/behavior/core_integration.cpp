@@ -3,13 +3,16 @@
 //
 
 #include <functional_test_utils/skip_tests_config.hpp>
-#include "behavior/plugin/core_integration.hpp"
+#include "behavior/core_integration.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common/functions.h"
 #include "vpux_private_config.hpp"
 #include "vpux_private_metrics.hpp"
 
 using namespace BehaviorTestsDefinitions;
+using IEClassExecutableNetworkGetMetricTest_nightly = IEClassExecutableNetworkGetMetricTest;
+using IEClassExecutableNetworkGetConfigTest_nightly = IEClassExecutableNetworkGetConfigTest;
+
 using IEClassGetMetricTest_nightly = IEClassGetMetricTest;
 using IEClassGetConfigTest_nightly = IEClassGetConfigTest;
 
@@ -42,10 +45,10 @@ using IEClassNetworkTestP_VPU = IEClassNetworkTestP;
 
 TEST_P(IEClassNetworkTestP_VPU, smoke_ImportNetworkNoThrowWithDeviceName) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    InferenceEngine::Core ie;
+    Core ie;
     std::stringstream strm;
-    InferenceEngine::ExecutableNetwork executableNetwork;
-    ASSERT_NO_THROW(executableNetwork = ie.LoadNetwork(actualCnnNetwork, deviceName));
+    ExecutableNetwork executableNetwork;
+    ASSERT_NO_THROW(executableNetwork = ie.LoadNetwork(actualNetwork, deviceName));
     ASSERT_NO_THROW(executableNetwork.Export(strm));
     ASSERT_NO_THROW(executableNetwork = ie.ImportNetwork(strm, deviceName));
     ASSERT_NO_THROW(executableNetwork.CreateInferRequest());
@@ -53,11 +56,11 @@ TEST_P(IEClassNetworkTestP_VPU, smoke_ImportNetworkNoThrowWithDeviceName) {
 
 TEST_P(IEClassNetworkTestP_VPU, smoke_ExportUsingFileNameImportFromStreamNoThrowWithDeviceName) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    InferenceEngine::Core ie;
-    InferenceEngine::ExecutableNetwork executableNetwork;
+    Core ie;
+    ExecutableNetwork executableNetwork;
     std::string fileName{"ExportedNetwork"};
     {
-        ASSERT_NO_THROW(executableNetwork = ie.LoadNetwork(actualCnnNetwork, deviceName));
+        ASSERT_NO_THROW(executableNetwork = ie.LoadNetwork(actualNetwork, deviceName));
         SKIP_IF_NOT_IMPLEMENTED(executableNetwork.Export(fileName));
     }
     if (CommonTestUtils::fileExists(fileName)) {
@@ -75,10 +78,10 @@ TEST_P(IEClassNetworkTestP_VPU, smoke_ExportUsingFileNameImportFromStreamNoThrow
 using IEClassNetworkTestP_VPU_GetMetric = IEClassNetworkTestP_VPU;
 
 TEST_P(IEClassNetworkTestP_VPU_GetMetric, smoke_OptimizationCapabilitiesReturnsFP16) {
-    InferenceEngine::Core ie;
-    ASSERT_METRIC_SUPPORTED_IE(METRIC_KEY(OPTIMIZATION_CAPABILITIES))
+    Core ie;
+    ASSERT_METRIC_SUPPORTED(METRIC_KEY(OPTIMIZATION_CAPABILITIES))
 
-    InferenceEngine::Parameter optimizationCapabilitiesParameter;
+    Parameter optimizationCapabilitiesParameter;
     ASSERT_NO_THROW(optimizationCapabilitiesParameter = ie.GetMetric(deviceName, METRIC_KEY(OPTIMIZATION_CAPABILITIES)));
 
     const auto optimizationCapabilities = optimizationCapabilitiesParameter.as<std::vector<std::string>>();
@@ -102,6 +105,44 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values("HETERO:" + std::string(CommonTestUtils::DEVICE_KEEMBAY) + ",CPU"));
 
 #endif
+
+//
+// Executable Network GetMetric
+//
+
+INSTANTIATE_TEST_SUITE_P(
+        DISABLED_IEClassExecutableNetworkGetMetricTest_nightly,
+        IEClassExecutableNetworkGetMetricTest_ThrowsUnsupported,
+        ::testing::ValuesIn(devices));
+
+INSTANTIATE_TEST_SUITE_P(
+        DISABLED_IEClassExecutableNetworkGetMetricTest_nightly,
+        IEClassExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS,
+        ::testing::ValuesIn(devices));
+
+INSTANTIATE_TEST_SUITE_P(
+        DISABLED_IEClassExecutableNetworkGetMetricTest_nightly,
+        IEClassExecutableNetworkGetMetricTest_SUPPORTED_METRICS,
+        ::testing::ValuesIn(devices));
+
+INSTANTIATE_TEST_SUITE_P(
+        DISABLED_DISABLED_IEClassExecutableNetworkGetMetricTest_nightly,
+        IEClassExecutableNetworkGetMetricTest_NETWORK_NAME,
+        ::testing::ValuesIn(devices));
+
+INSTANTIATE_TEST_SUITE_P(
+        DISABLED_IEClassExecutableNetworkGetMetricTest_nightly,
+        IEClassExecutableNetworkGetMetricTest_OPTIMAL_NUMBER_OF_INFER_REQUESTS,
+        ::testing::ValuesIn(devices));
+
+//
+// Executable Network GetConfig
+//
+
+INSTANTIATE_TEST_SUITE_P(
+        DISABLED_IEClassExecutableNetworkGetConfigTest_nightly,
+        IEClassExecutableNetworkGetConfigTest,
+        ::testing::ValuesIn(devices));
 
 //
 // IE Class GetMetric
@@ -165,13 +206,13 @@ protected:
 
 TEST_P(IEClassQueryNetworkTest_VPU, QueryNetworkWithCorrectDeviceID) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    InferenceEngine::Core ie;
+    Core ie;
 
     if (supportsDeviceID(ie, deviceName)) {
         auto deviceIDs = ie.GetMetric(deviceName, METRIC_KEY(AVAILABLE_DEVICES)).as<std::vector<std::string>>();
         if (deviceIDs.empty())
             GTEST_SKIP();
-        ASSERT_NO_THROW(ie.QueryNetwork(simpleCnnNetwork, deviceName + "." + deviceIDs[0], config));
+        ASSERT_NO_THROW(ie.QueryNetwork(simpleNetwork, deviceName + "." + deviceIDs[0], config));
     } else {
         GTEST_SKIP();
     }
@@ -201,7 +242,7 @@ TEST_P(IEClassLoadNetworkTest, checkBlobCachingSingleDevice) {
 
     CommonTestUtils::removeFilesWithExt("cache", "blob");
     CommonTestUtils::removeDir("cache");
-    InferenceEngine::Core ie;
+    Core ie;
 
     // [Track number: E#20961]
     if (getBackendName(ie) == "LEVEL0") {
@@ -230,10 +271,10 @@ TEST_P(IEClassLoadNetworkTest, checkBlobCachingSingleDevice) {
         ASSERT_NO_THROW(architecture = ie.GetMetric(fullDeviceName, METRIC_KEY(DEVICE_ARCHITECTURE)).as<std::string>());
 
         auto start_time = std::chrono::steady_clock::now();
-        ASSERT_NO_THROW(ie.LoadNetwork(simpleCnnNetwork, fullDeviceName));
+        ASSERT_NO_THROW(ie.LoadNetwork(simpleNetwork, fullDeviceName));
         std::chrono::duration<double> first_time = std::chrono::steady_clock::now() - start_time;
         start_time = std::chrono::steady_clock::now();
-        ASSERT_NO_THROW(ie.LoadNetwork(simpleCnnNetwork, fullDeviceName));
+        ASSERT_NO_THROW(ie.LoadNetwork(simpleNetwork, fullDeviceName));
         std::chrono::duration<double> second_time = std::chrono::steady_clock::now() - start_time;
 
         std::cout << "[TIME] First LoadNetwork time: " << first_time.count() << std::endl;
@@ -252,16 +293,16 @@ TEST_P(IEClassLoadNetworkTest, checkBlobCachingSingleDevice) {
 // IE Class GetMetric
 //
 
-using IEClassGetMetricTest_DEVICE_ARCHITECTURE = BehaviorTestsUtils::IEClassBaseTestP;
+using IEClassGetMetricTest_DEVICE_ARCHITECTURE = IEClassBaseTestP;
 
 TEST_P(IEClassGetMetricTest_DEVICE_ARCHITECTURE, GetMetricAndPrint) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    InferenceEngine::Core ie;
+    Core ie;
     const auto deviceIDs = ie.GetMetric(deviceName, METRIC_KEY(AVAILABLE_DEVICES)).as<std::vector<std::string>>();
     if (deviceIDs.empty())
         GTEST_SKIP() << "No devices available";
 
-    ASSERT_METRIC_SUPPORTED_IE(METRIC_KEY(DEVICE_ARCHITECTURE));
+    ASSERT_METRIC_SUPPORTED(METRIC_KEY(DEVICE_ARCHITECTURE));
 
     std::string architecture;
     ASSERT_NO_THROW(architecture = ie.GetMetric(deviceName + "." + deviceIDs[0], METRIC_KEY(DEVICE_ARCHITECTURE)).as<std::string>());
@@ -271,7 +312,7 @@ TEST_P(IEClassGetMetricTest_DEVICE_ARCHITECTURE, GetMetricAndPrint) {
 
 TEST_P(IEClassGetMetricTest_DEVICE_ARCHITECTURE, GetMetricWithoutDevice) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    InferenceEngine::Core ie;
+    Core ie;
 
     if (supportsDeviceID(ie, deviceName)) {
         const auto deviceIDs = ie.GetMetric(deviceName, METRIC_KEY(AVAILABLE_DEVICES)).as<std::vector<std::string>>();
@@ -284,7 +325,7 @@ TEST_P(IEClassGetMetricTest_DEVICE_ARCHITECTURE, GetMetricWithoutDevice) {
 
 TEST_P(IEClassGetMetricTest_DEVICE_ARCHITECTURE, GetAllArchitectures) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    InferenceEngine::Core ie;
+    Core ie;
 
     const auto deviceIDs = ie.GetMetric(deviceName, METRIC_KEY(AVAILABLE_DEVICES)).as<std::vector<std::string>>();
     if (deviceIDs.empty())
@@ -302,11 +343,11 @@ INSTANTIATE_TEST_CASE_P(
         ::testing::ValuesIn(devices));
 
 // Testing private VPUX Plugin metric "BACKEND_NAME"
-using IEClassGetMetricTest_BACKEND_NAME = BehaviorTestsUtils::IEClassBaseTestP;
+using IEClassGetMetricTest_BACKEND_NAME = IEClassBaseTestP;
 
 TEST_P(IEClassGetMetricTest_BACKEND_NAME, GetBackendName) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    InferenceEngine::Core ie;
+    Core ie;
 
     const std::unordered_set<std::string> availableBackends = {"HDDL2", "VPUAL", "LEVEL0", "EMULATOR"};
     const auto deviceIDs = ie.GetMetric(deviceName, METRIC_KEY(AVAILABLE_DEVICES)).as<std::vector<std::string>>();
