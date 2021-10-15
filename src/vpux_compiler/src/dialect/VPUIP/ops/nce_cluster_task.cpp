@@ -84,11 +84,10 @@ void vpux::VPUIP::NCEClusterTaskOp::inferLayoutInfo(mlir::Operation* origOp, IE:
                         getShape(op.filter().getType().cast<mlir::ShapedType>())[IE::Dims4D::Filter::IC];
                 const auto inDimsOrder = DimsOrder::fromValue(op->getOperand(0));
 
-                if (isChannelMajorCompatibleOperation(inDimsOrder, inputChannels, inputTensorWidth))
-                    info.setInput(0, DimsOrder::NCHW);
-                else
-                    info.setInput(0, DimsOrder::NHWC);
-
+                const auto inLayout = isChannelMajorCompatibleOperation(inDimsOrder, inputChannels, inputTensorWidth)
+                                              ? DimsOrder::NCHW
+                                              : DimsOrder::NHWC;
+                info.setInput(0, inLayout);
                 info.setInput(1, DimsOrder::OYXI);
                 info.setOutput(0, DimsOrder::NHWC);
             })
@@ -183,11 +182,11 @@ mlir::LogicalResult verifyNCEConv(VPUIP::NCEClusterTaskOp op) {
         if (verifySameInOutSpecificDimsOrder(op, {DimsOrder::NHWC}).failed()) {
             return mlir::failure();
         }
-    } else if (op.task_type() == VPUIP::NCETaskType::CMCONV) {
+    } else {
         const auto inOrder = DimsOrder::fromValue(op.getInputs()[0]);
         const auto outputOrder = DimsOrder::fromValue(op.getOutputs()[0]);
 
-        if (inOrder != DimsOrder::NCHW && outputOrder != DimsOrder::NHWC) {
+        if (inOrder != DimsOrder::NCHW || outputOrder != DimsOrder::NHWC) {
             return errorAt(op,
                            "For channel major convolution layout must be NCHW for input and NHWC for output, got input "
                            "{0} and output {1]",
