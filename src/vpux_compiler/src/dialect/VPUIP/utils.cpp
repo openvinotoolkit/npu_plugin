@@ -95,8 +95,8 @@ mlir::Value alignChannelMajorWeightsTensor(mlir::OpBuilder& builder, mlir::Locat
 }
 
 bool isChannelMajorCompatibleOperation(DimsOrder inDimsOrder, int64_t inputChannels, int64_t inputTensorWidth) {
-    const int64_t nceChannelMajorConvRequiredWidthAlignment = 16;
-    return ((inDimsOrder == DimsOrder::NCHW) && (inputChannels == 3) && (inputTensorWidth % nceChannelMajorConvRequiredWidthAlignment == 0));
+    return ((inDimsOrder == DimsOrder::NCHW) && (inputChannels == 3) &&
+            (inputTensorWidth % NCEInvariant::NCE_CHANNEL_MAJOR_CONV_REQUIRED_WIDTH_ALIGNMENT == 0));
 }
 
 }  // namespace VPUIP

@@ -26,7 +26,7 @@ namespace VPUIP {
 class NCEInvariant final {
 public:
     static constexpr int64_t WEIGHT_TABLE_NUM_ELEMENTS_PER_OC = 4;
-    const static int64_t NCE_CHANNEL_MAJOR_CONV_REQUIRED_WIDTH_ALIGNMENT = 16;
+    static constexpr int64_t NCE_CHANNEL_MAJOR_CONV_REQUIRED_WIDTH_ALIGNMENT = 16;
 
 public:
     static mlir::LogicalResult verifyOp(mlir::Operation* op, Logger log = Logger::global());
