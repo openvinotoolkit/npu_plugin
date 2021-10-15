@@ -208,7 +208,9 @@ void DPUProfilingPass::safeRunOnModule() {
     auto outputResult = mlir::MemRefType::get({output_size}, getUInt64Type(ctx));
 
     builder.setInsertionPointAfter(&netFunc.getBody().front().front());
-    auto memOp = builder.create<mlir::memref::AllocOp>(mlir::UnknownLoc::get(ctx), cmxMemType);
+    auto memOp = builder.create<mlir::memref::AllocOp>(
+            mlir::NameLoc::get(mlir::Identifier::get("profilingBuffer", ctx)), cmxMemType);
+    // auto memOp createDeclareTensorOp
 
     unsigned dpu_id = 0;
     SmallVector<mlir::Value> dpuProfilingOutputs;

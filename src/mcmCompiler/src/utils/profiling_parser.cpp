@@ -18,7 +18,7 @@ void mv::utils::getProfilingInfo(const void* data, const void* output, std::vect
         throw mv::ArgumentError("profiling", "profiling", "0", "Empty input data");
     }
 
-    auto output_bin = reinterpret_cast<const uint32_t*>(output);
+    auto output_bin = reinterpret_cast<const uint64_t*>(output);
 
     const auto* graphFilePtr = MVCNN::GetGraphFile(data);
     MVCNN::GraphFileT graphFile;
@@ -93,6 +93,7 @@ void mv::utils::getProfilingInfo(const void* data, const void* output, std::vect
 
     uint64_t lastTime = 0;
     uint64_t beginTime = 0;
+#if 0
     unsigned currentPos = 0;
     for (auto& task : *dma_taskList) {
         if ((task->task.AsNNDMATask()->src->name == "profilingInput:0") 
@@ -157,6 +158,19 @@ void mv::utils::getProfilingInfo(const void* data, const void* output, std::vect
             currentPos++;
         }
     }
+#else
+    for (unsigned i=0; i<1; i++) { 
+        ProfInfo profInfoItem;
+        uint32_t diff = output_bin[2*i+1] - output_bin[2*i]; 
+        profInfoItem.name = "dpu";
+        // Convert to us //
+        profInfoItem.time = diff / frc_speed_mhz;
+        profInfoItem.start_layer_id = i;
+        profInfoItem.end_layer_id = i;
+
+        profInfo.push_back(profInfoItem);
+    }
+#endif
     if (lastTime < beginTime)
         lastTime += 0x100000000;
     if (prof_total_info)
