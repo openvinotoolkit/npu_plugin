@@ -142,7 +142,7 @@ void buildPipeline(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mo
                 parent_inputcmx.getOperation()->getResult(0), parent_outputcmx.getOperation()->getResult(0),
                 outputcmx.getOperation()->getResult(0), mlir::ValueRange(barrier0.barrier()),
                 mlir::ValueRange(barrier1.barrier()), VPUIP::NCETaskType::CONV, kernel_size, strides, kernel_padding,
-                actChannelLength, /*odu_permutation=*/nullptr);
+                actChannelLength, /*odu_permutation=*/nullptr, /*weights_plt*/ nullptr);
 
         nceTask.addPPETask(funcBuilder);
 

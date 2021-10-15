@@ -203,7 +203,7 @@ void buildMaxpool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
             parent_input0cmx.getOperation()->getResult(0), parent_outputcmx.getOperation()->getResult(0),
             outputcmx.getOperation()->getResult(0), mlir::ValueRange(barrier0.barrier()),
             mlir::ValueRange(barrier1.barrier()), VPUIP::NCETaskType::MAXPOOL, filtersize, strides, kernel_padding,
-            actChannelLength, /*odu_permutation=*/nullptr);
+            actChannelLength, /*odu_permutation=*/nullptr, /*weights_plt=*/mlir::Value());
 
     nceTask.addPPETask(funcbuilder);
 
