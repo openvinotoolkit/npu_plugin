@@ -666,6 +666,7 @@ StrategySet HeuristicGraphOptimizer::assignStrategyCost(mv::Data::OpListIterator
     double greedyCost = COST_MAX;
     bool hasSOK = false;
     bool isFirstOp = false;
+    bool isLastOp = false;
     if(opIt->getOpType() != "Input" && opIt->isHardwarizable())
     {
         auto inputs = opIt->getInputTensor();
@@ -677,6 +678,17 @@ StrategySet HeuristicGraphOptimizer::assignStrategyCost(mv::Data::OpListIterator
                 isFirstOp = true;
                 break;
             }
+        }
+    }
+    if(opIt->getOpType() != "Output" && opIt->isHardwarizable())
+    {
+        auto sinks = findSinkLayers(dm, opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT));
+        auto judge_output = [](auto op) {
+            return op->getOpType() == "Output" || op->getOpType() == "ImplicitOutput";
+        };
+        auto res = std::find_if(sinks.begin(), sinks.end(), judge_output);
+        if (res != sinks.end()) {
+            isLastOp = true;
         }
     }
     for(auto& strategy : opStrategies)
@@ -799,7 +811,7 @@ StrategySet HeuristicGraphOptimizer::assignStrategyCost(mv::Data::OpListIterator
             cost += (cost*sparsityOverhead);
         }
 
-        if(hasLayerWorkaroundAvoidPipeline(opIt, strategy))
+        if(hasLayerWorkaroundAvoidPipeline(opIt, strategy, isLastOp))
         {
             spillPipelineCost = COST_MAX;
         }
@@ -902,14 +914,23 @@ bool HeuristicGraphOptimizer::hasLayerWorkaroundAvoidStrategy(mv::Data::OpListIt
 }
 
 // For each of these workarounds specify the reason why this layer is disallowed, and the network it applies to
-bool HeuristicGraphOptimizer::hasLayerWorkaroundAvoidPipeline(mv::Data::OpListIterator opIt, StrategySet& strategy)
+bool HeuristicGraphOptimizer::hasLayerWorkaroundAvoidPipeline(mv::Data::OpListIterator opIt, StrategySet& strategy, bool isFinalLayer)
 {
     auto opType = opIt->getOpType();
     auto streamShape = strategy["streaming"].get<mv::Shape>();
     auto clustering = strategy["clustering"].get<std::string>();
 
-    //TODO check just for output channels not aligned to 16, because these cant CMX concat...
-    if (target == mv::Target::ma2490 && opType == "Conv" && streamShape["K"] > 1 && opIt->getOutputTensor()[0]->getShape()[mv::IO_CHANNEL_DIMENSION]%16 != 0)
+
+    // Check just for output channels not aligned to 16, 
+    // because these cant CMX concat, which is fine if last op
+    if (target == mv::Target::ma2490 && opType == "Conv" && streamShape["K"] > 1 &&
+        opIt->getOutputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION] % 16 != 0 && !isFinalLayer)
+        return true;
+
+    // Similar to above, if SOK consider what final shape will be after cluster split
+    // to predict layers that will be unable to CMX concat and avoid pipeline
+    if (target == mv::Target::ma2490 && opType == "Conv" && clustering == "SplitOverK" && streamShape["K"] > 1 &&
+        !isFinalLayer && (opIt->getOutputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION] / totalClusters_) % 16 != 0)
         return true;
 
     // For performance in tiny-yolo-v2 vehicle detection, this last dpu task shouldn't stream
