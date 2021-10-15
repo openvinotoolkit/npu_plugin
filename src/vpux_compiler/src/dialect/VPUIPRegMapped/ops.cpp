@@ -1,0 +1,368 @@
+//
+// Copyright Intel Corporation.
+//
+// LEGAL NOTICE: Your use of this software and any required dependent software
+// (the "Software Package") is subject to the terms and conditions of
+// the Intel(R) OpenVINO(TM) Distribution License for the Software Package,
+// which may also include notices, disclaimers, or license terms for
+// third party or open source software included in or with the Software Package,
+// and your use indicates your acceptance of all such terms. Please refer
+// to the "third-party-programs.txt" or other similarly-named text file
+// included with the Software Package for additional details.
+//
+
+#include "vpux/compiler/dialect/VPUIPRegMapped/ops.hpp"
+
+#include "vpux/compiler/dialect/IE/ops_interfaces.hpp"
+#include "vpux/compiler/dialect/IERT/ops_interfaces.hpp"
+#include "vpux/compiler/dialect/VPUIPRegMapped/nce_invariant.hpp"
+
+#include "vpux/utils/core/numeric.hpp"
+
+#include <mlir/Dialect/Quant/QuantTypes.h>
+#include <mlir/IR/BuiltinAttributes.h>
+
+#include <llvm/ADT/TypeSwitch.h>
+
+using namespace vpux;
+
+namespace {
+
+//
+// LayerWithPostOpModel
+//
+
+bool isSupportedPostOp(mlir::Operation* postOp) {
+    if (VPUIPRegMapped::getCompilationMode(postOp) == VPUIPRegMapped::CompilationMode::ReferenceSW) {
+        // Reference SW mode supports fusing only for bias
+        return mlir::isa<IE::ScaleShiftOp>(postOp);
+    }
+
+    if (!mlir::isa<IE::ScaleShiftOp, IE::ReLUOp, IE::ClampOp>(postOp)) {
+        return false;
+    }
+
+    if (auto clampOp = mlir::dyn_cast<IE::ClampOp>(postOp)) {
+        const auto minVal = clampOp.minAttr().getValueAsDouble();
+        if (!isDoubleEqual(minVal, 0.0)) {
+            return false;
+        }
+
+        // TODO: should be check maxVal?
+    }
+
+    return true;
+}
+
+template <class MainOpType>
+class LayerWithPostOpModel final :
+        public IE::LayerWithPostOpInterface::ExternalModel<LayerWithPostOpModel<MainOpType>, MainOpType> {
+public:
+    bool isSupportedPostOp(mlir::Operation* mainOp, mlir::Operation* postOp) const {
+        if (!::isSupportedPostOp(postOp)) {
+            return false;
+        }
+
+        return VPUIPRegMapped::NCEInvariant::verifyKernel(mlir::cast<MainOpType>(mainOp)).succeeded();
+    }
+};
+
+//
+// AlignedChannelsOpModel
+//
+
+template <class MainOpType>
+class AlignedChannelsOpModel final :
+        public IE::AlignedChannelsOpInterface::ExternalModel<AlignedChannelsOpModel<MainOpType>, MainOpType> {
+public:
+    mlir::LogicalResult verifyChannels(mlir::Operation* op) const {
+        if (!canBeExecutedOnNCE(op)) {
+            // SW version of the operation has no specific requirements
+            return mlir::success();
+        }
+
+        return VPUIPRegMapped::NCEInvariant::verifyChannels(mlir::cast<MainOpType>(op));
+    }
+
+    int64_t getChannelAlignment(mlir::Operation* op) const {
+        if (!canBeExecutedOnNCE(op)) {
+            // SW version of the operation has no specific requirements
+            return 1;
+        }
+
+        const auto inputType = op->getOperand(0).getType().cast<mlir::ShapedType>();
+        return VPUIPRegMapped::NCEInvariant::getChannelAlignment(inputType.getElementType());
+    }
+
+private:
+    static bool canBeExecutedOnNCE(mlir::Operation* op) {
+        if (VPUIPRegMapped::getCompilationMode(op) == VPUIPRegMapped::CompilationMode::ReferenceSW) {
+            // We are in reference SW compilation mode
+            return false;
+        }
+
+        if (VPUIPRegMapped::NCEInvariant::verifyKernel(mlir::cast<MainOpType>(op)).failed()) {
+            // Basic NCE invariants check failed, the operation will fallback to SW mode
+            return false;
+        }
+
+        return true;
+    }
+};
+
+//
+// LayoutInfoOpModel
+//
+
+template <class ImplOpType>
+class LayoutInfoOpModelForSW final :
+        public IE::LayoutInfoOpInterface::FallbackModel<LayoutInfoOpModelForSW<ImplOpType>> {
+public:
+    void inferLayoutInfo(mlir::Operation* origOp, IE::LayerLayoutInfo& info) const {
+        ImplOpType::inferLayoutInfo(origOp, info);
+    }
+
+    IE::LayerLayoutInfo getLayoutInfo(mlir::Operation* origOp) const {
+        return IE::getLayoutInfo(origOp);
+    }
+};
+
+template <class OrigOpType, class FallbackImplOpType>
+class LayoutInfoOpModelForHW final :
+        public IE::LayoutInfoOpInterface::ExternalModel<LayoutInfoOpModelForHW<OrigOpType, FallbackImplOpType>,
+                                                        OrigOpType> {
+public:
+    void inferLayoutInfo(mlir::Operation* origOp, IE::LayerLayoutInfo& info) const {
+        if (!canBeExecutedOnNCE(origOp)) {
+            FallbackImplOpType::inferLayoutInfo(origOp, info);
+            return;
+        }
+
+        VPUIPRegMapped::NCEClusterTaskOp::inferLayoutInfo(origOp, info);
+    }
+
+private:
+    static bool canBeExecutedOnNCE(mlir::Operation* op) {
+        if (VPUIPRegMapped::getCompilationMode(op) == VPUIPRegMapped::CompilationMode::ReferenceSW) {
+            // We are in reference SW compilation mode
+            return false;
+        }
+
+        if (VPUIPRegMapped::NCEInvariant::verifyKernel(mlir::cast<OrigOpType>(op)).failed()) {
+            // Basic NCE invariants check failed, the operation will fallback to SW mode
+            return false;
+        }
+        if (VPUIPRegMapped::NCEInvariant::verifyChannels(mlir::cast<OrigOpType>(op)).failed()) {
+            // Basic NCE invariants check failed, the operation will fallback to SW mode
+            return false;
+        }
+
+        return true;
+    }
+};
+
+//
+// AsyncLayerOpModel
+//
+
+mlir::Attribute getExecutorForSW(mlir::Operation* origOp, uint32_t& numUnits) {
+    return VPUIPRegMapped::getPhysicalProcessor(numUnits, origOp, VPUIPRegMapped::PhysicalProcessor::SHAVE_UPA);
+}
+
+mlir::Attribute getExecutorForHW(mlir::Operation* origOp, uint32_t& numUnits) {
+    if (VPUIPRegMapped::getCompilationMode(origOp) == VPUIPRegMapped::CompilationMode::ReferenceSW) {
+        return getExecutorForSW(origOp, numUnits);
+    }
+
+    if (VPUIPRegMapped::NCEInvariant::verifyOp(origOp).failed()) {
+        return getExecutorForSW(origOp, numUnits);
+    }
+
+    return VPUIPRegMapped::getPhysicalProcessor(numUnits, origOp, VPUIPRegMapped::PhysicalProcessor::NCE_Cluster, 1);
+}
+
+class AsyncLayerOpModelForHW final : public IERT::AsyncLayerOpInterface::FallbackModel<AsyncLayerOpModelForHW> {
+public:
+    mlir::Attribute getExecutor(mlir::Operation* origOp, uint32_t& numUnits) const {
+        return getExecutorForHW(origOp, numUnits);
+    }
+};
+
+class AsyncLayerOpModelForDMA final : public IERT::AsyncLayerOpInterface::FallbackModel<AsyncLayerOpModelForDMA> {
+public:
+    mlir::Attribute getExecutor(mlir::Operation* origOp, uint32_t& numUnits) const {
+        return VPUIPRegMapped::getDMAEngine(numUnits, origOp->getContext(), VPUIPRegMapped::DMAEngine::DMA_NN);
+    }
+};
+
+class AsyncLayerOpModelForSW final : public IERT::AsyncLayerOpInterface::FallbackModel<AsyncLayerOpModelForSW> {
+public:
+    mlir::Attribute getExecutor(mlir::Operation* origOp, uint32_t& numUnits) const {
+        return getExecutorForSW(origOp, numUnits);
+    }
+};
+
+//
+// redirectOpInterfacesForIE
+//
+
+template <template <class, class> class OpModelForHW, template <class> class OpModelForSW>
+void redirectOpInterfacesForIE(mlir::DialectRegistry& registry) {
+    registry.addOpInterface<IE::ConvolutionOp, OpModelForHW<IE::ConvolutionOp, VPUIPRegMapped::ConvolutionUPAOp>>();
+    registry.addOpInterface<IE::GroupConvolutionOp,
+                            OpModelForHW<IE::GroupConvolutionOp, VPUIPRegMapped::ConvolutionUPAOp>>();
+    registry.addOpInterface<IE::MaxPoolOp, OpModelForHW<IE::MaxPoolOp, VPUIPRegMapped::PoolingUPAOp>>();
+    registry.addOpInterface<IE::AddOp, OpModelForHW<IE::AddOp, VPUIPRegMapped::EltwiseUPAOp>>();
+
+    registry.addOpInterface<IE::ConvertOp, OpModelForSW<VPUIPRegMapped::ConvertUPAOp>>();
+    registry.addOpInterface<IE::SoftMaxOp, OpModelForSW<VPUIPRegMapped::SoftMaxUPAOp>>();
+    registry.addOpInterface<IE::AvgPoolOp, OpModelForSW<VPUIPRegMapped::PoolingUPAOp>>();
+    registry.addOpInterface<IE::ReLUOp, OpModelForSW<VPUIPRegMapped::ReLUUPAOp>>();
+    registry.addOpInterface<IE::SigmoidOp, OpModelForSW<VPUIPRegMapped::SigmoidUPAOp>>();
+    registry.addOpInterface<IE::ClampOp, OpModelForSW<VPUIPRegMapped::ClampUPAOp>>();
+    registry.addOpInterface<IE::EluOp, OpModelForSW<VPUIPRegMapped::EluUPAOp>>();
+    registry.addOpInterface<IE::HSwishOp, OpModelForSW<VPUIPRegMapped::HSwishUPAOp>>();
+    registry.addOpInterface<IE::MishOp, OpModelForSW<VPUIPRegMapped::MishUPAOp>>();
+    registry.addOpInterface<IE::ErfOp, OpModelForSW<VPUIPRegMapped::ErfUPAOp>>();
+    registry.addOpInterface<IE::FloorOp, OpModelForSW<VPUIPRegMapped::FloorUPAOp>>();
+    registry.addOpInterface<IE::TanhOp, OpModelForSW<VPUIPRegMapped::TanhUPAOp>>();
+    registry.addOpInterface<IE::FakeQuantizeOp, OpModelForSW<VPUIPRegMapped::FakeQuantizeUPAOp>>();
+    registry.addOpInterface<IE::QuantizeOp, OpModelForSW<VPUIPRegMapped::QuantCastUPAOp>>();
+    registry.addOpInterface<IE::DequantizeOp, OpModelForSW<VPUIPRegMapped::QuantCastUPAOp>>();
+    registry.addOpInterface<IE::PReluOp, OpModelForSW<VPUIPRegMapped::PReluUPAOp>>();
+    registry.addOpInterface<IE::LeakyReluOp, OpModelForSW<VPUIPRegMapped::LeakyReluUPAOp>>();
+    registry.addOpInterface<IE::MultiplyOp, OpModelForSW<VPUIPRegMapped::EltwiseUPAOp>>();
+    registry.addOpInterface<IE::DivideOp, OpModelForSW<VPUIPRegMapped::EltwiseUPAOp>>();
+    registry.addOpInterface<IE::SquaredDifferenceOp, OpModelForSW<VPUIPRegMapped::EltwiseUPAOp>>();
+    registry.addOpInterface<IE::PowerOp, OpModelForSW<VPUIPRegMapped::EltwiseUPAOp>>();
+    registry.addOpInterface<IE::FloorModOp, OpModelForSW<VPUIPRegMapped::EltwiseUPAOp>>();
+    registry.addOpInterface<IE::MinimumOp, OpModelForSW<VPUIPRegMapped::EltwiseUPAOp>>();
+    registry.addOpInterface<IE::MaximumOp, OpModelForSW<VPUIPRegMapped::EltwiseUPAOp>>();
+    registry.addOpInterface<IE::SwishOp, OpModelForSW<VPUIPRegMapped::SwishUPAOp>>();
+    registry.addOpInterface<IE::GRNOp, OpModelForSW<VPUIPRegMapped::GRNUPAOp>>();
+    registry.addOpInterface<IE::TileOp, OpModelForSW<VPUIPRegMapped::PerAxisTileUPAOp>>();
+    registry.addOpInterface<IE::PerAxisTileOp, OpModelForSW<VPUIPRegMapped::PerAxisTileUPAOp>>();
+    registry.addOpInterface<IE::NegativeOp, OpModelForSW<VPUIPRegMapped::NegativeUPAOp>>();
+    registry.addOpInterface<IE::ROIPoolingOp, OpModelForSW<VPUIPRegMapped::ROIPoolingUPAOp>>();
+    registry.addOpInterface<IE::ProposalOp, OpModelForSW<VPUIPRegMapped::ProposalUPAOp>>();
+    registry.addOpInterface<IE::FullyConnectedOp, OpModelForSW<VPUIPRegMapped::FullyConnectedUPAOp>>();
+    registry.addOpInterface<IE::DetectionOutputOp, OpModelForSW<VPUIPRegMapped::DetectionOutputUPAOp>>();
+    registry.addOpInterface<IE::ScaleShiftOp, OpModelForSW<VPUIPRegMapped::ScaleShiftUPAOp>>();
+    registry.addOpInterface<IE::TransposeOp, OpModelForSW<VPUIPRegMapped::PermuteUPAOp>>();
+    registry.addOpInterface<IE::ReorderOp, OpModelForSW<VPUIPRegMapped::PermuteUPAOp>>();
+    registry.addOpInterface<IE::CTCGreedyDecoderOp, OpModelForSW<VPUIPRegMapped::CTCGreedyDecoderUPAOp>>();
+    registry.addOpInterface<IE::CTCGreedyDecoderSeqLenOp, OpModelForSW<VPUIPRegMapped::CTCGreedyDecoderSeqLenUPAOp>>();
+    registry.addOpInterface<IE::PadOp, OpModelForSW<VPUIPRegMapped::PadUPAOp>>();
+    registry.addOpInterface<IE::ExpOp, OpModelForSW<VPUIPRegMapped::ExpUPAOp>>();
+    registry.addOpInterface<IE::InterpolateOp, OpModelForSW<VPUIPRegMapped::InterpolateUPAOp>>();
+    registry.addOpInterface<IE::LSTMCellOp, OpModelForSW<VPUIPRegMapped::LSTMCellUPAOp>>();
+    registry.addOpInterface<IE::StridedSliceOp, OpModelForSW<VPUIPRegMapped::StridedSliceUPAOp>>();
+    registry.addOpInterface<IE::RegionYoloOp, OpModelForSW<VPUIPRegMapped::RegionYoloUPAOp>>();
+    registry.addOpInterface<IE::MVNOp, OpModelForSW<VPUIPRegMapped::MVNUPAOp>>();
+}
+
+//
+// redirectOpInterfacesForIERT
+//
+
+template <class OpModelForHW, class OpModelForDMA, class OpModelForSW>
+void redirectOpInterfacesForIERT(mlir::DialectRegistry& registry) {
+    registry.addOpInterface<IERT::CopyOp, AsyncLayerOpModelForDMA>();
+
+    registry.addOpInterface<IERT::ConvolutionOp, OpModelForHW>();
+    registry.addOpInterface<IERT::GroupConvolutionOp, OpModelForHW>();
+    registry.addOpInterface<IERT::MaxPoolOp, OpModelForHW>();
+    registry.addOpInterface<IERT::AddOp, OpModelForHW>();
+
+    registry.addOpInterface<IERT::ConvertOp, OpModelForSW>();
+    registry.addOpInterface<IERT::SoftMaxOp, OpModelForSW>();
+    registry.addOpInterface<IERT::AvgPoolOp, OpModelForSW>();
+    registry.addOpInterface<IERT::ReLUOp, OpModelForSW>();
+    registry.addOpInterface<IERT::SigmoidOp, OpModelForSW>();
+    registry.addOpInterface<IERT::ClampOp, OpModelForSW>();
+    registry.addOpInterface<IERT::EluOp, OpModelForSW>();
+    registry.addOpInterface<IERT::HSwishOp, OpModelForSW>();
+    registry.addOpInterface<IERT::MishOp, OpModelForSW>();
+    registry.addOpInterface<IERT::ErfOp, OpModelForSW>();
+    registry.addOpInterface<IERT::FloorOp, OpModelForSW>();
+    registry.addOpInterface<IERT::TanhOp, OpModelForSW>();
+    registry.addOpInterface<IERT::QuantizeOp, OpModelForSW>();
+    registry.addOpInterface<IERT::DequantizeOp, OpModelForSW>();
+    registry.addOpInterface<IERT::FakeQuantizeOp, OpModelForSW>();
+    registry.addOpInterface<IERT::PReluOp, OpModelForSW>();
+    registry.addOpInterface<IERT::LeakyReluOp, OpModelForSW>();
+    registry.addOpInterface<IERT::MultiplyOp, OpModelForSW>();
+    registry.addOpInterface<IERT::DivideOp, OpModelForSW>();
+    registry.addOpInterface<IERT::SquaredDifferenceOp, OpModelForSW>();
+    registry.addOpInterface<IERT::PowerOp, OpModelForSW>();
+    registry.addOpInterface<IERT::FloorModOp, OpModelForSW>();
+    registry.addOpInterface<IERT::MinimumOp, OpModelForSW>();
+    registry.addOpInterface<IERT::MaximumOp, OpModelForSW>();
+    registry.addOpInterface<IERT::SwishOp, OpModelForSW>();
+    registry.addOpInterface<IERT::GRNOp, OpModelForSW>();
+    registry.addOpInterface<IERT::TileOp, OpModelForSW>();
+    registry.addOpInterface<IERT::PerAxisTileOp, OpModelForSW>();
+    registry.addOpInterface<IERT::NegativeOp, OpModelForSW>();
+    registry.addOpInterface<IERT::ROIPoolingOp, OpModelForSW>();
+    registry.addOpInterface<IERT::ProposalOp, OpModelForSW>();
+    registry.addOpInterface<IERT::FullyConnectedOp, OpModelForSW>();
+    registry.addOpInterface<IERT::DetectionOutputOp, OpModelForSW>();
+    registry.addOpInterface<IERT::ScaleShiftOp, OpModelForSW>();
+    registry.addOpInterface<IERT::TransposeOp, OpModelForSW>();
+    registry.addOpInterface<IERT::ReorderOp, OpModelForSW>();
+    registry.addOpInterface<IERT::CTCGreedyDecoderOp, OpModelForSW>();
+    registry.addOpInterface<IERT::CTCGreedyDecoderSeqLenOp, OpModelForSW>();
+    registry.addOpInterface<IERT::PadOp, OpModelForSW>();
+    registry.addOpInterface<IERT::ExpOp, OpModelForSW>();
+    registry.addOpInterface<IERT::InterpolateOp, OpModelForSW>();
+    registry.addOpInterface<IERT::LSTMCellOp, OpModelForSW>();
+    registry.addOpInterface<IERT::StridedSliceOp, OpModelForSW>();
+    registry.addOpInterface<IERT::RegionYoloOp, OpModelForSW>();
+    registry.addOpInterface<IERT::MVNOp, OpModelForSW>();
+}
+
+}  // namespace
+
+//
+// initialize
+//
+
+void vpux::VPUIPRegMapped::VPUIPRegMappedDialect::initialize() {
+    addOperations<
+#define GET_OP_LIST
+#include <vpux/compiler/dialect/VPUIPRegMapped/generated/ops.cpp.inc>
+            >();
+
+    addTypes<
+#define GET_TYPEDEF_LIST
+#include <vpux/compiler/dialect/VPUIPRegMapped/generated/types.cpp.inc>
+            >();
+}
+
+//
+// setupExtraInterfaces
+//
+
+void vpux::VPUIPRegMapped::VPUIPRegMappedDialect::setupExtraInterfaces(mlir::DialectRegistry& registry) {
+    registry.addOpInterface<IE::ConvolutionOp, LayerWithPostOpModel<IE::ConvolutionOp>>();
+    registry.addOpInterface<IE::GroupConvolutionOp, LayerWithPostOpModel<IE::GroupConvolutionOp>>();
+    registry.addOpInterface<IE::MaxPoolOp, LayerWithPostOpModel<IE::MaxPoolOp>>();
+    registry.addOpInterface<IE::AddOp, LayerWithPostOpModel<IE::AddOp>>();
+
+    registry.addOpInterface<IE::ConvolutionOp, AlignedChannelsOpModel<IE::ConvolutionOp>>();
+    registry.addOpInterface<IE::GroupConvolutionOp, AlignedChannelsOpModel<IE::GroupConvolutionOp>>();
+    registry.addOpInterface<IE::MaxPoolOp, AlignedChannelsOpModel<IE::MaxPoolOp>>();
+    registry.addOpInterface<IE::AddOp, AlignedChannelsOpModel<IE::AddOp>>();
+
+    redirectOpInterfacesForIE<LayoutInfoOpModelForHW, LayoutInfoOpModelForSW>(registry);
+    redirectOpInterfacesForIERT<AsyncLayerOpModelForHW, AsyncLayerOpModelForDMA, AsyncLayerOpModelForSW>(registry);
+}
+
+//
+// Generated
+//
+
+#include <vpux/compiler/dialect/VPUIPRegMapped/generated/dialect.cpp.inc>
+
+#define GET_OP_CLASSES
+#include <vpux/compiler/dialect/VPUIPRegMapped/generated/ops.cpp.inc>

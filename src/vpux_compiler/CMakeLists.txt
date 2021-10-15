@@ -267,6 +267,24 @@ add_struct_attrs("VPUIP")
 add_types("VPUIP")
 add_passes("dialect/VPUIP" "VPUIP")
 
+# Alex
+add_dialect("ELF")
+#add_op_interfaces("dialect/ELF")
+add_enum_attrs("ELF")
+#add_struct_attrs("ELF")
+add_types("ELF") # 2021_10_01
+add_passes("dialect/ELF" "ELF")
+
+add_dialect("VPUIPRegMapped")
+add_op_interfaces("dialect/VPUIPRegMapped")
+add_enum_attrs("VPUIPRegMapped")
+add_struct_attrs("VPUIPRegMapped")
+add_types("VPUIPRegMapped")
+add_passes("dialect/VPUIPRegMapped" "VPUIPRegMapped")
+
+
+
+
 add_passes("conversion" "Conversion")
 add_rewriters("conversion")
 
