@@ -42,6 +42,7 @@ std::unique_ptr<mlir::Pass> createAssignPhysicalBarriersPass(Logger log = Logger
 std::unique_ptr<mlir::Pass> createBarrierSimulationPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertWeightsTableOp2ConstPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createDumpStatisticsOfTaskOpsPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createCompressWeightsPass(Logger log = Logger::global());
 
 //
 // Generated

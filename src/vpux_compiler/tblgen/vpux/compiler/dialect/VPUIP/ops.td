@@ -349,7 +349,6 @@ def VPUIP_NNDMAOp :
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers,
 
-        UnitAttr:$compression,
         DefaultValuedAttr<IntAttr, "0">:$port
     );
 
@@ -362,6 +361,57 @@ def VPUIP_NNDMAOp :
             (ins "mlir::Value":$src, "mlir::Value":$dst)
         >
     ];
+
+    let extraClassDeclaration = [{
+        static vpux::VPUIP::TaskType getTaskType() {
+            return vpux::VPUIP::TaskType::NNDMA;
+        }
+        vpux::DotNodeColor getNodeColor() {
+            auto memResource = VPUIP::getPhysicalMemory(output().getType().cast<mlir::MemRefType>());
+            if (!mlir::failed(memResource) && memResource.getValue() == VPUIP::PhysicalMemory::DDR)
+                return DotNodeColor::RED;
+            return DotNodeColor::GREEN;
+        }
+    }] # IERT_InferLayerReturnTypes<1>.impl;
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+        `->` type(results)
+    }];
+}
+
+//
+// CompressedDMAOp
+//
+
+def VPUIP_CompressedDMAOp :
+        VPUIP_TaskOp<1, "CompressedDMAOp",
+            [
+                ViewLikeOpInterface,
+                IERT_SameElementType,
+                IERT_SameInOutDimsOrder,
+                DotInterface
+            ]
+        > {
+    let summary = "NN DMA task with enabled compression. Omits IERT_SameShape trait.";
+
+    let arguments = (ins
+        AnyMemRef:$input,
+        AnyMemRef:$output_buff,
+
+        Variadic<VPUIP_Barrier>:$waitBarriers,
+        Variadic<VPUIP_Barrier>:$updateBarriers,
+
+        DefaultValuedAttr<IntAttr, "0">:$port
+    );
+
+    let results = (outs
+        AnyMemRef:$output
+    );
 
     let extraClassDeclaration = [{
         static vpux::VPUIP::TaskType getTaskType() {

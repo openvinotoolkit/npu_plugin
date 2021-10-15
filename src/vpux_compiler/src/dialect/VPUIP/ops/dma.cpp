@@ -44,7 +44,7 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::UPADMAOp::serialize(VPUIP::BlobWrit
 
 void vpux::VPUIP::NNDMAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value src,
                                  mlir::Value dst) {
-    build(builder, state, src, dst, mlir::ValueRange{}, mlir::ValueRange{}, false);
+    build(builder, state, src, dst, mlir::ValueRange{}, mlir::ValueRange{});
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NNDMAOp::serialize(VPUIP::BlobWriter& writer) {
@@ -54,7 +54,22 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NNDMAOp::serialize(VPUIP::BlobWrite
     MVCNN::NNDMATaskBuilder builder(writer);
     builder.add_src(srcOff);
     builder.add_dst(dstOff);
-    builder.add_compression(compression());
+    builder.add_port(checked_cast<uint8_t>(port()));
+    return {builder.Finish().Union(), MVCNN::SpecificTask_NNDMATask};
+}
+
+//
+// CompressedDMAOp
+//
+
+VPUIP::BlobWriter::SpecificTask vpux::VPUIP::CompressedDMAOp::serialize(VPUIP::BlobWriter& writer) {
+    const auto srcOff = writer.getTensor(input());
+    const auto dstOff = writer.getTensor(output_buff());
+
+    MVCNN::NNDMATaskBuilder builder(writer);
+    builder.add_src(srcOff);
+    builder.add_dst(dstOff);
+    builder.add_compression(true);
     builder.add_port(checked_cast<uint8_t>(port()));
     return {builder.Finish().Union(), MVCNN::SpecificTask_NNDMATask};
 }
