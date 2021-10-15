@@ -2618,6 +2618,34 @@
                 "special" : true
             }
         },
+        
+        {
+            "name" : "BDK_caffe2_FP16_mobilenet-v2",
+            "ir" : "models/clientmodels/BDK3/mobilenet-v2/caffe2/FP16/mobilenet-v2.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "224x224"
+            },
+            "NetTest": {
+                "inputs" : [["224x224/watch.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.7",
+                    "--color_format", "RGB"
+                ]
+            },
+            "AccuracyCheck" : {
+                "config": "mobilenet-v2-caffe_v10.yml"
+            },
+            "category" : "MCM/dKMB/weekly_private",
+            "CI-options" : {
+                "blob_name" : "bdk_mobilenet-v2",
+                "special" : true
+            }
+        },
 
         {
             "name" : "BDK_INT8_ModelE_V2",
