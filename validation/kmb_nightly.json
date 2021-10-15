@@ -2638,7 +2638,8 @@
                 ]
             },
             "AccuracyCheck" : {
-                "config": "mobilenet-v2-caffe_v10.yml"
+                "config": "mobilenet-v2-caffe_v10.yml",
+                "subsample_size": 50000
             },
             "category" : "MCM/dKMB/weekly_private",
             "CI-options" : {
