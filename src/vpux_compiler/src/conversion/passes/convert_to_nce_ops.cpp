@@ -41,6 +41,7 @@ namespace {
 //
 // Utilities
 //
+static constexpr int64_t maxPoolingAndDWCovolutionBitPatternConstant = 1;
 
 const EnumMap<VPUIP::ArchKind, VPUIP::MPEMode> mpeMap = {
         {VPUIP::ArchKind::KMB, VPUIP::MPEMode::VECTOR_FP16},   //
@@ -341,8 +342,8 @@ mlir::LogicalResult MaxPoolRewrite::matchAndRewrite(IERT::MaxPoolOp origOp, mlir
     const auto kernelSize = parseIntArrayAttr<int64_t>(origOp.kernel_size());
     const auto kernelStrides = parseIntArrayAttr<int64_t>(origOp.strides());
 
-    const auto bitPatternSize =
-            VPUIP::NCESparsity::getBitPatternSize(kernelSize, kernelStrides[0], origInputType.getElementType(), 1);
+    const auto bitPatternSize = VPUIP::NCESparsity::getBitPatternSize(
+            kernelSize, kernelStrides[0], origInputType.getElementType(), maxPoolingAndDWCovolutionBitPatternConstant);
 
     //
     // Prepare input for DPU
@@ -639,8 +640,8 @@ mlir::LogicalResult DepthwiseConvRewrite::matchAndRewrite(IERT::GroupConvolution
     const auto origInputType = origOp.input().getType().cast<mlir::MemRefType>();
     const auto kernelSize = SmallVector<int64_t>{KX, KY};
     const auto kernelStrides = parseIntArrayAttr<int64_t>(origOp.strides());
-    const auto bitPatternSize =
-            VPUIP::NCESparsity::getBitPatternSize(kernelSize, kernelStrides[0], origInputType.getElementType(), 1);
+    const auto bitPatternSize = VPUIP::NCESparsity::getBitPatternSize(
+            kernelSize, kernelStrides[0], origInputType.getElementType(), maxPoolingAndDWCovolutionBitPatternConstant);
     const auto actWindowChanLen = getIntAttr(getContext(), bitPatternSize);
 
     const auto fakeSparsity = VPUIP::NCESparsity::getFakeSparsity(
