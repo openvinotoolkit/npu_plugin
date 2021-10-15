@@ -20,7 +20,7 @@ include "vpux/compiler/dialect/VPUIP/ops.td"
 include "mlir/IR/OpBase.td"
 
 //
-// IERT.Sigmoid -> VPUIP.SigmoidUPA
+// IERT.Sigmoid -> VPUIP.SW.Kernel
 //
 
 def createSigmoidUPAOp :
@@ -33,5 +33,8 @@ def RewriteSigmoid :
             (IERT_SigmoidOp $input, $output),
             (createSigmoidUPAOp $input, $output)
         >;
+
+
+
 
 #endif  // VPUX_COMPILER_CONVERSION_REWRITERS_CONVERT_SW_LAYERS_TO_VPUIP

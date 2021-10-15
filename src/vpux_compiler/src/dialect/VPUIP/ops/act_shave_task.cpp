@@ -23,5 +23,10 @@ VPUIP::BlobWriter::SpecificTask SW_Kernel::serialize(vpux::VPUIP::BlobWriter& wr
     return writer.createSW_KernelTask(*this);
 }
 
+void SW_Kernel::build(mlir::OpBuilder& , mlir::OperationState&, mlir::ValueRange, mlir::ValueRange, mlir::SymbolRefAttr, mlir::IntegerAttr, mlir::ValueRange) {
+    //builder.insert()
+}
+
+
 }  // namespace VPUIP
 }  // namespace vpux
