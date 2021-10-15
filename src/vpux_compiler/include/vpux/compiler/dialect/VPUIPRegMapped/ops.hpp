@@ -82,7 +82,5 @@ mlir::LogicalResult verifyPostOp(mlir::Operation* op);
 //
 
 namespace vpux {
-namespace VPUIPRegMapped {
-
-}  // namespace VPUIPRegMapped
+namespace VPUIPRegMapped {}  // namespace VPUIPRegMapped
 }  // namespace vpux

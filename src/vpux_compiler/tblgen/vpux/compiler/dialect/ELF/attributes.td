@@ -19,55 +19,78 @@ include "vpux/compiler/dialect/ELF/dialect.td"
 
 
 // Inspired from VPUIP's dialect "def VPUIP_PhysicalProcessor"
-def ELF_SectionTypeAttr1 :
+def ELF_SectionTypeAttr :
         StrEnumAttr<
-            "SectionTypeAttr1",
+            "SectionTypeAttr",
             "Enum for describing ELF section types",
             [
-                // From include/mlir/IR/OpBase.td: class StrEnumAttrCase<string sym, int val = -1>
-                StrEnumAttrCase<"SHT_NULL", 0>, // 0
-                StrEnumAttrCase<"SHT_PROGBITS", 1>, // 1
-                StrEnumAttrCase<"SHT_SYMTAB", 2>, // 2
-                StrEnumAttrCase<"SHT_STRTAB", 3>, // 3
-                StrEnumAttrCase<"SHT_RELA", 4>, // 4
-                StrEnumAttrCase<"SHT_HASH", 5>, // 5
-                StrEnumAttrCase<"SHT_DYNAMIC", 6>, // 6
-                StrEnumAttrCase<"SHT_NOTE", 7>, // 7
-                StrEnumAttrCase<"SHT_NOBITS", 8>, // 8
-                StrEnumAttrCase<"SHT_REL", 9>, // 9
-                StrEnumAttrCase<"SHT_SHLIB", 10>, // 10
-                StrEnumAttrCase<"SHT_DYNSYM", 11>, // 11
-                StrEnumAttrCase<"SHT_SYMTAB_SHNDX", 18>, // 18
+                // From include/mlir/IR/OpBase.td: class StrEnumAttrCase<string sym, int val = -1>. So we can add an integer, which is the value of the respectiv enum case.
+                // Cases are taken from elfio/elf_types.hpp
+                StrEnumAttrCase<"SHT_NULL",           0>,
+                StrEnumAttrCase<"SHT_PROGBITS",       1>,
+                StrEnumAttrCase<"SHT_SYMTAB",         2>,
+                StrEnumAttrCase<"SHT_STRTAB",         3>,
+                StrEnumAttrCase<"SHT_RELA",           4>,
+                StrEnumAttrCase<"SHT_HASH",           5>,
+                StrEnumAttrCase<"SHT_DYNAMIC",        6>,
+                StrEnumAttrCase<"SHT_NOTE",           7>,
+                StrEnumAttrCase<"SHT_NOBITS",         8>,
+                StrEnumAttrCase<"SHT_REL",            9>,
+                StrEnumAttrCase<"SHT_SHLIB",          10>,
+                StrEnumAttrCase<"SHT_DYNSYM",         11>,
+                StrEnumAttrCase<"SHT_INIT_ARRAY",     14>,
+                StrEnumAttrCase<"SHT_FINI_ARRAY",     15>,
+                StrEnumAttrCase<"SHT_PREINIT_ARRAY",  16>,
+                StrEnumAttrCase<"SHT_GROUP",          17>,
+                StrEnumAttrCase<"SHT_SYMTAB_SHNDX",   18>,
+                StrEnumAttrCase<"SHT_GNU_ATTRIBUTES", 0x6ffffff5>,
+                StrEnumAttrCase<"SHT_GNU_HASH",       0x6ffffff6>,
+                StrEnumAttrCase<"SHT_GNU_LIBLIST",    0x6ffffff7>,
+                StrEnumAttrCase<"SHT_GNU_CHECKSUM",   0x6ffffff8>,
+                StrEnumAttrCase<"SHT_GNU_LOSUNW",     0x6ffffffa>,
+                // <<error: duplicate case value>>: StrEnumAttrCase<"SHT_SUNW_move",      0x6ffffffa>,
+                StrEnumAttrCase<"SHT_SUNW_COMDAT",    0x6ffffffb>,
+                StrEnumAttrCase<"SHT_SUNW_syminfo",   0x6ffffffc>,
+                StrEnumAttrCase<"SHT_GNU_verdef",     0x6ffffffd>,
+                StrEnumAttrCase<"SHT_GNU_verneed",    0x6ffffffe>,
+                StrEnumAttrCase<"SHT_GNU_versym",     0x6fffffff>,
+                //StrEnumAttrCase<"SHT_LOOS",           0x60000000>,
+                // <<error: duplicate case value>>: StrEnumAttrCase<"SHT_HIOS",           0x6fffffff>,
+                //StrEnumAttrCase<"SHT_LOPROC",         0x70000000>,
+                //StrEnumAttrCase<"SHT_HIPROC",         0x7FFFFFFF>,
+                // <<error: enumerator value ‘2147483648’ is outside the range of underlying type ‘int’>>: StrEnumAttrCase<"SHT_LOUSER",         0x80000000>,
+                // <<error: enumerator value ‘4294967295’ is outside the range of underlying type ‘int’>>: StrEnumAttrCase<"SHT_HIUSER",         0xFFFFFFFF>,
             ]
         > {
     let cppNamespace = "vpux::ELF";
     let genSpecializedAttr = 1;
 }
 
-
-// Inspired from VPUIP's dialect "def VPUIP_ExecutionFlag"
-def ELF_SectionTypeAttr2:
-        BitEnumAttr<
-            "SectionTypeAttr2",
-            "Each of these enums' presence informs how ...",
+def ELF_SectionFlagsAttr :
+        StrEnumAttr<
+            "SectionFlagsAttr",
+            "Enum for describing ELF section flags (we have also cases encountered with OR)",
             [
-                BitEnumAttrCase<"SHT_NULL",         0x0000>,
-                BitEnumAttrCase<"SHT_PROGBITS",     0x0001>,
-                BitEnumAttrCase<"SHT_SYMTAB",       0x0002>,
-                BitEnumAttrCase<"SHT_STRTAB",       0x0003>,
-                BitEnumAttrCase<"SHT_RELA",         0x0004>,
-                BitEnumAttrCase<"SHT_HASH",         0x0005>,
-                BitEnumAttrCase<"SHT_DYNAMIC",      0x0006>,
-                BitEnumAttrCase<"SHT_NOTE",         0x0007>,
-                BitEnumAttrCase<"SHT_NOBITS",       0x0008>,
-                BitEnumAttrCase<"SHT_REL",          0x0009>,
-                BitEnumAttrCase<"SHT_SHLIB",        0x000A>,
-                BitEnumAttrCase<"SHT_DYNSYM",       0x000B>,
-                BitEnumAttrCase<"SHT_SYMTAB_SHNDX", 0x0012>,
+                // Cases are taken from elfio/elf_types.hpp
+                StrEnumAttrCase<"SHF_WRITE",               0x1>,
+                StrEnumAttrCase<"SHF_ALLOC",               0x2>,
+                StrEnumAttrCase<"SHF_EXECINSTR",           0x4>,
+                StrEnumAttrCase<"SHF_ALLOC_OR_EXECINSTR",  0x6>, // NEW: Ored
+                StrEnumAttrCase<"SHF_MERGE",               0x10>,
+                StrEnumAttrCase<"SHF_STRINGS",             0x20>,
+                StrEnumAttrCase<"SHF_INFO_LINK",           0x40>,
+                StrEnumAttrCase<"SHF_LINK_ORDER",          0x80>,
+                StrEnumAttrCase<"SHF_OS_NONCONFORMING",    0x100>,
+                StrEnumAttrCase<"SHF_GROUP",               0x200>,
+                StrEnumAttrCase<"SHF_TLS",                 0x400>,
+                //StrEnumAttrCase<"SHF_MASKOS",              0x0ff00000>,
+                // error: enumerator value ‘4026531840’ is outside the range of underlying type ‘int’: StrEnumAttrCase<"SHF_MASKPROC",         0xF0000000>,
             ]
         > {
     let cppNamespace = "vpux::ELF";
+    let genSpecializedAttr = 1;
 }
+
 
 
 #endif

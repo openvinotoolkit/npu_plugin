@@ -51,11 +51,17 @@ def CreateSectionOp : ELF_Op<"CreateSection",
           // Gives <<error: ‘SectionTypeAttr’ in namespace ‘vpux::ELF’ does not name a type>>: ELF_SectionType:$secType,
           // OK: AnyAttr:$secType, // Inspired from "def IERT_ExecutorResourceOp" from IERT/ops.td
           // Gives following error while parsing: <<'ELF.CreateSection' op attribute 'secType' failed to satisfy constraint>>:
-          //ELF_SectionTypeAttr2:$secType, // Inspired from "def VPUIP_GraphOp" from VPUIP/ops.td
-          // OK: AnyAttr:$secType, // Inspired from "def IERT_ExecutorResourceOp" from IERT/ops.td
-          ELF_SectionTypeAttr1:$secType, // Inspired partly from "def VPUIP_GraphOp" from VPUIP/ops.td
+          //<<error: 'ELF.CreateSection' op attribute 'secType' failed to satisfy constraint>>: ELF_SectionTypeAttr_BitEnum:$secType, // Inspired from "def VPUIP_GraphOp" from VPUIP/ops.td
+          ELF_SectionTypeAttr:$secType, // Inspired partly from "def VPUIP_GraphOp" from VPUIP/ops.td
 
-          IntAttr:$secFlags
+          //IntAttr:$secFlags
+          ELF_SectionFlagsAttr:$secFlags,
+
+          IntAttr:$secInfo,
+
+          IntAttr:$secAddrAlign
+
+          //entry_size
         );
 
     let results = (outs ELF_Section:$section);

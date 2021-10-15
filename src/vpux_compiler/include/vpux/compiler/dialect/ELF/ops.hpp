@@ -60,7 +60,5 @@ namespace ELF {
 //
 
 namespace vpux {
-namespace ELF {
-
-}  // namespace ELF
+namespace ELF {}  // namespace ELF
 }  // namespace vpux
