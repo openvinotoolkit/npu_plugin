@@ -323,6 +323,67 @@
         },
 
         {
+            "name" : "BDK_FP16-INT8_resnet-50-pytorch-sparse50",
+            "ir" : "models/clientmodels/BDK3/_sparse/resnet-50-pytorch-sparse50/onnx/FP16-INT8/resnet-50-pytorch.xml",
+            "3720": {
+                "disabled": true
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "224x224"
+            },
+            "AccuracyCheck" : {
+                "config": "resnet-50_v10.yml"
+            },
+            "NetTest": {
+                "inputs" : [["224x224/husky.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.7"
+                ]
+            },
+            "category" : "MLIR",
+            "CI-options" : {
+                "blob_name" : "resnet-50-pytorch_sparse50_BDK_int8"
+            }
+        },
+        {
+            "name" : "BDK_FP16_resnet-50-pytorch-sparse50",
+            "ir" : "models/clientmodels/BDK3/_sparse/resnet-50-pytorch-sparse50/onnx/FP16/resnet-50-pytorch.xml",
+            "3720": {
+                "disabled": true
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "224x224"
+            },
+            "AccuracyCheck" : {
+                "config": "resnet-50_v10.yml"
+            },
+            "NetTest": {
+                "inputs" : [["224x224/husky.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.7"
+                ]
+            },
+            "category" : "MLIR",
+            "CI-options" : {
+                "blob_name" : "resnet-50-pytorch_sparse50_BDK_fp16"
+            }
+        },
+
+        {
             "name" : "ea_tf_FP16_fsrcnn-x4",
             "ir" : "ea/fsrcnn-x4/tf/FP16/fsrcnn-x4.xml",
             "3720": {
