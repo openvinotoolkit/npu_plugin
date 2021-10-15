@@ -20,10 +20,9 @@
 #include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 #include "vpux/compiler/utils/types.hpp"
-
-#include "vpux/compiler/dialect/VPUIP/utils.hpp"
 #include "vpux/utils/core/func_ref.hpp"
 #include "vpux/utils/core/numeric.hpp"
+#include "vpux/compiler/dialect/VPUIP/utils.hpp"
 
 #include <mlir/Pass/PassManager.h>
 #include <mlir/Transforms/DialectConversion.h>
@@ -84,8 +83,7 @@ mlir::LogicalResult generalRewrite(mlir::Operation* origOp, mlir::PatternRewrite
         const auto inputTensorWidth = getShape(convOp.input())[IE::Dims4D::Act::W];
         const auto inputChannels = getShape(convOp.filter().getType().cast<mlir::ShapedType>())[IE::Dims4D::Filter::IC];
         const auto inDimsOrder = DimsOrder::fromValue(convOp->getOperand(0));
-        bool channelMajorConvolution =
-                vpux::VPUIP::isChannelMajorCompatibleOperation(inDimsOrder, inputChannels, inputTensorWidth);
+        bool channelMajorConvolution = vpux::VPUIP::isChannelMajorCompatibleOperation(inDimsOrder, inputChannels, inputTensorWidth);
 
         if (channelMajorConvolution)
             inPadsEnd = calcPadsEnd(inputType, 1);

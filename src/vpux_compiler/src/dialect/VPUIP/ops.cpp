@@ -16,6 +16,7 @@
 #include "vpux/compiler/dialect/IE/ops_interfaces.hpp"
 #include "vpux/compiler/dialect/IERT/ops_interfaces.hpp"
 #include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
+#include "vpux/compiler/dialect/VPUIP/utils.hpp"
 
 #include "vpux/utils/core/numeric.hpp"
 
@@ -91,6 +92,17 @@ public:
         if (!canBeExecutedOnNCE(op)) {
             // SW version of the operation has no specific requirements
             return 1;
+        }
+
+        if (mlir::isa<IE::ConvolutionOp>(mlir::cast<MainOpType>(op))) {
+            auto convOp = mlir::dyn_cast<IE::ConvolutionOp>(*op);
+            const auto inputTensorWidth = getShape(convOp.input())[IE::Dims4D::Act::W];
+            const auto inputChannels =
+                    getShape(convOp.filter().getType().cast<mlir::ShapedType>())[IE::Dims4D::Filter::IC];
+            const auto inDimsOrder = DimsOrder::fromValue(convOp->getOperand(0));
+            bool channelMajorConvolution =
+                    vpux::VPUIP::isChannelMajorCompatibleOperation(inDimsOrder, inputChannels, inputTensorWidth);
+            std::cout << channelMajorConvolution << std::endl;
         }
 
         const auto inputType = op->getOperand(0).getType().cast<mlir::ShapedType>();
