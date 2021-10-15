@@ -66,17 +66,26 @@ mlir::LogicalResult vpux::IE::GatherOp::inferReturnTypeComponents(
     }
 
     SmallVector<int64_t> outShape;
-    outShape.reserve(inputShape.size() + indicesShape.size() - 1);
 
-    // calculate output shapes
-    for (size_t i = 0; i < inputShape.size(); ++i) {
-        if (i == checked_cast<size_t>(*axis)) {
-            for (size_t j = 0; j < indicesShape.size(); ++j) {
-                outShape.push_back(indicesShape[j]);
-            }
-        } else {
-            outShape.push_back(inputShape[i]);
-        }
+    // calculate output shape
+    int64_t batch_dims = gather.batch_dims().getInt();
+    int64_t _axis = checked_cast<int64_t>(*axis);
+    int64_t out_rank = inputShape.size() + indicesShape.size() - 1 - batch_dims;
+    int64_t indices_rank = indicesShape.size();
+    int64_t i = 0;
+
+    for (; i < batch_dims; i++) {
+        // TBD: compatibility check
+        outShape.push_back(inputShape[i] & indicesShape[i]);
+    }
+    for (; i < _axis; i++) {
+        outShape.push_back(inputShape[i]);
+    }
+    for (; i < _axis + indices_rank - batch_dims; i++) {
+        outShape.push_back(indicesShape[batch_dims - _axis + i]);
+    }
+    for (; i < out_rank; i++) {
+        outShape.push_back(inputShape[batch_dims + 1 - indices_rank + i]);
     }
 
     inferredReturnShapes.emplace_back(outShape, inType.getElementType());

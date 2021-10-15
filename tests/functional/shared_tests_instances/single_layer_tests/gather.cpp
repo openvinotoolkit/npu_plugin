@@ -37,7 +37,6 @@ TEST_P(KmbGatherLayerTest, CompareWithRefs_MLIR) {
 }
 
 TEST_P(KmbGather7LayerTest, CompareWithRefs_MLIR) {
-    printf("__Gather_7__\n"); // DBG
     useCompilerMLIR();
     Run();
 }
@@ -128,7 +127,7 @@ const auto genParams(const std::vector<size_t> inputShape, const int axis, const
 
 #define GEN_TEST(no,inputShape,axis,numIndices)\
 INSTANTIATE_TEST_CASE_P( \
-        conform_Gather_ ## no, \
+        conform_Gather1_ ## no, \
         KmbGatherLayerTest, \
         genParams(inputShape,axis,numIndices),\
         KmbGatherLayerTest::getTestCaseName)
@@ -174,9 +173,12 @@ INSTANTIATE_TEST_CASE_P( \
           testing::Values(LayerTestsUtils::testPlatformTargetDevice)), \
         KmbGather7LayerTest::getTestCaseName )
 
-//GEN7_TEST(0, ({5,6,7,8}),       ({4}), 0, 0); // maps on GatherV1
-//GEN7_TEST(1, ({2,3,4,5}),       ({2}), 1, 0); // maps on GatherV1
-GEN7_TEST(2, ({2,5,2,1}),   ({2,2,3}), 1, 1);
-//GEN7_TEST(2, ({3,5,1,1}), ({3,2}), 1, 1);
+GEN7_TEST(0, ({3,5,1,1}),     ({3,2}), 1, 1);
+GEN7_TEST(1, ({4,3,5,1}),     ({4,4}), 2, 1);
+GEN7_TEST(2, ({3,2,1,1}),     ({3,2}), 1, 1);
+GEN7_TEST(3, ({2,2,5,1}),   ({2,2,3}), 2, 2);
+GEN7_TEST(4, ({2,1,5,4}),     ({2,3}), 2, 1);
+GEN7_TEST(5, ({2,5,2,1}),   ({2,2,3}), 1, 1);
+GEN7_TEST(6, ({2,5,1,1}),     ({2,3}), 1, 1); // TBD: batch_dims = -1
 
 }  // namespace
