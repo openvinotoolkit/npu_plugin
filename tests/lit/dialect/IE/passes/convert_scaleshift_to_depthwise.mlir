@@ -1,4 +1,4 @@
-// RUN: vpux-opt --split-input-file --set-compile-params="vpu-arch=MTL compilation-mode=ReferenceHW" --convert-scale-shift-depthwise %s | FileCheck %s
+// RUN: vpux-opt --split-input-file --convert-scale-shift-depthwise %s | FileCheck %s
 
 // CHECK-LABEL: @ConvertScaleShiftToDepthwise
 func @ConvertScaleShiftToDepthwise(%arg0: tensor<1x3x224x224xf16>) -> tensor<1x3x224x224xf16> {
