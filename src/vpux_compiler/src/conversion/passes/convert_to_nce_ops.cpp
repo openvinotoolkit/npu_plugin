@@ -159,6 +159,7 @@ mlir::Value createActivationWindowTensor(mlir::OpBuilder& builder, mlir::Locatio
     auto* ctx = builder.getContext();
     const auto elemType = getUInt8Type(builder.getContext());
 
+    VPUX_THROW_UNLESS(numChannels != 0, "Invalid input channels '0'");
     SmallVector<int64_t> fakeSparsityShape{numChannels, 1, 1, static_cast<int64_t>(fakeSparsity.size()) / numChannels};
 
     const auto dataStorageType = mlir::RankedTensorType::get(fakeSparsityShape, elemType);
@@ -192,10 +193,13 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
     const auto KY = filterShape[Dims4D::Filter::KY];
     const auto KX = filterShape[Dims4D::Filter::KX];
 
-    mlir::Value alignedFilter;
-    mlir::Value filterDPU;
-    mlir::Value activationWindow;
-    mlir::Value weightsTable;
+    mlir::Value alignedFilter = nullptr;
+    ;
+    mlir::Value filterDPU = nullptr;
+    ;
+    mlir::Value weightsTable = nullptr;
+    ;
+    mlir::Value activationWindow = nullptr;
     mlir::IntegerAttr actWindowChanLen;
     std::vector<uint8_t> fakeSparsity;
 
@@ -244,13 +248,8 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
 
     auto outAllocOpCMX = rewriter.create<mlir::memref::AllocOp>(origOp->getLoc(), outTypeCMX);
 
-    if (isChannelMajorConvolution) {
-        weightsTable = createWeightsTableTensor(rewriter, origOp->getLoc(), OC, inputDPU, outAllocOpCMX.memref(),
-                                                filterDPU, origOp.bias(), activationWindow);
-    } else {
-        weightsTable = createWeightsTableTensor(rewriter, origOp->getLoc(), OC, inputDPU, outAllocOpCMX.memref(),
-                                                filterDPU, origOp.bias(), nullptr);
-    }
+    weightsTable = createWeightsTableTensor(rewriter, origOp->getLoc(), OC, inputDPU, outAllocOpCMX.memref(), filterDPU,
+                                            origOp.bias(), activationWindow);
 
     //
     // Create NCE per-cluster Operation
