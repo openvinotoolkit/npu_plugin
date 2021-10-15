@@ -6,14 +6,10 @@
 #include <vpux/vpux_compiler_config.hpp>
 #include "ie_plugin_config.hpp"
 #include "vpu/vpu_plugin_config.hpp"
-#include "behavior/config.hpp"
+#include "behavior/plugin/configuration_tests.hpp"
 
 using namespace BehaviorTestsDefinitions;
 namespace {
-const std::vector<InferenceEngine::Precision> netPrecisions = {
-    InferenceEngine::Precision::FP32
-};
-
 const std::vector<std::map<std::string, std::string>> Configs = {
     {},
     {{CONFIG_KEY(LOG_LEVEL), CONFIG_VALUE(LOG_INFO)}},
@@ -33,28 +29,18 @@ const std::vector<std::map<std::string, std::string>> InConfigs = {
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, CorrectConfigTests,
     ::testing::Combine(
-    ::testing::ValuesIn(netPrecisions),
     ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY),
     ::testing::ValuesIn(Configs)),
     CorrectConfigTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, IncorrectConfigTests,
     ::testing::Combine(
-    ::testing::ValuesIn(netPrecisions),
     ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY),
     ::testing::ValuesIn(InConfigs)),
     IncorrectConfigTests::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, CorrectConfigAPITests,
-    ::testing::Combine(
-    ::testing::ValuesIn(netPrecisions),
-    ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY),
-    ::testing::ValuesIn(Configs)),
-    CorrectConfigAPITests::getTestCaseName);
-
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, IncorrectConfigAPITests,
     ::testing::Combine(
-    ::testing::ValuesIn(netPrecisions),
     ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY),
     ::testing::ValuesIn(InConfigs)),
     IncorrectConfigAPITests::getTestCaseName);
