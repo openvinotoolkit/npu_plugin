@@ -30,9 +30,8 @@ std::vector<std::string> disabledTestPatterns() {
         ".*InferConfigTests\\.canSetExclusiveAsyncRequests.*",
 
         // [Track number: S#27334]
-        ".*BehaviorTests.*",
-        ".*BehaviorTestInput.*",
-        ".*BehaviorTestOutput.*",
+        ".*ConfigTest.*",
+        ".*SetConfigWithNoExistingKey.*",
 
         // TODO Add safe Softplus support
         ".*ActivationLayerTest.*SoftPlus.*",
