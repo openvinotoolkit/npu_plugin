@@ -193,11 +193,8 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
     const auto KX = filterShape[IE::Dims4D::Filter::KX];
 
     mlir::Value alignedFilter = nullptr;
-    ;
     mlir::Value filterDPU = nullptr;
-    ;
     mlir::Value weightsTable = nullptr;
-    ;
     mlir::Value activationWindow = nullptr;
     mlir::IntegerAttr actWindowChanLen;
     std::vector<uint8_t> fakeSparsity;

@@ -89,20 +89,29 @@ int64_t getWindowSize(int64_t kernelW, int64_t strideW, mlir::Type elemType) {
     return maxMpeWindowSize;
 }
 
-std::vector<int8_t> getBitPattern(mlir::ArrayRef<int64_t> kernelSize, int64_t windowSize, int64_t inputChannels) {
+std::vector<uint8_t> getBitPattern(mlir::ArrayRef<int64_t> kernelSize, int64_t windowSize, int64_t inputChannels) {
     const auto kernelW = kernelSize[0];
     const auto kernelH = kernelSize[1];
 
-    std::vector<int8_t> bitpattern;
-    bitpattern.reserve(windowSize * kernelH * inputChannels);
-    for (int64_t c = 0; c < inputChannels; c++)
-        for (int64_t y = 0; y < kernelH; y++)
-            for (int64_t x = 0; x < windowSize; x++)
-                if (x < kernelW)
-                    bitpattern.emplace_back(1);
-                else
-                    bitpattern.emplace_back(0);
-    return bitpattern;
+    VPUX_THROW_UNLESS(windowSize >= kernelW,
+                      "windowsSize must be greater than or equal to kernelW. windowsSize={0}, kernelW={1}", windowSize,
+                      kernelW);
+
+    const auto numBitsSet = kernelW;
+    const auto numBitsClear = windowSize - kernelW;
+
+    SmallVector<uint8_t> window;
+    window.reserve(windowSize);
+    window.insert(window.end(), numBitsSet, 1);
+    window.insert(window.end(), numBitsClear, 0);
+
+    std::vector<uint8_t> bitPattern;
+    bitPattern.reserve(kernelH * windowSize * inputChannels);
+    for (auto i = 0; i < window.size(); i++) {
+        bitPattern.insert(bitPattern.end(), window.begin(), window.end());
+    }
+
+    return bitPattern;
 }
 
 constexpr std::int32_t MTL_SPARSITY = 0xFFFFFF;
@@ -302,10 +311,6 @@ std::vector<uint8_t> vpux::VPUIP::NCESparsity::getFakeSparsity(vpux::VPUIP::NCET
     const auto windowSize = getWindowSize(kernelSize[0], strideW, actualType);
     auto bitPattern = getBitPattern(kernelSize, windowSize, inputChannels);
 
-    // CM Conv
-    const auto windowSparsitySize = std::ceil(windowSize / 8.0);
-    const auto numberOfRowsSparsityBytes = std::ceil((kernelSize[0] * inputChannels * windowSparsitySize) / 16.0);
-
     // To align each activation map entry to 16 bytes to abide the hw restriction
     const auto perChannelSparsitySize = static_cast<std::size_t>(std::ceil(bitPattern.size() / 128.0) * 16);
 
@@ -317,9 +322,13 @@ std::vector<uint8_t> vpux::VPUIP::NCESparsity::getFakeSparsity(vpux::VPUIP::NCET
     perChannelSparsity.resize(perChannelSparsitySize);
 
     if (taskType == NCETaskType::CMCONV) {
+        const auto windowSparsitySize = std::ceil(windowSize / 8.0);
+        const auto numberOfRowsSparsityBytes = std::ceil((kernelSize[0] * inputChannels * windowSparsitySize) / 16.0);
         perChannelSparsity.resize(numberOfRowsSparsityBytes * 16);
-    } else if (taskType == NCETaskType::DWCONV || taskType == NCETaskType::AVEPOOL || taskType == NCETaskType::MAXPOOL)
+    } else if (taskType == NCETaskType::DWCONV || taskType == NCETaskType::AVEPOOL ||
+               taskType == NCETaskType::MAXPOOL) {
         perChannelSparsity.resize(perChannelSparsitySize);
+    }
 
     // Repackaging each byte from bitPattern to a bit from fakeSparsity
     // The rest of the bits remain zero
