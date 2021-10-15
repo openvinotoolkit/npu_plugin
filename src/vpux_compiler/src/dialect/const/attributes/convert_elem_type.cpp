@@ -61,8 +61,7 @@ void vpux::Const::ConvertElemTypeAttr::print(mlir::DialectAsmPrinter& printer) c
 // ConvertElemTypeAttr::parse
 //
 
-mlir::Attribute vpux::Const::ConvertElemTypeAttr::parse(mlir::MLIRContext*, mlir::DialectAsmParser& parser,
-                                                        mlir::Type) {
+mlir::Attribute vpux::Const::ConvertElemTypeAttr::parse(mlir::DialectAsmParser& parser, mlir::Type) {
     if (mlir::failed(parser.parseLess())) {
         return nullptr;
     }

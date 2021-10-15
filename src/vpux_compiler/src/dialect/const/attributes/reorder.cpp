@@ -67,7 +67,7 @@ void vpux::Const::ReorderAttr::print(mlir::DialectAsmPrinter& printer) const {
 // ReorderAttr::parse
 //
 
-mlir::Attribute vpux::Const::ReorderAttr::parse(mlir::MLIRContext*, mlir::DialectAsmParser& parser, mlir::Type) {
+mlir::Attribute vpux::Const::ReorderAttr::parse(mlir::DialectAsmParser& parser, mlir::Type) {
     if (mlir::failed(parser.parseLess())) {
         return nullptr;
     }
