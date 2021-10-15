@@ -34,11 +34,12 @@ void vpux::VPUIP::NCEClusterTaskOp::build(mlir::OpBuilder& builder, mlir::Operat
                                           vpux::VPUIP::NCETaskType task_type, mlir::ArrayAttr kernel_size,
                                           mlir::ArrayAttr kernel_strides, mlir::ArrayAttr kernel_padding,
                                           mlir::IntegerAttr activation_window_channel_length,
-                                          vpux::VPUIP::ODUPermutationAttr odu_permutation) {
+                                          vpux::VPUIP::ODUPermutationAttr odu_permutation,
+                                          mlir::Value weights_plt) {
     build(builder, state, output_buff.getType(), input, weights, weight_table, activation_window, parent_input,
           parent_output, output_buff, mlir::ValueRange{}, mlir::ValueRange{},
           vpux::VPUIP::NCETaskTypeAttr::get(builder.getContext(), task_type), kernel_size, kernel_strides,
-          kernel_padding, activation_window_channel_length, odu_permutation);
+          kernel_padding, activation_window_channel_length, odu_permutation, weights_plt);
 
     for (auto& region : state.regions) {
         region->emplaceBlock();
@@ -611,6 +612,7 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
     const auto weightsTable = weight_table() != nullptr ? writer.getTensor(weight_table()) : 0;
     const auto activationWindow = activation_window() != nullptr ? writer.getTensor(activation_window()) : 0;
     const auto activationWindowChannelLength = checked_cast<int32_t>(activation_window_channel_length().getValueOr(0));
+    const auto weightsPalletizationTable = weights_plt() != nullptr ? writer.getTensor(weights_plt()) : 0;
 
     const auto outputData = writer.getTensor(output());
 
@@ -648,7 +650,8 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
                                             false,                          // is_continued
                                             false,                          // is_superdense
                                             0,                              // segment_height
-                                            oduPermutation                  // odu_permutation
+                                            oduPermutation,                 // odu_permutation
+                                            weightsPalletizationTable       // weights_plt
             );
 
     MVCNN::NCE2TaskBuilder builder(writer);

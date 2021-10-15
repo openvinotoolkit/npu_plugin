@@ -1926,7 +1926,8 @@ def VPUIP_NCEClusterTaskOp :
         OptionalAttr<I64ArrayAttr>:$kernel_strides,
         OptionalAttr<I64ArrayAttr>:$kernel_padding,
         OptionalAttr<IntAttr>:$activation_window_channel_length,
-        OptionalAttr<VPUIP_ODUPermutation>:$odu_permutation
+        OptionalAttr<VPUIP_ODUPermutation>:$odu_permutation,
+        Optional<MemRefOf<[quant_QuantizedType]>>:$weights_plt
     );
 
     let results = (outs
@@ -1946,7 +1947,8 @@ def VPUIP_NCEClusterTaskOp :
             "vpux::VPUIP::NCETaskType":$task_type,
             "mlir::ArrayAttr":$kernel_size, "mlir::ArrayAttr":$kernel_strides, "mlir::ArrayAttr":$kernel_padding,
             "mlir::IntegerAttr":$activation_window_channel_length,
-            "vpux::VPUIP::ODUPermutationAttr":$odu_permutation            
+            "vpux::VPUIP::ODUPermutationAttr":$odu_permutation,
+            "mlir::Value":$weights_plt
         )>
     ];
 
@@ -1955,6 +1957,7 @@ def VPUIP_NCEClusterTaskOp :
         `input` `(` $input  `:` type($input) `)`
         (`weights` `(` $weights^  `:` type($weights) `)`)?
         (`weight_table` `(` $weight_table^  `:` type($weight_table) `)`)?
+        (`weights_plt` `(` $weights_plt^  `:` type($weights_plt) `)`)?
         (`activation_window` `(` $activation_window^  `:` type($activation_window) `)`)?
         `parent_input` `(` $parent_input `:` type($parent_input) `)`
         `parent_output` `(` $parent_output `:` type($parent_output) `)`

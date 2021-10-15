@@ -933,6 +933,7 @@ operation ::= `VPUIP.NCEClusterTask` attr-dict
               `input` `(` $input  `:` type($input) `)`
               (`weights` `(` $weights^  `:` type($weights) `)`)?
               (`weight_table` `(` $weight_table^  `:` type($weight_table) `)`)?
+              (`weights_plt` `(` $weights_plt^  `:` type($weights_plt) `)`)?
               (`activation_window` `(` $activation_window^  `:` type($activation_window) `)`)?
               `parent_input` `(` $parent_input `:` type($parent_input) `)`
               `parent_output` `(` $parent_output `:` type($parent_output) `)`
@@ -982,6 +983,7 @@ mutually exclusive.
 `output_buff` | memref of 16-bit float or 32-bit float or bfloat16 type or QuantizedType values
 `waitBarriers` | VPUIP Barrier Type
 `updateBarriers` | VPUIP Barrier Type
+`weights_plt` | memref of QuantizedType values
 
 #### Results:
 
