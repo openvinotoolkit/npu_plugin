@@ -1,5 +1,7 @@
 // RUN: vpux-opt --split-input-file --split-fake-quant %s | FileCheck %s
 
+!qElemType = type !quant.uniform<u8:f32, 1.000000e+00>
+
 // CHECK-LABEL: @SingleQuantParams
 func @SingleQuantParams(%arg0: tensor<1x3x30x30xf32>) -> tensor<1x3x30x30xf32> {
     %input_low = const.Declare tensor<1x1x1x1xf32> = #const.Content<dense<0.0> : tensor<1x1x1x1xf32>>
@@ -16,11 +18,11 @@ func @SingleQuantParams(%arg0: tensor<1x3x30x30xf32>) -> tensor<1x3x30x30xf32> {
     // CHECK:       [[VAL0:%.*]] = IE.Quantize(%arg0)
     // CHECK-SAME:      {dstElemType = !qElemType}
     // CHECK-SAME:      tensor<1x3x30x30xf32> ->
-    // CHECK-SAME:      tensor<1x3x30x30x!quant.uniform<u8:f32, 1.000000e+00>>
+    // CHECK-SAME:      tensor<1x3x30x30x!qElemType>
 
     // CHECK:       [[VAL1:%.*]] = IE.Dequantize([[VAL0]])
     // CHECK-SAME:      {dstElemType = f32}
-    // CHECK-SAME:      tensor<1x3x30x30x!quant.uniform<u8:f32, 1.000000e+00>> ->
+    // CHECK-SAME:      tensor<1x3x30x30x!qElemType> ->
     // CHECK-SAME:      tensor<1x3x30x30xf32>
 
     // CHECK:       return [[VAL1]]
@@ -46,7 +48,7 @@ func @UseDequantize() -> tensor<1x3x30x30xf32> {
 
     return %0 : tensor<1x3x30x30xf32>
 
-    // CHECK:       [[VAL0:%.*]] = const.Declare tensor<1x3x30x30x!quant.uniform<i8:f32, 1.000000e+00:-128>> =
+    // CHECK:       [[VAL0:%.*]] = const.Declare tensor<1x3x30x30x!qElemType> =
     // CHECK-SAME:      #const.Content<dense<10> : tensor<1x3x30x30xui8>
     // CHECK-SAME:      #const.ConvertElemType<f32>
     // CHECK-SAME:      #const.ConvertElemType<si8>
@@ -54,7 +56,7 @@ func @UseDequantize() -> tensor<1x3x30x30xf32> {
 
     // CHECK:       [[VAL1:%.*]] = IE.Dequantize([[VAL0]])
     // CHECK-SAME:      {dstElemType = f32}
-    // CHECK-SAME:      tensor<1x3x30x30x!quant.uniform<i8:f32, 1.000000e+00:-128>>
+    // CHECK-SAME:      tensor<1x3x30x30x!qElemType>
     // CHECK-SAME:      -> tensor<1x3x30x30xf32>
 
     // CHECK:       return [[VAL1]]

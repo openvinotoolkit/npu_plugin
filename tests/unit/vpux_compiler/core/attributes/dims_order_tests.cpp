@@ -512,12 +512,4 @@ TEST(MLIR_DimsOrderTest, toAffineMapsListTest) {
     const SmallVector<int64_t> refMemStrides{4, 4, 1, 1};
     const auto refMemStridesMap = mlir::makeStridedLinearLayoutMap(refMemStrides, 0, &ctx);
     EXPECT_EQ(memStridesMap, refMemStridesMap);
-
-    const auto type = mlir::MemRefType::get(shape.raw(), mlir::IntegerType::get(&ctx, 32), maps);
-
-    SmallVector<int64_t> strides;
-    int64_t offset = 0;
-    ASSERT_TRUE(mlir::succeeded(mlir::getStridesAndOffset(type, strides, offset)));
-    const SmallVector<int64_t> refStrides{4, 1, 4, 1};
-    EXPECT_EQ(strides, refStrides);
 }

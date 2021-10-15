@@ -49,7 +49,7 @@ void vpux::Const::RescaleAttr::print(mlir::DialectAsmPrinter& printer) const {
 // PadWithZeroAttr::parse
 //
 
-mlir::Attribute vpux::Const::RescaleAttr::parse(mlir::MLIRContext*, mlir::DialectAsmParser& parser, mlir::Type) {
+mlir::Attribute vpux::Const::RescaleAttr::parse(mlir::DialectAsmParser& parser, mlir::Type) {
     if (mlir::failed(parser.parseLess())) {
         return nullptr;
     }
