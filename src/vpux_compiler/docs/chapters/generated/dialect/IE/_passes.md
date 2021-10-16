@@ -52,6 +52,10 @@ Also this pass replaces ND network inputs and outputs with 4D analogues to overc
 The pass is a part of `AdjustForVPU` pipeline.
 
 This pass replaces all `Tile` op with a set of `PerAxisTile` operations.
+### `-convert-to-mem-permute`: Convert Reorder and Transpose ops to MemPermute operation
+The pass is a part of `AdjustForVPU` pipeline.
+
+This pass replaces all `Reorder` and `Transpose` operations with `MemPermute` operation.
 ### `-convert-weights-to-u8`: Shift data from a signed range to an unsigned one
 The pass is a part of `LowPrecision` pipeline.
 

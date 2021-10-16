@@ -178,3 +178,20 @@ func @WithMemSpace(%arg0: tensor<1x2x3x4xf16>) -> tensor<1x2x3x4xf16> {
     // CHECK:       [[VAR5:%.*]] = builtin.unrealized_conversion_cast [[VAR4]] : memref<1x2x3x4xf16> to tensor<1x2x3x4xf16>
     // CHECK: return [[VAR5]] : tensor<1x2x3x4xf16>
 }
+
+// -----
+
+#NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
+#NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
+#map = affine_map<(d0, d1, d2, d3) -> (d0 * 3072 + d1 * 192 + d2 * 12 + d3)>
+
+func @PermuteCast(%arg0: tensor<1x12x16x16xf16, {order = #NHWC}>) -> tensor<1x16x16x12xf16> {
+    %0 = IE.PermuteCast(%arg0) {dst_order = #NCHW, mem_perm = #NCHW} :
+        tensor<1x12x16x16xf16, {order = #NHWC}> -> tensor<1x16x16x12xf16>
+    return %0 : tensor<1x16x16x12xf16>
+
+    //CHECK:        [[VAR0:%.*]] = builtin.unrealized_conversion_cast %arg0 : tensor<1x12x16x16xf16, {order = #NHWC}> to memref<1x12x16x16xf16, #NHWC, #map>
+    //CHECK:        [[VAR1:%.*]] = IERT.PermuteCast {dst_order = #NCHW, mem_perm = #NCHW} inputs([[VAR0]] : memref<1x12x16x16xf16, #NHWC, #map>) -> memref<1x16x16x12xf16>
+    //CHECK:        [[VAR2:%.*]] = builtin.unrealized_conversion_cast [[VAR1]] : memref<1x16x16x12xf16> to tensor<1x16x16x12xf16>
+    //CHECK:        return [[VAR2]] : tensor<1x16x16x12xf16>
+}

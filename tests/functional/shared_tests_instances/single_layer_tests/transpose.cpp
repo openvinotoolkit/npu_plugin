@@ -125,4 +125,48 @@ INSTANTIATE_TEST_CASE_P(
     params4D,
     KmbTransposeLayerTest::getTestCaseName);
 
+// MLIR 4D MemPermute instantiation
+
+const std::vector<std::vector<size_t>> inputShapesMemPerm = {
+        std::vector<size_t>{1, 3, 100, 100},
+};
+
+const std::vector<std::vector<size_t>> inputOrderMemPerm = {
+        std::vector<size_t>{0, 2, 3, 1},
+};
+
+const auto paramsMemPermNCHWtoNHWC = testing::Combine(
+        testing::ValuesIn(inputOrderMemPerm),
+        testing::ValuesIn(netPrecisions),
+        testing::Values(InferenceEngine::Precision::FP16),
+        testing::Values(InferenceEngine::Precision::FP16),
+        testing::Values(InferenceEngine::Layout::NCHW),
+        testing::Values(InferenceEngine::Layout::NHWC),
+        testing::ValuesIn(inputShapesMemPerm),
+        testing::Values(LayerTestsUtils::testPlatformTargetDevice)
+);
+
+INSTANTIATE_TEST_CASE_P(
+        smoke_TransposeMemPermNCHW,
+        KmbTransposeLayerTest_MLIR,
+        paramsMemPermNCHWtoNHWC,
+        KmbTransposeLayerTest::getTestCaseName);
+
+const auto paramsMemPermInNHWC = testing::Combine(
+        testing::ValuesIn(inputOrderMemPerm),
+        testing::ValuesIn(netPrecisions),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Layout::NHWC),
+        testing::Values(InferenceEngine::Layout::ANY),
+        testing::ValuesIn(inputShapesMemPerm),
+        testing::Values(LayerTestsUtils::testPlatformTargetDevice)
+);
+
+INSTANTIATE_TEST_CASE_P(
+        smoke_TransposeMemPermNHWC,
+        KmbTransposeLayerTest_MLIR,
+        paramsMemPermInNHWC,
+        KmbTransposeLayerTest::getTestCaseName);
+
 }  // namespace
