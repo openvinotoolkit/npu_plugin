@@ -61,6 +61,7 @@ void buildIECommonPipeline(mlir::OpPassManager& pm, Logger log) {
     pm.addPass(IE::createUseUserLayout(log));
     pm.addPass(IE::createAdjustLayoutsPass(log));
     pm.addPass(IE::createOptimizeReordersPass(log));
+    pm.addPass(IE::createConvertToMemPermutePass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
 }
 

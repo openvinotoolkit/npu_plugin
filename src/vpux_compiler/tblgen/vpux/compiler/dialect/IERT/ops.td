@@ -333,39 +333,6 @@ def IERT_CopyOp :
 }
 
 //
-// ReorderOp
-//
-
-def IERT_ReorderOp :
-        IERT_LayerOp<1, "Reorder",
-            [
-                ViewLikeOpInterface,
-                SameOperandsShape
-            ]
-        > {
-    let summary = "InferenceEngine run-time Reorder layer";
-
-    let arguments = (ins
-        AnyMemRef:$input,
-        AnyMemRef:$output_buff
-    );
-
-    let results = (outs
-        AnyMemRef:$output
-    );
-
-    let assemblyFormat = [{
-        attr-dict
-        `inputs` `(` $input `:` type($input) `)`
-        `outputs` `(` $output_buff `:` type($output_buff) `)`
-        `->` type(results)
-    }];
-
-    let hasCanonicalizer = 1;
-    let hasFolder = 1;
-}
-
-//
 // SoftMaxOp
 //
 
@@ -1796,38 +1763,6 @@ def IERT_FullyConnectedOp:
 }
 
 //
-// TransposeOp
-//
-
-def IERT_TransposeOp :
-        IERT_LayerOp<1, "Transpose",
-            [
-                ViewLikeOpInterface
-            ]
-        > {
-    let summary = "InferenceEngine run-time Transpose layer";
-
-    let arguments = (ins
-        MemRefOf<[F16, F32]>:$input,
-        Optional<MemRefOf<[SI64]>>:$order,
-        MemRefOf<[F16, F32]>:$output_buff,
-
-        AffineMapAttr:$order_value
-    );
-
-    let results = (outs
-        MemRefOf<[F16, F32]>:$output
-    );
-
-    let assemblyFormat = [{
-        attr-dict
-        `inputs` `(` $input `:` type($input) (`,` $order^ `:` type($order))? `)`
-        `outputs` `(` $output_buff `:` type($output_buff) `)`
-        `->` type(results)
-    }];
-}
-
-//
 // ConcatViewOp
 //
 
@@ -2275,39 +2210,6 @@ def IERT_MVNOp :
 }
 
 //
-// ImplicitReorderOp
-//
-
-def IERT_ImplicitReorderOp :
-        IERT_Op<
-            "ImplicitReorder",
-            [
-                SameOperandsAndResultElementType,
-                DeclareOpInterfaceMethods<ViewLikeOpInterface>,
-                DeclareOpInterfaceMethods<InferTypeOpInterface>,
-                NoSideEffect
-            ]
-        > {
-    let summary = "Compile-time reorder layer";
-
-    let arguments = (ins
-        AnyMemRef:$source,
-
-        AffineMapAttr:$dstOrder
-    );
-
-    let results = (outs
-        AnyMemRef:$result
-    );
-
-    let assemblyFormat = [{
-        attr-dict
-        `inputs` `(` $source `:` type($source) `)`
-        `->` type(results)
-    }];
-}
-
-//
 // SubtractOp
 //
 
@@ -2336,6 +2238,69 @@ def IERT_SubtractOp :
         attr-dict
         `inputs` `(` $input1 `:` type($input1) `,` $input2 `:` type($input2) `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
+// MemPermuteOp
+//
+
+def IERT_MemPermuteOp :
+        IERT_LayerOp<1, "MemPermute",
+            [
+                ViewLikeOpInterface
+            ]
+        > {
+    let summary = "InferenceEngine run-time MemPermute layer";
+
+    let arguments = (ins
+        AnyMemRef:$input,
+        AnyMemRef:$output_buff,
+
+        AffineMapAttr:$mem_perm
+    );
+
+    let results = (outs
+        AnyMemRef:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
+// PermuteCastOp
+//
+
+def IERT_PermuteCastOp :
+        IERT_Op<
+            "PermuteCast",
+            [
+                DeclareOpInterfaceMethods<ViewLikeOpInterface>,
+                NoSideEffect
+            ]
+        > {
+    let summary = "Compile-time PermuteCast layer";
+
+    let arguments = (ins
+        AnyMemRef:$source,
+
+        AffineMapAttr:$dst_order,
+        AffineMapAttr:$mem_perm
+    );
+
+    let results = (outs
+        AnyMemRef:$result
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $source `:` type($source) `)`
         `->` type(results)
     }];
 }
