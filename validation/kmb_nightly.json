@@ -2,8 +2,9 @@
     "networks" :
     [
         {
-            "name" : "kpi_tf_FP16-INT8_yolo-v2-tiny-ava-0001",
-            "ir" : "kpi/yolo-v2-tiny-ava-0001/tf/FP16-INT8/yolo-v2-tiny-ava-0001.xml",
+            "name" : "por_tf_FP16-INT8_yolo-v2-tiny-ava-0001",
+            "oldName" : "kpi_tf_FP16-INT8_yolo-v2-tiny-ava-0001_MCM",
+            "ir" : "por/yolo-v2-tiny-ava-0001/tf/FP16-INT8/yolo-v2-tiny-ava-0001.xml",
             "3720": {
                 "disabled" : true
             },
@@ -32,8 +33,9 @@
         },
 
         {
-            "name" : "kpi_tf_FP16-INT8_yolo-v2-tiny-ava-0001",
-            "ir" : "kpi/yolo-v2-tiny-ava-0001/tf/FP16-INT8/yolo-v2-tiny-ava-0001.xml",
+            "name" : "por_tf_FP16-INT8_yolo-v2-tiny-ava-0001",
+            "oldName" : "kpi_tf_FP16-INT8_yolo-v2-tiny-ava-0001_MLIR",
+            "ir" : "por/yolo-v2-tiny-ava-0001/tf/FP16-INT8/yolo-v2-tiny-ava-0001.xml",
             "3720": {
                 "disabled" : true
             },
@@ -67,8 +69,9 @@
         },
 
         {
-            "name" : "kpi_tf_FP16_yolo-v2-tiny-ava-0001",
-            "ir" : "kpi/yolo-v2-tiny-ava-0001/tf/FP16/yolo-v2-tiny-ava-0001.xml",
+            "name" : "por_tf_FP16_yolo-v2-tiny-ava-0001",
+            "oldName" : "kpi_tf_FP16_yolo-v2-tiny-ava-0001_MLIR",
+            "ir" : "por/yolo-v2-tiny-ava-0001/tf/FP16/yolo-v2-tiny-ava-0001.xml",
             "3720": {
                 "disabled" : true
             },
@@ -102,8 +105,9 @@
         },
 
         {
-            "name" : "kpi_tf_FP16-INT8_yolo-v2-ava-0001",
-            "ir" : "kpi/yolo-v2-ava-0001/tf/FP16-INT8/yolo-v2-ava-0001.xml",
+            "name" : "por_tf_FP16-INT8_yolo-v2-ava-0001",
+            "oldName" : "kpi_tf_FP16-INT8_yolo-v2-ava-0001_MCM",
+            "ir" : "por/yolo-v2-ava-0001/tf/FP16-INT8/yolo-v2-ava-0001.xml",
             "3720": {
                 "disabled" : true
             },
@@ -132,8 +136,9 @@
         },
 
         {
-            "name" : "ea_caffe_FP16-INT8_yolo-v3",
-            "ir" : "ea/yolo-v3/caffe/FP16-INT8/yolo-v3.xml",
+            "name" : "scale_caffe_FP16-INT8_yolo-v3",
+            "oldName" : "ea_caffe_FP16-INT8_yolo-v3_MCM",
+            "ir" : "scale/yolo-v3/caffe/FP16-INT8/yolo-v3.xml",
             "3720": {
                 "disabled" : true
             },
@@ -162,8 +167,9 @@
         },
 
         {
-            "name" : "por_tf_FP16-INT8_yolo_v3",
-            "ir" : "por/yolo_v3/tf/FP16-INT8/yolo_v3.xml",
+            "name" : "scale_tf_FP16-INT8_yolo_v3",
+            "oldName" : "por_tf_FP16-INT8_yolo_v3_MCM",
+            "ir" : "scale/yolo_v3/tf/FP16-INT8/yolo_v3.xml",
             "3720": {
                 "disabled" : true
             },
@@ -191,8 +197,9 @@
         },
 
         {
-            "name" : "ea_tf_FP16-INT8_yolo_v4",
-            "ir" : "ea/yolo_v4/tf/FP16-INT8/yolo_v4.xml",
+            "name" : "por_tf_FP16-INT8_yolo_v4",
+            "oldName" : "ea_tf_FP16-INT8_yolo_v4_MCM",
+            "ir" : "por/yolo_v4/tf/FP16-INT8/yolo_v4.xml",
             "3720": {
                 "disabled" : true
             },
@@ -225,8 +232,9 @@
         },
 
         {
-            "name" : "ea_tf_FP16-INT8_yolo_v4",
-            "ir" : "ea/yolo_v4/tf/FP16-INT8/yolo_v4.xml",
+            "name" : "por_tf_FP16-INT8_yolo_v4",
+            "oldName" : "ea_tf_FP16-INT8_yolo_v4_MLIR",
+            "ir" : "por/yolo_v4/tf/FP16-INT8/yolo_v4.xml",
             "3720": {
                 "disabled" : true
             },
@@ -384,8 +392,9 @@
         },
 
         {
-            "name" : "ea_tf_FP16_fsrcnn-x4",
-            "ir" : "ea/fsrcnn-x4/tf/FP16/fsrcnn-x4.xml",
+            "name" : "por_tf_FP16_fsrcnn-x4",
+            "oldName" : "ea_tf_FP16_fsrcnn-x4_MLIR",
+            "ir" : "por/fsrcnn-x4/tf/FP16/fsrcnn-x4.xml",
             "3720": {
                 "disabled" : true
             },
@@ -414,8 +423,9 @@
         },
 
         {
-            "name" : "ea_tf_FP16-INT8_fsrcnn-x4",
-            "ir" : "ea/fsrcnn-x4/tf/FP16-INT8/fsrcnn-x4.xml",
+            "name" : "por_tf_FP16-INT8_fsrcnn-x4",
+            "oldName" : "ea_tf_FP16-INT8_fsrcnn-x4_MLIR",
+            "ir" : "por/fsrcnn-x4/tf/FP16-INT8/fsrcnn-x4.xml",
             "3900" : {
                 "disabled" : true
             },
@@ -448,8 +458,9 @@
         },
 
         {
-            "name" : "kpi_caffe2_FP16-INT8_resnet-50-pytorch",
-            "ir" : "kpi/resnet-50-pytorch/caffe2/FP16-INT8/resnet-50-pytorch.xml",
+            "name" : "por_onnx_FP16-INT8_resnet-50-pytorch",
+            "oldName" : "kpi_caffe2_FP16-INT8_resnet-50-pytorch_MCM",
+            "ir" : "por/resnet-50-pytorch/onnx/FP16-INT8/resnet-50-pytorch.xml",
             "3720": {
                 "disabled" : true
             },
@@ -473,13 +484,14 @@
             },
             "category" : "MCM/release/weekly_public",
             "CI-options" : {
-                "blob_name" : "resnet-50-pytorch_cf2"
+                "blob_name" : "resnet-50-pytorch_onnx"
             }
         },
 
         {
-            "name" : "kpi_caffe2_FP16-INT8_resnet-50-pytorch",
-            "ir" : "kpi/resnet-50-pytorch/caffe2/FP16-INT8/resnet-50-pytorch.xml",
+            "name" : "por_onnx_FP16-INT8_resnet-50-pytorch",
+            "oldName" : "kpi_caffe2_FP16-INT8_resnet-50-pytorch_MLIR",
+            "ir" : "por/resnet-50-pytorch/onnx/FP16-INT8/resnet-50-pytorch.xml",
             "3720": {
                 "disabled": true
             },
@@ -504,12 +516,13 @@
             },
             "category" : "MLIR",
             "CI-options" : {
-                "blob_name" : "resnet-50-pytorch_cf2_int8"
+                "blob_name" : "resnet-50-pytorch_onnx_int8"
             }
         },
         {
-            "name" : "kpi_caffe2_FP16_resnet-50-pytorch",
-            "ir" : "kpi/resnet-50-pytorch/caffe2/FP16/resnet-50-pytorch.xml",
+            "name" : "por_onnx_FP16_resnet-50-pytorch",
+            "oldName" : "kpi_caffe2_FP16_resnet-50-pytorch_MLIR",
+            "ir" : "por/resnet-50-pytorch/onnx/FP16/resnet-50-pytorch.xml",
             "3720": {
                 "disabled": true
             },
@@ -534,13 +547,14 @@
             },
             "category" : "MLIR",
             "CI-options" : {
-                "blob_name" : "resnet-50-pytorch_cf2_fp16"
+                "blob_name" : "resnet-50-pytorch_onnx_fp16"
             }
         },
 
         {
-            "name" : "kpi_caffe2_FP16-INT8_mobilenet-v2",
-            "ir" : "kpi/mobilenet-v2/caffe2/FP16-INT8/mobilenet-v2.xml",
+            "name" : "por_onnx_FP16-INT8_mobilenet-v2",
+            "oldName" : "kpi_caffe2_FP16-INT8_mobilenet-v2_MCM",
+            "ir" : "por/mobilenet-v2/onnx/FP16-INT8/mobilenet-v2.xml",
             "3720": {
                 "disabled" : true
             },
@@ -565,13 +579,14 @@
             },
             "category" : "MCM/release/precommit/weekly_public",
             "CI-options" : {
-                "blob_name" : "mobilenet-v2_cf2"
+                "blob_name" : "mobilenet-v2_onnx"
             }
         },
 
         {
-            "name" : "kpi_tf_FP16-INT8_googlenet-v1",
-            "ir" : "kpi/googlenet-v1/tf/FP16-INT8/googlenet-v1.xml",
+            "name" : "por_tf_FP16-INT8_googlenet-v1",
+            "oldName" : "kpi_tf_FP16-INT8_googlenet-v1_MCM",
+            "ir" : "por/googlenet-v1/tf/FP16-INT8/googlenet-v1.xml",
             "3720": {
                 "disabled" : true
             },
@@ -600,8 +615,9 @@
         },
 
         {
-            "name" : "kpi_tf_FP16-INT8_googlenet-v1",
-            "ir" : "kpi/googlenet-v1/tf/FP16-INT8/googlenet-v1.xml",
+            "name" : "por_tf_FP16-INT8_googlenet-v1",
+            "oldName" : "kpi_tf_FP16-INT8_googlenet-v1_MLIR",
+            "ir" : "por/googlenet-v1/tf/FP16-INT8/googlenet-v1.xml",
             "3720": {
                 "disabled" : true
             },
@@ -632,8 +648,9 @@
         },
 
         {
-            "name" : "kpi_tf_FP16_googlenet-v1",
-            "ir" : "kpi/googlenet-v1/tf/FP16/googlenet-v1.xml",
+            "name" : "por_tf_FP16_googlenet-v1",
+            "oldName" : "kpi_tf_FP16_googlenet-v1_MLIR",
+            "ir" : "por/googlenet-v1/tf/FP16/googlenet-v1.xml",
             "3720": {
                 "disabled" : true
             },
@@ -664,8 +681,9 @@
         },
 
         {
-            "name" : "kpi_tf_FP16-INT8_googlenet-v3",
-            "ir" : "kpi/googlenet-v3/tf/FP16-INT8/googlenet-v3.xml",
+            "name" : "por_tf_FP16-INT8_googlenet-v3",
+            "oldName" : "kpi_tf_FP16-INT8_googlenet-v3_MCM",
+            "ir" : "por/googlenet-v3/tf/FP16-INT8/googlenet-v3.xml",
             "3720": {
                 "disabled" : true
             },
@@ -694,8 +712,9 @@
         },
 
         {
-            "name" : "kpi_tf_FP16-INT8_googlenet-v3",
-            "ir" : "kpi/googlenet-v3/tf/FP16-INT8/googlenet-v3.xml",
+            "name" : "por_tf_FP16-INT8_googlenet-v3",
+            "oldName" : "kpi_tf_FP16-INT8_googlenet-v3_MLIR",
+            "ir" : "por/googlenet-v3/tf/FP16-INT8/googlenet-v3.xml",
             "3720": {
                 "disabled" : true
             },
@@ -726,8 +745,9 @@
         },
 
         {
-            "name" : "kpi_tf_FP16_googlenet-v3",
-            "ir" : "kpi/googlenet-v3/tf/FP16/googlenet-v3.xml",
+            "name" : "por_tf_FP16_googlenet-v3",
+            "oldName" : "kpi_tf_FP16_googlenet-v3_MLIR",
+            "ir" : "por/googlenet-v3/tf/FP16/googlenet-v3.xml",
             "3720": {
                 "disabled" : true
             },
@@ -758,8 +778,9 @@
         },
 
         {
-            "name" : "kpi_caffe2_FP16-INT8_squeezenet1.1",
-            "ir" : "kpi/squeezenet1.1/caffe2/FP16-INT8/squeezenet1.1.xml",
+            "name" : "por_caffe2_FP16-INT8_squeezenet1.1",
+            "oldName" : "kpi_caffe2_FP16-INT8_squeezenet1.1_MCM",
+            "ir" : "por/squeezenet1.1/caffe2/FP16-INT8/squeezenet1.1.xml",
             "3720": {
                 "disabled" : true
             },
@@ -788,8 +809,9 @@
         },
 
         {
-            "name" : "kpi_caffe2_FP16_squeezenet1.1",
-            "ir" : "kpi/squeezenet1.1/caffe2/FP16/squeezenet1.1.xml",
+            "name" : "por_caffe2_FP16_squeezenet1.1",
+            "oldName" : "kpi_caffe2_FP16-INT8_squeezenet1.1_MLIR",
+            "ir" : "por/squeezenet1.1/caffe2/FP16/squeezenet1.1.xml",
             "3720": {
                 "disabled" : true
             },
@@ -821,8 +843,9 @@
         },
 
         {
-            "name" : "kpi_caffe2_FP16_squeezenet1.1_MCM",
-            "ir" : "kpi/squeezenet1.1/caffe2/FP16/squeezenet1.1.xml",
+            "name" : "por_caffe2_FP16_squeezenet1.1",
+            "oldName" : "kpi_caffe2_FP16_squeezenet1.1_MCM",
+            "ir" : "por/squeezenet1.1/caffe2/FP16/squeezenet1.1.xml",
             "3720": {
                 "disabled" : true
             },
@@ -852,6 +875,7 @@
                     "--color_format", "RGB"
                 ]
             },
+            "category" : "MCM",
             "CI-options" : {
                 "blob_name" : "kpi_caffe2_FP16_squeezenet1_1_MCM"
             },
@@ -859,9 +883,9 @@
         },
 
         {
-            "name" : "kpi_caffe2_FP16-INT8_squeezenet1.1",
-            "oldName" : "empty",
-            "ir" : "kpi/squeezenet1.1/caffe2/FP16-INT8/squeezenet1.1.xml",
+            "name" : "por_caffe2_FP16-INT8_squeezenet1.1",
+            "oldName" : "kpi_caffe2_FP16-INT8_squeezenet1.1_MLIR",
+            "ir" : "por/squeezenet1.1/caffe2/FP16-INT8/squeezenet1.1.xml",
             "3720": {
                 "disabled" : true
             },
@@ -893,8 +917,9 @@
         },
 
         {
-            "name" : "kpi_caffe_FP16-INT8_ssd512",
-            "ir" : "kpi/ssd512/caffe/FP16-INT8/ssd512.xml",
+            "name" : "por_caffe_FP16-INT8_ssd512",
+            "oldName" : "kpi_caffe_FP16-INT8_ssd512_MCM",
+            "ir" : "por/ssd512/caffe/FP16-INT8/ssd512.xml",
             "3720": {
                 "disabled" : true
             },
@@ -926,8 +951,9 @@
         },
 
         {
-            "name" : "kpi_tf_FP16-INT8_faster_rcnn_resnet101_coco",
-            "ir" : "kpi/faster_rcnn_resnet101_coco/tf/FP16-INT8/faster_rcnn_resnet101_coco.xml",
+            "name" : "scale_tf_FP16-INT8_faster_rcnn_resnet101_coco",
+            "oldName" : "kpi_tf_FP16-INT8_faster_rcnn_resnet101_coco_MCM",
+            "ir" : "scale/faster_rcnn_resnet101_coco/tf/FP16-INT8/faster_rcnn_resnet101_coco.xml",
             "disabled" :  true,
             "3720": {
                 "disabled" : true
@@ -955,8 +981,9 @@
         },
 
         {
-            "name" : "por_tf_FP16-INT8_googlenet-v4",
-            "ir" : "por/googlenet-v4/tf/FP16-INT8/googlenet-v4.xml",
+            "name" : "scale_tf_FP16-INT8_googlenet-v4",
+            "oldName" : "por_tf_FP16-INT8_googlenet-v4_MCM",
+            "ir" : "scale/googlenet-v4/tf/FP16-INT8/googlenet-v4.xml",
             "3720": {
                 "disabled" : true
             },
@@ -1020,8 +1047,9 @@
         },
 
         {
-            "name" : "por_tf_FP16-INT8_facenet-20180408-102900",
-            "ir" : "por/facenet-20180408-102900/tf/FP16-INT8/facenet-20180408-102900.xml",
+            "name" : "scale_tf_FP16-INT8_facenet-20180408-102900",
+            "oldName" : "por_tf_FP16-INT8_facenet-20180408-102900_MCM",
+            "ir" : "scale/facenet-20180408-102900/tf/FP16-INT8/facenet-20180408-102900.xml",
             "disabled" :  true,
             "3720": {
                 "disabled" : true
@@ -1051,8 +1079,9 @@
         },
 
         {
-            "name" : "por_FP16-INT8_person-vehicle-bike-detection-crossroad-0078",
-            "ir" : "por/person-vehicle-bike-detection-crossroad-0078/FP16-INT8/person-vehicle-bike-detection-crossroad-0078.xml",
+            "name" : "scale_caffe_FP16-INT8_person-vehicle-bike-detection-crossroad-0078",
+            "oldName" : "por_FP16-INT8_person-vehicle-bike-detection-crossroad-0078_MCM",
+            "ir" : "scale/person-vehicle-bike-detection-crossroad-0078/caffe/FP16-INT8/person-vehicle-bike-detection-crossroad-0078.xml",
             "disabled" :  true,
             "3720": {
                 "disabled" : true
@@ -1080,8 +1109,9 @@
         },
 
         {
-            "name" : "por_tf_FP16-INT8_vehicle-license-plate-detection-barrier-0106",
-            "ir" : "por/vehicle-license-plate-detection-barrier-0106/tf/FP16-INT8/vehicle-license-plate-detection-barrier-0106.xml",
+            "name" : "scale_tf_FP16-INT8_vehicle-license-plate-detection-barrier-0106",
+            "oldName" : "por_tf_FP16-INT8_vehicle-license-plate-detection-barrier-0106_MCM",
+            "ir" : "scale/vehicle-license-plate-detection-barrier-0106/tf/FP16-INT8/vehicle-license-plate-detection-barrier-0106.xml",
             "3720": {
                 "disabled" : true
             },
@@ -1109,8 +1139,9 @@
         },
 
         {
-            "name" : "ea_FP16-INT8_face-detection-retail-0004",
-            "ir" : "ea/face-detection-retail-0004/FP16-INT8/face-detection-retail-0004.xml",
+            "name" : "scale_caffe_FP16-INT8_face-detection-retail-0004",
+            "oldName" : "ea_FP16-INT8_face-detection-retail-0004_MCM",
+            "ir" : "scale/face-detection-retail-0004/caffe/FP16-INT8/face-detection-retail-0004.xml",
             "disabled" :  true,
             "3720": {
                 "disabled" : true
@@ -1138,8 +1169,9 @@
         },
 
         {
-            "name" : "por_caffe_FP16-INT8_resnet-101",
-            "ir" : "por/resnet-101/caffe/FP16-INT8/resnet-101.xml",
+            "name" : "scale_caffe_FP16-INT8_resnet-101",
+            "oldName" : "por_caffe_FP16-INT8_resnet-101_MCM",
+            "ir" : "scale/resnet-101/caffe/FP16-INT8/resnet-101.xml",
             "3720": {
                 "disabled" : true
             },
@@ -1168,8 +1200,9 @@
         },
 
         {
-            "name" : "por_caffe_FP16-INT8_resnet-152",
-            "ir" : "por/resnet-152/caffe/FP16-INT8/resnet-152.xml",
+            "name" : "scale_caffe_FP16-INT8_resnet-152",
+            "oldName" : "por_caffe_FP16-INT8_resnet-152_MCM",
+            "ir" : "scale/resnet-152/caffe/FP16-INT8/resnet-152.xml",
             "3720": {
                 "disabled" : true
             },
@@ -1200,8 +1233,9 @@
         },
 
         {
-            "name" : "por_caffe_FP16-INT8_alexnet",
-            "ir" : "por/alexnet/caffe/FP16-INT8/alexnet.xml",
+            "name" : "scale_caffe_FP16-INT8_alexnet",
+            "oldName" : "por_caffe_FP16-INT8_alexnet_MCM",
+            "ir" : "scale/alexnet/caffe/FP16-INT8/alexnet.xml",
             "disabled" :  true,
             "3720": {
                 "disabled" : true
@@ -1229,8 +1263,9 @@
         },
 
         {
-            "name" : "por_caffe_FP16-INT8_vgg16",
-            "ir" : "por/vgg16/caffe/FP16-INT8/vgg16.xml",
+            "name" : "scale_caffe_FP16-INT8_vgg16",
+            "oldName" : "por_caffe_FP16-INT8_vgg16_MCM",
+            "ir" : "scale/vgg16/caffe/FP16-INT8/vgg16.xml",
             "disabled" :  true,
             "3720": {
                 "disabled" : true
@@ -1261,8 +1296,9 @@
         },
 
         {
-            "name" : "por_caffe2_FP16-INT8_resnet-18",
-            "ir" : "por/resnet-18/caffe2/FP16-INT8/resnet-18.xml",
+            "name" : "scale_onnx_FP16-INT8_resnet-18",
+            "oldName" : "por_caffe2_FP16-INT8_resnet-18_MCM",
+            "ir" : "scale/resnet-18/onnx/FP16-INT8/resnet-18.xml",
             "3720": {
                 "disabled" : true
             },
@@ -1286,13 +1322,14 @@
             },
             "category" : "MCM/release/precommit",
             "CI-options" : {
-                "blob_name" : "resnet-18_cf2"
+                "blob_name" : "resnet-18_onnx"
             }
         },
 
         {
-            "name" : "ea_caffe_FP16-INT8_mobilenet-v1-1.0-224",
-            "ir" : "ea/mobilenet-v1-1.0-224/caffe/FP16-INT8/mobilenet-v1-1.0-224.xml",
+            "name" : "scale_caffe_FP16-INT8_mobilenet-v1-1.0-224",
+            "oldName" : "ea_caffe_FP16-INT8_mobilenet-v1-1_0-224_MCM",
+            "ir" : "scale/mobilenet-v1-1.0-224/caffe/FP16-INT8/mobilenet-v1-1.0-224.xml",
             "3720": {
                 "disabled" : true
             },
@@ -1320,8 +1357,9 @@
             }
         },
         {
-            "name" : "ea_caffe_FP16_mobilenet-v1-1.0-224",
-            "ir" : "ea/mobilenet-v1-1.0-224/caffe/FP16/mobilenet-v1-1.0-224.xml",
+            "name" : "scale_caffe_FP16_mobilenet-v1-1.0-224",
+            "oldName" : "ea_caffe_FP16_mobilenet-v1-1_0-224_MLIR",
+            "ir" : "scale/mobilenet-v1-1.0-224/caffe/FP16/mobilenet-v1-1.0-224.xml",
             "3720": {
                 "disabled" : true
             },
@@ -1351,8 +1389,9 @@
             }
         },
         {
-            "name" : "ea_caffe_FP16-INT8_mobilenet-v1-1.0-224",
-            "ir" : "ea/mobilenet-v1-1.0-224/caffe/FP16-INT8/mobilenet-v1-1.0-224.xml",
+            "name" : "scale_caffe_FP16-INT8_mobilenet-v1-1.0-224",
+            "oldName" : "ea_caffe_FP16-INT8_mobilenet-v1-1_0-224_MLIR",
+            "ir" : "scale/mobilenet-v1-1.0-224/caffe/FP16-INT8/mobilenet-v1-1.0-224.xml",
             "3720": {
                 "disabled" : true
             },
@@ -1382,8 +1421,9 @@
             }
         },
         {
-            "name" : "ea_caffe_FP16-INT8_resnet-50",
-            "ir" : "ea/resnet-50/caffe/FP16-INT8/resnet-50.xml",
+            "name" : "scale_caffe_FP16-INT8_resnet-50",
+            "oldName" : "ea_caffe_FP16-INT8_resnet-50_MCM",
+            "ir" : "scale/resnet-50/caffe/FP16-INT8/resnet-50.xml",
             "3720": {
                 "disabled" : true
             },
@@ -1413,8 +1453,9 @@
         },
 
         {
-            "name" : "por_caffe2_FP16-INT8_vehicle-attributes-recognition-barrier-0042",
-            "ir" : "por/vehicle-attributes-recognition-barrier-0042/caffe2/FP16-INT8/vehicle-attributes-recognition-barrier-0042.xml",
+            "name" : "scale_onnx_FP16-INT8_vehicle-attributes-recognition-barrier-0042",
+            "oldName" : "por_caffe2_FP16-INT8_vehicle-attributes-recognition-barrier-0042_MCM",
+            "ir" : "scale/vehicle-attributes-recognition-barrier-0042/onnx/FP16-INT8/vehicle-attributes-recognition-barrier-0042.xml",
             "3720": {
                 "disabled" : true
             },
@@ -1438,13 +1479,14 @@
             },
             "category" : "MCM/release/precommit",
             "CI-options" : {
-                "blob_name" : "vehicle-attributes-recognition-barrier-0042_cf2"
+                "blob_name" : "vehicle-attributes-recognition-barrier-0042_onnx"
             }
         },
 
         {
-            "name" : "por_tf_FP16-INT8_yolo-v2-tiny-vehicle-detection-0001",
-            "ir" : "por/yolo-v2-tiny-vehicle-detection-0001/tf/FP16-INT8/yolo-v2-tiny-vehicle-detection-0001.xml",
+            "name" : "scale_tf_FP16-INT8_yolo-v2-tiny-vehicle-detection-0001",
+            "oldName" : "por_tf_FP16-INT8_yolo-v2-tiny-vehicle-detection-0001_MCM",
+            "ir" : "scale/yolo-v2-tiny-vehicle-detection-0001/tf/FP16-INT8/yolo-v2-tiny-vehicle-detection-0001.xml",
             "3720": {
                 "disabled" : true
             },
@@ -1472,8 +1514,9 @@
         },
 
         {
-            "name" : "ea_caffe2_FP16-INT8_resnet-34-pytorch",
-            "ir" : "ea/resnet-34-pytorch/caffe2/FP16-INT8/resnet-34-pytorch.xml",
+            "name" : "scale_onnx_FP16-INT8_resnet-34-pytorch",
+            "oldName" : "ea_caffe2_FP16-INT8_resnet-34-pytorch_MCM",
+            "ir" : "scale/resnet-34-pytorch/onnx/FP16-INT8/resnet-34-pytorch.xml",
             "3720": {
                 "disabled" : true
             },
@@ -1498,13 +1541,14 @@
             },
             "category" : "MCM/release/precommit",
             "CI-options" : {
-                "blob_name" : "resnet-34-pytorch_cf2"
+                "blob_name" : "resnet-34-pytorch_onnx"
             }
         },
 
         {
-            "name" : "tf_FP16-INT8_person-vehicle-bike-detection-crossroad-yolov3-1020",
-            "ir" : "person-vehicle-bike-detection-crossroad-yolov3-1020/tf/FP16-INT8/person-vehicle-bike-detection-crossroad-yolov3-1020.xml",
+            "name" : "scale_tf_FP16-INT8_person-vehicle-bike-detection-crossroad-yolov3-1020",
+            "oldName" : "tf_FP16-INT8_person-vehicle-bike-detection-crossroad-yolov3-1020_MCM",
+            "ir" : "scale/person-vehicle-bike-detection-crossroad-yolov3-1020/tf/FP16-INT8/person-vehicle-bike-detection-crossroad-yolov3-1020.xml",
             "3720": {
                 "disabled" : true
             },
@@ -1532,8 +1576,9 @@
         },
 
         {
-            "name" : "kpi_tf_FP16-INT8_icnet-camvid-ava-0001",
-            "ir" : "kpi/icnet-camvid-ava-0001/tf/FP16-INT8/icnet-camvid-ava-0001.xml",
+            "name" : "por_tf_FP16-INT8_icnet-camvid-ava-0001",
+            "oldName" : "kpi_tf_FP16-INT8_icnet-camvid-ava-0001_MCM",
+            "ir" : "por/icnet-camvid-ava-0001/tf/FP16-INT8/icnet-camvid-ava-0001.xml",
             "3720": {
                 "disabled" : true
             },
@@ -1590,8 +1635,9 @@
         },
 
         {
-            "name" : "ea_caffe2_FP16-INT8_yolo_v2",
-            "ir" : "ea/yolo_v2/caffe2/FP16-INT8/yolo_v2.xml",
+            "name" : "scale_onnx_FP16-INT8_yolo_v2",
+            "oldName" : "ea_caffe2_FP16-INT8_yolo_v2_MCM",
+            "ir" : "scale/yolo_v2/onnx/FP16-INT8/yolo_v2.xml",
             "3720": {
                 "disabled" : true
             },
@@ -1615,13 +1661,14 @@
             },
             "category" : "MCM/release/precommit",
             "CI-options" : {
-                "blob_name" : "yolo-v2_cf2"
+                "blob_name" : "yolo-v2_onnx"
             }
         },
 
         {
-            "name" : "mx_tf_FP16-INT8_ssd_mobilenet_v2_coco",
-            "ir" : "mx/ssd_mobilenet_v2_coco/tf/FP16-INT8/ssd_mobilenet_v2_coco.xml",
+            "name" : "scale_tf_FP16-INT8_ssd_mobilenet_v2_coco",
+            "oldName" : "mx_tf_FP16-INT8_ssd_mobilenet_v2_coco_MCM",
+            "ir" : "scale/ssd_mobilenet_v2_coco/tf/FP16-INT8/ssd_mobilenet_v2_coco.xml",
             "3720": {
                 "disabled" : true
             },
@@ -1652,8 +1699,9 @@
         },
 
         {
-            "name" : "ea_tf_FP16_ssd_mobilenet_v2",
-            "ir" : "ea/ssd_mobilenet_v2/tf/FP16/ssd_mobilenet_v2.xml",
+            "name" : "scale_tf_FP16_ssd_mobilenet_v2",
+            "oldName" : "ea_tf_FP16_ssd_mobilenet_v2_MLIR",
+            "ir" : "scale/ssd_mobilenet_v2/tf/FP16/ssd_mobilenet_v2.xml",
             "3720": {
                 "disabled" : true
             },
@@ -1685,8 +1733,9 @@
         },
 
         {
-            "name": "ea_tf_FP16-INT8_ssd_mobilenet_v2",
-            "ir": "ea/ssd_mobilenet_v2/tf/FP16-INT8/ssd_mobilenet_v2.xml",
+            "name": "scale_tf_FP16-INT8_ssd_mobilenet_v2",
+            "oldName" : "ea_tf_FP16-INT8_ssd_mobilenet_v2_MLIR",
+            "ir": "scale/ssd_mobilenet_v2/tf/FP16-INT8/ssd_mobilenet_v2.xml",
             "3720": {
                 "disabled" : true
             },
@@ -1718,8 +1767,9 @@
         },
 
         {
-            "name" : "ea_tf_FP16-INT8_ssd_mobilenet_v2",
-            "ir" : "ea/ssd_mobilenet_v2/tf/FP16-INT8/ssd_mobilenet_v2.xml",
+            "name" : "scale_tf_FP16-INT8_ssd_mobilenet_v2",
+            "oldName" : "ea_tf_FP16-INT8_ssd_mobilenet_v2_MCM",
+            "ir" : "scale/ssd_mobilenet_v2/tf/FP16-INT8/ssd_mobilenet_v2.xml",
             "3720": {
                 "disabled" : true
             },
@@ -1750,8 +1800,9 @@
         },
 
         {
-            "name" : "kpi_caffe2_FP16-INT8_mobilenet-v2",
-            "ir" : "kpi/mobilenet-v2/caffe2/FP16-INT8/mobilenet-v2.xml",
+            "name" : "por_onnx_FP16-INT8_mobilenet-v2",
+            "oldName" : "kpi_caffe2_FP16-INT8_mobilenet-v2_MLIR",
+            "ir" : "por/mobilenet-v2/onnx/FP16-INT8/mobilenet-v2.xml",
             "3720": {
                 "disabled" : true
             },
@@ -1779,13 +1830,14 @@
             },
             "category" : "MLIR",
             "CI-options" : {
-                "blob_name" : "kpi_caffe_FP16-INT8_mobilenet-v2"
+                "blob_name" : "por_onnx_FP16-INT8_mobilenet-v2"
             }
         },
 
         {
-            "name" : "mx_tf_FP16-INT8_mobilenet-v1-0.25-128",
-            "ir" : "mx/mobilenet-v1-0.25-128/tf/FP16-INT8/mobilenet-v1-0.25-128.xml",
+            "name" : "scale_tf_FP16-INT8_mobilenet-v1-0.25-128",
+            "oldName" : "mx_tf_FP16-INT8_mobilenet-v1-0_25-128_MCM",
+            "ir" : "scale/mobilenet-v1-0.25-128/tf/FP16-INT8/mobilenet-v1-0.25-128.xml",
             "3720": {
                 "disabled" : true
             },
@@ -1817,8 +1869,9 @@
         },
 
         {
-            "name" : "ea_caffe_FP16-INT8_emotions-recognition-retail-0003",
-            "ir" : "ea/emotions-recognition-retail-0003/caffe/FP16-INT8/emotions-recognition-retail-0003.xml",
+            "name" : "scale_caffe_FP16-INT8_emotions-recognition-retail-0003",
+            "oldName" : "ea_caffe_FP16-INT8_emotions-recognition-retail-0003_MCM",
+            "ir" : "scale/emotions-recognition-retail-0003/caffe/FP16-INT8/emotions-recognition-retail-0003.xml",
             "3720": {
                 "disabled" : true
             },
@@ -1845,8 +1898,9 @@
         },
 
         {
-            "name" : "ea_caffe_FP16-INT8_retinaface-mobilenetv2-0.25-modified",
-            "ir" : "ea/retinaface-mobilenetv2-0.25-modified/caffe/FP16-INT8/retinaface-mobilenetv2-0.25-modified.xml",
+            "name" : "scale_caffe_FP16-INT8_retinaface-mobilenetv2-0.25-modified",
+            "oldName" : "ea_caffe_FP16-INT8_retinaface-mobilenetv2-0_25-modified_MCM",
+            "ir" : "scale/retinaface-mobilenetv2-0.25-modified/caffe/FP16-INT8/retinaface-mobilenetv2-0.25-modified.xml",
             "3720": {
                 "disabled" : true
             },
@@ -1874,8 +1928,9 @@
         },
 
         {
-            "name" : "por_caffe_FP16_vas-face-detection-stage1",
-            "ir" : "por/vas-face-detection-stage1/caffe/FP16/vas-face-detection-stage1.xml",
+            "name" : "scale_caffe_FP16_vas-face-detection-stage1",
+            "oldName" : "por_caffe_FP16_vas-face-detection-stage1_MCM",
+            "ir" : "scale/vas-face-detection-stage1/caffe/FP16/vas-face-detection-stage1.xml",
             "3720": {
                 "disabled" : true
             },
@@ -1905,8 +1960,9 @@
         },
 
         {
-            "name" : "por_caffe_FP16-INT8_vas-face-detection-stage2",
-            "ir" : "por/vas-face-detection-stage2/caffe/FP16-INT8/vas-face-detection-stage2.xml",
+            "name" : "scale_caffe_FP16-INT8_vas-face-detection-stage2",
+            "oldName" : "por_caffe_FP16-INT8_vas-face-detection-stage2_MCM",
+            "ir" : "scale/vas-face-detection-stage2/caffe/FP16-INT8/vas-face-detection-stage2.xml",
             "3720": {
                 "disabled" : true
             },
@@ -1935,8 +1991,9 @@
         },
 
         {
-            "name" : "SINGLE_IMAGE_TEST_por_caffe_FP16-INT8_vas-face-detection-stage2",
-            "ir" : "por/vas-face-detection-stage2/caffe/FP16-INT8/vas-face-detection-stage2.xml",
+            "name" : "SINGLE_IMAGE_TEST_scale_caffe_FP16-INT8_vas-face-detection-stage2",
+            "oldName" : "SINGLE_IMAGE_TEST_por_caffe_FP16-INT8_vas-face-detection-stage2_MCM",
+            "ir" : "scale/vas-face-detection-stage2/caffe/FP16-INT8/vas-face-detection-stage2.xml",
             "3720": {
                 "disabled" : true
             },
@@ -1964,8 +2021,9 @@
         },
 
         {
-            "name" : "por_caffe_FP16_vas-face-detection-stage2",
-            "ir" : "por/vas-face-detection-stage2/caffe/FP16/vas-face-detection-stage2.xml",
+            "name" : "scale_caffe_FP16_vas-face-detection-stage2",
+            "oldName" : "por_caffe_FP16_vas-face-detection-stage2_MCM",
+            "ir" : "scale/vas-face-detection-stage2/caffe/FP16/vas-face-detection-stage2.xml",
             "3720": {
                 "disabled" : true
             },
@@ -1998,8 +2056,9 @@
         },
 
         {
-            "name" : "SINGLE_IMAGE_TEST_por_caffe_FP16_vas-face-detection-stage2",
-            "ir" : "por/vas-face-detection-stage2/caffe/FP16/vas-face-detection-stage2.xml",
+            "name" : "SINGLE_IMAGE_TEST_scale_caffe_FP16_vas-face-detection-stage2",
+            "oldName" : "SINGLE_IMAGE_TEST_por_caffe_FP16_vas-face-detection-stage2_MCM",
+            "ir" : "scale/vas-face-detection-stage2/caffe/FP16/vas-face-detection-stage2.xml",
             "3720": {
                 "disabled" : true
             },
@@ -2030,8 +2089,9 @@
         },
 
         {
-            "name" : "por_tf_FP16-INT8_vas-face-recognition-feature-extraction",
-            "ir" : "por/vas-face-recognition-feature-extraction/tf/FP16-INT8/vas-face-recognition-feature-extraction.xml",
+            "name" : "scale_tf_FP16-INT8_vas-face-recognition-feature-extraction",
+            "oldName" : "por_tf_FP16-INT8_vas-face-recognition-feature-extraction_MCM",
+            "ir" : "scale/vas-face-recognition-feature-extraction/tf/FP16-INT8/vas-face-recognition-feature-extraction.xml",
             "3720": {
                 "disabled" : true
             },
@@ -2059,8 +2119,9 @@
         },
 
         {
-            "name" : "ea_caffe2_FP16-INT8_resnet50-v2",
-            "ir" : "ea/resnet50-v2/caffe2/FP16-INT8/resnet50-v2.xml",
+            "name" : "scale_onnx_FP16-INT8_resnet50-v2",
+            "oldName" : "ea_caffe2_FP16-INT8_resnet50-v2_MCM",
+            "ir" : "scale/resnet50-v2/onnx/FP16-INT8/resnet50-v2.xml",
             "3720": {
                 "disabled" : true
             },
@@ -2084,13 +2145,14 @@
             },
             "category" : "MCM/release",
             "CI-options" : {
-                "blob_name" : "resnet50-v2_cf2"
+                "blob_name" : "resnet50-v2_onnx"
             }
         },
 
         {
-            "name" : "mx_caffe_FP16-INT8_densenet-121",
-            "ir" : "mx/densenet-121/caffe/FP16-INT8/densenet-121.xml",
+            "name" : "scale_caffe_FP16-INT8_densenet-121",
+            "oldName" : "mx_caffe_FP16-INT8_densenet-121_MCM",
+            "ir" : "scale/densenet-121/caffe/FP16-INT8/densenet-121.xml",
             "3720": {
                 "disabled" : true
             },
@@ -2119,8 +2181,9 @@
         },
 
         {
-            "name" : "mx_tf_FP16-INT8_densenet-121",
-            "ir" : "mx/densenet-121/tf/FP16-INT8/densenet-121.xml",
+            "name" : "scale_tf_FP16-INT8_densenet-121",
+            "oldName" : "mx_tf_FP16-INT8_densenet-121_MCM",
+            "ir" : "scale/densenet-121/tf/FP16-INT8/densenet-121.xml",
             "3720": {
                 "disabled" : true
             },
@@ -2149,8 +2212,9 @@
         },
 
         {
-            "name" : "mx_caffe_FP16-INT8_densenet-169",
-            "ir" : "mx/densenet-169/caffe/FP16-INT8/densenet-169.xml",
+            "name" : "por_caffe_FP16-INT8_densenet-169",
+            "oldName" : "mx_caffe_FP16-INT8_densenet-169_MCM",
+            "ir" : "por/densenet-169/caffe/FP16-INT8/densenet-169.xml",
             "3720": {
                 "disabled" : true
             },
@@ -2179,8 +2243,9 @@
         },
 
     {
-            "name" : "por_caffe2_FP16-INT8_person-attributes-recognition-crossroad-0234",
-            "ir" : "por/person-attributes-recognition-crossroad-0234/caffe2/FP16-INT8/person-attributes-recognition-crossroad-0234.xml",
+            "name" : "scale_onnx_FP16-INT8_person-attributes-recognition-crossroad-0234",
+            "oldName" : "por_caffe2_FP16-INT8_person-attributes-recognition-crossroad-0234_MCM",
+            "ir" : "scale/person-attributes-recognition-crossroad-0234/onnx/FP16-INT8/person-attributes-recognition-crossroad-0234.xml",
             "disabled" : true,
             "3720": {
                 "disabled" : true
@@ -2203,13 +2268,14 @@
             },
             "category" : "MCM/release",
             "CI-options" : {
-                "blob_name" : "person-attributes-recognition-crossroad-0234_cf2"
+                "blob_name" : "person-attributes-recognition-crossroad-0234_onnx"
             }
         },
 
         {
-            "name" : "por_caffe2_FP16-INT8_person-attributes-recognition-crossroad-0238",
-            "ir" : "por/person-attributes-recognition-crossroad-0238/caffe2/FP16-INT8/person-attributes-recognition-crossroad-0238.xml",
+            "name" : "scale_onnx_FP16-INT8_person-attributes-recognition-crossroad-0238",
+            "oldName" : "por_caffe2_FP16-INT8_person-attributes-recognition-crossroad-0238_MCM",
+            "ir" : "scale/person-attributes-recognition-crossroad-0238/onnx/FP16-INT8/person-attributes-recognition-crossroad-0238.xml",
             "disabled" : true,
             "3720": {
                 "disabled" : true
@@ -2232,13 +2298,14 @@
             },
             "category" : "MCM/release",
             "CI-options" : {
-                "blob_name" : "person-attributes-recognition-crossroad-0238_cf2"
+                "blob_name" : "person-attributes-recognition-crossroad-0238_onnx"
             }
         },
 
         {
-            "name" : "mx_tf_FP16-INT8_text-detection-0003",
-            "ir" : "mx/text-detection-0003/tf/FP16-INT8/text-detection-0003.xml",
+            "name" : "scale_tf_FP16-INT8_text-detection-0003",
+            "oldName" : "mx_tf_FP16-INT8_text-detection-0003_MCM",
+            "ir" : "scale/text-detection-0003/tf/FP16-INT8/text-detection-0003.xml",
             "3720": {
                 "disabled" : true
             },
@@ -2266,8 +2333,9 @@
         },
 
         {
-            "name" : "mx_tf_FP16-INT8_text-detection-0004",
-            "ir" : "mx/text-detection-0004/tf/FP16-INT8/text-detection-0004.xml",
+            "name" : "scale_tf_FP16-INT8_text-detection-0004",
+            "oldName" : "mx_tf_FP16-INT8_text-detection-0004_MCM",
+            "ir" : "scale/text-detection-0004/tf/FP16-INT8/text-detection-0004.xml",
             "3720": {
                 "disabled" : true
             },
@@ -2329,8 +2397,9 @@
         },
 
         {
-            "name" : "ea_caffe_FP16-INT8_age-gender-recognition-retail-0013",
-            "ir" : "ea/age-gender-recognition-retail-0013/caffe/FP16-INT8/age-gender-recognition-retail-0013.xml",
+            "name" : "scale_caffe_FP16-INT8_age-gender-recognition-retail-0013",
+            "oldName" : "ea_caffe_FP16-INT8_age-gender-recognition-retail-0013_MLIR",
+            "ir" : "scale/age-gender-recognition-retail-0013/caffe/FP16-INT8/age-gender-recognition-retail-0013.xml",
             "3720": {
                 "disabled" : true
             },
@@ -2357,13 +2426,14 @@
             },
             "category" : "MLIR",
             "CI-options" : {
-                "blob_name" : "ea_caffe_FP16-INT8_age-gender-recognition-retail-0013"
+                "blob_name" : "scale_caffe_FP16-INT8_age-gender-recognition-retail-0013"
             }
         },
 
         {
-            "name" : "por_caffe2_FP16_resnet-18-pytorch",
-            "ir" : "por/resnet-18/caffe2/FP16/resnet-18.xml",
+            "name" : "scale_onnx_FP16_resnet-18-pytorch",
+            "oldName" : "por_caffe2_FP16_resnet-18-pytorch_MLIR",
+            "ir" : "scale/resnet-18/onnx/FP16/resnet-18.xml",
             "3720": {
                 "disabled" : true
             },
@@ -2390,13 +2460,14 @@
             },
             "category" : "MLIR",
             "CI-options" : {
-                "blob_name" : "por_caffe2_FP16_resnet-18-pytorch"
+                "blob_name" : "scale_onnx_FP16_resnet-18-pytorch"
             }
         },
 
         {
-            "name" : "por_caffe2_FP16-INT8_resnet-18-pytorch",
-            "ir" : "por/resnet-18/caffe2/FP16-INT8/resnet-18.xml",
+            "name" : "scale_onnx_FP16-INT8_resnet-18-pytorch",
+            "oldName" : "por_caffe2_FP16-INT8_resnet-18-pytorch_MLIR",
+            "ir" : "scale/resnet-18/onnx/FP16-INT8/resnet-18.xml",
             "3720": {
                 "disabled" : true
             },
@@ -2423,13 +2494,14 @@
             },
             "category" : "MLIR",
             "CI-options" : {
-                "blob_name" : "por_caffe2_FP16_resnet-18-pytorch"
+                "blob_name" : "scale_onnx_FP16_resnet-18-pytorch"
             }
         },
 
         {
-            "name" : "ea_caffe_FP16_mobilenet-v2",
-            "ir" : "ea/mobilenet-v2/caffe/FP16/mobilenet-v2.xml",
+            "name" : "scale_caffe_FP16_mobilenet-v2",
+            "oldName" : "ea_caffe_FP16_mobilenet-v2_MLIR",
+            "ir" : "scale/mobilenet-v2/caffe/FP16/mobilenet-v2.xml",
             "3720": {
                 "disabled" : true
             },
@@ -2455,13 +2527,14 @@
             },
             "category" : "MLIR",
             "CI-options" : {
-                "blob_name" : "ea_caffe_FP16_mobilenet-v2"
+                "blob_name" : "scale_caffe_FP16_mobilenet-v2"
             }
         },
 
         {
-            "name" : "ea_caffe_FP16-INT8_mobilenet-v2",
-            "ir" : "ea/mobilenet-v2/caffe/FP16-INT8/mobilenet-v2.xml",
+            "name" : "scale_caffe_FP16-INT8_mobilenet-v2",
+            "oldName" : "ea_caffe_FP16-INT8_mobilenet-v2_MLIR",
+            "ir" : "scale/mobilenet-v2/caffe/FP16-INT8/mobilenet-v2.xml",
             "3720": {
                 "disabled" : true
             },
@@ -2487,13 +2560,14 @@
             },
             "category" : "MLIR",
             "CI-options" : {
-                "blob_name" : "ea_caffe_FP16_mobilenet-v2"
+                "blob_name" : "scale_caffe_FP16_mobilenet-v2"
             }
         },
 
         {
-            "name" : "ea_caffe2_FP16-INT8_shufflenet-v2-x1.0-pytorch",
-            "ir" : "ea/shufflenet-v2-x1.0/caffe2/FP16-INT8/shufflenet-v2-x1.0.xml",
+            "name" : "scale_onnx_FP16-INT8_shufflenet-v2-x1.0-pytorch",
+            "oldName" : "ea_caffe2_FP16-INT8_shufflenet-v2-x1_0-pytorch_MCM",
+            "ir" : "scale/shufflenet-v2-x1.0/onnx/FP16-INT8/shufflenet-v2-x1.0.xml",
             "3720": {
                 "disabled" : true
             },
@@ -2515,7 +2589,7 @@
             },
             "category" : "MCM/release",
             "CI-options" : {
-                "blob_name" : "shufflenet-v2-x1-0-pytorch_cf2"
+                "blob_name" : "shufflenet-v2-x1-0-pytorch_onnx"
             }
         },
 
@@ -2904,8 +2978,9 @@
         },
 
         {
-            "name" : "ea_tf_FP16_mobilenet-v3-large-1.0-224",
-            "ir" : "ea/mobilenet-v3-large-1.0-224/tf/FP16/mobilenet-v3-large-1.0-224.xml",
+            "name" : "scale_tf_FP16_mobilenet-v3-large-1.0-224",
+            "oldName" : "ea_tf_FP16_mobilenet-v3-large-1_0-224_MLIR",
+            "ir" : "scale/mobilenet-v3-large-1.0-224/tf/FP16/mobilenet-v3-large-1.0-224.xml",
             "3720": {
                 "disabled" : true
             },
@@ -2931,13 +3006,14 @@
             },
             "category" : "MLIR",
             "CI-options" : {
-                "blob_name" : "ea_tf_fp16_mobilenet-v3-large-1.0-224_tf"
+                "blob_name" : "scale_tf_fp16_mobilenet-v3-large-1.0-224_tf"
             },
             "comments" : "Excluded from Windows validation, because of bug EISW-19491."
         },
         {
-            "name" : "ea_tf_FP16-INT8_mobilenet-v3-large-1.0-224",
-            "ir" : "ea/mobilenet-v3-large-1.0-224/tf/FP16-INT8/mobilenet-v3-large-1.0-224.xml",
+            "name" : "scale_tf_FP16-INT8_mobilenet-v3-large-1.0-224",
+            "oldName" : "ea_tf_FP16-INT8_mobilenet-v3-large-1_0-224_MLIR",
+            "ir" : "scale/mobilenet-v3-large-1.0-224/tf/FP16-INT8/mobilenet-v3-large-1.0-224.xml",
             "3720": {
                 "disabled" : true
             },
@@ -2963,12 +3039,13 @@
             },
             "category" : "MLIR",
             "CI-options" : {
-                "blob_name" : "ea_tf_fp16-int8_mobilenet-v3-large-1.0-224_tf"
+                "blob_name" : "scale_tf_fp16-int8_mobilenet-v3-large-1.0-224_tf"
             }
         },
         {
-            "name" : "ea_tf_FP16_mobilenet-v3-small-1.0-224",
-            "ir" : "ea/mobilenet-v3-small-1.0-224/tf/FP16/mobilenet-v3-small-1.0-224.xml",
+            "name" : "por_tf_FP16_mobilenet-v3-small-1.0-224",
+            "oldName" : "ea_tf_FP16_mobilenet-v3-small-1_0-224_MLIR",
+            "ir" : "por/mobilenet-v3-small-1.0-224/tf/FP16/mobilenet-v3-small-1.0-224.xml",
             "3720": {
                 "disabled" : true
             },
@@ -2994,12 +3071,13 @@
             },
             "category" : "MLIR",
             "CI-options" : {
-                "blob_name" : "ea_tf_fp16-mobilenet-v3-small-1.0-224"
+                "blob_name" : "por_tf_fp16-mobilenet-v3-small-1.0-224"
             }
         },
         {
-            "name" : "ea_tf_FP16-INT8_mobilenet-v3-small-1.0-224",
-            "ir" : "ea/mobilenet-v3-small-1.0-224/tf/FP16-INT8/mobilenet-v3-small-1.0-224.xml",
+            "name" : "por_tf_FP16-INT8_mobilenet-v3-small-1.0-224",
+            "oldName" : "ea_tf_FP16-INT8_mobilenet-v3-small-1_0-224_MLIR",
+            "ir" : "por/mobilenet-v3-small-1.0-224/tf/FP16-INT8/mobilenet-v3-small-1.0-224.xml",
             "3720": {
                 "disabled" : true
             },
@@ -3025,7 +3103,7 @@
             },
             "category" : "MLIR/precommit",
             "CI-options" : {
-                "blob_name" : "ea_tf_fp16-int8-mobilenet-v3-small-1.0-224"
+                "blob_name" : "por_tf_fp16-int8-mobilenet-v3-small-1.0-224"
             }
         },
 
@@ -3350,8 +3428,9 @@
         },
 
         {
-            "name" : "por_caffe2_FP16-INT8_unet-camvid-onnx-0001",
-            "ir" : "por/unet-camvid-onnx-0001/caffe2/FP16-INT8/unet-camvid-onnx-0001.xml",
+            "name" : "por_onnx_FP16-INT8_unet-camvid-onnx-0001",
+            "oldName" : "por_caffe2_FP16-INT8_unet-camvid-onnx-0001_MCM",
+            "ir" : "por/unet-camvid-onnx-0001/onnx/FP16-INT8/unet-camvid-onnx-0001.xml",
             "3720": {
                 "disabled" : true
             },
@@ -3376,13 +3455,14 @@
             },
             "category" : "MCM/release/precommit/weekly_public",
             "CI-options" : {
-                "blob_name" : "unet-camvid-onnx-0001_cf2"
+                "blob_name" : "unet-camvid-onnx-0001_onnx"
             }
         },
 
         {
-            "name" : "ea_caffe_FP16-INT8_openpose-pose",
-            "ir" : "ea/openpose-pose/caffe/FP16-INT8/openpose-pose.xml",
+            "name" : "por_caffe_FP16-INT8_openpose-pose",
+            "oldName" : "ea_caffe_FP16-INT8_openpose-pose_MCM",
+            "ir" : "por/openpose-pose/caffe/FP16-INT8/openpose-pose.xml",
             "3720": {
                 "disabled" : true
             },
@@ -3744,8 +3824,9 @@
 
 
         {
-            "name" : "SINGLE_IMAGE_TEST_kpi_tf_FP16-INT8_googlenet-v1",
-            "ir" : "kpi/googlenet-v1/tf/FP16-INT8/googlenet-v1.xml",
+            "name" : "SINGLE_IMAGE_TEST_por_tf_FP16-INT8_googlenet-v1",
+            "oldName" : "SINGLE_IMAGE_TEST_kpi_tf_FP16-INT8_googlenet-v1_MCM",
+            "ir" : "por/googlenet-v1/tf/FP16-INT8/googlenet-v1.xml",
             "3720": {
                 "disabled" : true
             },
@@ -3770,8 +3851,9 @@
         },
 
         {
-            "name" : "SINGLE_IMAGE_TEST_kpi_tf_FP16-INT8_googlenet-v3",
-            "ir" : "kpi/googlenet-v3/tf/FP16-INT8/googlenet-v3.xml",
+            "name" : "SINGLE_IMAGE_TEST_por_tf_FP16-INT8_googlenet-v3",
+            "oldName" : "SINGLE_IMAGE_TEST_kpi_tf_FP16-INT8_googlenet-v3_MCM",
+            "ir" : "por/googlenet-v3/tf/FP16-INT8/googlenet-v3.xml",
             "3720": {
                 "disabled" : true
             },
@@ -3796,8 +3878,9 @@
         },
 
         {
-            "name" : "SINGLE_IMAGE_TEST_kpi_caffe2_FP16-INT8_squeezenet1.1",
-            "ir" : "kpi/squeezenet1.1/caffe2/FP16-INT8/squeezenet1.1.xml",
+            "name" : "SINGLE_IMAGE_TEST_por_caffe2_FP16-INT8_squeezenet1.1",
+            "oldName" : "SINGLE_IMAGE_TEST_kpi_caffe2_FP16-INT8_squeezenet1.1_MCM",
+            "ir" : "por/squeezenet1.1/caffe2/FP16-INT8/squeezenet1.1.xml",
             "3720": {
                 "disabled" : true
             },
@@ -3822,8 +3905,9 @@
         },
 
         {
-            "name" : "SINGLE_IMAGE_TEST_kpi_caffe2_FP16_mobilenet-v2",
-            "ir" : "kpi/mobilenet-v2/caffe2/FP16/mobilenet-v2.xml",
+            "name" : "SINGLE_IMAGE_TEST_por_onnx_FP16_mobilenet-v2",
+            "oldName" : "SINGLE_IMAGE_TEST_kpi_caffe2_FP16_mobilenet-v2_MCM",
+            "ir" : "por/mobilenet-v2/onnx/FP16/mobilenet-v2.xml",
             "disabled" :  true,
             "3720": {
                 "disabled" : true
@@ -3853,13 +3937,14 @@
             },
             "category" : "MCM/precommit",
             "CI-options" : {
-                "blob_name" : "mobilenet-v2_cf2_fp16"
+                "blob_name" : "mobilenet-v2_onnx_fp16"
             }
         },
 
         {
-            "name" : "SINGLE_IMAGE_TEST_mx_tf_FP16_mobilenet-v1-0.25-128",
-            "ir" : "mx/mobilenet-v1-0.25-128/tf/FP16/mobilenet-v1-0.25-128.xml",
+            "name" : "SINGLE_IMAGE_TEST_scale_tf_FP16_mobilenet-v1-0.25-128",
+            "oldName" : "SINGLE_IMAGE_TEST_mx_tf_FP16_mobilenet-v1-0_25-128_MCM",
+            "ir" : "scale/mobilenet-v1-0.25-128/tf/FP16/mobilenet-v1-0.25-128.xml",
             "3720": {
                 "disabled" : true
             },
@@ -3888,8 +3973,9 @@
         },
 
         {
-            "name" : "SINGLE_IMAGE_TEST_kpi_tf_FP16_googlenet-v1",
-            "ir" : "kpi/googlenet-v1/tf/FP16/googlenet-v1.xml",
+            "name" : "SINGLE_IMAGE_TEST_por_tf_FP16_googlenet-v1",
+            "oldName" : "SINGLE_IMAGE_TEST_kpi_tf_FP16_googlenet-v1_MCM",
+            "ir" : "por/googlenet-v1/tf/FP16/googlenet-v1.xml",
             "3720": {
                 "disabled" : true
             },
@@ -3921,8 +4007,9 @@
         },
 
         {
-            "name" : "SINGLE_IMAGE_TEST_por_tf_FP16-INT8_googlenet-v4",
-            "ir" : "por/googlenet-v4/tf/FP16-INT8/googlenet-v4.xml",
+            "name" : "SINGLE_IMAGE_TEST_scale_tf_FP16-INT8_googlenet-v4",
+            "oldName" : "SINGLE_IMAGE_TEST_por_tf_FP16-INT8_googlenet-v4_MCM",
+            "ir" : "scale/googlenet-v4/tf/FP16-INT8/googlenet-v4.xml",
             "3720": {
                 "disabled" : true
             },
@@ -3947,8 +4034,9 @@
         },
 
         {
-            "name" : "SINGLE_IMAGE_TEST_kpi_caffe2_FP16-INT8_resnet-50-pytorch",
-            "ir" : "kpi/resnet-50-pytorch/caffe2/FP16-INT8/resnet-50-pytorch.xml",
+            "name" : "SINGLE_IMAGE_TEST_por_onnx_FP16-INT8_resnet-50-pytorch",
+            "oldName" : "SINGLE_IMAGE_TEST_kpi_caffe2_FP16-INT8_resnet-50-pytorch_MCM",
+            "ir" : "por/resnet-50-pytorch/onnx/FP16-INT8/resnet-50-pytorch.xml",
             "disabled" :  true,
             "3720": {
                 "disabled" : true
@@ -3973,13 +4061,14 @@
             },
             "category" : "MCM/precommit",
             "CI-options" : {
-                "blob_name" : "resnet-50-pytorch_cf2_tmp"
+                "blob_name" : "resnet-50-pytorch_onnx_tmp"
             }
         },
 
         {
-            "name" : "SINGLE_IMAGE_TEST_por_caffe_FP16-INT8_resnet-152",
-            "ir" : "por/resnet-152/caffe/FP16-INT8/resnet-152.xml",
+            "name" : "SINGLE_IMAGE_TEST_scale_caffe_FP16-INT8_resnet-152",
+            "oldName" : "SINGLE_IMAGE_TEST_por_caffe_FP16-INT8_resnet-152_MCM",
+            "ir" : "scale/resnet-152/caffe/FP16-INT8/resnet-152.xml",
             "3720": {
                 "disabled" : true
             },
@@ -4004,8 +4093,9 @@
         },
 
         {
-            "name" : "ea_tf_FP16-INT8_mobilenet-v3-large-1.0-224",
-            "ir" : "ea/mobilenet-v3-large-1.0-224/tf/FP16-INT8/mobilenet-v3-large-1.0-224.xml",
+            "name" : "scale_tf_FP16-INT8_mobilenet-v3-large-1.0-224",
+            "oldName" : "ea_tf_FP16-INT8_mobilenet-v3-large-1_0-224_MCM",
+            "ir" : "scale/mobilenet-v3-large-1.0-224/tf/FP16-INT8/mobilenet-v3-large-1.0-224.xml",
             "3720": {
                 "disabled" : true
             },
@@ -4034,8 +4124,9 @@
         },
 
         {
-            "name" : "ea_caffe2_FP16-INT8_mobilenet-v3-large-1.0-224",
-            "ir" : "ea/mobilenet-v3-large-1.0-224/caffe2/FP16-INT8/mobilenet-v3-large-1.0-224.xml",
+            "name" : "scale_onnx_FP16-INT8_mobilenet-v3-large-1.0-224",
+            "oldName" : "ea_caffe2_FP16-INT8_mobilenet-v3-large-1_0-224_MCM",
+            "ir" : "scale/mobilenet-v3-large-1.0-224/onnx/FP16-INT8/mobilenet-v3-large-1.0-224.xml",
             "3720": {
                 "disabled" : true
             },
@@ -4053,7 +4144,7 @@
             },
             "category" : "MCM/release",
             "CI-options" : {
-                "blob_name" : "mobilenet-v3-large-1.0-224_cf2"
+                "blob_name" : "mobilenet-v3-large-1.0-224_onnx"
             }
         },
 
@@ -4090,8 +4181,9 @@
         },
 
         {
-            "name" : "SINGLE_IMAGE_TEST_mx_tf_FP16-INT8_mobilenet-v1-0.25-128",
-            "ir" : "mx/mobilenet-v1-0.25-128/tf/FP16-INT8/mobilenet-v1-0.25-128.xml",
+            "name" : "SINGLE_IMAGE_TEST_scale_tf_FP16-INT8_mobilenet-v1-0.25-128",
+            "oldName" : "SINGLE_IMAGE_TEST_mx_tf_FP16-INT8_mobilenet-v1-0_25-128_MCM",
+            "ir" : "scale/mobilenet-v1-0.25-128/tf/FP16-INT8/mobilenet-v1-0.25-128.xml",
             "3720": {
                 "disabled" : true
             },
@@ -4116,8 +4208,9 @@
         },
 
         {
-            "name" : "SINGLE_IMAGE_TEST_kpi_caffe2_FP16_resnet-50-pytorch",
-            "ir" : "kpi/resnet-50-pytorch/caffe2/FP16/resnet-50-pytorch.xml",
+            "name" : "SINGLE_IMAGE_TEST_por_onnx_FP16_resnet-50-pytorch",
+            "oldName" : "SINGLE_IMAGE_TEST_kpi_caffe2_FP16_resnet-50-pytorch_MCM",
+            "ir" : "por/resnet-50-pytorch/onnx/FP16/resnet-50-pytorch.xml",
             "disabled" :  true,
             "3720": {
                 "disabled" : true
@@ -4142,13 +4235,14 @@
             },
             "category" : "MCM/precommit",
             "CI-options" : {
-                "blob_name" : "resnet-50-pytorch_cf2_fp16_tmp"
+                "blob_name" : "resnet-50-pytorch_onnx_fp16_tmp"
             }
         },
 
         {
-            "name" : "kpi_caffe2_FP16_mobilenet-v2",
-            "ir" : "kpi/mobilenet-v2/caffe2/FP16/mobilenet-v2.xml",
+            "name" : "por_onnx_FP16_mobilenet-v2",
+            "oldName" : "kpi_caffe2_FP16_mobilenet-v2_MCM",
+            "ir" : "por/mobilenet-v2/onnx/FP16/mobilenet-v2.xml",
             "3720": {
                 "disabled" : true
             },
@@ -4175,7 +4269,7 @@
             },
             "category" : "MCM/precommit",
             "CI-options" : {
-                "blob_name" : "mobilenet-v2_cf2_fp16"
+                "blob_name" : "mobilenet-v2_onnx_fp16"
             }
         },
 
@@ -4220,8 +4314,9 @@
         },
 
         {
-            "name" : "MTL_kpi_caffe2_FP16_resnet-50-pytorch",
-            "ir" : "kpi/resnet-50-pytorch/caffe2/FP16/resnet-50-pytorch.xml",
+            "name" : "MTL_por_onnx_FP16_resnet-50-pytorch",
+            "oldName" : "MTL_kpi_caffe2_FP16_resnet-50-pytorch_MLIR",
+            "ir" : "por/resnet-50-pytorch/onnx/FP16/resnet-50-pytorch.xml",
             "disabled" : true,
             "3720": {
                 "disabled" : false
@@ -4254,14 +4349,15 @@
             },
             "category" : "MLIR",
             "CI-options" : {
-                "blob_name" : "MTL_resnet-50-pytorch_cf2_fp16"
+                "blob_name" : "MTL_resnet-50-pytorch_onnx_fp16"
             },
             "comments" : "NHWC layout and FP16 precision set for MTL compilation purposes."
         },
 
         {
-            "name" : "MTL_kpi_caffe2_FP16_mobilenet-v2",
-            "ir" : "kpi/mobilenet-v2/caffe2/FP16/mobilenet-v2.xml",
+            "name" : "MTL_por_onnx_FP16_mobilenet-v2",
+            "oldName" : "MTL_kpi_caffe2_FP16_mobilenet-v2_MLIR",
+            "ir" : "por/mobilenet-v2/onnx/FP16/mobilenet-v2.xml",
             "disabled" : true,
             "3720": {
                 "disabled" : false
@@ -4294,14 +4390,15 @@
             },
             "category" : "MLIR",
             "CI-options" : {
-                "blob_name" : "MTL_mobilenet-v2_cf2_fp16"
+                "blob_name" : "MTL_mobilenet-v2_onnx_fp16"
             },
             "comments" : "NHWC layout and FP16 precision set for MTL compilation purposes."
         },
 
         {
-            "name" : "SINGLE_IMAGE_TEST_kpi_tf_FP16-INT8_yolo-v2-ava-0001",
-            "ir" : "kpi/yolo-v2-ava-0001/tf/FP16-INT8/yolo-v2-ava-0001.xml",
+            "name" : "SINGLE_IMAGE_TEST_por_tf_FP16-INT8_yolo-v2-ava-0001",
+            "oldName" : "SINGLE_IMAGE_TEST_kpi_tf_FP16-INT8_yolo-v2-ava-0001_MCM",
+            "ir" : "por/yolo-v2-ava-0001/tf/FP16-INT8/yolo-v2-ava-0001.xml",
             "extra_config" : {
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS":"2"
@@ -4334,8 +4431,9 @@
         },
 
         {
-            "name" : "SINGLE_IMAGE_TEST_kpi_tf_FP16-INT8_yolo-v2-tiny-ava-0001",
-            "ir" : "kpi/yolo-v2-tiny-ava-0001/tf/FP16-INT8/yolo-v2-tiny-ava-0001.xml",
+            "name" : "SINGLE_IMAGE_TEST_por_tf_FP16-INT8_yolo-v2-tiny-ava-0001",
+            "oldName" : "SINGLE_IMAGE_TEST_kpi_tf_FP16-INT8_yolo-v2-tiny-ava-0001_MCM",
+            "ir" : "por/yolo-v2-tiny-ava-0001/tf/FP16-INT8/yolo-v2-tiny-ava-0001.xml",
             "extra_config" : {
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS":"2"
@@ -4368,9 +4466,9 @@
         },
 
         {
-            "name" : "SINGLE_IMAGE_TEST_por_tf_FP16-INT8_yolo_v3",
-            "oldName" : "SINGLE_IMAGE_TEST_por_tf_FP16-INT8_yolo_v3_il_NCHW_ol_NCHW_MCM",
-            "ir" : "por/yolo_v3/tf/FP16-INT8/yolo_v3.xml",
+            "name" : "SINGLE_IMAGE_TEST_scale_tf_FP16-INT8_yolo_v3",
+            "oldName" : "SINGLE_IMAGE_TEST_por_tf_FP16-INT8_yolo_v3_MCM",
+            "ir" : "scale/yolo_v3/tf/FP16-INT8/yolo_v3.xml",
             "extra_config" : {
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_EXECUTOR_STREAMS":"2"
