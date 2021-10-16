@@ -71,7 +71,7 @@ Byte ViewLikeRewrite::calculateOffset(mlir::Value val) const {
 
 mlir::LogicalResult ViewLikeRewrite::matchAndRewrite(mlir::ViewLikeOpInterface origOp,
                                                      mlir::PatternRewriter& rewriter) const {
-    if (!mlir::isa<IERT::GenericReshapeOp, IERT::SubViewOp, IERT::ImplicitReorderOp>(origOp.getOperation())) {
+    if (!mlir::isa<IERT::GenericReshapeOp, IERT::SubViewOp, IERT::PermuteCastOp>(origOp.getOperation())) {
         return matchFailed(rewriter, origOp, "Unknown view-like operation '{0}'", origOp->getName());
     }
 

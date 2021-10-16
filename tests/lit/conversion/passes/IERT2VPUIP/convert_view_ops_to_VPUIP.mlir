@@ -146,36 +146,32 @@ func @WithAsyncRegions(%arg0: memref<1x1x1x512xf32>, %arg1: memref<1x1x1x512xf32
 
 // -----
 
+#NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
-#map = affine_map<(d0, d1, d2, d3) -> (d0 * 1000 + d1 * 1000 + d2 * 1000 + d3)>
+#map = affine_map<(d0, d1, d2, d3) -> (d0 * 3072 + d1 * 192 + d2 * 12 + d3)>
 
-// CHECK-LABEL: @ImplicitReorder
-func @ImplicitReorder(%arg0: memref<1x1000x1x1xf16>, %arg1: memref<1x1000x1x1xf16, #NHWC, #map>) -> memref<1x1000x1x1xf16, #NHWC, #map> {
-    %0 = IERT.ImplicitReorder
-        {dstOrder = #NHWC}
-        inputs(%arg0 : memref<1x1000x1x1xf16>)
-        -> memref<1x1000x1x1xf16, #NHWC, #map>
+// CHECK-LABEL: @PermuteCast
+func @PermuteCast(%arg0: memref<1x12x16x16xf16, #NHWC, #map>, %arg1: memref<1x16x16x12xf16>) -> memref<1x16x16x12xf16> {
+    %0 = IERT.PermuteCast {dst_order = #NCHW, mem_perm = #NCHW}
+        inputs(%arg0 : memref<1x12x16x16xf16, #NHWC, #map>)
+        -> memref<1x16x16x12xf16>
 
-    %1 = VPUIP.DeclareTensor "VPU_DDR_Heap" [0] <2000> -> memref<1x1000x1x1xf16, #NHWC, #map, "DDR">
+    %1 = VPUIP.DeclareTensor "VPU_DDR_Heap" [0] <2000> -> memref<1x16x16x12xf16, "DDR">
     %2 = VPUIP.SoftMaxUPA {axisInd = 1}
-        inputs(%0 : memref<1x1000x1x1xf16, #NHWC, #map>)
-        outputs(%1 : memref<1x1000x1x1xf16, #NHWC, #map, "DDR">) -> memref<1x1000x1x1xf16, #NHWC, #map, "DDR">
+        inputs(%0 : memref<1x16x16x12xf16>)
+        outputs(%1 : memref<1x16x16x12xf16, "DDR">) -> memref<1x16x16x12xf16, "DDR">
     %3 = VPUIP.NNDMA
-        inputs(%2 : memref<1x1000x1x1xf16, #NHWC, #map, "DDR">)
-        outputs(%arg1 : memref<1x1000x1x1xf16, #NHWC, #map>) -> memref<1x1000x1x1xf16, #NHWC, #map>
-    return %3 : memref<1x1000x1x1xf16, #NHWC, #map>
+        inputs(%2 : memref<1x16x16x12xf16, "DDR">)
+        outputs(%arg1 : memref<1x16x16x12xf16>) -> memref<1x16x16x12xf16>
+    return %3 : memref<1x16x16x12xf16>
 
-    // CHECK:       [[VAR1:%.*]] = VPUIP.DeclareTensor "ProgrammableInput" [0] <0> -> memref<1x1000x1x1xf16, #NHWC, #map>
-    // CHECK:       [[VAR2:%.*]] = VPUIP.DeclareTensor "VPU_DDR_Heap" [0] <2000> -> memref<1x1000x1x1xf16, #NHWC, #map, "DDR">
-
-    // CHECK:       [[VAR3:%.*]] = VPUIP.SoftMaxUPA
-    // CHECK-SAME:      axisInd = 1
-    // CHECK-SAME:      inputs([[VAR1]] : memref<1x1000x1x1xf16, #NHWC, #map>)
-    // CHECK-SAME:      outputs([[VAR2]] : memref<1x1000x1x1xf16, #NHWC, #map, "DDR">)
-
-    // CHECK:       [[VAR4:%.*]] = VPUIP.NNDMA
-    // CHECK-SAME:      inputs([[VAR3]] : memref<1x1000x1x1xf16, #NHWC, #map, "DDR">)
-    // CHECK-SAME:      outputs(%arg1 : memref<1x1000x1x1xf16, #NHWC, #map>) -> memref<1x1000x1x1xf16, #NHWC, #map>
-
-    // CHECK: return [[VAR4]] : memref<1x1000x1x1xf16, #NHWC, #map>
+    //CHECK:        [[VAR0:%.*]] = VPUIP.DeclareTensor "ProgrammableInput" [0] <0> -> memref<1x16x16x12xf16>
+    //CHECK:        [[VAR1:%.*]] = VPUIP.DeclareTensor "VPU_DDR_Heap" [0] <2000> -> memref<1x16x16x12xf16, "DDR">
+    //CHECK:        [[VAR2:%.*]] = VPUIP.SoftMaxUPA {axisInd = 1 : i64}
+    //CHECK-SAME:       inputs([[VAR0]] : memref<1x16x16x12xf16>)
+    //CHECK-SAME:       outputs([[VAR1]] : memref<1x16x16x12xf16, "DDR">) -> memref<1x16x16x12xf16, "DDR">
+    //CHECK:        [[VAR3:%.*]] = VPUIP.NNDMA
+    //CHECK-SAME:       inputs([[VAR2]] : memref<1x16x16x12xf16, "DDR">)
+    //CHECK-SAME:       outputs(%arg1 : memref<1x16x16x12xf16>) -> memref<1x16x16x12xf16>
+    //CHECK:        return [[VAR3]] : memref<1x16x16x12xf16>
 }
