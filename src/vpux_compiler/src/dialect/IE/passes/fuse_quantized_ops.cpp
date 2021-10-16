@@ -165,18 +165,38 @@ private:
 
 mlir::LogicalResult FuseWithEltwiseAdd::matchAndRewrite(IE::QuantizeOp quantizeOp,
                                                         mlir::PatternRewriter& rewriter) const {
+    const auto quantOutType = quantizeOp.output().getType();
+    auto quantElemOutType = quantOutType.cast<mlir::ShapedType>().getElementType();
+    if (quantElemOutType.isa<mlir::quant::UniformQuantizedPerAxisType>()) {
+        return mlir::failure();
+    }
+
     auto addOp = quantizeOp.input().getDefiningOp<IE::AddOp>();
     if (addOp == nullptr) {
         return mlir::failure();
     }
 
+    const auto checkDequantizeOp = [](IE::DequantizeOp dequantOp) {
+        if (dequantOp == nullptr) {
+            return mlir::failure();
+        }
+
+        const auto dequantInType = dequantOp.input().getType();
+        auto dequantElemInType = dequantInType.cast<mlir::ShapedType>().getElementType();
+        if (dequantElemInType.isa<mlir::quant::UniformQuantizedPerAxisType>()) {
+            return mlir::failure();
+        }
+
+        return mlir::success();
+    };
+
     auto input1DequantizeOp = addOp.input1().getDefiningOp<IE::DequantizeOp>();
-    if (input1DequantizeOp == nullptr) {
+    if (mlir::failed(checkDequantizeOp(input1DequantizeOp))) {
         return mlir::failure();
     }
 
     auto input2DequantizeOp = addOp.input2().getDefiningOp<IE::DequantizeOp>();
-    if (input2DequantizeOp == nullptr) {
+    if (mlir::failed(checkDequantizeOp(input2DequantizeOp))) {
         return mlir::failure();
     }
 
@@ -302,7 +322,8 @@ mlir::LogicalResult FuseWithConcat::matchAndRewrite(IE::QuantizeOp quantizeOp, m
         newConcatInputs.push_back(inputDequantizeOp.input());
     }
 
-    rewriter.replaceOpWithNewOp<IE::ConcatOp>(quantizeOp, quantizeOp.getType(), newConcatInputs, concatOp.axisAttr());
+    rewriter.replaceOpWithNewOp<IE::ConcatOp>(quantizeOp, quantizeOp.getType(), newConcatInputs, concatOp.axis(),
+                                              concatOp.offset(), concatOp.stride());
 
     return mlir::success();
 }

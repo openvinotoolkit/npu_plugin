@@ -68,6 +68,8 @@ private:
                               const MVCNN::UPALayerTask* task);
     mlir::Operation* parseNorm(mlir::OpBuilder& builder, ArrayRef<mlir::Value> inputs, ArrayRef<mlir::Value> outputs,
                                const MVCNN::UPALayerTask* task);
+    mlir::Operation* parseBroadcast(mlir::OpBuilder& builder, ArrayRef<mlir::Value> inputs,
+                                    ArrayRef<mlir::Value> outputs, const MVCNN::UPALayerTask* task);
     mlir::Operation* parseLSTMCell(mlir::OpBuilder& builder, ArrayRef<mlir::Value> inputs,
                                    ArrayRef<mlir::Value> outputs, const MVCNN::UPALayerTask* task);
     mlir::Operation* parseLSTMSequence(mlir::OpBuilder& builder, ArrayRef<mlir::Value> inputs,

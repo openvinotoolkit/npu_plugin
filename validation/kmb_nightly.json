@@ -1,4 +1,4 @@
-    {
+{
     "networks" :
     [
         {
@@ -319,6 +319,67 @@
             "category" : "MCM/release/precommit/dKMB/weekly_private",
             "CI-options" : {
                 "blob_name" : "yolo_v4_tiny"
+            }
+        },
+
+        {
+            "name" : "BDK_FP16-INT8_resnet-50-pytorch-sparse50",
+            "ir" : "models/clientmodels/BDK3/_sparse/resnet-50-pytorch-sparse50/onnx/FP16-INT8/resnet-50-pytorch.xml",
+            "3720": {
+                "disabled": true
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "224x224"
+            },
+            "AccuracyCheck" : {
+                "config": "resnet-50_v10.yml"
+            },
+            "NetTest": {
+                "inputs" : [["224x224/husky.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.7"
+                ]
+            },
+            "category" : "MLIR",
+            "CI-options" : {
+                "blob_name" : "resnet-50-pytorch_sparse50_BDK_int8"
+            }
+        },
+        {
+            "name" : "BDK_FP16_resnet-50-pytorch-sparse50",
+            "ir" : "models/clientmodels/BDK3/_sparse/resnet-50-pytorch-sparse50/onnx/FP16/resnet-50-pytorch.xml",
+            "3720": {
+                "disabled": true
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "224x224"
+            },
+            "AccuracyCheck" : {
+                "config": "resnet-50_v10.yml"
+            },
+            "NetTest": {
+                "inputs" : [["224x224/husky.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.7"
+                ]
+            },
+            "category" : "MLIR",
+            "CI-options" : {
+                "blob_name" : "resnet-50-pytorch_sparse50_BDK_fp16"
             }
         },
 
@@ -2593,6 +2654,44 @@
         },
 
         {
+            "name" : "BDK_Deblur_AA",
+            "ir" : "models/clientmodels/BDK3/Deblur/AccuracyAware/2020.1_INT8_Deblur_AccuracyAwareQuantization.xml",
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_THROUGHPUT_STREAMS": "1",
+                "VPUX_INFERENCE_TIMEOUT": "60000",
+                "VPUX_COMPILATION_MODE": "ReferenceHW",
+                "VPUX_EXECUTOR_STREAMS":"1",
+                "VPUX_COMPILER_TYPE": "MLIR"
+            },
+            "3720": {
+                "disabled" : true
+            },
+            "3900": {
+                "disabled" : true
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "224x224"
+            },
+            "NetTest-CalcRef" : {
+                "disabled" : true
+            },
+            "NetTest-Validate" : {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "disabled" : true,
+                "config": "deblur_aa.yml",
+                "subsample_size": 10
+            },
+            "category" : "MLIR/weekly_private",
+            "CI-options" : {
+                "blob_name" : "bdk_deblur_aa",
+                "special" : true
+            }
+        },
+
+        {
             "name" : "BDK_caffe2_FP16-INT8_mobilenet-v2",
             "ir" : "models/clientmodels/BDK3/mobilenet-v2/caffe2/FP16-INT8/mobilenet-v2.xml",
             "3720": {
@@ -4345,84 +4444,6 @@
         },
 
         {
-            "name" : "MTL_caffe2_FP16-INT8_intel_dns",
-            "ir" : "models/clientmodels/MTL/IntelDNS/FP16-INT8/intel_dns.xml",
-            "3720": {
-                "disabled" : true
-            },
-            "extra_config" : {
-                "VPUX_COMPILER_TYPE": "MLIR",
-                "VPUX_COMPILATION_MODE": "ReferenceHW",
-                "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS":"2",
-                "VPUX_DPU_GROUPS": "1",
-                "VPUX_THROUGHPUT_STREAMS": "6"
-            },
-            "Compile" : {
-                "input_layout" : "NC",
-                "output_layout" : "NC",
-                "input_precision" : "FP32",
-                "output_precision" : "FP32"
-            },
-            "AccuracyCheck" : {
-                "config": "intel_dns-caffe2.yml",
-                "subsample_size": 100,
-                "ie_preprocessing": false
-            },
-            "BenchmarkApp" : {
-            },
-            "NetTest-CalcRef" : {
-                "disabled" : true
-            },
-            "NetTest-Validate" : {
-                "disabled" : true
-            },
-            "category" : "MLIR",
-            "CI-options" : {
-                "blob_name" : "intel_dns_int8"
-            }
-        },
-
-        {
-            "name" : "MTL_caffe2_FP16_intel_dns",
-            "ir" : "models/clientmodels/MTL/IntelDNS/FP16/intel_dns.xml",
-            "3720": {
-                "disabled" : true
-            },
-            "extra_config" : {
-                "VPUX_COMPILER_TYPE": "MLIR",
-                "VPUX_COMPILATION_MODE": "ReferenceHW",
-                "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS":"2",
-                "VPUX_DPU_GROUPS": "1",
-                "VPUX_THROUGHPUT_STREAMS": "6"
-            },
-            "Compile" : {
-                "input_layout" : "NC",
-                "output_layout" : "NC",
-                "input_precision" : "FP32",
-                "output_precision" : "FP32"
-            },
-            "AccuracyCheck" : {
-                "config": "intel_dns-caffe2.yml",
-                "subsample_size": 100,
-                "ie_preprocessing": false
-            },
-            "BenchmarkApp" : {
-            },
-            "NetTest-CalcRef" : {
-                "disabled" : true
-            },
-            "NetTest-Validate" : {
-                "disabled" : true
-            },
-            "category" : "MLIR",
-            "CI-options" : {
-                "blob_name" : "intel_dns_fp16"
-            }
-        },
-
-        {
             "name" : "BDK_edsr3",
             "ir" : "models/clientmodels/BDK3/edsr3/FP16-INT8/edsr.xml",
             "3900" : {
@@ -4451,6 +4472,32 @@
             "category" : "MCM/dKMB/weekly_private",
             "CI-options" : {
                 "blob_name" : "bdk_edsr3",
+                "special" : true
+            }
+        },
+
+        {
+            "name" : "BDK3_caffe2_FP16-INT8_modnet_custom",
+            "ir" : "models/clientmodels/BDK3/modnet_custom/onnx/FP16-INT8/modnet_custom.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "512x512"
+            },
+            "NetTest-CalcRef" : {
+                "disabled" : true
+            },
+            "NetTest-Validate": {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "config": "modnet_custom-onnx.yml",
+                "subsample_size": 50
+            },
+            "category" : "MCM/dKMB/weekly_private",
+            "CI-options" : {
+                "blob_name" : "bdk3_modnet_custom",
                 "special" : true
             }
         }

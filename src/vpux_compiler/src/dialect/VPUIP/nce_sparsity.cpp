@@ -24,12 +24,23 @@ namespace {
 bool isMixedPrecisionSupported(VPUIP::ArchKind arch) {
     return arch == ArchKind::MTL;
 }
-Scales exractWeightsScales(mlir::Type weightsElemType, size_t quantDimSize) {
+
+template <class T>
+void broadcast(SmallVectorImpl<T>& values, size_t size) {
+    VPUX_THROW_UNLESS(values.size() <= size, "Cannot broadcast to size {0}", size);
+    if (values.size() == size) {
+        return;
+    }
+    VPUX_THROW_UNLESS(values.size() == 1, "Broadcast from scalar is only supported");
+    values.resize(size, values.front());
+}
+
+Scales exractWeightsScales(mlir::Type weightsElemType) {
     if (weightsElemType == nullptr || !weightsElemType.isa<mlir::quant::QuantizedType>()) {
-        return SmallVector<double>(quantDimSize, 1.0);
+        return SmallVector<double>{1.0};
     }
 
-    return extractScalesAndZeroPoints(weightsElemType, quantDimSize).first;
+    return extractScalesAndZeroPoints(weightsElemType).first;
 }
 
 mlir::Type tryGetQuantizedStorageType(mlir::Type elemType) {
@@ -184,11 +195,13 @@ llvm::unique_function<int32_t(size_t)> getBiasFunc(mlir::Type op_inElemType, mli
     auto biasContent = biasConst.content();
 
     if (op_inElemType.isa<mlir::quant::QuantizedType>() && op_outElemType.isa<mlir::quant::QuantizedType>()) {
-        const auto inQuant = extractScalesAndZeroPoints(op_inElemType, OC);
-        const auto weightsQuantScales = exractWeightsScales(weightsElemType, OC);
+        auto inQuantScale = extractScalesAndZeroPoints(op_inElemType).first;
+        auto weightsQuantScales = exractWeightsScales(weightsElemType);
+
+        broadcast(inQuantScale, OC);
+        broadcast(weightsQuantScales, OC);
 
         std::vector<double> rescale(OC, 1.0);
-        const auto& inQuantScale = inQuant.first;
         std::transform(weightsQuantScales.begin(), weightsQuantScales.end(), inQuantScale.begin(), rescale.begin(),
                        std::multiplies<>());
 
@@ -225,17 +238,21 @@ llvm::unique_function<int32_t(size_t)> getMultShiftFunc(mlir::Type op_inElemType
         };
     } else if ((op_inElemType.isa<mlir::quant::QuantizedType>() && op_outElemType.isa<mlir::quant::QuantizedType>()) ||
                isMixedPrecisionSupported(arch)) {
-        const auto inQuant = op_inElemType.isa<mlir::quant::QuantizedType>()
-                                     ? extractScalesAndZeroPoints(op_inElemType, OC)
-                                     : std::make_pair(SmallVector<double>(OC, 1), SmallVector<int64_t>(OC, 0));
-        const auto outQuant = op_outElemType.isa<mlir::quant::QuantizedType>()
-                                      ? extractScalesAndZeroPoints(op_outElemType, OC)
-                                      : std::make_pair(SmallVector<double>(OC, 1), SmallVector<int64_t>(OC, 0));
-        const auto weightsQuantScales = exractWeightsScales(weightsType, OC);
+        auto inQuantScale = op_inElemType.isa<mlir::quant::QuantizedType>()
+                                    ? extractScalesAndZeroPoints(op_inElemType).first
+                                    : SmallVector<double>{1.0};
+        auto outQuantScale = op_outElemType.isa<mlir::quant::QuantizedType>()
+                                     ? extractScalesAndZeroPoints(op_outElemType).first
+                                     : SmallVector<double>{1.0};
+        auto weightsQuantScales = exractWeightsScales(weightsType);
+
+        broadcast(inQuantScale, OC);
+        broadcast(outQuantScale, OC);
+        broadcast(weightsQuantScales, OC);
 
         std::vector<double> rescale(OC, 1.0);
         for (size_t i = 0; i < rescale.size(); i++) {
-            rescale[i] = (weightsQuantScales[i] * inQuant.first[i]) / outQuant.first[i];
+            rescale[i] = (weightsQuantScales[i] * inQuantScale[i]) / outQuantScale[i];
         }
 
         const auto ppeConverter = vpux::VPUIP::NCESparsity::ppeConvertersMap.at(arch);

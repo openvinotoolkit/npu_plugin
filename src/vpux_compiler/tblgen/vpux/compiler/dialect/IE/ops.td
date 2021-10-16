@@ -897,6 +897,29 @@ def IE_LRN_IEOp :
 }
 
 //
+// BroadcastOp
+//
+
+def IE_BroadcastOp :
+        IE_LayerOp<
+            "Broadcast"
+        > {
+    let summary = "InferenceEngine Broadcast layer";
+
+    let arguments = (ins
+        AnyRankedTensor:$input,
+        1DTensorOf<[SI64, SI32]>:$target_shape,
+        Optional<1DTensorOf<[SI64, SI32]>>:$axes_mapping,
+
+        OptionalAttr<IE_BroadcastType>:$mode
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+}
+
+//
 // MinimumOp
 //
 
