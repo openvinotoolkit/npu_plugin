@@ -1,5 +1,5 @@
 //
-// Copyright Intel Corporation.
+// Copyright 2020 Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -11,26 +11,17 @@
 // included with the Software Package for additional details.
 //
 
-#ifndef VPUX_COMPILER_DIALECT_IERT_REWRITERS_CONVERT
-#define VPUX_COMPILER_DIALECT_IERT_REWRITERS_CONVERT
+#pragma once
 
-include "vpux/compiler/dialect/IERT/ops.td"
+#include "vpux/compiler/core/attributes/dims_order.hpp"
+#include "vpux/compiler/core/attributes/shape.hpp"
 
-include "mlir/IR/OpBase.td"
+namespace vpux {
 
-//
-// FuseReorders
-//
+MemShape applyPerm(MemShapeRef memShape, mlir::AffineMap memPerm);
 
-def NotABlockArgument: Constraint<CPred<"!$_self.isa<mlir::BlockArgument>()">>;
+bool isTrivial(const ShapeRef shape);
 
-def FuseReorders :
-        Pat<
-            (IERT_ReorderOp (IERT_ReorderOp $input, $output_buff1), $output_buff2),
-            (IERT_ReorderOp $input, $output_buff2),
-            [
-                (NotABlockArgument:$output_buff1)
-            ]
-        >;
+bool isShapeNotTrivAndIsPermNotIdentity(const ShapeRef shape, mlir::AffineMap memPerm);
 
-#endif
+}  // namespace vpux

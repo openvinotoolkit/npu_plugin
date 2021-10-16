@@ -57,8 +57,8 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::DetectionOutputUPAOp::serialize(VPU
     builder.add_clip_after_nms(detectionOutputAttr.clip_after_nms().getValue());
     builder.add_decrease_label_id(detectionOutputAttr.decrease_label_id().getValue());
     builder.add_normalized(detectionOutputAttr.normalized().getValue());
-    builder.add_input_height(checked_cast<uint32_t>(detectionOutputAttr.input_height().getUInt()));
-    builder.add_input_width(checked_cast<uint32_t>(detectionOutputAttr.input_width().getUInt()));
+    builder.add_input_height(checked_cast<uint32_t>(detectionOutputAttr.input_height().getValue().getSExtValue()));
+    builder.add_input_width(checked_cast<uint32_t>(detectionOutputAttr.input_width().getValue().getSExtValue()));
     builder.add_objectness_score(
             static_cast<float>(detectionOutputAttr.objectness_score().getValue().convertToDouble()));
     const auto paramsOff = builder.Finish();

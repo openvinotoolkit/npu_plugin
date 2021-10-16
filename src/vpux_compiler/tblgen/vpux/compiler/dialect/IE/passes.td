@@ -325,6 +325,26 @@ def ConvertConv1DToConv2D : PassBase<"convert-conv1d-to-conv2d", "vpux::Function
     ];
 }
 
+//
+// ConvertToMemPermute
+//
+
+def ConvertToMemPermute : PassBase<"convert-to-mem-permute", "vpux::FunctionPass"> {
+    let summary = "Convert Reorder and Transpose ops to MemPermute operation";
+
+    let description = [{
+        The pass is a part of `AdjustForVPU` pipeline.
+
+        This pass replaces all `Reorder` and `Transpose` operations with `MemPermute` operation.
+    }];
+
+    let constructor = "vpux::IE::createConvertToMemPermutePass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
+
 //=================================================================================
 // LowPrecision
 //=================================================================================

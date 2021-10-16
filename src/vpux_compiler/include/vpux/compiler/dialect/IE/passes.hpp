@@ -62,6 +62,7 @@ std::unique_ptr<mlir::Pass> createFusePostOpsPass(Logger log = Logger::global())
 std::unique_ptr<mlir::Pass> createExpandActivationChannelsPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertAvgPoolToDWConvPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createHandleAsymmetricStridesPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createConvertToMemPermutePass(Logger log = Logger::global());
 
 //
 // Low precision transformations.
