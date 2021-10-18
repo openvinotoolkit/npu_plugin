@@ -94,6 +94,7 @@
                 "name":"VerticalFusionTransformation",
                 "vertical_fusion" : true
             },
+            "PipelineShaveDPU",
             "StreamBinaryDataWeights",
             "StreamCopyOperations"
         ]
