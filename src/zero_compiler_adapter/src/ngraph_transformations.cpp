@@ -26,10 +26,18 @@ namespace ngraphTransformations {
 void applyLoweringPasses(const std::shared_ptr<ngraph::Function>& netGraph, Opset opsetVersion) {
     const std::unique_ptr<vpu::Logger> _logger = std::unique_ptr<vpu::Logger>(
             new vpu::Logger("applyLoweringPasses", vpu::LogLevel::Debug /*_config.logLevel()*/, vpu::consoleOutput()));
+
+    using ms = std::chrono::milliseconds;
+    auto start = std::chrono::high_resolution_clock::now();
+
+    _logger->info("Opset version: {}", opsetVersion.version);
     if ( opsetVersion.version < 6 ) {
         lowerFromOpset6(netGraph);
         _logger->debug("lowerFromOpset6 called");
     }
+
+    auto finish = std::chrono::high_resolution_clock::now();
+    _logger->info("|| Timer ||;ngraphTransformations::applyLoweringPasses (ms);\t{}", std::chrono::duration_cast<ms>(finish - start).count());
 }
 
 bool isFunctionSupported(const std::shared_ptr<const ngraph::Function>& netGraph, Opset opsetVersion) {

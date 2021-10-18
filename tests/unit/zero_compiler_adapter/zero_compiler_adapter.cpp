@@ -65,7 +65,7 @@ private:
         return std::make_shared<Blob>(std::vector<char>());
     }
     std::tuple<const std::string, const DataMap, const DataMap, const DataMap, const DataMap> getNetworkMeta(
-            const Blob::Ptr ) override {
+            const std::vector<char>& blob = std::vector<char>() ) override {
         return std::tuple<const std::string, const DataMap, const DataMap, const DataMap, const DataMap>();
     }
     std::tuple<const DataMap, const DataMap> getDeviceNetworkMeta(const Blob::Ptr ) override {
