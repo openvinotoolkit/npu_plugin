@@ -12,11 +12,12 @@
 //
 
 #include "zero_api_adapter.h"
+#include "ie_layouts.h"
 
 namespace vpux {
 namespace zeroCompilerAdapter {
 
-
+namespace IE = InferenceEngine;
 //------------------------------------------------------------------------------
 //      Helpers
 //------------------------------------------------------------------------------
@@ -59,6 +60,61 @@ namespace {
         return serializedIR;
     }
 } // namespace 
+
+// TODO Not all Precision from IE listed in ze_graph_ext
+IE::Precision toIEPrecision(const ze_graph_argument_precision_t ze_precision) {
+    switch( ze_precision ) {
+        case ZE_GRAPH_ARGUMENT_PRECISION_FP32: return IE::Precision::FP32;
+        case ZE_GRAPH_ARGUMENT_PRECISION_FP16: return IE::Precision::FP16;
+        case ZE_GRAPH_ARGUMENT_PRECISION_UINT16: return IE::Precision::U16;
+        case ZE_GRAPH_ARGUMENT_PRECISION_UINT8: return IE::Precision::U8;
+        case ZE_GRAPH_ARGUMENT_PRECISION_INT32: return IE::Precision::I32;
+        case ZE_GRAPH_ARGUMENT_PRECISION_INT16: return IE::Precision::I16;
+        case ZE_GRAPH_ARGUMENT_PRECISION_INT8: return IE::Precision::I8;
+        case ZE_GRAPH_ARGUMENT_PRECISION_BIN: return IE::Precision::BIN;
+
+        default: return IE::Precision::UNSPECIFIED;
+    }
+}
+
+IE::Layout toIELayout(const ze_graph_argument_layout_t ze_layout) {
+    switch (ze_layout) {
+        case ZE_GRAPH_ARGUMENT_LAYOUT_NCHW: return IE::Layout::NCHW;
+        case ZE_GRAPH_ARGUMENT_LAYOUT_NHWC: return IE::Layout::NHWC;
+        case ZE_GRAPH_ARGUMENT_LAYOUT_NCDHW: return IE::Layout::NCDHW;
+        case ZE_GRAPH_ARGUMENT_LAYOUT_NDHWC: return IE::Layout::NDHWC;
+
+        case ZE_GRAPH_ARGUMENT_LAYOUT_OIHW: return IE::Layout::OIHW;
+        
+        case ZE_GRAPH_ARGUMENT_LAYOUT_C: return IE::Layout::C;
+
+        case ZE_GRAPH_ARGUMENT_LAYOUT_CHW: return IE::Layout::CHW;
+
+        case ZE_GRAPH_ARGUMENT_LAYOUT_HW: return IE::Layout::HW;
+        case ZE_GRAPH_ARGUMENT_LAYOUT_NC: return IE::Layout::NC;
+        case ZE_GRAPH_ARGUMENT_LAYOUT_CN: return IE::Layout::CN;
+
+        case ZE_GRAPH_ARGUMENT_LAYOUT_BLOCKED: return IE::Layout::BLOCKED;
+        default: return IE::Layout::ANY;
+    }
+}
+
+size_t getDimCount( const IE::Layout layout )
+{
+    switch( layout ) {
+        case IE::Layout::C: return 1;
+        case IE::Layout::CN: return 2;
+        case IE::Layout::HW: return 2;
+        case IE::Layout::NC: return 2;
+        case IE::Layout::CHW: return 3;
+        case IE::Layout::NCHW: return 4;
+        case IE::Layout::NHWC: return 4;
+        case IE::Layout::NCDHW: return 5;
+        case IE::Layout::NDHWC: return 5;
+    }
+
+    return 0;
+}
 
 //------------------------------------------------------------------------------
 ZeroAPICompilerInDriver::ZeroAPICompilerInDriver() {
@@ -120,7 +176,6 @@ ZeroAPICompilerInDriver::~ZeroAPICompilerInDriver() {
     _logger->error("ZeroAPICompilerInDriver::~ZeroAPICompilerInDriver not implemented");
 }
 
-
 Blob::Ptr ZeroAPICompilerInDriver::compileIR(std::vector<char>& xml, std::vector<char>& weights) {
     _logger->debug("ZeroAPICompilerInDriver::compileIR");
     auto serializedIR = serializeIR(xml, weights);
@@ -136,53 +191,131 @@ Blob::Ptr ZeroAPICompilerInDriver::compileIR(std::vector<char>& xml, std::vector
     }
 
     size_t blobSize = -1;
-    uint8_t* blobMemotyPtr = nullptr;
-    result = _graph_ddi_table_ext->pfnGetNativeBinary( _graph_handle, &blobSize, blobMemotyPtr);
+    result = _graph_ddi_table_ext->pfnGetNativeBinary( _graph_handle, &blobSize, nullptr);
+    // uint8_t* blobMemotyPtr = new uint8_t[blobSize];
+    // memset(blobMemotyPtr, 0, blobSize);
+    
+    std::vector<char> blob;
+    blob.resize(blobSize);
+    result = _graph_ddi_table_ext->pfnGetNativeBinary( _graph_handle, &blobSize,  reinterpret_cast<uint8_t*>(blob.data()));
     if (ZE_RESULT_SUCCESS != result) {
         IE_THROW() << "Failed to get native binary";
     }
 
-    _logger->debug("Blob size = {}", blobSize);
-    _logger->debug("blobMemotyPtr == nullptr? {}", blobMemotyPtr == nullptr);
+    ze_context_desc_t context_desc = {ZE_STRUCTURE_TYPE_CONTEXT_DESC, 0, 0};
+    result = zeContextCreate(_driver_handle, &context_desc, &_context);
+    if (ZE_RESULT_SUCCESS != result) {
+        IE_THROW() << "Failed to create context";
+    }
 
-    std::vector<char> blob;
-    blob.resize(blobSize);
+    _logger->debug("Blob size = {}", blobSize);
+    // _logger->debug("blobMemotyPtr == nullptr? {}", blobMemotyPtr == nullptr);
+
+    // std::vector<char> blob;
+    // blob.resize(blobSize);
     
     // FIXME additional memory copy operation which we can get rid of?
-    ie_memcpy(blob.data(), blob.size(), blobMemotyPtr, blobSize);
+    // ie_memcpy(blob.data(), blob.size(), blobMemotyPtr, blobSize);
 
     _logger->debug("ZeroAPICompilerInDriver::compileIR end");
     return std::make_shared<Blob>(blob);
 }
 
+void* ZeroAPICompilerInDriver::compileIRReturnHandle(std::vector<char>& xml, std::vector<char>& weights) {
+    _logger->debug("ZeroAPICompilerInDriver::compileIRReturnHandle");
+    auto serializedIR = serializeIR(xml, weights);
+
+    _logger->debug("serializedIR.size() {}", serializedIR.size());
+    _logger->debug("serializedIR.data() {}", serializedIR.data());
+    ze_graph_format_t format = ZE_GRAPH_FORMAT_NGRAPH_LITE;
+    ze_graph_desc_t desc = { format, serializedIR.size(), serializedIR.data() };
+
+    auto result = _graph_ddi_table_ext->pfnCreate( _device_handle, &desc, &_graph_handle);
+    if (ZE_RESULT_SUCCESS != result) {
+        IE_THROW() << "Failed to compile graph with zero API";
+    }
+    _logger->debug("compileIRReturnHandle handle: {}", _graph_handle);
+    _logger->debug("size of graph handle {}", sizeof(_graph_handle));
+    return _graph_handle;
+}
+
+// ZeroAPICompilerInDriver::getNetworkMeta(void* graph_handle) {
 std::tuple<const std::string, const DataMap, const DataMap, const DataMap, const DataMap>
-ZeroAPICompilerInDriver::getNetworkMeta(const Blob::Ptr compiledNetwork) {
+ZeroAPICompilerInDriver::getNetworkMeta(const std::vector<char>& blob) {
     _logger->debug("ZeroAPICompilerInDriver::getNetworkMeta");
+
+    if (blob.size() > 0) {
+        _logger->debug("Import network case");
+        ze_graph_format_t format = ZE_GRAPH_FORMAT_NATIVE;
+        ze_graph_desc_t desc = { format, blob.size(), reinterpret_cast<const uint8_t*>(blob.data()) };
+
+        auto result = _graph_ddi_table_ext->pfnCreate( _device_handle, &desc, &_graph_handle);
+        if (ZE_RESULT_SUCCESS != result) {
+            IE_THROW() << "Failed to load blob with zero API";
+        }
+        _logger->debug("compileIRReturnHandle handle: {}", _graph_handle);
+        _logger->debug("size of graph handle {}", sizeof(_graph_handle));
+    }
 
     ze_graph_properties_t graph_properties{};
     auto result = _graph_ddi_table_ext->pfnGetProperties(_graph_handle, &graph_properties);
     if (ZE_RESULT_SUCCESS != result) {
         IE_THROW() << "Failed to get pfnGetProperties";
     }
+
+    DataMap net_inputs;
+    DataMap dev_inputs;
+
+    DataMap net_outputs;
+    DataMap dev_outputs;
+    
     for (uint32_t index = 0; index < graph_properties.numGraphArgs; ++index) {
-        ze_graph_argument_properties_t arg;
-        result = _graph_ddi_table_ext->pfnGetArgumentProperties(_graph_handle, index, &arg);
+        ze_graph_argument_properties2_t arg;
+        result = _graph_ddi_table_ext->pfnGetArgumentProperties2(_graph_handle, index, &arg);
         if (ZE_RESULT_SUCCESS != result) {
-            IE_THROW() << "Failed to get pfnGetArgumentProperties";
+            IE_THROW() << "Failed to get pfnGetArgumentProperties2";
         }
+        
+        // ze_graph_argument_properties_t arg;
+        // result = _graph_ddi_table_ext->pfnGetArgumentProperties(_graph_handle, index, &arg);
+        // if (ZE_RESULT_SUCCESS != result) {
+        //     IE_THROW() << "Failed to get pfnGetArgumentProperties";
+        // }
+
+        IE::Precision net_precision = toIEPrecision(arg.networkPrecision);
+        IE::Layout net_layout = toIELayout(arg.networkLayout);
+        IE::SizeVector net_dims(arg.dims, arg.dims + getDimCount(net_layout));
+        IE::TensorDesc net_dataDesc(net_precision, net_dims, net_layout);
+        
+        IE::Precision dev_precision = toIEPrecision(arg.devicePrecision);
+        IE::Layout dev_layout = toIELayout(arg.deviceLayout);
+        IE::SizeVector dev_dims(arg.dims, arg.dims + getDimCount(dev_layout));
+        IE::TensorDesc dev_dataDesc(dev_precision, dev_dims, dev_layout);
+        
         if (ZE_GRAPH_ARGUMENT_TYPE_INPUT == arg.type) {
             _logger->debug("Found input {}", arg.name);
-            // TensorDesc dataDesc(dataPrecision, dataDims, dataLayout);
+
+            net_inputs.emplace(arg.name, std::make_shared<IE::Data>(arg.name, net_dataDesc));
+            dev_inputs.emplace(arg.name, std::make_shared<IE::Data>(arg.name, dev_dataDesc));
         }
+
+        // Same code
         if (ZE_GRAPH_ARGUMENT_TYPE_OUTPUT == arg.type) {
-            _logger->debug("Found output ");
+            _logger->debug("Found output {}", arg.name);
+
+            net_outputs.emplace(arg.name, std::make_shared<IE::Data>(arg.name, net_dataDesc));
+            dev_outputs.emplace(arg.name, std::make_shared<IE::Data>(arg.name, dev_dataDesc));
         }
     }
 
+    // TODO can we get name some way?
     const std::string graphName = "graph";
-    
+    // std::cout << "_graph_handle " << _graph_handle << std::endl;
+    // std::cout << "_device_handle " << _device_handle << std::endl;
+    // std::cout << "_driver_handle " << _driver_handle << std::endl;
+
     _logger->debug("ZeroAPICompilerInDriver::getDeviceNetworkMeta done");
-    return std::make_tuple(std::string(), DataMap(), DataMap(), DataMap(), DataMap());
+    return std::make_tuple(graphName, net_inputs, net_outputs, dev_inputs, dev_outputs);
 }
 
 std::tuple<const DataMap, const DataMap> ZeroAPICompilerInDriver::getDeviceNetworkMeta(const Blob::Ptr compiledNetwork) {

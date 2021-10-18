@@ -16,6 +16,7 @@
 #include "ngraph_transformations.h"
 #include "vpux_compiler_l0_adapter.h"
 #include "zero_api_adapter.h"
+#include <chrono>
 
 namespace vpux {
 namespace zeroCompilerAdapter {
@@ -31,6 +32,10 @@ std::shared_ptr<INetworkDescription> ZeroCompilerAdapter::compile(
         const std::shared_ptr<ngraph::Function>& ngraphFunc, const std::string& /*netName*/,
         const InferenceEngine::InputsDataMap& /*inputsInfo*/, const InferenceEngine::OutputsDataMap& /*outputsInfo*/,
         const VPUXConfig& /*config*/) {
+    using seconds = std::chrono::seconds;
+    auto start = std::chrono::high_resolution_clock::now();
+    
+
     //------------------------------------------------------------------------------
     _logger->debug("Get information about opset versions from compiler");
     //------------------------------------------------------------------------------
@@ -44,12 +49,18 @@ std::shared_ptr<INetworkDescription> ZeroCompilerAdapter::compile(
     //------------------------------------------------------------------------------
     auto IR = ngraphTransformations::serializeToIR(ngraphFunc);
 
-    const auto blob = apiAdapter->compileIR(IR.xml, IR.weights);
-
+    // void* graphHandle = apiAdapter->compileIRReturnHandle(IR.xml, IR.weights);
+    static const auto blob = apiAdapter->compileIR(IR.xml, IR.weights);
+    
     // Get networkDesc (input/output information) from Graph compiler API
     // Emulate getting information from Graph compiler by calling VPUX/MCM Compiler instead and using data from it
-    static const auto networkMeta = apiAdapter->getNetworkMeta(blob);
-
+    // static const auto networkMeta = apiAdapter->getNetworkMeta(graphHandle);
+    static const auto networkMeta = apiAdapter->getNetworkMeta();
+   
+    auto finish = std::chrono::high_resolution_clock::now();
+    _logger->info("ZeroCompilerAdapter::compile tool {} sec", std::chrono::duration_cast<seconds>(finish - start).count());
+    
+    // return std::make_shared<NetworkDescription>(graphHandle, networkMeta);
     return std::make_shared<NetworkDescription>(blob->data, networkMeta);
 }
 
@@ -60,11 +71,11 @@ InferenceEngine::QueryNetworkResult ZeroCompilerAdapter::query(const InferenceEn
 }
 
 /** TODO How to handle this case? */
-std::shared_ptr<vpux::INetworkDescription> ZeroCompilerAdapter::parse(const std::vector<char>& /* network */,
+std::shared_ptr<vpux::INetworkDescription> ZeroCompilerAdapter::parse(const std::vector<char>& blob,
                                                                       const VPUXConfig& /* config */,
                                                                       const std::string& /* netName */) {
-    THROW_IE_EXCEPTION << "vpux::ZeroCompilerAdapter::parse is not implemented.";
-    return std::shared_ptr<vpux::INetworkDescription>();
+    static const auto networkMeta = apiAdapter->getNetworkMeta(blob);
+    return std::make_shared<NetworkDescription>(blob, networkMeta);
 }
 
 INFERENCE_PLUGIN_API(void)

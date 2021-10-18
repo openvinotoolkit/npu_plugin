@@ -53,6 +53,14 @@ public:
      */
     virtual Blob::Ptr compileIR(std::vector<char>& xml, std::vector<char>& weights) = 0;
 
+    /**
+     * @brief compile NGraph and return blob file
+     * @return handle
+     */
+    virtual void* compileIRReturnHandle(std::vector<char>& xml, std::vector<char>& weights) {
+        IE_THROW() << "ICompiler_Adapter::compileIR with pointer. Not implemented";
+    };
+
     // TODO Should it be one call with compileIR() to avoid double parsing?
     // TODO In general we can pass only blob identification to compiler, but it this case, after each compileIR()
     //  call it should store compiled graph (which can be a problem, if we will compile 10 vgg networks).
@@ -60,8 +68,9 @@ public:
      * @brief Get all meta information about graph (name, network inputs/outputs, device inputs/outputs)
      * @details ImportNetwork case
      */
-    virtual std::tuple<const std::string, const DataMap, const DataMap, const DataMap, const DataMap> getNetworkMeta(
-            const Blob::Ptr compiledNetwork) = 0;
+    virtual std::tuple<const std::string, const DataMap, const DataMap, const DataMap, const DataMap> getNetworkMeta(const std::vector<char>& blob = std::vector<char>()) {
+        IE_THROW() << "ICompiler_Adapter::getNetworkMeta. Not implemented";
+    };
 
     // TODO Do we need such function?
     /**

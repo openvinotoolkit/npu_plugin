@@ -464,7 +464,8 @@ ZeroExecutor::Graph::Graph(const ze_device_handle_t& device_handle, const ze_con
           _graph_ddi_table_ext(graph_ddi_table_ext) {
     ze_graph_desc_t desc = {ZE_GRAPH_FORMAT_NATIVE, _blob.size(), reinterpret_cast<const uint8_t*>(_blob.data())};
     throwOnFail("pfnCreate", _graph_ddi_table_ext->pfnCreate(device_handle, &desc, &_handle));
-
+    // _handle = (ze_graph_handle_t)networkDesc->getNetworkModel();
+    // std::cout << _handle << std::endl;
     throwOnFail("pfnGetProperties", _graph_ddi_table_ext->pfnGetProperties(_handle, &_props));
     for (uint32_t index = 0; index < _props.numGraphArgs; ++index) {
         ze_graph_argument_properties_t arg;
@@ -508,6 +509,7 @@ void ZeroExecutor::CommandQueue::executeCommandList(CommandList& command_list) {
                 zeCommandQueueExecuteCommandLists(_handle, 1, &command_list._handle, nullptr));
 }
 void ZeroExecutor::CommandQueue::executeCommandList(CommandList& command_list, Fence& fence) {
+    // std::cout << "_handle" << _handle << std::endl;
     throwOnFail("zeCommandQueueExecuteCommandLists",
                 zeCommandQueueExecuteCommandLists(_handle, 1, &command_list._handle, fence._handle));
 }

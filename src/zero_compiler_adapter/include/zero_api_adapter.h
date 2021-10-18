@@ -28,9 +28,13 @@ public:
     Opset getSupportedOpset() override;
 
     Blob::Ptr compileIR(std::vector<char>& xml, std::vector<char>& weights) override;
+    void* compileIRReturnHandle(std::vector<char>& xml, std::vector<char>& weights) override;
 
     std::tuple<const std::string, const DataMap, const DataMap, const DataMap, const DataMap> getNetworkMeta(
-            const Blob::Ptr compiledNetwork) override;
+            const std::vector<char>& blob = std::vector<char>()) override;
+
+    // Not required? Already should be available?
+    // virtual std::tuple<const std::string, const DataMap, const DataMap, const DataMap, const DataMap> getNetworkMeta(void* handle) override;
 
     std::tuple<const DataMap, const DataMap> getDeviceNetworkMeta(const Blob::Ptr compiledNetwork) override;
 
@@ -38,6 +42,7 @@ private:
     ze_driver_handle_t _driver_handle = nullptr;
     ze_device_handle_t _device_handle = nullptr;
     ze_graph_handle_t _graph_handle = nullptr;
+    ze_context_handle_t _context = nullptr;
 
     ze_graph_dditable_ext_t* _graph_ddi_table_ext = nullptr;
 

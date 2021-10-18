@@ -43,7 +43,7 @@ public:
     Blob::Ptr compileIR(std::vector<char>& xml, std::vector<char>& weights) override;
 
     std::tuple<const std::string, const DataMap, const DataMap, const DataMap, const DataMap> getNetworkMeta(
-            const Blob::Ptr compiledNetwork) override;
+            const std::vector<char>& blob = std::vector<char>()) override;
 
     std::tuple<const DataMap, const DataMap> getDeviceNetworkMeta(const Blob::Ptr compiledNetwork) override;
 

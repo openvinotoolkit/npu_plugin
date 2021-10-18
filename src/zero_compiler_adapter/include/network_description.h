@@ -24,6 +24,7 @@ namespace zeroCompilerAdapter {
 class NetworkDescription final : public INetworkDescription {
 public:
 
+
     explicit NetworkDescription(const std::vector<char>& compiledNetwork, const std::string& name,
                                 const DataMap& networkInputs, const DataMap& networkOutputs,
                                 const DataMap& deviceInputs, const DataMap& deviceOutputs)
@@ -42,6 +43,24 @@ public:
                                  std::get<2>(networkMeta), std::get<3>(networkMeta), std::get<4>(networkMeta)) {
     }
 
+    explicit NetworkDescription(void* handle, const std::string& name,
+                                const DataMap& networkInputs, const DataMap& networkOutputs,
+                                const DataMap& deviceInputs, const DataMap& deviceOutputs)
+            : _handle(handle),
+              _name(name),
+              _networkInputs(networkInputs),
+              _networkOutputs(networkOutputs),
+              _deviceInputs(deviceInputs),
+              _deviceOutputs(deviceOutputs) {
+    }
+
+    explicit NetworkDescription(void* handle,
+                            const std::tuple<const std::string, const DataMap, const DataMap, const DataMap,
+                                                const DataMap>& networkMeta)
+        : NetworkDescription(handle, std::get<0>(networkMeta), std::get<1>(networkMeta),
+                                std::get<2>(networkMeta), std::get<3>(networkMeta), std::get<4>(networkMeta)) {
+    }
+
 public:
     const vpux::QuantizationParamMap& getQuantParamsInfo() const {
         return _quantParams;
@@ -52,7 +71,7 @@ public:
     }
 
     const void* getNetworkModel() const final {
-        return _compiledNetwork.data();
+        return _handle;
     }
 
     std::size_t getNetworkModelSize() const final {
@@ -78,6 +97,7 @@ public:
     }
 
 private:
+    void* _handle;
     std::vector<char> _compiledNetwork;
 
     std::string _name;
