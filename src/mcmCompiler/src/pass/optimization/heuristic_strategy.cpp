@@ -55,11 +55,11 @@ void heuristicStrategyFcn(const mv::pass::PassEntry&, mv::ComputationModel& mode
     {
         strategyManager.loadSavedStrategies(jsonInFileName);
         strategyManager.updateTensorLocationAfterLoadStrategies();
-    } 
-    else 
+    }
+    else
     {
         strategyManager.updateDefaultValues();
-        // STEP 0 - GENERATION. Leverage the SM architecture to generate a set of 
+        // STEP 0 - GENERATION. Leverage the SM architecture to generate a set of
         // potential strategies for every layer (THIS IS BY FAR THE LONGEST TASK IN THIS PASS)
         strategyManager.initLayerStrategySets();
         // STEP 1 - GREEDY. Assign each op with the best strategy, in isolation
@@ -95,7 +95,7 @@ void heuristicStrategyFcn(const mv::pass::PassEntry&, mv::ComputationModel& mode
         // N.B. weights sparsity is always per op, and handled at the GREEDY step
         heuristicGO.serviceActivationSparsity();
 
-        // STEP 5 - STREAMING. We can increase streams for performance, or to allow vertical fusion. 
+        // STEP 5 - STREAMING. We can increase streams for performance, or to allow vertical fusion.
         heuristicGO.increaseWeightsPipelining();
 
         // Save into the CD for consumption by later passes
@@ -151,7 +151,7 @@ void HeuristicGraphOptimizer::init(mv::TargetDescriptor& td)
         SOH_HEURISTIC_MULTIPLIER = 1.2;
     }
     //TODO include params for ma3720
-    
+
     //These latency numbers inferred from KMB db v1.2
     LATENCY_ = 5; // Cycles, attempt to capture cost accessing CMX
     // DDR latency also measured for kmb at ~100 cycles per dma
@@ -317,7 +317,7 @@ double HeuristicGraphOptimizer::computeTime(mv::Data::OpListIterator opIt, Strat
         totalStreams *= streaming[i];
 
     // We don't know what workloads will look like across DPUs or how optimal they will
-    // be, so here we determine a tiling efficiency across the full output shape and then 
+    // be, so here we determine a tiling efficiency across the full output shape and then
     // equally divide the work across the DPUs. It is an approximation, but we don't have the
     // info to be more precise
     return ((double)((double)totalStreams * finalOutShape.totalSize() * baseKernelCost) / tileEff);
@@ -349,7 +349,7 @@ double HeuristicGraphOptimizer::dmaTime(mv::Data::OpListIterator opIt, StrategyS
         size_t alignedSplittedChannels = mv::round_up(alignedFullChannels/streamShape["K"], 16);
         if(clustering == "SplitOverK")
             alignedSplittedChannels =  mv::round_up(alignedSplittedChannels/totalClusters_, 16);
-        
+
         size_t weightsSize = 0;
         size_t stream = 1;
 
@@ -422,7 +422,7 @@ double HeuristicGraphOptimizer::dmaTime(mv::Data::OpListIterator opIt, StrategyS
         else if(streamShape["K"] > 1)
             stream = streamShape["K"];
         else if(streamShape["C"] > 1)
-            stream = streamShape["C"];    
+            stream = streamShape["C"];
         else if(streamShape["B"] > 1)
             stream = streamShape["B"];
 
@@ -555,7 +555,7 @@ double HeuristicGraphOptimizer::averageWeightsDmaTime(mv::Data::OpListIterator o
         size_t alignedSplittedChannels = mv::round_up(alignedFullChannels/streamShape["K"], 16);
         if(clustering == "SplitOverK")
             alignedSplittedChannels =  mv::round_up(alignedSplittedChannels/totalClusters_, 16);
-        
+
         size_t weightsSize = 0;
         size_t stream = 1;
 
@@ -656,7 +656,7 @@ double HeuristicGraphOptimizer::averageOutputDmaTime(mv::Data::OpListIterator op
 // Future strategy generation does not need to do this. It would be possible to instead assign each
 // strategy item separately from one another
 // in a defined order of precedence and achieve the same results in less compilation time
-StrategySet HeuristicGraphOptimizer::assignStrategyCost(mv::Data::OpListIterator opIt, 
+StrategySet HeuristicGraphOptimizer::assignStrategyCost(mv::Data::OpListIterator opIt,
                                                 std::vector<mv::graphOptimizer::StrategyManager::StrategySet>& opStrategies)
 {
     mv::DataModel dm(model_);
@@ -733,11 +733,11 @@ StrategySet HeuristicGraphOptimizer::assignStrategyCost(mv::Data::OpListIterator
             dmaCycles = dmaTime(opIt, strategy);
             cost = cost + computeCycles +dmaCycles;
         }
-        
+
 
         // Note: for performance, here we ensure if that MC strategies are preferenced in order
         // SOH, HKSwitch, SOK, Clustering
-        auto opType = opIt->getOpType(); 
+        auto opType = opIt->getOpType();
         if(opType == "Input" ||
             opType == "Output" ||
             opType == "Concat")
@@ -778,9 +778,9 @@ StrategySet HeuristicGraphOptimizer::assignStrategyCost(mv::Data::OpListIterator
         if(isFirstOp && clustering == "SplitOverH" && opIt->isHardwarizable() && opIt->hasAttr("kSize")
             && (!opIt->hasAttr("supportsCM") || !opIt->get<bool>("supportsCM")))
         {
-            cost = COST_MAX; // prevent SOH until SOHOverlapped implemented 
+            cost = COST_MAX; // prevent SOH until SOHOverlapped implemented
         }
-            
+
         // TODO add sparsity for performance calculation
         if(strategy["inputSparsity"].get<bool>())
         {
@@ -793,7 +793,7 @@ StrategySet HeuristicGraphOptimizer::assignStrategyCost(mv::Data::OpListIterator
             if(!requiresRealActivationSparsity(opIt, strategy))
                 cost += (cost*sparsityOverhead);
                 // strategy["inputSparsity"] = false;
-                
+
 
             // The SSM works on the logical assumption that strategy can be improved iteratively. In the case
             // of sparsity workarounds, the ability to service that required sparsity from runtime is actually
@@ -849,7 +849,7 @@ StrategySet HeuristicGraphOptimizer::assignStrategyCost(mv::Data::OpListIterator
         greedyCost = COST_MAX;
         for(auto& strategy : opStrategies)
         {
-            if(strategy["clustering"].get<std::string>() == "Clustering") 
+            if(strategy["clustering"].get<std::string>() == "Clustering")
                 strategy["skip"] = true;
 
             if(strategy["skip"].get<bool>()) continue;
@@ -885,28 +885,57 @@ bool HeuristicGraphOptimizer::hasLayerWorkaroundAvoidStrategy(mv::Data::OpListIt
         auto inputShape = opIt->getInputTensor(0)->getShape();
         auto weightsShape = opIt->getInputTensor(1)->getShape();
         auto outputShape = opIt->getOutputTensor(0)->getShape();
-        if(outputShape[mv::IO_HEIGHT_DIMENSION] == 4 && outputShape[mv::IO_WIDTH_DIMENSION] == 4 && 
+        if(outputShape[mv::IO_HEIGHT_DIMENSION] == 4 && outputShape[mv::IO_WIDTH_DIMENSION] == 4 &&
             outputShape[mv::IO_CHANNEL_DIMENSION] == 256 &&
             weightsShape[mv::KERNEL_INPUT_CHANNELS] == 128 && weightsShape[mv::KERNEL_HEIGHT] == 3 &&
             inputShape[mv::IO_HEIGHT_DIMENSION] == 8 && inputShape[mv::IO_HEIGHT_DIMENSION] == 8)
                 return true;
 
-        if(outputShape[mv::IO_HEIGHT_DIMENSION] == 2 && outputShape[mv::IO_WIDTH_DIMENSION] == 2 && 
+        if(outputShape[mv::IO_HEIGHT_DIMENSION] == 2 && outputShape[mv::IO_WIDTH_DIMENSION] == 2 &&
             outputShape[mv::IO_CHANNEL_DIMENSION] == 256 &&
             weightsShape[mv::KERNEL_INPUT_CHANNELS] == 256 && weightsShape[mv::KERNEL_HEIGHT] == 3 &&
             inputShape[mv::IO_HEIGHT_DIMENSION] == 4 && inputShape[mv::IO_HEIGHT_DIMENSION] == 4)
                 return true;
 
-        if(outputShape[mv::IO_HEIGHT_DIMENSION] == 2 && outputShape[mv::IO_WIDTH_DIMENSION] == 2 && 
+        if(outputShape[mv::IO_HEIGHT_DIMENSION] == 2 && outputShape[mv::IO_WIDTH_DIMENSION] == 2 &&
             outputShape[mv::IO_CHANNEL_DIMENSION] == 256 &&
             weightsShape[mv::KERNEL_INPUT_CHANNELS] == 256 && weightsShape[mv::KERNEL_HEIGHT] == 3 &&
             inputShape[mv::IO_HEIGHT_DIMENSION] == 2 && inputShape[mv::IO_HEIGHT_DIMENSION] == 2)
                 return true;
 
-        if(outputShape[mv::IO_HEIGHT_DIMENSION] == 4 && outputShape[mv::IO_WIDTH_DIMENSION] == 4 && 
+        if(outputShape[mv::IO_HEIGHT_DIMENSION] == 4 && outputShape[mv::IO_WIDTH_DIMENSION] == 4 &&
             outputShape[mv::IO_CHANNEL_DIMENSION] == 256 &&
             weightsShape[mv::KERNEL_INPUT_CHANNELS] == 256 && weightsShape[mv::KERNEL_HEIGHT] == 3 &&
             inputShape[mv::IO_HEIGHT_DIMENSION] == 4 && inputShape[mv::IO_HEIGHT_DIMENSION] == 4)
+                return true;
+    }
+
+    //This set of layer workarounds are for emotions recog retail network, pipelining
+    //could help for some of these layers, and there is no spilling, but the scheduler makes bad choices..
+
+    /* For deeplab model, in order to avoid vertical fusion bug, force Split over H for the following 3 convolutions */
+    if((opType == "Conv" || opType == "DepthwiseConv") && clustering != "SplitOverH")
+    {
+        auto inputShape = opIt->getInputTensor(mv::IO_TENSOR_INPUT)->getShape();
+        auto weightsShape = opIt->getInputTensor(mv::IO_TENSOR_WEIGHTS_SET)->getShape();
+        auto outputShape = opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT)->getShape();
+
+        if(outputShape[mv::IO_HEIGHT_DIMENSION] == 129 && outputShape[mv::IO_WIDTH_DIMENSION] == 129 &&
+            outputShape[mv::IO_CHANNEL_DIMENSION] == 144 &&
+            weightsShape[mv::KERNEL_INPUT_CHANNELS] == 24 && weightsShape[mv::KERNEL_HEIGHT] == 1 &&
+            inputShape[mv::IO_HEIGHT_DIMENSION] == 129 && inputShape[mv::IO_WIDTH_DIMENSION] == 129)
+                return true;
+
+        if(outputShape[mv::IO_HEIGHT_DIMENSION] == 129 && outputShape[mv::IO_WIDTH_DIMENSION] == 129 &&
+            outputShape[mv::IO_CHANNEL_DIMENSION] == 144 &&
+            weightsShape[mv::KERNEL_INPUT_CHANNELS] == 144 && weightsShape[mv::KERNEL_HEIGHT] == 3 &&
+            inputShape[mv::IO_HEIGHT_DIMENSION] == 129 && inputShape[mv::IO_WIDTH_DIMENSION] == 129)
+                return true;
+
+        if(outputShape[mv::IO_HEIGHT_DIMENSION] == 129 && outputShape[mv::IO_WIDTH_DIMENSION] == 129 &&
+            outputShape[mv::IO_CHANNEL_DIMENSION] == 24 &&
+            weightsShape[mv::KERNEL_INPUT_CHANNELS] == 144 && weightsShape[mv::KERNEL_HEIGHT] == 1 &&
+            inputShape[mv::IO_HEIGHT_DIMENSION] == 129 && inputShape[mv::IO_WIDTH_DIMENSION] == 129)
                 return true;
     }
 
@@ -937,7 +966,7 @@ bool HeuristicGraphOptimizer::hasLayerWorkaroundAvoidPipeline(mv::Data::OpListIt
     // reason unknown, spillng anyway so lack of cmx concat shouldn't cause problem?
     if(streamShape["K"] > 1 && clustering == "SplitOverK" &&
         opType == "Conv" && opIt->getOutputTensor(0)->getShape()[mv::IO_HEIGHT_DIMENSION] == 13 &&
-        opIt->getOutputTensor(0)->getShape()[mv::IO_WIDTH_DIMENSION] == 13 && 
+        opIt->getOutputTensor(0)->getShape()[mv::IO_WIDTH_DIMENSION] == 13 &&
         opIt->getOutputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION] == 425 &&
         opIt->getInputTensor(1)->getShape()[mv::KERNEL_INPUT_CHANNELS] == 512)
             return true;
@@ -946,7 +975,7 @@ bool HeuristicGraphOptimizer::hasLayerWorkaroundAvoidPipeline(mv::Data::OpListIt
     // spill (unaligned channels cant cmx concat) kills performance
     if(streamShape["K"] > 1 && clustering == "SplitOverK" &&
         opType == "Conv" && opIt->getOutputTensor(0)->getShape()[mv::IO_HEIGHT_DIMENSION] == 14 &&
-        opIt->getOutputTensor(0)->getShape()[mv::IO_WIDTH_DIMENSION] == 14 && 
+        opIt->getOutputTensor(0)->getShape()[mv::IO_WIDTH_DIMENSION] == 14 &&
         opIt->getOutputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION] == 1000 &&
         opIt->getInputTensor(1)->getShape()[mv::KERNEL_INPUT_CHANNELS] == 512)
             return true;
@@ -962,7 +991,7 @@ bool HeuristicGraphOptimizer::isCMXable(mv::Data::OpListIterator opIt, StrategyS
     auto wSparse = strategy["weightsSparsity"].get<bool>();
     auto streams = strategy["streaming"].get<mv::Shape>();
     bool fSparse = false;
-    if(opIt->getOpType() == "Depthwise" || opIt->getOpType() == "MaxPool" || 
+    if(opIt->getOpType() == "Depthwise" || opIt->getOpType() == "MaxPool" ||
         (opIt->hasAttr("supportsCM") && opIt->get<bool>("supportsCM")))
         fSparse = true;
 
@@ -1019,7 +1048,7 @@ bool HeuristicGraphOptimizer::attemptToSpillOp(mv::Data::OpListIterator opIt, bo
     return false;
 }
 
-// Note: At this point, the strategies have been greedily assigned, so we may have 
+// Note: At this point, the strategies have been greedily assigned, so we may have
 // transitions that are valid if a tensor spills to DDR, but are not valid if that tensor
 // stays in CMX, marked as staying in CMX (because not spilling is greedy performant!)
 // We mark all these as requiring a spill, and they will be removed later, if that is
@@ -1058,7 +1087,7 @@ bool HeuristicGraphOptimizer::addSpillsAtStrategyTransitions()
 
                 auto sinkStrategy = bestStrategies_.at(sinkLayer->getName());
 
-                std::pair<std::string, std::string> possibleCombination(opStrategy["clustering"].get<std::string>(), 
+                std::pair<std::string, std::string> possibleCombination(opStrategy["clustering"].get<std::string>(),
                                                                         sinkStrategy["clustering"].get<std::string>());
                 for (auto restrictedCombination : incompatibleStrategiesWithOutSpilling)
                 {
@@ -1110,10 +1139,10 @@ bool HeuristicGraphOptimizer::addSpillsAtStrategyTransitions()
                     findKCompatible(sinkLayer, true, false);
                     abandonSOH(sinkLayer, false);
                 }
-                
+
             }
         }
-        
+
     }
 
     return clusteringChanged;
@@ -1134,7 +1163,7 @@ bool HeuristicGraphOptimizer::hasGreedySOK(mv::Data::OpListIterator opIt)
     return false;
 }
 
-//Note: make sure that all the children are K compatible 
+//Note: make sure that all the children are K compatible
 bool HeuristicGraphOptimizer::isGreedyEligible(mv::Data::OpListIterator opIt)
 {
     for (auto child = opIt.leftmostChild(); child != model_.opEnd(); ++child)
@@ -1173,7 +1202,7 @@ bool isZMconv(mv::Data::OpListIterator opIt)
 {
     if(opIt->getOpType() != "Conv")
         return false;
-    
+
     if(opIt->hasAttr("supportsCM") && !opIt->get<bool>("supportsCM"))
         return true;
 
@@ -1229,7 +1258,7 @@ bool parentOpSupportsHK(mv::Data::OpListIterator opIt)
     auto opType = opIt->getOpType();
     if (opType == "MaxPool" || opType == "Eltwise" || opType == "HwConvert")
     {
-        return true;   
+        return true;
     }
     return false;
 }
@@ -1381,7 +1410,7 @@ std::pair<double, StrategySet> HeuristicGraphOptimizer::findKCompatible(mv::Data
         return std::make_pair(bestHKCost, bestHKStrat);
     else if(foundKReplacement)
         return std::make_pair(bestKCost, bestKStrat);
-    else 
+    else
         return std::make_pair(COST_MAX, bestStrategies_.at(opIt->getName()));
 }
 
@@ -1439,7 +1468,7 @@ double HeuristicGraphOptimizer::findHCompatible(mv::Data::OpListIterator opIt, b
     else return COST_MAX;
 }
 
-// This function is the heart of what the StrategyManager and MetaGraph did for the 
+// This function is the heart of what the StrategyManager and MetaGraph did for the
 // Graph Optimizer pass. The idea is, when strategies on multiple ops must be changed
 // together (i.e. making choices around SOH, SOK), this pass will decide the most efficient way
 // to do those strategy transitions.
@@ -1469,7 +1498,7 @@ void HeuristicGraphOptimizer::chooseRollbackOrSpill()
         {
             processForSpillRemoval(opIt);
         }
-        
+
         //The above algorithm moves up through the model, but looking at children
         //Also of interest, is ensuring the compatability of multiple input ops (eltwise, concat)
         //If I'm a K-compatible elt or concat, make sure all inputs are k-compatible
@@ -1494,7 +1523,7 @@ bool HeuristicGraphOptimizer::checkMultipleInputOp(mv::Data::OpListIterator opIt
         for(auto input = opIt.leftmostParent(); input != model_.opEnd(); ++input)
         {
             if(!input->hasAttr("StrategySet")) continue;
-            
+
             if(opKCompatible != isKCompatible(input))
             {
                 foundMismatch = true;
@@ -1530,9 +1559,9 @@ bool HeuristicGraphOptimizer::checkMultipleInputOp(mv::Data::OpListIterator opIt
 //      ex: pop B and process it from step 1 (Q_c will remain empty, Q_p: A)
 //          pop A and process it from step 1 (Q_c will remain empty, Q_p is empty)
 // 5. Continue processing elements from Q_c while not empty
-// 6. If cost cheaper to roll back, last HK-elligble op added to ops to change is HK, 
+// 6. If cost cheaper to roll back, last HK-elligble op added to ops to change is HK,
 //    rest take best compatible (SOK, clus) strategy
-// 
+//
 void HeuristicGraphOptimizer::processForSpillRemoval(mv::Data::OpListIterator opIt)
 {
     mv::DataModel dm(model_);
@@ -1559,7 +1588,7 @@ void HeuristicGraphOptimizer::processForSpillRemoval(mv::Data::OpListIterator op
         markedOps.insert(N->getName());
         currentCost += bestStrategies_.at(N->getName())["cost"].get<double>();
 
-        // We always add children if they are still in SOH compatible 
+        // We always add children if they are still in SOH compatible
         for(auto child = N.leftmostChild(); child != model_.opEnd(); ++child)
         {
             if(!child->hasAttr("StrategySet")) continue; //Note, this shouldn't happen for children
@@ -1576,7 +1605,7 @@ void HeuristicGraphOptimizer::processForSpillRemoval(mv::Data::OpListIterator op
                 // std::cout << "       Added child to Q" << std::endl;
                 // In these special cases, a spill can't fix the transition
                 // So we force a rollback
-                if(isKCompatible(N) && (childClustering == "HKSwitch" || 
+                if(isKCompatible(N) && (childClustering == "HKSwitch" ||
                     (childClustering == "SplitOverH" && child->getOpType() == "Concat")))
                     // We have K -> HK, SOH
                     rollbackReq = true;
@@ -1602,7 +1631,7 @@ void HeuristicGraphOptimizer::processForSpillRemoval(mv::Data::OpListIterator op
                     // std::cout << "       Added parent to Q" << std::endl;
                     if(parentClustering == "HKSwitch")
                     {
-                        //We have an HK -> SOH, this should be prevented by the forceConnectedSOH pass, but leaving here 
+                        //We have an HK -> SOH, this should be prevented by the forceConnectedSOH pass, but leaving here
                         rollbackReq = true;
                     }
                 }
@@ -1614,7 +1643,7 @@ void HeuristicGraphOptimizer::processForSpillRemoval(mv::Data::OpListIterator op
             parents.pop();
             parentOpsToChange.push_back(N);
             auto compatStrategy = findKCompatible(N, false, true);
-            changeCost += compatStrategy.first; 
+            changeCost += compatStrategy.first;
             //TODO, if we allow HK that later goes, this cost isn't exact
             //If I'm going to become an HK, and any of my children have parentSpilling as their
             //best KCompatible strategy, we need to capture the cost of spilling from the HK too
@@ -1625,7 +1654,7 @@ void HeuristicGraphOptimizer::processForSpillRemoval(mv::Data::OpListIterator op
                 for(auto sink : sinkLayers)
                 {
                     auto newStrat = findKCompatible(sink, false, false);
-                    if(newStrat.second["parentSpilling"].get<bool>()) 
+                    if(newStrat.second["parentSpilling"].get<bool>())
                     {
                         // std::cout << "HKSwitch: " << N->getName() << ", and parentSpilling: " << sink->getName() << std::endl;
                         // The parent can't be sparse b/c another child needs dense
@@ -1651,7 +1680,7 @@ void HeuristicGraphOptimizer::processForSpillRemoval(mv::Data::OpListIterator op
         }
         // std::cout << std::boolalpha << "   CURRENT STATE: rollbackReq = " << rollbackReq << ", rollbackCost = " << changeCost << ", currentCost = " << currentCost << std::endl;
     } while (opsLeftToProcess);
-    
+
     // std::cout << std::boolalpha << "rollbackReq = " << rollbackReq << ", rollbackCost = " << changeCost << ", rollbackHeuristic: " << changeCost*heuristicMultiplier << ", currentCost = " << currentCost << std::endl;
     if(rollbackReq || (changeCost * heuristicMultiplier) < currentCost)
     {
@@ -1734,7 +1763,7 @@ bool HeuristicGraphOptimizer::assignBestStrategyOfType(mv::Data::OpListIterator 
     return foundReplacement;
 }
 
-double HeuristicGraphOptimizer::findBestStrategyOfLocation(mv::Data::OpListIterator opIt, bool doAssignment, 
+double HeuristicGraphOptimizer::findBestStrategyOfLocation(mv::Data::OpListIterator opIt, bool doAssignment,
                                                             bool inputDDR, bool lockOutput, bool outputDDR,
                                                             bool lockClustering, std::string clustering)
 {
@@ -1787,9 +1816,9 @@ void HeuristicGraphOptimizer::verifySpillStrategies(bool lockClusteringStrategy 
 
         auto inputTensors = opIt->getInputTensor();
         double ddrCost = opStrategy["cost"].get<double>(); // op already expects input in ddr
-        double cmxCost = findBestStrategyOfLocation(opIt, false, false, false, 
-                                                    opStrategy["spilling"].get<bool>(), 
-                                                    lockClusteringStrategy, 
+        double cmxCost = findBestStrategyOfLocation(opIt, false, false, false,
+                                                    opStrategy["spilling"].get<bool>(),
+                                                    lockClusteringStrategy,
                                                     opStrategy["clustering"].get<std::string>()); // if can take input cmx, find cost
 
         bool foundCMXinput = false;
@@ -1807,28 +1836,28 @@ void HeuristicGraphOptimizer::verifySpillStrategies(bool lockClusteringStrategy 
                 parentSpilling = true;
             }
             if(!parentSpilling) //input in CMX, mismatch found
-            {    
+            {
                 foundCMXinput = true;
-                ddrCost += findBestStrategyOfLocation(inputOp, false, parentSpilling, true, true, 
+                ddrCost += findBestStrategyOfLocation(inputOp, false, parentSpilling, true, true,
                                                         lockClusteringStrategy, parentStrategy["clustering"].get<std::string>());
                 cmxCost += parentStrategy["cost"].get<double>();
             }
             else
             {
                 ddrCost += parentStrategy["cost"].get<double>(); // this input won't need to change, same as current
-                auto cost = findBestStrategyOfLocation(inputOp, false, parentSpilling, true, false, 
+                auto cost = findBestStrategyOfLocation(inputOp, false, parentSpilling, true, false,
                                                         lockClusteringStrategy, parentStrategy["clustering"].get<std::string>());
                 if(cost < COST_MAX)
                     cmxCost += cost; //If this input could provide cmx input, use, but not required if it didn't exist
             }
-            
+
         }
         if(foundCMXinput || strategyRequiresSpill)
         {
             bool inputDDR = cmxCost > ddrCost;
-            findBestStrategyOfLocation(opIt, true, inputDDR, false, 
-                                            opStrategy["spilling"].get<bool>(), 
-                                            lockClusteringStrategy, 
+            findBestStrategyOfLocation(opIt, true, inputDDR, false,
+                                            opStrategy["spilling"].get<bool>(),
+                                            lockClusteringStrategy,
                                             opStrategy["clustering"].get<std::string>() ); //This op takes CMX input, can spill or not
             for(auto inputTensor : inputTensors)
             {
@@ -1855,8 +1884,8 @@ bool HeuristicGraphOptimizer::findRealSparseInput(mv::Data::OpListIterator opIt,
 
     auto opName = opIt->getName();
     auto currentStrategy = bestStrategies_.at(opName);
-    if (currentStrategy["inputSparsity"].get<bool>() && 
-        !requiresCompilerActivationSparsity(opIt, currentStrategy)) 
+    if (currentStrategy["inputSparsity"].get<bool>() &&
+        !requiresCompilerActivationSparsity(opIt, currentStrategy))
         return true;
 
     auto opStrategies = strategy_model_.at(opName);
@@ -1911,7 +1940,7 @@ bool HeuristicGraphOptimizer::canServiceActivationSparsity(mv::Data::OpListItera
         auto& opStrategies = *(allStrategies.back());
         bool foundSparseOutput = false;
         for(auto inputStrategy : opStrategies)
-            if(inputStrategy["outputSparsity"].get<bool>() && 
+            if(inputStrategy["outputSparsity"].get<bool>() &&
             inputStrategy["clustering"].get<std::string>() == strategy["clustering"].get<std::string>())
                 foundSparseOutput = true;
 
@@ -1961,7 +1990,7 @@ void HeuristicGraphOptimizer::serviceActivationSparsity()
                 bool allAcceptSparse = true;
                 for(auto sink : sinkLayers)
                 {
-                    if(!findRealSparseInput(sink, false)) 
+                    if(!findRealSparseInput(sink, false))
                     {
                         // The parent can't be sparse b/c another child needs dense
                         // or child needs compiler, not runtime sparsity
@@ -1969,9 +1998,9 @@ void HeuristicGraphOptimizer::serviceActivationSparsity()
                         break;
                     }
                 }
-                if(allAcceptSparse) 
-                {  
-                
+                if(allAcceptSparse)
+                {
+
                     bool success = findSparseOutput(inputOp);
                     if(success)
                     {
@@ -2018,7 +2047,7 @@ void HeuristicGraphOptimizer::increaseWeightsPipelining()
         auto streamShape = currentStrategy["streaming"].get<Shape>();
         bool isStreaming = ((streamShape["W"] * streamShape["H"] * streamShape["C"]
                                                 * streamShape["K"] * streamShape["B"]) > 1) ? true : false;
-        if((streamShape["K"] > 1 || !isStreaming) && 
+        if((streamShape["K"] > 1 || !isStreaming) &&
             (opIt->getOpType() == "Conv" || opIt->getOpType() == "DepthwiseConv") &&
             !(!isStreaming && currentStrategy["inputSparsity"].get<bool>())) // Streaming would require compiler sparsity, keep runtime
         {
@@ -2142,8 +2171,8 @@ bool HeuristicGraphOptimizer::findDenseOutput(mv::Data::OpListIterator opIt)
     return foundDenseReplacement;
 }
 
-// This op must have sparse input (for example, because of op type or clustering strategy). 
-// Does not matter if sparsity comes from runtime or compiler. 
+// This op must have sparse input (for example, because of op type or clustering strategy).
+// Does not matter if sparsity comes from runtime or compiler.
 // For now, we use this to turn off sparsity unless it's necessary, in lieu of a decision on activation sparsity for performance.
 bool HeuristicGraphOptimizer::requiresSparseInput(mv::Data::OpListIterator opIt, StrategySet& strategy)
 {
@@ -2209,8 +2238,8 @@ bool HeuristicGraphOptimizer::requiresRealActivationSparsity(mv::Data::OpListIte
     return false;
 }
 
-// Not all of these require sparse input, but if any take sparse input, that sparsity must come from the compiler.  
-// This is used both at cost gen (this type of sparsity is pure overhead) and 
+// Not all of these require sparse input, but if any take sparse input, that sparsity must come from the compiler.
+// This is used both at cost gen (this type of sparsity is pure overhead) and
 // strategy selection (avoid enabling sparse output from parents with compiler sparse req children).
 bool HeuristicGraphOptimizer::requiresCompilerActivationSparsity(mv::Data::OpListIterator opIt, StrategySet& strategy)
 {
@@ -2262,7 +2291,7 @@ bool HeuristicGraphOptimizer::requiresCompilerActivationSparsity(mv::Data::OpLis
         }
     }
 
-    if (opIt->hasAttr("floatPrecision") && opIt->get<bool>("floatPrecision") && 
+    if (opIt->hasAttr("floatPrecision") && opIt->get<bool>("floatPrecision") &&
         opIt->getOpType() == "Eltwise" && (clusteringStrategy == "SplitOverH" || clusteringStrategy == "HKSwitch"))
     {
         //NOTE: On floating point network, Mobilenet there is a case that if we have runtime sparsity with
