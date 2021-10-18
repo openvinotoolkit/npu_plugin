@@ -85,6 +85,7 @@ struct ConvLayer {
     std::array<std::int64_t, 4> pad = {0};
     std::int64_t group = 0;
     std::int64_t dilation = 0;
+    std::int64_t cube_mode = 0;
 };
 
 struct PoolLayer {

@@ -43,6 +43,8 @@ using llvm::ArrayRef;
 #define PAD_NCETASK_TOP 2
 #define PAD_NCETASK_BOTTOM 3
 
+enum PY_MPE_CUBES { CUBOID_16x16 = 0, CUBOID_8x16 = 1, CUBOID_4x16 = 2 };
+
 mlir::DenseElementsAttr generateWeights(ArrayRef<int64_t> wt_shape, mlir::Type dtype, mlir::MLIRContext* ctx,
                                         const char* weight_file_name);
 void computeQuantMultShift(float scale, unsigned& shift, unsigned& mult);

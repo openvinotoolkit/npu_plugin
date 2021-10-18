@@ -39,6 +39,12 @@ from pathlib import Path
 import re
 import sys
 from typing import Callable, List, Optional, Sequence, Union
+from enum import Enum
+
+class MPE_CUBES(int, Enum):
+    CUBOID_16x16 = 0
+    CUBOID_8x16 = 1
+    CUBOID_4x16 = 2
 
 # TODO: Fix this awful hack, whose purpose in life is to point to where you've
 # checked out ssh://git@gitlab.devtools.intel.com:29418/iotgai/NumericsBench.git.
@@ -403,12 +409,11 @@ class MPE(ABC):
 def shape_to_str(shape: Sequence[int]) -> str:
     return 'x'.join([str(d) for d in shape])
 
-
 class ZMajorConvolution(MPE):
 
     # kernel_strides are x|y directions
     # The padding order is top|left|bottom|right
-    PARAMS = ['mpe_op_class', 'input_ttype', 'input_shape', 'weight_ttype', 'kernel_channels', 'kernel_shape', 'output_ttype', 'kernel_strides', 'kernel_pads']
+    PARAMS = ['mpe_op_class', 'input_ttype', 'input_shape', 'weight_ttype', 'kernel_channels', 'kernel_shape', 'output_ttype', 'kernel_strides', 'kernel_pads', 'mpe_cub']
 
     def __init__(self, settings):
         self.settings = settings
@@ -423,7 +428,8 @@ class ZMajorConvolution(MPE):
                 'stride': self.settings.kernel_strides,
                 'pad': self.settings.kernel_pads,
                 'group': 1,
-                'dilation': 1
+                'dilation': 1,
+                'mpe_cub': self.settings.mpe_cub
             }
         }
 
@@ -433,7 +439,7 @@ class ZMajorConvolution(MPE):
 
     @property
     def ident(self) -> str:
-        return f'zm_conv_{shape_to_str(self.settings.input_shape)}x{self.settings.input_ttype.stype}_{shape_to_str(self.settings.weight_shape)}x{self.settings.weight_ttype.stype}_pads_{shape_to_str(self.settings.kernel_pads)}_strides_{shape_to_str(self.settings.kernel_strides)}_kern_chan_{self.settings.kernel_channels}'
+        return f'zm_conv_{shape_to_str(self.settings.input_shape)}x{self.settings.input_ttype.stype}_{shape_to_str(self.settings.weight_shape)}x{self.settings.weight_ttype.stype}_pads_{shape_to_str(self.settings.kernel_pads)}_strides_{shape_to_str(self.settings.kernel_strides)}_kern_chan_{self.settings.kernel_channels}_mpe_cuboid_{self.settings.mpe_cub}'
 
     @property
     def orderer(self) -> Orderer:
@@ -489,7 +495,8 @@ class DepthWiseConv(MPE):
                 'stride': self.settings.kernel_strides,
                 'pad': self.settings.kernel_pads,
                 'group': self.settings.weight_shape[0],
-                'dilation': 1
+                'dilation': 1,
+                'mpe_cub': MPE_CUBES.CUBOID_16x16
             }
         }
 
@@ -885,7 +892,8 @@ def genZMConvs(input_types=[UInt8(2)],
                kernel_shapes=[[1, 1]],
                output_types=[Int4(), UInt4(), UInt8()],
                strides=[[1, 1]],
-               pads=[[0, 0, 0, 0]]):
+               pads=[[0, 0, 0, 0]],
+               mpe_cub=[MPE_CUBES.CUBOID_16x16]):
     return (DPUPipeline(ZMajorConvolution.PARAMS, x) for x in itertools.product(
             [ZMajorConvolution],
             input_types,
@@ -895,7 +903,8 @@ def genZMConvs(input_types=[UInt8(2)],
             kernel_shapes,
             output_types,
             strides,
-            pads
+            pads,
+            mpe_cub
             ))
 
 
@@ -1018,6 +1027,12 @@ def generate_options(args):
                    kernel_shapes=[[5, 5]],
                    output_types=[Int4(), UInt4(), UInt8()],
                    pads=[[4,0,0,0],[5,0,0,0]]),
+
+        # Z-Major Convolution, fp16 activations, fp16 weights
+        genZMConvs(input_types=[FP16(2)],
+                   weight_types=[FP16(2)],
+                   output_types=[Int8(),  FP16()],
+                   mpe_cub=[MPE_CUBES.CUBOID_8x16, MPE_CUBES.CUBOID_4x16]),
 
         # Eltwise Add
         # NB bf16 can only be used as an input, per the MTL layer mapping spec

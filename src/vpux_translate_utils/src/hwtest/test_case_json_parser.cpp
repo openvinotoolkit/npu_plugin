@@ -295,6 +295,7 @@ nb::ConvLayer nb::TestCaseJsonDescriptor::loadConvLayer(llvm::json::Object* json
 
     result.group = op->getInteger("group").getValue();
     result.dilation = op->getInteger("dilation").getValue();
+    result.cube_mode = op->getInteger("mpe_cub").getValue();
 
     return result;
 }

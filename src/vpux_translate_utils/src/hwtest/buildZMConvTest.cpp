@@ -196,8 +196,26 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
                                        getIntAttr(builder, padding_vec[PAD_NCETASK_TOP]),
                                        getIntAttr(builder, padding_vec[PAD_NCETASK_BOTTOM]), builder.getContext());
 
+    std::int64_t py_cub_mode = conv.cube_mode;
+    auto cube_mode = getIntAttr(builder, py_cub_mode);
+    VPUIP::MPEMode cub_mode = VPUIP::MPEMode::CUBOID_16x16;
+    switch (cube_mode.getInt()) {
+    case PY_MPE_CUBES::CUBOID_8x16: {
+        cub_mode = VPUIP::MPEMode::CUBOID_8x16;
+        break;
+    }
+    case PY_MPE_CUBES::CUBOID_4x16: {
+        cub_mode = VPUIP::MPEMode::CUBOID_4x16;
+        break;
+    }
+    default: {
+        cub_mode = VPUIP::MPEMode::CUBOID_16x16;
+        break;
+    }
+    }
+
     /* auto dpuTask = */ variantbuilder.create<VPUIP::DPUTaskOp>(builder.getUnknownLoc(), nullptr, start, end, pad,
-                                                                 VPUIP::MPEMode::CUBOID_16x16);
+                                                                 cub_mode);
 
     // TODO : return empty as func does not return anything
     /* auto returnOp = */ funcbuilder.create<mlir::ReturnOp>(builder.getUnknownLoc(), funcoutput);
