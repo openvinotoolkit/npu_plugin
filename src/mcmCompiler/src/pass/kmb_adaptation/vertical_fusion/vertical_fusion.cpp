@@ -53,6 +53,7 @@ namespace mv
 ///////////////////////// PASS STATIC PARAMETERS ///////////////////////////////
 static size_t MAXIMUM_STATIC_OVERLAPING_OPS_IN_SUBGRAPH = 3UL;
 static size_t MAXIMUM_HEIGHT_WORTHY_FOR_VF = 38UL;
+//static size_t CMX_TO_AVOID_FRAGMENTATION = 375507;
 static size_t CMX_TO_AVOID_FRAGMENTATION = 360800;
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -88,7 +89,8 @@ void populateCandidateVerticalFusionOps(std::vector<std::string> & candidateVert
         std::string nodeName = layerNameStrategy.get<std::string>("name_filter");
         // large kernels set large overlaps, so no value adding to VF subgraph
         if (hasLargeKernel(om.getOp(nodeName), 7))
-            continue;
+            std::cout<<"kernel larger than 7 but we ignore.... " <<nodeName<<std::endl;
+//            continue;
         auto splitList = layerNameStrategy.get<std::vector<mv::Element>>("splits");
         bool isStreamingOnH = false;
         bool isStreamingOnlyOnH = false;
@@ -141,7 +143,8 @@ void populateCandidateVerticalFusionOps(std::vector<std::string> & candidateVert
             //tensor e.g. output Tensor dims = 512, 38, 38. Such a small number of lines with small number of
             //splits should not be attached to the subgraphs
             if (outputTensor->getShape()[mv::IO_HEIGHT_DIMENSION] <= MAXIMUM_HEIGHT_WORTHY_FOR_VF)
-                continue;
+                std::cout<<"height <= 38 but we ignore.... "<< op->getName()<<std::endl;
+//                continue;
 
             //NOTE: for now consider that an op is spilling if the output tensor is bigger than cmx
             if (inputResources + weightResources + outputResources > 0.8 * cmxV)
@@ -263,9 +266,11 @@ bool willMaxStreamingBePossible(mv::OpModel& om, const std::vector<mv::Element>&
         //NOTE: try to balance the streams for vertical fusion
         while (maxHeight % maxStream >= maxHeight/maxStream)
             ++maxStream;
-
-        while (computeMemoryResources(subbgraphOp, maxStream) > CMX_TO_AVOID_FRAGMENTATION)
-            ++maxStream;
+//
+//        while (computeMemoryResources(subbgraphOp, maxStream) > CMX_TO_AVOID_FRAGMENTATION)
+//            ++maxStream;
+        if (computeMemoryResources(subbgraphOp, maxStream) > CMX_TO_AVOID_FRAGMENTATION)
+            std::cout<<"mem requirements > CMX_TO_AVOID_FRAGMENTATION but we ignore.... " << subbgraphOp->getName()<<std::endl;
 
         streamNumbers.insert(maxStream);
         maxStream = *(streamNumbers.rbegin());
@@ -778,7 +783,8 @@ void computeSubgraphs(mv::ComputationModel& model,
 
             bool isNeighbour = nodeIsNeighbour(om, dm, *node, verticalFusionSubgraphs[numberOfSubgraphs]);
             bool kernelLargeOverlapFlag = kernelLargeOverlap(om, verticalFusionSubgraphs[numberOfSubgraphs], *node);
-            if (isNeighbour && streamPossible && !kernelLargeOverlapFlag)
+            bool avoid = om.getOp(*node)->getOpType() == "Eltwise";  // yingyue hack
+            if (isNeighbour && streamPossible && !kernelLargeOverlapFlag && !avoid)
             {
                 //step-4.1: special for yolo architectures, prune to eltwise as last node
                 verticalFusionSubgraphs[numberOfSubgraphs].push_back(*node);
@@ -790,7 +796,8 @@ void computeSubgraphs(mv::ComputationModel& model,
                 else
                 {
                     if (om.getOp(*node)->getOpType() == "Eltwise")
-                        break;
+                        std::cout<<"found Eltwise but we don't prune here.... "<<(*node)<<std::endl;
+//                        break;
                 }
             }
         }
@@ -951,7 +958,7 @@ void computeSubgraphs(mv::ComputationModel& model,
         saveNewStreamingStrategiesToJson(newStreamingStrategies);
     }
 
-    // printVerticalFusionSubgraphs(verticalFusionSubgraphs, newStreamingStrategies);
+    printVerticalFusionSubgraphs(verticalFusionSubgraphs, newStreamingStrategies);
     if (double_tail)
         storeOverlappingEltwiseLines(verticalFusionSubgraphs, om);
 

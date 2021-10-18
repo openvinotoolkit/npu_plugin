@@ -87,12 +87,48 @@
             },
             "ComputeSparsitySolution",
             {
+                "name": "GenerateDot",
+                "output": "output/dots/ComputeSparsitySolution.dot",
+                "scope": "OpModel",
+                "content": "full",
+                "html": true,
+                "reduced": false
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/ComputeSparsitySolution.dot"
+            },
+            {
                 "name": "StreamingOperations",
                 "vertical_fusion" : true
             },
             {
+                "name": "GenerateDot",
+                "output": "output/dots/StreamingOperations.dot",
+                "scope": "OpModel",
+                "content": "full",
+                "html": true,
+                "reduced": false
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/StreamingOperations.dot"
+            },
+            {
                 "name":"VerticalFusionTransformation",
                 "vertical_fusion" : true
+            },
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/VerticalFusionTransformation.dot",
+                "scope": "OpModel",
+                "content": "full",
+                "html": true,
+                "reduced": false
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/VerticalFusionTransformation.dot"
             },
             "StreamBinaryDataWeights",
             "StreamCopyOperations"
@@ -151,6 +187,18 @@
             "BuildGraphFileKmb",
             "UpdatePhysicalIDinGraphFile",
             {
+                "name": "GenerateDot",
+                "output": "output/dots/final.dot",
+                "scope": "OpModel",
+                "content": "full",
+                "html": true,
+                "reduced": false
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/final.dot"
+            },
+            {
                 "name": "GenerateBlobKmb",
                 "output": "output/mcm.blob"
             }
@@ -164,6 +212,18 @@
             "adapt",
             "kmb_adapt",
             "dma",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/dma.dot",
+                "scope": "OpModel",
+                "content": "full",
+                "html": true,
+                "reduced": false
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/dma.dot"
+            },
             "control_flows",
             "finalize",
             "scheduling",
