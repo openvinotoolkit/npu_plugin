@@ -94,7 +94,7 @@ print(command)
 os.system(command)
 
 # make elf
-command = "cd " + pathToIEDemoDir + " && make -j8 CONFIG_FILE=.config_sim_3720xx CONFIG_NN_LOG_VERBOSITY_LRT_WARN=y CONFIG_NN_LOG_VERBOSITY_LRT_INFO=n CONFIG_NN_LOG_VERBOSITY_LNN_WARN=y CONFIG_NN_LOG_VERBOSITY_LNN_INFO=n CONFIG_NN_LOG_VERBOSITY_SNN_WARN=y CONFIG_NN_LOG_VERBOSITY_SNN_INFO=n CONFIG_PROFILING_MASK=\"0b00000000\""
+command = "cd " + pathToIEDemoDir + " && make -j8 CONFIG_FILE=.config_sim_3720xx "
 print(command)
 os.system(command)
 
