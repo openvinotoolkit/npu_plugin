@@ -148,5 +148,18 @@ mlir::OpResult getConstResult(vpux::Const::DeclareOp op);
 vpux::VPUIP::DPUTaskOp createDPUTaskOp(mlir::OpBuilder builder, mlir::OpBuilder variantbuilder,
                                        llvm::SmallVector<int64_t> output_shape, std::vector<int64_t> padding_vec);
 
+template <class StorageType>
+std::vector<StorageType> getWeightPalletizationTable(std::vector<StorageType> data);
+template <class StorageType, class A>
+int getWeightPalletizationMode(std::vector<StorageType, A> table);
+template <class StorageType, class A>
+mlir::DenseElementsAttr generateTable(std::vector<StorageType, A> table, mlir::Type type, mlir::MLIRContext* context);
+template <class StorageType>
+StorageType palletizeByte(typename std::vector<StorageType>::iterator input, size_t plt_mode);
+template <class StorageType, class A>
+void palletizeVector(std::vector<StorageType, A> input, std::vector<StorageType, A> &output, std::vector<StorageType, A> table, int plt_mode, int totalSize);
+template <class StorageType>
+std::pair<mlir::DenseElementsAttr, mlir::DenseElementsAttr> palletizeWeights(mlir::DenseElementsAttr weightsValues, mlir::Type weightsType, size_t weightsSize, size_t *plt_mode, mlir::MLIRContext* context, Logger& log);
+
 }  // namespace hwtest
 }  // namespace vpux

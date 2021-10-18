@@ -1080,5 +1080,155 @@ std::vector<std::int64_t> convertNBPadtoNCETaskPad(const std::array<std::int64_t
     return ncetask_pad;
 }
 
+template <class StorageType>
+std::vector<StorageType> getWeightPalletizationTable(std::vector<StorageType> data){
+
+    // Build weights histogram
+    std::vector<uint8_t> bins(data.size(), 0);
+    for (size_t i=0; i<data.size(); ++i) {
+        uint8_t val = static_cast<uint8_t>(data[i]);
+        bins[val]++;
+    }
+
+    // Build palletization table
+    std::vector<StorageType> table;
+    for (size_t i=0; i<bins.size(); ++i) {
+        if (bins[i] > 0) {
+            table.push_back(static_cast<StorageType>(i));
+        }
+    }
+
+    // Debug prints
+    printf("weight bins: %ld\n", table.size());
+    printf("weight pallet table: ");
+    for (auto x : table) printf("%02x ", (uint8_t)x);
+    printf("\n");
+
+    return table;
+}
+
+template class std::vector<uint8_t> getWeightPalletizationTable(std::vector<uint8_t> data);
+template class std::vector<int8_t> getWeightPalletizationTable(std::vector<int8_t> data);
+
+template <class StorageType, class A>
+int getWeightPalletizationMode(std::vector<StorageType, A> table){
+    if (table.size() <= 2)
+        return 1;
+    else if (table.size() <= 4)
+        return 2;
+    else if (table.size() <= 16)
+        return 4;
+
+    return 0;
+}
+
+template int getWeightPalletizationMode(std::vector<uint8_t> table);
+template int getWeightPalletizationMode(std::vector<int8_t> table);
+
+template <class StorageType, class A>
+mlir::DenseElementsAttr generateTable(std::vector<StorageType, A> table, mlir::Type type, mlir::MLIRContext* context){
+    llvm::ArrayRef<std::int64_t> shape = {1,1,1,static_cast<std::int32_t>(table.size())};
+    auto tableType = mlir::RankedTensorType::get(shape, type);
+
+    if (auto qtype = type.dyn_cast_or_null<mlir::quant::QuantizedType>()) {
+        type = mlir::quant::QuantizedType::castToStorageType(qtype);
+        if (qtype.getFlags() & mlir::quant::QuantizationFlags::Signed) {
+            tableType = mlir::RankedTensorType::get(shape, getSInt8Type(context));
+        } else {
+            tableType = mlir::RankedTensorType::get(shape, getUInt8Type(context));
+        }
+    }
+
+    return mlir::DenseElementsAttr::get(tableType, llvm::makeArrayRef<StorageType>(table));
+}
+
+template mlir::DenseElementsAttr generateTable(std::vector<uint8_t> table, mlir::Type type, mlir::MLIRContext* context);
+template mlir::DenseElementsAttr generateTable(std::vector<int8_t> table, mlir::Type type, mlir::MLIRContext* context);
+
+template <class StorageType>
+StorageType palletizeByte(typename std::vector<StorageType>::iterator input, size_t plt_mode) {
+    uint8_t output = 0;
+    for (size_t i = 0; i < 8 / plt_mode; ++i) {
+        output = (output >> plt_mode) | (static_cast<uint8_t>(*(input++)) << (8-plt_mode));
+    }
+    return static_cast<StorageType>(output);
+}
+
+template uint8_t palletizeByte(std::vector<uint8_t>::iterator input, size_t plt_mode);
+template int8_t palletizeByte(std::vector<int8_t>::iterator input, size_t plt_mode);
+
+// Palletize X number of 16 byte blocks
+// OPEN: zero-padding every K instead of 16?
+template <class StorageType, class A>
+void palletizeVector(std::vector<StorageType, A> input, std::vector<StorageType, A> &output, std::vector<StorageType, A> table, int plt_mode, int totalSize){
+    // Step #1: Build map from vector table
+    std::map<StorageType, int> map;
+    for (size_t i=0; i<table.size(); ++i) {
+        map[table[i]] = i;
+    }
+
+    // Step #2: Replace weights values with mapped values
+    for (size_t i=0; i<input.size(); ++i) {
+        //printf("replace idx %ld, value %02x with table value %02x\n", i, input[i], map[input[i]]);
+        input[i] = map[input[i]];
+    }
+
+    // Step #3: Squeeze weights bytes into lower-precision elements
+    auto squeezed_elements_per_byte = 8 / plt_mode;
+    size_t blocks_of_16ch = totalSize / 16;
+    size_t output_bytes_per_16ch_block = 16 / squeezed_elements_per_byte;
+    //auto output_size = blocks_of_16ch * output_bytes_per_16ch_block;
+    //std::cout << "output size in bytes: " << output_size << std::endl;
+    for (size_t block = 0; block < blocks_of_16ch; ++block) {
+        // Squeezed bytes
+        for (size_t byte = 0; byte < output_bytes_per_16ch_block; ++byte) {
+            // TODO: why does weights-spacing depend on plt_mode?
+            output[16*block+byte] = palletizeByte<StorageType>(input.begin() + (16 * block) + (squeezed_elements_per_byte * byte), plt_mode);
+        }
+        // Remaining bytes of 16ch block are zeros
+    }
+}
+
+template void palletizeVector(std::vector<uint8_t> input, std::vector<uint8_t> &output, std::vector<uint8_t> table, int plt_mode, int totalSize);
+template void palletizeVector(std::vector<int8_t> input, std::vector<int8_t> &output, std::vector<int8_t> table, int plt_mode, int totalSize);
+
+template <class StorageType>
+std::pair<mlir::DenseElementsAttr, mlir::DenseElementsAttr> palletizeWeights(mlir::DenseElementsAttr weightsValues, mlir::Type weightsType, size_t weightsSize, size_t *plt_mode, mlir::MLIRContext* context, Logger& log){
+
+    // Get palletization mode from weights values
+    std::vector<StorageType> data(weightsValues.getRawData().data(), weightsValues.getRawData().data() + weightsValues.getRawData().size());
+    auto table = getWeightPalletizationTable(data);
+    *plt_mode = getWeightPalletizationMode(table);
+
+    // Debug - Force palletization mode & table
+    *plt_mode = 4;
+    std::vector<StorageType> forced_table({0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15});
+    table.resize(forced_table.size());
+    table = forced_table;
+    log.info("WARNING: FORCING PALLETIZATION MODE: {0}", *plt_mode);
+
+    log.info("weight palletization mode = {0}", *plt_mode);
+
+    // Return if no palletization
+    if (*plt_mode == 0)
+        return std::make_pair(nullptr, nullptr);
+
+    // Palletize weights
+    std::vector<StorageType> new_data(data.size(), 0);
+    palletizeVector(data, new_data, table, *plt_mode, weightsSize);
+
+    // Debug
+    printf("old weights data: "); for (auto i=0; i<64; ++i) printf("%02x ", (uint8_t)data[i]); printf("\n");
+    printf("new weights data: "); for (auto i=0; i<64; ++i) printf("%02x ", (uint8_t)new_data[i]); printf("\n");
+
+    // Generate palletization table
+    auto weightsPalletizationTable = generateTable(table, weightsType, context);
+    auto newWeightsData = mlir::DenseElementsAttr::get(weightsValues.getType(), llvm::makeArrayRef<StorageType>(new_data));
+    return std::make_pair(newWeightsData, weightsPalletizationTable);
+}
+
+template std::pair<mlir::DenseElementsAttr, mlir::DenseElementsAttr> palletizeWeights<uint8_t>(mlir::DenseElementsAttr weightsValues, mlir::Type weightsType, size_t weightsSize, size_t *plt_mode, mlir::MLIRContext* context, Logger& log);
+template std::pair<mlir::DenseElementsAttr, mlir::DenseElementsAttr> palletizeWeights<int8_t>(mlir::DenseElementsAttr weightsValues, mlir::Type weightsType, size_t weightsSize, size_t *plt_mode, mlir::MLIRContext* context, Logger& log);
+
 }  // namespace hwtest
 }  // namespace vpux

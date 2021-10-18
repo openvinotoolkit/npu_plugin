@@ -115,8 +115,25 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     log.info("weights_table: size={0}, addr={1}, max swizzling_key={2}", totalTensorSize(weightsTableShape, int32),
              WEIGHTSTABLE_CMX_OFFSET, weights_table_swizzling_key);
     log.info("using swizzling_key {0} for weights & weights_table", swizzling_key);
+    auto weightsValues = generateWeights(weightsShape, weightsType, builder.getContext(), weightsFileName);
 
-    const auto weightsValues = generateWeights(weightsShape, weightsType, builder.getContext(), weightsFileName);
+    // Palletize weights
+    std::pair<mlir::DenseElementsAttr, mlir::DenseElementsAttr> weightsPltTablePair (nullptr, nullptr);
+    size_t plt_mode = 0;
+    if (auto qtype = weightsType.dyn_cast_or_null<mlir::quant::QuantizedType>()) {
+        auto type = mlir::quant::QuantizedType::castToStorageType(qtype);
+        if (type.isUnsignedInteger(8)) {
+            weightsPltTablePair = palletizeWeights<uint8_t>(weightsValues, weightsType, totalTensorSize(weightsShape, weightsType), &plt_mode, builder.getContext(), log);
+        } else if (type.isSignedInteger(8)) {
+            weightsPltTablePair = palletizeWeights<int8_t>(weightsValues, weightsType, totalTensorSize(weightsShape, weightsType), &plt_mode, builder.getContext(), log);
+        }
+    }
+
+    // Replace weights w/ palletized weights
+    if (plt_mode) {
+        weightsValues = weightsPltTablePair.first;
+    }
+
     auto weightsAttribute = vpux::Const::ContentAttr::get(weightsValues);
     if (auto qty = weightsType.dyn_cast<mlir::quant::QuantizedType>()) {
         weightsAttribute = weightsAttribute.quantCast(qty);
@@ -168,6 +185,20 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
                                                  functionOutput, mlir::ValueRange(barrier1.barrier()),
                                                  mlir::ValueRange(), false);
 
+    // Weights palletization table
+    mlir::Value weightsPltDDR_result;
+    if (plt_mode) {
+        auto weightsPltValues = weightsPltTablePair.second;
+        const llvm::SmallVector<std::int64_t> weightsPltShape = {1,1,1,static_cast<std::int64_t>(1 << plt_mode)};
+        const auto weightsPltType = getMemRef(weightsPltShape, weightsType, vpux::VPUIP::MemoryLocation::GraphFile);
+        auto weightsPltAttribute = vpux::Const::ContentAttr::get(weightsPltValues).reorder(vpux::DimsOrder::NHWC);
+        if (auto qty = weightsType.dyn_cast<mlir::quant::QuantizedType>()) {
+            weightsPltAttribute = weightsPltAttribute.quantCast(qty);
+        }
+        auto weightsPltDDR = functionBuilder.create<vpux::Const::DeclareOp>(builder.getUnknownLoc(), weightsPltType, weightsPltAttribute);
+        weightsPltDDR_result = weightsPltDDR.getOperation()->getResult(0);
+    }
+
     const auto strides = getIntArrayAttr(builder.getContext(), conv.stride);
     std::vector<std::int64_t> paddings = convertNBPadtoNCETaskPad(conv.pad);
     const auto kernelPaddings = getIntArrayAttr(builder.getContext(), paddings);
@@ -179,7 +210,7 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     auto nceTask = functionBuilder.create<vpux::VPUIP::NCEClusterTaskOp>(
             builder.getUnknownLoc(), inputCMX.memory(), weightsCMX.memory(), weightsTableCMX.memory(), nullptr,
             inputCMX.memory(), outputCMX.memory(), outputCMX.memory(), vpux::VPUIP::NCETaskType::CONV, kernelSize,
-            strides, kernelPaddings, nullptr, odu_permutation);
+            strides, kernelPaddings, nullptr, odu_permutation, weightsPltDDR_result);
 
     nceTask.waitBarriersMutable().append(barrier0.barrier());
     nceTask.updateBarriersMutable().append(barrier1.barrier());
