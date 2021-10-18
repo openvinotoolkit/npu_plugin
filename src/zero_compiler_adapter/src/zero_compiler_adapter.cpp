@@ -32,10 +32,9 @@ std::shared_ptr<INetworkDescription> ZeroCompilerAdapter::compile(
         const std::shared_ptr<ngraph::Function>& ngraphFunc, const std::string& /*netName*/,
         const InferenceEngine::InputsDataMap& /*inputsInfo*/, const InferenceEngine::OutputsDataMap& /*outputsInfo*/,
         const VPUXConfig& /*config*/) {
-    using seconds = std::chrono::seconds;
+    using ms = std::chrono::milliseconds;
     auto start = std::chrono::high_resolution_clock::now();
     
-
     //------------------------------------------------------------------------------
     _logger->debug("Get information about opset versions from compiler");
     //------------------------------------------------------------------------------
@@ -58,7 +57,7 @@ std::shared_ptr<INetworkDescription> ZeroCompilerAdapter::compile(
     static const auto networkMeta = apiAdapter->getNetworkMeta();
    
     auto finish = std::chrono::high_resolution_clock::now();
-    _logger->info("ZeroCompilerAdapter::compile tool {} sec", std::chrono::duration_cast<seconds>(finish - start).count());
+    _logger->info("|| Timer ||;ZeroCompilerAdapter::compile (ms);\t{}", std::chrono::duration_cast<ms>(finish - start).count());
     
     // return std::make_shared<NetworkDescription>(graphHandle, networkMeta);
     return std::make_shared<NetworkDescription>(blob->data, networkMeta);

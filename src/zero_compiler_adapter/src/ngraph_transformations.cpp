@@ -15,12 +15,19 @@
 #include <file_reader.h>
 #include <ngraph/pass/manager.hpp>
 #include <transformations/serialize.hpp>
+#include <chrono>
 
 namespace vpux {
 namespace zeroCompilerAdapter {
 namespace ngraphTransformations {
 
 IR serializeToIR(const std::shared_ptr<ngraph::Function>& netGraph) {
+    const std::unique_ptr<vpu::Logger> _logger = std::unique_ptr<vpu::Logger>(
+        new vpu::Logger("ngraphTransformations", vpu::LogLevel::Debug /*_config.logLevel()*/, vpu::consoleOutput()));
+
+    using ms = std::chrono::milliseconds;
+    auto start = std::chrono::high_resolution_clock::now();
+
     const auto passConfig = std::make_shared<ngraph::pass::PassConfig>();
     ngraph::pass::Manager manager(passConfig);
 
@@ -35,6 +42,8 @@ IR serializeToIR(const std::shared_ptr<ngraph::Function>& netGraph) {
     xmlStream.read(xmlBlob.data(), xmlSize);
     weightsStream.read(weightsBlob.data(), weightsSize);
 
+    auto finish = std::chrono::high_resolution_clock::now();
+    _logger->info("|| Timer ||;ngraphTransformations::serializeToIR (ms);\t{}", std::chrono::duration_cast<ms>(finish - start).count());
     return {xmlBlob, weightsBlob};
 }
 

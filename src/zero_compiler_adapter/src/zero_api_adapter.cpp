@@ -13,6 +13,7 @@
 
 #include "zero_api_adapter.h"
 #include "ie_layouts.h"
+#include <chrono>
 
 namespace vpux {
 namespace zeroCompilerAdapter {
@@ -177,6 +178,8 @@ ZeroAPICompilerInDriver::~ZeroAPICompilerInDriver() {
 }
 
 Blob::Ptr ZeroAPICompilerInDriver::compileIR(std::vector<char>& xml, std::vector<char>& weights) {
+    using ms = std::chrono::milliseconds;
+    auto start = std::chrono::high_resolution_clock::now();
     _logger->debug("ZeroAPICompilerInDriver::compileIR");
     auto serializedIR = serializeIR(xml, weights);
 
@@ -218,6 +221,8 @@ Blob::Ptr ZeroAPICompilerInDriver::compileIR(std::vector<char>& xml, std::vector
     // ie_memcpy(blob.data(), blob.size(), blobMemotyPtr, blobSize);
 
     _logger->debug("ZeroAPICompilerInDriver::compileIR end");
+    auto finish = std::chrono::high_resolution_clock::now();
+    _logger->info("|| Timer ||;ZeroAPICompilerInDriver::compileIR (ms);\t{}", std::chrono::duration_cast<ms>(finish - start).count());
     return std::make_shared<Blob>(blob);
 }
 
@@ -242,6 +247,8 @@ void* ZeroAPICompilerInDriver::compileIRReturnHandle(std::vector<char>& xml, std
 // ZeroAPICompilerInDriver::getNetworkMeta(void* graph_handle) {
 std::tuple<const std::string, const DataMap, const DataMap, const DataMap, const DataMap>
 ZeroAPICompilerInDriver::getNetworkMeta(const std::vector<char>& blob) {
+    using ms = std::chrono::milliseconds;
+    auto start = std::chrono::high_resolution_clock::now();
     _logger->debug("ZeroAPICompilerInDriver::getNetworkMeta");
 
     if (blob.size() > 0) {
@@ -315,6 +322,8 @@ ZeroAPICompilerInDriver::getNetworkMeta(const std::vector<char>& blob) {
     // std::cout << "_driver_handle " << _driver_handle << std::endl;
 
     _logger->debug("ZeroAPICompilerInDriver::getDeviceNetworkMeta done");
+    auto finish = std::chrono::high_resolution_clock::now();
+    _logger->info("|| Timer ||;ZeroAPICompilerInDriver::getNetworkMeta (ms);\t{}", std::chrono::duration_cast<ms>(finish - start).count());
     return std::make_tuple(graphName, net_inputs, net_outputs, dev_inputs, dev_outputs);
 }
 
