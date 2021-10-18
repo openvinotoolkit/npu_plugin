@@ -95,6 +95,7 @@
                 "vertical_fusion" : true
             },
             "hackPReLU",
+            "PipelineShaveDPU",
             "StreamBinaryDataWeights",
             "StreamCopyOperations"
         ]

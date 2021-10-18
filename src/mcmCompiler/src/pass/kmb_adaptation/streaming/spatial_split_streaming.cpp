@@ -14,6 +14,11 @@ static void streamingOperationsFcn(const mv::pass::PassEntry& pass,
                                         mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&,
                                         mv::Element&);
 
+static void pipelineShaveDPUFcn(const mv::pass::PassEntry& pass,
+                                        mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&,
+                                        mv::Element&);
+
+
 static void streamBinaryDataWeightsFcn(const mv::pass::PassEntry&,
                                         mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&,
                                         mv::Element&);
@@ -30,6 +35,11 @@ namespace mv
         .setFunc(streamingOperationsFcn)
         .setDescription(
                 "Generates New Ops according to Streaming Strategies that the graph provides");
+
+        MV_REGISTER_PASS(PipelineShaveDPU)
+        .setFunc(pipelineShaveDPUFcn)
+        .setDescription(
+                "If streamable shave follows streamed DPU, pipeline");
 
         MV_REGISTER_PASS(StreamBinaryDataWeights)
         .setFunc(streamBinaryDataWeightsFcn)
@@ -1660,4 +1670,51 @@ static void streamCopyOperationsFcn(const mv::pass::PassEntry& ,
     }
     for (auto& opName:removeCopySet)
         om.removeOp(om.getOp(opName));
+}
+
+void pipelineShaveDPUFcn(const mv::pass::PassEntry&,
+                                mv::ComputationModel& model,
+                                mv::TargetDescriptor&,
+                                mv::Element&,
+                                mv::Element&)
+{
+    mv::OpModel om(model);
+    auto eluOps = om.getOps("Elu");
+
+    for(auto elu : eluOps)
+    {
+        std::cout<< "Found ELU: " << elu->getName() << std::endl;
+        auto eluParent = om.getSourceOp(elu->getInputTensor(mv::IO_TENSOR_INPUT));
+        if(eluParent->getOpType() != "Concat") continue;
+
+        std::cout << "Found ELU parent: " <<eluParent->getName() << std::endl;
+
+        auto eluName = elu->getName();
+        auto eluAlpha = elu->get<double>("alpha");
+        auto eluStrategy = elu->get<std::string>("splitStrategy");
+        auto eluOpId = elu->get<unsigned>("opId");
+
+        // Do ELU on concat inputs rather than ELU whole output
+        auto concatInputs = eluParent->getInputTensor();
+        for(auto concatInput : concatInputs)
+        {
+            auto concatInputOp = om.getSourceOp(concatInput);
+            auto originalFlow = concatInputOp.leftmostOutput();
+            auto sinkInputSlot = originalFlow->get<std::size_t>("sinkInput");
+
+            // std::cout << "Found flow: " << sinkInputSlot << " : " << originalFlow->getName() << std::endl;
+            auto newElu = om.elu(eluName + "_"+ concatInput->getName(), concatInput, eluAlpha);
+            newElu->set<mv::Tensor::MemoryLocation>("Location",mv::Tensor::MemoryLocation::DDR);
+
+            om.getSourceOp(newElu)->set<std::string>("splitStrategy", eluStrategy);
+            om.getSourceOp(newElu)->set<unsigned>("opId", eluOpId);
+
+            om.defineFlow(newElu, eluParent, sinkInputSlot);
+            om.undefineFlow(originalFlow);
+            eluParent->setInputTensor(newElu, sinkInputSlot, false);
+        }
+
+        mv::linkNewOperationsRemove(eluParent, eluParent->getOutputTensor(0), om, elu);
+    }
+
 }
