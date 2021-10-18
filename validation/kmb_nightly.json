@@ -474,6 +474,36 @@
                 "blob_name" : "resnet-50-pytorch_onnx"
             }
         },
+        
+        {
+            "name" : "resnet-50-onnx-sparse_MCM",
+            "ir" : "models/clientmodels/BDK3/_sparse/resnet-50-pytorch-sparse50/onnx/FP16-INT8/resnet-50-pytorch.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "224x224"
+            },
+            "NetTest": {
+                "inputs" : [["224x224/watch.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.7"
+                ]
+            },
+            "AccuracyCheck" : {
+                "config": "resnet-50_v10.yml"
+            },
+            "category" : "MCM/release/weekly_public",
+            "CI-options" : {
+                "blob_name" : "resnet-50-onnx-sparse_MCM"
+            }
+        },
 
 	{
             "name" : "resnet-50-onnx-sparse",
