@@ -27,6 +27,8 @@ public:
     using Ptr = std::shared_ptr<VpusmmAllocator>;
     VpusmmAllocator(const int deviceId);
     VpusmmAllocator(const VpusmmAllocator&) = delete;
+    VpusmmAllocator& operator=(const VpusmmAllocator&) = delete;
+
     void* lock(void* handle, InferenceEngine::LockOp) noexcept override;
 
     void unlock(void* handle) noexcept override;

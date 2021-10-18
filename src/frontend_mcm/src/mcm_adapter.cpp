@@ -54,7 +54,6 @@ std::unique_ptr<MVCNN::TensorReferenceT> buildTensorReference(const std::string&
                                                               const InferenceEngine::TensorDesc& tensorInfo,
                                                               const mv::QuantizationParams& quantParams,
                                                               const bool forcePluginInputQuantization) {
-    auto mainData = buildTensorReference(tensorName, tensorInfo);
     std::unique_ptr<MVCNN::TensorReferenceT> toBuild = buildTensorReference(tensorName, tensorInfo);
     const auto epsilon = std::numeric_limits<double>::epsilon();
     const int64_t defaultZeroPoint = 0L;
