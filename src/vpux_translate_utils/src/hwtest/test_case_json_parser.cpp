@@ -324,6 +324,16 @@ nb::ConvLayer nb::TestCaseJsonDescriptor::loadConvLayer(llvm::json::Object* json
         result.compress = false;
     }
 
+    auto mpe_cub = op->getString("mpe_cub");
+    if (mpe_cub.hasValue()) {
+        if (mpe_cub.getValue() == "CUBOID_8x16") {
+            result.cube_mode = vpux::VPUIP::MPEMode::CUBOID_8x16;
+        } else if (mpe_cub.getValue() == "CUBOID_4x16") {
+            result.cube_mode = vpux::VPUIP::MPEMode::CUBOID_4x16;
+        }
+        // TODO: Check for the default (CUBOID_16x16) and log if it's something else.
+    }
+
     return result;
 }
 

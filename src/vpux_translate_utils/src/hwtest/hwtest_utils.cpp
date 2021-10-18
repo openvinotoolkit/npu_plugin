@@ -1075,8 +1075,9 @@ vpux::VPUIP::DPUTaskOp createDPUTaskOp(mlir::OpBuilder builder, mlir::OpBuilder 
                                        getIntAttr(builder, padding_vec[PAD_NCETASK_TOP]),
                                        getIntAttr(builder, padding_vec[PAD_NCETASK_BOTTOM]), builder.getContext());
 
-    auto dpuTask = variantbuilder.create<VPUIP::DPUTaskOp>(builder.getUnknownLoc(), nullptr, start, end, pad,
-                                                           VPUIP::MPEMode::CUBOID_16x16);
+    auto dpuTask = variantbuilder.create<VPUIP::DPUTaskOp>(
+            builder.getUnknownLoc(), nullptr, start, end, pad,
+            VPUIP::MPEMode::CUBOID_16x16);  // Used by EltwiseMultWithDWconv only.
 
     return dpuTask;
 }

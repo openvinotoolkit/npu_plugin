@@ -31,7 +31,7 @@
 from abc import ABC, abstractmethod, abstractproperty
 import argparse
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import Enum, auto
 import json
 import functools
 import itertools
@@ -43,6 +43,7 @@ import re
 import sys
 import traceback
 from typing import Callable, List, Optional, Sequence, Union
+
 
 # TODO: Fix this awful hack, whose purpose in life is to point to where you've
 # checked out ssh://git@gitlab.devtools.intel.com:29418/iotgai/NumericsBench.git.
@@ -94,6 +95,11 @@ class Order(Enum):
     NCHW = 5    # XYZ
 
 
+class MPE_CUBES(Enum):
+    CUBOID_16x16 = auto()
+    CUBOID_8x16 = auto()
+    CUBOID_4x16 = auto()
+
 
 def orderToOrderer(order: Order) -> np.ndarray:
     if order == Order.NHWC:
@@ -138,8 +144,10 @@ class PaddingError(Error):
 class EntropyError(Error):
     pass
 
+
 class AlignmentError(Error):
     pass
+
 
 def ValidatePaddings(kernel, paddings):
     # kernel size are width|height
@@ -588,12 +596,11 @@ class MPE(ABC):
 def shape_to_str(shape: Sequence[int]) -> str:
     return 'x'.join([str(d) for d in shape])
 
-
 class ZMajorConvolution(MPE):
 
     # kernel_strides are x|y directions
     # The padding order is top|left|bottom|right
-    PARAMS = ['mpe_op_class', 'input_ttype', 'input_shape', 'weight_ttype', 'kernel_channels', 'kernel_shape', 'output_ttype', 'output_order', 'kernel_strides', 'kernel_pads', 'compress']
+    PARAMS = ['mpe_op_class', 'input_ttype', 'input_shape', 'weight_ttype', 'kernel_channels', 'kernel_shape', 'output_ttype', 'output_order', 'kernel_strides', 'kernel_pads', 'compress', 'mpe_cub']
 
     def __init__(self, settings):
         self.settings = settings
@@ -609,7 +616,8 @@ class ZMajorConvolution(MPE):
                 'pad': self.settings.kernel_pads,
                 'group': 1,
                 'dilation': 1,
-                'compress': self.settings.compress
+                'compress': self.settings.compress,
+                'mpe_cub': self.settings.mpe_cub.name
             },
             'output_order': self.settings.output_order.name.lower()
         }
@@ -630,6 +638,8 @@ class ZMajorConvolution(MPE):
             name += '_' + self.settings.output_order.name.lower()
         if self.settings.compress:
             name += '_compressed'
+        if self.settings.mpe_cub != MPE_CUBES.CUBOID_16x16:
+            name += '_' + self.settings.mpe_cub.name
         return name
 
     @property
@@ -1132,9 +1142,10 @@ def genZMConvs(input_types=[UInt8(2)],
                output_orders=[Order.NHWC],
                strides=[[1, 1]],
                pads=Pad.none,
-               compress=False):
+               compress=False,
+               mpe_cubs=[MPE_CUBES.CUBOID_16x16]):
 
-    for (input_type, input_shape, kernel_channel, kernel_shape, output_order, stride, pad) in itertools.product(input_types, input_shapes, kernel_channels, kernel_shapes, output_orders, strides, pads):
+    for (input_type, input_shape, kernel_channel, kernel_shape, output_order, stride, pad, mpe_cub) in itertools.product(input_types, input_shapes, kernel_channels, kernel_shapes, output_orders, strides, pads, mpe_cubs):
 
         if weight_types is None:
             current_weight_types = _ZMCONV_VALID_WEIGHT_TYPES[input_type.__class__]
@@ -1163,7 +1174,8 @@ def genZMConvs(input_types=[UInt8(2)],
                                                              output_order,
                                                              stride,
                                                              pad,
-                                                             compress
+                                                             compress,
+                                                             mpe_cub
                                                              ))
 
 
@@ -1408,6 +1420,20 @@ def generate_options(args):
         # Z-Major Convolution, output order
         genZMConvs(input_types=[Int8(3), FP16(4)],
                    output_orders=[Order.NWHC, Order.NWCH, Order.NCWH, Order.NHCW, Order.NCHW]),
+
+        # Z-Major Convolution, integer cuboid combinations
+        genZMConvs(input_types=[Int8(3)],
+                   input_shapes=[[1, 16, 32, 64]],
+                   weight_types=[Int8(2)],
+                   output_types=[Int8()],
+                   mpe_cubs=[MPE_CUBES.CUBOID_16x16, MPE_CUBES.CUBOID_8x16, MPE_CUBES.CUBOID_4x16]),
+
+        # Z-Major Convolution, fp cuboid combinations
+        genZMConvs(input_types=[FP16(4)],
+                   input_shapes=[[1, 16, 32, 64]],
+                   weight_types=[FP16(2)],
+                   output_types=[FP16()],
+                   mpe_cubs=[MPE_CUBES.CUBOID_16x16, MPE_CUBES.CUBOID_8x16, MPE_CUBES.CUBOID_4x16]),
 
         # Eltwise Add
         genEltwiseAdds(input_types=[Int8(6), UInt8(6), FP16(6), BF16(6)],

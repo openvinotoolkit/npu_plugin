@@ -284,6 +284,7 @@ def VPUIP_MPEMode :
                 StrEnumAttrCase<"VECTOR_FP16">,
                 StrEnumAttrCase<"CUBOID_16x16">,
                 StrEnumAttrCase<"CUBOID_8x16">,
+                StrEnumAttrCase<"CUBOID_4x16">,
                 StrEnumAttrCase<"NOP">
             ]
         > {
