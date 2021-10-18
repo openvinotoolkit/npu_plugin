@@ -225,6 +225,7 @@ def IE_AssignOp :
 
     let results = (outs
         AnyRankedTensor:$output
+//        AnyRankedTensor:$second_output
     );
 }
 
@@ -765,6 +766,32 @@ def IE_EluOp :
         RankedTensorOf<[F16, F32]>:$output
     );
 }
+
+//
+// CopyOp
+//
+
+def IE_CopyOp :
+        IE_LayerOp<
+            "Copy",
+            [
+//                DeclareOpInterfaceMethods<ViewLikeOpInterface>
+            ]
+        > {
+    let summary = "CopyLayer. TODO: add description";
+
+    let arguments = (ins
+        AnyRankedTensor:$input
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+
+//    let hasCanonicalizer = 1;
+//    let hasFolder = 1;
+}
+
 
 //
 // ReshapeOp

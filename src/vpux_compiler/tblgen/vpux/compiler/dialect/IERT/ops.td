@@ -338,14 +338,17 @@ def IERT_AssignOp :
     let arguments = (ins
         AnyMemRef:$input,
         AnyMemRef:$output_buff,
+//        AnyMemRef:$second_output_buff,
 
         StrAttr:$variable_id
     );
 
     let results = (outs
         AnyMemRef:$output
+//        AnyMemRef:$second_output
     );
 
+// `,` $second_output_buff `:` type($second_output_buff)
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $input `:` type($input) `)`

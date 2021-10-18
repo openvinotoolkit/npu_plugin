@@ -26,6 +26,7 @@ mlir::LogicalResult vpux::IE::AssignOp::inferReturnTypeComponents(::mlir::MLIRCo
 
     const auto inType = assign.input().getType().cast<mlir::ShapedType>();
     inferredReturnShapes.emplace_back(inType.getShape(), inType.getElementType());
+    // inferredReturnShapes.emplace_back(inType.getShape(), inType.getElementType());
 
     // TODO: add implementation here
 

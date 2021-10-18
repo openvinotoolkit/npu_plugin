@@ -405,6 +405,11 @@ mlir::Operation* createRTLayer(IE::ConvertOp origOp, ArrayRef<mlir::Value> allBu
     return b.create<IERT::ConvertOp>(origOp.getLoc(), newOp.input(), newOp.output_buff());
 }
 
+mlir::Operation* createRTLayer(IE::CopyOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::CopyOp::Adaptor newOp(allBufs);
+    return b.create<IERT::CopyOp>(origOp.getLoc(), newOp.input(), newOp.output_buff());
+}
+
 // static int tt = 0;
 
 mlir::Operation* createRTLayer(IE::ReadValueOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
@@ -798,6 +803,7 @@ mlir::LogicalResult LayerRewrite::matchAndRewrite(mlir::Operation* origOp, Array
     CASE(IE::SubtractOp)
     CASE(IE::ReadValueOp)
     CASE(IE::AssignOp)
+    CASE(IE::CopyOp)
     .Default([](mlir::Operation*) {
         return nullptr;
     });

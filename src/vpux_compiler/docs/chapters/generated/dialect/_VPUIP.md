@@ -35,7 +35,7 @@ Syntax:
 ```
 operation ::= `VPUIP.AssignUPA` attr-dict
               `inputs` `(` $input `:` type($input) `)`
-              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `,` $second_output_buff `:` type($second_output_buff)  `)`
               (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
               (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
               `->` type(results)
@@ -56,6 +56,7 @@ operation ::= `VPUIP.AssignUPA` attr-dict
 | :-----: | ----------- |
 `input` | memref of any type values
 `output_buff` | memref of any type values
+`second_output_buff` | memref of any type values
 `waitBarriers` | VPUIP Barrier Type
 `updateBarriers` | VPUIP Barrier Type
 
@@ -64,6 +65,7 @@ operation ::= `VPUIP.AssignUPA` attr-dict
 | Result | Description |
 | :----: | ----------- |
 `output` | memref of any type values
+`second_output` | memref of any type values
 
 ### `VPUIP.CTCGreedyDecoderSeqLenUPA` (vpux::VPUIP::CTCGreedyDecoderSeqLenUPAOp)
 

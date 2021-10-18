@@ -363,6 +363,30 @@ operation ::= `IE.Convolution` `(` operands `)` attr-dict `:` type(operands) `->
 | :----: | ----------- |
 `output` | ranked tensor of 16-bit float or 32-bit float or QuantizedType values
 
+### `IE.Copy` (vpux::IE::CopyOp)
+
+CopyLayer. TODO: add description
+
+
+Syntax:
+
+```
+operation ::= `IE.Copy` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values
+
 ### `IE.DataInfo` (vpux::IE::DataInfoOp)
 
 Information about InferenceEngine CNN Network input/output Data object

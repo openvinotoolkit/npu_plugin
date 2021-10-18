@@ -692,25 +692,25 @@ def createReadValueUPAOp :
 
 def RewriteReadValue :
        Pat<
-           (IERT_ReadValueOp $input, $second_input, $output, $variable_id),
-           (createReadValueUPAOp $input, $second_input, $output, $variable_id)
+           (IERT_ReadValueOp $input, $second_input, $output2, $variable_id),
+           (createReadValueUPAOp $input, $second_input, $output2, $variable_id)
        >;
 
 //
 // IERT.Assign -> VPUIP.AssignUPA
 //
 
-def createAssignUPAOp :
-        NativeCodeCall<[{
-            $_builder.create<vpux::VPUIP::AssignUPAOp>(
-                $_loc, $0, $1, $2)
-        }]>;
+// def createAssignUPAOp :
+//        NativeCodeCall<[{
+//            $_builder.create<vpux::VPUIP::AssignUPAOp>(
+//                $_loc, $0, $1, $2, $3)
+//        }]>;
 
-def RewriteAssign :
-        Pat<
-            (IERT_AssignOp $input, $output, $variable_id),
-            (createAssignUPAOp $input, $output, $variable_id)
-        >;
+//def RewriteAssign :
+//        Pat<
+//           (IERT_AssignOp $input, $output, $second_output, $variable_id),
+//            (createAssignUPAOp $input, $output, $second_output, $variable_id)
+//        >;
 
 
 #endif
