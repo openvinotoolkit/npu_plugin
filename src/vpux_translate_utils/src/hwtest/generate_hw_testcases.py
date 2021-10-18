@@ -1456,6 +1456,33 @@ def generate_options(args):
                    kernel_shapes=[[1, 1]],
                    output_types=[FP16()],
                    pads=Pad.none),
+
+        # weight palletization notes
+        # --------------------------
+        # 4b mode: weight_types=[Int8(3)]
+        # 2b mode: weight_types=[Int8(1)]
+        # 1b mode: weight_types=[Int8(0)]
+        #
+        # Test case binaries:
+        # - input-0.bin / expected_output.bin:
+        #       - python3 -c "import numpy as np; (np.arange(16).astype(np.int8)+1).tofile('input-0.bin')
+        # - weights.dat
+        #       - python3 -c "import numpy as np; np.identity(16).astype(np.int8).flatten().tofile('weights.dat')"
+        #
+        # TODO: add unique tests for each mode
+        #
+        genZMConvs(input_types=[Int8(2)],
+                   input_shapes=[[1, 16, 1, 1]],
+                   weight_types=[Int8(3)],
+                   kernel_channels=[16],
+                   output_types=[Int8()]),
+
+        genZMConvs(input_types=[UInt8(2)],
+                   input_shapes=[[1, 16, 1, 1]],
+                   weight_types=[UInt8(3)],
+                   kernel_channels=[16],
+                   output_types=[UInt8()]),
+
     )
 
 
