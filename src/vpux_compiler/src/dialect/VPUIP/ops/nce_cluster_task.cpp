@@ -423,6 +423,8 @@ MVCNN::MPE_Mode getMPEMode(VPUIP::MPEMode mpeMode) {
         return MVCNN::MPE_Mode_CUBOID_16x16;
     case VPUIP::MPEMode::CUBOID_8x16:
         return MVCNN::MPE_Mode_CUBOID_8x16;
+    case VPUIP::MPEMode::CUBOID_4x16:
+        return MVCNN::MPE_Mode_CUBOID_4x16;
     case VPUIP::MPEMode::NOP:
         return MVCNN::MPE_Mode_NOP;
     default:

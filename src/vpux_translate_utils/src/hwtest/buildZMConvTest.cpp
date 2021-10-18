@@ -202,7 +202,7 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
                                                    vpux::getIntAttr(builder, paddings[PAD_NCETASK_BOTTOM]),
                                                    builder.getContext());
 
-    nceTask.addDPUTask(functionBuilder, nullptr, start, end, pad, vpux::VPUIP::MPEMode::CUBOID_16x16);
+    nceTask.addDPUTask(functionBuilder, nullptr, start, end, pad, conv.cube_mode);
 
     functionBuilder.create<mlir::ReturnOp>(builder.getUnknownLoc(), functionOutput);
 

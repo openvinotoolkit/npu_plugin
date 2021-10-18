@@ -87,6 +87,7 @@ struct ConvLayer {
     std::int64_t group = 0;
     std::int64_t dilation = 0;
     bool compress = false;
+    vpux::VPUIP::MPEMode cube_mode = vpux::VPUIP::MPEMode::CUBOID_16x16;
 };
 
 struct PoolLayer {
