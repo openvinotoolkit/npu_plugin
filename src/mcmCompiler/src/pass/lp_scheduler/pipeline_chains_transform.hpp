@@ -422,7 +422,7 @@ class Pipeline_Chains {
       size_t clusterMemory = globalParams->get<int>("cmx");
 
       // allow a 15% cmx margin
-      return (2 * input_size + 2 * output_size + shared_weight_size) < (clusterMemory * 0.85);
+      return (2 * input_size + 2 * output_size + shared_weight_size) < (clusterMemory * 0.925);
     }
 
     template<typename SubGraphContainer>
