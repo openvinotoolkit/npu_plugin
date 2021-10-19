@@ -25,8 +25,8 @@ namespace VPUIP {
 
 class NCESparsity final {
 public:
-    using BiasConverterCb = std::int32_t (*)(double);
-    using PPEConverterCb = std::int32_t (*)(unsigned, unsigned, double, mlir::Type);
+    using BiasConverterCb = int32_t (*)(double);
+    using PPEConverterCb = int32_t (*)(unsigned, unsigned, double, mlir::Type);
 
     static const vpux::EnumMap<vpux::VPUIP::ArchKind, PPEConverterCb> ppeConvertersMap;
     static const vpux::EnumMap<vpux::VPUIP::ArchKind, BiasConverterCb> biasConvertersMap;
@@ -37,11 +37,11 @@ public:
     static std::vector<uint8_t> getFakeSparsity(mlir::ArrayRef<int64_t> kernelSize, int64_t strideW,
                                                 mlir::Type elemType, int64_t inputChannels);
 
-    static std::vector<std::int32_t> getWeightsTable(mlir::Type op_inElemType, mlir::Type op_outElemType,
-                                                     std::int32_t weightPtrOffset, std::int32_t weightPtrStep,
-                                                     std::int32_t sparsityPtrOffset, vpux::VPUIP::ArchKind arch,
-                                                     std::int64_t OC, mlir::Type weightsElemType = nullptr,
-                                                     mlir::Value bias = nullptr);
+    static std::vector<int32_t> getWeightsTable(mlir::Type op_inElemType, mlir::Type op_outElemType,
+                                                Optional<int32_t> weightPtrOffset, int32_t weightPtrStep,
+                                                Optional<int32_t> sparsityPtrOffset, vpux::VPUIP::ArchKind arch,
+                                                int64_t OC, mlir::Type weightsElemType = nullptr,
+                                                mlir::Value bias = nullptr);
 };
 
 }  // namespace VPUIP
