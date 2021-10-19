@@ -31,6 +31,7 @@ namespace IE {
 // Passes
 //
 
+std::unique_ptr<mlir::Pass> createUpstreamSlicePass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createUseUserPrecisionPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createUseUserLayout(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createAdjustLayoutsPass(Logger log = Logger::global());
