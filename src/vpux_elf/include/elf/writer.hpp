@@ -13,6 +13,15 @@
 
 #pragma once
 
+#include <elf/writer/section.hpp>
+#include <elf/writer/segment.hpp>
+
+#include <elf/writer/relocation_section.hpp>
+#include <elf/writer/symbol_section.hpp>
+#include <elf/writer/binary_data_section.hpp>
+#include <elf/writer/string_section.hpp>
+#include <elf/writer/empty_section.hpp>
+
 #include <elf/types/data_types.hpp>
 #include <elf/types/section_header.hpp>
 #include <elf/types/program_header.hpp>
@@ -25,44 +34,36 @@ namespace elf {
 
 class Writer {
 public:
-    Writer() = default;
+    Writer();
 
-    void write(const std::string&);
+    void write(const std::string& fileName);
+    void write(std::ostream& stream);
+    void write(std::vector<char>& blob);
 
-    void write(std::ostream&);
+    writer::Segment* addSegment();
 
-    Elf_Half getType() const;
-    void setType(Elf_Half type);
+    writer::RelocationSection* addRelocationSection();
+    writer::SymbolSection* addSymbolSection();
+    writer::EmptySection* addEmptySection();
 
-public:
-    class Section {
-    public:
-        Section() = default;
-
-        Elf_Half getType() const;
-        void setType(Elf_Half type);
-
-    private:
-        Elf64_Shdr m_sectionHeader;
-        std::vector<char> m_data;
-    };
-
-    class Segment {
-    public:
-        Segment() = default;
-
-        Elf_Half getType() const;
-        void setType(Elf_Half type);
-
-    private:
-        Elf64_Phdr m_programHeader;
-        std::vector<char> m_data;
-    };
+    template <typename T>
+    writer::BinaryDataSection<T>* addBinaryDataSection() {
+        m_sections.push_back(std::unique_ptr<writer::BinaryDataSection<T>>(new writer::BinaryDataSection<T>));
+        m_sections.back()->setIndex(m_sections.size() - 1);
+        return dynamic_cast<writer::BinaryDataSection<T>*>(m_sections.back().get());
+    }
 
 private:
-    Elf64_Ehdr m_elfHeader;
-    std::vector<Segment> m_segments;
-    std::vector<Section> m_sections;
+    writer::Section* addSection();
+    writer::StringSection* addStringSection();
+
+    elf::ELFHeader generateELFHeader() const;
+
+private:
+    writer::StringSection* m_sectionHeaderNames;
+    writer::StringSection* m_symbolNames;
+    std::vector<writer::Section::Ptr> m_sections;
+    std::vector<writer::Segment::Ptr> m_segments;
 };
 
 } // namespace elf
