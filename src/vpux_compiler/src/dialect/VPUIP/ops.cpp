@@ -102,7 +102,6 @@ public:
             const auto inDimsOrder = DimsOrder::fromValue(convOp->getOperand(0));
             bool channelMajorConvolution =
                     vpux::VPUIP::isChannelMajorCompatibleOperation(inDimsOrder, inputChannels, inputTensorWidth);
-            std::cout << channelMajorConvolution << std::endl;
         }
 
         const auto inputType = op->getOperand(0).getType().cast<mlir::ShapedType>();

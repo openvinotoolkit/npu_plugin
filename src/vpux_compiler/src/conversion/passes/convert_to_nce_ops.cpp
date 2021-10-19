@@ -38,11 +38,15 @@ using namespace vpux;
 
 namespace {
 
+// The fake sparsity map in VPU2.0 contains a bitmap pattern that is required to configure the NCE engine
+// to perform a MaxPool, DW Conv or Channel Major Convolution. For MaxPool and DWConv convolution the bitmap
+// pattern is only required to be generated as if there is only one input channel. But for channel major
+// convolution it is required to be generated using the number of input channels.
+static constexpr int64_t MAXPOOL_DWCONV_IC_VALUE = 1;
+
 //
 // Utilities
 //
-static constexpr int64_t maxPoolingAndDWCovolutionBitPatternConstant = 1;
-
 const EnumMap<VPUIP::ArchKind, VPUIP::MPEMode> mpeMap = {
         {VPUIP::ArchKind::KMB, VPUIP::MPEMode::VECTOR_FP16},   //
         {VPUIP::ArchKind::TBH, VPUIP::MPEMode::VECTOR_FP16},   //
@@ -225,8 +229,8 @@ mlir::LogicalResult ChannelMajorConvRewrite::matchAndRewrite(IERT::ConvolutionOp
             VPUIP::NCESparsity::getBitPatternSize(kernelSize, kernelStrides[0], origInputType.getElementType(), IC);
 
     const auto actWindowChanLen = getIntAttr(getContext(), bitPatternSize);
-    const auto fakeSparsity = VPUIP::NCESparsity::getFakeSparsity(VPUIP::NCETaskType::CMCONV, kernelSize, kernelStrides[0],
-                                                       origInputType.getElementType(), IC, OC);
+    const auto fakeSparsity = VPUIP::NCESparsity::getFakeSparsity(
+            VPUIP::NCETaskType::CMCONV, kernelSize, kernelStrides[0], origInputType.getElementType(), IC, OC);
     const auto activationWindow = createActivationWindowTensor(rewriter, origOp->getLoc(), fakeSparsity, OC);
 
     //
@@ -240,8 +244,8 @@ mlir::LogicalResult ChannelMajorConvRewrite::matchAndRewrite(IERT::ConvolutionOp
 
     auto outAllocOpCMX = rewriter.create<mlir::memref::AllocOp>(origOp->getLoc(), outTypeCMX);
 
-    auto weightsTable = createWeightsTableTensor(rewriter, origOp->getLoc(), OC, inputDPU, outAllocOpCMX.memref(), filterDPU,
-                                            origOp.bias(), activationWindow);
+    auto weightsTable = createWeightsTableTensor(rewriter, origOp->getLoc(), OC, inputDPU, outAllocOpCMX.memref(),
+                                                 filterDPU, origOp.bias(), activationWindow);
 
     //
     // Create NCE per-cluster Operation
@@ -413,7 +417,7 @@ mlir::LogicalResult MaxPoolRewrite::matchAndRewrite(IERT::MaxPoolOp origOp, mlir
     const auto kernelStrides = parseIntArrayAttr<int64_t>(origOp.strides());
 
     const auto bitPatternSize = VPUIP::NCESparsity::getBitPatternSize(
-            kernelSize, kernelStrides[0], origInputType.getElementType(), maxPoolingAndDWCovolutionBitPatternConstant);
+            kernelSize, kernelStrides[0], origInputType.getElementType(), MAXPOOL_DWCONV_IC_VALUE);
 
     //
     // Prepare input for DPU
@@ -711,7 +715,7 @@ mlir::LogicalResult DepthwiseConvRewrite::matchAndRewrite(IERT::GroupConvolution
     const auto kernelSize = SmallVector<int64_t>{KX, KY};
     const auto kernelStrides = parseIntArrayAttr<int64_t>(origOp.strides());
     const auto bitPatternSize = VPUIP::NCESparsity::getBitPatternSize(
-            kernelSize, kernelStrides[0], origInputType.getElementType(), maxPoolingAndDWCovolutionBitPatternConstant);
+            kernelSize, kernelStrides[0], origInputType.getElementType(), MAXPOOL_DWCONV_IC_VALUE);
     const auto actWindowChanLen = getIntAttr(getContext(), bitPatternSize);
 
     const auto fakeSparsity = VPUIP::NCESparsity::getFakeSparsity(
