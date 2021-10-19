@@ -4396,6 +4396,53 @@
         },
 
         {
+            "name" : "SINGLE_IMAGE_TEST_super_resolution_network_ip_FP32_op_FP32",
+            "ir" : "models/clientmodels/BDK3/SuperRes/AccuracyAware/SuperRes_INT8_AA.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_INFERENCE_TIMEOUT": "60000",
+                "VPUX_THROUGHPUT_STREAMS": "1",
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "VPUX_COMPILATION_MODE": "ReferenceHW"
+            },
+            "Compile" : {
+                "input_layout" : "NCHW",
+                "output_layout" : "NCHW",
+                "input_precision" : "FP32",
+                "output_precision" : "FP32"
+            },
+            "BenchmarkApp" : {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "NetTest": {
+                "inputs" : [["vpu/super_resolution_input/input-0-FP32.bin",
+                             "vpu/super_resolution_input/input-1-FP32.bin",
+                             "vpu/super_resolution_input/input-2-FP32.bin"]],
+                "params" : [
+                    "--color_format", "BGR",
+                    "--mode", "raw",
+                    "--raw_tolerance", "1000",
+                    "--il", "NCHW",
+                    "--ol", "NCHW",
+                    "--ip", "FP32",
+                    "--op", "FP32",
+                    "--img_as_bin"
+                ]
+            },
+            "category" : "MLIR/precommit",
+            "CI-options" : {
+                "blob_name" : "SuperRes_INT8_AA_ip_FP32_op_FP32_temp",
+                "special" : true
+            }
+        },
+
+        {
             "name" : "SINGLE_IMAGE_TEST_por_tf_FP16-INT8_yolo-v2-ava-0001",
             "oldName" : "SINGLE_IMAGE_TEST_kpi_tf_FP16-INT8_yolo-v2-ava-0001_MCM",
             "ir" : "por/yolo-v2-ava-0001/tf/FP16-INT8/yolo-v2-ava-0001.xml",
