@@ -84,6 +84,8 @@ The pass is a part of `AdjustForVPU` pipeline.
 
 This pass splits operations so that they are able to be infered with symmetric strides
     on dpu because of hardware limitation.
+### `-handle-large-strides`: Handle operations with large strides
+This pass splits operations with strides larger than supported on hardware.
 ### `-merge-fake-quant`: Merge back to FakeQuantize
 The pass is a part of `LowPrecision` pipeline.
 

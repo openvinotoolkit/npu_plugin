@@ -18,8 +18,13 @@ class KmbGroupConvolutionLayerTest :
         if (isCompilerMCM()) {
             const auto& params = std::get<0>(GetParam());
             const auto dilations = std::get<4>(params);
+            const auto strides = std::get<1>(params);
             if (dilations.size() == 1 && dilations[0] != 1) {
                 throw LayerTestsUtils::KmbSkipTestException("Assert dilation.at(0) == dilation.at(1)");
+            }
+
+            if (strides.at(0) > 8 || (strides.size() > 1 && strides.at(1) > 8)) {
+                throw LayerTestsUtils::KmbSkipTestException("MCM compiler issues with large strides");
             }
         }
     }
@@ -144,6 +149,11 @@ const auto groupConv2DParams_AutoPadValid = ::testing::Combine(
         ::testing::Values(std::vector<ptrdiff_t>({0, 0})), ::testing::ValuesIn(dilations),
         ::testing::ValuesIn(numOutChannels), ::testing::ValuesIn(numGroups),
         ::testing::Values(ngraph::op::PadType::VALID));
+const auto groupConv2DParams_LargeStrides = ::testing::Combine(
+        ::testing::ValuesIn(kernels), ::testing::Values(std::vector<size_t>({9, 9})),
+        ::testing::Values(std::vector<ptrdiff_t>({0, 0})), ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
+        ::testing::ValuesIn(dilations), ::testing::ValuesIn(numOutChannels), ::testing::ValuesIn(numGroups),
+        ::testing::Values(ngraph::op::PadType::VALID));
 
 INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolution2D_ExplicitPadding, KmbGroupConvolutionLayerTest,
                         ::testing::Combine(groupConv2DParams_ExplicitPadding, ::testing::ValuesIn(netPrecisions),
@@ -159,6 +169,16 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolution2D_AutoPadValid, KmbGroupConvolut
                         ::testing::Combine(groupConv2DParams_AutoPadValid, ::testing::ValuesIn(netPrecisions),
                                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                           ::testing::Values(InferenceEngine::Layout::ANY),
+                                           ::testing::Values(InferenceEngine::Layout::ANY),
+                                           ::testing::Values(std::vector<size_t>({1, 16, 30, 30})),
+                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                        KmbGroupConvolutionLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(smoke_GroupConvolution2D_LargeStrides, KmbGroupConvolutionLayerTest,
+                        ::testing::Combine(groupConv2DParams_LargeStrides, ::testing::ValuesIn(netPrecisions),
+                                           ::testing::Values(InferenceEngine::Precision::FP16),
+                                           ::testing::Values(InferenceEngine::Precision::FP16),
                                            ::testing::Values(InferenceEngine::Layout::ANY),
                                            ::testing::Values(InferenceEngine::Layout::ANY),
                                            ::testing::Values(std::vector<size_t>({1, 16, 30, 30})),

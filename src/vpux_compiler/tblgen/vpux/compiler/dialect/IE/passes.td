@@ -345,6 +345,25 @@ def ConvertToMemPermute : PassBase<"convert-to-mem-permute", "vpux::FunctionPass
     ];
 }
 
+//
+// HandleLargeStrides
+//
+
+def HandleLargeStrides : PassBase<"handle-large-strides", "vpux::FunctionPass"> {
+    let summary = "Handle operations with large strides";
+
+    let description = [{
+        This pass splits operations with strides larger than supported on hardware.
+    }];
+
+    let constructor = "vpux::IE::createHandleLargeStridesPass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
+
+
 //=================================================================================
 // LowPrecision
 //=================================================================================
