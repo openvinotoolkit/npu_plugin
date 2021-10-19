@@ -49,6 +49,7 @@
 #include <legacy/ngraph_ops/lrn_ie.hpp>
 #include <ngraph/function.hpp>
 #include <ngraph/node.hpp>
+#include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset4.hpp>
 #include <ngraph/opsets/opset7.hpp>
 
@@ -56,6 +57,7 @@
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/type/element_type.hpp>
 #include "vpux/passes/convert_MVN6_to_MVN1.hpp"
+#include "vpux/passes/convert_Proposal4_to_Proposal1.hpp"
 
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/common_optimizations/convert_quantize_dequantize.hpp>
@@ -138,7 +140,7 @@ private:
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Divide>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::SquaredDifference>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::FloorMod>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Proposal>& origNode);
+    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::op::v0::Proposal>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::FakeQuantize>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::MatMul>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Tanh>& origNode);
@@ -244,7 +246,7 @@ NGraphImporter::Callback NGraphImporter::getParser(const std::shared_ptr<ngraph:
             MAP_ENTRY(opset_latest::Divide),
             MAP_ENTRY(opset_latest::SquaredDifference),
             MAP_ENTRY(opset_latest::FloorMod),
-            MAP_ENTRY(opset_latest::Proposal),
+            MAP_ENTRY(ngraph::op::v0::Proposal),
             MAP_ENTRY(opset_latest::FakeQuantize),
             MAP_ENTRY(opset_latest::MatMul),
             MAP_ENTRY(opset_latest::Tanh),
@@ -767,8 +769,8 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
     addOutputs(origNode, op);
 }
 
-void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Proposal>& origNode) {
-    static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v4::Proposal>::value,
+void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::op::v0::Proposal>& origNode) {
+    static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v0::Proposal>::value,
                   "opset operation mismatch");
 
     const auto inputs = getInputs(origNode);
@@ -1826,6 +1828,7 @@ void runNGraphPasses(const std::shared_ptr<ngraph::Function>& netGraph, mlir::Ti
     manager.register_pass<vpux::passes::CleanUpFQ>();
 
     manager.register_pass<vpux::passes::ConvertMVN6toMVN1>();
+    //manager.register_pass<vpux::passes::ConvertProposal4toProposal1>();
     manager.register_pass<ngraph::pass::ConvertLRNToLegacyMatcher>();
     manager.register_pass<vpux::passes::ConvertVariadicSplitToStridedSliceOp>();
 
