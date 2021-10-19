@@ -1,29 +1,28 @@
-#ifndef ELF_COMPILER_DIALECT_ELF
-#define ELF_COMPILER_DIALECT_ELF
+//
+// Copyright 2021 Intel Corporation.
+//
+// LEGAL NOTICE: Your use of this software and any required dependent software
+// (the "Software Package") is subject to the terms and conditions of
+// the Intel(R) OpenVINO(TM) Distribution License for the Software Package,
+// which may also include notices, disclaimers, or license terms for
+// third party or open source software included in or with the Software Package,
+// and your use indicates your acceptance of all such terms. Please refer
+// to the "third-party-programs.txt" or other similarly-named text file
+// included with the Software Package for additional details.
+//
+
+#ifndef VPUX_COMPILER_DIALECT_ELF
+#define VPUX_COMPILER_DIALECT_ELF
 
 include "mlir/IR/OpBase.td"
-//include "mlir/Interfaces/SideEffectInterfaces.td"
 
-
-// Alex: This def is not included in Ops.h.inc, but here in this folder in
-//   Dialect.h and in ../mlir/Dialect.cpp (the implementation of the ToyDialect
-//   constructor).
-// Provide a definition of the 'ELF' dialect in the ODS framework so that we
-// can define our operations.
+// Provide a definition of the ELF dialect in the ODS framework
 def ELF_Dialect : Dialect {
   let name = "ELF";
 
-  //let cppNamespace = "::mlir::elf";
   let cppNamespace = "::vpux::ELF";
 
   let dependentDialects = [
-    /*
-    "vpux::Const::ConstDialect",
-    "vpux::IE::IEDialect",
-    "vpux::IERT::IERTDialect",
-    "mlir::StandardOpsDialect",
-    "mlir::quant::QuantizationDialect"
-    */
     "vpux::IERT::IERTDialect",
     "vpux::VPUIPRegMapped::VPUIPRegMappedDialect"
   ];

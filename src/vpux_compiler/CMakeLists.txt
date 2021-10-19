@@ -267,12 +267,11 @@ add_struct_attrs("VPUIP")
 add_types("VPUIP")
 add_passes("dialect/VPUIP" "VPUIP")
 
-# Alex
 add_dialect("ELF")
 #add_op_interfaces("dialect/ELF")
 add_enum_attrs("ELF")
 #add_struct_attrs("ELF")
-add_types("ELF") # 2021_10_01
+add_types("ELF")
 add_passes("dialect/ELF" "ELF")
 
 add_dialect("VPUIPRegMapped")

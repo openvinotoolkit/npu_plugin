@@ -18,7 +18,10 @@ include "vpux/compiler/core/attributes.td"
 include "vpux/compiler/dialect/ELF/dialect.td"
 
 
-// Inspired from VPUIP's dialect "def VPUIP_PhysicalProcessor"
+//
+// SectionTypeAttr
+//
+
 def ELF_SectionTypeAttr :
         StrEnumAttr<
             "SectionTypeAttr",
@@ -66,29 +69,34 @@ def ELF_SectionTypeAttr :
     let genSpecializedAttr = 1;
 }
 
+
+//
+// SectionFlagsAttr
+//
+
 def ELF_SectionFlagsAttr :
-        StrEnumAttr<
+        BitEnumAttr<
             "SectionFlagsAttr",
             "Enum for describing ELF section flags (we have also cases encountered with OR)",
             [
                 // Cases are taken from elfio/elf_types.hpp
-                StrEnumAttrCase<"SHF_WRITE",               0x1>,
-                StrEnumAttrCase<"SHF_ALLOC",               0x2>,
-                StrEnumAttrCase<"SHF_EXECINSTR",           0x4>,
-                StrEnumAttrCase<"SHF_ALLOC_OR_EXECINSTR",  0x6>, // NEW: Ored
-                StrEnumAttrCase<"SHF_MERGE",               0x10>,
-                StrEnumAttrCase<"SHF_STRINGS",             0x20>,
-                StrEnumAttrCase<"SHF_INFO_LINK",           0x40>,
-                StrEnumAttrCase<"SHF_LINK_ORDER",          0x80>,
-                StrEnumAttrCase<"SHF_OS_NONCONFORMING",    0x100>,
-                StrEnumAttrCase<"SHF_GROUP",               0x200>,
-                StrEnumAttrCase<"SHF_TLS",                 0x400>,
-                //StrEnumAttrCase<"SHF_MASKOS",              0x0ff00000>,
-                // error: enumerator value ‘4026531840’ is outside the range of underlying type ‘int’: StrEnumAttrCase<"SHF_MASKPROC",         0xF0000000>,
+                BitEnumAttrCase<"SHF_NONE",                0x0>, // Added by Alex
+                BitEnumAttrCase<"SHF_WRITE",               0x1>,
+                BitEnumAttrCase<"SHF_ALLOC",               0x2>,
+                BitEnumAttrCase<"SHF_EXECINSTR",           0x4>,
+                BitEnumAttrCase<"SHF_ALLOC_OR_EXECINSTR",  0x6>, // NEW: Ored
+                BitEnumAttrCase<"SHF_MERGE",               0x10>,
+                BitEnumAttrCase<"SHF_STRINGS",             0x20>,
+                BitEnumAttrCase<"SHF_INFO_LINK",           0x40>,
+                BitEnumAttrCase<"SHF_LINK_ORDER",          0x80>,
+                BitEnumAttrCase<"SHF_OS_NONCONFORMING",    0x100>,
+                BitEnumAttrCase<"SHF_GROUP",               0x200>,
+                BitEnumAttrCase<"SHF_TLS",                 0x400>,
+                //BitEnumAttrCase<"SHF_MASKOS",              0x0ff00000>,
+                // error: enumerator value ‘4026531840’ is outside the range of underlying type ‘int’: BitEnumAttrCase<"SHF_MASKPROC",         0xF0000000>,
             ]
         > {
     let cppNamespace = "vpux::ELF";
-    let genSpecializedAttr = 1;
 }
 
 
