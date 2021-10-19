@@ -1828,7 +1828,7 @@ void runNGraphPasses(const std::shared_ptr<ngraph::Function>& netGraph, mlir::Ti
     manager.register_pass<vpux::passes::CleanUpFQ>();
 
     manager.register_pass<vpux::passes::ConvertMVN6toMVN1>();
-    //manager.register_pass<vpux::passes::ConvertProposal4toProposal1>();
+    manager.register_pass<vpux::passes::ConvertProposal4toProposal1>();
     manager.register_pass<ngraph::pass::ConvertLRNToLegacyMatcher>();
     manager.register_pass<vpux::passes::ConvertVariadicSplitToStridedSliceOp>();
 
