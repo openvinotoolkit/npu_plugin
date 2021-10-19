@@ -34,6 +34,10 @@ class KmbPoolingLayerTest : public PoolingLayerTest, virtual public LayerTestsUt
                 throw LayerTestsUtils::KmbSkipTestException("MCM compiler issues with asymmetric strides");
             }
 
+            if (strides[0] > 8 || strides[1] > 8) {
+                throw LayerTestsUtils::KmbSkipTestException("MCM compiler issues with large strides");
+            }
+
             if (poolType == ngraph::helpers::PoolingTypes::AVG && roundingMode == ngraph::op::RoundingType::CEIL) {
                 throw LayerTestsUtils::KmbSkipTestException("MCM compiler issues with AVG pool & CEIL rounding mode");
             }
@@ -220,6 +224,29 @@ INSTANTIATE_TEST_CASE_P(smoke_Pooling_LargeSize2, KmbPoolingLayerTest,
                                            ::testing::Values(Layout::ANY),                        // inLayout
                                            ::testing::Values(Layout::ANY),                        // outLayout
                                            ::testing::ValuesIn<SizeVector>({{1, 16, 256, 256}}),  // inputShapes
+                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),  //
+                        PoolingLayerTest::getTestCaseName);
+
+/* ============= LargeStrides ============= */
+
+const auto pool_LargeStrides = ::testing::Combine(::testing::Values(PoolingTypes::MAX),                 //
+                                                  ::testing::ValuesIn<SizeVector>({{3, 3}, {11, 11}}),  // kernels
+                                                  ::testing::ValuesIn<SizeVector>({{9, 9}}),            // strides
+                                                  ::testing::ValuesIn<SizeVector>({{0, 0}}),            // padBegins
+                                                  ::testing::ValuesIn<SizeVector>({{0, 0}}),            // padEnds
+                                                  ::testing::Values(ngraph::op::RoundingType::FLOOR),   //
+                                                  ::testing::Values(ngraph::op::PadType::VALID),        //
+                                                  ::testing::Values(false)                              // excludePad
+);
+
+INSTANTIATE_TEST_CASE_P(smoke_Pooling_LargeStrides, KmbPoolingLayerTest,
+                        ::testing::Combine(pool_LargeStrides,                                   //
+                                           ::testing::Values(Precision::FP16),                  // netPrc
+                                           ::testing::Values(Precision::FP16),                  // inPrc
+                                           ::testing::Values(Precision::FP16),                  // outPrc
+                                           ::testing::Values(Layout::ANY),                      // inLayout
+                                           ::testing::Values(Layout::ANY),                      // outLayout
+                                           ::testing::ValuesIn<SizeVector>({{1, 16, 64, 64}}),  // inputShapes
                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),  //
                         PoolingLayerTest::getTestCaseName);
 
