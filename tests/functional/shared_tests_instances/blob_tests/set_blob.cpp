@@ -10,18 +10,18 @@ using namespace LayerTestsUtils;
 
 namespace BehaviorTestsDefinitions {
 
-class VpuxBehaviorTestsSetBlob : public SetBlobTest {};
+using VpuxBehaviorTestsSetBlob = SetBlobTest;
 
 TEST_P(VpuxBehaviorTestsSetBlob, InternalPluginPrecisionConvert) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    if (getBackendName(*getCore()).empty()) {
+    const auto backendName = getBackendName(*getCore());
+    if (backendName.empty()) {
         GTEST_SKIP() << "No devices available. Test is skipped";
-    }
-    if (getBackendName(*getCore()) == "LEVEL0") {
+    } else if (backendName == "LEVEL0") {
         GTEST_SKIP() << "CumSum layer is not supported by MTL platform";
     }
 #if defined(__arm__) || defined(__aarch64__)
-    GTEST_SKIP() << "CumSum layer is not supported by MTL platform";
+    GTEST_SKIP() << "CumSum layer is not supported by ARM platform";
 #endif
     SetBlobTest::Run();
 }
