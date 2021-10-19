@@ -190,6 +190,10 @@ ActKernelDesc compileKernelForACTShave(const CompilationUnitDesc & unitDesc,
         textBinary.push_back(0xFC);
         textBinary.push_back(0xCC);
     }
+    for (int i = 0; i != 512; i++) {
+        dataBinary.push_back(0xFC);
+        dataBinary.push_back(0xCC);
+    }
 
     ActKernelDesc result;
 
