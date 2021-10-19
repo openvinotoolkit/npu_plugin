@@ -73,9 +73,9 @@ int32_t getWeightPtrStep(VPUIP::WeightsTableOp createWTableOp) {
     return checked_cast<int32_t>(IC * KY * KX * eltSize.count());
 }
 
-int32_t getTensorPtrOffset(mlir::Value input, const AliasesInfo* aliasInfo) {
+Optional<int32_t> getTensorPtrOffset(mlir::Value input, const AliasesInfo* aliasInfo) {
     if (input == nullptr) {
-        return 0;
+        return None;
     }
 
     auto output_buff = aliasInfo->getRoot(input);
