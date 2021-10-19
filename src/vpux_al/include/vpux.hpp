@@ -142,7 +142,7 @@ public:
         return _actual->getPhysicalAddress(handle);
     }
 
-    ~AllocatorWrapper() {
+    virtual ~AllocatorWrapper() {
         _actual = nullptr;
     };
 };
