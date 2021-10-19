@@ -90,17 +90,21 @@ void LinearScanHandler::deallocate(mlir::Value val) {
     _valOffsets.erase(val);
 }
 
-mlir::Value* LinearScanHandler::getSmallestBufferAlive() {
-    mlir::Value* smallestAlive = nullptr;
-    AddressType smallestSize = std::numeric_limits<AddressType>::max();
+SmallVector<mlir::Value*> LinearScanHandler::getIncreasingSizeOrderAlive() {
+    SmallVector<std::pair<mlir::Value*, AddressType>> orderBuffers;
     for (auto& alive : _aliveValues) {
         AddressType size = getSize(alive);
-        if (smallestSize > size) {
-            smallestAlive = &alive;
-            smallestSize = size;
-        }
+        orderBuffers.push_back(std::make_pair(&alive, size));
     }
-    return smallestAlive;
+    llvm::sort(orderBuffers.begin(), orderBuffers.end(),
+               [](const std::pair<mlir::Value*, AddressType>& val1, const std::pair<mlir::Value*, AddressType>& val2) {
+                   return val1.second < val2.second;
+               });
+    SmallVector<mlir::Value*> orderedBuffers;
+    for (auto& buf : orderBuffers) {
+        orderedBuffers.push_back(buf.first);
+    }
+    return orderedBuffers;
 }
 
 void LinearScanHandler::freed(mlir::Value val) {

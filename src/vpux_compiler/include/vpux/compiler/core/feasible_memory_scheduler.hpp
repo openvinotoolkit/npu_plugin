@@ -125,6 +125,12 @@ public:
                 state_ = EOpState::CONSUMED;
             }
         }
+        void incrementConsumers() {
+            if (!outstandingConsumers_) {
+                state_ = EOpState::SPILLED;
+            }
+            ++outstandingConsumers_;
+        }
         EOpState state_;
         size_t outstandingConsumers_;
     };
@@ -225,6 +231,9 @@ private:
     void populateScheduledOps(HeapElement& scheduledOp);
     vpux::AddressType calculateOpSize(operationIdxType opIdx);
     void evictActiveOp(operationIdxType opIdx, mlir::Value* buffer);
+    size_t evictionPriority(mlir::async::ExecuteOp& op);
+    mlir::Value* chooseCandidateForEviction(llvm::SmallVector<mlir::Value*> orderedBuffers);
+    mlir::async::ExecuteOp retrieveBufferOwner(mlir::Value* buffer);
     void forceScheduleActiveOpEviction();
 
 private:

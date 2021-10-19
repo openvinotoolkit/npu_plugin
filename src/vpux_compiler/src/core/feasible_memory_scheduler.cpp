@@ -137,14 +137,16 @@ void FeasibleMemoryScheduler::unscheduleOp(const HeapElement& helement) {
     _log.nest().trace("Free non alive buffers");
     _scan.freeNonAlive();
 
-    // decrement consumers of the op
+    // update consumers of op dependencies (consumed by this op)
     for (auto dep : _depsInfo.getOpDeps(helement.op_)) {
-        _opOutputTable.find(dep)->second.decrementConsumers();
+        auto depOutput = _opOutputTable.find(dep);
+        if (depOutput->second.active()) {
+            depOutput->second.decrementConsumers();
+        }
     }
-
-    auto _opOutput = _opOutputTable.find(helement.op_);
-    if (_opOutput->second.consumed()) {
-        _opOutput->second.changeStateToConsumed();
+    auto opOutput = _opOutputTable.find(helement.op_);
+    if (opOutput->second.consumed()) {
+        opOutput->second.changeStateToConsumed();
     }
 }
 
@@ -152,7 +154,6 @@ bool FeasibleMemoryScheduler::isComputeOpWithSomeActiveInputs(operationIdxType o
     if (isDataOp(opIdx)) {
         return false;
     }
-    // TODO-EISW-21295: might need to port: active_resource_table
     auto opAllDeps = _depsInfo.getOpDeps(opIdx);
     auto opDeps = getSortedBuffers(opIdx);
     // number of buffers needing allocation smaller than number of buffers used by the op
@@ -184,18 +185,22 @@ void FeasibleMemoryScheduler::distributeReadyOps(llvm::ArrayRef<operationIdxType
     _log = _log.nest();
     for (auto& readyOp : readyOps) {
         vpux::AddressType opSize = calculateOpSize(readyOp);
+        auto pair = std::make_pair(readyOp, opSize);
         if (isDataOp(readyOp)) {
-            // TODO-EISW-21295: verify op not already in ready data ops
+            VPUX_THROW_UNLESS(_readyDataOps.find(pair) == _readyDataOps.end(),
+                              "Operation already in the ready data list");
             _readyDataOps.insert(std::make_pair(readyOp, opSize));
             _log.trace("Add to ready data ops '{0}'", readyOp);
             llvm::SmallVector<operationIdxType> newReadyOps = reduceInDegreeOfAdjacentOperations(readyOp);
             distributeReadyOps(newReadyOps);
         } else if (isComputeOpWithSomeActiveInputs(readyOp)) {
-            // TODO-EISW-21295: verify op not already in active compute ops
+            VPUX_THROW_UNLESS(_activeComputeOps.find(pair) == _activeComputeOps.end(),
+                              "Operation already in active compute list");
             _activeComputeOps.insert(std::make_pair(readyOp, opSize));
             _log.trace("Add to active compute ops '{0}'", readyOp);
         } else {
-            // TODO-EISW-21295: verify op not already in ready compute ops
+            VPUX_THROW_UNLESS(_readyComputeOps.find(pair) == _readyComputeOps.end(),
+                              "Operation already in ready compute list");
             _readyComputeOps.insert(std::make_pair(readyOp, opSize));
             _log.trace("Add to ready compute ops '{0}'", readyOp);
         }
@@ -394,36 +399,69 @@ void FeasibleMemoryScheduler::scheduleAllPossibleReadyOpsAndUpdate(
 
 void FeasibleMemoryScheduler::evictActiveOp(operationIdxType opIdx, mlir::Value* buffer) {
     auto opOutput = _opOutputTable.find(opIdx);
-    assert(opOutput != _opOutputTable.end() && opOutput->second.active());
+    VPUX_THROW_UNLESS(opOutput != _opOutputTable.end() && opOutput->second.active(),
+                      "Attempt to evict an invalid operation");
     opOutput->second.changeStateToSpilled();
+    // increment consumers of dependencies due to spilled op
+    for (auto dep : _depsInfo.getOpDeps(opIdx)) {
+        auto depOutput = _opOutputTable.find(dep);
+        depOutput->second.incrementConsumers();
+    }
     auto buf = *buffer;
 
     _scan.handler().markAsDead(buf);
     _scan.freeNonAlive();
 }
 
+mlir::async::ExecuteOp FeasibleMemoryScheduler::retrieveBufferOwner(mlir::Value* buffer) {
+    mlir::Operation* owner = nullptr;
+    // TODO: always choose last user ?
+    for (auto user : buffer->getUsers()) {
+        owner = user->getParentOp();
+    }
+    return mlir::cast<mlir::async::ExecuteOp>(*owner);
+}
+
+size_t FeasibleMemoryScheduler::evictionPriority(mlir::async::ExecuteOp& op) {
+    size_t opIdx = checked_cast<size_t>(_depsInfo.getIndex(op));
+    // TODO: EISW-21937 add other conditions such as:
+    // cmx concatable, pipelined, multiple outdegree (prefetch)
+
+    // For now only prioritize DMAs to be spilled
+    return (!isDataOp(opIdx)) ? 1UL : 0UL;
+}
+
+mlir::Value* FeasibleMemoryScheduler::chooseCandidateForEviction(llvm::SmallVector<mlir::Value*> orderedBuffers) {
+    mlir::Value* candidate = nullptr;
+    size_t smallestPriority = std::numeric_limits<size_t>::max();
+    // select the smallest buffer with the smallest priority
+    for (auto buffer : orderedBuffers) {
+        auto owner = retrieveBufferOwner(buffer);
+        size_t currPriority = evictionPriority(owner);
+        if (currPriority < smallestPriority) {
+            smallestPriority = currPriority;
+            candidate = buffer;
+        }
+    }
+    return candidate;
+}
+
 void FeasibleMemoryScheduler::forceScheduleActiveOpEviction() {
     std::cout << "choose_active_operation_for_eviction" << std::endl;
-    auto smallestAlive = _scan.handler().getSmallestBufferAlive();
-    VPUX_THROW_UNLESS(smallestAlive != nullptr, "Failed, nothing to spill");
+    auto orderedBuffers = _scan.handler().getIncreasingSizeOrderAlive();
+    VPUX_THROW_UNLESS(!orderedBuffers.empty(), "Failed, nothing to spill");
 
-    std::cout << "smallest buffer alive size " << _scan.handler().getSize(*smallestAlive) << std::endl;
-    (*smallestAlive).dump();
+    auto evictionCandidateBuffer = chooseCandidateForEviction(orderedBuffers);
+    evictionCandidateBuffer->dump();
+    auto bufferOwner = retrieveBufferOwner(evictionCandidateBuffer);
+    size_t candidateIdx = _depsInfo.getIndex(bufferOwner);
 
-    // TODO: assert only 1 user, or always choose last user ?
-    mlir::Operation* parentOp = nullptr;
-    for (auto user : (*smallestAlive).getDefiningOp()->getUsers()) {
-        user->dump();
-        parentOp = user->getParentOp();
-    }
-    auto execOp = mlir::cast<mlir::async::ExecuteOp>(*parentOp);
-
-    // return;
-
-    size_t candidateIdx = _depsInfo.getIndex(execOp);
-    std::cout << "Candidate for spill: " << candidateIdx << std::endl;
-    evictActiveOp(candidateIdx, smallestAlive);
+    std::cout << "candidate for spill: " << candidateIdx << std::endl;
+    evictActiveOp(candidateIdx, evictionCandidateBuffer);
     _opOutputTable[candidateIdx].changeStateToSpilled();
+
+    auto opOutput = _opOutputTable.find(candidateIdx);
+    opOutput->second.outstandingConsumers_++;
 
     // TODO: update _activeComputeOps some may no longer be active
     pushToStartTimeHeap(HeapElement(candidateIdx, _currentTime, EOpType::IMPLICIT_OP_WRITE));
