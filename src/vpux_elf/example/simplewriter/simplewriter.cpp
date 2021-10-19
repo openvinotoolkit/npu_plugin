@@ -13,10 +13,105 @@
 
 #include <elf/writer.hpp>
 
+struct DMATask {
+    int x;
+    double y;
+};
+
+struct Invariant {
+    float c;
+};
+
+struct Variant {
+    char z;
+};
+
+struct Handle {
+    uint32_t ptr;
+    uint64_t size;
+};
+
+struct MappedInference {
+    Handle dma;
+    Handle inv;
+    Handle var;
+};
+
 int main() {
     elf::Writer elf;
-    elf.setType(elf::ET_NONE);
-    elf.write("blob.elf");
+
+    //
+    // SymbolSection
+    //
+
+    auto symbolSection = elf.addSymbolSection();
+    symbolSection->setName(".symtab");
+
+    auto input = symbolSection->addSymbolEntry();
+    input->setName(".input");
+
+    auto output = symbolSection->addSymbolEntry();
+    output->setName(".output");
+
+    //
+    // Weights
+    //
+
+    auto weights = elf.addSegment();
+    weights->setType(elf::PT_LOAD);
+    weights->addData("11111", 5);
+
+    //
+    // MappedInference data
+    //
+
+    auto mappedInferenceStruct = elf.addBinaryDataSection<MappedInference>();
+    mappedInferenceStruct->setName(".text.MappedInference");
+    mappedInferenceStruct->setAddrAlign(64);
+    mappedInferenceStruct->addData(MappedInference());
+
+    auto dmaTasks = elf.addBinaryDataSection<DMATask>();
+    dmaTasks->setName(".text.dmaTasks");
+    dmaTasks->setAddrAlign(64);
+    dmaTasks->addData(DMATask());
+
+    auto invariants = elf.addBinaryDataSection<Invariant>();
+    invariants->setName(".text.invariants");
+    invariants->setAddrAlign(64);
+    invariants->addData(Invariant());
+
+    auto variants = elf.addBinaryDataSection<Variant>();
+    variants->setName(".text.variants");
+    variants->setAddrAlign(64);
+    variants->addData(Variant());
+    variants->addData(Variant());
+    variants->addData(Variant());
+
+    auto mappedInferenceSegment = elf.addSegment();
+    mappedInferenceSegment->setType(elf::PT_LOAD);
+    mappedInferenceSegment->addSection(mappedInferenceStruct);
+    mappedInferenceSegment->addSection(dmaTasks);
+    mappedInferenceSegment->addSection(invariants);
+    mappedInferenceSegment->addSection(variants);
+
+    //
+    // Relocations
+    //
+
+    auto dmaTasksRelocation = elf.addRelocationSection();
+    dmaTasksRelocation->setSymbolTable(symbolSection);
+    dmaTasksRelocation->setSectionToPatch(dmaTasks);
+    dmaTasksRelocation->setName(".rela.dma");
+
+    auto inputDMA = dmaTasksRelocation->addRelocationEntry();
+    inputDMA->setSymbol(input);
+    inputDMA->setAddend(0);
+
+    auto outputDMA = dmaTasksRelocation->addRelocationEntry();
+    outputDMA->setSymbol(output);
+    outputDMA->setAddend(0);
+
+    elf.write("nn.elf");
 
     return 0;
 }
