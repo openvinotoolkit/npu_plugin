@@ -68,7 +68,7 @@ int64_t getWindowSize(int64_t kernelW, int64_t strideW, mlir::Type elemType) {
 
     // Window size is limited to 32 bytes by HW. Size of the data type
     // needs to be accounted to find the max (32 for U8, 16 for FP16)
-    int64_t maxWindowSize = 32 / (typeSizeInBits.count() / 8);
+    const int64_t maxWindowSize = 32 / (typeSizeInBits.count() / 8);
 
     int64_t windowSize = 0;
     int mpeNum = 1;
@@ -321,7 +321,6 @@ std::vector<uint8_t> vpux::VPUIP::NCESparsity::getFakeSparsity(vpux::VPUIP::NCET
     // but it will have to have an activation window pointer,
     // which is regarded as "fake sparsity"
     SmallVector<uint8_t> perChannelSparsity;
-    perChannelSparsity.resize(perChannelSparsitySize);
 
     if (taskType == NCETaskType::CMCONV) {
         const auto windowSparsitySize = std::ceil(windowSize / 8.0);
@@ -330,6 +329,8 @@ std::vector<uint8_t> vpux::VPUIP::NCESparsity::getFakeSparsity(vpux::VPUIP::NCET
     } else if (taskType == NCETaskType::DWCONV || taskType == NCETaskType::AVEPOOL ||
                taskType == NCETaskType::MAXPOOL) {
         perChannelSparsity.resize(perChannelSparsitySize);
+    } else {
+        VPUX_THROW("Unsupported task type '{0}'", taskType);
     }
 
     // Repackaging each byte from bitPattern to a bit from fakeSparsity
