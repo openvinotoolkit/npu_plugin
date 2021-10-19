@@ -37,10 +37,10 @@ using RelocationEntry = Elf64_Rel;
 using RelocationAEntry = Elf64_Rela;
 
 //! Extract symbol index from info
-Elf_Xword elf64RSym(Elf_Xword info);
+Elf_Word elf64RSym(Elf_Xword info);
 
 //! Extract relocation type from info
-Elf_Xword elf64RType(Elf_Xword info);
+Elf_Word elf64RType(Elf_Xword info);
 
 //! Pack relocation type and symbol index into info
 Elf_Xword elf64RInfo(Elf_Word sym, Elf_Word type);

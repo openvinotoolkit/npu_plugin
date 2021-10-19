@@ -16,16 +16,16 @@
 using namespace elf;
 
 //! Extract symbol binding attributes from info
-Elf_Xword elf64STBind(Elf_Xword info) {
+Elf_Xword elf::elf64STBind(Elf_Xword info) {
     return info >> 4;
 }
 
 //! Extract symbol type from info
-Elf_Xword elf64STType(Elf_Xword info) {
+Elf_Xword elf::elf64STType(Elf_Xword info) {
     return info & 0xf;
 }
 
 //! Pack symbol binding attributes and symbol type into info
-Elf_Xword elf64STInfo(Elf_Word bind, Elf_Word type) {
+Elf_Xword elf::elf64STInfo(Elf_Word bind, Elf_Word type) {
     return (bind << 4) + (type & 0xf);
 }
