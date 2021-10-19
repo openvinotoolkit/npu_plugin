@@ -473,7 +473,7 @@ def IERT_ConvolutionOp :
     let arguments = (ins
         MemRefOf<[F16, F32, quant_QuantizedType]>:$input,
         MemRefOf<[F16, F32, quant_QuantizedType]>:$filter,
-        Optional<MemRefOf<[F16, F32, quant_QuantizedType]>>:$bias,
+        Optional<MemRefOf<[F16, F32]>>:$bias,
         MemRefOf<[F16, F32, quant_QuantizedType]>:$output_buff,
 
         I64ArrayAttr:$strides,
@@ -503,17 +503,16 @@ def IERT_ConvolutionOp :
 def IERT_GroupConvolutionOp :
         IERT_LayerOp<1, "GroupConvolution",
             [
-                ViewLikeOpInterface,
-                SameOperandsElementType
+                ViewLikeOpInterface
             ]
         > {
     let summary = "InferenceEngine run-time GroupConvolution layer";
 
     let arguments = (ins
-        MemRefOf<[F16, F32]>:$input,
-        MemRefOf<[F16, F32]>:$filter,
+        MemRefOf<[F16, F32, quant_QuantizedType]>:$input,
+        MemRefOf<[F16, F32, quant_QuantizedType]>:$filter,
         Optional<MemRefOf<[F16, F32]>>:$bias,
-        MemRefOf<[F16, F32]>:$output_buff,
+        MemRefOf<[F16, F32, quant_QuantizedType]>:$output_buff,
 
         I64ArrayAttr:$strides,
         I64ArrayAttr:$pads_begin,
@@ -525,7 +524,7 @@ def IERT_GroupConvolutionOp :
     );
 
     let results = (outs
-        MemRefOf<[F16, F32]>:$output
+        MemRefOf<[F16, F32, quant_QuantizedType]>:$output
     );
 
     let assemblyFormat = [{

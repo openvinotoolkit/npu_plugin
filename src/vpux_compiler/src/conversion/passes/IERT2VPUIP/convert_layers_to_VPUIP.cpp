@@ -180,7 +180,7 @@ mlir::LogicalResult FullyConnectedRewrite::matchAndRewrite(IERT::FullyConnectedO
 
     const std::array<int64_t, 1> newBiasShape = {origBiasShape[1]};
     const auto newBiasType = changeShape(origBiasType, ShapeRef(newBiasShape));
-    ;
+
     auto newBias = rewriter.create<IERT::GenericReshapeOp>(origOp->getLoc(), newBiasType, origOp.bias());
 
     rewriter.replaceOpWithNewOp<VPUIP::FullyConnectedUPAOp>(origOp, origOp.input(), origOp.weights(), newBias.output(),

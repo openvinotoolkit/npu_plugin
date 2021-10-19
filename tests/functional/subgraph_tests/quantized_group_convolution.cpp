@@ -59,16 +59,24 @@ class KmbQuantGroupConvLayerTest : public QuantGroupConvLayerTest, virtual publi
         weightsShapes.insert(weightsShapes.end(), kernel.begin(), kernel.end());
 
         std::vector<float> weightsData;
-        auto weightsNode = ngraph::builder::makeConstant(ngPrc, weightsShapes, weightsData, weightsData.empty());
-
-        std::vector<size_t> weightsFqConstShapes(weightsShapes.size(), 1);
-        if (quantGranularity == ngraph::helpers::Perchannel)
-            weightsFqConstShapes[0] = weightsShapes[0];
-
         std::shared_ptr<ngraph::Node> weights;
         if (quantizeWeights) {
-            weights = ngraph::builder::makeFakeQuantize(weightsNode, ngPrc, quantLevels, weightsFqConstShapes, {0}, {255}, {0}, {255});
+            std::vector<size_t> fqWeightsShapes {convOutChannels, inputShape[1] / numGroups};
+            fqWeightsShapes.insert(fqWeightsShapes.end(), kernel.begin(), kernel.end());
+
+            std::vector<size_t> weightsFqConstShapes(inputShape.size(), 1);
+            if (quantGranularity == ngraph::helpers::Perchannel)
+                weightsFqConstShapes[0] = fqWeightsShapes[0];
+
+            auto weightsNode = ngraph::builder::makeConstant(ngPrc, fqWeightsShapes, weightsData, weightsData.empty());
+            auto fqNode = ngraph::builder::makeFakeQuantize(weightsNode, ngPrc, quantLevels, weightsFqConstShapes, {0}, {255}, {0}, {255});
+
+            auto constNode = std::make_shared<ngraph::opset1::Constant>(
+                    ngraph::element::Type_t::i64, ngraph::Shape{weightsShapes.size()}, weightsShapes);
+            weights = std::dynamic_pointer_cast<ngraph::opset1::Reshape>(
+                    std::make_shared<ngraph::opset1::Reshape>(fqNode, constNode, false));
         } else {
+            auto weightsNode = ngraph::builder::makeConstant(ngPrc, weightsShapes, weightsData, weightsData.empty());
             weights = weightsNode;
         }
 
@@ -119,7 +127,7 @@ const std::vector<size_t> numGroups = {3};
 
 const std::vector<size_t> levels = {256};
 const std::vector<QuantizationGranularity> granularity = {Pertensor, Perchannel};
-const std::vector<bool> quantizeWeights2D = {false};
+const std::vector<bool> quantizeWeights2D = {true};
 
 /* ============= 2D GroupConvolution ============= */
 const std::vector<std::vector<size_t>> inputShapes2D = {{1, 3, 10, 10}, {1, 24, 10, 10}};
