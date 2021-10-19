@@ -19,13 +19,13 @@ using namespace elf;
 // Reader
 //
 
-Reader::Reader(char* blob, size_t) : m_blob(blob), m_elfHeader(reinterpret_cast<decltype(m_elfHeader)>(blob)) {
+Reader::Reader(const char* blob, size_t) : m_blob(blob), m_elfHeader(reinterpret_cast<decltype(m_elfHeader)>(blob)) {
     m_sectionHeadersStart = reinterpret_cast<const SectionHeader*>(m_blob + m_elfHeader->e_shoff);
     m_programHeadersStart = reinterpret_cast<const ProgramHeader*>(m_blob + m_elfHeader->e_phoff);
     m_sectionHeadersNames = m_blob + (m_sectionHeadersStart + m_elfHeader->e_shstrndx)->sh_offset;
 }
 
-char* Reader::getBlob() {
+const char* Reader::getBlob() const {
     return m_blob;
 }
 
@@ -60,7 +60,7 @@ Reader::Segment Reader::getSegment(size_t index) {
 // Reader::Section
 //
 
-Reader::Section::Section(const SectionHeader* sectionHeader, char* data, const char* name) :
+Reader::Section::Section(const SectionHeader* sectionHeader, const char* data, const char* name) :
       m_sectionHeader(sectionHeader), m_data(data), m_name(name) {}
 
 const SectionHeader* Reader::Section::getHeader() const {
@@ -79,12 +79,12 @@ const char* Reader::Section::getName() const {
 // Reader::Segment
 //
 
-Reader::Segment::Segment(const ProgramHeader* programHeader, char* data) : m_programHeader(programHeader), m_data(data) {}
+Reader::Segment::Segment(const ProgramHeader* programHeader, const char* data) : m_programHeader(programHeader), m_data(data) {}
 
 const ProgramHeader* Reader::Segment::getHeader() const {
     return m_programHeader;
 }
 
-char* Reader::Segment::getData() {
+const char* Reader::Segment::getData() const {
     return m_data;
 }
