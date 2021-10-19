@@ -114,6 +114,7 @@ void vpux::buildReferenceModePipeline(mlir::OpPassManager& pm, bool enableProfil
     IE::buildAdjustForVPUPipeline(pm, log);
 
     buildIEReferenceLowPrecisionPipeline(pm, log);
+
     buildIECommonPipeline(pm, log);
 
     // Lower IE->IERT

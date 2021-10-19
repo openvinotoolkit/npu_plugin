@@ -1579,7 +1579,12 @@ def IE_StridedSliceOp :
         AnyRankedTensor:$output
     );
 
+    let hasFolder = 1;
     let hasCanonicalizer = 1;
+
+    let extraClassDeclaration = [{
+        bool isSimplified();
+    }];
 }
 
 //
