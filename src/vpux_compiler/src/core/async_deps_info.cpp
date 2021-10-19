@@ -46,6 +46,7 @@ uint32_t vpux::AsyncDepsInfo::getIndex(mlir::async::ExecuteOp execOp) const {
 }
 
 mlir::async::ExecuteOp vpux::AsyncDepsInfo::getExecuteOpAtIndex(size_t opIdx) const {
+    VPUX_THROW_UNLESS(_allExecOps.size() > opIdx, "Invalid index '{0}' for _allExecOps", opIdx);
     return _allExecOps[opIdx];
 }
 
@@ -192,6 +193,7 @@ void vpux::AsyncDepsInfo::updateTokenDependencies() {
 }
 
 SmallVector<size_t> vpux::AsyncDepsInfo::getOpDeps(size_t opIdx) const {
+    VPUX_THROW_UNLESS(_depsMap.size() > opIdx, "Invalid index '{0}' for _depsMap", opIdx);
     SmallVector<size_t> opDeps = {};
     for (auto dep : _depsMap[opIdx].set_bits()) {
         opDeps.push_back(dep);

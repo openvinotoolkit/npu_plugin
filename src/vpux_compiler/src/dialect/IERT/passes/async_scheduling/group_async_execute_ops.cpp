@@ -60,12 +60,7 @@ bool isSameExecutor(mlir::async::ExecuteOp execOp1, mlir::async::ExecuteOp execO
 bool prevHasUniqueUsers(mlir::async::ExecuteOp prevExecOp, mlir::async::ExecuteOp execOp) {
     auto getUsers = [](mlir::async::ExecuteOp op) {
         std::set<mlir::async::ExecuteOp> users;
-        for (auto res : op.getResults()) {
-            if (res.getType().isa<mlir::async::TokenType>()) {
-                // Skip token relations and focus only on result
-                // based dependencies
-                continue;
-            }
+        for (auto res : op.results()) {
             for (auto user : res.getUsers()) {
                 users.insert(mlir::dyn_cast<mlir::async::ExecuteOp>(user));
             }

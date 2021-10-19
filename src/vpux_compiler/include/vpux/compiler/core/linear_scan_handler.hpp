@@ -53,7 +53,6 @@ namespace vpux {
 class LinearScanHandler final {
 public:
     explicit LinearScanHandler(AddressType defaultAlignment = 1);
-    ;
 
 public:
     void markAsDead(mlir::Value val);

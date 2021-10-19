@@ -18,15 +18,28 @@
 #include "vpux/utils/core/range.hpp"
 
 using namespace vpux;
+using operationIdxType = FeasibleMemoryScheduler::operationIdxType;
 
 //
-// Constructor
+// Feasible Memory Scheduler
 //
+
+// This class will try to porduce a feasible memory schedule based on the dependency map provided from
+// AsyncDepsInfo and use the LinearScan class to allocate the resources.
+// Data and Compute ops, where Data ops are operations moving data to CMX are distinguished in order to
+// follow the scheduling of Compute ops along with their dependencies (Data ops). This optimizes CMX usage,
+// and allows for feasible CMX schedule to be generated.
+// The graph is iterated topologically based on the dependencies from input to output(s).
+// In init() the input will be considered as a compute operation, this will be the first ready compute operation.
+// In nextSchedulableOp() there are two possible scenarios:
+// 1. Scheudling the next earlies operation from the start time heap, and adding it to the op output table.
+// 2. Unscheduling operations: freeing CMX space and updating dependencies, creating new ready
+//      operations which will be allocated at the next time slot.
 
 FeasibleMemoryScheduler::FeasibleMemoryScheduler(mlir::Attribute& memSpace, MemLiveRangeInfo& liveRangeInfo,
-                                                 AsyncDepsInfo& depsInfo,
+                                                 AsyncDepsInfo& depsInfo, Logger& log,
                                                  LinearScan<mlir::Value, LinearScanHandler>& scan)
-        : _memSpace(memSpace), _liveRangeInfo(liveRangeInfo), _depsInfo(depsInfo), _scan(scan) {
+        : _log(log), _memSpace(memSpace), _liveRangeInfo(liveRangeInfo), _depsInfo(depsInfo), _scan(scan) {
 }
 
 void FeasibleMemoryScheduler::pushToStartTimeHeap(const HeapElement& elem) {
@@ -35,6 +48,7 @@ void FeasibleMemoryScheduler::pushToStartTimeHeap(const HeapElement& elem) {
 }
 
 FeasibleMemoryScheduler::HeapElement FeasibleMemoryScheduler::popFromStartTimeHeap() {
+    VPUX_THROW_UNLESS(!_startTimeHeap.empty(), "Tried to pop from empty _startTimeHeap");
     std::pop_heap(_startTimeHeap.begin(), _startTimeHeap.end(), MinHeapOrdering());
     HeapElement elem = _startTimeHeap.back();
     _startTimeHeap.pop_back();
@@ -47,40 +61,45 @@ void FeasibleMemoryScheduler::pushToCompletionTimeHeap(const HeapElement& elem) 
 }
 
 FeasibleMemoryScheduler::HeapElement FeasibleMemoryScheduler::popFromCompletionTimeHeap() {
+    VPUX_THROW_UNLESS(!_completionTimeHeap.empty(), "Tried to pop from empty _completionTimeHeap");
     std::pop_heap(_completionTimeHeap.begin(), _completionTimeHeap.end(), MinHeapOrdering());
     HeapElement elem = _completionTimeHeap.back();
     _completionTimeHeap.pop_back();
     return elem;
 }
 
-bool FeasibleMemoryScheduler::isDataOp(size_t opIdx) {
-    StringRef dataType("DMA_NN");
-
-    mlir::async::ExecuteOp op = _depsInfo.getExecuteOpAtIndex(opIdx);
-    if (op->hasAttr("IERT.executor")) {
-        if (op->getAttr("IERT.executor").dyn_cast<mlir::StringAttr>().getValue().compare(dataType) != 0) {
-            return false;
-        }
-        if (_outputOps.find(opIdx) != _outputOps.end()) {
-            return false;
-        }
-        auto* bodyBlock = &op.body().front();
-        if (op.getOperands().size() == 0) {
-            for (auto& op : bodyBlock->getOperations()) {
-                for (const auto& operand : op.getOperands()) {
-                    if (operand.getDefiningOp() == nullptr && operand.isa<mlir::BlockArgument>()) {
-                        // input operation
-                        return false;
+bool FeasibleMemoryScheduler::isDataOp(operationIdxType opIdx) {
+    // Operations moving data to CMX are considered data ops. All others are
+    // considered compute operations. This disthinguishment is neeeded to balance
+    // CMX memory space and not to fill CMX space with only data operations resulting
+    // in not being able to fit the compute operation. Data operations will only be
+    // scheduled when needed by the compute operation so that the CMX space can be
+    // freed as soon as possible.
+    auto op = _depsInfo.getExecuteOpAtIndex(opIdx);
+    if (op->hasAttr(IERT::IERTDialect::getExecutorAttrName())) {
+        uint32_t numUnits;
+        const auto executor = IERT::IERTDialect::getExecutor(op, numUnits);
+        if (executor == VPUIP::DMAEngineAttr::get(op->getContext(), VPUIP::DMAEngine::DMA_NN)) {
+            if (_outputOps.find(opIdx) != _outputOps.end()) {
+                return false;
+            }
+            auto* bodyBlock = &op.body().front();
+            if (op.getOperands().empty()) {
+                for (auto& op : bodyBlock->getOperations()) {
+                    for (const auto& operand : op.getOperands()) {
+                        if (operand.getDefiningOp() == nullptr) {
+                            // operation using function input
+                            // input considered to be a compute operation
+                            return false;
+                        }
                     }
                 }
             }
-        }
-        for (auto& op : bodyBlock->getOperations()) {
-            if (mlir::isa<IERT::CopyOp>(op)) {
-                if (auto copyOp = mlir::dyn_cast<IERT::CopyOp>(op)) {
-                    if (auto memref = copyOp.output().getType().dyn_cast<mlir::MemRefType>()) {
-                        // DMA to CMX
-                        return _memSpace == memref.getMemorySpace();
+            for (auto& op : bodyBlock->getOperations()) {
+                if (mlir::isa<IERT::CopyOp>(op)) {
+                    if (auto copyOp = mlir::dyn_cast<IERT::CopyOp>(op)) {
+                        // DMA to NN_CMX
+                        return _memSpace == copyOp.output().getType().dyn_cast<mlir::MemRefType>().getMemorySpace();
                     }
                 }
             }
@@ -107,16 +126,18 @@ llvm::SmallVector<FeasibleMemoryScheduler::HeapElement> FeasibleMemoryScheduler:
 
 void FeasibleMemoryScheduler::unscheduleOp(const HeapElement& helement) {
     auto op = _depsInfo.getExecuteOpAtIndex(helement.op_);
-    // free possible buffers
+    // free possible buffers, where this is the last user of the buffer
     const auto usedBufs = _liveRangeInfo.getUsedBuffers(op);
     for (auto val : usedBufs) {
         if (_liveRangeInfo.eraseUser(val, op) == 0) {
+            _log.nest().trace("Mark buffer as dead, '{0}'", val);
             _scan.handler().markAsDead(val);
         }
     }
+    _log.nest().trace("Free non alive buffers");
     _scan.freeNonAlive();
 
-    // decrement consumers
+    // decrement consumers of the op
     for (auto dep : _depsInfo.getOpDeps(helement.op_)) {
         _opOutputTable.find(dep)->second.decrementConsumers();
     }
@@ -127,71 +148,91 @@ void FeasibleMemoryScheduler::unscheduleOp(const HeapElement& helement) {
     }
 }
 
-bool FeasibleMemoryScheduler::isComputeOpWithSomeActiveInputs(size_t opIdx) {
+bool FeasibleMemoryScheduler::isComputeOpWithSomeActiveInputs(operationIdxType opIdx) {
     if (isDataOp(opIdx)) {
         return false;
     }
-    // TODO: might need to port: active_resource_table
+    // TODO-EISW-21295: might need to port: active_resource_table
     auto opAllDeps = _depsInfo.getOpDeps(opIdx);
     auto opDeps = getSortedBuffers(opIdx);
     // number of buffers needing allocation smaller than number of buffers used by the op
     return opAllDeps.size() > opDeps.size();
 }
 
-vpux::AddressType FeasibleMemoryScheduler::calculateOpSize(size_t opIdx) {
+vpux::AddressType FeasibleMemoryScheduler::calculateOpSize(operationIdxType opIdx) {
+    // only use the output size
     vpux::AddressType opSize = 0;
-    auto execOp = _depsInfo.getExecuteOpAtIndex(opIdx);
-    auto buffers = _liveRangeInfo.getUsedBuffers(execOp);
-    for (auto& buf : buffers) {
-        opSize += _scan.handler().getSize(buf);
+    auto* bodyBlock = &_depsInfo.getExecuteOpAtIndex(opIdx).body().front();
+    for (auto& op : bodyBlock->getOperations()) {
+        if (mlir::isa<mlir::ViewLikeOpInterface>(op) && mlir::isa<IERT::LayerOpInterface>(op)) {
+            auto outputs = mlir::dyn_cast<IERT::LayerOpInterface>(op).getOutputs();
+            for (const auto& output : outputs) {
+                const auto type = output.getType().dyn_cast<mlir::MemRefType>();
+                if (type == nullptr || type.getMemorySpace() != _memSpace) {
+                    continue;
+                }
+                opSize += _scan.handler().getSize(output);
+            }
+        }
     }
     return opSize;
 }
 
-void FeasibleMemoryScheduler::distributeReadyOps(llvm::ArrayRef<size_t> readyOps) {
+void FeasibleMemoryScheduler::distributeReadyOps(llvm::ArrayRef<operationIdxType> readyOps) {
     // populate ready lists depending on op type/state
-    for (auto readyOp : readyOps) {
+    _log.trace("Distribute new ready ops");
+    _log = _log.nest();
+    for (auto& readyOp : readyOps) {
         vpux::AddressType opSize = calculateOpSize(readyOp);
         if (isDataOp(readyOp)) {
-            // TODO: verify op not already in ready data ops
+            // TODO-EISW-21295: verify op not already in ready data ops
             _readyDataOps.insert(std::make_pair(readyOp, opSize));
-            llvm::SmallVector<size_t> newReadyOps = reduceInDegreeOfAdjacentOperations(readyOp);
+            _log.trace("Add to ready data ops '{0}'", readyOp);
+            llvm::SmallVector<operationIdxType> newReadyOps = reduceInDegreeOfAdjacentOperations(readyOp);
             distributeReadyOps(newReadyOps);
         } else if (isComputeOpWithSomeActiveInputs(readyOp)) {
-            // TODO: verify op not already in active compute ops
+            // TODO-EISW-21295: verify op not already in active compute ops
             _activeComputeOps.insert(std::make_pair(readyOp, opSize));
+            _log.trace("Add to active compute ops '{0}'", readyOp);
         } else {
-            // TODO: verify op not already in ready compute ops
+            // TODO-EISW-21295: verify op not already in ready compute ops
             _readyComputeOps.insert(std::make_pair(readyOp, opSize));
+            _log.trace("Add to ready compute ops '{0}'", readyOp);
         }
     }
+    _log = _log.unnest();
 }
 
 void FeasibleMemoryScheduler::unscheduleAllCompletingOpsAtNextEarliestTime() {
     // retrieve the latest time
     const HeapElement* completionTopPtr = topElementGen(_completionTimeHeap);
     _currentTime = completionTopPtr->time_;
+    _log.trace("Unscheduling ops at time: '{0}'", _currentTime);
 
     llvm::SmallVector<HeapElement> unscheduledOps = popAllElementsAtThisTime(_currentTime);
-    llvm::SmallVector<size_t> ready_ops = {};
+    llvm::SmallVector<operationIdxType> ready_ops = {};
 
+    _log = _log.nest();
     for (auto& op : unscheduledOps) {
         auto opIdx = op.op_;
+        _log.trace("Unscheduling '{0}'", opIdx);
         unscheduleOp(op);
-
         if (!isDataOp(opIdx) && op.isOriginalOp()) {
-            // propagate through original compute ops
+            // propagate through original compute ops, generate new ready ops
             auto newReadyOps = reduceInDegreeOfAdjacentOperations(opIdx);
+            _log.nest().trace("Reduce consumer indegree");
             ready_ops.insert(ready_ops.end(), newReadyOps.begin(), newReadyOps.end());
         }
     }
+    _log = _log.unnest();
 
     distributeReadyOps(ready_ops);
 }
 
-llvm::SmallVector<size_t> FeasibleMemoryScheduler::reduceInDegreeOfAdjacentOperations(size_t opIdx) {
-    llvm::SmallVector<size_t> zeroIndegreeOps;
-    // reduce indegree for consumers of ready data ops
+llvm::SmallVector<operationIdxType> FeasibleMemoryScheduler::reduceInDegreeOfAdjacentOperations(
+        operationIdxType opIdx) {
+    llvm::SmallVector<operationIdxType> zeroIndegreeOps;
+    // reduce indegree (number of incoming edges) for consumers of ready data ops
     for (auto consumer : _depsInfo.getConsumerOps(opIdx)) {
         if (_inDegreeTable[consumer] < 2) {
             zeroIndegreeOps.push_back(consumer);
@@ -205,32 +246,41 @@ llvm::SmallVector<size_t> FeasibleMemoryScheduler::reduceInDegreeOfAdjacentOpera
 }
 
 void FeasibleMemoryScheduler::getReadyDataList() {
+    _log.trace("Initial ready data list:");
+    _log = _log.nest();
     // populate ready data ops
-    for (auto entry : _inDegreeTable) {
+    for (auto& entry : _inDegreeTable) {
         if (entry.second == 0 && isDataOp(entry.first)) {
             vpux::AddressType opSize = calculateOpSize(entry.first);
             _readyDataOps.insert(std::make_pair(entry.first, opSize));
+            _log.trace("Ready data op: '{0}'", entry.first);
             // reduce indegree of op consumers
             reduceInDegreeOfAdjacentOperations(entry.first);
         }
     }
+    _log = _log.unnest();
 }
 
 void FeasibleMemoryScheduler::getReadyComputeList() {
+    _log.trace("Initial ready compute list:");
+    _log = _log.nest();
     // populate ready compute ops
-    for (auto entry : _inDegreeTable) {
+    for (auto& entry : _inDegreeTable) {
         if (entry.second == 0 && !isDataOp(entry.first)) {
             vpux::AddressType opSize = calculateOpSize(entry.first);
             _readyComputeOps.insert(std::make_pair(entry.first, opSize));
+            _log.trace("Ready compute op: '{0}'", entry.first);
         }
     }
+    _log = _log.unnest();
 }
 
-SmallVector<mlir::Value> FeasibleMemoryScheduler::getSortedBuffers(size_t opIdx) {
+SmallVector<mlir::Value> FeasibleMemoryScheduler::getSortedBuffers(operationIdxType opIdx) {
+    // retrieve all buffers used bu the op
     auto op = _depsInfo.getExecuteOpAtIndex(opIdx);
     auto usedBuffs = _liveRangeInfo.getUsedBuffers(op);
     SmallVector<std::pair<vpux::AddressType, mlir::Value>> newBufs;
-    for (auto val : usedBuffs) {
+    for (auto& val : usedBuffs) {
         const auto type = val.getType().cast<mlir::MemRefType>();
         if (type.getMemorySpace() != _memSpace || _scan.handler().isAlive(val)) {
             continue;
@@ -238,22 +288,23 @@ SmallVector<mlir::Value> FeasibleMemoryScheduler::getSortedBuffers(size_t opIdx)
         auto size = _scan.handler().getSize(val);
         newBufs.push_back(std::make_pair(size, val));
     }
-    // sort based on size
+    // sort based on size of buffer
     llvm::sort(newBufs.begin(), newBufs.end(),
                [](const std::pair<vpux::AddressType, mlir::Value>& val1,
                   const std::pair<vpux::AddressType, mlir::Value>& val2) {
                    return val1.first > val2.first;
                });
     SmallVector<mlir::Value> orderedBufs;
-    for (auto pair : newBufs) {
+    for (auto& pair : newBufs) {
         orderedBufs.push_back(pair.second);
     }
     return orderedBufs;
 }
 
-SmallVector<size_t> FeasibleMemoryScheduler::getNonEmptyOpDemandList(size_t opIdx) {
-    SmallVector<size_t> demandList;
-    for (auto dep : _depsInfo.getOpDeps(opIdx)) {
+SmallVector<operationIdxType> FeasibleMemoryScheduler::getNonEmptyOpDemandList(operationIdxType opIdx) {
+    // return all buffers of an op that require allocation
+    SmallVector<operationIdxType> demandList;
+    for (auto& dep : _depsInfo.getOpDeps(opIdx)) {
         if (_opOutputTable.find(dep) == _opOutputTable.end() || _opOutputTable[dep].spilled()) {
             demandList.push_back(dep);
         }
@@ -261,41 +312,45 @@ SmallVector<size_t> FeasibleMemoryScheduler::getNonEmptyOpDemandList(size_t opId
     return demandList;
 }
 
-bool FeasibleMemoryScheduler::isReadyComputeOperationSchedulable(size_t opIdx) {
+bool FeasibleMemoryScheduler::isReadyComputeOperationSchedulable(operationIdxType opIdx) {
     // are resources available and can be allocated
     auto sortedBuffers = getSortedBuffers(opIdx);
     return _scan.canAlloc(sortedBuffers);
 }
 
-void FeasibleMemoryScheduler::scheduleInputOpForComputeOp(size_t inputIdx) {
+void FeasibleMemoryScheduler::scheduleInputOpForComputeOp(operationIdxType inputIdx) {
+    // schedule the dependency - Data op
     auto _opOutput = _opOutputTable.find(inputIdx);
     EOpType opType;
     if (_opOutput != _opOutputTable.end()) {
-        (_opOutput->second).changeStateToActive();
-        opType = EOpType::IMPLICIT_OP_READ;
         VPUX_THROW("Spill occured, spilling not yet implemented");
     } else {
         opType = EOpType::ORIGINAL_OP;
         _opOutputTable.insert(std::make_pair(inputIdx, OpOutputInfo(EOpState::ACTIVE, _outDegreeTable[inputIdx])));
     }
+    _log.nest().trace("Scheduling input for compute op:'{0}'", inputIdx);
     pushToStartTimeHeap(HeapElement(inputIdx, _currentTime, opType));
 }
 
 void FeasibleMemoryScheduler::allocateSortedBuffers(ArrayRef<mlir::Value> sortedBuffers) {
+    // retrieve buffers that need allocation
     SmallVector<mlir::Value> buffersNeedingAllocation;
-    for (auto val : sortedBuffers) {
+    for (auto& val : sortedBuffers) {
         const auto type = val.getType().cast<mlir::MemRefType>();
         if (type.getMemorySpace() != _memSpace || _scan.handler().isAlive(val)) {
             continue;
         }
+        _log.nest().trace("Mark buffer as alive, '{0}'", val);
         _scan.handler().markAsAlive(val);
         buffersNeedingAllocation.push_back(val);
     }
-
-    VPUX_THROW_UNLESS(_scan.alloc(buffersNeedingAllocation, /*allowSpills*/ false), "Failed LP allocation");
+    _log.nest().trace("Allocate memory for the alive buffers");
+    // allocate buffers using LinearScan
+    VPUX_THROW_UNLESS(_scan.alloc(buffersNeedingAllocation, /*allowSpills*/ false),
+                      "Failed to statically allocate '{0}' memory", _memSpace);
 }
 
-void FeasibleMemoryScheduler::scheduleComputeOp(size_t opIdx) {
+void FeasibleMemoryScheduler::scheduleComputeOp(operationIdxType opIdx) {
     // Step 1: add to output result table
     _opOutputTable.insert(std::make_pair(opIdx, OpOutputInfo(EOpState::ACTIVE, _outDegreeTable[opIdx])));
 
@@ -317,15 +372,19 @@ void FeasibleMemoryScheduler::scheduleComputeOp(size_t opIdx) {
 }
 
 void FeasibleMemoryScheduler::scheduleAllPossibleReadyOpsAndUpdate(
-        std::set<std::pair<size_t, vpux::AddressType>, SizeSort>& readyList) {
-    SmallVector<std::pair<size_t, vpux::AddressType>> scheduledOps;
+        std::set<std::pair<operationIdxType, vpux::AddressType>, SizeSort>& readyList) {
+    SmallVector<std::pair<operationIdxType, vpux::AddressType>> scheduledOps;
+    _log.trace("Scheduling all possible ready ops");
+    _log = _log.nest();
     // schedule ops that fit in CMX
-    for (auto opIdx : readyList) {
-        if (isReadyComputeOperationSchedulable(opIdx.first)) {
-            scheduleComputeOp(opIdx.first);
-            scheduledOps.push_back(opIdx);
+    for (auto& readyOp : readyList) {
+        if (isReadyComputeOperationSchedulable(readyOp.first)) {
+            _log.trace("Scheduling ready op: '{0}'", readyOp.first);
+            scheduleComputeOp(readyOp.first);
+            scheduledOps.push_back(readyOp);
         }
     }
+    _log = _log.unnest();
     // update ready lists by removing scheduled ops
     for (auto scheduledOp : scheduledOps) {
         readyList.erase(scheduledOp);
@@ -334,11 +393,12 @@ void FeasibleMemoryScheduler::scheduleAllPossibleReadyOpsAndUpdate(
 
 void FeasibleMemoryScheduler::populateScheduledOps(HeapElement& scheduledOp) {
     IntervalInfo interval;
+    // retrieve interval information
     auto* bodyBlock = &_depsInfo.getExecuteOpAtIndex(scheduledOp.op_).body().front();
     for (auto& op : bodyBlock->getOperations()) {
         if (mlir::isa<mlir::ViewLikeOpInterface>(op) && mlir::isa<IERT::LayerOpInterface>(op)) {
             auto outputs = mlir::dyn_cast<IERT::LayerOpInterface>(op).getOutputs();
-            for (auto output : outputs) {
+            for (const auto& output : outputs) {
                 const auto type = output.getType().dyn_cast<mlir::MemRefType>();
                 if (type == nullptr || type.getMemorySpace() != _memSpace) {
                     continue;
@@ -348,6 +408,7 @@ void FeasibleMemoryScheduler::populateScheduledOps(HeapElement& scheduledOp) {
             }
         }
     }
+    // populate the struct fields
     ScheduledOpInfo scheduled;
     scheduled.op_ = scheduledOp.op_;
     scheduled.opType_ = scheduledOp.opType_;
@@ -363,6 +424,7 @@ void FeasibleMemoryScheduler::clearLists() {
 }
 
 bool FeasibleMemoryScheduler::init() {
+    _log.trace("Feasible Memory Scheduler init()");
     _currentTime = 1;
 
     // compute op in/out degree
@@ -389,30 +451,35 @@ bool FeasibleMemoryScheduler::init() {
 void FeasibleMemoryScheduler::nextSchedulableOp() {
     // scheduling loop, loop until all output ops are scheduled
     while (!_outputOps.empty()) {
-        // choose the minimum time
+        // choose the minimum time from start time and completion time heaps
+        // to schedule the earliest possible operation
         const HeapElement* start_top_ptr = topElementGen(_startTimeHeap);
         const HeapElement* completionTopPtr = topElementGen(_completionTimeHeap);
 
+        _log.trace("Choose the min from start time and completion time heaps");
         bool pop_from_start_heap =
                 start_top_ptr && (!completionTopPtr || (start_top_ptr->time_ < completionTopPtr->time_));
 
         if (pop_from_start_heap) {
+            _log.trace("Popping from start time heap");
             // schedule first op in heap
             HeapElement firstOp = popFromStartTimeHeap();
             _currentTime = firstOp.time_;
-            _timeBuckets[firstOp.time_].push_back(firstOp.op_);
             // add to output table
             populateScheduledOps(firstOp);
             // move to completion time heap
             pushToCompletionTimeHeap(HeapElement(firstOp.op_, firstOp.time_ + 1, firstOp.opType_));
+            _log.trace("Scheduled op: '{0}'", firstOp.op_);
             // decrease outputs ops if output op scheduled
             if (_outputOps.find(firstOp.op_) != _outputOps.end()) {
                 _outputOps.erase(firstOp.op_);
             }
         } else {
             do {
+                _log.trace("Popping from completion time heap");
                 // unschedule operations, and propagate through the graph by creating new ready ops
                 unscheduleAllCompletingOpsAtNextEarliestTime();
+                // with new ready ops created try to schedule new ops
                 scheduleAllPossibleReadyOpsAndUpdate(_activeComputeOps);
                 scheduleAllPossibleReadyOpsAndUpdate(_readyComputeOps);
             } while (!_completionTimeHeap.empty() && _startTimeHeap.empty());
@@ -427,8 +494,9 @@ void FeasibleMemoryScheduler::nextSchedulableOp() {
 
 llvm::SmallVector<FeasibleMemoryScheduler::ScheduledOpInfo> FeasibleMemoryScheduler::generateSchedule() {
     init();
-    // TODO: save schedule to file
-    std::cout << "\n #### INITIAL SCHEDULE ####\n" << std::endl;
+    // TODO: save schedule from _scheduledOps to file
+    _log.trace("Generated Schedule");
+    _log = _log.nest();
     for (auto op : _scheduledOps) {
         std::string resourceInfo = "<none>";
         if (op.hasActiveResource()) {
@@ -436,8 +504,8 @@ llvm::SmallVector<FeasibleMemoryScheduler::ScheduledOpInfo> FeasibleMemorySchedu
                            std::to_string(op.endResource()) +
                            "] size = " + std::to_string((op.endResource() - op.beginResource()));
         }
-        std::cout << "op = " << op.op_ << "\ttype = " << op.opTypeName() << "\ttime = " << op.time_ << "\t"
-                  << resourceInfo << std::endl;
+        _log.trace("op = '{0}'\t type = '{1}'\t time = '{2}'\t '{3}'", op.op_, op.opTypeName(), op.time_, resourceInfo);
     }
+    _log = _log.unnest();
     return _scheduledOps;
 }

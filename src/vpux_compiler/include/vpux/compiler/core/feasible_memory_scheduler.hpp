@@ -25,6 +25,7 @@
 #include "vpux/compiler/core/attributes/strides.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IERT/ops.hpp"
+#include "vpux/compiler/dialect/VPUIP/attributes/enums.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
 
@@ -49,16 +50,17 @@ namespace vpux {
 
 class FeasibleMemoryScheduler final {
 public:
-    // The spill op is considered an implicit op //
+    using operationIdxType = size_t;
+    // Operation type
     enum class EOpType { ORIGINAL_OP = 0, IMPLICIT_OP_READ = 1, IMPLICIT_OP_WRITE = 2 };
-
+    // Operation state
     enum class EOpState { ACTIVE = 0, SPILLED = 1, CONSUMED = 2 };
-
+    // Core struct in the feasible memory scheduler
     struct HeapElement {
         HeapElement(): op_(), time_(), opType_() {
         }
-        HeapElement(size_t op, size_t t = 0UL, EOpType op_type = EOpType::ORIGINAL_OP)
-                : op_(op), time_(t), opType_(op_type) {
+        HeapElement(operationIdxType op, size_t time = 0UL, EOpType op_type = EOpType::ORIGINAL_OP)
+                : op_(op), time_(time), opType_(op_type) {
         }
         bool operator==(const HeapElement& other) const {
             return (op_ == other.op_) && (time_ == other.time_);
@@ -69,20 +71,20 @@ public:
         bool isImplicitWriteOp() const {
             return (opType_ == EOpType::IMPLICIT_OP_WRITE);
         }
-        size_t op_;
+        operationIdxType op_;
         size_t time_;
         EOpType opType_;
     };
-
+    // Sort heap by smallest time
     struct MinHeapOrdering {
         bool operator()(const HeapElement& a, const HeapElement& b) {
             return a.time_ > b.time_;
         }
     };
-
+    // Sort pair by the second arg
     struct SizeSort {
-        bool operator()(const std::pair<size_t, vpux::AddressType>& op1,
-                        const std::pair<size_t, vpux::AddressType>& op2) const {
+        bool operator()(const std::pair<operationIdxType, vpux::AddressType>& op1,
+                        const std::pair<operationIdxType, vpux::AddressType>& op2) const {
             if (op1.second == op2.second) {
                 return op1.first < op2.first;
             }
@@ -90,7 +92,7 @@ public:
             return op1.second > op2.second;
         }
     };
-
+    // Struct used during scheduling, containing op info
     struct OpOutputInfo {
         OpOutputInfo(EOpState state = EOpState::CONSUMED, size_t outstanding_consumers = 0UL)
                 : state_(state), outstandingConsumers_(outstanding_consumers) {
@@ -126,7 +128,7 @@ public:
         EOpState state_;
         size_t outstandingConsumers_;
     };
-
+    // Struct storing CMX address space
     struct IntervalInfo {
         void invalidate() {
             begin_ = std::numeric_limits<size_t>::max();
@@ -147,9 +149,9 @@ public:
         size_t begin_;
         size_t end_;
     };
-
+    // Struct used to output the scheduled op info
     struct ScheduledOpInfo {
-        ScheduledOpInfo(size_t op, EOpType type, size_t time): op_(op), opType_(type), time_(time) {
+        ScheduledOpInfo(operationIdxType op, EOpType type, size_t time): op_(op), opType_(type), time_(time) {
         }
         ScheduledOpInfo(): op_(), opType_(), time_() {
         }
@@ -161,21 +163,15 @@ public:
             opType_ = helement.opType_;
             return *this;
         }
-        const char* opTypeName() const {
-            const char* ret = NULL;
-
-            switch (opType_) {
-            case EOpType::ORIGINAL_OP:
-                ret = "ORIGINAL";
-                break;
-            case EOpType::IMPLICIT_OP_READ:
-                ret = "SPILLED_READ";
-                break;
-            default:
-                ret = "SPILLED_WRITE";
-                break;
+        StringLiteral opTypeName() const {
+            if (opType_ == EOpType::ORIGINAL_OP) {
+                return StringLiteral("ORIGINAL");
+            } else if (opType_ == EOpType::IMPLICIT_OP_READ) {
+                return StringLiteral("SPILLED_READ");
+            } else if (opType_ == EOpType::IMPLICIT_OP_WRITE) {
+                return StringLiteral("SPILLED_WRITE");
             }
-            return ret;
+            return StringLiteral("UNDEFINED");
         }
         bool hasActiveResource() const {
             return (resourceInfo_.begin_ <= resourceInfo_.end_);
@@ -186,7 +182,7 @@ public:
         size_t endResource() const {
             return resourceInfo_.end_;
         }
-        size_t op_;
+        operationIdxType op_;
         EOpType opType_;
         size_t time_;
         IntervalInfo resourceInfo_;
@@ -194,7 +190,8 @@ public:
 
 public:
     explicit FeasibleMemoryScheduler(mlir::Attribute& memSpace, MemLiveRangeInfo& liveRangeInfo,
-                                     AsyncDepsInfo& depsInfo, LinearScan<mlir::Value, LinearScanHandler>& scan);
+                                     AsyncDepsInfo& depsInfo, Logger& log,
+                                     LinearScan<mlir::Value, LinearScanHandler>& scan);
 
 public:
     llvm::SmallVector<ScheduledOpInfo> generateSchedule();
@@ -205,44 +202,60 @@ private:
     void nextSchedulableOp();
     void getReadyDataList();
     void getReadyComputeList();
-    llvm::SmallVector<size_t> reduceInDegreeOfAdjacentOperations(size_t opIdx);
-    bool isReadyComputeOperationSchedulable(size_t opIdx);
-    SmallVector<mlir::Value> getSortedBuffers(size_t opIdx);
-    SmallVector<size_t> getNonEmptyOpDemandList(size_t opIdx);
-    void scheduleInputOpForComputeOp(size_t inputIdx);
+    llvm::SmallVector<operationIdxType> reduceInDegreeOfAdjacentOperations(operationIdxType opIdx);
+    bool isReadyComputeOperationSchedulable(operationIdxType opIdx);
+    SmallVector<mlir::Value> getSortedBuffers(operationIdxType opIdx);
+    SmallVector<operationIdxType> getNonEmptyOpDemandList(operationIdxType opIdx);
+    void scheduleInputOpForComputeOp(operationIdxType inputIdx);
     void allocateSortedBuffers(ArrayRef<mlir::Value> sortedBuffers);
-    void scheduleComputeOp(size_t opIdx);
-    void scheduleAllPossibleReadyOpsAndUpdate(std::set<std::pair<size_t, vpux::AddressType>, SizeSort>& readyList);
+    void scheduleComputeOp(operationIdxType opIdx);
+    void scheduleAllPossibleReadyOpsAndUpdate(
+            std::set<std::pair<operationIdxType, vpux::AddressType>, SizeSort>& readyList);
     void pushToStartTimeHeap(const HeapElement& elem);
     void pushToCompletionTimeHeap(const HeapElement& elem);
     HeapElement popFromStartTimeHeap();
     HeapElement popFromCompletionTimeHeap();
     HeapElement const* topElementGen(const llvm::SmallVector<HeapElement>& heap) const;
-    bool isDataOp(size_t opIdx);
+    bool isDataOp(operationIdxType opIdx);
     void unscheduleOp(const HeapElement& helement);
-    bool isComputeOpWithSomeActiveInputs(size_t opIdx);
-    void distributeReadyOps(llvm::ArrayRef<size_t> readyOps);
+    bool isComputeOpWithSomeActiveInputs(operationIdxType opIdx);
+    void distributeReadyOps(llvm::ArrayRef<operationIdxType> readyOps);
     llvm::SmallVector<HeapElement> popAllElementsAtThisTime(size_t time_step);
     void unscheduleAllCompletingOpsAtNextEarliestTime();
     void populateScheduledOps(HeapElement& scheduledOp);
-    vpux::AddressType calculateOpSize(size_t opIdx);
+    vpux::AddressType calculateOpSize(operationIdxType opIdx);
 
 private:
+    Logger& _log;
+    // CMX mem space, which will be allocated
     mlir::Attribute& _memSpace;
+    // information about op buffers
     MemLiveRangeInfo& _liveRangeInfo;
+    // dependencies of ops
     AsyncDepsInfo& _depsInfo;
+    // allocator class
     LinearScan<mlir::Value, LinearScanHandler>& _scan;
+    // heap with earliest operation start time
     llvm::SmallVector<HeapElement> _startTimeHeap;
+    // heap with earlies operation completion time
     llvm::SmallVector<HeapElement> _completionTimeHeap;
-    std::set<std::pair<size_t, vpux::AddressType>, SizeSort> _activeComputeOps;
-    std::set<std::pair<size_t, vpux::AddressType>, SizeSort> _readyComputeOps;
-    std::set<std::pair<size_t, vpux::AddressType>, SizeSort> _readyDataOps;
-    std::unordered_map<size_t, size_t> _inDegreeTable;
-    std::unordered_map<size_t, size_t> _outDegreeTable;
-    std::unordered_map<size_t, OpOutputInfo> _opOutputTable;
-    std::map<size_t, SmallVector<size_t>> _timeBuckets;  // temporary TODO: remove
+    // operations with ACTIVE input
+    std::set<std::pair<operationIdxType, vpux::AddressType>, SizeSort> _activeComputeOps;
+    // compute operations with 0 in-degree
+    std::set<std::pair<operationIdxType, vpux::AddressType>, SizeSort> _readyComputeOps;
+    // data operations with 0 in-degree
+    std::set<std::pair<operationIdxType, vpux::AddressType>, SizeSort> _readyDataOps;
+    // operation in-degree, number of incoming edges
+    std::unordered_map<operationIdxType, size_t> _inDegreeTable;
+    // operation out-degree, number of outgoing edges
+    std::unordered_map<operationIdxType, size_t> _outDegreeTable;
+    // contains scheduled ops along with their status/type
+    std::unordered_map<operationIdxType, OpOutputInfo> _opOutputTable;
+    // container for the schedule output
     llvm::SmallVector<ScheduledOpInfo> _scheduledOps;
-    llvm::DenseSet<size_t> _outputOps;
+    // outputs of the graph
+    llvm::DenseSet<operationIdxType> _outputOps;
+    // schedule time
     size_t _currentTime;
 };
 
