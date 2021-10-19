@@ -482,6 +482,7 @@ flatbuffers::Offset<MVCNN::GraphFile> createGraphFile(VPUIP::BlobWriter& writer,
 flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, mlir::TimingScope& rootTiming,
                                                       Logger log) {
     log.setName("VPUIP::BackEnd");
+    log.setLevel(vpux::LogLevel::Trace);
 
     log.trace("Extract 'IE.{0}' from Module", IE::CNNNetworkOp::getOperationName());
     IE::CNNNetworkOp netOp;
@@ -517,9 +518,17 @@ flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, mli
                 // hardcode kernelText to be 5th element
                 auto text_to_move = serializedGraphFile->kernel_data()->Get(kernel_text->locale_offset())->data();
                 auto offset = text_to_move->Data() - detached.data();
-                log.trace("offset to kernel in Finished FBB is = {0}", offset);
+                log.info("offset to kernel in Finished FBB is = {0}", offset);
+
+                log.warning("!!!!!!!!!!!!!text detached {0}", detached.data());
+                log.warning("!!!!!!!!!!!!!text dataToMove = {0}", text_to_move->Data());
+                log.warning("!!!!!!!!!!!!!text dataToMove->Length() {0}", text_to_move->Length());
                 //align calculations
                 auto aligned_offset = llvm::alignTo(offset, 1024);
+                log.warning("!!!!!!!!!!!!!old offset {0}", offset);
+                log.warning("!!!!!!!!!!!!!aligned offset {0}", aligned_offset);
+                log.warning("!!!!!!!!!!!!!new offset {0}", aligned_offset - offset);
+
                 offset = aligned_offset - offset;
                 log.trace("move kernel by {0} bytes to be {1}", offset, aligned_offset);
 
@@ -534,6 +543,43 @@ flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, mli
 
                 // updating offset pointer
                 table->SetField(MVCNN::KernelDataReference::VT_DATA_OFFSET, (uint32_t)offset, 0u) ;
+
+                // Invocations aligning
+                auto invocations = act_kernel_taks->invocations();
+                for (auto &&invocation: *invocations) {
+                    auto invDataSection = invocation->dataSection();
+                    auto dataToMove = serializedGraphFile->kernel_data()->Get(invDataSection->locale_offset())->data();
+                    auto offset = dataToMove->Data() - detached.data();
+                    log.warning("!!!!!!!!!!!!!invocation detached {0}", const_cast<uint8_t*>(detached.data()));
+                    printf("!!!!!!!!!!!!!invocation detached %p\n", const_cast<uint8_t*>(detached.data()));
+                    log.warning("!!!!!!!!!!!!!invocation dataToMove = {0}", dataToMove->Data());
+                    log.warning("!!!!!!!!!!!!!invocation dataToMove->Length() {0}", dataToMove->Length());
+                    //align calculations
+                    auto aligned_offset = llvm::alignTo(offset, 1024);
+                    log.warning("!!!!!!!!!!!!!old offset {0}", offset);
+                    log.warning("!!!!!!!!!!!!!aligned offset {0}", aligned_offset);
+                    offset = aligned_offset - offset;
+//                    log.trace("move kernel by {0} bytes to be {1}", offset, aligned_offset);
+
+                    log.warning("!!!!!!!!!!!!!new offset1 {0}", offset);
+                    memmove(const_cast<uint8_t*>(dataToMove->Data() + offset),
+                            dataToMove->Data(), dataToMove->Length() - 1024);
+                    log.warning("!!!!!!!!!!!!!new offset1 {1}", offset);
+                    log.warning("!!!!!!!!!!!!!new offset1 {1}", offset);
+                    log.warning("!!!!!!!!!!!!!new offset1 {1}", offset);
+
+                    // clear beginning
+                    memset(const_cast<uint8_t*>(dataToMove->Data()), 0, offset);
+                    log.warning("!!!!!!!!!!!!!new offset1 {2}", offset);
+
+                    // correcting data offset for kernel section
+                    auto table = (flatbuffers::Table*)invDataSection;
+                    // updating offset pointer
+                    table->SetField(MVCNN::KernelDataReference::VT_DATA_OFFSET, (uint32_t)offset, 0u) ;
+                    log.warning("!!!!!!!!!!!!!new offset3 {0}", offset);
+                }
+
+
             }
         }
     }
