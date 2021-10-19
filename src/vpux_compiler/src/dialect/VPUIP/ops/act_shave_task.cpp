@@ -23,7 +23,10 @@ VPUIP::BlobWriter::SpecificTask SW_Kernel::serialize(vpux::VPUIP::BlobWriter& wr
     return writer.createSW_KernelTask(*this);
 }
 
-void SW_Kernel::build(mlir::OpBuilder& , mlir::OperationState&, mlir::ValueRange, mlir::ValueRange, mlir::SymbolRefAttr, mlir::IntegerAttr, mlir::ValueRange) {
+void SW_Kernel::build(mlir::OpBuilder& , mlir::OperationState& opState, mlir::ValueRange, mlir::ValueRange results, mlir::SymbolRefAttr, mlir::IntegerAttr, mlir::ValueRange) {
+    // looks this is a result types
+    auto allResultsTypes = results.getTypes();
+    opState.types.insert(opState.types.end(), allResultsTypes.begin(), allResultsTypes.end());
     //builder.insert()
 }
 
