@@ -46,6 +46,18 @@ constexpr Elf_Word SHF_ALLOC     = 0x2;
 constexpr Elf_Word SHF_EXECINSTR = 0x4;
 constexpr Elf_Word SHF_MASKPROC  = 0xf0000000;
 
+//! Special section indexes
+constexpr Elf_Word SHN_UNDEF     = 0;
+constexpr Elf_Word SHN_LORESERVE = 0xff00;
+constexpr Elf_Word SHN_LOPROC    = 0xff00;
+constexpr Elf_Word SHN_HIPROC    = 0xff1f;
+constexpr Elf_Word SHN_LOOS      = 0xff20;
+constexpr Elf_Word SHN_HIOS      = 0xff3f;
+constexpr Elf_Word SHN_ABS       = 0xfff1;
+constexpr Elf_Word SHN_COMMON    = 0xfff2;
+constexpr Elf_Word SHN_XINDEX    = 0xffff;
+constexpr Elf_Word SHN_HIRESERVE = 0xffff;
+
 struct Elf64_Shdr {
     Elf_Word   sh_name;
     Elf_Word   sh_type;
