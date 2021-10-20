@@ -53,6 +53,8 @@ public:
 
     void setDDRScratch(size_t ddrScratch);
     void setResourceRequirements(const ResourceRequirements& resourceRequirements);
+
+    void setLeadingDMACount0(uint32_t leadingDMACount);
     void setDMATasks0(llvm::ArrayRef<std::pair<DmaWrapper, DMATaskExtension>> dmaTasks);
     void setBarrierConfigs(llvm::ArrayRef<BarrierWrapper> barrierConfigs);
 
@@ -75,6 +77,7 @@ private:
 
     size_t m_ddrScratch;
     ResourceRequirements m_resourceRequirements;
+    MappedInference m_mappedInference;
 
     elf::writer::SymbolSection* m_networkInputSymbols = nullptr;
     elf::writer::SymbolSection* m_networkOutputSymbols = nullptr;
