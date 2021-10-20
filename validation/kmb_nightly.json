@@ -2922,13 +2922,17 @@
 
         {
             "name" : "BDK_tf_FP16-INT8_mobilenet-v3-large-1.0-224",
-            "ir" : "models/clientmodels/BDK3/mobilenet-v3-large-1.0-224/tf/FP16-INT8/mobilenet-v3-large-1.0-224.xml",
+            "ir" : "models/clientmodels/BDK3/mobilenet-v3-large-1.0-224/tf/FP16/mobilenet-v3-large-1.0-224.xml",
             "3720": {
                 "disabled" : true
             },
             "BenchmarkApp" : {
                 "disabled" :  true,
                 "input_folder" : "224x224"
+            },
+            "Compile" : {
+                "input_precision" : "FP32",
+                "output_precision" : "FP32"
             },
             "NetTest": {
                 "inputs" : [["224x224/watch.bmp"]],
