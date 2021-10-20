@@ -63,3 +63,29 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ROIAlignUPAOp::serialize(VPUIP::Blo
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_ROIAlignParams});
 }
 
+mlir::Operation* vpux::VPUIP::BlobReader::parseROIAlign(mlir::OpBuilder& builder, ArrayRef<mlir::Value> inputs,
+                                                          ArrayRef<mlir::Value> outputs,
+                                                          const MVCNN::UPALayerTask* task) {
+    VPUX_THROW_UNLESS(inputs.size() == 3, "UPAROIAlign supports only 3 inputs, got {0}", inputs.size());
+    VPUX_THROW_UNLESS(outputs.size() == 1, "UPAROIAlign supports only 1 output, got {0}", outputs.size());
+    const auto params = task->softLayerParams_as_ROIAlignParams();
+    const auto pooled_h = getIntAttr(_ctx, params->pooled_h());
+    const auto pooled_w = getIntAttr(_ctx, params->pooled_w());
+    const auto sampling_ratio = getIntAttr(_ctx, params->sampling_ratio());
+    const auto spatial_scale = getFPAttr(_ctx, params->spatial_scale());
+    IE::ROIAlignMethod method;
+    switch (params->method()) {
+    case 0:
+        method = IE::ROIAlignMethod::avg;
+        break;
+    case 1:
+        method = IE::ROIAlignMethod::max;
+        break;
+    default:
+       VPUX_THROW("Unknown ROIAlignMethod. avg and max methods are supported only");
+    }
+
+    return builder.create<VPUIP::ROIAlignUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], inputs[1], inputs[2], outputs[0],
+                                                  pooled_h, pooled_w, sampling_ratio, spatial_scale,
+                                                  IE::ROIAlignMethodAttr::get(_ctx, method));
+}
