@@ -212,11 +212,11 @@ NGraphImporter::Callback NGraphImporter::getParser(const std::shared_ptr<ngraph:
     using DispatchMap = std::map<ngraph::NodeTypeInfo, Callback>;
 
 #define MAP_ENTRY(_NodeType_) \
-    { _NodeType_::type_info, &NGraphImporter::parseDispatch<_NodeType_> }
+    { _NodeType_::get_type_info_static(), &NGraphImporter::parseDispatch<_NodeType_> }
 
     static const DispatchMap dispatchMap{
-            {ngraph::op::Parameter::type_info, &NGraphImporter::parseEmpty},
-            {ngraph::op::Result::type_info, &NGraphImporter::parseEmpty},
+            {ngraph::op::Parameter::get_type_info_static(), &NGraphImporter::parseEmpty},
+            {ngraph::op::Result::get_type_info_static(), &NGraphImporter::parseEmpty},
 
             MAP_ENTRY(opset_latest::Constant),
             MAP_ENTRY(opset_latest::Convert),
@@ -1602,16 +1602,16 @@ IE::InterpolateAttr NGraphImporter::importInterpolateAttrs(const opset_latest::I
     // mode
     IE::InterpolateModeAttr modeAttr;
     switch (val.mode) {
-    case opset_latest::Interpolate::InterpolateMode::nearest:
+    case opset_latest::Interpolate::InterpolateMode::NEAREST:
         modeAttr = IE::InterpolateModeAttr::get(_ctx, IE::InterpolateMode::nearest);
         break;
-    case opset_latest::Interpolate::InterpolateMode::linear:
+    case opset_latest::Interpolate::InterpolateMode::LINEAR:
         modeAttr = IE::InterpolateModeAttr::get(_ctx, IE::InterpolateMode::linear);
         break;
-    case opset_latest::Interpolate::InterpolateMode::linear_onnx:
+    case opset_latest::Interpolate::InterpolateMode::LINEAR_ONNX:
         modeAttr = IE::InterpolateModeAttr::get(_ctx, IE::InterpolateMode::linear_onnx);
         break;
-    case opset_latest::Interpolate::InterpolateMode::cubic:
+    case opset_latest::Interpolate::InterpolateMode::CUBIC:
         modeAttr = IE::InterpolateModeAttr::get(_ctx, IE::InterpolateMode::cubic);
         break;
     default:
@@ -1621,10 +1621,10 @@ IE::InterpolateAttr NGraphImporter::importInterpolateAttrs(const opset_latest::I
     // shape calculation mode
     IE::InterpolateCalcModeAttr calcModeAttr;
     switch (val.shape_calculation_mode) {
-    case opset_latest::Interpolate::ShapeCalcMode::sizes:
+    case opset_latest::Interpolate::ShapeCalcMode::SIZES:
         calcModeAttr = IE::InterpolateCalcModeAttr::get(_ctx, IE::InterpolateCalcMode::sizes);
         break;
-    case opset_latest::Interpolate::ShapeCalcMode::scales:
+    case opset_latest::Interpolate::ShapeCalcMode::SCALES:
         calcModeAttr = IE::InterpolateCalcModeAttr::get(_ctx, IE::InterpolateCalcMode::scales);
         break;
     default:
@@ -1634,19 +1634,19 @@ IE::InterpolateAttr NGraphImporter::importInterpolateAttrs(const opset_latest::I
     // coordinate transformation mode
     IE::InterpolateCoordModeAttr coordModeAttr;
     switch (val.coordinate_transformation_mode) {
-    case opset_latest::Interpolate::CoordinateTransformMode::half_pixel:
+    case opset_latest::Interpolate::CoordinateTransformMode::HALF_PIXEL:
         coordModeAttr = IE::InterpolateCoordModeAttr::get(_ctx, IE::InterpolateCoordMode::half_pixel);
         break;
-    case opset_latest::Interpolate::CoordinateTransformMode::pytorch_half_pixel:
+    case opset_latest::Interpolate::CoordinateTransformMode::PYTORCH_HALF_PIXEL:
         coordModeAttr = IE::InterpolateCoordModeAttr::get(_ctx, IE::InterpolateCoordMode::pytorch_half_pixel);
         break;
-    case opset_latest::Interpolate::CoordinateTransformMode::asymmetric:
+    case opset_latest::Interpolate::CoordinateTransformMode::ASYMMETRIC:
         coordModeAttr = IE::InterpolateCoordModeAttr::get(_ctx, IE::InterpolateCoordMode::asymmetric);
         break;
-    case opset_latest::Interpolate::CoordinateTransformMode::tf_half_pixel_for_nn:
+    case opset_latest::Interpolate::CoordinateTransformMode::TF_HALF_PIXEL_FOR_NN:
         coordModeAttr = IE::InterpolateCoordModeAttr::get(_ctx, IE::InterpolateCoordMode::tf_half_pixel_for_nn);
         break;
-    case opset_latest::Interpolate::CoordinateTransformMode::align_corners:
+    case opset_latest::Interpolate::CoordinateTransformMode::ALIGN_CORNERS:
         coordModeAttr = IE::InterpolateCoordModeAttr::get(_ctx, IE::InterpolateCoordMode::align_corners);
         break;
     default:
@@ -1656,19 +1656,19 @@ IE::InterpolateAttr NGraphImporter::importInterpolateAttrs(const opset_latest::I
     // coordinate transformation mode
     IE::InterpolateNearestModeAttr nearestModeAttr;
     switch (val.nearest_mode) {
-    case opset_latest::Interpolate::NearestMode::round_prefer_floor:
+    case opset_latest::Interpolate::NearestMode::ROUND_PREFER_FLOOR:
         nearestModeAttr = IE::InterpolateNearestModeAttr::get(_ctx, IE::InterpolateNearestMode::round_prefer_floor);
         break;
-    case opset_latest::Interpolate::NearestMode::round_prefer_ceil:
+    case opset_latest::Interpolate::NearestMode::ROUND_PREFER_CEIL:
         nearestModeAttr = IE::InterpolateNearestModeAttr::get(_ctx, IE::InterpolateNearestMode::round_prefer_ceil);
         break;
-    case opset_latest::Interpolate::NearestMode::floor:
+    case opset_latest::Interpolate::NearestMode::FLOOR:
         nearestModeAttr = IE::InterpolateNearestModeAttr::get(_ctx, IE::InterpolateNearestMode::floor);
         break;
-    case opset_latest::Interpolate::NearestMode::ceil:
+    case opset_latest::Interpolate::NearestMode::CEIL:
         nearestModeAttr = IE::InterpolateNearestModeAttr::get(_ctx, IE::InterpolateNearestMode::ceil);
         break;
-    case opset_latest::Interpolate::NearestMode::simple:
+    case opset_latest::Interpolate::NearestMode::SIMPLE:
         nearestModeAttr = IE::InterpolateNearestModeAttr::get(_ctx, IE::InterpolateNearestMode::simple);
         break;
     default:
