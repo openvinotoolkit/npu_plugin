@@ -743,16 +743,19 @@ static void addPermuteIOOpsFcn(const mv::pass::PassEntry&, mv::ComputationModel&
     }
 
     /* In case of por_tf_FP16-INT8_license-plate-recognition-barrier-0007_ww34_MCM
-    if permute is added then because of a bug in LPscheduler accuracy will drop to 0% */
+    force NHWC input. Because of a bug in LPscheduler accuracy will drop to 0% */
+    /* In case of googlenet-v1 force NHWC input, otherwise network will not compile because of LPscheduler bug. */
     if(inputs.size() == 1)
     {
         auto input = inputs[0];
         auto shape = input->get<mv::Shape>("shape");
 
-        if( shape[mv::IO_BATCH_DIMENSION] == 1 &&
+        if((shape[mv::IO_BATCH_DIMENSION] == 1 &&
             shape[mv::IO_CHANNEL_DIMENSION] == 3 &&
             shape[mv::IO_HEIGHT_DIMENSION] == 24 &&
             shape[mv::IO_WIDTH_DIMENSION] == 94)
+            ||
+            model.getName() == "googlenet-v1")
         {
             input->set<mv::Order>("order", mv::Order("NHWC"));
         }
