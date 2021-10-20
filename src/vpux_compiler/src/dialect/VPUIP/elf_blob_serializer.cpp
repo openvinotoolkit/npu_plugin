@@ -17,14 +17,20 @@
 
 #include <elf/types/vpu_extensions.hpp>
 
-#include <tensor_ref.hpp>
-
 using namespace vpux;
 using namespace elf;
 
 VPUIP::ELFBlobSerializer::ELFBlobSerializer() {
     m_symbols = m_writer.addSymbolSection();
     m_symbols->setName(".symtab");
+
+    m_mappedInference.barrierConfigs.count = 0;
+    m_mappedInference.dmaTasks[0].count = 0;
+    m_mappedInference.dmaTasks[1].count = 0;
+    m_mappedInference.leadingDmaCount[0] = 0;
+    m_mappedInference.leadingDmaCount[1] = 0;
+    m_mappedInference.variants.count = 0;
+    m_mappedInference.invariants.count = 0;
 }
 
 void VPUIP::ELFBlobSerializer::setDDRScratch(size_t ddrScratch) {
@@ -43,7 +49,13 @@ void VPUIP::ELFBlobSerializer::setNetworkOutputs(llvm::ArrayRef<mlir::MemRefType
     setNetworkIO(outputs, VPU_STT_OUTPUT, m_networkOutputSymbols, "output");
 }
 
+void VPUIP::ELFBlobSerializer::setLeadingDMACount0(uint32_t leadingDMACount) {
+    m_mappedInference.leadingDmaCount[0] = leadingDMACount;
+}
+
 void VPUIP::ELFBlobSerializer::setDMATasks0(llvm::ArrayRef<std::pair<DmaWrapper, DMATaskExtension>> dmaTasks) {
+    m_mappedInference.dmaTasks[0].count = dmaTasks.size();
+
     std::vector<DmaWrapper> dmaDescriptors;
     dmaDescriptors.reserve(dmaTasks.size());
     for (const auto& dmaTask : dmaTasks) {
@@ -98,6 +110,8 @@ void VPUIP::ELFBlobSerializer::setDMATasks0(llvm::ArrayRef<std::pair<DmaWrapper,
 }
 
 void VPUIP::ELFBlobSerializer::setBarrierConfigs(llvm::ArrayRef<BarrierWrapper> barrierConfigs) {
+    m_mappedInference.barrierConfigs.count = barrierConfigs.size();
+
     m_barrierConfigs = m_writer.addBinaryDataSection<BarrierWrapper>();
     m_barrierConfigs->addData(barrierConfigs.data(), barrierConfigs.size());
     m_barrierConfigs->setName(".text.BarrierConfigs");
@@ -123,11 +137,7 @@ void VPUIP::ELFBlobSerializer::setNetworkIO(llvm::ArrayRef<mlir::MemRefType> inp
     symbolSection->setName(symbolName + "s");
 
     for (size_t i = 0; i < inputsOrOutputs.size(); i++) {
-        auto inputOrOutputTensorRef = TensorRef{};
         const auto& inputOrOutput = inputsOrOutputs[i];
-        inputOrOutputTensorRef.ndims = inputOrOutput.getRank();
-        std::copy(inputOrOutput.getShape().begin(), inputOrOutput.getShape().begin(), inputOrOutputTensorRef.dims);
-        inputOrOutputTensorRef.elemSize = vpux::getElemTypeSize(inputOrOutput).count();
 
         auto inputOrOutputSym = symbolSection->addSymbolEntry();
         inputOrOutputSym->setName(symbolName);  // TODO: get name of tensor?
@@ -164,11 +174,9 @@ void VPUIP::ELFBlobSerializer::finalize() {
     // MappedInference
     //
 
-    MappedInference mapped;
-    // TODO: move to getNumEntries()
-
     auto mappedInferenceSection = m_writer.addBinaryDataSection<MappedInference>();
     mappedInferenceSection->setName(".text.MappedInference");
+    mappedInferenceSection->addData(m_mappedInference);
     mappedInferenceSection->setFlags(SHF_EXECINSTR);
     mappedInferenceSection->setAddrAlign(64);
 
@@ -176,7 +184,7 @@ void VPUIP::ELFBlobSerializer::finalize() {
     mappedInferenceSymbol->setName("mappedInference");
     mappedInferenceSymbol->setRelatedSection(mappedInferenceSection);
     mappedInferenceSymbol->setType(STT_SECTION);
-    mappedInferenceSymbol->setSize(sizeof(mapped));
+    mappedInferenceSymbol->setSize(mappedInferenceSection->getDataSize());
 
     auto mappedInferenceRelaSection = m_writer.addRelocationSection();
     mappedInferenceRelaSection->setName(".rela.MappedInference");
@@ -198,8 +206,6 @@ void VPUIP::ELFBlobSerializer::finalize() {
     //
 
     if (m_dmaTasks0) {
-        mapped.dmaTasks[0].count = m_dmaTasks0->getNumEntries();
-
         auto dmaTasksSymbol = m_symbols->addSymbolEntry();
         dmaTasksSymbol->setName(".ddr.dmaTasks0");
         dmaTasksSymbol->setRelatedSection(m_dmaTasks0);
@@ -220,8 +226,6 @@ void VPUIP::ELFBlobSerializer::finalize() {
     //
 
     if (m_barrierConfigs) {
-        mapped.barrierConfigs.count = m_barrierConfigs->getNumEntries();
-
         auto barrierConfigsSymbol = m_symbols->addSymbolEntry();
         barrierConfigsSymbol->setName(".ddr.barrierConfigs");
         barrierConfigsSymbol->setRelatedSection(m_dmaTasks0);
@@ -236,8 +240,6 @@ void VPUIP::ELFBlobSerializer::finalize() {
         mappedInferenceBarrierConfigsRelocation->setAddend(0);
         segment->addSection(m_barrierConfigs);
     }
-
-    mappedInferenceSection->addData(mapped);
 }
 
 elf::writer::SymbolSection* VPUIP::ELFBlobSerializer::getSymbolSection(const TensorLocation& location) {
