@@ -14,6 +14,7 @@
 #include "vpux/compiler/dialect/IE/ops.hpp"
 
 #include "vpux/compiler/core/attributes/shape.hpp"
+#include "vpux/compiler/core/layers.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
 
@@ -68,16 +69,16 @@ mlir::LogicalResult FuseConvAndBias::matchAndRewrite(IE::ScaleShiftOp biasOp, ml
     if (biasShape.size() != 4) {
         return matchFailed(rewriter, biasOp, "ScaleShift 'shift' operand shape doesn't match bias restrictions");
     }
-    if (biasShape[IE::Dims4D::Act::N] != 1) {
+    if (biasShape[Dims4D::Act::N] != 1) {
         return matchFailed(rewriter, biasOp, "ScaleShift 'shift' operand shape doesn't match bias restrictions");
     }
-    if (biasShape[IE::Dims4D::Act::C] != convOutShape[IE::Dims4D::Act::C]) {
+    if (biasShape[Dims4D::Act::C] != convOutShape[Dims4D::Act::C]) {
         return matchFailed(rewriter, biasOp, "ScaleShift 'shift' operand shape doesn't match bias restrictions");
     }
-    if (biasShape[IE::Dims4D::Act::H] != 1) {
+    if (biasShape[Dims4D::Act::H] != 1) {
         return matchFailed(rewriter, biasOp, "ScaleShift 'shift' operand shape doesn't match bias restrictions");
     }
-    if (biasShape[IE::Dims4D::Act::W] != 1) {
+    if (biasShape[Dims4D::Act::W] != 1) {
         return matchFailed(rewriter, biasOp, "ScaleShift 'shift' operand shape doesn't match bias restrictions");
     }
 

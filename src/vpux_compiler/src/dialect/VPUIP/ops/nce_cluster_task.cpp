@@ -16,6 +16,7 @@
 #include "vpux/compiler/core/attributes/dim.hpp"
 #include "vpux/compiler/core/attributes/shape.hpp"
 #include "vpux/compiler/core/attributes/stride_reqs.hpp"
+#include "vpux/compiler/core/layers.hpp"
 #include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
 #include "vpux/compiler/utils/analysis.hpp"
 #include "vpux/compiler/utils/error.hpp"
@@ -153,7 +154,7 @@ mlir::LogicalResult verifyNCEConv(VPUIP::NCEClusterTaskOp op) {
     }
 
     const auto weightsShape = getShape(op.weights());
-    const auto OC = weightsShape[IE::Dims4D::Filter::OC];
+    const auto OC = weightsShape[Dims4D::Filter::OC];
 
     const auto weightTableShape = getShape(op.weight_table());
     const auto weightTableNumElements = weightTableShape.totalSize();
@@ -295,7 +296,7 @@ mlir::LogicalResult verifyNCEDWConv(VPUIP::NCEClusterTaskOp op) {
     }
 
     const auto weightsShape = getShape(op.weights());
-    const auto OC = weightsShape[IE::Dims4D::Filter::OC];
+    const auto OC = weightsShape[Dims4D::Filter::OC];
 
     const auto weightTableShape = getShape(op.weight_table());
     const auto weightTableNumElements = weightTableShape.totalSize();

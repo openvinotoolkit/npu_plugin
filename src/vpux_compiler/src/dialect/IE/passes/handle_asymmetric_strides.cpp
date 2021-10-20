@@ -13,6 +13,7 @@
 
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
+#include "vpux/compiler/core/layers.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
@@ -62,8 +63,8 @@ mlir::LogicalResult generalSplitter(mlir::Operation* origOp, mlir::PatternRewrit
     const auto KY = kernelSize[1];
 
     const auto inputShape = getShape(origOp->getOperand(0));
-    const auto H = inputShape[IE::Dims4D::Act::H];
-    const auto W = inputShape[IE::Dims4D::Act::W];
+    const auto H = inputShape[Dims4D::Act::H];
+    const auto W = inputShape[Dims4D::Act::W];
 
     const auto minStride = std::min(strides[0], strides[1]);
     const auto maxStride = std::max(strides[0], strides[1]);
@@ -93,12 +94,12 @@ mlir::LogicalResult generalSplitter(mlir::Operation* origOp, mlir::PatternRewrit
         for (auto j : irange(steps_h)) {
             Shape offsets(inputShape.size());
 
-            offsets[IE::Dims4D::Act::H] = j * minStride;
-            offsets[IE::Dims4D::Act::W] = i * minStride;
+            offsets[Dims4D::Act::H] = j * minStride;
+            offsets[Dims4D::Act::W] = i * minStride;
 
-            SmallVector<int64_t> sliceShape{inputShape[IE::Dims4D::Act::N], inputShape[IE::Dims4D::Act::C],
-                                            inputShape[IE::Dims4D::Act::H] - offsets[IE::Dims4D::Act::H],
-                                            inputShape[IE::Dims4D::Act::W] - offsets[IE::Dims4D::Act::W]};
+            SmallVector<int64_t> sliceShape{inputShape[Dims4D::Act::N], inputShape[Dims4D::Act::C],
+                                            inputShape[Dims4D::Act::H] - offsets[Dims4D::Act::H],
+                                            inputShape[Dims4D::Act::W] - offsets[Dims4D::Act::W]};
 
             const auto sliceName = llvm::formatv("slice {0}, {1}", i, j).str();
             const auto loc = appendLoc(origOp->getLoc(), sliceName);
@@ -113,8 +114,8 @@ mlir::LogicalResult generalSplitter(mlir::Operation* origOp, mlir::PatternRewrit
 
             auto newPaddingEnd = paddingEnd;
 
-            newPaddingEnd[0] += offsets[IE::Dims4D::Act::H];
-            newPaddingEnd[1] += offsets[IE::Dims4D::Act::W];
+            newPaddingEnd[0] += offsets[Dims4D::Act::H];
+            newPaddingEnd[1] += offsets[Dims4D::Act::W];
 
             VPUX_THROW_WHEN(newPaddingEnd[0] > (KY + 1) / 2 || newPaddingEnd[1] > (KX + 1) / 2,
                             "Paddings are out of range");
@@ -133,7 +134,7 @@ mlir::LogicalResult generalSplitter(mlir::Operation* origOp, mlir::PatternRewrit
         if (!wSliced.empty()) {
             hSliced.push_back(wSliced.size() != 1 ? rewriter.create<IE::ConcatOp>(
                                                             origOp->getLoc(), origOp->getResult(0).getType(), wSliced,
-                                                            IE::Dims4D::Act::H.ind(), minStride, maxStride)
+                                                            Dims4D::Act::H.ind(), minStride, maxStride)
                                                   : wSliced.front());
         }
     }
@@ -142,10 +143,10 @@ mlir::LogicalResult generalSplitter(mlir::Operation* origOp, mlir::PatternRewrit
         return mlir::failure();
     }
 
-    const auto concatOp =
-            hSliced.size() != 1 ? rewriter.create<IE::ConcatOp>(origOp->getLoc(), origOp->getResult(0).getType(),
-                                                                hSliced, IE::Dims4D::Act::W.ind(), minStride, maxStride)
-                                : hSliced.front();
+    const auto concatOp = hSliced.size() != 1
+                                  ? rewriter.create<IE::ConcatOp>(origOp->getLoc(), origOp->getResult(0).getType(),
+                                                                  hSliced, Dims4D::Act::W.ind(), minStride, maxStride)
+                                  : hSliced.front();
 
     rewriter.replaceOp(origOp, concatOp);
 
@@ -175,7 +176,7 @@ mlir::LogicalResult ConvolutionRewriter::matchAndRewrite(IE::ConvolutionOp origO
     const auto filterShape = getShape(origOp.filter());
 
     return generalSplitter(
-            origOp, rewriter, origOp.strides(), {filterShape[IE::Dims4D::Act::W], filterShape[IE::Dims4D::Act::H]},
+            origOp, rewriter, origOp.strides(), {filterShape[Dims4D::Act::W], filterShape[Dims4D::Act::H]},
             origOp.pads_begin(), origOp.pads_end(),
             [&](mlir::Location loc, mlir::Value input, OperationPart part) -> mlir::Operation* {
                 return rewriter.create<IE::ConvolutionOp>(loc, input, origOp.filter(), origOp.bias(), part.strides,
@@ -215,8 +216,8 @@ void HandleAsymmetricStridesPass::safeRunOnFunc() {
         const auto SX = kernelStrides[1];
 
         const auto inputShape = getShape(op.input());
-        const auto H = inputShape[IE::Dims4D::Act::H];
-        const auto W = inputShape[IE::Dims4D::Act::W];
+        const auto H = inputShape[Dims4D::Act::H];
+        const auto W = inputShape[Dims4D::Act::W];
 
         // for now there is implementation for the case
         // this way produces less slices and operations
