@@ -25,18 +25,18 @@ using namespace vpux;
 
 namespace {
 MVCNN::ROIAlignMethod ROIAlignMethod2MVCNN(IE::ROIAlignMethod method) {
-    MVCNN::ROIAlignMethod out_code;
+    MVCNN::ROIAlignMethod mvcnn_method;
     switch (method) {
         case IE::ROIAlignMethod::avg:
-            out_code = MVCNN::ROIAlignMethod_roi_align_avg;
+            mvcnn_method = MVCNN::ROIAlignMethod_roi_align_avg;
             break;
         case IE::ROIAlignMethod::max:
-            out_code = MVCNN::ROIAlignMethod_roi_align_max;
+            mvcnn_method = MVCNN::ROIAlignMethod_roi_align_max;
             break;
         default:
             VPUX_THROW("Unknown ROIAlignMethod. avg and max methods are supported only");
     }
-    return out_code;
+    return mvcnn_method;
 }
 }
 
