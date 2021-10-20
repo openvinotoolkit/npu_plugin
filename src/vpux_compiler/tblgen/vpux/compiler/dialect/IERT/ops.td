@@ -253,6 +253,7 @@ def IERT_TimestampOp :
             "Timestamp",
             [
                 NoSideEffect,
+                DotInterface
             ]
         > {
     let summary = "Get timer timestamp operation";
@@ -264,6 +265,12 @@ def IERT_TimestampOp :
     let results = (outs
         AnyStaticShapeMemRef:$output
     );
+
+    let extraClassDeclaration = [{
+        vpux::DotNodeColor getNodeColor() {
+            return vpux::DotNodeColor::BLUE;
+        }
+    }];
 
     let assemblyFormat = [{
         attr-dict `->` type(results)
@@ -329,6 +336,12 @@ def IERT_CopyOp :
         `->` type(results)
     }];
 
+    let extraClassDeclaration = [{
+        vpux::DotNodeColor getNodeColor() {
+            return vpux::DotNodeColor::GREEN;
+        }
+    }] # IERT_InferLayerReturnTypes<1>.impl;
+    
     let hasFolder = 1;
 }
 
@@ -2131,7 +2144,8 @@ def IERT_SubViewOp :
             [
                 NoSideEffect,
                 DeclareOpInterfaceMethods<ViewLikeOpInterface>,
-                DeclareOpInterfaceMethods<InferTypeOpInterface>
+                DeclareOpInterfaceMethods<InferTypeOpInterface>,
+                DotInterface
             ]
         > {
     let summary = "Extract single subview from buffer";
@@ -2151,6 +2165,12 @@ def IERT_SubViewOp :
     let assemblyFormat = [{
         $source $static_offsets $static_sizes ($static_strides^)?
         attr-dict `:` type($source) `to` type(results)
+    }];
+
+    let extraClassDeclaration = [{
+        vpux::DotNodeColor getNodeColor() {
+            return vpux::DotNodeColor::ORANGE;
+        }
     }];
 
     let builders = [

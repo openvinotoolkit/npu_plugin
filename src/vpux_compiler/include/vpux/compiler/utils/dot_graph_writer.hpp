@@ -24,6 +24,7 @@ struct GraphWriterParams final {
     std::string stopBefore;
     bool printConst = false;
     bool printDeclarations = false;
+    bool htmlLike = true;
 };
 
 mlir::LogicalResult writeDotGraph(mlir::Block& block, StringRef fileName, const GraphWriterParams& params);
