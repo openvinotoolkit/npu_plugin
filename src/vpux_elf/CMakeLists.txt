@@ -13,6 +13,8 @@
 
 cmake_minimum_required(VERSION 3.13 FATAL_ERROR)
 
+add_subdirectory(host_parsing)
+
 set(TARGET_NAME vpux_elf)
 
 include(TestBigEndian)
@@ -23,12 +25,13 @@ endif()
 
 file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS "*.hpp" "*.cpp")
 list(FILTER SOURCES EXCLUDE REGEX "${CMAKE_CURRENT_SOURCE_DIR}/example/.*")
+list(FILTER SOURCES EXCLUDE REGEX "${CMAKE_CURRENT_SOURCE_DIR}/host_parsing/.*")
 
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${HEADERS} ${SOURCES})
 
 add_library(${TARGET_NAME} STATIC ${SOURCES})
 target_include_directories(${TARGET_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_link_libraries(${TARGET_NAME} PRIVATE vpux_utils)
+target_link_libraries(${TARGET_NAME} PUBLIC vpux_utils host_parsing)
 
 enable_warnings_as_errors(${TARGET_NAME})
 

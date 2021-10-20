@@ -381,6 +381,7 @@ target_link_libraries(${OBJ_TARGET_NAME}
     PUBLIC
         vpux_utils
         vpux_al
+        vpux_elf
 )
 
 #
