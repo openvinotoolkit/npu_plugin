@@ -11,26 +11,27 @@
 // included with the Software Package for additional details.
 //
 
-#include <elf/types/symbol_entry.hpp>
+#include <elf/writer/empty_section.hpp>
 
 using namespace elf;
+using namespace elf::writer;
 
-//! Extract symbol binding attributes from info
-Elf_Xword elf::elf64STBind(Elf_Xword info) {
-    return info >> 4;
+EmptySection::EmptySection() {
+    m_header.sh_type = elf::SHT_NOBITS;
 }
 
-//! Extract symbol type from info
-Elf_Xword elf::elf64STType(Elf_Xword info) {
-    return info & 0xf;
+Elf_Xword EmptySection::getSize() const {
+    return m_header.sh_size;
 }
 
-//! Pack symbol binding attributes and symbol type into info
-Elf_Xword elf::elf64STInfo(Elf_Word bind, Elf_Word type) {
-    return (bind << 4) + (type & 0xf);
+void EmptySection::setSize(Elf_Xword size) {
+    m_header.sh_size = size;
 }
 
-//! Sets visibility
-uint8_t elf::elf64STVisibility(uint8_t visibility) {
-    return visibility & 0x3;
+Elf_Word EmptySection::getType() const {
+    return m_header.sh_type;
+}
+
+void EmptySection::setType(Elf_Word type) {
+    m_header.sh_type = type;
 }
