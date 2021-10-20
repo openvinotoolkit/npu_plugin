@@ -692,60 +692,28 @@ void quantizeGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mod
 
     mv::OpModel om(model);
 
-    if (om.getOps("FakeQuantize").empty())
-        return;
-
-    const auto globalParams = model.getGlobalConfigParams();
-    const auto refMode = globalParams->hasAttr("ReferenceMode") && globalParams->get<bool>("ReferenceMode");
-
-    if (refMode)
-    {
-        fakeQuantizeConst(model);
-
-        // Mark the rest FakeQuantize ops to be executed as SW task.
-        for (const auto& fqOp : om.getOps("FakeQuantize"))
-        {
-            fqOp->set("dType", mv::DType("Default"));
-            fqOp->set("quantParams", mv::QuantizationParams({0},{1.0},{},{}));
-            fqOp->getOutputTensor(0)->set("quantParams", mv::QuantizationParams({0},{1.0},{},{}));
-            fqOp->set<bool>("softwareExecuted", true);
-        }
-
-        return;
-    }
-
-    quantizeScaleShift(model, pass);
-
-    propagateActivationParameters(model);
-
-    quantizeConst(model);
-    quantizeBias(model);
-
-    removeFQ(pass, model);
-
-    reduceConversionsPatterns(model);
-
     mv::DataModel dm(model);
-    auto avgOps = om.getOps("AveragePool");
-    for(auto& avgOp: avgOps)
-    {
-        auto inputTensor = avgOp->getInputTensor(0);
-        auto outputTensor = avgOp->getOutputTensor(0);
-        auto childOps = mv::findSinkLayers(dm, avgOp->getOutputTensor(0));
+    // auto avgOps = om.getOps("AveragePool");
+    // for(auto& avgOp: avgOps)
+    // {
+    //     auto inputTensor = avgOp->getInputTensor(0);
+    //     auto outputTensor = avgOp->getOutputTensor(0);
+    //     auto childOps = mv::findSinkLayers(dm, avgOp->getOutputTensor(0));
 
-        if((inputTensor->getShape()[mv::IO_HEIGHT_DIMENSION] == 1) && (inputTensor->getShape()[mv::IO_WIDTH_DIMENSION] == 1) &&
-        (outputTensor->getShape()[mv::IO_HEIGHT_DIMENSION] == 1) && (outputTensor->getShape()[mv::IO_WIDTH_DIMENSION] == 1))
-        {
-            om.removeOp(avgOp);
+    //     if((inputTensor->getShape()[mv::IO_HEIGHT_DIMENSION] == 1) && (inputTensor->getShape()[mv::IO_WIDTH_DIMENSION] == 1) &&
+    //     (outputTensor->getShape()[mv::IO_HEIGHT_DIMENSION] == 1) && (outputTensor->getShape()[mv::IO_WIDTH_DIMENSION] == 1))
+    //     {
+    //         om.removeOp(avgOp);
 
-            for(auto& childOp: childOps)
-            {
-                om.defineFlow(inputTensor, childOp, 0);
-                childOp->setInputTensor(inputTensor, 0, false);
-            }
-        }
-    }
+    //         for(auto& childOp: childOps)
+    //         {
+    //             om.defineFlow(inputTensor, childOp, 0);
+    //             childOp->setInputTensor(inputTensor, 0, false);
+    //         }
+    //     }
+    // }
 
+    std::cout << "process HSwish" << std::endl;
     
     auto hswishOps = om.getOps("HSwish");
     for(auto& hswishOp: hswishOps)
@@ -824,8 +792,48 @@ void quantizeGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mod
 
         for(auto& childOp: childOps)
         {
-            om.defineFlow(eltwiseMul, childOp, 0);
-            childOp->setInputTensor(eltwiseMul, 0, false);
+            int idx = childOp->getOpType() == "Eltwise"? 1: 0;
+            if(childOp->getName() == "MobilenetV3/expanded_conv_10/squeeze_excite/mul"
+            || childOp->getName() == "MobilenetV3/expanded_conv_11/squeeze_excite/mul"
+            || childOp->getName() == "MobilenetV3/expanded_conv_12/squeeze_excite/mul"
+            || childOp->getName() == "MobilenetV3/expanded_conv_13/squeeze_excite/mul"
+            || childOp->getName() == "MobilenetV3/expanded_conv_14/squeeze_excite/mul")
+                idx = 0;
+            om.defineFlow(eltwiseMul, childOp, idx);
+            childOp->setInputTensor(eltwiseMul, idx, false);
         }
     }
+
+    if (om.getOps("FakeQuantize").empty())
+        return;
+
+    const auto globalParams = model.getGlobalConfigParams();
+    const auto refMode = globalParams->hasAttr("ReferenceMode") && globalParams->get<bool>("ReferenceMode");
+
+    if (refMode)
+    {
+        fakeQuantizeConst(model);
+
+        // Mark the rest FakeQuantize ops to be executed as SW task.
+        for (const auto& fqOp : om.getOps("FakeQuantize"))
+        {
+            fqOp->set("dType", mv::DType("Default"));
+            fqOp->set("quantParams", mv::QuantizationParams({0},{1.0},{},{}));
+            fqOp->getOutputTensor(0)->set("quantParams", mv::QuantizationParams({0},{1.0},{},{}));
+            fqOp->set<bool>("softwareExecuted", true);
+        }
+
+        return;
+    }
+
+    quantizeScaleShift(model, pass);
+
+    propagateActivationParameters(model);
+
+    quantizeConst(model);
+    quantizeBias(model);
+
+    removeFQ(pass, model);
+
+    reduceConversionsPatterns(model);
 }
