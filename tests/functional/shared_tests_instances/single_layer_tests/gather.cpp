@@ -22,6 +22,20 @@ class KmbGatherLayerTest: public GatherLayerTest, virtual public LayerTestsUtils
 };
 
 class KmbGather7LayerTest: public Gather7LayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+
+    void SkipBeforeLoad() override {
+        auto inputRank = std::get<0>(GetParam()).size();
+        auto indexRank = std::get<1>(GetParam()).size();
+        auto batch_dims = std::get<1>(std::get<2>(GetParam()));
+
+        if (inputRank != 4) {
+            throw LayerTestsUtils::KmbSkipTestException("Gather7 only supports 4D input shape");
+        }
+
+        if ((inputRank + indexRank - 1 - batch_dims) != 4){
+            throw LayerTestsUtils::KmbSkipTestException("Gather7 only supports 4D output shape");
+        }
+    }
 };
 
 TEST_P(KmbGatherLayerTest, CompareWithRefs) {
