@@ -63,14 +63,15 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(ReadValueUPAOp op) {
 
 // void vpux::VPUIP::AssignUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
 //                                      mlir::Value output, mlir::StringAttr variable_id) {
-void vpux::VPUIP::AssignUPAOp::build(mlir::OpBuilder& /*builder*/, mlir::OperationState& /*state*/, mlir::Value /*input*/,
-                                     mlir::Value /* output */, mlir::Value /* output */, mlir::StringAttr /*variable_id*/) {
+void vpux::VPUIP::AssignUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
+                                     mlir::Value output, mlir::StringAttr variable_id) {
 // mlir::ValueRange{}, mlir::ValueRange{}
     std::cout << "vpux::VPUIP::AssignUPAOp::build start" << std::endl;
     // build(builder, state, input, output, mlir::ValueRange{}, mlir::ValueRange{}, variable_id, nullptr, nullptr);
 
     // TODO: is not compiled!
-    // build(builder, state, input, output, mlir::ValueRange{}, mlir::ValueRange{}, variable_id, nullptr, nullptr);
+    build(builder, state, input, output, mlir::ValueRange{}, mlir::ValueRange{}, variable_id, nullptr, nullptr);
+    // build(builder, state, input, output, variable_id);
 
     std::cout << "vpux::VPUIP::AssignUPAOp::build" << std::endl;
 }

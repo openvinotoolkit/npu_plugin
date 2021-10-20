@@ -69,7 +69,7 @@ void ReadValueTransPass::safeRunOnModule() {
 
     std::cout << "func.sym_name()" << netFunc.sym_name().str() << std::endl;
 
-#if 1
+#if 0
     // correct Assign
     IE::AssignOp assign_op;
     netFunc.walk([&](IE::AssignOp op) {
@@ -77,10 +77,6 @@ void ReadValueTransPass::safeRunOnModule() {
         assign_op = op;
         std::cout << "netFunc.walk->AssignOp END" << std::endl;
     });
-    // netFunc.walk([&](IE::ReadValueOp op) {
-    //     std::cout << "netFunc.walk->ReadValueOp" << std::endl;
-    //     assign_op = op;
-    // });
 
     // std::cout << "auto assignOutput = assign_op.output();" << std::endl;
     // auto assignOutput = assign_op.output();
@@ -112,26 +108,35 @@ void ReadValueTransPass::safeRunOnModule() {
     // correct Assign
     // netFunc.walk([&](IE::AssignOp op) {
     //     std::cout << "netFunc.walk->ReadValueOp" << std::endl;
-    //     op.outputMutable().assign(assignResult);
+    //     op.output().set(assignOutput);
     // });
 #endif
     std::cout << "ReadValueTransPass End" << std::endl;
 
-    auto copyLoc = mlir::NameLoc::get(mlir::Identifier::get("AssignOutputCopy", ctx));
-    // auto outputOp = builder.create<IERT::CopyOp>(copyLoc, assign_op.output(), assignResult);
+    // auto copyLoc = mlir::NameLoc::get(mlir::Identifier::get("AssignOutputCopy", ctx));
 
-    auto assignOutput = builder.create<IE::CopyOp>(copyLoc, assign_op.output());
-    auto assignOutputShapeType = assignOutput.output().getType().cast<mlir::ShapedType>();
+    // /*auto copyOp =*/ builder.create<IE::FloorOp>(assign_op.getLoc(), assign_op.output());
+    // auto assignOutputShapeType = copyOp.output().getType().cast<mlir::ShapedType>();
 
-    auto assignResult = netFunc.getBody().front().addArgument(assignOutputShapeType);
+    // auto copyOp = builder.create<IE::FloorOp>(assign_op->getLoc(), assign_op->output());
+    // assign_op->output().replaceAllUsesExcept(copyOp.output(), llvm::SmallPtrSet<mlir::Operation*, 1>{copyOp});
+
+    std::cout << "ReadValueTransPass End" << std::endl;
+
+    // auto assignResult = netFunc.getBody().front().addArgument(assignOutputShapeType);
 
 
     // change main function interface
+    // auto assignOutputShapeType = assign_op.output().getType().cast<mlir::ShapedType>();
+
+    // auto assignOutputRes = netFunc.getBody().front().addArgument(assignOutputShapeType);
+
+
     auto newInputsTypes =
             to_small_vector(llvm::concat<const mlir::Type>(funcType.getInputs(), makeArrayRef(readValueInput)));
-    auto newOutputsTypes =
-                           to_small_vector(llvm::concat<const mlir::Type>(funcType.getResults(), makeArrayRef(assignOutputShapeType)));
-    auto newFunctionType = mlir::FunctionType::get(ctx, newInputsTypes, newOutputsTypes);
+    // auto newOutputsTypes =
+                        //    to_small_vector(llvm::concat<const mlir::Type>(funcType.getResults(), makeArrayRef(assignOutputShapeType)));
+    auto newFunctionType = mlir::FunctionType::get(ctx, newInputsTypes,  funcType.getResults());
     netFunc.setType(newFunctionType);
 
     // User result
@@ -142,19 +147,23 @@ void ReadValueTransPass::safeRunOnModule() {
                                            mlir::TypeAttr::get(inputUserResult));
 
     // Adding output to the user info
-    auto outputUserResult =
-                            getTensorType(assignOutputShapeType.getShape(), assignOutputShapeType.getElementType(), DimsOrder::fromType(assignOutputShapeType));
+    // auto outputUserResult =
+    //                         getTensorType(assignOutputShapeType.getShape(), assignOutputShapeType.getElementType(), DimsOrder::fromType(assignOutputShapeType));
 
-    auto userInfoBuilderOutput = mlir::OpBuilder::atBlockEnd(&netOp.outputsInfo().front(), &builderLog);
-    userInfoBuilderOutput.create<IE::DataInfoOp>(mlir::UnknownLoc::get(ctx), mlir::StringAttr::get(ctx, "assignOutput"),
-                                                 mlir::TypeAttr::get(outputUserResult));
+    // auto userInfoBuilderOutput = mlir::OpBuilder::atBlockEnd(&netOp.outputsInfo().front(), &builderLog);
+    // userInfoBuilderOutput.create<IE::DataInfoOp>(mlir::UnknownLoc::get(ctx), mlir::StringAttr::get(ctx, "assignOutput"),
+    //                                              mlir::TypeAttr::get(outputUserResult));
 
     std::cout << "ReadValueTransPass End" << std::endl;
 
+#if 0
     // And to the returnOp
     netFunc.walk([&](mlir::ReturnOp op) {
-        op.operandsMutable().append(assignResult);
+        // op.operandsMutable().append(assignResult);
+        std::cout << "!!!!!!!!!ReturnOp op" << std::endl;
+        op.operandsMutable().append(/*assign_op.getResult()*/ assignOutputRes);
     });
+#endif
 
 #endif
 

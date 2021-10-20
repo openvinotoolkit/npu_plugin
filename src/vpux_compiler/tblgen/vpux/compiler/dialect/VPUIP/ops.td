@@ -399,27 +399,24 @@ def VPUIP_AssignUPAOp :
     let arguments = (ins
         AnyMemRef:$input,
         AnyMemRef:$output_buff,
-        AnyMemRef:$second_output_buff,
 
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers,
 
-        OptionalAttr<IntAttr>:$maxShaves,
-        UnitAttr:$isTrailingSWLayer,
+        StrAttr:$variable_id,
 
-        StrAttr:$variable_id
+        OptionalAttr<IntAttr>:$maxShaves,
+        UnitAttr:$isTrailingSWLayer
     );
 
     let results = (outs
-        AnyMemRef:$output,
-        AnyMemRef:$second_output
+        AnyMemRef:$output
     );
 
     let builders = [
         OpBuilder<
             (ins "mlir::Value" : $input,
                  "mlir::Value" : $output,
-                 "mlir::Value" : $second_output,
                  "mlir::StringAttr" : $variable_id)
         >
     ];
@@ -433,7 +430,7 @@ def VPUIP_AssignUPAOp :
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
-        `outputs` `(` $output_buff `:` type($output_buff) `,` $second_output_buff `:` type($second_output_buff)  `)`
+        `outputs` `(` $output_buff `:` type($output_buff)  `)`
         (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
         (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `->` type(results)
