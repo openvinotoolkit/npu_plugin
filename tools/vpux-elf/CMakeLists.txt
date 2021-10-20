@@ -11,13 +11,15 @@
 # included with the Software Package for additional details.
 #
 
-add_subdirectory(model-comparator)
+set(TARGET_NAME "elf-blob-example")
 
-add_subdirectory(test_classification)
-add_subdirectory(single-image-test)
+file(GLOB_RECURSE SOURCES "*.cpp")
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
 
-add_subdirectory(vpux-elf)
+add_executable(${TARGET_NAME} ${SOURCES})
+set_target_properties(${TARGET_NAME} PROPERTIES FOLDER "tools")
 
-add_subdirectory(vpux-opt)
-add_subdirectory(vpux-translate)
-add_subdirectory(vpux-lsp-server)
+enable_warnings_as_errors(${TARGET_NAME} WIN_STRICT)
+vpux_enable_clang_format(${TARGET_NAME})
+
+target_link_libraries(${TARGET_NAME} PUBLIC vpux_compiler_static)
