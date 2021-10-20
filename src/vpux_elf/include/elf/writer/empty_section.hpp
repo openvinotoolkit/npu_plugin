@@ -11,26 +11,29 @@
 // included with the Software Package for additional details.
 //
 
-#include <elf/types/symbol_entry.hpp>
+#pragma once
 
-using namespace elf;
+#include <elf/writer/section.hpp>
 
-//! Extract symbol binding attributes from info
-Elf_Xword elf::elf64STBind(Elf_Xword info) {
-    return info >> 4;
-}
+namespace elf {
 
-//! Extract symbol type from info
-Elf_Xword elf::elf64STType(Elf_Xword info) {
-    return info & 0xf;
-}
+class Writer;
 
-//! Pack symbol binding attributes and symbol type into info
-Elf_Xword elf::elf64STInfo(Elf_Word bind, Elf_Word type) {
-    return (bind << 4) + (type & 0xf);
-}
+namespace writer {
 
-//! Sets visibility
-uint8_t elf::elf64STVisibility(uint8_t visibility) {
-    return visibility & 0x3;
-}
+class EmptySection final : public Section {
+public:
+    Elf_Xword getSize() const;
+    void setSize(Elf_Xword size);
+
+    Elf_Word getType() const;
+    void setType(Elf_Word type);
+
+private:
+    EmptySection();
+
+    friend Writer;
+};
+
+} // namespace writer
+} // namespace elf
