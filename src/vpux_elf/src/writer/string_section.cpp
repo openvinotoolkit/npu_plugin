@@ -11,26 +11,24 @@
 // included with the Software Package for additional details.
 //
 
-#include <elf/types/symbol_entry.hpp>
+#include <elf/writer/string_section.hpp>
 
 using namespace elf;
+using namespace elf::writer;
 
-//! Extract symbol binding attributes from info
-Elf_Xword elf::elf64STBind(Elf_Xword info) {
-    return info >> 4;
+StringSection::StringSection() {
+    m_header.sh_type = SHT_STRTAB;
+    m_data.push_back('\0');
 }
 
-//! Extract symbol type from info
-Elf_Xword elf::elf64STType(Elf_Xword info) {
-    return info & 0xf;
-}
+size_t StringSection::addString(const std::string& name) {
+    if (name.empty()) {
+        return 0;
+    }
 
-//! Pack symbol binding attributes and symbol type into info
-Elf_Xword elf::elf64STInfo(Elf_Word bind, Elf_Word type) {
-    return (bind << 4) + (type & 0xf);
-}
+    const auto pos = m_data.size();
+    const auto str = name.c_str();
+    m_data.insert(m_data.end(), str, str + name.size() + 1);
 
-//! Sets visibility
-uint8_t elf::elf64STVisibility(uint8_t visibility) {
-    return visibility & 0x3;
+    return pos;
 }
