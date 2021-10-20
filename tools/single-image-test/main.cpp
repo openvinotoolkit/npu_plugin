@@ -49,6 +49,7 @@ DEFINE_string(ip, "", "Input precision (default FP32)");
 DEFINE_string(op, "", "Input precision (default FP32)");
 DEFINE_string(il, "", "Input layout (default NCHW)");
 DEFINE_string(ol, "", "Input layout (default NCHW)");
+DEFINE_bool(img_as_bin, false, "Force binary input even if network expects an image");
 
 DEFINE_bool(run_test, false, "Run the test (compare current results with previously dumped)");
 DEFINE_string(mode, "", "Comparison mode to use");
@@ -109,6 +110,7 @@ void parseCommandLine(int argc, char* argv[]) {
     std::cout << "    Output precision: " << FLAGS_op << std::endl;
     std::cout << "    Input layout:     " << FLAGS_il << std::endl;
     std::cout << "    Output layout:    " << FLAGS_ol << std::endl;
+    std::cout << "    Img as binary:    " << FLAGS_img_as_bin << std::endl;
     std::cout << "    Device:           " << FLAGS_device << std::endl;
     std::cout << "    Config file:      " << FLAGS_config << std::endl;
     std::cout << "    Run test:         " << FLAGS_run_test << std::endl;
@@ -370,7 +372,7 @@ ie::MemoryBlob::Ptr loadBinary(const ie::TensorDesc& desc, const std::string& fi
 }
 
 ie::MemoryBlob::Ptr loadInput(const ie::TensorDesc& desc, const std::string& filePath, const std::string& colorFormat) {
-    if (isImage(desc)) {
+    if (isImage(desc) && !FLAGS_img_as_bin) {
         return loadImage(desc, filePath, colorFormat);
     } else {
         return loadBinary(desc, filePath);
