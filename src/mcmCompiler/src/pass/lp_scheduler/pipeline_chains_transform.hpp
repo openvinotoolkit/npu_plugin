@@ -326,7 +326,7 @@ class Pipeline_Chains {
         else
         {
           op_list_t temp = retrieve_concrete_child_ops(child, model);
-          concrete_child_ops.merge(temp);
+          concrete_child_ops.insert(concrete_child_ops.end(), temp.begin(), temp.end());
         }
       }
       return concrete_child_ops;
