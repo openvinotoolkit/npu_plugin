@@ -117,7 +117,7 @@ std::vector<uint8_t> getBitPattern(mlir::ArrayRef<int64_t> kernelSize, int64_t w
     return bitPattern;
 }
 
-constexpr std::int32_t MTL_SPARSITY = 0xFFFFFF;
+constexpr std::int32_t SPARSITY_PTR_WHEN_NO_SPARISTY = 0xFFFFFF;
 
 std::int32_t toHex(double realVal) {
     union f32toint32 {
@@ -336,12 +336,11 @@ std::vector<uint8_t> vpux::VPUIP::NCESparsity::getFakeSparsity(mlir::ArrayRef<in
     return fakeSparsity;
 }
 
-std::vector<std::int32_t> vpux::VPUIP::NCESparsity::getWeightsTable(mlir::Type op_inElemType, mlir::Type op_outElemType,
-                                                                    std::int32_t weightPtrOffset,
-                                                                    std::int32_t weightPtrStep,
-                                                                    std::int32_t sparsityPtrOffset,
-                                                                    vpux::VPUIP::ArchKind arch, std::int64_t OC,
-                                                                    mlir::Type weightsElemType, mlir::Value bias) {
+std::vector<int32_t> vpux::VPUIP::NCESparsity::getWeightsTable(mlir::Type op_inElemType, mlir::Type op_outElemType,
+                                                               Optional<int32_t> weightPtrOffset, int32_t weightPtrStep,
+                                                               Optional<int32_t> sparsityPtrOffset,
+                                                               vpux::VPUIP::ArchKind arch, int64_t OC,
+                                                               mlir::Type weightsElemType, mlir::Value bias) {
     VPUX_THROW_WHEN(op_inElemType == nullptr || op_outElemType == nullptr,
                     "Can't create weights table without operation input/output types");
 
@@ -349,19 +348,24 @@ std::vector<std::int32_t> vpux::VPUIP::NCESparsity::getWeightsTable(mlir::Type o
             getMultShiftFunc(op_inElemType, op_outElemType, weightsElemType, arch, checked_cast<size_t>(OC));
     auto getBiasFP = getBiasFunc(op_inElemType, op_outElemType, weightsElemType, bias, arch, checked_cast<size_t>(OC));
 
-    auto sparsityPtr =
-            (weightsElemType == nullptr && arch == vpux::VPUIP::ArchKind::MTL) ? MTL_SPARSITY : sparsityPtrOffset;
+    // In case of dense operation use sparsityPtr beyond CMX memory range to satisfy HW requirements
+    auto sparsityPtr = sparsityPtrOffset.hasValue() ? sparsityPtrOffset.getValue() : SPARSITY_PTR_WHEN_NO_SPARISTY;
+    if (weightsElemType == nullptr && arch == vpux::VPUIP::ArchKind::MTL) {
+        sparsityPtr = SPARSITY_PTR_WHEN_NO_SPARISTY;
+    }
+    auto weightPtr = weightPtrOffset.hasValue() ? weightPtrOffset.getValue() : 0;
+
     std::vector<std::int32_t> weightsTableVals(OC * vpux::VPUIP::NCEInvariant::WEIGHT_TABLE_NUM_ELEMENTS_PER_OC, 0);
 
     for (auto oc : irange(checked_cast<std::size_t>(OC))) {
         const auto wtInd = oc * static_cast<std::size_t>(vpux::VPUIP::NCEInvariant::WEIGHT_TABLE_NUM_ELEMENTS_PER_OC);
 
-        weightsTableVals[wtInd + 0] = weightPtrOffset;
+        weightsTableVals[wtInd + 0] = weightPtr;
         weightsTableVals[wtInd + 1] = sparsityPtr;
         weightsTableVals[wtInd + 2] = getMultShift(oc);
         weightsTableVals[wtInd + 3] = getBiasFP(oc);
 
-        weightPtrOffset += weightPtrStep;
+        weightPtr += weightPtrStep;
         if (arch == vpux::VPUIP::ArchKind::MTL && weightsElemType) {
             auto elementSize = static_cast<Byte>(getElemTypeSize(weightsElemType));
             sparsityPtr += weightPtrStep / static_cast<int>(elementSize.count());
