@@ -300,9 +300,6 @@ mlir::LogicalResult FuseWithConcat::matchAndRewrite(IE::QuantizeOp quantizeOp, m
     if (dequantizeOp == nullptr) {
         return mlir::failure();
     }
-    const auto dequantizeInputType = dequantizeOp.input().getType().cast<mlir::RankedTensorType>().getElementType();
-
-    const auto perAxisQType = dequantizeInputType.dyn_cast<mlir::quant::UniformQuantizedPerAxisType>();
 
     for (auto in : concatOp.inputs()) {
         auto inputDequantizeOp = in.getDefiningOp<IE::DequantizeOp>();
@@ -310,20 +307,19 @@ mlir::LogicalResult FuseWithConcat::matchAndRewrite(IE::QuantizeOp quantizeOp, m
             return mlir::failure();
         }
 
-        auto inputDequantizeOpType = inputDequantizeOp.input().getType().cast<mlir::RankedTensorType>();
-        auto inputDequantizeElemType = inputDequantizeOpType.getElementType();
-        if (dequantizeInputType != inputDequantizeElemType) {
-            return mlir::failure();
-        }
+        if (!newConcatInputs.empty()) {
+            const auto prevElemType = newConcatInputs.back().getType().cast<mlir::ShapedType>().getElementType();
+            const auto curElemType = inputDequantizeOp.input().getType().cast<mlir::ShapedType>().getElementType();
 
-        const auto curPerAxisQType = inputDequantizeElemType.dyn_cast<mlir::quant::UniformQuantizedPerAxisType>();
-
-        if ((perAxisQType == nullptr && curPerAxisQType != nullptr) ||
-            (perAxisQType != nullptr && curPerAxisQType == nullptr)) {
-            return mlir::failure();
-        }
-        if (perAxisQType != nullptr && curPerAxisQType != nullptr) {
-            if (!canBeMerged(curPerAxisQType, perAxisQType)) {
+            if (const auto prevPerAxisType = prevElemType.dyn_cast<mlir::quant::UniformQuantizedPerAxisType>()) {
+                if (const auto curPerAxisType = curElemType.dyn_cast<mlir::quant::UniformQuantizedPerAxisType>()) {
+                    if (!canBeMerged(prevPerAxisType, curPerAxisType)) {
+                        return mlir::failure();
+                    }
+                } else {
+                    return mlir::failure();
+                }
+            } else if (prevElemType != curElemType) {
                 return mlir::failure();
             }
         }
