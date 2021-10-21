@@ -63,58 +63,62 @@ class SW_Kernel_Args_Trait : public SW_Kernel_Args_TraitBase<T> {
 
 public:
     SW_Kernel_Args_Trait(T actual) : SW_Kernel_Args_TraitBase<T>(actual) {}
-    mlir::SmallVector<mlir::Attribute, 128> args() {
-        return {};
-    };
 };
 
 // specialisation for extracting args per given type
 template<>
 class SW_Kernel_Args_Trait<IERT::SoftMaxOp> : public SW_Kernel_Args_TraitBase<IERT::SoftMaxOp> {
-
 public:
     SW_Kernel_Args_Trait(IERT::SoftMaxOp actual) : SW_Kernel_Args_TraitBase<IERT::SoftMaxOp>(actual) {}
     mlir::SmallVector<mlir::Attribute, 128> args() {
         return {_actual.axisIndAttr()};
     };
-};
-
-
-class SW_Kernel_Inputs {
-public:
-    template <class T>
-    static mlir::SmallVector<mlir::Value, 128> Invoke(T op) {
-        SW_Kernel_Args_Trait<T> tmp(op);
-        return tmp.inputs();
+    mlir::SmallString<64> entryPoint() const {
+        return {"softmax_fp16"};
+    }
+    mlir::SmallString<64> source() const {
+        return {"softmax_fp16.cpp"};
     }
 };
 
-class SW_Kernel_Outputs {
+template<>
+class SW_Kernel_Args_Trait<IERT::SigmoidOp> : public SW_Kernel_Args_TraitBase<IERT::SigmoidOp> {
 public:
-    template <class T>
-    static mlir::SmallVector<mlir::Value, 128> Invoke(T op) {
-        SW_Kernel_Args_Trait<T> tmp(op);
-        return tmp.outputs();
+    SW_Kernel_Args_Trait(IERT::SigmoidOp actual) : SW_Kernel_Args_TraitBase<IERT::SigmoidOp>(actual) {}
+    mlir::SmallVector<mlir::Attribute, 128> args() {
+        return {};
+    };
+    mlir::SmallString<64> entryPoint() const {
+        return {"sigmoid_fp16"};
+    }
+    mlir::SmallString<64> source() const {
+        return {"sigmoid_fp16.c"};
     }
 };
 
-class SW_Kernel_OutputBufs {
-public:
-    template <class T>
-    static mlir::SmallVector<mlir::Value, 128> Invoke(T op) {
-        SW_Kernel_Args_Trait<T> tmp(op);
-        return tmp.output_buf();
-    }
-};
 
-class SW_Kernel_Args {
-public:
-    template <class T>
-    static mlir::SmallVector<mlir::Attribute, 128> Invoke(T op) {
-        SW_Kernel_Args_Trait<T> tmp(op);
-        return tmp.args();
-    }
-};
+#define TRAIT_NAME(invocation) SW_Kernel_##invocation
+
+#define GEN_TRAIT(result_type, invocation)\
+class TRAIT_NAME(invocation) {\
+public:\
+    template <class T>\
+    static result_type Invoke(T op) {\
+        SW_Kernel_Args_Trait<T> tmp(op);\
+        return tmp.invocation();\
+    }\
+}
+
+using SmallValueVector = mlir::SmallVector<mlir::Value, 128>;
+using SmallAttributeVector = mlir::SmallVector<mlir::Attribute, 128>;
+
+GEN_TRAIT(SmallValueVector, inputs);
+GEN_TRAIT(SmallValueVector, outputs);
+GEN_TRAIT(SmallValueVector, output_buf);
+GEN_TRAIT(SmallAttributeVector, args);
+GEN_TRAIT(mlir::SmallString<64>, entryPoint);
+GEN_TRAIT(mlir::SmallString<64>, source);
+
 
 template <class TN, class ... TN_1>
 class run_for_type {
@@ -151,16 +155,22 @@ public:
         return run_for_type<TN ...>::template findAndRun<FindResult>(origOp);
     }
     mlir::SmallVector<mlir::Value, 128> inputs(mlir::Operation* origOp) const {
-        return run_for_type<TN ...>::template findAndRun<SW_Kernel_Inputs>(origOp);
+        return run_for_type<TN ...>::template findAndRun<TRAIT_NAME(inputs)>(origOp);
     }
     mlir::SmallVector<mlir::Value, 128> outputs(mlir::Operation* origOp) const {
-        return run_for_type<TN ...>::template findAndRun<SW_Kernel_Outputs>(origOp);
+        return run_for_type<TN ...>::template findAndRun<TRAIT_NAME(outputs)>(origOp);
     }
     mlir::SmallVector<mlir::Value, 128> output_buf(mlir::Operation* origOp) const {
-        return run_for_type<TN ...>::template findAndRun<SW_Kernel_OutputBufs>(origOp);
+        return run_for_type<TN ...>::template findAndRun<TRAIT_NAME(output_buf)>(origOp);
     }
     mlir::SmallVector<mlir::Attribute, 128> args(mlir::Operation* origOp) const {
-        return run_for_type<TN ...>::template findAndRun<SW_Kernel_Args>(origOp);
+        return run_for_type<TN ...>::template findAndRun<TRAIT_NAME(args)>(origOp);
+    }
+    mlir::SmallString<64> entryPoint(mlir::Operation* origOp) const {
+        return run_for_type<TN ...>::template findAndRun<TRAIT_NAME(entryPoint)>(origOp);
+    }
+    mlir::SmallString<64> source(mlir::Operation* origOp) const {
+        return run_for_type<TN ...>::template findAndRun<TRAIT_NAME(source)>(origOp);
     }
 };
 
@@ -338,8 +348,11 @@ private:
 
         // modifying attributes
         buildInOp.sym_visibilityAttr(mlir::StringAttr::get(ctx, "private"));
-        buildInOp->setAttr("VPU.kernel_entry", mlir::StringAttr::get(ctx, "sigmoid_fp16"));
-        buildInOp->setAttr("VPU.kernel_code", mlir::StringAttr::get(ctx, "sigmoid_fp16.c"));
+        auto entryPoint = operation().entryPoint(origOp);
+        auto sourceFile  = operation().source(origOp);
+
+        buildInOp->setAttr("VPU.kernel_entry", mlir::StringAttr::get(ctx, entryPoint));
+        buildInOp->setAttr("VPU.kernel_code", mlir::StringAttr::get(ctx, sourceFile));
 
         return builtInFunction;
     }
