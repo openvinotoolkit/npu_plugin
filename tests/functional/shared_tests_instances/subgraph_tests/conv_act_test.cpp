@@ -13,12 +13,6 @@
 namespace SubgraphTestsDefinitions {
 
 class KmbConvActivationSubgraphTest : public ConvActTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
-    void SkipBeforeInfer() override {
-        if (envConfig.IE_KMB_TESTS_PLATFORM == "3900") {
-            // [Track number: E#18571]
-            throw LayerTestsUtils::KmbSkipTestException("Bad results");
-        }
-    }
 };;
 
 TEST_P(KmbConvActivationSubgraphTest, CompareWithRefs) {
