@@ -62,6 +62,8 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::EltwiseUPAOp::serialize(VPUIP::Blob
         break;
     case VPUIP::EltwiseLayerType::LESS_EQUAL:
         type = writer.createString("comparele");
+    case VPUIP::EltwiseLayerType::NOT_EQUAL:
+        type = writer.createString("comparene");
         break;
     default:
         VPUX_THROW("Unsupported EltwiseLayerType {0}", this->type());
@@ -106,6 +108,8 @@ mlir::Operation* vpux::VPUIP::BlobReader::parseEltwise(mlir::OpBuilder& builder,
         type = EltwiseLayerType::LESS;
     } else if (strType == "comparele") {
         type = EltwiseLayerType::LESS_EQUAL;
+    } else if (strType == "notequal") {
+        type = EltwiseLayerType::NOT_EQUAL;
     } else {
         VPUX_THROW("Unsupported EltwiseLayerType {0}", strType);
     }

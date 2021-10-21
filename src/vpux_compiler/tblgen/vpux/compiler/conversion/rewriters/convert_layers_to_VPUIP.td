@@ -482,7 +482,7 @@ def RewriteTile :
         >;
 
 //
-// IERT.[Add|Multiply|Divide|SquaredDiff|Power|FloorMod|Min|Max|And|Equal|Less|LessEqual]Pool -> VPUIP.EltwiseUPA
+// IERT.[Add|Multiply|Divide|SquaredDiff|Power|FloorMod|Min|Max|And|Equal|Less|LessEqual|NotEqual]Pool -> VPUIP.EltwiseUPA
 //
 
 class createEltwiseUPAOp<string method> :
@@ -574,6 +574,12 @@ def RewriteLessEqual :
         Pat<
             (IERT_LessEqualOp $input1, $input2, $output),
             (createEltwiseUPAOp<"LESS_EQUAL"> $input1, $input2, $output)
+        >;
+
+def RewriteNotEqual :
+        Pat<
+            (IERT_NotEqualOp $input1, $input2, $output),
+            (createEltwiseUPAOp<"NOT_EQUAL"> $input1, $input2, $output)
         >;
 
 //

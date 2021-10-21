@@ -1621,6 +1621,37 @@ operation ::= `IE.NormalizeIE` `(` operands `)` attr-dict `:` type(operands) `->
 | :----: | ----------- |
 `output` | ranked tensor of any type values
 
+### `IE.NotEqual` (vpux::IE::NotEqualOp)
+
+InferenceEngine NotEqual layer
+
+
+Syntax:
+
+```
+operation ::= `IE.NotEqual` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`auto_broadcast` | vpux::IE::AutoBroadcastTypeAttr | Specifies rules used for auto-broadcasting of input tensors
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input1` | ranked tensor of 16-bit float or 32-bit float values
+`input2` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
 ### `IE.PRelu` (vpux::IE::PReluOp)
 
 InferenceEngine PRelu layer
