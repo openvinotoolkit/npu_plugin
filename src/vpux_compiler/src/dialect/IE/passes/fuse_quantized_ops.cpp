@@ -299,6 +299,9 @@ mlir::LogicalResult FuseWithConcat::matchAndRewrite(IE::QuantizeOp quantizeOp, m
     const auto inType = concatOp.inputs().front().getType().cast<mlir::RankedTensorType>();
     const auto perAxisQType = inType.getElementType().dyn_cast<mlir::quant::UniformQuantizedPerAxisType>();
 
+    auto dequantizeOp = concatOp.inputs().front().getDefiningOp<IE::DequantizeOp>();
+    const auto dequantizeInputType = dequantizeOp.input().getType().cast<mlir::RankedTensorType>().getElementType();
+
     for (auto in : concatOp.inputs()) {
         auto inputDequantizeOp = in.getDefiningOp<IE::DequantizeOp>();
         if (inputDequantizeOp == nullptr) {
@@ -306,8 +309,12 @@ mlir::LogicalResult FuseWithConcat::matchAndRewrite(IE::QuantizeOp quantizeOp, m
         }
 
         auto inputDequantizeOpType = inputDequantizeOp.input().getType().cast<mlir::RankedTensorType>();
-        const auto curPerAxisQType =
-                inputDequantizeOpType.getElementType().dyn_cast<mlir::quant::UniformQuantizedPerAxisType>();
+        auto inputDequantizeElemType = inputDequantizeOpType.getElementType();
+        if (dequantizeInputType != inputDequantizeElemType) {
+            return mlir::failure();
+        }
+
+        const auto curPerAxisQType = inputDequantizeElemType.dyn_cast<mlir::quant::UniformQuantizedPerAxisType>();
 
         if ((perAxisQType == nullptr && curPerAxisQType != nullptr) ||
             (perAxisQType != nullptr && curPerAxisQType == nullptr)) {
