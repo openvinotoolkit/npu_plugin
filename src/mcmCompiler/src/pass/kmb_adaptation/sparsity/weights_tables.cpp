@@ -530,7 +530,7 @@ void populateActivationStorageElementMapForDilatedConvolution(mv::Data::OpListIt
 
 // Sub function to generate storage element pointer for InterpNN
 
-void populateActivationStorageElementMapForInterpNN(mv::Data::OpListIterator dpuTaskOp, mv::ComputationModel&)
+void populateActivationStorageElementMapForInterpNN(mv::Data::OpListIterator dpuTaskOp, mv::ComputationModel& model)
 {
     auto input = dpuTaskOp->getInputTensor(0);
     auto activationStorageElement = dpuTaskOp->getInputTensor(dpuTaskOp->
@@ -566,13 +566,19 @@ void populateActivationStorageElementMapForInterpNN(mv::Data::OpListIterator dpu
     }
 
     // Populate SEP table
+    std::cout<<new_height<<", "<< scale_factor_height<< std::endl;
+    std::cout<<new_width<<", "<< scale_factor_width<< std::endl;
+    std::cout<<old_width<<", "<< old_height<<std::endl;
+    std::cout<<channelIncrement<<", "<< SHIFT_FOR_STORAGE_ELEMENT<<std::endl;
     for (auto row=0; row < int(new_height / scale_factor_height); ++row){
         for (auto col=0; col < int(new_width / scale_factor_width); ++col){
             auto old_offset = (row*old_width + col) * channelIncrement;
+//            std::cout<<"row, col= "<< row<<" "<< col<<"; old_offset= "<<old_offset<<std::endl;
             for (auto new_row=0; new_row < scale_factor_height; ++new_row){
                 for (auto new_col=0; new_col < scale_factor_width; ++new_col){
                     auto new_offset = row*new_width*scale_factor_height + new_row*new_width + col*scale_factor_width + new_col;
                     unpopulated_offsets[new_offset] = (old_offset << SHIFT_FOR_STORAGE_ELEMENT);
+//                    std::cout<<"new row, col= "<< new_row<<" "<< new_col<<"; new_offset= "<<new_offset<<std::endl;
                 }
             }
         }
@@ -602,6 +608,33 @@ void populateActivationStorageElementMapForInterpNN(mv::Data::OpListIterator dpu
             }
         }
     }
+    
+    // Extract sub-table for streaming conv
+    // Get H-stream begin shape
+    mv::Shape begin;
+    mv::OpModel om(model);
+//    std::vector<int64_t> *sep_table= &unpopulated_offsets;
+    std::cout<<dpuTaskOp->getName()<<std::endl;
+    auto parentOp = om.getSourceOp(input);
+    if (parentOp->getOpType() == "Slice") {
+        begin = parentOp->get<mv::Shape>("begin");
+        std::cout<<parentOp->getName()<<std::endl;
+        std::cout<<"Full streaming: dma -> slice -> conv\n";
+    }
+    else if (parentOp->getOpType() == "DMATask")
+    {
+        parentOp = om.getSourceOp(parentOp->getInputTensor(0));
+        if (parentOp->getOpType() != "Slice")
+            throw std::runtime_error("Expected slice op!");
+        else
+            begin = parentOp->get<mv::Shape>("begin");
+        std::cout<<parentOp->getName()<<std::endl;
+        std::cout<<"Normal streaming: slice -> dma -> conv\n";
+    }
+//    
+//    std::vector<int64_t> sub_unpopulated_offsets(width*height, 0);
+    
+    
     activationStorageElement->populate(unpopulated_offsets, mv::Order("NHWC"));
     if (activationStorageElement->hasAttr("splitStrategy") &&
         (activationStorageElement->get<std::string>("splitStrategy") == "SplitOverH"))

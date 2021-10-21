@@ -1267,10 +1267,20 @@ void StrategyManagerSimple::generateStrategySetForLayer(mv::Op& op,std::vector<S
 
                         //Function to prune strategies that will have only infinite edges in or out (or both), improves performance
                         auto strategyCheck = validateStrategy(op,s);
-                        // std::cout << op.getName() << " : " << clustering.toString() << " : " << streamShape.toString() << " : pS " << parentSpilling.toString() << " : S " << spilling.toString() << " : I " << inputSparsity.toString() << " : O " << outputSparsity.toString() << " = " << failure_causes[strategyCheck]<< std::endl;
+                        if(op.getName()=="tl_unet1x2x4x/Decoder_4x/resize_images/ResizeBilinear_identityConv"){
+                            std::cout << op.getName() << " : " << clustering.toString() << " : " << streamShape.toString() << " : pS " << parentSpilling.toString() << " : S " << spilling.toString() << " : I " << inputSparsity.toString() << " : O " << outputSparsity.toString() << " = " << failure_causes[strategyCheck]<< std::endl;
+                        }
                         if(strategyCheck != FailCause::Pass)
                             continue;
-
+                        
+                        if(op.getName()=="tl_unet1x2x4x/Decoder_4x/resize_images/ResizeBilinear_identityConv"){
+                            std::cout << op.getName() << " : " << clustering.toString() << " : " << streamShape.toString() << " : pS " << parentSpilling.toString() << " : S " << spilling.toString() << " : I " << inputSparsity.toString() << " : O " << outputSparsity.toString() << " = " << failure_causes[strategyCheck]<< std::endl;
+                            if (streamShape[1]<70){
+                                std::cout<<"skip"<<endl;
+                                continue;   
+                            }
+                        }
+                        
                         strategyVec.push_back(s);
 
                         //    std::cout << "Name: " + op.getName() << " ID " << s["id"].toString()<< std::endl;
