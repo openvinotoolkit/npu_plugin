@@ -296,11 +296,13 @@ mlir::LogicalResult FuseWithConcat::matchAndRewrite(IE::QuantizeOp quantizeOp, m
     SmallVector<mlir::Value> newConcatInputs;
     newConcatInputs.reserve(concatOp.inputs().size());
 
-    const auto inType = concatOp.inputs().front().getType().cast<mlir::RankedTensorType>();
-    const auto perAxisQType = inType.getElementType().dyn_cast<mlir::quant::UniformQuantizedPerAxisType>();
-
     auto dequantizeOp = concatOp.inputs().front().getDefiningOp<IE::DequantizeOp>();
+    if (dequantizeOp == nullptr) {
+        return mlir::failure();
+    }
     const auto dequantizeInputType = dequantizeOp.input().getType().cast<mlir::RankedTensorType>().getElementType();
+
+    const auto perAxisQType = dequantizeInputType.dyn_cast<mlir::quant::UniformQuantizedPerAxisType>();
 
     for (auto in : concatOp.inputs()) {
         auto inputDequantizeOp = in.getDefiningOp<IE::DequantizeOp>();
