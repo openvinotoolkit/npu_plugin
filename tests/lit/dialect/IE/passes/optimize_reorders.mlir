@@ -76,21 +76,21 @@ func @main(%arg0: tensor<1x3x30x30xf16, {order = #NHWC}>) -> tensor<1x3x15x13xf1
 #NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
-!qElemType1 = type !quant.uniform<u8<0:254>:f16:1, {8.7179349163385824E-4:127,5.2096149114173233E-4:127,0.0013264333169291339:127}>
-!qElemType2 = type !quant.uniform<u8<0:254>:f16:1, {5.0750492125984249E-4:127, 0.0013264333169291339:127,9.8713551919291337E-4:127}>
-!qElemType3 = type !quant.uniform<u8<0:254>:f16:1, {8.7179349163385824E-4:127,5.2096149114173233E-4:127,0.0013264333169291339:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127}>
-!qElemType4 = type !quant.uniform<u8<0:254>:f16:1, {5.0750492125984249E-4:127, 0.0013264333169291339:127,9.8713551919291337E-4:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127}>
+!qElemType0 = type !quant.uniform<u8<0:254>:f16:1, {8.7179349163385824E-4:127,5.2096149114173233E-4:127,0.0013264333169291339:127}>
+!qElemType1 = type !quant.uniform<u8<0:254>:f16:1, {5.0750492125984249E-4:127, 0.0013264333169291339:127,9.8713551919291337E-4:127}>
+!qElemType2 = type !quant.uniform<u8<0:254>:f16:1, {8.7179349163385824E-4:127,5.2096149114173233E-4:127,0.0013264333169291339:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127}>
+!qElemType3 = type !quant.uniform<u8<0:254>:f16:1, {5.0750492125984249E-4:127, 0.0013264333169291339:127,9.8713551919291337E-4:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127}>
 
 module @ReorderWithQuantExpandAndSlice attributes {VPUIP.arch = "KMB", VPUIP.compilationMode = "ReferenceHW"} {
 
-// CHECK: func @main([[ARG0:%arg[0-9]+]]: tensor<1x3x30x30x!quant.uniform<u8<0:254>:f16:1, {8.7179349163385824E-4:127,5.2096149114173233E-4:127,0.0013264333169291339:127}>>)
-func @main(%arg0: tensor<1x3x30x30x!qElemType1>) -> tensor<1x3x15x13x!qElemType2> {
-    %0 = IE.Reorder(%arg0) {dstOrder = #NHWC} : tensor<1x3x30x30x!qElemType1> -> tensor<1x3x30x30x!qElemType1, {order = #NHWC}>
+// CHECK: func @main([[ARG0:%arg[0-9]+]]: tensor<1x3x30x30x!qElemType0>)
+func @main(%arg0: tensor<1x3x30x30x!qElemType0>) -> tensor<1x3x15x13x!qElemType1> {
+    %0 = IE.Reorder(%arg0) {dstOrder = #NHWC} : tensor<1x3x30x30x!qElemType0> -> tensor<1x3x30x30x!qElemType0, {order = #NHWC}>
 
     %1 = IE.Expand(%0) {
         pads_begin = [0, 0, 0, 0],
         pads_end = [0, 13, 0, 0]
-    } : tensor<1x3x30x30x!qElemType1, {order = #NHWC}> -> tensor<1x16x30x30x!qElemType3, {order = #NHWC}>
+    } : tensor<1x3x30x30x!qElemType0, {order = #NHWC}> -> tensor<1x16x30x30x!qElemType2, {order = #NHWC}>
 
     %2 = IE.MaxPool(%1) {
         kernel_size = [5, 5],
@@ -98,33 +98,33 @@ func @main(%arg0: tensor<1x3x30x30x!qElemType1>) -> tensor<1x3x15x13x!qElemType2
         pads_end = [2, 0],
         rounding_type = "FLOOR",
         strides = [2, 2]
-    } : tensor<1x16x30x30x!qElemType3, {order = #NHWC}> -> tensor<1x16x15x13x!qElemType4, {order = #NHWC}>
+    } : tensor<1x16x30x30x!qElemType2, {order = #NHWC}> -> tensor<1x16x15x13x!qElemType3, {order = #NHWC}>
 
-    %3 = IE.Reorder(%2) {dstOrder = #NCHW} : tensor<1x16x15x13x!qElemType4, {order = #NHWC}> -> tensor<1x16x15x13x!qElemType4>
+    %3 = IE.Reorder(%2) {dstOrder = #NCHW} : tensor<1x16x15x13x!qElemType3, {order = #NHWC}> -> tensor<1x16x15x13x!qElemType3>
 
-    %4 = IE.Slice %3 [0, 0, 0, 0] [1, 3, 15, 13] : tensor<1x16x15x13x!qElemType4> to tensor<1x3x15x13x!qElemType2>
+    %4 = IE.Slice %3 [0, 0, 0, 0] [1, 3, 15, 13] : tensor<1x16x15x13x!qElemType3> to tensor<1x3x15x13x!qElemType1>
 
-    return %4 : tensor<1x3x15x13x!qElemType2>
+    return %4 : tensor<1x3x15x13x!qElemType1>
 
     // CHECK: [[VAR0:%.+]] = IE.Expand([[ARG0]]) {pads_begin = [0, 0, 0, 0], pads_end = [0, 13, 0, 0]} :
-    // CHECK-SAME:     tensor<1x3x30x30x!quant.uniform<u8<0:254>:f16:1, {8.7179349163385824E-4:127,5.2096149114173233E-4:127,0.0013264333169291339:127}>> ->
-    // CHECK-SAME:     tensor<1x16x30x30x!quant.uniform<u8<0:254>:f16:1, {8.7179349163385824E-4:127,5.2096149114173233E-4:127,0.0013264333169291339:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127}>>
+    // CHECK-SAME:     tensor<1x3x30x30x!qElemType0> ->
+    // CHECK-SAME:     tensor<1x16x30x30x!qElemType2>
 
     // CHECK: [[VAR1:%.+]] = IE.Reorder([[VAR0]]) {dstOrder = #NHWC} :
-    // CHECK-SAME:     tensor<1x16x30x30x!quant.uniform<u8<0:254>:f16:1, {8.7179349163385824E-4:127,5.2096149114173233E-4:127,0.0013264333169291339:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127}>> ->
-    // CHECK-SAME:     tensor<1x16x30x30x!quant.uniform<u8<0:254>:f16:1, {8.7179349163385824E-4:127,5.2096149114173233E-4:127,0.0013264333169291339:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127}>, {order = #NHWC}>
+    // CHECK-SAME:     tensor<1x16x30x30x!qElemType2> ->
+    // CHECK-SAME:     tensor<1x16x30x30x!qElemType2, {order = #NHWC}>
 
     // CHECK: [[VAR2:%.+]] = IE.MaxPool([[VAR1]])
 
     // CHECK: [[VAR3:%.+]] = IE.Slice [[VAR2]] [0, 0, 0, 0] [1, 3, 15, 13] :
-    // CHECK-SAME:     tensor<1x16x15x13x!quant.uniform<u8<0:254>:f16:1, {5.0750492125984249E-4:127,0.0013264333169291339:127,9.8713551919291337E-4:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127}>, {order = #NHWC}> to
-    // CHECK-SAME:     tensor<1x3x15x13x!quant.uniform<u8<0:254>:f16:1, {5.0750492125984249E-4:127,0.0013264333169291339:127,9.8713551919291337E-4:127}>, {order = #NHWC}>
+    // CHECK-SAME:     tensor<1x16x15x13x!qElemType3, {order = #NHWC}> to
+    // CHECK-SAME:     tensor<1x3x15x13x!qElemType1, {order = #NHWC}>
 
     // CHECK: [[VAR4:%.+]] = IE.Reorder([[VAR3]]) {dstOrder = #NCHW} :
-    // CHECK-SAME:     tensor<1x3x15x13x!quant.uniform<u8<0:254>:f16:1, {5.0750492125984249E-4:127,0.0013264333169291339:127,9.8713551919291337E-4:127}>, {order = #NHWC}> ->
-    // CHECK-SAME:     tensor<1x3x15x13x!quant.uniform<u8<0:254>:f16:1, {5.0750492125984249E-4:127,0.0013264333169291339:127,9.8713551919291337E-4:127}>>
+    // CHECK-SAME:     tensor<1x3x15x13x!qElemType1, {order = #NHWC}> ->
+    // CHECK-SAME:     tensor<1x3x15x13x!qElemType1>
 
-    // CHECK: return [[VAR4]] : tensor<1x3x15x13x!quant.uniform<u8<0:254>:f16:1, {5.0750492125984249E-4:127,0.0013264333169291339:127,9.8713551919291337E-4:127}>>
+    // CHECK: return [[VAR4]] : tensor<1x3x15x13x!qElemType1>
 }
 
 }
