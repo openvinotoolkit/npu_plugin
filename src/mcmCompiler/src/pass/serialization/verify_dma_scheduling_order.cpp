@@ -33,7 +33,7 @@ namespace mv
     }
 }
 
-void verifyDMASchedulingOrderFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&)
+void verifyDMASchedulingOrderFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
@@ -42,6 +42,11 @@ void verifyDMASchedulingOrderFcn(const mv::pass::PassEntry& pass, mv::Computatio
 
     for (auto dmaOp : dmaOps)
     {
+        if(!dmaOp->hasAttr("schedulingNumber"))
+        {
+            continue;
+        }
+
         // BFS to find the next DMA ops in the graph
         std::deque<mv::Data::OpListIterator> bfsOpItr;
         std::set<std::string> childDMAs;
@@ -67,6 +72,11 @@ void verifyDMASchedulingOrderFcn(const mv::pass::PassEntry& pass, mv::Computatio
         for (auto childOpName : childDMAs)
         {
             auto childOp = om.getOp(childOpName);
+            if(!childOp->hasAttr("schedulingNumber"))
+            {
+                continue;
+            }
+
             if (childOp->getOpType() == "DMATask" &&
                 childOp->get<unsigned>("schedulingNumber") < parentSchedulingNumber)
             {
