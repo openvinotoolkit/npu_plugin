@@ -21,7 +21,7 @@ if(NOT OpenCV_FOUND OR NOT gflags_FOUND)
     return()
 endif()
 
-add_executable(${TARGET_NAME} main.cpp)
+add_executable(${TARGET_NAME} main.cpp utils.cpp run_movisim_emulator.cpp)
 
 target_link_libraries(${TARGET_NAME} PRIVATE
     IE::inference_engine IE::ngraph
@@ -30,3 +30,23 @@ target_link_libraries(${TARGET_NAME} PRIVATE
     gflags
     kmb_utils
 )
+
+if(UNIX)
+    target_compile_definitions(${TARGET_NAME}
+        PUBLIC
+            ENABLE_MOVISIM
+    )
+    message(WARNING "Copy run_MoviSim python script to: " ${OpenVINO_MAIN_SOURCE_DIR}/${IE_MAIN_SAMPLES_DIR}/${BIN_FOLDER})
+    add_custom_command(
+        TARGET  ${TARGET_NAME}
+        POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy
+                ${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/scripts/run_MoviSim/run_MoviSim.py
+                ${OpenVINO_MAIN_SOURCE_DIR}/${IE_MAIN_SAMPLES_DIR}/${BIN_FOLDER}/run_MoviSim.py
+        COMMENT "Copying ${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/scripts/run_MoviSim/run_MoviSim.py to
+        ${OpenVINO_MAIN_SOURCE_DIR}/${IE_MAIN_SAMPLES_DIR}/${BIN_FOLDER}/run_MoviSim.py build directory")
+else()
+    message(WARNING "Run single-image-tests via MoviSim is available only for Linux platforms")
+endif()
+
+
