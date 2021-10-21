@@ -7,6 +7,7 @@
 #include <mvTensorDebug.h>
 
 #include <math.h>
+#include <iostream>
 
 #include "upa_task_runner.hpp"
 
@@ -52,7 +53,7 @@ void PostOps::run(mv::tensor::Processor&,
     std::vector<Buffer> inputs;
 //    weightsBiasesSpecific(softLayerParamsValue, inputs);
 //#ifdef CONFIG_TARGET_SOC_3720
-    /*if (this->executeInTestingSystem && (opType == kClamp))*/ {
+    if (this->executeInTestingSystem && (opType == kClamp)) {
         int32_t indices[subspace::MAX_DIMS] = {0, };
         const int total = subspace::getTotal(input.dims, input.ndims);
         for (int i = 0; i < total; ++i) {
@@ -61,7 +62,21 @@ void PostOps::run(mv::tensor::Processor&,
             *out = f32Tof16(std::max(clampParams.min, std::min(f16Tof32(*in), clampParams.max)));
             subspace::increment1Coord(indices, input.dims, input.ndims);
         }
-    } //else {
+    } else if(this->executeInTestingSystem && (opType == kHSwish)) {
+        std::cout << "I am in kHSwish" << std::endl;
+        int32_t indices[subspace::MAX_DIMS] = {0, };
+        const int total = subspace::getTotal(input.dims, input.ndims);
+        for (int i = 0; i < total; ++i) {
+            auto in = static_cast<const fp16*>(nn::element(input, indices));
+            auto out = static_cast<fp16*>(nn::element(output, indices));
+
+            *out = f32Tof16(f16Tof32(*in) * std::min(6.f, std::max(0.f, f16Tof32(*in) + 3.f)) / 6.f);
+
+            subspace::increment1Coord(indices, input.dims, input.ndims);
+        }
+    }
+
+     //else {
 //#endif // CONFIG_TARGET_SOC_3720
 //
 //    switch(opType)

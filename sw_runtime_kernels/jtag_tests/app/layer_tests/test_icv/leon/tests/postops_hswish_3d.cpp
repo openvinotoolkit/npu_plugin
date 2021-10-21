@@ -200,7 +200,7 @@ protected:
 
                 threshold_test_failed |= differ;
 
-                if (differ && GlobalData::doPrintDiffs)
+                if (true || (differ && GlobalData::doPrintDiffs))
                 {
                     const TensorDims ti = m_outputTensor.toTensor(indices);
                     printf("DIFF HWC [%d:%d:%d] %f %f abs_diff: %f rel_diff: %f\n",
@@ -236,6 +236,6 @@ protected:
     Tensor<fp16> m_referenceOutput;
 };
 
-//ICV_TESTS_REGISTER_SUITE(HSwishTests)
+ICV_TESTS_REGISTER_SUITE(HSwishTests)
 
 } // namespace ICV_TESTS_NAMESPACE(ICV_TEST_SUITE_NAME)
