@@ -450,11 +450,10 @@
             "NetTest-Validate" : {
                 "disabled" : true
             },
-            "category" : "MLIR",
+            "category" : "MLIR/dKMB",
             "CI-options" : {
                 "blob_name" : "fsrcnn-x4_tf_int8"
-            },
-            "comments" : "Excluded from Windows validation, because of bug EISW-19488."
+            }
         },
 
         {
@@ -2881,12 +2880,11 @@
             "AccuracyCheck": {
                 "disabled": true
             },
-            "category": "MLIR",
+            "category": "MLIR/dKMB",
             "CI-options": {
                 "blob_name": "bdk_model-e-v2",
                 "special": true
-            },
-            "comments" : "Excluded from Windows validation, because of bug EISW-19489."
+            }
         },
         {
             "name": "BDK_INT8_ModelE_V3",
@@ -3004,11 +3002,10 @@
             "AccuracyCheck" : {
                 "config": "mobilenet-v3-large-1.0-224-tf.yml"
             },
-            "category" : "MLIR",
+            "category" : "MLIR/dKMB",
             "CI-options" : {
                 "blob_name" : "scale_tf_fp16_mobilenet-v3-large-1.0-224_tf"
-            },
-            "comments" : "Excluded from Windows validation, because of bug EISW-19491."
+            }
         },
         {
             "name" : "scale_tf_FP16-INT8_mobilenet-v3-large-1.0-224",
@@ -3391,7 +3388,7 @@
                 "config": "superres_int8_aa.yml",
                 "subsample_size": 100
             },
-            "category": "MLIR",
+            "category": "MLIR/dKMB",
             "CI-options" : {
                 "blob_name" : "bdk_super_res_aa",
                 "special" : true
