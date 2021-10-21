@@ -22,7 +22,7 @@
 #include "vpux/compiler/utils/quantization.hpp"
 #include "vpux/compiler/utils/strings.hpp"
 
-#include "vpux/compiler/act_kernels/act_kenel_invocation_builder.h"
+#include "vpux/compiler/act_kernels/act_kernel_invocation_builder.h"
 #include "vpux/utils/IE/float16.hpp"
 #include "vpux/utils/core/checked_cast.hpp"
 #include "vpux/utils/core/error.hpp"
