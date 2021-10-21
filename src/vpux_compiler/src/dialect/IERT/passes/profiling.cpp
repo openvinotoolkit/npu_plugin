@@ -11,15 +11,15 @@
 // included with the Software Package for additional details.
 //
 
-#include "vpux/compiler/dialect/IERT/ops.hpp"
 #include "vpux/compiler/dialect/IERT/passes.hpp"
+
+#include "vpux/compiler/dialect/IERT/ops.hpp"
+#include "vpux/compiler/dialect/VPUIP/attributes/enums.hpp"
 #include "vpux/compiler/utils/logging.hpp"
 #include "vpux/compiler/utils/strings.hpp"
 #include "vpux/compiler/utils/types.hpp"
 
-#include "mlir/IR/Attributes.h"
-
-#include "vpux/compiler/dialect/VPUIP/attributes/enums.hpp"
+#include <mlir/IR/Attributes.h>
 
 using namespace vpux;
 
