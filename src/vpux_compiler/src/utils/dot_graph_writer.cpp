@@ -22,10 +22,19 @@
 #include <mlir/Dialect/Async/IR/Async.h>
 #include <mlir/Dialect/MemRef/IR/MemRef.h>
 
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable : 4267)  // size_t to integer conversion
+#endif
+
 #include <llvm/ADT/DenseSet.h>
 #include <llvm/Support/FileSystem.h>
 #include <llvm/Support/GraphWriter.h>
 #include <llvm/Support/raw_ostream.h>
+
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 
 using namespace vpux;
 
