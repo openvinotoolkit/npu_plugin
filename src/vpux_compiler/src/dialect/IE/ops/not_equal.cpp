@@ -33,12 +33,10 @@ mlir::LogicalResult vpux::IE::NotEqualOp::inferReturnTypeComponents(
     const auto in1Type = notEqual.input1().getType().cast<mlir::ShapedType>();
     const auto in2Type = notEqual.input2().getType().cast<mlir::ShapedType>();
 
-    auto floatType = mlir::FloatType::getF16(ctx);
-
     const auto outShapeRes = IE::broadcastEltwiseShape(in1Type.getShape(), in2Type.getShape(),
                                                        notEqual.auto_broadcast().getValue(), loc);
     if (mlir::succeeded(outShapeRes)) {
-        inferredReturnShapes.emplace_back(outShapeRes.getValue(), floatType);
+        inferredReturnShapes.emplace_back(outShapeRes.getValue(), in1Type.getElementType());
     }
 
     return outShapeRes;
