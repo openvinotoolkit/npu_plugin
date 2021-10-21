@@ -82,7 +82,7 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1
             ^bb0(%arg0 : memref<1x1x1x1000xf16, "VPU_CMX_NN">, %arg1 : memref<1x1x1x1000xf16, "VPU_CMX_NN">):
                 // Inner region, isolated from above, which holds the information about arguments mapping.
                 // We can use constant scalars/arrays definitions here.
-                %axis   = constant 110 : i64
+                %axis   = arith.constant 110 : i64
 
                 // The arguments mapping, the order must match the kernel parameter structure.
                 VPUIP.SW.Kernel.run(%arg0, %arg1, %axis)
@@ -90,7 +90,6 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1
                     , memref<1x1x1x1000xf16, "VPU_CMX_NN">
                     , i64
         }
-
 
     %6 = VPUIP.NNDMA inputs(%out_tile0_cmx : memref<1x1x1x1000xf16, "VPU_CMX_NN">) outputs(%2 : memref<1x1x1x1000xf16>) waits(%b1 : !VPUIP.Barrier) -> memref<1x1x1x1000xf16>
     return %6: memref<1x1x1x1000xf16>
