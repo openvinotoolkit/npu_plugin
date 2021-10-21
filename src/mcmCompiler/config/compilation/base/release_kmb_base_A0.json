@@ -61,6 +61,17 @@
                 "valley_threshold_percent" : 25,
                 "max_context_chain_size" : 3
             },
+            {
+                "name": "GenerateDot",
+                "output": "output/lp.dot",
+                "scope": "OpModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/lp.dot"
+            },
             { "name": "LpScheduler",
               "output" : "lp_scheduler_output.txt",
               "ddr_address_generation" : true,
@@ -91,6 +102,17 @@
             "ReAllocateImplicitOperationsKmb",
             "AllocateCMXTensorsKmb",
             {
+                "name": "GenerateDot",
+                "output": "output/lp2.dot",
+                "scope": "OpModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/lp2.dot"
+            },
+            {
               "name": "LpScheduler",
               "output" : "lp_scheduler_output.txt",
               "allocator_mode": true,
@@ -105,6 +127,16 @@
             "LayerNumbering",
             "PopulateWeightsTablesPointers",
             "PopulateStorageElementPointers",
+            {
+                "name": "GenerateDot",
+                "output": "output/sep.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true,
+                "reduced": true,
+                "startingOpName": "tl_unet1x2x4x/Decoder_2x/resize_images/ResizeBilinear",
+                "finishingOpName": "Output_3"
+            },
             "MarkAsymmetricalStrideTensorsLeadToCMXConcat",
             "RepopulateFusedConstants"
         ]

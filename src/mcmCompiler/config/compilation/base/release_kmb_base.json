@@ -51,6 +51,17 @@
         "Singular": [
             "RemoveOps",
             "ReplacementOps",
+            {
+                "name": "GenerateDot",
+                "output": "output/rp2.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/rp2.dot"
+            },
             "TensorsToU8",
             "TensorsToFP16",
             "FusePostOps",
@@ -78,21 +89,43 @@
             {
                 "name" : "AddActivationStreaming",
                 "max_streams" : 1000,
-                "vertical_fusion" : true
+                "vertical_fusion" : false
             },
             {
                 "name" : "RecognizeVerticalFusionPatterns",
                 "min_subgraph_depth" : 2,
-                "vertical_fusion": true
+                "vertical_fusion": false
             },
             "ComputeSparsitySolution",
             {
+                "name": "GenerateDot",
+                "output": "output/stream.dot",
+                "scope": "OpModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/stream.dot"
+            },
+            {
                 "name": "StreamingOperations",
-                "vertical_fusion" : true
+                "vertical_fusion" : false
+            },
+            {
+                "name": "GenerateDot",
+                "output": "output/stream2.dot",
+                "scope": "OpModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/stream2.dot"
             },
             {
                 "name":"VerticalFusionTransformation",
-                "vertical_fusion" : true
+                "vertical_fusion" : false
             },
             "StreamBinaryDataWeights",
             "StreamCopyOperations"
