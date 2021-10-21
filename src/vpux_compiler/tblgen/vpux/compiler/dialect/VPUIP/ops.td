@@ -2771,8 +2771,7 @@ def VPUIP_SW_Kernel :
             "mlir::ValueRange":$inputs,
             "mlir::ValueRange":$results,
             "mlir::SymbolRefAttr":$kernelFunction,
-            "mlir::IntegerAttr":$tileIndex,
-            "mlir::ValueRange":$args
+            "mlir::IntegerAttr":$tileIndex
         )>
     ];
 
