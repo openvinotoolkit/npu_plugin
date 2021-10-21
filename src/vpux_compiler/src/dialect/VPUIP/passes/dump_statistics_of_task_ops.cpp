@@ -13,7 +13,7 @@
 
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 
-#include "llvm/ADT/DenseMap.h"
+#include <llvm/ADT/DenseMap.h>
 
 using namespace vpux;
 
