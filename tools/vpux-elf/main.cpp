@@ -18,8 +18,7 @@
 
 int main() {
     vpux::VPUIP::ELFBlobSerializer blobSerializer;
-
-    DmaWrapper dma{};
+    vpux::VPUIP::DmaTask dmaTask;
 
     parsing_lib::DMATask t;
     t.src.data_dtype = parsing_lib::DType::U8;
@@ -32,32 +31,47 @@ int main() {
     t.dst.order = 0x1342;
     t.compression = false;
 
-    parsing_lib::convertDmaTask(t, dma.transaction);
-
-    vpux::VPUIP::DMATaskExtension dmaTaskExtension{};
-    dmaTaskExtension.input.location.memLocation = vpux::VPUIP::MemoryLocation::ProgrammableInput;
-    dmaTaskExtension.input.location.locationIndex = 0;
-    dmaTaskExtension.input.offset = 0;
-
-    dmaTaskExtension.output.location.memLocation = vpux::VPUIP::MemoryLocation::ProgrammableOutput;
-    dmaTaskExtension.output.location.locationIndex = 0;
-    dmaTaskExtension.output.offset = 0;
+    parsing_lib::convertDmaTask(t, dmaTask.dmaDescriptor.transaction);
 
     ResourceRequirements resourceRequirements{};
-    resourceRequirements.barrier_count = 0;
+    resourceRequirements.barrier_count = 1;
     resourceRequirements.slice_count = 2;
 
     mlir::MLIRContext context;
-
     const mlir::SmallVector<mlir::MemRefType> inputs{mlir::MemRefType::get(
             {1, 320, 7, 7}, mlir::IntegerType::get(&context, 8, mlir::IntegerType::SignednessSemantics::Unsigned))};
 
     blobSerializer.setNetworkInputs(inputs);
     blobSerializer.setNetworkOutputs(inputs);
 
-    blobSerializer.setDDRScratch(0);
+    blobSerializer.setDDRScratch(15680);
     blobSerializer.setResourceRequirements(resourceRequirements);
-    blobSerializer.setDMATasks0({{dma, dmaTaskExtension}});
+    blobSerializer.setLeadingDMACount({2});
+
+    auto dmaTask2 = dmaTask;
+    dmaTask.dmaDescriptor.transaction.barriers.prod_mask = 1;
+    dmaTask2.dmaDescriptor.transaction.barriers.cons_mask = 1;
+
+    dmaTask.input.location.memLocation = vpux::VPUIP::MemoryLocation::ProgrammableInput;
+    dmaTask.input.location.locationIndex = 0;
+    dmaTask.input.offset = 0;
+
+    dmaTask.output.location.memLocation = vpux::VPUIP::MemoryLocation::VPU_DDR_BSS;
+    dmaTask.output.location.locationIndex = 0;
+    dmaTask.output.offset = 0;
+
+    dmaTask2.input.location.memLocation = vpux::VPUIP::MemoryLocation::VPU_DDR_BSS;
+    dmaTask2.input.location.locationIndex = 0;
+    dmaTask2.input.offset = 0;
+
+    dmaTask2.output.location.memLocation = vpux::VPUIP::MemoryLocation::ProgrammableOutput;
+    dmaTask2.output.location.locationIndex = 0;
+    dmaTask2.output.offset = 0;
+
+    mlir::SmallVector<BarrierWrapper> barrierConfigs{BarrierWrapper{-1, 1, 1, 0}};
+
+    blobSerializer.setDMATasks({dmaTask, dmaTask2});
+    blobSerializer.setBarrierConfigs(barrierConfigs);
 
     blobSerializer.write("nn_blob.elf");
 

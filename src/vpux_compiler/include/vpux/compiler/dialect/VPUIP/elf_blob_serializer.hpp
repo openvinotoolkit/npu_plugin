@@ -22,7 +22,7 @@
 
 #include <host_parsed_inference.h>
 
-#include <map>
+#include <unordered_map>
 
 namespace vpux {
 namespace VPUIP {
@@ -32,16 +32,21 @@ struct TensorLocation {
     uint64_t locationIndex = 0;
 };
 
-enum class MetaDataLocation { NONE = 0, RTM_INV, RTM_DMA, DDR_DMA };
-
 struct TensorPatchingInfo {
     TensorLocation location;
     uint64_t offset = 0;
 };
 
-struct DMATaskExtension {
-    TensorPatchingInfo input;
-    TensorPatchingInfo output;
+struct LinkAddressPatchingInfo {
+    enum class MetaDataLocation { NONE = 0, DDR_DMA, RTM_DMA } metaDataLocation = MetaDataLocation::NONE;
+    size_t dmaTaskIndex = 0;
+};
+
+struct DmaTask {
+    DmaWrapper dmaDescriptor{};
+    TensorPatchingInfo input{};
+    TensorPatchingInfo output{};
+    LinkAddressPatchingInfo linkAddress{};
 };
 
 class ELFBlobSerializer {
@@ -54,38 +59,67 @@ public:
     void setDDRScratch(size_t ddrScratch);
     void setResourceRequirements(const ResourceRequirements& resourceRequirements);
 
-    void setLeadingDMACount0(uint32_t leadingDMACount);
-    void setDMATasks0(llvm::ArrayRef<std::pair<DmaWrapper, DMATaskExtension>> dmaTasks);
+    void setLeadingDMACount(uint32_t leadingDMACount, size_t dmaEngineIndex = 0);
+    void setDMATasks(llvm::ArrayRef<DmaTask> dmaTasks, size_t dmaEngineIndex = 0);
     void setBarrierConfigs(llvm::ArrayRef<BarrierWrapper> barrierConfigs);
 
     std::vector<char> getBlob();
     void write(const std::string& fileName);
 
 private:
-    elf::writer::Symbol* getSymbol(const TensorLocation& location);
-    elf::writer::Symbol* getSymbol(VPUIP::MemoryLocation location);
-    elf::writer::SymbolSection* getSymbolSection(const TensorLocation& location);
-
-    elf::writer::RelocationSection* createRelocationSection(VPUIP::MemoryLocation location);
-
     void setNetworkIO(llvm::ArrayRef<mlir::MemRefType> inputsOrOutputs, uint8_t symbolType,
                       elf::writer::SymbolSection*& symbolSection, const std::string& symbolName);
     void finalize();
 
 private:
+    class RelocationManager {
+    public:
+        using SymbolInfo = struct {
+            elf::writer::SymbolSection* symbolSection;
+            elf::writer::Symbol* symbol;
+        };
+
+    public:
+        RelocationManager(elf::writer::Section* sectionToPatch, const std::string& relocationSectionName,
+                          ELFBlobSerializer& elfBlobSerializer);
+
+        void addRelocation(const TensorPatchingInfo& tensorPatchingInfo, elf::Elf_Word type,
+                           elf::Elf64_Addr sectionOffset);
+        void addRelocation(const elf::writer::SymbolSection* symbolSection, const elf::writer::Symbol* symbol,
+                           elf::Elf_Word type, elf::Elf_Sxword addend, elf::Elf64_Addr sectionOffset);
+        void addRelocation(elf::Elf_Word specialSymbol, elf::Elf_Word type, elf::Elf_Sxword addend,
+                           elf::Elf64_Addr sectionOffset);
+
+    private:
+        elf::writer::Relocation* addRelocation(elf::writer::RelocationSection* relocationSection,
+                                               const elf::writer::Symbol* symbol, elf::Elf_Word type,
+                                               elf::Elf_Sxword addend, elf::Elf64_Addr offset);
+        elf::writer::RelocationSection* createRelocationSection(const elf::writer::SymbolSection* symbolSection);
+        SymbolInfo getSymbolInfo(const TensorLocation& location);
+
+    private:
+        elf::writer::Section* m_sectionToPatch = nullptr;
+        std::string m_relocationSectionName;
+        ELFBlobSerializer& m_elfBlobSerializer;
+
+        elf::writer::RelocationSection* m_specialSymbolRelocation = nullptr;
+        std::unordered_map<const elf::writer::SymbolSection*, elf::writer::RelocationSection*>
+                m_symbolTableToRelocation;
+    };
+
+private:
     elf::Writer m_writer;
 
-    size_t m_ddrScratch;
+    elf::writer::EmptySection* m_ddrScratch;
     ResourceRequirements m_resourceRequirements;
     MappedInference m_mappedInference;
 
     elf::writer::SymbolSection* m_networkInputSymbols = nullptr;
     elf::writer::SymbolSection* m_networkOutputSymbols = nullptr;
+    elf::writer::SymbolSection* m_sectionSymbols = nullptr;
+    std::unordered_map<elf::writer::Section*, elf::writer::Symbol*> m_sectionSymbolsMapping;
 
-    elf::writer::SymbolSection* m_symbols = nullptr;
-    std::map<VPUIP::MemoryLocation, elf::writer::Symbol*> m_symbolsMapping;
-
-    elf::writer::BinaryDataSection<DmaWrapper>* m_dmaTasks0 = nullptr;
+    std::array<elf::writer::BinaryDataSection<DmaWrapper>*, 2> m_dmaTasks = {nullptr};
     elf::writer::BinaryDataSection<BarrierWrapper>* m_barrierConfigs = nullptr;
 };
 

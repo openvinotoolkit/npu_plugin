@@ -15,6 +15,7 @@
 
 #include <elf/types/data_types.hpp>
 #include <elf/types/symbol_entry.hpp>
+#include <elf/types/section_header.hpp>
 
 namespace elf {
 
@@ -47,5 +48,23 @@ const Elf_Xword VPU_SHF_JIT = SHF_MASKPROC;
 
 const Elf_Word VPU_SHT_DDR = SHT_LOPROC;
 const Elf_Word VPU_SHT_TILES = SHT_LOPROC + 1;
+
+//
+// Special section indexes
+//
+
+constexpr Elf_Word VPU_RT_SYMTAB = SHN_LOOS;
+
+//
+// Run-time owned symtab indexes
+//
+
+constexpr Elf_Word NNRD_SYM_NNCXM_SLICE_BASE_ADDR = 0;
+constexpr Elf_Word NNRD_SYM_RTM_IVAR = 1;
+constexpr Elf_Word NNRD_SYM_RTM_ACT = 2;
+constexpr Elf_Word NNRD_SYM_RTM_DMA0 = 3;
+constexpr Elf_Word NNRD_SYM_RTM_DMA1 = 4;
+constexpr Elf_Word NNRD_SYM_FIFO_BASE = 5;
+constexpr Elf_Word NNRD_SYM_BARRIERS_START = 6;
 
 }
