@@ -949,6 +949,42 @@ mv::Data::TensorIterator addFusedConv(mv::ComputationModel& model, mv::Data::OpL
 
 bool isConvStreaming (mv::ComputationModel& model, mv::Data::OpListIterator opIt)
 {
+    auto opname=opIt->getName(); 
+    if (opname == "tl_unet1x2x4x/Decoder_2/resize_images/ResizeBilinear_identityConv"){
+        std::cout<<"SOK\n";
+//        return false;
+    }
+    
+    if (opname == "tl_unet1x2x4x/Decoder_1/resize_images/ResizeBilinear_identityConv"){
+        std::cout<<"SOH\n";
+//        return false;
+    }
+    
+    if (opname == "tl_unet1x2x4x/Decoder_0/resize_images/ResizeBilinear_identityConv"){
+        std::cout<<"SOH\n";
+//        return false;
+    }
+    
+    if (opname == "tl_unet1x2x4x/Decoder_2x/resize_images/ResizeBilinear_identityConv"){
+        std::cout<<"SOH\n";
+//        return false;
+    }
+    
+    if (opname == "tl_unet1x2x4x/Decoder_4x/resize_images/ResizeBilinear_identityConv"){
+        std::cout<<"SOH\n";
+        return false;
+    }
+    
+    if (opname == "tl_unet1x2x4x/resize_images/ResizeBilinear_identityConv"){
+        std::cout<<"SOH\n";
+//        return false;
+    }
+    
+    if (opname == "tl_unet1x2x4x/resize_images_1/ResizeBilinear_identityConv"){
+        std::cout<<"SOH\n";
+//        return false;
+    }
+    
     auto globalParams = model.getGlobalConfigParams();
     size_t clusterMemory = globalParams->get<int>("cmx");
 
@@ -1036,6 +1072,7 @@ mv::Data::TensorIterator addNeutralConv(mv::ComputationModel& model, mv::Data::O
         linkNewOperationsRemove(opIt, opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT), om, identityConvOp);
         return opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT);
     }
+    std::cout<<"identityOp pass\n";
     // Mark Resample to be converted to implicit in later pass
     opIt->set<bool>("isImplicit", true);
     // Mark Identity Conv to add SE map in later pass
@@ -1115,6 +1152,7 @@ void bilinearInterpAsDPUSFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
 
     for (auto& opIt : interpOps)
     {
+        std::cout<<opIt->getName()<<std::endl;
         mv::Shape outputShape, inputShape;
         mv::Data::TensorIterator sourceTensor, outputTensor;
         std::size_t inWidth, inHeight, inChannels, outWidth, outHeight, outChannels;
@@ -1125,6 +1163,7 @@ void bilinearInterpAsDPUSFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
             if (isConvStreaming(model, sourceOp))
                 continue;
         }
+        std::cout<<"sourceOp pass"<<std::endl;
 
         bool modelEV2 = false;
         if (inChannels == outChannels && outChannels == 1 && inWidth == 80 && outWidth == 320 && outHeight == 192 && inHeight == 48)
@@ -1141,6 +1180,70 @@ void bilinearInterpAsDPUSFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
                 //however this seems impossible, due to some limitation->so breaking in 2 ops.
                 // auto identityConv = addFusedConv(model, opIt);
                 neutralConv = addNeutralConv(model, opIt);
+                
+                //if fail to use SEP, Use deconv to implement nearest 
+                std::string opname= om.getSourceOp(neutralConv)->getName();
+                if (opname == opIt->getName()  && false){
+                    float scaleW = outWidth/inWidth, scaleH = outHeight/inHeight;
+                    mv::QuantizationParams outQuantParams = computeQuantization(outputTensor, sourceTensor);
+                    std::cout<<"deconv: "<<opIt->getName()<<std::endl;
+                    if (scaleW == static_cast<int>(scaleW) &&
+                        scaleH == static_cast<int>(scaleH)) {
+                        unsigned short scaleH_ = static_cast<unsigned short>(scaleH),
+                                       scaleW_ = static_cast<unsigned short>(scaleW);
+                        const std::size_t padding_right = scaleW - 1;
+                        const std::size_t padding_bottom = scaleH - 1;
+
+                        mv::Data::TensorIterator weights;
+                        std::vector<int64_t> zp = {0};
+                        std::vector<double> min = {1};
+                        std::vector<double> max = {1};
+                        std::vector<double> scale = {1};
+                        mv::QuantizationParams weightsQuantParams(zp, scale, min, max);
+                        int64_t weightsValue = 1;
+                        std::vector<int64_t> weightsData(
+                                scaleH_ * scaleW_ * sourceTensor->getShape()[mv::IO_CHANNEL_DIMENSION], weightsValue);
+                        weights = om.constantInt(
+                                "", weightsData,
+                                {scaleH_, scaleW_, sourceTensor->getShape()[mv::IO_CHANNEL_DIMENSION], 1},
+                                mv::DType("UInt8"), mv::Order(mv::Order::getRowMajorID(4)));
+                        weights->setQuantParams(weightsQuantParams);
+                        auto depthwiseDeconv = om.deconv(opIt->getName() + "_DepthwiseDeconv", sourceTensor, weights,
+                                                         {scaleH_, scaleW_}, {0, 0, 0, 0}, 1,
+                                                         outputShape[mv::IO_CHANNEL_DIMENSION], true);
+                        depthwiseDeconv->setQuantParams(
+                                {outQuantParams.getZeroPoint(), outQuantParams.getScale(), {}, {}});
+                        depthwiseDeconv->setDType(mv::DType("UInt8"));
+
+                        auto depthwiseDeconvOp = om.getSourceOp(depthwiseDeconv);
+                        auto weightsOp = om.getSourceOp(weights);
+                        depthwiseDeconvOp->set<std::size_t>("storageElementRightPadding", padding_right);
+                        depthwiseDeconvOp->set<std::size_t>("storageElementBottomPadding", padding_bottom);
+                        depthwiseDeconvOp->set<unsigned>("opId", opIt->get<unsigned>("opId"));
+                        depthwiseDeconvOp->set<bool>("is_transInterp", true);
+                        depthwiseDeconvOp->set<unsigned>("factor_x", scaleW);
+                        depthwiseDeconvOp->set<unsigned>("factor_y", scaleH);
+                        weightsOp->set<unsigned>("opId", opIt->get<unsigned>("opId"));
+
+                        auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
+                        linkNewOperationsReplacement(parentOpIt, depthwiseDeconv, om, opIt);
+                        depthwiseDeconvOp->set<bool>("activationSparsityCompilerSolvingForInterpNN", true);
+
+//                        auto childOps = mv::findSinkLayers(dm, outputTensor);
+//                        if (childOps.empty())
+//                            throw std::runtime_error("Error: OutputTensor with name " + outputTensor->getName() + " does not have child ops");
+//                        auto childOpIt = childOps[0];
+//                        mv::Data::FlowListIterator sinkFlow = findAppropriateFlow(outputTensor, om, childOpIt);
+//                        om.undefineFlow(sinkFlow);
+//                        childOpIt->setInputTensor(depthwiseDeconv, 0, false);
+//                        om.defineFlow(depthwiseDeconv, childOpIt, 0);
+//                        linkNewOperationsReplacement(neutralConv, depthwiseDeconv, om, opIt);
+//                        depthwiseDeconv->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
+
+                        neutralConv= depthwiseDeconv;
+                    }
+                }
+                
                 auto neutralConvOp = om.getSourceOp(neutralConv);
                 if (neutralConvOp->getName() == opIt->getName())
                     continue;
