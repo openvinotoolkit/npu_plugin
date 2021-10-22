@@ -744,6 +744,25 @@ def RewriteMemPermute :
         Pat<
             (IERT_MemPermuteOp $input, $output, $mem_perm),
             (createMemPermuteUPAOp $input, $output, $mem_perm)
+
+//
+// IERT.Reduce[LogicalAnd]Op -> VPUIP.ReduceUPA
+//
+
+class createReduceUPAOp<string method> :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::ReduceUPAOp>(
+                $_loc, $0, $1, $2, $3,
+                vpux::VPUIP::ReduceLayerTypeAttr::get(
+                    $_builder.getContext(),
+                    vpux::VPUIP::ReduceLayerType::}] # method # [{
+                ))
+        }]>;
+
+def RewriteReduceLogicalAnd :
+        Pat<
+            (IERT_ReduceLogicalAndOp $input, $axes, $output, $keep_dims),
+            (createReduceUPAOp<"LOGICALAND"> $input, $axes, $output, $keep_dims)
         >;
 
 #endif

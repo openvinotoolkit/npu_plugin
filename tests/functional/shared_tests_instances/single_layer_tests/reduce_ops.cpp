@@ -154,7 +154,7 @@ namespace {
                 testing::Values(std::vector<int>{1, 3}),
                 testing::Values(opTypes[1]),
                 testing::ValuesIn(keepDims),
-                testing::Values(ngraph::helpers::ReductionType::Sum),
+                testing::Values(ngraph::helpers::ReductionType::LogicalAnd),
                 testing::Values(InferenceEngine::Precision::FP32,
                                 InferenceEngine::Precision::FP16, // CPU-plugin has parameter I32, but KMB does not
                                 InferenceEngine::Precision::U8), // support it. So I32 is changed to FP16 and U8.
@@ -167,13 +167,13 @@ namespace {
     );
 
     INSTANTIATE_TEST_SUITE_P(
-        smoke_ReduceSum,
+        smoke_ReduceLogicalAnd,
         KmbReduceOpsLayerWithSpecificInputTest,
         testing::Combine(
                 testing::ValuesIn(decltype(axes) {{0}}),
                 testing::Values(opTypes[1]),
                 testing::Values(true),
-                testing::Values(ngraph::helpers::ReductionType::Sum),
+                testing::Values(ngraph::helpers::ReductionType::LogicalAnd),
                 testing::Values(InferenceEngine::Precision::FP32),
                 testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                 testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -194,7 +194,7 @@ namespace {
                 testing::ValuesIn(axes),
                 testing::Values(opTypes[1]),
                 testing::ValuesIn(keepDims),
-                testing::Values(ngraph::helpers::ReductionType::Mean),
+                testing::Values(ngraph::helpers::ReductionType::LogicalAnd),
                 testing::Values(InferenceEngine::Precision::FP32),
                 testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                 testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -214,8 +214,7 @@ namespace {
                 testing::ValuesIn(decltype(axes) {{0}, {1}}),
                 testing::Values(opTypes[1]),
                 testing::Values(true, false),
-                testing::Values(ngraph::helpers::ReductionType::Mean,
-                                ngraph::helpers::ReductionType::Max),
+                testing::Values(ngraph::helpers::ReductionType::LogicalAnd),
                 testing::Values(InferenceEngine::Precision::FP32),
                 testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                 testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -234,7 +233,7 @@ namespace {
                     testing::ValuesIn(decltype(axes) { {2, 3} }),
                     testing::Values(opTypes[1]),
                     testing::Values(true, false),
-                    testing::Values(ngraph::helpers::ReductionType::Mean),
+                    testing::Values(ngraph::helpers::ReductionType::LogicalAnd),
                     testing::Values(InferenceEngine::Precision::FP32),
                     testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                     testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -256,7 +255,7 @@ namespace {
                     testing::ValuesIn(decltype(axes) { {2, 3} }),
                     testing::Values(opTypes[1]),
                     testing::Values(true, false),
-                    testing::Values(ngraph::helpers::ReductionType::Mean),
+                    testing::Values(ngraph::helpers::ReductionType::LogicalAnd),
                     testing::Values(InferenceEngine::Precision::FP32),
                     testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                     testing::Values(InferenceEngine::Precision::UNSPECIFIED),
