@@ -432,13 +432,48 @@ void InferRequest::updateRemoteBlobColorFormat(InferenceEngine::Blob::Ptr& blob,
     }
 }
 
-void InferRequest::PullStates() {
+void InferRequest::PushStates() {
+#if 0
     for (auto& state : memoryStates) {
         const auto& OutputIt = _outputs.find(state->GetName());
         if (OutputIt != _outputs.end()) {
             state->SetState(OutputIt->second);
         }
     }
+#else
+    std::string input_name = "ReadValueInput";
+    const auto& InputIt = _inputs.find(input_name);
+    if (InputIt != _inputs.end()) {
+        auto& state = memoryStates[0];
+        // state->WriteToState(InputIt->second);
+        // virtual Blob::CPtr GetState() const = 0;
+        // InputIt = state->GetState();
+        // ie_memcpy(InputIt->second->buffer(), InputIt->second->byteSize(), state->state->buffer(), state->state->byteSize());
+        (static_cast<VPUXVariableState*>(state.get()))->WriteToState(InputIt->second);
+    } else {
+        std::cout << "PushStates, output is not found!!!" << std::endl;
+    }
+#endif
+}
+
+void InferRequest::PullStates() {
+#if 0
+    for (auto& state : memoryStates) {
+        const auto& OutputIt = _outputs.find(state->GetName());
+        if (OutputIt != _outputs.end()) {
+            state->SetState(OutputIt->second);
+        }
+    }
+#else
+    const std::string output_name = "AssignOutput";
+    const auto& OutputIt = _outputs.find(output_name);
+    if (OutputIt != _outputs.end()) {
+        auto& state = memoryStates[0];
+        state->SetState(OutputIt->second);
+    } else {
+        std::cout << "PullStates, output is not found!!!" << std::endl;
+    }
+#endif
 }
 
 std::vector<IE::IVariableStateInternal::Ptr> InferRequest::QueryState() {

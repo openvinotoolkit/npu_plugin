@@ -13,6 +13,12 @@ void VPUXVariableState::SetState(const InferenceEngine::Blob::Ptr& newState) {
     ie_memcpy(state->buffer(), state->byteSize(), newState->buffer(), newState->byteSize());
 }
 
+void VPUXVariableState::WriteToState(InferenceEngine::Blob::Ptr& dstState) {
+    // ie_memcpy(state->buffer(), state->byteSize(), newState->buffer(), newState->byteSize());
+    ie_memcpy(dstState->buffer(), dstState->byteSize(), state->buffer(), state->byteSize());
+}
+
+
 void VPUXVariableState::Reset() {
     std::memset(state->buffer(), 0, state->byteSize());
 }
