@@ -35,15 +35,25 @@ struct ActKernelDesc {
     KernelDataDesc data;
 };
 
+const int MaxCompilationUnitSources = 4;
+const int MaxExtraDefines = 2;
+const int MaxExtraIncludePaths = 11;
+
 struct CompilationUnitDesc {
     mlir::StringRef name;
     mlir::StringRef entry;
-    mlir::StringRef codePath;
+    mlir::StringRef codePath[MaxCompilationUnitSources] = {};
+    mlir::StringRef defines[MaxExtraDefines] = {};
+    mlir::StringRef includePaths[MaxExtraIncludePaths] = {};
 };
 
 ActKernelDesc compileKernelForACTShave(const CompilationUnitDesc& unitDesc,
                                        const movitools::MoviCompileParams& params,
                                        flatbuffers::FlatBufferBuilder& fbb);
+
+ActKernelDesc compileManagementKernelForACTShave(const CompilationUnitDesc & unitDesc,
+                                                 const movitools::MoviCompileParams& params,
+                                                 flatbuffers::FlatBufferBuilder& fbb);
 
 flatbuffers::Offset<MVCNN::KernelData> buildKernelData(flatbuffers::FlatBufferBuilder& fbb,
                                                        llvm::ArrayRef<uint8_t> content);
