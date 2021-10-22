@@ -54,9 +54,9 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ROIAlignUPAOp::serialize(VPUIP::Blo
     MVCNN::ROIAlignParamsBuilder builder(writer);
     builder.add_spatial_scale(spatial_scale_val);
     builder.add_method(ROIAlignMethod2MVCNN(poolingMode()));
-    builder.add_sampling_ratio(sampling_ratio());
-    builder.add_pooled_h(pooled_h());
-    builder.add_pooled_w(pooled_w());
+    builder.add_sampling_ratio(checked_cast<uint32_t>(sampling_ratio()));
+    builder.add_pooled_h(checked_cast<uint32_t>(pooled_h()));
+    builder.add_pooled_w(checked_cast<uint32_t>(pooled_w()));
     builder.add_roi_align_step(MVCNN::ROIAlignStep_roi_align);
     const auto paramsOff = builder.Finish();
 
