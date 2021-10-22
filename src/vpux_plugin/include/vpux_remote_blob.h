@@ -61,6 +61,8 @@ public:
 
     InferenceEngine::Blob::Ptr createROI(const InferenceEngine::ROI& regionOfInterest) const override;
 
+    void updatePreProcDesc(const InferenceEngine::PreProcPara& desc) override;
+
     InferenceEngine::ParamMap getParams() const override {
         return _parsedParams.getParamMap();
     }

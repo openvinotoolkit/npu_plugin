@@ -34,5 +34,8 @@ DECLARE_VPUX_PARAM_KEY(BLOB_COLOR_FORMAT, IE::ColorFormat);
 /** @brief VPUSMM allocator need to know size of allocation */
 DECLARE_VPUX_PARAM_KEY(ALLOCATION_SIZE, size_t);
 
+/** @brief Pre-proc parameters */
+DECLARE_VPUX_PARAM_KEY(PREPROC_PARA, std::shared_ptr<InferenceEngine::PreProcPara>);
+
 }  // namespace VpuxContextParams
 }  // namespace InferenceEngine

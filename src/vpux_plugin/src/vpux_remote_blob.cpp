@@ -199,4 +199,9 @@ const std::shared_ptr<IE::IAllocator>& VPUXRemoteBlob::getAllocator() const noex
 IE::Blob::Ptr VPUXRemoteBlob::createROI(const IE::ROI& regionOfInterest) const {
     return Blob::Ptr(new VPUXRemoteBlob(*this, regionOfInterest));
 }
+
+void VPUXRemoteBlob::updatePreProcDesc(const IE::PreProcPara& desc) {
+    IE::ParamMap params = {{IE::VPUX_PARAM_KEY(PREPROC_PARA), std::make_shared<IE::PreProcPara>(desc)}};
+    _parsedParams.update(params);
+}
 }  // namespace vpux

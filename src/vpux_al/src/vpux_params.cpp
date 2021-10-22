@@ -128,6 +128,16 @@ void ParsedRemoteBlobParams::parse() {
             IE_THROW() << "Blob color format parameter is not correct";
         }
     }
+
+    if (_paramMap.find(IE::VPUX_PARAM_KEY(PREPROC_PARA)) != _paramMap.end()) {
+        try {
+            _preprocPara = _paramMap.at(IE::VPUX_PARAM_KEY(PREPROC_PARA)).as<std::shared_ptr<IE::PreProcPara>>();
+        } catch (...) {
+            IE_THROW() << "Pre-proc param is incorrect!";
+        }
+    } else {
+        _preprocPara = nullptr;
+    }
 }
 
 }  // namespace vpux

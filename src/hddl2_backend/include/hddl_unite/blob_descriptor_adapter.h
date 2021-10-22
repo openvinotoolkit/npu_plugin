@@ -68,6 +68,7 @@ struct SourceInfo {
     int32_t widthStride;
     int32_t planeStride;
     std::vector<HddlUnite::Inference::Rectangle> roiRectangles;
+    HddlUnite::Inference::PreProcPara paraPreProc;
 };
 
 /** @brief Info for intermediate buffer for preprocessing result
@@ -132,7 +133,8 @@ private:
 private:
     /** Fill SourceInfo stuct with all frame related information **/
     void prepareImageFormatInfo(const InferenceEngine::Blob::CPtr& blobPtr,
-                                const InferenceEngine::ColorFormat colorFormat);
+                                const InferenceEngine::ColorFormat colorFormat,
+                                const vpux::ParsedRemoteBlobParams::CPtr& blobParams);
 
     /** Prepare ROI information **/
     void getRect(const InferenceEngine::Blob::CPtr& blobPtr, const vpux::ParsedRemoteBlobParams::CPtr& blobParams);

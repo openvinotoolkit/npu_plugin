@@ -271,7 +271,7 @@ const HddlUnite::Inference::BlobDesc& BlobDescriptorAdapter::updateUniteBlobDesc
         }
     }
 
-    prepareImageFormatInfo(blobPtr, colorFormat);
+    prepareImageFormatInfo(blobPtr, colorFormat, parsedBlobParamsPtr);
     getRect(blobPtr, parsedBlobParamsPtr);
 
     // Updating blobDesc with gathered params
@@ -286,11 +286,13 @@ const HddlUnite::Inference::BlobDesc& BlobDescriptorAdapter::updateUniteBlobDesc
     _hddlUniteBlobDesc.m_widthStride = _sourceInfo.widthStride;
     _hddlUniteBlobDesc.m_planeStride = _sourceInfo.planeStride;
     _hddlUniteBlobDesc.m_rect = _sourceInfo.roiRectangles;
+    _hddlUniteBlobDesc.m_preprocPara = _sourceInfo.paraPreProc;
 
     return _hddlUniteBlobDesc;
 }
 
-void BlobDescriptorAdapter::prepareImageFormatInfo(const IE::Blob::CPtr& blobPtr, const IE::ColorFormat colorFormat) {
+void BlobDescriptorAdapter::prepareImageFormatInfo(const IE::Blob::CPtr& blobPtr, const IE::ColorFormat colorFormat,
+                                                   const vpux::ParsedRemoteBlobParams::CPtr& parsedBlobParams) {
     if (colorFormat == IE::ColorFormat::NV12) {
         if (!isNV12AnyBlob(blobPtr)) {
             IE_THROW() << "BlobDescriptorAdapter: blob type and color parameter are not compatible.";
@@ -329,6 +331,9 @@ void BlobDescriptorAdapter::prepareImageFormatInfo(const IE::Blob::CPtr& blobPtr
         _sourceInfo.planeStride = strides[isNCHW ? 1 : 0];
         _sourceInfo.resWidth = dims[W_index];
         _sourceInfo.resHeight = dims[H_index];
+
+        // Local memory should not contain pre-proc parameter for now.
+        memset(&(_sourceInfo.paraPreProc), 0, sizeof(HddlUnite::Inference::PreProcPara));
     } else {
         // Remote memory - get information from RemoteMemory HddlUnite object
         const auto remoteBlob = isRemoteNV12Blob(blobPtr) ? IE::as<IE::NV12Blob>(blobPtr)->y() : blobPtr;
@@ -338,6 +343,25 @@ void BlobDescriptorAdapter::prepareImageFormatInfo(const IE::Blob::CPtr& blobPtr
         _sourceInfo.planeStride = memoryDesc.m_widthStride * memoryDesc.m_heightStride;
         _sourceInfo.resWidth = memoryDesc.m_width;
         _sourceInfo.resHeight = memoryDesc.m_height;
+
+        // Convert vpux pre-proc parameter to HddlUnite::Inference::PreProcPara
+        const auto& ppParaPtr = parsedBlobParams->getPreProcPara();
+        if (ppParaPtr != nullptr) {
+            _sourceInfo.paraPreProc.aspect_ratio = ppParaPtr->aspect_ratio;
+            _sourceInfo.paraPreProc.align_center = ppParaPtr->align_center;
+            _sourceInfo.paraPreProc.en_perspective = ppParaPtr->en_perspective;
+            for (int i = 0; i < POINTS_NUM_FOR_PERSPECTIVE_TRANS; i++) {
+                _sourceInfo.paraPreProc.src_points[i].x = ppParaPtr->src_points[i].x;
+                _sourceInfo.paraPreProc.src_points[i].y = ppParaPtr->src_points[i].y;
+            }
+            for (int i = 0; i < POINTS_NUM_FOR_PERSPECTIVE_TRANS; i++) {
+                _sourceInfo.paraPreProc.dst_points[i].x = ppParaPtr->dst_points[i].x;
+                _sourceInfo.paraPreProc.dst_points[i].y = ppParaPtr->dst_points[i].y;
+            }
+            _sourceInfo.paraPreProc.en_keep_input_size = ppParaPtr->en_keep_input_size;
+        } else {
+            memset(&(_sourceInfo.paraPreProc), 0, sizeof(HddlUnite::Inference::PreProcPara));
+        }
     }
 }
 

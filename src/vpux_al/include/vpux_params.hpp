@@ -51,6 +51,9 @@ public:
     InferenceEngine::ColorFormat getBlobColorFormat() const {
         return _blobColorFormat;
     }
+    std::shared_ptr<const InferenceEngine::PreProcPara> getPreProcPara() const {
+        return _preprocPara;
+    }
 
 public:
     /** @brief Override current parameters with new options, not specified keep the same */
@@ -71,6 +74,7 @@ private:
     void* _memoryHandle = nullptr;
     VpuxRemoteMemoryFD _remoteMemoryFD = -1;
     InferenceEngine::ColorFormat _blobColorFormat = InferenceEngine::ColorFormat::BGR;
+    std::shared_ptr<const InferenceEngine::PreProcPara> _preprocPara = nullptr;
 };
 
 }  // namespace vpux
