@@ -13,7 +13,8 @@
 
 #include "vpux/compiler/conversion.hpp"
 #include "vpux/utils/core/logger.hpp"
-#include "vpux/compiler//utils/logging.hpp"
+#include "vpux/compiler/utils/logging.hpp"
+#include "vpux/compiler/dialect/VPUIP/attributes/arch.hpp"
 
 using namespace vpux;
 
@@ -361,9 +362,15 @@ private:
     mlir::ModuleOp mainModule;
 };
 
-
 void ConvertSWLayers2VPUIPPass::safeRunOnFunc() {
     auto& ctx = getContext();
+    auto func = getFunction();
+    auto module = func->getParentOfType<mlir::ModuleOp>();
+    const auto arch = VPUIP::getArch(module);
+    if (arch != VPUIP::ArchKind::MTL) {
+        _log.trace("ConvertSWLayers2VPUIPPass enabled only for MTL device, but not for {0}", arch);
+        return;
+    }
 
     mlir::ConversionTarget target(ctx);
     target.addIllegalDialect<IERT::IERTDialect>();
@@ -377,7 +384,6 @@ void ConvertSWLayers2VPUIPPass::safeRunOnFunc() {
     target.addLegalOp<IERT::TimestampOp>();
 
     mlir::RewritePatternSet patterns(&ctx);
-    auto module = getFunction()->getParentOfType<mlir::ModuleOp>();
 
     patterns.insert<ANYSWLayerRewrite<
             IERT::SigmoidOp,
@@ -392,7 +398,6 @@ void ConvertSWLayers2VPUIPPass::safeRunOnFunc() {
     patterns.insert<RewriteConvolution>(&ctx, _log)*/
     populateWithGenerated(patterns);
 
-    auto func = getFunction();
     if (mlir::failed(mlir::applyFullConversion(func, target, std::move(patterns)))) {
         signalPassFailure();
     }
