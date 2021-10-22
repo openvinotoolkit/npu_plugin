@@ -39,7 +39,7 @@ mlir::Type vpux::VPUIP::VPUIPDialect::parseType(mlir::DialectAsmParser& parser) 
     }
 
     mlir::Type type;
-    if (!generatedTypeParser(parser, mnemonic, type).hasValue()) {
+    if (!generatedTypeParser(getContext(), parser, mnemonic, type).hasValue()) {
         printTo(parser.emitError(parser.getCurrentLocation()), "Unknown VPUIP Type '{0}'", mnemonic);
     }
 

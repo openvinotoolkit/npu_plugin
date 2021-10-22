@@ -45,7 +45,7 @@ func @QuantizedConv(%input: tensor<1x3x62x62xf32>) -> tensor<1x4x60x60xf32> {
     // CHECK-SAME:    [#const.ConvertElemType<f32>, #const.ConvertElemType<ui8>, #const.QuantCast<!qElemType0>]>
 
     // CHECK:     [[INPUT_QUANT:%.*]] = IE.And([[INPUT]], [[INPUT]]) {auto_broadcast = "NONE_OR_EXPLICIT"}
-    // CHECK-SAME:     -> tensor<1x3x62x62x!qElemType1>
+    // CHECK-SAME:     -> tensor<1x3x62x62x!quant.uniform<u8:f32, 1.000000e+00>>
 
     // CHECK:     [[CONV:%.*]] = IE.Convolution([[INPUT_QUANT]], [[WEIGHTS]])
 

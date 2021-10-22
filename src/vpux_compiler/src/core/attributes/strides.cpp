@@ -37,24 +37,9 @@ bool vpux::details::isDynamicDimValues(ArrayRef<Bit> strides) {
 //
 
 Strides vpux::getStrides(mlir::MemRefType type) {
-    const auto maps = type.getAffineMaps();
-
-    mlir::MemRefType canonicalType;
-    if (maps.size() <= 1) {
-        canonicalType = type;
-    } else {
-        auto composedMap = maps.back();
-
-        for (auto map : maps.drop_back() | reversed) {
-            composedMap = composedMap.compose(map);
-        }
-
-        canonicalType = mlir::MemRefType::Builder(type).setAffineMaps({composedMap});
-    }
-
     SmallVector<int64_t> elemStrides;
     int64_t offset = 0;
-    VPUX_THROW_UNLESS(mlir::succeeded(mlir::getStridesAndOffset(canonicalType, elemStrides, offset)),
+    VPUX_THROW_UNLESS(mlir::succeeded(mlir::getStridesAndOffset(type, elemStrides, offset)),
                       "Only strided/simple MemRef Types are supported, got '{0}'", type);
     VPUX_THROW_UNLESS(elemStrides.size() == checked_cast<size_t>(type.getRank()),
                       "Only strided/simple MemRef Types are supported, got '{0}'", type);

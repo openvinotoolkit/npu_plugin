@@ -67,7 +67,7 @@ void vpux::Const::ReshapeAttr::print(mlir::DialectAsmPrinter& printer) const {
 // ReshapeAttr::parse
 //
 
-mlir::Attribute vpux::Const::ReshapeAttr::parse(mlir::DialectAsmParser& parser, mlir::Type) {
+mlir::Attribute vpux::Const::ReshapeAttr::parse(mlir::MLIRContext*, mlir::DialectAsmParser& parser, mlir::Type) {
     if (mlir::failed(parser.parseLess())) {
         return nullptr;
     }

@@ -58,7 +58,7 @@ void vpux::Const::QuantCastAttr::print(mlir::DialectAsmPrinter& printer) const {
 // QuantCastAttr::parse
 //
 
-mlir::Attribute vpux::Const::QuantCastAttr::parse(mlir::DialectAsmParser& parser, mlir::Type) {
+mlir::Attribute vpux::Const::QuantCastAttr::parse(mlir::MLIRContext* ctx, mlir::DialectAsmParser& parser, mlir::Type) {
     if (mlir::failed(parser.parseLess())) {
         return nullptr;
     }
@@ -70,7 +70,7 @@ mlir::Attribute vpux::Const::QuantCastAttr::parse(mlir::DialectAsmParser& parser
         return nullptr;
     }
 
-    return parser.getChecked<Const::QuantCastAttr>(parser.getContext(), elemType);
+    return parser.getChecked<Const::QuantCastAttr>(ctx, elemType);
 }
 
 //

@@ -45,7 +45,7 @@ void vpux::Const::AddAttr::print(mlir::DialectAsmPrinter& printer) const {
 // PadWithZeroAttr::parse
 //
 
-mlir::Attribute vpux::Const::AddAttr::parse(mlir::DialectAsmParser& parser, mlir::Type) {
+mlir::Attribute vpux::Const::AddAttr::parse(mlir::MLIRContext*, mlir::DialectAsmParser& parser, mlir::Type) {
     if (mlir::failed(parser.parseLess())) {
         return nullptr;
     }
