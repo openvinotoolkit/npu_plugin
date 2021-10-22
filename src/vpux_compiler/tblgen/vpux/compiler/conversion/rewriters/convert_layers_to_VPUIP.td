@@ -680,4 +680,10 @@ def RewriteMVN :
             (createMVNUPAOp $input, $output, $across_channels, $normalize_variance, $eps)
         >;
 
+def RewriteReduceLogicalAnd :
+        Pat<
+            (IERT_ReduceLogicalAndOp $input, $axes, $output, $keep_dims),
+            (createReduceUPAOp<"LOGICALAND"> $input, $axes, $output, $keep_dims)
+        >;
+
 #endif

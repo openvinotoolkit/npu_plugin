@@ -1875,4 +1875,27 @@ def IE_SubtractOp :
     let hasFolder = 1;
 }
 
+//
+// ReduceLogicalAndOp
+//
+
+def IE_ReduceLogicalAndOp :
+        IE_LayerOp<
+            "ReduceLogicalAnd"
+        > {
+    let summary = "InferenceEngine ReduceLogicalAnd layer";
+
+    let arguments = (ins
+        AnyRankedTensor:$input,
+        1DTensorOf<[SI32, SI64]>:$axes,
+
+        UnitAttr:$keep_dims
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );  
+        
+}
+
 #endif

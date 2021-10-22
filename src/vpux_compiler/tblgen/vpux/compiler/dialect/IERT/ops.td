@@ -2072,4 +2072,37 @@ def IERT_SubtractOp :
     }];
 }
 
+//
+// ReduceLogicalAndOp
+//
+
+def IERT_ReduceLogicalAndOp :
+    IERT_LayerOp<1, "ReduceLogicalAnd",
+        [
+            ViewLikeOpInterface
+        ]
+    > {
+    let summary = "InferenceEngine run-time ReduceLogicalAnd layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32, SI32, SI64]>:$input,
+        MemRefOf<[SI32, SI64]>:$axes,
+        MemRefOf<[F16, F32, SI32, SI64]>:$output_buff,
+
+        UnitAttr: $keep_dims
+    );
+
+    let results = (outs
+        MemRefOf<[F16, F32, SI32, SI64]>:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `inputs` `(` $axes `:` type($axes) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
 #endif
