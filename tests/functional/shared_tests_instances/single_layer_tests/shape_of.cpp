@@ -23,9 +23,8 @@ using namespace LayerTestsDefinitions;
 
 namespace {
     const std::vector<InferenceEngine::Precision> netPrecisions = {
-            InferenceEngine::Precision::FP32, //InferenceEngine::Precision::I32 - value from original test for CPU
             InferenceEngine::Precision::FP16,
-            InferenceEngine::Precision::U8,
+            InferenceEngine::Precision::U8
     };
 
     // All test instances have the same error:

@@ -49,8 +49,8 @@ std::vector<std::vector<float >> Power = {
     {2.0f},
 };
 
-std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32,
-                                                         InferenceEngine::Precision::FP16,
+std::vector<InferenceEngine::Precision> netPrecisions = {
+        InferenceEngine::Precision::FP16
 };
 
 // Test works only when power = 1, in all other cases there are similar errors:

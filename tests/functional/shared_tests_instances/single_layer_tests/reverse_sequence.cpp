@@ -23,12 +23,8 @@ using namespace LayerTestsDefinitions;
 namespace {
 
     const std::vector<InferenceEngine::Precision> netPrecisions = {
-            InferenceEngine::Precision::FP32,
             InferenceEngine::Precision::FP16,
-            InferenceEngine::Precision::U8,
-            // InferenceEngine::Precision::I8,  - This precision is not supported by KMB
-            // InferenceEngine::Precision::U16, - This precision is not supported by KMB
-            // InferenceEngine::Precision::I32  - This precision is not supported by KMB
+            InferenceEngine::Precision::U8
     };
 
     const std::vector<int64_t> batchAxisIndices = { 0L };

@@ -40,7 +40,7 @@ using namespace LayerTestsDefinitions;
 namespace {
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
-        InferenceEngine::Precision::FP32,
+        InferenceEngine::Precision::FP16
 };
 
 const std::vector<std::vector<size_t>> inputShapes = {
@@ -108,7 +108,7 @@ const auto genParams(const std::vector<size_t> inputShape, const int axis, const
         testing::Values(std::vector<size_t>{idxNum}),
         testing::Values(axis),
         testing::Values(inputShape),
-        testing::Values(InferenceEngine::Precision::FP32),
+        testing::ValuesIn(netPrecisions),
         testing::Values(InferenceEngine::Precision::FP16),
         testing::Values(InferenceEngine::Precision::FP16),
         testing::Values(InferenceEngine::Layout::ANY),
