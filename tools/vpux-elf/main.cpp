@@ -38,7 +38,7 @@ int main() {
     resourceRequirements.slice_count = 2;
 
     mlir::MLIRContext context;
-    const mlir::SmallVector<mlir::MemRefType> inputs{mlir::MemRefType::get(
+    const mlir::SmallVector<mlir::ShapedType> inputs{mlir::MemRefType::get(
             {1, 320, 7, 7}, mlir::IntegerType::get(&context, 8, mlir::IntegerType::SignednessSemantics::Unsigned))};
 
     blobSerializer.setNetworkInputs(inputs);

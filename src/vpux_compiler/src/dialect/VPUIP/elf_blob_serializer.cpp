@@ -52,11 +52,11 @@ void VPUIP::ELFBlobSerializer::setResourceRequirements(const ResourceRequirement
     m_resourceRequirements = resourceRequirements;
 }
 
-void VPUIP::ELFBlobSerializer::setNetworkInputs(llvm::ArrayRef<mlir::MemRefType> inputs) {
+void VPUIP::ELFBlobSerializer::setNetworkInputs(llvm::ArrayRef<mlir::ShapedType> inputs) {
     setNetworkIO(inputs, VPU_STT_INPUT, m_networkInputSymbols, "input");
 }
 
-void VPUIP::ELFBlobSerializer::setNetworkOutputs(llvm::ArrayRef<mlir::MemRefType> outputs) {
+void VPUIP::ELFBlobSerializer::setNetworkOutputs(llvm::ArrayRef<mlir::ShapedType> outputs) {
     setNetworkIO(outputs, VPU_STT_OUTPUT, m_networkOutputSymbols, "output");
 }
 
@@ -149,7 +149,7 @@ void VPUIP::ELFBlobSerializer::write(const std::string& fileName) {
     m_writer.write(fileName);
 }
 
-void VPUIP::ELFBlobSerializer::setNetworkIO(llvm::ArrayRef<mlir::MemRefType> inputsOrOutputs, uint8_t symbolType,
+void VPUIP::ELFBlobSerializer::setNetworkIO(llvm::ArrayRef<mlir::ShapedType> inputsOrOutputs, uint8_t symbolType,
                                             writer::SymbolSection*& symbolSection, const std::string& symbolName) {
     symbolSection = m_writer.addSymbolSection();
     symbolSection->setName(symbolName + "s");

@@ -53,8 +53,8 @@ class ELFBlobSerializer {
 public:
     ELFBlobSerializer();
 
-    void setNetworkInputs(llvm::ArrayRef<mlir::MemRefType> inputs);
-    void setNetworkOutputs(llvm::ArrayRef<mlir::MemRefType> outputs);
+    void setNetworkInputs(llvm::ArrayRef<mlir::ShapedType> inputs);
+    void setNetworkOutputs(llvm::ArrayRef<mlir::ShapedType> outputs);
 
     void setDDRScratch(size_t ddrScratch);
     void setResourceRequirements(const ResourceRequirements& resourceRequirements);
@@ -67,7 +67,7 @@ public:
     void write(const std::string& fileName);
 
 private:
-    void setNetworkIO(llvm::ArrayRef<mlir::MemRefType> inputsOrOutputs, uint8_t symbolType,
+    void setNetworkIO(llvm::ArrayRef<mlir::ShapedType> inputsOrOutputs, uint8_t symbolType,
                       elf::writer::SymbolSection*& symbolSection, const std::string& symbolName);
     void finalize();
 
