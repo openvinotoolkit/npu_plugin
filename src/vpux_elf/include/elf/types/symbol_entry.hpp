@@ -62,6 +62,15 @@ struct Elf64_Sym {
     Elf_Xword     st_size;
 };
 
+struct Elf32_Sym {
+    Elf_Word      st_name;
+    unsigned char st_info;
+    unsigned char st_other;
+    Elf_Half      st_shndx;
+    Elf32_Addr    st_value;
+    Elf_Xword     st_size;
+};
+
 using SymbolEntry = Elf64_Sym;
 
 //! Extract symbol binding attributes from info

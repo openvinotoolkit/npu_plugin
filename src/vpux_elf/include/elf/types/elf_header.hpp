@@ -94,6 +94,24 @@ struct Elf64_Ehdr {
     Elf_Half      e_shstrndx;
 };
 
+struct Elf32_Ehdr {
+    unsigned char e_ident[EI_NIDENT];
+    Elf_Half      e_type;
+    Elf_Half      e_machine;
+    Elf_Word      e_version;
+    Elf32_Addr    e_entry;
+    Elf32_Off     e_phoff;
+    Elf32_Off     e_shoff;
+    Elf_Word      e_flags;
+    Elf_Half      e_ehsize;
+    Elf_Half      e_phentsize;
+    Elf_Half      e_phnum;
+    Elf_Half      e_shentsize;
+    Elf_Half      e_shnum;
+    Elf_Half      e_shstrndx;
+};
+
 using ELFHeader = Elf64_Ehdr;
+using ELF32Header = Elf32_Ehdr;
 
 } // namespace elf
