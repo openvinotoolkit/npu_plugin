@@ -2921,7 +2921,7 @@
         },
 
         {
-            "name" : "BDK_tf_FP16-INT8_mobilenet-v3-large-1.0-224",
+            "name" : "BDK_tf_FP16_mobilenet-v3-large-1.0-224",
             "ir" : "models/clientmodels/BDK3/mobilenet-v3-large-1.0-224/tf/FP16/mobilenet-v3-large-1.0-224.xml",
             "3720": {
                 "disabled" : true
@@ -2945,7 +2945,7 @@
             "AccuracyCheck" : {
                 "disabled" :  true,
                 "config": "mobilenet-v3-large-1.0-224-tf.yml",
-                "subsample_size": 100
+                "subsample_size": 50000
             },
             "category" : "MCM/dKMB/weekly_private",
             "CI-options" : {
