@@ -21,7 +21,7 @@
 namespace vpux {
 namespace IE {
 
-void exportToIRv10(mlir::ModuleOp module, std::ostringstream &ostr);
+mlir::LogicalResult exportToIRv10(mlir::ModuleOp module, llvm::raw_ostream&, const std::string &baseFileName);
 
 }  // namespace IE
 }  // namespace vpux

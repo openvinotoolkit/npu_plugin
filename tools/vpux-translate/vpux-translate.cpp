@@ -129,7 +129,7 @@ mlir::OwningModuleRef importVPUIP(llvm::SourceMgr& sourceMgr, mlir::MLIRContext*
 // export-VPUIP
 //
 
-mlir::LogicalResult exportVPUIP(mlir::ModuleOp module, llvm::raw_ostream& output) {
+mlir::LogicalResult exportVPUIP(mlir::ModuleOp module, llvm::raw_ostream& output, const std::string &) {
     mlir::DefaultTimingManager tm;
     auto rootTiming = tm.getRootScope();
     const auto buf = VPUIP::exportToBlob(module, rootTiming);
@@ -141,11 +141,8 @@ mlir::LogicalResult exportVPUIP(mlir::ModuleOp module, llvm::raw_ostream& output
 // export-IE
 //
 
-mlir::LogicalResult exportIE(mlir::ModuleOp module, llvm::raw_ostream& output) {
-    std::ostringstream ostr;
-    IE::exportToIRv10(module, ostr);
-    output << ostr.str();
-    return mlir::success();
+mlir::LogicalResult exportIE(mlir::ModuleOp module, llvm::raw_ostream& output, const std::string &baseFileName) {
+    return IE::exportToIRv10(module, output, baseFileName);
 }
 
 }  // namespace
