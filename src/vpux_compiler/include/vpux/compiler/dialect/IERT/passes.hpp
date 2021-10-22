@@ -41,6 +41,7 @@ std::unique_ptr<mlir::Pass> createStaticAllocationPass(AttrCreateFunc memSpaceCb
 std::unique_ptr<mlir::Pass> createCMXTilingPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createTimestampProfilingPass(AttrCreateFunc memSpaceCb, Logger log = Logger::global());
 // std::unique_ptr<mlir::Pass> createReadValueTransPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createAssignTransPass(AttrCreateFunc memSpaceCb, Logger log = Logger::global());
 
 //
 // Asynchronous Scheduling pipeline

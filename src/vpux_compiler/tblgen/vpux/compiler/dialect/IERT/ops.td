@@ -54,6 +54,20 @@ class IERT_LayerOp<int numResult, string mnemonic, list<OpTrait> traits = []> :
     let extraClassDeclaration = IERT_InferLayerReturnTypes<numResult>.impl;
 }
 
+class IERT_LayerOp2<int numResult, string mnemonic, list<OpTrait> traits = []> :
+        IERT_Op<
+            mnemonic,
+            !listconcat(
+                traits,
+                [
+                    InferTypeOpInterface,
+                    DeclareOpInterfaceMethods<IERT_LayerOpInterface>
+                ]
+            )
+        > {
+    let extraClassDeclaration = IERT_InferLayerReturnTypes<numResult>.impl;
+}
+
 //
 // RunTimeResourcesOp
 //
@@ -328,7 +342,7 @@ def IERT_ReadValueOp :
 //
 
 def IERT_AssignOp :
-        IERT_LayerOp<1, "Assign",
+        IERT_LayerOp2<1, "Assign",
             [
                 ViewLikeOpInterface            
             ]

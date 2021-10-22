@@ -170,6 +170,8 @@ void vpux::buildHardwareModePipeline(mlir::OpPassManager& pm, bool enableProfili
         pm.addPass(IERT::createTimestampProfilingPass(getMemSpace<VPUIP::PhysicalMemory::CMX_NN>, log));
     }
 
+    pm.addPass(IERT::createAssignTransPass(getMemSpace<VPUIP::PhysicalMemory::CMX_NN>, log));
+
     // Partially lower IERT->VPUIP (NCE Operations only)
     pm.addPass(IERT::createCMXTilingPass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));

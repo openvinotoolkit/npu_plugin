@@ -90,6 +90,22 @@ def CXMTiling : PassBase<"cmx-tiling", "vpux::FunctionPass"> {
     let constructor = "vpux::IERT::createCMXTilingPass()";
 }
 
+def AssignTrans : PassBase<"assign-trans", "vpux::ModulePass"> {
+    let summary = "Assign trans pass";
+
+    let description = [{
+    }];
+
+//    let constructor = "vpux::IERT::createAssignTransPass()";
+    let constructor = [{
+        vpux::IERT::createAssignTransPass([](mlir::MLIRContext* ctx, vpux::StringRef memSpaceName) -> mlir::Attribute {
+            VPUX_THROW_UNLESS(!memSpaceName.empty(), "Missing memory space option");
+            return mlir::StringAttr::get(ctx, memSpaceName);
+        })
+    }];
+}
+
+
 //
 // TimestampProfiling
 //

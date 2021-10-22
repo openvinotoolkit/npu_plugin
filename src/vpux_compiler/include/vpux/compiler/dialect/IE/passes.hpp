@@ -52,6 +52,8 @@ std::unique_ptr<mlir::Pass> createResolveStridedSlicePass(Logger log = Logger::g
 std::unique_ptr<mlir::Pass> createConvertConv1DToConv2DPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createReadValueTransPass(Logger log = Logger::global());
 
+// std::unique_ptr<mlir::Pass> createAssignTransPass(Logger log = Logger::global());
+
 //
 // HW related passes
 //

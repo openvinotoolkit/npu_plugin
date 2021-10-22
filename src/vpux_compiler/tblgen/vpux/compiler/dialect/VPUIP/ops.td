@@ -391,7 +391,8 @@ def VPUIP_NNDMAOp :
 def VPUIP_AssignUPAOp :
         VPUIP_UPATaskOp<1, "AssignUPA",
             [
-                ViewLikeOpInterface
+                ViewLikeOpInterface,
+                IERT_SameInOutDimsOrder
             ]
         > {
     let summary = "Assign UPA SHAVE kernel";
@@ -444,7 +445,9 @@ def VPUIP_AssignUPAOp :
 def VPUIP_ReadValueUPAOp :
         VPUIP_UPATaskOp<1, "ReadValueUPA",
             [
-                ViewLikeOpInterface
+                ViewLikeOpInterface,
+                                IERT_SameInOutDimsOrder
+
             ]
         > {
     let summary = "ReadValue UPA SHAVE kernel";
