@@ -188,8 +188,8 @@ mlir::LogicalResult ChannelMajorConvRewrite::matchAndRewrite(IERT::ConvolutionOp
         return matchFailed(rewriter, origOp, "Operation {0} does not satisfy the NCE invariant", origOp);
     }
 
-    const auto inputTensorWidth = getShape(origOp.input())[IE::Dims4D::Act::W];
-    const auto inputChannels = getShape(origOp.filter().getType().cast<mlir::ShapedType>())[IE::Dims4D::Filter::IC];
+    const auto inputTensorWidth = getShape(origOp.input())[Dims4D::Act::W];
+    const auto inputChannels = getShape(origOp.filter().getType().cast<mlir::ShapedType>())[Dims4D::Filter::IC];
     const auto inDimsOrder = DimsOrder::fromValue(origOp->getOperand(0));
     bool isChannelMajorConvolution =
             vpux::VPUIP::isChannelMajorCompatibleOperation(inDimsOrder, inputChannels, inputTensorWidth);
@@ -305,8 +305,8 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
         return matchFailed(rewriter, origOp, "Operation {0} does not satisfy the NCE invariant", origOp);
     }
 
-    const auto inputTensorWidth = getShape(origOp.input())[IE::Dims4D::Act::W];
-    const auto inputChannels = getShape(origOp.filter().getType().cast<mlir::ShapedType>())[IE::Dims4D::Filter::IC];
+    const auto inputTensorWidth = getShape(origOp.input())[Dims4D::Act::W];
+    const auto inputChannels = getShape(origOp.filter().getType().cast<mlir::ShapedType>())[Dims4D::Filter::IC];
     const auto inDimsOrder = DimsOrder::fromValue(origOp->getOperand(0));
     bool isChannelMajorConvolution =
             vpux::VPUIP::isChannelMajorCompatibleOperation(inDimsOrder, inputChannels, inputTensorWidth);
@@ -321,9 +321,9 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
 
     const auto filterShape = getShape(origOp.filter());
 
-    const auto OC = filterShape[IE::Dims4D::Filter::OC];
-    const auto KY = filterShape[IE::Dims4D::Filter::KY];
-    const auto KX = filterShape[IE::Dims4D::Filter::KX];
+    const auto OC = filterShape[Dims4D::Filter::OC];
+    const auto KY = filterShape[Dims4D::Filter::KY];
+    const auto KX = filterShape[Dims4D::Filter::KX];
 
     //
     // Prepare input for DPU

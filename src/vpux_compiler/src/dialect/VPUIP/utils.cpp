@@ -60,10 +60,10 @@ mlir::Value alignDepthWiseWeightsTensor(mlir::OpBuilder& builder, mlir::Location
 
 mlir::Value alignChannelMajorWeightsTensor(mlir::OpBuilder& builder, mlir::Location loc, const mlir::Value origFilter) {
     const auto filterShape = getShape(origFilter);
-    const auto OC = filterShape[IE::Dims4D::Filter::OC];
-    const auto filtersPerInChan = filterShape[IE::Dims4D::Filter::IC];
-    const auto KY = filterShape[IE::Dims4D::Filter::KY];
-    const auto KX = filterShape[IE::Dims4D::Filter::KX];
+    const auto OC = filterShape[Dims4D::Filter::OC];
+    const auto filtersPerInChan = filterShape[Dims4D::Filter::IC];
+    const auto KY = filterShape[Dims4D::Filter::KY];
+    const auto KX = filterShape[Dims4D::Filter::KX];
 
     const auto origFilterType = origFilter.getType().cast<mlir::ShapedType>();
     const auto channelMajorConvAlignment = VPUIP::NCEInvariant::getChannelAlignment(origFilterType.getElementType());

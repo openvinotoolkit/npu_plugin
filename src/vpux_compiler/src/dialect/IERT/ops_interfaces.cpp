@@ -188,6 +188,8 @@ mlir::LogicalResult vpux::IERT::verifySameElementType(mlir::Operation* op) {
         }
 
         if (elemType != mainElemType) {
+            Logger::global().error("{0}", elemType);
+            Logger::global().error("{0}", mainElemType);
             return errorAt(op, "Operation's input/output element types mismatch");
         }
     }

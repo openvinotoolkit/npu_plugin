@@ -79,9 +79,8 @@ int64_t vpux::VPUIP::NCEClusterTaskOp::getNumVariants() {
 void vpux::VPUIP::NCEClusterTaskOp::inferLayoutInfo(mlir::Operation* origOp, IE::LayerLayoutInfo& info) {
     llvm::TypeSwitch<mlir::Operation*, void>(origOp)
             .Case<IE::ConvolutionOp>([&](IE::ConvolutionOp op) {
-                const auto inputTensorWidth = getShape(op.input())[IE::Dims4D::Act::W];
-                const auto inputChannels =
-                        getShape(op.filter().getType().cast<mlir::ShapedType>())[IE::Dims4D::Filter::IC];
+                const auto inputTensorWidth = getShape(op.input())[Dims4D::Act::W];
+                const auto inputChannels = getShape(op.filter().getType().cast<mlir::ShapedType>())[Dims4D::Filter::IC];
                 const auto inDimsOrder = info.getInput(0);
 
                 const auto inLayout = isChannelMajorCompatibleOperation(inDimsOrder, inputChannels, inputTensorWidth)

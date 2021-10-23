@@ -82,12 +82,12 @@ mlir::LogicalResult generalRewrite(mlir::Operation* origOp, mlir::PatternRewrite
     log.trace("Input padding : {0}", inPadsEnd);
     log.trace("Output padding : {0}", outPadsEnd);
 
-    if (inPadsEnd[IE::Dims4D::Act::C] == 0 && outPadsEnd[IE::Dims4D::Act::C] == 0) {
+    if (inPadsEnd[Dims4D::Act::C] == 0 && outPadsEnd[Dims4D::Act::C] == 0) {
         return matchFailed(log, rewriter, origOp, "Both input and output channels are already aligned");
     }
 
     mlir::Value paddedInput;
-    if (inPadsEnd[IE::Dims4D::Act::C] == 0) {
+    if (inPadsEnd[Dims4D::Act::C] == 0) {
         log.trace("Input channels are already aligned");
         paddedInput = origOp->getOperand(0);
     } else {
@@ -96,9 +96,9 @@ mlir::LogicalResult generalRewrite(mlir::Operation* origOp, mlir::PatternRewrite
     }
 
     log.trace("Create new operation with extended input and output");
-    auto* newOp = opCreator(paddedInput, outPadsEnd[IE::Dims4D::Act::C]);
+    auto* newOp = opCreator(paddedInput, outPadsEnd[Dims4D::Act::C]);
 
-    if (outPadsEnd[IE::Dims4D::Act::C] == 0) {
+    if (outPadsEnd[Dims4D::Act::C] == 0) {
         log.trace("Output channels are already aligned");
         rewriter.replaceOp(origOp, newOp->getResult(0));
     } else {
