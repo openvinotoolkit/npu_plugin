@@ -62,7 +62,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyConvChannels(bool channelMa
     return mlir::success();
 }
 
-mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyConvDims(IE::ConvolutionOp origOp, Logger log) {
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyDims(IE::ConvolutionOp origOp, Logger log) {
     const auto inputTensorWidth = getShape(origOp.input())[IE::Dims4D::Act::W];
     const auto inputChannels = getShape(origOp.filter().getType().cast<mlir::ShapedType>())[IE::Dims4D::Filter::IC];
     const auto inDimsOrder = DimsOrder::fromValue(origOp->getOperand(0));
@@ -72,7 +72,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyConvDims(IE::ConvolutionOp 
                               origOp.filter().getType().cast<mlir::ShapedType>(), inputTensorWidth, log);
 }
 
-mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyConvDims(IERT::ConvolutionOp origOp, Logger log) {
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyDims(IERT::ConvolutionOp origOp, Logger log) {
     const auto inputTensorWidth = getShape(origOp.input())[IE::Dims4D::Act::W];
     const auto inputChannels = getShape(origOp.filter().getType().cast<mlir::ShapedType>())[IE::Dims4D::Filter::IC];
     const auto inDimsOrder = DimsOrder::fromValue(origOp->getOperand(0));
@@ -823,8 +823,14 @@ mlir::LogicalResult verifyConcreteOp(ConcreteOp origOp, Logger log) {
         return mlir::failure();
     }
 
-    if (mlir::failed(VPUIP::NCEInvariant::verifyDims(origOp, log))) {
-        return mlir::failure();
+    if (mlir::isa<IERT::ConvolutionOp>(origOp)) {
+        if (mlir::failed(VPUIP::NCEInvariant::verifyDims(origOp, log))) {
+            return mlir::failure();
+        }
+    } else {
+        if (mlir::failed(VPUIP::NCEInvariant::verifyDims(origOp, log))) {
+            return mlir::failure();
+        }
     }
 
     if (mlir::failed(VPUIP::NCEInvariant::verifyCMX(origOp, log))) {

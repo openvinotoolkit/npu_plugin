@@ -56,8 +56,8 @@ public:
                                                   mlir::ArrayAttr kernelStrides, Logger log = Logger::global());
 
 public:
-    static mlir::LogicalResult verifyConvDims(IE::ConvolutionOp origOp, Logger log = Logger::global());
-    static mlir::LogicalResult verifyConvDims(IERT::ConvolutionOp origOp, Logger log = Logger::global());
+    static mlir::LogicalResult verifyDims(IE::ConvolutionOp origOp, Logger log = Logger::global());
+    static mlir::LogicalResult verifyDims(IERT::ConvolutionOp origOp, Logger log = Logger::global());
     static mlir::LogicalResult verifyConvChannels(bool channelMajorConvolution, mlir::Location loc,
                                                   mlir::ShapedType filterType, int64_t width,
                                                   Logger log = Logger::global());
