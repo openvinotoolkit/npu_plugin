@@ -535,6 +535,87 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                 /*Set the most optimal workload as attribute of the op*/
                 opIt->set<mv::Workloads>("Workloads" + std::to_string(clusterNumber), workloadsVector.at(optimalWorkloadIndex));
 
+                std::cout << "LayerName " << opIt->getName() << " OutputShape: " << opIt->getOutputTensor()[0]->getShape().toString() << std::endl;
+                
+                if((opIt->hasAttr("splitStrategy")))
+                    std::cout << "Strategy " << opIt->get<std::string>("splitStrategy") << std::endl;
+                
+                for (int i: nWorkloadsSplitPool)
+                    std::cout << i << ' ';
+                std::cout << " " << std::endl;
+                std::cout << "nWorkloads: " << workloadsVector.at(optimalWorkloadIndex).nWorkloads() << std::endl;
+                std::cout << "mpe mode: " << workloadsVector.at(optimalWorkloadIndex)[0].MPEMode << std::endl;
+                std::cout << "Hardware utilization" << std::endl;
+                double tensorvolume = 0;
+                double workloadWidthAreaRemainder = 0;
+                double workloadHeightAreaRemainder = 0;
+                double workloadZAreaRemainder = 0;
+                double workloadmpeVolume = 0;
+
+                 
+                /*For multi-clustering we work on subtensors*/
+                for(auto cluster = 0; cluster < nClusters; cluster++)
+                {
+                /*get the subtensor*/
+                subTensor = opIt->getOutputTensor(0)->getSubTensor(cluster);
+
+                subTensorShape = subTensor.getShape();
+                std::cout << "SubTensorShape: " << subTensorShape.toString() << std::endl;
+
+                tensorvolume = subTensorShape[mv::IO_HEIGHT_DIMENSION] * subTensorShape[mv::IO_WIDTH_DIMENSION] * subTensorShape[mv::IO_CHANNEL_DIMENSION];
+
+                if(workloadsVector.at(optimalWorkloadIndex)[0].MPEMode == mv::Vector)
+                {
+                    auto optimalWL = workloadsVector[optimalWorkloadIndex];
+                    for (size_t i=0; i< optimalWL.nWorkloads(); i++)
+                    {
+                        int workloadWidth = optimalWL[i].MaxX - optimalWL[i].MinX + 1; 
+                        int workloadHeight = optimalWL[i].MaxY - optimalWL[i].MinY + 1;
+                        int workloadZ = optimalWL[i].MaxZ- optimalWL[i].MinZ + 1; 
+                        workloadWidthAreaRemainder = (workloadWidth < 16) ? (16-workloadWidth) : (workloadWidth % 16);
+                        workloadZAreaRemainder = (workloadZ < 16) ? (16-workloadZ) : (workloadZ % 16);
+                        workloadHeightAreaRemainder =  workloadHeight % 1;
+                        workloadmpeVolume = (subTensorShape[mv::IO_WIDTH_DIMENSION]+workloadWidthAreaRemainder) * (subTensorShape[mv::IO_HEIGHT_DIMENSION]+workloadHeightAreaRemainder) * (subTensorShape[mv::IO_CHANNEL_DIMENSION]+workloadZAreaRemainder);
+                        double eff = (tensorvolume / workloadmpeVolume) * 100;
+                        std::cout << "Workload "<< i << " utilization is " << eff << std::endl;
+                    }
+
+                }
+                if(workloadsVector.at(optimalWorkloadIndex)[0].MPEMode == mv::Matrix)
+                {
+                     auto optimalWL = workloadsVector[optimalWorkloadIndex];
+                    for (size_t i=0; i< optimalWL.nWorkloads(); i++)
+                    {
+                        int  workloadWidth = optimalWL[i].MaxX - optimalWL[i].MinX + 1; 
+                        int  workloadHeight = optimalWL[i].MaxY - optimalWL[i].MinY + 1;
+                        int  workloadZ = optimalWL[i].MaxZ- optimalWL[i].MinZ + 1; 
+                        workloadWidthAreaRemainder = (workloadWidth < 4) ? (4-workloadWidth) : (workloadWidth % 4);
+                        workloadZAreaRemainder = (workloadZ < 16) ? (16-workloadZ) : (workloadZ % 16);
+                        workloadHeightAreaRemainder = (workloadHeight < 4) ? (4-workloadHeight) : (workloadHeight % 4);
+                        workloadmpeVolume = (subTensorShape[mv::IO_WIDTH_DIMENSION]+workloadWidthAreaRemainder) * (subTensorShape[mv::IO_HEIGHT_DIMENSION]+workloadHeightAreaRemainder) * (subTensorShape[mv::IO_CHANNEL_DIMENSION]+workloadZAreaRemainder);
+                        double eff = (tensorvolume / workloadmpeVolume) * 100;
+                        std::cout << "Workload "<< i << " utilization is " << eff << std::endl;
+                    }
+                } 
+                if(workloadsVector.at(optimalWorkloadIndex)[0].MPEMode == mv::Vector_FP16)
+                {
+                     auto optimalWL = workloadsVector[optimalWorkloadIndex];
+                    for (size_t i=0; i< optimalWL.nWorkloads(); i++)
+                    {
+                        int  workloadWidth = optimalWL[i].MaxX - optimalWL[i].MinX + 1; 
+                        int  workloadHeight = optimalWL[i].MaxY - optimalWL[i].MinY + 1;
+                        int  workloadZ = optimalWL[i].MaxZ- optimalWL[i].MinZ + 1; 
+
+                        workloadWidthAreaRemainder = (workloadWidth < 4) ? (4-workloadWidth) : (workloadWidth % 4);
+                        workloadZAreaRemainder = (workloadZ < 16) ? (16-workloadZ) : (workloadZ % 16);
+                        workloadHeightAreaRemainder = (workloadHeight < 1) ? (1-workloadHeight) : (workloadHeight % 1);
+                        workloadmpeVolume = (subTensorShape[mv::IO_WIDTH_DIMENSION]+workloadWidthAreaRemainder) * (subTensorShape[mv::IO_HEIGHT_DIMENSION]+workloadHeightAreaRemainder) * (subTensorShape[mv::IO_CHANNEL_DIMENSION]+workloadZAreaRemainder);
+                        double eff = (tensorvolume / workloadmpeVolume) * 100;
+                        std::cout << "Workload "<< i << " utilization is " << eff << std::endl;
+                    }
+                } 
+                }
+
                 /*Reset workloads vector, splitpool and indices for the next sub tensor layer*/
                 workloadsVector.clear();
                 nWorkloadsSplitPool.clear();
