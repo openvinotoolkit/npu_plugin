@@ -41,6 +41,7 @@ namespace {
 //
 // Utilities
 //
+
 const EnumMap<VPUIP::ArchKind, VPUIP::MPEMode> mpeMap = {
         {VPUIP::ArchKind::KMB, VPUIP::MPEMode::VECTOR_FP16},   //
         {VPUIP::ArchKind::TBH, VPUIP::MPEMode::VECTOR_FP16},   //
