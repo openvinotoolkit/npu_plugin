@@ -246,7 +246,7 @@ void buildEltwiseMultWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir
 
     // Activation Window
     const auto bitPatternSize = VPUIP::NCESparsity::getBitPatternSize(
-            makeArrayRef(filter_size), stride_vec[0],
+            NCETaskType::DWCONV, makeArrayRef(filter_size), stride_vec[0],
             inputType.isa<mlir::quant::QuantizedType>() ? inputType.cast<mlir::quant::QuantizedType>().getStorageType()
                                                         : inputType,
             input_nce_shape[1]);

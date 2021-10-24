@@ -285,20 +285,27 @@ const vpux::EnumMap<vpux::VPUIP::ArchKind, vpux::VPUIP::NCESparsity::BiasConvert
                 {vpux::VPUIP::ArchKind::MTL, toHex},
 };
 
-int64_t vpux::VPUIP::NCESparsity::getBitPatternSize(mlir::ArrayRef<int64_t> kernelSize, int64_t strideW,
+int64_t vpux::VPUIP::NCESparsity::getBitPatternSize(vpux::VPUIP::NCETaskType taskType,
+                                                    mlir::ArrayRef<int64_t> kernelSize, int64_t strideW,
                                                     mlir::Type elemType, int64_t inputChannels) {
     VPUX_THROW_UNLESS(kernelSize.size() == 2, "Unsupported kernel size: %d", kernelSize.size());
 
     auto actualType = tryGetQuantizedStorageType(elemType);
     const auto windowSize = getWindowSize(kernelSize[0], strideW, actualType);
+    if (taskType == VPUIP::NCETaskType::CMCONV) {
+        return kernelSize[1] * windowSize * inputChannels;
+    } else if (taskType == VPUIP::NCETaskType::MAXPOOL || taskType == VPUIP::NCETaskType::DWCONV) {
+        return kernelSize[1] * windowSize;
+    }
 
-    return kernelSize[1] * windowSize * inputChannels;
+    VPUX_THROW("Unsupported Op for fake sparsity '{0}'", taskType);
 }
 
-int64_t vpux::VPUIP::NCESparsity::getActivationWindowSize(mlir::ArrayRef<int64_t> kernelSize, int64_t strideW,
+int64_t vpux::VPUIP::NCESparsity::getActivationWindowSize(vpux::VPUIP::NCETaskType taskType,
+                                                          mlir::ArrayRef<int64_t> kernelSize, int64_t strideW,
                                                           mlir::Type elemType, int64_t inputChannels) {
     auto actualType = tryGetQuantizedStorageType(elemType);
-    const auto bitPatternSize = getBitPatternSize(kernelSize, strideW, actualType, inputChannels);
+    const auto bitPatternSize = getBitPatternSize(taskType, kernelSize, strideW, actualType, inputChannels);
     const auto perChannelSparsitySize = static_cast<std::size_t>(std::ceil(bitPatternSize / 128.0) * 16);
     const auto activationWindowSize = inputChannels * perChannelSparsitySize;
 

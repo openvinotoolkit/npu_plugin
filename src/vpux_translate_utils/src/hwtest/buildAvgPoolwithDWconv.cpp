@@ -175,7 +175,7 @@ void buildAvgpoolWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mo
                                        mlir::ValueRange(), mlir::ValueRange(barrier0.barrier()), false);
 
     const auto bitPatternSize = VPUIP::NCESparsity::getBitPatternSize(
-            makeArrayRef(filter_size), stride_vec[0],
+            VPUIP::NCETaskType::DWCONV, makeArrayRef(filter_size), stride_vec[0],
             inputType.isa<mlir::quant::QuantizedType>() ? inputType.cast<mlir::quant::QuantizedType>().getStorageType()
                                                         : inputType,
             in_shape[1]);

@@ -327,8 +327,8 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPoolCMX(mlir::Location loc,
     const auto kernelSizeVals = parseIntArrayAttr<int64_t>(kernelSize);
     const auto kernelStridesVals = parseIntArrayAttr<int64_t>(kernelStrides);
 
-    const auto activationWindowSize = VPUIP::NCESparsity::getActivationWindowSize(kernelSizeVals, kernelStridesVals[0],
-                                                                                  inputType.getElementType(), IC);
+    const auto activationWindowSize = VPUIP::NCESparsity::getActivationWindowSize(
+            VPUIP::NCETaskType::MAXPOOL, kernelSizeVals, kernelStridesVals[0], inputType.getElementType(), IC);
 
     const auto requiredCMX = getRequiredCMX({inputType, outputType}, IC) + activationWindowSize * 1_Byte;
 
@@ -430,8 +430,8 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyGroupConvCMX(mlir::Location
     const auto kernelSizeVals = SmallVector<int64_t>{KX, KY};
     const auto kernelStridesVals = parseIntArrayAttr<int64_t>(kernelStrides);
 
-    const auto activationWindowSize = VPUIP::NCESparsity::getActivationWindowSize(kernelSizeVals, kernelStridesVals[0],
-                                                                                  inputType.getElementType(), OC);
+    const auto activationWindowSize = VPUIP::NCESparsity::getActivationWindowSize(
+            VPUIP::NCETaskType::DWCONV, kernelSizeVals, kernelStridesVals[0], inputType.getElementType(), OC);
 
     // consider alignment when calculating required CMX
     const auto depthwiseConvAlignment = VPUIP::NCEInvariant::getChannelAlignment(outputType.getElementType());

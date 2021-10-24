@@ -38,12 +38,6 @@ using namespace vpux;
 
 namespace {
 
-// The fake sparsity map in VPU2.0 contains a bitmap pattern that is required to configure the NCE engine
-// to perform a MaxPool, DW Conv or Channel Major Convolution. For MaxPool and DWConv convolution the bitmap
-// pattern is only required to be generated as if there is only one input channel. But for channel major
-// convolution it is required to be generated using the number of input channels.
-static constexpr int64_t MAXPOOL_DWCONV_IC_VALUE = 1;
-
 //
 // Utilities
 //
@@ -225,8 +219,8 @@ mlir::LogicalResult ChannelMajorConvRewrite::matchAndRewrite(IERT::ConvolutionOp
     const auto origInputType = origOp.input().getType().cast<mlir::MemRefType>();
     const auto kernelSize = SmallVector<int64_t>{KX, KY};
     const auto kernelStrides = parseIntArrayAttr<int64_t>(origOp.strides());
-    const auto bitPatternSize =
-            VPUIP::NCESparsity::getBitPatternSize(kernelSize, kernelStrides[0], origInputType.getElementType(), IC);
+    const auto bitPatternSize = VPUIP::NCESparsity::getBitPatternSize(
+            VPUIP::NCETaskType::CMCONV, kernelSize, kernelStrides[0], origInputType.getElementType(), IC);
 
     const auto actWindowChanLen = getIntAttr(getContext(), bitPatternSize);
     const auto fakeSparsity = VPUIP::NCESparsity::getFakeSparsity(
@@ -417,7 +411,7 @@ mlir::LogicalResult MaxPoolRewrite::matchAndRewrite(IERT::MaxPoolOp origOp, mlir
     const auto kernelStrides = parseIntArrayAttr<int64_t>(origOp.strides());
 
     const auto bitPatternSize = VPUIP::NCESparsity::getBitPatternSize(
-            kernelSize, kernelStrides[0], origInputType.getElementType(), MAXPOOL_DWCONV_IC_VALUE);
+            VPUIP::NCETaskType::MAXPOOL, kernelSize, kernelStrides[0], origInputType.getElementType(), IC);
 
     //
     // Prepare input for DPU
@@ -715,7 +709,7 @@ mlir::LogicalResult DepthwiseConvRewrite::matchAndRewrite(IERT::GroupConvolution
     const auto kernelSize = SmallVector<int64_t>{KX, KY};
     const auto kernelStrides = parseIntArrayAttr<int64_t>(origOp.strides());
     const auto bitPatternSize = VPUIP::NCESparsity::getBitPatternSize(
-            kernelSize, kernelStrides[0], origInputType.getElementType(), MAXPOOL_DWCONV_IC_VALUE);
+            VPUIP::NCETaskType::DWCONV, kernelSize, kernelStrides[0], origInputType.getElementType(), IC);
     const auto actWindowChanLen = getIntAttr(getContext(), bitPatternSize);
 
     const auto fakeSparsity = VPUIP::NCESparsity::getFakeSparsity(
