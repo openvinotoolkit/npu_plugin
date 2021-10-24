@@ -13,13 +13,11 @@ namespace {
 class KmbQuantizedChannelMajorConvSubGraphTest :
         public LayerTestsUtils::KmbLayerTestsCommon,
         public testing::WithParamInterface<LayerTestsUtils::TargetDevice> {
-                  void ConfigureNetwork() override {
-            cnnNetwork.getInputsInfo().begin()->second->setLayout(InferenceEngine::Layout::NCHW);
-            cnnNetwork.getOutputsInfo().begin()->second->setLayout(InferenceEngine::Layout::NHWC);
-            cnnNetwork.getInputsInfo().begin()->second->setPrecision(InferenceEngine::Precision::FP16);
-            cnnNetwork.getOutputsInfo().begin()->second->setPrecision(InferenceEngine::Precision::FP16);
-        }
     void SetUp() override {
+        cnnNetwork.getInputsInfo().begin()->second->setLayout(InferenceEngine::Layout::NCHW);
+        cnnNetwork.getOutputsInfo().begin()->second->setLayout(InferenceEngine::Layout::NHWC);
+        cnnNetwork.getInputsInfo().begin()->second->setPrecision(InferenceEngine::Precision::FP16);
+        cnnNetwork.getOutputsInfo().begin()->second->setPrecision(InferenceEngine::Precision::FP16);
         const InferenceEngine::SizeVector inputShape{1, 3, 64, 64};
         const InferenceEngine::SizeVector weightsShape{48, 3, 3, 3};
 
@@ -67,7 +65,8 @@ class KmbQuantizedChannelMajorConvSubGraphTest :
                                                                         pads_end, dilations);
         const std::vector<float> outDataLow = {0.0f};
         const std::vector<float> outDataHigh = {255.0f};
-        const auto outFq = ngraph::builder::makeFakeQuantize(conv, ngraph::element::f32, dataLevels, {}, outDataLow, outDataHigh, outDataLow, outDataHigh);
+        const auto outFq = ngraph::builder::makeFakeQuantize(conv, ngraph::element::f32, dataLevels, {}, outDataLow,
+                                                             outDataHigh, outDataLow, outDataHigh);
 
         const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(outFq)};
         function = std::make_shared<ngraph::Function>(results, params, "KmbQuantizedChannelMajorConv");

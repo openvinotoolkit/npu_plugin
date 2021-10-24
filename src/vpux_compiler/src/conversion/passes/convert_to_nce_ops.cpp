@@ -306,7 +306,7 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
             vpux::VPUIP::isChannelMajorCompatibleOperation(inDimsOrder, inputChannels, inputTensorWidth);
 
     if (isChannelMajorConvolution) {
-        return matchFailed(rewriter, origOp, "Got Z-major convolution", origOp);
+        return matchFailed(rewriter, origOp, "Converting Z-major convolution to channel major convolution", origOp);
     }
 
     //
