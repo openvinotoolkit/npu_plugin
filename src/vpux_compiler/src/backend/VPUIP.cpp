@@ -36,6 +36,8 @@
 #include <mlir/IR/BuiltinOps.h>
 #include <mlir/IR/BuiltinTypes.h>
 
+#include <flatbuffers/flatbuffers.h>
+
 #include <precision_utils.h>
 #include <version.hpp>
 
@@ -677,4 +679,10 @@ flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, mli
     }
 
     return detached;
+}
+
+}  // namespace
+
+std::vector<char> vpux::VPUIP::exportToBlob(mlir::ModuleOp module, mlir::TimingScope& rootTiming, Logger log) {
+    return exportToBlobGraphFile(module, rootTiming, log);
 }

@@ -19,8 +19,6 @@
 #include <mlir/IR/BuiltinOps.h>
 #include <mlir/Support/Timing.h>
 
-#include <flatbuffers/flatbuffers.h>
-
 namespace vpux {
 namespace VPUIP {
 
