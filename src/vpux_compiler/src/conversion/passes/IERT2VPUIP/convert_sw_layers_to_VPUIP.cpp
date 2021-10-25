@@ -40,173 +40,40 @@ private:
     void safeRunOnFunc() final;
 };
 
-// base trait - works for simplest SW kernels
-template <class T>
-class SW_Kernel_Args_TraitBase {
-protected:
-    T _actual;
-public:
-    SW_Kernel_Args_TraitBase(T actual) : _actual(actual) {}
-    mlir::SmallVector<mlir::Value, 128> inputs()  {
-        return {_actual.input()};
-    }
-    mlir::SmallVector<mlir::Value, 128> outputs()  {
-        return {_actual.output()};
-    }
-    mlir::SmallVector<mlir::Value, 128> output_buf()  {
-        return {_actual.output_buff()};
-    }
-};
-
-
-template <class T>
-class SW_Kernel_Args_Trait : public SW_Kernel_Args_TraitBase<T> {
-
-public:
-    SW_Kernel_Args_Trait(T actual) : SW_Kernel_Args_TraitBase<T>(actual) {}
-};
-
-// specialisation for extracting args per given type
-template<>
-class SW_Kernel_Args_Trait<IERT::SoftMaxOp> : public SW_Kernel_Args_TraitBase<IERT::SoftMaxOp> {
-public:
-    SW_Kernel_Args_Trait(IERT::SoftMaxOp actual) : SW_Kernel_Args_TraitBase<IERT::SoftMaxOp>(actual) {}
-    mlir::SmallVector<mlir::Attribute, 128> args() {
-        return {_actual.axisIndAttr()};
-    };
-    mlir::SmallString<64> entryPoint() const {
-        return {"softmax_fp16"};
-    }
-    mlir::SmallString<64> source() const {
-        return {"softmax_fp16.cpp"};
-    }
-};
-
-template<>
-class SW_Kernel_Args_Trait<IERT::SigmoidOp> : public SW_Kernel_Args_TraitBase<IERT::SigmoidOp> {
-public:
-    SW_Kernel_Args_Trait(IERT::SigmoidOp actual) : SW_Kernel_Args_TraitBase<IERT::SigmoidOp>(actual) {}
-    mlir::SmallVector<mlir::Attribute, 128> args() {
-        return {};
-    };
-    mlir::SmallString<64> entryPoint() const {
-        return {"sigmoid_fp16"};
-    }
-    mlir::SmallString<64> source() const {
-        return {"sigmoid_fp16.c"};
-    }
-};
-
-
-#define TRAIT_NAME(invocation) SW_Kernel_##invocation
-
-#define GEN_TRAIT(result_type, invocation)\
-class TRAIT_NAME(invocation) {\
-public:\
-    template <class T>\
-    static result_type Invoke(T op) {\
-        SW_Kernel_Args_Trait<T> tmp(op);\
-        return tmp.invocation();\
-    }\
-}
-
-using SmallValueVector = mlir::SmallVector<mlir::Value, 128>;
-using SmallAttributeVector = mlir::SmallVector<mlir::Attribute, 128>;
-
-GEN_TRAIT(SmallValueVector, inputs);
-GEN_TRAIT(SmallValueVector, outputs);
-GEN_TRAIT(SmallValueVector, output_buf);
-GEN_TRAIT(SmallAttributeVector, args);
-GEN_TRAIT(mlir::SmallString<64>, entryPoint);
-GEN_TRAIT(mlir::SmallString<64>, source);
-
-
-template <class TN, class ... TN_1>
-class run_for_type {
-public:
-    template <class Functor>
-    static auto findAndRun(mlir::Operation* op) -> decltype(Functor::template Invoke<TN>(nullptr)) {
-        if (auto casted = mlir::dyn_cast_or_null<TN>(op)) {
-            return Functor::template Invoke<TN>(casted);
-        }
-        return run_for_type<TN_1...>::template findAndRun<Functor>(op);
-    }
-};
-
-template <class T0>
-class run_for_type<T0> {
-public:
-    template <class Functor>
-    static auto findAndRun(mlir::Operation* op) -> decltype(Functor::template Invoke<T0>(nullptr)) {
-        return Functor::Invoke(mlir::dyn_cast_or_null<T0>(op));
-    }
-};
-
-template <class ... TN>
-class supported_types {
-    class FindResult {
-    public:
-        template <class T>
-        static  bool Invoke(T op) {
-            return op != nullptr;
-        }
-    };
-public:
-    bool isSupported(mlir::Operation* origOp) const {
-        return run_for_type<TN ...>::template findAndRun<FindResult>(origOp);
-    }
-    mlir::SmallVector<mlir::Value, 128> inputs(mlir::Operation* origOp) const {
-        return run_for_type<TN ...>::template findAndRun<TRAIT_NAME(inputs)>(origOp);
-    }
-    mlir::SmallVector<mlir::Value, 128> outputs(mlir::Operation* origOp) const {
-        return run_for_type<TN ...>::template findAndRun<TRAIT_NAME(outputs)>(origOp);
-    }
-    mlir::SmallVector<mlir::Value, 128> output_buf(mlir::Operation* origOp) const {
-        return run_for_type<TN ...>::template findAndRun<TRAIT_NAME(output_buf)>(origOp);
-    }
-    mlir::SmallVector<mlir::Attribute, 128> args(mlir::Operation* origOp) const {
-        return run_for_type<TN ...>::template findAndRun<TRAIT_NAME(args)>(origOp);
-    }
-    mlir::SmallString<64> entryPoint(mlir::Operation* origOp) const {
-        return run_for_type<TN ...>::template findAndRun<TRAIT_NAME(entryPoint)>(origOp);
-    }
-    mlir::SmallString<64> source(mlir::Operation* origOp) const {
-        return run_for_type<TN ...>::template findAndRun<TRAIT_NAME(source)>(origOp);
-    }
-};
 
 //
 // Any-SWLayerRewrite
 //
-template <class ... T>
-class ANYSWLayerRewrite final : public mlir::RewritePattern {
+class SWLayerRewriter  {
 public:
-    ANYSWLayerRewrite(mlir::MLIRContext* ctx, Logger log, mlir::ModuleOp mainModule)
-            : mlir::RewritePattern(MatchAnyOpTypeTag{}, mlir::PatternBenefit{1}, ctx), _log(log), mainModule(mainModule) {
-    }
-
-    static const supported_types<T ...>& operation() {
-        static const supported_types<T ...> registeredOps;
-        return registeredOps;
+    SWLayerRewriter(mlir::MLIRContext* ctx,
+                    mlir::Operation *origOp,
+                    mlir::PatternRewriter &rewriter,
+                    Logger log,
+                    mlir::ModuleOp mainModule,
+                    mlir::ValueRange inputs,
+                    mlir::ValueRange outputs,
+                    mlir::ValueRange output_bufs,
+                    mlir::ArrayRef<mlir::Attribute> args,
+                    mlir::StringRef entryPoint,
+                    mlir::StringRef kernelSource)
+            : _ctx(ctx), _origOp(origOp), _log(log), _mainModule(mainModule), _rewriter(rewriter),
+              _inputs(inputs),
+              _outputs(outputs),
+              _output_bufs(output_bufs),
+              _args(args),
+              _entryPoint(entryPoint),
+              _kernelSource(kernelSource) {
     }
 
 public:
-    mlir::LogicalResult match(mlir::Operation *op) const override {
-        if (operation().isSupported(op)) {
-            op->dump();
-            return mlir::success();
-        }
-        _log.error("unsupported sourceOP : {0}", op->getName());
-        return mlir::failure();
-    }
 
-    void rewrite(mlir::Operation *origOp, mlir::PatternRewriter &rewriter) const override {
-        auto inputs      = operation().inputs(origOp);
-        auto outputs     = operation().outputs(origOp);
-        auto output_bufs = operation().output_buf(origOp);
-        auto args        = operation().args(origOp);
 
-        auto builtInFunction = createBuiltInFunction(origOp, inputs, outputs, args);
+    void rewrite() const {
+
+        auto ctx = _rewriter.get().getContext();
+
+        auto builtInFunction = createBuiltInFunction();
 
         // TODO : tile 0
         const int64_t tileIndex = 0;
@@ -215,56 +82,57 @@ public:
         SmallVector<mlir::Value, 128> outputDmaResults;
 
         //  creating input dma
-        for (auto && source : inputs) {
-            auto cmxTensor = createCMXTensor(rewriter, source);
-            auto copyOp = rewriter.create<IERT::CopyOp>(origOp->getLoc(), source, cmxTensor.memref());
+        for (auto && source : _inputs) {
+            auto cmxTensor = createCMXTensor(source);
+            auto copyOp = _rewriter.get().create<IERT::CopyOp>(_origOp->getLoc(), source, cmxTensor.memref());
             inputCMXTensors.push_back(copyOp.output());
         }
 
         // allocating output tensors
-        for (auto && output_buf : output_bufs) {
-            auto allocOp = createCMXTensor(rewriter, output_buf);
+        for (auto && output_buf : _output_bufs) {
+            auto allocOp = createCMXTensor(output_buf);
             outputCMXTensors.push_back(allocOp.memref());
         }
 
         mlir::Type integerType =
-                mlir::IntegerType::get(getContext(), 32, mlir::IntegerType::Unsigned);
+                mlir::IntegerType::get(ctx, 32, mlir::IntegerType::Unsigned);
 
-        auto sw_kernel_op = rewriter.create<VPUIP::SW_KernelOp>(origOp->getLoc(),
+        auto sw_kernel_op = _rewriter.get().create<VPUIP::SW_KernelOp>(_origOp->getLoc(),
             inputCMXTensors,
             outputCMXTensors,
             builtInFunction,
             mlir::IntegerAttr::get(integerType, tileIndex));
 
-        initSwKernel(inputCMXTensors, outputCMXTensors, args, sw_kernel_op);
+        initSwKernel( sw_kernel_op, inputCMXTensors, outputCMXTensors);
 
         //  creating post-dma
-        std::transform(output_bufs.begin(), output_bufs.end(), sw_kernel_op.results().begin(), std::back_inserter(outputDmaResults),
+        std::transform(_output_bufs.begin(), _output_bufs.end(), sw_kernel_op.results().begin(), std::back_inserter(outputDmaResults),
                        [&](const auto& output_buf, const auto& swKernelResult) {
-                           auto copyOp = rewriter.create<IERT::CopyOp>(origOp->getLoc(), swKernelResult, output_buf);
+                           auto copyOp = _rewriter.get().create<IERT::CopyOp>(_origOp->getLoc(), swKernelResult, output_buf);
                            return copyOp.output();
         });
 
         // setting output to be from DMA
-        rewriter.replaceOp(origOp, outputDmaResults);
+        _rewriter.get().replaceOp(_origOp, outputDmaResults);
     }
 
 private:
 
-    mlir::memref::AllocOp createCMXTensor (mlir::PatternRewriter &rewriter, mlir::Value source) const {
+    mlir::memref::AllocOp createCMXTensor (mlir::Value source) const {
         auto type = source.getType().template dyn_cast<mlir::MemRefType>();
         auto cmxType = mlir::MemRefType::get(
                 type.getShape(), type.getElementType(), {},
-                VPUIP::MemoryLocationAttr::get(getContext(), VPUIP::MemoryLocation::VPU_CMX_NN));
+                VPUIP::MemoryLocationAttr::get(_rewriter.get().getContext(), VPUIP::MemoryLocation::VPU_CMX_NN));
 
         // TODO : how tile index should be used ???
-        return rewriter.create<mlir::memref::AllocOp>(source.getLoc(), cmxType);
+        return _rewriter.get().create<mlir::memref::AllocOp>(source.getLoc(), cmxType);
     }
 
-    void initSwKernel(const SmallVector<mlir::Value, 128>& inputs, const SmallVector<mlir::Value, 128>& output_bufs,
-                      SmallVector<mlir::Attribute, 128>& args, VPUIP::SW_KernelOp& sw_kernel_op) const {
+    void initSwKernel(VPUIP::SW_KernelOp& sw_kernel_op,
+                      mlir::ValueRange inputs,
+                      mlir::ValueRange output_bufs) const {
+
         OpBuilderLogger builderLog(_log.nest());
-        auto ctx = getContext();
         auto& bodyRegion = sw_kernel_op.body();
         auto& sw_kernel_block = bodyRegion.emplaceBlock();
 
@@ -281,8 +149,8 @@ private:
 
         // embedding args of IERT operation as constants
         llvm::SmallVector<mlir::ConstantOp, 12> constantArgs;
-        for (auto &&arg : args) {
-            constantArgs.push_back(swKernelBlockBuilder.template create<mlir::ConstantOp>(mlir::UnknownLoc::get(ctx), arg));
+        for (auto &&arg : _args) {
+            constantArgs.push_back(swKernelBlockBuilder.template create<mlir::ConstantOp>(mlir::UnknownLoc::get(_ctx), arg));
         }
 
         // pack input/outputs and constants into single call to sw_kernel_run
@@ -296,30 +164,28 @@ private:
         fetchOperands(blockArgs);
         fetchOperands(constantArgs);
 
-        swKernelBlockBuilder.template create<VPUIP::SW_Kernel_run>(mlir::UnknownLoc::get(ctx), mlir::ValueRange(operands));
+        swKernelBlockBuilder.template create<VPUIP::SW_Kernel_run>(mlir::UnknownLoc::get(_ctx), mlir::ValueRange(operands));
     }
 
 
-    mlir::SymbolRefAttr createBuiltInFunction(mlir::Operation * origOp, mlir::ValueRange inputs,
-                               mlir::ValueRange outputs, llvm::ArrayRef<mlir::Attribute> args) const {
+    mlir::SymbolRefAttr createBuiltInFunction() const {
 
-        auto ctx = getContext();
-        auto mainModuleLoc = mainModule;
+        auto mainModuleLoc = _mainModule;
         vpux::OpBuilderLogger builderLog(_log.nest());
 
         auto mainModuleBuilder = mlir::OpBuilder::atBlockBegin(mainModuleLoc.getBody(), &builderLog);
-        auto innerModule = mainModuleBuilder.create<mlir::ModuleOp>(mlir::UnknownLoc::get(ctx), StringRef("VPU.SW"));
+        auto innerModule = mainModuleBuilder.create<mlir::ModuleOp>(mlir::UnknownLoc::get(_ctx), StringRef("VPU.SW"));
 
         auto innerModuleBuilder = mlir::OpBuilder::atBlockBegin(innerModule.getBody(), &builderLog);
 
         llvm::SmallString<128> built_in_name {"builtin_"};
-        auto nonNamespaceOpName = origOp->getName().getStringRef().slice(origOp->getName().getDialectNamespace().size() + 1,
+        auto nonNamespaceOpName = _origOp->getName().getStringRef().slice(_origOp->getName().getDialectNamespace().size() + 1,
                                                                          mlir::StringRef::npos);
         built_in_name.append(nonNamespaceOpName);
 
-        auto builtInFunctionInternal = mlir::SymbolRefAttr::get(ctx, built_in_name);
+        auto builtInFunctionInternal = mlir::SymbolRefAttr::get(_ctx, built_in_name);
 
-        auto builtInFunction = mlir::SymbolRefAttr::get(ctx,
+        auto builtInFunction = mlir::SymbolRefAttr::get(_ctx,
                                                         innerModule.getName().getValue(),
                                                         {builtInFunctionInternal});
 
@@ -330,29 +196,83 @@ private:
                 inputTypes.template emplace_back<mlir::Type>(arg.getType());
             }
         };
-        fetchByType(inputs);
-        fetchByType(outputs);
-        fetchByType(args);
+        fetchByType(_inputs);
+        fetchByType(_outputs);
+        fetchByType(_args);
 
-        const auto funcType = mlir::FunctionType::get(ctx, inputTypes, mlir::TypeRange{});
+        const auto funcType = mlir::FunctionType::get(_ctx, inputTypes, mlir::TypeRange{});
 
-        auto buildInOp = innerModuleBuilder.template create<mlir::FuncOp>(mlir::UnknownLoc::get(ctx),
+        auto buildInOp = innerModuleBuilder.template create<mlir::FuncOp>(mlir::UnknownLoc::get(_ctx),
                                                                           built_in_name,
                                                                           funcType);
 
         // modifying attributes
-        buildInOp.sym_visibilityAttr(mlir::StringAttr::get(ctx, "private"));
-        auto entryPoint = operation().entryPoint(origOp);
-        auto sourceFile  = operation().source(origOp);
+        buildInOp.sym_visibilityAttr(mlir::StringAttr::get(_ctx, "private"));
 
-        buildInOp->setAttr("VPU.kernel_entry", mlir::StringAttr::get(ctx, entryPoint));
-        buildInOp->setAttr("VPU.kernel_code", mlir::StringAttr::get(ctx, sourceFile));
+        buildInOp->setAttr("VPU.kernel_entry", mlir::StringAttr::get(_ctx, _entryPoint));
+        buildInOp->setAttr("VPU.kernel_code", mlir::StringAttr::get(_ctx, _kernelSource));
 
         return builtInFunction;
     }
 
+    mlir::MLIRContext *_ctx;
+    mlir::Operation *_origOp;
     Logger _log;
-    mlir::ModuleOp mainModule;
+    mlir::ModuleOp _mainModule;
+    std::reference_wrapper<mlir::PatternRewriter> _rewriter;
+    mlir::ValueRange _inputs;
+    mlir::ValueRange _outputs;
+    mlir::ValueRange _output_bufs;
+    mlir::ArrayRef<mlir::Attribute> _args;
+    mlir::StringRef _entryPoint;
+    mlir::StringRef _kernelSource;
+
+};
+
+class RewriteSoftmaxMTL final : public mlir::OpRewritePattern<IERT::SoftMaxOp> {
+public:
+    RewriteSoftmaxMTL(mlir::MLIRContext* ctx, Logger log, mlir::ModuleOp mainModule)
+            : mlir::OpRewritePattern<IERT::SoftMaxOp>(ctx), _log(log), _mainModule(mainModule) {
+    }
+    mlir::LogicalResult matchAndRewrite(IERT::SoftMaxOp origOp, mlir::PatternRewriter& rewriter) const final {
+
+        mlir::SmallVector<mlir::Attribute, 128> args = {origOp.axisIndAttr()};
+        SWLayerRewriter(getContext(),
+                        origOp.getOperation(),
+                        rewriter,
+                        _log,
+                        _mainModule,
+                        {origOp.input()}, {origOp.output()}, {origOp.output_buff()},
+                        args,
+                        "softmax_fp16",
+                        "softmax_fp16.cpp").rewrite();
+        return mlir::success();
+    }
+protected:
+    Logger _log;
+    mlir::ModuleOp _mainModule;
+};
+
+class RewriteSigmoidMTL final : public mlir::OpRewritePattern<IERT::SigmoidOp> {
+public:
+    RewriteSigmoidMTL(mlir::MLIRContext* ctx, Logger log, mlir::ModuleOp mainModule)
+            : mlir::OpRewritePattern<IERT::SigmoidOp>(ctx), _log(log), _mainModule(mainModule) {
+    }
+    mlir::LogicalResult matchAndRewrite(IERT::SigmoidOp origOp, mlir::PatternRewriter& rewriter) const final {
+
+        SWLayerRewriter(getContext(),
+                        origOp.getOperation(),
+                        rewriter,
+                        _log,
+                        _mainModule,
+                        {origOp.input()}, {origOp.output()}, {origOp.output_buff()}, {},
+                        "sigmoid_fp16",
+                        "sigmoid_fp16.cpp").rewrite();
+        return mlir::success();
+    }
+protected:
+    Logger _log;
+    mlir::ModuleOp _mainModule;
 };
 
 void ConvertSWLayers2VPUIPPass::safeRunOnFunc() {
@@ -380,17 +300,9 @@ void ConvertSWLayers2VPUIPPass::safeRunOnFunc() {
 
     mlir::RewritePatternSet patterns(&ctx);
 
-    patterns.insert<ANYSWLayerRewrite<
-            IERT::SigmoidOp,
-            IERT::SoftMaxOp>>(&ctx, _log, module);
+    patterns.insert<RewriteSoftmaxMTL>(&ctx, _log, module);
+    patterns.insert<RewriteSigmoidMTL>(&ctx, _log, module);
 
-    // TODO: maybe use this container instead of Variadics
-    // if many types in iert has different input/outputs and args description this make sense
-    /*patterns.insert<LSTMCellRewrite>(&ctx, _log);
-    patterns.insert<LSTMSequenceRewrite>(&ctx, _log);
-    patterns.insert<FakeQuantizeRewrite>(&ctx, _log);
-    patterns.insert<FullyConnectedRewrite>(&ctx, _log);
-    patterns.insert<RewriteConvolution>(&ctx, _log)*/
     populateWithGenerated(patterns);
 
     if (mlir::failed(mlir::applyFullConversion(func, target, std::move(patterns)))) {
