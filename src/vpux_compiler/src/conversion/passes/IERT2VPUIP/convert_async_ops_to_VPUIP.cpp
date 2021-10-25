@@ -150,6 +150,11 @@ void ConvertAsyncOps2VPUIPPass::safeRunOnFunc() {
     target.addLegalDialect<VPUIP::VPUIPDialect>();
     target.addLegalOp<mlir::UnrealizedConversionCastOp>();
     target.addLegalOp<mlir::FuncOp, mlir::ReturnOp>();
+    target.addLegalOp<VPUIP::SW_KernelOp>();
+    target.markOpRecursivelyLegal<VPUIP::SW_KernelOp>([&](mlir::Operation*) {
+        _log.trace("mark op recursively legal");
+        return true;
+    });
 
     mlir::RewritePatternSet patterns(&ctx);
     patterns.insert<InlineAsyncRegion>(typeConverter, &ctx, _log);

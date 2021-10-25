@@ -220,7 +220,7 @@ public:
         mlir::Type integerType =
                 mlir::IntegerType::get(getContext(), 32, mlir::IntegerType::Unsigned);
 
-        auto sw_kernel_op = rewriter.create<VPUIP::SW_Kernel>(origOp->getLoc(),
+        auto sw_kernel_op = rewriter.create<VPUIP::SW_KernelOp>(origOp->getLoc(),
             inputCMXTensors,
             outputCMXTensors,
             builtInFunction,
@@ -269,7 +269,7 @@ public:
 private:
 
     void initSwKernel(const SmallVector<mlir::Value, 128>& inputs, const SmallVector<mlir::Value, 128>& output_bufs,
-                      SmallVector<mlir::Attribute, 128>& args, VPUIP::SW_Kernel& sw_kernel_op) const {
+                      SmallVector<mlir::Attribute, 128>& args, VPUIP::SW_KernelOp& sw_kernel_op) const {
         OpBuilderLogger builderLog(_log.nest());
         auto ctx = getContext();
         auto& bodyRegion = sw_kernel_op.body();

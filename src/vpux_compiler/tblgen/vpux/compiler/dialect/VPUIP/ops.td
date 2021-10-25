@@ -2733,10 +2733,10 @@ def VPUIP_SW_Kernel_run
 }
 
 //
-// VPUIP_SW_Kernel
+// VPUIP_SW_KernelOp
 //
 
-def VPUIP_SW_Kernel :
+def VPUIP_SW_KernelOp :
         VPUIP_TaskOp<1, "SW.Kernel",
             [
                 MultiViewOpInterface,
