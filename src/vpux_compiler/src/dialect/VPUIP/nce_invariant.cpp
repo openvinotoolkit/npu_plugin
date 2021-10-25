@@ -248,11 +248,11 @@ Byte getCMXSize(mlir::ModuleOp module) {
     return cmxRes.size();
 }
 
-Byte getRequiredCMX(ArrayRef<mlir::MemRefType> operands, int64_t numChannels) {
+Byte getRequiredCMX(ArrayRef<mlir::ShapedType> operands, int64_t numChannels) {
     Byte requiredCMX(0);
 
     for (const auto& operand : operands) {
-        requiredCMX += getTypeTotalSize(operand);
+        requiredCMX += getTotalSize(operand);
     }
 
     requiredCMX += numChannels * NCEInvariant::WEIGHT_TABLE_NUM_ELEMENTS_PER_OC * 4_Byte;
@@ -263,8 +263,8 @@ Byte getRequiredCMX(ArrayRef<mlir::MemRefType> operands, int64_t numChannels) {
 }  // namespace
 
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyConvCMX(mlir::Location loc, mlir::ModuleOp module,
-                                                             mlir::MemRefType inputType, mlir::MemRefType filterType,
-                                                             mlir::MemRefType outputType, Logger log) {
+                                                             mlir::ShapedType inputType, mlir::ShapedType filterType,
+                                                             mlir::ShapedType outputType, Logger log) {
     log.setName("NCEInvariant");
 
     const auto filterShape = getShape(filterType);
@@ -284,9 +284,9 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyConvCMX(mlir::Location loc,
 
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyCMX(IERT::ConvolutionOp origOp, Logger log) {
     return verifyConvCMX(origOp->getLoc(), origOp->getParentOfType<mlir::ModuleOp>(),
-                         origOp.input().getType().cast<mlir::MemRefType>(),
-                         origOp.filter().getType().cast<mlir::MemRefType>(),
-                         origOp.output().getType().cast<mlir::MemRefType>(), log);
+                         origOp.input().getType().cast<mlir::ShapedType>(),
+                         origOp.filter().getType().cast<mlir::ShapedType>(),
+                         origOp.output().getType().cast<mlir::ShapedType>(), log);
 }
 
 //
@@ -294,7 +294,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyCMX(IERT::ConvolutionOp ori
 //
 
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPoolCMX(mlir::Location loc, mlir::ModuleOp module,
-                                                             mlir::MemRefType inputType, mlir::MemRefType outputType,
+                                                             mlir::ShapedType inputType, mlir::ShapedType outputType,
                                                              mlir::ArrayAttr kernelSize, mlir::ArrayAttr kernelStrides,
                                                              Logger log) {
     log.setName("NCEInvariant");
@@ -325,8 +325,8 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPoolCMX(mlir::Location loc,
 
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyCMX(IERT::MaxPoolOp origOp, Logger log) {
     return verifyPoolCMX(origOp->getLoc(), origOp->getParentOfType<mlir::ModuleOp>(),
-                         origOp.input().getType().cast<mlir::MemRefType>(),
-                         origOp.output().getType().cast<mlir::MemRefType>(), origOp.kernel_size(), origOp.strides(),
+                         origOp.input().getType().cast<mlir::ShapedType>(),
+                         origOp.output().getType().cast<mlir::ShapedType>(), origOp.kernel_size(), origOp.strides(),
                          log);
 }
 
@@ -335,9 +335,9 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyCMX(IERT::MaxPoolOp origOp,
 //
 
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyEltwiseCMX(mlir::Location loc, mlir::ModuleOp module,
-                                                                mlir::MemRefType firstInputType,
-                                                                mlir::MemRefType secondInputType,
-                                                                mlir::MemRefType outputType, Logger log) {
+                                                                mlir::ShapedType firstInputType,
+                                                                mlir::ShapedType secondInputType,
+                                                                mlir::ShapedType outputType, Logger log) {
     log.setName("NCEInvariant");
 
     const auto requiredCMX = getRequiredCMX({firstInputType, secondInputType, outputType}, 0);
@@ -354,30 +354,30 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyEltwiseCMX(mlir::Location l
 
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyCMX(IERT::AddOp origOp, Logger log) {
     return verifyEltwiseCMX(origOp->getLoc(), origOp->getParentOfType<mlir::ModuleOp>(),
-                            origOp.input1().getType().cast<mlir::MemRefType>(),
-                            origOp.input2().getType().cast<mlir::MemRefType>(),
-                            origOp.output().getType().cast<mlir::MemRefType>(), log);
+                            origOp.input1().getType().cast<mlir::ShapedType>(),
+                            origOp.input2().getType().cast<mlir::ShapedType>(),
+                            origOp.output().getType().cast<mlir::ShapedType>(), log);
 }
 
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyCMX(IERT::MultiplyOp origOp, Logger log) {
     return verifyEltwiseCMX(origOp->getLoc(), origOp->getParentOfType<mlir::ModuleOp>(),
-                            origOp.input1().getType().cast<mlir::MemRefType>(),
-                            origOp.input2().getType().cast<mlir::MemRefType>(),
-                            origOp.output().getType().cast<mlir::MemRefType>(), log);
+                            origOp.input1().getType().cast<mlir::ShapedType>(),
+                            origOp.input2().getType().cast<mlir::ShapedType>(),
+                            origOp.output().getType().cast<mlir::ShapedType>(), log);
 }
 
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyCMX(IERT::SubtractOp origOp, Logger log) {
     return verifyEltwiseCMX(origOp->getLoc(), origOp->getParentOfType<mlir::ModuleOp>(),
-                            origOp.input1().getType().cast<mlir::MemRefType>(),
-                            origOp.input2().getType().cast<mlir::MemRefType>(),
-                            origOp.output().getType().cast<mlir::MemRefType>(), log);
+                            origOp.input1().getType().cast<mlir::ShapedType>(),
+                            origOp.input2().getType().cast<mlir::ShapedType>(),
+                            origOp.output().getType().cast<mlir::ShapedType>(), log);
 }
 
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyCMX(IERT::AndOp origOp, Logger log) {
     return verifyEltwiseCMX(origOp->getLoc(), origOp->getParentOfType<mlir::ModuleOp>(),
-                            origOp.input1().getType().cast<mlir::MemRefType>(),
-                            origOp.input2().getType().cast<mlir::MemRefType>(),
-                            origOp.output().getType().cast<mlir::MemRefType>(), log);
+                            origOp.input1().getType().cast<mlir::ShapedType>(),
+                            origOp.input2().getType().cast<mlir::ShapedType>(),
+                            origOp.output().getType().cast<mlir::ShapedType>(), log);
 }
 
 //
@@ -385,9 +385,9 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyCMX(IERT::AndOp origOp, Log
 //
 
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyGroupConvCMX(mlir::Location loc, mlir::ModuleOp module,
-                                                                  mlir::MemRefType inputType,
-                                                                  mlir::MemRefType filterType,
-                                                                  mlir::MemRefType outputType,
+                                                                  mlir::ShapedType inputType,
+                                                                  mlir::ShapedType filterType,
+                                                                  mlir::ShapedType outputType,
                                                                   mlir::ArrayAttr kernelStrides, Logger log) {
     log.setName("NCEInvariant");
 
@@ -422,7 +422,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyGroupConvCMX(mlir::Location
 
     const int64_t alignment = (remainder > 0) ? (depthwiseConvAlignment - remainder) : 0;
     const auto alignedWeightShape = SmallVector<int64_t>{OC, 1, 1, filtersPerInChan * KY * KX + alignment};
-    const auto alignedFilterType = mlir::MemRefType::get(alignedWeightShape, filterType.getElementType());
+    const auto alignedFilterType = mlir::RankedTensorType::get(alignedWeightShape, filterType.getElementType());
 
     const auto requiredCMX =
             getRequiredCMX({inputType, alignedFilterType, outputType}, OC) + activationWindowSize * 1_Byte;
@@ -439,9 +439,9 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyGroupConvCMX(mlir::Location
 
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyCMX(IERT::GroupConvolutionOp origOp, Logger log) {
     return verifyGroupConvCMX(origOp->getLoc(), origOp->getParentOfType<mlir::ModuleOp>(),
-                              origOp.input().getType().cast<mlir::MemRefType>(),
-                              origOp.filter().getType().cast<mlir::MemRefType>(),
-                              origOp.output().getType().cast<mlir::MemRefType>(), origOp.strides(), log);
+                              origOp.input().getType().cast<mlir::ShapedType>(),
+                              origOp.filter().getType().cast<mlir::ShapedType>(),
+                              origOp.output().getType().cast<mlir::ShapedType>(), origOp.strides(), log);
 }
 
 //
