@@ -1832,9 +1832,9 @@ def IERT_ROIAlignOp :
         MemRefOf<[AnyInteger]>:$roisIdx,
         MemRefOf<[F16, F32]>:$output_buff,
 
-        I64Attr:$pooled_h,
-        I64Attr:$pooled_w,
-        I64Attr:$sampling_ratio,
+        IntAttr:$pooled_h,
+        IntAttr:$pooled_w,
+        IntAttr:$sampling_ratio,
         F64Attr:$spatial_scale,
         IE_ROIAlignMethod:$poolingMode
     );

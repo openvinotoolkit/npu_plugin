@@ -1744,9 +1744,9 @@ operation ::= `VPUIP.ROIAlignUPA` attr-dict
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`pooled_h` | ::mlir::IntegerAttr | 64-bit signless integer attribute
-`pooled_w` | ::mlir::IntegerAttr | 64-bit signless integer attribute
-`sampling_ratio` | ::mlir::IntegerAttr | 64-bit signless integer attribute
+`pooled_h` | mlir::IntegerAttr | Integer attribute
+`pooled_w` | mlir::IntegerAttr | Integer attribute
+`sampling_ratio` | mlir::IntegerAttr | Integer attribute
 `spatial_scale` | ::mlir::FloatAttr | 64-bit float attribute
 `poolingMode` | vpux::IE::ROIAlignMethodAttr | ROIAlignMethod that the InferenceEngine supports
 `maxShaves` | mlir::IntegerAttr | Integer attribute

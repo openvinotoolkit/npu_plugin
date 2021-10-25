@@ -1624,9 +1624,9 @@ def IE_ROIAlignOp :
         RankedTensorOf<[F16, F32]>:$coords,
         1DTensorOf<[AnyInteger]>:$roisIdx,
 
-        I64Attr:$pooled_h,
-        I64Attr:$pooled_w,
-        I64Attr:$sampling_ratio,
+        IntAttr:$pooled_h,
+        IntAttr:$pooled_w,
+        IntAttr:$sampling_ratio,
         F64Attr:$spatial_scale,
         IE_ROIAlignMethod:$poolingMode
     );
