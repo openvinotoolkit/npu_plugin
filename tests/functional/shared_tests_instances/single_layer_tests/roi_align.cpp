@@ -33,7 +33,7 @@ namespace {
             { 10, 1, 20, 20 }
     };
 
-    const std::vector<std::vector<unsigned long>> coordsShape = {
+    const std::vector<std::vector<size_t>> coordsShape = {
             {2, 4}
     };
 
