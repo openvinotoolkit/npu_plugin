@@ -11,6 +11,7 @@
 // included with the Software Package for additional details.
 //
 
+#include "vpux/compiler/core/layers.hpp"
 #include "vpux/compiler/backend/VPUIP.hpp"
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
@@ -21,6 +22,7 @@
 #include "vpux/compiler/dialect/VPUIP/schema.hpp"
 #include "vpux/compiler/dialect/VPUIP/utils.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
+#include "vpux/compiler/dialect/VPUIP/elf_blob_serializer.hpp"
 
 #include "vpux/utils/IE/loop.hpp"
 #include "vpux/utils/core/array_ref.hpp"
@@ -42,6 +44,10 @@
 #include <version.hpp>
 
 #include <unordered_map>
+#include <deque>
+
+#include "host_parsed_inference.h"
+#include "nce_2p7_hw.h"
 
 using namespace vpux;
 
@@ -565,9 +571,9 @@ flatbuffers::Offset<MVCNN::GraphFile> createGraphFile(VPUIP::BlobWriter& writer,
 flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, mlir::TimingScope& rootTiming,
                                                       const std::vector<vpux::PreProcessInfo>& preprocessInfo,
                                                       Logger log) {
-    log.setName("VPUIP::BackEnd");
+    log.setName("VPUIP::BackEnd (Graph File)");
 
-    log.trace("Extract 'IE.{0}' from Module", IE::CNNNetworkOp::getOperationName());
+    log.trace("Extract 'IE.{0}' from Module (Graph File)", IE::CNNNetworkOp::getOperationName());
     IE::CNNNetworkOp netOp;
     mlir::FuncOp netFunc;
     IE::CNNNetworkOp::getFromModule(module, netOp, netFunc);
@@ -586,7 +592,7 @@ flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, mli
     const auto kernelData = serializeKernelData(writer, netFunc, rootTiming, log);
     const auto graphFile = createGraphFile(writer, header, taskLists, binaryData, kernelData, virtBarriers, rootTiming);
 
-    auto finalTiming = rootTiming.nest("Finalize serialized graph");
+    auto finalTiming = rootTiming.nest("Finalize serialized graph (Graph File)");
     writer.impl().Finish(graphFile, "BLOB");
     auto detached = writer.impl().Release();
 
@@ -682,10 +688,215 @@ flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, mli
 }
 
 std::vector<char> exportToBlobELF(mlir::ModuleOp module, mlir::TimingScope& rootTiming, Logger log) {
+    std::cerr << "ELF" << '\n';
     log.setName("VPUIP::BackEnd (ELF)");
-    VPUX_UNUSED(module);
-    VPUX_UNUSED(rootTiming);
-    return {};
+
+    log.trace("Extract 'IE.{0}' from Module (ELF)", IE::CNNNetworkOp::getOperationName());
+    IE::CNNNetworkOp netOp;
+    mlir::FuncOp netFunc;
+    IE::CNNNetworkOp::getFromModule(module, netOp, netFunc);
+
+    log.trace("Extract 'VPUIP.{0}' from Module (ELF)", VPUIP::GraphOp::getOperationName());
+    auto graphOp = VPUIP::GraphOp::getFromModule(module);
+
+    std::vector<BarrierWrapper> barriersList;
+    mlir::DenseMap<mlir::Value, std::vector<BarrierWrapper>::iterator> barriers;
+    netFunc.walk([&barriersList, &barriers](VPUIP::ConfigureBarrierOp barrierOp) {
+        BarrierWrapper wrapper{};
+        wrapper.real_id = checked_cast<uint8_t>(barrierOp.id());
+        VPUX_THROW_UNLESS(barriers.try_emplace(barrierOp.barrier(),
+                                               barriersList.insert(barriersList.end(), std::move(wrapper))).second,
+                          "Encountered the same barrierOp {0} in function twice", barrierOp);
+    });
+
+    VPUX_THROW_UNLESS(barriersList.size() <= 32, "Networks with barrriers count more than 32 are not supported");
+
+    for (auto barriersPosition = barriersList.begin(); barriersPosition != barriersList.end(); ++barriersPosition) {
+        const auto nextSameId = std::find_if(std::next(barriersPosition), barriersList.end(),
+                                             [&barriersPosition](const auto& barrier) {
+                                                 return barriersPosition->real_id == barrier.real_id;
+                                             });
+        barriersPosition->next_same_id = checked_cast<int32_t>(std::distance(nextSameId, barriersList.end()));
+    }
+
+    HostParsedInference hostParsedInference{};
+    hostParsedInference.magic = 'E' << 16 | 'L' << 8 | 'F';
+    auto& resourceRequirements = hostParsedInference.resource_requirements;
+
+    {
+        auto resources = IERT::RunTimeResourcesOp::getFromModule(module);
+        resources.walk([&](IERT::ExecutorResourceOp res) {
+            const auto kind = res.kind().dyn_cast_or_null<VPUIP::PhysicalProcessorAttr>();
+            if (!kind) {
+                return;
+            }
+
+            if (kind.getValue() != VPUIP::PhysicalProcessor::NCE_Cluster) {
+                return;
+            }
+
+            VPUX_THROW_UNLESS(resourceRequirements.slice_count == 0, "Encountered more than one resource of kind {0}", kind);
+            resourceRequirements.slice_count = checked_cast<uint8_t>(res.count());
+        });
+    }
+
+    mlir::DenseMap<mlir::Value, std::size_t> constantIndexes;
+    std::size_t currentIndex = 0;
+    netFunc.walk([&constantIndexes, &currentIndex](vpux::Const::DeclareOp constant) {
+        auto const insertion = constantIndexes.insert({constant.output(), currentIndex});
+        if (insertion.second) {
+            currentIndex++;
+        }
+    });
+
+    std::vector<vpux::VPUIP::DmaTask> dmaTasks;
+    std::vector<vpux::VPUIP::DmaTask> leadingDmaTasks;
+    netFunc.walk([&](vpux::VPUIP::NNDMAOp dmaTask) {
+        auto const input = dmaTask.input();
+        auto const output = dmaTask.output_buff();
+
+        VPUX_THROW_UNLESS(input, "Encountered DMA operation {0} without input", dmaTask);
+        auto const inputType = input.getType().dyn_cast_or_null<mlir::MemRefType>();
+        VPUX_THROW_UNLESS(inputType, "Encountered DMA operation {0} from which it is impossible to get MemRefType");
+        VPUX_THROW_UNLESS(output, "Encountered DMA operation {0} without output", dmaTask);
+        auto const outputType = output.getType().dyn_cast_or_null<mlir::MemRefType>();
+        VPUX_THROW_UNLESS(outputType, "Encountered DMA operation {0} from which it is impossible to get MemRefType");
+
+        auto const inputShapeLogical = vpux::getShape(inputType);
+        auto const inputStridesLogical = vpux::getStrides(inputType);
+        auto const inputOrder = vpux::DimsOrder::fromType(inputType);
+        auto const inputShapeMemory = inputOrder.toMemoryOrder(inputShapeLogical);
+        auto const inputStridesMemory = inputOrder.toMemoryOrder(inputStridesLogical);
+
+        auto const outputShapeLogical = vpux::getShape(outputType);
+        auto const outputStridesLogical = vpux::getStrides(outputType);
+        auto const outputOrder = vpux::DimsOrder::fromType(outputType);
+        auto const outputShapeMemory = outputOrder.toMemoryOrder(outputShapeLogical);
+        auto const outputStridesMemory = outputOrder.toMemoryOrder(outputStridesLogical);
+
+        vpux::VPUIP::DmaTask task{};
+        auto& dmaDescriptor = task.dmaDescriptor.transaction;
+        dmaDescriptor.cfg_link.cfg_bits.type         = 1;
+        dmaDescriptor.cfg_link.cfg_bits.burst_length = 16;
+        dmaDescriptor.cfg_link.cfg_bits.critical     = 1;
+        dmaDescriptor.cfg_link.cfg_bits.barrier_en   = 1;
+        dmaDescriptor.length                         = inputType.getNumElements() * vpux::Byte(vpux::getElemTypeSize(inputType)).count();
+        dmaDescriptor.num_planes                     = inputShapeLogical[vpux::Dims4D::Act::C];
+        dmaDescriptor.src_plane_stride               = vpux::Byte(inputStridesMemory[vpux::MemDim(vpux::Dims4D::Act::C.ind())]).count();
+        dmaDescriptor.dst_plane_stride               = vpux::Byte(outputStridesMemory[vpux::MemDim(vpux::Dims4D::Act::C.ind())]).count();
+
+        auto* insertPosition = &dmaTasks;
+        if (dmaTask.waitBarriers().empty()) {
+            insertPosition = &leadingDmaTasks;
+        }
+
+        for (const auto& barrierValue : dmaTask.waitBarriers()) {
+            auto barrierOp = barrierValue.getDefiningOp<VPUIP::ConfigureBarrierOp>();
+            VPUX_THROW_UNLESS(barrierOp, "Encountered unexpected barrier value {0} in waitBarriers range of {1}",
+                              barrierValue, dmaTask);
+
+            const auto& barrier = barrierOp.barrier();
+            VPUX_THROW_UNLESS(barriers.count(barrier),
+                              "Encountered unpexpected {0}, all bariers must have been parsed already", barrier);
+            auto barrierWrapper = barriers[barrier];
+
+            barrierWrapper->consumer_count++;
+            dmaDescriptor.barriers.prod_mask |= 1 << barrierWrapper->real_id;
+        }
+
+        for (const auto& barrierValue : dmaTask.updateBarriers()) {
+            auto barrierOp = barrierValue.getDefiningOp<VPUIP::ConfigureBarrierOp>();
+            VPUX_THROW_UNLESS(barrierOp, "Encountered unexpected barrier value {0} in updateBarriers range of {1}",
+                              barrierValue, dmaTask);
+
+            const auto& barrier = barrierOp.barrier();
+            VPUX_THROW_UNLESS(barriers.count(barrier),
+                              "Encountered unpexpected {0}, all bariers must have been parsed already", barrier);
+            auto& barrierWrapper = barriers[barrier];
+
+            barrierWrapper->producer_count++;
+            dmaDescriptor.barriers.cons_mask |= 1 << barrierWrapper->real_id;
+        }
+
+        auto& inputPatchingInfo = task.input;
+        if (auto inputDeclareOp = input.getDefiningOp<VPUIP::DeclareTensorOp>()) {
+            inputPatchingInfo.dataOffset = inputDeclareOp.dataIndex();
+            inputPatchingInfo.location.memLocation = inputDeclareOp.locale();
+            inputPatchingInfo.location.locationIndex = 0;
+        } else if (auto inputConstDeclareOp = input.getDefiningOp<Const::DeclareOp>()) {
+            VPUX_THROW_UNLESS(constantIndexes.count(input), "Encountered unexpected value {0}", inputConstDeclareOp);
+            inputPatchingInfo.dataOffset = 0;
+            inputPatchingInfo.location.memLocation = vpux::VPUIP::MemoryLocation::GraphFile;
+            inputPatchingInfo.location.locationIndex = constantIndexes[input];
+        } else if (input.isa<mlir::BlockArgument>()) {
+            inputPatchingInfo.dataOffset = 0; // dataOffset inside input
+            inputPatchingInfo.location.memLocation = vpux::VPUIP::MemoryLocation::ProgrammableInput;
+            inputPatchingInfo.location.locationIndex = 0; // input's index
+        } else {
+            VPUX_THROW("Encountered unsupported defining op {0} for input of {1}", input, dmaTask);
+        }
+
+        auto& outputPatchingInfo = task.output;
+        if (auto outputDeclareOp = output.getDefiningOp<VPUIP::DeclareTensorOp>()) {
+            outputPatchingInfo.dataOffset = outputDeclareOp.dataIndex();
+            outputPatchingInfo.location.memLocation = outputDeclareOp.locale();
+            outputPatchingInfo.location.locationIndex = 0;
+        } else if (output.isa<mlir::BlockArgument>()) {
+            outputPatchingInfo.dataOffset = 0; // dataOffset inside output
+            outputPatchingInfo.location.memLocation = vpux::VPUIP::MemoryLocation::ProgrammableOutput;
+            outputPatchingInfo.location.locationIndex = 0; // output's index
+        } else {
+            VPUX_THROW("Encountered unsupported defining op for output of {0}", dmaTask);
+        }
+
+        insertPosition->push_back(std::move(task));
+    });
+
+    VPUX_THROW_UNLESS(!leadingDmaTasks.empty(), "Expected to encounter at least one leading DMA task");
+    for (auto dma : vpux::irange(static_cast<size_t>(0), leadingDmaTasks.size() - 1)) {
+        leadingDmaTasks[dma].linkAddress.metaDataLocation = vpux::VPUIP::LinkAddressPatchingInfo::MetaDataLocation::DDR_DMA;
+        leadingDmaTasks[dma].linkAddress.dmaTaskIndex = dma + 1;
+    }
+
+    leadingDmaTasks.back().linkAddress.metaDataLocation = vpux::VPUIP::LinkAddressPatchingInfo::MetaDataLocation::NONE;
+
+    if (!dmaTasks.empty()) {
+        for (auto dma : vpux::irange(static_cast<size_t>(0), dmaTasks.size() - 1)) {
+            dmaTasks[dma].linkAddress.metaDataLocation = vpux::VPUIP::LinkAddressPatchingInfo::MetaDataLocation::RTM_DMA;
+            dmaTasks[dma].linkAddress.dmaTaskIndex = dma + 1;
+        }
+
+        dmaTasks.back().linkAddress.metaDataLocation = vpux::VPUIP::LinkAddressPatchingInfo::MetaDataLocation::NONE;
+    }
+
+    llvm::SmallVector<mlir::ShapedType> inputs;
+    for (auto inputInfo : netOp.getInputsInfo()) {
+        const auto userType = inputInfo.userType().dyn_cast_or_null<mlir::ShapedType>();
+        VPUX_THROW_UNLESS(userType, "Encountered unknown input value {0}", inputInfo);
+        inputs.emplace_back(userType);
+    }
+
+    llvm::SmallVector<mlir::ShapedType> outputs;
+    for (auto outputInfo : netOp.getInputsInfo()) {
+        const auto userType = outputInfo.userType().dyn_cast_or_null<mlir::ShapedType>();
+        VPUX_THROW_UNLESS(userType, "Encountered unknown output value {0}", outputInfo);
+        outputs.emplace_back(userType);
+    }
+
+    vpux::VPUIP::ELFBlobSerializer serializer;
+    serializer.setNetworkInputs(inputs);
+    serializer.setNetworkOutputs(outputs);
+
+    serializer.setDDRScratch(0);
+    serializer.setResourceRequirements(resourceRequirements);
+    serializer.setLeadingDMACount(leadingDmaTasks.size());
+
+    leadingDmaTasks.resize(leadingDmaTasks.size() + dmaTasks.size());
+    std::move(dmaTasks.begin(), dmaTasks.end(), std::back_inserter(leadingDmaTasks));
+    serializer.setDMATasks(llvm::makeArrayRef(leadingDmaTasks));
+    serializer.setBarrierConfigs(llvm::makeArrayRef(barriersList));
+
+    return serializer.getBlob();
 }
 
 }  // namespace
