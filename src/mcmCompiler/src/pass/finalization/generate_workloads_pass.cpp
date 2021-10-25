@@ -535,20 +535,19 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                 /*Set the most optimal workload as attribute of the op*/
                 opIt->set<mv::Workloads>("Workloads" + std::to_string(clusterNumber), workloadsVector.at(optimalWorkloadIndex));
 
-                 /*Set the most optimal workload as attribute of the op*/
-                opIt->set<mv::Workloads>("Workloads" + std::to_string(clusterNumber), workloadsVector.at(optimalWorkloadIndex));
-
-                std::cout << "OutputShape: " << opIt->getOutputTensor()[0]->getShape().toString() << std::endl;
-                std::cout << "Ztiles: " << std::endl;
+                std::cout << "LayerName " << opIt->getName() << " OutputShape: " << opIt->getOutputTensor()[0]->getShape().toString() << std::endl;
+                if((opIt->getOutputTensor()[0]->hasAttr("splitStrategy")))
+                    std::cout << "Strategy " << opIt->getOutputTensor()[0]->hasAttr("splitStrategy") << std::endl;
+                //std::cout << "Ztiles: " << std::endl;
                 //workloadsVector.at(optimalWorkloadIndex).printoutputchannels();
                 std::cout << "nWorkloads: " << workloadsVector.at(optimalWorkloadIndex).nWorkloads() << std::endl;
-                std::cout << "mode: " << workloadsVector.at(optimalWorkloadIndex)[0].MPEMode << std::endl;
+                std::cout << "mpe mode: " << workloadsVector.at(optimalWorkloadIndex)[0].MPEMode << std::endl;
                 std::cout << "Hardware utilization" << std::endl;
-                auto tensorvolume = 0;
-                auto workloadWidthAreaRemainder = 0;
-                auto workloadHeightAreaRemainder = 0;
-                auto workloadZAreaRemainder = 0;
-                auto workloadmpeVolume = 0;
+                double tensorvolume = 0;
+                double workloadWidthAreaRemainder = 0;
+                double workloadHeightAreaRemainder = 0;
+                double workloadZAreaRemainder = 0;
+                double workloadmpeVolume = 0;
 
                  
                 /*For multi-clustering we work on subtensors*/
@@ -567,14 +566,15 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                     auto optimalWL = workloadsVector[optimalWorkloadIndex];
                     for (size_t i=0; i< optimalWL.nWorkloads(); i++)
                     {
-                        auto workloadWidth = optimalWL[i].MaxX - optimalWL[i].MinX + 1; 
-                        auto workloadHeight = optimalWL[i].MaxY - optimalWL[i].MinY + 1;
-                        auto workloadZ = optimalWL[i].MaxZ- optimalWL[i].MinZ + 1; 
-                        workloadWidthAreaRemainder = workloadWidth % 16;
-                        workloadZAreaRemainder = workloadZ % 16;
+                        int workloadWidth = optimalWL[i].MaxX - optimalWL[i].MinX + 1; 
+                        int workloadHeight = optimalWL[i].MaxY - optimalWL[i].MinY + 1;
+                        int workloadZ = optimalWL[i].MaxZ- optimalWL[i].MinZ + 1; 
+                        workloadWidthAreaRemainder = (workloadWidth < 16) ? (16-workloadWidth) : (workloadWidth % 16);
+                        workloadZAreaRemainder = (workloadZ < 16) ? (16-workloadZ) : (workloadZ % 16);
                         workloadHeightAreaRemainder =  workloadHeight % 1;
                         workloadmpeVolume = (subTensorShape[mv::IO_WIDTH_DIMENSION]+workloadWidthAreaRemainder) * (subTensorShape[mv::IO_HEIGHT_DIMENSION]+workloadHeightAreaRemainder) * (subTensorShape[mv::IO_CHANNEL_DIMENSION]+workloadZAreaRemainder);
-                        std::cout << "Efficency is " << (tensorvolume / workloadmpeVolume) * 100 << std::endl;
+                        double eff = (tensorvolume / workloadmpeVolume) * 100;
+                        std::cout << "Workload "<< i << " utilization is " << eff << std::endl;
                     }
 
                 }
@@ -583,14 +583,15 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                      auto optimalWL = workloadsVector[optimalWorkloadIndex];
                     for (size_t i=0; i< optimalWL.nWorkloads(); i++)
                     {
-                        auto workloadWidth = optimalWL[i].MaxX - optimalWL[i].MinX + 1; 
-                        auto workloadHeight = optimalWL[i].MaxY - optimalWL[i].MinY + 1;
-                        auto workloadZ = optimalWL[i].MaxZ- optimalWL[i].MinZ + 1; 
-                        workloadWidthAreaRemainder = workloadWidth % 4;
-                        workloadZAreaRemainder = workloadZ % 16;
-                        workloadHeightAreaRemainder =  workloadHeight % 4;
+                        int  workloadWidth = optimalWL[i].MaxX - optimalWL[i].MinX + 1; 
+                        int  workloadHeight = optimalWL[i].MaxY - optimalWL[i].MinY + 1;
+                        int  workloadZ = optimalWL[i].MaxZ- optimalWL[i].MinZ + 1; 
+                        workloadWidthAreaRemainder = (workloadWidth < 4) ? (4-workloadWidth) : (workloadWidth % 4);
+                        workloadZAreaRemainder = (workloadZ < 16) ? (16-workloadZ) : (workloadZ % 16);
+                        workloadHeightAreaRemainder = (workloadHeight < 4) ? (4-workloadHeight) : (workloadHeight % 4);
                         workloadmpeVolume = (subTensorShape[mv::IO_WIDTH_DIMENSION]+workloadWidthAreaRemainder) * (subTensorShape[mv::IO_HEIGHT_DIMENSION]+workloadHeightAreaRemainder) * (subTensorShape[mv::IO_CHANNEL_DIMENSION]+workloadZAreaRemainder);
-                        std::cout << "Efficency is " << (tensorvolume / workloadmpeVolume) * 100 << std::endl;
+                        double eff = (tensorvolume / workloadmpeVolume) * 100;
+                        std::cout << "Workload "<< i << " utilization is " << eff << std::endl;
                     }
                 } 
                 if(workloadsVector.at(optimalWorkloadIndex)[0].MPEMode == mv::Vector_FP16)
@@ -598,14 +599,16 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                      auto optimalWL = workloadsVector[optimalWorkloadIndex];
                     for (size_t i=0; i< optimalWL.nWorkloads(); i++)
                     {
-                        auto workloadWidth = optimalWL[i].MaxX - optimalWL[i].MinX + 1; 
-                        auto workloadHeight = optimalWL[i].MaxY - optimalWL[i].MinY + 1;
-                        auto workloadZ = optimalWL[i].MaxZ- optimalWL[i].MinZ + 1; 
-                        workloadWidthAreaRemainder = workloadWidth % 4;
-                        workloadZAreaRemainder = workloadZ % 16;
-                        workloadHeightAreaRemainder =  workloadHeight % 1;
+                        int  workloadWidth = optimalWL[i].MaxX - optimalWL[i].MinX + 1; 
+                        int  workloadHeight = optimalWL[i].MaxY - optimalWL[i].MinY + 1;
+                        int  workloadZ = optimalWL[i].MaxZ- optimalWL[i].MinZ + 1; 
+
+                        workloadWidthAreaRemainder = (workloadWidth < 4) ? (4-workloadWidth) : (workloadWidth % 4);
+                        workloadZAreaRemainder = (workloadZ < 16) ? (16-workloadZ) : (workloadZ % 16);
+                        workloadHeightAreaRemainder = (workloadHeight < 1) ? (1-workloadHeight) : (workloadHeight % 1);
                         workloadmpeVolume = (subTensorShape[mv::IO_WIDTH_DIMENSION]+workloadWidthAreaRemainder) * (subTensorShape[mv::IO_HEIGHT_DIMENSION]+workloadHeightAreaRemainder) * (subTensorShape[mv::IO_CHANNEL_DIMENSION]+workloadZAreaRemainder);
-                        std::cout << "DP16 layer Efficency is " << (tensorvolume / workloadmpeVolume) * 100 << std::endl;
+                        double eff = (tensorvolume / workloadmpeVolume) * 100;
+                        std::cout << "Workload "<< i << " utilization is " << eff << std::endl;
                     }
                 } 
                 }
