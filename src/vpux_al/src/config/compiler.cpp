@@ -52,3 +52,13 @@ CompilerType vpux::COMPILER_TYPE::parse(StringRef val) {
 
     VPUX_THROW("Value '{0}' is not a valid COMPILER_TYPE option");
 }
+
+BlobFormat vpux::BLOB_FORMAT::parse(StringRef val) {
+    if (val == VPUX_CONFIG_VALUE(GRAPH_FILE)) {
+        return BlobFormat::GRAPH_FILE;
+    } else if (val == VPUX_CONFIG_VALUE(ELF)) {
+        return BlobFormat::ELF;
+    }
+
+    VPUX_THROW("Value '{0}' is not a valid BLOB_FORMAT option");
+}

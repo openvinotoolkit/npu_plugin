@@ -13,6 +13,8 @@
 
 #pragma once
 
+#include "vpux/utils/IE/config.hpp"
+#include "vpux/al/config/compiler.hpp"
 #include "vpux/utils/core/logger.hpp"
 #include "vpux_compiler.hpp"
 
@@ -24,7 +26,7 @@ namespace VPUIP {
 
 flatbuffers::DetachedBuffer exportToBlob(mlir::ModuleOp module, mlir::TimingScope& rootTiming,
                                          const std::vector<PreProcessInfo>& preprocessInfo,
-                                         Logger log = Logger::global());
+                                         Logger log = Logger::global(), const Config* config = nullptr);
 
 }  // namespace VPUIP
 }  // namespace vpux

@@ -681,8 +681,27 @@ flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, mli
     return detached;
 }
 
+std::vector<char> exportToBlobELF(mlir::ModuleOp module, mlir::TimingScope& rootTiming, Logger log) {
+    log.setName("VPUIP::BackEnd (ELF)");
+    VPUX_UNUSED(module);
+    VPUX_UNUSED(rootTiming);
+    return {};
+}
+
 }  // namespace
 
-std::vector<char> vpux::VPUIP::exportToBlob(mlir::ModuleOp module, mlir::TimingScope& rootTiming, Logger log) {
-    return exportToBlobGraphFile(module, rootTiming, log);
+std::vector<char> vpux::VPUIP::exportToBlob(mlir::ModuleOp module, mlir::TimingScope& rootTiming, Logger log, const Config* config) {
+    if (config == nullptr) {
+        return exportToBlobGraphFile(module, rootTiming, log);
+    }
+
+    auto blobFormat = config->get<BLOB_FORMAT>();
+    switch (blobFormat) {
+    case InferenceEngine::VPUXConfigParams::BlobFormat::GRAPH_FILE:
+        return exportToBlobGraphFile(module, rootTiming, log);
+    case InferenceEngine::VPUXConfigParams::BlobFormat::ELF:
+        return exportToBlobELF(module, rootTiming, log);
+    default:
+        VPUX_THROW("Unsupported blob format");
+    }
 }

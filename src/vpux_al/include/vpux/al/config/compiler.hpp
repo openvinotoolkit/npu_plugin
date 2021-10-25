@@ -86,6 +86,36 @@ struct COMPILATION_MODE final : OptionBase<COMPILATION_MODE, std::string> {
 };
 
 //
+// BLOB_FORMAT
+//
+
+struct BLOB_FORMAT final : OptionBase<BLOB_FORMAT, InferenceEngine::VPUXConfigParams::BlobFormat> {
+    static StringRef key() {
+        return VPUX_CONFIG_KEY(BLOB_FORMAT);
+    }
+
+#ifdef VPUX_DEVELOPER_BUILD
+    static StringRef envVar() {
+        return "IE_VPUX_BLOB_FORMAT";
+    }
+#endif
+
+    static InferenceEngine::VPUXConfigParams::BlobFormat defaultValue() {
+        return InferenceEngine::VPUXConfigParams::BlobFormat::GRAPH_FILE;
+    }
+
+    static InferenceEngine::VPUXConfigParams::BlobFormat parse(StringRef val);
+
+    static OptionMode mode() {
+        return OptionMode::CompileTime;
+    }
+
+    static bool isPublic() {
+        return false;
+    }
+};
+
+//
 // COMPILATION_MODE_PARAMS
 //
 

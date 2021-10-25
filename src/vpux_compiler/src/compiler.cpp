@@ -359,9 +359,9 @@ void compileNetwork(mlir::ModuleOp module, mlir::PassManager& pm, mlir::TimingSc
 }
 
 auto exportToBlob(mlir::ModuleOp module, mlir::TimingScope& rootTiming,
-                  const std::vector<vpux::PreProcessInfo>& preprocessInfo, Logger log) {
+                  const std::vector<vpux::PreProcessInfo>& preprocessInfo, Logger log, const Config* config) {
     auto exportTiming = rootTiming.nest("Export to blob");
-    return VPUIP::exportToBlob(module, exportTiming, preprocessInfo, log);
+    return VPUIP::exportToBlob(module, exportTiming, preprocessInfo, log, config);
 }
 
 }  // namespace
@@ -394,7 +394,7 @@ std::shared_ptr<INetworkDescription> vpux::CompilerImpl::compile(const std::shar
     std::vector<vpux::PreProcessInfo> preProcInfo;
     const auto module = importNetwork(&ctx, cnnNet, devConf, preProcInfo, rootTiming, config.get<PERF_COUNT>(), log);
     compileNetwork(module.get(), pm, rootTiming);
-    const auto blob = exportToBlob(module.get(), rootTiming, preProcInfo, log);
+    const auto blob = exportToBlob(module.get(), rootTiming, preProcInfo, log, &config);
 
     auto finalTiming = rootTiming.nest("Wrap into NetworkDescription");
     std::vector<char> compiledNetwork(blob.size());
