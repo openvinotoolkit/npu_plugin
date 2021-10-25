@@ -214,8 +214,18 @@ public:
         SmallVector<mlir::Value, 128> outputCMXTensors;
         SmallVector<mlir::Value, 128> outputDmaResults;
 
-        createInOutDma(origOp, rewriter, inputs, output_bufs, tileIndex, inputCMXTensors, outputCMXTensors,
-                       outputDmaResults);
+        //  creating input dma
+        for (auto && source : inputs) {
+            auto cmxTensor = createCMXTensor(rewriter, source);
+            auto copyOp = rewriter.create<IERT::CopyOp>(origOp->getLoc(), source, cmxTensor.memref());
+            inputCMXTensors.push_back(copyOp.output());
+        }
+
+        // allocating output tensors
+        for (auto && output_buf : output_bufs) {
+            auto allocOp = createCMXTensor(rewriter, output_buf);
+            outputCMXTensors.push_back(allocOp.memref());
+        }
 
         mlir::Type integerType =
                 mlir::IntegerType::get(getContext(), 32, mlir::IntegerType::Unsigned);
@@ -228,45 +238,28 @@ public:
 
         initSwKernel(inputCMXTensors, outputCMXTensors, args, sw_kernel_op);
 
+        //  creating post-dma
+        std::transform(output_bufs.begin(), output_bufs.end(), sw_kernel_op.results().begin(), std::back_inserter(outputDmaResults),
+                       [&](const auto& output_buf, const auto& swKernelResult) {
+                           auto copyOp = rewriter.create<IERT::CopyOp>(origOp->getLoc(), swKernelResult, output_buf);
+                           return copyOp.output();
+        });
+
         // setting output to be from DMA
         rewriter.replaceOp(origOp, outputDmaResults);
     }
-    void createInOutDma(mlir::Operation* origOp, mlir::PatternRewriter& rewriter, SmallVector<mlir::Value, 128>& inputs,
-                        SmallVector<mlir::Value, 128>& output_bufs, const int64_t tileIndex,
-                        SmallVector<mlir::Value, 128>& inputCMXTensors, SmallVector<mlir::Value, 128>& outputCMXTensors,
-                        SmallVector<mlir::Value, 128>& outputDmaResults) const {  // direction true = to CMX
-        // direction false = from CMX
-        auto createDMA = [&](mlir::Value source, int64_t data_index, bool bDirection) {
-            auto type = source.getType().template dyn_cast<mlir::MemRefType>();
-            auto cmxType =
-                    mlir::MemRefType::get(type.getShape(), type.getElementType(), {},
-                                          VPUIP::MemoryLocationAttr::get(getContext(), VPUIP::MemoryLocation::VPU_CMX_NN));
-
-            auto cmxTensorOp = rewriter.create<VPUIP::DeclareTensorOp>(origOp->getLoc(),
-                                                           cmxType,
-                                                           VPUIP::MemoryLocation::VPU_CMX_NN,
-                                                           tileIndex,
-                                                           data_index);  // where to get data index ???
-
-            if (bDirection) {
-                return rewriter.create<VPUIP::NNDMAOp>(origOp->getLoc(), source, cmxTensorOp.memory());
-            }else {
-                return rewriter.create<VPUIP::NNDMAOp>(origOp->getLoc(), cmxTensorOp.memory(), source);
-            }
-        };
-        for (auto && inOperand : inputs) {
-            auto dma = createDMA(inOperand, 0, true);
-            inputCMXTensors.push_back(((VPUIP::NNDMAOp)dma).output_buff());
-        }
-        for (auto && output_buf : output_bufs) {
-            auto dma = createDMA(output_buf, 2000, false);
-            outputCMXTensors.push_back(dma.input());
-            // dmas all have 1-to-1 copy
-            outputDmaResults.push_back(((VPUIP::NNDMAOp)dma).output());
-        }
-    }
 
 private:
+
+    mlir::memref::AllocOp createCMXTensor (mlir::PatternRewriter &rewriter, mlir::Value source) const {
+        auto type = source.getType().template dyn_cast<mlir::MemRefType>();
+        auto cmxType = mlir::MemRefType::get(
+                type.getShape(), type.getElementType(), {},
+                VPUIP::MemoryLocationAttr::get(getContext(), VPUIP::MemoryLocation::VPU_CMX_NN));
+
+        // TODO : how tile index should be used ???
+        return rewriter.create<mlir::memref::AllocOp>(source.getLoc(), cmxType);
+    }
 
     void initSwKernel(const SmallVector<mlir::Value, 128>& inputs, const SmallVector<mlir::Value, 128>& output_bufs,
                       SmallVector<mlir::Attribute, 128>& args, VPUIP::SW_KernelOp& sw_kernel_op) const {
@@ -382,6 +375,8 @@ void ConvertSWLayers2VPUIPPass::safeRunOnFunc() {
     target.addLegalOp<IERT::SubViewOp, IERT::ConcatViewOp>();
     target.addLegalOp<IERT::GenericReshapeOp, IERT::ImplicitReorderOp>();
     target.addLegalOp<IERT::TimestampOp>();
+    target.addLegalOp<IERT::CopyOp>();
+    target.addLegalOp<mlir::memref::AllocOp>();
 
     mlir::RewritePatternSet patterns(&ctx);
 
