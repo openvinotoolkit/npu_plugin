@@ -37,7 +37,7 @@ SmallVector<VPUIP::DpuTile> vpux::VPUIP::DpuTiler::tileOverH(int64_t numDPU, Sha
     dpuTiles.reserve(outTiles.size());
 
     for (const auto& outTile : outTiles) {
-        const auto padsTileConf = backInferPadsTile(outTile, outShape, padLeft, padRight, padTop, padBottom);
+        const auto padsTileConf = backInferPadsTile(outTile, outShape, PadInfo(padLeft, padRight, padTop, padBottom));
 
         SmallVector<int64_t> start{outTile.offsets[Dims4D::Act::W], outTile.offsets[Dims4D::Act::H],
                                    outTile.offsets[Dims4D::Act::C]};
@@ -45,8 +45,7 @@ SmallVector<VPUIP::DpuTile> vpux::VPUIP::DpuTiler::tileOverH(int64_t numDPU, Sha
                                  outTile.offsets[Dims4D::Act::H] + outTile.shape[Dims4D::Act::H] - 1,
                                  outTile.offsets[Dims4D::Act::C] + outTile.shape[Dims4D::Act::C] - 1};
 
-        dpuTiles.push_back(
-                {start, end, padsTileConf.padLeft, padsTileConf.padRight, padsTileConf.padTop, padsTileConf.padBottom});
+        dpuTiles.push_back({start, end, padsTileConf.left, padsTileConf.right, padsTileConf.top, padsTileConf.bottom});
     }
 
     return dpuTiles;

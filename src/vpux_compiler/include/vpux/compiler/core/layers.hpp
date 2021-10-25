@@ -55,6 +55,31 @@ struct Dims4D final {
             return Dim(index + 2);
         }
     };
+
+    // Pooling2D kernel
+
+    struct Kernel final {
+        static const Dim Y;
+        static const Dim X;
+    };
+
+    // Convolution2D/Pooling2D strides
+
+    struct Strides final {
+        static const Dim Y;
+        static const Dim X;
+    };
+
+    // Convolution2D/Pooling2D paddings
+
+    struct PadsBegin final {
+        static const Dim Top;
+        static const Dim Left;
+    };
+    struct PadsEnd final {
+        static const Dim Bottom;
+        static const Dim Right;
+    };
 };
 
 }  // namespace vpux
