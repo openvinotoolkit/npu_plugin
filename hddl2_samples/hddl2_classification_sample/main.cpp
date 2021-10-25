@@ -33,9 +33,12 @@
 #include <file_reader.h>
 
 //HDDLUnite header files
-#include "RemoteMemory.h"
 #include "WorkloadContext.h"
 #include "hddl2_params.hpp"
+
+#include "creator_blob_nv12.h"
+#include "helper_remote_memory.h"
+#include "vpux/vpux_plugin_params.hpp"
 
 #include <vpux/vpux_plugin_config.hpp>
 
@@ -45,35 +48,7 @@ using namespace InferenceEngine;
 
 const auto DEFAULT_INFERENCE_SHAVES = "8";
 
-static void setNV12Preproc(const std::string& inputName,
-    InferReqWrap::Ptr& inferRequest, RemoteBlob::Ptr &remoteBlobPtr) {
-
-    // Since it 228x228 image on 224x224 network, resize preprocessing also required
-    PreProcessInfo preprocInfo = inferRequest->getPreProcess(inputName);
-    preprocInfo.setResizeAlgorithm(RESIZE_BILINEAR);
-    preprocInfo.setColorFormat(ColorFormat::NV12);
-
-    // ---- Set remote NV12 blob with preprocessing information
-    inferRequest->setBlob(inputName, remoteBlobPtr, preprocInfo);
-}
-
-HddlUnite::RemoteMemory::Ptr remoteMemory[MAX_INFER_REQS];
-HddlUnite::RemoteMemory::Ptr allocateRemoteMemory(HddlUnite::RemoteMemory::Ptr &remoteFrame,
-    const HddlUnite::WorkloadContext::Ptr& context, const void* data, const size_t& dataSize) {
-
-    HddlUnite::RemoteMemoryDesc remoteMemoryDesc(dataSize, 1, dataSize, 1);
-    remoteFrame = std::make_shared<HddlUnite::RemoteMemory>(*context, remoteMemoryDesc);
-
-    if (remoteFrame == nullptr) {
-        THROW_IE_EXCEPTION << "Failed to allocate remote memory.";
-    }
-
-    if (remoteFrame->syncToDevice(data, dataSize) != HDDL_OK) {
-        THROW_IE_EXCEPTION << "Failed to sync memory to device.";
-    }
-
-    return remoteFrame;
-}
+RemoteMemory_Helper _remoteMemoryHelper;
 
 bool ParseAndCheckCommandLine(int argc, char *argv[]) {
     // ---------------------------Parsing and validation of input args--------------------------------------
@@ -178,6 +153,20 @@ int main(int argc, char *argv[]) {
             throw std::logic_error("registerWorkloadContext failed!");
         }
 
+        // ---- Load frame to remote memory (emulate VAAPI result)
+        // ----- Load NV12 input
+        const size_t inputWidth = static_cast<size_t>(image_width);
+        const size_t inputHeight = static_cast<size_t>(image_height);
+        const size_t nv12Size = inputWidth * inputHeight * 3 / 2;
+        std::vector<uint8_t> nv12InputBlobMemory;
+        nv12InputBlobMemory.resize(nv12Size);
+
+        NV12Blob::Ptr inputNV12Blob = NV12Blob_Creator::createFromFile(
+            inputNV12Path, inputWidth, inputHeight, nv12InputBlobMemory.data());
+
+        // ----- Allocate memory with HddlUnite on device
+        auto remoteMemoryFD = _remoteMemoryHelper.allocateRemoteMemory(workloadId, nv12Size, inputNV12Blob->y()->cbuffer().as<void*>());
+
         // --------------------------- 1. Load inference engine -------------------------------------
         slog::info << "Creating Inference Engine" << slog::endl;
         Core ie;
@@ -201,6 +190,30 @@ int main(int argc, char *argv[]) {
         ExecutableNetwork executableNetwork = ie.ImportNetwork(graphBlob, contextPtr, config);
         blobFile.close();
 
+        // ---- Create remote NV12 blob by using already exists remote memory
+        const size_t yPlanes = 1;
+        const size_t uvPlanes = 2;
+        ParamMap blobYParamMap = {{VPUX_PARAM_KEY(REMOTE_MEMORY_FD), remoteMemoryFD},
+                                        {VPUX_PARAM_KEY(MEM_OFFSET), static_cast<size_t>(0)}};
+
+        TensorDesc inputYTensor = TensorDesc(Precision::U8, {1, yPlanes, inputHeight, inputWidth}, Layout::NHWC);
+        RemoteBlob::Ptr remoteYBlobPtr = contextPtr->CreateBlob(inputYTensor, blobYParamMap);
+
+        ParamMap blobUVParamMap = {{VPUX_PARAM_KEY(REMOTE_MEMORY_FD), remoteMemoryFD},
+                                        {VPUX_PARAM_KEY(MEM_OFFSET), static_cast<size_t>(inputWidth * inputHeight * yPlanes)}};
+
+        TensorDesc inputUVTensor = TensorDesc(Precision::U8, {1, uvPlanes, inputHeight / 2, inputWidth / 2}, Layout::NHWC);
+        RemoteBlob::Ptr remoteUVBlobPtr = contextPtr->CreateBlob(inputUVTensor, blobUVParamMap);
+
+        NV12Blob::Ptr remoteNV12BlobPtr = make_shared_blob<NV12Blob>(remoteYBlobPtr, remoteUVBlobPtr);
+
+#if 0
+        PreProcPara desc;
+        desc.aspect_ratio = 1;
+        desc.align_center = 1;
+        remoteNV12BlobPtr->updatePreProcDesc(desc);
+#endif
+
         // -----------------------------------------------------------------------------------------------------
 
         // --------------------------- 3. Configure input & output ---------------------------------------------
@@ -215,47 +228,20 @@ int main(int argc, char *argv[]) {
         slog::info << "CreateInferRequest completed successfully" << slog::endl;
         // -----------------------------------------------------------------------------------------------------
 
-        // --------------------------- 5. Prepare input --------------------------------------------------------
-        /** Creating input blob **/
-        for (size_t requestId = 0; requestId < inferRequestsQueue.requests.size(); requestId++) {
-            // ---- Load frame to remote memory (emulate VAAPI result)
-            // ----- Load NV12 input
-            const size_t inputWidth = static_cast<size_t>(image_width);
-            const size_t inputHeight = static_cast<size_t>(image_height);
-            const size_t nv12Size = inputWidth * inputHeight * 3 / 2;
-
-            const auto& nv12FrameTensor = TensorDesc(Precision::U8, {1, 1, 1, nv12Size}, Layout::NCHW);
-            Blob::Ptr inputRefBlob;
-            inputRefBlob = vpu::KmbPlugin::utils::fromBinaryFile(inputNV12Path, nv12FrameTensor);
-
-            // ----- Allocate memory with HddlUnite on device
-            remoteMemory[requestId] = nullptr;
-            allocateRemoteMemory(remoteMemory[requestId], context, inputRefBlob->buffer().as<void*>(), inputRefBlob->size());
-
-            // ---- Create remote blob by using already exists remote memory and specify color format of it
-            ParamMap blobParamMap = {{HDDL2_PARAM_KEY(REMOTE_MEMORY), remoteMemory[requestId]},
-                {HDDL2_PARAM_KEY(COLOR_FORMAT), ColorFormat::NV12}};
-
-            // Specify input
-            auto inputsInfo = executableNetwork.GetInputsInfo();
-            const std::string inputName = executableNetwork.GetInputsInfo().begin()->first;
-
-            TensorDesc inputTensor = TensorDesc(Precision::U8, {1, 3, inputHeight, inputWidth}, Layout::NCHW);
-            RemoteBlob::Ptr remoteBlobPtr = contextPtr->CreateBlob(inputTensor, blobParamMap);
-
-            PreProcPara desc;
-            desc.aspect_ratio = 1;
-            desc.align_center = 1;
-            remoteBlobPtr->updatePreProcDesc(desc);
-
-            setNV12Preproc(inputName, inferRequestsQueue.requests.at(requestId), remoteBlobPtr);
-        }
+        // Specify input
+        auto inputsInfo = executableNetwork.GetInputsInfo();
+        const std::string inputName = executableNetwork.GetInputsInfo().begin()->first;
 
         // warming up - out of scope
         auto inferRequest = inferRequestsQueue.getIdleRequest();
         if (!inferRequest) {
             THROW_IE_EXCEPTION << "No idle Infer Requests!";
         }
+
+        PreProcessInfo preprocInfo = inferRequest->getPreProcess(inputName);
+        preprocInfo.setColorFormat(ColorFormat::NV12);
+
+        inferRequest->setBlob(inputName, remoteNV12BlobPtr, preprocInfo);
         inferRequest->startAsync();
         inferRequestsQueue.waitAll();
 
@@ -265,7 +251,13 @@ int main(int argc, char *argv[]) {
             if (!inferRequest) {
                 THROW_IE_EXCEPTION << "No idle Infer Requests!";
             }
+
+            preprocInfo = inferRequest->getPreProcess(inputName);
+            preprocInfo.setColorFormat(ColorFormat::NV12);
+
+            inferRequest->setBlob(inputName, remoteNV12BlobPtr, preprocInfo);
             inferRequest->startAsync();
+
             iteration++;
             if (iteration%100 == 0)
                 slog::info << "inferRequest completed successfully #" << iteration << slog::endl;
