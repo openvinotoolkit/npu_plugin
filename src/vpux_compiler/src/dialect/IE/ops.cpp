@@ -46,7 +46,7 @@ IEAsmHooks::AliasResult IEAsmHooks::getAlias(mlir::Attribute attr, llvm::raw_ost
         const auto map = mapAttr.getValue();
 
         if (map.isPermutation()) {
-            const auto dimsOrder = DimsOrder::fromPermutationAffineMap(map);
+            const auto dimsOrder = DimsOrder::fromAffineMap(map);
 
             if (const auto name = dimsOrder.getCanonicalName()) {
                 os << name.getValue();

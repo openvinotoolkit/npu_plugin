@@ -74,11 +74,10 @@ void buildContinuedConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Module
     const auto INPUT_CONV_0_CMX_OFFSET = INPUT_CMX_OFFSET;
     const auto INPUT_CONV_1_CMX_OFFSET = INPUT_CONV_0_CMX_OFFSET + totalTensorSize(inputShape, inputType) / 2;
 
-    const auto getMemRef = [&builder](const llvm::SmallVector<std::int64_t>& shape, mlir::Type type,
+    const auto getMemRef = [&builder](ArrayRef<std::int64_t> shape, mlir::Type elemType,
                                       vpux::VPUIP::MemoryLocation location) {
-        const auto memSpaceAttr = vpux::VPUIP::MemoryLocationAttr::get(builder.getContext(), location);
-        const auto affineMaps = vpux::DimsOrder::NHWC.toAffineMapsList(builder.getContext(), vpux::ShapeRef{shape});
-        return mlir::MemRefType::get(llvm::makeArrayRef(shape), type, affineMaps, memSpaceAttr);
+        const auto memSpaceAttr = VPUIP::MemoryLocationAttr::get(builder.getContext(), location);
+        return vpux::getMemRefType(ShapeRef(shape), elemType, DimsOrder::NHWC, memSpaceAttr);
     };
 
     const auto outputParamType = getMemRef(outputShape, outputType, vpux::VPUIP::MemoryLocation::ProgrammableOutput);
@@ -261,8 +260,9 @@ void buildContinuedConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Module
 
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module)), "Compilation failed");
 
-    buildCNNOp(builder, function.getName(), {getTensorType(inputShape, inputType, vpux::DimsOrder::NHWC, nullptr)},
-               {getTensorType(outputShape, outputType, vpux::DimsOrder::NHWC, nullptr)});
+    buildCNNOp(builder, function.getName(),
+               {getTensorType(ShapeRef(inputShape), inputType, vpux::DimsOrder::NHWC, nullptr)},
+               {getTensorType(ShapeRef(outputShape), outputType, vpux::DimsOrder::NHWC, nullptr)});
 }
 
 }  // namespace hwtest

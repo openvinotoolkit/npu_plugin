@@ -13,6 +13,7 @@
 
 #include "vpux/compiler/dialect/VPUIP/blob_reader.hpp"
 
+#include "vpux/compiler/dialect/IERT/attributes/structs.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/frontend/VPUIP.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
@@ -22,8 +23,7 @@
 
 #include <deque>
 
-namespace vpux {
-namespace VPUIP {
+using namespace vpux;
 
 namespace {
 
@@ -108,7 +108,7 @@ private:
 
 }  // namespace
 
-BlobReader::BlobReader(mlir::MLIRContext* ctx, ArrayRef<char> blob, Logger log): _ctx(ctx), _log(log) {
+vpux::VPUIP::BlobReader::BlobReader(mlir::MLIRContext* ctx, ArrayRef<char> blob, Logger log): _ctx(ctx), _log(log) {
     VPUX_THROW_UNLESS(!blob.empty(), "Blob is empty");
 
     flatbuffers::Verifier verifier(reinterpret_cast<const uint8_t*>(blob.data()), blob.size());
@@ -125,7 +125,7 @@ BlobReader::BlobReader(mlir::MLIRContext* ctx, ArrayRef<char> blob, Logger log):
     _graphFile = MVCNN::GetGraphFile(blob.data());
 }
 
-void BlobReader::parseGraphInputsOutputs() {
+void vpux::VPUIP::BlobReader::parseGraphInputsOutputs() {
     const auto processGraphIO = [this](const flatbuffers::Vector<TensorReferenceOffset>* netIO,
                                        SmallVector<mlir::Type>& ioTypes) {
         for (unsigned int i = 0; i < netIO->size(); ++i) {
@@ -144,7 +144,7 @@ void BlobReader::parseGraphInputsOutputs() {
     processGraphIO(header->net_output(), _outputTypes);
 }
 
-void BlobReader::parseUserInputsOutputs(OpBuilderLogger& builderLog, IE::CNNNetworkOp& cnnOp) {
+void vpux::VPUIP::BlobReader::parseUserInputsOutputs(OpBuilderLogger& builderLog, IE::CNNNetworkOp& cnnOp) {
     cnnOp.inputsInfo().emplaceBlock();
     cnnOp.outputsInfo().emplaceBlock();
 
@@ -156,7 +156,7 @@ void BlobReader::parseUserInputsOutputs(OpBuilderLogger& builderLog, IE::CNNNetw
 
                 const auto memref = parseTensorRef(tensorReference);
                 const auto tensor =
-                        getTensorType(memref.getShape(), memref.getElementType(), DimsOrder::fromType(memref), nullptr);
+                        getTensorType(getShape(memref), memref.getElementType(), DimsOrder::fromType(memref), nullptr);
 
                 const auto nameAttr = mlir::StringAttr::get(_ctx, inputName->str());
                 const auto userTypeAttr = mlir::TypeAttr::get(tensor);
@@ -178,28 +178,75 @@ void BlobReader::parseUserInputsOutputs(OpBuilderLogger& builderLog, IE::CNNNetw
     processUserIO(header->out_tensor_desc(), outputsInfoBuilder);
 }
 
-mlir::MemRefType BlobReader::parseTensorRef(const MVCNN::TensorReference* tensorRef) {
+namespace {
+
+VPUIP::PhysicalMemory convertMemoryLocation(MVCNN::MemoryLocation grLocation) {
+    VPUIP::MemoryLocation location;
+    switch (grLocation) {
+    case MVCNN::MemoryLocation_ProgrammableInput:
+        location = VPUIP::MemoryLocation::ProgrammableInput;
+        break;
+    case MVCNN::MemoryLocation_ProgrammableOutput:
+        location = VPUIP::MemoryLocation::ProgrammableOutput;
+        break;
+    case MVCNN::MemoryLocation_VPU_DDR_Heap:
+        location = VPUIP::MemoryLocation::VPU_DDR_Heap;
+        break;
+    case MVCNN::MemoryLocation_GraphFile:
+        location = VPUIP::MemoryLocation::GraphFile;
+        break;
+    case MVCNN::MemoryLocation_VPU_CMX_NN:
+        location = VPUIP::MemoryLocation::VPU_CMX_NN;
+        break;
+    case MVCNN::MemoryLocation_VPU_CMX_UPA:
+        location = VPUIP::MemoryLocation::VPU_CMX_UPA;
+        break;
+    case MVCNN::MemoryLocation_VPU_DDR_BSS:
+        location = VPUIP::MemoryLocation::VPU_DDR_BSS;
+        break;
+    case MVCNN::MemoryLocation_VPU_CSRAM:
+        location = VPUIP::MemoryLocation::VPU_CSRAM;
+        break;
+    case MVCNN::MemoryLocation_AbsoluteAddr:
+        location = VPUIP::MemoryLocation::AbsoluteAddr;
+        break;
+    case MVCNN::MemoryLocation_MAC_Accumulators:
+        location = VPUIP::MemoryLocation::MAC_Accumulators;
+        break;
+    default:
+        VPUX_THROW("Unsupported MemoryLocation value '{0}'", grLocation);
+    }
+
+    return VPUIP::getPhysicalMemory(location);
+}
+
+}  // namespace
+
+mlir::MemRefType vpux::VPUIP::BlobReader::parseTensorRef(const MVCNN::TensorReference* tensorRef) {
     VPUX_THROW_UNLESS(tensorRef->dimensions(), "TensorReference dimensions are empty");
     VPUX_THROW_UNLESS(tensorRef->strides(), "TensorReference strides are empty");
 
-    const auto& tensorRefDims = tensorRef->dimensions();
-    SmallVector<int64_t> shape(tensorRefDims->begin(), tensorRefDims->end());
+    const auto shape = to_small_vector(*tensorRef->dimensions() | transformed([](uint32_t v) {
+        return checked_cast<int64_t>(v);
+    }));
 
-    const auto precision = convertType(_ctx, tensorRef->data_dtype());
+    const auto elemType = convertType(_ctx, tensorRef->data_dtype());
 
     const auto& tensorRefStrides = tensorRef->strides();
-    const auto elemSize = getElemTypeSize(precision);
-    std::vector<int64_t> strides;
+
+    Strides strides;
     // Ignore strides[0] as it's not a stride, but a size of tensor's element
     for (flatbuffers::uoffset_t i = 1; i < tensorRef->strides()->size(); i++) {
-        strides.push_back(static_cast<int64_t>(tensorRefStrides->Get(i) / elemSize.to<Byte>().count()));
+        strides.push_back(Byte(static_cast<int64_t>(tensorRefStrides->Get(i))));
     }
-    SmallVector<mlir::AffineMap> affineMaps{mlir::makeStridedLinearLayoutMap(strides, 0, precision.getContext())};
 
-    return mlir::MemRefType::get(shape, precision, affineMaps);
+    const auto order = DimsOrder::fromCode(tensorRef->order());
+    const auto memKind = convertMemoryLocation(tensorRef->locale());
+
+    return getMemRefType(ShapeRef(shape), elemType, order, strides, VPUIP::PhysicalMemoryAttr::get(_ctx, memKind));
 }
 
-mlir::ArrayAttr BlobReader::parseOrder3(const MVCNN::order3* order, int32_t ndims) {
+mlir::ArrayAttr vpux::VPUIP::BlobReader::parseOrder3(const MVCNN::order3* order, int32_t ndims) {
     SmallVector<int32_t, 3> coords;
     if (ndims >= 3) {
         coords.push_back(order->z());
@@ -214,7 +261,7 @@ mlir::ArrayAttr BlobReader::parseOrder3(const MVCNN::order3* order, int32_t ndim
     return getIntArrayAttr(_ctx, coords);
 }
 
-VPUIP::ArchKind BlobReader::parseDeviceRevision() {
+VPUIP::ArchKind vpux::VPUIP::BlobReader::parseDeviceRevision() {
     const auto* header = _graphFile->header();
     switch (header->device()) {
     case MVCNN::TargetDevice_NONE:
@@ -237,7 +284,7 @@ VPUIP::ArchKind BlobReader::parseDeviceRevision() {
     }
 }
 
-mlir::Type BlobReader::convertType(mlir::MLIRContext* ctx, const MVCNN::DType& precision) {
+mlir::Type vpux::VPUIP::BlobReader::convertType(mlir::MLIRContext* ctx, const MVCNN::DType& precision) {
     if (precision == MVCNN::DType_FP64) {
         return mlir::Float64Type::get(ctx);
     } else if (precision == MVCNN::DType_FP32) {
@@ -265,7 +312,7 @@ mlir::Type BlobReader::convertType(mlir::MLIRContext* ctx, const MVCNN::DType& p
     }
 }
 
-mlir::Value BlobReader::createTensorOp(mlir::OpBuilder& builder, const MVCNN::TensorReference* tensorRef) {
+mlir::Value vpux::VPUIP::BlobReader::createTensorOp(mlir::OpBuilder& builder, const MVCNN::TensorReference* tensorRef) {
     const auto importedType = parseTensorRef(tensorRef);
 
     const auto getArgument = [&importedType, this](ArrayRef<mlir::Type> ioTypes, unsigned argOffset = 0) {
@@ -329,7 +376,7 @@ mlir::Value BlobReader::createTensorOp(mlir::OpBuilder& builder, const MVCNN::Te
                                                   tensorRef->locale_index()->Get(0), tensorRef->data()->data_index());
 }
 
-void BlobReader::buildRunTimeResourcesOp() {
+void vpux::VPUIP::BlobReader::buildRunTimeResourcesOp() {
     const auto arch = parseDeviceRevision();
     setArch(_module, arch);
     auto resourcesOp = IERT::RunTimeResourcesOp::getFromModule(_module);
@@ -357,7 +404,7 @@ void BlobReader::buildRunTimeResourcesOp() {
     }
 }
 
-void BlobReader::buildGraphOp() {
+void vpux::VPUIP::BlobReader::buildGraphOp() {
     OpBuilderLogger builderLog(_log.nest());
     auto builder = mlir::OpBuilder::atBlockEnd(_module.getBody(), &builderLog);
 
@@ -381,7 +428,7 @@ void BlobReader::buildGraphOp() {
     builder.create<VPUIP::GraphOp>(mlir::UnknownLoc::get(_ctx), options, version);
 }
 
-void BlobReader::buildCNNNetworkOp() {
+void vpux::VPUIP::BlobReader::buildCNNNetworkOp() {
     OpBuilderLogger builderLog(_log.nest());
     auto builder = mlir::OpBuilder::atBlockEnd(_module.getBody(), &builderLog);
 
@@ -390,7 +437,7 @@ void BlobReader::buildCNNNetworkOp() {
     parseUserInputsOutputs(builderLog, cnnOp);
 }
 
-void BlobReader::buildMainFunc() {
+void vpux::VPUIP::BlobReader::buildMainFunc() {
     parseGraphInputsOutputs();
 
     OpBuilderLogger builderLog(_log.nest());
@@ -506,7 +553,7 @@ void BlobReader::buildMainFunc() {
     opsBuilder.create<mlir::ReturnOp>(mlir::UnknownLoc::get(_ctx), functionOutArguments);
 }
 
-mlir::OwningModuleRef BlobReader::read() {
+mlir::OwningModuleRef vpux::VPUIP::BlobReader::read() {
     const auto* header = _graphFile->header();
     VPUX_THROW_UNLESS(header != nullptr, "Got NULL header");
 
@@ -520,6 +567,3 @@ mlir::OwningModuleRef BlobReader::read() {
 
     return _module;
 }
-
-}  // namespace VPUIP
-}  // namespace vpux

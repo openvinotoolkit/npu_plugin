@@ -44,7 +44,7 @@ IE::TensorAttr vpux::IE::getTensorAttr(mlir::AffineMap order, mlir::Attribute me
 }
 
 IE::TensorAttr vpux::IE::getTensorAttr(mlir::MLIRContext* ctx, DimsOrder order, mlir::Attribute memSpace) {
-    return IE::getTensorAttr(order.toPermutationAffineMap(ctx), memSpace);
+    return IE::getTensorAttr(order.toAffineMap(ctx), memSpace);
 }
 
 IE::TensorAttr vpux::IE::getTensorAttr(mlir::RankedTensorType type) {

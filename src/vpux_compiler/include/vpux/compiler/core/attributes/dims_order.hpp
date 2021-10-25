@@ -113,18 +113,14 @@ public:
     bool isIdentity() const;
 
 public:
-    static DimsOrder fromPermutationAffineMap(mlir::AffineMap map);
-    mlir::AffineMap toPermutationAffineMap(mlir::MLIRContext* ctx) const;
+    static DimsOrder fromAffineMap(mlir::AffineMap map);
+    mlir::AffineMap toAffineMap(mlir::MLIRContext* ctx) const;
 
     static DimsOrder fromType(mlir::ShapedType type);
     static DimsOrder fromType(mlir::RankedTensorType type);
     static DimsOrder fromType(mlir::MemRefType type);
 
     static DimsOrder fromValue(mlir::Value val);
-
-    SmallVector<mlir::AffineMap> toAffineMapsList(mlir::MLIRContext* ctx, ShapeRef shape) const;
-    SmallVector<mlir::AffineMap> toAffineMapsList(mlir::MLIRContext* ctx, Bit elemSize, StridesRef strides) const;
-    SmallVector<mlir::AffineMap> toAffineMapsList(mlir::MLIRContext* ctx, Bit elemSize, MemStridesRef memStrides) const;
 
 public:
     bool isCompatibleLayout(mlir::MemRefType type) const;

@@ -45,17 +45,14 @@ void buildEltwiseAdd(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp 
     VPUX_THROW_UNLESS((inputType == weightsType), "Eltwise expects inputs of same type");
 
     SmallVector<mlir::Type> inputTypes;
-    const auto inputAffineMaps = DimsOrder::NHWC.toAffineMapsList(ctx, Shape(in_shape));
     inputTypes.push_back(
-            getMemRefType(builder, VPUIP::MemoryLocation::ProgrammableInput, in_shape, inputType, inputAffineMaps));
+            getMemRefType(builder, VPUIP::MemoryLocation::ProgrammableInput, in_shape, inputType, DimsOrder::NHWC));
     inputTypes.push_back(getMemRefType(builder, VPUIP::MemoryLocation::ProgrammableInput, weights_shape, weightsType,
-                                       inputAffineMaps));
+                                       DimsOrder::NHWC));
 
-    const auto outputAffineMaps = DimsOrder::NHWC.toAffineMapsList(ctx, Shape(out_shape));
     auto outputParamType =
-            getMemRefType(builder, VPUIP::MemoryLocation::ProgrammableOutput, out_shape, outputType, outputAffineMaps);
+            getMemRefType(builder, VPUIP::MemoryLocation::ProgrammableOutput, out_shape, outputType, DimsOrder::NHWC);
     inputTypes.push_back(outputParamType);
-    SmallVector<ArrayRef<mlir::AffineMap>> argsAffineMaps{inputAffineMaps, inputAffineMaps, outputAffineMaps};
 
     const auto funcType = builder.getFunctionType(makeArrayRef(inputTypes), outputParamType);
 
@@ -72,15 +69,15 @@ void buildEltwiseAdd(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp 
 
     // input - output cmx tensors
     auto inputcmx_type =
-            getMemRefType(builder, VPUIP::MemoryLocation::VPU_CMX_NN, in_shape, inputType, inputAffineMaps);
+            getMemRefType(builder, VPUIP::MemoryLocation::VPU_CMX_NN, in_shape, inputType, DimsOrder::NHWC);
     auto inputcmx = createDeclareTensorOp(funcbuilder, inputcmx_type, 0, INPUT0_CMX_OFFSET);
 
     auto weightscmx_type =
-            getMemRefType(builder, VPUIP::MemoryLocation::VPU_CMX_NN, weights_shape, weightsType, inputAffineMaps);
+            getMemRefType(builder, VPUIP::MemoryLocation::VPU_CMX_NN, weights_shape, weightsType, DimsOrder::NHWC);
     auto weightscmx = createDeclareTensorOp(funcbuilder, weightscmx_type, 0, INPUT1_CMX_OFFSET);
 
     auto outputcmx_type =
-            getMemRefType(builder, VPUIP::MemoryLocation::VPU_CMX_NN, out_shape, outputType, outputAffineMaps);
+            getMemRefType(builder, VPUIP::MemoryLocation::VPU_CMX_NN, out_shape, outputType, DimsOrder::NHWC);
     auto outputcmx = createDeclareTensorOp(funcbuilder, outputcmx_type, 0, OUTPUT_CMX_OFFSET);
 
     auto parent_inputcmx = createDeclareTensorOp(funcbuilder, inputcmx_type, 0, INPUT0_CMX_OFFSET);
@@ -136,9 +133,9 @@ void buildEltwiseAdd(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp 
 
     // IE.CNNNetwork
     buildCNNOp(builder, func.getName(),
-               {getTensorType(in_shape, inputType, DimsOrder::NHWC, nullptr),
-                getTensorType(weights_shape, weightsType, DimsOrder::NHWC, nullptr)},
-               {getTensorType(in_shape, outputType, DimsOrder::NHWC, nullptr)});
+               {getTensorType(ShapeRef(in_shape), inputType, DimsOrder::NHWC, nullptr),
+                getTensorType(ShapeRef(weights_shape), weightsType, DimsOrder::NHWC, nullptr)},
+               {getTensorType(ShapeRef(in_shape), outputType, DimsOrder::NHWC, nullptr)});
 }
 }  // namespace hwtest
 }  // namespace vpux

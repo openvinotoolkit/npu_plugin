@@ -54,15 +54,12 @@ void buildMaxPool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
     const auto ACTIVATIONWINDOW_CMX_OFFSET = INPUT0_CMX_OFFSET + input_totalsize;
 
     SmallVector<mlir::Type> inputTypes;
-    const auto inputAffineMaps = DimsOrder::NHWC.toAffineMapsList(ctx, Shape(in_shape));
     inputTypes.push_back(
-            getMemRefType(builder, VPUIP::MemoryLocation::ProgrammableInput, in_shape, inputType, inputAffineMaps));
+            getMemRefType(builder, VPUIP::MemoryLocation::ProgrammableInput, in_shape, inputType, DimsOrder::NHWC));
 
-    const auto outputAffineMaps = DimsOrder::NHWC.toAffineMapsList(ctx, Shape(out_shape));
     auto outputParamType =
-            getMemRefType(builder, VPUIP::MemoryLocation::ProgrammableOutput, out_shape, outputType, outputAffineMaps);
+            getMemRefType(builder, VPUIP::MemoryLocation::ProgrammableOutput, out_shape, outputType, DimsOrder::NHWC);
     inputTypes.push_back(outputParamType);
-    SmallVector<ArrayRef<mlir::AffineMap>> argsAffineMaps{inputAffineMaps, outputAffineMaps};
 
     const auto funcType = builder.getFunctionType(makeArrayRef(inputTypes), outputParamType);
 
@@ -78,11 +75,11 @@ void buildMaxPool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
 
     // input - output cmx tensors
     auto input0cmx_type =
-            getMemRefType(builder, VPUIP::MemoryLocation::VPU_CMX_NN, in_shape, inputType, inputAffineMaps);
+            getMemRefType(builder, VPUIP::MemoryLocation::VPU_CMX_NN, in_shape, inputType, DimsOrder::NHWC);
     auto input0cmx = createDeclareTensorOp(funcbuilder, input0cmx_type, 0, INPUT0_CMX_OFFSET);
 
     auto outputcmx_type =
-            getMemRefType(builder, VPUIP::MemoryLocation::VPU_CMX_NN, out_shape, outputType, outputAffineMaps);
+            getMemRefType(builder, VPUIP::MemoryLocation::VPU_CMX_NN, out_shape, outputType, DimsOrder::NHWC);
     auto outputcmx = createDeclareTensorOp(funcbuilder, outputcmx_type, 0, OUTPUT_CMX_OFFSET);
 
     auto parent_input0cmx = createDeclareTensorOp(funcbuilder, input0cmx_type, 0, INPUT0_CMX_OFFSET);
@@ -115,9 +112,8 @@ void buildMaxPool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
     const auto dataStorageType = mlir::RankedTensorType::get(sparsity_shape, elemType);
     const auto dataAttr = mlir::DenseElementsAttr::get(dataStorageType, makeArrayRef(fakeSparsity));
 
-    auto activationWindowAffineMaps = DimsOrder::NHWC.toAffineMapsList(ctx, Shape(sparsity_shape));
-    const auto dataType = getMemRefType(builder, VPUIP::MemoryLocation::GraphFile, sparsity_shape, elemType,
-                                        activationWindowAffineMaps);
+    const auto dataType =
+            getMemRefType(builder, VPUIP::MemoryLocation::GraphFile, sparsity_shape, elemType, DimsOrder::NHWC);
 
     auto dataConstOp = funcbuilder.create<Const::DeclareOp>(builder.getUnknownLoc(), dataType,
                                                             Const::ContentAttr::get(dataAttr).reorder(DimsOrder::NHWC));
@@ -126,8 +122,8 @@ void buildMaxPool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
     auto activationwindow_totalsize_bytes = activationwindow_totalsize * elemType.getIntOrFloatBitWidth() / CHAR_BIT;
 
     // Activation Window cmx
-    auto actWindow_cmx_type = getMemRefType(builder, VPUIP::MemoryLocation::VPU_CMX_NN, sparsity_shape, elemType,
-                                            activationWindowAffineMaps);
+    auto actWindow_cmx_type =
+            getMemRefType(builder, VPUIP::MemoryLocation::VPU_CMX_NN, sparsity_shape, elemType, DimsOrder::NHWC);
     auto actWindow_cmx = createDeclareTensorOp(funcbuilder, actWindow_cmx_type, 0, ACTIVATIONWINDOW_CMX_OFFSET);
 
     funcbuilder.create<VPUIP::NNDMAOp>(builder.getUnknownLoc(), dataConstOp.getOperation()->getResult(0),
@@ -135,9 +131,8 @@ void buildMaxPool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
                                        mlir::ValueRange(barrier0.barrier()), false);
     // weights table ddr tensor
     SmallVector<int64_t> wtTbl_data_shape{sparsity_shape[0], 1, 1, 4};
-    auto weightTblAffineMaps = DimsOrder::NHWC.toAffineMapsList(ctx, Shape(wtTbl_data_shape));
     auto weightTblData_ddr_type = getMemRefType(builder, VPUIP::MemoryLocation::GraphFile, wtTbl_data_shape,
-                                                builder.getIntegerType(32, true), weightTblAffineMaps);
+                                                builder.getIntegerType(32, true), DimsOrder::NHWC);
     const auto wtTblData_ddr_valueType =
             mlir::RankedTensorType::get(wtTbl_data_shape, builder.getIntegerType(32, /*isSigned=*/true));
 
@@ -155,7 +150,7 @@ void buildMaxPool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
 
     const auto WEIGHTSTABLE_CMX_OFFSET = ACTIVATIONWINDOW_CMX_OFFSET + activationwindow_totalsize_bytes;
     auto wtTbl_cmx_type = getMemRefType(builder, VPUIP::MemoryLocation::VPU_CMX_NN, wtTbl_data_shape,
-                                        builder.getIntegerType(32, true), weightTblAffineMaps);
+                                        builder.getIntegerType(32, true), DimsOrder::NHWC);
     auto wtTbl_cmx = createDeclareTensorOp(funcbuilder, wtTbl_cmx_type, 0, WEIGHTSTABLE_CMX_OFFSET);
 
     // weights table dma ddr->cmx
@@ -203,8 +198,8 @@ void buildMaxPool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
 
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module)), "Compilation failed");
     // IE.CNNNetwork
-    buildCNNOp(builder, func.getName(), {getTensorType(in_shape, inputType, DimsOrder::NHWC, nullptr)},
-               {getTensorType(out_shape, outputType, DimsOrder::NHWC, nullptr)});
+    buildCNNOp(builder, func.getName(), {getTensorType(ShapeRef(in_shape), inputType, DimsOrder::NHWC, nullptr)},
+               {getTensorType(ShapeRef(out_shape), outputType, DimsOrder::NHWC, nullptr)});
 }
 
 }  // namespace hwtest

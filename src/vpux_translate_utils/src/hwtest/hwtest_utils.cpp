@@ -264,19 +264,17 @@ mlir::DenseElementsAttr splitWeightsOverCLoop(mlir::DenseElementsAttr wt_vec, Ar
     return wt_data_vals;
 }
 
-mlir::MemRefType getMemRefType(mlir::OpBuilder builder, VPUIP::MemoryLocation memlocation, SmallVector<int64_t> shape,
-                               mlir::Type type, SmallVector<mlir::AffineMap> affineMaps) {
-    auto op_memSpaceAttr = VPUIP::MemoryLocationAttr::get(builder.getContext(), memlocation);
-    return mlir::MemRefType::get(makeArrayRef(shape), type, affineMaps, op_memSpaceAttr);
+mlir::MemRefType getMemRefType(mlir::OpBuilder& builder, VPUIP::MemoryLocation memlocation, ArrayRef<int64_t> shape,
+                               mlir::Type elemType, DimsOrder order) {
+    const auto memSpaceAttr = VPUIP::MemoryLocationAttr::get(builder.getContext(), memlocation);
+    return vpux::getMemRefType(ShapeRef(shape), elemType, order, memSpaceAttr);
 }
 
-vpux::VPUIP::DeclareTensorOp createDeclareTensorOp(mlir::OpBuilder builder, VPUIP::MemoryLocation memlocation,
-                                                   SmallVector<int64_t> shape, mlir::Type type,
-                                                   SmallVector<mlir::AffineMap> affineMaps, int locale, size_t offset) {
-    auto op_memSpaceAttr = VPUIP::MemoryLocationAttr::get(builder.getContext(), memlocation);
-    auto op_type = mlir::MemRefType::get(makeArrayRef(shape), type, affineMaps, op_memSpaceAttr);
-    auto op = builder.create<VPUIP::DeclareTensorOp>(builder.getUnknownLoc(), op_type, memlocation, locale, offset);
-    return op;
+vpux::VPUIP::DeclareTensorOp createDeclareTensorOp(mlir::OpBuilder& builder, VPUIP::MemoryLocation memlocation,
+                                                   ArrayRef<int64_t> shape, mlir::Type elemType, DimsOrder order,
+                                                   int locale, size_t offset) {
+    const auto type = getMemRefType(builder, memlocation, shape, elemType, order);
+    return builder.create<VPUIP::DeclareTensorOp>(builder.getUnknownLoc(), type, memlocation, locale, offset);
 }
 
 vpux::VPUIP::DeclareTensorOp createDeclareTensorOp(mlir::OpBuilder builder, mlir::MemRefType type, int locale,

@@ -12,8 +12,12 @@
 //
 
 #include "vpux/compiler/core/attributes/strides.hpp"
+
 #include "vpux/compiler/core/attributes/shape.hpp"
 #include "vpux/compiler/core/attributes/stride_reqs.hpp"
+#include "vpux/compiler/dialect/IERT/attributes/structs.hpp"
+#include "vpux/compiler/utils/attributes.hpp"
+#include "vpux/compiler/utils/types.hpp"
 
 #include "vpux/compiler/utils/types.hpp"
 
@@ -46,37 +50,28 @@ Strides vpux::getStrides(mlir::RankedTensorType type) {
 }
 
 Strides vpux::getStrides(mlir::MemRefType type) {
-    const auto maps = type.getAffineMaps();
+    const auto layout = type.getLayout();
 
-    mlir::MemRefType canonicalType;
-    if (maps.size() <= 1) {
-        canonicalType = type;
-    } else {
-        auto composedMap = maps.back();
+    if (const auto mapAttr = layout.dyn_cast<mlir::AffineMapAttr>()) {
+        VPUX_THROW_UNLESS(mapAttr.getValue().isPermutation(), "Got non permutation layout attribute '{0}'", layout);
 
-        for (auto map : maps.drop_back() | reversed) {
-            composedMap = composedMap.compose(map);
-        }
+        // Missing strides specification means compact strides.
+        const auto order = DimsOrder::fromType(type);
+        const auto memStrides = StrideReqs::compact(order.numDims()).calcStrides(order, type);
 
-        canonicalType = mlir::MemRefType::Builder(type).setAffineMaps({composedMap});
+        return order.toLogicalOrder(memStrides);
     }
 
-    SmallVector<int64_t> elemStrides;
-    int64_t offset = 0;
-    VPUX_THROW_UNLESS(mlir::succeeded(mlir::getStridesAndOffset(canonicalType, elemStrides, offset)),
-                      "Only strided/simple MemRef Types are supported, got '{0}'", type);
-    VPUX_THROW_UNLESS(elemStrides.size() == checked_cast<size_t>(type.getRank()),
-                      "Only strided/simple MemRef Types are supported, got '{0}'", type);
-    VPUX_THROW_UNLESS(offset == 0, "MemRef with non-zero offset '{0}' is not supported", offset);
+    if (const auto descAttr = layout.dyn_cast<IERT::MemRefAttr>()) {
+        const auto elemStrides = parseIntArrayAttr<int64_t>(descAttr.strides());
+        const auto elemSize = getElemTypeSize(type);
 
-    const auto elemSize = getElemTypeSize(type);
-    Strides strides(elemStrides.size());
-
-    for (auto i : irange(strides.size())) {
-        strides[Dim(i)] = elemSize * elemStrides[i];
+        return Strides(to_small_vector(elemStrides | transformed([&](int64_t stride) {
+                                           return stride * elemSize;
+                                       })));
     }
 
-    return strides;
+    VPUX_THROW("Unsupported MemRefType layout '{0}'", layout);
 }
 
 Strides vpux::getStrides(mlir::ShapedType type) {
@@ -106,8 +101,7 @@ MemStrides vpux::getMemStrides(mlir::RankedTensorType type) {
     const auto order = DimsOrder::fromType(type);
 
     // Tensors are always compact
-    const auto reqs = StrideReqs::compact(checked_cast<size_t>(type.getRank()));
-    return reqs.calcStrides(order, type);
+    return StrideReqs::compact(order.numDims()).calcStrides(order, type);
 }
 
 MemStrides vpux::getMemStrides(mlir::MemRefType type) {

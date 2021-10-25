@@ -282,7 +282,6 @@ def IERT_TimestampOp :
         `(` $output_buff `:` type($output_buff) `)`
         `->` type($output)
     }];
-    
 }
 
 //
@@ -349,8 +348,6 @@ def IERT_CopyOp :
             return vpux::DotNodeColor::GREEN;
         }
     }] # IERT_InferLayerReturnTypes<1>.impl;
-    
-    let hasFolder = 1;
 }
 
 //
@@ -775,7 +772,7 @@ def IERT_RoundOp :
     let arguments = (ins
         MemRefOf<[F16, F32]>:$input,
         MemRefOf<[F16, F32]>:$output_buff,
-        
+
         IE_RoundMode:$mode
     );
 

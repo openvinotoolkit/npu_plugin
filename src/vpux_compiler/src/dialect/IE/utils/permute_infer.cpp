@@ -17,7 +17,7 @@ void inferPermuteReturnTypeComponents(mlir::Value input, mlir::AffineMap mem_per
                                       SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes,
                                       bool useInMemSpace) {
     const auto inOrder = DimsOrder::fromValue(input);
-    const auto outOrder = DimsOrder::fromPermutationAffineMap(dst_order);
+    const auto outOrder = DimsOrder::fromAffineMap(dst_order);
     const auto inType = input.getType().cast<mlir::RankedTensorType>();
 
     const auto inShape = getShape(input);

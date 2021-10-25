@@ -154,23 +154,14 @@ void buildEltwiseMultWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir
     const auto WEIGHTS_PAD_CMX_OFFSET = INPUT1_CMX_OFFSET;
     const auto ACTIVATIONWINDOW_CMX_OFFSET = WEIGHTS_PAD_CMX_OFFSET + weights_nce_totalsize;
 
-    const auto input_maps = DimsOrder::NHWC.toAffineMapsList(ctx, Shape(in_shape));
-    const auto weights_maps = DimsOrder::NHWC.toAffineMapsList(ctx, Shape(weights_shape));
-    const auto output_maps = DimsOrder::NHWC.toAffineMapsList(ctx, Shape(out_shape));
-
-    const auto zero_pad_maps = DimsOrder::NHWC.toAffineMapsList(ctx, Shape(zero_pad_shape));
-    const auto weights_pad_maps = DimsOrder::NHWC.toAffineMapsList(ctx, Shape(weights_pad_shape));
-
-    const auto input_nce_maps = DimsOrder::NHWC.toAffineMapsList(ctx, Shape(input_nce_shape));
-    const auto output_nce_maps = DimsOrder::NHWC.toAffineMapsList(ctx, Shape(output_nce_shape));
-
     SmallVector<mlir::Type> inputTypes;
     inputTypes.reserve(num_func_args);
-    auto inputParamType = getMemRefType(builder, MemoryLocation::ProgrammableInput, in_shape, inputType, input_maps);
+    auto inputParamType =
+            getMemRefType(builder, MemoryLocation::ProgrammableInput, in_shape, inputType, DimsOrder::NHWC);
     auto weightsParamType =
-            getMemRefType(builder, MemoryLocation::ProgrammableInput, weights_shape, weightsType, weights_maps);
+            getMemRefType(builder, MemoryLocation::ProgrammableInput, weights_shape, weightsType, DimsOrder::NHWC);
     auto outputParamType =
-            getMemRefType(builder, MemoryLocation::ProgrammableOutput, out_shape, outputType, output_maps);
+            getMemRefType(builder, MemoryLocation::ProgrammableOutput, out_shape, outputType, DimsOrder::NHWC);
     inputTypes.push_back(inputParamType);
     inputTypes.push_back(weightsParamType);
     inputTypes.push_back(outputParamType);
@@ -190,36 +181,36 @@ void buildEltwiseMultWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir
     auto funcoutput = func.getArgument(2);
 
     // Tensors - constant zero padding
-    createDeclareTensorOp(funcbuilder, MemoryLocation::GraphFile, zero_pad_shape, weightsType, zero_pad_maps, 0,
+    createDeclareTensorOp(funcbuilder, MemoryLocation::GraphFile, zero_pad_shape, weightsType, DimsOrder::NHWC, 0,
                           ZERO_PAD_DDR_OFFSET);
 
     // Tensor - input cmx
-    auto input_cmx = createDeclareTensorOp(funcbuilder, MemoryLocation::VPU_CMX_NN, in_shape, inputType, input_maps, 0,
-                                           INPUT0_CMX_OFFSET);
+    auto input_cmx = createDeclareTensorOp(funcbuilder, MemoryLocation::VPU_CMX_NN, in_shape, inputType,
+                                           DimsOrder::NHWC, 0, INPUT0_CMX_OFFSET);
 
     // Tensors - concat input/output
     auto weights_cmx = createDeclareTensorOp(funcbuilder, MemoryLocation::VPU_CMX_NN, weights_shape, weightsType,
-                                             weights_pad_maps, 0, WEIGHTS_PAD_CMX_OFFSET);
+                                             DimsOrder::NHWC, 0, WEIGHTS_PAD_CMX_OFFSET);
     auto zero_pad_cmx = createDeclareTensorOp(funcbuilder, MemoryLocation::VPU_CMX_NN, zero_pad_shape, weightsType,
-                                              weights_pad_maps, 0, ZERO_PAD_CMX_OFFSET);
-    createDeclareTensorOp(funcbuilder, MemoryLocation::VPU_CMX_NN, weights_pad_shape, weightsType, weights_pad_maps, 0,
+                                              DimsOrder::NHWC, 0, ZERO_PAD_CMX_OFFSET);
+    createDeclareTensorOp(funcbuilder, MemoryLocation::VPU_CMX_NN, weights_pad_shape, weightsType, DimsOrder::NHWC, 0,
                           WEIGHTS_PAD_CMX_OFFSET);
 
     // Tensors - NCE input/output
     auto input_nce_cmx = createDeclareTensorOp(funcbuilder, MemoryLocation::VPU_CMX_NN, input_nce_shape, inputType,
-                                               input_nce_maps, 0, INPUT0_CMX_OFFSET);
+                                               DimsOrder::NHWC, 0, INPUT0_CMX_OFFSET);
     auto weights_nce_cmx = createDeclareTensorOp(funcbuilder, MemoryLocation::VPU_CMX_NN, weights_nce_shape,
-                                                 weightsType, weights_pad_maps, 0, WEIGHTS_PAD_CMX_OFFSET);
+                                                 weightsType, DimsOrder::NHWC, 0, WEIGHTS_PAD_CMX_OFFSET);
     auto output_nce_cmx = createDeclareTensorOp(funcbuilder, MemoryLocation::VPU_CMX_NN, output_nce_shape, outputType,
-                                                output_nce_maps, 0, OUTPUT_CMX_OFFSET);
+                                                DimsOrder::NHWC, 0, OUTPUT_CMX_OFFSET);
     auto parent_input_nce_cmx = createDeclareTensorOp(funcbuilder, MemoryLocation::VPU_CMX_NN, input_nce_shape,
-                                                      inputType, input_nce_maps, 0, INPUT0_CMX_OFFSET);
+                                                      inputType, DimsOrder::NHWC, 0, INPUT0_CMX_OFFSET);
     auto parent_output_nce_cmx = createDeclareTensorOp(funcbuilder, MemoryLocation::VPU_CMX_NN, output_nce_shape,
-                                                       outputType, output_nce_maps, 0, OUTPUT_CMX_OFFSET);
+                                                       outputType, DimsOrder::NHWC, 0, OUTPUT_CMX_OFFSET);
 
     // Tensor - output cmx
-    auto output_cmx = createDeclareTensorOp(funcbuilder, MemoryLocation::VPU_CMX_NN, out_shape, outputType, output_maps,
-                                            0, OUTPUT_CMX_OFFSET);
+    auto output_cmx = createDeclareTensorOp(funcbuilder, MemoryLocation::VPU_CMX_NN, out_shape, outputType,
+                                            DimsOrder::NHWC, 0, OUTPUT_CMX_OFFSET);
 
     // Barriers
     auto barrier0 = funcbuilder.create<ConfigureBarrierOp>(builder.getUnknownLoc(), 0);
@@ -232,7 +223,8 @@ void buildEltwiseMultWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir
     if (auto qty = weightsType.dyn_cast<mlir::quant::QuantizedType>()) {
         wt_data_attr = wt_data_attr.quantCast(qty);
     }
-    auto zero_pad_type = getMemRefType(builder, MemoryLocation::GraphFile, zero_pad_shape, weightsType, zero_pad_maps);
+    auto zero_pad_type =
+            getMemRefType(builder, MemoryLocation::GraphFile, zero_pad_shape, weightsType, DimsOrder::NHWC);
     auto zero_pad_data = funcbuilder.create<Const::DeclareOp>(builder.getUnknownLoc(), zero_pad_type,
                                                               wt_data_attr.reorder(DimsOrder::NHWC));
 
@@ -264,10 +256,8 @@ void buildEltwiseMultWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir
     const auto dataStorageType = mlir::RankedTensorType::get(sparsity_shape, sparsity_type);
     const auto sparsityAttr = mlir::DenseElementsAttr::get(dataStorageType, makeArrayRef(fakeSparsity));
 
-    auto act_window_maps = DimsOrder::NHWC.toAffineMapsList(ctx, Shape(sparsity_shape));
-
     auto act_window_ddr_memreftype =
-            getMemRefType(funcbuilder, MemoryLocation::GraphFile, sparsity_shape, sparsity_type, act_window_maps);
+            getMemRefType(funcbuilder, MemoryLocation::GraphFile, sparsity_shape, sparsity_type, DimsOrder::NHWC);
 
     auto act_window_totalsize = totalTensorSize(sparsity_shape, sparsity_type);
     auto act_window_totalsize_bytes = act_window_totalsize * sparsity_type.getIntOrFloatBitWidth() / CHAR_BIT;
@@ -276,23 +266,22 @@ void buildEltwiseMultWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir
             funcbuilder.create<Const::DeclareOp>(builder.getUnknownLoc(), act_window_ddr_memreftype,
                                                  Const::ContentAttr::get(sparsityAttr).reorder(DimsOrder::NHWC));
     auto act_window_cmx = createDeclareTensorOp(funcbuilder, MemoryLocation::VPU_CMX_NN, sparsity_shape, sparsity_type,
-                                                act_window_maps, 0, ACTIVATIONWINDOW_CMX_OFFSET);
+                                                DimsOrder::NHWC, 0, ACTIVATIONWINDOW_CMX_OFFSET);
 
     funcbuilder.create<NNDMAOp>(builder.getUnknownLoc(), getConstResult(act_window_ddr),
                                 getTensorResult(act_window_cmx), mlir::ValueRange(), BARRIER_0, false);
 
     // weights table ddr
     SmallVector<int64_t> weightstable_data_shape{sparsity_shape[0], 1, 1, 4};
-    auto weightstable_maps = DimsOrder::NHWC.toAffineMapsList(ctx, Shape(weightstable_data_shape));
     auto weightstable_ddr_memreftype = getMemRefType(funcbuilder, MemoryLocation::GraphFile, weightstable_data_shape,
-                                                     builder.getIntegerType(32, /*isSigned=*/true), weightstable_maps);
+                                                     builder.getIntegerType(32, /*isSigned=*/true), DimsOrder::NHWC);
     const auto wtTblData_ddr_valueType =
             mlir::RankedTensorType::get(weightstable_data_shape, builder.getIntegerType(32, /*isSigned=*/true));
 
     auto weights_cmx_memreftype =
-            getMemRefType(funcbuilder, MemoryLocation::VPU_CMX_NN, weights_nce_shape, weightsType, weights_pad_maps);
+            getMemRefType(funcbuilder, MemoryLocation::VPU_CMX_NN, weights_nce_shape, weightsType, DimsOrder::NHWC);
     auto output_cmx_memreftype =
-            getMemRefType(funcbuilder, MemoryLocation::VPU_CMX_NN, output_nce_shape, outputType, output_nce_maps);
+            getMemRefType(funcbuilder, MemoryLocation::VPU_CMX_NN, output_nce_shape, outputType, DimsOrder::NHWC);
 
     auto weights_set_size = weights_cmx_memreftype.getShape()[1] * weights_cmx_memreftype.getShape()[2] *
                             weights_cmx_memreftype.getShape()[3];
@@ -320,7 +309,7 @@ void buildEltwiseMultWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir
     // weights table cmx tensor
     const auto WEIGHTSTABLE_CMX_OFFSET = ACTIVATIONWINDOW_CMX_OFFSET + act_window_totalsize_bytes;
     auto weightstable_cmx = createDeclareTensorOp(funcbuilder, MemoryLocation::VPU_CMX_NN, weightstable_data_shape,
-                                                  builder.getIntegerType(32, /*isSigned=*/true), weightstable_maps, 0,
+                                                  builder.getIntegerType(32, /*isSigned=*/true), DimsOrder::NHWC, 0,
                                                   WEIGHTSTABLE_CMX_OFFSET);
 
     // weights table dma ddr->cmx
@@ -362,9 +351,9 @@ void buildEltwiseMultWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir
 
     // IE.CNNNetwork
     buildCNNOp(builder, func.getName(),
-               {getTensorType(in_shape, inputType, DimsOrder::NHWC, nullptr),
-                getTensorType(weights_shape, weightsType, DimsOrder::NHWC, nullptr)},
-               {getTensorType(in_shape, outputType, DimsOrder::NHWC, nullptr)});
+               {getTensorType(ShapeRef(in_shape), inputType, DimsOrder::NHWC, nullptr),
+                getTensorType(ShapeRef(weights_shape), weightsType, DimsOrder::NHWC, nullptr)},
+               {getTensorType(ShapeRef(in_shape), outputType, DimsOrder::NHWC, nullptr)});
 }
 
 }  // namespace hwtest
