@@ -29,9 +29,9 @@ namespace mv
             size_t dpuPerCluster=5;
             std::string referenceDevice = "A0";
             bool globalEnableStreaming=true;
-            bool globalEnablePipelining = true;
-            bool globalEnablePrefetching = true;
-            bool globalEnableWeightsSparsity=true;
+            bool globalEnablePipelining = false;
+            bool globalEnablePrefetching = false;
+            bool globalEnableWeightsSparsity=false;
             bool globalForceSpilling=false;
             mv::Target target = mv::Target::ma2490;
             double clusterMemory=917504;
