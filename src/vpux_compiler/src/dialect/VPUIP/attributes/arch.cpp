@@ -29,8 +29,17 @@ constexpr StringLiteral derateFactorAttrName = "VPUIP.derateFactor";
 constexpr StringLiteral bandwidthAttrName = "VPUIP.bandwidth";
 constexpr StringLiteral processorFrequencyAttrName = "VPUIP.processorFrequency";
 
-constexpr int MAX_DPU_GROUPS_MTL = 2;
-constexpr int MAX_DPU_GROUPS_KMB = 4;
+constexpr int KMB_MAX_DPU_GROUPS = 4;
+constexpr int MTL_MAX_DPU_GROUPS = 2;
+
+constexpr Byte DDR_HEAP_SIZE = 500_MB;
+constexpr Byte CSRAM_SIZE = 24_MB;
+
+// Run-time will use part of CMX to store DPU workload configuration.
+constexpr Byte EXTRA_SPACE_FOR_DPU_WORKLOAD_QUEUE = 128_KB;
+
+constexpr Byte KMB_CMX_SIZE = Byte(1_MB) - EXTRA_SPACE_FOR_DPU_WORKLOAD_QUEUE;
+constexpr Byte MTL_CMX_SIZE = Byte(2_MB) - EXTRA_SPACE_FOR_DPU_WORKLOAD_QUEUE;
 
 }  // namespace
 
@@ -48,23 +57,6 @@ void vpux::VPUIP::setArch(mlir::ModuleOp module, ArchKind kind, Optional<int> nu
         mem->setAttr(derateFactorAttrName, getFPAttr(module.getContext(), derateFactor));
         mem->setAttr(bandwidthAttrName, getIntAttr(module.getContext(), bandwidth));
     };
-
-    // Size 192 found manually through experimentation. May be incorrect.
-    // Changed to 500 for Deblur AA compilation
-    addMem(VPUIP::PhysicalMemory::DDR, 500_MB, 0.6, 8);
-
-    if (kind == VPUIP::ArchKind::TBH) {
-        addMem(VPUIP::PhysicalMemory::CSRAM, 24_MB, 0.85, 64);
-    }
-
-    // Run-time will use part of CMX to store DPU workload configuration.
-    const Byte extraSpaceForWorkload = 128_KB;
-
-    if (kind == VPUIP::ArchKind::MTL) {
-        addMem(VPUIP::PhysicalMemory::CMX_NN, Byte(2_MB) - extraSpaceForWorkload, 1.0, 32);
-    } else {
-        addMem(VPUIP::PhysicalMemory::CMX_NN, Byte(1_MB) - extraSpaceForWorkload, 1.0, 32);
-    }
 
     const auto getProcKind = [&](VPUIP::PhysicalProcessor kind) {
         return VPUIP::PhysicalProcessorAttr::get(module.getContext(), kind);
@@ -84,38 +76,62 @@ void vpux::VPUIP::setArch(mlir::ModuleOp module, ArchKind kind, Optional<int> nu
     IERT::ExecutorResourceOp nceCluster;
 
     switch (kind) {
-    case VPUIP::ArchKind::MTL:
-        resources.addExecutor(getDmaKind(DMAEngine::DMA_NN), 2);
+    case VPUIP::ArchKind::KMB: {
+        addMem(VPUIP::PhysicalMemory::DDR, DDR_HEAP_SIZE, 0.6, 8);
+        addMem(VPUIP::PhysicalMemory::CMX_NN, KMB_CMX_SIZE, 1.0, 32);
 
-        nceCluster = resources.addExecutor(getProcKind(PhysicalProcessor::NCE_Cluster),
-                                           getNumOfDPUGroupsVal(MAX_DPU_GROUPS_MTL), true);
-        nceCluster.addSubExecutor(getProcKind(PhysicalProcessor::NCE_PerClusterDPU), 1);
-
-        break;
-
-    default:
-        if (kind == VPUIP::ArchKind::TBH) {
-            resources.addExecutor(getDmaKind(DMAEngine::DMA_NN), 2);
-        } else {
-            resources.addExecutor(getDmaKind(DMAEngine::DMA_NN), 1);
-        }
+        resources.addExecutor(getDmaKind(DMAEngine::DMA_NN), 1);
 
         resources.addExecutor(getProcKind(PhysicalProcessor::SHAVE_UPA), 16);
 
         nceCluster = resources.addExecutor(getProcKind(PhysicalProcessor::NCE_Cluster),
-                                           getNumOfDPUGroupsVal(MAX_DPU_GROUPS_KMB), true);
+                                           getNumOfDPUGroupsVal(KMB_MAX_DPU_GROUPS), true);
         nceCluster.addSubExecutor(getProcKind(PhysicalProcessor::NCE_PerClusterDPU), 5);
+
+        break;
+    }
+    case VPUIP::ArchKind::TBH: {
+        addMem(VPUIP::PhysicalMemory::DDR, DDR_HEAP_SIZE, 0.6, 8);
+        addMem(VPUIP::PhysicalMemory::CSRAM, CSRAM_SIZE, 0.85, 64);
+        addMem(VPUIP::PhysicalMemory::CMX_NN, KMB_CMX_SIZE, 1.0, 32);
+
+        resources.addExecutor(getDmaKind(DMAEngine::DMA_NN), 2);
+
+        resources.addExecutor(getProcKind(PhysicalProcessor::SHAVE_UPA), 16);
+
+        nceCluster = resources.addExecutor(getProcKind(PhysicalProcessor::NCE_Cluster),
+                                           getNumOfDPUGroupsVal(KMB_MAX_DPU_GROUPS), true);
+        nceCluster.addSubExecutor(getProcKind(PhysicalProcessor::NCE_PerClusterDPU), 5);
+
+        break;
+    }
+    case VPUIP::ArchKind::MTL: {
+        addMem(VPUIP::PhysicalMemory::DDR, DDR_HEAP_SIZE, 0.6, 8);
+        addMem(VPUIP::PhysicalMemory::CMX_NN, MTL_CMX_SIZE, 1.0, 32);
+
+        resources.addExecutor(getDmaKind(DMAEngine::DMA_NN), 2);
+
+        nceCluster = resources.addExecutor(getProcKind(PhysicalProcessor::NCE_Cluster),
+                                           getNumOfDPUGroupsVal(MTL_MAX_DPU_GROUPS), true);
+        nceCluster.addSubExecutor(getProcKind(PhysicalProcessor::NCE_PerClusterDPU), 1);
+
+        break;
+    }
+    default:
+        VPUX_THROW("Unsupported architecture '{0}'", kind);
     }
 
     nceCluster->setAttr(processorFrequencyAttrName, getFPAttr(module.getContext(), 700.0));
 }
 
 VPUIP::ArchKind vpux::VPUIP::getArch(mlir::ModuleOp module) {
-    auto attr = module->getAttr(archAttrName);
-    VPUX_THROW_UNLESS(attr != nullptr, "Module doesn't contain '{0}' attribute", archAttrName);
-    VPUX_THROW_UNLESS(attr.isa<VPUIP::ArchKindAttr>(), "Module attribute '{0}' has unsupported value '{1}'",
-                      archAttrName, attr);
-    return attr.cast<VPUIP::ArchKindAttr>().getValue();
+    if (auto attr = module->getAttr(archAttrName)) {
+        VPUX_THROW_UNLESS(attr.isa<VPUIP::ArchKindAttr>(), "Module attribute '{0}' has unsupported value '{1}'",
+                          archAttrName, attr);
+        return attr.cast<VPUIP::ArchKindAttr>().getValue();
+    }
+
+    return VPUIP::ArchKind::UNKNOWN;
 }
 
 double vpux::VPUIP::getMemoryDerateFactor(IERT::MemoryResourceOp mem) {
