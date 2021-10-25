@@ -88,6 +88,8 @@ void ConvertDeclarations2VPUIPPass::safeRunOnFunc() {
     target.addLegalOp<mlir::FuncOp, mlir::ReturnOp>();
     target.addLegalOp<IERT::SubViewOp, IERT::ConcatViewOp>();
     target.addLegalOp<IERT::GenericReshapeOp, IERT::ImplicitReorderOp>();
+
+    target.addLegalOp<mlir::memref::AllocOp>();
     target.addLegalOp<VPUIP::SW_KernelOp>();
     target.markOpRecursivelyLegal<VPUIP::SW_KernelOp>([&](mlir::Operation*) {
         _log.trace("mark op recursively legal");

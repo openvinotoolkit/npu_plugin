@@ -262,6 +262,8 @@ void ConvertLayers2VPUIPPass::safeRunOnFunc() {
     target.addLegalOp<IERT::SubViewOp, IERT::ConcatViewOp>();
     target.addLegalOp<IERT::GenericReshapeOp, IERT::ImplicitReorderOp>();
     target.addLegalOp<IERT::TimestampOp>();
+
+    target.addLegalOp<mlir::memref::AllocOp>();
     target.addLegalOp<VPUIP::SW_KernelOp>();
     target.markOpRecursivelyLegal<VPUIP::SW_KernelOp>([&](mlir::Operation*) {
         _log.trace("mark op recursively legal");
