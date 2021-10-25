@@ -21,11 +21,11 @@ namespace VPUIP {
 
 constexpr char kOperandSegmentSizesAttr[] = "operand_segment_sizes";
 
-VPUIP::BlobWriter::SpecificTask  SW_Kernel::serialize(vpux::VPUIP::BlobWriter& writer) {
+VPUIP::BlobWriter::SpecificTask  SW_KernelOp::serialize(vpux::VPUIP::BlobWriter& writer) {
     return writer.createSW_KernelTask(*this);
 }
 
-void SW_Kernel::build(mlir::OpBuilder& builder , mlir::OperationState& opState,
+void SW_KernelOp::build(mlir::OpBuilder& builder , mlir::OperationState& opState,
                       mlir::ValueRange inputs, mlir::ValueRange results, mlir::SymbolRefAttr kernelFunction,
                       mlir::IntegerAttr tileIndex) {
     // looks this is a result types

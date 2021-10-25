@@ -197,8 +197,8 @@ flatbuffers::Offset<MVCNN::ActKernelRuntime> createActKernelRuntime(VPUIP::BlobW
                                                                     mlir::ModuleOp /*module*/,
                                                                     mlir::FuncOp netFunc,
                                                                     Logger log) {
-    // only SW_kernel operations can generate kernelData, from either built-in functions or from custom
-    auto kernelGenOps = to_small_vector(netFunc.getOps<VPUIP::SW_Kernel>());
+    // only SW_KernelOp operations can generate kernelData, from either built-in functions or from custom
+    auto kernelGenOps = to_small_vector(netFunc.getOps<VPUIP::SW_KernelOp>());
     if (kernelGenOps.empty()) {
         return {};
     }
