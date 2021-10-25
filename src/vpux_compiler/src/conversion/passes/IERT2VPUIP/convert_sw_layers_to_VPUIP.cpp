@@ -275,6 +275,51 @@ protected:
     mlir::ModuleOp _mainModule;
 };
 
+class RewriteConvertMTL final : public mlir::OpRewritePattern<IERT::ConvertOp> {
+public:
+    RewriteConvertMTL(mlir::MLIRContext* ctx, Logger log, mlir::ModuleOp mainModule)
+            : mlir::OpRewritePattern<IERT::ConvertOp>(ctx), _log(log), _mainModule(mainModule) {
+    }
+    mlir::LogicalResult matchAndRewrite(IERT::ConvertOp origOp, mlir::PatternRewriter& rewriter) const final {
+
+        SWLayerRewriter(getContext(),
+                        origOp.getOperation(),
+                        rewriter,
+                        _log,
+                        _mainModule,
+                        {origOp.input()}, {origOp.output()}, {origOp.output_buff()}, {},
+                        "convert_fp16",
+                        "convert_fp16.cpp").rewrite();
+        return mlir::success();
+    }
+protected:
+    Logger _log;
+    mlir::ModuleOp _mainModule;
+};
+
+class RewriteReorderMTL final : public mlir::OpRewritePattern<IERT::ReorderOp> {
+public:
+    RewriteReorderMTL(mlir::MLIRContext* ctx, Logger log, mlir::ModuleOp mainModule)
+            : mlir::OpRewritePattern<IERT::ReorderOp>(ctx), _log(log), _mainModule(mainModule) {
+    }
+    mlir::LogicalResult matchAndRewrite(IERT::ReorderOp origOp, mlir::PatternRewriter& rewriter) const final {
+
+        SWLayerRewriter(getContext(),
+                        origOp.getOperation(),
+                        rewriter,
+                        _log,
+                        _mainModule,
+                        {origOp.input()}, {origOp.output()}, {origOp.output_buff()}, {},
+                        "sigmoid_fp16",
+                        "sigmoid_fp16.cpp").rewrite();
+        return mlir::success();
+    }
+protected:
+    Logger _log;
+    mlir::ModuleOp _mainModule;
+};
+
+
 void ConvertSWLayers2VPUIPPass::safeRunOnFunc() {
     auto& ctx = getContext();
     auto func = getFunction();
@@ -302,6 +347,10 @@ void ConvertSWLayers2VPUIPPass::safeRunOnFunc() {
 
     patterns.insert<RewriteSoftmaxMTL>(&ctx, _log, module);
     patterns.insert<RewriteSigmoidMTL>(&ctx, _log, module);
+
+    patterns.insert<RewriteConvertMTL>(&ctx, _log, module);
+    patterns.insert<RewriteReorderMTL>(&ctx, _log, module);
+
 
     populateWithGenerated(patterns);
 

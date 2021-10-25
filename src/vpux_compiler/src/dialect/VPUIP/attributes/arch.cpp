@@ -86,6 +86,8 @@ void vpux::VPUIP::setArch(mlir::ModuleOp module, ArchKind kind, Optional<int> nu
     switch (kind) {
     case VPUIP::ArchKind::MTL:
         resources.addExecutor(getDmaKind(DMAEngine::DMA_NN), 2);
+        // TODO: rename to ACT_SHAVE in schema
+        resources.addExecutor(getProcKind(PhysicalProcessor::SHAVE_UPA), 4);
 
         nceCluster = resources.addExecutor(getProcKind(PhysicalProcessor::NCE_Cluster),
                                            getNumOfDPUGroupsVal(MAX_DPU_GROUPS_MTL), true);
