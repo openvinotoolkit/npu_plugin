@@ -316,7 +316,7 @@ VPUIP::ELFBlobSerializer::RelocationManager::SymbolInfo VPUIP::ELFBlobSerializer
         symbolInfo.symbolSection = m_elfBlobSerializer.m_networkOutputSymbols;
         symbolInfo.symbol = m_elfBlobSerializer.m_networkOutputSymbols->getSymbols()[location.locationIndex + 1].get();
         break;
-    case VPUIP::MemoryLocation::VPU_DDR_BSS:
+    case VPUIP::MemoryLocation::VPU_DDR_Heap:
         symbolInfo.symbolSection = m_elfBlobSerializer.m_sectionSymbols;
         symbolInfo.symbol = m_elfBlobSerializer.m_sectionSymbolsMapping.at(m_elfBlobSerializer.m_ddrScratch);
         break;
