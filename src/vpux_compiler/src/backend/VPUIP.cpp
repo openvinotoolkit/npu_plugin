@@ -221,12 +221,13 @@ flatbuffers::Offset<MVCNN::ActKernelRuntime> createActKernelRuntime(VPUIP::BlobW
 
     const auto stackBuffers = writer.createVector(stacks);
 
-    llvm::SmallVector<uint8_t, 1U << 16> scratch_buffer(1U << 16); // 64KB scratch buffer
+    llvm::SmallVector<uint8_t, 1024 + (1U << 16)> scratch_buffer(1024 + (1U << 16)); // 64KB scratch buffer + 1024 to align
 
+    const uint32_t non_empty_offset = 1;
     const auto scratchBuffer = writer.createKernelDataRef(
             "scratch_buffer",
             vpux::VPUIP::MemoryLocation::GFEmbeddedKernel,
-            0, scratch_buffer.size(), scratch_buffer);
+            non_empty_offset, scratch_buffer.size(), scratch_buffer);
 
     MVCNN::ActKernelRuntimeBuilder builder(writer);
     builder.add_shaveStacks(stackBuffers);
@@ -550,6 +551,44 @@ flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, mli
 
                 // updating offset pointer
                 table->SetField(MVCNN::KernelDataReference::VT_DATA_OFFSET, (uint32_t)offset, 0u) ;
+
+                // Invocations aligning
+                auto invocations = act_kernel_taks->invocations();
+                for (auto &&invocation: *invocations) {
+                    auto invDataSection = invocation->dataSection();
+                    auto dataToMove = serializedGraphFile->kernel_data()->Get(invDataSection->locale_offset())->data();
+                    auto offset = dataToMove->Data() - detached.data();
+                    //align calculations
+                    auto aligned_offset = llvm::alignTo(offset, 1024);
+                    offset = aligned_offset - offset;
+                    log.trace("move kernel by {0} bytes to be {1}", offset, aligned_offset);
+
+                    memmove(const_cast<uint8_t*>(dataToMove->Data() + offset),
+                            dataToMove->Data(), dataToMove->Length() - 1024);
+
+                    // clear beginning
+                    memset(const_cast<uint8_t*>(dataToMove->Data()), 0, offset);
+
+                    // correcting data offset
+                    auto table = (flatbuffers::Table*)invDataSection;
+                    // updating offset pointer
+                    table->SetField(MVCNN::KernelDataReference::VT_DATA_OFFSET, (uint32_t)offset, 0u) ;
+                }
+
+                // scratchBuffer aligning
+                auto textToMove = serializedGraphFile->kernel_data()->Get(serializedGraphFile->header()->act_kernel_runtime()->codeScratchBuffer()->locale_offset())->data();
+                offset = textToMove->Data() - detached.data();
+                //align calculations
+                aligned_offset = llvm::alignTo(offset, 1024);
+
+                offset = aligned_offset - offset;
+
+                // correcting data offset and size
+                table = (flatbuffers::Table*)(serializedGraphFile->header()->act_kernel_runtime()->codeScratchBuffer());
+
+                // updating offset pointer
+                table->SetField(MVCNN::KernelDataReference::VT_DATA_OFFSET, (uint32_t)offset, 0u) ;
+                table->SetField(MVCNN::KernelDataReference::VT_REFERENCED_DATA_SIZE, (uint32_t)65536, 0u) ;
             }
         }
     }

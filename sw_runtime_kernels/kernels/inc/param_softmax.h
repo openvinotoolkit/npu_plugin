@@ -24,7 +24,7 @@ struct __attribute__((packed)) SoftmaxParams {
     int32_t axis;
 };
 
-inline BaseKernelParams ToBaseKernelParams(SoftmaxParams * softmaxParams) {
+inline BaseKernelParams softmaxParamsToBaseKernelParams(SoftmaxParams * softmaxParams) {
     BaseKernelParams rezult;
     rezult.numInputs = 1;
     rezult.numOutputs = 1;
