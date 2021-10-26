@@ -203,9 +203,9 @@ flatbuffers::Offset<MVCNN::ActKernelRuntime> createActKernelRuntime(VPUIP::BlobW
         return {};
     }
 
+    // TODO: extract num shaves info from IERT::RuntimeResourcesOp, which can be extracted from module
     const long int maxShaves = 4;
 
-    //TODO: cap numshaves by maximum HW number of 4
     const auto stack_size { 1U << 12 }; // 4KB stack
 
     llvm::SmallVector<uint8_t, stack_size> shave_stack_data(stack_size);
