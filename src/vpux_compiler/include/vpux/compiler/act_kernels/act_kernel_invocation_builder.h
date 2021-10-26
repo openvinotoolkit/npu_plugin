@@ -125,9 +125,7 @@ protected:
         memrefData.dimsOrder = inOrder.code();
 
         // strides
-        const auto stridesReqs = StrideReqs::simple(checked_cast<size_t>(shape.getRank()));
-        const auto memStrides = stridesReqs.calcStrides(inOrder, shape);
-        const auto strides = inOrder.toLogicalOrder(memStrides);
+        const auto strides = getStrides(shape);
 
         createPatchPoint<sw_params::MemRefData>(stridesParcher);
         for (auto &&stride : strides) {
