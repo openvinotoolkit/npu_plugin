@@ -311,7 +311,7 @@ void placementOfOps(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
                 {
                     const auto outputShape = opIt->getOutputTensor(0)->getShape();
                     auto bias = dm.getTensor(opIt->get<std::string>("bias"));
-                    if(bias->getDType() != mv::DType("Float16")){
+                    if(!bias->isFloatingPointType()){
                         // hack
                         std::vector<double> outputScale = opIt->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams").getScale();
                         outputScale = extendToK(outputShape[mv::IO_CHANNEL_DIMENSION], outputScale, opIt->getOutputTensor(0)->getName());
