@@ -291,16 +291,16 @@ void PipeLineAcrossParallelBranches(const mv::pass::PassEntry& ,
     {
       if (fptr.get()) {
         fprintf(fptr.get(), "op=%s type=%s time=%lu ", (sched_op->getName()).c_str(),
-            scheduled_op_info.op_type_name(), curr_time);
+            scheduled_op_info.op_type_name(), (unsigned long int)curr_time);
         if (scheduled_op_info.has_active_resource()) {
           size_t rbegin = scheduled_op_info.begin_resource();
           size_t rend = scheduled_op_info.end_resource();
           fprintf(fptr.get(), " resource=[%lu,%lu] size=%lu", rbegin, rend,
-                (rend-rbegin)+1UL);
+                (unsigned long int)(rend-rbegin)+1UL);
         } else {
           fprintf(fptr.get(), " resource=<none> ");
         }
-        fprintf(fptr.get(), " free_space=%lu\n", free_space);
+        fprintf(fptr.get(), " free_space=%lu\n", (unsigned long int)free_space);
       }
     }
 

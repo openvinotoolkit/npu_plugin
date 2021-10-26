@@ -36,7 +36,7 @@ namespace mv
 
             std::unique_ptr<Compressor> codec_ = nullptr;
             MVCNN::GraphFileT graphFile_;
-            std::shared_ptr<std::vector<char>> binaryData_;
+            std::shared_ptr<std::vector<char>> binaryData_ = nullptr;
             static const std::unordered_map<std::string, MVCNN::DType> dTypeMapping_;
             static const std::unordered_map<MVCNN::DType, std::string> reverseDTypeMapping_;
             static const std::unordered_map<std::string, MVCNN::MemoryLocation> memoryLocationMapping_;

@@ -398,6 +398,7 @@ void mv::TensorInterferenceGraph::drawGraph(std::string outputFileName)
 
     ostream.open(outputFileName, std::ios::trunc | std::ios::out);
     if (!ostream.is_open()) {
+        ostream.close();
         throw mv::ArgumentError("drawGraph", "filename", outputFileName, "Unable to open output filename");
     }
 
