@@ -134,4 +134,32 @@ INSTANTIATE_TEST_CASE_P(
         SoftMaxLayerTest::getTestCaseName
 );
 
+
+/* ============= 4D SoftMax / BigTensor ============= */
+
+const std::vector<std::pair<ngraph::PartialShape, std::vector<ngraph::Shape>>> inShape = {
+        {{}, {{1, 64, 363, 363}}},
+};
+
+const std::vector<size_t> axis = {0};
+
+const auto paramsBigTensor = testing::Combine(
+        testing::Values(InferenceEngine::Precision::FP16), // inPrc
+        testing::Values(InferenceEngine::Precision::FP16), // outPrc
+        testing::Values(InferenceEngine::Precision::FP16), // netPrc
+        testing::Values(InferenceEngine::Layout::NCHW), // inL
+        testing::Values(InferenceEngine::Layout::NCHW), // outL
+        testing::ValuesIn(inShape),
+        testing::ValuesIn(axis),
+        testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+        testing::Values(std::map<std::string, std::string>())
+);
+
+INSTANTIATE_TEST_CASE_P(
+        smoke_SoftMax4D_BigTensor,
+        KmbSoftMaxLayerTest,
+        paramsBigTensor,
+        SoftMaxLayerTest::getTestCaseName
+);
+
 }  // namespace
