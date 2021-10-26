@@ -65,7 +65,7 @@ func @Split(%tensor: tensor<2x6x4x2xf32>) -> (tensor<1x6x4x2xf32>, tensor<1x6x4x
 // -----
 
 func @Concat(%arg0: tensor<1x2x3x4xf32>, %arg1: tensor<1x2x3x4xf32>) -> tensor<1x4x3x4xf32> {
-  %0 = IE.Concat(%arg0, %arg1) {axis = 1} : tensor<1x2x3x4xf32>, tensor<1x2x3x4xf32> -> tensor<1x4x3x4xf32>
+  %0 = IE.Concat(%arg0, %arg1) {per_axis = {axis = 1}} : tensor<1x2x3x4xf32>, tensor<1x2x3x4xf32> -> tensor<1x4x3x4xf32>
   return %0 : tensor<1x4x3x4xf32>
 
   // CHECK-NOT:   IE.Concat
@@ -84,7 +84,7 @@ func @Concat(%arg0: tensor<1x2x3x4xf32>, %arg1: tensor<1x2x3x4xf32>) -> tensor<1
 // -----
 
 func @ConcatWithStride(%arg0: tensor<1x2x3x4xf32>, %arg1: tensor<1x2x3x4xf32>) -> tensor<1x4x3x4xf32> {
-  %0 = IE.Concat(%arg0, %arg1) {axis = 1, offset = 1, stride = 2} : tensor<1x2x3x4xf32>, tensor<1x2x3x4xf32> -> tensor<1x4x3x4xf32>
+  %0 = IE.Concat(%arg0, %arg1) {per_axis = {axis = 1, offset = 1, stride = 2}} : tensor<1x2x3x4xf32>, tensor<1x2x3x4xf32> -> tensor<1x4x3x4xf32>
   return %0 : tensor<1x4x3x4xf32>
 
   // CHECK-NOT:   IE.Concat

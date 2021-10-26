@@ -24,4 +24,6 @@ def IntAttr : Attr<CPred<"$_self.isa<mlir::IntegerAttr>()">, "Integer attribute"
     let constBuilderCall = "$_builder.getI64IntegerAttr($0)";
 }
 
+def I64ArrayOfArraysAttr : TypedArrayAttrBase<I64ArrayAttr, "array of 64-bit integer arrays">;
+
 #endif

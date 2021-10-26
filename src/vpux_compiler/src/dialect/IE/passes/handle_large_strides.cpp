@@ -133,7 +133,7 @@ mlir::LogicalResult generalSplitter(mlir::Operation* origOp, mlir::PatternRewrit
 
         if (!wSliced.empty()) {
             hSliced.push_back(wSliced.size() != 1
-                                      ? rewriter.create<IE::ConcatOp>(origOp->getLoc(), wSliced, Dims4D::Act::W.ind())
+                                      ? rewriter.create<IE::ConcatOp>(origOp->getLoc(), wSliced, Dims4D::Act::W)
                                       : wSliced.front());
         }
     }
@@ -142,7 +142,7 @@ mlir::LogicalResult generalSplitter(mlir::Operation* origOp, mlir::PatternRewrit
         if (hSliced.size() == 1) {
             rewriter.replaceOp(origOp, hSliced.front());
         } else {
-            rewriter.replaceOpWithNewOp<IE::ConcatOp>(origOp, hSliced, Dims4D::Act::H.ind());
+            rewriter.replaceOpWithNewOp<IE::ConcatOp>(origOp, hSliced, Dims4D::Act::H);
         }
     } else {
         return mlir::failure();

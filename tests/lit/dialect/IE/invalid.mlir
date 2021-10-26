@@ -150,3 +150,40 @@ func @main(%arg0: tensor<16xf32>) -> tensor<16xf32> {
 func private @extra(%arg0: tensor<16xf32, {order = affine_map<(d0, d1) -> (d1, d0)>}>)
 
 }
+
+// -----
+
+!qElemType0 = type !quant.uniform<u8:f16, 1.0000000000000000E-1>
+!qElemType1 = type !quant.uniform<u8:f16, 2.0000000000000000E-1>
+
+// CHECK-LABEL: @PerTensorQuant
+func @PerTensorQuant(%arg0: tensor<1x2x3x4x!qElemType0>, %arg1: tensor<1x2x3x4x!qElemType1>) -> tensor<1x4x3x4x!qElemType0> {
+    // expected-error@+1 {{Misaligned element types}}
+    %0 = IE.Concat(%arg0, %arg1) { per_axis = {axis = 1} } : tensor<1x2x3x4x!qElemType0>, tensor<1x2x3x4x!qElemType1> -> tensor<1x4x3x4x!qElemType0>
+    return %0 : tensor<1x4x3x4x!qElemType0>
+}
+
+// -----
+
+!qElemType0 = type !quant.uniform<u8:f16:1, {1.0000000000000000E-1, 2.0000000000000000E-1}>
+!qElemType1 = type !quant.uniform<u8:f16:1, {3.0000000000000000E-1, 4.0000000000000000E-1}>
+
+// CHECK-LABEL: @PerAxisQuantOtherAxis
+func @PerAxisQuantOtherAxis(%arg0: tensor<1x2x3x4x!qElemType0>, %arg1: tensor<1x2x3x4x!qElemType1>) -> tensor<1x2x6x4x!qElemType0> {
+    // expected-error@+1 {{Misaligned element types}}
+    %0 = IE.Concat(%arg0, %arg1) { per_axis = {axis = 2} } : tensor<1x2x3x4x!qElemType0>, tensor<1x2x3x4x!qElemType1> -> tensor<1x2x6x4x!qElemType0>
+    return %0 : tensor<1x2x6x4x!qElemType0>
+}
+
+// -----
+
+!qElemType0 = type !quant.uniform<u8:f16, 1.0000000000000000E-1>
+!qElemType1 = type !quant.uniform<u8:f16:1, {3.0000000000000000E-1, 4.0000000000000000E-1}>
+!qElemType2 = type !quant.uniform<u8:f16:1, {1.0000000000000000E-1, 2.0000000000000000E-1, 3.0000000000000000E-1, 4.0000000000000000E-1}>
+
+// CHECK-LABEL: @PerAxisQuantSameAxis
+func @PerAxisQuantSameAxis(%arg0: tensor<1x2x3x4x!qElemType0>, %arg1: tensor<1x2x3x4x!qElemType1>) -> tensor<1x4x3x4x!qElemType2> {
+    // expected-error@+1 {{Misaligned element types}}
+    %0 = IE.Concat(%arg0, %arg1) { per_axis = {axis = 1} } : tensor<1x2x3x4x!qElemType0>, tensor<1x2x3x4x!qElemType1> -> tensor<1x4x3x4x!qElemType2>
+    return %0 : tensor<1x4x3x4x!qElemType2>
+}

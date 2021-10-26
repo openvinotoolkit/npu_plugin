@@ -19,6 +19,8 @@
 
 #include "vpux/utils/core/checked_cast.hpp"
 
+#include <unordered_set>
+
 using namespace vpux;
 
 //
@@ -26,13 +28,47 @@ using namespace vpux;
 //
 
 void vpux::IE::ConcatOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ValueRange inputs,
-                               mlir::IntegerAttr axis) {
-    build(builder, state, inputs, axis, getIntAttr(axis.getContext(), 0), getIntAttr(axis.getContext(), 1));
+                               ConcatAttrs per_axis) {
+    build(builder, state, inputs, per_axis, nullptr);
 }
 
-void vpux::IE::ConcatOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type type,
-                               mlir::ValueRange inputs, mlir::IntegerAttr axis) {
-    build(builder, state, type, inputs, axis, getIntAttr(axis.getContext(), 0), getIntAttr(axis.getContext(), 1));
+void vpux::IE::ConcatOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ValueRange inputs,
+                               mlir::IntegerAttr axis, mlir::IntegerAttr offset, mlir::IntegerAttr stride) {
+    build(builder, state, inputs, ConcatAttrs::get(axis, offset, stride, builder.getContext()));
+}
+
+void vpux::IE::ConcatOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ValueRange inputs,
+                               int64_t axis, int64_t offset, int64_t stride) {
+    build(builder, state, inputs, getIntAttr(builder, axis), offset != 0 ? getIntAttr(builder, offset) : nullptr,
+          stride != 1 ? getIntAttr(builder, stride) : nullptr);
+}
+
+void vpux::IE::ConcatOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ValueRange inputs, Dim axis,
+                               int64_t offset, int64_t stride) {
+    build(builder, state, inputs, axis.ind(), offset, stride);
+}
+
+void vpux::IE::ConcatOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ValueRange inputs,
+                               mlir::ArrayAttr static_offsets) {
+    build(builder, state, inputs, nullptr, static_offsets);
+}
+
+void vpux::IE::ConcatOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ValueRange inputs,
+                               ArrayRef<Shape> static_offsets) {
+    const auto attrArr = to_small_vector(static_offsets | transformed([&](ShapeRef arr) -> mlir::Attribute {
+                                             return getIntArrayAttr(builder, arr);
+                                         }));
+
+    build(builder, state, inputs, builder.getArrayAttr(attrArr));
+}
+
+void vpux::IE::ConcatOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ValueRange inputs,
+                               ArrayRef<ShapeRef> static_offsets) {
+    const auto attrArr = to_small_vector(static_offsets | transformed([&](ShapeRef arr) -> mlir::Attribute {
+                                             return getIntArrayAttr(builder, arr);
+                                         }));
+
+    build(builder, state, inputs, builder.getArrayAttr(attrArr));
 }
 
 //
@@ -45,7 +81,7 @@ Dim normalizeAxis(IE::ConcatOpAdaptor concat) {
     const auto inType = concat.inputs().front().getType().cast<mlir::ShapedType>();
     const auto inRank = inType.getRank();
 
-    auto axisInd = concat.axis().getValue().getSExtValue();
+    auto axisInd = concat.per_axis().axis().getValue().getSExtValue();
 
     // Negative value means counting dimension from the end
     if (axisInd < 0) {
@@ -56,6 +92,90 @@ Dim normalizeAxis(IE::ConcatOpAdaptor concat) {
                       inRank);
 
     return Dim(axisInd);
+}
+
+mlir::FailureOr<Shape> inferOutShapeWithAxis(IE::ConcatOpAdaptor concat, mlir::Location loc) {
+    const auto inType = concat.inputs().front().getType().cast<mlir::RankedTensorType>();
+    const auto axis = normalizeAxis(concat);
+
+    auto outShape = getShape(inType).toValues();
+
+    for (const auto val : concat.inputs().drop_front()) {
+        const auto curShape = getShape(val);
+
+        if (curShape.size() != outShape.size()) {
+            return errorAt(loc, "Concat inputs have mismatched ranks: '{0}' vs '{1}'", curShape.size(),
+                           outShape.size());
+        }
+
+        outShape[axis] += curShape[axis];
+    }
+
+    const auto offset = concat.per_axis().offset() ? concat.per_axis().offset().getValue().getSExtValue() : 0;
+    const auto stride = concat.per_axis().stride() ? concat.per_axis().stride().getValue().getSExtValue() : 1;
+
+    if (offset > outShape[axis] || offset + stride > outShape[axis]) {
+        return errorAt(loc, "Concat offset '{0}' and stride '{1}' are larger than output dimension '{2}'", offset,
+                       stride, outShape[axis]);
+    }
+
+    return outShape;
+}
+
+mlir::FailureOr<Shape> inferOutShapeWithOffsets(IE::ConcatOpAdaptor concat, mlir::Location loc) {
+    if (concat.static_offsets().size() != concat.inputs().size()) {
+        return errorAt(loc, "Concat 'static_offsets' count '{0}' doesn't match inputs count '{1}'",
+                       concat.static_offsets().size(), concat.inputs().size());
+    }
+
+    const auto inType = concat.inputs().front().getType().cast<mlir::RankedTensorType>();
+    const auto allOffsets = concat.static_offsets().getAsRange<mlir::ArrayAttr>();
+
+    Shape outShape(checked_cast<size_t>(inType.getRank()), 0);
+
+    for (const auto p : zip(concat.inputs(), allOffsets)) {
+        const auto curVal = std::get<0>(p);
+        const auto curShape = getShape(curVal);
+
+        if (curShape.size() != outShape.size()) {
+            return errorAt(loc, "Concat inputs have mismatched ranks: '{0}' vs '{1}'", curShape.size(),
+                           outShape.size());
+        }
+
+        const auto curOffsets = Shape(parseIntArrayAttr<int64_t>(std::get<1>(p)));
+
+        if (curOffsets.size() != curShape.size()) {
+            return errorAt(loc, "Concat 'static_offsets' rank doesn't match its input");
+        }
+
+        for (const auto ind : irange(outShape.size())) {
+            const auto d = Dim(ind);
+
+            outShape[d] = std::max(outShape[d], curOffsets[d] + curShape[d]);
+        }
+    }
+
+    // TODO: validate that inputs+static_offsets fully covers the output without intersections
+
+    return outShape;
+}
+
+std::unordered_set<Dim> getConcatAxesFromOffsets(IE::ConcatOpAdaptor concat, ShapeRef outShape) {
+    std::unordered_set<Dim> res;
+
+    for (const auto inVal : concat.inputs()) {
+        const auto curShape = getShape(inVal);
+
+        for (const auto ind : irange(outShape.size())) {
+            const auto d = Dim(ind);
+
+            if (curShape[d] != outShape[d]) {
+                res.insert(d);
+            }
+        }
+    }
+
+    return res;
 }
 
 }  // namespace
@@ -75,6 +195,13 @@ mlir::LogicalResult vpux::IE::ConcatOp::inferReturnTypeComponents(
         return errorAt(loc, "Missing inputs for '{0}'", IE::ConcatOp::getOperationName());
     }
 
+    if (concat.per_axis() == nullptr && concat.static_offsets() == nullptr) {
+        return errorAt(loc, "Missing either 'per_axis' or 'static_offsets' attribute");
+    }
+    if (concat.per_axis() != nullptr && concat.static_offsets() != nullptr) {
+        return errorAt(loc, "Only one attribute ('per_axis' or 'static_offsets') should be provided");
+    }
+
     const auto inType = concat.inputs().front().getType().cast<mlir::RankedTensorType>();
 
     // Check consistent tensor attributes
@@ -92,51 +219,69 @@ mlir::LogicalResult vpux::IE::ConcatOp::inferReturnTypeComponents(
 
     // Infer output shape
 
-    const auto axis = normalizeAxis(concat);
-
-    auto outShape = getShape(inType).toValues();
-
-    for (const auto val : concat.inputs().drop_front()) {
-        const auto curShape = getShape(val);
-        outShape[axis] += curShape[axis];
-    }
-
-    if (concat.offset().getInt() > outShape[axis] ||
-        concat.offset().getInt() + concat.stride().getInt() > outShape[axis]) {
-        return errorAt(loc, "Concat offset '{0}' and stride '{1}' are larger than output dimension '{2}'",
-                       concat.offset(), concat.stride(), outShape[axis]);
+    const auto outShape =
+            concat.per_axis() ? inferOutShapeWithAxis(concat, loc) : inferOutShapeWithOffsets(concat, loc);
+    if (mlir::failed(outShape)) {
+        return mlir::failure();
     }
 
     // Infer output element type
 
     const auto inElemType = inType.getElementType();
 
+    const auto perAxisQType = inElemType.dyn_cast<mlir::quant::UniformQuantizedPerAxisType>();
     SmallVector<mlir::quant::UniformQuantizedPerAxisType> inPerAxisQTypes;
 
-    const auto perAxisQType = inElemType.dyn_cast<mlir::quant::UniformQuantizedPerAxisType>();
     if (perAxisQType != nullptr) {
-        inPerAxisQTypes.push_back(perAxisQType);
+        if (concat.per_axis() != nullptr) {
+            const auto axis = normalizeAxis(concat);
+
+            if (perAxisQType.getQuantizedDimension() == axis.ind()) {
+                inPerAxisQTypes.push_back(perAxisQType);
+            }
+        } else {
+            const auto qDim = Dim(perAxisQType.getQuantizedDimension());
+            const auto concatAxes = getConcatAxesFromOffsets(concat, outShape.getValue());
+
+            if (concatAxes.count(qDim) != 0) {
+                if (concatAxes.size() == 1) {
+                    inPerAxisQTypes.push_back(perAxisQType);
+                } else {
+                    return errorAt(loc, "Concat over multiple axis in case of per-axis quantization is not supported");
+                }
+            }
+        }
     }
 
     for (const auto val : concat.inputs().drop_front()) {
         const auto curType = val.getType().cast<mlir::RankedTensorType>();
         const auto curElemType = curType.getElementType();
 
-        if (perAxisQType != nullptr) {
-            const auto curPerAxisQType = curType.dyn_cast<mlir::quant::UniformQuantizedPerAxisType>();
+        if (inPerAxisQTypes.empty()) {
+            if (curElemType != inElemType) {
+                return errorAt(loc, "Misaligned element types : '{0}' vs '{1}'", curElemType, inElemType);
+            }
+        } else {
+            const auto curPerAxisQType = curElemType.dyn_cast<mlir::quant::UniformQuantizedPerAxisType>();
 
             if (curPerAxisQType == nullptr) {
-                return errorAt(loc, "Misaligned element types for '{0}' inputs", IE::ConcatOp::getOperationName());
+                return errorAt(loc,
+                               "Misaligned element types : not all of them are per-axis quantized : '{0}' vs '{1}'",
+                               curElemType, inElemType);
             }
+
+            if (curPerAxisQType.getQuantizedDimension() != perAxisQType.getQuantizedDimension()) {
+                return errorAt(
+                        loc,
+                        "Misaligned element types : per-axis quantization is done on different axis : '{0}' vs '{1}'",
+                        curPerAxisQType.getQuantizedDimension(), perAxisQType.getQuantizedDimension());
+            }
+
             if (!canBeMerged(curPerAxisQType, perAxisQType)) {
-                return errorAt(loc, "Misaligned element types for '{0}' inputs", IE::ConcatOp::getOperationName());
+                return errorAt(loc, "Misaligned element types : per-axis quantization parameters can't be merged");
             }
 
             inPerAxisQTypes.push_back(curPerAxisQType);
-        } else {
-            if (curElemType != inElemType) {
-                return errorAt(loc, "Misaligned element types for '{0}' inputs", IE::ConcatOp::getOperationName());
-            }
         }
     }
 
@@ -144,6 +289,6 @@ mlir::LogicalResult vpux::IE::ConcatOp::inferReturnTypeComponents(
 
     // Return inferred components
 
-    inferredReturnShapes.emplace_back(outShape.raw(), outElemType, inDesc);
+    inferredReturnShapes.emplace_back(outShape.getValue().raw(), outElemType, inDesc);
     return mlir::success();
 }

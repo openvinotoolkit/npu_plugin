@@ -121,7 +121,7 @@ func @FuseQuantParamsIntoConcat(%arg0: tensor<1x2x3x4xf16>, %arg1: tensor<1x2x3x
     %2 = IE.Quantize(%arg1) {dstElemType = !qElemType} : tensor<1x2x3x4xf16> -> tensor<1x2x3x4x!qElemType>
     %3 = IE.Dequantize(%2) {dstElemType = f16} : tensor<1x2x3x4x!qElemType> -> tensor<1x2x3x4xf16>
 
-    %4 = IE.Concat (%1, %3) {axis = 1} : tensor<1x2x3x4xf16>, tensor<1x2x3x4xf16> -> tensor<1x4x3x4xf16>
+    %4 = IE.Concat (%1, %3) {per_axis = {axis = 1}} : tensor<1x2x3x4xf16>, tensor<1x2x3x4xf16> -> tensor<1x4x3x4xf16>
 
     %5 = IE.Quantize(%4) {dstElemType = !qElemType}: tensor<1x4x3x4xf16> -> tensor<1x4x3x4x!qElemType>
     %6 = IE.Dequantize(%5) {dstElemType = f16} : tensor<1x4x3x4x!qElemType> -> tensor<1x4x3x4xf16>
@@ -130,7 +130,7 @@ func @FuseQuantParamsIntoConcat(%arg0: tensor<1x2x3x4xf16>, %arg1: tensor<1x2x3x
 
     //CHECK: [[VAL0:%.*]] = IE.Quantize(%arg0) {dstElemType = !qElemType} : tensor<1x2x3x4xf16> -> tensor<1x2x3x4x!qElemType>
     //CHECK: [[VAL1:%.*]] = IE.Quantize(%arg1) {dstElemType = !qElemType} : tensor<1x2x3x4xf16> -> tensor<1x2x3x4x!qElemType>
-    //CHECK: [[VAL2:%.*]] = IE.Concat([[VAL0]], [[VAL1]]) {axis = 1 : i64, offset = 0 : i64, stride = 1 : i64} : tensor<1x2x3x4x!qElemType>, tensor<1x2x3x4x!qElemType> -> tensor<1x4x3x4x!qElemType>
+    //CHECK: [[VAL2:%.*]] = IE.Concat([[VAL0]], [[VAL1]]) {per_axis = {axis = 1 : i64}} : tensor<1x2x3x4x!qElemType>, tensor<1x2x3x4x!qElemType> -> tensor<1x4x3x4x!qElemType>
     //CHECK: [[VAL3:%.*]] = IE.Dequantize([[VAL2]]) {dstElemType = f16} : tensor<1x4x3x4x!qElemType> -> tensor<1x4x3x4xf16>
     //CHECK: return [[VAL3]] : tensor<1x4x3x4xf16>
 }
