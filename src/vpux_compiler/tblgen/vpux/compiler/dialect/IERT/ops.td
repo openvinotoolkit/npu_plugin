@@ -2294,7 +2294,6 @@ def IERT_MemPermuteOp :
 }
 
 //
-<<<<<<< HEAD
 // PermuteCastOp
 //
 

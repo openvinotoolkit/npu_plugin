@@ -744,7 +744,8 @@ def RewriteMemPermute :
         Pat<
             (IERT_MemPermuteOp $input, $output, $mem_perm),
             (createMemPermuteUPAOp $input, $output, $mem_perm)
-
+        >;
+        
 //
 // IERT.Reduce[LogicalAnd]Op -> VPUIP.ReduceUPA
 //

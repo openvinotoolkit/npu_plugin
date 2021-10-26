@@ -3001,4 +3001,59 @@ def VPUIP_GatherUPAOp :
     }];
 }
 
+//
+// ReduceOp
+//
+
+def VPUIP_ReduceUPAOp :
+        VPUIP_UPATaskOp<1,"ReduceUPA",
+            [
+                ViewLikeOpInterface,
+                IERT_AnyDimsOrder
+            ]
+        > {
+    let summary = "Reduce UPA SHAVE kernel";
+
+    let arguments = (ins
+        MemRefOf<[F16, SI32]>:$input,
+        MemRefOf<[SI32]>:$axes,
+        MemRefOf<[F16, SI32]>:$output_buff,
+
+        Variadic<VPUIP_Barrier>:$waitBarriers,
+        Variadic<VPUIP_Barrier>:$updateBarriers,
+
+        UnitAttr:$keep_dims,
+        VPUIP_ReduceLayerType:$type,
+
+        OptionalAttr<IntAttr>:$maxShaves,
+        UnitAttr:$isTrailingSWLayer
+    );
+
+    let results = (outs
+        MemRefOf<[F16, SI32]>:$output
+    );
+
+    let builders = [
+        OpBuilder<
+            (ins
+                "mlir::Value":$input,
+                "mlir::Value":$axes,
+                "mlir::Value":$output,
+                "mlir::UnitAttr":$keep_dims,
+                "vpux::VPUIP::ReduceLayerTypeAttr":$type
+            )
+        >
+    ];
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `,` $axes `:` type($axes) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+        `->` type(results)
+    }];
+}
+
+
 #endif

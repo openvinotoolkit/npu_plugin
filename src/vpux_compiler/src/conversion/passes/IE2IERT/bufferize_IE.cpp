@@ -801,7 +801,7 @@ mlir::Operation* createRTLayer(IE::ReduceLogicalAndOp origOp, ArrayRef<mlir::Val
     IERT::ReduceLogicalAndOp::Adaptor newOp(allBufs);
     mlir::Operation* retOp = b.create<IERT::ReduceLogicalAndOp>(origOp.getLoc(), newOp.input(), newOp.axes(),
                                                                 newOp.output_buff(), origOp.keep_dimsAttr());
-    return retOp
+    return retOp;
 }
 
 class LayerRewrite final : public mlir::ConversionPattern {

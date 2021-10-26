@@ -1996,7 +1996,6 @@ def IE_SubtractOp :
 }
 
 //
-<<<<<<< HEAD
 // LSTMSequenceOp
 //
 
