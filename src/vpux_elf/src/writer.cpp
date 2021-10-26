@@ -16,11 +16,18 @@
 #include <fstream>
 #include <unordered_set>
 #include <algorithm>
-
 #include <iostream>
 
 using namespace elf;
 using namespace elf::writer;
+
+namespace {
+
+uint64_t alignOffset(uint64_t offset, uint64_t alignReq) {
+    return ((offset + (alignReq - 1)) / alignReq) * alignReq;
+}
+
+} // namespace
 
 //
 // Writer
@@ -59,13 +66,6 @@ void Writer::write(std::vector<char>& blob) {
     std::vector<elf::ProgramHeader> programHeaders;
     programHeaders.reserve(elfHeader.e_phnum);
 
-    const auto elfHeaderSize = elfHeader.e_ehsize;
-    const auto sectionHeadersSize = elfHeader.e_shnum * elfHeader.e_shentsize;
-    const auto programHeadersSize = elfHeader.e_phnum * elfHeader.e_phentsize;
-    const auto dataOffset = elfHeaderSize + sectionHeadersSize + programHeadersSize;
-
-    std::vector<char> data;
-
     std::vector<Section*> sectionsFromSegments;
     for (const auto& segment : m_segments) {
         for (const auto& section : segment->m_sections) {
@@ -90,9 +90,21 @@ void Writer::write(std::vector<char>& blob) {
         section->setNameOffset(m_sectionHeaderNames->addString(section->getName()));
     }
 
+    elfHeader.e_shoff = alignOffset(elfHeader.e_ehsize, elfHeader.e_shentsize);
+    elfHeader.e_phoff = alignOffset(elfHeader.e_shoff + elfHeader.e_shnum * elfHeader.e_shentsize, elfHeader.e_phentsize);
+    const auto dataOffset = elfHeader.e_phoff + elfHeader.e_phnum * elfHeader.e_phentsize;
+
+    std::vector<char> data;
+
     const auto serializeSection = [&data, &dataOffset, &sectionHeaders](Section* section) {
         const auto sectionData = section->m_data;
         auto sectionHeader = section->m_header;
+
+        const auto curFileOffset = dataOffset + data.size();
+        const auto alignedFileOffset = alignOffset(curFileOffset, section->getFileAlignRequirement());
+        if (curFileOffset != alignedFileOffset) {
+            data.resize(data.size() + (alignedFileOffset - curFileOffset), 0);
+        }
 
         if (!sectionData.empty()) {
             sectionHeader.sh_offset = dataOffset + data.size();
@@ -106,6 +118,7 @@ void Writer::write(std::vector<char>& blob) {
         if (std::find(sectionsFromSegments.begin(), sectionsFromSegments.end(), section.get()) != sectionsFromSegments.end()) {
             continue;
         }
+
         serializeSection(section.get());
     }
 
@@ -132,11 +145,13 @@ void Writer::write(std::vector<char>& blob) {
         programHeaders.push_back(programHeader);
     }
 
-    blob.reserve(elfHeaderSize + sectionHeadersSize + programHeadersSize + data.size());
+    blob.reserve(dataOffset + data.size());
 
-    blob.insert(blob.end(), reinterpret_cast<char*>(&elfHeader), reinterpret_cast<char*>(&elfHeader) + elfHeaderSize);
-    blob.insert(blob.end(), reinterpret_cast<char*>(sectionHeaders.data()), reinterpret_cast<char*>(sectionHeaders.data()) + sectionHeadersSize);
-    blob.insert(blob.end(), reinterpret_cast<char*>(programHeaders.data()), reinterpret_cast<char*>(programHeaders.data()) + programHeadersSize);
+    blob.insert(blob.end(), reinterpret_cast<char*>(&elfHeader), reinterpret_cast<char*>(&elfHeader) + elfHeader.e_ehsize);
+    blob.resize(elfHeader.e_shoff, 0);
+    blob.insert(blob.end(), reinterpret_cast<char*>(sectionHeaders.data()), reinterpret_cast<char*>(sectionHeaders.data()) + elfHeader.e_shnum * elfHeader.e_shentsize);
+    blob.resize(elfHeader.e_phoff, 0);
+    blob.insert(blob.end(), reinterpret_cast<char*>(programHeaders.data()), reinterpret_cast<char*>(programHeaders.data()) + elfHeader.e_phnum * elfHeader.e_phentsize);
     blob.insert(blob.end(), data.data(), data.data() + data.size());
 }
 
@@ -196,9 +211,6 @@ elf::ELFHeader Writer::generateELFHeader() const {
     fileHeader.e_ehsize = sizeof(ELFHeader);
     fileHeader.e_phentsize = sizeof(ProgramHeader);
     fileHeader.e_shentsize = sizeof(SectionHeader);
-
-    fileHeader.e_shoff = fileHeader.e_ehsize;
-    fileHeader.e_phoff = fileHeader.e_shoff + fileHeader.e_shnum * fileHeader.e_shentsize;
 
     return fileHeader;
 }

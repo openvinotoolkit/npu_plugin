@@ -102,6 +102,7 @@ void Symbol::setIndex(size_t index) {
 SymbolSection::SymbolSection(StringSection* namesSection) : m_namesSection(namesSection) {
     m_header.sh_type = SHT_SYMTAB;
     m_header.sh_entsize = sizeof(SymbolEntry);
+    m_fileAlignRequirement = alignof(SymbolEntry);
 
     m_symbols.push_back(std::unique_ptr<Symbol>(new Symbol));
     m_symbols.back()->setIndex(m_symbols.size() - 1);

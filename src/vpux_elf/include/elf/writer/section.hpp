@@ -42,6 +42,9 @@ public:
 
     Elf_Xword getFlags() const;
     void setFlags(Elf_Xword flags);
+    void maskFlags(Elf_Xword flags);
+
+    size_t getFileAlignRequirement() const;
 
     size_t getIndex() const;
     size_t getDataSize() const;
@@ -59,6 +62,7 @@ protected:
 protected:
     std::string m_name;
     size_t m_index = 0;
+    size_t m_fileAlignRequirement = 1;
 
     SectionHeader m_header{};
     std::vector<char> m_data;

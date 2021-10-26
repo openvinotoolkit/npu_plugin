@@ -61,6 +61,14 @@ void Section::setFlags(Elf_Xword flags) {
     m_header.sh_flags = flags;
 }
 
+void Section::maskFlags(Elf_Xword flags) {
+    m_header.sh_flags |= flags;
+}
+
+size_t Section::getFileAlignRequirement() const {
+    return m_fileAlignRequirement;
+}
+
 void Section::finalize() {}
 
 void Section::setIndex(size_t index) {

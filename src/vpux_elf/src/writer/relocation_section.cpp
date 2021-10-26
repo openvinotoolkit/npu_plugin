@@ -59,6 +59,7 @@ const Symbol* Relocation::getSymbol() const {
 RelocationSection::RelocationSection() {
     m_header.sh_type = SHT_RELA;
     m_header.sh_entsize = sizeof(RelocationAEntry);
+    m_fileAlignRequirement = alignof(RelocationAEntry);
 }
 
 const SymbolSection* RelocationSection::getSymbolTable() const {
