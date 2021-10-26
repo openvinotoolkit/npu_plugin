@@ -9,7 +9,8 @@ void sigmoid_fp16(const struct SigmoidParams *lParams) {
     half* p_act_data = (half*)(lParams->input.dataAddr); // 0x1F000000
     half* p_act_out = (half*)(lParams->output.dataAddr); // 0x1F004000
 
-    int32_t *pDims     = (int32_t *)((uint8_t*)(lParams) + lParams->input.dimsAddr);    // 0x1F000000 + dimsAddr
+    // int32_t *pDims     = (int32_t *)((uint8_t*)(lParams) + lParams->input.dimsAddr);    // 0x1F000000 + dimsAddr
+    int32_t *pDims     = (int32_t *)(lParams->input.dimsAddr);
     int64_t *pStrdides = (int64_t *)((uint8_t*)(lParams) + lParams->input.stridesAddr); // 0x1F000000 + stridesAddr
 
     int32_t nElements = 1;
