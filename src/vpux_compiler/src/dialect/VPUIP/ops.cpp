@@ -338,6 +338,7 @@ void redirectOpInterfacesForIERT(mlir::DialectRegistry& registry) {
     registry.addOpInterface<IERT::MVNOp, OpModelForSW>();
     registry.addOpInterface<IERT::LSTMSequenceOp, OpModelForSW>();
     registry.addOpInterface<IERT::MemPermuteOp, OpModelForSW>();
+    registry.addOpInterface<IERT::ReduceLogicalAndOp, OpModelForSW>();
 }
 
 }  // namespace
