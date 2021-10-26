@@ -154,14 +154,15 @@ namespace mv
 
         }
 
-        Attribute() : ptr_(nullptr)
+        Attribute() : ptr_(nullptr), fromJSONFunc_(nullptr)
         {
 
         }
 
         Attribute(Attribute& other) :
         ptr_(other.clone_()),
-        traits_(other.traits_)
+        traits_(other.traits_),
+        fromJSONFunc_(nullptr)
         {
 
         }
@@ -176,14 +177,16 @@ namespace mv
 
         Attribute(const Attribute& other) :
         ptr_(other.clone_()),
-        traits_(other.traits_)
+        traits_(other.traits_),
+        fromJSONFunc_(nullptr)
         {
 
         }
 
         Attribute(const Attribute&& other) :
         ptr_(other.clone_()),
-        traits_(other.traits_)
+        traits_(other.traits_),
+        fromJSONFunc_(nullptr)
         {
 
         }

@@ -1106,7 +1106,7 @@ void computeStreamsForVerticalFusionNode(const std::string& opName, const std::v
         }
         else
         {
-            return nullptr;
+            throw mv::RuntimeError("Streaming", "Number of splits is not greater than 1");
         }
     };
 
@@ -1503,7 +1503,7 @@ void streamingOperationsFcn(const mv::pass::PassEntry& pass,
                         }
                         else
                         {
-                            return nullptr;
+                            throw mv::RuntimeError("Streaming", "Number of splits is not greater than 1");
                         }
                     };
 

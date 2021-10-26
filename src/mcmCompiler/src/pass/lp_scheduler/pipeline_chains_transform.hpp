@@ -81,7 +81,7 @@ class Pipeline_Chains {
           operation_t dpu_op = *dpu_op_itr;
           fprintf(fptr, "%s :  reads=%zu output=%zu",
               (dpu_op->getName()).c_str(),
-              total_read_size_map_[dpu_op], cmx_size(dpu_op));
+              (size_t)total_read_size_map_[dpu_op], cmx_size(dpu_op));
           fprintf(fptr, "\n");
 
           {
