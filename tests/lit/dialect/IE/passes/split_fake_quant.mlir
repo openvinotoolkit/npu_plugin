@@ -30,6 +30,78 @@ func @SingleQuantParams(%arg0: tensor<1x3x30x30xf32>) -> tensor<1x3x30x30xf32> {
 
 // -----
 
+!qElemType0 = type !quant.uniform<u8:f32, 0.078431372549019607:128>
+!qElemType1 = type !quant.uniform<u8:f32, 1.000000e+00>
+
+// CHECK-LABEL: @DifferentQuantParams
+func @DifferentQuantParams(%arg0: tensor<1x3x30x30xf32>) -> tensor<1x3x30x30xf32> {
+    %input_low = const.Declare tensor<1x1x1x1xf32> = #const.Content<dense<-10.0> : tensor<1x1x1x1xf32>>
+    %input_high = const.Declare tensor<1x1x1x1xf32> = #const.Content<dense<10.0> : tensor<1x1x1x1xf32>>
+    %output_low = const.Declare tensor<1x1x1x1xf32> = #const.Content<dense<0.0> : tensor<1x1x1x1xf32>>
+    %output_high = const.Declare tensor<1x1x1x1xf32> = #const.Content<dense<255.0> : tensor<1x1x1x1xf32>>
+
+    %0 = IE.FakeQuantize(%arg0, %input_low, %input_high, %output_low, %output_high)
+        { auto_broadcast = "NUMPY", levels = 256 } :
+        tensor<1x3x30x30xf32>, tensor<1x1x1x1xf32>, tensor<1x1x1x1xf32>, tensor<1x1x1x1xf32>, tensor<1x1x1x1xf32> -> tensor<1x3x30x30xf32>
+
+    return %0 : tensor<1x3x30x30xf32>
+
+    // CHECK:       [[VAL0:%.*]] = IE.Quantize(%arg0)
+    // CHECK-SAME:      {dstElemType = !qElemType0}
+    // CHECK-SAME:      tensor<1x3x30x30xf32> ->
+    // CHECK-SAME:      tensor<1x3x30x30x!qElemType0>
+
+    // CHECK:       [[VAL1:%.*]] = IE.QuantizeCast([[VAL0]])
+    // CHECK-SAME:      {dstElemType = !qElemType1}
+    // CHECK-SAME:      tensor<1x3x30x30x!qElemType0> ->
+    // CHECK-SAME:      tensor<1x3x30x30x!qElemType1>
+
+    // CHECK:       [[VAL2:%.*]] = IE.Dequantize([[VAL1]])
+    // CHECK-SAME:      {dstElemType = f32}
+    // CHECK-SAME:      tensor<1x3x30x30x!qElemType1> ->
+    // CHECK-SAME:      tensor<1x3x30x30xf32>
+
+    // CHECK:       return [[VAL2]]
+}
+
+// -----
+
+!qElemType0 = type !quant.uniform<u8:f32, 0.039215686274509803>
+!qElemType1 = type !quant.uniform<u8:f32, 1.000000e+00>
+
+// CHECK-LABEL: @OneDifferentQuantParam
+func @OneDifferentQuantParam(%arg0: tensor<1x3x30x30xf32>) -> tensor<1x3x30x30xf32> {
+    %input_low = const.Declare tensor<1x1x1x1xf32> = #const.Content<dense<0.0> : tensor<1x1x1x1xf32>>
+    %input_high = const.Declare tensor<1x1x1x1xf32> = #const.Content<dense<10.0> : tensor<1x1x1x1xf32>>
+    %output_low = const.Declare tensor<1x1x1x1xf32> = #const.Content<dense<0.0> : tensor<1x1x1x1xf32>>
+    %output_high = const.Declare tensor<1x1x1x1xf32> = #const.Content<dense<255.0> : tensor<1x1x1x1xf32>>
+
+    %0 = IE.FakeQuantize(%arg0, %input_low, %input_high, %output_low, %output_high)
+        { auto_broadcast = "NUMPY", levels = 256 } :
+        tensor<1x3x30x30xf32>, tensor<1x1x1x1xf32>, tensor<1x1x1x1xf32>, tensor<1x1x1x1xf32>, tensor<1x1x1x1xf32> -> tensor<1x3x30x30xf32>
+
+    return %0 : tensor<1x3x30x30xf32>
+
+    // CHECK:       [[VAL0:%.*]] = IE.Quantize(%arg0)
+    // CHECK-SAME:      {dstElemType = !qElemType0}
+    // CHECK-SAME:      tensor<1x3x30x30xf32> ->
+    // CHECK-SAME:      tensor<1x3x30x30x!qElemType0>
+
+    // CHECK:       [[VAL1:%.*]] = IE.QuantizeCast([[VAL0]])
+    // CHECK-SAME:      {dstElemType = !qElemType1}
+    // CHECK-SAME:      tensor<1x3x30x30x!qElemType0> ->
+    // CHECK-SAME:      tensor<1x3x30x30x!qElemType1>
+
+    // CHECK:       [[VAL2:%.*]] = IE.Dequantize([[VAL1]])
+    // CHECK-SAME:      {dstElemType = f32}
+    // CHECK-SAME:      tensor<1x3x30x30x!qElemType1> ->
+    // CHECK-SAME:      tensor<1x3x30x30xf32>
+
+    // CHECK:       return [[VAL2]]
+}
+
+// -----
+
 !qElemType = type !quant.uniform<i8:f32, 0.078431372549019607>
 
 // CHECK-LABEL: @UseDequantize
