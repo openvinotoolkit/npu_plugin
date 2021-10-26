@@ -50,6 +50,7 @@ std::set<ngraph::helpers::ActivationTypes> supportedTypesMLIR {
     ngraph::helpers::RoundHalfToEven,
     ngraph::helpers::RoundHalfAwayFromZero,
     ngraph::helpers::Sqrt,
+    ngraph::helpers::Log,
 };
 } // namespace
 
