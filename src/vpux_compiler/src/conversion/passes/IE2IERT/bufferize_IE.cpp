@@ -511,6 +511,42 @@ mlir::LogicalResult LSTMSequenceRewrite::matchAndRewrite(IE::LSTMSequenceOp orig
 }
 
 //
+// QuantizeCastRewriter
+//
+
+class QuantizeCastRewriter final : public mlir::OpConversionPattern<IE::QuantizeCastOp> {
+    using OpAdaptor = typename mlir::OpConversionPattern<IE::QuantizeCastOp>::OpAdaptor;
+
+public:
+    QuantizeCastRewriter(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
+            : mlir::OpConversionPattern<IE::QuantizeCastOp>(typeConverter, ctx), _log(log) {
+        this->setDebugName("QuantizeCastRewriter");
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(IE::QuantizeCastOp origOp, OpAdaptor newArgs,
+                                        mlir::ConversionPatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult QuantizeCastRewriter::matchAndRewrite(IE::QuantizeCastOp origOp, OpAdaptor newArgs,
+                                                          mlir::ConversionPatternRewriter& rewriter) const {
+    _log.trace("Found QuantizeCast Operation '{0}' at '{1}'", origOp->getName(), origOp->getLoc());
+
+    const auto outType = origOp.getType();
+
+    auto* typeConverter = getTypeConverter();
+    VPUX_THROW_UNLESS(typeConverter != nullptr, "TypeConverter is not set");
+
+    const auto newOutType = typeConverter->convertType(outType);
+
+    rewriter.replaceOpWithNewOp<IERT::QuantizeCastOp>(origOp, newOutType, newArgs.input());
+    return mlir::success();
+}
+
+//
 // LayerRewrite
 //
 
@@ -1000,6 +1036,7 @@ void BufferizeIEPass::safeRunOnFunc() {
     patterns.add<LSTMCellRewrite>(typeConverter, &ctx, _log);
     patterns.add<LSTMSequenceRewrite>(typeConverter, &ctx, _log);
     patterns.add<PermuteCastRewrite>(typeConverter, &ctx, _log);
+    patterns.add<QuantizeCastRewriter>(typeConverter, &ctx, _log);
     Const::ConstDialect::populateBufferizePatterns(patterns, typeConverter, _log);
 
     auto func = getFunction();

@@ -1067,6 +1067,37 @@ def IERT_DequantizeOp :
 }
 
 //
+// QuantizeCastOp
+//
+
+def IERT_QuantizeCastOp :
+        IERT_Op<
+            "QuantizeCast",
+            [
+                NoSideEffect,
+                DeclareOpInterfaceMethods<ViewLikeOpInterface>
+            ]
+        > {
+    let summary = "InferenceEngine run-time Quantize Cast layer";
+
+    let arguments = (ins
+        MemRefOf<[quant_QuantizedType]>:$input
+    );
+
+    let results = (outs
+        MemRefOf<[quant_QuantizedType]>:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `->` type(results)
+    }];
+
+    let hasFolder = 1;
+}
+
+//
 // PReluOp
 //
 

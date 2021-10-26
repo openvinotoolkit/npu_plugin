@@ -26,44 +26,109 @@ using namespace vpux;
 namespace {
 
 //
-// UseFakeQuant
+// MergeQuantDequant
 //
 
-class UseFakeQuant final : public mlir::OpRewritePattern<IE::DequantizeOp> {
+class MergeQuantDequant final : public mlir::OpRewritePattern<IE::DequantizeOp> {
 public:
-    UseFakeQuant(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<IE::DequantizeOp>(ctx), _log(log) {
+    MergeQuantDequant(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<IE::DequantizeOp>(ctx), _log(log) {
     }
 
 public:
-    mlir::LogicalResult matchAndRewrite(IE::DequantizeOp dCastOp, mlir::PatternRewriter& rewriter) const final;
+    mlir::LogicalResult matchAndRewrite(IE::DequantizeOp dequantizeOp, mlir::PatternRewriter& rewriter) const final;
 
 private:
     Logger _log;
 };
 
-mlir::LogicalResult UseFakeQuant::matchAndRewrite(IE::DequantizeOp dCastOp, mlir::PatternRewriter& rewriter) const {
-    auto qCastOp = dCastOp.input().getDefiningOp<IE::QuantizeOp>();
-
-    if (qCastOp == nullptr) {
+mlir::LogicalResult MergeQuantDequant::matchAndRewrite(IE::DequantizeOp dequantizeOp,
+                                                       mlir::PatternRewriter& rewriter) const {
+    auto quantizeOp = dequantizeOp.input().getDefiningOp<IE::QuantizeOp>();
+    if (quantizeOp == nullptr) {
         return mlir::failure();
     }
 
-    _log.trace("Got QuantizeCast ('{0}') -> DequantizeCast ('{1}') pair", qCastOp.getLoc(), dCastOp.getLoc());
+    _log.trace("Got Quantize ('{0}') -> Dequantize ('{1}') pair", quantizeOp.getLoc(), dequantizeOp.getLoc());
 
-    const auto qType = dCastOp.input().getType().cast<mlir::ShapedType>();
+    const auto quantizeType = dequantizeOp.input().getType().cast<mlir::ShapedType>();
 
     int64_t levels = 0;
     mlir::RankedTensorType attrType;
     mlir::DenseElementsAttr rMinAttr, rMaxAttr;
-    if (mlir::failed(getFakeQuantParams(qType, levels, attrType, rMinAttr, rMaxAttr, dCastOp.getLoc()))) {
+    if (mlir::failed(getFakeQuantParams(quantizeType, levels, attrType, rMinAttr, rMaxAttr, dequantizeOp.getLoc()))) {
         return mlir::failure();
     }
 
-    auto rMinOp = rewriter.create<Const::DeclareOp>(dCastOp.getLoc(), attrType, Const::ContentAttr::get(rMinAttr));
-    auto rMaxOp = rewriter.create<Const::DeclareOp>(dCastOp.getLoc(), attrType, Const::ContentAttr::get(rMaxAttr));
+    auto rMinOp = rewriter.create<Const::DeclareOp>(dequantizeOp.getLoc(), attrType, Const::ContentAttr::get(rMinAttr));
+    auto rMaxOp = rewriter.create<Const::DeclareOp>(dequantizeOp.getLoc(), attrType, Const::ContentAttr::get(rMaxAttr));
 
-    rewriter.replaceOpWithNewOp<IE::FakeQuantizeOp>(dCastOp, qCastOp.input(), rMinOp.output(), rMaxOp.output(),
+    rewriter.replaceOpWithNewOp<IE::FakeQuantizeOp>(dequantizeOp, quantizeOp.input(), rMinOp.output(), rMaxOp.output(),
                                                     rMinOp.output(), rMaxOp.output(), levels,
+                                                    IE::AutoBroadcastType::NUMPY);
+
+    return mlir::success();
+}
+
+//
+// MergeQuantCastDequant
+//
+
+class MergeQuantCastDequant final : public mlir::OpRewritePattern<IE::DequantizeOp> {
+public:
+    MergeQuantCastDequant(mlir::MLIRContext* ctx, Logger log)
+            : mlir::OpRewritePattern<IE::DequantizeOp>(ctx), _log(log) {
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(IE::DequantizeOp dequantizeOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult MergeQuantCastDequant::matchAndRewrite(IE::DequantizeOp dequantizeOp,
+                                                           mlir::PatternRewriter& rewriter) const {
+    auto quantizeCastOp = dequantizeOp.input().getDefiningOp<IE::QuantizeCastOp>();
+    if (quantizeCastOp == nullptr) {
+        return mlir::failure();
+    }
+
+    auto quantizeOp = quantizeCastOp.input().getDefiningOp<IE::QuantizeOp>();
+    if (quantizeOp == nullptr) {
+        return mlir::failure();
+    }
+
+    _log.trace("Got Quantize ('{0}') -> QuantizeCast ('{1}') -> Dequantize ('{2}') ops", quantizeOp.getLoc(),
+               quantizeCastOp.getLoc(), dequantizeOp.getLoc());
+
+    const auto inputQuantizeType = quantizeCastOp.input().getType().cast<mlir::ShapedType>();
+    const auto outputQuantizeCastType = dequantizeOp.input().getType().cast<mlir::ShapedType>();
+
+    int64_t inLevels = 0, outLevels = 0;
+    mlir::RankedTensorType inAttrType, outAttrType;
+    mlir::DenseElementsAttr inMinAttr, inMaxAttr, outMinAttr, outMaxAttr;
+    if (mlir::failed(getFakeQuantParams(inputQuantizeType, inLevels, inAttrType, inMinAttr, inMaxAttr,
+                                        quantizeOp.getLoc())) ||
+        mlir::failed(getFakeQuantParams(outputQuantizeCastType, outLevels, outAttrType, outMinAttr, outMaxAttr,
+                                        quantizeCastOp.getLoc()))) {
+        return mlir::failure();
+    }
+
+    if (inLevels != outLevels) {
+        return mlir::failure();
+    }
+
+    auto inMinOp =
+            rewriter.create<Const::DeclareOp>(dequantizeOp.getLoc(), inAttrType, Const::ContentAttr::get(inMinAttr));
+    auto inMaxOp =
+            rewriter.create<Const::DeclareOp>(dequantizeOp.getLoc(), inAttrType, Const::ContentAttr::get(inMaxAttr));
+    auto outMinOp =
+            rewriter.create<Const::DeclareOp>(dequantizeOp.getLoc(), outAttrType, Const::ContentAttr::get(outMinAttr));
+    auto outMaxOp =
+            rewriter.create<Const::DeclareOp>(dequantizeOp.getLoc(), outAttrType, Const::ContentAttr::get(outMaxAttr));
+
+    rewriter.replaceOpWithNewOp<IE::FakeQuantizeOp>(dequantizeOp, quantizeOp.input(), inMinOp.output(),
+                                                    inMaxOp.output(), outMinOp.output(), outMaxOp.output(), inLevels,
                                                     IE::AutoBroadcastType::NUMPY);
 
     return mlir::success();
@@ -87,7 +152,8 @@ void MergeFakeQuantPass::safeRunOnFunc() {
     auto& ctx = getContext();
 
     mlir::RewritePatternSet patterns(&ctx);
-    patterns.insert<UseFakeQuant>(&ctx, _log);
+    patterns.insert<MergeQuantDequant>(&ctx, _log);
+    patterns.insert<MergeQuantCastDequant>(&ctx, _log);
 
     auto func = getFunction();
     if (mlir::failed(mlir::applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig()))) {

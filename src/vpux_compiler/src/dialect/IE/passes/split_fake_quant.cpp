@@ -59,6 +59,10 @@ mlir::LogicalResult UseQuantDequant::matchAndRewrite(IE::FakeQuantizeOp origOp, 
     _log.trace("[{0}] Got FakeQuantize Operation '{1}'", getDebugName(), origOp->getLoc());
     auto innerLog = _log.nest();
 
+    if (origOp.input().getDefiningOp<Const::DeclareOp>() != nullptr) {
+        return matchFailed(innerLog, rewriter, origOp, "Got constant input");
+    }
+
     auto inLowConst = origOp.input_low().getDefiningOp<Const::DeclareOp>();
     auto inHighConst = origOp.input_high().getDefiningOp<Const::DeclareOp>();
     auto outLowConst = origOp.output_low().getDefiningOp<Const::DeclareOp>();
@@ -68,26 +72,35 @@ mlir::LogicalResult UseQuantDequant::matchAndRewrite(IE::FakeQuantizeOp origOp, 
         return matchFailed(innerLog, rewriter, origOp, "Got non constant parameters");
     }
 
-    if (inLowConst.contentAttr() != outLowConst.contentAttr() ||
-        inHighConst.contentAttr() != outHighConst.contentAttr()) {
-        return matchFailed(innerLog, rewriter, origOp, "Input/output parameters mismatch");
-    }
-
-    innerLog.trace("Try to use quantize/dequantize pair");
+    innerLog.trace("Try to use Quantize/[QuantizeCast]/Dequantize operations");
 
     const auto realType = origOp.input().getType().cast<mlir::ShapedType>();
     const auto realElemType = realType.getElementType().cast<mlir::FloatType>();
 
-    const auto qElemType = getQuantizedType(outLowConst.contentAttr(), outHighConst.contentAttr(), origOp.levels(),
-                                            realElemType, false, origOp.getLoc());
-    if (qElemType == nullptr) {
+    const auto inQuantizeElemType = getQuantizedType(inLowConst.contentAttr(), inHighConst.contentAttr(),
+                                                     origOp.levels(), realElemType, false, origOp.getLoc());
+    if (inQuantizeElemType == nullptr) {
         return mlir::failure();
     }
 
-    innerLog.trace("Use quantized element type '{0}'", qElemType);
+    const auto outQuantizeElemType = getQuantizedType(outLowConst.contentAttr(), outHighConst.contentAttr(),
+                                                      origOp.levels(), realElemType, false, origOp.getLoc());
+    if (outQuantizeElemType == nullptr) {
+        return mlir::failure();
+    }
 
-    auto quantOp = rewriter.create<IE::QuantizeOp>(origOp.getLoc(), origOp.input(), qElemType);
-    rewriter.replaceOpWithNewOp<IE::DequantizeOp>(origOp, quantOp.getResult(), realElemType);
+    innerLog.trace("Insert Quantize op '{0}' -> '{1}'", realElemType, inQuantizeElemType);
+    auto quantizeOp = rewriter.create<IE::QuantizeOp>(origOp.getLoc(), origOp.input(), inQuantizeElemType);
+
+    auto result = quantizeOp.getResult();
+    if (inQuantizeElemType != outQuantizeElemType) {
+        innerLog.trace("Insert QuantizeCast op '{0}' -> '{1}'", inQuantizeElemType, outQuantizeElemType);
+        auto quantizeCastOp = rewriter.create<IE::QuantizeCastOp>(origOp.getLoc(), result, outQuantizeElemType);
+        result = quantizeCastOp.getResult();
+    }
+
+    innerLog.trace("Insert Dequantize op '{0}' -> '{1}'", outQuantizeElemType, realElemType);
+    rewriter.replaceOpWithNewOp<IE::DequantizeOp>(origOp, result, realElemType);
 
     return mlir::success();
 }
@@ -241,6 +254,7 @@ void SplitFakeQuantPass::safeRunOnFunc() {
     target.addIllegalOp<IE::FakeQuantizeOp>();
     target.addLegalOp<Const::DeclareOp>();
     target.addLegalOp<IE::QuantizeOp>();
+    target.addLegalOp<IE::QuantizeCastOp>();
     target.addLegalOp<IE::DequantizeOp>();
 
     mlir::RewritePatternSet patterns(&ctx);
