@@ -728,31 +728,6 @@ void quantizeGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mod
         auto outputDtype = outputTensor->getDType();
         std::cout << quantParam.getScale()[0] << " " << quantParam.getScale()[0] << std::endl;
 
-        auto maxpool = om.averagePool(name + "_new_maxpool", inputTensor, {1, 1}, {1, 1}, {0, 0, 0, 0});
-        maxpool->setQuantParams(mv::QuantizationParams::initial());
-        auto maxpoolOp = om.getSourceOp(maxpool);
-        maxpoolOp->set<unsigned>("opId", opId);
-
-        std::vector<double> biasValue(inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION], 3.0);
-        auto biasConst = om.constant(name + "_bias_const", biasValue, {inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION]}, mv::DType("Float32"), mv::Order("W"));
-        biasConst->setQuantParams(mv::QuantizationParams::initial());
-        auto biasConstOp = om.getSourceOp(biasConst);
-        biasConstOp->set<unsigned>("opId", opId);
-        auto bias = om.bias(name + "_new_bias", maxpool, biasConst);
-        bias->setQuantParams(mv::QuantizationParams::initial());
-        auto biasOp = om.getSourceOp(bias);
-        biasOp->set<unsigned>("opId", opId);
-
-        auto min = om.minimum(name + "_new_minimum", bias, 6);
-        min->setQuantParams(mv::QuantizationParams::initial());
-        auto minOp = om.getSourceOp(min);
-        minOp->set<unsigned>("opId", opId);
-
-        auto max = om.maximum(name + "_new_maximum", min, 0);
-        max->setQuantParams(mv::QuantizationParams::initial());
-        auto maxOp = om.getSourceOp(max);
-        maxOp->set<unsigned>("opId", opId);
-
         // Populate identity weights
         const int64_t weightsValue_i = 1;
         auto K = inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION];
@@ -768,7 +743,7 @@ void quantizeGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mod
         weights_i->setQuantParams(mv::QuantizationParams({0},{1.0 / 6},{0},{255.0 / 6}));
 
         // Insert identity Conv
-        auto identityConv = om.conv(name + "_scale_conv", max, weights_i, {1,1}, {0, 0, 0, 0}, 1);
+        auto identityConv = om.conv(name + "_scale_conv", inputTensor, weights_i, {1,1}, {0, 0, 0, 0}, 1);
         identityConv->setQuantParams(mv::QuantizationParams::initial());
         auto identityConvOp = om.getSourceOp(identityConv);
 
@@ -776,7 +751,27 @@ void quantizeGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mod
         identityConvOp->set<unsigned>("opId", opId);
         weightsOp_i->set<unsigned>("opId", opId);
 
-        auto eltwiseMul = om.eltwise(name + "_new_eltwise", {inputTensor, identityConv}, "Multiply");
+        std::vector<double> biasValue(inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION], 0.5);
+        auto biasConst = om.constant(name + "_bias_const", biasValue, {inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION]}, mv::DType("Float32"), mv::Order("W"));
+        biasConst->setQuantParams(mv::QuantizationParams::initial());
+        auto biasConstOp = om.getSourceOp(biasConst);
+        biasConstOp->set<unsigned>("opId", opId);
+        auto bias = om.bias(name + "_new_bias", identityConv, biasConst);
+        bias->setQuantParams(mv::QuantizationParams::initial());
+        auto biasOp = om.getSourceOp(bias);
+        biasOp->set<unsigned>("opId", opId);
+
+        auto min = om.minimum(name + "_new_minimum", bias, 1);
+        min->setQuantParams(mv::QuantizationParams::initial());
+        auto minOp = om.getSourceOp(min);
+        minOp->set<unsigned>("opId", opId);
+
+        auto max = om.maximum(name + "_new_maximum", min, 0);
+        max->setQuantParams(mv::QuantizationParams::initial());
+        auto maxOp = om.getSourceOp(max);
+        maxOp->set<unsigned>("opId", opId);
+
+        auto eltwiseMul = om.eltwise(name + "_new_eltwise", {inputTensor, max}, "Multiply");
         eltwiseMul->setQuantParams(outQuantParam);
         eltwiseMul->setDType(outputDtype);
         auto eltwiseMulOp = om.getSourceOp(eltwiseMul);
