@@ -34,6 +34,7 @@
 #include <flatbuffers/flatbuffers.h>
 
 #include <unordered_map>
+#include <llvm/ADT/MapVector.h>
 
 namespace vpux {
 namespace VPUIP {
@@ -90,68 +91,9 @@ public:
                                       ArrayRef<uint8_t> content = None);
     KernelDataRef createKernelDataRef(const KernelDataDesc& desc, MemoryLocation locale);
 
-    // TODO: refactor not using string name as act-kernels definition
-    template <class Key, class Value>
-    class MapVectorEx {
-        std::unordered_map<Key, size_t> ref;
-        llvm::SmallVector<Value> data;
-    public:
-        class iterator {
-            typename std::unordered_map<Key, size_t> :: iterator _it;
-            std::reference_wrapper<llvm::SmallVector<Value>> _refData;
-        public:
-            iterator(llvm::SmallVector<Value> &data,
-                     typename std::unordered_map<Key, size_t> :: iterator it)
-                    : _it(it)
-                    , _refData(data) {}
-            Value & operator * () {
-                return _refData.get()[_it->second];
-            }
-            Value * operator -> () {
-                return &_refData.get()[_it->second];
-            }
-            bool operator == (const iterator & that) const {
-                return _it == that._it;
-            }
-            bool operator != (const iterator & that) const {
-                return _it != that._it;
-            }
-            iterator & operator ++ () const {
-                _it++;
-                return *this;
-            }
-        };
-        typename MapVectorEx :: iterator find(StringRef name) {
-            return MapVectorEx :: iterator(data, ref.find(name.data()));
-        }
-        const Value & operator [] (StringRef name) const {
-            return data[ref[name.data()]];
-        }
-        Value & operator [] (StringRef name) {
-            auto it = find(name.data());
-            if (it != this->end()) {
-                return *it;
-            }
-            ref[name.data()] = data.size();
-            data.push_back({});
-            return data[data.size() - 1];
-        }
-        typename MapVectorEx :: iterator end() {
-            return MapVectorEx :: iterator(data, ref.end());
-        }
-        typename MapVectorEx :: iterator begin() {
-            return MapVectorEx :: iterator(data, ref.begin());
-        }
-        size_t localeIndex(StringRef name) const {
-            auto x = ref.find(name.data());
-            return x->second;
-        }
-        const llvm::SmallVector<Value> & linearOrder() const {
-            return data;
-        }
-    };
-    using ActShavesKernelDataMap = MapVectorEx<std::string, KernelDataDesc>;
-    const llvm::SmallVector<KernelDataDesc> & getKernelData() const;
+    using ActShavesKernelDataMap = llvm::MapVector<std::string, KernelDataDesc, std::unordered_map<std::string, size_t>>;
+
+    const ActShavesKernelDataMap & getKernelData() const;
 
 public:
     TensorReference createTensor(StringRef name, mlir::ShapedType type, MemoryLocation locale,

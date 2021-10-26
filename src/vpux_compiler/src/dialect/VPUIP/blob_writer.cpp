@@ -88,15 +88,15 @@ VPUIP::BlobWriter::Task vpux::VPUIP::BlobWriter::createTask(mlir::Operation* op)
 ActKernelDesc vpux::VPUIP::BlobWriter::createKernelData(const CompilationUnitDesc &unitDesc) {
 
     auto dataName = std::string(unitDesc.name) + ".data";
-    auto itext  = _actKernelsData.find(unitDesc.name);
+    auto itext  = _actKernelsData.find(unitDesc.name.str());
     auto idata = _actKernelsData.find(dataName);
 
     if (idata != _actKernelsData.end() && itext != _actKernelsData.end()) {
-        return {*itext, *idata};
+        return {itext->second, idata->second};
     }
 
     if (itext != _actKernelsData.end()) {
-        return {*itext, {}};
+        return {itext->second, {}};
     }
 
     movitools::MoviCompileParams params = {
@@ -119,20 +119,20 @@ ActKernelDesc vpux::VPUIP::BlobWriter::createKernelData(const CompilationUnitDes
 
     auto newDesc =  compileKernelForACTShave(unitDesc, params, _impl);
     _log.trace("store following kernels names: {0}\n", unitDesc.name);
-    _actKernelsData[unitDesc.name] = newDesc.text;
+    _actKernelsData[unitDesc.name.str()] = newDesc.text;
 
     if (newDesc.data.size != 0) {
         _log.trace("store following kernels names: {0}\n", dataName);
-        _actKernelsData[StringRef(dataName)] = newDesc.data;
+        _actKernelsData[dataName] = newDesc.data;
 
-        return {_actKernelsData[unitDesc.name], _actKernelsData[StringRef(dataName)]};
+        return {_actKernelsData[unitDesc.name.str()], _actKernelsData[dataName]};
     }
 
-    return {_actKernelsData[unitDesc.name], {}};
+    return {_actKernelsData[unitDesc.name.str()], {}};
 }
 
-const llvm::SmallVector<KernelDataDesc>& vpux::VPUIP::BlobWriter::getKernelData() const {
-    return _actKernelsData.linearOrder();
+const vpux::VPUIP::BlobWriter::ActShavesKernelDataMap& vpux::VPUIP::BlobWriter::getKernelData() const {
+    return _actKernelsData;
 }
 
 vpux::VPUIP::BlobWriter::KernelDataRef vpux::VPUIP::BlobWriter::createKernelDataRef(const KernelDataDesc& desc, MemoryLocation locale) {
@@ -145,11 +145,11 @@ vpux::VPUIP::BlobWriter::KernelDataRef vpux::VPUIP::BlobWriter::createKernelData
     uint64_t dataOffset, uint64_t dataSize,
     ArrayRef<uint8_t> content) {
 
-    auto kernelMapEntry = _actKernelsData.find(name);
+    auto kernelMapEntry = _actKernelsData.find(name.str());
     if (kernelMapEntry == _actKernelsData.end()) {
         // there is no kernelData for this name available - for now this will generate new kernelData entry using given pData
         _log.trace("store following kernels names: {0}\n", name.data());
-        _actKernelsData[name] = {name.data(), buildKernelData(_impl, content), content.size()};
+        _actKernelsData[name.str()] = {name.data(), buildKernelData(_impl, content), content.size()};
     }
     auto strName = _impl.CreateString(name.data());
     const auto serializedLocale = createMemoryLocation(locale);
@@ -158,7 +158,10 @@ vpux::VPUIP::BlobWriter::KernelDataRef vpux::VPUIP::BlobWriter::createKernelData
 
     kernelData.add_referenced_data_size(dataSize);
     kernelData.add_locale(serializedLocale);
-    kernelData.add_locale_offset(_actKernelsData.localeIndex(name));
+    auto mappedLocaleIterator = _actKernelsData.find(name.str());
+    auto mappedLocaleIndex = std::distance(_actKernelsData.begin(), mappedLocaleIterator);
+
+    kernelData.add_locale_offset(vpux::checked_cast<uint32_t>(mappedLocaleIndex));
     kernelData.add_data_offset(dataOffset);
     kernelData.add_name(strName);
 
