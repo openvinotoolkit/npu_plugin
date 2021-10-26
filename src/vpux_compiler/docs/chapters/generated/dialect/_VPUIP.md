@@ -1979,8 +1979,7 @@ Syntax:
 
 ```
 operation ::= `VPUIP.SW.Kernel.run` attr-dict
-              `(` operands
-              `)` `:` type(operands)
+              `(` operands `)` `:` type(operands)
 ```
 
 
