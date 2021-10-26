@@ -686,6 +686,66 @@ void reduceConversionsPatterns(mv::ComputationModel& model)
     }
 }
 
+void addClamp(mv::ComputationModel& model){
+    mv::OpModel om(model);
+    mv::DataModel dm(model);
+
+    auto quantizeOps = om.getOps("FakeQuantize");
+    for(auto& quantizeOp : quantizeOps){
+        if(quantizeOp->getName() != "g_net/enc3_2_2_1/Conv2D/fq_input_0" &&
+            quantizeOp->getName() != "g_net/enc2_3_2_1/Conv2D/fq_input_0" &&
+            quantizeOp->getName() != "g_net/dec2_2_2/Conv2D/fq_input_0" &&
+            quantizeOp->getName() != "g_net/enc3_4_2/Conv2D/fq_input_0" &&
+            quantizeOp->getName() != "g_net/enc2_3_2_2/Conv2D/fq_input_0" &&
+            quantizeOp->getName() != "g_net/enc3_2_2_2/Conv2D/fq_input_0" &&
+            quantizeOp->getName() != "g_net/enc3_3_2_2/Conv2D/fq_input_0" &&
+            quantizeOp->getName() != "g_net/dec2_2_2_2/Conv2D/fq_input_0" &&
+            // quantizeOp->getName() != "g_net/add_1/fq_input_1_scale_aligned" &&
+            // quantizeOp->getName() != "g_net/add_1/fq_input_0" &&
+            quantizeOp->getName() != "g_net/ResizeBilinear/fq_input_0" &&
+            quantizeOp->getName() != "g_net/add_6/fq_input_0" &&
+            quantizeOp->getName() != "g_net/ResizeBilinear_1/fq_input_0")
+            continue;
+        
+        // add clamp Operation
+        auto name = quantizeOp->getName();
+        auto consumerOps = mv::findSinkLayers(dm, quantizeOp->getOutputTensor(0));
+
+        auto min_input = quantizeOp->getOutputTensor(0);
+        auto min = om.minimum(name + "_new_minimum", min_input, quantizeOp->getInputTensor(2)->getDoubleData()[0]);
+        // std::cout<<"######: "<<quantizeOp->getName()<<std::endl;
+        // std::cout<<"******: "<<quantizeOp->getInputTensor(2)->getDoubleData()[0]<<std::endl;
+        min->setQuantParams(mv::QuantizationParams::initial());
+        auto minOp = om.getSourceOp(min);
+        minOp->set<unsigned>("opId", quantizeOp->get<unsigned>("opId"));
+
+        auto max = om.maximum(name + "_new_maximum", min, quantizeOp->getInputTensor(3)->getDoubleData()[0]);
+        // std::cout<<"******: "<<quantizeOp->getInputTensor(3)->getDoubleData()[0]<<std::endl;
+        max->setQuantParams(mv::QuantizationParams::initial());
+        auto maxOp = om.getSourceOp(max);
+        maxOp->set<unsigned>("opId", minOp->get<unsigned>("opId"));
+
+        for(auto& consumerOp: consumerOps){
+            std::size_t i = 0;
+            for (; i < consumerOp->inputSlots(); ++i){
+                if (consumerOp->getInputTensor(i)->getName() == min_input->getName())
+                    break;
+            }
+            auto inputFlow = consumerOp.leftmostInput();
+            while (inputFlow != om.flowEnd()){
+                if (inputFlow->getTensor()->getName() == min_input->getName())
+                    break;
+                ++inputFlow;
+            }
+            om.undefineFlow(inputFlow);
+            consumerOp->setInputTensor(max, i, false);
+            om.defineFlow(max, consumerOp, i);
+        }
+
+        
+    }
+}
+
 void quantizeGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS);
@@ -720,6 +780,9 @@ void quantizeGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mod
 
     quantizeConst(model);
     quantizeBias(model);
+
+    // replace quantize-dequantize opertation with clamp Op ( min-max )
+    addClamp(model);
 
     removeFQ(pass, model);
 
