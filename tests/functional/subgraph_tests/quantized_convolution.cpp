@@ -25,7 +25,7 @@ namespace {
 
 class KmbQuantizedConvSubGraphTest :
         public LayerTestsUtils::KmbLayerTestsCommon,
-        public testing::WithParamInterface<LayerTestsUtils::TargetDevice> {
+        public testing::WithParamInterface<std::tuple<std::vector<float>, LayerTestsUtils::TargetDevice>> {
     void SetUp() override {
         const InferenceEngine::SizeVector inputShape{1, 3, 62, 62};
         const InferenceEngine::SizeVector weightsShape{48, 3, 3, 3};
@@ -35,10 +35,13 @@ class KmbQuantizedConvSubGraphTest :
                 ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
         const size_t dataLevels = 256;
-        const std::vector<float> dataLow = {0.0f};
-        const std::vector<float> dataHigh = {255.0f};
+        const auto dataFQRanges = std::get<0>(GetParam());
+        const std::vector<float> dataInLow   = {dataFQRanges.at(0)};
+        const std::vector<float> dataInHigh  = {dataFQRanges.at(1)};
+        const std::vector<float> dataOutLow  = {dataFQRanges.at(2)};
+        const std::vector<float> dataOutHigh = {dataFQRanges.at(3)};
         const auto dataFq = ngraph::builder::makeFakeQuantize(paramOuts[0], ngraph::element::f32, dataLevels, {},
-                                                              dataLow, dataHigh, dataLow, dataHigh);
+                                                              dataInLow, dataInHigh, dataOutLow, dataOutHigh);
 
         const auto weightsU8 =
                 ngraph::builder::makeConstant<uint8_t>(ngraph::element::u8, weightsShape, {}, true, 254, 0);
@@ -79,9 +82,21 @@ class KmbQuantizedConvSubGraphTest :
         const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(outFq)};
         function = std::make_shared<ngraph::Function>(results, params, "KmbQuantizedConv");
 
-        targetDevice = GetParam();
+        targetDevice = std::get<1>(GetParam());
         threshold = 0.1f;
     }
+
+public:
+    static std::string getTestCaseName(testing::TestParamInfo<std::tuple<std::vector<float>, LayerTestsUtils::TargetDevice>> obj) {
+        std::vector<float> fqRanges;
+        std::string targetDevice;
+        std::tie(fqRanges, targetDevice) = obj.param;
+
+        std::ostringstream result;
+        result << "FQ={" << fqRanges.at(0) << ", " << fqRanges.at(1) << ", " << fqRanges.at(2) << ", " << fqRanges.at(3) << "}_";
+        result << "targetDevice=" << targetDevice;
+        return result.str();
+}
 };
 
 TEST_P(KmbQuantizedConvSubGraphTest, CompareWithRefs_MLIR_SW) {
@@ -96,7 +111,15 @@ TEST_P(KmbQuantizedConvSubGraphTest, CompareWithRefs_MLIR_HW) {
     Run();
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke, KmbQuantizedConvSubGraphTest,
-                        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
+std::vector<std::vector<float>> fqRanges = {
+        {0.0f, 255.0f, 0.0f, 255.0f},
+        {0.0f, 255.0f, -1.0f, 1.0f},
+};
 
+INSTANTIATE_TEST_CASE_P(smoke, KmbQuantizedConvSubGraphTest,
+                        ::testing::Combine(
+                                ::testing::ValuesIn(fqRanges),
+                                ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)
+                                ),
+                        KmbQuantizedConvSubGraphTest::getTestCaseName);
 }  // namespace

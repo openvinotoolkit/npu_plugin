@@ -261,6 +261,7 @@ void ConvertLayers2VPUIPPass::safeRunOnFunc() {
     target.addLegalOp<Const::DeclareOp, IERT::StaticAllocOp>();
     target.addLegalOp<IERT::SubViewOp, IERT::ConcatViewOp>();
     target.addLegalOp<IERT::GenericReshapeOp, IERT::PermuteCastOp>();
+    target.addLegalOp<IERT::QuantizeCastOp>();
     target.addLegalOp<IERT::TimestampOp>();
 
     mlir::RewritePatternSet patterns(&ctx);
