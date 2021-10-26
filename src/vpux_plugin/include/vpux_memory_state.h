@@ -19,7 +19,7 @@ public:
     }
 
     void SetState(const InferenceEngine::Blob::Ptr& newState) override;
-    
+
     // TODO: replace with "GetState"
     void WriteToState(InferenceEngine::Blob::Ptr& dstState);
     void Reset() override;
