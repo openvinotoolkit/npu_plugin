@@ -402,7 +402,7 @@ SmallVector<VPUIP::BlobWriter::KernelData> serializeKernelData(VPUIP::BlobWriter
                                                                mlir::TimingScope& , Logger ) {
     SmallVector<VPUIP::BlobWriter::KernelData> vec;
     for (auto && e : writer.getKernelData()) {
-        vec.push_back(e.data);
+        vec.push_back(e.second.data);
     }
     return vec;
 }
