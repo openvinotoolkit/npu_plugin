@@ -44,6 +44,7 @@ constexpr Elf_Word SHT_HIUSER   = 0xffffffff;
 constexpr Elf_Word SHF_WRITE     = 0x1;
 constexpr Elf_Word SHF_ALLOC     = 0x2;
 constexpr Elf_Word SHF_EXECINSTR = 0x4;
+constexpr Elf_Word SHF_INFO_LINK = 0x40;
 constexpr Elf_Word SHF_MASKPROC  = 0xf0000000;
 
 //! Special section indexes

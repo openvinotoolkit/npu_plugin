@@ -80,6 +80,14 @@ void VPUIP::ELFBlobSerializer::setDMATasks0(llvm::ArrayRef<std::pair<DmaWrapper,
             relocationSection->setSectionToPatch(m_dmaTasks0);
             relocationSection->setSymbolTable(symTab);
             symbolTableToRelocation[symTab] = relocationSection;
+
+            if (tensorPatchingInfo.location.memLocation == MemoryLocation::ProgrammableInput) {
+                relocationSection->maskFlags(VPU_SHF_JIT);
+                relocationSection->maskFlags(VPU_SHF_USERINPUT);
+            } else if (tensorPatchingInfo.location.memLocation == MemoryLocation::ProgrammableOutput) {
+                relocationSection->maskFlags(VPU_SHF_JIT);
+                relocationSection->maskFlags(VPU_SHF_USEROUTPUT);
+            }
         }
 
         auto relocationSection = symbolTableToRelocation.at(symTab);

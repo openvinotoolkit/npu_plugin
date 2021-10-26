@@ -75,6 +75,7 @@ const Section* RelocationSection::getSectionToPatch() const {
 
 void RelocationSection::setSectionToPatch(const Section* sectionToPatch) {
     m_sectionToPatch = sectionToPatch;
+    maskFlags(SHF_INFO_LINK);
 }
 
 Relocation* RelocationSection::addRelocationEntry() {

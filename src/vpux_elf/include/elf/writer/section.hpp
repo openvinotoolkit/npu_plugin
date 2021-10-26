@@ -42,6 +42,7 @@ public:
 
     Elf_Xword getFlags() const;
     void setFlags(Elf_Xword flags);
+    void maskFlags(Elf_Xword flags);
 
     size_t getIndex() const;
     size_t getDataSize() const;

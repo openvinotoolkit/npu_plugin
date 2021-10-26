@@ -61,6 +61,10 @@ void Section::setFlags(Elf_Xword flags) {
     m_header.sh_flags = flags;
 }
 
+void Section::maskFlags(Elf_Xword flags) {
+    m_header.sh_flags |= flags;
+}
+
 void Section::finalize() {}
 
 void Section::setIndex(size_t index) {

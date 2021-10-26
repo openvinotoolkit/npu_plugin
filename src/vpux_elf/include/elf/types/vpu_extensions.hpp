@@ -39,8 +39,9 @@ constexpr uint8_t VPU_STT_OUTPUT = STT_LOOS + 2;
 // Relocation flags
 //
 
-const Elf_Xword VPU_SHF_JIT = SHF_MASKPROC;
-
+const Elf_Xword VPU_SHF_JIT = 0x10000000;
+const Elf_Xword VPU_SHF_USERINPUT = 0x20000000;
+const Elf_Xword VPU_SHF_USEROUTPUT = 0x40000000;
 //
 // Section types
 //
