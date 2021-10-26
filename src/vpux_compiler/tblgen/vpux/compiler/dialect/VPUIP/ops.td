@@ -2726,14 +2726,10 @@ def VPUIP_SW_Kernel_run
         Variadic<AnyType>:$args
     );
 
-
     let assemblyFormat = [{
         attr-dict
-        `(` operands
-        `)` `:` type(operands)
+        `(` operands `)` `:` type(operands)
     }];
-
-//    let results = (outs Variadic<AnyMemRef>:$results);
 }
 
 //
