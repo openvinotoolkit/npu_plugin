@@ -43,6 +43,7 @@ std::unique_ptr<mlir::Pass> createOptimizeReordersPass(Logger log = Logger::glob
 // This pipeline includes various adaptation passes to adjust the IR for VPU target.
 //
 
+void buildAdjustPrecisionPipeline(mlir::OpPassManager& pm, Logger log = Logger::global());
 void buildAdjustForVPUPipeline(mlir::OpPassManager& pm, Logger log = Logger::global());
 
 std::unique_ptr<mlir::Pass> createConvertTile2PerAxisTilePass(Logger log = Logger::global());
