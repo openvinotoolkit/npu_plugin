@@ -1047,6 +1047,29 @@ def IE_DequantizeOp :
 }
 
 //
+// QuantizeCastOp
+//
+
+def IE_QuantizeCastOp :
+        IE_LayerOp<
+            "QuantizeCast"
+        > {
+    let summary = "InferenceEngine Quantize Cast layer";
+
+    let arguments = (ins
+        RankedTensorOf<[quant_QuantizedType]>:$input,
+
+        TypeAttr:$dstElemType
+    );
+
+    let results = (outs
+        RankedTensorOf<[quant_QuantizedType]>:$output
+    );
+
+    let hasFolder = 1;
+}
+
+//
 // MatMul
 //
 

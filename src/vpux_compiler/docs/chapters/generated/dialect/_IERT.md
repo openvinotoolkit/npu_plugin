@@ -1648,6 +1648,32 @@ operation ::= `IERT.Proposal` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float or 32-bit float values
 
+### `IERT.QuantizeCast` (vpux::IERT::QuantizeCastOp)
+
+InferenceEngine run-time Quantize Cast layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.QuantizeCast` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of QuantizedType values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of QuantizedType values
+
 ### `IERT.Quantize` (vpux::IERT::QuantizeOp)
 
 InferenceEngine run-time Quantize layer
