@@ -58,7 +58,7 @@ int64_t getWindowSize(int64_t kernelW, int64_t strideW, mlir::Type elemType) {
     // by iterating through the MPE_NUM values (2, 4, 8, 16)
 
     auto actualType = tryGetQuantizedStorageType(elemType);
-    VPUX_THROW_UNLESS(actualType.isInteger(8) || actualType.isF16(), "Supported only U8/I8 and FP16 types {0}",
+    VPUX_THROW_UNLESS(actualType.isInteger(CHAR_BIT) || actualType.isF16(), "Supported only U8/I8 and FP16 types {0}",
                       actualType);
 
     // Only MPE0, MPE4, MPE8 and MPE12 support FP16 data format

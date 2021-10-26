@@ -23,10 +23,20 @@ namespace {
 //      (quantize)
 //
 
+using QuantizedConvTestParams = std::tuple<
+        InferenceEngine::Precision, //inPrc
+        InferenceEngine::Precision, //outPrc
+        std::vector<float>, // fqRanges
+        LayerTestsUtils::TargetDevice>;
+
 class KmbQuantizedConvSubGraphTest :
         public LayerTestsUtils::KmbLayerTestsCommon,
-        public testing::WithParamInterface<std::tuple<std::vector<float>, LayerTestsUtils::TargetDevice>> {
+        public testing::WithParamInterface<QuantizedConvTestParams> {
     void SetUp() override {
+        std::vector<float> dataFQRanges;
+        std::tie(inPrc, outPrc, dataFQRanges, targetDevice) = GetParam();
+        threshold = 0.1f;
+
         const InferenceEngine::SizeVector inputShape{1, 3, 62, 62};
         const InferenceEngine::SizeVector weightsShape{48, 3, 3, 3};
 
@@ -35,7 +45,6 @@ class KmbQuantizedConvSubGraphTest :
                 ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
         const size_t dataLevels = 256;
-        const auto dataFQRanges = std::get<0>(GetParam());
         const std::vector<float> dataInLow   = {dataFQRanges.at(0)};
         const std::vector<float> dataInHigh  = {dataFQRanges.at(1)};
         const std::vector<float> dataOutLow  = {dataFQRanges.at(2)};
@@ -81,9 +90,6 @@ class KmbQuantizedConvSubGraphTest :
 
         const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(outFq)};
         function = std::make_shared<ngraph::Function>(results, params, "KmbQuantizedConv");
-
-        targetDevice = std::get<1>(GetParam());
-        threshold = 0.1f;
     }
 
 public:
@@ -113,13 +119,22 @@ TEST_P(KmbQuantizedConvSubGraphTest, CompareWithRefs_MLIR_HW) {
 
 std::vector<std::vector<float>> fqRanges = {
         {0.0f, 255.0f, 0.0f, 255.0f},
+        {0.0f, 244.0f, 0.0f, 244.0f},
         {0.0f, 255.0f, -1.0f, 1.0f},
+        {0.0f, 244.0f, -1.0f, 1.0f},
 };
 
-INSTANTIATE_TEST_CASE_P(smoke, KmbQuantizedConvSubGraphTest,
-                        ::testing::Combine(
-                                ::testing::ValuesIn(fqRanges),
-                                ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)
-                                ),
-                        KmbQuantizedConvSubGraphTest::getTestCaseName);
+const std::vector<InferenceEngine::Precision> netPrecisions = {
+        InferenceEngine::Precision::U8,
+        InferenceEngine::Precision::FP16
+};
+
+const auto basicCases = ::testing::Combine(
+        ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(InferenceEngine::Precision::FP32),
+        ::testing::ValuesIn(fqRanges),
+        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
+
+INSTANTIATE_TEST_SUITE_P(smoke, KmbQuantizedConvSubGraphTest, basicCases);
+
 }  // namespace

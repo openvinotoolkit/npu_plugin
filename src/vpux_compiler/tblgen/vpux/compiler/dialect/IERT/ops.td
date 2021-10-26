@@ -1120,7 +1120,7 @@ def IERT_QuantizeCastOp :
     let summary = "InferenceEngine run-time Quantize Cast layer";
 
     let arguments = (ins
-        MemRefOf<[quant_QuantizedType]>:$input
+        MemRefOf<[SI8, UI8, quant_QuantizedType]>:$input
     );
 
     let results = (outs

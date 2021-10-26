@@ -1673,7 +1673,7 @@ operation ::= `IE.QuantizeCast` `(` operands `)` attr-dict `:` type(operands) `-
 
 | Operand | Description |
 | :-----: | ----------- |
-`input` | ranked tensor of QuantizedType values
+`input` | ranked tensor of 8-bit signed integer or 8-bit unsigned integer or QuantizedType values
 
 #### Results:
 

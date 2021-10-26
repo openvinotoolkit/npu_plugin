@@ -72,6 +72,9 @@ The pass is a part of `buildHardwareModePipeline` pipeline.
 
 This pass processes operations, which can be compile as a DPU tasks and
     expands channels number to number divisible by 16 in case they doesn't satisfy hardware requirements
+### `-fuse-convert-with-quantize`: Fuse Convert with Quantize into QuantCast operation
+Pass detects pattern Convert(i8/ui8 -> FP16) -> Quantize(FP16 -> !quant.uniform<...>)
+and fuses it into single QuantCast(i8/ui8 -> !quant.uniform<...>) operation.
 ### `-fuse-post-ops`: Fuse activation functions with tasks that support post-processing
 The pass is a part of `AdjustForVPU` pipeline.
 

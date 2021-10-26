@@ -1722,7 +1722,7 @@ operation ::= `IERT.QuantizeCast` attr-dict
 
 | Operand | Description |
 | :-----: | ----------- |
-`input` | memref of QuantizedType values
+`input` | memref of 8-bit signed integer or 8-bit unsigned integer or QuantizedType values
 
 #### Results:
 
