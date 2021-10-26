@@ -2739,7 +2739,8 @@ def VPUIP_SW_Kernel_run
 def VPUIP_SW_Kernel :
         VPUIP_TaskOp<1, "SW.Kernel",
             [
-                ViewLikeOpInterface
+                ViewLikeOpInterface,
+                IsolatedFromAbove
             ]
             # GraphRegionNoTerminator.traits
         > {
