@@ -1111,6 +1111,30 @@ operation ::= `IE.LeakyRelu` `(` operands `)` attr-dict `:` type(operands) `->` 
 | :----: | ----------- |
 `output` | ranked tensor of 16-bit float or 32-bit float values
 
+### `IE.Log` (vpux::IE::LogOp)
+
+InferenceEngine Log layer
+
+
+Syntax:
+
+```
+operation ::= `IE.Log` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
 ### `IE.MVN` (vpux::IE::MVNOp)
 
 InferenceEngine MVN layer

@@ -343,6 +343,21 @@ def RewriteSqrt :
         >;
 
 //
+// IERT.Log -> VPUIP.LogUPA
+//
+
+def createLogUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::LogUPAOp>($_loc, $0, $1)
+        }]>;
+
+def RewriteLog :
+        Pat<
+            (IERT_LogOp $input, $output),
+            (createLogUPAOp $input, $output)
+        >;
+
+//
 // IERT.Exp -> VPUIP.ExpUPA
 //
 

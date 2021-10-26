@@ -234,6 +234,7 @@ void redirectOpInterfacesForIE(mlir::DialectRegistry& registry) {
     registry.addOpInterface<IE::RoundOp, OpModelForSW<VPUIP::RoundUPAOp>>();
     registry.addOpInterface<IE::TanhOp, OpModelForSW<VPUIP::TanhUPAOp>>();
     registry.addOpInterface<IE::SqrtOp, OpModelForSW<VPUIP::SqrtUPAOp>>();
+    registry.addOpInterface<IE::LogOp, OpModelForSW<VPUIP::LogUPAOp>>();
     registry.addOpInterface<IE::FakeQuantizeOp, OpModelForSW<VPUIP::FakeQuantizeUPAOp>>();
     registry.addOpInterface<IE::GatherOp, OpModelForSW<VPUIP::GatherUPAOp>>();
     registry.addOpInterface<IE::QuantizeOp, OpModelForSW<VPUIP::QuantCastUPAOp>>();
@@ -303,6 +304,7 @@ void redirectOpInterfacesForIERT(mlir::DialectRegistry& registry) {
     registry.addOpInterface<IERT::RoundOp, OpModelForSW>();
     registry.addOpInterface<IERT::TanhOp, OpModelForSW>();
     registry.addOpInterface<IERT::SqrtOp, OpModelForSW>();
+    registry.addOpInterface<IERT::LogOp, OpModelForSW>();
     registry.addOpInterface<IERT::QuantizeOp, OpModelForSW>();
     registry.addOpInterface<IERT::DequantizeOp, OpModelForSW>();
     registry.addOpInterface<IERT::FakeQuantizeOp, OpModelForSW>();
