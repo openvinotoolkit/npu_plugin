@@ -173,7 +173,7 @@ vpux::VPUIP::BlobWriter::KernelDataRef vpux::VPUIP::BlobWriter::createInvocation
     auto swKernelTask = mlir::dyn_cast<VPUIP::SW_Kernel>(op);
     VPUX_THROW_UNLESS(swKernelTask != nullptr, "Operation '{0}' is not a SW_Kernel Task", op->getName());
 
-    vpux::InvocationBuilder invocationBuilder;
+    vpux::InvocationBuilder invocationBuilder(_log);
 
     for (auto && kernelRun : swKernelTask.body().getOps<VPUIP::SW_Kernel_run>()) {
 
@@ -186,10 +186,10 @@ vpux::VPUIP::BlobWriter::KernelDataRef vpux::VPUIP::BlobWriter::createInvocation
                 auto id = blockArg.getArgNumber();
                 if (id < insSize) {
                     // TODO: check type and shape - should correspond to ins (id)
-                    invocationBuilder.addArg(swKernelTask->getOpOperand(id));
+                    invocationBuilder.addArg(swKernelTask->getOpOperand(id).get());
                 } else if (id < (insSize + outsSize)) {
                     // TODO: check type and shape - should correspond to outputs(id - insSize)
-                    invocationBuilder.addArg(swKernelTask->getOpOperand(id));
+                    invocationBuilder.addArg(swKernelTask->getOpOperand(id).get());
                 } else {
                     // looks unknown block args
                     VPUX_THROW("Unknown blocking argument for {1} of index: {0}", id, swKernelTask);

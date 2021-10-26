@@ -26,6 +26,8 @@ class InvocationBuilder {
     llvm::SmallVector<char,  128> _storage;         // keeps basic elements
     llvm::SmallVector<char , 128> _arrayStorage;    // keeps arrays elements
 
+    Logger _log;
+
     // keeps offset to patchable field within _storage structure that need to be
     // updated after _storage and _arrayStorage gets concatenated
     struct PatchPoint {
@@ -40,16 +42,18 @@ class InvocationBuilder {
 
 public:
 
-    void addArg(mlir::Value & operands) {
-        // TODO: add checks for type
+    InvocationBuilder(Logger log) : _log(log){}
+
+    void addArg(mlir::Value operand) {
         // TODO: add support for non int constants
-        auto intValue = operands.getDefiningOp()->getAttrs().begin()->second.dyn_cast_or_null<mlir::IntegerAttr>().getInt();
-
-        storeSimple(_storage, intValue);
-    }
-
-    void addArg(const mlir::OpOperand &arg) {
-        storeAsMemref(arg.get());
+        if (operand.getType().isa<mlir::IntegerType>()) {
+            auto intValue = operand.getDefiningOp()->getAttrs().begin()->second.dyn_cast_or_null<mlir::IntegerAttr>().getInt();
+            storeSimple(_storage, intValue);
+        } else if(operand.getType().isa<mlir::MemRefType>()){
+            storeAsMemref(operand);
+        } else {
+            _log.warning("Act Shave Invocation: cannot store arg of type {0}", operand.getType());
+        }
     }
 
     llvm::SmallVector<uint8_t> store() const {
@@ -87,6 +91,13 @@ protected:
 
     // memref storage - works for OpOperand and OpResult
     void storeAsMemref(const mlir::Value & value) {
+        auto tensor = value.getDefiningOp<VPUIP::DeclareTensorOp>();
+
+        if (tensor == nullptr) {
+            _log.trace("ACT shave: Cannot create invocation for {0}", value);
+            return;
+        }
+
         auto dimsPatcher = [] (sw_params::MemRefData &memrefData, uint32_t updateTo) {
             memrefData.dimsAddr = updateTo;
         };
@@ -122,8 +133,6 @@ protected:
         for (auto &&stride : strides) {
             storeSimple(_arrayStorage, stride);
         }
-
-        auto tensor = value.getDefiningOp<VPUIP::DeclareTensorOp>();
 
         // data addr
         memrefData.dataAddr = mvds::nce2p7::ACT_KERNEL_CMX_WINDOW + getAddress(tensor);
