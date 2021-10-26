@@ -1,4 +1,4 @@
-// RUN: vpux-opt --split-input-file --convert-softmax-to-sw-kernel-VPUIP %s | FileCheck %s
+// RUN: vpux-opt --split-input-file --convert-sw-layers-to-VPUIP %s | FileCheck %s
 
 module @Test attributes {VPUIP.arch = "MTL", VPUIP.compilationMode = "ReferenceHW"} {
 

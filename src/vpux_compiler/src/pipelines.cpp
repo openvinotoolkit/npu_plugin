@@ -175,6 +175,9 @@ void vpux::buildHardwareModePipeline(mlir::OpPassManager& pm, bool enableProfili
     pm.addPass(createConvertToNCEOpsPass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
 
+    // Partially lower IERT->VPUIP (Act shave tasks only)
+    pm.addPass(createConvertSWLayers2VPUIPPass(log));
+
     // IERT Dialect level (cont.)
     pm.addPass(IERT::createOptimizeCopiesPass(log));
     pm.addPass(IERT::createCopyOpHoistingPass(log));
