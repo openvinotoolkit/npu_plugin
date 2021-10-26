@@ -42,7 +42,6 @@ void vpux::buildLowerIE2IERTPipeline(mlir::OpPassManager& pm, Logger log) {
 void vpux::buildLowerIERT2VPUIPPipeline(mlir::OpPassManager& pm, Logger log) {
     const auto grc = getDefaultGreedyRewriteConfig();
 
-    pm.addPass(createConvertSWLayers2VPUIPPass(log));
     pm.addPass(createConvertLayers2VPUIPPass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
     pm.addPass(createConvertDeclarations2VPUIPPass(log));

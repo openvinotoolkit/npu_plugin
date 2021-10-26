@@ -305,10 +305,8 @@ void ConvertLayers2VPUIPPass::safeRunOnFunc() {
     target.addLegalOp<mlir::memref::AllocOp>();
     target.addLegalOp<VPUIP::SW_KernelOp>();
     target.markOpRecursivelyLegal<VPUIP::SW_KernelOp>([&](mlir::Operation*) {
-        _log.trace("mark op recursively legal");
         return true;
     });
-
 
     mlir::RewritePatternSet patterns(&ctx);
     patterns.insert<CTCGreedyDecoderSeqLenRewrite>(&ctx, _log);
