@@ -329,6 +329,71 @@ mlir::LogicalResult FuseWithConcat::matchAndRewrite(IE::QuantizeOp quantizeOp, m
 }
 
 //
+// FuseWithSplit
+//
+
+//
+//       [input]
+//          |
+//     (dequantize)
+//          |
+//       (split)
+//          |
+//       [output]
+//          |
+//      (quantize)
+//
+
+class FuseWithSplit final : public mlir::OpRewritePattern<IE::SplitOp> {
+public:
+    FuseWithSplit(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<IE::SplitOp>(ctx), _log(log) {
+        setDebugName("FuseWithSplit");
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(IE::SplitOp origOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult FuseWithSplit::matchAndRewrite(IE::SplitOp splitOp, mlir::PatternRewriter& rewriter) const {
+    auto dequantizeOp = splitOp.input().getDefiningOp<IE::DequantizeOp>();
+    if (dequantizeOp == nullptr) {
+        return mlir::failure();
+    }
+
+    SmallVector<mlir::Type> newSplitOutputsType;
+    newSplitOutputsType.reserve(splitOp.outputs().size());
+
+    SmallVector<IE::QuantizeOp> oldSplitOutputs;
+    oldSplitOutputs.reserve(splitOp.outputs().size());
+
+    for (auto outVal : splitOp.outputs()) {
+        auto quantizeAfterSplitOp = outVal.hasOneUse() ? mlir::dyn_cast<IE::QuantizeOp>(*outVal.user_begin()) : nullptr;
+        if (quantizeAfterSplitOp == nullptr) {
+            return mlir::failure();
+        }
+
+        newSplitOutputsType.push_back(quantizeAfterSplitOp.getType());
+        oldSplitOutputs.push_back(quantizeAfterSplitOp);
+    }
+
+    ArrayRef<mlir::Type> typesArray(newSplitOutputsType);
+
+    auto newSplitOp = rewriter.create<IE::SplitOp>(splitOp.getLoc(), mlir::TypeRange(typesArray), dequantizeOp.input(),
+                                                   splitOp.axis(), splitOp.num_splits(), splitOp.axis_valueAttr());
+
+    for (auto ind : irange(oldSplitOutputs.size())) {
+        auto oldResReorderOp = oldSplitOutputs[ind];
+        auto newResVal = newSplitOp->getResult(checked_cast<uint32_t>(ind));
+        rewriter.replaceOp(oldResReorderOp, newResVal);
+    }
+
+    return mlir::success();
+}
+
+//
 // FuseQuantizedOpsPass
 //
 
@@ -351,6 +416,7 @@ void FuseQuantizedOpsPass::safeRunOnFunc() {
     patterns.add<FuseWithSlice>(&ctx, _log);
     patterns.add<FuseWithMaxPool>(&ctx, _log);
     patterns.add<FuseWithConcat>(&ctx, _log);
+    patterns.add<FuseWithSplit>(&ctx, _log);
 
     auto func = getFunction();
     if (mlir::failed(applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig()))) {

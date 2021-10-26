@@ -134,3 +134,29 @@ func @FuseQuantParamsIntoConcat(%arg0: tensor<1x2x3x4xf16>, %arg1: tensor<1x2x3x
     //CHECK: [[VAL3:%.*]] = IE.Dequantize([[VAL2]]) {dstElemType = f16} : tensor<1x4x3x4x!qElemType> -> tensor<1x4x3x4xf16>
     //CHECK: return [[VAL3]] : tensor<1x4x3x4xf16>
 }
+
+// -----
+
+!qElemType = type !quant.uniform<u8:f16, 1.1534313725490195:128>
+
+// CHECK-LABEL: @FuseQuantParamsIntoSplit
+func @FuseQuantParamsIntoSplit(%arg0: tensor<1x2x3x4xf16>) -> (tensor<1x1x3x4xf16>, tensor<1x1x3x4xf16>) {
+    %0 = IE.Quantize(%arg0) {dstElemType = !qElemType} : tensor<1x2x3x4xf16> -> tensor<1x2x3x4x!qElemType>
+    %1 = IE.Dequantize(%0) {dstElemType = f16} : tensor<1x2x3x4x!qElemType> -> tensor<1x2x3x4xf16>
+
+    %2:2 = IE.Split(%1) {num_splits = 2, axis_value = 1} : tensor<1x2x3x4xf16> -> tensor<1x1x3x4xf16>, tensor<1x1x3x4xf16>
+
+    %3 = IE.Quantize(%2#0) {dstElemType = !qElemType}: tensor<1x1x3x4xf16> -> tensor<1x1x3x4x!qElemType>
+    %4 = IE.Dequantize(%3) {dstElemType = f16} : tensor<1x1x3x4x!qElemType> -> tensor<1x1x3x4xf16>
+
+    %5 = IE.Quantize(%2#1) {dstElemType = !qElemType}: tensor<1x1x3x4xf16> -> tensor<1x1x3x4x!qElemType>
+    %6 = IE.Dequantize(%5) {dstElemType = f16} : tensor<1x1x3x4x!qElemType> -> tensor<1x1x3x4xf16>
+
+    return %4, %6 : tensor<1x1x3x4xf16>, tensor<1x1x3x4xf16>
+
+    //CHECK: [[VAL0:%.*]] = IE.Quantize(%arg0) {dstElemType = !qElemType} : tensor<1x2x3x4xf16> -> tensor<1x2x3x4x!qElemType>
+    //CHECK: [[VAL1:%.*]]:2 = IE.Split([[VAL0]]) {axis_value = 1 : i64, num_splits = 2 : i64} : tensor<1x2x3x4x!qElemType> -> tensor<1x1x3x4x!qElemType>, tensor<1x1x3x4x!qElemType>
+    //CHECK: [[VAL2:%.*]] = IE.Dequantize([[VAL1]]#0) {dstElemType = f16} : tensor<1x1x3x4x!qElemType> -> tensor<1x1x3x4xf16>
+    //CHECK: [[VAL3:%.*]] = IE.Dequantize([[VAL1]]#1) {dstElemType = f16} : tensor<1x1x3x4x!qElemType> -> tensor<1x1x3x4xf16>
+    //CHECK: return [[VAL2]], [[VAL3]] : tensor<1x1x3x4xf16>, tensor<1x1x3x4xf16>
+}
