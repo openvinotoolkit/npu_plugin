@@ -127,7 +127,7 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1
 
 // CHECK:   net_output: [
 // CHECK:     {
-// CHECK:       name: "ACT-shave",
+// CHECK:       name: "sigmoid",
 // CHECK:       dimensions: [
 // CHECK:         1,
 // CHECK:         1,
@@ -149,7 +149,7 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1
 // CHECK:     }
 // CHECK:   ],
 
-// CHECK:   task_count: 3,
+// CHECK:   task_count: 5,
 
 // CHECK:   options: [
 // CHECK:   ],
@@ -162,34 +162,152 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1
 // CHECK:         1000
 // CHECK:       ],
 // CHECK:       strides: [
-// CHECK:         4.0,
-// CHECK:         4000.0,
-// CHECK:         4.0
+// CHECK:         2.0,
+// CHECK:         2000.0,
+// CHECK:         2.0
 // CHECK:       ],
 // CHECK:       data: {
 // CHECK:         data_index: 0
 // CHECK:       },
 // CHECK:       locale: "ProgrammableInput",
-// CHECK:       data_dtype: "FP32"
+// CHECK:       data_dtype: "FP16"
 // CHECK:     }
 // CHECK:   ],
 
 // CHECK:   out_tensor_desc: [
 // CHECK:     {
-// CHECK:       name: "softmax",
+// CHECK:       name: "sigmoid",
 // CHECK:       dimensions: [
 // CHECK:         1,
 // CHECK:         1000
 // CHECK:       ],
 // CHECK:       strides: [
-// CHECK:         4.0,
-// CHECK:         4000.0,
-// CHECK:         4.0
+// CHECK:         2.0,
+// CHECK:         2000.0,
+// CHECK:         2.0
 // CHECK:       ],
 // CHECK:       data: {
 // CHECK:         data_index: 0
 // CHECK:       },
 // CHECK:       locale: "ProgrammableOutput",
-// CHECK:       data_dtype: "FP32"
+// CHECK:       data_dtype: "FP16"
 // CHECK:     }
 // CHECK:   ]
+
+
+// CHECK:    device: "MTL",
+// CHECK:    act_kernel_runtime: {
+// CHECK:        shaveStacks: [
+// CHECK:          {
+// CHECK:            name: "actSHAVE0_stack",
+// CHECK:            locale: "GFEmbeddedKernel",
+// CHECK:            referenced_data_size: 4096
+// CHECK:          },
+// CHECK:          {
+// CHECK:            name: "actSHAVE1_stack",
+// CHECK:            locale: "GFEmbeddedKernel",
+// CHECK:            locale_offset: 1,
+// CHECK:            referenced_data_size: 4096
+// CHECK:          },
+// CHECK:          {
+// CHECK:            name: "actSHAVE2_stack",
+// CHECK:            locale: "GFEmbeddedKernel",
+// CHECK:            locale_offset: 2,
+// CHECK:            referenced_data_size: 4096
+// CHECK:          },
+// CHECK:          {
+// CHECK:            name: "actSHAVE3_stack",
+// CHECK:            locale: "GFEmbeddedKernel",
+// CHECK:            locale_offset: 3,
+// CHECK:            referenced_data_size: 4096
+// CHECK:          }
+// CHECK:        ],
+// CHECK:        codeScratchBuffer: {
+// CHECK:          name: "scratch_buffer",
+// CHECK:          locale: "GFEmbeddedKernel",
+// CHECK:          locale_offset: 4,
+// CHECK:          data_offset: 808,
+// CHECK:          referenced_data_size: 65536
+// CHECK:        }
+// CHECK:     }
+
+// CHECK:   task_lists: [
+// CHECK:      {
+// CHECK:        content: [
+// CHECK:          {
+// CHECK:            name: "",
+// CHECK:            nodeID: 3,
+// CHECK:            associated_barriers: {
+// CHECK:              wait_barriers: [
+// CHECK:                0
+// CHECK:              ],
+// CHECK:              update_barriers: [
+// CHECK:                1
+// CHECK:              ],
+// CHECK:              virtual_wait_barriers: [
+// CHECK:                0
+// CHECK:              ],
+// CHECK:              virtual_update_barriers: [
+// CHECK:                1
+// CHECK:              ]
+// CHECK:            },
+// CHECK:            task_type: "ActKernelTask",
+// CHECK:            task: {
+// CHECK:              kernel: {
+// CHECK:                kernelText: {
+// CHECK:                  name: "builtin_sigmoid",
+// CHECK:                  locale: "GFEmbeddedKernel",
+// CHECK:                  locale_offset: 5,
+// CHECK:                  data_offset: 268,
+// CHECK:                  referenced_data_size: 624
+// CHECK:                }
+// CHECK:              },
+// CHECK:              invocations: [
+// CHECK:                {
+// CHECK:                  associatedBarriers: {
+// CHECK:                    wait_barriers: [
+// CHECK:                      0
+// CHECK:                    ],
+// CHECK:                    update_barriers: [
+// CHECK:                      1
+// CHECK:                    ]
+// CHECK:                  },
+// CHECK:                  dataSection: {
+// CHECK:                    name: "builtin_sigmoid.data",
+// CHECK:                    locale: "GFEmbeddedKernel",
+// CHECK:                    locale_offset: 6,
+// CHECK:                    data_offset: 292,
+// CHECK:                    referenced_data_size: 1024
+// CHECK:                  },
+// CHECK:                  invocationArgs: {
+// CHECK:                    name: "VPUIP.SW.Kernel",
+// CHECK:                    locale: "GFEmbeddedKernel",
+// CHECK:                    locale_offset: 7,
+// CHECK:                    referenced_data_size: 176
+// CHECK:                  }
+// CHECK:                }
+// CHECK:              ]
+// CHECK:            }
+// CHECK:          }
+// CHECK:        ]
+// CHECK:      },
+
+
+// CHECK:   kernel_data: [
+// CHECK:      {
+// CHECK:        length: 4096,
+// CHECK:      },
+// CHECK:      {
+// CHECK:        length: 4096,
+// CHECK:      },
+// CHECK:      {
+// CHECK:        length: 4096,
+// CHECK:      },
+// CHECK:      {
+// CHECK:        length: 4096,
+// CHECK:      },
+// CHECK:      {
+// CHECK:        length: 66560,
+// CHECK:      },
+// CHECK:      ]
+
