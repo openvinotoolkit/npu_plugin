@@ -94,6 +94,7 @@ void preCustomLayerCpp(const LayerParams *params, ShaveResourceManager *resMgr) 
                 reinterpret_cast<sw_params::MemRefData*>(reinterpret_cast<uint8_t*>(cmxParams->argBuffer) + kernelArgs->outputsOffset);
         for (unsigned int i = 0; i < kernelArgs->numInputs; i++) {
             ins[i].dataAddr = reinterpret_cast<uint32_t>(resMgr->getAbsoluteInputAddr(i));
+            printf("LEON: 0x%X\n", ins[i].dataAddr);
             inputLocations[i] = ins[i].location;
             if (cfg->moveToCmxIfNecessary &&
                     (ins[i].location == sw_params::Location::NN_CMX || ins[i].location == sw_params::Location::UPA_CMX)) {

@@ -43,6 +43,7 @@ extern uint32_t SLK_mvConv_ref;
 extern uint32_t SLK_mvSWConvolution;
 
 extern uint32_t SLK_mvSoftMax;
+extern uint32_t SLK_mvSigmoid;
 extern uint32_t SLK_fullyConnected;
 extern uint32_t SLK_mvReverseSequence;
 extern uint32_t SLK_nnPermute;
@@ -139,6 +140,8 @@ extern uint32_t SLK_preEdsl;
 extern uint32_t SLK_preResample;
 extern uint32_t SLK_preSoftmax;
 extern uint32_t SLK_singleShaveSoftmax;
+extern uint32_t SLK_preSigmoid;
+extern uint32_t SLK_sigmoid_fp16;
 extern uint32_t SLK_preCorrelation;
 extern uint32_t SLK_preROIPooling;
 extern uint32_t SLK_preCTCDecoder;

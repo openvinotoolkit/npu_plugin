@@ -2,6 +2,7 @@
 
 #include "sw_tensor_ref.h"
 #include <stdint.h>
+#include <stdio.h>
 
 namespace {
 
@@ -152,8 +153,12 @@ bool TensorRef::set(void* addr, uint32_t dataType, NDOrder order, const int32_t 
     this->ndOrder = order;
     this->ndims = subspace::orderNDToNumDims(order);
 
+    printf("LEON: data address = 0x%X\n", reinterpret_cast<uint32_t*>(this->addr));
+    printf("LEON: dims address = 0x%X\n", reinterpret_cast<uint32_t*>(this->dims));
+
     for (int32_t i = 0; i < this->ndims; ++i) {
         this->dims[i] = dims[i];
+        printf("LEON: dims[%d] = %i\n", i, dims[i]);
         this->strides[i] = strides[i];
         this->stridesBits[i] = strides[i] * CHAR_BIT;
     }
@@ -282,6 +287,7 @@ sw_params::MemRefData TensorRef::toMemRefData(sw_params::Location loc) const {
             static_cast<uint64_t>(ndOrder), //uint64_t dimsOrder;     // Packed permutation array.
             loc
     };
+    printf("toMemRefData: dims = 0x%X\n", reinterpret_cast<uint32_t>(this->dims));
     return ret;
 }
 

@@ -41,7 +41,7 @@ int GlobalData::numShavesToEnd   = MVTENSOR_MAX_SHAVES;
 
 int GlobalData::numRepeats = 1;
 
-bool GlobalData::doPrintDiffs     = false;
+bool GlobalData::doPrintDiffs     = true;
 bool GlobalData::doPrintDiffRange = false;
 bool GlobalData::doPrintDiffMax   = false;
 

@@ -1239,6 +1239,7 @@ public:
     void init(t_MvTensorStorageOrder storageOrder, const TensorDims& dims,
               const TensorAlign& align = TensorAlign(), int padSize = 0, int innerStep = 1)
         {
+            printf("DEBUG: i am in init\n");
             // storage order
             m_storageOrder = storageOrder;
             if (!isOrderValid(storageOrder))
@@ -1248,8 +1249,10 @@ public:
             m_dims = dims.toMemory(m_ndims, m_map);
             // limits & steps(strides)
             int step = innerStep;
+            printf("LEON: m_ndims = %d\n", m_ndims);
             for (int i = 0; i < m_ndims; ++i) //MaxTensorDims
             {
+                printf("dims[%d] = %d\n", i, m_dims.dims[i]);
                 m_limits.dims[i] = m_dims.dims[i];
                 int size = align.align[i];
                 if (size > 0) // must be aligned
