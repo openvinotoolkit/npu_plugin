@@ -93,6 +93,8 @@ class Order(Enum):
     NHCW = 4    # XZY
     NCHW = 5    # XYZ
 
+
+
 def orderToOrderer(order: Order) -> np.ndarray:
     if order == Order.NHWC:
         return OrderNHWC
@@ -136,6 +138,8 @@ class PaddingError(Error):
 class EntropyError(Error):
     pass
 
+class AlignmentError(Error):
+    pass
 
 def ValidatePaddings(kernel, paddings):
     # kernel size are width|height
@@ -178,12 +182,18 @@ def ValidatePaddings(kernel, paddings):
             raise PaddingError(f'kernel.y ({kernel_y}) is even, and bottom padding ({bottom}) > kernel.y // 2 ({kernel_y // 2})')
 
 
+def ValidateHWAlignment(type, multipyer):
+    if((type.bitsize * multipyer) % 128 != 0) :
+        raise AlignmentError(f'type ({type}) has {type.bitsize} bits and unappropriate multipyer {multipyer})')
+
+
 @dataclass
 class Value:
     ttype: 'TType'
     filename: str
     data: np.ndarray
     bitwidth: int
+    bitsize: int
     signed: bool
     orderer: Optional[Orderer]
     is_float: bool = field(init=False)
@@ -293,6 +303,7 @@ def pack_int4(data: np.ndarray) -> np.ndarray:
 class UInt4(TType):
     def __init__(self, bitwidth=4):
         super().__init__(np.uint8, 'uint4', 'int8', bitwidth, False)
+        self.bitsize = 4
         self.low = np.uint8(0)
         self.high = np.uint8((2 ** bitwidth) - 1)
 
@@ -301,6 +312,7 @@ class UInt4(TType):
                       filename,
                       rng.integers(self.low, self.high, endpoint=True, size=shape, dtype=np.uint8),
                       self.bitwidth,
+                      self.bitsize,
                       False,
                       orderer)
 
@@ -322,6 +334,7 @@ class UInt4(TType):
 class Int4(TType):
     def __init__(self, bitwidth=3):
         super().__init__(np.int8, 'int4', 'int8', bitwidth, True)
+        self.bitsize = 4
         self.low = np.int8(-(2 ** bitwidth))
         self.high = np.int8((2 ** bitwidth) - 1)
 
@@ -330,6 +343,7 @@ class Int4(TType):
                       filename,
                       rng.integers(self.low, self.high, endpoint=True, size=shape, dtype=np.int8),
                       self.bitwidth,
+                      self.bitsize,
                       True,
                       orderer)
 
@@ -352,6 +366,7 @@ class Int4(TType):
 class UInt8(TType):
     def __init__(self, bitwidth=8):
         super().__init__(np.uint8, 'uint8', 'uint8', bitwidth, False)
+        self.bitsize = 8
         self.low = np.uint8(0)
         self.high = np.uint8((2 ** bitwidth) - 1)
 
@@ -360,6 +375,7 @@ class UInt8(TType):
                       filename,
                       rng.integers(self.low, self.high, endpoint=True, size=shape, dtype=np.uint8),
                       self.bitwidth,
+                      self.bitsize,
                       False,
                       orderer)
 
@@ -377,6 +393,7 @@ class UInt8(TType):
 class Int8(TType):
     def __init__(self, bitwidth=7):
         super().__init__(np.int8, 'int8', 'int8', bitwidth, True)
+        self.bitsize = 8
         self.low = np.int8(-(2 ** bitwidth))
         self.high = np.int8((2 ** bitwidth) - 1)
 
@@ -385,6 +402,7 @@ class Int8(TType):
                       filename,
                       rng.integers(self.low, self.high, endpoint=True, size=shape, dtype=np.int8),
                       self.bitwidth,
+                      self.bitsize,
                       True,
                       orderer)
 
@@ -404,6 +422,7 @@ class Int8(TType):
 class Int32(TType):
     def __init__(self, bitwidth=31):
         super().__init__(np.int32, 'int32', 'int32', bitwidth, True)
+        self.bitsize = 32
         self.low = np.int32(-(2 ** bitwidth))
         self.high = np.int32((2 ** bitwidth) - 1)
 
@@ -412,6 +431,7 @@ class Int32(TType):
                       filename,
                       rng.integers(self.low, self.high, endpoint=True, size=shape, dtype=np.int32),
                       self.bitwidth,
+                      self.bitsize,
                       True,
                       orderer)
 
@@ -431,6 +451,7 @@ class Int32(TType):
 class FP16(TType):
     def __init__(self, bitwidth=16):
         super().__init__(np.float16, 'fp16', None, bitwidth, True)
+        self.bitsize = 16
 
     def generate(self, filename: str, shape, rng, orderer=None) -> np.ndarray:
         # NB For now, we restrict the number of bits in our floats in order
@@ -441,6 +462,7 @@ class FP16(TType):
                       filename,
                       (data * (2. ** self.bitwidth)).astype(np.float16),
                       self.bitwidth,
+                      self.bitsize,
                       True,
                       orderer)
 
@@ -464,6 +486,7 @@ class FP16(TType):
 class FP32(TType):
     def __init__(self, bitwidth=127):
         super().__init__(np.float32, 'fp32', None, bitwidth, True)
+        self.bitsize = 32
 
     def generate(self, filename: str, shape, rng, orderer=None) -> np.ndarray:
         # NB For now, we restrict the number of bits in our floats in order
@@ -473,6 +496,7 @@ class FP32(TType):
                       filename,
                       (data * (2. ** self.bitwidth)).astype(np.float32),
                       self.bitwidth,
+                      self.bitsize,
                       True,
                       orderer)
 
@@ -492,6 +516,7 @@ class FP32(TType):
 class BF16(TType):
     def __init__(self, bitwidth=127):
         super().__init__(bfloat16, 'bfloat16', None, bitwidth, True)
+        self.bitsize = 16
 
     def generate(self, filename: str, shape, rng, orderer=None) -> np.ndarray:
         # NB For now, we restrict the number of bits in our floats in order
@@ -501,6 +526,7 @@ class BF16(TType):
                       filename,
                       (data * (2. ** self.bitwidth)).astype(bfloat16),
                       self.bitwidth,
+                      self.bitsize,
                       True,
                       orderer)
 
@@ -585,6 +611,10 @@ class ZMajorConvolution(MPE):
 
     def validate(self):
         ValidatePaddings(self.settings.kernel_shape, self.settings.kernel_pads)
+        # validate input tensor channels allignement
+        ValidateHWAlignment(self.settings.input_ttype, self.settings.input_shape[1])
+        # validate output tensor channels allignement
+        ValidateHWAlignment(self.settings.output_ttype, self.settings.kernel_channels)
 
     @property
     def ident(self) -> str:
@@ -931,7 +961,7 @@ def ppe(values: List[Value], output_ttype: TType, data: Union[np.ndarray, NBQuan
         #     ndarray /= (1. * (1 << bitshift))
 
     ndarray = output_ttype.clip(ndarray).astype(output_ttype.dtype)
-    value = Value(output_ttype, 'output-0.bin', ndarray, output_ttype.bitwidth, output_ttype.signed, None)
+    value = Value(output_ttype, 'output-0.bin', ndarray, output_ttype.bitwidth, output_ttype.bitsize, output_ttype.signed, None)
 
     if rescale:
         if isinstance(data, NBQuantized):
@@ -1072,6 +1102,17 @@ _PPE_VALID_OUTPUT_TYPES = {
     True: [FP32(), FP16(), BF16(), UInt8(), Int8(), Int4()],    # FP MACs
 }
 
+_PPE_HAS_PERMUTATION_SUPPORT = {
+    Int8: True,
+    Int4: False,
+    UInt8: True,
+    UInt4: False,
+    FP16: True,
+    BF16: True,
+    Int32: True,
+    FP32: True
+}
+
 
 def genZMConvs(input_types=[UInt8(2)],
                input_shapes=[[1, 32, 16, 16]],
@@ -1099,6 +1140,9 @@ def genZMConvs(input_types=[UInt8(2)],
                 current_output_types = output_types
 
             for output_type in current_output_types:
+                if(output_order != Order.NHWC and not _PPE_HAS_PERMUTATION_SUPPORT[output_type.__class__]) :
+                    print("skip", output_order, output_type)
+                    continue
                 yield DPUPipeline(ZMajorConvolution.PARAMS, (ZMajorConvolution,
                                                              input_type,
                                                              input_shape,
@@ -1260,7 +1304,16 @@ def generate_options(args):
                    weight_types=[UInt8(1)],
                    kernel_channels=[16],
                    kernel_shapes=[[10, 10], [11, 11]],
-                   output_types=[Int4(), UInt4(), UInt8()],
+                   output_types=[UInt8()],
+                   pads=Pad.none + Pad.all(5) + Pad.top(5) + Pad.left(5) + Pad.bottom(5) + Pad.right(5)),
+
+        # Z-Major Convolution, padding, uint8
+        genZMConvs(input_types=[UInt8(2)],
+                   input_shapes=[[1, 16, 32, 32]],
+                   weight_types=[UInt8(1)],
+                   kernel_channels=[32],
+                   kernel_shapes=[[10, 10], [11, 11]],
+                   output_types=[Int4(), UInt4()],
                    pads=Pad.none + Pad.all(5) + Pad.top(5) + Pad.left(5) + Pad.bottom(5) + Pad.right(5)),
 
         # Z-Major Convolution, padding, int8
@@ -1269,7 +1322,16 @@ def generate_options(args):
                    weight_types=[Int4(2), Int8(2)],
                    kernel_channels=[16],
                    kernel_shapes=[[10, 10]],
-                   output_types=[Int4(), UInt4(), Int8()],
+                   output_types=[Int8()],
+                   pads=Pad.none + Pad.top(5) + Pad.left(5) + Pad.bottom(5) + Pad.right(5)),
+
+        # Z-Major Convolution, padding, int8
+        genZMConvs(input_types=[Int8(2)],
+                   input_shapes=[[1, 16, 32, 32]],
+                   weight_types=[Int4(2), Int8(2)],
+                   kernel_channels=[32],
+                   kernel_shapes=[[10, 10]],
+                   output_types=[Int4(), UInt4()],
                    pads=Pad.none + Pad.top(5) + Pad.left(5) + Pad.bottom(5) + Pad.right(5)),
 
         # Z-Major Convolution, padding, fp16
