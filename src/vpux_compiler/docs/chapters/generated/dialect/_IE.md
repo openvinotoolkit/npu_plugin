@@ -1602,6 +1602,36 @@ operation ::= `IE.Proposal` `(` operands `)` attr-dict `:` type(operands) `->` t
 | :----: | ----------- |
 `output` | ranked tensor of 16-bit float or 32-bit float values
 
+### `IE.QuantizeCast` (vpux::IE::QuantizeCastOp)
+
+InferenceEngine Quantize Cast layer
+
+
+Syntax:
+
+```
+operation ::= `IE.QuantizeCast` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`dstElemType` | ::mlir::TypeAttr | any type attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of QuantizedType values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of QuantizedType values
+
 ### `IE.Quantize` (vpux::IE::QuantizeOp)
 
 InferenceEngine Quantize layer

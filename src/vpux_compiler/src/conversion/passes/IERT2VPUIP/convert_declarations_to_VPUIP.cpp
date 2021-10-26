@@ -88,6 +88,7 @@ void ConvertDeclarations2VPUIPPass::safeRunOnFunc() {
     target.addLegalOp<mlir::FuncOp, mlir::ReturnOp>();
     target.addLegalOp<IERT::SubViewOp, IERT::ConcatViewOp>();
     target.addLegalOp<IERT::GenericReshapeOp, IERT::PermuteCastOp>();
+    target.addLegalOp<IERT::QuantizeCastOp>();
 
     mlir::RewritePatternSet patterns(&ctx);
     patterns.insert<TimestampRewrite>(&ctx, _log);
