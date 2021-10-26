@@ -1141,6 +1141,28 @@ def IE_SqrtOp :
 }
 
 //
+// LogOp
+//
+
+def IE_LogOp :
+        IE_LayerOp<
+            "Log",
+            [
+                IE_EltwiseOp
+            ]
+        > {
+    let summary = "InferenceEngine Log layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+}
+
+//
 // ExpOp
 //
 
