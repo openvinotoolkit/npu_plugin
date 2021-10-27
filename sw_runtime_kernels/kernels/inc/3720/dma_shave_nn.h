@@ -18,8 +18,8 @@ public:
         max_transfer_size = ((1 << 24) - 1)
     };
 
-    DmaAlShave();
-    ~DmaAlShave();
+//    DmaAlShave();
+//    ~DmaAlShave();
 
     bool start_pa(const void *a_src, void *a_dst, uint32_t byteLength);
     bool start_pa(const void *a_src, void *a_dst, uint32_t byteLength, uint32_t srcWidth, uint32_t dstWidth,

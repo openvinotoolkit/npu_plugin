@@ -4,11 +4,11 @@
 
 #define uncached(x) (x)
 
-DmaAlShave::DmaAlShave() {
-}
-
-DmaAlShave::~DmaAlShave() {
-}
+//DmaAlShave::DmaAlShave() {
+//}
+//
+//DmaAlShave::~DmaAlShave() {
+//}
 
 bool DmaAlShave::start(const void *a_src, void *a_dst, uint32_t byteLength) {
     memcpy_s(a_dst, byteLength, a_src, byteLength);

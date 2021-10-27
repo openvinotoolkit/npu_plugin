@@ -76,6 +76,7 @@ private:
 // subspaceDims - sizes of dimensions (in)
 // nDims - dimensionality (in)
 //int getTotal(const int32_t subspaceDims[], int nDims);
+//int getTotal(const int32_t subspaceDims[], int nDims);
 inline int __attribute((always_inline)) getTotal(const int32_t subspaceDims[], int nDims)
 {
     int totalSubspaces = 1;
@@ -91,7 +92,15 @@ inline int __attribute((always_inline)) getTotal(const int32_t subspaceDims[], i
 // dims - sizes of dimensions (in)
 // nDims - dimensionality (in)
 // subspaceCoord - coordinates of section (out)
-void getCoord(int nSubspace, const int32_t dims[], int nDims, int32_t subspaceCoord[]);
+inline void __attribute((always_inline)) getCoord(int nSubspace, const int32_t dims[], int nDims, int32_t subspaceCoord[])
+{
+    for(int i = 0; i < nDims; ++i)
+    {
+        int nUpSubspace = nSubspace / dims[i];
+        subspaceCoord[i] = nSubspace - nUpSubspace * dims[i];
+        nSubspace = nUpSubspace;
+    }
+}
 
 // getOffsetU8 uses coordinates of the section and strides to calculate offset (in bytes)
 // from beginning of original tensor to beginning of section
@@ -112,9 +121,38 @@ int getOffsetU8(const int32_t subspaceCoord[], const int32_t strides[], int nDim
 // broadcast2 - broadcast flags for 2nd tensor, by dimensions (0=normal, 1=broadcasted)
 // offset1 offset in 1st tensor (out)
 // offset2 offset in 2nd tensor (out)
-void getOffsetsU8(const int32_t subspaceCoord[], const int32_t strides1[], const int32_t strides2[],
+inline void __attribute((always_inline)) getOffsetsU8(const int32_t subspaceCoord[], const int32_t strides1[], const int32_t strides2[],
         int nDims, unsigned& offset1, unsigned& offset2,
-        const int8_t broadcast1[] = nullptr, const int8_t broadcast2[] = nullptr);
+        const int8_t broadcast1[] = nullptr, const int8_t broadcast2[] = nullptr)
+{
+    offset1 = 0;
+    offset2 = 0;
+    for(int d = 0; d < nDims; ++d)
+    {
+        const int coord1 = (broadcast1 && broadcast1[d]) ? 0 : subspaceCoord[d];
+        const int coord2 = (broadcast2 && broadcast2[d]) ? 0 : subspaceCoord[d];
+        offset1 += static_cast<unsigned int>(coord1 * strides1[d]);
+        offset2 += static_cast<unsigned int>(coord2 * strides2[d]);
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 // getOffsetsU8 uses coordinates of the section and strides to calculate offsets (in bytes)
 // from beginning of three original tensors to beginning of three corresponding sections
@@ -129,22 +167,64 @@ void getOffsetsU8(const int32_t subspaceCoord[], const int32_t strides1[], const
 // offset1 offset in 1st tensor (out)
 // offset2 offset in 2nd tensor (out)
 // offset3 offset in 3rd tensor (out)
-void getOffsetsU8(const int32_t subspaceCoord[], const int32_t strides1[], const int32_t strides2[],
+inline void __attribute((always_inline)) getOffsetsU8(const int32_t subspaceCoord[], const int32_t strides1[], const int32_t strides2[],
         const int32_t strides3[], int nDims, unsigned& offset1, unsigned& offset2, unsigned& offset3,
-        const int8_t broadcast1[] = nullptr, const int8_t broadcast2[] = nullptr, const int8_t broadcast3[] = nullptr);
+        const int8_t broadcast1[] = nullptr, const int8_t broadcast2[] = nullptr, const int8_t broadcast3[] = nullptr)
+{
+    offset1 = 0;
+    offset2 = 0;
+    offset3 = 0;
+    for(int d = 0; d < nDims; ++d)
+    {
+        const int coord1 = (broadcast1 && broadcast1[d]) ? 0 : subspaceCoord[d];
+        const int coord2 = (broadcast2 && broadcast2[d]) ? 0 : subspaceCoord[d];
+        const int coord3 = (broadcast3 && broadcast3[d]) ? 0 : subspaceCoord[d];
+        offset1 += static_cast<unsigned int>(coord1 * strides1[d]);
+        offset2 += static_cast<unsigned int>(coord2 * strides2[d]);
+        offset3 += static_cast<unsigned int>(coord3 * strides3[d]);
+    }
+}
+
+
+
+
+
+
 
 // increment1Coord increments current subspaceCoord by 1 element
 // subspaceCoord - coordinates of section (in/out)
 // dims - sizes of dimensions (in)
 // nDims - dimensionality (in)
-void increment1Coord(int32_t subspaceCoord[], const int32_t dims[], int nDims);
+inline void __attribute((always_inline)) increment1Coord(int32_t subspaceCoord[], const int32_t dims[], int nDims)
+{
+    for (int d = 0; d < nDims; ++d)
+    {
+        if (subspaceCoord[d] < dims[d] - 1) {
+            subspaceCoord[d]++;
+            return;
+        }
+        subspaceCoord[d] = 0;
+    }
+}
+
+
 
 // incrementNCoord increments current subspaceCoord by N elements
 // subspaceCoord - coordinates of section (in/out)
 // dims - sizes of dimensions (in)
 // nDims - dimensionality (in)
 // inc - value of the increment in elements (in)
-void incrementNCoord(int32_t subspaceCoord[], const int32_t dims[], int nDims, int inc);
+inline void __attribute((always_inline)) incrementNCoord(int32_t subspaceCoord[], const int32_t dims[], int nDims, int inc)
+{
+    for(int d = 0; d < nDims; ++d)
+    {
+        inc += subspaceCoord[d];
+        subspaceCoord[d] = inc % dims[d];
+        inc -= subspaceCoord[d];
+        inc /= dims[d];
+    }
+}
+
 
 // incrementLine increments current coordinates of 1D section (line along axis coordinate) by 1
 // lineCoord - full coordinate vector with line's coordinates (lineCoord[axis] is ignored) (in/out)

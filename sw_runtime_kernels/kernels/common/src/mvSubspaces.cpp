@@ -16,15 +16,15 @@ namespace subspace {
 //    return totalSubspaces;
 //}
 
-void getCoord(int nSubspace, const int32_t dims[], int nDims, int32_t subspaceCoord[])
-{
-    for(int i = 0; i < nDims; ++i)
-    {
-        int nUpSubspace = nSubspace / dims[i];
-        subspaceCoord[i] = nSubspace - nUpSubspace * dims[i];
-        nSubspace = nUpSubspace;
-    }
-}
+//void getCoord(int nSubspace, const int32_t dims[], int nDims, int32_t subspaceCoord[])
+//{
+//    for(int i = 0; i < nDims; ++i)
+//    {
+//        int nUpSubspace = nSubspace / dims[i];
+//        subspaceCoord[i] = nSubspace - nUpSubspace * dims[i];
+//        nSubspace = nUpSubspace;
+//    }
+//}
 
 int getOffsetU8(const int32_t subspaceCoord[], const int32_t strides[], int nDims, const int8_t broadcast[])
 {
@@ -37,61 +37,61 @@ int getOffsetU8(const int32_t subspaceCoord[], const int32_t strides[], int nDim
     return offset;
 }
 
-void getOffsetsU8(const int32_t subspaceCoord[], const int32_t strides1[], const int32_t strides2[],
-        int nDims, unsigned& offset1, unsigned& offset2,
-        const int8_t broadcast1[], const int8_t broadcast2[])
-{
-    offset1 = 0;
-    offset2 = 0;
-    for(int d = 0; d < nDims; ++d)
-    {
-        const int coord1 = (broadcast1 && broadcast1[d]) ? 0 : subspaceCoord[d];
-        const int coord2 = (broadcast2 && broadcast2[d]) ? 0 : subspaceCoord[d];
-        offset1 += static_cast<unsigned int>(coord1 * strides1[d]);
-        offset2 += static_cast<unsigned int>(coord2 * strides2[d]);
-    }
-}
-
-void getOffsetsU8(const int32_t subspaceCoord[], const int32_t strides1[], const int32_t strides2[],
-        const int32_t strides3[], int nDims, unsigned& offset1, unsigned& offset2, unsigned& offset3,
-        const int8_t broadcast1[], const int8_t broadcast2[], const int8_t broadcast3[])
-{
-    offset1 = 0;
-    offset2 = 0;
-    offset3 = 0;
-    for(int d = 0; d < nDims; ++d)
-    {
-        const int coord1 = (broadcast1 && broadcast1[d]) ? 0 : subspaceCoord[d];
-        const int coord2 = (broadcast2 && broadcast2[d]) ? 0 : subspaceCoord[d];
-        const int coord3 = (broadcast3 && broadcast3[d]) ? 0 : subspaceCoord[d];
-        offset1 += static_cast<unsigned int>(coord1 * strides1[d]);
-        offset2 += static_cast<unsigned int>(coord2 * strides2[d]);
-        offset3 += static_cast<unsigned int>(coord3 * strides3[d]);
-    }
-}
-
-void increment1Coord(int32_t subspaceCoord[], const int32_t dims[], int nDims)
-{
-    for (int d = 0; d < nDims; ++d)
-    {
-        if (subspaceCoord[d] < dims[d] - 1) {
-            subspaceCoord[d]++;
-            return;
-        }
-        subspaceCoord[d] = 0;
-    }
-}
-
-void incrementNCoord(int32_t subspaceCoord[], const int32_t dims[], int nDims, int inc)
-{
-    for(int d = 0; d < nDims; ++d)
-    {
-        inc += subspaceCoord[d];
-        subspaceCoord[d] = inc % dims[d];
-        inc -= subspaceCoord[d];
-        inc /= dims[d];
-    }
-}
+//void getOffsetsU8(const int32_t subspaceCoord[], const int32_t strides1[], const int32_t strides2[],
+//        int nDims, unsigned& offset1, unsigned& offset2,
+//        const int8_t broadcast1[], const int8_t broadcast2[])
+//{
+//    offset1 = 0;
+//    offset2 = 0;
+//    for(int d = 0; d < nDims; ++d)
+//    {
+//        const int coord1 = (broadcast1 && broadcast1[d]) ? 0 : subspaceCoord[d];
+//        const int coord2 = (broadcast2 && broadcast2[d]) ? 0 : subspaceCoord[d];
+//        offset1 += static_cast<unsigned int>(coord1 * strides1[d]);
+//        offset2 += static_cast<unsigned int>(coord2 * strides2[d]);
+//    }
+//}
+//
+//void getOffsetsU8(const int32_t subspaceCoord[], const int32_t strides1[], const int32_t strides2[],
+//        const int32_t strides3[], int nDims, unsigned& offset1, unsigned& offset2, unsigned& offset3,
+//        const int8_t broadcast1[], const int8_t broadcast2[], const int8_t broadcast3[])
+//{
+//    offset1 = 0;
+//    offset2 = 0;
+//    offset3 = 0;
+//    for(int d = 0; d < nDims; ++d)
+//    {
+//        const int coord1 = (broadcast1 && broadcast1[d]) ? 0 : subspaceCoord[d];
+//        const int coord2 = (broadcast2 && broadcast2[d]) ? 0 : subspaceCoord[d];
+//        const int coord3 = (broadcast3 && broadcast3[d]) ? 0 : subspaceCoord[d];
+//        offset1 += static_cast<unsigned int>(coord1 * strides1[d]);
+//        offset2 += static_cast<unsigned int>(coord2 * strides2[d]);
+//        offset3 += static_cast<unsigned int>(coord3 * strides3[d]);
+//    }
+//}
+//
+//void increment1Coord(int32_t subspaceCoord[], const int32_t dims[], int nDims)
+//{
+//    for (int d = 0; d < nDims; ++d)
+//    {
+//        if (subspaceCoord[d] < dims[d] - 1) {
+//            subspaceCoord[d]++;
+//            return;
+//        }
+//        subspaceCoord[d] = 0;
+//    }
+//}
+//
+//void incrementNCoord(int32_t subspaceCoord[], const int32_t dims[], int nDims, int inc)
+//{
+//    for(int d = 0; d < nDims; ++d)
+//    {
+//        inc += subspaceCoord[d];
+//        subspaceCoord[d] = inc % dims[d];
+//        inc -= subspaceCoord[d];
+//        inc /= dims[d];
+//    }
+//}
 
 void incrementLine(int32_t lineCoord[], const int32_t dims[], int nDims, int axis)
 {

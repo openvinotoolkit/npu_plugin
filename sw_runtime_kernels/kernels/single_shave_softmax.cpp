@@ -53,7 +53,7 @@ static void softmax(fp16 *input, int n, int istride, fp16 *output, int ostride)
     if(n == 1)
     {
         output[0] = 1;
-//        return;
+        return;
     }
     float sumf = 0.0f;
     fp16 * in;
@@ -109,7 +109,7 @@ static void softmax8(fp16 *input, int n, int istride, fp16 *output, int ostride)
     if(n == 1)
     {
         ((half8*)(output))[0] = 1;
-//        return;
+        return;
     }
     fp16 * in;
     fp16 * out;
@@ -269,6 +269,7 @@ static float sum_softmax_C(fp16 *input, int n, fp16 *output, fp16 largest)
 static void calculateSoftMaxInner(const int dimX, int n, half* input, half* output,
         int, int, int, int)
 {
+    output[0] = 10.f;
     for(int w = 0; w < dimX; ++w)
     {
         half* in = input + w * n;
@@ -289,6 +290,7 @@ static void calculateSoftMaxInner(const int dimX, int n, half* input, half* outp
 static void calculateSoftMaxOuter(const int dimX, int n, half* input, half* output,
         int istride1, int istride2, int ostride1, int ostride2)
 {
+    output[0] = 20.f;
     int w = 0;
     for(; w < dimX - 7; w += 8)
     {
@@ -332,14 +334,16 @@ void mvSoftMaxSingle(t_MvSoftMaxParamNClasses *p)
 {
     half* in  = p->input;
     half* out = p->output;
+    out[0] = 4321.f;
 
     s32* dims = p->in_dims;
     s32* istrides = p->in_strides;
     s32* ostrides = p->out_strides;
     s32 ndims = p->ndims;
+    out[1] = 4321.f;
 
-    DmaAlShave dmaRTask;
-
+//    DmaAlShave dmaRTask;
+    out[2] = 4321.f;
     half* p_input0  = (p->inputInCmx) ? in : reinterpret_cast<half*>(p->cmxslice + 0 * WORK_BUFFER_SIZE);
     half* p_output0 = (p->outputInCmx) ? out : reinterpret_cast<half*>(p->cmxslice + 2 * WORK_BUFFER_SIZE);
 
@@ -349,10 +353,13 @@ void mvSoftMaxSingle(t_MvSoftMaxParamNClasses *p)
     void (*calculate)(const int dimX, int n, half* input, half* output,
             int istride1, int istride2, int ostride1, int ostride2);
     calculate = (p->axis > 0) ? calculateSoftMaxOuter : calculateSoftMaxInner;
-
+//    out[3] = (p->inputInCmx);
+//    out[4] = (p->outputInCmx);
+//    return;
     {
-        sets_per_step = (2 * WORK_BUFFER_SIZE) / (sizeof(half) * p->axisDim);
+        sets_per_step = (p->inputInCmx && p->outputInCmx) ? p->toProcess : (2 * WORK_BUFFER_SIZE) / (sizeof(half) * p->axisDim);
         int i = p->start;
+//        return;
         subspace::getCoord(i, dims, ndims, setCoords);
         s32 r_step;
         s32 axisDim = p->axisDim;
@@ -362,38 +369,52 @@ void mvSoftMaxSingle(t_MvSoftMaxParamNClasses *p)
         s32 oStride = p->axisOStride / sizeof(fp16);
         s32* ir_stride = (p->inputInCmx) ? &iStride : &r_step;
         s32* or_stride = (p->outputInCmx) ? &oStride : &r_step;
+//        out[5] = (p->start);
+//        out[6] = (p->toProcess);
+//        out[7] = sets_per_step;
         while(i < p->start + p->toProcess)
         {
             r_step = __builtin_shave_cmu_min_i32_rr_int(sets_per_step, dims[0] - setCoords[0]);
+//            out[8] = r_step;
             unsigned inOffset, outOffset;
             subspace::getOffsetsU8(setCoords, istrides, ostrides, ndims, inOffset, outOffset);
+//            out[9] = inOffset;
+//            out[10] = outOffset;
             if (p->inputInCmx) {
                 p_input0 = (half*)((u8*)in + inOffset);
             } else {
-                dmaRTask.start((u8*)in + inOffset, (u8 *)p_input0,
-                      sizeof(fp16) * p->axisDim * r_step,
-                      sizeof(fp16) * dmaWidth[0],
-                      sizeof(fp16) * dmaWidth[0],
-                      p->axisIStride,
-                      sizeof(fp16) * dmaWidth[0]);
-                dmaRTask.wait();
+//                dmaRTask.start((u8*)in + inOffset, (u8 *)p_input0,
+//                      sizeof(fp16) * p->axisDim * r_step,
+//                      sizeof(fp16) * dmaWidth[0],
+//                      sizeof(fp16) * dmaWidth[0],
+//                      p->axisIStride,
+//                      sizeof(fp16) * dmaWidth[0]);
+//                dmaRTask.wait();
             }
             if (p->outputInCmx) {
                 p_output0 = (half*)((u8*)out + outOffset);
             }
-            calculate(r_step, p->axisDim, p_input0, p_output0,
-                    1, *ir_stride, 1, *or_stride);
+//            return;
+            calculate(r_step, p->axisDim, p_input0, p_output0, 1, *ir_stride, 1, *or_stride);
+//            if (p->axis > 0) {
+//                calculateSoftMaxOuter(r_step, p->axisDim, p_input0, p_output0, 1, *ir_stride, 1, *or_stride);
+//            } else {
+//                calculateSoftMaxInner(r_step, p->axisDim, p_input0, p_output0, 1, *ir_stride, 1, *or_stride);
+//            }
             if (!p->outputInCmx) {
-                dmaRTask.start((u8 *)p_output0, (u8*)out + outOffset,
-                      sizeof(fp16) * p->axisDim * r_step,
-                      sizeof(fp16) * dmaWidth[0],
-                      sizeof(fp16) * dmaWidth[0],
-                      sizeof(fp16) * dmaWidth[0],
-                      p->axisOStride);
-                dmaRTask.wait();
+//                dmaRTask.start((u8 *)p_output0, (u8*)out + outOffset,
+//                      sizeof(fp16) * p->axisDim * r_step,
+//                      sizeof(fp16) * dmaWidth[0],
+//                      sizeof(fp16) * dmaWidth[0],
+//                      sizeof(fp16) * dmaWidth[0],
+//                      p->axisOStride);
+//                dmaRTask.wait();
             }
             i += r_step;
+//            out[11] = i;
+                    //            return;
             subspace::incrementNCoord(setCoords, dims, ndims, r_step);
+//            return;
         }
     }
 }
@@ -664,6 +685,8 @@ void singleShaveSoftmax(uint32_t lParams/*, uint8_t * cmxData, int32_t available
 
         int i = firstShave;
         int processed = 0;
+        p_act_out[0] = 1234.f;
+//        return;
 
         for (; i <= lastShave/* && processed < to_process*/; i++) {
             t_MvSoftMaxParamNClasses *softMaxParamNClasses = &softmaxParamsCMX;;
@@ -672,8 +695,10 @@ void singleShaveSoftmax(uint32_t lParams/*, uint8_t * cmxData, int32_t available
 
             softMaxParamNClasses->input = reinterpret_cast<half *>(p_act_data);
             softMaxParamNClasses->inLocation = sw_params::Location::NN_CMX;//layerParams->input.location;
+            softMaxParamNClasses->inputInCmx = true;//layerParams->input.location;
             softMaxParamNClasses->output = reinterpret_cast<half *>(p_act_out);
             softMaxParamNClasses->outLocation = sw_params::Location::NN_CMX;//layerParams->output.location;
+            softMaxParamNClasses->outputInCmx = true;//layerParams->input.location;
 
             softMaxParamNClasses->cmxslice = cmxData;
             softMaxParamNClasses->availableCmxBytes = availableCmxBytes;
@@ -689,7 +714,7 @@ void singleShaveSoftmax(uint32_t lParams/*, uint8_t * cmxData, int32_t available
             softMaxParamNClasses->axisOStride = lp->axisOStride;
             softMaxParamNClasses->start = processed;
             softMaxParamNClasses->toProcess = to_process_on_shave;
-
+//            p_act_out[i] = i * 1000.f;
             mvSoftMaxSingle(softMaxParamNClasses);
             processed += to_process_on_shave;
         }
