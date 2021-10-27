@@ -59,6 +59,10 @@ namespace mv
         std::size_t blockSize;
         std::size_t maxNumberEncodedSymbols;
         bool bypassMode;
+
+        HdeDescriptor():
+            numberOfHDEModules(0),bitPerSymbol(0),blockSize(0),maxNumberEncodedSymbols(0),bypassMode(false)
+        {}
     };
 
     struct GeneralTargetConfigs
@@ -76,6 +80,10 @@ namespace mv
         std::size_t bufferAlignment;
         std::size_t bitmapPreprocEnable;
         bool bypassMode;
+
+        BTCDescriptor():
+            numCompressionModules(0),bufferAlignment(0),bitmapPreprocEnable(0),bypassMode(false)
+        {}
     };
 
     typedef std::vector<std::pair<std::string, std::string>> DataTypeSet;

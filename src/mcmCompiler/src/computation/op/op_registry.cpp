@@ -1001,8 +1001,10 @@ void mv::op::OpRegistry::generateCompositionAPI(const std::string& metaDir, cons
     // op_model.hpp
     //
     incStream.open(opModelHeaderPath_, std::ios::out | std::ios::trunc);
-    if (!incStream.is_open())
+    if (!incStream.is_open()) {
+        incStream.close();
         throw MasterError("OpRegistry", "Unable to create the OpModel header file during the CompositionAPI generation");
+    }
 
     incStream << "/*" << eol;
     incStream << tab << "DO NOT MODIFY - that file was generated automatically using op::OpRegistry::generateCompositionAPI()" << eol;
