@@ -227,8 +227,7 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createSW_KernelTask(mli
     const auto kernelEntryPoint = kernelFunc->getAttrOfType<mlir::StringAttr>("VPU.kernel_entry");
 
     VPUX_THROW_UNLESS(kernelCode , "Operation '{0}' doesn't have VPU.kernel_code attribute", swKernelTask.kernelFunctionAttr());
-
-    VPUX_THROW_UNLESS(kernelCode , "Operation '{0}' doesn't have VPU.kernel_entry attribute", swKernelTask.kernelFunctionAttr());
+    VPUX_THROW_UNLESS(kernelEntryPoint , "Operation '{0}' doesn't have VPU.kernel_entry attribute", swKernelTask.kernelFunctionAttr());
 
     //TODO : check that arguments in given function
     CompilationUnitDesc compilationDesc = {
@@ -244,7 +243,6 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createSW_KernelTask(mli
     auto kernelText = createKernelDataRef(actKernelDesc.text, kernelStorageLocale);
 
     MVCNN::ActKernelBuilder kernelbuilder(_impl);
-    //kernelbuilder.add_globalArgs()
     kernelbuilder.add_kernelText(kernelText);
     kernelbuilder.add_type(MVCNN::ActKernelType_KERNEL);
     kernelbuilder.add_kernelEntry(0);
