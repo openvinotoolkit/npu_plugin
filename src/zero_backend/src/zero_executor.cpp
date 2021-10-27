@@ -478,6 +478,7 @@ ZeroExecutor::Graph::Graph(const ze_device_handle_t& device_handle, const ze_con
           _command_list(device_handle, _context, graph_ddi_table_ext),
           _fence(std::make_shared<Fence>(_command_queue)),
           _graph_ddi_table_ext(graph_ddi_table_ext) {
+    std::cout << "ZeroExecutor::Graph - constructor begin" << std::endl;
     ze_graph_desc_t desc = {ZE_GRAPH_FORMAT_NATIVE, _blob.size(), reinterpret_cast<const uint8_t*>(_blob.data())};
     throwOnFail("pfnCreate", _graph_ddi_table_ext->pfnCreate(device_handle, &desc, &_handle));
 
@@ -494,6 +495,7 @@ ZeroExecutor::Graph::Graph(const ze_device_handle_t& device_handle, const ze_con
 
     _command_list.appendGraphInitialize(_handle);
     _command_list.close();
+    std::cout << "ZeroExecutor::Graph - constructor end" << std::endl;
 }
 void ZeroExecutor::Graph::init() {
     _command_queue->executeCommandList(_command_list, *_fence);
