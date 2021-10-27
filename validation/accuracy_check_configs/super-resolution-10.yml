@@ -1,0 +1,27 @@
+models:
+  - name: super-resolution-10
+    launchers:
+      - framework: dlsdk
+        adapter: super_resolution
+    datasets:
+      - name: BSDS300
+        reader: pillow_imread
+
+        preprocessing:
+          - type: resize
+            size: 224
+            use_pillow: True
+            interpolation: BICUBIC
+          - type: rgb_to_ycrcb
+          - type: select_channel
+            channel: 0
+        postprocessing:
+          - type: sr_image_recovery
+            size: 224
+            target_color: rgb
+          - type: resize
+            apply_to: annotation
+            size: 672
+        metrics:
+          - type: psnr
+            presenter: print_vector

@@ -1,0 +1,4459 @@
+    {
+    "networks" :
+    [
+        {
+            "name" : "kpi_tf_FP16-INT8_yolo-v2-tiny-ava-0001",
+            "ir" : "kpi/yolo-v2-tiny-ava-0001/tf/FP16-INT8/yolo-v2-tiny-ava-0001.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "416x416"
+            },
+            "AccuracyCheck" : {
+                "config": "tiny_yolo_v2_v10.yml",
+                "subsample_size": 100
+            },
+            "NetTest": {
+                "inputs" : [["416x416/person.bmp"]],
+                "params" : [
+                    "--mode", "raw",
+                    "--raw_tolerance", "1000"
+                ]
+            },
+            "category" : "MCM/release/weekly_public",
+            "CI-options" : {
+                "blob_name" : "yolo-v2-tiny-ava-0001_tf"
+            }
+        },
+
+        {
+            "name" : "kpi_tf_FP16-INT8_yolo-v2-tiny-ava-0001",
+            "ir" : "kpi/yolo-v2-tiny-ava-0001/tf/FP16-INT8/yolo-v2-tiny-ava-0001.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2",
+                "VPUX_INFERENCE_TIMEOUT": "100000"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "416x416"
+            },
+            "AccuracyCheck" : {
+                "config": "tiny_yolo_v2_v10.yml"
+            },
+            "NetTest": {
+                "inputs" : [["416x416/person.bmp"]],
+                "params" : [
+                    "--color_format", "RGB",
+                    "--mode", "yolo_v2",
+                    "--confidence_threshold", "0.6",
+                    "--box_tolerance", "0.4",
+                    "--prob_tolerance", "0.4",
+                    "--is_tiny_yolo", "true"
+                ]
+            },
+            "category" : "MLIR",
+            "CI-options" : {
+                "blob_name" : "yolo-v2-tiny-ava-0001_tf_int8"
+            }
+        },
+
+        {
+            "name" : "kpi_tf_FP16_yolo-v2-tiny-ava-0001",
+            "ir" : "kpi/yolo-v2-tiny-ava-0001/tf/FP16/yolo-v2-tiny-ava-0001.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2",
+                "VPUX_INFERENCE_TIMEOUT": "100000"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "416x416"
+            },
+            "AccuracyCheck" : {
+                "config": "tiny_yolo_v2_v10.yml"
+            },
+            "NetTest": {
+                "inputs" : [["416x416/person.bmp"]],
+                "params" : [
+                    "--color_format", "RGB",
+                    "--mode", "yolo_v2",
+                    "--confidence_threshold", "0.6",
+                    "--box_tolerance", "0.4",
+                    "--prob_tolerance", "0.4",
+                    "--is_tiny_yolo", "true"
+                ]
+            },
+            "category" : "MLIR",
+            "CI-options" : {
+                "blob_name" : "yolo-v2-tiny-ava-0001_tf_fp16"
+            }
+        },
+
+        {
+            "name" : "kpi_tf_FP16-INT8_yolo-v2-ava-0001",
+            "ir" : "kpi/yolo-v2-ava-0001/tf/FP16-INT8/yolo-v2-ava-0001.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "416x416"
+            },
+            "NetTest": {
+                "inputs" : [["416x416/person.bmp"]],
+                "params" : [
+                    "--mode", "raw",
+                    "--raw_tolerance", "1000"
+                ]
+            },
+            "AccuracyCheck" : {
+                "config": "yolo_v2_v10.yml",
+                "subsample_size": 100
+            },
+            "category" : "MCM/release/weekly_public",
+            "CI-options" : {
+                "blob_name" : "yolo-v2-ava-0001_tf"
+            }
+        },
+
+        {
+            "name" : "ea_caffe_FP16-INT8_yolo-v3",
+            "ir" : "ea/yolo-v3/caffe/FP16-INT8/yolo-v3.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "416x416"
+            },
+            "AccuracyCheck" : {
+                "config": "yolo_v3_caffe_v10.yml",
+                "subsample_size": 100
+            },
+            "NetTest": {
+                "inputs" : [["416x416/person.bmp"]],
+                "params" : [
+                    "--mode", "raw",
+                    "--raw_tolerance", "1000"
+                ]
+            },
+            "category" : "MCM/release",
+            "CI-options" : {
+                "blob_name" : "yolo-v3_cf"
+            }
+        },
+
+        {
+            "name" : "por_tf_FP16-INT8_yolo_v3",
+            "ir" : "por/yolo_v3/tf/FP16-INT8/yolo_v3.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "416x416"
+            },
+            "NetTest-CalcRef" : {
+                "disabled" : true
+            },
+            "NetTest-Validate" : {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "config": "yolo_v3_tensorflow_v10.yml",
+                "subsample_size": 100
+            },
+            "category" : "MCM/release/precommit",
+            "CI-options" : {
+                "blob_name" : "yolo-v3_tf"
+            }
+        },
+
+        {
+            "name" : "ea_tf_FP16-INT8_yolo_v4",
+            "ir" : "ea/yolo_v4/tf/FP16-INT8/yolo_v4.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "Compile" : {
+                "input_precision" : "U8",
+                "output_precision" : "FP32"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "416x416"
+            },
+            "NetTest": {
+                "inputs" : [["416x416/person.bmp"]],
+                "params" : [
+                    "--mode", "raw",
+                    "--raw_tolerance", "1000"
+                ]
+            },
+            "AccuracyCheck" : {
+                "config": "yolo_v4_tensorflow_v10.yml",
+                "subsample_size": 10
+            },
+            "category" : "MCM/release/precommit/weekly_public",
+            "CI-options" : {
+                "blob_name" : "yolo-v4_tf"
+            }
+        },
+
+        {
+            "name" : "ea_tf_FP16-INT8_yolo_v4",
+            "ir" : "ea/yolo_v4/tf/FP16-INT8/yolo_v4.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "VPUX_INFERENCE_TIMEOUT": "100000",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "416x416"
+            },
+            "NetTest-CalcRef" : {
+                "disabled" : true
+            },
+            "NetTest-Validate" : {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "config": "yolo_v4_tensorflow_v10.yml",
+                "subsample_size": 100
+            },
+            "category" : "MLIR/precommit",
+            "CI-options" : {
+                "blob_name" : "yolo-v4_tf_int8"
+            }
+        },
+
+        {
+            "name" : "ea_tf_FP16_yolo_v4_ww14",
+            "oldName" : "ea_tf_FP16_yolo_v4_MLIR",
+            "ir" : "yolo_v4-ww14/tf/FP16/yolo_v4.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "VPUX_INFERENCE_TIMEOUT": "100000",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "416x416"
+            },
+            "NetTest-CalcRef" : {
+                "disabled" : true
+            },
+            "NetTest-Validate" : {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "config": "yolo_v4_tensorflow_v10.yml",
+                "subsample_size": 100
+            },
+            "category" : "MLIR",
+            "CI-options" : {
+                "blob_name" : "yolo-v4_tf_fp16"
+            }
+        },
+
+        {
+            "name" : "BDK_tf_FP16-INT8_yolo_v4_tiny",
+            "oldName" : "BDK2_tf_FP16-INT8_yolo_v4_tiny_MCM",
+            "ir" : "models/clientmodels/BDK3/yolo-v4-tiny/tf/FP16-INT8/yolo-v4-tiny.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "Compile" : {
+                "input_precision" : "U8",
+                "output_precision" : "FP32"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "416x416"
+            },
+            "NetTest": {
+                "inputs" : [["416x416/person.bmp"]],
+                "params" : [
+                    "--mode", "raw",
+                    "--raw_tolerance", "1000"
+                ]
+            },
+            "AccuracyCheck" : {
+                "config": "yolo_v4_tiny_tf.yml",
+                "subsample_size": 10
+            },
+            "category" : "MCM/release/precommit/dKMB/weekly_private",
+            "CI-options" : {
+                "blob_name" : "yolo_v4_tiny"
+            }
+        },
+
+        {
+            "name" : "ea_tf_FP16_fsrcnn-x4",
+            "ir" : "ea/fsrcnn-x4/tf/FP16/fsrcnn-x4.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "VPUX_INFERENCE_TIMEOUT": "100000",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "224x224"
+            },
+            "AccuracyCheck" : {
+                "config": "fsrcnn-x4_tf.yml"
+            },
+            "NetTest-CalcRef" : {
+                "disabled" : true
+            },
+            "NetTest-Validate" : {
+                "disabled" : true
+            },
+            "category" : "MLIR",
+            "CI-options" : {
+                "blob_name" : "fsrcnn-x4_tf_fp16"
+            }
+        },
+
+        {
+            "name" : "ea_tf_FP16-INT8_fsrcnn-x4",
+            "ir" : "ea/fsrcnn-x4/tf/FP16-INT8/fsrcnn-x4.xml",
+            "3900" : {
+                "disabled" : true
+            },
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "VPUX_INFERENCE_TIMEOUT": "100000",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "224x224"
+            },
+            "AccuracyCheck" : {
+                "config": "fsrcnn-x4_tf.yml"
+            },
+            "NetTest-CalcRef" : {
+                "disabled" : true
+            },
+            "NetTest-Validate" : {
+                "disabled" : true
+            },
+            "category" : "MLIR",
+            "CI-options" : {
+                "blob_name" : "fsrcnn-x4_tf_int8"
+            },
+            "comments" : "Excluded from Windows validation, because of bug EISW-19488."
+        },
+
+        {
+            "name" : "kpi_caffe2_FP16-INT8_resnet-50-pytorch",
+            "ir" : "kpi/resnet-50-pytorch/caffe2/FP16-INT8/resnet-50-pytorch.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "224x224"
+            },
+            "NetTest": {
+                "inputs" : [["224x224/watch.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.7"
+                ]
+            },
+            "AccuracyCheck" : {
+                "config": "resnet-50_v10.yml"
+            },
+            "category" : "MCM/release/weekly_public",
+            "CI-options" : {
+                "blob_name" : "resnet-50-pytorch_cf2"
+            }
+        },
+
+        {
+            "name" : "kpi_caffe2_FP16-INT8_resnet-50-pytorch",
+            "ir" : "kpi/resnet-50-pytorch/caffe2/FP16-INT8/resnet-50-pytorch.xml",
+            "3720": {
+                "disabled": true
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "224x224"
+            },
+            "AccuracyCheck" : {
+                "config": "resnet-50_v10.yml"
+            },
+            "NetTest": {
+                "inputs" : [["224x224/husky.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.7"
+                ]
+            },
+            "category" : "MLIR",
+            "CI-options" : {
+                "blob_name" : "resnet-50-pytorch_cf2_int8"
+            }
+        },
+        {
+            "name" : "kpi_caffe2_FP16_resnet-50-pytorch",
+            "ir" : "kpi/resnet-50-pytorch/caffe2/FP16/resnet-50-pytorch.xml",
+            "3720": {
+                "disabled": true
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "224x224"
+            },
+            "AccuracyCheck" : {
+                "config": "resnet-50_v10.yml"
+            },
+            "NetTest": {
+                "inputs" : [["224x224/husky.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.7"
+                ]
+            },
+            "category" : "MLIR",
+            "CI-options" : {
+                "blob_name" : "resnet-50-pytorch_cf2_fp16"
+            }
+        },
+
+        {
+            "name" : "kpi_caffe2_FP16-INT8_mobilenet-v2",
+            "ir" : "kpi/mobilenet-v2/caffe2/FP16-INT8/mobilenet-v2.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "224x224"
+            },
+            "NetTest": {
+                "inputs" : [["224x224/watch.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.7",
+                    "--color_format", "RGB"
+                ]
+            },
+            "AccuracyCheck" : {
+                "config": "mobilenet-v2-caffe_v10.yml"
+            },
+            "category" : "MCM/release/precommit/weekly_public",
+            "CI-options" : {
+                "blob_name" : "mobilenet-v2_cf2"
+            }
+        },
+
+        {
+            "name" : "kpi_tf_FP16-INT8_googlenet-v1",
+            "ir" : "kpi/googlenet-v1/tf/FP16-INT8/googlenet-v1.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "224x224"
+            },
+            "AccuracyCheck" : {
+                "config": "inception_v1_v10.yml"
+            },
+            "NetTest": {
+                "inputs" : [["224x224/watch.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.7"
+                ]
+            },
+            "category" : "MCM/release/weekly_public",
+            "CI-options" : {
+                "blob_name" : "googlenet-v1_tf"
+            }
+        },
+
+        {
+            "name" : "kpi_tf_FP16-INT8_googlenet-v1",
+            "ir" : "kpi/googlenet-v1/tf/FP16-INT8/googlenet-v1.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2",
+                "VPUX_INFERENCE_TIMEOUT": "100000"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "224x224"
+            },
+            "AccuracyCheck" : {
+                "config": "inception_v1_v10.yml"
+            },
+            "NetTest": {
+                "inputs" : [["224x224/watch.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.7"
+                ]
+            },
+            "category" : "MLIR",
+            "CI-options" : {
+                "blob_name" : "googlenet-v1_tf_int8"
+            }
+        },
+
+        {
+            "name" : "kpi_tf_FP16_googlenet-v1",
+            "ir" : "kpi/googlenet-v1/tf/FP16/googlenet-v1.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2",
+                "VPUX_INFERENCE_TIMEOUT": "100000"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "224x224"
+            },
+            "AccuracyCheck" : {
+                "config": "inception_v1_v10.yml"
+            },
+            "NetTest": {
+                "inputs" : [["224x224/watch.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.7"
+                ]
+            },
+            "category" : "MLIR",
+            "CI-options" : {
+                "blob_name" : "googlenet-v1_tf_fp16"
+            }
+        },
+
+        {
+            "name" : "kpi_tf_FP16-INT8_googlenet-v3",
+            "ir" : "kpi/googlenet-v3/tf/FP16-INT8/googlenet-v3.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "299x299"
+            },
+            "AccuracyCheck" : {
+                "config": "inception_v3_v10.yml"
+            },
+            "NetTest": {
+                "inputs" : [["299x299/n01537544_28.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.7"
+                ]
+            },
+            "category" : "MCM/release/weekly_public",
+            "CI-options" : {
+                "blob_name" : "googlenet-v3_tf"
+            }
+        },
+
+        {
+            "name" : "kpi_tf_FP16-INT8_googlenet-v3",
+            "ir" : "kpi/googlenet-v3/tf/FP16-INT8/googlenet-v3.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2",
+                "VPUX_INFERENCE_TIMEOUT": "100000"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "100x100"
+            },
+            "AccuracyCheck" : {
+                "config": "inception_v3_v10.yml"
+            },
+            "NetTest": {
+                "inputs" : [["100x100/gorilla.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.7"
+                ]
+            },
+            "category" : "MLIR",
+            "CI-options" : {
+                "blob_name" : "googlenet-v3_tf_int8"
+            }
+        },
+
+        {
+            "name" : "kpi_tf_FP16_googlenet-v3",
+            "ir" : "kpi/googlenet-v3/tf/FP16/googlenet-v3.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2",
+                "VPUX_INFERENCE_TIMEOUT": "100000"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "100x100"
+            },
+            "AccuracyCheck" : {
+                "config": "inception_v3_v10.yml"
+            },
+            "NetTest": {
+                "inputs" : [["100x100/gorilla.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.7"
+                ]
+            },
+            "category" : "MLIR",
+            "CI-options" : {
+                "blob_name" : "googlenet-v3_tf_fp16"
+            }
+        },
+
+        {
+            "name" : "kpi_caffe2_FP16-INT8_squeezenet1.1",
+            "ir" : "kpi/squeezenet1.1/caffe2/FP16-INT8/squeezenet1.1.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "227x227"
+            },
+            "AccuracyCheck" : {
+                "config": "squeezenet1.1-caffe2_v10.yml"
+            },
+            "NetTest": {
+                "inputs" : [["227x227/watch.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.7"
+                ]
+            },
+            "category" : "MCM/release/weekly_public",
+            "CI-options" : {
+                "blob_name" : "squeezenet1-1_cf2"
+            }
+        },
+
+        {
+            "name" : "kpi_caffe2_FP16_squeezenet1.1",
+            "ir" : "kpi/squeezenet1.1/caffe2/FP16/squeezenet1.1.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "VPUX_COMPILATION_MODE": "ReferenceHW",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2",
+                "VPUX_INFERENCE_TIMEOUT": "100000"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "227x227"
+            },
+            "AccuracyCheck" : {
+                "config": "squeezenet1.1-caffe2_v10.yml"
+            },
+            "NetTest": {
+                "inputs" : [["227x227/watch.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.07"
+                ]
+            },
+            "category" : "MLIR",
+            "CI-options" : {
+                "blob_name" : "kpi_caffe2_FP16_squeezenet1_1"
+            }
+        },
+
+        {
+            "name" : "kpi_caffe2_FP16_squeezenet1.1_MCM",
+            "ir" : "kpi/squeezenet1.1/caffe2/FP16/squeezenet1.1.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2",
+                "VPUX_INFERENCE_TIMEOUT": "100000"
+            },
+            "Compile" : {
+                "input_precision" : "U8",
+                "input_layout" : "NHWC",
+                "output_precision" : "FP32",
+                "output_layout" : "NHWC"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "227x227"
+            },
+            "AccuracyCheck" : {
+                "config": "squeezenet1.1-caffe2_v10.yml"
+            },
+            "NetTest": {
+                "inputs" : [["227x227/cat3.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "2.0",
+                    "--color_format", "RGB"
+                ]
+            },
+            "CI-options" : {
+                "blob_name" : "kpi_caffe2_FP16_squeezenet1_1_MCM"
+            },
+            "comments" : "NHWC layout was chosen because of performance degradation with default layout EISW-18533."
+        },
+
+        {
+            "name" : "kpi_caffe2_FP16-INT8_squeezenet1.1",
+            "oldName" : "empty",
+            "ir" : "kpi/squeezenet1.1/caffe2/FP16-INT8/squeezenet1.1.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "VPUX_COMPILATION_MODE": "ReferenceHW",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2",
+                "VPUX_INFERENCE_TIMEOUT": "100000"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "227x227"
+            },
+            "AccuracyCheck" : {
+                "config": "squeezenet1.1-caffe2_v10.yml"
+            },
+            "NetTest": {
+                "inputs" : [["227x227/watch.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.07"
+                ]
+            },
+            "category" : "MLIR",
+            "CI-options" : {
+                "blob_name" : "kpi_caffe2_FP16_squeezenet1_1"
+            }
+        },
+
+        {
+            "name" : "kpi_caffe_FP16-INT8_ssd512",
+            "ir" : "kpi/ssd512/caffe/FP16-INT8/ssd512.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "512x512"
+            },
+            "NetTest": {
+                "inputs" : [["512x512/dog_croped512.bmp"]],
+                "params" : [
+                    "--mode", "ssd",
+                    "--confidence_threshold", "0.3",
+                    "--prob_tolerance", "0.3",
+                    "--box_tolerance", "0.1",
+                    "--color_format", "RGB"
+                ]
+            },
+            "AccuracyCheck" : {
+                "config": "ssd512_caffe_dense_int8_IRv10.yml",
+                "subsample_size": 100
+            },
+            "category" : "MCM/release/precommit/weekly_public",
+            "CI-options" : {
+                "blob_name" : "ssd512_cf"
+            }
+        },
+
+        {
+            "name" : "kpi_tf_FP16-INT8_faster_rcnn_resnet101_coco",
+            "ir" : "kpi/faster_rcnn_resnet101_coco/tf/FP16-INT8/faster_rcnn_resnet101_coco.xml",
+            "disabled" :  true,
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "512x512"
+            },
+            "NetTest-CalcRef" : {
+                "disabled" : true
+            },
+            "NetTest-Validate" : {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "category" : "MCM/release",
+            "CI-options" : {
+                "blob_name" : "faster-rcnn-resnet101-coco_tf"
+            }
+        },
+
+        {
+            "name" : "por_tf_FP16-INT8_googlenet-v4",
+            "ir" : "por/googlenet-v4/tf/FP16-INT8/googlenet-v4.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "299x299"
+            },
+            "AccuracyCheck" : {
+                "disabled" : true,
+                "config": "inception_v4_v10.yml"
+            },
+            "NetTest": {
+                "inputs" : [["299x299/n01537544_28.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.7"
+                ]
+            },
+            "category" : "MCM/release/weekly_public",
+            "CI-options" : {
+                "blob_name" : "googlenet-v4_tf"
+            },
+            "comments" :"AccuracyCheck disabled because model is not a priority."
+        },
+
+        {
+            "name" : "por_tf_FP16-INT8_ssd_mobilenet_v1_coco",
+            "ir" : "por/ssd_mobilenet_v1_coco/tf/FP16-INT8/ssd_mobilenet_v1_coco.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "300x300"
+            },
+            "NetTest": {
+                "inputs" : [["300x300/dog.bmp"]],
+                "params" : [
+                    "--mode", "ssd",
+                    "--confidence_threshold", "0.3",
+                    "--prob_tolerance", "0.3",
+                    "--box_tolerance", "0.1",
+                    "--color_format", "RGB"
+                ]
+            },
+            "AccuracyCheck" : {
+                "config": "ssd_mobilenet_v1_coco.yml"
+            },
+            "category" : "MCM/release",
+            "CI-options" : {
+                "blob_name" : "ssd-mobilenet-v1-coco_tf",
+                "deprecated" : true
+            }
+        },
+
+        {
+            "name" : "por_tf_FP16-INT8_facenet-20180408-102900",
+            "ir" : "por/facenet-20180408-102900/tf/FP16-INT8/facenet-20180408-102900.xml",
+            "disabled" :  true,
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "300x300"
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "NetTest": {
+                "inputs" : [["300x300/dog.bmp"]],
+                "params" : [
+                    "--mode", "raw",
+                    "--raw_tolerance", "0.1"
+                ]
+            },
+            "category" : "MCM/release",
+            "CI-options" : {
+                "blob_name" : "facenet-20180408-102900_tf",
+                "deprecated" : true
+            }
+        },
+
+        {
+            "name" : "por_FP16-INT8_person-vehicle-bike-detection-crossroad-0078",
+            "ir" : "por/person-vehicle-bike-detection-crossroad-0078/FP16-INT8/person-vehicle-bike-detection-crossroad-0078.xml",
+            "disabled" :  true,
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "1024x1024"
+            },
+            "NetTest-CalcRef" : {
+                "disabled" : true
+            },
+            "NetTest-Validate" : {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "category" : "MCM/release",
+            "CI-options" : {
+                "blob_name" : "person-vehicle-bike-detection-crossroad-0078_cf"
+            }
+        },
+
+        {
+            "name" : "por_tf_FP16-INT8_vehicle-license-plate-detection-barrier-0106",
+            "ir" : "por/vehicle-license-plate-detection-barrier-0106/tf/FP16-INT8/vehicle-license-plate-detection-barrier-0106.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "300x300"
+            },
+            "NetTest-CalcRef" : {
+                "disabled" : true
+            },
+            "NetTest-Validate" : {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "config": "vehicle-license-plate-detection-barrier-0106.yml",
+                "subsample_size": 300
+            },
+            "category" : "MCM/release",
+            "CI-options" : {
+                "blob_name" : "vehicle-license-plate-detection-barrier-0106_tf"
+            }
+        },
+
+        {
+            "name" : "ea_FP16-INT8_face-detection-retail-0004",
+            "ir" : "ea/face-detection-retail-0004/FP16-INT8/face-detection-retail-0004.xml",
+            "disabled" :  true,
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "300x300"
+            },
+            "NetTest-CalcRef" : {
+                "disabled" : true
+            },
+            "NetTest-Validate" : {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "category" : "MCM/release",
+            "CI-options" : {
+                "blob_name" : "face-detection-retail-0004_cf"
+            }
+        },
+
+        {
+            "name" : "por_caffe_FP16-INT8_resnet-101",
+            "ir" : "por/resnet-101/caffe/FP16-INT8/resnet-101.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "224x224"
+            },
+            "AccuracyCheck" : {
+                "config": "resnet-101-cf_v10.yml"
+            },
+            "NetTest": {
+                "inputs" : [["224x224/watch.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.7"
+                ]
+            },
+            "category" : "MCM/release/weekly_public",
+            "CI-options" : {
+                "blob_name" : "resnet-101_cf"
+            }
+        },
+
+        {
+            "name" : "por_caffe_FP16-INT8_resnet-152",
+            "ir" : "por/resnet-152/caffe/FP16-INT8/resnet-152.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "224x224"
+            },
+            "AccuracyCheck" : {
+                "disabled" : true,
+                "config": "resnet-152-cf_v10.yml"
+            },
+            "NetTest": {
+                "inputs" : [["224x224/watch.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.7"
+                ]
+            },
+            "category" : "MCM/release",
+            "CI-options" : {
+                "blob_name" : "resnet-152_cf"
+            },
+            "comments" :"AccuracyCheck disabled because model is not a priority."
+        },
+
+        {
+            "name" : "por_caffe_FP16-INT8_alexnet",
+            "ir" : "por/alexnet/caffe/FP16-INT8/alexnet.xml",
+            "disabled" :  true,
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "227x227"
+            },
+            "NetTest-CalcRef" : {
+                "disabled" : true
+            },
+            "NetTest-Validate" : {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "category" : "MCM/release",
+            "CI-options" : {
+                "blob_name" : "alexnet_cf"
+            }
+        },
+
+        {
+            "name" : "por_caffe_FP16-INT8_vgg16",
+            "ir" : "por/vgg16/caffe/FP16-INT8/vgg16.xml",
+            "disabled" :  true,
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "224x224"
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "NetTest": {
+                "inputs" : [["224x224/watch.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.7"
+                ]
+            },
+            "category" : "MCM/release",
+            "CI-options" : {
+                "blob_name" : "vgg16_cf",
+                "deprecated" : true
+            }
+        },
+
+        {
+            "name" : "por_caffe2_FP16-INT8_resnet-18",
+            "ir" : "por/resnet-18/caffe2/FP16-INT8/resnet-18.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "224x224"
+            },
+            "AccuracyCheck" : {
+                "config": "resnet-18-pytorch_v10.yml"
+            },
+            "NetTest": {
+                "inputs" : [["224x224/watch.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.7"
+                ]
+            },
+            "category" : "MCM/release/precommit",
+            "CI-options" : {
+                "blob_name" : "resnet-18_cf2"
+            }
+        },
+
+        {
+            "name" : "ea_caffe_FP16-INT8_mobilenet-v1-1.0-224",
+            "ir" : "ea/mobilenet-v1-1.0-224/caffe/FP16-INT8/mobilenet-v1-1.0-224.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "224x224"
+            },
+            "AccuracyCheck" : {
+                "config": "mobilenet-v1-1.0-224_v10.yml"
+            },
+            "NetTest": {
+                "inputs" : [["224x224/watch.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.01"
+                ]
+            },
+            "category" : "MCM/release/precommit",
+            "CI-options" : {
+                "blob_name" : "mobilenet-v1-1-0-224_cf"
+            }
+        },
+        {
+            "name" : "ea_caffe_FP16_mobilenet-v1-1.0-224",
+            "ir" : "ea/mobilenet-v1-1.0-224/caffe/FP16/mobilenet-v1-1.0-224.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2",
+                "VPUX_INFERENCE_TIMEOUT": "50000"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "224x224"
+            },
+            "AccuracyCheck" : {
+                "config": "mobilenet-v1-1.0-224_v10.yml"
+            },
+            "NetTest": {
+                "inputs" : [["224x224/watch.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.1"
+                ]
+            },
+            "category" : "MLIR",
+            "CI-options" : {
+                "blob_name" : "mobilenet-v1-1-0-224_cf"
+            }
+        },
+        {
+            "name" : "ea_caffe_FP16-INT8_mobilenet-v1-1.0-224",
+            "ir" : "ea/mobilenet-v1-1.0-224/caffe/FP16-INT8/mobilenet-v1-1.0-224.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2",
+                "VPUX_INFERENCE_TIMEOUT": "50000"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "224x224"
+            },
+            "AccuracyCheck" : {
+                "config": "mobilenet-v1-1.0-224_v10.yml"
+            },
+            "NetTest": {
+                "inputs" : [["224x224/watch.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.1"
+                ]
+            },
+            "category" : "MLIR",
+            "CI-options" : {
+                "blob_name" : "mobilenet-v1-1-0-224_cf"
+            }
+        },
+        {
+            "name" : "ea_caffe_FP16-INT8_resnet-50",
+            "ir" : "ea/resnet-50/caffe/FP16-INT8/resnet-50.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "224x224"
+            },
+            "NetTest": {
+                "inputs" : [["224x224/cat3.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.01"
+                ]
+            },
+            "AccuracyCheck" : {
+                "config": "resnet-50-caffe_v10.yml",
+                "disabled" : true
+            },
+            "category" : "MCM/release/precommit",
+            "CI-options" : {
+                "blob_name" : "resnet-50_cf"
+            }
+        },
+
+        {
+            "name" : "por_caffe2_FP16-INT8_vehicle-attributes-recognition-barrier-0042",
+            "ir" : "por/vehicle-attributes-recognition-barrier-0042/caffe2/FP16-INT8/vehicle-attributes-recognition-barrier-0042.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "320x320"
+            },
+            "AccuracyCheck" : {
+                "config" : "vehicle-attributes-recognition-barrier-0042.yml",
+                "subsample_size": 100
+            },
+            "NetTest": {
+                "inputs" : [["320x320/car_fcn8_320.bmp"]],
+                "params" : [
+                    "--mode", "raw",
+                    "--raw_tolerance", "0.3"
+                ]
+            },
+            "category" : "MCM/release/precommit",
+            "CI-options" : {
+                "blob_name" : "vehicle-attributes-recognition-barrier-0042_cf2"
+            }
+        },
+
+        {
+            "name" : "por_tf_FP16-INT8_yolo-v2-tiny-vehicle-detection-0001",
+            "ir" : "por/yolo-v2-tiny-vehicle-detection-0001/tf/FP16-INT8/yolo-v2-tiny-vehicle-detection-0001.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "416x416"
+            },
+            "NetTest-CalcRef" : {
+                "disabled" : true
+            },
+            "NetTest-Validate" : {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "config" : "yolo-v2-tiny-vehicle-detection-0001.yml",
+                "subsample_size": 100
+            },
+            "category" : "MCM/release/precommit",
+            "CI-options" : {
+                "blob_name" : "yolo-v2-tiny-vehicle-detection-0001_tf"
+            }
+        },
+
+        {
+            "name" : "ea_caffe2_FP16-INT8_resnet-34-pytorch",
+            "ir" : "ea/resnet-34-pytorch/caffe2/FP16-INT8/resnet-34-pytorch.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "224x224"
+            },
+            "NetTest": {
+                "inputs" : [["224x224/cat3.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.23"
+                ]
+            },
+            "AccuracyCheck" : {
+                "config": "resnet-34-pytorch.yml",
+                "disabled" : true
+            },
+            "category" : "MCM/release/precommit",
+            "CI-options" : {
+                "blob_name" : "resnet-34-pytorch_cf2"
+            }
+        },
+
+        {
+            "name" : "tf_FP16-INT8_person-vehicle-bike-detection-crossroad-yolov3-1020",
+            "ir" : "person-vehicle-bike-detection-crossroad-yolov3-1020/tf/FP16-INT8/person-vehicle-bike-detection-crossroad-yolov3-1020.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "416x416"
+            },
+            "NetTest-CalcRef" : {
+                "disabled" : true
+            },
+            "NetTest-Validate" : {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "config": "person-vehicle-bike-detection-crossroad-yolov3-1020.yml",
+                "subsample_size": 10
+            },
+            "category" : "MCM/release",
+            "CI-options" : {
+                "blob_name" : "person-vehicle-bike-detection-crossroad-yolov3-1020_tf"
+            }
+        },
+
+        {
+            "name" : "kpi_tf_FP16-INT8_icnet-camvid-ava-0001",
+            "ir" : "kpi/icnet-camvid-ava-0001/tf/FP16-INT8/icnet-camvid-ava-0001.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "1024x1024"
+            },
+            "AccuracyCheck" : {
+                "config" : "icnet-camvid-ava-0001.yml"
+            },
+            "NetTest": {
+                "inputs" : [["1024x1024/frankfurt_001016.png"]],
+                "params" : [
+                    "--mode", "raw",
+                    "--raw_tolerance", "1000"
+                ]
+            },
+            "category" : "MCM/release/precommit/weekly_public",
+            "CI-options" : {
+                "blob_name" : "icnet-camvid-ava-0001_tf"
+            }
+        },
+
+        {
+            "name" : "cntk_FP16-INT8_tiny_yolo_v2",
+            "ir" : "tiny_yolo_v2/cntk/FP16-INT8/tiny_yolo_v2.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "416x416"
+            },
+            "NetTest-CalcRef" : {
+                "disabled" : true
+            },
+            "NetTest-Validate" : {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "config": "tiny_yolo_v2-cntk.yml",
+                "subsample_size": 100
+            },
+            "category" : "MCM/release",
+            "CI-options" : {
+                "blob_name" : "tiny-yolo-v2_cntk"
+            }
+        },
+
+        {
+            "name" : "ea_caffe2_FP16-INT8_yolo_v2",
+            "ir" : "ea/yolo_v2/caffe2/FP16-INT8/yolo_v2.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "416x416"
+            },
+            "AccuracyCheck" : {
+                "config": "yolo_v2-caffe2.yml",
+                "subsample_size": 100
+            },
+            "NetTest": {
+                "inputs" : [["416x416/person.bmp"]],
+                "params" : [
+                    "--mode", "raw",
+                    "--raw_tolerance", "1000"
+                ]
+            },
+            "category" : "MCM/release/precommit",
+            "CI-options" : {
+                "blob_name" : "yolo-v2_cf2"
+            }
+        },
+
+        {
+            "name" : "mx_tf_FP16-INT8_ssd_mobilenet_v2_coco",
+            "ir" : "mx/ssd_mobilenet_v2_coco/tf/FP16-INT8/ssd_mobilenet_v2_coco.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "300x300"
+            },
+            "NetTest": {
+                "inputs" : [["300x300/dog.bmp"]],
+                "params" : [
+                    "--mode", "ssd",
+                    "--confidence_threshold", "0.3",
+                    "--prob_tolerance", "0.3",
+                    "--box_tolerance", "0.1"
+                ]
+            },
+            "AccuracyCheck" : {
+                "config" : "ssd_mobilenet_v2_coco.yml",
+                "subsample_size": 100
+            },
+            "category" : "MCM/release/precommit",
+            "CI-options" : {
+                "blob_name" : "ssd-mobilenet-v2-coco_tf"
+            }
+        },
+
+        {
+            "name" : "ea_tf_FP16_ssd_mobilenet_v2",
+            "ir" : "ea/ssd_mobilenet_v2/tf/FP16/ssd_mobilenet_v2.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2",
+                "VPUX_INFERENCE_TIMEOUT": "240000"
+            },
+            "BenchmarkApp": {
+                "disabled": true
+            },
+            "NetTest": {
+                "inputs" : [["224x224/n04335435.bmp"]],
+                "params" : [
+                    "--mode", "ssd",
+                    "--confidence_threshold", "0.9",
+                    "--prob_tolerance", "0.3",
+                    "--box_tolerance", "0.15"
+                ]
+            },
+            "AccuracyCheck": {
+                "disabled": true
+            },
+            "category" : "MLIR",
+            "CI-options" : {
+                "blob_name" : "fp16-ssd-mobilenet-v2_tf"
+            }
+        },
+
+        {
+            "name": "ea_tf_FP16-INT8_ssd_mobilenet_v2",
+            "ir": "ea/ssd_mobilenet_v2/tf/FP16-INT8/ssd_mobilenet_v2.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config": {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2",
+                "VPUX_INFERENCE_TIMEOUT": "240000"
+            },
+            "BenchmarkApp": {
+                "disabled": true
+            },
+            "NetTest": {
+                "inputs": [["224x224/n04335435.bmp"]],
+                "params": [
+                    "--mode", "ssd",
+                    "--confidence_threshold", "0.9",
+                    "--prob_tolerance", "0.3",
+                    "--box_tolerance", "0.15"
+                ]
+            },
+            "AccuracyCheck": {
+                "disabled": true
+            },
+            "category": "MLIR",
+            "CI-options": {
+                "blob_name": "int8-ssd-mobilenet-v2_tf"
+            }
+        },
+
+        {
+            "name" : "ea_tf_FP16-INT8_ssd_mobilenet_v2",
+            "ir" : "ea/ssd_mobilenet_v2/tf/FP16-INT8/ssd_mobilenet_v2.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "300x300"
+            },
+            "NetTest": {
+                "inputs" : [["300x300/dog.bmp"]],
+                "params" : [
+                    "--mode", "ssd",
+                    "--confidence_threshold", "0.3",
+                    "--prob_tolerance", "0.3",
+                    "--box_tolerance", "0.1"
+                ]
+            },
+            "AccuracyCheck" : {
+                "config" : "ssd_mobilenet_v2.yml",
+                "subsample_size": 100
+            },
+            "category" : "MCM/release/weekly_public",
+            "CI-options" : {
+                "blob_name" : "ssd-mobilenet-v2_tf"
+            }
+        },
+
+        {
+            "name" : "kpi_caffe2_FP16-INT8_mobilenet-v2",
+            "ir" : "kpi/mobilenet-v2/caffe2/FP16-INT8/mobilenet-v2.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2",
+                "VPUX_INFERENCE_TIMEOUT": "100000"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "224x224"
+            },
+            "NetTest": {
+                "inputs" : [["224x224/watch.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "2.0",
+                    "--color_format", "RGB"
+                ]
+            },
+            "AccuracyCheck" : {
+                "config": "mobilenet-v2-pytorch_v10.yml",
+                "disabled" : true
+            },
+            "category" : "MLIR",
+            "CI-options" : {
+                "blob_name" : "kpi_caffe_FP16-INT8_mobilenet-v2"
+            }
+        },
+
+        {
+            "name" : "mx_tf_FP16-INT8_mobilenet-v1-0.25-128",
+            "ir" : "mx/mobilenet-v1-0.25-128/tf/FP16-INT8/mobilenet-v1-0.25-128.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "224x224"
+            },
+            "NetTest": {
+                "inputs" : [["224x224/cat3.bmp"], ["224x224/watch.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.08"
+                ]
+            },
+            "AccuracyCheck" : {
+                "disabled" : true,
+                "config" : "mobilenet-v1-0.25-128.yml",
+                "subsample_size": 100
+            },
+            "category" : "MCM/release/precommit",
+            "CI-options" : {
+                "blob_name" : "mobilenet-v1-0-25-128_tf"
+            },
+            "comments" :"AccuracyCheck disabled because model is not a priority."
+        },
+
+        {
+            "name" : "ea_caffe_FP16-INT8_emotions-recognition-retail-0003",
+            "ir" : "ea/emotions-recognition-retail-0003/caffe/FP16-INT8/emotions-recognition-retail-0003.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "224x224"
+            },
+            "NetTest-CalcRef" : {
+                "disabled" : true
+            },
+            "NetTest-Validate" : {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "config": "emotions-recognition-retail-0003.yml"
+            },
+            "category" : "MCM/release/precommit",
+            "CI-options" : {
+                "blob_name" : "emotions-recognition-retail-0003_cf"
+            }
+        },
+
+        {
+            "name" : "ea_caffe_FP16-INT8_retinaface-mobilenetv2-0.25-modified",
+            "ir" : "ea/retinaface-mobilenetv2-0.25-modified/caffe/FP16-INT8/retinaface-mobilenetv2-0.25-modified.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "320x320"
+            },
+            "NetTest-CalcRef" : {
+                "disabled" : true
+            },
+            "NetTest-Validate" : {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "config" : "retinaface-mobilenetv2-0.25-modified.yml",
+                "subsample_size": 10
+            },
+            "category" : "MCM/release",
+            "CI-options" : {
+                "blob_name" : "retinaface-mobilenetv2-0-25-modified_cf"
+            }
+        },
+
+        {
+            "name" : "por_caffe_FP16_vas-face-detection-stage1",
+            "ir" : "por/vas-face-detection-stage1/caffe/FP16/vas-face-detection-stage1.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "disabled" : true,
+            "BenchmarkApp" : {
+                "input_folder" : "320x240"
+            },
+            "NetTest-CalcRef" : {
+                "disabled" : true
+            },
+            "NetTest-Validate" : {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "config": "vas_fd_stage1.yml",
+                "subsample_size": 100,
+                "disabled" : true
+            },
+            "category" : "MCM/release",
+            "CI-options" : {
+                "blob_name" : "vas-face-detection-stage1_cf"
+            }
+        },
+
+        {
+            "name" : "por_caffe_FP16-INT8_vas-face-detection-stage2",
+            "ir" : "por/vas-face-detection-stage2/caffe/FP16-INT8/vas-face-detection-stage2.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "48x48"
+            },
+            "NetTest-CalcRef" : {
+                "disabled" : true
+            },
+            "NetTest-Validate" : {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "disabled" : true,
+                "config": "vas_fd_stage2.yml",
+                "subsample_size": 100
+            },
+            "category" : "MCM/release",
+            "CI-options" : {
+                "blob_name" : "vas-face-detection-stage2_u8_cf"
+            }
+        },
+
+        {
+            "name" : "SINGLE_IMAGE_TEST_por_caffe_FP16-INT8_vas-face-detection-stage2",
+            "ir" : "por/vas-face-detection-stage2/caffe/FP16-INT8/vas-face-detection-stage2.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "BenchmarkApp" : {
+                "disabled" : true
+            },
+            "NetTest": {
+                "inputs" : [["48x48/Alma_Powell_0_0.1133.jpg"]],
+                "params" : [
+                    "--mode", "raw",
+                    "--raw_tolerance", "0.02"
+                ]
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "category" : "MCM/release/precommit",
+            "CI-options" : {
+                "blob_name" : "vas-face-detection-stage2_u8_cf_tmp"
+            }
+        },
+
+        {
+            "name" : "por_caffe_FP16_vas-face-detection-stage2",
+            "ir" : "por/vas-face-detection-stage2/caffe/FP16/vas-face-detection-stage2.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "Compile" : {
+                "input_precision" : "FP32"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "48x48"
+            },
+            "NetTest-CalcRef" : {
+                "disabled" : true
+            },
+            "NetTest-Validate" : {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "disabled" : true,
+                "config": "vas_fd_stage2.yml",
+                "subsample_size": 100
+            },
+            "category" : "MCM/release",
+            "CI-options" : {
+                "blob_name" : "vas-face-detection-stage2_fp16_cf"
+            },
+            "comments" :"AccuracyCheck disabled because model is not a priority."
+        },
+
+        {
+            "name" : "SINGLE_IMAGE_TEST_por_caffe_FP16_vas-face-detection-stage2",
+            "ir" : "por/vas-face-detection-stage2/caffe/FP16/vas-face-detection-stage2.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "Compile" : {
+                "input_precision" : "FP32"
+            },
+            "BenchmarkApp" : {
+                "disabled" : true
+            },
+            "NetTest": {
+                "inputs" : [["48x48/Alma_Powell_0_0.1133.jpg"]],
+                "params" : [
+                    "--mode", "raw",
+                    "--raw_tolerance", "0.002"
+                ]
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "category" : "MCM/release/precommit",
+            "CI-options" : {
+                "blob_name" : "vas-face-detection-stage2_fp16_cf_tmp"
+            }
+        },
+
+        {
+            "name" : "por_tf_FP16-INT8_vas-face-recognition-feature-extraction",
+            "ir" : "por/vas-face-recognition-feature-extraction/tf/FP16-INT8/vas-face-recognition-feature-extraction.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "112x112"
+            },
+            "NetTest-CalcRef" : {
+                "disabled" : true
+            },
+            "NetTest-Validate" : {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "config": "vas-face-recognition.yml",
+                "subsample_size": 100
+            },
+            "category" : "MCM/release",
+            "CI-options" : {
+                "blob_name" : "vas-face-recognition-feature-extraction_tf"
+            }
+        },
+
+        {
+            "name" : "ea_caffe2_FP16-INT8_resnet50-v2",
+            "ir" : "ea/resnet50-v2/caffe2/FP16-INT8/resnet50-v2.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "224x224"
+            },
+            "NetTest": {
+                "inputs" : [["224x224/watch.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.5"
+                ]
+            },
+            "AccuracyCheck" : {
+                "config": "resnet-50-v2.yml"
+            },
+            "category" : "MCM/release",
+            "CI-options" : {
+                "blob_name" : "resnet50-v2_cf2"
+            }
+        },
+
+        {
+            "name" : "mx_caffe_FP16-INT8_densenet-121",
+            "ir" : "mx/densenet-121/caffe/FP16-INT8/densenet-121.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "224x224"
+            },
+            "NetTest": {
+                "inputs" : [["224x224/watch.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.6"
+                ]
+            },
+            "AccuracyCheck" : {
+                "config": "densenet-121-caffe.yml"
+            },
+            "category" : "MCM/release",
+            "CI-options" : {
+                "blob_name" : "densenet-121_cf"
+            }
+        },
+
+        {
+            "name" : "mx_tf_FP16-INT8_densenet-121",
+            "ir" : "mx/densenet-121/tf/FP16-INT8/densenet-121.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "224x224"
+            },
+            "NetTest": {
+                "inputs" : [["224x224/watch.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.04"
+                ]
+            },
+            "AccuracyCheck" : {
+                "config": "densenet-121-tf.yml"
+            },
+            "category" : "MCM/release/weekly_public",
+            "CI-options" : {
+                "blob_name" : "densenet-121_tf"
+            }
+        },
+
+        {
+            "name" : "mx_caffe_FP16-INT8_densenet-169",
+            "ir" : "mx/densenet-169/caffe/FP16-INT8/densenet-169.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "224x224"
+            },
+            "NetTest": {
+                "inputs" : [["224x224/rattlesnake.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.5"
+                ]
+            },
+            "AccuracyCheck" : {
+                "config": "densenet-169-caffe.yml"
+            },
+            "category" : "MCM/release/weekly_public",
+            "CI-options" : {
+                "blob_name" : "densenet-169_cf"
+            }
+        },
+
+    {
+            "name" : "por_caffe2_FP16-INT8_person-attributes-recognition-crossroad-0234",
+            "ir" : "por/person-attributes-recognition-crossroad-0234/caffe2/FP16-INT8/person-attributes-recognition-crossroad-0234.xml",
+            "disabled" : true,
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "320x180"
+            },
+            "NetTest-CalcRef" : {
+                "disabled" : true
+            },
+            "NetTest-Validate" : {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "config": "person-attributes-recognition-crossroad-0234.yml"
+            },
+            "category" : "MCM/release",
+            "CI-options" : {
+                "blob_name" : "person-attributes-recognition-crossroad-0234_cf2"
+            }
+        },
+
+        {
+            "name" : "por_caffe2_FP16-INT8_person-attributes-recognition-crossroad-0238",
+            "ir" : "por/person-attributes-recognition-crossroad-0238/caffe2/FP16-INT8/person-attributes-recognition-crossroad-0238.xml",
+            "disabled" : true,
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "320x180"
+            },
+            "NetTest-CalcRef" : {
+                "disabled" : true
+            },
+            "NetTest-Validate" : {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "config": "person-attributes-recognition-crossroad-0238.yml"
+            },
+            "category" : "MCM/release",
+            "CI-options" : {
+                "blob_name" : "person-attributes-recognition-crossroad-0238_cf2"
+            }
+        },
+
+        {
+            "name" : "mx_tf_FP16-INT8_text-detection-0003",
+            "ir" : "mx/text-detection-0003/tf/FP16-INT8/text-detection-0003.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "224x224"
+            },
+            "NetTest-CalcRef" : {
+                "disabled" : true
+            },
+            "NetTest-Validate" : {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "config": "text-detection-0003.yml",
+                "subsample_size": 250
+            },
+            "category" : "MCM/release/precommit",
+            "CI-options" : {
+                "blob_name" : "text-detection-0003_tf"
+            }
+        },
+
+        {
+            "name" : "mx_tf_FP16-INT8_text-detection-0004",
+            "ir" : "mx/text-detection-0004/tf/FP16-INT8/text-detection-0004.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "224x224"
+            },
+            "NetTest-CalcRef" : {
+                "disabled" : true
+            },
+            "NetTest-Validate" : {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "config": "text-detection-0004.yml",
+                "subsample_size": 250
+            },
+            "category" : "MCM/release",
+            "CI-options" : {
+                "blob_name" : "text-detection-0004_tf"
+            }
+        },
+
+        {
+            "name" : "ea_caffe_FP16_age-gender-recognition-retail-0013_ww14",
+            "oldName" : "ea_caffe_FP16_age-gender-recognition-retail-0013_MLIR",
+            "ir" : "age-gender-recognition-retail-0013-ww14/caffe/FP16/age-gender-recognition-retail-0013.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "VPUX_COMPILATION_MODE": "ReferenceHW",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2",
+                "VPUX_DPU_GROUPS": "1",
+                "VPUX_THROUGHPUT_STREAMS": "6"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "62x62"
+            },
+            "NetTest": {
+                "inputs" : [["62x62/face62.bmp"]],
+                "params" : [
+                    "--mode", "raw",
+                    "--raw_tolerance", "0.002"
+                ]
+            },
+            "AccuracyCheck" : {
+                "config": "age-gender-recognition-retail-0013.yml"
+            },
+            "category" : "MLIR",
+            "CI-options" : {
+                "blob_name" : "ea_caffe_FP16_age-gender-recognition-retail-0013"
+            }
+        },
+
+        {
+            "name" : "ea_caffe_FP16-INT8_age-gender-recognition-retail-0013",
+            "ir" : "ea/age-gender-recognition-retail-0013/caffe/FP16-INT8/age-gender-recognition-retail-0013.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "VPUX_COMPILATION_MODE": "ReferenceHW",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2",
+                "VPUX_DPU_GROUPS": "1",
+                "VPUX_THROUGHPUT_STREAMS": "6"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "62x62"
+            },
+            "NetTest": {
+                "inputs" : [["62x62/face62.bmp"]],
+                "params" : [
+                    "--mode", "raw",
+                    "--raw_tolerance", "0.02"
+                ]
+            },
+            "AccuracyCheck" : {
+                "config": "age-gender-recognition-retail-0013.yml"
+            },
+            "category" : "MLIR",
+            "CI-options" : {
+                "blob_name" : "ea_caffe_FP16-INT8_age-gender-recognition-retail-0013"
+            }
+        },
+
+        {
+            "name" : "por_caffe2_FP16_resnet-18-pytorch",
+            "ir" : "por/resnet-18/caffe2/FP16/resnet-18.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "VPUX_COMPILATION_MODE": "ReferenceHW",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2",
+                "VPUX_INFERENCE_TIMEOUT": "100000"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "224x224"
+            },
+            "NetTest": {
+                "inputs" : [["224x224/gorilla.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.1"
+                ]
+            },
+            "AccuracyCheck" : {
+                "config": "resnet-18-pytorch_v10.yml"
+            },
+            "category" : "MLIR",
+            "CI-options" : {
+                "blob_name" : "por_caffe2_FP16_resnet-18-pytorch"
+            }
+        },
+
+        {
+            "name" : "por_caffe2_FP16-INT8_resnet-18-pytorch",
+            "ir" : "por/resnet-18/caffe2/FP16-INT8/resnet-18.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "VPUX_COMPILATION_MODE": "ReferenceHW",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2",
+                "VPUX_INFERENCE_TIMEOUT": "100000"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "224x224"
+            },
+            "NetTest": {
+                "inputs" : [["224x224/gorilla.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.3"
+                ]
+            },
+            "AccuracyCheck" : {
+                "config": "resnet-18-pytorch_v10.yml"
+            },
+            "category" : "MLIR",
+            "CI-options" : {
+                "blob_name" : "por_caffe2_FP16_resnet-18-pytorch"
+            }
+        },
+
+        {
+            "name" : "ea_caffe_FP16_mobilenet-v2",
+            "ir" : "ea/mobilenet-v2/caffe/FP16/mobilenet-v2.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2",
+                "VPUX_INFERENCE_TIMEOUT": "100000"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "224x224"
+            },
+            "NetTest": {
+                "inputs" : [["224x224/watch.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.1"
+                ]
+            },
+            "AccuracyCheck" : {
+                "config": "mobilenet-v2-caffe_v10.yml"
+            },
+            "category" : "MLIR",
+            "CI-options" : {
+                "blob_name" : "ea_caffe_FP16_mobilenet-v2"
+            }
+        },
+
+        {
+            "name" : "ea_caffe_FP16-INT8_mobilenet-v2",
+            "ir" : "ea/mobilenet-v2/caffe/FP16-INT8/mobilenet-v2.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2",
+                "VPUX_INFERENCE_TIMEOUT": "100000"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "224x224"
+            },
+            "NetTest": {
+                "inputs" : [["224x224/watch.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.1"
+                ]
+            },
+            "AccuracyCheck" : {
+                "config": "mobilenet-v2-caffe_v10.yml"
+            },
+            "category" : "MLIR",
+            "CI-options" : {
+                "blob_name" : "ea_caffe_FP16_mobilenet-v2"
+            }
+        },
+
+        {
+            "name" : "ea_caffe2_FP16-INT8_shufflenet-v2-x1.0-pytorch",
+            "ir" : "ea/shufflenet-v2-x1.0/caffe2/FP16-INT8/shufflenet-v2-x1.0.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "224x224"
+            },
+            "NetTest-CalcRef" : {
+                "disabled" : true
+            },
+            "NetTest-Validate" : {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "config": "shufflenet-v2-x1.0-pytorch.yml"
+            },
+            "category" : "MCM/release",
+            "CI-options" : {
+                "blob_name" : "shufflenet-v2-x1-0-pytorch_cf2"
+            }
+        },
+
+        {
+            "name" : "por_tf_FP16-INT8_license-plate-recognition-barrier-0007_ww34",
+            "ir" : "license-plate-recognition-barrier-0007-ww34/tf/FP16-INT8/license-plate-recognition-barrier-0007.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "24x94"
+            },
+            "NetTest-CalcRef" : {
+                "disabled" : true
+            },
+            "NetTest-Validate" : {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "config": "license-plate-recognition-barrier-0007.yml"
+            },
+            "category" : "MCM/release/precommit",
+            "CI-options" : {
+                "blob_name" : "license-plate-recognition-barrier-0007-ww34_tf"
+            }
+        },
+
+        {
+            "name" : "BDK_FP16-INT8_ModelA",
+            "oldName" : "ADK_FP16-INT8_ModelA_MCM",
+            "ir" : "models/clientmodels/BDK3/ModelA/Surface/INT8/ModelA.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "224x224"
+            },
+            "NetTest": {
+                "inputs" : [["224x224/watch.bmp"]],
+                "params" : [
+                    "--mode", "raw",
+                    "--raw_tolerance", "1000"
+                ]
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "category" : "MCM/release/precommit/dKMB/weekly_private",
+            "CI-options" : {
+                "blob_name" : "bdk_model-a",
+                "special" : true
+            }
+        },
+
+        {
+            "name": "BDK_FP16-INT8_ModelA",
+            "oldName" : "ADK_FP16-INT8_ModelA_MLIR",
+            "ir": "models/clientmodels/BDK3/ModelA/Surface/INT8/ModelA.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config": {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2",
+                "VPUX_INFERENCE_TIMEOUT": "60000"
+            },
+            "BenchmarkApp": {
+                "input_folder": "224x224"
+            },
+            "NetTest": {
+                "inputs": [
+                    [
+                        "224x224/watch.bmp"
+                    ]
+                ],
+                "params": [
+                    "--mode",
+                    "raw",
+                    "--raw_tolerance",
+                    "1000"
+                ]
+            },
+            "AccuracyCheck": {
+                "disabled": true
+            },
+            "category": "MLIR/dKMB",
+            "CI-options": {
+                "blob_name": "model-a_adk",
+                "special": true
+            }
+        },
+
+        {
+            "name" : "BDK_Deblur_AA",
+            "3900" : {
+                "disabled" : true
+            },
+            "ir" : "models/clientmodels/BDK3/Deblur/AccuracyAware/2020.1_INT8_Deblur_AccuracyAwareQuantization.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_THROUGHPUT_STREAMS": "1"
+            },
+            "BenchmarkApp" : {
+                "disabled" : true,
+                "input_folder" : "1280x720"
+            },
+            "NetTest-CalcRef" : {
+                "disabled" : true
+            },
+            "NetTest-Validate" : {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "disabled" : true,
+                "config": "deblur_aa.yml",
+                "subsample_size": 10
+            },
+            "category" : "MCM/dKMB/weekly_private",
+            "CI-options" : {
+                "blob_name" : "bdk_deblur_aa",
+                "special" : true
+            },
+            "comments" : "Only compilation on validation, because of bug EISW-18575."
+        },
+
+        {
+            "name" : "BDK_caffe2_FP16-INT8_mobilenet-v2",
+            "ir" : "models/clientmodels/BDK3/mobilenet-v2/caffe2/FP16-INT8/mobilenet-v2.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "224x224"
+            },
+            "NetTest": {
+                "inputs" : [["224x224/watch.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.7",
+                    "--color_format", "RGB"
+                ]
+            },
+            "AccuracyCheck" : {
+                "config": "mobilenet-v2-caffe_v10.yml"
+            },
+            "category" : "MCM/dKMB/weekly_private",
+            "CI-options" : {
+                "blob_name" : "bdk_mobilenet-v2",
+                "special" : true
+            }
+        },
+
+        {
+            "name" : "BDK_INT8_ModelE_V2",
+            "ir" : "models/clientmodels/BDK3/ModelE-V2/Surface/INT8/ModelE-V2.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "224x224"
+            },
+            "NetTest": {
+                "inputs" : [["224x224/watch.bmp"]],
+                "params" : [
+                    "--mode", "raw",
+                    "--raw_tolerance", "1000"
+                ]
+            },
+            "AccuracyCheck" : {
+                "disabled" :  true,
+                "config": "model_e_v2_int8.yml",
+                "subsample_size": 50
+            },
+            "category" : "MCM/dKMB/weekly_private",
+            "CI-options" : {
+                "blob_name" : "bdk_model-e-v2",
+                "special" : true
+            }
+        },
+
+        {
+            "name" : "BDK_INT8_ModelE_V3",
+            "ir" : "models/clientmodels/BDK3/ModelE-V3/Surface/INT8/ModelE-V3.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "224x224"
+            },
+            "NetTest": {
+                "inputs" : [["224x224/watch.bmp"]],
+                "params" : [
+                    "--mode", "raw",
+                    "--raw_tolerance", "1000"
+                ]
+            },
+            "AccuracyCheck" : {
+                "config": "model_e_v3_int8.yml",
+                "subsample_size": 50
+            },
+            "category" : "MCM/dKMB/weekly_private",
+            "CI-options" : {
+                "blob_name" : "bdk_model-e-v3",
+                "special" : true
+            }
+        },
+
+        {
+            "name": "BDK_INT8_ModelE_V2",
+            "oldName" : "BDK2_INT8_ModelE_V2_MLIR",
+            "ir": "models/clientmodels/BDK3/ModelE-V2/Surface/INT8/ModelE-V2.xml",
+            "3720": {
+                "disabled": true
+            },
+            "extra_config": {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2",
+                "VPUX_INFERENCE_TIMEOUT": "60000"
+            },
+            "BenchmarkApp": {
+                "input_folder": "224x224"
+            },
+            "NetTest-CalcRef" : {
+                "disabled" : true
+            },
+            "NetTest-Validate" : {
+                "disabled" : true
+            },
+            "AccuracyCheck": {
+                "disabled": true
+            },
+            "category": "MLIR",
+            "CI-options": {
+                "blob_name": "bdk_model-e-v2",
+                "special": true
+            },
+            "comments" : "Excluded from Windows validation, because of bug EISW-19489."
+        },
+        {
+            "name": "BDK_INT8_ModelE_V3",
+            "oldName" : "BDK2_INT8_ModelE_V3_MLIR",
+            "ir": "models/clientmodels/BDK3/ModelE-V3/Surface/INT8/ModelE-V3.xml",
+            "3720": {
+                "disabled": true
+            },
+            "extra_config": {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2",
+                "VPUX_INFERENCE_TIMEOUT": "60000"
+            },
+            "BenchmarkApp": {
+                "input_folder": "224x224"
+            },
+            "NetTest-CalcRef" : {
+                "disabled" : true
+            },
+            "NetTest-Validate" : {
+                "disabled" : true
+            },
+            "AccuracyCheck": {
+                "disabled": true
+            },
+            "category": "MLIR/dKMB",
+            "CI-options": {
+                "blob_name": "bdk_model-e-v3",
+                "special": true
+            }
+        },
+
+        {
+            "name" : "BDK_tf_FP16-INT8_mobilenet-v3-large-1.0-224",
+            "ir" : "models/clientmodels/BDK3/mobilenet-v3-large-1.0-224/tf/FP16-INT8/mobilenet-v3-large-1.0-224.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "BenchmarkApp" : {
+                "disabled" :  true,
+                "input_folder" : "224x224"
+            },
+            "NetTest": {
+                "inputs" : [["224x224/watch.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "1.0"
+                ]
+            },
+            "AccuracyCheck" : {
+                "disabled" :  true,
+                "config": "mobilenet-v3-large-1.0-224-tf.yml",
+                "subsample_size": 100
+            },
+            "category" : "MCM/dKMB/weekly_private",
+            "CI-options" : {
+                "blob_name" : "bdk_mobilenet-v3-large-1.0-224_tf",
+                "special" : true
+            }
+        },
+        {
+            "name" : "BDK_tf_FP16-INT8_mobilenet-v3-small-1.0-224",
+            "ir" : "models/clientmodels/BDK3/mobilenet-v3-small-1.0-224/tf/FP16-INT8/mobilenet-v3-small-1.0-224.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "224x224"
+            },
+            "NetTest": {
+                "inputs" : [["224x224/cat3.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "1.0"
+                ]
+            },
+            "AccuracyCheck" : {
+                "config": "mobilenet-v3-small-1.0-224-tf.yml",
+                "subsample_size": 100
+            },
+            "category" : "MCM/dKMB/weekly_private",
+            "CI-options" : {
+                "blob_name" : "bdk_mobilenet-v3-small-1.0-224",
+                "special" : true
+            }
+        },
+
+        {
+            "name" : "ea_tf_FP16_mobilenet-v3-large-1.0-224",
+            "ir" : "ea/mobilenet-v3-large-1.0-224/tf/FP16/mobilenet-v3-large-1.0-224.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "224x224"
+            },
+            "extra_config": {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2",
+                "VPUX_INFERENCE_TIMEOUT": "60000"
+            },
+            "NetTest": {
+                "inputs" : [["224x224/husky.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.1"
+                ]
+            },
+            "AccuracyCheck" : {
+                "config": "mobilenet-v3-large-1.0-224-tf.yml"
+            },
+            "category" : "MLIR",
+            "CI-options" : {
+                "blob_name" : "ea_tf_fp16_mobilenet-v3-large-1.0-224_tf"
+            },
+            "comments" : "Excluded from Windows validation, because of bug EISW-19491."
+        },
+        {
+            "name" : "ea_tf_FP16-INT8_mobilenet-v3-large-1.0-224",
+            "ir" : "ea/mobilenet-v3-large-1.0-224/tf/FP16-INT8/mobilenet-v3-large-1.0-224.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "224x224"
+            },
+            "extra_config": {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2",
+                "VPUX_INFERENCE_TIMEOUT": "60000"
+            },
+            "NetTest": {
+                "inputs" : [["224x224/husky.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.2"
+                ]
+            },
+            "AccuracyCheck" : {
+                "config": "mobilenet-v3-large-1.0-224-tf.yml"
+            },
+            "category" : "MLIR",
+            "CI-options" : {
+                "blob_name" : "ea_tf_fp16-int8_mobilenet-v3-large-1.0-224_tf"
+            }
+        },
+        {
+            "name" : "ea_tf_FP16_mobilenet-v3-small-1.0-224",
+            "ir" : "ea/mobilenet-v3-small-1.0-224/tf/FP16/mobilenet-v3-small-1.0-224.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config": {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2",
+                "VPUX_INFERENCE_TIMEOUT": "60000"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "224x224"
+            },
+            "NetTest": {
+                "inputs" : [["224x224/watch.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.1"
+                ]
+            },
+            "AccuracyCheck" : {
+                "config": "mobilenet-v3-small-1.0-224-tf.yml"
+            },
+            "category" : "MLIR",
+            "CI-options" : {
+                "blob_name" : "ea_tf_fp16-mobilenet-v3-small-1.0-224"
+            }
+        },
+        {
+            "name" : "ea_tf_FP16-INT8_mobilenet-v3-small-1.0-224",
+            "ir" : "ea/mobilenet-v3-small-1.0-224/tf/FP16-INT8/mobilenet-v3-small-1.0-224.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config": {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2",
+                "VPUX_INFERENCE_TIMEOUT": "60000"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "224x224"
+            },
+            "NetTest": {
+                "inputs" : [["224x224/watch.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "2",
+                    "--prob_tolerance", "0.1"
+                ]
+            },
+            "AccuracyCheck" : {
+                "config": "mobilenet-v3-small-1.0-224-tf.yml"
+            },
+            "category" : "MLIR/precommit",
+            "CI-options" : {
+                "blob_name" : "ea_tf_fp16-int8-mobilenet-v3-small-1.0-224"
+            }
+        },
+
+        {
+            "name" : "BDK_caffe2_FP16-INT8_modnet_photographic_portrait_matting",
+            "ir" : "models/clientmodels/BDK3/modnet_photographic_portrait_matting/caffe2/FP16-INT8/modnet_photographic_portrait_matting.xml",
+            "disabled" :  true,
+            "3720": {
+                "disabled" : true
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "224x224"
+            },
+            "NetTest": {
+                "inputs" : [["224x224/watch.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "1.0"
+                ]
+            },
+            "AccuracyCheck" : {
+                "config": "modnet_photographic_portrait_matting-caffe2.yml",
+                "subsample_size": 100
+            },
+            "category" : "MCM/dKMB/weekly_private",
+            "CI-options" : {
+                "blob_name" : "bdk_modnet_photographic_portrait_matting",
+                "special" : true
+            }
+        },
+
+        {
+            "name" : "BDK_caffe2_FP16-INT8_modnet_webcam_portrait_matting",
+            "ir" : "models/clientmodels/BDK3/modnet_webcam_portrait_matting/caffe2/FP16-INT8/modnet_webcam_portrait_matting.xml",
+            "disabled" :  true,
+            "3720": {
+                "disabled" : true
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "224x224"
+            },
+            "NetTest": {
+                "inputs" : [["224x224/watch.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "1.0"
+                ]
+            },
+            "AccuracyCheck" : {
+                "config": "modnet_webcam_portrait_matting-caffe2.yml",
+                "subsample_size": 100
+            },
+            "category" : "MCM/dKMB/weekly_private",
+            "CI-options" : {
+                "blob_name" : "bdk_modnet_webcam_portrait_matting",
+                "special" : true
+            }
+        },
+
+        {
+            "name" : "BDK_caffe2_FP16-INT8_resnet-50-pytorch",
+            "ir" : "models/clientmodels/BDK3/resnet-50-pytorch/caffe2/FP16-INT8/resnet-50-pytorch.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "224x224"
+            },
+            "NetTest": {
+                "inputs" : [["224x224/watch.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.7"
+                ]
+            },
+            "AccuracyCheck" : {
+                "config": "resnet-50_v10.yml"
+            },
+            "category" : "MCM/dKMB/weekly_private",
+            "CI-options" : {
+                "blob_name" : "bdk_resnet-50-pytorch",
+                "special" : true
+            }
+        },
+
+        {
+            "name" : "BDK_FP16-INT8_hg-s8-b1-mpii",
+            "ir" : "models/clientmodels/BDK3/StackedHourglass/Surface/FP16-INT8/hg-s8-b1-mpii.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "224x224"
+            },
+            "NetTest": {
+                "inputs" : [["224x224/watch.bmp"]],
+                "params" : [
+                    "--mode", "raw",
+                    "--raw_tolerance", "1000"
+                ]
+            },
+            "AccuracyCheck" : {
+                "config": "hg-s8-b1-mpii-caffe2.yml",
+                "subsample_size": 50
+            },
+            "category" : "MCM/dKMB/precommit/weekly_private",
+            "CI-options" : {
+                "blob_name" : "bdk_StackedHourglass",
+                "special" : true
+            }
+        },
+
+        {
+            "name" : "BDK_INT8_StyleTransfer",
+            "ir" : "models/clientmodels/BDK3/StyleTransfer/Cyberlink/INT8/StyleTransfer.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "224x224"
+            },
+            "NetTest": {
+                "inputs" : [["224x224/watch.bmp"]],
+                "params" : [
+                    "--mode", "raw",
+                    "--raw_tolerance", "1000"
+                ]
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "category" : "MCM/release/dKMB/weekly_private",
+            "CI-options" : {
+                "blob_name" : "bdk_StyleTransfer",
+                "special" : true
+            }
+        },
+        {
+            "name" : "BDK_FP16-INT8_SuperRes_AA",
+            "oldName" : "BDK3_FP16-INT8_SuperRes_AA_MCM",
+            "ir" : "models/clientmodels/BDK3/SuperRes/AccuracyAware/SuperRes_INT8_AA.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "224x224"
+            },
+            "NetTest-CalcRef" : {
+                "disabled" : true
+            },
+            "NetTest-Validate" : {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "config": "superres_int8_aa.yml",
+                "subsample_size": 10
+            },
+            "category" : "MCM/dKMB/weekly_private",
+            "CI-options" : {
+                "blob_name" : "bdk_super_res_aa",
+                "special" : true
+            }
+        },
+
+        {
+            "name" : "BDK_FP16-INT8_unet-camvid-onnx-0001",
+            "ir" : "models/clientmodels/BDK3/UnetAutoencoder/Surface/FP16-INT8/unet-camvid-onnx-0001.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "224x224"
+            },
+            "NetTest": {
+                "inputs" : [["224x224/watch.bmp"]],
+                "params" : [
+                    "--mode", "raw",
+                    "--raw_tolerance", "1000"
+                ]
+            },
+            "AccuracyCheck" : {
+                "config": "unet-camvid-onnx-0001.yml"
+            },
+            "category" : "MCM/dKMB/weekly_private",
+            "CI-options" : {
+                "blob_name" : "bdk_unet-camvid-onnx-0001",
+                "special" : true
+            }
+        },
+
+        {
+            "name" : "BDK_tf_FP16-INT8_yolo_v4",
+            "ir" : "models/clientmodels/BDK3/yolo_v4/tf/FP16-INT8/yolo_v4.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "416x416"
+            },
+            "NetTest": {
+                "inputs" : [["416x416/person.bmp"]],
+                "params" : [
+                    "--mode", "raw",
+                    "--raw_tolerance", "1000"
+                ]
+            },
+            "AccuracyCheck" : {
+                "config": "yolo_v4_tensorflow_v10.yml",
+                "subsample_size": 10
+            },
+            "category" : "MCM/dKMB/weekly_private",
+            "CI-options" : {
+                "blob_name" : "bdk_yolo_v4",
+                "special" : true
+            }
+        },
+
+        {
+            "name" : "BDK_caffe2_FP16-INT8_yolo_v5m",
+            "ir" : "models/clientmodels/BDK3/yolo_v5m/caffe2/FP16-INT8/yolo_v5m.xml",
+            "disabled" :  true,
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "416x416"
+            },
+            "NetTest": {
+                "inputs" : [["416x416/person.bmp"]],
+                "params" : [
+                    "--mode", "raw",
+                    "--raw_tolerance", "1000"
+                ]
+            },
+            "AccuracyCheck" : {
+                "config": "yolo_v5m-caffe2.yml",
+                "subsample_size": 10
+            },
+            "category" : "MCM/dKMB/weekly_private",
+            "CI-options" : {
+                "blob_name" : "bdk_yolo_v5m",
+                "special" : true
+            }
+        },
+
+        {
+            "name" : "BDK_FP16-INT8_SuperRes_AA",
+            "oldName" : "BDK3_FP16-INT8_SuperRes_AA_MLIR",
+            "ir" : "models/clientmodels/BDK3/SuperRes/AccuracyAware/SuperRes_INT8_AA.xml",
+            "extra_config": {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_INFERENCE_TIMEOUT": "60000",
+                "VPUX_THROUGHPUT_STREAMS": "1",
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "VPUX_COMPILATION_MODE": "ReferenceHW"
+            },
+            "3720": {
+                "disabled" : true
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "224x224"
+            },
+            "NetTest-CalcRef" : {
+                "disabled" : true
+            },
+            "NetTest-Validate" : {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "config": "superres_int8_aa.yml",
+                "subsample_size": 100
+            },
+            "category": "MLIR",
+            "CI-options" : {
+                "blob_name" : "bdk_super_res_aa",
+                "special" : true
+            }
+        },
+
+        {
+            "name" : "BDK_tf_FP16-INT8_deeplabv3",
+            "ir" : "models/clientmodels/BDK3/deeplabv3/tf/FP16-INT8/deeplabv3.xml",
+            "3900" : {
+                "disabled" : true
+            },
+            "3720": {
+                "disabled" : true
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "224x224"
+            },
+            "NetTest-CalcRef" : {
+                "disabled" : true
+            },
+            "NetTest-Validate": {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "config": "deeplabv3-tf.yml",
+                "subsample_size": 50
+            },
+            "category" : "MCM/dKMB",
+            "CI-options" : {
+                "blob_name" : "bdk_deeplabv3",
+                "special" : true
+            }
+        },
+
+        {
+            "name" : "por_caffe2_FP16-INT8_unet-camvid-onnx-0001",
+            "ir" : "por/unet-camvid-onnx-0001/caffe2/FP16-INT8/unet-camvid-onnx-0001.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "Compile" : {
+                "output_precision" : "FP16"
+            },
+            "BenchmarkApp" : {
+                "disabled" : true
+            },
+            "NetTest-CalcRef" : {
+                "disabled" : true
+            },
+            "NetTest-Validate" : {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "category" : "MCM/release/precommit/weekly_public",
+            "CI-options" : {
+                "blob_name" : "unet-camvid-onnx-0001_cf2"
+            }
+        },
+
+        {
+            "name" : "ea_caffe_FP16-INT8_openpose-pose",
+            "ir" : "ea/openpose-pose/caffe/FP16-INT8/openpose-pose.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "Compile" : {
+                "input_precision" : "U8",
+                "output_precision" : "FP32"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "368x368"
+            },
+            "NetTest": {
+                "inputs" : [["368x368/test.jpg"]],
+                "params" : [
+                    "--mode", "raw",
+                    "--raw_tolerance", "1000"
+                ]
+            },
+            "AccuracyCheck" : {
+                "config": "openpose-pose-caffe.yml",
+                "subsample_size": 50
+            },
+            "category" : "MCM/release/precommit/weekly_public",
+            "CI-options" : {
+                "blob_name" : "openpose-pose_cf"
+            }
+        },
+
+
+        {
+            "name" : "stereo_U8_640x360",
+            "ir" : "Stereo/Stereo_640x360.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "Compile" : {
+                "input_precision" : "U8",
+                "output_precision" : "FP32"
+            },
+            "BenchmarkApp" : {
+                "disabled" : true
+            },
+            "NetTest": {
+                "inputs" : [["640x360/stereo_640x360.bin"]],
+                "params" : [
+                    "--mode", "raw",
+                    "--raw_tolerance", "0"
+                ]
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "category" : "MCM/release/precommit",
+            "CI-options" : {
+                "blob_name" : "Stereo_640x360"
+            }
+        },
+
+
+        {
+            "name" : "stereo_U8_640x400",
+            "ir" : "Stereo/Stereo_640x400.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "Compile" : {
+                "input_precision" : "U8",
+                "output_precision" : "FP32"
+            },
+            "BenchmarkApp" : {
+                "disabled" : true
+            },
+            "NetTest": {
+                "inputs" : [["640x400/stereo_640x400.bin"]],
+                "params" : [
+                    "--mode", "raw",
+                    "--raw_tolerance", "0"
+                ]
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "category" : "MCM/release",
+            "CI-options" : {
+                "blob_name" : "Stereo_640x400"
+            }
+        },
+
+
+        {
+            "name" : "stereo_U8_640x480",
+            "ir" : "Stereo/Stereo_640x480.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "Compile" : {
+                "input_precision" : "U8",
+                "output_precision" : "FP32"
+            },
+            "BenchmarkApp" : {
+                "disabled" : true
+            },
+            "NetTest": {
+                "inputs" : [["640x480/stereo_640x480.bin"]],
+                "params" : [
+                    "--mode", "raw",
+                    "--raw_tolerance", "0"
+                ]
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "category" : "MCM/release",
+            "CI-options" : {
+                "blob_name" : "Stereo_640x480"
+            }
+        },
+
+
+        {
+            "name" : "stereo_U8_1280x720",
+            "ir" : "Stereo/Stereo_1280x720.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "Compile" : {
+                "input_precision" : "U8",
+                "output_precision" : "FP32"
+            },
+            "BenchmarkApp" : {
+                "disabled" : true
+            },
+            "NetTest": {
+                "inputs" : [["1280x720/stereo_1280x720.bin"]],
+                "params" : [
+                    "--mode", "raw",
+                    "--raw_tolerance", "0"
+                ]
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "category" : "MCM/release/precommit",
+            "CI-options" : {
+                "blob_name" : "Stereo_1280x720"
+            }
+        },
+
+
+        {
+            "name" : "stereo_U8_1280x800",
+            "ir" : "Stereo/Stereo_1280x800.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "Compile" : {
+                "input_precision" : "U8",
+                "output_precision" : "FP32"
+            },
+            "BenchmarkApp" : {
+                "disabled" : true
+            },
+            "NetTest": {
+                "inputs" : [["1280x800/stereo_1280x800.bin"]],
+                "params" : [
+                    "--mode", "raw",
+                    "--raw_tolerance", "0"
+                ]
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "category" : "MCM/release",
+            "CI-options" : {
+                "blob_name" : "Stereo_1280x800"
+            }
+        },
+
+
+        {
+            "name" : "stereo_U8_1280x960",
+            "ir" : "Stereo/Stereo_1280x960.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "Compile" : {
+                "input_precision" : "U8",
+                "output_precision" : "FP32"
+            },
+            "BenchmarkApp" : {
+                "disabled" : true
+            },
+            "NetTest": {
+                "inputs" : [["1280x960/stereo_1280x960.bin"]],
+                "params" : [
+                    "--mode", "raw",
+                    "--raw_tolerance", "0"
+                ]
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "category" : "MCM/release",
+            "CI-options" : {
+                "blob_name" : "Stereo_1280x960"
+            }
+        },
+
+        {
+            "name" : "experimental_tf_FP16-INT8_yolo_v3-darknet-608",
+            "ir" : "yolo-v3-darknet-608/tf/FP16-INT8/yolo-v3-darknet-608.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "416x416"
+            },
+            "NetTest": {
+                "inputs" : [["416x416/person.bmp"]],
+                "params" : [
+                    "--mode", "raw",
+                    "--raw_tolerance", "1000"
+                ]
+            },
+            "AccuracyCheck" : {
+                "config": "yolo_v3_tf_608.yml",
+                "subsample_size": 50
+            },
+            "category" : "MCM/precommit/weekly_public",
+            "CI-options" : {
+                "blob_name" : "yolo-v3-darknet-608_tf"
+            }
+        },
+
+        {
+            "name" : "experimental_caffe2_FP16-INT8_shufflenet-v2-aircrafts_ww48",
+            "oldName" : "experimental_caffe2_FP16-INT8_shufflenet-v2-aircrafts_MCM",
+            "ir" : "models/ww48/shufflenet-v2-aircrafts/caffe2/FP16-INT8/shufflenet-v2-aircrafts.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "224x224"
+            },
+            "NetTest": {
+                "inputs" : [["224x224/n04266014.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "1.0"
+                ]
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "category" : "MCM/release",
+            "CI-options" : {
+                "blob_name" : "shufflenet-v2-aircrafts"
+            }
+        },
+
+        {
+            "name" : "experimental_caffe2_FP16-INT8_shufflenet-v2-stanford-cars_ww48",
+            "oldName" : "experimental_caffe2_FP16-INT8_shufflenet-v2-stanford-cars_MCM",
+            "ir" : "models/ww48/shufflenet-v2-stanford-cars/caffe2/FP16-INT8/shufflenet-v2-stanford-cars.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "224x224"
+            },
+            "NetTest": {
+                "inputs" : [["224x224/n04285008.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "1.0"
+                ]
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "category" : "MCM/release",
+            "CI-options" : {
+                "blob_name" : "shufflenet-v2-stanford-cars"
+            }
+        },
+
+        {
+            "name" : "experimental_caffe2_FP16-INT8_shufflenet-v2-stanford-dogs_ww48",
+            "oldName" : "experimental_caffe2_FP16-INT8_shufflenet-v2-stanford-dogs_MCM",
+            "ir" : "models/ww48/shufflenet-v2-stanford-dogs/caffe2/FP16-INT8/shufflenet-v2-stanford-dogs.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "224x224"
+            },
+            "NetTest": {
+                "inputs" : [["224x224/watch.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "1.0"
+                ]
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "category" : "MCM/release",
+            "CI-options" : {
+                "blob_name" : "shufflenet-v2-stanford-dogs"
+            }
+        },
+
+
+
+        {
+            "name" : "SINGLE_IMAGE_TEST_kpi_tf_FP16-INT8_googlenet-v1",
+            "ir" : "kpi/googlenet-v1/tf/FP16-INT8/googlenet-v1.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "BenchmarkApp" : {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "NetTest": {
+                "inputs" : [["224x224/watch.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.7"
+                ]
+            },
+            "category" : "MCM/precommit",
+            "CI-options" : {
+                "blob_name" : "googlenet-v1_tf_tmp"
+            }
+        },
+
+        {
+            "name" : "SINGLE_IMAGE_TEST_kpi_tf_FP16-INT8_googlenet-v3",
+            "ir" : "kpi/googlenet-v3/tf/FP16-INT8/googlenet-v3.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "BenchmarkApp" : {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "NetTest": {
+                "inputs" : [["299x299/n01537544_28.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.7"
+                ]
+            },
+            "category" : "MCM/precommit",
+            "CI-options" : {
+                "blob_name" : "googlenet-v3_tf_tmp"
+            }
+        },
+
+        {
+            "name" : "SINGLE_IMAGE_TEST_kpi_caffe2_FP16-INT8_squeezenet1.1",
+            "ir" : "kpi/squeezenet1.1/caffe2/FP16-INT8/squeezenet1.1.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "BenchmarkApp" : {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "NetTest": {
+                "inputs" : [["227x227/watch.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.7"
+                ]
+            },
+            "category" : "MCM/precommit",
+            "CI-options" : {
+                "blob_name" : "squeezenet1-1_cf2_tmp"
+            }
+        },
+
+        {
+            "name" : "SINGLE_IMAGE_TEST_kpi_caffe2_FP16_mobilenet-v2",
+            "ir" : "kpi/mobilenet-v2/caffe2/FP16/mobilenet-v2.xml",
+            "disabled" :  true,
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "Compile" : {
+                "input_precision" : "FP16",
+                "output_precision" : "FP16"
+            },
+            "BenchmarkApp" : {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "NetTest": {
+                "inputs" : [["224x224/watch.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "3",
+                    "--prob_tolerance", "2.5",
+                    "--color_format", "RGB"
+                ]
+            },
+            "category" : "MCM/precommit",
+            "CI-options" : {
+                "blob_name" : "mobilenet-v2_cf2_fp16"
+            }
+        },
+
+        {
+            "name" : "SINGLE_IMAGE_TEST_mx_tf_FP16_mobilenet-v1-0.25-128",
+            "ir" : "mx/mobilenet-v1-0.25-128/tf/FP16/mobilenet-v1-0.25-128.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "Compile" : {
+                "input_precision" : "FP16"
+            },
+            "BenchmarkApp" : {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "NetTest": {
+                "inputs" : [["224x224/cat3.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.3",
+                    "--color_format", "BGR"
+                ]
+            },
+            "category" : "MCM/precommit",
+            "CI-options" : {
+                "blob_name" : " mobilenet-v1_025_128_tf_fp16_tmp"
+            }
+        },
+
+        {
+            "name" : "SINGLE_IMAGE_TEST_kpi_tf_FP16_googlenet-v1",
+            "ir" : "kpi/googlenet-v1/tf/FP16/googlenet-v1.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "Compile" : {
+                "input_precision" : "FP16"
+            },
+            "BenchmarkApp" : {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "NetTest": {
+                "inputs" : [["224x224/watch.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.001"
+                ]
+            },
+            "category" : "MCM/precommit",
+            "CI-options" : {
+                "blob_name" : "googlenet-v1_tf_fp16"
+            }
+        },
+
+        {
+            "name" : "SINGLE_IMAGE_TEST_por_tf_FP16-INT8_googlenet-v4",
+            "ir" : "por/googlenet-v4/tf/FP16-INT8/googlenet-v4.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "BenchmarkApp" : {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "NetTest": {
+                "inputs" : [["299x299/n01537544_28.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.7"
+                ]
+            },
+            "category" : "MCM/precommit",
+            "CI-options" : {
+                "blob_name" : "googlenet-v4_tf_tmp"
+            }
+        },
+
+        {
+            "name" : "SINGLE_IMAGE_TEST_kpi_caffe2_FP16-INT8_resnet-50-pytorch",
+            "ir" : "kpi/resnet-50-pytorch/caffe2/FP16-INT8/resnet-50-pytorch.xml",
+            "disabled" :  true,
+            "3720": {
+                "disabled" : true
+            },
+            "Compile" : {
+                "input_precision" : "U8",
+                "output_precision" : "FP16"
+            },
+            "BenchmarkApp" : {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "NetTest": {
+                "inputs" : [["224x224/cat3.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "3",
+                    "--prob_tolerance", "0.05"
+                ]
+            },
+            "category" : "MCM/precommit",
+            "CI-options" : {
+                "blob_name" : "resnet-50-pytorch_cf2_tmp"
+            }
+        },
+
+        {
+            "name" : "SINGLE_IMAGE_TEST_por_caffe_FP16-INT8_resnet-152",
+            "ir" : "por/resnet-152/caffe/FP16-INT8/resnet-152.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "BenchmarkApp" : {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "NetTest": {
+                "inputs" : [["224x224/watch.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.7"
+                ]
+            },
+            "category" : "MCM/precommit",
+            "CI-options" : {
+                "blob_name" : "resnet-152_cf_tmp"
+            }
+        },
+
+        {
+            "name" : "ea_tf_FP16-INT8_mobilenet-v3-large-1.0-224",
+            "ir" : "ea/mobilenet-v3-large-1.0-224/tf/FP16-INT8/mobilenet-v3-large-1.0-224.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPU_COMPILER_NUM_CLUSTER": "1"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "224x224"
+            },
+            "NetTest": {
+                "inputs" : [["224x224/watch.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "1.0"
+                ]
+            },
+            "AccuracyCheck" : {
+                "config": "mobilenet-v3-large-1.0-224-tf.yml",
+                "subsample_size": 100
+            },
+            "category" : "MCM/release/weekly_public",
+            "CI-options" : {
+                "blob_name" : "mobilenet-v3-large-1.0-224_tf"
+            }
+        },
+
+        {
+            "name" : "ea_caffe2_FP16-INT8_mobilenet-v3-large-1.0-224",
+            "ir" : "ea/mobilenet-v3-large-1.0-224/caffe2/FP16-INT8/mobilenet-v3-large-1.0-224.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "BenchmarkApp" : {
+                "disabled" : true
+            },
+            "NetTest-CalcRef" : {
+                "disabled" : true
+            },
+            "NetTest-Validate" : {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "category" : "MCM/release",
+            "CI-options" : {
+                "blob_name" : "mobilenet-v3-large-1.0-224_cf2"
+            }
+        },
+
+        {
+            "name" : "MTL_ea_caffe_FP16_age-gender-recognition-retail-0013",
+            "oldName" : "ea_caffe_FP16_age-gender-recognition-retail-0013-MTL_MCM",
+            "ir" : "models/mtl/age-gender-recognition-wout_softmax/FP16/age-gender-recognition-retail-0013_wout_softmax.xml",
+            "disabled" : true,
+            "3720": {
+                "disabled" : false
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MCM",
+                "VPU_COMPILER_COMPILATION_DESCRIPTOR": "release_mtl-sc",
+                "VPU_COMPILER_TARGET_DESCRIPTOR": "release_mtl",
+                "VPU_COMPILER_ALLOW_U8_INPUT_FOR_FP16_MODELS": "NO"
+            },
+            "BenchmarkApp" : {
+                "disabled" : true
+            },
+            "NetTest-CalcRef" : {
+                "disabled" : true
+            },
+            "NetTest-Validate" : {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "category" : "MCM/release",
+            "CI-options" : {
+                "blob_name" : "age-gender-wout-softmax"
+            }
+        },
+
+        {
+            "name" : "SINGLE_IMAGE_TEST_mx_tf_FP16-INT8_mobilenet-v1-0.25-128",
+            "ir" : "mx/mobilenet-v1-0.25-128/tf/FP16-INT8/mobilenet-v1-0.25-128.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "BenchmarkApp" : {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "NetTest": {
+                "inputs" : [["224x224/watch.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.3"
+                ]
+            },
+            "category" : "MCM/precommit",
+            "CI-options" : {
+                "blob_name" : "mobilenet-v1_single_image_test"
+            }
+        },
+
+        {
+            "name" : "SINGLE_IMAGE_TEST_kpi_caffe2_FP16_resnet-50-pytorch",
+            "ir" : "kpi/resnet-50-pytorch/caffe2/FP16/resnet-50-pytorch.xml",
+            "disabled" :  true,
+            "3720": {
+                "disabled" : true
+            },
+            "Compile" : {
+                "input_precision" : "FP16",
+                "output_precision" : "FP16"
+            },
+            "BenchmarkApp" : {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "NetTest": {
+                "inputs" : [["224x224/cat3.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "3",
+                    "--prob_tolerance", "0.05"
+                ]
+            },
+            "category" : "MCM/precommit",
+            "CI-options" : {
+                "blob_name" : "resnet-50-pytorch_cf2_fp16_tmp"
+            }
+        },
+
+        {
+            "name" : "kpi_caffe2_FP16_mobilenet-v2",
+            "ir" : "kpi/mobilenet-v2/caffe2/FP16/mobilenet-v2.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "BenchmarkApp" : {
+                "disabled" : true,
+                "input_folder" : "224x224"
+            },
+            "NetTest": {
+                "disabled" : true,
+                "inputs" : [["224x224/watch.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "3",
+                    "--prob_tolerance", "2.5",
+                    "--color_format", "RGB"
+                ]
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "category" : "MCM/precommit",
+            "CI-options" : {
+                "blob_name" : "mobilenet-v2_cf2_fp16"
+            }
+        },
+
+        {
+            "name" : "MTL_FP16_age-gender-recognition-retail-0013-16-chan",
+            "ir" : "models/mtl/age-gender-recognition-16-chan/FP16/age-gender-recognition-retail-0013-16-chan.xml",
+            "disabled" : true,
+            "3720": {
+                "disabled" : false
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "VPUX_COMPILATION_MODE": "ReferenceHW",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2",
+                "VPUX_DPU_GROUPS": "1",
+                "VPUX_THROUGHPUT_STREAMS": "6"
+            },
+            "Compile" : {
+                "input_layout" : "NHWC",
+                "output_layout" : "NHWC",
+                "input_precision" : "FP16",
+                "output_precision" : "FP16"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "62x62"
+            },
+            "NetTest-CalcRef" : {
+                "disabled" : true
+            },
+            "NetTest-Validate" : {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "category" : "MLIR",
+            "CI-options" : {
+                "blob_name" : "age-gender-16-chan"
+            },
+            "comments" : "NHWC layout was chosen on purpose because this model for MTL."
+        },
+
+        {
+            "name" : "MTL_kpi_caffe2_FP16_resnet-50-pytorch",
+            "ir" : "kpi/resnet-50-pytorch/caffe2/FP16/resnet-50-pytorch.xml",
+            "disabled" : true,
+            "3720": {
+                "disabled" : false
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "VPUX_COMPILATION_MODE": "ReferenceHW",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2",
+                "VPUX_DPU_GROUPS": "1",
+                "VPUX_THROUGHPUT_STREAMS": "6"
+            },
+            "Compile" : {
+                "input_layout" : "NHWC",
+                "output_layout" : "NHWC",
+                "input_precision" : "FP16",
+                "output_precision" : "FP16"
+            },
+            "BenchmarkApp" : {
+                "disabled" : true
+            },
+            "NetTest-CalcRef" : {
+                "disabled" : true
+            },
+            "NetTest-Validate" : {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "category" : "MLIR",
+            "CI-options" : {
+                "blob_name" : "MTL_resnet-50-pytorch_cf2_fp16"
+            },
+            "comments" : "NHWC layout and FP16 precision set for MTL compilation purposes."
+        },
+
+        {
+            "name" : "MTL_kpi_caffe2_FP16_mobilenet-v2",
+            "ir" : "kpi/mobilenet-v2/caffe2/FP16/mobilenet-v2.xml",
+            "disabled" : true,
+            "3720": {
+                "disabled" : false
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "VPUX_COMPILATION_MODE": "ReferenceHW",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2",
+                "VPUX_DPU_GROUPS": "1",
+                "VPUX_THROUGHPUT_STREAMS": "6"
+            },
+            "Compile" : {
+                "input_layout" : "NHWC",
+                "output_layout" : "NHWC",
+                "input_precision" : "FP16",
+                "output_precision" : "FP16"
+            },
+            "BenchmarkApp" : {
+                "disabled" : true
+            },
+            "NetTest-CalcRef" : {
+                "disabled" : true
+            },
+            "NetTest-Validate" : {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "category" : "MLIR",
+            "CI-options" : {
+                "blob_name" : "MTL_mobilenet-v2_cf2_fp16"
+            },
+            "comments" : "NHWC layout and FP16 precision set for MTL compilation purposes."
+        },
+
+        {
+            "name" : "SINGLE_IMAGE_TEST_kpi_tf_FP16-INT8_yolo-v2-ava-0001",
+            "ir" : "kpi/yolo-v2-ava-0001/tf/FP16-INT8/yolo-v2-ava-0001.xml",
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "Compile" : {
+                "input_precision" : "U8",
+                "output_precision" : "FP32"
+            },
+            "BenchmarkApp" : {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "NetTest": {
+                "inputs" : [["416x416/person.bmp"]],
+                "params" : [
+                    "--color_format", "RGB",
+                    "--mode", "yolo_v2",
+                    "--confidence_threshold", "0.6",
+                    "--box_tolerance", "0.4",
+                    "--prob_tolerance", "0.4",
+                    "--is_tiny_yolo", "false"
+                ]
+            },
+            "category" : "MCM/precommit",
+            "CI-options" : {
+                "blob_name" : "yolo-v2-ava-0001_tf_tmp"
+            }
+        },
+
+        {
+            "name" : "SINGLE_IMAGE_TEST_kpi_tf_FP16-INT8_yolo-v2-tiny-ava-0001",
+            "ir" : "kpi/yolo-v2-tiny-ava-0001/tf/FP16-INT8/yolo-v2-tiny-ava-0001.xml",
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "Compile" : {
+                "input_precision" : "U8",
+                "output_precision" : "FP32"
+            },
+            "BenchmarkApp" : {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "NetTest": {
+                "inputs" : [["416x416/person.bmp"]],
+                "params" : [
+                    "--color_format", "RGB",
+                    "--mode", "yolo_v2",
+                    "--confidence_threshold", "0.6",
+                    "--box_tolerance", "0.4",
+                    "--prob_tolerance", "0.4",
+                    "--is_tiny_yolo", "true"
+                ]
+            },
+            "category" : "MCM/precommit",
+            "CI-options" : {
+                "blob_name" : "yolo-v2-tiny-ava-0001_tf_tmp"
+            }
+        },
+
+        {
+            "name" : "SINGLE_IMAGE_TEST_por_tf_FP16-INT8_yolo_v3",
+            "oldName" : "SINGLE_IMAGE_TEST_por_tf_FP16-INT8_yolo_v3_il_NCHW_ol_NCHW_MCM",
+            "ir" : "por/yolo_v3/tf/FP16-INT8/yolo_v3.xml",
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "Compile" : {
+                "input_precision" : "U8",
+                "output_precision" : "FP32"
+            },
+            "BenchmarkApp" : {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "NetTest": {
+                "inputs" : [["416x416/person.bmp"]],
+                "params" : [
+                    "--color_format", "RGB",
+                    "--mode", "yolo_v3",
+                    "--confidence_threshold", "0.6",
+                    "--box_tolerance", "0.4",
+                    "--prob_tolerance", "0.4",
+                    "--classes", "80",
+                    "--coords", "4",
+                    "--num", "3"
+                ]
+            },
+            "category" : "MCM/precommit",
+            "CI-options" : {
+                "blob_name" : "yolo_v3_tf_tmp"
+            }
+        },
+
+        {
+            "name" : "SINGLE_IMAGE_TEST_super_resolution_network_ip_U8_op_FP32",
+            "ir" : "models/clientmodels/BDK3/SuperRes/AccuracyAware/SuperRes_INT8_AA.xml",
+            "disabled" :  true,
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_INFERENCE_SHAVES": "16"
+            },
+            "Compile" : {
+                "input_precision" : "U8",
+                "output_precision" : "FP16"
+            },
+            "BenchmarkApp" : {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "NetTest": {
+                "inputs" : [["224x224/watch.bmp",
+                             "vpu/super_resolution_input/input-1-U8.bin",
+                             "vpu/super_resolution_input/input-2-U8.bin"]],
+                "params" : [
+                    "--color_format", "BGR",
+                    "--mode", "raw",
+                    "--raw_tolerance", "1000",
+                    "--il", "NHWC",
+                    "--ip", "U8",
+                    "--op", "FP32"
+                ]
+            },
+            "category" : "MCM/dKMB/precommit",
+            "CI-options" : {
+                "blob_name" : "SuperRes_INT8_AA_ip_U8_op_FP32_temp"
+            }
+        },
+
+        {
+            "name" : "MTL_caffe2_FP16-INT8_intel_dns",
+            "ir" : "models/clientmodels/MTL/IntelDNS/FP16-INT8/intel_dns.xml",
+            "disabled" :  true,
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "VPUX_COMPILATION_MODE": "ReferenceHW",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2",
+                "VPUX_DPU_GROUPS": "1",
+                "VPUX_THROUGHPUT_STREAMS": "6"
+            },
+            "Compile" : {
+                "input_layout" : "NC",
+                "output_layout" : "NC",
+                "input_precision" : "FP32",
+                "output_precision" : "FP32"
+            },
+            "AccuracyCheck" : {
+                "config": "intel_dns-caffe2.yml",
+                "subsample_size": 100,
+                "ie_preprocessing": false
+            },
+            "BenchmarkApp" : {
+            },
+            "NetTest-CalcRef" : {
+                "disabled" : true
+            },
+            "NetTest-Validate" : {
+                "disabled" : true
+            },
+            "category" : "MLIR",
+            "CI-options" : {
+                "blob_name" : "intel_dns_int8"
+            }
+        },
+
+        {
+            "name" : "MTL_caffe2_FP16_intel_dns",
+            "ir" : "models/clientmodels/MTL/IntelDNS/FP16/intel_dns.xml",
+            "disabled" :  true,
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "VPUX_COMPILATION_MODE": "ReferenceHW",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2",
+                "VPUX_DPU_GROUPS": "1",
+                "VPUX_THROUGHPUT_STREAMS": "6"
+            },
+            "Compile" : {
+                "input_layout" : "NC",
+                "output_layout" : "NC",
+                "input_precision" : "FP32",
+                "output_precision" : "FP32"
+            },
+            "AccuracyCheck" : {
+                "config": "intel_dns-caffe2.yml",
+                "subsample_size": 100,
+                "ie_preprocessing": false
+            },
+            "BenchmarkApp" : {
+            },
+            "NetTest-CalcRef" : {
+                "disabled" : true
+            },
+            "NetTest-Validate" : {
+                "disabled" : true
+            },
+            "category" : "MLIR",
+            "CI-options" : {
+                "blob_name" : "intel_dns_fp16"
+            }
+        },
+
+        {
+            "name" : "BDK_edsr3",
+            "ir" : "models/clientmodels/BDK3/edsr3/FP16-INT8/edsr.xml",
+            "3900" : {
+                "disabled" : true
+            },
+            "3720": {
+                "disabled" : true
+            },
+            "Compile" : {
+                "input_precision" : "FP32",
+                "output_precision" : "FP32"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "224x224"
+            },
+            "NetTest-CalcRef" : {
+                "disabled" : true
+            },
+            "NetTest-Validate": {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "config": "edsr3.yml",
+                "subsample_size": 50
+            },
+            "category" : "MCM/dKMB/weekly_private",
+            "CI-options" : {
+                "blob_name" : "bdk_edsr3",
+                "special" : true
+            }
+        }
+    ]
+}
