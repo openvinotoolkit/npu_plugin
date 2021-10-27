@@ -10,6 +10,7 @@
 #include <nn_memory.h>
 #include <nn_math.h>
 #include <nn_cache.h>
+#include <nn_relocation.h>
 
 namespace nn {
 namespace shave_lib {

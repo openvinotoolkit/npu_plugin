@@ -6,15 +6,15 @@
 
 namespace subspace {
 
-int getTotal(const int32_t subspaceDims[], int nDims)
-{
-    int totalSubspaces = 1;
-    for(int i = 0; i < nDims; i++)
-    {
-        totalSubspaces *= subspaceDims[i];
-    }
-    return totalSubspaces;
-}
+//int getTotal(const int32_t subspaceDims[], int nDims)
+//{
+//    int totalSubspaces = 1;
+//    for(int i = 0; i < nDims; i++)
+//    {
+//        totalSubspaces *= subspaceDims[i];
+//    }
+//    return totalSubspaces;
+//}
 
 void getCoord(int nSubspace, const int32_t dims[], int nDims, int32_t subspaceCoord[])
 {
@@ -127,24 +127,24 @@ int getTotalPlanes(const int32_t dims[], int nDims, int axis0, int axis1)
     return (dims[axis0] * dims[axis1]) ? getTotal(dims, nDims) / (dims[axis0] * dims[axis1]) : 0;
 }
 
-int arrayElementExclude(int32_t a[], int el, int nEls)
-{
-    for(int i = el; i < nEls - 1; ++i)
-    {
-        a[i] = a[i + 1];
-    }
-    return nEls - 1;
-}
-
-int arraysElementExclude(int32_t a[], int32_t b[], int el, int nEls)
-{
-    for(int i = el; i < nEls - 1; ++i)
-    {
-        a[i] = a[i + 1];
-        b[i] = b[i + 1];
-    }
-    return nEls - 1;
-}
+//int arrayElementExclude(int32_t a[], int el, int nEls)
+//{
+//    for(int i = el; i < nEls - 1; ++i)
+//    {
+//        a[i] = a[i + 1];
+//    }
+//    return nEls - 1;
+//}
+//
+//int arraysElementExclude(int32_t a[], int32_t b[], int el, int nEls)
+//{
+//    for(int i = el; i < nEls - 1; ++i)
+//    {
+//        a[i] = a[i + 1];
+//        b[i] = b[i + 1];
+//    }
+//    return nEls - 1;
+//}
 
 int getSizes(const int32_t subspaceDims[], int nDims, int32_t subspaceSizes[])
 {
@@ -262,20 +262,20 @@ NDOrder permutationToOrderND(const NDDims perm) {
     return order;
 }
 
-int arrayElementInclude(int32_t a[], int elementPos, int32_t value, int elementsCount, int maxDims)
-{
-    if (elementsCount + 1 > maxDims || elementPos > elementsCount)
-    {
-        return elementsCount;
-    }
-    for (int i = elementsCount; i >= elementPos + 1; --i)
-    {
-        a[i] = a[i - 1];
-    }
-    a[elementPos] = value;
-
-    return elementsCount + 1;
-}
+//int arrayElementInclude(int32_t a[], int elementPos, int32_t value, int elementsCount, int maxDims)
+//{
+//    if (elementsCount + 1 > maxDims || elementPos > elementsCount)
+//    {
+//        return elementsCount;
+//    }
+//    for (int i = elementsCount; i >= elementPos + 1; --i)
+//    {
+//        a[i] = a[i - 1];
+//    }
+//    a[elementPos] = value;
+//
+//    return elementsCount + 1;
+//}
 
 int arraysElementInclude(int32_t a[], int32_t b[], int elementPos, int32_t value, int elementsCount, int maxDims)
 {
@@ -370,7 +370,7 @@ bool isLayoutFit(NDOrder ndOrder, const long unsigned int lDims[],
 
  bool NDDims::erase(int i) {;
     if (_ndims <= 0) return false;  // Impossible to erase. No elements;
-    _ndims = arrayElementExclude(_dims.data(), i, _ndims);
+//    _ndims = arrayElementExclude(_dims.data(), i, _ndims);
     return true;
 }
 

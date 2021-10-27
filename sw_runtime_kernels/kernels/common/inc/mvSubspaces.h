@@ -75,7 +75,16 @@ private:
 // getTotal returns common number of sections(cuts)
 // subspaceDims - sizes of dimensions (in)
 // nDims - dimensionality (in)
-int getTotal(const int32_t subspaceDims[], int nDims);
+//int getTotal(const int32_t subspaceDims[], int nDims);
+inline int __attribute((always_inline)) getTotal(const int32_t subspaceDims[], int nDims)
+{
+    int totalSubspaces = 1;
+    for(int i = 0; i < nDims; i++)
+    {
+        totalSubspaces *= subspaceDims[i];
+    }
+    return totalSubspaces;
+}
 
 // getCoord uses number of section to calculate coordinates of section
 // nSubspace - number of section (in)
@@ -171,20 +180,40 @@ int getTotalPlanes(const int32_t dims[], int nDims, int axis0, int axis1);
 // el - number of element to be excluded
 // nEls - size of original array
 // returns size of the array after excluding
-int arrayElementExclude(int32_t a[], int el, int nEls);
-int arraysElementExclude(int32_t a[], int32_t b[], int el, int nEls);
+//int arrayElementExclude(int32_t a[], int el, int nEls);
+//int arraysElementExclude(int32_t a[], int32_t b[], int el, int nEls);
+//inline int arrayElementExclude(int32_t a[], int el, int nEls)
+//{
+//    for(int i = el; i < nEls - 1; ++i)
+//    {
+//        a[i] = a[i + 1];
+//    }
+//    return nEls - 1;
+//}
+//
+//inline int arraysElementExclude(int32_t a[], int32_t b[], int el, int nEls)
+//{
+//    for(int i = el; i < nEls - 1; ++i)
+//    {
+//        a[i] = a[i + 1];
+//        b[i] = b[i + 1];
+//    }
+//    return nEls - 1;
+//}
 
-template <typename TA0, typename TA1, typename TA2>
-int arraysElementExclude(TA0 a[], TA1 b[], TA2 c[], int el, int nEls)
-{
-    for(int i = el; i < nEls - 1; ++i)
-    {
-        a[i] = a[i + 1];
-        b[i] = b[i + 1];
-        c[i] = c[i + 1];
-    }
-    return nEls - 1;
-}
+
+
+//template <typename TA0, typename TA1, typename TA2>
+//int arraysElementExclude(TA0 a[], TA1 b[], TA2 c[], int el, int nEls)
+//{
+//    for(int i = el; i < nEls - 1; ++i)
+//    {
+//        a[i] = a[i + 1];
+//        b[i] = b[i + 1];
+//        c[i] = c[i + 1];
+//    }
+//    return nEls - 1;
+//}
 
 // arrayElementInclude Includes 1 element to array
 // arraysElementInclude Includes 1 element to 2 parallel arrays
@@ -193,7 +222,23 @@ int arraysElementExclude(TA0 a[], TA1 b[], TA2 c[], int el, int nEls)
 // value - element value to be included
 // elementsCount - size of original array
 // returns size of the array after including
-int arrayElementInclude(int32_t a[], int elementPos, int32_t value, int elementsCount, int maxDims = MAX_ND_DIMS);
+
+inline int __attribute((always_inline)) arrayElementInclude(int32_t a[], int elementPos, int32_t value, int elementsCount, int maxDims = MAX_ND_DIMS);
+inline int __attribute((always_inline)) arrayElementInclude(int32_t a[], int elementPos, int32_t value, int elementsCount, int maxDims)
+{
+    if (elementsCount + 1 > maxDims || elementPos > elementsCount)
+    {
+        return elementsCount;
+    }
+    for (int i = elementsCount; i >= elementPos + 1; --i)
+    {
+        a[i] = a[i - 1];
+    }
+    a[elementPos] = value;
+
+    return elementsCount + 1;
+}
+
 int arraysElementInclude(int32_t a[], int32_t b[], int elementPos, int32_t value, int elementsCount, int maxDims = MAX_ND_DIMS);
 
 // getSizes calculates sizes (in elements) of included subtensors of smaller dimensionality,

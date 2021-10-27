@@ -5,7 +5,7 @@
 #ifndef COMMON_TYPES_H_
 #define COMMON_TYPES_H_
 
-#include "stdint.h"
+//#include "stdint.h"
 
 #ifdef __cplusplus
 namespace sw_params {

@@ -11,7 +11,8 @@ DmaAlShave::~DmaAlShave() {
 }
 
 bool DmaAlShave::start(const void *a_src, void *a_dst, uint32_t byteLength) {
-    memcpy(a_dst, a_src, byteLength);
+    memcpy_s(a_dst, byteLength, a_src, byteLength);
+//    memcpy(a_dst, a_src, byteLength);
     return true;
 }
 
@@ -31,7 +32,8 @@ bool DmaAlShave::start(const void *a_src, void *a_dst, uint32_t byteLength, uint
     for (uint32_t si = 0, di = 0, length = byteLength; length > 0;)
     {
         const uint32_t chunk = std::min(std::min(srcWidth - si, dstWidth - di), length);
-        std::copy(src, src + chunk, dst);
+        memcpy_s(dst, chunk, src, chunk);
+//        std::copy(src, src + chunk, dst);
 
         si += chunk;
         di += chunk;
