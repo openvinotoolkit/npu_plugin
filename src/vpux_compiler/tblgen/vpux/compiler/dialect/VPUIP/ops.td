@@ -2695,9 +2695,6 @@ def VPUIP_SW_Kernel :
         Variadic<VPUIP_Barrier>:$updateBarriers
     );
 
-//    let results = (outs
-//        MemRefOf<[F16, quant_QuantizedType]>:$output
-//    );
      let results = (outs Variadic<AnyMemRef>:$results);
 
     let regions = (region
@@ -2726,10 +2723,6 @@ def VPUIP_SW_Kernel :
         $body
 
     }];
-
-//    let verifier = [{
-//        return vpux::VPUIP::verifyOp(*this);
-//    }];
 
     let extraClassDeclaration = [{
         static vpux::VPUIP::TaskType getTaskType() {
