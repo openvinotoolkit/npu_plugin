@@ -6,6 +6,8 @@
 #include <algorithm>
 #include "common_types.h"
 
+#define ALWAYS_INLINE
+
 using namespace sw_params;
 
 namespace subspace
@@ -30,6 +32,7 @@ private:
     int32_t _ind = 0;
 };
 
+int arrayElementExclude(int32_t a[], int el, int nEls);
 struct NDDims {
     int ndims() const {return _ndims;};
     int32_t *data(){return _dims.data();};
@@ -46,7 +49,11 @@ struct NDDims {
         _dims[_ndims++] = value;
         return true;
     }
-    bool erase(int i);
+    bool erase(int i) {
+        if (_ndims <= 0) return false;  // Impossible to erase. No elements;
+        _ndims = arrayElementExclude(_dims.data(), i, _ndims);
+        return true;
+    }
     int32_t& operator[] (LogDimIndex l) {
         int i = l.val();
         return _dims[i];
@@ -75,14 +82,37 @@ private:
 // getTotal returns common number of sections(cuts)
 // subspaceDims - sizes of dimensions (in)
 // nDims - dimensionality (in)
+#ifndef ALWAYS_INLINE
 int getTotal(const int32_t subspaceDims[], int nDims);
-
+#else
+inline int __attribute((always_inline)) getTotal(const int32_t subspaceDims[], int nDims)
+{
+    int totalSubspaces = 1;
+    for(int i = 0; i < nDims; i++)
+    {
+        totalSubspaces *= subspaceDims[i];
+    }
+    return totalSubspaces;
+}
+#endif
 // getCoord uses number of section to calculate coordinates of section
 // nSubspace - number of section (in)
 // dims - sizes of dimensions (in)
 // nDims - dimensionality (in)
 // subspaceCoord - coordinates of section (out)
+#ifndef ALWAYS_INLINE
 void getCoord(int nSubspace, const int32_t dims[], int nDims, int32_t subspaceCoord[]);
+#else
+inline void __attribute((always_inline)) getCoord(int nSubspace, const int32_t dims[], int nDims, int32_t subspaceCoord[])
+{
+    for(int i = 0; i < nDims; ++i)
+    {
+        int nUpSubspace = nSubspace / dims[i];
+        subspaceCoord[i] = nSubspace - nUpSubspace * dims[i];
+        nSubspace = nUpSubspace;
+    }
+}
+#endif
 
 // getOffsetU8 uses coordinates of the section and strides to calculate offset (in bytes)
 // from beginning of original tensor to beginning of section
@@ -103,9 +133,26 @@ int getOffsetU8(const int32_t subspaceCoord[], const int32_t strides[], int nDim
 // broadcast2 - broadcast flags for 2nd tensor, by dimensions (0=normal, 1=broadcasted)
 // offset1 offset in 1st tensor (out)
 // offset2 offset in 2nd tensor (out)
+#ifndef ALWAYS_INLINE
 void getOffsetsU8(const int32_t subspaceCoord[], const int32_t strides1[], const int32_t strides2[],
         int nDims, unsigned& offset1, unsigned& offset2,
         const int8_t broadcast1[] = nullptr, const int8_t broadcast2[] = nullptr);
+#else
+inline void __attribute((always_inline)) getOffsetsU8(const int32_t subspaceCoord[], const int32_t strides1[], const int32_t strides2[],
+        int nDims, unsigned& offset1, unsigned& offset2,
+        const int8_t broadcast1[] = nullptr, const int8_t broadcast2[] = nullptr)
+{
+    offset1 = 0;
+    offset2 = 0;
+    for(int d = 0; d < nDims; ++d)
+    {
+        const int coord1 = (broadcast1 && broadcast1[d]) ? 0 : subspaceCoord[d];
+        const int coord2 = (broadcast2 && broadcast2[d]) ? 0 : subspaceCoord[d];
+        offset1 += static_cast<unsigned int>(coord1 * strides1[d]);
+        offset2 += static_cast<unsigned int>(coord2 * strides2[d]);
+    }
+}
+#endif
 
 // getOffsetsU8 uses coordinates of the section and strides to calculate offsets (in bytes)
 // from beginning of three original tensors to beginning of three corresponding sections
@@ -120,22 +167,69 @@ void getOffsetsU8(const int32_t subspaceCoord[], const int32_t strides1[], const
 // offset1 offset in 1st tensor (out)
 // offset2 offset in 2nd tensor (out)
 // offset3 offset in 3rd tensor (out)
+#ifndef ALWAYS_INLINE
 void getOffsetsU8(const int32_t subspaceCoord[], const int32_t strides1[], const int32_t strides2[],
         const int32_t strides3[], int nDims, unsigned& offset1, unsigned& offset2, unsigned& offset3,
         const int8_t broadcast1[] = nullptr, const int8_t broadcast2[] = nullptr, const int8_t broadcast3[] = nullptr);
+#else
+inline void __attribute((always_inline)) getOffsetsU8(const int32_t subspaceCoord[], const int32_t strides1[], const int32_t strides2[],
+        const int32_t strides3[], int nDims, unsigned& offset1, unsigned& offset2, unsigned& offset3,
+        const int8_t broadcast1[] = nullptr, const int8_t broadcast2[] = nullptr, const int8_t broadcast3[] = nullptr)
+{
+    offset1 = 0;
+    offset2 = 0;
+    offset3 = 0;
+    for(int d = 0; d < nDims; ++d)
+    {
+        const int coord1 = (broadcast1 && broadcast1[d]) ? 0 : subspaceCoord[d];
+        const int coord2 = (broadcast2 && broadcast2[d]) ? 0 : subspaceCoord[d];
+        const int coord3 = (broadcast3 && broadcast3[d]) ? 0 : subspaceCoord[d];
+        offset1 += static_cast<unsigned int>(coord1 * strides1[d]);
+        offset2 += static_cast<unsigned int>(coord2 * strides2[d]);
+        offset3 += static_cast<unsigned int>(coord3 * strides3[d]);
+    }
+}
+#endif
 
 // increment1Coord increments current subspaceCoord by 1 element
 // subspaceCoord - coordinates of section (in/out)
 // dims - sizes of dimensions (in)
 // nDims - dimensionality (in)
+#ifndef ALWAYS_INLINE
 void increment1Coord(int32_t subspaceCoord[], const int32_t dims[], int nDims);
+#else
+inline void __attribute((always_inline)) increment1Coord(int32_t subspaceCoord[], const int32_t dims[], int nDims)
+{
+    for (int d = 0; d < nDims; ++d)
+    {
+        if (subspaceCoord[d] < dims[d] - 1) {
+            subspaceCoord[d]++;
+            return;
+        }
+        subspaceCoord[d] = 0;
+    }
+}
+#endif
 
 // incrementNCoord increments current subspaceCoord by N elements
 // subspaceCoord - coordinates of section (in/out)
 // dims - sizes of dimensions (in)
 // nDims - dimensionality (in)
 // inc - value of the increment in elements (in)
+#ifndef ALWAYS_INLINE
 void incrementNCoord(int32_t subspaceCoord[], const int32_t dims[], int nDims, int inc);
+#else
+inline void __attribute((always_inline)) incrementNCoord(int32_t subspaceCoord[], const int32_t dims[], int nDims, int inc)
+{
+    for(int d = 0; d < nDims; ++d)
+    {
+        inc += subspaceCoord[d];
+        subspaceCoord[d] = inc % dims[d];
+        inc -= subspaceCoord[d];
+        inc /= dims[d];
+    }
+}
+#endif
 
 // incrementLine increments current coordinates of 1D section (line along axis coordinate) by 1
 // lineCoord - full coordinate vector with line's coordinates (lineCoord[axis] is ignored) (in/out)
@@ -171,20 +265,41 @@ int getTotalPlanes(const int32_t dims[], int nDims, int axis0, int axis1);
 // el - number of element to be excluded
 // nEls - size of original array
 // returns size of the array after excluding
+#ifndef ALWAYS_INLINE
 int arrayElementExclude(int32_t a[], int el, int nEls);
 int arraysElementExclude(int32_t a[], int32_t b[], int el, int nEls);
+#else
+inline int __attribute((always_inline)) arrayElementExclude(int32_t a[], int el, int nEls)
+{
+    for(int i = el; i < nEls - 1; ++i)
+    {
+        a[i] = a[i + 1];
+    }
+    return nEls - 1;
+}
 
-template <typename TA0, typename TA1, typename TA2>
-int arraysElementExclude(TA0 a[], TA1 b[], TA2 c[], int el, int nEls)
+inline int __attribute((always_inline)) arraysElementExclude(int32_t a[], int32_t b[], int el, int nEls)
 {
     for(int i = el; i < nEls - 1; ++i)
     {
         a[i] = a[i + 1];
         b[i] = b[i + 1];
-        c[i] = c[i + 1];
     }
     return nEls - 1;
 }
+#endif
+
+//template <typename TA0, typename TA1, typename TA2>
+//int arraysElementExclude(TA0 a[], TA1 b[], TA2 c[], int el, int nEls)
+//{
+//    for(int i = el; i < nEls - 1; ++i)
+//    {
+//        a[i] = a[i + 1];
+//        b[i] = b[i + 1];
+//        c[i] = c[i + 1];
+//    }
+//    return nEls - 1;
+//}
 
 // arrayElementInclude Includes 1 element to array
 // arraysElementInclude Includes 1 element to 2 parallel arrays
@@ -193,7 +308,26 @@ int arraysElementExclude(TA0 a[], TA1 b[], TA2 c[], int el, int nEls)
 // value - element value to be included
 // elementsCount - size of original array
 // returns size of the array after including
+#ifndef ALWAYS_INLINE
 int arrayElementInclude(int32_t a[], int elementPos, int32_t value, int elementsCount, int maxDims = MAX_ND_DIMS);
+#else
+inline int __attribute((always_inline)) arrayElementInclude(int32_t a[], int elementPos, int32_t value, int elementsCount, int maxDims = MAX_ND_DIMS);
+inline int __attribute((always_inline)) arrayElementInclude(int32_t a[], int elementPos, int32_t value, int elementsCount, int maxDims)
+{
+    if (elementsCount + 1 > maxDims || elementPos > elementsCount)
+    {
+        return elementsCount;
+    }
+    for (int i = elementsCount; i >= elementPos + 1; --i)
+    {
+        a[i] = a[i - 1];
+    }
+    a[elementPos] = value;
+
+    return elementsCount + 1;
+}
+#endif
+
 int arraysElementInclude(int32_t a[], int32_t b[], int elementPos, int32_t value, int elementsCount, int maxDims = MAX_ND_DIMS);
 
 // getSizes calculates sizes (in elements) of included subtensors of smaller dimensionality,

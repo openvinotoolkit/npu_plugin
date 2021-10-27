@@ -120,9 +120,9 @@ static void compileAndLinkSHAVE(const movitools::MoviCompileParams& params, cons
         auto compileCmd = formatv("{0} -mcpu={1} -c {2} -o {3} -I {4} -I{5} ", moviCompile, params.cpu, srcPath,
                                   objPath, mvToolsDir, incPath)
                                   .str();
-        if (std::system(compileCmd.c_str())) {
-            VPUX_THROW("moviCompile failed: {0}", compileCmd);
-        }
+//        if (std::system(compileCmd.c_str())) {
+//            VPUX_THROW("moviCompile failed: {0}", compileCmd);
+//        }
     }
 
     SmallString<128> linker(mvToolsDir);
@@ -132,9 +132,9 @@ static void compileAndLinkSHAVE(const movitools::MoviCompileParams& params, cons
                            " -EL {4} --output {5}",
                            linker, linkerScriptPath, entryPoint.c_str(), objPath, singleLib, elfPath)
                            .str();
-    if (std::system(linkCmd.c_str())) {
-        VPUX_THROW("linker failed: {0}", linkCmd);
-    }
+//    if (std::system(linkCmd.c_str())) {
+//        VPUX_THROW("linker failed: {0}", linkCmd);
+//    }
 
     SmallString<128> objcopy(mvToolsDir);
     sys::path::append(objcopy, params.mdkObjCopy);
@@ -144,9 +144,9 @@ static void compileAndLinkSHAVE(const movitools::MoviCompileParams& params, cons
 
     {
         auto objCopyCmd = formatv("{0} -O binary --only-section=.text {1} {2}", objcopy, elfPath, textPath).str();
-        if (std::system(objCopyCmd.c_str())) {
-            VPUX_THROW("objcopy failed: {0}", objCopyCmd);
-        }
+//        if (std::system(objCopyCmd.c_str())) {
+//            VPUX_THROW("objcopy failed: {0}", objCopyCmd);
+//        }
     }
 
     SmallString<128> dataPath(buildDirPath);
@@ -155,9 +155,9 @@ static void compileAndLinkSHAVE(const movitools::MoviCompileParams& params, cons
     {
         auto objCopyCmd = formatv("{0} -O binary --only-section=.arg.data {1} {2}", objcopy, elfPath, dataPath).str();
 
-        if (std::system(objCopyCmd.c_str())) {
-            VPUX_THROW("objcopy failed: {0}", objCopyCmd);
-        }
+//        if (std::system(objCopyCmd.c_str())) {
+//            VPUX_THROW("objcopy failed: {0}", objCopyCmd);
+//        }
     }
 
     auto readBinary = [](SmallString<128>& path, SmallVector<uint8_t, 128>& buffer, uint32_t alignment = 1) {

@@ -4,7 +4,7 @@
 #pragma once
 
 #include <mv_types.h>
-#include <nn_relocation.h>
+//#include <nn_relocation.h>
 #include <mvSubspaces.h>
 #include <limits.h>
 #include "common_types.h"
@@ -21,13 +21,13 @@ namespace nn {
 
 using namespace subspace;
 
-u32 getBpp(DataType type);
+uint32_t getBpp(DataType type);
 
 struct TensorRefNDData
 {
     DataType dType = NN_FP16;
     NDOrder ndOrder = ND_NHWC;
-    inference_runtime::RelativeAddress dataAddr;
+//    inference_runtime::RelativeAddress dataAddr;
     uint8_t* addr = nullptr;
     int32_t ndims = 0;
     int32_t dims[MAX_ND_DIMS]{};
@@ -106,16 +106,39 @@ public:
     TensorRef() = default;
     TensorRef(TensorRefNDData data) : TensorRefNDData(data) {
     };
-    TensorRef(const sw_params::MemRefData& data) {
+    TensorRef(const sw_params::MemRefData& data, const uint8_t * baseDimsAddr) {
         dType = static_cast<sw_params::DataType>(data.dataType);
         ndOrder = data.dimsOrder;
         addr = reinterpret_cast<uint8_t *>(data.dataAddr);
-        ndims = (data.numDims > (uint32_t)MAX_ND_DIMS) ? (uint32_t)MAX_ND_DIMS : data.numDims;
-        memcpy_s(dims, ndims * sizeof(int32_t), reinterpret_cast<uint8_t *>(data.dimsAddr), ndims * sizeof(int32_t));
-        memcpy_s(strides, ndims * sizeof(int32_t), reinterpret_cast<uint8_t *>(data.stridesAddr), ndims * sizeof(int32_t));
-        for (int i = 0; i < ndims; i++) {
-            stridesBits[i] = strides[i] << 3;
+//        this->ndims = (data.numDims > (uint32_t)MAX_ND_DIMS) ? (uint32_t)MAX_ND_DIMS : data.numDims;
+        this->ndims = data.numDims;
+        half* p_act_out = (half*)(data.dataAddr);
+        int32_t *pDims     = (int32_t *)((uint8_t*)(baseDimsAddr) + data.dimsAddr);    // 0x1F000000 + dimsAddr
+        int64_t *pStrides = (int64_t *)((uint8_t*)(baseDimsAddr) + data.stridesAddr); // 0x1F000000 + stridesAddr
+        ((uint32_t*)(p_act_out+32))[5] = (uint32_t)pDims;
+        ((uint32_t*)(p_act_out+32))[6] = (uint32_t)pStrides;
+//        p_act_out[8] = pDims[0];
+//        p_act_out[9] = pDims[1];
+//        memcpy_s(dims, ndims * sizeof(int32_t), reinterpret_cast<uint8_t *>(data.dimsAddr), ndims * sizeof(int32_t));
+//        return;
+//        memcpy_s(strides, ndims * sizeof(int32_t), reinterpret_cast<uint8_t *>(data.stridesAddr), ndims * sizeof(int32_t));
+        p_act_out[15 + 0] = pStrides[0];
+        p_act_out[15 + 1] = pStrides[1];
+        p_act_out[15 + 2] = pStrides[2];
+        p_act_out[15 + 3] = pStrides[3];
+        p_act_out[15 + 4] = this->ndims;
+        p_act_out[15 + 5] = MAX_ND_DIMS;
+        p_act_out[15 + 6] = data.numDims;
+        return;
+        for (int i = 0; i < 4; i++) {
+            dims[i] = pDims[i];
+            p_act_out[10 + i] = pDims[i];
+            stridesBits[i] = pStrides[i];
+            strides[i] = pStrides[i] / CHAR_BIT;
+            p_act_out[15 + i] = pStrides[i];
+//            stridesBits[i] = strides[i] << 3;
         }
+        return;
         bitsPerPixel = nn::getBpp(dType) * CHAR_BIT;
     };
 

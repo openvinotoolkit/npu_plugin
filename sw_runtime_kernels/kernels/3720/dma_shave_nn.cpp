@@ -4,14 +4,14 @@
 
 #define uncached(x) (x)
 
-DmaAlShave::DmaAlShave() {
-}
-
-DmaAlShave::~DmaAlShave() {
-}
+//DmaAlShave::DmaAlShave() {
+//}
+//
+//DmaAlShave::~DmaAlShave() {
+//}
 
 bool DmaAlShave::start(const void *a_src, void *a_dst, uint32_t byteLength) {
-    memcpy(a_dst, a_src, byteLength);
+    memcpy_s(a_dst, byteLength, a_src, byteLength);
     return true;
 }
 
@@ -31,7 +31,8 @@ bool DmaAlShave::start(const void *a_src, void *a_dst, uint32_t byteLength, uint
     for (uint32_t si = 0, di = 0, length = byteLength; length > 0;)
     {
         const uint32_t chunk = std::min(std::min(srcWidth - si, dstWidth - di), length);
-        std::copy(src, src + chunk, dst);
+        memcpy_s(dst, chunk, src, chunk);
+//        std::copy(src, src + chunk, dst);
 
         si += chunk;
         di += chunk;
@@ -88,15 +89,18 @@ bool DmaAlShave::start_pa(const void *src, void *dst, uint32_t byteLength, uint3
     return result;
 }
 
-bool DmaAlShave::start_pa(const void *src, void *dst, uint32_t byteLength, uint32_t srcWidth, uint32_t dstWidth,
-                          uint32_t srcStride, uint32_t dstStride, uint32_t numPlanes, uint32_t srcPlaneStride,
-                          uint32_t dstPlaneStride) {
-    patch_va_ = false;
-    auto result = start(reinterpret_cast<uint32_t>(src), reinterpret_cast<uint32_t>(dst), byteLength,
-        srcWidth, dstWidth, srcStride, dstStride, numPlanes, srcPlaneStride, dstPlaneStride);
-    patch_va_ = true;
-    return result;
-}
+//bool DmaAlShave::start_pa(const void *src, void *dst, uint32_t byteLength, uint32_t srcWidth, uint32_t dstWidth,
+//                          uint32_t srcStride, uint32_t dstStride, uint32_t numPlanes, uint32_t srcPlaneStride,
+//                          uint32_t dstPlaneStride) {
+//    patch_va_ = false;
+////    auto result = start(reinterpret_cast<uint32_t>(src), reinterpret_cast<uint32_t>(dst), byteLength,
+////        srcWidth, dstWidth, srcStride, dstStride, numPlanes, srcPlaneStride, dstPlaneStride);
+//    auto result = start(src, dst, byteLength,
+//                        srcWidth, dstWidth, srcStride, dstStride, numPlanes, srcPlaneStride, dstPlaneStride);
+//
+//    patch_va_ = true;
+//    return result;
+//}
 
 //bool DmaAlShave::start(const void *src, void *dst, uint32_t byteLength) {
 //    return start(reinterpret_cast<uint32_t>(src), reinterpret_cast<uint32_t>(dst), byteLength);
