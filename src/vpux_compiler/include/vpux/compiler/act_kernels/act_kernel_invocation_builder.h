@@ -14,6 +14,9 @@
 #pragma once
 
 #include <kernels/inc/common_types.h>
+#include <llvm/ADT/SmallVector.h>
+#include <mlir/IR/Value.h>
+#include <vpux/utils/core/logger.hpp>
 #include "Nce2p7.h"
 
 namespace vpux {
@@ -44,28 +47,16 @@ public:
 
     InvocationBuilder(Logger log) : _log(log){}
 
-    void addArg(mlir::Value operand) {
-        // TODO: add support for non int constants
-        if (operand.getType().isa<mlir::IntegerType>()) {
-            auto intValue = operand.getDefiningOp()->getAttrs().begin()->second.dyn_cast_or_null<mlir::IntegerAttr>().getInt();
-            storeSimple(_storage, intValue);
-        } else if(operand.getType().isa<mlir::MemRefType>()){
-            storeAsMemref(operand);
-        } else {
-            _log.warning("Act Shave Invocation: cannot store arg of type {0}", operand.getType());
-        }
-    }
+    /**
+     * register serialisation for given invocation argument, might be MemRefType or any other supported types
+     * @param operand
+     */
+    void addArg(mlir::Value operand);
 
-    llvm::SmallVector<uint8_t> store() const {
-        llvm::SmallVector<uint8_t, 128> serialStorage(_storage.begin(), _storage.end());
-
-        auto patchBase = serialStorage.size() + mvds::nce2p7::ACT_KERNEL_DATA_WINDOW;
-        serialStorage.insert(serialStorage.end(), _arrayStorage.begin(), _arrayStorage.end());
-        for (auto && field : _deferredPointers) {
-            field.patch(serialStorage, patchBase);
-        }
-        return serialStorage;
-    }
+    /*
+     * actual serialising routine
+     */
+    llvm::SmallVector<uint8_t> store() const;
 
 protected:
 
@@ -76,7 +67,7 @@ protected:
     }
 
     /**
-     * create a patch entry , that can be fuether updated
+     * create a patch entry, that can be further updated
      * @tparam U structure type
      * @tparam T field type
      */
@@ -89,57 +80,7 @@ protected:
         _deferredPointers.push_back({fieldPatcher, _arrayStorage.size()});
     }
 
-    // memref storage - works for OpOperand and OpResult
-    void storeAsMemref(const mlir::Value & value) {
-        auto tensor = value.getDefiningOp<VPUIP::DeclareTensorOp>();
-
-        if (tensor == nullptr) {
-            _log.trace("ACT shave: Cannot create invocation for {0}", value);
-            return;
-        }
-
-        auto dimsPatcher = [] (sw_params::MemRefData &memrefData, uint32_t updateTo) {
-            memrefData.dimsAddr = updateTo;
-        };
-        auto stridesParcher = [] (sw_params::MemRefData &memrefData, uint32_t updateTo) {
-            memrefData.stridesAddr = updateTo;
-        };
-        auto getAddress = [](VPUIP::DeclareTensorOp & tensor) {
-            return tensor.dataIndex() + tensor.leadingOffset().getValueOr(0);
-        };
-
-        sw_params::MemRefData memrefData{};
-
-        auto shape = value.getType().cast<mlir::ShapedType>();
-
-        memrefData.numDims = shape.getShape().size();
-
-        // dims
-        createPatchPoint<sw_params::MemRefData>(dimsPatcher);
-        for (auto &&dim : shape.getShape()) {
-            storeSimple(_arrayStorage, checked_cast<int32_t>(dim));
-        }
-
-        // order
-        const auto inOrder = DimsOrder::fromValue(value);
-        memrefData.dimsOrder = inOrder.code();
-
-        // strides
-        const auto strides = getStrides(shape);
-
-        createPatchPoint<sw_params::MemRefData>(stridesParcher);
-        for (auto &&stride : strides) {
-            storeSimple(_arrayStorage, stride);
-        }
-
-        // data addr
-        memrefData.dataAddr = mvds::nce2p7::ACT_KERNEL_CMX_WINDOW + getAddress(tensor);
-
-        memrefData.dataType = 0; // TODO: to be defined
-
-        memrefData.location = sw_params::NN_CMX;
-
-        storeSimple(_storage, memrefData);
-    }
+    // memref serialisation
+    void addMemrefArg(const mlir::Value & value);
 };
 }  // namespace vpux
