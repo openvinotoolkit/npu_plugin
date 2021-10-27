@@ -13,6 +13,7 @@
 
 #include "vpux/compiler/conversion.hpp"
 
+#include "vpux/compiler/dialect/VPUIP/attributes/arch.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/error.hpp"
 
@@ -230,6 +231,46 @@ mlir::LogicalResult RewriteConvolution::matchAndRewrite(IERT::ConvolutionOp orig
 }
 
 //
+// TimestampRewrite
+//
+
+class TimestampRewrite final : public mlir::OpRewritePattern<IERT::TimestampOp> {
+public:
+    TimestampRewrite(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<IERT::TimestampOp>(ctx), _log(log) {
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(IERT::TimestampOp origOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult TimestampRewrite::matchAndRewrite(IERT::TimestampOp origOp, mlir::PatternRewriter& rewriter) const {
+    _log.trace("Found Timestamp Operation '{0}'", origOp->getLoc());
+
+    auto origType = origOp.getType();
+    VPUX_THROW_UNLESS(origType.getNumElements() == 1, "Got wrong elements number for TimestampOp");
+    VPUX_THROW_UNLESS(origType.getElementType() == getUInt32Type(getContext()),
+                      "Got wrong element type for TimestampOp");
+
+    auto timerType =
+            mlir::MemRefType::get(origType.getShape(), origType.getElementType(), {},
+                                  VPUIP::MemoryLocationAttr::get(getContext(), VPUIP::MemoryLocation::AbsoluteAddr));
+
+    auto declareOp = rewriter.create<VPUIP::DeclareTensorOp>(mlir::UnknownLoc::get(getContext()), timerType,
+                                                             VPUIP::MemoryLocation::AbsoluteAddr, 0,
+                                                             VPUIP::HW_TIMER_ABSOLUTE_ADDR);
+
+    auto dmaOp = rewriter.replaceOpWithNewOp<VPUIP::NNDMAOp>(origOp, declareOp.memory(), origOp.output_buff());
+    dmaOp.set_ordAttr(mlir::BoolAttr::get(getContext(), true));
+
+    _log.trace("Replaced with 'VPUIP.DeclareTensorOp'");
+
+    return mlir::success();
+}  // namespace
+
+//
 // Generated
 //
 
@@ -262,7 +303,6 @@ void ConvertLayers2VPUIPPass::safeRunOnFunc() {
     target.addLegalOp<IERT::SubViewOp, IERT::ConcatViewOp>();
     target.addLegalOp<IERT::GenericReshapeOp, IERT::PermuteCastOp>();
     target.addLegalOp<IERT::QuantizeCastOp>();
-    target.addLegalOp<IERT::TimestampOp>();
 
     mlir::RewritePatternSet patterns(&ctx);
     patterns.insert<CTCGreedyDecoderSeqLenRewrite>(&ctx, _log);
@@ -271,6 +311,7 @@ void ConvertLayers2VPUIPPass::safeRunOnFunc() {
     patterns.insert<FakeQuantizeRewrite>(&ctx, _log);
     patterns.insert<FullyConnectedRewrite>(&ctx, _log);
     patterns.insert<RewriteConvolution>(&ctx, _log);
+    patterns.insert<TimestampRewrite>(&ctx, _log);
     populateWithGenerated(patterns);
 
     auto func = getFunction();

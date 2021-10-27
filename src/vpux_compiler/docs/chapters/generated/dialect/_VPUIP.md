@@ -1307,6 +1307,8 @@ operation ::= `VPUIP.NNDMA` attr-dict
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
 `port` | mlir::IntegerAttr | Integer attribute
+`set_ord` | ::mlir::BoolAttr | bool attribute
+`set_crit` | ::mlir::BoolAttr | bool attribute
 
 #### Operands:
 

@@ -280,6 +280,7 @@ void redirectOpInterfacesForIE(mlir::DialectRegistry& registry) {
 template <class OpModelForHW, class OpModelForDMA, class OpModelForSW>
 void redirectOpInterfacesForIERT(mlir::DialectRegistry& registry) {
     registry.addOpInterface<IERT::CopyOp, AsyncLayerOpModelForDMA>();
+    registry.addOpInterface<IERT::TimestampOp, AsyncLayerOpModelForDMA>();
 
     registry.addOpInterface<IERT::ConvolutionOp, OpModelForHW>();
     registry.addOpInterface<IERT::GroupConvolutionOp, OpModelForHW>();

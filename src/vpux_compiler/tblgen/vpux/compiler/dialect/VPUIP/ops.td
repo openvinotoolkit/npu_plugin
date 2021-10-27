@@ -349,7 +349,9 @@ def VPUIP_NNDMAOp :
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers,
 
-        DefaultValuedAttr<IntAttr, "0">:$port
+        DefaultValuedAttr<IntAttr, "0">:$port,
+        DefaultValuedAttr<BoolAttr, "true">:$set_ord,
+        DefaultValuedAttr<BoolAttr, "false">:$set_crit
     );
 
     let results = (outs
