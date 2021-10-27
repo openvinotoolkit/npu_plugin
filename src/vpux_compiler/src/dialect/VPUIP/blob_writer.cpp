@@ -203,26 +203,11 @@ vpux::VPUIP::BlobWriter::KernelDataRef vpux::VPUIP::BlobWriter::createInvocation
         }
     }
 
+    auto invocationData = invocationBuilder.store();
 
-    {
+    auto invocationArgs = createKernelDataRef(op->getName().getStringRef(), locale, 0, invocationData.size(), invocationData);
 
-        const auto result = swKernelTask.outputs()[0];
-        const auto source = swKernelTask.getViewSource();
-
-        VPUX_THROW_UNLESS(result.getType().isa<mlir::MemRefType>(), "Only MemRef type tensors are supported, got '{0}'",
-                          result.getType());
-        VPUX_THROW_UNLESS(source.getType().isa<mlir::MemRefType>(), "Only MemRef type tensors are supported, got '{0}'",
-                          source.getType());
-
-        auto invocationData = invocationBuilder.store();
-
-        // TODO: should be specific sigmoid args instead of cfg_dpu_descriptor
-        auto invocationArgs = createKernelDataRef(op->getName().getStringRef(), locale, 0, invocationData.size(), invocationData);
-
-        return invocationArgs;
-    }
-
-    return {};
+    return invocationArgs;
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createSW_KernelTask(mlir::Operation* op) {
