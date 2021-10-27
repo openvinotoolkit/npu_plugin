@@ -154,7 +154,7 @@ namespace mv
 
         }
 
-        Attribute() : ptr_(nullptr), fromJSONFunc_(nullptr)
+        Attribute() : ptr_(nullptr), traits_(), fromJSONFunc_(nullptr)
         {
 
         }

@@ -759,6 +759,8 @@ void mv::RuntimeModel::updateTensorReferenceT(mv::ComputationModel& cm, mv::Elem
     // In CMX we use the strides of the subtensor
     // In DDRs style memory we use the strides of the master tensor
 
+    if(!subtensor.hasAttr("offset"))
+        throw std::runtime_error("Subtensors must have offsets"); 
     auto offset = subtensor.get<std::vector<std::size_t>>("offset");
     auto index = d->getOrder().subToInd(d->getShape(), offset);
     auto byte_index = index * d->getDType().getSizeInBits() / 8;
@@ -893,6 +895,8 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
                 toBuild->locale_index = std::vector<unsigned int>(1);
                 toBuild->locale_index[0] = graphfileIndex;
 
+                if(!subtensor.hasAttr("offset"))
+                    throw std::runtime_error("Subtensors must have offsets"); 
                 auto offset = subtensor.get<std::vector<std::size_t>>("offset");
                 auto index = t->getOrder().subToInd(t->getShape(), offset);
                 auto byte_index = index * t->getDType().getSizeInBits() / 8;
@@ -914,6 +918,8 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     }
     else if(*tensorAllocatorName == "ProgrammableInput" || *tensorAllocatorName == "ProgrammableOutput")
     {
+        if(!subtensor.hasAttr("offset"))
+            throw std::runtime_error("Subtensors must have offsets"); 
         auto offset = subtensor.get<std::vector<std::size_t>>("offset");
 
         auto masterBuffer = tensorAllocator.getTopMasterBuffer(tensorBufferIt);
@@ -945,6 +951,8 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         }
         else
         {
+          if(!subtensor.hasAttr("offset"))
+            throw std::runtime_error("Subtensors must have offsets");
           auto offset = subtensor.get<std::vector<std::size_t>>("offset");
           auto index = t->getOrder().subToInd(t->getShape(), offset);
           byte_index = index * t->getDType().getSizeInBits() / 8;
