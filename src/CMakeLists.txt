@@ -13,7 +13,11 @@
 
 add_subdirectory(utils)
 add_subdirectory(vpux_al)
-add_subdirectory(vpual_backend)
+
+if(AARCH64)
+    add_subdirectory(vpual_backend)
+endif()
+
 add_subdirectory(mcmCompiler)
 add_subdirectory(frontend_mcm)
 add_subdirectory(custom_extension_library)
