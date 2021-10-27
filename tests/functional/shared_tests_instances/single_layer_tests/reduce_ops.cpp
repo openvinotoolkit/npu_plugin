@@ -63,9 +63,9 @@ namespace LayerTestsDefinitions {
         }
     };
 
-    TEST_P(KmbReduceOpsLayerWithSpecificInputTest, CompareWithRefs) {
-        Run();
-    }
+    // TEST_P(KmbReduceOpsLayerWithSpecificInputTest, CompareWithRefs) {
+    //     Run();
+    // }
 
     TEST_P(KmbReduceOpsLayerWithSpecificInputTest, CompareWithRefs_MLIR) {
         useCompilerMLIR();
@@ -134,7 +134,7 @@ namespace {
 
     const std::vector<InferenceEngine::Layout> layouts3D = {
 			InferenceEngine::Layout::CHW,
-			InferenceEngine::Layout::HWC,
+			// InferenceEngine::Layout::HWC,
     };
 
     const std::vector<InferenceEngine::Layout> layouts4D = {
