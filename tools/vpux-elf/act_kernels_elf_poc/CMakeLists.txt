@@ -11,5 +11,15 @@
 # included with the Software Package for additional details.
 #
 
-add_subdirectory(act_kernels_elf_poc)
-add_subdirectory(elf_blob_example)
+set(TARGET_NAME "act-kernels-elf-poc")
+
+file(GLOB_RECURSE SOURCES "*.cpp")
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
+
+add_executable(${TARGET_NAME} ${SOURCES})
+set_target_properties(${TARGET_NAME} PROPERTIES FOLDER "tools")
+
+enable_warnings_as_errors(${TARGET_NAME} WIN_STRICT)
+vpux_enable_clang_format(${TARGET_NAME})
+
+target_link_libraries(${TARGET_NAME} PUBLIC vpux_compiler_static)
