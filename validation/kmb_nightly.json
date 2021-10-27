@@ -2728,6 +2728,41 @@
         },
 
         {
+            "name" : "BDK_Deblur_AA_Yocto_Only",
+            "3900" : {
+                "disabled" : true
+            },
+            "ir" : "models/clientmodels/BDK3/Deblur/AccuracyAware/2020.1_INT8_Deblur_AccuracyAwareQuantization.xml",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_THROUGHPUT_STREAMS": "1",
+                "VPUX_EXECUTOR_STREAMS":"1"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "1280x720"
+            },
+            "NetTest-CalcRef" : {
+                "disabled" : true
+            },
+            "NetTest-Validate" : {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "disabled" : true,
+                "config": "deblur_aa.yml",
+                "subsample_size": 10
+            },
+            "category" : "MCM/release/precommit/weekly_public",
+            "CI-options" : {
+                "blob_name" : "bdk_deblur_aa",
+                "special" : true
+            },
+            "comments" : "Only benchmark on Yocto."
+        },
+
+        {
             "name" : "BDK_Deblur_AA",
             "ir" : "models/clientmodels/BDK3/Deblur/AccuracyAware/2020.1_INT8_Deblur_AccuracyAwareQuantization.xml",
             "extra_config" : {
