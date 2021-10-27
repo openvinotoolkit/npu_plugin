@@ -13,6 +13,7 @@
 
 #include "vpux/compiler/conversion.hpp"
 
+#include "vpux/compiler/core/layers.hpp"
 #include "vpux/compiler/dialect/IERT/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/attributes/arch.hpp"
 #include "vpux/compiler/dialect/VPUIP/dpu_tiler.hpp"
@@ -164,9 +165,9 @@ mlir::LogicalResult ConvRewrite::matchAndRewrite(IERT::ConvolutionOp origOp, mli
 
     const auto filterShape = getShape(origOp.filter());
 
-    const auto OC = filterShape[IE::Dims4D::Filter::OC];
-    const auto KY = filterShape[IE::Dims4D::Filter::KY];
-    const auto KX = filterShape[IE::Dims4D::Filter::KX];
+    const auto OC = filterShape[Dims4D::Filter::OC];
+    const auto KY = filterShape[Dims4D::Filter::KY];
+    const auto KX = filterShape[Dims4D::Filter::KX];
 
     //
     // Prepare input for DPU
@@ -276,7 +277,7 @@ mlir::LogicalResult MaxPoolRewrite::matchAndRewrite(IERT::MaxPoolOp origOp, mlir
     const auto origInputType = origOp.input().getType().cast<mlir::MemRefType>();
     const auto inputShape = getShape(origInputType);
 
-    const auto IC = inputShape[IE::Dims4D::Act::C];
+    const auto IC = inputShape[Dims4D::Act::C];
 
     const auto kernelSize = parseIntArrayAttr<int64_t>(origOp.kernel_size());
     const auto kernelStrides = parseIntArrayAttr<int64_t>(origOp.strides());
@@ -369,7 +370,7 @@ private:
 };
 
 // This operation based on input and output of Eltwise op will prepare final quantization scale value
-::llvm::Optional<std::vector<double>> calculateQuantScaleVectorForEltwise(IERT::LayerOpInterface layerOp) {
+llvm::Optional<double> calculateQuantScaleVectorForEltwise(IERT::LayerOpInterface layerOp) {
     if (layerOp == nullptr || layerOp.getInputs().size() < 2) {
         return ::llvm::None;
     }
@@ -381,7 +382,6 @@ private:
     const auto input1ElementType = input1.getType().cast<mlir::ShapedType>().getElementType();
     const auto input2ElementType = input2.getType().cast<mlir::ShapedType>().getElementType();
     const auto outputElementType = output.getType().cast<mlir::ShapedType>().getElementType();
-    const auto outputChannels = getShape(output.getType().cast<mlir::ShapedType>())[IE::Dims4D::Act::C];
 
     // In case of fully not quantized operation return
     if (!input1ElementType.isa<mlir::quant::QuantizedType>() && !input2ElementType.isa<mlir::quant::QuantizedType>() &&
@@ -389,41 +389,41 @@ private:
         return ::llvm::None;
     }
 
-    VPUX_THROW_WHEN(!input1ElementType.isa<mlir::quant::QuantizedType>() ||
-                            !input2ElementType.isa<mlir::quant::QuantizedType>() ||
-                            !outputElementType.isa<mlir::quant::QuantizedType>(),
-                    "For now support only fully quantized Eltwise operations");
+    VPUX_THROW_WHEN(input1ElementType.isa<mlir::quant::UniformQuantizedPerAxisType>() ||
+                            input2ElementType.isa<mlir::quant::UniformQuantizedPerAxisType>() ||
+                            outputElementType.isa<mlir::quant::UniformQuantizedPerAxisType>(),
+                    "Only per-tensor quantization is supported");
 
-    auto scaleInput1 = extractScalesAndZeroPoints(input1ElementType, outputChannels).first;
-    auto scaleInput2 = extractScalesAndZeroPoints(input2ElementType, outputChannels).first;
-    auto scaleOutput = extractScalesAndZeroPoints(outputElementType, outputChannels).first;
+    double scaleInput1 = 0;
+    double scaleOutput = 0;
 
-    std::vector<double> ppeScale(scaleInput1.begin(), scaleInput1.end());
+    // floats in the compute pipeline are represented as S16.16 values
+    // In order to convert from I32 to S16.16 and back, we need to multiply/divide by 1<<16
+    const auto fp16_scale = static_cast<double>(1.0 / 65536.0);
+    if (!input1ElementType.isa<mlir::quant::QuantizedType>() && !input2ElementType.isa<mlir::quant::QuantizedType>()) {
+        scaleOutput = extractScalesAndZeroPoints(outputElementType).first.front();
+        scaleInput1 = fp16_scale;
+    } else if (!outputElementType.isa<mlir::quant::QuantizedType>()) {
+        scaleInput1 = extractScalesAndZeroPoints(input1ElementType).first.front();
+        scaleOutput = fp16_scale;
+    } else {
+        scaleInput1 = extractScalesAndZeroPoints(input1ElementType).first.front();
+        scaleOutput = extractScalesAndZeroPoints(outputElementType).first.front();
+    }
+
+    auto ppeScale = scaleInput1;
     // For Eltwise Multiply ppeScale = scaleInput1*scaleInput2/scaleOutput
     // For Eltwise Add/Subtract/And ppeScale = scaleInput1/scaleOutput
     if (mlir::isa<IERT::MultiplyOp>(layerOp)) {
-        std::transform(ppeScale.begin(), ppeScale.end(), scaleInput2.begin(), ppeScale.begin(),
-                       std::multiplies<double>());
+        const auto scaleInput2 = extractScalesAndZeroPoints(input2ElementType).first.front();
+        ppeScale *= scaleInput2;
     }
-    std::transform(ppeScale.begin(), ppeScale.end(), scaleOutput.begin(), ppeScale.begin(), std::divides<double>());
 
-    // Check if all elements are equal. If yes maintain one (per tensor) value
-    if (ppeScale.size() > 1 && std::equal(ppeScale.begin() + 1, ppeScale.end(), ppeScale.begin())) {
-        ppeScale.resize(1);
-    }
-    return ::llvm::Optional<std::vector<double>>(ppeScale);
-}
+    VPUX_THROW_UNLESS(scaleInput1 != 0, "Invalid input scale value '0'");
+    VPUX_THROW_UNLESS(scaleOutput != 0, "Invalid output scale value '0'");
 
-// Prepare Mult and Shift vector pair based on provided quant scale vector.
-std::pair<std::vector<int32_t>, std::vector<int32_t>> getQuantMultAndShiftVectorFromScale(
-        const std::vector<double>& scale) {
-    std::vector<int32_t> shift(scale.size());
-    std::vector<int32_t> mult(scale.size());
-
-    std::transform(scale.begin(), scale.end(), mult.begin(), getQuantMultFromScale);
-    std::transform(scale.begin(), scale.end(), shift.begin(), getQuantShiftFromScale);
-
-    return {mult, shift};
+    ppeScale /= scaleOutput;
+    return {ppeScale};
 }
 
 template <class ConcreteOp>
@@ -438,7 +438,9 @@ mlir::LogicalResult GenericEltwiseConverter<ConcreteOp>::matchAndRewrite(Concret
     //
 
     auto firstInputDPU = prepareTensorForDPU(rewriter, origOp->getLoc(), origOp.input1());
-    auto secondInputDPU = prepareTensorForDPU(rewriter, origOp->getLoc(), origOp.input2());
+    auto secondInputDPU = origOp.input1() == origOp.input2()
+                                  ? firstInputDPU
+                                  : prepareTensorForDPU(rewriter, origOp->getLoc(), origOp.input2());
 
     //
     // Prepare output buffer for DPU
@@ -473,6 +475,15 @@ mlir::LogicalResult GenericEltwiseConverter<ConcreteOp>::matchAndRewrite(Concret
     int64_t clampHigh = std::numeric_limits<int32_t>::max();
     int64_t LreluMult = 1;
     int64_t LreluShift = 0;
+
+    auto outElemType = origOutType.getElementType();
+    if (auto outElemQType = outElemType.template dyn_cast<mlir::quant::QuantizedType>()) {
+        const auto zps = extractScalesAndZeroPoints(outElemType).second;
+
+        clampLow = outElemQType.getStorageTypeMin() - zps.front();
+        clampHigh = outElemQType.getStorageTypeMax() - zps.front();
+    }
+
     const auto postOpParams = parsePostOp(nceOp, origOp.post_opAttr());
     if (postOpParams.hasValue()) {
         clampLow = postOpParams->clampLow;
@@ -486,10 +497,16 @@ mlir::LogicalResult GenericEltwiseConverter<ConcreteOp>::matchAndRewrite(Concret
     // later used during NCE task serialization
     auto quantScale = calculateQuantScaleVectorForEltwise(origOp);
     if (quantScale.hasValue()) {
-        auto quantMultShift = getQuantMultAndShiftVectorFromScale(quantScale.getValue());
+        const auto scale = quantScale.getValue();
 
-        nceOp.addPPETask(rewriter, _ppeType, clampLow, clampHigh, LreluMult, LreluShift,
-                         makeArrayRef<int32_t>(quantMultShift.first), makeArrayRef<int32_t>(quantMultShift.second));
+        const auto mult = getQuantMultFromScale(scale);
+        const auto shifts = getQuantShiftAndPostShiftFromScale(scale);
+
+        const auto shift = shifts.first;
+        const auto post_shift = shifts.second;
+
+        nceOp.addPPETask(rewriter, _ppeType, clampLow, clampHigh, LreluMult, LreluShift, SmallVector<int32_t>{mult},
+                         SmallVector<int32_t>{shift}, post_shift);
     } else {
         nceOp.addPPETask(rewriter, _ppeType, clampLow, clampHigh, LreluMult, LreluShift);
     }
@@ -542,9 +559,9 @@ mlir::LogicalResult DepthwiseConvRewrite::matchAndRewrite(IERT::GroupConvolution
 
     const auto filterShape = getShape(origOp.filter());
 
-    const auto OC = filterShape[IE::Dims4D::Filter::OC];
-    const auto KY = filterShape[IE::Dims4D::Filter::KY];
-    const auto KX = filterShape[IE::Dims4D::Filter::KX];
+    const auto OC = filterShape[Dims4D::Filter::OC];
+    const auto KY = filterShape[Dims4D::Filter::KY];
+    const auto KX = filterShape[Dims4D::Filter::KX];
 
     //
     // Prepare input for DPU

@@ -29,11 +29,6 @@ std::vector<std::string> disabledTestPatterns() {
         ".*InferConfigTests\\.withoutExclusiveAsyncRequests.*",
         ".*InferConfigTests\\.canSetExclusiveAsyncRequests.*",
 
-        // [Track number: S#27334]
-        ".*BehaviorTests.*",
-        ".*BehaviorTestInput.*",
-        ".*BehaviorTestOutput.*",
-
         // TODO Add safe Softplus support
         ".*ActivationLayerTest.*SoftPlus.*",
 

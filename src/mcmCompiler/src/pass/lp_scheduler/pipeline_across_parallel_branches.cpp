@@ -524,7 +524,7 @@ std::list<operation_t> retrieveExplicitChildOps(mv::Data::OpListIterator currOp,
     if (child->isImplicit())
     {
       std::list<operation_t> temp = retrieveExplicitChildOps(child, model);
-      concrete_child_ops.merge(temp);
+      concrete_child_ops.insert(concrete_child_ops.end(), temp.begin(), temp.end());
     }
     else
     {

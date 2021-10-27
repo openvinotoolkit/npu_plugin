@@ -253,6 +253,7 @@ def IERT_TimestampOp :
             "Timestamp",
             [
                 NoSideEffect,
+                DotInterface
             ]
         > {
     let summary = "Get timer timestamp operation";
@@ -264,6 +265,12 @@ def IERT_TimestampOp :
     let results = (outs
         AnyStaticShapeMemRef:$output
     );
+
+    let extraClassDeclaration = [{
+        vpux::DotNodeColor getNodeColor() {
+            return vpux::DotNodeColor::BLUE;
+        }
+    }];
 
     let assemblyFormat = [{
         attr-dict `->` type(results)
@@ -329,39 +336,12 @@ def IERT_CopyOp :
         `->` type(results)
     }];
 
-    let hasFolder = 1;
-}
-
-//
-// ReorderOp
-//
-
-def IERT_ReorderOp :
-        IERT_LayerOp<1, "Reorder",
-            [
-                ViewLikeOpInterface,
-                SameOperandsShape
-            ]
-        > {
-    let summary = "InferenceEngine run-time Reorder layer";
-
-    let arguments = (ins
-        AnyMemRef:$input,
-        AnyMemRef:$output_buff
-    );
-
-    let results = (outs
-        AnyMemRef:$output
-    );
-
-    let assemblyFormat = [{
-        attr-dict
-        `inputs` `(` $input `:` type($input) `)`
-        `outputs` `(` $output_buff `:` type($output_buff) `)`
-        `->` type(results)
-    }];
-
-    let hasCanonicalizer = 1;
+    let extraClassDeclaration = [{
+        vpux::DotNodeColor getNodeColor() {
+            return vpux::DotNodeColor::GREEN;
+        }
+    }] # IERT_InferLayerReturnTypes<1>.impl;
+    
     let hasFolder = 1;
 }
 
@@ -862,6 +842,40 @@ def IERT_ErfOp :
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
+// BroadcastOp
+//
+
+def IERT_BroadcastOp :
+        IERT_LayerOp<1, "Broadcast",
+            [
+                ViewLikeOpInterface
+            ]
+        > {
+    let summary = "InferenceEngine run-time Broadcast layer";
+
+    let arguments = (ins
+        AnyMemRef:$input,
+        MemRefOf<[SI64, SI32]>:$target_shape,
+        Optional<MemRefOf<[SI64, SI32]>>:$axes_mapping,
+
+        AnyMemRef:$output_buff,
+
+        OptionalAttr<IE_BroadcastType>:$mode
+    );
+
+    let results = (outs
+        AnyMemRef:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `,` $target_shape `:` type($target_shape) (`,` $axes_mapping^ `:` type($axes_mapping))? `)`
+        `ouputs` `(` $output_buff `:` type($output_buff) `)`
         `->` type(results)
     }];
 }
@@ -1762,38 +1776,6 @@ def IERT_FullyConnectedOp:
 }
 
 //
-// TransposeOp
-//
-
-def IERT_TransposeOp :
-        IERT_LayerOp<1, "Transpose",
-            [
-                ViewLikeOpInterface
-            ]
-        > {
-    let summary = "InferenceEngine run-time Transpose layer";
-
-    let arguments = (ins
-        MemRefOf<[F16, F32]>:$input,
-        Optional<MemRefOf<[SI64]>>:$order,
-        MemRefOf<[F16, F32]>:$output_buff,
-
-        AffineMapAttr:$order_value
-    );
-
-    let results = (outs
-        MemRefOf<[F16, F32]>:$output
-    );
-
-    let assemblyFormat = [{
-        attr-dict
-        `inputs` `(` $input `:` type($input) (`,` $order^ `:` type($order))? `)`
-        `outputs` `(` $output_buff `:` type($output_buff) `)`
-        `->` type(results)
-    }];
-}
-
-//
 // ConcatViewOp
 //
 
@@ -2162,7 +2144,8 @@ def IERT_SubViewOp :
             [
                 NoSideEffect,
                 DeclareOpInterfaceMethods<ViewLikeOpInterface>,
-                DeclareOpInterfaceMethods<InferTypeOpInterface>
+                DeclareOpInterfaceMethods<InferTypeOpInterface>,
+                DotInterface
             ]
         > {
     let summary = "Extract single subview from buffer";
@@ -2182,6 +2165,12 @@ def IERT_SubViewOp :
     let assemblyFormat = [{
         $source $static_offsets $static_sizes ($static_strides^)?
         attr-dict `:` type($source) `to` type(results)
+    }];
+
+    let extraClassDeclaration = [{
+        vpux::DotNodeColor getNodeColor() {
+            return vpux::DotNodeColor::ORANGE;
+        }
     }];
 
     let builders = [
@@ -2241,39 +2230,6 @@ def IERT_MVNOp :
 }
 
 //
-// ImplicitReorderOp
-//
-
-def IERT_ImplicitReorderOp :
-        IERT_Op<
-            "ImplicitReorder",
-            [
-                SameOperandsAndResultElementType,
-                DeclareOpInterfaceMethods<ViewLikeOpInterface>,
-                DeclareOpInterfaceMethods<InferTypeOpInterface>,
-                NoSideEffect
-            ]
-        > {
-    let summary = "Compile-time reorder layer";
-
-    let arguments = (ins
-        AnyMemRef:$source,
-
-        AffineMapAttr:$dstOrder
-    );
-
-    let results = (outs
-        AnyMemRef:$result
-    );
-
-    let assemblyFormat = [{
-        attr-dict
-        `inputs` `(` $source `:` type($source) `)`
-        `->` type(results)
-    }];
-}
-
-//
 // SubtractOp
 //
 
@@ -2302,6 +2258,69 @@ def IERT_SubtractOp :
         attr-dict
         `inputs` `(` $input1 `:` type($input1) `,` $input2 `:` type($input2) `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
+// MemPermuteOp
+//
+
+def IERT_MemPermuteOp :
+        IERT_LayerOp<1, "MemPermute",
+            [
+                ViewLikeOpInterface
+            ]
+        > {
+    let summary = "InferenceEngine run-time MemPermute layer";
+
+    let arguments = (ins
+        AnyMemRef:$input,
+        AnyMemRef:$output_buff,
+
+        AffineMapAttr:$mem_perm
+    );
+
+    let results = (outs
+        AnyMemRef:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
+// PermuteCastOp
+//
+
+def IERT_PermuteCastOp :
+        IERT_Op<
+            "PermuteCast",
+            [
+                DeclareOpInterfaceMethods<ViewLikeOpInterface>,
+                NoSideEffect
+            ]
+        > {
+    let summary = "Compile-time PermuteCast layer";
+
+    let arguments = (ins
+        AnyMemRef:$source,
+
+        AffineMapAttr:$dst_order,
+        AffineMapAttr:$mem_perm
+    );
+
+    let results = (outs
+        AnyMemRef:$result
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $source `:` type($source) `)`
         `->` type(results)
     }];
 }

@@ -325,6 +325,45 @@ def ConvertConv1DToConv2D : PassBase<"convert-conv1d-to-conv2d", "vpux::Function
     ];
 }
 
+//
+// ConvertToMemPermute
+//
+
+def ConvertToMemPermute : PassBase<"convert-to-mem-permute", "vpux::FunctionPass"> {
+    let summary = "Convert Reorder and Transpose ops to MemPermute operation";
+
+    let description = [{
+        The pass is a part of `AdjustForVPU` pipeline.
+
+        This pass replaces all `Reorder` and `Transpose` operations with `MemPermute` operation.
+    }];
+
+    let constructor = "vpux::IE::createConvertToMemPermutePass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
+
+//
+// HandleLargeStrides
+//
+
+def HandleLargeStrides : PassBase<"handle-large-strides", "vpux::FunctionPass"> {
+    let summary = "Handle operations with large strides";
+
+    let description = [{
+        This pass splits operations with strides larger than supported on hardware.
+    }];
+
+    let constructor = "vpux::IE::createHandleLargeStridesPass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
+
+
 //=================================================================================
 // LowPrecision
 //=================================================================================
@@ -427,6 +466,27 @@ def ConvertWeightsToU8 : PassBase<"convert-weights-to-u8", "vpux::FunctionPass">
     }];
 
     let constructor = "vpux::IE::createConvertWeightsToU8Pass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
+
+//
+// ConvertQuantizeOpsToEltwise
+//
+
+def ConvertQuantizeOpsToEltwise : PassBase<"convert-quantize-ops-to-eltwise", "vpux::FunctionPass"> {
+    let summary = "Converts per-tensor Quantize/Dequantize to eltwise And mixed-precision operation";
+
+    let description = [{
+        The pass is a part of `LowPrecision` pipeline.
+
+        Converts per-tensor Quantize/Dequantize to eltwise And mixed-precision operation
+        where input2 is input1 to perform type conversion on DPU instead of UPA.
+    }];
+
+    let constructor = "vpux::IE::createConvertQuantizeOpsToEltwisePass()";
 
     let dependentDialects = [
         "vpux::IE::IEDialect"

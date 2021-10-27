@@ -47,13 +47,14 @@ void ConvertPrecisionToI32Pass::safeRunOnModule() {
         }
     });
 
-    const auto isLegalGatherOp = [&](IE::GatherOp op) {
+    const auto isLegalOp = [&](mlir::Operation* op) {
         return typeConverter.isLegal(op);
     };
 
     mlir::ConversionTarget target(ctx);
     target.addLegalDialect<Const::ConstDialect>();
-    target.addDynamicallyLegalOp<IE::GatherOp>(isLegalGatherOp);
+    target.addDynamicallyLegalOp<IE::GatherOp>(isLegalOp);
+    target.addDynamicallyLegalOp<IE::BroadcastOp>(isLegalOp);
 
     auto module = getOperation();
     if (mlir::failed(runConvertPrecision(module, typeConverter, target, _log))) {

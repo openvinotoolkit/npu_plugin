@@ -162,7 +162,7 @@ func @WeightsTableOp(%arg0: memref<1x1x16x64xf32>, %arg1: memref<16x1x1x4xsi32>)
     %1 = IERT.GenericReshape inputs(%0 : memref<1x1x16x64xf16>) -> memref<1x16x1x64xf16>
 
     %t2, %f2 = async.execute -> !async.value<memref<1x16x1x64xf16, #NHWC, #map1>> {
-        %2 = IERT.Reorder inputs(%1 : memref<1x16x1x64xf16>) outputs(%buf1 : memref<1x16x1x64xf16, #NHWC, #map1>)
+        %2 = IERT.MemPermute {mem_perm = #NHWC} inputs(%1 : memref<1x16x1x64xf16>) outputs(%buf1 : memref<1x16x1x64xf16, #NHWC, #map1>)
             -> memref<1x16x1x64xf16, #NHWC, #map1>
         async.yield %2 : memref<1x16x1x64xf16, #NHWC, #map1>
     }
@@ -205,7 +205,8 @@ func @WeightsTableOp(%arg0: memref<1x1x16x64xf32>, %arg1: memref<16x1x1x4xsi32>)
 
     // CHECK:       [[T2:%.+]], [[F2:%.+]] = async.execute -> !async.value<memref<1x16x1x64xf16, #NHWC, #map1>>
     // CHECK:           [[VAR1:%.+]] = IERT.GenericReshape inputs([[VAR0]] : memref<1x1x16x64xf16>)
-    // CHECK:           [[VAR2:%.+]] = IERT.Reorder
+    // CHECK:           [[VAR2:%.+]] = IERT.MemPermute
+    // CHECK-SAME:          {mem_perm = #NHWC}
     // CHECK-SAME:          inputs([[VAR1]] : memref<1x16x1x64xf16>)
     // CHECK-SAME:          outputs([[BUF1]] : memref<1x16x1x64xf16, #NHWC, #map1>)
     // CHECK:           async.yield [[VAR2]] : memref<1x16x1x64xf16, #NHWC, #map1>

@@ -14,6 +14,7 @@
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
 #include <vpux/compiler/utils/quantization.hpp>
+#include "vpux/compiler/core/layers.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
@@ -50,7 +51,7 @@ Shape calcPadsEnd(mlir::ShapedType origType, int64_t channelAlignment) {
     const auto origShape = getShape(origType);
 
     auto extendedShape = origShape.toValues();
-    extendedShape[IE::Dims4D::Act::C] = alignVal(origShape[IE::Dims4D::Act::C], channelAlignment);
+    extendedShape[Dims4D::Act::C] = alignVal(origShape[Dims4D::Act::C], channelAlignment);
 
     return calcPadsEnd(origShape, extendedShape);
 }
@@ -81,12 +82,12 @@ mlir::LogicalResult generalRewrite(mlir::Operation* origOp, mlir::PatternRewrite
     log.trace("Input padding : {0}", inPadsEnd);
     log.trace("Output padding : {0}", outPadsEnd);
 
-    if (inPadsEnd[IE::Dims4D::Act::C] == 0 && outPadsEnd[IE::Dims4D::Act::C] == 0) {
+    if (inPadsEnd[Dims4D::Act::C] == 0 && outPadsEnd[Dims4D::Act::C] == 0) {
         return matchFailed(log, rewriter, origOp, "Both input and output channels are already aligned");
     }
 
     mlir::Value paddedInput;
-    if (inPadsEnd[IE::Dims4D::Act::C] == 0) {
+    if (inPadsEnd[Dims4D::Act::C] == 0) {
         log.trace("Input channels are already aligned");
         paddedInput = origOp->getOperand(0);
     } else {
@@ -95,9 +96,9 @@ mlir::LogicalResult generalRewrite(mlir::Operation* origOp, mlir::PatternRewrite
     }
 
     log.trace("Create new operation with extended input and output");
-    auto* newOp = opCreator(paddedInput, outPadsEnd[IE::Dims4D::Act::C]);
+    auto* newOp = opCreator(paddedInput, outPadsEnd[Dims4D::Act::C]);
 
-    if (outPadsEnd[IE::Dims4D::Act::C] == 0) {
+    if (outPadsEnd[Dims4D::Act::C] == 0) {
         log.trace("Output channels are already aligned");
         rewriter.replaceOp(origOp, newOp->getResult(0));
     } else {
@@ -139,7 +140,7 @@ mlir::LogicalResult MaxPoolRewriter::matchAndRewrite(IE::MaxPoolOp origOp, mlir:
         const Shape outPadBefore(checked_cast<size_t>(origOp.getType().getRank()), 0);
 
         Shape outPadAfter(checked_cast<size_t>(origOp.getType().getRank()), 0);
-        outPadAfter[IE::Dims4D::Act::C] = outChanPadsEnd;
+        outPadAfter[Dims4D::Act::C] = outChanPadsEnd;
 
         const auto newOutputType = getPaddedType(origOp.getType(), outPadBefore, outPadAfter);
 
@@ -176,7 +177,7 @@ mlir::LogicalResult ConvolutionRewriter::matchAndRewrite(IE::ConvolutionOp origO
         const auto filterShape = getShape(origOp.filter());
 
         const auto newInputShape = getShape(expandedInput);
-        const auto inChanPadEnd = newInputShape[IE::Dims4D::Act::C] - filterShape[IE::Dims4D::Filter::IC];
+        const auto inChanPadEnd = newInputShape[Dims4D::Act::C] - filterShape[Dims4D::Filter::IC];
 
         mlir::Value paddedFilter;
 
@@ -186,8 +187,8 @@ mlir::LogicalResult ConvolutionRewriter::matchAndRewrite(IE::ConvolutionOp origO
             const SmallVector<int64_t> filterPadsBegin(filterShape.size(), 0);
 
             Shape filterPadsEnd(filterShape.size(), 0);
-            filterPadsEnd[IE::Dims4D::Filter::OC] = outChanPadEnd;
-            filterPadsEnd[IE::Dims4D::Filter::IC] = inChanPadEnd;
+            filterPadsEnd[Dims4D::Filter::OC] = outChanPadEnd;
+            filterPadsEnd[Dims4D::Filter::IC] = inChanPadEnd;
 
             const auto padValue = getFPAttr(getContext(), 0.0f);
 
@@ -208,7 +209,7 @@ mlir::LogicalResult ConvolutionRewriter::matchAndRewrite(IE::ConvolutionOp origO
                 const SmallVector<uint32_t> biasPadsBegin(biasShape.size(), 0);
 
                 Shape biasPadsEnd(biasShape.size(), 0);
-                biasPadsEnd[IE::Dims4D::Act::C] = checked_cast<uint32_t>(outChanPadEnd);
+                biasPadsEnd[Dims4D::Act::C] = checked_cast<uint32_t>(outChanPadEnd);
 
                 const auto padValue = getFPAttr(getContext(), 0.0f);
 
@@ -222,7 +223,7 @@ mlir::LogicalResult ConvolutionRewriter::matchAndRewrite(IE::ConvolutionOp origO
         const Shape outPadBefore(checked_cast<size_t>(origOp.getType().getRank()), 0);
 
         Shape outPadAfter(checked_cast<size_t>(origOp.getType().getRank()), 0);
-        outPadAfter[IE::Dims4D::Act::C] = outChanPadEnd;
+        outPadAfter[Dims4D::Act::C] = outChanPadEnd;
 
         const auto newOutputType = getPaddedType(origOp.getType(), outPadBefore, outPadAfter);
 
@@ -258,7 +259,9 @@ mlir::LogicalResult EltwiseRewriter<ConcreteOp>::matchAndRewrite(ConcreteOp orig
 
     const auto opCreator = [&](mlir::Value expandedInput1, int64_t outChanPadEnd) -> mlir::Operation* {
         mlir::Value expandedInput2;
-        if (outChanPadEnd == 0) {
+        if (origOp.input1() == origOp.input2()) {
+            expandedInput2 = expandedInput1;
+        } else if (outChanPadEnd == 0) {
             expandedInput2 = origOp.input2();
         } else {
             _log.trace("Expand second input tensor");
@@ -275,7 +278,7 @@ mlir::LogicalResult EltwiseRewriter<ConcreteOp>::matchAndRewrite(ConcreteOp orig
         const Shape outPadBefore(checked_cast<size_t>(origOp.getType().getRank()), 0);
 
         Shape outPadAfter(checked_cast<size_t>(origOp.getType().getRank()), 0);
-        outPadAfter[IE::Dims4D::Act::C] = outChanPadEnd;
+        outPadAfter[Dims4D::Act::C] = outChanPadEnd;
 
         const auto newOutputType = getPaddedType(origOp.getType(), outPadBefore, outPadAfter);
 
@@ -318,7 +321,7 @@ mlir::LogicalResult GroupConvolutionRewriter::matchAndRewrite(IE::GroupConvoluti
             const SmallVector<int64_t> filterPadsBegin(filterShape.size(), 0);
 
             Shape filterPadsEnd(filterShape.size(), 0);
-            filterPadsEnd[IE::Dims4D::Filter::OC] = outChanPadEnd;
+            filterPadsEnd[Dims4D::Filter::OC] = outChanPadEnd;
 
             const auto padValue = getFPAttr(getContext(), 0.0);
 
@@ -339,7 +342,7 @@ mlir::LogicalResult GroupConvolutionRewriter::matchAndRewrite(IE::GroupConvoluti
                 const SmallVector<uint32_t> biasPadsBegin(biasShape.size(), 0);
 
                 Shape biasPadsEnd(biasShape.size(), 0);
-                biasPadsEnd[IE::Dims4D::Act::C] = checked_cast<uint32_t>(outChanPadEnd);
+                biasPadsEnd[Dims4D::Act::C] = checked_cast<uint32_t>(outChanPadEnd);
 
                 const auto padValue = getFPAttr(getContext(), 0.0);
 
@@ -353,7 +356,7 @@ mlir::LogicalResult GroupConvolutionRewriter::matchAndRewrite(IE::GroupConvoluti
         const Shape outPadBefore(checked_cast<size_t>(origOp.getType().getRank()), 0);
 
         Shape outPadAfter(checked_cast<size_t>(origOp.getType().getRank()), 0);
-        outPadAfter[IE::Dims4D::Act::C] = outChanPadEnd;
+        outPadAfter[Dims4D::Act::C] = outChanPadEnd;
 
         const auto newOutputType = getPaddedType(origOp.getType(), outPadBefore, outPadAfter);
         const auto newConvOutShape = getShape(newOutputType);
@@ -361,7 +364,7 @@ mlir::LogicalResult GroupConvolutionRewriter::matchAndRewrite(IE::GroupConvoluti
         return rewriter.create<IE::GroupConvolutionOp>(
                 origOp.getLoc(), newOutputType, expandedInput, paddedFilter, paddedBiases, origOp.strides(),
                 origOp.pads_begin(), origOp.pads_end(), origOp.dilations(),
-                getIntAttr(getContext(), newConvOutShape[IE::Dims4D::Act::C]), origOp.post_opAttr());
+                getIntAttr(getContext(), newConvOutShape[Dims4D::Act::C]), origOp.post_opAttr());
     };
 
     return generalRewrite(origOp, rewriter, opCreator, _log.nest());

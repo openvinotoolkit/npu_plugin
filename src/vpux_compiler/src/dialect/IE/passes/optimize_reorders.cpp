@@ -260,22 +260,15 @@ mlir::LogicalResult ReorderWithConcat::matchAndRewrite(IE::ConcatOp origConcatOp
         return mlir::failure();
     }
 
-    if (!origConcatOp.output().hasOneUse()) {
-        return mlir::failure();
-    }
-
-    auto resReorderOp = mlir::dyn_cast<IE::ReorderOp>(*origConcatOp.output().user_begin());
-    if (resReorderOp == nullptr) {
-        return mlir::failure();
-    }
-
-    const auto resOrder = DimsOrder::fromValue(resReorderOp.output());
-    if (resOrder != initialOrder.getValue()) {
-        return mlir::failure();
-    }
+    const auto concatOrder = DimsOrder::fromValue(origConcatOp.inputs().front());
 
     const auto newConcatType = inferOutputType(origConcatOp, initialInputs, initialOrder.getValue());
-    rewriter.replaceOpWithNewOp<IE::ConcatOp>(origConcatOp, newConcatType, initialInputs, origConcatOp.axisAttr());
+
+    auto newConcat = rewriter.create<IE::ConcatOp>(origConcatOp->getLoc(), newConcatType, initialInputs,
+                                                   origConcatOp.axis(), origConcatOp.offset(), origConcatOp.stride());
+
+    rewriter.replaceOpWithNewOp<IE::ReorderOp>(origConcatOp, newConcat.output(),
+                                               concatOrder.toPermutationAffineMap(origConcatOp.getContext()));
 
     return mlir::success();
 }

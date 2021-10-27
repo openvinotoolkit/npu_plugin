@@ -63,8 +63,8 @@
 #include <transformations/common_optimizations/pull_transpose_through_fq.hpp>
 #include <transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp>
 #include <transformations/op_conversions/convert_divide.hpp>
-//#include <transformations/op_conversions/convert_gather_v1_to_gather_v7.hpp>
-//#include <transformations/op_conversions/convert_gather_v7_to_gather_v1.hpp>
+#include <transformations/op_conversions/convert_gather_downgrade.hpp>
+#include <transformations/op_conversions/convert_gather_upgrade.hpp>
 #include <transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp>
 #include <transformations/op_conversions/convert_minimum_to_power_and_max.hpp>
 #include <transformations/op_conversions/convert_negative.hpp>
@@ -149,6 +149,7 @@ private:
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Round>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Mish>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Erf>& origNode);
+    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Broadcast>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Transpose>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Interpolate>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::TopK>& origNode);
@@ -180,6 +181,7 @@ private:
     mlir::Type importElemType(const ngraph::element::Type& elemType);
     mlir::RankedTensorType importTensor(const ngraph::PartialShape& shape, const ngraph::element::Type& elemType);
     IE::AutoBroadcastTypeAttr importBroadcastType(ngraph::op::AutoBroadcastType bType);
+    IE::BroadcastTypeAttr importBroadcastMode(ngraph::op::BroadcastType bType);
     IE::RoundingTypeAttr importRoundingType(ngraph::op::RoundingType roundingType);
     IE::EpsModeAttr importEpsMode(ngraph::op::EpsMode val);
     IE::TopKModeAttr importTopKMode(ngraph::op::TopKMode val);
@@ -210,11 +212,11 @@ NGraphImporter::Callback NGraphImporter::getParser(const std::shared_ptr<ngraph:
     using DispatchMap = std::map<ngraph::NodeTypeInfo, Callback>;
 
 #define MAP_ENTRY(_NodeType_) \
-    { _NodeType_::type_info, &NGraphImporter::parseDispatch<_NodeType_> }
+    { _NodeType_::get_type_info_static(), &NGraphImporter::parseDispatch<_NodeType_> }
 
     static const DispatchMap dispatchMap{
-            {ngraph::op::Parameter::type_info, &NGraphImporter::parseEmpty},
-            {ngraph::op::Result::type_info, &NGraphImporter::parseEmpty},
+            {ngraph::op::Parameter::get_type_info_static(), &NGraphImporter::parseEmpty},
+            {ngraph::op::Result::get_type_info_static(), &NGraphImporter::parseEmpty},
 
             MAP_ENTRY(opset_latest::Constant),
             MAP_ENTRY(opset_latest::Convert),
@@ -255,6 +257,7 @@ NGraphImporter::Callback NGraphImporter::getParser(const std::shared_ptr<ngraph:
             MAP_ENTRY(opset_latest::Round),
             MAP_ENTRY(opset_latest::Mish),
             MAP_ENTRY(opset_latest::Erf),
+            MAP_ENTRY(opset_latest::Broadcast),
             MAP_ENTRY(opset_latest::Transpose),
             MAP_ENTRY(opset_latest::Interpolate),
             MAP_ENTRY(opset_latest::TopK),
@@ -839,6 +842,27 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
 
     auto op = builder.create<IE::LRN_IEOp>(createLocation(origNode), inputs[0], alphaAttr, betaAttr, biasAttr, sizeAttr,
                                            regionAttr);
+    addOutputs(origNode, op);
+}
+
+void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Broadcast>& origNode) {
+    static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v3::Broadcast>::value,
+                  "opset operation mismatch");
+
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS(inputs.size() == 2 || inputs.size() == 3,
+                      "nGraph Broadcast node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
+
+    const auto mode = importBroadcastMode(origNode->get_broadcast_spec().m_type);
+
+    IE::BroadcastOp op;
+    if (inputs.size() == 2) {
+        op = builder.create<IE::BroadcastOp>(createLocation(origNode), inputs[0], inputs[1], nullptr, mode);
+    } else {
+        op = builder.create<IE::BroadcastOp>(createLocation(origNode), inputs[0], inputs[1], inputs[2], mode);
+    }
+
     addOutputs(origNode, op);
 }
 
@@ -1483,6 +1507,19 @@ IE::AutoBroadcastTypeAttr NGraphImporter::importBroadcastType(ngraph::op::AutoBr
     }
 }
 
+IE::BroadcastTypeAttr NGraphImporter::importBroadcastMode(ngraph::op::BroadcastType bType) {
+    switch (bType) {
+    case ngraph::op::BroadcastType::NUMPY:
+        return IE::BroadcastTypeAttr::get(_ctx, IE::BroadcastType::NUMPY);
+    case ngraph::op::BroadcastType::EXPLICIT:
+        return IE::BroadcastTypeAttr::get(_ctx, IE::BroadcastType::EXPLICIT);
+    case ngraph::op::BroadcastType::BIDIRECTIONAL:
+        return IE::BroadcastTypeAttr::get(_ctx, IE::BroadcastType::BIDIRECTIONAL);
+    default:
+        VPUX_THROW("Unknown BroadcastMode");
+    }
+}
+
 IE::RoundingTypeAttr NGraphImporter::importRoundingType(ngraph::op::RoundingType roundingType) {
     switch (roundingType) {
     case ngraph::op::RoundingType::FLOOR:
@@ -1565,16 +1602,16 @@ IE::InterpolateAttr NGraphImporter::importInterpolateAttrs(const opset_latest::I
     // mode
     IE::InterpolateModeAttr modeAttr;
     switch (val.mode) {
-    case opset_latest::Interpolate::InterpolateMode::nearest:
+    case opset_latest::Interpolate::InterpolateMode::NEAREST:
         modeAttr = IE::InterpolateModeAttr::get(_ctx, IE::InterpolateMode::nearest);
         break;
-    case opset_latest::Interpolate::InterpolateMode::linear:
+    case opset_latest::Interpolate::InterpolateMode::LINEAR:
         modeAttr = IE::InterpolateModeAttr::get(_ctx, IE::InterpolateMode::linear);
         break;
-    case opset_latest::Interpolate::InterpolateMode::linear_onnx:
+    case opset_latest::Interpolate::InterpolateMode::LINEAR_ONNX:
         modeAttr = IE::InterpolateModeAttr::get(_ctx, IE::InterpolateMode::linear_onnx);
         break;
-    case opset_latest::Interpolate::InterpolateMode::cubic:
+    case opset_latest::Interpolate::InterpolateMode::CUBIC:
         modeAttr = IE::InterpolateModeAttr::get(_ctx, IE::InterpolateMode::cubic);
         break;
     default:
@@ -1584,10 +1621,10 @@ IE::InterpolateAttr NGraphImporter::importInterpolateAttrs(const opset_latest::I
     // shape calculation mode
     IE::InterpolateCalcModeAttr calcModeAttr;
     switch (val.shape_calculation_mode) {
-    case opset_latest::Interpolate::ShapeCalcMode::sizes:
+    case opset_latest::Interpolate::ShapeCalcMode::SIZES:
         calcModeAttr = IE::InterpolateCalcModeAttr::get(_ctx, IE::InterpolateCalcMode::sizes);
         break;
-    case opset_latest::Interpolate::ShapeCalcMode::scales:
+    case opset_latest::Interpolate::ShapeCalcMode::SCALES:
         calcModeAttr = IE::InterpolateCalcModeAttr::get(_ctx, IE::InterpolateCalcMode::scales);
         break;
     default:
@@ -1597,19 +1634,19 @@ IE::InterpolateAttr NGraphImporter::importInterpolateAttrs(const opset_latest::I
     // coordinate transformation mode
     IE::InterpolateCoordModeAttr coordModeAttr;
     switch (val.coordinate_transformation_mode) {
-    case opset_latest::Interpolate::CoordinateTransformMode::half_pixel:
+    case opset_latest::Interpolate::CoordinateTransformMode::HALF_PIXEL:
         coordModeAttr = IE::InterpolateCoordModeAttr::get(_ctx, IE::InterpolateCoordMode::half_pixel);
         break;
-    case opset_latest::Interpolate::CoordinateTransformMode::pytorch_half_pixel:
+    case opset_latest::Interpolate::CoordinateTransformMode::PYTORCH_HALF_PIXEL:
         coordModeAttr = IE::InterpolateCoordModeAttr::get(_ctx, IE::InterpolateCoordMode::pytorch_half_pixel);
         break;
-    case opset_latest::Interpolate::CoordinateTransformMode::asymmetric:
+    case opset_latest::Interpolate::CoordinateTransformMode::ASYMMETRIC:
         coordModeAttr = IE::InterpolateCoordModeAttr::get(_ctx, IE::InterpolateCoordMode::asymmetric);
         break;
-    case opset_latest::Interpolate::CoordinateTransformMode::tf_half_pixel_for_nn:
+    case opset_latest::Interpolate::CoordinateTransformMode::TF_HALF_PIXEL_FOR_NN:
         coordModeAttr = IE::InterpolateCoordModeAttr::get(_ctx, IE::InterpolateCoordMode::tf_half_pixel_for_nn);
         break;
-    case opset_latest::Interpolate::CoordinateTransformMode::align_corners:
+    case opset_latest::Interpolate::CoordinateTransformMode::ALIGN_CORNERS:
         coordModeAttr = IE::InterpolateCoordModeAttr::get(_ctx, IE::InterpolateCoordMode::align_corners);
         break;
     default:
@@ -1619,19 +1656,19 @@ IE::InterpolateAttr NGraphImporter::importInterpolateAttrs(const opset_latest::I
     // coordinate transformation mode
     IE::InterpolateNearestModeAttr nearestModeAttr;
     switch (val.nearest_mode) {
-    case opset_latest::Interpolate::NearestMode::round_prefer_floor:
+    case opset_latest::Interpolate::NearestMode::ROUND_PREFER_FLOOR:
         nearestModeAttr = IE::InterpolateNearestModeAttr::get(_ctx, IE::InterpolateNearestMode::round_prefer_floor);
         break;
-    case opset_latest::Interpolate::NearestMode::round_prefer_ceil:
+    case opset_latest::Interpolate::NearestMode::ROUND_PREFER_CEIL:
         nearestModeAttr = IE::InterpolateNearestModeAttr::get(_ctx, IE::InterpolateNearestMode::round_prefer_ceil);
         break;
-    case opset_latest::Interpolate::NearestMode::floor:
+    case opset_latest::Interpolate::NearestMode::FLOOR:
         nearestModeAttr = IE::InterpolateNearestModeAttr::get(_ctx, IE::InterpolateNearestMode::floor);
         break;
-    case opset_latest::Interpolate::NearestMode::ceil:
+    case opset_latest::Interpolate::NearestMode::CEIL:
         nearestModeAttr = IE::InterpolateNearestModeAttr::get(_ctx, IE::InterpolateNearestMode::ceil);
         break;
-    case opset_latest::Interpolate::NearestMode::simple:
+    case opset_latest::Interpolate::NearestMode::SIMPLE:
         nearestModeAttr = IE::InterpolateNearestModeAttr::get(_ctx, IE::InterpolateNearestMode::simple);
         break;
     default:
@@ -1805,8 +1842,8 @@ void runNGraphPasses(const std::shared_ptr<ngraph::Function>& netGraph, mlir::Ti
     passConfig->disable<ngraph::pass::FakeQuantizeMulFusion>();
     passConfig->disable<ngraph::pass::PullTransposeThroughFQUp>();
 
-    // passConfig->enable<ngraph::pass::ConvertGather1ToGather7>();
-    // passConfig->disable<ngraph::pass::ConvertGather7ToGather1>();
+    passConfig->enable<ngraph::pass::ConvertGather1ToGather7>();
+    passConfig->disable<ngraph::pass::ConvertGather7ToGather1>();
 
     ngraph::pass::Manager manager(passConfig);
     manager.register_pass<ngraph::pass::InitNodeInfo>();

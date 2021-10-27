@@ -32,12 +32,7 @@ namespace {
 // LayerWithPostOpModel
 //
 
-bool isSupportedPostOp(mlir::Operation* postOp) {
-    if (VPUIP::getCompilationMode(postOp) == VPUIP::CompilationMode::ReferenceSW) {
-        // Reference SW mode supports fusing only for bias
-        return mlir::isa<IE::ScaleShiftOp>(postOp);
-    }
-
+bool isSupportedHWPostOp(mlir::Operation* postOp) {
     if (!mlir::isa<IE::ScaleShiftOp, IE::ReLUOp, IE::ClampOp>(postOp)) {
         return false;
     }
@@ -59,7 +54,15 @@ class LayerWithPostOpModel final :
         public IE::LayerWithPostOpInterface::ExternalModel<LayerWithPostOpModel<MainOpType>, MainOpType> {
 public:
     bool isSupportedPostOp(mlir::Operation* mainOp, mlir::Operation* postOp) const {
-        if (!::isSupportedPostOp(postOp)) {
+        if (mlir::isa<IE::ScaleShiftOp>(postOp)) {
+            return true;
+        }
+
+        if (VPUIP::getCompilationMode(postOp) == VPUIP::CompilationMode::ReferenceSW) {
+            return false;
+        }
+
+        if (!isSupportedHWPostOp(postOp)) {
             return false;
         }
 
@@ -226,6 +229,7 @@ void redirectOpInterfacesForIE(mlir::DialectRegistry& registry) {
     registry.addOpInterface<IE::HSwishOp, OpModelForSW<VPUIP::HSwishUPAOp>>();
     registry.addOpInterface<IE::MishOp, OpModelForSW<VPUIP::MishUPAOp>>();
     registry.addOpInterface<IE::ErfOp, OpModelForSW<VPUIP::ErfUPAOp>>();
+    registry.addOpInterface<IE::BroadcastOp, OpModelForSW<VPUIP::BroadcastUPAOp>>();
     registry.addOpInterface<IE::FloorOp, OpModelForSW<VPUIP::FloorUPAOp>>();
     registry.addOpInterface<IE::RoundOp, OpModelForSW<VPUIP::RoundUPAOp>>();
     registry.addOpInterface<IE::TanhOp, OpModelForSW<VPUIP::TanhUPAOp>>();
@@ -265,6 +269,7 @@ void redirectOpInterfacesForIE(mlir::DialectRegistry& registry) {
     registry.addOpInterface<IE::RegionYoloOp, OpModelForSW<VPUIP::RegionYoloUPAOp>>();
     registry.addOpInterface<IE::MVNOp, OpModelForSW<VPUIP::MVNUPAOp>>();
     registry.addOpInterface<IE::LSTMSequenceOp, OpModelForSW<VPUIP::LSTMSequenceUPAOp>>();
+    registry.addOpInterface<IE::MemPermuteOp, OpModelForSW<VPUIP::PermuteUPAOp>>();
 }
 
 //
@@ -293,6 +298,7 @@ void redirectOpInterfacesForIERT(mlir::DialectRegistry& registry) {
     registry.addOpInterface<IERT::HSwishOp, OpModelForSW>();
     registry.addOpInterface<IERT::MishOp, OpModelForSW>();
     registry.addOpInterface<IERT::ErfOp, OpModelForSW>();
+    registry.addOpInterface<IERT::BroadcastOp, OpModelForSW>();
     registry.addOpInterface<IERT::FloorOp, OpModelForSW>();
     registry.addOpInterface<IERT::RoundOp, OpModelForSW>();
     registry.addOpInterface<IERT::TanhOp, OpModelForSW>();
@@ -320,8 +326,6 @@ void redirectOpInterfacesForIERT(mlir::DialectRegistry& registry) {
     registry.addOpInterface<IERT::FullyConnectedOp, OpModelForSW>();
     registry.addOpInterface<IERT::DetectionOutputOp, OpModelForSW>();
     registry.addOpInterface<IERT::ScaleShiftOp, OpModelForSW>();
-    registry.addOpInterface<IERT::TransposeOp, OpModelForSW>();
-    registry.addOpInterface<IERT::ReorderOp, OpModelForSW>();
     registry.addOpInterface<IERT::CTCGreedyDecoderOp, OpModelForSW>();
     registry.addOpInterface<IERT::CTCGreedyDecoderSeqLenOp, OpModelForSW>();
     registry.addOpInterface<IERT::PadOp, OpModelForSW>();
@@ -332,6 +336,7 @@ void redirectOpInterfacesForIERT(mlir::DialectRegistry& registry) {
     registry.addOpInterface<IERT::RegionYoloOp, OpModelForSW>();
     registry.addOpInterface<IERT::MVNOp, OpModelForSW>();
     registry.addOpInterface<IERT::LSTMSequenceOp, OpModelForSW>();
+    registry.addOpInterface<IERT::MemPermuteOp, OpModelForSW>();
 }
 
 }  // namespace

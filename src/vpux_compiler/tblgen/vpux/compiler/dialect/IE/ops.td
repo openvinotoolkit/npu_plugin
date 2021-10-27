@@ -897,6 +897,29 @@ def IE_LRN_IEOp :
 }
 
 //
+// BroadcastOp
+//
+
+def IE_BroadcastOp :
+        IE_LayerOp<
+            "Broadcast"
+        > {
+    let summary = "InferenceEngine Broadcast layer";
+
+    let arguments = (ins
+        AnyRankedTensor:$input,
+        1DTensorOf<[SI64, SI32]>:$target_shape,
+        Optional<1DTensorOf<[SI64, SI32]>>:$axes_mapping,
+
+        OptionalAttr<IE_BroadcastType>:$mode
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+}
+
+//
 // MinimumOp
 //
 
@@ -1999,6 +2022,62 @@ def IE_LSTMSequenceOp :
         3DTensorOf<[F16, F32]>:$outputHiddenState,
         3DTensorOf<[F16, F32]>:$outputCellState
     );
+}
+
+//
+// MemPermuteOp
+//
+
+def IE_MemPermuteOp :
+        IE_LayerOp<
+            "MemPermute"
+        > {
+    let summary = "InferenceEngine MemPermute layer";
+
+    let arguments = (ins
+        AnyRankedTensor:$input,
+
+        AffineMapAttr:$dst_order,
+        AffineMapAttr:$mem_perm
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+
+    let hasFolder = 1;
+    let hasCanonicalizer = 1;
+
+    let checkInferredDimsOrder = 1;
+    let checkInferredMemSpace = 0;
+}
+
+//
+// PermuteCastOp
+//
+
+def IE_PermuteCastOp :
+        IE_LayerOp<
+            "PermuteCast"
+        > {
+    let summary = "InferenceEngine PermuteCast layer";
+
+    let arguments = (ins
+        AnyRankedTensor:$input,
+
+        AffineMapAttr:$dst_order,
+        AffineMapAttr:$mem_perm
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+
+    let hasFolder = 1;
+    let hasCanonicalizer = 1;
+
+    let checkInferredDimsOrder = 1;
+    let checkInferredMemSpace = 1;
 }
 
 #endif

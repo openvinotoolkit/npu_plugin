@@ -61,6 +61,7 @@ void buildIECommonPipeline(mlir::OpPassManager& pm, Logger log) {
     pm.addPass(IE::createUseUserLayout(log));
     pm.addPass(IE::createAdjustLayoutsPass(log));
     pm.addPass(IE::createOptimizeReordersPass(log));
+    pm.addPass(IE::createConvertToMemPermutePass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
 }
 
@@ -153,6 +154,7 @@ void vpux::buildHardwareModePipeline(mlir::OpPassManager& pm, bool enableProfili
     // Canonicalize group convolution if necessary.
     pm.addPass(mlir::createCanonicalizerPass(grc));
     IE::buildAdjustForVPUPipeline(pm, log);
+    pm.addPass(IE::createHandleLargeStridesPass(log));
     pm.addPass(IE::createHandleAsymmetricStridesPass(log));
     if (pipelineOptions->isEnableLowPrecisionBuilding())
         IE::buildLowPrecisionPipeline(pm, log);

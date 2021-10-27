@@ -204,6 +204,42 @@ operation ::= `IERT.AvgPool` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float or 32-bit float values
 
+### `IERT.Broadcast` (vpux::IERT::BroadcastOp)
+
+InferenceEngine run-time Broadcast layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.Broadcast` attr-dict
+              `inputs` `(` $input `:` type($input) `,` $target_shape `:` type($target_shape) (`,` $axes_mapping^ `:` type($axes_mapping))? `)`
+              `ouputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`mode` | vpux::IE::BroadcastTypeAttr | Broadcast type that operations support
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of any type values
+`target_shape` | memref of 64-bit signed integer or 32-bit signed integer values
+`axes_mapping` | memref of 64-bit signed integer or 32-bit signed integer values
+`output_buff` | memref of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of any type values
+
 ### `IERT.CTCGreedyDecoder` (vpux::IERT::CTCGreedyDecoderOp)
 
 InferenceEngine run-time CTCGreedyDecoder layer
@@ -936,38 +972,6 @@ operation ::= `IERT.HSwish` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float or 32-bit float values
 
-### `IERT.ImplicitReorder` (vpux::IERT::ImplicitReorderOp)
-
-Compile-time reorder layer
-
-
-Syntax:
-
-```
-operation ::= `IERT.ImplicitReorder` attr-dict
-              `inputs` `(` $source `:` type($source) `)`
-              `->` type(results)
-```
-
-
-#### Attributes:
-
-| Attribute | MLIR Type | Description |
-| :-------: | :-------: | ----------- |
-`dstOrder` | ::mlir::AffineMapAttr | AffineMap attribute
-
-#### Operands:
-
-| Operand | Description |
-| :-----: | ----------- |
-`source` | memref of any type values
-
-#### Results:
-
-| Result | Description |
-| :----: | ----------- |
-`result` | memref of any type values
-
 ### `IERT.Interpolate` (vpux::IERT::InterpolateOp)
 
 InferenceEngine run-time Interpolate layer
@@ -1267,6 +1271,40 @@ operation ::= `IERT.Maximum` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float or 32-bit float values
 
+### `IERT.MemPermute` (vpux::IERT::MemPermuteOp)
+
+InferenceEngine run-time MemPermute layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.MemPermute` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`mem_perm` | ::mlir::AffineMapAttr | AffineMap attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of any type values
+`output_buff` | memref of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of any type values
+
 ### `IERT.MemoryResource` (vpux::IERT::MemoryResourceOp)
 
 Information about memory resource
@@ -1512,6 +1550,39 @@ operation ::= `IERT.PerAxisTile` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float or 32-bit float values
 
+### `IERT.PermuteCast` (vpux::IERT::PermuteCastOp)
+
+Compile-time PermuteCast layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.PermuteCast` attr-dict
+              `inputs` `(` $source `:` type($source) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`dst_order` | ::mlir::AffineMapAttr | AffineMap attribute
+`mem_perm` | ::mlir::AffineMapAttr | AffineMap attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`source` | memref of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`result` | memref of any type values
+
 ### `IERT.Power` (vpux::IERT::PowerOp)
 
 InferenceEngine run-time Power layer
@@ -1710,34 +1781,6 @@ operation ::= `IERT.RegionYolo` attr-dict
 | Result | Description |
 | :----: | ----------- |
 `output` | memref of 16-bit float or 32-bit float values
-
-### `IERT.Reorder` (vpux::IERT::ReorderOp)
-
-InferenceEngine run-time Reorder layer
-
-
-Syntax:
-
-```
-operation ::= `IERT.Reorder` attr-dict
-              `inputs` `(` $input `:` type($input) `)`
-              `outputs` `(` $output_buff `:` type($output_buff) `)`
-              `->` type(results)
-```
-
-
-#### Operands:
-
-| Operand | Description |
-| :-----: | ----------- |
-`input` | memref of any type values
-`output_buff` | memref of any type values
-
-#### Results:
-
-| Result | Description |
-| :----: | ----------- |
-`output` | memref of any type values
 
 ### `IERT.Round` (vpux::IERT::RoundOp)
 
@@ -2180,39 +2223,4 @@ Get timer timestamp operation
 | Result | Description |
 | :----: | ----------- |
 `output` | statically shaped memref of any type values
-
-### `IERT.Transpose` (vpux::IERT::TransposeOp)
-
-InferenceEngine run-time Transpose layer
-
-
-Syntax:
-
-```
-operation ::= `IERT.Transpose` attr-dict
-              `inputs` `(` $input `:` type($input) (`,` $order^ `:` type($order))? `)`
-              `outputs` `(` $output_buff `:` type($output_buff) `)`
-              `->` type(results)
-```
-
-
-#### Attributes:
-
-| Attribute | MLIR Type | Description |
-| :-------: | :-------: | ----------- |
-`order_value` | ::mlir::AffineMapAttr | AffineMap attribute
-
-#### Operands:
-
-| Operand | Description |
-| :-----: | ----------- |
-`input` | memref of 16-bit float or 32-bit float values
-`order` | memref of 64-bit signed integer values
-`output_buff` | memref of 16-bit float or 32-bit float values
-
-#### Results:
-
-| Result | Description |
-| :----: | ----------- |
-`output` | memref of 16-bit float or 32-bit float values
 

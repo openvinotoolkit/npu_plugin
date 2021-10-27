@@ -62,6 +62,8 @@ std::unique_ptr<mlir::Pass> createFusePostOpsPass(Logger log = Logger::global())
 std::unique_ptr<mlir::Pass> createExpandActivationChannelsPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertAvgPoolToDWConvPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createHandleAsymmetricStridesPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createConvertToMemPermutePass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createHandleLargeStridesPass(Logger log = Logger::global());
 
 //
 // Low precision transformations.
@@ -76,6 +78,7 @@ std::unique_ptr<mlir::Pass> createDequantizeConstPass(Logger log = Logger::globa
 std::unique_ptr<mlir::Pass> createMergeFakeQuantPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createFuseQuantizedOpsPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertWeightsToU8Pass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createConvertQuantizeOpsToEltwisePass(Logger log = Logger::global());
 
 //
 // Registration

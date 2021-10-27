@@ -7,7 +7,7 @@
 #map3 = affine_map<(d0, d1, d2, d3) -> (d0 * 5776 + d1 * 304 + d2 * 16 + d3)>
 #map4 = affine_map<(d0, d1, d2, d3) -> (d0 * 5776 + d1 * 361 + d2 * 19 + d3)>
 
-func @Conv2dTest(%arg0: memref<1x8x20x20xf16, #NHWC, #map0>, %arg1: memref<1x11x19x19xf16, #NHWC, #map1>) -> memref<1x11x19x19xf16, #NHWC, #map1> {
+func @Conv2dTest(%arg0: memref<1x8x20x20xf16, #NHWC, #map0>, %arg1: memref<1x16x19x19xf16, #NHWC, #map3>) -> memref<1x16x19x19xf16, #NHWC, #map3> {
     %0 = const.Declare memref<1x16x1x1xf16> = #const.Content<dense<2.0> : tensor<1x16x1x1xf16>>
     %1 = const.Declare memref<16x8x2x2xf16, #NHWC, #map2> = #const.Content<dense<2.0> : tensor<16x8x2x2xf16>, [#const.Reorder<#NHWC>]>
     %2 = IERT.StaticAlloc<0> -> memref<1x16x19x19xf16, "DDR">
@@ -29,12 +29,8 @@ func @Conv2dTest(%arg0: memref<1x8x20x20xf16, #NHWC, #map0>, %arg1: memref<1x11x
     } PPE :  {
     }
     %13 = IERT.Copy inputs(%12 : memref<1x16x19x19xf16, #NHWC, #map3, "CMX_NN">) outputs(%3 : memref<1x16x19x19xf16, #NHWC, #map3, "DDR">) -> memref<1x16x19x19xf16, #NHWC, #map3, "DDR">
-    %14 = IERT.Reorder inputs(%13 : memref<1x16x19x19xf16, #NHWC, #map3, "DDR">) outputs(%2 : memref<1x16x19x19xf16, "DDR">) -> memref<1x16x19x19xf16, "DDR">
-    %15 = IERT.SubView %14[0, 0, 0, 0] [1, 11, 19, 19] : memref<1x16x19x19xf16, "DDR"> to memref<1x11x19x19xf16, #map4, "DDR">
-    %16 = IERT.StaticAlloc<11584> -> memref<1x11x19x19xf16, "DDR">
-    %17 = IERT.Copy inputs(%15 : memref<1x11x19x19xf16, #map4, "DDR">) outputs(%16 : memref<1x11x19x19xf16, "DDR">) -> memref<1x11x19x19xf16, "DDR">
-    %18 = IERT.Reorder inputs(%17 : memref<1x11x19x19xf16, "DDR">) outputs(%arg1 : memref<1x11x19x19xf16, #NHWC, #map1>) -> memref<1x11x19x19xf16, #NHWC, #map1>
-    return %18 : memref<1x11x19x19xf16, #NHWC, #map1>
+    %14 = IERT.Copy inputs(%13 : memref<1x16x19x19xf16, #NHWC, #map3, "DDR">) outputs(%arg1 : memref<1x16x19x19xf16, #NHWC, #map3>) -> memref<1x16x19x19xf16, #NHWC, #map3>
+    return %14 : memref<1x16x19x19xf16, #NHWC, #map3>
 
 
 // CHECK:   [[FILTER_CST:%.+]] = const.Declare memref<16x8x2x2xf16, #NHWC, #map2> = #const.Content<dense<{{.*}}> : tensor<16x8x2x2xf16>, [#const.Reorder<#NHWC>]>

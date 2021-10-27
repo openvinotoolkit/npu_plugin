@@ -44,13 +44,13 @@ func @QuantizedConv(%input: tensor<1x3x62x62xf32>) -> tensor<1x4x60x60xf32> {
     // CHECK-SAME:    #const.Content<dense<128> : tensor<4x3x3x3xui8>,
     // CHECK-SAME:    [#const.ConvertElemType<f32>, #const.ConvertElemType<ui8>, #const.QuantCast<!qElemType0>]>
 
-    // CHECK:     [[INPUT_QUANT:%.*]] = IE.Quantize([[INPUT]]) {dstElemType = !qElemType1} : tensor<1x3x62x62xf32> ->
-    // CHECK-SAME:     tensor<1x3x62x62x!quant.uniform<u8:f32, 1.000000e+00>>
+    // CHECK:     [[INPUT_QUANT:%.*]] = IE.And([[INPUT]], [[INPUT]]) {auto_broadcast = "NONE_OR_EXPLICIT"}
+    // CHECK-SAME:     -> tensor<1x3x62x62x!qElemType1>
 
     // CHECK:     [[CONV:%.*]] = IE.Convolution([[INPUT_QUANT]], [[WEIGHTS]])
 
-    // CHECK:     [[OUT_DEQ:%.*]] = IE.Dequantize([[CONV]]) {dstElemType = f32} : tensor<1x4x60x60x!quant.uniform<u8:f32, 1.000000e+00>> ->
-    // CHECK-SAME:     tensor<1x4x60x60xf32>
+    // CHECK:     [[OUT_DEQ:%.*]] = IE.And([[CONV]], [[CONV]]) {auto_broadcast = "NONE_OR_EXPLICIT"}
+    // CHECK-SAME:     -> tensor<1x4x60x60xf32>
 
     // CHECK:     return [[OUT_DEQ]]
 }

@@ -148,6 +148,38 @@ operation ::= `IE.AvgPool` `(` operands `)` attr-dict `:` type(operands) `->` ty
 | :----: | ----------- |
 `output` | ranked tensor of 16-bit float or 32-bit float values
 
+### `IE.Broadcast` (vpux::IE::BroadcastOp)
+
+InferenceEngine Broadcast layer
+
+
+Syntax:
+
+```
+operation ::= `IE.Broadcast` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`mode` | vpux::IE::BroadcastTypeAttr | Broadcast type that operations support
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of any type values
+`target_shape` | 1D tensor of 64-bit signed integer or 32-bit signed integer values
+`axes_mapping` | 1D tensor of 64-bit signed integer or 32-bit signed integer values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values
+
 ### `IE.CNNNetwork` (vpux::IE::CNNNetworkOp)
 
 InferenceEngine CNN Network description
@@ -1210,6 +1242,37 @@ operation ::= `IE.Maximum` `(` operands `)` attr-dict `:` type(operands) `->` ty
 | :----: | ----------- |
 `output` | ranked tensor of any type values
 
+### `IE.MemPermute` (vpux::IE::MemPermuteOp)
+
+InferenceEngine MemPermute layer
+
+
+Syntax:
+
+```
+operation ::= `IE.MemPermute` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`dst_order` | ::mlir::AffineMapAttr | AffineMap attribute
+`mem_perm` | ::mlir::AffineMapAttr | AffineMap attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values
+
 ### `IE.Minimum` (vpux::IE::MinimumOp)
 
 InferenceEngine Minimum layer
@@ -1432,6 +1495,37 @@ operation ::= `IE.PerAxisTile` `(` operands `)` attr-dict `:` type(operands) `->
 | :-------: | :-------: | ----------- |
 `axis` | mlir::IntegerAttr | Integer attribute
 `tiles` | mlir::IntegerAttr | Integer attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values
+
+### `IE.PermuteCast` (vpux::IE::PermuteCastOp)
+
+InferenceEngine PermuteCast layer
+
+
+Syntax:
+
+```
+operation ::= `IE.PermuteCast` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`dst_order` | ::mlir::AffineMapAttr | AffineMap attribute
+`mem_perm` | ::mlir::AffineMapAttr | AffineMap attribute
 
 #### Operands:
 

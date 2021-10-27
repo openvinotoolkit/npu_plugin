@@ -11,26 +11,20 @@
 // included with the Software Package for additional details.
 //
 
-#ifndef VPUX_COMPILER_DIALECT_IERT_REWRITERS_CONVERT
-#define VPUX_COMPILER_DIALECT_IERT_REWRITERS_CONVERT
+#include "vpux/compiler/core/layers.hpp"
 
-include "vpux/compiler/dialect/IERT/ops.td"
-
-include "mlir/IR/OpBase.td"
+using namespace vpux;
 
 //
-// FuseReorders
+// Dims4D
 //
 
-def NotABlockArgument: Constraint<CPred<"!$_self.isa<mlir::BlockArgument>()">>;
+const Dim vpux::Dims4D::Act::N(0);
+const Dim vpux::Dims4D::Act::C(1);
+const Dim vpux::Dims4D::Act::H(2);
+const Dim vpux::Dims4D::Act::W(3);
 
-def FuseReorders :
-        Pat<
-            (IERT_ReorderOp (IERT_ReorderOp $input, $output_buff1), $output_buff2),
-            (IERT_ReorderOp $input, $output_buff2),
-            [
-                (NotABlockArgument:$output_buff1)
-            ]
-        >;
-
-#endif
+const Dim vpux::Dims4D::Filter::OC(0);
+const Dim vpux::Dims4D::Filter::IC(1);
+const Dim vpux::Dims4D::Filter::KY(2);
+const Dim vpux::Dims4D::Filter::KX(3);

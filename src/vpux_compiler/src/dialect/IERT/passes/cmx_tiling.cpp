@@ -11,6 +11,7 @@
 // included with the Software Package for additional details.
 //
 
+#include "vpux/compiler/core/layers.hpp"
 #include "vpux/compiler/core/tiling.hpp"
 #include "vpux/compiler/dialect/IERT/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
@@ -172,7 +173,9 @@ mlir::LogicalResult EltwiseTiling<ConcreteOp>::matchAndRewrite(ConcreteOp origOp
 
     for (const Tile& tile : tilings) {
         const mlir::Value actInput1 = makeTile(rewriter, origOp->getLoc(), origOp.input1(), tile, "input1");
-        const mlir::Value actInput2 = makeTile(rewriter, origOp->getLoc(), origOp.input2(), tile, "input2");
+        const mlir::Value actInput2 = origOp.input1() == origOp.input2()
+                                              ? actInput1
+                                              : makeTile(rewriter, origOp->getLoc(), origOp.input2(), tile, "input2");
 
         const std::string tileName = llvm::formatv("output tile {0}", tile.offsets).str();
         const mlir::Location loc = appendLoc(origOp->getLoc(), tileName);
@@ -182,7 +185,7 @@ mlir::LogicalResult EltwiseTiling<ConcreteOp>::matchAndRewrite(ConcreteOp origOp
         auto allocOutOp = rewriter.create<mlir::memref::AllocOp>(loc, tileTypeOut);
 
         auto tiledOp =
-                rewriter.create<IERT::AddOp>(loc, actInput1, actInput2, allocOutOp.memref(), origOp.post_opAttr());
+                rewriter.create<ConcreteOp>(loc, actInput1, actInput2, allocOutOp.memref(), origOp.post_opAttr());
 
         const auto attrOffsets = getIntArrayAttr(rewriter.getContext(), tile.offsets.raw());
         const auto attrShape = getIntArrayAttr(rewriter.getContext(), tile.shape.raw());
@@ -319,7 +322,7 @@ mlir::LogicalResult GroupConvolutionTiling::matchAndRewrite(IERT::GroupConvoluti
                                                   outputTile.offsets, outputTile.shape);
         auto allocOutOp = rewriter.create<mlir::memref::AllocOp>(loc, tileTypeOut);
 
-        const auto groups = filterTile.shape[IE::Dims4D::Filter::OC];
+        const auto groups = filterTile.shape[Dims4D::Filter::OC];
         const auto groupsAttr = getIntAttr(getContext(), groups);
 
         auto tiledOp = rewriter.create<IERT::GroupConvolutionOp>(
@@ -398,36 +401,36 @@ OutputTiling SimpleTiler::genericTiler(mlir::Operation* op, mlir::MemRefType out
     const auto outputShape = getShape(outputType);
 
     const auto minChannelSize = VPUIP::NCEInvariant::getChannelAlignment(outputType.getElementType());
-    const auto maxChannelTiles = outputShape[IE::Dims4D::Act::C] / minChannelSize;
+    const auto maxChannelTiles = outputShape[Dims4D::Act::C] / minChannelSize;
 
     Shape nTilesOnDim(outputShape.size(), 1);
 
     // Try to tile the largest dim (C or H) first, then proceed with other dims
-    SmallVector<Dim> tileDimOrder = {IE::Dims4D::Act::C, IE::Dims4D::Act::H, IE::Dims4D::Act::W};
-    if (outputShape[IE::Dims4D::Act::C] < outputShape[IE::Dims4D::Act::H])
-        tileDimOrder = {IE::Dims4D::Act::H, IE::Dims4D::Act::C, IE::Dims4D::Act::W};
+    SmallVector<Dim> tileDimOrder = {Dims4D::Act::C, Dims4D::Act::H, Dims4D::Act::W};
+    if (outputShape[Dims4D::Act::C] < outputShape[Dims4D::Act::H])
+        tileDimOrder = {Dims4D::Act::H, Dims4D::Act::C, Dims4D::Act::W};
 
     auto tileDimIter = tileDimOrder.begin();
     Optional<Dim> dimToTile = *tileDimIter;
 
     const auto isSupportedChannelDivision = [&]() {
-        if ((outputShape[IE::Dims4D::Act::C] % nTilesOnDim[IE::Dims4D::Act::C]) != 0) {
+        if ((outputShape[Dims4D::Act::C] % nTilesOnDim[Dims4D::Act::C]) != 0) {
             return false;
         }
 
-        const auto tileChannels = outputShape[IE::Dims4D::Act::C] / nTilesOnDim[IE::Dims4D::Act::C];
+        const auto tileChannels = outputShape[Dims4D::Act::C] / nTilesOnDim[Dims4D::Act::C];
         return (tileChannels % minChannelSize) == 0;
     };
 
     const auto isDimLeftToTile = [&]() {
-        if (dimToTile == IE::Dims4D::Act::C) {
-            if (nTilesOnDim[IE::Dims4D::Act::C] < maxChannelTiles)
+        if (dimToTile == Dims4D::Act::C) {
+            if (nTilesOnDim[Dims4D::Act::C] < maxChannelTiles)
                 return true;
         } else {  // Spatial dims
-            const auto origSize = outputShape[dimToTile.getValue()];
-            const auto prevDivisor = nTilesOnDim[dimToTile.getValue()];
+            const double origSize = static_cast<double>(outputShape[dimToTile.getValue()]);
+            const double prevDivisor = static_cast<double>(nTilesOnDim[dimToTile.getValue()]);
 
-            if (origSize / prevDivisor > 1)
+            if ((origSize / prevDivisor) > 1.0)
                 return true;
         }
 
@@ -439,11 +442,11 @@ OutputTiling SimpleTiler::genericTiler(mlir::Operation* op, mlir::MemRefType out
             dimToTile = *(++tileDimIter);
         }
 
-        if (dimToTile == IE::Dims4D::Act::C) {
+        if (dimToTile == Dims4D::Act::C) {
             do {
-                ++nTilesOnDim[IE::Dims4D::Act::C];
+                ++nTilesOnDim[Dims4D::Act::C];
             } while (!isSupportedChannelDivision());
-        } else if (dimToTile == IE::Dims4D::Act::H || dimToTile == IE::Dims4D::Act::W) {
+        } else if (dimToTile == Dims4D::Act::H || dimToTile == Dims4D::Act::W) {
             nTilesOnDim[dimToTile.getValue()]++;
         } else {
             // Trying to tile in unsupported dimension, tiling in supported dimensions not sufficient
@@ -463,16 +466,16 @@ OutputTiling SimpleTiler::groupConvTiler(mlir::Operation* op, mlir::MemRefType o
     // FIXME tiling over channels has to leave 16 channels in each tile.
     // Otherwise, depthwise convolutions produce worse accuracy.
     const auto depthwiseOutChanCount = VPUIP::NCEInvariant::getChannelAlignment(outputType.getElementType());
-    VPUX_THROW_UNLESS(outputShape[IE::Dims4D::Act::C] % depthwiseOutChanCount == 0,
+    VPUX_THROW_UNLESS(outputShape[Dims4D::Act::C] % depthwiseOutChanCount == 0,
                       "Depthwise convolution output channels must be a multiple of {0}, got {1}", depthwiseOutChanCount,
-                      outputShape[IE::Dims4D::Act::C]);
-    nTilesOnDim[IE::Dims4D::Act::C] = outputShape[IE::Dims4D::Act::C] / depthwiseOutChanCount;
+                      outputShape[Dims4D::Act::C]);
+    nTilesOnDim[Dims4D::Act::C] = outputShape[Dims4D::Act::C] / depthwiseOutChanCount;
 
     while (!isSupportedTileSize(nTilesOnDim)) {
         Optional<Dim> dimToTile;
 
-        for (auto ind : irange(IE::Dims4D::Act::numSpatialDims)) {
-            const auto spatialDim = IE::Dims4D::Act::getSpatialDim(ind);
+        for (auto ind : irange(Dims4D::Act::numSpatialDims)) {
+            const auto spatialDim = Dims4D::Act::getSpatialDim(ind);
 
             const auto origSize = outputShape[spatialDim];
             const auto prevDivisor = nTilesOnDim[spatialDim];

@@ -11,9 +11,10 @@
 // included with the Software Package for additional details.
 //
 
-#include <vpux/compiler/core/aliases_info.hpp>
-#include <vpux/compiler/dialect/VPUIP/blob_reader.hpp>
-#include <vpux/compiler/dialect/VPUIP/nce_invariant.hpp>
+#include "vpux/compiler/core/aliases_info.hpp"
+#include "vpux/compiler/core/layers.hpp"
+#include "vpux/compiler/dialect/VPUIP/blob_reader.hpp"
+#include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
 #include "vpux/compiler/dialect/VPUIP/nce_sparsity.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 
@@ -32,16 +33,16 @@ int64_t getOC(VPUIP::WeightsTableOp createWTableOp) {
         // Depthwise convolution case. Weights table contains both activation window and weights.
         // FIXME the logic repeats row-major convolution
         const auto filterShape = getShape(createWTableOp.weights());
-        return filterShape[IE::Dims4D::Filter::OC];
+        return filterShape[Dims4D::Filter::OC];
     }
 
     if (createWTableOp.weights() != nullptr) {
         const auto filterShape = getShape(createWTableOp.weights());
-        return filterShape[IE::Dims4D::Filter::OC];
+        return filterShape[Dims4D::Filter::OC];
     }
 
     const auto fakeSparsity = getShape(createWTableOp.activation_window());
-    return fakeSparsity[IE::Dims4D::Filter::OC];  // actually this is input channel
+    return fakeSparsity[Dims4D::Filter::OC];  // actually this is input channel
 }
 
 int32_t getWeightPtrStep(VPUIP::WeightsTableOp createWTableOp) {
@@ -51,9 +52,9 @@ int32_t getWeightPtrStep(VPUIP::WeightsTableOp createWTableOp) {
 
     const auto filterShape = getShape(createWTableOp.weights());
 
-    const auto IC = filterShape[IE::Dims4D::Filter::IC];
-    const auto KY = filterShape[IE::Dims4D::Filter::KY];
-    const auto KX = filterShape[IE::Dims4D::Filter::KX];
+    const auto IC = filterShape[Dims4D::Filter::IC];
+    const auto KY = filterShape[Dims4D::Filter::KY];
+    const auto KX = filterShape[Dims4D::Filter::KX];
 
     if (createWTableOp.activation_window() != nullptr) {
         // Depthwise convolution case.
@@ -72,9 +73,9 @@ int32_t getWeightPtrStep(VPUIP::WeightsTableOp createWTableOp) {
     return checked_cast<int32_t>(IC * KY * KX * eltSize.count());
 }
 
-int32_t getTensorPtrOffset(mlir::Value input, const AliasesInfo* aliasInfo) {
+Optional<int32_t> getTensorPtrOffset(mlir::Value input, const AliasesInfo* aliasInfo) {
     if (input == nullptr) {
-        return 0;
+        return None;
     }
 
     auto output_buff = aliasInfo->getRoot(input);

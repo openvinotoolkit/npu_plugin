@@ -1,0 +1,65 @@
+# These owners will be the default reviewers for pull/merge requests in the repo.
+#
+# MLIR Compiler - Vinogradov, Vladislav (@vinograd47) / Kudriavtsev, Nikita (@nikita-kud)
+# Quantization / Mixed Datatypes - Shokin, Alexander (@shokinal) / Rotuna, Harald Razvan (@hrotuna) / Zomborat, Zoran (@ZoranZomborat)
+# Strategy Generation - DeFlumere, Ashley (@adeflume)
+# Binaries (RT, vpualHost), Backends - Skrebkov, Artemy (@ArtemySkrebkov-intel) / Znamenskiy, Mikhail (@mznamens)
+# Software Layers - Shumihim, Sergey (@sshumihi) / Kurin, Maxim (@maxim-kurin)
+# mcmCompiler - Yao, Shaojun (@syao-2015) / Mineeva, Marina (@mmineeva)
+# mcmEmulator - Zomborat, Zoran (@ZoranZomborat)
+# Memory/Barrier scheduling - Brady, John (@bradyjohn) / Gwizdz, Michal (@MichalGwizdzIntel)
+# MTL - Gladilov, Gleb (@gladilov-gleb) / Pedus, Mikhail (@MikhailPedus) / Losev, Sergey (@briangrifiin)
+# Runtime - Skvortsov, Vladimir (@vmskv) /  Smirnov, Evgeny (esmirno)
+# Testing - Perepelkin, Alexander (@alpkn)
+#
+# Rules:
+#   1. Each directory should have a minimum of 2 code owners.
+#   2. Order is important as the last matching pattern takes the most precedence.
+#      Keep folders below sorted in folder hierarchy order (alphabetically).
+#
+# Repo default owners -- these normally should not trigger
+# unless someone tries to change the whole folder structure
+* @vinograd47 @mmineeva @ArtemySkrebkov-intel
+#
+##################################################################
+# Files / Folders
+#
+# Protected files. Shouldn't be modified without approval
+.clang-format @ArtemySkrebkov-intel
+.gitmodules  @ArtemySkrebkov-intel
+.gitignore  @ArtemySkrebkov-intel
+CODEOWNERS @vinograd47 @mmineeva @ArtemySkrebkov-intel
+CMakeLists.txt @vinograd47 @mmineeva @ArtemySkrebkov-intel
+#
+# artifacts folder
+/artifacts @ArtemySkrebkov-intel @mznamens
+#
+# src folder
+/src/custom_cpp_kernels @nikita-kud
+/src/custom_extension_library @lerbelintel
+/src/custom_ocl_kernels @mikhailk62 @maxim-kurin
+/src/emulator_backend @ArtemySkrebkov-intel @ZoranZomborat
+/src/frontend_mcm @ArtemySkrebkov-intel @mmineeva
+/src/hddl2_backend @ArtemySkrebkov-intel @mznamens
+/src/mcmCompiler @syao-2015 @mmineeva
+/src/mcmCompiler/src/pass/optimization @adeflume
+/src/utils @briangrifiin
+/src/vpual_backend @briangrifiin @ArtemySkrebkov-intel
+/src/vpux_al @ArtemySkrebkov-intel @mznamens
+/src/vpux_compiler @vinograd47 @nikita-kud
+/src/vpux_elf @gladilov-gleb @AndrewBakalinIntel 
+/src/vpux_ngraph_transformations @shokinal @maxim-kurin
+/src/vpux_plugin @ArtemySkrebkov-intel @mznamens
+/src/vpux_translate_utils @gladilov-gleb @MikhailPedus
+/src/vpux_utils @vinograd47 @nikita-kud
+/src/zero_backend @ArtemySkrebkov-intel @mznamens
+#
+# SW Runtime kernels folder
+/sw_runtime_kernels @vmskv @esmirno
+#
+# tools folder
+/tools @shokinal @mmineeva
+#
+# Validation folder
+/validation @maxim-kurin
+#

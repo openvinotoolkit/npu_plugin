@@ -349,7 +349,6 @@ def VPUIP_NNDMAOp :
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers,
 
-        UnitAttr:$compression,
         DefaultValuedAttr<IntAttr, "0">:$port
     );
 
@@ -362,6 +361,57 @@ def VPUIP_NNDMAOp :
             (ins "mlir::Value":$src, "mlir::Value":$dst)
         >
     ];
+
+    let extraClassDeclaration = [{
+        static vpux::VPUIP::TaskType getTaskType() {
+            return vpux::VPUIP::TaskType::NNDMA;
+        }
+        vpux::DotNodeColor getNodeColor() {
+            auto memResource = VPUIP::getPhysicalMemory(output().getType().cast<mlir::MemRefType>());
+            if (!mlir::failed(memResource) && memResource.getValue() == VPUIP::PhysicalMemory::DDR)
+                return DotNodeColor::RED;
+            return DotNodeColor::GREEN;
+        }
+    }] # IERT_InferLayerReturnTypes<1>.impl;
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+        `->` type(results)
+    }];
+}
+
+//
+// CompressedDMAOp
+//
+
+def VPUIP_CompressedDMAOp :
+        VPUIP_TaskOp<1, "CompressedDMAOp",
+            [
+                ViewLikeOpInterface,
+                IERT_SameElementType,
+                IERT_SameInOutDimsOrder,
+                DotInterface
+            ]
+        > {
+    let summary = "NN DMA task with enabled compression. Omits IERT_SameShape trait.";
+
+    let arguments = (ins
+        AnyMemRef:$input,
+        AnyMemRef:$output_buff,
+
+        Variadic<VPUIP_Barrier>:$waitBarriers,
+        Variadic<VPUIP_Barrier>:$updateBarriers,
+
+        DefaultValuedAttr<IntAttr, "0">:$port
+    );
+
+    let results = (outs
+        AnyMemRef:$output
+    );
 
     let extraClassDeclaration = [{
         static vpux::VPUIP::TaskType getTaskType() {
@@ -1723,6 +1773,59 @@ def VPUIP_NormUPAOp :
 }
 
 //
+// BroadcastUPAOp
+//
+
+def VPUIP_BroadcastUPAOp :
+        VPUIP_UPATaskOp<1, "BroadcastUPA",
+            [
+                ViewLikeOpInterface,
+                IERT_AnyDimsOrder
+            ]
+        > {
+    let summary = "Broadcast UPA SHAVE kernel";
+
+    let arguments = (ins
+        F16MemRef:$input,
+        MemRefOf<[SI32]>:$target_shape,
+        Optional<MemRefOf<[SI32]>>:$axes_mapping,
+
+        F16MemRef:$output_buff,
+
+        Variadic<VPUIP_Barrier>:$waitBarriers,
+        Variadic<VPUIP_Barrier>:$updateBarriers,
+
+        OptionalAttr<IE_BroadcastType>:$mode,
+
+        OptionalAttr<IntAttr>:$maxShaves,
+        UnitAttr:$isTrailingSWLayer
+    );
+
+    let results = (outs
+        F16MemRef:$output
+    );
+
+    let builders = [
+        OpBuilder<
+            (ins
+                "mlir::Value":$input, "mlir::Value":$target_shape,
+                "mlir::Value":$axes_mapping, "mlir::Value":$output,
+                "IE::BroadcastTypeAttr":$mode
+            )
+        >
+    ];
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `,` $target_shape `:` type($target_shape) (`,` $axes_mapping^ `:` type($axes_mapping))? `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+        `->` type(results)
+    }];
+}
+
+//
 // ScaleShiftUPAOp
 //
 
@@ -2124,7 +2227,8 @@ def VPUIP_PPETaskOp :
         OptionalAttr<IntAttr>:$lrelu_mult,
         OptionalAttr<IntAttr>:$lrelu_shift,
         OptionalAttr<I32ArrayAttr>:$quant_mult,
-        OptionalAttr<I32ArrayAttr>:$quant_shift
+        OptionalAttr<I32ArrayAttr>:$quant_shift,
+        OptionalAttr<IntAttr>:$quant_post_shift
     );
 
     let builders = [
@@ -2142,7 +2246,8 @@ def VPUIP_PPETaskOp :
             "int32_t":$lrelu_mult,
             "uint32_t":$lrelu_shift,
             "ArrayRef<int32_t>":$quant_mult,
-            "ArrayRef<int32_t>":$quant_shift
+            "ArrayRef<int32_t>":$quant_shift,
+            "int32_t":$quant_post_shift
         )>
     ];
 

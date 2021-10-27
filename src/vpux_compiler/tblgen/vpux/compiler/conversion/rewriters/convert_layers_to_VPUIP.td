@@ -113,6 +113,24 @@ def RewriteLRN_IE :
         >;
 
 //
+// IERT.Broadcast -> VPUIP.BroadcastUPA
+//
+
+def createBroadcastUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::BroadcastUPAOp> (
+                $_loc, $0, $1,
+                $2.size() == 1 ? $2[0] : nullptr,
+                $3, $4)
+        }]>;
+
+def RewriteBroadcast :
+        Pat<
+            (IERT_BroadcastOp $input, $target_shape, $axes_mapping, $output, $mode),
+            (createBroadcastUPAOp $input, $target_shape, $axes_mapping, $output, $mode)
+        >;
+
+//
 // IERT.MaxPool -> VPUIP.PoolingUPA
 //
 
@@ -603,43 +621,6 @@ def RewriteROIPooling :
         >;
 
 //
-// IERT.Transpose -> VPUIP.Permute
-//
-
-def createTransposeUPAOp :
-        NativeCodeCall<[{
-            $_builder.create<vpux::VPUIP::PermuteUPAOp>(
-                $_loc, $0, $1, $2)
-        }]>;
-
-def HasConstantOrder : Constraint<CPred<"$0.empty() && $1 != nullptr">>;
-
-def RewriteTranspose :
-        Pat<
-            (IERT_TransposeOp $input, $order, $output, $order_value),
-            (createTransposeUPAOp $input, $output, $order_value),
-            [
-                (HasConstantOrder $order, $order_value)
-            ]
-        >;
-
-//
-// IERT.Reorder -> VPUIP.Permute
-//
-
-def createReorderUPAOp :
-        NativeCodeCall<[{
-            $_builder.create<vpux::VPUIP::PermuteUPAOp>(
-                $_loc, $0, $1, nullptr)
-        }]>;
-
-def RewriteReorder :
-        Pat<
-            (IERT_ReorderOp $input, $output),
-            (createReorderUPAOp $input, $output)
-        >;
-
-//
 // IERT.CTCGreedyDecoder -> VPUIP.CTCGreedyDecoderUPA
 //
 
@@ -747,6 +728,22 @@ def RewriteGather :
         Pat<
             (IERT_GatherOp $input, $indices, $axis, $output, $axis_value),
             (createGatherUPAOp $input, $indices, $output, $axis_value)
+        >;
+
+//
+// IERT.MemPermute -> VPUIP.Permute
+//
+
+def createMemPermuteUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::PermuteUPAOp>(
+                $_loc, $0, $1, $2)
+        }]>;
+
+def RewriteMemPermute :
+        Pat<
+            (IERT_MemPermuteOp $input, $output, $mem_perm),
+            (createMemPermuteUPAOp $input, $output, $mem_perm)
         >;
 
 #endif

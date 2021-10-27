@@ -38,11 +38,6 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(PermuteUPAOp op) {
         return errorAt(op, "Input rank {0} doesn't match output rank {1}", inType.getRank(), outType.getRank());
     }
 
-    if (!op.order_value().hasValue()) {
-        // An empty order attribute means Reorder case.
-        return mlir::success();
-    }
-
     const auto order = DimsOrder::fromPermutationAffineMap(op.order_value().getValue());
     const auto inShape = getShape(inType);
 
@@ -55,10 +50,6 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(PermuteUPAOp op) {
         if (order.dimAt(i).ind() >= outRank) {
             return errorAt(op, "Order index {0} is out of range [0, {1}]", order.dimAt(i).ind(), outRank - 1);
         }
-    }
-
-    if (DimsOrder::fromValue(op.input()) != DimsOrder::fromValue(op.output())) {
-        return errorAt(op, "The input and output layouts must be equal for Transpose operation");
     }
 
     return mlir::success();
@@ -78,16 +69,16 @@ void vpux::VPUIP::PermuteUPAOp::build(::mlir::OpBuilder& odsBuilder, ::mlir::Ope
 //
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::PermuteUPAOp::serialize(VPUIP::BlobWriter& writer) {
-    DimsOrder order;
-    if (order_value().hasValue()) {
-        order = DimsOrder::fromPermutationAffineMap(order_value().getValue());
-    } else {
-        const auto inType = input().getType().dyn_cast<mlir::ShapedType>();
-        order = DimsOrder::fromNumDims(inType.getRank());
-    }
+    const mlir::AffineMap inputOrderMap = DimsOrder::fromValue(input()).toPermutationAffineMap(this->getContext());
+    const mlir::AffineMap permMem = order_value().getValue();
+    const mlir::AffineMap outputOrderMapInv =
+            inversePermutation(DimsOrder::fromValue(output()).toPermutationAffineMap(this->getContext()));
 
-    const auto orderUPA = writer.createVector(irange(order.numDims()) | transformed([&](int64_t idx) {
-                                                  return checked_cast<int32_t>(order.dimAt(idx).ind());
+    const mlir::AffineMap permLog = outputOrderMapInv.compose(permMem.compose(inputOrderMap));
+
+    const auto permLogOrder = DimsOrder::fromPermutationAffineMap(permLog);
+    const auto orderUPA = writer.createVector(irange(permLogOrder.numDims()) | transformed([&](int64_t idx) {
+                                                  return checked_cast<int32_t>(permLogOrder.dimAt(idx).ind());
                                               }));
 
     MVCNN::PermuteNDParamsBuilder builder(writer);

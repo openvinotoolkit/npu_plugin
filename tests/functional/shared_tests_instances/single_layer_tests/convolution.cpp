@@ -244,4 +244,27 @@ INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_LargeSize2, KmbConvolutionLayerTest,
                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),  //
                         ConvolutionLayerTest::getTestCaseName);
 
+/* ============= 2D Convolution / LargeStride ============= */
+
+const auto conv2DParams_LargeStrides =
+        ::testing::Combine(::testing::ValuesIn<SizeVector>({{11, 11}, {2, 2}}),    // kernels
+                           ::testing::ValuesIn<SizeVector>({{11, 11}, {10, 10}}),  // strides
+                           ::testing::ValuesIn<std::vector<ptrdiff_t>>({{0, 0}}),  // padBegins
+                           ::testing::ValuesIn<std::vector<ptrdiff_t>>({{0, 0}}),  // padEnds
+                           ::testing::ValuesIn<SizeVector>({{1, 1}}),              // dilations
+                           ::testing::Values(16),                                  // numOutChannels
+                           ::testing::Values(ngraph::op::PadType::VALID)           // padType
+        );
+
+INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_LargeStrides, KmbConvolutionLayerTest,
+                        ::testing::Combine(conv2DParams_LargeStrides,                          //
+                                           ::testing::Values(Precision::FP16),                 // netPrc
+                                           ::testing::Values(Precision::FP16),                 // inPrc
+                                           ::testing::Values(Precision::FP16),                 // outPrc
+                                           ::testing::Values(Layout::ANY),                     // inLayout
+                                           ::testing::Values(Layout::ANY),                     // outLayout
+                                           ::testing::ValuesIn<SizeVector>({{1, 3, 64, 64}}),  // inputShapes
+                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),  //
+                        ConvolutionLayerTest::getTestCaseName);
+
 }  // namespace

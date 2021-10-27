@@ -11,6 +11,7 @@
 // included with the Software Package for additional details.
 //
 
+#include "vpux/compiler/core/layers.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IE/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/attributes/arch.hpp"
@@ -85,10 +86,10 @@ mlir::LogicalResult ConvertScaleShiftToDWPass::ScaleShiftOpConverter::matchAndRe
     auto padEndAttr = getIntArrayAttr(origOp.getContext(), padEnd);
 
     auto outShape = getShape(origOp.output()).toValues();
-    auto groupAttr = getIntAttr(origOp.getContext(), outShape[IE::Dims4D::Act::C]);
+    auto groupAttr = getIntAttr(origOp.getContext(), outShape[Dims4D::Act::C]);
 
     const auto elemType = origOp.weights().getType().cast<mlir::ShapedType>().getElementType();
-    const SmallVector<int64_t> weightShape = {outShape[IE::Dims4D::Act::C], 1, kernelSize, kernelSize};
+    const SmallVector<int64_t> weightShape = {outShape[Dims4D::Act::C], 1, kernelSize, kernelSize};
     const auto dataStorageType = mlir::RankedTensorType::get(weightShape, elemType);
 
     auto multiply = origOp.weights().getDefiningOp<Const::DeclareOp>();
@@ -109,14 +110,6 @@ mlir::LogicalResult ConvertScaleShiftToDWPass::ScaleShiftOpConverter::matchAndRe
 
 void ConvertScaleShiftToDWPass::safeRunOnFunc() {
     auto func = getFunction();
-
-    auto module = func->getParentOfType<mlir::ModuleOp>();
-    const auto arch = VPUIP::getArch(module);
-
-    if (arch != VPUIP::ArchKind::MTL) {
-        _log.trace("ScaleShift to Depthwise conversion is supported only for MTL");
-        return;
-    }
 
     auto& ctx = getContext();
 

@@ -34,6 +34,11 @@ It updates both function bodies as well as Function signatures.
 The pass is a part of `AdjustForVPU` pipeline.
 This pass replaces all I64 tensors with I32.
 It updates both function bodies as well as Function signatures.
+### `-convert-quantize-ops-to-eltwise`: Converts per-tensor Quantize/Dequantize to eltwise And mixed-precision operation
+The pass is a part of `LowPrecision` pipeline.
+
+Converts per-tensor Quantize/Dequantize to eltwise And mixed-precision operation
+where input2 is input1 to perform type conversion on DPU instead of UPA.
 ### `-convert-scale-shift-depthwise`: Convert Scale-Shift operation to Depthwise Convolution
 The pass is a part of `HardwareMode` pipeline.
 
@@ -47,6 +52,10 @@ Also this pass replaces ND network inputs and outputs with 4D analogues to overc
 The pass is a part of `AdjustForVPU` pipeline.
 
 This pass replaces all `Tile` op with a set of `PerAxisTile` operations.
+### `-convert-to-mem-permute`: Convert Reorder and Transpose ops to MemPermute operation
+The pass is a part of `AdjustForVPU` pipeline.
+
+This pass replaces all `Reorder` and `Transpose` operations with `MemPermute` operation.
 ### `-convert-weights-to-u8`: Shift data from a signed range to an unsigned one
 The pass is a part of `LowPrecision` pipeline.
 
@@ -75,6 +84,8 @@ The pass is a part of `AdjustForVPU` pipeline.
 
 This pass splits operations so that they are able to be infered with symmetric strides
     on dpu because of hardware limitation.
+### `-handle-large-strides`: Handle operations with large strides
+This pass splits operations with strides larger than supported on hardware.
 ### `-merge-fake-quant`: Merge back to FakeQuantize
 The pass is a part of `LowPrecision` pipeline.
 
