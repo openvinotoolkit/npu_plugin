@@ -264,7 +264,7 @@ std::deque<std::size_t> mv::MemoryAllocator::computeStrides_(const Order& order,
     return strides;
 }
 
-long mv::MemoryAllocator::computeStrides_(const Order& order, std::size_t idx, const Shape& shape, const std::vector<std::size_t>& leftPadding,
+long int mv::MemoryAllocator::computeStrides_(const Order& order, std::size_t idx, const Shape& shape, const std::vector<std::size_t>& leftPadding,
     const std::vector<std::size_t>& rightPadding, std::deque<std::size_t>& leftStrides, std::deque<std::size_t>& rightStrides)
 {
     std::size_t currentDim = order[idx];
@@ -275,13 +275,13 @@ long mv::MemoryAllocator::computeStrides_(const Order& order, std::size_t idx, c
         return leftPadding[currentDim] + rightPadding[currentDim] + shape[currentDim];
     }
 
-    long newStride = 0;
+    long int newStride = 0;
     for(std::size_t c = 0; c < shape[currentDim]; ++c)
         newStride = computeStrides_(order, idx-1, shape, leftPadding, rightPadding, leftStrides, rightStrides);
 
     //Last stride should be joined (stride definition -> only between two blocks)
-    long toAddLeft = leftStrides.back();
-    long toAddRight = rightStrides.back();
+    long int toAddLeft = leftStrides.back();
+    long int toAddRight = rightStrides.back();
     leftStrides.pop_back();
     rightStrides.pop_back();
     leftStrides.push_back((leftPadding[currentDim]) * newStride + toAddLeft);
