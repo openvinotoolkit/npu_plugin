@@ -186,9 +186,12 @@ class Barrier_Schedule_Generator {
         }
 
       void init(const op_resource_state_t& other) {
+        std::cout << "Initalizing the struct op_resource_state_t "<< std::endl;
+        std::cout << "Clearing the barrier map, setting the barrier count and slots per barrier " << std::endl; 
         barrier_map_.clear();
         barrier_count_ = other.barrier_count_;
         slots_per_barrier_ = other.slots_per_barrier_;
+        std::cout << "Initializing Barrier_Resource_State Class with barrier count and slots per barrier " << barrier_count_ <<  " " << slots_per_barrier_ << std::endl;
         state_.init(barrier_count_, slots_per_barrier_);
       }
 
@@ -275,13 +278,28 @@ class Barrier_Schedule_Generator {
     Barrier_Schedule_Generator(const dag_t& input_dag, size_t n, size_t m=1UL)
       : barrier_count_(n), slots_per_barrier_(m), start_state_(n,m),
         scheduler_begin_(input_dag, start_state_), scheduler_end_(), sinfo_() {
-       std::cout << "Initialising Barrier_Schedule_Generator but intialized two instances of the feasible schedule generator first " << std::endl;
+       std::cout << "Initialising Barrier_Schedule_Generator Class "<< std::endl;
+       std::cout << "Initialising TWO instances of the feasible schedule generator" << std::endl;
+       std::cout << "Initialising Barrier count is " << n << std::endl;
+       std::cout << "Initialising Slots per barrier " << m << std::endl;
+       std::cout << "Initialising the starting resource state which contains: " << std::endl;
+       std::cout << "1. barrier count " << std::endl;
+       std::cout << "2. slots per barrier " << std::endl;
+       std::cout << "3. Active barrier map - which is a map of the barrier op and info about the barrier (index and slot count) " << std::endl;
+       std::cout << "4. The class Barrier Resource State ... " << std::endl; 
+       std::cout << "The struct schedule info which contains (1) schedule_time, (2) the operation (3) barrier index (4) slot count" << std::endl;
+       std::cout << " " << std::endl; 
         }
 
     Barrier_Schedule_Generator() : barrier_count_(0UL), slots_per_barrier_(0UL),
       start_state_(), scheduler_begin_(),
       scheduler_end_(), sinfo_() {
         std::cout << "Initialising Barrier_Schedule_Generator " << std::endl;
+      std::cout << "Initialising TWO instances of the feasible schedule generator" << std::endl;
+      std::cout << "Initialising Barrier count is " << 0 << std::endl;
+      std::cout << "Initialising Slots per barrier " << 0 << std::endl;
+      std::cout << "The struct schedule info which contains (1) schedule_time, (2) the operation (3) barrier index (4) slot count" << std::endl;
+      std::cout << " " << std::endl;
       }
 
     bool operator==(const Barrier_Schedule_Generator& o) const {

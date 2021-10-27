@@ -132,6 +132,17 @@
         "Singular": [
             "Linearization",
             {
+                "name": "GenerateDot",
+                "output": "output/dots/control-in.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/control-in.dot"
+            },
+            {
               "name" : "BarrierSchedulerPass",
               "real_physical_barriers": 8,
               "barrier_bound": 4,

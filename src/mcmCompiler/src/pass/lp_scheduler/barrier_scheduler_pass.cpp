@@ -31,8 +31,11 @@ void dynamicallyAdjustScheduleToMeetRuntimeProblems(mv::ControlModel& cm,
   save_restore.save();
   for (size_t barrier_bound=start_barrier_bound;
       !success && (barrier_bound>=1UL); --barrier_bound) {
-
+    
+    std::cout << " " << std::endl;
+    std::cout << "Creating barrier_scheduler class with barrier bound and producer bound " << std::endl;
     barrier_scheduler_t barrier_scheduler(cm, barrier_bound, producer_bound);
+    std::cout << "Running barrier scheduler " << std::endl;
     barrier_scheduler.schedule();
     success =
         mv::lp_scheduler::Control_Model_Barrier_Checker::check_schedule(cm,

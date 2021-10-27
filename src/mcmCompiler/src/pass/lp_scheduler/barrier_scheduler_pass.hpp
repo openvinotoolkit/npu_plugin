@@ -62,7 +62,14 @@ class Control_Model_Barrier_Scheduler {
         barrier_transition_structure_t(mv::OpModel *om_ptr=NULL,
             schedule_time_t time=std::numeric_limits<schedule_time_t>::max())
           : om_ptr_(om_ptr), time_(time), curr_barrier_task_(),
-            prev_barrier_task_(), producers_() {}
+            prev_barrier_task_(), producers_() {
+            std::cout << "Initialising the barrier_transition_structure with:  " << std::endl;
+            std::cout << "Schedule time = : " << std::numeric_limits<schedule_time_t>::max() << std::endl;
+            std::cout << "curr_barrier_task_ : empty pointer" << std::endl;
+            std::cout << "pev_barrier_task_ : empty pointer" << std::endl;
+            std::cout << "Producers to the barrier : empty pointer" << std::endl;
+            std::cout << " " << std::endl;
+            }
 
         barrier_transition_structure_t(
             const barrier_transition_structure_t& o) { (*this) = o; }
@@ -280,13 +287,17 @@ class Control_Model_Barrier_Scheduler {
       mv::OpModel om(control_model_);
 
       // last associated barrier task associated with index //
+      std::cout << "Ceating the barrier association table" << std::endl;
+      std::cout << "The barrier association table is a map of a barrier ID and its barrier_transition_structure_t" << std::endl;
+      std::cout << " " << std::endl;
       barrier_association_table_t barrier_association;
-      std::cout << "One transition structure for each physical barrier " << std::endl;
+      
 
       //STEP-0: initialize the association table//
-      std::cout << "STEP-0: initialize the association table " << std::endl;
+      std::cout << "STEP-0: initialize the barrier association table " << std::endl;
+      std::cout << " " << std::endl;
       for (size_t bid=1; bid<=bcount_; bid++) {
-        std::cout << "Initializing the barrier_association table for barrier " << bid << std::endl;
+        std::cout << "Adding a barrier_transition_structure_t to the barrier_association table for barrier ID " << bid << std::endl;
         auto bitr = barrier_association.insert(std::make_pair(bid, barrier_transition_structure_t()));
         barrier_transition_structure_t& bstructure = (bitr.first)->second;
         bstructure.init(om);
@@ -295,19 +306,32 @@ class Control_Model_Barrier_Scheduler {
       {
         //STEP-1: run the scheduler //
         std::cout << "STEP-1: run the scheduler " << std::endl;
+        std::cout << " " << std::endl;
+        std::cout << "Creating two instances of Barrier_Schedule_Generator (1) One intialized and (2) One default" << std::endl;
+         std::cout << " " << std::endl;
         scheduler_t scheduler_begin(input_dag, bcount_, scount_), scheduler_end;
         size_t scheduling_number = 0UL;
+        std::cout << "Scheduling number is " << scheduling_number <<  std::endl;
         std::cout << "Iterating over the schedule " << std::endl;
         std::cout << " " << std::endl;
+        int iterationNumber = 0;
         for ( ;scheduler_begin != scheduler_end; ++scheduler_begin) {
+          std::cout << "Iteration " << iterationNumber++ << std::endl;
           const schedule_info_t& sinfo = *scheduler_begin;
+          std::cout << "Getting the schedule information sinfo from the Barrier_Schedule_Generator class" << std::endl;
           std::cout << "The time is " << sinfo.schedule_time_ << " , the op is " << (*sinfo.op_).getName() << " the barrier index is " << sinfo.barrier_index_ << " , the slot cout is " << sinfo.slot_count_ << std::endl;
+          std::cout << " " << std::endl;
+          std::cout << "Now looking up the barrier association table for the barrier " << sinfo.barrier_index_ << " and getting the barrier association table " << std::endl; 
           std::cout << " " << std::endl;
           auto bitr = barrier_association.find(sinfo.barrier_index_);
           assert(bitr != barrier_association.end());
           barrier_transition_structure_t& bstructure = bitr->second;
+          std::cout << "Got the barrier_transition_structure_t  " << std::endl;
+          
           operation_t sop = sinfo.op_;
+          std::cout << "The op is " << sop->getName() << std::endl;
 
+          std::cout << "Checking if the Op is output or input moving to the next one" << std::endl;
           if (is_output_or_input_op(sinfo)) {
             std::cout << "Op is output or input moving to the next one " << std::endl;
             std::cout << " " << std::endl;

@@ -755,6 +755,11 @@ class Feasible_Schedule_Generator {
     heap_ordering_(), schedulable_op_(), in_degree_(), processed_ops_(),
     input_ptr_(&in), priority_() { 
       std::cout << "Instaniating Feasible_Schedule_Generator with DAG and resource state (upper bound)" <<std::endl;
+       std::cout << "The resource state contains: " << std::endl;
+       std::cout << "1. barrier count " << std::endl;
+       std::cout << "2. slots per barrier " << std::endl;
+       std::cout << "3. Active barrier map - which is a map of the barrier op and info about the barrier (index and slot count) " << std::endl;
+       std::cout << "4. The class Barrier Resource State ... " << std::endl; 
       init(rstate); 
       }
 
@@ -765,6 +770,7 @@ class Feasible_Schedule_Generator {
     }
 
   void operator++() { 
+    std::cout << "Calling operator++ for Feasible_Schedule_Generator " << std::endl;
     next_schedulable_operation(); 
   }
   // Precondition: reached_end() is false //
@@ -815,9 +821,10 @@ class Feasible_Schedule_Generator {
 
     std::cout << "**Initializing the feasible scheduler **" << std::endl;
     std::cout << " " << std::endl;
+    std::cout << "Clearning processed ops" << std::endl;
     processed_ops_.clear();
 
-    std::cout << "Initializing the resource upper state" << std::endl;
+    std::cout << "Initializing the resource upper state of the feasible scheduler" << std::endl;
     init_resource_state(upper_bound);
 
     compute_op_indegree(in_degree_);
@@ -842,6 +849,7 @@ class Feasible_Schedule_Generator {
             " in-degree means there must be a cycle in the input");
       return false;
     }
+    std::cout << " Calling compute_operation_priorities() " << std::endl; 
     compute_operation_priorities();
 
     return next_schedulable_operation();
@@ -863,31 +871,52 @@ class Feasible_Schedule_Generator {
 
     while (itr != itr_end) {
       const_op_ptr_t op_ptr = &(*itr);
+      std::cout << "The operation is " << (*op_ptr)->getName() <<  std::endl;
       if (in_degree.find(op_ptr) == in_degree.end()) {
+        std::cout << "Could not find " << (*op_ptr)->getName() << " in the in_degree table"  << std::endl;
+        std::cout << "Adding " << (*op_ptr)->getName() << " to zero_in_degree_nodes"  << std::endl;
+        std::cout << " " << std::endl;
         zero_in_degree_nodes[curr_priority%2].push_back(op_ptr);
+        std::cout << "Adding " << (*op_ptr)->getName() << " to priority_map_t with priority "<< curr_priority  << std::endl;
         priority_[op_ptr] = curr_priority;
       }
       ++itr;
     }
 
+    std::cout << "Printing zero in-degree opertions " << std::endl;
+    for (auto zitr=zero_in_degree_nodes[curr_priority%2].begin(); zitr != zero_in_degree_nodes[curr_priority%2].end(); ++zitr) {
+       std::cout <<  traits::operation_name(*(*zitr)) << std::endl;
+    }
+
+    std::cout << "Printing priority map " << std::endl;
+     for (auto const &pair: priority_) {
+        std::cout << "{" << traits::operation_name(*(pair.first)) << ": " << pair.second << "}\n";
+    }
+
     while (!zero_in_degree_nodes[curr_priority%2].empty()) {
       // decrement the in-degree
-      for (auto zitr=zero_in_degree_nodes[curr_priority%2].begin();
-            zitr != zero_in_degree_nodes[curr_priority%2].end(); ++zitr) {
+      for (auto zitr=zero_in_degree_nodes[curr_priority%2].begin(); zitr != zero_in_degree_nodes[curr_priority%2].end(); ++zitr) {
 
-        const_operation_iterator_t jtr = traits::outgoing_operations_begin(
-            *input_ptr_, *(*zitr));
-        const_operation_iterator_t jtr_end = traits::outgoing_operations_end(
-            *input_ptr_, *(*zitr));
+         std::cout << "Getting the outgoing operations for " <<  traits::operation_name(*(*zitr)) << std::endl;
+        const_operation_iterator_t jtr = traits::outgoing_operations_begin(*input_ptr_, *(*zitr));
+        
+        const_operation_iterator_t jtr_end = traits::outgoing_operations_end(*input_ptr_, *(*zitr));
+        //const_op_ptr_t outgoing_operations_begin = &(*jtr);
+        //const_op_ptr_t outgoing_operations_end = &(*jtr_end);
+
+         //std::cout << "Outgoing_operations_begin " << (*outgoing_operations_begin)->getName() << " " << " outgoing_operations_end " << (*outgoing_operations_end)->getName() << std::endl;
 
         while (jtr != jtr_end) {
           typename operation_in_degree_t::iterator deg_itr =
               in_degree.find(&(*jtr));
+          const_op_ptr_t op_ptr = &(*itr);
           assert((deg_itr != in_degree.end()) && (deg_itr->second > 0));
+          //std::cout << "Looking for " << traits::operation_name(*op_ptr) << " in the in_degree table and decrement the in-degree" << std::endl;//eg_itr->second <<   std::endl;
           (deg_itr->second)--;
 
           if (!(deg_itr->second)) {
             // in-degree of this node has become zero//
+            std::cout << "The in_degree of " << (*op_ptr)->getOpType() << " has become zero" <<   std::endl;
             priority_[deg_itr->first] = (curr_priority+1);
             zero_in_degree_nodes[(curr_priority+1)%2].push_back(deg_itr->first);
             in_degree.erase(deg_itr);
