@@ -64,11 +64,11 @@ struct Elf64_Sym {
 
 struct Elf32_Sym {
     Elf_Word      st_name;
+    Elf32_Addr    st_value;
+    Elf_Word      st_size;
     unsigned char st_info;
     unsigned char st_other;
     Elf_Half      st_shndx;
-    Elf32_Addr    st_value;
-    Elf_Xword     st_size;
 };
 
 using SymbolEntry = Elf64_Sym;
