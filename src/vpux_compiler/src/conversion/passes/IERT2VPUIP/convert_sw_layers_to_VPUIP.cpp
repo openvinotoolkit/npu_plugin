@@ -21,12 +21,6 @@ using namespace vpux;
 namespace {
 
 //
-// Generated
-//
-
-#include <vpux/compiler/conversion/rewriters/generated/convert_sw_layers_to_VPUIP.hpp.inc>
-
-//
 // ConvertLayers2VPUIPPass
 //
 
@@ -281,8 +275,6 @@ void ConvertSWLayers2VPUIPPass::safeRunOnFunc() {
 
     patterns.insert<RewriteSoftmaxMTL>(&ctx, _log, module);
     patterns.insert<RewriteSigmoidMTL>(&ctx, _log, module);
-
-    populateWithGenerated(patterns);
 
     if (mlir::failed(mlir::applyFullConversion(func, target, std::move(patterns)))) {
         signalPassFailure();
