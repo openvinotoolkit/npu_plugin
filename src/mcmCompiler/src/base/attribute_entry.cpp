@@ -2,7 +2,8 @@
 
 mv::attr::AttributeEntry::AttributeEntry(const std::type_index& typeID) :
 typeID_(typeID),
-typeName_("UNNAMED")
+typeName_("UNNAMED"),
+description_("")
 {
 
 }
