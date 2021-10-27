@@ -72,17 +72,17 @@ struct Elf64_Shdr {
     Elf_Xword  sh_entsize;
 };
 
-struct Elf32_Shdr {
+struct Elf32_Shdr{
     Elf_Word   sh_name;
     Elf_Word   sh_type;
-    Elf_Xword  sh_flags;
+    Elf_Word   sh_flags;
     Elf32_Addr sh_addr;
     Elf32_Off  sh_offset;
-    Elf_Xword  sh_size;
+    Elf_Word   sh_size;
     Elf_Word   sh_link;
     Elf_Word   sh_info;
-    Elf_Xword  sh_addralign;
-    Elf_Xword  sh_entsize;
+    Elf_Word   sh_addralign;
+    Elf_Word   sh_entsize;
 };
 
 using SectionHeader = Elf64_Shdr;

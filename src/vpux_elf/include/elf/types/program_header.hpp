@@ -56,13 +56,13 @@ struct Elf64_Phdr {
 
 struct Elf32_Phdr {
     Elf_Word   p_type;
-    Elf_Word   p_flags;
     Elf32_Off  p_offset;
     Elf32_Addr p_vaddr;
     Elf32_Addr p_paddr;
-    Elf_Xword  p_filesz;
-    Elf_Xword  p_memsz;
-    Elf_Xword  p_align;
+    Elf_Word   p_filesz;
+    Elf_Word   p_memsz;
+    Elf_Word   p_flags;
+    Elf_Word   p_align;
 };
 
 using ProgramHeader = Elf64_Phdr;

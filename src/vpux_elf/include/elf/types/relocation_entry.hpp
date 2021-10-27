@@ -35,13 +35,13 @@ struct Elf64_Rela {
 
 struct Elf32_Rel {
     Elf32_Addr r_offset;
-    Elf_Xword  r_info;
+    Elf_Word   r_info;
 };
 
 struct Elf32_Rela {
     Elf32_Addr r_offset;
-    Elf_Xword  r_info;
-    Elf_Sxword r_addend;
+    Elf_Word   r_info;
+    Elf_Sword  r_addend;
 };
 
 using RelocationEntry = Elf64_Rel;
