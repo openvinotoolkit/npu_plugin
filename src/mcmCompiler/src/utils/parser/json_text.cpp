@@ -287,7 +287,10 @@ bool mv::JSONTextParser::parseFile(const std::string& fileName, json::Value& out
     inputStream_.open(fileName);
 
     if (!inputStream_)
+    {
+        inputStream_.close();
         return false;
+    }
 
     bufferStr_.clear();
 

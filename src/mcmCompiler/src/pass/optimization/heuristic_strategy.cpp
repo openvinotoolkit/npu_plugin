@@ -265,7 +265,11 @@ double HeuristicGraphOptimizer::computeTime(mv::Data::OpListIterator opIt, Strat
     }
     else if (opType == "MaxPool")
     {
-        auto kernel = opIt->get<std::array<unsigned short,2>>("kSize");
+        array<unsigned short,2> kernel = {1,1};
+        if(opIt->hasAttr("kSize"))
+            kernel = opIt->get<std::array<unsigned short,2>>("kSize");
+        else
+            throw LogicError(*this, "MaxPool must have kernel size");
         baseKernelCost = kernel[0] * kernel[1];
     }
     else if ((opType == "DepthwiseConv") || (opType == "Conv"))
