@@ -31,10 +31,15 @@ namespace MCMAdapter {
 // FIXME: inconsistency with how we extract layout info from meta data
 // we need a single way how to extract layout from compiled network
 static InferenceEngine::Layout extractLayoutFromStrides(const std::vector<float>& strides) {
+    if (strides.size() == 2) {
+        return InferenceEngine::Layout::C;
+    }
+
     const size_t NCHW_DIM_COUNT = 5;
     const size_t NCDHW_DIM_COUNT = 6;
     IE_ASSERT(strides.size() == NCHW_DIM_COUNT || strides.size() == NCDHW_DIM_COUNT)
-            << " extractLayoutFromStrides works only with 5 or 6 elements in strides parameter";
+            << " extractLayoutFromStrides works only with 5 or 6 elements in strides parameter given "
+            << strides.size();
 
     InferenceEngine::Layout tensorLayout = InferenceEngine::Layout::NCHW;
     if (strides.size() == NCHW_DIM_COUNT) {

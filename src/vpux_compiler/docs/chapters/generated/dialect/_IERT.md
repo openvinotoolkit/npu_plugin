@@ -2267,14 +2267,22 @@ Get timer timestamp operation
 Syntax:
 
 ```
-operation ::= `IERT.Timestamp` attr-dict `->` type(results)
+operation ::= `IERT.Timestamp` attr-dict
+              `(` $output_buff `:` type($output_buff) `)`
+              `->` type($output)
 ```
 
 Get timer timestamp operation
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`output_buff` | memref of 32-bit unsigned integer or 64-bit unsigned integer values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-`output` | statically shaped memref of any type values
+`output` | memref of 32-bit unsigned integer or 64-bit unsigned integer values
 

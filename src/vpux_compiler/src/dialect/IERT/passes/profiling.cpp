@@ -26,7 +26,7 @@ using namespace vpux;
 namespace {
 
 //
-// AddLayoutsAndStridesPass
+// TimestampProfilingPass
 //
 
 class TimestampProfilingPass final : public IERT::TimestampProfilingBase<TimestampProfilingPass> {
@@ -64,13 +64,10 @@ void TimestampProfilingPass::safeRunOnModule() {
     OpBuilderLogger builderLog(_log.nest());
     mlir::OpBuilder builder(&netFunc.getBody().front().front(), &builderLog);
 
-    int dmaId = 0;
-    SmallVector<IERT::TimestampOp> results;
-    auto timestampType = mlir::MemRefType::get({1, 1, 1, 1}, getUInt32Type(ctx));
+    SmallVector<std::pair<IERT::AsyncLayerOpInterface, VPUIP::PhysicalProcessorAttr>> layerTasks;
+    auto timestampType = mlir::MemRefType::get({1}, getUInt32Type(ctx), {}, _memSpace);
 
-    const auto callback = [&](IERT::AsyncLayerOpInterface curTask) {
-        _log.trace("Process Operation '{0}'", curTask->getLoc());
-
+    netFunc.walk([&](IERT::AsyncLayerOpInterface curTask) {
         uint32_t curNumUnits = 0;
         const auto curExecutor = curTask.getExecutor(curNumUnits);
         auto physType = curExecutor.dyn_cast<VPUIP::PhysicalProcessorAttr>();
@@ -78,6 +75,23 @@ void TimestampProfilingPass::safeRunOnModule() {
             _log.trace("It is not a PhysicalProcessor Task");
             return;
         }
+        layerTasks.push_back({curTask, physType});
+    });
+
+    VPUX_THROW_WHEN(layerTasks.empty(), "No TimestampOp was added");
+
+    auto output_size = static_cast<int64_t>(layerTasks.size());
+    auto cmxMemType = mlir::MemRefType::get({output_size}, getUInt32Type(ctx), {}, _memSpace);
+    auto outputResult = mlir::MemRefType::get({output_size}, getUInt32Type(ctx));
+
+    builder.setInsertionPointAfter(&netFunc.getBody().front().front());
+    auto memOp = builder.create<mlir::memref::AllocOp>(mlir::UnknownLoc::get(ctx), cmxMemType);
+
+    SmallVector<mlir::Value> timestamps;
+    for (auto layer : layerTasks) {
+        auto curTask = layer.first;
+        auto physType = layer.second;
+        _log.trace("Process Operation '{0}'", curTask->getLoc());
 
         builder.setInsertionPointAfter(curTask);
         int layerNumber = 0;
@@ -93,36 +107,20 @@ void TimestampProfilingPass::safeRunOnModule() {
         curTaskName += stringifyLocation(curTask->getLoc());
 
         auto name = mlir::NameLoc::get(mlir::Identifier::get(
-                curTaskName + ((dmaId == 0) ? "_PROFBEGIN_0" : ("_PROFMIDDLE_" + std::to_string(dmaId - 1))) + "_" +
-                        std::to_string(layerNumber),
+                curTaskName +
+                        ((timestamps.size() == 0) ? "_PROFBEGIN_0"
+                                                  : ("_PROFMIDDLE_" + std::to_string(timestamps.size() - 1))) +
+                        "_" + std::to_string(layerNumber),
                 ctx));
-
-        auto timestampOp = builder.create<IERT::TimestampOp>(name, timestampType);
-        results.push_back(timestampOp);
-        dmaId++;
-    };
-    netFunc.walk(callback);
-
-    VPUX_THROW_UNLESS(results.size(), "No TimestampOp was added");
-
-    int output_size = dmaId;
-    auto cmxMemType = mlir::MemRefType::get({1, output_size, 1, 1}, getUInt32Type(ctx), {}, _memSpace);
-    auto outputResult = mlir::MemRefType::get({1, output_size, 1, 1}, getUInt32Type(ctx));
-
-    builder.setInsertionPointAfter(&netFunc.getBody().front().front());
-    auto memOp = builder.create<mlir::memref::AllocOp>(mlir::UnknownLoc::get(ctx), cmxMemType);
-
-    SmallVector<mlir::Value> dmas;
-    for (uint32_t id = 0; id < results.size(); id++) {
-        builder.setInsertionPointAfter(results[id]);
         auto sub = builder.create<IERT::SubViewOp>(mlir::NameLoc::get(mlir::Identifier::get("subview", ctx)), memOp,
-                                                   SmallVector<int64_t>({0, id, 0, 0}), timestampType.getShape());
+                                                   SmallVector<int64_t>({static_cast<int>(timestamps.size())}),
+                                                   timestampType.getShape());
 
-        dmas.push_back(builder.create<IERT::CopyOp>(results[id].getLoc(), results[id].output(), sub).output());
+        timestamps.push_back(builder.create<IERT::TimestampOp>(name, timestampType, sub).output());
     }
 
     auto concatview = builder.create<IERT::ConcatViewOp>(mlir::NameLoc::get(mlir::Identifier::get("concatview", ctx)),
-                                                         dmas, memOp.memref());
+                                                         timestamps, memOp.memref());
 
     //
     // Declare and create additional output from network

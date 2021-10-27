@@ -253,6 +253,7 @@ def IERT_TimestampOp :
             "Timestamp",
             [
                 NoSideEffect,
+                SameOperandsAndResultElementType,
                 DotInterface
             ]
         > {
@@ -262,8 +263,12 @@ def IERT_TimestampOp :
         Get timer timestamp operation
     }];
 
+    let arguments = (ins
+        MemRefOf<[UI32, UI64]>:$output_buff
+    );
+
     let results = (outs
-        AnyStaticShapeMemRef:$output
+        MemRefOf<[UI32, UI64]>:$output
     );
 
     let extraClassDeclaration = [{
@@ -273,8 +278,11 @@ def IERT_TimestampOp :
     }];
 
     let assemblyFormat = [{
-        attr-dict `->` type(results)
+        attr-dict
+        `(` $output_buff `:` type($output_buff) `)`
+        `->` type($output)
     }];
+    
 }
 
 //

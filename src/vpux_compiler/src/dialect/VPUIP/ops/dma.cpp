@@ -71,5 +71,8 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::CompressedDMAOp::serialize(VPUIP::B
     builder.add_dst(dstOff);
     builder.add_compression(true);
     builder.add_port(checked_cast<uint8_t>(port()));
+    // TODO uncomment after schema change
+    // builder.add_set_ord(checked_cast<uint8_t>(set_ord()));
+    // builder.add_set_crit(checked_cast<uint8_t>(set_crit()));
     return {builder.Finish().Union(), MVCNN::SpecificTask_NNDMATask};
 }

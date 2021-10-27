@@ -32,6 +32,7 @@ static const std::map<InferenceEngine::Precision, MVCNN::DType> dataTypeMapping 
         {InferenceEngine::Precision::FP16, MVCNN::DType::DType_FP16},
         {InferenceEngine::Precision::BF16, MVCNN::DType::DType_BFP16},
         {InferenceEngine::Precision::U64, MVCNN::DType::DType_U64},
+        {InferenceEngine::Precision::U32, MVCNN::DType::DType_U32},
         {InferenceEngine::Precision::U16, MVCNN::DType::DType_U16},
         {InferenceEngine::Precision::U8, MVCNN::DType::DType_U8},
         {InferenceEngine::Precision::I64, MVCNN::DType::DType_I64},
