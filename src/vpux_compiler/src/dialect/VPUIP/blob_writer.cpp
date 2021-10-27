@@ -281,56 +281,6 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createSW_KernelTask(mli
     return {taskbuilder.Finish().Union(), MVCNN::SpecificTask_ActKernelTask};
 }
 
-#if 0
-VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createACTShaveTask(mlir::Operation* op) {
-    VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in createACTShaveTask");
-
-    auto actShaveTask = mlir::dyn_cast<VPUIP::ACTShaveTaskOp>(op);
-    VPUX_THROW_UNLESS(actShaveTask != nullptr, "Operation '{0}' is not a ACTShave Task", op->getName());
-
-    auto kernelDesc = actShaveTask.kernelData().getDefiningOp<DeclareKernelDataOp>();
-    auto actKernelDesc = createKernelData(kernelDesc.name());
-
-    auto kernelText = createKernelDataRef(actKernelDesc.text, kernelDesc.locale());
-
-    MVCNN::ActKernelBuilder kernelbuilder(_impl);
-    //kernelbuilder.add_globalArgs()
-    kernelbuilder.add_kernelText(kernelText);
-    kernelbuilder.add_type(MVCNN::ActKernelType_KERNEL);
-    kernelbuilder.add_kernelEntry(0);
-
-    auto kernel = kernelbuilder.Finish();
-
-    const auto getBarrierIdCb = [this](mlir::Value val) {
-        return getBarrierVirtualID(val);
-    };
-
-    const auto waitBarriers = createVector(actShaveTask.waitBarriers() | transformed(getBarrierIdCb));
-    const auto updateBarriers = createVector(actShaveTask.updateBarriers() | transformed(getBarrierIdCb));
-
-    auto barrierReference = MVCNN::CreateBarrierReference(_impl, waitBarriers, updateBarriers);
-
-    auto invocationArgs = createInvocationArgs(op, kernelDesc.locale());
-
-    auto dataSection = createKernelDataRef(actKernelDesc.data, kernelDesc.locale());
-
-    MVCNN::ActKernelInvocationBuilder invocationBuilder(_impl);
-    invocationBuilder.add_dataSection(dataSection);
-    invocationBuilder.add_associatedBarriers(barrierReference);
-    invocationBuilder.add_invocationArgs(invocationArgs);
-
-
-    std::vector<flatbuffers::Offset<MVCNN::ActKernelInvocation>> invocations_v1 = {invocationBuilder.Finish()};
-
-    auto invocations_v2 = _impl.CreateVector(invocations_v1);
-
-    MVCNN::ActKernelTaskBuilder taskbuilder(_impl);
-    taskbuilder.add_kernel(kernel);
-    taskbuilder.add_invocations(invocations_v2);
-
-    return {taskbuilder.Finish().Union(), MVCNN::SpecificTask_ActKernelTask};
-}
-#endif
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createUPALayerTask(mlir::Operation* op,
                                                                             const SoftwareLayerParams& params) {
     VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in createUPALayerTask");
