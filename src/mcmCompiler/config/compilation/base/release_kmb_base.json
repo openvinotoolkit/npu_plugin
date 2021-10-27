@@ -78,12 +78,12 @@
             {
                 "name" : "AddActivationStreaming",
                 "max_streams" : 1000,
-                "vertical_fusion" : true
+                "vertical_fusion" : false
             },
             {
                 "name" : "RecognizeVerticalFusionPatterns",
-                "min_subgraph_depth" : 2,
-                "vertical_fusion": true
+                "min_subgraph_depth" : 10000,
+                "vertical_fusion": false
             },
             "ComputeSparsitySolution",
             {

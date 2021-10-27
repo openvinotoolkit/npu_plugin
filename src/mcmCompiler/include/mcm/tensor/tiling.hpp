@@ -195,8 +195,8 @@ namespace mv
                     kernelSize = 1;//fake kernel
             }
 
-            if (opIt->hasAttr("verticalFusion"))
-                std::cout<<"\n\n"<<opIt->getName()<<std::endl;
+//            if (opIt->hasAttr("verticalFusion"))
+//                std::cout<<"\n\n"<<opIt->getName()<<std::endl;
                 //todo:: is there any macro for kernel w/h order?
             auto kernelAxis = (axisToSplit == mv::Shape::getAxis("W")) ? 0 : 1;
             unsigned short kernelStride;
@@ -253,12 +253,12 @@ namespace mv
                     tileSize[axisToSplit] = outputHeightDim;
 
                     mv::Tiling newTile(tileStart, tileSize);
-                    if (opIt->hasAttr("verticalFusion")) {
-                        std::cout<<"new tile: "<<split<< " .";
-                        printShape(tileStart);
-                        printShape(tileSize);
-                        std::cout<<std::endl<<std::endl;
-                    }
+//                    if (opIt->hasAttr("verticalFusion")) {
+//                        std::cout<<"new tile: "<<split<< " .";
+//                        printShape(tileStart);
+//                        printShape(tileSize);
+//                        std::cout<<std::endl<<std::endl;
+//                    }
                     setChildTile(newTile, split);
                 }
             }
@@ -292,12 +292,12 @@ namespace mv
                         tileSize[axisToSplit] = inferInputSize(outputHeightDim,0,0,kernelSize,kernelStride);
 
                     mv::Tiling newTile(tileStart, tileSize);
-                    if (opIt->hasAttr("verticalFusion")) {
-                        std::cout<<"new tile: "<<split<< " .";
-                        printShape(tileStart);
-                        printShape(tileSize);
-                        std::cout<<std::endl<<std::endl;
-                    }
+//                    if (opIt->hasAttr("verticalFusion")) {
+//                        std::cout<<"new tile: "<<split<< " .";
+//                        printShape(tileStart);
+//                        printShape(tileSize);
+//                        std::cout<<std::endl<<std::endl;
+//                    }
                     setChildTile(newTile, split);
                 }
             }
@@ -324,12 +324,12 @@ namespace mv
 
 
                     mv::Tiling newTile(tileStart, tileSize);
-                    if (opIt->hasAttr("verticalFusion")){
-                        std::cout<<"new tile: "<<split<< " .";
-                        printShape(tileStart);
-                        printShape(tileSize);
-                        std::cout<<std::endl<<std::endl;
-                    }
+//                    if (opIt->hasAttr("verticalFusion")){
+//                        std::cout<<"new tile: "<<split<< " .";
+//                        printShape(tileStart);
+//                        printShape(tileSize);
+//                        std::cout<<std::endl<<std::endl;
+//                    }
                     setChildTile(newTile, split);
 
                     if (split == 0)

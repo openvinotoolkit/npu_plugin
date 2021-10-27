@@ -207,7 +207,10 @@ unsigned StrategyManagerSimple::getMinStreamOverH(mv::Op& op, mv::Attribute clus
         Shape updatedStreams({1,splits,1,streams["K"],streams["B"]});
         auto memFitCheck = memorySize(op,totalClusters, clustering.get<std::string>(),iSparsity,oSparsity,wSparsity,updatedStreams,fSparsity,spilling,parentSpilling);
 
-        if((std::get<0>(memFitCheck) + std::get<1>(memFitCheck) + std::get<2>(memFitCheck) < clusterMemory) &&
+        auto requiredMem = clusterMemory;
+        if (op.getName() == "MobilenetV2/expanded_conv_1/depthwise/BatchNorm/FusedBatchNorm/variance/Fused_Add_")
+            requiredMem = clusterMemory * 0.8;
+        if((std::get<0>(memFitCheck) + std::get<1>(memFitCheck) + std::get<2>(memFitCheck) < requiredMem) &&
                 validateHStream(op, clustering, splits))
         {
             return splits;
@@ -558,11 +561,12 @@ StrategyManagerSimple::FailCause StrategyManagerSimple::validateStrategy(mv::Op&
                                          , "MobilenetV2/expanded_conv_1/depthwise/BatchNorm/FusedBatchNorm/variance/Fused_Add_"
     };
     
-    if (std::find(hackList.begin(), hackList.end(), op.getName()) != hackList.end() && clustering == "SplitOverH" && clustering == "SplitOverK")
-    {
-        std::cout<<"ignoring.... "<<op.getName() << "SplitOverH" << std::endl;
-        return FailCause::cmxConcatDecision;
-    }
+//    if (std::find(hackList.begin(), hackList.end(), op.getName()) != hackList.end() 
+//        && (clustering == "SplitOverH" || clustering == "SplitOverK"))
+//    {
+//        std::cout<<"ignoring.... "<<op.getName() << "SplitOverH" << std::endl;
+//        return FailCause::cmxConcatDecision;
+//    }
 
     // For SOH to stream over H, enforce both input and output must be in DDR
     if((!parentSpilling || !spilling) && clustering == "SplitOverH" && streamShape["H"] > 1)
@@ -1287,14 +1291,14 @@ void StrategyManagerSimple::generateStrategySetForLayer(mv::Op& op,std::vector<S
 
                         strategyVec.push_back(s);
 
-                        //    std::cout << "Name: " + op.getName() << " ID " << s["id"].toString()<< std::endl;
-                        //    std::cout << "Input Sparsity: " + inputSparsity.toString() << std::endl;
-                        //    std::cout << "Output Sparsity: " + outputSparsity.toString() << std::endl;
-                        //    std::cout << "Weights Sparsity: " + weightsSparsity << std::endl;
-                        //    std::cout << "Spilling: " + spilling.toString() << std::endl;
-                        //    std::cout << "MCStrategy: " + clustering.toString() << std::endl;
-                        //    std::cout << "Streaming(W,H,C,K,N): " + streamShape.toString() << std::endl<<std::endl;
-
+                        if (op.getName() == "MobilenetV2/expanded_conv_1/depthwise/BatchNorm/FusedBatchNorm/variance/Fused_Add_") {
+                            std::cout << "Name: " + op.getName() << " ID " << s["id"].toString() << std::endl;
+                            std::cout << "Input Sparsity: " + inputSparsity.toString() << std::endl;
+                            std::cout << "Output Sparsity: " + outputSparsity.toString() << std::endl;
+                            std::cout << "Spilling: " + spilling.toString() << std::endl;
+                            std::cout << "MCStrategy: " + clustering.toString() << std::endl;
+                            std::cout << "Streaming(W,H,C,K,N): " + streamShape.toString() << std::endl << std::endl;
+                        }
                     }
                 }
             }
