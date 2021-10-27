@@ -387,7 +387,9 @@ ZeroExecutor::ZeroExecutor(ze_driver_handle_t driver_handle, ze_device_handle_t 
                           std::make_shared<CommandQueue>(device_handle, context)}},
           _pipeline(std::make_unique<Pipeline>(driver_handle, device_handle, context, graph_ddi_table_ext, _graph,
                                                _command_queue)) {
+    std::cout << "ZeroExecutor: before graph->init" << std::endl;
     _graph->init();
+    std::cout << "ZeroExecutor: after graph->init" << std::endl;
 }
 
 ZeroExecutor::ZeroExecutor(ze_driver_handle_t driver_handle, ze_device_handle_t device_handle,

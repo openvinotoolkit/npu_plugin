@@ -83,7 +83,9 @@ ExecutableNetwork::ExecutableNetwork(const IE::CNNNetwork& orignet, const Device
         IE::InputsDataMap inputsInfo = network.getInputsInfo();
         IE::OutputsDataMap outputsInfo = network.getOutputsInfo();
         try {
+            std::cout << "ExecutableNetwork: compile begin" << std::endl;
             _networkPtr = _compiler->compile(func, network.getName(), inputsInfo, outputsInfo, _config);
+            std::cout << "ExecutableNetwork: compile end" << std::endl;
         } catch (const std::exception& ex) {
             IE_THROW() << ex.what();
         } catch (...) {
@@ -94,8 +96,9 @@ ExecutableNetwork::ExecutableNetwork(const IE::CNNNetwork& orignet, const Device
         _logger->warning("Failed to read NGraph network");
         IE_THROW() << "Failed to read NGraph network";
     }
-
+    std::cout << "ExecutableNetwork: before create Executor" << std::endl;
     _executorPtr = createExecutor(_networkPtr, _config, device);
+    std::cout << "ExecutableNetwork: after create Executor" << std::endl;
     ConfigureStreamsExecutor(network.getName());
 }
 
