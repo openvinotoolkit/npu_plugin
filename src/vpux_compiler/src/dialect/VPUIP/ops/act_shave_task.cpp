@@ -19,21 +19,18 @@ using namespace mlir;
 namespace vpux {
 namespace VPUIP {
 
-constexpr char kOperandSegmentSizesAttr[] = "operand_segment_sizes";
-
-VPUIP::BlobWriter::SpecificTask  SW_KernelOp::serialize(vpux::VPUIP::BlobWriter& writer) {
+VPUIP::BlobWriter::SpecificTask SW_KernelOp::serialize(vpux::VPUIP::BlobWriter& writer) {
     return writer.createSW_KernelTask(*this);
 }
 
-void SW_KernelOp::build(mlir::OpBuilder& builder , mlir::OperationState& opState,
-                      mlir::ValueRange inputs, mlir::ValueRange results, mlir::SymbolRefAttr kernelFunction,
-                      mlir::IntegerAttr tileIndex) {
+void SW_KernelOp::build(mlir::OpBuilder& builder, mlir::OperationState& opState, mlir::ValueRange inputs,
+                        mlir::ValueRange results, mlir::SymbolRefAttr kernelFunction, mlir::IntegerAttr tileIndex) {
     // looks this is a result types
-    build(builder, opState, results.getTypes(), kernelFunction, inputs, results, tileIndex, mlir::ValueRange{}, mlir::ValueRange{});
+    build(builder, opState, results.getTypes(), kernelFunction, inputs, results, tileIndex, mlir::ValueRange{},
+          mlir::ValueRange{});
 }
 
 void SW_KernelOp::inferLayoutInfo(mlir::Operation* /*origOp*/, vpux::IE::LayerLayoutInfo& /*info*/) {
-
 }
 
 }  // namespace VPUIP

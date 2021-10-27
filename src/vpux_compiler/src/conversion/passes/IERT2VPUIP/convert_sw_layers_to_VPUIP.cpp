@@ -12,9 +12,9 @@
 //
 
 #include "vpux/compiler/conversion.hpp"
-#include "vpux/utils/core/logger.hpp"
-#include "vpux/compiler/utils/logging.hpp"
 #include "vpux/compiler/dialect/VPUIP/attributes/arch.hpp"
+#include "vpux/compiler/utils/logging.hpp"
+#include "vpux/utils/core/logger.hpp"
 
 using namespace vpux;
 
@@ -40,24 +40,20 @@ private:
     void safeRunOnFunc() final;
 };
 
-
 //
 // Any-SWLayerRewrite
 //
-class SWLayerRewriter  {
+class SWLayerRewriter {
 public:
-    SWLayerRewriter(mlir::MLIRContext* ctx,
-                    mlir::Operation *origOp,
-                    mlir::PatternRewriter &rewriter,
-                    Logger log,
-                    mlir::ModuleOp mainModule,
-                    mlir::ValueRange inputs,
-                    mlir::ValueRange outputs,
-                    mlir::ValueRange output_bufs,
-                    mlir::ArrayRef<mlir::Attribute> args,
-                    mlir::StringRef entryPoint,
+    SWLayerRewriter(mlir::MLIRContext* ctx, mlir::Operation* origOp, mlir::PatternRewriter& rewriter, Logger log,
+                    mlir::ModuleOp mainModule, mlir::ValueRange inputs, mlir::ValueRange outputs,
+                    mlir::ValueRange output_bufs, mlir::ArrayRef<mlir::Attribute> args, mlir::StringRef entryPoint,
                     mlir::StringRef kernelSource)
-            : _ctx(ctx), _origOp(origOp), _log(log), _mainModule(mainModule), _rewriter(rewriter),
+            : _ctx(ctx),
+              _origOp(origOp),
+              _log(log),
+              _mainModule(mainModule),
+              _rewriter(rewriter),
               _inputs(inputs),
               _outputs(outputs),
               _output_bufs(output_bufs),
@@ -67,10 +63,7 @@ public:
     }
 
 public:
-
-
     void rewrite() const {
-
         auto ctx = _rewriter.get().getContext();
 
         auto builtInFunction = createBuiltInFunction();
@@ -82,43 +75,40 @@ public:
         SmallVector<mlir::Value, 128> outputDmaResults;
 
         //  creating input dma
-        for (auto && source : _inputs) {
+        for (auto&& source : _inputs) {
             auto cmxTensor = createCMXTensor(source);
             auto copyOp = _rewriter.get().create<IERT::CopyOp>(_origOp->getLoc(), source, cmxTensor.memref());
             inputCMXTensors.push_back(copyOp.output());
         }
 
         // allocating output tensors
-        for (auto && output_buf : _output_bufs) {
+        for (auto&& output_buf : _output_bufs) {
             auto allocOp = createCMXTensor(output_buf);
             outputCMXTensors.push_back(allocOp.memref());
         }
 
-        mlir::Type integerType =
-                mlir::IntegerType::get(ctx, 32, mlir::IntegerType::Unsigned);
+        mlir::Type integerType = mlir::IntegerType::get(ctx, 32, mlir::IntegerType::Unsigned);
 
-        auto sw_kernel_op = _rewriter.get().create<VPUIP::SW_KernelOp>(_origOp->getLoc(),
-            inputCMXTensors,
-            outputCMXTensors,
-            builtInFunction,
-            mlir::IntegerAttr::get(integerType, tileIndex));
+        auto sw_kernel_op = _rewriter.get().create<VPUIP::SW_KernelOp>(_origOp->getLoc(), inputCMXTensors,
+                                                                       outputCMXTensors, builtInFunction,
+                                                                       mlir::IntegerAttr::get(integerType, tileIndex));
 
-        initSwKernel( sw_kernel_op, inputCMXTensors, outputCMXTensors);
+        initSwKernel(sw_kernel_op, inputCMXTensors, outputCMXTensors);
 
         //  creating post-dma
-        std::transform(_output_bufs.begin(), _output_bufs.end(), sw_kernel_op.results().begin(), std::back_inserter(outputDmaResults),
-                       [&](const auto& output_buf, const auto& swKernelResult) {
-                           auto copyOp = _rewriter.get().create<IERT::CopyOp>(_origOp->getLoc(), swKernelResult, output_buf);
+        std::transform(_output_bufs.begin(), _output_bufs.end(), sw_kernel_op.results().begin(),
+                       std::back_inserter(outputDmaResults), [&](const auto& output_buf, const auto& swKernelResult) {
+                           auto copyOp =
+                                   _rewriter.get().create<IERT::CopyOp>(_origOp->getLoc(), swKernelResult, output_buf);
                            return copyOp.output();
-        });
+                       });
 
         // setting output to be from DMA
         _rewriter.get().replaceOp(_origOp, outputDmaResults);
     }
 
 private:
-
-    mlir::memref::AllocOp createCMXTensor (mlir::Value source) const {
+    mlir::memref::AllocOp createCMXTensor(mlir::Value source) const {
         auto type = source.getType().template dyn_cast<mlir::MemRefType>();
         auto cmxType = mlir::MemRefType::get(
                 type.getShape(), type.getElementType(), {},
@@ -128,17 +118,14 @@ private:
         return _rewriter.get().create<mlir::memref::AllocOp>(source.getLoc(), cmxType);
     }
 
-    void initSwKernel(VPUIP::SW_KernelOp& sw_kernel_op,
-                      mlir::ValueRange inputs,
-                      mlir::ValueRange output_bufs) const {
-
+    void initSwKernel(VPUIP::SW_KernelOp& sw_kernel_op, mlir::ValueRange inputs, mlir::ValueRange output_bufs) const {
         OpBuilderLogger builderLog(_log.nest());
         auto& bodyRegion = sw_kernel_op.body();
         auto& sw_kernel_block = bodyRegion.emplaceBlock();
 
         // embedding block args
-        auto addBlockArgs = [&sw_kernel_block](auto &cnt) {
-            for (auto &&arg : cnt) {
+        auto addBlockArgs = [&sw_kernel_block](auto& cnt) {
+            for (auto&& arg : cnt) {
                 sw_kernel_block.addArgument(arg.getType());
             }
         };
@@ -148,15 +135,17 @@ private:
         auto swKernelBlockBuilder = mlir::OpBuilder::atBlockBegin(&sw_kernel_block, &builderLog);
 
         // embedding args of IERT operation as constants
-        llvm::SmallVector<mlir::ConstantOp, 12> constantArgs;
-        for (auto &&arg : _args) {
-            constantArgs.push_back(swKernelBlockBuilder.template create<mlir::ConstantOp>(mlir::UnknownLoc::get(_ctx), arg));
+
+        llvm::SmallVector<mlir::arith::ConstantOp, 12> constantArgs;
+        for (auto&& arg : _args) {
+            constantArgs.push_back(
+                    swKernelBlockBuilder.template create<mlir::arith::ConstantOp>(mlir::UnknownLoc::get(_ctx), arg));
         }
 
         // pack input/outputs and constants into single call to sw_kernel_run
         llvm::SmallVector<mlir::Value, 12> operands;
-        auto fetchOperands = [&operands](auto &cnt) {
-            for (auto &&arg : cnt) {
+        auto fetchOperands = [&operands](auto& cnt) {
+            for (auto&& arg : cnt) {
                 operands.push_back(arg);
             }
         };
@@ -164,12 +153,11 @@ private:
         fetchOperands(blockArgs);
         fetchOperands(constantArgs);
 
-        swKernelBlockBuilder.template create<VPUIP::SW_Kernel_run>(mlir::UnknownLoc::get(_ctx), mlir::ValueRange(operands));
+        swKernelBlockBuilder.template create<VPUIP::SW_Kernel_run>(mlir::UnknownLoc::get(_ctx),
+                                                                   mlir::ValueRange(operands));
     }
 
-
     mlir::SymbolRefAttr createBuiltInFunction() const {
-
         auto mainModuleLoc = _mainModule;
         vpux::OpBuilderLogger builderLog(_log.nest());
 
@@ -178,21 +166,20 @@ private:
 
         auto innerModuleBuilder = mlir::OpBuilder::atBlockBegin(innerModule.getBody(), &builderLog);
 
-        llvm::SmallString<128> built_in_name {"builtin_"};
-        auto nonNamespaceOpName = _origOp->getName().getStringRef().slice(_origOp->getName().getDialectNamespace().size() + 1,
-                                                                         mlir::StringRef::npos);
+        llvm::SmallString<128> built_in_name{"builtin_"};
+        auto nonNamespaceOpName = _origOp->getName().getStringRef().slice(
+                _origOp->getName().getDialectNamespace().size() + 1, mlir::StringRef::npos);
         built_in_name.append(nonNamespaceOpName);
 
         auto builtInFunctionInternal = mlir::SymbolRefAttr::get(_ctx, built_in_name);
 
-        auto builtInFunction = mlir::SymbolRefAttr::get(_ctx,
-                                                        innerModule.getName().getValue(),
-                                                        {builtInFunctionInternal});
+        auto builtInFunction =
+                mlir::SymbolRefAttr::get(_ctx, innerModule.getName().getValue(), {builtInFunctionInternal});
 
         mlir::SmallVector<mlir::Type, 12> inputTypes;
 
-        auto fetchByType = [&inputTypes](auto &cnt) {
-            for (auto &&arg : cnt) {
+        auto fetchByType = [&inputTypes](auto& cnt) {
+            for (auto&& arg : cnt) {
                 inputTypes.template emplace_back<mlir::Type>(arg.getType());
             }
         };
@@ -202,9 +189,8 @@ private:
 
         const auto funcType = mlir::FunctionType::get(_ctx, inputTypes, mlir::TypeRange{});
 
-        auto buildInOp = innerModuleBuilder.template create<mlir::FuncOp>(mlir::UnknownLoc::get(_ctx),
-                                                                          built_in_name,
-                                                                          funcType);
+        auto buildInOp =
+                innerModuleBuilder.template create<mlir::FuncOp>(mlir::UnknownLoc::get(_ctx), built_in_name, funcType);
 
         // modifying attributes
         buildInOp.sym_visibilityAttr(mlir::StringAttr::get(_ctx, "private"));
@@ -215,8 +201,8 @@ private:
         return builtInFunction;
     }
 
-    mlir::MLIRContext *_ctx;
-    mlir::Operation *_origOp;
+    mlir::MLIRContext* _ctx;
+    mlir::Operation* _origOp;
     Logger _log;
     mlir::ModuleOp _mainModule;
     std::reference_wrapper<mlir::PatternRewriter> _rewriter;
@@ -226,7 +212,6 @@ private:
     mlir::ArrayRef<mlir::Attribute> _args;
     mlir::StringRef _entryPoint;
     mlir::StringRef _kernelSource;
-
 };
 
 class RewriteSoftmaxMTL final : public mlir::OpRewritePattern<IERT::SoftMaxOp> {
@@ -235,19 +220,13 @@ public:
             : mlir::OpRewritePattern<IERT::SoftMaxOp>(ctx), _log(log), _mainModule(mainModule) {
     }
     mlir::LogicalResult matchAndRewrite(IERT::SoftMaxOp origOp, mlir::PatternRewriter& rewriter) const final {
-
         mlir::SmallVector<mlir::Attribute, 128> args = {origOp.axisIndAttr()};
-        SWLayerRewriter(getContext(),
-                        origOp.getOperation(),
-                        rewriter,
-                        _log,
-                        _mainModule,
-                        {origOp.input()}, {origOp.output()}, {origOp.output_buff()},
-                        args,
-                        "softmax_fp16",
-                        "softmax_fp16.cpp").rewrite();
+        SWLayerRewriter(getContext(), origOp.getOperation(), rewriter, _log, _mainModule, {origOp.input()},
+                        {origOp.output()}, {origOp.output_buff()}, args, "softmax_fp16", "softmax_fp16.cpp")
+                .rewrite();
         return mlir::success();
     }
+
 protected:
     Logger _log;
     mlir::ModuleOp _mainModule;
@@ -259,17 +238,12 @@ public:
             : mlir::OpRewritePattern<IERT::SigmoidOp>(ctx), _log(log), _mainModule(mainModule) {
     }
     mlir::LogicalResult matchAndRewrite(IERT::SigmoidOp origOp, mlir::PatternRewriter& rewriter) const final {
-
-        SWLayerRewriter(getContext(),
-                        origOp.getOperation(),
-                        rewriter,
-                        _log,
-                        _mainModule,
-                        {origOp.input()}, {origOp.output()}, {origOp.output_buff()}, {},
-                        "sigmoid_fp16",
-                        "sigmoid_fp16.cpp").rewrite();
+        SWLayerRewriter(getContext(), origOp.getOperation(), rewriter, _log, _mainModule, {origOp.input()},
+                        {origOp.output()}, {origOp.output_buff()}, {}, "sigmoid_fp16", "sigmoid_fp16.cpp")
+                .rewrite();
         return mlir::success();
     }
+
 protected:
     Logger _log;
     mlir::ModuleOp _mainModule;
@@ -293,10 +267,15 @@ void ConvertSWLayers2VPUIPPass::safeRunOnFunc() {
     target.addLegalOp<mlir::FuncOp, mlir::ReturnOp>();
     target.addLegalOp<Const::DeclareOp, IERT::StaticAllocOp>();
     target.addLegalOp<IERT::SubViewOp, IERT::ConcatViewOp>();
-    target.addLegalOp<IERT::GenericReshapeOp, IERT::ImplicitReorderOp>();
+    target.addLegalOp<IERT::GenericReshapeOp, IERT::PermuteCastOp>();
+    target.addLegalOp<IERT::QuantizeCastOp>();
     target.addLegalOp<IERT::TimestampOp>();
-    target.addLegalOp<IERT::CopyOp>();
     target.addLegalOp<mlir::memref::AllocOp>();
+    target.addLegalOp<IERT::CopyOp>();
+    target.addLegalOp<VPUIP::SW_KernelOp>();
+    target.markOpRecursivelyLegal<VPUIP::SW_KernelOp>([&](mlir::Operation*) {
+        return true;
+    });
 
     mlir::RewritePatternSet patterns(&ctx);
 
@@ -309,7 +288,6 @@ void ConvertSWLayers2VPUIPPass::safeRunOnFunc() {
         signalPassFailure();
     }
 }
-
 
 }  // namespace
 

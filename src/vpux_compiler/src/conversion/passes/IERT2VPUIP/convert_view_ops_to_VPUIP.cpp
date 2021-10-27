@@ -177,7 +177,6 @@ void ConvertViewOps2VPUIPPass::safeRunOnFunc() {
         return true;
     });
 
-
     mlir::RewritePatternSet patterns(&ctx);
     patterns.insert<ViewLikeRewrite>(&ctx, &aliasInfo, _log);
     populateWithGenerated(patterns);
