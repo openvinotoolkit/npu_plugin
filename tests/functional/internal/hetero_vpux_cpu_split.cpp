@@ -18,6 +18,8 @@
 #include <ngraph/op/util/op_types.hpp>
 #include <ngraph/variant.hpp>
 #include <ngraph/opsets/opset1.hpp>
+#include <hetero_vpux_sqlite.hpp>
+#include <stdlib.h>
 
 PRETTY_PARAM(Device, std::string)
 PRETTY_PARAM(NetworkPath, std::string)
@@ -126,7 +128,7 @@ std::string HeteroPluginSplitNetworkTest::getTestCaseName(
 TEST_P(HeteroPluginSplitNetworkTest, splitOverAllLayers) {
     SKIP_ON("HDDL2", "Stability problems");
 
-    const auto network = std::get<0>(GetParam());
+    const NetworkPath network = std::get<0>(GetParam());
 
     std::vector<std::string> layers;
     {
@@ -139,6 +141,11 @@ TEST_P(HeteroPluginSplitNetworkTest, splitOverAllLayers) {
                            return node->get_friendly_name();
                        });
     }
+    const std::string envNetworkValue = std::string("IE_KMB_HETERO_TESTS_SPLIT_NETWORK=") + std::string(network);
+    if (putenv(envNetworkValue.c_str()) != 0) {
+        std::cerr << "Can not set environment variable value" << std::endl;
+        FAIL();
+    }
 
     std::cout << "Splitting over " << layers.size() << " layers..." << std::endl;
 
@@ -146,26 +153,83 @@ TEST_P(HeteroPluginSplitNetworkTest, splitOverAllLayers) {
                                          "onnx_initializer_node_conv1_w/Output_0/Data__const152_const", "939943_const",
                                          "conv1_1/WithoutBiases/fq_weights_1", "conv1_1/WithoutBiases"};
 
+    SqliteSupport sqlite("hetero_splits.db", envNetworkValue);
+    std::string lastLayer;
+    int64_t startTime, finishTime;
+    inferStateEnum inferState;
+    const int64_t nowtime =
+            std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch())
+                    .count();
+    const bool lastLayerExists = sqlite.getLastLayerStarted(lastLayer, startTime, finishTime, inferState);
+    if (lastLayerExists) {
+        if (inferState == inferStateEnum::TO_BE_RUN) {
+            // finish up last record before reboot
+            if (finishTime == 0) {
+                sqlite.updateLayer(startTime, nowtime, inferStateEnum::FAIL_REBOOT);
+            } else {
+                std::cerr << "Invalid sqlite database state: last to be run record has finish time " << std::endl;
+                FAIL();
+            }
+        }
+    }
+
     std::vector<std::string> splitSuccessfully;
+    const auto layersCount = layers.size();
+    size_t lid = 0;
+    bool rewinding = lastLayerExists;
     for (auto&& splitNode : layers) {
+        ++lid;
         std::cout << std::endl;
+        if (rewinding) {
+            std::cout << "Rewinding layer " << splitNode << std::endl;
+            if (splitNode == lastLayer) {
+                rewinding = false;
+                std::cout << "Rewinding last layer " << splitNode << std::endl;
+            }
+        }
         if (fatalErrors.find(splitNode) == fatalErrors.end()) {
-            std::cout << "Going to split after layer '" << splitNode << "'" << std::endl;
+            std::cout << "Going to split after layer '" << splitNode << "' (" << lid << " of " << layersCount << ")"
+                      << std::endl;
         } else {
-            std::cout << "Skipping split after layer '" << splitNode << "' due to segfault" << std::endl;
+            std::cout << "Skipping split after layer '" << splitNode << "' (" << lid << " of " << layersCount
+                      << ") due to known segfault" << std::endl;
             continue;
         }
 
         try {
-            const auto cmdline = "echo Running single layer " + splitNode;
-            system(cmdline.c_str());
+            std::string envLayerValue = "IE_KMB_HETERO_TESTS_SPLIT_LAYER=" + splitNode;
+            if (putenv(envLayerValue.c_str()) != 0) {
+                std::cerr << "Can not set environment variable value" << std::endl;
+                break;
+            }
+            
+            sqlite.insertLayer(splitNode, nowtime);
+            const std::string cmdline = "C:\\Users\\aperepel\\git\\openvino\\bin\\intel64\\Release\\vpuxFuncTests "
+                                        "--gtest_filter=*squeeze*HeteroPluginTest* " +
+                                        splitNode;
 
-            splitSuccessfully.push_back(splitNode);
+            int ret = system(cmdline.c_str());
+            std::cout << "Ret " << ret
+                     << " on single layer " << splitNode << " ( " << splitSuccessfully.size() << " successes from " <<
+                                 layersCount << ")" << std::endl;
+            const int64_t nowtime2 = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                            std::chrono::system_clock::now().time_since_epoch())
+                                            .count();
+            if (ret == 0) {
+                splitSuccessfully.push_back(splitNode);
+                sqlite.updateLayer(nowtime, nowtime2, inferStateEnum::INFERRED_OK);
+            } else {
+                sqlite.updateLayer(nowtime, nowtime2, inferStateEnum::FAIL_SIGSEG);
+            }
         } catch (const std::exception& e) {
+            const int64_t nowtime2 = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                             std::chrono::system_clock::now().time_since_epoch())
+                                             .count();
+            sqlite.updateLayer(nowtime, nowtime2, inferStateEnum::FAIL_EXCEPTION);
             std::cout << "Exception for split after layer '" << splitNode << "': " << e.what() << std::endl;
         }
     }
-    std::cout << "Tested splits " << splitSuccessfully.size() << " without exception: " << std::endl;
+    std::cout << "Found " << splitSuccessfully.size() << " splits without exception: " << std::endl;
     std::for_each(splitSuccessfully.cbegin(), splitSuccessfully.cend(), [](std::string split) {
         std::cout << split << "; ";
     });
@@ -289,51 +353,44 @@ TEST_P(HeteroPluginTest, regression) {
 
     const auto device1 = std::get<0>(GetParam());
     const auto device2 = std::get<1>(GetParam());
-    const auto network = std::get<2>(GetParam());
+//    const auto network = std::get<2>(GetParam());
     const auto image = std::get<3>(GetParam());
-    const auto layerName = std::get<4>(GetParam());
-    /*
+//    const auto layerName = std::get<4>(GetParam());
+
+    const auto envVarSplitNetworkName = std::getenv("IE_KMB_HETERO_TESTS_SPLIT_NETWORK");
+    if (envVarSplitNetworkName == nullptr) {
+        std::cout << "IE_KMB_HETERO_TESTS_SPLIT_NETWORK is not set. Skippping" << std::endl;
+        SKIP() << "IE_KMB_HETERO_TESTS_SPLIT_NETWORK is not set. Skippping";
+    }
+    const auto network = envVarSplitNetworkName;
     const auto envVarSplitLayerName = std::getenv("IE_KMB_HETERO_TESTS_SPLIT_LAYER");
     if (envVarSplitLayerName == nullptr) {
         std::cout << "IE_KMB_HETERO_TESTS_SPLIT_LAYER is not set. Skippping" << std::endl;
         SKIP() << "IE_KMB_HETERO_TESTS_SPLIT_LAYER is not set. Skippping";
     }
-    */
-    std::vector<std::string> layers;    
-    {
-        TestNetworkDesc netDesc(network);
-        std::cout << "Reading network to get list of layers: " << netDesc.irFileName() << std::endl;
-        auto networkFunc = readNetwork(netDesc, true);
-        auto orderedOps = networkFunc.getFunction()->get_ordered_ops();
-        std::transform(orderedOps.cbegin(), orderedOps.cend(), std::back_inserter(layers),
-                       [](auto node) -> std::string {
-                           return node->get_friendly_name();
-                       });
-    }
-
-    std::cout << "Splitting over " << layers.size() << " layers..." << std::endl;
+  
+    std::cout << "Splitting over layer " << envVarSplitLayerName << " ..." << std::endl;
 
     std::set<std::string> fatalErrors = {"conv1_1/WithoutBiases/fq_input_0",
                                             "onnx_initializer_node_conv1_w/Output_0/Data__const152_const",
-        "939943_const", "conv1_1/WithoutBiases/fq_weights_1", "conv1_1/WithoutBiases"};
+                                         "939943_const",
+                                         "conv1_1/WithoutBiases/fq_weights_1",
+                                         "conv1_1/WithoutBiases",
+                                         "pool1/fq_input_0",
+                                         "580584_const"};
 
-    std::cout << std::endl;
     std::vector<std::string> splitSuccessfully;
-    for (auto&& splitNode : layers) {
-        // fire5/concat throwOnFail: zeCommandQueueCreate result: 0x70000001
+
+    // fire5/concat throwOnFail: zeCommandQueueCreate result: 0x70000001
         // fire6/concat 2-3 splits
         // compiler might sigseg when network is split in arbitrary position
-        if (splitNode.find("fire6/concat") == std::string::npos) {
-            // std::cout << "Skipping split after layer '" << splitNode << "'" << std::endl;
-            continue;
-        }
 
-        if (fatalErrors.find(splitNode) == fatalErrors.end()) {
-            std::cout << "Going to split after layer '" << splitNode << "'" << std::endl;
-        } else {
-            std::cout << "Skipping split after layer '" << splitNode << "' due to segfault" << std::endl;
-            continue;
-        }
+    const std::string splitNode = envVarSplitLayerName;
+
+    if (fatalErrors.find(splitNode) != fatalErrors.end()) {
+            std::cout << "Skipping split after layer '" << splitNode << "' due to known segfault/other" << std::endl;
+        FAIL();
+    }
 
         try {
             runTest(TestNetworkDesc(network)
@@ -345,13 +402,9 @@ TEST_P(HeteroPluginTest, regression) {
             splitSuccessfully.push_back(splitNode);
         } catch (const std::exception &e) {
             std::cout << "Exception for split after layer '" << splitNode << "': " << e.what() << std::endl;
+            GTEST_FAIL();
         }
-    }
-    std::cout << "Tested splits " << splitSuccessfully.size() << " without exception: " << std::endl;
-    std::for_each(splitSuccessfully.cbegin(), splitSuccessfully.cend(), [](std::string split) {
-        std::cout << split << "; ";
-    });
-
+    
     /*
     runTest(TestNetworkDesc(network)
                     .setUserInputPrecision("input", Precision::U8)
