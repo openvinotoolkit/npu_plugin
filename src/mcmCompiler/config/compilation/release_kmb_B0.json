@@ -31,6 +31,7 @@
                 "enableBarrierSafety": true,
                 "enableSplitBarriers" : false,
                 "enableTensorFusion": true,
+                "enable_operation_serialization" : true,
                 "real_physical_barriers": 32,
                 "barrier_bound": 16
             }

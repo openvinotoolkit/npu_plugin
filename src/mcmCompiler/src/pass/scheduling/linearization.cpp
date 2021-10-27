@@ -366,6 +366,7 @@ void linearizeFcn(const mv::pass::PassEntry& pass,
     {
         return;
     }
+    std::cout << "Serializing schedule " << std::endl;
 
     mv::DataModel dataModel(model);
     int numClusters =
