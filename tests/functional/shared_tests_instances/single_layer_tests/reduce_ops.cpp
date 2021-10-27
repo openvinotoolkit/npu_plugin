@@ -12,10 +12,17 @@
 
 namespace LayerTestsDefinitions {
     class KmbReduceOpsLayerTest : public ReduceOpsLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+        void SkipBeforeLoad() override {
+            const auto testName =
+                    std::string{::testing::UnitTest::GetInstance()->current_test_info()->test_case_name()};
+            const auto skipMCM = testName.find("SKIP_MCM") != std::string::npos;
+            if (isCompilerMCM() && skipMCM) {
+                throw LayerTestsUtils::KmbSkipTestException("Skip load for MCM");
+            }
+        }
         void SkipBeforeValidate() override {
             const auto testName =
                     std::string{::testing::UnitTest::GetInstance()->current_test_info()->test_case_name()};
-
             const auto skipMCM = testName.find("SKIP_MCM") != std::string::npos;
             if (isCompilerMCM() && skipMCM) {
                 throw LayerTestsUtils::KmbSkipTestException("Skip validate for MCM");
@@ -107,7 +114,6 @@ namespace {
             {0, 1, 3},
             {0, 2, 3},
             {1, 2, 3},
-            {0, 1, 2, 3},
             {1, -1}
     };
 
@@ -126,12 +132,22 @@ namespace {
             ngraph::helpers::ReductionType::LogicalAnd,
     };
 
+    const std::vector<InferenceEngine::Layout> layouts3D = {
+			InferenceEngine::Layout::CHW,
+			InferenceEngine::Layout::HWC,
+    };
+
+    const std::vector<InferenceEngine::Layout> layouts4D = {
+			InferenceEngine::Layout::NCHW,
+			InferenceEngine::Layout::NHWC,
+    };
+
     // [Track number: S#43428]
     INSTANTIATE_TEST_SUITE_P(
             DISABLED_smoke_ReduceOneAxis,
             KmbReduceOpsLayerTest,
             testing::Combine(
-                testing::Values(std::vector<int>{0}),
+                testing::ValuesIn(decltype(axes) {{0}}),
                 testing::ValuesIn(opTypes),
                 testing::Values(true, false),
                 testing::ValuesIn(reductionTypes),
@@ -151,10 +167,10 @@ namespace {
             DISABLED_smoke_Reduce_Precisions,
             KmbReduceOpsLayerTest,
             testing::Combine(
-                testing::Values(std::vector<int>{1, 3}),
+                testing::ValuesIn(decltype(axes) {{1, 3}}),
                 testing::Values(opTypes[1]),
                 testing::ValuesIn(keepDims),
-                testing::Values(ngraph::helpers::ReductionType::LogicalAnd),
+                testing::Values(ngraph::helpers::ReductionType::Sum),
                 testing::Values(InferenceEngine::Precision::FP32,
                                 InferenceEngine::Precision::FP16, // CPU-plugin has parameter I32, but KMB does not
                                 InferenceEngine::Precision::U8), // support it. So I32 is changed to FP16 and U8.
@@ -167,9 +183,27 @@ namespace {
     );
 
     INSTANTIATE_TEST_SUITE_P(
-        smoke_ReduceLogicalAnd,
-        KmbReduceOpsLayerWithSpecificInputTest,
-        testing::Combine(
+            smoke_ReduceSum,
+            KmbReduceOpsLayerWithSpecificInputTest,
+            testing::Combine(
+                testing::ValuesIn(decltype(axes) {{0}}),
+                testing::Values(opTypes[1]),
+                testing::Values(true),
+                testing::Values(ngraph::helpers::ReductionType::Sum),
+                testing::Values(InferenceEngine::Precision::FP32),
+                testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                testing::Values(InferenceEngine::Layout::ANY),
+                testing::Values(std::vector<size_t> {1, 512, 7, 7}),
+                testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+            KmbReduceOpsLayerWithSpecificInputTest::getTestCaseName
+    );
+
+    // [Track number: E#22733]
+    INSTANTIATE_TEST_SUITE_P(
+            DISABLED_smoke_ReduceLogicalAnd3D,
+            KmbReduceOpsLayerWithSpecificInputTest,
+            testing::Combine(
                 testing::ValuesIn(decltype(axes) {{0}}),
                 testing::Values(opTypes[1]),
                 testing::Values(true),
@@ -177,10 +211,27 @@ namespace {
                 testing::Values(InferenceEngine::Precision::FP32),
                 testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                 testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                testing::Values(InferenceEngine::Layout::ANY),
+                testing::ValuesIn(layouts3D),
+                testing::Values(std::vector<size_t> {512, 7, 7}),
+                testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+            KmbReduceOpsLayerWithSpecificInputTest::getTestCaseName
+    );
+
+    INSTANTIATE_TEST_SUITE_P(
+            smoke_ReduceLogicalAnd4D,
+            KmbReduceOpsLayerWithSpecificInputTest,
+            testing::Combine(
+                testing::ValuesIn(decltype(axes) {{0}}),
+                testing::Values(opTypes[1]),
+                testing::Values(true),
+                testing::Values(ngraph::helpers::ReductionType::LogicalAnd),
+                testing::Values(InferenceEngine::Precision::FP32),
+                testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                testing::Values(layouts4D[0]),
                 testing::Values(std::vector<size_t> {1, 512, 7, 7}),
                 testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
-        KmbReduceOpsLayerWithSpecificInputTest::getTestCaseName
+            KmbReduceOpsLayerWithSpecificInputTest::getTestCaseName
     );
 
     // Test hangs on x86 when executes test-case
@@ -188,10 +239,29 @@ namespace {
     // type=Mean_KeepDims_netPRC=FP32_inPRC=UNSPECIFIED_outPRC=UNSPECIFIED_inL=ANY_trgDev=KMB
     // [Track number: S#43428]
     INSTANTIATE_TEST_SUITE_P(
-            DISABLED_smoke_Reduce_Axes,
+            smoke_Reduce_Axes_SKIP_MCM,
             KmbReduceOpsLayerTest,
             testing::Combine(
                 testing::ValuesIn(axes),
+                testing::Values(opTypes[1]),
+                testing::ValuesIn(keepDims),
+                testing::Values(ngraph::helpers::ReductionType::LogicalAnd),
+                testing::Values(InferenceEngine::Precision::FP32),
+                testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                testing::Values(InferenceEngine::Layout::ANY),
+                testing::ValuesIn(inputShapes),
+                testing::Values(LayerTestsUtils::testPlatformTargetDevice)
+            ),
+            KmbReduceOpsLayerTest::getTestCaseName
+    );
+
+    // [Track number: E#22737]
+    INSTANTIATE_TEST_SUITE_P(
+            DISABLED_smoke_Reduce_Axes_Full_SKIP_MCM,
+            KmbReduceOpsLayerTest,
+            testing::Combine(
+                testing::ValuesIn(decltype(axes) {{0, 1, 2, 3}}),
                 testing::Values(opTypes[1]),
                 testing::ValuesIn(keepDims),
                 testing::Values(ngraph::helpers::ReductionType::LogicalAnd),
@@ -214,7 +284,8 @@ namespace {
                 testing::ValuesIn(decltype(axes) {{0}, {1}}),
                 testing::Values(opTypes[1]),
                 testing::Values(true, false),
-                testing::Values(ngraph::helpers::ReductionType::LogicalAnd),
+                testing::Values(ngraph::helpers::ReductionType::LogicalAnd,
+                                ngraph::helpers::ReductionType::Max),
                 testing::Values(InferenceEngine::Precision::FP32),
                 testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                 testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -249,7 +320,7 @@ namespace {
     );
 
     INSTANTIATE_TEST_SUITE_P(
-            DISABLED_smoke_Reduce_from_networks,
+            smoke_Reduce_from_networks_SKIP_MCM,
             KmbReduceOpsLayerTest,
             testing::Combine(
                     testing::ValuesIn(decltype(axes) { {2, 3} }),
