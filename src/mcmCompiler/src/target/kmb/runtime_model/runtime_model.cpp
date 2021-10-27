@@ -1733,6 +1733,9 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
     unsigned numTasks = globalConfigParams->get<int>("Number_of_Clusters");
     auto padFinalOutput = false;
     auto dmaToDma = false;
+    
+    if (opIt->getOutputTensor(0)->numSubTensors() != 4)
+        numTasks = opIt->getOutputTensor(0)->numSubTensors();
 
     auto inputTensor = opIt->getInputTensor(0);
     auto outputTensor = opIt->getOutputTensor(0);
@@ -2715,9 +2718,10 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNCE2TaskT(Comp
     unsigned numTask = 0;
     numTask = cm.getGlobalConfigParams()->get<int>("Number_of_Clusters");
 
-    std::vector<std::unique_ptr<MVCNN::TaskT>> toReturn = std::vector<std::unique_ptr<MVCNN::TaskT>>(numTask);
+    auto numberOfSubTensors = opIt->getOutputTensor(0)->numSubTensors();
+    std::vector<std::unique_ptr<MVCNN::TaskT>> toReturn = std::vector<std::unique_ptr<MVCNN::TaskT>>(numberOfSubTensors);
     if (splitting != "Clustering" && !targetEmulator_(compilationDescriptor))
-        for(unsigned i = 0; i < numTask; ++i)
+        for(unsigned i = 0; i < numberOfSubTensors; ++i)
         {
             toReturn[i] = std::unique_ptr<MVCNN::TaskT>(new MVCNN::TaskT());
             toReturn[i]->task.type = MVCNN::SpecificTask_NCE2Task;

@@ -192,8 +192,9 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                 (target == mv::Target::ma2490 || target == mv::Target::ma3100)) //TBH is based on KMB-B0
                 mixedPrecisionA0B0WorkAround = true;
 
+            auto numberOfSubTensors = opIt->getOutputTensor(0)->numSubTensors();
             /*For multi-clustering we work on subtensors*/
-            for(clusterNumber = 0; clusterNumber < nClusters; clusterNumber++)
+            for(clusterNumber = 0; clusterNumber < numberOfSubTensors; clusterNumber++)
             {
                 /*get the subtensor*/
                 auto subTensor = opIt->getOutputTensor(0)->getSubTensor(clusterNumber);

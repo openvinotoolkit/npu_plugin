@@ -361,7 +361,8 @@ bool majorityOpsWithLargeKernel(mv::OpModel& om, const std::list<std::string>& s
         if (hasKernelNotEqualStride(subbgraphOp))
             ++count;
     }
-    return (count > subgraph.size()/2);
+    return false;
+//    return (count > subgraph.size()/2);
 }
 
 bool tailInputOpsOutsideSubgraph(mv::OpModel& om, const std::list<std::string>& subgraph)
