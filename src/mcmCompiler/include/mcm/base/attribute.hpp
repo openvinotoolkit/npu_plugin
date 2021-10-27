@@ -91,7 +91,8 @@ namespace mv
         template <class ValueType>
         Attribute(const ValueType& val, std::initializer_list<std::string> traits = {}) : 
         //ptr_(new Object<typename std::decay<ValueType>::type>(std::forward<ValueType>(val)))
-        ptr_(new Object<typename std::decay<ValueType>::type>(val))
+        ptr_(new Object<typename std::decay<ValueType>::type>(val)),
+        traits_()
         {
             for (auto it = traits.begin(); it != traits.end(); ++it)
                 addTrait(*it);
