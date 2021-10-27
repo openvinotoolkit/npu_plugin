@@ -951,7 +951,7 @@ void computeSubgraphs(mv::ComputationModel& model,
         saveNewStreamingStrategiesToJson(newStreamingStrategies);
     }
 
-    // printVerticalFusionSubgraphs(verticalFusionSubgraphs, newStreamingStrategies);
+     printVerticalFusionSubgraphs(verticalFusionSubgraphs, newStreamingStrategies);
     if (double_tail)
         storeOverlappingEltwiseLines(verticalFusionSubgraphs, om);
 
@@ -999,7 +999,7 @@ void recognizeVerticalFusionPatternsFcn(const mv::pass::PassEntry&,
     bool yolo_v4 = om.getInput()->hasAttr("yolo_v4") && om.getInput()->get<bool>("yolo_v4");
     if (yolo_v4)
         computeSubgraphs(model, passDesc, yolo_v4);
-    // printSubgraphsAfterComputation(model);
+     printSubgraphsAfterComputation(model);
     return;
 }
 

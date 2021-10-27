@@ -155,6 +155,12 @@ class Find_Mem_Contextable_Sequence {
       std::list< std::pair<operation_t, size_t > > exceeding_ops;
       input_dag.find_all_ops_exceeding_resource_threshold(upper_bound_,
           std::back_inserter(exceeding_ops));
+
+    for (auto itr=exceeding_ops.begin(); itr!=exceeding_ops.end(); ++itr) {
+        std::cout<<
+                 " Exceeding Op: " + (itr->first)->getName() +
+                 " with resources:# " + (std::to_string(itr->second))<<std::endl;
+    }
       return exceeding_ops.empty();
     }
 

@@ -195,7 +195,9 @@ namespace mv
                     kernelSize = 1;//fake kernel
             }
 
-            //todo:: is there any macro for kernel w/h order?
+            if (opIt->hasAttr("verticalFusion"))
+                std::cout<<"\n\n"<<opIt->getName()<<std::endl;
+                //todo:: is there any macro for kernel w/h order?
             auto kernelAxis = (axisToSplit == mv::Shape::getAxis("W")) ? 0 : 1;
             unsigned short kernelStride;
             if (opIt->hasAttr("stride"))
@@ -251,6 +253,12 @@ namespace mv
                     tileSize[axisToSplit] = outputHeightDim;
 
                     mv::Tiling newTile(tileStart, tileSize);
+                    if (opIt->hasAttr("verticalFusion")) {
+                        std::cout<<"new tile: "<<split<< " .";
+                        printShape(tileStart);
+                        printShape(tileSize);
+                        std::cout<<std::endl<<std::endl;
+                    }
                     setChildTile(newTile, split);
                 }
             }
@@ -263,14 +271,16 @@ namespace mv
                     TileShape tileStart({0,0,0,0,0});
                     TileShape tileSize = inputShape;
                     auto outputHeightDim = outputTileSizes[split][mv::IO_HEIGHT_DIMENSION];
-                    int64_t tileStarting = inferInputSize(outputTileStarts[split][mv::IO_HEIGHT_DIMENSION],padStart,padEnd,kernelSize,kernelStride) - 1;
+                    int64_t tileStarting = inferInputSize(outputTileStarts[split][mv::IO_HEIGHT_DIMENSION],padStart,padEnd,kernelSize,kernelStride) - padStart;
 
                     if (split == 0 && tileStarting > 0)
                         biasStart = tileStarting;
-                    if (tileStarting < -1)
-                        throw mv::RuntimeError("Tiling", "Negative Tile begins!");
-                    else if (tileStarting == -1)
+                    if (tileStarting <= -1)
                         tileStarting = 0;
+//                    if ((opIt->getName() == "g_net/enc3_2_1/BiasAdd/Add" || opIt->getName() == "g_net/enc1_2_1/BiasAdd/Add") && split!=0)
+//                        tileStarting = tileStarting-padStart+1;
+//                    if (opIt->getName() == "sub_7_DepthwiseConv" && split > 1)
+//                        tileStarting -= 1;
 
                     tileStart[axisToSplit] = tileStarting - biasStart;
 
@@ -282,6 +292,12 @@ namespace mv
                         tileSize[axisToSplit] = inferInputSize(outputHeightDim,0,0,kernelSize,kernelStride);
 
                     mv::Tiling newTile(tileStart, tileSize);
+                    if (opIt->hasAttr("verticalFusion")) {
+                        std::cout<<"new tile: "<<split<< " .";
+                        printShape(tileStart);
+                        printShape(tileSize);
+                        std::cout<<std::endl<<std::endl;
+                    }
                     setChildTile(newTile, split);
                 }
             }
@@ -308,6 +324,12 @@ namespace mv
 
 
                     mv::Tiling newTile(tileStart, tileSize);
+                    if (opIt->hasAttr("verticalFusion")){
+                        std::cout<<"new tile: "<<split<< " .";
+                        printShape(tileStart);
+                        printShape(tileSize);
+                        std::cout<<std::endl<<std::endl;
+                    }
                     setChildTile(newTile, split);
 
                     if (split == 0)

@@ -537,10 +537,16 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model,
             // not start/end slicing but need start/end padding
             // start and end padding to the same slice is NOT supported
             auto axis = mv::Shape::getAxis(tiling.getAxis());
-            if (split != 0 && sliceStart[axis] == 0)
-                currentPad[startPadAxis] = childTiles[0].getActivationShape()[axis] + startPad[axis] - sliceShape[axis];
-            else if ((split != (number_of_splits -1)) && (sliceStart[axis] + sliceShape[axis] == inputTensor->getShape()[axis]))
-                currentPad[startPadAxis] = childTiles[0].getActivationShape()[axis] + startPad[axis] - sliceShape[axis];;
+            if (childTiles[0].getActivationShape()[axis] + startPad[axis] >= sliceShape[axis])
+            {
+                if (split != 0 && sliceStart[axis] == 0)
+                    currentPad[startPadAxis] =
+                            childTiles[0].getActivationShape()[axis] + startPad[axis] - sliceShape[axis];
+                else if ((split != (number_of_splits - 1)) &&
+                         (sliceStart[axis] + sliceShape[axis] == inputTensor->getShape()[axis]))
+                    currentPad[startPadAxis] =
+                            childTiles[0].getActivationShape()[axis] + startPad[axis] - sliceShape[axis];
+            }
 
             bool fusedConcatReshape = outputTensor->hasAttr("fusedConcatReshape") && outputTensor->get<bool>("fusedConcatReshape");
 

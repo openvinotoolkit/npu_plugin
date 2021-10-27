@@ -549,6 +549,20 @@ StrategyManagerSimple::FailCause StrategyManagerSimple::validateStrategy(mv::Op&
     auto streamShape = strategy["streaming"].get<Shape>();
     auto spilling = strategy["spilling"].get<bool>();
     auto parentSpilling = strategy["parentSpilling"].get<bool>();
+    
+    std::vector<std::string> hackList = {"sub_7_DepthwiseConv"
+                                         , "MobilenetV2/Conv/BatchNorm/FusedBatchNorm/variance/Fused_Add_"
+                                         , "MobilenetV2/expanded_conv/depthwise/BatchNorm/FusedBatchNorm/variance/Fused_Add_"
+                                         , "MobilenetV2/expanded_conv/project/BatchNorm/FusedBatchNorm/variance/Fused_Add_"
+                                         , "MobilenetV2/expanded_conv_1/expand/BatchNorm/FusedBatchNorm/variance/Fused_Add_"
+                                         , "MobilenetV2/expanded_conv_1/depthwise/BatchNorm/FusedBatchNorm/variance/Fused_Add_"
+    };
+    
+    if (std::find(hackList.begin(), hackList.end(), op.getName()) != hackList.end() && clustering == "SplitOverH" && clustering == "SplitOverK")
+    {
+        std::cout<<"ignoring.... "<<op.getName() << "SplitOverH" << std::endl;
+        return FailCause::cmxConcatDecision;
+    }
 
     // For SOH to stream over H, enforce both input and output must be in DDR
     if((!parentSpilling || !spilling) && clustering == "SplitOverH" && streamShape["H"] > 1)
