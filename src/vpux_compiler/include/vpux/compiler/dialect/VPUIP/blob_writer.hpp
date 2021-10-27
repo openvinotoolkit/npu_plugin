@@ -67,6 +67,8 @@ public:
 
     using String = flatbuffers::Offset<flatbuffers::String>;
 
+    using ActShavesKernelDataMap = llvm::MapVector<std::string, KernelDataDesc, std::unordered_map<std::string, size_t>>;
+
     template <typename T>
     using Vector = flatbuffers::Offset<flatbuffers::Vector<T>>;
 
@@ -90,8 +92,6 @@ public:
                                       uint64_t dataOffset, uint64_t dataSize,
                                       ArrayRef<uint8_t> content = None);
     KernelDataRef createKernelDataRef(const KernelDataDesc& desc, MemoryLocation locale);
-
-    using ActShavesKernelDataMap = llvm::MapVector<std::string, KernelDataDesc, std::unordered_map<std::string, size_t>>;
 
     const ActShavesKernelDataMap & getKernelData() const;
 
