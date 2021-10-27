@@ -481,19 +481,24 @@ ZeroExecutor::Graph::Graph(const ze_device_handle_t& device_handle, const ze_con
     std::cout << "ZeroExecutor::Graph - constructor begin" << std::endl;
     ze_graph_desc_t desc = {ZE_GRAPH_FORMAT_NATIVE, _blob.size(), reinterpret_cast<const uint8_t*>(_blob.data())};
     throwOnFail("pfnCreate", _graph_ddi_table_ext->pfnCreate(device_handle, &desc, &_handle));
-
+    std::cout << "ZeroExecutor::Graph - after pfnCreate, before pfnGetProperties" << std::endl;
     throwOnFail("pfnGetProperties", _graph_ddi_table_ext->pfnGetProperties(_handle, &_props));
+    std::cout << "ZeroExecutor::Graph - after pfnGetProperties" << std::endl;
     for (uint32_t index = 0; index < _props.numGraphArgs; ++index) {
         ze_graph_argument_properties_t arg;
+        std::cout << "ZeroExecutor::Graph - cycle: before pfnGetArgumentProperties" << std::endl;
         throwOnFail("pfnGetArgumentProperties", _graph_ddi_table_ext->pfnGetArgumentProperties(_handle, index, &arg));
         if (ZE_GRAPH_ARGUMENT_TYPE_INPUT == arg.type) {
+            std::cout << "ZeroExecutor::Graph - cycle: before emplace - input" << std::endl;
             _inputs_desc_map.emplace(std::make_pair(std::string(arg.name), ArgumentDescriptor{arg, index}));
         } else {
+            std::cout << "ZeroExecutor::Graph - cycle: before emplace - output" << std::endl;
             _outputs_desc_map.emplace(std::make_pair(std::string(arg.name), ArgumentDescriptor{arg, index}));
         }
     }
-
+    std::cout << "ZeroExecutor::Graph - end of cycle, before appendGraphInitialize" << std::endl;
     _command_list.appendGraphInitialize(_handle);
+    std::cout << "ZeroExecutor::Graph - after appendGraphInitialize, before close" << std::endl;
     _command_list.close();
     std::cout << "ZeroExecutor::Graph - constructor end" << std::endl;
 }
