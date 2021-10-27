@@ -1055,8 +1055,10 @@ void mv::op::OpRegistry::generateCompositionAPI(const std::string& metaDir, cons
     // op_model.cpp
     //
     srcStream.open(opModelSourcePath_, std::ios::out | std::ios::trunc);
-    if (!srcStream.is_open())
+    if (!srcStream.is_open()) {
+        srcStream.close();
         throw MasterError("OpRegistry", "Unable to create the OpModel source file during the CompositionAPI generation");
+    }
 
     srcStream << "/*" << eol;
     srcStream << tab << "DO NOT MODIFY - that file was generated automatically using op::OpRegistry::generateCompositionAPI()" << eol;
