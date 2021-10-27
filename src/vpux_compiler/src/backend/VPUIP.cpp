@@ -192,8 +192,7 @@ flatbuffers::Offset<MVCNN::Resources> createResources(VPUIP::BlobWriter& writer,
 }
 
 flatbuffers::Offset<MVCNN::ActKernelRuntime> createActKernelRuntime(VPUIP::BlobWriter& writer,
-                                                                    mlir::ModuleOp /*module*/,
-                                                                    mlir::FuncOp netFunc,
+                                                                    mlir::ModuleOp /*module*/, mlir::FuncOp netFunc,
                                                                     Logger log) {
     // only SW_kernel operations can generate kernelData, from either built-in functions or from custom
     auto kernelGenOps = to_small_vector(netFunc.getOps<VPUIP::SW_Kernel>());
@@ -204,28 +203,28 @@ flatbuffers::Offset<MVCNN::ActKernelRuntime> createActKernelRuntime(VPUIP::BlobW
     // TODO: extract num shaves info from IERT::RuntimeResourcesOp, which can be extracted from module
     const long int maxShaves = 4;
 
-    const auto stack_size { 1U << 12 }; // 4KB stack
+    const auto stack_size{1U << 12};  // 4KB stack
 
     llvm::SmallVector<uint8_t, stack_size> shave_stack_data(stack_size);
-    std::vector<flatbuffers::Offset<MVCNN::KernelDataReference>> stacks(maxShaves); // 4 Activation SHAVEs for MTL
+    std::vector<flatbuffers::Offset<MVCNN::KernelDataReference>> stacks(maxShaves);  // 4 Activation SHAVEs for MTL
 
-    for(uint32_t shv{}; shv < maxShaves; ++shv) {
+    for (uint32_t shv{}; shv < maxShaves; ++shv) {
         log.trace("act-shave {0}_stack size is {1}", shv, stack_size);
 
-        stacks[shv] = writer.createKernelDataRef(
-                "actSHAVE" + std::to_string(shv) + "_stack",
-                vpux::VPUIP::MemoryLocation::GFEmbeddedKernel, 0, stack_size, shave_stack_data);
+        stacks[shv] = writer.createKernelDataRef("actSHAVE" + std::to_string(shv) + "_stack",
+                                                 vpux::VPUIP::MemoryLocation::GFEmbeddedKernel, 0, stack_size,
+                                                 shave_stack_data);
     }
 
     const auto stackBuffers = writer.createVector(stacks);
 
-    llvm::SmallVector<uint8_t, 1024 + (1U << 16)> scratch_buffer(1024 + (1U << 16)); // 64KB scratch buffer + 1024 to align
+    llvm::SmallVector<uint8_t, 1024 + (1U << 16)> scratch_buffer(1024 +
+                                                                 (1U << 16));  // 64KB scratch buffer + 1024 to align
 
     const uint32_t non_empty_offset = 1;
-    const auto scratchBuffer = writer.createKernelDataRef(
-            "scratch_buffer",
-            vpux::VPUIP::MemoryLocation::GFEmbeddedKernel,
-            non_empty_offset, scratch_buffer.size(), scratch_buffer);
+    const auto scratchBuffer =
+            writer.createKernelDataRef("scratch_buffer", vpux::VPUIP::MemoryLocation::GFEmbeddedKernel,
+                                       non_empty_offset, scratch_buffer.size(), scratch_buffer);
 
     MVCNN::ActKernelRuntimeBuilder builder(writer);
     builder.add_shaveStacks(stackBuffers);
@@ -396,10 +395,10 @@ SmallVector<VPUIP::BlobWriter::BinaryData> serializeBinaryData(VPUIP::BlobWriter
     return binaryData;
 }
 
-SmallVector<VPUIP::BlobWriter::KernelData> serializeKernelData(VPUIP::BlobWriter& writer, mlir::FuncOp ,
-                                                               mlir::TimingScope& , Logger ) {
+SmallVector<VPUIP::BlobWriter::KernelData> serializeKernelData(VPUIP::BlobWriter& writer, mlir::FuncOp,
+                                                               mlir::TimingScope&, Logger) {
     SmallVector<VPUIP::BlobWriter::KernelData> vec;
-    for (auto && e : writer.getKernelData()) {
+    for (auto&& e : writer.getKernelData()) {
         vec.push_back(e.second.data);
     }
     return vec;
@@ -509,7 +508,7 @@ flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, mli
 
     auto serializedGraphFile = MVCNN::GetGraphFile(detached.data());
 
-    auto alignSection = [&](const MVCNN::KernelDataReference * section, auto sectionLogical) {
+    auto alignSection = [&](const MVCNN::KernelDataReference* section, auto sectionLogical) {
         auto section_data = serializedGraphFile->kernel_data()->Get(section->locale_offset())->data();
 
         auto offset = section_data->Data() - detached.data();
@@ -520,32 +519,32 @@ flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, mli
 
         auto aligned_offset = llvm::alignTo(offset, kilobyteAlignment);
         offset = aligned_offset - offset;
-        log.trace("move kernel {0} {1} by {2} bytes to be {3}", section->name()->c_str(), sectionLogical, offset, aligned_offset);
+        log.trace("move kernel {0} {1} by {2} bytes to be {3}", section->name()->c_str(), sectionLogical, offset,
+                  aligned_offset);
 
-        memmove(const_cast<uint8_t*>(section_data->Data() + offset),
-                section_data->Data(),
+        memmove(const_cast<uint8_t*>(section_data->Data() + offset), section_data->Data(),
                 section_data->Length() - kilobyteAlignment);
 
         // clear beginning
         memset(const_cast<uint8_t*>(section_data->Data()), 0, offset);
 
         // correcting data offset for section in schema
-        auto table = reinterpret_cast<flatbuffers::Table*>(const_cast<MVCNN::KernelDataReference *>(section));
+        auto table = reinterpret_cast<flatbuffers::Table*>(const_cast<MVCNN::KernelDataReference*>(section));
 
         // updating offset pointer
-        table->SetField(MVCNN::KernelDataReference::VT_DATA_OFFSET, (uint32_t)offset, 0u) ;
+        table->SetField(MVCNN::KernelDataReference::VT_DATA_OFFSET, (uint32_t)offset, 0u);
     };
 
     // locating act-kernel
-    for (auto &&task_list : *serializedGraphFile->task_lists()) {
-        for (auto && task : *task_list->content()) {
+    for (auto&& task_list : *serializedGraphFile->task_lists()) {
+        for (auto&& task : *task_list->content()) {
             if (auto actKernelTask = task->task_as_ActKernelTask()) {
                 auto kernelTextSection = actKernelTask->kernel()->kernelText();
                 alignSection(kernelTextSection, ".text");
 
                 // Invocations aligning
                 auto invocations = actKernelTask->invocations();
-                for (auto &&invocation: *invocations) {
+                for (auto&& invocation : *invocations) {
                     auto invocationDataSection = invocation->dataSection();
                     alignSection(invocationDataSection, ".data");
                 }
@@ -554,10 +553,11 @@ flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, mli
                 auto scratchBuffer = serializedGraphFile->header()->act_kernel_runtime()->codeScratchBuffer();
                 alignSection(scratchBuffer, ".scratchBuffer");
 
-                auto scratchTable = reinterpret_cast<flatbuffers::Table*>(const_cast<MVCNN::KernelDataReference *>(scratchBuffer));
+                auto scratchTable =
+                        reinterpret_cast<flatbuffers::Table*>(const_cast<MVCNN::KernelDataReference*>(scratchBuffer));
 
                 // updating scratch buffer size
-                scratchTable->SetField(MVCNN::KernelDataReference::VT_REFERENCED_DATA_SIZE, (uint32_t)65536, 0u) ;
+                scratchTable->SetField(MVCNN::KernelDataReference::VT_REFERENCED_DATA_SIZE, (uint32_t)65536, 0u);
             }
         }
     }

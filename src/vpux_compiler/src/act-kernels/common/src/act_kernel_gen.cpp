@@ -26,7 +26,6 @@
 
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
-
 using namespace llvm;  // NOLINT
 
 namespace vpux {
@@ -40,11 +39,8 @@ flatbuffers::Offset<MVCNN::KernelData> buildKernelData(flatbuffers::FlatBufferBu
     return builder.Finish();
 }
 
-static void compileAndLinkSHAVE(
-        const movitools::MoviCompileParams& params,
-        const CompilationUnitDesc & unitDesc,
-        std::vector<uint8_t>& textBinary, std::vector<uint8_t>& dataBinary) {
-
+static void compileAndLinkSHAVE(const movitools::MoviCompileParams& params, const CompilationUnitDesc& unitDesc,
+                                std::vector<uint8_t>& textBinary, std::vector<uint8_t>& dataBinary) {
     std::string mvToolsDir = movitools::getMoviToolsDir();
 
     const StringRef genDir = KERNEL_DIRECTORY;
@@ -54,7 +50,7 @@ static void compileAndLinkSHAVE(
     SmallString<128> srcNameNoExt = sys::path::filename(srcNamePath);
     sys::path::replace_extension(srcNameNoExt, "");
 
-    std::string entryPoint  = unitDesc.entry.str();
+    std::string entryPoint = unitDesc.entry.str();
 
     SmallString<128> buildDirPath;
     {
@@ -92,8 +88,9 @@ static void compileAndLinkSHAVE(
     sys::path::append(moviCompile, params.moviCompile);
 
     {
-        auto compileCmd = formatv("{1} -mcpu={2} -c {3} -o {4} -I {5} -I{6} ", genDir, moviCompile, params.cpu,
-                                  srcPath, objPath, mvToolsDir, incPath).str();
+        auto compileCmd = formatv("{1} -mcpu={2} -c {3} -o {4} -I {5} -I{6} ", genDir, moviCompile, params.cpu, srcPath,
+                                  objPath, mvToolsDir, incPath)
+                                  .str();
         if (std::system(compileCmd.c_str())) {
             VPUX_THROW((std::string("moviCompile failed: ") + compileCmd).c_str());
         }
@@ -105,8 +102,9 @@ static void compileAndLinkSHAVE(
     sys::path::append(symPath, srcName + ".s");
 
     {
-        auto compileCmd = formatv("cd {0}; {1} -mcpu={2} -S {3} -o {4} -I {5} -I {6} -I {7} ", genDir, moviCompile, params.cpu,
-                                  srcPath, symPath, mvToolsDir, incPath, incPath2).str();
+        auto compileCmd = formatv("cd {0}; {1} -mcpu={2} -S {3} -o {4} -I {5} -I {6} -I {7} ", genDir, moviCompile,
+                                  params.cpu, srcPath, symPath, mvToolsDir, incPath, incPath2)
+                                  .str();
         // IVLOG(1, compileCmd);
         if (std::system(compileCmd.c_str())) {
             VPUX_THROW((std::string("moviCompile failed: ") + compileCmd).c_str());
@@ -118,8 +116,9 @@ static void compileAndLinkSHAVE(
     sys::path::append(linker, params.mdkLinker);
     auto linkCmd = formatv("{0} -zmax-page-size=16 --script {1}"
                            " -entry {2} --gc-sections --strip-debug --discard-all  {3}"
-                            " -EL {4} --output {5}",
-                            linker, linkerScriptPath, entryPoint.c_str(), objPath, singleLib, elfPath).str();
+                           " -EL {4} --output {5}",
+                           linker, linkerScriptPath, entryPoint.c_str(), objPath, singleLib, elfPath)
+                           .str();
     if (std::system(linkCmd.c_str())) {
         VPUX_THROW((std::string("linker failed: ") + linkCmd).c_str());
     }
@@ -131,8 +130,7 @@ static void compileAndLinkSHAVE(
     sys::path::append(textPath, "sk." + srcNameNoExt + "." + params.cpu + ".text");
 
     {
-        auto objCopyCmd = formatv("{0} -O binary --only-section=.text {1} {2}",
-                                  objcopy, elfPath, textPath).str();
+        auto objCopyCmd = formatv("{0} -O binary --only-section=.text {1} {2}", objcopy, elfPath, textPath).str();
         if (std::system(objCopyCmd.c_str())) {
             VPUX_THROW((std::string("objcopy failed: ") + objCopyCmd).c_str());
         }
@@ -142,50 +140,46 @@ static void compileAndLinkSHAVE(
     sys::path::append(dataPath, "sk." + srcNameNoExt + "." + params.cpu + ".data");
 
     {
-        auto objCopyCmd = formatv("{0} -O binary --only-section=.arg.data {1} {2}",
-                                  objcopy, elfPath, dataPath).str();
+        auto objCopyCmd = formatv("{0} -O binary --only-section=.arg.data {1} {2}", objcopy, elfPath, dataPath).str();
 
         if (std::system(objCopyCmd.c_str())) {
             VPUX_THROW((std::string("objcopy failed: ") + objCopyCmd).c_str());
         }
     }
 
+    auto readBinary = [](SmallString<128>& path, std::vector<uint8_t>& buffer, uint32_t alignment = 1) {
+        std::string err;
+        auto elfFile = mlir::openInputFile(path, &err);
+        if (!elfFile) {
+            VPUX_THROW("Could not open {0} binary, err:{1}", path.c_str(), err);
+        }
 
-    auto readBinary = [](SmallString<128> & path, std::vector<uint8_t>& buffer, uint32_t alignment = 1) {
-          std::string err;
-          auto elfFile = mlir::openInputFile(path, &err);
-          if (!elfFile) {
-              VPUX_THROW("Could not open {0} binary, err:{1}", path.c_str(), err);
-          }
+        auto elfBuffer = elfFile->getBuffer();
+        std::copy(elfBuffer.begin(), elfBuffer.end(), std::back_inserter(buffer));
 
-          auto elfBuffer = elfFile->getBuffer();
-          std::copy(elfBuffer.begin(), elfBuffer.end(), std::back_inserter(buffer));
-
-          if (alignment  & (alignment - 1)) {
-              VPUX_THROW("Could not align to now power of 2:{1}", alignment);
-          }
-          auto totalBytes = std::distance(elfBuffer.begin(), elfBuffer.end());
-          auto padBytes = -totalBytes & (alignment - 1);
-          if (padBytes) {
-              std::fill_n(back_inserter(buffer), padBytes, 0);
-          }
+        if (alignment & (alignment - 1)) {
+            VPUX_THROW("Could not align to now power of 2:{1}", alignment);
+        }
+        auto totalBytes = std::distance(elfBuffer.begin(), elfBuffer.end());
+        auto padBytes = -totalBytes & (alignment - 1);
+        if (padBytes) {
+            std::fill_n(back_inserter(buffer), padBytes, 0);
+        }
     };
 
     readBinary(textPath, textBinary, 0x10);
     readBinary(dataPath, dataBinary, 0x10);
 }
 
-ActKernelDesc compileKernelForACTShave(const CompilationUnitDesc & unitDesc,
-                                       const movitools::MoviCompileParams& params,
+ActKernelDesc compileKernelForACTShave(const CompilationUnitDesc& unitDesc, const movitools::MoviCompileParams& params,
                                        flatbuffers::FlatBufferBuilder& fbb) {
-
     // Use moviCompile to compile and link C source code into an ELF binary.
     // and then using objcopy teardown elf into text and data sections
     std::vector<uint8_t> textBinary;
     std::vector<uint8_t> dataBinary;
     compileAndLinkSHAVE(params, unitDesc, textBinary, dataBinary);
 
-    //lets pad textBinary by 1K array at the enf with FC CC FC CC
+    // lets pad textBinary by 1K array at the enf with FC CC FC CC
     for (int i = 0; i != 512; i++) {
         textBinary.push_back(0xFC);
         textBinary.push_back(0xCC);

@@ -19,7 +19,7 @@ using namespace mlir;
 namespace vpux {
 namespace VPUIP {
 
-VPUIP::BlobWriter::SpecificTask  SW_Kernel::serialize(vpux::VPUIP::BlobWriter& writer) {
+VPUIP::BlobWriter::SpecificTask SW_Kernel::serialize(vpux::VPUIP::BlobWriter& writer) {
     return writer.createSW_KernelTask(*this);
 }
 
