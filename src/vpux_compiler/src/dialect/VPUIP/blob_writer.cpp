@@ -34,8 +34,6 @@
 #include <mlir/Dialect/Quant/QuantTypes.h>
 
 #include <vpux/compiler/act_kernels/act_kernel_gen.h>
-#include <vpux/compiler/act_kernels/Nce2p7.h>
-#include <kernels/inc/common_types.h>
 
 #include <algorithm>
 
