@@ -13,13 +13,13 @@
 
 #pragma once
 
+#include <vpux/compiler/act_kernels/act_kernel_gen.h>
 #include "vpux/compiler/core/attributes/dims_order.hpp"
 #include "vpux/compiler/core/attributes/shape.hpp"
 #include "vpux/compiler/core/attributes/strides.hpp"
 #include "vpux/compiler/dialect/VPUIP/attributes/enums.hpp"
 #include "vpux/compiler/dialect/VPUIP/schema.hpp"
 #include "vpux/compiler/dialect/const/attributes/content.hpp"
-#include <vpux/compiler/act_kernels/act_kernel_gen.h>
 
 #include "vpux/utils/core/array_ref.hpp"
 #include "vpux/utils/core/logger.hpp"
@@ -33,8 +33,8 @@
 
 #include <flatbuffers/flatbuffers.h>
 
-#include <unordered_map>
 #include <llvm/ADT/MapVector.h>
+#include <unordered_map>
 
 namespace vpux {
 namespace VPUIP {
@@ -67,7 +67,8 @@ public:
 
     using String = flatbuffers::Offset<flatbuffers::String>;
 
-    using ActShavesKernelDataMap = llvm::MapVector<std::string, KernelDataDesc, std::unordered_map<std::string, size_t>>;
+    using ActShavesKernelDataMap =
+            llvm::MapVector<std::string, KernelDataDesc, std::unordered_map<std::string, size_t>>;
 
     template <typename T>
     using Vector = flatbuffers::Offset<flatbuffers::Vector<T>>;
@@ -86,14 +87,13 @@ public:
 
     SpecificTask createSW_KernelTask(mlir::Operation* op);
 
-    ActKernelDesc createKernelData(const CompilationUnitDesc &unitDesc);
+    ActKernelDesc createKernelData(const CompilationUnitDesc& unitDesc);
 
-    KernelDataRef createKernelDataRef(StringRef name, MemoryLocation locale,
-                                      uint64_t dataOffset, uint64_t dataSize,
+    KernelDataRef createKernelDataRef(StringRef name, MemoryLocation locale, uint64_t dataOffset, uint64_t dataSize,
                                       ArrayRef<uint8_t> content = None);
     KernelDataRef createKernelDataRef(const KernelDataDesc& desc, MemoryLocation locale);
 
-    const ActShavesKernelDataMap & getKernelData() const;
+    const ActShavesKernelDataMap& getKernelData() const;
 
 public:
     TensorReference createTensor(StringRef name, mlir::ShapedType type, MemoryLocation locale,

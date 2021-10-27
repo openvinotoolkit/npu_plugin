@@ -83,10 +83,9 @@ VPUIP::BlobWriter::Task vpux::VPUIP::BlobWriter::createTask(mlir::Operation* op)
     return off;
 }
 
-ActKernelDesc vpux::VPUIP::BlobWriter::createKernelData(const CompilationUnitDesc &unitDesc) {
-
+ActKernelDesc vpux::VPUIP::BlobWriter::createKernelData(const CompilationUnitDesc& unitDesc) {
     auto dataName = std::string(unitDesc.name) + ".data";
-    auto itext  = _actKernelsData.find(unitDesc.name.str());
+    auto itext = _actKernelsData.find(unitDesc.name.str());
     auto idata = _actKernelsData.find(dataName);
 
     if (idata != _actKernelsData.end() && itext != _actKernelsData.end()) {
@@ -105,17 +104,17 @@ ActKernelDesc vpux::VPUIP::BlobWriter::createKernelData(const CompilationUnitDes
             /*mdkLibDir=*/"common/moviCompile/lib/30xxxx-leon",
             /*mdkLibs=*/
             {
-                "mlibm.a",
-                "mlibcxx.a",
-                "mlibneon.a",
-                "mlibVecUtils.a",
-                "mlibc_lite.a",
-                "mlibc_lite_lgpl.a",
-                "mlibcrt.a",
-                },
-                };
+                    "mlibm.a",
+                    "mlibcxx.a",
+                    "mlibneon.a",
+                    "mlibVecUtils.a",
+                    "mlibc_lite.a",
+                    "mlibc_lite_lgpl.a",
+                    "mlibcrt.a",
+            },
+    };
 
-    auto newDesc =  compileKernelForACTShave(unitDesc, params, _impl);
+    auto newDesc = compileKernelForACTShave(unitDesc, params, _impl);
     _log.trace("store following kernels names: {0}\n", unitDesc.name);
     _actKernelsData[unitDesc.name.str()] = newDesc.text;
 
@@ -133,19 +132,19 @@ const vpux::VPUIP::BlobWriter::ActShavesKernelDataMap& vpux::VPUIP::BlobWriter::
     return _actKernelsData;
 }
 
-vpux::VPUIP::BlobWriter::KernelDataRef vpux::VPUIP::BlobWriter::createKernelDataRef(const KernelDataDesc& desc, MemoryLocation locale) {
+vpux::VPUIP::BlobWriter::KernelDataRef vpux::VPUIP::BlobWriter::createKernelDataRef(const KernelDataDesc& desc,
+                                                                                    MemoryLocation locale) {
     // offset is 1 to force field to be serialized by FB
     uint32_t non_empty_offset = 1;
     return createKernelDataRef(desc.name, locale, non_empty_offset, desc.size);
 }
 
-vpux::VPUIP::BlobWriter::KernelDataRef vpux::VPUIP::BlobWriter::createKernelDataRef(StringRef name, MemoryLocation locale,
-    uint64_t dataOffset, uint64_t dataSize,
-    ArrayRef<uint8_t> content) {
-
+vpux::VPUIP::BlobWriter::KernelDataRef vpux::VPUIP::BlobWriter::createKernelDataRef(
+        StringRef name, MemoryLocation locale, uint64_t dataOffset, uint64_t dataSize, ArrayRef<uint8_t> content) {
     auto kernelMapEntry = _actKernelsData.find(name.str());
     if (kernelMapEntry == _actKernelsData.end()) {
-        // there is no kernelData for this name available - for now this will generate new kernelData entry using given pData
+        // there is no kernelData for this name available
+        // for now lets generate new kernelData entry using given content data
         _log.trace("store following kernels names: {0}\n", name.data());
         _actKernelsData[name.str()] = {name.data(), buildKernelData(_impl, content), content.size()};
     }
@@ -166,9 +165,8 @@ vpux::VPUIP::BlobWriter::KernelDataRef vpux::VPUIP::BlobWriter::createKernelData
     return kernelData.Finish();
 }
 
-vpux::VPUIP::BlobWriter::KernelDataRef vpux::VPUIP::BlobWriter::createInvocationArgs(mlir::Operation* op,
-                                                                                     vpux::VPUIP::MemoryLocation locale) {
-
+vpux::VPUIP::BlobWriter::KernelDataRef vpux::VPUIP::BlobWriter::createInvocationArgs(
+        mlir::Operation* op, vpux::VPUIP::MemoryLocation locale) {
     VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in createSW_KernelTask");
 
     auto swKernelTask = mlir::dyn_cast<VPUIP::SW_Kernel>(op);
@@ -176,12 +174,11 @@ vpux::VPUIP::BlobWriter::KernelDataRef vpux::VPUIP::BlobWriter::createInvocation
 
     vpux::InvocationBuilder invocationBuilder(_log);
 
-    for (auto && kernelRun : swKernelTask.body().getOps<VPUIP::SW_Kernel_run>()) {
-
+    for (auto&& kernelRun : swKernelTask.body().getOps<VPUIP::SW_Kernel_run>()) {
         auto insSize = swKernelTask.inputs().size();
         auto outsSize = swKernelTask.outputs().size();
 
-        for ( auto && operand : kernelRun.args()) {
+        for (auto&& operand : kernelRun.args()) {
             auto blockArg = operand.dyn_cast_or_null<mlir::BlockArgument>();
             if (blockArg) {
                 auto id = blockArg.getArgNumber();
@@ -203,7 +200,8 @@ vpux::VPUIP::BlobWriter::KernelDataRef vpux::VPUIP::BlobWriter::createInvocation
 
     auto invocationData = invocationBuilder.store();
 
-    auto invocationArgs = createKernelDataRef(op->getName().getStringRef(), locale, 0, invocationData.size(), invocationData);
+    auto invocationArgs =
+            createKernelDataRef(op->getName().getStringRef(), locale, 0, invocationData.size(), invocationData);
 
     return invocationArgs;
 }
@@ -214,25 +212,23 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createSW_KernelTask(mli
     auto swKernelTask = mlir::dyn_cast<VPUIP::SW_Kernel>(op);
     VPUX_THROW_UNLESS(swKernelTask != nullptr, "Operation '{0}' is not a SW_Kernel Task", op->getName());
 
-
     // extracting kernel source code or compiled code
 
     auto module = op->getParentOfType<mlir::ModuleOp>();
     auto kernelFunc = module.lookupSymbol<mlir::FuncOp>(swKernelTask.kernelFunctionAttr());
-    VPUX_THROW_UNLESS(kernelFunc , "Invalid function call : '{0}', undefined kernel name", swKernelTask.kernelFunctionAttr());
+    VPUX_THROW_UNLESS(kernelFunc, "Invalid function call : '{0}', undefined kernel name",
+                      swKernelTask.kernelFunctionAttr());
 
     const auto kernelCode = kernelFunc->getAttrOfType<mlir::StringAttr>("VPU.kernel_code");
     const auto kernelEntryPoint = kernelFunc->getAttrOfType<mlir::StringAttr>("VPU.kernel_entry");
 
-    VPUX_THROW_UNLESS(kernelCode , "Operation '{0}' doesn't have VPU.kernel_code attribute", swKernelTask.kernelFunctionAttr());
-    VPUX_THROW_UNLESS(kernelEntryPoint , "Operation '{0}' doesn't have VPU.kernel_entry attribute", swKernelTask.kernelFunctionAttr());
+    VPUX_THROW_UNLESS(kernelCode, "Operation '{0}' doesn't have VPU.kernel_code attribute",
+                      swKernelTask.kernelFunctionAttr());
+    VPUX_THROW_UNLESS(kernelEntryPoint, "Operation '{0}' doesn't have VPU.kernel_entry attribute",
+                      swKernelTask.kernelFunctionAttr());
 
-    //TODO : check that arguments in given function
-    CompilationUnitDesc compilationDesc = {
-          kernelFunc.getName(),
-          kernelEntryPoint.getValue(),
-          kernelCode.getValue()
-    };
+    // TODO : check that arguments in given function
+    CompilationUnitDesc compilationDesc = {kernelFunc.getName(), kernelEntryPoint.getValue(), kernelCode.getValue()};
     auto actKernelDesc = createKernelData(compilationDesc);
 
     // this is the only supported storage so far
@@ -264,7 +260,6 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createSW_KernelTask(mli
     invocationBuilder.add_dataSection(dataSection);
     invocationBuilder.add_associatedBarriers(barrierReference);
     invocationBuilder.add_invocationArgs(invocationArgs);
-
 
     std::vector<flatbuffers::Offset<MVCNN::ActKernelInvocation>> invocations_v1 = {invocationBuilder.Finish()};
 
