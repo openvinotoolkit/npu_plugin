@@ -15,19 +15,19 @@
 
 #include <vpux/compiler/dialect/VPUIP/ops.hpp>
 
-#include <mlir/IR/Operation.h>
-#include <mlir/IR/BuiltinTypes.h>
 #include <mlir/IR/BuiltinAttributes.h>
-
+#include <mlir/IR/BuiltinTypes.h>
+#include <mlir/IR/Operation.h>
 
 using namespace vpux;
 
 void InvocationBuilder::addArg(mlir::Value operand) {
     // TODO: add support for non int constants
     if (operand.getType().isa<mlir::IntegerType>()) {
-        auto intValue = operand.getDefiningOp()->getAttrs().begin()->second.dyn_cast_or_null<mlir::IntegerAttr>().getInt();
+        auto intValue =
+                operand.getDefiningOp()->getAttrs().begin()->second.dyn_cast_or_null<mlir::IntegerAttr>().getInt();
         storeSimple(_storage, intValue);
-    } else if(operand.getType().isa<mlir::MemRefType>()){
+    } else if (operand.getType().isa<mlir::MemRefType>()) {
         addMemrefArg(operand);
     } else {
         _log.warning("Act Shave Invocation: cannot store arg of type {0}", operand.getType());
@@ -39,13 +39,13 @@ llvm::SmallVector<uint8_t> InvocationBuilder::store() const {
 
     auto patchBase = serialStorage.size() + mvds::nce2p7::ACT_KERNEL_DATA_WINDOW;
     serialStorage.insert(serialStorage.end(), _arrayStorage.begin(), _arrayStorage.end());
-    for (auto && field : _deferredPointers) {
+    for (auto&& field : _deferredPointers) {
         field.patch(serialStorage, patchBase);
     }
     return serialStorage;
 }
 
-void InvocationBuilder::addMemrefArg(const mlir::Value & value) {
+void InvocationBuilder::addMemrefArg(const mlir::Value& value) {
     auto tensor = value.getDefiningOp<VPUIP::DeclareTensorOp>();
 
     if (tensor == nullptr) {
@@ -53,13 +53,13 @@ void InvocationBuilder::addMemrefArg(const mlir::Value & value) {
         return;
     }
 
-    auto dimsPatcher = [] (sw_params::MemRefData &memrefData, uint32_t updateTo) {
+    auto dimsPatcher = [](sw_params::MemRefData& memrefData, uint32_t updateTo) {
         memrefData.dimsAddr = updateTo;
     };
-    auto stridesParcher = [] (sw_params::MemRefData &memrefData, uint32_t updateTo) {
+    auto stridesParcher = [](sw_params::MemRefData& memrefData, uint32_t updateTo) {
         memrefData.stridesAddr = updateTo;
     };
-    auto getAddress = [](VPUIP::DeclareTensorOp & tensor) {
+    auto getAddress = [](VPUIP::DeclareTensorOp& tensor) {
         return tensor.dataIndex() + tensor.leadingOffset().getValueOr(0);
     };
 
@@ -71,7 +71,7 @@ void InvocationBuilder::addMemrefArg(const mlir::Value & value) {
 
     // dims
     createPatchPoint<sw_params::MemRefData>(dimsPatcher);
-    for (auto &&dim : shape.getShape()) {
+    for (auto&& dim : shape.getShape()) {
         storeSimple(_arrayStorage, checked_cast<int32_t>(dim));
     }
 
@@ -83,14 +83,14 @@ void InvocationBuilder::addMemrefArg(const mlir::Value & value) {
     const auto strides = getStrides(shape);
 
     createPatchPoint<sw_params::MemRefData>(stridesParcher);
-    for (auto &&stride : strides) {
+    for (auto&& stride : strides) {
         storeSimple(_arrayStorage, stride);
     }
 
     // data addr
     memrefData.dataAddr = mvds::nce2p7::ACT_KERNEL_CMX_WINDOW + getAddress(tensor);
 
-    memrefData.dataType = 0; // TODO: to be defined
+    memrefData.dataType = 0;  // TODO: to be defined
 
     memrefData.location = sw_params::NN_CMX;
 

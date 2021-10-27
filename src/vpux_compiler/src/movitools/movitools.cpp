@@ -1,10 +1,10 @@
 #include "vpux/compiler/movitools/movitools.h"
-#include "vpux/utils/core/error.hpp"
 #include <mlir/Support/DebugStringHelper.h>
+#include "vpux/utils/core/error.hpp"
 
 #include <llvm/ADT/SmallString.h>
-#include <llvm/Support/Process.h>
 #include <llvm/Support/Path.h>
+#include <llvm/Support/Process.h>
 
 using namespace llvm;  // NOLINT
 
