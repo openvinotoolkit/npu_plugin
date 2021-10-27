@@ -175,7 +175,6 @@ private:
 
 private:
     using TaskMap = std::unordered_map<mlir::Operation*, Task>;
-    //using CompiledActShavesMap
     using TensorReferenceMap = mlir::DenseMap<mlir::Value, TensorReference>;
     using BarrierMap = mlir::DenseMap<mlir::Value, uint32_t>;
 
