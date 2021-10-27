@@ -4,7 +4,9 @@
 #include <math.h>
 #include <param_sigmoid.h>
 
-void sigmoid_fp16(const struct SigmoidParams *lParams) {
+void sigmoid_fp16(uint32_t lParamsAddr, uint8_t * cmxData, int32_t availableCmxBytes) {
+
+    const struct SigmoidParams * lParams = (const struct SigmoidParams*)lParamsAddr;
 
     half* p_act_data = (half*)(lParams->input.dataAddr); // 0x1F000000
     half* p_act_out = (half*)(lParams->output.dataAddr); // 0x1F004000
