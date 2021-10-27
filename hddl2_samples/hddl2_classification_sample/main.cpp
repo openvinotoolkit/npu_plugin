@@ -207,12 +207,10 @@ int main(int argc, char *argv[]) {
 
         NV12Blob::Ptr remoteNV12BlobPtr = make_shared_blob<NV12Blob>(remoteYBlobPtr, remoteUVBlobPtr);
 
-#if 0
         PreProcPara desc;
         desc.aspect_ratio = 1;
         desc.align_center = 1;
-        remoteNV12BlobPtr->updatePreProcDesc(desc);
-#endif
+        remoteNV12BlobPtr->y()->updatePreProcDesc(desc);
 
         // -----------------------------------------------------------------------------------------------------
 
