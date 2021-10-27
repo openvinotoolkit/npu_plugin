@@ -63,3 +63,9 @@ if(ENABLE_CLANG_FORMAT)
     add_dependencies(${OBJ_TARGET_NAME} clang_format_${OBJ_TARGET_NAME})
 endif()
 
+#
+# targets install
+#
+
+install(TARGETS ${TARGET_NAME}
+        LIBRARY DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT})

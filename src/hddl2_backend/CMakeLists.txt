@@ -102,3 +102,10 @@ if(ENABLE_TESTS)
             kmb_utils
             )
 endif()
+
+#
+# targets install
+#
+
+install(TARGETS ${HDDL2_BACKEND_MODULE_TARGET}
+        LIBRARY DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT})

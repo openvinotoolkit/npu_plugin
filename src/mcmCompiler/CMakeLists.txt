@@ -383,64 +383,11 @@ target_link_libraries(mcmCompiler PUBLIC ${EMULATOR} vpux_al PRIVATE flatbuffers
 if(ENABLE_MCM_COMPILER_PYTHON)
     add_subdirectory(python/api)
 endif()
-#############################################################################################
-### Package
-#############################################################################################
 
-if(ENABLE_MCM_COMPILER_PACKAGE)
-    include(CMakePackageConfigHelpers)
+#
+# targets install
+#
 
-    configure_package_config_file(
-        "${PROJECT_SOURCE_DIR}/cmake/mcmCompilerConfig.cmake.in"
-        "${CMAKE_CURRENT_BINARY_DIR}/mcmCompilerConfig.cmake"
-        INSTALL_DESTINATION "share/cmake/mcmCompiler"
-        NO_SET_AND_CHECK_MACRO
-        NO_CHECK_REQUIRED_COMPONENTS_MACRO
-    )
-
-    write_basic_package_version_file(
-        "${CMAKE_CURRENT_BINARY_DIR}/mcmCompilerConfigVersion.cmake"
-        VERSION ${PROJECT_VERSION}
-        COMPATIBILITY ExactVersion
-    )
-
-    string(REPLACE "${IE_CPACK_IE_DIR}/" "" MCM_CPACK_RUNTIME_PATH ${IE_CPACK_RUNTIME_PATH})
-    string(REPLACE "${IE_CPACK_IE_DIR}/" "" MCM_CPACK_ARCHIVE_PATH ${IE_CPACK_ARCHIVE_PATH})
-    string(REPLACE "${IE_CPACK_IE_DIR}/" "" MCM_CPACK_LIBRARY_PATH ${IE_CPACK_LIBRARY_PATH})
-
-    install(
-        TARGETS mcmCompiler
-        EXPORT mcmCompilerTargets
-        RUNTIME DESTINATION ${MCM_CPACK_RUNTIME_PATH} COMPONENT ${MCM_COMPILER_COMPONENT}
-        ARCHIVE DESTINATION ${MCM_CPACK_ARCHIVE_PATH} COMPONENT ${MCM_COMPILER_COMPONENT}
-        LIBRARY DESTINATION ${MCM_CPACK_LIBRARY_PATH} COMPONENT ${MCM_COMPILER_COMPONENT}
-    )
-
-    install(
-        DIRECTORY
-            "${PROJECT_SOURCE_DIR}/include/"
-            "${META_DIR_PATH}/include/"
-        DESTINATION "include"
-        COMPONENT ${MCM_COMPILER_COMPONENT}
-    )
-
-    install(
-        DIRECTORY "${PROJECT_SOURCE_DIR}/config"
-        DESTINATION "."
-        COMPONENT ${MCM_COMPILER_COMPONENT}
-    )
-
-    install(
-        EXPORT mcmCompilerTargets
-        DESTINATION "share/cmake/mcmCompiler"
-        COMPONENT ${MCM_COMPILER_COMPONENT}
-    )
-
-    install(
-        FILES
-            "${CMAKE_CURRENT_BINARY_DIR}/mcmCompilerConfig.cmake"
-            "${CMAKE_CURRENT_BINARY_DIR}/mcmCompilerConfigVersion.cmake"
-        DESTINATION "share/cmake/mcmCompiler"
-        COMPONENT ${MCM_COMPILER_COMPONENT}
-    )
-endif()
+install(TARGETS mcmCompiler
+        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT}
+        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT})

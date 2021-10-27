@@ -22,6 +22,9 @@ endif()
 set(MCM_SCHEDULER_INCLUDES_DIR
     "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/src/mcmCompiler/src/")
 
+set(VPUAL_BACKEND_INCLUDES_DIR
+    "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/src/vpual_backend/")
+
 add_subdirectory(kmb/test_utils)
 
 if (AARCH64)
@@ -43,6 +46,7 @@ addIeTargetTest(
         "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/include"
         ${VPUAL_INCLUDES}
         ${MCM_SCHEDULER_INCLUDES_DIR}
+        ${VPUAL_BACKEND_INCLUDES_DIR}
     LINK_LIBRARIES
         ${HDDL2_LIBS}
         vpux_elf
@@ -57,7 +61,6 @@ addIeTargetTest(
         vpux_utils
         vpux_compiler_static
         frontend_mcm_static
-        vpual_backend_static
         vpux_translate_utils_static
     LINK_LIBRARIES_WHOLE_ARCHIVE
         kmbTestData
@@ -70,5 +73,9 @@ addIeTargetTest(
 
 set_target_properties(${TARGET_NAME} PROPERTIES FOLDER "tests")
 add_dependencies(${TARGET_NAME} throw_test_backend vpu3700_test_backend no_devices_test_backend)
+
+if(AARCH64)
+    target_link_libraries(${TARGET_NAME} PRIVATE vpual_backend_static)
+endif()
 
 enable_warnings_as_errors(${TARGET_NAME})

@@ -366,5 +366,28 @@ if(ENABLE_HDDL2 AND UNIX)
 
         set(XLINK_LIB HDDLUniteXLink CACHE INTERNAL "")
 
+        #
+        # targets install
+        #
+
+        set(HDDL_UNITE_INSTALL_DIR "runtime/3rdparty/hddl_unite")
+
+        install(DIRECTORY   "${HDDL_UNITE}/lib/"
+                DESTINATION "${HDDL_UNITE_INSTALL_DIR}/lib"
+                COMPONENT   ${VPUX_PLUGIN_COMPONENT})
+
+        install(DIRECTORY   "${HDDL_UNITE}/thirdparty/XLink/lib/"
+                DESTINATION "${HDDL_UNITE_INSTALL_DIR}/thirdparty/XLink/lib"
+                COMPONENT   ${VPUX_PLUGIN_COMPONENT})
+
+        set(HDDL_UNITE_VPUX_4_INSTALL_DIR "${IE_CPACK_LIBRARY_PATH}/vpux_4/hddl_unite")
+
+        install(DIRECTORY   "${TEMP}/vpux_4/hddl_unite/lib/"
+                DESTINATION "${HDDL_UNITE_VPUX_4_INSTALL_DIR}/lib"
+                COMPONENT   ${VPUX_PLUGIN_COMPONENT})
+        
+        install(DIRECTORY   "${TEMP}/vpux_4/hddl_unite/thirdparty/XLink/lib/"
+                DESTINATION "${HDDL_UNITE_VPUX_4_INSTALL_DIR}/thirdparty/XLink/lib"
+                COMPONENT   ${VPUX_PLUGIN_COMPONENT})                
     endif()
 endif()
