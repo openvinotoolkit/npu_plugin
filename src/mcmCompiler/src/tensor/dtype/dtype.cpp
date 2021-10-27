@@ -3,7 +3,7 @@
 #include "include/mcm/tensor/dtype/dtype_registry.hpp"
 
 mv::DType::DType():
-DType("Default")
+dType_("Default")
 {
 
 }

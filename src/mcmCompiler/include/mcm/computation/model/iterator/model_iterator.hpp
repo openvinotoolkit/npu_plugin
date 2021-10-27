@@ -22,7 +22,7 @@ namespace mv
             
         public:
 
-            ModelIterator(): 
+            ModelIterator() :
             it_()
             {
 
