@@ -143,6 +143,11 @@ void VPUIP::ELFBlobSerializer::setNetworkIO(llvm::ArrayRef<mlir::MemRefType> inp
                                             elf::writer::SymbolSection*& symbolSection, const std::string& symbolName) {
     symbolSection = m_writer.addSymbolSection();
     symbolSection->setName(symbolName + "s");
+    if (symbolType == VPU_STT_INPUT) {
+        symbolSection->maskFlags(VPU_SHF_USERINPUT);
+    } else if (symbolType == VPU_STT_OUTPUT) {
+        symbolSection->maskFlags(VPU_SHF_USEROUTPUT);
+    }
 
     for (size_t i = 0; i < inputsOrOutputs.size(); i++) {
         const auto& inputOrOutput = inputsOrOutputs[i];
