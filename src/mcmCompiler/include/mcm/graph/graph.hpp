@@ -634,15 +634,15 @@ namespace mv
                 }
             }
 
-            // reverse_list_iterator(const std::weak_ptr<T_iterable>& obj_ptr) : 
-            // base_iterator<T_iterable, T_content>(obj_ptr)
-            // {
-            //     if (*this)
-            //     {
-            //         reverse_set_iterator it(++(*this)->graph_.find(this->get()));
-            //         it_ = it;
-            //     }
-            // }
+            reverse_list_iterator(const std::weak_ptr<T_iterable>& obj_ptr) : 
+            base_iterator<T_iterable, T_content>(obj_ptr)
+            {
+                if (*this)
+                {
+                    reverse_set_iterator it(++(*this)->graph_.find(this->get()));
+                    it_ = it;
+                }
+            }
 
             reverse_list_iterator(const base_iterator<T_iterable, T_content>& other) : 
             base_iterator<T_iterable, T_content>(other)
