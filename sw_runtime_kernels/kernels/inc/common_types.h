@@ -70,7 +70,14 @@ enum Location : uint32_t
     UPA_CMX
 };
 
-struct __attribute__((packed)) MemRefData {
+#ifdef __cplusplus
+    #define ALIGN_AS(size) alignas(size)
+#else
+    #define ALIGN_AS(size) __attribute__((aligned(size)))
+#endif
+
+#pragma pack(push, 1)
+struct MemRefData {
     uint32_t dataAddr;      // Can't use pointers, since they have platform-dependent size.
                             // Will be located in WIN_F.
 
@@ -87,12 +94,15 @@ struct __attribute__((packed)) MemRefData {
     enum Location location;
 };
 
-struct __attribute__((packed, aligned(64))) BaseKernelParams {
+struct ALIGN_AS(64) BaseKernelParams  {
     int32_t inputsOffset;
     uint32_t numInputs;
     int32_t outputsOffset;
     uint32_t numOutputs;
 };
+
+#pragma pack(pop)
+#undef ALIGN_AS
 
 #ifdef __cplusplus
 }  // namespace sw_params

@@ -13,7 +13,6 @@
 
 #pragma once
 
-#include <kernels/inc/common_types.h>
 #include <llvm/ADT/SmallVector.h>
 #include <mlir/IR/Value.h>
 #include <vpux/utils/core/logger.hpp>

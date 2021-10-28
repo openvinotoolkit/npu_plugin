@@ -8,11 +8,15 @@
 namespace sw_params {
 #endif
 
-struct __attribute__((packed)) SigmoidParams {
+#pragma pack(push, 1)
+
+struct SigmoidParams {
     struct MemRefData input;
     struct MemRefData output;
     int64_t axis;
 };
+
+#pragma pack (pop)
 
 inline struct BaseKernelParams ToBaseKernelParams(struct SigmoidParams * params) {
     struct BaseKernelParams result;
