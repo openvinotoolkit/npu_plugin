@@ -53,7 +53,6 @@
 #include <ngraph/pass/visualize_tree.hpp>
 #include <transformations/init_node_info.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
-#include <legacy/transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_interpolate_to_interp_or_resample.hpp>
 #include <transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_strided_slice_to_crop.hpp>
