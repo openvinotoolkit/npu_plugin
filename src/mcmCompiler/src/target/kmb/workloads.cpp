@@ -846,6 +846,68 @@ namespace mv {
             slice.y1 = (std::min)((y + 1)*dy, H);
             slice_list.push_back(slice);
         }
+        // hack
+        auto list_size = slice_list.size();
+        if (list_size == 3)
+        {
+            if (slice_list[list_size - 1].y1 != slice_list[list_size - 2].y1) // split over H
+            // borrow 1 from the last slice
+            {
+                if (slice_list[list_size - 1].y1 - slice_list[list_size - 1].y0 > 1) {
+                    slice_list[list_size - 1].y1--;
+                    SplitSlice comp_slice;
+                    comp_slice.y0 = slice_list[list_size - 1].y1;
+                    comp_slice.y1 = H;
+                    comp_slice.x0 = slice_list[list_size - 1].x0;
+                    comp_slice.x1 = slice_list[list_size - 1].x1;
+                    slice_list.push_back(comp_slice);
+                } else  // borrow 1 from the 2nd last slice
+                {
+                    slice_list[list_size - 2].y1--;
+                    slice_list[list_size - 1].y0--;
+                    slice_list[list_size - 1].y1--;
+                    SplitSlice comp_slice;
+                    comp_slice.y0 = slice_list[list_size - 1].y1;
+                    comp_slice.y1 = H;
+                    comp_slice.x0 = slice_list[list_size - 1].x0;
+                    comp_slice.x1 = slice_list[list_size - 1].x1;
+                    slice_list.push_back(comp_slice);
+                }
+                for (auto slice : slice_list) {
+                    std::cout << "x0: " << std::to_string(slice.x0) << ", x1: " << std::to_string(slice.x1)
+                              << ", y0: " << std::to_string(slice.y0) << ", y1: " << std::to_string(slice.y1)
+                              << std::endl;
+                }
+            }
+            else  // borrow 1 from the last slice
+            {
+                if (slice_list[list_size - 1].x1 - slice_list[list_size - 1].x0 > 1) {
+                    slice_list[list_size - 1].x1--;
+                    SplitSlice comp_slice;
+                    comp_slice.x0 = slice_list[list_size - 1].x1;
+                    comp_slice.x1 = W;
+                    comp_slice.y0 = slice_list[list_size - 1].y0;
+                    comp_slice.y1 = slice_list[list_size - 1].y1;
+                    slice_list.push_back(comp_slice);
+                } else  // borrow 1 from the 2nd last slice
+                {
+                    slice_list[list_size - 2].x1--;
+                    slice_list[list_size - 1].x0--;
+                    slice_list[list_size - 1].x1--;
+                    SplitSlice comp_slice;
+                    comp_slice.x0 = slice_list[list_size - 1].x1;
+                    comp_slice.x1 = W;
+                    comp_slice.y0 = slice_list[list_size - 1].y0;
+                    comp_slice.y1 = slice_list[list_size - 1].y1;
+                    slice_list.push_back(comp_slice);
+                }
+                for (auto slice : slice_list) {
+                    std::cout << "x0: " << std::to_string(slice.x0) << ", x1: " << std::to_string(slice.x1)
+                              << ", y0: " << std::to_string(slice.y0) << ", y1: " << std::to_string(slice.y1)
+                              << std::endl;
+                }
+            }
+        }
 
         slice_list_variant.slice_list = slice_list;
         return slice_list_variant;
@@ -1123,6 +1185,7 @@ int mv::Workloads::partitionTensorWithRectangleHeuristic(const mv::DPUModeList& 
     pass.log(mv::Logger::MessageType::Debug, "RectangleHeuristic: reduced_height=" + std::to_string(reduced_shape.H)
                                                              + ", reduced_width="  + std::to_string(reduced_shape.W));
 
+    std::cout<<"RectangleHeuristic: layer=" + layerName_<<std::endl;
     SplitSliceVariant slicing_variant = splitSliceSymmetric(reduced_shape.W, reduced_shape.H, nWorkloads,
                                                             split_over_h, split_over_w, isSparse_, C);
     if (!split_symmetric)

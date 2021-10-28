@@ -80,8 +80,11 @@ void SplittingTensorsAcrossClusters(const mv::pass::PassEntry& pass, mv::Computa
                              mv::Element &)
 {
     auto insertTensor = [](tensorSet& tensors, const mv::Data::TensorIterator& tensor, const mv::Data::OpListIterator& parentOp) {
-        if (tensor->hasSubTensors())
+        if (tensor->hasSubTensors()) {
+            if (tensor->numSubTensors() != 4)
+                std::cout<<"tensor has sub tensors "<< tensor->getName() <<" "<<std::to_string(tensor->numSubTensors())<<std::endl;
             return;
+        }
 
         if (!tensor->hasAttr("splitStrategy"))
         {

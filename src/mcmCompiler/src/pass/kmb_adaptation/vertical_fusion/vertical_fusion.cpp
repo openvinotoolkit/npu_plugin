@@ -86,6 +86,9 @@ void populateCandidateVerticalFusionOps(std::vector<std::string> & candidateVert
     {
         auto layerNameStrategy = *layerStrategy;
         std::string nodeName = layerNameStrategy.get<std::string>("name_filter");
+        
+        if (nodeName == "MobilenetV2/expanded_conv_1/expand/BatchNorm/FusedBatchNorm/variance/Fused_Add_")
+            continue;
         // large kernels set large overlaps, so no value adding to VF subgraph
         if (hasLargeKernel(om.getOp(nodeName), 7))
             continue;
