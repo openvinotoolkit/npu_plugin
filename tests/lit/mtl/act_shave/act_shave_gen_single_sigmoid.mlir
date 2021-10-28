@@ -91,6 +91,7 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1
                     , i64
         }
 
+
     %6 = VPUIP.NNDMA inputs(%out_tile0_cmx : memref<1x1x1x1000xf16, "VPU_CMX_NN">) outputs(%2 : memref<1x1x1x1000xf16>) waits(%b1 : !VPUIP.Barrier) -> memref<1x1x1x1000xf16>
     return %6: memref<1x1x1x1000xf16>
 
