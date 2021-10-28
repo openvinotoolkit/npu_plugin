@@ -4,7 +4,7 @@
 # Quantization / Mixed Datatypes - Shokin, Alexander (@shokinal) / Rotuna, Harald Razvan (@hrotuna) / Zomborat, Zoran (@ZoranZomborat)
 # Strategy Generation - DeFlumere, Ashley (@adeflume)
 # Binaries (RT, vpualHost), Backends - Skrebkov, Artemy (@ArtemySkrebkov-intel) / Znamenskiy, Mikhail (@mznamens)
-# Software Layers - Shumihim, Sergey (@sshumihi) / Kurin, Maxim (@maxim-kurin)
+# Software Layers - Vyunov, Roman (@rvyunov) / Kurin, Maxim (@maxim-kurin)
 # mcmCompiler - Yao, Shaojun (@syao-2015) / Mineeva, Marina (@mmineeva)
 # mcmEmulator - Zomborat, Zoran (@ZoranZomborat)
 # Memory/Barrier scheduling - Brady, John (@bradyjohn) / Gwizdz, Michal (@MichalGwizdzIntel)
