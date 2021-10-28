@@ -2,10 +2,6 @@
 
 #pragma once
 
-//#include <sw_layer_params.h>
-
-//#include <mv_types.h>
-
 #ifdef __MOVICOMPILE__
 #    include <moviVectorTypes.h>
 #else
