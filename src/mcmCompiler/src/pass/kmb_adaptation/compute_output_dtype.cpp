@@ -466,7 +466,7 @@ void decideOutputDataType(const mv::pass::PassEntry& pass, mv::ComputationModel&
                 bool outputQuantized = !op->getOutputTensor(0)->isFloatingPointType() &&
                                        !op->getOutputTensor(0)->getQuantParams().isEmpty();
 
-                bool nextLayersNeedFP16 = true;
+                bool nextLayersNeedFP16 = false;
                 bool is_explicit = true;
                 auto childOps = mv::findSinkLayers(dm, op->getOutputTensor(0));
                 for (auto& childOp : childOps) {

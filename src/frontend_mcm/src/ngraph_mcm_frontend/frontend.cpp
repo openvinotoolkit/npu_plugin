@@ -41,6 +41,7 @@
 #include <vpux/passes/remove_split_concat.hpp>
 #include <ngraph_mcm_frontend/passes/convert_min_max_to_clamp.hpp>
 #include <ngraph_mcm_frontend/passes/convert_reshape_transpose_chain_to_depthtospace.hpp>
+#include <ngraph_mcm_frontend/passes/segnet_workaround.hpp>
 
 #include "vpux/utils/core/error.hpp"
 
@@ -586,6 +587,8 @@ void applyTransformations(
     // passManager.register_pass<ngraph::pass::ConvertInterpolate1ToInterpolate4>();
 
     if (useCompiler) {
+        passManager.register_pass<SegnetWorkaround>();
+        passManager.register_pass<ngraph::pass::VisualizeTree>("ConvertToMcmModel.png");
         auto& mcmModel = mcmCompiler->model();
         passManager.register_pass<ConvertToMcmModel>(mcmModel, mcmOutputsMap, inputsInfo, outputsInfo, ioMap, config, &needConvertInputPrecision);
     } else {

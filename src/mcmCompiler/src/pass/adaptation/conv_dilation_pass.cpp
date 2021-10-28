@@ -538,7 +538,7 @@ void convDilationUsingWeightsFcn(const mv::pass::PassEntry&, mv::ComputationMode
 
     for (auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt)
     {
-        if (opIt->getOpType() != "DepthwiseConv") continue;
+        if ((opIt->getOpType() != "DepthwiseConv") && (opIt->getOpType() != "Conv")) continue;
         auto dilationFactor = opIt->get<unsigned>("dilationFactor");
         const bool dilate = dilationFactor > 1;
         opIt->set<bool>("dilatedUsingWeights", dilate);
