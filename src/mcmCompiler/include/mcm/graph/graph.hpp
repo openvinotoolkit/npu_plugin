@@ -634,15 +634,15 @@ namespace mv
                 }
             }
 
-            reverse_list_iterator(const std::weak_ptr<T_iterable>& obj_ptr) : 
-            base_iterator<T_iterable, T_content>(obj_ptr)
-            {
-                if (*this)
-                {
-                    reverse_set_iterator it(++(*this)->graph_.find(this->get()));
-                    it_ = it;
-                }
-            }
+            // reverse_list_iterator(const std::weak_ptr<T_iterable>& obj_ptr) : 
+            // base_iterator<T_iterable, T_content>(obj_ptr)
+            // {
+            //     if (*this)
+            //     {
+            //         reverse_set_iterator it(++(*this)->graph_.find(this->get()));
+            //         it_ = it;
+            //     }
+            // }
 
             reverse_list_iterator(const base_iterator<T_iterable, T_content>& other) : 
             base_iterator<T_iterable, T_content>(other)
@@ -1565,6 +1565,7 @@ namespace mv
         graph(const std::shared_ptr<std::set<std::shared_ptr<detail::base_node_class<T_node, std::size_t>>,
             id_comparator<detail::base_node_class<T_node, std::size_t>>>>& base_nodes, const std::shared_ptr<std::size_t>& node_id) : 
         base_nodes_(base_nodes), 
+        nodes_(),
         node_id_(node_id),
         edge_id_(std::make_shared<std::size_t>(0)),
         search_node_(std::make_shared<node>(*this, (*node_id_)++))
