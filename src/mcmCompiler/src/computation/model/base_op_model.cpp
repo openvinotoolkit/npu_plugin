@@ -61,7 +61,7 @@ ComputationModel(name)
 }
 
 mv::BaseOpModel::BaseOpModel(ComputationModel& other) :
-ComputationModel(other)
+ComputationModel(other), codeOut_()
 {
     log(Logger::MessageType::Debug, "Bound");
 }

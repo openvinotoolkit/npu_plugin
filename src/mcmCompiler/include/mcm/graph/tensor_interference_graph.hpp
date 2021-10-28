@@ -122,7 +122,7 @@ namespace mv
             bool checkIsCMXTensor_(const Data::TensorIterator tensorIt);
 
         public:
-            TensorInterferenceGraph() : graph<mv::TensorInterferenceGraphNode, int>() {}
+            TensorInterferenceGraph() : graph<mv::TensorInterferenceGraphNode, int>(), topMasterMap_(), cmTransitiveClosureSet_(), nodeIteratorsMap_() {}
             TensorInterferenceGraph(const mv::pass::PassEntry& pass, ComputationModel& model, std::size_t alignment, const TensorIteratorFilter& tensorFilter = nullptr,
                 const mv::OpIteratorFilter& taskFilter = nullptr, const SinkOpIteratorFilter& sinkFilter = nullptr, bool isCompleteTig = false, bool isDMA = false);
 
