@@ -328,6 +328,8 @@ MVCNN::DType vpux::VPUIP::BlobWriter::createDType(mlir::Type type) {
         return MVCNN::DType_U16;
     } else if (type.isInteger(CHAR_BIT * sizeof(uint8_t))) {
         return MVCNN::DType_U8;
+    } else if (type.isSignedInteger(4)) {
+        return MVCNN::DType_U4;
     } else if (type.isInteger(4)) {
         return MVCNN::DType_U4;
     } else if (type.isInteger(2)) {
