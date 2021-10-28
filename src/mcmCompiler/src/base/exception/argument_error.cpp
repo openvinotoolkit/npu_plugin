@@ -12,7 +12,7 @@ argVal_(argVal)
 mv::ArgumentError::ArgumentError(const std::string& senderID, const std::string& argName, const std::string& argVal,
     const std::string& whatArg) :
 LoggedError(senderID, "ArgumentError: " + argName + " " + argVal + " - " + whatArg),
-argName_(argName), argVal_()
+argName_(argName), argVal_(argVal)
 {
 
 }
