@@ -57,9 +57,13 @@ std::pair<uint8_t, int8_t> getQuantShiftAndPostShiftFromScale(double quantScale)
 mlir::quant::QuantizedType getQuantizedType(Const::ContentAttr lowConst, Const::ContentAttr highConst, int64_t levels,
                                             mlir::FloatType realType, bool isSigned, mlir::Location loc);
 
-mlir::LogicalResult getFakeQuantParams(mlir::ShapedType qType, int64_t& levels, mlir::RankedTensorType& attrType,
-                                       mlir::DenseElementsAttr& rMinAttr, mlir::DenseElementsAttr& rMaxAttr,
-                                       mlir::Location loc);
+void getFakeQuantParams(mlir::quant::UniformQuantizedType qElemType, int64_t& levels, float& rMin, float& rMax);
+
+void getFakeQuantParams(mlir::quant::UniformQuantizedPerAxisType qElemType, int64_t& levels,
+                        SmallVectorImpl<float>& rMinVals, SmallVectorImpl<float>& rMaxVals);
+
+void getFakeQuantParams(mlir::ShapedType qType, int64_t& levels, mlir::RankedTensorType& attrType,
+                        mlir::DenseElementsAttr& rMinAttr, mlir::DenseElementsAttr& rMaxAttr);
 
 std::tuple<double, int64_t> calcScaleAndZeroPoint(int64_t qMin, int64_t qMax, double rMin, double rMax, bool isSigned);
 

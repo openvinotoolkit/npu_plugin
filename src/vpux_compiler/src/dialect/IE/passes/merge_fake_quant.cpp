@@ -55,9 +55,7 @@ mlir::LogicalResult MergeQuantDequant::matchAndRewrite(IE::DequantizeOp dequanti
     int64_t levels = 0;
     mlir::RankedTensorType attrType;
     mlir::DenseElementsAttr rMinAttr, rMaxAttr;
-    if (mlir::failed(getFakeQuantParams(quantizeType, levels, attrType, rMinAttr, rMaxAttr, dequantizeOp.getLoc()))) {
-        return mlir::failure();
-    }
+    getFakeQuantParams(quantizeType, levels, attrType, rMinAttr, rMaxAttr);
 
     auto rMinOp = rewriter.create<Const::DeclareOp>(dequantizeOp.getLoc(), attrType, Const::ContentAttr::get(rMinAttr));
     auto rMaxOp = rewriter.create<Const::DeclareOp>(dequantizeOp.getLoc(), attrType, Const::ContentAttr::get(rMaxAttr));
@@ -107,12 +105,8 @@ mlir::LogicalResult MergeQuantCastDequant::matchAndRewrite(IE::DequantizeOp dequ
     int64_t inLevels = 0, outLevels = 0;
     mlir::RankedTensorType inAttrType, outAttrType;
     mlir::DenseElementsAttr inMinAttr, inMaxAttr, outMinAttr, outMaxAttr;
-    if (mlir::failed(getFakeQuantParams(inputQuantizeType, inLevels, inAttrType, inMinAttr, inMaxAttr,
-                                        quantizeOp.getLoc())) ||
-        mlir::failed(getFakeQuantParams(outputQuantizeCastType, outLevels, outAttrType, outMinAttr, outMaxAttr,
-                                        quantizeCastOp.getLoc()))) {
-        return mlir::failure();
-    }
+    getFakeQuantParams(inputQuantizeType, inLevels, inAttrType, inMinAttr, inMaxAttr);
+    getFakeQuantParams(outputQuantizeCastType, outLevels, outAttrType, outMinAttr, outMaxAttr);
 
     if (inLevels != outLevels) {
         return mlir::failure();
