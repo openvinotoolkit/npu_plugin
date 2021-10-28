@@ -2141,4 +2141,33 @@ def IE_PermuteCastOp :
     let checkInferredMemSpace = 1;
 }
 
+//
+// SelectOp
+//
+
+def IE_SelectOp :
+        IE_LayerOp<
+            "Select",
+            [
+                ResultsAreFloatLike,
+                IE_EltwiseOp
+            ]
+        > {
+    let summary = "InferenceEngine Select layer";
+
+    let arguments = (ins
+        //BoolAttr:$input1,
+        //ElementsAttr:$input1,
+        AnyRankedTensor:$input1,
+        AnyRankedTensor:$input2,
+        AnyRankedTensor:$input3,
+        IE_AutoBroadcastType:$auto_broadcast
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+}
+
+
 #endif

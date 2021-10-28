@@ -1927,6 +1927,38 @@ operation ::= `IE.ScaleShift` `(` operands `)` attr-dict `:` type(operands) `->`
 | :----: | ----------- |
 `output` | ranked tensor of 16-bit float or 32-bit float values
 
+### `IE.Select` (vpux::IE::SelectOp)
+
+InferenceEngine Select layer
+
+
+Syntax:
+
+```
+operation ::= `IE.Select` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`auto_broadcast` | vpux::IE::AutoBroadcastTypeAttr | Specifies rules used for auto-broadcasting of input tensors
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input1` | ranked tensor of any type values
+`input2` | ranked tensor of any type values
+`input3` | ranked tensor of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values
+
 ### `IE.Sigmoid` (vpux::IE::SigmoidOp)
 
 InferenceEngine Sigmoid layer

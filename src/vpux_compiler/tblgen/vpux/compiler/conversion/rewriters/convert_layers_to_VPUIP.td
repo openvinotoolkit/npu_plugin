@@ -517,6 +517,14 @@ def RewriteAnd :
                 (HasNoValue $post_op)
             ]
         >;
+
+def RewriteSelect :
+        Pat<
+            (IERT_SelectOp $input1, $input2, $input3, $output),
+            (createEltwiseUPAOp<"SELECT"> $input1, $input2, $input3, $output)
+        >;
+
+
 //
 // IERT.GRN -> VPUIP.GRNUPA
 //

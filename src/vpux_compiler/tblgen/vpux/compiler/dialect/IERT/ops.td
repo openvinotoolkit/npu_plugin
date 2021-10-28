@@ -2395,4 +2395,48 @@ def IERT_PermuteCastOp :
     }];
 }
 
+
+
+//
+// SelectOp
+//
+
+def IERT_SelectOp :
+        IERT_LayerOp<1, "Select",
+            [
+                ViewLikeOpInterface,
+                SameOperandsElementType
+            ]
+        > {
+    let summary = "InferenceEngine run-time Select layer";
+
+    let arguments = (ins
+        //AnyMemRef:$input1,
+        //BoolAttr:$input1,
+        MemRefOf<[F16, F32]>:$input1,
+        MemRefOf<[F16, F32]>:$input2,
+        MemRefOf<[F16, F32]>:$input3,
+        MemRefOf<[F16, F32]>:$output_buff
+
+        //AnyMemRef:$input
+    );
+
+    let results = (outs
+        MemRefOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` 
+                    $input1 `:` type($input1) `,`
+                    $input2 `:` type($input2) `,`
+                    $input3 `:` type($input3)
+                `)`
+
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+
 #endif

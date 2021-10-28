@@ -879,6 +879,12 @@ mlir::Operation* createRTLayer(IE::MemPermuteOp origOp, ArrayRef<mlir::Value> al
     return b.create<IERT::MemPermuteOp>(origOp.getLoc(), newOp.input(), newOp.output_buff(), origOp.mem_perm());
 }
 
+mlir::Operation* createRTLayer(IE::SelectOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::SelectOp::Adaptor newOp(allBufs);
+   // return b.create<IERT::SelectOp>(origOp.getLoc(), newOp.input1(), newOp.input2(), newOp.output_buff());
+    return b.create<IERT::SelectOp>(origOp.getLoc(), newOp.input1(), newOp.input2(), newOp.input3(), newOp.output_buff());
+}
+
 class LayerRewrite final : public mlir::ConversionPattern {
 public:
     LayerRewrite(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
@@ -968,6 +974,7 @@ mlir::LogicalResult LayerRewrite::matchAndRewrite(mlir::Operation* origOp, Array
     CASE(IE::MVNOp)
     CASE(IE::SubtractOp)
     CASE(IE::MemPermuteOp)
+    CASE(IE::SelectOp)
     .Default([](mlir::Operation*) {
         return nullptr;
     });
