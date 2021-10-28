@@ -613,6 +613,8 @@ class ZMajorConvolution(MPE):
         ValidatePaddings(self.settings.kernel_shape, self.settings.kernel_pads)
         # validate input tensor channels allignement
         ValidateHWAlignment(self.settings.input_ttype, self.settings.input_shape[1])
+        # validate weight tensor channels allignement
+        ValidateHWAlignment(self.settings.weight_ttype, self.settings.input_shape[1])
         # validate output tensor channels allignement
         ValidateHWAlignment(self.settings.output_ttype, self.settings.kernel_channels)
 
@@ -1319,7 +1321,16 @@ def generate_options(args):
         # Z-Major Convolution, padding, int8
         genZMConvs(input_types=[Int8(2)],
                    input_shapes=[[1, 16, 32, 32]],
-                   weight_types=[Int4(2), Int8(2)],
+                   weight_types=[Int8(2)],
+                   kernel_channels=[16],
+                   kernel_shapes=[[10, 10]],
+                   output_types=[Int8()],
+                   pads=Pad.none + Pad.top(5) + Pad.left(5) + Pad.bottom(5) + Pad.right(5)),
+
+        # Z-Major Convolution, padding, int8
+        genZMConvs(input_types=[Int8(2)],
+                   input_shapes=[[1, 32, 32, 32]],
+                   weight_types=[Int4(2)],
                    kernel_channels=[16],
                    kernel_shapes=[[10, 10]],
                    output_types=[Int8()],
@@ -1328,7 +1339,16 @@ def generate_options(args):
         # Z-Major Convolution, padding, int8
         genZMConvs(input_types=[Int8(2)],
                    input_shapes=[[1, 16, 32, 32]],
-                   weight_types=[Int4(2), Int8(2)],
+                   weight_types=[Int8(2)],
+                   kernel_channels=[32],
+                   kernel_shapes=[[10, 10]],
+                   output_types=[Int4(), UInt4()],
+                   pads=Pad.none + Pad.top(5) + Pad.left(5) + Pad.bottom(5) + Pad.right(5)),
+
+        # Z-Major Convolution, padding, int8
+        genZMConvs(input_types=[Int8(2)],
+                   input_shapes=[[1, 32, 32, 32]],
+                   weight_types=[Int4(2)],
                    kernel_channels=[32],
                    kernel_shapes=[[10, 10]],
                    output_types=[Int4(), UInt4()],
