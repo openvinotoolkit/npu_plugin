@@ -204,6 +204,7 @@ void PipeLineAcrossParallelBranches(const mv::pass::PassEntry& ,
   if (mv::isDebugFilesEnabled()) {
     fptr.reset(fopen("./pipe_line_across_parallel_branches_report.txt", "w"));
     if (!fptr) {
+      fptr = nullptr;
       throw mv::RuntimeError("PipeLineAcrossParallelBranches",
             "Unable to open file");
     }

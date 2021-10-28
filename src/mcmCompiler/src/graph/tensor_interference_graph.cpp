@@ -9,7 +9,8 @@
 
 mv::TensorInterferenceGraph::TensorInterferenceGraph(const mv::TensorInterferenceGraph& g) : 
 graph<TensorInterferenceGraphNode, int>(),
-cmTransitiveClosureSet_()
+cmTransitiveClosureSet_(),
+nodeIteratorsMap_()
 {
 
     for (auto it = g.node_begin(); it != g.node_end(); ++it)
