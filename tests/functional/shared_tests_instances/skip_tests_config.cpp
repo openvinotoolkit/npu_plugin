@@ -50,17 +50,17 @@ private:
     std::string _name;
 };
 
-class ConditionalSkipper{
+class TestsSkipper{
 public:
-    ConditionalSkipper(std::vector<std::string>& registry) : _registry{registry} {
+    TestsSkipper(std::vector<std::string>& registry) : _registry{registry} {
     }
 
     void addPatterns(std::vector<std::string>&& patternsToSkip) const {
-            _registry.insert(
-                _registry.end(),
-                std::make_move_iterator(patternsToSkip.begin()),
-                std::make_move_iterator(patternsToSkip.end())
-            );
+        _registry.insert(
+            _registry.end(),
+            std::make_move_iterator(patternsToSkip.begin()),
+            std::make_move_iterator(patternsToSkip.end())
+        );
     }
     
     void addPatterns(bool conditionFlag,
@@ -74,13 +74,19 @@ public:
 
 private:
     std::vector<std::string>& _registry;
-    const BackendName _backend;
 };
 
 std::vector<std::string> disabledTestPatterns() {
     static const auto allDisabledTestPatterns = []() {
-        //  Unconditionally disabled test patterns
-        std::vector<std::string> disabledTests = {
+        std::vector<std::string> disabledTests;
+        TestsSkipper skipper(disabledTests);
+        const BackendName backendName;
+        
+        //
+        //  Disabled test patterns
+        //
+
+        skipper.addPatterns({
             // TODO Tests failed due to starting infer on IA side
             ".*CorrectConfigAPITests.*",
 
@@ -106,18 +112,22 @@ std::vector<std::string> disabledTestPatterns() {
 
             // TODO: Issue: 63469
             ".*KmbConversionLayerTest.*ConvertLike.*"
-        };
+            }
+        );
 
-        // Conditional skip patterns
-        ConditionalSkipper skipper(disabledTests);
-        const static BackendName backendName;
-    
+        //
+        // Conditionally disabled test patterns
+        //
+
         skipper.addPatterns(
             backendName.isEmpty(),  
             "backend is empty (no device)",
             {
                 // Cannot run InferRequest tests without a device to infer to
                 ".*InferRequest.*",
+                ".*ExecutableNetworkBaseTest.*",
+                ".*ExecNetSetPrecision.*",
+                ".*VpuxInferRequestCallbackTests.*"
             }
         );
 
@@ -125,7 +135,7 @@ std::vector<std::string> disabledTestPatterns() {
             backendName.isZero(),  
             "* CumSum layer is not supported by MTL platform *",
             {
-                "*VpuxBehaviorTestsSetBlob*",
+                ".*VpuxBehaviorTestsSetBlob.*",
             }
         );
 
