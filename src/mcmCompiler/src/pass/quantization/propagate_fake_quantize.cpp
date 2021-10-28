@@ -699,12 +699,12 @@ void addClamp(mv::ComputationModel& model){
             quantizeOp->getName() != "g_net/enc2_3_2_2/Conv2D/fq_input_0" &&
             quantizeOp->getName() != "g_net/enc3_2_2_2/Conv2D/fq_input_0" &&
             quantizeOp->getName() != "g_net/enc3_3_2_2/Conv2D/fq_input_0" &&
-            quantizeOp->getName() != "g_net/dec2_2_2_2/Conv2D/fq_input_0" &&
+            quantizeOp->getName() != "g_net/dec2_2_2_2/Conv2D/fq_input_0")
             // quantizeOp->getName() != "g_net/add_1/fq_input_1_scale_aligned" &&
             // quantizeOp->getName() != "g_net/add_1/fq_input_0" &&
-            quantizeOp->getName() != "g_net/ResizeBilinear/fq_input_0" &&
-            quantizeOp->getName() != "g_net/add_6/fq_input_0" &&
-            quantizeOp->getName() != "g_net/ResizeBilinear_1/fq_input_0")
+            // quantizeOp->getName() != "g_net/ResizeBilinear/fq_input_0" &&
+            // quantizeOp->getName() != "g_net/add_6/fq_input_0" &&
+            // quantizeOp->getName() != "g_net/ResizeBilinear_1/fq_input_0")
             continue;
         
         // add clamp Operation
@@ -746,6 +746,23 @@ void addClamp(mv::ComputationModel& model){
     }
 }
 
+void removeInterp(mv::ComputationModel& model) {
+    mv::OpModel om(model);
+    mv::DataModel dm(model);
+
+    auto interpOps = om.getOps("Interp");
+    for (auto opIt:interpOps){
+        if(opIt->getName()=="g_net/resize_images_4/ResizeBilinear"){
+            auto inputShape = opIt->getInputTensor(0)->getShape();
+            auto outputShape = opIt->getOutputTensor(0)->getShape();
+            auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
+
+            auto sourceTensor = parentOpIt->getOutputTensor(0);
+            opIt = linkNewOperationsRemove(parentOpIt, sourceTensor, om, opIt);
+        }
+    }
+}
+
 void quantizeGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS);
@@ -774,6 +791,9 @@ void quantizeGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mod
         return;
     }
 
+    // remove deblur model useless interpolate OP
+    removeInterp(model);
+    
     quantizeScaleShift(model, pass);
 
     propagateActivationParameters(model);
