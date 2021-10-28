@@ -41,7 +41,25 @@ struct CompilationUnitDesc {
     mlir::StringRef codePath;
 };
 
+//const int MaxCompilationUnitSources = 4;
+//const int MaxExtraDefines = 2;
+//const int MaxExtraIncludePaths = 11;
+
+struct CompilationListDesc /*: public CompilationUnitDesc*/ {
+    mlir::StringRef name;
+    mlir::StringRef entry;
+//    mlir::StringRef codePath[MaxCompilationUnitSources] = {};
+//    mlir::StringRef defines[MaxExtraDefines] = {};
+//    mlir::StringRef includePaths[MaxExtraIncludePaths] = {};
+    mlir::SmallVector<StringRef> codePath = {};
+    mlir::SmallVector<StringRef> defines = {};
+    mlir::SmallVector<StringRef> includePaths = {};
+};
+
 ActKernelDesc compileKernelForACTShave(const CompilationUnitDesc& unitDesc,
+                                       const movitools::MoviCompileParams& params,
+                                       flatbuffers::FlatBufferBuilder& fbb);
+ActKernelDesc compileKernelForACTShave(const CompilationListDesc & listDesc,
                                        const movitools::MoviCompileParams& params,
                                        flatbuffers::FlatBufferBuilder& fbb);
 
