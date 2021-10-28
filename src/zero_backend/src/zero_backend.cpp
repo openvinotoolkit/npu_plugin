@@ -14,20 +14,20 @@
 #include "zero_backend.h"
 
 #include <description_buffer.hpp>
-#include <iostream>
 #include <vector>
 
 #include "zero_device.h"
+
+#include "vpux/utils/core/logger.hpp"
 
 using namespace vpux;
 
 namespace {
 class ZeroDevicesSingleton {
-    ZeroDevicesSingleton() {
+    ZeroDevicesSingleton(): log(Logger::global().nest("ZeroDevicesSingleton", 0)) {
         auto result = zeInit(0);
         if (ZE_RESULT_SUCCESS != result) {
-            std::cerr << "ZeroDevicesSingleton zeInit failed 0x" << std::hex << uint64_t(result) << std::dec
-                      << std::endl;
+            log.warning("zeInit failed {0:X+}", uint64_t(result));
             return;
         }
 
@@ -39,15 +39,13 @@ class ZeroDevicesSingleton {
         uint32_t drivers = 0;
         result = zeDriverGet(&drivers, nullptr);
         if (ZE_RESULT_SUCCESS != result) {
-            std::cerr << "ZeroDevicesSingleton zeDriverGet count failed 0x" << std::hex << uint64_t(result) << std::dec
-                      << std::endl;
+            log.warning("zeDriverGet count failed {0:X+}", uint64_t(result));
             return;
         }
         std::vector<ze_driver_handle_t> all_drivers(drivers);
         result = zeDriverGet(&drivers, all_drivers.data());
         if (ZE_RESULT_SUCCESS != result) {
-            std::cerr << "ZeroDevicesSingleton zeDriverGet get failed 0x" << std::hex << uint64_t(result) << std::dec
-                      << std::endl;
+            log.warning("zeDriverGet get failed {0:X+}", uint64_t(result));
             return;
         }
         // Get our target driver
@@ -62,8 +60,7 @@ class ZeroDevicesSingleton {
         result = zeDriverGetExtensionFunctionAddress(driver_handle, "ZE_extension_graph",
                                                      reinterpret_cast<void**>(&_graph_ddi_table_ext));
         if (ZE_RESULT_SUCCESS != result) {
-            std::cerr << "ZeroDevicesSingleton zeDriverGetExtensionFunctionAddress failed 0x" << std::hex
-                      << uint64_t(result) << std::dec << std::endl;
+            log.warning("zeDriverGetExtensionFunctionAddress failed {0:X+}", uint64_t(result));
             return;
         }
 
@@ -71,16 +68,14 @@ class ZeroDevicesSingleton {
         // Get our target device
         result = zeDeviceGet(driver_handle, &device_count, &device_handle);
         if (ZE_RESULT_SUCCESS != result) {
-            std::cerr << "ZeroDevicesSingleton zeDeviceGet failed 0x" << std::hex << uint64_t(result) << std::dec
-                      << std::endl;
+            log.warning("zeDeviceGet failed {0:X+}", uint64_t(result));
             return;
         }
 
         ze_context_desc_t context_desc = {ZE_STRUCTURE_TYPE_CONTEXT_DESC, 0, 0};
         result = zeContextCreate(driver_handle, &context_desc, &context);
         if (ZE_RESULT_SUCCESS != result) {
-            std::cerr << "ZeroDevicesSingleton zeContextCreate failed 0x" << std::hex << uint64_t(result) << std::dec
-                      << std::endl;
+            log.warning("zeContextCreate failed {0:X+}", uint64_t(result));
             return;
         }
 
@@ -92,13 +87,14 @@ class ZeroDevicesSingleton {
         if (context) {
             auto result = zeContextDestroy(context);
             if (ZE_RESULT_SUCCESS != result) {
-                std::cerr << "ZeroDevicesSingleton zeContextDestroy failed 0x" << std::hex << uint64_t(result)
-                          << std::dec << std::endl;
+                log.warning("zeContextDestroy failed {0:X+}", uint64_t(result));
             }
         }
     }
     ZeroDevicesSingleton(const ZeroDevicesSingleton&) = delete;
     ZeroDevicesSingleton& operator=(const ZeroDevicesSingleton&) = delete;
+
+    Logger log;
 
     std::map<std::string, std::shared_ptr<IDevice>> devices;
 
