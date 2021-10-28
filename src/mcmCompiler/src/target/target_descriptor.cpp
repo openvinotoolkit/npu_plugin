@@ -689,7 +689,10 @@ bool mv::TargetDescriptor::save(const std::string& filePath)
     descFile.open(filePath, std::ios::out | std::ios::trunc);
 
     if (!descFile.is_open())
+    {
+        descFile.close();
         return false;
+    }
 
     json::Object root;
     root["target"] = toString(target_);

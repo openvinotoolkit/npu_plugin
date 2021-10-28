@@ -125,6 +125,7 @@ mv::Tensor::Tensor(const Tensor &other) :
 Element(other),
 shape_(other.shape_),
 internalOrder_(other.internalOrder_),
+data_(),
 blockSize_(other.blockSize_),
 blocks_(),
 sparsityMap_(),
