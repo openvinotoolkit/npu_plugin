@@ -13,64 +13,123 @@
 #include "common/functions.h"
 
 
-const std::vector<std::string> DISABLED_TESTS = {
-    // TODO Tests failed due to starting infer on IA side
-    ".*CorrectConfigAPITests.*",
+class BackendName {
+public:
+    BackendName() {
+        const auto corePtr = PluginCache::get().ie();
+        if (corePtr != nullptr) {
+            _name = getBackendName(*corePtr);
+        }
+    }
 
-    // ARM CPU Plugin is not available on Yocto
-    ".*IEClassLoadNetworkTest.*HETERO.*",
-    ".*IEClassLoadNetworkTest.*MULTI.*",
+    auto getName() const {
+        return _name;
+    }
 
-    // Cannot detect vpu platform when it's not passed
-    // Skip tests on Yocto which passes device without platform
-    // [Track number: E#12774]
-    ".*IEClassLoadNetworkTest.LoadNetworkWithDeviceIDNoThrow.*",
-    ".*IEClassLoadNetworkTest.LoadNetworkWithBigDeviceIDThrows.*",
-    ".*IEClassLoadNetworkTest.LoadNetworkWithInvalidDeviceIDThrows.*",
+    bool isEmpty() const noexcept {
+        return _name.empty();
+    }
 
-    // double free detected
-    // [Track number: S#27343]
-    ".*InferConfigInTests\\.CanInferWithConfig.*",
-    ".*InferConfigTests\\.withoutExclusiveAsyncRequests.*",
-    ".*InferConfigTests\\.canSetExclusiveAsyncRequests.*",
+    bool isZero() const noexcept {
+        return _name == "LEVEL0";
+    }
 
-    // TODO Add safe Softplus support
-    ".*ActivationLayerTest.*SoftPlus.*",
+    bool isVpual() const noexcept {
+        return _name == "VPUAL";
+    }
 
-    // TODO: Issue: 63469
-    ".*KmbConversionLayerTest.*ConvertLike.*"
+    bool isHddl2() const noexcept {
+        return _name == "HDDL2";
+    }
+
+    bool isEmulator() const noexcept {
+        return _name == "EMULATOR";
+    }
+
+private:
+    std::string _name;
 };
 
-const std::vector<std::string> TESTS_TO_SKIP_IF_NO_DEVICE_AVAILABLE = {
-    // Cannot run InferRequest tests without a device to infer to
-    ".*BehaviorTests.InferRequest*.*",
+class ConditionalSkipper{
+public:
+    ConditionalSkipper(std::vector<std::string>& registry) : _registry{registry} {
+    }
+
+    void addPatterns(std::vector<std::string>&& patternsToSkip) const {
+            _registry.insert(
+                _registry.end(),
+                std::make_move_iterator(patternsToSkip.begin()),
+                std::make_move_iterator(patternsToSkip.end())
+            );
+    }
+    
+    void addPatterns(bool conditionFlag,
+                     const std::string& comment,
+                     std::vector<std::string>&& patternsToSkip) const {
+        if (conditionFlag) {
+            std::cout << comment << "\n";
+            addPatterns(std::move(patternsToSkip));
+        }
+    }
+
+private:
+    std::vector<std::string>& _registry;
+    const BackendName _backend;
 };
 
-const bool IS_DEVICE_AVAILABLE = []() -> bool {
-    const auto corePtr = PluginCache::get().ie();
-    if (corePtr == nullptr) {
-        return false;
-    }
-    const auto backendName = getBackendName(*corePtr);
-    const auto noDevice = backendName.empty();
-    if (noDevice) {
-        std::cout << "backend is empty (no device)"
-                  << " - some tests might be skipped" << std::endl;
-    }
-    return !noDevice;
-}();
+const auto ALL_DISABLED_TESTS_PATTERNS = []() {
+    //  Unconditionally disabled test patterns
+    std::vector<std::string> disabledTests = {
+        // TODO Tests failed due to starting infer on IA side
+        ".*CorrectConfigAPITests.*",
 
-const std::vector<std::string> ALL_DISABLED_TESTS_PATTERNS = []() {
-    auto allDisabledTestPatterns = DISABLED_TESTS;
-    if (!IS_DEVICE_AVAILABLE) {
-        allDisabledTestPatterns.insert(
-            allDisabledTestPatterns.end(),
-            TESTS_TO_SKIP_IF_NO_DEVICE_AVAILABLE.cbegin(),
-            TESTS_TO_SKIP_IF_NO_DEVICE_AVAILABLE.cend()
-        );
-    }
-    return allDisabledTestPatterns;
-}();
+        // ARM CPU Plugin is not available on Yocto
+        ".*IEClassLoadNetworkTest.*HETERO.*",
+        ".*IEClassLoadNetworkTest.*MULTI.*",
+
+        // Cannot detect vpu platform when it's not passed
+        // Skip tests on Yocto which passes device without platform
+        // [Track number: E#12774]
+        ".*IEClassLoadNetworkTest.LoadNetworkWithDeviceIDNoThrow.*",
+        ".*IEClassLoadNetworkTest.LoadNetworkWithBigDeviceIDThrows.*",
+        ".*IEClassLoadNetworkTest.LoadNetworkWithInvalidDeviceIDThrows.*",
+
+        // double free detected
+        // [Track number: S#27343]
+        ".*InferConfigInTests\\.CanInferWithConfig.*",
+        ".*InferConfigTests\\.withoutExclusiveAsyncRequests.*",
+        ".*InferConfigTests\\.canSetExclusiveAsyncRequests.*",
+
+        // TODO Add safe Softplus support
+        ".*ActivationLayerTest.*SoftPlus.*",
+
+        // TODO: Issue: 63469
+        ".*KmbConversionLayerTest.*ConvertLike.*"
+    };
+
+    // Conditional skip patterns
+    ConditionalSkipper skipper(disabledTests);
+    const static BackendName backendName;
+    
+    skipper.addPatterns(
+        backendName.isEmpty(),  
+        "backend is empty (no device)",
+        {
+            // Cannot run InferRequest tests without a device to infer to
+            ".*InferRequest.*",
+        }
+    );
+
+    skipper.addPatterns(
+        backendName.isZero(),  
+        "* CumSum layer is not supported by MTL platform *",
+        {
+            "*VpuxBehaviorTestsSetBlob*",
+        }
+    );
+    
+    return disabledTests;
+}( );
 
 std::vector<std::string> disabledTestPatterns() {
     return ALL_DISABLED_TESTS_PATTERNS;
