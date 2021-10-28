@@ -3,7 +3,8 @@
 mv::ArgumentError::ArgumentError(const LogSender& sender, const std::string& argName, const std::string& argVal,
     const std::string& whatArg) :
 LoggedError(sender, "ArgumentError: " + argName + " " + argVal + " - " + whatArg),
-argName_(argName)
+argName_(argName),
+argVal_(argVal)
 {
 
 }

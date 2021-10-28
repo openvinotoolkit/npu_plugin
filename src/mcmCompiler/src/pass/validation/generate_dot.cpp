@@ -38,7 +38,10 @@ void GenerateDotFromModel(mv::ComputationModel& model,
 
     ostream.open(outputFile, std::ios::trunc | std::ios::out);
     if (!ostream.is_open())
+    {
+        ostream.close();
         throw mv::ArgumentError(model, "output", outputFile, "Unable to open output file");
+    }
 
     ostream << "digraph G {\n\tgraph [splines=spline]\n";
     
