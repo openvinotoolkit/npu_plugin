@@ -13,6 +13,8 @@
 
 #include "vpux/compiler/act_kernels/act_kernel_invocation_builder.h"
 
+#include <kernels/inc/common_types.h>
+
 #include <vpux/compiler/dialect/VPUIP/ops.hpp>
 
 #include <mlir/IR/BuiltinAttributes.h>
