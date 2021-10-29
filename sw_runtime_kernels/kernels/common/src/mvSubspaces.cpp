@@ -6,8 +6,7 @@
 
 namespace subspace {
 
-#ifndef ALWAYS_INLINE
-int getTotal(const int32_t subspaceDims[], int nDims)
+INLINE_ATTRIBUTE int getTotal(const int32_t subspaceDims[], int nDims)
 {
     int totalSubspaces = 1;
     for(int i = 0; i < nDims; i++)
@@ -17,7 +16,7 @@ int getTotal(const int32_t subspaceDims[], int nDims)
     return totalSubspaces;
 }
 
-void getCoord(int nSubspace, const int32_t dims[], int nDims, int32_t subspaceCoord[])
+INLINE_ATTRIBUTE void getCoord(int nSubspace, const int32_t dims[], int nDims, int32_t subspaceCoord[])
 {
     for(int i = 0; i < nDims; ++i)
     {
@@ -27,7 +26,7 @@ void getCoord(int nSubspace, const int32_t dims[], int nDims, int32_t subspaceCo
     }
 }
 
-int getOffsetU8(const int32_t subspaceCoord[], const int32_t strides[], int nDims, const int8_t broadcast[])
+INLINE_ATTRIBUTE int getOffsetU8(const int32_t subspaceCoord[], const int32_t strides[], int nDims, const int8_t broadcast[])
 {
     int offset = 0;
     for(int d = 0; d < nDims; ++d)
@@ -38,7 +37,7 @@ int getOffsetU8(const int32_t subspaceCoord[], const int32_t strides[], int nDim
     return offset;
 }
 
-void getOffsetsU8(const int32_t subspaceCoord[], const int32_t strides1[], const int32_t strides2[],
+INLINE_ATTRIBUTE void getOffsetsU8(const int32_t subspaceCoord[], const int32_t strides1[], const int32_t strides2[],
         int nDims, unsigned& offset1, unsigned& offset2,
         const int8_t broadcast1[], const int8_t broadcast2[])
 {
@@ -53,7 +52,7 @@ void getOffsetsU8(const int32_t subspaceCoord[], const int32_t strides1[], const
     }
 }
 
-void getOffsetsU8(const int32_t subspaceCoord[], const int32_t strides1[], const int32_t strides2[],
+INLINE_ATTRIBUTE void getOffsetsU8(const int32_t subspaceCoord[], const int32_t strides1[], const int32_t strides2[],
         const int32_t strides3[], int nDims, unsigned& offset1, unsigned& offset2, unsigned& offset3,
         const int8_t broadcast1[], const int8_t broadcast2[], const int8_t broadcast3[])
 {
@@ -71,7 +70,7 @@ void getOffsetsU8(const int32_t subspaceCoord[], const int32_t strides1[], const
     }
 }
 
-void increment1Coord(int32_t subspaceCoord[], const int32_t dims[], int nDims)
+INLINE_ATTRIBUTE void increment1Coord(int32_t subspaceCoord[], const int32_t dims[], int nDims)
 {
     for (int d = 0; d < nDims; ++d)
     {
@@ -83,7 +82,7 @@ void increment1Coord(int32_t subspaceCoord[], const int32_t dims[], int nDims)
     }
 }
 
-void incrementNCoord(int32_t subspaceCoord[], const int32_t dims[], int nDims, int inc)
+INLINE_ATTRIBUTE void incrementNCoord(int32_t subspaceCoord[], const int32_t dims[], int nDims, int inc)
 {
     for(int d = 0; d < nDims; ++d)
     {
@@ -94,7 +93,7 @@ void incrementNCoord(int32_t subspaceCoord[], const int32_t dims[], int nDims, i
     }
 }
 
-void incrementLine(int32_t lineCoord[], const int32_t dims[], int nDims, int axis)
+INLINE_ATTRIBUTE void incrementLine(int32_t lineCoord[], const int32_t dims[], int nDims, int axis)
 {
     for(int d = 0, nAdd = 1; d < nDims && nAdd == 1 ; ++d)
     {
@@ -106,7 +105,7 @@ void incrementLine(int32_t lineCoord[], const int32_t dims[], int nDims, int axi
     }
 }
 
-void incrementPlane(int32_t planeCoord[], const int32_t dims[], int nDims, int axis0, int axis1)
+INLINE_ATTRIBUTE void incrementPlane(int32_t planeCoord[], const int32_t dims[], int nDims, int axis0, int axis1)
 {
     for(int d = 0, nAdd = 1; d < nDims && nAdd == 1 ; ++d)
     {
@@ -118,17 +117,17 @@ void incrementPlane(int32_t planeCoord[], const int32_t dims[], int nDims, int a
     }
 }
 
-int getTotalLines(const int32_t dims[], int nDims, int axis)
+INLINE_ATTRIBUTE int getTotalLines(const int32_t dims[], int nDims, int axis)
 {
     return (dims[axis]) ? getTotal(dims, nDims) / dims[axis] : 0;
 }
 
-int getTotalPlanes(const int32_t dims[], int nDims, int axis0, int axis1)
+INLINE_ATTRIBUTE int getTotalPlanes(const int32_t dims[], int nDims, int axis0, int axis1)
 {
     return (dims[axis0] * dims[axis1]) ? getTotal(dims, nDims) / (dims[axis0] * dims[axis1]) : 0;
 }
 
-int arrayElementExclude(int32_t a[], int el, int nEls)
+INLINE_ATTRIBUTE int arrayElementExclude(int32_t a[], int el, int nEls)
 {
     for(int i = el; i < nEls - 1; ++i)
     {
@@ -137,7 +136,7 @@ int arrayElementExclude(int32_t a[], int el, int nEls)
     return nEls - 1;
 }
 
-int arraysElementExclude(int32_t a[], int32_t b[], int el, int nEls)
+INLINE_ATTRIBUTE int arraysElementExclude(int32_t a[], int32_t b[], int el, int nEls)
 {
     for(int i = el; i < nEls - 1; ++i)
     {
@@ -147,7 +146,7 @@ int arraysElementExclude(int32_t a[], int32_t b[], int el, int nEls)
     return nEls - 1;
 }
 
-int getSizes(const int32_t subspaceDims[], int nDims, int32_t subspaceSizes[])
+INLINE_ATTRIBUTE int getSizes(const int32_t subspaceDims[], int nDims, int32_t subspaceSizes[])
 {
     int totalSubspaces = 1;
     for(int i = 0; i < nDims; i++)
@@ -158,7 +157,7 @@ int getSizes(const int32_t subspaceDims[], int nDims, int32_t subspaceSizes[])
     return totalSubspaces;
 }
 
-bool isPermutationValid(const NDDims& perm) {
+INLINE_ATTRIBUTE bool isPermutationValid(const NDDims& perm) {
     if (perm.ndims() == 0) return false;
     int32_t trivial[MAX_ND_DIMS];
     for (int i = 0; i < perm.ndims(); i++) {
@@ -173,13 +172,13 @@ bool isPermutationValid(const NDDims& perm) {
     return true;
 }
 
-bool isOrderNDValid(NDOrder ndOrder) {
+INLINE_ATTRIBUTE bool isOrderNDValid(NDOrder ndOrder) {
     bool ret = false;
     orderNDToPermutation(ndOrder, ret);
     return ret;
 }
 
-int orderNDToNumDims(NDOrder ndOrder) {
+INLINE_ATTRIBUTE int orderNDToNumDims(NDOrder ndOrder) {
     int i = 0;
 
     for (i = 0; i < MAX_ND_DIMS; i++) {
@@ -192,7 +191,7 @@ int orderNDToNumDims(NDOrder ndOrder) {
     return i;
 }
 
-NDDims orderNDToPermutation(NDOrder ndOrder, bool& success) {
+INLINE_ATTRIBUTE NDDims orderNDToPermutation(NDOrder ndOrder, bool& success) {
     NDDims perm;
 
     for (int i = 0; i < MAX_ND_DIMS; i++) {
@@ -215,7 +214,7 @@ NDDims orderNDToPermutation(NDOrder ndOrder, bool& success) {
     }
 }
 
-NDDims orderNDToIndices(NDOrder ndOrder, bool& success) {
+INLINE_ATTRIBUTE NDDims orderNDToIndices(NDOrder ndOrder, bool& success) {
     NDDims indices;
     indices.resize(MAX_ND_DIMS);
     int num = MAX_ND_DIMS;
@@ -249,7 +248,7 @@ NDDims orderNDToIndices(NDOrder ndOrder, bool& success) {
     }
 }
 
-NDOrder permutationToOrderND(const NDDims perm) {
+INLINE_ATTRIBUTE NDOrder permutationToOrderND(const NDDims perm) {
     if (!isPermutationValid(perm)) {
         return 0;
     }
@@ -263,7 +262,7 @@ NDOrder permutationToOrderND(const NDDims perm) {
     return order;
 }
 
-int arrayElementInclude(int32_t a[], int elementPos, int32_t value, int elementsCount, int maxDims)
+INLINE_ATTRIBUTE int arrayElementInclude(int32_t a[], int elementPos, int32_t value, int elementsCount, int maxDims)
 {
     if (elementsCount + 1 > maxDims || elementPos > elementsCount)
     {
@@ -278,7 +277,7 @@ int arrayElementInclude(int32_t a[], int elementPos, int32_t value, int elements
     return elementsCount + 1;
 }
 
-int arraysElementInclude(int32_t a[], int32_t b[], int elementPos, int32_t value, int elementsCount, int maxDims)
+INLINE_ATTRIBUTE int arraysElementInclude(int32_t a[], int32_t b[], int elementPos, int32_t value, int elementsCount, int maxDims)
 {
     if (elementsCount + 1 > maxDims || elementPos > elementsCount)
     {
@@ -295,7 +294,7 @@ int arraysElementInclude(int32_t a[], int32_t b[], int elementPos, int32_t value
     return elementsCount + 1;
 }
 
-bool alignPermutationSize(NDDims& baseLinePerm, int dimensionality) {
+INLINE_ATTRIBUTE bool alignPermutationSize(NDDims& baseLinePerm, int dimensionality) {
     int size = baseLinePerm.ndims();
     if (size > dimensionality) {
         for (int i = size - 1; i >= 0; i--) {
@@ -320,7 +319,7 @@ bool alignPermutationSize(NDDims& baseLinePerm, int dimensionality) {
     return true;
 }
 
-NDOrder extractLayoutFromShape(const long unsigned int newDims[],
+INLINE_ATTRIBUTE NDOrder extractLayoutFromShape(const long unsigned int newDims[],
     const long unsigned int newStrides[], int dimensionality, NDOrder baseLineOrder, bool& success) {
     if (baseLineOrder <= 0) {
         baseLineOrder = static_cast<NDOrder>(static_cast<uint64_t>(
@@ -362,13 +361,17 @@ NDOrder extractLayoutFromShape(const long unsigned int newDims[],
     return newOrder;
 }
 
-bool isLayoutFit(NDOrder ndOrder, const long unsigned int lDims[],
+INLINE_ATTRIBUTE bool isLayoutFit(NDOrder ndOrder, const long unsigned int lDims[],
     const long unsigned int lStrides[], int dimensionality) {
     bool success = false;
     auto extracted = extractLayoutFromShape(lDims, lStrides, dimensionality, ndOrder, success);
     return (success && (extracted == ndOrder));
 }
-#endif
+
+INLINE_ATTRIBUTE bool NDDims::erase(int i) {;
+    if (_ndims <= 0) return false;  // Impossible to erase. No elements;
+    _ndims = arrayElementExclude(_dims.data(), i, _ndims);
+    return true;
+}
 
 } //namespace subspace
-

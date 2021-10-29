@@ -1,11 +1,20 @@
 /*
  * {% copyright %}
  */
-#pragma once
+#ifndef DMA_SHAVE_NN_H_
+#define DMA_SHAVE_NN_H_
 
 #include <cstdint>
 //#include <ShDrvCmxDma.h>
 #define uncached(x) (x)
+
+#ifndef INLINE_ATTRIBUTE
+# ifdef CONFIG_ALWAYS_INLINE
+#  define INLINE_ATTRIBUTE inline __attribute((always_inline))
+# else
+#  define INLINE_ATTRIBUTE
+# endif
+#endif
 
 class DmaAlShave
 {
@@ -23,82 +32,17 @@ public:
 //    ~DmaAlShave();
 
 
-    inline __attribute((always_inline)) bool start(const void *a_src, void *a_dst, uint32_t byteLength) {
-        memcpy_s(a_dst, byteLength, a_src, byteLength);
-        return true;
-    }
+    INLINE_ATTRIBUTE bool start(const void *a_src, void *a_dst, uint32_t byteLength);
 
-    inline __attribute((always_inline)) void wait() {
-    }
+    INLINE_ATTRIBUTE void wait();
 
-    inline __attribute((always_inline)) bool start(const void *a_src, void *a_dst, uint32_t byteLength, uint32_t srcWidth, uint32_t dstWidth,
-                           uint32_t srcStride, uint32_t dstStride) {
+    INLINE_ATTRIBUTE bool start(const void *a_src, void *a_dst, uint32_t byteLength, uint32_t srcWidth, uint32_t dstWidth,
+                           uint32_t srcStride, uint32_t dstStride);
 
-        // Do not alter the state of the member variables.
-        // This enables replaying the same transfer without
-        // recreating it each time, just like the real DMA.
+    INLINE_ATTRIBUTE bool start_pa(const void *src, void *dst, uint32_t byteLength);
 
-        const uint8_t *src = reinterpret_cast<const uint8_t *>(uncached(a_src));
-        uint8_t *dst = reinterpret_cast<uint8_t *>(uncached(a_dst));
-
-        for (uint32_t si = 0, di = 0, length = byteLength; length > 0;)
-        {
-            const uint32_t chunk = std::min(std::min(srcWidth - si, dstWidth - di), length);
-            memcpy_s(dst, chunk, src, chunk);
-            //        std::copy(src, src + chunk, dst);
-
-            si += chunk;
-            di += chunk;
-            src += chunk;
-            dst += chunk;
-            length -= chunk;
-
-            if (si == srcWidth)
-            {
-                si = 0;
-                src += srcStride - srcWidth;
-            }
-
-            if (di == dstWidth)
-            {
-                di = 0;
-                dst += dstStride - dstWidth;
-            }
-        }
-
-
-        return true;
-    }
-
-    inline __attribute((always_inline)) bool start_pa(const void *src, void *dst, uint32_t byteLength) {
-        patch_va_ = false;
-        //    auto result = start(reinterpret_cast<uint32_t>(src), reinterpret_cast<uint32_t>(dst), byteLength);
-        auto result = start(src, dst, byteLength);
-        patch_va_ = true;
-        return result;
-    }
-
-    inline __attribute((always_inline)) bool start_pa(const void *src, void *dst, uint32_t byteLength, uint32_t srcWidth, uint32_t dstWidth,
-                              uint32_t srcStride, uint32_t dstStride) {
-        patch_va_ = false;
-        //    auto result = start(reinterpret_cast<uint32_t>(src), reinterpret_cast<uint32_t>(dst), byteLength,
-        //        srcWidth, dstWidth, srcStride, dstStride);
-        auto result = start(src, dst, byteLength,
-                            srcWidth, dstWidth, srcStride, dstStride);
-        patch_va_ = true;
-        return result;
-    }
-
-
-
-
-
-
-
-
-
-
-
+    INLINE_ATTRIBUTE bool start_pa(const void *src, void *dst, uint32_t byteLength, uint32_t srcWidth, uint32_t dstWidth,
+                              uint32_t srcStride, uint32_t dstStride);
 
 //    bool start_pa(const void *a_src, void *a_dst, uint32_t byteLength);
 //    bool start_pa(const void *a_src, void *a_dst, uint32_t byteLength, uint32_t srcWidth, uint32_t dstWidth,
@@ -132,14 +76,7 @@ private:
 
 //    bool start_();
 
-    inline __attribute((always_inline))  void patch(uint64_t &a) const
-    {
-#ifdef CONFIG_NN_L2C_PAGE_TABLE
-        if (patch_va_)
-            if (a >= 0x8000'0000ull)
-                a |= static_cast<uint64_t>(CONFIG_NN_L2C_PAGE_TABLE) << 31;
-#endif
-    }
+    INLINE_ATTRIBUTE void patch(uint64_t &a) const;
 };
 
 //class DmaAl4DShave
@@ -183,3 +120,9 @@ private:
 //#endif
 //    }
 //};
+
+#ifdef ALWAYS_INLINE
+#include "../../3720/dma_shave_nn.cpp"
+#endif
+
+#endif  // DMA_SHAVE_NN_H_
