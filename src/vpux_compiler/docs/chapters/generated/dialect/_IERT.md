@@ -313,6 +313,34 @@ operation ::= `IERT.CTCGreedyDecoderSeqLen` attr-dict
 `output` | memref of 32-bit signed integer values
 `outputLength` | memref of 32-bit signed integer values
 
+### `IERT.Ceiling` (vpux::IERT::CeilingOp)
+
+InferenceEngine run-time Ceiling layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.Ceiling` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float or 32-bit float values
+`output_buff` | memref of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float or 32-bit float values
+
 ### `IERT.Clamp` (vpux::IERT::ClampOp)
 
 InferenceEngine run-time Clamp layer
