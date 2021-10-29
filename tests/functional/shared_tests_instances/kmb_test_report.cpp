@@ -3,6 +3,7 @@
 //
 
 #include "kmb_test_report.hpp"
+#include "functional_test_utils/layer_test_utils/summary.hpp"
 
 #include <iostream>
 #include <fstream>
@@ -24,32 +25,26 @@ KmbTestReport::KmbTestReport() {
 }
 
 void KmbTestReport::run(const testing::TestInfo* testInfo) {
-    std::cout << "TestReportProgress: " << testName(testInfo) << " run" << std::endl;
     ++counters[testName(testInfo)][static_cast<int>(KmbTestStage::RUN)];
 }
 
 void KmbTestReport::compiled(const testing::TestInfo* testInfo) {
-    std::cout << "TestReportProgress: "<< testName(testInfo) << " compiled" << std::endl;
     ++counters[testName(testInfo)][static_cast<int>(KmbTestStage::COMPILED)];
 }
 
 void KmbTestReport::imported(const testing::TestInfo* testInfo) {
-    std::cout << "TestReportProgress: "<< testName(testInfo) << " imported" << std::endl;
     ++counters[testName(testInfo)][static_cast<int>(KmbTestStage::IMPORTED)];
 }
 
 void KmbTestReport::inferred(const testing::TestInfo* testInfo) {
-    std::cout << "TestReportProgress: "<< testName(testInfo) << " inferred" << std::endl;
     ++counters[testName(testInfo)][static_cast<int>(KmbTestStage::INFERRED)];
 }
 
 void KmbTestReport::validated(const testing::TestInfo* testInfo) {
-    std::cout << "TestReportProgress: "<< testName(testInfo) << " validated" << std::endl;
     ++counters[testName(testInfo)][static_cast<int>(KmbTestStage::VALIDATED)];
 }
 
 void KmbTestReport::skipped(const testing::TestInfo* testInfo) {
-    std::cout << "TestReportProgress: "<< testName(testInfo) << " skipped due to exception" << std::endl;
     ++counters[testName(testInfo)][static_cast<int>(KmbTestStage::SKIPPED_EXCEPTION)];
 }
 
@@ -74,6 +69,7 @@ void KmbTestReportEnvironment::TearDown() {
     }
     std::cout << std::endl;
 
+    Summary::getInstance().saveReport();
 };
 
 }  // namespace LayerTestsUtils
