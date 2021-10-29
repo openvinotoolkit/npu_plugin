@@ -110,9 +110,6 @@ protected:
                 m_inputTensor.at(indices) = f32Tof16(tmp);
             });
         }
-
-        // reference output
-        generateReferenceData();
     }
     void generateReferenceData() override {
         m_inputTensor.forEach(false, [&](const MemoryDims& indices){
