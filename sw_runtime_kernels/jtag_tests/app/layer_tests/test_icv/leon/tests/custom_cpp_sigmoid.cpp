@@ -1,9 +1,9 @@
 // {% copyright %}
 
 #include <custom_cpp_tests.h>
+#include <cmath>
 #include "mvSubspaces.h"
 #include "layers/param_custom_cpp.h"
-// #include <iostream>
 
 #ifdef CONFIG_TARGET_SOC_3720
 extern void*  (shvNN0_sigmoid_fp16);
@@ -132,7 +132,7 @@ protected:
         m_inputTensor.forEach(false, [&](const MemoryDims& indices){
             float val = f16Tof32(m_inputTensor.at(indices));
             float ref = val * -1.0f;
-            ref = 1.0f + expf(ref);
+            ref = 1.0f + exp((double)ref);
             ref = 1.0f / ref;
             m_referenceOutputTensor.at(indices) = f32Tof16(ref);
         });
