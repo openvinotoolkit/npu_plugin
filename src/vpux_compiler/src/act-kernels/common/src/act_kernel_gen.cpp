@@ -26,6 +26,7 @@
 
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
+//#define DEBUG_LOG (1)
 
 using namespace llvm;  // NOLINT
 
@@ -194,14 +195,14 @@ static void compileAndLinkSHAVE(
         const CompilationListDesc & listDesc,
         std::vector<uint8_t>& textBinary, std::vector<uint8_t>& dataBinary) {
 
-#if 1
+#if DEBUG_LOG
     std::cout << ">> compileAndLinkManagementKernelSHAVE()" << std::endl;
 #endif
 
     std::string mvToolsDir = movitools::getMoviToolsDir();
     std::string vpuip2Dir = getVpuip2Dir();
 
-#if 1
+#if DEBUG_LOG
     std::cout << "# vpuip2Dir = \"" << vpuip2Dir << "\"" << std::endl;
 #endif
 
@@ -264,7 +265,7 @@ static void compileAndLinkSHAVE(
         objPaths += objPath;
 
         {
-#if 1
+#if DEBUG_LOG
             std::cout << "# genDir       = \"" << std::string(genDir)       << "\"" << std::endl;
             std::cout << "# moviCompile  = \"" << std::string(moviCompile)  << "\"" << std::endl;
             std::cout << "# params.cpu   = \"" << std::string(params.cpu)   << "\"" << std::endl;
@@ -277,6 +278,9 @@ static void compileAndLinkSHAVE(
 
             auto compileCmd = formatv("{1} -mcpu={2} -c {3} -o {4} -I {5} -I{6}{7}", genDir, moviCompile, params.cpu,
                                       srcPath, objPath, mvToolsDir, incPath, extraOptions).str();
+#if DEBUG_LOG
+            std::cout << "<< compileCmd = \"" << compileCmd << "\"" << std::endl;
+#endif
             if (std::system(compileCmd.c_str())) {
                 VPUX_THROW((std::string("moviCompile failed: ") + compileCmd).c_str());
             }
@@ -309,6 +313,9 @@ static void compileAndLinkSHAVE(
                            " -entry {2} --gc-sections --strip-debug --discard-all  {3}"
                             " -EL {4} --output {5}",
                             linker, linkerScriptPath, entryPoint.c_str(), objPaths, singleLib, elfPath).str();
+#if DEBUG_LOG
+    std::cout << "<< linkCmd = \"" << linkCmd << "\"" << std::endl;
+#endif
     if (std::system(linkCmd.c_str())) {
         VPUX_THROW((std::string("linker failed: ") + linkCmd).c_str());
     }
@@ -363,7 +370,7 @@ static void compileAndLinkSHAVE(
     readBinary(textPath, textBinary, 0x10);
     readBinary(dataPath, dataBinary, 0x10);
 
-#if 1
+#if DEBUG_LOG
     std::cout << "<< compileAndLinkManagementKernelSHAVE()" << std::endl;
 #endif
 }

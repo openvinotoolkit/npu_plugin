@@ -1,14 +1,26 @@
 
 #include "vpux/compiler/act_kernels/act_kernel_gen.h"
 
+#include <llvm/Support/Process.h>
+
 #include <gtest/gtest.h>
 
 using namespace vpux;
 
-TEST(ManagementKernel, Compile) {
-    printf(">> mkcompile: mkcompile\n");
+namespace {
 
-//#if 1 // VPUIP2_DIRECTORY
+bool checkVpuip2Dir() {
+    const auto envDir = llvm::sys::Process::GetEnv("VPUIP_2_Directory");
+    return envDir.hasValue();
+}
+
+} // namespace
+
+TEST(ManagementKernel, Compile) {
+    if (!checkVpuip2Dir()) {
+        GTEST_SKIP() << "Skip due to VPUIP_2_Directory environment variable isn't set";
+    }
+
     const CompilationListDesc listDesc {
         "nnActEntry",
         "nnActEntry",
@@ -35,7 +47,6 @@ TEST(ManagementKernel, Compile) {
             "system/nn_mtl/common/inc",         // #include <nn_runtime_types.h>
         }
     };
-//#endif
 
     movitools::MoviCompileParams params = {
             /*cpu=*/"3010xx",
@@ -56,9 +67,7 @@ TEST(ManagementKernel, Compile) {
     };
 
     flatbuffers::FlatBufferBuilder fbb;
-
     ActKernelDesc desc;
-    EXPECT_NO_THROW(desc = compileKernelForACTShave(listDesc, params, fbb));
 
-    printf("<< mkcompile: mkcompile\n");
+    EXPECT_NO_THROW(desc = compileKernelForACTShave(listDesc, params, fbb));
 }
