@@ -373,57 +373,64 @@ mlir::quant::QuantizedType vpux::getQuantizedType(Const::ContentAttr lowConst, C
             axisInd.getValue(), qMin, qMax);
 }
 
-mlir::LogicalResult vpux::getFakeQuantParams(mlir::ShapedType qType, int64_t& levels, mlir::RankedTensorType& attrType,
-                                             mlir::DenseElementsAttr& rMinAttr, mlir::DenseElementsAttr& rMaxAttr,
-                                             mlir::Location loc) {
-    const auto qElemType = qType.getElementType().dyn_cast<mlir::quant::QuantizedType>();
-    if (qElemType == nullptr) {
-        return errorAt(loc, "Unsupported Quantized Type '{0}'", qType.getElementType());
-    }
-
+void vpux::getFakeQuantParams(mlir::quant::UniformQuantizedType qElemType, int64_t& levels, float& rMin, float& rMax) {
     const auto qMin = qElemType.getStorageTypeMin();
     const auto qMax = qElemType.getStorageTypeMax();
 
     levels = qMax - qMin + 1;
 
-    if (const auto uniformType = qElemType.dyn_cast<mlir::quant::UniformQuantizedType>()) {
-        const auto scale = uniformType.getScale();
-        const auto zeroPoint = uniformType.getZeroPoint();
+    const auto scale = qElemType.getScale();
+    const auto zeroPoint = qElemType.getZeroPoint();
 
-        const auto rMin = dequantize(qMin, scale, zeroPoint);
-        const auto rMax = dequantize(qMax, scale, zeroPoint);
+    rMin = dequantize(qMin, scale, zeroPoint);
+    rMax = dequantize(qMax, scale, zeroPoint);
+}
+
+void vpux::getFakeQuantParams(mlir::quant::UniformQuantizedPerAxisType qElemType, int64_t& levels,
+                              SmallVectorImpl<float>& rMinVals, SmallVectorImpl<float>& rMaxVals) {
+    const auto qMin = qElemType.getStorageTypeMin();
+    const auto qMax = qElemType.getStorageTypeMax();
+
+    levels = qMax - qMin + 1;
+
+    const auto scales = qElemType.getScales();
+    const auto zeroPoints = qElemType.getZeroPoints();
+
+    rMinVals.resize(scales.size());
+    rMaxVals.resize(scales.size());
+
+    loop_1d(LoopExecPolicy::Parallel, scales.size(), [&](size_t i) {
+        rMinVals[i] = dequantize(qMin, scales[i], zeroPoints[i]);
+        rMaxVals[i] = dequantize(qMax, scales[i], zeroPoints[i]);
+    });
+}
+
+void vpux::getFakeQuantParams(mlir::ShapedType qType, int64_t& levels, mlir::RankedTensorType& attrType,
+                              mlir::DenseElementsAttr& rMinAttr, mlir::DenseElementsAttr& rMaxAttr) {
+    const auto qElemType = qType.getElementType().dyn_cast<mlir::quant::QuantizedType>();
+    VPUX_THROW_WHEN(qElemType == nullptr, "Unsupported Quantized Type '{0}'", qType.getElementType());
+
+    if (const auto uniformType = qElemType.dyn_cast<mlir::quant::UniformQuantizedType>()) {
+        float rMin, rMax;
+        getFakeQuantParams(uniformType, levels, rMin, rMax);
 
         attrType = mlir::RankedTensorType::get({}, mlir::Float32Type::get(qType.getContext()));
         rMinAttr = mlir::DenseElementsAttr::get(attrType, rMin);
         rMaxAttr = mlir::DenseElementsAttr::get(attrType, rMax);
-
-        return mlir::success();
     } else if (const auto perAxisQType = qElemType.dyn_cast<mlir::quant::UniformQuantizedPerAxisType>()) {
-        const auto scales = perAxisQType.getScales();
-        const auto zeroPoints = perAxisQType.getZeroPoints();
+        SmallVector<float> rMinVals, rMaxVals;
+        getFakeQuantParams(perAxisQType, levels, rMinVals, rMaxVals);
+
         const auto axis = Dim(perAxisQType.getQuantizedDimension());
 
-        SmallVector<float> rMinVals(scales.size());
-        SmallVector<float> rMaxVals(scales.size());
-
-        VPUX_THROW_UNLESS(zeroPoints.size() == scales.size(), "Wrong zeroPoints size '{0}', expected '{1}'",
-                          zeroPoints.size(), scales.size());
-
-        loop_1d(LoopExecPolicy::Parallel, scales.size(), [&](size_t i) {
-            rMinVals[i] = dequantize(qMin, scales[i], zeroPoints[i]);
-            rMaxVals[i] = dequantize(qMax, scales[i], zeroPoints[i]);
-        });
-
         Shape attrShape(qType.getRank(), 1);
-        attrShape[axis] = scales.size();
+        attrShape[axis] = rMinVals.size();
 
         attrType = mlir::RankedTensorType::get(attrShape.raw(), mlir::Float32Type::get(qType.getContext()));
         rMinAttr = mlir::DenseElementsAttr::get(attrType, makeArrayRef(rMinVals));
         rMaxAttr = mlir::DenseElementsAttr::get(attrType, makeArrayRef(rMaxVals));
-
-        return mlir::success();
     } else {
-        return errorAt(loc, "Unsupported Quantized Type '{0}'", qElemType);
+        VPUX_THROW("Unsupported Quantized Type '{0}'", qElemType);
     }
 }
 
