@@ -1807,6 +1807,59 @@ class Feasible_Memory_Schedule_Generator {
       return ret;
     }
 
+    void schedule_data_op(operation_t op, resource_t demand) {
+      std::vector<resource_t> op_demands = {demand};
+      std::vector<interval_info_t> resource_intervals;
+      memory_state_.pack_demands_into_free_bins(op_demands.begin(),
+          op_demands.end(), std::back_inserter(resource_intervals));
+
+      for (auto itr=resource_intervals.begin(); itr!=resource_intervals.end(); ++itr) {
+        const interval_info_t rinfo = *itr;
+        const operation_t& input_op = op;
+        if (scheduled_data_list_.find(input_op) != scheduled_data_list_.end()) { continue; }
+        
+        bool assigned = assign_resources_and_update_active_table(rinfo, input_op);
+        if (!assigned) { continue; }
+
+        std::cout << "adding data op: " << traits::operation_name(input_op) << std::endl;
+        schedule_input_op_for_compute_op(input_op, true);
+      }
+    }
+
+    void schedule_compute_op_input(operation_t op) {
+      std::vector<resource_t> demand_list;
+      std::vector<operation_t> ops_corresponding_to_demands;
+      get_non_empty_op_demand_list(op, std::back_inserter(demand_list),
+          std::back_inserter(ops_corresponding_to_demands));
+      std::sort(demand_list.begin(), demand_list.end(),
+            decreasing_demand_ordering_t(*input_ptr_));
+      std::sort(ops_corresponding_to_demands.begin(),
+          ops_corresponding_to_demands.end(),
+          decreasing_demand_ordering_t(*input_ptr_));
+        
+      for (size_t idx = 0; idx < demand_list.size(); idx++) {
+        if (traits::is_data_operation(*input_ptr_, ops_corresponding_to_demands[idx])) {
+          if (ready_data_list_.find(ops_corresponding_to_demands[idx]) != ready_data_list_.end()) {
+            if (memory_state_.is_resource_available(demand_list[idx])) {
+              schedule_data_op(ops_corresponding_to_demands[idx], demand_list[idx]);
+            }
+          }
+        }
+      }
+    }
+
+    void schedule_next_data_ops_and_update() {
+      for (auto itr=ready_active_list_.begin(); itr!=ready_active_list_.end(); ++itr) {
+        const operation_t& op = *itr;
+        schedule_compute_op_input(op);
+      }
+      for (auto itr=ready_list_.begin(); itr!=ready_list_.end(); ++itr) {
+        const operation_t& op = *itr;
+        schedule_compute_op_input(op);
+      }
+      // next ready ops ?
+    }
+
     // Returns the number of active ready compute ops which were scheduled //
     template<typename ReadyListIterator, typename BackInsertIterator>
     size_t schedule_all_possible_ready_ops_gen(ReadyListIterator ritr,
@@ -1828,7 +1881,7 @@ class Feasible_Memory_Schedule_Generator {
       return scheduled_ops_count;
     }
 
-    void schedule_input_op_for_compute_op(const operation_t& input_op) {
+    void schedule_input_op_for_compute_op(const operation_t& input_op, bool data = false) {
       // Does this op need any implicit read ops ? //
       //
       // 1. If input_op does not exist in op_output_table_ then this must be
@@ -1863,7 +1916,13 @@ class Feasible_Memory_Schedule_Generator {
       }
 
       // schedule the op //
-      push_to_heap_start_time(heap_element_t(input_op, current_time_, op_type));
+      auto time = current_time_;
+      if (data) {
+        time += 1;
+        std::cout << time << std::endl;
+        scheduled_data_list_[input_op] = time;
+      }
+      push_to_heap_start_time(heap_element_t(input_op, time, op_type));
     }
 
     bool is_operation_using_non_empty_resources(const operation_t& op) const {
@@ -2017,6 +2076,8 @@ class Feasible_Memory_Schedule_Generator {
 
       assert(op_demands.size() == ops_corresponding_to_demands.size());
 
+      std::cout << "compute op: " << traits::operation_name(op) << " demand size: " << op_demands.size() << std::endl;
+
       //TODO(vamsikku): this is a small technicality since the function
       //pack_demands_into_free_bins gives a packing with decreasing demands
       //we can remove this by reconciling all demand
@@ -2056,6 +2117,28 @@ class Feasible_Memory_Schedule_Generator {
       } // foreach resource in the demand list //
       //////////////////////////////////////////////////////////////////////////
 
+      // Case for data ops
+
+      const_operation_iterator_t itr_temp =
+          traits::incoming_operations_begin(*input_ptr_, op);
+      const_operation_iterator_t itr_end_temp =
+          traits::incoming_operations_end(*input_ptr_, op);
+
+      // if any of the inputs is active then we don't need any demand for that
+      // input.
+      for (; itr_temp != itr_end_temp; ++itr_temp) {
+        const operation_t& pop = *itr_temp;
+        if (traits::is_pseudo_input_edge(*input_ptr_, pop, op)) { continue; }
+        if (scheduled_data_list_.find(pop) != scheduled_data_list_.end()) {
+          if (scheduled_data_list_[pop] >= current_time_) {
+            std::cout << "data op with time: " << scheduled_data_list_[pop] << std::endl;
+            size_t difference = scheduled_data_list_[pop] - current_time_ + 1;
+            std::cout << "current_time_: " << current_time_ << std::endl;
+            std::cout << "difference: " << difference << std::endl;
+            max_input_delay = std::max(max_input_delay, difference);
+          }
+        }
+      }
 
       //////////////////////////////////////////////////////////////////////////
       //Inplace Ops: At this point the compute op is fully scheduled. If its an
@@ -2351,6 +2434,7 @@ class Feasible_Memory_Schedule_Generator {
             // schedule new ones //
             schedule_all_possible_ready_ops_and_update(ready_active_list_);
             schedule_all_possible_ready_ops_and_update(ready_list_);
+            schedule_next_data_ops_and_update();
             //TODO(vamsikku): we can also schedule data ops here //
           } while (!heap_empty() && heap_empty_start_time());
 
@@ -2405,6 +2489,7 @@ class Feasible_Memory_Schedule_Generator {
     op_in_degree_t op_in_degree_;
     ready_active_list_t ready_active_list_;
     ready_data_list_t ready_data_list_;
+    std::unordered_map<operation_t, size_t> scheduled_data_list_;
     processed_ops_t processed_ops_;
     heap_t completion_time_heap_;
     heap_t start_time_heap_;
