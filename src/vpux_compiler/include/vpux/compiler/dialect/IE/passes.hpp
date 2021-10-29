@@ -81,6 +81,12 @@ std::unique_ptr<mlir::Pass> createConvertWeightsToU8Pass(Logger log = Logger::gl
 std::unique_ptr<mlir::Pass> createConvertQuantizeOpsToEltwisePass(Logger log = Logger::global());
 
 //
+// Tiling
+//
+
+std::unique_ptr<mlir::Pass> createIsolatedTilingPass(Logger log = Logger::global());
+
+//
 // Registration
 //
 

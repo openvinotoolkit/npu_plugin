@@ -19,8 +19,8 @@ using namespace vpux;
 // TileInfo
 //
 
-SmallVector<TileInfo> vpux::fillDividedTiles(ShapeRef divisors, ShapeRef orig) {
-    SmallVector<TileInfo> dividedTiles(divisors.totalSize(), TileInfo(divisors.size()));
+OutputTiling vpux::fillDividedTiles(ShapeRef divisors, ShapeRef orig) {
+    OutputTiling dividedTiles(divisors.totalSize(), TileInfo(divisors.size()));
 
     int64_t repeatCtr = 1;
 
