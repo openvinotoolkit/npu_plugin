@@ -6,7 +6,7 @@
 // #include <iostream>
 
 #ifdef CONFIG_TARGET_SOC_3720
-extern void*  (&shvNN0_sigmoid_fp16);
+extern void*  (shvNN0_sigmoid_fp16);
 #else
 #include "svuSLKernels_EP.h"
 #endif
@@ -17,7 +17,7 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Sigmoid))
 {
 static constexpr std::initializer_list<SingleTest> sigmoid_test_list
 {
-    {{2, 2, 2}, {2, 2, 2}, orderZYX, FPE("sigmoid_fp16.elf"), {sw_params::Location::NN_CMX}},
+    {{2, 2, 2}, {2, 2, 2}, orderZYX, FPE("sigmoid_fp16.elf"), {sw_params::Location::UPA_CMX}},
     // {{2, 2, 2}, {2, 2, 2}, orderZYX, FPE("sigmoid.elf"), {/*{{224, 1, 1}, {1, 128, 1}, {0, 0, 0}, 3, 0}, */{0 /*axis*/, sw_params::Location::UPA_CMX /*mem type*/,}}},
     // {{2, 2, 2}, {2, 2, 2}, orderZYX, FPE("softmax.elf"), {/*{{224, 1, 1}, {1, 128, 1}, {0, 0, 0}, 3, 0}, */{1 /*axis*/, sw_params::Location::UPA_CMX /*mem type*/,}}},
     // {{4, 4, 4}, {4, 4, 4}, orderZYX, FPE("softmax.elf"), {/*{{224, 1, 1}, {1, 128, 1}, {0, 0, 0}, 3, 0}, */{0 /*axis*/, sw_params::Location::NN_CMX/*mem type*/,}}},
