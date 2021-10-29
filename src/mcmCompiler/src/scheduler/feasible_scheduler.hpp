@@ -901,22 +901,21 @@ class Feasible_Schedule_Generator {
         const_operation_iterator_t jtr = traits::outgoing_operations_begin(*input_ptr_, *(*zitr));
         
         const_operation_iterator_t jtr_end = traits::outgoing_operations_end(*input_ptr_, *(*zitr));
-        //const_op_ptr_t outgoing_operations_begin = &(*jtr);
-        //const_op_ptr_t outgoing_operations_end = &(*jtr_end);
-
-         //std::cout << "Outgoing_operations_begin " << (*outgoing_operations_begin)->getName() << " " << " outgoing_operations_end " << (*outgoing_operations_end)->getName() << std::endl;
+        
 
         while (jtr != jtr_end) {
-          typename operation_in_degree_t::iterator deg_itr =
-              in_degree.find(&(*jtr));
-          const_op_ptr_t op_ptr = &(*itr);
+          typename operation_in_degree_t::iterator deg_itr = in_degree.find(&(*jtr));
+          std::cout << "Getting the outgoing operations for " <<  (*jtr)->getName() << std::endl;
           assert((deg_itr != in_degree.end()) && (deg_itr->second > 0));
-          //std::cout << "Looking for " << traits::operation_name(*op_ptr) << " in the in_degree table and decrement the in-degree" << std::endl;//eg_itr->second <<   std::endl;
+          std::cout << "Operation " <<  (*(deg_itr->first))->getName()<< " has an indegree of " << deg_itr->second << std::endl;
           (deg_itr->second)--;
+                          std::cout << "Decrementing the in-degree of " <<  (*(deg_itr->first))->getName() << " the indegree is now " << deg_itr->second
+                          << std::endl;
 
           if (!(deg_itr->second)) {
             // in-degree of this node has become zero//
-            std::cout << "The in_degree of " << (*op_ptr)->getOpType() << " has become zero" <<   std::endl;
+            std::cout << "The in_degree of " << (*(deg_itr->first))->getName() << " has become zero" <<   std::endl;
+            std::cout << "The priority of " << (*(deg_itr->first))->getName() << " is now " << curr_priority+1 <<   std::endl;
             priority_[deg_itr->first] = (curr_priority+1);
             zero_in_degree_nodes[(curr_priority+1)%2].push_back(deg_itr->first);
             in_degree.erase(deg_itr);
@@ -977,9 +976,11 @@ class Feasible_Schedule_Generator {
       ++itr;
     }
      std::cout << "Printing in-degree table " << std::endl;
+     std::cout << " " << std::endl;
      for (auto const &pair: in_degree) {
         std::cout << "{" << traits::operation_name(*(pair.first)) << ": " << pair.second << "}\n";
     }
+    std::cout << "Finished Printing in-degree table " << std::endl;
 
   }
 

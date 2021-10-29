@@ -1292,15 +1292,19 @@ class Operation_Dag {
 
     void create_resource_utility_table_for_barrier_scheduling(
         mv::ControlModel& model) {
+          mv::GenerateDotFromModel(model, "ControlModel",
+           "control.dot");
       for (op_itr_t itr = mtraits::begin_operations(model);
             itr != mtraits::end_operations(model); ++itr) {
         operation_t op = &(*itr);
         resource_t resource_utility = 0UL;
+         std::cout << op->getName() << std::endl;
         if (does_the_op_run_on_hardware(op)) {
-          resource_utility =
-            mv::RuntimeModel::countProducerConsumerTasks(model, itr);
+          std::cout << op->getName() << std::endl;
+          resource_utility = mv::RuntimeModel::countProducerConsumerTasks(model, itr);
         }
         // resource utility //
+        std::cout << op->getName() << " has resource utility " << resource_utility << std::endl;
         resource_utility_map_.insert(std::make_pair(op, resource_utility ));
       }
     }
