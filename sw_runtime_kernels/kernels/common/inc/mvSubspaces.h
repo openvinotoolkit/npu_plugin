@@ -183,7 +183,6 @@ INLINE_ATTRIBUTE int getTotalPlanes(const int32_t dims[], int nDims, int axis0, 
 // returns size of the array after excluding
 INLINE_ATTRIBUTE int arrayElementExclude(int32_t a[], int el, int nEls);
 INLINE_ATTRIBUTE int arraysElementExclude(int32_t a[], int32_t b[], int el, int nEls);
-INLINE_ATTRIBUTE inline int arrayElementExclude(int32_t a[], int el, int nEls);
 INLINE_ATTRIBUTE int arraysElementExclude(int32_t a[], int32_t b[], int el, int nEls);
 
 template <typename TA0, typename TA1, typename TA2>
@@ -205,9 +204,7 @@ INLINE_ATTRIBUTE int arraysElementExclude(TA0 a[], TA1 b[], TA2 c[], int el, int
 // value - element value to be included
 // elementsCount - size of original array
 // returns size of the array after including
-
 INLINE_ATTRIBUTE int arrayElementInclude(int32_t a[], int elementPos, int32_t value, int elementsCount, int maxDims = MAX_ND_DIMS);
-
 INLINE_ATTRIBUTE int arraysElementInclude(int32_t a[], int32_t b[], int elementPos, int32_t value, int elementsCount, int maxDims = MAX_ND_DIMS);
 
 // getSizes calculates sizes (in elements) of included subtensors of smaller dimensionality,
