@@ -1,73 +1,21 @@
 
 #include "vpux/compiler/act_kernels/act_kernel_gen.h"
 
-#include <llvm/Support/Process.h>
+#include "vpux/compiler/dialect/VPUIP/blob_writer.hpp"
 
 #include <gtest/gtest.h>
 
 using namespace vpux;
-
-namespace {
-
-bool checkVpuip2Dir() {
-    const auto envDir = llvm::sys::Process::GetEnv("VPUIP_2_Directory");
-    return envDir.hasValue();
-}
-
-} // namespace
 
 TEST(ManagementKernel, Compile) {
     if (!checkVpuip2Dir()) {
         GTEST_SKIP() << "Skip due to VPUIP_2_Directory environment variable isn't set";
     }
 
-    const CompilationListDesc listDesc {
-        "nnActEntry",
-        "nnActEntry",
-        { // sources: relative to VPUIP2
-            "system/nn_mtl/act_runtime/src/nnActEntry.cpp",
-            "drivers/shave/svuShared_3600/src/HglShaveId.c",
-            "system/nn_mtl/common_runtime/src/nn_fifo_manager.cpp"
-        },
-        { // -D defines
-            "CONFIG_TARGET_SOC_3720",
-            "__shave_nn__",
-        },
-        { // include paths: relative to VPUIP2
-            "drivers/hardware/registerMap/inc", // #include <DrvRegUtils.h>
-            "drivers/hardware/utils/inc",       // #include <mv_types.h>
-            "drivers/shave/svuL1c/inc",         // #include <DrvSvuL1Cache.h>
-            "drivers/errors/errorCodes/inc",    // #include <DrvErrors.h>
-            "system/shave/svuCtrl_3600/inc",    // #include <ShaveId.h>
-            "drivers/shave/svuShared_3600/inc", // #include <HglShaveId.h>
-            "drivers/nn/inc",                   // #include <nn_barrier.h>
-            "drivers/resource/barrier/inc",     // #include <HglBarrier.h>
-            "system/nn_mtl/common_runtime/inc", // #include <nn_fifo_manager.h>
-            "system/nn_mtl/act_runtime/inc",    // #include <nnActRtDebug.h>
-            "system/nn_mtl/common/inc",         // #include <nn_runtime_types.h>
-        }
-    };
-
-    movitools::MoviCompileParams params = {
-            /*cpu=*/"3010xx",
-            /*moviCompile=*/"linux64/bin/moviCompile",
-            /*mdkLinker=*/"linux64/sparc-myriad-rtems-6.3.0/bin/sparc-myriad-rtems-ld",
-            /*mdkObjCopy=*/"linux64/sparc-myriad-rtems-6.3.0/bin/sparc-myriad-rtems-objcopy",
-            /*mdkLibDir=*/"common/moviCompile/lib/30xxxx-leon",
-            /*mdkLibs=*/
-            {
-                "mlibm.a",
-                "mlibcxx.a",
-                "mlibneon.a",
-                "mlibVecUtils.a",
-                "mlibc_lite.a",
-                "mlibc_lite_lgpl.a",
-                "mlibcrt.a",
-                },
-    };
+    const auto params = vpux::VPUIP::BlobWriter::compileParams();
 
     flatbuffers::FlatBufferBuilder fbb;
     ActKernelDesc desc;
 
-    EXPECT_NO_THROW(desc = compileKernelForACTShave(listDesc, params, fbb));
+    EXPECT_NO_THROW(desc = compileManagementKernelForACTShave(params, fbb));
 }

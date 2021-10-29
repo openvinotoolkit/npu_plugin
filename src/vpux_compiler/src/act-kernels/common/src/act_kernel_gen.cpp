@@ -32,7 +32,10 @@ using namespace llvm;  // NOLINT
 
 namespace vpux {
 
-namespace {
+bool checkVpuip2Dir() {
+    const auto envDir = llvm::sys::Process::GetEnv("VPUIP_2_Directory");
+    return envDir.hasValue();
+}
 
 std::string getVpuip2Dir() {
     const auto envDir = llvm::sys::Process::GetEnv("VPUIP_2_Directory");
@@ -43,8 +46,6 @@ std::string getVpuip2Dir() {
 
     return vpuip2Dir.str().str();
 }
-
-} // namespace
 
 flatbuffers::Offset<MVCNN::KernelData> buildKernelData(flatbuffers::FlatBufferBuilder& fbb,
                                                        llvm::ArrayRef<uint8_t> content) {
@@ -429,6 +430,38 @@ ActKernelDesc compileKernelForACTShave(const CompilationListDesc & listDesc,
     result.data = {dataName, buildKernelData(fbb, dataBinary), dataBinary.size()};
 
     return result;
+}
+
+ActKernelDesc compileManagementKernelForACTShave(const movitools::MoviCompileParams& params,
+                                                 flatbuffers::FlatBufferBuilder& fbb) {
+    static const CompilationListDesc listDesc {
+        "nnActEntry",
+        "nnActEntry",
+        { // sources: relative to VPUIP2
+            "system/nn_mtl/act_runtime/src/nnActEntry.cpp",
+            "drivers/shave/svuShared_3600/src/HglShaveId.c",
+            "system/nn_mtl/common_runtime/src/nn_fifo_manager.cpp"
+        },
+        { // -D defines
+            "CONFIG_TARGET_SOC_3720",
+            "__shave_nn__",
+        },
+        { // include paths: relative to VPUIP2
+            "drivers/hardware/registerMap/inc", // #include <DrvRegUtils.h>
+            "drivers/hardware/utils/inc",       // #include <mv_types.h>
+            "drivers/shave/svuL1c/inc",         // #include <DrvSvuL1Cache.h>
+            "drivers/errors/errorCodes/inc",    // #include <DrvErrors.h>
+            "system/shave/svuCtrl_3600/inc",    // #include <ShaveId.h>
+            "drivers/shave/svuShared_3600/inc", // #include <HglShaveId.h>
+            "drivers/nn/inc",                   // #include <nn_barrier.h>
+            "drivers/resource/barrier/inc",     // #include <HglBarrier.h>
+            "system/nn_mtl/common_runtime/inc", // #include <nn_fifo_manager.h>
+            "system/nn_mtl/act_runtime/inc",    // #include <nnActRtDebug.h>
+            "system/nn_mtl/common/inc",         // #include <nn_runtime_types.h>
+        }
+    };
+
+    return compileKernelForACTShave(listDesc, params, fbb);
 }
 
 }  // namespace vpux
