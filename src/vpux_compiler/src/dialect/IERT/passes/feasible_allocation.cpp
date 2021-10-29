@@ -77,7 +77,7 @@ public:
 private:
     void safeRunOnModule() final;
     void updateAsyncExecuteOpPosition(mlir::FuncOp& netFunc, AsyncDepsInfo& depsInfo,
-                                  llvm::ArrayRef<FeasibleMemoryScheduler::ScheduledOpInfo> scheduledOps);
+                                      llvm::ArrayRef<FeasibleMemoryScheduler::ScheduledOpInfo> scheduledOps);
     void updateAsyncExecuteOpDependencies(AsyncDepsInfo& depsInfo,
                                           llvm::ArrayRef<FeasibleMemoryScheduler::ScheduledOpInfo> scheduledOps);
 

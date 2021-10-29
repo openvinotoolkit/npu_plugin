@@ -144,14 +144,16 @@ void FeasibleMemoryScheduler::unscheduleOp(const HeapElement& hElemet) {
     _log.nest().trace("Free non alive buffers");
     _scan.freeNonAlive();
 
-    // decrement consumers of the op
+    // update consumers of op dependencies (consumed by this op)
     for (auto dep : _depsInfo.getOpDeps(hElemet.op_)) {
-        _opOutputTable.find(dep)->second.decrementConsumers();
+        auto depOutput = _opOutputTable.find(dep);
+        if (depOutput->second.active()) {
+            depOutput->second.decrementConsumers();
+        }
     }
-
-    auto _opOutput = _opOutputTable.find(hElemet.op_);
-    if (_opOutput->second.consumed()) {
-        _opOutput->second.changeStateToConsumed();
+    auto opOutput = _opOutputTable.find(hElemet.op_);
+    if (opOutput->second.consumed()) {
+        opOutput->second.changeStateToConsumed();
     }
 }
 
@@ -159,7 +161,6 @@ bool FeasibleMemoryScheduler::isComputeOpWithSomeActiveInputs(operationIdxType o
     if (isDataOp(opIdx)) {
         return false;
     }
-    // TODO-EISW-21295: might need to port: active_resource_table
     auto opAllDeps = _depsInfo.getOpDeps(opIdx);
     auto opDeps = getSortedBuffers(opIdx);
     // number of buffers needing allocation smaller than number of buffers used by the op
@@ -191,18 +192,22 @@ void FeasibleMemoryScheduler::distributeReadyOps(llvm::ArrayRef<operationIdxType
     _log = _log.nest();
     for (auto& readyOp : readyOps) {
         vpux::AddressType opSize = calculateOpSize(readyOp);
+        auto pair = std::make_pair(readyOp, opSize);
         if (isDataOp(readyOp)) {
-            // TODO-EISW-21295: verify op not already in ready data ops
+            VPUX_THROW_UNLESS(_readyDataOps.find(pair) == _readyDataOps.end(),
+                              "Operation already in the ready data list");
             _readyDataOps.insert(std::make_pair(readyOp, opSize));
             _log.trace("Add to ready data ops '{0}'", readyOp);
             const auto newReadyOps = reduceInDegreeOfAdjacentOperations(readyOp);
             distributeReadyOps(newReadyOps);
         } else if (isComputeOpWithSomeActiveInputs(readyOp)) {
-            // TODO-EISW-21295: verify op not already in active compute ops
+            VPUX_THROW_UNLESS(_activeComputeOps.find(pair) == _activeComputeOps.end(),
+                              "Operation already in active compute list");
             _activeComputeOps.insert(std::make_pair(readyOp, opSize));
             _log.trace("Add to active compute ops '{0}'", readyOp);
         } else {
-            // TODO-EISW-21295: verify op not already in ready compute ops
+            VPUX_THROW_UNLESS(_readyComputeOps.find(pair) == _readyComputeOps.end(),
+                              "Operation already in ready compute list");
             _readyComputeOps.insert(std::make_pair(readyOp, opSize));
             _log.trace("Add to ready compute ops '{0}'", readyOp);
         }
@@ -308,12 +313,12 @@ SmallVector<mlir::Value> FeasibleMemoryScheduler::getSortedBuffers(operationIdxT
     return orderedBufs;
 }
 
-SmallVector<operationIdxType> FeasibleMemoryScheduler::getNonEmptyOpDemandList(operationIdxType opIdx) {
+mlir::DenseSet<operationIdxType> FeasibleMemoryScheduler::getNonEmptyOpDemandList(operationIdxType opIdx) {
     // return all buffers of an op that require allocation
-    SmallVector<operationIdxType> demandList;
+    mlir::DenseSet<operationIdxType> demandList;
     for (auto& dep : _depsInfo.getOpDeps(opIdx)) {
         if (_opOutputTable.find(dep) == _opOutputTable.end() || _opOutputTable[dep].spilled()) {
-            demandList.push_back(dep);
+            demandList.insert(dep);
         }
     }
     return demandList;
@@ -327,19 +332,29 @@ bool FeasibleMemoryScheduler::isReadyComputeOperationSchedulable(operationIdxTyp
 
 void FeasibleMemoryScheduler::scheduleInputOpForComputeOp(operationIdxType inputIdx) {
     // schedule the dependency - Data op
-    auto _opOutput = _opOutputTable.find(inputIdx);
-    EOpType opType;
-    if (_opOutput != _opOutputTable.end()) {
-        VPUX_THROW("Spill occurred, spilling not yet implemented");
-    } else {
-        opType = EOpType::ORIGINAL_OP;
-        _opOutputTable.insert(std::make_pair(inputIdx, OpOutputInfo(EOpState::ACTIVE, _outDegreeTable[inputIdx])));
-    }
     _log.nest().trace("Scheduling input for compute op:'{0}'", inputIdx);
+    EOpType opType = EOpType::ORIGINAL_OP;
+    _opOutputTable.insert(std::make_pair(inputIdx, OpOutputInfo(EOpState::ACTIVE, _outDegreeTable[inputIdx])));
     pushToStartTimeHeap(HeapElement(inputIdx, _currentTime, opType));
 }
 
-void FeasibleMemoryScheduler::allocateSortedBuffers(ArrayRef<mlir::Value> sortedBuffers) {
+void FeasibleMemoryScheduler::scheduleSpilledInputOpForComputeOp(operationIdxType inputIdx, mlir::Value* buffer) {
+    // schedule the spilled dependency
+    _log.nest().trace("Scheduling spilled input for compute op:'{0}'", inputIdx);
+    auto _opOutput = _opOutputTable.find(inputIdx);
+    (_opOutput->second).changeStateToActive();
+    EOpType opType = EOpType::IMPLICIT_OP_READ;
+    // also store the buffer spilled
+    auto spilledReadBuffer = *buffer;
+    pushToStartTimeHeap(HeapElement(inputIdx, _currentTime, opType, spilledReadBuffer));
+}
+
+size_t FeasibleMemoryScheduler::allocateBuffersAndInputOps(operationIdxType opIdx,
+                                                           SmallVector<mlir::Value>& sortedBuffers) {
+    // retrieve op demand list - input ops
+    auto demandList = getNonEmptyOpDemandList(opIdx);
+    size_t maxInputDelay = demandList.empty() ? 0 : 1;
+
     // retrieve buffers that need allocation
     SmallVector<mlir::Value> buffersNeedingAllocation;
     for (auto& val : sortedBuffers) {
@@ -350,11 +365,25 @@ void FeasibleMemoryScheduler::allocateSortedBuffers(ArrayRef<mlir::Value> sorted
         _log.nest().trace("Mark buffer as alive, '{0}'", val);
         _scan.handler().markAsAlive(val);
         buffersNeedingAllocation.push_back(val);
+        // special case for spilled reads
+        if (_opWritingToBuffer.find(val) != _opWritingToBuffer.end()) {
+            auto bufferWriter = retrieveBufferWriter(&val);
+            demandList.erase(bufferWriter);
+            scheduleSpilledInputOpForComputeOp(bufferWriter, &val);
+        }
     }
-    _log.nest().trace("Allocate memory for the alive buffers");
+
+    // schedule all not spilled inputs
+    for (auto inputIdx : demandList) {
+        scheduleInputOpForComputeOp(inputIdx);
+    }
+
     // allocate buffers using LinearScan
+    _log.nest().trace("Allocate memory for the alive buffers");
     VPUX_THROW_UNLESS(_scan.alloc(buffersNeedingAllocation, /*allowSpills*/ false),
                       "Failed to statically allocate '{0}' memory", _memSpace);
+
+    return maxInputDelay;
 }
 
 void FeasibleMemoryScheduler::scheduleComputeOp(operationIdxType opIdx) {
@@ -362,14 +391,8 @@ void FeasibleMemoryScheduler::scheduleComputeOp(operationIdxType opIdx) {
     _opOutputTable.insert(std::make_pair(opIdx, OpOutputInfo(EOpState::ACTIVE, _outDegreeTable[opIdx])));
 
     // Step 2: assign resources simultaneously
-    auto demandList = getNonEmptyOpDemandList(opIdx);
-    size_t maxInputDelay = 0;
-    for (auto demand : demandList) {
-        scheduleInputOpForComputeOp(demand);
-        maxInputDelay = 1;
-    }
     auto sortedBuffers = getSortedBuffers(opIdx);
-    allocateSortedBuffers(sortedBuffers);
+    auto maxInputDelay = allocateBuffersAndInputOps(opIdx, sortedBuffers);
 
     // TODO: case for inplace ops
 
@@ -398,20 +421,127 @@ void FeasibleMemoryScheduler::scheduleAllPossibleReadyOpsAndUpdate(
     }
 }
 
+void FeasibleMemoryScheduler::evictActiveOp(operationIdxType opIdx, mlir::Value* buffer) {
+    auto opOutput = _opOutputTable.find(opIdx);
+    VPUX_THROW_UNLESS(opOutput != _opOutputTable.end() && opOutput->second.active(),
+                      "Attempt to evict an invalid operation");
+    opOutput->second.changeStateToSpilled();
+    // increment consumers of dependencies due to spilled op
+    for (auto dep : _depsInfo.getOpDeps(opIdx)) {
+        auto depOutput = _opOutputTable.find(dep);
+        depOutput->second.incrementConsumers();
+    }
+    auto buf = *buffer;
+    _log.nest().trace("Mark buffer as dead, '{0}'", buf);
+    _scan.handler().markAsDead(buf);
+    _log.nest().trace("Free non alive buffers");
+    _scan.freeNonAlive();
+}
+
+operationIdxType FeasibleMemoryScheduler::retrieveBufferWriter(mlir::Value* buffer) {
+    const auto valIt = _opWritingToBuffer.find(*buffer);
+    VPUX_THROW_UNLESS(valIt != _opWritingToBuffer.end(), "Buffer not scheduled yet, invalid spill candidate");
+    return valIt->second;
+}
+
+size_t FeasibleMemoryScheduler::evictionPriority(operationIdxType bufferWriterIdx) {
+    // TODO: EISW-21937 add other conditions such as:
+    // cmx concatable, pipelined, multiple outdegree (prefetch)
+    // For now only prioritize DMAs to be spilled
+    return (!isDataOp(bufferWriterIdx)) ? 1UL : 0UL;
+}
+
+mlir::Value* FeasibleMemoryScheduler::chooseCandidateForEviction(llvm::SmallVector<mlir::Value*> orderedBuffers) {
+    mlir::Value* candidate = nullptr;
+    size_t smallestPriority = std::numeric_limits<size_t>::max();
+    // select the smallest buffer with the smallest priority
+    for (auto buffer : orderedBuffers) {
+        operationIdxType bufferWriterIdx = retrieveBufferWriter(buffer);
+        size_t currPriority = evictionPriority(bufferWriterIdx);
+        if (currPriority < smallestPriority) {
+            smallestPriority = currPriority;
+            candidate = buffer;
+        }
+    }
+    return candidate;
+}
+
+void FeasibleMemoryScheduler::forceScheduleActiveOpEviction() {
+    // retrieve the alive buffers
+    auto orderedBuffers = _scan.handler().getIncreasingSizeOrderAlive();
+    VPUX_THROW_UNLESS(!orderedBuffers.empty(), "Failed, nothing to spill");
+
+    // select a candidate op to be spilled
+    auto evictionCandidateBuffer = chooseCandidateForEviction(orderedBuffers);
+    auto evictionBuffer = *evictionCandidateBuffer;
+    operationIdxType candidateIdx = retrieveBufferWriter(evictionCandidateBuffer);
+    _log.nest().trace("Candidate selected for eviction {0}", candidateIdx);
+
+    // free the memory space by freeing the op output buffer
+    evictActiveOp(candidateIdx, evictionCandidateBuffer);
+    _opOutputTable[candidateIdx].changeStateToSpilled();
+
+    // update _opOutputTable, as consumers increse
+    auto opOutput = _opOutputTable.find(candidateIdx);
+    opOutput->second.outstandingConsumers_++;
+    _log.nest().trace("Candidate evicted and spilled");
+
+    // update _activeComputeOps some may no longer be active
+    auto consumers = _depsInfo.getConsumerOps(candidateIdx);
+    std::set<std::pair<operationIdxType, vpux::AddressType>> noLongerActive = {};
+    for (auto& active : _activeComputeOps) {
+        for (auto consumer : consumers) {
+            if (active.first == consumer) {
+                noLongerActive.insert(active);
+            }
+        }
+    }
+    for (auto notActive : noLongerActive) {
+        _activeComputeOps.erase(notActive);
+    }
+
+    // add with a spilled write state
+    pushToStartTimeHeap(HeapElement(candidateIdx, _currentTime, EOpType::IMPLICIT_OP_WRITE, evictionBuffer));
+}
+
 void FeasibleMemoryScheduler::populateScheduledOps(HeapElement& scheduledOp) {
-    IntervalInfo interval;
-    // retrieve interval information
-    auto* bodyBlock = &_depsInfo.getExecuteOpAtIndex(scheduledOp.op_).body().front();
-    for (auto& op : bodyBlock->getOperations()) {
-        if (mlir::isa<IERT::LayerOpInterface>(op)) {
-            auto outputs = mlir::dyn_cast<IERT::LayerOpInterface>(op).getOutputs();
-            for (const auto& output : outputs) {
-                const auto type = output.getType().dyn_cast<mlir::MemRefType>();
-                if (type == nullptr || type.getMemorySpace() != _memSpace) {
-                    continue;
+    SmallVector<IntervalInfo> intervals;
+    // store scheduled information
+    if (scheduledOp.isImplicitWriteOp()) {
+        // special case for a spill write with deallocation
+        IntervalInfo interval;
+        auto output = scheduledOp.spillBuffer_;
+        // retrieve and store operation addresses
+        interval.begin_ = checked_cast<size_t>(_scan.handler().getAddress(output));
+        interval.end_ = interval.begin_ + checked_cast<size_t>(_scan.handler().getSize(output));
+        interval.buffer_ = output;
+        intervals.push_back(interval);
+        // deallocate only after addresses stored
+        _scan.handler().deallocate(output);
+    } else {
+        // retrieve interval information, operation can have multiple output buffers
+        auto* bodyBlock = &_depsInfo.getExecuteOpAtIndex(scheduledOp.op_).body().front();
+        for (auto& op : bodyBlock->getOperations()) {
+            if (mlir::isa<IERT::LayerOpInterface>(op)) {
+                auto outputs = mlir::dyn_cast<IERT::LayerOpInterface>(op).getOutputs();
+                for (auto output : outputs) {
+                    const auto type = output.getType().dyn_cast<mlir::MemRefType>();
+                    if (type == nullptr || type.getMemorySpace() != _memSpace) {
+                        continue;
+                    }
+                    // in case of spill only allocate the spill buffer
+                    if (!scheduledOp.isOriginalOp() && output != scheduledOp.spillBuffer_) {
+                        continue;
+                    }
+                    IntervalInfo interval;
+                    // store operation writing to the buffer
+                    _opWritingToBuffer[output] = scheduledOp.op_;
+                    // retrieve and store operation addresses
+                    interval.begin_ = checked_cast<size_t>(_scan.handler().getAddress(output));
+                    interval.end_ = interval.begin_ + checked_cast<size_t>(_scan.handler().getSize(output));
+                    interval.buffer_ = output;
+                    intervals.push_back(interval);
                 }
-                interval.begin_ = checked_cast<size_t>(_scan.handler().getAddress(output));
-                interval.end_ = interval.begin_ + checked_cast<size_t>(_scan.handler().getSize(output));
             }
         }
     }
@@ -420,7 +550,7 @@ void FeasibleMemoryScheduler::populateScheduledOps(HeapElement& scheduledOp) {
     scheduled.op_ = scheduledOp.op_;
     scheduled.opType_ = scheduledOp.opType_;
     scheduled.time_ = scheduledOp.time_;
-    scheduled.resourceInfo_ = interval;
+    scheduled.resourceInfo_ = intervals;
     _scheduledOps.push_back(scheduled);
 }
 
@@ -494,7 +624,8 @@ void FeasibleMemoryScheduler::nextSchedulableOp() {
 
             if (_startTimeHeap.empty()) {
                 // unable to schedule an operation, perform spill
-                VPUX_THROW("Spill required, dynamic spilling not yet implemented");
+                _log.trace("Unable to schedule an operation, forcing dynamic spill");
+                forceScheduleActiveOpEviction();
             }
         }
     }
@@ -508,9 +639,15 @@ llvm::SmallVector<FeasibleMemoryScheduler::ScheduledOpInfo> FeasibleMemorySchedu
     for (const auto& op : _scheduledOps) {
         std::string resourceInfo = "<none>";
         if (op.hasActiveResource()) {
-            resourceInfo = "resource = [" + std::to_string(op.beginResource()) + " " +
-                           std::to_string(op.endResource()) +
-                           "] size = " + std::to_string((op.endResource() - op.beginResource()));
+            resourceInfo = "";
+            for (size_t resourceIdx = 0; resourceIdx < op.numOfResources(); resourceIdx++) {
+                if (op.isActiveResource(resourceIdx)) {
+                    resourceInfo += "resource = [" + std::to_string(op.beginResource(resourceIdx)) + " " +
+                                    std::to_string(op.endResource(resourceIdx)) + "] size = " +
+                                    std::to_string((op.endResource(resourceIdx) - op.beginResource(resourceIdx))) +
+                                    ", ";
+                }
+            }
         }
         _log.trace("op = '{0}'\t type = '{1}'\t time = '{2}'\t '{3}'", op.op_, op.opTypeName(), op.time_, resourceInfo);
     }
