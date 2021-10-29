@@ -270,6 +270,30 @@ operation ::= `IE.CTCGreedyDecoderSeqLen` `(` operands `)` attr-dict `:` type(op
 `output` | ranked tensor of 32-bit signed integer values
 `outputLength` | ranked tensor of 32-bit signed integer values
 
+### `IE.Ceiling` (vpux::IE::CeilingOp)
+
+InferenceEngine Ceiling layer
+
+
+Syntax:
+
+```
+operation ::= `IE.Ceiling` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
 ### `IE.Clamp` (vpux::IE::ClampOp)
 
 InferenceEngine Clamp layer

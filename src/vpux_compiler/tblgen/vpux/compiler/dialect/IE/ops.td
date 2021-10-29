@@ -2141,4 +2141,26 @@ def IE_PermuteCastOp :
     let checkInferredMemSpace = 1;
 }
 
+//
+// CeilingOp
+//
+
+def IE_CeilingOp :
+        IE_LayerOp<
+            "Ceiling",
+            [
+                IE_EltwiseOp
+            ]
+        > {
+    let summary = "InferenceEngine Ceiling layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+}
+
 #endif

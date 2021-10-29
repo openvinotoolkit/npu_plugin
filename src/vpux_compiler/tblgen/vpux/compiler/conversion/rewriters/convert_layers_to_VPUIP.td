@@ -761,4 +761,19 @@ def RewriteMemPermute :
             (createMemPermuteUPAOp $input, $output, $mem_perm)
         >;
 
+//
+// IERT.Ceiling -> VPUIP.CeilingUPA
+//
+
+def createCeilingUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::CeilingUPAOp>($_loc, $0, $1)
+        }]>;
+
+def RewriteCeiling :
+        Pat<
+            (IERT_CeilingOp $input, $output),
+            (createCeilingUPAOp $input, $output)
+        >;
+
 #endif
