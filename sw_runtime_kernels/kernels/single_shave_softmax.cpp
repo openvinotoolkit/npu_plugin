@@ -361,14 +361,14 @@ void mvSoftMaxSingle(t_MvSoftMaxParamNClasses *p)
             if (p->inputInCmx) {
                 p_input0 = (half*)((u8*)in + inOffset);
             } else {
-//                DmaAlShave dmaRTask;
-//                dmaRTask.start((u8*)in + inOffset, (u8 *)p_input0,
-//                      sizeof(fp16) * p->axisDim * r_step,
-//                      sizeof(fp16) * dmaWidth[0],
-//                      sizeof(fp16) * dmaWidth[0],
-//                      p->axisIStride,
-//                      sizeof(fp16) * dmaWidth[0]);
-//                dmaRTask.wait();
+                DmaAlShave dmaRTask;
+                dmaRTask.start((u8*)in + inOffset, (u8 *)p_input0,
+                      sizeof(fp16) * p->axisDim * r_step,
+                      sizeof(fp16) * dmaWidth[0],
+                      sizeof(fp16) * dmaWidth[0],
+                      p->axisIStride,
+                      sizeof(fp16) * dmaWidth[0]);
+                dmaRTask.wait();
             }
             if (p->outputInCmx) {
                 p_output0 = (half*)((u8*)out + outOffset);
@@ -376,14 +376,14 @@ void mvSoftMaxSingle(t_MvSoftMaxParamNClasses *p)
             calculate(r_step, p->axisDim, p_input0, p_output0, 1, *ir_stride, 1, *or_stride);
             if (!(p->outputInCmx)) {
                 p_output0[0] = 4321.f;
-//                DmaAlShave dmaWTask;
-//                dmaWTask.start((u8 *)p_output0, (u8*)out + outOffset,
-//                      sizeof(fp16) * p->axisDim * r_step,
-//                      sizeof(fp16) * dmaWidth[0],
-//                      sizeof(fp16) * dmaWidth[0],
-//                      sizeof(fp16) * dmaWidth[0],
-//                      p->axisOStride);
-//                dmaWTask.wait();
+                DmaAlShave dmaWTask;
+                dmaWTask.start((u8 *)p_output0, (u8*)out + outOffset,
+                      sizeof(fp16) * p->axisDim * r_step,
+                      sizeof(fp16) * dmaWidth[0],
+                      sizeof(fp16) * dmaWidth[0],
+                      sizeof(fp16) * dmaWidth[0],
+                      p->axisOStride);
+                dmaWTask.wait();
             }
             i += r_step;
             subspace::incrementNCoord(setCoords, dims, ndims, r_step);

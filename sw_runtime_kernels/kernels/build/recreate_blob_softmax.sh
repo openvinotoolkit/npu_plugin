@@ -18,22 +18,7 @@ echo "#####  moviCompile  #######"
 
 
 
-/home/vskvorts/mov/tools/21.10.0-internal/linux64/bin/moviCompile -mcpu=3010xx -O0 -save-temps=obj -gline-tables-only \
--mllvm -enable-misched \
--mllvm -enable-aa-sched-mi \
--mllvm -misched-bottomup \
--mllvm -misched=ilpmax \
--mllvm -tail-merge-size=71 \
--mllvm -tail-dup-size=70 \
--mllvm -enable-extend-truncate-reduction \
--mllvm -shave-generate-int-acc-mac \
--funroll-loops \
--mllvm -unroll-allow-partial \
--mllvm -shave-enable-ldx-and-stx-instructions \
--debug-info-kind=limited \
--c /home/vskvorts/proj1/kmb-plugin/sw_runtime_kernels/kernels/common/src/mvSubspaces.cpp -o ./mvSubspaces.o -I /home/vskvorts/mov/tools/21.10.0-internal -I/home/vskvorts/proj1/kmb-plugin/sw_runtime_kernels/kernels/inc  -I/home/vskvorts/proj1/kmb-plugin/sw_runtime_kernels/kernels/common/inc -I/home/vskvorts/proj1/vpuip_2/drivers/hardware/utils/inc -I/home/vskvorts/proj1/kmb-plugin/sw_runtime_kernels/kernels/inc/3720 -D CONFIG_TARGET_SOC_3720 -D__shave_nn__ -I/home/vskvorts/proj1/vpuip2/drivers/hardware/registerMap/inc -I/home/vskvorts/proj1/vpuip2/drivers/hardware/utils/inc -I/home/vskvorts/proj1/vpuip2/drivers/shave/svuL1c/inc -I/home/vskvorts/proj1/vpuip2/drivers/errors/errorCodes/inc -I/home/vskvorts/proj1/vpuip2/system/shave/svuCtrl_3600/inc -I/home/vskvorts/proj1/vpuip2/drivers/shave/svuShared_3600/inc -I/home/vskvorts/proj1/vpuip2/drivers/nn/inc -I/home/vskvorts/proj1/vpuip2/drivers/resource/barrier/inc -I/home/vskvorts/proj1/vpuip2/system/nn_mtl/common_runtime/inc -I/home/vskvorts/proj1/vpuip2/system/nn_mtl/act_runtime/inc -I/home/vskvorts/proj1/vpuip2/system/nn_mtl/common/inc
-
-/home/vskvorts/mov/tools/21.10.0-internal/linux64/bin/moviCompile -mcpu=3010xx -O0 -save-temps=obj -gline-tables-only \
+/home/vskvorts/mov/tools/21.10.0-internal/linux64/bin/moviCompile -mcpu=3010xx -O3 -save-temps=obj -gline-tables-only \
 -mllvm -enable-misched \
 -mllvm -enable-aa-sched-mi \
 -mllvm -misched-bottomup \
@@ -47,21 +32,6 @@ echo "#####  moviCompile  #######"
 -mllvm -shave-enable-ldx-and-stx-instructions \
 -debug-info-kind=limited \
  -c /home/vskvorts/proj1/kmb-plugin/sw_runtime_kernels/kernels/single_shave_softmax.cpp -o ./single_shave_softmax.o -I /home/vskvorts/mov/tools/21.10.0-internal -I/home/vskvorts/proj1/kmb-plugin/sw_runtime_kernels/kernels/inc  -I/home/vskvorts/proj1/kmb-plugin/sw_runtime_kernels/kernels/common/inc -I/home/vskvorts/proj1/vpuip_2/drivers/hardware/utils/inc -I/home/vskvorts/proj1/kmb-plugin/sw_runtime_kernels/kernels/inc/3720 -D CONFIG_TARGET_SOC_3720 -D__shave_nn__ -I/home/vskvorts/proj1/vpuip2/drivers/hardware/registerMap/inc -I/home/vskvorts/proj1/vpuip2/drivers/hardware/utils/inc -I/home/vskvorts/proj1/vpuip2/drivers/shave/svuL1c/inc -I/home/vskvorts/proj1/vpuip2/drivers/errors/errorCodes/inc -I/home/vskvorts/proj1/vpuip2/system/shave/svuCtrl_3600/inc -I/home/vskvorts/proj1/vpuip2/drivers/shave/svuShared_3600/inc -I/home/vskvorts/proj1/vpuip2/drivers/nn/inc -I/home/vskvorts/proj1/vpuip2/drivers/resource/barrier/inc -I/home/vskvorts/proj1/vpuip2/system/nn_mtl/common_runtime/inc -I/home/vskvorts/proj1/vpuip2/system/nn_mtl/act_runtime/inc -I/home/vskvorts/proj1/vpuip2/system/nn_mtl/common/inc
-
-/home/vskvorts/mov/tools/21.10.0-internal/linux64/bin/moviCompile -mcpu=3010xx -O0 -save-temps=obj -gline-tables-only \
--mllvm -enable-misched \
--mllvm -enable-aa-sched-mi \
--mllvm -misched-bottomup \
--mllvm -misched=ilpmax \
--mllvm -tail-merge-size=71 \
--mllvm -tail-dup-size=70 \
--mllvm -enable-extend-truncate-reduction \
--mllvm -shave-generate-int-acc-mac \
--funroll-loops \
--mllvm -unroll-allow-partial \
--mllvm -shave-enable-ldx-and-stx-instructions \
--debug-info-kind=limited \
- -c /home/vskvorts/proj1/kmb-plugin/sw_runtime_kernels/kernels/3720/dma_shave_nn.cpp -o ./dma_shave_nn.o -I /home/vskvorts/mov/tools/21.10.0-internal -I/home/vskvorts/proj1/kmb-plugin/sw_runtime_kernels/kernels/inc  -I/home/vskvorts/proj1/kmb-plugin/sw_runtime_kernels/kernels/common/inc -I/home/vskvorts/proj1/vpuip_2/drivers/hardware/utils/inc -I/home/vskvorts/proj1/kmb-plugin/sw_runtime_kernels/kernels/inc/3720 -D CONFIG_TARGET_SOC_3720 -D__shave_nn__ -I/home/vskvorts/proj1/vpuip2/drivers/hardware/registerMap/inc -I/home/vskvorts/proj1/vpuip2/drivers/hardware/utils/inc -I/home/vskvorts/proj1/vpuip2/drivers/shave/svuL1c/inc -I/home/vskvorts/proj1/vpuip2/drivers/errors/errorCodes/inc -I/home/vskvorts/proj1/vpuip2/system/shave/svuCtrl_3600/inc -I/home/vskvorts/proj1/vpuip2/drivers/shave/svuShared_3600/inc -I/home/vskvorts/proj1/vpuip2/drivers/nn/inc -I/home/vskvorts/proj1/vpuip2/drivers/resource/barrier/inc -I/home/vskvorts/proj1/vpuip2/system/nn_mtl/common_runtime/inc -I/home/vskvorts/proj1/vpuip2/system/nn_mtl/act_runtime/inc -I/home/vskvorts/proj1/vpuip2/system/nn_mtl/common/inc
 
 
 
@@ -80,7 +50,7 @@ echo "#####  link to elf  #######"
 --strip-debug \
 --discard-all \
 -zmax-page-size=16 \
-./dma_shave_nn.o  ./mvSubspaces.o   ./single_shave_softmax.o  \
+./single_shave_softmax.o  \
  -EL /home/vskvorts/mov/tools/21.10.0-internal/common/moviCompile/lib/30xxxx-leon/mlibm.a \
  -EL /home/vskvorts/mov/tools/21.10.0-internal/common/moviCompile/lib/30xxxx-leon/mlibc.a \
  -EL /home/vskvorts/mov/tools/21.10.0-internal/common/moviCompile/lib/30xxxx-leon/mlibcxx.a \

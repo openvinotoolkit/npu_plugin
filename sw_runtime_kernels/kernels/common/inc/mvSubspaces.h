@@ -18,25 +18,66 @@ enum {
 };
 
 struct LogDimIndex {
-    LogDimIndex(int index) {
+    inline __attribute((always_inline)) LogDimIndex(int index) {
         _ind = std::min<int>(std::max(index, 0), MAX_ND_DIMS);
     }
-    int val() const {return _ind;};
-    LogDimIndex &operator =(const int index) {
+    inline __attribute((always_inline)) int val() const {return _ind;};
+    inline __attribute((always_inline)) LogDimIndex &operator =(const int index) {
         _ind = std::min<int>(std::max(index, 0), MAX_ND_DIMS);
         return *this;
     };
-    bool operator<(const LogDimIndex b) const {return val() < b.val();};
-    bool operator==(const LogDimIndex b) const {return val() == b.val();};
+    inline __attribute((always_inline)) bool operator<(const LogDimIndex b) const {return val() < b.val();};
+    inline __attribute((always_inline)) bool operator==(const LogDimIndex b) const {return val() == b.val();};
 private:
     int32_t _ind = 0;
 };
 
+// arrayElementExclude Excludes 1 element from array
+// arraysElementExclude Excludes 1 element from 2 or 3 parallel arrays
+// a,b,c - target arrays (in/out)
+// el - number of element to be excluded
+// nEls - size of original array
+// returns size of the array after excluding
+#ifndef ALWAYS_INLINE
 int arrayElementExclude(int32_t a[], int el, int nEls);
+int arraysElementExclude(int32_t a[], int32_t b[], int el, int nEls);
+#else
+inline int __attribute((always_inline)) arrayElementExclude(int32_t a[], int el, int nEls)
+{
+    for(int i = el; i < nEls - 1; ++i)
+    {
+        a[i] = a[i + 1];
+    }
+    return nEls - 1;
+}
+
+inline int __attribute((always_inline)) arraysElementExclude(int32_t a[], int32_t b[], int el, int nEls)
+{
+    for(int i = el; i < nEls - 1; ++i)
+    {
+        a[i] = a[i + 1];
+        b[i] = b[i + 1];
+    }
+    return nEls - 1;
+}
+#endif
+
+//template <typename TA0, typename TA1, typename TA2>
+//int arraysElementExclude(TA0 a[], TA1 b[], TA2 c[], int el, int nEls)
+//{
+//    for(int i = el; i < nEls - 1; ++i)
+//    {
+//        a[i] = a[i + 1];
+//        b[i] = b[i + 1];
+//        c[i] = c[i + 1];
+//    }
+//    return nEls - 1;
+//}
+
 struct NDDims {
-    int ndims() const {return _ndims;};
-    int32_t *data(){return _dims.data();};
-    bool resize(int newNDims) {
+    inline __attribute((always_inline)) int ndims() const {return _ndims;};
+    inline __attribute((always_inline)) int32_t *data(){return _dims.data();};
+    inline __attribute((always_inline)) bool resize(int newNDims) {
         if (newNDims >= 0 && newNDims <= MAX_ND_DIMS) {  // Non-negative up to 15 dimensionality is only supported
             _ndims = newNDims;
             return true;
@@ -44,30 +85,30 @@ struct NDDims {
             return false;
         }
     }
-    bool push_back(int32_t value) {
+    inline __attribute((always_inline)) bool push_back(int32_t value) {
         if (_ndims >= MAX_ND_DIMS) return false;  // Impossible to add more than MAX_ND_DIMS == 15 elements
         _dims[_ndims++] = value;
         return true;
     }
-    bool erase(int i) {
+    inline __attribute((always_inline)) bool erase(int i) {
         if (_ndims <= 0) return false;  // Impossible to erase. No elements;
         _ndims = arrayElementExclude(_dims.data(), i, _ndims);
         return true;
     }
-    int32_t& operator[] (LogDimIndex l) {
+    inline __attribute((always_inline)) int32_t& operator[] (LogDimIndex l) {
         int i = l.val();
         return _dims[i];
     }
-    int32_t operator[] (LogDimIndex l) const {
+    inline __attribute((always_inline)) int32_t operator[] (LogDimIndex l) const {
         int i = l.val();
         return _dims[i];
     }
-    int32_t getElement(int i, int32_t defVal) const {
+    inline __attribute((always_inline)) int32_t getElement(int i, int32_t defVal) const {
         if (i < 0 || i >= _ndims) {
             return defVal;
         } else return _dims[i];
     }
-    int32_t getElement(LogDimIndex l, int32_t defVal) const {
+    inline __attribute((always_inline)) int32_t getElement(LogDimIndex l, int32_t defVal) const {
         int i = l.val();
         return this->getElement(i, defVal);
     }
@@ -75,6 +116,7 @@ private:
     int _ndims = 0;
     std::array<int32_t, MAX_ND_DIMS> _dims;
 };
+
 
 // each element of (reduced) 'tensor' with 'subspaceDims' dimensions
 // represents one 1D or 2D section of some original tensor
@@ -121,7 +163,21 @@ inline void __attribute((always_inline)) getCoord(int nSubspace, const int32_t d
 // nDims - dimensionality (in)
 // broadcast - broadcast flags, by dimensions (0=normal, 1=broadcasted)
 // returns offset
+#ifndef ALWAYS_INLINE
 int getOffsetU8(const int32_t subspaceCoord[], const int32_t strides[], int nDims, const int8_t broadcast[] = nullptr);
+#else
+inline __attribute((always_inline)) int getOffsetU8(const int32_t subspaceCoord[], const int32_t strides[], int nDims, const int8_t broadcast[] = nullptr)
+{
+    int offset = 0;
+    for(int d = 0; d < nDims; ++d)
+    {
+        const int coord = (broadcast && broadcast[d]) ? 0 : subspaceCoord[d];
+        offset += coord * strides[d];
+    }
+    return offset;
+}
+
+#endif
 
 // getOffsetsU8 uses coordinates of the section and strides to calculate offsets (in bytes)
 // from beginning of two original tensors to beginning of two corresponding sections
@@ -236,70 +292,70 @@ inline void __attribute((always_inline)) incrementNCoord(int32_t subspaceCoord[]
 // dims - sizes of dimensions (in)
 // nDims - dimensionality (in)
 // axis number of coordinate along which the line goes (in)
+#ifndef ALWAYS_INLINE
 void incrementLine(int32_t lineCoord[], const int32_t dims[], int nDims, int axis);
+#else
+inline __attribute((always_inline)) void incrementLine(int32_t lineCoord[], const int32_t dims[], int nDims, int axis)
+{
+    for(int d = 0, nAdd = 1; d < nDims && nAdd == 1 ; ++d)
+    {
+        if(d != axis)
+        {
+            lineCoord[d] = (lineCoord[d] == dims[d] - 1) ? 0 : lineCoord[d] + 1;
+            nAdd = (lineCoord[d] == 0) ? 1 : 0;
+        }
+    }
+}
+#endif
 
 // incrementPlane increments current coordinates of 2D section (plane on axis0, axis1 coordinates) by 1
 // planeCoord - full coordinate vector with plane's coordinates (, planeCoord[axis1] are ignored) (in/out)
 // dims - sizes of dimensions (in)
 // nDims - dimensionality (in)
 // axis0, axis1 numbers of coordinates on which the plane is built (in)
+#ifndef ALWAYS_INLINE
 void incrementPlane(int32_t planeCoord[], const int32_t dims[], int nDims, int axis0, int axis1);
+#else
+inline __attribute((always_inline)) void incrementPlane(int32_t planeCoord[], const int32_t dims[], int nDims, int axis0, int axis1)
+{
+    for(int d = 0, nAdd = 1; d < nDims && nAdd == 1 ; ++d)
+    {
+        if(d != axis0 && d != axis1)
+        {
+            planeCoord[d] = (planeCoord[d] == dims[d] - 1) ? 0 : planeCoord[d] + 1;
+            nAdd = (planeCoord[d] == 0) ? 1 : 0;
+        }
+    }
+}
+#endif
 
 // getTotalLines calculates amount of different 1D sections in tensor
 // dims - sizes of dimensions (in)
 // nDims - dimensionality (in)
 // axis number of coordinate along which the lines go (in)
 // returns common amount of different 1D sections in tensor
+#ifndef ALWAYS_INLINE
 int getTotalLines(const int32_t dims[], int nDims, int axis);
+#else
+inline __attribute((always_inline)) int getTotalLines(const int32_t dims[], int nDims, int axis)
+{
+    return (dims[axis]) ? getTotal(dims, nDims) / dims[axis] : 0;
+}
+#endif
 
 // getTotalPlanes calculates amount of different 2D sections in tensor
 // dims - sizes of dimensions (in)
 // nDims - dimensionality (in)
 // axis0, axis1 numbers of coordinates on which the plane is built (in)
 // returns common amount of different 2D sections in tensor
-int getTotalPlanes(const int32_t dims[], int nDims, int axis0, int axis1);
-
-// arrayElementExclude Excludes 1 element from array
-// arraysElementExclude Excludes 1 element from 2 or 3 parallel arrays
-// a,b,c - target arrays (in/out)
-// el - number of element to be excluded
-// nEls - size of original array
-// returns size of the array after excluding
 #ifndef ALWAYS_INLINE
-int arrayElementExclude(int32_t a[], int el, int nEls);
-int arraysElementExclude(int32_t a[], int32_t b[], int el, int nEls);
+int getTotalPlanes(const int32_t dims[], int nDims, int axis0, int axis1);
 #else
-inline int __attribute((always_inline)) arrayElementExclude(int32_t a[], int el, int nEls)
+inline __attribute((always_inline)) int getTotalPlanes(const int32_t dims[], int nDims, int axis0, int axis1)
 {
-    for(int i = el; i < nEls - 1; ++i)
-    {
-        a[i] = a[i + 1];
-    }
-    return nEls - 1;
-}
-
-inline int __attribute((always_inline)) arraysElementExclude(int32_t a[], int32_t b[], int el, int nEls)
-{
-    for(int i = el; i < nEls - 1; ++i)
-    {
-        a[i] = a[i + 1];
-        b[i] = b[i + 1];
-    }
-    return nEls - 1;
+    return (dims[axis0] * dims[axis1]) ? getTotal(dims, nDims) / (dims[axis0] * dims[axis1]) : 0;
 }
 #endif
-
-//template <typename TA0, typename TA1, typename TA2>
-//int arraysElementExclude(TA0 a[], TA1 b[], TA2 c[], int el, int nEls)
-//{
-//    for(int i = el; i < nEls - 1; ++i)
-//    {
-//        a[i] = a[i + 1];
-//        b[i] = b[i + 1];
-//        c[i] = c[i + 1];
-//    }
-//    return nEls - 1;
-//}
 
 // arrayElementInclude Includes 1 element to array
 // arraysElementInclude Includes 1 element to 2 parallel arrays
@@ -310,6 +366,7 @@ inline int __attribute((always_inline)) arraysElementExclude(int32_t a[], int32_
 // returns size of the array after including
 #ifndef ALWAYS_INLINE
 int arrayElementInclude(int32_t a[], int elementPos, int32_t value, int elementsCount, int maxDims = MAX_ND_DIMS);
+int arraysElementInclude(int32_t a[], int32_t b[], int elementPos, int32_t value, int elementsCount, int maxDims = MAX_ND_DIMS);
 #else
 inline int __attribute((always_inline)) arrayElementInclude(int32_t a[], int elementPos, int32_t value, int elementsCount, int maxDims = MAX_ND_DIMS);
 inline int __attribute((always_inline)) arrayElementInclude(int32_t a[], int elementPos, int32_t value, int elementsCount, int maxDims)
@@ -326,16 +383,44 @@ inline int __attribute((always_inline)) arrayElementInclude(int32_t a[], int ele
 
     return elementsCount + 1;
 }
-#endif
 
-int arraysElementInclude(int32_t a[], int32_t b[], int elementPos, int32_t value, int elementsCount, int maxDims = MAX_ND_DIMS);
+inline __attribute((always_inline)) int arraysElementInclude(int32_t a[], int32_t b[], int elementPos, int32_t value, int elementsCount, int maxDims = MAX_ND_DIMS)
+{
+    if (elementsCount + 1 > maxDims || elementPos > elementsCount)
+    {
+        return elementsCount;
+    }
+    for (int i = elementsCount; i >= elementPos + 1; --i)
+    {
+        a[i] = a[i - 1];
+        b[i] = b[i - 1];
+    }
+    a[elementPos] = value;
+    b[elementPos] = value;
+
+    return elementsCount + 1;
+}
+#endif
 
 // getSizes calculates sizes (in elements) of included subtensors of smaller dimensionality,
 // subspaceDims - sizes of dimensions (in)
 // nDims - dimensionality (in)
 // subspaceSizes - sizes of included subtensors (out)
 // returns common number of elements
+#ifndef ALWAYS_INLINE
 int getSizes(const int32_t subspaceDims[], int nDims, int32_t subspaceSizes[]);
+#else
+inline __attribute((always_inline)) int getSizes(const int32_t subspaceDims[], int nDims, int32_t subspaceSizes[])
+{
+    int totalSubspaces = 1;
+    for(int i = 0; i < nDims; i++)
+    {
+        subspaceSizes[i] = totalSubspaces;
+        totalSubspaces *= subspaceDims[i];
+    }
+    return totalSubspaces;
+}
+#endif
 
 // permutation array (perm):
 //      perm[i] contains:
@@ -363,35 +448,244 @@ int getSizes(const int32_t subspaceDims[], int nDims, int32_t subspaceSizes[]);
 //      all digits from 1 up to order length should be presented in the order value
 //      all digits on positions upper or equal to the order length should be 0
 
+#ifndef ALWAYS_INLINE
+int orderNDToNumDims(NDOrder ndOrder);
+NDDims orderNDToPermutation(NDOrder ndOrder, bool& success);
+NDDims orderNDToIndices(NDOrder ndOrder, bool& success);
+NDOrder permutationToOrderND(const NDDims perm);
+int orderNDToNumDims(NDOrder ndOrder);
+NDDims orderNDToPermutation(NDOrder ndOrder, bool& success);
+NDDims orderNDToIndices(NDOrder ndOrder, bool& success);
+NDOrder permutationToOrderND(const NDDims perm);
+bool isLayoutFit(NDOrder ndOrder, const long unsigned int lDims[],
+                 const long unsigned int lStrides[], int dimensionality);
+
+bool isPermutationValid(const NDDims& perm);
+bool isOrderNDValid(NDOrder ndOrder);
+#else
+inline __attribute((always_inline)) int orderNDToNumDims(NDOrder ndOrder);
+inline __attribute((always_inline)) NDDims orderNDToPermutation(NDOrder ndOrder, bool& success);
+inline __attribute((always_inline)) NDDims orderNDToIndices(NDOrder ndOrder, bool& success);
+inline __attribute((always_inline)) NDOrder permutationToOrderND(const NDDims perm);
+inline __attribute((always_inline)) bool isLayoutFit(NDOrder ndOrder, const long unsigned int lDims[],
+                 const long unsigned int lStrides[], int dimensionality);
+
+inline __attribute((always_inline)) bool isPermutationValid(const NDDims& perm);
+inline __attribute((always_inline)) bool isOrderNDValid(NDOrder ndOrder);
+inline __attribute((always_inline)) int orderNDToNumDims(NDOrder ndOrder)
+{
+    int i = 0;
+
+    for (i = 0; i < MAX_ND_DIMS; i++) {
+        int digit = static_cast<int>((ndOrder & 0xF) - 1);
+        if (static_cast<unsigned>(digit) >= static_cast<unsigned>(MAX_ND_DIMS)) {
+            break;
+        }
+        ndOrder >>= HEX_DIGIT_BITS;
+    }
+    return i;
+}
 template<class T>
-static inline void permuteArray(const T src_set[], const int32_t permutation[], T dst_set[], int set_lng) {
+static inline __attribute((always_inline)) void permuteArray(const T src_set[], const int32_t permutation[], T dst_set[], int set_lng) {
     for (int i = 0; i < set_lng; i ++) {
         dst_set[i] = src_set[permutation[i]];
     }
 }
 
-int orderNDToNumDims(NDOrder ndOrder);
+inline __attribute((always_inline)) NDDims orderNDToPermutation(NDOrder ndOrder, bool& success)
+{
+    NDDims perm;
 
-NDDims orderNDToPermutation(NDOrder ndOrder, bool& success);
-NDDims orderNDToIndices(NDOrder ndOrder, bool& success);
-NDOrder permutationToOrderND(const NDDims perm);
+    for (int i = 0; i < MAX_ND_DIMS; i++) {
+        int digit = static_cast<int>((ndOrder & 0xF));
+        if (static_cast<unsigned>(digit - 1) >= static_cast<unsigned>(MAX_ND_DIMS)) {
+            break;
+        }
+        if (!perm.push_back(digit - 1)) {
+            success = false;
+            return NDDims();
+        }
+        ndOrder >>= HEX_DIGIT_BITS;
+    }
+    if (isPermutationValid(perm)) {
+        success = true;
+        return perm;
+    } else {
+        success = false;
+        return NDDims();
+    }
+}
+inline __attribute((always_inline)) NDDims orderNDToIndices(NDOrder ndOrder, bool& success)
+{
+    NDDims indices;
+    indices.resize(MAX_ND_DIMS);
+    int num = MAX_ND_DIMS;
+    int max = -1;
+    for (int i = 0; i < MAX_ND_DIMS; i++) {
+        int ind = static_cast<int>((ndOrder & 0xF));
+        if (ind > max) {
+            max = ind;
+        }
+        if (static_cast<unsigned>(ind - 1) >= static_cast<unsigned>(MAX_ND_DIMS)) {
+            num = i;
+            break;
+        }
+        LogDimIndex key(ind - 1);
+        indices[key] = i;
+        ndOrder >>= HEX_DIGIT_BITS;
+    }
+    if (num != max) {  // Illegal order value
+        success = false;
+        return NDDims();
+    }
+
+    indices.resize(num);
+
+    if (isPermutationValid(indices)) {
+        success = true;
+        return indices;
+    } else {
+        success = false;
+        return NDDims();
+    }
+}
+inline __attribute((always_inline)) NDOrder permutationToOrderND(const NDDims perm)
+{
+    if (!isPermutationValid(perm)) {
+        return 0;
+    }
+    uint64_t order = 0;
+    int length = perm.ndims();
+    length = (length < MAX_ND_DIMS) ? length : MAX_ND_DIMS;
+    for (int sh = 0, i = 0; i < length; i++, sh += HEX_DIGIT_BITS) {
+        order += (((static_cast<unsigned int>(perm[i]) + 1) & 0xF) << sh);
+    }
+
+    return order;
+}
+#endif
 
 // alignPermutationSize makes the length of permutation vector equal to dimensionality
 // by removing or adding "elder" dimensions (with minimal contents)
 // depending on length > dimensionality or length < dimensionality correspondingly
+#ifndef ALWAYS_INLINE
 bool alignPermutationSize(NDDims& baseLinePerm, int dimensionality);
+#else
+inline __attribute((always_inline)) bool alignPermutationSize(NDDims& baseLinePerm, int dimensionality)
+{
+    int size = baseLinePerm.ndims();
+    if (size > dimensionality) {
+        for (int i = size - 1; i >= 0; i--) {
+            if (baseLinePerm[i] >= (size - dimensionality)) {
+                // decrease "junior" index
+                baseLinePerm[i] -= (size - dimensionality);
+            } else {
+                // erase "elder" index
+                if (!baseLinePerm.erase(i)) return false;
+            }
+        }
+    } else if (size < dimensionality) {
+        for (int i = 0; i < size; i++) {
+            // increase "junior" index
+            baseLinePerm[i] += (dimensionality - size);
+        }
+        for (int i = dimensionality - size - 1; i >= 0; i--) {
+            // add new "elder" index
+            if (!baseLinePerm.push_back(i)) return false;
+        }
+    }
+    return true;
+}
+#endif
 
 // extractLayoutFromShape calculates layout value on the base of dimensions and strides arrays
 // baseLineOrder is used as template in corresponding of which the dimension index is selected
 // in the cases of ambiguity
 // i.e. if the dimension == 1 then subsequent stride will be equal to current and it is impossible)
+#ifndef ALWAYS_INLINE
 NDOrder extractLayoutFromShape(const long unsigned int newDims[],
-    const long unsigned int newStrides[], int dimensionality, NDOrder baseLineNDOrder, bool& success);
+                               const long unsigned int newStrides[], int dimensionality, NDOrder baseLineNDOrder, bool& success);
+#else
+inline __attribute((always_inline)) NDOrder extractLayoutFromShape(const long unsigned int newDims[],
+    const long unsigned int newStrides[], int dimensionality, NDOrder baseLineNDOrder, bool& success)
+{
+    if (baseLineNDOrder <= 0) {
+        baseLineNDOrder = static_cast<NDOrder>(static_cast<uint64_t>(
+                                                     FULL_ND_ORDER) >> (HEX_DIGIT_BITS * (MAX_ND_DIMS - dimensionality)));
+    }
+    auto baseLinePerm = subspace::orderNDToPermutation(baseLineNDOrder, success);
+    success &= alignPermutationSize(baseLinePerm, dimensionality);
 
+    NDDims workPerm;
+    success &= workPerm.resize(dimensionality);
+    NDDims resultPerm;
+    success &= resultPerm.resize(dimensionality);
+    if (!success) {
+        return 0;
+    }
+
+    for (int i = 0; i < dimensionality; i++) {
+        workPerm[i] = baseLinePerm[i];
+    }
+    for (int j = 0; j < dimensionality; j++) {
+        int indexOfMin = 0;
+        unsigned int minStride = INT_MAX;
+        for (int i = 0; i < dimensionality; i++) {
+            if (workPerm[i] < 0) continue;
+            if (newStrides[workPerm[i]] < minStride) {
+                indexOfMin = i;
+                minStride = newStrides[workPerm[indexOfMin]];
+            } else if (newStrides[workPerm[i]] == minStride &&
+                       newDims[workPerm[i]] < newDims[workPerm[indexOfMin]]) {
+                indexOfMin = i;
+                minStride = newStrides[workPerm[indexOfMin]];
+            }
+        }
+        resultPerm[j] = workPerm[indexOfMin];
+        workPerm[indexOfMin] = -workPerm[indexOfMin] - 1;
+    }
+    uint64_t newOrder = subspace::permutationToOrderND(resultPerm);
+
+    return newOrder;
+}
+#endif
+
+#ifndef ALWAYS_INLINE
 bool isLayoutFit(NDOrder ndOrder, const long unsigned int lDims[],
-    const long unsigned int lStrides[], int dimensionality);
+                 const long unsigned int lStrides[], int dimensionality);
 
 bool isPermutationValid(const NDDims& perm);
 bool isOrderNDValid(NDOrder ndOrder);
+#else
+inline __attribute((always_inline)) bool isLayoutFit(NDOrder ndOrder, const long unsigned int lDims[],
+    const long unsigned int lStrides[], int dimensionality)
+{
+    bool success = false;
+    auto extracted = extractLayoutFromShape(lDims, lStrides, dimensionality, ndOrder, success);
+    return (success && (extracted == ndOrder));
+}
 
+inline __attribute((always_inline)) bool isPermutationValid(const NDDims& perm)
+{
+    if (perm.ndims() == 0) return false;
+    int32_t trivial[MAX_ND_DIMS];
+    for (int i = 0; i < perm.ndims(); i++) {
+        trivial[i] = -1;
+    }
+    for (int i = 0; i < perm.ndims(); i++) {
+        trivial[perm[i]] = perm[i];
+    }
+    for (int i = 0; i < perm.ndims(); i++) {
+        if (trivial[i] != i) return false;;
+    }
+    return true;
+}
+
+inline __attribute((always_inline)) bool isOrderNDValid(NDOrder ndOrder)
+{
+    bool ret = false;
+    orderNDToPermutation(ndOrder, ret);
+    return ret;
+}
+#endif
 }  // namespace subspace
