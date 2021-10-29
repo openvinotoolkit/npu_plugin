@@ -212,6 +212,8 @@ IE::Parameter Engine::GetConfig(const std::string& name,
         return IE::Parameter(_parsedConfig.performanceCounting());
     } else if (name == CONFIG_KEY(DEVICE_ID)) {
         return IE::Parameter(_parsedConfig.deviceId());
+    } else if (name == CONFIG_KEY(PERFORMANCE_HINT)) {
+        return IE::Parameter(_parsedConfig.performanceHint());
     } else if ((name == VPUX_CONFIG_KEY(THROUGHPUT_STREAMS)) || (name == KMB_CONFIG_KEY(THROUGHPUT_STREAMS))) {
         return IE::Parameter(_parsedConfig.throughputStreams());
     } else if (name == VPUX_CONFIG_KEY(INFERENCE_SHAVES)) {
