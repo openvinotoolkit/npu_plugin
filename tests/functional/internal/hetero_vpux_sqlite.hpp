@@ -13,7 +13,8 @@ public:
     SqliteSupport(std::string _dbname, std::string _network);
     bool getLastLayerStarted(std::string& layer, int64_t& startTime, int64_t& finishTime, inferStateEnum& inferState);
     void updateLayer(int64_t startTime, int64_t finishTime, inferStateEnum inferState);
-    void insertLayer(const std::string& layer, int64_t startTime);
+    void insertLayer(int number, const std::string& layer, int64_t startTime);
+    void flush();
     ~SqliteSupport();
 
 private:
