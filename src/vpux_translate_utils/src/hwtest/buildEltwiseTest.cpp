@@ -25,78 +25,92 @@ namespace hwtest {
 
 void buildEltwiseAdd(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module, mlir::OpBuilder builder,
                      Logger& log, mlir::Type inputType, mlir::Type weightsType, mlir::Type outputType) {
-    auto* ctx = builder.getContext();
-
-    auto input = testDesc.getInputLayer();
-    auto weight = testDesc.getWeightLayer();
-    auto output = testDesc.getOutputLayer();
-
-    SmallVector<int64_t> in_shape(input.shape.begin(), input.shape.end());
-    SmallVector<int64_t> weights_shape(weight.shape.begin(), weight.shape.end());
-    SmallVector<int64_t> out_shape(output.shape.begin(), output.shape.end());
+    auto input_shape = testDesc.getInputLayer().shape;
+    auto weights_shape = testDesc.getWeightLayer().shape;
+    auto out_shape = testDesc.getOutputLayer().shape;
 
     auto output_totalsize = totalTensorSize(out_shape, outputType);
-    auto input_totalsize = totalTensorSize(in_shape, inputType);
+    auto input_totalsize = totalTensorSize(input_shape, inputType);
 
     const auto OUTPUT_CMX_OFFSET = 0;
     const auto INPUT0_CMX_OFFSET = OUTPUT_CMX_OFFSET + output_totalsize;
     const auto INPUT1_CMX_OFFSET = INPUT0_CMX_OFFSET + input_totalsize;
 
+    // TODO:
+    // Eltwise should have same dtype and shape(?)
     VPUX_THROW_UNLESS((inputType == weightsType), "Eltwise expects inputs of same type");
 
     SmallVector<mlir::Type> inputTypes;
-    const auto inputAffineMaps = DimsOrder::NHWC.toAffineMapsList(ctx, Shape(in_shape));
+    const auto inputAffineMaps = DimsOrder::NHWC.toAffineMapsList(builder.getContext(), Shape(input_shape));
+    auto memSpaceAttr_in =
+            VPUIP::MemoryLocationAttr::get(builder.getContext(), VPUIP::MemoryLocation::ProgrammableInput);
+    inputTypes.push_back(mlir::MemRefType::get(makeArrayRef(input_shape), inputType, inputAffineMaps, memSpaceAttr_in));
     inputTypes.push_back(
-            getMemRefType(builder, VPUIP::MemoryLocation::ProgrammableInput, in_shape, inputType, inputAffineMaps));
-    inputTypes.push_back(getMemRefType(builder, VPUIP::MemoryLocation::ProgrammableInput, weights_shape, weightsType,
-                                       inputAffineMaps));
+            mlir::MemRefType::get(makeArrayRef(weights_shape), weightsType, inputAffineMaps, memSpaceAttr_in));
 
-    const auto outputAffineMaps = DimsOrder::NHWC.toAffineMapsList(ctx, Shape(out_shape));
+    const auto outputAffineMaps = DimsOrder::NHWC.toAffineMapsList(builder.getContext(), Shape(out_shape));
+    auto memSpaceAttr_out =
+            VPUIP::MemoryLocationAttr::get(builder.getContext(), VPUIP::MemoryLocation::ProgrammableOutput);
     auto outputParamType =
-            getMemRefType(builder, VPUIP::MemoryLocation::ProgrammableOutput, out_shape, outputType, outputAffineMaps);
+            mlir::MemRefType::get(makeArrayRef(input_shape), outputType, outputAffineMaps, memSpaceAttr_out);
     inputTypes.push_back(outputParamType);
     SmallVector<ArrayRef<mlir::AffineMap>> argsAffineMaps{inputAffineMaps, inputAffineMaps, outputAffineMaps};
 
     const auto funcType = builder.getFunctionType(makeArrayRef(inputTypes), outputParamType);
 
+    // TODO: Func should not return
     auto func = builder.create<mlir::FuncOp>(
             builder.getUnknownLoc(), llvm::formatv("eltwise_{0}_{1}_{2}", inputType, weightsType, outputType).str(),
             funcType, builder.getStringAttr("private"));
 
     auto funcbuilder = mlir::OpBuilder::atBlockBegin(func.addEntryBlock(), builder.getListener());
 
-    // Build VPUIP ops
+    // BUild VPUIP ops
     auto funcinput = func.getArgument(0);
     auto funcweights = func.getArgument(1);
     auto funcoutput = func.getArgument(2);
 
     // input - output cmx tensors
+    auto inputcmx_memSpaceAttr =
+            VPUIP::MemoryLocationAttr::get(builder.getContext(), VPUIP::MemoryLocation::VPU_CMX_NN);
     auto inputcmx_type =
-            getMemRefType(builder, VPUIP::MemoryLocation::VPU_CMX_NN, in_shape, inputType, inputAffineMaps);
-    auto inputcmx = createDeclareTensorOp(funcbuilder, inputcmx_type, 0, INPUT0_CMX_OFFSET);
+            mlir::MemRefType::get(makeArrayRef(input_shape), inputType, inputAffineMaps, inputcmx_memSpaceAttr);
+    auto inputcmx = funcbuilder.create<VPUIP::DeclareTensorOp>(builder.getUnknownLoc(), inputcmx_type,
+                                                               VPUIP::MemoryLocation::VPU_CMX_NN, 0, INPUT0_CMX_OFFSET);
 
+    auto weightscmx_memSpaceAttr =
+            VPUIP::MemoryLocationAttr::get(builder.getContext(), VPUIP::MemoryLocation::VPU_CMX_NN);
     auto weightscmx_type =
-            getMemRefType(builder, VPUIP::MemoryLocation::VPU_CMX_NN, weights_shape, weightsType, inputAffineMaps);
-    auto weightscmx = createDeclareTensorOp(funcbuilder, weightscmx_type, 0, INPUT1_CMX_OFFSET);
+            mlir::MemRefType::get(makeArrayRef(weights_shape), weightsType, inputAffineMaps, weightscmx_memSpaceAttr);
+    auto weightscmx = funcbuilder.create<VPUIP::DeclareTensorOp>(
+            builder.getUnknownLoc(), weightscmx_type, VPUIP::MemoryLocation::VPU_CMX_NN, 0, INPUT1_CMX_OFFSET);
 
+    auto outputcmx_memSpaceAttr =
+            VPUIP::MemoryLocationAttr::get(builder.getContext(), VPUIP::MemoryLocation::VPU_CMX_NN);
     auto outputcmx_type =
-            getMemRefType(builder, VPUIP::MemoryLocation::VPU_CMX_NN, out_shape, outputType, outputAffineMaps);
-    auto outputcmx = createDeclareTensorOp(funcbuilder, outputcmx_type, 0, OUTPUT_CMX_OFFSET);
+            mlir::MemRefType::get(makeArrayRef(out_shape), outputType, outputAffineMaps, outputcmx_memSpaceAttr);
+    auto outputcmx = funcbuilder.create<VPUIP::DeclareTensorOp>(
+            builder.getUnknownLoc(), outputcmx_type, VPUIP::MemoryLocation::VPU_CMX_NN, 0, OUTPUT_CMX_OFFSET);
 
-    auto parent_inputcmx = createDeclareTensorOp(funcbuilder, inputcmx_type, 0, INPUT0_CMX_OFFSET);
-    auto parent_outputcmx = createDeclareTensorOp(funcbuilder, outputcmx_type, 0, OUTPUT_CMX_OFFSET);
+    auto parent_inputcmx = funcbuilder.create<VPUIP::DeclareTensorOp>(
+            builder.getUnknownLoc(), inputcmx_type, VPUIP::MemoryLocation::VPU_CMX_NN, 0, INPUT0_CMX_OFFSET);
+    auto parent_outputcmx = funcbuilder.create<VPUIP::DeclareTensorOp>(
+            builder.getUnknownLoc(), outputcmx_type, VPUIP::MemoryLocation::VPU_CMX_NN, 0, OUTPUT_CMX_OFFSET);
 
     // barrier config
     auto barrier0 = funcbuilder.create<VPUIP::ConfigureBarrierOp>(builder.getUnknownLoc(), 0);
     auto barrier1 = funcbuilder.create<VPUIP::ConfigureBarrierOp>(builder.getUnknownLoc(), 1);
 
     // DMAs
-    funcbuilder.create<VPUIP::NNDMAOp>(builder.getUnknownLoc(), funcinput, inputcmx.getOperation()->getResult(0),
-                                       mlir::ValueRange(), mlir::ValueRange(barrier0.barrier()), false);
-    funcbuilder.create<VPUIP::NNDMAOp>(builder.getUnknownLoc(), funcweights, weightscmx.getOperation()->getResult(0),
-                                       mlir::ValueRange(), mlir::ValueRange(barrier0.barrier()), false);
-    funcbuilder.create<VPUIP::NNDMAOp>(builder.getUnknownLoc(), outputcmx.getOperation()->getResult(0), funcoutput,
-                                       mlir::ValueRange(barrier1.barrier()), mlir::ValueRange(), false);
+    /* auto in0_cmx_dma = */ funcbuilder.create<VPUIP::NNDMAOp>(
+            builder.getUnknownLoc(), funcinput, inputcmx.getOperation()->getResult(0), mlir::ValueRange(),
+            mlir::ValueRange(barrier0.barrier()), false);
+    /* auto in1_cmx_dma = */ funcbuilder.create<VPUIP::NNDMAOp>(
+            builder.getUnknownLoc(), funcweights, weightscmx.getOperation()->getResult(0), mlir::ValueRange(),
+            mlir::ValueRange(barrier0.barrier()), false);
+    /* auto cmx_out_dma = */ funcbuilder.create<VPUIP::NNDMAOp>(
+            builder.getUnknownLoc(), outputcmx.getOperation()->getResult(0), funcoutput,
+            mlir::ValueRange(barrier1.barrier()), mlir::ValueRange(), false);
 
     // NCE Task
     mlir::IntegerAttr actChannelLength = builder.getI32IntegerAttr(0);
@@ -120,25 +134,27 @@ void buildEltwiseAdd(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp 
                                  static_cast<int32_t>(out_shape[1] - 1)};
     auto end = getIntArrayAttr(builder, end_vec);
     auto pad = VPUIP::PaddingAttr::get(getIntAttr(builder, 0), getIntAttr(builder, 0), getIntAttr(builder, 0),
-                                       getIntAttr(builder, 0), ctx);
+                                       getIntAttr(builder, 0), builder.getContext());
 
     // NB For eltwise operations, NTHW_NTK=(8, 8) is the only mode supported by
     // the hardware; this corresponds to CUBOID_8x16.
-    nceTask.addDPUTask(variantbuilder, nullptr, start, end, pad, VPUIP::MPEMode::CUBOID_8x16);
+    /* auto dpuTask = */ variantbuilder.create<VPUIP::DPUTaskOp>(builder.getUnknownLoc(), nullptr, start, end, pad,
+                                                                 VPUIP::MPEMode::CUBOID_8x16);
 
-    funcbuilder.create<mlir::ReturnOp>(builder.getUnknownLoc(), funcoutput);
+    // TODO : return empty as func does not return anything
+    /* auto returnOp = */ funcbuilder.create<mlir::ReturnOp>(builder.getUnknownLoc(), funcoutput);
 
     // set runtime resources
-    mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
+    mlir::PassManager pm(builder.getContext(), mlir::OpPassManager::Nesting::Implicit);
     pm.addPass(VPUIP::createSetCompileParamsPass(VPUIP::ArchKind::MTL, VPUIP::CompilationMode(), None, log));
 
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module)), "Compilation failed");
 
     // IE.CNNNetwork
     buildCNNOp(builder, func.getName(),
-               {getTensorType(in_shape, inputType, DimsOrder::NHWC, nullptr),
+               {getTensorType(input_shape, inputType, DimsOrder::NHWC, nullptr),
                 getTensorType(weights_shape, weightsType, DimsOrder::NHWC, nullptr)},
-               {getTensorType(in_shape, outputType, DimsOrder::NHWC, nullptr)});
+               {getTensorType(input_shape, outputType, DimsOrder::NHWC, nullptr)});
 }
 }  // namespace hwtest
 }  // namespace vpux

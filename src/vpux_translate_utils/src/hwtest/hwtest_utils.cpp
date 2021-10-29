@@ -932,5 +932,193 @@ std::vector<int32_t> generateWeightsTablesValuesWithSparsity(const nb::TestCaseJ
     return weightsTableVals;
 }
 
+//
+
+mlir::DenseElementsAttr generateZeroPadForEltwiseMultWeights(ArrayRef<int64_t> wt_shape_padded, mlir::Type dtype,
+                                                             mlir::MLIRContext* ctx) {
+    auto wtData_ddr_valueType = mlir::RankedTensorType::get(wt_shape_padded, dtype);
+
+    if (auto qtype = dtype.dyn_cast<mlir::quant::QuantizedType>()) {
+        wtData_ddr_valueType = (qtype.getFlags() & mlir::quant::QuantizationFlags::Signed)
+                                       ? mlir::RankedTensorType::get(wt_shape_padded, getSInt8Type(ctx))
+                                       : mlir::RankedTensorType::get(wt_shape_padded, getUInt8Type(ctx));
+    }
+
+    // NOTE: This should be ZeroPoint, not 0
+    size_t vecSize = static_cast<size_t>(std::accumulate(wt_shape_padded.begin(), wt_shape_padded.end(),
+                                                         static_cast<int64_t>(1), std::multiplies<int64_t>()));
+
+    mlir::DenseElementsAttr wt_data_vals;
+    if (dtype.isF16()) {
+        std::vector<float16> wt_vec(vecSize, 0);
+        return mlir::DenseElementsAttr::get(wtData_ddr_valueType, makeArrayRef<float16>(wt_vec));
+    } else if (dtype.isBF16()) {
+        std::vector<bfloat16> wt_vec(vecSize, 0);
+        return mlir::DenseElementsAttr::get(wtData_ddr_valueType, makeArrayRef<bfloat16>(wt_vec));
+    } else {
+        if (dtype.dyn_cast<mlir::quant::QuantizedType>().getFlags() & mlir::quant::QuantizationFlags::Signed) {
+            std::vector<int8_t> wt_vec(vecSize, 0);
+            return mlir::DenseElementsAttr::get(wtData_ddr_valueType, makeArrayRef<int8_t>(wt_vec));
+        } else {
+            std::vector<uint8_t> wt_vec(vecSize, 0);
+            return mlir::DenseElementsAttr::get(wtData_ddr_valueType, makeArrayRef<uint8_t>(wt_vec));
+        }
+    }
+}
+
+std::vector<int32_t> generateWeightsTablesValuesForMaxPool(const nb::TestCaseJsonDescriptor& testDesc,
+                                                           mlir::MemRefType input, mlir::MemRefType output,
+                                                           mlir::MemRefType actWindow_cmx_type, std::size_t offset,
+                                                           ArrayRef<int64_t> wtTbl_data_shape) {
+    const std::size_t WT_ELEMENTS_PER_CHANNEL = 4UL;
+    const size_t SPARSITY_POINTER_IDX = 1;
+    const size_t MULTSHIFT_IDX = 2;
+    const size_t BIAS_IDX = 3;
+
+    std::vector<int32_t> weightsTableVals(wtTbl_data_shape[0] * WT_ELEMENTS_PER_CHANNEL, 0);
+
+    auto actWindowShape = actWindow_cmx_type.getShape();
+    auto activationWindowSizeInWords = static_cast<size_t>(std::accumulate(
+            actWindowShape.begin(), actWindowShape.end(), static_cast<int64_t>(1), std::multiplies<int64_t>()));
+    auto actElementTypeBits = actWindow_cmx_type.getElementTypeBitWidth();
+    auto activationWindowSizeInBytes = activationWindowSizeInWords * actElementTypeBits / 8;
+
+    auto outputChannels = wtTbl_data_shape[0];
+    auto paddedOutputChannels = outputChannels;
+
+    paddedOutputChannels = round_up(outputChannels, 16);
+    auto increment = activationWindowSizeInBytes / paddedOutputChannels;
+
+    std::vector<int64_t> increments = std::vector<int64_t>(paddedOutputChannels, 0);
+    for (unsigned i = 1; i < paddedOutputChannels; ++i) {
+        increments[i] = increments[i - 1] + increment;
+    }
+
+    long int new_offset = offset;
+
+    // TODO : later can be changed for multi-cluster test
+    unsigned numClusters = 1;
+
+    std::size_t sizeToIterate = 0;
+    std::size_t totalSizeToIterate = 0;
+    std::size_t k = 0;
+    for (unsigned i = 0; i < numClusters; i++) {
+        // Resetting offset at the beginning of the cluster
+        offset = new_offset;
+
+        // Filling cluster
+        for (size_t j = 0; j < weightsTableVals.size(); j += WT_ELEMENTS_PER_CHANNEL)
+            weightsTableVals[j + SPARSITY_POINTER_IDX + totalSizeToIterate] = offset + increments[k++];
+
+        // Preparing for next iteration
+        sizeToIterate = actWindowShape[0] * WT_ELEMENTS_PER_CHANNEL;
+        totalSizeToIterate += sizeToIterate;
+    }
+    // TODO: generic dtype
+    int32_t bias_value = 0;
+
+    auto mult_shift = calcWeightsTableMultShift(testDesc, input, output, mlir::MemRefType());
+
+    for (int64_t i = 0; i < outputChannels; ++i) {
+        weightsTableVals[i * 4 + MULTSHIFT_IDX] = static_cast<int32_t>(mult_shift);
+        weightsTableVals[i * 4 + BIAS_IDX] = bias_value;
+    }
+
+    return weightsTableVals;
+}
+
+SmallVector<int64_t> getWeightsPaddedShape(SmallVector<int64_t> wt_shape, bool isDepthwiseConv) {
+    unsigned short kernelWidth = wt_shape[3];
+    unsigned short kernelHeight = wt_shape[2];
+
+    // Initializions are done assuming regular convolution and then eventually modified for depthwise
+    auto inputChannels = wt_shape[1];
+    auto outputChannels = wt_shape[0];
+    if (isDepthwiseConv)
+        // outputChannels = inputChannels;
+        inputChannels = outputChannels;  // Backward definition NB vs MCM
+
+    auto weightSetDimension = kernelWidth * kernelHeight * inputChannels;
+    if (isDepthwiseConv)
+        weightSetDimension = kernelWidth * kernelHeight;
+
+    auto weightSetDimensionPadded = round_up(weightSetDimension, 16);
+
+    SmallVector<int64_t> wt_shape_padded({outputChannels, 1, 1, weightSetDimensionPadded});
+    return wt_shape_padded;
+}
+
+template <typename T>
+void padAvgPoolDWConvWeights(std::vector<T>& wt_vec, double scaleVal, unsigned int outputChannels,
+                             unsigned int weightSetDimension, unsigned int paddingDifference) {
+    unsigned j = 0;
+    for (unsigned oc = 0; oc < outputChannels; ++oc) {
+        for (unsigned ws = 0; ws < weightSetDimension; ++ws)
+            wt_vec[j++] = scaleVal;
+
+        for (unsigned ws = 0; ws < paddingDifference; ++ws)
+            ++j;
+    }
+}
+
+mlir::DenseElementsAttr generateDWConvWeightsForAvgPool(ArrayRef<int64_t> wt_shape, mlir::Type dtype, double scaleVal,
+                                                        mlir::MLIRContext* ctx) {
+    auto isDepthwiseConv = true;
+    unsigned short kernelWidth = wt_shape[3];
+    unsigned short kernelHeight = wt_shape[2];
+
+    // Initializions are done assuming regular convolution and then eventually modified for depthwise
+    auto inputChannels = wt_shape[1];
+    auto outputChannels = wt_shape[0];
+    if (isDepthwiseConv)
+        // outputChannels = inputChannels;
+        inputChannels = outputChannels;  // Backward definition NB vs MCM
+
+    auto weightSetDimension = kernelWidth * kernelHeight * inputChannels;
+    if (isDepthwiseConv)
+        weightSetDimension = kernelWidth * kernelHeight;
+
+    auto weightSetDimensionPadded = round_up(weightSetDimension, 16);
+    auto paddingDifference = weightSetDimensionPadded - weightSetDimension;
+
+    SmallVector<int64_t> wt_shape_padded({outputChannels, 1, 1, weightSetDimensionPadded});
+
+    auto wtData_ddr_valueType = mlir::RankedTensorType::get(wt_shape_padded, dtype);
+
+    if (auto qtype = dtype.dyn_cast<mlir::quant::QuantizedType>()) {
+        if (qtype.getFlags() & mlir::quant::QuantizationFlags::Signed) {
+            wtData_ddr_valueType = mlir::RankedTensorType::get(wt_shape_padded, getSInt8Type(ctx));
+        } else {
+            wtData_ddr_valueType = mlir::RankedTensorType::get(wt_shape_padded, getUInt8Type(ctx));
+        }
+    }
+
+    // NOTE: This should be ZeroPoint, not 0
+    size_t vecSize = static_cast<size_t>(std::accumulate(wt_shape_padded.begin(), wt_shape_padded.end(),
+                                                         static_cast<int64_t>(1), std::multiplies<int64_t>()));
+
+    mlir::DenseElementsAttr wt_data_vals;
+    if (dtype.isF16()) {
+        std::vector<float16> wt_vec(vecSize, 0);
+        padAvgPoolDWConvWeights(wt_vec, scaleVal, outputChannels, weightSetDimension, paddingDifference);
+        return mlir::DenseElementsAttr::get(wtData_ddr_valueType, makeArrayRef<float16>(wt_vec));
+    } else if (dtype.isBF16()) {
+        std::vector<bfloat16> wt_vec(vecSize, 0);
+        padAvgPoolDWConvWeights(wt_vec, scaleVal, outputChannels, weightSetDimension, paddingDifference);
+        return mlir::DenseElementsAttr::get(wtData_ddr_valueType, makeArrayRef<bfloat16>(wt_vec));
+    } else {
+        scaleVal = 1;
+        if (dtype.dyn_cast<mlir::quant::QuantizedType>().getFlags() & mlir::quant::QuantizationFlags::Signed) {
+            std::vector<int8_t> wt_vec(vecSize, 0);
+            padAvgPoolDWConvWeights(wt_vec, scaleVal, outputChannels, weightSetDimension, paddingDifference);
+            return mlir::DenseElementsAttr::get(wtData_ddr_valueType, makeArrayRef<int8_t>(wt_vec));
+        } else {
+            std::vector<uint8_t> wt_vec(vecSize, 0);
+            padAvgPoolDWConvWeights(wt_vec, scaleVal, outputChannels, weightSetDimension, paddingDifference);
+            return mlir::DenseElementsAttr::get(wtData_ddr_valueType, makeArrayRef<uint8_t>(wt_vec));
+        }
+    }
+}
+
 }  // namespace hwtest
 }  // namespace vpux

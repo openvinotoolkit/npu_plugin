@@ -103,7 +103,7 @@ void buildActKernelTest(const nb::TestCaseJsonDescriptor& testDesc, mlir::Module
                                        mlir::ValueRange{barrier0.barrier()}, false);
 
     // Run the kernel.
-    auto globalRef = mlir::SymbolRefAttr::get(builder.getContext(), globalOp.getName());
+    auto globalRef = mlir::SymbolRefAttr::get(globalOp);
     SmallVector<mlir::Attribute, 2> kernelArgs{builder.getI64IntegerAttr(inputCmxOffset),
                                                builder.getI64IntegerAttr(outputCmxOffset)};
     funcbuilder.create<VPUIP::ActKernelOp>(builder.getUnknownLoc(), globalRef, globalRef,

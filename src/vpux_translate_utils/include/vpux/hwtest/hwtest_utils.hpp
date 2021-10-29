@@ -131,5 +131,14 @@ std::vector<int32_t> generateWeightsTablesValuesWithSparsity(const nb::TestCaseJ
                                                              mlir::MemRefType actWindow_cmx_type, std::size_t offset,
                                                              ArrayRef<int64_t> wtTbl_data_shape, size_t weights_offset);
 
+mlir::DenseElementsAttr generateZeroPadForEltwiseMultWeights(ArrayRef<int64_t> wt_shape_padded, mlir::Type dtype,
+                                                             mlir::MLIRContext* ctx);
+std::vector<int32_t> generateWeightsTablesValuesForMaxPool(const nb::TestCaseJsonDescriptor& testDesc,
+                                                           mlir::MemRefType input, mlir::MemRefType output,
+                                                           mlir::MemRefType actWindow_cmx_type, std::size_t offset,
+                                                           ArrayRef<int64_t> wtTbl_data_shape);
+SmallVector<int64_t> getWeightsPaddedShape(SmallVector<int64_t> wt_shape, bool isDepthwiseConv);
+mlir::DenseElementsAttr generateDWConvWeightsForAvgPool(ArrayRef<int64_t> wt_shape, mlir::Type dtype, double scaleVal,
+                                                        mlir::MLIRContext* ctx);
 }  // namespace hwtest
 }  // namespace vpux
