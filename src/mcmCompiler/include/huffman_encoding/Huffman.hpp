@@ -79,7 +79,7 @@ struct HuffmanTuple_t
     std::string symbol;
     int occurrences = 0, index = 0, leftSon = 0, rightSon = 0;
 
-    explicit HuffmanTuple_t() : symbol("") {};
+    explicit HuffmanTuple_t() {};
 
     /**
      * Constructs a Huffman symbol from a character.
