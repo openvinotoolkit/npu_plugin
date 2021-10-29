@@ -324,6 +324,10 @@ def VPUIP_UPADMAOp :
         (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `->` type(results)
     }];
+
+    let verifier = [{
+        return vpux::VPUIP::verifyOp(*this);
+    }];
 }
 
 //
@@ -383,6 +387,10 @@ def VPUIP_NNDMAOp :
         (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
         (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `->` type(results)
+    }];
+
+    let verifier = [{
+        return vpux::VPUIP::verifyOp(*this);
     }];
 }
 
