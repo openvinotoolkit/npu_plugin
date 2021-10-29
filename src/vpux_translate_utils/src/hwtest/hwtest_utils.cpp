@@ -365,7 +365,7 @@ size_t calcWeightsTableMultShift(const nb::TestCaseJsonDescriptor& testDesc, mli
         out_scale = static_cast<float>(out_qType.getScale());
     }
 
-    float result_Scale = (in_Scale * weights_Scale) / out_scale;
+    float result_Scale = out_scale / (in_Scale * weights_Scale);
 
     auto float_as_int = [&](float f) {
         union bit_field32 {
@@ -381,7 +381,7 @@ size_t calcWeightsTableMultShift(const nb::TestCaseJsonDescriptor& testDesc, mli
         multshift = float_as_int(result_Scale);
     } else {
         // harcoded
-        int32_t round32 = 1;
+        int32_t round32 = 0;
         int32_t reluMult = 0;
         unsigned mult;
         unsigned shift;
