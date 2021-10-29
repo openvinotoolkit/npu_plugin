@@ -35,6 +35,7 @@ Metrics::Metrics(const VPUXBackends::CPtr& backends)
             CONFIG_KEY(LOG_LEVEL),
             CONFIG_KEY(PERF_COUNT),
             CONFIG_KEY(DEVICE_ID),
+            CONFIG_KEY(PERFORMANCE_HINT),
             VPUX_CONFIG_KEY(THROUGHPUT_STREAMS),
             KMB_CONFIG_KEY(THROUGHPUT_STREAMS),
             VPUX_CONFIG_KEY(INFERENCE_SHAVES),

@@ -21,6 +21,7 @@ namespace IE = InferenceEngine;
 
 vpux::VPUXConfig::VPUXConfig() {
     _compileOptions = merge(vpux::VPUXConfigBase::getCompileOptions(), {
+                                                                               CONFIG_KEY(PERFORMANCE_HINT),
                                                                                VPUX_CONFIG_KEY(PLATFORM),
                                                                                VPUX_CONFIG_KEY(COMPILER_TYPE),
                                                                                VPUX_CONFIG_KEY(COMPILATION_MODE),
@@ -28,6 +29,7 @@ vpux::VPUXConfig::VPUXConfig() {
     _runTimeOptions = merge(vpux::VPUXConfigBase::getRunTimeOptions(), {
                                                                                CONFIG_KEY(PERF_COUNT),
                                                                                CONFIG_KEY(DEVICE_ID),
+                                                                               CONFIG_KEY(PERFORMANCE_HINT),
                                                                                VPUX_CONFIG_KEY(THROUGHPUT_STREAMS),
                                                                                KMB_CONFIG_KEY(THROUGHPUT_STREAMS),
                                                                                VPUX_CONFIG_KEY(INFERENCE_SHAVES),
@@ -110,6 +112,11 @@ void vpux::VPUXConfig::parse(const std::map<std::string, std::string>& config) {
             {"3900_EMU", IE::VPUXConfigParams::VPUXPlatform::EMULATOR},
             {"3720_EMU", IE::VPUXConfigParams::VPUXPlatform::EMULATOR}};
     setOption(_platform, vpuxPlatform, config, VPUX_CONFIG_KEY(PLATFORM));
+
+    const std::unordered_map<std::string, PerformanceHint> performanceHints = {
+            {CONFIG_VALUE(LATENCY), PerformanceHint::Latency},
+            {CONFIG_VALUE(THROUGHPUT), PerformanceHint::Throughput}};
+    setOption(_performanceHint, performanceHints, config, CONFIG_KEY(PERFORMANCE_HINT));
 
     // Private options
     setOption(_inferenceTimeoutMs, config, VPUX_CONFIG_KEY(INFERENCE_TIMEOUT), parseInt);

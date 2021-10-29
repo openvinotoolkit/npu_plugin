@@ -470,6 +470,18 @@ void VpualCoreNNExecutor::allocateGraph(const std::vector<char>& graphFileConten
     OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "allocateGraph");
     static int graphId_main = 1;
     int nThreads = _config.throughputStreams();
+    if (nThreads < 0) {
+        switch (_config.performanceHint()) {
+        case PerformanceHint::Latency:
+            nThreads = 3;
+            break;
+        case PerformanceHint::Throughput:
+            nThreads = 6;
+            break;
+        default:
+            nThreads = 6;  // TODO: consider updating once multi-clustering is enabled in compiler
+        }
+    }
 
     _logger->info("allocateGraph begins");
 

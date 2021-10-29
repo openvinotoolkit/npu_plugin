@@ -21,6 +21,8 @@
 
 namespace vpux {
 
+enum class PerformanceHint { None, Latency, Throughput };
+
 class VPUXConfig : public VPUXConfigBase {
 public:
     VPUXConfig();
@@ -43,6 +45,9 @@ public:
     }
     const std::string& pipelineOptions() const {
         return _pipelineOptions;
+    }
+    PerformanceHint performanceHint() const {
+        return _performanceHint;
     }
 
     // Private options
@@ -94,11 +99,12 @@ protected:
     // Public options
     bool _performanceCounting = false;
     std::string _deviceId = "";
-    int _throughputStreams = 6;
+    int _throughputStreams = -1;
     int _numberOfNnCoreShaves = 0;
     InferenceEngine::VPUXConfigParams::VPUXPlatform _platform = InferenceEngine::VPUXConfigParams::VPUXPlatform::AUTO;
     int32_t _csramSize = 0;
     std::string _pipelineOptions;
+    PerformanceHint _performanceHint = PerformanceHint::None;
 
     // Private options
     InferenceEngine::ColorFormat _graphColorFormat = InferenceEngine::ColorFormat::BGR;
@@ -121,7 +127,7 @@ protected:
             InferenceEngine::VPUXConfigParams::CompilerType::MCM;
 
     std::string _compilationMode = "ReferenceHW";
-    Optional<int> _numberOfDPUGroups = 1;
+    Optional<int> _numberOfDPUGroups;
 
 private:
     void parseEnvironment();

@@ -49,6 +49,13 @@ static const std::unordered_map<std::string, std::string> getUniteConfigByPlugin
     return hddlUniteConfig;
 }
 
+int getNumThreads(const vpux::VPUXConfig& config) {
+    static const int DEFAULT_NUM_THREADS = 6;
+    const auto nnThreadNum = config.throughputStreams();
+    // TODO: add support for performance hints
+    return (nnThreadNum < 0) ? DEFAULT_NUM_THREADS : nnThreadNum;
+}
+
 HddlUniteGraph::HddlUniteGraph(const vpux::NetworkDescription::CPtr& network, const std::string& deviceID,
                                const vpux::VPUXConfig& config)
         : _logger(std::make_shared<Logger>("Graph", config.logLevel(), consoleOutput())) {
@@ -72,7 +79,7 @@ HddlUniteGraph::HddlUniteGraph(const vpux::NetworkDescription::CPtr& network, co
 
     // TODO we need to get number of NN shaves and threads via config, not as parameters
     // [Track number: S#39350]
-    const auto nnThreadNum = config.throughputStreams();
+    const auto nnThreadNum = getNumThreads(config);
     const auto nnShaveNum = config.numberOfNnCoreShaves();
     const auto& hddlUniteConfig = getUniteConfigByPluginConfig(config);
     statusCode = HddlUnite::Inference::loadGraph(_uniteGraphPtr, graphName, graphData.data(), graphData.size(),

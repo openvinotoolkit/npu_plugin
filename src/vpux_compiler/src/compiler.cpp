@@ -93,10 +93,32 @@ VPUIP::ArchKind getArchKind(const VPUXConfig& config) {
     }
 }
 
+//
+// getCompilationMode
+//
+
 VPUIP::CompilationMode getCompilationMode(const VPUXConfig& config) {
     const auto parsed = VPUIP::symbolizeCompilationMode(config.compilationMode());
     VPUX_THROW_UNLESS(parsed.hasValue(), "Unsupported compilation mode '{0}'", config.compilationMode());
     return parsed.getValue();
+}
+
+//
+// getNumberOfDPUGroups
+//
+
+Optional<int> getNumberOfDPUGroups(const VPUXConfig& config) {
+    if (config.numberOfDPUGroups().hasValue())
+        return config.numberOfDPUGroups();
+
+    switch (config.performanceHint()) {
+    case PerformanceHint::Latency:
+        return 4;
+    case PerformanceHint::Throughput:
+        return 1;
+    default:
+        return 1;  // TODO: consider updating once multi-clustering is enabled
+    }
 }
 
 //
@@ -290,7 +312,7 @@ void buildPipeline(mlir::PassManager& pm, const VPUXConfig& config, mlir::Timing
     const auto archKind = getArchKind(config);
     const auto compilationMode = getCompilationMode(config);
     const auto enableProfiling = config.performanceCounting();
-    const auto numOfDPUGroups = config.numberOfDPUGroups();
+    const auto numOfDPUGroups = getNumberOfDPUGroups(config);
 
     pm.addPass(createSetCompileParamsPass(archKind, compilationMode, numOfDPUGroups, log.nest()));
 
