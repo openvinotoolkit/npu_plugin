@@ -18,15 +18,6 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Sigmoid))
 static constexpr std::initializer_list<SingleTest> sigmoid_test_list
 {
     {{2, 2, 2}, {2, 2, 2}, orderZYX, FPE("sigmoid_fp16.elf"), {sw_params::Location::UPA_CMX}},
-    // {{2, 2, 2}, {2, 2, 2}, orderZYX, FPE("sigmoid.elf"), {/*{{224, 1, 1}, {1, 128, 1}, {0, 0, 0}, 3, 0}, */{0 /*axis*/, sw_params::Location::UPA_CMX /*mem type*/,}}},
-    // {{2, 2, 2}, {2, 2, 2}, orderZYX, FPE("softmax.elf"), {/*{{224, 1, 1}, {1, 128, 1}, {0, 0, 0}, 3, 0}, */{1 /*axis*/, sw_params::Location::UPA_CMX /*mem type*/,}}},
-    // {{4, 4, 4}, {4, 4, 4}, orderZYX, FPE("softmax.elf"), {/*{{224, 1, 1}, {1, 128, 1}, {0, 0, 0}, 3, 0}, */{0 /*axis*/, sw_params::Location::NN_CMX/*mem type*/,}}},
-    // {{4, 4, 4}, {4, 4, 4}, orderZYX, FPE("softmax.elf"), {/*{{224, 1, 1}, {1, 128, 1}, {0, 0, 0}, 3, 0}, */{1 /*axis*/, sw_params::Location::NN_CMX/*mem type*/,}}},
-    // {{4, 4, 4}, {4, 4, 4}, orderZYX, FPE("softmax.elf"), {/*{{224, 1, 1}, {1, 128, 1}, {0, 0, 0}, 3, 0}, */{2 /*axis*/, sw_params::Location::NN_CMX/*mem type*/,}}},
-    // {{3, 4, 5}, {3, 4, 5}, orderZYX, FPE("softmax.elf"), {/*{{224, 1, 1}, {1, 128, 1}, {0, 0, 0}, 3, 0}, */{2 /*axis*/, sw_params::Location::DDR/*mem type*/,}}},
-//    {{8, 8, 8}, {8, 8, 8}, orderZYX, FPE("softmax.elf"), {/*{{224, 1, 1}, {1, 128, 1}, {0, 0, 0}, 3, 0}, */nn::shave_lib::SOFTMAX, {2 /*axis*/,}}},
-//    {{224, 128, 24}, {224, 128, 24}, orderZYX, FPE("softmax.elf"), {/*{{224, 1, 1}, {1, 128, 1}, {0, 0, 0}, 3, 0}, */nn::shave_lib::SOFTMAX, {0 /*axis*/,}}},
-//    {{224, 128, 24}, {224, 128, 24}, orderZYX, FPE("softmax.elf"), {/*{{224, 1, 1}, {1, 128, 1}, {0, 0, 0}, 3, 0}, */nn::shave_lib::SOFTMAX, {1 /*axis*/,}}},
 };
 
 class CustomCppSigmoidTest: public CustomCppTests<fp16> {
@@ -44,7 +35,6 @@ protected:
     }
 
     void initData() override {
-        // std::cout << "init data" << std::endl;
 
         m_params = {
             0xFFFFFFFF,
@@ -67,8 +57,6 @@ protected:
         m_params.paramDataLen = paramContainer.size() * sizeof(uint64_t);
         m_requiredTensorLocation = static_cast<sw_params::Location>(test->customLayerParams.layerParams[0]);
         m_params.baseParamData = sw_params::ToBaseKernelParams(m_sigmoidParams);
-
-        // std::cout << "init data end" << std::endl;
     }
 
     void initTestCase() override {
@@ -83,7 +71,6 @@ protected:
     }
 
     void generateInputData() override {
-        // std::cout << "generate input data" << std::endl;
         const auto customData = false;//m_testLoop.value().customData;
 
 #ifdef CONFIG_TARGET_SOC_3720
@@ -126,7 +113,6 @@ protected:
 
         // reference output
         generateReferenceData();
-        // std::cout << "generate input data end" << std::endl;
     }
     void generateReferenceData() override {
         m_inputTensor.forEach(false, [&](const MemoryDims& indices){
@@ -139,7 +125,6 @@ protected:
     }
     virtual bool checkResult() override
         {
-            // std::cout << "checkResult" << std::endl;
             m_outputTensor.confirmBufferData();
 
 //            // save output data
@@ -160,24 +145,21 @@ protected:
 
                 threshold_test_failed |= differ;
 
-                if ((differ && GlobalData::doPrintDiffs) || true)
+                if (differ && GlobalData::doPrintDiffs)
                 {
                     const TensorDims ti = m_outputTensor.toTensor(indices);
                     printf("DIFF HWC [%d:%d:%d] %f %f %f\n", ti.height, ti.width, ti.channels, value, gt_value, abs_diff);
                 }
             });
 
-            // std::cout << "checkResult end" << std::endl;
             return !threshold_test_failed;
         }
 private:
     ListIterator<SingleTest> m_testsLoop;
 
-    // Additional buffer to avoid convertion back and forth
     int m_axis;
     std::vector<uint64_t> paramContainer;
     sw_params::SigmoidParams * m_sigmoidParams;
-//    Tensor<fp16> m_referenceTensor;
 };
 
 ICV_TESTS_REGISTER_SUITE(CustomCppSigmoidTest)
