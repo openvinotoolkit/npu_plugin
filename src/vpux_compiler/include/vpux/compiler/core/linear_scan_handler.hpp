@@ -39,6 +39,8 @@ public:
     AddressType getAlignment(mlir::Value val) const;
     AddressType getAddress(mlir::Value val) const;
     void allocated(mlir::Value val, AddressType addr);
+    void deallocate(mlir::Value val);
+    SmallVector<mlir::Value*> getIncreasingSizeOrderAlive();
     void freed(mlir::Value val);
     static int getSpillWeight(mlir::Value);
     static bool spilled(mlir::Value);
