@@ -9,8 +9,9 @@ SqliteSupport::SqliteSupport(std::string _dbname, std::string _network): dbname(
         err << "Error open DB " << sqlite3_errmsg(DB) << std::endl;
         throw std::runtime_error(err.str());
     } else {
-        std::cout << "Opened Database Successfully!" << std::endl;
+        std::cout << "Opened Database Successfully! " << dbname << std::endl;
     }
+    createTableIfNotExists();
 }
 
 SqliteSupport::~SqliteSupport() {
@@ -18,22 +19,36 @@ SqliteSupport::~SqliteSupport() {
     if (sres) {
         std::ostringstream err;
         err << "Error close DB " << sqlite3_errmsg(DB) << std::endl;
-        throw std::runtime_error(err.str());
+        std::cerr << err.str() << std::endl;
     } else {
         std::cout << "Closed Database Successfully!" << std::endl;
     }
 }
 
+void SqliteSupport::flush() {
+    int sres = sqlite3_db_cacheflush(DB);
+    if (sres != SQLITE_OK) {
+        std::ostringstream err;
+        err << "Error flush DB: " << sres << std::endl;
+        throw std::runtime_error(err.str());
+    } else {
+        std::cout << "Flushed Database Successfully!" << std::endl;
+    }
+}
+
 void SqliteSupport::createTableIfNotExists() {
     std::string sql = "CREATE TABLE IF NOT EXISTS " + network +
-                      "("
+                      " ("
                       "ID INTEGER PRIMARY KEY AUTOINCREMENT    NOT NULL, "
+                      "NUM       INT     NOT NULL, "
                       "LAYER          TEXT    NOT NULL, "
                       "START_TIME       INT     NOT NULL, "
                       "FINISH_TIME       INT, "
                       "STATUS           INT NOT NULL);";
 
     char* messaggeError;
+    std::cout << "SQL exec: " << sql << std::endl;
+
     int sres = sqlite3_exec(DB, sql.c_str(), NULL, 0, &messaggeError);
 
     if (sres != SQLITE_OK) {
@@ -41,7 +56,7 @@ void SqliteSupport::createTableIfNotExists() {
         err << "Error Create Table: " << messaggeError << "; errcode " << sqlite3_errcode(DB) << "/"
             << sqlite3_extended_errcode(DB) << std::endl;
         sqlite3_free(messaggeError);
-        std::cerr << err.str() << std::endl;
+        throw std::runtime_error(err.str());
     } else {
         std::cout << "Table created Successfully" << std::endl;
     }
@@ -62,12 +77,13 @@ static int callback(void* data, int argc, char** argv, char** azColName) {
 
     printf("\n");
 
-    assert(argc == 5);
+    assert(argc == 6);
 
-    g_layer = argv[1];
-    g_startTime = atoi(argv[2]);
-    g_finishTime = argv[3] ? atoi(argv[3]) : 0;
-    g_inferState = inferStateEnum(atoi(argv[4]));
+    int c = 1;
+    g_layer = argv[++c];
+    g_startTime = atoi(argv[++c]);
+    g_finishTime = argv[++c] ? atoi(argv[c]) : 0;
+    g_inferState = inferStateEnum(atoi(argv[++c]));
 
     ++g_lastLayerRecords;
 
@@ -93,12 +109,14 @@ bool SqliteSupport::getLastLayerStarted(std::string& layer, int64_t& startTime, 
     throw std::runtime_error("More than one last record matched");
 }
 
-void SqliteSupport::insertLayer(const std::string& layer, int64_t startTime) {
+void SqliteSupport::insertLayer(int number, const std::string& layer, int64_t startTime) {
     std::ostringstream sql_ins;
-    sql_ins << "INSERT INTO " << network << " (LAYER, START_TIME, FINISH_TIME, STATUS) "
-            << " VALUES('" << layer << "', " << startTime << ", NULL, " << (int)inferStateEnum::TO_BE_RUN << ");";
+    sql_ins << "INSERT INTO " << network << " (NUM, LAYER, START_TIME, FINISH_TIME, STATUS) "
+            << " VALUES ( " << number << ", '" << layer << "', " << startTime << ", NULL, "
+            << (int)inferStateEnum::TO_BE_RUN << ");";
 
     char* messageError;
+    std::cout << "SQL exec: " << sql_ins.str() << std::endl;
     int sres = sqlite3_exec(DB, sql_ins.str().c_str(), NULL, 0, &messageError);
     if (sres != SQLITE_OK) {
         std::ostringstream err;
@@ -116,6 +134,7 @@ void SqliteSupport::updateLayer(int64_t startTime, int64_t finishTime, inferStat
             << " WHERE START_TIME=" << startTime << ";";
 
     char* messageError;
+    std::cout << "SQL exec: " << sql_upd.str() << std::endl;
     int sres = sqlite3_exec(DB, sql_upd.str().c_str(), NULL, 0, &messageError);
     if (sres != SQLITE_OK) {
         std::ostringstream err;
