@@ -38,6 +38,49 @@ bool hasNegativeValues(const Const::Content& low) {
     });
 }
 
+bool containsValueZero(Const::ContentAttr lowConst, Const::ContentAttr highConst) {
+    auto containsZero = [](const double low, const double high) {
+        return low <= 0 && high >= 0;
+    };
+
+    const auto lowAttr = lowConst.fold();
+    const auto highAttr = highConst.fold();
+    if (lowAttr.isSplat() && highAttr.isSplat()) {
+        const auto low = lowAttr.getSplatValue<double>();
+        const auto high = highAttr.getSplatValue<double>();
+        return containsZero(low, high);
+    }
+
+    const auto lowVals = lowAttr.getValues<double>();
+    const auto highVals = highAttr.getValues<double>();
+    VPUX_THROW_UNLESS(lowVals.size() == highVals.size(), "Low/high attributes size mismatch : '{0}' vs '{1}'",
+                      lowVals.size(), highVals.size());
+
+    for (auto p : zip(lowVals, highVals)) {
+        const auto lowVal = std::get<0>(p);
+        const auto highVal = std::get<1>(p);
+        if (!containsZero(lowVal, highVal))
+            return false;
+    }
+
+    return true;
+}
+
+// Ranges without value zero lead to a negative zero-point which is not supported in the DPU PPE
+bool hasRangeWithoutZero(IE::FakeQuantizeOp fqOp) {
+    auto inLowConst = fqOp.input_low().getDefiningOp<Const::DeclareOp>();
+    auto inHighConst = fqOp.input_high().getDefiningOp<Const::DeclareOp>();
+    auto outLowConst = fqOp.output_low().getDefiningOp<Const::DeclareOp>();
+    auto outHighConst = fqOp.output_high().getDefiningOp<Const::DeclareOp>();
+
+    if (!containsValueZero(inLowConst.contentAttr(), inHighConst.contentAttr()) ||
+        !containsValueZero(outLowConst.contentAttr(), outHighConst.contentAttr())) {
+        return true;
+    }
+
+    return false;
+}
+
 //
 // UseQuantDequant
 //
@@ -251,7 +294,9 @@ void SplitFakeQuantPass::safeRunOnFunc() {
     auto& ctx = getContext();
 
     mlir::ConversionTarget target(ctx);
-    target.addIllegalOp<IE::FakeQuantizeOp>();
+    target.addDynamicallyLegalOp<IE::FakeQuantizeOp>([](IE::FakeQuantizeOp fqOp) {
+        return hasRangeWithoutZero(fqOp);
+    });
     target.addLegalOp<Const::DeclareOp>();
     target.addLegalOp<IE::QuantizeOp>();
     target.addLegalOp<IE::QuantizeCastOp>();
