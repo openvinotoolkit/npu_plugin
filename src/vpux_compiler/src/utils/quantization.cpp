@@ -238,6 +238,10 @@ std::tuple<double, int64_t> vpux::calcScaleAndZeroPoint(int64_t qMin, int64_t qM
     VPUX_THROW_UNLESS(qMax > qMin, "Wrong quantized storage values range ['{0}', '{1}']", qMin, qMax);
     VPUX_THROW_UNLESS(rMax > rMin, "Wrong real values range ['{0}', '{1}']", rMin, rMax);
 
+    // Ranges that do not contain zero will generate negative zero-point which is not supported in DPU PPE pipeline
+    VPUX_THROW_UNLESS(rMin <= 0 && rMax >= 0, "Real values range does not contain value zero ['{0}', '{1}']", rMin,
+                      rMax);
+
     //
     // Determine the scale.
     //
