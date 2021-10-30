@@ -78,7 +78,7 @@ mlir::OwningModuleRef importIE(llvm::SourceMgr& sourceMgr, mlir::MLIRContext* ct
     try {
         mlir::DefaultTimingManager tm;
         auto rootTiming = tm.getRootScope();
-        module = IE::importNetwork(ctx, cnnNet, false, rootTiming);
+        module = IE::importNetwork(ctx, cnnNet, false, rootTiming, false);
     } catch (const std::exception& ex) {
         printTo(llvm::errs(), "Failed to translate IE IR {0} to MLIR : {1}", netFileName, ex.what());
         return nullptr;

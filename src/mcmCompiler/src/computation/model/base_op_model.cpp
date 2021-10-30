@@ -594,9 +594,27 @@ mv::Data::OpListIterator mv::BaseOpModel::getNetworkOutput(std::size_t idx)
     return (*networkOutputs_)[idx];
 }
 
+std::vector<mv::Data::OpListIterator> mv::BaseOpModel::getProfilingOutputs()
+{
+    return *profilingOutputs_;
+}
+
+mv::Data::OpListIterator mv::BaseOpModel::getProfilingOutput(std::size_t idx)
+{
+    if (idx >= profilingOutputs_->size())
+        throw ArgumentError(*this, "baseOpModel", "invalid", "Profiling output index out of range");
+
+    return (*profilingOutputs_)[idx];
+}
+
 size_t mv::BaseOpModel::getNumNetworkOutputs()
 {
     return networkOutputs_->size();
+}
+
+size_t mv::BaseOpModel::getNumProfilingOutputs()
+{
+    return profilingOutputs_->size();
 }
 
 void mv::BaseOpModel::setNumNetworkOutputs(std::size_t numOutputs)
@@ -630,6 +648,14 @@ void mv::BaseOpModel::addNetworkOutput(mv::Data::OpListIterator outputOp)
         throw ArgumentError(*this, "baseOpModel", "invalid", "Input argument is null");
 
     networkOutputs_->push_back(outputOp);
+}
+
+void mv::BaseOpModel::addProfilingOutput(mv::Data::OpListIterator outputOp)
+{
+    if (!outputOp)
+        throw ArgumentError(*this, "baseOpModel", "invalid", "Input argument is null");
+
+    profilingOutputs_->push_back(outputOp);
 }
 
 mv::Data::OpListIterator mv::BaseOpModel::opBegin() const

@@ -129,7 +129,8 @@
             },
             {
                 "name" : "AddDPUTasksProfilingDMA",
-                "enable_cmx" : false
+                "enable_cmx" : false,
+                "use_profiling_buffer" : true
             },
             "LayoutDMA"
         ]

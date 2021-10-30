@@ -34,7 +34,8 @@ namespace mv
                 BLOB = 5,
                 VIRTUAL = 6,
                 CSRAM = 7,
-                DEFAULT = 8
+                PROFILING = 8,
+                DEFAULT = 9
             };
         private:
             Location location_;

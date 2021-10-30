@@ -56,6 +56,7 @@ namespace mv
 /* Tensors from Graph input/output operations are stored in:
  * 1) ProgrammableInput
  * 2) ProgrammableOutput
+ * 3) ProfilingOutput
 */
 void allocateInputOutputTensorsKmbFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
@@ -73,6 +74,8 @@ void allocateInputOutputTensorsKmbFcn(const mv::pass::PassEntry& pass, mv::Compu
     if (!dm.hasAllocator("ProgrammableOutput"))
         throw mv::ArgumentError(dm, "allocators", "ProgrammableOutput", "Computation model does not have ProgrammableOutput specified");
 
+    if (!dm.hasAllocator("ProfilingOutput"))
+        throw mv::ArgumentError(dm, "allocators", "ProfilingOutput", "Computation model does not have ProfilingOutput specified");
 
     if (cm.stageSize() == 0)
         throw mv::ArgumentError(cm , "stages count", "0", "Computation model does not have stages specified");
@@ -90,6 +93,10 @@ void allocateInputOutputTensorsKmbFcn(const mv::pass::PassEntry& pass, mv::Compu
         else if(location == mv::Tensor::MemoryLocation::OUTPUT)
         {
             dm.allocateTensor("ProgrammableOutput", stageIt, tensorIterator);
+        }
+        else if(location == mv::Tensor::MemoryLocation::PROFILING)
+        {
+            dm.allocateTensor("ProfilingOutput", stageIt, tensorIterator);
         }
     }
 }
@@ -216,6 +223,10 @@ static mv::Data::BufferIterator allocateUnpopulatedTensor(const mv::pass::PassEn
     else if(logicalLocation == mv::Tensor::MemoryLocation::BLOB)
     {
         return dm.allocateTensor("GraphFile",stageIt, tensorIt);
+    }
+    else if(logicalLocation == mv::Tensor::MemoryLocation::PROFILING)
+    {
+        return dm.allocateTensor("ProfilingOutput", stageIt, tensorIt);
     }
     else if (logicalLocation == mv::Tensor::MemoryLocation::DEFAULT)
     {
@@ -423,6 +434,7 @@ static std::map<std::string,std::string> location2Allocator =
         { "DDR", "VPU_DDR_Heap"},
         { "INPUT", "ProgrammableInput"},
         { "OUTPUT", "ProgrammableOutput"},
+        { "PROFILING", "ProfilingOutput"},
         { "DEFAULT", "VPU_DDR_BSS"},
         { "BLOB", "GraphFile"}
 };

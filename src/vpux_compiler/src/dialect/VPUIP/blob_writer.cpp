@@ -387,6 +387,7 @@ MVCNN::MemoryLocation vpux::VPUIP::BlobWriter::createMemoryLocation(MemoryLocati
     switch (location) {
         CASE(ProgrammableInput);
         CASE(ProgrammableOutput);
+        CASE(ProfilingOutput);
         CASE(VPU_DDR_Heap);
         CASE(GraphFile);
         CASE(VPU_CMX_NN);

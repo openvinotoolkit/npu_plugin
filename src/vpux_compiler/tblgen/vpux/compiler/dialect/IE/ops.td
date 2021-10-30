@@ -93,6 +93,7 @@ def IE_CNNNetworkOp :
 
           * Precision and layout for user-provided inputs.
           * Precision and layout for user-provided outputs.
+          * Layout for output profiling data(optional).
           * Entry point (Function name) for the network inference.
     }];
 
@@ -102,7 +103,8 @@ def IE_CNNNetworkOp :
 
     let regions = (region
         SizedRegion<1>:$inputsInfo,
-        SizedRegion<1>:$outputsInfo
+        SizedRegion<1>:$outputsInfo,
+        VariadicRegion<SizedRegion<1>>:$profilingOutputsInfo
     );
 
     let extraClassDeclaration = [{
@@ -111,6 +113,9 @@ def IE_CNNNetworkOp :
 
         size_t getNetOutputsCount();
         vpux::SmallVector<vpux::IE::DataInfoOp, 1> getOutputsInfo();
+
+        size_t getProfilingOutputsCount();
+        vpux::SmallVector<vpux::IE::DataInfoOp, 1> getProfilingOutputsInfo();
 
         static void getFromModule(
                 mlir::ModuleOp module,
@@ -122,11 +127,18 @@ def IE_CNNNetworkOp :
         }
     }];
 
+    let builders = [
+        OpBuilder<
+            (ins "mlir::FlatSymbolRefAttr":$entryPoint, "bool":$withProfiling)
+        >
+    ];
+
     let assemblyFormat = [{
         attr-dict
         `entryPoint` `:` $entryPoint
         `inputsInfo` `:` $inputsInfo
         `outputsInfo` `:` $outputsInfo
+        (`profilingOutputsInfo` `:` $profilingOutputsInfo^)?
     }];
 
     let verifier = [{

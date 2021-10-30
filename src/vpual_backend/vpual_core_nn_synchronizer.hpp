@@ -30,15 +30,15 @@ public:
     }
 
     // Sends requests via XLink
-    int RequestInferenceFunction(NnExecMsg& request) {
+    int RequestInferenceFunction(NnExecWithProfilingMsg& request) {
         OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "_nnXlinkPlg->RequestInference");
-        return _nnXlinkPlg->RequestInference(request);
+        return _nnXlinkPlg->RequestInferenceWithProfiling(request);
     }
 
     // Blocks thread until some response is received via XLink
-    int PollForResponseFunction(NnExecResponseMsg& response) {
+    int PollForResponseFunction(NnExecWithProfilingResponseMsg& response) {
         OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "_nnXlinkPlg->WaitForResponse");
-        return _nnXlinkPlg->WaitForResponse(response);
+        return _nnXlinkPlg->WaitForResponseWithProfiling(response);
     }
 
 private:
@@ -61,7 +61,7 @@ public:
         _pollingThread.join();
     }
 
-    int RequestInference(NnExecMsg& request, unsigned int inference_id) {
+    int RequestInference(NnExecWithProfilingMsg& request, unsigned int inference_id) {
         {
             std::lock_guard<std::mutex> lck(_mapProtectMtx);
             // if there is not yet any inferenceId-to-WaitResponseEntry available
@@ -131,7 +131,7 @@ private:
             _nWaitsPending--;
             lck.unlock();
 
-            NnExecResponseMsg response;
+            NnExecWithProfilingResponseMsg response;
             const int status = _impl.PollForResponseFunction(response);
 
             if (status == X_LINK_SUCCESS) {

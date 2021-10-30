@@ -28,11 +28,12 @@ using namespace vpux;
 
 static mlir::LogicalResult checkFunctionPrototype(vpux::IE::CNNNetworkOp cnnOp, mlir::FuncOp netFunc,
                                                   SmallVector<IE::DataInfoOp>& inputsInfo,
-                                                  SmallVector<IE::DataInfoOp>& outputsInfo) {
+                                                  SmallVector<IE::DataInfoOp>& outputsInfo,
+                                                  SmallVector<IE::DataInfoOp>& profilingOutputsInfo) {
     const auto netFuncType = netFunc.getType();
     const auto args = netFunc.getArgumentTypes();
 
-    if (netFuncType.getNumResults() != outputsInfo.size()) {
+    if (netFuncType.getNumResults() != outputsInfo.size() + profilingOutputsInfo.size()) {
         return errorAt(cnnOp, "entryPoint '@{0}' outputs count '{1}' doesn't match userOutputs count '{2}'",
                        cnnOp.entryPoint(), netFuncType.getNumResults(), outputsInfo.size());
     }
@@ -54,7 +55,8 @@ static mlir::LogicalResult checkFunctionPrototype(vpux::IE::CNNNetworkOp cnnOp, 
     }
 
     const auto isBufferized =
-            (netFuncType.getNumInputs() == inputsInfo.size() + outputsInfo.size()) && isArgsBufferized;
+            (netFuncType.getNumInputs() == inputsInfo.size() + outputsInfo.size() + profilingOutputsInfo.size()) &&
+            isArgsBufferized;
     if (isBufferized) {
         mlir::LogicalResult res = mlir::success();
         const AliasesInfo info{netFunc};
@@ -89,6 +91,11 @@ static mlir::LogicalResult checkFunctionPrototype(vpux::IE::CNNNetworkOp cnnOp, 
 // CNNNetworkOp
 //
 
+void vpux::IE::CNNNetworkOp::build(mlir::OpBuilder& builder, mlir::OperationState& state,
+                                   mlir::FlatSymbolRefAttr entryPoint, bool withProfiling) {
+    build(builder, state, entryPoint, static_cast<unsigned>(withProfiling ? 1 : 0));
+}
+
 mlir::LogicalResult vpux::IE::CNNNetworkOp::verifySymbolUses(mlir::SymbolTableCollection& symbolTable) {
     auto netFunc = symbolTable.lookupNearestSymbolFrom<mlir::FuncOp>(*this, entryPointAttr());
 
@@ -99,8 +106,12 @@ mlir::LogicalResult vpux::IE::CNNNetworkOp::verifySymbolUses(mlir::SymbolTableCo
     auto& cnnOp = *this;
     auto inputsInfo = to_small_vector(this->inputsInfo().getOps<IE::DataInfoOp>());
     auto outputsInfo = to_small_vector(this->outputsInfo().getOps<IE::DataInfoOp>());
+    SmallVector<IE::DataInfoOp> profilingOutputsInfo;
+    if (!this->profilingOutputsInfo().empty()) {
+        profilingOutputsInfo = to_small_vector(this->profilingOutputsInfo().front().getOps<IE::DataInfoOp>());
+    }
 
-    if (checkFunctionPrototype(cnnOp, netFunc, inputsInfo, outputsInfo).failed()) {
+    if (checkFunctionPrototype(cnnOp, netFunc, inputsInfo, outputsInfo, profilingOutputsInfo).failed()) {
         return mlir::failure();
     }
 
@@ -210,6 +221,20 @@ size_t vpux::IE::CNNNetworkOp::getNetOutputsCount() {
 
 SmallVector<IE::DataInfoOp, 1> vpux::IE::CNNNetworkOp::getOutputsInfo() {
     return to_vector<1>(outputsInfo().getOps<IE::DataInfoOp>());
+}
+
+size_t vpux::IE::CNNNetworkOp::getProfilingOutputsCount() {
+    if (!profilingOutputsInfo().empty() && !profilingOutputsInfo().front().empty()) {
+        return profilingOutputsInfo().front().front().getOperations().size();
+    }
+    return 0;
+}
+
+SmallVector<IE::DataInfoOp, 1> vpux::IE::CNNNetworkOp::getProfilingOutputsInfo() {
+    if (!profilingOutputsInfo().empty()) {
+        return to_vector<1>(profilingOutputsInfo().front().getOps<IE::DataInfoOp>());
+    }
+    return SmallVector<IE::DataInfoOp, 1>();
 }
 
 void vpux::IE::CNNNetworkOp::getFromModule(mlir::ModuleOp module, CNNNetworkOp& netInfo, mlir::FuncOp& netFunc) {

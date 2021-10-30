@@ -36,6 +36,11 @@ const vpux::DataMap& EmulatorNetworkDescription::getDeviceOutputsInfo() const {
     return _dataMapPlaceholder;
 }
 
+const vpux::DataMap& EmulatorNetworkDescription::getDeviceProfilingOutputsInfo() const {
+    _logger->info("EmulatorNetworkDescription::getDeviceProfilingsInfo()\n");
+    return _dataMapPlaceholder;
+}
+
 const vpux::QuantizationParamMap& EmulatorNetworkDescription::getQuantParamsInfo() const {
     _logger->info("EmulatorNetworkDescription::getQuantParamsInfo()\n");
     return _quantParams;
