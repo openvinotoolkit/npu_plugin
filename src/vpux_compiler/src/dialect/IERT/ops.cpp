@@ -71,6 +71,10 @@ void vpux::IERT::IERTDialect::setExecutor(mlir::async::ExecuteOp execOp, mlir::A
     execOp->setAttr(numUnitsAttrName, getIntAttr(execOp->getContext(), numUnits));
 }
 
+llvm::StringLiteral vpux::IERT::IERTDialect::getExecutorAttrName() {
+    return executorAttrName;
+}
+
 mlir::Attribute vpux::IERT::IERTDialect::getExecutor(mlir::async::ExecuteOp execOp, uint32_t& numUnits) {
     if (const auto executor = execOp->getAttr(executorAttrName)) {
         const auto numUnitsAttr = execOp->getAttr(numUnitsAttrName).dyn_cast_or_null<mlir::IntegerAttr>();

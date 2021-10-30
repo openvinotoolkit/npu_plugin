@@ -45,6 +45,11 @@ uint32_t vpux::AsyncDepsInfo::getIndex(mlir::async::ExecuteOp execOp) const {
     return checked_cast<uint32_t>(attr.getValue().getZExtValue());
 }
 
+mlir::async::ExecuteOp vpux::AsyncDepsInfo::getExecuteOpAtIndex(size_t opIdx) const {
+    VPUX_THROW_UNLESS(_allExecOps.size() > opIdx, "Invalid index '{0}' for _allExecOps", opIdx);
+    return _allExecOps[opIdx];
+}
+
 //
 // buildDepsMap
 //
@@ -142,6 +147,24 @@ void vpux::AsyncDepsInfo::optimizeDepsMap() {
 }
 
 //
+// buildConsMap
+//
+
+void vpux::AsyncDepsInfo::buildConsMap() {
+    _consumerMap.resize(_depsMap.size());
+
+    for (auto& cons : _consumerMap) {
+        cons.resize(checked_cast<uint32_t>(_depsMap.size()));
+    }
+
+    for (size_t idx = 0; idx < _depsMap.size(); idx++) {
+        for (auto bit : _depsMap[idx].set_bits()) {
+            _consumerMap[checked_cast<size_t>(bit)].set(checked_cast<uint32_t>(idx));
+        }
+    }
+}
+
+//
 // updateTokenDependencies
 //
 
@@ -165,4 +188,39 @@ void vpux::AsyncDepsInfo::updateTokenDependencies() {
     }
 
     _log = _log.unnest();
+}
+
+SmallVector<size_t> vpux::AsyncDepsInfo::getOpDeps(size_t opIdx) const {
+    VPUX_THROW_UNLESS(_depsMap.size() > opIdx, "Invalid index '{0}' for _depsMap", opIdx);
+    SmallVector<size_t> opDeps = {};
+    for (auto dep : _depsMap[opIdx].set_bits()) {
+        opDeps.push_back(static_cast<size_t>(dep));
+    }
+    return opDeps;
+}
+
+SmallVector<size_t> vpux::AsyncDepsInfo::getConsumerOps(size_t opIdx) const {
+    VPUX_THROW_UNLESS(!_consumerMap.empty(), "Consumer map was not build");
+    SmallVector<size_t> consumerOps = {};
+    for (auto con : _consumerMap[opIdx].set_bits()) {
+        consumerOps.push_back(static_cast<size_t>(con));
+    }
+    return consumerOps;
+}
+
+std::unordered_map<size_t, size_t> vpux::AsyncDepsInfo::calculateOpInDegreeTable() const {
+    std::unordered_map<size_t, size_t> opInDegree;
+    for (size_t i = 0; i < _depsMap.size(); ++i) {
+        opInDegree[i] = static_cast<size_t>(_depsMap[i].count());
+    }
+    return opInDegree;
+}
+
+std::unordered_map<size_t, size_t> vpux::AsyncDepsInfo::calculateOpOutDegreeTable() const {
+    VPUX_THROW_UNLESS(!_consumerMap.empty(), "Consumer map was not build");
+    std::unordered_map<size_t, size_t> opOutDegree;
+    for (size_t i = 0; i < _consumerMap.size(); ++i) {
+        opOutDegree[i] = static_cast<size_t>(_consumerMap[i].count());
+    }
+    return opOutDegree;
 }
