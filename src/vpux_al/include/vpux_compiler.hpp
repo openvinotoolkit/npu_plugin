@@ -88,6 +88,13 @@ public:
     virtual const DataMap& getDeviceOutputsInfo() const = 0;
 
     /**
+     * @brief Returns a map with information about profiling outputs.
+     * The outputs are defined by a compiler.
+     * @return Constant reference to an internally held DataMap object
+     */
+    virtual const DataMap& getDeviceProfilingOutputsInfo() const = 0;
+
+    /**
      * @brief Returns a map with information about quantization parameters
      * @return Constant reference to an internally held QuantizationParamMap object
      */
@@ -142,6 +149,9 @@ public:
     }
     const DataMap& getDeviceOutputsInfo() const {
         return _actual->getDeviceOutputsInfo();
+    }
+    const DataMap& getDeviceProfilingOutputsInfo() const {
+        return _actual->getDeviceProfilingOutputsInfo();
     }
     const vpux::QuantizationParamMap& getQuantParamsInfo() const {
         return _actual->getQuantParamsInfo();

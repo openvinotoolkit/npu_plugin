@@ -27,12 +27,12 @@ class StubImpl {
 public:
     StubImpl(vpu::Logger::Ptr _test_logger): test_logger(_test_logger) {};
 
-    int RequestInferenceFunction(NnExecMsg& request) {
+    int RequestInferenceFunction(NnExecWithProfilingMsg& request) {
         test_logger->info("Stub RequestInferenceFunction: requested # %d", request.inferenceID);
         return X_LINK_SUCCESS;
     }
 
-    int PollForResponseFunction(NnExecResponseMsg& response) {
+    int PollForResponseFunction(NnExecWithProfilingResponseMsg& response) {
         response.status = MVNCI_SUCCESS;
         response.inferenceID = ++inferID;
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
@@ -65,7 +65,7 @@ TEST_F(VpualCoreNNSynchronizerTests, Pull1GetsResponse1Pull2HasNoRequest) {
     const int inferenceID_1 = 1;
     // pushing thread submits requests
     auto push = [&]() -> void {
-        NnExecMsg request;
+        NnExecWithProfilingMsg request;
         int res = sync.RequestInference(request, inferenceID_1);
         ASSERT_EQ(X_LINK_SUCCESS, res);
     };
@@ -99,7 +99,7 @@ TEST_F(VpualCoreNNSynchronizerTests, PushReq1NoPullReq2) {
     // pushing thread submits requests #1
     auto push = [&]() -> void {
         test_logger->info("Push: requesting infer #1");
-        NnExecMsg request;
+        NnExecWithProfilingMsg request;
         int res = sync.RequestInference(request, 1);
         ASSERT_EQ(X_LINK_SUCCESS, res);
     };
@@ -132,7 +132,7 @@ TEST_F(VpualCoreNNSynchronizerTests, PushReq1NoPullReq2) {
 TEST_F(VpualCoreNNSynchronizerTests, Pull1TakesLongerThanPull2) {
     // pushing thread submits requests #1, #2
     auto push = [&]() -> void {
-        NnExecMsg request;
+        NnExecWithProfilingMsg request;
 
         test_logger->info("Push: requesting infer #1");
         int res = sync.RequestInference(request, 1);
@@ -168,7 +168,7 @@ TEST_F(VpualCoreNNSynchronizerTests, HundredPushPulls) {
     for (int i = 1; i <= reqNumber; ++i) {
         // pushing thread submits requests #1, #2
         auto push = [&, i]() -> void {
-            NnExecMsg request;
+            NnExecWithProfilingMsg request;
 
             test_logger->info("Push: requesting infer # %d", i);
             int res = sync.RequestInference(request, i);

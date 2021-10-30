@@ -1901,7 +1901,8 @@ void runNGraphPasses(const std::shared_ptr<ngraph::Function>& netGraph, mlir::Ti
 //
 
 void addCNNNetworkOp(mlir::OpBuilder& builder, mlir::FlatSymbolRefAttr mainFuncName, InferenceEngine::CNNNetwork cnnNet,
-                     const std::shared_ptr<ngraph::Function>& netGraph, mlir::TimingScope& rootTiming) {
+                     const std::shared_ptr<ngraph::Function>& netGraph, mlir::TimingScope& rootTiming,
+                     bool enableProfiling) {
     auto scopeTiming = rootTiming.nest("Add CNNNetwork Operation");
 
     const auto inputsInfo = cnnNet.getInputsInfo();
@@ -1909,9 +1910,12 @@ void addCNNNetworkOp(mlir::OpBuilder& builder, mlir::FlatSymbolRefAttr mainFuncN
 
     auto* ctx = builder.getContext();
 
-    auto cnnOp = builder.create<IE::CNNNetworkOp>(mlir::UnknownLoc::get(ctx), mainFuncName);
+    auto cnnOp = builder.create<IE::CNNNetworkOp>(mlir::UnknownLoc::get(ctx), mainFuncName, enableProfiling);
     cnnOp.inputsInfo().emplaceBlock();
     cnnOp.outputsInfo().emplaceBlock();
+    if (enableProfiling) {
+        cnnOp.profilingOutputsInfo().front().emplaceBlock();
+    }
 
     auto inputsInfoBuilder = mlir::OpBuilder::atBlockBegin(&cnnOp.inputsInfo().front(), builder.getListener());
     for (const auto& param : netGraph->get_parameters()) {
@@ -1964,7 +1968,8 @@ std::unordered_set<std::string> vpux::IE::queryNetwork(const InferenceEngine::CN
 //
 
 mlir::OwningModuleRef vpux::IE::importNetwork(mlir::MLIRContext* ctx, InferenceEngine::CNNNetwork cnnNet,
-                                              bool sharedConstants, mlir::TimingScope& rootTiming, Logger log) {
+                                              bool sharedConstants, mlir::TimingScope& rootTiming, bool enableProfiling,
+                                              Logger log) {
     log.setName("IE::FrontEnd");
 
     log.trace("Load IE::FrontEnd dependent Dialects");
@@ -1983,7 +1988,7 @@ mlir::OwningModuleRef vpux::IE::importNetwork(mlir::MLIRContext* ctx, InferenceE
     auto builder = mlir::OpBuilder::atBlockBegin(module.getBody(), &builderLog);
 
     log.trace("Add CNNNetwork Operation");
-    addCNNNetworkOp(builder, mainFuncName, cnnNet, netGraph, rootTiming);
+    addCNNNetworkOp(builder, mainFuncName, cnnNet, netGraph, rootTiming, enableProfiling);
 
     log.trace("Import nGraph function");
     NGraphImporter importer(ctx, netGraph, sharedConstants, log);

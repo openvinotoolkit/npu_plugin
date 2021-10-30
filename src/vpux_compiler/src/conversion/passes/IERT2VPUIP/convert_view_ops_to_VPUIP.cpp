@@ -99,11 +99,19 @@ mlir::LogicalResult ViewLikeRewrite::matchAndRewrite(mlir::ViewLikeOpInterface o
 
         const auto argInd = checked_cast<size_t>(blockArg.getArgNumber());
 
-        const auto numNetOutputs = funcOp.getNumResults();
-        VPUX_THROW_UNLESS(numNetOutputs < funcOp.getNumArguments(), "The Function '@{0}' is not bufferized",
+        const auto numOutputs = funcOp.getNumResults();
+        VPUX_THROW_UNLESS(numOutputs < funcOp.getNumArguments(), "The Function '@{0}' is not bufferized",
                           funcOp.getName());
 
-        const auto numNetInputs = funcOp.getNumArguments() - numNetOutputs;
+        size_t numProfilingOutputs = 0;
+        if (auto module = blockArg.getParentRegion()->getParentOfType<mlir::ModuleOp>()) {
+            auto netOps = to_small_vector(module.getOps<IE::CNNNetworkOp>());
+            if (!netOps.empty()) {
+                numProfilingOutputs = netOps.front().getProfilingOutputsCount();
+            }
+        }
+        const auto numNetOutputs = numOutputs - numProfilingOutputs;
+        const auto numNetInputs = funcOp.getNumArguments() - numOutputs;
 
         if (argInd < numNetInputs) {
             _log.nest(2).trace("It aliases network input");
@@ -115,6 +123,11 @@ mlir::LogicalResult ViewLikeRewrite::matchAndRewrite(mlir::ViewLikeOpInterface o
 
             locale = VPUIP::MemoryLocation::ProgrammableOutput;
             localeIndex.push_back(argInd - numNetInputs);
+        } else if (argInd < numNetInputs + numOutputs) {
+            _log.nest(2).trace("It aliases network output");
+
+            locale = VPUIP::MemoryLocation::ProfilingOutput;
+            localeIndex.push_back(argInd - numNetInputs - numNetOutputs);
         } else {
             VPUX_THROW("The view source doesn't belong to network entry point Function");
         }

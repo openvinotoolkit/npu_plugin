@@ -192,12 +192,14 @@ operation ::= `IE.CNNNetwork` attr-dict
               `entryPoint` `:` $entryPoint
               `inputsInfo` `:` $inputsInfo
               `outputsInfo` `:` $outputsInfo
+              (`profilingOutputsInfo` `:` $profilingOutputsInfo^)?
 ```
 
 This operation is bound to MLIR Module and holds extra information about InferenceEngine CNN Network:
 
   * Precision and layout for user-provided inputs.
   * Precision and layout for user-provided outputs.
+  * Layout for output profiling data(optional).
   * Entry point (Function name) for the network inference.
 
 #### Attributes:

@@ -344,9 +344,9 @@ CNNNetwork prepareNetwork(const std::shared_ptr<ngraph::Function>& func, const I
 }
 
 auto importNetwork(mlir::MLIRContext* ctx, CNNNetwork cnnNet, const DeveloperConfig& devConf,
-                   mlir::TimingScope& rootTiming, Logger log) {
+                   mlir::TimingScope& rootTiming, bool enableProfiling, Logger log) {
     auto importTiming = rootTiming.nest("Import network");
-    return IE::importNetwork(ctx, cnnNet, devConf.useSharedConstants(), importTiming, log.nest());
+    return IE::importNetwork(ctx, cnnNet, devConf.useSharedConstants(), importTiming, enableProfiling, log.nest());
 }
 
 void compileNetwork(mlir::ModuleOp module, mlir::PassManager& pm, mlir::TimingScope& rootTiming) {
@@ -387,7 +387,7 @@ std::shared_ptr<INetworkDescription> vpux::CompilerImpl::compile(const std::shar
     buildPipeline(pm, config, rootTiming, log);
 
     const auto cnnNet = prepareNetwork(func, inputsInfo, outputsInfo, rootTiming);
-    const auto module = importNetwork(&ctx, cnnNet, devConf, rootTiming, log);
+    const auto module = importNetwork(&ctx, cnnNet, devConf, rootTiming, config.performanceCounting(), log);
     compileNetwork(module.get(), pm, rootTiming);
     const auto blob = exportToBlob(module.get(), rootTiming, log);
 

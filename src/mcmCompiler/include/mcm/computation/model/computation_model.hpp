@@ -133,6 +133,7 @@ namespace mv
         std::shared_ptr<Data::OpListIterator> output_;
         std::shared_ptr<std::vector<Data::OpListIterator>> networkInputs_;
         std::shared_ptr<std::vector<Data::OpListIterator>> networkOutputs_;
+        std::shared_ptr<std::vector<Data::OpListIterator>> profilingOutputs_;
         std::shared_ptr<BufferMap> bufferMap_;
 
         std::reference_wrapper<ComputationModel> selfRef_;

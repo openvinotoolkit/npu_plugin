@@ -56,6 +56,9 @@ public:
     const DataMap& getDeviceOutputsInfo() const final {
         return _deviceOutputs;
     }
+    const DataMap& getDeviceProfilingOutputsInfo() const final {
+        return _deviceProfilingOutputs;
+    }
 
 private:
     std::vector<char> _compiledNetwork;
@@ -67,6 +70,7 @@ private:
 
     DataMap _deviceInputs;
     DataMap _deviceOutputs;
+    DataMap _deviceProfilingOutputs;
     QuantizationParamMap _quantParams;
 };
 

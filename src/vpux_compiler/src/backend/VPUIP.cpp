@@ -227,6 +227,7 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(VPUIP::BlobWriter&
 
     auto inputsInfo = netOp.getInputsInfo();
     auto outputsInfo = netOp.getOutputsInfo();
+    auto profilingOutputsInfo = netOp.getProfilingOutputsInfo();
 
     SmallVector<VPUIP::BlobWriter::TensorReference> graphInputs, userInputs;
     graphInputs.reserve(inputsInfo.size());
@@ -247,9 +248,10 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(VPUIP::BlobWriter&
                 writer.createTensor(userInfo.name(), userType, VPUIP::MemoryLocation::ProgrammableInput, ind, 0));
     }
 
-    SmallVector<VPUIP::BlobWriter::TensorReference> graphOutputs, userOutputs;
+    SmallVector<VPUIP::BlobWriter::TensorReference> graphOutputs, graphProfilingOutputs, userOutputs;
     graphOutputs.reserve(outputsInfo.size());
     userOutputs.reserve(outputsInfo.size());
+    graphProfilingOutputs.reserve(profilingOutputsInfo.size());
 
     for (const auto& p : outputsInfo | indexed) {
         const auto ind = checked_cast<uint32_t>(p.index());
@@ -267,6 +269,16 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(VPUIP::BlobWriter&
                 writer.createTensor(userInfo.name(), userType, VPUIP::MemoryLocation::ProgrammableOutput, ind, 0));
     }
 
+    for (const auto& p : profilingOutputsInfo | indexed) {
+        const auto ind = checked_cast<uint32_t>(p.index());
+        const auto funcArgInd = inputsInfo.size() + outputsInfo.size() + p.index();
+
+        const auto val = netFunc.getArgument(checked_cast<uint32_t>(funcArgInd));
+
+        graphProfilingOutputs.push_back(
+                writer.createTensor(val, p.value().name(), VPUIP::MemoryLocation::ProfilingOutput, ind, 0));
+    }
+
     SmallVector<int8_t> options;
     if (VPUIP::bitEnumContains(graphOp.options(), VPUIP::ExecutionFlag::DynamicBarriers)) {
         options.push_back(static_cast<int8_t>(MVCNN::ExecutionFlag_DynamicBarriers));
@@ -278,6 +290,7 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(VPUIP::BlobWriter&
     const auto serializedGraphInputs = writer.createVector(graphInputs);
     const auto serializedUserInputs = writer.createVector(userInputs);
     const auto serializedGraphOutputs = writer.createVector(graphOutputs);
+    const auto serializedGraphProfilingOutputs = writer.createVector(graphProfilingOutputs);
     const auto serializedUserOutputs = writer.createVector(userOutputs);
     const auto serializedResources = createResources(writer, module);
 
@@ -286,6 +299,7 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(VPUIP::BlobWriter&
     builder.add_identifier(serializedName);
     builder.add_net_input(serializedGraphInputs);
     builder.add_net_output(serializedGraphOutputs);
+    builder.add_profiling_output(serializedGraphProfilingOutputs);
     builder.add_task_count(checked_cast<uint32_t>(taskCount));
     builder.add_options(serializedOptions);
     builder.add_resources(serializedResources);

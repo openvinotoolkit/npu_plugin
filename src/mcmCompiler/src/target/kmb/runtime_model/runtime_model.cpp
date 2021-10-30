@@ -67,6 +67,7 @@ const std::unordered_map<std::string, MVCNN::MemoryLocation> mv::RuntimeModel::m
 {
     {"ProgrammableInput", MVCNN::MemoryLocation::MemoryLocation_ProgrammableInput},
     {"ProgrammableOutput", MVCNN::MemoryLocation::MemoryLocation_ProgrammableOutput},
+    {"ProfilingOutput", MVCNN::MemoryLocation::MemoryLocation_ProfilingOutput},
     {"VPU_DDR_Heap", MVCNN::MemoryLocation::MemoryLocation_VPU_DDR_Heap},
     {"GraphFile", MVCNN::MemoryLocation::MemoryLocation_GraphFile},
     {"VPU_CMX_NN", MVCNN::MemoryLocation::MemoryLocation_VPU_CMX_NN},
@@ -1150,7 +1151,7 @@ std::unique_ptr<MVCNN::SummaryHeaderT> mv::RuntimeModel::buildSummaryHeaderT(Com
     }
     else
     {
-        auto implicitOutputOps = om.getNetworkOutputs();
+        const auto implicitOutputOps = om.getNetworkOutputs();
         toBuild->net_output = std::vector<std::unique_ptr<MVCNN::TensorReferenceT>>(implicitOutputOps.size());
         for (size_t i = 0; i < implicitOutputOps.size(); i++)
         {
@@ -1161,6 +1162,20 @@ std::unique_ptr<MVCNN::SummaryHeaderT> mv::RuntimeModel::buildSummaryHeaderT(Com
                 outputIt->setName(destOp->get("networkOutputName"));
             } else outputIt->setName(destOp->getName());
             toBuild->net_output[i] = buildTensorReferenceT(cm, compilationDescriptor, outputIt);
+            cm.bufferMap().addOutput(outputIt->getName(), outputIt->getOrder(), outputIt->getShape(), outputIt->getDType());
+        }
+    }
+
+    if (om.getNumProfilingOutputs())
+    {
+        const auto implicitProfilingOps = om.getProfilingOutputs();
+        toBuild->profiling_output = std::vector<std::unique_ptr<MVCNN::TensorReferenceT>>(implicitProfilingOps.size());
+        for (size_t i = 0; i < implicitProfilingOps.size(); i++)
+        {
+            auto destOp = implicitProfilingOps[i];
+            auto outputIt = destOp->getInputTensor(0);
+            outputIt->setName(destOp->getName());
+            toBuild->profiling_output[i] = buildTensorReferenceT(cm, compilationDescriptor, outputIt);
             cm.bufferMap().addOutput(outputIt->getName(), outputIt->getOrder(), outputIt->getShape(), outputIt->getDType());
         }
     }

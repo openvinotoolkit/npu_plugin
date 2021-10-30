@@ -168,7 +168,7 @@ mlir::Type parseWeightsType(mlir::OpBuilder builder, const nb::WeightLayer& weig
 void buildCNNOp(mlir::OpBuilder& builder, llvm::StringRef mainFuncName, llvm::ArrayRef<mlir::Type> inputs,
                 llvm::ArrayRef<mlir::Type> outputs) {
     const auto mainFuncNameAttr = mlir::SymbolRefAttr::get(builder.getContext(), mainFuncName);
-    auto cnnOp = builder.create<IE::CNNNetworkOp>(builder.getUnknownLoc(), mainFuncNameAttr);
+    auto cnnOp = builder.create<IE::CNNNetworkOp>(builder.getUnknownLoc(), mainFuncNameAttr, false);
     cnnOp.inputsInfo().emplaceBlock();
     cnnOp.outputsInfo().emplaceBlock();
 

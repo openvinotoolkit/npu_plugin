@@ -1,5 +1,5 @@
 //
-// Copyright 2019-2020 Intel Corporation.
+// Copyright 2019-2021 Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -227,6 +227,16 @@ VpualCoreNNExecutor::VpualCoreNNExecutor(const vpux::NetworkDescription::Ptr& ne
         : _networkDescription(networkDescription),
           _allocator(allocator),
           _csramAllocator(std::make_shared<VpusmmAllocator>(VPU_CSRAM_DEVICE_ID)),
+          _deallocator([this](uint8_t* buffer) {
+              if (_allocator != nullptr) {
+                  _allocator->free(buffer);
+              }
+          }),
+          _csramDeallocator([this](uint8_t* buffer) {
+              if (_csramAllocator != nullptr) {
+                  _csramAllocator->free(buffer);
+              }
+          }),
           _config(config),
           _logger(std::make_shared<vpu::Logger>("VpualCoreNNExecutor", _config.logLevel(), vpu::consoleOutput())),
 #if defined(__arm__) || defined(__aarch64__)
@@ -263,24 +273,10 @@ VpualCoreNNExecutor::VpualCoreNNExecutor(const vpux::NetworkDescription::Ptr& ne
                     }),
           _blobHandle(new BlobHandle_t()),
 #endif
-          _preFetchBuffer(nullptr,
-                          [this](uint8_t* buffer) {
-                              if (_csramAllocator != nullptr) {
-                                  _csramAllocator->free(buffer);
-                              }
-                          }),
-          _inputBuffer(nullptr,
-                       [this](uint8_t* buffer) {
-                           if (_allocator != nullptr) {
-                               _allocator->free(buffer);
-                           }
-                       }),
-          _outputBuffer(nullptr,
-                        [this](uint8_t* buffer) {
-                            if (_allocator != nullptr) {
-                                _allocator->free(buffer);
-                            }
-                        }),
+          _preFetchBuffer(nullptr, _csramDeallocator),
+          _inputBuffer(nullptr, _deallocator),
+          _outputBuffer(nullptr, _deallocator),
+          _profilingOutputBuffer(nullptr, _deallocator),
           _platform(platform) {
 #if defined(__arm__) || defined(__aarch64__)
 #ifdef VPUX_DEVELOPER_BUILD
@@ -311,6 +307,16 @@ VpualCoreNNExecutor::VpualCoreNNExecutor(
         : _networkDescription(networkDescription),
           _allocator(allocator),
           _csramAllocator(std::make_shared<VpusmmAllocator>(VPU_CSRAM_DEVICE_ID)),
+          _deallocator([this](uint8_t* buffer) {
+              if (_allocator != nullptr) {
+                  _allocator->free(buffer);
+              }
+          }),
+          _csramDeallocator([this](uint8_t* buffer) {
+              if (_csramAllocator != nullptr) {
+                  _csramAllocator->free(buffer);
+              }
+          }),
           _config(config),
           _logger(std::make_shared<vpu::Logger>("VpualCoreNNExecutor", _config.logLevel(), vpu::consoleOutput())),
           _nnXlinkPlg(other_nnXlinkPlg),
@@ -325,23 +331,10 @@ VpualCoreNNExecutor::VpualCoreNNExecutor(
                         }
                     }),
           _blobHandle(new BlobHandle_t()),
-          _preFetchBuffer(nullptr,
-                          [this](uint8_t* buffer) {
-                              if (_csramAllocator != nullptr) {
-                                  _csramAllocator->free(buffer);
-                              }
-                          }),
-          _inputBuffer(nullptr,
-                       [this](uint8_t* buffer) {
-                           if (_allocator != nullptr) {
-                               _allocator->free(buffer);
-                           }
-                       }),
-          _outputBuffer(nullptr, [this](uint8_t* buffer) {
-              if (_allocator != nullptr) {
-                  _allocator->free(buffer);
-              }
-          }) {
+          _preFetchBuffer(nullptr, _csramDeallocator),
+          _inputBuffer(nullptr, _deallocator),
+          _outputBuffer(nullptr, _deallocator),
+          _profilingOutputBuffer(nullptr, _deallocator) {
 #ifdef VPUX_DEVELOPER_BUILD
     _pipePrint = PipePrintHandler::get();
 #endif
@@ -359,7 +352,7 @@ VpualCoreNNExecutor::VpualCoreNNExecutor(
     _inputBuffer.reset(reinterpret_cast<uint8_t*>(_allocator->alloc(inputsTotalSize.count())));
     _logger->debug("Allocated buffer for input with the size: %d", inputsTotalSize);
 
-    size_t outputsSize = _nnCorePlg->GetNumberOfOutputs();
+    const size_t outputsSize = _nnCorePlg->GetNumberOfOutputs();
     size_t outputTotalSize = 0;
     for (size_t outputIdx = 0; outputIdx < outputsSize; outputIdx++) {
         TensorRefNDData descOut = _nnCorePlg->GetOutputTensorRef(outputIdx);
@@ -370,15 +363,34 @@ VpualCoreNNExecutor::VpualCoreNNExecutor(
     _logger->debug("Allocated buffer for output with the size: %d", outputTotalSize);
 
     off_t outputOffset = 0;
+    auto outputAddress = _allocator->getPhysicalAddress(_outputBuffer.get());
     for (size_t outputIdx = 0; outputIdx < outputsSize; outputIdx++) {
         TensorRefNDData descOut = _nnCorePlg->GetOutputTensorRef(outputIdx);
 
-        auto outPhysAddr = _allocator->getPhysicalAddress(_outputBuffer.get()) + outputOffset;
-        _outputPhysAddrs.push_back(outPhysAddr);
+        _outputPhysAddrs.push_back(outputAddress + outputOffset);
         outputOffset += vpu::utils::getTotalSize(descOut);
     }
+
+    const size_t profilingOutputsSize = _nnCorePlg->GetNumberOfProfilingOutputs();
+    size_t profilingOutputTotalSize = 0;
+    for (size_t profilingOutputIdx = 0; profilingOutputIdx < profilingOutputsSize; profilingOutputIdx++) {
+        const flicTensorDescriptor_t descOut = _nnCorePlg->GetProfilingOutputTensorDescriptor(profilingOutputIdx);
+        profilingOutputTotalSize += descOut.totalSize;
+    }
+
+    _profilingOutputBuffer.reset(reinterpret_cast<uint8_t*>(_allocator->alloc(profilingOutputTotalSize)));
+    _logger->debug("Allocated buffer for profiling output with the size: %d", profilingOutputTotalSize);
+
+    off_t profilingOutputOffset = 0;
+    auto profilingOutputAddress = _allocator->getPhysicalAddress(_profilingOutputBuffer.get());
+    for (size_t profilingOutputIdx = 0; profilingOutputIdx < profilingOutputsSize; profilingOutputIdx++) {
+        const flicTensorDescriptor_t descOut = _nnCorePlg->GetProfilingOutputTensorDescriptor(profilingOutputIdx);
+
+        _profilingOutputPhysAddrs.push_back(profilingOutputAddress + profilingOutputOffset);
+        profilingOutputOffset += descOut.totalSize;
+    }
     _wd = wd;
-}
+}  // namespace vpux
 #endif
 
 VpualCoreNNExecutor::~VpualCoreNNExecutor() {
@@ -580,6 +592,12 @@ void VpualCoreNNExecutor::allocateGraph(const std::vector<char>& graphFileConten
                       vpu::utils::serializeStrides(descriptor), vpu::utils::serializeDType(descriptor),
                       vpu::utils::serializeOrder(descriptor));
     };
+    auto tensorDeserializerFlic = [&](const flicTensorDescriptor_t& descriptor) -> void {
+        _logger->info(
+                "{ n: %d, c: %d, h: %d, w: %d, totalSize: %d, widthStride: %d, heightStride: %d, channelsStride: %d}",
+                descriptor.n, descriptor.c, descriptor.h, descriptor.w, descriptor.totalSize, descriptor.widthStride,
+                descriptor.heightStride, descriptor.channelsStride);
+    };
 
     _logger->info("Deserializing descriptors:");
     size_t inputsSize = _nnCorePlg->GetNumberOfInputs();
@@ -609,6 +627,28 @@ void VpualCoreNNExecutor::allocateGraph(const std::vector<char>& graphFileConten
         auto outPhysAddr = _allocator->getPhysicalAddress(_outputBuffer.get()) + outputOffset;
         _outputPhysAddrs.push_back(outPhysAddr);
         outputOffset += vpu::utils::getTotalSize(descOut);
+    }
+
+    size_t profilingOutputsSize = _nnCorePlg->GetNumberOfProfilingOutputs();
+    size_t profilingOutputTotalSize = 0;
+    for (size_t profilingOutputIdx = 0; profilingOutputIdx < profilingOutputsSize; profilingOutputIdx++) {
+        flicTensorDescriptor_t descOut = _nnCorePlg->GetProfilingOutputTensorDescriptor(profilingOutputIdx);
+        _logger->info("Output: %d", profilingOutputIdx);
+        tensorDeserializerFlic(descOut);
+
+        profilingOutputTotalSize += descOut.totalSize;
+    }
+
+    _profilingOutputBuffer.reset(reinterpret_cast<uint8_t*>(_allocator->alloc(profilingOutputTotalSize)));
+    _logger->debug("Allocated buffer for profiling output with the size: %d", profilingOutputTotalSize);
+
+    off_t profilingOutputOffset = 0;
+    for (size_t profilingOutputIdx = 0; profilingOutputIdx < profilingOutputsSize; profilingOutputIdx++) {
+        flicTensorDescriptor_t descOut = _nnCorePlg->GetProfilingOutputTensorDescriptor(profilingOutputIdx);
+
+        auto outPhysAddr = _allocator->getPhysicalAddress(_profilingOutputBuffer.get()) + profilingOutputOffset;
+        _profilingOutputPhysAddrs.push_back(outPhysAddr);
+        profilingOutputOffset += descOut.totalSize;
     }
 
     _nnCorePlg->PrepareNetwork();
@@ -733,7 +773,7 @@ void VpualCoreNNExecutor::push(const ie::BlobMap& inputs) {
         inputsByteSize += updatedInput->byteSize();
     }
 
-    NnExecMsg request;
+    NnExecWithProfilingMsg request;
     request.inferenceID = 1;
     for (const auto& input : updatedInputs) {
         auto blob = ie::as<ie::MemoryBlob>(input.second);
@@ -742,9 +782,8 @@ void VpualCoreNNExecutor::push(const ie::BlobMap& inputs) {
         request.inputTensors.push_back(inputBufferPhysAddr);
     }
 
-    for (const auto& inferOutput : _outputPhysAddrs) {
-        request.outputTensors.push_back(inferOutput);
-    }
+    request.outputTensors = _outputPhysAddrs;
+    request.profilingOutputTensors = _profilingOutputPhysAddrs;
 
     const auto status = _nnSync->RequestInference(request, _execInferId);
     if (X_LINK_SUCCESS != status) {
@@ -827,13 +866,26 @@ ie::BlobMap VpualCoreNNExecutor::extractOutputsFromPhysAddr(uint32_t physAddr) {
     ie::BlobMap deviceOutputs;
     Byte offset(physAddr - _allocator->getPhysicalAddress(_outputBuffer.get()));
     for (auto&& out : _networkDescription->getDeviceOutputsInfo()) {
-        auto desc = out.second->getTensorDesc();
+        const auto desc = out.second->getTensorDesc();
         auto blob = make_blob_with_precision(desc, _outputBuffer.get() + offset.count());
         deviceOutputs.insert({out.first, blob});
         offset += getMemorySize(desc);
     }
 
     return deviceOutputs;
+}
+
+ie::BlobMap VpualCoreNNExecutor::extractProfilingOutputsFromPhysAddr(uint32_t physAddr) {
+    ie::BlobMap deviceProfilingOutputs;
+    Byte offset(physAddr - _allocator->getPhysicalAddress(_profilingOutputBuffer.get()));
+    for (auto&& out : _networkDescription->getDeviceProfilingOutputsInfo()) {
+        const auto desc = out.second->getTensorDesc();
+        auto blob = make_blob_with_precision(desc, _profilingOutputBuffer.get() + offset.count());
+        deviceProfilingOutputs.insert({out.first, blob});
+        offset += getMemorySize(desc);
+    }
+
+    return deviceProfilingOutputs;
 }
 
 void VpualCoreNNExecutor::repackDeviceOutputsToNetworkOutputs(const ie::BlobMap& deviceOutputs,
@@ -890,12 +942,24 @@ std::map<std::string, ie::InferenceEngineProfileInfo> VpualCoreNNExecutor::getLa
     std::map<std::string, ie::InferenceEngineProfileInfo> perfCounts;
 
     const auto blob = _networkDescription->getCompiledNetwork().data();
-    auto deviceOutputs = extractOutputsFromPhysAddr(_outputPhysAddrs.at(0));
+    ie::BlobMap deviceOutputs;
+    if (_profilingOutputPhysAddrs.size()) {
+        deviceOutputs = extractProfilingOutputsFromPhysAddr(_profilingOutputPhysAddrs.at(0));
+    }
     auto profilingOutputBlob = deviceOutputs.find("profilingOutput");
     if (profilingOutputBlob == deviceOutputs.end()) {
-        _logger->warning(
-                "No profiling output. Blob was compiled without profiling enabled or do not contain profiling info.");
+        deviceOutputs = extractOutputsFromPhysAddr(_outputPhysAddrs.at(0));
+    }
+    profilingOutputBlob = deviceOutputs.find("profilingOutput");
+    if (profilingOutputBlob == deviceOutputs.end()) {
+        _logger->warning("No profiling output. Blob was compiled without profiling enabled or does not contain "
+                         "profiling info.");
         return perfCounts;
+    }
+
+    const auto profilingMemoryBlob = ie::as<ie::MemoryBlob>(profilingOutputBlob->second);
+    if (profilingMemoryBlob == nullptr) {
+        IE_THROW() << "VPUX Plugin profiling blob is null: " << profilingOutputBlob->first;
     }
     const auto& profilingOutput = ie::as<ie::MemoryBlob>(profilingOutputBlob->second)->rmap().as<const void*>();
 

@@ -33,6 +33,7 @@ VPUIP::PhysicalMemory vpux::VPUIP::getPhysicalMemory(MemoryLocation location) {
     switch (location) {
     case MemoryLocation::ProgrammableInput:
     case MemoryLocation::ProgrammableOutput:
+    case MemoryLocation::ProfilingOutput:
     case MemoryLocation::GraphFile:
     case MemoryLocation::VPU_DDR_Heap:
     case MemoryLocation::VPU_DDR_BSS:

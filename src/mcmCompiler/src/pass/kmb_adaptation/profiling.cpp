@@ -148,9 +148,11 @@ void AddTaskProfilingDMAFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
         enable_profiling = true;
 
     // Check if the profiling data should be gathered to CMX //
-    bool enable_cmx = false;
+    bool enable_cmx = false, use_profiling_buffer = false;
     if (passDesc.hasAttr("enable_cmx") && passDesc.get<bool>("enable_cmx"))
         enable_cmx = true;
+    if (passDesc.hasAttr("use_profiling_buffer") && passDesc.get<bool>("use_profiling_buffer"))
+        use_profiling_buffer = true;
 
     if (!enable_profiling) return;
 
@@ -247,28 +249,36 @@ void AddTaskProfilingDMAFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
     auto stageIt = cm.getStage(0);
     profilingTensor->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::BLOB);
     dm.allocateTensor("GraphFile", stageIt, profilingTensor);
-    auto OutputLocation =  (enable_cmx) ? mv::Tensor::MemoryLocation::NNCMX : mv::Tensor::MemoryLocation::OUTPUT;
+    auto OutputBuffer = (use_profiling_buffer) ? mv::Tensor::MemoryLocation::PROFILING : mv::Tensor::MemoryLocation::OUTPUT;
+    auto OutputLocation = (enable_cmx) ? mv::Tensor::MemoryLocation::NNCMX : OutputBuffer;
     for (auto profilingDma: profilingDmas) {
         profilingDma->set<mv::Tensor::MemoryLocation>("Location", OutputLocation);
-        if (!enable_cmx) dm.allocateTensor("ProgrammableOutput", stageIt, profilingDma);
+        if (OutputLocation == mv::Tensor::MemoryLocation::OUTPUT) 
+            dm.allocateTensor("ProgrammableOutput", stageIt, profilingDma);
     }
     ProfilingConcat->set<mv::Tensor::MemoryLocation>("Location", OutputLocation);
     ProfilingConcat->set<std::string>("splitStrategy", "SplitOverH");
 
 
     auto ProfilingCopy = om.copy("ProfilingCopy", ProfilingConcat);
-    ProfilingCopy->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::OUTPUT);
+    ProfilingCopy->set<mv::Tensor::MemoryLocation>("Location", OutputBuffer);
     auto ProfilingCopyOp = om.getSourceOp(ProfilingCopy);
     postProcessingOps.push_back(ProfilingCopyOp);
-    dm.allocateTensor("ProgrammableOutput", stageIt, ProfilingCopy);
+    if (OutputLocation == mv::Tensor::MemoryLocation::OUTPUT) 
+        dm.allocateTensor("ProgrammableOutput", stageIt, ProfilingCopy);
     ProfilingCopyOp->set<unsigned>("opId", 0);
 
     /* 
      * Create additional output from network 
      */
-    auto profilingOutput = om.output("profilingOutput", ProfilingCopy, {"Default"}, true);
-    auto profilingOutputTensor = dm.defineTensor("profilingOutput", ProfilingCopy->getShape(), ProfilingCopy->getDType(), ProfilingCopy->getOrder());
-    ProfilingCopy->set<uint8_t>("outputIndex", om.getNetworkOutputs().size()-1);
+    if (!use_profiling_buffer)  {
+        om.output("profilingOutput", ProfilingCopy, {"Default"}, true);
+        ProfilingCopy->set<uint8_t>("outputIndex", om.getNetworkOutputs().size()-1);
+    } else {
+        auto profilingOutput = om.implicitOutput("profilingOutput", ProfilingCopy);
+        profilingOutput->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::PROFILING);
+        om.addProfilingOutput(om.getSourceOp(profilingOutput));
+    }
 
     /* 
      * Execute postprocessing passes 
@@ -278,7 +288,8 @@ void AddTaskProfilingDMAFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
 
     // Output memory should be allocated manually and after resolving of impisit operations //
     auto newTensor = ProfilingCopyOp->getInputTensor(0);
-    dm.allocateTensor("ProgrammableOutput", stageIt, newTensor);
+    if (OutputLocation == mv::Tensor::MemoryLocation::OUTPUT) 
+        dm.allocateTensor("ProgrammableOutput", stageIt, newTensor);
 
     for (auto OpIt : postProcessingOps)
         allocateImplicitOperationsOp(OpIt, stageIt, pass, model);

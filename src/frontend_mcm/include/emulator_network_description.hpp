@@ -36,6 +36,8 @@ public:
 
     const vpux::DataMap& getDeviceOutputsInfo() const final;
 
+    const vpux::DataMap& getDeviceProfilingOutputsInfo() const final;
+
     const vpux::QuantizationParamMap& getQuantParamsInfo() const final;
 
     const std::vector<char>& getCompiledNetwork() const final;

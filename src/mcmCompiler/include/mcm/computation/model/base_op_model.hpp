@@ -43,6 +43,11 @@ namespace mv
         void replaceNetworkOutputAtIdx(std::size_t idx, mv::Data::OpListIterator op);
         void addNetworkOutput(mv::Data::OpListIterator outputOp);
 
+        std::vector<Data::OpListIterator> getProfilingOutputs();
+        mv::Data::OpListIterator getProfilingOutput(std::size_t idx);
+        size_t getNumProfilingOutputs();
+        void addProfilingOutput(mv::Data::OpListIterator outputOp);
+
         std::vector<Data::OpListIterator> getNetworkInputs();
         mv::Data::OpListIterator getNetworkInput(std::size_t idx);
         size_t getNumNetworkInputs();

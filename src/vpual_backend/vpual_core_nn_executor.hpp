@@ -77,6 +77,8 @@ private:
     vpux::NetworkDescription::Ptr _networkDescription;
     VpusmmAllocator::Ptr _allocator;
     VpusmmAllocator::Ptr _csramAllocator;
+    std::function<void(uint8_t*)> _deallocator;
+    std::function<void(uint8_t*)> _csramDeallocator;
     const VpualConfig& _config;
     vpu::Logger::Ptr _logger;
 
@@ -104,6 +106,7 @@ private:
     uint32_t extractPhysAddrForInference(const ie::BlobMap& inputs);
 
     ie::BlobMap extractOutputsFromPhysAddr(uint32_t physAddr);
+    ie::BlobMap extractProfilingOutputsFromPhysAddr(uint32_t physAddr);
     void repackDeviceOutputsToNetworkOutputs(const InferenceEngine ::BlobMap& deviceOutputs,
                                              InferenceEngine::BlobMap& networkOutputs);
 
@@ -111,9 +114,11 @@ private:
     std::unique_ptr<uint8_t, std::function<void(uint8_t*)>> _preFetchBuffer;
     std::unique_ptr<uint8_t, std::function<void(uint8_t*)>> _inputBuffer;
     std::unique_ptr<uint8_t, std::function<void(uint8_t*)>> _outputBuffer;
+    std::unique_ptr<uint8_t, std::function<void(uint8_t*)>> _profilingOutputBuffer;
     InferenceEngine::VPUXConfigParams::VPUXPlatform _platform;
 
     std::vector<uint32_t> _outputPhysAddrs;
+    std::vector<uint32_t> _profilingOutputPhysAddrs;
 
 #if (defined(__arm__) || defined(__aarch64__)) && defined(VPUX_DEVELOPER_BUILD)
     std::shared_ptr<PipePrintHandler> _pipePrint;

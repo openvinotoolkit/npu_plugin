@@ -14,6 +14,7 @@ std::map<std::string, mv::Tensor::MemoryLocation::Location> createNamingMap() {
                 {"BLOB",mv::Tensor::MemoryLocation::BLOB},
                 {"VIRTUAL",mv::Tensor::MemoryLocation::VIRTUAL},
                 {"CSRAM",mv::Tensor::MemoryLocation::CSRAM},
+                {"PROFILING",mv::Tensor::MemoryLocation::PROFILING},
                 {"DEFAULT",mv::Tensor::MemoryLocation::DEFAULT}
         };
 }

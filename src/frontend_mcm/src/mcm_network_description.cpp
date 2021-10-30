@@ -79,6 +79,12 @@ MCMNetworkDescription::MCMNetworkDescription(const std::vector<char>& compiledNe
     const auto outputsNames = extractKeys(deserializedOutputs);
     _deviceOutputs = createDeviceMapWithCorrectNames(_deviceOutputs, outputsNames);
 
+    const auto graphProfilingOutputs = graphHeader->profiling_output();
+    if (graphProfilingOutputs != nullptr) {
+        const auto deviceProfilingOutputs = MCMAdapter::getNetworkOutputs(*graphProfilingOutputs);
+        _deviceProfilingOutputs = outputsDataMapToDataMap(deviceProfilingOutputs);
+    }
+
     _networkInputs = inputsDataMapToDataMap(deserializedInputs);
     _networkOutputs = outputsDataMapToDataMap(deserializedOutputs);
 
@@ -107,6 +113,10 @@ const vpux::DataMap& MCMNetworkDescription::getDeviceInputsInfo() const {
 
 const vpux::DataMap& MCMNetworkDescription::getDeviceOutputsInfo() const {
     return _deviceOutputs;
+}
+
+const vpux::DataMap& MCMNetworkDescription::getDeviceProfilingOutputsInfo() const {
+    return _deviceProfilingOutputs;
 }
 
 const vpux::QuantizationParamMap& MCMNetworkDescription::getQuantParamsInfo() const {

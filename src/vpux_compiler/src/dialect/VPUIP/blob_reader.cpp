@@ -385,7 +385,7 @@ void BlobReader::buildCNNNetworkOp() {
     OpBuilderLogger builderLog(_log.nest());
     auto builder = mlir::OpBuilder::atBlockEnd(_module.getBody(), &builderLog);
 
-    auto cnnOp = builder.create<IE::CNNNetworkOp>(mlir::UnknownLoc::get(_ctx), _mainFuncName);
+    auto cnnOp = builder.create<IE::CNNNetworkOp>(mlir::UnknownLoc::get(_ctx), _mainFuncName, false);
 
     parseUserInputsOutputs(builderLog, cnnOp);
 }

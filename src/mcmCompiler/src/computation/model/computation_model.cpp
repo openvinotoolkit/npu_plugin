@@ -151,6 +151,7 @@ input_(std::make_shared<Data::OpListIterator>(dataGraph_.node_end())),
 output_(std::make_shared<Data::OpListIterator>(dataGraph_.node_end())),
 networkInputs_(std::make_shared<std::vector<Data::OpListIterator>>()),
 networkOutputs_(std::make_shared<std::vector<Data::OpListIterator>>()),
+profilingOutputs_(std::make_shared<std::vector<Data::OpListIterator>>()),
 bufferMap_(std::make_shared<BufferMap>()),
 selfRef_(*this)
 {
@@ -181,6 +182,7 @@ input_(other.input_),
 output_(other.output_),
 networkInputs_(other.networkInputs_),
 networkOutputs_(other.networkOutputs_),
+profilingOutputs_(other.profilingOutputs_),
 bufferMap_(other.bufferMap_),
 selfRef_(other.selfRef_)
 {

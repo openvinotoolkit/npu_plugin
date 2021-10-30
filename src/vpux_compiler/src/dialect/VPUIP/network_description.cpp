@@ -134,6 +134,9 @@ DataMap deserializeDataMap(const TensorReferenceVector* tensors,
                            DimsOrder (*backupStridesToLayoutConvertor)(const llvm::ArrayRef<float>&)) {
     DataMap out;
 
+    if (tensors == nullptr)
+        return out;
+
     for (auto ind : irange(tensors->size())) {
         const auto* tensor = tensors->Get(ind);
 
@@ -166,6 +169,7 @@ vpux::VPUIP::NetworkDescription::NetworkDescription(std::vector<char> blob)
 
     _deviceInputs = deserializeDataMap(header->net_input(), extractLayoutFromStrides);
     _deviceOutputs = deserializeDataMap(header->net_output(), extractLayoutFromStrides);
+    _deviceProfilingOutputs = deserializeDataMap(header->profiling_output(), extractLayoutFromStrides);
 
     VPUX_THROW_UNLESS(!_networkOutputs.empty(), "VPUIP blob does not contain network outputs");
     VPUX_THROW_UNLESS(!_deviceOutputs.empty(), "VPUIP blob does not contain device outputs");

@@ -165,6 +165,11 @@
                 "name": "ProgrammableOutput",
                 "alignment": 64,
                 "size": 1024000000
+            },
+            {
+                "name": "ProfilingOutput",
+                "alignment": 64,
+                "size": 1024000000
             }
         ],
         "nce_block":
