@@ -541,6 +541,8 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                 //std::cout << "Ztiles: " << std::endl;
                 //workloadsVector.at(optimalWorkloadIndex).printoutputchannels();
                 std::cout << "nWorkloads: " << workloadsVector.at(optimalWorkloadIndex).nWorkloads() << std::endl;
+                for (int i: nWorkloadsSplitPool)
+                    std::cout << i << ' ';
                 std::cout << "mpe mode: " << workloadsVector.at(optimalWorkloadIndex)[0].MPEMode << std::endl;
                 std::cout << "Hardware utilization" << std::endl;
                 double tensorvolume = 0;
