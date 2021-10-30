@@ -74,11 +74,6 @@ void buildIEReferenceLowPrecisionPipeline(mlir::OpPassManager& pm, Logger log) {
     pm.addPass(mlir::createCanonicalizerPass(grc));
 }
 
-void buildIERTAllocationPipelineForDDR(mlir::OpPassManager& pm, Logger log) {
-    pm.addPass(IERT::createSetInternalMemorySpacePass(getMemSpace<VPUIP::PhysicalMemory::DDR>, log));
-    pm.addPass(IERT::createStaticAllocationPass(getMemSpace<VPUIP::PhysicalMemory::DDR>, log));
-}
-
 VPUIP::ArchKind getArchKind(const StrOption& archKind) {
     VPUX_THROW_UNLESS(archKind.hasValue(), "Platform architecture is not provided. Please try 'vpu-arch=KMB'");
     const std::string archKindStr = archKind.getValue();
@@ -125,7 +120,9 @@ void vpux::buildReferenceModePipeline(mlir::OpPassManager& pm, bool enableProfil
 
     // IERT Dialect level
     IERT::buildAsyncSchedulingPipeline(pm, log);
-    buildIERTAllocationPipelineForDDR(pm, log);
+    pm.addPass(IERT::createGroupAsyncExecuteOpsPass(log));
+    pm.addPass(IERT::createSetInternalMemorySpacePass(getMemSpace<VPUIP::PhysicalMemory::DDR>, log));
+    pm.addPass(IERT::createStaticAllocationPass(getMemSpace<VPUIP::PhysicalMemory::DDR>, log));
     pm.addPass(IERT::createOptimizeAsyncDepsPass(log));
 
     // Lower IERT->VPUIP (SW mode)
@@ -182,8 +179,10 @@ void vpux::buildHardwareModePipeline(mlir::OpPassManager& pm, bool enableProfili
     pm.addPass(IERT::createOptimizeCopiesPass(log));
     pm.addPass(IERT::createCopyOpHoistingPass(log));
     IERT::buildAsyncSchedulingPipeline(pm, log);
-    buildIERTAllocationPipelineForDDR(pm, log);
-    pm.addPass(IERT::createStaticAllocationPass(getMemSpace<VPUIP::PhysicalMemory::CMX_NN>, log));
+    pm.addPass(IERT::createSetInternalMemorySpacePass(getMemSpace<VPUIP::PhysicalMemory::DDR>, log));
+    pm.addPass(IERT::createFeasibleAllocationPass(getMemSpace<VPUIP::PhysicalMemory::CMX_NN>, log));
+    pm.addPass(IERT::createGroupAsyncExecuteOpsPass(log));
+    pm.addPass(IERT::createStaticAllocationPass(getMemSpace<VPUIP::PhysicalMemory::DDR>, log));
     pm.addPass(IERT::createOptimizeAsyncDepsPass(log));
 
     // Handle WeightsTable, which requires statically allocated memory

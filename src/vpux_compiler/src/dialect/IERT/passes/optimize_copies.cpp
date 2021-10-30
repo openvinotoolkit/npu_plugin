@@ -91,6 +91,18 @@ mlir::LogicalResult CopyOpSequence::matchAndRewrite(IERT::CopyOp copyOp, mlir::P
         }
     }
 
+    // retrieve weight tables using this buffer
+    SmallVector<mlir::Operation*> wtUsingOutBuf;
+    for (auto use : copyOp.output_buff().getUsers()) {
+        if (mlir::isa<VPUIP::WeightsTableOp>(*use)) {
+            wtUsingOutBuf.push_back(use);
+        }
+    }
+    // update all weight tables using this buffer
+    for (auto wt : wtUsingOutBuf) {
+        wt->setOperand(0, parentCopyOp.output_buff());
+    }
+
     rewriter.replaceOpWithNewOp<IERT::CopyOp>(copyOp, parentCopyOp.input(), copyOp.output_buff());
 
     return mlir::success();
