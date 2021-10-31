@@ -536,11 +536,13 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                 opIt->set<mv::Workloads>("Workloads" + std::to_string(clusterNumber), workloadsVector.at(optimalWorkloadIndex));
 
                 std::cout << "LayerName " << opIt->getName() << " OutputShape: " << opIt->getOutputTensor()[0]->getShape().toString() << std::endl;
-                if((opIt->getOutputTensor()[0]->hasAttr("splitStrategy")))
-                    std::cout << "Strategy " << opIt->getOutputTensor()[0]->hasAttr("splitStrategy") << std::endl;
+                
+                if((opIt->hasAttr("splitStrategy")))
+                    std::cout << "Strategy " << opIt->get<std::string>("splitStrategy") << std::endl;
                 
                 for (int i: nWorkloadsSplitPool)
                     std::cout << i << ' ';
+                std::cout << " " << std::endl;
                 std::cout << "nWorkloads: " << workloadsVector.at(optimalWorkloadIndex).nWorkloads() << std::endl;
                 std::cout << "mpe mode: " << workloadsVector.at(optimalWorkloadIndex)[0].MPEMode << std::endl;
                 std::cout << "Hardware utilization" << std::endl;
@@ -552,10 +554,10 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
 
                  
                 /*For multi-clustering we work on subtensors*/
-                for(clusterNumber = 0; clusterNumber < nClusters; clusterNumber++)
+                for(auto cluster = 0; cluster < nClusters; cluster++)
                 {
                 /*get the subtensor*/
-                subTensor = opIt->getOutputTensor(0)->getSubTensor(clusterNumber);
+                subTensor = opIt->getOutputTensor(0)->getSubTensor(cluster);
 
                 subTensorShape = subTensor.getShape();
                 std::cout << "SubTensorShape: " << subTensorShape.toString() << std::endl;
