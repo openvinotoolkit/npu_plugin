@@ -59,6 +59,8 @@ ActKernelDesc compileKernelForACTShave(const CompilationListDesc & listDesc,
                                        const movitools::MoviCompileParams& params,
                                        flatbuffers::FlatBufferBuilder& fbb);
 
+const CompilationListDesc& managementKernelCompilationDesc();
+
 ActKernelDesc compileManagementKernelForACTShave(const movitools::MoviCompileParams& params,
                                                  flatbuffers::FlatBufferBuilder& fbb);
 

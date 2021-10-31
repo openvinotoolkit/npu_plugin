@@ -432,8 +432,7 @@ ActKernelDesc compileKernelForACTShave(const CompilationListDesc & listDesc,
     return result;
 }
 
-ActKernelDesc compileManagementKernelForACTShave(const movitools::MoviCompileParams& params,
-                                                 flatbuffers::FlatBufferBuilder& fbb) {
+const CompilationListDesc& managementKernelCompilationDesc() {
     static const CompilationListDesc listDesc {
         "nnActEntry",
         "nnActEntry",
@@ -460,6 +459,14 @@ ActKernelDesc compileManagementKernelForACTShave(const movitools::MoviCompilePar
             "system/nn_mtl/common/inc",         // #include <nn_runtime_types.h>
         }
     };
+
+    return listDesc;
+}
+
+ActKernelDesc compileManagementKernelForACTShave(const movitools::MoviCompileParams& params,
+                                                 flatbuffers::FlatBufferBuilder& fbb) {
+
+    const auto& listDesc = managementKernelCompilationDesc();
 
     return compileKernelForACTShave(listDesc, params, fbb);
 }

@@ -135,6 +135,36 @@ ActKernelDesc vpux::VPUIP::BlobWriter::createKernelData(const CompilationUnitDes
     return {_actKernelsData[unitDesc.name.str()], {}};
 }
 
+ActKernelDesc vpux::VPUIP::BlobWriter::createManagementKernelData() {
+
+    const auto& listDesc = managementKernelCompilationDesc();
+
+    auto dataName = std::string(listDesc.name) + ".data";
+    auto itext  = _actKernelsData.find(listDesc.name.str());
+    auto idata = _actKernelsData.find(dataName);
+
+    if (idata != _actKernelsData.end() && itext != _actKernelsData.end()) {
+        return {itext->second, idata->second};
+    }
+
+    if (itext != _actKernelsData.end()) {
+        return {itext->second, {}};
+    }
+
+    auto newDesc =  compileKernelForACTShave(listDesc, compileParams(), _impl);
+    _log.trace("store following kernels names: {0}\n", listDesc.name);
+    _actKernelsData[listDesc.name.str()] = newDesc.text;
+
+    if (newDesc.data.size != 0) {
+        _log.trace("store following kernels names: {0}\n", dataName);
+        _actKernelsData[dataName] = newDesc.data;
+
+        return {_actKernelsData[listDesc.name.str()], _actKernelsData[dataName]};
+    }
+
+    return {_actKernelsData[listDesc.name.str()], {}};
+}
+
 const vpux::VPUIP::BlobWriter::ActShavesKernelDataMap& vpux::VPUIP::BlobWriter::getKernelData() const {
     return _actKernelsData;
 }
