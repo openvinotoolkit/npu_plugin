@@ -13,12 +13,12 @@
 [submodule "thirdparty/bitcompactor"]
 	path = thirdparty/bitcompactor
 	url = ssh://git@gitlab-icv.inn.intel.com/movidius/btc_models.git
-[submodule "mcm-emulator"]
-	path = src/mcmCompiler/contrib/mcm-emulator
-	url = ssh://git@gitlab-icv.inn.intel.com/kmb-emulator/mcm-emulator.git
 [submodule "thirdparty/hddlunite"]
 	path = thirdparty/hddlunite
 	url = ssh://git@gitlab-icv.inn.intel.com/movidius/hddlunite.git
 [submodule "thirdparty/level-zero"]
 	path = thirdparty/level-zero
 	url = https://github.com/oneapi-src/level-zero.git
+[submodule "mcm-emulator"]
+	path = src/vpux_emulator
+	url = ssh://git@gitlab-icv.inn.intel.com/kmb-emulator/mcm-emulator.git

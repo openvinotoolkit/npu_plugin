@@ -13,7 +13,6 @@
 
 #include <memory>
 
-#include <include/mcm/compiler/compilation_unit.hpp>
 #include <vpux.hpp>
 
 #include "emulator_device.hpp"

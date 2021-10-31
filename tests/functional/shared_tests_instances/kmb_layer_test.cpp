@@ -29,8 +29,11 @@ const KmbTestEnvConfig KmbLayerTestsCommon::envConfig;
 KmbLayerTestsCommon::KmbLayerTestsCommon(): kmbTestTool(envConfig) {
     IE_ASSERT(core != nullptr);
 
+    const std::string configDevice = testPlatformTargetDevice.substr(0, 
+                                         testPlatformTargetDevice.find("."));
+
     if (!envConfig.IE_KMB_TESTS_LOG_LEVEL.empty()) {
-        core->SetConfig({{CONFIG_KEY(LOG_LEVEL), envConfig.IE_KMB_TESTS_LOG_LEVEL}}, testPlatformTargetDevice);
+        core->SetConfig({{CONFIG_KEY(LOG_LEVEL), envConfig.IE_KMB_TESTS_LOG_LEVEL}}, configDevice);
     }
 }
 

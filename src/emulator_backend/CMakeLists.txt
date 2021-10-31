@@ -44,9 +44,12 @@ target_link_libraries(${OBJ_TARGET_NAME}
         vpux_al
         kmb_utils
         flatbuffers
-        mcmCompiler)
+        vpux_emulator)
 
-add_library(${TARGET_NAME} MODULE $<TARGET_OBJECTS:${OBJ_TARGET_NAME}>)
+add_library(${TARGET_NAME} 
+    MODULE 
+        $<TARGET_OBJECTS:${OBJ_TARGET_NAME}>
+        $<TARGET_OBJECTS:vpux_emulator>)
 target_link_libraries(${TARGET_NAME} PRIVATE ${OBJ_TARGET_NAME})
 
 if(ENABLE_CLANG_FORMAT)

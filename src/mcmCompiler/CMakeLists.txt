@@ -321,13 +321,6 @@ set(syscalls
 
 add_subdirectory(meta)
 add_subdirectory(tools)
-add_subdirectory(contrib/mcm-emulator)
-
-if(TARGET mcm_emulator)
-    set(EMULATOR mcm_emulator)
-    set(TARGET_OBJECTS_EMULATOR $<TARGET_OBJECTS:mcm_emulator>)
-    add_dependencies(mcm_emulator mcmCompilerGenCompAPI)
-endif()
 
 set_source_files_properties(
     "${META_DIR_PATH}/src/compositional_model.cpp"
@@ -338,7 +331,6 @@ set_source_files_properties(
 
 add_library(mcmCompiler SHARED
     ${base} ${model} ${logger} ${pass} ${compiler} ${syscalls}
-    ${TARGET_OBJECTS_EMULATOR}
     "${META_DIR_PATH}/src/compositional_model.cpp"
     "${META_DIR_PATH}/src/op_model.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/lp_scheduler/lp_scheduler_pass.cpp"
@@ -378,7 +370,7 @@ target_include_directories(mcmCompiler
         "${PROJECT_SOURCE_DIR}/../../thirdparty/bitcompactor/include/"
 )
 
-target_link_libraries(mcmCompiler PUBLIC ${EMULATOR} vpux_al PRIVATE flatbuffers)
+target_link_libraries(mcmCompiler PUBLIC vpux_al PRIVATE flatbuffers)
 
 if(ENABLE_MCM_COMPILER_PYTHON)
     add_subdirectory(python/api)
