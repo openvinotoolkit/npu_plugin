@@ -148,7 +148,6 @@ void populateCandidateVerticalFusionOps(std::vector<std::string> & candidateVert
                 candidateVerticalFusionOps.push_back(nodeName);
         }
     }
-    return;
 }
 
 bool alreadyInSubgraph(const std::string &opName, const std::vector<std::list<std::string>> &candidateVerticalFusionOps)
@@ -461,7 +460,6 @@ void sortCandidateOps(mv::OpModel& om, std::vector<std::string>& candidateVertic
         if (exists)
             candidateVerticalFusionOpsSorted.push_back(sortOp->getName());
     }
-    return;
 }
 
 bool childConcat(mv::DataModel& dm, mv::OpModel& om, const std::string &opName)
@@ -526,7 +524,6 @@ void printVerticalFusionSubgraphs(const std::vector<std::list<std::string>> &ver
         }
         idx++;
     }
-    return;
 }
 
 void storeOverlappingEltwiseLines(const std::vector<std::list<std::string>> &verticalFusionSubgraphs, mv::OpModel& om)
@@ -568,7 +565,6 @@ void storeOverlappingEltwiseLines(const std::vector<std::list<std::string>> &ver
             }
         }
     }
-    return;
 }
 
 bool after_concat(const std::string &name, mv::OpModel& om)
@@ -733,7 +729,7 @@ void computeSubgraphs(mv::ComputationModel& model,
                         auto itr = std::find(candidateVerticalFusionOpsSorted.begin(), candidateVerticalFusionOpsSorted.end(), *sortedName);
                         if (itr != candidateVerticalFusionOpsSorted.end())
                         {
-                            candidateVerticalFusionOpsSorted.erase(itr);
+                            sortedName = candidateVerticalFusionOpsSorted.erase(itr);
                             erasedName = true;
                             break;
                         }
@@ -954,8 +950,6 @@ void computeSubgraphs(mv::ComputationModel& model,
     // printVerticalFusionSubgraphs(verticalFusionSubgraphs, newStreamingStrategies);
     if (double_tail)
         storeOverlappingEltwiseLines(verticalFusionSubgraphs, om);
-
-    return;
 }
 
 void printSubgraphsAfterComputation(mv::ComputationModel& model)
@@ -972,7 +966,6 @@ void printSubgraphsAfterComputation(mv::ComputationModel& model)
         if (op->hasAttr("verticalFusionSubgraphTail") && op->get<bool>("verticalFusionSubgraphTail"))
             std::cout << "Tail of subgraph with name " << op->getName() << std::endl;
     }
-    return;
 }
 
 void recognizeVerticalFusionPatternsFcn(const mv::pass::PassEntry&,
@@ -1000,7 +993,6 @@ void recognizeVerticalFusionPatternsFcn(const mv::pass::PassEntry&,
     if (yolo_v4)
         computeSubgraphs(model, passDesc, yolo_v4);
     // printSubgraphsAfterComputation(model);
-    return;
 }
 
 void verticalFusionTransformationFcn(const mv::pass::PassEntry&,
@@ -1144,7 +1136,6 @@ void verticalFusionTransformationFcn(const mv::pass::PassEntry&,
         }
         opIt++;
     }
-    return;
 }
 
 void validateVerticalAdds(const mv::pass::PassEntry&,
@@ -1273,5 +1264,4 @@ void validateVerticalAdds(const mv::pass::PassEntry&,
             om.defineFlow(slice, nextOp, idx);
         }
     }
-    return;
 }
