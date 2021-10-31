@@ -538,8 +538,9 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                 std::cout << "LayerName " << opIt->getName() << " OutputShape: " << opIt->getOutputTensor()[0]->getShape().toString() << std::endl;
                 if((opIt->getOutputTensor()[0]->hasAttr("splitStrategy")))
                     std::cout << "Strategy " << opIt->getOutputTensor()[0]->hasAttr("splitStrategy") << std::endl;
-                //std::cout << "Ztiles: " << std::endl;
-                //workloadsVector.at(optimalWorkloadIndex).printoutputchannels();
+                
+                for (int i: nWorkloadsSplitPool)
+                    std::cout << i << ' ';
                 std::cout << "nWorkloads: " << workloadsVector.at(optimalWorkloadIndex).nWorkloads() << std::endl;
                 std::cout << "mpe mode: " << workloadsVector.at(optimalWorkloadIndex)[0].MPEMode << std::endl;
                 std::cout << "Hardware utilization" << std::endl;
@@ -554,9 +555,9 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                 for(clusterNumber = 0; clusterNumber < nClusters; clusterNumber++)
                 {
                 /*get the subtensor*/
-                auto subTensor = opIt->getOutputTensor(0)->getSubTensor(clusterNumber);
+                subTensor = opIt->getOutputTensor(0)->getSubTensor(clusterNumber);
 
-                auto subTensorShape = subTensor.getShape();
+                subTensorShape = subTensor.getShape();
                 std::cout << "SubTensorShape: " << subTensorShape.toString() << std::endl;
 
                 tensorvolume = subTensorShape[mv::IO_HEIGHT_DIMENSION] * subTensorShape[mv::IO_WIDTH_DIMENSION] * subTensorShape[mv::IO_CHANNEL_DIMENSION];
