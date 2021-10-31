@@ -29,6 +29,8 @@ add_subdirectory(vpux_ngraph_transformations)
 #endif()
 
 if(ENABLE_EMULATOR)
+    add_subdirectory(vpux_emulator)
+    add_dependencies(vpux_emulator mcmCompilerGenSchema)
     add_subdirectory(emulator_backend)
 endif()
 if(ENABLE_HDDL2 AND UNIX)
