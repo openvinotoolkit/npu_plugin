@@ -18,8 +18,6 @@
 
 #include "vpux/utils/core/range.hpp"
 
-#include <mlir/Transforms/GreedyPatternRewriteDriver.h>
-
 using namespace vpux;
 
 namespace {

@@ -125,11 +125,97 @@ mlir::LogicalResult vpux::IE::StridedSliceOp::inferReturnTypeComponents(
     return mlir::success();
 }
 
+bool vpux::IE::StridedSliceOp::isSimplified() {
+    auto isZero = [](auto val) {
+        return val == 0;
+    };
+    auto isPositive = [](auto val) {
+        return val >= 0;
+    };
+
+    return (llvm::all_of(parseIntArrayAttr<int64_t>(new_axis_mask()), isZero) &&
+            llvm::all_of(parseIntArrayAttr<int64_t>(shrink_axis_mask()), isZero) &&
+            llvm::all_of(parseIntArrayAttr<int64_t>(ellipsis_mask()), isZero) &&
+            llvm::all_of(parseIntArrayAttr<int64_t>(begin_mask()), isZero) &&
+            llvm::all_of(parseIntArrayAttr<int64_t>(end_mask()), isZero) &&
+            llvm::all_of(parseIntArrayAttr<int64_t>(begins_attr().getValue()), isPositive) &&
+            llvm::all_of(parseIntArrayAttr<int64_t>(ends_attr().getValue()), isPositive));
+}
+
 //
-// ConvertConstToAttr
+// fold
+//
+
+mlir::OpFoldResult vpux::IE::StridedSliceOp::fold(ArrayRef<mlir::Attribute> /*operands*/) {
+    if (input().getType() == output().getType()) {
+        return input();
+    }
+
+    // TODO EISW-22568: attempt const folding but only if slice isSimplified()
+
+    return nullptr;
+}
+
+//
+// ComposeStridedSlice
 //
 
 namespace {
+
+class ComposeStridedSlice final : public mlir::OpRewritePattern<IE::StridedSliceOp> {
+public:
+    using OpRewritePattern::OpRewritePattern;
+
+    mlir::LogicalResult matchAndRewrite(IE::StridedSliceOp op, mlir::PatternRewriter& rewriter) const final;
+};
+
+mlir::LogicalResult ComposeStridedSlice::matchAndRewrite(IE::StridedSliceOp origOp,
+                                                         mlir::PatternRewriter& rewriter) const {
+    auto producerSliceOp = origOp.input().getDefiningOp<IE::StridedSliceOp>();
+    if (producerSliceOp == nullptr) {
+        return mlir::failure();
+    }
+
+    if (!(origOp.isSimplified() && producerSliceOp.isSimplified())) {
+        return mlir::failure();
+    }
+
+    const auto firstBegin = parseIntArrayAttr<int64_t>(producerSliceOp.begins_attr().getValue());
+    const auto nextBegin = parseIntArrayAttr<int64_t>(origOp.begins_attr().getValue());
+    auto resultBegin = llvm::SmallVector<int64_t>(nextBegin.size());
+
+    const auto firstEnd = parseIntArrayAttr<int64_t>(producerSliceOp.ends_attr().getValue());
+    const auto nextEnd = parseIntArrayAttr<int64_t>(origOp.ends_attr().getValue());
+    auto resultEnd = llvm::SmallVector<int64_t>(nextEnd.size());
+
+    const auto firstStride = parseIntArrayAttr<int64_t>(producerSliceOp.strides_attr().getValue());
+    const auto nextStride = parseIntArrayAttr<int64_t>(origOp.strides_attr().getValue());
+    auto resultStride = llvm::SmallVector<int64_t>(nextStride.size());
+
+    for (auto i : irange(firstBegin.size())) {
+        resultBegin[i] = firstBegin[i] + nextBegin[i] * firstStride[i];
+        resultEnd[i] = firstBegin[i] + nextEnd[i] * firstStride[i];
+        resultStride[i] = firstStride[i] * nextStride[i];
+    }
+
+    const auto beginsAttr = getIntArrayAttr(getContext(), resultBegin);
+    const auto endsAttr = getIntArrayAttr(getContext(), resultEnd);
+    const auto stridesAttr = getIntArrayAttr(getContext(), resultStride);
+
+    const auto fusedLoc =
+            mlir::FusedLoc::get(producerSliceOp->getLoc().getContext(), {producerSliceOp->getLoc(), origOp->getLoc()});
+    const auto newOp = rewriter.create<IE::StridedSliceOp>(
+            fusedLoc, producerSliceOp.input(), origOp.begins(), origOp.ends(), origOp.strides(), beginsAttr, endsAttr,
+            stridesAttr, origOp.begin_mask(), origOp.end_mask(), origOp.new_axis_mask(), origOp.shrink_axis_mask(),
+            origOp.ellipsis_mask());
+    rewriter.replaceOp(origOp, newOp->getResults());
+
+    return mlir::success();
+}
+
+//
+// ConvertConstToAttr
+//
 
 class ConvertConstToAttr final : public mlir::OpRewritePattern<IE::StridedSliceOp> {
 public:
@@ -169,4 +255,5 @@ mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::StridedSliceOp slice
 void vpux::IE::StridedSliceOp::getCanonicalizationPatterns(mlir::OwningRewritePatternList& patterns,
                                                            mlir::MLIRContext* context) {
     patterns.insert<ConvertConstToAttr>(context);
+    patterns.insert<ComposeStridedSlice>(context);
 }

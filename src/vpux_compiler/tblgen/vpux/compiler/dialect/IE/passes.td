@@ -16,6 +16,10 @@
 
 include "mlir/Pass/PassBase.td"
 
+//=================================================================================
+// IECommon
+//=================================================================================
+
 //
 // UseUserPrecision
 //
@@ -24,6 +28,8 @@ def UseUserPrecision : PassBase<"use-user-precision", "vpux::ModulePass"> {
     let summary = "Use user precisions for entry point function prototype";
 
     let description = [{
+        The pass is a part of `IECommon` pipeline.
+
         This pass updates the CNNNetwork entry point function prototype and use user-provided precisions for its operands and results.
         The pass inserts Convert operations from/to topology precisions.
     }];
@@ -43,6 +49,8 @@ def UseUserLayout : PassBase<"use-user-layout", "vpux::ModulePass"> {
     let summary = "Use user layouts for entry point function prototype";
 
     let description = [{
+        The pass is a part of `IECommon` pipeline.
+
         This pass updates the CNNNetwork entry point function prototype
         and uses user-provided layouts for its operands and results.
         The pass inserts Reorder operations from/to topology layout.
@@ -63,6 +71,8 @@ def AdjustLayouts : PassBase<"adjust-layouts", "vpux::FunctionPass"> {
     let summary = "Adjust required layouts for all layers";
 
     let description = [{
+        The pass is a part of `IECommon` pipeline.
+
         This pass adds the required layouts instead of the default one
         depending on the layer specification from underlying Dialect.
     }];
@@ -82,6 +92,8 @@ def OptimizeReorders : PassBase<"optimize-reorders", "vpux::FunctionPass"> {
     let summary = "Optimize extra Reorder operations";
 
     let description = [{
+        The pass is a part of `IECommon` pipeline.
+
         This pass tries to optimize out Reorder operations for common cases
         by propagating them from inputs to outputs and merging into layers.
     }];
@@ -289,8 +301,8 @@ def ResolveStridedSlice : PassBase<"resolve-strided-slice", "vpux::FunctionPass"
 
     let description = [{
         The pass is a part of `AdjustForVPU` pipeline.
-
-        It replaces IE::StridedSlice operation with simple StridedSlice and Reshape.
+        It replaces IE::StridedSlice with non zero masks to a simpler IE::StridedSlice with zero masks + IE::Reshape
+        It replaces IE::StridedSlice with dense<1> strides strides with a simple IE::Slice operation
     }];
 
     let constructor = "vpux::IE::createResolveStridedSlicePass()";
@@ -528,6 +540,27 @@ def HandleAsymmetricStrides : PassBase<"handle-asymmetric-strides", "vpux::Funct
     }];
 
     let constructor = "vpux::IE::createHandleAsymmetricStridesPass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
+
+//
+// UpstreamSlice
+//
+
+def UpstreamSlice : PassBase<"upstream-slice", "vpux::FunctionPass"> {
+    let summary = "Optimization by upstreaming slice operations";
+
+    let description = [{
+        Optimizes scenarios of IE::StridedSlice and IE::SliceOp without neighboring operations.
+        Moves the slice operations upwards through the graph, reducing both compute and memory usage.
+        In some cases the slice operation may be safely removed from the graph, if the action of upstreaming it
+            only adapts the operations constants.
+    }];
+
+    let constructor = "vpux::IE::createUpstreamSlicePass()";
 
     let dependentDialects = [
         "vpux::IE::IEDialect"

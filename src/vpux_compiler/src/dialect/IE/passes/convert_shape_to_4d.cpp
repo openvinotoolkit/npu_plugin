@@ -14,6 +14,7 @@
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
+#include "vpux/compiler/dialect/IE/utils/quantization.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 
 #include "vpux/utils/core/error.hpp"
@@ -112,42 +113,9 @@ struct ExtendedShape final {
     Optional<int64_t> quantizeAxis;
 };
 
-Optional<int64_t> getAxisIndex(IE::FakeQuantizeOp fq) {
-    const auto extractAxis = [](mlir::Value input) -> Optional<int64_t> {
-        const auto greaterThanOne = [](auto dim) {
-            return dim > 1;
-        };
-
-        const auto shape = getShape(input);
-
-        const auto axisCount = llvm::count_if(shape, greaterThanOne);
-        VPUX_THROW_UNLESS(axisCount <= 1, "FakeQuantize constant input has incorrect shape");
-
-        auto axis = llvm::find_if(shape, greaterThanOne);
-        if (axis != shape.end()) {
-            return std::distance(shape.begin(), axis);
-        }
-
-        return None;
-    };
-
-    const auto inputLowAxis = extractAxis(fq.input_low());
-    const auto outputLowAxis = extractAxis(fq.output_low());
-
-    if (!inputLowAxis && !outputLowAxis) {
-        return {};
-    }
-
-    if (inputLowAxis && outputLowAxis) {
-        VPUX_THROW_UNLESS(*inputLowAxis == *outputLowAxis, "FakeQuantize constant inputs use different axis");
-    }
-
-    return inputLowAxis ? *inputLowAxis : *outputLowAxis;
-}
-
 ExtendedShape extendInputShapeTo4D(IE::FakeQuantizeOp origOp) {
     // If present, axis will be pointing to the channel dimension
-    const auto axis = getAxisIndex(origOp);
+    const auto axis = IE::getFQAxisIndex(origOp);
     const auto inShape = origOp.input().getType().cast<mlir::ShapedType>().getShape();
 
     const auto perAxisCase = [](const auto& inShape, const auto& axis) -> SmallVector<int64_t> {
