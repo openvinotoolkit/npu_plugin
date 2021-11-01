@@ -197,7 +197,7 @@ namespace mv
         void placeBuffers_(unsigned stageIdx);
         std::deque<std::size_t> computeStrides_(const Order& order, const std::vector<std::size_t>& leftPadding,
             const std::vector<std::size_t>& rightPadding, const mv::Shape& shape, const unsigned dataTypeSize);
-        long int computeStrides_(const Order& order, std::size_t idx, const mv::Shape& shape, const std::vector<std::size_t>& leftPadding,
+        long computeStrides_(const Order& order, std::size_t idx, const mv::Shape& shape, const std::vector<std::size_t>& leftPadding,
             const std::vector<std::size_t>& rightPadding, std::deque<std::size_t>& leftStrides, std::deque<std::size_t>& rightStrides);
         void padBuffer_(BufferIterator buffer);
         void moveSlave_(BufferIterator slaveBuffer);
