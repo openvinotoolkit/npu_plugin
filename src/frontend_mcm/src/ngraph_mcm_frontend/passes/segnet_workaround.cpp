@@ -14,6 +14,7 @@
 // clang-format on
 
 #include "ngraph_mcm_frontend/passes/segnet_workaround.hpp"
+#include <fstream>
 #include <ngraph/op/reorg_yolo.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
@@ -61,8 +62,61 @@ SegnetWorkaround::SegnetWorkaround() {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto reAllocate_input = pattern_to_output.at(input);
 
-        // auto first_transpose = std::dynamic_pointer_cast<ngraph::opset1::Transpose>(
-        //         pattern_to_output.at(transpose1).get_node_shared_ptr());
+        auto first_ScatterNDUpdate = std::dynamic_pointer_cast<ngraph::op::v3::ScatterNDUpdate>(
+                pattern_to_output.at(ScatterNDUpdate1).get_node_shared_ptr());
+        auto idx = std::dynamic_pointer_cast<ngraph::op::Constant>(
+                first_ScatterNDUpdate->input_value(1).get_node_shared_ptr());
+        auto scaleshift_scale_data = idx->cast_vector<uint8_t>();
+        auto shape = first_ScatterNDUpdate->get_input_shape(1);
+
+        std::cout << "shape: " << std::endl;
+        for (unsigned i = 0; i < shape.size(); i++) {
+            std::cout << shape[i] << std::endl;
+        }
+
+        // std::cout << "value " << std::endl;
+        // for (unsigned i = 0; i < scaleshift_scale_data.size() / 4; i++) {
+        //     std::cout << scaleshift_scale_data[i * 4] << " " << scaleshift_scale_data[i * 4 + 1] << " "
+        //               << scaleshift_scale_data[i * 4 + 2] << " " << scaleshift_scale_data[i * 4 + 3] << std::endl;
+        // }
+
+        std::ofstream fout1("ScatterNDUpdate1.dat", std::ios::out | std::ios::binary);
+        fout1.write((char*)&scaleshift_scale_data[0], scaleshift_scale_data.size() * sizeof(scaleshift_scale_data[0]));
+        fout1.close();
+
+        auto second_ScatterNDUpdate = std::dynamic_pointer_cast<ngraph::op::v3::ScatterNDUpdate>(
+                pattern_to_output.at(ScatterNDUpdate2).get_node_shared_ptr());
+        auto idx2 = std::dynamic_pointer_cast<ngraph::op::Constant>(
+                second_ScatterNDUpdate->input_value(1).get_node_shared_ptr());
+        auto scaleshift_scale_data2 = idx2->cast_vector<uint8_t>();
+
+        std::ofstream fout2("ScatterNDUpdate2.dat", std::ios::out | std::ios::binary);
+        fout2.write((char*)&scaleshift_scale_data2[0],
+                    scaleshift_scale_data2.size() * sizeof(scaleshift_scale_data2[0]));
+        fout2.close();
+
+        auto third_ScatterNDUpdate = std::dynamic_pointer_cast<ngraph::op::v3::ScatterNDUpdate>(
+                pattern_to_output.at(ScatterNDUpdate3).get_node_shared_ptr());
+        auto idx3 = std::dynamic_pointer_cast<ngraph::op::Constant>(
+                third_ScatterNDUpdate->input_value(1).get_node_shared_ptr());
+        auto scaleshift_scale_data3 = idx3->cast_vector<uint8_t>();
+
+        std::ofstream fout3("ScatterNDUpdate3.dat", std::ios::out | std::ios::binary);
+        fout3.write((char*)&scaleshift_scale_data3[0],
+                    scaleshift_scale_data3.size() * sizeof(scaleshift_scale_data3[0]));
+        fout3.close();
+
+        auto fourth_ScatterNDUpdate = std::dynamic_pointer_cast<ngraph::op::v3::ScatterNDUpdate>(
+                pattern_to_output.at(ScatterNDUpdate4).get_node_shared_ptr());
+        auto idx4 = std::dynamic_pointer_cast<ngraph::op::Constant>(
+                fourth_ScatterNDUpdate->input_value(1).get_node_shared_ptr());
+        auto scaleshift_scale_data4 = idx4->cast_vector<uint8_t>();
+
+        std::ofstream fout4("ScatterNDUpdate4.dat", std::ios::out | std::ios::binary);
+        fout4.write((char*)&scaleshift_scale_data4[0],
+                    scaleshift_scale_data4.size() * sizeof(scaleshift_scale_data4[0]));
+        fout4.close();
+
         // if (first_transpose == nullptr) {
         //     return false;
         // }

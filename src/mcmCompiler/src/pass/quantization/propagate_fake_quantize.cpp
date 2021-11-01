@@ -52,7 +52,7 @@ bool isOpInputQuantized(mv::OpModel& om, const mv::Data::OpListIterator& op) {
 bool isOpPassthrough(const mv::Data::OpListIterator& op)
 {
     std::vector<std::string> passthroughOps = {
-        "Bias", "Relu", "LeakyRelu", "Concat", "Maximum", "Minimum", "ReorgYolo", "Reshape", "Permute", "Interp", "Resample", "MaxPool", "Mish", "Sigmoid"
+        "Bias", "Relu", "LeakyRelu", "Concat", "Maximum", "Minimum", "ReorgYolo", "Reshape", "Permute", "Interp", "Resample", "MaxPool", "Mish", "Sigmoid", "DepthToSpace"
     };
 
     return std::find(passthroughOps.begin(), passthroughOps.end(), op->getOpType()) != passthroughOps.end() ||
@@ -723,5 +723,5 @@ void quantizeGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mod
 
     removeFQ(pass, model);
 
-    reduceConversionsPatterns(model);
+    // reduceConversionsPatterns(model);
 }

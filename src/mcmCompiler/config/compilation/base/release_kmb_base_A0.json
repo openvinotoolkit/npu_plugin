@@ -9,7 +9,29 @@
             "ConvertOpsToTasks",
             "ValidateVerticalAdds",
             "GenerateAndPopulateInstructionListTables",
+            {
+                "name": "GenerateDot",
+                "output": "output/GenerateAndPopulateInstructionListTables.dot",
+                "scope": "OpModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/GenerateAndPopulateInstructionListTables.dot"
+            },
             "SetUpPPETasks",
+            {
+                "name": "GenerateDot",
+                "output": "output/SetUpPPETasks.dot",
+                "scope": "OpModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/SetUpPPETasks.dot"
+            },
             "TaskMultiplePostOps",
             "ForceSerialize",
             "KMBOrderConversion",
@@ -26,6 +48,17 @@
             "EnsureDTypeCompatibility",
             "GenerateSparsityMapsPopulatedTensors",
             "GenerateWeightsTables",
+            {
+                "name": "GenerateDot",
+                "output": "output/GenerateWeightsTables.dot",
+                "scope": "OpModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/GenerateWeightsTables.dot"
+            },
             "ComputeTensorsQuantParams",
             "UpdateImplicitLayersQuantizationParams",
             "PopulateWeightsTablesQuantization",

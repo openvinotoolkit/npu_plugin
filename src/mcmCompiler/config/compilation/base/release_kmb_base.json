@@ -55,8 +55,30 @@
             "TensorsToFP16",
             "FusePostOps",
             "CheckPWLForRequantize",
-            "ConvDilationUsingStorageElement",
             "ConvDilationUsingWeights",
+            {
+                "name": "GenerateDot",
+                "output": "output/ConvDilationUsingWeights.dot",
+                "scope": "OpModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/ConvDilationUsingWeights.dot"
+            },
+            "ConvDilationUsingStorageElement",
+            {
+                "name": "GenerateDot",
+                "output": "output/ConvDilationUsingStorageElement.dot",
+                "scope": "OpModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/ConvDilationUsingStorageElement.dot"
+            },
             "TileOps",
             "HandleGroupConvolution",
             "StreamBinaryDataWeights",
@@ -160,12 +182,45 @@
         "Singular": [
             "config",
             "initialize",
+            {
+                "name": "GenerateDot",
+                "output": "output/initialize.dot",
+                "scope": "OpModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/initialize.dot"
+            },
             "quantization",
             "adapt",
             "kmb_adapt",
+            {
+                "name": "GenerateDot",
+                "output": "output/kmb_adapt.dot",
+                "scope": "OpModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/kmb_adapt.dot"
+            },
             "dma",
             "control_flows",
             "finalize",
+            {
+                "name": "GenerateDot",
+                "output": "output/finalize.dot",
+                "scope": "OpModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/finalize.dot"
+            },
             "scheduling",
             "serialize"
         ]

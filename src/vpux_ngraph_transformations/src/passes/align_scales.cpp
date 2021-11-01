@@ -241,6 +241,9 @@ static void adjust_fqs_to_align(std::set<std::shared_ptr<ngraph::Node>>& fqs) {
     const float max_fq_range_ratio = 5.0;
 
     for (auto fq_node : fqs) {
+        // if ((fq_node->get_friendly_name() == "Concat_602/fq_input_1") ||
+        //     (fq_node->get_friendly_name() == "Slice_598/fq_input_0"))
+        //     return;
         auto fq_node1 =
                 std::dynamic_pointer_cast<ngraph::op::v0::Constant>(fq_node->input_value(1).get_node_shared_ptr());
         auto fq_node2 =
@@ -271,6 +274,10 @@ static void adjust_fqs_to_align(std::set<std::shared_ptr<ngraph::Node>>& fqs) {
 
         auto fq_data1 = fq_node1->cast_vector<float>();
         auto fq_data2 = fq_node2->cast_vector<float>();
+
+        // if ((fq_node->get_friendly_name() == "Concat_602/fq_input_1") ||
+        //     (fq_node->get_friendly_name() == "Slice_598/fq_input_0"))
+        //     continue;
 
         for (size_t c = 0; c < fq_data1.size(); c++) {
             if (fq_data2[c] - fq_data1[c] < max_fq_range_ratio * min_range) {

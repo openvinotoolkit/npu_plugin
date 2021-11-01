@@ -588,7 +588,7 @@ void applyTransformations(
 
     if (useCompiler) {
         passManager.register_pass<SegnetWorkaround>();
-        passManager.register_pass<ngraph::pass::VisualizeTree>("ConvertToMcmModel.png");
+        // passManager.register_pass<ngraph::pass::VisualizeTree>("ConvertToMcmModel.png");
         auto& mcmModel = mcmCompiler->model();
         passManager.register_pass<ConvertToMcmModel>(mcmModel, mcmOutputsMap, inputsInfo, outputsInfo, ioMap, config, &needConvertInputPrecision);
     } else {
