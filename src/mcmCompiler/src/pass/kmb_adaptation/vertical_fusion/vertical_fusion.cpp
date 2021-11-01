@@ -53,6 +53,8 @@ namespace mv
 ///////////////////////// PASS STATIC PARAMETERS ///////////////////////////////
 static size_t MAXIMUM_STATIC_OVERLAPING_OPS_IN_SUBGRAPH = 3UL;
 static size_t MAXIMUM_HEIGHT_WORTHY_FOR_VF = 38UL;
+//static size_t CMX_TO_AVOID_FRAGMENTATION = 917504;
+//static size_t CMX_TO_AVOID_FRAGMENTATION = 734003; // 80%
 static size_t CMX_TO_AVOID_FRAGMENTATION = 360800;
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -87,7 +89,15 @@ void populateCandidateVerticalFusionOps(std::vector<std::string> & candidateVert
         auto layerNameStrategy = *layerStrategy;
         std::string nodeName = layerNameStrategy.get<std::string>("name_filter");
         
-        if (nodeName == "MobilenetV2/expanded_conv_1/expand/BatchNorm/FusedBatchNorm/variance/Fused_Add_")
+        std::vector<std::string> hack_list = {"MobilenetV2/expanded_conv/project/BatchNorm/FusedBatchNorm/variance/Fused_Add_"
+        , "MobilenetV2/expanded_conv_1/expand/BatchNorm/FusedBatchNorm/variance/Fused_Add_"
+        , "MobilenetV2/expanded_conv_1/project/BatchNorm/FusedBatchNorm/variance/Fused_Add_"
+        , "MobilenetV2/expanded_conv_2/expand/BatchNorm/FusedBatchNorm/variance/Fused_Add_"
+        , "MobilenetV2/expanded_conv_2/project/BatchNorm/FusedBatchNorm/variance/Fused_Add_"
+        , "MobilenetV2/expanded_conv_2/add"
+        , "MobilenetV2/expanded_conv_3/expand/BatchNorm/FusedBatchNorm/variance/Fused_Add_"};
+        
+        if (std::find(hack_list.begin(), hack_list.end(), nodeName) == hack_list.end())
             continue;
         // large kernels set large overlaps, so no value adding to VF subgraph
         if (hasLargeKernel(om.getOp(nodeName), 7))

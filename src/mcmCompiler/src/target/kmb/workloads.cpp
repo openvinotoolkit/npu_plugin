@@ -1185,7 +1185,7 @@ int mv::Workloads::partitionTensorWithRectangleHeuristic(const mv::DPUModeList& 
     pass.log(mv::Logger::MessageType::Debug, "RectangleHeuristic: reduced_height=" + std::to_string(reduced_shape.H)
                                                              + ", reduced_width="  + std::to_string(reduced_shape.W));
 
-    std::cout<<"RectangleHeuristic: layer=" + layerName_<<std::endl;
+//    std::cout<<"RectangleHeuristic: layer=" + layerName_<<std::endl;
     SplitSliceVariant slicing_variant = splitSliceSymmetric(reduced_shape.W, reduced_shape.H, nWorkloads,
                                                             split_over_h, split_over_w, isSparse_, C);
     if (!split_symmetric)
