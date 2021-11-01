@@ -98,7 +98,7 @@ void buildRaceConditionDPUTest(const nb::TestCaseJsonDescriptor& testDesc, mlir:
     const auto wtTbl_1_data_values = makeArrayRef<int32_t>(wtTbl_1_data_values_vec);
     const auto wtTbl_0_data_vals = mlir::DenseElementsAttr::get(wtTblData_ddr_valueType, wtTbl_0_data_values);
     const auto wtTbl_1_data_vals = mlir::DenseElementsAttr::get(wtTblData_ddr_valueType, wtTbl_1_data_values);
-    const auto wt_data_vals = generateWeights(wt_data_shape, weightsType, builder.getContext(), "weight.dat");
+    const auto wt_data_vals = generateWeights(wt_data_shape, weightsType, builder.getContext(), "weights.dat");
 
     const auto wtTbl_cmx_memSpaceAttr =
             VPUIP::MemoryLocationAttr::get(builder.getContext(), VPUIP::MemoryLocation::VPU_CMX_NN);

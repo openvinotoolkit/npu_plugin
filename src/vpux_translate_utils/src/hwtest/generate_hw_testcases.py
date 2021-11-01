@@ -454,7 +454,7 @@ class ZMajorConvolution(MPE):
     def generate_inputs(self, rng) -> List[Value]:
         return [
             self.settings.input_ttype.generate('input-0.bin', self.settings.input_shape, rng),
-            self.settings.weight_ttype.generate('weight.dat', self.settings.weight_shape, rng, orderer=OrderNCHW)
+            self.settings.weight_ttype.generate('weights.dat', self.settings.weight_shape, rng, orderer=OrderNCHW)
         ]
 
     def apply(self, values: List[Value]) -> np.ndarray:
@@ -520,7 +520,7 @@ class DepthWiseConv(MPE):
     def generate_inputs(self, rng) -> List[Value]:
         return [
             self.settings.input_ttype.generate('input-0.bin', self.settings.input_shape, rng),
-            self.settings.weight_ttype.generate('weight.dat', self.settings.weight_shape, rng, orderer=OrderNCHW)
+            self.settings.weight_ttype.generate('weights.dat', self.settings.weight_shape, rng, orderer=OrderNCHW)
         ]
 
     def apply(self, values: List[Value]) -> np.ndarray:
