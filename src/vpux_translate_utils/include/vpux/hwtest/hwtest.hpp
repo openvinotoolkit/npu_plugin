@@ -18,5 +18,6 @@
 namespace vpux {
 
 mlir::OwningModuleRef importHWTEST(llvm::StringRef sourceJson, mlir::MLIRContext* ctx);
+mlir::LogicalResult exportHWTEST(mlir::ModuleOp module, llvm::raw_ostream& output);
 
 }  // namespace vpux

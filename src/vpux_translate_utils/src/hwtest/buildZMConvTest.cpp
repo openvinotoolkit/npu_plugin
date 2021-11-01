@@ -36,7 +36,6 @@ namespace hwtest {
 
 void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module, mlir::OpBuilder builder,
                            Logger& log, mlir::Type inputType, mlir::Type weightsType, mlir::Type outputType) {
-    auto* ctx = builder.getContext();
     const auto int32 = builder.getIntegerType(32, true);
 
     const auto input = testDesc.getInputLayer();
@@ -87,7 +86,7 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     auto functionInput = function.getArgument(0);
     auto functionOutput = function.getArgument(1);
 
-    const auto weightsValues = generateWeights(weightsShape, weightsType, ctx, weightsFileName);
+    const auto weightsValues = generateWeights(weightsShape, weightsType, builder.getContext(), weightsFileName);
     auto weightsAttribute = vpux::Const::ContentAttr::get(weightsValues);
     if (auto qty = weightsType.dyn_cast<mlir::quant::QuantizedType>()) {
         weightsAttribute = weightsAttribute.quantCast(qty);
@@ -132,35 +131,38 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
                                                  functionOutput, mlir::ValueRange(barrier1.barrier()),
                                                  mlir::ValueRange(), false);
 
-    const auto strides = getIntArrayAttr(ctx, conv.stride);
+    const auto strides = getIntArrayAttr(builder.getContext(), conv.stride);
     std::vector<std::int64_t> paddings = convertNBPadtoNCETaskPad(conv.pad);
-    const auto kernelPaddings = getIntArrayAttr(ctx, paddings);
+    const auto kernelPaddings = getIntArrayAttr(builder.getContext(), paddings);
     llvm::SmallVector<std::int64_t> kernel = {weightsShape[2], weightsShape[3]};
-    const auto kernelSize = getIntArrayAttr(ctx, kernel);
+    const auto kernelSize = getIntArrayAttr(builder.getContext(), kernel);
 
     auto nceTask = functionBuilder.create<vpux::VPUIP::NCEClusterTaskOp>(
             builder.getUnknownLoc(), inputCMX.memory(), weightsCMX.memory(), weightsTableCMX.memory(), nullptr,
             inputCMX.memory(), outputCMX.memory(), outputCMX.memory(), vpux::VPUIP::NCETaskType::CONV, kernelSize,
-            strides, kernelPaddings, nullptr, nullptr);
+            strides, kernelPaddings, nullptr);
 
     nceTask.waitBarriersMutable().append(barrier0.barrier());
     nceTask.updateBarriersMutable().append(barrier1.barrier());
 
-    const auto start = getIntArrayAttr(ctx, std::vector<std::int64_t>{0, 0, 0});
+    const auto start = getIntArrayAttr(builder.getContext(), std::vector<std::int64_t>{0, 0, 0});
     const auto end =
-            getIntArrayAttr(ctx, std::vector<std::int64_t>{outputShape[3] - 1, outputShape[2] - 1, outputShape[1] - 1});
+            getIntArrayAttr(builder.getContext(),
+                            std::vector<std::int64_t>{outputShape[3] - 1, outputShape[2] - 1, outputShape[1] - 1});
     const auto pad = vpux::VPUIP::PaddingAttr::get(vpux::getIntAttr(builder, paddings[PAD_NCETASK_LEFT]),
                                                    vpux::getIntAttr(builder, paddings[PAD_NCETASK_RIGHT]),
                                                    vpux::getIntAttr(builder, paddings[PAD_NCETASK_TOP]),
-                                                   vpux::getIntAttr(builder, paddings[PAD_NCETASK_BOTTOM]), ctx);
+                                                   vpux::getIntAttr(builder, paddings[PAD_NCETASK_BOTTOM]),
+                                                   builder.getContext());
 
-    nceTask.addDPUTask(functionBuilder, start, end, pad, vpux::VPUIP::MPEMode::CUBOID_16x16);
+    nceTask.addDPUTask(functionBuilder, nullptr, start, end, pad, vpux::VPUIP::MPEMode::CUBOID_16x16);
 
     functionBuilder.create<mlir::ReturnOp>(builder.getUnknownLoc(), functionOutput);
 
-    mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
+    mlir::PassManager pm(builder.getContext(), mlir::OpPassManager::Nesting::Implicit);
     pm.addPass(vpux::VPUIP::createSetCompileParamsPass(vpux::VPUIP::ArchKind::MTL,
                                                        vpux::VPUIP::CompilationMode::DefaultHW, None, log));
+
     if (conv.compress) {
         pm.addPass(VPUIP::createCompressWeightsPass(log));
     }

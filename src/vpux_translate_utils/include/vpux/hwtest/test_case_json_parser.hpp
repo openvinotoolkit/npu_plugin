@@ -13,17 +13,40 @@
 
 #pragma once
 
-#include "vpux/compiler/dialect/VPUIP/ops.hpp"
-
-#include <llvm/Support/JSON.h>
-
 #include <array>
 #include <fstream>
 #include <set>
 #include <string>
 
+#include "vpux/compiler/dialect/VPUIP/ops.hpp"
+
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable : 4244)  // integer conversion mismatch
+#pragma warning(disable : 4267)  // size_t to integer conversion
+#pragma warning(disable : 4624)  // destructor implicitly defined as deleted
+#endif
+
+#include "llvm/Support/JSON.h"
+
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
+
 namespace nb {
-enum class CaseType { ZMajorConvolution, EltwiseAdd, EltwiseMult, MaxPool, AvgPool, Unknown };
+enum class CaseType {
+    ZMajorConvolution,
+    DepthWiseConv,
+    EltwiseAdd,
+    EltwiseMult,
+    MaxPool,
+    AvgPool,
+    activationKernelSimple,
+    pipeline,
+    raceConditionDMA,
+    raceConditionDPU,
+    Unknown
+};
 
 std::string to_string(CaseType case_);
 CaseType to_case(llvm::StringRef str);
