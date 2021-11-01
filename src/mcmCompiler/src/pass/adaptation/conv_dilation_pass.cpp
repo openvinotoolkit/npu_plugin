@@ -388,7 +388,7 @@ void convDilationUsingStorageElementFcn(const mv::pass::PassEntry& pass, mv::Com
 
     for (auto& opIt : convOps)
     {
-        if(opIt->getName() == "Conv_59")
+        if(opIt->getName() == "Conv_59" || opIt->getName() == "Conv_609")
         {
             auto scatterNDOp = findSinkLayers(dm, opIt->getOutputTensor(0))[0];
             auto nextOp = findSinkLayers(dm, scatterNDOp->getOutputTensor(0))[0];
@@ -543,20 +543,20 @@ void convDilationUsingStorageElementFcn(const mv::pass::PassEntry& pass, mv::Com
                 maxpoolOp->set<unsigned>("opId", opId);
                 std::cout << "add Quantize" << std::endl;
 
-                auto dataFP16 = om.quantize("", maxPoolOut);
-                dataFP16->setDType(mv::DType("Float16"));
-                dataFP16->setQuantParams(mv::QuantizationParams::initial());
+                // auto dataFP16 = om.quantize("", maxPoolOut);
+                // dataFP16->setDType(mv::DType("Float16"));
+                // dataFP16->setQuantParams(mv::QuantizationParams::initial());
 
-                auto quantizeOp = om.getSourceOp(dataFP16);
-                quantizeOp->set<unsigned>("opId", opId);
+                // auto quantizeOp = om.getSourceOp(dataFP16);
+                // quantizeOp->set<unsigned>("opId", opId);
 
                 for (unsigned j = 0; j < opsToLink.size(); ++j)
                 {
                     std::cout << opsToLink[j]->getName() << std::endl;
                     std::cout << inputSlots[j] << std::endl;
-                    opsToLink[j]->setInputTensor(dataFP16, inputSlots[j], false);
+                    opsToLink[j]->setInputTensor(maxPoolOut, inputSlots[j], false);
                     std::cout << "setInputTensor" << std::endl;
-                    om.defineFlow(dataFP16, opsToLink[j], inputSlots[j]);
+                    om.defineFlow(maxPoolOut, opsToLink[j], inputSlots[j]);
                     std::cout << "defineFlow" << std::endl;
                 }
 
