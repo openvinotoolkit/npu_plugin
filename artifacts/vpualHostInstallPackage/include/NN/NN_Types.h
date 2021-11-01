@@ -264,5 +264,23 @@ struct NnExecResponseMsg {
 };
 typedef PoPtr<NnExecResponseMsg> NnExecResponseMsgPtr;
 
+struct NnExecWithProfilingMsg {
+  public:
+    unsigned int inferenceID;
+    std::vector<uint32_t> inputTensors;
+    std::vector<uint32_t> outputTensors;
+    std::vector<uint32_t> profilingOutputTensors;
+};
+typedef PoPtr<NnExecWithProfilingMsg> NnExecWithProfilingMsgPtr;
+
+struct NnExecWithProfilingResponseMsg {
+  public:
+    unsigned int inferenceID;
+    std::vector<uint32_t> outputTensors;
+    std::vector<uint32_t> profilingOutputTensors;
+    MvNCIErrorCode status { MVNCI_SUCCESS };
+};
+typedef PoPtr<NnExecWithProfilingResponseMsg> NnExecWithProfilingResponseMsgPtr;
+
 
 #endif // __NN_TYPES_H__

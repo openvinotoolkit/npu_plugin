@@ -28,6 +28,8 @@ class NnXlinkPlg : public PluginStub{
 
     int RequestInference(const NnExecMsg& request);
     int WaitForResponse(NnExecResponseMsg& response);
+    int RequestInferenceWithProfiling(const NnExecWithProfilingMsg& request);
+    int WaitForResponseWithProfiling(NnExecWithProfilingResponseMsg& response);
   private:
     uint16_t channel_id_ {};
     bool channel_open_ { false };
