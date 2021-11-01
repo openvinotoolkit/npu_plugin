@@ -35,11 +35,11 @@ constexpr int MTL_MAX_DPU_GROUPS = 2;
 constexpr Byte DDR_HEAP_SIZE = 500_MB;
 constexpr Byte CSRAM_SIZE = 24_MB;
 
-// Run-time will use part of CMX to store DPU workload configuration.
-constexpr Byte EXTRA_SPACE_FOR_DPU_WORKLOAD_QUEUE = 128_KB;
+// See https://github.com/movidius/vpuip_2/blob/develop/system/nn/inference_runtime_common/inc/nn_cmx_memory_map.h
+constexpr Byte KMB_CMX_WORKSPACE_SIZE = Byte(896_KB);
 
-constexpr Byte KMB_CMX_SIZE = Byte(1_MB) - EXTRA_SPACE_FOR_DPU_WORKLOAD_QUEUE;
-constexpr Byte MTL_CMX_SIZE = Byte(2_MB) - EXTRA_SPACE_FOR_DPU_WORKLOAD_QUEUE;
+// See https://github.com/movidius/vpuip_2/blob/develop/system/nn_mtl/common_runtime/inc/nn_cmx_memory_map.h
+constexpr Byte MTL_CMX_WORKSPACE_SIZE = Byte(1936_KB);
 
 }  // namespace
 
@@ -78,7 +78,7 @@ void vpux::VPUIP::setArch(mlir::ModuleOp module, ArchKind kind, Optional<int> nu
     switch (kind) {
     case VPUIP::ArchKind::KMB: {
         addMem(VPUIP::PhysicalMemory::DDR, DDR_HEAP_SIZE, 0.6, 8);
-        addMem(VPUIP::PhysicalMemory::CMX_NN, KMB_CMX_SIZE, 1.0, 32);
+        addMem(VPUIP::PhysicalMemory::CMX_NN, KMB_CMX_WORKSPACE_SIZE, 1.0, 32);
 
         resources.addExecutor(getDmaKind(DMAEngine::DMA_NN), 1);
 
@@ -93,7 +93,7 @@ void vpux::VPUIP::setArch(mlir::ModuleOp module, ArchKind kind, Optional<int> nu
     case VPUIP::ArchKind::TBH: {
         addMem(VPUIP::PhysicalMemory::DDR, DDR_HEAP_SIZE, 0.6, 8);
         addMem(VPUIP::PhysicalMemory::CSRAM, CSRAM_SIZE, 0.85, 64);
-        addMem(VPUIP::PhysicalMemory::CMX_NN, KMB_CMX_SIZE, 1.0, 32);
+        addMem(VPUIP::PhysicalMemory::CMX_NN, KMB_CMX_WORKSPACE_SIZE, 1.0, 32);
 
         resources.addExecutor(getDmaKind(DMAEngine::DMA_NN), 2);
 
@@ -107,7 +107,7 @@ void vpux::VPUIP::setArch(mlir::ModuleOp module, ArchKind kind, Optional<int> nu
     }
     case VPUIP::ArchKind::MTL: {
         addMem(VPUIP::PhysicalMemory::DDR, DDR_HEAP_SIZE, 0.6, 8);
-        addMem(VPUIP::PhysicalMemory::CMX_NN, MTL_CMX_SIZE, 1.0, 32);
+        addMem(VPUIP::PhysicalMemory::CMX_NN, MTL_CMX_WORKSPACE_SIZE, 1.0, 32);
 
         resources.addExecutor(getDmaKind(DMAEngine::DMA_NN), 2);
 
