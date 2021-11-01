@@ -15,6 +15,7 @@
 
 #include <llvm/ADT/SmallVector.h>
 #include <mlir/IR/Value.h>
+#include <vpux/utils/core/checked_cast.hpp>
 #include <vpux/utils/core/logger.hpp>
 #include "Nce2p7.h"
 
@@ -74,7 +75,7 @@ protected:
     void createPatchPoint(const T& patcher) {
         auto fieldPatcher = [offset = _storage.size(), this, patcher] (MutableArrayRef<uint8_t> serialStorage, size_t updateTo) {
             auto& base = reinterpret_cast<U&>(*(serialStorage.begin() + offset));
-            patcher(base, updateTo);
+            patcher(base, checked_cast<uint32_t>(updateTo));
         };
         _deferredPointers.push_back({fieldPatcher, _arrayStorage.size()});
     }

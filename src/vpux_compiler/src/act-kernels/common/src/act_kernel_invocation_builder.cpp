@@ -69,7 +69,7 @@ void InvocationBuilder::addMemrefArg(const mlir::Value& value) {
 
     auto shape = value.getType().cast<mlir::ShapedType>();
 
-    memrefData.numDims = shape.getShape().size();
+    memrefData.numDims = checked_cast<uint32_t>(shape.getShape().size());
 
     // dims
     createPatchPoint<sw_params::MemRefData>(dimsPatcher);
@@ -90,7 +90,7 @@ void InvocationBuilder::addMemrefArg(const mlir::Value& value) {
     }
 
     // data addr
-    memrefData.dataAddr = mvds::nce2p7::ACT_KERNEL_CMX_WINDOW + getAddress(tensor);
+    memrefData.dataAddr = checked_cast<uint32_t>(mvds::nce2p7::ACT_KERNEL_CMX_WINDOW + getAddress(tensor));
 
     memrefData.dataType = 0;  // TODO: to be defined
 
