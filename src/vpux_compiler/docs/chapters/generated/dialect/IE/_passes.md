@@ -109,6 +109,10 @@ The pass is a part of `IECommon` pipeline.
 
 This pass tries to optimize out Reorder operations for common cases
 by propagating them from inputs to outputs and merging into layers.
+### `-propagate-quantize-dequantize`: Propagate Quantize/Dequantize through agnostic operations
+The pass is a part of LowPrecision pipeline.
+
+Quantize/Dequantize are propagated through operations
 ### `-resolve-strided-slice`: Decouple strided slice to slice + reshape
 The pass is a part of `AdjustForVPU` pipeline.
 It replaces IE::StridedSlice with non zero masks to a simpler IE::StridedSlice with zero masks + IE::Reshape

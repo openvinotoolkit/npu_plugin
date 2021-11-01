@@ -58,6 +58,7 @@ void vpux::IE::buildLowPrecisionPipeline(mlir::OpPassManager& pm, Logger log) {
     const auto grc = getDefaultGreedyRewriteConfig();
 
     pm.addPass(IE::createSplitFakeQuantPass(log));
+    pm.addPass(IE::createPropagateQuantizeDequantizePass(log));
     pm.addPass(IE::createFuseQuantizedOpsPass(log));
     pm.addPass(IE::createConvertWeightsToU8Pass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));

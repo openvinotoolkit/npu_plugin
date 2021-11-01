@@ -134,7 +134,6 @@ void vpux::buildReferenceSWModePipeline(mlir::OpPassManager& pm, bool enableProf
     buildIEReferenceLowPrecisionPipeline(pm, log);
 
     pm.addPass(IE::createUpstreamSlicePass(log));
-
     buildIECommonPipeline(pm, log);
 
     // Lower IE->IERT
@@ -182,7 +181,6 @@ void vpux::buildReferenceHWModePipeline(mlir::OpPassManager& pm, bool enableProf
     IE::buildLowPrecisionPipeline(pm, log);
 
     pm.addPass(IE::createUpstreamSlicePass(log));
-
     pm.addPass(IE::createExpandActivationChannelsPass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
 

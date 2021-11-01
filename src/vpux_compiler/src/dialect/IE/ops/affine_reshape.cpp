@@ -102,8 +102,9 @@ mlir::LogicalResult vpux::IE::AffineReshapeOp::inferReturnTypeComponents(
     }
 
     const auto outDesc = IE::getTensorAttr(ctx, outputLayout.getValue(), IE::getMemorySpace(inType));
+    const auto newType = changeShape(inType, ShapeRef(outShape));
 
-    inferredReturnShapes.emplace_back(outShape, inType.getElementType(), outDesc);
+    inferredReturnShapes.emplace_back(outShape, newType.getElementType(), outDesc);
     return mlir::success();
 }
 
