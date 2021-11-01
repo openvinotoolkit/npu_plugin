@@ -268,7 +268,7 @@ std::deque<std::size_t> mv::MemoryAllocator::computeStrides_(const Order& order,
     return strides;
 }
 
-long int mv::MemoryAllocator::computeStrides_(const Order& order, std::size_t idx, const Shape& shape, const std::vector<std::size_t>& leftPadding,
+long mv::MemoryAllocator::computeStrides_(const Order& order, std::size_t idx, const Shape& shape, const std::vector<std::size_t>& leftPadding,
     const std::vector<std::size_t>& rightPadding, std::deque<std::size_t>& leftStrides, std::deque<std::size_t>& rightStrides)
 {
     std::size_t currentDim = order[idx];
@@ -279,7 +279,7 @@ long int mv::MemoryAllocator::computeStrides_(const Order& order, std::size_t id
         return leftPadding[currentDim] + rightPadding[currentDim] + shape[currentDim];
     }
 
-    long int newStride = 0;
+    long newStride = 0;
     for(std::size_t c = 0; c < shape[currentDim]; ++c)
         newStride = computeStrides_(order, idx-1, shape, leftPadding, rightPadding, leftStrides, rightStrides);
 
