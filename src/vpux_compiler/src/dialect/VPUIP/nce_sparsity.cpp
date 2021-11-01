@@ -170,7 +170,7 @@ std::int32_t getMTLScale(unsigned shift, unsigned mult, double rescale, mlir::Ty
     int32_t PPE_SHIFT_VALUE = shift;
 
     int32_t ROUND_MODE_OFFSET = 14;
-    int32_t ROUND_MODE_VALUE = 1;
+    int32_t ROUND_MODE_VALUE = 0;
 
     int32_t PPE_MULT_OFFSET = 16;
     // FIXME: PPE multiplier has sign, which may affect lower bits
@@ -252,7 +252,7 @@ llvm::unique_function<int32_t(size_t)> getMultShiftFunc(mlir::Type op_inElemType
 
         std::vector<double> rescale(OC, 1.0);
         for (size_t i = 0; i < rescale.size(); i++) {
-            rescale[i] = (weightsQuantScales[i] * inQuantScale[i]) / outQuantScale[i];
+            rescale[i] = outQuantScale[i] / (weightsQuantScales[i] * inQuantScale[i]);
         }
 
         const auto ppeConverter = vpux::VPUIP::NCESparsity::ppeConvertersMap.at(arch);
