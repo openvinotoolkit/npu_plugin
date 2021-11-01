@@ -55,13 +55,13 @@ int main()
 )cppinttempl";
 
 mv::BaseOpModel::BaseOpModel(const std::string& name) :
-ComputationModel(name)
+ComputationModel(name), codeOut_()
 {
     log(Logger::MessageType::Debug, "Initialized");
 }
 
 mv::BaseOpModel::BaseOpModel(ComputationModel& other) :
-ComputationModel(other)
+ComputationModel(other), codeOut_()
 {
     log(Logger::MessageType::Debug, "Bound");
 }

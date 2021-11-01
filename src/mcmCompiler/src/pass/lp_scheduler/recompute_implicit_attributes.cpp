@@ -58,6 +58,7 @@ class Attribute_Propagator {
       fptr.reset(fopen(file_name.c_str(), "w"));
 
       if(!fptr.get()) {
+        fptr.release();
         throw mv::RuntimeError("RecomputeImplicitOpAttr",
           "Can't open file " + file_name);
       }

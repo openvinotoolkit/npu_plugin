@@ -7,7 +7,10 @@
 #include "include/mcm/computation/model/control_model.hpp"
 
 
-mv::TensorInterferenceGraph::TensorInterferenceGraph(const mv::TensorInterferenceGraph& g) : graph<TensorInterferenceGraphNode, int>()
+mv::TensorInterferenceGraph::TensorInterferenceGraph(const mv::TensorInterferenceGraph& g) : 
+graph<TensorInterferenceGraphNode, int>(),
+cmTransitiveClosureSet_(),
+nodeIteratorsMap_()
 {
 
     for (auto it = g.node_begin(); it != g.node_end(); ++it)

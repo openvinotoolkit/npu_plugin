@@ -177,7 +177,9 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationMod
         auto inputOpType = inputOp->getOpType();
 
         //in case of nonCMX tensor we do not care of implicitness(theoretically)
-        std::pair<bool,bool> implicitConditions = (tensorLocation == mv::Tensor::MemoryLocation::NNCMX) ? checkImplicitConditions(*inputOp,*outputOp) : std::pair<bool,bool>(false,false);
+        std::pair<bool,bool> implicitConditions = std::pair<bool,bool>(false,false);
+        if (tensorLocation == mv::Tensor::MemoryLocation::NNCMX)
+            implicitConditions = checkImplicitConditions(*inputOp,*outputOp);
         bool isEitheropImplicit = implicitConditions.first;
         bool implicitLayerDealloc = implicitConditions.second;
         bool cmxTensorConsumedByExecutable = tensorLocation == mv::Tensor::MemoryLocation::NNCMX && outputOp->hasTypeTrait("executable");
