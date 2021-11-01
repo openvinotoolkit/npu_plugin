@@ -188,7 +188,7 @@ TEST_F(PersonAttrRecNetworkTest, precommit_person_attribute_recognitnion_crossro
                     .setUserInputPrecision("input", Precision::U8)
                     .setUserInputLayout("input", Layout::NHWC)
                     .setUserOutputPrecision("output", Precision::FP16),
-            TestImageDesc("vpu/person-attributes-recognition-crossroad.jpg", ImageFormat::BGR), 0.07f);
+            TestImageDesc("vpu/person-attributes-recognition-crossroad.jpg", ImageFormat::BGR), 0.17f);
 }
 
 TEST_F(KmbClassifyNetworkTest, precommit_aclnet_des_53_vpu) {
@@ -352,7 +352,7 @@ TEST_F(PersonAttrRecNetworkTest, person_attribute_recognitnion_crossroad_0234) {
                 .setUserInputPrecision("input", Precision::U8)
                 .setUserInputLayout("input", Layout::NHWC)
                 .setUserOutputPrecision("output", Precision::FP16),
-        TestImageDesc("vpu/person-attributes-recognition-crossroad.jpg", ImageFormat::BGR), 0.02f);
+        TestImageDesc("vpu/person-attributes-recognition-crossroad.jpg", ImageFormat::BGR), 0.06f);
 }
 
 TEST_F(KmbDetectionNetworkTest, person_detection_retail_0013) {
