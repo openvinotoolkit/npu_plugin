@@ -16,6 +16,7 @@
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
+#include "vpux/compiler/utils/quantization.hpp"
 #include "vpux/compiler/utils/types.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
@@ -130,7 +131,9 @@ mlir::LogicalResult vpux::IE::ReshapeOp::inferReturnTypeComponents(
 
     const auto outDesc = IE::getTensorAttr(ctx, DimsOrder::fromNumDims(outShape->size()), IE::getMemorySpace(inType));
 
-    inferredReturnShapes.emplace_back(outShape.getValue(), inType.getElementType(), outDesc);
+    const auto newType = changeShape(inType, ShapeRef(outShape.getValue()));
+
+    inferredReturnShapes.emplace_back(newType.getShape(), newType.getElementType(), outDesc);
     return mlir::success();
 }
 

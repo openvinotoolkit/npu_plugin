@@ -77,6 +77,7 @@ std::unique_ptr<mlir::Pass> createUnrollBatchPass(Logger log = Logger::global())
 void buildLowPrecisionPipeline(mlir::OpPassManager& pm, Logger log = Logger::global());
 
 std::unique_ptr<mlir::Pass> createSplitFakeQuantPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createPropagateQuantizeDequantizePass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createDequantizeConstPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createMergeFakeQuantPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createFuseQuantizedOpsPass(Logger log = Logger::global());
