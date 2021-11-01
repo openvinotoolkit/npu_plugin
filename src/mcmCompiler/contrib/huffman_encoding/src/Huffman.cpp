@@ -1187,7 +1187,6 @@ uint32_t Huffman::readEncodedData (  const string              &srcFile,
         fin.reset(fopen(srcFile.c_str(), "rb"));
         
         if (!fin.get()) {
-            fin = nullptr;
             throw Exception(
                 PrintToString(
                     "Could not open file %s", srcFile.c_str()));
@@ -1205,7 +1204,6 @@ uint32_t Huffman::readEncodedData (  const string              &srcFile,
         fout.reset(fopen(dstFile.c_str(), "wb"));
         
         if (!fout.get()) {
-            fout = nullptr;
             throw Exception(
                 PrintToString(
                     "Could not open file %s", dstFile.c_str()));
