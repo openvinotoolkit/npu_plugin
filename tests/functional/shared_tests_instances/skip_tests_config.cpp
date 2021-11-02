@@ -169,7 +169,7 @@ std::vector<std::string> disabledTestPatterns() {
     }( );
 
     const auto* currentTestInfo = ::testing::UnitTest::GetInstance()->current_test_info();
-    auto currentTestName = currentTestInfo->test_case_name()
+    const auto currentTestName = currentTestInfo->test_case_name()
                           + std::string(".") + currentTestInfo->name();
 
     std::vector<std::string> matching_patterns;
