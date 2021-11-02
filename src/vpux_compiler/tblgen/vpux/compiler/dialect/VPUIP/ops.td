@@ -2410,12 +2410,12 @@ def VPUIP_NCEClusterTaskOp :
         Optional<MemRefOf<[F16, quant_QuantizedType]>>:$weights,
         Optional<MemRefOf<[SI32]>>:$weight_table,
         Optional<MemRefOf<[UI8]>>:$activation_window,
-        Optional<MemRefOf<[UI64]>>:$profiling_data,
 
         AnyMemRef:$parent_input,
         AnyMemRef:$parent_output,
 
         MemRefOf<[F16, F32, quant_QuantizedType]>:$output_buff,
+        Optional<MemRefOf<[UI64]>>:$profiling_data,
 
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers,

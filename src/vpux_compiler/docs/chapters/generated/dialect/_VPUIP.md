@@ -1354,10 +1354,10 @@ mutually exclusive.
 `weights` | memref of 16-bit float or QuantizedType values
 `weight_table` | memref of 32-bit signed integer values
 `activation_window` | memref of 8-bit unsigned integer values
-`profiling_data` | memref of 64-bit unsigned integer values
 `parent_input` | memref of any type values
 `parent_output` | memref of any type values
 `output_buff` | memref of 16-bit float or 32-bit float or QuantizedType values
+`profiling_data` | memref of 64-bit unsigned integer values
 `waitBarriers` | VPUIP Barrier Type
 `updateBarriers` | VPUIP Barrier Type
 

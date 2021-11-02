@@ -36,8 +36,8 @@ void vpux::VPUIP::NCEClusterTaskOp::build(mlir::OpBuilder& builder, mlir::Operat
                                           mlir::ArrayAttr kernel_strides, mlir::ArrayAttr kernel_padding,
                                           mlir::IntegerAttr activation_window_channel_length,
                                           mlir::UnitAttr is_continued) {
-    build(builder, state, output_buff.getType(), input, weights, weight_table, activation_window, nullptr, parent_input,
-          parent_output, output_buff, mlir::ValueRange{}, mlir::ValueRange{},
+    build(builder, state, output_buff.getType(), input, weights, weight_table, activation_window, parent_input,
+          parent_output, output_buff, nullptr, mlir::ValueRange{}, mlir::ValueRange{},
           vpux::VPUIP::NCETaskTypeAttr::get(builder.getContext(), task_type), kernel_size, kernel_strides,
           kernel_padding, activation_window_channel_length, is_continued);
 
@@ -55,9 +55,10 @@ void vpux::VPUIP::NCEClusterTaskOp::build(mlir::OpBuilder& builder, mlir::Operat
                                           mlir::ArrayAttr kernel_strides, mlir::ArrayAttr kernel_padding,
                                           mlir::IntegerAttr activation_window_channel_length,
                                           mlir::UnitAttr is_continued) {
-    build(builder, state, output, input, weights, weight_table, activation_window, nullptr, parent_input, parent_output,
-          output_buff, waitBarriers, updateBarriers, vpux::VPUIP::NCETaskTypeAttr::get(builder.getContext(), task_type),
-          kernel_size, kernel_strides, kernel_padding, activation_window_channel_length, is_continued);
+    build(builder, state, output, input, weights, weight_table, activation_window, parent_input, parent_output,
+          output_buff, nullptr, waitBarriers, updateBarriers,
+          vpux::VPUIP::NCETaskTypeAttr::get(builder.getContext(), task_type), kernel_size, kernel_strides,
+          kernel_padding, activation_window_channel_length, is_continued);
 
     for (auto& region : state.regions) {
         region->emplaceBlock();
