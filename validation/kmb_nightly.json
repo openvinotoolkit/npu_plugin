@@ -4457,7 +4457,7 @@
         },
 
         {
-            "name" : "SINGLE_IMAGE_TEST_super_resolution_network_ip_FP32_op_FP32",
+            "name" : "super_resolution_network_ip_FP32_op_FP32",
             "ir" : "models/clientmodels/BDK3/SuperRes/AccuracyAware/SuperRes_INT8_AA.xml",
             "category" : "MLIR/precommit",
             "3720": {
@@ -4475,7 +4475,7 @@
                 "output_precision" : "FP32"
             },
             "BenchmarkApp" : {
-                "disabled" : true
+                "input_folder" : "224x224"
             },
             "AccuracyCheck" : {
                 "disabled" : true
