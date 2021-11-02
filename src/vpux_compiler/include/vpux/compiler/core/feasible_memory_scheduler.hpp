@@ -186,7 +186,7 @@ public:
 
 public:
     FeasibleMemoryScheduler(mlir::Attribute& memSpace, MemLiveRangeInfo& liveRangeInfo, AsyncDepsInfo& depsInfo,
-                            Logger log, LinearScan<mlir::Value, LinearScanHandler>& scan);
+                            AliasesInfo& aliasInfo, Logger log, LinearScan<mlir::Value, LinearScanHandler>& scan);
 
 public:
     llvm::SmallVector<ScheduledOpInfo> generateSchedule();
@@ -234,6 +234,8 @@ private:
     MemLiveRangeInfo& _liveRangeInfo;
     // dependencies of ops
     AsyncDepsInfo& _depsInfo;
+    // aliases information for buffers
+    AliasesInfo& _aliasInfo;
     // allocator class
     LinearScan<mlir::Value, LinearScanHandler>& _scan;
     // heap with earliest operation start time
