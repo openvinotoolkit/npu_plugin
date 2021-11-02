@@ -6,6 +6,7 @@
 
 #include <string>
 #include <vector>
+#include <regex>
 
 #include "functional_test_utils/plugin_cache.hpp"
 #include "common_test_utils/common_utils.hpp"
@@ -19,6 +20,8 @@ public:
         const auto corePtr = PluginCache::get().ie();
         if (corePtr != nullptr) {
             _name = getBackendName(*corePtr);
+        } else {
+            std::cout << "Failed to get IE Core!" << std::endl;
         }
     }
 
@@ -30,19 +33,19 @@ public:
         return _name.empty();
     }
 
-    bool isZero() const noexcept {
+    bool isZero() const {
         return _name == "LEVEL0";
     }
 
-    bool isVpual() const noexcept {
+    bool isVpual() const {
         return _name == "VPUAL";
     }
 
-    bool isHddl2() const noexcept {
+    bool isHddl2() const {
         return _name == "HDDL2";
     }
 
-    bool isEmulator() const noexcept {
+    bool isEmulator() const {
         return _name == "EMULATOR";
     }
 
@@ -50,43 +53,65 @@ private:
     std::string _name;
 };
 
-class TestsSkipper{
+class SkipRegistry {
 public:
-    TestsSkipper(std::vector<std::string>& registry) : _registry{registry} {
-    }
 
-    void addPatterns(std::vector<std::string>&& patternsToSkip) const {
-        _registry.insert(
-            _registry.end(),
-            std::make_move_iterator(patternsToSkip.begin()),
-            std::make_move_iterator(patternsToSkip.end())
+    void addPatterns(std::vector<std::string>&& patternsToSkip) {
+        addPatterns(true, // unconditionally disabled
+                    std::string{"The test is disabled!"},
+                    std::move(patternsToSkip)
         );
     }
-    
-    void addPatterns(bool conditionFlag,
-                     const std::string& comment,
-                     std::vector<std::string>&& patternsToSkip) const {
+
+    void addPatterns(bool conditionFlag, 
+                     std::string&& comment,
+                     std::vector<std::string>&& patternsToSkip) {
         if (conditionFlag) {
-            std::cout << comment << "\n";
-            addPatterns(std::move(patternsToSkip));
+            _registry.emplace_back(std::move(comment),
+                                   std::move(patternsToSkip)
+            );
         }
     }
 
+    std::string getMatchingPattern(const std::string& testName) const
+    {
+        for (const auto& entry : _registry) {
+            for (const auto& pattern : entry.patterns) {
+                std::regex re(pattern);
+                if (std::regex_match(testName, re)) {
+                    std::cout << entry.comment << std::endl;
+                    return pattern;
+                }
+            }
+        }
+
+        return std::string{};
+    }
+
 private:
-    std::vector<std::string>& _registry;
+    struct Entry {
+        Entry(std::string&& comment, std::vector<std::string>&& patterns) :
+              comment{std::move(comment)}
+            , patterns{std::move(patterns)} { }
+            
+        std::string comment;
+        std::vector<std::string> patterns;
+    };
+
+    std::vector<Entry> _registry;
 };
 
 std::vector<std::string> disabledTestPatterns() {
-    static const auto allDisabledTestPatterns = []() {
-        std::vector<std::string> disabledTests;
-        TestsSkipper skipper(disabledTests);
+    // Initialize skip registry
+    static const auto skipRegistry = []() {
+        SkipRegistry _skipRegistry;
         const BackendName backendName;
         
         //
         //  Disabled test patterns
         //
 
-        skipper.addPatterns({
+        _skipRegistry.addPatterns({
             // TODO Tests failed due to starting infer on IA side
             ".*CorrectConfigAPITests.*",
 
@@ -119,7 +144,7 @@ std::vector<std::string> disabledTestPatterns() {
         // Conditionally disabled test patterns
         //
 
-        skipper.addPatterns(
+        _skipRegistry.addPatterns(
             backendName.isEmpty(),  
             "backend is empty (no device)",
             {
@@ -127,20 +152,28 @@ std::vector<std::string> disabledTestPatterns() {
                 ".*InferRequest.*",
                 ".*ExecutableNetworkBaseTest.*",
                 ".*ExecNetSetPrecision.*",
-                ".*VpuxInferRequestCallbackTests.*"
+                ".*VpuxInferRequestCallbackTests.*",
+                ".*VpuxInferRequestConfigTest.*"
             }
         );
 
-        skipper.addPatterns(
+        _skipRegistry.addPatterns(
             backendName.isZero(),  
-            "* CumSum layer is not supported by MTL platform *",
+            "CumSum layer is not supported by MTL platform",
             {
                 ".*VpuxBehaviorTestsSetBlob.*",
             }
         );
 
-        return disabledTests;
+        return _skipRegistry;
     }( );
 
-    return allDisabledTestPatterns;
+    const auto* currentTestInfo = ::testing::UnitTest::GetInstance()->current_test_info();
+    auto currentTestName = currentTestInfo->test_case_name()
+                          + std::string(".") + currentTestInfo->name();
+
+    std::vector<std::string> matching_patterns;
+    matching_patterns.emplace_back(skipRegistry.getMatchingPattern(currentTestName));
+
+    return matching_patterns;
 }
