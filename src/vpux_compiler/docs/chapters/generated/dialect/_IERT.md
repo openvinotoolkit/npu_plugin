@@ -1795,6 +1795,46 @@ operation ::= `IERT.Quantize` attr-dict
 | :----: | ----------- |
 `output` | memref of QuantizedType values
 
+### `IERT.ROIAlign` (vpux::IERT::ROIAlignOp)
+
+InferenceEngine run-time ROIAlign layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.ROIAlign` attr-dict
+              `inputs` `(` $input `:` type($input) `,` $coords `:` type($coords) `,` $roisIdx `:` type($roisIdx) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`pooled_h` | mlir::IntegerAttr | Integer attribute
+`pooled_w` | mlir::IntegerAttr | Integer attribute
+`sampling_ratio` | mlir::IntegerAttr | Integer attribute
+`spatial_scale` | ::mlir::FloatAttr | 64-bit float attribute
+`poolingMode` | vpux::IE::ROIAlignMethodAttr | ROIAlignMethod that the InferenceEngine supports
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float or 32-bit float values
+`coords` | memref of 16-bit float or 32-bit float values
+`roisIdx` | memref of integer values
+`output_buff` | memref of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float or 32-bit float values
+
 ### `IERT.ROIPooling` (vpux::IERT::ROIPoolingOp)
 
 InferenceEngine run-time ROIPooling layer

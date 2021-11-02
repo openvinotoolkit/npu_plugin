@@ -121,6 +121,23 @@ def IE_ROIPoolingMethod :
 }
 
 //
+// ROIAlignMethod
+//
+
+def IE_ROIAlignMethod :
+        StrEnumAttr<
+            "ROIAlignMethod",
+            "ROIAlignMethod that the InferenceEngine supports",
+            [
+                StrEnumAttrCase<"avg">,
+                StrEnumAttrCase<"max">,
+            ]
+        > {
+    let cppNamespace = "vpux::IE";
+    let genSpecializedAttr = 1;
+}
+
+//
 // AutoBroadcastType
 //
 

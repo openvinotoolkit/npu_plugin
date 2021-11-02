@@ -163,6 +163,7 @@ private:
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset4::MVN>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Concat>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::ROIPooling>& origNode);
+    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::ROIAlign>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::StridedSlice>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::PRelu>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Swish>& origNode);
@@ -193,6 +194,7 @@ private:
     IE::InterpolateAttr importInterpolateAttrs(const opset_latest::Interpolate::InterpolateAttrs& val);
     IE::DetectionOutputAttr importDetectionOutputAttrs(const ngraph::op::DetectionOutputAttrs& val);
     IE::ROIPoolingMethodAttr importROIPoolingMethod(const std::string& method);
+    IE::ROIAlignMethodAttr importROIAlignMethod(const ngraph::op::v3::ROIAlign::PoolingMode& mode);
     IE::PadModeAttr importPadMode(const ngraph::op::PadMode val);
     IE::RoundModeAttr importRoundMode(const ngraph::op::v5::Round::RoundMode val);
     IE::LRN_IERegionAttr importLRN_IERegion(const std::string& region);
@@ -272,6 +274,7 @@ NGraphImporter::Callback NGraphImporter::getParser(const std::shared_ptr<ngraph:
             MAP_ENTRY(ngraph::opset4::MVN),
             MAP_ENTRY(opset_latest::Concat),
             MAP_ENTRY(opset_latest::ROIPooling),
+            MAP_ENTRY(opset_latest::ROIAlign),
             MAP_ENTRY(opset_latest::StridedSlice),
             MAP_ENTRY(opset_latest::PRelu),
             MAP_ENTRY(opset_latest::Swish),
@@ -1082,6 +1085,25 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
     addOutputs(origNode, op);
 }
 
+void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::ROIAlign>& origNode) {
+    static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v3::ROIAlign>::value,
+                  "opset operation mismatch");
+
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS(inputs.size() == 3, "nGraph ROIAlign node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
+
+    const auto pooled_h = getIntAttr(_ctx, origNode->get_pooled_h());
+    const auto pooled_w = getIntAttr(_ctx, origNode->get_pooled_w());
+    const auto sampling_ratio = getIntAttr(_ctx, origNode->get_sampling_ratio());
+    const auto spatialScaleAttr = getFPAttr(_ctx, origNode->get_spatial_scale());
+    const auto poolingMode = importROIAlignMethod(origNode->get_mode());
+
+    auto op = builder.create<IE::ROIAlignOp>(createLocation(origNode), inputs[0], inputs[1], inputs[2], pooled_h,
+                                             pooled_w, sampling_ratio, spatialScaleAttr, poolingMode);
+    addOutputs(origNode, op);
+}
+
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Concat>& origNode) {
     static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v0::Concat>::value,
                   "opset operation mismatch");
@@ -1742,6 +1764,18 @@ IE::ROIPoolingMethodAttr NGraphImporter::importROIPoolingMethod(const std::strin
         attr = IE::ROIPoolingMethodAttr::get(_ctx, IE::ROIPoolingMethod::bilinear);
     } else {
         VPUX_THROW("Unknown ROIPoolingMethod");
+    }
+    return attr;
+}
+
+IE::ROIAlignMethodAttr NGraphImporter::importROIAlignMethod(const ngraph::op::v3::ROIAlign::PoolingMode& mode) {
+    IE::ROIAlignMethodAttr attr;
+    if (mode == ngraph::op::v3::ROIAlign::PoolingMode::AVG) {
+        attr = IE::ROIAlignMethodAttr::get(_ctx, IE::ROIAlignMethod::avg);
+    } else if (mode == ngraph::op::v3::ROIAlign::PoolingMode::MAX) {
+        attr = IE::ROIAlignMethodAttr::get(_ctx, IE::ROIAlignMethod::max);
+    } else {
+        VPUX_THROW("Unknown ROIAlignMethod");
     }
     return attr;
 }

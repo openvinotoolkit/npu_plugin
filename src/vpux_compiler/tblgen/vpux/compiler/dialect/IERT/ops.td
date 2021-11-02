@@ -1815,6 +1815,43 @@ def IERT_ROIPoolingOp :
 }
 
 //
+// ROIAlignOp
+//
+
+def IERT_ROIAlignOp :
+        IERT_LayerOp<1, "ROIAlign",
+            [
+                ViewLikeOpInterface
+            ]
+        > {
+    let summary = "InferenceEngine run-time ROIAlign layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input,
+        MemRefOf<[F16, F32]>:$coords,
+        MemRefOf<[AnyInteger]>:$roisIdx,
+        MemRefOf<[F16, F32]>:$output_buff,
+
+        IntAttr:$pooled_h,
+        IntAttr:$pooled_w,
+        IntAttr:$sampling_ratio,
+        F64Attr:$spatial_scale,
+        IE_ROIAlignMethod:$poolingMode
+    );
+
+    let results = (outs
+        MemRefOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `,` $coords `:` type($coords) `,` $roisIdx `:` type($roisIdx) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
 // FullyConnectedOp
 //
 

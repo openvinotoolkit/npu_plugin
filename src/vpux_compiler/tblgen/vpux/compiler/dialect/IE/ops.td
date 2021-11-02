@@ -1620,6 +1620,36 @@ def IE_ROIPoolingOp :
 }
 
 //
+// ROIAlignOp
+//
+
+def IE_ROIAlignOp :
+        IE_LayerOp<
+            "ROIAlign",
+            [
+               ResultsAreFloatLike
+            ]
+        > {
+    let summary = "InferenceEngine ROIAlign layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input,
+        RankedTensorOf<[F16, F32]>:$coords,
+        1DTensorOf<[AnyInteger]>:$roisIdx,
+
+        IntAttr:$pooled_h,
+        IntAttr:$pooled_w,
+        IntAttr:$sampling_ratio,
+        F64Attr:$spatial_scale,
+        IE_ROIAlignMethod:$poolingMode
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+}
+
+//
 // StridedSliceOp
 //
 
