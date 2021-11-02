@@ -3080,7 +3080,7 @@
                 "params" : [
                     "--mode", "classification",
                     "--top_k", "2",
-                    "--prob_tolerance", "0.1"
+                    "--prob_tolerance", "0.15"
                 ]
             },
             "AccuracyCheck" : {
