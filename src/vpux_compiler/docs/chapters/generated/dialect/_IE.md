@@ -1711,6 +1711,42 @@ operation ::= `IE.Quantize` `(` operands `)` attr-dict `:` type(operands) `->` t
 | :----: | ----------- |
 `output` | ranked tensor of QuantizedType values
 
+### `IE.ROIAlign` (vpux::IE::ROIAlignOp)
+
+InferenceEngine ROIAlign layer
+
+
+Syntax:
+
+```
+operation ::= `IE.ROIAlign` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`pooled_h` | mlir::IntegerAttr | Integer attribute
+`pooled_w` | mlir::IntegerAttr | Integer attribute
+`sampling_ratio` | mlir::IntegerAttr | Integer attribute
+`spatial_scale` | ::mlir::FloatAttr | 64-bit float attribute
+`poolingMode` | vpux::IE::ROIAlignMethodAttr | ROIAlignMethod that the InferenceEngine supports
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+`coords` | ranked tensor of 16-bit float or 32-bit float values
+`roisIdx` | 1D tensor of integer values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
 ### `IE.ROIPooling` (vpux::IE::ROIPoolingOp)
 
 InferenceEngine ROIPooling layer

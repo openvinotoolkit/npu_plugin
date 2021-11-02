@@ -2132,6 +2132,61 @@ def VPUIP_ROIPoolingUPAOp :
 }
 
 //
+// ROIAlignUPAOp
+//
+
+def VPUIP_ROIAlignUPAOp :
+        VPUIP_UPATaskOp<1, "ROIAlignUPA",
+            [
+                ViewLikeOpInterface
+            ]
+        > {
+    let summary = "ROIAlign UPA SHAVE kernel";
+
+    let arguments = (ins
+        F16MemRef:$input,
+        F16MemRef:$coords,
+        MemRefOf<[SI32]>:$roisIdx,
+        F16MemRef:$output_buff,
+
+        Variadic<VPUIP_Barrier>:$waitBarriers,
+        Variadic<VPUIP_Barrier>:$updateBarriers,
+
+        IntAttr:$pooled_h,
+        IntAttr:$pooled_w,
+        IntAttr:$sampling_ratio,
+        F64Attr:$spatial_scale,
+        IE_ROIAlignMethod:$poolingMode,
+
+        OptionalAttr<IntAttr>:$maxShaves,
+        UnitAttr:$isTrailingSWLayer
+    );
+
+    let results = (outs
+        F16MemRef:$output
+    );
+
+    let builders = [
+        OpBuilder<
+            (ins
+                "mlir::Value":$input, "mlir::Value":$coords, "mlir::Value":$roisIdx, "mlir::Value":$output,
+                "mlir::IntegerAttr":$pooled_h, "mlir::IntegerAttr":$pooled_w,
+                "mlir::IntegerAttr":$sampling_ratio, "mlir::FloatAttr":$spatial_scale, "IE::ROIAlignMethodAttr":$poolingMode
+            )
+        >
+    ];
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `,` $coords `:` type($coords) `,` $roisIdx `:` type($roisIdx)`)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+        `->` type(results)
+    }];
+}
+
+//
 // PermuteUPAOp
 //
 
