@@ -1392,8 +1392,7 @@ operation ::= `VPUIP.NegativeUPA` attr-dict
 
 | Operand | Description |
 | :-----: | ----------- |
-`data` | memref of 16-bit float values
-`weights` | memref of 16-bit float values
+`input` | memref of 16-bit float values
 `output_buff` | memref of 16-bit float values
 `waitBarriers` | VPUIP Barrier Type
 `updateBarriers` | VPUIP Barrier Type
@@ -1479,7 +1478,8 @@ operation ::= `VPUIP.NormalizeIEUPA` attr-dict
 
 | Operand | Description |
 | :-----: | ----------- |
-`input` | memref of 16-bit float values
+`data` | memref of 16-bit float values
+`weights` | memref of 16-bit float values
 `output_buff` | memref of 16-bit float values
 `waitBarriers` | VPUIP Barrier Type
 `updateBarriers` | VPUIP Barrier Type
