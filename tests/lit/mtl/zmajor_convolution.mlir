@@ -34,6 +34,7 @@
             "high_range": 63
         }
     },
+    "output_order": "nhwc",
     "output": {
         "shape": [
             1,

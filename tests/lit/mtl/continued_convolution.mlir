@@ -46,6 +46,7 @@
         "group": 1,
         "dilation": 1
     },
+    "output_order": "nhwc",
     "output": {
         "shape": [
             1,
