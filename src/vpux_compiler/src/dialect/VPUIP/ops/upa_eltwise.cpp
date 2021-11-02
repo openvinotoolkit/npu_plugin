@@ -54,6 +54,9 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::EltwiseUPAOp::serialize(VPUIP::Blob
     case VPUIP::EltwiseLayerType::AND:
         type = writer.createString("logicaland");
         break;
+    case VPUIP::EltwiseLayerType::EQUAL:
+        type = writer.createString("compareeq");
+        break;
     default:
         VPUX_THROW("Unsupported EltwiseLayerType {0}", this->type());
     }
@@ -91,6 +94,8 @@ mlir::Operation* vpux::VPUIP::BlobReader::parseEltwise(mlir::OpBuilder& builder,
         type = EltwiseLayerType::MAX;
     } else if (strType == "logicaland") {
         type = EltwiseLayerType::AND;
+    } else if (strType == "equal") {
+        type = EltwiseLayerType::EQUAL;
     } else {
         VPUX_THROW("Unsupported EltwiseLayerType {0}", strType);
     }

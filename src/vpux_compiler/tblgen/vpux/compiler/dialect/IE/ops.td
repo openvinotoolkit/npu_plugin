@@ -2211,4 +2211,31 @@ def IE_CeilingOp :
     );
 }
 
+//
+// EqualOp
+//
+
+def IE_EqualOp :
+        IE_LayerOp<
+            "Equal",
+            [
+                ResultsAreFloatLike,
+                Commutative,
+                IE_EltwiseOp
+            ]
+        > {
+    let summary = "InferenceEngine Equal layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input1,
+        RankedTensorOf<[F16, F32]>:$input2,
+
+        IE_AutoBroadcastType:$auto_broadcast
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+}
+
 #endif

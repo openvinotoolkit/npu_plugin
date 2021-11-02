@@ -611,6 +611,37 @@ operation ::= `IE.Elu` `(` operands `)` attr-dict `:` type(operands) `->` type(r
 | :----: | ----------- |
 `output` | ranked tensor of 16-bit float or 32-bit float values
 
+### `IE.Equal` (vpux::IE::EqualOp)
+
+InferenceEngine Equal layer
+
+
+Syntax:
+
+```
+operation ::= `IE.Equal` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`auto_broadcast` | vpux::IE::AutoBroadcastTypeAttr | Specifies rules used for auto-broadcasting of input tensors
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input1` | ranked tensor of 16-bit float or 32-bit float values
+`input2` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
 ### `IE.Erf` (vpux::IE::ErfOp)
 
 InferenceEngine Erf layer
