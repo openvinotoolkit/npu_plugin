@@ -53,6 +53,26 @@ private:
     std::string _name;
 };
 
+
+class Platform {
+public:
+    bool isARM() const noexcept {
+#if defined(__arm__) || defined(__aarch64__)
+    return true;
+#else 
+    return false;
+#endif
+    }
+
+    bool isX86() const noexcept {
+#if defined(__x86_64) || defined(__x86_64__)
+    return true;
+#else
+    return false;
+#endif
+    }
+};
+
 class SkipRegistry {
 public:
 
@@ -104,9 +124,10 @@ private:
 std::vector<std::string> disabledTestPatterns() {
     // Initialize skip registry
     static const auto skipRegistry = []() {
-        SkipRegistry _skipRegistry;
+        SkipRegistry      _skipRegistry;
         const BackendName backendName;
-        
+        const Platform    platform;
+
         //
         //  Disabled test patterns
         //
@@ -153,7 +174,8 @@ std::vector<std::string> disabledTestPatterns() {
                 ".*ExecutableNetworkBaseTest.*",
                 ".*ExecNetSetPrecision.*",
                 ".*VpuxInferRequestCallbackTests.*",
-                ".*VpuxInferRequestConfigTest.*"
+                ".*VpuxInferRequestConfigTest.*",
+                ".*VpuxBehaviorTestsSetBlob.*"
             }
         );
 
@@ -170,7 +192,7 @@ std::vector<std::string> disabledTestPatterns() {
 
     const auto* currentTestInfo = ::testing::UnitTest::GetInstance()->current_test_info();
     const auto currentTestName = currentTestInfo->test_case_name()
-                          + std::string(".") + currentTestInfo->name();
+                                + std::string(".") + currentTestInfo->name();
 
     std::vector<std::string> matching_patterns;
     matching_patterns.emplace_back(skipRegistry.getMatchingPattern(currentTestName));
