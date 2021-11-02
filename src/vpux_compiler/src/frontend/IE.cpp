@@ -1829,6 +1829,8 @@ mlir::Type importPrecision(mlir::MLIRContext* ctx, const InferenceEngine::Precis
         return getSInt8Type(ctx);
     } else if (precision == InferenceEngine::Precision::U8) {
         return getUInt8Type(ctx);
+    } else if (precision == InferenceEngine::Precision::BOOL ) {
+        return getBoolType(ctx);
     } else {
         VPUX_THROW("Unsupported precision : '{0}'", precision);
     }
@@ -1926,7 +1928,7 @@ void addCNNNetworkOp(mlir::OpBuilder& builder, mlir::FlatSymbolRefAttr mainFuncN
 
         const auto nameAttr = mlir::StringAttr::get(ctx, inputName);
         const auto userTypeAttr = mlir::TypeAttr::get(importUserTensor(ctx, userDesc));
-
+        
         inputsInfoBuilder.create<IE::DataInfoOp>(mlir::UnknownLoc::get(ctx), nameAttr, userTypeAttr);
     }
 

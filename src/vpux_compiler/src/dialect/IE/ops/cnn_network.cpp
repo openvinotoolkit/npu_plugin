@@ -238,9 +238,9 @@ mlir::LogicalResult vpux::IE::verifyOp(DataInfoOp op) {
 
     const auto precision = userType.getElementType();
 
-    if (!(precision.isSignedInteger() || precision.isUnsignedInteger() || precision.isa<mlir::FloatType>())) {
-        return errorAt(op, "Operation has unsupported userType precision '{0}', it must be either Float or Integer",
-                       precision);
+    if (! (precision.isSignedInteger() || precision.isUnsignedInteger() || precision.isa<mlir::FloatType>() || precision.isa<mlir::IntegerType>() ) ) {
+         return errorAt(op, "Operation has unsupported userType precision '{0}', it must be either Float or Integer",
+                        precision);
     }
 
     return mlir::success();

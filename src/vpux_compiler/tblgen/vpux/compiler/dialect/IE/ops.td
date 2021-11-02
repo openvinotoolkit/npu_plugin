@@ -2156,8 +2156,6 @@ def IE_SelectOp :
     let summary = "InferenceEngine Select layer";
 
     let arguments = (ins
-        //BoolAttr:$input1,
-        //ElementsAttr:$input1,
         AnyRankedTensor:$input1,
         AnyRankedTensor:$input2,
         AnyRankedTensor:$input3,
