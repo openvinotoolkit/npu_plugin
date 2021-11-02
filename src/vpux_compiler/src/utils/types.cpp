@@ -12,7 +12,6 @@
 //
 
 #include "vpux/compiler/utils/types.hpp"
-#include "vpux/utils/IE/loop.hpp"
 
 #include "vpux/compiler/core/attributes/strides.hpp"
 #include "vpux/compiler/dialect/IE/attributes/structs.hpp"
@@ -130,6 +129,22 @@ Byte vpux::getTotalSize(mlir::Value val) {
     const auto type = val.getType().dyn_cast<mlir::ShapedType>();
     VPUX_THROW_UNLESS(type != nullptr, "Value '{0}' has non ShapedType '{1}'", val, val.getType());
     return getTotalSize(type);
+}
+
+Byte vpux::getCompactSize(mlir::ShapedType type) {
+    const auto typeSize = static_cast<Byte>(getElemTypeSize(type));
+    if (type.getRank() == 0) {
+        return typeSize;
+    }
+
+    const auto shape = getShape(type);
+    return shape.totalSize() * typeSize;
+}
+
+Byte vpux::getCompactSize(mlir::Value val) {
+    const auto type = val.getType().dyn_cast<mlir::ShapedType>();
+    VPUX_THROW_UNLESS(type != nullptr, "Value '{0}' has non ShapedType '{1}'", val, val.getType());
+    return getCompactSize(type);
 }
 
 //

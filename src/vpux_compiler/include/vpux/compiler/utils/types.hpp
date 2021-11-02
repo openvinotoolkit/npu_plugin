@@ -53,8 +53,23 @@ mlir::IntegerType getBoolType(mlir::MLIRContext* ctx);
 
 Bit getElemTypeSize(mlir::Type type);
 
+// Calculates tensor size based on stride information
+// Example:
+// #map0 = affine_map<(d0, d1, d2, d3) -> (d0 * 768 + d1 * 48 + d2 * 3 + d3)>
+// memref<2x3x8x4xf32, #NHWC, #map0>
+// result: 768 * 2 * 4 = 6144, where
+// 768 - stride, to get the next element by N dim
+// 2 - size of N dim, 4 - element size
 Byte getTotalSize(mlir::ShapedType type);
 Byte getTotalSize(mlir::Value val);
+
+// Calculates tensor size ignoring stride information
+// Example:
+// #map0 = affine_map<(d0, d1, d2, d3) -> (d0 * 768 + d1 * 48 + d2 * 3 + d3)>
+// memref<2x3x8x4xui8, #NHWC, #map0>
+// result: 2 * 3 * 8 * 4 = 192
+Byte getCompactSize(mlir::ShapedType type);
+Byte getCompactSize(mlir::Value val);
 
 //
 // MemRefType utilities

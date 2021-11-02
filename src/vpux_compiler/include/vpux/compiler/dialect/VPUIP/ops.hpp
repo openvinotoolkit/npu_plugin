@@ -73,6 +73,8 @@ mlir::LogicalResult verifyOp(NCEClusterTaskOp op);
 mlir::LogicalResult verifyOp(DPUTaskOp op);
 mlir::LogicalResult verifyOp(NormUPAOp op);
 mlir::LogicalResult verifyPostOp(mlir::Operation* op);
+mlir::LogicalResult verifyOp(UPADMAOp op);
+mlir::LogicalResult verifyOp(NNDMAOp op);
 
 }  // namespace VPUIP
 }  // namespace vpux

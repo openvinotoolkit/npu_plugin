@@ -12,12 +12,30 @@
 //
 
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
+#include "vpux/compiler/utils/error.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
 
 #include <mlir/IR/BuiltinTypes.h>
 
 using namespace vpux;
+
+namespace {
+
+mlir::LogicalResult verifyTensorSize(mlir::Location loc, mlir::Value tensor) {
+    // According to the documentation total transfer length (LEN) field is stored in 24 bits
+    // that means max value is 16MB
+    static const auto limitSize = static_cast<Byte>(16_MB);
+    const auto size = static_cast<Byte>(getCompactSize(tensor));
+
+    if (size <= limitSize) {
+        return mlir::success();
+    }
+
+    return errorAt(loc, "The size of the transaction {0} is greater than the limit {1}", size, limitSize);
+}
+
+}  // namespace
 
 //
 // UPADMAOp
@@ -38,6 +56,10 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::UPADMAOp::serialize(VPUIP::BlobWrit
     return {builder.Finish().Union(), MVCNN::SpecificTask_UPADMATask};
 }
 
+mlir::LogicalResult vpux::VPUIP::verifyOp(UPADMAOp op) {
+    return verifyTensorSize(op.getLoc(), op.input());
+}
+
 //
 // NNDMAOp
 //
@@ -56,6 +78,10 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NNDMAOp::serialize(VPUIP::BlobWrite
     builder.add_dst(dstOff);
     builder.add_port(checked_cast<uint8_t>(port()));
     return {builder.Finish().Union(), MVCNN::SpecificTask_NNDMATask};
+}
+
+mlir::LogicalResult vpux::VPUIP::verifyOp(NNDMAOp op) {
+    return verifyTensorSize(op.getLoc(), op.input());
 }
 
 //
