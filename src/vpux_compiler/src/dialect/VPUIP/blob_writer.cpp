@@ -39,6 +39,28 @@
 
 using namespace vpux;
 
+const movitools::MoviCompileParams& vpux::VPUIP::BlobWriter::compileParams() {
+    static const movitools::MoviCompileParams params = {
+        /*cpu=*/"3010xx",
+        /*moviCompile=*/"linux64/bin/moviCompile",
+        /*mdkLinker=*/"linux64/sparc-myriad-rtems-6.3.0/bin/sparc-myriad-rtems-ld",
+        /*mdkObjCopy=*/"linux64/sparc-myriad-rtems-6.3.0/bin/sparc-myriad-rtems-objcopy",
+        /*mdkLibDir=*/"common/moviCompile/lib/30xxxx-leon",
+        /*mdkLibs=*/
+        {
+            "mlibm.a",
+            "mlibcxx.a",
+            "mlibneon.a",
+            "mlibVecUtils.a",
+            "mlibc_lite.a",
+            "mlibc_lite_lgpl.a",
+            "mlibcrt.a",
+        },
+    };
+
+    return params;
+}
+
 VPUIP::BlobWriter::Task vpux::VPUIP::BlobWriter::createTask(mlir::Operation* op) {
     _log.trace("Create BLOB Task for {0}", *op);
 
@@ -96,25 +118,7 @@ ActKernelDesc vpux::VPUIP::BlobWriter::createKernelData(const CompilationUnitDes
         return {itext->second, {}};
     }
 
-    movitools::MoviCompileParams params = {
-            /*cpu=*/"3010xx",
-            /*moviCompile=*/"linux64/bin/moviCompile",
-            /*mdkLinker=*/"linux64/sparc-myriad-rtems-6.3.0/bin/sparc-myriad-rtems-ld",
-            /*mdkObjCopy=*/"linux64/sparc-myriad-rtems-6.3.0/bin/sparc-myriad-rtems-objcopy",
-            /*mdkLibDir=*/"common/moviCompile/lib/30xxxx-leon",
-            /*mdkLibs=*/
-            {
-                    "mlibm.a",
-                    "mlibcxx.a",
-                    "mlibneon.a",
-                    "mlibVecUtils.a",
-                    "mlibc_lite.a",
-                    "mlibc_lite_lgpl.a",
-                    "mlibcrt.a",
-            },
-    };
-
-    auto newDesc = compileKernelForACTShave(unitDesc, params, _impl);
+    auto newDesc = compileKernelForACTShave(unitDesc, compileParams(), _impl);
     _log.trace("store following kernels names: {0}\n", unitDesc.name);
     _actKernelsData[unitDesc.name.str()] = newDesc.text;
 
@@ -126,6 +130,36 @@ ActKernelDesc vpux::VPUIP::BlobWriter::createKernelData(const CompilationUnitDes
     }
 
     return {_actKernelsData[unitDesc.name.str()], {}};
+}
+
+ActKernelDesc vpux::VPUIP::BlobWriter::createManagementKernelData() {
+
+    const auto& listDesc = managementKernelCompilationDesc();
+
+    auto dataName = std::string(listDesc.name) + ".data";
+    auto itext  = _actKernelsData.find(listDesc.name.str());
+    auto idata = _actKernelsData.find(dataName);
+
+    if (idata != _actKernelsData.end() && itext != _actKernelsData.end()) {
+        return {itext->second, idata->second};
+    }
+
+    if (itext != _actKernelsData.end()) {
+        return {itext->second, {}};
+    }
+
+    auto newDesc =  compileKernelForACTShave(listDesc, compileParams(), _impl);
+    _log.trace("store following kernels names: {0}\n", listDesc.name);
+    _actKernelsData[listDesc.name.str()] = newDesc.text;
+
+    if (newDesc.data.size != 0) {
+        _log.trace("store following kernels names: {0}\n", dataName);
+        _actKernelsData[dataName] = newDesc.data;
+
+        return {_actKernelsData[listDesc.name.str()], _actKernelsData[dataName]};
+    }
+
+    return {_actKernelsData[listDesc.name.str()], {}};
 }
 
 const vpux::VPUIP::BlobWriter::ActShavesKernelDataMap& vpux::VPUIP::BlobWriter::getKernelData() const {

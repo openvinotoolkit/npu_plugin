@@ -170,6 +170,8 @@ public:
         return impl();
     }
 
+    static const movitools::MoviCompileParams& compileParams();
+
 private:
     void setAliasForSerializedTensors(mlir::Operation* op);
 

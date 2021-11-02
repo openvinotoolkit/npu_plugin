@@ -41,9 +41,28 @@ struct CompilationUnitDesc {
     mlir::StringRef codePath;
 };
 
+struct CompilationListDesc {
+    mlir::StringRef name;
+    mlir::StringRef entry;
+    mlir::SmallVector<StringRef> codePath = {};
+    mlir::SmallVector<StringRef> defines = {};
+    mlir::SmallVector<StringRef> includePaths = {};
+};
+
+bool checkVpuip2Dir();
+std::string getVpuip2Dir();
+
 ActKernelDesc compileKernelForACTShave(const CompilationUnitDesc& unitDesc,
                                        const movitools::MoviCompileParams& params,
                                        flatbuffers::FlatBufferBuilder& fbb);
+ActKernelDesc compileKernelForACTShave(const CompilationListDesc & listDesc,
+                                       const movitools::MoviCompileParams& params,
+                                       flatbuffers::FlatBufferBuilder& fbb);
+
+const CompilationListDesc& managementKernelCompilationDesc();
+
+ActKernelDesc compileManagementKernelForACTShave(const movitools::MoviCompileParams& params,
+                                                 flatbuffers::FlatBufferBuilder& fbb);
 
 flatbuffers::Offset<MVCNN::KernelData> buildKernelData(flatbuffers::FlatBufferBuilder& fbb,
                                                        llvm::ArrayRef<uint8_t> content);
