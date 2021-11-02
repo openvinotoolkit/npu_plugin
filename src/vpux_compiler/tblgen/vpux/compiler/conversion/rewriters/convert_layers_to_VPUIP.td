@@ -776,4 +776,20 @@ def RewriteCeiling :
             (createCeilingUPAOp $input, $output)
         >;
 
+//
+// IERT.NormalizeL2 -> VPUIP.NormalizeIEUPA
+//
+
+def createNormalizeIEUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::NormalizeIEUPAOp>(
+                $_loc, $0, $1, $2, $3, $4, $5)
+        }]>;
+
+def RewriteNormalizeIE :
+        Pat<
+            (IERT_NormalizeIEOp $data, $weights, $output, $eps, $across_spatial, $channel_shared),
+            (createNormalizeIEUPAOp $data, $weights, $output, $eps, $across_spatial, $channel_shared)
+        >;
+
 #endif

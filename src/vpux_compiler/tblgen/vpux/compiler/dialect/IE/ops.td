@@ -1497,21 +1497,22 @@ def IE_DetectionOutputOp :
 }
 
 //
-// NormalizeL2Op
+// NormalizeIEOp
 //
 
-def IE_NormalizeL2Op :
+def IE_NormalizeIEOp :
         IE_LayerOp<
-            "NormalizeL2"
+            "NormalizeIE"
         > {
-    let summary = "InferenceEngine NormalizeL2 layer";
+    let summary = "InferenceEngine NormalizeIE layer";
 
     let arguments = (ins
         AnyRankedTensor:$data,
-        RankedTensorOf<[AnyInteger]>:$axes,
+        AnyRankedTensor:$weights,
 
         F64Attr:$eps,
-        IE_EpsMode:$eps_mod
+        BoolAttr:$across_spatial,
+        BoolAttr:$channel_shared
     );
 
     let results = (outs

@@ -1392,7 +1392,8 @@ operation ::= `VPUIP.NegativeUPA` attr-dict
 
 | Operand | Description |
 | :-----: | ----------- |
-`input` | memref of 16-bit float values
+`data` | memref of 16-bit float values
+`weights` | memref of 16-bit float values
 `output_buff` | memref of 16-bit float values
 `waitBarriers` | VPUIP Barrier Type
 `updateBarriers` | VPUIP Barrier Type
@@ -1429,6 +1430,48 @@ operation ::= `VPUIP.NormUPA` attr-dict
 `bias` | ::mlir::FloatAttr | 64-bit float attribute
 `local_size` | mlir::IntegerAttr | Integer attribute
 `region` | vpux::IE::LRN_IERegionAttr | LRN_IE region that operations support
+`maxShaves` | mlir::IntegerAttr | Integer attribute
+`isTrailingSWLayer` | ::mlir::UnitAttr | unit attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float values
+`output_buff` | memref of 16-bit float values
+`waitBarriers` | VPUIP Barrier Type
+`updateBarriers` | VPUIP Barrier Type
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float values
+
+### `VPUIP.NormalizeIEUPA` (vpux::VPUIP::NormalizeIEUPAOp)
+
+NormalizeIE UPA SHAVE kernel
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.NormalizeIEUPA` attr-dict
+              `inputs` `(` $data `:` type($data) `,` $weights `:` type($weights) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+              (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`eps` | ::mlir::FloatAttr | 64-bit float attribute
+`across_spatial` | ::mlir::BoolAttr | bool attribute
+`channel_shared` | ::mlir::BoolAttr | bool attribute
 `maxShaves` | mlir::IntegerAttr | Integer attribute
 `isTrailingSWLayer` | ::mlir::UnitAttr | unit attribute
 
