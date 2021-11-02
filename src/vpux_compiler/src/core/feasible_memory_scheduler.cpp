@@ -372,7 +372,7 @@ size_t FeasibleMemoryScheduler::allocateBuffersAndInputOps(operationIdxType opId
         buffersNeedingAllocation.push_back(val);
         // special case for spilled reads
         if (_opWritingToBuffer.find(val) != _opWritingToBuffer.end()) {
-            auto bufferWriter = retrieveBufferWriter(&val);
+            auto bufferWriter = retrieveBufferWriter(val);
             demandList.erase(bufferWriter);
             scheduleSpilledInputOpForComputeOp(bufferWriter, &val);
         }
@@ -426,7 +426,7 @@ void FeasibleMemoryScheduler::scheduleAllPossibleReadyOpsAndUpdate(
     }
 }
 
-void FeasibleMemoryScheduler::evictActiveOp(operationIdxType opIdx, mlir::Value* buffer) {
+void FeasibleMemoryScheduler::evictActiveOp(operationIdxType opIdx, mlir::Value buffer) {
     auto opOutput = _opOutputTable.find(opIdx);
     VPUX_THROW_UNLESS(opOutput != _opOutputTable.end() && opOutput->second.active(),
                       "Attempt to evict an invalid operation");
@@ -436,15 +436,14 @@ void FeasibleMemoryScheduler::evictActiveOp(operationIdxType opIdx, mlir::Value*
         auto depOutput = _opOutputTable.find(dep);
         depOutput->second.incrementConsumers();
     }
-    auto buf = *buffer;
-    _log.nest().trace("Mark buffer as dead, '{0}'", buf);
-    _scan.handler().markAsDead(buf);
+    _log.nest().trace("Mark buffer as dead, '{0}'", buffer);
+    _scan.handler().markAsDead(buffer);
     _log.nest().trace("Free non alive buffers");
     _scan.freeNonAlive();
 }
 
-operationIdxType FeasibleMemoryScheduler::retrieveBufferWriter(mlir::Value* buffer) {
-    const auto valIt = _opWritingToBuffer.find(*buffer);
+operationIdxType FeasibleMemoryScheduler::retrieveBufferWriter(mlir::Value buffer) {
+    const auto valIt = _opWritingToBuffer.find(buffer);
     VPUX_THROW_UNLESS(valIt != _opWritingToBuffer.end(), "Buffer not scheduled yet, invalid spill candidate");
     return valIt->second;
 }
@@ -456,8 +455,8 @@ size_t FeasibleMemoryScheduler::evictionPriority(operationIdxType bufferWriterId
     return (!isDataOp(bufferWriterIdx)) ? 1UL : 0UL;
 }
 
-mlir::Value* FeasibleMemoryScheduler::chooseCandidateForEviction(llvm::SmallVector<mlir::Value*> orderedBuffers) {
-    mlir::Value* candidate = nullptr;
+mlir::Value FeasibleMemoryScheduler::chooseCandidateForEviction(llvm::SmallVector<mlir::Value> orderedBuffers) {
+    mlir::Value candidate = nullptr;
     size_t smallestPriority = std::numeric_limits<size_t>::max();
     // select the smallest buffer with the smallest priority
     for (auto buffer : orderedBuffers) {
@@ -478,7 +477,6 @@ void FeasibleMemoryScheduler::forceScheduleActiveOpEviction() {
 
     // select a candidate op to be spilled
     auto evictionCandidateBuffer = chooseCandidateForEviction(orderedBuffers);
-    auto evictionBuffer = *evictionCandidateBuffer;
     operationIdxType candidateIdx = retrieveBufferWriter(evictionCandidateBuffer);
     _log.nest().trace("Candidate selected for eviction {0}", candidateIdx);
 
@@ -506,7 +504,7 @@ void FeasibleMemoryScheduler::forceScheduleActiveOpEviction() {
     }
 
     // add with a spilled write state
-    pushToStartTimeHeap(HeapElement(candidateIdx, _currentTime, EOpType::IMPLICIT_OP_WRITE, evictionBuffer));
+    pushToStartTimeHeap(HeapElement(candidateIdx, _currentTime, EOpType::IMPLICIT_OP_WRITE, evictionCandidateBuffer));
 }
 
 void FeasibleMemoryScheduler::populateScheduledOps(HeapElement& scheduledOp) {
