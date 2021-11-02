@@ -173,7 +173,7 @@ void FeasibleAllocationPass::safeRunOnModule() {
     auto& depsInfo = getChildAnalysis<AsyncDepsInfo>(netFunc);
 
     // feasible memory scheduler - list scheduler
-    FeasibleMemoryScheduler scheduler(_memSpace, liveRangeInfo, depsInfo, _log, scan);
+    FeasibleMemoryScheduler scheduler(_memSpace, liveRangeInfo, depsInfo, aliasesInfo, _log, scan);
     // 1. initial schedule
     auto scheduledOps = scheduler.generateSchedule();
 

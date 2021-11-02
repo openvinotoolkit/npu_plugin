@@ -37,9 +37,14 @@ using operationIdxType = FeasibleMemoryScheduler::operationIdxType;
 //      operations which will be allocated at the next time slot.
 
 FeasibleMemoryScheduler::FeasibleMemoryScheduler(mlir::Attribute& memSpace, MemLiveRangeInfo& liveRangeInfo,
-                                                 AsyncDepsInfo& depsInfo, Logger log,
+                                                 AsyncDepsInfo& depsInfo, AliasesInfo& aliasInfo, Logger log,
                                                  LinearScan<mlir::Value, LinearScanHandler>& scan)
-        : _log(log), _memSpace(memSpace), _liveRangeInfo(liveRangeInfo), _depsInfo(depsInfo), _scan(scan) {
+        : _log(log),
+          _memSpace(memSpace),
+          _liveRangeInfo(liveRangeInfo),
+          _depsInfo(depsInfo),
+          _aliasInfo(aliasInfo),
+          _scan(scan) {
 }
 
 void FeasibleMemoryScheduler::pushToStartTimeHeap(const HeapElement& elem) {
@@ -529,6 +534,12 @@ void FeasibleMemoryScheduler::populateScheduledOps(HeapElement& scheduledOp) {
                     if (type == nullptr || type.getMemorySpace() != _memSpace) {
                         continue;
                     }
+
+                    // Find the root buffer for a given output as output of an operation
+                    // doesn't have to point directly to result of memref.alloc (e.g. might
+                    // be a result of SubView).
+                    output = _aliasInfo.getRoot(output);
+
                     // in case of spill only allocate the spill buffer
                     if (!scheduledOp.isOriginalOp() && output != scheduledOp.spillBuffer_) {
                         continue;
