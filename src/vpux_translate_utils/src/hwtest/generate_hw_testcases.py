@@ -151,8 +151,8 @@ def ValidatePaddings(kernel, paddings):
     # When the kernel x dimension is even, the PAD amount is [KERNEL_X]/2 on left and [KERNEL_X]/2-1 on right
     # When the kernel y dimension is even, the PAD amount is [KERNEL_Y]/2 on top and [KERNEL_Y]/2-1 on bottom
 
-    kernel_x = kernel[0]
-    kernel_y = kernel[1]
+    kernel_y = kernel[0]
+    kernel_x = kernel[1]
 
     top = paddings[0]
     left = paddings[1]
@@ -1379,7 +1379,7 @@ def generate_options(args):
                    kernel_channels=[16],
                    kernel_shapes=[[4, 6]],
                    output_types=[UInt8()],
-                   pads=[[2,0,0,0],[3,0,0,0]]),
+                   pads=[[2,0,0,0],[0,3,0,0]]),
 
         # Z-Major Convolution, padding, 5x5 kernel, uint8
         genZMConvs(input_types=[UInt8(2)],
@@ -1388,7 +1388,7 @@ def generate_options(args):
                    kernel_channels=[16],
                    kernel_shapes=[[8, 10]],
                    output_types=[UInt8()],
-                   pads=[[4,0,0,0],[5,0,0,0]]),
+                   pads=[[4,0,0,0],[0,5,0,0]]),
 
         # Z-Major Convolution, output order
         genZMConvs(input_types=[Int8(3), FP16(4)],
