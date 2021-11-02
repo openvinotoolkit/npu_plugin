@@ -23,6 +23,10 @@ static void validateVerticalAdds(const mv::pass::PassEntry& pass,
                                         mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&,
                                         mv::Element&);
 
+static void hackGraph2Fcn(const mv::pass::PassEntry& pass,
+                                        mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&,
+                                        mv::Element&);
+
 namespace mv
 {
     namespace pass
@@ -47,6 +51,14 @@ namespace mv
         .setFunc(validateVerticalAdds)
         .setDescription(
                 "Transforms the subgraphs after streaming to vertical fusion ones.");
+    }
+    
+    namespace pass
+    {
+        MV_REGISTER_PASS(HackGraph2)
+        .setFunc(hackGraph2Fcn)
+        .setDescription(
+                "hack graph 2.");
     }
 }
 
@@ -91,11 +103,12 @@ void populateCandidateVerticalFusionOps(std::vector<std::string> & candidateVert
         
         std::vector<std::string> hack_list = {"MobilenetV2/expanded_conv/project/BatchNorm/FusedBatchNorm/variance/Fused_Add_"
         , "MobilenetV2/expanded_conv_1/expand/BatchNorm/FusedBatchNorm/variance/Fused_Add_"
-        , "MobilenetV2/expanded_conv_1/project/BatchNorm/FusedBatchNorm/variance/Fused_Add_"
-        , "MobilenetV2/expanded_conv_2/expand/BatchNorm/FusedBatchNorm/variance/Fused_Add_"
-        , "MobilenetV2/expanded_conv_2/project/BatchNorm/FusedBatchNorm/variance/Fused_Add_"
-        , "MobilenetV2/expanded_conv_2/add"
-        , "MobilenetV2/expanded_conv_3/expand/BatchNorm/FusedBatchNorm/variance/Fused_Add_"};
+//        , "MobilenetV2/expanded_conv_1/project/BatchNorm/FusedBatchNorm/variance/Fused_Add_"
+//        , "MobilenetV2/expanded_conv_2/expand/BatchNorm/FusedBatchNorm/variance/Fused_Add_"
+//        , "MobilenetV2/expanded_conv_2/project/BatchNorm/FusedBatchNorm/variance/Fused_Add_"
+//        , "MobilenetV2/expanded_conv_2/add"
+//        , "MobilenetV2/expanded_conv_3/expand/BatchNorm/FusedBatchNorm/variance/Fused_Add_"
+        };
         
         if (std::find(hack_list.begin(), hack_list.end(), nodeName) == hack_list.end())
             continue;
@@ -457,10 +470,10 @@ bool isNotValidSubgraph(mv::OpModel& om, const std::list<std::string>& subgraph)
     // remove any complex/invalid subgraphs
     if (majorityOpsWithLargeKernel(om, subgraph))
         return true;
-    else if (tailInputOpsOutsideSubgraph(om, subgraph))
-        return true;
-    else if (externalOpsRequireSubgraphOps(om, subgraph))
-        return true;
+//    else if (tailInputOpsOutsideSubgraph(om, subgraph))
+//        return true;
+//    else if (externalOpsRequireSubgraphOps(om, subgraph))
+//        return true;
     else
         return false;
 }
@@ -1286,6 +1299,54 @@ void validateVerticalAdds(const mv::pass::PassEntry&,
             nextOp->setInputTensor(slice, idx, false);
             om.defineFlow(slice, nextOp, idx);
         }
+    }
+    return;
+}
+
+
+void hackGraph2Fcn(const mv::pass::PassEntry&,
+                                     mv::ComputationModel& model,
+                                     mv::TargetDescriptor&,
+                                     mv::Element& ,
+                                     mv::Element&) 
+{
+    mv::OpModel om(model);
+    mv::DataModel dm(model);
+    
+    auto concat = om.getOp("MobilenetV2/expanded_conv_1/project/BatchNorm/FusedBatchNorm/variance/Fused_Add_concat_");
+    std::string headName = "MobilenetV2/expanded_conv_1/project/BatchNorm/FusedBatchNorm/variance/Fused_Add__streamH";
+    std::string tailName = "MobilenetV2/expanded_conv_2/expand/BatchNorm/FusedBatchNorm/variance/Fused_Add__streamH";
+    std::vector<mv::Data::OpListIterator> headStreams;
+    for (std::size_t i = 0; i < concat->inputSlots(); i++)
+    {
+        auto preOp = om.getSourceOp(concat->getInputTensor(i));
+        headStreams.push_back(preOp);
+//        om.undefineFlow(preOp.leftmostOutput());
+    }
+    
+    std::vector<mv::Data::OpListIterator> tailStreams;
+    auto tailSliceOps = mv::findSinkLayers(dm, concat->getOutputTensor(0));
+    for (auto sliceOp : tailSliceOps)
+    {
+        if (sliceOp->getOpType() != "Slice")
+            continue;
+        auto curTailStream = mv::findSinkLayers(dm, sliceOp->getOutputTensor(0))[0];
+        tailStreams.push_back(curTailStream);
+        om.undefineFlow(sliceOp.leftmostInput());
+        om.undefineFlow(sliceOp.leftmostOutput());
+        om.removeOp(sliceOp);
+    }
+    
+    if (headStreams.size() != tailStreams.size())
+        std::cout<<"WRONG!!"<<std::endl;
+    
+    auto streamSize = headStreams.size();
+    for (std::size_t i = 0; i < streamSize; i++)
+    {
+        auto headOp = om.getOp(headName + std::to_string(i));
+        auto tailOp = om.getOp(tailName + std::to_string(i));
+        om.defineFlow(headOp->getOutputTensor(0), tailOp, 0);
+        std::cout<<"connecting "<<headOp->getName() << " with " << tailOp->getName()<<std::endl;
     }
     return;
 }
