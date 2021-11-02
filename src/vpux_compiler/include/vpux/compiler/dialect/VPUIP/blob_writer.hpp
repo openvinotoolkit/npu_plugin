@@ -88,6 +88,7 @@ public:
     SpecificTask createSW_KernelTask(mlir::Operation* op);
 
     ActKernelDesc createKernelData(const CompilationUnitDesc& unitDesc);
+    ActKernelDesc createManagementKernelData();
 
     KernelDataRef createKernelDataRef(StringRef name, MemoryLocation locale, uint64_t dataOffset, uint64_t dataSize,
                                       ArrayRef<uint8_t> content = None);
