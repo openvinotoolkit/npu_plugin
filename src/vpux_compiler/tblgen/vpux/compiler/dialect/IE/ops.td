@@ -1069,7 +1069,7 @@ def IE_QuantizeCastOp :
     let summary = "InferenceEngine Quantize Cast layer";
 
     let arguments = (ins
-        RankedTensorOf<[quant_QuantizedType]>:$input,
+        RankedTensorOf<[SI8, UI8, quant_QuantizedType]>:$input,
 
         TypeAttr:$dstElemType
     );

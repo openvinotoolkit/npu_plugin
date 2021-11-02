@@ -506,6 +506,25 @@ def ConvertQuantizeOpsToEltwise : PassBase<"convert-quantize-ops-to-eltwise", "v
 }
 
 //
+// FuseConvertWithQuantize
+//
+
+def FuseConvertWithQuantize : PassBase<"fuse-convert-with-quantize", "vpux::FunctionPass"> {
+    let summary = "Fuse Convert with Quantize into QuantCast operation";
+
+    let description = [{
+        Pass detects pattern Convert(i8/ui8 -> FP16) -> Quantize(FP16 -> !quant.uniform<...>)
+        and fuses it into single QuantCast(i8/ui8 -> !quant.uniform<...>) operation.
+    }];
+
+    let constructor = "vpux::IE::createFuseConvertWithQuantizePass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
+
+//
 // ConvertAvgPoolToDWConv
 //
 

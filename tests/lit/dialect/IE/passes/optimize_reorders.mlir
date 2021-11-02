@@ -300,3 +300,40 @@ func @main(%arg0: tensor<1x3x30x30xf16, {order = #NHWC}>) -> tensor<1x3x30x30xf1
 }
 
 }
+
+// -----
+
+#NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
+#NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
+
+!qElemType = type !quant.uniform<u8:f16, 1.1534313725490195:128>
+
+// CHECK-LABEL: @ReorderWithQuantizeCast
+module @ReorderWithQuantizeCast attributes {VPUIP.arch = "KMB", VPUIP.compilationMode = "ReferenceHW"} {
+
+// CHECK: func @main([[ARG0:%.+]]: tensor<1x3x30x30xui8, {order = #NHWC}>)
+func @main(%arg0: tensor<1x3x30x30xui8, {order = #NHWC}>) -> tensor<1x3x30x30x!qElemType, {order = #NHWC}> {
+    %0 = IE.Reorder(%arg0) {dstOrder = #NCHW} : tensor<1x3x30x30xui8, {order = #NHWC}> -> tensor<1x3x30x30xui8>
+    %1 = IE.QuantizeCast(%0) {dstElemType = !qElemType} : tensor<1x3x30x30xui8> -> tensor<1x3x30x30x!qElemType>
+
+    %2 = IE.Reorder(%1) {dstOrder = #NHWC} : tensor<1x3x30x30x!qElemType> -> tensor<1x3x30x30x!qElemType, {order = #NHWC}>
+    %3 = IE.And(%2, %2) {auto_broadcast = "NONE_OR_EXPLICIT"} :
+            tensor<1x3x30x30x!qElemType, {order = #NHWC}>, tensor<1x3x30x30x!qElemType, {order = #NHWC}>
+            -> tensor<1x3x30x30x!qElemType, {order = #NHWC}>
+
+    return %3 : tensor<1x3x30x30x!qElemType, {order = #NHWC}>
+
+    // CHECK-NOT:  IE.Reorder
+
+    // CHECK:      [[VAR0:%.+]] = IE.QuantizeCast([[ARG0:%.+]]) {dstElemType = !qElemType} :
+    // CHECK-SAME:     tensor<1x3x30x30xui8, {order = #NHWC}> -> tensor<1x3x30x30x!qElemType, {order = #NHWC}>
+
+    // CHECK-NOT:  IE.Reorder
+
+    // CHECK:      [[VAR1:%.+]] = IE.And([[VAR0]], [[VAR0]]) {auto_broadcast = "NONE_OR_EXPLICIT"} :
+    // CHECK-SAME:     tensor<1x3x30x30x!qElemType, {order = #NHWC}>, tensor<1x3x30x30x!qElemType, {order = #NHWC}> -> tensor<1x3x30x30x!qElemType, {order = #NHWC}>
+
+    // CHECK:      return [[VAR1]] : tensor<1x3x30x30x!qElemType, {order = #NHWC}>
+}
+
+}

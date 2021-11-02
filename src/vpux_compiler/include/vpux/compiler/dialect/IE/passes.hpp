@@ -43,6 +43,7 @@ std::unique_ptr<mlir::Pass> createOptimizeReordersPass(Logger log = Logger::glob
 // This pipeline includes various adaptation passes to adjust the IR for VPU target.
 //
 
+void buildAdjustPrecisionPipeline(mlir::OpPassManager& pm, Logger log = Logger::global());
 void buildAdjustForVPUPipeline(mlir::OpPassManager& pm, Logger log = Logger::global());
 
 std::unique_ptr<mlir::Pass> createConvertTile2PerAxisTilePass(Logger log = Logger::global());
@@ -79,6 +80,7 @@ std::unique_ptr<mlir::Pass> createDequantizeConstPass(Logger log = Logger::globa
 std::unique_ptr<mlir::Pass> createMergeFakeQuantPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createFuseQuantizedOpsPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertWeightsToU8Pass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createFuseConvertWithQuantizePass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertQuantizeOpsToEltwisePass(Logger log = Logger::global());
 
 //

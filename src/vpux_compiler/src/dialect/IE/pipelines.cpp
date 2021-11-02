@@ -20,6 +20,19 @@
 using namespace vpux;
 
 //
+// AdjustPrecision
+//
+
+void vpux::IE::buildAdjustPrecisionPipeline(mlir::OpPassManager& pm, Logger log) {
+    const auto grc = getDefaultGreedyRewriteConfig();
+
+    pm.addPass(IE::createConvertPrecisionToFP16Pass(log));
+    pm.addPass(IE::createConvertPrecisionToI32Pass(log));
+    pm.addPass(IE::createUseUserPrecisionPass(log));
+    pm.addPass(mlir::createCanonicalizerPass(grc));
+}
+
+//
 // AdjustForVPU
 //
 
@@ -27,12 +40,12 @@ void vpux::IE::buildAdjustForVPUPipeline(mlir::OpPassManager& pm, Logger log) {
     const auto grc = getDefaultGreedyRewriteConfig();
 
     pm.addPass(IE::createConvertTile2PerAxisTilePass(log));
-    pm.addPass(IE::createConvertPrecisionToFP16Pass(log));
-    pm.addPass(IE::createConvertPrecisionToI32Pass(log));
     pm.addPass(IE::createConvertShapeTo4DPass(log));
     pm.addPass(IE::createConvertConv1DToConv2DPass(log));
     pm.addPass(IE::createConvertPaddingsToFloorModePass(log));
     pm.addPass(IE::createResolveStridedSlicePass(log));
+    pm.addPass(mlir::createCanonicalizerPass(grc));
+
     pm.addPass(IE::createFusePostOpsPass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
 }
@@ -48,6 +61,7 @@ void vpux::IE::buildLowPrecisionPipeline(mlir::OpPassManager& pm, Logger log) {
     pm.addPass(IE::createFuseQuantizedOpsPass(log));
     pm.addPass(IE::createConvertWeightsToU8Pass(log));
     pm.addPass(IE::createDequantizeConstPass(log));
+    pm.addPass(IE::createFuseConvertWithQuantizePass(log));
     pm.addPass(IE::createConvertQuantizeOpsToEltwisePass(log));
     pm.addPass(IE::createMergeFakeQuantPass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
@@ -58,6 +72,11 @@ void vpux::IE::buildLowPrecisionPipeline(mlir::OpPassManager& pm, Logger log) {
 //
 
 void vpux::IE::registerIEPipelines() {
+    mlir::PassPipelineRegistration<>("adjust-precision", "Adjust IR precision for VPU target",
+                                     [](mlir::OpPassManager& pm) {
+                                         IE::buildAdjustPrecisionPipeline(pm);
+                                     });
+
     mlir::PassPipelineRegistration<>("adjust-for-vpu", "Adjust IE Dialect IR for VPU target",
                                      [](mlir::OpPassManager& pm) {
                                          IE::buildAdjustForVPUPipeline(pm);

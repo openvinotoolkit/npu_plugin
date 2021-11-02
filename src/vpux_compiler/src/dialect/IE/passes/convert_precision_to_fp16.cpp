@@ -42,7 +42,7 @@ void ConvertPrecisionToFP16Pass::safeRunOnModule() {
 
     mlir::TypeConverter typeConverter;
     setupConvertPrecision(typeConverter, [](mlir::Type elemType) -> mlir::Type {
-        if (elemType.isF32() || elemType.isSignlessInteger(8)) {
+        if (elemType.isF32() || elemType.isSignlessInteger(CHAR_BIT)) {
             return mlir::Float16Type::get(elemType.getContext());
         } else {
             return elemType;

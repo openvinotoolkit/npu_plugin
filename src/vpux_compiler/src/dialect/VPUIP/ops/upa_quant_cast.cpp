@@ -78,7 +78,7 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(QuantCastUPAOp op) {
     const auto qType = inType.isa<mlir::quant::QuantizedType>() ? inType.cast<mlir::quant::QuantizedType>()
                                                                 : outType.cast<mlir::quant::QuantizedType>();
 
-    if (!qType.getStorageType().isInteger(8)) {
+    if (!qType.getStorageType().isInteger(CHAR_BIT)) {
         return errorAt(op, "Unsupported quantized storage type '{0}'", qType.getStorageType());
     }
 

@@ -57,7 +57,6 @@ mlir::Attribute getMemSpace(mlir::MLIRContext* ctx, StringRef) {
 void buildIECommonPipeline(mlir::OpPassManager& pm, Logger log) {
     const auto grc = getDefaultGreedyRewriteConfig();
 
-    pm.addPass(IE::createUseUserPrecisionPass(log));
     pm.addPass(IE::createUseUserLayout(log));
     pm.addPass(IE::createAdjustLayoutsPass(log));
     pm.addPass(IE::createOptimizeReordersPass(log));
@@ -106,6 +105,7 @@ void vpux::buildReferenceModePipeline(mlir::OpPassManager& pm, bool enableProfil
     pm.addPass(mlir::createCanonicalizerPass(grc));
 
     // IE Dialect level
+    IE::buildAdjustPrecisionPipeline(pm, log);
     IE::buildAdjustForVPUPipeline(pm, log);
 
     buildIEReferenceLowPrecisionPipeline(pm, log);
@@ -148,6 +148,8 @@ void vpux::buildHardwareModePipeline(mlir::OpPassManager& pm, bool enableProfili
     pm.addPass(mlir::createCanonicalizerPass(grc));
 
     // IE Dialect level
+    IE::buildAdjustPrecisionPipeline(pm, log);
+
     pm.addPass(IE::createConvertFCToConvPass(log));
     pm.addPass(IE::createConvertAvgPoolToDWConvPass(log));
     pm.addPass(IE::createConvertScaleShiftToDWPass(log));
