@@ -6,29 +6,6 @@
 #include "common_test_utils/test_constants.hpp"
 #include "common/functions.h"
 
-using namespace LayerTestsUtils;
-
-namespace BehaviorTestsDefinitions {
-
-using VpuxBehaviorTestsSetBlob = SetBlobTest;
-
-TEST_P(VpuxBehaviorTestsSetBlob, InternalPluginPrecisionConvert) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    const auto backendName = getBackendName(*getCore());
-    if (backendName.empty()) {
-        GTEST_SKIP() << "No devices available. Test is skipped";
-    } else if (backendName == "LEVEL0") {
-        GTEST_SKIP() << "CumSum layer is not supported by MTL platform";
-    }
-#if defined(__arm__) || defined(__aarch64__)
-    GTEST_SKIP() << "CumSum layer is not supported by ARM platform";
-#endif
-    SetBlobTest::Run();
-}
-
-}// namespace BehaviorTestsDefinitions
-
-
 using namespace BehaviorTestsDefinitions;
 using namespace InferenceEngine;
 
@@ -42,4 +19,4 @@ const auto params = ::testing::Combine(::testing::ValuesIn(precisionSet),
                                        ::testing::ValuesIn(typeSet),
                                        ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY));
 
-INSTANTIATE_TEST_CASE_P(smoke_BehaviorTestsSetBlob, VpuxBehaviorTestsSetBlob, params, SetBlobTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_SetBlobVPUX, SetBlobTest, params, SetBlobTest::getTestCaseName);

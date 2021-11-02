@@ -121,6 +121,14 @@ private:
     std::vector<Entry> _registry;
 };
 
+std::string getCurrentTestName() {
+    const auto* currentTestInfo = ::testing::UnitTest::GetInstance()->current_test_info();
+    const auto  currentTestName = currentTestInfo->test_case_name()
+                                + std::string(".") + currentTestInfo->name();
+    
+    return currentTestName;
+}
+
 std::vector<std::string> disabledTestPatterns() {
     // Initialize skip registry
     static const auto skipRegistry = []() {
@@ -175,7 +183,7 @@ std::vector<std::string> disabledTestPatterns() {
                 ".*ExecNetSetPrecision.*",
                 ".*VpuxInferRequestCallbackTests.*",
                 ".*VpuxInferRequestConfigTest.*",
-                ".*VpuxBehaviorTestsSetBlob.*"
+                ".*SetBlobTest.*"
             }
         );
 
@@ -183,18 +191,23 @@ std::vector<std::string> disabledTestPatterns() {
             backendName.isZero(),  
             "CumSum layer is not supported by MTL platform",
             {
-                ".*VpuxBehaviorTestsSetBlob.*",
+                ".*SetBlobTest.*",
+            }
+        );
+
+        _skipRegistry.addPatterns(
+            platform.isARM(),  
+            "CumSum layer is not supported by ARM platform",
+            {
+                ".*SetBlobTest.*",
             }
         );
 
         return _skipRegistry;
     }( );
 
-    const auto* currentTestInfo = ::testing::UnitTest::GetInstance()->current_test_info();
-    const auto currentTestName = currentTestInfo->test_case_name()
-                                + std::string(".") + currentTestInfo->name();
-
     std::vector<std::string> matching_patterns;
+    const auto currentTestName = getCurrentTestName();
     matching_patterns.emplace_back(skipRegistry.getMatchingPattern(currentTestName));
 
     return matching_patterns;
