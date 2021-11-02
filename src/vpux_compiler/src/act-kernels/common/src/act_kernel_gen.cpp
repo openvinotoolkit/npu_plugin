@@ -28,11 +28,9 @@
 #include <llvm/Support/Process.h>
 #include <mlir/Support/FileUtilities.h>
 
-
 #ifdef _MSC_VER
 #pragma warning(pop)
 #endif
-
 
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
