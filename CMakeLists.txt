@@ -17,6 +17,7 @@
 
 set(CMAKE_POLICY_DEFAULT_CMP0115 NEW)
 set(CMAKE_POLICY_DEFAULT_CMP0116 OLD)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON) # Added by Alex - to support the VS code indexer
 
 cmake_minimum_required(VERSION 3.13 FATAL_ERROR)
 

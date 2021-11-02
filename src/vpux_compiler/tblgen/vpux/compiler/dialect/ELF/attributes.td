@@ -29,6 +29,7 @@ def ELF_SectionTypeAttr :
             [
                 // From include/mlir/IR/OpBase.td: class StrEnumAttrCase<string sym, int val = -1>. So we can add an integer, which is the value of the respectiv enum case.
                 // Cases are taken from elfio/elf_types.hpp
+                // See https://docs.oracle.com/cd/E19683-01/816-1386/6m7qcoblj/index.html for meaning of these Section Header Types.
                 StrEnumAttrCase<"SHT_NULL",           0>,
                 StrEnumAttrCase<"SHT_PROGBITS",       1>,
                 StrEnumAttrCase<"SHT_SYMTAB",         2>,
@@ -70,6 +71,7 @@ def ELF_SectionTypeAttr :
 }
 
 
+
 //
 // SectionFlagsAttr
 //
@@ -80,11 +82,11 @@ def ELF_SectionFlagsAttr :
             "Enum for describing ELF section flags (we have also cases encountered with OR)",
             [
                 // Cases are taken from elfio/elf_types.hpp
-                BitEnumAttrCase<"SHF_NONE",                0x0>, // Added by Alex
+                // See https://docs.oracle.com/cd/E19683-01/816-1386/6m7qcoblj/index.html for meaning of these Section Header Flags.
+                BitEnumAttrCase<"SHF_NONE",                0x0>, // Added by Alex // If using it with together with OR operator it gives error at parsing (probably because it's value 0): 
                 BitEnumAttrCase<"SHF_WRITE",               0x1>,
                 BitEnumAttrCase<"SHF_ALLOC",               0x2>,
                 BitEnumAttrCase<"SHF_EXECINSTR",           0x4>,
-                BitEnumAttrCase<"SHF_ALLOC_OR_EXECINSTR",  0x6>, // NEW: Ored
                 BitEnumAttrCase<"SHF_MERGE",               0x10>,
                 BitEnumAttrCase<"SHF_STRINGS",             0x20>,
                 BitEnumAttrCase<"SHF_INFO_LINK",           0x40>,
@@ -92,11 +94,43 @@ def ELF_SectionFlagsAttr :
                 BitEnumAttrCase<"SHF_OS_NONCONFORMING",    0x100>,
                 BitEnumAttrCase<"SHF_GROUP",               0x200>,
                 BitEnumAttrCase<"SHF_TLS",                 0x400>,
+                BitEnumAttrCase<"SHF_JIT",                 0x100000>,
                 //BitEnumAttrCase<"SHF_MASKOS",              0x0ff00000>,
                 // error: enumerator value ‘4026531840’ is outside the range of underlying type ‘int’: BitEnumAttrCase<"SHF_MASKPROC",         0xF0000000>,
             ]
         > {
     let cppNamespace = "vpux::ELF";
+}
+
+
+
+
+//
+// RelocationTypeAttr
+//
+
+def ELF_RelocationTypeAttr :
+        StrEnumAttr<
+            "RelocationTypeAttr",
+            "Enum for describing ELF relocation types",
+            [
+                // From include/mlir/IR/OpBase.td: class StrEnumAttrCase<string sym, int val = -1>. So we can add an integer, which is the value of the respectiv enum case.
+                // Cases are taken from [kmb-plugin]/src/vpux_elf/include/elf/types/vpu_extensions.hpp
+                StrEnumAttrCase<"R_VPU_64",                                  0>,
+                StrEnumAttrCase<"R_VPU_64_OR",                               1>,
+                StrEnumAttrCase<"R_VPU_64_OR_RTM",                           2>,
+                StrEnumAttrCase<"R_VPU_64_LSHIFT",                           3>,
+                StrEnumAttrCase<"R_VPU_32",                                  4>,
+                StrEnumAttrCase<"R_VPU_32_OR_RTM",                           5>,
+                StrEnumAttrCase<"R_VPU_32_SUM",                              6>,
+                StrEnumAttrCase<"R_VPU_32_MULTICAST_BASE",                   7>,
+                StrEnumAttrCase<"R_VPU_32_MULTICAST_BASE_SUB",               8>,
+                StrEnumAttrCase<"R_VPU_32_MULTICAST_OFFSET_4_BIT_SHIFT_OR",  9>,
+                StrEnumAttrCase<"R_VPU_32_MULTICAST_OFFSET_CMP_OR",         10>,
+            ]
+        > {
+    let cppNamespace = "vpux::ELF";
+    let genSpecializedAttr = 1;
 }
 
 

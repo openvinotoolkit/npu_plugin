@@ -245,6 +245,7 @@ add_op_interfaces("core")
 add_passes("core" "Core")
 
 add_dialect("const")
+add_op_interfaces("dialect/const") # 2021_10_22
 add_attr_interfaces("dialect/const")
 add_attributes("const")
 

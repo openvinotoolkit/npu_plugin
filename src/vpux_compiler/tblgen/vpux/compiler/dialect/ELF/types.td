@@ -25,6 +25,18 @@ class ELF_Type<string name> : TypeDef<ELF_Dialect, name> {
 }
 
 //
+// Symbol
+//
+
+def ELF_Symbol : ELF_Type<"Symbol"> {
+    let summary = "ELF Symbol Type";
+
+    let description = "This object represents closely a Symbol";
+}
+
+
+
+//
 // Section
 //
 

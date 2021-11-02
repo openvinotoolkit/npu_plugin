@@ -44,16 +44,14 @@ def CreateSectionOp : ELF_Op<"CreateSection",
             ]
             # GraphRegionNoTerminator.traits
         > {
-    let summary = "Create Section";
+    let summary = "Create ELF Section";
 
     let arguments = (ins
-          ELF_SectionTypeAttr:$secType, // Inspired partly from "def VPUIP_GraphOp" from VPUIP/ops.td
-
-          ELF_SectionFlagsAttr:$secFlags,
-
-          IntAttr:$secInfo,
-
-          IntAttr:$secAddrAlign
+        StrAttr:$secName,
+        ELF_SectionTypeAttr:$secType, // Inspired partly from "def VPUIP_GraphOp" from VPUIP/ops.td
+        ELF_SectionFlagsAttr:$secFlags,
+        IntAttr:$secInfo,
+        IntAttr:$secAddrAlign
         );
 
     let results = (outs ELF_Section:$section);
@@ -65,10 +63,12 @@ def CreateSectionOp : ELF_Op<"CreateSection",
 
     // Inspired also from the definition of VPUIP_NCEClusterTaskOp
     let assemblyFormat = [{
+        `secFlags` `(` $secFlags `)`
         attr-dict
         `->` type(results)
         $aRegion
     }];
+    //    $secFlags
 }
 
 //
@@ -90,25 +90,125 @@ def PutAnyOpInSectionOp : ELF_Op<"PutAnyOpInSection"> {
 
 
 //
-// CreateSectionSymTableOp
+// SymbolOp
 //
 
-def CreateSectionSymTableOp : ELF_Op<"CreateSectionSymTable"> {
-    let summary = "Create Section SymTable";
+def SymbolOp : ELF_Op<"Symbol"> {
+    let summary = "Create ELF Symbol Table Section";
 
-    let arguments = (ins);
-    let results = (outs);
+    let arguments = (ins
+          AnyType:$inputArg // Inspired from mlir/Dialect/StandardOps/IR/Ops.td, "def AtomicYieldOp"
+        );
+
+    let results = (outs ELF_Symbol:$symbol);
+
+    // Inspired also from the definition of VPUIP_NCEClusterTaskOp
+    let assemblyFormat = [{
+        $inputArg attr-dict `:` type($inputArg)
+    }];
+    /*
+       Error: <<suggest adding a type constraint to the operation or adding a 'type($inputArg)' directive to the custom assembly format>>
+        $inputArg
+        attr-dict
+    */
+     //   $inputArg attr-dict `:` type($inputArg)
+     //   `->` type(results)
 }
 
+
 //
-// CreateSectionRelocTableOp
+// CreateSymbolTableSectionOp
 //
 
-def CreateSectionRelocTableOp : ELF_Op<"CreateSectionRelocTable"> {
-    let summary = "Create Section RelocaTable";
+def CreateSymbolTableSectionOp : ELF_Op<"CreateSymbolTableSection",
+            [
+                NoRegionArguments
+            ]
+            # GraphRegionNoTerminator.traits
+        > {
+    let summary = "Create ELF Symbol Table Section";
 
-    let arguments = (ins);
-    let results = (outs);
+    let arguments = (ins
+                      StrAttr:$secName
+                    );
+
+    let results = (outs ELF_Section:$section);
+
+    // Inspired also from the definition of VPUIP_NCEClusterTaskOp
+    let regions = (region
+        SizedRegion<1>:$aRegion
+    );
+
+    // Inspired also from the definition of VPUIP_NCEClusterTaskOp
+    let assemblyFormat = [{
+        attr-dict
+        `->` type(results)
+        $aRegion
+    }];
+      //  `->` type(results)
 }
+
+
+//
+// CreateRelocationSectionOp
+//
+
+def CreateRelocationSectionOp : ELF_Op<"CreateRelocationSection",
+            [
+                NoRegionArguments
+            ]
+            # GraphRegionNoTerminator.traits
+        > {
+    let summary = "Create ELF Relocation Section";
+
+    let arguments = (ins
+                      StrAttr:$secName,
+                      //ELF_Symbol:$sourceSymbolTable,
+                      ELF_Section:$sourceSymbolTableSection,
+                      ELF_Section:$targetSection,
+                      ELF_SectionFlagsAttr:$secFlags
+                    );
+
+    let results = (outs ELF_Section:$section);
+
+    // Inspired also from the definition of VPUIP_NCEClusterTaskOp
+    let regions = (region
+        SizedRegion<1>:$aRegion
+    );
+
+    // Inspired also from the definition of VPUIP_NCEClusterTaskOp
+    let assemblyFormat = [{
+        `secName` `(` $secName `)`
+        `sourceSymbolTableSection` `(` $sourceSymbolTableSection `)`
+        `targetSection` `(` $targetSection `)`
+        `secFlags` `(` $secFlags `)`
+        attr-dict
+        `->` type(results)
+        $aRegion
+    }];
+}
+
+
+//
+// RelocOp
+//
+
+def RelocOp : ELF_Op<"Reloc"> {
+    let summary = "Reloc Op";
+
+    let arguments = (ins
+          IntAttr:$offsetTargetField,
+          //StrAttr:$relocationType,
+          ELF_RelocationTypeAttr:$relocationType,
+          ELF_Symbol:$sourceSymbol,
+          IntAttr:$addend //$offsetSourceField
+        );
+
+    let results = (outs);
+
+    let assemblyFormat = "$offsetTargetField $relocationType $sourceSymbol $addend attr-dict";
+    //let assemblyFormat = "$inputArg attr-dict `:` type($inputArg)"; // Inspired from mlir/Dialect/StandardOps/IR/Ops.td, "def AtomicYieldOp"
+}
+
 
 #endif
