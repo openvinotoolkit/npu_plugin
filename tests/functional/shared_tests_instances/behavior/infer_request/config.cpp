@@ -8,50 +8,6 @@
 #include <vpux/vpux_compiler_config.hpp>
 #include <vpux/vpux_plugin_config.hpp>
 #include "ie_plugin_config.hpp"
-#include "common/functions.h"
-
-namespace BehaviorTestsDefinitions {
-
-class VpuxInferRequestConfigTest : public InferRequestConfigTest {
-public:
-    void SetUp() override {
-        if (getBackendName(*ie).empty()) {
-            GTEST_SKIP() << "No devices available. Test is skipped";
-        }
-        InferRequestConfigTest::SetUp();
-    }
-};
-
-TEST_P(VpuxInferRequestConfigTest, canSetExclusiveAsyncRequests) {
-    ASSERT_EQ(0ul, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
-    ASSERT_NO_THROW(createInferRequestWithConfig());
-    ASSERT_EQ(streamExecutorNumber, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
-}
-
-TEST_P(VpuxInferRequestConfigTest, withoutExclusiveAsyncRequests) {
-    ASSERT_EQ(0u, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
-    ASSERT_NO_THROW(createInferRequestWithConfig());
-    ASSERT_EQ(streamExecutorNumber, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
-}
-
-TEST_P(VpuxInferRequestConfigTest, ReusableCPUStreamsExecutor) {
-    ASSERT_EQ(0u, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
-    ASSERT_EQ(0u, InferenceEngine::ExecutorManager::getInstance()->getIdleCPUStreamsExecutorsNumber());
-
-    {
-        // Load config
-        std::map<std::string, std::string> config = {{CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS), CONFIG_VALUE(NO)}};
-        config.insert(configuration.begin(), configuration.end());
-        ASSERT_NO_THROW(ie->SetConfig(config, targetDevice));
-        // Load CNNNetwork to target plugins
-        execNet = ie->LoadNetwork(cnnNet, targetDevice, config);
-        execNet.CreateInferRequest();
-        ASSERT_EQ(1u, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
-        ASSERT_EQ(0u, InferenceEngine::ExecutorManager::getInstance()->getIdleCPUStreamsExecutorsNumber());
-    }
-}
-
-}// namespace BehaviorTestsDefinitions
 
 using namespace BehaviorTestsDefinitions;
 namespace {
@@ -110,10 +66,10 @@ const std::vector<std::map<std::string, std::string>> Inconfigs = {
     {{"VPUX_PLATFORM", "SOME_PLATFORM"}},
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, VpuxInferRequestConfigTest,
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestConfigTest,
                         ::testing::Combine(
                             ::testing::Values(2u),
                             ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY),
                             ::testing::ValuesIn(configs)),
-                         VpuxInferRequestConfigTest::getTestCaseName);
+                         InferRequestConfigTest::getTestCaseName);
 }  // namespace

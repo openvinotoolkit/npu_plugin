@@ -181,8 +181,6 @@ std::vector<std::string> disabledTestPatterns() {
                 ".*InferRequest.*",
                 ".*ExecutableNetworkBaseTest.*",
                 ".*ExecNetSetPrecision.*",
-                ".*VpuxInferRequestCallbackTests.*",
-                ".*VpuxInferRequestConfigTest.*",
                 ".*SetBlobTest.*"
             }
         );
