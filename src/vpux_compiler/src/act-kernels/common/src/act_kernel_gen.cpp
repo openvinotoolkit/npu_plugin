@@ -16,12 +16,23 @@
 #include <algorithm>
 #include <string>
 
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable : 4267)  // size_t to integer conversion
+#endif
+
 #include <llvm/Support/FileSystem.h>
 #include <llvm/Support/FormatVariadic.h>
 #include <llvm/Support/MemoryBuffer.h>
 #include <llvm/Support/Path.h>
 #include <llvm/Support/Process.h>
 #include <mlir/Support/FileUtilities.h>
+
+
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
+
 
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
