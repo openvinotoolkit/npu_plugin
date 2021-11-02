@@ -238,6 +238,46 @@ mlir::LogicalResult ReorderWithConcat::matchAndRewrite(IE::ConcatOp origConcatOp
 }
 
 //
+// ReorderWithQuantCast
+//
+
+class ReorderWithQuantCast final : public mlir::OpRewritePattern<IE::QuantizeCastOp> {
+public:
+    ReorderWithQuantCast(mlir::MLIRContext* ctx, Logger log)
+            : mlir::OpRewritePattern<IE::QuantizeCastOp>(ctx), _log(log) {
+        setDebugName("ReorderWithQuantCast");
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(IE::QuantizeCastOp origQuantCastOp,
+                                        mlir::PatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult ReorderWithQuantCast::matchAndRewrite(IE::QuantizeCastOp origQuantCastOp,
+                                                          mlir::PatternRewriter& rewriter) const {
+    auto origReorderOp = origQuantCastOp.input().getDefiningOp<IE::ReorderOp>();
+    if (origReorderOp == nullptr) {
+        return mlir::failure();
+    }
+
+    _log.trace("Got reorder at '{0}' -> quantize cast at '{1}' pair", origReorderOp->getLoc(),
+               origQuantCastOp->getLoc());
+
+    if (!origReorderOp.getResult().hasOneUse()) {
+        return matchFailed(_log.nest(), rewriter, origQuantCastOp, "Reorder has more then one user");
+    }
+
+    auto newQuantCastOp = rewriter.create<IE::QuantizeCastOp>(origQuantCastOp->getLoc(), origReorderOp.input(),
+                                                              origQuantCastOp.dstElemTypeAttr());
+
+    rewriter.replaceOpWithNewOp<IE::ReorderOp>(origQuantCastOp, newQuantCastOp.output(), origReorderOp.dstOrderAttr());
+    return mlir::success();
+}
+
+//
 // ReorderWithLayer
 //
 
@@ -369,6 +409,7 @@ void OptimizeReordersPass::safeRunOnFunc() {
     patterns.add<ReorderWithExpand>(&ctx, _log);
     patterns.add<ReorderWithSplit>(&ctx, _log);
     patterns.add<ReorderWithConcat>(&ctx, _log);
+    patterns.add<ReorderWithQuantCast>(&ctx, _log);
     patterns.add<ReorderWithLayer>(&ctx, _log);
     IE::ReorderOp::getCanonicalizationPatterns(patterns, &ctx);
 
