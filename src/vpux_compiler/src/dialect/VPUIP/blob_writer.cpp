@@ -135,7 +135,7 @@ const vpux::VPUIP::BlobWriter::ActShavesKernelDataMap& vpux::VPUIP::BlobWriter::
 vpux::VPUIP::BlobWriter::KernelDataRef vpux::VPUIP::BlobWriter::createKernelDataRef(const KernelDataDesc& desc,
                                                                                     MemoryLocation locale) {
     // offset is 1 to force field to be serialized by FB
-    uint32_t non_empty_offset = 1;
+    uint64_t non_empty_offset = 1;
     return createKernelDataRef(desc.name, locale, non_empty_offset, desc.size);
 }
 
@@ -153,13 +153,13 @@ vpux::VPUIP::BlobWriter::KernelDataRef vpux::VPUIP::BlobWriter::createKernelData
 
     MVCNN::KernelDataReferenceBuilder kernelData(_impl);
 
-    kernelData.add_referenced_data_size(dataSize);
+    kernelData.add_referenced_data_size(checked_cast<uint32_t>(dataSize));
     kernelData.add_locale(serializedLocale);
     auto mappedLocaleIterator = _actKernelsData.find(name.str());
     auto mappedLocaleIndex = std::distance(_actKernelsData.begin(), mappedLocaleIterator);
 
     kernelData.add_locale_offset(vpux::checked_cast<uint32_t>(mappedLocaleIndex));
-    kernelData.add_data_offset(dataOffset);
+    kernelData.add_data_offset(checked_cast<uint32_t>(dataOffset));
     kernelData.add_name(strName);
 
     return kernelData.Finish();
