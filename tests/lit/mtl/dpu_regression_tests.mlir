@@ -62,14 +62,14 @@
 
 // CHECK:       IERT.RunTimeResources
 // CHECK-SAME:      availableMemory :  {
-// CHECK:               IERT.MemoryResource 524288000 bytes of "DDR" {VPUIP.bandwidth = 8 : i64, VPUIP.derateFactor = 6.000000e-01 : f64}
-// CHECK:               IERT.MemoryResource 1966080 bytes of "CMX_NN" {VPUIP.bandwidth = 32 : i64, VPUIP.derateFactor = 1.000000e+00 : f64}
+// CHECK:               MemoryResource 524288000 bytes of "DDR" {VPUIP.bandwidth = 8 : i64, VPUIP.derateFactor = 6.000000e-01 : f64}
+// CHECK:               MemoryResource 1966080 bytes of "CMX_NN" {VPUIP.bandwidth = 32 : i64, VPUIP.derateFactor = 1.000000e+00 : f64}
 // CHECK:           }
 // CHECK-SAME:      usedMemory :  {
 // CHECK:           }
 // CHECK-SAME:      executors :  {
-// CHECK:               IERT.ExecutorResource 2 of "DMA_NN"
-// CHECK:               IERT.ExecutorResource 1 of "NCE_Cluster" {
-// CHECK:                   IERT.ExecutorResource 1 of "NCE_PerClusterDPU"
+// CHECK:               ExecutorResource 2 of "DMA_NN"
+// CHECK:               ExecutorResource {
+// CHECK:                   ExecutorResource 1 of "NCE_PerClusterDPU"
 // CHECK:               }
 // CHECK:           }

@@ -247,6 +247,17 @@ Transpose constant content
 | :-------: | :-------: | ----------- |
 | order | `mlir::AffineMapAttr` |  |
 
+### SwizzleAttr
+
+Swizzle constant content
+
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| key | `mlir::IntegerAttr` |  |
+
 ## Operation definition
 
 ### `const.Declare` (vpux::Const::DeclareOp)
