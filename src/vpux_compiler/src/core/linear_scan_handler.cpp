@@ -91,17 +91,17 @@ void LinearScanHandler::deallocate(mlir::Value val) {
     _valOffsets.erase(val);
 }
 
-SmallVector<mlir::Value*> LinearScanHandler::getIncreasingSizeOrderAlive() {
-    SmallVector<std::pair<mlir::Value*, AddressType>> orderBuffers;
+SmallVector<mlir::Value> LinearScanHandler::getIncreasingSizeOrderAlive() {
+    SmallVector<std::pair<mlir::Value, AddressType>> orderBuffers;
     for (auto& alive : _aliveValues) {
         AddressType size = getSize(alive);
-        orderBuffers.push_back(std::make_pair(&alive, size));
+        orderBuffers.push_back(std::make_pair(alive, size));
     }
     llvm::sort(orderBuffers.begin(), orderBuffers.end(),
-               [](const std::pair<mlir::Value*, AddressType>& val1, const std::pair<mlir::Value*, AddressType>& val2) {
+               [](const std::pair<mlir::Value, AddressType>& val1, const std::pair<mlir::Value, AddressType>& val2) {
                    return val1.second < val2.second;
                });
-    SmallVector<mlir::Value*> orderedBuffers;
+    SmallVector<mlir::Value> orderedBuffers;
     for (auto& buf : orderBuffers) {
         orderedBuffers.push_back(buf.first);
     }

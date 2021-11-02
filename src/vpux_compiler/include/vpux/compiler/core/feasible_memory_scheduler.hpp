@@ -220,10 +220,10 @@ private:
     void unscheduleAllCompletingOpsAtNextEarliestTime();
     void populateScheduledOps(HeapElement& scheduledOp);
     vpux::AddressType calculateOpSize(operationIdxType opIdx);
-    void evictActiveOp(operationIdxType opIdx, mlir::Value* buffer);
+    void evictActiveOp(operationIdxType opIdx, mlir::Value buffer);
     size_t evictionPriority(operationIdxType bufferWriterIdx);
-    operationIdxType retrieveBufferWriter(mlir::Value* buffer);
-    mlir::Value* chooseCandidateForEviction(llvm::SmallVector<mlir::Value*> orderedBuffers);
+    operationIdxType retrieveBufferWriter(mlir::Value buffer);
+    mlir::Value chooseCandidateForEviction(llvm::SmallVector<mlir::Value> orderedBuffers);
     void forceScheduleActiveOpEviction();
 
 private:
