@@ -522,7 +522,7 @@ flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, mli
 
     auto serializedGraphFile = MVCNN::GetGraphFile(detached.data());
 
-    // align KernelData section referenced by given reference
+    // align KernelData section referenced by given KernelDataReference
     // returns moved offset
     auto alignKernelDataSection = [&](const MVCNN::KernelDataReference* section, auto sectionLogical) {
         auto section_data = serializedGraphFile->kernel_data()->Get(section->locale_offset())->data();
@@ -547,7 +547,7 @@ flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, mli
         return offset;
     };
 
-    auto alignReferenceSection = [&](const MVCNN::KernelDataReference* section, uint32_t offset) {
+    auto alignReferenceSection = [&](const MVCNN::KernelDataReference* section, uint64_t offset) {
         // correcting data offset for section in schema
         auto table = reinterpret_cast<flatbuffers::Table*>(const_cast<MVCNN::KernelDataReference*>(section));
 
