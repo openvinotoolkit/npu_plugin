@@ -16,6 +16,9 @@ extern void*(shvNN0_sigmoid_fp16);
 namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Sigmoid)) {
     static constexpr std::initializer_list<SingleTest> sigmoid_test_list{
             {{2, 2, 2}, {2, 2, 2}, orderZYX, FPE("sigmoid_fp16.elf"), {sw_params::Location::UPA_CMX}},
+            {{2, 2, 2}, {2, 2, 2}, orderZYX, FPE("sigmoid_fp16.elf"), {sw_params::Location::NN_CMX}},
+            {{1000, 1, 1}, {1000, 1, 1}, orderZYX, FPE("sigmoid_fp16.elf"), {sw_params::Location::UPA_CMX}},
+            {{1000, 1, 1}, {1000, 1, 1}, orderZYX, FPE("sigmoid_fp16.elf"), {sw_params::Location::NN_CMX}}
     };
 
     class CustomCppSigmoidTest : public CustomCppTests<fp16> {
