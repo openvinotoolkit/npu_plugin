@@ -266,6 +266,7 @@ void ConvertShapeTo4DPass::safeRunOnFunc() {
     target.addDynamicallyLegalOp<IE::AndOp>(isLegalOp);
     target.addDynamicallyLegalOp<IE::ScaleShiftOp>(isLegalOp);
     target.addDynamicallyLegalOp<IE::EqualOp>(isLegalOp);
+    target.addDynamicallyLegalOp<IE::NotEqualOp>(isLegalOp);
     target.addDynamicallyLegalOp<IE::FakeQuantizeOp>(isLegalFqOp);
     target.addDynamicallyLegalOp<IE::LessOp>(isLegalOp);
     target.addDynamicallyLegalOp<IE::LessEqualOp>(isLegalOp);
@@ -287,6 +288,7 @@ void ConvertShapeTo4DPass::safeRunOnFunc() {
     patterns.add<GenericConverter<IE::EqualOp>>(typeConverter, &ctx, _log);
     patterns.add<GenericConverter<IE::LessOp>>(typeConverter, &ctx, _log);
     patterns.add<GenericConverter<IE::LessEqualOp>>(typeConverter, &ctx, _log);
+    patterns.add<GenericConverter<IE::NotEqualOp>>(typeConverter, &ctx, _log);
     patterns.add<FakeQuantizeConverter>(typeConverter, &ctx, _log);
 
     auto func = getFunction();
