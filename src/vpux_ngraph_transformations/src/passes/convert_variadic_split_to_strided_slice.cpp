@@ -45,6 +45,13 @@ ConvertVariadicSplitToStridedSliceOp::ConvertVariadicSplitToStridedSliceOp() {
         auto axis = axis_node_const->get_data_ptr<int64_t>()[0];
 
         auto shapeDim = variadicSplit->input_value(0).get_shape().size();
+        int64_t dim = static_cast<int64_t>(shapeDim);
+        VPUX_THROW_UNLESS((axis >= -dim) && (axis <= (dim - 1)),
+                          "nGraph VariadicSplit node '{0}' has unsupported axis value '{1}'",
+                          variadicSplit->get_friendly_name(), axis);
+        if (axis < 0)
+            axis = shapeDim + axis;
+
         std::vector<size_t> startCoords(shapeDim);
 
         std::vector<int64_t> begin_mask(shapeDim, 1);
@@ -67,10 +74,10 @@ ConvertVariadicSplitToStridedSliceOp::ConvertVariadicSplitToStridedSliceOp() {
             auto stridedSlice = std::make_shared<ngraph::op::v1::StridedSlice>(
                     variadicSplit->input_value(0), beginOp->output(0), endOp->output(0), begin_mask, end_mask,
                     new_axis_mask, shrink_axis_mask, ellipsis_mask);
-            stridedSlice->set_friendly_name(variadicSplit->get_friendly_name());
-            // TODO: EISW-20734 : VariadicSplit op support when consumer is Result
-            // The above case is not supported, and it will generate an error when we encounter this case
-            ngraph::replace_output_update_name(variadicSplit->output(i), stridedSlice->output(0));
+            stridedSlice->set_friendly_name(variadicSplit->get_friendly_name() + "." + std::to_string(i));
+            for (auto& input : variadicSplit->output(i).get_target_inputs()) {
+                input.replace_source_output(stridedSlice->output(0));
+            }
             startCoords[axis] += variadicSplit->get_output_shape(i)[axis];
         }
         return true;
