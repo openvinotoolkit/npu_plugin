@@ -102,11 +102,13 @@ void createCaseGeneratorWeightsJson(llvm::json::OStream& j) {
 void createCaseGeneratorOutputJson(llvm::json::OStream& j) {
     std::array<unsigned long int, 4> shape = {1, 64, 16, 16};
     std::string dtype = "uint8";
+    std::string permutation = "nhwc";
     double scale = 0.01;
     unsigned long int zeropoint = 0;
     unsigned long int low_range = 1;
     unsigned long int high_range = 1;
 
+    j.attribute("output_order", permutation);
     j.attributeBegin("output");
     {
         j.objectBegin();
