@@ -551,6 +551,42 @@ operation ::= `IERT.Cosh` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float or 32-bit float values
 
+### `IERT.CumSumOp` (vpux::IERT::CumSumOp)
+
+InferenceEngine run-time CumSum layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.CumSumOp` attr-dict
+              `inputs` `(` $input `:` type($input) (`,` $axis^ `:` type($axis))? `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`exclusive` | ::mlir::BoolAttr | bool attribute
+`reverse` | ::mlir::BoolAttr | bool attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of any type values
+`axis` | memref of 64-bit signed integer or 32-bit signed integer values
+`output_buff` | memref of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of any type values
+
 ### `IERT.DepthToSpace` (vpux::IERT::DepthToSpaceOp)
 
 InferenceEngine run-time DepthToSpace layer

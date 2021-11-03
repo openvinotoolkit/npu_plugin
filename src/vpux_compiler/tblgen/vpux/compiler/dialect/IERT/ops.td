@@ -2901,6 +2901,41 @@ def IERT_CeilingOp :
 }
 
 //
+// CumSumOp
+//
+
+def IERT_CumSumOp :
+        IERT_LayerOp<1, "CumSumOp",
+            [
+                SameOperandsShape,
+                SameOperandsElementType,
+                ViewLikeOpInterface
+            ]
+        > {
+    let summary = "InferenceEngine run-time CumSum layer";
+
+    let arguments = (ins
+        AnyMemRef:$input,
+        Optional<MemRefOf<[SI64, SI32]>>:$axis,
+        AnyMemRef:$output_buff,
+
+        OptionalAttr<BoolAttr>:$exclusive,
+        OptionalAttr<BoolAttr>:$reverse
+    );
+
+    let results = (outs
+        AnyMemRef:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) (`,` $axis^ `:` type($axis))? `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
 // NormalizeIEOp
 //
 
