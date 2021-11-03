@@ -277,7 +277,7 @@ sw_params::MemRefData TensorRef::toMemRefData(sw_params::Location loc) const {
             true, // isStatic
             static_cast<uint32_t>(this->ndims), // uint32_t numDims;
             reinterpret_cast<uint32_t>(this->dims),//uint32_t dimsAddr;      // Pointer to the buffer with dimensions (int32_t[]).
-            reinterpret_cast<uint32_t>(this->strides), //uint32_t stridesAddr;   // Pointer to the buffer with strides in bits (int64_t[]).
+            reinterpret_cast<uint32_t>(this->stridesBits), //uint32_t stridesAddr;   // Pointer to the buffer with strides in bits (int64_t[]).
             static_cast<uint32_t>(this->dType), //  uint32_t dataType;      // An enum, which should be aligned between kernels and the compiler.
             static_cast<uint64_t>(ndOrder), //uint64_t dimsOrder;     // Packed permutation array.
             loc

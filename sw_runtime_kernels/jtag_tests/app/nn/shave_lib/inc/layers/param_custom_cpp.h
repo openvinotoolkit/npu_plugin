@@ -34,7 +34,7 @@ struct ScheduleInfo {
     uint32_t nShaves;
 };
 
-typedef void (*Kernel)(uint32_t lParams, uint8_t * cmxData, int32_t availableCmxBytes);
+typedef void (*Kernel)(uint32_t lParams/*, uint8_t * cmxData, int32_t availableCmxBytes*/);
 
 struct alignas(64) CustomLayerCppParams : LayerParams {
     // Buffers etc for kernel, argument, sched info data
