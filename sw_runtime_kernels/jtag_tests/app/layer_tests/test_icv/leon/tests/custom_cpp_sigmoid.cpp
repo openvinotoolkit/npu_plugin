@@ -74,31 +74,15 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Sigmoid)) {
 
             rand_seed();
 
-            if (customData) {
-                static const float data[] = {-6.1601562,  -10.28125,  -3.9277344,  -13.375,    -13.8046875, -9.2421875,
-                                             -6.6015625,  -2.3320312, -1.34375,    -1.7880859, -3.6308594,  9.5,
-                                             4.3984375,   6.9257812,  0.85058594,  11.53125,   0.26367188,  7.1640625,
-                                             -10.0078125, -7.9140625, -0.6176758,  -6.6679688, 4.9453125,   -3.6660156,
-                                             -8.734375,   23.1875,    3.359375,    15.5234375, -4.3242188,  3.0800781,
-                                             -1.5019531,  4.015625,   -0.84521484, 0.61279297, 5.3554688,   -0.85546875,
-                                             4.265625};
+            // set random seed
+            u64 ticks_for_seed = rtems_clock_get_uptime_nanoseconds();
+            srand(ticks_for_seed);
 
-                // input
-                int i = 0;
-                m_inputTensor.forEach(false, [&](const MemoryDims& indices) {
-                    m_inputTensor.at(indices) = f32Tof16(data[i++]);
-                });
-            } else {
-                // set random seed
-                u64 ticks_for_seed = rtems_clock_get_uptime_nanoseconds();
-                srand(ticks_for_seed);
-
-                // input
-                m_inputTensor.forEach(false, [&](const MemoryDims& indices) {
-                    float tmp = float(rand() % 1000) / 100 - 5.0f;
-                    m_inputTensor.at(indices) = f32Tof16(tmp);
-                });
-            }
+            // input
+            m_inputTensor.forEach(false, [&](const MemoryDims& indices) {
+                float tmp = float(rand() % 1000) / 100 - 5.0f;
+                m_inputTensor.at(indices) = f32Tof16(tmp);
+            });
         }
         void generateReferenceData() override {
             m_inputTensor.forEach(false, [&](const MemoryDims& indices) {
