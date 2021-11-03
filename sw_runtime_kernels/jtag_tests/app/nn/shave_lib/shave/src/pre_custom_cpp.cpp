@@ -144,7 +144,7 @@ void preCustomLayerCpp(const LayerParams *params, ShaveResourceManager *resMgr) 
 #endif
         if (cfg->kernel) {
             Kernel k = reinterpret_cast<Kernel>(cfg->kernel);
-            (*k)(reinterpret_cast<uint32_t>(cmxParams->argBuffer), cmxParams->cmxData, cmxParams->availableCmxBytes);
+            (*k)(reinterpret_cast<uint32_t>(cmxParams->argBuffer));
         }
         if (cfg->moveToCmxIfNecessary) {
             for (unsigned int i = 0; i < kernelArgs->numInputs; i++) {

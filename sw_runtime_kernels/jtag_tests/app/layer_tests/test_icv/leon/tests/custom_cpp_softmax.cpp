@@ -21,7 +21,7 @@ static constexpr std::initializer_list<SingleTest> softmax_test_list
     {{4, 4, 4}, {4, 4, 4}, orderZYX, FPE("softmax.elf"), {/*{{224, 1, 1}, {1, 128, 1}, {0, 0, 0}, 3, 0}, */{0 /*axis*/, sw_params::Location::NN_CMX/*mem type*/,}}},
     {{4, 4, 4}, {4, 4, 4}, orderZYX, FPE("softmax.elf"), {/*{{224, 1, 1}, {1, 128, 1}, {0, 0, 0}, 3, 0}, */{1 /*axis*/, sw_params::Location::NN_CMX/*mem type*/,}}},
     {{4, 4, 4}, {4, 4, 4}, orderZYX, FPE("softmax.elf"), {/*{{224, 1, 1}, {1, 128, 1}, {0, 0, 0}, 3, 0}, */{2 /*axis*/, sw_params::Location::NN_CMX/*mem type*/,}}},
-    {{3, 4, 5}, {3, 4, 5}, orderZYX, FPE("softmax.elf"), {/*{{224, 1, 1}, {1, 128, 1}, {0, 0, 0}, 3, 0}, */{2 /*axis*/, sw_params::Location::DDR/*mem type*/,}}},
+//    {{3, 4, 5}, {3, 4, 5}, orderZYX, FPE("softmax.elf"), {/*{{224, 1, 1}, {1, 128, 1}, {0, 0, 0}, 3, 0}, */{2 /*axis*/, sw_params::Location::DDR/*mem type*/,}}},
 //    {{8, 8, 8}, {8, 8, 8}, orderZYX, FPE("softmax.elf"), {/*{{224, 1, 1}, {1, 128, 1}, {0, 0, 0}, 3, 0}, */nn::shave_lib::SOFTMAX, {2 /*axis*/,}}},
 //    {{224, 128, 24}, {224, 128, 24}, orderZYX, FPE("softmax.elf"), {/*{{224, 1, 1}, {1, 128, 1}, {0, 0, 0}, 3, 0}, */nn::shave_lib::SOFTMAX, {0 /*axis*/,}}},
 //    {{224, 128, 24}, {224, 128, 24}, orderZYX, FPE("softmax.elf"), {/*{{224, 1, 1}, {1, 128, 1}, {0, 0, 0}, 3, 0}, */nn::shave_lib::SOFTMAX, {1 /*axis*/,}}},
