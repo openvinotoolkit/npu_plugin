@@ -567,7 +567,12 @@ void convDilationUsingWeightsFcn(const mv::pass::PassEntry&, mv::ComputationMode
         /*Create Dilated Kernel Tensor*/
 
         //build the dilated kernel with zero points corresponding to each channel - KMB does not support different zp per channel
-        std::vector<int64_t> defaultData(dilatedKernelShape.totalSize(), quantParams.getZeroPoint(0));
+        std::vector<int64_t> defaultData;
+        if (quantParams.isEmpty() || quantParams.isInitial() || quantParams.isNeutral())
+            defaultData = std::vector<int64_t>(dilatedKernelShape.totalSize(), 0);
+        else
+            defaultData = std::vector<int64_t>(dilatedKernelShape.totalSize(), quantParams.getZeroPoint(0));
+
         mv::Tensor dilatedKernel("dilatedKernel", dilatedKernelShape, nonDilatedKernel->getDType(), mv::Order(mv::Order::getColMajorID(dilatedKernelShape.ndims())), defaultData);
 
         for (unsigned oc = 0; oc < nonDilatedKernelOutpuChannels; ++oc)
