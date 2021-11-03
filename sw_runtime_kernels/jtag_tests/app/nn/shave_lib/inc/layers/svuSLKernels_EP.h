@@ -139,7 +139,6 @@ extern uint32_t SLK_preEdsl;
 extern uint32_t SLK_preResample;
 extern uint32_t SLK_preSoftmax;
 extern uint32_t SLK_singleShaveSoftmax;
-extern uint32_t SLK_preSigmoid_fp16;
 extern uint32_t SLK_sigmoid_fp16;
 extern uint32_t SLK_preCorrelation;
 extern uint32_t SLK_preROIPooling;
