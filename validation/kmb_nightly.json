@@ -2718,6 +2718,7 @@
                 "VPUX_COMPILER_TYPE": "MLIR",
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_THROUGHPUT_STREAMS": "1",
+                "VPUX_INFERENCE_TIMEOUT": "60000",
                 "VPUX_EXECUTOR_STREAMS":"1"
             },
             "3720": {
