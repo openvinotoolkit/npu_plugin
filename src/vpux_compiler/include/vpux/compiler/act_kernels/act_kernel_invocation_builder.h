@@ -30,6 +30,7 @@ class InvocationBuilder {
     llvm::SmallVector<char , 128> _arrayStorage;    // keeps arrays elements
 
     Logger _log;
+    size_t _win_e_offset;  //  offset of the beginning of invocation args within expected WIN_E
 
     // keeps offset to patchable field within _storage structure that need to be
     // updated after _storage and _arrayStorage gets concatenated
@@ -45,7 +46,7 @@ class InvocationBuilder {
 
 public:
 
-    InvocationBuilder(Logger log) : _log(log){}
+    InvocationBuilder(Logger log, size_t dataOffset) : _log(log), _win_e_offset(dataOffset) {}
 
     /**
      * register serialisation for given invocation argument, might be MemRefType or any other supported types

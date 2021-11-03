@@ -221,10 +221,10 @@ flatbuffers::Offset<MVCNN::ActKernelRuntime> createActKernelRuntime(VPUIP::BlobW
     llvm::SmallVector<uint8_t, 1024 + (1U << 16)> scratch_buffer(1024 +
                                                                  (1U << 16));  // 64KB scratch buffer + 1024 to align
 
-    const uint32_t non_empty_offset = 1;
+    const uint64_t non_empty_offset = 1;
     const auto scratchBuffer =
             writer.createKernelDataRef("scratch_buffer", vpux::VPUIP::MemoryLocation::GFEmbeddedKernel,
-                                       non_empty_offset, scratch_buffer.size(), scratch_buffer);
+                                       non_empty_offset, scratch_buffer.size() - 1024, scratch_buffer);
 
     MVCNN::ActKernelRuntimeBuilder builder(writer);
     builder.add_shaveStacks(stackBuffers);
@@ -522,7 +522,9 @@ flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, mli
 
     auto serializedGraphFile = MVCNN::GetGraphFile(detached.data());
 
-    auto alignSection = [&](const MVCNN::KernelDataReference* section, auto sectionLogical) {
+    // align KernelData section referenced by given reference
+    // returns moved offset
+    auto alignKernelDataSection = [&](const MVCNN::KernelDataReference* section, auto sectionLogical) {
         auto section_data = serializedGraphFile->kernel_data()->Get(section->locale_offset())->data();
 
         auto offset = section_data->Data() - detached.data();
@@ -542,11 +544,22 @@ flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, mli
         // clear beginning
         memset(const_cast<uint8_t*>(section_data->Data()), 0, offset);
 
+        return offset;
+    };
+
+    auto alignReferenceSection = [&](const MVCNN::KernelDataReference* section, uint32_t offset) {
         // correcting data offset for section in schema
         auto table = reinterpret_cast<flatbuffers::Table*>(const_cast<MVCNN::KernelDataReference*>(section));
 
+        const uint64_t non_empty_offset = 1;
         // updating offset pointer
-        table->SetField(MVCNN::KernelDataReference::VT_DATA_OFFSET, (uint32_t)offset, 0u);
+        table->SetField(MVCNN::KernelDataReference::VT_DATA_OFFSET,
+                        checked_cast<uint32_t>(section->data_offset() + offset - non_empty_offset), 0u);
+    };
+
+    auto alignSection = [&](const MVCNN::KernelDataReference* section, auto sectionLogical) {
+        auto offset = alignKernelDataSection(section, sectionLogical);
+        alignReferenceSection(section, offset);
     };
 
     // locating act-kernel
@@ -559,19 +572,14 @@ flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, mli
                 // Invocations aligning
                 auto invocations = actKernelTask->invocations();
                 for (auto&& invocation : *invocations) {
-                    auto invocationDataSection = invocation->dataSection();
-                    alignSection(invocationDataSection, ".data");
+                    auto offset = alignKernelDataSection(invocation->dataSection(), ".data");
+                    alignReferenceSection(invocation->dataSection(), offset);
+                    alignReferenceSection(invocation->invocationArgs(), offset);
                 }
 
                 // scratchBuffer aligning
                 auto scratchBuffer = serializedGraphFile->header()->act_kernel_runtime()->codeScratchBuffer();
                 alignSection(scratchBuffer, ".scratchBuffer");
-
-                auto scratchTable =
-                        reinterpret_cast<flatbuffers::Table*>(const_cast<MVCNN::KernelDataReference*>(scratchBuffer));
-
-                // updating scratch buffer size
-                scratchTable->SetField(MVCNN::KernelDataReference::VT_REFERENCED_DATA_SIZE, (uint32_t)65536, 0u);
             }
         }
     }

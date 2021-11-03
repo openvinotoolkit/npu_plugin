@@ -83,19 +83,7 @@ VPUIP::BlobWriter::Task vpux::VPUIP::BlobWriter::createTask(mlir::Operation* op)
     return off;
 }
 
-ActKernelDesc vpux::VPUIP::BlobWriter::createKernelData(const CompilationUnitDesc& unitDesc) {
-    auto dataName = std::string(unitDesc.name) + ".data";
-    auto itext = _actKernelsData.find(unitDesc.name.str());
-    auto idata = _actKernelsData.find(dataName);
-
-    if (idata != _actKernelsData.end() && itext != _actKernelsData.end()) {
-        return {itext->second, idata->second};
-    }
-
-    if (itext != _actKernelsData.end()) {
-        return {itext->second, {}};
-    }
-
+ActKernelDesc vpux::VPUIP::BlobWriter::compileKernelData(const CompilationUnitDesc& unitDesc) {
     movitools::MoviCompileParams params = {
             /*cpu=*/"3010xx",
             /*moviCompile=*/"linux64/bin/moviCompile",
@@ -114,18 +102,7 @@ ActKernelDesc vpux::VPUIP::BlobWriter::createKernelData(const CompilationUnitDes
             },
     };
 
-    auto newDesc = compileKernelForACTShave(unitDesc, params, _impl);
-    _log.trace("store following kernels names: {0}\n", unitDesc.name);
-    _actKernelsData[unitDesc.name.str()] = newDesc.text;
-
-    if (newDesc.data.size != 0) {
-        _log.trace("store following kernels names: {0}\n", dataName);
-        _actKernelsData[dataName] = newDesc.data;
-
-        return {_actKernelsData[unitDesc.name.str()], _actKernelsData[dataName]};
-    }
-
-    return {_actKernelsData[unitDesc.name.str()], {}};
+    return compileKernelForACTShave(unitDesc, params);
 }
 
 const vpux::VPUIP::BlobWriter::ActShavesKernelDataMap& vpux::VPUIP::BlobWriter::getKernelData() const {
@@ -135,18 +112,20 @@ const vpux::VPUIP::BlobWriter::ActShavesKernelDataMap& vpux::VPUIP::BlobWriter::
 vpux::VPUIP::BlobWriter::KernelDataRef vpux::VPUIP::BlobWriter::createKernelDataRef(const KernelDataDesc& desc,
                                                                                     MemoryLocation locale) {
     // offset is 1 to force field to be serialized by FB
-    uint64_t non_empty_offset = 1;
-    return createKernelDataRef(desc.name, locale, non_empty_offset, desc.size);
+    const uint64_t non_empty_offset = 1;
+    return createKernelDataRef(desc.name, locale, non_empty_offset, desc.size, desc.data);
 }
 
 vpux::VPUIP::BlobWriter::KernelDataRef vpux::VPUIP::BlobWriter::createKernelDataRef(
         StringRef name, MemoryLocation locale, uint64_t dataOffset, uint64_t dataSize, ArrayRef<uint8_t> content) {
-    auto kernelMapEntry = _actKernelsData.find(name.str());
-    if (kernelMapEntry == _actKernelsData.end()) {
+    auto kernelMapEntries = _actKernelsData.find(name.str());
+
+    // if cache not used - need to create unique_name
+    if (kernelMapEntries == _actKernelsData.end()) {
         // there is no kernelData for this name available
         // for now lets generate new kernelData entry using given content data
-        _log.trace("store following kernels names: {0}\n", name.data());
-        _actKernelsData[name.str()] = {name.data(), buildKernelData(_impl, content), content.size()};
+        _log.trace("Store new kernel in kernelData array: {0}\n", name);
+        _actKernelsData[name.data()] = {name.data(), buildKernelData(_impl, content), content.size()};
     }
     auto strName = _impl.CreateString(name.data());
     const auto serializedLocale = createMemoryLocation(locale);
@@ -155,7 +134,7 @@ vpux::VPUIP::BlobWriter::KernelDataRef vpux::VPUIP::BlobWriter::createKernelData
 
     kernelData.add_referenced_data_size(checked_cast<uint32_t>(dataSize));
     kernelData.add_locale(serializedLocale);
-    auto mappedLocaleIterator = _actKernelsData.find(name.str());
+    auto mappedLocaleIterator = _actKernelsData.find(name.data());
     auto mappedLocaleIndex = std::distance(_actKernelsData.begin(), mappedLocaleIterator);
 
     kernelData.add_locale_offset(vpux::checked_cast<uint32_t>(mappedLocaleIndex));
@@ -165,14 +144,13 @@ vpux::VPUIP::BlobWriter::KernelDataRef vpux::VPUIP::BlobWriter::createKernelData
     return kernelData.Finish();
 }
 
-vpux::VPUIP::BlobWriter::KernelDataRef vpux::VPUIP::BlobWriter::createInvocationArgs(
-        mlir::Operation* op, vpux::VPUIP::MemoryLocation locale) {
+SmallVector<uint8_t, 128> vpux::VPUIP::BlobWriter::createInvocationArgs(mlir::Operation* op, size_t dataOffset) {
     VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in createSW_KernelTask");
 
     auto swKernelTask = mlir::dyn_cast<VPUIP::SW_Kernel>(op);
     VPUX_THROW_UNLESS(swKernelTask != nullptr, "Operation '{0}' is not a SW_Kernel Task", op->getName());
 
-    vpux::InvocationBuilder invocationBuilder(_log);
+    vpux::InvocationBuilder invocationBuilder(_log, dataOffset);
 
     for (auto&& kernelRun : swKernelTask.body().getOps<VPUIP::SW_Kernel_run>()) {
         auto insSize = swKernelTask.inputs().size();
@@ -198,12 +176,7 @@ vpux::VPUIP::BlobWriter::KernelDataRef vpux::VPUIP::BlobWriter::createInvocation
         }
     }
 
-    auto invocationData = invocationBuilder.store();
-
-    auto invocationArgs =
-            createKernelDataRef(op->getName().getStringRef(), locale, 0, invocationData.size(), invocationData);
-
-    return invocationArgs;
+    return invocationBuilder.store();
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createSW_KernelTask(mlir::Operation* op) {
@@ -229,7 +202,7 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createSW_KernelTask(mli
 
     // TODO : check that arguments in given function
     CompilationUnitDesc compilationDesc = {kernelFunc.getName(), kernelEntryPoint.getValue(), kernelCode.getValue()};
-    auto actKernelDesc = createKernelData(compilationDesc);
+    auto actKernelDesc = compileKernelData(compilationDesc);
 
     // this is the only supported storage so far
     const auto kernelStorageLocale = vpux::VPUIP::MemoryLocation::GFEmbeddedKernel;
@@ -252,14 +225,49 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createSW_KernelTask(mli
 
     auto barrierReference = MVCNN::CreateBarrierReference(_impl, waitBarriers, updateBarriers);
 
-    auto invocationArgs = createInvocationArgs(op, kernelStorageLocale);
+    // NOTE: order of .data, and invocation args matters in WIN_E
+    // . 1K aligned data section followed by invocation args.
+    // .data section is accessible from WIN_E adress
+    // invocation args accessible from  WIN_E + sizeof(.data section)
 
-    auto dataSection = createKernelDataRef(actKernelDesc.data, kernelStorageLocale);
+    auto invocationArgs = createInvocationArgs(op, actKernelDesc.data.size);
+
+    auto invocationArgsAndData = invocationArgs;
+    invocationArgsAndData.insert(invocationArgsAndData.begin(), actKernelDesc.data.data.begin(),
+                                 actKernelDesc.data.data.end());
+
+    // padding for further alignment
+    for (int i = 0; i != 512; i++) {
+        invocationArgsAndData.push_back(0xFC);
+        invocationArgsAndData.push_back(0xCC);
+    }
+
+    llvm::SmallString<128> uniqueInvocationName(kernelFunc.getName());
+    uniqueInvocationName.append("_invo");
+
+    auto kernelMapEntries = _actKernelsData.count(uniqueInvocationName.c_str());
+
+    // cache not used since we refer to same actKernelData for invocation and for .data section
+    if (kernelMapEntries != 0) {
+        uniqueInvocationName.push_back('_');
+        uniqueInvocationName.append(StringRef(std::to_string(kernelMapEntries)));
+    }
+
+    const uint64_t non_empty_offset = 1;
+
+    // offset is preliminary and will be further corrected 1 is force flatbuffer to produce 4 bytes in storage
+    auto dataSection = createKernelDataRef(uniqueInvocationName, kernelStorageLocale, non_empty_offset,
+                                           actKernelDesc.data.size, invocationArgsAndData);
+
+    // offset is preliminary and will be further corrected
+    auto invocationSection = createKernelDataRef(uniqueInvocationName, kernelStorageLocale,
+                                                 non_empty_offset + actKernelDesc.data.data.size(),
+                                                 invocationArgs.size(), invocationArgsAndData);
 
     MVCNN::ActKernelInvocationBuilder invocationBuilder(_impl);
     invocationBuilder.add_dataSection(dataSection);
     invocationBuilder.add_associatedBarriers(barrierReference);
-    invocationBuilder.add_invocationArgs(invocationArgs);
+    invocationBuilder.add_invocationArgs(invocationSection);
 
     std::vector<flatbuffers::Offset<MVCNN::ActKernelInvocation>> invocations_v1 = {invocationBuilder.Finish()};
 
