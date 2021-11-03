@@ -567,7 +567,7 @@ def IE_ConvolutionOp :
     let arguments = (ins
         RankedTensorOf<[F16, F32, quant_QuantizedType]>:$input,
         RankedTensorOf<[F16, F32, quant_QuantizedType]>:$filter,
-        Optional<RankedTensorOf<[F16, F32, quant_QuantizedType]>>:$bias,
+        Optional<RankedTensorOf<[F16, F32]>>:$bias,
 
         I64ArrayAttr:$strides,
         I64ArrayAttr:$pads_begin,
@@ -599,7 +599,7 @@ def IE_GroupConvolutionOp :
     let arguments = (ins
         RankedTensorOf<[F16, F32, quant_QuantizedType]>:$input,
         RankedTensorOf<[F16, F32, quant_QuantizedType]>:$filter,
-        Optional<RankedTensorOf<[F16, F32, quant_QuantizedType]>>:$bias,
+        Optional<RankedTensorOf<[F16, F32]>>:$bias,
 
         I64ArrayAttr:$strides,
         I64ArrayAttr:$pads_begin,

@@ -84,6 +84,64 @@ mlir::LogicalResult FuseWithConv::matchAndRewrite(IE::QuantizeOp quantizeOp, mli
 }
 
 //
+// FuseWithGroupConv
+//
+
+//
+//       [input]
+//          |
+//     (dequantize)
+//          |
+//        (conv) --- (dequantize) -- [filter]
+//          |
+//       [output]
+//          |
+//      (quantize)
+//
+
+class FuseWithGroupConv final : public mlir::OpRewritePattern<IE::QuantizeOp> {
+public:
+    FuseWithGroupConv(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<IE::QuantizeOp>(ctx), _log(log) {
+        setDebugName("FuseWithGroupConv");
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(IE::QuantizeOp quantizeOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult FuseWithGroupConv::matchAndRewrite(IE::QuantizeOp quantizeOp,
+                                                       mlir::PatternRewriter& rewriter) const {
+    auto grConvOp = quantizeOp.input().getDefiningOp<IE::GroupConvolutionOp>();
+    if (grConvOp == nullptr) {
+        return mlir::failure();
+    }
+
+    if (VPUIP::NCEInvariant::verifyKernel(grConvOp, _log).failed()) {
+        return mlir::failure();
+    }
+
+    auto inputDequantizeOp = grConvOp.input().getDefiningOp<IE::DequantizeOp>();
+    if (inputDequantizeOp == nullptr) {
+        return mlir::failure();
+    }
+
+    auto filterDequantizeOp = grConvOp.filter().getDefiningOp<IE::DequantizeOp>();
+    if (filterDequantizeOp == nullptr) {
+        return mlir::failure();
+    }
+
+    rewriter.replaceOpWithNewOp<IE::GroupConvolutionOp>(
+            quantizeOp, quantizeOp.getType(), inputDequantizeOp.input(), filterDequantizeOp.input(), grConvOp.bias(),
+            grConvOp.strides(), grConvOp.pads_begin(), grConvOp.pads_end(), grConvOp.dilations(), grConvOp.groupsAttr(),
+            grConvOp.post_opAttr());
+
+    return mlir::success();
+}
+
+//
 // FuseWithMaxPool
 //
 
@@ -417,6 +475,7 @@ void FuseQuantizedOpsPass::safeRunOnFunc() {
 
     mlir::OwningRewritePatternList patterns(&ctx);
     patterns.add<FuseWithConv>(&ctx, _log);
+    patterns.add<FuseWithGroupConv>(&ctx, _log);
     patterns.add<FuseWithEltwiseAdd>(&ctx, _log);
     patterns.add<FuseWithSlice>(&ctx, _log);
     patterns.add<FuseWithMaxPool>(&ctx, _log);

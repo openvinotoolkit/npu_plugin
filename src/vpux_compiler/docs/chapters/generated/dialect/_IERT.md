@@ -463,7 +463,7 @@ operation ::= `IERT.Convolution` attr-dict
 | :-----: | ----------- |
 `input` | memref of 16-bit float or 32-bit float or QuantizedType values
 `filter` | memref of 16-bit float or 32-bit float or QuantizedType values
-`bias` | memref of 16-bit float or 32-bit float or QuantizedType values
+`bias` | memref of 16-bit float or 32-bit float values
 `output_buff` | memref of 16-bit float or 32-bit float or QuantizedType values
 
 #### Results:
@@ -990,16 +990,16 @@ operation ::= `IERT.GroupConvolution` attr-dict
 
 | Operand | Description |
 | :-----: | ----------- |
-`input` | memref of 16-bit float or 32-bit float values
-`filter` | memref of 16-bit float or 32-bit float values
+`input` | memref of 16-bit float or 32-bit float or QuantizedType values
+`filter` | memref of 16-bit float or 32-bit float or QuantizedType values
 `bias` | memref of 16-bit float or 32-bit float values
-`output_buff` | memref of 16-bit float or 32-bit float values
+`output_buff` | memref of 16-bit float or 32-bit float or QuantizedType values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-`output` | memref of 16-bit float or 32-bit float values
+`output` | memref of 16-bit float or 32-bit float or QuantizedType values
 
 ### `IERT.HSwish` (vpux::IERT::HSwishOp)
 

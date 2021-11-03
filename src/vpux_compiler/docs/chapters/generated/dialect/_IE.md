@@ -416,7 +416,7 @@ operation ::= `IE.Convolution` `(` operands `)` attr-dict `:` type(operands) `->
 | :-----: | ----------- |
 `input` | ranked tensor of 16-bit float or 32-bit float or QuantizedType values
 `filter` | ranked tensor of 16-bit float or 32-bit float or QuantizedType values
-`bias` | ranked tensor of 16-bit float or 32-bit float or QuantizedType values
+`bias` | ranked tensor of 16-bit float or 32-bit float values
 
 #### Results:
 
@@ -928,7 +928,7 @@ operation ::= `IE.GroupConvolution` `(` operands `)` attr-dict `:` type(operands
 | :-----: | ----------- |
 `input` | ranked tensor of 16-bit float or 32-bit float or QuantizedType values
 `filter` | ranked tensor of 16-bit float or 32-bit float or QuantizedType values
-`bias` | ranked tensor of 16-bit float or 32-bit float or QuantizedType values
+`bias` | ranked tensor of 16-bit float or 32-bit float values
 
 #### Results:
 
