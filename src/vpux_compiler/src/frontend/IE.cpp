@@ -250,6 +250,7 @@ private:
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::LogicalAnd>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::LSTMSequence>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Ceiling>& origNode);
+    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::CumSum>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Equal>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::DepthToSpace>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::ReverseSequence>& origNode);
@@ -391,6 +392,7 @@ NGraphImporter::Callback NGraphImporter::getParser(const std::shared_ptr<ngraph:
             MAP_ENTRY(opset_latest::LogicalAnd),
             MAP_ENTRY(opset_latest::LSTMSequence),
             MAP_ENTRY(opset_latest::Ceiling),
+            MAP_ENTRY(opset_latest::CumSum),
             MAP_ENTRY(opset_latest::SoftPlus),
             MAP_ENTRY(opset_latest::Equal),
             MAP_ENTRY(opset_latest::DepthToSpace),
@@ -1991,6 +1993,23 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
     const auto modeAttr = importSpaceToDepthMode(origNode->get_mode());
 
     auto op = builder.create<IE::SpaceToDepthOp>(createLocation(origNode), inputs[0], blockSizeAttr, modeAttr);
+    addOutputs(origNode, op);
+}
+
+void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::CumSum>& origNode) {
+    static_assert(std::is_same<std::decay<decltype(*origNode)>::type, opset_latest::CumSum>::value,
+                  "opset operation mismatch");
+
+    const auto inputs = getInputs(origNode);
+
+    VPUX_THROW_UNLESS(inputs.size() == 2, "nGraph CumSum node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
+
+    const auto exclusiveAttr = mlir::BoolAttr::get(_ctx, origNode->is_exclusive());
+    const auto reverseAttr = mlir::BoolAttr::get(_ctx, origNode->is_reverse());
+
+    auto op = builder.create<IE::CumSumOp>(createLocation(origNode), inputs[0], inputs[1], nullptr, exclusiveAttr,
+                                           reverseAttr);
     addOutputs(origNode, op);
 }
 

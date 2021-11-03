@@ -2834,6 +2834,32 @@ def IE_CeilingOp :
 }
 
 //
+// CumSumOp
+//
+
+def IE_CumSumOp:
+        IE_LayerOp<
+            "CumSum"
+        > {
+    let summary = "InferenceEngine CumSum layer";
+
+    let arguments = (ins
+        AnyRankedTensor:$input,
+        Optional<0DTensorOf<[AnyInteger]>>:$axis,
+
+        OptionalAttr<IntAttr>:$axis_value,
+        OptionalAttr<BoolAttr>:$exclusive,
+        OptionalAttr<BoolAttr>:$reverse
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+
+    let hasCanonicalizer = 1;
+}
+
+//
 // EqualOp
 //
 

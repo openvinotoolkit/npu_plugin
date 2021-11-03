@@ -584,6 +584,38 @@ operation ::= `IE.Cosh` `(` operands `)` attr-dict `:` type(operands) `->` type(
 | :----: | ----------- |
 `output` | ranked tensor of 16-bit float or 32-bit float values
 
+### `IE.CumSum` (vpux::IE::CumSumOp)
+
+InferenceEngine CumSum layer
+
+
+Syntax:
+
+```
+operation ::= `IE.CumSum` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`exclusive` | ::mlir::BoolAttr | bool attribute
+`reverse` | ::mlir::BoolAttr | bool attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of any type values
+`axis` | 0D tensor of integer values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values
+
 ### `IE.DataInfo` (vpux::IE::DataInfoOp)
 
 Information about InferenceEngine CNN Network input/output Data object
