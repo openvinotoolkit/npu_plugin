@@ -17,6 +17,20 @@
 include "mlir/Pass/PassBase.td"
 
 //
+// GroupProfilingBuffers
+//
+
+def GroupProfilingBuffers : PassBase<"group-profiling-buffers", "vpux::ModulePass"> {
+    let summary = "Group profiling buffers into single output buffer";
+
+    let description = [{
+        Group profiling buffers into single output buffer
+    }];
+
+    let constructor = "vpux::VPUIP::createGroupProfilingBuffersPass()";
+}
+
+//
 // ConvertWeightsTableOp2Const
 //
 

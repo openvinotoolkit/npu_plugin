@@ -210,6 +210,9 @@ void vpux::buildReferenceHWModePipeline(mlir::OpPassManager& pm, const Reference
 
     // Level 1 : VPU RunTime
 
+    if (enableProfiling) {
+        pm.addPass(VPUIP::createGroupProfilingBuffersPass(log));
+    }
     pm.addPass(VPURT::createAssignPhysicalBarriersPass(log));
     pm.addPass(VPURT::createBarrierSimulationPass(log));
     pm.addPass(VPUIP::createDumpStatisticsOfTaskOpsPass(log));
