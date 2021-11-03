@@ -234,6 +234,10 @@ void vpux::buildReferenceHWModePipeline(mlir::OpPassManager& pm, bool enableProf
     // Finally lower remaining IERT->VPUIP (SW mode)
     buildLowerIERT2VPUIPPipeline(pm, log);
 
+    if (enableProfiling) {
+        pm.addPass(VPUIP::createGroupProfilingBuffersPass(log));
+    }
+
     // VPUIP Dialect level
     pm.addPass(VPURT::createAssignPhysicalBarriersPass(log));
     pm.addPass(VPURT::createBarrierSimulationPass(log));

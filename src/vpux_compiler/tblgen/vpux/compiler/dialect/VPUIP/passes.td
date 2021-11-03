@@ -54,6 +54,16 @@ def SetCompileParams : PassBase<"set-compile-params", "vpux::ModulePass"> {
     ];
 }
 
+def GroupProfilingBuffers : PassBase<"group-profiling-buffers", "vpux::ModulePass"> {
+    let summary = "Group profiling buffers into single output buffer";
+
+    let description = [{
+        Group profiling buffers into single output buffer
+    }];
+
+    let constructor = "vpux::VPUIP::createGroupProfilingBuffersPass()";
+}
+
 //
 // ConvertWeightsTableOp2Const
 //
