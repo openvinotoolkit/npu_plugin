@@ -226,7 +226,7 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1
 // CHECK:          name: "scratch_buffer",
 // CHECK:          locale: "GFEmbeddedKernel",
 // CHECK:          locale_offset: 4,
-// CHECK:          data_offset: 800,
+// CHECK:          data_offset: 808,
 // CHECK:          referenced_data_size: 65536
 // CHECK:        }
 // CHECK:     }
@@ -258,7 +258,7 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1
 // CHECK:                  name: "builtin_sigmoid",
 // CHECK:                  locale: "GFEmbeddedKernel",
 // CHECK:                  locale_offset: 5,
-// CHECK:                  data_offset: 268,
+// CHECK:                  data_offset: 276,
 // CHECK:                  referenced_data_size: 624
 // CHECK:                }
 // CHECK:              },
@@ -273,16 +273,16 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1
 // CHECK:                    ]
 // CHECK:                  },
 // CHECK:                  dataSection: {
-// CHECK:                    name: "builtin_sigmoid.data",
+// CHECK:                    name: "builtin_sigmoid_invo",
 // CHECK:                    locale: "GFEmbeddedKernel",
 // CHECK:                    locale_offset: 6,
-// CHECK:                    data_offset: 292,
-// CHECK:                    referenced_data_size: 1024
+// CHECK:                    data_offset: 572
 // CHECK:                  },
 // CHECK:                  invocationArgs: {
-// CHECK:                    name: "VPUIP.SW.Kernel",
+// CHECK:                    name: "builtin_sigmoid_invo",
 // CHECK:                    locale: "GFEmbeddedKernel",
-// CHECK:                    locale_offset: 7,
+// CHECK:                    locale_offset: 6,
+// CHECK:                    data_offset: 572,
 // CHECK:                    referenced_data_size: 176
 // CHECK:                  }
 // CHECK:                }
