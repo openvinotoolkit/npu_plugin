@@ -11,9 +11,9 @@
 #include <moviVectorConvert.h>
 
 #ifdef CONFIG_TARGET_SOC_3720
-#include <dma_shave_params_nn.h>
+#include <dma_shave_nn.h>
 #else
-#include <dma_shave_params.h>
+#include <dma_shave.h>
 #endif
 
 using namespace sw_params;
