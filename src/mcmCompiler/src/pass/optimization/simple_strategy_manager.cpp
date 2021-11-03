@@ -167,11 +167,12 @@ std::vector<size_t> StrategyManagerSimple::getStreamsOverH(mv::Op& op, mv::Attri
                                     bool wSparsity, bool fSparsity, bool spilling, bool parentSpilling)
 {
     std::vector<std::string> hack_list = {
-            "MobilenetV2/expanded_conv_1/project/BatchNorm/FusedBatchNorm/variance/Fused_Add_"
-            , "MobilenetV2/expanded_conv_2/expand/BatchNorm/FusedBatchNorm/variance/Fused_Add_"
+        "MobilenetV2/expanded_conv_2/project/BatchNorm/FusedBatchNorm/variance/Fused_Add_"
+        , "MobilenetV2/expanded_conv_2/add"
+        , "MobilenetV2/expanded_conv_3/expand/BatchNorm/FusedBatchNorm/variance/Fused_Add_"
     };
     if (std::find(hack_list.begin(), hack_list.end(), op.getName()) != hack_list.end())
-        return {17, 1};
+        return {22};
 
     auto minSplitsToFit = getMinStreamOverH(op, clustering, streams, iSparsity, oSparsity, wSparsity, fSparsity, spilling, parentSpilling);
     if( minSplitsToFit == 0 || // stream over h alone doesn't fit

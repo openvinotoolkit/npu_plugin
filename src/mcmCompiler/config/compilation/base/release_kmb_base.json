@@ -130,10 +130,10 @@
                 "name": "ConvertDot",
                 "input": "output/dots/VerticalFusionTransformation.dot"
             },
-            "HackGraph2",
+            "HackGraph3",
             {
                 "name": "GenerateDot",
-                "output": "output/dots/HackGraph2.dot",
+                "output": "output/dots/HackGraph3.dot",
                 "scope": "OpModel",
                 "content": "full",
                 "html": true,
@@ -141,7 +141,7 @@
             },
             {
                 "name": "ConvertDot",
-                "input": "output/dots/HackGraph2.dot"
+                "input": "output/dots/HackGraph3.dot"
             },
             "StreamBinaryDataWeights",
             "StreamCopyOperations"
