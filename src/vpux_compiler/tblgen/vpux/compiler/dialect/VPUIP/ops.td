@@ -2627,6 +2627,66 @@ def VPUIP_CeilingUPAOp :
 }
 
 //
+// CumSumUPAOp
+//
+
+def VPUIP_CumSumUPAOp :
+        VPUIP_UPATaskOp<1, "CumSumUPA",
+            [
+                ViewLikeOpInterface,
+                IERT_SameShape,
+                IERT_SameElementType,
+                IERT_SameInOutDimsOrder
+            ]
+        > {
+    let summary = "CumSum UPA SHAVE kernel";
+
+    let arguments = (ins
+        F16MemRef:$input,
+        Optional<MemRefOf<[SI32]>>:$axis,
+        F16MemRef:$output_buff,
+
+        Variadic<VPUIP_Barrier>:$waitBarriers,
+        Variadic<VPUIP_Barrier>:$updateBarriers,
+
+        OptionalAttr<BoolAttr>:$exclusive,
+        OptionalAttr<BoolAttr>:$reverse,
+
+        OptionalAttr<IntAttr>:$maxShaves,
+        UnitAttr:$isTrailingSWLayer
+    );
+
+    let results = (outs
+        F16MemRef:$output
+    );
+
+    let builders = [
+        OpBuilder<
+            (ins
+                "mlir::Value":$input,
+                "mlir::Value":$axis,
+                "mlir::Value":$output,
+                "mlir::BoolAttr":$exclusive,
+                "mlir::BoolAttr":$reverse
+            )
+        >
+    ];
+
+    let verifier = [{
+        return vpux::VPUIP::verifyOp(*this);
+    }];
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) (`,` $axis^ `:` type($axis))? `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+        `->` type(results)
+    }];
+}
+
+//
 // GatherElementsUPAOp
 //
 
