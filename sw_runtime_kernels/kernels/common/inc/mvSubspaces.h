@@ -272,8 +272,8 @@ INLINE_ATTRIBUTE bool isPermutationValid(const NDDims& perm);
 INLINE_ATTRIBUTE bool isOrderNDValid(NDOrder ndOrder);
 
 }  // namespace subspace
-#ifdef ALWAYS_INLINE
-#include "../src/dma_shave_nn.cpp"
+#ifdef CONFIG_ALWAYS_INLINE
+#include "../src/mvSubspaces.cpp"
 #endif
 
 #endif  // MV_SUBSOACES_H_

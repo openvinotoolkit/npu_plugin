@@ -132,6 +132,7 @@ static void compileAndLinkSHAVE(const movitools::MoviCompileParams& params, cons
                            " -EL {4} --output {5}",
                            linker, linkerScriptPath, entryPoint.c_str(), objPath, singleLib, elfPath)
                            .str();
+    std::cout << linkCmd << std::endl;
 //    if (std::system(linkCmd.c_str())) {
 //        VPUX_THROW("linker failed: {0}", linkCmd);
 //    }
@@ -144,6 +145,7 @@ static void compileAndLinkSHAVE(const movitools::MoviCompileParams& params, cons
 
     {
         auto objCopyCmd = formatv("{0} -O binary --only-section=.text {1} {2}", objcopy, elfPath, textPath).str();
+        std::cout << objCopyCmd << std::endl;
 //        if (std::system(objCopyCmd.c_str())) {
 //            VPUX_THROW("objcopy failed: {0}", objCopyCmd);
 //        }
@@ -155,6 +157,7 @@ static void compileAndLinkSHAVE(const movitools::MoviCompileParams& params, cons
     {
         auto objCopyCmd = formatv("{0} -O binary --only-section=.arg.data {1} {2}", objcopy, elfPath, dataPath).str();
 
+        std::cout << objCopyCmd << std::endl;
 //        if (std::system(objCopyCmd.c_str())) {
 //            VPUX_THROW("objcopy failed: {0}", objCopyCmd);
 //        }

@@ -11,9 +11,9 @@
 #include <moviVectorConvert.h>
 
 #ifdef CONFIG_TARGET_SOC_3720
-#include <dma_shave_params_nn.h>
+#include <dma_shave_nn.h>
 #else
-#include <dma_shave_params.h>
+#include <dma_shave.h>
 #endif
 
 using namespace sw_params;
@@ -467,9 +467,9 @@ void singleShaveSoftmax(uint32_t lParams/*, uint8_t * cmxData, int32_t available
     sp->ndims = layerParams->input.numDims;
 //    p_act_out[7] = (fp16)(sp->ndims);
 
-    int32_t *pDims     = (int32_t *)((uint8_t*)(lParams) + layerParams->input.dimsAddr);    // 0x1F000000 + dimsAddr
-    int64_t *iPStrides = (int64_t *)((uint8_t*)(lParams) + layerParams->input.stridesAddr); // 0x1F000000 + stridesAddr
-    int64_t *oPStrides = (int64_t *)((uint8_t*)(lParams) + layerParams->output.stridesAddr); // 0x1F000000 + stridesAddr
+    int32_t *pDims     = (int32_t *)(/*(uint8_t*)(lParams) + */layerParams->input.dimsAddr);    // 0x1F000000 + dimsAddr
+    int64_t *iPStrides = (int64_t *)(/*(uint8_t*)(lParams) + */layerParams->input.stridesAddr); // 0x1F000000 + stridesAddr
+    int64_t *oPStrides = (int64_t *)(/*(uint8_t*)(lParams) + */layerParams->output.stridesAddr); // 0x1F000000 + stridesAddr
 //    ((uint32_t*)(p_act_out+32))[5] = (uint32_t)pDims;
 //    ((uint32_t*)(p_act_out+32))[6] = (uint32_t)pStrides;
     //        memcpy_s(dims, ndims * sizeof(int32_t), reinterpret_cast<uint8_t *>(data.dimsAddr), ndims * sizeof(int32_t));
@@ -480,8 +480,8 @@ void singleShaveSoftmax(uint32_t lParams/*, uint8_t * cmxData, int32_t available
     p_act_out[15 + 3] = iPStrides[3];
     for (int i = 0; i < layerParams->input.numDims; i++) {
         sp->in_dims[i] = pDims[i];
-        sp->in_strides[i] = iPStrides[i] / 8;
-        sp->out_strides[i] = oPStrides[i] / 8;
+        sp->in_strides[i] = iPStrides[i] / CHAR_BIT;
+        sp->out_strides[i] = oPStrides[i] / CHAR_BIT;
     }
 
     // excluding dim == 1 from dims

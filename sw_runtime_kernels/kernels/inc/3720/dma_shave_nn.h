@@ -121,7 +121,7 @@ private:
 //    }
 //};
 
-#ifdef ALWAYS_INLINE
+#ifdef CONFIG_ALWAYS_INLINE
 #include "../../3720/dma_shave_nn.cpp"
 #endif
 
