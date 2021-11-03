@@ -1012,6 +1012,12 @@ mlir::Operation* createRTLayer(IE::CeilingOp origOp, ArrayRef<mlir::Value> allBu
     return b.create<IERT::CeilingOp>(origOp.getLoc(), newOp.input(), newOp.output_buff());
 }
 
+mlir::Operation* createRTLayer(IE::CumSumOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::CumSumOp::Adaptor newOp(allBufs);
+    return b.create<IERT::CumSumOp>(origOp.getLoc(), newOp.input(), newOp.axis(), newOp.output_buff(),
+                                    origOp.axis_valueAttr(), origOp.exclusiveAttr(), origOp.reverseAttr());
+}
+
 mlir::Operation* createRTLayer(IE::NormalizeIEOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::NormalizeIEOp::Adaptor newOp(allBufs);
     return b.create<IERT::NormalizeIEOp>(origOp.getLoc(), newOp.data(), newOp.weights(), newOp.output_buff(),
@@ -1187,6 +1193,7 @@ mlir::LogicalResult LayerRewrite::matchAndRewrite(mlir::Operation* origOp, Array
     CASE(IE::MemPermuteOp)
     CASE(IE::SoftPlusOp)
     CASE(IE::CeilingOp)
+    CASE(IE::CumSumOp)
     CASE(IE::NormalizeIEOp)
     CASE(IE::EqualOp)
     CASE(IE::UpsamplingOp)
