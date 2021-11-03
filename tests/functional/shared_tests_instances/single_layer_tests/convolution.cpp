@@ -267,4 +267,29 @@ INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_LargeStrides, KmbConvolutionLayerTes
                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),  //
                         ConvolutionLayerTest::getTestCaseName);
 
+
+/* ============= 2D Convolution / ExplicitPadding ============= */
+// Test for checking only convolution layer -- without Permute/Convert and etc.
+
+const auto conv2DParams_ExplicitPadding_Simple =
+        ::testing::Combine(::testing::ValuesIn<SizeVector>({{3, 3}}),              // kernels
+                           ::testing::ValuesIn<SizeVector>({{1, 1}}),              // strides
+                           ::testing::ValuesIn<std::vector<ptrdiff_t>>({{1, 1}}),  // padBegins
+                           ::testing::ValuesIn<std::vector<ptrdiff_t>>({{1, 1}}),  // padEnds
+                           ::testing::ValuesIn<SizeVector>({{1, 1}}),              // dilations
+                           ::testing::Values(16),                                        // numOutChannels
+                           ::testing::Values(ngraph::op::PadType::EXPLICIT)                 // padType
+        );
+
+INSTANTIATE_TEST_CASE_P(conv2DParams_ExplicitPadding_Simple, KmbConvolutionLayerTest,
+                        ::testing::Combine(conv2DParams_ExplicitPadding_Simple,                  //
+                                           ::testing::Values(Precision::FP16),                   // netPrc
+                                           ::testing::Values(Precision::FP16),                   // inPrc
+                                           ::testing::Values(Precision::FP16),                   // outPrc
+                                           ::testing::Values(Layout::NHWC),                      // inLayout
+                                           ::testing::Values(Layout::NHWC),                      // outLayout
+                                           ::testing::ValuesIn<SizeVector>({{1, 16, 200, 100}}),  // inputShapes
+                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                        ConvolutionLayerTest::getTestCaseName);
+
 }  // namespace
