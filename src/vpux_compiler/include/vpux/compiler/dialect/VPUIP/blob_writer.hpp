@@ -68,7 +68,7 @@ public:
     using String = flatbuffers::Offset<flatbuffers::String>;
 
     using ActShavesKernelDataMap =
-            llvm::MapVector<std::string, KernelDataDesc, std::unordered_map<std::string, size_t>>;
+            llvm::MapVector<std::string, SerializedKernelDataDesc, std::unordered_map<std::string, size_t>>;
 
     template <typename T>
     using Vector = flatbuffers::Offset<flatbuffers::Vector<T>>;
@@ -83,11 +83,13 @@ public:
 public:
     SpecificTask createUPALayerTask(mlir::Operation* op, const SoftwareLayerParams& params);
 
-    KernelDataRef createInvocationArgs(mlir::Operation* op, vpux::VPUIP::MemoryLocation locale);
+    // invocation args layout right after .data section, so dataOffset is a size of .data section
+    llvm::SmallVector<uint8_t, 128> createInvocationArgs(mlir::Operation* op, size_t dataOffset);
 
     SpecificTask createSW_KernelTask(mlir::Operation* op);
 
-    ActKernelDesc createKernelData(const CompilationUnitDesc& unitDesc);
+    //  compiles kernel code and returns it's data and text sections
+    ActKernelDesc compileKernelData(const CompilationUnitDesc& unitDesc);
 
     KernelDataRef createKernelDataRef(StringRef name, MemoryLocation locale, uint64_t dataOffset, uint64_t dataSize,
                                       ArrayRef<uint8_t> content = None);

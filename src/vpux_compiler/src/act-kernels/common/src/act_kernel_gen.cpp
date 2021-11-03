@@ -48,7 +48,7 @@ flatbuffers::Offset<MVCNN::KernelData> buildKernelData(flatbuffers::FlatBufferBu
 }
 
 static void compileAndLinkSHAVE(const movitools::MoviCompileParams& params, const CompilationUnitDesc& unitDesc,
-                                std::vector<uint8_t>& textBinary, std::vector<uint8_t>& dataBinary) {
+                                SmallVector<uint8_t, 128>& textBinary, SmallVector<uint8_t, 128>& dataBinary) {
     std::string mvToolsDir = movitools::getMoviToolsDir();
 
     const StringRef genDir = KERNEL_DIRECTORY;
@@ -155,7 +155,7 @@ static void compileAndLinkSHAVE(const movitools::MoviCompileParams& params, cons
         }
     }
 
-    auto readBinary = [](SmallString<128>& path, std::vector<uint8_t>& buffer, uint32_t alignment = 1) {
+    auto readBinary = [](SmallString<128>& path, SmallVector<uint8_t, 128>& buffer, uint32_t alignment = 1) {
         std::string err;
         auto elfFile = mlir::openInputFile(path, &err);
         if (!elfFile) {
@@ -171,7 +171,7 @@ static void compileAndLinkSHAVE(const movitools::MoviCompileParams& params, cons
         auto totalBytes = std::distance(elfBuffer.begin(), elfBuffer.end());
         auto padBytes = -totalBytes & (alignment - 1);
         if (padBytes) {
-            std::fill_n(back_inserter(buffer), padBytes, 0);
+            std::fill_n(std::back_inserter(buffer), padBytes, 0);
         }
     };
 
@@ -179,30 +179,25 @@ static void compileAndLinkSHAVE(const movitools::MoviCompileParams& params, cons
     readBinary(dataPath, dataBinary, 0x10);
 }
 
-ActKernelDesc compileKernelForACTShave(const CompilationUnitDesc& unitDesc, const movitools::MoviCompileParams& params,
-                                       flatbuffers::FlatBufferBuilder& fbb) {
+ActKernelDesc compileKernelForACTShave(const CompilationUnitDesc& unitDesc,
+                                       const movitools::MoviCompileParams& params) {
     // Use moviCompile to compile and link C source code into an ELF binary.
     // and then using objcopy teardown elf into text and data sections
-    std::vector<uint8_t> textBinary;
-    std::vector<uint8_t> dataBinary;
+    SmallVector<uint8_t, 128> textBinary;
+    SmallVector<uint8_t, 128> dataBinary;
     compileAndLinkSHAVE(params, unitDesc, textBinary, dataBinary);
 
-    // lets pad textBinary by 1K array at the enf with FC CC FC CC
+    // lets pad textBinary by 1K array at the end with FC CC FC CC
     for (int i = 0; i != 512; i++) {
         textBinary.push_back(0xFC);
         textBinary.push_back(0xCC);
     }
-    for (int i = 0; i != 512; i++) {
-        dataBinary.push_back(0xFC);
-        dataBinary.push_back(0xCC);
-    }
 
     ActKernelDesc result;
-
-    result.text = {unitDesc.name.data(), buildKernelData(fbb, textBinary), textBinary.size() - 1024};
+    result.text = {unitDesc.name.data(), textBinary, textBinary.size() - 1024};
 
     auto dataName = std::string(unitDesc.name) + ".data";
-    result.data = {dataName, buildKernelData(fbb, dataBinary), dataBinary.size()};
+    result.data = {dataName, dataBinary, dataBinary.size()};
 
     return result;
 }

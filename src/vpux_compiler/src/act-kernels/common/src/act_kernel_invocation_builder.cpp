@@ -39,7 +39,7 @@ void InvocationBuilder::addArg(mlir::Value operand) {
 llvm::SmallVector<uint8_t> InvocationBuilder::store() const {
     llvm::SmallVector<uint8_t, 128> serialStorage(_storage.begin(), _storage.end());
 
-    auto patchBase = serialStorage.size() + mvds::nce2p7::ACT_KERNEL_DATA_WINDOW;
+    auto patchBase = _win_e_offset + serialStorage.size() + mvds::nce2p7::ACT_KERNEL_DATA_WINDOW;
     serialStorage.insert(serialStorage.end(), _arrayStorage.begin(), _arrayStorage.end());
     for (auto&& field : _deferredPointers) {
         field.patch(serialStorage, patchBase);
