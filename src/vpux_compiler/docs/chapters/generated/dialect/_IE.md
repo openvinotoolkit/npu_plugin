@@ -1949,15 +1949,15 @@ operation ::= `IE.Select` `(` operands `)` attr-dict `:` type(operands) `->` typ
 
 | Operand | Description |
 | :-----: | ----------- |
-`input1` | ranked tensor of any type values
-`input2` | ranked tensor of any type values
-`input3` | ranked tensor of any type values
+`input1` | ranked tensor of 8-bit signless integer or 16-bit float or 32-bit float values
+`input2` | ranked tensor of 8-bit signless integer or 16-bit float or 32-bit float values
+`input3` | ranked tensor of 8-bit signless integer or 16-bit float or 32-bit float values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-`output` | ranked tensor of any type values
+`output` | ranked tensor of 8-bit signless integer or 16-bit float or 32-bit float values
 
 ### `IE.Sigmoid` (vpux::IE::SigmoidOp)
 

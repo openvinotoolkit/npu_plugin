@@ -2411,18 +2411,14 @@ def IERT_SelectOp :
     let summary = "InferenceEngine run-time Select layer";
 
     let arguments = (ins
-        //AnyMemRef:$input1,
-        //BoolAttr:$input1,
-        MemRefOf<[F16, F32]>:$input1,
-        MemRefOf<[F16, F32]>:$input2,
-        MemRefOf<[F16, F32]>:$input3,
-        MemRefOf<[F16, F32]>:$output_buff
-
-        //AnyMemRef:$input
+        MemRefOf<[I8, F16, F32]>:$input1,
+        MemRefOf<[I8, F16, F32]>:$input2,
+        MemRefOf<[I8, F16, F32]>:$input3,
+        MemRefOf<[I8, F16, F32]>:$output_buff
     );
 
     let results = (outs
-        MemRefOf<[F16, F32]>:$output
+        MemRefOf<[I8, F16, F32]>:$output
     );
 
     let assemblyFormat = [{

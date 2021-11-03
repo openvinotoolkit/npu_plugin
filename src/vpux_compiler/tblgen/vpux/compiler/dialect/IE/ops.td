@@ -2156,14 +2156,14 @@ def IE_SelectOp :
     let summary = "InferenceEngine Select layer";
 
     let arguments = (ins
-        AnyRankedTensor:$input1,
-        AnyRankedTensor:$input2,
-        AnyRankedTensor:$input3,
+        RankedTensorOf<[I8, F16, F32]>:$input1,
+        RankedTensorOf<[I8, F16, F32]>:$input2,
+        RankedTensorOf<[I8, F16, F32]>:$input3,
         IE_AutoBroadcastType:$auto_broadcast
     );
 
     let results = (outs
-        AnyRankedTensor:$output
+        RankedTensorOf<[I8, F16, F32]>:$output
     );
 }
 

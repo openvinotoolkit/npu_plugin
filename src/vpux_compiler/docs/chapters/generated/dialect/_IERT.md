@@ -1943,16 +1943,16 @@ operation ::= `IERT.Select` attr-dict
 
 | Operand | Description |
 | :-----: | ----------- |
-`input1` | memref of 16-bit float or 32-bit float values
-`input2` | memref of 16-bit float or 32-bit float values
-`input3` | memref of 16-bit float or 32-bit float values
-`output_buff` | memref of 16-bit float or 32-bit float values
+`input1` | memref of 8-bit signless integer or 16-bit float or 32-bit float values
+`input2` | memref of 8-bit signless integer or 16-bit float or 32-bit float values
+`input3` | memref of 8-bit signless integer or 16-bit float or 32-bit float values
+`output_buff` | memref of 8-bit signless integer or 16-bit float or 32-bit float values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-`output` | memref of 16-bit float or 32-bit float values
+`output` | memref of 8-bit signless integer or 16-bit float or 32-bit float values
 
 ### `IERT.Sigmoid` (vpux::IERT::SigmoidOp)
 
