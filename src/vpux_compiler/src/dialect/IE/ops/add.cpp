@@ -44,9 +44,15 @@ mlir::LogicalResult ConvertAddToScale::matchAndRewrite(IE::AddOp biasOp, mlir::P
     static const auto W = Dim(3);
 
     const auto lhsType = biasOp.input1().getType().cast<mlir::ShapedType>();
-    const auto outShapeRes = biasOp.output().getType().cast<mlir::ShapedType>();
+    const auto outType = biasOp.output().getType().cast<mlir::ShapedType>();
 
-    bool lhsIsActivation = (lhsType == outShapeRes);
+    const auto inElemType = lhsType.getElementType();
+    const auto outElemType = outType.getElementType();
+    if (inElemType != outElemType) {
+        return mlir::failure();
+    }
+
+    bool lhsIsActivation = (lhsType == outType);
     auto activationInput = lhsIsActivation ? biasOp.input1() : biasOp.input2();
     auto biasInput = lhsIsActivation ? biasOp.input2() : biasOp.input1();
 
