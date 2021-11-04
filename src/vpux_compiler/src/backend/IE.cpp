@@ -78,12 +78,8 @@ namespace {
 
 namespace opset_latest = ngraph::opset7;
 
-    using NodeMap = std::unordered_map<mlir::Operation *, std::shared_ptr<ngraph::Node>>;
-class NGraphExporter final {
-public:
-    NGraphExporter() = default;
-    std::shared_ptr<ngraph::Function> exportToNgraph(IE::CNNNetworkOp netOp, mlir::FuncOp netFunc);
-};
+using NodeMap = std::unordered_map<mlir::Operation *, std::shared_ptr<ngraph::Node>>;
+
 
 ngraph::op::AutoBroadcastType exportBroadcastType(IE::AutoBroadcastType bType) {
     switch (bType) {
@@ -730,7 +726,7 @@ std::shared_ptr<ngraph::Node> parseNode(IE::DetectionOutputOp origOp, ngraph::Ou
 
 std::shared_ptr<ngraph::Node> parseNode(IE::NormalizeL2Op origOp, ngraph::OutputVector &inputs)
 {
-    const auto eps = origOp.eps().convertToFloat();
+    const auto eps = origOp.eps().convertToDouble();
     const auto eps_mode = exportEpsMode(origOp.eps_mod());
 
     return std::make_shared<ngraph::opset7::NormalizeL2>(inputs.at(0), inputs.at(1), eps, eps_mode);
@@ -860,10 +856,8 @@ template <class NodeType>
 std::shared_ptr<ngraph::Node> parseDispatch(mlir::Operation *origOp, ngraph::OutputVector &inputs) {
     return parseNode(llvm::dyn_cast<NodeType>(*origOp), inputs);
 }
-// void parseEmpty(mlir::Operation *) {
-// }
 
-std::shared_ptr<ngraph::Function> NGraphExporter::exportToNgraph(IE::CNNNetworkOp, mlir::FuncOp netFunc)
+std::shared_ptr<ngraph::Function> exportToNgraph(IE::CNNNetworkOp, mlir::FuncOp netFunc)
 {
     using Callback = std::shared_ptr<ngraph::Node> (*)(mlir::Operation *origOp, ngraph::OutputVector &inputs);
     using DispatchMap = std::map<std::string, Callback>;
@@ -967,6 +961,7 @@ std::shared_ptr<ngraph::Function> NGraphExporter::exportToNgraph(IE::CNNNetworkO
         }
 
         const auto dispatchIt = dispatchMap.find(op->getName().getStringRef().str());
+        VPUX_THROW_UNLESS(dispatchIt != dispatchMap.end(), "Unsupported operation {0}", op->getName().getStringRef().str());
 
         const auto parser = dispatchIt->second;
         ngNode = (*parser)(op, inputs);
@@ -989,13 +984,12 @@ mlir::LogicalResult vpux::IE::exportToIRv10(mlir::ModuleOp module, llvm::raw_ost
     mlir::FuncOp netFunc;
     IE::CNNNetworkOp::getFromModule(module, netOp, netFunc);
 
-    NGraphExporter exporter;
-    std::shared_ptr<ngraph::Function> netGraph = exporter.exportToNgraph(netOp, netFunc);
+    std::shared_ptr<ngraph::Function> netGraph = exportToNgraph(netOp, netFunc);
     InferenceEngine::CNNNetwork ieNet(netGraph);
 
     std::ofstream binFile(provide_bin_path(filePath), std::ios::out | std::ios::binary);
     if (!binFile)
-        return mlir::failure();
+        VPUX_THROW("Unable to open weights file for writing");
     std::ostringstream ostr;
     ieNet.serialize(ostr, binFile);
     output << ostr.str();
