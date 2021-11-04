@@ -201,7 +201,12 @@ class Barrier_Schedule_Generator {
 
       bool schedule_operation(const operation_t& op, resource_t& demand) {
         assert(is_resource_available(demand));
-        if (barrier_map_.find(op) != barrier_map_.end()) { return false; }
+        if (barrier_map_.find(op) != barrier_map_.end()) { 
+          std::cout << "Could not find " << op->getName() << " in barrier map " <<  std::endl;
+          return false; 
+          }
+        
+        std::cout << "Assigning " << demand <<  " for " <<op->getName() << " in barrier map " <<  std::endl;
         size_t bid = state_.assign_slots(demand);
         barrier_map_.insert(std::make_pair(op, barrier_info_t(bid, demand)));
         return true;
@@ -247,14 +252,11 @@ class Barrier_Schedule_Generator {
         return state.is_resource_available(demand);
       }
 
-      static bool schedule_operation(const operation_t& op, resource_t demand,
-          resource_state_t& state) {
+      static bool schedule_operation(const operation_t& op, resource_t demand, resource_state_t& state) {
         return state.schedule_operation(op, demand);
       }
 
-      static bool schedule_operation(const operation_t& op, resource_t demand,
-          resource_state_t& rstate,
-          const_operation_iterator_t, const_operation_iterator_t) {
+      static bool schedule_operation(const operation_t& op, resource_t demand, resource_state_t& rstate, const_operation_iterator_t, const_operation_iterator_t) {
         return schedule_operation(op, demand, rstate);
       }
 
@@ -316,6 +318,7 @@ class Barrier_Schedule_Generator {
 
     const schedule_info_t&  operator*(void) const {
       sinfo_.op_ = *scheduler_begin_;
+      std::cout << sinfo_.op_->getName() << std::endl;
       sinfo_.schedule_time_ = scheduler_begin_.current_time();
       const resource_state_t& rstate = scheduler_begin_.resource_state();
       const barrier_info_t& binfo = rstate.get_barrier_info(sinfo_.op_);

@@ -1300,7 +1300,10 @@ class Operation_Dag {
         resource_t resource_utility = 0UL;
          std::cout << op->getName() << std::endl;
         if (does_the_op_run_on_hardware(op)) {
-          std::cout << op->getName() << std::endl;
+          std::cout << op->getName() << " " << op->getOpType() << std::endl;
+          if(op->getOpType() == "DMATask")
+            std::cout << op->get<mv::DmaDirection>("direction").toString() << std::endl;
+
           resource_utility = mv::RuntimeModel::countProducerConsumerTasks(model, itr);
         }
         // resource utility //

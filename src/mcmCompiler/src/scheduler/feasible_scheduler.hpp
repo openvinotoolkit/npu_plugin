@@ -806,6 +806,7 @@ class Feasible_Schedule_Generator {
   protected:
 
   bool reached_end() const {
+    std::cout << "Reached_end() is returning " << (candidates_.empty() && heap_.empty()) << std::endl;
     return candidates_.empty()  && heap_.empty();
   }
 
@@ -995,23 +996,22 @@ class Feasible_Schedule_Generator {
         const operation_t &op = *(*op_itr);
         delay_t op_delay = traits::delay(*input_ptr_, op);
         resource_t op_resources = traits::resource_utility(*input_ptr_, op);
+        std::cout << traits::operation_name(op) << " op_resources are " << op_resources << std::endl;
 
         schedule_time_t op_end_time = current_time_ + op_delay;
         push_to_heap( heap_element_t(&op, op_end_time) );
         candidates_.erase(op_itr);
-        traits::schedule_operation(op, op_resources, resource_state_,
-            traits::outgoing_operations_begin(*input_ptr_, op),
-            traits::outgoing_operations_end(*input_ptr_, op));
+        traits::schedule_operation(op, op_resources, resource_state_, traits::outgoing_operations_begin(*input_ptr_, op), traits::outgoing_operations_end(*input_ptr_, op));
         schedulable_op_ = &op;
       } else if (!heap_.empty()) {
-        // no-op found so move up the schedule time to the smallest completion
-        // time among the active operations. //
+        std::cout << "no-op found so move up the schedule time to the smallest completion time among the active operations " << std::endl;
         heap_element_t top_elem = pop_from_heap();
         const operation_t &op = *(top_elem.op_);
 
         assert(current_time_ <= top_elem.time_);
         current_time_ = top_elem.time_;
         // since operation is now complete update the schedule //
+        std::cout << "unscheduling the operation " << traits::operation_name(op) << std::endl;
         traits::unschedule_operation(op, resource_state_);
         // since op has completed add all out-going ops to candidates //
         add_outgoing_operations_to_candidate_list(op);
@@ -1020,8 +1020,11 @@ class Feasible_Schedule_Generator {
         candidates_.clear();
         break;
       }
+       std::cout << !schedulable_op_ << std::endl;
+      std::cout << !reached_end() << std::endl;
+      std::cout << (!schedulable_op_ && !reached_end()) << std::endl;
     } while(!schedulable_op_ && !reached_end());
-
+    
     return schedulable_op_ != NULL;
   }
 
@@ -1053,10 +1056,15 @@ class Feasible_Schedule_Generator {
         }
       }
     }
+    std::cout << "The ready list is empty " << std::endl;
+    if (!ready_list.empty()) {
+    std::cout << "Returning operation " << traits::operation_name(*(*itr)) << std::endl;
+    }
     return itr;
   }
 
   void add_outgoing_operations_to_candidate_list(const operation_t& op) {
+    std::cout << " add outgoing operations from operation " << traits::operation_name(op) << " to candidate_list " << std::endl;
     const_operation_iterator_t itr=traits::outgoing_operations_begin(
           *input_ptr_, op);
     const_operation_iterator_t itr_end=traits::outgoing_operations_end(
@@ -1066,12 +1074,15 @@ class Feasible_Schedule_Generator {
       // decrement the in-degree of &(*itr) and only add to candidate set
       // if the indegree is zero. This means this op is ready to be scheduled.
       const_op_ptr_t dep_op_ptr = &(*itr);
+      std::cout << " Decrementing the in-degree of " << (*dep_op_ptr)->getName() << std::endl;
       typename operation_in_degree_t::iterator deg_itr =
           in_degree_.find(dep_op_ptr);
       assert((deg_itr != in_degree_.end()) && (deg_itr->second > 0) );
 
       if (deg_itr->second == 1) {
+        std::cout << " Adding " << (*dep_op_ptr)->getName() << " to candidate_list " << std::endl;
         add_to_candidate_set( dep_op_ptr );
+        std::cout << " Erasing " << (*dep_op_ptr)->getName() << " from the in_degree table" << std::endl;
         in_degree_.erase(deg_itr);
       } else {
         --(deg_itr->second);
