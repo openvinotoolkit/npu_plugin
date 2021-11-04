@@ -193,84 +193,6 @@ mlir::LogicalResult FuseWithMaxPool::matchAndRewrite(IE::QuantizeOp quantizeOp, 
 }
 
 //
-// FuseWithEltwiseAdd
-//
-
-//
-//      [input 1]    [input 2]
-//          |            |
-//     (dequantize) (dequantize)
-//          |            |
-//           (EltwiseAdd)
-//                |
-//            [output]
-//                |
-//           (quantize)
-//
-
-class FuseWithEltwiseAdd final : public mlir::OpRewritePattern<IE::QuantizeOp> {
-public:
-    FuseWithEltwiseAdd(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<IE::QuantizeOp>(ctx), _log(log) {
-        setDebugName("FuseWithEltwiseAdd");
-    }
-
-public:
-    mlir::LogicalResult matchAndRewrite(IE::QuantizeOp origOp, mlir::PatternRewriter& rewriter) const final;
-
-private:
-    Logger _log;
-};
-
-mlir::LogicalResult FuseWithEltwiseAdd::matchAndRewrite(IE::QuantizeOp quantizeOp,
-                                                        mlir::PatternRewriter& rewriter) const {
-    const auto quantOutType = quantizeOp.output().getType();
-    auto quantElemOutType = quantOutType.cast<mlir::ShapedType>().getElementType();
-    if (quantElemOutType.isa<mlir::quant::UniformQuantizedPerAxisType>()) {
-        return mlir::failure();
-    }
-
-    auto addOp = quantizeOp.input().getDefiningOp<IE::AddOp>();
-    if (addOp == nullptr) {
-        return mlir::failure();
-    }
-
-    const auto checkDequantizeOp = [](IE::DequantizeOp dequantOp) {
-        if (dequantOp == nullptr) {
-            return mlir::failure();
-        }
-
-        const auto dequantInType = dequantOp.input().getType();
-        auto dequantElemInType = dequantInType.cast<mlir::ShapedType>().getElementType();
-        if (dequantElemInType.isa<mlir::quant::UniformQuantizedPerAxisType>()) {
-            return mlir::failure();
-        }
-
-        return mlir::success();
-    };
-
-    auto input1DequantizeOp = addOp.input1().getDefiningOp<IE::DequantizeOp>();
-    if (mlir::failed(checkDequantizeOp(input1DequantizeOp))) {
-        return mlir::failure();
-    }
-
-    auto input2DequantizeOp = addOp.input2().getDefiningOp<IE::DequantizeOp>();
-    if (mlir::failed(checkDequantizeOp(input2DequantizeOp))) {
-        return mlir::failure();
-    }
-
-    // Perform check for input types. In case they are quantized such check
-    // will also cover if quant parameters are aligned
-    if (input1DequantizeOp.input().getType() != input2DequantizeOp.input().getType()) {
-        return mlir::failure();
-    }
-
-    rewriter.replaceOpWithNewOp<IE::AddOp>(quantizeOp, quantizeOp.getType(), input1DequantizeOp.input(),
-                                           input2DequantizeOp.input(), addOp.auto_broadcastAttr(), addOp.post_opAttr());
-
-    return mlir::success();
-}
-
-//
 // FuseWithSlice
 //
 
@@ -457,6 +379,95 @@ mlir::LogicalResult FuseWithSplit::matchAndRewrite(IE::SplitOp splitOp, mlir::Pa
 }
 
 //
+// FuseWithEltwiseConverter
+//
+
+//
+//      [input 1]     [input 2]
+//          |             |
+//     (dequantize)  (dequantize)
+//          |             |
+//           -(EltwiseOp)-
+//                 |
+//             [output]
+//                 |
+//            (quantize)
+//
+
+template <class ConcreteOp>
+class FuseWithEltwiseConverter final : public mlir::OpRewritePattern<IE::QuantizeOp> {
+public:
+    FuseWithEltwiseConverter(mlir::MLIRContext* ctx,
+                             FuncRef<mlir::LogicalResult(mlir::Type, mlir::Type)> checkInputTypes, Logger log)
+            : mlir::OpRewritePattern<IE::QuantizeOp>(ctx), _checkInputTypes(checkInputTypes), _log(log) {
+        this->setDebugName("FuseWithEltwiseConverter");
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(IE::QuantizeOp quantizeOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    FuncRef<mlir::LogicalResult(mlir::Type, mlir::Type)> _checkInputTypes;
+    Logger _log;
+};
+
+template <class ConcreteOp>
+mlir::LogicalResult FuseWithEltwiseConverter<ConcreteOp>::matchAndRewrite(IE::QuantizeOp quantizeOp,
+                                                                          mlir::PatternRewriter& rewriter) const {
+    const auto quantOutType = quantizeOp.output().getType();
+    auto quantElemOutType = quantOutType.cast<mlir::ShapedType>().getElementType();
+    if (quantElemOutType.isa<mlir::quant::UniformQuantizedPerAxisType>()) {
+        return mlir::failure();
+    }
+
+    auto eltwiseOp = quantizeOp.input().getDefiningOp<ConcreteOp>();
+    if (eltwiseOp == nullptr) {
+        return mlir::failure();
+    }
+
+    if (eltwiseOp.input1().getType().template cast<mlir::ShapedType>().getShape() !=
+        eltwiseOp.input2().getType().template cast<mlir::ShapedType>().getShape()) {
+        return mlir::failure();
+    }
+
+    const auto checkDequantizeOp = [](IE::DequantizeOp dequantOp) {
+        if (dequantOp == nullptr) {
+            return mlir::failure();
+        }
+
+        const auto dequantInType = dequantOp.input().getType();
+        auto dequantElemInType = dequantInType.template cast<mlir::ShapedType>().getElementType();
+        if (!dequantElemInType.template isa<mlir::quant::UniformQuantizedType>()) {
+            return mlir::failure();
+        }
+
+        return mlir::success();
+    };
+
+    auto input1DequantizeOp = eltwiseOp.input1().template getDefiningOp<IE::DequantizeOp>();
+    if (mlir::failed(checkDequantizeOp(input1DequantizeOp))) {
+        return mlir::failure();
+    }
+
+    auto input2DequantizeOp = eltwiseOp.input2().template getDefiningOp<IE::DequantizeOp>();
+    if (mlir::failed(checkDequantizeOp(input2DequantizeOp))) {
+        return mlir::failure();
+    }
+
+    const auto input1Type = input1DequantizeOp.input().getType().template cast<mlir::ShapedType>().getElementType();
+    const auto input2Type = input2DequantizeOp.input().getType().template cast<mlir::ShapedType>().getElementType();
+    if (mlir::failed(_checkInputTypes(input1Type, input2Type))) {
+        return mlir::failure();
+    }
+
+    rewriter.replaceOpWithNewOp<ConcreteOp>(quantizeOp, quantizeOp.getType(), input1DequantizeOp.input(),
+                                            input2DequantizeOp.input(), eltwiseOp.auto_broadcastAttr(),
+                                            eltwiseOp.post_opAttr());
+
+    return mlir::success();
+}
+
+//
 // FuseQuantizedOpsPass
 //
 
@@ -473,14 +484,44 @@ private:
 void FuseQuantizedOpsPass::safeRunOnFunc() {
     auto& ctx = getContext();
 
+    const auto checkAddInputTypes = [](mlir::Type input1Type, mlir::Type input2Type) -> mlir::LogicalResult {
+        auto dequantElemIn1Type = input1Type.cast<mlir::quant::UniformQuantizedType>();
+        auto dequantElemIn2Type = input2Type.cast<mlir::quant::UniformQuantizedType>();
+
+        // Perform check for input types. AddOp supports quantization with different zp, but not different scales.
+        if (dequantElemIn1Type.getExpressedType() != dequantElemIn2Type.getExpressedType() ||
+            dequantElemIn1Type.getStorageType() != dequantElemIn2Type.getStorageType() ||
+            dequantElemIn1Type.isSigned() != dequantElemIn2Type.isSigned() ||
+            dequantElemIn1Type.getScale() != dequantElemIn2Type.getScale()) {
+            return mlir::failure();
+        }
+
+        return mlir::success();
+    };
+
+    const auto checkMulInputTypes = [](mlir::Type input1Type, mlir::Type input2Type) -> mlir::LogicalResult {
+        auto dequantElemIn1Type = input1Type.cast<mlir::quant::UniformQuantizedType>();
+        auto dequantElemIn2Type = input2Type.cast<mlir::quant::UniformQuantizedType>();
+
+        // Perform check for input types. MultiplyOp supports quantization with different scales and zp.
+        if (dequantElemIn1Type.getExpressedType() != dequantElemIn2Type.getExpressedType() ||
+            dequantElemIn1Type.getStorageType() != dequantElemIn2Type.getStorageType() ||
+            dequantElemIn1Type.isSigned() != dequantElemIn2Type.isSigned()) {
+            return mlir::failure();
+        }
+
+        return mlir::success();
+    };
+
     mlir::OwningRewritePatternList patterns(&ctx);
     patterns.add<FuseWithConv>(&ctx, _log);
     patterns.add<FuseWithGroupConv>(&ctx, _log);
-    patterns.add<FuseWithEltwiseAdd>(&ctx, _log);
+    patterns.add<FuseWithEltwiseConverter<IE::AddOp>>(&ctx, checkAddInputTypes, _log);
     patterns.add<FuseWithSlice>(&ctx, _log);
     patterns.add<FuseWithMaxPool>(&ctx, _log);
     patterns.add<FuseWithConcat>(&ctx, _log);
     patterns.add<FuseWithSplit>(&ctx, _log);
+    patterns.add<FuseWithEltwiseConverter<IE::MultiplyOp>>(&ctx, checkMulInputTypes, _log);
 
     auto func = getFunction();
     if (mlir::failed(applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig()))) {

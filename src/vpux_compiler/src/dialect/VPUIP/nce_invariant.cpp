@@ -676,17 +676,45 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IERT::MaxPoolOp orig
 //
 
 static mlir::LogicalResult verifyEltwiseKernel(mlir::ShapedType input1, mlir::ShapedType input2,
-                                               mlir::ShapedType output) {
+                                               mlir::ShapedType output, const bool allowDifferentScales = false,
+                                               const bool allowDifferentZp = true) {
     // Eltwise add is expected to have the same shapes for all operands
     if (input1.getRank() != 4 || input2.getRank() != 4 || output.getRank() != 4) {
         return mlir::failure();
     }
 
-    // Output type can differ from input type. In case of quantization
-    // this can be different quant scale value
-    if (input1 != input2) {
+    if (input1.getShape() != input2.getShape())
         return mlir::failure();
+
+    // Output type can differ from input type. In case of quantization
+    // this can be different quant scale value.
+    // Input types can also differ when both of them are quantized. E.g. scale value for Eltwise Multiply
+    auto input1ElemType = input1.getElementType();
+    auto input2ElemType = input2.getElementType();
+
+    if (!input1ElemType.isa<mlir::quant::QuantizedType>() && !input2ElemType.isa<mlir::quant::QuantizedType>()) {
+        if (input1ElemType != input2ElemType) {
+            return mlir::failure();
+        }
+    } else if (input1ElemType.isa<mlir::quant::UniformQuantizedType>() &&
+               input2ElemType.isa<mlir::quant::UniformQuantizedType>()) {
+        auto qInput1 = input1ElemType.cast<mlir::quant::UniformQuantizedType>();
+        auto qInput2 = input2ElemType.cast<mlir::quant::UniformQuantizedType>();
+
+        if (qInput1.getExpressedType() != qInput2.getExpressedType() ||
+            qInput1.getStorageType() != qInput2.getStorageType() || qInput1.isSigned() != qInput2.isSigned()) {
+            return mlir::failure();
+        }
+
+        if (!allowDifferentZp && qInput1.getZeroPoint() != qInput2.getZeroPoint())
+            return mlir::failure();
+
+        if (!allowDifferentScales && qInput1.getScale() != qInput2.getScale())
+            return mlir::failure();
+    } else {
+        VPUX_THROW("Unsupported inputs type. in1='{0}', in2='{1}'", input1ElemType, input2ElemType);
     }
+
     return mlir::success();
 }
 
@@ -708,14 +736,14 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IE::MultiplyOp origO
     auto input1Type = origOp.input1().getType().cast<mlir::ShapedType>();
     auto input2Type = origOp.input2().getType().cast<mlir::ShapedType>();
     auto outputType = origOp.output().getType().cast<mlir::ShapedType>();
-    return verifyEltwiseKernel(input1Type, input2Type, outputType);
+    return verifyEltwiseKernel(input1Type, input2Type, outputType, true);
 }
 
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IERT::MultiplyOp origOp, Logger) {
     auto input1Type = origOp.input1().getType().cast<mlir::ShapedType>();
     auto input2Type = origOp.input2().getType().cast<mlir::ShapedType>();
     auto outputType = origOp.output().getType().cast<mlir::ShapedType>();
-    return verifyEltwiseKernel(input1Type, input2Type, outputType);
+    return verifyEltwiseKernel(input1Type, input2Type, outputType, true);
 }
 
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IE::SubtractOp origOp, Logger) {

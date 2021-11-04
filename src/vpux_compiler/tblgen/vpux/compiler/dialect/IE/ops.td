@@ -518,19 +518,21 @@ def IE_MultiplyOp :
     let summary = "InferenceEngine Multiply layer";
 
     let arguments = (ins
-        RankedTensorOf<[F16, F32]>:$input1,
-        RankedTensorOf<[F16, F32]>:$input2,
+        RankedTensorOf<[F16, F32, quant_QuantizedType]>:$input1,
+        RankedTensorOf<[F16, F32, quant_QuantizedType]>:$input2,
 
         IE_AutoBroadcastType:$auto_broadcast,
         OptionalAttr<IE_PostOp>:$post_op
     );
 
     let results = (outs
-        RankedTensorOf<[F16, F32]>:$output
+        RankedTensorOf<[F16, F32, quant_QuantizedType]>:$output
     );
 
     let hasCanonicalizer = 1;
     let hasFolder = 1;
+
+    let elemComparisonModes = [IE_TypeComparisonMode_ALLOW_QUANT_MIXED_PRECISION];
 }
 
 //

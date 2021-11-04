@@ -1531,15 +1531,15 @@ operation ::= `IERT.Multiply` attr-dict
 
 | Operand | Description |
 | :-----: | ----------- |
-`input1` | memref of 16-bit float or 32-bit float values
-`input2` | memref of 16-bit float or 32-bit float values
-`output_buff` | memref of 16-bit float or 32-bit float values
+`input1` | memref of 16-bit float or 32-bit float or QuantizedType values
+`input2` | memref of 16-bit float or 32-bit float or QuantizedType values
+`output_buff` | memref of 16-bit float or 32-bit float or QuantizedType values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-`output` | memref of 16-bit float or 32-bit float values
+`output` | memref of 16-bit float or 32-bit float or QuantizedType values
 
 ### `IERT.Negative` (vpux::IERT::NegativeOp)
 
