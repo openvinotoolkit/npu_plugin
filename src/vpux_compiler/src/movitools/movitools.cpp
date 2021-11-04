@@ -3,8 +3,18 @@
 #include "vpux/utils/core/error.hpp"
 
 #include <llvm/ADT/SmallString.h>
+
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable : 4267)  // size_t to integer conversion
+#endif
+
 #include <llvm/Support/Path.h>
 #include <llvm/Support/Process.h>
+
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 
 using namespace llvm;  // NOLINT
 
