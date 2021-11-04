@@ -60,8 +60,12 @@ void dynamicallyAdjustScheduleToMeetRuntimeProblems(mv::ControlModel& cm,
 }
 
 void barrierSchedulerPass(const mv::pass::PassEntry&,
-    mv::ComputationModel& model, mv::TargetDescriptor&,
+    mv::ComputationModel& model, mv::TargetDescriptor& targetDesc,
     mv::Element& passDesc, mv::Element&) {
+  
+  auto globalParams = model.getGlobalConfigParams();
+  bool isA0 = !(globalParams->hasAttr("referenceDevice") && globalParams->get<std::string>("referenceDevice") == "B0")
+          && targetDesc.getTarget() != mv::Target::ma3100;
 
   // For SC there are 8 barriers and for MC there are 32 barriers //
   std::map<std::string, size_t> barrier_config =
@@ -80,12 +84,15 @@ void barrierSchedulerPass(const mv::pass::PassEntry&,
   if (barrier_config["barrier_bound"] == 0)
     barrier_config["barrier_bound"] = (barrier_config["real_physical_barriers"]/2UL);
 
-  // if (barrier_config["barrier_bound"] > (barrier_config["real_physical_barriers"]/2UL)) {
-  //   fprintf(stderr, "[BarrierSchedulerError]: barrier_bound must be atmost"
-  //       " twice the real barriers");
-  //   exit(1);
-  // }
-  std::cout << "Barrier bound is " << barrier_config["barrier_bound"] << std::endl;
+  if(isA0)
+  {
+    if (barrier_config["barrier_bound"] > (barrier_config["real_physical_barriers"]/2UL)) {
+      fprintf(stderr, "[BarrierSchedulerError]: barrier_bound must be atmost"
+          " twice the real barriers");
+      exit(1);
+    }
+  }
+  
   // In case of Profiling disable the barriers optimizations //
   std::shared_ptr<mv::Element> globalParams = model.getGlobalConfigParams();
   if (!(globalParams->hasAttr("PerformanceCounting") && globalParams->get("PerformanceCounting"))) {
