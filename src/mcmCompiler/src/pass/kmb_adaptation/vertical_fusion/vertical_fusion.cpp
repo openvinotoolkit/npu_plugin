@@ -1371,6 +1371,7 @@ void removeInnerConcat(mv::ComputationModel& model, mv::Data::OpListIterator& co
     for (std::size_t i = 0; i < concat->inputSlots(); i++)
     {
         auto preOp = om.getSourceOp(concat->getInputTensor(i));
+        concat->getInputTensor(i)->set<mv::Tensor::MemoryLocation>("Location",mv::Tensor::MemoryLocation::NNCMX);
         headStreams.push_back(preOp);
     }
 
@@ -1396,6 +1397,7 @@ void removeInnerConcat(mv::ComputationModel& model, mv::Data::OpListIterator& co
         auto headOp = om.getOp(headName + std::to_string(i));
         auto tailOp = om.getOp(tailName + std::to_string(i));
         tailOp->setInputTensor(headOp->getOutputTensor(0), idx, false);
+        headOp->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location",mv::Tensor::MemoryLocation::NNCMX);
         om.defineFlow(headOp->getOutputTensor(0), tailOp, idx);
         std::cout<<"connecting "<<headOp->getName() << " with " << tailOp->getName()<<std::endl;
     }
