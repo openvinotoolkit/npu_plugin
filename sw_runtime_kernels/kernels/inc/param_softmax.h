@@ -18,6 +18,7 @@ struct __attribute__((packed)) SoftmaxParams {
     struct MemRefData input;
     struct MemRefData output;
     int32_t axis;
+    struct MemRefData tmp;
 };
 
 inline BaseKernelParams softmaxParamsToBaseKernelParams(SoftmaxParams * softmaxParams) {
@@ -26,6 +27,8 @@ inline BaseKernelParams softmaxParamsToBaseKernelParams(SoftmaxParams * softmaxP
     rezult.numOutputs = 1;
     rezult.inputsOffset = reinterpret_cast<uint8_t*>(&(softmaxParams->input)) - reinterpret_cast<uint8_t*>(softmaxParams);
     rezult.outputsOffset = reinterpret_cast<uint8_t*>(&(softmaxParams->output)) - reinterpret_cast<uint8_t*>(softmaxParams);
+    rezult.numTmps = 1;
+    rezult.tmpsOffset = reinterpret_cast<uint8_t*>(&(softmaxParams->tmp)) - reinterpret_cast<uint8_t*>(softmaxParams);
     return rezult;
 }
 

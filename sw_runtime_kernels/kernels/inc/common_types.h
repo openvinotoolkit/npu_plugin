@@ -97,6 +97,8 @@ struct ALIGN_AS(64) BaseKernelParams  {
     uint32_t numInputs;
     int32_t outputsOffset;
     uint32_t numOutputs;
+    int32_t tmpsOffset;
+    uint32_t numTmps;
 };
 
 #pragma pack(pop)
