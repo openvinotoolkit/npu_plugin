@@ -21,12 +21,23 @@ If not please follow this instruction: ["How to create act-shave kernel"](../../
 
 Current restrictions:
 - MTL does not support many important operations, such as Convert, Reorder, etc. which significantly reduces the set of test cases
+- SW kernels are not compiled in precommit because the build system does not provide the location of precompiled kernels
 - Single-layer tests are not inferred for MTL
 
 Therefore, it is proposed to create a new test suite:
 
 ```cpp
 class KmbActivationLayerTest_MTL : public KmbActivationLayerTest {
+    void SkipBeforeLoad() override {
+        if (std::getenv("OV_BUILD_DIR") == nullptr) {
+            throw LayerTestsUtils::KmbSkipTestException(
+                    "OV_BUILD_DIR env directory must be specified, in order to reach act-shave kernels.");
+        }
+
+#if defined(__arm__) || defined(__aarch64__) || defined(_WIN32) || defined(_WIN64)
+        throw LayerTestsUtils::KmbSkipTestException("Does not compile on ARM and Windows.");
+#endif
+    }
     void SkipBeforeInfer() override {
         throw LayerTestsUtils::KmbSkipTestException("Runtime issue.");
     }
@@ -36,6 +47,15 @@ class KmbActivationLayerTest_MTL : public KmbActivationLayerTest {
 In case of the OV2.0 test framework:  
 ```cpp
 class VPUXActivationLayerTest_MTL : public VPUXLayerTestsCommon {
+    SkipMessage SkipBeforeLoad() override {
+        if (std::getenv("OV_BUILD_DIR") == nullptr) {
+            return {"OV_BUILD_DIR env directory must be specified, in order to reach act-shave kernels."};
+        }
+
+#if defined(__arm__) || defined(__aarch64__) || defined(_WIN32) || defined(_WIN64)
+        return {"OV_BUILD_DIR env directory must be specified, in order to reach act-shave kernels."};
+#endif
+    }
     SkipMessage SkipBeforeInfer() override {
         return {"Runtime issue"};
     }
