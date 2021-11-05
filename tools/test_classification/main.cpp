@@ -319,13 +319,28 @@ int main(int argc, char *argv[]) {
             // write to the buffer if the input is not image format
             // For non image input, only supportU8 precision
             if (blobDims.size() != 4) {
-                auto data = inputBlob->buffer().as<PrecisionTrait<Precision::U8>::value_type *>();
-                auto inputSeq_u8 = inputSeqs_u8[inputIndex];
+                std::cout << inputNames[inputIndex] << std::endl;
+                std::ifstream file(inputNames[inputIndex], std::ios::in | std::ios::binary);
+                if (!file.is_open())
+                    throw std::logic_error("Input: " + inputNames[inputIndex] + " cannot be read!");
+                file.seekg(0, std::ios::end);
+                size_t total = file.tellg() / sizeof(float);
+                if (total != totalSize) {
+                    // number of entries doesn't match, either not FP32 or from different network
+                    throw std::logic_error("Input contains " + std::to_string(total) + " entries, " +
+                                           "which doesn't match expected dimensions: " + std::to_string(totalSize));
+                }
+                file.seekg(0, std::ios::beg);
+                std::vector<float> inputSeq_fp32;
+                inputSeq_fp32.resize(total);
+                file.read(reinterpret_cast<char *>(&inputSeq_fp32[0]), total * sizeof(float));
+                auto data = inputBlob->buffer().as<PrecisionTrait<Precision::FP32>::value_type *>();
                 if (data == nullptr) {
                     throw std::logic_error("input blob buffer is null");
                 }
-                for(size_t pid = 0; pid < inputSeq_u8.size(); pid++)
-                    data[pid] = inputSeq_u8[pid];
+                for (size_t pid = 0; pid < total; pid++) {
+                    data[pid] = inputSeq_fp32[pid];
+                }
                 item++;
                 continue;
             }
