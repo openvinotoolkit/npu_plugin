@@ -97,7 +97,8 @@ ActKernelDesc vpux::VPUIP::BlobWriter::createKernelData(const CompilationUnitDes
     }
 
     movitools::MoviCompileParams params = {
-            /*cpu=*/"3010xx",
+            //            /*cpu=*/"3010xx",
+            /*cpu=*/"3720xx",
             /*moviCompile=*/"linux64/bin/moviCompile",
             /*mdkLinker=*/"linux64/sparc-myriad-rtems-6.3.0/bin/sparc-myriad-rtems-ld",
             /*mdkObjCopy=*/"linux64/sparc-myriad-rtems-6.3.0/bin/sparc-myriad-rtems-objcopy",
