@@ -873,11 +873,11 @@ namespace mv {
                     comp_slice.x1 = slice_list[list_size - 1].x1;
                     slice_list.push_back(comp_slice);
                 }
-                for (auto slice : slice_list) {
-                    std::cout << "x0: " << std::to_string(slice.x0) << ", x1: " << std::to_string(slice.x1)
-                              << ", y0: " << std::to_string(slice.y0) << ", y1: " << std::to_string(slice.y1)
-                              << std::endl;
-                }
+//                for (auto slice : slice_list) {
+//                    std::cout << "x0: " << std::to_string(slice.x0) << ", x1: " << std::to_string(slice.x1)
+//                              << ", y0: " << std::to_string(slice.y0) << ", y1: " << std::to_string(slice.y1)
+//                              << std::endl;
+//                }
             }
             else  // borrow 1 from the last slice
             {
@@ -901,11 +901,11 @@ namespace mv {
                     comp_slice.y1 = slice_list[list_size - 1].y1;
                     slice_list.push_back(comp_slice);
                 }
-                for (auto slice : slice_list) {
-                    std::cout << "x0: " << std::to_string(slice.x0) << ", x1: " << std::to_string(slice.x1)
-                              << ", y0: " << std::to_string(slice.y0) << ", y1: " << std::to_string(slice.y1)
-                              << std::endl;
-                }
+//                for (auto slice : slice_list) {
+//                    std::cout << "x0: " << std::to_string(slice.x0) << ", x1: " << std::to_string(slice.x1)
+//                              << ", y0: " << std::to_string(slice.y0) << ", y1: " << std::to_string(slice.y1)
+//                              << std::endl;
+//                }
             }
         }
 

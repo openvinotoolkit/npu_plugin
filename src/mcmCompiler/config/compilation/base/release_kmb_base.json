@@ -225,18 +225,6 @@
             "adapt",
             "kmb_adapt",
             "dma",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/dma.dot",
-                "scope": "OpModel",
-                "content": "full",
-                "html": true,
-                "reduced": false
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/dma.dot"
-            },
             "control_flows",
             "finalize",
             "scheduling",

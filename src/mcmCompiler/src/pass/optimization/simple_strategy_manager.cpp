@@ -172,7 +172,7 @@ std::vector<size_t> StrategyManagerSimple::getStreamsOverH(mv::Op& op, mv::Attri
         , "MobilenetV2/expanded_conv_3/expand/BatchNorm/FusedBatchNorm/variance/Fused_Add_"
     };
     if (std::find(hack_list.begin(), hack_list.end(), op.getName()) != hack_list.end())
-        return {22};
+        return {10};
 
     auto minSplitsToFit = getMinStreamOverH(op, clustering, streams, iSparsity, oSparsity, wSparsity, fSparsity, spilling, parentSpilling);
     if( minSplitsToFit == 0 || // stream over h alone doesn't fit
