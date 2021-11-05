@@ -675,3 +675,22 @@ void mv::propagateDownThroughOps(
         }
     }
 }
+
+void mv::printControlFlows(mv::ControlModel& cm, std::string name)
+{
+    for(auto opIt = cm.opBegin(); opIt != cm.opEnd(); ++opIt) {
+        if (opIt->getName() != "MobilenetV2/expanded_conv_2/add_streamH0" && opIt->getName() != name)
+            continue;
+
+        std::cout<<" ===== "<<std::endl;
+
+        for (auto parentOp = opIt.leftmostParent(); parentOp != cm.opEnd(); ++parentOp)
+        {
+            std::cout<<parentOp->getName() << " ===> "<<opIt->getName()<<std::endl;
+        }
+        for (auto childOp = opIt.leftmostChild(); childOp != cm.opEnd(); ++childOp)
+        {
+            std::cout<<opIt->getName() << " ===> "<<childOp->getName()<<std::endl;
+        }
+    }
+}

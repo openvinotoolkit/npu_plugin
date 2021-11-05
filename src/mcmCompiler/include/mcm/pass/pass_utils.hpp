@@ -59,6 +59,7 @@ namespace mv
         const std::vector<std::string>& opTypes,
         const std::unordered_map<std::string, mv::Attribute>& attributes,
         const bool stopAtMultiOutputOps = false);
+    void printControlFlows(mv::ControlModel& cm, std::string name);
 }
 
 void provideAccuracyinPPEs(mv::ComputationModel& model);
