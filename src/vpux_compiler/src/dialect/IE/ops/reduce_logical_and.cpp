@@ -71,7 +71,8 @@ mlir::LogicalResult vpux::IE::ReduceLogicalAndOp::inferReturnTypeComponents(
 
     const auto inType = reduceLogicalAnd.input().getType().cast<mlir::ShapedType>();
     const auto inShape = inType.getShape();
-    const auto keepDims = reduceLogicalAnd.keep_dims();
+    // const auto keepDims = reduceLogicalAnd.keep_dims();
+    const auto keepDims = reduceLogicalAnd.keep_dims().getValue();
 
     SmallVector<int64_t> outShape;
     size_t axesIdx = 0;

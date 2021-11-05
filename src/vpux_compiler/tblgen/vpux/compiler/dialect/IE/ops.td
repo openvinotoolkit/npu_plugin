@@ -2080,7 +2080,7 @@ def IE_PermuteCastOp :
     let checkInferredMemSpace = 1;
 }
 
-
+//
 // ReduceLogicalAndOp
 //
 
@@ -2093,8 +2093,8 @@ def IE_ReduceLogicalAndOp :
     let arguments = (ins
         AnyRankedTensor:$input,
         1DTensorOf<[SI32, SI64]>:$axes,
-
-        UnitAttr:$keep_dims
+        // UnitAttr:$keep_dims
+        OptionalAttr<BoolAttr>:$keep_dims
     );  
 
     let results = (outs

@@ -2341,7 +2341,8 @@ def IERT_ReduceLogicalAndOp :
         MemRefOf<[SI32, SI64]>:$axes,
         MemRefOf<[F16, F32, SI32, SI64]>:$output_buff,
 
-        UnitAttr: $keep_dims
+        // UnitAttr: $keep_dims
+        OptionalAttr<BoolAttr>:$keep_dims
     );
 
     let results = (outs

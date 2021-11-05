@@ -10,6 +10,9 @@
 #include "kmb_layer_test.hpp"
 #include <common/functions.h>
 
+#include <iostream>
+using namespace std;
+
 namespace LayerTestsDefinitions {
     class KmbReduceOpsLayerTest : public ReduceOpsLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
         void SkipBeforeLoad() override {
@@ -42,6 +45,7 @@ namespace LayerTestsDefinitions {
     TEST_P(KmbReduceOpsLayerTest, CompareWithRefs) {
         Run();
     }
+    
 
    TEST_P(KmbReduceOpsLayerTest, CompareWithRefs_MLIR) {
        useCompilerMLIR();
@@ -68,6 +72,7 @@ namespace LayerTestsDefinitions {
     // }
 
     TEST_P(KmbReduceOpsLayerWithSpecificInputTest, CompareWithRefs_MLIR) {
+        std::cout << "KmbReduceOpsLayerWithSpecificInputTest with MLIR" << std::endl;
         useCompilerMLIR();
         Run();
     }

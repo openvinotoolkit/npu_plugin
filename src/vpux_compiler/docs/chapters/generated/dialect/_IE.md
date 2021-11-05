@@ -1705,7 +1705,7 @@ operation ::= `IE.ReduceLogicalAnd` `(` operands `)` attr-dict `:` type(operands
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`keep_dims` | ::mlir::UnitAttr | unit attribute
+`keep_dims` | ::mlir::BoolAttr | bool attribute
 
 #### Operands:
 

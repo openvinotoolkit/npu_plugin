@@ -1785,7 +1785,7 @@ operation ::= `VPUIP.ReduceUPA` attr-dict
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`keep_dims` | ::mlir::UnitAttr | unit attribute
+`keep_dims` | ::mlir::BoolAttr | bool attribute
 `type` | vpux::VPUIP::ReduceLayerTypeAttr | Type of Reduce layer
 `maxShaves` | mlir::IntegerAttr | Integer attribute
 `isTrailingSWLayer` | ::mlir::UnitAttr | unit attribute

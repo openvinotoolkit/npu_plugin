@@ -3022,7 +3022,8 @@ def VPUIP_ReduceUPAOp :
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers,
 
-        UnitAttr:$keep_dims,
+        // UnitAttr:$keep_dims,
+        OptionalAttr<BoolAttr>:$keep_dims,
         VPUIP_ReduceLayerType:$type,
 
         OptionalAttr<IntAttr>:$maxShaves,
@@ -3039,7 +3040,8 @@ def VPUIP_ReduceUPAOp :
                 "mlir::Value":$input,
                 "mlir::Value":$axes,
                 "mlir::Value":$output,
-                "mlir::UnitAttr":$keep_dims,
+                // "mlir::UnitAttr":$keep_dims,
+                "mlir::BoolAttr":$keep_dims,
                 "vpux::VPUIP::ReduceLayerTypeAttr":$type
             )
         >

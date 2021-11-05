@@ -68,6 +68,7 @@
 #include <transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp>
 #include <transformations/op_conversions/convert_minimum_to_power_and_max.hpp>
 #include <transformations/op_conversions/convert_negative.hpp>
+#include <transformations/op_conversions/convert_reduce_to_pooling.hpp>
 #include <transformations/op_conversions/convert_subtract.hpp>
 #include <transformations/op_conversions/hsigmoid_decomposition.hpp>
 #include <transformations/op_conversions/hswish_decomposition.hpp>
@@ -1418,9 +1419,12 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
     VPUX_THROW_UNLESS(inputs.size()==2, "nGraph ReduceLogicalAnd node '{0} has unsupported number of inputs '{1}'",
                         origNode->get_friendly_name(), inputs.size());
     
-    const auto keep_dims = origNode->get_keep_dims() ? mlir::UnitAttr::get(_ctx) : nullptr;
+    // const auto keep_dims = origNode->get_keep_dims() ? mlir::UnitAttr::get(_ctx) : nullptr;
+    // auto op = builder.create<IE::ReduceLogicalAndOp>(createLocation(origNode), inputs[0], inputs[1],
+    //                                                  keep_dims);
+    const auto keep_dims = origNode->get_keep_dims();
     auto op = builder.create<IE::ReduceLogicalAndOp>(createLocation(origNode), inputs[0], inputs[1],
-                                                     keep_dims);
+                                                     mlir::BoolAttr::get(_ctx, keep_dims));
     addOutputs(origNode, op);
 }
 

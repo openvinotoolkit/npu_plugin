@@ -22,7 +22,7 @@
 using namespace vpux;
 
 void vpux::VPUIP::ReduceUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
-                                     mlir::Value axes, mlir::Value output, mlir::UnitAttr keep_dims,
+                                     mlir::Value axes, mlir::Value output, mlir::BoolAttr keep_dims,
                                      VPUIP::ReduceLayerTypeAttr type) {
     auto axesOp = axes.getDefiningOp<Const::DeclareOp>();
     auto axesType = axes.getType().dyn_cast<mlir::MemRefType>();

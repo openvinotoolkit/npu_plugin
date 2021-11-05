@@ -1761,7 +1761,7 @@ operation ::= `IERT.ReduceLogicalAnd` attr-dict
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`keep_dims` | ::mlir::UnitAttr | unit attribute
+`keep_dims` | ::mlir::BoolAttr | bool attribute
 
 #### Operands:
 
