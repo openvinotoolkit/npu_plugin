@@ -2687,7 +2687,7 @@ std::unique_ptr<MVCNN::NCEVariantFieldsT> mv::RuntimeModel::buildNCEVariantField
 {
     std::unique_ptr<MVCNN::NCEVariantFieldsT> toBuild = std::unique_ptr<MVCNN::NCEVariantFieldsT>(new MVCNN::NCEVariantFieldsT());
 
-    toBuild->mpe_mode = convertMPEMode(workload.MPEMode);
+    toBuild->mpe_mode = MVCNN::MPE_Mode::MPE_Mode_VECTOR_FP16;
     toBuild->workload_start_X = workload.MinX;
     toBuild->workload_start_Y = workload.MinY;
     toBuild->workload_start_Z = workload.MinZ;
