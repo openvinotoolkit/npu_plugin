@@ -36,6 +36,7 @@ shavelib-preserved-symbols-y += singleSoftmaxKernel
 shavelib-preserved-symbols-y += sigmoid_fp16
 shavelib-preserved-symbols-y += reorder_fp16
 shavelib-preserved-symbols-y += hswish_fp16
+shavelib-preserved-symbols-y += mvn
 shavelib-preserved-symbols-y += elu_fp16
 shavelib-preserved-symbols-y += exp_fp16
 shavelib-preserved-symbols-y += edsl
