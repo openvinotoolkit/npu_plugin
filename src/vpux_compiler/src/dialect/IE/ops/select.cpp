@@ -32,11 +32,12 @@ mlir::LogicalResult vpux::IE::SelectOp::inferReturnTypeComponents(
     const auto in2Type = select.input2().getType().cast<mlir::ShapedType>();
     const auto in3Type = select.input3().getType().cast<mlir::ShapedType>();
 
-    const auto outShapeRes = IE::broadcastEltwiseShape({in1Type.getShape(), in2Type.getShape(), in3Type.getShape()}, select.auto_broadcast().getValue(), loc);
+    const auto outShapeRes = IE::broadcastEltwiseShape({in1Type.getShape(), in2Type.getShape(), in3Type.getShape()},
+                                                       select.auto_broadcast().getValue(), loc);
 
-     if (mlir::succeeded(outShapeRes)) {
+    if (mlir::succeeded(outShapeRes)) {
         inferredReturnShapes.emplace_back(outShapeRes.getValue(), in2Type.getElementType());
     }
-    
+
     return outShapeRes;
 }

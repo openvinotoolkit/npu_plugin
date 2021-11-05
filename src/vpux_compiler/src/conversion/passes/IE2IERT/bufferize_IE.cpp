@@ -881,7 +881,8 @@ mlir::Operation* createRTLayer(IE::MemPermuteOp origOp, ArrayRef<mlir::Value> al
 
 mlir::Operation* createRTLayer(IE::SelectOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::SelectOp::Adaptor newOp(allBufs);
-    return b.create<IERT::SelectOp>(origOp.getLoc(), newOp.input1(), newOp.input2(), newOp.input3(), newOp.output_buff());
+    return b.create<IERT::SelectOp>(origOp.getLoc(), newOp.input1(), newOp.input2(), newOp.input3(),
+                                    newOp.output_buff());
 }
 
 class LayerRewrite final : public mlir::ConversionPattern {

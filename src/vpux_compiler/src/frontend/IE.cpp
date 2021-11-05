@@ -1430,11 +1430,11 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
     const auto inputs = getInputs(origNode);
     VPUX_THROW_UNLESS(inputs.size() == 3, "nGraph Select node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
-    
+
     const auto& autob = origNode->get_autob();
-    
-    auto op = builder.create<IE::SelectOp>(createLocation(origNode), inputs[0], inputs[1], inputs[2], 
-                                            importBroadcastType(autob.m_type));
+
+    auto op = builder.create<IE::SelectOp>(createLocation(origNode), inputs[0], inputs[1], inputs[2],
+                                           importBroadcastType(autob.m_type));
     addOutputs(origNode, op);
 }
 
@@ -1827,7 +1827,7 @@ mlir::Type importPrecision(mlir::MLIRContext* ctx, const InferenceEngine::Precis
         return getSInt8Type(ctx);
     } else if (precision == InferenceEngine::Precision::U8) {
         return getUInt8Type(ctx);
-    } else if (precision == InferenceEngine::Precision::BOOL ) {
+    } else if (precision == InferenceEngine::Precision::BOOL) {
         return getBoolType(ctx);
     } else {
         VPUX_THROW("Unsupported precision : '{0}'", precision);
@@ -1926,7 +1926,7 @@ void addCNNNetworkOp(mlir::OpBuilder& builder, mlir::FlatSymbolRefAttr mainFuncN
 
         const auto nameAttr = mlir::StringAttr::get(ctx, inputName);
         const auto userTypeAttr = mlir::TypeAttr::get(importUserTensor(ctx, userDesc));
-        
+
         inputsInfoBuilder.create<IE::DataInfoOp>(mlir::UnknownLoc::get(ctx), nameAttr, userTypeAttr);
     }
 

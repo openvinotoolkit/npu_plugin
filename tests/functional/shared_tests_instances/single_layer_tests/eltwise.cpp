@@ -2,25 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <vector>
 #include "single_layer_tests/eltwise.hpp"
+#include <vector>
+#include "common_test_utils/test_constants.hpp"
 #include "kmb_layer_test.hpp"
 #include "single_layer_tests/select.hpp"
-#include "common_test_utils/test_constants.hpp"
 
 namespace LayerTestsDefinitions {
 
-class KmbEltwiseLayerTest:
-        public EltwiseLayerTest,
-        virtual public LayerTestsUtils::KmbLayerTestsCommon {
-};
+class KmbEltwiseLayerTest : public EltwiseLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
 
 class KmbEltwiseLayerTest_MCM : public KmbEltwiseLayerTest {
     void SkipBeforeValidate() override {
         std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>> inShapes;
-        std::tie(inShapes,
-                 std::ignore, std::ignore, std::ignore, std::ignore,
-                 std::ignore, std::ignore, std::ignore, std::ignore, std::ignore) = GetParam();
+        std::tie(inShapes, std::ignore, std::ignore, std::ignore, std::ignore, std::ignore, std::ignore, std::ignore,
+                 std::ignore, std::ignore) = GetParam();
 
         // There are errors at validation step on KMB-board for some input shapes:
         // KmbLayerTestsCommon::Validate()
@@ -34,13 +30,11 @@ class KmbEltwiseLayerTest_MCM : public KmbEltwiseLayerTest {
         // threshold 0.0099999997764825821 failed
         // [Track number: S#51346]
 
-        std::set<std::vector<ngraph::Shape>> badShapes = {
-                {{2, 200}},
-                {{10, 200}},
-                {{1, 4, 4, 1}},
-                {{2, 17, 5, 4}, {1, 17, 1, 1}},
-                {{2, 17, 5, 1}, {1, 17, 1, 4}}
-        };
+        std::set<std::vector<ngraph::Shape>> badShapes = {{{2, 200}},
+                                                          {{10, 200}},
+                                                          {{1, 4, 4, 1}},
+                                                          {{2, 17, 5, 4}, {1, 17, 1, 1}},
+                                                          {{2, 17, 5, 1}, {1, 17, 1, 4}}};
 
         for (const auto& inShape : inShapes.second) {
             if (badShapes.count(inShape)) {
@@ -54,9 +48,8 @@ class KmbEltwiseLayerTest_MLIR : public KmbEltwiseLayerTest {
         ngraph::helpers::EltwiseTypes eltwiseOp;
         std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>> inShapes;
         CommonTestUtils::OpType opType;
-        std::tie(inShapes,
-                 eltwiseOp, std::ignore, opType, std::ignore,
-                 std::ignore, std::ignore, std::ignore, std::ignore, std::ignore) = GetParam();
+        std::tie(inShapes, eltwiseOp, std::ignore, opType, std::ignore, std::ignore, std::ignore, std::ignore,
+                 std::ignore, std::ignore) = GetParam();
 
         std::set<ngraph::helpers::EltwiseTypes> fusedToScaleShiftOpMLIR = {
                 ngraph::helpers::EltwiseTypes::ADD,
@@ -92,11 +85,8 @@ class KmbEltwiseLayerTest_MLIR : public KmbEltwiseLayerTest {
         }
 
         std::set<ngraph::helpers::EltwiseTypes> badOpMLIR = {
-                ngraph::helpers::EltwiseTypes::DIVIDE,
-                ngraph::helpers::EltwiseTypes::SQUARED_DIFF,
-                ngraph::helpers::EltwiseTypes::POWER,
-                ngraph::helpers::EltwiseTypes::FLOOR_MOD
-        };
+                ngraph::helpers::EltwiseTypes::DIVIDE, ngraph::helpers::EltwiseTypes::SQUARED_DIFF,
+                ngraph::helpers::EltwiseTypes::POWER, ngraph::helpers::EltwiseTypes::FLOOR_MOD};
 
         std::set<std::vector<ngraph::Shape>> badShapesMLIR = {
                 {{2}},
@@ -170,18 +160,18 @@ std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector
 };
 
 std::vector<InferenceEngine::Precision> netPrecisions = {
-    InferenceEngine::Precision::FP16,
-    InferenceEngine::Precision::FP32,
+        InferenceEngine::Precision::FP16,
+        InferenceEngine::Precision::FP32,
 };
 
 std::vector<ngraph::helpers::InputLayerType> secondaryInputTypes = {
-    ngraph::helpers::InputLayerType::PARAMETER,
-    ngraph::helpers::InputLayerType::CONSTANT,
+        ngraph::helpers::InputLayerType::PARAMETER,
+        ngraph::helpers::InputLayerType::CONSTANT,
 };
 
 std::vector<CommonTestUtils::OpType> opTypes = {
-    CommonTestUtils::OpType::VECTOR,
-    CommonTestUtils::OpType::SCALAR,
+        CommonTestUtils::OpType::VECTOR,
+        CommonTestUtils::OpType::SCALAR,
 };
 
 std::map<std::string, std::string> additional_config = {};
@@ -190,27 +180,19 @@ std::map<std::string, std::string> additional_config = {};
 // MCM Instantiation
 //
 
-std::set<ngraph::helpers::EltwiseTypes> supportedTypesMCM {
-        ngraph::helpers::EltwiseTypes::ADD,
-        ngraph::helpers::EltwiseTypes::MULTIPLY,
-        ngraph::helpers::EltwiseTypes::SUBTRACT,
-        ngraph::helpers::EltwiseTypes::SQUARED_DIFF
-};
+std::set<ngraph::helpers::EltwiseTypes> supportedTypesMCM{
+        ngraph::helpers::EltwiseTypes::ADD, ngraph::helpers::EltwiseTypes::MULTIPLY,
+        ngraph::helpers::EltwiseTypes::SUBTRACT, ngraph::helpers::EltwiseTypes::SQUARED_DIFF};
 
 const auto eltwise_params_mcm = ::testing::Combine(
-    ::testing::ValuesIn(inShapes),
-    ::testing::ValuesIn(supportedTypesMCM),
-    ::testing::ValuesIn(secondaryInputTypes),
-    ::testing::Values(CommonTestUtils::OpType::SCALAR),
-    ::testing::ValuesIn(netPrecisions),
-    ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-    ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-    ::testing::Values(InferenceEngine::Layout::ANY),
-    ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
-    ::testing::Values(additional_config));
+        ::testing::ValuesIn(inShapes), ::testing::ValuesIn(supportedTypesMCM), ::testing::ValuesIn(secondaryInputTypes),
+        ::testing::Values(CommonTestUtils::OpType::SCALAR), ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED), ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice), ::testing::Values(additional_config));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs, KmbEltwiseLayerTest_MCM, eltwise_params_mcm,
-                        KmbEltwiseLayerTest::getTestCaseName);
+                         KmbEltwiseLayerTest::getTestCaseName);
 
 //
 //[Track number: S#51349]
@@ -226,42 +208,29 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs, KmbEltwiseLayerTest_MCM, eltwise
 // Actual: it throws:VpualCoreNNExecutor::allocateGraph: failed to create NnCorePlg: 6
 
 const auto eltwise_params_vector_mcm = ::testing::Combine(
-        ::testing::ValuesIn(inShapes),
-        ::testing::ValuesIn(supportedTypesMCM),
-        ::testing::ValuesIn(secondaryInputTypes),
-        ::testing::Values(CommonTestUtils::OpType::VECTOR),
-        ::testing::ValuesIn(netPrecisions),
+        ::testing::ValuesIn(inShapes), ::testing::ValuesIn(supportedTypesMCM), ::testing::ValuesIn(secondaryInputTypes),
+        ::testing::Values(CommonTestUtils::OpType::VECTOR), ::testing::ValuesIn(netPrecisions),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
-        ::testing::Values(additional_config));
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED), ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice), ::testing::Values(additional_config));
 
 INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_CompareWithRefs, KmbEltwiseLayerTest_MCM, eltwise_params_vector_mcm,
-                        KmbEltwiseLayerTest::getTestCaseName);
+                         KmbEltwiseLayerTest::getTestCaseName);
 
 //
 // MLIR Instantiation
 //
 
-std::set<ngraph::helpers::EltwiseTypes> supportedTypesMLIR {
-        ngraph::helpers::EltwiseTypes::DIVIDE,
-        ngraph::helpers::EltwiseTypes::SQUARED_DIFF,
-        ngraph::helpers::EltwiseTypes::POWER,
-        ngraph::helpers::EltwiseTypes::FLOOR_MOD
-};
+std::set<ngraph::helpers::EltwiseTypes> supportedTypesMLIR{
+        ngraph::helpers::EltwiseTypes::DIVIDE, ngraph::helpers::EltwiseTypes::SQUARED_DIFF,
+        ngraph::helpers::EltwiseTypes::POWER, ngraph::helpers::EltwiseTypes::FLOOR_MOD};
 
 const auto eltwise_params_mlir = ::testing::Combine(
-        ::testing::ValuesIn(inShapes),
-        ::testing::ValuesIn(supportedTypesMLIR),
-        ::testing::ValuesIn(secondaryInputTypes),
-        ::testing::ValuesIn(opTypes),
-        ::testing::ValuesIn(netPrecisions),
+        ::testing::ValuesIn(inShapes), ::testing::ValuesIn(supportedTypesMLIR),
+        ::testing::ValuesIn(secondaryInputTypes), ::testing::ValuesIn(opTypes), ::testing::ValuesIn(netPrecisions),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
-        ::testing::Values(additional_config));
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED), ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice), ::testing::Values(additional_config));
 
 // [Track number: E#15146]
 // Initialization disabled partly
@@ -273,64 +242,49 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs, KmbEltwiseLayerTest_MLIR, eltwis
 // Specific add and multiply case
 
 std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>> inSpecificShapes = {
-        {{}, {{{1, 9}}}},                            // NC
-        {{}, {{{1, 128, 32}}}},                      // CHW
-        {{}, {{{1, 128, 32}, {1, 128, 1}}}},     // CHW, input1 != input2, broadcast over W
-        {{}, {{{1, 128, 32}, {1, 1, 32}}}},      // CHW, input1 != input2, broadcast over H
-        {{}, {{{1, 9}, {1, 1}}}},                    // NC + scalar
-        {{}, {{{1, 128, 32}, {1, 1, 1}}}},           // CHW + scalar
-        {{}, {{{1, 3, 224, 224}, {1, 1, 1, 1}}}},    // NCHW, broadcast over HW + channels
-        {{}, {{{1, 3, 224, 224}, {1, 3, 1, 1}}}}
-};
+        {{}, {{{1, 9}}}},                          // NC
+        {{}, {{{1, 128, 32}}}},                    // CHW
+        {{}, {{{1, 128, 32}, {1, 128, 1}}}},       // CHW, input1 != input2, broadcast over W
+        {{}, {{{1, 128, 32}, {1, 1, 32}}}},        // CHW, input1 != input2, broadcast over H
+        {{}, {{{1, 9}, {1, 1}}}},                  // NC + scalar
+        {{}, {{{1, 128, 32}, {1, 1, 1}}}},         // CHW + scalar
+        {{}, {{{1, 3, 224, 224}, {1, 1, 1, 1}}}},  // NCHW, broadcast over HW + channels
+        {{}, {{{1, 3, 224, 224}, {1, 3, 1, 1}}}}};
 
 const auto multiply_params_mlir = ::testing::Combine(
-        ::testing::ValuesIn(inSpecificShapes),
-        ::testing::Values(ngraph::helpers::EltwiseTypes::MULTIPLY),
-        ::testing::ValuesIn(secondaryInputTypes),
-        ::testing::ValuesIn(opTypes),
-        ::testing::Values(InferenceEngine::Precision::FP16),
-        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
-        ::testing::Values(additional_config));
+        ::testing::ValuesIn(inSpecificShapes), ::testing::Values(ngraph::helpers::EltwiseTypes::MULTIPLY),
+        ::testing::ValuesIn(secondaryInputTypes), ::testing::ValuesIn(opTypes),
+        ::testing::Values(InferenceEngine::Precision::FP16), ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED), ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice), ::testing::Values(additional_config));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Multiply, KmbEltwiseLayerTest_MLIR, multiply_params_mlir,
-                        KmbEltwiseLayerTest::getTestCaseName);
+                         KmbEltwiseLayerTest::getTestCaseName);
 
 const auto eltwise_add_params_mlir = ::testing::Combine(
-        ::testing::ValuesIn(inSpecificShapes),
-        ::testing::Values(ngraph::helpers::EltwiseTypes::ADD),
-        ::testing::ValuesIn(secondaryInputTypes),
-        ::testing::ValuesIn(opTypes),
-        ::testing::Values(InferenceEngine::Precision::FP16),
-        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
-        ::testing::Values(additional_config));
+        ::testing::ValuesIn(inSpecificShapes), ::testing::Values(ngraph::helpers::EltwiseTypes::ADD),
+        ::testing::ValuesIn(secondaryInputTypes), ::testing::ValuesIn(opTypes),
+        ::testing::Values(InferenceEngine::Precision::FP16), ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED), ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice), ::testing::Values(additional_config));
 
 INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs_Add, KmbEltwiseLayerTest_MLIR, eltwise_add_params_mlir,
                         KmbEltwiseLayerTest::getTestCaseName);
 
-
 // Specific subtract case
 
-std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>> inSpecificSubtractShapes = {
-        {{}, {{{1, 2, 4}}}},
-        {{}, {{{1, 2, 2, 4}, {1, 2, 1, 1}}}},
+std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>>
+        inSpecificSubtractShapes = {
+                {{}, {{{1, 2, 4}}}},
+                {{}, {{{1, 2, 2, 4}, {1, 2, 1, 1}}}},
 };
 
 const auto subtract_params_mlir = ::testing::Combine(
-        ::testing::ValuesIn(inSpecificSubtractShapes),
-        ::testing::Values(ngraph::helpers::EltwiseTypes::SUBTRACT),
-        ::testing::ValuesIn(secondaryInputTypes),
-        ::testing::ValuesIn(opTypes), ::testing::ValuesIn(netPrecisions),
+        ::testing::ValuesIn(inSpecificSubtractShapes), ::testing::Values(ngraph::helpers::EltwiseTypes::SUBTRACT),
+        ::testing::ValuesIn(secondaryInputTypes), ::testing::ValuesIn(opTypes), ::testing::ValuesIn(netPrecisions),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
-        ::testing::Values(additional_config));
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED), ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice), ::testing::Values(additional_config));
 
 INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs_Specific_subtract, KmbEltwiseLayerTest_MLIR, subtract_params_mlir,
                         KmbEltwiseLayerTest::getTestCaseName);
@@ -344,43 +298,31 @@ using namespace LayerTestsDefinitions;
 
 namespace {
 const std::vector<InferenceEngine::Precision> inputPrecision = {
-    //InferenceEngine::Precision::I8
-    InferenceEngine::Precision::FP16,
-    //InferenceEngine::Precision::FP32 
+        // InferenceEngine::Precision::I8
+        InferenceEngine::Precision::FP16,
+        // InferenceEngine::Precision::FP32
 };
 
-const std::vector<std::vector<std::vector<size_t>>> noneShapes = {
-    {{1}, {1}, {1}},
-    {{8}, {8}, {8}},
-    {{4, 5}, {4, 5}, {4, 5}},
-    {{3, 4, 5}, {3, 4, 5}, {3, 4, 5}},
-    {{2, 3, 4, 5}, {2, 3, 4, 5}, {2, 3, 4, 5}},
-    {{2, 3, 4, 5, 6}, {2, 3, 4, 5, 6}, {2, 3, 4, 5, 6}}
-};
+const std::vector<std::vector<std::vector<size_t>>> noneShapes = {{{1}, {1}, {1}},
+                                                                  {{8}, {8}, {8}},
+                                                                  {{4, 5}, {4, 5}, {4, 5}},
+                                                                  {{3, 4, 5}, {3, 4, 5}, {3, 4, 5}},
+                                                                  {{2, 3, 4, 5}, {2, 3, 4, 5}, {2, 3, 4, 5}},
+                                                                  {{2, 3, 4, 5, 6}, {2, 3, 4, 5, 6}, {2, 3, 4, 5, 6}}};
 
-const auto noneCases = ::testing::Combine(
-    ::testing::ValuesIn(noneShapes),
-    ::testing::ValuesIn(inputPrecision),
-    ::testing::Values(ngraph::op::AutoBroadcastSpec::NONE),
-    ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)
-);
+const auto noneCases = ::testing::Combine(::testing::ValuesIn(noneShapes), ::testing::ValuesIn(inputPrecision),
+                                          ::testing::Values(ngraph::op::AutoBroadcastSpec::NONE),
+                                          ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
 
 const std::vector<std::vector<std::vector<size_t>>> numpyShapes = {
-    {{1}, {1}, {1}},
-    {{1}, {1}, {16}},
-    {{1}, {8}, {8}},
-    {{8}, {1}, {8}},
-    {{8}, {8}, {8}},
-    {{4, 1}, {1}, {4, 8}},
-    {{8, 1}, {8, 1}, {8, 1}},
+        {{1}, {1}, {1}}, {{1}, {1}, {16}},      {{1}, {8}, {8}},          {{8}, {1}, {8}},
+        {{8}, {8}, {8}}, {{4, 1}, {1}, {4, 8}}, {{8, 1}, {8, 1}, {8, 1}},
 };
 
-const auto numpyCases = ::testing::Combine(
-    ::testing::ValuesIn(numpyShapes),
-    ::testing::ValuesIn(inputPrecision),
-    ::testing::Values(ngraph::op::AutoBroadcastSpec::NUMPY),
-    ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)
-);
+const auto numpyCases = ::testing::Combine(::testing::ValuesIn(numpyShapes), ::testing::ValuesIn(inputPrecision),
+                                           ::testing::Values(ngraph::op::AutoBroadcastSpec::NUMPY),
+                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
 
-INSTANTIATE_TEST_CASE_P(smoke_TestsSelectOp_none, KmbSelectLayerTest_MLIR, noneCases, KmbSelectLayerTest::getTestCaseName);
-}
+INSTANTIATE_TEST_CASE_P(smoke_TestsSelectOp_none, KmbSelectLayerTest_MLIR, noneCases,
+                        KmbSelectLayerTest::getTestCaseName);
+}  // namespace
