@@ -2,11 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <vector>
-
 #include "single_layer_tests/cum_sum.hpp"
-#include "common_test_utils/test_constants.hpp"
-
 #include "kmb_layer_test.hpp"
 
 namespace LayerTestsDefinitions {
