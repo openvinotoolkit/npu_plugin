@@ -46,19 +46,3 @@ EMU::BlobWriter::SpecificTask vpux::EMU::ROIAlignUPAOp::serialize(EMU::BlobWrite
 
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_ROIAlignParams});
 }
-
-IE::ROIAlignMethod softLayerParam2IEMethod(size_t method) {
-    IE::ROIAlignMethod ieMethod;
-    switch (method) {
-    case 0:
-        ieMethod = IE::ROIAlignMethod::avg;
-        break;
-    case 1:
-        ieMethod = IE::ROIAlignMethod::max;
-        break;
-    default:
-        VPUX_THROW("Unknown ROIAlignMethod. avg and max methods are supported only");
-    }
-
-    return ieMethod;
-}

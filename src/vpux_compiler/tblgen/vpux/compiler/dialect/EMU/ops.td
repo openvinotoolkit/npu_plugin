@@ -24,7 +24,6 @@ include "vpux/compiler/dialect/EMU/ops_interfaces.td"
 include "vpux/compiler/dialect/EMU/attributes.td"
 
 include "mlir/Interfaces/CastInterfaces.td"
-include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 include "mlir/Interfaces/ViewLikeInterface.td"
 include "mlir/IR/OpAsmInterface.td"
@@ -48,8 +47,6 @@ class EMU_TaskOp<string mnemonic, list<OpTrait> traits = []> :
             mnemonic,
             [
                 NoSideEffect,
-                InferTypeOpInterface,
-                DeclareOpInterfaceMethods<InferShapedTypeOpInterface, ["inferReturnTypeComponents"]>,
                 DeclareOpInterfaceMethods<EMU_TaskOpInterface>
             ] # traits
         > {
@@ -77,7 +74,6 @@ class EMU_UPATaskOp<string mnemonic, list<OpTrait> traits = []> :
 def EMU_ConvertUPAOp :
         EMU_UPATaskOp<"ConvertUPA",
             [
-                ViewLikeOpInterface,
                 SameOperandsAndResultShape
             ]
         > {
@@ -121,7 +117,6 @@ def EMU_ConvertUPAOp :
 def EMU_SoftMaxUPAOp :
         EMU_UPATaskOp<"SoftMaxUPA",
             [
-                ViewLikeOpInterface,
                 SameOperandsAndResultShape,
                 SameOperandsAndResultElementType
             ]
@@ -165,7 +160,6 @@ def EMU_SoftMaxUPAOp :
 def EMU_PoolingUPAOp :
         EMU_UPATaskOp<"PoolingUPA",
             [
-                ViewLikeOpInterface,
                 SameOperandsAndResultElementType
             ]
         > {
@@ -216,7 +210,6 @@ def EMU_PoolingUPAOp :
 def EMU_ConvolutionUPAOp :
         EMU_UPATaskOp<"ConvolutionUPA",
             [
-                ViewLikeOpInterface,
                 SameOperandsAndResultElementType
             ]
         > {
@@ -268,7 +261,6 @@ def EMU_ConvolutionUPAOp :
 def EMU_ReLUUPAOp :
         EMU_UPATaskOp<"ReLUUPA",
             [
-                ViewLikeOpInterface,
                 SameOperandsAndResultShape,
                 SameOperandsAndResultElementType
             ]
@@ -307,7 +299,6 @@ def EMU_ReLUUPAOp :
 def EMU_SigmoidUPAOp :
         EMU_UPATaskOp<"SigmoidUPA",
             [
-                ViewLikeOpInterface,
                 SameOperandsAndResultShape,
                 SameOperandsAndResultElementType
             ]
@@ -346,7 +337,6 @@ def EMU_SigmoidUPAOp :
 def EMU_HSwishUPAOp :
         EMU_UPATaskOp<"HSwishUPA",
             [
-                ViewLikeOpInterface,
                 SameOperandsAndResultShape,
                 SameOperandsAndResultElementType
             ]
@@ -385,7 +375,6 @@ def EMU_HSwishUPAOp :
 def EMU_ErfUPAOp :
         EMU_UPATaskOp<"ErfUPA",
             [
-                ViewLikeOpInterface,
                 SameOperandsAndResultShape,
                 SameOperandsAndResultElementType
             ]
@@ -424,7 +413,6 @@ def EMU_ErfUPAOp :
 def EMU_MishUPAOp :
         EMU_UPATaskOp<"MishUPA",
             [
-                ViewLikeOpInterface,
                 SameOperandsAndResultShape,
                 SameOperandsAndResultElementType
             ]
@@ -463,7 +451,6 @@ def EMU_MishUPAOp :
 def EMU_FloorUPAOp :
         EMU_UPATaskOp<"FloorUPA",
             [
-                ViewLikeOpInterface,
                 SameOperandsAndResultShape,
                 SameOperandsAndResultElementType
             ]
@@ -502,7 +489,6 @@ def EMU_FloorUPAOp :
 def EMU_RoundUPAOp :
         EMU_UPATaskOp<"RoundUPA",
             [
-                ViewLikeOpInterface,
                 SameOperandsAndResultShape,
                 SameOperandsAndResultElementType
             ]
@@ -546,7 +532,6 @@ def EMU_RoundUPAOp :
 def EMU_ClampUPAOp :
         EMU_UPATaskOp<"ClampUPA",
             [
-                ViewLikeOpInterface,
                 SameOperandsAndResultShape,
                 SameOperandsAndResultElementType
             ]
@@ -591,7 +576,6 @@ def EMU_ClampUPAOp :
 def EMU_EluUPAOp :
         EMU_UPATaskOp<"EluUPA",
             [
-                ViewLikeOpInterface,
                 SameOperandsAndResultShape,
                 SameOperandsAndResultElementType
             ]
@@ -635,7 +619,6 @@ def EMU_EluUPAOp :
 def EMU_TanhUPAOp :
         EMU_UPATaskOp<"TanhUPA",
             [
-                ViewLikeOpInterface,
                 SameOperandsAndResultShape,
                 SameOperandsAndResultElementType
             ]
@@ -674,7 +657,6 @@ def EMU_TanhUPAOp :
 def EMU_SqrtUPAOp :
         EMU_UPATaskOp<"SqrtUPA",
             [
-                ViewLikeOpInterface,
                 SameOperandsAndResultShape,
                 SameOperandsAndResultElementType
             ]
@@ -713,7 +695,6 @@ def EMU_SqrtUPAOp :
 def EMU_LogUPAOp :
         EMU_UPATaskOp<"LogUPA",
             [
-                ViewLikeOpInterface,
                 SameOperandsAndResultShape,
                 SameOperandsAndResultElementType
             ]
@@ -752,7 +733,6 @@ def EMU_LogUPAOp :
 def EMU_ExpUPAOp :
         EMU_UPATaskOp<"ExpUPA",
             [
-                ViewLikeOpInterface,
                 SameOperandsAndResultShape,
                 SameOperandsAndResultElementType
             ]
@@ -791,7 +771,6 @@ def EMU_ExpUPAOp :
 def EMU_FakeQuantizeUPAOp :
         EMU_UPATaskOp<"FakeQuantizeUPA",
             [
-                ViewLikeOpInterface,
                 SameOperandsAndResultElementType
             ]
         > {
@@ -840,7 +819,6 @@ def EMU_FakeQuantizeUPAOp :
 def EMU_QuantCastUPAOp :
         EMU_UPATaskOp<"QuantCastUPA",
             [
-                ViewLikeOpInterface,
                 SameOperandsAndResultShape
             ]
         > {
@@ -874,11 +852,7 @@ def EMU_QuantCastUPAOp :
 //
 
 def EMU_PReluUPAOp :
-        EMU_UPATaskOp<"PReluUPA",
-            [
-                ViewLikeOpInterface
-            ]
-        > {
+        EMU_UPATaskOp<"PReluUPA"> {
     let summary = "PRelu UPA SHAVE kernel";
 
     let arguments = (ins
@@ -911,11 +885,7 @@ def EMU_PReluUPAOp :
 //
 
 def EMU_LeakyReluUPAOp :
-        EMU_UPATaskOp< "LeakyReluUPA",
-            [
-                ViewLikeOpInterface
-            ]
-        > {
+        EMU_UPATaskOp< "LeakyReluUPA"> {
     let summary = "LeakyRelu UPA SHAVE kernel";
 
     let arguments = (ins
@@ -949,11 +919,7 @@ def EMU_LeakyReluUPAOp :
 //
 
 def EMU_EltwiseUPAOp :
-        EMU_UPATaskOp<"EltwiseUPA",
-            [
-                ViewLikeOpInterface
-            ]
-        > {
+        EMU_UPATaskOp<"EltwiseUPA"> {
     let summary = "Eltwise UPA SHAVE kernel";
 
     let arguments = (ins
@@ -991,7 +957,6 @@ def EMU_EltwiseUPAOp :
 def EMU_DetectionOutputUPAOp :
         EMU_UPATaskOp<"DetectionOutputUPA",
             [
-                ViewLikeOpInterface,
                 AttrSizedOperandSegments
             ]
         > {
@@ -1033,11 +998,7 @@ def EMU_DetectionOutputUPAOp :
 //
 
 def EMU_SwishUPAOp :
-        EMU_UPATaskOp<"SwishUPA",
-            [
-                ViewLikeOpInterface
-            ]
-        > {
+        EMU_UPATaskOp<"SwishUPA"> {
     let summary = "Swish UPA SHAVE kernel";
 
     let arguments = (ins
@@ -1071,11 +1032,7 @@ def EMU_SwishUPAOp :
 //
 
 def EMU_GRNUPAOp :
-        EMU_UPATaskOp<"GRNUPA",
-            [
-                ViewLikeOpInterface
-            ]
-        > {
+        EMU_UPATaskOp<"GRNUPA"> {
     let summary = "GRN UPA SHAVE kernel";
 
     let arguments = (ins
@@ -1109,11 +1066,7 @@ def EMU_GRNUPAOp :
 //
 
 def EMU_NormUPAOp :
-        EMU_UPATaskOp<"NormUPA",
-            [
-                ViewLikeOpInterface
-            ]
-        > {
+        EMU_UPATaskOp<"NormUPA"> {
     let summary = "Norm UPA SHAVE kernel";
 
     let arguments = (ins
@@ -1157,11 +1110,7 @@ def EMU_NormUPAOp :
 //
 
 def EMU_BroadcastUPAOp :
-        EMU_UPATaskOp<"BroadcastUPA",
-            [
-                ViewLikeOpInterface
-            ]
-        > {
+        EMU_UPATaskOp<"BroadcastUPA"> {
     let summary = "Broadcast UPA SHAVE kernel";
 
     let arguments = (ins
@@ -1200,7 +1149,6 @@ def EMU_BroadcastUPAOp :
 def EMU_ScaleShiftUPAOp :
         EMU_UPATaskOp<"ScaleShiftUPA",
             [
-                ViewLikeOpInterface,
                 SameOperandsAndResultElementType,
                 AttrSizedOperandSegments
             ]
@@ -1243,11 +1191,7 @@ def EMU_ScaleShiftUPAOp :
 //
 
 def EMU_PerAxisTileUPAOp :
-        EMU_UPATaskOp<"PerAxisTileUPA",
-            [
-                ViewLikeOpInterface
-            ]
-        > {
+        EMU_UPATaskOp<"PerAxisTileUPA"> {
     let summary = "Tile for per axis case UPA SHAVE kernel";
 
     let arguments = (ins
@@ -1282,11 +1226,7 @@ def EMU_PerAxisTileUPAOp :
 //
 
 def EMU_NegativeUPAOp :
-        EMU_UPATaskOp<"NegativeUPA",
-            [
-                ViewLikeOpInterface
-            ]
-        > {
+        EMU_UPATaskOp<"NegativeUPA"> {
     let summary = "Negative UPA SHAVE kernel";
 
     let arguments = (ins
@@ -1315,11 +1255,7 @@ def EMU_NegativeUPAOp :
 //
 
 def EMU_ProposalUPAOp :
-        EMU_UPATaskOp<"ProposalUPA",
-            [
-                ViewLikeOpInterface
-            ]
-        > {
+        EMU_UPATaskOp<"ProposalUPA"> {
     let summary = "Proposal UPA SHAVE kernel";
 
     let arguments = (ins
@@ -1355,11 +1291,7 @@ def EMU_ProposalUPAOp :
 //
 
 def EMU_ROIPoolingUPAOp :
-        EMU_UPATaskOp<"ROIPoolingUPA",
-            [
-                ViewLikeOpInterface
-            ]
-        > {
+        EMU_UPATaskOp<"ROIPoolingUPA"> {
     let summary = "ROIPooling UPA SHAVE kernel";
 
     let arguments = (ins
@@ -1397,11 +1329,7 @@ def EMU_ROIPoolingUPAOp :
 //
 
 def EMU_ROIAlignUPAOp :
-        EMU_UPATaskOp<"ROIAlignUPA",
-            [
-                ViewLikeOpInterface
-            ]
-        > {
+        EMU_UPATaskOp<"ROIAlignUPA"> {
     let summary = "ROIAlign UPA SHAVE kernel";
 
     let arguments = (ins
@@ -1442,11 +1370,7 @@ def EMU_ROIAlignUPAOp :
 //
 
 def EMU_PermuteUPAOp :
-        EMU_UPATaskOp<"PermuteUPA",
-            [
-                ViewLikeOpInterface
-            ]
-        > {
+        EMU_UPATaskOp<"PermuteUPA"> {
     let summary = "Permute UPA SHAVE kernel";
 
     let arguments = (ins
@@ -1487,8 +1411,7 @@ def EMU_WeightsTableOp :
         EMU_Op<"WeightsTableOp",
             [
                 NoSideEffect,
-                AttrSizedOperandSegments,
-                ViewLikeOpInterface
+                AttrSizedOperandSegments
             ]
         > {
     let summary = "Intermediate task for creating weights table based on the addresses of CMX buffers";
@@ -1497,19 +1420,12 @@ def EMU_WeightsTableOp :
         RankedTensorOf<[F16, quant_QuantizedType]>:$op_input,
         RankedTensorOf<[F16, quant_QuantizedType]>:$op_output,
         Optional<RankedTensorOf<[F16, quant_QuantizedType]>>:$weights,
-        Optional<RankedTensorOf<[F16, F32]>>:$bias,
-        Optional<RankedTensorOf<[UI8]>>:$activation_window
+        Optional<RankedTensorOf<[F16, F32]>>:$bias
     );
 
     let results = (outs
         RankedTensorOf<[SI32]>:$output
     );
-
-    let extraClassDeclaration = [{
-        mlir::Value getViewSource() {
-            return weights() != nullptr ? weights() : activation_window();
-        }
-    }];
 
     let assemblyFormat = [{
         attr-dict
@@ -1517,7 +1433,6 @@ def EMU_WeightsTableOp :
         `op_output` `(` $op_output  `:` type($op_output) `)`
         (`weights` `(` $weights^  `:` type($weights) `)`)?
         (`bias` `(` $bias^  `:` type($bias) `)`)?
-        (`activation_window` `(` $activation_window^  `:` type($activation_window) `)`)?
         `->` type(results)
     }];
 }
@@ -1579,7 +1494,6 @@ def EMU_PPETaskOp :
 def EMU_NCEClusterTaskOp :
         EMU_TaskOp<"NCEClusterTask",
             [
-                ViewLikeOpInterface,
                 NoRegionArguments,
                 OpAsmOpInterface,
                 AttrSizedOperandSegments
@@ -1657,11 +1571,7 @@ def EMU_NCEClusterTaskOp :
 //
 
 def EMU_CTCGreedyDecoderUPAOp :
-        EMU_UPATaskOp<"CTCGreedyDecoderUPA",
-            [
-                ViewLikeOpInterface
-            ]
-        > {
+        EMU_UPATaskOp<"CTCGreedyDecoderUPA"> {
     let summary = "CTCGreedyDecoder UPA SHAVE kernel";
 
     let arguments = (ins
@@ -1701,11 +1611,7 @@ def EMU_CTCGreedyDecoderUPAOp :
 //
 
 def EMU_CTCGreedyDecoderSeqLenUPAOp :
-        EMU_UPATaskOp<"CTCGreedyDecoderSeqLenUPA",
-            [
-                MultiViewOpInterface
-            ]
-        > {
+        EMU_UPATaskOp<"CTCGreedyDecoderSeqLenUPA"> {
     let summary = "CTCGreedyDecoderSeqLen UPA SHAVE kernel";
 
     let arguments = (ins
@@ -1743,11 +1649,7 @@ def EMU_CTCGreedyDecoderSeqLenUPAOp :
 //
 
 def EMU_PadUPAOp :
-        EMU_UPATaskOp<"Pad",
-            [
-                ViewLikeOpInterface
-            ]
-        > {
+        EMU_UPATaskOp<"Pad"> {
     let summary = "Pad UPA SHAVE kernel";
 
     let arguments = (ins
@@ -1786,11 +1688,7 @@ def EMU_PadUPAOp :
 //
 
 def EMU_LSTMCellUPAOp :
-        EMU_UPATaskOp<"LSTMCellUPA",
-            [
-                MultiViewOpInterface
-            ]
-        > {
+        EMU_UPATaskOp<"LSTMCellUPA"> {
     let summary = "LSTMCell UPA SHAVE kernel";
 
     let arguments = (ins
@@ -1829,11 +1727,7 @@ def EMU_LSTMCellUPAOp :
 //
 
 def EMU_LSTMSequenceUPAOp :
-        EMU_UPATaskOp<"LSTMSequenceUPA",
-            [
-                MultiViewOpInterface
-            ]
-        > {
+        EMU_UPATaskOp<"LSTMSequenceUPA"> {
     let summary = "LSTMSequence UPA SHAVE kernel";
 
     let arguments = (ins
@@ -1877,11 +1771,7 @@ def EMU_LSTMSequenceUPAOp :
 //
 
 def EMU_InterpolateUPAOp :
-        EMU_UPATaskOp<"Interpolate",
-            [
-                ViewLikeOpInterface
-            ]
-        > {
+        EMU_UPATaskOp<"Interpolate"> {
     let summary = "Interpolate UPA SHAVE kernel";
 
     let arguments = (ins
@@ -1924,11 +1814,7 @@ def EMU_InterpolateUPAOp :
 //
 
 def EMU_StridedSliceUPAOp :
-     EMU_UPATaskOp<"StridedSlice",
-         [
-             ViewLikeOpInterface
-         ]
-     > {
+     EMU_UPATaskOp<"StridedSlice"> {
     let summary = "StridedSlice UPA SHAVE kernel";
 
     let arguments = (ins
@@ -1965,11 +1851,7 @@ def EMU_StridedSliceUPAOp :
 //
 
 def EMU_FullyConnectedUPAOp :
-        EMU_UPATaskOp<"FullyConnectedUPA",
-            [
-                ViewLikeOpInterface
-            ]
-        > {
+        EMU_UPATaskOp<"FullyConnectedUPA"> {
     let summary = "FullyConnected UPA SHAVE kernel";
 
     let arguments = (ins
@@ -2002,11 +1884,7 @@ def EMU_FullyConnectedUPAOp :
 //
 
 def EMU_RegionYoloUPAOp :
-        EMU_UPATaskOp<"RegionYoloUPA",
-            [
-                ViewLikeOpInterface
-            ]
-        > {
+        EMU_UPATaskOp<"RegionYoloUPA"> {
     let summary = "RegionYolo UPA SHAVE kernel";
 
     let arguments = (ins
@@ -2051,7 +1929,6 @@ def EMU_RegionYoloUPAOp :
 def EMU_MVNUPAOp :
         EMU_UPATaskOp<"MVNUPA",
             [
-                ViewLikeOpInterface,
                 SameOperandsAndResultShape,
                 SameOperandsAndResultElementType
             ]
@@ -2098,11 +1975,7 @@ def EMU_MVNUPAOp :
 //
 
 def EMU_GatherUPAOp :
-        EMU_UPATaskOp<"GatherUPA",
-            [
-                ViewLikeOpInterface
-            ]
-        > {
+        EMU_UPATaskOp<"GatherUPA"> {
     let summary = "Gather UPA SHAVE kernel";
 
     let arguments = (ins
@@ -2145,7 +2018,6 @@ def EMU_GatherUPAOp :
 def EMU_CeilingUPAOp :
         EMU_UPATaskOp<"CeilingUPA",
             [
-                ViewLikeOpInterface,
                 SameOperandsAndResultShape,
                 SameOperandsAndResultElementType
             ]
@@ -2182,11 +2054,7 @@ def EMU_CeilingUPAOp :
 //
 
 def EMU_NormalizeIEUPAOp :
-        EMU_UPATaskOp<"NormalizeIEUPA",
-            [
-                ViewLikeOpInterface
-            ]
-        > {
+        EMU_UPATaskOp<"NormalizeIEUPA"> {
     let summary = "NormalizeIE UPA SHAVE kernel";
 
     let arguments = (ins

@@ -44,6 +44,18 @@ MVCNN::RoundMode converVPUXRoundModeToMVCNN(vpux::IE::RoundMode vpux_mode) {
 
 mlir::LogicalResult vpux::EMU::verifyPostOp(mlir::Operation* op) {
     VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in verifyPostOp");
+
+    for (auto& operand : op->getOpOperands()) {
+        const auto opVal = operand.get();
+        // TODO : can we fix that limitation?
+        const auto strideReqs =
+                StrideReqs::compact(opVal.getType().cast<mlir::ShapedType>().getRank()).remove(MemDim(1));
+
+        if (!strideReqs.checkStrides(opVal)) {
+            return errorAt(op, "Value '{0}' strides do not match requirements '{1}'", opVal, strideReqs);
+        }
+    }
+
     return mlir::success();
 }
 

@@ -53,6 +53,10 @@ def EMU_UPATaskOpInterface : OpInterface<"UPATaskOpInterface"> {
 
     let cppNamespace = "vpux::EMU";
 
+    let verify = [{
+        return vpux::EMU::verifyUPATask($_op);
+    }];
+
     let extraTraitClassDeclaration = [{
         static vpux::EMU::TaskType getTaskType() {
             return vpux::EMU::TaskType::UPA;

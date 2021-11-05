@@ -1587,7 +1587,6 @@ operation ::= `EMU.WeightsTableOp` attr-dict
               `op_output` `(` $op_output  `:` type($op_output) `)`
               (`weights` `(` $weights^  `:` type($weights) `)`)?
               (`bias` `(` $bias^  `:` type($bias) `)`)?
-              (`activation_window` `(` $activation_window^  `:` type($activation_window) `)`)?
               `->` type(results)
 ```
 
@@ -1600,7 +1599,6 @@ operation ::= `EMU.WeightsTableOp` attr-dict
 `op_output` | ranked tensor of 16-bit float or QuantizedType values
 `weights` | ranked tensor of 16-bit float or QuantizedType values
 `bias` | ranked tensor of 16-bit float or 32-bit float values
-`activation_window` | ranked tensor of 8-bit unsigned integer values
 
 #### Results:
 
