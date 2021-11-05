@@ -510,7 +510,7 @@ std::shared_ptr<ngraph::Node> parseNode(IE::AvgPoolOp origOp, ngraph::OutputVect
     const auto rounding_type = exportRoundingType(origOp.rounding_type());
     return std::make_shared<ngraph::opset7::AvgPool>(inputs.at(0), ngraph::Strides(strides.begin(),strides.end()),
         ngraph::Shape(pads_begin.begin(), pads_begin.end()), ngraph::Shape(pads_end.begin(), pads_end.end()),
-        ngraph::Shape(kernel.begin(), kernel.end()), exclude_pads, rounding_type);
+        ngraph::Shape(kernel.begin(), kernel.end()), exclude_pads, rounding_type, ngraph::op::PadType::SAME_UPPER);
 }
 
 std::shared_ptr<ngraph::Node> parseNode(IE::MaxPoolOp origOp, ngraph::OutputVector &inputs)
@@ -522,7 +522,7 @@ std::shared_ptr<ngraph::Node> parseNode(IE::MaxPoolOp origOp, ngraph::OutputVect
     const auto rounding_type = exportRoundingType(origOp.rounding_type());
     return std::make_shared<ngraph::opset7::MaxPool>(inputs.at(0), ngraph::Strides(strides.begin(), strides.end()),
         ngraph::Shape(pads_begin.begin(), pads_begin.end()), ngraph::Shape(pads_end.begin(), pads_end.end()),
-        ngraph::Shape(kernel.begin(), kernel.end()), rounding_type);
+        ngraph::Shape(kernel.begin(), kernel.end()), rounding_type, ngraph::op::PadType::SAME_UPPER);
 }
 
 std::shared_ptr<ngraph::Node> parseNode(IE::GatherOp, ngraph::OutputVector &inputs)
@@ -744,7 +744,7 @@ std::shared_ptr<ngraph::Node> parseNode(IE::MVNOp origOp, ngraph::OutputVector &
 std::shared_ptr<ngraph::Node> parseNode(IE::ConcatOp origOp, ngraph::OutputVector &inputs)
 {
     auto axis = origOp.axis();
-    return std::make_shared<ngraph::opset7::Concat>(ngraph::OutputVector{inputs.at(0), inputs.at(1)}, axis);
+    return std::make_shared<ngraph::opset7::Concat>(inputs, axis);
 }
 
 std::shared_ptr<ngraph::Node> parseNode(IE::ROIPoolingOp origOp, ngraph::OutputVector &inputs)
