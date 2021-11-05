@@ -91,7 +91,6 @@ class KmbEltwiseLayerTest_MLIR : public KmbEltwiseLayerTest {
             }
         }
 
-
         std::set<ngraph::helpers::EltwiseTypes> badOpMLIR = {
                 ngraph::helpers::EltwiseTypes::DIVIDE,
                 ngraph::helpers::EltwiseTypes::SQUARED_DIFF,
@@ -115,7 +114,6 @@ class KmbEltwiseLayerTest_MLIR : public KmbEltwiseLayerTest {
         }
     }
 };
-
 
 //
 //[Track number: E#15146]
@@ -339,6 +337,9 @@ INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs_Specific_subtract, KmbEltwiseLayer
 
 }  // namespace
 
+//
+// SelectOp
+//
 using namespace LayerTestsDefinitions;
 
 namespace {
@@ -360,7 +361,6 @@ const std::vector<std::vector<std::vector<size_t>>> noneShapes = {
 const auto noneCases = ::testing::Combine(
     ::testing::ValuesIn(noneShapes),
     ::testing::ValuesIn(inputPrecision),
-
     ::testing::Values(ngraph::op::AutoBroadcastSpec::NONE),
     ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)
 );
