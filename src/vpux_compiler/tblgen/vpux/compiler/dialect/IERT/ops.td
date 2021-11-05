@@ -2395,8 +2395,6 @@ def IERT_PermuteCastOp :
     }];
 }
 
-
-
 //
 // SelectOp
 //
@@ -2433,6 +2431,5 @@ def IERT_SelectOp :
         `->` type(results)
     }];
 }
-
 
 #endif
