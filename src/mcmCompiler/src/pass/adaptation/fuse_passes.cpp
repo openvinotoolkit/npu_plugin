@@ -95,8 +95,10 @@ void fusePostOpsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
 
     /* ToDo: In case more activations will have this handling available, design should be generalized with lists/maps */
     bool PPELReluAccuracy = checkPPEAccuracy(model);
+    // PPELReluAccuracy = false;
 
-    if (PPELReluAccuracy) {
+    if (PPELReluAccuracy) 
+    {
         /* Fuse Bias ops first */
         std::vector<mv::Data::OpListIterator> biasOperations = om.getOps("Bias");
 
@@ -412,6 +414,28 @@ void fusePPEBaseFcn(mv::Data::OpListIterator& opIt, mv::ComputationModel& model,
         return;
     }
     if (opType == "LeakyRelu" && opIt->get<double>("alpha") < 0) {
+        return;
+    }
+
+    if (opType == "LeakyRelu" && (opIt->getName() == "LeakyReLU_52276506"
+    || opIt->getName() == "LeakyReLU_52066518"
+    || opIt->getName() == "LeakyReLU_52106530"
+    || opIt->getName() == "LeakyReLU_52216534"
+    || opIt->getName() == "LeakyReLU_52206450"
+    || opIt->getName() == "LeakyReLU_52126562"
+    || opIt->getName() == "LeakyReLU_52336482"
+    || opIt->getName() == "LeakyReLU_52226462"
+    || opIt->getName() == "LeakyReLU_52246490"
+    || opIt->getName() == "LeakyReLU_52076554"))
+    {
+        // auto inputTensor = opIt->getInputTensor(0);
+        // inputTensor->setQuantParams(mv::QuantizationParams::empty());
+        for (auto& parent : fusableParents) {
+            std::cout << parent->getName() << std::endl;
+            auto outputTensor = parent->getOutputTensor(0);
+            outputTensor->setQuantParams(mv::QuantizationParams::empty());
+            outputTensor->setDType(mv::DType("Float16"));
+        }
         return;
     }
 
