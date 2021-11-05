@@ -241,3 +241,10 @@ endif()
 if(ENABLE_ZEROAPI_BACKEND)
     add_subdirectory(level-zero EXCLUDE_FROM_ALL)
 endif()
+
+#
+# json
+#
+if(ENABLE_KMB_SAMPLES)
+    set(SAMPLES_JSON "${CMAKE_CURRENT_SOURCE_DIR}/json/single_include/nlohmann/" CACHE INTERNAL "")
+endif()
