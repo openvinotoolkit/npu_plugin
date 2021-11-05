@@ -58,28 +58,47 @@
 #include "legacy/ngraph_ops/normalize_ie.hpp"
 #include "vpux/passes/convert_MVN6_to_MVN1.hpp"
 
-#include <transformations/common_optimizations/common_optimizations.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/convert_lrn_to_lrn_ie.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/convert_normalizel2_to_normalize_ie.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/convert_strided_slice_to_crop.hpp>
+#include <transformations/common_optimizations/batch_to_space_fusion.hpp>
+#include <transformations/common_optimizations/conv_mul_fusion.hpp>
 #include <transformations/common_optimizations/convert_quantize_dequantize.hpp>
-#include <transformations/common_optimizations/fq_mul_fusion.hpp>
-#include <transformations/common_optimizations/pull_transpose_through_fq.hpp>
+#include <transformations/common_optimizations/depth_to_space_fusion.hpp>
+#include <transformations/common_optimizations/dropout_with_random_uniform_replacer.hpp>
+#include <transformations/common_optimizations/lin_op_sequence_fusion.hpp>
+#include <transformations/common_optimizations/moc_transformations.hpp>
+#include <transformations/common_optimizations/mul_conv_fusion.hpp>
+#include <transformations/common_optimizations/relu_fake_quantize_fusion.hpp>
+#include <transformations/common_optimizations/shuffle_channels_fusion.hpp>
+#include <transformations/common_optimizations/space_to_batch_fusion.hpp>
+#include <transformations/common_optimizations/strides_optimization.hpp>
+#include <transformations/common_optimizations/transpose_to_reshape.hpp>
 #include <transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp>
-#include <transformations/op_conversions/convert_divide.hpp>
+#include <transformations/control_flow/unroll_if.hpp>
+#include <transformations/init_node_info.hpp>
+#include <transformations/op_conversions/batch_norm_decomposition.hpp>
+#include <transformations/op_conversions/bidirectional_sequences_decomposition.hpp>
+#include <transformations/op_conversions/convert_broadcast_to_tiles.hpp>
+#include <transformations/op_conversions/convert_deformable_conv_v8_to_v1.hpp>
+#include <transformations/op_conversions/convert_depth_to_space.hpp>
 #include <transformations/op_conversions/convert_gather_downgrade.hpp>
 #include <transformations/op_conversions/convert_gather_upgrade.hpp>
+#include <transformations/op_conversions/convert_gelu.hpp>
 #include <transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp>
-#include <transformations/op_conversions/convert_minimum_to_power_and_max.hpp>
-#include <transformations/op_conversions/convert_negative.hpp>
-#include <transformations/op_conversions/convert_subtract.hpp>
-#include <transformations/op_conversions/hsigmoid_decomposition.hpp>
-#include <transformations/op_conversions/hswish_decomposition.hpp>
+#include <transformations/op_conversions/convert_mod.hpp>
+#include <transformations/op_conversions/convert_pad_to_group_conv.hpp>
+#include <transformations/op_conversions/convert_reduce_to_pooling.hpp>
+#include <transformations/op_conversions/convert_space_to_depth.hpp>
+#include <transformations/op_conversions/einsum_decomposition.hpp>
+#include <transformations/op_conversions/gather_normalize_negative_indices.hpp>
+#include <transformations/op_conversions/gelu7_downgrade.hpp>
+#include <transformations/op_conversions/log_softmax_decomposition.hpp>
 #include <transformations/op_conversions/lstm_cell_decomposition.hpp>
-#include <transformations/op_conversions/mvn6_decomposition.hpp>
-#include <transformations/op_conversions/simplify_ctc_greedy_decoder_seq_len.hpp>
-#include "legacy/transformations/convert_opset1_to_legacy/convert_lrn_to_lrn_ie.hpp"
-#include "legacy/transformations/convert_opset1_to_legacy/convert_normalizel2_to_normalize_ie.hpp"
-#include "legacy/transformations/convert_opset1_to_legacy/convert_strided_slice_to_crop.hpp"
-
-#include <transformations/init_node_info.hpp>
+#include <transformations/op_conversions/normalize_l2_decomposition.hpp>
+#include <transformations/op_conversions/reduce_l1_decomposition.hpp>
+#include <transformations/op_conversions/reduce_l2_decomposition.hpp>
+#include <transformations/op_conversions/softmax_decomposition.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
 
 using namespace vpux;
@@ -1891,27 +1910,78 @@ std::string getValidOutputName(const std::shared_ptr<ngraph::op::Result>& result
 // runNGraphPasses
 //
 
+static void addCommonOptimizationsPasses(ngraph::pass::Manager& manager) {
+    // Disable low_precision_enabled as all plugins handle low-precision sub-graph manually
+    // before CommonOptimization pipeline execution
+    manager.register_pass<ngraph::pass::MOCTransformations>(true, false);
+
+    auto common_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
+    common_fusions->add_matcher<ngraph::pass::DepthToSpaceFusion>();
+    common_fusions->add_matcher<ngraph::pass::ShuffleChannelsFusion>(false);
+    common_fusions->add_matcher<ngraph::pass::SpaceToBatchFusion>();
+    common_fusions->add_matcher<ngraph::pass::BatchToSpaceFusion>();
+    common_fusions->add_matcher<ngraph::pass::TransposeToReshape>();
+    common_fusions->set_name("ngraph::pass::CommonFusions");
+
+    manager.register_pass<ngraph::pass::ConvertPadToGroupConvolution, false>();
+
+    auto decomp = manager.register_pass<ngraph::pass::GraphRewrite>();
+    decomp->add_matcher<ngraph::pass::Gelu7Downgrade>();
+    decomp->add_matcher<ngraph::pass::BidirectionalSequenceDecomposition>();
+    decomp->add_matcher<ngraph::pass::ReduceL1Decomposition>();
+    decomp->add_matcher<ngraph::pass::ReduceL2Decomposition>();
+    decomp->add_matcher<ngraph::pass::LogSoftmaxDecomposition>();
+    decomp->add_matcher<ngraph::pass::ConvertReduceToPooling>();
+    decomp->add_matcher<ngraph::pass::ConvertBroadcastToTiles>();
+    decomp->add_matcher<ngraph::pass::ConvertMod>();
+    decomp->add_matcher<ngraph::pass::ConvertGELU>();
+    decomp->add_matcher<ngraph::pass::ConvertDepthToSpace>();
+    decomp->add_matcher<ngraph::pass::ConvertSpaceToDepth>();
+    decomp->add_matcher<ngraph::pass::BatchNormDecomposition>();
+    decomp->add_matcher<ngraph::pass::NormalizeL2Decomposition, false>();
+    decomp->add_matcher<ngraph::pass::EinsumDecomposition>();
+    decomp->add_matcher<ngraph::pass::SoftmaxDecomposition, false>();
+    decomp->add_matcher<ngraph::pass::GatherNegativeConstIndicesNormalize>();
+    decomp->add_matcher<ngraph::pass::DropoutWithRandomUniformReplacer>();
+    decomp->set_name("ngraph::pass::CommonDecompositions");
+
+    // CF is required after all decompositions
+    manager.register_pass<ngraph::pass::ConstantFolding>();
+
+    // LinOpSequenceFusion must be executed after all decompositions
+    manager.register_pass<ngraph::pass::LinOpSequenceFusion>();
+    manager.register_pass<ngraph::pass::UnrollIf>();
+
+    auto conv_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
+    conv_fusions->add_matcher<ngraph::pass::ConvolutionMultiplyFusion>();
+    conv_fusions->add_matcher<ngraph::pass::GroupConvolutionMultiplyFusion>();
+    conv_fusions->add_matcher<ngraph::pass::ConvolutionBackpropDataMultiplyFusion>();
+    conv_fusions->add_matcher<ngraph::pass::GroupConvolutionBackpropDataMultiplyFusion>();
+    conv_fusions->add_matcher<ngraph::pass::MultiplyConvolutionFusion>();
+    conv_fusions->add_matcher<ngraph::pass::MultiplyGroupConvolutionFusion>();
+    conv_fusions->add_matcher<ngraph::pass::MultiplyConvolutionBackpropDataFusion>();
+    conv_fusions->add_matcher<ngraph::pass::MultiplyGroupConvolutionBackpropDataFusion>();
+    conv_fusions->set_name("ngraph::pass::ConvFusions");
+
+    manager.register_pass<ngraph::pass::ConstantFolding>();
+    manager.register_pass<ngraph::pass::ConvertGather8ToGather7>();  // not plugins implemented gather8
+    manager.register_pass<ngraph::pass::ConvertGather7ToGather1>();  // not plugins implemented gather7
+    manager.register_pass<ngraph::pass::ConvertGather1ToGather7, false>();
+    manager.register_pass<ngraph::pass::ConvertGather7ToGather8, false>();
+    manager.register_pass<ngraph::pass::ConvertDeformableConv8To1>();
+
+    // StridesOptimization should be at the very end
+    // because we cannot insert any MaxPools since they may prevent
+    // other optimizations
+    manager.register_pass<ngraph::pass::StridesOptimization>();
+}
+
 void runNGraphPasses(const std::shared_ptr<ngraph::Function>& netGraph, mlir::TimingScope& rootTiming) {
     auto scopeTiming = rootTiming.nest("Common nGraph passes");
 
     const auto passConfig = std::make_shared<ngraph::pass::PassConfig>();
-    passConfig->disable<ngraph::pass::HSwishDecomposition>();
-    passConfig->disable<ngraph::pass::HSigmoidDecomposition>();
-    passConfig->disable<ngraph::pass::ConvertMinimum>();
-    passConfig->disable<ngraph::pass::ConvertSubtract>();
-    passConfig->disable<ngraph::pass::ConvertDivide>();
-    passConfig->disable<ngraph::pass::ConvertNegative>();
     passConfig->disable<ngraph::pass::LSTMCellDecomposition>();
-    passConfig->disable<ngraph::pass::SimplifyCTCGreedyDecoderSeqLen>();
     passConfig->disable<ngraph::pass::ConvertStridedSliceToCropMatcher>();
-    // MVN6Decomposition is disabled because we do not support Subtract and ReduceMean.
-    // The ReduceMean layer can be solved with ngraph::pass::ConvertReduceToPooling pass, but still remain Subtract
-    // issue.
-    passConfig->disable<ngraph::pass::MVN6Decomposition>();
-    // FakeQuantizeMulFusion and PullTransposeThroughFQUp has conflicts with PropagateFQ
-    passConfig->disable<ngraph::pass::FakeQuantizeMulFusion>();
-    passConfig->disable<ngraph::pass::PullTransposeThroughFQUp>();
-
     passConfig->enable<ngraph::pass::ConvertGather1ToGather7>();
     passConfig->disable<ngraph::pass::ConvertGather7ToGather1>();
 
@@ -1926,10 +1996,13 @@ void runNGraphPasses(const std::shared_ptr<ngraph::Function>& netGraph, mlir::Ti
     manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<vpux::passes::OnnxReorgPatternToDarkNetReorg>();
     manager.register_pass<vpux::passes::ConvertExtractImagePatchesToReorgYoloVPU>();
-    manager.register_pass<ngraph::pass::CommonOptimizations>();
+    addCommonOptimizationsPasses(manager);
 
     manager.register_pass<vpux::passes::PropagateFQ>();
     manager.register_pass<vpux::passes::AlignScales>();
+    manager.register_pass<ngraph::pass::ReluFakeQuantizeFusion>();
+    // we need additionally propagate FQs because some ReLUs may be removed
+    manager.register_pass<vpux::passes::PropagateFQ>();
     manager.register_pass<vpux::passes::CleanUpFQ>();
 
     manager.register_pass<vpux::passes::ConvertMVN6toMVN1>();
