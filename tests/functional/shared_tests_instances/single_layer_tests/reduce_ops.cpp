@@ -175,7 +175,7 @@ namespace {
                 testing::ValuesIn(decltype(axes) {{1, 3}}),
                 testing::Values(opTypes[1]),
                 testing::ValuesIn(keepDims),
-                testing::Values(ngraph::helpers::ReductionType::Sum),
+                testing::Values(ngraph::helpers::ReductionType::LogicalAnd),
                 testing::Values(InferenceEngine::Precision::FP32,
                                 InferenceEngine::Precision::FP16, // CPU-plugin has parameter I32, but KMB does not
                                 InferenceEngine::Precision::U8), // support it. So I32 is changed to FP16 and U8.
@@ -194,7 +194,7 @@ namespace {
                 testing::ValuesIn(decltype(axes) {{0}}),
                 testing::Values(opTypes[1]),
                 testing::Values(true),
-                testing::Values(ngraph::helpers::ReductionType::Sum),
+                testing::Values(ngraph::helpers::ReductionType::LogicalAnd),
                 testing::Values(InferenceEngine::Precision::FP32),
                 testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                 testing::Values(InferenceEngine::Precision::UNSPECIFIED),
