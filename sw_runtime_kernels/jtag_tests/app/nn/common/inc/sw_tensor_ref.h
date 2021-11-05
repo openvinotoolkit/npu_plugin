@@ -4,7 +4,6 @@
 #pragma once
 
 #include <mv_types.h>
-//#include <nn_relocation.h>
 #include <mvSubspaces.h>
 #include <limits.h>
 #include "common_types.h"
@@ -27,7 +26,6 @@ struct TensorRefNDData
 {
     DataType dType = NN_FP16;
     NDOrder ndOrder = ND_NHWC;
-//    inference_runtime::RelativeAddress dataAddr;
     uint8_t* addr = nullptr;
     int32_t ndims = 0;
     int32_t dims[MAX_ND_DIMS]{};

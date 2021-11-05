@@ -5,7 +5,6 @@
 #define DMA_SHAVE_NN_H_
 
 #include <cstdint>
-//#include <ShDrvCmxDma.h>
 #define uncached(x) (x)
 
 #ifndef INLINE_ATTRIBUTE
@@ -28,8 +27,6 @@ public:
         max_transfer_size = ((1 << 24) - 1)
     };
 
-//    DmaAlShave();
-//    ~DmaAlShave();
 
 
     INLINE_ATTRIBUTE bool start(const void *a_src, void *a_dst, uint32_t byteLength);
@@ -64,17 +61,12 @@ public:
 //    bool start(uint64_t a_src, uint64_t a_dst, uint32_t byteLength, uint32_t srcWidth, uint32_t dstWidth,
 //               uint32_t srcStride, uint32_t dstStride, uint32_t numPlanes, uint32_t srcPlaneStride,
 //               uint32_t dstPlaneStride);
-//
-//    bool start();
-//    void wait();
 
 private:
     //ShDrvCmxDmaTransaction transaction_;
     //ShDrvCmxDmaTransactionHnd handle_;
     bool patch_va_;
     bool pending_;
-
-//    bool start_();
 
     INLINE_ATTRIBUTE void patch(uint64_t &a) const;
 };
