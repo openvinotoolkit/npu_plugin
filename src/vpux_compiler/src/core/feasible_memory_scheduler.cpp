@@ -232,7 +232,7 @@ void FeasibleMemoryScheduler::unscheduleAllCompletingOpsAtNextEarliestTime() {
     _log = _log.nest();
     for (auto& op : unscheduledOps) {
         auto opIdx = op.op_;
-        _log.trace("Unscheduling '{0}'", opIdx);
+        _log.trace("Unscheduling '{0}', type '{1}'", opIdx, static_cast<int>(op.opType_));
         unscheduleOp(op);
         if (!isDataOp(opIdx) && op.isOriginalOp()) {
             // propagate through original compute ops, generate new ready ops
@@ -409,7 +409,7 @@ void FeasibleMemoryScheduler::scheduleComputeOp(operationIdxType opIdx) {
 void FeasibleMemoryScheduler::scheduleAllPossibleReadyOpsAndUpdate(
         std::set<std::pair<operationIdxType, vpux::AddressType>, SizeSort>& readyList) {
     SmallVector<std::pair<operationIdxType, vpux::AddressType>> scheduledOps;
-    _log.trace("Scheduling all possible ready ops");
+    _log.trace("Scheduling all possible ready ops, list size = '{0}'", readyList.size());
     _log = _log.nest();
     // schedule ops that fit in CMX
     for (auto& readyOp : readyList) {
@@ -561,6 +561,26 @@ void FeasibleMemoryScheduler::populateScheduledOps(HeapElement& scheduledOp) {
     scheduled.time_ = scheduledOp.time_;
     scheduled.resourceInfo_ = intervals;
     _scheduledOps.push_back(scheduled);
+
+    // mateusz
+    _log.trace("Generated Schedule");
+    _log = _log.nest();
+    for (const auto& op : _scheduledOps) {
+        std::string resourceInfo = "<none>";
+        if (op.hasActiveResource()) {
+            resourceInfo = "";
+            for (size_t resourceIdx = 0; resourceIdx < op.numOfResources(); resourceIdx++) {
+                if (op.isActiveResource(resourceIdx)) {
+                    resourceInfo += "resource = [" + std::to_string(op.beginResource(resourceIdx)) + " " +
+                                    std::to_string(op.endResource(resourceIdx)) + "] size = " +
+                                    std::to_string((op.endResource(resourceIdx) - op.beginResource(resourceIdx))) +
+                                    ", ";
+                }
+            }
+        }
+        _log.trace("op = '{0}'\t type = '{1}'\t time = '{2}'\t '{3}'", op.op_, op.opTypeName(), op.time_, resourceInfo);
+    }
+    _log = _log.unnest();
 }
 
 void FeasibleMemoryScheduler::clearLists() {
