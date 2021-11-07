@@ -39,6 +39,28 @@
 
 using namespace vpux;
 
+const movitools::MoviCompileParams& vpux::VPUIP::BlobWriter::compileParams() {
+    static const movitools::MoviCompileParams params = {
+        /*cpu=*/"3010xx",
+        /*moviCompile=*/"linux64/bin/moviCompile",
+        /*mdkLinker=*/"linux64/sparc-myriad-rtems-6.3.0/bin/sparc-myriad-rtems-ld",
+        /*mdkObjCopy=*/"linux64/sparc-myriad-rtems-6.3.0/bin/sparc-myriad-rtems-objcopy",
+        /*mdkLibDir=*/"common/moviCompile/lib/30xxxx-leon",
+        /*mdkLibs=*/
+        {
+            "mlibm.a",
+            "mlibcxx.a",
+            "mlibneon.a",
+            "mlibVecUtils.a",
+            "mlibc_lite.a",
+            "mlibc_lite_lgpl.a",
+            "mlibcrt.a",
+        },
+    };
+
+    return params;
+}
+
 VPUIP::BlobWriter::Task vpux::VPUIP::BlobWriter::createTask(mlir::Operation* op) {
     _log.trace("Create BLOB Task for {0}", *op);
 
@@ -84,25 +106,17 @@ VPUIP::BlobWriter::Task vpux::VPUIP::BlobWriter::createTask(mlir::Operation* op)
 }
 
 ActKernelDesc vpux::VPUIP::BlobWriter::compileKernelData(const CompilationUnitDesc& unitDesc) {
-    movitools::MoviCompileParams params = {
-            /*cpu=*/"3010xx",
-            /*moviCompile=*/"linux64/bin/moviCompile",
-            /*mdkLinker=*/"linux64/sparc-myriad-rtems-6.3.0/bin/sparc-myriad-rtems-ld",
-            /*mdkObjCopy=*/"linux64/sparc-myriad-rtems-6.3.0/bin/sparc-myriad-rtems-objcopy",
-            /*mdkLibDir=*/"common/moviCompile/lib/30xxxx-leon",
-            /*mdkLibs=*/
-            {
-                    "mlibm.a",
-                    "mlibcxx.a",
-                    "mlibneon.a",
-                    "mlibVecUtils.a",
-                    "mlibc_lite.a",
-                    "mlibc_lite_lgpl.a",
-                    "mlibcrt.a",
-            },
-    };
+    const movitools::MoviCompileParams params = compileParams();
 
     return compileKernelForACTShave(unitDesc, params);
+}
+
+ActKernelDesc vpux::VPUIP::BlobWriter::compileManagementKernelData() {
+    const auto& listDesc = managementKernelCompilationDesc();
+
+    const movitools::MoviCompileParams params = compileParams();
+
+    return compileKernelForACTShave(listDesc, params);
 }
 
 const vpux::VPUIP::BlobWriter::ActShavesKernelDataMap& vpux::VPUIP::BlobWriter::getKernelData() const {
