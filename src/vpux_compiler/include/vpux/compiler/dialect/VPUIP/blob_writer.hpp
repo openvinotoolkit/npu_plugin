@@ -87,6 +87,7 @@ public:
 
     //  compiles kernel code and returns it's data and text sections
     ActKernelDesc compileKernelData(const CompilationUnitDesc& unitDesc);
+    ActKernelDesc compileManagementKernelData();
 
     KernelDataRef createKernelDataRef(StringRef name, MemoryLocation locale, uint64_t dataOffset, uint64_t dataSize,
                                       ArrayRef<uint8_t> content = None);
@@ -168,6 +169,8 @@ public:
     operator flatbuffers::FlatBufferBuilder&() {
         return impl();
     }
+
+    static const movitools::MoviCompileParams& compileParams();
 
 private:
     void setAliasForSerializedTensors(mlir::Operation* op);
