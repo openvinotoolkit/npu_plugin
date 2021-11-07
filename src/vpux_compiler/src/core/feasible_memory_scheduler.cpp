@@ -501,6 +501,7 @@ void FeasibleMemoryScheduler::forceScheduleActiveOpEviction() {
     }
     for (auto notActive : noLongerActive) {
         _activeComputeOps.erase(notActive);
+        _readyComputeOps.insert(notActive);  // mateusz
     }
 
     // add with a spilled write state
