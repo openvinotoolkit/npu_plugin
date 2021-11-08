@@ -78,7 +78,7 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Sigmoid)) {
 
             // input
             m_inputTensor.forEach(false, [&](const MemoryDims& indices) {
-                float tmp = float(rand() % 1000) / 100 - 5.0f;
+                float tmp = float(rand() % 600) / 100 - 3.0f;
                 m_inputTensor.at(indices) = f32Tof16(tmp);
             });
         }
