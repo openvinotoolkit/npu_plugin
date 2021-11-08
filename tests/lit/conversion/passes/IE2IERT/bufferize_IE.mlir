@@ -104,57 +104,15 @@ func @ConcatWithStride(%arg0: tensor<1x2x3x4xf32>, %arg1: tensor<1x2x3x4xf32>) -
 
 func @ExpandToSubview(%arg0: tensor<1x3x4x4xf16>) -> tensor<1x8x4x4xf16> {
   %0 = IE.Expand(%arg0) {pads_begin = [0, 0, 0, 0], pads_end = [0, 5, 0, 0]} : tensor<1x3x4x4xf16> -> tensor<1x8x4x4xf16>
+  // CHECK:       %0 = builtin.unrealized_conversion_cast %arg0 : tensor<1x3x4x4xf16> to memref<1x3x4x4xf16>
+  // CHECK:       %1 = memref.alloc() : memref<1x8x4x4xf16>
+  // CHECK:       %2 = IERT.SubView %1 [0, 0, 0, 0] [1, 3, 4, 4] : memref<1x8x4x4xf16> to memref<1x3x4x4xf16, #map>
+  // CHECK:       [[COPY:%.*]] = IERT.Copy inputs(%0 : memref<1x3x4x4xf16>) outputs(%2 : memref<1x3x4x4xf16, #map>) -> memref[[COPY_REF:.*]]
+  // CHECK:       [[OUT:%.*]] = IERT.ConcatView inputs([[COPY]] : memref[[COPY_REF]]) outputs(%1 : memref<1x8x4x4xf16>) -> memref<1x8x4x4xf16>
+  // CHECK:       %5 = builtin.unrealized_conversion_cast [[OUT]] : memref<1x8x4x4xf16> to tensor<1x8x4x4xf16>
+
   return %0 : tensor<1x8x4x4xf16>
-
-  // CHECK: %0 = builtin.unrealized_conversion_cast %arg0 : tensor<1x3x4x4xf16> to memref<1x3x4x4xf16>
-  // CHECK: %1 = memref.alloc() : memref<1x8x4x4xf16>
-  // CHECK: [[VIEW1:%.*]] = IERT.SubView %1 [0, 0, 0, 0] [1, 3, 4, 4] : memref<1x8x4x4xf16> to memref<1x3x4x4xf16, #map0>
-  // CHECK: [[COPY1:%.*]] = IERT.Copy inputs(%0 : memref<1x3x4x4xf16>) outputs([[VIEW1]] : memref<1x3x4x4xf16, #map0>) -> memref<1x3x4x4xf16, #map0>
-
-  // CHECK: [[VIEW2:%.*]] = IERT.SubView %1 [0, 3, 0, 0] [1, 3, 4, 4] : memref<1x8x4x4xf16> to memref<1x3x4x4xf16, #map0>
-  // CHECK: [[COPY2:%.*]] = IERT.Copy inputs(%0 : memref<1x3x4x4xf16>) outputs([[VIEW2]] : memref<1x3x4x4xf16, #map0>) -> memref<1x3x4x4xf16, #map0>
-
-  // CHECK: [[VIEW_IN:%.*]] = IERT.SubView %0 [0, 0, 0, 0] [1, 2, 4, 4] : memref<1x3x4x4xf16> to memref<1x2x4x4xf16, #map1>
-  // CHECK: [[VIEW_TAIL:%.*]] = IERT.SubView %1 [0, 6, 0, 0] [1, 2, 4, 4] : memref<1x8x4x4xf16> to memref<1x2x4x4xf16, #map0>
-  // CHECK: [[COPY3:%.*]] = IERT.Copy inputs([[VIEW_IN]] : memref<1x2x4x4xf16, #map1>) outputs([[VIEW_TAIL]] : memref<1x2x4x4xf16, #map0>) -> memref<1x2x4x4xf16, #map0>
-
-  // CHECK: [[OUT:%.*]] = IERT.ConcatView inputs([[COPY1]], [[COPY2]], [[COPY3]] : memref<1x3x4x4xf16, #map0>, memref<1x3x4x4xf16, #map0>, memref<1x2x4x4xf16, #map0>) outputs(%1 : memref<1x8x4x4xf16>) -> memref<1x8x4x4xf16>
-  // CHECK: %10 = builtin.unrealized_conversion_cast [[OUT]] : memref<1x8x4x4xf16> to tensor<1x8x4x4xf16>
-  // CHECK: return %10 : tensor<1x8x4x4xf16>
-}
-
-// -----
-
-func @ExpandToSubviewWithoutTail(%arg0: tensor<1x4x4x4xf16>) -> tensor<1x8x4x4xf16> {
-  %0 = IE.Expand(%arg0) {pads_begin = [0, 0, 0, 0], pads_end = [0, 4, 0, 0]} : tensor<1x4x4x4xf16> -> tensor<1x8x4x4xf16>
-  return %0 : tensor<1x8x4x4xf16>
-
-  // CHECK: %0 = builtin.unrealized_conversion_cast %arg0 : tensor<1x4x4x4xf16> to memref<1x4x4x4xf16>
-  // CHECK: %1 = memref.alloc() : memref<1x8x4x4xf16>
-  // CHECK: [[VIEW1:%.*]] = IERT.SubView %1 [0, 0, 0, 0] [1, 4, 4, 4] : memref<1x8x4x4xf16> to memref<1x4x4x4xf16, #map>
-  // CHECK: [[COPY1:%.*]] = IERT.Copy inputs(%0 : memref<1x4x4x4xf16>) outputs([[VIEW1]] : memref<1x4x4x4xf16, #map>) -> memref<1x4x4x4xf16, #map>
-  // CHECK: [[VIEW1:%.*]] = IERT.SubView %1 [0, 4, 0, 0] [1, 4, 4, 4] : memref<1x8x4x4xf16> to memref<1x4x4x4xf16, #map>
-  // CHECK: [[COPY2:%.*]] = IERT.Copy inputs(%0 : memref<1x4x4x4xf16>) outputs([[VIEW2]] : memref<1x4x4x4xf16, #map>) -> memref<1x4x4x4xf16, #map>
-  // CHECK: [[OUT:%.*]] = IERT.ConcatView inputs([[COPY1]], [[COPY2]] : memref<1x4x4x4xf16, #map>, memref<1x4x4x4xf16, #map>) outputs(%1 : memref<1x8x4x4xf16>) -> memref<1x8x4x4xf16>
-  // CHECK: %7 = builtin.unrealized_conversion_cast [[OUT]] : memref<1x8x4x4xf16> to tensor<1x8x4x4xf16>
-  // CHECK: return %7 : tensor<1x8x4x4xf16>
-}
-
-// -----
-
-func @ExpandToSubviewOnlyWithTail(%arg0: tensor<1x5x4x4xf16>) -> tensor<1x8x4x4xf16> {
-  %0 = IE.Expand(%arg0) {pads_begin = [0, 0, 0, 0], pads_end = [0, 3, 0, 0]} : tensor<1x5x4x4xf16> -> tensor<1x8x4x4xf16>
-  return %0 : tensor<1x8x4x4xf16>
-
-  // CHECK: %1 = memref.alloc() : memref<1x8x4x4xf16>
-  // CHECK: [[VIEW1:%.*]] = IERT.SubView %1 [0, 0, 0, 0] [1, 5, 4, 4] : memref<1x8x4x4xf16> to memref<1x5x4x4xf16, #map0>
-  // CHECK: [[COPY1:%.*]] = IERT.Copy inputs(%0 : memref<1x5x4x4xf16>) outputs([[VIEW1]] : memref<1x5x4x4xf16, #map0>) -> memref<1x5x4x4xf16, #map0>
-  // CHECK: [[VIEW_IN:%.*]] = IERT.SubView %0 [0, 0, 0, 0] [1, 3, 4, 4] : memref<1x5x4x4xf16> to memref<1x3x4x4xf16, #map1>
-  // CHECK: [[VIEW_TAIL:%.*]] = IERT.SubView %1 [0, 5, 0, 0] [1, 3, 4, 4] : memref<1x8x4x4xf16> to memref<1x3x4x4xf16, #map0>
-  // CHECK: [[COPY2:%.*]] = IERT.Copy inputs([[VIEW_IN]] : memref<1x3x4x4xf16, #map1>) outputs([[VIEW_TAIL]] : memref<1x3x4x4xf16, #map0>) -> memref<1x3x4x4xf16, #map0>
-  // CHECK: [[OUT:%.*]] = IERT.ConcatView inputs([[COPY1]], [[COPY2]] : memref<1x5x4x4xf16, #map0>, memref<1x3x4x4xf16, #map0>) outputs(%1 : memref<1x8x4x4xf16>) -> memref<1x8x4x4xf16>
-  // CHECK: %8 = builtin.unrealized_conversion_cast [[OUT]] : memref<1x8x4x4xf16> to tensor<1x8x4x4xf16>
-  // CHECK: return %8 : tensor<1x8x4x4xf16>
+  // CHECK        return %5 : tensor<1x8x4x4xf16>
 }
 
 // -----
