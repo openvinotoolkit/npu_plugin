@@ -448,11 +448,42 @@ operationIdxType FeasibleMemoryScheduler::retrieveBufferWriter(mlir::Value buffe
     return valIt->second;
 }
 
-size_t FeasibleMemoryScheduler::evictionPriority(operationIdxType bufferWriterIdx) {
+size_t FeasibleMemoryScheduler::evictionPriority(mlir::Value buffer) {
     // TODO: EISW-21937 add other conditions such as:
     // cmx concatable, pipelined, multiple outdegree (prefetch)
-    // For now only prioritize DMAs to be spilled
-    return (!isDataOp(bufferWriterIdx)) ? 1UL : 0UL;
+
+    // Eviction priority:
+    // HIGH (0)   - buffers which are not going to be used by any active/ready compute ops
+    // MEDIUM (1) - buffers which are result of dataOp
+    // LOW (2)    - all others
+    bool isBufferUsedByReadyOp = false;
+    for (auto& active : _activeComputeOps) {
+        auto op = _depsInfo.getExecuteOpAtIndex(active.first).getOperation();
+
+        if (_liveRangeInfo.isBufferUsedByOp(buffer, op)) {
+            isBufferUsedByReadyOp = true;
+            break;
+        }
+    }
+
+    if (!isBufferUsedByReadyOp) {
+        for (auto& active : _readyComputeOps) {
+            auto op = _depsInfo.getExecuteOpAtIndex(active.first).getOperation();
+
+            if (_liveRangeInfo.isBufferUsedByOp(buffer, op)) {
+                isBufferUsedByReadyOp = true;
+                break;
+            }
+        }
+    }
+
+    if (!isBufferUsedByReadyOp) {
+        return 0;
+    } else if (isDataOp(retrieveBufferWriter(buffer))) {
+        return 1;
+    } else {
+        return 2;
+    }
 }
 
 mlir::Value FeasibleMemoryScheduler::chooseCandidateForEviction(llvm::SmallVector<mlir::Value> orderedBuffers) {
@@ -460,8 +491,7 @@ mlir::Value FeasibleMemoryScheduler::chooseCandidateForEviction(llvm::SmallVecto
     size_t smallestPriority = std::numeric_limits<size_t>::max();
     // select the smallest buffer with the smallest priority
     for (auto buffer : orderedBuffers) {
-        operationIdxType bufferWriterIdx = retrieveBufferWriter(buffer);
-        size_t currPriority = evictionPriority(bufferWriterIdx);
+        size_t currPriority = evictionPriority(buffer);
         if (currPriority < smallestPriority) {
             smallestPriority = currPriority;
             candidate = buffer;
