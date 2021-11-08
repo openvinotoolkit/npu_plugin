@@ -29,31 +29,29 @@ func @Reshape(%arg0: memref<1x512xf16>, %arg1: memref<1x512xf16>) -> memref<1x51
 
 // -----
 
-#map = affine_map<(d0, d1) -> (d0 * 4 + d1)>
-
 // CHECK-LABEL: @SubView
 func @SubView(%arg0: memref<4x4xf16>, %arg1: memref<4x4xf16>) -> memref<4x4xf16> {
-    %0 = IERT.SubView %arg0 [0, 0][2, 4] : memref<4x4xf16> to memref<2x4xf16, #map>
-    %1 = IERT.SubView %arg1 [0, 0][2, 4] : memref<4x4xf16> to memref<2x4xf16, #map>
-    %2 = VPUIP.NNDMA inputs(%0 : memref<2x4xf16, #map>) outputs(%1 : memref<2x4xf16, #map>) -> memref<2x4xf16, #map>
+    %0 = IERT.SubView %arg0 [0, 0][2, 4] : memref<4x4xf16> to memref<2x4xf16>
+    %1 = IERT.SubView %arg1 [0, 0][2, 4] : memref<4x4xf16> to memref<2x4xf16>
+    %2 = VPUIP.NNDMA inputs(%0 : memref<2x4xf16>) outputs(%1 : memref<2x4xf16>) -> memref<2x4xf16>
 
-    %3 = IERT.SubView %arg0 [2, 0][2, 4] : memref<4x4xf16> to memref<2x4xf16, #map>
-    %4 = IERT.SubView %arg1 [2, 0][2, 4] : memref<4x4xf16> to memref<2x4xf16, #map>
-    %5 = VPUIP.NNDMA inputs(%3 : memref<2x4xf16, #map>) outputs(%4 : memref<2x4xf16, #map>) -> memref<2x4xf16, #map>
+    %3 = IERT.SubView %arg0 [2, 0][2, 4] : memref<4x4xf16> to memref<2x4xf16>
+    %4 = IERT.SubView %arg1 [2, 0][2, 4] : memref<4x4xf16> to memref<2x4xf16>
+    %5 = VPUIP.NNDMA inputs(%3 : memref<2x4xf16>) outputs(%4 : memref<2x4xf16>) -> memref<2x4xf16>
 
     return %arg1 : memref<4x4xf16>
 
-    // CHECK:       [[VAR0:%.*]] = VPUIP.DeclareTensor "ProgrammableInput" [0] <0> -> memref<2x4xf16, #map>
-    // CHECK:       [[VAR1:%.*]] = VPUIP.DeclareTensor "ProgrammableOutput" [0] <0> -> memref<2x4xf16, #map>
+    // CHECK:       [[VAR0:%.*]] = VPUIP.DeclareTensor "ProgrammableInput" [0] <0> -> memref<2x4xf16>
+    // CHECK:       [[VAR1:%.*]] = VPUIP.DeclareTensor "ProgrammableOutput" [0] <0> -> memref<2x4xf16>
     // CHECK:       [[VAR2:%.*]] = VPUIP.NNDMA
-    // CHECK-SAME:      inputs([[VAR0]] : memref<2x4xf16, #map>)
-    // CHECK-SAME:      outputs([[VAR1]] : memref<2x4xf16, #map>) -> memref<2x4xf16, #map>
+    // CHECK-SAME:      inputs([[VAR0]] : memref<2x4xf16>)
+    // CHECK-SAME:      outputs([[VAR1]] : memref<2x4xf16>) -> memref<2x4xf16>
 
-    // CHECK:       [[VAR3:%.*]] = VPUIP.DeclareTensor "ProgrammableInput" [0] <16> -> memref<2x4xf16, #map>
-    // CHECK:       [[VAR4:%.*]] = VPUIP.DeclareTensor "ProgrammableOutput" [0] <16> -> memref<2x4xf16, #map>
+    // CHECK:       [[VAR3:%.*]] = VPUIP.DeclareTensor "ProgrammableInput" [0] <16> -> memref<2x4xf16>
+    // CHECK:       [[VAR4:%.*]] = VPUIP.DeclareTensor "ProgrammableOutput" [0] <16> -> memref<2x4xf16>
     // CHECK:       [[VAR5:%.*]] = VPUIP.NNDMA
-    // CHECK-SAME:      inputs([[VAR3]] : memref<2x4xf16, #map>)
-    // CHECK-SAME:      outputs([[VAR4]] : memref<2x4xf16, #map>) -> memref<2x4xf16, #map>
+    // CHECK-SAME:      inputs([[VAR3]] : memref<2x4xf16>)
+    // CHECK-SAME:      outputs([[VAR4]] : memref<2x4xf16>) -> memref<2x4xf16>
 
     // CHECK:       return %arg1 : memref<4x4xf16>
 }
@@ -148,12 +146,11 @@ func @WithAsyncRegions(%arg0: memref<1x1x1x512xf32>, %arg1: memref<1x1x1x512xf32
 
 #NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
-#map = affine_map<(d0, d1, d2, d3) -> (d0 * 3072 + d1 * 192 + d2 * 12 + d3)>
 
 // CHECK-LABEL: @PermuteCast
-func @PermuteCast(%arg0: memref<1x12x16x16xf16, #NHWC, #map>, %arg1: memref<1x16x16x12xf16>) -> memref<1x16x16x12xf16> {
+func @PermuteCast(%arg0: memref<1x12x16x16xf16, #NHWC>, %arg1: memref<1x16x16x12xf16>) -> memref<1x16x16x12xf16> {
     %0 = IERT.PermuteCast {dst_order = #NCHW, mem_perm = #NCHW}
-        inputs(%arg0 : memref<1x12x16x16xf16, #NHWC, #map>)
+        inputs(%arg0 : memref<1x12x16x16xf16, #NHWC>)
         -> memref<1x16x16x12xf16>
 
     %1 = VPUIP.DeclareTensor "VPU_DDR_Heap" [0] <2000> -> memref<1x16x16x12xf16, "DDR">

@@ -18,7 +18,7 @@ using namespace vpux;
 MemShape vpux::applyPerm(MemShapeRef memShape, mlir::AffineMap memPerm) {
     MemShape outShape(memShape.size());
 
-    const auto perm = DimsOrder::fromPermutationAffineMap(memPerm);
+    const auto perm = DimsOrder::fromAffineMap(memPerm);
     auto indices = to_small_vector(irange(perm.numDims()) | transformed([&](int64_t idx) {
                                        return checked_cast<int64_t>(perm.dimAt(idx).ind());
                                    }));

@@ -109,9 +109,9 @@ mlir::LogicalResult ConvertToMemPermutePass::TransposeOpConverter::matchAndRewri
     VPUX_THROW_UNLESS(origOp.order_value().hasValue(), "IE::Transpose Operation doesn't have order_value attribute");
 
     auto outputOrder = DimsOrder::fromValue(origOp.output());
-    auto dstOrder = mlir::AffineMapAttr::get(outputOrder.toPermutationAffineMap(origOp.getContext()));
+    auto dstOrder = mlir::AffineMapAttr::get(outputOrder.toAffineMap(origOp.getContext()));
     auto inputOrder = DimsOrder::fromValue(origOp.input());
-    auto inPerm = inputOrder.toPermutationAffineMap(origOp.getContext());
+    auto inPerm = inputOrder.toAffineMap(origOp.getContext());
     auto memPerm = inPerm.compose(origOp.order_value().getValue());
     auto memPermAttr = mlir::AffineMapAttr::get(memPerm);
 

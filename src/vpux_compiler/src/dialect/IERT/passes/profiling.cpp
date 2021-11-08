@@ -61,30 +61,33 @@ void TimestampProfilingPass::safeRunOnModule() {
     IE::CNNNetworkOp netOp;
     mlir::FuncOp netFunc;
     IE::CNNNetworkOp::getFromModule(module, netOp, netFunc);
-    OpBuilderLogger builderLog(_log.nest());
-    mlir::OpBuilder builder(&netFunc.getBody().front().front(), &builderLog);
 
     SmallVector<std::pair<IERT::AsyncLayerOpInterface, VPUIP::PhysicalProcessorAttr>> layerTasks;
-    auto timestampType = mlir::MemRefType::get({1}, getUInt32Type(ctx), {}, _memSpace);
 
     netFunc.walk([&](IERT::AsyncLayerOpInterface curTask) {
         uint32_t curNumUnits = 0;
         const auto curExecutor = curTask.getExecutor(curNumUnits);
+
         auto physType = curExecutor.dyn_cast<VPUIP::PhysicalProcessorAttr>();
         if (physType == nullptr) {
             _log.trace("It is not a PhysicalProcessor Task");
             return;
         }
+
         layerTasks.push_back({curTask, physType});
     });
 
     VPUX_THROW_WHEN(layerTasks.empty(), "No TimestampOp was added");
 
-    auto output_size = static_cast<int64_t>(layerTasks.size());
-    auto cmxMemType = mlir::MemRefType::get({output_size}, getUInt32Type(ctx), {}, _memSpace);
-    auto outputResult = mlir::MemRefType::get({output_size}, getUInt32Type(ctx));
+    const auto output_size = static_cast<int64_t>(layerTasks.size());
 
-    builder.setInsertionPointAfter(&netFunc.getBody().front().front());
+    const auto timestampType = getMemRefType(ShapeRef({1}), getUInt32Type(ctx), DimsOrder::C, _memSpace);
+    const auto cmxMemType = getMemRefType(ShapeRef({output_size}), getUInt32Type(ctx), DimsOrder::C, _memSpace);
+    const auto outputResult = mlir::MemRefType::get({output_size}, getUInt32Type(ctx));
+
+    OpBuilderLogger builderLog(_log.nest());
+    mlir::OpBuilder builder(&netFunc.getBody().front().front(), &builderLog);
+
     auto memOp = builder.create<mlir::memref::AllocOp>(mlir::UnknownLoc::get(ctx), cmxMemType);
 
     SmallVector<mlir::Value> timestamps;
@@ -139,7 +142,7 @@ void TimestampProfilingPass::safeRunOnModule() {
     auto outputOp = builder.create<IERT::CopyOp>(copyLoc2, concatview.output(), profilngResult);
 
     // Adding output to the user info
-    auto outputUserResult = getTensorType(outputResult.getShape(), outputResult.getElementType(),
+    auto outputUserResult = getTensorType(getShape(outputResult), outputResult.getElementType(),
                                           DimsOrder::fromType(outputResult), nullptr);
     auto userInfoBuilder = mlir::OpBuilder::atBlockEnd(&netOp.profilingOutputsInfo().front().front(), &builderLog);
     userInfoBuilder.create<IE::DataInfoOp>(mlir::UnknownLoc::get(ctx), mlir::StringAttr::get(ctx, "profilingOutput"),

@@ -185,14 +185,11 @@ vpux::BufferizeTypeConverter::BufferizeTypeConverter() {
     });
 
     addConversion([](mlir::RankedTensorType type) {
+        const auto shape = getShape(type);
+        const auto elemType = type.getElementType();
         const auto order = DimsOrder::fromType(type);
         const auto memSpace = IE::getMemorySpace(type);
-
-        auto memref = mlir::MemRefType::get(type.getShape(), type.getElementType());
-        memref = changeDimsOrder(memref, order);
-        memref = changeMemSpace(memref, memSpace);
-
-        return memref;
+        return getMemRefType(shape, elemType, order, memSpace);
     });
 
     addTargetMaterialization(dummyConverter<mlir::BaseMemRefType>);

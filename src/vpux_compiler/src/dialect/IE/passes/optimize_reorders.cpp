@@ -232,7 +232,7 @@ mlir::LogicalResult ReorderWithConcat::matchAndRewrite(IE::ConcatOp origConcatOp
                                                    origConcatOp.static_offsetsAttr());
 
     rewriter.replaceOpWithNewOp<IE::ReorderOp>(origConcatOp, origConcatOp.getType(), newConcat.output(),
-                                               concatOrder.toPermutationAffineMap(origConcatOp.getContext()));
+                                               concatOrder.toAffineMap(origConcatOp.getContext()));
 
     return mlir::success();
 }

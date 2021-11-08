@@ -32,21 +32,22 @@ func @main(%arg0: tensor<1x1000xf32>, %arg1: tensor<1x224x224xf32>, %arg2: tenso
     // CHECK-DAG: %[[VAL_7:.*]] = const.Declare tensor<1x1x1x1xf32> = #const.Content<dense<2.000000e+00> : tensor<1xf32>, [#const.Reshape<[1, 1, 1, 1]>]>
 
     // CHECK:   %[[VAL_0_4D:.*]] = IE.Reshape(%[[VAL_0]]) {shape_value = [1, 1, 1, 1000]} : tensor<1x1000xf32> -> tensor<1x1x1x1000xf32>
+    // CHECK:   %[[VAL_1_4D:.*]] = IE.Reshape(%[[VAL_1]]) {shape_value = [1, 1, 224, 224]} : tensor<1x224x224xf32> -> tensor<1x1x224x224xf32>
+    // CHECK:   %[[VAL_2_4D:.*]] = IE.Reshape(%[[VAL_2]]) {shape_value = [1, 1, 1, 512]} : tensor<1x512xf32> -> tensor<1x1x1x512xf32>
+    // CHECK:   %[[VAL_3_4D:.*]] = IE.Reshape(%[[VAL_3]]) {shape_value = [1, 1, 8, 1024]} : tensor<8x1024xf32> -> tensor<1x1x8x1024xf32>
+
     // CHECK:   %[[VAL_8:.*]] = IE.Clamp(%[[VAL_0_4D]])
     // CHECK:   %[[VAL_8_2D:.*]] = IE.Reshape(%[[VAL_8]]) {shape_value = [1, 1000]} : tensor<1x1x1x1000xf32> -> tensor<1x1000xf32>
 
-    // CHECK:   %[[VAL_1_4D:.*]] = IE.Reshape(%[[VAL_1]]) {shape_value = [1, 1, 224, 224]} : tensor<1x224x224xf32> -> tensor<1x1x224x224xf32>
     // CHECK:   %[[VAL_9:.*]] = IE.Sigmoid(%[[VAL_1_4D]])
     // CHECK:   %[[VAL_10:.*]] = IE.Elu(%[[VAL_9]])
     // CHECK:   %[[VAL_10_3D:.*]] = IE.Reshape(%[[VAL_10]]) {shape_value = [1, 224, 224]} : tensor<1x1x224x224xf32> -> tensor<1x224x224xf32>
 
-    // CHECK:   %[[VAL_2_4D:.*]] = IE.Reshape(%[[VAL_2]]) {shape_value = [1, 1, 1, 512]} : tensor<1x512xf32> -> tensor<1x1x1x512xf32>
     // CHECK:   %[[VAL_11:.*]] = IE.FakeQuantize(%[[VAL_2_4D]], %[[VAL_4]], %[[VAL_5]], %[[VAL_4]], %[[VAL_5]])
     // CHECK:   %[[VAL_11_2D:.*]] = IE.Reshape(%[[VAL_11]]) {shape_value = [1, 512]} : tensor<1x1x1x512xf32> -> tensor<1x512xf32>
 
-    // CHECK:   %[[VAL_3_4D:.*]] = IE.Reshape(%[[VAL_3:.*]]) {shape_value = [1, 1, 8, 1024]} : tensor<8x1024xf32> -> tensor<1x1x8x1024xf32>
     // CHECK:   %[[VAL_12:.*]] = IE.ScaleShift(%[[VAL_3_4D]], %[[VAL_6]], %[[VAL_7]])
-    // CHECK:   %[[VAL_12_2D:.*]] = IE.Reshape(%[[VAL_12:.*]]) {shape_value = [8, 1024]} : tensor<1x1x8x1024xf32> -> tensor<8x1024xf32>
+    // CHECK:   %[[VAL_12_2D:.*]] = IE.Reshape(%[[VAL_12]]) {shape_value = [8, 1024]} : tensor<1x1x8x1024xf32> -> tensor<8x1024xf32>
 
     // CHECK:   return %[[VAL_8_2D]], %[[VAL_10_3D]], %[[VAL_11_2D]], %[[VAL_12_2D]]
 }

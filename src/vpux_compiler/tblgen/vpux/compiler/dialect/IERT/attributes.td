@@ -11,20 +11,26 @@
 // included with the Software Package for additional details.
 //
 
-#include "vpux/compiler/dialect/IERT/ops.hpp"
+#ifndef VPUX_COMPILER_DIALECT_IERT_ATTRIBUTES
+#define VPUX_COMPILER_DIALECT_IERT_ATTRIBUTES
+
+include "vpux/compiler/core/attributes.td"
+include "vpux/compiler/dialect/IERT/dialect.td"
+
+include "mlir/IR/BuiltinAttributeInterfaces.td"
 
 //
-// fold
+// MemRefAttr
 //
 
-mlir::OpFoldResult vpux::IERT::CopyOp::fold(ArrayRef<mlir::Attribute>) {
-    if (output_buff().isa<mlir::BlockArgument>()) {
-        return nullptr;
-    }
+def IERT_MemRefAttr :
+        StructAttr<
+            "MemRefAttr",
+            IERT_Dialect,
+            [
+                StructFieldAttr<"order", AffineMapAttr>,
+                StructFieldAttr<"strides", I64ArrayAttr>,
+            ]
+        >;
 
-    if (input().getType() == output().getType()) {
-        return input();
-    }
-
-    return nullptr;
-}
+#endif

@@ -61,8 +61,7 @@ IE::ReorderOp LayerRewriter::createReorder(mlir::Operation* op, mlir::Value inpu
 
     const auto inputWithReordersIt = _reorders->find(input);
     if (inputWithReordersIt == _reorders->end()) {
-        auto reorder =
-                rewriter.create<IE::ReorderOp>(op->getLoc(), input, dstOrder.toPermutationAffineMap(getContext()));
+        auto reorder = rewriter.create<IE::ReorderOp>(op->getLoc(), input, dstOrder.toAffineMap(getContext()));
         _reorders->insert({input, std::unordered_map<DimsOrder, IE::ReorderOp>{{dstOrder, reorder}}});
         return reorder;
     }
@@ -70,8 +69,7 @@ IE::ReorderOp LayerRewriter::createReorder(mlir::Operation* op, mlir::Value inpu
     auto currentReorders = inputWithReordersIt->getSecond();
     const auto reorderIt = currentReorders.find(dstOrder);
     if (reorderIt == currentReorders.end()) {
-        auto reorder =
-                rewriter.create<IE::ReorderOp>(op->getLoc(), input, dstOrder.toPermutationAffineMap(getContext()));
+        auto reorder = rewriter.create<IE::ReorderOp>(op->getLoc(), input, dstOrder.toAffineMap(getContext()));
         currentReorders.insert({dstOrder, reorder});
         return reorder;
     }

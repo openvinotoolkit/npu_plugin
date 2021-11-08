@@ -16,6 +16,7 @@
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
+#include "vpux/compiler/utils/types.hpp"
 #include "vpux/utils/core/numeric.hpp"
 
 using namespace vpux;
@@ -151,16 +152,16 @@ mlir::LogicalResult NNDMAOpConverter::matchAndRewrite(VPUIP::NNDMAOp origOp, mli
     const auto dstMemSpace = origDstTensor.getType().cast<mlir::MemRefType>().getMemorySpace();
     // TODO find out whether the destination shape also has to be flat.
     const auto elemTypeU8 = getUInt8Type(rewriter.getContext());
-    const SmallVector<int64_t> flatDstTensorShape{checked_cast<int64_t>(dataVec.size()), 1, 1, 1};
-    auto dstTensorType = changeMemSpace(mlir::MemRefType::get(flatDstTensorShape, elemTypeU8), dstMemSpace);
+    const Shape flatDstTensorShape{checked_cast<int64_t>(dataVec.size()), 1, 1, 1};
+    auto dstTensorType = getMemRefType(flatDstTensorShape, elemTypeU8, DimsOrder::NCHW, dstMemSpace);
     auto dstTensor = rewriter.create<VPUIP::DeclareTensorOp>(origOp->getLoc(), dstTensorType, location,
                                                              parseIntArrayAttr<int64_t>(localeIndex), dataIndex);
-    const SmallVector<int64_t> flatSrcTensorShape{checked_cast<int64_t>(compressedData.size()), 1, 1, 1};
-    const auto dataStorageType = mlir::RankedTensorType::get(flatSrcTensorShape, elemTypeU8);
+    const Shape flatSrcTensorShape{checked_cast<int64_t>(compressedData.size()), 1, 1, 1};
+    const auto dataStorageType = mlir::RankedTensorType::get(flatSrcTensorShape.raw(), elemTypeU8);
     const auto dataAttr = mlir::DenseElementsAttr::get(dataStorageType, mlir::ArrayRef<uint8_t>(compressedData));
 
     const auto srcMemSpace = origOp.input().getType().cast<mlir::MemRefType>().getMemorySpace();
-    const auto dataType = changeMemSpace(mlir::MemRefType::get(flatSrcTensorShape, elemTypeU8), srcMemSpace);
+    const auto dataType = getMemRefType(flatSrcTensorShape, elemTypeU8, DimsOrder::NCHW, srcMemSpace);
 
     auto srcTensor = rewriter.create<Const::DeclareOp>(origOp->getLoc(), dataType, Const::ContentAttr::get(dataAttr));
     // Compressed tensor must be flat because of the check in the inference runtime.

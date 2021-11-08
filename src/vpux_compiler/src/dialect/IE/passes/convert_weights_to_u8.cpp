@@ -21,11 +21,101 @@
 #include "vpux/utils/IE/loop.hpp"
 
 #include <mlir/Dialect/Quant/QuantTypes.h>
+#include <mlir/IR/BlockAndValueMapping.h>
 #include <mlir/IR/PatternMatch.h>
 
 using namespace vpux;
 
 namespace {
+
+//
+// LayerRewriter
+//
+
+class LayerRewriter final : public mlir::OpInterfaceConversionPattern<IE::LayerOpInterface> {
+public:
+    LayerRewriter(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
+            : mlir::OpInterfaceConversionPattern<IE::LayerOpInterface>(typeConverter, ctx), _log(log) {
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(IE::LayerOpInterface origOp, ArrayRef<mlir::Value> newArgs,
+                                        mlir::ConversionPatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult LayerRewriter::matchAndRewrite(IE::LayerOpInterface origOp, ArrayRef<mlir::Value> newOperands,
+                                                   mlir::ConversionPatternRewriter& rewriter) const {
+    _log.trace("Process Operation '{0}' at '{1}", origOp->getName(), origOp->getLoc());
+
+    auto* typeConverter = this->getTypeConverter();
+    VPUX_THROW_UNLESS(typeConverter != nullptr, "TypeConverter was not set");
+
+    const auto origOperands = origOp->getOperands();
+    VPUX_THROW_UNLESS(origOperands.size() == newOperands.size(), "Wrong operands size : {0}", newOperands.size());
+
+    mlir::BlockAndValueMapping mapper;
+    mapper.map(origOperands, newOperands);
+
+    auto* newOp = rewriter.clone(*origOp, mapper);
+    for (auto result : newOp->getResults()) {
+        result.setType(typeConverter->convertType(result.getType()));
+    }
+
+    rewriter.replaceOp(origOp, newOp->getResults());
+    return mlir::success();
+}
+
+//
+// ConstRewriter
+//
+
+class ConstRewriter final : public mlir::OpConversionPattern<Const::DeclareOp> {
+public:
+    ConstRewriter(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
+            : mlir::OpConversionPattern<Const::DeclareOp>(typeConverter, ctx), _log(log) {
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(Const::DeclareOp origOp, OpAdaptor newArgs,
+                                        mlir::ConversionPatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult ConstRewriter::matchAndRewrite(Const::DeclareOp origOp, OpAdaptor,
+                                                   mlir::ConversionPatternRewriter& rewriter) const {
+    _log.trace("Process Operation '{0}' at '{1}", origOp->getName(), origOp->getLoc());
+
+    auto* typeConverter = this->getTypeConverter();
+    VPUX_THROW_UNLESS(typeConverter != nullptr, "TypeConverter was not set");
+
+    const auto origQuantType =
+            origOp.getType().cast<mlir::ShapedType>().getElementType().cast<mlir::quant::QuantizedType>();
+    const auto storageMin = origQuantType.getStorageTypeMin();
+
+    const auto newType = typeConverter->convertType(origOp.getType()).cast<mlir::ShapedType>();
+    const auto newQuantType = newType.getElementType().cast<mlir::quant::QuantizedType>();
+
+    _log.nest().trace("Convert content from '{0}' to '{1}'", origQuantType, newQuantType);
+
+    const auto newContentAttr = origOp.contentAttr()
+                                        .quantCast()
+                                        .convertElemType(getInt32Type(getContext()))
+                                        .add(checked_cast<double>(-storageMin))
+                                        .convertElemType(getUInt8Type(getContext()))
+                                        .quantCast(newQuantType);
+
+    rewriter.replaceOpWithNewOp<Const::DeclareOp>(origOp, newType, newContentAttr);
+    return mlir::success();
+}
+
+//
+// changeStorageTypeToU8
+//
 
 // change storage type to U8 and shift zp, min, max attributes by the value of storage type min
 mlir::quant::QuantizedType changeStorageTypeToU8(mlir::quant::QuantizedType originQType) {
@@ -54,43 +144,8 @@ mlir::quant::QuantizedType changeStorageTypeToU8(mlir::quant::QuantizedType orig
     VPUX_THROW("Unsupported Quantized Type '{0}'", originQType);
 }
 
-class ConstRewriter final : public mlir::OpRewritePattern<Const::DeclareOp> {
-public:
-    ConstRewriter(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<Const::DeclareOp>(ctx), _log(log) {
-    }
-
-public:
-    mlir::LogicalResult matchAndRewrite(Const::DeclareOp constOp, mlir::PatternRewriter& rewriter) const final;
-
-private:
-    Logger _log;
-};
-
-mlir::LogicalResult ConstRewriter::matchAndRewrite(Const::DeclareOp constOp, mlir::PatternRewriter& rewriter) const {
-    const auto constElemType = constOp.getType().cast<mlir::RankedTensorType>().getElementType();
-    const auto quantType = constElemType.dyn_cast_or_null<mlir::quant::QuantizedType>();
-    VPUX_THROW_UNLESS(quantType != nullptr, "Got non-quantized type {0}", constElemType);
-
-    _log.trace("Convert weights '{0}' with quant type '{1}'", constOp, quantType);
-
-    auto low = quantType.getStorageTypeMin();
-    const auto qElemType = changeStorageTypeToU8(quantType);
-    _log.trace("Use quantized element type '{0}'", qElemType);
-
-    const auto qType = changeElemType(constOp.getType().cast<mlir::RankedTensorType>(), qElemType);
-    const auto newInConstAttr = constOp.contentAttr()
-                                        .quantCast()
-                                        .convertElemType(getInt32Type(getContext()))
-                                        .add(checked_cast<double>(-low))
-                                        .convertElemType(getUInt8Type(getContext()))
-                                        .quantCast(qElemType);
-
-    rewriter.replaceOpWithNewOp<Const::DeclareOp>(constOp, qType, newInConstAttr);
-    return mlir::success();
-}
-
 //
-// ConvertWeightsToU8
+// ConvertWeightsToU8Pass
 //
 
 class ConvertWeightsToU8Pass final : public IE::ConvertWeightsToU8Base<ConvertWeightsToU8Pass> {
@@ -107,15 +162,38 @@ void ConvertWeightsToU8Pass::safeRunOnFunc() {
     auto& ctx = getContext();
     auto func = getFunction();
 
+    mlir::TypeConverter typeConverter;
+    typeConverter.addConversion([](mlir::RankedTensorType tensor) {
+        if (const auto quantType = tensor.getElementType().dyn_cast_or_null<mlir::quant::QuantizedType>()) {
+            if (quantType.isSigned()) {
+                const auto newElemType = changeStorageTypeToU8(quantType);
+                return changeElemType(tensor, newElemType);
+            }
+        }
+
+        return tensor;
+    });
+    typeConverter.addSourceMaterialization(dummyConverter<mlir::RankedTensorType>);
+    typeConverter.addTargetMaterialization(dummyConverter<mlir::RankedTensorType>);
+    typeConverter.addArgumentMaterialization(dummyConverter<mlir::RankedTensorType>);
+
+    const auto isLegalOp = [&](mlir::Operation* op) {
+        return typeConverter.isLegal(op);
+    };
+
     mlir::ConversionTarget target(ctx);
-    target.addDynamicallyLegalOp<Const::DeclareOp>([&](Const::DeclareOp constOp) {
-        const auto constElemType = constOp.getType().cast<mlir::RankedTensorType>().getElementType();
-        const auto quantType = constElemType.dyn_cast_or_null<mlir::quant::QuantizedType>();
-        return quantType == nullptr || !quantType.isSigned();
+    target.addDynamicallyLegalOp<Const::DeclareOp>(isLegalOp);
+    target.markUnknownOpDynamicallyLegal([&](mlir::Operation* op) {
+        if (mlir::isa<IE::LayerOpInterface>(op)) {
+            return isLegalOp(op);
+        }
+        return true;
     });
 
     mlir::OwningRewritePatternList patterns(&ctx);
-    patterns.insert<ConstRewriter>(&ctx, _log);
+    patterns.add<LayerRewriter>(typeConverter, &ctx, _log);
+    patterns.add<ConstRewriter>(typeConverter, &ctx, _log);
+
     if (mlir::failed(applyPartialConversion(func, target, std::move(patterns)))) {
         signalPassFailure();
     }

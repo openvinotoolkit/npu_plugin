@@ -257,6 +257,7 @@ add_rewriters("dialect/IE")
 
 add_dialect("IERT")
 add_op_interfaces("dialect/IERT")
+add_struct_attrs("IERT")
 add_passes("dialect/IERT" "IERT")
 add_rewriters("dialect/IERT")
 

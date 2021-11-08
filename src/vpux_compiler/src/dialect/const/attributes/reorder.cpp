@@ -89,7 +89,7 @@ mlir::Attribute vpux::Const::ReorderAttr::parse(mlir::DialectAsmParser& parser, 
 //
 
 mlir::ShapedType vpux::Const::ReorderAttr::inferOutputType(mlir::ShapedType input) const {
-    const auto order = DimsOrder::fromPermutationAffineMap(getOrder().getValue());
+    const auto order = DimsOrder::fromAffineMap(getOrder().getValue());
     VPUX_THROW_UNLESS(order.numDims() == checked_cast<size_t>(input.getRank()),
                       "DimsOrder '{0}' doesn't match type '{1}'", order, input);
 
@@ -179,6 +179,6 @@ Const::Content vpux::Const::ReorderAttr::transform(vpux::Const::Content& input) 
 //
 
 Const::ContentAttr vpux::Const::ContentAttr::reorder(DimsOrder newOrder) const {
-    return get(*this, Const::ReorderAttr::get(mlir::AffineMapAttr::get(newOrder.toPermutationAffineMap(getContext())))
+    return get(*this, Const::ReorderAttr::get(mlir::AffineMapAttr::get(newOrder.toAffineMap(getContext())))
                               .cast<Const::TransformAttrInterface>());
 }

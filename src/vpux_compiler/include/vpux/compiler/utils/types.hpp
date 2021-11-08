@@ -75,10 +75,14 @@ Byte getCompactSize(mlir::Value val);
 // MemRefType utilities
 //
 
-mlir::MemRefType changeElemType(mlir::MemRefType origType, mlir::Type elemType, bool preserveStrides = false);
-mlir::MemRefType changeShape(mlir::MemRefType origType, ShapeRef shape, bool preserveStrides = false);
+mlir::MemRefType getMemRefType(ShapeRef shape, mlir::Type elemType, DimsOrder order, mlir::Attribute memSpace);
+mlir::MemRefType getMemRefType(ShapeRef shape, mlir::Type elemType, DimsOrder order, StridesRef strides,
+                               mlir::Attribute memSpace);
+
+mlir::MemRefType changeElemType(mlir::MemRefType origType, mlir::Type elemType);
+mlir::MemRefType changeShape(mlir::MemRefType origType, ShapeRef shape);
 mlir::MemRefType changeDimsOrder(mlir::MemRefType origType, DimsOrder order);
-mlir::MemRefType changeMemSpace(mlir::MemRefType origType, mlir::Attribute memSpace, bool preserveStrides = false);
+mlir::MemRefType changeMemSpace(mlir::MemRefType origType, mlir::Attribute memSpace);
 
 mlir::MemRefType getDenseTileType(mlir::MemRefType origType, ShapeRef tileOffsets, ShapeRef tileShape);
 mlir::MemRefType getViewTileType(mlir::MemRefType origType, ShapeRef tileOffsets, ShapeRef tileShape,
@@ -91,8 +95,7 @@ mlir::MemRefType eraseTiledInfo(mlir::MemRefType origType);
 // RankedTensorType utilities
 //
 
-mlir::RankedTensorType getTensorType(ArrayRef<int64_t> shape, mlir::Type elementType, DimsOrder order,
-                                     mlir::Attribute memSpace);
+mlir::RankedTensorType getTensorType(ShapeRef shape, mlir::Type elemType, DimsOrder order, mlir::Attribute memSpace);
 
 mlir::RankedTensorType changeElemType(mlir::RankedTensorType origType, mlir::Type elemType);
 mlir::RankedTensorType changeShape(mlir::RankedTensorType origType, ShapeRef shape);

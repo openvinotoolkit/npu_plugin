@@ -128,7 +128,7 @@ mlir::OwningModuleRef importVPUIP(llvm::SourceMgr& sourceMgr, mlir::MLIRContext*
 // export-VPUIP
 //
 
-mlir::LogicalResult exportVPUIP(mlir::ModuleOp module, llvm::raw_ostream& output) {
+mlir::LogicalResult exportVPUIP(mlir::ModuleOp module, llvm::raw_ostream& output, StringRef /*outputFileName*/) {
     mlir::DefaultTimingManager tm;
     auto rootTiming = tm.getRootScope();
     const auto buf = VPUIP::exportToBlob(module, rootTiming);

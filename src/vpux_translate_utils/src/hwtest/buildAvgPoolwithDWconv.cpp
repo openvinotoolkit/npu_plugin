@@ -77,14 +77,11 @@ void buildAvgpoolWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mo
     const auto WEIGHTS_CMX_OFFSET = INPUT_CMX_OFFSET + input_totalsize;
 
     SmallVector<mlir::Type> inputTypes;
-    const auto inputAffineMaps = DimsOrder::NHWC.toAffineMapsList(ctx, Shape(in_shape));
     inputTypes.push_back(
-            getMemRefType(builder, VPUIP::MemoryLocation::ProgrammableInput, in_shape, inputType, inputAffineMaps));
-    const auto outputAffineMaps = DimsOrder::NHWC.toAffineMapsList(ctx, Shape(out_shape));
+            getMemRefType(builder, VPUIP::MemoryLocation::ProgrammableInput, in_shape, inputType, DimsOrder::NHWC));
     auto outputParamType =
-            getMemRefType(builder, VPUIP::MemoryLocation::ProgrammableOutput, out_shape, outputType, outputAffineMaps);
+            getMemRefType(builder, VPUIP::MemoryLocation::ProgrammableOutput, out_shape, outputType, DimsOrder::NHWC);
     inputTypes.push_back(outputParamType);
-    SmallVector<ArrayRef<mlir::AffineMap>> argsAffineMaps{inputAffineMaps, outputAffineMaps};
 
     const auto funcType = builder.getFunctionType(makeArrayRef(inputTypes), outputParamType);
 
@@ -101,9 +98,8 @@ void buildAvgpoolWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mo
 
     // Generate weights for kh x kw DW conv
 
-    const auto weightDataffineMaps = DimsOrder::NHWC.toAffineMapsList(ctx, Shape(wt_data_shape));
-    auto weightData_ddr_type2 = getMemRefType(funcbuilder, VPUIP::MemoryLocation::GraphFile, wt_data_shape, weightsType,
-                                              weightDataffineMaps);
+    auto weightData_ddr_type2 =
+            getMemRefType(funcbuilder, VPUIP::MemoryLocation::GraphFile, wt_data_shape, weightsType, DimsOrder::NHWC);
     size_t weightDataSize = static_cast<size_t>(std::accumulate(wt_data_shape.begin(), wt_data_shape.end(),
                                                                 static_cast<int64_t>(1), std::multiplies<int64_t>()));
 
@@ -142,11 +138,10 @@ void buildAvgpoolWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mo
     auto weight_data_ddr = VPUIP::alignDepthWiseWeightsTensor(funcbuilder, loc, weight.getResult());
 
     auto wt_data_shape_padded = weight_data_ddr.getType().cast<mlir::ShapedType>().getShape();
-    const auto weightDataPaddedAffineMaps = DimsOrder::NHWC.toAffineMapsList(ctx, Shape(wt_data_shape_padded));
 
     // weights cmx tensor
     auto wtData_cmx_type = getMemRefType(funcbuilder, VPUIP::MemoryLocation::VPU_CMX_NN,
-                                         to_vector<4>(wt_data_shape_padded), weightsType, weightDataPaddedAffineMaps);
+                                         to_vector<4>(wt_data_shape_padded), weightsType, DimsOrder::NHWC);
     auto wtData_cmx = createDeclareTensorOp(funcbuilder, wtData_cmx_type, 0, WEIGHTS_CMX_OFFSET);
 
     auto weight_padded_totalsize = totalTensorSize(wt_data_shape_padded, weightsType);
@@ -154,11 +149,11 @@ void buildAvgpoolWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mo
 
     // input - output cmx tensors
     auto inputcmx_type =
-            getMemRefType(funcbuilder, VPUIP::MemoryLocation::VPU_CMX_NN, in_shape, inputType, inputAffineMaps);
+            getMemRefType(funcbuilder, VPUIP::MemoryLocation::VPU_CMX_NN, in_shape, inputType, DimsOrder::NHWC);
     auto inputcmx = createDeclareTensorOp(funcbuilder, inputcmx_type, 0, INPUT_CMX_OFFSET);
 
     auto outputcmx_type =
-            getMemRefType(funcbuilder, VPUIP::MemoryLocation::VPU_CMX_NN, out_shape, outputType, outputAffineMaps);
+            getMemRefType(funcbuilder, VPUIP::MemoryLocation::VPU_CMX_NN, out_shape, outputType, DimsOrder::NHWC);
     auto outputcmx = createDeclareTensorOp(funcbuilder, outputcmx_type, 0, OUTPUT_CMX_OFFSET);
 
     auto parent_inputcmx = createDeclareTensorOp(funcbuilder, inputcmx_type, 0, INPUT_CMX_OFFSET);
@@ -193,9 +188,8 @@ void buildAvgpoolWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mo
     const auto dataStorageType = mlir::RankedTensorType::get(sparsity_shape, sparsity_type);
     const auto sparsityAttr = mlir::DenseElementsAttr::get(dataStorageType, makeArrayRef(fakeSparsity));
 
-    auto activationWindowAffineMaps = DimsOrder::NHWC.toAffineMapsList(ctx, Shape(sparsity_shape));
     auto activationWindow_ddr_type = getMemRefType(funcbuilder, VPUIP::MemoryLocation::GraphFile, sparsity_shape,
-                                                   sparsity_type, activationWindowAffineMaps);
+                                                   sparsity_type, DimsOrder::NHWC);
     auto activationWindow_ddr = funcbuilder.create<Const::DeclareOp>(
             loc, activationWindow_ddr_type, Const::ContentAttr::get(sparsityAttr).reorder(DimsOrder::NHWC));
 
@@ -205,7 +199,7 @@ void buildAvgpoolWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mo
 
     // Activation Window cmx
     auto actWindow_cmx_type = getMemRefType(funcbuilder, VPUIP::MemoryLocation::VPU_CMX_NN, sparsity_shape,
-                                            sparsity_type, activationWindowAffineMaps);
+                                            sparsity_type, DimsOrder::NHWC);
     auto actWindow_cmx = createDeclareTensorOp(funcbuilder, actWindow_cmx_type, 0, ACTIVATIONWINDOW_CMX_OFFSET);
 
     // activation window dma ddr->cmx
@@ -215,9 +209,8 @@ void buildAvgpoolWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mo
 
     // weights table ddr tensor
     SmallVector<int64_t> wtTbl_data_shape{sparsity_shape[0], 1, 1, 4};
-    auto weightTblAffineMaps = DimsOrder::NHWC.toAffineMapsList(ctx, Shape(wtTbl_data_shape));
     auto weightTblData_ddr_type = getMemRefType(funcbuilder, VPUIP::MemoryLocation::GraphFile, wtTbl_data_shape,
-                                                builder.getIntegerType(32, true), weightTblAffineMaps);
+                                                builder.getIntegerType(32, true), DimsOrder::NHWC);
     const auto wtTblData_ddr_valueType =
             mlir::RankedTensorType::get(wtTbl_data_shape, builder.getIntegerType(32, true));
 
@@ -247,7 +240,7 @@ void buildAvgpoolWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mo
 
     const auto WEIGHTSTABLE_CMX_OFFSET = ACTIVATIONWINDOW_CMX_OFFSET + activationwindow_totalsize_bytes;
     auto wtTbl_cmx_type = getMemRefType(funcbuilder, VPUIP::MemoryLocation::VPU_CMX_NN, wtTbl_data_shape,
-                                        builder.getIntegerType(32, true), weightTblAffineMaps);
+                                        builder.getIntegerType(32, true), DimsOrder::NHWC);
     auto wtTbl_cmx = createDeclareTensorOp(funcbuilder, wtTbl_cmx_type, 0, WEIGHTSTABLE_CMX_OFFSET);
 
     // weights table dma ddr->cmx
@@ -298,8 +291,8 @@ void buildAvgpoolWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mo
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module)), "Compilation failed");
 
     // IE.CNNNetwork
-    buildCNNOp(builder, func.getName(), {getTensorType(in_shape, inputType, DimsOrder::NHWC, nullptr)},
-               {getTensorType(out_shape, outputType, DimsOrder::NHWC, nullptr)});
+    buildCNNOp(builder, func.getName(), {getTensorType(ShapeRef(in_shape), inputType, DimsOrder::NHWC, nullptr)},
+               {getTensorType(ShapeRef(out_shape), outputType, DimsOrder::NHWC, nullptr)});
 }
 
 }  // namespace hwtest

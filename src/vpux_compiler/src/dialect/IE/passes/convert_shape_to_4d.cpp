@@ -52,7 +52,7 @@ private:
 mlir::LogicalResult convertGeneric(mlir::Operation* origOp, mlir::ValueRange operands,
                                    mlir::ConversionPatternRewriter& rewriter, mlir::TypeConverter& typeConverter,
                                    Logger log) {
-    log.trace("Process Operation '{0}'", origOp->getLoc());
+    log.trace("Process Operation '{0}' at '{1}", origOp->getName(), origOp->getLoc());
 
     const auto origOperands = origOp->getOperands();
     VPUX_THROW_UNLESS(origOperands.size() == operands.size(), "Wrong operands size : {0}", operands.size());
@@ -95,14 +95,15 @@ private:
 // FakeQuantizeConverter
 //
 
-class FakeQuantizeConverter final : public mlir::OpRewritePattern<IE::FakeQuantizeOp> {
+class FakeQuantizeConverter final : public mlir::OpConversionPattern<IE::FakeQuantizeOp> {
 public:
-    FakeQuantizeConverter(mlir::MLIRContext* ctx, Logger log)
-            : mlir::OpRewritePattern<IE::FakeQuantizeOp>(ctx), _log(log) {
+    FakeQuantizeConverter(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
+            : mlir::OpConversionPattern<IE::FakeQuantizeOp>(typeConverter, ctx), _log(log) {
     }
 
 public:
-    mlir::LogicalResult matchAndRewrite(IE::FakeQuantizeOp origOp, mlir::PatternRewriter& rewriter) const final;
+    mlir::LogicalResult matchAndRewrite(IE::FakeQuantizeOp origOp, OpAdaptor newArgs,
+                                        mlir::ConversionPatternRewriter& rewriter) const final;
 
 private:
     Logger _log;
@@ -153,11 +154,11 @@ ExtendedShape extendInputShapeTo4D(IE::FakeQuantizeOp origOp) {
     return {outputShape, axis};
 }
 
-mlir::Value reshapeConstInput(mlir::PatternRewriter& rewriter, mlir::Location loc, mlir::Value input,
+mlir::Value reshapeConstInput(mlir::PatternRewriter& rewriter, mlir::Location loc, mlir::Value origInput,
                               llvm::Optional<int64_t> axis) {
-    const auto inShape = getShape(input);
+    const auto inShape = getShape(origInput);
     if (inShape.empty()) {
-        return input;
+        return origInput;
     }
 
     Shape constInputShape{1, 1, 1, 1};
@@ -168,11 +169,11 @@ mlir::Value reshapeConstInput(mlir::PatternRewriter& rewriter, mlir::Location lo
 
     const auto constInputShapeAttr = getIntArrayAttr(rewriter.getContext(), constInputShape);
 
-    return rewriter.create<IE::ReshapeOp>(loc, input, nullptr, false, constInputShapeAttr);
+    return rewriter.createOrFold<IE::ReshapeOp>(loc, origInput, nullptr, false, constInputShapeAttr);
 }
 
-mlir::LogicalResult FakeQuantizeConverter::matchAndRewrite(IE::FakeQuantizeOp origOp,
-                                                           mlir::PatternRewriter& rewriter) const {
+mlir::LogicalResult FakeQuantizeConverter::matchAndRewrite(IE::FakeQuantizeOp origOp, OpAdaptor newArgs,
+                                                           mlir::ConversionPatternRewriter& rewriter) const {
     _log.trace("[{0}] Found IE::FakeQuantize Operation '{1}'", getDebugName(), origOp->getLoc());
 
     const auto input4D = extendInputShapeTo4D(origOp);
@@ -184,7 +185,7 @@ mlir::LogicalResult FakeQuantizeConverter::matchAndRewrite(IE::FakeQuantizeOp or
 
     const auto newInputShapeAttr = getIntArrayAttr(getContext(), input4D.shape);
     auto inputReshape =
-            rewriter.create<IE::ReshapeOp>(origOp->getLoc(), origOp.input(), nullptr, false, newInputShapeAttr);
+            rewriter.create<IE::ReshapeOp>(origOp->getLoc(), newArgs.input(), nullptr, false, newInputShapeAttr);
 
     auto newFakeQuantizeOp =
             rewriter.create<IE::FakeQuantizeOp>(origOp->getLoc(), inputReshape.output(), inputLow, inputHigh, outputLow,
@@ -268,21 +269,21 @@ void ConvertShapeTo4DPass::safeRunOnFunc() {
     target.addDynamicallyLegalOp<IE::FakeQuantizeOp>(isLegalFqOp);
 
     mlir::RewritePatternSet patterns(&ctx);
-    patterns.insert<GenericConverter<IE::ClampOp>>(typeConverter, &ctx, _log);
-    patterns.insert<GenericConverter<IE::EluOp>>(typeConverter, &ctx, _log);
-    patterns.insert<GenericConverter<IE::ReLUOp>>(typeConverter, &ctx, _log);
-    patterns.insert<GenericConverter<IE::SigmoidOp>>(typeConverter, &ctx, _log);
-    patterns.insert<GenericConverter<IE::HSwishOp>>(typeConverter, &ctx, _log);
-    patterns.insert<GenericConverter<IE::TanhOp>>(typeConverter, &ctx, _log);
-    patterns.insert<GenericConverter<IE::SqrtOp>>(typeConverter, &ctx, _log);
-    patterns.insert<GenericConverter<IE::ExpOp>>(typeConverter, &ctx, _log);
-    patterns.insert<GenericConverter<IE::AddOp>>(typeConverter, &ctx, _log);
-    patterns.insert<GenericConverter<IE::MultiplyOp>>(typeConverter, &ctx, _log);
-    patterns.insert<GenericConverter<IE::SubtractOp>>(typeConverter, &ctx, _log);
-    patterns.insert<GenericConverter<IE::AndOp>>(typeConverter, &ctx, _log);
-    patterns.insert<GenericConverter<IE::ScaleShiftOp>>(typeConverter, &ctx, _log);
-    patterns.insert<GenericConverter<IE::EqualOp>>(typeConverter, &ctx, _log);
-    patterns.insert<FakeQuantizeConverter>(&ctx, _log);
+    patterns.add<GenericConverter<IE::ClampOp>>(typeConverter, &ctx, _log);
+    patterns.add<GenericConverter<IE::EluOp>>(typeConverter, &ctx, _log);
+    patterns.add<GenericConverter<IE::ReLUOp>>(typeConverter, &ctx, _log);
+    patterns.add<GenericConverter<IE::SigmoidOp>>(typeConverter, &ctx, _log);
+    patterns.add<GenericConverter<IE::HSwishOp>>(typeConverter, &ctx, _log);
+    patterns.add<GenericConverter<IE::TanhOp>>(typeConverter, &ctx, _log);
+    patterns.add<GenericConverter<IE::SqrtOp>>(typeConverter, &ctx, _log);
+    patterns.add<GenericConverter<IE::ExpOp>>(typeConverter, &ctx, _log);
+    patterns.add<GenericConverter<IE::AddOp>>(typeConverter, &ctx, _log);
+    patterns.add<GenericConverter<IE::MultiplyOp>>(typeConverter, &ctx, _log);
+    patterns.add<GenericConverter<IE::SubtractOp>>(typeConverter, &ctx, _log);
+    patterns.add<GenericConverter<IE::AndOp>>(typeConverter, &ctx, _log);
+    patterns.add<GenericConverter<IE::ScaleShiftOp>>(typeConverter, &ctx, _log);
+    patterns.add<GenericConverter<IE::EqualOp>>(typeConverter, &ctx, _log);
+    patterns.add<FakeQuantizeConverter>(typeConverter, &ctx, _log);
 
     auto func = getFunction();
     if (mlir::failed(mlir::applyPartialConversion(func, target, std::move(patterns)))) {

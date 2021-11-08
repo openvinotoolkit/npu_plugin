@@ -254,9 +254,8 @@ mlir::LogicalResult TimestampRewrite::matchAndRewrite(IERT::TimestampOp origOp, 
     VPUX_THROW_UNLESS(origType.getElementType() == getUInt32Type(getContext()),
                       "Got wrong element type for TimestampOp");
 
-    auto timerType =
-            mlir::MemRefType::get(origType.getShape(), origType.getElementType(), {},
-                                  VPUIP::MemoryLocationAttr::get(getContext(), VPUIP::MemoryLocation::AbsoluteAddr));
+    const auto timerType =
+            changeMemSpace(origType, VPUIP::MemoryLocationAttr::get(getContext(), VPUIP::MemoryLocation::AbsoluteAddr));
 
     auto declareOp = rewriter.create<VPUIP::DeclareTensorOp>(mlir::UnknownLoc::get(getContext()), timerType,
                                                              VPUIP::MemoryLocation::AbsoluteAddr, 0,

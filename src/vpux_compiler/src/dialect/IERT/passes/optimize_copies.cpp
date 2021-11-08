@@ -12,21 +12,20 @@
 //
 
 #include "vpux/compiler/dialect/IERT/passes.hpp"
+
+#include "vpux/compiler/dialect/IERT/ops_interfaces.hpp"
+#include "vpux/compiler/dialect/VPUIP/attributes/enums.hpp"
+#include "vpux/compiler/dialect/VPUIP/ops.hpp"
+#include "vpux/compiler/dialect/VPUIP/ops_interfaces.hpp"
+#include "vpux/compiler/utils/analysis.hpp"
+#include "vpux/compiler/utils/logging.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 #include "vpux/compiler/utils/types.hpp"
 
+#include "vpux/utils/core/range.hpp"
+
 #include <mlir/IR/PatternMatch.h>
 #include <mlir/Transforms/GreedyPatternRewriteDriver.h>
-
-#include "vpux/compiler/dialect/IERT/ops_interfaces.hpp"
-#include "vpux/compiler/dialect/VPUIP/ops.hpp"
-#include "vpux/compiler/dialect/VPUIP/ops_interfaces.hpp"
-
-#include "vpux/compiler/dialect/VPUIP/attributes/enums.hpp"
-
-#include "vpux/compiler/utils/logging.hpp"
-
-#include "vpux/utils/core/range.hpp"
 
 using namespace vpux;
 
@@ -49,14 +48,15 @@ private:
 };
 
 mlir::LogicalResult CopyOpSequence::matchAndRewrite(IERT::CopyOp copyOp, mlir::PatternRewriter& rewriter) const {
-    if (copyOp.output_buff().isa<mlir::BlockArgument>()) {
-        return mlir::failure();
-    }
-
     // Check if operation that defines the input is CopyOp to identify
     // CopyOp->CopyOp sequence
     auto parentCopyOp = copyOp.input().getDefiningOp<IERT::CopyOp>();
     if (parentCopyOp == nullptr) {
+        return mlir::failure();
+    }
+
+    if (parentCopyOp.output_buff().isa<mlir::BlockArgument>() ||
+        !isBufAllocOp(parentCopyOp.output_buff().getDefiningOp())) {
         return mlir::failure();
     }
 

@@ -73,7 +73,7 @@ void UseUserLayoutPass::safeRunOnModule() {
     const auto cvtOpBuilder = [](mlir::OpBuilder& builder, mlir::Location loc, mlir::Value val,
                                  mlir::Type newType) -> mlir::Operation* {
         const auto order = DimsOrder::fromType(newType.cast<mlir::ShapedType>());
-        return builder.create<IE::ReorderOp>(loc, newType, val, order.toPermutationAffineMap(builder.getContext()));
+        return builder.create<IE::ReorderOp>(loc, newType, val, order.toAffineMap(builder.getContext()));
     };
 
     if (mlir::failed(convertFunc(netFunc, newArgTypes, newResultTypes, cvtOpBuilder, _log))) {

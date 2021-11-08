@@ -15,6 +15,7 @@
 #include "vpux/compiler/core/attributes/stride_reqs.hpp"
 #include "vpux/compiler/core/attributes/strides.hpp"
 #include "vpux/compiler/dialect/IE/attributes/structs.hpp"
+#include "vpux/compiler/dialect/IERT/attributes/structs.hpp"
 #include "vpux/compiler/utils/types.hpp"
 
 #include "vpux/utils/IE/format.hpp"
@@ -267,8 +268,8 @@ bool vpux::DimsOrder::isIdentity() const {
     return *this == DimsOrder::fromNumDims(numDims());
 }
 
-DimsOrder vpux::DimsOrder::fromPermutationAffineMap(mlir::AffineMap map) {
-    VPUX_THROW_UNLESS(map.isPermutation(), "Can't get DimsOrder from AffineMap '{0}'", map);
+DimsOrder vpux::DimsOrder::fromAffineMap(mlir::AffineMap map) {
+    VPUX_THROW_UNLESS(map.isPermutation(), "Can't get DimsOrder from non-permutation AffineMap '{0}'", map);
 
     const auto perm = to_container<DimArr>(map.getResults() | transformed([](mlir::AffineExpr expr) {
                                                const auto dim = expr.cast<mlir::AffineDimExpr>();
@@ -279,7 +280,7 @@ DimsOrder vpux::DimsOrder::fromPermutationAffineMap(mlir::AffineMap map) {
     return fromPermutation(perm);
 }
 
-mlir::AffineMap vpux::DimsOrder::toPermutationAffineMap(mlir::MLIRContext* ctx) const {
+mlir::AffineMap vpux::DimsOrder::toAffineMap(mlir::MLIRContext* ctx) const {
     const auto permutation = to_small_vector(toPermutation() | transformed([](Dim d) {
                                                  return static_cast<unsigned>(d.ind());
                                              }));
@@ -301,59 +302,27 @@ DimsOrder vpux::DimsOrder::fromType(mlir::ShapedType type) {
 }
 
 DimsOrder vpux::DimsOrder::fromType(mlir::RankedTensorType type) {
-    return DimsOrder::fromPermutationAffineMap(IE::getOrder(type));
+    return DimsOrder::fromAffineMap(IE::getOrder(type));
 }
 
 DimsOrder vpux::DimsOrder::fromType(mlir::MemRefType type) {
-    const auto maps = type.getAffineMaps();
-    if (!maps.empty() && maps.front().isPermutation()) {
-        return fromPermutationAffineMap(maps.front());
+    const auto layout = type.getLayout();
+
+    if (const auto mapAttr = layout.dyn_cast<mlir::AffineMapAttr>()) {
+        return fromAffineMap(mapAttr.getValue());
     }
 
-    const auto strides = getStrides(type);
-
-    SmallVector<Dim> perm(strides.size());
-    for (auto i : irange(perm.size())) {
-        perm[i] = Dim(i);
+    if (const auto descAttr = layout.dyn_cast<IERT::MemRefAttr>()) {
+        return fromAffineMap(descAttr.order().getValue());
     }
 
-    std::stable_sort(perm.begin(), perm.end(), [&](Dim d1, Dim d2) {
-        return strides[d1] > strides[d2];
-    });
-
-    return fromPermutation(perm);
+    VPUX_THROW("Unsupported MemRefType layout '{0}'", layout);
 }
 
 DimsOrder vpux::DimsOrder::fromValue(mlir::Value val) {
     const auto type = val.getType().dyn_cast<mlir::ShapedType>();
     VPUX_THROW_UNLESS(type != nullptr, "Can't get DimsOrder from Type '{0}'", val.getType());
     return fromType(type);
-}
-
-SmallVector<mlir::AffineMap> vpux::DimsOrder::toAffineMapsList(mlir::MLIRContext* ctx, ShapeRef shape) const {
-    const auto memShape = toMemoryOrder(shape);
-    const auto memStrides = StrideReqs::simple(shape.size()).calcStrides(1_Bit, memShape);
-    return toAffineMapsList(ctx, 1_Bit, memStrides);
-}
-
-SmallVector<mlir::AffineMap> vpux::DimsOrder::toAffineMapsList(mlir::MLIRContext* ctx, Bit elemSize,
-                                                               StridesRef strides) const {
-    const auto memStrides = toMemoryOrder(strides);
-    return toAffineMapsList(ctx, elemSize, memStrides);
-}
-
-SmallVector<mlir::AffineMap> vpux::DimsOrder::toAffineMapsList(mlir::MLIRContext* ctx, Bit elemSize,
-                                                               MemStridesRef memStrides) const {
-    // Element strides in memory order.
-    // For NHWC U8 buffer with logical_shape = [1, 2, 3, 4] it will be
-    // affine_map<(md0, md1, md2, md3) -> (24 * md0 + 8 * md1 + 2 * md2 + md3)>
-    const auto memElemStrides = to_small_vector(memStrides | transformed([&](Bit val) {
-                                                    return val.count() / elemSize.count();
-                                                }));
-
-    const auto stridesMap = mlir::makeStridedLinearLayoutMap(memElemStrides, 0, ctx);
-
-    return {toPermutationAffineMap(ctx), stridesMap};
 }
 
 bool vpux::DimsOrder::isCompatibleLayout(mlir::MemRefType type) const {

@@ -352,7 +352,9 @@ std::string GraphWriter::getNodeLabel(mlir::Operation* op) {
             os << '\n' << attr.first << ": ";
         }
 
-        if (!attr.second.isa<mlir::AffineMapAttr>()) {
+        if (const auto map = attr.second.dyn_cast<mlir::AffineMapAttr>()) {
+            DimsOrder::fromAffineMap(map.getValue()).printFormat(os);
+        } else {
             std::string temp_str;
             llvm::raw_string_ostream temp_os(temp_str);
             attr.second.print(temp_os);
@@ -365,9 +367,6 @@ std::string GraphWriter::getNodeLabel(mlir::Operation* op) {
             } else {
                 os << "[...]";
             }
-        } else {
-            auto map = attr.second.dyn_cast<mlir::AffineMapAttr>().getValue();
-            DimsOrder::fromPermutationAffineMap(map).printFormat(os);
         }
 
         if (_params.htmlLike) {
