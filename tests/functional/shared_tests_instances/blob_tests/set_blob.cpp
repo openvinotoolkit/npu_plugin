@@ -19,4 +19,4 @@ const auto params = ::testing::Combine(::testing::ValuesIn(precisionSet),
                                        ::testing::ValuesIn(typeSet),
                                        ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY));
 
-INSTANTIATE_TEST_CASE_P(smoke_SetBlobVPUX, SetBlobTest, params, SetBlobTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_SetBlob, SetBlobTest, params, SetBlobTest::getTestCaseName);

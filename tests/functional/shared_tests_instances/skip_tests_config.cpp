@@ -25,7 +25,7 @@ public:
         }
     }
 
-    auto getName() const {
+    std::string getName() const {
         return _name;
     }
 
@@ -75,7 +75,6 @@ public:
 
 class SkipRegistry {
 public:
-
     void addPatterns(std::vector<std::string>&& patternsToSkip) {
         addPatterns(true, // unconditionally disabled
                     std::string{"The test is disabled!"},
@@ -96,10 +95,10 @@ public:
     std::string getMatchingPattern(const std::string& testName) const
     {
         for (const auto& entry : _registry) {
-            for (const auto& pattern : entry.patterns) {
+            for (const auto& pattern : entry._patterns) {
                 std::regex re(pattern);
                 if (std::regex_match(testName, re)) {
-                    std::cout << entry.comment << std::endl;
+                    std::cout << entry._comment << std::endl;
                     return pattern;
                 }
             }
@@ -111,11 +110,11 @@ public:
 private:
     struct Entry {
         Entry(std::string&& comment, std::vector<std::string>&& patterns) :
-              comment{std::move(comment)}
-            , patterns{std::move(patterns)} { }
+              _comment{std::move(comment)}
+            , _patterns{std::move(patterns)} { }
             
-        std::string comment;
-        std::vector<std::string> patterns;
+        std::string _comment;
+        std::vector<std::string> _patterns;
     };
 
     std::vector<Entry> _registry;
@@ -123,9 +122,10 @@ private:
 
 std::string getCurrentTestName() {
     const auto* currentTestInfo = ::testing::UnitTest::GetInstance()->current_test_info();
-    const auto  currentTestName = currentTestInfo->test_case_name()
+    const auto currentTestName = currentTestInfo->test_case_name()
                                 + std::string(".") + currentTestInfo->name();
     
+    std::cout << "NAME:" << currentTestName << std::endl;
     return currentTestName;
 }
 
@@ -179,6 +179,7 @@ std::vector<std::string> disabledTestPatterns() {
             {
                 // Cannot run InferRequest tests without a device to infer to
                 ".*InferRequest.*",
+                ".*OVInferRequest.*",
                 ".*ExecutableNetworkBaseTest.*",
                 ".*ExecNetSetPrecision.*",
                 ".*SetBlobTest.*"
@@ -194,6 +195,16 @@ std::vector<std::string> disabledTestPatterns() {
         );
 
         _skipRegistry.addPatterns(
+            backendName.isZero(),  
+            "TensorIterator layer is not supported by MTL/dKMB platform",
+            {
+                ".*SetBlobTest.*",
+                ".*OVInferRequestWaitTests.*",
+                ".*OVInferRequestMultithreadingTests.*"
+            }
+        );
+
+        _skipRegistry.addPatterns(
             platform.isARM(),  
             "CumSum layer is not supported by ARM platform",
             {
@@ -202,11 +213,11 @@ std::vector<std::string> disabledTestPatterns() {
         );
 
         return _skipRegistry;
-    }( );
+    }();
 
-    std::vector<std::string> matching_patterns;
+    std::vector<std::string> matchingPatterns;
     const auto currentTestName = getCurrentTestName();
-    matching_patterns.emplace_back(skipRegistry.getMatchingPattern(currentTestName));
+    matchingPatterns.emplace_back(skipRegistry.getMatchingPattern(currentTestName));
 
-    return matching_patterns;
+    return matchingPatterns;
 }
