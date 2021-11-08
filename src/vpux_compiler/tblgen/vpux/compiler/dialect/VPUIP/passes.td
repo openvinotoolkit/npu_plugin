@@ -54,6 +54,25 @@ def SetCompileParams : PassBase<"set-compile-params", "vpux::ModulePass"> {
     ];
 }
 
+//
+// UPAProfiling
+//
+
+def UPAProfiling : PassBase<"upa-profiling", "vpux::ModulePass"> {
+    let summary = "upa task profiling";
+
+    let description = [{
+        This pass allocate required memory for upa profiling and perform buffer spilling
+    }];
+
+    let constructor = "vpux::VPUIP::createUPAProfilingPass()";
+    
+}
+
+//
+// GroupProfilingBuffers
+//
+
 def GroupProfilingBuffers : PassBase<"group-profiling-buffers", "vpux::ModulePass"> {
     let summary = "Group profiling buffers into single output buffer";
 

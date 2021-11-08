@@ -102,6 +102,7 @@ Syntax:
 
 ```
 operation ::= `VPURT.Task` attr-dict
+              (`profiling_data` `(` $profiling_data^  `:` type($profiling_data) `)`)?
               (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
               (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
               `op` `:` $op
@@ -118,6 +119,7 @@ operation ::= `VPURT.Task` attr-dict
 
 | Operand | Description |
 | :-----: | ----------- |
+`profiling_data` | memref of 32-bit unsigned integer values
 `waitBarriers` | VPUIP Barrier Type
 `updateBarriers` | VPUIP Barrier Type
 

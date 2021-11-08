@@ -22,6 +22,20 @@ using namespace vpux;
 namespace {
 
 //
+// UPAProfilingPass
+//
+
+class UPAProfilingPass final : public VPUIP::UPAProfilingBase<UPAProfilingPass> {
+public:
+    explicit UPAProfilingPass(Logger log) {
+        Base::initLogger(log, Base::getArgumentName());
+    }
+
+private:
+    void safeRunOnModule() final;
+};
+
+//
 // GroupProfilingBuffersPass
 //
 
@@ -34,6 +48,70 @@ public:
 private:
     void safeRunOnModule() final;
 };
+
+void UPAProfilingPass::safeRunOnModule() {
+    auto module = getOperation();
+    auto* ctx = module->getContext();
+
+    IE::CNNNetworkOp netOp;
+    mlir::FuncOp netFunc;
+    IE::CNNNetworkOp::getFromModule(module, netOp, netFunc);
+    OpBuilderLogger builderLog(_log.nest());
+    mlir::OpBuilder builder(&netFunc.getBody().front().front(), &builderLog);
+
+    SmallVector<VPURT::TaskOp> upaTasks;
+    netFunc.walk([&](VPURT::TaskOp taskOp) {
+        if (taskOp.getTaskType() == vpux::VPUIP::TaskType::UPA) {
+            _log.trace("Adding Operation '{0}'", taskOp->getLoc());
+            upaTasks.push_back(taskOp);
+        }
+    });
+
+    VPUX_THROW_UNLESS(upaTasks.size(), "No TimestampOp was added");
+
+    // UPA task expects 6x32bit value for storing profiling data
+    unsigned elementSize = 6;
+    unsigned output_size = upaTasks.size() * elementSize;
+    auto outputResult = mlir::MemRefType::get({output_size}, getUInt32Type(ctx));
+
+    //
+    // Declare and create additional output from network
+    //
+    auto funcType = netFunc.getType();
+    auto newResultTypes =
+            to_small_vector(llvm::concat<const mlir::Type>(funcType.getResults(), makeArrayRef(outputResult)));
+    auto newInputsTypes =
+            to_small_vector(llvm::concat<const mlir::Type>(funcType.getInputs(), makeArrayRef(outputResult)));
+
+    auto newFunctionType = mlir::FunctionType::get(ctx, newInputsTypes, newResultTypes);
+    netFunc.setType(newFunctionType);
+    auto profilngResult = netFunc.getBody().front().addArgument(outputResult);
+    unsigned profilingId = netOp.getProfilingOutputsCount();
+
+    unsigned upa_id = 0;
+    for (auto& upaTask : upaTasks) {
+        builder.setInsertionPoint(upaTask);
+        auto timestampType = mlir::MemRefType::get({elementSize}, getUInt32Type(ctx));
+        int offset = upa_id * elementSize * sizeof(uint32_t);
+        auto declareOp = builder.create<VPURT::DeclareBufferOp>(
+                mlir::UnknownLoc::get(ctx), timestampType, VPUIP::MemoryLocation::ProfilingOutput, profilingId, offset);
+
+        upaTask.profiling_dataMutable().assign(declareOp);
+        upa_id++;
+    }
+
+    // Adding output to the user info
+    auto outputUserResult = getTensorType(getShape(outputResult), outputResult.getElementType(),
+                                          DimsOrder::fromType(outputResult), nullptr);
+    auto userInfoBuilder = mlir::OpBuilder::atBlockEnd(&netOp.profilingOutputsInfo().front().front(), &builderLog);
+    userInfoBuilder.create<IE::DataInfoOp>(mlir::UnknownLoc::get(ctx), mlir::StringAttr::get(ctx, "upa"),
+                                           mlir::TypeAttr::get(outputUserResult));
+
+    // And to the returnOp
+    mlir::ReturnOp returnOp = mlir::dyn_cast_or_null<mlir::ReturnOp>(netFunc.getBody().front().getTerminator());
+    VPUX_THROW_UNLESS(returnOp != nullptr, "No ReturnOp was found");
+    returnOp.operandsMutable().append(profilngResult);
+}
 
 void GroupProfilingBuffersPass::safeRunOnModule() {
     auto ctx = &getContext();
@@ -83,7 +161,8 @@ void GroupProfilingBuffersPass::safeRunOnModule() {
             while (!arg->use_empty()) {
                 auto use = arg->use_begin();
                 auto op = use->getOwner();
-                builder.setInsertionPoint(op);
+                auto taskOp = op->getParentOfType<VPURT::TaskOp>();
+                builder.setInsertionPoint((taskOp != nullptr) ? taskOp : op);
                 unsigned base = (removedArgs) ? outputBases[removedArgs] : 0;
                 auto declareOp = builder.create<VPURT::DeclareBufferOp>(
                         mlir::UnknownLoc::get(ctx), arg->getType(), VPUIP::MemoryLocation::ProfilingOutput, 0, base);
@@ -137,6 +216,14 @@ void GroupProfilingBuffersPass::safeRunOnModule() {
 }
 
 }  // namespace
+
+//
+// createUPAProfilingPass
+//
+
+std::unique_ptr<mlir::Pass> vpux::VPUIP::createUPAProfilingPass(Logger log) {
+    return std::make_unique<UPAProfilingPass>(log);
+}
 
 //
 // createGroupProfilingBuffersPass

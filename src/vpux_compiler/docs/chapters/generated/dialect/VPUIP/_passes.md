@@ -22,3 +22,5 @@ initializes **IERT Dialect** run-time resources information.
 -compilation-mode  : Set compilation mode as reference (ReferenceSW) or hardware (ReferenceHW or DefaultHW)
 -num-of-dpu-groups : Number of DPU groups
 ```
+### `-upa-profiling`: upa task profiling
+This pass allocate required memory for upa profiling and perform buffer spilling

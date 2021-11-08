@@ -1900,7 +1900,14 @@ def VPUIP_PermuteUPAOp :
                 "mlir::Value":$input, "mlir::Value":$output,
                 "mlir::AffineMapAttr":$order_value
             )
-        >
+        >,
+        OpBuilder<
+            (ins
+                "mlir::Value":$input, "mlir::ValueRange":$profiling_data,
+                "mlir::Value":$output,
+                "mlir::AffineMapAttr":$order_value
+            )
+        >,
     ];
 
     let assemblyFormat = [{

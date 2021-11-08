@@ -239,6 +239,7 @@ void vpux::buildReferenceHWModePipeline(mlir::OpPassManager& pm, bool enableProf
     buildLowerIERT2VPUIPPipeline(pm, log);
 
     if (enableProfiling) {
+        pm.addPass(VPUIP::createUPAProfilingPass(log));
         pm.addPass(VPUIP::createGroupProfilingBuffersPass(log));
     }
 
