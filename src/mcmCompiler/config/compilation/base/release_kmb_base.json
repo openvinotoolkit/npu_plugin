@@ -82,7 +82,7 @@
             },
             {
                 "name" : "RecognizeVerticalFusionPatterns",
-                "min_subgraph_depth" : 2,
+                "min_subgraph_depth" : 1,
                 "vertical_fusion": true
             },
             "ComputeSparsitySolution",
@@ -117,6 +117,19 @@
             {
                 "name":"VerticalFusionTransformation",
                 "vertical_fusion" : true
+            },
+            "hackPReLU",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/hackPReLU.dot",
+                "scope": "OpModel",
+                "content": "full",
+                "html": true,
+                "reduced": false
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/hackPReLU.dot"
             },
             "StreamBinaryDataWeights",
             "StreamCopyOperations"
