@@ -108,6 +108,15 @@ SmallVector<mlir::Value> LinearScanHandler::getIncreasingSizeOrderAlive() {
     }
     llvm::sort(orderBuffers.begin(), orderBuffers.end(),
                [](const std::pair<mlir::Value, AddressType>& val1, const std::pair<mlir::Value, AddressType>& val2) {
+                   if (val1.second == val2.second) {
+                       if (const auto loc1 = val1.first.getLoc().dyn_cast<mlir::NameLoc>()) {
+                           if (const auto loc2 = val2.first.getLoc().dyn_cast<mlir::NameLoc>()) {
+                               StringRef name1 = loc1.getName().strref();
+                               StringRef name2 = loc2.getName().strref();
+                               return name1.compare(name2) < 0;
+                           }
+                       }
+                   }
                    return val1.second < val2.second;
                });
     SmallVector<mlir::Value> orderedBuffers;
