@@ -666,3 +666,74 @@ TEST_F(MLIR_ConstContentAttrTest, SubViewSplat) {
 
     EXPECT_EQ(content.getSplatValue<int32_t>(), splatVal);
 }
+
+TEST_F(MLIR_ConstContentAttrTest, BitPack) {
+    const int64_t IC = 1;
+    const int64_t IH = 2;
+    const int64_t IW = 3;
+    const auto baseType = mlir::RankedTensorType::get({IC, IH, IW}, getSInt8Type(&ctx));
+
+    const auto vals = std::vector<int8_t>{1, 2, 3, 4, 5, 6};
+    const auto expectedResult = std::vector<int8_t>{0x21, 0x43, 0x65};
+    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, makeArrayRef(vals));
+
+    const auto baseContentAttr = Const::ContentAttr::get(baseAttr);
+    ASSERT_NE(baseContentAttr, nullptr);
+    EXPECT_EQ(baseContentAttr.getType(), baseType);
+
+    const auto bitWidth = 4;
+    const auto contentAttr = baseContentAttr.bitPack(bitWidth);
+    ASSERT_NE(contentAttr, nullptr);
+
+    const auto content = contentAttr.fold();
+    const auto expectedType = changeElemType(baseType, mlir::IntegerType::get(baseType.getContext(), bitWidth));
+    EXPECT_EQ(content.getType(), expectedType);
+
+    std::vector<int8_t> actVals(vals.size() / 2, 0);
+    auto buf = makeMutableArrayRef(reinterpret_cast<char*>(actVals.data()), actVals.size());
+    content.copyTo(buf);
+
+    EXPECT_TRUE(std::equal(actVals.begin(), actVals.end(), expectedResult.begin()));
+}
+
+TEST_F(MLIR_ConstContentAttrTest, BitPackQuant) {
+    const int64_t IC = 1;
+    const int64_t IH = 2;
+    const int64_t IW = 3;
+    ctx.loadDialect<mlir::quant::QuantizationDialect>();
+    const auto baseType = mlir::RankedTensorType::get({IC, IH, IW}, getSInt8Type(&ctx));
+
+    const auto vals = std::vector<int8_t>{1, 2, 3, 1, 2, 3};
+    const auto expectedResult = std::vector<int8_t>{0x21, 0x13, 0x32};
+    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, makeArrayRef(vals));
+
+    const auto baseContentAttr = Const::ContentAttr::get(baseAttr);
+    ASSERT_NE(baseContentAttr, nullptr);
+    EXPECT_EQ(baseContentAttr.getType(), baseType);
+
+    const double scale = 1.0;
+    const int64_t zeroPoint = 0;
+    const int64_t storageTypeMin = -4;
+    const int64_t storageTypeMax = 3;
+    const auto quantType = mlir::quant::UniformQuantizedType::get(mlir::quant::QuantizationFlags::Signed,
+                                                                  getSInt8Type(&ctx), mlir::Float32Type::get(&ctx),
+                                                                  scale, zeroPoint, storageTypeMin, storageTypeMax);
+    const auto quantContentAttr = baseContentAttr.quantCast(quantType);
+
+    const auto bitWidth = 4;
+    const auto contentAttr = quantContentAttr.bitPack(bitWidth);
+    ASSERT_NE(contentAttr, nullptr);
+
+    const auto content = contentAttr.fold();
+    const auto expectedQuantType = mlir::quant::UniformQuantizedType::get(
+            mlir::quant::QuantizationFlags::Signed, mlir::IntegerType::get(&ctx, bitWidth, mlir::IntegerType::Signed),
+            mlir::Float32Type::get(&ctx), scale, zeroPoint, storageTypeMin, storageTypeMax);
+    const auto expectedType = changeElemType(baseType, expectedQuantType);
+    EXPECT_EQ(content.getType(), expectedType);
+
+    std::vector<int8_t> actVals(vals.size() / 2, 0);
+    auto buf = makeMutableArrayRef(reinterpret_cast<char*>(actVals.data()), actVals.size());
+    content.copyTo(buf);
+
+    EXPECT_TRUE(std::equal(actVals.begin(), actVals.end(), expectedResult.begin()));
+}
