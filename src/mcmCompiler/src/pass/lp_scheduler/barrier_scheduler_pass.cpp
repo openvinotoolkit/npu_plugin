@@ -66,6 +66,7 @@ void barrierSchedulerPass(const mv::pass::PassEntry&,
   auto globalParams = model.getGlobalConfigParams();
   bool isA0 = !(globalParams->hasAttr("referenceDevice") && globalParams->get<std::string>("referenceDevice") == "B0")
           && targetDesc.getTarget() != mv::Target::ma3100;
+  isA0 = false;
 
   // For SC there are 8 barriers and for MC there are 32 barriers //
   std::map<std::string, size_t> barrier_config =
