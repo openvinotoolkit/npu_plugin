@@ -25,6 +25,11 @@ using namespace vpux;
 // TaskOp
 //
 
+void vpux::VPURT::TaskOp::build(::mlir::OpBuilder& odsBuilder, ::mlir::OperationState& odsState,
+                                mlir::ValueRange waitBarriers, mlir::ValueRange updateBarriers) {
+    build(odsBuilder, odsState, nullptr, waitBarriers, updateBarriers);
+}
+
 VPUIP::BlobWriter::SpecificTask vpux::VPURT::TaskOp::serialize(VPUIP::BlobWriter& writer) {
     auto& block = op().getBlocks().front();
     VPUX_THROW_UNLESS(block.getOperations().size() == 1, "Unable to find child task in VPURT::TaskOp for serialize");

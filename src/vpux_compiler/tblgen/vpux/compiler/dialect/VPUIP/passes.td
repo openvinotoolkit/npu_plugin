@@ -17,6 +17,21 @@
 include "mlir/Pass/PassBase.td"
 
 //
+// UPAProfiling
+//
+
+def UPAProfiling : PassBase<"upa-profiling", "vpux::ModulePass"> {
+    let summary = "upa task profiling";
+
+    let description = [{
+        This pass allocate required memory for upa profiling and perform buffer spilling
+    }];
+
+    let constructor = "vpux::VPUIP::createUPAProfilingPass()";
+    
+}
+
+//
 // GroupProfilingBuffers
 //
 

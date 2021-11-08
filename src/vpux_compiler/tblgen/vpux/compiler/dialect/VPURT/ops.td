@@ -213,6 +213,7 @@ def VPURT_TaskOp :
     let summary = "Hold common scheduling logic (barriers configuration and profiling support).";
 
     let arguments = (ins
+        Optional<MemRefOf<[UI32]>>:$profiling_data,
         Variadic<VPURT_Barrier>:$waitBarriers,
         Variadic<VPURT_Barrier>:$updateBarriers,
         DefaultValuedAttr<BoolAttr, "false">:$isTrailingSWLayer
@@ -226,6 +227,12 @@ def VPURT_TaskOp :
         return vpux::VPURT::verifyTaskOp(*this);
     }];
 
+    let builders = [
+        OpBuilder<(ins
+            "mlir::ValueRange":$waitBarriers, "mlir::ValueRange":$updateBarriers
+        )>
+    ];
+
     let extraClassDeclaration = [{
         vpux::DotNodeColor getNodeColor() {
             return vpux::DotNodeColor::AQUA;
@@ -237,6 +244,7 @@ def VPURT_TaskOp :
 
     let assemblyFormat = [{
         attr-dict
+        (`profiling_data` `(` $profiling_data^  `:` type($profiling_data) `)`)?
         (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
         (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `op` `:` $op

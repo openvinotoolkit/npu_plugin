@@ -116,6 +116,11 @@ void vpux::buildReferenceSWModePipeline(mlir::OpPassManager& pm, const Reference
 
     // Level 1 : VPU RunTime
 
+    if (options.enableProfiling) {
+        pm.addPass(VPUIP::createUPAProfilingPass(log));
+        pm.addPass(VPUIP::createGroupProfilingBuffersPass(log));
+    }
+
     pm.addPass(VPURT::createAssignPhysicalBarriersPass(log));
     pm.addPass(VPURT::createBarrierSimulationPass(log));
     pm.addPass(VPUIP::createDumpStatisticsOfTaskOpsPass(log));
@@ -214,7 +219,8 @@ void vpux::buildReferenceHWModePipeline(mlir::OpPassManager& pm, const Reference
 
     // Level 1 : VPU RunTime
 
-    if (enableProfiling) {
+    if (options.enableProfiling) {
+        pm.addPass(VPUIP::createUPAProfilingPass(log));
         pm.addPass(VPUIP::createGroupProfilingBuffersPass(log));
     }
     pm.addPass(VPURT::createAssignPhysicalBarriersPass(log));
@@ -328,6 +334,11 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
     buildLowerIERT2VPUIPPipeline(pm, LowerIERT2VPUIPOptions(options), log);
 
     // Level 1 : VPU RunTime
+
+    if (options.enableProfiling) {
+        pm.addPass(VPUIP::createUPAProfilingPass(log));
+        pm.addPass(VPUIP::createGroupProfilingBuffersPass(log));
+    }
 
     pm.addPass(VPURT::createAssignPhysicalBarriersPass(log));
     pm.addPass(VPURT::createBarrierSimulationPass(log));

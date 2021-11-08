@@ -13,3 +13,5 @@ This pass dumps the statistics of used Task operations and makes a report as war
 ### `-group-profiling-buffers`: Group profiling buffers into single profiling output buffer
 Group profiling buffers from different profiling engines into single profiling output buffer with name as 
 [offset]_[profiling name]_[offset]_[profiling name] so postprocessing tool can parse it back
+### `-upa-profiling`: upa task profiling
+This pass allocate required memory for upa profiling and perform buffer spilling

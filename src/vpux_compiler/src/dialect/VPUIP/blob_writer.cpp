@@ -338,6 +338,11 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createUPALayerTask(mlir
     auto taskOp = op->getParentOfType<VPURT::TaskOp>();
     VPUX_THROW_WHEN(taskOp == nullptr, "VPUIP task is doesn`t have VPURT TaskOp as a parent");
     const auto isTrailingSWLayer = taskOp.isTrailingSWLayer();
+    vpux::VPUIP::BlobWriter::TensorReference profiling;
+    auto profilingData = taskOp.profiling_data();
+    if (profilingData != nullptr) {
+        profiling = getTensor(profilingData);
+    }
 
     const auto getTensorCb = [this](mlir::Value val) {
         return getTensor(val);
@@ -363,6 +368,8 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createUPALayerTask(mlir
     builder.add_softLayerParams(params.obj);
     builder.add_inputs(inputs);
     builder.add_outputs(outputs);
+    if (!profiling.IsNull())
+        builder.add_profiling_data(profiling);
     builder.add_isTrailingSWLayer(isTrailingSWLayer);
     return {builder.Finish().Union(), MVCNN::SpecificTask_UPALayerTask};
 }
