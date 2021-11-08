@@ -13,6 +13,7 @@
 
 #pragma once
 
+#include "vpux/compiler/dialect/EMU/ops.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IERT/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
@@ -63,6 +64,16 @@ std::unique_ptr<mlir::Pass> createConvertLayers2VPUIPPass(Logger log = Logger::g
 std::unique_ptr<mlir::Pass> createConvertDeclarations2VPUIPPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertViewOps2VPUIPPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertAsyncOps2VPUIPPass(Logger log = Logger::global());
+
+//
+// Performs full lowering from the IE Dialect to EMU Dialect.
+//
+// Replaces Layers with EMU UPA and NCE layers.
+//
+
+void buildLowerIE2EMUPipeline(mlir::OpPassManager& pm, Logger log = Logger::global());
+
+std::unique_ptr<mlir::Pass> createConvertLayers2EMUPass(Logger log = Logger::global());
 
 //
 // Registration

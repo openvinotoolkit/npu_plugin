@@ -171,4 +171,28 @@ def ConvertAsyncOps2VPUIP : PassBase<"convert-async-ops-to-VPUIP", "vpux::Functi
     ];
 }
 
+
+//=================================================================================
+// LowerIE2EMU
+//=================================================================================
+
+//
+// ConvertLayers2EMU
+//
+
+def ConvertLayers2EMU : PassBase<"convert-layers-to-EMU", "vpux::FunctionPass"> {
+    let summary = "Convert Layers Operations to EMU Dialect (UPA tasks)";
+
+    let description = [{
+        This pass converts layer of IE Dialect into EMU dialect. Patterns are primarly
+        descriptively defined in tablegen.
+    }];
+
+    let constructor = "vpux::createConvertLayers2EMUPass()";
+
+    let dependentDialects = [
+        "vpux::EMU::EMUDialect"
+    ];
+}
+
 #endif

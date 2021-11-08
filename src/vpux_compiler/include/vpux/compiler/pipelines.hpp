@@ -32,4 +32,9 @@ void buildReferenceModePipeline(mlir::OpPassManager& pm, bool enableProfiling = 
 void buildHardwareModePipeline(mlir::OpPassManager& pm, bool enableProfiling = false, Logger log = Logger::global(),
                                StringRef pipelineConfig = {});
 
+void buildEMUReferenceModePipeline(mlir::OpPassManager& pm, bool enableProfiling = false,
+                                   Logger log = Logger::global());
+void buildEMUHardwareModePipeline(mlir::OpPassManager& pm, bool enableProfiling = false, Logger log = Logger::global(),
+                                  StringRef pipelineConfig = {});
+
 }  // namespace vpux

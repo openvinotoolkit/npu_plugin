@@ -205,6 +205,69 @@ void vpux::buildHardwareModePipeline(mlir::OpPassManager& pm, bool enableProfili
 }
 
 //
+// EMU ReferenceMode
+//
+
+void vpux::buildEMUReferenceModePipeline(mlir::OpPassManager& pm, bool /*enableProfiling*/, Logger log) {
+    const auto grc = getDefaultGreedyRewriteConfig();
+
+    pm.addPass(mlir::createCanonicalizerPass(grc));
+
+    // IE Dialect level
+    IE::buildAdjustForVPUPipeline(pm, log);
+
+    buildIEReferenceLowPrecisionPipeline(pm, log);
+
+    pm.addPass(IE::createUpstreamSlicePass(log));
+
+    buildIECommonPipeline(pm, log);
+
+    // EMU Dialect level
+    buildLowerIE2EMUPipeline(pm, log);
+}
+
+//
+// EMU HardwareMode
+//
+
+void vpux::buildEMUHardwareModePipeline(mlir::OpPassManager& pm, bool /*enableProfiling*/, Logger log,
+                                        StringRef pipelineConfig) {
+    auto pipelineOptions = MyPipelineOptions::createFromString(pipelineConfig);
+    const auto grc = getDefaultGreedyRewriteConfig();
+    pm.addPass(mlir::createCanonicalizerPass(grc));
+
+    // IE Dialect level
+    pm.addPass(IE::createConvertFCToConvPass(log));
+    pm.addPass(IE::createConvertAvgPoolToDWConvPass(log));
+    pm.addPass(IE::createConvertScaleShiftToDWPass(log));
+    // Canonicalize group convolution if necessary.
+    pm.addPass(mlir::createCanonicalizerPass(grc));
+    IE::buildAdjustForVPUPipeline(pm, log);
+    pm.addPass(IE::createHandleLargeStridesPass(log));
+    pm.addPass(IE::createHandleAsymmetricStridesPass(log));
+    if (pipelineOptions->isEnableLowPrecisionBuilding())
+        IE::buildLowPrecisionPipeline(pm, log);
+
+    pm.addPass(IE::createUpstreamSlicePass(log));
+
+    buildIECommonPipeline(pm, log);
+
+    // TODO: revisit this pipeline definition after high VPU dialect refactoring
+    // below passes should find their way either by common IE + VPU code or as passes
+    // done on EMU dialect.
+
+    // // Partially lower IERT->VPUIP (NCE Operations only)
+    // pm.addPass(createConvertToNCEOpsPass(log));
+    // pm.addPass(mlir::createCanonicalizerPass(grc));
+
+    // // Handle WeightsTable, which requires statically allocated memory
+    // pm.addPass(VPUIP::createConvertWeightsTableOp2ConstPass(log));
+
+    // EMU Dialect level
+    buildLowerIE2EMUPipeline(pm, log);
+}
+
+//
 // registerPipelines
 //
 
@@ -221,5 +284,19 @@ void vpux::registerPipelines() {
             [](mlir::OpPassManager& pm, const MyPipelineOptions& config) {
                 addConfigPass(pm, config, VPUIP::CompilationMode::ReferenceHW);
                 buildHardwareModePipeline(pm);
+            });
+
+    mlir::PassPipelineRegistration<MyPipelineOptions>(
+            "emu-reference-mode", "Compile IE Network in EMU Reference mode (SW only execution)",
+            [](mlir::OpPassManager& pm, const MyPipelineOptions& config) {
+                addConfigPass(pm, config, VPUIP::CompilationMode::ReferenceSW);
+                buildEMUReferenceModePipeline(pm);
+            });
+
+    mlir::PassPipelineRegistration<MyPipelineOptions>(
+            "emu-hardware-mode", "Compile IE Network in EMU Hardware mode (HW and SW execution)",
+            [](mlir::OpPassManager& pm, const MyPipelineOptions& config) {
+                addConfigPass(pm, config, VPUIP::CompilationMode::ReferenceHW);
+                buildEMUHardwareModePipeline(pm);
             });
 }
