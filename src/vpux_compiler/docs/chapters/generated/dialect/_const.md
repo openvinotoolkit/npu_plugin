@@ -114,6 +114,17 @@ Add constant content
 | :-------: | :-------: | ----------- |
 | bias | `mlir::FloatAttr` |  |
 
+### BitPackAttr
+
+Pack sub-byte constant content
+
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| width | `mlir::IntegerAttr` |  |
+
 ### BroadcastAttr
 
 Broadcast axis by value of constant content
