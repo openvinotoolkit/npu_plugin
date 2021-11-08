@@ -221,7 +221,7 @@ private:
     void populateScheduledOps(HeapElement& scheduledOp);
     vpux::AddressType calculateOpSize(operationIdxType opIdx);
     void evictActiveOp(operationIdxType opIdx, mlir::Value buffer);
-    size_t evictionPriority(operationIdxType bufferWriterIdx);
+    size_t evictionPriority(mlir::Value buffer);  // mateusz
     operationIdxType retrieveBufferWriter(mlir::Value buffer);
     mlir::Value chooseCandidateForEviction(llvm::SmallVector<mlir::Value> orderedBuffers);
     void forceScheduleActiveOpEviction();

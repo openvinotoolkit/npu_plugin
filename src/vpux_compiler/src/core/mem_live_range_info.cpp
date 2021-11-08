@@ -111,6 +111,15 @@ ValueOrderedSet vpux::MemLiveRangeInfo::getUsedBuffers(mlir::Operation* op) cons
     return {};
 }
 
+// mateusz
+bool vpux::MemLiveRangeInfo::isBufferUsedByOp(mlir::Value val, mlir::Operation* op) const {
+    const auto valIt = _allUsersInBlock.find(val);
+    VPUX_THROW_UNLESS(valIt != _allUsersInBlock.end(), "Value '{0}' is not a buffer", val);
+    auto& allUsers = valIt->second;
+
+    return allUsers.find(op) != allUsers.end();
+}
+
 size_t vpux::MemLiveRangeInfo::eraseUser(mlir::Value val, mlir::Operation* op) {
     const auto valIt = _allUsersInBlock.find(val);
     VPUX_THROW_UNLESS(valIt != _allUsersInBlock.end(), "Value '{0}' is not a buffer", val);
