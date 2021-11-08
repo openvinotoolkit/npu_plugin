@@ -147,6 +147,8 @@ public:
     // The `getValues` / `getSplatValue` methods accept template type parameter and convert element type on the fly.
     static Content fromRawBuffer(mlir::ShapedType type, ArrayRef<char> data, mlir::Type storageElemType, bool isSplat);
     static Content allocTempBuffer(mlir::ShapedType type, mlir::Type storageElemType, bool isSplat);
+    static Content allocTempBuffer(mlir::ShapedType type, mlir::Type storageElemType, bool isSplat,
+                                   size_t tempBufRawSize);
     static Content moveBuffer(mlir::ShapedType type, Content&& other);
 
 public:

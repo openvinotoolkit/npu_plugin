@@ -51,6 +51,20 @@ Const::Content vpux::Const::Content::allocTempBuffer(mlir::ShapedType type, mlir
     return content;
 }
 
+Const::Content vpux::Const::Content::allocTempBuffer(mlir::ShapedType type, mlir::Type storageElemType, bool isSplat,
+                                                     size_t tempBufRawSize) {
+    // Overloading for sub-byte cases.
+    Const::Content content;
+    content._type = type;
+    content._storageElemType = storageElemType;
+    content._isSplat = isSplat;
+
+    content._tempBuf.reset(new char[tempBufRawSize]);
+    content._data = makeArrayRef(content._tempBuf.get(), tempBufRawSize);
+
+    return content;
+}
+
 //
 // Content::moveBuffer
 //
@@ -95,8 +109,22 @@ void fillBuf(const Range& range, MutableArrayRef<char> buf) {
 }  // namespace
 
 void vpux::Const::Content::copyTo(MutableArrayRef<char> buf) const {
-    dispatchByElemType<void>(getElementType(), [this, buf](auto dummy) {
-        using ElemT = std::decay_t<decltype(dummy)>;
-        fillBuf(this->getValues<ElemT>(), buf);
-    });
+    const Bit elemSize = vpux::getElemTypeSize(getElementType());
+    const bool isTrivialStorage = (getElementType() == _storageElemType);
+    const bool isSubByte = elemSize.count() < CHAR_BIT;
+    // Dispatch is required when:
+    // 1. The buffer is splat and expressed type doesn't match stored type (non-trivial).
+    // 2. The buffer is splat and elements are not packed (fillBuf doesn't work after bitPack).
+    // Otherwise, plain copy will do the trick.
+    if (!_isSplat && (isTrivialStorage || isSubByte)) {
+        VPUX_THROW_UNLESS(buf.size() == _data.size(),
+                          "Byte sizes of the input buffer '{0}' and stored elements '{1}' are different.", buf.size(),
+                          _data.size());
+        std::memcpy(buf.data(), _data.data(), buf.size());
+    } else {
+        dispatchByElemType<void>(getElementType(), [this, buf](auto dummy) {
+            using ElemT = std::decay_t<decltype(dummy)>;
+            fillBuf(this->getValues<ElemT>(), buf);
+        });
+    }
 }

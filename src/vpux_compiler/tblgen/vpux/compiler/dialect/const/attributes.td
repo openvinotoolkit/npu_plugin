@@ -101,6 +101,7 @@ def Const_ContentAttr : Const_Attr<"Content", [DeclareAttrInterfaceMethods<SubEl
         vpux::Const::ContentAttr reorder(vpux::DimsOrder newOrder) const;
         vpux::Const::ContentAttr padWithZero(vpux::ShapeRef padBefore, vpux::ShapeRef padAfter) const;
         vpux::Const::ContentAttr subview(vpux::ShapeRef offset, vpux::ShapeRef shape) const;
+        vpux::Const::ContentAttr bitPack(int64_t width) const;
     }];
 
     let storageType = "vpux::Const::ContentAttr";
@@ -340,6 +341,31 @@ def Const_BroadcastAttr : Const_Attr<"Broadcast",
     ];
 
     let storageNamespace = "details";
+    let skipDefaultBuilders = 1;
+}
+
+//
+// BitPackAttr
+//
+
+def Const_BitPackAttr : Const_Attr<"BitPack",
+        [DeclareAttrInterfaceMethods<Const_TransformAttrInterface>, DeclareAttrInterfaceMethods<SubElementAttrInterface>]> {
+    let summary = "Pack sub-byte constant content";
+
+    let parameters = (ins
+        "mlir::IntegerAttr":$width
+    );
+
+    let builders = [
+        AttrBuilderWithInferredContext<
+            (ins "mlir::IntegerAttr":$width), [{
+                return $_get(width.getContext(), width);
+            }]
+        >
+    ];
+
+    let storageNamespace = "details";
+    let genVerifyDecl = 1;
     let skipDefaultBuilders = 1;
 }
 
