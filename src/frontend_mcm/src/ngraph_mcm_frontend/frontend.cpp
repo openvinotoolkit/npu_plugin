@@ -161,14 +161,7 @@ std::unique_ptr<mv::CompilationUnit> createCompilationUnit(
         else {
             auto platform = config.platform();
             if (platform == InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR) {
-                const auto platformName = utils::getPlatformNameByDeviceName(config.deviceId());
-                const auto targetPos = platformName.rfind("_EMU");
-                if (targetPos == std::string::npos) {
-                    errMsg = "Error: Emulator target platform is not defined.";
-                    return nullptr;
-                }
-                const auto targetName = platformName.substr(0, targetPos);
-                platform = utils::getPlatformByDeviceName(targetName);
+                platform = utils::getPlatformByEMUDeviceName(config.deviceId());
             }
 
             switch (platform) {

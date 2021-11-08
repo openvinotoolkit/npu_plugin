@@ -40,6 +40,7 @@
 
 #include <cpp/ie_cnn_network.h>
 #include <description_buffer.hpp>
+#include <device_helpers.hpp>
 
 #include <algorithm>
 
@@ -76,7 +77,12 @@ LogLevel getLogLevel(const VPUXConfig& config) {
 //
 
 VPUIP::ArchKind getArchKind(const VPUXConfig& config) {
-    switch (config.platform()) {
+    auto platform = config.platform();
+    if (platform == InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR) {
+        platform = utils::getPlatformByEMUDeviceName(config.deviceId());
+    }
+
+    switch (platform) {
     case InferenceEngine::VPUXConfigParams::VPUXPlatform::AUTO:
     case InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR:
         return VPUIP::ArchKind::UNKNOWN;
@@ -316,12 +322,22 @@ void buildPipeline(mlir::PassManager& pm, const VPUXConfig& config, mlir::Timing
 
     pm.addPass(createSetCompileParamsPass(archKind, compilationMode, numOfDPUGroups, log.nest()));
 
-    if (compilationMode == VPUIP::CompilationMode::ReferenceSW) {
-        buildReferenceModePipeline(pm, enableProfiling, log.nest());
-    } else if (compilationMode == VPUIP::CompilationMode::ReferenceHW) {
-        buildHardwareModePipeline(pm, enableProfiling, log.nest(), config.pipelineOptions());
+    if (config.platform() == InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR) {
+        if (compilationMode == VPUIP::CompilationMode::ReferenceSW) {
+            buildEMUReferenceModePipeline(pm, enableProfiling, log.nest());
+        } else if (compilationMode == VPUIP::CompilationMode::ReferenceHW) {
+            buildEMUHardwareModePipeline(pm, enableProfiling, log.nest(), config.pipelineOptions());
+        } else {
+            VPUX_THROW("Unsupported EMU compilation mode '{0}'", compilationMode);
+        }
     } else {
-        VPUX_THROW("Unsupported compilation mode '{0}'", compilationMode);
+        if (compilationMode == VPUIP::CompilationMode::ReferenceSW) {
+            buildReferenceModePipeline(pm, enableProfiling, log.nest());
+        } else if (compilationMode == VPUIP::CompilationMode::ReferenceHW) {
+            buildHardwareModePipeline(pm, enableProfiling, log.nest(), config.pipelineOptions());
+        } else {
+            VPUX_THROW("Unsupported compilation mode '{0}'", compilationMode);
+        }
     }
 }
 

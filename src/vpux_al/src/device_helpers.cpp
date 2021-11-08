@@ -146,6 +146,16 @@ ie::VPUXConfigParams::VPUXPlatform utils::getPlatformByDeviceName(const std::str
     return platformNameInverseMap.at(platformName);
 }
 
+ie::VPUXConfigParams::VPUXPlatform utils::getPlatformByEMUDeviceName(const std::string& deviceName) {
+    const auto platformName = utils::getPlatformNameByDeviceName(deviceName);
+    const auto targetPos = platformName.rfind("_EMU");
+    if (targetPos == std::string::npos) {
+        IE_THROW() << "Unsuported emulator target platform: " << deviceName;
+    }
+    const auto targetName = platformName.substr(0, targetPos);
+    return utils::getPlatformByDeviceName(targetName);
+}
+
 bool utils::isPlatformNameSupported(const std::string& platformName) {
     return (platformNameInverseMap.find(platformName) != platformNameInverseMap.end());
 }
