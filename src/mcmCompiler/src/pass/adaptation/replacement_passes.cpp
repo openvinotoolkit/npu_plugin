@@ -47,6 +47,9 @@ void replaceBroadcastEltwiseMultWithConv(const mv::pass::PassEntry& pass, mv::Co
 void insertUpaDmaAfterSliceOnOutputFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void cloneConvForNonReluOutput(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void bilinearInterpAsDPUSFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
+// add for superRes
+void replaceAddToBias(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
+void replaceAddReluToConv(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 
 namespace mv
 {
@@ -122,6 +125,144 @@ void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
     replaceBroadcastEltwiseMultWithConv(pass, model);
     replaceStridedSliceWithSlice(pass, model);
     //insertUpaDmaAfterSliceOnOutputFcn(pass, model);
+
+    //  FP16 Software Add->LReLU should be replaced by U8 Hardware Conv1x1->bias->LReLU
+    replaceAddReluToConv(pass, model);
+    replaceAddToBias(pass, model);
+}
+
+mv::Data::TensorIterator populateCreateConstant(mv::OpModel& om, const mv::Shape weightShape, const int64_t weightsValue);
+
+void replaceAddReluToConv(const mv::pass::PassEntry&, mv::ComputationModel& model) {
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+
+    mv::OpModel om(model);
+    mv::DataModel dm(model);
+
+    auto opIts = om.getOps("Eltwise");
+    for (auto& opIt:opIts){
+      if(opIt->getName()=="tl_unet1x2x4x/Add_1"){
+        auto consumerOps = mv::findSinkLayers(dm, opIt->getOutputTensor(0));
+
+        auto Conv1x1_input = opIt->getOutputTensor(0);
+        // define weights
+        int64_t weightsValue = 255;
+        mv::Shape weightsShape = mv::Shape({1, 1, 32, 32});
+        mv::Data::TensorIterator weights = populateCreateConstant(om, weightsShape, weightsValue);
+        double scaleWeightsValue = 1.0/double(weightsValue);
+        weights->setQuantParams(mv::QuantizationParams({0},{scaleWeightsValue},{0},{255}));
+        auto WeightOp = om.getSourceOp(weights);
+        WeightOp->set<unsigned>("opId", opIt->get<unsigned>("opId") + 1);
+
+        // Insert identity Conv
+        auto Conv1x1 = om.conv(opIt->getName() + "_identityConv", Conv1x1_input, weights, {1,1}, {0, 0, 0, 0}, 1);
+        Conv1x1->setDType(mv::DType("UInt8"));
+        Conv1x1->setQuantParams(opIt->getOutputTensor(0)->getQuantParams());
+        auto ConvOp = om.getSourceOp(Conv1x1);
+        ConvOp->set<unsigned>("opId", WeightOp->get<unsigned>("opId") + 1);
+        
+        // connect into model
+        for(auto& consumerOp: consumerOps){
+            std::size_t i = 0;
+            for (; i < consumerOp->inputSlots(); ++i){
+                if (consumerOp->getInputTensor(i)->getName() == Conv1x1_input->getName())
+                    break;
+            }
+            auto inputFlow = consumerOp.leftmostInput();
+            while (inputFlow != om.flowEnd()){
+                if (inputFlow->getTensor()->getName() == Conv1x1_input->getName())
+                    break;
+                ++inputFlow;
+            }
+            om.undefineFlow(inputFlow);
+            consumerOp->setInputTensor(Conv1x1, i, false);
+            om.defineFlow(Conv1x1, consumerOp, i);
+        }
+
+      }
+    }
+}
+
+std::vector<double> reCalculateScale(mv::Data::OpListIterator& parentOp){
+    auto inputDateQuantizationScale = parentOp->getInputTensor(0)->getQuantParams().getScale();
+    auto inputWeightQuantizationScale = parentOp->getInputTensor(1)->getQuantParams().getScale();
+
+    std::vector<double> biasQuantizationScale;
+    assert(inputDateQuantizationScale.size()==inputWeightQuantizationScale.size());
+    for (size_t i = 0;i<inputDateQuantizationScale.size();i++)
+        biasQuantizationScale.push_back(inputDateQuantizationScale[i]*inputWeightQuantizationScale[i]);
+    
+    return biasQuantizationScale;
+}
+
+std::vector<int64_t> reQuantizeBias(mv::Data::OpListIterator& originalWeightsOp, std::vector<double>& scale){
+    auto outputTensor = originalWeightsOp->getOutputTensor(0);
+    auto originalScale = outputTensor->getQuantParams().getScale();
+    auto originalZeroPoint = outputTensor->getQuantParams().getZeroPoint();
+
+    std::vector<int64_t> quantizeData = outputTensor->getDataPacked();
+    std::vector<int64_t> reQuantizeData(quantizeData.size());
+
+    for (size_t i = 0; i < quantizeData.size(); ++i) {
+        auto bias_scale = scale[0];
+        auto biasData = (quantizeData[i] - originalZeroPoint[0]) * originalScale[0];
+        reQuantizeData[i] = std::round(biasData / bias_scale);
+        
+        if (reQuantizeData[i] > std::numeric_limits<int32_t>::max())
+          reQuantizeData[i] = std::numeric_limits<int32_t>::max();
+        else if (reQuantizeData[i] < std::numeric_limits<int32_t>::min())
+          reQuantizeData[i] = std::numeric_limits<int32_t>::min();
+    }
+    
+    return reQuantizeData;
+}
+
+void replaceAddToBias(const mv::pass::PassEntry&, mv::ComputationModel& model) {
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+
+    mv::OpModel om(model);
+    mv::DataModel dm(model);
+
+    auto opIts = om.getOps("Eltwise");
+    for (auto& opIt:opIts){
+        if(opIt->getName()=="tl_unet1x2x4x/Add_2"){
+            auto consumerOps = mv::findSinkLayers(dm, opIt->getOutputTensor(0));
+            auto parentOp = om.getSourceOp(opIt->getInputTensor(0));
+            auto Bias_input = parentOp->getOutputTensor(0);
+
+            auto OriginalweightsOp = om.getSourceOp(opIt->getInputTensor(1));
+            // define weights
+            auto weights_dtype= mv::DType("Int32");
+            // auto weightsData = OriginalweightsOp->getOutputTensor(0)->getDataPacked();
+            std::vector<double> scale = reCalculateScale(parentOp);
+            auto weightsData = reQuantizeBias(OriginalweightsOp, scale);
+            auto weights = om.constantInt(opIt->getName() + "_weights", weightsData,
+                                              {32},
+                                              weights_dtype, mv::Order::getColMajorID(1));
+            weights->setQuantParams(mv::QuantizationParams{{0}, scale, {}, {}});
+            auto WeightOp = om.getSourceOp(weights);
+            WeightOp->set<unsigned>("opId", parentOp->get<unsigned>("opId") + 1);
+
+            // create bias OP
+            auto newBiasTensor = om.bias(opIt->getName() + "_bias", Bias_input, weights);
+
+            newBiasTensor->setQuantParams(opIt->getOutputTensor(0)->getQuantParams());
+            auto newBiasTensorOp = om.getSourceOp(newBiasTensor);
+            newBiasTensor->setDType(mv::DType("UInt8"));
+            newBiasTensorOp->set<unsigned>("opId", WeightOp->get<unsigned>("opId") + 1);
+
+            // connect network
+            auto inputFlow = consumerOps[0].leftmostInput();
+            om.undefineFlow(inputFlow);
+            om.undefineFlow(opIt.rightmostInput());
+            consumerOps[0]->setInputTensor(newBiasTensor, 0, false);
+            om.defineFlow(newBiasTensor, consumerOps[0], 0);
+
+            om.removeOp(opIt);
+            om.removeOp(OriginalweightsOp);
+        }
+    }
+
 }
 
 void insertPermuteBeforeDetFcn(const mv::pass::PassEntry&, mv::ComputationModel& model)
