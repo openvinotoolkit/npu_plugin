@@ -1271,6 +1271,43 @@ void StrategyManagerSimple::generateStrategySetForLayer(mv::Op& op,std::vector<S
                         if(strategyCheck != FailCause::Pass)
                             continue;
 
+                        std::vector<std::string> manuallyModifyLeakylayers = {
+                            "LeakyReLU_52156538",
+                            "LeakyReLU_52176558",
+                            "LeakyReLU_52286494",
+                            "LeakyReLU_52116526",
+                            "LeakyReLU_52316498",
+                            "LeakyReLU_52306474",
+                            "LeakyReLU_52056566",
+                            "LeakyReLU_52136454",
+                            // "LeakyReLU_52066518",
+                            // "LeakyReLU_52326542",
+                            "LeakyReLU_52096550",
+                            "LeakyReLU_52166486",
+                            "LeakyReLU_52326542",
+                            "LeakyReLU_52066518",
+                        };
+
+                        std::vector<std::string> manuallyModifylayers = {
+                            "tl_unet1x2x4x/out4x/Add",
+                            // "tl_unet1x2x4x/out2x/Add_1",
+                            // "tl_unet1x2x4x/Decoder_2/Add",
+                            "tl_unet1x2x4x/Encoder_1/AvgPool_DepthwiseConv",
+                        };
+
+                        for(auto& leakyLayer: manuallyModifyLeakylayers)
+                        {
+                            manuallyModifylayers.push_back(leakyLayer + "0_PPEConv");
+                            manuallyModifylayers.push_back(leakyLayer + "1_PPEConv");
+                            manuallyModifylayers.push_back(leakyLayer + "PPEeltwise");
+                        }
+
+                        if(std::find(manuallyModifylayers.begin(), manuallyModifylayers.end(), op.getName()) != manuallyModifylayers.end())
+                        {
+                            if(clustering.get<std::string>() != "SplitOverH")
+                                continue;
+                        }                                                                         
+
                         strategyVec.push_back(s);
 
                         //    std::cout << "Name: " + op.getName() << " ID " << s["id"].toString()<< std::endl;
