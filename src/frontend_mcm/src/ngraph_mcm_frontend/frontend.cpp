@@ -26,7 +26,7 @@
 #include "ngraph_mcm_frontend/passes/replace_scaleshift_with_mcm_scale.hpp"
 #include "ngraph_mcm_frontend/passes/align_eltwise_scales.hpp"
 #include "ngraph_mcm_frontend/passes/align_concat_scales.hpp"
-#include "ngraph_mcm_frontend/passes/fuse_scaleshift.hpp"
+#include "vpux/passes/fuse_scaleshift.hpp"
 #include "vpux/passes/fuse_padding.hpp"
 #include "vpux/passes/convert_extract_image_patches_to_reorg_vpu.hpp"
 #include "ngraph_mcm_frontend/passes/broadcast_eltwise_inputs.hpp"
@@ -530,7 +530,7 @@ void applyTransformations(
     passManager.register_pass<vpux::pass::FusePadding>();
 
     if (config.scaleShiftFusing()) {
-        passManager.register_pass<FuseScaleShift>();
+        passManager.register_pass<vpux::pass::FuseScaleShift>();
     }
 
     // TODO: Add passes for rewriting parts of graph
