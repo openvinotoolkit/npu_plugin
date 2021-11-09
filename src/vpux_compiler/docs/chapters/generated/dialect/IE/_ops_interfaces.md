@@ -96,3 +96,43 @@ vpux::IE::LayerLayoutInfo getLayoutInfo();
 Get information about current layout for Layer inputs and outputs
 NOTE: This method *must* be implemented by the user.
 
+## TilingBuilderOpInterface (`IE_TilingBuilderOpInterface`)
+
+Interface for operations to reify the provided tiling configuration
+### Methods:
+#### `generateTiling`
+
+```c++
+vpux::OutputTiling generateTiling(vpux::Logger log);
+```
+Generate supported tiling configuration for the operation
+NOTE: This method *must* be implemented by the user.
+
+#### `reifyTile`
+
+```c++
+mlir::Value reifyTile(const vpux::TileInfo&outputTile, mlir::OpBuilder&builder);
+```
+Reify the provided tiling configuration into the IR
+NOTE: This method *must* be implemented by the user.
+
+## TilingInfoOpInterface (`IE_TilingInfoOpInterface`)
+
+Interface for operations to provide information about required/supported tiling configurations
+### Methods:
+#### `needTiling`
+
+```c++
+bool needTiling(vpux::Logger log);
+```
+Check, if the operation requires tiling
+NOTE: This method *must* be implemented by the user.
+
+#### `isSupportedTiling`
+
+```c++
+bool isSupportedTiling(const vpux::OutputTiling&tiles, vpux::Logger log);
+```
+Check, if the provided tiling configuration is supported by the operation implementation
+NOTE: This method *must* be implemented by the user.
+

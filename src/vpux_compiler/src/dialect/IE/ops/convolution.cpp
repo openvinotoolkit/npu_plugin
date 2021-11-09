@@ -17,6 +17,7 @@
 #include "vpux/compiler/core/layers.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
+#include "vpux/compiler/utils/rewriter.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
 #include "vpux/utils/core/error.hpp"
@@ -152,6 +153,34 @@ void vpux::IE::ConvolutionOp::getCanonicalizationPatterns(mlir::RewritePatternSe
     patterns.insert<FuseConvAndBias>(context);
 }
 
+mlir::Value vpux::IE::ConvolutionOp::reifyTile(const TileInfo& outputTile, mlir::OpBuilder& builder) {
+    const auto origInputShape = getShape(input());
+    const auto origFilterShape = getShape(filter());
+    const auto origBiasShape = bias() != nullptr ? getShape(bias()) : ShapeRef();
+
+    const auto tileConf = backInferConvTile(outputTile, origInputShape, origFilterShape, origBiasShape, strides(),
+                                            pads_begin(), pads_end());
+
+    const std::array<int64_t, 2> padsBegin = {tileConf.pads.top, tileConf.pads.left};
+    const std::array<int64_t, 2> padsEnd = {tileConf.pads.bottom, tileConf.pads.right};
+
+    const auto inputTileVal = makeTile(builder, getLoc(), input(), tileConf.inputTile, "input");
+    const auto filterTileVal = makeTile(builder, getLoc(), filter(), tileConf.filterTile, "filter");
+    const auto biasTileVal =
+            bias() != nullptr ? makeTile(builder, getLoc(), bias(), tileConf.biasTile, "bias") : nullptr;
+
+    const auto tileName = llvm::formatv("output tile {0}", outputTile.offsets).str();
+    const auto tileLoc = appendLoc(getLoc(), tileName);
+
+    const auto tiledResType = getDenseTileType(getType(), outputTile.offsets, outputTile.shape);
+
+    auto tiledOp = builder.create<IE::ConvolutionOp>(tileLoc, tiledResType, inputTileVal, filterTileVal, biasTileVal,
+                                                     stridesAttr(), getIntArrayAttr(builder, padsBegin),
+                                                     getIntArrayAttr(builder, padsEnd), dilationsAttr(), post_opAttr());
+
+    return tiledOp.output();
+}
+
 //
 // GroupConvolution
 //
@@ -255,4 +284,82 @@ void vpux::IE::GroupConvolutionOp::getCanonicalizationPatterns(mlir::RewritePatt
                                                                mlir::MLIRContext* context) {
     patterns.insert<FuseConvAndBias>(context);
     patterns.insert<GroupsToAttr>(context);
+}
+
+OutputTiling vpux::IE::GroupConvolutionOp::generateTiling(Logger log) {
+    auto tilingInfo = mlir::dyn_cast<IE::TilingInfoOpInterface>(getOperation());
+    VPUX_THROW_WHEN(tilingInfo == nullptr, "Operation '{0}' doesn't implement TilingInfoOpInterface",
+                    getOperationName());
+
+    const auto outputShape = getShape(output());
+
+    const auto isSupportedTileSize = [&tilingInfo, outputShape, log](ShapeRef nTilesOnDim) -> bool {
+        const auto tiles = fillDividedTiles(nTilesOnDim, outputShape);
+        return tilingInfo.isSupportedTiling(tiles, log);
+    };
+
+    Shape nTilesOnDim(outputShape.size(), 1);
+
+    if (auto channelsInfo = mlir::dyn_cast<IE::AlignedChannelsOpInterface>(getOperation())) {
+        const auto chanAlignment = channelsInfo.getChannelAlignment();
+
+        VPUX_THROW_UNLESS(outputShape[Dims4D::Act::C] % chanAlignment == 0,
+                          "Depthwise convolution output channels must be a multiple of {0}, got {1}", chanAlignment,
+                          outputShape[Dims4D::Act::C]);
+
+        nTilesOnDim[Dims4D::Act::C] = outputShape[Dims4D::Act::C] / chanAlignment;
+    }
+
+    while (!isSupportedTileSize(nTilesOnDim)) {
+        Optional<Dim> dimToTile;
+
+        for (auto ind : irange(Dims4D::Act::numSpatialDims)) {
+            const auto spatialDim = Dims4D::Act::getSpatialDim(ind);
+
+            const auto origSize = static_cast<double>(outputShape[spatialDim]);
+            const auto prevDivisor = static_cast<double>(nTilesOnDim[spatialDim]);
+
+            if ((origSize / prevDivisor) > 1.0) {
+                dimToTile = spatialDim;
+                break;
+            }
+        }
+
+        VPUX_THROW_UNLESS(dimToTile.hasValue(), "Failed to tile {0} at '{1}'", getOperationName(), getLoc());
+        nTilesOnDim[dimToTile.getValue()]++;
+    }
+
+    return fillDividedTiles(nTilesOnDim, outputShape);
+}
+
+mlir::Value vpux::IE::GroupConvolutionOp::reifyTile(const TileInfo& outputTile, mlir::OpBuilder& builder) {
+    const auto origInputShape = getShape(input());
+    const auto origFilterShape = getShape(filter());
+    const auto origBiasShape = bias() != nullptr ? getShape(bias()) : ShapeRef();
+
+    const auto tileConf = backInferGroupConvTile(outputTile, origInputShape, origFilterShape, origBiasShape, strides(),
+                                                 pads_begin(), pads_end());
+
+    const std::array<int64_t, 2> padsBegin = {tileConf.pads.top, tileConf.pads.left};
+    const std::array<int64_t, 2> padsEnd = {tileConf.pads.bottom, tileConf.pads.right};
+
+    const auto inputTileVal = makeTile(builder, getLoc(), input(), tileConf.inputTile, "input");
+    const auto filterTileVal = makeTile(builder, getLoc(), filter(), tileConf.filterTile, "filter");
+    const auto biasTileVal =
+            bias() != nullptr ? makeTile(builder, getLoc(), bias(), tileConf.biasTile, "bias") : nullptr;
+
+    const auto tileName = llvm::formatv("output tile {0}", outputTile.offsets).str();
+    const auto tileLoc = appendLoc(getLoc(), tileName);
+
+    const auto groups = tileConf.filterTile.shape[Dims4D::Filter::OC];
+    const auto groupsAttr = getIntAttr(builder, groups);
+
+    const auto tiledResType = getDenseTileType(getType(), outputTile.offsets, outputTile.shape);
+
+    auto tiledOp = builder.create<IE::GroupConvolutionOp>(
+            tileLoc, tiledResType, inputTileVal, filterTileVal, biasTileVal, stridesAttr(),
+            getIntArrayAttr(builder, padsBegin), getIntArrayAttr(builder, padsEnd), dilationsAttr(), groupsAttr,
+            post_opAttr());
+
+    return tiledOp.output();
 }

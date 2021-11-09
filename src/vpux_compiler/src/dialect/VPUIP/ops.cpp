@@ -15,6 +15,7 @@
 
 #include "vpux/compiler/dialect/IE/ops_interfaces.hpp"
 #include "vpux/compiler/dialect/IERT/ops_interfaces.hpp"
+#include "vpux/compiler/dialect/VPUIP/attributes/arch.hpp"
 #include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
 
 #include "vpux/utils/core/numeric.hpp"
@@ -110,6 +111,143 @@ private:
         }
 
         return true;
+    }
+};
+
+//
+// TilingInfoOpModel
+//
+
+bool isSupportedTiling(IE::ConvolutionOp origOp, const OutputTiling& tiles, Logger log) {
+    const auto inputType = origOp.input().getType().cast<mlir::ShapedType>();
+    const auto filterType = origOp.filter().getType().cast<mlir::ShapedType>();
+    const auto outputType = origOp.output().getType().cast<mlir::ShapedType>();
+
+    return llvm::all_of(tiles, [&](const TileInfo& outputTile) {
+        const auto origInputShape = getShape(origOp.input());
+        const auto origFilterShape = getShape(origOp.filter());
+        const auto origBiasShape = origOp.bias() != nullptr ? getShape(origOp.bias()) : ShapeRef();
+
+        const auto tileConf = backInferConvTile(outputTile, origInputShape, origFilterShape, origBiasShape,
+                                                origOp.strides(), origOp.pads_begin(), origOp.pads_end());
+
+        const auto inputTileType = getDenseTileType(inputType, tileConf.inputTile.offsets, tileConf.inputTile.shape);
+        const auto filterTileType =
+                getDenseTileType(filterType, tileConf.filterTile.offsets, tileConf.filterTile.shape);
+        const auto outputTileType = getDenseTileType(outputType, outputTile.offsets, outputTile.shape);
+
+        return mlir::succeeded(VPUIP::NCEInvariant::verifyConvCMX(origOp->getLoc(),
+                                                                  origOp->getParentOfType<mlir::ModuleOp>(),
+                                                                  inputTileType, filterTileType, outputTileType, log));
+    });
+}
+
+bool isSupportedTiling(IE::GroupConvolutionOp origOp, const OutputTiling& tiles, Logger log) {
+    const auto inputType = origOp.input().getType().cast<mlir::ShapedType>();
+    const auto filterType = origOp.filter().getType().cast<mlir::ShapedType>();
+    const auto outputType = origOp.output().getType().cast<mlir::ShapedType>();
+
+    return llvm::all_of(tiles, [&](const TileInfo& outputTile) {
+        const auto origInputShape = getShape(origOp.input());
+        const auto origFilterShape = getShape(origOp.filter());
+        const auto origBiasShape = origOp.bias() != nullptr ? getShape(origOp.bias()) : ShapeRef();
+
+        const auto tileConf = backInferGroupConvTile(outputTile, origInputShape, origFilterShape, origBiasShape,
+                                                     origOp.strides(), origOp.pads_begin(), origOp.pads_end());
+
+        const auto inputTileType = getDenseTileType(inputType, tileConf.inputTile.offsets, tileConf.inputTile.shape);
+        const auto filterTileType =
+                getDenseTileType(filterType, tileConf.filterTile.offsets, tileConf.filterTile.shape);
+        const auto outputTileType = getDenseTileType(outputType, outputTile.offsets, outputTile.shape);
+
+        return mlir::succeeded(VPUIP::NCEInvariant::verifyConvCMX(origOp->getLoc(),
+                                                                  origOp->getParentOfType<mlir::ModuleOp>(),
+                                                                  inputTileType, filterTileType, outputTileType, log));
+    });
+}
+
+bool isSupportedTiling(IE::MaxPoolOp origOp, const OutputTiling& tiles, Logger log) {
+    const auto inputType = origOp.input().getType().cast<mlir::ShapedType>();
+    const auto outputType = origOp.output().getType().cast<mlir::ShapedType>();
+
+    return llvm::all_of(tiles, [&](const TileInfo& outputTile) {
+        const auto origInputShape = getShape(origOp.input());
+
+        const auto tileConf = backInferPoolTile(outputTile, origInputShape, origOp.kernel_size(), origOp.strides(),
+                                                origOp.pads_begin(), origOp.pads_end());
+
+        const auto inputTileType = getDenseTileType(inputType, tileConf.inputTile.offsets, tileConf.inputTile.shape);
+        const auto outputTileType = getDenseTileType(outputType, outputTile.offsets, outputTile.shape);
+
+        return mlir::succeeded(VPUIP::NCEInvariant::verifyPoolCMX(
+                origOp->getLoc(), origOp->getParentOfType<mlir::ModuleOp>(), inputTileType, outputTileType,
+                origOp.kernel_size(), origOp.strides(), log));
+    });
+}
+
+template <class MainOpType>
+class NCETilingInfoOpModel final :
+        public IE::TilingInfoOpInterface::ExternalModel<NCETilingInfoOpModel<MainOpType>, MainOpType> {
+public:
+    bool needTiling(mlir::Operation* origOp, Logger log) const {
+        if (!isSupportedByNCE(mlir::cast<MainOpType>(origOp), log)) {
+            return false;
+        }
+
+        return VPUIP::NCEInvariant::verifyCMX(mlir::cast<MainOpType>(origOp), log).failed();
+    }
+
+    bool isSupportedTiling(mlir::Operation* origOp, const OutputTiling& tiles, Logger log) const {
+        return ::isSupportedTiling(mlir::cast<MainOpType>(origOp), tiles, log);
+    }
+
+private:
+    static bool isSupportedByNCE(MainOpType op, Logger log) {
+        if (VPUIP::getCompilationMode(op) == VPUIP::CompilationMode::ReferenceSW) {
+            return false;
+        }
+
+        return VPUIP::NCEInvariant::verifyKernel(op, log).succeeded() &&
+               VPUIP::NCEInvariant::verifyChannels(op, log).succeeded();
+    }
+};
+
+template <class MainOpType>
+class NCEEltwiseTilingInfoOpModel final :
+        public IE::TilingInfoOpInterface::ExternalModel<NCEEltwiseTilingInfoOpModel<MainOpType>, MainOpType> {
+public:
+    bool needTiling(mlir::Operation* origOp, Logger log) const {
+        if (!isSupportedByNCE(mlir::cast<MainOpType>(origOp), log)) {
+            return false;
+        }
+
+        return VPUIP::NCEInvariant::verifyCMX(mlir::cast<MainOpType>(origOp), log).failed();
+    }
+
+    bool isSupportedTiling(mlir::Operation* origOp, const OutputTiling& tiles, Logger log) const {
+        const auto input1Type = origOp->getOperand(0).getType().cast<mlir::ShapedType>();
+        const auto input2Type = origOp->getOperand(1).getType().cast<mlir::ShapedType>();
+        const auto outputType = origOp->getResult(0).getType().cast<mlir::ShapedType>();
+
+        return llvm::all_of(tiles, [&](const TileInfo& tile) {
+            const auto input1TileType = getDenseTileType(input1Type, tile.offsets, tile.shape);
+            const auto input2TileType = getDenseTileType(input2Type, tile.offsets, tile.shape);
+            const auto outputTileType = getDenseTileType(outputType, tile.offsets, tile.shape);
+
+            return mlir::succeeded(
+                    VPUIP::NCEInvariant::verifyEltwiseCMX(origOp->getLoc(), origOp->getParentOfType<mlir::ModuleOp>(),
+                                                          input1TileType, input2TileType, outputTileType, log));
+        });
+    }
+
+private:
+    static bool isSupportedByNCE(MainOpType op, Logger log) {
+        if (VPUIP::getCompilationMode(op) == VPUIP::CompilationMode::ReferenceSW) {
+            return false;
+        }
+
+        return VPUIP::NCEInvariant::verifyKernel(op, log).succeeded() &&
+               VPUIP::NCEInvariant::verifyChannels(op, log).succeeded();
     }
 };
 
@@ -387,6 +525,14 @@ void vpux::VPUIP::VPUIPDialect::setupExtraInterfaces(mlir::DialectRegistry& regi
     registry.addOpInterface<IE::MultiplyOp, AlignedChannelsOpModel<IE::MultiplyOp>>();
     registry.addOpInterface<IE::SubtractOp, AlignedChannelsOpModel<IE::SubtractOp>>();
     registry.addOpInterface<IE::AndOp, AlignedChannelsOpModel<IE::AndOp>>();
+
+    registry.addOpInterface<IE::ConvolutionOp, NCETilingInfoOpModel<IE::ConvolutionOp>>();
+    registry.addOpInterface<IE::GroupConvolutionOp, NCETilingInfoOpModel<IE::GroupConvolutionOp>>();
+    registry.addOpInterface<IE::MaxPoolOp, NCETilingInfoOpModel<IE::MaxPoolOp>>();
+    registry.addOpInterface<IE::AddOp, NCEEltwiseTilingInfoOpModel<IE::AddOp>>();
+    registry.addOpInterface<IE::MultiplyOp, NCEEltwiseTilingInfoOpModel<IE::MultiplyOp>>();
+    registry.addOpInterface<IE::SubtractOp, NCEEltwiseTilingInfoOpModel<IE::SubtractOp>>();
+    registry.addOpInterface<IE::AndOp, NCEEltwiseTilingInfoOpModel<IE::AndOp>>();
 
     redirectOpInterfacesForIE<LayoutInfoOpModelForHW, LayoutInfoOpModelForSW>(registry);
     redirectOpInterfacesForIERT<AsyncLayerOpModelForHW, AsyncLayerOpModelForDMA, AsyncLayerOpModelForSW>(registry);

@@ -16,6 +16,7 @@
 #include "vpux/compiler/core/attributes/dim.hpp"
 #include "vpux/compiler/core/attributes/dims_order.hpp"
 #include "vpux/compiler/core/ops_interfaces.hpp"
+#include "vpux/compiler/core/tiling.hpp"
 #include "vpux/compiler/dialect/IE/attributes/structs.hpp"
 
 #include "vpux/utils/core/format.hpp"
@@ -195,15 +196,36 @@ void fillDefaultLayoutInfo(LayerLayoutInfo& info, FuncRef<bool(size_t)> inputFil
                            FuncRef<bool(size_t)> outputFilter);
 
 //
+// TilingBuilderOpInterface
+//
+
+mlir::Value makeTile(mlir::OpBuilder& builder, mlir::Location baseLoc, mlir::Value origVal, const TileInfo& tile,
+                     StringRef valName);
+
+OutputTiling generateTiles(mlir::Operation* op, Logger log);
+
+//
+// TilingInfoOpInterface
+//
+
+mlir::LogicalResult verifyTilingInfo(mlir::Operation* op);
+
+//
 // EltwiseOp
 //
 
 mlir::LogicalResult verifyEltwiseOp(mlir::Operation* op);
+mlir::Value reifyEltwiseTile(mlir::Operation* op, const TileInfo& outputTile, mlir::OpBuilder& builder);
 
 template <typename ConcreteOp>
 class EltwiseOp : public mlir::OpTrait::TraitBase<ConcreteOp, EltwiseOp> {
+public:
     static mlir::LogicalResult verifyTrait(mlir::Operation* op) {
-        return verifyEltwiseOp(op);
+        return IE::verifyEltwiseOp(op);
+    }
+
+    mlir::Value reifyTile(const TileInfo& outputTile, mlir::OpBuilder& builder) {
+        return IE::reifyEltwiseTile(this->getOperation(), outputTile, builder);
     }
 };
 

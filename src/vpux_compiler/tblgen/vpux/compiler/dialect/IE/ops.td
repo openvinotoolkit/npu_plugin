@@ -197,6 +197,7 @@ def IE_ConvertOp :
             "Convert",
             [
                 DeclareOpInterfaceMethods<CastOpInterface>,
+                IE_TilingBuilderOpInterface,
                 IE_EltwiseOp
             ]
         > {
@@ -320,6 +321,7 @@ def IE_ReLUOp :
         IE_LayerOp<
             "ReLU",
             [
+                IE_TilingBuilderOpInterface,
                 IE_EltwiseOp
             ]
         > {
@@ -371,6 +373,7 @@ def IE_PowerOp :
         IE_LayerOp<
             "Power",
             [
+                IE_TilingBuilderOpInterface,
                 IE_EltwiseOp
             ]
         > {
@@ -396,6 +399,7 @@ def IE_AddOp :
         IE_LayerOp<
             "Add",
             [
+                IE_TilingBuilderOpInterface,
                 Commutative,
                 IE_EltwiseOp
             ]
@@ -428,6 +432,7 @@ def IE_DivideOp :
         IE_LayerOp<
             "Divide",
             [
+                IE_TilingBuilderOpInterface,
                 IE_EltwiseOp
             ]
         > {
@@ -453,6 +458,7 @@ def IE_SquaredDifferenceOp :
         IE_LayerOp<
             "SquaredDiff",
             [
+                IE_TilingBuilderOpInterface,
                 IE_EltwiseOp
             ]
         > {
@@ -478,6 +484,7 @@ def IE_FloorModOp :
         IE_LayerOp<
             "FloorMod",
             [
+                IE_TilingBuilderOpInterface,
                 IE_EltwiseOp
             ]
         > {
@@ -503,6 +510,7 @@ def IE_MultiplyOp :
         IE_LayerOp<
             "Multiply",
             [
+                IE_TilingBuilderOpInterface,
                 Commutative,
                 IE_EltwiseOp
             ]
@@ -533,6 +541,7 @@ def IE_AndOp :
         IE_LayerOp<
             "And",
             [
+                IE_TilingBuilderOpInterface,
                 Commutative,
                 IE_EltwiseOp
             ]
@@ -560,7 +569,10 @@ def IE_AndOp :
 
 def IE_ConvolutionOp :
         IE_LayerOp<
-            "Convolution"
+            "Convolution",
+            [
+                DeclareOpInterfaceMethods<IE_TilingBuilderOpInterface>
+            ]
         > {
     let summary = "InferenceEngine Convolution layer";
 
@@ -592,7 +604,10 @@ def IE_ConvolutionOp :
 
 def IE_GroupConvolutionOp :
         IE_LayerOp<
-            "GroupConvolution"
+            "GroupConvolution",
+            [
+                DeclareOpInterfaceMethods<IE_TilingBuilderOpInterface, ["generateTiling"]>
+            ]
         > {
     let summary = "InferenceEngine GroupConvolution layer";
 
@@ -651,7 +666,10 @@ def IE_AvgPoolOp :
 
 def IE_MaxPoolOp :
         IE_LayerOp<
-            "MaxPool"
+            "MaxPool",
+            [
+                DeclareOpInterfaceMethods<IE_TilingBuilderOpInterface>
+            ]
         > {
     let summary = "InferenceEngine MaxPool layer";
 
@@ -706,6 +724,7 @@ def IE_ClampOp :
         IE_LayerOp<
             "Clamp",
             [
+                IE_TilingBuilderOpInterface,
                 IE_EltwiseOp
             ]
         > {
@@ -731,6 +750,7 @@ def IE_EluOp :
         IE_LayerOp<
             "Elu",
             [
+                IE_TilingBuilderOpInterface,
                 IE_EltwiseOp
             ]
         > {
@@ -850,6 +870,7 @@ def IE_SigmoidOp :
         IE_LayerOp<
             "Sigmoid",
             [
+                IE_TilingBuilderOpInterface,
                 IE_EltwiseOp
             ]
         > {
@@ -945,6 +966,7 @@ def IE_MinimumOp :
         IE_LayerOp<
             "Minimum",
             [
+                IE_TilingBuilderOpInterface,
                 IE_EltwiseOp
             ]
         > {
@@ -970,6 +992,7 @@ def IE_MaximumOp :
         IE_LayerOp<
             "Maximum",
             [
+                IE_TilingBuilderOpInterface,
                 IE_EltwiseOp
             ]
         > {
@@ -995,6 +1018,7 @@ def IE_FakeQuantizeOp :
         IE_LayerOp<
             "FakeQuantize",
             [
+                IE_TilingBuilderOpInterface,
                 IE_EltwiseOp
             ]
         > {
@@ -1023,6 +1047,7 @@ def IE_FakeQuantizeOp :
 def IE_QuantizeOp :
         IE_LayerOp<"Quantize",
             [
+                IE_TilingBuilderOpInterface,
                 IE_EltwiseOp
             ]
         > {
@@ -1048,6 +1073,7 @@ def IE_QuantizeOp :
 def IE_DequantizeOp :
         IE_LayerOp<"Dequantize",
             [
+                IE_TilingBuilderOpInterface,
                 IE_EltwiseOp
             ]
         > {
@@ -1120,6 +1146,7 @@ def IE_TanhOp :
         IE_LayerOp<
             "Tanh",
             [
+                IE_TilingBuilderOpInterface,
                 IE_EltwiseOp
             ]
         > {
@@ -1142,8 +1169,7 @@ def IE_SqrtOp :
         IE_LayerOp<
             "Sqrt",
             [
-                ResultsAreFloatLike,
-                SameOperandsAndResultType,
+                IE_TilingBuilderOpInterface,
                 IE_EltwiseOp
             ]
         > {
@@ -1166,6 +1192,7 @@ def IE_LogOp :
         IE_LayerOp<
             "Log",
             [
+                IE_TilingBuilderOpInterface,
                 IE_EltwiseOp
             ]
         > {
@@ -1188,6 +1215,7 @@ def IE_ExpOp :
         IE_LayerOp<
             "Exp",
             [
+                IE_TilingBuilderOpInterface,
                 IE_EltwiseOp
             ]
         > {
@@ -1210,6 +1238,7 @@ def IE_HSwishOp :
         IE_LayerOp<
             "HSwish",
             [
+                IE_TilingBuilderOpInterface,
                 IE_EltwiseOp
             ]
         > {
@@ -1232,6 +1261,7 @@ def IE_FloorOp :
         IE_LayerOp<
             "Floor",
             [
+                IE_TilingBuilderOpInterface,
                 IE_EltwiseOp
             ]
         > {
@@ -1254,6 +1284,7 @@ def IE_RoundOp :
         IE_LayerOp<
             "Round",
             [
+                IE_TilingBuilderOpInterface,
                 IE_EltwiseOp
             ]
         > {
@@ -1278,6 +1309,7 @@ def IE_MishOp :
         IE_LayerOp<
             "Mish",
             [
+                IE_TilingBuilderOpInterface,
                 IE_EltwiseOp
             ]
         > {
@@ -1300,6 +1332,7 @@ def IE_ErfOp :
         IE_LayerOp<
             "Erf",
             [
+                IE_TilingBuilderOpInterface,
                 IE_EltwiseOp
             ]
         > {
@@ -1732,6 +1765,7 @@ def IE_PReluOp :
         IE_LayerOp<
             "PRelu",
             [
+                IE_TilingBuilderOpInterface,
                 IE_EltwiseOp
             ]
         > {
@@ -1757,6 +1791,7 @@ def IE_LeakyReluOp :
         IE_LayerOp<
             "LeakyRelu",
             [
+                IE_TilingBuilderOpInterface,
                 IE_EltwiseOp
             ]
         > {
@@ -1781,6 +1816,7 @@ def IE_SwishOp :
         IE_LayerOp<
             "Swish",
             [
+                IE_TilingBuilderOpInterface,
                 IE_EltwiseOp
             ]
         > {
@@ -1808,6 +1844,7 @@ def IE_ScaleShiftOp :
         IE_LayerOp<
             "ScaleShift",
             [
+                IE_TilingBuilderOpInterface,
                 AttrSizedOperandSegments,
                 IE_EltwiseOp
             ]
@@ -1856,6 +1893,7 @@ def IE_NegativeOp :
         IE_LayerOp<
             "Negative",
             [
+                IE_TilingBuilderOpInterface,
                 IE_EltwiseOp
             ]
         > {
@@ -2089,6 +2127,7 @@ def IE_SubtractOp :
         IE_LayerOp<
             "Subtract",
             [
+                IE_TilingBuilderOpInterface,
                 IE_EltwiseOp
             ]
         > {
@@ -2203,6 +2242,7 @@ def IE_CeilingOp :
         IE_LayerOp<
             "Ceiling",
             [
+                IE_TilingBuilderOpInterface,
                 IE_EltwiseOp
             ]
         > {
@@ -2225,7 +2265,7 @@ def IE_EqualOp :
         IE_LayerOp<
             "Equal",
             [
-                ResultsAreFloatLike,
+                IE_TilingBuilderOpInterface,
                 Commutative,
                 IE_EltwiseOp
             ]

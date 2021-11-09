@@ -152,6 +152,62 @@ def IE_LayoutInfoOpInterface : OpInterface<"LayoutInfoOpInterface"> {
 }
 
 //
+// TilingBuilderOpInterface
+//
+
+def IE_TilingBuilderOpInterface : OpInterface<"TilingBuilderOpInterface"> {
+    let description = "Interface for operations to reify the provided tiling configuration";
+
+    let cppNamespace = "vpux::IE";
+
+    let methods = [
+        InterfaceMethod<
+            "Generate supported tiling configuration for the operation",
+            "vpux::OutputTiling", "generateTiling",
+            (ins "vpux::Logger":$log),
+            [{}],
+            [{
+                return vpux::IE::generateTiles($_op, log);
+            }]
+        >,
+
+        InterfaceMethod<
+            "Reify the provided tiling configuration into the IR",
+            "mlir::Value", "reifyTile",
+            (ins "const vpux::TileInfo&":$outputTile, "mlir::OpBuilder&":$builder)
+        >,
+    ];
+}
+
+//
+// TilingInfoOpInterface
+//
+
+def IE_TilingInfoOpInterface : OpInterface<"TilingInfoOpInterface"> {
+    let description = "Interface for operations to provide information about required/supported tiling configurations";
+
+    let cppNamespace = "vpux::IE";
+
+    let methods = [
+        InterfaceMethod<
+            "Check, if the operation requires tiling",
+            "bool", "needTiling",
+            (ins "vpux::Logger":$log)
+        >,
+
+        InterfaceMethod<
+            "Check, if the provided tiling configuration is supported by the operation implementation",
+            "bool", "isSupportedTiling",
+            (ins "const vpux::OutputTiling&":$tiles, "vpux::Logger":$log)
+        >,
+    ];
+
+    let verify = [{
+        return vpux::IE::verifyTilingInfo($_op);
+    }];
+}
+
+//
 // EltwiseOp
 //
 
