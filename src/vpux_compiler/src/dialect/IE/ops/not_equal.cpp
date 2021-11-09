@@ -40,8 +40,11 @@ mlir::LogicalResult ConvertToFP16::matchAndRewrite(IE::NotEqualOp notEqualOp, ml
         auto float16Type = mlir::Float16Type::get(getContext());
         auto convertIn1 = rewriter.create<IE::ConvertOp>(notEqualOp.getLoc(), notEqualOp.input1(), float16Type);
         auto convertIn2 = rewriter.create<IE::ConvertOp>(notEqualOp.getLoc(), notEqualOp.input2(), float16Type);
-        rewriter.replaceOpWithNewOp<IE::NotEqualOp>(notEqualOp, convertIn1.output(), convertIn2.output(),
-                                                    notEqualOp.auto_broadcastAttr());
+
+        auto newNotEqualOp = rewriter.create<IE::NotEqualOp>(notEqualOp.getLoc(), convertIn1.output(),
+                                                             convertIn2.output(), notEqualOp.auto_broadcastAttr());
+
+        rewriter.replaceOpWithNewOp<IE::ConvertOp>(notEqualOp, newNotEqualOp.output(), in1Type.getElementType());
         return mlir::success();
     } else {
         return mlir::success();
