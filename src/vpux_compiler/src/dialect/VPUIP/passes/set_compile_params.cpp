@@ -43,6 +43,7 @@ private:
     VPUIP::ArchKind _arch = VPUIP::ArchKind::KMB;
     VPUIP::CompilationMode _compilationMode = VPUIP::CompilationMode::ReferenceSW;
     Optional<int> _numOfDPUGroups;
+    Optional<int> _numOfDPUsPerGroup;
 };
 
 SetCompileParamsPass::SetCompileParamsPass(VPUIP::ArchKind arch, VPUIP::CompilationMode compilationMode,
@@ -79,7 +80,7 @@ void SetCompileParamsPass::safeRunOnModule() {
     VPUIP::setCompilationMode(module, _compilationMode);
 
     _log.trace("Set VPU architecture to {0}", _arch);
-    VPUIP::setArch(module, _arch, _numOfDPUGroups);
+    VPUIP::setArch(module, _arch, _numOfDPUGroups, _numOfDPUsPerGroup);
 
     _log.trace("Add VPUIP.Graph Operation");
 

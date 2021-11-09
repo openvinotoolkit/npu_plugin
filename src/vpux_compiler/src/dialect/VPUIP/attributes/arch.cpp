@@ -31,6 +31,7 @@ constexpr StringLiteral processorFrequencyAttrName = "VPUIP.processorFrequency";
 
 constexpr int KMB_MAX_DPU_GROUPS = 4;
 constexpr int MTL_MAX_DPU_GROUPS = 2;
+constexpr int KMB_MAX_DPUS_PER_GROUP = 5;
 
 constexpr Byte DDR_HEAP_SIZE = 500_MB;
 constexpr Byte CSRAM_SIZE = 24_MB;
@@ -43,7 +44,7 @@ constexpr Byte MTL_CMX_WORKSPACE_SIZE = Byte(1936_KB);
 
 }  // namespace
 
-void vpux::VPUIP::setArch(mlir::ModuleOp module, ArchKind kind, Optional<int> numOfDPUGroups) {
+void vpux::VPUIP::setArch(mlir::ModuleOp module, ArchKind kind, Optional<int> numOfDPUGroups, Optional<int> numOfDPUsPerGroup) {
     VPUX_THROW_UNLESS(module->hasAttr(archAttrName) == false,
                       "Architecture is already defined. Probably you don't need to run '--set-compile-params'.");
 
@@ -73,6 +74,13 @@ void vpux::VPUIP::setArch(mlir::ModuleOp module, ArchKind kind, Optional<int> nu
         return numOfDPUGroupsVal;
     };
 
+    const auto getNumOfDPUsPerGroupVal = [&](int maxDpusPerGroup) {
+        int numOfDPUsPerGroupVal = numOfDPUsPerGroup.hasValue() ? numOfDPUsPerGroup.getValue() : maxDpusPerGroup;
+        VPUX_THROW_UNLESS(1 <= numOfDPUsPerGroupVal && numOfDPUsPerGroupVal <= maxDpusPerGroup,
+                          "Invalid number of DPUs per group: '{0}'", numOfDPUsPerGroupVal);
+        return numOfDPUsPerGroupVal;
+    };
+
     IERT::ExecutorResourceOp nceCluster;
 
     switch (kind) {
@@ -86,7 +94,8 @@ void vpux::VPUIP::setArch(mlir::ModuleOp module, ArchKind kind, Optional<int> nu
 
         nceCluster = resources.addExecutor(getProcKind(PhysicalProcessor::NCE_Cluster),
                                            getNumOfDPUGroupsVal(KMB_MAX_DPU_GROUPS), true);
-        nceCluster.addSubExecutor(getProcKind(PhysicalProcessor::NCE_PerClusterDPU), 5);
+        nceCluster.addSubExecutor(getProcKind(PhysicalProcessor::NCE_PerClusterDPU),
+                                  getNumOfDPUsPerGroupVal(KMB_MAX_DPUS_PER_GROUP));
 
         break;
     }
