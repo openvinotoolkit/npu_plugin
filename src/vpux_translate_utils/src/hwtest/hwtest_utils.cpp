@@ -111,15 +111,25 @@ mlir::DenseElementsAttr generateWeights(llvm::ArrayRef<std::int64_t> shape, mlir
     }
 
     if (type.isSignedInteger(4)) {
-        std::cerr << "Warning : Int4 is being read and stored as Int8" << '\n';
-        auto weights = readFile<std::int8_t>(stream);
-        weights.resize(weights.size() * 2, 0);
-        return mlir::DenseElementsAttr::get(wtData_ddr_valueType, llvm::makeArrayRef<std::int8_t>(weights));
+        const auto weightsU8 = readFile<std::uint8_t>(stream);
+        std::vector<std::int8_t> weightsI4;
+        for (const auto& elementU8 : weightsU8) {
+            const int8_t msn = (elementU8 & 0xf0) >> 4;
+            const int8_t lsn = (elementU8 & 0x0f) >> 0;
+            weightsI4.push_back(lsn);
+            weightsI4.push_back(msn);
+        }
+        return mlir::DenseElementsAttr::get(wtData_ddr_valueType, llvm::makeArrayRef<std::int8_t>(weightsI4));
     } else if (type.isInteger(4)) {
-        std::cerr << "Warning : UInt4 is being read and stored as UInt8" << '\n';
-        auto weights = readFile<std::uint8_t>(stream);
-        weights.resize(weights.size() * 2, 0);
-        return mlir::DenseElementsAttr::get(wtData_ddr_valueType, llvm::makeArrayRef<std::uint8_t>(weights));
+        const auto weightsU8 = readFile<std::uint8_t>(stream);
+        std::vector<std::uint8_t> weightsU4;
+        for (const auto& elementU8 : weightsU8) {
+            const uint8_t msn = (elementU8 & 0xf0) >> 4;
+            const uint8_t lsn = (elementU8 & 0x0f) >> 0;
+            weightsU4.push_back(lsn);
+            weightsU4.push_back(msn);
+        }
+        return mlir::DenseElementsAttr::get(wtData_ddr_valueType, llvm::makeArrayRef<std::uint8_t>(weightsU4));
     } else if (type.isSignedInteger(8)) {
         return generateWeights<std::int8_t>(stream, wtData_ddr_valueType, vecSize);
     } else if (type.isInteger(8)) {

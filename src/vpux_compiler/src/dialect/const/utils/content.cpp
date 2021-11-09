@@ -121,8 +121,8 @@ void vpux::Const::Content::copyTo(MutableArrayRef<char> buf) const {
                           "Byte sizes of the input buffer '{0}' and stored elements '{1}' are different.", buf.size(),
                           _data.size());
         std::memcpy(buf.data(), _data.data(), buf.size());
-    } else {            dispatchByElemType<void>(getElementType(), [this, buf](
-        auto dummy) {
+    } else {
+        dispatchByElemType<void>(getElementType(), [this, buf](auto dummy) {
             using ElemT = std::decay_t<decltype(dummy)>;
             fillBuf(this->getValues<ElemT>(), buf);
         });
