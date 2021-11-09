@@ -50,8 +50,31 @@ flatbuffers::Offset<MVCNN::KernelData> buildKernelData(flatbuffers::FlatBufferBu
 static void compileAndLinkSHAVE(const movitools::MoviCompileParams& params, const CompilationUnitDesc& unitDesc,
                                 SmallVector<uint8_t, 128>& textBinary, SmallVector<uint8_t, 128>& dataBinary) {
     std::string mvToolsDir = movitools::getMoviToolsDir();
+    SmallString<128> genDir;
+    SmallString<128> tmpDir;
+    // TODO: weak assumption on tools dir better switch to DEVELOPER BUILD style
+    if (sys::fs::exists(KERNEL_DIRECTORY) && sys::fs::exists(LIBRARY_OUTPUT_DIRECTORY)) {
+        genDir = KERNEL_DIRECTORY;
+        tmpDir = LIBRARY_OUTPUT_DIRECTORY;
+        VPUX_THROW_UNLESS(sys::fs::exists(genDir), "act-kernels directory setting by compiler time: {0} not exists",
+                          genDir);
+    } else {
+        // probe for OV_BUILD_DIR
+        const auto ovBbuildDir = std::getenv("OV_BUILD_DIR");
+        VPUX_THROW_UNLESS(ovBbuildDir,
+                          "OV_BUILD_DIR env directory must be specified, in order to reach act-shave kernels");
+        VPUX_THROW_UNLESS(sys::fs::exists(ovBbuildDir),
+                          "OpenVino build directory {0}, taken from OV_BUILD_DIR env variable is not exist", genDir);
 
-    const StringRef genDir = KERNEL_DIRECTORY;
+        genDir = ovBbuildDir;
+        sys::path::append(genDir, "act-kernels");
+
+        VPUX_THROW_UNLESS(sys::fs::exists(genDir),
+                          "act-kernels directory {0}, taken from OV_BUILD_DIR env variable is not exist", genDir);
+
+        tmpDir = genDir;
+        sys::path::append(tmpDir, "output");
+    }
 
     SmallString<128> srcNamePath = unitDesc.codePath;
 
@@ -62,7 +85,7 @@ static void compileAndLinkSHAVE(const movitools::MoviCompileParams& params, cons
 
     SmallString<128> buildDirPath;
     {
-        SmallString<128> tmpPath(LIBRARY_OUTPUT_DIRECTORY);
+        SmallString<128> tmpPath(tmpDir);
         sys::path::append(tmpPath, "act-kernels-build");
         sys::path::append(tmpPath, srcNamePath);
         buildDirPath = sys::path::parent_path(tmpPath);
