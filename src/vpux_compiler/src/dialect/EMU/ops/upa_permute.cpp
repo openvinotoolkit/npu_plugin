@@ -37,7 +37,7 @@ mlir::LogicalResult vpux::EMU::verifyOp(PermuteUPAOp op) {
         return errorAt(op, "Input rank {0} doesn't match output rank {1}", inType.getRank(), outType.getRank());
     }
 
-    const auto order = DimsOrder::fromPermutationAffineMap(op.order_value().getValue());
+    const auto order = DimsOrder::fromAffineMap(op.order_value().getValue());
     const auto inShape = getShape(inType);
 
     if (order.numDims() > inShape.size()) {
@@ -59,14 +59,14 @@ mlir::LogicalResult vpux::EMU::verifyOp(PermuteUPAOp op) {
 //
 
 EMU::BlobWriter::SpecificTask vpux::EMU::PermuteUPAOp::serialize(EMU::BlobWriter& writer) {
-    const mlir::AffineMap inputOrderMap = DimsOrder::fromValue(input()).toPermutationAffineMap(this->getContext());
+    const mlir::AffineMap inputOrderMap = DimsOrder::fromValue(input()).toAffineMap(this->getContext());
     const mlir::AffineMap permMem = order_value().getValue();
     const mlir::AffineMap outputOrderMapInv =
-            inversePermutation(DimsOrder::fromValue(output()).toPermutationAffineMap(this->getContext()));
+            inversePermutation(DimsOrder::fromValue(output()).toAffineMap(this->getContext()));
 
     const mlir::AffineMap permLog = outputOrderMapInv.compose(permMem.compose(inputOrderMap));
 
-    const auto permLogOrder = DimsOrder::fromPermutationAffineMap(permLog);
+    const auto permLogOrder = DimsOrder::fromAffineMap(permLog);
     const auto orderUPA = writer.createVector(irange(permLogOrder.numDims()) | transformed([&](int64_t idx) {
                                                   return checked_cast<int32_t>(permLogOrder.dimAt(idx).ind());
                                               }));

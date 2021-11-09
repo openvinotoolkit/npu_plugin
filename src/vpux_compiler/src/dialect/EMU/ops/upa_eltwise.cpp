@@ -47,6 +47,9 @@ EMU::BlobWriter::SpecificTask vpux::EMU::EltwiseUPAOp::serialize(EMU::BlobWriter
     case EMU::EltwiseLayerType::AND:
         type = writer.createString("logicaland");
         break;
+    case EMU::EltwiseLayerType::EQUAL:
+        type = writer.createString("compareeq");
+        break;
     default:
         VPUX_THROW("Unsupported EltwiseLayerType {0}", this->type());
     }
