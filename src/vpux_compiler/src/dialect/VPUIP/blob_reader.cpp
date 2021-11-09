@@ -27,6 +27,87 @@ namespace VPUIP {
 
 namespace {
 
+VPUIP::MPEMode getMPEMode(MVCNN::MPE_Mode mpeMode) {
+    switch (mpeMode) {
+    case MVCNN::MPE_Mode_VECTOR:
+        return VPUIP::MPEMode::VECTOR;
+    case MVCNN::MPE_Mode_MATRIX:
+        return VPUIP::MPEMode::MATRIX;
+    case MVCNN::MPE_Mode_VECTOR_FP16:
+        return VPUIP::MPEMode::VECTOR_FP16;
+    case MVCNN::MPE_Mode_CUBOID_16x16:
+        return VPUIP::MPEMode::CUBOID_16x16;
+    case MVCNN::MPE_Mode_CUBOID_8x16:
+        return VPUIP::MPEMode::CUBOID_8x16;
+    case MVCNN::MPE_Mode_NOP:
+        return VPUIP::MPEMode::NOP;
+    default:
+        VPUX_THROW("Unsupported MPE mode type: '{0}'", mpeMode);
+    }
+    return VPUIP::MPEMode::NOP;
+}
+
+VPUIP::PPELayerType getPPELayerType(MVCNN::PPELayerType ppeType) {
+    switch (ppeType) {
+    case MVCNN::PPELayerType_STORE:
+        return VPUIP::PPELayerType::STORE;
+    case MVCNN::PPELayerType_LOAD:
+        return VPUIP::PPELayerType::LOAD;
+    case MVCNN::PPELayerType_CLEAR:
+        return VPUIP::PPELayerType::CLEAR;
+    case MVCNN::PPELayerType_NOOP:
+        return VPUIP::PPELayerType::NOOP;
+    case MVCNN::PPELayerType_HALT:
+        return VPUIP::PPELayerType::HALT;
+    case MVCNN::PPELayerType_ADD:
+        return VPUIP::PPELayerType::ADD;
+    case MVCNN::PPELayerType_SUB:
+        return VPUIP::PPELayerType::SUB;
+    case MVCNN::PPELayerType_MULT:
+        return VPUIP::PPELayerType::MULT;
+    case MVCNN::PPELayerType_MAXIMUM:
+        return VPUIP::PPELayerType::MAXIMUM;
+    case MVCNN::PPELayerType_MINIMUM:
+        return VPUIP::PPELayerType::MINIMUM;
+    case MVCNN::PPELayerType_AND:
+        return VPUIP::PPELayerType::AND;
+    case MVCNN::PPELayerType_OR:
+        return VPUIP::PPELayerType::OR;
+    case MVCNN::PPELayerType_XOR:
+        return VPUIP::PPELayerType::XOR;
+    case MVCNN::PPELayerType_LRELU:
+        return VPUIP::PPELayerType::LRELU;
+    case MVCNN::PPELayerType_LRELUX:
+        return VPUIP::PPELayerType::LRELUX;
+    case MVCNN::PPELayerType_LPRELU:
+        return VPUIP::PPELayerType::LPRELU;
+    case MVCNN::PPELayerType_CEIL:
+        return VPUIP::PPELayerType::CEIL;
+    case MVCNN::PPELayerType_FLOOR:
+        return VPUIP::PPELayerType::FLOOR;
+    case MVCNN::PPELayerType_EXP:
+        return VPUIP::PPELayerType::EXP;
+    case MVCNN::PPELayerType_SIGMOID:
+        return VPUIP::PPELayerType::SIGMOID;
+    case MVCNN::PPELayerType_TANH:
+        return VPUIP::PPELayerType::TANH;
+    case MVCNN::PPELayerType_SQRT:
+        return VPUIP::PPELayerType::SQRT;
+    case MVCNN::PPELayerType_RSQRT:
+        return VPUIP::PPELayerType::RSQRT;
+    case MVCNN::PPELayerType_FLEXARB:
+        return VPUIP::PPELayerType::FLEXARB;
+    case MVCNN::PPELayerType_NOT:
+        return VPUIP::PPELayerType::NOT;
+    case MVCNN::PPELayerType_ABS:
+        return VPUIP::PPELayerType::ABS;
+    case MVCNN::PPELayerType_NEG:
+        return VPUIP::PPELayerType::NEG;
+    default:
+        VPUX_THROW("Unsupported PPE Layer type: '{0}'", ppeType);
+    }
+}
+
 class TaskIterator final {
 public:
     using taskOffset = flatbuffers::Offset<MVCNN::Task>;
@@ -294,9 +375,11 @@ mlir::Value BlobReader::createTensorOp(mlir::OpBuilder& builder, const MVCNN::Te
         const auto tensorType = mlir::RankedTensorType::get(importedType.getShape(), importedType.getElementType());
         const auto numElems = tensorType.getNumElements();
         const Byte elemTypeSize = getElemTypeSize(tensorType);
+        const auto locale_index = tensorRef->locale_index()->Get(0);
         const auto rawBuffer = makeArrayRef(
-                reinterpret_cast<const char*>(_graphFile->binary_data()->Get(_constCounter++)->data()->Data()),
+                reinterpret_cast<const char*>(_graphFile->binary_data()->Get(locale_index)->data()->Data()),
                 numElems * elemTypeSize.count());
+        _constCounter++;
 
         bool isSplatBuffer = false;
         const auto value = mlir::DenseElementsAttr::getFromRawBuffer(tensorType, rawBuffer, isSplatBuffer);
@@ -331,12 +414,29 @@ mlir::Value BlobReader::createTensorOp(mlir::OpBuilder& builder, const MVCNN::Te
 
 void BlobReader::buildRunTimeResourcesOp() {
     const auto arch = parseDeviceRevision();
-    setArch(_module, arch);
-    auto resourcesOp = IERT::RunTimeResourcesOp::getFromModule(_module);
-
     const auto* header = _graphFile->header();
     VPUX_THROW_UNLESS(header->resources(), "Blob has no resources");
     VPUX_THROW_UNLESS(header->resources()->memory_sizes(), "Blob resources has no memory sizes");
+
+    // Parse NCE_Cluster & NCE_ClusterDPU
+    int numDPUGroups = 1;
+    int numDPUsPerGroup = 1;
+    const auto processor_allocation = header->resources()->processor_allocation();
+    for (unsigned i=0; i<processor_allocation->size(); ++i) {
+        switch (processor_allocation->Get(i)->item()) {
+        case MVCNN::PhysicalProcessor::PhysicalProcessor_NCE_Cluster:
+            numDPUGroups = static_cast<int>(processor_allocation->Get(i)->number());
+            break;
+        case MVCNN::PhysicalProcessor::PhysicalProcessor_NCE_PerClusterDPU:
+            numDPUsPerGroup = static_cast<int>(processor_allocation->Get(i)->number());
+            break;
+        default:
+            break;
+        }
+    }
+
+    setArch(_module, arch, numDPUGroups, numDPUsPerGroup);
+    auto resourcesOp = IERT::RunTimeResourcesOp::getFromModule(_module);
 
     if (const auto* memSizes = header->resources()->memory_sizes()) {
         for (unsigned int i = 0; i < memSizes->size(); i++) {
@@ -478,6 +578,69 @@ void BlobReader::buildMainFunc() {
                                                                         barrierTask->target()->barrier_id());
             _barriers.push_back(barrier.barrier());
             op = barrier;
+        } else if (const auto NCE2Task = task->task_as_NCE2Task()) {
+            std::vector<std::int64_t> strides = {NCE2Task->invariant()->kernel_strideH(),
+                                                 NCE2Task->invariant()->kernel_strideW()};
+            const auto stridesAttr = getIntArrayAttr(_ctx, strides);
+            std::vector<std::int64_t> paddings = {
+                    NCE2Task->invariant()->kernel_padLeft(), NCE2Task->invariant()->kernel_padRight(),
+                    NCE2Task->invariant()->kernel_padTop(), NCE2Task->invariant()->kernel_padBottom()};
+            const auto kernelPaddings = getIntArrayAttr(_ctx, paddings);
+            llvm::SmallVector<std::int64_t> kernel = {NCE2Task->invariant()->kernelH(), NCE2Task->invariant()->kernelW()};
+            const auto kernelSize = getIntArrayAttr(_ctx, kernel);
+
+            const auto activation_window = NCE2Task->invariant()->activation_window();
+
+            // NCE Task
+            auto nceTask = opsBuilder.create<vpux::VPUIP::NCEClusterTaskOp>(
+                mlir::UnknownLoc::get(_ctx),
+                createTensorOp(opsBuilder, NCE2Task->invariant()->input_data()),
+                createTensorOp(opsBuilder, NCE2Task->invariant()->weights_data()),
+                createTensorOp(opsBuilder, NCE2Task->invariant()->weights_table()),
+                (activation_window) ? createTensorOp(opsBuilder, activation_window) : nullptr,
+                createTensorOp(opsBuilder, NCE2Task->invariant()->parent_input_tensor()),
+                createTensorOp(opsBuilder, NCE2Task->invariant()->parent_output_tensor()),
+                createTensorOp(opsBuilder, NCE2Task->invariant()->output_data()),
+                vpux::VPUIP::NCETaskType::CONV,
+                kernelSize,
+                stridesAttr,
+                kernelPaddings,
+                nullptr,
+                nullptr);
+
+            // DPU Tasks
+            for (unsigned i = 0; i < NCE2Task->variant()->size(); ++i) {
+                const auto start = std::vector<std::int64_t>{NCE2Task->variant()->Get(i)->workload_start_X(),
+                                                             NCE2Task->variant()->Get(i)->workload_start_Y(),
+                                                             NCE2Task->variant()->Get(i)->workload_start_Z()};
+                const auto end = std::vector<std::int64_t>{NCE2Task->variant()->Get(i)->workload_end_X(),
+                                                           NCE2Task->variant()->Get(i)->workload_end_Y(),
+                                                           NCE2Task->variant()->Get(i)->workload_end_Z()};
+                const auto startAttr = getIntArrayAttr(_ctx, start);
+                const auto endAttr = getIntArrayAttr(_ctx, end);
+                const auto padAttr =
+                        vpux::VPUIP::PaddingAttr::get(vpux::getIntAttr(builder, NCE2Task->variant()->Get(i)->padLeft()),
+                                                      vpux::getIntAttr(builder, NCE2Task->variant()->Get(i)->padRight()),
+                                                      vpux::getIntAttr(builder, NCE2Task->variant()->Get(i)->padTop()),
+                                                      vpux::getIntAttr(builder, NCE2Task->variant()->Get(i)->padBottom()), _ctx);
+
+                const auto mpe_mode = getMPEMode(NCE2Task->variant()->Get(i)->mpe_mode());
+
+                nceTask.addDPUTask(opsBuilder, startAttr, endAttr, padAttr, mpe_mode);
+
+            }
+
+            // PPE Tasks
+            for (unsigned i = 0; i < NCE2Task->invariant()->ppe_task()->fixed_function()->Ops()->size(); ++i) {
+                const auto Clamp_Low = NCE2Task->invariant()->ppe_task()->fixed_function()->Clamp_Low();
+                const auto Clamp_High = NCE2Task->invariant()->ppe_task()->fixed_function()->Clamp_High();
+                const auto Lrelu_Mult = NCE2Task->invariant()->ppe_task()->fixed_function()->Lrelu_Mult();
+                const auto Lrelu_Shift = NCE2Task->invariant()->ppe_task()->fixed_function()->Lrelu_Shift();
+                const auto op = getPPELayerType(MVCNN::EnumValuesPPELayerType()[NCE2Task->invariant()->ppe_task()->fixed_function()->Ops()->Get(i)]);
+
+                nceTask.addPPETask(opsBuilder, op, Clamp_Low, Clamp_High, Lrelu_Mult, Lrelu_Shift);
+            }
+            op = nceTask;
         } else {
             VPUX_THROW("Unsupported task type {0}", task->task_type());
         }
