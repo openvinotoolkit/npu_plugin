@@ -93,12 +93,6 @@ def EMU_ConvertUPAOp :
         AnyRankedTensor:$output
     );
 
-    let builders = [
-        OpBuilder<
-            (ins "mlir::Value":$input, "mlir::Value":$output)
-        >
-    ];
-
     let verifier = [{
         return vpux::EMU::verifyOp(*this);
     }];
@@ -132,15 +126,6 @@ def EMU_SoftMaxUPAOp :
     let results = (outs
         RankedTensorOf<[F16]>:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins
-                "mlir::Value":$input, "mlir::Value":$output,
-                "mlir::IntegerAttr":$axisInd
-            )
-        >
-    ];
 
     let verifier = [{
         return vpux::EMU::verifyOp(*this);
@@ -179,18 +164,6 @@ def EMU_PoolingUPAOp :
     let results = (outs
         RankedTensorOf<[F16]>:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins
-                "mlir::Value":$input, "mlir::Value":$output,
-                "vpux::EMU::PoolLayerTypeAttr":$type,
-                "mlir::ArrayAttr":$kernel, "mlir::ArrayAttr":$strides,
-                "mlir::ArrayAttr":$padsBegin, "mlir::ArrayAttr":$padsEnd,
-                "mlir::UnitAttr":$excludePad
-            )
-        >
-    ];
 
     let verifier = [{
         return vpux::EMU::verifyOp(*this);
@@ -231,17 +204,6 @@ def EMU_ConvolutionUPAOp :
         RankedTensorOf<[F16]>:$output
     );
 
-    let builders = [
-        OpBuilder<
-            (ins
-                "mlir::Value":$input, "mlir::Value":$filter, "mlir::Value":$bias, "mlir::Value":$output,
-                "mlir::ArrayAttr":$strides, "mlir::ArrayAttr":$dilations,
-                "mlir::ArrayAttr":$padsBegin, "mlir::ArrayAttr":$padsEnd,
-                "uint32_t":$groups
-            )
-        >
-    ];
-
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $input `:` type($input) `,` $filter `:` type($filter) (`,` $bias^ `:` type($bias))? `)`
@@ -275,12 +237,6 @@ def EMU_ReLUUPAOp :
         RankedTensorOf<[F16]>:$output
     );
 
-    let builders = [
-        OpBuilder<
-            (ins "mlir::Value":$input, "mlir::Value":$output)
-        >
-    ];
-
     let verifier = [{
         return vpux::EMU::verifyPostOp(*this);
     }];
@@ -312,12 +268,6 @@ def EMU_SigmoidUPAOp :
     let results = (outs
         RankedTensorOf<[F16]>:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins "mlir::Value":$input, "mlir::Value":$output)
-        >
-    ];
 
     let verifier = [{
         return vpux::EMU::verifyPostOp(*this);
@@ -351,12 +301,6 @@ def EMU_HSwishUPAOp :
         RankedTensorOf<[F16]>:$output
     );
 
-    let builders = [
-        OpBuilder<
-            (ins "mlir::Value":$input, "mlir::Value":$output)
-        >
-    ];
-
     let verifier = [{
         return vpux::EMU::verifyPostOp(*this);
     }];
@@ -388,12 +332,6 @@ def EMU_ErfUPAOp :
     let results = (outs
         RankedTensorOf<[F16]>:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins "mlir::Value":$input, "mlir::Value":$output)
-        >
-    ];
 
     let verifier = [{
         return vpux::EMU::verifyPostOp(*this);
@@ -427,12 +365,6 @@ def EMU_MishUPAOp :
         RankedTensorOf<[F16]>:$output
     );
 
-    let builders = [
-        OpBuilder<
-            (ins "mlir::Value":$input, "mlir::Value":$output)
-        >
-    ];
-
     let verifier = [{
         return vpux::EMU::verifyPostOp(*this);
     }];
@@ -464,12 +396,6 @@ def EMU_FloorUPAOp :
     let results = (outs
         RankedTensorOf<[F16]>:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins "mlir::Value":$input, "mlir::Value":$output)
-        >
-    ];
 
     let verifier = [{
         return vpux::EMU::verifyPostOp(*this);
@@ -504,15 +430,6 @@ def EMU_RoundUPAOp :
     let results = (outs
         RankedTensorOf<[F16]>:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins
-                "mlir::Value":$input, "mlir::Value":$output,
-                "IE::RoundModeAttr":$mode
-            )
-        >
-    ];
 
     let verifier = [{
         return vpux::EMU::verifyPostOp(*this);
@@ -549,15 +466,6 @@ def EMU_ClampUPAOp :
         RankedTensorOf<[F16]>:$output
     );
 
-    let builders = [
-        OpBuilder<
-            (ins
-                "mlir::Value":$input, "mlir::Value":$output,
-                "mlir::FloatAttr":$min, "mlir::FloatAttr":$max
-            )
-        >
-    ];
-
     let verifier = [{
         return vpux::EMU::verifyPostOp(*this);
     }];
@@ -592,15 +500,6 @@ def EMU_EluUPAOp :
         RankedTensorOf<[F16]>:$output
     );
 
-    let builders = [
-        OpBuilder<
-            (ins
-                "mlir::Value":$input, "mlir::Value":$output,
-                "mlir::FloatAttr":$x
-            )
-        >
-    ];
-
     let verifier = [{
         return vpux::EMU::verifyPostOp(*this);
     }];
@@ -632,12 +531,6 @@ def EMU_TanhUPAOp :
     let results = (outs
         RankedTensorOf<[F16]>:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins "mlir::Value":$input, "mlir::Value":$output)
-        >
-    ];
 
     let verifier = [{
         return vpux::EMU::verifyPostOp(*this);
@@ -671,12 +564,6 @@ def EMU_SqrtUPAOp :
         RankedTensorOf<[F16]>:$output
     );
 
-    let builders = [
-        OpBuilder<
-            (ins "mlir::Value":$input, "mlir::Value":$output)
-        >
-    ];
-
     let verifier = [{
         return vpux::EMU::verifyPostOp(*this);
     }];
@@ -709,12 +596,6 @@ def EMU_LogUPAOp :
         RankedTensorOf<[F16]>:$output
     );
 
-    let builders = [
-        OpBuilder<
-            (ins "mlir::Value":$input, "mlir::Value":$output)
-        >
-    ];
-
     let verifier = [{
         return vpux::EMU::verifyPostOp(*this);
     }];
@@ -746,12 +627,6 @@ def EMU_ExpUPAOp :
     let results = (outs
         RankedTensorOf<[F16]>:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins "mlir::Value":$input, "mlir::Value":$output)
-        >
-    ];
 
     let verifier = [{
         return vpux::EMU::verifyPostOp(*this);
@@ -790,17 +665,6 @@ def EMU_FakeQuantizeUPAOp :
         RankedTensorOf<[F16]>:$output
     );
 
-    let builders = [
-        OpBuilder<
-            (ins
-                "mlir::Value":$input, "mlir::Value":$output,
-                "uint32_t":$levels,
-                "vpux::Const::ContentAttr":$input_low, "vpux::Const::ContentAttr":$input_high,
-                "vpux::Const::ContentAttr":$output_low, "vpux::Const::ContentAttr":$output_high
-            )
-        >
-    ];
-
     let verifier = [{
         return vpux::EMU::verifyOp(*this);
     }];
@@ -832,10 +696,6 @@ def EMU_QuantCastUPAOp :
         RankedTensorOf<[F16, quant_QuantizedType]>:$output
     );
 
-    let builders = [
-        OpBuilder<(ins "mlir::Value":$input, "mlir::Value":$output)>
-    ];
-
     let verifier = [{
         return vpux::EMU::verifyOp(*this);
     }];
@@ -864,15 +724,6 @@ def EMU_PReluUPAOp :
         RankedTensorOf<[F16]>:$output
     );
 
-    let builders = [
-        OpBuilder<
-            (ins
-                "mlir::Value":$input, "mlir::Value":$negative_slope,
-                "mlir::Value":$output
-            )
-        >
-    ];
-
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $input `:` type($input) `,` $negative_slope `:` type($negative_slope) `)`
@@ -897,15 +748,6 @@ def EMU_LeakyReluUPAOp :
     let results = (outs
         RankedTensorOf<[F16]>:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins
-                "mlir::Value":$input, "mlir::Value":$output,
-                "mlir::FloatAttr":$negative_slope
-            )
-        >
-    ];
 
     let assemblyFormat = [{
         attr-dict
@@ -932,16 +774,6 @@ def EMU_EltwiseUPAOp :
     let results = (outs
         RankedTensorOf<[F16]>:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins
-                "mlir::Value":$input1, "mlir::Value":$input2,
-                "mlir::Value":$output,
-                "vpux::EMU::EltwiseLayerTypeAttr":$type
-            )
-        >
-    ];
 
     let assemblyFormat = [{
         attr-dict
@@ -976,16 +808,6 @@ def EMU_DetectionOutputUPAOp :
         RankedTensorOf<[F16]>:$output
     );
 
-    let builders = [
-        OpBuilder<
-            (ins
-                "mlir::Value":$in_box_logits, "mlir::Value":$in_class_preds,"mlir::Value":$in_proposals,
-                "mlir::Value":$in_additional_preds, "mlir::Value":$in_additional_proposals,
-                "mlir::Value":$output, "vpux::IE::DetectionOutputAttr":$attr
-            )
-        >
-    ];
-
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $in_box_logits `:` type($in_box_logits) `,` $in_class_preds `:` type($in_class_preds) `,` $in_proposals `:` type($in_proposals) (`,` $in_additional_preds^ `:` type($in_additional_preds))? (`,` $in_additional_proposals^ `:` type($in_additional_proposals))? `)`
@@ -1011,15 +833,6 @@ def EMU_SwishUPAOp :
         RankedTensorOf<[F16]>:$output
     );
 
-    let builders = [
-        OpBuilder<
-            (ins
-                "mlir::Value":$input, "mlir::Value":$output,
-                "mlir::FloatAttr":$beta_value
-            )
-        >
-    ];
-
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
@@ -1044,15 +857,6 @@ def EMU_GRNUPAOp :
     let results = (outs
         RankedTensorOf<[F16]>:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins
-                "mlir::Value":$input, "mlir::Value":$output,
-                "mlir::FloatAttr":$bias
-            )
-        >
-    ];
 
     let assemblyFormat = [{
         attr-dict
@@ -1082,17 +886,6 @@ def EMU_NormUPAOp :
     let results = (outs
         RankedTensorOf<[F16]>:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins
-                "mlir::Value":$input, "mlir::Value":$output,
-                "mlir::FloatAttr":$alpha, "mlir::FloatAttr":$beta,
-                "mlir::FloatAttr":$bias, "mlir::IntegerAttr":$local_size,
-                "IE::LRN_IERegionAttr":$region
-            )
-        >
-    ];
 
     let assemblyFormat = [{
         attr-dict
@@ -1125,16 +918,6 @@ def EMU_BroadcastUPAOp :
         RankedTensorOf<[F16]>:$output
     );
 
-    let builders = [
-        OpBuilder<
-            (ins
-                "mlir::Value":$input, "mlir::Value":$target_shape,
-                "mlir::Value":$axes_mapping, "mlir::Value":$output,
-                "IE::BroadcastTypeAttr":$mode
-            )
-        >
-    ];
-
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $input `:` type($input) `,` $target_shape `:` type($target_shape) (`,` $axes_mapping^ `:` type($axes_mapping))? `)`
@@ -1166,15 +949,6 @@ def EMU_ScaleShiftUPAOp :
         RankedTensorOf<[F16]>:$output
     );
 
-    let builders = [
-        OpBuilder<
-            (ins
-                "mlir::Value":$input, "mlir::Value":$weights,
-                "mlir::Value":$biases,"mlir::Value":$output
-            )
-        >
-    ];
-
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $input `:` type($input) (`,` $weights^ `:` type($weights))? (`,` $biases^ `:` type($biases))? `)`
@@ -1205,15 +979,6 @@ def EMU_PerAxisTileUPAOp :
         RankedTensorOf<[F16]>:$output
     );
 
-    let builders = [
-        OpBuilder<
-            (ins
-                "mlir::Value":$input, "mlir::Value":$output,
-                "mlir::IntegerAttr":$axis, "mlir::IntegerAttr":$tiles
-            )
-        >
-    ];
-
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
@@ -1236,12 +1001,6 @@ def EMU_NegativeUPAOp :
     let results = (outs
         RankedTensorOf<[F16]>:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins "mlir::Value":$input, "mlir::Value":$output)
-        >
-    ];
 
     let assemblyFormat = [{
         attr-dict
@@ -1270,15 +1029,6 @@ def EMU_ProposalUPAOp :
         RankedTensorOf<[F16]>:$output
     );
 
-    let builders = [
-        OpBuilder<
-            (ins
-                "mlir::Value":$class_probs, "mlir::Value":$bbox_deltas,"mlir::Value":$image_shape,
-                "mlir::Value":$output, "vpux::IE::ProposalAttr":$attr
-            )
-        >
-    ];
-
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $class_probs `:` type($class_probs) `,` $bbox_deltas `:` type($bbox_deltas) `,` $image_shape `:` type($image_shape) `)`
@@ -1306,16 +1056,6 @@ def EMU_ROIPoolingUPAOp :
     let results = (outs
         RankedTensorOf<[F16]>:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins
-                "mlir::Value":$input, "mlir::Value":$coords,
-                "mlir::Value":$output,
-                "mlir::ArrayAttr":$output_size, "mlir::FloatAttr":$spatial_scale, "IE::ROIPoolingMethodAttr":$method
-            )
-        >
-    ];
 
     let assemblyFormat = [{
         attr-dict
@@ -1348,16 +1088,6 @@ def EMU_ROIAlignUPAOp :
         RankedTensorOf<[F16]>:$output
     );
 
-    let builders = [
-        OpBuilder<
-            (ins
-                "mlir::Value":$input, "mlir::Value":$coords, "mlir::Value":$roisIdx, "mlir::Value":$output,
-                "mlir::IntegerAttr":$pooled_h, "mlir::IntegerAttr":$pooled_w,
-                "mlir::IntegerAttr":$sampling_ratio, "mlir::FloatAttr":$spatial_scale, "IE::ROIAlignMethodAttr":$poolingMode
-            )
-        >
-    ];
-
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $input `:` type($input) `,` $coords `:` type($coords) `,` $roisIdx `:` type($roisIdx)`)`
@@ -1382,15 +1112,6 @@ def EMU_PermuteUPAOp :
     let results = (outs
         AnyRankedTensor:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins
-                "mlir::Value":$input, "mlir::Value":$output,
-                "mlir::AffineMapAttr":$order_value
-            )
-        >
-    ];
 
     let assemblyFormat = [{
         attr-dict
@@ -1531,14 +1252,6 @@ def EMU_NCEClusterTaskOp :
         SizedRegion<1>:$ppe
     );
 
-    let builders = [
-        OpBuilder<(ins
-            "mlir::Value":$input, "mlir::Value":$weights, "mlir::Value":$weight_table,
-            "vpux::EMU::NCETaskType":$task_type,
-            "mlir::ArrayAttr":$kernel_size, "mlir::ArrayAttr":$kernel_strides, "mlir::ArrayAttr":$kernel_padding
-        )>
-    ];
-
     let assemblyFormat = [{
         attr-dict
         `input` `(` $input  `:` type($input) `)`
@@ -1585,16 +1298,6 @@ def EMU_CTCGreedyDecoderUPAOp :
         RankedTensorOf<[F16]>:$output
     );
 
-    let builders = [
-        OpBuilder<
-            (ins
-                "mlir::Value":$input, "mlir::Value":$sequenceLengths,
-                "mlir::Value":$output,
-                "mlir::UnitAttr":$mergeRepeated
-            )
-        >
-    ];
-
     let verifier = [{
         return vpux::EMU::verifyOp(*this);
     }];
@@ -1627,16 +1330,6 @@ def EMU_CTCGreedyDecoderSeqLenUPAOp :
         RankedTensorOf<[SI32]>:$outputLength
     );
 
-    let builders = [
-        OpBuilder<
-            (ins
-                "mlir::Value":$input, "mlir::Value":$sequenceLength, "mlir::Value":$blankIndex,
-                "mlir::Value":$output, "mlir::Value":$outputLength,
-                "mlir::UnitAttr":$mergeRepeated
-            )
-        >
-    ];
-
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $input `:` type($input) `,` $sequenceLength `:` type($sequenceLength) `,` ($blankIndex^ `:` type($blankIndex))? `)`
@@ -1665,17 +1358,6 @@ def EMU_PadUPAOp :
         RankedTensorOf<[F16]>:$output
     );
 
-    let builders = [
-        OpBuilder<
-            (ins
-                "mlir::Value":$input,
-                "mlir::Value":$output,
-                "mlir::ArrayAttr":$pads_begin, "mlir::ArrayAttr":$pads_end, "mlir::FloatAttr":$pad_value,
-                "IE::PadModeAttr":$mode
-            )
-        >
-    ];
-
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
@@ -1703,16 +1385,6 @@ def EMU_LSTMCellUPAOp :
         RankedTensorOf<[F16]>:$outputHiddenState,
         RankedTensorOf<[F16]>:$outputCellState
     );
-
-    let builders = [
-        OpBuilder<
-            (ins
-                "mlir::Value":$inputData, "mlir::Value":$initialHiddenState,
-                "mlir::Value":$initialCellState, "mlir::Value":$weights, "mlir::Value":$biases,
-                "mlir::Value":$outputHiddenState, "mlir::Value":$outputCellState
-            )
-        >
-    ];
 
     let assemblyFormat = [{
         attr-dict
@@ -1747,17 +1419,6 @@ def EMU_LSTMSequenceUPAOp :
         RankedTensorOf<[F16]>:$outputHiddenState
     );
 
-    let builders = [
-        OpBuilder<
-            (ins
-                "mlir::Value":$inputData, "mlir::Value":$initialHiddenState,
-                "mlir::Value":$initialCellState, "mlir::Value":$weights, "mlir::Value":$biases,
-                "mlir::Value":$outputHiddenValues, "mlir::Value":$outputCellState, "mlir::Value":$outputHiddenState,
-                "mlir::IntegerAttr":$sequenceLength, "IE::RNNSequenceDirectionAttr":$direction
-            )
-        >
-    ];
-
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $inputData `:` type($inputData) `,` $initialHiddenState `:` type($initialHiddenState)
@@ -1786,19 +1447,6 @@ def EMU_InterpolateUPAOp :
     let results = (outs
         RankedTensorOf<[F16]>:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins
-                "mlir::Value":$input,
-                "mlir::Value":$output,
-                "IE::InterpolateModeAttr":$mode,
-                "IE::InterpolateCoordModeAttr":$coord_mode,
-                "IE::InterpolateNearestModeAttr":$nearest_mode,
-                "mlir::UnitAttr":$antialias
-            )
-        >
-    ];
 
     let assemblyFormat = [{
         attr-dict
@@ -1829,16 +1477,6 @@ def EMU_StridedSliceUPAOp :
         RankedTensorOf<[F16]>:$output
     );
 
-    let builders = [
-        OpBuilder<
-            (ins
-                "mlir::Value":$input,
-                "mlir::Value":$output,
-                "mlir::ArrayAttr":$begins, "mlir::ArrayAttr":$ends, "mlir::ArrayAttr":$strides
-            )
-        >
-    ];
-
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
@@ -1863,14 +1501,6 @@ def EMU_FullyConnectedUPAOp :
     let results = (outs
         RankedTensorOf<[F16]>:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins
-                "mlir::Value":$input, "mlir::Value":$weights, "mlir::Value":$bias, "mlir::Value":$output
-            )
-        >
-    ];
 
     let assemblyFormat = [{
         attr-dict
@@ -1900,20 +1530,6 @@ def EMU_RegionYoloUPAOp :
     let results = (outs
         RankedTensorOf<[F16]>:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins
-                "mlir::Value":$input,
-                "mlir::Value":$output,
-                "mlir::IntegerAttr":$coord,
-                "mlir::IntegerAttr":$classes,
-                "mlir::IntegerAttr":$regions,
-                "mlir::BoolAttr":$do_softmax,
-                "mlir::ArrayAttr":$mask
-            )
-        >
-    ];
 
     let assemblyFormat = [{
         attr-dict
@@ -1947,18 +1563,6 @@ def EMU_MVNUPAOp :
         RankedTensorOf<[F16]>:$output
     );
 
-    let builders = [
-        OpBuilder<
-            (ins
-                "mlir::Value":$input,
-                "mlir::Value":$output,
-                "mlir::BoolAttr":$across_channels,
-                "mlir::BoolAttr":$normalize_variance,
-                "mlir::FloatAttr":$eps
-            )
-        >
-    ];
-
     let verifier = [{
         return vpux::EMU::verifyOp(*this);
     }];
@@ -1988,17 +1592,6 @@ def EMU_GatherUPAOp :
     let results = (outs
         AnyRankedTensor:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins
-                "mlir::Value":$input,
-                "mlir::Value":$indices,
-                "mlir::Value":$output,
-                "mlir::IntegerAttr":$axis
-            )
-        >
-    ];
 
     let verifier = [{
         return vpux::EMU::verifyOp(*this);
@@ -2032,12 +1625,6 @@ def EMU_CeilingUPAOp :
         RankedTensorOf<[F16]>:$output
     );
 
-    let builders = [
-        OpBuilder<
-            (ins "mlir::Value":$input, "mlir::Value":$output)
-        >
-    ];
-
     let verifier = [{
         return vpux::EMU::verifyPostOp(*this);
     }];
@@ -2069,19 +1656,6 @@ def EMU_NormalizeIEUPAOp :
     let results = (outs
         RankedTensorOf<[F16]>:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins
-                "mlir::Value":$data,
-                "mlir::Value":$weights,
-                "mlir::Value":$output,
-                "mlir::FloatAttr":$eps,
-                "mlir::BoolAttr":$across_spatial,
-                "mlir::BoolAttr":$channel_shared
-            )
-        >
-    ];
 
     let assemblyFormat = [{
         attr-dict
