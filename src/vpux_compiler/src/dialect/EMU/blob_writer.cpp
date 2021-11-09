@@ -84,7 +84,8 @@ EMU::BlobWriter::SpecificTask vpux::EMU::BlobWriter::createUPALayerTask(mlir::Op
 
 EMU::BlobWriter::TensorReference vpux::EMU::BlobWriter::createTensor(StringRef name, mlir::ShapedType type,
                                                                      ArrayRef<uint16_t> mult, ArrayRef<uint8_t> shift,
-                                                                     int8_t postShift, ArrayRef<uint8_t> zeroPoints) {
+                                                                     int8_t postShift, ArrayRef<uint8_t> zeroPoints,
+                                                                     MemoryLocation locale) {
     const auto serializedName = createString(name);
 
     const auto serializedDataType = createDType(type.getElementType());
@@ -96,10 +97,13 @@ EMU::BlobWriter::TensorReference vpux::EMU::BlobWriter::createTensor(StringRef n
     Vector<uint16_t> serializedQuantMult = createVector(mult);
     Vector<uint8_t> serializedQuantShift = createVector(shift);
 
+    const auto serializedLocale = createMemoryLocation(locale);
+
     MVCNN::TensorReferenceBuilder builder(_impl);
     builder.add_name(serializedName);
     builder.add_dimensions(serializedDims);
     builder.add_strides(serializedStrides);
+    builder.add_locale(serializedLocale);
     builder.add_data_dtype(serializedDataType);
     builder.add_quant_zero(serializedQuantZero);
     builder.add_quant_mult(serializedQuantMult);
@@ -109,7 +113,8 @@ EMU::BlobWriter::TensorReference vpux::EMU::BlobWriter::createTensor(StringRef n
     return builder.Finish();
 }
 
-EMU::BlobWriter::TensorReference vpux::EMU::BlobWriter::createTensor(StringRef name, mlir::ShapedType type) {
+EMU::BlobWriter::TensorReference vpux::EMU::BlobWriter::createTensor(StringRef name, mlir::ShapedType type,
+                                                                     MemoryLocation locale) {
     std::vector<uint8_t> zeroPoints;
     std::vector<uint16_t> mult;
     std::vector<uint8_t> shift;
@@ -136,13 +141,14 @@ EMU::BlobWriter::TensorReference vpux::EMU::BlobWriter::createTensor(StringRef n
         shift.push_back(0);
     }
 
-    return createTensor(name, type, mult, shift, 0, zeroPoints);
+    return createTensor(name, type, mult, shift, 0, zeroPoints, locale);
 }
 
-EMU::BlobWriter::TensorReference vpux::EMU::BlobWriter::createTensor(mlir::Value val, StringRef name) {
+EMU::BlobWriter::TensorReference vpux::EMU::BlobWriter::createTensor(mlir::Value val, StringRef name,
+                                                                     MemoryLocation locale) {
     VPUX_THROW_UNLESS(_tensors.count(val) == 0, "Value {0} was already serialized", val);
 
-    const auto off = createTensor(name, val.getType().cast<mlir::ShapedType>());
+    const auto off = createTensor(name, val.getType().cast<mlir::ShapedType>(), locale);
 
     _tensors.insert({val, off});
 
@@ -193,6 +199,23 @@ MVCNN::DType vpux::EMU::BlobWriter::createDType(mlir::Type type) {
     } else {
         VPUX_THROW("Unsupported element type {0}", type);
     }
+}
+
+MVCNN::MemoryLocation vpux::EMU::BlobWriter::createMemoryLocation(MemoryLocation location) {
+#define CASE(_val_)             \
+    case MemoryLocation::_val_: \
+        return VPUX_COMBINE(MVCNN::MemoryLocation_, _val_)
+
+    switch (location) {
+        CASE(ProgrammableInput);
+        CASE(ProgrammableOutput);
+        CASE(GraphFile);
+        CASE(VPU_DDR_Heap);
+    default:
+        VPUX_THROW("Unsupported MemoryLocation {0}", location);
+    }
+
+#undef CASE
 }
 
 EMU::BlobWriter::Vector<uint32_t> vpux::EMU::BlobWriter::createDims(ShapeRef shape) {

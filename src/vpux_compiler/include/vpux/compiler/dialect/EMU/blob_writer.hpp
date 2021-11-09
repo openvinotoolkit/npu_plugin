@@ -16,6 +16,7 @@
 #include "vpux/compiler/core/attributes/dims_order.hpp"
 #include "vpux/compiler/core/attributes/shape.hpp"
 #include "vpux/compiler/core/attributes/strides.hpp"
+#include "vpux/compiler/dialect/EMU/attributes/enums.hpp"
 #include "vpux/compiler/dialect/VPUIP/schema.hpp"
 #include "vpux/compiler/dialect/const/attributes/content.hpp"
 
@@ -75,9 +76,11 @@ public:
 
 public:
     TensorReference createTensor(StringRef name, mlir::ShapedType type, ArrayRef<uint16_t> mult,
-                                 ArrayRef<uint8_t> shift, int8_t postShift, ArrayRef<uint8_t> zeroPoints);
-    TensorReference createTensor(StringRef name, mlir::ShapedType type);
-    TensorReference createTensor(mlir::Value val, StringRef name);
+                                 ArrayRef<uint8_t> shift, int8_t postShift, ArrayRef<uint8_t> zeroPoints,
+                                 MemoryLocation locale = MemoryLocation::VPU_DDR_Heap);
+    TensorReference createTensor(StringRef name, mlir::ShapedType type,
+                                 MemoryLocation locale = MemoryLocation::VPU_DDR_Heap);
+    TensorReference createTensor(mlir::Value val, StringRef name, MemoryLocation locale = MemoryLocation::VPU_DDR_Heap);
     TensorReference getTensor(mlir::Value val) const;
 
 public:
@@ -86,6 +89,7 @@ public:
 public:
     static MVCNN::DType createDType(mlir::Type type);
 
+    static MVCNN::MemoryLocation createMemoryLocation(MemoryLocation location);
     Vector<uint32_t> createDims(ShapeRef shape);
     Vector<uint32_t> createDims(mlir::ShapedType type);
 

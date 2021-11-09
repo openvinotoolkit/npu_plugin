@@ -13,6 +13,7 @@
 
 #include "vpux/compiler/compiler.hpp"
 
+#include "vpux/compiler/backend/EMU.hpp"
 #include "vpux/compiler/backend/VPUIP.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IERT/ops.hpp"
@@ -371,9 +372,14 @@ void compileNetwork(mlir::ModuleOp module, mlir::PassManager& pm, mlir::TimingSc
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module)), "Compilation failed");
 }
 
-auto exportToBlob(mlir::ModuleOp module, mlir::TimingScope& rootTiming, Logger log) {
+auto exportToBlob(mlir::ModuleOp module, mlir::TimingScope& rootTiming, Logger log, const VPUXConfig& config) {
     auto exportTiming = rootTiming.nest("Export to blob");
-    return VPUIP::exportToBlob(module, exportTiming, log);
+    switch (config.platform()) {
+    case InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR:
+        return EMU::exportToBlob(module, exportTiming, log);
+    default:
+        return VPUIP::exportToBlob(module, exportTiming, log);
+    }
 }
 
 }  // namespace
@@ -405,7 +411,7 @@ std::shared_ptr<INetworkDescription> vpux::CompilerImpl::compile(const std::shar
     const auto cnnNet = prepareNetwork(func, inputsInfo, outputsInfo, rootTiming);
     const auto module = importNetwork(&ctx, cnnNet, devConf, rootTiming, config.performanceCounting(), log);
     compileNetwork(module.get(), pm, rootTiming);
-    const auto blob = exportToBlob(module.get(), rootTiming, log);
+    const auto blob = exportToBlob(module.get(), rootTiming, log, config);
 
     auto finalTiming = rootTiming.nest("Wrap into NetworkDescription");
     std::vector<char> compiledNetwork(blob.size());

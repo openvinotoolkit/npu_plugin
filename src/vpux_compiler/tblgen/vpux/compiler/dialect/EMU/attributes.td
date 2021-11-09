@@ -18,23 +18,6 @@ include "vpux/compiler/core/attributes.td"
 include "vpux/compiler/dialect/EMU/dialect.td"
 
 //
-// Version
-//
-
-def EMU_Version :
-        StructAttr<
-            "VersionAttr",
-            EMU_Dialect,
-            [
-                StructFieldAttr<"majorV",     IntAttr>,
-                StructFieldAttr<"minorV",     IntAttr>,
-                StructFieldAttr<"patchV",     IntAttr>,
-                StructFieldAttr<"hash",       StrAttr>,
-                StructFieldAttr<"contextStr", StrAttr>,
-            ]
-        >;
-
-//
 // TaskType
 //
 
@@ -55,6 +38,25 @@ def EMU_TaskType :
 //
 // ArchKind
 //
+
+//
+// MemoryLocation
+//
+
+def EMU_MemoryLocation :
+        StrEnumAttr<
+            "MemoryLocation",
+            "Values indicating which type of memory a tensor resides in",
+            [
+                StrEnumAttrCase<"ProgrammableInput">,
+                StrEnumAttrCase<"ProgrammableOutput">,
+                StrEnumAttrCase<"VPU_DDR_Heap">,
+                StrEnumAttrCase<"GraphFile">
+            ]
+        > {
+    let cppNamespace = "vpux::EMU";
+    let genSpecializedAttr = 1;
+}
 
 def EMU_ArchKind :
         StrEnumAttr<
