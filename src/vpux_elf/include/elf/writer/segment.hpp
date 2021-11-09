@@ -29,17 +29,17 @@ namespace writer {
 
 class Segment {
 public:
-    using Ptr = std::unique_ptr<Segment>;
-
-public:
     template <typename T>
-    void addData(const T* data, size_t size) {
-        m_data.insert(m_data.end(), reinterpret_cast<const char*>(data), reinterpret_cast<const char*>(data) + size);
+    void appendData(const T* data, size_t sizeInElements) {
+        m_data.insert(m_data.end(), reinterpret_cast<const uint8_t*>(data), reinterpret_cast<const uint8_t*>(data) + sizeInElements  * sizeof(T));
     }
     void addSection(Section* section);
 
     void setType(Elf_Word type);
     void setAlign(Elf_Xword align);
+
+private:
+    using Ptr = std::unique_ptr<Segment>;
 
 private:
     Segment();

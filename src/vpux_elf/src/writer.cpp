@@ -13,10 +13,8 @@
 
 #include <elf/writer.hpp>
 
-#include <fstream>
 #include <unordered_set>
 #include <algorithm>
-#include <iostream>
 
 using namespace elf;
 using namespace elf::writer;
@@ -44,21 +42,7 @@ Writer::Writer() {
     m_symbolNames->setName(".symstrtab");
 };
 
-void Writer::write(const std::string& fileName) {
-    std::ofstream stream(fileName, std::ios::out | std::ios::binary);
-    write(stream);
-    stream.close();
-}
-
-void Writer::write(std::ostream& stream) {
-    std::vector<char> blob;
-    write(blob);
-    stream.write(blob.data(), blob.size());
-}
-
-void Writer::write(std::vector<char>& blob) {
-    blob.clear();
-
+std::vector<char> Writer::generateELF() {
     auto elfHeader = generateELFHeader();
 
     std::vector<elf::SectionHeader> sectionHeaders;
@@ -145,14 +129,17 @@ void Writer::write(std::vector<char>& blob) {
         programHeaders.push_back(programHeader);
     }
 
-    blob.reserve(dataOffset + data.size());
+    std::vector<char> elfBlob;
+    elfBlob.reserve(dataOffset + data.size());
 
-    blob.insert(blob.end(), reinterpret_cast<char*>(&elfHeader), reinterpret_cast<char*>(&elfHeader) + elfHeader.e_ehsize);
-    blob.resize(elfHeader.e_shoff, 0);
-    blob.insert(blob.end(), reinterpret_cast<char*>(sectionHeaders.data()), reinterpret_cast<char*>(sectionHeaders.data()) + elfHeader.e_shnum * elfHeader.e_shentsize);
-    blob.resize(elfHeader.e_phoff, 0);
-    blob.insert(blob.end(), reinterpret_cast<char*>(programHeaders.data()), reinterpret_cast<char*>(programHeaders.data()) + elfHeader.e_phnum * elfHeader.e_phentsize);
-    blob.insert(blob.end(), data.data(), data.data() + data.size());
+    elfBlob.insert(elfBlob.end(), reinterpret_cast<char*>(&elfHeader), reinterpret_cast<char*>(&elfHeader) + elfHeader.e_ehsize);
+    elfBlob.resize(elfHeader.e_shoff, 0);
+    elfBlob.insert(elfBlob.end(), reinterpret_cast<char*>(sectionHeaders.data()), reinterpret_cast<char*>(sectionHeaders.data()) + elfHeader.e_shnum * elfHeader.e_shentsize);
+    elfBlob.resize(elfHeader.e_phoff, 0);
+    elfBlob.insert(elfBlob.end(), reinterpret_cast<char*>(programHeaders.data()), reinterpret_cast<char*>(programHeaders.data()) + elfHeader.e_phnum * elfHeader.e_phentsize);
+    elfBlob.insert(elfBlob.end(), data.data(), data.data() + data.size());
+
+    return elfBlob;
 }
 
 Segment* Writer::addSegment() {

@@ -24,22 +24,23 @@ namespace writer {
 template <typename T>
 class BinaryDataSection final : public Section {
 public:
-    void addData(const T& obj) {
-        m_data.insert(m_data.end(), reinterpret_cast<const char*>(&obj),
-                      reinterpret_cast<const char*>(&obj) + sizeof(T));
+    void appendData(const T& obj) {
+        m_data.insert(m_data.end(), reinterpret_cast<const uint8_t*>(&obj),
+                      reinterpret_cast<const uint8_t*>(&obj) + sizeof(T));
     }
 
-    void addData(const T* obj, size_t size) {
-        m_data.insert(m_data.end(), reinterpret_cast<const char*>(obj),
-                      reinterpret_cast<const char*>(obj) + size * sizeof(T));
+    void appendData(const T* obj, size_t sizeInElements) {
+        m_data.insert(m_data.end(), reinterpret_cast<const uint8_t*>(obj),
+                      reinterpret_cast<const uint8_t*>(obj) + sizeInElements * sizeof(T));
     }
 
     size_t getNumEntries() const {
-        return static_cast<size_t>(m_data.size() / m_header.sh_entsize);
+        return static_cast<size_t>(m_data.size() / sizeof(T));
     }
 
 private:
     BinaryDataSection() {
+        static_assert(std::is_standard_layout<T>::value, "Only POD types are supported");
         m_header.sh_type = SHT_PROGBITS;
         m_header.sh_entsize = sizeof(T);
     }

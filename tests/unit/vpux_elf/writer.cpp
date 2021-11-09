@@ -53,7 +53,7 @@ TEST(ELFWriter, ELFWriterConstructorDoesntThrow) {
 TEST(ELFWriter, ELFHeaderForEmptyELFIsCorrect) {
     elf::Writer writer;
     std::vector<char> blob;
-    ASSERT_NO_THROW(writer.write(blob));
+    ASSERT_NO_THROW(blob = writer.generateELF());
 
     elf::Reader reader(blob.data(), blob.size());
     const auto elfHeader = reader.getHeader();
@@ -91,11 +91,11 @@ TEST(ELFWriter, BinaryDataSection) {
     auto refSection = writer.addBinaryDataSection<TestObject>();
     refSection->setName(testName);
     refSection->setAddrAlign(testAlignment);
-    refSection->addData(val1);
-    refSection->addData(val2);
+    refSection->appendData(val1);
+    refSection->appendData(val2);
 
     std::vector<char> blob;
-    ASSERT_NO_THROW(writer.write(blob));
+    ASSERT_NO_THROW(blob = writer.generateELF());
 
     elf::Reader reader(blob.data(), blob.size());
     const auto binarySections = getSectionsByType(reader, elf::SHT_PROGBITS);
@@ -124,7 +124,7 @@ TEST(ELFWriter, EmptySection) {
     refSection->setSize(emptySectionSize);
 
     std::vector<char> blob;
-    ASSERT_NO_THROW(writer.write(blob));
+    ASSERT_NO_THROW(blob = writer.generateELF());
 
     elf::Reader reader(blob.data(), blob.size());
     const auto emptySections = getSectionsByType(reader, elf::SHT_NOBITS);
@@ -156,7 +156,7 @@ TEST(ELFWriter, SymbolSection) {
     refSymbol->setRelatedSection(emptySection);
 
     std::vector<char> blob;
-    ASSERT_NO_THROW(writer.write(blob));
+    ASSERT_NO_THROW(blob = writer.generateELF());
 
     elf::Reader reader(blob.data(), blob.size());
     const auto symbolSections = getSectionsByType(reader, elf::SHT_SYMTAB);
@@ -193,7 +193,7 @@ TEST(ELFWriter, RelocationSection) {
     elf::Writer writer;
     auto refBinaryDataSection = writer.addBinaryDataSection<TestObject>();
     refBinaryDataSection->setName(testBinaryDataName);
-    refBinaryDataSection->addData(TestObject{});
+    refBinaryDataSection->appendData(TestObject{});
 
     auto refSymbolSection = writer.addSymbolSection();
     refSymbolSection->setName(testSymbolSection);
@@ -212,7 +212,7 @@ TEST(ELFWriter, RelocationSection) {
     refRelocation->setAddend(0);
 
     std::vector<char> blob;
-    ASSERT_NO_THROW(writer.write(blob));
+    ASSERT_NO_THROW(blob = writer.generateELF());
 
     elf::Reader reader(blob.data(), blob.size());
     const auto relocationSections = getSectionsByType(reader, elf::SHT_RELA);
@@ -249,14 +249,14 @@ TEST(ELFWriter, Segment) {
     elf::Writer writer;
     auto refSegment = writer.addSegment();
     refSegment->setType(testSegmentType);
-    refSegment->addData(testSegmentData.data(), testSegmentData.size());
+    refSegment->appendData(testSegmentData.data(), testSegmentData.size());
 
     auto section = writer.addBinaryDataSection<char>();
-    section->addData(testSectionData.data(), testSectionData.size());
+    section->appendData(testSectionData.data(), testSectionData.size());
     refSegment->addSection(section);
 
     std::vector<char> blob;
-    ASSERT_NO_THROW(writer.write(blob));
+    ASSERT_NO_THROW(blob = writer.generateELF());
     elf::Reader reader(blob.data(), blob.size());
     ASSERT_EQ(reader.getSegmentsNum(), 1);
 

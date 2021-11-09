@@ -13,39 +13,38 @@
 
 #pragma once
 
-#include <elf/writer/section.hpp>
-
-#include <elf/writer/relocation.hpp>
+#include <elf/types/relocation_entry.hpp>
+#include <elf/writer/symbol_section.hpp>
 
 namespace elf {
-
-class Writer;
-
 namespace writer {
 
-class RelocationSection final : public Section {
+class RelocationSection;
+
+class Relocation {
 public:
-    const SymbolSection* getSymbolTable() const;
-    void setSymbolTable(const SymbolSection* symTab);
+    Elf64_Addr getOffset() const;
+    void setOffset(Elf64_Addr offset);
 
-    const Section* getSectionToPatch() const;
-    void setSectionToPatch(const Section* sectionToPatch);
+    Elf_Word getType() const;
+    void setType(Elf_Word type);
 
-    Relocation* addRelocationEntry();
-    const std::vector<Relocation::Ptr>& getRelocations() const;
+    Elf_Sxword getAddend() const;
+    void setAddend(Elf_Sxword addend);
 
-private:
-    RelocationSection();
-
-    void finalize() override;
+    const Symbol* getSymbol() const;
+    void setSymbol(const Symbol* symbol);
 
 private:
-    const SymbolSection* m_symTab = nullptr;
-    const Section* m_sectionToPatch = nullptr;
+    using Ptr = std::unique_ptr<Relocation>;
 
-    std::vector<Relocation::Ptr> m_relocations;
+private:
+    Relocation() = default;
 
-    friend Writer;
+    RelocationAEntry m_relocation{};
+    const Symbol* m_symbol = nullptr;
+
+    friend RelocationSection;
 };
 
 } // namespace writer

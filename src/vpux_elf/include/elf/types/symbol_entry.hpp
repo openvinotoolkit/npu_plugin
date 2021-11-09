@@ -74,7 +74,7 @@ Elf_Xword elf64STType(Elf_Xword info);
 //! Pack symbol binding attributes and symbol type into info
 Elf_Xword elf64STInfo(Elf_Word bind, Elf_Word type);
 
-//! Sets visibility
+//! Performs a transformation over visibility to zero out all bits that have no defined meaning
 uint8_t elf64STVisibility(uint8_t visibility);
 
 } // namespace elf

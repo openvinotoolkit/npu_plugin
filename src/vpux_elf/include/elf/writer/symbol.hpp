@@ -13,61 +13,55 @@
 
 #pragma once
 
-#include <elf/types/data_types.hpp>
-#include <elf/types/section_header.hpp>
-
-#include <vector>
-#include <string>
-#include <memory>
+#include <elf/types/symbol_entry.hpp>
+#include <elf/writer/section.hpp>
 
 namespace elf {
-
-class Writer;
-
 namespace writer {
 
-class Section {
+class SymbolSection;
+
+class Symbol {
 public:
     std::string getName() const;
     void setName(const std::string& name);
 
-    Elf_Xword getAddrAlign() const;
-    void setAddrAlign(Elf_Xword addrAlign);
+    Elf_Word getType() const;
+    void setType(Elf_Word type);
 
-    Elf64_Addr getAddr() const;
-    void setAddr(Elf64_Addr addr);
+    Elf_Word getBinding() const;
+    void setBinding(Elf_Word bind);
 
-    Elf_Xword getFlags() const;
-    void setFlags(Elf_Xword flags);
-    void maskFlags(Elf_Xword flags);
+    uint8_t getVisibility() const;
+    void setVisibility(uint8_t visibility);
 
-    size_t getFileAlignRequirement() const;
+    const Section* getRelatedSection() const;
+    void setRelatedSection(const Section* section);
+
+    Elf64_Addr getValue() const;
+    void setValue(Elf64_Addr value);
+
+    size_t getSize() const;
+    void setSize(size_t size);
 
     size_t getIndex() const;
-    size_t getDataSize() const;
 
-    virtual ~Section() = default;
+private:
+    using Ptr = std::unique_ptr<Symbol>;
 
-protected:
-    using Ptr = std::unique_ptr<Section>;
-
-protected:
-    Section();
-
-    virtual void finalize();
+private:
+    Symbol();
 
     void setIndex(size_t index);
-    void setNameOffset(size_t offset);
 
-protected:
+private:
     std::string m_name;
     size_t m_index = 0;
-    size_t m_fileAlignRequirement = 1;
 
-    SectionHeader m_header{};
-    std::vector<char> m_data;
+    SymbolEntry m_symbol{};
+    const Section* m_relatedSection = nullptr;
 
-    friend Writer;
+    friend SymbolSection;
 };
 
 } // namespace writer

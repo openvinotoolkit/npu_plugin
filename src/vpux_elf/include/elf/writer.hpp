@@ -36,9 +36,7 @@ class Writer {
 public:
     Writer();
 
-    void write(const std::string& fileName);
-    void write(std::ostream& stream);
-    void write(std::vector<char>& blob);
+    std::vector<char> generateELF();
 
     writer::Segment* addSegment();
 

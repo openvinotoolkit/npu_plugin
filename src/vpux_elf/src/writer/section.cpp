@@ -33,11 +33,11 @@ std::string Section::getName() const {
     return m_name;
 }
 
-void Section::setName(std::string name) {
+void Section::setName(const std::string& name) {
     m_name = name;
 }
 
-Elf_Xword Section::getAddrALign() const {
+Elf_Xword Section::getAddrAlign() const {
     return m_header.sh_addralign;
 }
 
