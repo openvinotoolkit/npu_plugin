@@ -13,10 +13,13 @@
 
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
+#include "vpux/compiler/dialect/const/ops.hpp"
+#include "vpux/compiler/utils/adjust_layout_utils.hpp"
 #include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/logging.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 #include "vpux/compiler/utils/types.hpp"
+#include "vpux/utils/core/range.hpp"
 
 #include <mlir/Transforms/GreedyPatternRewriteDriver.h>
 
@@ -278,6 +281,50 @@ mlir::LogicalResult ReorderWithQuantCast::matchAndRewrite(IE::QuantizeCastOp ori
 }
 
 //
+// ReorderWithConvert
+//
+
+class ReorderWithConvert final : public mlir::OpRewritePattern<IE::ConvertOp> {
+public:
+    ReorderWithConvert(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<IE::ConvertOp>(ctx), _log(log) {
+        setDebugName("ReorderWithConvert");
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(IE::ConvertOp convertOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult ReorderWithConvert::matchAndRewrite(IE::ConvertOp convertOp,
+                                                        mlir::PatternRewriter& rewriter) const {
+    // Note that in this case we replace Convert -> Reorder with Reorder -> Convert
+    // This is an opposite behavior, compared to other rewriters
+    if (!convertOp.getResult().hasOneUse()) {
+        return matchFailed(_log.nest(), rewriter, convertOp, "ConvertOp has more then one user");
+    }
+
+    auto origReorderOp = mlir::dyn_cast<IE::ReorderOp>(*convertOp.getResult().getUsers().begin());
+    if (origReorderOp == nullptr) {
+        return mlir::failure();
+    }
+
+    const auto srcType = convertOp.input().getType();
+    const auto dstElemType = convertOp.dstElemType();
+    if (getElemTypeSize(srcType) >= getElemTypeSize(dstElemType)) {
+        return matchFailed(rewriter, convertOp, "Convert doesn't increase data size");
+    }
+
+    auto newReorderOp =
+            rewriter.create<IE::ReorderOp>(origReorderOp->getLoc(), convertOp.input(), origReorderOp.dstOrderAttr());
+
+    rewriter.replaceOpWithNewOp<IE::ConvertOp>(origReorderOp, newReorderOp.output(), convertOp.dstElemTypeAttr());
+
+    return mlir::success();
+}
+
+//
 // ReorderWithLayer
 //
 
@@ -303,83 +350,64 @@ mlir::LogicalResult ReorderWithLayer::matchAndRewrite(IE::LayoutInfoOpInterface 
 
     _log.trace("Got layer operation '{0}' at '{1}'", layerOp->getName(), layerOp->getLoc());
 
+    auto argReorderOp = layerOp->getOperand(0).getDefiningOp<IE::ReorderOp>();
+    if (argReorderOp == nullptr) {
+        return mlir::failure();
+    }
+
+    const auto propagatingOrder = DimsOrder::fromValue(argReorderOp.input());
+
+    // Propagate first input layout and infer layout info
     auto orderInfo = layerOp.getLayoutInfo();
-    _log.nest(1).trace("Base order info - '{0}'", orderInfo);
-
-    _log.nest(1).trace("Check operation inputs");
-    for (auto ind : irange(orderInfo.getNumInputs())) {
-        const auto arg = layerOp->getOperand(checked_cast<uint32_t>(ind));
-
-        auto argReorderOp = arg.getDefiningOp<IE::ReorderOp>();
-        if (argReorderOp == nullptr) {
-            continue;
-        }
-
-        const auto newOrder = DimsOrder::fromValue(argReorderOp.input());
-
-        _log.nest(2).trace("Try '{0}' order for input #{1}", newOrder, ind);
-        orderInfo.setInput(ind, newOrder);
-    }
-
-    _log.nest(1).trace("Check operation outputs");
-    for (auto ind : irange(orderInfo.getNumOutputs())) {
-        const auto res = layerOp->getResult(checked_cast<uint32_t>(ind));
-
-        if (!res.hasOneUse()) {
-            continue;
-        }
-
-        auto resReorderOp = mlir::dyn_cast<IE::ReorderOp>(*res.user_begin());
-        if (resReorderOp == nullptr) {
-            continue;
-        }
-
-        const auto newOrder = DimsOrder::fromValue(resReorderOp.output());
-
-        _log.nest(2).trace("Try '{0}' order for output #{1}", newOrder, ind);
-        orderInfo.setOutput(ind, newOrder);
-    }
-
-    if (!orderInfo.hasChanges()) {
-        return matchFailed(_log.nest(), rewriter, layerOp, "There is no Reorders to fuse");
-    }
-
-    orderInfo.resetChanges();
+    orderInfo.setInput(0, propagatingOrder);
     layerOp.inferLayoutInfo(orderInfo);
-
-    if (orderInfo.hasChanges()) {
-        return matchFailed(_log.nest(), rewriter, layerOp, "The layer doesn't support fused Reorders");
+    if (orderInfo.getInput(0) != propagatingOrder) {
+        return matchFailed(_log.nest(), rewriter, layerOp, "Layer doesn't support propagating order {0}",
+                           propagatingOrder);
     }
 
-    _log.nest(1).trace("Merge new order - '{0}'", orderInfo);
+    // Check if additional reorders for other inputs are needed
+    for (auto ind : irange<size_t>(1, orderInfo.getNumInputs())) {
+        const auto input = layerOp->getOperand(checked_cast<uint32_t>(ind));
+        const auto order = DimsOrder::fromValue(input);
+        const auto isConstInput = mlir::isa_and_nonnull<Const::DeclareOp>(input.getDefiningOp());
+        const auto isReorderInput = mlir::isa_and_nonnull<IE::ReorderOp>(input.getDefiningOp());
+
+        if (order != orderInfo.getInput(ind) && !isConstInput && !isReorderInput) {
+            return matchFailed(_log.nest(), rewriter, layerOp, "Non-constant inputs require additional Reorders");
+        }
+    }
 
     rewriter.startRootUpdate(layerOp);
 
-    for (auto ind : irange(orderInfo.getNumInputs())) {
-        auto& arg = layerOp->getOpOperand(checked_cast<uint32_t>(ind));
+    _log.nest(1).trace("Remove Reorder before the first input");
+    layerOp->getOpOperand(0).set(argReorderOp.input());
 
-        auto argReorderOp = arg.get().getDefiningOp<IE::ReorderOp>();
-        if (argReorderOp == nullptr) {
-            continue;
+    const auto inputs = layerOp->getOpOperands();
+    for (auto i : irange<size_t>(1, inputs.size())) {
+        auto& input = inputs[i];
+
+        const auto curOrder = DimsOrder::fromValue(input.get());
+        const auto supportedOrder = orderInfo.getInput(i);
+
+        _log.nest(1).trace("Process input #{0}", i);
+        if (curOrder != supportedOrder) {
+            insertReorderForInput(layerOp, input, supportedOrder, rewriter, _log.nest());
         }
-
-        arg.set(argReorderOp.input());
     }
-    for (auto ind : irange(orderInfo.getNumOutputs())) {
-        auto res = layerOp->getResult(checked_cast<uint32_t>(ind));
 
-        if (!res.hasOneUse()) {
-            continue;
+    const auto outputs = layerOp->getOpResults();
+    for (auto i : irange(outputs.size())) {
+        auto output = outputs[i];
+
+        const auto curOrder = DimsOrder::fromValue(output);
+        const auto supportedOrder = orderInfo.getOutput(i);
+
+        _log.nest(1).trace("Process output #{0}", i);
+        if (curOrder != supportedOrder) {
+            changeDimsOrder(output, supportedOrder, _log.nest());
+            insertReorderForOutput(layerOp, output, curOrder, rewriter, _log.nest());
         }
-
-        auto resReorderOp = mlir::dyn_cast<IE::ReorderOp>(*res.user_begin());
-        if (resReorderOp == nullptr) {
-            continue;
-        }
-
-        const auto origType = res.getType().cast<mlir::ShapedType>();
-        const auto newType = changeDimsOrder(origType, DimsOrder::fromValue(resReorderOp.output()));
-        res.setType(newType);
     }
 
     rewriter.finalizeRootUpdate(layerOp);
@@ -415,6 +443,17 @@ void OptimizeReordersPass::safeRunOnFunc() {
 
     auto func = getFunction();
     if (mlir::failed(mlir::applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig()))) {
+        vpux::Logger::global().error("signalPassFailure");
+        signalPassFailure();
+    }
+
+    mlir::RewritePatternSet cleanupPatterns(&ctx);
+    cleanupPatterns.add<ReorderWithConvert>(&ctx, _log);
+    IE::ReorderOp::getCanonicalizationPatterns(cleanupPatterns, &ctx);
+
+    func = getFunction();
+    if (mlir::failed(mlir::applyPatternsAndFoldGreedily(func, std::move(cleanupPatterns),
+                                                        getDefaultGreedyRewriteConfig()))) {
         signalPassFailure();
     }
 }

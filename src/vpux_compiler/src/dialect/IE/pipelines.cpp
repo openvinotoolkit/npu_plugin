@@ -50,6 +50,7 @@ void vpux::IE::buildAdjustLayoutPipeline(mlir::OpPassManager& pm, const AdjustLa
     if (options.enableOptimizeReorders) {
         pm.addPass(IE::createOptimizeReordersPass(log));
     }
+    pm.addPass(IE::createUniquifyOpsPass(log));
     pm.addPass(IE::createConvertToMemPermutePass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
 }
