@@ -293,9 +293,12 @@ def pack_int4(data: np.ndarray) -> np.ndarray:
     flat = data.flatten()
     result = []
     for idx in range(0, flat.size, 2):
-        lsn = flat[idx] & 0x0f
+        lsn = flat[idx + 0] & 0x0f
         msn = flat[idx + 1] & 0x0f
         datum = np.uint8(msn << 4 | lsn)
+        # if (lsn > 0 and msn > 0 and lsn != msn):
+        #     print (lsn, msn, datum)
+        #     sys.exit()
         result.append(datum)
     return np.array(result).astype(np.uint8)
 
@@ -1088,8 +1091,8 @@ def filter_issues(args, p: DPUPipeline) -> bool:
     # TODO: Add arguments to selectively filter by issues.
     if 'EISW-13321' in p.issues:
         # Filter int4
-        return False
-    return True
+        return True
+    return False
 
 
 _ZMCONV_VALID_WEIGHT_TYPES = {

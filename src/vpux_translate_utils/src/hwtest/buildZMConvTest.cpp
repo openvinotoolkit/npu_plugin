@@ -118,15 +118,23 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
 
     const auto weightsValues = generateWeights(weightsShape, weightsType, builder.getContext(), weightsFileName);
     auto weightsAttribute = vpux::Const::ContentAttr::get(weightsValues);
-    if (auto qty = weightsType.dyn_cast<mlir::quant::QuantizedType>()) {
+    auto qty = weightsType.dyn_cast<mlir::quant::QuantizedType>();
+    if (qty != nullptr) {
         weightsAttribute = weightsAttribute.quantCast(qty);
+    }
+
+    weightsAttribute = weightsAttribute.reorder(vpux::DimsOrder::NHWC).swizzle(swizzling_key);
+
+    if (qty != nullptr && qty.getStorageType().isInteger(4)) {
+        weightsAttribute = weightsAttribute.bitPack(4);
     }
 
     const auto weightsDDRType = getMemRef(weightsShape, weightsType, vpux::VPUIP::MemoryLocation::GraphFile);
 
     auto weightsDDR = functionBuilder.create<vpux::Const::DeclareOp>(
             builder.getUnknownLoc(), weightsDDRType,
-            weightsAttribute.reorder(vpux::DimsOrder::NHWC).swizzle(swizzling_key));
+            // weightsAttribute.reorder(vpux::DimsOrder::NHWC).swizzle(swizzling_key));
+            weightsAttribute);
     auto weightsCMX = getCMXTensor(weightsShape, weightsType, WEIGHTS_CMX_OFFSET);
     weightsCMX.swizzlingKeyAttr(vpux::getIntAttr(builder.getContext(), swizzling_key));
 
