@@ -24,19 +24,19 @@
 
 (Please replace the links below with your own.)
 
-(Mandatory validation.)
+#### Mandatory validation
 
-(Empty functional_tests filter for any major changes.)
+(Default filter: `*precommit*:*smoke*`. Empty functional_tests filter for any major changes.)
 
 * [ ] https://dsp-ci-icv.inn.intel.com/job/IE-MDK/job/manual/job/Ubuntu-Yocto/build
 * [ ] https://dsp-ci-icv.inn.intel.com/job/IE-MDK/job/manual/job/Windows_dKMB/build
 
-(Validation for compiler changes / performance affected.)
+#### Validation for compiler changes / performance affected
 
-(\*MLIR\* nets_included filter for VPUX compiler, \*precommit\* for MCM compiler.)
+(`*MLIR/precommit*` nets_included filter for VPUX compiler, `*MCM/precommit*` for MCM compiler.)
 
 * [ ] https://dsp-ci-icv.inn.intel.com/job/Nets-Validation/job/manual/job/Yocto/build
 
-(Validation for dKMB focused changes in compiler or major changes.)
+(Validation for dKMB focused changes in compiler or major changes. Filters are the same as for Yocto.)
 
 * [ ] https://dsp-ci-icv.inn.intel.com/job/Nets-Validation/job/manual/job/Windows/build
