@@ -348,6 +348,8 @@ def IERT_CopyOp :
             return vpux::DotNodeColor::GREEN;
         }
     }] # IERT_InferLayerReturnTypes<1>.impl;
+
+    let hasFolder = 1;
 }
 
 //
