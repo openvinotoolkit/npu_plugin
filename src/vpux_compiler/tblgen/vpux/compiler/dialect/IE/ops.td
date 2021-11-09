@@ -2445,7 +2445,6 @@ def IE_NotEqualOp :
         IE_LayerOp<
             "NotEqual",
             [
-                ResultsAreFloatLike,
                 Commutative,
                 IE_EltwiseOp
             ]
@@ -2453,15 +2452,17 @@ def IE_NotEqualOp :
     let summary = "InferenceEngine NotEqual layer";
 
     let arguments = (ins
-        RankedTensorOf<[F16, F32]>:$input1,
-        RankedTensorOf<[F16, F32]>:$input2,
+        AnyRankedTensor:$input1,
+        AnyRankedTensor:$input2,
 
         IE_AutoBroadcastType:$auto_broadcast
     );
 
     let results = (outs
-        RankedTensorOf<[F16, F32]>:$output
+        AnyRankedTensor:$output
     );
+
+    let hasCanonicalizer = 1;
 }
 
 #endif

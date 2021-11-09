@@ -2697,13 +2697,13 @@ def IERT_NotEqualOp :
     let summary = "InferenceEngine run-time NotEqual layer";
 
     let arguments = (ins
-        MemRefOf<[F16, F32]>:$input1,
-        MemRefOf<[F16, F32]>:$input2,
-        MemRefOf<[F16, F32]>:$output_buff
+        F16MemRef:$input1,
+        F16MemRef:$input2,
+        F16MemRef:$output_buff
     );
 
     let results = (outs
-        MemRefOf<[F16, F32]>:$output
+        F16MemRef:$output
     );
 
     let assemblyFormat = [{
