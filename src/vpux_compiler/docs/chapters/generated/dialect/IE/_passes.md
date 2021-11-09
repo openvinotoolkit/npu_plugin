@@ -123,6 +123,10 @@ able to quantize convolution and fuse bias and post-processing operations.
 The pass is a part of `LowPrecision` pipeline.
 
 It splits `FakeQuantize` operations to `quant.qcast -> quant.dcast` pair.
+### `-uniquify-ops`: Remove duplicating operations with a common producer Value
+The pass is a part of `AdjustForVPU` pipeline.
+
+This pass merges operations that are identical to each other, combining consumers.
 ### `-unroll-batch`: Split FullyConnected inputs with multiple rows
 This pass splits `FullyConnected` inputs by rows.
 

@@ -53,6 +53,7 @@ std::unique_ptr<mlir::Pass> createConvertShapeTo4DPass(Logger log = Logger::glob
 std::unique_ptr<mlir::Pass> createConvertPaddingsToFloorModePass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createResolveStridedSlicePass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertConv1DToConv2DPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createUniquifyOpsPass(Logger log = Logger::global());
 
 //
 // HW related passes

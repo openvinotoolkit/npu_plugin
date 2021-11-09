@@ -83,6 +83,7 @@ void buildIECommonPipeline(mlir::OpPassManager& pm, Logger log, const MyPipeline
     pm.addPass(IE::createAdjustLayoutsPass(log));
     if (pipelineOptions.enableOptimizeReorders.getValue())
         pm.addPass(IE::createOptimizeReordersPass(log));
+    pm.addPass(IE::createUniquifyOpsPass(log));
     pm.addPass(IE::createConvertToMemPermutePass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
 }

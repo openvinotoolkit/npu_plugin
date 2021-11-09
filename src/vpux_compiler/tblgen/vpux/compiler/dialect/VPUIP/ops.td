@@ -1043,7 +1043,7 @@ def VPUIP_RoundUPAOp :
         (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `->` type(results)
        }];
-} 
+}
 
 //
 // ClampUPAOp
@@ -2930,7 +2930,6 @@ def VPUIP_InterpolateUPAOp :
         VPUIP_UPATaskOp<1,"Interpolate",
             [
                 ViewLikeOpInterface,
-                IERT_SameInOutDimsOrder_NCHW_NHWC
             ]
         > {
     let summary = "Interpolate UPA SHAVE kernel";
@@ -2969,6 +2968,10 @@ def VPUIP_InterpolateUPAOp :
         >
     ];
 
+    let extraClassDeclaration = [{
+        static void inferLayoutInfo(mlir::Operation* origOp, vpux::IE::LayerLayoutInfo& info);
+    }] # commonExtraClassDeclaration;
+
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
@@ -2977,7 +2980,6 @@ def VPUIP_InterpolateUPAOp :
         (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `->` type(results)
     }];
-
 }
 
 
