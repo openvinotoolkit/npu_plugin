@@ -87,50 +87,14 @@
             },
             "ComputeSparsitySolution",
             {
-                "name": "GenerateDot",
-                "output": "output/dots/ComputeSparsitySolution.dot",
-                "scope": "OpModel",
-                "content": "full",
-                "html": true,
-                "reduced": false
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/ComputeSparsitySolution.dot"
-            },
-            {
                 "name": "StreamingOperations",
                 "vertical_fusion" : true
-            },
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/StreamingOperations.dot",
-                "scope": "OpModel",
-                "content": "full",
-                "html": true,
-                "reduced": false
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/StreamingOperations.dot"
             },
             {
                 "name":"VerticalFusionTransformation",
                 "vertical_fusion" : true
             },
             "hackPReLU",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/hackPReLU.dot",
-                "scope": "OpModel",
-                "content": "full",
-                "html": true,
-                "reduced": false
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/hackPReLU.dot"
-            },
             "StreamBinaryDataWeights",
             "StreamCopyOperations"
         ]
