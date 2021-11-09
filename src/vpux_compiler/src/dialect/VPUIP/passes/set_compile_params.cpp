@@ -32,8 +32,10 @@ namespace {
 class SetCompileParamsPass final : public VPUIP::SetCompileParamsBase<SetCompileParamsPass> {
 public:
     SetCompileParamsPass() = default;
+    SetCompileParamsPass(VPUIP::ArchKind arch, VPUIP::CompilationMode compilationMode,
+                         Optional<int> numOfDPUsPerGroup, Logger log);
     SetCompileParamsPass(VPUIP::ArchKind arch, VPUIP::CompilationMode compilationMode, Optional<int> numOfDPUGroups,
-                         Logger log);
+                         Optional<int> numOfDPUsPerGroup, Logger log);
 
 private:
     mlir::LogicalResult initializeOptions(StringRef options) final;
@@ -51,6 +53,13 @@ SetCompileParamsPass::SetCompileParamsPass(VPUIP::ArchKind arch, VPUIP::Compilat
         : _arch(arch), _compilationMode(compilationMode), _numOfDPUGroups(numOfDPUGroups) {
     Base::initLogger(log, Base::getArgumentName());
 }
+
+SetCompileParamsPass::SetCompileParamsPass(VPUIP::ArchKind arch, VPUIP::CompilationMode compilationMode,
+                                           Optional<int> numOfDPUGroups, Optional<int> numOfDPUsPerGroup, Logger log)
+        : _arch(arch), _compilationMode(compilationMode), _numOfDPUGroups(numOfDPUGroups) , _numOfDPUsPerGroup(numOfDPUsPerGroup) {
+    Base::initLogger(log, Base::getArgumentName());
+}
+
 
 mlir::LogicalResult SetCompileParamsPass::initializeOptions(StringRef options) {
     if (mlir::failed(Base::initializeOptions(options))) {
@@ -113,6 +122,12 @@ std::unique_ptr<mlir::Pass> vpux::VPUIP::createSetCompileParamsPass() {
 }
 
 std::unique_ptr<mlir::Pass> vpux::VPUIP::createSetCompileParamsPass(ArchKind arch, CompilationMode compilationMode,
-                                                                    Optional<int> numOfDPUGroups, Logger log) {
+                                                                    Optional<int> numOfDPUGroups,
+                                                                    Logger log) {
     return std::make_unique<SetCompileParamsPass>(arch, compilationMode, numOfDPUGroups, log);
+}
+
+std::unique_ptr<mlir::Pass> vpux::VPUIP::createSetCompileParamsPass(ArchKind arch, CompilationMode compilationMode,
+                                                                    Optional<int> numOfDPUGroups, Optional<int> numOfDPUsPerGroup, Logger log) {
+    return std::make_unique<SetCompileParamsPass>(arch, compilationMode, numOfDPUGroups, numOfDPUsPerGroup, log);
 }
