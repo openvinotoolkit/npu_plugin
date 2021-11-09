@@ -18,7 +18,7 @@
 #include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
 #include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
 #include <ngraph/pass/constant_folding.hpp>
-#include "ngraph_mcm_frontend/passes/fuse_scale_in_previous_weights_fq.hpp"
+#include "vpux/passes/fuse_scale_in_previous_weights_fq.hpp"
 #include <legacy/ngraph_ops/power.hpp>
 
 class ScaleFusingNgraphPass : public ::testing::Test {
@@ -115,7 +115,7 @@ TEST_F(ScaleFusingNgraphPass, canCompile) {
     passManager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
     passManager.register_pass<ngraph::pass::ConstantFolding>();
 
-    passManager.register_pass<FuseScaleAfterClamp>();
+    passManager.register_pass<vpux::pass::FuseScaleAfterClamp>();
     passManager.run_passes(nGraphFunction);
 
     for (const auto& op : nGraphFunction->get_ordered_ops()) {

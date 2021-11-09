@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -15,7 +15,13 @@
 
 #include <ngraph/pass/pass.hpp>
 
+namespace vpux {
+namespace pass {
+
 class FuseScaleAfterClamp final : public ngraph::pass::FunctionPass {
 public:
     bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
 };
+
+}  // namespace pass
+}  // namespace vpux

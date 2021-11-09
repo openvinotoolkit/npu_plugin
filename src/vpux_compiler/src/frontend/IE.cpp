@@ -26,6 +26,7 @@
 #include "vpux/passes/convert_extract_image_patches_to_reorg_vpu.hpp"
 #include "vpux/passes/convert_variadic_split_to_strided_slice.hpp"
 #include "vpux/passes/fuse_padding.hpp"
+#include "vpux/passes/fuse_scale_in_previous_weights_fq.hpp"
 #include "vpux/passes/fuse_scaleshift.hpp"
 #include "vpux/passes/propagate_fq.hpp"
 #include "vpux/passes/remove_split_concat.hpp"
@@ -2018,6 +2019,7 @@ void runNGraphPasses(const std::shared_ptr<ngraph::Function>& netGraph, mlir::Ti
     manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<vpux::passes::OnnxReorgPatternToDarkNetReorg>();
     manager.register_pass<vpux::passes::ConvertExtractImagePatchesToReorgYoloVPU>();
+    manager.register_pass<vpux::pass::FuseScaleAfterClamp>();
     addCommonOptimizationsPasses(manager);
 
     manager.register_pass<vpux::passes::PropagateFQ>();
