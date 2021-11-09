@@ -29,10 +29,5 @@
 #include <mlir/IR/BuiltinOps.h>
 
 namespace vpux {
-namespace EMU {
-
-CompilationMode getCompilationMode(mlir::Operation* op);
-void setCompilationMode(mlir::ModuleOp module, CompilationMode compilationMode);
-
-}  // namespace EMU
+namespace EMU {}  // namespace EMU
 }  // namespace vpux

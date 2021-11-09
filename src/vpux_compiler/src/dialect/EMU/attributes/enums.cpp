@@ -19,32 +19,6 @@
 
 using namespace vpux;
 
-namespace {
-
-constexpr StringLiteral compilationModeAttrName = "EMU.compilationMode";
-
-}  // namespace
-
-void vpux::EMU::setCompilationMode(mlir::ModuleOp module, CompilationMode compilationMode) {
-    module->setAttr(compilationModeAttrName, EMU::CompilationModeAttr::get(module.getContext(), compilationMode));
-}
-
-EMU::CompilationMode vpux::EMU::getCompilationMode(mlir::Operation* op) {
-    auto module = op->getParentOfType<mlir::ModuleOp>();
-    VPUX_THROW_UNLESS(module != nullptr, "Can't get parent Module from Operation '{0}' at '{1}'", op->getName(),
-                      op->getLoc());
-
-    if (auto attr = module->getAttr(compilationModeAttrName)) {
-        VPUX_THROW_UNLESS(attr.isa<EMU::CompilationModeAttr>(), "Module attribute '{0}' has unsupported value '{1}'",
-                          compilationModeAttrName, attr);
-
-        return attr.cast<EMU::CompilationModeAttr>().getValue();
-    }
-
-    // Use ReferenceHW as a default mode
-    return EMU::CompilationMode::ReferenceHW;
-}
-
 //
 // Generated
 //

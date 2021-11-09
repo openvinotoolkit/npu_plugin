@@ -13,9 +13,9 @@
 
 #include "vpux/compiler/backend/EMU.hpp"
 
-#include "vpux/compiler/dialect/EMU/attributes/arch.hpp"
 #include "vpux/compiler/dialect/EMU/blob_writer.hpp"
 #include "vpux/compiler/dialect/EMU/ops.hpp"
+#include "vpux/compiler/dialect/VPUIP/attributes/arch.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/schema.hpp"
 
@@ -55,24 +55,24 @@ flatbuffers::Offset<MVCNN::Version> createVersion(EMU::BlobWriter& writer, VPUIP
     return builder.Finish();
 }
 
-MVCNN::TargetDevice mapTargetDevice(const EMU::ArchKind kind) {
+MVCNN::TargetDevice mapTargetDevice(const VPUIP::ArchKind kind) {
     switch (kind) {
-    case EMU::ArchKind::KMB:
+    case VPUIP::ArchKind::KMB:
         return MVCNN::TargetDevice::TargetDevice_KMB;
-    case EMU::ArchKind::TBH:
+    case VPUIP::ArchKind::TBH:
         return MVCNN::TargetDevice::TargetDevice_TBH;
-    case EMU::ArchKind::MTL:
+    case VPUIP::ArchKind::MTL:
         return MVCNN::TargetDevice::TargetDevice_MTL;
-    case EMU::ArchKind::LNL:
+    case VPUIP::ArchKind::LNL:
         return MVCNN::TargetDevice::TargetDevice_LNL;
     default:
         VPUX_THROW("Unsupported architecture '{0}'", kind);
     }
 }
 
-MVCNN::TargetDeviceRevision mapTargetDeviceRevision(const EMU::ArchKind kind) {
+MVCNN::TargetDeviceRevision mapTargetDeviceRevision(const VPUIP::ArchKind kind) {
     switch (kind) {
-    case EMU::ArchKind::KMB:
+    case VPUIP::ArchKind::KMB:
         return MVCNN::TargetDeviceRevision::TargetDeviceRevision_B0;
     default:
         return MVCNN::TargetDeviceRevision::TargetDeviceRevision_NONE;
@@ -139,8 +139,8 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(EMU::BlobWriter& w
     builder.add_task_count(checked_cast<uint32_t>(taskCount));
     builder.add_in_tensor_desc(serializedUserInputs);
     builder.add_out_tensor_desc(serializedUserOutputs);
-    builder.add_device(mapTargetDevice(EMU::getArch(module)));
-    builder.add_device_revision(mapTargetDeviceRevision(EMU::getArch(module)));
+    builder.add_device(mapTargetDevice(VPUIP::getArch(module)));
+    builder.add_device_revision(mapTargetDeviceRevision(VPUIP::getArch(module)));
     return builder.Finish();
 }
 

@@ -36,10 +36,6 @@ def EMU_TaskType :
 }
 
 //
-// ArchKind
-//
-
-//
 // MemoryLocation
 //
 
@@ -52,22 +48,6 @@ def EMU_MemoryLocation :
                 StrEnumAttrCase<"ProgrammableOutput">,
                 StrEnumAttrCase<"VPU_DDR_Heap">,
                 StrEnumAttrCase<"GraphFile">
-            ]
-        > {
-    let cppNamespace = "vpux::EMU";
-    let genSpecializedAttr = 1;
-}
-
-def EMU_ArchKind :
-        StrEnumAttr<
-            "ArchKind",
-            "Represents VPU architecture generation",
-            [
-                StrEnumAttrCase<"UNKNOWN">,
-                StrEnumAttrCase<"KMB">,
-                StrEnumAttrCase<"TBH">,
-                StrEnumAttrCase<"MTL">,
-                StrEnumAttrCase<"LNL">,
             ]
         > {
     let cppNamespace = "vpux::EMU";
@@ -180,23 +160,6 @@ def EMU_NCETaskType :
                 StrEnumAttrCase<"ELTWISE">,
                 StrEnumAttrCase<"IDENTITY">,
                 StrEnumAttrCase<"CMCONV">
-            ]
-        > {
-    let cppNamespace = "vpux::EMU";
-    let genSpecializedAttr = 1;
-}
-
-//
-// CompilationMode
-//
-
-def EMU_CompilationMode  :
-        StrEnumAttr<
-            "CompilationMode",
-            "Compilation Mode",
-            [
-                StrEnumAttrCase<"ReferenceSW">,
-                StrEnumAttrCase<"ReferenceHW">
             ]
         > {
     let cppNamespace = "vpux::EMU";

@@ -258,7 +258,6 @@ add_rewriters("dialect/IE")
 add_dialect("EMU")
 add_op_interfaces("dialect/EMU")
 add_enum_attrs("EMU")
-add_struct_attrs("EMU")
 add_passes("dialect/EMU" "EMU")
 
 add_dialect("IERT")
