@@ -35,6 +35,7 @@ public:
 
 mlir::LogicalResult ConvertToFP16::matchAndRewrite(IE::NotEqualOp notEqualOp, mlir::PatternRewriter& rewriter) const {
     const auto in1Type = notEqualOp.input1().getType().cast<mlir::ShapedType>();
+    const auto outType = notEqualOp.output().getType().cast<mlir::ShapedType>();
 
     if (!(in1Type.getElementType().isF16())) {
         auto float16Type = mlir::Float16Type::get(getContext());
@@ -44,7 +45,7 @@ mlir::LogicalResult ConvertToFP16::matchAndRewrite(IE::NotEqualOp notEqualOp, ml
         auto newNotEqualOp = rewriter.create<IE::NotEqualOp>(notEqualOp.getLoc(), convertIn1.output(),
                                                              convertIn2.output(), notEqualOp.auto_broadcastAttr());
 
-        rewriter.replaceOpWithNewOp<IE::ConvertOp>(notEqualOp, newNotEqualOp.output(), in1Type.getElementType());
+        rewriter.replaceOpWithNewOp<IE::ConvertOp>(notEqualOp, newNotEqualOp.output(), outType.getElementType());
         return mlir::success();
     } else {
         return mlir::success();
