@@ -347,7 +347,7 @@ struct Control_Model_Barrier_Assigner {
 
     dag_t dag(cmodel);
     mv::OpModel om(cmodel);
-    runtime_assigner_t assigner(dag, real_barrier_bound/2UL, om);
+    runtime_assigner_t assigner(dag, real_barrier_bound, om);
     return assigner.assign();
   }
 };
