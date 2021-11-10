@@ -102,13 +102,13 @@ mlir::Operation* vpux::VPUIP::BlobReader::parseEltwise(mlir::OpBuilder& builder,
         type = EltwiseLayerType::MAX;
     } else if (strType == "logicaland") {
         type = EltwiseLayerType::AND;
-    } else if (strType == "equal") {
+    } else if (strType == "compareeq") {
         type = EltwiseLayerType::EQUAL;
     } else if (strType == "comparelt") {
         type = EltwiseLayerType::LESS;
     } else if (strType == "comparele") {
         type = EltwiseLayerType::LESS_EQUAL;
-    } else if (strType == "notequal") {
+    } else if (strType == "comparene") {
         type = EltwiseLayerType::NOT_EQUAL;
     } else {
         VPUX_THROW("Unsupported EltwiseLayerType {0}", strType);
