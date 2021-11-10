@@ -133,8 +133,8 @@ endif()
 #
 # hddlunite
 #
-# TODO: [Track number: S#46168] Investigate hddlunite build issue for ARM
-if(ENABLE_CUSTOM_HDDLUNITE AND NOT AARCH64)
+
+if(ENABLE_CUSTOM_HDDLUNITE)
     set(HDDLUNITE_BUILD_DIR "${CMAKE_BINARY_DIR}/thirdparty/hddlunite/")
     add_subdirectory(hddlunite)
 
