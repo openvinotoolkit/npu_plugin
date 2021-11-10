@@ -736,10 +736,7 @@ static void addPermuteIOOpsFcn(const mv::pass::PassEntry&, mv::ComputationModel&
     }
     else
     {
-        for(auto implicitInput : implicitInputOps)
-        {
-            inputs.push_back(implicitInput);
-        }
+        inputs.insert(inputs.end(), implicitInputOps.begin(), implicitInputOps.end());
     }
 
     /* In case of por_tf_FP16-INT8_license-plate-recognition-barrier-0007_ww34_MCM
@@ -769,7 +766,7 @@ static void addPermuteIOOpsFcn(const mv::pass::PassEntry&, mv::ComputationModel&
         auto inputOrder = inputOp->get<mv::Order>("order");
 
         auto inTens = inputOp->getOutputTensor();
-        for(auto outputTensor : inTens)
+        for(const auto& outputTensor : inTens)
         {
             auto outputOrder = outputTensor->getOrder();
 
@@ -777,7 +774,7 @@ static void addPermuteIOOpsFcn(const mv::pass::PassEntry&, mv::ComputationModel&
             {
                 auto flows = outputTensor->getFlowNames();
                 std::vector<std::pair<mv::Data::OpListIterator, std::size_t>> flowsToAdd;
-                for(auto flow_name : flows)
+                for(const auto& flow_name : flows)
                 {
                     auto flow = dm.getDataFlow(flow_name);
                     auto op = flow.sink();
@@ -803,7 +800,7 @@ static void addPermuteIOOpsFcn(const mv::pass::PassEntry&, mv::ComputationModel&
                     /* Set desired target order */
                     transposedData->setOrder(mv::Order("NCHW"));
 
-                    for(auto flow : flowsToAdd)
+                    for(const auto& flow : flowsToAdd)
                     {
                         auto op = flow.first;
                         auto op_inputSlot = flow.second;
@@ -833,7 +830,7 @@ static void addPermuteIOOpsFcn(const mv::pass::PassEntry&, mv::ComputationModel&
 
                 auto flows = outputTensor->getFlowNames();
                 std::vector<std::pair<mv::Data::OpListIterator, std::size_t>> flowsToAdd;
-                for(auto flow_name : flows)
+                for(const auto& flow_name : flows)
                 {
                     auto flow = dm.getDataFlow(flow_name);
                     auto op = flow.sink();
@@ -860,7 +857,7 @@ static void addPermuteIOOpsFcn(const mv::pass::PassEntry&, mv::ComputationModel&
                     /* Set desired target order */
                     transposedData->setOrder(outputOrder);
 
-                    for(auto flow : flowsToAdd)
+                    for(const auto& flow : flowsToAdd)
                     {
                         auto op = flow.first;
                         auto op_inputSlot = flow.second;
@@ -907,13 +904,13 @@ static void addPermuteIOOpsFcn(const mv::pass::PassEntry&, mv::ComputationModel&
     }
     else
     {
-        for(auto implicitOutput : implicitOutputOps)
+        for(const auto& implicitOutput : implicitOutputOps)
         {
             outputs.push_back(implicitOutput);
         }
     }
 
-    for(auto outputOp : outputs)
+    for(const auto& outputOp : outputs)
     {
         /* If output doesn't have it's order explicitly stated, then permute is not necesarry */
         if(outputOp->hasAttr("Order"))
@@ -927,7 +924,7 @@ static void addPermuteIOOpsFcn(const mv::pass::PassEntry&, mv::ComputationModel&
 
                 /* Undefine old flow */
                 auto flows = outputInTensor->getFlowNames();
-                for(auto flow_name : flows)
+                for(const auto& flow_name : flows)
                 {
                     auto flow = om.getDataFlow(flow_name);
                     if(flow.sink() == outputOp)

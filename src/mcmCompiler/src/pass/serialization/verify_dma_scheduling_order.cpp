@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright 2021 Intel Corporation.
 //
 // This software and the related documents are Intel copyrighted materials,
 // and your use of them is governed by the express license under which they
@@ -40,7 +40,7 @@ void verifyDMASchedulingOrderFcn(const mv::pass::PassEntry&, mv::ComputationMode
 
     auto dmaOps = om.getOps("DMATask");
 
-    for (auto dmaOp : dmaOps)
+    for (const auto& dmaOp : dmaOps)
     {
         if(!dmaOp->hasAttr("schedulingNumber"))
         {
@@ -69,7 +69,7 @@ void verifyDMASchedulingOrderFcn(const mv::pass::PassEntry&, mv::ComputationMode
         }
 
         auto parentSchedulingNumber = dmaOp->get<unsigned>("schedulingNumber");
-        for (auto childOpName : childDMAs)
+        for (const auto& childOpName : childDMAs)
         {
             auto childOp = om.getOp(childOpName);
             if(!childOp->hasAttr("schedulingNumber"))
