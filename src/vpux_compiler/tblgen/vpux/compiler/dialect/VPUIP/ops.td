@@ -2733,10 +2733,10 @@ def VPUIP_SW_Kernel_run
 }
 
 //
-// VPUIP_SW_Kernel
+// VPUIP_SW_KernelOp
 //
 
-def VPUIP_SW_Kernel :
+def VPUIP_SW_KernelOp :
         VPUIP_TaskOp<1, "SW.Kernel",
             [
                 MultiViewOpInterface,
@@ -2769,7 +2769,9 @@ def VPUIP_SW_Kernel :
     let builders = [
         OpBuilder<(ins
             "mlir::ValueRange":$inputs,
-            "mlir::ValueRange":$outputs
+            "mlir::ValueRange":$results,
+            "mlir::SymbolRefAttr":$kernelFunction,
+            "mlir::IntegerAttr":$tileIndex
         )>
     ];
 
@@ -2793,6 +2795,7 @@ def VPUIP_SW_Kernel :
         static vpux::VPUIP::TaskType getTaskType() {
             return vpux::VPUIP::TaskType::ACTShave;
         }
+        static void inferLayoutInfo(mlir::Operation* origOp, vpux::IE::LayerLayoutInfo& info);
     }] # IERT_InferLayerReturnTypes<1>.impl;
 }
 
