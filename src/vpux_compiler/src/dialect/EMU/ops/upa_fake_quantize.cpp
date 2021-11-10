@@ -74,11 +74,6 @@ mlir::LogicalResult vpux::EMU::verifyOp(FakeQuantizeUPAOp op) {
     const auto inStrides = getStrides(op.input());
     const auto memShape = inOrder.toMemoryOrder(inShape);
 
-    const auto strideReqs = StrideReqs::compact(inShape.size());
-    if (!strideReqs.checkStrides(op.input())) {
-        return errorAt(op, "Only compact strides are supported");
-    }
-
     const auto numChannels = inShape[C];
 
     const auto inLowShape = getShape(op.input_low().getType());

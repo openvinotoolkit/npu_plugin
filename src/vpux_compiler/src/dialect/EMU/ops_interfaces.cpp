@@ -46,12 +46,6 @@ mlir::LogicalResult vpux::EMU::verifyUPATask(mlir::Operation* op) {
         if (type.getRank() == 0) {
             return errorAt(op, "SCALARS are not supported");
         }
-
-        const auto strideReqs = StrideReqs::simple(type.getRank());
-
-        if (!strideReqs.checkStrides(opVal)) {
-            return errorAt(op, "Value '{0}' strides do not match requirements '{1}'", opVal, strideReqs);
-        }
     }
 
     return mlir::success();
