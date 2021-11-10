@@ -29,14 +29,16 @@ void dynamicallyAdjustScheduleToMeetRuntimeProblems(mv::ControlModel& cm,
   mv::lp_scheduler::Save_Restore_Control_Model save_restore(cm);
 
   save_restore.save();
-  for (size_t barrier_bound=start_barrier_bound;
-      !success && (barrier_bound>=1UL); --barrier_bound) {
-
+  for (size_t barrier_bound=start_barrier_bound; !success && (barrier_bound>=1UL); --barrier_bound) {
+    
+    std::cout << "start_barrier_bound is " << barrier_bound << std::endl;
+    std::cout << " " << std::endl;
+    std::cout << "Creating barrier_scheduler class with barrier bound and producer bound " << std::endl;
     barrier_scheduler_t barrier_scheduler(cm, barrier_bound, producer_bound);
+    std::cout << "Running barrier scheduler " << std::endl;
     barrier_scheduler.schedule();
-    success =
-        mv::lp_scheduler::Control_Model_Barrier_Checker::check_schedule(cm,
-              real_barrier_bound);
+    success = mv::lp_scheduler::Control_Model_Barrier_Checker::check_schedule(cm, real_barrier_bound);
+    std::cout << "Schedule is " << success << std::endl;
     printfInfo("BarrierScheduler", "[BarrierSimulatorCheckPass(%lu)]: %s\n",
         barrier_bound, success ? "PASSED" : "FAILED"); 
 
@@ -60,11 +62,9 @@ void dynamicallyAdjustScheduleToMeetRuntimeProblems(mv::ControlModel& cm,
 }
 
 void barrierSchedulerPass(const mv::pass::PassEntry&,
-    mv::ComputationModel& model, mv::TargetDescriptor& targetDesc,
+    mv::ComputationModel& model, mv::TargetDescriptor&,
     mv::Element& passDesc, mv::Element&) {
-  
-  auto globalParams = model.getGlobalConfigParams();
-  
+
   // For SC there are 8 barriers and for MC there are 32 barriers //
   std::map<std::string, size_t> barrier_config =
     {{"real_physical_barriers", 0}, {"barrier_bound", 0}, {"producer_bound", 256UL}};
@@ -82,16 +82,14 @@ void barrierSchedulerPass(const mv::pass::PassEntry&,
   if (barrier_config["barrier_bound"] == 0)
     barrier_config["barrier_bound"] = (barrier_config["real_physical_barriers"]/2UL);
 
-  // if(isA0)
-  // {
-  //   if (barrier_config["barrier_bound"] > (barrier_config["real_physical_barriers"]/2UL)) {
-  //     fprintf(stderr, "[BarrierSchedulerError]: barrier_bound must be atmost"
-  //         " twice the real barriers");
-  //     exit(1);
-  //   }
+  // if (barrier_config["barrier_bound"] > (barrier_config["real_physical_barriers"]/2UL)) {
+  //   fprintf(stderr, "[BarrierSchedulerError]: barrier_bound must be atmost"
+  //       " twice the real barriers");
+  //   exit(1);
   // }
   
   // In case of Profiling disable the barriers optimizations //
+  std::shared_ptr<mv::Element> globalParams = model.getGlobalConfigParams();
   if (!(globalParams->hasAttr("PerformanceCounting") && globalParams->get("PerformanceCounting"))) {
     for (auto &attr : barrier_remove)
     {
