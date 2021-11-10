@@ -22,3 +22,6 @@
 [submodule "thirdparty/level-zero"]
 	path = thirdparty/level-zero
 	url = https://github.com/oneapi-src/level-zero.git
+[submodule "thirdparty/json"]
+	path = thirdparty/json
+	url = git@github.com:nlohmann/json.git
