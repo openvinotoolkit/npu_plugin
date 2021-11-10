@@ -33,6 +33,7 @@ include "mlir/Interfaces/SideEffectInterfaces.td"
 include "mlir/IR/OpAsmInterface.td"
 include "mlir/IR/RegionKindInterface.td"
 include "mlir/IR/SymbolInterfaces.td"
+include "mlir/IR/BuiltinAttributes.td"
 
 //
 // Base classes
@@ -2713,6 +2714,89 @@ def VPUIP_LSTMCellUPAOp :
         `->` type(results)
     }];
 }
+
+//
+// VPUIP_SW_Kernel_run
+//
+
+def VPUIP_SW_Kernel_run
+    : VPUIP_Op<"SW.Kernel.run"> {
+
+    let arguments  = (ins
+        Variadic<AnyType>:$args
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `(` operands `)` `:` type(operands)
+    }];
+}
+
+//
+// VPUIP_SW_Kernel
+//
+
+def VPUIP_SW_Kernel :
+        VPUIP_TaskOp<1, "SW.Kernel",
+            [
+                MultiViewOpInterface,
+                IsolatedFromAbove
+            ]
+            # GraphRegionNoTerminator.traits
+        > {
+
+    let summary = "Software Layer Task";
+
+    let description = [{
+        This operation defines Activation shave task
+    }];
+
+    let arguments = (ins
+        SymbolRefAttr:$kernelFunction,
+        Variadic<AnyMemRef>:$inputs,
+        Variadic<AnyMemRef>:$outputs,
+        OptionalAttr<IntAttr>:$tileIndex,
+        Variadic<VPUIP_Barrier>:$waitBarriers,
+        Variadic<VPUIP_Barrier>:$updateBarriers
+    );
+
+     let results = (outs Variadic<AnyMemRef>:$results);
+
+    let regions = (region
+        SizedRegion<1>:$body
+    );
+
+    let builders = [
+        OpBuilder<(ins
+            "mlir::ValueRange":$inputs,
+            "mlir::ValueRange":$outputs
+        )>
+    ];
+
+    let assemblyFormat = [{
+        attr-dict
+
+        $kernelFunction
+
+        `inputs` `(`$inputs `:` type($inputs)`)`
+        `outputs` `(`$outputs `:` type($outputs)`)`
+        (`on` `tile` $tileIndex^)?
+        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+        `->` type(results)
+
+        $body
+
+    }];
+
+    let extraClassDeclaration = [{
+        static vpux::VPUIP::TaskType getTaskType() {
+            return vpux::VPUIP::TaskType::ACTShave;
+        }
+    }] # IERT_InferLayerReturnTypes<1>.impl;
+}
+
+
 
 //
 // LSTMSequenceUPAOp
