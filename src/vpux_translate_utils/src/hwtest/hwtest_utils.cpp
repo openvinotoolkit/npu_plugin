@@ -113,6 +113,7 @@ mlir::DenseElementsAttr generateWeights(llvm::ArrayRef<std::int64_t> shape, mlir
     if (type.isSignedInteger(4)) {
         const auto weightsU8 = readFile<std::uint8_t>(stream);
         std::vector<std::int8_t> weightsI4;
+        weightsI4.reserve(weightsU8.size() * 2);
         for (const auto& elementU8 : weightsU8) {
             const int8_t msn = (elementU8 & 0xf0) >> 4;
             const int8_t lsn = (elementU8 & 0x0f) >> 0;
@@ -123,6 +124,7 @@ mlir::DenseElementsAttr generateWeights(llvm::ArrayRef<std::int64_t> shape, mlir
     } else if (type.isInteger(4)) {
         const auto weightsU8 = readFile<std::uint8_t>(stream);
         std::vector<std::uint8_t> weightsU4;
+        weightsU4.reserve(weightsU8.size() * 2);
         for (const auto& elementU8 : weightsU8) {
             const uint8_t msn = (elementU8 & 0xf0) >> 4;
             const uint8_t lsn = (elementU8 & 0x0f) >> 0;
