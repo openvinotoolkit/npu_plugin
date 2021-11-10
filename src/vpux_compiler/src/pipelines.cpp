@@ -214,6 +214,7 @@ void vpux::buildEMUReferenceModePipeline(mlir::OpPassManager& pm, bool /*enableP
     pm.addPass(mlir::createCanonicalizerPass(grc));
 
     // IE Dialect level
+    IE::buildAdjustPrecisionPipeline(pm, log);
     IE::buildAdjustForVPUPipeline(pm, log);
 
     buildIEReferenceLowPrecisionPipeline(pm, log);
@@ -237,6 +238,8 @@ void vpux::buildEMUHardwareModePipeline(mlir::OpPassManager& pm, bool /*enablePr
     pm.addPass(mlir::createCanonicalizerPass(grc));
 
     // IE Dialect level
+    IE::buildAdjustPrecisionPipeline(pm, log);
+
     pm.addPass(IE::createConvertFCToConvPass(log));
     pm.addPass(IE::createConvertAvgPoolToDWConvPass(log));
     pm.addPass(IE::createConvertScaleShiftToDWPass(log));
