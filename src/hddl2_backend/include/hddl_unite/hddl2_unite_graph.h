@@ -15,12 +15,14 @@
 
 // System
 #include <memory>
+
 // Plugin
 #include "infer_data_adapter.h"
-#include "vpux_config.hpp"
 #include "vpux_remote_context.h"
+
 // Subplugin
 #include "vpux.hpp"
+
 // Low-level
 #include "InferGraph.h"
 
@@ -34,12 +36,11 @@ public:
 
     /**  @brief Create HddlUnite graph object using context to specify which devices to use */
     explicit HddlUniteGraph(const vpux::NetworkDescription::CPtr& network,
-                            const HddlUnite::WorkloadContext::Ptr& workloadContext,
-                            const vpux::VPUXConfig& config = {});
+                            const HddlUnite::WorkloadContext::Ptr& workloadContext, const Config& config);
 
     /** @brief Create HddlUnite graph object using specific device. If empty, use all available devices */
-    explicit HddlUniteGraph(const vpux::NetworkDescription::CPtr& network, const std::string& deviceID = "",
-                            const vpux::VPUXConfig& config = {});
+    explicit HddlUniteGraph(const vpux::NetworkDescription::CPtr& network, const std::string& deviceID,
+                            const Config& config);
 
     ~HddlUniteGraph();
     void InferAsync(const InferDataAdapter::Ptr& data) const;

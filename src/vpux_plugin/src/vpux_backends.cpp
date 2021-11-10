@@ -11,12 +11,12 @@
 // included with the Software Package for additional details.
 //
 
-// Plugin
 #include "vpux_backends.h"
 
 #include <fstream>
 #include <memory>
 
+#include "vpux/al/config/common.hpp"
 #include "vpux_exceptions.h"
 #include "vpux_remote_context.h"
 
@@ -104,13 +104,15 @@ std::vector<std::string> VPUXBackends::getAvailableDevicesNames() const {
     return _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames();
 }
 
-std::unordered_set<std::string> VPUXBackends::getSupportedOptions() const {
-    return _backend == nullptr ? std::unordered_set<std::string>() : _backend->getSupportedOptions();
+void VPUXBackends::registerOptions(OptionsDesc& options) const {
+    if (_backend != nullptr) {
+        _backend->registerOptions(options);
+    }
 }
 
 // TODO config should be also specified to backends, to allow use logging in devices and all levels below
-void VPUXBackends::setup(const VPUXConfig& config) {
-    _logger.setLevel(config.logLevel());
+void VPUXBackends::setup(const Config& config) {
+    _logger.setLevel(toOldLogLevel(config.get<LOG_LEVEL>()));
 }
 
 static std::map<IE::VPUXConfigParams::VPUXPlatform, std::string> compilationPlatformMap = {

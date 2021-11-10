@@ -15,14 +15,16 @@
 
 // clang-format off
 
-#include "mcm_config.hpp"
+#include "vpux/utils/IE/config.hpp"
+
+#include <include/mcm/compiler/compilation_unit.hpp>
+
 #include <cpp/ie_cnn_network.h>
 #include <ngraph/function.hpp>
+
 #include <memory>
 #include <string>
 #include <vector>
-
-#include <include/mcm/compiler/compilation_unit.hpp>
 
 namespace ie = InferenceEngine;
 
@@ -40,7 +42,7 @@ std::unique_ptr<mv::CompilationUnit> compileNGraphIntoCompilationUnit(
         const std::string& netName,
         const ie::InputsDataMap& inputsInfo,
         const ie::OutputsDataMap& outputsInfo,
-        const vpu::MCMConfig& config,
+        const vpux::Config& config,
         std::string & errMsg);
 
 std::vector<char> serializeCompilationUnit(
@@ -52,11 +54,11 @@ std::vector<char> compileNGraph(
         const std::string& netName,
         const ie::InputsDataMap& inputsInfo,
         const ie::OutputsDataMap& outputsInfo,
-        const vpu::MCMConfig& config,
+        const vpux::Config& config,
         std::string & errMsg);
 
 std::shared_ptr<std::unordered_set<std::string>> getSupportedLayers(
         const InferenceEngine::CNNNetwork& func,
-        const vpu::MCMConfig& config);
+        const vpux::Config& config);
 
 // clang-format on

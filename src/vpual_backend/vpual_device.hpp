@@ -13,11 +13,13 @@
 
 #pragma once
 
+#include "vpux.hpp"
+#include "vpux_private_config.hpp"
+
 #include <ie_allocator.hpp>
+
 #include <memory>
 #include <string>
-#include <vpual_config.hpp>
-#include <vpux.hpp>
 
 namespace vpux {
 
@@ -28,7 +30,7 @@ public:
     std::shared_ptr<Allocator> getAllocator(const InferenceEngine::ParamMap& paramMap) const override;
 
     std::shared_ptr<Executor> createExecutor(const NetworkDescription::Ptr& networkDescription,
-                                             const VPUXConfig& config) override;
+                                             const Config& config) override;
 
     std::string getName() const override;
 
@@ -36,9 +38,6 @@ private:
     std::shared_ptr<Allocator> _allocator;
     const std::string _name;
     const InferenceEngine::VPUXConfigParams::VPUXPlatform _platform;
-    // TODO: config is used in executor only
-    // it makes sense to store it only there
-    VpualConfig _config;
 };
 
 }  // namespace vpux

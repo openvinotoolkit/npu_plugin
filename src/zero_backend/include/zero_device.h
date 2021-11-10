@@ -10,15 +10,18 @@
 // to the "third-party-programs.txt" or other similarly-named text file
 // included with the Software Package for additional details.
 //
-#pragma once
 
-#include <ie_allocator.hpp>
-#include <memory>
-#include <vpux.hpp>
-#include <vpux_compiler.hpp>
+#pragma once
 
 #include "ze_api.h"
 #include "ze_graph_ext.h"
+
+#include <vpux.hpp>
+#include <vpux_compiler.hpp>
+
+#include <ie_allocator.hpp>
+
+#include <memory>
 
 namespace vpux {
 class ZeroDevice : public IDevice {
@@ -27,8 +30,6 @@ class ZeroDevice : public IDevice {
     ze_context_handle_t _context = nullptr;
 
     ze_graph_dditable_ext_t* _graph_ddi_table_ext = nullptr;
-
-    VPUXConfig _config;
 
 public:
     ZeroDevice(ze_driver_handle_t driver, ze_device_handle_t device, ze_context_handle_t context,
@@ -42,7 +43,7 @@ public:
     std::shared_ptr<Allocator> getAllocator() const override;
 
     std::shared_ptr<Executor> createExecutor(const NetworkDescription::Ptr& networkDescription,
-                                             const VPUXConfig& config) override;
+                                             const Config& config) override;
 
     std::string getName() const override;
 

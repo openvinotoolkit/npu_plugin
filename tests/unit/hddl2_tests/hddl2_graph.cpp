@@ -12,10 +12,14 @@
 //
 
 #include "gtest/gtest.h"
+#include "hddl2_helpers/skip_conditions.h"
 #include "models/model_pooling.h"
 #include "simple_graph.hpp"
+#include "vpux/al/config/common.hpp"
+#include "vpux/al/config/compiler.hpp"
+#include "vpux/al/config/mcm_compiler.hpp"
+#include "vpux/al/config/runtime.hpp"
 #include "vpux_plugin.h"
-#include "hddl2_helpers/skip_conditions.h"
 
 using namespace InferenceEngine;
 
@@ -39,15 +43,24 @@ protected:
 void Graph_Common_UnitTests::SetUp() {
     if (isEmulatorDevice())
         return;
-    auto compiler = vpux::Compiler::create();
+
+    auto options = std::make_shared<vpux::OptionsDesc>();
+    vpux::registerCommonOptions(*options);
+    vpux::registerCompilerOptions(*options);
+    vpux::registerMcmCompilerOptions(*options);
+    vpux::registerRunTimeOptions(*options);
+
+    vpux::Config config(options);
+
+    auto compiler = vpux::Compiler::create(config);
     utils::simpleGraph::getExeNetwork()->Export(_blobStream);
     if (GetParam() == fromImportedGraph) {
-        ASSERT_NO_THROW(networkPtr = compiler->parse(_blobStream));
+        ASSERT_NO_THROW(networkPtr = compiler->parse(_blobStream, config, ""));
     }
 }
 
 std::string Graph_Common_UnitTests::PrintToStringParamName::operator()(
-    const testing::TestParamInfo<typeOfGraph>& info) const {
+        const testing::TestParamInfo<typeOfGraph>& info) const {
     auto createdFrom = info.param;
     if (createdFrom == fromImportedGraph) {
         return "fromImportedGraph";
@@ -89,4 +102,4 @@ TEST_P(Graph_Common_UnitTests, getGraphBlob_ReturnNotEmpty) {
 const static std::vector<typeOfGraph> createdFrom = {fromImportedGraph};
 
 INSTANTIATE_TEST_SUITE_P(GraphFrom, Graph_Common_UnitTests, ::testing::ValuesIn(createdFrom),
-    Graph_Common_UnitTests::PrintToStringParamName());
+                         Graph_Common_UnitTests::PrintToStringParamName());

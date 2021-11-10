@@ -28,9 +28,6 @@ public:
         return "OneDeviceTestBackend";
     }
 
-    std::unordered_set<std::string> getSupportedOptions() const override {
-        return {};
-    }
     const std::shared_ptr<IDevice> getDevice() const override {
         return nullptr;
     }

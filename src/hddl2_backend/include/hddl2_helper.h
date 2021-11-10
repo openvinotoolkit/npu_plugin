@@ -12,10 +12,11 @@
 //
 
 #pragma once
+
 // IE
 #include <ie_remote_context.hpp>
-// Plugin
-#include <vpux_config.hpp>
+#include <vpu/utils/logger.hpp>
+
 // Low-level
 #include <RemoteMemory.h>
 #include <WorkloadContext.h>

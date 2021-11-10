@@ -11,10 +11,14 @@
 // included with the Software Package for additional details.
 //
 
+#include "VPUXCompilerL0.h"
+
 #include <cpp/ie_cnn_network.h>
 #include <ie_core.hpp>
-#include <vpux/vpux_plugin_config.hpp>
-#include "VPUXCompilerL0.h"
+
+#include "vpux/al/config/common.hpp"
+#include "vpux/al/config/compiler.hpp"
+#include "vpux/vpux_plugin_config.hpp"
 #include "vpux_compiler.hpp"
 #include "vpux_private_config.hpp"
 
@@ -173,22 +177,32 @@ public:
     vcl_compiler_desc_t getCompilerDesc() const {
         return _compilerDesc;
     }
+
+    std::shared_ptr<const OptionsDesc> getOptions() const {
+        return _options;
+    }
+
     std::pair<VPUXExecutableL0*, vcl_result_t> importNetwork(const uint8_t* buffer, uint64_t bufferSize,
                                                              const uint8_t* weights, uint64_t weightsSize,
-                                                             VPUXConfig& vpuxConfig, const IOInfo& ioInfo,
+                                                             Config& vpuxConfig, const IOInfo& ioInfo,
                                                              bool enableProfiling);
 
 private:
+    std::shared_ptr<OptionsDesc> _options;
     Compiler::Ptr _compiler = NULL;
     vcl_compiler_properties_t _compilerProp;
     vcl_compiler_desc_t _compilerDesc;
     std::mutex _mlock;
 };
 
-VPUXCompilerL0::VPUXCompilerL0(vcl_compiler_desc_t desc, std::map<std::string, std::string>& config) {
-    VPUXConfig vpuxConfig;
-    vpuxConfig.update(config);
-    _compiler = Compiler::create(vpuxConfig);
+VPUXCompilerL0::VPUXCompilerL0(vcl_compiler_desc_t desc, std::map<std::string, std::string>& config)
+        : _options(std::make_shared<OptionsDesc>()) {
+    registerCommonOptions(*_options);
+    registerCompilerOptions(*_options);
+
+    Config parsedConfig(_options);
+    parsedConfig.update(config, OptionMode::CompileTime);
+    _compiler = Compiler::create(parsedConfig);
 
     _compilerDesc = desc;
     _compilerProp.id = VPUX_COMPILER_L0_ID;
@@ -199,7 +213,7 @@ VPUXCompilerL0::VPUXCompilerL0(vcl_compiler_desc_t desc, std::map<std::string, s
 
 std::pair<VPUXExecutableL0*, vcl_result_t> VPUXCompilerL0::importNetwork(const uint8_t* buffer, uint64_t bufferSize,
                                                                          const uint8_t* weights, uint64_t weightsSize,
-                                                                         VPUXConfig& vpuxConfig, const IOInfo& ioInfo,
+                                                                         Config& config, const IOInfo& ioInfo,
                                                                          bool enableProfiling) {
     if (buffer == nullptr || weights == nullptr) {
         return std::pair<VPUXExecutableL0*, vcl_result_t>(nullptr, VCL_RESULT_ERROR_INVALID_ARGUMENT);
@@ -251,7 +265,7 @@ std::pair<VPUXExecutableL0*, vcl_result_t> VPUXCompilerL0::importNetwork(const u
         }
 
         networkDesc = _compiler->compile(cnnNet.getFunction(), cnnNet.getName(), cnnNet.getInputsInfo(),
-                                         cnnNet.getOutputsInfo(), vpuxConfig);
+                                         cnnNet.getOutputsInfo(), config);
     } catch (const std::exception& error) {
         std::cerr << error.what() << std::endl;
         return std::pair<VPUXExecutableL0*, vcl_result_t>(nullptr, VCL_RESULT_ERROR_INVALID_ARGUMENT);
@@ -417,8 +431,8 @@ DLLEXPORT vcl_result_t vclExecutableCreate(vcl_compiler_handle_t compiler, vcl_e
     // Foce to use MLIR compiler.
     config[VPUX_CONFIG_KEY(COMPILER_TYPE)] = VPUX_CONFIG_VALUE(MLIR);
 
-    VPUXConfig vpuxConfig;
-    vpuxConfig.update(config);
+    Config parsedConfig(pvc->getOptions());
+    parsedConfig.update(config, OptionMode::CompileTime);
 
     uint32_t offset = 0;
     vcl_version_info_t APIVersion;
@@ -465,7 +479,7 @@ DLLEXPORT vcl_result_t vclExecutableCreate(vcl_compiler_handle_t compiler, vcl_e
     ioInfo.outLayout = ioInfo.getLayout(desc.outLayout);
 
     // Create blob and set blob size.
-    auto status = pvc->importNetwork(buffer, bufferSize, weights, weightsSize, vpuxConfig, ioInfo, enableProfiling);
+    auto status = pvc->importNetwork(buffer, bufferSize, weights, weightsSize, parsedConfig, ioInfo, enableProfiling);
     if (status.second != VCL_RESULT_SUCCESS) {
         *executable = NULL;
         return status.second;

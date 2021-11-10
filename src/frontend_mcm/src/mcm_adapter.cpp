@@ -13,6 +13,9 @@
 
 #include "mcm_adapter.hpp"
 
+#include "vpux/al/config/common.hpp"
+#include "vpux/al/config/mcm_compiler.hpp"
+
 #include <file_utils.h>
 #include <sys/stat.h>
 
@@ -33,6 +36,7 @@
 
 using namespace InferenceEngine;
 using namespace vpu;
+using namespace vpux;
 
 std::unique_ptr<MVCNN::TensorReferenceT> buildTensorReference(const std::string& tensorName,
                                                               const InferenceEngine::TensorDesc& tensorInfo) {
@@ -89,7 +93,7 @@ std::unique_ptr<MVCNN::TensorReferenceT> buildTensorReference(const std::string&
 std::unique_ptr<MVCNN::TensorReferenceT> buildTensorReference(const std::string& tensorName,
                                                               const InferenceEngine::TensorDesc& tensorInfo,
                                                               const mv::Data::TensorIterator& opModelTensor,
-                                                              const MCMConfig& config) {
+                                                              const Config& config) {
     InferenceEngine::TensorDesc newTensorInfo(tensorInfo);
 
     const InferenceEngine::SizeVector& tensorInfoDimVec = tensorInfo.getDims();
@@ -111,7 +115,8 @@ std::unique_ptr<MVCNN::TensorReferenceT> buildTensorReference(const std::string&
             newTensorInfo.reshape(newDimVec, Layout::NHWC);
     }
 
-    return buildTensorReference(tensorName, newTensorInfo, quantParams, config.forcePluginInputQuantization());
+    return buildTensorReference(tensorName, newTensorInfo, quantParams,
+                                config.get<MCM_FORCE_PLUGIN_INPUT_QUANTIZATION>());
 }
 
 bool vpu::MCMAdapter::isMCMCompilerAvailable() {
@@ -119,11 +124,12 @@ bool vpu::MCMAdapter::isMCMCompilerAvailable() {
 }
 
 vpu::MCMAdapter::MetaInfo vpu::MCMAdapter::deserializeMetaData(const MVCNN::SummaryHeader& header,
-                                                               const MCMConfig& config) {
+                                                               const Config& config) {
     IE_ASSERT(header.identifier() != nullptr);
     IE_ASSERT(header.in_tensor_desc() != nullptr);
     IE_ASSERT(header.out_tensor_desc() != nullptr);
-    Logger::Ptr logger = std::make_shared<Logger>("compileMCM", config.logLevel(), consoleOutput());
+    Logger::Ptr logger =
+            std::make_shared<Logger>("compileMCM", toOldLogLevel(config.get<LOG_LEVEL>()), consoleOutput());
     if (logger == nullptr) {
         IE_THROW() << "Logger has not been created";
     }

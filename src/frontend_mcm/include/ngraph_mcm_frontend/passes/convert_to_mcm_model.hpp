@@ -13,13 +13,14 @@
 
 #pragma once
 
+#include "vpux/utils/IE/config.hpp"
+
 #include <caseless.hpp>
 #include <custom_layer/custom_layer.hpp>
 #include <custom_layer/custom_parser_ngraph.hpp>
 #include <ie_icnn_network.hpp>
 #include <ie_input_info.hpp>
 #include <include/mcm/op_model.hpp>
-#include <mcm_config.hpp>
 #include <memory>
 #include <ngraph/pass/pass.hpp>
 
@@ -35,7 +36,7 @@ public:
     ConvertToMcmModel(mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap,
                       const InferenceEngine::InputsDataMap& networkInputs,
                       const InferenceEngine::OutputsDataMap& networkOutputs,
-                      const std::map<std::string, std::string>& ioMap, const vpu::MCMConfig& config,
+                      const std::map<std::string, std::string>& ioMap, const vpux::Config& config,
                       bool* needConvertInputPrecision)
             : _mcmModel(mcmModel),
               _mcmOutputsMap(mcmOutputsMap),
@@ -58,7 +59,7 @@ private:
     InferenceEngine::InputsDataMap _networkInputs;
     InferenceEngine::OutputsDataMap _networkOutputs;
     std::map<std::string, std::string> _ioMap;
-    vpu::MCMConfig _config;
+    const vpux::Config _config;
     bool* _needConvertInputPrecision;
 };
 

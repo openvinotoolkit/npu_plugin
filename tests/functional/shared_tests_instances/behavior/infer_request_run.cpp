@@ -3,7 +3,6 @@
 //
 
 #include "behavior/infer_request_run.hpp"
-#include <vpux_config.hpp>
 
 using namespace BehaviorTestsDefinitions;
 namespace {

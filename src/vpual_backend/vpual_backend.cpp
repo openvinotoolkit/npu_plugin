@@ -13,6 +13,8 @@
 
 #include "vpual_backend.hpp"
 
+#include "vpual_config.hpp"
+
 #include <ie_common.h>
 
 #include <description_buffer.hpp>
@@ -110,6 +112,10 @@ VpualEngineBackend::VpualEngineBackend()
                   // TODO: config will come by another PR, for now let's use Error log level
                   new vpu::Logger("VpualBackend", vpu::LogLevel::Error /*_config.logLevel()*/, vpu::consoleOutput()))),
           _devices(createDeviceMap()) {
+}
+
+void VpualEngineBackend::registerOptions(OptionsDesc& options) const {
+    options.add<VPUAL_REPACK_INPUT_LAYOUT>();
 }
 
 const std::map<std::string, std::shared_ptr<IDevice>> VpualEngineBackend::createDeviceMap() {

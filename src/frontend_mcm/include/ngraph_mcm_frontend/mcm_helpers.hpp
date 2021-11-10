@@ -13,6 +13,8 @@
 
 #pragma once
 
+#include "vpux/utils/core/logger.hpp"
+
 #include <include/mcm/computation/model/iterator/tensor.hpp>
 #include <include/mcm/tensor/dtype/dtype.hpp>
 #include <include/mcm/tensor/quantization_params.hpp>
@@ -26,7 +28,7 @@
 #include <vector>
 #include <vpu/utils/logger.hpp>
 
-std::string cvtLogLevelToMCM(vpu::LogLevel lvl);
+std::string cvtLogLevelToMCM(vpux::LogLevel lvl);
 
 mv::Shape cvtShapeToMCM(const ngraph::Shape& shape);
 mv::Shape cvtShapeToMCM(const ngraph::PartialShape& pshape);

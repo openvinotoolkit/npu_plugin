@@ -139,6 +139,12 @@
 #include <converters.hpp>
 #include <custom_layer/custom_layer.hpp>
 
+#include "vpux/al/config/common.hpp"
+#include "vpux/al/config/compiler.hpp"
+#include "vpux/al/config/mcm_compiler.hpp"
+
+using namespace vpux;
+
 // clang-format on
 
 namespace mv {
@@ -2275,14 +2281,14 @@ static const DispatchMap dispatchMap{MAP_ENTRY(ngraph::op::Parameter),
 #undef MAP_ENTRY
 
 void ConvertNode(const std::shared_ptr<ngraph::Node> op, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap,
-                 InferenceEngine::DataPtr ieData, bool allowNCHWInput, const vpu::MCMConfig& config) {
+                 InferenceEngine::DataPtr ieData, bool allowNCHWInput, const Config& config) {
     const auto dispatchIt = dispatchMap.find(op->get_type_info());
     if (dispatchIt != dispatchMap.end()) {
         const auto convertor = dispatchIt->second;
         if (convertor != nullptr) {
             try {
-                const auto allowPermuteND = config.allowPermuteND();
-                const auto outputFp16ToFp32HostConversion = config.outputFp16ToFp32HostConversion();
+                const auto allowPermuteND = config.get<MCM_ALLOW_PERMUTE_ND>();
+                const auto outputFp16ToFp32HostConversion = config.get<MCM_OUTPUT_FP16_TO_FP32_HOST_CONVERSION>();
                 convertDispatchExtraArgs extraArgs{ieData, allowNCHWInput, allowPermuteND,
                                                    outputFp16ToFp32HostConversion};
                 convertor(op, mcmModel, mcmOutputsMap, extraArgs);
@@ -2384,8 +2390,8 @@ bool ConvertToMcmModel::run_on_function(std::shared_ptr<ngraph::Function> func) 
     // FIXME
     // McmModel hard-codes NHWC layout for all of its inputs
     // Provide an opportunity to use NCHW layout for McmModel inputs
-    const auto allowNCHWInput = _config.allowNCHWLayoutForMcmModelInput();
-    const auto allowU8InputForFp16Models = _config.allowU8InputForFp16Models();
+    const auto allowNCHWInput = _config.get<MCM_ALLOW_NCHW_MCM_INPUT>();
+    const auto allowU8InputForFp16Models = _config.get<MCM_ALLOW_U8_INPUT_FOR_FP16_MODELS>();
     for (const auto& inputInfo : _networkInputs) {
         bool isFound = false;
         for (const auto& op : func->get_parameters()) {
@@ -2398,8 +2404,8 @@ bool ConvertToMcmModel::run_on_function(std::shared_ptr<ngraph::Function> func) 
             IE_THROW() << "Input not found: " << inputInfo.first;
     }
 
-    if (!_config.customLayers().empty()) {
-        _customLayers = vpu::CustomLayer::loadFromFile(_config.customLayers());
+    if (_config.has<CUSTOM_LAYERS>()) {
+        _customLayers = vpu::CustomLayer::loadFromFile(_config.get<CUSTOM_LAYERS>());
     }
 
     for (const auto& op : func->get_ordered_ops()) {

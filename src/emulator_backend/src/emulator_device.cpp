@@ -11,11 +11,10 @@
 // included with the Software Package for additional details.
 //
 
+#include "emulator_device.hpp"
+
 #include <memory>
 
-#include <vpux.hpp>
-
-#include "emulator_device.hpp"
 #include "emulator_executor.hpp"
 
 namespace ie = InferenceEngine;
@@ -27,14 +26,13 @@ EmulatorDevice::EmulatorDevice()
                   "EmulatorBackend", vpu::LogLevel::Debug /*_config.logLevel()*/, vpu::consoleOutput()))) {
 }
 
-std::shared_ptr<Executor> EmulatorDevice::createExecutor(const NetworkDescription::Ptr& network,
-                                                         const VPUXConfig& config) {
+std::shared_ptr<Executor> EmulatorDevice::createExecutor(const NetworkDescription::Ptr& network, const Config& config) {
     _logger->debug("::createExecutor() started");
     if (network->getNetworkModel() == nullptr)
         IE_THROW() << "Network passed to emulator is incorrect";
     _logger->debug("::createExecutor() finished");
     return std::make_shared<EmulatorExecutor>(network, config);
-}  // namespace vpux
+}
 
 std::string EmulatorDevice::getName() const {
     return "EMULATOR";
