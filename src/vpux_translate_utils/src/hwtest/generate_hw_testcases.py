@@ -181,9 +181,13 @@ def ValidatePaddings(kernel, paddings):
         if bottom > kernel_y // 2:
             raise PaddingError(f'kernel.y ({kernel_y}) is even, and bottom padding ({bottom}) > kernel.y // 2 ({kernel_y // 2})')
 
+def CheckHWAlignment(type, multipyer):
+    if((type.bitsize * multipyer) % 128 != 0) :
+        return False
+    return True
 
 def ValidateHWAlignment(type, multipyer):
-    if((type.bitsize * multipyer) % 128 != 0) :
+    if(not CheckHWAlignment(type, multipyer)) :
         raise AlignmentError(f'type ({type}) has {type.bitsize} bits and unappropriate multipyer {multipyer})')
 
 
@@ -296,9 +300,6 @@ def pack_int4(data: np.ndarray) -> np.ndarray:
         lsn = flat[idx + 0] & 0x0f
         msn = flat[idx + 1] & 0x0f
         datum = np.uint8(msn << 4 | lsn)
-        # if (lsn > 0 and msn > 0 and lsn != msn):
-        #     print (lsn, msn, datum)
-        #     sys.exit()
         result.append(datum)
     return np.array(result).astype(np.uint8)
 
@@ -1092,7 +1093,7 @@ def filter_issues(args, p: DPUPipeline) -> bool:
     if 'EISW-13321' in p.issues:
         # Filter int4
         return True
-    return False
+    return True
 
 
 _ZMCONV_VALID_WEIGHT_TYPES = {
@@ -1214,7 +1215,7 @@ def genMaxPools(input_types=[FP16(6)],
                 else:
                     current_output_types = [FP16()]
             else:
-                current_output_types = [Int32(), FP16(), UInt8(), UInt4(), Int8(), Int4()]
+                current_output_types = [Int32(), FP16(), UInt8(), Int8()]
         else:
             current_output_types = output_types
 
@@ -1251,6 +1252,13 @@ def genAvgPools(input_types=[FP16(6)],
                                                pad
                                                ))
 
+def getValidOutputTypes(input_type, kernel_channels) :
+    aviable_output_types = _PPE_VALID_OUTPUT_TYPES[input_type.is_float]
+    output_types = []
+    for output_type in aviable_output_types:
+        if(CheckHWAlignment(output_type, kernel_channels)):
+            output_types.append(output_type)
+    return output_types
 
 def genDepthWiseConvs(input_types=[FP16(2)],
                       input_shapes=[[1, 16, 32, 32]],
@@ -1262,10 +1270,9 @@ def genDepthWiseConvs(input_types=[FP16(2)],
     for (input_type, input_shape, kernel_channel, kernel_shape, stride, pad) in itertools.product(input_types, input_shapes, kernel_channels, kernel_shapes, strides, pads):
 
         if output_types is None:
-            current_output_types = _PPE_VALID_OUTPUT_TYPES[input_type.is_float]
+            current_output_types = getValidOutputTypes(input_type, kernel_channel)
         else:
             current_output_types = output_types
-
         for output_type in current_output_types:
             yield DPUPipeline(DepthWiseConv.PARAMS, (DepthWiseConv,
                                                      input_type,
