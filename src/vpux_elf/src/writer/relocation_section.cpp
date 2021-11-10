@@ -30,6 +30,14 @@ void RelocationSection::setSymbolTable(const SymbolSection* symTab) {
     m_symTab = symTab;
 }
 
+Elf_Word RelocationSection::getSpecialSymbolTable() const {
+    return m_header.sh_link;
+}
+
+void RelocationSection::setSpecialSymbolTable(Elf_Word specialSymbolTable) {
+    m_header.sh_link = specialSymbolTable;
+}
+
 const Section* RelocationSection::getSectionToPatch() const {
     return m_sectionToPatch;
 }
@@ -49,11 +57,16 @@ const std::vector<Relocation::Ptr>& RelocationSection::getRelocations() const {
 
 void RelocationSection::finalize() {
     m_header.sh_info = m_sectionToPatch->getIndex();
-    m_header.sh_link = m_symTab->getIndex();
+    maskFlags(SHF_INFO_LINK);
+    if (m_symTab) {
+        m_header.sh_link = m_symTab->getIndex();
+    }
 
     for (const auto& relocation : m_relocations) {
         auto relocationEntry = relocation->m_relocation;
-        relocationEntry.r_info = elf64RInfo(relocation->getSymbol()->getIndex(), relocation->getType());
+        if (relocation->getSymbol()) {
+            relocationEntry.r_info = elf64RInfo(relocation->getSymbol()->getIndex(), relocation->getType());
+        }
 
         m_data.insert(m_data.end(), reinterpret_cast<char*>(&relocationEntry),
                       reinterpret_cast<char*>(&relocationEntry) + sizeof(relocationEntry));
