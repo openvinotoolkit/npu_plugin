@@ -50,9 +50,6 @@ struct TileInfo final {
 
 using OutputTiling = SmallVector<TileInfo>;
 
-template <class ConcreteOp>
-using TilingGenerator = std::function<OutputTiling(ConcreteOp, Logger)>;
-
 // helper function to generate a set of tiles from dividing a shape. A shape divided across multiple dimensions will
 // generate a set of tiles, each having its own size and offsets
 OutputTiling fillDividedTiles(ShapeRef divisors, ShapeRef orig);

@@ -12,7 +12,9 @@
 //
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
+
 #include "vpux/compiler/utils/attributes.hpp"
+#include "vpux/compiler/utils/rewriter.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
 #include "vpux/utils/core/error.hpp"
@@ -58,4 +60,27 @@ mlir::LogicalResult vpux::IE::MaxPoolOp::inferReturnTypeComponents(
     inferredReturnShapes.emplace_back(shapeI64, inType);
 
     return mlir::success();
+}
+
+mlir::Value vpux::IE::MaxPoolOp::reifyTile(const TileInfo& outputTile, mlir::OpBuilder& builder) {
+    const auto origInputShape = getShape(input());
+
+    const auto tileConf =
+            backInferPoolTile(outputTile, origInputShape, kernel_size(), strides(), pads_begin(), pads_end());
+
+    const std::array<int64_t, 2> padsBegin = {tileConf.pads.top, tileConf.pads.left};
+    const std::array<int64_t, 2> padsEnd = {tileConf.pads.bottom, tileConf.pads.right};
+
+    const auto inputTileVal = IE::makeTile(builder, getLoc(), input(), tileConf.inputTile, "input");
+
+    const auto tileName = llvm::formatv("output tile {0}", outputTile.offsets).str();
+    const auto tileLoc = appendLoc(getLoc(), tileName);
+
+    const auto tiledResType = getDenseTileType(getType(), outputTile.offsets, outputTile.shape);
+
+    auto tiledOp = builder.create<IE::MaxPoolOp>(tileLoc, tiledResType, inputTileVal, kernel_sizeAttr(), stridesAttr(),
+                                                 getIntArrayAttr(builder, padsBegin), getIntArrayAttr(builder, padsEnd),
+                                                 rounding_typeAttr(), post_opAttr());
+
+    return tiledOp.output();
 }
