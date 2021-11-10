@@ -783,7 +783,10 @@ def IE_ReshapeOp :
 
 def IE_SqueezeOp :
         IE_LayerOp<
-            "Squeeze"
+            "Squeeze",
+            [
+                DeclareOpInterfaceMethods<IE_LayoutInfoOpInterface>
+            ]
         > {
     let summary = "InferenceEngine Squeeze layer";
 
@@ -812,7 +815,10 @@ def IE_SqueezeOp :
 
 def IE_UnsqueezeOp :
         IE_LayerOp<
-            "Unsqueeze"
+            "Unsqueeze",
+            [
+                DeclareOpInterfaceMethods<IE_LayoutInfoOpInterface>
+            ]
         > {
 
     let summary = "InferenceEngine Unsqueeze layer";
@@ -2236,6 +2242,38 @@ def IE_EqualOp :
     let results = (outs
         RankedTensorOf<[F16, F32]>:$output
     );
+}
+
+//
+// AffineReshapeOp
+//
+
+def IE_AffineReshapeOp :
+        IE_LayerOp<
+            "AffineReshape",
+            [
+                DeclareOpInterfaceMethods<IE_LayoutInfoOpInterface>
+            ]
+        > {
+    let summary = "AffineReshape layer";
+
+    let arguments = (ins
+        AnyRankedTensor:$input,
+
+        I64ArrayOfArraysAttr:$dim_mapping,
+        I64ArrayAttr:$shape_value
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+
+    let hasCanonicalizer = 1;
+    let hasFolder = 1;
+
+    let elemComparisonMode = IE_TypeComparisonMode_STRICT_EQUAL.symbol;
+    let checkInferredDimsOrder = 1;
+    let checkInferredMemSpace = 1;
 }
 
 #endif

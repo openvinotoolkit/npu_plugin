@@ -81,6 +81,37 @@ operation ::= `IE.Add` `(` operands `)` attr-dict `:` type(operands) `->` type(r
 | :----: | ----------- |
 `output` | ranked tensor of 16-bit float or 32-bit float or QuantizedType values
 
+### `IE.AffineReshape` (vpux::IE::AffineReshapeOp)
+
+AffineReshape layer
+
+
+Syntax:
+
+```
+operation ::= `IE.AffineReshape` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`dim_mapping` | ::mlir::ArrayAttr | array of 64-bit integer arrays
+`shape_value` | ::mlir::ArrayAttr | 64-bit integer array attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values
+
 ### `IE.And` (vpux::IE::AndOp)
 
 InferenceEngine And layer

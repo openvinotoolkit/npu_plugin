@@ -77,11 +77,11 @@ mlir::FailureOr<SmallVector<int64_t>> getOutShape(IE::ReshapeOpAdaptor reshape, 
             auto& v = shapeVec[i];
 
             if (v == 0 && specialZero) {
-                if (i < inShape.size()) {
-                    v = inShape[i];
-                } else {
+                if (i >= inShape.size()) {
                     return errorAt(loc, "Shape value at '{0}' is out of range '{1}'", i, inShape.size());
                 }
+
+                v = inShape[i];
             }
 
             if (v > 0) {
@@ -171,7 +171,7 @@ mlir::LogicalResult FuseReshapes::matchAndRewrite(IE::ReshapeOp origOp, mlir::Pa
     if (prevOp == nullptr) {
         return mlir::failure();
     }
-    if (!mlir::isa<IE::SqueezeOp, IE::UnsqueezeOp, IE::ReshapeOp>(prevOp)) {
+    if (!mlir::isa<IE::SqueezeOp, IE::UnsqueezeOp, IE::ReshapeOp, IE::AffineReshapeOp>(prevOp)) {
         return mlir::failure();
     }
 
@@ -217,10 +217,147 @@ mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::ReshapeOp origOp, ml
 }  // namespace
 
 //
+// ConvertToAffineReshape
+//
+
+namespace {
+
+struct MinDimension {
+    std::size_t& shapeIdx;
+    ArrayRef<int64_t> shape;
+    int64_t largeDimQuotient;
+
+    MinDimension(std::size_t& shapeIdx, ArrayRef<int64_t> shape, const int64_t largeDimQuotient)
+            : shapeIdx(shapeIdx), shape(shape), largeDimQuotient(largeDimQuotient){};
+};
+
+void handleConsecutiveOnes(ArrayRef<int64_t> inShape, ArrayRef<int64_t> outShape, std::size_t& startIn,
+                           std::size_t& startOut, SmallVector<SmallVector<int64_t>>& reassociationVec) {
+    std::size_t endIn = startIn;
+    while (endIn < inShape.size() && inShape[endIn] == 1)
+        endIn++;
+
+    std::size_t endOut = startOut;
+    while (endOut < outShape.size() && outShape[endOut] == 1)
+        endOut++;
+
+    for (; startIn < endIn && startOut < endOut; ++startIn, ++startOut) {
+        reassociationVec[startIn].push_back(static_cast<int64_t>(startOut));
+    }
+
+    while (startIn < endIn) {
+        reassociationVec[startIn].push_back(static_cast<int64_t>(startOut - 1));
+        startIn++;
+    }
+
+    while (startOut < endOut) {
+        reassociationVec[startIn - 1].push_back(static_cast<int64_t>(startOut));
+        startOut++;
+    }
+}
+
+// Note: When having dims equal to 1 in one of the shapes that do not have a corresponding 1 in the other shape, there
+// might be multiple dim associations possible. The current algorithm takes only one into consideration.
+// E.g.: 1 x 2 x 2 x 1 x 2 x 3 -> 1 x 4 x 6 has 2 possible mappings:
+//      {0} -> {0}, {1, 2, 3} -> {1}, {4, 5} -> {2} (this one is computed by the fcn below)
+//      {0} -> {0}, {1, 2} -> {1}, {3, 4, 5} -> {2}
+mlir::FailureOr<SmallVector<SmallVector<int64_t>>> getReassociationMap(ArrayRef<int64_t> inShape,
+                                                                       ArrayRef<int64_t> outShape) {
+    const auto inSize = inShape.size();
+    const auto outSize = outShape.size();
+
+    const auto nextDimIsOne = [](ArrayRef<int64_t> shape, const std::size_t index) -> bool {
+        return index + 1 < shape.size() && shape[index + 1] == 1;
+    };
+
+    SmallVector<SmallVector<int64_t>> reassociationVec(inSize);
+    std::size_t inIdx = 0, outIdx = 0;
+    for (; inIdx < inSize && outIdx < outSize; ++inIdx, ++outIdx) {
+        if (inShape[inIdx] == 1 && outShape[outIdx] == 1) {
+            // Pair dims equal to 1 that have corresponding dims in the other shape
+            handleConsecutiveOnes(inShape, outShape, inIdx, outIdx, reassociationVec);
+
+            if (inIdx >= inSize || outIdx >= outSize)
+                break;
+        }
+
+        // If both dims are equal, pick the one that has a dim of 1 after it. If there is no corresponding dim equal to
+        // 1 in the other shape, the mapping dim_large = 1 x dim_small will be added. Without that extra condition,
+        // there could be cases where that extra 1 remains floating, leading the algorithm to decide that there is no
+        // valid mapping between shapes.
+        const bool isInputSmallerDim = inShape[inIdx] < outShape[outIdx] ||
+                                       (inShape[inIdx] == outShape[outIdx] && nextDimIsOne(inShape, inIdx));
+        auto minimum = isInputSmallerDim ? MinDimension(inIdx, inShape, outShape[outIdx])
+                                         : MinDimension(outIdx, outShape, inShape[inIdx]);
+
+        do {
+            if (minimum.largeDimQuotient % minimum.shape[minimum.shapeIdx] != 0)
+                return mlir::failure();
+
+            reassociationVec[inIdx].push_back(static_cast<int64_t>(outIdx));
+
+            minimum.largeDimQuotient /= minimum.shape[minimum.shapeIdx];
+
+            if (minimum.largeDimQuotient == 1) {
+                // Exit loop if the next dim isn't 1 or if there are 1s on next dim of both shapes
+                if (!nextDimIsOne(minimum.shape, minimum.shapeIdx) ||
+                    (nextDimIsOne(inShape, inIdx) && nextDimIsOne(outShape, outIdx))) {
+                    break;
+                }
+            }
+
+            ++minimum.shapeIdx;
+        } while (minimum.shapeIdx < minimum.shape.size());
+    }
+
+    // One of the shapes has trailing 1s that cannot be the result of decomposing the last dim of the other shape
+    if (inIdx < inSize || outIdx < outSize)
+        return mlir::failure();
+
+    return reassociationVec;
+}
+
+// AffineReshapes represent a subset of Reshape ops that can have their output layout inferred from input layout.
+// The condition that Reshape must satisfy to be an AffineReshape is to have a clear mapping between the dims of the
+// input and output shapes. That happens when each dim of the input shape can either be decomposed into several adjacent
+// dims of the output shape OR the multiplication of it with adjacent input dims results in an output dim.
+// E.g. n x c x h x w -> n x c x (h * w) (AffineReshape)
+//      c x h x w -> (c / k) x k x h x w (AffineReshape)
+//      n x c x h x w -> n x (c * w) x h (not AffineReshape - c, w not adjacent)
+//      c x h x w -> (c / k) x (h * k) x w (not AffineReshape - not an exact decomposition into dims of the
+//      other shape)
+class ConvertToAffineReshape final : public mlir::OpRewritePattern<IE::ReshapeOp> {
+public:
+    using mlir::OpRewritePattern<IE::ReshapeOp>::OpRewritePattern;
+
+public:
+    mlir::LogicalResult matchAndRewrite(IE::ReshapeOp origOp, mlir::PatternRewriter& rewriter) const final;
+};
+
+mlir::LogicalResult ConvertToAffineReshape::matchAndRewrite(IE::ReshapeOp origOp,
+                                                            mlir::PatternRewriter& rewriter) const {
+    const auto outputShape = origOp.getType().getShape();
+    const auto outShapeAttr = getIntArrayAttr(getContext(), outputShape);
+
+    const auto inShape = origOp.input().getType().cast<mlir::ShapedType>().getShape();
+    const auto reassociationMap = getReassociationMap(inShape, outputShape);
+    if (mlir::failed(reassociationMap)) {
+        return mlir::failure();
+    }
+
+    rewriter.replaceOpWithNewOp<IE::AffineReshapeOp>(
+            origOp, origOp.input(), getIntArrayOfArray(getContext(), reassociationMap.getValue()), outShapeAttr);
+    return mlir::success();
+}
+
+}  // namespace
+
+//
 // getCanonicalizationPatterns
 //
 
 void vpux::IE::ReshapeOp::getCanonicalizationPatterns(mlir::RewritePatternSet& patterns, mlir::MLIRContext* ctx) {
     patterns.insert<FuseReshapes>(ctx);
     patterns.insert<ConvertConstToAttr>(ctx);
+    patterns.insert<ConvertToAffineReshape>(ctx);
 }
