@@ -48,8 +48,10 @@ void ConvertLayers2EMUPass::safeRunOnFunc() {
 
     mlir::ConversionTarget target(ctx);
     target.addIllegalDialect<IE::IEDialect>();
+    target.addIllegalDialect<IERT::IERTDialect>();
     target.addLegalDialect<Const::ConstDialect>();
     target.addLegalDialect<EMU::EMUDialect>();
+    target.addLegalOp<mlir::FuncOp, mlir::ReturnOp>();
 
     mlir::RewritePatternSet patterns(&ctx);
     populateWithGenerated(patterns);
