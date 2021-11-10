@@ -873,7 +873,7 @@ struct Control_Model_Barrier_Checker {
 
     dag_t dag(cmodel);
     mv::OpModel om(cmodel);
-    runtime_checker_t checker(dag, real_barrier_bound/2UL, om);
+    runtime_checker_t checker(dag, real_barrier_bound, om);
     return checker.assign();
   }
 
