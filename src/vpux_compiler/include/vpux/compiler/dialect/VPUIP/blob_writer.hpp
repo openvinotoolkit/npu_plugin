@@ -84,7 +84,7 @@ public:
     SpecificTask createUPALayerTask(mlir::Operation* op, const SoftwareLayerParams& params);
 
     // invocation args layout right after .data section, so dataOffset is a size of .data section
-    llvm::SmallVector<uint8_t, 128> createInvocationArgs(mlir::Operation* op, size_t dataOffset);
+    SmallVector<uint8_t> createInvocationArgs(mlir::Operation* op, size_t dataOffset);
 
     SpecificTask createSW_KernelTask(mlir::Operation* op);
 

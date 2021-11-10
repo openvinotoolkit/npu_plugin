@@ -144,7 +144,7 @@ vpux::VPUIP::BlobWriter::KernelDataRef vpux::VPUIP::BlobWriter::createKernelData
     return kernelData.Finish();
 }
 
-SmallVector<uint8_t, 128> vpux::VPUIP::BlobWriter::createInvocationArgs(mlir::Operation* op, size_t dataOffset) {
+SmallVector<uint8_t> vpux::VPUIP::BlobWriter::createInvocationArgs(mlir::Operation* op, size_t dataOffset) {
     VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in createSW_KernelTask");
 
     auto swKernelTask = mlir::dyn_cast<VPUIP::SW_Kernel>(op);

@@ -528,6 +528,7 @@ flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, mli
         auto section_data = serializedGraphFile->kernel_data()->Get(section->locale_offset())->data();
 
         auto offset = section_data->Data() - detached.data();
+        VPUX_THROW_WHEN(offset < 0, "Invalid offset value: {0}", offset);
         log.trace("offset to kernel {0} {1} in Finished FBB is {2}", section->name()->c_str(), sectionLogical, offset);
 
         //  align calculations

@@ -47,9 +47,10 @@ flatbuffers::Offset<MVCNN::KernelData> buildKernelData(flatbuffers::FlatBufferBu
     return builder.Finish();
 }
 
+// TODO: extract std::system calls into separate methods.
 static void compileAndLinkSHAVE(const movitools::MoviCompileParams& params, const CompilationUnitDesc& unitDesc,
-                                SmallVector<uint8_t, 128>& textBinary, SmallVector<uint8_t, 128>& dataBinary) {
-    std::string mvToolsDir = movitools::getMoviToolsDir();
+                                SmallVector<uint8_t>& textBinary, SmallVector<uint8_t>& dataBinary) {
+    const auto mvToolsDir = movitools::getMoviToolsDir();
     SmallString<128> genDir;
     SmallString<128> tmpDir;
     // TODO: weak assumption on tools dir better switch to DEVELOPER BUILD style
@@ -122,9 +123,8 @@ static void compileAndLinkSHAVE(const movitools::MoviCompileParams& params, cons
         auto compileCmd = formatv("{1} -mcpu={2} -c {3} -o {4} -I {5} -I{6} ", genDir, moviCompile, params.cpu, srcPath,
                                   objPath, mvToolsDir, incPath)
                                   .str();
-        if (std::system(compileCmd.c_str())) {
-            VPUX_THROW((std::string("moviCompile failed: ") + compileCmd).c_str());
-        }
+
+        VPUX_THROW_WHEN(std::system(compileCmd.c_str()), "moviCompile failed: {0}", compileCmd);
     }
 
 #ifdef GEN_SYM_FILE
@@ -150,9 +150,8 @@ static void compileAndLinkSHAVE(const movitools::MoviCompileParams& params, cons
                            " -EL {4} --output {5}",
                            linker, linkerScriptPath, entryPoint.c_str(), objPath, singleLib, elfPath)
                            .str();
-    if (std::system(linkCmd.c_str())) {
-        VPUX_THROW((std::string("linker failed: ") + linkCmd).c_str());
-    }
+
+    VPUX_THROW_WHEN(std::system(linkCmd.c_str()), "linker failed: {0}", linkCmd);
 
     SmallString<128> objcopy(mvToolsDir);
     sys::path::append(objcopy, params.mdkObjCopy);
@@ -162,9 +161,7 @@ static void compileAndLinkSHAVE(const movitools::MoviCompileParams& params, cons
 
     {
         auto objCopyCmd = formatv("{0} -O binary --only-section=.text {1} {2}", objcopy, elfPath, textPath).str();
-        if (std::system(objCopyCmd.c_str())) {
-            VPUX_THROW((std::string("objcopy failed: ") + objCopyCmd).c_str());
-        }
+        VPUX_THROW_WHEN(std::system(objCopyCmd.c_str()), "objcopy failed: {0}", objCopyCmd);
     }
 
     SmallString<128> dataPath(buildDirPath);
@@ -172,25 +169,18 @@ static void compileAndLinkSHAVE(const movitools::MoviCompileParams& params, cons
 
     {
         auto objCopyCmd = formatv("{0} -O binary --only-section=.arg.data {1} {2}", objcopy, elfPath, dataPath).str();
-
-        if (std::system(objCopyCmd.c_str())) {
-            VPUX_THROW((std::string("objcopy failed: ") + objCopyCmd).c_str());
-        }
+        VPUX_THROW_WHEN(std::system(objCopyCmd.c_str()), "objcopy failed: {0}", objCopyCmd);
     }
 
-    auto readBinary = [](SmallString<128>& path, SmallVector<uint8_t, 128>& buffer, uint32_t alignment = 1) {
+    auto readBinary = [](StringRef path, SmallVector<uint8_t>& buffer, uint32_t alignment = 1) {
         std::string err;
         auto elfFile = mlir::openInputFile(path, &err);
-        if (!elfFile) {
-            VPUX_THROW("Could not open {0} binary, err:{1}", path.c_str(), err);
-        }
+        VPUX_THROW_UNLESS(elfFile, "Could not open {0} binary, err:{1}", path, err);
 
         auto elfBuffer = elfFile->getBuffer();
         std::copy(elfBuffer.begin(), elfBuffer.end(), std::back_inserter(buffer));
 
-        if (alignment & (alignment - 1)) {
-            VPUX_THROW("Could not align to now power of 2:{1}", alignment);
-        }
+        VPUX_THROW_WHEN(alignment & (alignment - 1), "Could not align to now power of 2:{1}", alignment);
         auto totalBytes = std::distance(elfBuffer.begin(), elfBuffer.end());
         auto padBytes = -totalBytes & (alignment - 1);
         if (padBytes) {
@@ -206,8 +196,8 @@ ActKernelDesc compileKernelForACTShave(const CompilationUnitDesc& unitDesc,
                                        const movitools::MoviCompileParams& params) {
     // Use moviCompile to compile and link C source code into an ELF binary.
     // and then using objcopy teardown elf into text and data sections
-    SmallVector<uint8_t, 128> textBinary;
-    SmallVector<uint8_t, 128> dataBinary;
+    SmallVector<uint8_t> textBinary;
+    SmallVector<uint8_t> dataBinary;
     compileAndLinkSHAVE(params, unitDesc, textBinary, dataBinary);
 
     // lets pad textBinary by 1K array at the end with FC CC FC CC

@@ -26,8 +26,8 @@ namespace vpux {
  */
 class InvocationBuilder {
 
-    llvm::SmallVector<char,  128> _storage;         // keeps basic elements
-    llvm::SmallVector<char , 128> _arrayStorage;    // keeps arrays elements
+    SmallVector<char> _storage;         // keeps basic elements
+    SmallVector<char> _arrayStorage;    // keeps arrays elements
 
     Logger _log;
     size_t _win_e_offset;  //  offset of the beginning of invocation args within expected WIN_E
@@ -42,7 +42,7 @@ class InvocationBuilder {
             patchCallback(resialStorage, patchBase + offset);
         }
     };
-    llvm::SmallVector<PatchPoint , 128> _deferredPointers;
+    SmallVector<PatchPoint> _deferredPointers;
 
 public:
 
@@ -57,12 +57,12 @@ public:
     /*
      * actual serialising routine
      */
-    llvm::SmallVector<uint8_t> store() const;
+    SmallVector<uint8_t> store() const;
 
 protected:
 
     template <class T>
-    static void storeSimple(llvm::SmallVectorImpl<char> & storage, const T& anyValue) {
+    static void storeSimple(SmallVector<char>& storage, const T& anyValue) {
         ArrayRef<char> valueAsArray(reinterpret_cast<const char*>(&anyValue), sizeof(anyValue));
         storage.insert(storage.end(), valueAsArray.begin(), valueAsArray.end());
     }
@@ -82,6 +82,6 @@ protected:
     }
 
     // memref serialisation
-    void addMemrefArg(const mlir::Value & value);
+    void addMemrefArg(mlir::Value value);
 };
 }  // namespace vpux

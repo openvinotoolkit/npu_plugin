@@ -37,7 +37,7 @@ void InvocationBuilder::addArg(mlir::Value operand) {
 }
 
 llvm::SmallVector<uint8_t> InvocationBuilder::store() const {
-    llvm::SmallVector<uint8_t, 128> serialStorage(_storage.begin(), _storage.end());
+    SmallVector<uint8_t> serialStorage(_storage.begin(), _storage.end());
 
     auto patchBase = _win_e_offset + serialStorage.size() + mvds::nce2p7::ACT_KERNEL_DATA_WINDOW;
     serialStorage.insert(serialStorage.end(), _arrayStorage.begin(), _arrayStorage.end());
@@ -47,7 +47,7 @@ llvm::SmallVector<uint8_t> InvocationBuilder::store() const {
     return serialStorage;
 }
 
-void InvocationBuilder::addMemrefArg(const mlir::Value& value) {
+void InvocationBuilder::addMemrefArg(mlir::Value value) {
     auto tensor = value.getDefiningOp<VPUIP::DeclareTensorOp>();
 
     if (tensor == nullptr) {
@@ -73,7 +73,7 @@ void InvocationBuilder::addMemrefArg(const mlir::Value& value) {
 
     // dims
     createPatchPoint<sw_params::MemRefData>(dimsPatcher);
-    for (auto&& dim : shape.getShape()) {
+    for (auto& dim : shape.getShape()) {
         storeSimple(_arrayStorage, checked_cast<int32_t>(dim));
     }
 
@@ -85,7 +85,7 @@ void InvocationBuilder::addMemrefArg(const mlir::Value& value) {
     const auto strides = getStrides(shape);
 
     createPatchPoint<sw_params::MemRefData>(stridesParcher);
-    for (auto&& stride : strides) {
+    for (auto& stride : strides) {
         storeSimple(_arrayStorage, stride);
     }
 
