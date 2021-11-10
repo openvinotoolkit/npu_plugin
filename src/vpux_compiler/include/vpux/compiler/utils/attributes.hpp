@@ -81,6 +81,32 @@ mlir::ArrayAttr getFPArrayAttr(mlir::Builder& b, Range range) {
 }
 
 //
+// getArrayOfArrayAttr
+//
+
+template <class Range>
+mlir::ArrayAttr getIntArrayOfArray(mlir::MLIRContext* ctx, Range&& arrayOfArray) {
+    SmallVector<mlir::Attribute> attrs;
+
+    for (const auto& val : arrayOfArray) {
+        attrs.push_back(getIntArrayAttr(ctx, val));
+    }
+
+    return mlir::ArrayAttr::get(ctx, attrs);
+}
+
+template <class Range>
+mlir::ArrayAttr getFPArrayOfArray(mlir::MLIRContext* ctx, Range&& arrayOfArray) {
+    SmallVector<mlir::Attribute> attrs;
+
+    for (const auto& val : arrayOfArray) {
+        attrs.push_back(getFPArrayAttr(ctx, val));
+    }
+
+    return mlir::ArrayAttr::get(ctx, attrs);
+}
+
+//
 // parse<Scalar>ArrayAttr
 //
 
@@ -102,6 +128,40 @@ SmallVector<T> parseFPArrayAttr(mlir::ArrayAttr arr) {
 
                                return checked_cast<T>(fpAttr.getValueAsDouble());
                            }));
+}
+
+//
+// parseArrayOfArrayAttr
+//
+
+template <typename T>
+SmallVector<SmallVector<T>> parseIntArrayOfArrayAttr(mlir::ArrayAttr arr) {
+    SmallVector<SmallVector<T>> arrayOfArray;
+    arrayOfArray.reserve(arr.size());
+
+    for (const auto attr : arr) {
+        const auto arrAttr = attr.dyn_cast_or_null<mlir::ArrayAttr>();
+        VPUX_THROW_UNLESS(arrAttr != nullptr, "Got non Array Attribute '{0}' in Array", attr);
+
+        arrayOfArray.push_back(parseIntArrayAttr<T>(arrAttr));
+    }
+
+    return arrayOfArray;
+}
+
+template <typename T>
+SmallVector<SmallVector<T>> parseFPArrayOfArrayAttr(mlir::ArrayAttr arr) {
+    SmallVector<SmallVector<T>> arrayOfArray;
+    arrayOfArray.reserve(arr.size());
+
+    for (const auto attr : arr) {
+        const auto arrAttr = attr.dyn_cast_or_null<mlir::ArrayAttr>();
+        VPUX_THROW_UNLESS(arrAttr != nullptr, "Got non Array Attribute '{0}' in Array", attr);
+
+        arrayOfArray.push_back(parseFPArrayAttr<T>(arrAttr));
+    }
+
+    return arrayOfArray;
 }
 
 }  // namespace vpux

@@ -1058,6 +1058,7 @@ void BufferizeIEPass::safeRunOnFunc() {
     vpux::populateBufferizeMaterializationLegality(target);
 
     mlir::RewritePatternSet patterns(&ctx);
+    patterns.add<ReshapeRewrite<IE::AffineReshapeOp>>(typeConverter, &ctx, _log);
     patterns.add<ReshapeRewrite<IE::ReshapeOp>>(typeConverter, &ctx, _log);
     patterns.add<ReshapeRewrite<IE::SqueezeOp>>(typeConverter, &ctx, _log);
     patterns.add<ReshapeRewrite<IE::UnsqueezeOp>>(typeConverter, &ctx, _log);

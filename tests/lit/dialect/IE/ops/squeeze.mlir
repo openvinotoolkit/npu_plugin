@@ -22,12 +22,12 @@ func @ConstFold() -> tensor<4x4xf32> {
 }
 
 // CHECK-LABEL: @FuseWithReshape
-func @FuseWithReshape(%arg0: tensor<16xf32>) -> tensor<4x4xf32> {
-    %0 = IE.Reshape(%arg0) { shape_value = [1, 1, 4, 4] } : tensor<16xf32> -> tensor<1x1x4x4xf32>
+func @FuseWithReshape(%arg0: tensor<16x1xf32>) -> tensor<4x4xf32> {
+    %0 = IE.Reshape(%arg0) { shape_value = [1, 1, 4, 4] } : tensor<16x1xf32> -> tensor<1x1x4x4xf32>
     %1 = IE.Squeeze(%0) { axes_value = [] } : tensor<1x1x4x4xf32> -> tensor<4x4xf32>
     return %1 : tensor<4x4xf32>
 
-    // CHECK: [[VAL0:%.*]] = IE.Reshape(%arg0) {shape_value = [4, 4]} : tensor<16xf32> -> tensor<4x4xf32>
+    // CHECK: [[VAL0:%.*]] = IE.Reshape(%arg0) {shape_value = [4, 4]} : tensor<16x1xf32> -> tensor<4x4xf32>
     // CHECK: return [[VAL0]] : tensor<4x4xf32>
 }
 

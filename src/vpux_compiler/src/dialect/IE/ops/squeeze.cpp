@@ -65,6 +65,43 @@ mlir::FailureOr<SmallVector<int64_t>> getAxes(IE::SqueezeOpAdaptor squeeze, mlir
     return axes;
 }
 
+//
+// inferOutputLayout
+//
+
+DimsOrder inferOutputLayout(const DimArr& inPerm, const SmallVector<int64_t>& axesVec, ArrayRef<int64_t> inShape) {
+    SmallVector<vpux::Dim> perm;
+    SmallVector<int64_t> axes = axesVec;
+
+    // If axes attr is empty, find all dims equal to 1
+    if (axes.empty()) {
+        for (auto inInd : irange(inShape.size())) {
+            if (inShape[inInd] == 1) {
+                axes.push_back(inInd);
+            }
+        }
+    }
+
+    // Iterate over input dims in the given order and push back corresponding output dims.
+    for (const auto& p : inPerm) {
+        // Skip over squeezed dim
+        if (llvm::find(axes, p.ind()) != axes.end())
+            continue;
+
+        auto dim = p.ind();
+        // Decrement input dim index by the number of squeezed axes smaller than itself
+        for (const auto& squeezeAxis : axes) {
+            if (p.ind() > squeezeAxis) {
+                dim--;
+            }
+        }
+
+        perm.push_back(vpux::Dim(dim));
+    }
+
+    return DimsOrder::fromPermutation(makeArrayRef(perm));
+}
+
 }  // namespace
 
 //
@@ -87,8 +124,10 @@ mlir::LogicalResult vpux::IE::SqueezeOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto inType = squeeze.input().getType().cast<mlir::RankedTensorType>();
+    const auto input = squeeze.input();
+    const auto inType = input.getType().cast<mlir::RankedTensorType>();
     const auto inShape = inType.getShape();
+    const auto inOrder = DimsOrder::fromValue(input);
 
     SmallVector<int64_t> outShape;
 
@@ -123,10 +162,25 @@ mlir::LogicalResult vpux::IE::SqueezeOp::inferReturnTypeComponents(
         }
     }
 
-    const auto outDesc = IE::getTensorAttr(ctx, DimsOrder::fromNumDims(outShape.size()), IE::getMemorySpace(inType));
+    const auto outDesc = IE::getTensorAttr(ctx, inferOutputLayout(inOrder.toPermutation(), axes.getValue(), inShape),
+                                           IE::getMemorySpace(inType));
 
     inferredReturnShapes.emplace_back(makeArrayRef(outShape), inType.getElementType(), outDesc);
     return mlir::success();
+}
+
+//
+// inferLayoutInfo
+//
+
+void vpux::IE::SqueezeOp::inferLayoutInfo(vpux::IE::LayerLayoutInfo& info) {
+    const auto axes = parseIntArrayAttr<int64_t>(axes_value().getValue());
+    const auto inShape = input().getType().cast<mlir::RankedTensorType>().getShape();
+    const auto inOrder = info.getInput(0);
+    const auto inPermutation = inOrder.toPermutation();
+
+    info.setInput(0, inOrder);
+    info.setOutput(0, inferOutputLayout(inPermutation, axes, inShape));
 }
 
 //
@@ -166,7 +220,7 @@ mlir::LogicalResult FuseWithReshape::matchAndRewrite(IE::SqueezeOp origOp, mlir:
     if (prevOp == nullptr) {
         return mlir::failure();
     }
-    if (!mlir::isa<IE::SqueezeOp, IE::UnsqueezeOp, IE::ReshapeOp>(prevOp)) {
+    if (!mlir::isa<IE::SqueezeOp, IE::UnsqueezeOp, IE::ReshapeOp, IE::AffineReshapeOp>(prevOp)) {
         return mlir::failure();
     }
 
