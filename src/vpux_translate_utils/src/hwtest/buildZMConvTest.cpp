@@ -122,21 +122,22 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     if (qty != nullptr) {
         weightsAttribute = weightsAttribute.quantCast(qty);
     }
+    weightsAttribute = weightsAttribute.reorder(vpux::DimsOrder::NHWC);
 
-    weightsAttribute = weightsAttribute.reorder(vpux::DimsOrder::NHWC).swizzle(swizzling_key);
+    auto weightsCMX = getCMXTensor(weightsShape, weightsType, WEIGHTS_CMX_OFFSET);
 
     if (qty != nullptr && qty.getStorageType().isInteger(4)) {
+        // swizzling doesn't work for int4/uint4 weights case yet
         weightsAttribute = weightsAttribute.bitPack(4);
+    } else {
+        weightsAttribute = weightsAttribute.swizzle(swizzling_key);
+        weightsCMX.swizzlingKeyAttr(vpux::getIntAttr(builder.getContext(), swizzling_key));
     }
 
     const auto weightsDDRType = getMemRef(weightsShape, weightsType, vpux::VPUIP::MemoryLocation::GraphFile);
 
-    auto weightsDDR = functionBuilder.create<vpux::Const::DeclareOp>(
-            builder.getUnknownLoc(), weightsDDRType,
-            // weightsAttribute.reorder(vpux::DimsOrder::NHWC).swizzle(swizzling_key));
-            weightsAttribute);
-    auto weightsCMX = getCMXTensor(weightsShape, weightsType, WEIGHTS_CMX_OFFSET);
-    weightsCMX.swizzlingKeyAttr(vpux::getIntAttr(builder.getContext(), swizzling_key));
+    auto weightsDDR =
+            functionBuilder.create<vpux::Const::DeclareOp>(builder.getUnknownLoc(), weightsDDRType, weightsAttribute);
 
     auto inputCMX = getCMXTensor(inputShape, inputType, INPUT_CMX_OFFSET);
     auto outputCMX = getCMXTensor(outputShape, outputType, OUTPUT_CMX_OFFSET);
@@ -151,9 +152,12 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     const auto weightsTableDDRMemRef = getMemRef(weightsTableShape, int32, vpux::VPUIP::MemoryLocation::GraphFile);
     const auto weightsTableValues =
             mlir::DenseElementsAttr::get(weightsTableDDRType, llvm::makeArrayRef<std::int32_t>(weightsTable));
+    auto weightsTableContentAttr = vpux::Const::ContentAttr::get(weightsTableValues).reorder(vpux::DimsOrder::NHWC);
+    if (weightsCMX.swizzlingKeyAttr()) {
+        weightsTableContentAttr = weightsTableContentAttr.swizzle(swizzling_key);
+    }
     auto weightsTableDDR = functionBuilder.create<vpux::Const::DeclareOp>(
-            builder.getUnknownLoc(), weightsTableDDRMemRef,
-            vpux::Const::ContentAttr::get(weightsTableValues).reorder(vpux::DimsOrder::NHWC).swizzle(swizzling_key));
+            builder.getUnknownLoc(), weightsTableDDRMemRef, weightsTableContentAttr);
     auto weightsTableCMX = getCMXTensor(weightsTableShape, int32, WEIGHTSTABLE_CMX_OFFSET);
 
     auto barrier0 = functionBuilder.create<vpux::VPUIP::ConfigureBarrierOp>(builder.getUnknownLoc(), 0);
