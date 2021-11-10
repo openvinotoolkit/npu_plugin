@@ -21,15 +21,40 @@
 
 namespace ie = InferenceEngine;
 
-class VPUXRemoteBlobUnitTests : public ::testing::Test {
-    void SetUp() override {
-        vpux::VPUXBackends dummyBackends({"vpu3700_test_backend"});
-        _dummyDevice = dummyBackends.getDevice();
-        const ie::ParamMap deviceParams = {{}};
-        _remoteContext = std::make_shared<vpux::VPUXRemoteContext>(_dummyDevice, deviceParams);
+namespace {
+std::vector<uint8_t> fillRemoteBlobWithRandomValues(ie::RemoteBlob::Ptr blob, const size_t offset, const size_t size) {
+    if (blob == nullptr) {
+        IE_THROW() << "Null blob";
     }
+    auto memoryHolder = blob->rwmap();
+    uint8_t* blobData = memoryHolder.as<uint8_t*>();
+    if (blobData == nullptr) {
+        IE_THROW() << "Null data";
+    }
+    const size_t BYTE_BASE = 256;
+    std::generate(blobData + offset, blobData + offset + size, [BYTE_BASE]() {
+        return std::rand() % BYTE_BASE;
+    });
+    return std::vector<uint8_t>(blobData + offset, blobData + offset + size);
+}
 
-public:
+std::vector<uint8_t> readRemoteBlob(ie::RemoteBlob::Ptr blob, const size_t offset, const size_t size) {
+    if (blob == nullptr) {
+        IE_THROW() << "Null blob";
+    }
+    const auto memoryHolder = blob->rmap();
+    const uint8_t* blobData = memoryHolder.as<uint8_t*>();
+    if (blobData == nullptr) {
+        IE_THROW() << "Null data";
+    }
+    return std::vector<uint8_t>(blobData + offset, blobData + offset + size);
+}
+}
+
+class VPUXRemoteBlobUnitTests : public ::testing::Test {
+protected:
+    void SetUp() override;
+
     vpux::VPUXRemoteContext::Ptr _remoteContext;
     const ie::TensorDesc _tensorDesc = {ie::Precision::FP32, {1, 3, 100, 224}, ie::Layout::NHWC};
     const ie::SizeVector& _dims = _tensorDesc.getDims();
@@ -38,6 +63,14 @@ public:
     const size_t _roiOffset = 5;
 };
 
+void VPUXRemoteBlobUnitTests::SetUp() {
+    vpux::VPUXBackends dummyBackends({"vpu3700_test_backend"});
+    _dummyDevice = dummyBackends.getDevice();
+    const ie::ParamMap deviceParams = {{}};
+    _remoteContext = std::make_shared<vpux::VPUXRemoteContext>(_dummyDevice, deviceParams);
+}
+
+
 // This test is intended for checking cascade ROI case:
 // Parent (non-ROI) blob -> ROI blob -> ROI-in-ROI blob
 // These blobs use common data from parent blob
@@ -45,19 +78,8 @@ public:
 // When we are using cascade ROI, ROI offsets are calculated according to the superposition principle
 TEST_F(VPUXRemoteBlobUnitTests, cascadeROIBlobCorrect) {
     ie::RemoteBlob::Ptr remoteBlobPtr = _remoteContext->CreateBlob(_tensorDesc, _dummyBlobParams);
-
-    size_t fullFrameByteSize = remoteBlobPtr->byteSize();
-    uint8_t* fullFrameRawData = nullptr;
-    std::vector<uint8_t> fullFrameData = {};
-    {
-        auto memoryHolder = remoteBlobPtr->rwmap();
-        fullFrameRawData = memoryHolder.as<uint8_t*>();
-        const size_t BYTE_BASE = 256;
-        std::generate(fullFrameRawData, fullFrameRawData + fullFrameByteSize, [BYTE_BASE]() {
-            return std::rand() % BYTE_BASE;
-        });
-        fullFrameData.assign(fullFrameRawData, fullFrameRawData + fullFrameByteSize);
-    }
+    const auto fullFrameByteSize = remoteBlobPtr->byteSize();
+    const auto fullFrameData = fillRemoteBlobWithRandomValues(remoteBlobPtr, 0, fullFrameByteSize);
 
     {
         // ROI2 geometry should be {0 + 0, roiOffset + roiOffset, origBlobW, origBlobH - roiOffset - roiOffset}
@@ -75,106 +97,75 @@ TEST_F(VPUXRemoteBlobUnitTests, cascadeROIBlobCorrect) {
             vpux::ParsedRemoteBlobParams parsedRemoteBlobParams;
             parsedRemoteBlobParams.update(remoteROI2BlobPtr->getParams());
             const auto roi2Ptr = parsedRemoteBlobParams.getROIPtr();
-            ASSERT_TRUE(roi2Ptr != nullptr);
-            ASSERT_TRUE(roi2Ptr->posX == roi1Begin[3] + roi2Begin[3]);
-            ASSERT_TRUE(roi2Ptr->posY == roi1Begin[2] + roi2Begin[2]);
-            ASSERT_TRUE(roi2Ptr->sizeX == roi2End[3] - roi2Begin[3]);
-            ASSERT_TRUE(roi2Ptr->sizeY == roi2End[2] - roi2Begin[2]);
+            ASSERT_NE(roi2Ptr, nullptr);
+            ASSERT_EQ(roi2Ptr->posX, roi1Begin[3] + roi2Begin[3]);
+            ASSERT_EQ(roi2Ptr->posY, roi1Begin[2] + roi2Begin[2]);
+            ASSERT_EQ(roi2Ptr->sizeX, roi2End[3] - roi2Begin[3]);
+            ASSERT_EQ(roi2Ptr->sizeY, roi2End[2] - roi2Begin[2]);
 
-            const size_t ROIFrameByteSize = remoteROI2BlobPtr->byteSize();
+            const auto ROIFrameByteSize = remoteROI2BlobPtr->byteSize();
             auto checkROIFrameData = fullFrameData;
             checkROIFrameData.erase(checkROIFrameData.cbegin(), checkROIFrameData.cbegin() + (fullFrameByteSize - ROIFrameByteSize));
-            uint8_t* ROIFrameRawData = nullptr;
-            std::vector<uint8_t> ROIFrameData = {};
-            {
-                auto memoryHolder = remoteROI2BlobPtr->rmap();
-                ROIFrameRawData = memoryHolder.as<uint8_t*>() + (fullFrameByteSize - ROIFrameByteSize);
-                ROIFrameData.assign(ROIFrameRawData, ROIFrameRawData + ROIFrameByteSize);
-            }
+            const auto ROIFrameData = readRemoteBlob(remoteROI2BlobPtr, fullFrameByteSize - ROIFrameByteSize, ROIFrameByteSize);
             ASSERT_EQ(checkROIFrameData, ROIFrameData);
         }
     }
 
-    size_t checkFullFrameByteSize = remoteBlobPtr->byteSize();
-    uint8_t* checkFullFrameRawData = nullptr;
-    std::vector<uint8_t> checkFullFrameData= {};
-    {
-        auto memoryHolder = remoteBlobPtr->rmap();
-        checkFullFrameRawData = memoryHolder.as<uint8_t*>();
-        checkFullFrameData.assign(checkFullFrameRawData, checkFullFrameRawData + checkFullFrameByteSize);
-    }
-
+    const auto checkFullFrameData = readRemoteBlob(remoteBlobPtr, 0, remoteBlobPtr->byteSize());
     ASSERT_EQ(checkFullFrameData, fullFrameData);
 }
 
 TEST_F(VPUXRemoteBlobUnitTests, parentBlobCorrectAfterDeletingROI) {
     ie::RemoteBlob::Ptr remoteBlobPtr = _remoteContext->CreateBlob(_tensorDesc, _dummyBlobParams);
-    ASSERT_NE(remoteBlobPtr, nullptr);
-    const uint8_t *bDataBefore = remoteBlobPtr->rmap().as<uint8_t*>();
-    const size_t bSizeBefore = remoteBlobPtr->byteSize();
-    const std::vector<uint8_t> blobDataBefore{bDataBefore, bDataBefore + bSizeBefore};
+    const auto blobDataBefore = readRemoteBlob(remoteBlobPtr, 0, remoteBlobPtr->byteSize());
 
     {
         const ie::ROI roi {0, _roiOffset, _roiOffset, _dims[3] - _roiOffset, _dims[2] - _roiOffset};
         auto remoteROIBlobPtr = remoteBlobPtr->createROI(roi);
     }
 
-    uint8_t *bDataAfter = nullptr;
-    size_t bSizeAfter = 0;
-    std::vector<uint8_t> blobDataAfter = {};
-    ASSERT_NO_THROW(bDataAfter = remoteBlobPtr->rmap().as<uint8_t*>());
-    ASSERT_NO_THROW(bSizeAfter = remoteBlobPtr->byteSize());
-    ASSERT_NO_THROW(blobDataAfter.assign(bDataAfter, bDataAfter + bSizeAfter));
-    ASSERT_TRUE(blobDataBefore == blobDataAfter);
+    const auto blobDataAfter = readRemoteBlob(remoteBlobPtr, 0, remoteBlobPtr->byteSize());
+    ASSERT_EQ(blobDataBefore, blobDataAfter);
     ASSERT_NO_THROW(remoteBlobPtr.reset());
 }
 
 TEST_F(VPUXRemoteBlobUnitTests, ROIBlobCorrectAfterDeletingParent) {
     ie::RemoteBlob::Ptr remoteROIBlobPtr = nullptr;
-    uint8_t *bDataBefore = nullptr;
-    size_t bSizeBefore = 0;
-    std::vector<uint8_t> blobDataBefore = {};
+    std::vector<uint8_t> blobDataBefore;
 
     {
         const ie::ROI roi {0, _roiOffset, _roiOffset, _dims[3] - _roiOffset, _dims[2] - _roiOffset};
         auto remoteBlobPtr = _remoteContext->CreateBlob(_tensorDesc, _dummyBlobParams);
         remoteROIBlobPtr = std::static_pointer_cast<ie::RemoteBlob>(remoteBlobPtr->createROI(roi));
-        bDataBefore = remoteROIBlobPtr->rmap().as<uint8_t*>();
-        bSizeBefore = remoteROIBlobPtr->byteSize();
-        blobDataBefore.assign(bDataBefore, bDataBefore + bSizeBefore);
+        blobDataBefore = readRemoteBlob(remoteROIBlobPtr, 0, remoteROIBlobPtr->byteSize());
     }
 
-    uint8_t *bDataAfter = nullptr;
-    size_t bSizeAfter = 0;
-    std::vector<uint8_t> blobDataAfter = {};
-    ASSERT_NO_THROW(bDataAfter = remoteROIBlobPtr->rmap().as<uint8_t*>());
-    ASSERT_NO_THROW(bSizeAfter = remoteROIBlobPtr->byteSize());
-    ASSERT_NO_THROW(blobDataAfter.assign(bDataAfter, bDataAfter + bSizeAfter));
-    ASSERT_TRUE(blobDataBefore == blobDataAfter);
+    const auto blobDataAfter = readRemoteBlob(remoteROIBlobPtr, 0, remoteROIBlobPtr->byteSize());
+    ASSERT_EQ(blobDataBefore, blobDataAfter);
     ASSERT_NO_THROW(remoteROIBlobPtr.reset());
 }
 
 TEST_F(VPUXRemoteBlobUnitTests, ROIBlobIntoBoundsNoThrow) {
-    ie::RemoteBlob::Ptr remoteBlobPtr = _remoteContext->CreateBlob(_tensorDesc, _dummyBlobParams);
+    auto remoteBlobPtr = _remoteContext->CreateBlob(_tensorDesc, _dummyBlobParams);
     const ie::ROI roi {0, _roiOffset, _roiOffset, _dims[3] - _roiOffset, _dims[2] - _roiOffset};
     ASSERT_NO_THROW(remoteBlobPtr->createROI(roi));
 }
 
 TEST_F(VPUXRemoteBlobUnitTests, ROIBlobOutOfBoundsThrow) {
-    ie::RemoteBlob::Ptr remoteBlobPtr = _remoteContext->CreateBlob(_tensorDesc, _dummyBlobParams);
+    auto remoteBlobPtr = _remoteContext->CreateBlob(_tensorDesc, _dummyBlobParams);
     const ie::ROI roi {0, _roiOffset, _roiOffset, _dims[3] + _roiOffset, _dims[2] + _roiOffset};
     ASSERT_ANY_THROW(remoteBlobPtr->createROI(roi));
 }
 
 TEST_F(VPUXRemoteBlobUnitTests, multiDimsROIBlobIntoBoundsNoThrow) {
-    ie::RemoteBlob::Ptr remoteBlobPtr = _remoteContext->CreateBlob(_tensorDesc, _dummyBlobParams);
+    auto remoteBlobPtr = _remoteContext->CreateBlob(_tensorDesc, _dummyBlobParams);
     const std::vector<std::size_t> roiBegin = {0, 0, _roiOffset, _roiOffset};
     const std::vector<std::size_t> roiEnd = {_dims[0], _dims[1], _dims[2], _dims[3]};
     ASSERT_NO_THROW(remoteBlobPtr->createROI(roiBegin, roiEnd));
 }
 
 TEST_F(VPUXRemoteBlobUnitTests, multiDimsROIBlobOutOfBoundsThrow) {
-    ie::RemoteBlob::Ptr remoteBlobPtr = _remoteContext->CreateBlob(_tensorDesc, _dummyBlobParams);
+    auto remoteBlobPtr = _remoteContext->CreateBlob(_tensorDesc, _dummyBlobParams);
     const std::vector<std::size_t> roiBegin = {0, 0, _roiOffset, _roiOffset};
     const std::vector<std::size_t> roiEnd = {_dims[0], _dims[1], _dims[3] + _roiOffset, _dims[2] + _roiOffset};
     ASSERT_ANY_THROW(remoteBlobPtr->createROI(roiBegin, roiEnd));
