@@ -920,23 +920,19 @@ bool HeuristicGraphOptimizer::hasLayerWorkaroundAvoidStrategy(mv::Data::OpListIt
         auto weightsShape = opIt->getInputTensor(mv::IO_TENSOR_WEIGHTS_SET)->getShape();
         auto outputShape = opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT)->getShape();
 
-        if(outputShape[mv::IO_HEIGHT_DIMENSION] == 129 && outputShape[mv::IO_WIDTH_DIMENSION] == 129 &&
-            outputShape[mv::IO_CHANNEL_DIMENSION] == 144 &&
-            weightsShape[mv::KERNEL_INPUT_CHANNELS] == 24 && weightsShape[mv::KERNEL_HEIGHT] == 1 &&
-            inputShape[mv::IO_HEIGHT_DIMENSION] == 129 && inputShape[mv::IO_WIDTH_DIMENSION] == 129)
+        if (outputShape[mv::IO_HEIGHT_DIMENSION] == 129 && outputShape[mv::IO_WIDTH_DIMENSION] == 129 &&
+            inputShape[mv::IO_HEIGHT_DIMENSION] == 129 && inputShape[mv::IO_WIDTH_DIMENSION] == 129) {
+
+            if (outputShape[mv::IO_CHANNEL_DIMENSION] == 144 && weightsShape[mv::KERNEL_INPUT_CHANNELS] == 24 && weightsShape[mv::KERNEL_HEIGHT] == 1)
                 return true;
 
-        if(outputShape[mv::IO_HEIGHT_DIMENSION] == 129 && outputShape[mv::IO_WIDTH_DIMENSION] == 129 &&
-            outputShape[mv::IO_CHANNEL_DIMENSION] == 144 &&
-            weightsShape[mv::KERNEL_INPUT_CHANNELS] == 144 && weightsShape[mv::KERNEL_HEIGHT] == 3 &&
-            inputShape[mv::IO_HEIGHT_DIMENSION] == 129 && inputShape[mv::IO_WIDTH_DIMENSION] == 129)
+            if (outputShape[mv::IO_CHANNEL_DIMENSION] == 144 && weightsShape[mv::KERNEL_INPUT_CHANNELS] == 144 && weightsShape[mv::KERNEL_HEIGHT] == 3)
                 return true;
 
-        if(outputShape[mv::IO_HEIGHT_DIMENSION] == 129 && outputShape[mv::IO_WIDTH_DIMENSION] == 129 &&
-            outputShape[mv::IO_CHANNEL_DIMENSION] == 24 &&
-            weightsShape[mv::KERNEL_INPUT_CHANNELS] == 144 && weightsShape[mv::KERNEL_HEIGHT] == 1 &&
-            inputShape[mv::IO_HEIGHT_DIMENSION] == 129 && inputShape[mv::IO_WIDTH_DIMENSION] == 129)
+            if (outputShape[mv::IO_CHANNEL_DIMENSION] == 24 && weightsShape[mv::KERNEL_INPUT_CHANNELS] == 144 && weightsShape[mv::KERNEL_HEIGHT] == 1)
                 return true;
+        }
+
     }
 
     return false;
@@ -950,7 +946,7 @@ bool HeuristicGraphOptimizer::hasLayerWorkaroundAvoidPipeline(mv::Data::OpListIt
     auto clustering = strategy["clustering"].get<std::string>();
 
 
-    // Check just for output channels not aligned to 16, 
+    // Check just for output channels not aligned to 16,
     // because these cant CMX concat, which is fine if last op
     if (target == mv::Target::ma2490 && opType == "Conv" && streamShape["K"] > 1 &&
         opIt->getOutputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION] % 16 != 0 && !isFinalLayer)
