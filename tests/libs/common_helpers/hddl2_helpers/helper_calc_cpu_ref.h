@@ -45,7 +45,7 @@ inline IE::BlobMap CalcCpuReferenceCommon(IE::CNNNetwork& network, const IE::Blo
 
     IE::ExecutableNetwork executableNetwork = ie.LoadNetwork(network, "CPU");
     IE::InferRequest inferRequest = executableNetwork.CreateInferRequest();
-    auto blockDescNetwork = executableNetwork.GetInputsInfo().begin()->second->getTensorDesc().getBlockingDesc();
+    const auto blockDescNetwork = executableNetwork.GetInputsInfo().begin()->second->getTensorDesc().getBlockingDesc();
     IE::Blob::Ptr correctInputBlob = nullptr;
     if (preprocInfo == nullptr && inputBlob->getTensorDesc().getBlockingDesc() != blockDescNetwork) {
         IE::TensorDesc correctTensorDesc(inputBlob->getTensorDesc().getPrecision(), inputBlob->getTensorDesc().getDims(), blockDescNetwork);
@@ -54,14 +54,14 @@ inline IE::BlobMap CalcCpuReferenceCommon(IE::CNNNetwork& network, const IE::Blo
         correctInputBlob = inputBlob;
     }
 
-    auto inputBlobName = executableNetwork.GetInputsInfo().begin()->first;
+    const auto inputBlobName = executableNetwork.GetInputsInfo().begin()->first;
     if (preprocInfo != nullptr) {
         inferRequest.SetBlob(inputBlobName, correctInputBlob, *preprocInfo);
     } else {
         inferRequest.SetBlob(inputBlobName, correctInputBlob);
     }
 
-    IE::ConstOutputsDataMap outputInfo = executableNetwork.GetOutputsInfo();
+    const auto outputInfo = executableNetwork.GetOutputsInfo();
     for (const auto& output : outputInfo) {
         const auto outputBlobName = output.first;
         auto output_blob = make_blob_with_precision(output.second->getTensorDesc());
