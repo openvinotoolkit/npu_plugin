@@ -53,6 +53,7 @@ std::set<ngraph::helpers::ActivationTypes> supportedTypesMLIR {
     ngraph::helpers::Log,
     ngraph::helpers::Ceiling,
 };
+
 } // namespace
 
 class KmbActivationLayerTest : public ActivationLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
@@ -83,12 +84,22 @@ class KmbActivationLayerTest : public ActivationLayerTest, virtual public LayerT
     }
 };
 
+class KmbActivationLayerTest_MTL : public KmbActivationLayerTest {
+};
+
 TEST_P(KmbActivationLayerTest, CompareWithRefs) {
     Run();
 }
 
 TEST_P(KmbActivationLayerTest, CompareWithRefs_MLIR) {
     useCompilerMLIR();
+    Run();
+}
+
+TEST_P(KmbActivationLayerTest_MTL, CompareWithRefs_MLIR) {
+    useCompilerMLIR();
+    setPlatformMTL();
+    setReferenceHardwareModeMLIR();
     Run();
 }
 
@@ -170,8 +181,8 @@ std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basicNDCase = {
 const auto basicCases = ::testing::Combine(
     ::testing::ValuesIn(CommonTestUtils::combineParams(activationTypes)),
     ::testing::ValuesIn(netPrecisions),
-    ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-    ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+    ::testing::Values(InferenceEngine::Precision::FP16),
+    ::testing::Values(InferenceEngine::Precision::FP16),
     ::testing::Values(InferenceEngine::Layout::ANY),
     ::testing::Values(InferenceEngine::Layout::ANY),
     ::testing::ValuesIn(CommonTestUtils::combineParams(basic)),
@@ -215,5 +226,18 @@ INSTANTIATE_TEST_SUITE_P(smoke_Activation_Test_PRelu, KmbActivationLayerTest, ba
 INSTANTIATE_TEST_SUITE_P(smoke_Activation_Test_ND, KmbActivationLayerTest, basicNDCases, ActivationLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Activation_Test_FP16Only, KmbActivationLayerTest, basicFP16OnlyCases, ActivationLayerTest::getTestCaseName);
+
+
+const auto basicCasesMTL = ::testing::Combine(
+        ::testing::Values(std::pair<ngraph::helpers::ActivationTypes, std::vector<float>>{Sigmoid,  {2.0f}}),
+        ::testing::Values(InferenceEngine::Precision::FP16),
+        ::testing::Values(InferenceEngine::Precision::FP16),
+        ::testing::Values(InferenceEngine::Precision::FP16),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(std::pair<std::vector<size_t>, std::vector<size_t>>{{1, 1, 1, 1000}, {}}),
+        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
+
+INSTANTIATE_TEST_SUITE_P(smoke_Activation_Test, KmbActivationLayerTest_MTL, basicCasesMTL, ActivationLayerTest::getTestCaseName);
 
 }  // namespace
