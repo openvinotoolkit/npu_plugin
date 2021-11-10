@@ -42,7 +42,6 @@ constexpr uint8_t STT_TLS            = 6;
 constexpr uint8_t STT_LOOS           = 10;
 constexpr uint8_t STT_HIOS           = 12;
 constexpr uint8_t STT_LOPROC         = 13;
-constexpr uint8_t STT_SPARC_REGISTER = 13;
 constexpr uint8_t STT_HIPROC         = 15;
 
 //! Symbol visibility
