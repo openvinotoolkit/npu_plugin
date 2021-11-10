@@ -55,6 +55,9 @@
 #endif
 
 #include "vpual_config.hpp"
+#include "vpux/al/config/common.hpp"
+#include "vpux/al/config/runtime.hpp"
+
 #include "vpusmm_allocator.hpp"
 
 namespace ie = InferenceEngine;
@@ -68,8 +71,8 @@ constexpr int VPU_CSRAM_DEVICE_ID = 32;
 constexpr uint16_t XLINK_IPC_CHANNELS = 1024;
 
 void VpualCoreNNExecutor::initWatchDog() {
-    _wd.reset(new WatchDog(_config.inferenceTimeoutMs(), _logger, [this]() {
-        _logger->error("%d milliseconds have passed, closing xlink channels.", _config.inferenceTimeoutMs());
+    _wd.reset(new WatchDog(_config.get<INFERENCE_TIMEOUT_MS>(), _logger, [this]() {
+        _logger->error("%d milliseconds have passed, closing xlink channels.", _config.get<INFERENCE_TIMEOUT_MS>());
         auto xhndl{getXlinkDeviceHandle(_nnXlinkPlg->getDeviceId())};
         for (uint16_t i{0}; i < XLINK_IPC_CHANNELS; ++i) {
             xlink_close_channel(&xhndl, i);
@@ -223,7 +226,7 @@ void VpualCoreNNExecutor::PipePrintHandler::threadBody(PipePrintHandler* obj) {
 VpualCoreNNExecutor::VpualCoreNNExecutor(const vpux::NetworkDescription::Ptr& networkDescription,
                                          const VpusmmAllocator::Ptr& allocator, const uint32_t deviceId,
                                          const InferenceEngine::VPUXConfigParams::VPUXPlatform& platform,
-                                         const VpualConfig& config)
+                                         const Config& config)
         : _networkDescription(networkDescription),
           _allocator(allocator),
           _csramAllocator(std::make_shared<VpusmmAllocator>(VPU_CSRAM_DEVICE_ID)),
@@ -238,7 +241,8 @@ VpualCoreNNExecutor::VpualCoreNNExecutor(const vpux::NetworkDescription::Ptr& ne
               }
           }),
           _config(config),
-          _logger(std::make_shared<vpu::Logger>("VpualCoreNNExecutor", _config.logLevel(), vpu::consoleOutput())),
+          _logger(std::make_shared<vpu::Logger>("VpualCoreNNExecutor", toOldLogLevel(_config.get<LOG_LEVEL>()),
+                                                vpu::consoleOutput())),
 #if defined(__arm__) || defined(__aarch64__)
           _nnXlinkPlg(new NnXlinkPlg(deviceId)),
           _nnCorePlg(new NnCorePlg(deviceId),
@@ -303,7 +307,7 @@ VpualCoreNNExecutor::VpualCoreNNExecutor(
         const vpux::NetworkDescription::Ptr& networkDescription, const VpusmmAllocator::Ptr& allocator,
         const std::shared_ptr<NnXlinkPlg>& other_nnXlinkPlg, const std::shared_ptr<NnCorePlg>& other_nnCorePlg,
         const std::shared_ptr<VpualCoreNNSynchronizer<VpualSyncXLinkImpl>>& other_nnSync,
-        const std::shared_ptr<Pipeline>& other_pipe, const std::shared_ptr<WatchDog>& wd, const VpualConfig& config)
+        const std::shared_ptr<Pipeline>& other_pipe, const std::shared_ptr<WatchDog>& wd, const Config& config)
         : _networkDescription(networkDescription),
           _allocator(allocator),
           _csramAllocator(std::make_shared<VpusmmAllocator>(VPU_CSRAM_DEVICE_ID)),
@@ -318,7 +322,8 @@ VpualCoreNNExecutor::VpualCoreNNExecutor(
               }
           }),
           _config(config),
-          _logger(std::make_shared<vpu::Logger>("VpualCoreNNExecutor", _config.logLevel(), vpu::consoleOutput())),
+          _logger(std::make_shared<vpu::Logger>("VpualCoreNNExecutor", toOldLogLevel(_config.get<LOG_LEVEL>()),
+                                                vpu::consoleOutput())),
           _nnXlinkPlg(other_nnXlinkPlg),
           _nnCorePlg(other_nnCorePlg),
           _vpualSyncImpl(other_nnXlinkPlg),
@@ -481,16 +486,19 @@ void VpualCoreNNExecutor::allocateGraph(const std::vector<char>& graphFileConten
 #if defined(__arm__) || defined(__aarch64__)
     OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "allocateGraph");
     static int graphId_main = 1;
-    int nThreads = _config.throughputStreams();
+    int nThreads = _config.get<THROUGHPUT_STREAMS>();
     if (nThreads < 0) {
-        switch (_config.performanceHint()) {
-        case PerformanceHint::Latency:
-            nThreads = 3;
-            break;
-        case PerformanceHint::Throughput:
-            nThreads = 6;
-            break;
-        default:
+        if (_config.has<PERFORMANCE_HINT>()) {
+            switch (_config.get<PERFORMANCE_HINT>()) {
+            case PerformanceHint::Latency:
+                nThreads = 3;
+                break;
+            case PerformanceHint::Throughput:
+            default:
+                nThreads = 6;
+                break;
+            }
+        } else {
             nThreads = 6;  // TODO: consider updating once multi-clustering is enabled in compiler
         }
     }
@@ -544,7 +552,7 @@ void VpualCoreNNExecutor::allocateGraph(const std::vector<char>& graphFileConten
         IE_THROW() << "VpualCoreNNExecutor::allocateGraph: failed to get blob version: " << status;
     }
 
-    const uint32_t upaShaves = _config.numberOfNnCoreShaves();
+    const uint32_t upaShaves = _config.get<INFERENCE_SHAVES>();
     if (upaShaves > 0) {
         _logger->debug("::allocateGraph: SetNumUpaShaves to %d", upaShaves);
         _nnCorePlg->SetNumUpaShaves(upaShaves);
@@ -554,7 +562,7 @@ void VpualCoreNNExecutor::allocateGraph(const std::vector<char>& graphFileConten
                   static_cast<int>(blobVersion.patch));
     _scratchBuffers = setScratchHelper(_nnCorePlg, nThreads, _allocator, _logger);
     auto detectedPlatform = _platform;
-    auto configPlatform = _config.platform();
+    auto configPlatform = _config.get<PLATFORM>();
     auto targetPlatform = InferenceEngine::VPUXConfigParams::VPUXPlatform::AUTO;
     if (configPlatform == InferenceEngine::VPUXConfigParams::VPUXPlatform::AUTO) {
         // use detected platfrom when auto detect is set
@@ -564,7 +572,7 @@ void VpualCoreNNExecutor::allocateGraph(const std::vector<char>& graphFileConten
         targetPlatform = configPlatform;
     }
 
-    const auto csramUserSize = _config.CSRAMSize();
+    const auto csramUserSize = _config.get<CSRAM_SIZE>();
     const bool platformHasCSRAM =
             std::any_of(platformsWithCSRAM.begin(), platformsWithCSRAM.end(),
                         [targetPlatform](const InferenceEngine::VPUXConfigParams::VPUXPlatform& platform) -> bool {
@@ -729,7 +737,7 @@ ie::Blob::Ptr VpualCoreNNExecutor::prepareInputForInference(const ie::Blob::Ptr&
     }
 
     // HACK: to overcome inability python API to pass a blob of NHWC layout
-    if (_config.repackInputLayout()) {
+    if (_config.get<VPUAL_REPACK_INPUT_LAYOUT>()) {
         _logger->warning("VPUX_VPUAL_REPACK_INPUT_LAYOUT is enabled. Need to do re-layout.");
         return reallocateBlobToLayoutIgnoringOriginalLayout(inputForInference, ie::Layout::NCHW, ie::Layout::NHWC,
                                                             _allocator);

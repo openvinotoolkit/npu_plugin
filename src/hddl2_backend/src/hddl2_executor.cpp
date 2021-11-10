@@ -13,6 +13,9 @@
 
 #include "hddl2_executor.h"
 
+#include "vpux/al/config/common.hpp"
+#include "vpux/al/config/runtime.hpp"
+
 #include "vpux/utils/IE/blob.hpp"
 
 #include <ie_compound_blob.h>
@@ -145,10 +148,11 @@ std::atomic<size_t> HDDL2Executor::_executorIdCounter{0};
 std::map<size_t, std::weak_ptr<HddlUniteGraph>> HDDL2Executor::_uniteGraphMap;
 
 HDDL2Executor::Ptr HDDL2Executor::prepareExecutor(const vpux::NetworkDescription::Ptr& networkDesc,
-                                                  const VPUXConfig& config,
+                                                  const Config& config,
                                                   const std::shared_ptr<vpux::Allocator>& allocator,
                                                   const HddlUnite::WorkloadContext::Ptr& workloadContext) {
-    auto logger = std::make_shared<vpu::Logger>("Executor", config.logLevel(), vpu::consoleOutput());
+    auto logger =
+            std::make_shared<vpu::Logger>("Executor", toOldLogLevel(config.get<LOG_LEVEL>()), vpu::consoleOutput());
     HDDL2Executor::Ptr executor = nullptr;
 
     if (!HDDL2Backend::isServiceAvailable()) {
@@ -167,29 +171,31 @@ HDDL2Executor::Ptr HDDL2Executor::prepareExecutor(const vpux::NetworkDescription
     return executor;
 }
 
-HDDL2Executor::HDDL2Executor(const vpux::NetworkDescription::CPtr& network, const vpux::VPUXConfig& config,
+HDDL2Executor::HDDL2Executor(const vpux::NetworkDescription::CPtr& network, const Config& config,
                              const std::shared_ptr<vpux::Allocator>& allocator,
                              const HddlUnite::WorkloadContext::Ptr& workloadContext)
         // TODO Make executor logger name unique
-        : _logger(std::make_shared<vpu::Logger>("Executor", config.logLevel(), vpu::consoleOutput())),
+        : _config(config),
+          _logger(std::make_shared<vpu::Logger>("Executor", toOldLogLevel(config.get<LOG_LEVEL>()),
+                                                vpu::consoleOutput())),
           _network(network),
           _allocatorPtr(allocator),
           _workloadContext(workloadContext),
           _baseExecutorId(_executorIdCounter++) {
-    _config.parseFrom(config);
-    setUniteLogLevel(_config.logLevel(), _logger);
-    _inferDataPtr = std::make_shared<InferDataAdapter>(_network, _workloadContext, _config.graphColorFormat());
+    setUniteLogLevel(_logger->level(), _logger);
+    _inferDataPtr = std::make_shared<InferDataAdapter>(_network, _workloadContext, _config.get<GRAPH_COLOR_FORMAT>());
 }
 
 HDDL2Executor::HDDL2Executor(const HDDL2Executor& ex)
         : _config(ex._config),
-          _logger(std::make_shared<vpu::Logger>("Executor", _config.logLevel(), vpu::consoleOutput())),
+          _logger(std::make_shared<vpu::Logger>("Executor", toOldLogLevel(_config.get<LOG_LEVEL>()),
+                                                vpu::consoleOutput())),
           _network(ex._network),
           _uniteGraphPtr(ex._uniteGraphPtr),
           _allocatorPtr(ex._allocatorPtr),
           _workloadContext(ex._workloadContext),
           _baseExecutorId(ex._baseExecutorId) {
-    _inferDataPtr = std::make_shared<InferDataAdapter>(_network, _workloadContext, _config.graphColorFormat());
+    _inferDataPtr = std::make_shared<InferDataAdapter>(_network, _workloadContext, _config.get<GRAPH_COLOR_FORMAT>());
 }
 
 void HDDL2Executor::setup(const InferenceEngine::ParamMap& params) {
@@ -374,7 +380,7 @@ InferenceEngine::Parameter HDDL2Executor::getParameter(const std::string& paramN
 
 void HDDL2Executor::loadGraphToDevice() {
     std::unordered_map<std::string, std::string> hddlUniteConfig = {};
-    const auto csramSize = _config.CSRAMSize();
+    const auto csramSize = _config.get<CSRAM_SIZE>();
     // HddlUnite requires CSRAM size in Kb
     const decltype(csramSize) toKilobytes = 1024;
     const auto csramSizeUnite = (csramSize >= 0) ? csramSize / toKilobytes : csramSize;
@@ -387,8 +393,8 @@ void HDDL2Executor::loadGraphToDevice() {
         // No graph in the map - need to load it to the device and add to the map
         if (findUniteGraph == _uniteGraphMap.end()) {
             if (_workloadContext == nullptr) {
-                _uniteGraphPtr =
-                        std::make_shared<HddlUniteGraph>(_network, getSwDeviceIdFromName(_config.deviceId()), _config);
+                _uniteGraphPtr = std::make_shared<HddlUniteGraph>(
+                        _network, getSwDeviceIdFromName(_config.get<DEVICE_ID>()), _config);
             } else {
                 _uniteGraphPtr = std::make_shared<HddlUniteGraph>(_network, _workloadContext, _config);
             }

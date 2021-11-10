@@ -34,8 +34,12 @@
 #include "vpux_exceptions.h"
 #include "vpux_executable_network.h"
 #include "vpux_infer_request.h"
+
 // Subplugin
 #include "vpux.hpp"
+#include "vpux/al/config/common.hpp"
+#include "vpux/al/config/runtime.hpp"
+#include "vpux/utils/core/checked_cast.hpp"
 #include "vpux_compiler.hpp"
 
 namespace vpux {
@@ -63,9 +67,10 @@ static Executor::Ptr getExecutorForInference(const Executor::Ptr& executor, cons
 //------------------------------------------------------------------------------
 //      Shared init ctor
 //------------------------------------------------------------------------------
-ExecutableNetwork::ExecutableNetwork(const VPUXConfig& config, const Device::Ptr& device)
+ExecutableNetwork::ExecutableNetwork(const Config& config, const Device::Ptr& device)
         : _config(config),
-          _logger(std::make_shared<vpu::Logger>("ExecutableNetwork", config.logLevel(), vpu::consoleOutput())),
+          _logger(std::make_shared<vpu::Logger>("ExecutableNetwork", toOldLogLevel(config.get<LOG_LEVEL>()),
+                                                vpu::consoleOutput())),
           _device(device),
           _compiler(Compiler::create(config)),
           _supportedMetrics({METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)}) {
@@ -74,7 +79,7 @@ ExecutableNetwork::ExecutableNetwork(const VPUXConfig& config, const Device::Ptr
 //------------------------------------------------------------------------------
 //      Load network
 //------------------------------------------------------------------------------
-ExecutableNetwork::ExecutableNetwork(const IE::CNNNetwork& orignet, const Device::Ptr& device, const VPUXConfig& config)
+ExecutableNetwork::ExecutableNetwork(const IE::CNNNetwork& orignet, const Device::Ptr& device, const Config& config)
         : ExecutableNetwork(config, device) {
     // FIXME: This is a copy-paste from kmb_executable_network.cpp
     // should be fixed after switching to VPUX completely
@@ -110,7 +115,7 @@ ExecutableNetwork::ExecutableNetwork(const IE::CNNNetwork& orignet, const Device
 //------------------------------------------------------------------------------
 //      Import network
 //------------------------------------------------------------------------------
-ExecutableNetwork::ExecutableNetwork(std::istream& networkModel, const Device::Ptr& device, const VPUXConfig& config)
+ExecutableNetwork::ExecutableNetwork(std::istream& networkModel, const Device::Ptr& device, const Config& config)
         : ExecutableNetwork(config, device) {
     try {
         const std::string networkName = "net" + std::to_string(loadBlobCounter);
@@ -129,14 +134,14 @@ ExecutableNetwork::ExecutableNetwork(std::istream& networkModel, const Device::P
 
 void ExecutableNetwork::ConfigureStreamsExecutor(const std::string& networkName) {
     size_t maxTaskExecutorGetResultCount = 1;
-    if (_config.exclusiveAsyncRequests()) {
+    if (_config.get<EXCLUSIVE_ASYNC_REQUESTS>()) {
         IE::ExecutorManager* executorManager = IE::ExecutorManager::getInstance();
         _taskExecutor = executorManager->getExecutor("VPUX");
         maxTaskExecutorGetResultCount = 1;
     } else {
-        _taskExecutor = std::make_shared<IE::CPUStreamsExecutor>(
-                IE::IStreamsExecutor::Config{"VPUXPlugin executor", _config.executorStreams()});
-        maxTaskExecutorGetResultCount = _config.executorStreams();
+        _taskExecutor = std::make_shared<IE::CPUStreamsExecutor>(IE::IStreamsExecutor::Config{
+                "VPUXPlugin executor", checked_cast<int>(_config.get<EXECUTOR_STREAMS>())});
+        maxTaskExecutorGetResultCount = _config.get<EXECUTOR_STREAMS>();
     }
 
     for (size_t i = 0; i < maxTaskExecutorGetResultCount; i++) {
@@ -238,7 +243,7 @@ IE::Parameter ExecutableNetwork::GetMetric(const std::string& name) const {
 //------------------------------------------------------------------------------
 std::atomic<int> ExecutableNetwork::loadBlobCounter{1};
 
-Executor::Ptr ExecutableNetwork::createExecutor(const NetworkDescription::Ptr& network, const VPUXConfig& config,
+Executor::Ptr ExecutableNetwork::createExecutor(const NetworkDescription::Ptr& network, const Config& config,
                                                 const Device::Ptr& device) {
     loadBlobCounter++;  // increment blob static counter to make unique network ID
     if (network == nullptr) {

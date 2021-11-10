@@ -12,18 +12,22 @@
 //
 
 #pragma once
+
 // System
 #include <atomic>
 #include <map>
 #include <memory>
 #include <mutex>
 #include <vector>
+
 // IE
-#include "ie_allocator.hpp"
-#include "ie_remote_context.hpp"
+#include <ie_allocator.hpp>
+#include <ie_remote_context.hpp>
+#include <vpu/utils/logger.hpp>
+
 // Plugin
 #include "vpux.hpp"
-#include "vpux_config.hpp"
+
 // Low-level
 #include <HddlUnite.h>
 #include <RemoteMemory.h>

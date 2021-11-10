@@ -12,13 +12,13 @@
 //
 #pragma once
 
+#include "vpux.hpp"
+
 #include <ie_common.h>
+#include <vpu/utils/logger.hpp>
 
 #include <map>
 #include <memory>
-#include <vpux.hpp>
-
-#include "vpual_config.hpp"
 
 namespace vpux {
 
@@ -31,9 +31,7 @@ public:
     const std::string getName() const override {
         return "VPUAL";
     }
-    std::unordered_set<std::string> getSupportedOptions() const override {
-        return _config.getRunTimeOptions();
-    }
+    void registerOptions(OptionsDesc& options) const override;
     // TODO Investigate which device should be returned by getDevice without parameters
     const std::shared_ptr<IDevice> getDevice() const override;
     const std::shared_ptr<IDevice> getDevice(const std::string& deviceId) const override;
@@ -42,7 +40,6 @@ public:
 
 private:
     const std::map<std::string, std::shared_ptr<IDevice>> createDeviceMap();
-    VpualConfig _config;
 };
 
 }  // namespace vpux

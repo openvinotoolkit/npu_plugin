@@ -13,6 +13,9 @@
 
 #include "vpux/compiler/compiler.hpp"
 
+#include "vpux/al/config/common.hpp"
+#include "vpux/al/config/compiler.hpp"
+
 #include "vpux/compiler/backend/VPUIP.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IERT/ops.hpp"
@@ -49,34 +52,11 @@ using namespace InferenceEngine;
 namespace {
 
 //
-// getLogLevel
-//
-
-LogLevel getLogLevel(const VPUXConfig& config) {
-    switch (config.logLevel()) {
-    case vpu::LogLevel::Fatal:
-        return LogLevel::Fatal;
-    case vpu::LogLevel::Error:
-        return LogLevel::Error;
-    case vpu::LogLevel::Warning:
-        return LogLevel::Warning;
-    case vpu::LogLevel::Info:
-        return LogLevel::Info;
-    case vpu::LogLevel::Debug:
-        return LogLevel::Debug;
-    case vpu::LogLevel::Trace:
-        return LogLevel::Trace;
-    default:
-        return LogLevel::None;
-    }
-}
-
-//
 // getArchKind
 //
 
-VPUIP::ArchKind getArchKind(const VPUXConfig& config) {
-    switch (config.platform()) {
+VPUIP::ArchKind getArchKind(const Config& config) {
+    switch (config.get<PLATFORM>()) {
     case InferenceEngine::VPUXConfigParams::VPUXPlatform::AUTO:
     case InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR:
         return VPUIP::ArchKind::UNKNOWN;
@@ -97,9 +77,13 @@ VPUIP::ArchKind getArchKind(const VPUXConfig& config) {
 // getCompilationMode
 //
 
-VPUIP::CompilationMode getCompilationMode(const VPUXConfig& config) {
-    const auto parsed = VPUIP::symbolizeCompilationMode(config.compilationMode());
-    VPUX_THROW_UNLESS(parsed.hasValue(), "Unsupported compilation mode '{0}'", config.compilationMode());
+VPUIP::CompilationMode getCompilationMode(const Config& config) {
+    if (!config.has<COMPILATION_MODE>()) {
+        return VPUIP::CompilationMode::DefaultHW;
+    }
+
+    const auto parsed = VPUIP::symbolizeCompilationMode(config.get<COMPILATION_MODE>());
+    VPUX_THROW_UNLESS(parsed.hasValue(), "Unsupported compilation mode '{0}'", config.get<COMPILATION_MODE>());
     return parsed.getValue();
 }
 
@@ -107,11 +91,16 @@ VPUIP::CompilationMode getCompilationMode(const VPUXConfig& config) {
 // getNumberOfDPUGroups
 //
 
-Optional<int> getNumberOfDPUGroups(const VPUXConfig& config) {
-    if (config.numberOfDPUGroups().hasValue())
-        return config.numberOfDPUGroups();
+Optional<int> getNumberOfDPUGroups(const Config& config) {
+    if (config.has<DPU_GROUPS>()) {
+        return checked_cast<int>(config.get<DPU_GROUPS>());
+    }
 
-    switch (config.performanceHint()) {
+    if (!config.has<PERFORMANCE_HINT>()) {
+        return 1;  // TODO: consider updating once multi-clustering is enabled
+    }
+
+    switch (config.get<PERFORMANCE_HINT>()) {
     case PerformanceHint::Latency:
         return 4;
     case PerformanceHint::Throughput:
@@ -281,8 +270,8 @@ void DeveloperConfig::setup(mlir::PassManager& pm) const {
 //
 
 InferenceEngine::QueryNetworkResult vpux::CompilerImpl::query(const InferenceEngine::CNNNetwork& network,
-                                                              const vpux::VPUXConfig& config) {
-    Logger log("vpux-compiler", getLogLevel(config));
+                                                              const Config& config) {
+    Logger log("vpux-compiler", config.get<LOG_LEVEL>());
     InferenceEngine::QueryNetworkResult result;
     const std::string plugin_name = DEVICE_NAME;
 
@@ -306,22 +295,31 @@ InferenceEngine::QueryNetworkResult vpux::CompilerImpl::query(const InferenceEng
 
 namespace {
 
-void buildPipeline(mlir::PassManager& pm, const VPUXConfig& config, mlir::TimingScope& rootTiming, Logger log) {
+void buildPipeline(mlir::PassManager& pm, const Config& config, mlir::TimingScope& rootTiming, Logger log) {
     auto buildTiming = rootTiming.nest("Build compilation pipeline");
 
     const auto archKind = getArchKind(config);
     const auto compilationMode = getCompilationMode(config);
-    const auto enableProfiling = config.performanceCounting();
+    const auto enableProfiling = config.get<PERF_COUNT>();
     const auto numOfDPUGroups = getNumberOfDPUGroups(config);
 
     pm.addPass(createSetCompileParamsPass(archKind, compilationMode, numOfDPUGroups, log.nest()));
 
     if (compilationMode == VPUIP::CompilationMode::ReferenceSW) {
-        buildReferenceSWModePipeline(pm, enableProfiling, log.nest());
+        const auto options = ReferenceSWOptions::createFromString(config.get<COMPILATION_MODE_PARAMS>());
+        options->enableProfiling = enableProfiling;
+
+        buildReferenceSWModePipeline(pm, *options, log.nest());
     } else if (compilationMode == VPUIP::CompilationMode::ReferenceHW) {
-        buildReferenceHWModePipeline(pm, enableProfiling, log.nest());
+        const auto options = ReferenceHWOptions::createFromString(config.get<COMPILATION_MODE_PARAMS>());
+        options->enableProfiling = enableProfiling;
+
+        buildReferenceHWModePipeline(pm, *options, log.nest());
     } else if (compilationMode == VPUIP::CompilationMode::DefaultHW) {
-        buildDefaultHWModePipeline(pm, enableProfiling, log.nest(), config.pipelineOptions());
+        const auto options = DefaultHWOptions::createFromString(config.get<COMPILATION_MODE_PARAMS>());
+        options->enableProfiling = enableProfiling;
+
+        buildDefaultHWModePipeline(pm, *options, log.nest());
     } else {
         VPUX_THROW("Unsupported compilation mode '{0}'", compilationMode);
     }
@@ -367,8 +365,8 @@ auto exportToBlob(mlir::ModuleOp module, mlir::TimingScope& rootTiming, Logger l
 std::shared_ptr<INetworkDescription> vpux::CompilerImpl::compile(const std::shared_ptr<ngraph::Function>& func,
                                                                  const std::string&, const InputsDataMap& inputsInfo,
                                                                  const OutputsDataMap& outputsInfo,
-                                                                 const VPUXConfig& config) {
-    Logger log("vpux-compiler", getLogLevel(config));
+                                                                 const Config& config) {
+    Logger log("vpux-compiler", config.get<LOG_LEVEL>());
 
     DeveloperConfig devConf(log);
 
@@ -389,7 +387,7 @@ std::shared_ptr<INetworkDescription> vpux::CompilerImpl::compile(const std::shar
     buildPipeline(pm, config, rootTiming, log);
 
     const auto cnnNet = prepareNetwork(func, inputsInfo, outputsInfo, rootTiming);
-    const auto module = importNetwork(&ctx, cnnNet, devConf, rootTiming, config.performanceCounting(), log);
+    const auto module = importNetwork(&ctx, cnnNet, devConf, rootTiming, config.get<PERF_COUNT>(), log);
     compileNetwork(module.get(), pm, rootTiming);
     const auto blob = exportToBlob(module.get(), rootTiming, log);
 
@@ -404,16 +402,8 @@ std::shared_ptr<INetworkDescription> vpux::CompilerImpl::compile(const std::shar
 //
 
 std::shared_ptr<vpux::INetworkDescription> vpux::CompilerImpl::parse(const std::vector<char>& compiledNetwork,
-                                                                     const vpux::VPUXConfig&, const std::string&) {
+                                                                     const Config&, const std::string&) {
     return std::make_shared<VPUIP::NetworkDescription>(compiledNetwork);
-}
-
-//
-// CompilerImpl::getSupportedOptions
-//
-
-std::unordered_set<std::string> vpux::CompilerImpl::getSupportedOptions() {
-    return {};
 }
 
 //

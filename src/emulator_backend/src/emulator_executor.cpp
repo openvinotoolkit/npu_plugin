@@ -13,17 +13,20 @@
 
 #include "emulator_executor.hpp"
 
-#include <file_utils.h>
+#include "vpux/al/config/common.hpp"
+
 #include <emu/arithmetic_types.hpp>
+
+#include <file_utils.h>
 
 namespace ie = InferenceEngine;
 
 namespace vpux {
 
-EmulatorExecutor::EmulatorExecutor(const vpux::NetworkDescription::Ptr& network, const VPUXConfig& config)
+EmulatorExecutor::EmulatorExecutor(const vpux::NetworkDescription::Ptr& network, const Config& config)
         : _logger("EmulatorBackend", vpu::LogLevel::Debug /*_config.logLevel()*/, vpu::consoleOutput()),
           _network(network),
-          _manager(ie::getIELibraryPath() + "/vpux_emulator", config.logLevel()) {
+          _manager(ie::getIELibraryPath() + "/vpux_emulator", toOldLogLevel(config.get<LOG_LEVEL>())) {
 }
 
 void EmulatorExecutor::push(const ie::BlobMap& inputs, const PreprocMap&) {

@@ -18,8 +18,6 @@
 
 #include <ie_plugin_config.hpp>
 
-#include <llvm/ADT/StringSwitch.h>
-
 using namespace vpux;
 using namespace InferenceEngine;
 
@@ -28,9 +26,13 @@ using namespace InferenceEngine;
 //
 
 bool vpux::OptionParser<bool>::parse(StringRef val) {
-    const auto res = llvm::StringSwitch<Optional<bool>>(val).Case("YES", true).Case("NO", false).Default(None);
-    VPUX_THROW_UNLESS(res.hasValue(), "Value '{0}' is not a valid BOOL option");
-    return res.getValue();
+    if (val == CONFIG_VALUE(YES)) {
+        return true;
+    } else if (val == CONFIG_VALUE(NO)) {
+        return false;
+    }
+
+    VPUX_THROW("Value '{0}' is not a valid BOOL option");
 }
 
 int64_t OptionParser<int64_t>::parse(StringRef val) {
@@ -50,16 +52,21 @@ double OptionParser<double>::parse(StringRef val) {
 }
 
 LogLevel vpux::OptionParser<LogLevel>::parse(StringRef val) {
-    const auto res = llvm::StringSwitch<Optional<LogLevel>>(val)
-                             .Case("LOG_NONE", LogLevel::None)
-                             .Case("LOG_ERROR", LogLevel::Error)
-                             .Case("LOG_WARNING", LogLevel::Warning)
-                             .Case("LOG_INFO", LogLevel::Info)
-                             .Case("LOG_DEBUG", LogLevel::Debug)
-                             .Case("LOG_TRACE", LogLevel::Trace)
-                             .Default(None);
-    VPUX_THROW_UNLESS(res.hasValue(), "Value '{0}' is not a valid LOG_LEVEL option");
-    return res.getValue();
+    if (val == CONFIG_VALUE(LOG_NONE)) {
+        return LogLevel::None;
+    } else if (val == CONFIG_VALUE(LOG_ERROR)) {
+        return LogLevel::Error;
+    } else if (val == CONFIG_VALUE(LOG_WARNING)) {
+        return LogLevel::Warning;
+    } else if (val == CONFIG_VALUE(LOG_INFO)) {
+        return LogLevel::Info;
+    } else if (val == CONFIG_VALUE(LOG_DEBUG)) {
+        return LogLevel::Debug;
+    } else if (val == CONFIG_VALUE(LOG_TRACE)) {
+        return LogLevel::Trace;
+    }
+
+    VPUX_THROW("Value '{0}' is not a valid LOG_LEVEL option");
 }
 
 //
@@ -80,32 +87,39 @@ StringLiteral vpux::stringifyEnum(OptionMode val) {
 }
 
 //
+// OptionValue
+//
+
+vpux::details::OptionValue::~OptionValue() = default;
+
+//
 // OptionsDesc
 //
 
-const vpux::details::OptionConcept& vpux::OptionsDesc::validate(StringRef key, StringRef val, OptionMode mode) const {
-    auto log = Logger::global();
+vpux::details::OptionConcept vpux::OptionsDesc::get(StringRef key, OptionMode mode) const {
+    auto log = Logger::global().nest("OptionsDesc", 0);
 
-    auto it = _impl.find(key);
-    if (it == _impl.end()) {
-        it = _deprecated.find(key);
-        VPUX_THROW_UNLESS(it != _deprecated.end(), "{0}Option '{1}' is not supported for current configuration",
-                          InferenceEngine::details::ExceptionTraits<InferenceEngine::NotFound>::string(), key);
+    auto searchKey = key;
 
-        log.warning("Deprecated option '{0}' was used, '{1}' should be used instead", key, it->second->key());
+    const auto itDeprecated = _deprecated.find(key);
+    if (itDeprecated != _deprecated.end()) {
+        searchKey = itDeprecated->second;
+        log.warning("Deprecated option '{0}' was used, '{1}' should be used instead", key, searchKey);
     }
 
-    const auto& desc = it->second;
+    const auto itMain = _impl.find(searchKey);
+    VPUX_THROW_WHEN(itMain == _impl.end(), "{0} Option '{1}' is not supported for current configuration",
+                    InferenceEngine::details::ExceptionTraits<InferenceEngine::NotFound>::string(), key);
+
+    const auto& desc = itMain->second;
 
     if (mode == OptionMode::RunTime) {
-        if (desc->mode() == OptionMode::CompileTime) {
-            log.warning("{0} option '{1}' was used in {2} mode", desc->mode(), key, mode);
+        if (desc.mode() == OptionMode::CompileTime) {
+            log.warning("{0} option '{1}' was used in {2} mode", desc.mode(), key, mode);
         }
     }
 
-    desc->validate(val);
-
-    return *desc;
+    return desc;
 }
 
 std::vector<std::string> vpux::OptionsDesc::getSupported(bool includePrivate) const {
@@ -113,7 +127,7 @@ std::vector<std::string> vpux::OptionsDesc::getSupported(bool includePrivate) co
     res.reserve(_impl.size());
 
     for (const auto& p : _impl) {
-        if (p.second->isPublic() || includePrivate) {
+        if (p.second.isPublic() || includePrivate) {
             res.push_back(p.first.str());
         }
     }
@@ -121,18 +135,45 @@ std::vector<std::string> vpux::OptionsDesc::getSupported(bool includePrivate) co
     return res;
 }
 
+void vpux::OptionsDesc::walk(FuncRef<void(const details::OptionConcept&)> cb) const {
+    for (const auto& opt : _impl | map_values) {
+        cb(opt);
+    }
+}
+
 //
 // Config
 //
 
-vpux::Config::Config() {
-    _desc = std::make_shared<OptionsDesc>();
+vpux::Config::Config(const std::shared_ptr<const OptionsDesc>& desc): _desc(desc) {
+    VPUX_THROW_WHEN(_desc == nullptr, "Got NULL OptionsDesc");
 }
 
+#ifdef VPUX_DEVELOPER_BUILD
+void vpux::Config::parseEnvVars() {
+    auto log = Logger::global().nest("Config", 0);
+
+    _desc->walk([&](const details::OptionConcept& opt) {
+        if (!opt.envVar().empty()) {
+            if (const auto envVar = std::getenv(opt.envVar().data())) {
+                log.trace("Update option '{0}' to value '{1}' parsed from environment variable '{2}'", opt.key(),
+                          envVar, opt.envVar());
+
+                _impl[opt.key()] = opt.validateAndParse(envVar);
+            }
+        }
+    });
+}
+#endif
+
 void vpux::Config::update(const ConfigMap& options, OptionMode mode) {
+    auto log = Logger::global().nest("Config", 0);
+
     for (const auto& p : options) {
-        const auto& opt = _desc->validate(p.first, p.second, mode);
-        _impl[opt.key()] = p.second;
+        log.trace("Update option '{0}' to value '{1}'", p.first, p.second);
+
+        const auto opt = _desc->get(p.first, mode);
+        _impl[opt.key()] = opt.validateAndParse(p.second);
     }
 }
 

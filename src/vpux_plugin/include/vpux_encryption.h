@@ -15,8 +15,12 @@
 //
 
 #pragma once
+
 #if defined(__arm__) || defined(__aarch64__)
+
 #include "vpux.hpp"
+
+#include <vpu/utils/logger.hpp>
 
 namespace vpux {
 
@@ -52,4 +56,5 @@ private:
 };
 
 }  // namespace vpux
+
 #endif

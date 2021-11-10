@@ -13,13 +13,16 @@
 
 #pragma once
 
+#include "vpux.hpp"
+
+#include <emu/manager.hpp>
+
+#include <vpu/utils/logger.hpp>
+
 #include <memory>
 #include <string>
 #include <utility>
 #include <vector>
-
-#include <emu/manager.hpp>
-#include <vpux.hpp>
 
 namespace ie = InferenceEngine;
 
@@ -27,7 +30,7 @@ namespace vpux {
 
 class EmulatorExecutor final : public vpux::Executor {
 public:
-    EmulatorExecutor(const vpux::NetworkDescription::Ptr& network, const VPUXConfig& config);
+    EmulatorExecutor(const vpux::NetworkDescription::Ptr& network, const vpux::Config& config);
 
     void setup(const InferenceEngine::ParamMap&) final {
     }

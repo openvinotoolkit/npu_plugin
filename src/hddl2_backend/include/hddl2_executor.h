@@ -16,27 +16,31 @@
 // System
 #include <atomic>
 #include <mutex>
+
+// IE
+#include <vpu/utils/logger.hpp>
+
 // Plugin
 #include "vpux.hpp"
-#include "vpux_config.hpp"
 #include "vpux_remote_context.h"
+
 // Low-level
 #include "hddl_unite/hddl2_unite_graph.h"
 
 namespace vpux {
 namespace hddl2 {
+
 class HDDL2Executor final : public Executor {
 public:
     using Ptr = std::shared_ptr<HDDL2Executor>;
     using CPtr = std::shared_ptr<const HDDL2Executor>;
 
     HDDL2Executor(const HDDL2Executor& ex);
-    explicit HDDL2Executor(const vpux::NetworkDescription::CPtr& network, const vpux::VPUXConfig& config,
+    explicit HDDL2Executor(const vpux::NetworkDescription::CPtr& network, const Config& config,
                            const std::shared_ptr<vpux::Allocator>& allocator,
                            const HddlUnite::WorkloadContext::Ptr& workloadContext);
     HDDL2Executor& operator=(const HDDL2Executor& ex) = delete;
-    static HDDL2Executor::Ptr prepareExecutor(const vpux::NetworkDescription::Ptr& networkDesc,
-                                              const VPUXConfig& config,
+    static HDDL2Executor::Ptr prepareExecutor(const vpux::NetworkDescription::Ptr& networkDesc, const Config& config,
                                               const std::shared_ptr<vpux::Allocator>& allocator = nullptr,
                                               const HddlUnite::WorkloadContext::Ptr& workloadContext = nullptr);
 
@@ -58,7 +62,7 @@ private:
     void loadGraphToDevice();
 
 private:
-    vpux::VPUXConfig _config;
+    Config _config;
     const vpu::Logger::Ptr _logger;
 
     NetworkDescription::CPtr _network;
@@ -81,5 +85,6 @@ private:
     static std::atomic<size_t> _executorIdCounter;
     static std::map<size_t, std::weak_ptr<HddlUniteGraph>> _uniteGraphMap;
 };
+
 }  // namespace hddl2
 }  // namespace vpux

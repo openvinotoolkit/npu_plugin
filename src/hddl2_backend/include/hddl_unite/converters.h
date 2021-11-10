@@ -14,9 +14,9 @@
 #pragma once
 
 // IE
-#include "ie_precision.hpp"
-// Plugin
-#include <vpux_config.hpp>
+#include <ie_precision.hpp>
+#include <vpu/utils/logger.hpp>
+
 // Low-level
 #include <HddlUnite.h>
 #include <Inference.h>

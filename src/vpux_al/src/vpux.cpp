@@ -14,10 +14,11 @@
 #include "vpux.hpp"
 
 #include <file_utils.h>
+#include <details/ie_so_pointer.hpp>
+
+#include <memory>
 
 #include <cstdlib>
-#include <details/ie_so_pointer.hpp>
-#include <memory>
 
 namespace vpux {
 
@@ -27,6 +28,10 @@ bool isBlobAllocatedByAllocator(const InferenceEngine::Blob::Ptr& blob,
     IE_ASSERT(memoryBlob != nullptr);
     auto lockedMemory = memoryBlob->rmap();
     return allocator->lock(lockedMemory.as<void*>());
+}
+
+std::string getLibFilePath(const std::string& baseName) {
+    return FileUtils::makePluginLibraryName(InferenceEngine::getIELibraryPath(), baseName + IE_BUILD_POSTFIX);
 }
 
 enum class EngineBackendType : uint8_t { VPUAL = 1, HDDL2 = 2, ZeroApi = 3, Emulator = 4 };
@@ -67,8 +72,7 @@ const std::vector<std::string> IEngineBackend::getDeviceNames() const {
     IE_THROW() << "Get all device names not implemented";
 }
 
-std::unordered_set<std::string> IEngineBackend::getSupportedOptions() const {
-    return {};
+void IEngineBackend::registerOptions(OptionsDesc&) const {
 }
 
 void* Allocator::wrapRemoteMemory(const InferenceEngine::ParamMap&) noexcept {

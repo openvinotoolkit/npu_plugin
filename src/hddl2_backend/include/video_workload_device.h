@@ -16,12 +16,17 @@
 // System
 #include <memory>
 #include <string>
+
 // IE
-#include "ie_allocator.hpp"
+#include <ie_allocator.hpp>
+#include <vpu/utils/logger.hpp>
+
 // Plugin
 #include "hddl2_remote_allocator.h"
+
 // Subplugin
 #include "vpux.hpp"
+
 // Low-level
 #include "APICommon.h"
 #include "WorkloadContext.h"
@@ -48,8 +53,9 @@ private:
  */
 class VideoWorkloadDevice final : public IDevice {
 public:
-    explicit VideoWorkloadDevice(const InferenceEngine::ParamMap& paramMap, const VPUXConfig& config = {});
-    Executor::Ptr createExecutor(const NetworkDescription::Ptr& networkDescription, const VPUXConfig& config) override;
+    explicit VideoWorkloadDevice(const InferenceEngine::ParamMap& paramMap, vpu::LogLevel logLvl = vpu::LogLevel::None);
+
+    Executor::Ptr createExecutor(const NetworkDescription::Ptr& networkDescription, const Config& config) override;
 
     std::shared_ptr<Allocator> getAllocator() const override {
         return nullptr;

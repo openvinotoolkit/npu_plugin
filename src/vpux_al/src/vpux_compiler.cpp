@@ -11,12 +11,17 @@
 // included with the Software Package for additional details.
 //
 
+#include "vpux_compiler.hpp"
+
+#include "vpux.hpp"
+#include "vpux/al/config/compiler.hpp"
+
+#include <vpu/utils/io.hpp>
+
 #include <file_reader.h>
 #include <file_utils.h>
 
 #include <fstream>
-#include <vpu/utils/io.hpp>
-#include <vpux_compiler.hpp>
 
 vpux::NetworkDescription::NetworkDescription(INetworkDescription::Ptr actual,
                                              const InferenceEngine::details::SharedObjectLoader& plg)
@@ -31,8 +36,7 @@ static std::string extractFileName(const std::string& fullPath) {
     return fullPath.substr(lastSlashIndex + 1);
 }
 
-std::shared_ptr<vpux::INetworkDescription> vpux::ICompiler::parse(const std::string& filename,
-                                                                  const VPUXConfig& config) {
+std::shared_ptr<vpux::INetworkDescription> vpux::ICompiler::parse(const std::string& filename, const Config& config) {
     std::ifstream stream(filename, std::ios::binary);
     if (!stream.is_open()) {
         IE_THROW() << "Could not open file: " << filename;
@@ -41,7 +45,7 @@ std::shared_ptr<vpux::INetworkDescription> vpux::ICompiler::parse(const std::str
     return parse(stream, config, graphName);
 }
 
-std::shared_ptr<vpux::INetworkDescription> vpux::ICompiler::parse(std::istream& stream, const VPUXConfig& config,
+std::shared_ptr<vpux::INetworkDescription> vpux::ICompiler::parse(std::istream& stream, const Config& config,
                                                                   const std::string& graphName) {
     const size_t graphSize = vpu::KmbPlugin::utils::getFileSize(stream);
     if (graphSize == 0) {
@@ -52,8 +56,10 @@ std::shared_ptr<vpux::INetworkDescription> vpux::ICompiler::parse(std::istream& 
     return parse(blob, config, graphName);
 }
 
-vpux::Compiler::Ptr vpux::Compiler::create(const VPUXConfig& config) {
-    switch (config.compilerType()) {
+vpux::Compiler::Ptr vpux::Compiler::create(const Config& config) {
+    const auto compilerType = config.get<COMPILER_TYPE>();
+
+    switch (compilerType) {
     case InferenceEngine::VPUXConfigParams::CompilerType::MCM: {
         return std::make_shared<Compiler>(getLibFilePath("frontend_mcm"));
     }

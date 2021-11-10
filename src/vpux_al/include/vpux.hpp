@@ -27,13 +27,16 @@
 #include <ie_remote_context.hpp>
 #include <ie_icnn_network.hpp>
 
+#include "vpux/utils/IE/config.hpp"
+
 #include "vpux_compiler.hpp"
-#include <vpux_config.hpp>
 
 namespace vpux {
 
 bool isBlobAllocatedByAllocator(const InferenceEngine::Blob::Ptr& blob,
                                 const std::shared_ptr<InferenceEngine::IAllocator>& allocator);
+
+std::string getLibFilePath(const std::string& baseName);
 
 //------------------------------------------------------------------------------
 class IDevice;
@@ -51,8 +54,8 @@ public:
     virtual const std::vector<std::string> getDeviceNames() const;
     /** @brief Get name of backend */
     virtual const std::string getName() const = 0;
-    /** @brief Get a list of supported options */
-    virtual std::unordered_set<std::string> getSupportedOptions() const;
+    /** @brief Register backend-specific options */
+    virtual void registerOptions(OptionsDesc& options) const;
 
 protected:
     ~IEngineBackend() = default;
@@ -62,18 +65,18 @@ using IEngineBackendPtr = InferenceEngine::details::SOPointer<IEngineBackend>;
 
 class EngineBackend final {
 public:
-    virtual ~EngineBackend() = default;
-    virtual const std::shared_ptr<Device> getDevice() const;
-    virtual const std::shared_ptr<Device> getDevice(const std::string& specificDeviceName) const;
-    virtual const std::shared_ptr<Device> getDevice(const InferenceEngine::ParamMap& paramMap) const;
-    virtual const std::vector<std::string> getDeviceNames() const {
+    const std::shared_ptr<Device> getDevice() const;
+    const std::shared_ptr<Device> getDevice(const std::string& specificDeviceName) const;
+    const std::shared_ptr<Device> getDevice(const InferenceEngine::ParamMap& paramMap) const;
+    const std::vector<std::string> getDeviceNames() const {
         return _impl->getDeviceNames();
     }
-    virtual const std::string getName() const {
+    const std::string getName() const {
         return _impl->getName();
     }
-    virtual const std::unordered_set<std::string> getSupportedOptions() const {
-        return _impl->getSupportedOptions();
+    void registerOptions(OptionsDesc& options) const {
+        _impl->registerOptions(options);
+        options.addSharedObject(_impl);
     }
 
     EngineBackend(std::string pathToLib);
@@ -158,7 +161,7 @@ public:
     virtual std::shared_ptr<Allocator> getAllocator(const InferenceEngine::ParamMap& paramMap) const;
 
     virtual std::shared_ptr<Executor> createExecutor(const NetworkDescription::Ptr& networkDescription,
-                                                     const VPUXConfig& config) = 0;
+                                                     const Config& config) = 0;
 
     virtual std::string getName() const = 0;
 
@@ -193,8 +196,7 @@ public:
         return std::make_shared<AllocatorWrapper>(_actual->getAllocator(paramMap), _plg);
     }
 
-    std::shared_ptr<Executor> createExecutor(const NetworkDescription::Ptr& networkDescription,
-                                             const VPUXConfig& config) {
+    std::shared_ptr<Executor> createExecutor(const NetworkDescription::Ptr& networkDescription, const Config& config) {
         return _actual->createExecutor(networkDescription, config);
     }
 
