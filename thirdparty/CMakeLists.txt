@@ -256,3 +256,11 @@ target_include_directories(${BITCOMPACTOR_TARGET_NAME}
     PUBLIC
         "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/thirdparty/bitcompactor/include"
 )
+
+#
+# json
+#
+
+if(ENABLE_KMB_SAMPLES)
+    set(SAMPLES_JSON "${CMAKE_CURRENT_SOURCE_DIR}/json/single_include/nlohmann/" CACHE INTERNAL "")
+endif()
