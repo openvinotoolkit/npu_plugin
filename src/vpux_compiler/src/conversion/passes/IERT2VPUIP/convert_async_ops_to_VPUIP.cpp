@@ -151,6 +151,11 @@ void ConvertAsyncOps2VPUIPPass::safeRunOnFunc() {
     target.addLegalOp<mlir::UnrealizedConversionCastOp>();
     target.addLegalOp<mlir::FuncOp, mlir::ReturnOp>();
 
+    target.addLegalOp<VPUIP::SW_KernelOp>();
+    target.markOpRecursivelyLegal<VPUIP::SW_KernelOp>([&](mlir::Operation*) {
+        return true;
+    });
+
     mlir::RewritePatternSet patterns(&ctx);
     patterns.insert<InlineAsyncRegion>(typeConverter, &ctx, _log);
     patterns.insert<RemoveWait>(typeConverter, &ctx, _log);

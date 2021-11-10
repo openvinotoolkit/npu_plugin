@@ -2017,7 +2017,7 @@ operation ::= `VPUIP.RoundUPA` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float values
 
-### `VPUIP.SW.Kernel` (vpux::VPUIP::SW_Kernel)
+### `VPUIP.SW.Kernel` (vpux::VPUIP::SW_KernelOp)
 
 Software Layer Task
 

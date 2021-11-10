@@ -302,6 +302,11 @@ void ConvertLayers2VPUIPPass::safeRunOnFunc() {
     target.addLegalOp<IERT::SubViewOp, IERT::ConcatViewOp>();
     target.addLegalOp<IERT::GenericReshapeOp, IERT::PermuteCastOp>();
     target.addLegalOp<IERT::QuantizeCastOp>();
+    target.addLegalOp<mlir::memref::AllocOp>();
+    target.addLegalOp<VPUIP::SW_KernelOp>();
+    target.markOpRecursivelyLegal<VPUIP::SW_KernelOp>([&](mlir::Operation*) {
+        return true;
+    });
 
     mlir::RewritePatternSet patterns(&ctx);
     patterns.insert<CTCGreedyDecoderSeqLenRewrite>(&ctx, _log);

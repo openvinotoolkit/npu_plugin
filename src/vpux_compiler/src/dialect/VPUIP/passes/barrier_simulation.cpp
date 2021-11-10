@@ -133,6 +133,7 @@ void BarrierSimulator::buildTaskLists(mlir::FuncOp func) {
             _nceTasks.push_back(getTaskInfo(taskOp, nceOp.getNumVariants()));
             break;
         }
+        case VPUIP::TaskType::ACTShave:
         case VPUIP::TaskType::UPA: {
             _upaTasks.push_back(getTaskInfo(taskOp));
             break;

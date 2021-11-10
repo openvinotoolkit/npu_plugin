@@ -46,6 +46,7 @@ bool isOptimizableOp(mlir::async::ExecuteOp execOp) {
 
     auto resOp = IERT::RunTimeResourcesOp::getFromModule(module);
     auto executorInfo = resOp.getExecutor(executor);
+    VPUX_THROW_UNLESS(executorInfo != nullptr, "Failed to get information about executor {0}", executor);
 
     return numUnits == executorInfo.count() && executorInfo.subExecutors().empty();
 }
