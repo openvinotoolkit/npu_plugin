@@ -111,11 +111,14 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(EMU::BlobWriter& w
     graphOutputs.reserve(outputsInfo.size());
     userOutputs.reserve(outputsInfo.size());
 
+    auto returnOps = netFunc.getOps<mlir::ReturnOp>();
+    VPUX_THROW_UNLESS(std::distance(returnOps.begin(), returnOps.end()) == 1,
+                      "Only functions with 1 return are supported.");
+    auto returnOperands = (*returnOps.begin()).getOperands();
     for (const auto& p : outputsInfo | indexed) {
-        const auto funcArgInd = inputsInfo.size() + p.index();
-
         auto userInfo = p.value();
-        const auto val = netFunc.getArgument(checked_cast<uint32_t>(funcArgInd));
+
+        auto val = returnOperands[p.index()];
 
         const auto userType = userInfo.userType().cast<mlir::ShapedType>();
 
@@ -150,7 +153,13 @@ void serializeTensorDecls(EMU::BlobWriter& writer, mlir::FuncOp netFunc, mlir::T
     size_t tempTensorInd = 0;
     netFunc.walk([&](EMU::TaskOpInterface op) {
         for (auto result : op->getResults()) {
-            if (result.isa<mlir::BlockArgument>())
+            auto users = result.getUsers();
+            auto isNetworkResult = false;
+            for (auto user : users) {
+                if (mlir::isa<mlir::ReturnOp>(user))
+                    isNetworkResult = true;
+            }
+            if (isNetworkResult)
                 continue;
             writer.createTensor(result, llvm::formatv("temp-{0}", tempTensorInd).str());
         }
