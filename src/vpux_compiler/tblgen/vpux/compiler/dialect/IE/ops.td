@@ -2386,7 +2386,6 @@ def IE_EqualOp :
         IE_LayerOp<
             "Equal",
             [
-                IE_TilingBuilderOpInterface,
                 Commutative,
                 IE_EltwiseOp
             ]
@@ -2394,15 +2393,17 @@ def IE_EqualOp :
     let summary = "InferenceEngine Equal layer";
 
     let arguments = (ins
-        RankedTensorOf<[F16, F32]>:$input1,
-        RankedTensorOf<[F16, F32]>:$input2,
+        AnyRankedTensor:$input1,
+        AnyRankedTensor:$input2,
 
         IE_AutoBroadcastType:$auto_broadcast
     );
 
     let results = (outs
-        RankedTensorOf<[F16, F32]>:$output
+        AnyRankedTensor:$output
     );
+
+    let hasCanonicalizer = 1;
 }
 
 //

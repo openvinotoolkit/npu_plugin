@@ -648,15 +648,15 @@ operation ::= `IERT.Equal` attr-dict
 
 | Operand | Description |
 | :-----: | ----------- |
-`input1` | memref of 16-bit float or 32-bit float values
-`input2` | memref of 16-bit float or 32-bit float values
-`output_buff` | memref of 16-bit float or 32-bit float values
+`input1` | memref of 16-bit float values
+`input2` | memref of 16-bit float values
+`output_buff` | memref of 16-bit float values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-`output` | memref of 16-bit float or 32-bit float values
+`output` | memref of 16-bit float values
 
 ### `IERT.Erf` (vpux::IERT::ErfOp)
 
