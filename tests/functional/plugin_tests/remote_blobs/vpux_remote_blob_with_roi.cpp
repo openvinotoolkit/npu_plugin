@@ -200,4 +200,4 @@ const auto remoteBlobRoiParams = testing::Combine(
 );
 
 
-INSTANTIATE_TEST_SUITE_P(precommit, VpuxRemoteBlobRoiTests, remoteBlobRoiParams, VpuxRemoteBlobRoiTests::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke, VpuxRemoteBlobRoiTests, remoteBlobRoiParams, VpuxRemoteBlobRoiTests::getTestCaseName);
