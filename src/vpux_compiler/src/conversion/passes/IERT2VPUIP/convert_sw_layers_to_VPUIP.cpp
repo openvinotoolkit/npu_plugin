@@ -64,9 +64,9 @@ public:
 
         // TODO : tile 0
         const int64_t tileIndex = 0;
-        SmallVector<mlir::Value, 128> inputCMXTensors;
-        SmallVector<mlir::Value, 128> outputCMXTensors;
-        SmallVector<mlir::Value, 128> outputDmaResults;
+        SmallVector<mlir::Value> inputCMXTensors;
+        SmallVector<mlir::Value> outputCMXTensors;
+        SmallVector<mlir::Value> outputDmaResults;
 
         //  creating input dma
         for (auto&& source : _inputs) {
@@ -131,14 +131,14 @@ private:
 
         // embedding args of IERT operation as constants
 
-        llvm::SmallVector<mlir::arith::ConstantOp, 12> constantArgs;
+        llvm::SmallVector<mlir::arith::ConstantOp> constantArgs;
         for (auto&& arg : _args) {
             constantArgs.push_back(
                     swKernelBlockBuilder.template create<mlir::arith::ConstantOp>(mlir::UnknownLoc::get(_ctx), arg));
         }
 
         // pack input/outputs and constants into single call to sw_kernel_run
-        llvm::SmallVector<mlir::Value, 12> operands;
+        llvm::SmallVector<mlir::Value> operands;
         auto fetchOperands = [&operands](auto& cnt) {
             for (auto&& arg : cnt) {
                 operands.push_back(arg);
@@ -226,7 +226,7 @@ public:
             : mlir::OpRewritePattern<IERT::SoftMaxOp>(ctx), _log(log), _mainModule(mainModule) {
     }
     mlir::LogicalResult matchAndRewrite(IERT::SoftMaxOp origOp, mlir::PatternRewriter& rewriter) const final {
-        mlir::SmallVector<mlir::Attribute, 128> args = {origOp.axisIndAttr()};
+        mlir::SmallVector<mlir::Attribute> args = {origOp.axisIndAttr()};
         SWLayerRewriter(getContext(), origOp.getOperation(), rewriter, _log, _mainModule, {origOp.input()},
                         {origOp.output()}, {origOp.output_buff()}, args, "softmax_fp16", "softmax_fp16.cpp")
                 .rewrite();
