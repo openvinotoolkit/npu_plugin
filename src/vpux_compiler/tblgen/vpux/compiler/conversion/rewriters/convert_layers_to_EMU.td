@@ -683,6 +683,22 @@ def RewriteStridedSlice :
         >;
 
 //
+// IE.Interpolate -> EMU.Interpolate
+//
+
+def createInterpolateUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::EMU::InterpolateUPAOp>(
+                $_loc, $2.getType(), $0, $1.mode().getValue(), $1.coord_mode().getValue(), $1.nearest_mode().getValue(), $1.antialias().getValue())
+        }]>;
+
+def RewriteInterpolate :
+        Pat<
+            (IE_InterpolateOp:$result $input, $sizes, $scales, $axes, $sizes_attr, $scales_attr, $axes_attr, $attr),
+            (createInterpolateUPAOp $input, $attr, $result)
+        >;
+
+//
 // IE.RegionYolo -> EMU.RegionYoloUPA
 //
 
