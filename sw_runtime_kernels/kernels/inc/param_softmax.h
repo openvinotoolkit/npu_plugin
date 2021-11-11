@@ -14,11 +14,13 @@ typedef fp16 half;
 
 #include <common_types.h>
 
+#ifdef __cplusplus
 namespace sw_params {
+#endif
 
 struct __attribute__((packed)) SoftmaxParams {
-    MemRefData input;
-    MemRefData output;
+    struct MemRefData input;
+    struct MemRefData output;
     int32_t axis;
 };
 
@@ -31,4 +33,6 @@ inline BaseKernelParams softmaxParamsToBaseKernelParams(SoftmaxParams * softmaxP
     return rezult;
 }
 
-} // sw_params
+#ifdef __cplusplus
+}  // namespace sw_params
+#endif
