@@ -30,8 +30,5 @@ void SW_KernelOp::build(mlir::OpBuilder& builder, mlir::OperationState& opState,
           mlir::ValueRange{});
 }
 
-void SW_KernelOp::inferLayoutInfo(mlir::Operation* /*origOp*/, vpux::IE::LayerLayoutInfo& /*info*/) {
-}
-
 }  // namespace VPUIP
 }  // namespace vpux

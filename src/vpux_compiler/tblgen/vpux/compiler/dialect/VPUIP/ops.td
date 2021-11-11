@@ -2795,7 +2795,6 @@ def VPUIP_SW_KernelOp :
         static vpux::VPUIP::TaskType getTaskType() {
             return vpux::VPUIP::TaskType::ACTShave;
         }
-        static void inferLayoutInfo(mlir::Operation* origOp, vpux::IE::LayerLayoutInfo& info);
     }] # IERT_InferLayerReturnTypes<1>.impl;
 }
 

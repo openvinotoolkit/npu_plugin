@@ -105,7 +105,7 @@ private:
     mlir::memref::AllocOp createCMXTensor(mlir::Value source) const {
         auto type = source.getType().template dyn_cast<mlir::MemRefType>();
         auto cmxType = mlir::MemRefType::get(
-                type.getShape(), type.getElementType(), {},
+                type.getShape(), type.getElementType(), mlir::MemRefLayoutAttrInterface{},
                 VPUIP::MemoryLocationAttr::get(_rewriter.get().getContext(), VPUIP::MemoryLocation::VPU_CMX_NN));
 
         // TODO : how tile index should be used ???
