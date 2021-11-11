@@ -154,7 +154,7 @@ SmallVector<uint8_t, 128> vpux::VPUIP::BlobWriter::createInvocationArgs(mlir::Op
 
     for (auto&& kernelRun : swKernelTask.body().getOps<VPUIP::SW_Kernel_run>()) {
         auto insSize = swKernelTask.inputs().size();
-        auto outsSize = swKernelTask.outputs().size();
+        auto outsSize = swKernelTask.output_buffs().size();
 
         for (auto&& operand : kernelRun.args()) {
             auto blockArg = operand.dyn_cast_or_null<mlir::BlockArgument>();

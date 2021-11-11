@@ -2069,7 +2069,7 @@ Syntax:
 operation ::= `VPUIP.SW.Kernel` attr-dict
               $kernelFunction
               `inputs` `(`$inputs `:` type($inputs)`)`
-              `outputs` `(`$outputs `:` type($outputs)`)`
+              `outputs` `(`$output_buffs `:` type($output_buffs)`)`
               (`on` `tile` $tileIndex^)?
               (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
               (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
@@ -2091,7 +2091,7 @@ This operation defines Activation shave task
 | Operand | Description |
 | :-----: | ----------- |
 `inputs` | memref of any type values
-`outputs` | memref of any type values
+`output_buffs` | memref of any type values
 `waitBarriers` | VPUIP Barrier Type
 `updateBarriers` | VPUIP Barrier Type
 

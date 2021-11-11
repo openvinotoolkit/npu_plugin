@@ -2754,7 +2754,7 @@ def VPUIP_SW_KernelOp :
     let arguments = (ins
         SymbolRefAttr:$kernelFunction,
         Variadic<AnyMemRef>:$inputs,
-        Variadic<AnyMemRef>:$outputs,
+        Variadic<AnyMemRef>:$output_buffs,
         OptionalAttr<IntAttr>:$tileIndex,
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers
@@ -2781,7 +2781,7 @@ def VPUIP_SW_KernelOp :
         $kernelFunction
 
         `inputs` `(`$inputs `:` type($inputs)`)`
-        `outputs` `(`$outputs `:` type($outputs)`)`
+        `outputs` `(`$output_buffs `:` type($output_buffs)`)`
         (`on` `tile` $tileIndex^)?
         (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
         (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
