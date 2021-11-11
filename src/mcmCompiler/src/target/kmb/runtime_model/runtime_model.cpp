@@ -337,11 +337,12 @@ bool mv::RuntimeModel::targetEmulator_(mv::Element& compilationDescriptor)
 }
 
 static std::uint64_t schemaOrder(const mv::Order& order) {
+    constexpr uint64_t BITS_PER_DIM = 4;
     const std::string str = order.toString();
     return std::accumulate(str.cbegin(), str.cend(), static_cast<std::uint64_t>(0),
                            [](const std::uint64_t result, const char d) {
                                // start from 1 to avoid ambiguous leading zeros
-                               return result * 10 + mv::Shape::getAxis(std::string(1, d)) + 1;
+                               return result << BITS_PER_DIM | (mv::Shape::getAxis(std::string(1, d)) + 1);
                            });
 }
 
