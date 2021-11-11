@@ -1004,6 +1004,7 @@ void replaceEltwiseAddWithIdentityConvBias(const mv::pass::PassEntry&, mv::Compu
 
         auto consumerOps = mv::findSinkLayers(dm, opIt->getOutputTensor(0));
         auto inputDataTensor = opIt->getInputTensor(mv::IO_TENSOR_INPUT);
+        auto outputDataTensor = opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT);
 
         // define identityConv weights Op
         int64_t weightsValue = 255;
@@ -1023,7 +1024,7 @@ void replaceEltwiseAddWithIdentityConvBias(const mv::pass::PassEntry&, mv::Compu
         auto identityConv = om.conv(opIt->getName() + "_identityConv", inputDataTensor, 
                                     convWeights, {1,1}, {0, 0, 0, 0}, 1);
         identityConv->setDType(mv::DType("UInt8"));
-        identityConv->setQuantParams(opIt->getOutputTensor(0)->getQuantParams());
+        identityConv->setQuantParams(outputDataTensor->getQuantParams());
         auto identityConvOp = om.getSourceOp(identityConv);
         identityConvOp->set<unsigned>("opId", opIt->get<unsigned>("opId"));
 
@@ -1039,15 +1040,28 @@ void replaceEltwiseAddWithIdentityConvBias(const mv::pass::PassEntry&, mv::Compu
 
         // define bias Op
         auto bias = om.bias(opIt->getName() + "_bias", identityConvOp->getOutputTensor(0), biasWeights);
-        bias->setQuantParams(opIt->getOutputTensor(0)->getQuantParams());
+        bias->setQuantParams(outputDataTensor->getQuantParams());
         bias->setDType(mv::DType("UInt8"));
         auto biasOp = om.getSourceOp(bias);
         biasOp->set<unsigned>("opId", opIt->get<unsigned>("opId"));       
   
         // connect into tensor
-        om.undefineFlow(consumerOps[0].leftmostInput());
-        consumerOps[0]->setInputTensor(biasOp->getOutputTensor(0), 0, false);
-        om.defineFlow(biasOp->getOutputTensor(0), consumerOps[0], 0);
+        for(auto& consumerOp: consumerOps){
+            std::size_t i = 0;
+            for (; i < consumerOp->inputSlots(); ++i){
+                if (consumerOp->getInputTensor(i)->getName() == outputDataTensor->getName())
+                    break;
+            }
+            auto inputFlow = consumerOp.leftmostInput();
+            while (inputFlow != om.flowEnd()){
+                if (inputFlow->getTensor()->getName() == outputDataTensor->getName())
+                    break;
+                ++inputFlow;
+            }
+            om.undefineFlow(inputFlow);
+            consumerOp->setInputTensor(bias, i, false);
+            om.defineFlow(bias, consumerOp, i);
+        }
 
         // remove eltwise Op
         om.removeOp(constWeightOp);
