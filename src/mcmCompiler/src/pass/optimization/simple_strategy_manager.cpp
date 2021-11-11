@@ -1277,8 +1277,8 @@ void StrategyManagerSimple::generateStrategySetForLayer(mv::Op& op,std::vector<S
                             "LeakyReLU_52286494",
                             "LeakyReLU_52116526",
                             "LeakyReLU_52316498",
-                            "LeakyReLU_52306474",
-                            "LeakyReLU_52056566",
+                            // "LeakyReLU_52306474",
+                            // "LeakyReLU_52056566",
                             "LeakyReLU_52136454",
                             // "LeakyReLU_52066518",
                             // "LeakyReLU_52326542",
@@ -1286,6 +1286,7 @@ void StrategyManagerSimple::generateStrategySetForLayer(mv::Op& op,std::vector<S
                             "LeakyReLU_52166486",
                             "LeakyReLU_52326542",
                             "LeakyReLU_52066518",
+                            // "LeakyReLU_52276506" // converted from constant elt-add, SOH make perf worse? maybe stream makes the DPU start ealier
                         };
 
                         std::vector<std::string> manuallyModifylayers = {

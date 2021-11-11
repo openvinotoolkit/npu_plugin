@@ -62,22 +62,23 @@ namespace mv
 }
 
 static std::vector<std::string> LEAKYRELULIST = {
-        "LeakyReLU_52096550"
-        , "LeakyReLU_52166486"
-        , "LeakyReLU_52236546"
+        // "LeakyReLU_52096550"
+        // , "LeakyReLU_52166486"
+        // , 
+        "LeakyReLU_52236546"
         , "LeakyReLU_52136454"
-        , "LeakyReLU_52056566"
+        , "LeakyReLU_52056566" //work w/ clustering
         , "LeakyReLU_52316498"
         , "LeakyReLU_52116526"
         , "LeakyReLU_52156538"
         , "LeakyReLU_52176558"
-        , "LeakyReLU_52286494"
-        , "LeakyReLU_52306474"
+        , "LeakyReLU_52286494" //make perf worse?
+        , "LeakyReLU_52306474" //work w/ clustering
 };
 ///////////////////////// PASS STATIC PARAMETERS ///////////////////////////////
 static size_t MAXIMUM_STATIC_OVERLAPING_OPS_IN_SUBGRAPH = 3UL;
 static size_t MAXIMUM_HEIGHT_WORTHY_FOR_VF = 38UL;
-static size_t CMX_TO_AVOID_FRAGMENTATION = 360800;
+static size_t CMX_TO_AVOID_FRAGMENTATION = 360800 * 2.5 * 4;
 ////////////////////////////////////////////////////////////////////////////////
 
 bool hasLargeKernel(mv::Data::OpListIterator testOp, size_t kSize)
@@ -296,7 +297,19 @@ bool willMaxStreamingBePossible(mv::OpModel& om, const std::vector<mv::Element>&
         while (maxHeight % maxStream >= maxHeight/maxStream)
             ++maxStream;
 
-        while (computeMemoryResources(subbgraphOp, maxStream) > CMX_TO_AVOID_FRAGMENTATION)
+        size_t CMX_upper_bound = CMX_TO_AVOID_FRAGMENTATION;
+        // auto found = opIt.find("LeakyReLU_52056566");
+        // if(found!=std::string::npos)
+        // {
+        //     std::cout << opIt << std::endl;
+        //     CMX_upper_bound = CMX_upper_bound / 2;
+        // }
+        // else
+        // {
+        //     std::cout << "not found: " << opIt << std::endl;
+        // }
+
+        while (computeMemoryResources(subbgraphOp, maxStream) > CMX_upper_bound)
             ++maxStream;
 
         streamNumbers.insert(maxStream);
@@ -827,7 +840,19 @@ void computeSubgraphs(mv::ComputationModel& model,
             //NOTE: try to avoid fragmentation of lpscheduler providing dpu tasks with less than 350K
             auto op = om.getOp(*it);
 
-            while (computeMemoryResources(op, maxStream) > CMX_TO_AVOID_FRAGMENTATION)
+            size_t CMX_upper_bound = CMX_TO_AVOID_FRAGMENTATION;
+            // auto found = (*it).find("LeakyReLU_52056566");
+            // if(found!=std::string::npos)
+            // {
+            //     std::cout << (*it) << std::endl;
+            //     CMX_upper_bound = CMX_upper_bound / 4;
+            // }
+            // else
+            // {
+            //     std::cout << "not found: " << (*it) << std::endl;
+            // }
+
+            while (computeMemoryResources(op, maxStream) > CMX_upper_bound)
                 ++maxStream;
 
             while (!resultingTilesAreValid(om, *subgraph, maxStream))
