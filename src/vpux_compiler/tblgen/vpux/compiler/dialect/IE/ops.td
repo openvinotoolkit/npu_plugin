@@ -717,6 +717,29 @@ def IE_GatherOp :
 }
 
 //
+// GatherElementsOp
+//
+
+def IE_GatherElementsOp :
+        IE_LayerOp<
+              "GatherElements"
+        > {
+    let summary = "InferenceEngine GatherElements layer";
+
+    let arguments = (ins
+        AnyRankedTensor:$input,
+        RankedTensorOf<[SI64,SI32]>:$indices,
+
+        IntAttr:$axis
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+
+}
+
+//
 // ClampOp
 //
 

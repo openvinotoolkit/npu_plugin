@@ -898,6 +898,37 @@ operation ::= `IE.GRN` `(` operands `)` attr-dict `:` type(operands) `->` type(r
 | :----: | ----------- |
 `output` | ranked tensor of 16-bit float or 32-bit float values
 
+### `IE.GatherElements` (vpux::IE::GatherElementsOp)
+
+InferenceEngine GatherElements layer
+
+
+Syntax:
+
+```
+operation ::= `IE.GatherElements` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`axis` | mlir::IntegerAttr | Integer attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of any type values
+`indices` | ranked tensor of 64-bit signed integer or 32-bit signed integer values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values
+
 ### `IE.Gather` (vpux::IE::GatherOp)
 
 InferenceEngine Gather layer

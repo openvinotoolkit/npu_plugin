@@ -3169,9 +3169,60 @@ def VPUIP_CeilingUPAOp :
 }
 
 //
+// GatherElementsUPAOp
+//
+
+def VPUIP_GatherElementsUPAOp :
+        VPUIP_UPATaskOp<1, "GatherElementsUPA",
+            [
+                ViewLikeOpInterface
+            ]
+        > {
+    let summary = "GatherElements UPA SHAVE kernel";
+
+    let arguments = (ins
+        AnyMemRef:$input,
+        MemRefOf<[SI64, SI32]>:$indices,
+        AnyMemRef:$output_buff,
+
+        Variadic<VPUIP_Barrier>:$waitBarriers,
+        Variadic<VPUIP_Barrier>:$updateBarriers,
+
+        IntAttr:$axis,
+
+        OptionalAttr<IntAttr>:$maxShaves,
+        UnitAttr:$isTrailingSWLayer
+    );
+
+    let results = (outs
+        AnyMemRef:$output
+    );
+
+    let builders = [
+        OpBuilder<
+            (ins
+                "mlir::Value":$input,
+                "mlir::Value":$indices,
+                "mlir::Value":$output,
+                "mlir::IntegerAttr":$axis
+            )
+        >
+    ];
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `,` $indices `:` type($indices) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+        `->` type(results)
+    }];
+}
+
+//
 // NormalizeIEOp
 //
- 
+
 def VPUIP_NormalizeIEUPAOp :
         VPUIP_UPATaskOp<1, "NormalizeIEUPA",
             [
@@ -3180,27 +3231,27 @@ def VPUIP_NormalizeIEUPAOp :
             ]
         > {
     let summary = "NormalizeIE UPA SHAVE kernel";
- 
+
     let arguments = (ins
         F16MemRef:$data,
         F16MemRef:$weights,
         F16MemRef:$output_buff,
- 
+
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers,
- 
+
         F64Attr:$eps,
         BoolAttr:$across_spatial,
         BoolAttr:$channel_shared,
- 
+
         OptionalAttr<IntAttr>:$maxShaves,
         UnitAttr:$isTrailingSWLayer
     );
- 
+
     let results = (outs
         F16MemRef:$output
     );
- 
+
     let builders = [
         OpBuilder<
             (ins
@@ -3213,7 +3264,7 @@ def VPUIP_NormalizeIEUPAOp :
             )
         >
     ];
-    
+
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $data `:` type($data) `,` $weights `:` type($weights) `)`

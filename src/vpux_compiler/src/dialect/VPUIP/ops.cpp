@@ -451,6 +451,7 @@ void redirectOpInterfacesForIERT(mlir::DialectRegistry& registry) {
     registry.addOpInterface<IERT::DequantizeOp, OpModelForSW>();
     registry.addOpInterface<IERT::FakeQuantizeOp, OpModelForSW>();
     registry.addOpInterface<IERT::GatherOp, OpModelForSW>();
+    registry.addOpInterface<IERT::GatherElementsOp, OpModelForSW>();
     registry.addOpInterface<IERT::PReluOp, OpModelForSW>();
     registry.addOpInterface<IERT::LeakyReluOp, OpModelForSW>();
     registry.addOpInterface<IERT::DivideOp, OpModelForSW>();
