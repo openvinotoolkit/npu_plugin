@@ -70,9 +70,6 @@ mlir::LogicalResult ConvertScaleShiftToDWPass::ScaleShiftOpConverter::matchAndRe
     if (origOp.weights() == nullptr)
         return matchFailed(_log, rewriter, origOp, "Failed to convert ScaleShift to DW, since there are no weights");
 
-    if (origOp.weights().getDefiningOp<Const::DeclareOp>() == nullptr)
-        return matchFailed(_log, rewriter, origOp, "Failed to convert ScaleShift to DW, since it is Eltwise Multiply");
-
     const SmallVector<int32_t> strides = {1, 1};
     const SmallVector<int32_t> padBegin = {0, 0};
     const SmallVector<int32_t> padEnd = {0, 0};
@@ -87,15 +84,11 @@ mlir::LogicalResult ConvertScaleShiftToDWPass::ScaleShiftOpConverter::matchAndRe
 
     auto outShape = getShape(origOp.output()).toValues();
     auto groupAttr = getIntAttr(origOp.getContext(), outShape[Dims4D::Act::C]);
-
-    const auto elemType = origOp.weights().getType().cast<mlir::ShapedType>().getElementType();
     const SmallVector<int64_t> weightShape = {outShape[Dims4D::Act::C], 1, kernelSize, kernelSize};
-    const auto dataStorageType = mlir::RankedTensorType::get(weightShape, elemType);
 
-    auto multiply = origOp.weights().getDefiningOp<Const::DeclareOp>();
-    const auto reshapedMultiply = multiply.contentAttr().reshape(Shape(weightShape));
-
-    auto dwConvFilter = rewriter.create<Const::DeclareOp>(origOp.getLoc(), dataStorageType, reshapedMultiply);
+    const auto multiply = origOp.weights();
+    const auto weightShapeAttr = getIntArrayAttr(origOp.getContext(), weightShape);
+    auto dwConvFilter = rewriter.create<IE::ReshapeOp>(origOp->getLoc(), multiply, nullptr, false, weightShapeAttr);
 
     rewriter.replaceOpWithNewOp<IE::GroupConvolutionOp>(origOp, origOp.input(), dwConvFilter.output(), origOp.biases(),
                                                         stridesAttr, padBeginAttr, padEndAttr, dilationsAttr, groupAttr,
