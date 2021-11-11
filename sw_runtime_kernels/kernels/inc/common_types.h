@@ -5,7 +5,11 @@
 #ifndef COMMON_TYPES_H_
 #define COMMON_TYPES_H_
 
+#include "stdint.h"
+
+#ifdef __cplusplus
 namespace sw_params {
+#endif
 
 enum {
     MAX_ND_DIMS = 15,
@@ -58,7 +62,7 @@ typedef enum : uint64_t
     FULL_ND_NHWC = 0x123456789ABCEFD
 } NDFrequentlyUsedOrders;
 
-enum Location : unsigned char
+enum Location : uint32_t
 {
     NONE,
     DDR,
@@ -66,11 +70,18 @@ enum Location : unsigned char
     UPA_CMX
 };
 
-struct __attribute__((packed)) MemRefData {
-    uint32_t dataAddr;  // Can't use pointers, since they have platform-dependent size.
-                        // Will be located in WIN_F.
+#ifdef __cplusplus
+    #define ALIGN_AS(size) alignas(size)
+#else
+    #define ALIGN_AS(size) __attribute__((aligned(size)))
+#endif
 
-    uint32_t isStatic = true;  // Boolean flag to indicate static shape vs dynamic shape.
+#pragma pack(push, 1)
+struct MemRefData {
+    uint32_t dataAddr;      // Can't use pointers, since they have platform-dependent size.
+                            // Will be located in WIN_F.
+
+    uint32_t isStatic;      // Boolean flag to indicate static shape vs dynamic shape.
 
     uint32_t numDims;
     uint32_t dimsAddr;      // Pointer to the buffer with dimensions (int32_t[]).
@@ -80,16 +91,21 @@ struct __attribute__((packed)) MemRefData {
 
     uint32_t dataType;      // An enum, which should be aligned between kernels and the compiler.
     uint64_t dimsOrder;     // Packed permutation array.
-    Location location = Location::NONE;
+    enum Location location;
 };
 
-struct __attribute__((packed, aligned(64))) BaseKernelParams {
+struct ALIGN_AS(64) BaseKernelParams  {
     int32_t inputsOffset;
     uint32_t numInputs;
     int32_t outputsOffset;
     uint32_t numOutputs;
 };
 
+#pragma pack(pop)
+#undef ALIGN_AS
+
+#ifdef __cplusplus
 }  // namespace sw_params
+#endif
 
 #endif  // COMMON_TYPES_H_
