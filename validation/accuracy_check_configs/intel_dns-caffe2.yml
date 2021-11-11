@@ -1,0 +1,24 @@
+models:
+    - name: intel_dns
+
+      launchers:
+        - framework: dlsdk
+          model: @MODEL_PATH@
+          adapter: regression
+
+      datasets:
+          - name: intel_dns_feats_orig
+            reader: kaldi_ark_reader
+            data_source: dns_data
+            annotation_conversion:
+              converter: kaldi_feat_regression
+              data_dir: dns_data
+              ref_data_dir: dns_data
+              features_subset_file: dns_data/subset.txt
+              vectors_mode: True
+            metrics:
+                - type: mae
+                  presenter: print_vector
+                  max_error: True
+                - type: rmse
+                  presenter: print_vector

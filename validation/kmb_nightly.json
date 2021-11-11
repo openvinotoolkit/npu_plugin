@@ -4574,6 +4574,78 @@
         },
 
         {
+            "name" : "caffe2_FP16-INT8_intel_dns",
+            "ir" : "models/clientmodels/MTL/IntelDNS/FP16-INT8/intel_dns.xml",
+            "category" : "MLIR",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "Compile" : {
+                "input_layout" : "NC",
+                "output_layout" : "NC",
+                "input_precision" : "FP32",
+                "output_precision" : "FP32"
+            },
+            "AccuracyCheck" : {
+                "config": "intel_dns-caffe2.yml",
+                "subsample_size": 100,
+                "ie_preprocessing": false
+            },
+            "BenchmarkApp" : {
+            },
+            "NetTest-CalcRef" : {
+                "disabled" : true
+            },
+            "NetTest-Validate" : {
+                "disabled" : true
+            },
+            "CI-options" : {
+                "blob_name" : "intel_dns_int8"
+            }
+        },
+
+        {
+            "name" : "caffe2_FP16_intel_dns",
+            "ir" : "models/clientmodels/MTL/IntelDNS/FP16/intel_dns.xml",
+            "category" : "MLIR",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS":"2"
+            },
+            "Compile" : {
+                "input_layout" : "NC",
+                "output_layout" : "NC",
+                "input_precision" : "FP32",
+                "output_precision" : "FP32"
+            },
+            "AccuracyCheck" : {
+                "config": "intel_dns-caffe2.yml",
+                "subsample_size": 100,
+                "ie_preprocessing": false
+            },
+            "BenchmarkApp" : {
+            },
+            "NetTest-CalcRef" : {
+                "disabled" : true
+            },
+            "NetTest-Validate" : {
+                "disabled" : true
+            },
+            "CI-options" : {
+                "blob_name" : "intel_dns_fp16"
+            }
+        },
+
+        {
             "name" : "BDK_edsr3",
             "ir" : "models/clientmodels/BDK3/edsr3/FP16-INT8/edsr.xml",
             "category" : "MCM/weekly_private",

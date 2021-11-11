@@ -109,8 +109,9 @@ bool is_fq_agnostic(const std::shared_ptr<ngraph::Node>& node) {
             std::dynamic_pointer_cast<ngraph::op::v1::MaxPool>(node) != nullptr ||
             std::dynamic_pointer_cast<ngraph::op::v1::ReduceMax>(node) != nullptr ||
             std::dynamic_pointer_cast<ngraph::op::v0::ReorgYolo>(node) != nullptr ||
-            (std::dynamic_pointer_cast<ngraph::op::v1::Reshape>(node) != nullptr &&
-             std::dynamic_pointer_cast<ngraph::op::v1::GroupConvolution>(node->output(0).get_target_inputs().begin()->get_node()->shared_from_this()) == nullptr) ||
+            // [Track number: E#21478]
+            // (std::dynamic_pointer_cast<ngraph::op::v1::Reshape>(node) != nullptr &&
+            //  std::dynamic_pointer_cast<ngraph::op::v1::GroupConvolution>(node->output(0).get_target_inputs().begin()->get_node()->shared_from_this()) == nullptr) ||
             std::dynamic_pointer_cast<ngraph::op::v1::Transpose>(node) != nullptr ||
             std::dynamic_pointer_cast<ngraph::op::v0::Squeeze>(node) != nullptr ||
             std::dynamic_pointer_cast<ngraph::op::v0::Unsqueeze>(node) != nullptr ||
