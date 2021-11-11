@@ -14,7 +14,7 @@
 // clang-format off
 
 #include <ie_common.h>
-#include "ngraph_mcm_frontend/passes/fuse_scaleshift.hpp"
+#include "vpux/passes/fuse_scaleshift.hpp"
 #include <ngraph/op/constant.hpp>
 
 #include "vpux/quantization_helpers.hpp"
@@ -24,6 +24,9 @@
 #include <memory>
 #include <ngraph/ops.hpp>
 #include <numeric>
+
+namespace vpux {
+namespace pass {
 
 bool FuseScaleShift::run_on_node(std::shared_ptr<ngraph::Node> node) {
     auto convolution_add_node = std::dynamic_pointer_cast<ngraph::op::v1::Add>(node);
@@ -193,8 +196,8 @@ bool FuseScaleShift::run_on_node(std::shared_ptr<ngraph::Node> node) {
 
     auto convolution_biases_data = (convolution_biases_node)->cast_vector<double>();
     auto convolution_weights_data = (convolution_weights_node)->cast_vector<double>();
-    std::vector<float> new_weights_fq_ilo(OC);
-    std::vector<float> new_weights_fq_ihi(OC);
+    float new_weights_fq_ilo = 0;
+    float new_weights_fq_ihi = weights_fq_levels - 1.0;
     std::vector<float> new_weights_fq_olo(OC);
     std::vector<float> new_weights_fq_ohi(OC);
     double sumOfZeroPoints = 0;
@@ -230,8 +233,6 @@ bool FuseScaleShift::run_on_node(std::shared_ptr<ngraph::Node> node) {
             }
         }
 
-        new_weights_fq_ilo[oc] = weights_min;
-        new_weights_fq_ihi[oc] = weights_max;
         new_weights_fq_olo[oc] = weights_min;
         new_weights_fq_ohi[oc] = weights_max;
         convolution_biases_data[oc] += scaleshift_bias_acc;
@@ -252,8 +253,6 @@ bool FuseScaleShift::run_on_node(std::shared_ptr<ngraph::Node> node) {
             ol = std::min(ol, zpl);
             oh = std::max(oh, zph);
             double scale = calculateScale(ol, oh, weights_fq_levels);
-            new_weights_fq_ilo[oc] = 0;
-            new_weights_fq_ihi[oc] = weights_fq_levels - 1.0;
             new_weights_fq_olo[oc] = ol;
             new_weights_fq_ohi[oc] = oh;
 
@@ -282,3 +281,6 @@ bool FuseScaleShift::run_on_node(std::shared_ptr<ngraph::Node> node) {
 
     return true;
 }
+
+}  // namespace pass
+}  // namespace vpux
