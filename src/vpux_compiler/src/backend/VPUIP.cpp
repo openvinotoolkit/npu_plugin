@@ -77,15 +77,34 @@ MVCNN::PhysicalProcessor createPhysicalProcessor(VPUIP::PhysicalProcessor proc) 
     }
 }
 
+void setActivityFactor(VPUIP::PhysicalProcessor processor, MVCNN::ProcessorMappingBuilder& builder,
+                       mlir::ModuleOp module) {
+    // TODO: calc this value during compilation
+    static const float activityFactor = 90.0;
+    const auto arch = VPUIP::getArch(module);
+    if (arch == VPUIP::ArchKind::KMB || arch == VPUIP::ArchKind::TBH) {
+        if (processor == VPUIP::PhysicalProcessor::NCE_Cluster || processor == VPUIP::PhysicalProcessor::SHAVE_UPA) {
+            builder.add_activity_factor(activityFactor);
+        }
+    } else if (arch == VPUIP::ArchKind::MTL) {
+        if (processor == VPUIP::PhysicalProcessor::NCE_Cluster || processor == VPUIP::PhysicalProcessor::SHAVE_NN) {
+            builder.add_activity_factor(activityFactor);
+        }
+    }
+}
+
 flatbuffers::Offset<MVCNN::ProcessorMapping> createProcessorMapping(VPUIP::BlobWriter& writer,
-                                                                    IERT::ExecutorResourceOp res) {
+                                                                    IERT::ExecutorResourceOp res,
+                                                                    mlir::ModuleOp module) {
     const auto kind = res.kind().dyn_cast_or_null<VPUIP::PhysicalProcessorAttr>();
     VPUX_THROW_UNLESS(kind != nullptr, "Got unknown executor kind '{0}'", res.kind());
 
+    const auto processor = kind.getValue();
     MVCNN::ProcessorMappingBuilder builder(writer);
-    builder.add_item(createPhysicalProcessor(kind.getValue()));
+    builder.add_item(createPhysicalProcessor(processor));
     builder.add_number(checked_cast<double>(res.count()));
     builder.add_is_bitmask(false);
+    setActivityFactor(processor, builder, module);
     return builder.Finish();
 }
 
@@ -154,7 +173,7 @@ flatbuffers::Offset<MVCNN::Resources> createResources(VPUIP::BlobWriter& writer,
     SmallVector<flatbuffers::Offset<MVCNN::ProcessorMapping>> processorVec;
     resources.walk([&](IERT::ExecutorResourceOp res) {
         if (res.kind().isa<VPUIP::PhysicalProcessorAttr>()) {
-            executorsOffsets.push_back(createProcessorMapping(writer, res));
+            executorsOffsets.push_back(createProcessorMapping(writer, res, module));
             if (res->hasAttr(VPUIP::getProcessorFrequencyAttrName())) {
                 processorVec.push_back(createProcessorFreqMapping(writer, res));
             }
