@@ -6,7 +6,6 @@
 #include "include/mcm/utils/warning_manager.hpp"
 #include "include/mcm/pass/pass_utils.hpp"
 #include <functional>
-#include "mcm/utils/custom_math.hpp"
 
 static const uint8_t ADD_INPUT_FLOWS = 2;
 static const double max_inf = std::numeric_limits<double>::infinity();
@@ -86,12 +85,6 @@ mv::Data::OpListIterator portConv(mv::ComputationModel& model, mv::Data::OpListI
     if (!weightsTensor->hasAttr("quantParams")) {
         weightsTensor->setQuantParams(mv::QuantizationParams::initial());
     }
- 
-    auto isWeightsQuantized = true;
-    if (!weightsTensor->isQuantized() || weightsTensor->getQuantParams().isNeutral() ||
-        weightsTensor->getDType() != mv::DType("UInt8")) {
-        isWeightsQuantized = false;
-    }
 
     //Note: Quantization of weights
     if (branch == 0)
@@ -129,51 +122,21 @@ mv::Data::OpListIterator portConv(mv::ComputationModel& model, mv::Data::OpListI
         scale.clear();
         min.clear();
         max.clear();
-
-        if(isWeightsQuantized) 
+        for (size_t k = 0; k < kernelShape[mv::KERNEL_OUTPUT_CHANNELS]; k++)
         {
-            for (size_t k = 0; k < kernelShape[mv::KERNEL_OUTPUT_CHANNELS]; k++)
-            {
-                // zp.push_back(255 - weightsTensor->get<mv::QuantizationParams>("quantParams").getZeroPoint()[k]);
-                zp.push_back(weightsTensor->get<mv::QuantizationParams>("quantParams").getZeroPoint()[k]);
-                scale.push_back(alpha*weightsTensor->get<mv::QuantizationParams>("quantParams").getScale()[k]);
-                min.push_back(weightsTensor->get<mv::QuantizationParams>("quantParams").getMin()[k]);
-                max.push_back(weightsTensor->get<mv::QuantizationParams>("quantParams").getMax()[k]);
+            zp.push_back(255 - weightsTensor->get<mv::QuantizationParams>("quantParams").getZeroPoint()[k]);
+            scale.push_back(alpha*weightsTensor->get<mv::QuantizationParams>("quantParams").getScale()[k]);
+            min.push_back(weightsTensor->get<mv::QuantizationParams>("quantParams").getMin()[k]);
+            max.push_back(weightsTensor->get<mv::QuantizationParams>("quantParams").getMax()[k]);
 
-                for (size_t c = 0; c < kernelShape[mv::KERNEL_INPUT_CHANNELS]; c++)
-                {
-                    for (size_t h = 0; h < kernelShape[mv::KERNEL_HEIGHT]; h++)
-                    {
-                        for (size_t w = 0; w < kernelShape[mv::KERNEL_WIDTH]; w++)
-                        {
-                            auto currWeight = (int64_t)weightsTensor->at({w,h,c,k});
-                            // weightsData.push_back(255 - currWeight);
-                            weightsData.push_back(currWeight);
-                        }
-                    }
-                }
-            }
-        }
-        else
-        {
-            zp.push_back(0);
-            scale.push_back(1);
-            min.push_back(-INFINITY);
-            max.push_back(INFINITY);
-
-            for (size_t k = 0; k < kernelShape[mv::KERNEL_OUTPUT_CHANNELS]; k++)
+            for (size_t c = 0; c < kernelShape[mv::KERNEL_INPUT_CHANNELS]; c++)
             {
-                for (size_t c = 0; c < kernelShape[mv::KERNEL_INPUT_CHANNELS]; c++)
+                for (size_t h = 0; h < kernelShape[mv::KERNEL_HEIGHT]; h++)
                 {
-                    for (size_t h = 0; h < kernelShape[mv::KERNEL_HEIGHT]; h++)
+                    for (size_t w = 0; w < kernelShape[mv::KERNEL_WIDTH]; w++)
                     {
-                        for (size_t w = 0; w < kernelShape[mv::KERNEL_WIDTH]; w++)
-                        {
-                            auto currWeight = (int64_t)weightsTensor->at({w,h,c,k});
-                            auto new_weight = mv::fp16_to_fp32(currWeight) * alpha;
-                            // weightsData.push_back(255 - currWeight);
-                            weightsData.push_back(mv::fp32_to_fp16(new_weight));
-                        }
+                        auto currWeight = (int64_t)weightsTensor->at({w,h,c,k});
+                        weightsData.push_back(255 - currWeight);
                     }
                 }
             }
@@ -189,7 +152,7 @@ mv::Data::OpListIterator portConv(mv::ComputationModel& model, mv::Data::OpListI
                         weightsData,
                         {weightsTensor->getShape()[mv::KERNEL_WIDTH], weightsTensor->getShape()[mv::KERNEL_HEIGHT],
                         weightsTensor->getShape()[mv::KERNEL_INPUT_CHANNELS], weightsTensor->getShape()[mv::KERNEL_OUTPUT_CHANNELS]},
-                        weightsTensor->getDType(),
+                        mv::DType("UInt8"),
                         mv::Order("NCHW"));
     weights->setQuantParams(weightsQuantParams);
 
@@ -199,35 +162,20 @@ mv::Data::OpListIterator portConv(mv::ComputationModel& model, mv::Data::OpListI
                         previousOp->get<std::array<unsigned short, 4>>("padding"),
                         previousOp->get<unsigned>("dilationFactor"),
                         previousOp->get<unsigned>("group"));
-    if(task->getOutputTensor(0)->getDType() == mv::DType("UInt8"))
-    {
-        conv->setDType(mv::DType("UInt8"));
-        conv->setQuantParams(adjustFQtoHalfSum(quantParams, true));
-    }
-    else
-    {
-        conv->setDType(mv::DType("Float16"));
-        conv->setQuantParams(quantParams);
-    }
+    conv->setDType(mv::DType("UInt8"));
+    conv->setQuantParams(adjustFQtoHalfSum(quantParams, false));
     auto convOp = om.getSourceOp(conv);
 
     if (hasBias)
     {
         if (branch == 0)
         {
-            if(!biasTensor->isFloatingPointType())
+            std::vector <double> biasScale;
+            for (size_t k = 0; k < kernelShape[mv::KERNEL_OUTPUT_CHANNELS]; k++)
             {
-                std::vector <double> biasScale;
-                for (size_t k = 0; k < kernelShape[mv::KERNEL_OUTPUT_CHANNELS]; k++)
-                {
-                    biasScale.push_back(scale[k] * inputTensor->get<mv::QuantizationParams>("quantParams").getScale()[0]);
-                }
-                biasTensor->set<mv::QuantizationParams>("quantParams", {{0},{biasScale},{min_inf},{max_inf}});
+                biasScale.push_back(scale[k] * inputTensor->get<mv::QuantizationParams>("quantParams").getScale()[0]);
             }
-            else
-            {
-                std::cout << biasTensor->getName() << std::endl;
-            }
+            biasTensor->set<mv::QuantizationParams>("quantParams", {{0},{biasScale},{min_inf},{max_inf}});
             om.addAttr(convOp, "bias", biasTensor->getName());
         }
         else
@@ -237,28 +185,18 @@ mv::Data::OpListIterator portConv(mv::ComputationModel& model, mv::Data::OpListI
             std::vector <double> biasScale;
             for (size_t k = 0; k < kernelShape[mv::KERNEL_OUTPUT_CHANNELS]; k++)
             {
-                if(!biasTensor->isFloatingPointType())
-                {
-                    biasOldScale = weightsTensor->get<mv::QuantizationParams>("quantParams").getScale()[k]
-                            * inputTensor->get<mv::QuantizationParams>("quantParams").getScale()[0];
-                    real_bias = ((int64_t) biasTensor->at(k)) * biasOldScale;
-                    real_bias = alpha * real_bias;
-                    auto newQuantizedValue = std::round(real_bias
-                                        /(scale[k] * inputTensor->get<mv::QuantizationParams>("quantParams").getScale()[0]));
-                    if (newQuantizedValue > 2147483647)
-                        newQuantizedValue = 2147483647;
-                    else if (newQuantizedValue < -2147483648)
-                        newQuantizedValue = -2147483648;
-                    biasData.push_back(newQuantizedValue);
-                    biasScale.push_back(scale[k] * inputTensor->get<mv::QuantizationParams>("quantParams").getScale()[0]);
-                }
-                else
-                {
-                    std::cout << biasTensor->getName() << std::endl;
-                    auto new_bias = mv::fp16_to_fp32((int64_t) biasTensor->at(k)) * alpha;
-                    biasData.push_back(mv::fp32_to_fp16(new_bias));
-                    biasScale.push_back(1.0);
-                }
+                biasOldScale = weightsTensor->get<mv::QuantizationParams>("quantParams").getScale()[k]
+                        * inputTensor->get<mv::QuantizationParams>("quantParams").getScale()[0];
+                real_bias = ((int64_t) biasTensor->at(k)) * biasOldScale;
+                real_bias = -alpha * real_bias;
+                auto newQuantizedValue = std::round(real_bias
+                                    /(scale[k] * inputTensor->get<mv::QuantizationParams>("quantParams").getScale()[0]));
+                if (newQuantizedValue > 2147483647)
+                    newQuantizedValue = 2147483647;
+                else if (newQuantizedValue < -2147483648)
+                    newQuantizedValue = -2147483648;
+                biasData.push_back(newQuantizedValue);
+                biasScale.push_back(scale[k] * inputTensor->get<mv::QuantizationParams>("quantParams").getScale()[0]);
             }
             mv::QuantizationParams biasQuant = mv::QuantizationParams({{0},biasScale,
                                         {-min_inf},{max_inf}});
@@ -284,17 +222,8 @@ mv::Data::OpListIterator portRelu(mv::ComputationModel& model, mv::Data::TensorI
     mv::OpModel om(model);
     std::string name = task->getName();
     auto relu0 = om.relu(name + "RELU", inputTensor);
-    if(task->getOutputTensor(0)->getDType() == mv::DType("UInt8"))
-    {
-        relu0->setDType(mv::DType("UInt8"));
-        relu0->setQuantParams(adjustFQtoHalfSum(quantParams, false));
-    }
-    else
-    {
-        relu0->setDType(mv::DType("Float16"));
-        relu0->setQuantParams(quantParams);
-    }
-    
+    relu0->setDType(mv::DType("UInt8"));
+    relu0->setQuantParams(adjustFQtoHalfSum(quantParams, false));
     auto relu_op = om.getSourceOp(relu0);
     unsigned currentOpId = task->get<unsigned>("opId");
     relu_op->set<unsigned>("opId", currentOpId);
@@ -306,16 +235,8 @@ mv::Data::OpListIterator portAdd(mv::ComputationModel& model, std::vector <mv::D
     mv::OpModel om(model);
     std::string name = task->getName();
     auto eltwise = om.eltwise(name + "PPEeltwise", inputs, "Add");
-    if(task->getOutputTensor(0)->getDType() == mv::DType("UInt8"))
-    {
-        eltwise->setDType(mv::DType("UInt8"));
-        eltwise->setQuantParams(quantParams);
-    }
-    else
-    {
-        eltwise->setDType(mv::DType("Float16"));
-        eltwise->setQuantParams(quantParams);
-    }
+    eltwise->setDType(mv::DType("UInt8"));
+    eltwise->setQuantParams(quantParams);
     auto eltwise_op = om.getSourceOp(eltwise);
     unsigned currentOpId = task->get<unsigned>("opId");
     eltwise_op->set<unsigned>("opId", currentOpId);
@@ -343,27 +264,6 @@ void provideAccuracyinPPEs(mv::ComputationModel& model)
         auto leakyOutputTensor = leakyReluOp->getOutputTensor(mv::IO_TENSOR_OUTPUT);
         auto parentOp = om.getSourceOp(leakyInputTensor);
         auto leakyReluQuantParams = leakyOutputTensor->getQuantParams();
-
-        // if (!(leakyReluOp->getName() == "LeakyReLU_52276506"
-        // || leakyReluOp->getName() == "LeakyReLU_52066518"
-        // || leakyReluOp->getName() == "LeakyReLU_52106530"
-        // || leakyReluOp->getName() == "LeakyReLU_52216534"
-        // || leakyReluOp->getName() == "LeakyReLU_52206450"
-        // || leakyReluOp->getName() == "LeakyReLU_52126562"
-        // || leakyReluOp->getName() == "LeakyReLU_52336482"
-        // || leakyReluOp->getName() == "LeakyReLU_52226462"
-        // || leakyReluOp->getName() == "LeakyReLU_52246490"
-        // || leakyReluOp->getName() == "LeakyReLU_52076554"))
-        // {
-        //     // auto inputTensor = opIt->getInputTensor(0);
-        //     // inputTensor->setQuantParams(mv::QuantizationParams::empty());
-        //     // std::cout << parentOp->getName() << std::endl;
-        //     // auto outputTensor = parentOp->getOutputTensor(0);
-        //     // outputTensor->setQuantParams(mv::QuantizationParams::empty());
-        //     // outputTensor->setDType(mv::DType("Float16"));
-        //     leakyRelu++;
-        //     continue;
-        // }
 
         // Cannot fuse eltwise into the PPE LeakyReLU
         if (!parentOp->hasWeights()) {
@@ -447,13 +347,13 @@ void provideAccuracyinPPEs(mv::ComputationModel& model)
             else
             {
                 conv1 = portConv(model, leakyReluOp, parentOp, i);
-                // relu1 = portRelu(model, conv1->getOutputTensor(0), conv1, leakyReluQuantParams);
-                // depthwise1 = portDepthwise(model, relu1->getOutputTensor(0), leakyReluOp, leakyReluQuantParams);
+                relu1 = portRelu(model, conv1->getOutputTensor(0), conv1, leakyReluQuantParams);
+                depthwise1 = portDepthwise(model, relu1->getOutputTensor(0), leakyReluOp, leakyReluQuantParams);
             }
         }
         std::vector<mv::Data::TensorIterator> inputs;
         inputs.push_back(relu0->getOutputTensor(0));
-        inputs.push_back(conv1->getOutputTensor(0));
+        inputs.push_back(depthwise1->getOutputTensor(0));
         auto add0 = portAdd(om, inputs, leakyReluOp, leakyReluQuantParams);
         auto backup = parentOp.leftmostOutput();
         om.undefineFlow(backup);
