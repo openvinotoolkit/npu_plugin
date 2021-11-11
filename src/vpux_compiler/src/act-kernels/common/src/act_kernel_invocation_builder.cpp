@@ -19,16 +19,16 @@
 
 #include <mlir/IR/BuiltinAttributes.h>
 #include <mlir/IR/BuiltinTypes.h>
+#include <mlir/IR/Matchers.h>
 #include <mlir/IR/Operation.h>
 
 using namespace vpux;
 
 void InvocationBuilder::addArg(mlir::Value operand) {
     // TODO: add support for non int constants
-    if (operand.getType().isa<mlir::IntegerType>()) {
-        auto intValue =
-                operand.getDefiningOp()->getAttrs().begin()->second.dyn_cast_or_null<mlir::IntegerAttr>().getInt();
-        storeSimple(_storage, intValue);
+    llvm::APInt intVal;
+    if (mlir::matchPattern(operand, mlir::m_ConstantInt(&intVal))) {
+        storeSimple(_storage, intVal.getZExtValue());
     } else if (operand.getType().isa<mlir::MemRefType>()) {
         addMemrefArg(operand);
     } else {

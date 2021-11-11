@@ -56,17 +56,15 @@ static void compileAndLinkSHAVE(const movitools::MoviCompileParams& params, cons
     if (sys::fs::exists(KERNEL_DIRECTORY) && sys::fs::exists(LIBRARY_OUTPUT_DIRECTORY)) {
         genDir = KERNEL_DIRECTORY;
         tmpDir = LIBRARY_OUTPUT_DIRECTORY;
-        VPUX_THROW_UNLESS(sys::fs::exists(genDir), "act-kernels directory setting by compiler time: {0} not exists",
-                          genDir);
     } else {
         // probe for OV_BUILD_DIR
-        const auto ovBbuildDir = std::getenv("OV_BUILD_DIR");
-        VPUX_THROW_UNLESS(ovBbuildDir,
+        const auto ovBuildDir = std::getenv("OV_BUILD_DIR");
+        VPUX_THROW_UNLESS(ovBuildDir,
                           "OV_BUILD_DIR env directory must be specified, in order to reach act-shave kernels");
-        VPUX_THROW_UNLESS(sys::fs::exists(ovBbuildDir),
+        VPUX_THROW_UNLESS(sys::fs::exists(ovBuildDir),
                           "OpenVino build directory {0}, taken from OV_BUILD_DIR env variable is not exist", genDir);
 
-        genDir = ovBbuildDir;
+        genDir = ovBuildDir;
         sys::path::append(genDir, "act-kernels");
 
         VPUX_THROW_UNLESS(sys::fs::exists(genDir),
@@ -119,29 +117,13 @@ static void compileAndLinkSHAVE(const movitools::MoviCompileParams& params, cons
     sys::path::append(moviCompile, params.moviCompile);
 
     {
-        auto compileCmd = formatv("{1} -mcpu={2} -c {3} -o {4} -I {5} -I{6} ", genDir, moviCompile, params.cpu, srcPath,
+        auto compileCmd = formatv("{0} -mcpu={1} -c {2} -o {3} -I {4} -I{5} ", moviCompile, params.cpu, srcPath,
                                   objPath, mvToolsDir, incPath)
                                   .str();
         if (std::system(compileCmd.c_str())) {
-            VPUX_THROW((std::string("moviCompile failed: ") + compileCmd).c_str());
+            VPUX_THROW("moviCompile failed: {0}", compileCmd);
         }
     }
-
-#ifdef GEN_SYM_FILE
-    SmallString<128> symPath(genDir);
-    sys::path::append(symPath, "build");
-    sys::path::append(symPath, srcName + ".s");
-
-    {
-        auto compileCmd = formatv("cd {0}; {1} -mcpu={2} -S {3} -o {4} -I {5} -I {6} -I {7} ", genDir, moviCompile,
-                                  params.cpu, srcPath, symPath, mvToolsDir, incPath, incPath2)
-                                  .str();
-        // IVLOG(1, compileCmd);
-        if (std::system(compileCmd.c_str())) {
-            VPUX_THROW((std::string("moviCompile failed: ") + compileCmd).c_str());
-        }
-    }
-#endif  // GEN_SYM_FILE
 
     SmallString<128> linker(mvToolsDir);
     sys::path::append(linker, params.mdkLinker);
@@ -151,7 +133,7 @@ static void compileAndLinkSHAVE(const movitools::MoviCompileParams& params, cons
                            linker, linkerScriptPath, entryPoint.c_str(), objPath, singleLib, elfPath)
                            .str();
     if (std::system(linkCmd.c_str())) {
-        VPUX_THROW((std::string("linker failed: ") + linkCmd).c_str());
+        VPUX_THROW("linker failed: {0}", linkCmd);
     }
 
     SmallString<128> objcopy(mvToolsDir);
@@ -163,7 +145,7 @@ static void compileAndLinkSHAVE(const movitools::MoviCompileParams& params, cons
     {
         auto objCopyCmd = formatv("{0} -O binary --only-section=.text {1} {2}", objcopy, elfPath, textPath).str();
         if (std::system(objCopyCmd.c_str())) {
-            VPUX_THROW((std::string("objcopy failed: ") + objCopyCmd).c_str());
+            VPUX_THROW("objcopy failed: {0}", objCopyCmd);
         }
     }
 
@@ -174,7 +156,7 @@ static void compileAndLinkSHAVE(const movitools::MoviCompileParams& params, cons
         auto objCopyCmd = formatv("{0} -O binary --only-section=.arg.data {1} {2}", objcopy, elfPath, dataPath).str();
 
         if (std::system(objCopyCmd.c_str())) {
-            VPUX_THROW((std::string("objcopy failed: ") + objCopyCmd).c_str());
+            VPUX_THROW("objcopy failed: {0}", objCopyCmd);
         }
     }
 
