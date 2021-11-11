@@ -1783,13 +1783,13 @@ void averageAsDepthWiseFcn(const mv::pass::PassEntry&, mv::ComputationModel& mod
             weights->setQuantParams(weightsQuantParams);
         }
 
-        auto quantParams = mv::QuantizationParams::empty();
-        if (sourceTensor->isQuantized())
-            quantParams = opIt->getOutputTensor(0)->getQuantParams();
+        auto quantParams = opIt->getOutputTensor(0)->getQuantParams();
+        auto outputType = opIt->getOutputTensor(0)->getDType();
 
         //Check the last argument name!!!
         mv::Data::TensorIterator depthwise_conv = om.depthwiseConv(name + "_DepthwiseConv", sourceTensor, weights, stride, padding, 1);
         depthwise_conv->setQuantParams(quantParams);
+        depthwise_conv->setDType(outputType);
 
         auto depthwiseConvOp = om.getSourceOp(depthwise_conv);
         auto weightsOp = om.getSourceOp(weights);
