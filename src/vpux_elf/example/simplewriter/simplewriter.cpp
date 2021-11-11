@@ -83,10 +83,9 @@ int main() {
     auto dmaTasks = elf.addBinaryDataSection<DMATask>();
     dmaTasks->setName(".text.dmaTasks");
     dmaTasks->setAddrAlign(64);
-    dmaTasks->appendData(DMATask());
-    dmaTasks->appendData(DMATask());
-    dmaTasks->appendData(DMATask());
-    dmaTasks->appendData(DMATask());
+    const auto inputDMAOffset = dmaTasks->appendData(DMATask());
+    const auto weightsDMAOffset = dmaTasks->appendData(DMATask());
+    const auto outputDMAOffset = dmaTasks->appendData(DMATask());
 
     auto invariants = elf.addBinaryDataSection<Invariant>();
     invariants->setName(".text.invariants");
@@ -119,17 +118,17 @@ int main() {
     auto inputDMA = dmaTasksRelocation->addRelocationEntry();
     inputDMA->setSymbol(input);
     inputDMA->setAddend(0);
-    inputDMA->setOffset(0);
+    inputDMA->setOffset(inputDMAOffset + offsetof(DMATask, x));
 
     auto weightsDMA = dmaTasksRelocation->addRelocationEntry();
     weightsDMA->setSymbol(weightsSym);
     weightsDMA->setAddend(0);
-    weightsDMA->setOffset(8);
+    weightsDMA->setOffset(inputDMAOffset + offsetof(DMATask, x));
 
     auto outputDMA = dmaTasksRelocation->addRelocationEntry();
     outputDMA->setSymbol(output);
     outputDMA->setAddend(0);
-    outputDMA->setOffset(4);
+    outputDMA->setOffset(inputDMAOffset + offsetof(DMATask, y));
 
     const auto elfBlob = elf.generateELF();
 

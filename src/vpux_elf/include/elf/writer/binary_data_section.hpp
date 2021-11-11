@@ -24,14 +24,15 @@ namespace writer {
 template <typename T>
 class BinaryDataSection final : public Section {
 public:
-    void appendData(const T& obj) {
-        m_data.insert(m_data.end(), reinterpret_cast<const uint8_t*>(&obj),
-                      reinterpret_cast<const uint8_t*>(&obj) + sizeof(T));
+    size_t appendData(const T& obj) {
+        return appendData(&obj, 1);
     }
 
-    void appendData(const T* obj, size_t sizeInElements) {
+    size_t appendData(const T* obj, size_t sizeInElements) {
+        const auto offset = m_data.size();
         m_data.insert(m_data.end(), reinterpret_cast<const uint8_t*>(obj),
                       reinterpret_cast<const uint8_t*>(obj) + sizeInElements * sizeof(T));
+        return offset;
     }
 
     size_t getNumEntries() const {
