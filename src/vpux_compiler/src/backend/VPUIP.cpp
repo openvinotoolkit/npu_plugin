@@ -30,10 +30,8 @@
 #include "vpux/utils/core/range.hpp"
 #include "vpux/utils/core/string_ref.hpp"
 
-#include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/IR/BuiltinOps.h>
 #include <mlir/IR/BuiltinTypes.h>
-#include <mlir/IR/Operation.h>
 
 #include <precision_utils.h>
 
@@ -212,6 +210,48 @@ flatbuffers::Offset<MVCNN::Resources> createResources(VPUIP::BlobWriter& writer,
     return builder.Finish();
 }
 
+flatbuffers::Offset<MVCNN::ActKernelRuntime> createActKernelRuntime(VPUIP::BlobWriter& writer,
+                                                                    mlir::ModuleOp /*module*/, mlir::FuncOp netFunc,
+                                                                    Logger log) {
+    // only SW_kernel operations can generate kernelData, from either built-in functions or from custom
+    auto kernelGenOps = to_small_vector(netFunc.getOps<VPUIP::SW_Kernel>());
+    if (kernelGenOps.empty()) {
+        return {};
+    }
+
+    // TODO: extract num shaves info from IERT::RuntimeResourcesOp, which can be extracted from module
+    const long int maxShaves = 4;
+
+    const auto stack_size{1U << 12};  // 4KB stack
+
+    llvm::SmallVector<uint8_t, stack_size> shave_stack_data(stack_size);
+    std::vector<flatbuffers::Offset<MVCNN::KernelDataReference>> stacks(maxShaves);  // 4 Activation SHAVEs for MTL
+
+    for (uint32_t shv{}; shv < maxShaves; ++shv) {
+        log.trace("act-shave {0}_stack size is {1}", shv, stack_size);
+
+        stacks[shv] = writer.createKernelDataRef("actSHAVE" + std::to_string(shv) + "_stack",
+                                                 vpux::VPUIP::MemoryLocation::GFEmbeddedKernel, 0, stack_size,
+                                                 shave_stack_data);
+    }
+
+    const auto stackBuffers = writer.createVector(stacks);
+
+    llvm::SmallVector<uint8_t, 1024 + (1U << 16)> scratch_buffer(1024 +
+                                                                 (1U << 16));  // 64KB scratch buffer + 1024 to align
+
+    const uint64_t non_empty_offset = 1;
+    const auto scratchBuffer =
+            writer.createKernelDataRef("scratch_buffer", vpux::VPUIP::MemoryLocation::GFEmbeddedKernel,
+                                       non_empty_offset, scratch_buffer.size() - 1024, scratch_buffer);
+
+    MVCNN::ActKernelRuntimeBuilder builder(writer);
+    builder.add_shaveStacks(stackBuffers);
+    builder.add_codeScratchBuffer(scratchBuffer);
+
+    return builder.Finish();
+}
+
 MVCNN::TargetDevice mapTargetDevice(const VPUIP::ArchKind kind) {
     switch (kind) {
     case VPUIP::ArchKind::KMB:
@@ -238,7 +278,8 @@ MVCNN::TargetDeviceRevision mapTargetDeviceRevision(const VPUIP::ArchKind kind) 
 
 flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(VPUIP::BlobWriter& writer, mlir::ModuleOp module,
                                                               VPUIP::GraphOp graphOp, IE::CNNNetworkOp netOp,
-                                                              mlir::FuncOp netFunc, mlir::TimingScope& rootTiming) {
+                                                              mlir::FuncOp netFunc, mlir::TimingScope& rootTiming,
+                                                              Logger log) {
     auto scopeTiming = rootTiming.nest("Create summary header");
 
     const auto allTasks = netFunc.getOps<VPUIP::TaskOpInterface>();
@@ -312,6 +353,7 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(VPUIP::BlobWriter&
     const auto serializedGraphProfilingOutputs = writer.createVector(graphProfilingOutputs);
     const auto serializedUserOutputs = writer.createVector(userOutputs);
     const auto serializedResources = createResources(writer, module);
+    const auto serializedActKernelsRuntime = createActKernelRuntime(writer, module, netFunc, log);
 
     MVCNN::SummaryHeaderBuilder builder(writer);
     builder.add_version(serializedVersion);
@@ -326,6 +368,7 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(VPUIP::BlobWriter&
     builder.add_out_tensor_desc(serializedUserOutputs);
     builder.add_device(mapTargetDevice(VPUIP::getArch(module)));
     builder.add_device_revision(mapTargetDeviceRevision(VPUIP::getArch(module)));
+    builder.add_act_kernel_runtime(serializedActKernelsRuntime);
     return builder.Finish();
 }
 
@@ -385,6 +428,15 @@ SmallVector<VPUIP::BlobWriter::BinaryData> serializeBinaryData(VPUIP::BlobWriter
     return binaryData;
 }
 
+SmallVector<VPUIP::BlobWriter::KernelData> serializeKernelData(VPUIP::BlobWriter& writer, mlir::FuncOp,
+                                                               mlir::TimingScope&, Logger) {
+    SmallVector<VPUIP::BlobWriter::KernelData> vec;
+    for (auto&& e : writer.getKernelData()) {
+        vec.push_back(e.second.data);
+    }
+    return vec;
+}
+
 SmallVector<VPUIP::BlobWriter::Barrier> serializeVirtBarriers(VPUIP::BlobWriter& writer, mlir::FuncOp netFunc,
                                                               VPUIP::GraphOp graphOp, mlir::TimingScope& rootTiming,
                                                               Logger log) {
@@ -438,6 +490,7 @@ flatbuffers::Offset<MVCNN::GraphFile> createGraphFile(VPUIP::BlobWriter& writer,
                                                       flatbuffers::Offset<MVCNN::SummaryHeader> header,
                                                       ArrayRef<VPUIP::BlobWriter::TaskList> taskLists,
                                                       ArrayRef<VPUIP::BlobWriter::BinaryData> binaryData,
+                                                      ArrayRef<VPUIP::BlobWriter::KernelData> kernelData,
                                                       ArrayRef<VPUIP::BlobWriter::Barrier> virtBarriers,
                                                       mlir::TimingScope& rootTiming) {
     auto scopeTiming = rootTiming.nest("Create graph file");
@@ -445,12 +498,14 @@ flatbuffers::Offset<MVCNN::GraphFile> createGraphFile(VPUIP::BlobWriter& writer,
     const auto serializedTaskLists = writer.createVector(taskLists);
     const auto serializedBinaryData = writer.createVector(binaryData);
     const auto barrierTable = writer.createVector(virtBarriers);
+    const auto serializedKernelData = writer.createVector(kernelData);
 
     MVCNN::GraphFileBuilder graphBuilder(writer);
     graphBuilder.add_header(header);
     graphBuilder.add_task_lists(serializedTaskLists);
     graphBuilder.add_binary_data(serializedBinaryData);
     graphBuilder.add_barrier_table(barrierTable);
+    graphBuilder.add_kernel_data(serializedKernelData);
 
     return graphBuilder.Finish();
 }
@@ -471,16 +526,82 @@ flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, mli
 
     VPUIP::BlobWriter writer(log.nest());
 
-    const auto header = createSummaryHeader(writer, module, graphOp, netOp, netFunc, rootTiming);
+    const auto header = createSummaryHeader(writer, module, graphOp, netOp, netFunc, rootTiming, log);
 
     serializeTensorDecls(writer, netFunc, rootTiming);
     const auto binaryData = serializeBinaryData(writer, netFunc, rootTiming, log);
     const auto virtBarriers = serializeVirtBarriers(writer, netFunc, graphOp, rootTiming, log);
     const auto taskLists = serializeTaskLists(writer, netFunc, rootTiming, log);
-
-    const auto graphFile = createGraphFile(writer, header, taskLists, binaryData, virtBarriers, rootTiming);
+    const auto kernelData = serializeKernelData(writer, netFunc, rootTiming, log);
+    const auto graphFile = createGraphFile(writer, header, taskLists, binaryData, kernelData, virtBarriers, rootTiming);
 
     auto finalTiming = rootTiming.nest("Finalize serialized graph");
     writer.impl().Finish(graphFile, "BLOB");
-    return writer.impl().Release();
+    auto detached = writer.impl().Release();
+
+    auto serializedGraphFile = MVCNN::GetGraphFile(detached.data());
+
+    // align KernelData section referenced by given KernelDataReference
+    // returns moved offset
+    auto alignKernelDataSection = [&](const MVCNN::KernelDataReference* section, auto sectionLogical) {
+        auto section_data = serializedGraphFile->kernel_data()->Get(section->locale_offset())->data();
+
+        auto offset = section_data->Data() - detached.data();
+        log.trace("offset to kernel {0} {1} in Finished FBB is {2}", section->name()->c_str(), sectionLogical, offset);
+
+        //  align calculations
+        const uint32_t kilobyteAlignment = 1024;
+
+        auto aligned_offset = llvm::alignTo(offset, kilobyteAlignment);
+        offset = aligned_offset - offset;
+        log.trace("move kernel {0} {1} by {2} bytes to be {3}", section->name()->c_str(), sectionLogical, offset,
+                  aligned_offset);
+
+        memmove(const_cast<uint8_t*>(section_data->Data() + offset), section_data->Data(),
+                section_data->Length() - kilobyteAlignment);
+
+        // clear beginning
+        memset(const_cast<uint8_t*>(section_data->Data()), 0, offset);
+
+        return offset;
+    };
+
+    auto alignReferenceSection = [&](const MVCNN::KernelDataReference* section, uint64_t offset) {
+        // correcting data offset for section in schema
+        auto table = reinterpret_cast<flatbuffers::Table*>(const_cast<MVCNN::KernelDataReference*>(section));
+
+        const uint64_t non_empty_offset = 1;
+        // updating offset pointer
+        table->SetField(MVCNN::KernelDataReference::VT_DATA_OFFSET,
+                        checked_cast<uint32_t>(section->data_offset() + offset - non_empty_offset), 0u);
+    };
+
+    auto alignSection = [&](const MVCNN::KernelDataReference* section, auto sectionLogical) {
+        auto offset = alignKernelDataSection(section, sectionLogical);
+        alignReferenceSection(section, offset);
+    };
+
+    // locating act-kernel
+    for (auto&& task_list : *serializedGraphFile->task_lists()) {
+        for (auto&& task : *task_list->content()) {
+            if (auto actKernelTask = task->task_as_ActKernelTask()) {
+                auto kernelTextSection = actKernelTask->kernel()->kernelText();
+                alignSection(kernelTextSection, ".text");
+
+                // Invocations aligning
+                auto invocations = actKernelTask->invocations();
+                for (auto&& invocation : *invocations) {
+                    auto offset = alignKernelDataSection(invocation->dataSection(), ".data");
+                    alignReferenceSection(invocation->dataSection(), offset);
+                    alignReferenceSection(invocation->invocationArgs(), offset);
+                }
+
+                // scratchBuffer aligning
+                auto scratchBuffer = serializedGraphFile->header()->act_kernel_runtime()->codeScratchBuffer();
+                alignSection(scratchBuffer, ".scratchBuffer");
+            }
+        }
+    }
+
+    return detached;
 }

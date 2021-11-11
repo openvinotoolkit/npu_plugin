@@ -123,6 +123,7 @@ def VPUIP_TaskType :
                 StrEnumAttrCase<"NCE2">,
                 StrEnumAttrCase<"Controller">,
                 StrEnumAttrCase<"UPA">,
+                StrEnumAttrCase<"ACTShave">,
                 StrEnumAttrCase<"SNN">,
                 StrEnumAttrCase<"Generic">,
             ]
@@ -151,6 +152,7 @@ def VPUIP_MemoryLocation :
                 StrEnumAttrCase<"AbsoluteAddr">,
                 StrEnumAttrCase<"MAC_Accumulators">,
                 StrEnumAttrCase<"ProfilingOutput">,
+                StrEnumAttrCase<"GFEmbeddedKernel">,
             ]
         > {
     let cppNamespace = "vpux::VPUIP";

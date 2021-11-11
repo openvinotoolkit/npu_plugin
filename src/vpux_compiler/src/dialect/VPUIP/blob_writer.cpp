@@ -22,6 +22,7 @@
 #include "vpux/compiler/utils/quantization.hpp"
 #include "vpux/compiler/utils/strings.hpp"
 
+#include "vpux/compiler/act_kernels/act_kernel_invocation_builder.h"
 #include "vpux/utils/IE/float16.hpp"
 #include "vpux/utils/core/checked_cast.hpp"
 #include "vpux/utils/core/error.hpp"
@@ -31,6 +32,8 @@
 #include "vpux/utils/core/small_vector.hpp"
 
 #include <mlir/Dialect/Quant/QuantTypes.h>
+
+#include <vpux/compiler/act_kernels/act_kernel_gen.h>
 
 #include <algorithm>
 
@@ -78,6 +81,203 @@ VPUIP::BlobWriter::Task vpux::VPUIP::BlobWriter::createTask(mlir::Operation* op)
     _tasks.insert({op, off});
 
     return off;
+}
+
+ActKernelDesc vpux::VPUIP::BlobWriter::compileKernelData(const CompilationUnitDesc& unitDesc) {
+    movitools::MoviCompileParams params = {
+            /*cpu=*/"3010xx",
+            /*moviCompile=*/"linux64/bin/moviCompile",
+            /*mdkLinker=*/"linux64/sparc-myriad-rtems-6.3.0/bin/sparc-myriad-rtems-ld",
+            /*mdkObjCopy=*/"linux64/sparc-myriad-rtems-6.3.0/bin/sparc-myriad-rtems-objcopy",
+            /*mdkLibDir=*/"common/moviCompile/lib/30xxxx-leon",
+            /*mdkLibs=*/
+            {
+                    "mlibm.a",
+                    "mlibcxx.a",
+                    "mlibneon.a",
+                    "mlibVecUtils.a",
+                    "mlibc_lite.a",
+                    "mlibc_lite_lgpl.a",
+                    "mlibcrt.a",
+            },
+    };
+
+    return compileKernelForACTShave(unitDesc, params);
+}
+
+const vpux::VPUIP::BlobWriter::ActShavesKernelDataMap& vpux::VPUIP::BlobWriter::getKernelData() const {
+    return _actKernelsData;
+}
+
+vpux::VPUIP::BlobWriter::KernelDataRef vpux::VPUIP::BlobWriter::createKernelDataRef(const KernelDataDesc& desc,
+                                                                                    MemoryLocation locale) {
+    // offset is 1 to force field to be serialized by FB
+    const uint64_t non_empty_offset = 1;
+    return createKernelDataRef(desc.name, locale, non_empty_offset, desc.size, desc.data);
+}
+
+vpux::VPUIP::BlobWriter::KernelDataRef vpux::VPUIP::BlobWriter::createKernelDataRef(
+        StringRef name, MemoryLocation locale, uint64_t dataOffset, uint64_t dataSize, ArrayRef<uint8_t> content) {
+    auto kernelMapEntries = _actKernelsData.find(name.str());
+
+    // if cache not used - need to create unique_name
+    if (kernelMapEntries == _actKernelsData.end()) {
+        // there is no kernelData for this name available
+        // for now lets generate new kernelData entry using given content data
+        _log.trace("Store new kernel in kernelData array: {0}\n", name);
+        _actKernelsData[name.data()] = {name.data(), buildKernelData(_impl, content), content.size()};
+    }
+    auto strName = _impl.CreateString(name.data());
+    const auto serializedLocale = createMemoryLocation(locale);
+
+    MVCNN::KernelDataReferenceBuilder kernelData(_impl);
+
+    kernelData.add_referenced_data_size(checked_cast<uint32_t>(dataSize));
+    kernelData.add_locale(serializedLocale);
+    auto mappedLocaleIterator = _actKernelsData.find(name.data());
+    auto mappedLocaleIndex = std::distance(_actKernelsData.begin(), mappedLocaleIterator);
+
+    kernelData.add_locale_offset(vpux::checked_cast<uint32_t>(mappedLocaleIndex));
+    kernelData.add_data_offset(checked_cast<uint32_t>(dataOffset));
+    kernelData.add_name(strName);
+
+    return kernelData.Finish();
+}
+
+SmallVector<uint8_t, 128> vpux::VPUIP::BlobWriter::createInvocationArgs(mlir::Operation* op, size_t dataOffset) {
+    VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in createSW_KernelTask");
+
+    auto swKernelTask = mlir::dyn_cast<VPUIP::SW_Kernel>(op);
+    VPUX_THROW_UNLESS(swKernelTask != nullptr, "Operation '{0}' is not a SW_Kernel Task", op->getName());
+
+    vpux::InvocationBuilder invocationBuilder(_log, dataOffset);
+
+    for (auto&& kernelRun : swKernelTask.body().getOps<VPUIP::SW_Kernel_run>()) {
+        auto insSize = swKernelTask.inputs().size();
+        auto outsSize = swKernelTask.outputs().size();
+
+        for (auto&& operand : kernelRun.args()) {
+            auto blockArg = operand.dyn_cast_or_null<mlir::BlockArgument>();
+            if (blockArg) {
+                auto id = blockArg.getArgNumber();
+                if (id < insSize) {
+                    // TODO: check type and shape - should correspond to ins (id)
+                    invocationBuilder.addArg(swKernelTask->getOpOperand(id).get());
+                } else if (id < (insSize + outsSize)) {
+                    // TODO: check type and shape - should correspond to outputs(id - insSize)
+                    invocationBuilder.addArg(swKernelTask->getOpOperand(id).get());
+                } else {
+                    // looks unknown block args
+                    VPUX_THROW("Unknown blocking argument for {1} of index: {0}", id, swKernelTask);
+                }
+            } else {
+                invocationBuilder.addArg(operand);
+            }
+        }
+    }
+
+    return invocationBuilder.store();
+}
+
+VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createSW_KernelTask(mlir::Operation* op) {
+    VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in createSW_KernelTask");
+
+    auto swKernelTask = mlir::dyn_cast<VPUIP::SW_Kernel>(op);
+    VPUX_THROW_UNLESS(swKernelTask != nullptr, "Operation '{0}' is not a SW_Kernel Task", op->getName());
+
+    // extracting kernel source code or compiled code
+
+    auto module = op->getParentOfType<mlir::ModuleOp>();
+    auto kernelFunc = module.lookupSymbol<mlir::FuncOp>(swKernelTask.kernelFunctionAttr());
+    VPUX_THROW_UNLESS(kernelFunc, "Invalid function call : '{0}', undefined kernel name",
+                      swKernelTask.kernelFunctionAttr());
+
+    const auto kernelCode = kernelFunc->getAttrOfType<mlir::StringAttr>("VPU.kernel_code");
+    const auto kernelEntryPoint = kernelFunc->getAttrOfType<mlir::StringAttr>("VPU.kernel_entry");
+
+    VPUX_THROW_UNLESS(kernelCode, "Operation '{0}' doesn't have VPU.kernel_code attribute",
+                      swKernelTask.kernelFunctionAttr());
+    VPUX_THROW_UNLESS(kernelEntryPoint, "Operation '{0}' doesn't have VPU.kernel_entry attribute",
+                      swKernelTask.kernelFunctionAttr());
+
+    // TODO : check that arguments in given function
+    CompilationUnitDesc compilationDesc = {kernelFunc.getName(), kernelEntryPoint.getValue(), kernelCode.getValue()};
+    auto actKernelDesc = compileKernelData(compilationDesc);
+
+    // this is the only supported storage so far
+    const auto kernelStorageLocale = vpux::VPUIP::MemoryLocation::GFEmbeddedKernel;
+
+    auto kernelText = createKernelDataRef(actKernelDesc.text, kernelStorageLocale);
+
+    MVCNN::ActKernelBuilder kernelbuilder(_impl);
+    kernelbuilder.add_kernelText(kernelText);
+    kernelbuilder.add_type(MVCNN::ActKernelType_KERNEL);
+    kernelbuilder.add_kernelEntry(0);
+
+    auto kernel = kernelbuilder.Finish();
+
+    const auto getBarrierIdCb = [this](mlir::Value val) {
+        return getBarrierVirtualID(val);
+    };
+
+    const auto waitBarriers = createVector(swKernelTask.waitBarriers() | transformed(getBarrierIdCb));
+    const auto updateBarriers = createVector(swKernelTask.updateBarriers() | transformed(getBarrierIdCb));
+
+    auto barrierReference = MVCNN::CreateBarrierReference(_impl, waitBarriers, updateBarriers);
+
+    // NOTE: order of .data, and invocation args matters in WIN_E
+    // . 1K aligned data section followed by invocation args.
+    // .data section is accessible from WIN_E adress
+    // invocation args accessible from  WIN_E + sizeof(.data section)
+
+    auto invocationArgs = createInvocationArgs(op, actKernelDesc.data.size);
+
+    auto invocationArgsAndData = invocationArgs;
+    invocationArgsAndData.insert(invocationArgsAndData.begin(), actKernelDesc.data.data.begin(),
+                                 actKernelDesc.data.data.end());
+
+    // padding for further alignment
+    for (int i = 0; i != 512; i++) {
+        invocationArgsAndData.push_back(0xFC);
+        invocationArgsAndData.push_back(0xCC);
+    }
+
+    llvm::SmallString<128> uniqueInvocationName(kernelFunc.getName());
+    uniqueInvocationName.append("_invo");
+
+    auto kernelMapEntries = _actKernelsData.count(uniqueInvocationName.c_str());
+
+    // cache not used since we refer to same actKernelData for invocation and for .data section
+    if (kernelMapEntries != 0) {
+        uniqueInvocationName.push_back('_');
+        uniqueInvocationName.append(StringRef(std::to_string(kernelMapEntries)));
+    }
+
+    const uint64_t non_empty_offset = 1;
+
+    // offset is preliminary and will be further corrected 1 is force flatbuffer to produce 4 bytes in storage
+    auto dataSection = createKernelDataRef(uniqueInvocationName, kernelStorageLocale, non_empty_offset,
+                                           actKernelDesc.data.size, invocationArgsAndData);
+
+    // offset is preliminary and will be further corrected
+    auto invocationSection = createKernelDataRef(uniqueInvocationName, kernelStorageLocale,
+                                                 non_empty_offset + actKernelDesc.data.data.size(),
+                                                 invocationArgs.size(), invocationArgsAndData);
+
+    MVCNN::ActKernelInvocationBuilder invocationBuilder(_impl);
+    invocationBuilder.add_dataSection(dataSection);
+    invocationBuilder.add_associatedBarriers(barrierReference);
+    invocationBuilder.add_invocationArgs(invocationSection);
+
+    std::vector<flatbuffers::Offset<MVCNN::ActKernelInvocation>> invocations_v1 = {invocationBuilder.Finish()};
+
+    auto invocations_v2 = _impl.CreateVector(invocations_v1);
+
+    MVCNN::ActKernelTaskBuilder taskbuilder(_impl);
+    taskbuilder.add_kernel(kernel);
+    taskbuilder.add_invocations(invocations_v2);
+
+    return {taskbuilder.Finish().Union(), MVCNN::SpecificTask_ActKernelTask};
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createUPALayerTask(mlir::Operation* op,
@@ -396,6 +596,7 @@ MVCNN::MemoryLocation vpux::VPUIP::BlobWriter::createMemoryLocation(MemoryLocati
         CASE(VPU_CSRAM);
         CASE(AbsoluteAddr);
         CASE(MAC_Accumulators);
+        CASE(GFEmbeddedKernel);
     default:
         VPUX_THROW("Unsupported MemoryLocation {0}", location);
     }

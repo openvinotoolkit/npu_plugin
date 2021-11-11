@@ -13,6 +13,7 @@
 
 #pragma once
 
+#include <vpux/compiler/act_kernels/act_kernel_gen.h>
 #include "vpux/compiler/core/attributes/dims_order.hpp"
 #include "vpux/compiler/core/attributes/shape.hpp"
 #include "vpux/compiler/core/attributes/strides.hpp"
@@ -32,6 +33,7 @@
 
 #include <flatbuffers/flatbuffers.h>
 
+#include <llvm/ADT/MapVector.h>
 #include <unordered_map>
 
 namespace vpux {
@@ -59,7 +61,14 @@ public:
 
     using BinaryData = flatbuffers::Offset<MVCNN::BinaryData>;
 
+    using KernelData = flatbuffers::Offset<MVCNN::KernelData>;
+
+    using KernelDataRef = flatbuffers::Offset<MVCNN::KernelDataReference>;
+
     using String = flatbuffers::Offset<flatbuffers::String>;
+
+    using ActShavesKernelDataMap =
+            llvm::MapVector<std::string, SerializedKernelDataDesc, std::unordered_map<std::string, size_t>>;
 
     template <typename T>
     using Vector = flatbuffers::Offset<flatbuffers::Vector<T>>;
@@ -73,6 +82,20 @@ public:
 
 public:
     SpecificTask createUPALayerTask(mlir::Operation* op, const SoftwareLayerParams& params);
+
+    // invocation args layout right after .data section, so dataOffset is a size of .data section
+    llvm::SmallVector<uint8_t, 128> createInvocationArgs(mlir::Operation* op, size_t dataOffset);
+
+    SpecificTask createSW_KernelTask(mlir::Operation* op);
+
+    //  compiles kernel code and returns it's data and text sections
+    ActKernelDesc compileKernelData(const CompilationUnitDesc& unitDesc);
+
+    KernelDataRef createKernelDataRef(StringRef name, MemoryLocation locale, uint64_t dataOffset, uint64_t dataSize,
+                                      ArrayRef<uint8_t> content = None);
+    KernelDataRef createKernelDataRef(const KernelDataDesc& desc, MemoryLocation locale);
+
+    const ActShavesKernelDataMap& getKernelData() const;
 
 public:
     TensorReference createTensor(StringRef name, mlir::ShapedType type, MemoryLocation locale,
@@ -161,6 +184,7 @@ private:
     Logger _log;
     flatbuffers::FlatBufferBuilder _impl;
     TaskMap _tasks;
+    ActShavesKernelDataMap _actKernelsData;
     TensorReferenceMap _tensors;
     BarrierMap _barriers;
 };
