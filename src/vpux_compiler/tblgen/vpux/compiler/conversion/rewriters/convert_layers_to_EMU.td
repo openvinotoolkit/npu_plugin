@@ -777,4 +777,54 @@ def RewriteNormalizeIE :
             (createNormalizeIEUPAOp $data, $weights, $eps, $across_spatial, $channel_shared, $result)
         >;
 
+//
+// IE.Expand -> EMU.Pad
+//
+
+def createExpandAsPadUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::EMU::PadUPAOp>(
+                $_loc, $3.getType(), $0, $1, $2, getFPAttr($_builder.getContext(), 0),
+                vpux::IE::PadModeAttr::get(
+                    $_builder.getContext(),
+                    vpux::IE::PadMode::CONSTANT
+                ))
+        }]>;
+
+def RewriteExpand :
+        Pat<
+            (IE_ExpandOp:$result $input, $pads_begin, $pads_end),
+            (createExpandAsPadUPAOp $input, $pads_begin, $pads_end, $result)
+        >;
+
+//
+// IE.Slice -> EMU.Slice
+//
+
+def createSliceUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::EMU::SliceUPAOp>($_loc, $3.getType(), $0, $1, $2)
+        }]>;
+
+def RewriteSlice :
+        Pat<
+            (IE_SliceOp:$result $input, $static_offsets, $static_sizes),
+            (createSliceUPAOp $input, $static_offsets, $static_sizes, $result)
+        >;
+
+//
+// IE.Concat -> EMU.Concat
+//
+
+def createConcatUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::EMU::ConcatUPAOp>($_loc, $3.getType(), $0, $1, $2)
+        }]>;
+
+def RewriteConcat :
+        Pat<
+            (IE_ConcatOp:$result $input, $per_axis, $static_offsets),
+            (createConcatUPAOp $input, $per_axis, $static_offsets, $result)
+        >;
+
 #endif

@@ -1664,4 +1664,110 @@ def EMU_NormalizeIEUPAOp :
     }];
 }
 
+//
+// SplitOp
+//
+
+def EMU_SplitUPAOp :
+        EMU_UPATaskOp<"Split"> {
+    let summary = "Split UPA SHAVE kernel";
+
+    let description = [{
+        This layer although being marked as UPA will be run
+        as native PC code in Emulator.
+    }];
+
+    let arguments = (ins
+        AnyRankedTensor:$input,
+        Optional<AnyRankedTensor>:$axis,
+
+        IntAttr:$num_splits,
+        OptionalAttr<IntAttr>:$axis_value
+    );
+
+    let results = (outs
+        Variadic<AnyRankedTensor>:$outputs
+    );
+
+    let verifier = [{
+        return vpux::EMU::verifyOp(*this);
+    }];
+
+    let assemblyFormat = [{
+        attr-dict
+        `input` `(` $input `:` type($input) `,` $axis `:` type($axis) `)`
+        `->` type(results)
+    }];
+}
+
+//
+// ConcatOp
+//
+
+def EMU_ConcatUPAOp :
+        EMU_UPATaskOp<"Concat"> {
+    let summary = "Concat UPA SHAVE kernel";
+
+    let description = [{
+        This layer although being marked as UPA will be run
+        as native PC code in Emulator.
+    }];
+
+    let arguments = (ins
+        Variadic<AnyRankedTensor>:$inputs,
+
+        OptionalAttr<IE_ConcatAttrs>:$per_axis,
+        OptionalAttr<I64ArrayOfArraysAttr>:$static_offsets
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+
+    let verifier = [{
+        return vpux::EMU::verifyOp(*this);
+    }];
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $inputs `:` type($inputs) `)`
+        `->` type(results)
+    }];
+}
+
+//
+// SliceOp
+//
+
+def EMU_SliceUPAOp :
+        EMU_UPATaskOp<"Slice"> {
+    let summary = "Slice UPA SHAVE kernel";
+
+    let description = [{
+        This layer although being marked as UPA will be run
+        as native PC code in Emulator.
+    }];
+
+    let arguments = (ins
+        AnyRankedTensor:$source,
+
+        I64ArrayAttr:$static_offsets,
+        I64ArrayAttr:$static_sizes
+    );
+
+    let results = (outs
+        AnyRankedTensor:$result
+    );
+
+    let verifier = [{
+        return vpux::EMU::verifyOp(*this);
+    }];
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $source `:` type($source) `)`
+        `->` type(results)
+    }];
+}
+
 #endif

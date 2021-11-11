@@ -178,6 +178,41 @@ operation ::= `EMU.ClampUPA` attr-dict
 | :----: | ----------- |
 `output` | ranked tensor of 16-bit float values
 
+### `EMU.Concat` (vpux::EMU::ConcatUPAOp)
+
+Concat UPA SHAVE kernel
+
+
+Syntax:
+
+```
+operation ::= `EMU.Concat` attr-dict
+              `inputs` `(` $inputs `:` type($inputs) `)`
+              `->` type(results)
+```
+
+This layer although being marked as UPA will be run
+as native PC code in Emulator.
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`per_axis` | vpux::IE::ConcatAttrs | DictionaryAttr with field(s): 'axis', 'offset', 'stride' (each field having its own constraints)
+`static_offsets` | ::mlir::ArrayAttr | array of 64-bit integer arrays
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`inputs` | ranked tensor of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values
+
 ### `EMU.ConvertUPA` (vpux::EMU::ConvertUPAOp)
 
 Convert UPA SHAVE kernel
@@ -1424,6 +1459,41 @@ operation ::= `EMU.SigmoidUPA` attr-dict
 | :----: | ----------- |
 `output` | ranked tensor of 16-bit float values
 
+### `EMU.Slice` (vpux::EMU::SliceUPAOp)
+
+Slice UPA SHAVE kernel
+
+
+Syntax:
+
+```
+operation ::= `EMU.Slice` attr-dict
+              `inputs` `(` $source `:` type($source) `)`
+              `->` type(results)
+```
+
+This layer although being marked as UPA will be run
+as native PC code in Emulator.
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`static_offsets` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`static_sizes` | ::mlir::ArrayAttr | 64-bit integer array attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`source` | ranked tensor of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`result` | ranked tensor of any type values
+
 ### `EMU.SoftMaxUPA` (vpux::EMU::SoftMaxUPAOp)
 
 SoftMax UPA SHAVE kernel
@@ -1455,6 +1525,42 @@ operation ::= `EMU.SoftMaxUPA` attr-dict
 | Result | Description |
 | :----: | ----------- |
 `output` | ranked tensor of 16-bit float values
+
+### `EMU.Split` (vpux::EMU::SplitUPAOp)
+
+Split UPA SHAVE kernel
+
+
+Syntax:
+
+```
+operation ::= `EMU.Split` attr-dict
+              `input` `(` $input `:` type($input) `,` $axis `:` type($axis) `)`
+              `->` type(results)
+```
+
+This layer although being marked as UPA will be run
+as native PC code in Emulator.
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`num_splits` | mlir::IntegerAttr | Integer attribute
+`axis_value` | mlir::IntegerAttr | Integer attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of any type values
+`axis` | ranked tensor of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`outputs` | ranked tensor of any type values
 
 ### `EMU.SqrtUPA` (vpux::EMU::SqrtUPAOp)
 
