@@ -90,6 +90,10 @@ std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> inputShapes = {
         // {{2, 17, 3, 4}, {{4}, {1, 3, 4}}},
 };
 
+std::vector<InferenceEngine::Precision> netPrecisions = {
+        InferenceEngine::Precision::FP32,
+};
+
 std::vector<InferenceEngine::Precision> inputsPrecisions = {
         InferenceEngine::Precision::FP32,
         InferenceEngine::Precision::FP16,
@@ -130,7 +134,7 @@ INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs, KmbComparisonLayerTest_MCM, Compa
 
 const auto ComparisonTestParams_MLIR = ::testing::Combine(
         ::testing::ValuesIn(CommonTestUtils::combineParams(inputShapes)),
-        ::testing::ValuesIn(inputsPrecisions),
+        ::testing::ValuesIn(netPrecisions),
         ::testing::ValuesIn(comparisonOpTypes_MLIR),
         ::testing::ValuesIn(secondInputTypes),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),

@@ -19,41 +19,6 @@
 
 using namespace vpux;
 
-namespace {
-
-//
-// ConvertToFP16
-//
-
-class ConvertToFP16 final : public mlir::OpRewritePattern<IE::EqualOp> {
-public:
-    using mlir::OpRewritePattern<IE::EqualOp>::OpRewritePattern;
-
-public:
-    mlir::LogicalResult matchAndRewrite(IE::EqualOp equalOp, mlir::PatternRewriter& rewriter) const final;
-};
-
-mlir::LogicalResult ConvertToFP16::matchAndRewrite(IE::EqualOp equalOp, mlir::PatternRewriter& rewriter) const {
-    const auto in1Type = equalOp.input1().getType().cast<mlir::ShapedType>();
-    const auto outType = equalOp.output().getType().cast<mlir::ShapedType>();
-
-    if (!(in1Type.getElementType().isF16())) {
-        auto float16Type = mlir::Float16Type::get(getContext());
-        auto convertIn1 = rewriter.create<IE::ConvertOp>(equalOp.getLoc(), equalOp.input1(), float16Type);
-        auto convertIn2 = rewriter.create<IE::ConvertOp>(equalOp.getLoc(), equalOp.input2(), float16Type);
-
-        auto newEqualOp = rewriter.create<IE::EqualOp>(equalOp.getLoc(), convertIn1.output(), convertIn2.output(),
-                                                       equalOp.auto_broadcastAttr());
-
-        rewriter.replaceOpWithNewOp<IE::ConvertOp>(equalOp, newEqualOp.output(), outType.getElementType());
-        return mlir::success();
-    } else {
-        return mlir::success();
-    }
-}
-
-}  // namespace
-
 mlir::LogicalResult vpux::IE::EqualOp::inferReturnTypeComponents(
         mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
         mlir::DictionaryAttr attrs, mlir::RegionRange,
@@ -76,8 +41,4 @@ mlir::LogicalResult vpux::IE::EqualOp::inferReturnTypeComponents(
     }
 
     return outShapeRes;
-}
-
-void vpux::IE::EqualOp::getCanonicalizationPatterns(mlir::RewritePatternSet& patterns, mlir::MLIRContext* context) {
-    patterns.insert<ConvertToFP16>(context);
 }

@@ -2402,8 +2402,6 @@ def IE_EqualOp :
     let results = (outs
         AnyRankedTensor:$output
     );
-
-    let hasCanonicalizer = 1;
 }
 
 //
@@ -2462,8 +2460,6 @@ def IE_NotEqualOp :
     let results = (outs
         AnyRankedTensor:$output
     );
-
-    let hasCanonicalizer = 1;
 }
 
 #endif

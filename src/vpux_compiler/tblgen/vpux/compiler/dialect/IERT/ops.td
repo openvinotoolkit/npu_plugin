@@ -2666,13 +2666,13 @@ def IERT_EqualOp :
     let summary = "InferenceEngine run-time Equal layer";
 
     let arguments = (ins
-        F16MemRef:$input1,
-        F16MemRef:$input2,
-        F16MemRef:$output_buff
+        AnyMemRef:$input1,
+        AnyMemRef:$input2,
+        AnyMemRef:$output_buff
     );
 
     let results = (outs
-        F16MemRef:$output
+        AnyMemRef:$output
     );
 
     let assemblyFormat = [{
@@ -2697,13 +2697,13 @@ def IERT_NotEqualOp :
     let summary = "InferenceEngine run-time NotEqual layer";
 
     let arguments = (ins
-        F16MemRef:$input1,
-        F16MemRef:$input2,
-        F16MemRef:$output_buff
+        AnyMemRef:$input1,
+        AnyMemRef:$input2,
+        AnyMemRef:$output_buff
     );
 
     let results = (outs
-        F16MemRef:$output
+        AnyMemRef:$output
     );
 
     let assemblyFormat = [{
