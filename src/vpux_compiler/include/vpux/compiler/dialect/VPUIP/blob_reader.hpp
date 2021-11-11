@@ -64,6 +64,8 @@ private:
                                        ArrayRef<mlir::Value> outputs, const MVCNN::UPALayerTask* task);
     mlir::Operation* parseGather(mlir::OpBuilder& builder, ArrayRef<mlir::Value> inputs, ArrayRef<mlir::Value> outputs,
                                  const MVCNN::UPALayerTask* task);
+    mlir::Operation* parseGatherElements(mlir::OpBuilder& builder, ArrayRef<mlir::Value> inputs,
+                                         ArrayRef<mlir::Value> outputs, const MVCNN::UPALayerTask* task);
     mlir::Operation* parseGRN(mlir::OpBuilder& builder, ArrayRef<mlir::Value> inputs, ArrayRef<mlir::Value> outputs,
                               const MVCNN::UPALayerTask* task);
     mlir::Operation* parseNorm(mlir::OpBuilder& builder, ArrayRef<mlir::Value> inputs, ArrayRef<mlir::Value> outputs,

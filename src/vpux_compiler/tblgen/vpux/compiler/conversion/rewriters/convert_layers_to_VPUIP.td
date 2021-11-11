@@ -768,6 +768,22 @@ def RewriteGather :
         >;
 
 //
+// IERT.GatherElements -> VPUIP.GatherElements
+//
+
+def createGatherElementsUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::GatherElementsUPAOp>(
+                    $_loc, $0, $1, $2, $3)
+        }]>;
+
+def RewriteGatherElements :
+        Pat<
+            (IERT_GatherElementsOp $input, $indices, $output, $axis),
+            (createGatherElementsUPAOp $input, $indices, $output, $axis)
+        >;
+
+//
 // IERT.MemPermute -> VPUIP.Permute
 //
 
