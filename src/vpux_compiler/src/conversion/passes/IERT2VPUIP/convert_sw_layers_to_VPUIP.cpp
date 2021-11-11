@@ -173,13 +173,24 @@ private:
 
         mlir::SmallVector<mlir::Type, 12> inputTypes;
 
+        auto fetchByUnrankedType = [&inputTypes](auto& cnt) {
+            for (auto&& arg : cnt) {
+                if (auto memref = arg.getType().template dyn_cast_or_null<mlir::MemRefType>()) {
+                    auto unrankedMemref =
+                            mlir::UnrankedMemRefType::get(memref.getElementType(), memref.getMemorySpace());
+                    inputTypes.push_back(unrankedMemref);
+                } else {
+                    inputTypes.template emplace_back<mlir::Type>(arg.getType());
+                }
+            }
+        };
         auto fetchByType = [&inputTypes](auto& cnt) {
             for (auto&& arg : cnt) {
                 inputTypes.template emplace_back<mlir::Type>(arg.getType());
             }
         };
-        fetchByType(_inputs);
-        fetchByType(_outputs);
+        fetchByUnrankedType(_inputs);
+        fetchByUnrankedType(_outputs);
         fetchByType(_args);
 
         const auto funcType = mlir::FunctionType::get(_ctx, inputTypes, mlir::TypeRange{});

@@ -8,7 +8,7 @@ func @SingleSWLayer(%arg0: memref<1x1x1x1000xf16>, %arg1: memref<1x1x1x1000xf16>
 
 
 // CHECK: module @VPU.SW  {
-// CHECK:     func private @builtin_SoftMax(memref<1x1x1x1000xf16>, memref<1x1x1x1000xf16>, i64) attributes {VPU.kernel_code = "softmax_fp16.cpp", VPU.kernel_entry = "softmax_fp16"}
+// CHECK:     func private @builtin_SoftMax(memref<*xf16>, memref<*xf16>, i64) attributes {VPU.kernel_code = "softmax_fp16.cpp", VPU.kernel_entry = "softmax_fp16"}
 // CHECK:   }
 // CHECK:   func @SingleSWLayer(%arg0: memref<1x1x1x1000xf16>, %arg1: memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16> {
 // CHECK:     %0 = memref.alloc() : memref<1x1x1x1000xf16, "CMX_NN">
