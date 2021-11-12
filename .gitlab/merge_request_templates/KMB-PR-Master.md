@@ -42,3 +42,9 @@
 (Filters are the same as for Yocto.)
 
 * [ ] https://dsp-ci-icv.inn.intel.com/job/Nets-Validation/job/manual/job/Windows/build
+
+#### Compilation and single-image test Validation on moviSim for MTL related changes
+
+(Default filter: `*MTL*`)
+
+* [ ] https://dsp-ci-icv.inn.intel.com/job/Nets-Validation/job/manual/job/MoviSim/build
