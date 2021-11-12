@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,22 @@
 
 #include "behavior/executable_network/exec_network_base.hpp"
 #include "ie_plugin_config.hpp"
+
+namespace BehaviorTestsDefinitions {
+
+using VpuxExecutableNetworkBaseTest = ExecutableNetworkBaseTest;
+
+TEST_P(VpuxExecutableNetworkBaseTest, VpuxCanExport) {
+    const auto ts = CommonTestUtils::GetTimestamp();
+    const std::string modelName = GetTestName().substr(0, CommonTestUtils::maxFileNameLength) + "_" + ts;
+    auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+    ASSERT_NO_THROW(execNet.Export(modelName + ".blob"));
+    std::cout << "model name = " << modelName << std::endl;
+    ASSERT_TRUE(CommonTestUtils::fileExists(modelName + ".blob"));
+    CommonTestUtils::removeFile(modelName + ".blob");
+}
+
+}// namespace BehaviorTestsDefinitions
 
 using namespace BehaviorTestsDefinitions;
 namespace {
@@ -15,15 +31,18 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::U8
 };
 
-const std::vector<std::map<std::string, std::string>> configs = {};
+const std::vector<std::map<std::string, std::string>> configs = {{}};
 
-// double free detected
-// [Track number: S#27337]
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, ExecutableNetworkBaseTest,
                         ::testing::Combine(
                             ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY),
                             ::testing::ValuesIn(configs)),
                          ExecutableNetworkBaseTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, VpuxExecutableNetworkBaseTest,
+                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_KEEMBAY),
+                                            ::testing::ValuesIn(configs)),
+                         VpuxExecutableNetworkBaseTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, ExecNetSetPrecision,
                          ::testing::Combine(

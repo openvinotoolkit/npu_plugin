@@ -53,7 +53,6 @@ private:
     std::string _name;
 };
 
-
 class Platform {
 public:
     bool isARM() const noexcept {
@@ -164,8 +163,32 @@ std::vector<std::string> disabledTestPatterns() {
             // TODO Add safe Softplus support
             ".*ActivationLayerTest.*SoftPlus.*",
 
+            // TODO: GetExecGraphInfo function is not implemented for VPUX plugin
+            ".*checkGetExecGraphInfoIsNotNullptr.*",
+            ".*CanCreateTwoExeNetworksAndCheckFunction.*",
+            ".*CheckExecGraphInfo.*",
+            ".*canLoadCorrectNetworkToGetExecutable.*",
+
+            // TODO: GetMetric function is not fully implemented for ExecutableNetwork interface (implemented only for vpux plugin)
+            ".*ExecutableNetworkBaseTest.checkGetMetric.*",
+
+            // TODO: SetConfig function is not implemented for ExecutableNetwork interface (implemented only for vpux plugin)
+            ".*ExecutableNetworkBaseTest.canSetConfigToExecNet.*",
+            ".*ExecutableNetworkBaseTest.canSetConfigToExecNetAndCheckConfigAndCheck.*",
+
+            // Async tests failed on dKMB
+            // TODO: [Track number: S#14836]
+            ".*ExclusiveAsyncRequests.*",
+            ".*MultithreadingTests.*",
+
+            // This is openvino specific test
+            ".*ExecutableNetworkBaseTest.canExport.*",
+
             // TODO: Issue: 63469
-            ".*KmbConversionLayerTest.*ConvertLike.*"
+            ".*KmbConversionLayerTest.*ConvertLike.*",
+
+            // TensorIterator layer is not supported
+            ".*ReturnResultNotReadyFromWaitInAsyncModeForTooSmallTimeout.*"
             }
         );
 
@@ -182,7 +205,9 @@ std::vector<std::string> disabledTestPatterns() {
                 ".*OVInferRequest.*",
                 ".*ExecutableNetworkBaseTest.*",
                 ".*ExecNetSetPrecision.*",
-                ".*SetBlobTest.*"
+                ".*SetBlobTest.*",
+                ".*InferRequestCallbackTests.*",
+                ".*PrePostProcessTest.*"
             }
         );
 
@@ -201,6 +226,14 @@ std::vector<std::string> disabledTestPatterns() {
                 ".*SetBlobTest.*",
                 ".*OVInferRequestWaitTests.*",
                 ".*OVInferRequestMultithreadingTests.*"
+            }
+        );
+
+        _skipRegistry.addPatterns(
+            backendName.isZero(),
+            "Abs layer is not supported by MTL/dKMB platform",
+            {
+                ".*PrePostProcessTest.*"
             }
         );
 
