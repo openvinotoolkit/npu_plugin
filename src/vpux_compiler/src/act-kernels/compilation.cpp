@@ -237,9 +237,8 @@ static void getActShaveBinaries(const movitools::MoviCompileParams& params, cons
     }
 }
 
-static void compileAndLinkSHAVE(const movitools::MoviCompileParams& params, const CompilationListDesc & listDesc,
+static void compileAndLinkSHAVE(const movitools::MoviCompileParams& params, const CompilationListDesc& listDesc,
                                 SmallVector<uint8_t, 128>& textBinary, SmallVector<uint8_t, 128>& dataBinary) {
-
     std::string mvToolsDir = movitools::getMoviToolsDir();
     std::string vpuip2Dir = getVpuip2Dir();
 
@@ -273,18 +272,18 @@ static void compileAndLinkSHAVE(const movitools::MoviCompileParams& params, cons
     sys::path::append(moviCompile, params.moviCompile);
 
     SmallString<1024> extraOptions;
-    for (int i = 0; i < (int) listDesc.defines.size(); ++i) {
+    for (int i = 0; i < (int)listDesc.defines.size(); ++i) {
         extraOptions += StringRef(" -D");
         extraOptions += listDesc.defines[i];
     }
-    for (int i = 0; i < (int) listDesc.includePaths.size(); ++i) {
+    for (int i = 0; i < (int)listDesc.includePaths.size(); ++i) {
         SmallString<128> inc(vpuip2Dir);
         sys::path::append(inc, listDesc.includePaths[i]);
         extraOptions += StringRef(" -I");
         extraOptions += inc;
     }
 
-    for (int i = 0; i < (int) listDesc.codePath.size(); ++i) {
+    for (int i = 0; i < (int)listDesc.codePath.size(); ++i) {
         SmallString<128> srcNamePath = listDesc.codePath[i];
 
         SmallString<128> srcNameNoExt = sys::path::filename(srcNamePath);
@@ -303,7 +302,8 @@ static void compileAndLinkSHAVE(const movitools::MoviCompileParams& params, cons
 
         {
             auto compileCmd = formatv("{1} -mcpu={2} -c {3} -o {4} -I {5} -I{6}{7}", genDir, moviCompile, params.cpu,
-                                      srcPath, objPath, mvToolsDir, incPath, extraOptions).str();
+                                      srcPath, objPath, mvToolsDir, incPath, extraOptions)
+                                      .str();
             if (std::system(compileCmd.c_str())) {
                 VPUX_THROW((std::string("moviCompile failed: ") + compileCmd).c_str());
             }
@@ -315,8 +315,9 @@ static void compileAndLinkSHAVE(const movitools::MoviCompileParams& params, cons
         sys::path::append(symPath, srcName + ".s");
 
         {
-            auto compileCmd = formatv("cd {0}; {1} -mcpu={2} -S {3} -o {4} -I {5} -I {6} -I {7} ", genDir, moviCompile, params.cpu,
-                                      srcPath, symPath, mvToolsDir, incPath, incPath2).str();
+            auto compileCmd = formatv("cd {0}; {1} -mcpu={2} -S {3} -o {4} -I {5} -I {6} -I {7} ", genDir, moviCompile,
+                                      params.cpu, srcPath, symPath, mvToolsDir, incPath, incPath2)
+                                      .str();
             // IVLOG(1, compileCmd);
             if (std::system(compileCmd.c_str())) {
                 VPUX_THROW((std::string("moviCompile failed: ") + compileCmd).c_str());
@@ -334,8 +335,9 @@ static void compileAndLinkSHAVE(const movitools::MoviCompileParams& params, cons
     sys::path::append(linker, params.mdkLinker);
     auto linkCmd = formatv("{0} -zmax-page-size=16 --script {1}"
                            " -entry {2} --gc-sections --strip-debug --discard-all  {3}"
-                            " -EL {4} --output {5}",
-                            linker, linkerScriptPath, entryPoint.c_str(), objPaths, singleLib, elfPath).str();
+                           " -EL {4} --output {5}",
+                           linker, linkerScriptPath, entryPoint.c_str(), objPaths, singleLib, elfPath)
+                           .str();
     if (std::system(linkCmd.c_str())) {
         VPUX_THROW((std::string("linker failed: ") + linkCmd).c_str());
     }
@@ -347,8 +349,7 @@ static void compileAndLinkSHAVE(const movitools::MoviCompileParams& params, cons
     sys::path::append(textPath, "sk." + srcNameNoExt + "." + params.cpu + ".text");
 
     {
-        auto objCopyCmd = formatv("{0} -O binary --only-section=.text {1} {2}",
-                                  objcopy, elfPath, textPath).str();
+        auto objCopyCmd = formatv("{0} -O binary --only-section=.text {1} {2}", objcopy, elfPath, textPath).str();
         if (std::system(objCopyCmd.c_str())) {
             VPUX_THROW((std::string("objcopy failed: ") + objCopyCmd).c_str());
         }
@@ -358,33 +359,31 @@ static void compileAndLinkSHAVE(const movitools::MoviCompileParams& params, cons
     sys::path::append(dataPath, "sk." + srcNameNoExt + "." + params.cpu + ".data");
 
     {
-        auto objCopyCmd = formatv("{0} -O binary --only-section=.arg.data {1} {2}",
-                                  objcopy, elfPath, dataPath).str();
+        auto objCopyCmd = formatv("{0} -O binary --only-section=.arg.data {1} {2}", objcopy, elfPath, dataPath).str();
 
         if (std::system(objCopyCmd.c_str())) {
             VPUX_THROW((std::string("objcopy failed: ") + objCopyCmd).c_str());
         }
     }
 
-
     auto readBinary = [](SmallString<128>& path, SmallVector<uint8_t, 128>& buffer, uint32_t alignment = 1) {
-          std::string err;
-          auto elfFile = mlir::openInputFile(path, &err);
-          if (!elfFile) {
-              VPUX_THROW("Could not open {0} binary, err:{1}", path.c_str(), err);
-          }
+        std::string err;
+        auto elfFile = mlir::openInputFile(path, &err);
+        if (!elfFile) {
+            VPUX_THROW("Could not open {0} binary, err:{1}", path.c_str(), err);
+        }
 
-          auto elfBuffer = elfFile->getBuffer();
-          std::copy(elfBuffer.begin(), elfBuffer.end(), std::back_inserter(buffer));
+        auto elfBuffer = elfFile->getBuffer();
+        std::copy(elfBuffer.begin(), elfBuffer.end(), std::back_inserter(buffer));
 
-          if (alignment  & (alignment - 1)) {
-              VPUX_THROW("Could not align to now power of 2:{1}", alignment);
-          }
-          auto totalBytes = std::distance(elfBuffer.begin(), elfBuffer.end());
-          auto padBytes = -totalBytes & (alignment - 1);
-          if (padBytes) {
-              std::fill_n(std::back_inserter(buffer), padBytes, 0);
-          }
+        if (alignment & (alignment - 1)) {
+            VPUX_THROW("Could not align to now power of 2:{1}", alignment);
+        }
+        auto totalBytes = std::distance(elfBuffer.begin(), elfBuffer.end());
+        auto padBytes = -totalBytes & (alignment - 1);
+        if (padBytes) {
+            std::fill_n(std::back_inserter(buffer), padBytes, 0);
+        }
     };
 
     readBinary(textPath, textBinary, 0x10);
@@ -414,16 +413,15 @@ ActKernelDesc compileKernelForACTShave(const CompilationUnitDesc& unitDesc,
     return result;
 }
 
-ActKernelDesc compileKernelForACTShave(const CompilationListDesc & listDesc,
+ActKernelDesc compileKernelForACTShave(const CompilationListDesc& listDesc,
                                        const movitools::MoviCompileParams& params) {
-
     // Use moviCompile to compile and link C source code into an ELF binary.
     // and then using objcopy teardown elf into text and data sections
     SmallVector<uint8_t, 128> textBinary;
     SmallVector<uint8_t, 128> dataBinary;
     compileAndLinkSHAVE(params, listDesc, textBinary, dataBinary);
 
-    //lets pad textBinary by 1K array at the end with FC CC FC CC
+    // lets pad textBinary by 1K array at the end with FC CC FC CC
     for (int i = 0; i != 512; i++) {
         textBinary.push_back(0xFC);
         textBinary.push_back(0xCC);
@@ -439,38 +437,36 @@ ActKernelDesc compileKernelForACTShave(const CompilationListDesc & listDesc,
 }
 
 const CompilationListDesc& managementKernelCompilationDesc() {
-    static const CompilationListDesc listDesc {
-        "nnActEntry",
-        "nnActEntry",
-        { // sources: relative to VPUIP2
-            "system/nn_mtl/act_runtime/src/nnActEntry.cpp",
-            "drivers/shave/svuShared_3600/src/HglShaveId.c",
-            "system/nn_mtl/common_runtime/src/nn_fifo_manager.cpp"
-        },
-        { // -D defines
-            "CONFIG_TARGET_SOC_3720",
-            "__shave_nn__",
-        },
-        { // include paths: relative to VPUIP2
-            "drivers/hardware/registerMap/inc", // #include <DrvRegUtils.h>
-            "drivers/hardware/utils/inc",       // #include <mv_types.h>
-            "drivers/shave/svuL1c/inc",         // #include <DrvSvuL1Cache.h>
-            "drivers/errors/errorCodes/inc",    // #include <DrvErrors.h>
-            "system/shave/svuCtrl_3600/inc",    // #include <ShaveId.h>
-            "drivers/shave/svuShared_3600/inc", // #include <HglShaveId.h>
-            "drivers/nn/inc",                   // #include <nn_barrier.h>
-            "drivers/resource/barrier/inc",     // #include <HglBarrier.h>
-            "system/nn_mtl/common_runtime/inc", // #include <nn_fifo_manager.h>
-            "system/nn_mtl/act_runtime/inc",    // #include <nnActRtDebug.h>
-            "system/nn_mtl/common/inc",         // #include <nn_runtime_types.h>
-        }
-    };
+    static const CompilationListDesc listDesc{
+            "nnActEntry",
+            "nnActEntry",
+            {// sources: relative to VPUIP2
+             "system/nn_mtl/act_runtime/src/nnActEntry.cpp", "drivers/shave/svuShared_3600/src/HglShaveId.c",
+             "system/nn_mtl/common_runtime/src/nn_fifo_manager.cpp"},
+            {
+                    // -D defines
+                    "CONFIG_TARGET_SOC_3720",
+                    "__shave_nn__",
+            },
+            {
+                    // include paths: relative to VPUIP2
+                    "drivers/hardware/registerMap/inc",  // #include <DrvRegUtils.h>
+                    "drivers/hardware/utils/inc",        // #include <mv_types.h>
+                    "drivers/shave/svuL1c/inc",          // #include <DrvSvuL1Cache.h>
+                    "drivers/errors/errorCodes/inc",     // #include <DrvErrors.h>
+                    "system/shave/svuCtrl_3600/inc",     // #include <ShaveId.h>
+                    "drivers/shave/svuShared_3600/inc",  // #include <HglShaveId.h>
+                    "drivers/nn/inc",                    // #include <nn_barrier.h>
+                    "drivers/resource/barrier/inc",      // #include <HglBarrier.h>
+                    "system/nn_mtl/common_runtime/inc",  // #include <nn_fifo_manager.h>
+                    "system/nn_mtl/act_runtime/inc",     // #include <nnActRtDebug.h>
+                    "system/nn_mtl/common/inc",          // #include <nn_runtime_types.h>
+            }};
 
     return listDesc;
 }
 
 ActKernelDesc compileManagementKernelForACTShave(const movitools::MoviCompileParams& params) {
-
     const auto& listDesc = managementKernelCompilationDesc();
 
     return compileKernelForACTShave(listDesc, params);
