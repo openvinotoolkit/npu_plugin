@@ -68,9 +68,59 @@ struct BarrierWrapper {
     uint8_t  real_id;
 };
 
-struct ActKernelRuntimeConfigs {};
-struct ActKernelRangeWrapper {};
-struct ActKernelInvocationWrapper {};
+extern "C" struct ActKernelRange {
+    ActWLType type_{ActWLType::WL_UNKNOWN};
+    actKernelEntry kernelEntry_{nullptr}; // entry point to main func (hswish etc)
+    actKernelTextBuffer textWindowBase_{nullptr}; // pointer to real address of text window (not 1d)
+
+    uint32_t codeSize_{0};
+    uint32_t dataSecSize_{0};
+};
+
+extern "C" struct ActKernelInvocation {
+    ActKernelRange *range_{nullptr};
+    act_kernel_args *kernelArgs_{nullptr}; //
+    actKernelDataBuffer dataWindowBase_{nullptr}; //pointer to real address of data window (not 1e)
+
+    BarrierConfig barriers_{};
+    // BarrierGpioConfig barriers_gpio_{}; NOT PRESENT IN DPU INVARIANT AS WELL
+    unsigned int invo_index_{0};
+};
+extern "C" struct ActKernelRuntimeConfigs_backend {
+    unsigned int stackFrames_[4]{0}; // AS_TOTAL = AS_PER_TILE * MAX_TILES = 4 * 4
+    unsigned int stackSize_{0};
+    bool useScheduleEmbeddedRt_{false};
+
+    // when useScheduleEmbeddedRt = true
+    // this is a windowed address
+    // idk what dis is
+    actRuntimeEntry runtimeEntry_{nullptr};
+
+    // when useScheduleEmbeddedRt = false; FW copies ActRt to this buffer
+    // when useScheduleEmbeddedRt = true; buffer already contains the ActRt
+    unsigned char *actRtWindowBase_{nullptr};
+    unsigned int codeWindowBufferSize_{0};
+};
+
+struct ActKernelRuntimeConfigs {
+    ActKernelRuntimeConfigs_backend asRtCfg_{};
+    // RelativeAddress stacks_[AS_TOTAL]{};
+    // RelativeAddress kernelDataBuffer_{};
+};
+
+struct ActKernelRangeWrapper {
+    ActKernelRange kRange_;
+    // RelativeAddress kernelTextBuffer_;
+    unsigned int kInvoCount_;
+};
+
+struct ActKernelInvocationWrapper {
+    ActKernelInvocation kInvo_;
+    // RelativeAddress kernelDataBuffer_;
+    // RelativeAddress args_;
+    unsigned int kRangeIndex_;
+    unsigned int tile_;
+};
 
 struct MappedInference {
     TaskReference<DmaWrapper> dmaTasks[2];

@@ -19,7 +19,12 @@ using namespace elf;
 // Reader
 //
 
-Reader32::Reader32(const char* blob, size_t) : m_blob(blob), m_elfHeader(reinterpret_cast<decltype(m_elfHeader)>(blob)) {
+
+Reader32::Reader32(){}
+
+void Reader32::loadElf(const char* blob, size_t) {
+    m_blob = blob;
+    m_elfHeader = reinterpret_cast<decltype(m_elfHeader)>(blob);
     m_sectionHeadersStart = reinterpret_cast<const SectionHeader32*>(m_blob + m_elfHeader->e_shoff);
     m_programHeadersStart = reinterpret_cast<const ProgramHeader32*>(m_blob + m_elfHeader->e_phoff);
     m_sectionHeadersNames = m_blob + (m_sectionHeadersStart + m_elfHeader->e_shstrndx)->sh_offset;

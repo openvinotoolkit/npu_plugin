@@ -7,6 +7,15 @@
 
 namespace host_parsing {
 
+typedef void *actKernelDataBuffer;
+typedef void *actKernelTextBuffer;
+typedef void act_kernel_args;
+typedef void (*actKernelEntry)(act_kernel_args *);
+typedef void (*actRuntimeEntry)(const uint32_t);
+
+enum class ActWLType : uint8_t { WL_KERNEL = 0x00, WL_DEBUG = 0x04, WL_UNKNOWN };
+
+
 // Bit field for fine-grained configuration of DMA job
 struct DmaConfigBits{
     uint64_t type : 2;              // Job type(1D/2D)

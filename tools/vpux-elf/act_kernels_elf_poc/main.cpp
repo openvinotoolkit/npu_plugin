@@ -24,7 +24,7 @@
 
 int main(int argc, char* argv[]) {
     if (argc != 2) {
-        std::cout << "Example usage is ./simplereader <path-to-elf>" << '\n';
+        std::cout << "Example usage is ./act-kernels-elf-poc <path-to-elf>" << '\n';
         return 1;
     }
     
@@ -32,9 +32,16 @@ int main(int argc, char* argv[]) {
     std::vector<char> elfBlob((std::istreambuf_iterator<char>(stream)), (std::istreambuf_iterator<char>()));
     stream.close();
 
-    elf::Reader32 reader(elfBlob.data(), elfBlob.size());
-
     vpux::VPUIP::ELFBlobSerializer blobSerializer;
+
+    blobSerializer.initActKernel(elfBlob, "hswish");
+    blobSerializer.addActKernel();
+
+    blobSerializer.addActInvocation();
+    blobSerializer.addActInvocation();
+
+    blobSerializer.finalizeActKernelWrappers();
+
 
     DmaWrapper dma{};
 
@@ -76,7 +83,7 @@ int main(int argc, char* argv[]) {
     blobSerializer.setResourceRequirements(resourceRequirements);
     blobSerializer.setDMATasks0({{dma, dmaTaskExtension}});
 
-    blobSerializer.write("nn_blob.elf");
+    blobSerializer.write("act_kernel_blob.elf");
 
     return 0;
 }

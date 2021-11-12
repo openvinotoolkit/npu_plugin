@@ -14,6 +14,7 @@
 #pragma once
 
 #include <elf/writer.hpp>
+#include <elf/reader32.hpp>
 
 #include <vpux/compiler/dialect/VPUIP/attributes/enums.hpp>
 
@@ -87,6 +88,11 @@ public:
 
     void setNetworkInputs(llvm::ArrayRef<mlir::ShapedType> inputs);
     void setNetworkOutputs(llvm::ArrayRef<mlir::ShapedType> outputs);
+    
+    void initActKernel(std::vector<char> elfBlob, std::string name);
+    void addActKernel();
+    void addActInvocation();
+    void finalizeActKernelWrappers();
 
     void setDDRScratch(size_t ddrScratch);
     void setResourceRequirements(const host_parsing::ResourceRequirements& resourceRequirements);
@@ -165,6 +171,29 @@ private:
     elf::writer::BinaryDataSection<host_parsing::DPUVariantWrapper>* m_dpuVariants = nullptr;
     elf::writer::BinaryDataSection<host_parsing::BarrierWrapper>* m_barrierConfigs = nullptr;
     elf::writer::BinaryDataSection<uint8_t>* m_weights = nullptr;
+
+    // ALL ABOUT KERNELS
+    elf::Reader32 m_reader;
+    bool isReaderInit = false;
+
+    int m_kernelsNum = 0;
+    std::string m_kernelName = "actKernel";
+    elf::writer::SymbolSection* m_actKernel_symbols = nullptr;
+    std::unordered_map<std::string, std::vector<std::string>> m_actKernelsMapping;
+
+    // Act Kernel Ranges
+    elf::writer::Symbol* m_actKernelRangeSymbol = nullptr;
+    elf::writer::BinaryDataSection<host_parsing::ActKernelRange>* m_temp_actKernelRanges = nullptr;
+    elf::writer::RelocationSection* m_temp_actKernelRangeRela = nullptr;
+    elf::writer::BinaryDataSection<host_parsing::ActKernelRangeWrapper>* m_actKernelRanges = nullptr;
+    elf::writer::RelocationSection* m_actKernelRangeRela = nullptr;
+
+    // Act Kernel Invocations
+    elf::writer::Symbol* m_actKernelInvocationSymbol = nullptr;
+    elf::writer::BinaryDataSection<host_parsing::ActKernelInvocation>* m_temp_actKernelInvocations = nullptr;
+    elf::writer::RelocationSection* m_temp_actKernelInvocationRela = nullptr;
+    elf::writer::BinaryDataSection<host_parsing::ActKernelInvocationWrapper>* m_actKernelInvocations = nullptr;
+    elf::writer::RelocationSection* m_actKernelInvocationRela = nullptr;
 };
 
 }  // namespace VPUIP
