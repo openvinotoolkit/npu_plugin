@@ -14,6 +14,7 @@
 #pragma once
 
 #include <elf/writer.hpp>
+#include <elf/reader32.hpp>
 
 #include <vpux/compiler/dialect/VPUIP/attributes/enums.hpp>
 
@@ -47,6 +48,11 @@ struct DMATaskExtension {
 class ELFBlobSerializer {
 public:
     ELFBlobSerializer();
+
+    void initActKernel(std::vector<char> elfBlob, std::string name);
+    void addActKernel();
+    void addActInvocation();
+    void finalizeActKernelWrappers();
 
     void setNetworkInputs(llvm::ArrayRef<mlir::MemRefType> inputs);
     void setNetworkOutputs(llvm::ArrayRef<mlir::MemRefType> outputs);
@@ -87,6 +93,29 @@ private:
 
     elf::writer::BinaryDataSection<DmaWrapper>* m_dmaTasks0 = nullptr;
     elf::writer::BinaryDataSection<BarrierWrapper>* m_barrierConfigs = nullptr;
+
+    // ALL ABOUT KERNELS
+    elf::Reader32 m_reader;
+    bool isReaderInit = false;
+
+    int m_kernelsNum = 0;
+    std::string m_kernelName = "actKernel";
+    elf::writer::SymbolSection* m_actKernel_symbols = nullptr;
+    std::map<std::string, std::vector<std::string>> m_actKernelsMapping;
+
+    // Act Kernel Ranges
+    elf::writer::Symbol* m_actKernelRangeSymbol = nullptr;
+    elf::writer::BinaryDataSection<ActKernelRange>* m_temp_actKernelRanges = nullptr;
+    elf::writer::RelocationSection* m_temp_actKernelRangeRela = nullptr;
+    elf::writer::BinaryDataSection<ActKernelRangeWrapper>* m_actKernelRanges = nullptr;
+    elf::writer::RelocationSection* m_actKernelRangeRela = nullptr;
+
+    // Act Kernel Invocations
+    elf::writer::Symbol* m_actKernelInvocationSymbol = nullptr;
+    elf::writer::BinaryDataSection<ActKernelInvocation>* m_temp_actKernelInvocations = nullptr;
+    elf::writer::RelocationSection* m_temp_actKernelInvocationRela = nullptr;
+    elf::writer::BinaryDataSection<ActKernelInvocationWrapper>* m_actKernelInvocations = nullptr;
+    elf::writer::RelocationSection* m_actKernelInvocationRela = nullptr;
 };
 
 }  // namespace VPUIP

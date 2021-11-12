@@ -60,7 +60,9 @@ public:
     };
 
 public:
-    explicit Reader32(const char* blob, size_t size);
+    Reader32();
+
+    void loadElf(const char* blob, size_t size);
 
     const char* getBlob() const;
     const ELF32Header* getHeader() const;
