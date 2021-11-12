@@ -2660,7 +2660,6 @@
                 "VPUX_EXECUTOR_STREAMS":"1"
             },
             "BenchmarkApp" : {
-                "disabled" : true,
                 "input_folder" : "1280x720"
             },
             "NetTest-CalcRef" : {
@@ -2670,7 +2669,6 @@
                 "disabled" : true
             },
             "AccuracyCheck" : {
-                "disabled" : true,
                 "config": "deblur_aa.yml",
                 "subsample_size": 10
             },
@@ -2721,6 +2719,39 @@
         {
             "name" : "BDK_caffe2_FP16-INT8_mobilenet-v2",
             "ir" : "models/clientmodels/BDK3/mobilenet-v2/caffe2/FP16-INT8/mobilenet-v2.xml",
+            "category" : "MCM/weekly_private",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MCM",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "224x224"
+            },
+            "NetTest": {
+                "inputs" : [["224x224/watch.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.7",
+                    "--color_format", "RGB"
+                ]
+            },
+            "AccuracyCheck" : {
+                "config": "mobilenet-v2-caffe_v10.yml"
+            },
+            "CI-options" : {
+                "blob_name" : "bdk_mobilenet-v2",
+                "special" : true
+            }
+        },
+
+        {
+            "name" : "BDK_caffe2_FP16_mobilenet-v2",
+            "ir" : "models/clientmodels/BDK3/mobilenet-v2/caffe2/FP16/mobilenet-v2.xml",
             "category" : "MCM/weekly_private",
             "3720": {
                 "disabled" : true
@@ -2909,6 +2940,40 @@
                 "special" : true
             }
         },
+
+        {
+            "name" : "BDK_tf_FP16_mobilenet-v3-large-1.0-224",
+            "ir" : "models/clientmodels/BDK3/mobilenet-v3-large-1.0-224/tf/FP16/mobilenet-v3-large-1.0-224.xml",
+            "category" : "MCM/weekly_private",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MCM",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "224x224"
+            },
+            "NetTest": {
+                "inputs" : [["224x224/watch.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "1.0"
+                ]
+            },
+            "AccuracyCheck" : {
+                "config": "mobilenet-v3-large-1.0-224-tf.yml",
+                "subsample_size": 100
+            },
+            "CI-options" : {
+                "blob_name" : "bdk_mobilenet-v3-large-1.0-224_tf",
+                "special" : true
+            }
+        },
+
         {
             "name" : "BDK_tf_FP16-INT8_mobilenet-v3-small-1.0-224",
             "ir" : "models/clientmodels/BDK3/mobilenet-v3-small-1.0-224/tf/FP16-INT8/mobilenet-v3-small-1.0-224.xml",
@@ -3218,7 +3283,8 @@
                 ]
             },
             "AccuracyCheck" : {
-                "disabled" : true
+                "config": "styleTransfer-BDK.yml",
+                "subsample_size": 10
             },
             "CI-options" : {
                 "blob_name" : "bdk_StyleTransfer",
@@ -3417,6 +3483,40 @@
         {
             "name" : "BDK_tf_FP16-INT8_deeplabv3",
             "ir" : "models/clientmodels/BDK3/deeplabv3/tf/FP16-INT8/deeplabv3.xml",
+            "category" : "MCM",
+            "3900" : {
+                "disabled" : true
+            },
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MCM",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "224x224"
+            },
+            "NetTest-CalcRef" : {
+                "disabled" : true
+            },
+            "NetTest-Validate": {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "config": "deeplabv3-tf.yml",
+                "subsample_size": 50
+            },
+            "CI-options" : {
+                "blob_name" : "bdk_deeplabv3",
+                "special" : true
+            }
+        },
+
+        {
+            "name" : "BDK_tf_FP16_deeplabv3",
+            "ir" : "models/clientmodels/BDK3/deeplabv3/tf/FP16/deeplabv3.xml",
             "category" : "MCM",
             "3900" : {
                 "disabled" : true
