@@ -54,9 +54,6 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::EltwiseUPAOp::serialize(VPUIP::Blob
     case VPUIP::EltwiseLayerType::AND:
         type = writer.createString("logicaland");
         break;
-    case VPUIP::EltwiseLayerType::SELECT:
-        type = writer.createString("select");
-        break;
     default:
         VPUX_THROW("Unsupported EltwiseLayerType {0}", this->type());
     }

@@ -37,8 +37,9 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(ConvertUPAOp op) {
 
     const std::unordered_set<std::pair<mlir::Type, mlir::Type>> supportedConversions{
             {GF_FP16, GF_FP32}, {GF_FP16, GF_INT32}, {GF_FP32, GF_FP16}, {GF_INT32, GF_FP16},
-            {GF_U8, GF_FP16},   {GF_U8, GF_FP32},    {GF_FP16, GF_U8},   {GF_FP32, GF_U8},
-            {GF_INT32, GF_U8},  {GF_I8, GF_FP16},    {GF_I8, GF_FP32}};
+            {GF_U8, GF_FP16}, {GF_U8, GF_FP32}, {GF_FP16, GF_U8}, {GF_FP32, GF_U8},
+            {GF_INT32, GF_U8}, {GF_I8, GF_FP16}, {GF_I8, GF_FP32}
+    };
 
     const auto inType = op.input().getType().cast<mlir::ShapedType>().getElementType();
     const auto outType = op.output().getType().cast<mlir::ShapedType>().getElementType();

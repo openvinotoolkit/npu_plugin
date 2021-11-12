@@ -1613,6 +1613,58 @@ def VPUIP_EltwiseUPAOp :
 }
 
 //
+// SelectUPAOp
+//
+
+def VPUIP_SelectUPAOp :
+        VPUIP_UPATaskOp<1, "SelectUPA",
+            [
+                ViewLikeOpInterface,
+                IERT_SameInOutDimsOrder
+            ]
+        > {
+    let summary = "Select UPA SHAVE kernel";
+
+    let arguments = (ins
+        F16MemRef:$input1,
+        F16MemRef:$input2,
+        F16MemRef:$input3,
+        F16MemRef:$output_buff,
+
+        Variadic<VPUIP_Barrier>:$waitBarriers,
+        Variadic<VPUIP_Barrier>:$updateBarriers,
+
+        VPUIP_EltwiseLayerType:$type,
+
+        OptionalAttr<IntAttr>:$maxShaves,
+        UnitAttr:$isTrailingSWLayer
+    );
+
+    let results = (outs
+        F16MemRef:$output
+    );
+
+    let builders = [
+        OpBuilder<
+            (ins
+                "mlir::Value":$input1, "mlir::Value":$input2, "mlir::Value":$input3,
+                "mlir::Value":$output,
+                "vpux::VPUIP::EltwiseLayerTypeAttr":$type
+            )
+        >
+    ];
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input1 `:` type($input1) `,` $input2 `:` type($input2) `,` $input3 `:` type($input3) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+        `->` type(results)
+    }];
+}
+
+//
 // DetectionOutput
 //
 

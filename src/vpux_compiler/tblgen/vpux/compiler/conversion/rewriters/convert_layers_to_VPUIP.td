@@ -518,13 +518,25 @@ def RewriteAnd :
             ]
         >;
 
+//
+// IERT.[Select]Pool -> VPUIP.EltwiseUPA
+//
+
+class createSelectUPAOp<string method> :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::SelectUPAOp>(
+                $_loc, $0, $1, $2, $3, 
+                vpux::VPUIP::EltwiseLayerTypeAttr::get(
+                    $_builder.getContext(),
+                    vpux::VPUIP::EltwiseLayerType::}] # method # [{
+                ))
+        }]>;
+
 def RewriteSelect :
         Pat<
             (IERT_SelectOp $input1, $input2, $input3, $output),
-            (createEltwiseUPAOp<"SELECT"> $input1, $input2, $input3, $output)
+            (createSelectUPAOp<"SELECT"> $input1, $input2, $input3, $output)
         >;
-
-
 //
 // IERT.GRN -> VPUIP.GRNUPA
 //
