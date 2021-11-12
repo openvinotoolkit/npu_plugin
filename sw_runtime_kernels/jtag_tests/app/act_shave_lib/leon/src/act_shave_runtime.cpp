@@ -212,3 +212,59 @@ bool enqueueShaveJob(shv_job_header * job) {
 
     return true;
 }
+
+
+
+
+//void startActShaves(const uint8_t tile, const ActKernelRuntimeConfigs &cfgs) {
+//    static_assert(AS_PER_TILE == SUPPORTED_ACT_SHV_PER_TILE_NB, "Only 2 ActShvs per tile is supported");
+//
+//    // Check that we are operating on a supported tile ID
+//    if (!(tile < MAX_TILES)) {
+//        nnLog(MVLOG_ERROR, "Invalid Shave type selected");
+//        return;
+//    }
+//
+//    // Shave IDs, depending on the tile
+//    const uint32_t startShvId = tile * AS_PER_TILE;
+//    const uint32_t maxShvId = startShvId + AS_PER_TILE;
+//
+//    // Set stack location, set the stack size, then start the Shave
+//    for (uint32_t i = startShvId; i < maxShvId; i++) {
+////        nnLog(MVLOG_INFO, "ACTSHV %d stack addr @ %p", i, actShvStacks[i]);
+//        auto rc = ShaveCtrlSetStackAddr(actShvHnd[i], actShvStacks[i]);
+//        if (rc != SHAVE_CTRL_SUCCESS) {
+////            nnLog(MVLOG_ERROR, "ActShaveCtrlSetStackAddr: %d", (int)rc);
+//        }
+//
+//        nnLog(MVLOG_INFO, "ACTSHV %d stack size = 0x%x", i, cfgs.stackSize_);
+//        rc = ShaveCtrlSetStackSize(actShvHnd[i], cfgs.stackSize_);
+//        if (rc != SHAVE_CTRL_SUCCESS) {
+//            nnLog(MVLOG_ERROR, "ActShaveCtrlSetStackSize: %d", (int)rc);
+//        }
+//
+//        nnLog(MVLOG_INFO, "ACTSHV %d WIN_%d = %p", i, mapWindowAddrMaskToName(ACT_RT_CODE_WINDOW),
+//              reinterpret_cast<uint32_t>(actShvTextsBuffers[tile]));
+//        rc = ShaveCtrlSetWindowAddr(actShvHnd[i], mapWindowAddrMaskToName(ACT_RT_CODE_WINDOW),
+//                                    reinterpret_cast<uint32_t>(actShvTextsBuffers[tile]));
+//        if (rc != SHAVE_CTRL_SUCCESS) {
+//            nnLog(MVLOG_ERROR, "ShaveCtrlSetWindowAddr (for RT code buffer): 0x%x", ACT_RT_CODE_WINDOW);
+//        }
+//
+//        nnLog(MVLOG_INFO, "!!!!!!! ACTSHV %d WIN_%d = %p", i, mapWindowAddrMaskToName(ACT_CMX_WINDOW),
+//              cmxMapping.workareas_[tile].addr32());
+//        rc = ShaveCtrlSetWindowAddr(actShvHnd[i], mapWindowAddrMaskToName(ACT_CMX_WINDOW),
+//                                    cmxMapping.workareas_[tile].addr32());
+//        if (rc != SHAVE_CTRL_SUCCESS) {
+//            nnLog(MVLOG_ERROR, "ShaveCtrlSetWindowAddr (for window into CMX): ox%x", ACT_CMX_WINDOW);
+//        }
+//
+//        nnLog(MVLOG_INFO, "Starting ACTSHV %d from %p windowed to A", i, actShvEntries[tile]);
+//        auto fifoCfg = acts_cfgs[i];
+//        printFifoConfig(unpackSHVConfig(fifoCfg));
+//        rc = ShaveCtrlStart(actShvHnd[i], reinterpret_cast<void *>(actShvEntries[tile]), "i", fifoCfg);
+//        if (rc != SHAVE_CTRL_SUCCESS) {
+//            nnLog(MVLOG_ERROR, "ActShaveCtrlStart: %d", (int)rc);
+//        }
+//    }
+//}
