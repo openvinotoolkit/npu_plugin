@@ -72,14 +72,11 @@ void buildAvgpool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
     const auto INPUT_CMX_OFFSET = OUTPUT_CMX_OFFSET + output_totalsize;
 
     SmallVector<mlir::Type> inputTypes;
-    const auto inputAffineMaps = DimsOrder::NHWC.toAffineMapsList(ctx, Shape(in_shape));
     inputTypes.push_back(
-            getMemRefType(builder, VPUIP::MemoryLocation::ProgrammableInput, in_shape, inputType, inputAffineMaps));
-    const auto outputAffineMaps = DimsOrder::NHWC.toAffineMapsList(ctx, Shape(out_shape));
+            getMemRefType(builder, VPUIP::MemoryLocation::ProgrammableInput, in_shape, inputType, DimsOrder::NHWC));
     auto outputParamType =
-            getMemRefType(builder, VPUIP::MemoryLocation::ProgrammableOutput, out_shape, outputType, outputAffineMaps);
+            getMemRefType(builder, VPUIP::MemoryLocation::ProgrammableOutput, out_shape, outputType, DimsOrder::NHWC);
     inputTypes.push_back(outputParamType);
-    SmallVector<ArrayRef<mlir::AffineMap>> argsAffineMaps{inputAffineMaps, outputAffineMaps};
 
     const auto funcType = builder.getFunctionType(makeArrayRef(inputTypes), outputParamType);
 
@@ -92,23 +89,20 @@ void buildAvgpool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
     auto funcinput = func.getArgument(0);
     auto funcoutput = func.getArgument(1);
 
-    const auto weightDataAffineMaps = DimsOrder::NHWC.toAffineMapsList(ctx, Shape(wt_data_shape));
-
     // weights tensorref
     auto wtData_memSpaceAttr = VPUIP::MemoryLocationAttr::get(ctx, VPUIP::MemoryLocation::AbsoluteAddr);
-    auto wtData_type =
-            mlir::MemRefType::get(makeArrayRef(wt_data_shape), weightsType, weightDataAffineMaps, wtData_memSpaceAttr);
+    auto wtData_type = vpux::getMemRefType(ShapeRef(wt_data_shape), weightsType, DimsOrder::NHWC, wtData_memSpaceAttr);
     auto wtData = funcbuilder.create<VPUIP::DeclareTensorOp>(loc, wtData_type, VPUIP::MemoryLocation::AbsoluteAddr,
                                                              /*locale ndex=*/0,
                                                              /*data idx=*/0);
 
     // input - output cmx tensors
     auto inputcmx_type =
-            getMemRefType(funcbuilder, VPUIP::MemoryLocation::VPU_CMX_NN, in_shape, inputType, inputAffineMaps);
+            getMemRefType(funcbuilder, VPUIP::MemoryLocation::VPU_CMX_NN, in_shape, inputType, DimsOrder::NHWC);
     auto inputcmx = createDeclareTensorOp(funcbuilder, inputcmx_type, 0, INPUT_CMX_OFFSET);
 
     auto outputcmx_type =
-            getMemRefType(funcbuilder, VPUIP::MemoryLocation::VPU_CMX_NN, out_shape, outputType, outputAffineMaps);
+            getMemRefType(funcbuilder, VPUIP::MemoryLocation::VPU_CMX_NN, out_shape, outputType, DimsOrder::NHWC);
     auto outputcmx = createDeclareTensorOp(funcbuilder, outputcmx_type, 0, OUTPUT_CMX_OFFSET);
 
     auto parent_inputcmx = createDeclareTensorOp(funcbuilder, inputcmx_type, 0, INPUT_CMX_OFFSET);
@@ -164,8 +158,8 @@ void buildAvgpool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module)), "Compilation failed");
 
     // IE.CNNNetwork
-    buildCNNOp(builder, func.getName(), {getTensorType(in_shape, inputType, DimsOrder::NHWC, nullptr)},
-               {getTensorType(out_shape, outputType, DimsOrder::NHWC, nullptr)});
+    buildCNNOp(builder, func.getName(), {getTensorType(ShapeRef(in_shape), inputType, DimsOrder::NHWC, nullptr)},
+               {getTensorType(ShapeRef(out_shape), outputType, DimsOrder::NHWC, nullptr)});
 }
 
 }  // namespace hwtest
