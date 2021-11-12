@@ -4085,37 +4085,6 @@
         },
 
         {
-            "name" : "MTL_ea_caffe_FP16_age-gender-recognition-retail-0013",
-            "ir" : "models/mtl/age-gender-recognition-wout_softmax/FP16/age-gender-recognition-retail-0013_wout_softmax.xml",
-            "category" : "MCM",
-            "disabled" : true,
-            "3720": {
-                "disabled" : false
-            },
-            "extra_config" : {
-                "VPUX_COMPILER_TYPE": "MCM",
-                "VPU_COMPILER_COMPILATION_DESCRIPTOR": "release_mtl-sc",
-                "VPU_COMPILER_TARGET_DESCRIPTOR": "release_mtl",
-                "VPU_COMPILER_ALLOW_U8_INPUT_FOR_FP16_MODELS": "NO"
-            },
-            "BenchmarkApp" : {
-                "disabled" : true
-            },
-            "NetTest-CalcRef" : {
-                "disabled" : true
-            },
-            "NetTest-Validate" : {
-                "disabled" : true
-            },
-            "AccuracyCheck" : {
-                "disabled" : true
-            },
-            "CI-options" : {
-                "blob_name" : "age-gender-wout-softmax"
-            }
-        },
-
-        {
             "name" : "SINGLE_IMAGE_TEST_scale_tf_FP16-INT8_mobilenet-v1-0.25-128",
             "ir" : "scale/mobilenet-v1-0.25-128/tf/FP16-INT8/mobilenet-v1-0.25-128.xml",
             "category" : "MCM/precommit",
