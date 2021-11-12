@@ -86,7 +86,7 @@ mlir::LogicalResult vpux::IE::inferTensorTypes(InferTypeComponentsCb componentsC
 }
 
 bool vpux::IE::isCompatibleTensorTypes(mlir::TypeRange lhs, mlir::TypeRange rhs,
-                                       IE::TypeComparisonMode elemComparisonMode, bool checkDimsOrder,
+                                       IE::TypeComparisonMode elemComparisonModes, bool checkDimsOrder,
                                        bool checkMemSpace) {
     if (lhs.size() != rhs.size()) {
         return false;
@@ -105,7 +105,7 @@ bool vpux::IE::isCompatibleTensorTypes(mlir::TypeRange lhs, mlir::TypeRange rhs,
         }
 
         if (lhsType.getElementType() != rhsType.getElementType()) {
-            if (elemComparisonMode == IE::TypeComparisonMode::STRICT_EQUAL) {
+            if (IE::bitEnumContains(elemComparisonModes, IE::TypeComparisonMode::STRICT_EQUAL)) {
                 return false;
             }
 
@@ -117,10 +117,12 @@ bool vpux::IE::isCompatibleTensorTypes(mlir::TypeRange lhs, mlir::TypeRange rhs,
             } else if (lhsQuantizedType && rhsQuantizedType) {
                 if ((lhsQuantizedType.getExpressedType() != rhsQuantizedType.getExpressedType()) ||
                     (lhsQuantizedType.getStorageType() != rhsQuantizedType.getStorageType())) {
-                    return false;
+                    if (!IE::bitEnumContains(elemComparisonModes, IE::TypeComparisonMode::ALLOW_DIFFERENT_QUANT)) {
+                        return false;
+                    }
                 }
             } else {
-                if (elemComparisonMode != IE::TypeComparisonMode::ALLOW_QUANT_MIXED_PRECISION) {
+                if (!IE::bitEnumContains(elemComparisonModes, IE::TypeComparisonMode::ALLOW_QUANT_MIXED_PRECISION)) {
                     return false;
                 }
             }

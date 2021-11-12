@@ -51,14 +51,14 @@ class IE_LayerOp<string mnemonic, list<OpTrait> traits = []> :
             ] # traits
         > {
 
-    string elemComparisonMode = IE_TypeComparisonMode_STRICT_EQUAL.symbol;
+    list<string> elemComparisonModes = [IE_TypeComparisonMode_STRICT_EQUAL];
     bit checkInferredDimsOrder = 0;
     bit checkInferredMemSpace = 0;
 
     let extraClassDeclaration = [{
         static bool isCompatibleReturnTypes(mlir::TypeRange lhs, mlir::TypeRange rhs) {
             return vpux::IE::isCompatibleTensorTypes(lhs, rhs,
-                vpux::IE::TypeComparisonMode::}] # elemComparisonMode # [{,
+                }] # !interleave(elemComparisonModes, "|") # [{,
                 static_cast<bool>(}] # checkInferredDimsOrder # [{),
                 static_cast<bool>(}] # checkInferredMemSpace # [{)
             );
@@ -240,7 +240,7 @@ def IE_ReorderOp :
     let hasCanonicalizer = 1;
     let hasFolder = 1;
 
-    let elemComparisonMode = IE_TypeComparisonMode_STRICT_EQUAL.symbol;
+    let elemComparisonModes = [IE_TypeComparisonMode_STRICT_EQUAL];
     let checkInferredDimsOrder = 1;
     let checkInferredMemSpace = 0;
 }
@@ -360,7 +360,7 @@ def IE_SplitOp :
 
     let hasCanonicalizer = 1;
 
-    let elemComparisonMode = IE_TypeComparisonMode_STRICT_EQUAL.symbol;
+    let elemComparisonModes = [IE_TypeComparisonMode_STRICT_EQUAL];
     let checkInferredDimsOrder = 1;
     let checkInferredMemSpace = 1;
 }
@@ -421,7 +421,7 @@ def IE_AddOp :
     let hasCanonicalizer = 1;
     let hasFolder = 1;
 
-    let elemComparisonMode = IE_TypeComparisonMode_ALLOW_QUANT_MIXED_PRECISION.symbol;
+    let elemComparisonModes = [IE_TypeComparisonMode_ALLOW_QUANT_MIXED_PRECISION];
 }
 
 //
@@ -560,7 +560,7 @@ def IE_AndOp :
         RankedTensorOf<[I8, F16, F32, quant_QuantizedType]>:$output
     );
 
-    let elemComparisonMode = IE_TypeComparisonMode_ALLOW_QUANT_MIXED_PRECISION.symbol;
+    let elemComparisonModes = [IE_TypeComparisonMode_ALLOW_QUANT_MIXED_PRECISION];
 }
 
 //
@@ -595,7 +595,7 @@ def IE_ConvolutionOp :
 
     let hasCanonicalizer = 1;
 
-    let elemComparisonMode = IE_TypeComparisonMode_ALLOW_QUANT_MIXED_PRECISION.symbol;
+    let elemComparisonModes = [IE_TypeComparisonMode_ALLOW_QUANT_MIXED_PRECISION, IE_TypeComparisonMode_ALLOW_DIFFERENT_QUANT];
 }
 
 //
@@ -631,7 +631,7 @@ def IE_GroupConvolutionOp :
 
     let hasCanonicalizer = 1;
 
-    let elemComparisonMode = IE_TypeComparisonMode_ALLOW_QUANT_MIXED_PRECISION.symbol;
+    let elemComparisonModes = [IE_TypeComparisonMode_ALLOW_QUANT_MIXED_PRECISION, IE_TypeComparisonMode_ALLOW_DIFFERENT_QUANT];
 }
 
 //
@@ -689,7 +689,7 @@ def IE_MaxPoolOp :
         RankedTensorOf<[F16, F32, quant_QuantizedType]>:$output
     );
 
-    let elemComparisonMode = IE_TypeComparisonMode_ALLOW_QUANT_MIXED_PRECISION.symbol;
+    let elemComparisonModes = [IE_TypeComparisonMode_ALLOW_QUANT_MIXED_PRECISION, IE_TypeComparisonMode_ALLOW_DIFFERENT_QUANT];
 }
 
 //
@@ -815,7 +815,7 @@ def IE_ReshapeOp :
     let hasCanonicalizer = 1;
     let hasFolder = 1;
 
-    let elemComparisonMode = IE_TypeComparisonMode_STRICT_EQUAL.symbol;
+    let elemComparisonModes = [IE_TypeComparisonMode_STRICT_EQUAL];
     let checkInferredDimsOrder = 1;
     let checkInferredMemSpace = 1;
 }
@@ -847,7 +847,7 @@ def IE_SqueezeOp :
     let hasCanonicalizer = 1;
     let hasFolder = 1;
 
-    let elemComparisonMode = IE_TypeComparisonMode_STRICT_EQUAL.symbol;
+    let elemComparisonModes = [IE_TypeComparisonMode_STRICT_EQUAL];
     let checkInferredDimsOrder = 1;
     let checkInferredMemSpace = 1;
 }
@@ -880,7 +880,7 @@ def IE_UnsqueezeOp :
     let hasCanonicalizer = 1;
     let hasFolder = 1;
 
-    let elemComparisonMode = IE_TypeComparisonMode_STRICT_EQUAL.symbol;
+    let elemComparisonModes = [IE_TypeComparisonMode_STRICT_EQUAL];
     let checkInferredDimsOrder = 1;
     let checkInferredMemSpace = 1;
 }
@@ -1394,7 +1394,7 @@ def IE_TransposeOp :
     let hasCanonicalizer = 1;
     let hasFolder = 1;
 
-    let elemComparisonMode = IE_TypeComparisonMode_STRICT_EQUAL.symbol;
+    let elemComparisonModes = [IE_TypeComparisonMode_STRICT_EQUAL];
     let checkInferredDimsOrder = 1;
     let checkInferredMemSpace = 0;
 }
@@ -1652,7 +1652,7 @@ def IE_ConcatOp :
         >,
     ];
 
-    let elemComparisonMode = IE_TypeComparisonMode_STRICT_EQUAL.symbol;
+    let elemComparisonModes = [IE_TypeComparisonMode_STRICT_EQUAL];
     let checkInferredDimsOrder = 1;
     let checkInferredMemSpace = 1;
 }
@@ -2067,7 +2067,7 @@ def IE_ExpandOp :
         >
     ];
 
-    let elemComparisonMode = IE_TypeComparisonMode_STRICT_EQUAL.symbol;
+    let elemComparisonModes = [IE_TypeComparisonMode_STRICT_EQUAL];
     let checkInferredDimsOrder = 1;
     let checkInferredMemSpace = 1;
 }
@@ -2137,7 +2137,7 @@ def IE_SliceOp :
     let hasFolder = 1;
     let hasCanonicalizer = 1;
 
-    let elemComparisonMode = IE_TypeComparisonMode_STRICT_EQUAL.symbol;
+    let elemComparisonModes = [IE_TypeComparisonMode_STRICT_EQUAL];
     let checkInferredDimsOrder = 1;
     let checkInferredMemSpace = 1;
 }
@@ -2334,7 +2334,7 @@ def IE_AffineReshapeOp :
     let hasCanonicalizer = 1;
     let hasFolder = 1;
 
-    let elemComparisonMode = IE_TypeComparisonMode_STRICT_EQUAL.symbol;
+    let elemComparisonModes = [IE_TypeComparisonMode_STRICT_EQUAL];
     let checkInferredDimsOrder = 1;
     let checkInferredMemSpace = 1;
 }
