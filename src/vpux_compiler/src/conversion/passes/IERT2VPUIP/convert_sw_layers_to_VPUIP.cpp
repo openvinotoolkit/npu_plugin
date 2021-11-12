@@ -227,7 +227,7 @@ public:
     mlir::LogicalResult matchAndRewrite(IERT::SoftMaxOp origOp, mlir::PatternRewriter& rewriter) const final {
         mlir::SmallVector<mlir::Attribute> args = {origOp.axisIndAttr()};
         SWLayerRewriter(getContext(), origOp.getOperation(), rewriter, _log, _mainModule, {origOp.input()},
-                        {origOp.output()}, {origOp.output_buff()}, args, "softmax_fp16", "softmax_fp16.cpp")
+                        {origOp.output()}, {origOp.output_buff()}, args, "softmax_fp16", "single_shave_softmax.cpp")
                 .rewrite();
         return mlir::success();
     }
@@ -243,8 +243,10 @@ public:
             : mlir::OpRewritePattern<IERT::SigmoidOp>(ctx), _log(log), _mainModule(mainModule) {
     }
     mlir::LogicalResult matchAndRewrite(IERT::SigmoidOp origOp, mlir::PatternRewriter& rewriter) const final {
+        const auto dummyAxis = 1;  // TODO: remove it
+        mlir::SmallVector<mlir::Attribute> args = {getIntAttr(origOp->getContext(), dummyAxis)};
         SWLayerRewriter(getContext(), origOp.getOperation(), rewriter, _log, _mainModule, {origOp.input()},
-                        {origOp.output()}, {origOp.output_buff()}, {}, "sigmoid_fp16", "sigmoid_fp16.cpp")
+                        {origOp.output()}, {origOp.output_buff()}, {args}, "sigmoid_fp16", "sigmoid_fp16.c")
                 .rewrite();
         return mlir::success();
     }
