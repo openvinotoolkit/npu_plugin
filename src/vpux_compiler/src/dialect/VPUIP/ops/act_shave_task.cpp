@@ -30,17 +30,29 @@ void SW_KernelOp::build(mlir::OpBuilder& builder, mlir::OperationState& opState,
           mlir::ValueRange{});
 }
 
-mlir::LogicalResult SW_KernelOp::inferReturnTypes(mlir::MLIRContext* /*ctx*/, mlir::Optional<mlir::Location> /*optLoc*/,
-                                                  mlir::ValueRange operands, mlir::DictionaryAttr /*attrs*/,
+mlir::LogicalResult SW_KernelOp::inferReturnTypes(mlir::MLIRContext* ctx, mlir::Optional<mlir::Location> optLoc,
+                                                  mlir::ValueRange operands, mlir::DictionaryAttr attrs,
                                                   mlir::RegionRange /*regions*/,
                                                   mlir::SmallVectorImpl<mlir::Type>& inferredTypes) {
-    auto firstOperandType = operands[0].getType();
-    for (auto&& operand : operands) {
-        VPUX_THROW_UNLESS(firstOperandType == operand.getType(),
-                          "operands of different type not yet suported: {0} vs {1}", firstOperandType,
-                          operand.getType());
+    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+
+    VPUIP::SW_KernelOpAdaptor swKernelOp(operands, attrs);
+    if (mlir::failed(swKernelOp.verify(loc))) {
+        return mlir::failure();
     }
-    inferredTypes.push_back(firstOperandType);
+
+    VPUX_THROW_UNLESS(swKernelOp.inputs().size() == 1, "For now act-kernels with only one input are supported. Got {0}",
+                      swKernelOp.inputs().size());
+    VPUX_THROW_UNLESS(swKernelOp.output_buffs().size() == 1,
+                      "For now act-kernels with only one output are supported. Got {0}",
+                      swKernelOp.output_buffs().size());
+
+    const auto inType = swKernelOp.inputs()[0].getType();
+    const auto outType = swKernelOp.output_buffs()[0].getType();
+
+    VPUX_THROW_UNLESS(inType == outType, "Operands of different type not yet supported: {0} vs {1}", inType, outType);
+
+    inferredTypes.push_back(inType);
 
     return mlir::success();
 }
