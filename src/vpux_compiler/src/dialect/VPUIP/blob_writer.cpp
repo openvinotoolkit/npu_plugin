@@ -22,7 +22,7 @@
 #include "vpux/compiler/utils/quantization.hpp"
 #include "vpux/compiler/utils/strings.hpp"
 
-#include "vpux/compiler/act_kernels/act_kernel_invocation_builder.h"
+#include "vpux/compiler/act_kernels/invocation_builder.h"
 #include "vpux/utils/IE/float16.hpp"
 #include "vpux/utils/core/checked_cast.hpp"
 #include "vpux/utils/core/error.hpp"
@@ -33,11 +33,48 @@
 
 #include <mlir/Dialect/Quant/QuantTypes.h>
 
-#include <vpux/compiler/act_kernels/act_kernel_gen.h>
-
 #include <algorithm>
 
 using namespace vpux;
+
+namespace {
+
+SmallVector<uint8_t> createInvocationArgs(VPUIP::BlobWriter& blobWriter, VPUIP::SW_KernelOp swKernelOp,
+                                          size_t dataOffset, Logger log) {
+    vpux::InvocationBuilder invocationBuilder(dataOffset, log);
+
+    const auto insSize = swKernelOp.inputs().size();
+    const auto outsSize = swKernelOp.results().size();
+
+    const auto kernelOpArgsCount = insSize + outsSize;
+
+    for (auto&& kernelRun : swKernelOp.body().getOps<VPUIP::SW_Kernel_run>()) {
+        for (auto&& operand : kernelRun.args()) {
+            auto blockArg = operand.dyn_cast_or_null<mlir::BlockArgument>();
+            if (blockArg) {
+                // TODO: check input type and shape - should correspond to ins (id)
+                // TODO: check output type and shape - should correspond to outputs(id - insSize)
+
+                auto id = blockArg.getArgNumber();
+                VPUX_THROW_UNLESS(id < kernelOpArgsCount,
+                                  "Index '{0}' of argument of Kernel.Run operation is out of range {1}'", id,
+                                  kernelOpArgsCount);
+
+                const auto operandVal = swKernelOp->getOpOperand(id).get();
+                const auto tensorRefOffset = blobWriter.getTensor(operandVal);
+
+                auto tensorRef = flatbuffers::GetTemporaryPointer(blobWriter, tensorRefOffset);
+                invocationBuilder.addTensorArg(operandVal, tensorRef);
+            } else {
+                invocationBuilder.addArg(operand);
+            }
+        }
+    }
+
+    return invocationBuilder.store();
+}
+
+}  // namespace
 
 VPUIP::BlobWriter::Task vpux::VPUIP::BlobWriter::createTask(mlir::Operation* op) {
     _log.trace("Create BLOB Task for {0}", *op);
@@ -144,41 +181,6 @@ vpux::VPUIP::BlobWriter::KernelDataRef vpux::VPUIP::BlobWriter::createKernelData
     return kernelData.Finish();
 }
 
-SmallVector<uint8_t, 128> vpux::VPUIP::BlobWriter::createInvocationArgs(mlir::Operation* op, size_t dataOffset) {
-    VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in createSW_KernelTask");
-
-    auto swKernelTask = mlir::dyn_cast<VPUIP::SW_KernelOp>(op);
-    VPUX_THROW_UNLESS(swKernelTask != nullptr, "Operation '{0}' is not a SW_KernelOp Task", op->getName());
-
-    vpux::InvocationBuilder invocationBuilder(_log, dataOffset);
-
-    for (auto&& kernelRun : swKernelTask.body().getOps<VPUIP::SW_Kernel_run>()) {
-        auto insSize = swKernelTask.inputs().size();
-        auto outsSize = swKernelTask.output_buffs().size();
-
-        for (auto&& operand : kernelRun.args()) {
-            auto blockArg = operand.dyn_cast_or_null<mlir::BlockArgument>();
-            if (blockArg) {
-                auto id = blockArg.getArgNumber();
-                if (id < insSize) {
-                    // TODO: check type and shape - should correspond to ins (id)
-                    invocationBuilder.addArg(swKernelTask->getOpOperand(id).get());
-                } else if (id < (insSize + outsSize)) {
-                    // TODO: check type and shape - should correspond to outputs(id - insSize)
-                    invocationBuilder.addArg(swKernelTask->getOpOperand(id).get());
-                } else {
-                    // looks unknown block args
-                    VPUX_THROW("Unknown blocking argument for {1} of index: {0}", id, swKernelTask);
-                }
-            } else {
-                invocationBuilder.addArg(operand);
-            }
-        }
-    }
-
-    return invocationBuilder.store();
-}
-
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createSW_KernelTask(mlir::Operation* op) {
     VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in createSW_KernelTask");
 
@@ -230,7 +232,7 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createSW_KernelTask(mli
     // .data section is accessible from WIN_E adress
     // invocation args accessible from  WIN_E + sizeof(.data section)
 
-    auto invocationArgs = createInvocationArgs(op, actKernelDesc.data.size);
+    auto invocationArgs = createInvocationArgs(*this, swKernelTask, actKernelDesc.data.size, _log);
 
     auto invocationArgsAndData = invocationArgs;
     invocationArgsAndData.insert(invocationArgsAndData.begin(), actKernelDesc.data.data.begin(),
