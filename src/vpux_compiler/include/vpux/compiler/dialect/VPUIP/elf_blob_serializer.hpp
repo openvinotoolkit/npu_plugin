@@ -95,7 +95,7 @@ public:
     void setDMATasks(llvm::ArrayRef<DmaTask> dmaTasks, size_t dmaEngineIndex = 0);
     void setDPUTasks(llvm::ArrayRef<DPUTask> dpuTasks);
     void setBarrierConfigs(llvm::ArrayRef<host_parsing::BarrierWrapper> barrierConfigs);
-    void setWeights(llvm::ArrayRef<llvm::ArrayRef<uint64_t>> weights);
+    void setConstData(llvm::ArrayRef<uint8_t> weights);
 
     std::vector<char> getBlob();
 
@@ -154,7 +154,6 @@ private:
 
     std::array<std::vector<DmaTask>, 2> m_dmaTasks;
     std::vector<DPUTask> m_dpuTasks;
-    std::vector<uint64_t> m_weightsOffsets;
 
     elf::writer::SymbolSection* m_networkInputSymbols = nullptr;
     elf::writer::SymbolSection* m_networkOutputSymbols = nullptr;
@@ -165,7 +164,7 @@ private:
     elf::writer::BinaryDataSection<host_parsing::DPUInvariantWrapper>* m_dpuInvariants = nullptr;
     elf::writer::BinaryDataSection<host_parsing::DPUVariantWrapper>* m_dpuVariants = nullptr;
     elf::writer::BinaryDataSection<host_parsing::BarrierWrapper>* m_barrierConfigs = nullptr;
-    elf::writer::BinaryDataSection<uint64_t>* m_weights = nullptr;
+    elf::writer::BinaryDataSection<uint8_t>* m_weights = nullptr;
 };
 
 }  // namespace VPUIP
