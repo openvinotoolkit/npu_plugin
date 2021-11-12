@@ -82,7 +82,7 @@
             },
             {
                 "name" : "RecognizeVerticalFusionPatterns",
-                "min_subgraph_depth" : 2,
+                "min_subgraph_depth" : 1,
                 "vertical_fusion": true
             },
             "ComputeSparsitySolution",
@@ -94,6 +94,7 @@
                 "name":"VerticalFusionTransformation",
                 "vertical_fusion" : true
             },
+            "hackPReLU",
             "StreamBinaryDataWeights",
             "StreamCopyOperations"
         ]
