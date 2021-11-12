@@ -68,6 +68,8 @@ VideoWorkloadDevice::VideoWorkloadDevice(const InferenceEngine::ParamMap& paramM
         : _contextParams(paramMap) {
     // TODO Create logger for context device
     _workloadContext = HddlUnite::queryWorkloadContext(_contextParams.getWorkloadId());
+    std::cout << "VideoWorkloadDevice: workloadId = " << _contextParams.getWorkloadId() << std::endl;
+    std::cout << "Query - workload ptr = " << _workloadContext << std::endl;
     if (_workloadContext == nullptr) {
         IE_THROW() << HDDLUNITE_ERROR_str << "Context is not found.";
     }
@@ -77,10 +79,12 @@ VideoWorkloadDevice::VideoWorkloadDevice(const InferenceEngine::ParamMap& paramM
     const auto swDeviceId = _workloadContext->getDevice()->getSwDeviceId();
     _name = utils::getDeviceNameBySwDeviceId(swDeviceId);
     _allocatorPtr = std::make_shared<HDDL2RemoteAllocator>(_workloadContext, config.logLevel());
+    std::cout << "End of VideoWorkloadDevice - workloadContext = " << _workloadContext << std::endl;
 }
 
 vpux::Executor::Ptr VideoWorkloadDevice::createExecutor(const NetworkDescription::Ptr& networkDescription,
                                                         const VPUXConfig& config) {
+    std::cout << "Before prepareExecutor - workloadContext = " << _workloadContext << std::endl;
     return HDDL2Executor::prepareExecutor(networkDescription, config, _allocatorPtr, _workloadContext);
 }
 

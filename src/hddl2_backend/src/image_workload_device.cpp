@@ -28,6 +28,7 @@ ImageWorkloadDevice::ImageWorkloadDevice(const std::string& name): _name(name) {
 
 vpux::Executor::Ptr ImageWorkloadDevice::createExecutor(const NetworkDescription::Ptr& networkDescription,
                                                         const VPUXConfig& config) {
+    std::cout << "CreateExecutor - image workload device" << std::endl;
     return HDDL2Executor::prepareExecutor(networkDescription, config);
 }
 std::shared_ptr<Allocator> ImageWorkloadDevice::getAllocator(const InferenceEngine::ParamMap& paramMap) const {

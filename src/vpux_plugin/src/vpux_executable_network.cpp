@@ -68,6 +68,7 @@ ExecutableNetwork::ExecutableNetwork(const VPUXConfig& config, const Device::Ptr
           _device(device),
           _compiler(Compiler::create(config)),
           _supportedMetrics({METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)}) {
+    std::cout << "ExecutableNetwork - shared constructor device ptr = " << device << std::endl;
 }
 
 //------------------------------------------------------------------------------
@@ -93,7 +94,7 @@ ExecutableNetwork::ExecutableNetwork(const IE::CNNNetwork& orignet, const Device
         _logger->warning("Failed to read NGraph network");
         IE_THROW() << "Failed to read NGraph network";
     }
-
+    std::cout << "Executable Network - before create executor - LoadNetwork" << std::endl;
     _executorPtr = createExecutor(_networkPtr, _config, device);
     ConfigureStreamsExecutor(network.getName());
 }
@@ -106,6 +107,7 @@ ExecutableNetwork::ExecutableNetwork(std::istream& networkModel, const Device::P
     try {
         const std::string networkName = "net" + std::to_string(loadBlobCounter);
         _networkPtr = _compiler->parse(networkModel, _config, networkName);
+        std::cout << "Import network - before create executor " << std::endl;
         _executorPtr = createExecutor(_networkPtr, _config, device);
         _networkInputs = helpers::dataMapIntoInputsDataMap(_networkPtr->getInputsInfo());
         _networkOutputs = helpers::dataMapIntoOutputsDataMap(_networkPtr->getOutputsInfo());
@@ -231,6 +233,7 @@ Executor::Ptr ExecutableNetwork::createExecutor(const NetworkDescription::Ptr& n
     // Default executor is nullptr, allow only perform export
     Executor::Ptr executor = nullptr;
     if (device != nullptr) {
+        std::cout << "Before device->createExecutor" << std::endl;
         executor = device->createExecutor(network, config);
     }
     _networkName = _networkPtr->getName();

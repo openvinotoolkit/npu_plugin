@@ -42,6 +42,7 @@ static void checkDataNotNull(const IE::DataPtr& desc) {
 void InferDataAdapter::createInferData() {
     _inferDataPtr = HddlUnite::Inference::makeInferData(_auxBlob, _workloadContext, maxRoiNum,
                                                         _networkDescription->getDeviceOutputsInfo().size());
+    std::cout << "InferDataAdapter - createInferData - workloadContext = " << _workloadContext << std::endl;
     if (_inferDataPtr.get() == nullptr) {
         IE_THROW() << "InferDataAdapter: Failed to create Unite inferData";
     }

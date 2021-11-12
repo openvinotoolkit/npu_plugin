@@ -95,6 +95,7 @@ IE::IExecutableNetworkInternal::Ptr Engine::LoadExeNetwork(const IE::CNNNetwork&
                                                           const VPUXConfig& networkConfig) {
     OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "LoadExeNetwork");
     try {
+        std::cout << "LoadExeNetwork - common" << std::endl;
         return std::make_shared<ExecutableNetwork>(network, device, networkConfig);
     } catch (const std::exception&) {
         throw;
@@ -109,7 +110,7 @@ IE::IExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(const IE::CNNNetw
     const auto platform = _backends->getCompilationPlatform(networkConfig.platform(), networkConfig.deviceId());
     auto device = _backends->getDevice(networkConfig.deviceId());
     networkConfig.update({{VPUX_CONFIG_KEY(PLATFORM), platform}});
-
+    std::cout << "LoadExeNetwork - image workload" << std::endl;
     return LoadExeNetwork(network, device, networkConfig);
 }
 
@@ -120,7 +121,7 @@ IE::IExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(const IE::CNNNetw
     const auto platform = _backends->getCompilationPlatform(networkConfig.platform(), networkConfig.deviceId());
     auto device = _backends->getDevice(context);
     networkConfig.update({{VPUX_CONFIG_KEY(PLATFORM), platform}});
-
+    std::cout << "LoadExeNetwork - videoWorkload" << std::endl;
     return LoadExeNetwork(network, device, networkConfig);
 }
 

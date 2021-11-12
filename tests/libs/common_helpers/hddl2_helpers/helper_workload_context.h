@@ -55,6 +55,9 @@ inline WorkloadID WorkloadContext_Helper::createAndRegisterWorkloadContext() {
         throw std::runtime_error("Error: WorkloadContext register on WorkloadCache failed");
     }
 
+    std::cout << "Create and register workload context: ptr = " << context << std::endl;
+    std::cout << "id = " << id << std::endl;
+
     return id;
 }
 

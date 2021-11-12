@@ -250,6 +250,7 @@ void InferRequest::InferAsync() {
     OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "InferAsync");
 
     const auto preProcMap = preparePreProcessing(_networkInputs, _preProcData);
+    std::cout << "InferAsync - preproc supported = " << _executorPtr->isPreProcessingSupported(preProcMap) << std::endl;
     if (_executorPtr->isPreProcessingSupported(preProcMap)) {
         moveBlobsForPreprocessingToInputs(_inputs, _networkInputs, _preProcData);
         updateRemoteBlobs(_inputs, preProcMap);

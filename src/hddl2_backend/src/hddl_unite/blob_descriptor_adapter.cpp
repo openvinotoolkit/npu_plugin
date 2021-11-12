@@ -173,6 +173,8 @@ AllocationInfo::AllocationInfo(const BlobDescType typeOfBlob, const IE::DataPtr&
           // TODO No compound support now
           isCompound(false),
           nnInputColorFormat(graphColorFormat) {
+if (isInput)
+std::cout << "Allocation info 1 - isRemoteMemory = " << isRemoteMemory << std::endl;
 }
 
 AllocationInfo::AllocationInfo(const IE::Blob::CPtr& blob, const IE::ColorFormat& graphColorFormat)
@@ -182,6 +184,7 @@ AllocationInfo::AllocationInfo(const IE::Blob::CPtr& blob, const IE::ColorFormat
           isNeedAllocation(!(isRemoteAnyBlob(blob))),
           isCompound(false),
           nnInputColorFormat(graphColorFormat) {
+std::cout << "Allocation info 2 - isRemoteMemory = " << isRemoteMemory << std::endl;
 }
 
 bool AllocationInfo::operator==(const AllocationInfo& rhs) const {
@@ -207,6 +210,7 @@ NNInputInfo::NNInputInfo(const BlobDescType typeOfBlob, const IE::DataPtr& blobD
           // Not possible create intermediate buffer from plugin side
           isNeedAllocation(true),
           batch(1) {
+	std::cout << "NNInputInfo - isRemoteMemory = " << isRemoteMemory << std::endl;
 }
 
 //------------------------------------------------------------------------------

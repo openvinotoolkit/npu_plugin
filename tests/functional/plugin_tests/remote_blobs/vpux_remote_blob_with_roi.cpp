@@ -23,9 +23,9 @@
 
 namespace {
 IE::Blob::Ptr inferAndGetResult(IE::ExecutableNetwork& net, const std::string& inputName,
-    const IE::Blob::Ptr& inputBlob, const std::string& outputName, const IE::Blob::Ptr& outputRefBlob) {
+    const IE::Blob::Ptr& inputBlob, const std::string& outputName, const IE::Blob::Ptr& outputRefBlob, const IE::PreProcessInfo& preProcInfo) {
     auto inferRequest = net.CreateInferRequest();
-    inferRequest.SetBlob(inputName, inputBlob);
+    inferRequest.SetBlob(inputName, inputBlob, preProcInfo);
     inferRequest.Infer();
     return inferRequest.GetBlob(outputName);
 }
@@ -33,10 +33,12 @@ IE::Blob::Ptr inferAndGetResult(IE::ExecutableNetwork& net, const std::string& i
 IE::Blob::Ptr createRemoteRoiBlob(const IE::Blob::Ptr& origBlob, const WorkloadID workloadId,
     const IE::RemoteContext::Ptr& remoteContext, RemoteMemory_Helper& remoteMemHelper,
     const IE::SizeVector& roiBegin, const IE::SizeVector& roiEnd) {
+    std::cout << "createRemoteRoiBlob - workloadId = " << workloadId << std::endl;
     // Allocate remote memory on device
     const auto memLock = IE::as<IE::MemoryBlob>(origBlob)->rmap();
     const auto origData = memLock.as<void*>();
     auto remoteMemoryFD = remoteMemHelper.allocateRemoteMemory(workloadId, origBlob->byteSize(), origData);
+    std::cout << "Remote memory FD = " << remoteMemoryFD << std::endl;
     const IE::ParamMap blobParamMap = {{IE::VPUX_PARAM_KEY(REMOTE_MEMORY_FD), remoteMemoryFD},
                                     {IE::VPUX_PARAM_KEY(MEM_OFFSET), static_cast<size_t>(0)}};
     const auto origTensor = origBlob->getTensorDesc();
@@ -79,21 +81,25 @@ void VpuxRemoteBlobRoiTests::SetUp() {
     }
     SKIP_ON("LEVEL0", "EMULATOR", "VPUAL", "HDDL2-specific test");
 
+    // Init context map and create context based on it
+    _workloadId = WorkloadContext_Helper::createAndRegisterWorkloadContext();
+    const auto contextParams = Remote_Context_Helper::wrapWorkloadIdToMap(_workloadId);
+    _remoteContext = core->CreateContext("VPUX", contextParams);
+
     // Generate networks, initialize parameters
     IE::Layout layout;
     IE::Precision precision;
     IE::SizeVector dims;
     std::tie(layout, precision, dims, _roiBegin, _roiEnd) = GetParam();
-    TestNetwork testNet = buildSimpleNet("simpleNetwork", layout, precision, dims, _minValue, _maxValue);
-    _exeNet = getExecNetwork(testNet);
-    _cnnNet = testNet.getCNNNetwork();
+    _cnnNet = core->ReadNetwork("/home/mznamens/projects/model/mobilenet-v2.xml","/home/mznamens/projects/model/mobilenet-v2.bin");
+    _exeNet = core->LoadNetwork(_cnnNet, _remoteContext);
+    // TestNetwork testNet = buildSimpleNet("simpleNetwork", layout, precision, dims, _minValue, _maxValue);
+    // _exeNet = getExecNetwork(testNet);
+    // _cnnNet = testNet.getCNNNetwork();
     _inputInfo = _exeNet.GetInputsInfo().begin()->second;
     ASSERT_EQ(dims, _inputInfo->getTensorDesc().getDims());
 
-    // Init context map and create context based on it
-    _workloadId = WorkloadContext_Helper::createAndRegisterWorkloadContext();
-    const auto contextParams = Remote_Context_Helper::wrapWorkloadIdToMap(_workloadId);
-    _remoteContext = core->CreateContext("VPUX", contextParams);
+
 }
 
 void VpuxRemoteBlobRoiTests::TearDown() {
@@ -141,6 +147,7 @@ TestNetwork VpuxRemoteBlobRoiTests::buildSimpleNet(const std::string& netName, c
             .build()
         .setUserOutput(PortInfo("sum"), precision, layout)
         .addNetOutput(PortInfo("sum"))
+	.setCompileConfig({{"VPUX_COMPILER_TYPE", "MLIR"}})
         .finalize(netName);
 
     return testNet;
@@ -163,7 +170,7 @@ TEST_P(VpuxRemoteBlobRoiTests, inferRemoteBlobWithRoi) {
     // Calculate reference with ROI on VPU
     const auto remoteRoiBlob = createRemoteRoiBlob(inputBlob, _workloadId, _remoteContext, _remoteMemoryHelper,
         _roiBegin, _roiEnd);
-    const auto outputBlob = inferAndGetResult(_exeNet, "input", remoteRoiBlob, "sum", outputRefBlob);
+    const auto outputBlob = inferAndGetResult(_exeNet, "result.1", remoteRoiBlob, "473", outputRefBlob, preprocInfo);
 
     KmbTestBase::compareOutputs(outputRefBlob, outputBlob, 0, CompareMethod::Absolute);
 }

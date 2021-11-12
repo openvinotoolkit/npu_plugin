@@ -178,6 +178,7 @@ HDDL2Executor::HDDL2Executor(const vpux::NetworkDescription::CPtr& network, cons
           _baseExecutorId(_executorIdCounter++) {
     _config.parseFrom(config);
     setUniteLogLevel(_config.logLevel(), _logger);
+    std::cout << "HDDL2Executor 1 - workloadContext ptr = " << _workloadContext << std::endl;
     _inferDataPtr = std::make_shared<InferDataAdapter>(_network, _workloadContext, _config.graphColorFormat());
 }
 
@@ -189,6 +190,7 @@ HDDL2Executor::HDDL2Executor(const HDDL2Executor& ex)
           _allocatorPtr(ex._allocatorPtr),
           _workloadContext(ex._workloadContext),
           _baseExecutorId(ex._baseExecutorId) {
+    std::cout << "HDDL2Executor 2 - workloadContext ptr = " << _workloadContext << std::endl;
     _inferDataPtr = std::make_shared<InferDataAdapter>(_network, _workloadContext, _config.graphColorFormat());
 }
 
@@ -349,6 +351,7 @@ static bool preProcSupported(const IE::ResizeAlgorithm resizeAlgo, const IE::Col
 
 bool HDDL2Executor::isPreProcessingSupported(const PreprocMap& preProcMap) const {
     if (preProcMap.empty()) {
+        std::cout << "isPreProcSupported = true due to empty map" << std::endl;
         return true;
     }
     auto isPreProcSupported = true;
@@ -360,6 +363,7 @@ bool HDDL2Executor::isPreProcessingSupported(const PreprocMap& preProcMap) const
                        preProcInfo.getResizeAlgorithm(), preProcessingSupported ? "supported" : "not supported");
         isPreProcSupported &= preProcessingSupported;
     }
+    std::cout << "isPreProcSupported = " << isPreProcSupported << std::endl;
     return isPreProcSupported;
 }
 

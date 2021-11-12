@@ -39,11 +39,13 @@ HDDL2Backend::HDDL2Backend()
 
 /** Generic device */
 const std::shared_ptr<IDevice> HDDL2Backend::getDevice() const {
+    std::cout << "getDevice - image - empty - default" << std::endl;
     return getDeviceNames().empty() ? nullptr : std::make_shared<ImageWorkloadDevice>();
 }
 
 /** Specific device */
 const std::shared_ptr<IDevice> HDDL2Backend::getDevice(const std::string& specificDeviceName) const {
+    std::cout << "getDevice - image - name = " << specificDeviceName << std::endl;
     // Search for "platform.slice_id" naming format
     const auto devices = getDeviceNames();
     const auto it = std::find(devices.cbegin(), devices.cend(), specificDeviceName);
@@ -64,6 +66,7 @@ const std::shared_ptr<IDevice> HDDL2Backend::getDevice(const std::string& specif
 }
 
 const std::shared_ptr<IDevice> HDDL2Backend::getDevice(const InferenceEngine::ParamMap& paramMap) const {
+    std::cout << "getDevice - video - paramMap" << std::endl;
     return std::make_shared<VideoWorkloadDevice>(paramMap);
 }
 
