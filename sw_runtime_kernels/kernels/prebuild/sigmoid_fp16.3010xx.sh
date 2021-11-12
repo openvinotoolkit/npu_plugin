@@ -3,7 +3,19 @@ env_is_set=1
 
 if [ -z ${MV_TOOLS_DIR} ]; then echo "MV_TOOLS_DIR is not set"; env_is_set=0; fi
 if [ -z ${MV_TOOLS_VERSION} ]; then echo "MV_TOOLS_VERSION is not set"; env_is_set=0; fi
-if [ -z ${KERNEL_DIR} ]; then echo "KERNEL_DIR is not set"; env_is_set=0; fi
+if [ -z ${KERNEL_DIR} ] 
+then 
+ABSOLUTE_FILENAME=`readlink -e "$0"`
+kernel_dir=`dirname "$ABSOLUTE_FILENAME"`
+kernel_dir=`dirname "$kernel_dir"`
+echo $kernel_dir
+ if [ -f "$kernel_dir/sigmoid_fp16.c" ] 
+ then KERNEL_DIR=$kernel_dir
+ else
+  echo "KERNEL_DIR is not set"
+  env_is_set=0
+ fi
+fi
 
 if [ $env_is_set = 0 ]; then exit 1; fi
 
