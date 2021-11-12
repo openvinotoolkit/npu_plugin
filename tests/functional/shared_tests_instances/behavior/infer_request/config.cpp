@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,7 +35,9 @@ const std::vector<std::map<std::string, std::string>> configs = {
     {{"VPU_KMB_USE_SIPP", CONFIG_VALUE(NO)}},
     {{"VPUX_PREPROCESSING_SHAVES", "4"}},
     {{"VPUX_PREPROCESSING_LPI", "8"}},
+#if defined(__arm__) || defined(__aarch64__)
     {{"VPUX_VPUAL_REPACK_INPUT_LAYOUT", CONFIG_VALUE(YES)}},
+#endif
     {{"VPUX_EXECUTOR_STREAMS", "2"}},
     {{"VPU_KMB_EXECUTOR_STREAMS", "1"}},
     {{"VPUX_PLATFORM", "AUTO"}},
@@ -60,7 +62,9 @@ const std::vector<std::map<std::string, std::string>> Inconfigs = {
     {{"VPU_KMB_USE_SIPP", "NOP"}},
     {{"VPUX_PREPROCESSING_SHAVES", "FOUR"}},
     {{"VPUX_PREPROCESSING_LPI", "EIGHT"}},
+#if defined(__arm__) || defined(__aarch64__)
     {{"VPUX_VPUAL_REPACK_INPUT_LAYOUT", "YEP"}},
+#endif
     {{"VPUX_EXECUTOR_STREAMS", "ONE"}},
     {{"VPU_KMB_EXECUTOR_STREAMS", "TWO"}},
     {{"VPUX_PLATFORM", "SOME_PLATFORM"}},
