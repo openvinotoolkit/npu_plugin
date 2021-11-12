@@ -16,7 +16,7 @@ import lit.llvm
 
 config.test_format = lit.formats.ShTest()
 
-lit.llvm.llvm_config.with_system_environment(['HOME', 'TMP', 'TEMP', 'MV_TOOLS_DIR', 'MV_TOOLS_VERSION', 'OV_BUILD_DIR'])
+lit.llvm.llvm_config.with_system_environment(['HOME', 'TMP', 'TEMP', 'MV_TOOLS_DIR', 'MV_TOOLS_VERSION'])
 lit.llvm.llvm_config.with_environment('PATH', config.bin_dir, append_path=True)
 
 config.environment['FILECHECK_OPTS'] = '-enable-var-scope --allow-unused-prefixes=false --color -v'
