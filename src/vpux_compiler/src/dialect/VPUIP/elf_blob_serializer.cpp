@@ -62,11 +62,11 @@ void VPUIP::ELFBlobSerializer::setDDRScratch(size_t ddrScratch) {
     ddrScratchSymbol->setName(".ddr.Scratch");
     ddrScratchSymbol->setRelatedSection(m_ddrScratch);
     ddrScratchSymbol->setType(STT_SECTION);
-    ddrScratchSymbol->setSize(m_ddrScratch->getDataSize());
+    ddrScratchSymbol->setSize(ddrScratch);
     m_sectionSymbolsMapping.insert(std::make_pair(m_ddrScratch, ddrScratchSymbol));
 }
 
-void VPUIP::ELFBlobSerializer::setResourceRequirements(const ResourceRequirements& resourceRequirements) {
+void VPUIP::ELFBlobSerializer::setResourceRequirements(const host_parsing::ResourceRequirements& resourceRequirements) {
     m_resourceRequirements = resourceRequirements;
 }
 
@@ -96,7 +96,7 @@ void VPUIP::ELFBlobSerializer::setDPUTasks(llvm::ArrayRef<DPUTask> dpuTasks) {
     m_dpuTasks = std::vector<DPUTask>(dpuTasks.begin(), dpuTasks.end());
 }
 
-void VPUIP::ELFBlobSerializer::setBarrierConfigs(llvm::ArrayRef<BarrierWrapper> barrierConfigs) {
+void VPUIP::ELFBlobSerializer::setBarrierConfigs(llvm::ArrayRef<host_parsing::BarrierWrapper> barrierConfigs) {
     m_mappedInference.barrierConfigs.count = barrierConfigs.size();
 
     m_barrierConfigs = m_writer.addBinaryDataSection<BarrierWrapper>();
@@ -168,7 +168,7 @@ void VPUIP::ELFBlobSerializer::finalize() {
     tilesCount->setSize(m_resourceRequirements.slice_count);
 
     //
-    // MappedInference
+    // host_parsing::MappedInference
     //
 
     auto mappedInferenceSection = m_writer.addBinaryDataSection<MappedInference>();
@@ -184,7 +184,7 @@ void VPUIP::ELFBlobSerializer::finalize() {
     mappedInferenceSymbol->setSize(mappedInferenceSection->getDataSize());
 
     auto mappedInferenceRelaSection = m_writer.addRelocationSection();
-    mappedInferenceRelaSection->setName(".rela.MappedInference");
+    mappedInferenceRelaSection->setName(".rela.host_parsing::MappedInference");
     mappedInferenceRelaSection->setSymbolTable(m_sectionSymbols);
     mappedInferenceRelaSection->setSectionToPatch(mappedInferenceSection);
 
@@ -209,8 +209,9 @@ void VPUIP::ELFBlobSerializer::finalize() {
             auto mappedInferenceDMARelocation = mappedInferenceRelaSection->addRelocationEntry();
             mappedInferenceDMARelocation->setSymbol(m_sectionSymbolsMapping.at(dmaTasks));
             mappedInferenceDMARelocation->setType(R_VPU_64);
-            mappedInferenceDMARelocation->setOffset(offsetof(MappedInference, dmaTasks) + sizeof(dmaTasks) * i +
-                                                    offsetof(TaskReference<DmaWrapper>, address));
+            mappedInferenceDMARelocation->setOffset(
+                    offsetof(host_parsing::MappedInference, dmaTasks) + sizeof(dmaTasks) * i +
+                    offsetof(host_parsing::TaskReference<host_parsing::DmaWrapper>, address));
             mappedInferenceDMARelocation->setAddend(0);
             segment->addSection(dmaTasks);
         }
@@ -227,16 +228,17 @@ void VPUIP::ELFBlobSerializer::finalize() {
         auto invariantsRelocation = mappedInferenceRelaSection->addRelocationEntry();
         invariantsRelocation->setSymbol(m_sectionSymbolsMapping.at(m_dpuInvariants));
         invariantsRelocation->setType(R_VPU_64);
-        invariantsRelocation->setOffset(offsetof(MappedInference, invariants) +
-                                        offsetof(TaskReference<DPUInvariantWrapper>, address));
+        invariantsRelocation->setOffset(
+                offsetof(host_parsing::MappedInference, invariants) +
+                offsetof(host_parsing::TaskReference<host_parsing::DPUInvariantWrapper>, address));
         invariantsRelocation->setAddend(0);
         segment->addSection(m_dpuInvariants);
 
         auto variantsRelocation = mappedInferenceRelaSection->addRelocationEntry();
         variantsRelocation->setSymbol(m_sectionSymbolsMapping.at(m_dpuVariants));
         variantsRelocation->setType(R_VPU_64);
-        variantsRelocation->setOffset(offsetof(MappedInference, variants) +
-                                      offsetof(TaskReference<DPUVariantWrapper>, address));
+        variantsRelocation->setOffset(offsetof(host_parsing::MappedInference, variants) +
+                                      offsetof(host_parsing::TaskReference<host_parsing::DPUVariantWrapper>, address));
         variantsRelocation->setAddend(0);
         segment->addSection(m_dpuVariants);
     }
@@ -249,8 +251,9 @@ void VPUIP::ELFBlobSerializer::finalize() {
         auto mappedInferenceBarrierConfigsRelocation = mappedInferenceRelaSection->addRelocationEntry();
         mappedInferenceBarrierConfigsRelocation->setSymbol(m_sectionSymbolsMapping.at(m_barrierConfigs));
         mappedInferenceBarrierConfigsRelocation->setType(R_VPU_64);
-        mappedInferenceBarrierConfigsRelocation->setOffset(offsetof(MappedInference, barrierConfigs) +
-                                                           offsetof(TaskReference<DmaWrapper>, address));
+        mappedInferenceBarrierConfigsRelocation->setOffset(
+                offsetof(host_parsing::MappedInference, barrierConfigs) +
+                offsetof(host_parsing::TaskReference<host_parsing::DmaWrapper>, address));
         mappedInferenceBarrierConfigsRelocation->setAddend(0);
         segment->addSection(m_barrierConfigs);
     }
@@ -264,7 +267,7 @@ void VPUIP::ELFBlobSerializer::finalizeDMA() {
         }
 
         auto& dmaTasksSection = m_dmaTasksSections[dmaEngineIndex];
-        dmaTasksSection = m_writer.addBinaryDataSection<DmaWrapper>();
+        dmaTasksSection = m_writer.addBinaryDataSection<host_parsing::DmaWrapper>();
         dmaTasksSection->setName(".text.DMATasks" + std::to_string(dmaEngineIndex));
         dmaTasksSection->setFlags(SHF_EXECINSTR);
         dmaTasksSection->setAddrAlign(64);
@@ -280,19 +283,22 @@ void VPUIP::ELFBlobSerializer::finalizeDMA() {
         for (size_t i = 0; i < dmaTasks.size(); ++i) {
             auto& dmaTask = dmaTasks[i];
 
-            const auto transactionOffset = i * sizeof(DmaWrapper) + offsetof(DmaWrapper, transaction);
-            relocationManager.addRelocation(dmaTask.input, R_VPU_64, transactionOffset + offsetof(DmaDescriptor, src));
-            relocationManager.addRelocation(dmaTask.output, R_VPU_64, transactionOffset + offsetof(DmaDescriptor, dst));
+            const auto transactionOffset =
+                    i * sizeof(host_parsing::DmaWrapper) + offsetof(host_parsing::DmaWrapper, transaction);
+            relocationManager.addRelocation(dmaTask.input, R_VPU_64,
+                                            transactionOffset + offsetof(host_parsing::DmaDescriptor, src));
+            relocationManager.addRelocation(dmaTask.output, R_VPU_64,
+                                            transactionOffset + offsetof(host_parsing::DmaDescriptor, dst));
 
             if (dmaTask.linkAddress.metaDataLocation == LinkAddressPatchingInfo::MetaDataLocation::DDR_DMA) {
-                relocationManager.addRelocation(
-                        m_sectionSymbols, dmaTasksSymbol, R_VPU_64_OR,
-                        dmaTask.linkAddress.dmaTaskIndex * sizeof(DmaWrapper) + offsetof(DmaWrapper, transaction),
-                        transactionOffset);
+                relocationManager.addRelocation(m_sectionSymbols, dmaTasksSymbol, R_VPU_64_OR,
+                                                dmaTask.linkAddress.dmaTaskIndex * sizeof(host_parsing::DmaWrapper) +
+                                                        offsetof(host_parsing::DmaWrapper, transaction),
+                                                transactionOffset);
             } else if (dmaTask.linkAddress.metaDataLocation == LinkAddressPatchingInfo::MetaDataLocation::RTM_DMA) {
                 dmaTask.dmaDescriptor.transaction.link_address = dmaTask.linkAddress.dmaTaskIndex;
-                relocationManager.addRelocation(NNRD_SYM_RTM_DMA0 + dmaEngineIndex, R_VPU_64_OR_RTM, sizeof(DmaWrapper),
-                                                transactionOffset);
+                relocationManager.addRelocation(NNRD_SYM_RTM_DMA0 + dmaEngineIndex, R_VPU_64_OR_RTM,
+                                                sizeof(host_parsing::DmaWrapper), transactionOffset);
             }
 
             if (dmaTask.dmaDescriptor.transaction.barriers.prod_mask) {
@@ -308,7 +314,7 @@ void VPUIP::ELFBlobSerializer::finalizeDMA() {
             }
         }
 
-        std::vector<DmaWrapper> dmaDescriptors;
+        std::vector<host_parsing::DmaWrapper> dmaDescriptors;
         dmaDescriptors.reserve(dmaTasks.size());
         for (const auto& dmaTask : dmaTasks) {
             dmaDescriptors.push_back(dmaTask.dmaDescriptor);
@@ -323,7 +329,7 @@ void VPUIP::ELFBlobSerializer::finalizeDPU() {
         return;
     }
 
-    m_dpuInvariants = m_writer.addBinaryDataSection<DPUInvariantWrapper>();
+    m_dpuInvariants = m_writer.addBinaryDataSection<host_parsing::DPUInvariantWrapper>();
     m_dpuInvariants->setName(".text.Invariants");
     m_dpuInvariants->setFlags(SHF_EXECINSTR);
     m_dpuInvariants->setAddrAlign(64);
@@ -334,7 +340,7 @@ void VPUIP::ELFBlobSerializer::finalizeDPU() {
     invariantsSymbol->setType(STT_SECTION);
     m_sectionSymbolsMapping.insert(std::make_pair(m_dpuInvariants, invariantsSymbol));
 
-    m_dpuVariants = m_writer.addBinaryDataSection<DPUVariantWrapper>();
+    m_dpuVariants = m_writer.addBinaryDataSection<host_parsing::DPUVariantWrapper>();
     m_dpuVariants->setName(".text.Variants");
     m_dpuVariants->setFlags(SHF_EXECINSTR);
     m_dpuVariants->setAddrAlign(64);
@@ -373,10 +379,11 @@ void VPUIP::ELFBlobSerializer::finalizeDPU() {
 
         for (auto& variant : m_dpuTasks[i].dpuVariants) {
             variant.dpuVariantWrapper.variant.invariant_addr = variant.dpuVariantWrapper.invariant_index;
-            variantRelocationManager.addRelocation(NNRD_SYM_RTM_IVAR, R_VPU_32_OR_RTM, sizeof(DPUInvariantWrapper),
-                                                   variantIndex * sizeof(DPUVariantWrapper) +
-                                                           offsetof(DPUVariantWrapper, variant) +
-                                                           offsetof(DPUVariant, invariant_addr));
+            variantRelocationManager.addRelocation(NNRD_SYM_RTM_IVAR, R_VPU_32_OR_RTM,
+                                                   sizeof(host_parsing::DPUInvariantWrapper),
+                                                   variantIndex * sizeof(host_parsing::DPUVariantWrapper) +
+                                                           offsetof(host_parsing::DPUVariantWrapper, variant) +
+                                                           offsetof(host_parsing::DPUVariant, invariant_addr));
             variantRelocationManager.addRelocation(m_dpuTasks[i].dpuInvariant.weightsTable, R_VPU_32_SUM,
                                                    variantIndex * sizeof(DPUVariantWrapper) +
                                                            offsetof(DPUVariantWrapper, variant) +
@@ -386,8 +393,8 @@ void VPUIP::ELFBlobSerializer::finalizeDPU() {
         }
     }
 
-    std::vector<DPUInvariantWrapper> dpuInvariantWrappers;
-    std::vector<DPUVariantWrapper> dpuVariantWrappers;
+    std::vector<host_parsing::DPUInvariantWrapper> dpuInvariantWrappers;
+    std::vector<host_parsing::DPUVariantWrapper> dpuVariantWrappers;
     dpuInvariantWrappers.reserve(m_mappedInference.invariants.count);
     dpuVariantWrappers.reserve(m_mappedInference.variants.count);
     for (const auto& dpuTask : m_dpuTasks) {
@@ -421,9 +428,9 @@ void VPUIP::ELFBlobSerializer::updateInvariant(DPUInvariantTask& invariantTask, 
 
     for (size_t i = 0; i < 4; ++i) {
         relocationManager.addRelocation(input, R_VPU_32,
-                                        invariantSectionOffset + offsetof(DPUInvariant, registers) +
-                                                offsetof(DPUInvariantRegisters, act_offset) +
-                                                i * sizeof(DPUInvariantRegisters::act_offset[0]));
+                                        invariantSectionOffset + offsetof(host_parsing::DPUInvariant, registers) +
+                                                offsetof(host_parsing::DPUInvariantRegisters, act_offset) +
+                                                i * sizeof(host_parsing::DPUInvariantRegisters::act_offset[0]));
     }
 
     auto& invariant = invariantTask.dpuInvariantWrapper.invariant;
@@ -437,53 +444,53 @@ void VPUIP::ELFBlobSerializer::updateInvariant(DPUInvariantTask& invariantTask, 
     invariant.registers.base_offset_b = 0x602;
 
     if (!invariant.registers.kernel_pad_cfg.kernel_pad_cfg_bf.act_dense) {
-        const auto seSpAddr = invariantSectionOffset + offsetof(DPUInvariant, registers) +
-                              offsetof(DPUInvariantRegisters, se_sp_addr) +
-                              sizeof(DPUInvariantRegisters::se_sp_addr[0]);
+        const auto seSpAddr = invariantSectionOffset + offsetof(host_parsing::DPUInvariant, registers) +
+                              offsetof(host_parsing::DPUInvariantRegisters, se_sp_addr) +
+                              sizeof(host_parsing::DPUInvariantRegisters::se_sp_addr[0]);
 
         relocationManager.addRelocation(input, R_VPU_32, seSpAddr, OffsetToUse::SPARSITY_TABLE);
         relocationManager.addRelocation(input, R_VPU_32,
-                                        seSpAddr + sizeof(DPUInvariantRegisters::se_sp_addr[0].se_addr),
+                                        seSpAddr + sizeof(host_parsing::DPUInvariantRegisters::se_sp_addr[0].se_addr),
                                         OffsetToUse::SPARSITY_MAP);
     }
 
     for (size_t i = 0; i < 4; ++i) {
         relocationManager.addRelocation(invariantTask.output, R_VPU_32_MULTICAST_BASE_SUB,
-                                        invariantSectionOffset + offsetof(DPUInvariant, registers) +
-                                                offsetof(DPUInvariantRegisters, base_adr) +
-                                                i * sizeof(DPUInvariantRegisters::base_adr));
+                                        invariantSectionOffset + offsetof(host_parsing::DPUInvariant, registers) +
+                                                offsetof(host_parsing::DPUInvariantRegisters, base_adr) +
+                                                i * sizeof(host_parsing::DPUInvariantRegisters::base_adr));
     }
 
     for (unsigned int i = 0; i < numSlices; ++i) {
         invariant.registers.odu_cast[i].odu_cast_bf.cast_enable = i;
         relocationManager.addRelocation(invariantTask.output, R_VPU_32_MULTICAST_OFFSET_CMP_OR,
-                                        invariantSectionOffset + offsetof(DPUInvariant, registers) +
-                                                offsetof(DPUInvariantRegisters, odu_cast) +
-                                                i * sizeof(DPUInvariantRegisters::odu_cast[0]));
+                                        invariantSectionOffset + offsetof(host_parsing::DPUInvariant, registers) +
+                                                offsetof(host_parsing::DPUInvariantRegisters, odu_cast) +
+                                                i * sizeof(host_parsing::DPUInvariantRegisters::odu_cast[0]));
 
         invariant.registers.odu_cast[i].odu_cast_bf.cast_offset = i;
         relocationManager.addRelocation(invariantTask.output, R_VPU_32_MULTICAST_OFFSET_4_BIT_SHIFT_OR,
-                                        invariantSectionOffset + offsetof(DPUInvariant, registers) +
-                                                offsetof(DPUInvariantRegisters, odu_cast) +
-                                                i * sizeof(DPUInvariantRegisters::odu_cast[0]));
+                                        invariantSectionOffset + offsetof(host_parsing::DPUInvariant, registers) +
+                                                offsetof(host_parsing::DPUInvariantRegisters, odu_cast) +
+                                                i * sizeof(host_parsing::DPUInvariantRegisters::odu_cast[0]));
     }
 
     if (invariant.registers.odu_cfg.odu_cfg_bf.write_pt) {
-        relocationManager.addRelocation(
-                invariantTask.output, R_VPU_32_MULTICAST_BASE,
-                invariantSectionOffset + offsetof(DPUInvariant, registers) + offsetof(DPUInvariantRegisters, pt_base),
-                OffsetToUse::SPARSITY_TABLE);
+        relocationManager.addRelocation(invariantTask.output, R_VPU_32_MULTICAST_BASE,
+                                        invariantSectionOffset + offsetof(host_parsing::DPUInvariant, registers) +
+                                                offsetof(host_parsing::DPUInvariantRegisters, pt_base),
+                                        OffsetToUse::SPARSITY_TABLE);
     }
 
     if (invariant.registers.odu_cfg.odu_cfg_bf.write_sp) {
-        relocationManager.addRelocation(
-                invariantTask.output, R_VPU_32_MULTICAST_BASE,
-                invariantSectionOffset + offsetof(DPUInvariant, registers) + offsetof(DPUInvariantRegisters, sp_base),
-                OffsetToUse::SPARSITY_MAP);
+        relocationManager.addRelocation(invariantTask.output, R_VPU_32_MULTICAST_BASE,
+                                        invariantSectionOffset + offsetof(host_parsing::DPUInvariant, registers) +
+                                                offsetof(host_parsing::DPUInvariantRegisters, sp_base),
+                                        OffsetToUse::SPARSITY_MAP);
     }
 
     relocationManager.addRelocation(NNRD_SYM_FIFO_BASE, R_VPU_32, invariantTask.dpuInvariantWrapper.cluster,
-                                    invariantSectionOffset * offsetof(DPUInvariantWrapper, cluster));
+                                    invariantSectionOffset * offsetof(host_parsing::DPUInvariantWrapper, cluster));
 
     switch (invariantTask.opType) {
     case vpux::VPUIP::NCETaskType::CONV:
@@ -497,8 +504,8 @@ void VPUIP::ELFBlobSerializer::updateInvariant(DPUInvariantTask& invariantTask, 
                 OffsetToUse::BASE);  // TODO: Why we need this base?
 
         relocationManager.addRelocation(invariantTask.weightsTable, R_VPU_32,
-                                        invariantSectionOffset + offsetof(DPUInvariant, registers) +
-                                                offsetof(DPUInvariantRegisters, weight_start));
+                                        invariantSectionOffset + offsetof(host_parsing::DPUInvariant, registers) +
+                                                offsetof(host_parsing::DPUInvariantRegisters, weight_start));
 
         switch (invariantTask.opType) {
         case vpux::VPUIP::NCETaskType::DWCONV:
@@ -529,9 +536,9 @@ void VPUIP::ELFBlobSerializer::updateInvariantSOH(DPUInvariantTask& invariantTas
         for (int i = 0; i < 3; i++) {
             if (invariant.registers.se_sp_size[i].se_sp_size_bf.se_seg_size) {
                 input.location.locationIndex = 1 << (i + 1);
-                const auto seSpAddr = invariantSectionOffset + offsetof(DPUInvariant, registers) +
-                                      offsetof(DPUInvariantRegisters, se_sp_addr) +
-                                      (i + 1) * sizeof(DPUInvariantRegisters::se_sp_addr[0]);
+                const auto seSpAddr = invariantSectionOffset + offsetof(host_parsing::DPUInvariant, registers) +
+                                      offsetof(host_parsing::DPUInvariantRegisters, se_sp_addr) +
+                                      (i + 1) * sizeof(host_parsing::DPUInvariantRegisters::se_sp_addr[0]);
 
                 if (invariant.registers.kernel_pad_cfg.kernel_pad_cfg_bf.act_dense) {
                     relocationManager.addRelocation(input, R_VPU_32_SUM, seSpAddr);
@@ -542,17 +549,19 @@ void VPUIP::ELFBlobSerializer::updateInvariantSOH(DPUInvariantTask& invariantTas
                     }
 
                     if (!invariant.registers.kernel_pad_cfg.kernel_pad_cfg_bf.act_dense) {
-                        relocationManager.addRelocation(input, R_VPU_32,
-                                                        seSpAddr + sizeof(DPUInvariantRegisters::se_sp_addr[0].se_addr),
-                                                        OffsetToUse::SPARSITY_MAP);
+                        relocationManager.addRelocation(
+                                input, R_VPU_32,
+                                seSpAddr + sizeof(host_parsing::DPUInvariantRegisters::se_sp_addr[0].se_addr),
+                                OffsetToUse::SPARSITY_MAP);
                     }
 
                     // Previous layers have set the ODU base select to the cluster index
                     // Need to have matching logic at IDU side
-                    relocationManager.addRelocation(input, R_VPU_32,
-                                                    invariantSectionOffset + offsetof(DPUInvariant, registers) +
-                                                            offsetof(DPUInvariantRegisters, act_offset) +
-                                                            (i + 1) * sizeof(DPUInvariantRegisters::act_offset[0]));
+                    relocationManager.addRelocation(
+                            input, R_VPU_32,
+                            invariantSectionOffset + offsetof(host_parsing::DPUInvariant, registers) +
+                                    offsetof(host_parsing::DPUInvariantRegisters, act_offset) +
+                                    (i + 1) * sizeof(host_parsing::DPUInvariantRegisters::act_offset[0]));
                 }
             }
         }

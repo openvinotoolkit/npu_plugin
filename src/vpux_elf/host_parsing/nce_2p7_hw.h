@@ -473,6 +473,30 @@ typedef struct {
 ** HW related utility functions and enum values (enums correspond to HW register settings)
 **/
 
+enum class DType : uint8_t {
+    NOT_SET = 0,
+    FP64 = 1,
+    FP32 = 2,
+    FP16 = 3,
+    FP8 = 4,
+    U64 = 5,
+    U32 = 6,
+    U16 = 7,
+    U8 = 8,
+    I64 = 9,
+    I32 = 10,
+    I16 = 11,
+    I8 = 12,
+    I4 = 13,
+    I2 = 14,
+    I4X = 15,
+    BIN = 16,
+    LOG = 17,
+    I2X = 18,
+    BFP16 = 19,
+    U4 = 20,
+};
+
 // NCE_DPU_TENSOR_MODE wmode&amode - IDU types for activation&weights
 enum class InputTensorDType : uint8_t {
     FP16 = 0x0,
