@@ -127,7 +127,7 @@ protected:
             InferenceEngine::VPUXConfigParams::CompilerType::MCM;
 
     std::string _compilationMode = "DefaultHW";
-    Optional<int> _numberOfDPUGroups;
+    Optional<int> _numberOfDPUGroups = 1;
 
 private:
     void parseEnvironment();
