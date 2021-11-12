@@ -113,20 +113,9 @@ void VPUIP::ELFBlobSerializer::setBarrierConfigs(llvm::ArrayRef<BarrierWrapper> 
     m_sectionSymbolsMapping.insert(std::make_pair(m_barrierConfigs, barrierConfigsSymbol));
 }
 
-void VPUIP::ELFBlobSerializer::setWeights(llvm::ArrayRef<llvm::ArrayRef<uint64_t>> weights) {
-    m_weightsOffsets.reserve(weights.size());
-    m_weightsOffsets.push_back(0);
-    for (size_t i = 1; i < weights.size(); ++i) {
-        m_weightsOffsets.push_back(m_weightsOffsets[i - 1] + weights[i - 1].size());
-    }
-
-    std::vector<uint64_t> weightsVec;
-    for (const auto& weightTensor : weights) {
-        weightsVec.insert(weightsVec.end(), weightTensor.begin(), weightTensor.end());
-    }
-
-    m_weights = m_writer.addBinaryDataSection<uint64_t>();
-    m_weights->appendData(weightsVec.data(), weightsVec.size());
+void VPUIP::ELFBlobSerializer::setConstData(llvm::ArrayRef<uint8_t> weights) {
+    m_weights = m_writer.addBinaryDataSection<uint8_t>();
+    m_weights->appendData(weights.data(), weights.size());
     m_weights->setName(".data.Weights");
     m_weights->setAddrAlign(64);
 
@@ -629,8 +618,7 @@ void VPUIP::ELFBlobSerializer::RelocationManager::addRelocation(const TensorPatc
         addRelocation(
                 getRelocationSection(m_elfBlobSerializer.m_sectionSymbols, tensorPatchingInfo.location.memLocation),
                 m_elfBlobSerializer.m_sectionSymbolsMapping.at(m_elfBlobSerializer.m_weights), type,
-                offset + m_elfBlobSerializer.m_weightsOffsets[tensorPatchingInfo.location.locationIndex],
-                sectionOffset);
+                tensorPatchingInfo.dataOffset, sectionOffset);
         break;
     default:
         VPUX_THROW("Unsupported MemoryLocation {}", tensorPatchingInfo.location.memLocation);
