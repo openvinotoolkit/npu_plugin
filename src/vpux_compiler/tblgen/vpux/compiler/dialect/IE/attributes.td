@@ -21,16 +21,21 @@ include "vpux/compiler/dialect/IE/dialect.td"
 // TypeComparisonMode
 //
 
-def IE_TypeComparisonMode_STRICT_EQUAL : StrEnumAttrCase<"STRICT_EQUAL">;
-def IE_TypeComparisonMode_ALLOW_QUANT_MIXED_PRECISION : StrEnumAttrCase<"ALLOW_QUANT_MIXED_PRECISION">;
+defvar IE_STRICT_EQUAL = "STRICT_EQUAL";
+defvar IE_ALLOW_QUANT_MIXED_PRECISION = "ALLOW_QUANT_MIXED_PRECISION";
+defvar IE_ALLOW_DIFFERENT_QUANT = "ALLOW_DIFFERENT_QUANT";
+defvar IE_TypeComparisonMode_STRICT_EQUAL = !strconcat("vpux::IE::TypeComparisonMode::", IE_STRICT_EQUAL);
+defvar IE_TypeComparisonMode_ALLOW_QUANT_MIXED_PRECISION = !strconcat("vpux::IE::TypeComparisonMode::", IE_ALLOW_QUANT_MIXED_PRECISION);
+defvar IE_TypeComparisonMode_ALLOW_DIFFERENT_QUANT = !strconcat("vpux::IE::TypeComparisonMode::", IE_ALLOW_DIFFERENT_QUANT);
 
 def IE_TypeComparisonMode :
-        StrEnumAttr<
+        BitEnumAttr<
             "TypeComparisonMode",
             "Tensor element type comparison modes",
             [
-                IE_TypeComparisonMode_STRICT_EQUAL,
-                IE_TypeComparisonMode_ALLOW_QUANT_MIXED_PRECISION,
+                BitEnumAttrCase<IE_STRICT_EQUAL, 0x1>,
+                BitEnumAttrCase<IE_ALLOW_QUANT_MIXED_PRECISION, 0x2>,
+                BitEnumAttrCase<IE_ALLOW_DIFFERENT_QUANT, 0x4>
             ]
         > {
     let cppNamespace = "vpux::IE";

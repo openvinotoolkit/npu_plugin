@@ -13,6 +13,7 @@
 
 #include "vpux/compiler/dialect/IE/attributes/enums.hpp"
 
+#include <llvm/ADT/StringExtras.h>
 #include <mlir/IR/BuiltinTypes.h>
 
 //
