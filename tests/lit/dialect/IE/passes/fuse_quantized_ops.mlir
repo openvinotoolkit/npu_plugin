@@ -31,8 +31,8 @@ func @FuseQuantParamsIntoConv(%arg0: tensor<1x3x16x16xf16>) -> tensor<1x3x14x14x
 !qElemType0 = type !quant.uniform<u8:f16, 1.1534313725490195:128>
 !qElemType1 = type !quant.uniform<u8:f16, 2.4627450980392158>
 
-// CHECK-LABEL: @FuseQuantParamsIntoEltwise
-func @FuseQuantParamsIntoEltwise(%arg0: tensor<1x3x16x16xf16>, %arg1: tensor<1x3x16x16xf16>) -> tensor<1x3x16x16xf16> {
+// CHECK-LABEL: @FuseQuantParamsIntoEltwiseAdd
+func @FuseQuantParamsIntoEltwiseAdd(%arg0: tensor<1x3x16x16xf16>, %arg1: tensor<1x3x16x16xf16>) -> tensor<1x3x16x16xf16> {
   %1 = IE.Quantize(%arg0) {dstElemType = !qElemType0} : tensor<1x3x16x16xf16> -> tensor<1x3x16x16x!qElemType0>
   %2 = IE.Dequantize(%1) {dstElemType = f16} : tensor<1x3x16x16x!qElemType0> -> tensor<1x3x16x16xf16>
   %3 = IE.Quantize(%arg1) {dstElemType = !qElemType0} : tensor<1x3x16x16xf16> -> tensor<1x3x16x16x!qElemType0>
@@ -47,6 +47,31 @@ func @FuseQuantParamsIntoEltwise(%arg0: tensor<1x3x16x16xf16>, %arg1: tensor<1x3
   //CHECK: [[VAL1:%.*]] = IE.Quantize(%arg1) {dstElemType = !qElemType0} : tensor<1x3x16x16xf16> -> tensor<1x3x16x16x!qElemType0>
   //CHECK: [[VAL2:%.*]] = IE.Add([[VAL0]], [[VAL1]]) {auto_broadcast = "NUMPY"} : tensor<1x3x16x16x!qElemType0>, tensor<1x3x16x16x!qElemType0> -> tensor<1x3x16x16x!qElemType1>
   //CHECK: [[VAL3:%.*]] = IE.Dequantize([[VAL2]]) {dstElemType = f16} : tensor<1x3x16x16x!qElemType1> -> tensor<1x3x16x16xf16>
+  //CHECK: return [[VAL3]]
+}
+
+// -----
+
+!qElemType0 = type !quant.uniform<u8:f16, 0.0034409466911764705>
+!qElemType1 = type !quant.uniform<u8:f16, 0.12503063725490196:128>
+!qElemType2 = type !quant.uniform<u8:f16, 0.067708337073232608:128>
+
+// CHECK-LABEL: @FuseQuantParamsIntoEltwiseMul
+func @FuseQuantParamsIntoEltwiseMul(%arg0: tensor<1x3x16x16xf16>, %arg1: tensor<1x3x16x16xf16>) -> tensor<1x3x16x16xf16> {
+  %1 = IE.Quantize(%arg0) {dstElemType = !qElemType0} : tensor<1x3x16x16xf16> -> tensor<1x3x16x16x!qElemType0>
+  %2 = IE.Dequantize(%1) {dstElemType = f16} : tensor<1x3x16x16x!qElemType0> -> tensor<1x3x16x16xf16>
+  %3 = IE.Quantize(%arg1) {dstElemType = !qElemType1} : tensor<1x3x16x16xf16> -> tensor<1x3x16x16x!qElemType1>
+  %4 = IE.Dequantize(%3) {dstElemType = f16} : tensor<1x3x16x16x!qElemType1> -> tensor<1x3x16x16xf16>
+  %5 = IE.Multiply(%2, %4) { auto_broadcast = "NUMPY" } : tensor<1x3x16x16xf16>, tensor<1x3x16x16xf16> -> tensor<1x3x16x16xf16>
+  %6 = IE.Quantize(%5) {dstElemType = !qElemType2}: tensor<1x3x16x16xf16> -> tensor<1x3x16x16x!qElemType2>
+  %7 = IE.Dequantize(%6) {dstElemType = f16} : tensor<1x3x16x16x!qElemType2> -> tensor<1x3x16x16xf16>
+
+  return %7 : tensor<1x3x16x16xf16>
+
+  //CHECK: [[VAL0:%.*]] = IE.Quantize(%arg0) {dstElemType = !qElemType0} : tensor<1x3x16x16xf16> -> tensor<1x3x16x16x!qElemType0>
+  //CHECK: [[VAL1:%.*]] = IE.Quantize(%arg1) {dstElemType = !qElemType1} : tensor<1x3x16x16xf16> -> tensor<1x3x16x16x!qElemType1>
+  //CHECK: [[VAL2:%.*]] = IE.Multiply([[VAL0]], [[VAL1]]) {auto_broadcast = "NUMPY"} : tensor<1x3x16x16x!qElemType0>, tensor<1x3x16x16x!qElemType1> -> tensor<1x3x16x16x!qElemType2>
+  //CHECK: [[VAL3:%.*]] = IE.Dequantize([[VAL2]]) {dstElemType = f16} : tensor<1x3x16x16x!qElemType2> -> tensor<1x3x16x16xf16>
   //CHECK: return [[VAL3]]
 }
 
