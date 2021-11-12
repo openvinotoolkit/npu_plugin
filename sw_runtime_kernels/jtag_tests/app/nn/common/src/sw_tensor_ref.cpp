@@ -1,7 +1,28 @@
-// {% copyright %}
+//
+// Copyright Intel Corporation.
+//
+// LEGAL NOTICE: Your use of this software and any required dependent software
+// (the "Software Package") is subject to the terms and conditions of
+// the Intel(R) OpenVINO(TM) Distribution License for the Software Package,
+// which may also include notices, disclaimers, or license terms for
+// third party or open source software included in or with the Software Package,
+// and your use indicates your acceptance of all such terms. Please refer
+// to the "third-party-programs.txt" or other similarly-named text file
+// included with the Software Package for additional details.
+//
 
 #include "sw_tensor_ref.h"
 #include <stdint.h>
+
+#ifdef CONFIG_TARGET_SOC_3720
+extern unsigned char actShaveData[];
+extern unsigned int actShaveDataReserved;
+#include "nn_math.h"
+#include "nn_memory.h"
+#include "sw_shave_lib_common.h"
+#include <dma_shave_nn.h>
+#include <nn_cache.h>
+#endif
 
 namespace {
 
@@ -83,7 +104,7 @@ unsigned int TensorRef::getDataSize() const {
     return this->getNumElements() * bytesPerElem;
 }
 unsigned int TensorRef::getFullDataSize() const {
-    return strides[ndims - 1] * dims[ndims - 1];
+    return (ndims > 0) ? strides[ndims - 1] * dims[ndims - 1] : 0;
 }
 
 unsigned int TensorRef::getNumElements() const {
@@ -271,7 +292,7 @@ int64_t TensorRef::strideBitsW(int64_t defaultValue) const {
     }
 }
 
-sw_params::MemRefData TensorRef::toMemRefData(sw_params::Location loc) const {
+sw_params::MemRefData TensorRef::toMemRefData(sw_params::Location loc, bool doCopy) const {
     sw_params::MemRefData ret = {
             reinterpret_cast<uint32_t>(this->addr), // dataAddr
             true, // isStatic
@@ -282,6 +303,28 @@ sw_params::MemRefData TensorRef::toMemRefData(sw_params::Location loc) const {
             static_cast<uint64_t>(ndOrder), //uint64_t dimsOrder;     // Packed permutation array.
             loc
     };
+#ifdef CONFIG_TARGET_SOC_3720
+    if (loc == sw_params::Location::NN_CMX || loc == sw_params::Location::UPA_CMX) {
+        unsigned int usedBytes = (ndims > 0) ? dims[ndims - 1] * strides[ndims - 1] : 0;
+        auto bytesToAllocate = nn::math::round_up_power_of_2(NN_CACHE_LINE_LENGTH, usedBytes);
+
+        if (bytesToAllocate <= SHAVE_LIB_DATA_SIZE - actShaveDataReserved) {
+            ret.dataAddr = reinterpret_cast<uint32_t>(actShaveData + actShaveDataReserved);
+            actShaveDataReserved += bytesToAllocate;
+            if (doCopy) {
+                DmaAlShave dmaTask;
+                dmaTask.start(reinterpret_cast<uint8_t*>(this->addr), reinterpret_cast<uint8_t*>(ret.dataAddr),
+                        usedBytes);
+                dmaTask.wait();
+            }
+        } else {
+            ret.location = sw_params::Location::DDR;
+        }
+    }
+    nn::cache::flush(ret);
+    nn::cache::flush(this->dims, this->ndims * sizeof(uint32_t));
+    nn::cache::flush(this->stridesBits, this->ndims * sizeof(uint64_t));
+#endif
     return ret;
 }
 

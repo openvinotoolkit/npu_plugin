@@ -1,4 +1,15 @@
-// {% copyright %}
+//
+// Copyright Intel Corporation.
+//
+// LEGAL NOTICE: Your use of this software and any required dependent software
+// (the "Software Package") is subject to the terms and conditions of
+// the Intel(R) OpenVINO(TM) Distribution License for the Software Package,
+// which may also include notices, disclaimers, or license terms for
+// third party or open source software included in or with the Software Package,
+// and your use indicates your acceptance of all such terms. Please refer
+// to the "third-party-programs.txt" or other similarly-named text file
+// included with the Software Package for additional details.
+//
 
 #ifndef SHARED_MODULES_OP_H
 #define SHARED_MODULES_OP_H
@@ -14,14 +25,12 @@
 
 #include <nn_perf_measurement.h>
 
-typedef nn::TensorRefNDData BufferData;
-
 using namespace nn::shave_lib;
 
 struct MvNCIExecutor;
 typedef struct MvNCIExecutor *MvNCIExecutorHandle;
 
-class Buffer: public nn::TensorRef {
+class OpTensor: public nn::TensorRef {
 public:
     unsigned int getByteSize() const { return 0; };
     subspace::t_D8StorageOrder order;

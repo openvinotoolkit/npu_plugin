@@ -1,24 +1,3 @@
+CUSTOM_SHAVE_NN0_DATA_START_ADDRESS = 0xB0000000;
+INCLUDE vpuip_default_memory_map.ldscript
 
-SECTIONS {
-
-     .lrt.ddr.data : {
-  	  *(.lrt.ddr.data)
-      } > DDR_DATA
-
-      .ddr.data : {
-  	  *(.ddr.data)
-      } > DDR_DATA
-
-      .lnn.data : {
-  	  *(.lnn.data)
-      } > NN_CMX0
-
-      .nncmx.data0 : {
-  	  *(.nncmx.data0)
-      } > NN_CMX0
-
-      .nncmx.data1 : {
-  	  *(.nncmx.data1)
-      } > NN_CMX1
-
-  }

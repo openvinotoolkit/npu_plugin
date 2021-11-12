@@ -1,4 +1,15 @@
-# {% copyright %}
+#
+# Copyright Intel Corporation.
+#
+# LEGAL NOTICE: Your use of this software and any required dependent software
+# (the "Software Package") is subject to the terms and conditions of
+# the Intel(R) OpenVINO(TM) Distribution License for the Software Package,
+# which may also include notices, disclaimers, or license terms for
+# third party or open source software included in or with the Software Package,
+# and your use indicates your acceptance of all such terms. Please refer
+# to the "third-party-programs.txt" or other similarly-named text file
+# included with the Software Package for additional details.
+#
 
 mv-tensor-defines-y                                  += -DMVTENSOR_CMX_BUFFER=$(CONFIG_MVTENSOR_CMX_BUFFER)
 mv-tensor-defines-$(CONFIG_MVTENSOR_FAST_SVU)        += -DMV_TENSOR_FAST__OS_DRV_SVU
@@ -15,35 +26,39 @@ ccopt-los-y   += -falign-functions=64 -falign-loops=64
 ccopt-lrt-y   += -falign-functions=64 -falign-loops=64
 
 CURRENT_DIR := $(abspath ./)
-VPUIP_2_ABS_DIR := $(abspath ${VPUIP_2_Directory})
+FIRMWARE_VPU_ABS_DIR := $(abspath ${FIRMWARE_VPU_DIR})
 
 EMPTY :=
 SPACE := $(EMPTY) $(EMPTY)
 REL_TO_ROOT := $(subst /, ,${CURRENT_DIR})
 REL_TO_ROOT := $(patsubst %,../,${REL_TO_ROOT})
 REL_TO_ROOT := $(subst $(SPACE),,$(REL_TO_ROOT))
-VPUIP_2_REL_THROUGH_ROOT := $(REL_TO_ROOT)$(VPUIP_2_ABS_DIR)
-VSYSTEM := $(VPUIP_2_REL_THROUGH_ROOT)/system
+FIRMWARE_VPU_REL_THROUGH_ROOT := $(REL_TO_ROOT)$(FIRMWARE_VPU_ABS_DIR)
+VSYSTEM := $(FIRMWARE_VPU_REL_THROUGH_ROOT)/system
 
 ccopt-lrt-y += -DCONFIG_USE_COMPONENT_NN
 ccopt-lnn-y += -DCONFIG_USE_COMPONENT_NN
 ccopt-shave-y += -DCONFIG_USE_COMPONENT_NN
 ccopt-shave_nn-y += -DCONFIG_USE_COMPONENT_NN
 
-subdirs-lrt-y += nn/common $(VSYSTEM)/nn/platform_abstraction $(VSYSTEM)/nn/blob nn/nce_lib nn/shave_lib nn/inference_runtime_common ../../kernels
+subdirs-lrt-y += nn/common nn/shave_lib nn/inference_runtime_common ../../kernels
+subdirs-lrt-$(CONFIG_TARGET_SOC_MA2490) += $(VSYSTEM)/nn/platform_abstraction
+
 subdirs-lnn-y += nn/common nn/inference_runtime_common
 subdirs-shave-y += nn/common
 subdirs-shave-y += nn/shave_lib
 subdirs-shave-y += ../../kernels
 subdirs-lrt-$(CONFIG_TARGET_SOC_3720) +=  act_shave_lib
+
 subdirs-lnn-$(CONFIG_TARGET_SOC_3720) +=  act_shave_lib
 subdirs-shave_nn-$(CONFIG_TARGET_SOC_3720) += act_shave_lib
 subdirs-shave_nn-$(CONFIG_TARGET_SOC_3720) +=  ../../kernels
+subdirs-lrt-$(CONFIG_TARGET_SOC_3720) +=  ../../kernels
 
-subdirs-shave_nn-y += nn/common nn/inference_runtime_common
+subdirs-shave_nn-$(CONFIG_TARGET_SOC_3720) += nn/common nn/inference_runtime_common
 
-srcs-shave_nn-$(CONFIG_TARGET_SOC_3720) += nn/shave_lib/shave/src/pre_custom_cpp.cpp
 include-dirs-shave_nn-$(CONFIG_TARGET_SOC_3720) += nn/shave_lib/inc nn/shave_lib/inc/layers
+include-dirs-lrt-$(CONFIG_TARGET_SOC_3720) += $(FIRMWARE_VPU_REL_THROUGH_ROOT)/drivers/resource/barrier/inc
 
 ccopt-lrt-$(CONFIG_NN_PROFILING) += -DNN_PROFILING
 ccopt-lnn-$(CONFIG_NN_PROFILING) += -DNN_PROFILING
@@ -98,6 +113,5 @@ ccopt-lnn-$(CONFIG_NN_ENABLE_SCALABILITY_REPORTING) += -DNN_ENABLE_SCALABILITY_R
 
 ccopt-lrt-y += -DNN_SCALABILITY_REPORTING_PERIOD_MS=$(CONFIG_NN_SCALABILITY_REPORTING_PERIOD_MS)
 
-
-$(info !!!!! subdirs-shave-y = !!!!!!!!!!! $(subdirs-shave-y))
+srcs-lrt-$(CONFIG_TARGET_SOC_3720) += $(FIRMWARE_VPU_REL_THROUGH_ROOT)/drivers/nn/src/nn_fifo.cpp
 
