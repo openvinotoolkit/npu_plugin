@@ -8,7 +8,7 @@ if [ -z ${VPUIP_2_DIR} ]; then echo "VPUIP_2_DIR is not set"; env_is_set=0; fi
 
 if [ $env_is_set = 0 ]; then exit 1; fi
 
-rm -f ${KERNEL_DIR}/prebuild/single_shave_softmax_3010xx.o ${KERNEL_DIR}/prebuild/mvSubspaces_3010xx.o ${KERNEL_DIR}/prebuild/dma_shave_nn_3010xx.o ${KERNEL_DIR}/prebuild/singleShaveSoftmax_3010xx.elf ${KERNEL_DIR}/prebuild/sk.singleShaveSoftmax.3010xx.text ${KERNEL_DIR}/prebuild/sk.singleShaveSoftmax.3010xx.data
+rm -f ${KERNEL_DIR}/prebuild/single_shave_softmax_3010xx.o ${KERNEL_DIR}/prebuild/mvSubspaces_3010xx.o ${KERNEL_DIR}/prebuild/dma_shave_nn_3010xx.o ${KERNEL_DIR}/prebuild/singleShaveSoftmax_3010xx.elf ${KERNEL_DIR}/prebuild/act_shave_bin/sk.singleShaveSoftmax.3010xx.text ${KERNEL_DIR}/prebuild/act_shave_bin/sk.singleShaveSoftmax.3010xx.data
 
 ${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/linux64/bin/moviCompile -mcpu=3010xx -O3 \
  -c ${KERNEL_DIR}/single_shave_softmax.cpp -o ${KERNEL_DIR}/prebuild/single_shave_softmax_3010xx.o \
@@ -59,10 +59,10 @@ ${KERNEL_DIR}/prebuild/single_shave_softmax_3010xx.o ${KERNEL_DIR}/prebuild/mvSu
  --output ${KERNEL_DIR}/prebuild/singleShaveSoftmax_3010xx.elf
 
 if [ $? -ne 0 ]; then echo $'\nLinking of singleShaveSoftmax_3010.elf failed exit $?\n'; exit $?; fi
-${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/linux64/sparc-myriad-rtems-6.3.0/bin/sparc-myriad-rtems-objcopy -O binary --only-section=.text ${KERNEL_DIR}/prebuild/singleShaveSoftmax_3010xx.elf ${KERNEL_DIR}/prebuild/sk.singleShaveSoftmax.3010xx.text
+${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/linux64/sparc-myriad-rtems-6.3.0/bin/sparc-myriad-rtems-objcopy -O binary --only-section=.text ${KERNEL_DIR}/prebuild/singleShaveSoftmax_3010xx.elf ${KERNEL_DIR}/prebuild/act_shave_bin/sk.singleShaveSoftmax.3010xx.text
 if [ $? -ne 0 ]; then echo $'\nExtracting of sk.singleShaveSoftmax.3010xx.text failed exit $?\n'; exit $?; fi
-${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/linux64/sparc-myriad-rtems-6.3.0/bin/sparc-myriad-rtems-objcopy -O binary --only-section=.arg.data ${KERNEL_DIR}/prebuild/singleShaveSoftmax_3010xx.elf ${KERNEL_DIR}/prebuild/sk.singleShaveSoftmax.3010xx.data
+${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/linux64/sparc-myriad-rtems-6.3.0/bin/sparc-myriad-rtems-objcopy -O binary --only-section=.arg.data ${KERNEL_DIR}/prebuild/singleShaveSoftmax_3010xx.elf ${KERNEL_DIR}/prebuild/act_shave_bin/sk.singleShaveSoftmax.3010xx.data
 if [ $? -ne 0 ]; then echo $'\nExtracting of sk.singleShaveSoftmax.3010xx.data failed exit $?\n'; exit $?; fi
 rm ${KERNEL_DIR}/prebuild/single_shave_softmax_3010xx.o ${KERNEL_DIR}/prebuild/mvSubspaces_3010xx.o ${KERNEL_DIR}/prebuild/dma_shave_nn_3010xx.o
-printf "\n ${KERNEL_DIR}/prebuild/sk.singleShaveSoftmax.3010xx.text\n ${KERNEL_DIR}/prebuild/sk.singleShaveSoftmax.3010xx.data\nhave been created successfully\n"
+printf "\n ${KERNEL_DIR}/prebuild/act_shave_bin/sk.singleShaveSoftmax.3010xx.text\n ${KERNEL_DIR}/prebuild/act_shave_bin/sk.singleShaveSoftmax.3010xx.data\nhave been created successfully\n"
 exit $?

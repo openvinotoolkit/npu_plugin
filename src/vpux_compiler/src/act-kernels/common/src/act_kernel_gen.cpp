@@ -47,103 +47,23 @@ flatbuffers::Offset<MVCNN::KernelData> buildKernelData(flatbuffers::FlatBufferBu
     return builder.Finish();
 }
 
-static void compileAndLinkSHAVE(const movitools::MoviCompileParams& params, const CompilationUnitDesc& unitDesc,
+static void getActShaveBinaries(const movitools::MoviCompileParams& params, const CompilationUnitDesc& unitDesc,
                                 SmallVector<uint8_t, 128>& textBinary, SmallVector<uint8_t, 128>& dataBinary) {
-    std::string mvToolsDir = movitools::getMoviToolsDir();
     SmallString<128> genDir;
-    SmallString<128> tmpDir;
-    // TODO: weak assumption on tools dir better switch to DEVELOPER BUILD style
-    /*if (sys::fs::exists(KERNEL_DIRECTORY) && sys::fs::exists(LIBRARY_OUTPUT_DIRECTORY)) {
-        genDir = KERNEL_DIRECTORY;
-        tmpDir = LIBRARY_OUTPUT_DIRECTORY;
-    } else */{
-        // probe for OV_BUILD_DIR
-//        const auto tmp1Dir = LIBRARY_OUTPUT_DIRECTORY;
-//        const auto ovBuildDir = std::getenv("OV_BUILD_DIR");
-//        VPUX_THROW_UNLESS(ovBuildDir,
-//                          "OV_BUILD_DIR env directory must be specified, in order to reach act-shave kernels");
-//        VPUX_THROW_UNLESS(sys::fs::exists(ovBuildDir),
-//                          "OpenVino build directory {0}, taken from OV_BUILD_DIR env variable is not exist", genDir);
-//        std::cout << tmp1Dir << std::endl;
-//        std::cout << ovBuildDir << std::endl;
+    genDir = LIBRARY_OUTPUT_DIRECTORY;
+    sys::path::append(genDir, "act-kernels");
 
-        genDir = LIBRARY_OUTPUT_DIRECTORY;
-        sys::path::append(genDir, "act-kernels");
-
-        VPUX_THROW_UNLESS(sys::fs::exists(genDir),
-                          "act-kernels directory {0}, taken from OV_BUILD_DIR env variable is not exist", genDir);
-
-        tmpDir = genDir;
-        sys::path::append(tmpDir, "output");
-    }
-
-    SmallString<128> srcNamePath = unitDesc.codePath;
-
-    SmallString<128> srcNameNoExt = sys::path::filename(srcNamePath);
-    sys::path::replace_extension(srcNameNoExt, "");
+    VPUX_THROW_UNLESS(sys::fs::exists(genDir),
+                      "act-kernels directory is not exist in {LIBRARY_OUTPUT_DIRECTORY}", genDir);
 
     std::string entryPoint = unitDesc.entry.str();
 
-    SmallString<128> buildDirPath;
-    {
-        SmallString<128> tmpPath(LIBRARY_OUTPUT_DIRECTORY);
-        sys::path::append(tmpPath, "act-kernels");
-        sys::path::append(tmpPath, srcNamePath);
-        buildDirPath = sys::path::parent_path(tmpPath);
-        sys::fs::create_directories(buildDirPath);
-    }
-
-    // Generate linker script name - and copy it from
-    SmallString<128> linkerScriptPath(genDir);
-    sys::path::append(linkerScriptPath, "prebuild");
-    SmallString<128> prebuiltKernelBinariesPath(linkerScriptPath);
-    sys::path::append(linkerScriptPath, "shave_kernel.ld");
-
-    SmallString<128> srcPath(genDir);
-    sys::path::append(srcPath, srcNamePath);
-
-    SmallString<128> incPath(genDir);
-    sys::path::append(incPath, "inc");
-
-    SmallString<128> singleLib(mvToolsDir);
-    sys::path::append(singleLib, params.mdkLibDir);
-    sys::path::append(singleLib, params.mdkLibs[0]);
-
-    SmallString<128> objPath(buildDirPath);
-    sys::path::append(objPath, srcNameNoExt + ".o");
-
-    SmallString<128> objDir(buildDirPath);
-
-    SmallString<128> elfPath(buildDirPath);
-    sys::path::append(elfPath, srcNameNoExt + ".elf");
-
-    SmallString<128> moviCompile(mvToolsDir);
-    sys::path::append(moviCompile, params.moviCompile);
+    SmallString<128> prebuiltKernelBinariesPath(genDir);
 
     SmallString<128> prebuiltKernelText(prebuiltKernelBinariesPath);
     sys::path::append(prebuiltKernelText, "sk." + entryPoint + "." + params.cpu + ".text");
     SmallString<128> prebuiltKernelData(prebuiltKernelBinariesPath);
     sys::path::append(prebuiltKernelData, "sk." + entryPoint + "." + params.cpu + ".data");
-    SmallString<128> prebuiltKernelScript(prebuiltKernelBinariesPath);
-    sys::path::append(prebuiltKernelScript, entryPoint + "." + params.cpu + ".sh");
-
-    SmallString<128> kernelTextPath(buildDirPath);
-    sys::path::append(kernelTextPath, "sk." + entryPoint + "." + params.cpu + ".text");
-    SmallString<128> kernelDataPath(buildDirPath);
-    sys::path::append(kernelDataPath, "sk." + entryPoint + "." + params.cpu + ".data");
-
-    std::cout << prebuiltKernelText.c_str() << std::endl;
-    std::cout << prebuiltKernelData.c_str() << std::endl;
-    std::cout << prebuiltKernelScript.c_str() << std::endl;
-
-    if (!(sys::fs::exists(prebuiltKernelText) && sys::fs::exists(prebuiltKernelData)) &&
-        sys::fs::exists(prebuiltKernelScript)) {
-        auto ret = std::system(prebuiltKernelScript.c_str());
-        std::cout << prebuiltKernelScript.c_str() << " executed in " << ret << std::endl;
-        if (std::system(prebuiltKernelScript.c_str())) {
-            VPUX_THROW((std::string("Binary generation script failed") + prebuiltKernelScript.c_str()).c_str());
-        }
-    }
 
     auto readBinary = [](SmallString<128>& path, SmallVector<uint8_t, 128>& buffer, uint32_t alignment = 1) {
         std::string err;
@@ -165,63 +85,8 @@ static void compileAndLinkSHAVE(const movitools::MoviCompileParams& params, cons
         }
     };
 
-
-    if (sys::fs::exists(prebuiltKernelText) && sys::fs::exists(prebuiltKernelData)) {
-        readBinary(prebuiltKernelText, textBinary, 0x10);
-        readBinary(prebuiltKernelData, dataBinary, 0x10);
-    } else {
-
-
-        {
-            auto compileCmd = formatv("{0} -mcpu={1} -c {2} -o {3} -I {4} -I{5} ", moviCompile, params.cpu, srcPath,
-                                      objPath, mvToolsDir, incPath)
-                                      .str();
-            if (std::system(compileCmd.c_str())) {
-                VPUX_THROW("moviCompile failed: {0}", compileCmd);
-            }
-        }
-
-        SmallString<128> linker(mvToolsDir);
-        sys::path::append(linker, params.mdkLinker);
-        auto linkCmd = formatv("{0} -zmax-page-size=16 --script {1}"
-                               " -entry {2} --gc-sections --strip-debug --discard-all  {3}"
-                               " -EL {4} --output {5}",
-                               linker, linkerScriptPath, entryPoint.c_str(), objPath, singleLib, elfPath)
-                               .str();
-        std::cout << linkCmd << std::endl;
-        if (std::system(linkCmd.c_str())) {
-            VPUX_THROW("linker failed: {0}", linkCmd);
-        }
-
-        SmallString<128> objcopy(mvToolsDir);
-        sys::path::append(objcopy, params.mdkObjCopy);
-
-        SmallString<128> textPath(buildDirPath);
-        sys::path::append(textPath, "sk." + srcNameNoExt + "." + params.cpu + ".text");
-
-        {
-            auto objCopyCmd = formatv("{0} -O binary --only-section=.text {1} {2}", objcopy, elfPath, textPath).str();
-            std::cout << objCopyCmd << std::endl;
-            if (std::system(objCopyCmd.c_str())) {
-                VPUX_THROW("objcopy failed: {0}", objCopyCmd);
-            }
-        }
-
-        SmallString<128> dataPath(buildDirPath);
-        sys::path::append(dataPath, "sk." + srcNameNoExt + "." + params.cpu + ".data");
-
-        {
-            auto objCopyCmd = formatv("{0} -O binary --only-section=.arg.data {1} {2}", objcopy, elfPath, dataPath).str();
-
-            std::cout << objCopyCmd << std::endl;
-            if (std::system(objCopyCmd.c_str())) {
-                VPUX_THROW("objcopy failed: {0}", objCopyCmd);
-            }
-        }
-
-        readBinary(textPath, textBinary, 0x10);
-        readBinary(dataPath, dataBinary, 0x10);
-    }
+    readBinary(prebuiltKernelText, textBinary, 0x10);
+    readBinary(prebuiltKernelData, dataBinary, 0x10);
 }
 
 ActKernelDesc compileKernelForACTShave(const CompilationUnitDesc& unitDesc,
@@ -230,7 +95,7 @@ ActKernelDesc compileKernelForACTShave(const CompilationUnitDesc& unitDesc,
     // and then using objcopy teardown elf into text and data sections
     SmallVector<uint8_t, 128> textBinary;
     SmallVector<uint8_t, 128> dataBinary;
-    compileAndLinkSHAVE(params, unitDesc, textBinary, dataBinary);
+    getActShaveBinaries(params, unitDesc, textBinary, dataBinary);
 
     // lets pad textBinary by 1K array at the end with FC CC FC CC
     for (int i = 0; i != 512; i++) {
