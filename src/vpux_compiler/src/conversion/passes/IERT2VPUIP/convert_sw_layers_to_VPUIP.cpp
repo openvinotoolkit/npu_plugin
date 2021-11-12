@@ -160,7 +160,6 @@ private:
         auto innerModule = mainModuleBuilder.create<mlir::ModuleOp>(mlir::UnknownLoc::get(_ctx), StringRef("VPU.SW"));
 
         auto innerModuleBuilder = mlir::OpBuilder::atBlockBegin(innerModule.getBody(), &builderLog);
-
         llvm::SmallString<128> built_in_name{"builtin_"};
         auto nonNamespaceOpName = _origOp->getName().getStringRef().slice(
                 _origOp->getName().getDialectNamespace().size() + 1, mlir::StringRef::npos);

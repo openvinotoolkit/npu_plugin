@@ -30,5 +30,20 @@ void SW_KernelOp::build(mlir::OpBuilder& builder, mlir::OperationState& opState,
           mlir::ValueRange{});
 }
 
+mlir::LogicalResult SW_KernelOp::inferReturnTypes(mlir::MLIRContext* /*ctx*/, mlir::Optional<mlir::Location> /*optLoc*/,
+                                                  mlir::ValueRange operands, mlir::DictionaryAttr /*attrs*/,
+                                                  mlir::RegionRange /*regions*/,
+                                                  mlir::SmallVectorImpl<mlir::Type>& inferredTypes) {
+    auto firstOperandType = operands[0].getType();
+    for (auto&& operand : operands) {
+        VPUX_THROW_UNLESS(firstOperandType == operand.getType(),
+                          "operands of different type not yet suported: {0} vs {1}", firstOperandType,
+                          operand.getType());
+    }
+    inferredTypes.push_back(firstOperandType);
+
+    return mlir::success();
+}
+
 }  // namespace VPUIP
 }  // namespace vpux

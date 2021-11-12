@@ -2795,7 +2795,10 @@ def VPUIP_SW_KernelOp :
         static vpux::VPUIP::TaskType getTaskType() {
             return vpux::VPUIP::TaskType::ACTShave;
         }
-    }] # IERT_InferLayerReturnTypes<1>.impl;
+        static mlir::LogicalResult inferReturnTypes(mlir::MLIRContext* ctx, mlir::Optional<mlir::Location> loc,
+                                                    mlir::ValueRange operands, mlir::DictionaryAttr attrs, mlir::RegionRange regions,
+                                                    mlir::SmallVectorImpl<mlir::Type>& inferredTypes);
+    }];
 }
 
 
