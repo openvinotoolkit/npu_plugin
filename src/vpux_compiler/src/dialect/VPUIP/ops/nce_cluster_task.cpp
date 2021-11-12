@@ -520,12 +520,13 @@ MVCNN::PPELayerType getPPELayerType(VPUIP::PPELayerType ppeType) {
 VPUIP::MPEMode getMPEFrequentModeFromDPUTasks(mlir::Region& dpuTaskOps) {
     std::unordered_map<VPUIP::MPEMode, size_t> umap;
     for (auto dpuTaskOp : dpuTaskOps.getOps<VPUIP::DPUTaskOp>()) {
-        ++umap[dpuTaskOp.mpe_mode()];
-        if (umap.size() > 1) {
-            VPUX_THROW("Non-uniform DPU task MPE modes is not supported yet.");
-        }
+        return dpuTaskOp.mpe_mode();
+        // ++umap[dpuTaskOp.mpe_mode()];
+        // if (umap.size() > 1) {
+            // VPUX_THROW("Non-uniform DPU task MPE modes is not supported yet.");
+        // }
     }
-    return umap.begin()->first;
+    // return umap.begin()->first;
 }
 
 }  // namespace
