@@ -124,9 +124,8 @@ mlir::Value alignDepthWiseWeightsTensor(mlir::OpBuilder& builder, mlir::Location
     const int64_t alignment = depthwiseConvAlignment - remainder;
     const auto flatWeightChannelsCount = filtersPerInChan * KY * KX;
     const auto flatWeightShape = Shape{OC, flatWeightChannelsCount, 1, 1};
-    auto weightsConst = origFilter.getDefiningOp<Const::DeclareOp>();
     mlir::Value alignedFilter;
-    if (weightsConst != nullptr) {
+    if (auto weightsConst = origFilter.getDefiningOp<Const::DeclareOp>()) {
         alignedFilter = getAlignedConstWeights(builder, loc, weightsConst, flatWeightShape, alignment);
     } else {
         alignedFilter = getAlignedNonConstWeights(builder, loc, origFilter, flatWeightShape, alignment);

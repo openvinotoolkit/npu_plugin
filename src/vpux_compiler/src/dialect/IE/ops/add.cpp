@@ -43,8 +43,15 @@ mlir::LogicalResult ConvertAddToScale::matchAndRewrite(IE::AddOp biasOp, mlir::P
     static const auto H = Dim(2);
     static const auto W = Dim(3);
 
+    const auto lhsType = biasOp.input1().getType().cast<mlir::ShapedType>();
+    const auto outShapeRes = biasOp.output().getType().cast<mlir::ShapedType>();
+
+    bool lhsIsActivation = (lhsType == outShapeRes);
+    auto activationInput = lhsIsActivation ? biasOp.input1() : biasOp.input2();
+    auto biasInput = lhsIsActivation ? biasOp.input2() : biasOp.input1();
+
     auto mulOutShape = getShape(biasOp.output());
-    auto biasesShape = getShape(biasOp.input2());
+    auto biasesShape = getShape(biasInput);
 
     if (mulOutShape.size() != 4 || biasesShape.size() != 4) {
         return mlir::failure();
@@ -54,7 +61,6 @@ mlir::LogicalResult ConvertAddToScale::matchAndRewrite(IE::AddOp biasOp, mlir::P
     }
 
     // broadcast scaleshift for all channels
-    auto biasInput = biasOp.input2();
     if (biasesShape[C] != mulOutShape[C] && biasesShape[C] == 1) {
         auto input2Const = biasInput.getDefiningOp<Const::DeclareOp>();
         if (input2Const == nullptr) {
@@ -71,7 +77,7 @@ mlir::LogicalResult ConvertAddToScale::matchAndRewrite(IE::AddOp biasOp, mlir::P
         biasInput = dataConstOp.output();
     }
 
-    rewriter.replaceOpWithNewOp<IE::ScaleShiftOp>(biasOp, biasOp.getType(), biasOp.input1(), nullptr, biasInput);
+    rewriter.replaceOpWithNewOp<IE::ScaleShiftOp>(biasOp, biasOp.getType(), activationInput, nullptr, biasInput);
 
     return mlir::success();
 }

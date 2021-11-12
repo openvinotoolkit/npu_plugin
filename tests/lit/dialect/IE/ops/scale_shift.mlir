@@ -103,3 +103,31 @@ func @ConvertMultiplyToScale(%arg0: tensor<1x3x300x300xf32>) -> tensor<1x3x300x3
     // CHECK:       %[[VAL0:.*]] = IE.ScaleShift(%arg0, %[[WEIGHTS]]) {operand_segment_sizes = dense<[1, 1, 0]> : vector<3xi32>} : tensor<1x3x300x300xf32>, tensor<1x3x1x1xf32> -> tensor<1x3x300x300xf32>
     // CHECK:       return %[[VAL0]]
 }
+
+// -----
+
+// CHECK-LABEL: @ConvertAddToScaleReversedInputs
+func @ConvertAddToScaleReversedInputs(%arg0: tensor<1x3x1x1xf32>, %arg1: tensor<1x3x300x300xf32>) -> tensor<1x3x300x300xf32> {
+    %0 = IE.Add(%arg0, %arg1)
+        { auto_broadcast = "NUMPY" } :
+        tensor<1x3x1x1xf32>, tensor<1x3x300x300xf32> -> tensor<1x3x300x300xf32>
+
+    return %0 : tensor<1x3x300x300xf32>
+
+    // CHECK:       %[[VAL0:.*]] = IE.ScaleShift(%arg1, %arg0) {operand_segment_sizes = dense<[1, 0, 1]> : vector<3xi32>} : tensor<1x3x300x300xf32>, tensor<1x3x1x1xf32> -> tensor<1x3x300x300xf32>
+    // CHECK:       return %[[VAL0]]
+}
+
+// -----
+
+// CHECK-LABEL: @ConvertMultiplyToScaleReversedInputs
+func @ConvertMultiplyToScaleReversedInputs(%arg0: tensor<1x3x1x1xf32>, %arg1: tensor<1x3x300x300xf32>) -> tensor<1x3x300x300xf32> {
+    %0 = IE.Multiply(%arg0, %arg1)
+        { auto_broadcast = "NUMPY" } :
+        tensor<1x3x1x1xf32>, tensor<1x3x300x300xf32> -> tensor<1x3x300x300xf32>
+
+    return %0 : tensor<1x3x300x300xf32>
+
+    // CHECK:       %[[VAL0:.*]] = IE.ScaleShift(%arg1, %arg0) {operand_segment_sizes = dense<[1, 1, 0]> : vector<3xi32>} : tensor<1x3x300x300xf32>, tensor<1x3x1x1xf32> -> tensor<1x3x300x300xf32>
+    // CHECK:       return %[[VAL0]]
+}

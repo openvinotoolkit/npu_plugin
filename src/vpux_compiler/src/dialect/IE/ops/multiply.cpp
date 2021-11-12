@@ -43,13 +43,15 @@ mlir::LogicalResult ConvertMultiplyToScale::matchAndRewrite(IE::MultiplyOp mulOp
     static const auto H = Dim(2);
     static const auto W = Dim(3);
 
-    const auto input2 = mulOp.input2();
-    if (input2 == nullptr) {
-        return mlir::failure();
-    }
+    const auto lhsType = mulOp.input1().getType().cast<mlir::ShapedType>();
+    const auto outShapeRes = mulOp.output().getType().cast<mlir::ShapedType>();
+
+    bool lhsIsActivation = (lhsType == outShapeRes);
+    auto activationInput = lhsIsActivation ? mulOp.input1() : mulOp.input2();
+    auto weightsInput = lhsIsActivation ? mulOp.input2() : mulOp.input1();
 
     auto mulOutShape = getShape(mulOp.output());
-    auto weightsShape = getShape(input2);
+    auto weightsShape = getShape(weightsInput);
 
     if (mulOutShape.size() != 4 || weightsShape.size() != 4) {
         return mlir::failure();
@@ -62,10 +64,9 @@ mlir::LogicalResult ConvertMultiplyToScale::matchAndRewrite(IE::MultiplyOp mulOp
         return mlir::failure();
     }
 
-    auto weightsInput = mulOp.input2();
     // Broadcast scalar for all channels
     if (weightsShape[C] != mulOutShape[C] && weightsShape[C] == 1) {
-        auto input2Const = input2.getDefiningOp<Const::DeclareOp>();
+        auto input2Const = weightsInput.getDefiningOp<Const::DeclareOp>();
         if (input2Const == nullptr) {
             return mlir::failure();
         }
@@ -80,7 +81,7 @@ mlir::LogicalResult ConvertMultiplyToScale::matchAndRewrite(IE::MultiplyOp mulOp
         weightsInput = dataConstOp.output();
     }
 
-    rewriter.replaceOpWithNewOp<IE::ScaleShiftOp>(mulOp, mulOp.getType(), mulOp.input1(), weightsInput, nullptr);
+    rewriter.replaceOpWithNewOp<IE::ScaleShiftOp>(mulOp, mulOp.getType(), activationInput, weightsInput, nullptr);
     return mlir::success();
 }
 
