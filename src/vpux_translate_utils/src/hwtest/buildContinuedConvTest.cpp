@@ -256,7 +256,7 @@ void buildContinuedConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Module
 
     mlir::PassManager pm(builder.getContext(), mlir::OpPassManager::Nesting::Implicit);
     pm.addPass(vpux::VPUIP::createSetCompileParamsPass(vpux::VPUIP::ArchKind::MTL,
-                                                       vpux::VPUIP::CompilationMode::ReferenceHW, None, log));
+                                                       vpux::VPUIP::CompilationMode::DefaultHW, None, log));
 
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module)), "Compilation failed");
 

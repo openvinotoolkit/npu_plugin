@@ -28,8 +28,9 @@ void registerPipelines();
 // It uses simple SW implementation for layer operations without any optimizations.
 //
 
-void buildReferenceModePipeline(mlir::OpPassManager& pm, bool enableProfiling = false, Logger log = Logger::global());
-void buildHardwareModePipeline(mlir::OpPassManager& pm, bool enableProfiling = false, Logger log = Logger::global(),
-                               StringRef pipelineConfig = {});
+void buildReferenceSWModePipeline(mlir::OpPassManager& pm, bool enableProfiling = false, Logger log = Logger::global());
+void buildReferenceHWModePipeline(mlir::OpPassManager& pm, bool enableProfiling = false, Logger log = Logger::global());
+void buildDefaultHWModePipeline(mlir::OpPassManager& pm, bool enableProfiling = false, Logger log = Logger::global(),
+                                StringRef pipelineConfig = {});
 
 }  // namespace vpux

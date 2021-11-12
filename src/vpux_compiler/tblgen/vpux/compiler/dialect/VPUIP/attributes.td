@@ -321,7 +321,8 @@ def VPUIP_CompilationMode  :
             "Compilation Mode",
             [
                 StrEnumAttrCase<"ReferenceSW">,
-                StrEnumAttrCase<"ReferenceHW">
+                StrEnumAttrCase<"ReferenceHW">,
+                StrEnumAttrCase<"DefaultHW">
             ]
         > {
     let cppNamespace = "vpux::VPUIP";

@@ -160,7 +160,7 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
 
     mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
     pm.addPass(vpux::VPUIP::createSetCompileParamsPass(vpux::VPUIP::ArchKind::MTL,
-                                                       vpux::VPUIP::CompilationMode::ReferenceHW, None, log));
+                                                       vpux::VPUIP::CompilationMode::DefaultHW, None, log));
     if (conv.compress) {
         pm.addPass(VPUIP::createCompressWeightsPass(log));
     }

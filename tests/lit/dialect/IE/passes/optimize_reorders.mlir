@@ -81,7 +81,7 @@ func @main(%arg0: tensor<1x3x30x30xf16, {order = #NHWC}>) -> tensor<1x3x15x13xf1
 !qElemType2 = type !quant.uniform<u8<0:254>:f16:1, {8.7179349163385824E-4:127,5.2096149114173233E-4:127,0.0013264333169291339:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127}>
 !qElemType3 = type !quant.uniform<u8<0:254>:f16:1, {5.0750492125984249E-4:127, 0.0013264333169291339:127,9.8713551919291337E-4:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127,1.000000e+00:127}>
 
-module @ReorderWithQuantExpandAndSlice attributes {VPUIP.arch = "KMB", VPUIP.compilationMode = "ReferenceHW"} {
+module @ReorderWithQuantExpandAndSlice attributes {VPUIP.arch = "KMB", VPUIP.compilationMode = "DefaultHW"} {
 
 // CHECK: func @main([[ARG0:%arg[0-9]+]]: tensor<1x3x30x30x!qElemType0>)
 func @main(%arg0: tensor<1x3x30x30x!qElemType0>) -> tensor<1x3x15x13x!qElemType1> {
@@ -309,7 +309,7 @@ func @main(%arg0: tensor<1x3x30x30xf16, {order = #NHWC}>) -> tensor<1x3x30x30xf1
 !qElemType = type !quant.uniform<u8:f16, 1.1534313725490195:128>
 
 // CHECK-LABEL: @ReorderWithQuantizeCast
-module @ReorderWithQuantizeCast attributes {VPUIP.arch = "KMB", VPUIP.compilationMode = "ReferenceHW"} {
+module @ReorderWithQuantizeCast attributes {VPUIP.arch = "KMB", VPUIP.compilationMode = "DefaultHW"} {
 
 // CHECK: func @main([[ARG0:%.+]]: tensor<1x3x30x30xui8, {order = #NHWC}>)
 func @main(%arg0: tensor<1x3x30x30xui8, {order = #NHWC}>) -> tensor<1x3x30x30x!qElemType, {order = #NHWC}> {

@@ -14,7 +14,7 @@
 
 !qtype = type !quant.uniform<u8:f32, 1.000000e+00>
 
-module @dual_tile attributes {VPUIP.arch = "MTL", VPUIP.compilationMode = "ReferenceHW"} {
+module @dual_tile attributes {VPUIP.arch = "MTL", VPUIP.compilationMode = "DefaultHW"} {
   VPUIP.Graph
     options : "NONE"
     version : {

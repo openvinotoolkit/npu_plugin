@@ -125,8 +125,8 @@ VPUIP::CompilationMode vpux::VPUIP::getCompilationMode(mlir::Operation* op) {
         return attr.cast<VPUIP::CompilationModeAttr>().getValue();
     }
 
-    // Use ReferenceHW as a default mode
-    return VPUIP::CompilationMode::ReferenceHW;
+    // Use DefaultHW as a default mode
+    return VPUIP::CompilationMode::DefaultHW;
 }
 
 //

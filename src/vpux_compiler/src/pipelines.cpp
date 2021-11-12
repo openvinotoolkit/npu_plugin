@@ -41,12 +41,33 @@ using BoolOption = mlir::detail::PassOptions::Option<bool>;
 struct MyPipelineOptions : mlir::PassPipelineOptions<MyPipelineOptions> {
     StrOption archOpt{*this, "vpu-arch", ::llvm::cl::desc("VPU architecture to compile for"), ::llvm::cl::init("KMB")};
     IntOption numberOfDPUGroupsOpt{*this, "num-of-dpu-groups", ::llvm::cl::desc("Number of DPU groups")};
-    BoolOption enableLowPrecisionBuilding{*this, "low-precision",
-                                          ::llvm::cl::desc("Enable low-precision pipeline building")};
-
-    bool isEnableLowPrecisionBuilding() {
-        return enableLowPrecisionBuilding.hasValue() ? enableLowPrecisionBuilding.getValue() : true;
-    }
+    BoolOption enableLowPrecisionBuilding{
+            *this, "low-precision", ::llvm::cl::desc("Enable low-precision pipeline building"), ::llvm::cl::init(true)};
+    BoolOption enableConvertFCToConv{*this, "convert-fc-to-conv", ::llvm::cl::desc("Enable convert-fc-to-conv pass"),
+                                     ::llvm::cl::init(true)};
+    BoolOption enableConvertAvgPoolToDWConv{*this, "convert-avg-pool-to-dw-conv",
+                                            ::llvm::cl::desc("Enable convert-avg-pool-to-dw-conv pass"),
+                                            ::llvm::cl::init(true)};
+    BoolOption enableConvertScaleShiftDW{*this, "convert-scale-shift-depthwise",
+                                         ::llvm::cl::desc("Enable convert-scale-shift-depthwise pass"),
+                                         ::llvm::cl::init(true)};
+    BoolOption enableHandleAsymetricStrides{*this, "handle-asymmetric-strides",
+                                            ::llvm::cl::desc("Enable handle-asymmetric-strides pass"),
+                                            ::llvm::cl::init(true)};
+    BoolOption enableExpandActivationChannels{*this, "expand-activation-channels",
+                                              ::llvm::cl::desc("Enable expand-activation-channels pass"),
+                                              ::llvm::cl::init(true)};
+    BoolOption enableOptimizeCopies{*this, "optimize-copies", ::llvm::cl::desc("Enable optimize-copies pass"),
+                                    ::llvm::cl::init(true)};
+    BoolOption enableOptimizeAsyncDeps{*this, "optimize-async-deps",
+                                       ::llvm::cl::desc("Enable optimize-async-deps pass"), ::llvm::cl::init(true)};
+    BoolOption enableUseUserLayout{*this, "use-user-layout", ::llvm::cl::desc("Enable use-user-layout pass"),
+                                   ::llvm::cl::init(true)};
+    BoolOption enableOptimizeReorders{*this, "optimize-reorders", ::llvm::cl::desc("Enable optimize-reorders pass"),
+                                      ::llvm::cl::init(true)};
+    BoolOption enableGroupAsyncExecuteOps{*this, "group-async-execute-ops",
+                                          ::llvm::cl::desc("Enable group-async-execute-ops pass"),
+                                          ::llvm::cl::init(true)};
 };
 
 template <VPUIP::PhysicalMemory KIND>
@@ -54,12 +75,14 @@ mlir::Attribute getMemSpace(mlir::MLIRContext* ctx, StringRef) {
     return VPUIP::PhysicalMemoryAttr::get(ctx, KIND);
 }
 
-void buildIECommonPipeline(mlir::OpPassManager& pm, Logger log) {
+void buildIECommonPipeline(mlir::OpPassManager& pm, Logger log, const MyPipelineOptions& pipelineOptions = {}) {
     const auto grc = getDefaultGreedyRewriteConfig();
 
-    pm.addPass(IE::createUseUserLayout(log));
+    if (pipelineOptions.enableUseUserLayout.getValue())
+        pm.addPass(IE::createUseUserLayout(log));
     pm.addPass(IE::createAdjustLayoutsPass(log));
-    pm.addPass(IE::createOptimizeReordersPass(log));
+    if (pipelineOptions.enableOptimizeReorders.getValue())
+        pm.addPass(IE::createOptimizeReordersPass(log));
     pm.addPass(IE::createConvertToMemPermutePass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
 }
@@ -96,10 +119,10 @@ void addConfigPass(mlir::OpPassManager& pm, const MyPipelineOptions& config, VPU
 }  // namespace
 
 //
-// ReferenceMode
+// ReferenceSWMode
 //
 
-void vpux::buildReferenceModePipeline(mlir::OpPassManager& pm, bool enableProfiling, Logger log) {
+void vpux::buildReferenceSWModePipeline(mlir::OpPassManager& pm, bool enableProfiling, Logger log) {
     const auto grc = getDefaultGreedyRewriteConfig();
 
     pm.addPass(mlir::createCanonicalizerPass(grc));
@@ -138,12 +161,10 @@ void vpux::buildReferenceModePipeline(mlir::OpPassManager& pm, bool enableProfil
 }
 
 //
-// HardwareMode
+// ReferenceHWMode
 //
 
-void vpux::buildHardwareModePipeline(mlir::OpPassManager& pm, bool enableProfiling, Logger log,
-                                     StringRef pipelineConfig) {
-    auto pipelineOptions = MyPipelineOptions::createFromString(pipelineConfig);
+void vpux::buildReferenceHWModePipeline(mlir::OpPassManager& pm, bool enableProfiling, Logger log) {
     const auto grc = getDefaultGreedyRewriteConfig();
     pm.addPass(mlir::createCanonicalizerPass(grc));
 
@@ -158,8 +179,7 @@ void vpux::buildHardwareModePipeline(mlir::OpPassManager& pm, bool enableProfili
     IE::buildAdjustForVPUPipeline(pm, log);
     pm.addPass(IE::createHandleLargeStridesPass(log));
     pm.addPass(IE::createHandleAsymmetricStridesPass(log));
-    if (pipelineOptions->isEnableLowPrecisionBuilding())
-        IE::buildLowPrecisionPipeline(pm, log);
+    IE::buildLowPrecisionPipeline(pm, log);
 
     pm.addPass(IE::createUpstreamSlicePass(log));
 
@@ -205,21 +225,104 @@ void vpux::buildHardwareModePipeline(mlir::OpPassManager& pm, bool enableProfili
 }
 
 //
+// DefaultHWMode
+//
+
+void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, bool enableProfiling, Logger log,
+                                      StringRef pipelineConfig) {
+    auto pipelineOptions = MyPipelineOptions::createFromString(pipelineConfig);
+    const auto grc = getDefaultGreedyRewriteConfig();
+    pm.addPass(mlir::createCanonicalizerPass(grc));
+
+    // IE Dialect level
+    IE::buildAdjustPrecisionPipeline(pm, log);
+
+    if (pipelineOptions->enableConvertFCToConv.getValue())
+        pm.addPass(IE::createConvertFCToConvPass(log));
+    if (pipelineOptions->enableConvertAvgPoolToDWConv.getValue())
+        pm.addPass(IE::createConvertAvgPoolToDWConvPass(log));
+    if (pipelineOptions->enableConvertScaleShiftDW.getValue())
+        pm.addPass(IE::createConvertScaleShiftToDWPass(log));
+    // Canonicalize group convolution if necessary.
+    pm.addPass(mlir::createCanonicalizerPass(grc));
+
+    IE::buildAdjustForVPUPipeline(pm, log);
+    pm.addPass(IE::createHandleLargeStridesPass(log));
+    if (pipelineOptions->enableHandleAsymetricStrides.getValue())
+        pm.addPass(IE::createHandleAsymmetricStridesPass(log));
+    if (pipelineOptions->enableLowPrecisionBuilding.getValue())
+        IE::buildLowPrecisionPipeline(pm, log);
+
+    pm.addPass(IE::createUpstreamSlicePass(log));
+
+    if (pipelineOptions->enableExpandActivationChannels.getValue()) {
+        pm.addPass(IE::createExpandActivationChannelsPass(log));
+        pm.addPass(mlir::createCanonicalizerPass(grc));
+    }
+
+    buildIECommonPipeline(pm, log, *pipelineOptions);
+
+    pm.addPass(IE::createIsolatedTilingPass(log));
+    pm.addPass(mlir::createCanonicalizerPass(grc));
+
+    // Lower IE->IERT
+    buildLowerIE2IERTPipeline(pm, log);
+
+    if (enableProfiling) {
+        pm.addPass(IERT::createTimestampProfilingPass(getMemSpace<VPUIP::PhysicalMemory::CMX_NN>, log));
+    }
+
+    // Partially lower IERT->VPUIP (NCE Operations only)
+    pm.addPass(createConvertToNCEOpsPass(log));
+    pm.addPass(mlir::createCanonicalizerPass(grc));
+
+    // IERT Dialect level (cont.)
+    if (pipelineOptions->enableOptimizeCopies.getValue()) {
+        pm.addPass(IERT::createOptimizeCopiesPass(log));
+        pm.addPass(IERT::createCopyOpHoistingPass(log));
+    }
+    IERT::buildAsyncSchedulingPipeline(pm, log);
+    pm.addPass(IERT::createSetInternalMemorySpacePass(getMemSpace<VPUIP::PhysicalMemory::DDR>, log));
+    pm.addPass(IERT::createFeasibleAllocationPass(getMemSpace<VPUIP::PhysicalMemory::CMX_NN>, log));
+    if (pipelineOptions->enableGroupAsyncExecuteOps.getValue())
+        pm.addPass(IERT::createGroupAsyncExecuteOpsPass(log));
+    pm.addPass(IERT::createStaticAllocationPass(getMemSpace<VPUIP::PhysicalMemory::DDR>, log));
+    if (pipelineOptions->enableOptimizeAsyncDeps.getValue())
+        pm.addPass(IERT::createOptimizeAsyncDepsPass(log));
+
+    // Handle WeightsTable, which requires statically allocated memory
+    pm.addPass(VPUIP::createConvertWeightsTableOp2ConstPass(log));
+
+    // Finally lower remaining IERT->VPUIP (SW mode)
+    buildLowerIERT2VPUIPPipeline(pm, log);
+
+    // VPUIP Dialect level
+    pm.addPass(VPUIP::createAssignPhysicalBarriersPass(log));
+    pm.addPass(VPUIP::createBarrierSimulationPass(log));
+    pm.addPass(VPUIP::createDumpStatisticsOfTaskOpsPass(log));
+}
+
+//
 // registerPipelines
 //
 
 void vpux::registerPipelines() {
     mlir::PassPipelineRegistration<MyPipelineOptions>(
-            "reference-mode", "Compile IE Network in Reference mode (SW only execution)",
+            "reference-sw-mode", "Compile IE Network in Reference Software mode (SW only execution)",
             [](mlir::OpPassManager& pm, const MyPipelineOptions& config) {
                 addConfigPass(pm, config, VPUIP::CompilationMode::ReferenceSW);
-                buildReferenceModePipeline(pm);
+                buildReferenceSWModePipeline(pm);
             });
-
     mlir::PassPipelineRegistration<MyPipelineOptions>(
-            "hardware-mode", "Compile IE Network in Hardware mode (HW and SW execution)",
+            "reference-hw-mode", "Compile IE Network in Reference Hardware mode (HW and SW execution)",
             [](mlir::OpPassManager& pm, const MyPipelineOptions& config) {
                 addConfigPass(pm, config, VPUIP::CompilationMode::ReferenceHW);
-                buildHardwareModePipeline(pm);
+                buildReferenceHWModePipeline(pm);
+            });
+    mlir::PassPipelineRegistration<MyPipelineOptions>(
+            "default-hw-mode", "Compile IE Network in Default Hardware mode (HW and SW execution)",
+            [](mlir::OpPassManager& pm, const MyPipelineOptions& config) {
+                addConfigPass(pm, config, VPUIP::CompilationMode::DefaultHW);
+                buildDefaultHWModePipeline(pm);
             });
 }

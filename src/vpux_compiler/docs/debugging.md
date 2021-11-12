@@ -23,7 +23,7 @@ For all available passes please check `vpux-opt --help` output.
 
 Compile network with --mlir-print-debuginfo flag:
 `./vpux-translate --import-IE <xml path> --mlir-print-debuginfo -o net.mlir`
-`./vpux-opt --set-compile-params="vpu-arch=VPU3400_A0" --reference-mode net.mlir --mlir-print-debuginfo -o net_out.mlir`
+`./vpux-opt --set-compile-params="vpu-arch=VPU3400_A0" --reference-sw-mode net.mlir --mlir-print-debuginfo -o net_out.mlir`
 To print names in the code use:
 ```cpp
 if (const auto loc = op->getLoc().dyn_cast<mlir::NameLoc>()) {

@@ -1,4 +1,4 @@
-// RUN: vpux-opt --set-compile-params="vpu-arch=KMB" %s | FileCheck %s
+// RUN: vpux-opt --set-compile-params="vpu-arch=KMB compilation-mode=ReferenceSW" %s | FileCheck %s
 
 // CHECK: module @test attributes {VPUIP.arch = "KMB", VPUIP.compilationMode = "ReferenceSW"}
 module @test {

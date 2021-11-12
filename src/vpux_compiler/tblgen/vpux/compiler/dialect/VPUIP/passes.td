@@ -38,8 +38,8 @@ def SetCompileParams : PassBase<"set-compile-params", "vpux::ModulePass"> {
         >,
         Option<
             "compilationModeOpt", "compilation-mode",
-            "std::string", [{"ReferenceSW"}],
-            "Set compilation mode as reference (ReferenceSW) or hardware (ReferenceHW)"
+            "std::string", [{"DefaultHW"}],
+            "Set compilation mode as reference (ReferenceSW) or hardware (ReferenceHW or DefaultHW)"
         >,
         Option<
             "numberOfDPUGroupsOpt", "num-of-dpu-groups",
