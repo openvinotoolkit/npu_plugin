@@ -124,6 +124,7 @@ private:
         elf::writer::Relocation* addRelocation(elf::writer::RelocationSection* relocationSection,
                                                const elf::writer::Symbol* symbol, elf::Elf_Word type,
                                                elf::Elf_Sxword addend, elf::Elf64_Addr offset);
+        elf::writer::RelocationSection* getRelocationSection(const elf::writer::SymbolSection* symbolSection);
         elf::writer::RelocationSection* getRelocationSection(const elf::writer::SymbolSection* symbolSection,
                                                              VPUIP::MemoryLocation memoryLocation);
         elf::writer::RelocationSection* createRelocationSection(const elf::writer::SymbolSection* symbolSection);

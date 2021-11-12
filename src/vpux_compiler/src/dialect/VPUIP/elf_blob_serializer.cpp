@@ -55,7 +55,6 @@ VPUIP::ELFBlobSerializer::ELFBlobSerializer() {
 void VPUIP::ELFBlobSerializer::setDDRScratch(size_t ddrScratch) {
     m_ddrScratch = m_writer.addEmptySection();
     m_ddrScratch->setName(".ddr.Scratch");
-    m_ddrScratch->setType(VPU_SHT_DDR);
     m_ddrScratch->setFlags(SHF_ALLOC);
     m_ddrScratch->setSize(ddrScratch);
 
@@ -378,31 +377,10 @@ void VPUIP::ELFBlobSerializer::finalizeDPU() {
                                                      barriersOffset + offsetof(BarrierConfig, consumer_mask));
         }
 
-        const auto reduceWaitMaskTo8bit = [](BarrierConfig& barrierConfig) {
-            barrierConfig.group = 0;
-            barrierConfig.mask = 0;
-
-            for (uint64_t mask = barrierConfig.consumer_mask, group = 1; mask > 0; mask >>= 8, ++group) {
-                if (mask & 0xff) {
-                    // Store 8-bit barrier group (1-based) and mask to be used by ShaveNN
-
-                    if (barrierConfig.group == 0) {
-                        barrierConfig.group = static_cast<unsigned char>(group);
-                        barrierConfig.mask = mask & 0xff;
-
-                        // Keep checking the wait_mask_ for a second match
-                    } else {
-                        // When multiple groups match, GPIO cannot be used
-                        barrierConfig.group = 0;
-                        barrierConfig.mask = 0;
-                        return;
-                    }
-                }
-            }
-        };
-
-        // TODO: works only for 0-th tile
-        reduceWaitMaskTo8bit(dpuTask.dpuInvariant.dpuInvariantWrapper.invariant.barriers);
+        // TODO: this is purely an optimization so it should work w/o it
+        dpuTask.dpuInvariant.dpuInvariantWrapper.invariant.barriers.group = 0;
+        dpuTask.dpuInvariant.dpuInvariantWrapper.invariant.barriers.mask = 0;
+        // reduce_wait_mask_to_8bit(dpuTask.dpuInvariant.dpuInvariantWrapper.invariant.barriers);
 
         for (auto& variant : m_dpuTasks[i].dpuVariants) {
             variant.dpuVariantWrapper.variant.invariant_addr = variant.dpuVariantWrapper.invariant_index;
@@ -663,7 +641,7 @@ void VPUIP::ELFBlobSerializer::RelocationManager::addRelocation(const TensorPatc
 void VPUIP::ELFBlobSerializer::RelocationManager::addRelocation(const writer::SymbolSection* symbolSection,
                                                                 const writer::Symbol* symbol, Elf_Word type,
                                                                 Elf_Sxword addend, Elf64_Addr sectionOffset) {
-    addRelocation(m_symbolTableToRelocation.at(symbolSection), symbol, type, addend, sectionOffset);
+    addRelocation(getRelocationSection(symbolSection), symbol, type, addend, sectionOffset);
 }
 
 void VPUIP::ELFBlobSerializer::RelocationManager::addRelocation(Elf_Word specialSymbol, Elf_Word type,
@@ -689,20 +667,28 @@ writer::Relocation* VPUIP::ELFBlobSerializer::RelocationManager::addRelocation(
 }
 
 writer::RelocationSection* VPUIP::ELFBlobSerializer::RelocationManager::getRelocationSection(
-        const elf::writer::SymbolSection* symbolSection, VPUIP::MemoryLocation memoryLocation) {
+        const elf::writer::SymbolSection* symbolSection) {
     if (m_symbolTableToRelocation.find(symbolSection) == m_symbolTableToRelocation.end()) {
         auto relocationTable = createRelocationSection(symbolSection);
-        if (memoryLocation == VPUIP::MemoryLocation::ProgrammableInput) {
-            relocationTable->maskFlags(VPU_SHF_JIT);
-            relocationTable->maskFlags(VPU_SHF_USERINPUT);
-        } else if (memoryLocation == VPUIP::MemoryLocation::ProgrammableOutput) {
-            relocationTable->maskFlags(VPU_SHF_JIT);
-            relocationTable->maskFlags(VPU_SHF_USEROUTPUT);
-        }
         m_symbolTableToRelocation[symbolSection] = relocationTable;
     }
 
     return m_symbolTableToRelocation.at(symbolSection);
+}
+
+writer::RelocationSection* VPUIP::ELFBlobSerializer::RelocationManager::getRelocationSection(
+        const elf::writer::SymbolSection* symbolSection, VPUIP::MemoryLocation memoryLocation) {
+    auto relocationTable = getRelocationSection(symbolSection);
+
+    if (memoryLocation == VPUIP::MemoryLocation::ProgrammableInput) {
+        relocationTable->maskFlags(VPU_SHF_JIT);
+        relocationTable->maskFlags(VPU_SHF_USERINPUT);
+    } else if (memoryLocation == VPUIP::MemoryLocation::ProgrammableOutput) {
+        relocationTable->maskFlags(VPU_SHF_JIT);
+        relocationTable->maskFlags(VPU_SHF_USEROUTPUT);
+    }
+
+    return relocationTable;
 }
 
 writer::RelocationSection* VPUIP::ELFBlobSerializer::RelocationManager::createRelocationSection(
