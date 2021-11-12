@@ -50,10 +50,36 @@ private:
     mlir::async::ExecuteOp insertSpillReadCopyOp(mlir::async::ExecuteOp opThatWasSpilled,
                                                  mlir::async::ExecuteOp spillWriteExecOp,
                                                  mlir::async::ExecuteOp insertAfterExecOp, size_t allocatedAddress);
-    void updateSpillWriteReadUsers(mlir::async::ExecuteOp opThatWasSpilled, mlir::Value bufferToSpill,
-                                   mlir::async::ExecuteOp spillWriteExecOp, mlir::async::ExecuteOp spillReadExecOp);
-    mlir::Value getAsyncResultForBuffer(mlir::Value buffer);
+    void updateSpillWriteReadUsers(mlir::Value bufferToSpill, mlir::async::ExecuteOp spillWriteExecOp,
+                                   mlir::async::ExecuteOp spillReadExecOp);
+    mlir::Value getAsyncResultForBuffer(mlir::async::ExecuteOp opThatWasSpilled, mlir::Value buffer);
     mlir::Value getBufferFromAsyncResult(mlir::Value asyncResult);
+
+    // Below nested class is inteded to handle data dependency updates
+    // for users of spilled buffers
+    class SpillUsersUpdate {
+    public:
+        explicit SpillUsersUpdate(FeasibleMemorySchedulerSpilling* spillingObj, mlir::async::ExecuteOp opThatWasSpilled,
+                                  mlir::async::ExecuteOp spillReadExecOp, mlir::Value bufferToSpill)
+                : _spillingParentObj(spillingObj),
+                  _opThatWasSpilled(opThatWasSpilled),
+                  _spillReadExecOp(spillReadExecOp),
+                  _bufferToSpill(bufferToSpill) {
+        }
+        void resolveSpillBufferUsage();
+
+    private:
+        mlir::Operation* getViewOpForMasterBuffer();
+        llvm::SmallVector<mlir::async::ExecuteOp> getUsersOfSpilledOpThatNeedUpdate(mlir::Value opThatWasSpilledResult);
+        unsigned int getOperandIndexForSpillResultUser(mlir::async::ExecuteOp spillResultUser);
+        void updateSpillResultUsers(mlir::Value oldResult, mlir::Value newResult);
+        void updateSpillBufferUsers(mlir::Value oldBuffer, mlir::Value newBuffer);
+
+        FeasibleMemorySchedulerSpilling* _spillingParentObj;
+        mlir::async::ExecuteOp _opThatWasSpilled;
+        mlir::async::ExecuteOp _spillReadExecOp;
+        mlir::Value _bufferToSpill;
+    };
 
 private:
     Logger _log;
