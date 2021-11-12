@@ -75,6 +75,15 @@ AddressType LinearScanHandler::getAddress(mlir::Value val) const {
     return it->second;
 }
 
+void LinearScanHandler::setAddress(mlir::Value val, AddressType address) {
+    const auto it = _valOffsets.find(val);
+    if (it == _valOffsets.end()) {
+        _valOffsets.insert({val, address});
+    } else {
+        it->second = address;
+    }
+}
+
 void LinearScanHandler::allocated(mlir::Value val, AddressType addr) {
     VPUX_THROW_UNLESS(addr != InvalidAddress, "Trying to assign invalid address");
     VPUX_THROW_UNLESS(_valOffsets.count(val) == 0, "Value '{0}' was already allocated", val);
@@ -83,6 +92,16 @@ void LinearScanHandler::allocated(mlir::Value val, AddressType addr) {
 
     const auto endAddr = alignVal<int64_t>(addr + getSize(val), getAlignment(val));
     _maxAllocatedSize = Byte(std::max(_maxAllocatedSize.count(), endAddr));
+}
+
+void LinearScanHandler::deallocate(mlir::Value val) {
+    VPUX_THROW_UNLESS(_valOffsets.count(val) > 0, "Value '{0}' was not allocated", val);
+
+    _valOffsets.erase(val);
+}
+
+mlir::DenseSet<mlir::Value> LinearScanHandler::getAliveValues() {
+    return _aliveValues;
 }
 
 void LinearScanHandler::freed(mlir::Value val) {

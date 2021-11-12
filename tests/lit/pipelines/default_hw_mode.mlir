@@ -123,86 +123,72 @@ module @KmbQuantizedConv {
 
         // CHECK-DAG:   %[[CST:.*]] = const.Declare memref<48x16x3x3x!qElemType0, #NHWC>
         // CHECK-DAG:   %[[CST0:.*]] = const.Declare memref<48x1x1x4xsi32>
-       
-        // CHECK:       [[VAR1:%.+]] = VPUIP.DeclareTensor "VPU_DDR_Heap" [0] <23104>
-        // CHECK-NEXT:  [[VAR2:%.+]] = VPUIP.DeclareTensor "VPU_DDR_Heap" [0] <146112>
-        // CHECK-NEXT:  [[VAR3:%.+]] = VPUIP.DeclareTensor "VPU_DDR_Heap" [0] <0>
+
+        // CHECK:       [[VAR1:%.+]] = VPUIP.DeclareTensor "VPU_DDR_Heap" [0] <0>
+        // CHECK-NEXT:  [[VAR2:%.+]] = VPUIP.DeclareTensor "VPU_DDR_Heap" [0] <23104>
+        // CHECK-NEXT:  [[VAR3:%.+]] = VPUIP.DeclareTensor "VPU_DDR_Heap" [0] <146112>
         // CHECK-NEXT:  [[VAR4:%.+]] = VPUIP.DeclareTensor "VPU_CMX_NN" [0] <0>
         // CHECK-NEXT:  [[VAR5:%.+]] = VPUIP.DeclareTensor "VPU_CMX_NN" [0] <123008>
-        // CHECK-NEXT:  [[VAR6:%.+]] = VPUIP.DeclareTensor "VPU_DDR_Heap" [0] <0>
-        // CHECK-NEXT:  [[VAR7:%.+]] = VPUIP.DeclareTensor "VPU_CMX_NN" [0] <172800>
-        // CHECK-NEXT:  [[VAR8:%.+]] = VPUIP.DeclareTensor "VPU_CMX_NN" [0] <234304>
-        // CHECK-NEXT:  [[VAR9:%.+]] = VPUIP.DeclareTensor "VPU_CMX_NN" [0] <0>
-        // CHECK-NEXT:  [[VAR10:%.+]] = VPUIP.DeclareTensor "VPU_CMX_NN" [0] <241216>
-        // CHECK-NEXT:  [[VAR11:%.+]] = VPUIP.DeclareTensor "VPU_DDR_Heap" [0] <0>
-        // CHECK-NEXT:  [[VAR12:%.+]] = VPUIP.DeclareTensor "VPU_CMX_NN" [0] <345600>
-        // CHECK-NEXT:  [[VAR13:%.+]] = VPUIP.DeclareTensor "VPU_CMX_NN" [0] <0>
-        // CHECK-NEXT:  [[VAR14:%.+]] = VPUIP.DeclareTensor "VPU_DDR_Heap" [0] <345600>
-        // CHECK:       [[VAR15:%.+]] = VPUIP.DeclareTensor "VPU_DDR_Heap" [0] <691200>
-        // CHECK:       [[VAR36:%.+]] = VPUIP.ConfigureBarrier {virtualId = 13 : i64}<13>
+        // CHECK-NEXT:  [[VAR6:%.+]] = VPUIP.DeclareTensor "VPU_CMX_NN" [0] <0>
+        // CHECK-NEXT:  [[VAR7:%.+]] = VPUIP.DeclareTensor "VPU_CMX_NN" [0] <184512>
+        // CHECK-NEXT:  [[VAR8:%.+]] = VPUIP.DeclareTensor "VPU_CMX_NN" [0] <6912>
+        // CHECK-NEXT:  [[VAR9:%.+]] = VPUIP.DeclareTensor "VPU_DDR_Heap" [0] <0>
+        // CHECK-NEXT:  [[VAR10:%.+]] = VPUIP.DeclareTensor "VPU_CMX_NN" [0] <357312>
+        // CHECK-NEXT:  [[VAR11:%.+]] = VPUIP.DeclareTensor "VPU_DDR_Heap" [0] <345600>
+        // CHECK-NEXT:  [[VAR12:%.+]] = VPUIP.DeclareTensor "VPU_DDR_Heap" [0] <691200>
+        // CHECK:       [[VAR13:%.+]] = VPUIP.ConfigureBarrier {virtualId = 0 : i64}<0>
+        // CHECK:       [[VAR30:%.+]] = VPUIP.ConfigureBarrier {virtualId = 10 : i64}<10>
 
-        // CHECK:       [[VAR44:%.+]] = VPUIP.PermuteUPA
-        // CHECK-SAME:                  inputs([[VAR1]] : memref<1x16x62x62xf16, "DDR">)
-        // CHECK-SAME:                  outputs([[VAR2]] : memref<1x16x62x62xf16, #NHWC, "DDR">)
+        // CHECK:       [[VAR38:%.+]] = VPUIP.PermuteUPA
+        // CHECK-SAME:                  inputs([[VAR2]] : memref<1x16x62x62xf16, "DDR">)
+        // CHECK-SAME:                  outputs([[VAR3]] : memref<1x16x62x62xf16, #NHWC, "DDR">)
 
-        // CHECK-NEXT:  [[VAR45:%.+]] = VPUIP.NNDMA
-        // CHECK-SAME:                  inputs([[VAR44]] : memref<1x16x62x62xf16, #NHWC, "DDR">)
+        // CHECK-NEXT:  [[VAR39:%.+]] = VPUIP.NNDMA
+        // CHECK-SAME:                  inputs([[VAR38]] : memref<1x16x62x62xf16, #NHWC, "DDR">)
         // CHECK-SAME:                  outputs([[VAR4]] : memref<1x16x62x62xf16, #NHWC, "CMX_NN">)
 
-        // CHECK-NEXT:  [[VAR46:%.+]] = VPUIP.NCEClusterTask 
-        // CHECK-SAME:                  input([[VAR45]] : memref<1x16x62x62xf16, #NHWC, "CMX_NN">)
-        // CHECK-SAME:                  weights([[VAR45]] : memref<1x16x62x62xf16, #NHWC, "CMX_NN">)
+        // CHECK-NEXT:  [[VAR40:%.+]] = VPUIP.NCEClusterTask 
+        // CHECK-SAME:                  input([[VAR39]] : memref<1x16x62x62xf16, #NHWC, "CMX_NN">)
+        // CHECK-SAME:                  weights([[VAR39]] : memref<1x16x62x62xf16, #NHWC, "CMX_NN">)
         // CHECK-SAME:                  outputs([[VAR5]] : memref<1x16x62x62x!qElemType1, #NHWC, "CMX_NN">)
         // CHECK:                       PPETask "AND"
 
-        // CHECK:       [[VAR47:%.+]] = VPUIP.NNDMA
-        // CHECK-SAME:                  inputs([[VAR46]] : memref<1x16x62x62x!qElemType1, #NHWC, "CMX_NN">)
-        // CHECK-SAME:                  outputs([[VAR3]] : memref<1x16x62x62x!qElemType1, #NHWC, "DDR">)
-        // CHECK-NEXT:  [[VAR48:%.+]] = VPUIP.NNDMA
-        // CHECK-SAME:                  inputs([[VAR47]] : memref<1x16x62x62x!qElemType1, #NHWC, "DDR">)
-        // CHECK-SAME:                  outputs([[VAR7]] : memref<1x16x62x62x!qElemType1, #NHWC, "CMX_NN">)
-        // CHECK-NEXT:  [[VAR49:%.+]] = VPUIP.NNDMA
+        // CHECK:       [[VAR41:%.+]] = VPUIP.NNDMA
         // CHECK-SAME:                  inputs(%[[CST0]] : memref<48x1x1x4xsi32>)
-        // CHECK-SAME:                  outputs([[VAR10]] : memref<48x1x1x4xsi32, "CMX_NN">)
-        // CHECK-NEXT:  [[VAR50:%.+]] = VPUIP.NNDMA
+        // CHECK-SAME:                  outputs([[VAR8]] : memref<48x1x1x4xsi32, "CMX_NN">)
+        // CHECK-NEXT:  [[VAR42:%.+]] = VPUIP.NNDMA
         // CHECK-SAME:                  inputs(%[[CST]] : memref<48x16x3x3x!qElemType0, #NHWC>)
-        // CHECK-SAME:                  outputs([[VAR8]] : memref<48x16x3x3x!qElemType0, #NHWC, "CMX_NN">)
+        // CHECK-SAME:                  outputs([[VAR6]] : memref<48x16x3x3x!qElemType0, #NHWC, "CMX_NN">)
 
-        // CHECK-NEXT:  [[VAR51:%.+]] = VPUIP.NCEClusterTask
-        // CHECK-SAME:                  input([[VAR48]] : memref<1x16x62x62x!qElemType1, #NHWC, "CMX_NN">)
-        // CHECK-SAME:                  weights([[VAR50]] : memref<48x16x3x3x!qElemType0, #NHWC, "CMX_NN">)
-        // CHECK-SAME:                  weight_table([[VAR49]] : memref<48x1x1x4xsi32, "CMX_NN">)
-        // CHECK-SAME:                  outputs([[VAR9]] : memref<1x48x60x60x!qElemType1, #NHWC, "CMX_NN">)
+        // CHECK-NEXT:  [[VAR43:%.+]] = VPUIP.NCEClusterTask
+        // CHECK-SAME:                  input([[VAR40]] : memref<1x16x62x62x!qElemType1, #NHWC, "CMX_NN">)
+        // CHECK-SAME:                  weights([[VAR42]] : memref<48x16x3x3x!qElemType0, #NHWC, "CMX_NN">)
+        // CHECK-SAME:                  weight_table([[VAR41]] : memref<48x1x1x4xsi32, "CMX_NN">)
+        // CHECK-SAME:                  outputs([[VAR7]] : memref<1x48x60x60x!qElemType1, #NHWC, "CMX_NN">)
 
-        // CHECK:       [[VAR52:%.+]] = VPUIP.NNDMA
-        // CHECK-SAME:                  inputs([[VAR51]] : memref<1x48x60x60x!qElemType1, #NHWC, "CMX_NN">)
-        // CHECK-SAME:                  outputs([[VAR6]] : memref<1x48x60x60x!qElemType1, #NHWC, "DDR">)
-        // CHECK-NEXT:  [[VAR53:%.+]] = VPUIP.NNDMA
-        // CHECK-SAME:                  inputs([[VAR52]] : memref<1x48x60x60x!qElemType1, #NHWC, "DDR">)
-        // CHECK-SAME:                  outputs([[VAR12]] : memref<1x48x60x60x!qElemType1, #NHWC, "CMX_NN">)
-        // CHECK-NEXT:  [[VAR54:%.+]] = VPUIP.NCEClusterTask
-        // CHECK-SAME:                  input([[VAR53]] : memref<1x48x60x60x!qElemType1, #NHWC, "CMX_NN">)
-        // CHECK-SAME:                  weights([[VAR53]] : memref<1x48x60x60x!qElemType1, #NHWC, "CMX_NN">)
-        // CHECK-SAME:                  outputs([[VAR13]] : memref<1x48x60x60xf16, #NHWC, "CMX_NN">)
+        // CHECK:       [[VAR44:%.+]] = VPUIP.NCEClusterTask
+        // CHECK-SAME:                  input([[VAR43]] : memref<1x48x60x60x!qElemType1, #NHWC, "CMX_NN">)
+        // CHECK-SAME:                  weights([[VAR43]] : memref<1x48x60x60x!qElemType1, #NHWC, "CMX_NN">)
+        // CHECK-SAME:                  outputs([[VAR10]] : memref<1x48x60x60xf16, #NHWC, "CMX_NN">)
         // CHECK:                       PPETask "AND"
         
-        // CHECK:       [[VAR55:%.+]] = VPUIP.NNDMA
-        // CHECK-SAME:                  inputs([[VAR54]] : memref<1x48x60x60xf16, #NHWC, "CMX_NN">)
-        // CHECK-SAME:                  outputs([[VAR11]] : memref<1x48x60x60xf16, #NHWC, "DDR">)
+        // CHECK:       [[VAR45:%.+]] = VPUIP.NNDMA
+        // CHECK-SAME:                  inputs([[VAR44]] : memref<1x48x60x60xf16, #NHWC, "CMX_NN">)
+        // CHECK-SAME:                  outputs([[VAR9]] : memref<1x48x60x60xf16, #NHWC, "DDR">)
 
-        // CHECK-NEXT:  [[VAR56:%.+]] = VPUIP.PermuteUPA
-        // CHECK-SAME:                  inputs([[VAR55]] : memref<1x48x60x60xf16, #NHWC, "DDR">)
-        // CHECK-SAME:                  outputs([[VAR14]] : memref<1x48x60x60xf16, "DDR">)
+        // CHECK-NEXT:  [[VAR46:%.+]] = VPUIP.PermuteUPA
+        // CHECK-SAME:                  inputs([[VAR45]] : memref<1x48x60x60xf16, #NHWC, "DDR">)
+        // CHECK-SAME:                  outputs([[VAR11]] : memref<1x48x60x60xf16, "DDR">)
 
-        // CHECK-NEXT:  [[VAR57:%.+]] = VPUIP.ConvertUPA
-        // CHECK-SAME:                  inputs([[VAR56]] : memref<1x48x60x60xf16, "DDR">)
-        // CHECK-SAME:                  outputs([[VAR15]] : memref<1x48x60x60xf32, "DDR">)
+        // CHECK-NEXT:  [[VAR47:%.+]] = VPUIP.ConvertUPA
+        // CHECK-SAME:                  inputs([[VAR46]] : memref<1x48x60x60xf16, "DDR">)
+        // CHECK-SAME:                  outputs([[VAR12]] : memref<1x48x60x60xf32, "DDR">)
 
-        // CHECK-NEXT:  [[VAR58:%.+]] = VPUIP.NNDMA
-        // CHECK-SAME:                  inputs([[VAR57]] : memref<1x48x60x60xf32, "DDR">)
+        // CHECK-NEXT:  [[VAR48:%.+]] = VPUIP.NNDMA
+        // CHECK-SAME:                  inputs([[VAR47]] : memref<1x48x60x60xf32, "DDR">)
         // CHECK-SAME:                  outputs([[ARG1]] : memref<1x48x60x60xf32>)
-        // CHECK-SAME:                  waits([[VAR36]] : !VPUIP.Barrier)
+        // CHECK-SAME:                  waits([[VAR30]] : !VPUIP.Barrier)
 
-        // CHECK-NEXT:  return [[VAR58]] : memref<1x48x60x60xf32>
+        // CHECK-NEXT:  return [[VAR48]] : memref<1x48x60x60xf32>
   }
 }

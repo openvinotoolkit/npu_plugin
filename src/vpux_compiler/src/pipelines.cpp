@@ -203,11 +203,12 @@ void vpux::buildReferenceHWModePipeline(mlir::OpPassManager& pm, bool enableProf
     pm.addPass(mlir::createCanonicalizerPass(grc));
 
     // IERT Dialect level (cont.)
+    pm.addPass(IERT::createSetInternalMemorySpacePass(getMemSpace<VPUIP::PhysicalMemory::DDR>, log));
     pm.addPass(IERT::createOptimizeCopiesPass(log));
     pm.addPass(IERT::createCopyOpHoistingPass(log));
     IERT::buildAsyncSchedulingPipeline(pm, log);
-    pm.addPass(IERT::createSetInternalMemorySpacePass(getMemSpace<VPUIP::PhysicalMemory::DDR>, log));
-    pm.addPass(IERT::createFeasibleAllocationPass(getMemSpace<VPUIP::PhysicalMemory::CMX_NN>, log));
+    pm.addPass(IERT::createFeasibleAllocationPass(getMemSpace<VPUIP::PhysicalMemory::CMX_NN>,
+                                                  getMemSpace<VPUIP::PhysicalMemory::DDR>, log));
     pm.addPass(IERT::createGroupAsyncExecuteOpsPass(log));
     pm.addPass(IERT::createStaticAllocationPass(getMemSpace<VPUIP::PhysicalMemory::DDR>, log));
     pm.addPass(IERT::createOptimizeAsyncDepsPass(log));
@@ -277,13 +278,14 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, bool enableProfil
     pm.addPass(mlir::createCanonicalizerPass(grc));
 
     // IERT Dialect level (cont.)
+    pm.addPass(IERT::createSetInternalMemorySpacePass(getMemSpace<VPUIP::PhysicalMemory::DDR>, log));
     if (pipelineOptions->enableOptimizeCopies.getValue()) {
         pm.addPass(IERT::createOptimizeCopiesPass(log));
         pm.addPass(IERT::createCopyOpHoistingPass(log));
     }
     IERT::buildAsyncSchedulingPipeline(pm, log);
-    pm.addPass(IERT::createSetInternalMemorySpacePass(getMemSpace<VPUIP::PhysicalMemory::DDR>, log));
-    pm.addPass(IERT::createFeasibleAllocationPass(getMemSpace<VPUIP::PhysicalMemory::CMX_NN>, log));
+    pm.addPass(IERT::createFeasibleAllocationPass(getMemSpace<VPUIP::PhysicalMemory::CMX_NN>,
+                                                  getMemSpace<VPUIP::PhysicalMemory::DDR>, log));
     if (pipelineOptions->enableGroupAsyncExecuteOps.getValue())
         pm.addPass(IERT::createGroupAsyncExecuteOpsPass(log));
     pm.addPass(IERT::createStaticAllocationPass(getMemSpace<VPUIP::PhysicalMemory::DDR>, log));

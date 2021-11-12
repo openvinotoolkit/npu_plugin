@@ -40,9 +40,9 @@ public:
 
     // The `val` must be a root value.
     const ValuesSet& getAllAliases(mlir::Value val) const;
+    void addAlias(mlir::Value source, mlir::Value alias);
 
 private:
-    void addAlias(mlir::Value source, mlir::Value alias);
     void traverse(OpRange ops);
 
 private:

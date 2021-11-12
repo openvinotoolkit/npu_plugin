@@ -206,10 +206,15 @@ def FeasibleAllocation : PassBase<"feasible-allocation", "vpux::ModulePass"> {
     }];
 
     let constructor = [{
-        vpux::IERT::createFeasibleAllocationPass([](mlir::MLIRContext* ctx, vpux::StringRef memSpaceName) -> mlir::Attribute {
+        vpux::IERT::createFeasibleAllocationPass(
+        [](mlir::MLIRContext* ctx, vpux::StringRef memSpaceName) -> mlir::Attribute {
             VPUX_THROW_UNLESS(!memSpaceName.empty(), "Missing memory space option");
             return mlir::StringAttr::get(ctx, memSpaceName);
-        })
+        },
+        [](mlir::MLIRContext* ctx, vpux::StringRef secondLvlMemSpaceName) -> mlir::Attribute {
+            return mlir::StringAttr::get(ctx, secondLvlMemSpaceName);
+        }
+        )
     }];
 
     let options = [
@@ -217,6 +222,11 @@ def FeasibleAllocation : PassBase<"feasible-allocation", "vpux::ModulePass"> {
             "memSpaceName", "memory-space",
             "std::string", [{""}],
             "Memory space to perform allocation"
+        >,
+        Option<
+            "secondLvlMemSpaceName", "second-level-memory-space",
+            "std::string", [{""}],
+            "Second level memory space to perform spilling"
         >
     ];
 
