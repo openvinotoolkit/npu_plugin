@@ -32,11 +32,12 @@ public:
     struct HeapElement {
         HeapElement(): op_(), time_(), opType_() {
         }
-        explicit HeapElement(operationIdxType op, size_t time = 0UL, EOpType op_type = EOpType::ORIGINAL_OP)
-                : op_(op), time_(time), opType_(op_type) {
+        explicit HeapElement(operationIdxType op, size_t time = 0UL, EOpType op_type = EOpType::ORIGINAL_OP,
+                             mlir::Value spillBuffer = nullptr)
+                : op_(op), time_(time), opType_(op_type), spillBuffer_(spillBuffer) {
         }
         bool operator==(const HeapElement& other) const {
-            return (op_ == other.op_) && (time_ == other.time_);
+            return (op_ == other.op_) && (time_ == other.time_) && (spillBuffer_ == other.spillBuffer_);
         }
         bool isOriginalOp() const {
             return (opType_ == EOpType::ORIGINAL_OP);
@@ -47,6 +48,7 @@ public:
         operationIdxType op_;
         size_t time_;
         EOpType opType_;
+        mlir::Value spillBuffer_;
     };
     // Sort heap by smallest time
     struct MinHeapOrdering {
@@ -98,8 +100,15 @@ public:
                 state_ = EOpState::CONSUMED;
             }
         }
+        void incrementConsumers() {
+            if (!outstandingConsumers_) {
+                state_ = EOpState::SPILLED;
+            }
+            ++outstandingConsumers_;
+        }
         EOpState state_;
         size_t outstandingConsumers_;
+        mlir::DenseSet<size_t> spillIdx_;
     };
     // Struct storing CMX address space
     struct IntervalInfo {
@@ -117,10 +126,11 @@ public:
         IntervalInfo(size_t ibeg, size_t iend): begin_(ibeg), end_(iend) {
         }
         bool operator==(const IntervalInfo& other) const {
-            return (begin_ == other.begin_) && (end_ == other.end_);
+            return (begin_ == other.begin_) && (end_ == other.end_) && (buffer_ == other.buffer_);
         }
         size_t begin_;
         size_t end_;
+        mlir::Value buffer_;
     };
     // Struct used to output the scheduled op info
     struct ScheduledOpInfo {
@@ -146,24 +156,76 @@ public:
             }
             return StringLiteral("UNDEFINED");
         }
+        size_t numOfResources() const {
+            return resourceInfo_.size();
+        }
         bool hasActiveResource() const {
-            return (resourceInfo_.begin_ <= resourceInfo_.end_);
+            for (size_t resourceIdx = 0; resourceIdx < numOfResources(); resourceIdx++) {
+                if (isActiveResource(resourceIdx)) {
+                    return true;
+                }
+            }
+            return false;
         }
-        size_t beginResource() const {
-            return resourceInfo_.begin_;
+        bool isActiveResource(size_t idx) const {
+            return (resourceInfo_[idx].begin_ <= resourceInfo_[idx].end_);
         }
-        size_t endResource() const {
-            return resourceInfo_.end_;
+        size_t beginResource(size_t idx) const {
+            return resourceInfo_[idx].begin_;
+        }
+        size_t endResource(size_t idx) const {
+            return resourceInfo_[idx].end_;
+        }
+        mlir::Value getBuffer(size_t idx) const {
+            return resourceInfo_[idx].buffer_;
         }
         operationIdxType op_;
         EOpType opType_;
         size_t time_;
-        IntervalInfo resourceInfo_;
+        SmallVector<IntervalInfo> resourceInfo_;
+    };
+    // Struct storing eviction policy info for buffers
+    struct EvictionCandidate {
+        EvictionCandidate(size_t priority, size_t size, operationIdxType bufferWriterIdx, size_t outputIdx,
+                          mlir::Value buffer)
+                : priority_(priority),
+                  size_(size),
+                  bufferWriterIdx_(bufferWriterIdx),
+                  outputIdx_(outputIdx),
+                  buffer_(buffer) {
+        }
+        size_t priority_;
+        size_t size_;
+        operationIdxType bufferWriterIdx_;
+        size_t outputIdx_;
+        mlir::Value buffer_;
+    };
+    // Eviction priority policy for buffers
+    struct EvictionPriority {
+        bool operator()(const EvictionCandidate& ec1, const EvictionCandidate& ec2) const {
+            // first - lowest eviction priority
+            if (ec1.priority_ != ec2.priority_) {
+                return ec1.priority_ < ec2.priority_;
+            }
+
+            // second - smaller size
+            if (ec1.size_ != ec2.size_) {
+                return ec1.size_ < ec2.size_;
+            }
+
+            // third - async deps index (unique with single output)
+            if (ec1.bufferWriterIdx_ != ec2.bufferWriterIdx_) {
+                return ec1.bufferWriterIdx_ < ec2.bufferWriterIdx_;
+            }
+
+            // fourth - same index, multiple outputs, check idx
+            return ec1.outputIdx_ > ec2.outputIdx_;
+        }
     };
 
 public:
     FeasibleMemoryScheduler(mlir::Attribute& memSpace, MemLiveRangeInfo& liveRangeInfo, AsyncDepsInfo& depsInfo,
-                            Logger log, LinearScan<mlir::Value, LinearScanHandler>& scan);
+                            AliasesInfo& aliasInfo, Logger log, LinearScan<mlir::Value, LinearScanHandler>& scan);
 
 public:
     llvm::SmallVector<ScheduledOpInfo> generateSchedule();
@@ -177,9 +239,10 @@ private:
     llvm::SmallVector<operationIdxType> reduceInDegreeOfAdjacentOperations(operationIdxType opIdx);
     bool isReadyComputeOperationSchedulable(operationIdxType opIdx);
     SmallVector<mlir::Value> getSortedBuffers(operationIdxType opIdx);
-    SmallVector<operationIdxType> getNonEmptyOpDemandList(operationIdxType opIdx);
+    mlir::DenseSet<operationIdxType> getNonEmptyOpDemandList(operationIdxType opIdx);
     void scheduleInputOpForComputeOp(operationIdxType inputIdx);
-    void allocateSortedBuffers(ArrayRef<mlir::Value> sortedBuffers);
+    void scheduleSpilledInputOpForComputeOp(operationIdxType inputIdx, mlir::Value* buffer);
+    size_t allocateBuffersAndInputOps(operationIdxType opIdx, SmallVector<mlir::Value>& sortedBuffers);
     void scheduleComputeOp(operationIdxType opIdx);
     void scheduleAllPossibleReadyOpsAndUpdate(
             std::set<std::pair<operationIdxType, vpux::AddressType>, SizeSort>& readyList);
@@ -196,6 +259,11 @@ private:
     void unscheduleAllCompletingOpsAtNextEarliestTime();
     void populateScheduledOps(HeapElement& scheduledOp);
     vpux::AddressType calculateOpSize(operationIdxType opIdx);
+    void evictActiveOp(EvictionCandidate evictionCandidate);
+    size_t evictionPriority(mlir::Value buffer);
+    operationIdxType retrieveBufferWriter(mlir::Value buffer);
+    EvictionCandidate chooseCandidateForEviction(mlir::DenseSet<mlir::Value> aliveBuffers);
+    void forceScheduleActiveOpEviction();
 
 private:
     Logger _log;
@@ -205,6 +273,8 @@ private:
     MemLiveRangeInfo& _liveRangeInfo;
     // dependencies of ops
     AsyncDepsInfo& _depsInfo;
+    // aliases information for buffers
+    AliasesInfo& _aliasInfo;
     // allocator class
     LinearScan<mlir::Value, LinearScanHandler>& _scan;
     // heap with earliest operation start time
@@ -223,6 +293,8 @@ private:
     std::unordered_map<operationIdxType, size_t> _outDegreeTable;
     // contains scheduled ops along with their status/type
     std::unordered_map<operationIdxType, OpOutputInfo> _opOutputTable;
+    // contains the operation writing to the buffer
+    std::map<mlir::Value, operationIdxType, vpux::ValueOrderCmp> _opWritingToBuffer;
     // container for the schedule output
     llvm::SmallVector<ScheduledOpInfo> _scheduledOps;
     // outputs of the graph

@@ -15,6 +15,7 @@
 
 #include "vpux/compiler/core/async_deps_info.hpp"
 #include "vpux/compiler/core/attributes/strides.hpp"
+#include "vpux/compiler/core/linear_scan_handler.hpp"
 #include "vpux/compiler/core/mem_live_range_info.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IERT/ops.hpp"
@@ -37,94 +38,6 @@
 using namespace vpux;
 
 namespace {
-
-//
-// LinearScanHandler
-//
-
-class LinearScanHandler final {
-public:
-    explicit LinearScanHandler(AddressType defaultAlignment = 1): _defaultAlignment(defaultAlignment) {
-    }
-
-public:
-    void markAsDead(mlir::Value val) {
-        _aliveValues.erase(val);
-    }
-    void markAsAlive(mlir::Value val) {
-        _aliveValues.insert(val);
-    }
-
-    auto maxAllocatedSize() const {
-        return _maxAllocatedSize;
-    }
-
-public:
-    bool isAlive(mlir::Value val) const {
-        return _aliveValues.contains(val);
-    }
-
-    static bool isFixedAlloc(mlir::Value val) {
-        return val.getDefiningOp<IERT::StaticAllocOp>() != nullptr;
-    }
-
-    static AddressType getSize(mlir::Value val) {
-        const auto type = val.getType().dyn_cast<mlir::MemRefType>();
-        VPUX_THROW_UNLESS(type != nullptr, "StaticAllocation can work only with MemRef Type, got '{0}'", val.getType());
-
-        const Byte totalSize = getTotalSize(type);
-        return checked_cast<AddressType>(totalSize.count());
-    }
-
-    AddressType getAlignment(mlir::Value val) const {
-        if (auto allocOp = val.getDefiningOp<mlir::memref::AllocOp>()) {
-            if (auto alignment = allocOp.alignment()) {
-                return checked_cast<AddressType>(alignment.getValue());
-            }
-        }
-
-        return _defaultAlignment;
-    }
-
-    AddressType getAddress(mlir::Value val) const {
-        if (auto staticAllocOp = val.getDefiningOp<IERT::StaticAllocOp>()) {
-            return checked_cast<AddressType>(staticAllocOp.offset());
-        }
-
-        const auto it = _valOffsets.find(val);
-        VPUX_THROW_UNLESS(it != _valOffsets.end(), "Value '{0}' was not allocated", val);
-
-        return it->second;
-    }
-
-    void allocated(mlir::Value val, AddressType addr) {
-        VPUX_THROW_UNLESS(addr != InvalidAddress, "Trying to assign invalid address");
-        VPUX_THROW_UNLESS(_valOffsets.count(val) == 0, "Value '{0}' was already allocated", val);
-
-        _valOffsets.insert({val, addr});
-
-        const auto endAddr = alignVal<int64_t>(addr + getSize(val), getAlignment(val));
-        _maxAllocatedSize = Byte(std::max(_maxAllocatedSize.count(), endAddr));
-    }
-
-    void freed(mlir::Value val) {
-        markAsDead(val);
-    }
-
-    static int getSpillWeight(mlir::Value) {
-        VPUX_THROW("Spills are not implemented");
-    }
-
-    static bool spilled(mlir::Value) {
-        VPUX_THROW("Spills are not implemented");
-    }
-
-private:
-    mlir::DenseMap<mlir::Value, AddressType> _valOffsets;
-    mlir::DenseSet<mlir::Value> _aliveValues;
-    AddressType _defaultAlignment = 1;
-    Byte _maxAllocatedSize;
-};
 
 using LinearScanImpl = LinearScan<mlir::Value, LinearScanHandler>;
 

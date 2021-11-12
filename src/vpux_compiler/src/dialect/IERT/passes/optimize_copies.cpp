@@ -52,43 +52,25 @@ mlir::LogicalResult CopyOpSequence::matchAndRewrite(IERT::CopyOp copyOp, mlir::P
     // CopyOp->CopyOp sequence
     auto parentCopyOp = copyOp.input().getDefiningOp<IERT::CopyOp>();
     if (parentCopyOp == nullptr) {
+        // Check current CopyOp source and destination
+        const auto srcMemory = VPUIP::getPhysicalMemory(copyOp.input().getType().cast<mlir::MemRefType>());
+        const auto dstMemory = VPUIP::getPhysicalMemory(copyOp.output().getType().cast<mlir::MemRefType>());
+        // If failed to obtain return
+        if (mlir::failed(srcMemory) || mlir::failed(dstMemory)) {
+            return mlir::failure();
+        }
+        // Remove redundant CMX2CMX CopyOps
+        if (srcMemory == dstMemory && srcMemory.getValue() == VPUIP::PhysicalMemory::CMX_NN) {
+            copyOp.output().replaceAllUsesWith(copyOp.input());
+            rewriter.eraseOp(copyOp);
+            return mlir::success();
+        }
         return mlir::failure();
     }
 
     if (parentCopyOp.output_buff().isa<mlir::BlockArgument>() ||
         !isBufAllocOp(parentCopyOp.output_buff().getDefiningOp())) {
         return mlir::failure();
-    }
-
-    // TODO: Below is temporary limitation
-    // Check if parentCopyOp source is NNCMX and if this result has more users then skip
-    // optimization for now as in case of multiple branches leaving data in NNCMX
-    // can cause buffer allocation issue. This could be removed later once
-    // scheduling solution is more advance and there is support for dynamic spilling
-    auto parentCopyOpSource = parentCopyOp.input();
-    auto sourceMemory = VPUIP::getPhysicalMemory(parentCopyOpSource.getType().cast<mlir::MemRefType>());
-    if (mlir::succeeded(sourceMemory) && sourceMemory.getValue() == VPUIP::PhysicalMemory::CMX_NN) {
-        // Check for branches on ->CopOp->CopyOp-> sequence by counting
-        // the number of tensor users. If more than 1 then there is a branch
-        if (!parentCopyOpSource.hasOneUse() || !copyOp.input().hasOneUse() || !copyOp.output().hasOneUse()) {
-            return mlir::failure();
-        }
-
-        auto childCopyOpOutput = copyOp.output();
-        auto destinationMemory = VPUIP::getPhysicalMemory(childCopyOpOutput.getType().cast<mlir::MemRefType>());
-        if (mlir::succeeded(destinationMemory) && destinationMemory.getValue() == VPUIP::PhysicalMemory::CMX_NN) {
-            // Check if copyOp result in CMX is used by operation which has multiple activation inputs
-            // like DPU Eltwise to prevent from CMX allocation problem when data in one of branches occupies CMX
-            // and prevents reserving memory for execution of other branch.
-            // This temporary check should be deleted after support for dynamic spilling gets integrated
-            for (auto* copyUser : childCopyOpOutput.getUsers()) {
-                if (auto nceTask = mlir::dyn_cast_or_null<VPUIP::NCEClusterTaskOp>(copyUser)) {
-                    if (nceTask.task_type() == VPUIP::NCETaskType::ELTWISE) {
-                        return mlir::failure();
-                    }
-                }
-            }
-        }
     }
 
     // retrieve weight tables using this buffer
