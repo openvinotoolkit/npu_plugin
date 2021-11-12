@@ -1,4 +1,4 @@
-// RUN: vpux-opt --split-input-file --set-compile-params="vpu-arch=KMB compilation-mode=ReferenceHW" --handle-large-strides --canonicalize %s | FileCheck %s
+// RUN: vpux-opt --split-input-file --set-compile-params="vpu-arch=KMB compilation-mode=DefaultHW" --handle-large-strides --canonicalize %s | FileCheck %s
 
 
 // CHECK-LABEL: @HandleLargeStridesPrimeStride

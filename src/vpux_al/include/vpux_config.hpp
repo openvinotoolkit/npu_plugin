@@ -126,7 +126,7 @@ protected:
     InferenceEngine::VPUXConfigParams::CompilerType _compilerType =
             InferenceEngine::VPUXConfigParams::CompilerType::MCM;
 
-    std::string _compilationMode = "ReferenceHW";
+    std::string _compilationMode = "DefaultHW";
     Optional<int> _numberOfDPUGroups;
 
 private:

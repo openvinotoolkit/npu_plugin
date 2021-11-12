@@ -265,7 +265,7 @@ void KmbLayerTestsCommon::setReferenceSoftwareModeMLIR() {
 }
 
 void KmbLayerTestsCommon::setReferenceHardwareModeMLIR() {
-    configuration[VPUX_CONFIG_KEY(COMPILATION_MODE)] = "ReferenceHW";
+    configuration[VPUX_CONFIG_KEY(COMPILATION_MODE)] = "DefaultHW";
 }
 
 bool KmbLayerTestsCommon::isCompilerMCM() const {

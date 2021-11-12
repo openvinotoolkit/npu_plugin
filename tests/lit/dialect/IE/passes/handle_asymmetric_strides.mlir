@@ -1,4 +1,4 @@
-// RUN: vpux-opt --split-input-file --set-compile-params="vpu-arch=KMB compilation-mode=ReferenceHW" --handle-asymmetric-strides --canonicalize %s | FileCheck %s
+// RUN: vpux-opt --split-input-file --set-compile-params="vpu-arch=KMB compilation-mode=DefaultHW" --handle-asymmetric-strides --canonicalize %s | FileCheck %s
 
 // CHECK-LABEL: @HandleConvolutionWithAsymmetricStrides
 func @HandleConvolutionWithAsymmetricStrides(%arg0: tensor<1x16x64x1024xf16>) -> tensor<1x32x64x512xf16> {
