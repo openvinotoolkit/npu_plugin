@@ -53,6 +53,7 @@ std::set<ngraph::helpers::ActivationTypes> supportedTypesMLIR {
     ngraph::helpers::Log,
     ngraph::helpers::Ceiling,
 };
+
 } // namespace
 
 class KmbActivationLayerTest : public ActivationLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
@@ -83,12 +84,35 @@ class KmbActivationLayerTest : public ActivationLayerTest, virtual public LayerT
     }
 };
 
+class KmbActivationLayerTest_MTL : public KmbActivationLayerTest {
+    void SkipBeforeLoad() override {
+        if (std::getenv("MV_TOOLS_DIR") && std::getenv("MV_TOOLS_VERSION")) {
+            return;
+        }
+
+        throw LayerTestsUtils::KmbSkipTestException("Movi tools environment is not set.");
+    }
+    void SkipBeforeInfer() override {
+        throw LayerTestsUtils::KmbSkipTestException("Runtime issue.");
+    }
+    void SkipBeforeValidate() override {
+        throw LayerTestsUtils::KmbSkipTestException("Runtime issue.");
+    }
+};
+
 TEST_P(KmbActivationLayerTest, CompareWithRefs) {
     Run();
 }
 
 TEST_P(KmbActivationLayerTest, CompareWithRefs_MLIR) {
     useCompilerMLIR();
+    Run();
+}
+
+TEST_P(KmbActivationLayerTest_MTL, CompareWithRefs_MLIR) {
+    useCompilerMLIR();
+    setPlatformMTL();
+    setReferenceHardwareModeMLIR();
     Run();
 }
 
@@ -215,5 +239,27 @@ INSTANTIATE_TEST_SUITE_P(smoke_Activation_Test_PRelu, KmbActivationLayerTest, ba
 INSTANTIATE_TEST_SUITE_P(smoke_Activation_Test_ND, KmbActivationLayerTest, basicNDCases, ActivationLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Activation_Test_FP16Only, KmbActivationLayerTest, basicFP16OnlyCases, ActivationLayerTest::getTestCaseName);
+
+// ------ MTL ------
+
+std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basicShapesMTL = {
+        {{1, 1, 1, 1000}, {{}}},
+};
+
+const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypesMTL = {
+        {Sigmoid,  {{1.0f}}},
+};
+
+const auto basicCasesMTL = ::testing::Combine(
+        ::testing::ValuesIn(CommonTestUtils::combineParams(activationTypesMTL)),
+        ::testing::Values(InferenceEngine::Precision::FP16),
+        ::testing::Values(InferenceEngine::Precision::FP16),
+        ::testing::Values(InferenceEngine::Precision::FP16),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::ValuesIn(CommonTestUtils::combineParams(basicShapesMTL)),
+        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
+
+INSTANTIATE_TEST_SUITE_P(smoke_Activation_Test, KmbActivationLayerTest_MTL, basicCasesMTL, ActivationLayerTest::getTestCaseName);
 
 }  // namespace
