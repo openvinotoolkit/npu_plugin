@@ -124,7 +124,6 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Sigmoid)) {
     private:
         ListIterator<SingleTest> m_testsLoop;
 
-        int m_axis;
         std::vector<uint64_t> paramContainer;
         sw_params::SigmoidParams* m_sigmoidParams;
     };

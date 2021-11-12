@@ -13,7 +13,6 @@ namespace sw_params {
 struct SigmoidParams {
     struct MemRefData input;
     struct MemRefData output;
-    int64_t axis;
 };
 
 #pragma pack (pop)
