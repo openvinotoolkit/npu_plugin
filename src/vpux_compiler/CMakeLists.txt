@@ -349,7 +349,7 @@ target_compile_definitions(${OBJ_TARGET_NAME}
 
 # either copy sources or binaries to output folder
 add_custom_target(copy-act-shave-runtime ALL
-        COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/sw_runtime_kernels/kernels/prebuild/act_shave_bin ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/act-kernels
+        COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/sw_runtime_kernels/kernels/prebuild/act_shave_bin ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/act-kernels
         DEPENDS ${OBJ_TARGET_NAME})
 
 target_include_directories(${OBJ_TARGET_NAME}

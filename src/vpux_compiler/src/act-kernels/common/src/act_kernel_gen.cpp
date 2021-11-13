@@ -50,10 +50,21 @@ flatbuffers::Offset<MVCNN::KernelData> buildKernelData(flatbuffers::FlatBufferBu
 static void getActShaveBinaries(const movitools::MoviCompileParams& params, const CompilationUnitDesc& unitDesc,
                                 SmallVector<uint8_t, 128>& textBinary, SmallVector<uint8_t, 128>& dataBinary) {
     SmallString<128> genDir;
-    genDir = LIBRARY_OUTPUT_DIRECTORY;
+    if (sys::fs::exists(KERNEL_DIRECTORY) && sys::fs::exists(LIBRARY_OUTPUT_DIRECTORY)) {
+        genDir = sys::path::parent_path(LIBRARY_OUTPUT_DIRECTORY);
+    } else {
+        // probe for OV_BUILD_DIR
+        const auto ovBuildDir = std::getenv("OV_BUILD_DIR");
+        VPUX_THROW_UNLESS(ovBuildDir,
+                          "OV_BUILD_DIR env directory must be specified, in order to reach act-shave kernels");
+        VPUX_THROW_UNLESS(sys::fs::exists(ovBuildDir),
+                          "OpenVino build directory {0}, taken from OV_BUILD_DIR env variable is not exist", genDir);
+
+        genDir = ovBuildDir;
+    }
     sys::path::append(genDir, "act-kernels");
 
-    VPUX_THROW_UNLESS(sys::fs::exists(genDir), "act-kernels directory is not exist in {0}", LIBRARY_OUTPUT_DIRECTORY);
+    VPUX_THROW_UNLESS(sys::fs::exists(genDir), "{0}} directory is not exist", genDir);
 
     std::string entryPoint = unitDesc.entry.str();
 
