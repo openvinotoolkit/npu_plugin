@@ -53,8 +53,7 @@ static void getActShaveBinaries(const movitools::MoviCompileParams& params, cons
     genDir = LIBRARY_OUTPUT_DIRECTORY;
     sys::path::append(genDir, "act-kernels");
 
-    VPUX_THROW_UNLESS(sys::fs::exists(genDir),
-                      "act-kernels directory is not exist in {0}", LIBRARY_OUTPUT_DIRECTORY);
+    VPUX_THROW_UNLESS(sys::fs::exists(genDir), "act-kernels directory is not exist in {0}", LIBRARY_OUTPUT_DIRECTORY);
 
     std::string entryPoint = unitDesc.entry.str();
 
