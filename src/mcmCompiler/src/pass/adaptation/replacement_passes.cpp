@@ -754,7 +754,16 @@ static void addPermuteIOOpsFcn(const mv::pass::PassEntry&, mv::ComputationModel&
             ||
             model.getName() == "googlenet-v1")
         {
-            input->set<mv::Order>("order", mv::Order("NHWC"));
+            /* For these exceptions, we would like the inputs to be handled the same way as before input order compatibility handling,
+            since it has been proven to work this way. */
+            if(om.getGlobalConfigParams()->get<bool>("enable_channel_major_conv"))
+            {
+                input->set<mv::Order>("order", mv::Order("NCHW"));
+            }
+            else
+            {
+                input->set<mv::Order>("order", mv::Order("NHWC"));
+            }
         }
     }
 
