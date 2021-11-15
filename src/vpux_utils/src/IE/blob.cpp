@@ -621,6 +621,37 @@ void vpux::cvtBlobPrecision(const MemoryBlob::Ptr& in, const MemoryBlob::Ptr& ou
         }
         break;
     }
+
+    case Precision::BOOL: {
+        switch (outPrecision) {
+        case Precision::FP64:
+            CASE(int8_t, double);
+        case Precision::FP32:
+            CASE(int8_t, float);
+        case Precision::U64:
+            CASE(int8_t, uint64_t);
+        case Precision::I64:
+            CASE(int8_t, int64_t);
+        case Precision::U32:
+            CASE(int8_t, uint32_t);
+        case Precision::I32:
+            CASE(int8_t, int32_t);
+        case Precision::U16:
+            CASE(int8_t, uint16_t);
+        case Precision::I16:
+            CASE(int8_t, int16_t);
+        case Precision::U8:
+            CASE(int8_t, uint8_t);
+        case Precision::FP16:
+            CASE(int8_t, float16);
+        case Precision::BF16:
+            CASE(int8_t, bfloat16);
+        default:
+            VPUX_THROW("Unsupported combination of precisions {0} -> {1}", inPrecision, outPrecision);
+        }
+        break;
+    }
+    
     default:
         VPUX_THROW("Unsupported combination of precisions {0} -> {1}", inPrecision, outPrecision);
     }
