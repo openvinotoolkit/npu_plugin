@@ -759,11 +759,14 @@ void computeSubgraphs(mv::ComputationModel& model,
     std::vector<std::string> excludedVFnodes;
     bool yolov4 = isYoloV4(om);
     
-    // feed the hacked leakyRelu to the subgraphs
-    for (auto& leakyReLUName : LEAKYRELULIST)
-    {
-        verticalFusionSubgraphs.push_back({leakyReLUName+"1_PPEConv", leakyReLUName+"0_PPEConv",
-                                           leakyReLUName+"PPEeltwise"});
+    // feed the hacked leakyRelu to the subgraphs only for SuperResAA
+    size_t inputNumber = om.getNumNetworkInputs();
+    if (inputNumber == 3) {
+        for (auto& leakyReLUName : LEAKYRELULIST)
+        {
+            verticalFusionSubgraphs.push_back({leakyReLUName+"1_PPEConv", leakyReLUName+"0_PPEConv",
+                                            leakyReLUName+"PPEeltwise"});
+        }
     }
 
     //NOTE: this idx value will be used for hardcoding the vertical fusion tiling size in order to avoid overfitting cmx
@@ -1257,17 +1260,20 @@ void hackPReLUFcn(const mv::pass::PassEntry&,
 {
     mv::OpModel om(model);
     mv::DataModel dm(model);
-    for (auto& leakyReLUName : LEAKYRELULIST)
-    {
-        std::string headConcatName1 = leakyReLUName+"0_PPEConvconcat_";
-        std::string headConcatName2 = leakyReLUName+"1_PPEConvconcat_";
-        // step 1. head streams to add streams
-        auto headConcat1 = om.getOp(headConcatName1);
-        removeInnerConcat(model, headConcat1, leakyReLUName+"0_PPEConv_streamH",
-                          leakyReLUName+"PPEeltwise_streamH", 0);
-        auto headConcat2 = om.getOp(headConcatName2);
-        removeInnerConcat(model, headConcat2, leakyReLUName+"1_PPEConv_streamH",
-                          leakyReLUName+"PPEeltwise_streamH", 1);
+    size_t inputNumber = om.getNumNetworkInputs();
+    if (inputNumber == 3) {
+        for (auto& leakyReLUName : LEAKYRELULIST)
+        {
+            std::string headConcatName1 = leakyReLUName+"0_PPEConvconcat_";
+            std::string headConcatName2 = leakyReLUName+"1_PPEConvconcat_";
+            // step 1. head streams to add streams
+            auto headConcat1 = om.getOp(headConcatName1);
+            removeInnerConcat(model, headConcat1, leakyReLUName+"0_PPEConv_streamH",
+                            leakyReLUName+"PPEeltwise_streamH", 0);
+            auto headConcat2 = om.getOp(headConcatName2);
+            removeInnerConcat(model, headConcat2, leakyReLUName+"1_PPEConv_streamH",
+                            leakyReLUName+"PPEeltwise_streamH", 1);
+        }
     }
     return;
 }
