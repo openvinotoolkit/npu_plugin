@@ -85,20 +85,7 @@ protected:
         const auto customData = false;//m_testLoop.value().customData;
 
 #ifdef CONFIG_TARGET_SOC_3720
-//        m_params.kernel  = reinterpret_cast<uint64_t>(&shvNN0_singleShaveSoftmax);
         m_params.kernel  = reinterpret_cast<uint64_t>(sk_singleShaveSoftmax_3010xx_text);
-
-//        unsigned char * tmp1 = reinterpret_cast<unsigned char*>(&shvNN0_singleShaveSoftmax);
-//        int upTo = 30;
-        printf("Func: %p: ", (uint32_t)m_params.kernel);
-//        for (int i = 0; i < upTo; i++)
-//            printf("0x%x, ", (unsigned int)(tmp1[i]));
-//        tmp1 = reinterpret_cast<unsigned char*>(_sk_singleShaveSoftmax_3010xx_text);
-//        printf("\nArr:  %p: ", tmp1);
-//        for (int i = 0; i < upTo; i++)
-//            printf("0x%x, ", (unsigned int)(tmp1[i]));
-//        printf("\n");
-
 #else
         m_params.kernel  = reinterpret_cast<uint64_t>(PREAMBLE_FUNC(singleShaveSoftmax));
 #endif
