@@ -27,7 +27,7 @@
 using namespace vpux;
 
 //
-// ReshapeAttr::walkImmediateSubElements
+// SubViewAttr::walkImmediateSubElements
 //
 
 void vpux::Const::SubViewAttr::walkImmediateSubElements(llvm::function_ref<void(Attribute)> walkAttrsFn,
