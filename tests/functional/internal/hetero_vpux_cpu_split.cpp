@@ -503,3 +503,11 @@ INSTANTIATE_TEST_CASE_P(resnet101, HeteroPluginSplitNetworkTest,
                             "KMB_models/INT8/public/resnet-101/resnet_101_caffe_dense_int8_IRv10_from_fp32.xml")),
                                            ::testing::Values(ImagePath("300x300/dog.bmp"))),
                         HeteroPluginSplitNetworkTest::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(
+        googlenet_v4, HeteroPluginSplitNetworkTest,
+        ::testing::Combine(
+                ::testing::Values(NetworkPath(
+                        "KMB_models/INT8/public/googlenet-v4/googlenet_v4_tf_dense_int8_IRv10_from_fp32.xml")),
+                ::testing::Values(ImagePath("300x300/dog.bmp"))),
+        HeteroPluginSplitNetworkTest::getTestCaseName);
