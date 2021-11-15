@@ -763,35 +763,10 @@ void removeInterp(mv::ComputationModel& model) {
     }
 }
 
-void quantizeGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+void hswishReplacement(mv::ComputationModel& model)
 {
-    MV_PROFILED_FUNCTION(MV_PROFILE_PASS);
-
     mv::OpModel om(model);
-
-    mv::DataModel dm(model);
-    // auto avgOps = om.getOps("AveragePool");
-    // for(auto& avgOp: avgOps)
-    // {
-    //     auto inputTensor = avgOp->getInputTensor(0);
-    //     auto outputTensor = avgOp->getOutputTensor(0);
-    //     auto childOps = mv::findSinkLayers(dm, avgOp->getOutputTensor(0));
-
-    //     if((inputTensor->getShape()[mv::IO_HEIGHT_DIMENSION] == 1) && (inputTensor->getShape()[mv::IO_WIDTH_DIMENSION] == 1) &&
-    //     (outputTensor->getShape()[mv::IO_HEIGHT_DIMENSION] == 1) && (outputTensor->getShape()[mv::IO_WIDTH_DIMENSION] == 1))
-    //     {
-    //         om.removeOp(avgOp);
-
-    //         for(auto& childOp: childOps)
-    //         {
-    //             om.defineFlow(inputTensor, childOp, 0);
-    //             childOp->setInputTensor(inputTensor, 0, false);
-    //         }
-    //     }
-    // }
-
-    std::cout << "process HSwish" << std::endl;
-    
+    mv::DataModel dm(model);   
     auto hswishOps = om.getOps("HSwish");
     for(auto& hswishOp: hswishOps)
     {
@@ -803,7 +778,6 @@ void quantizeGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mod
         auto quantParam = inputTensor->getQuantParams();
         auto outQuantParam = outputTensor->getQuantParams();
         auto outputDtype = outputTensor->getDType();
-        std::cout << quantParam.getScale()[0] << " " << quantParam.getScale()[0] << std::endl;
 
         // Populate identity weights
         const int64_t weightsValue_i = 1;
@@ -854,12 +828,6 @@ void quantizeGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mod
         auto eltwiseMulOp = om.getSourceOp(eltwiseMul);
         eltwiseMulOp->set<unsigned>("opId", opId);
 
-        // auto eltwiseMul = om.relu(name + "_new_eltwise", inputTensor);
-        // eltwiseMul->setQuantParams(outQuantParam);
-        // eltwiseMul->setDType(outputDtype);
-        // auto eltwiseMulOp = om.getSourceOp(eltwiseMul);
-        // eltwiseMulOp->set<unsigned>("opId", opId);
-
         om.removeOp(hswishOp);
 
         for(auto& childOp: childOps)
@@ -875,6 +843,16 @@ void quantizeGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mod
             childOp->setInputTensor(eltwiseMul, idx, false);
         }
     }
+}
+
+void quantizeGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+{
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS);
+
+    mv::OpModel om(model);
+
+    // replace hswish with dpu layers
+    hswishReplacement(model);
 
     if (om.getOps("FakeQuantize").empty())
         return;
