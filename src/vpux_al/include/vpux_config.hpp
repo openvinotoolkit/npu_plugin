@@ -99,7 +99,7 @@ protected:
     // Public options
     bool _performanceCounting = false;
     std::string _deviceId = "";
-    int _throughputStreams = -1;
+    int _throughputStreams = 6;
     int _numberOfNnCoreShaves = 0;
     InferenceEngine::VPUXConfigParams::VPUXPlatform _platform = InferenceEngine::VPUXConfigParams::VPUXPlatform::AUTO;
     int32_t _csramSize = 0;
