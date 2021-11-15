@@ -399,17 +399,17 @@ void dumpBlob(const ie::MemoryBlob::Ptr& blob, const std::string& filePath) {
 // Inference Engine
 //
 
-ie::Core ieCore;
+std::weak_ptr<ie::Core> ieCore;
 
 void setupInferenceEngine() {
     auto flagDevice = FLAGS_device;
 
     if (!FLAGS_log_level.empty()) {
-        ieCore.SetConfig({{CONFIG_KEY(LOG_LEVEL), FLAGS_log_level}}, flagDevice);
+        ieCore.lock()->SetConfig({{CONFIG_KEY(LOG_LEVEL), FLAGS_log_level}}, flagDevice);
     }
 
     if (FLAGS_device == "CPU") {
-        ieCore.SetConfig({{"LP_TRANSFORMS_MODE", CONFIG_VALUE(NO)}}, flagDevice);
+        ieCore.lock()->SetConfig({{"LP_TRANSFORMS_MODE", CONFIG_VALUE(NO)}}, flagDevice);
     }
 
     if (!FLAGS_config.empty()) {
@@ -422,7 +422,7 @@ void setupInferenceEngine() {
                 continue;
             }
 
-            ieCore.SetConfig({{key, value}}, flagDevice);
+            ieCore.lock()->SetConfig({{key, value}}, flagDevice);
         }
     }
 }
@@ -431,7 +431,7 @@ ie::ExecutableNetwork importNetwork(const std::string& filePath) {
     std::ifstream file(filePath, std::ios_base::in | std::ios_base::binary);
     IE_ASSERT(file.is_open()) << "Can't open file " << filePath << " for read";
 
-    return ieCore.ImportNetwork(file, FLAGS_device);
+    return ieCore.lock()->ImportNetwork(file, FLAGS_device);
 }
 
 ie::BlobMap runInfer(ie::ExecutableNetwork& exeNet, const ie::BlobMap& inputs, const std::vector<std::string>& dumpedInputsPaths) {
@@ -811,6 +811,9 @@ bool testYoloV3(const ie::BlobMap& actBlobs,
 
 int main(int argc, char* argv[]) {
     try {
+        std::shared_ptr<ie::Core> ieCoreShared = std::make_shared<ie::Core>();
+        ieCore = ieCoreShared;
+
         parseCommandLine(argc, argv);
 
         const std::unordered_set<std::string> allowedPrecision = {"U8", "FP16", "FP32"};
@@ -846,7 +849,7 @@ int main(int argc, char* argv[]) {
         if (strEq(FileUtils::fileExt(FLAGS_network), "xml")) {
             std::cout << "Load network " << FLAGS_network << std::endl;
 
-            auto cnnNet = ieCore.ReadNetwork(FLAGS_network);
+            auto cnnNet = ieCoreShared->ReadNetwork(FLAGS_network);
 
             // Input precision
             ie::InputsDataMap inputInfo(cnnNet.getInputsInfo());
@@ -905,7 +908,7 @@ int main(int argc, char* argv[]) {
                 }
             }
 
-            exeNet = ieCore.LoadNetwork(cnnNet, FLAGS_device);
+            exeNet = ieCoreShared->LoadNetwork(cnnNet, FLAGS_device);
         } else {
             std::cout << "Import network " << FLAGS_network << std::endl;
 
