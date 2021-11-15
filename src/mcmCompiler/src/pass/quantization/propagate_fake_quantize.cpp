@@ -783,18 +783,18 @@ void hswishReplacement(mv::ComputationModel& model)
         const int64_t weightsValue_i = 1;
         auto K = inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION];
 
-        std::vector<int64_t> weightsData_i(K*K, 0);
+        std::vector<int64_t> weightsData_i(K, 0);
         for (auto i = 0u; i < K; ++i)
-            weightsData_i.at(i*(K+1)) = weightsValue_i;
+            weightsData_i.at(i) = weightsValue_i;
         mv::Data::TensorIterator weights_i = om.constantInt("",
                             weightsData_i,
-                            {1, 1, K, K},
+                            {1, 1, K, 1},
                             mv::DType("UInt8"),
                             mv::Order(mv::Order::getRowMajorID(4)));
         weights_i->setQuantParams(mv::QuantizationParams({0},{1.0 / 6},{0},{255.0 / 6}));
 
         // Insert identity Conv
-        auto identityConv = om.conv(name + "_scale_conv", inputTensor, weights_i, {1,1}, {0, 0, 0, 0}, 1);
+        auto identityConv = om.depthwiseConv(name + "_scale_conv", inputTensor, weights_i, {1,1}, {0, 0, 0, 0}, 1);
         identityConv->setQuantParams(mv::QuantizationParams::initial());
         auto identityConvOp = om.getSourceOp(identityConv);
 
