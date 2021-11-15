@@ -201,6 +201,17 @@ TEST_F(KmbClassifyNetworkTest, precommit_aclnet_des_53_vpu) {
             0.3f);
 }
 
+TEST_F(KmbClassifyNetworkTest, precommit_shufflenet_v2_x1_0_pytorch) {
+    runTest(
+            TestNetworkDesc("KMB_models/FP16-INT8/public/shufflenet-v2-x1_0-pytorch/shufflenet-v2-x1_0-pytorch.xml")
+                    .setUserInputPrecision("input", Precision::U8)
+                    .setUserInputLayout("input", Layout::NCHW)
+                    .setUserOutputPrecision("output", Precision::FP32)
+                    .setUserOutputLayout("output", Layout::NC),
+            TestImageDesc("224x224/cat3.bmp", ImageFormat::RGB),
+            3, 0.5f);
+}
+
 TEST_F(KmbDetectionNetworkTest, precommit_peleenet) {
     SKIP_INFER_ON("EMULATOR", "Wrong results");
     runTest(

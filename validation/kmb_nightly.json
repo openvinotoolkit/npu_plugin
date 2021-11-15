@@ -2513,6 +2513,35 @@
         },
 
         {
+            "name" : "scale_onnx_FP16-INT8_shufflenet-v2-x1.0-pytorch",
+            "ir" : "scale/shufflenet-v2-x1.0/onnx/FP16-INT8/shufflenet-v2-x1.0.xml",
+            "category" : "MCM",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MCM",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "224x224"
+            },
+            "NetTest-CalcRef" : {
+                "disabled" : true
+            },
+            "NetTest-Validate" : {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "config": "shufflenet-v2-x1.0-pytorch.yml"
+            },
+            "CI-options" : {
+                "blob_name" : "shufflenet-v2-x1-0-pytorch_onnx"
+            }
+        },
+
+        {
             "name" : "por_tf_FP16-INT8_license-plate-recognition-barrier-0007_ww34",
             "ir" : "license-plate-recognition-barrier-0007-ww34/tf/FP16-INT8/license-plate-recognition-barrier-0007.xml",
             "category" : "MCM/precommit",
@@ -3689,6 +3718,101 @@
                 "blob_name" : "yolo-v3-darknet-608_tf"
             }
         },
+
+        {
+            "name" : "experimental_caffe2_FP16-INT8_shufflenet-v2-aircrafts_ww48",
+            "ir" : "models/ww48/shufflenet-v2-aircrafts/caffe2/FP16-INT8/shufflenet-v2-aircrafts.xml",
+            "category" : "MCM",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MCM",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "224x224"
+            },
+            "NetTest": {
+                "inputs" : [["224x224/n04266014.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "1.0"
+                ]
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "CI-options" : {
+                "blob_name" : "shufflenet-v2-aircrafts"
+            }
+        },
+
+        {
+            "name" : "experimental_caffe2_FP16-INT8_shufflenet-v2-stanford-cars_ww48",
+            "ir" : "models/ww48/shufflenet-v2-stanford-cars/caffe2/FP16-INT8/shufflenet-v2-stanford-cars.xml",
+            "category" : "MCM",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MCM",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "224x224"
+            },
+            "NetTest": {
+                "inputs" : [["224x224/n04285008.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "1.0"
+                ]
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "CI-options" : {
+                "blob_name" : "shufflenet-v2-stanford-cars"
+            }
+        },
+
+        {
+            "name" : "experimental_caffe2_FP16-INT8_shufflenet-v2-stanford-dogs_ww48",
+            "ir" : "models/ww48/shufflenet-v2-stanford-dogs/caffe2/FP16-INT8/shufflenet-v2-stanford-dogs.xml",
+            "category" : "MCM",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MCM",
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_EXECUTOR_STREAMS": "2"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "224x224"
+            },
+            "NetTest": {
+                "inputs" : [["224x224/watch.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "1.0"
+                ]
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "CI-options" : {
+                "blob_name" : "shufflenet-v2-stanford-dogs"
+            }
+        },
+
+
 
         {
             "name" : "SINGLE_IMAGE_TEST_por_tf_FP16-INT8_googlenet-v1",
