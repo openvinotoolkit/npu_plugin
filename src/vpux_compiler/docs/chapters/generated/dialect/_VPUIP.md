@@ -1939,7 +1939,7 @@ Syntax:
 
 ```
 operation ::= `VPUIP.SelectUPA` attr-dict
-              `inputs` `(` $input1 `:` type($input1) `,` $input2 `:` type($input2) `)`
+              `inputs` `(` $input1 `:` type($input1) `,` $input2 `:` type($input2) `,` $input3 `:` type($input3) `)`
               `outputs` `(` $output_buff `:` type($output_buff) `)`
               (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
               (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
@@ -1961,6 +1961,7 @@ operation ::= `VPUIP.SelectUPA` attr-dict
 | :-----: | ----------- |
 `input1` | memref of 16-bit float values
 `input2` | memref of 16-bit float values
+`input3` | memref of 16-bit float values
 `output_buff` | memref of 16-bit float values
 `waitBarriers` | VPUIP Barrier Type
 `updateBarriers` | VPUIP Barrier Type
