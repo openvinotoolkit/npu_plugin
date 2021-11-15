@@ -880,7 +880,27 @@ def RewriteQuantizeCast :
 def RewritePermuteCast :
         Pat<
             (IE_PermuteCastOp:$result $input, $dst_order, $mem_perm),
-            (createCopyUPAOp $input, $result)
+            (createMemPermuteUPAOp $input, $mem_perm, $result)
+        >;
+
+//
+// IE.Squeeze -> EMU.Reshape
+//
+
+def RewriteSqueeze :
+        Pat<
+            (IE_SqueezeOp:$result $input, $axes, $axes_value),
+            (createReshapeUPAOp $input, $result)
+        >;
+
+//
+// IE.Unsqueeze -> EMU.Reshape
+//
+
+def RewriteUnsqueeze :
+        Pat<
+            (IE_UnsqueezeOp:$result $input, $axes, $axes_value),
+            (createReshapeUPAOp $input, $result)
         >;
 
 #endif
