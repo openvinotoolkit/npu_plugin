@@ -36,7 +36,7 @@ CMakeLists.txt @vinograd47 @mmineeva @ArtemySkrebkov-intel
 #
 # src folder
 /src/custom_cpp_kernels @nikita-kud @maxim-kurin
-/src/custom_extension_library @lerbelintel
+/src/custom_extension_library @lerbelintel @maxim-kurin
 /src/custom_ocl_kernels @mikhailk62 @maxim-kurin
 /src/emulator_backend @ArtemySkrebkov-intel @ZoranZomborat
 /src/frontend_mcm @ArtemySkrebkov-intel @mmineeva
