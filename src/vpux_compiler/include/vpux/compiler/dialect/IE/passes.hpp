@@ -116,6 +116,7 @@ std::unique_ptr<mlir::Pass> createConvertQuantizeOpsToEltwisePass(Logger log = L
 //
 
 std::unique_ptr<mlir::Pass> createUnrollBatchPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createMatMulInputsTo2dPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertFCToConvPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertAvgPoolToDWConvPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertScaleShiftToDWPass(Logger log = Logger::global());

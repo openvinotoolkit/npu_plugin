@@ -192,10 +192,15 @@ mlir::LogicalResult ConvolutionRewriter::matchAndRewrite(IE::ConvolutionOp origO
 
             const auto padValue = getFPAttr(getContext(), 0.0f);
 
-            paddedFilter = rewriter.createOrFold<IE::PadOp>(origOp->getLoc(), origOp.filter(), nullptr, nullptr,
-                                                            nullptr, getIntArrayAttr(getContext(), filterPadsBegin),
-                                                            getIntArrayAttr(getContext(), filterPadsEnd.raw()),
-                                                            padValue, IE::PadMode::CONSTANT);
+            if (origOp.filter().getDefiningOp<Const::DeclareOp>() == nullptr) {
+                paddedFilter =
+                        rewriter.create<IE::ExpandOp>(origOp->getLoc(), origOp.filter(), None, ShapeRef(filterPadsEnd));
+            } else {
+                paddedFilter = rewriter.createOrFold<IE::PadOp>(origOp->getLoc(), origOp.filter(), nullptr, nullptr,
+                                                                nullptr, getIntArrayAttr(getContext(), filterPadsBegin),
+                                                                getIntArrayAttr(getContext(), filterPadsEnd.raw()),
+                                                                padValue, IE::PadMode::CONSTANT);
+            }
         }
 
         mlir::Value paddedBiases;

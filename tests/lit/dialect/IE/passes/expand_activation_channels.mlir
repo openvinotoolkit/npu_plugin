@@ -80,7 +80,7 @@ func @ExpandQuantConvolutionChannels(
 // CHECK-SAME:        [[FILTER:%arg[0-9]]]: tensor<5x3x3x3x!qElemType1>
 
 // CHECK: [[EXPAND_OUT:%.+]] = IE.Expand([[INPUT]]) {pads_begin = [0, 0, 0, 0], pads_end = [0, 13, 0, 0]} : tensor<1x3x30x30x!qElemType0> -> tensor<1x16x30x30x!qElemType0>
-// CHECK: [[PAD_OUT:%.+]] = IE.Pad([[FILTER]]) {mode = "CONSTANT", pad_value_attr = 0.000000e+00 : f64, pads_begin_attr = [0, 0, 0, 0], pads_end_attr = [11, 13, 0, 0]} : tensor<5x3x3x3x!qElemType1> -> tensor<16x16x3x3x!qElemType3>
+// CHECK: [[PAD_OUT:%.+]] = IE.Expand([[FILTER]]) {pads_begin = [0, 0, 0, 0], pads_end = [11, 13, 0, 0]} : tensor<5x3x3x3x!qElemType1> -> tensor<16x16x3x3x!qElemType3>
 
 // CHECK: [[CONV_OUT:%.+]] = IE.Convolution([[EXPAND_OUT]], [[PAD_OUT]])
 // CHECK-SAME: {dilations = [1, 1], pads_begin = [0, 0], pads_end = [0, 0], strides = [1, 1]} :
@@ -227,3 +227,30 @@ func @ExpandQuantGroupConvolutionChannelsConst(%input: tensor<1x3x30x30xf16>) ->
 // CHECK-SAME: to tensor<1x3x15x15xf16>
 
 // CHECK: return [[SLICE_OUT]] : tensor<1x3x15x15xf16>
+
+// -----
+
+func @ExpandConvolutionChannelsConst(%input: tensor<1x3x30x30xf16>) -> tensor<1x5x28x28xf16> {
+    %filter = const.Declare tensor<5x3x3x3xf16> = #const.Content<dense<1.0> : tensor<5x3x3x3xf16>>
+    %1 = IE.Convolution(%input, %filter) { dilations = [1, 1], pads_begin = [0, 0], pads_end = [0, 0], strides = [1, 1] }
+        : tensor<1x3x30x30xf16>, tensor<5x3x3x3xf16> -> tensor<1x5x28x28xf16>
+    return %1 : tensor<1x5x28x28xf16>
+}
+
+// CHECK-LABEL: func @ExpandConvolutionChannelsConst
+// CHECK-SAME:        [[INPUT:%arg[0-9]]]: tensor<1x3x30x30xf16>
+
+// CHECK: [[EXPAND_FILTER:%.*]] = const.Declare tensor<16x16x3x3xf16> = #const.Content<dense<1.000000e+00> : tensor<5x3x3x3xf16>, [#const.PadWithZero<[0, 0, 0, 0], [11, 13, 0, 0]>]>
+// CHECK: [[EXPAND_OUT:%.+]] = IE.Expand([[INPUT]]) {pads_begin = [0, 0, 0, 0], pads_end = [0, 13, 0, 0]} : tensor<1x3x30x30xf16> -> tensor<1x16x30x30xf16>
+
+// CHECK: [[CONV_OUT:%.+]] = IE.Convolution([[EXPAND_OUT]], [[EXPAND_FILTER]])
+// CHECK-SAME: {dilations = [1, 1], pads_begin = [0, 0], pads_end = [0, 0], strides = [1, 1]} :
+// CHECK-SAME: tensor<1x16x30x30xf16>,
+// CHECK-SAME: tensor<16x16x3x3xf16>
+// CHECK-SAME: -> tensor<1x16x28x28xf16>
+
+// CHECK: [[SLICE_OUT:%.+]] = IE.Slice [[CONV_OUT]] [0, 0, 0, 0] [1, 5, 28, 28] :
+// CHECK-SAME: tensor<1x16x28x28xf16>
+// CHECK-SAME: to tensor<1x5x28x28xf16>
+
+// CHECK: return [[SLICE_OUT]] : tensor<1x5x28x28xf16>
