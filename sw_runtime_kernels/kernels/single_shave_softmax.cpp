@@ -376,7 +376,6 @@ void mvSoftMaxSingle(t_MvSoftMaxParamNClasses *p)
             }
             calculate(r_step, p->axisDim, p_input0, p_output0, 1, *ir_stride, 1, *or_stride);
             if (!(p->outputInCmx)) {
-                p_output0[0] = 4321.f;
                 dmaRTask.start((u8 *)p_output0, (u8*)out + outOffset,
                       sizeof(fp16) * p->axisDim * r_step,
                       sizeof(fp16) * dmaWidth[0],
