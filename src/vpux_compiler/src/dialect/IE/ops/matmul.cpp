@@ -160,6 +160,48 @@ mlir::LogicalResult UseFullyConnected::matchAndRewrite(IE::MatMulOp matmulOp, ml
 
 }  // namespace
 
+//
+// TransposeWeights
+//
+
+namespace {
+
+class TransposeWeights final : public mlir::OpRewritePattern<IE::MatMulOp> {
+public:
+    using mlir::OpRewritePattern<IE::MatMulOp>::OpRewritePattern;
+
+public:
+    mlir::LogicalResult matchAndRewrite(IE::MatMulOp matmulOp, mlir::PatternRewriter& rewriter) const final;
+};
+
+mlir::LogicalResult TransposeWeights::matchAndRewrite(IE::MatMulOp matmulOp, mlir::PatternRewriter& rewriter) const {
+    auto transWeights = matmulOp.transpose_b();
+    if (transWeights) {
+        return mlir::failure();
+    }
+    const auto input2Shape = getShape(matmulOp.input2());
+    auto perm = SmallVector<unsigned>(input2Shape.size(), 0);
+    for (size_t dimIdx = 0; dimIdx < perm.size(); dimIdx++) {
+        perm[dimIdx] = dimIdx;
+    }
+    const auto weightsRank = perm.size();
+    const auto weightsColIdx = weightsRank - 1;
+    const auto weightsRowIdx = weightsRank - 2;
+    perm[weightsColIdx] = weightsRowIdx;
+    perm[weightsRowIdx] = weightsColIdx;
+    const auto orderAttr = mlir::AffineMapAttr::get(mlir::AffineMap::getPermutationMap(perm, matmulOp->getContext()));
+
+    auto transpose = rewriter.create<IE::TransposeOp>(matmulOp->getLoc(), matmulOp.input2(), nullptr, orderAttr);
+
+    rewriter.replaceOpWithNewOp<IE::MatMulOp>(matmulOp, matmulOp.input1(), transpose.output(), matmulOp.transpose_a(),
+                                              /*transpose_b=*/true);
+
+    return mlir::success();
+}
+
+}  // namespace
+
 void vpux::IE::MatMulOp::getCanonicalizationPatterns(mlir::RewritePatternSet& patterns, mlir::MLIRContext* context) {
+    patterns.insert<TransposeWeights>(context);
     patterns.insert<UseFullyConnected>(context);
 }
