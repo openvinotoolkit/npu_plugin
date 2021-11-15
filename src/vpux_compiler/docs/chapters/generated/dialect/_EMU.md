@@ -287,6 +287,34 @@ operation ::= `EMU.ConvolutionUPA` attr-dict
 | :----: | ----------- |
 `output` | ranked tensor of 16-bit float values
 
+### `EMU.Copy` (vpux::EMU::CopyUPAOp)
+
+Copy UPA SHAVE kernel
+
+
+Syntax:
+
+```
+operation ::= `EMU.Copy` attr-dict
+              `inputs` `(` $source `:` type($source) `)`
+              `->` type(results)
+```
+
+This layer although being marked as UPA will be run
+as native PC code in Emulator.
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`source` | ranked tensor of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`result` | ranked tensor of any type values
+
 ### `EMU.DetectionOutputUPA` (vpux::EMU::DetectionOutputUPAOp)
 
 DetectionOutput UPA SHAVE kernel
@@ -1373,6 +1401,34 @@ operation ::= `EMU.RegionYoloUPA` attr-dict
 | :----: | ----------- |
 `output` | ranked tensor of 16-bit float values
 
+### `EMU.Reshape` (vpux::EMU::ReshapeUPAOp)
+
+Reshape UPA SHAVE kernel
+
+
+Syntax:
+
+```
+operation ::= `EMU.Reshape` attr-dict
+              `inputs` `(` $source `:` type($source) `)`
+              `->` type(results)
+```
+
+This layer although being marked as UPA will be run
+as native PC code in Emulator.
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`source` | ranked tensor of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`result` | ranked tensor of any type values
+
 ### `EMU.RoundUPA` (vpux::EMU::RoundUPAOp)
 
 Round UPA SHAVE kernel
@@ -1535,7 +1591,7 @@ Syntax:
 
 ```
 operation ::= `EMU.Split` attr-dict
-              `input` `(` $input `:` type($input) `,` $axis `:` type($axis) `)`
+              `input` `(` $input `:` type($input) `)`
               `->` type(results)
 ```
 
@@ -1546,15 +1602,14 @@ as native PC code in Emulator.
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
+`axis` | mlir::IntegerAttr | Integer attribute
 `num_splits` | mlir::IntegerAttr | Integer attribute
-`axis_value` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
 | Operand | Description |
 | :-----: | ----------- |
 `input` | ranked tensor of any type values
-`axis` | ranked tensor of any type values
 
 #### Results:
 

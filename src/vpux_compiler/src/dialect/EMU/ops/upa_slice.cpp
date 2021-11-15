@@ -36,5 +36,5 @@ EMU::BlobWriter::SpecificTask vpux::EMU::SliceUPAOp::serialize(EMU::BlobWriter& 
 
     const auto paramsOff = builder.Finish();
 
-    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_CopyParams});
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_SliceParams});
 }

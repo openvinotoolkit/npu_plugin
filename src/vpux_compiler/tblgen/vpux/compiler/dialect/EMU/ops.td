@@ -1679,10 +1679,8 @@ def EMU_SplitUPAOp :
 
     let arguments = (ins
         AnyRankedTensor:$input,
-        Optional<AnyRankedTensor>:$axis,
-
-        IntAttr:$num_splits,
-        OptionalAttr<IntAttr>:$axis_value
+        IntAttr:$axis,
+        IntAttr:$num_splits
     );
 
     let results = (outs
@@ -1695,7 +1693,7 @@ def EMU_SplitUPAOp :
 
     let assemblyFormat = [{
         attr-dict
-        `input` `(` $input `:` type($input) `,` $axis `:` type($axis) `)`
+        `input` `(` $input `:` type($input) `)`
         `->` type(results)
     }];
 }
@@ -1753,6 +1751,70 @@ def EMU_SliceUPAOp :
 
         I64ArrayAttr:$static_offsets,
         I64ArrayAttr:$static_sizes
+    );
+
+    let results = (outs
+        AnyRankedTensor:$result
+    );
+
+    let verifier = [{
+        return vpux::EMU::verifyOp(*this);
+    }];
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $source `:` type($source) `)`
+        `->` type(results)
+    }];
+}
+
+//
+// Reshape
+//
+
+def EMU_ReshapeUPAOp :
+        EMU_UPATaskOp<"Reshape"> {
+    let summary = "Reshape UPA SHAVE kernel";
+
+    let description = [{
+        This layer although being marked as UPA will be run
+        as native PC code in Emulator.
+    }];
+
+    let arguments = (ins
+        AnyRankedTensor:$source
+    );
+
+    let results = (outs
+        AnyRankedTensor:$result
+    );
+
+    let verifier = [{
+        return vpux::EMU::verifyOp(*this);
+    }];
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $source `:` type($source) `)`
+        `->` type(results)
+    }];
+}
+
+//
+// CopyOp
+//
+
+def EMU_CopyUPAOp :
+        EMU_UPATaskOp<"Copy"> {
+    let summary = "Copy UPA SHAVE kernel";
+
+    let description = [{
+        This layer although being marked as UPA will be run
+        as native PC code in Emulator.
+    }];
+
+    let arguments = (ins
+        AnyRankedTensor:$source
     );
 
     let results = (outs

@@ -24,8 +24,8 @@ using namespace vpux;
 // verifyOp
 //
 
-mlir::LogicalResult vpux::EMU::verifyOp(SplitUPAOp /*op*/) {
-    // TODO::Add checks
+mlir::LogicalResult vpux::EMU::verifyOp(CopyUPAOp /*op*/) {
+    // TODO::Add checks for shape and dtype, storage type (permit different quant params)
 
     return mlir::success();
 }
@@ -34,11 +34,8 @@ mlir::LogicalResult vpux::EMU::verifyOp(SplitUPAOp /*op*/) {
 // serialize
 //
 
-EMU::BlobWriter::SpecificTask vpux::EMU::SplitUPAOp::serialize(EMU::BlobWriter& writer) {
-    MVCNN::SplitParamsBuilder builder(writer);
+EMU::BlobWriter::SpecificTask vpux::EMU::CopyUPAOp::serialize(EMU::BlobWriter& writer) {
+    MVCNN::CopyParamsBuilder builder(writer);
     const auto paramsOff = builder.Finish();
-    builder.add_axis(checked_cast<uint32_t>(axisAttr().getValue().getSExtValue()));
-    builder.add_num_splits(checked_cast<uint32_t>(num_splitsAttr().getValue().getSExtValue()));
-
-    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_SplitParams});
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_CopyParams});
 }

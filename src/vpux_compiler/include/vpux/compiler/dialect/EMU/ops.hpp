@@ -70,6 +70,8 @@ mlir::LogicalResult verifyOp(NormUPAOp op);
 mlir::LogicalResult verifyOp(ConcatUPAOp op);
 mlir::LogicalResult verifyOp(SplitUPAOp op);
 mlir::LogicalResult verifyOp(SliceUPAOp op);
+mlir::LogicalResult verifyOp(ReshapeUPAOp op);
+mlir::LogicalResult verifyOp(CopyUPAOp op);
 mlir::LogicalResult verifyPostOp(mlir::Operation* op);
 
 }  // namespace EMU

@@ -843,4 +843,44 @@ def RewriteConcat :
             (createConcatUPAOp $input, $per_axis, $static_offsets, $result)
         >;
 
+//
+// IE.Reshape -> EMU.Reshape
+//
+
+def createReshapeUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::EMU::ReshapeUPAOp>($_loc, $1.getType(), $0)
+        }]>;
+
+def RewriteReshape :
+        Pat<
+            (IE_ReshapeOp:$result $input, $shape, $special_zero, $shape_value),
+            (createReshapeUPAOp $input, $result)
+        >;
+
+//
+// IE.QuantCast -> EMU.Copy
+//
+
+def createCopyUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::EMU::CopyUPAOp>($_loc, $1.getType(), $0)
+        }]>;
+
+def RewriteQuantizeCast :
+        Pat<
+            (IE_QuantizeCastOp:$result $input, $dstElemType),
+            (createCopyUPAOp $input, $result)
+        >;
+
+//
+// IE::PermuteCast -> EMU.Copy
+//
+
+def RewritePermuteCast :
+        Pat<
+            (IE_PermuteCastOp:$result $input, $dst_order, $mem_perm),
+            (createCopyUPAOp $input, $result)
+        >;
+
 #endif
