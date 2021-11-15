@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -14,7 +14,7 @@
 // clang-format off
 
 #include <ie_common.h>
-#include "ngraph_mcm_frontend/passes/fuse_scale_in_previous_weights_fq.hpp"
+#include "vpux/passes/fuse_scale_in_previous_weights_fq.hpp"
 #include <ngraph/op/constant.hpp>
 
 #include "vpux/quantization_helpers.hpp"
@@ -27,6 +27,9 @@
 #include <memory>
 #include <limits>
 #include <ngraph_ops/convolution_ie.hpp>
+
+namespace vpux {
+namespace pass {
 
 /*
  * Pass provide the logic for fusing multiply to FQ_w params
@@ -106,3 +109,6 @@ bool FuseScaleAfterClamp::run_on_function(std::shared_ptr<ngraph::Function> f) {
 
     return status;
 }
+
+}  // namespace pass
+}  // namespace vpux
