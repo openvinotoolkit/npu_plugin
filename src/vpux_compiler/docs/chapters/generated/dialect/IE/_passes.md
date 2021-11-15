@@ -117,6 +117,11 @@ It replaces IE::StridedSlice with dense<1> strides strides with a simple IE::Sli
 The pass is a part of `LowPrecision` pipeline.
 
 It splits `FakeQuantize` operations to `quant.qcast -> quant.dcast` pair.
+### `-split-fc-input-by-rows`: Split FullyConnected inputs with multiple rows
+This pass splits `FullyConnected` inputs by rows.
+
+For example, `FullyConnected` input with 2x64 geometry will be split by two inputs with 1x64 dimensions.
+Resulting vector rows go to corresponding `FullyConnected` operations and the outputs are concatenated.
 ### `-upstream-slice`: Optimization by upstreaming slice operations
 Optimizes scenarios of IE::StridedSlice and IE::SliceOp without neighboring operations.
 Moves the slice operations upwards through the graph, reducing both compute and memory usage.
