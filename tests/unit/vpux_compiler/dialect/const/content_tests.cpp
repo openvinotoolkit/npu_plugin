@@ -146,6 +146,35 @@ TEST_F(MLIR_ConstContentAttrTest, FromOpaqueElementsAttr) {
     }
 }
 
+TEST_F(MLIR_ConstContentAttrTest, FromSplatOpaqueElementsAttr) {
+    auto* dialect = ctx.getOrLoadDialect<IE::IEDialect>();
+
+    const auto baseType = mlir::RankedTensorType::get({1, 2, 3, 4}, mlir::Float32Type::get(&ctx));
+
+    const float splatVal = 4.0f;
+    const std::vector<float> splatVals(baseType.getNumElements(), 4.0f);
+
+    const auto bytes = StringRef(reinterpret_cast<const char*>(splatVals.data()), splatVals.size() * sizeof(float));
+    const auto baseAttr = mlir::OpaqueElementsAttr::get(dialect, baseType, bytes);
+
+    const auto contentAttr = Const::ContentAttr::get(baseAttr);
+    ASSERT_NE(contentAttr, nullptr);
+    EXPECT_EQ(contentAttr.getType(), baseType);
+
+    const auto content = contentAttr.fold();
+    EXPECT_EQ(content.getType(), baseType);
+    EXPECT_TRUE(content.isSplat());
+
+    EXPECT_EQ(content.getSplatValue<float>(), splatVal);
+
+    const auto contentVals = content.getValues<float>();
+    EXPECT_EQ(contentVals.size(), baseType.getNumElements());
+
+    for (size_t i = 0; i < contentVals.size(); ++i) {
+        EXPECT_EQ(contentVals[i], splatVal);
+    }
+}
+
 TEST_F(MLIR_ConstContentAttrTest, ConvertStorageElemType) {
     const auto baseType = mlir::RankedTensorType::get({1, 2, 3, 4}, mlir::Float32Type::get(&ctx));
 
