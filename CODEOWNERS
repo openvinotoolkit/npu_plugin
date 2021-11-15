@@ -61,5 +61,5 @@ CMakeLists.txt @vinograd47 @mmineeva @ArtemySkrebkov-intel
 /tools @shokinal @mmineeva
 #
 # Validation folder
-/validation @maxim-kurin @sshumihi @SokolovAndrey1
+/validation @maxim-kurin @sshumihi @andrejsokolov
 #
