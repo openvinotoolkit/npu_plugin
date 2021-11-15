@@ -204,6 +204,7 @@ std::vector<std::string> disabledTestPatterns() {
                 ".*InferRequest.*",
                 ".*OVInferRequest.*",
                 ".*ExecutableNetworkBaseTest.*",
+                ".*OVExecutableNetworkBaseTest.*",
                 ".*ExecNetSetPrecision.*",
                 ".*SetBlobTest.*",
                 ".*InferRequestCallbackTests.*",
