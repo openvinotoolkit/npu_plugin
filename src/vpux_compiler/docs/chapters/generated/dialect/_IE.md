@@ -2262,6 +2262,30 @@ operation ::= `IE.Sigmoid` `(` operands `)` attr-dict `:` type(operands) `->` ty
 | :----: | ----------- |
 `output` | ranked tensor of 16-bit float or 32-bit float values
 
+### `IE.Sinh` (vpux::IE::SinhOp)
+
+InferenceEngine Sinh layer
+
+
+Syntax:
+
+```
+operation ::= `IE.Sinh` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
 ### `IE.Slice` (vpux::IE::SliceOp)
 
 Extract single slice from tensor

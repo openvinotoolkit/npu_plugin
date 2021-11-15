@@ -50,6 +50,7 @@ std::set<ngraph::helpers::ActivationTypes> supportedTypesMLIR {
     ngraph::helpers::RoundHalfToEven,
     ngraph::helpers::RoundHalfAwayFromZero,
     ngraph::helpers::Sqrt,
+    ngraph::helpers::Sinh,
     ngraph::helpers::Log,
     ngraph::helpers::Ceiling,
 };
@@ -59,6 +60,7 @@ std::set<ngraph::helpers::ActivationTypes> supportedTypesMLIR {
 class KmbActivationLayerTest : public ActivationLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
     void SkipBeforeLoad() override {
         std::pair<ngraph::helpers::ActivationTypes, std::vector<float>> activationParam;
+
         std::tie(activationParam,
                  std::ignore, std::ignore, std::ignore, std::ignore,
                  std::ignore, std::ignore, std::ignore) = GetParam();
@@ -84,6 +86,7 @@ class KmbActivationLayerTest : public ActivationLayerTest, virtual public LayerT
     }
 };
 
+
 class KmbActivationLayerTest_MTL : public KmbActivationLayerTest {
     void SkipBeforeLoad() override {
 #if defined(__arm__) || defined(__aarch64__)
@@ -97,6 +100,7 @@ class KmbActivationLayerTest_MTL : public KmbActivationLayerTest {
         throw LayerTestsUtils::KmbSkipTestException("Runtime issue.");
     }
 };
+
 
 TEST_P(KmbActivationLayerTest, CompareWithRefs) {
     Run();
@@ -122,7 +126,8 @@ using namespace ngraph::helpers;
 namespace {
 
 const std::vector<InferenceEngine::Precision> inputPrecisions = {
-        InferenceEngine::Precision::FP32
+    InferenceEngine::Precision::FP32,
+    InferenceEngine::Precision::FP16
 };
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
@@ -140,6 +145,7 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
     {Mish,     {{1.0f}}},
     {Floor,    {{1.0f}}},
     {Sqrt,     {{1.0f}}},
+    {Sinh,     {{1.0f}}},
     {Erf,      {{1.0f}}},
     {Gelu,     {{1.0f}}},
     {Exp,      {{1.0f}}},
@@ -173,9 +179,17 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
     {Ceiling,  {{1.0f}}},
 };
 
+//const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypesSinh = {
+//     {Sinh,     {{1.0f}}},
+//};
+
 std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basic = {
     {{1, 50, 1, 1}, {{}}},
     {{1, 128, 1, 1}, {{}}},
+};
+
+std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> SinhBasic = {
+    {{1, 50, 1, 1}, {{}}},
 };
 
 std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> preluBasic = {
@@ -229,6 +243,16 @@ const auto basicFP16OnlyCases = ::testing::Combine(
     ::testing::ValuesIn(CommonTestUtils::combineParams(basic)),
     ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
 
+const auto basicSinhCases = ::testing::Combine(
+    ::testing::ValuesIn(CommonTestUtils::combineParams(activationTypes)),
+    ::testing::ValuesIn(netPrecisions),
+    ::testing::Values(InferenceEngine::Precision::FP16),
+    ::testing::Values(InferenceEngine::Precision::FP16),
+    ::testing::Values(InferenceEngine::Layout::NCHW),
+    ::testing::Values(InferenceEngine::Layout::NCHW),
+    ::testing::ValuesIn(CommonTestUtils::combineParams(SinhBasic)),
+    ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
+
 INSTANTIATE_TEST_SUITE_P(smoke_Activation_Test, KmbActivationLayerTest, basicCases, ActivationLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Activation_Test_PRelu, KmbActivationLayerTest, basicPReluCases, ActivationLayerTest::getTestCaseName);
@@ -236,6 +260,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Activation_Test_PRelu, KmbActivationLayerTest, ba
 INSTANTIATE_TEST_SUITE_P(smoke_Activation_Test_ND, KmbActivationLayerTest, basicNDCases, ActivationLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Activation_Test_FP16Only, KmbActivationLayerTest, basicFP16OnlyCases, ActivationLayerTest::getTestCaseName);
+
 
 // ------ MTL ------
 
@@ -258,5 +283,6 @@ const auto basicCasesMTL = ::testing::Combine(
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
 
 INSTANTIATE_TEST_SUITE_P(smoke_Activation_Test, KmbActivationLayerTest_MTL, basicCasesMTL, ActivationLayerTest::getTestCaseName);
+
 
 }  // namespace
