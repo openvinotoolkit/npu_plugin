@@ -78,6 +78,7 @@ const std::vector<ShapeRelatedParams> shapeRelatedParams = {{{{1, 4, 5, 6}, fals
 const std::vector<ShapeRelatedParams> fullyConnectedShapeParams = {
     {{{1, 16}, false}, {{64, 16}, true}},
     {{{2, 16}, false}, {{64, 16}, true}},
+    {{{1, 16}, false}, {{16, 64}, false}},
 };
 
 std::vector<ngraph::helpers::InputLayerType> secondaryInputTypes = {
