@@ -42,7 +42,7 @@ CMakeLists.txt @vinograd47 @mmineeva @ArtemySkrebkov-intel
 /src/frontend_mcm @ArtemySkrebkov-intel @mmineeva
 /src/hddl2_backend @ArtemySkrebkov-intel @mznamens
 /src/mcmCompiler @syao-2015 @mmineeva
-/src/mcmCompiler/src/pass/optimization @adeflume @bradyjohn
+/src/mcmCompiler/src/pass/optimization @adeflume @bradyjohn @MateuszDareckiIntel
 /src/utils @briangrifiin @mznamens
 /src/vpual_backend @briangrifiin @ArtemySkrebkov-intel
 /src/vpux_al @ArtemySkrebkov-intel @mznamens
