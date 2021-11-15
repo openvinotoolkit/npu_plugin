@@ -879,6 +879,12 @@ namespace {
 
 template <class ConcreteOp>
 mlir::LogicalResult verifyConcreteOp(ConcreteOp origOp, Logger log) {
+    const auto inputShape = getShape(origOp->getOperand(0));
+    if (inputShape[Dims4D::Act::N] != 1) {
+        log.trace("Input has unsupported batch: {0}", inputShape[Dims4D::Act::N]);
+        return mlir::failure();
+    }
+
     if (mlir::failed(VPUIP::NCEInvariant::verifyKernel(origOp, log))) {
         return mlir::failure();
     }
