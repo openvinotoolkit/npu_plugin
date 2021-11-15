@@ -67,6 +67,7 @@ std::unique_ptr<mlir::Pass> createHandleAsymmetricStridesPass(Logger log = Logge
 std::unique_ptr<mlir::Pass> createConvertToMemPermutePass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createHandleLargeStridesPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createSplitFCInputByRowsPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createFCInputsTo2dPass(Logger log = Logger::global());
 
 //
 // Low precision transformations.
