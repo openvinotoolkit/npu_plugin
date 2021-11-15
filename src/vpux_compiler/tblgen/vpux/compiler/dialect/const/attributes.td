@@ -102,6 +102,7 @@ def Const_ContentAttr : Const_Attr<"Content", [DeclareAttrInterfaceMethods<SubEl
         vpux::Const::ContentAttr padWithZero(vpux::ShapeRef padBefore, vpux::ShapeRef padAfter) const;
         vpux::Const::ContentAttr subview(vpux::ShapeRef offset, vpux::ShapeRef shape) const;
         vpux::Const::ContentAttr bitPack(int64_t width) const;
+        vpux::Const::ContentAttr transpose(vpux::DimsOrder newOrder) const;
     }];
 
     let storageType = "vpux::Const::ContentAttr";
@@ -360,6 +361,31 @@ def Const_BitPackAttr : Const_Attr<"BitPack",
         AttrBuilderWithInferredContext<
             (ins "mlir::IntegerAttr":$width), [{
                 return $_get(width.getContext(), width);
+            }]
+        >
+    ];
+
+    let storageNamespace = "details";
+    let genVerifyDecl = 1;
+    let skipDefaultBuilders = 1;
+}
+
+//
+// TransposeAttr
+//
+
+def Const_TransposeAttr : Const_Attr<"Transpose",
+        [DeclareAttrInterfaceMethods<Const_TransformAttrInterface>, DeclareAttrInterfaceMethods<SubElementAttrInterface>]> {
+    let summary = "Transpose constant content";
+
+    let parameters = (ins
+        "mlir::AffineMapAttr":$order
+    );
+
+    let builders = [
+        AttrBuilderWithInferredContext<
+            (ins "mlir::AffineMapAttr":$order), [{
+                return $_get(order.getContext(), order);
             }]
         >
     ];
