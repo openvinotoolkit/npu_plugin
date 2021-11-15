@@ -2634,21 +2634,19 @@ def VPUIP_CumSumUPAOp :
         VPUIP_UPATaskOp<1, "CumSumUPA",
             [
                 ViewLikeOpInterface,
-                IERT_SameShape,
-                IERT_SameElementType,
-                IERT_SameInOutDimsOrder
+                IERT_AnyDimsOrder
             ]
         > {
     let summary = "CumSum UPA SHAVE kernel";
 
     let arguments = (ins
         F16MemRef:$input,
-        Optional<MemRefOf<[SI32]>>:$axis,
         F16MemRef:$output_buff,
 
         Variadic<VPUIP_Barrier>:$waitBarriers,
         Variadic<VPUIP_Barrier>:$updateBarriers,
 
+        OptionalAttr<IntAttr>:$axis,
         OptionalAttr<BoolAttr>:$exclusive,
         OptionalAttr<BoolAttr>:$reverse,
 
@@ -2664,8 +2662,8 @@ def VPUIP_CumSumUPAOp :
         OpBuilder<
             (ins
                 "mlir::Value":$input,
-                "mlir::Value":$axis,
                 "mlir::Value":$output,
+                "mlir::IntegerAttr":$axis,
                 "mlir::BoolAttr":$exclusive,
                 "mlir::BoolAttr":$reverse
             )
@@ -2678,7 +2676,7 @@ def VPUIP_CumSumUPAOp :
 
     let assemblyFormat = [{
         attr-dict
-        `inputs` `(` $input `:` type($input) (`,` $axis^ `:` type($axis))? `)`
+        `inputs` `(` $input `:` type($input) `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
         (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
         (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?

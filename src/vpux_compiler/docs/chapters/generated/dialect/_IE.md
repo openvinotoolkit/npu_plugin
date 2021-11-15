@@ -600,6 +600,7 @@ operation ::= `IE.CumSum` `(` operands `)` attr-dict `:` type(operands) `->` typ
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
+`axis_value` | mlir::IntegerAttr | Integer attribute
 `exclusive` | ::mlir::BoolAttr | bool attribute
 `reverse` | ::mlir::BoolAttr | bool attribute
 

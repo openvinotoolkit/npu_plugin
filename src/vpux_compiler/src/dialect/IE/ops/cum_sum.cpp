@@ -13,8 +13,6 @@
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 
-#include "vpux/compiler/utils/error.hpp"
-
 using namespace vpux;
 
 mlir::LogicalResult vpux::IE::CumSumOp::inferReturnTypeComponents(
@@ -34,4 +32,46 @@ mlir::LogicalResult vpux::IE::CumSumOp::inferReturnTypeComponents(
     inferredReturnShapes.emplace_back(inShape, inType.getElementType());
 
     return mlir::success();
+}
+
+//
+// ConvertConstToAttr
+//
+
+namespace {
+
+class ConvertConstToAttr final : public mlir::OpRewritePattern<IE::CumSumOp> {
+public:
+    using mlir::OpRewritePattern<IE::CumSumOp>::OpRewritePattern;
+
+public:
+    mlir::LogicalResult matchAndRewrite(IE::CumSumOp cumsumOp, mlir::PatternRewriter& rewriter) const final;
+};
+
+mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::CumSumOp cumsumOp, mlir::PatternRewriter& rewriter) const {
+    auto axis = cumsumOp.axis();
+    if (axis == nullptr) {
+        return mlir::failure();
+    }
+
+    auto axisConst = cumsumOp.axis().getDefiningOp<Const::DeclareOp>();
+    if (axisConst == nullptr) {
+        return mlir::failure();
+    }
+
+    const auto axisContent = axisConst.content();
+    if (!axisContent.isSplat()) {
+        return mlir::failure();
+    }
+
+    rewriter.replaceOpWithNewOp<IE::CumSumOp>(cumsumOp, cumsumOp.getType(), cumsumOp.input(), nullptr,
+                                              rewriter.getI64IntegerAttr(axisContent.getSplatValue<int64_t>()),
+                                              cumsumOp.exclusiveAttr(), cumsumOp.reverseAttr());
+    return mlir::success();
+}
+
+}  // namespace
+
+void vpux::IE::CumSumOp::getCanonicalizationPatterns(mlir::RewritePatternSet& patterns, mlir::MLIRContext* context) {
+    patterns.insert<ConvertConstToAttr>(context);
 }

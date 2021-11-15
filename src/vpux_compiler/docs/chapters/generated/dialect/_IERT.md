@@ -570,6 +570,7 @@ operation ::= `IERT.CumSumOp` attr-dict
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
+`axis_value` | mlir::IntegerAttr | Integer attribute
 `exclusive` | ::mlir::BoolAttr | bool attribute
 `reverse` | ::mlir::BoolAttr | bool attribute
 

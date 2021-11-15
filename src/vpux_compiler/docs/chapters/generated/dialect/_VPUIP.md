@@ -399,7 +399,7 @@ Syntax:
 
 ```
 operation ::= `VPUIP.CumSumUPA` attr-dict
-              `inputs` `(` $input `:` type($input) (`,` $axis^ `:` type($axis))? `)`
+              `inputs` `(` $input `:` type($input) `)`
               `outputs` `(` $output_buff `:` type($output_buff) `)`
               (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
               (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
@@ -411,6 +411,7 @@ operation ::= `VPUIP.CumSumUPA` attr-dict
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
+`axis` | mlir::IntegerAttr | Integer attribute
 `exclusive` | ::mlir::BoolAttr | bool attribute
 `reverse` | ::mlir::BoolAttr | bool attribute
 `maxShaves` | mlir::IntegerAttr | Integer attribute
@@ -421,7 +422,6 @@ operation ::= `VPUIP.CumSumUPA` attr-dict
 | Operand | Description |
 | :-----: | ----------- |
 `input` | memref of 16-bit float values
-`axis` | memref of 32-bit signed integer values
 `output_buff` | memref of 16-bit float values
 `waitBarriers` | VPUIP Barrier Type
 `updateBarriers` | VPUIP Barrier Type

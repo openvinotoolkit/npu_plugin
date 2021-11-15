@@ -1069,15 +1069,13 @@ def RewriteCeiling :
 def createCumSumUPAOp :
         NativeCodeCall<[{
             $_builder.create<vpux::VPUIP::CumSumUPAOp>(
-                $_loc, $0,
-                $1.size() == 1 ? $1[0] : nullptr,
-                $2, $3, $4)
+                $_loc, $0, $1, $2, $3, $4)
         }]>;
 
 def RewriteCumSum :
         Pat<
-            (IERT_CumSumOp $input, $axis, $output, $exclusive, $reverse),
-            (createCumSumUPAOp $input, $axis, $output, $exclusive, $reverse)
+            (IERT_CumSumOp $input, $axis, $output, $axis_value, $exclusive, $reverse),
+            (createCumSumUPAOp $input, $output, $axis_value, $exclusive, $reverse)
         >;
 
 //

@@ -2907,8 +2907,6 @@ def IERT_CeilingOp :
 def IERT_CumSumOp :
         IERT_LayerOp<1, "CumSumOp",
             [
-                SameOperandsShape,
-                SameOperandsElementType,
                 ViewLikeOpInterface
             ]
         > {
@@ -2919,6 +2917,7 @@ def IERT_CumSumOp :
         Optional<MemRefOf<[SI64, SI32]>>:$axis,
         AnyMemRef:$output_buff,
 
+        OptionalAttr<IntAttr>:$axis_value,
         OptionalAttr<BoolAttr>:$exclusive,
         OptionalAttr<BoolAttr>:$reverse
     );

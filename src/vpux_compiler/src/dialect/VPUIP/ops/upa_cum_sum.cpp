@@ -15,9 +15,6 @@
 
 #include "vpux/compiler/dialect/VPUIP/blob_reader.hpp"
 #include "vpux/compiler/utils/error.hpp"
-#include "vpux/compiler/utils/subspaces.hpp"
-
-#include <mlir/IR/BuiltinTypes.h>
 
 using namespace vpux;
 
@@ -27,6 +24,11 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(CumSumUPAOp op) {
 
     const auto inType = op.input().getType().cast<mlir::ShapedType>().getElementType();
     const auto outType = op.output().getType().cast<mlir::ShapedType>().getElementType();
+    const auto axisNo = op.axis().getValue();
+
+    if (checked_cast<size_t>(abs(axisNo)) >= inShape.size()) {
+        return errorAt(op, "Axis '{0}' is out of range [-{1},{1}]", axisNo, inShape.size() - 1);
+    }
 
     if (inShape.size() != outShape.size()) {
         return errorAt(op, "Input shape should be same as output shape, got 'inShape: {0}' vs. 'outShape: {1}'");
@@ -40,14 +42,15 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(CumSumUPAOp op) {
 }
 
 void vpux::VPUIP::CumSumUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
-                                     mlir::Value axis, mlir::Value output, mlir::BoolAttr exclusive,
+                                     mlir::Value output, mlir::IntegerAttr axis, mlir::BoolAttr exclusive,
                                      mlir::BoolAttr reverse) {
-    build(builder, state, input, axis, output, mlir::ValueRange{}, mlir::ValueRange{}, exclusive, reverse, nullptr,
+    build(builder, state, input, output, mlir::ValueRange{}, mlir::ValueRange{}, axis, exclusive, reverse, nullptr,
           nullptr);
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::CumSumUPAOp::serialize(VPUIP::BlobWriter& writer) {
     MVCNN::CumSumParamsBuilder builder(writer);
+    builder.add_axis(axis().getValueOr(0));
     builder.add_exclusive(exclusive().getValueOr(false));
     builder.add_reverse(reverse().getValueOr(false));
 
