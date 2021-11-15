@@ -128,6 +128,65 @@ mlir::LogicalResult CreateWTableOpsConverter::matchAndRewrite(VPUIP::WeightsTabl
             mlir::RankedTensorType::get(shapedType.getShape(), getSInt32Type(rewriter.getContext()));
     const auto dataAttr = mlir::DenseElementsAttr::get(dataStorageType, makeArrayRef(weightsTable));
 
+    if (false) {
+        // pack weights table to fused constant
+        // 1 find placeholder
+        auto viewOp = createWTableOp.weights().getDefiningOp<IERT::ViewOp>();
+        if (viewOp == nullptr) {
+            _log.warning("viewOp == nullptr");
+            return mlir::failure();
+        }
+
+        auto subviewOp = viewOp.source().getDefiningOp<IERT::SubViewOp>();
+        if (subviewOp == nullptr) {
+            _log.warning("subviewOp == nullptr");
+            return mlir::failure();
+        }
+
+        auto staticAllocOp = subviewOp.source().getDefiningOp<IERT::StaticAllocOp>();
+        if (staticAllocOp == nullptr) {
+            _log.warning("staticAllocOp == nullptr");
+            return mlir::failure();
+        }
+
+        _log.warning("staticAllocOp {0}", staticAllocOp);
+        // 2 write data into constant by offset = weights size
+
+        // 3 replace weights table copy op by subview + view ops
+        // 3.1 Find copt op to replace
+        const auto copyOp = mlir::dyn_cast_or_null<IERT::CopyOp>(*(createWTableOp.output().getUsers().begin()));
+        if (copyOp == nullptr) {
+            _log.warning("copyOp == nullptr");
+            return mlir::failure();
+        }
+
+        int64_t size = static_cast<int64_t>(weightsTable.size()) * 4;
+        SmallVector<int64_t> weightsTableSize({size});
+        auto weightsSize = vpux::getTotalSize(createWTableOp.weights()).count();
+        SmallVector<int64_t> weightsSizes({weightsSize});
+        vpux::ShapeRef weightsTableOffsets(weightsSizes);
+
+        auto subViewOp =
+                rewriter.create<IERT::SubViewOp>(copyOp->getLoc(), staticAllocOp.memory(), weightsTableOffsets,
+                                                 vpux::ShapeRef(parseIntArrayAttr<int64_t>(getIntArrayAttr(
+                                                         rewriter.getContext(), weightsTableSize))));  // .getResult()
+
+        _log.warning("subViewOp: {0}", subViewOp);
+
+        const auto outTypeMemSpace =
+                changeMemSpace(outType.cast<mlir::MemRefType>(),
+                               VPUIP::PhysicalMemoryAttr::get(rewriter.getContext(), VPUIP::PhysicalMemory::CMX_NN));
+
+        _log.warning("outTypeMemSpace: {0}", outTypeMemSpace);
+
+        auto viewOpWT = rewriter.create<IERT::ViewOp>(copyOp->getLoc(), subViewOp.result(), outType);
+
+        _log.warning("Op to replace : {0}", copyOp);
+        _log.warning("Replace with  : {0}", viewOpWT);
+        rewriter.replaceOp(copyOp, mlir::ValueRange({subViewOp.getResult()}));
+        return mlir::success();
+    }
+
     rewriter.replaceOpWithNewOp<Const::DeclareOp>(createWTableOp, outType, Const::ContentAttr::get(dataAttr));
 
     return mlir::success();

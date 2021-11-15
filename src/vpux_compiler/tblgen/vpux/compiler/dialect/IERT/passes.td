@@ -123,6 +123,20 @@ def TimestampProfiling : PassBase<"profiling-timestamp", "vpux::ModulePass"> {
     }];
 }
 
+//
+// FuseConstants
+//
+
+def FuseConstants : PassBase<"fuse-constants", "vpux::FunctionPass"> {
+    let summary = "Fuse contant inputs of NCEClusterOp";
+
+    let description = [{
+        Cncatenate all input cnstants into one.
+    }];
+
+    let constructor = "vpux::IERT::createFuseConstantsPass()";
+}
+
 //=================================================================================
 // Asynchronous Scheduling
 //=================================================================================

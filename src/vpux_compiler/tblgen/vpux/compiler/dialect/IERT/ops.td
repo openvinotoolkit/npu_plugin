@@ -2269,6 +2269,45 @@ def IERT_LSTMSequenceOp :
 }
 
 //
+// ViewOp
+//
+
+def IERT_ViewOp :
+        IERT_Op<
+            "View",
+            [
+                NoSideEffect,
+                DeclareOpInterfaceMethods<ViewLikeOpInterface>,
+                DeclareOpInterfaceMethods<InferTypeOpInterface>
+            ]
+        > {
+    let summary = "Extract single subview from buffer and change type";
+
+    let arguments = (ins
+        AnyMemRef:$source,
+
+        TypeAttr:$new_type
+    );
+
+    let results = (outs
+        AnyMemRef:$result
+    );
+
+    let assemblyFormat = [{
+        $source $new_type
+        attr-dict `:` type($source) `to` type(results)
+    }];
+
+    let builders = [
+        OpBuilder<
+           (ins "mlir::Value":$source, "mlir::MemRefType":$new_type)
+        >
+    ];
+
+    // let hasFolder = 1;
+}
+
+//
 // SubViewOp
 //
 
