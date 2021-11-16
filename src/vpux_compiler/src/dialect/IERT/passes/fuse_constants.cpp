@@ -70,26 +70,10 @@ vpux::Const::DeclareOp createFusedConstant(vpux::Const::DeclareOp weights_consta
     // actually raw buffer can get by this
     const auto origWeightsRawBuf = weightsContent.getRawStorageBuf().data();
 
-    log.warning(" Element type size {0}  Complete type {1} getStorageElemType {2} getElementType {3}",
-                weightsContent.getElemTypeSize().count() / 8, weights_constant.contentAttr().getType(),
-                weightsContent.getStorageElemType(), weightsContent.getElementType());
-
     if ((weightsContent.getElemTypeSize().count() / 8) < 2) {
-        log.warning("Quantized type");
+        log.trace("Quantized type");
     }
 
-    /*auto weightsValues = weightsContent.getValues<float16>();
-    std::vector<float16> weightsValuesBuf(0);
-    for (auto value : weightsValues) {
-        weightsValuesBuf.push_back(value);
-    }
-
-    // fill weights table with zeroes
-    for (int i = 0; i < weights_table_size.count() / 2; ++i) {
-        weightsValuesBuf.push_back(0);
-    }
-
-    auto rawWeights = reinterpret_cast<char*>(weightsValuesBuf.data()); */
     const auto rawWeightsBuffer = makeArrayRef(origWeightsRawBuf, total_size);
     bool isSplatBuffer = false;
     VPUX_THROW_UNLESS(mlir::DenseElementsAttr::isValidRawBuffer(fusedTensorType, rawWeightsBuffer, isSplatBuffer),
@@ -162,38 +146,7 @@ mlir::LogicalResult FuseConstants::matchAndRewrite(VPUIP::NCEClusterTaskOp nceOp
     // 5.2 Reinterpret U8 memref as FP16 memref auto castViewOp =
     rewriter.replaceOpWithNewOp<IERT::ViewOp>(copyWeightsOp, subViewOp.result(), copyWeightsOp.output_buff().getType());
 
-    /* Use mlir::memref::ViewOp instead of new view op
-
-    auto offsetConst = rewriter.create<mlir::arith::ConstantIndexOp>(weightsConstant.getLoc(), 0);
-    auto offsetConstValue = mlir::Value(offsetConst);
-    _log.warning("offsetConstValue: {0}", offsetConstValue);
-    // new shapes
-
-    const auto shape = vpux::getShape(copyWeightsOp.output_buff());  // .getType().cast<mlir::ShapedType>()
-    mlir::SmallVector<mlir::Value> dims;
-    for (auto dim : shape) {
-        auto dimValue = mlir::Value(rewriter.create<mlir::arith::ConstantIndexOp>(weightsConstant.getLoc(), dim));
-        dims.push_back(dimValue);
-    }
-    auto resultShape = mlir::ValueRange(dims);
-
-    auto mlirViewOp =
-            rewriter.create<mlir::memref::ViewOp>(weightsConstant.getLoc(), weightsConstant->getOpResult(0).getType(),
-                                                  subViewOp.result(), offsetConst, resultShape);
-
-    _log.warning("mlirViewOp: {0}", mlirViewOp);
-
-        getMemRefType(shape);
-        auto dstOrder = DimsOrder::fromType(copyWeightsOp.output_buff().getType().cast<mlir::ShapedType>());
-        auto newOrder = dstOrder.toAffineMap(getContext());
-        auto permuteCastOp = rewriter.create<IERT::PermuteCastOp>(
-                weightsConstant.getLoc(), copyWeightsOp.output_buff().getType(), viewOp.getResult(), newOrder,
-       newOrder); _log.warning("permuteCastOp: {0}", permuteCastOp);
-        */
-
-    // _log.warning("viewOp: {0}", castViewOp);
-
-    // 6 replace weights table input from old memref to new memref via same sequence memref -> subview -> view
+     // 6 replace weights table input from old memref to new memref via same sequence memref -> subview -> view
     // 6.1 create subview from memref
     /*auto subViewOpWT = rewriter.create<IERT::SubViewOp>(
             weightsConstant.getLoc(), copyOp.output_buff(), weightsOffsets,
@@ -208,10 +161,8 @@ mlir::LogicalResult FuseConstants::matchAndRewrite(VPUIP::NCEClusterTaskOp nceOp
     // copyWeightsOp.output_buff().getType());
 
     {
-        // const auto copyOp = mlir::dyn_cast_or_null<IERT::CopyOp>(*(createWTableOp.output().getUsers().begin()));
         auto weightsTableCopyOp = weightsTable.getDefiningOp<IERT::CopyOp>();
         if (weightsTableCopyOp == nullptr) {
-            _log.warning("copyOp == nullptr");
             return mlir::failure();
         }
 
