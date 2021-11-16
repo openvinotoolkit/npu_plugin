@@ -245,9 +245,27 @@ flatbuffers::Offset<MVCNN::ActKernelRuntime> createActKernelRuntime(VPUIP::BlobW
             writer.createKernelDataRef("scratch_buffer", vpux::VPUIP::MemoryLocation::GFEmbeddedKernel,
                                        non_empty_offset, scratch_buffer.size() - 1024, scratch_buffer);
 
+    // TODO : check that arguments in given function
+    auto actKernelDesc = writer.compileManagementKernelData();
+
+    // this is the only supported storage so far
+    const auto kernelStorageLocale = vpux::VPUIP::MemoryLocation::GFEmbeddedKernel;
+
+    auto kernelText = writer.createKernelDataRef(actKernelDesc.text, kernelStorageLocale);
+    auto kernelData = writer.createKernelDataRef(actKernelDesc.data, kernelStorageLocale);
+
+    MVCNN::ActKernelBuilder kernelbuilder(writer);
+    kernelbuilder.add_kernelText(kernelText);
+    kernelbuilder.add_type(MVCNN::ActKernelType_KERNEL);
+    kernelbuilder.add_kernelEntry(0);
+    kernelbuilder.add_globalArgs(kernelData);
+
+    auto kernel = kernelbuilder.Finish();
+
     MVCNN::ActKernelRuntimeBuilder builder(writer);
     builder.add_shaveStacks(stackBuffers);
     builder.add_codeScratchBuffer(scratchBuffer);
+    builder.add_kernel(kernel);
 
     return builder.Finish();
 }
