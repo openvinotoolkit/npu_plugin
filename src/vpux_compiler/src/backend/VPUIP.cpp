@@ -252,13 +252,11 @@ flatbuffers::Offset<MVCNN::ActKernelRuntime> createActKernelRuntime(VPUIP::BlobW
     const auto kernelStorageLocale = vpux::VPUIP::MemoryLocation::GFEmbeddedKernel;
 
     auto kernelText = writer.createKernelDataRef(actKernelDesc.text, kernelStorageLocale);
-    auto kernelData = writer.createKernelDataRef(actKernelDesc.data, kernelStorageLocale);
 
     MVCNN::ActKernelBuilder kernelbuilder(writer);
     kernelbuilder.add_kernelText(kernelText);
     kernelbuilder.add_type(MVCNN::ActKernelType_KERNEL);
     kernelbuilder.add_kernelEntry(0);
-    kernelbuilder.add_globalArgs(kernelData);
 
     auto kernel = kernelbuilder.Finish();
 
@@ -614,7 +612,8 @@ flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, mli
                     alignReferenceSection(invocation->invocationArgs(), offset);
                 }
 
-                // scratchBuffer aligning
+                // TODO:  add management kernel-> text section aligning
+                // kernel scratchBuffer aligning
                 auto scratchBuffer = serializedGraphFile->header()->act_kernel_runtime()->codeScratchBuffer();
                 alignSection(scratchBuffer, ".scratchBuffer");
             }
