@@ -2660,7 +2660,6 @@
                 "VPUX_EXECUTOR_STREAMS":"1"
             },
             "BenchmarkApp" : {
-                "disabled" : true,
                 "input_folder" : "1280x720"
             },
             "NetTest-CalcRef" : {
@@ -2670,7 +2669,6 @@
                 "disabled" : true
             },
             "AccuracyCheck" : {
-                "disabled" : true,
                 "config": "deblur_aa.yml",
                 "subsample_size": 10
             },
@@ -2956,7 +2954,6 @@
                 "VPUX_EXECUTOR_STREAMS": "2"
             },
             "BenchmarkApp" : {
-                "disabled" :  true,
                 "input_folder" : "224x224"
             },
             "NetTest": {
@@ -2968,7 +2965,6 @@
                 ]
             },
             "AccuracyCheck" : {
-                "disabled" :  true,
                 "config": "mobilenet-v3-large-1.0-224-tf.yml",
                 "subsample_size": 100
             },
@@ -3287,7 +3283,8 @@
                 ]
             },
             "AccuracyCheck" : {
-                "disabled" : true
+                "config": "styleTransfer-BDK",
+                "subsample_size": 10
             },
             "CI-options" : {
                 "blob_name" : "bdk_StyleTransfer",
