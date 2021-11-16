@@ -222,7 +222,8 @@ protected:
     ExecutableNetwork getExecNetwork(
             const std::function<CNNNetwork()>& netCreator,
             const std::function<CompileConfig()>& configCreator,
-            const bool forceCompilation = false);
+            const bool forceCompilation = false,
+            const RemoteContext::Ptr& remoteContext = nullptr);
 
     void compareWithReference(
             const BlobMap& actualOutputs,

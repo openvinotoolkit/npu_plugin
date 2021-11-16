@@ -58,7 +58,7 @@ protected:
     void SetUp() override;
     void TearDown() override;
     TestNetwork buildSimpleNet(const std::string& netName, const IE::Layout layout, const IE::Precision precision,
-        const IE::SizeVector& dims, const float minValue, const float maxValue);
+        const IE::SizeVector& dims, const float minValue, const float maxValue, const IE::RemoteContext::Ptr& remoteContext);
 
     IE::CNNNetwork _cnnNet;
     IE::ExecutableNetwork _exeNet;
@@ -81,21 +81,21 @@ void VpuxRemoteBlobRoiTests::SetUp() {
     }
     SKIP_ON("LEVEL0", "EMULATOR", "VPUAL", "HDDL2-specific test");
 
+    // Init context map and create context based on it
+    _workloadId = WorkloadContext_Helper::createAndRegisterWorkloadContext();
+    const auto contextParams = Remote_Context_Helper::wrapWorkloadIdToMap(_workloadId);
+    _remoteContext = core->CreateContext("VPUX", contextParams);
+
     // Generate networks, initialize parameters
     IE::Layout layout;
     IE::Precision precision;
     IE::SizeVector dims;
     std::tie(layout, precision, dims, _roiBegin, _roiEnd) = GetParam();
-    TestNetwork testNet = buildSimpleNet("simpleNetwork", layout, precision, dims, _minValue, _maxValue);
+    TestNetwork testNet = buildSimpleNet("simpleNetwork", layout, precision, dims, _minValue, _maxValue, _remoteContext);
     _exeNet = getExecNetwork(testNet);
     _cnnNet = testNet.getCNNNetwork();
     _inputInfo = _exeNet.GetInputsInfo().begin()->second;
     ASSERT_EQ(dims, _inputInfo->getTensorDesc().getDims());
-
-    // Init context map and create context based on it
-    _workloadId = WorkloadContext_Helper::createAndRegisterWorkloadContext();
-    const auto contextParams = Remote_Context_Helper::wrapWorkloadIdToMap(_workloadId);
-    _remoteContext = core->CreateContext("VPUX", contextParams);
 }
 
 void VpuxRemoteBlobRoiTests::TearDown() {
@@ -127,7 +127,7 @@ std::string VpuxRemoteBlobRoiTests::getTestCaseName(const testing::TestParamInfo
 }
 
 TestNetwork VpuxRemoteBlobRoiTests::buildSimpleNet(const std::string& netName, const IE::Layout layout, const IE::Precision precision,
-    const IE::SizeVector& dims, const float minValue, const float maxValue) {
+    const IE::SizeVector& dims, const float minValue, const float maxValue, const IE::RemoteContext::Ptr& remoteContext) {
     const auto userInDesc = TensorDesc(precision, dims, layout);
     registerBlobGenerator("term2", userInDesc, [&](const TensorDesc& desc) {
         return genBlobUniform(desc, rd, minValue, maxValue);
@@ -144,6 +144,7 @@ TestNetwork VpuxRemoteBlobRoiTests::buildSimpleNet(const std::string& netName, c
         .setUserOutput(PortInfo("sum"), precision, layout)
         .addNetOutput(PortInfo("sum"))
         .setCompileConfig({{VPUX_CONFIG_KEY(COMPILER_TYPE), VPUX_CONFIG_VALUE(MLIR)}})
+        .setRemoteContext(remoteContext)
         .finalize(netName);
 
     return testNet;
