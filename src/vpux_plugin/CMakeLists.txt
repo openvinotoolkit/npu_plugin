@@ -133,7 +133,7 @@ if(AARCH64)
                     $<TARGET_PROPERTY:XLink,IMPORTED_LOCATION_NOCONFIG>
                     $<TARGET_PROPERTY:RemoteFlic,IMPORTED_LOCATION_NOCONFIG>
             DESTINATION ${IE_CPACK_LIBRARY_PATH}
-            COMPONENT ${VPUX_DEVICE_NAME})
+            COMPONENT ${VPUX_PLUGIN_COMPONENT})
 endif()
 
 set(ALL_PLUGINS)
@@ -160,6 +160,7 @@ if(AARCH64)
             "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR}/vpu/"
         COMMENT "[Firmware] Copy vpu.bin"
     )
+
     add_custom_target(vpual_copy ALL
         COMMAND ${CMAKE_COMMAND} -E make_directory
             "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR}/vpu"
@@ -168,7 +169,18 @@ if(AARCH64)
             "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR}/vpu/"
         COMMENT "[VPUAL] Copy libraries"
     )
+
     add_dependencies(${VPUX_PLUGIN_TARGET} vpual_copy vpu_bin_copy)
+
+    install(DIRECTORY   "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/artifacts/vpuip_2/"
+            DESTINATION "${IE_CPACK_RUNTIME_PATH}/vpu"
+            COMPONENT    ${VPUX_PLUGIN_COMPONENT}
+            FILES_MATCHING
+            PATTERN "*.bin")
+
+    install(DIRECTORY   "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/artifacts/vpualHostInstallPackage/lib/"
+            DESTINATION "${IE_CPACK_RUNTIME_PATH}/vpu"
+            COMPONENT    ${VPUX_PLUGIN_COMPONENT})
 endif()
 
 
