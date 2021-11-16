@@ -114,15 +114,14 @@ mlir::ShapedType vpux::Const::TransposeAttr::inferOutputType(mlir::ShapedType in
 Const::Content vpux::Const::TransposeAttr::transform(vpux::Const::Content& input) const {
     // FIXME this whole part was borrowed from reorder transformation as is.
     // Find a way to re-use this code.
-    auto output = Const::Content::allocTempBuffer(inferOutputType(input.getType()), input.getStorageElemType(),
-                                                  input.isSplat());
+    auto output = Const::Content::allocTempBuffer(input.getType(), input.getStorageElemType(), input.isSplat());
 
     const auto inBuf = input.getRawStorageBuf();
     auto outBuf = output.getRawTempBuf();
     VPUX_THROW_UNLESS(outBuf.size() == inBuf.size(), "Storage buffer size mismatch in 'TransposeAttr'");
 
     const auto inOrder = DimsOrder::fromType(input.getType());
-    const auto outOrder = DimsOrder::fromType(output.getType());
+    const auto outOrder = DimsOrder::fromAffineMap(getOrder().getValue());
     VPUX_THROW_UNLESS(inOrder.numDims() == outOrder.numDims(), "Can't transpose from '{0}' to '{1}'", inOrder,
                       outOrder);
 
@@ -185,7 +184,12 @@ Const::Content vpux::Const::TransposeAttr::transform(vpux::Const::Content& input
         }
     }
 
-    return output;
+    auto transposedOutput = Const::Content::allocTempBuffer(inferOutputType(input.getType()),
+                                                            input.getStorageElemType(), input.isSplat());
+    auto transposedOutputBuf = transposedOutput.getRawTempBuf();
+    std::copy_n(outBuf.data(), outBuf.size(), transposedOutputBuf.data());
+
+    return transposedOutput;
 }
 
 //
