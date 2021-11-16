@@ -418,17 +418,64 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
           schedule_state.str());
   }
 
+  // mv::OpModel opModel(model);
+
+  // for (auto currOp : scheduled_ops) {
+  //   for (auto nextOp : scheduled_ops) {
+  //     if ((currOp.schedule_time_ + 1) == nextOp.schedule_time_) {
+  //       // insert edge from curr to next
+  //       auto source = currOp.op_;
+  //       auto sink = nextOp.op_;
+  //       mv::Data::OpListIterator src_itr = opModel.getOp(source->getName());
+  //       mv::Data::OpListIterator sink_itr = opModel.getOp(sink->getName());
+  //       if (!opModel.pathExists(sink_itr, src_itr) && !opModel.pathExists(src_itr, sink_itr))
+  //       {
+  //         mv::Data::TensorIterator src_tensor_itr = src_itr->getOutputTensor(0UL);
+  //         opModel.defineFlow(src_tensor_itr, sink_itr, 0UL);
+  //       }
+  //       // control_edge_t new_edge(source, sink);
+  //       // new_edges.push_back(new_edge);
+  //     }
+  //   }
+  // }
+
   ////////////////////// Control Edge Generation ///////////////////////////////
   mv::ControlModel cmodel(model);
   control_edge_set_t control_edges(cmodel);
   bool generate_temporal_edges = !passDesc.hasAttr("no_temporal_edges");
-  control_edge_generator_t algo;
+  // control_edge_generator_t algo;
 
   control_edges.set_zero_indegree_temporal_control(
       passDesc.hasAttr("zero_degree_temporal_edges") );
 
-  algo.generate_control_edges(scheduled_ops.begin(), scheduled_ops.end(),
-      control_edges);
+  // algo.generate_control_edges(scheduled_ops.begin(), scheduled_ops.end(),
+  //     control_edges);
+
+  std::vector<control_edge_t> new_edges = {};
+  for (auto currOp : scheduled_ops) {
+    if (currOp.op_->isImplicit()) { continue; }
+    bool implicitSkipped = true;
+    for (auto nextOp : scheduled_ops) {
+      if (nextOp.op_->isImplicit()) {
+        implicitSkipped = false;
+      }
+      else if (((currOp.schedule_time_ + 1) == nextOp.schedule_time_) ||
+                (!implicitSkipped && ((currOp.schedule_time_ + 1) < nextOp.schedule_time_))) {
+        // insert edge from curr to next
+        auto source = currOp.op_;
+        auto sink = nextOp.op_;
+        // if (source->isImplicit() || sink->isImplicit()) {
+        //   std::cout << "implicit" << std::endl;
+        //   continue;
+        // }
+        control_edge_t new_edge(source, sink);
+        // std::cout << "add edge from: " << source->getName() << " to " << sink->getName() << std::endl;
+        new_edges.push_back(new_edge);
+        implicitSkipped = true;
+      }
+    }
+  }
+  control_edges.add_control_edges(model, new_edges.begin(), new_edges.end());
 
   std::unordered_set<std::string> scheduled_ops_set;
   for (auto itr=scheduled_ops.begin(); itr != scheduled_ops.end(); ++itr) {
